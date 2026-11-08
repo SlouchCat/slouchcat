@@ -31,13 +31,11 @@ interface ItemGridProps {
   below?: (item: ItemRef) => ReactNode;
   /** The watch state on each card: a check mark when finished, else the progress (library). */
   showWatched?: boolean;
-  /** The age rating on each card that has one (library of films and series). */
-  showRating?: boolean;
   /** Extra class of the grid (the library's column count). */
   className?: string;
   /**
-   * A control beside the card's link in the same cell, over the cover (the library's pen,
-   * concept 15 7.4): after the link in the Tab order, outside the arrow-key navigation.
+   * A control beside the card's link, over the cover (the library's pen, concept 15 7.4): after
+   * the link in the Tab order, outside the arrow-key navigation (PosterCard `tool`).
    */
   tool?: (item: ItemRef) => ReactNode;
 }
@@ -49,7 +47,6 @@ export function ItemGrid({
   label,
   below,
   showWatched = false,
-  showRating = false,
   className,
   tool,
 }: ItemGridProps) {
@@ -79,11 +76,6 @@ export function ItemGrid({
               posterSmallUrl={imageUrl(item.images.posterSmall)}
               accent={item.accent}
               shape={audio ? 'square' : 'poster'}
-              badge={
-                showRating && item.rating !== undefined
-                  ? t('rating.fsk', { age: item.rating })
-                  : undefined
-              }
               watchedLabel={
                 progress?.completed
                   ? t(audio ? 'library.status.heard' : 'library.status.watched')
@@ -99,8 +91,8 @@ export function ItemGrid({
                     }
                   : undefined
               }
+              tool={tool?.(item)}
             />
-            {tool && <div className={styles.tool}>{tool(item)}</div>}
             {below?.(item)}
           </li>
         );

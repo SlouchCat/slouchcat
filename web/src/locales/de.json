@@ -31,14 +31,21 @@
     "menu": "Menü",
     "menuClose": "Menü schliessen",
     "libraries": "Meine Medien",
-    "toggleLibraries": "Meine Medien ein- oder ausklappen",
     "libraryLabel_one": "{{name}}, {{count}} Titel",
     "libraryLabel_other": "{{name}}, {{count}} Titel",
     "librariesOffline": "Offline: Bibliotheken nicht verfügbar",
     "librariesOfflineLink": "Zu den Downloads",
     "hideSidebar": "Seitenleiste ausblenden",
     "showSidebar": "Seitenleiste einblenden",
-    "radio": "Radio"
+    "radio": "Radio",
+    "account": "Konto",
+    "switchProfileShort": "Wechseln",
+    "switchProfileCard": "Profil wechseln, jetzt {{name}}",
+    "profileRole": {
+      "other": "Weiteres Profil",
+      "primary": "Hauptprofil",
+      "admin": "Server-Admin"
+    }
   },
   "system": {
     "server": {
@@ -424,7 +431,7 @@
   },
   "home": {
     "title": "Startseite",
-    "picks": "Cat's Empfehlungen",
+    "picks": "User-Empfehlungen",
     "rows": {
       "continue": "Weiterschauen",
       "recent": "Neu hinzugefügt",
@@ -605,7 +612,7 @@
       "hint": "Bei neuen Folgen benachrichtigen"
     },
     "collections": "Sammlungen",
-    "addToPicks": "Zu Cat's Empfehlungen",
+    "addToPicks": "Zu den User-Empfehlungen",
     "logoAlt": "{{title}}"
   },
   "rating": {
@@ -2053,7 +2060,7 @@
       }
     },
     "picks": {
-      "title": "Cat's Empfehlungen",
+      "title": "User-Empfehlungen",
       "intro": "Von Hand ausgesuchte Titel als eigene Reihe der Startseite. Für alle Profile oder für einzelne; jedes Profil sieht nur Titel seiner Altersstufe und nur im gewählten Zeitraum.",
       "list": "Empfehlungen in der Reihenfolge der Reihe",
       "empty": "Noch keine Empfehlung. Ohne Empfehlung zeigt die Startseite kein Karussell.",
@@ -2130,7 +2137,7 @@
         "description": "Suche einen Titel und wähle, für wen er empfohlen wird. Neue Empfehlungen kommen ans Ende.",
         "submit": "Hinzufügen",
         "submitting": "Wird hinzugefügt …",
-        "done": "{{title}} ist in Cat's Empfehlungen.",
+        "done": "{{title}} ist in den User-Empfehlungen.",
         "titleRequired": "Wähle zuerst einen Titel.",
         "presetMissing": "Den Titel aus dem Link gibt es nicht mehr. Suche ihn neu."
       },
@@ -2144,7 +2151,7 @@
       "remove": {
         "action": "Entfernen",
         "label": "{{title}} entfernen",
-        "title": "{{title}} aus Cat's Empfehlungen entfernen?",
+        "title": "{{title}} aus den User-Empfehlungen entfernen?",
         "body": "Der Titel bleibt in der Bibliothek, nur die Empfehlung verschwindet.",
         "confirm": "Entfernen",
         "done": "{{title}} ist nicht mehr empfohlen."
@@ -2476,7 +2483,7 @@
         "title": "Spotlight"
       },
       "picks": {
-        "title": "Cat's Empfehlungen"
+        "title": "User-Empfehlungen"
       },
       "collections": {
         "title": "Sammlungen"
@@ -4445,8 +4452,8 @@
   },
   "picks": {
     "page": {
-      "title": "Cat's Empfehlungen",
-      "intro": "Titel, die Cat für dich ausgesucht hat, in Cats Reihenfolge.",
+      "title": "User-Empfehlungen",
+      "intro": "Titel, die für dich ausgesucht wurden, in der gewählten Reihenfolge.",
       "count_one": "{{count}} Titel",
       "count_other": "{{count}} Titel"
     }

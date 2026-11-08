@@ -117,7 +117,7 @@ Zwölf Fragen in drei Runden plus zwei Nachträge, Wortlaut in Abschnitt 11:
 | F-11 | **Seitenleiste ab 768 px** (Tablet, auch hochkant) |
 | F-12 | **Hörbücher: Buchstabenleiste nach Titel; «Autor» als zusätzliche Sortierung** nur dort |
 | N-1 | Nachtrag: **«Cat's Empfehlungen» als Eintrag unter «Meine Medien»** mit eigener Seite |
-| N-2 | Nachtrag: **keine Symbole** in der Seitenleiste. Damit gibt es keinen schmalen Symbolzustand; «Einklappen» heisst **ausblenden**, das Menü-Symbol oben links öffnet dann die Schublade |
+| N-2 | Nachtrag: **keine Symbole** in der Seitenleiste. Damit gibt es keinen schmalen Symbolzustand; «Einklappen» heisst **ausblenden**, das Menü-Symbol oben links öffnet dann die Schublade. *Nachtrag 8. November 2026 (Konzept 17, F-13):* die Seitenleiste hat jetzt Symbole; einen schmalen Symbolzustand gibt es weiterhin nicht |
 | N-3 | Nachtrag: **auf dem Handy drei Cover je Reihe** sichtbar, ganz, nicht angeschnitten |
 | N-4 | Nachtrag: **Reihen rasten links an der Kante ein**; ein links angeschnittenes Cover (wie in Marcos Bildschirmfoto) darf nicht vorkommen, auch nicht nach dem automatischen Weiterrücken der Spotlight-Reihe |
 
@@ -305,6 +305,13 @@ zurück auf das Menü-Symbol). Inhalt und Reihenfolge, **ohne Symbole** (N-2):
 blendet die Leiste aus (Zustand je Gerät); dann erscheint das Menü-Symbol auch über 768 px und
 öffnet die Schublade, in deren Fuss «Seitenleiste einblenden» steht. Das ist die Antwort auf den
 Fernseher-Browser (12.5).
+
+*Nachtrag 8. November 2026 (Konzept 17, F-13, `17-detailseiten.md` Abschnitt 9):* Die Leiste
+folgt jetzt Variante B «mit Profilkopf»: oben eine Karte mit dem aktiven Profil und «Wechseln»,
+vor jedem Eintrag ein Symbol, «Meine Medien» und «Konto» als Bänder wie in der Verwaltung. N-2
+gilt damit nur noch zur Hälfte: Symbole gibt es, einen schmalen Symbolzustand weiterhin nicht
+(ausblenden statt einklappen bleibt). «Meine Medien» ist **immer offen**; das Zuklappen und der
+Gerätespeicher `slouchcat.sidenav.libraries` aus Punkt 2 fallen weg.
 
 `AppHeader` behält Menü-Symbol (unter 768 px oder bei ausgeblendeter Leiste), Suche, Glocke und
 Profilwechsel; Pillen, Update-Hinweis und Abmelden ziehen in die Leiste. Die Taste `/` bleibt.

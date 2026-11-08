@@ -20,7 +20,7 @@ Einzige Quelle für Farben, Typografie, Abstände, Radien, Bewegung und Ebenen d
 | `color.accent.<name>.base/.on`                           | 8 Akzentfarben je Profil (ember, coral, amber, lime, teal, sky, violet, rose) mit Textfarbe |
 | `font.*`                                                 | Schriftfamilie, Grössen, Gewichte, Zeilenhöhen, Laufweite                                   |
 | `space.*`                                                | Abstände auf 4-px-Basis                                                                     |
-| `radius.*`, `focus.ring.*`                               | Eckenradien, Breite und Abstand des Fokusrings                                              |
+| `radius.*`, `focus.*`, `tool.hover.scale`                | Eckenradien, Fokusring, Fokusvergrösserung, Vergrösserung kleiner Werkzeuge (Stift)         |
 | `motion.*`                                               | Dauer (fast 120 ms, focus 180 ms ≤ 200 ms, enter, exit) und Kurven                          |
 | `z.*`                                                    | Ebenen (base bis toast)                                                                     |
 | `control.*`, `panel.*`, `table.*`, `page.*`, `section.*` | Komponententokens (Konzept 12, ADR 0020), Standard = heutiger Wert der allgemeinen Skala    |

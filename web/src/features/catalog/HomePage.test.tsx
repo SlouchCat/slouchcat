@@ -36,7 +36,8 @@ describe('start page', () => {
       'href',
       `/items/${ids.heat}`,
     );
-    expect(within(hero).getByText('FSK 16')).toBeVisible();
+    // No age rating under the title (concept 17 F-10).
+    expect(within(hero).queryByText('FSK 16')).not.toBeInTheDocument();
 
     const headings = screen
       .getAllByRole('heading', { level: 2 })
@@ -801,7 +802,9 @@ describe('start page', () => {
       '/settings/profiles',
     );
     expect(within(nav).queryByRole('link', { name: 'Bibliotheken' })).not.toBeInTheDocument();
-    expect(screen.getByText('Marco')).toBeVisible();
+    // The name stands in the header and on the side navigation's profile card (concept 17, D-8).
+    expect(within(screen.getByRole('banner')).getByText('Marco')).toBeVisible();
+    expect(within(nav).getByText('Marco')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Abmelden' })).toBeVisible();
   });
 
@@ -839,7 +842,7 @@ describe('start page', () => {
         }),
     });
     renderApp('/');
-    const picks = await screen.findByRole('region', { name: "Cat's Empfehlungen" });
+    const picks = await screen.findByRole('region', { name: 'User-Empfehlungen' });
     expect(within(picks).getByRole('link', { name: /Heat/ })).toHaveTextContent(
       'Unbedingt im Kino-Modus schauen.',
     );
@@ -863,7 +866,7 @@ describe('start page', () => {
       .getAllByRole('heading', { level: 2 })
       .map((heading) => heading.textContent);
     expect(headings).toEqual([
-      "Cat's Empfehlungen",
+      'User-Empfehlungen',
       'Weiterschauen',
       'Neu hinzugefügt',
       'Merkliste',
@@ -961,7 +964,7 @@ describe('start page', () => {
       expect(within(stage).getByRole('heading', { name: 'Arrival' })).toBeVisible();
       expect(carousels()).toHaveLength(1);
 
-      const picks = screen.getByRole('region', { name: "Cat's Empfehlungen" });
+      const picks = screen.getByRole('region', { name: 'User-Empfehlungen' });
       expect(picks).not.toHaveAttribute('aria-roledescription');
       expect(within(picks).getByRole('link', { name: /Heat/ })).toHaveTextContent(note);
     });
@@ -978,7 +981,7 @@ describe('start page', () => {
           }),
       });
       renderApp('/');
-      const picks = await screen.findByRole('region', { name: "Cat's Empfehlungen" });
+      const picks = await screen.findByRole('region', { name: 'User-Empfehlungen' });
       expect(carousels()).toHaveLength(0);
       expect(within(picks).getByRole('link', { name: /Heat/ })).toHaveTextContent(note);
       expect(sections().map((section) => section.hasAttribute('aria-labelledby'))).toEqual([
@@ -1019,7 +1022,7 @@ describe('start page', () => {
       expect(screen.getByRole('region', { name: 'Merkliste' }).parentElement).toBe(rowsBlock());
 
       // Not the page's first image: the posters of the first row do not wait for the band's art.
-      const firstPoster = within(screen.getByRole('region', { name: "Cat's Empfehlungen" }))
+      const firstPoster = within(screen.getByRole('region', { name: 'User-Empfehlungen' }))
         .getByRole('link', { name: /Heat/ })
         .querySelector('img');
       expect(firstPoster).toHaveAttribute('loading', 'eager');

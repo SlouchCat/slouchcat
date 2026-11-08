@@ -54,7 +54,8 @@ function routes(overrides: Record<string, Parameters<typeof mockApi>[0][string]>
     ...signedIn,
     [`GET /items/${ids.alien}`]: () => json(alienVersions),
     [`GET /admin/items/${ids.alien}`]: () => json(item),
-    'GET /libraries/visible': () => json([{ id: 1, name: 'Filme', kind: 'video' }]),
+    'GET /libraries/visible': () =>
+      json([{ id: 1, name: 'Filme', kind: 'video', contents: ['movie'], itemCount: 1 }]),
     'GET /admin/genres': () => json({ lang: 'de', genres: ['Action', 'Drama', 'Horror'] }),
     'GET /admin/settings/metadata': () => json({ knownLanguages: ['de', 'en'] }),
     [`GET /admin/items/${ids.alien}/image-candidates`]: () =>

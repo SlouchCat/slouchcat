@@ -598,8 +598,7 @@ export function HeroCarousel({
         >
           {slides.map((item, position) => {
             const active = position === current;
-            const extra = tool?.(item, active);
-            const poster = (
+            return (
               <PosterCard
                 key={item.id}
                 focusKey={stripKey(item)}
@@ -615,18 +614,11 @@ export function HeroCarousel({
                 aria-current={active ? 'true' : undefined}
                 tabIndex={active ? 0 : -1}
                 onArrowPress={holdEnds(position)}
+                tool={tool?.(item, active)}
               >
                 {/* Time to the next slide; gone while the band holds, anew when it moves on. */}
                 {active && !paused && <span className={styles.timer} />}
               </PosterCard>
-            );
-            return extra ? (
-              <div key={item.id} className={styles.cell}>
-                {poster}
-                <div className={styles.tool}>{extra}</div>
-              </div>
-            ) : (
-              poster
             );
           })}
         </RowList>

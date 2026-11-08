@@ -16,20 +16,20 @@ const page = (items: ItemRef[], total = items.length, offset = 0): PicksPage => 
   limit: 50,
 });
 
-describe("Cat's recommendations page", () => {
+describe('User picks page', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('lists the picks in order with the note as caption', async () => {
     mockApi({ ...signedIn, 'GET /picks': () => json(page([{ ...heat, note }, alien])) });
     renderApp('/picks');
     expect(
-      await screen.findByRole('heading', { level: 1, name: "Cat's Empfehlungen" }),
+      await screen.findByRole('heading', { level: 1, name: 'User-Empfehlungen' }),
     ).toBeVisible();
     expect(await screen.findByText('2 Titel')).toBeVisible();
     expect(
-      screen.getByText('Titel, die Cat für dich ausgesucht hat, in Cats Reihenfolge.'),
+      screen.getByText('Titel, die für dich ausgesucht wurden, in der gewählten Reihenfolge.'),
     ).toBeVisible();
-    const grid = await screen.findByRole('list', { name: "Cat's Empfehlungen" });
+    const grid = await screen.findByRole('list', { name: 'User-Empfehlungen' });
     const cards = within(grid).getAllByRole('link');
     expect(cards.map((card) => card.getAttribute('href'))).toEqual([
       `/items/${ids.heat}`,
@@ -59,7 +59,7 @@ describe("Cat's recommendations page", () => {
     renderApp('/picks');
     const more = await screen.findByRole('button', { name: 'Mehr laden (1 weitere)' });
     await userEvent.setup().click(more);
-    const grid = screen.getByRole('list', { name: "Cat's Empfehlungen" });
+    const grid = screen.getByRole('list', { name: 'User-Empfehlungen' });
     await waitFor(() => expect(within(grid).getAllByRole('link')).toHaveLength(51));
     expect(screen.queryByRole('button', { name: /Mehr laden/ })).not.toBeInTheDocument();
   });

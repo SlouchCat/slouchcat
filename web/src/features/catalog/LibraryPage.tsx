@@ -38,7 +38,7 @@ import {
   type LibraryParams,
   type LibrarySort,
 } from './libraryParams';
-import { CoverPen, EditMetadata } from './EditMetadata';
+import { CoverPen, EDITABLE_KINDS, EditMetadata } from './EditMetadata';
 import { libraryItemsQuery, visibleLibrariesQuery } from './queries';
 import { useBackFocus } from './useBackFocus';
 import styles from './LibraryPage.module.css';
@@ -423,9 +423,13 @@ function LibraryView({ id }: { id: number | null }) {
                   label={library.name}
                   className={styles.grid}
                   showWatched
-                  showRating={library.kind === 'video'}
                   tool={
-                    canManage ? (item) => <CoverPen item={item} onEdit={setEditing} /> : undefined
+                    canManage
+                      ? (item) =>
+                          EDITABLE_KINDS.has(item.kind) ? (
+                            <CoverPen item={item} onEdit={setEditing} />
+                          ) : undefined
+                      : undefined
                   }
                 />
                 {editing && <EditMetadata itemId={editing} onClose={() => setEditing(null)} />}

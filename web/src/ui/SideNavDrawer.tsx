@@ -7,9 +7,9 @@ import { SpatialGroup } from './spatial';
 
 /**
  * The side navigation as a modal drawer from the left (react-aria, loaded by SideNavMenu): the
- * focus moves to the first entry, Tab and the arrow keys stay inside, the page behind does not
- * scroll, Escape, the close button and a press on the scrim close it, and the focus returns to the
- * menu button that opened it.
+ * focus moves to the first entry («Start», below the profile card), Tab and the arrow keys stay
+ * inside, the page behind does not scroll, Escape, the close button and a press on the scrim close
+ * it, and the focus returns to the menu button that opened it.
  */
 export function SideNavDrawer({
   isOpen,
@@ -22,9 +22,10 @@ export function SideNavDrawer({
 }: SideNavMenuProps) {
   // A drawer opened with Enter counts as a "virtual" press for react-aria, which then focuses the
   // dialog itself. The first entry gets the focus here, before the dialog's own effect looks at
-  // the focus (as FormDialog does with its first field).
+  // the focus (as FormDialog does with its first field). The profile card above the entries is
+  // one Shift+Tab or arrow up away.
   const focusFirstEntry = useCallback((nav: HTMLElement | null) => {
-    nav?.querySelector<HTMLElement>('a[href], button')?.focus();
+    nav?.querySelector<HTMLElement>('li a[href], li button')?.focus();
   }, []);
 
   return (

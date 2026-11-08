@@ -95,12 +95,12 @@ describe('library page', () => {
       'href',
       `/items/${ids.heat}`,
     );
-    // Watched: a check mark; started: the progress; the age rating as a badge.
+    // Watched: a check mark; started: the progress; no age rating (concept 17 F-10).
     const arrivalCard = within(grid).getByRole('link', { name: /Arrival/ });
     expect(within(arrivalCard).getByRole('img', { name: 'Gesehen' })).toBeInTheDocument();
     const alienCard = within(grid).getByRole('link', { name: /Alien/ });
     expect(within(alienCard).getByRole('progressbar', { name: '36 % gesehen' })).toBeVisible();
-    expect(within(alienCard).getByText('FSK 16')).toBeVisible();
+    expect(within(alienCard).queryByText('FSK 16')).not.toBeInTheDocument();
 
     // One content kind: no chips.
     expect(screen.queryByRole('group', { name: 'Inhalt' })).not.toBeInTheDocument();

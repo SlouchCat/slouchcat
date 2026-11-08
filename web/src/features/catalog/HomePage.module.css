@@ -62,15 +62,3 @@
     width: var(--sc-size-poster-lg);
   }
 }
-
-/* A card with the pen (concept 15 P-6, as in the library grid): over its cover's top right, beside
-   the card's link, not in it. The cards of the start page show no watched check. */
-.cell {
-  position: relative;
-}
-
-.tool {
-  position: absolute;
-  top: var(--sc-space-2);
-  right: var(--sc-space-2);
-}

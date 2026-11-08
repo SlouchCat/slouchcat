@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { Button } from './Button';
 import { PosterCard } from './PosterCard';
 import { accents, art } from './stories/fixtures';
 
@@ -88,30 +89,18 @@ export const Square: Story = {
   },
 };
 
-/** The library page: a finished title carries a check mark, its age rating sits top left. */
+/** The library page: a finished title carries a check mark; no age rating (concept 17 F-10). */
 export const Watched: Story = {
   args: {
     title: 'Glut',
     caption: '2019',
     posterUrl: art.posterEmber,
     accent: accents.ember,
-    badge: 'FSK 12',
     watchedLabel: 'Gesehen',
   },
 };
 
-/** The library page: a started title with its progress and its age rating. */
-export const StartedWithRating: Story = {
-  args: {
-    title: 'Moos und Stein',
-    caption: '2021',
-    accent: accents.moss,
-    badge: 'FSK 6',
-    progress: { percent: 42, label: '42 % gesehen' },
-  },
-};
-
-/** A finished audiobook: square cover with the check mark, no age rating. */
+/** A finished audiobook: square cover with the check mark. */
 export const SquareHeard: Story = {
   args: {
     title: 'Die Stunde der Dämmerung',
@@ -120,6 +109,37 @@ export const SquareHeard: Story = {
     accent: accents.dusk,
     watchedLabel: 'Gehört',
   },
+};
+
+/**
+ * The pen beside the card's link, over the top right of its cover (concept 17 D-7): card and pen
+ * share a cell that carries the focus scale, so the card stays large while the pointer is on the
+ * pen; the pen itself grows and lightens (tool.hover.scale). A finished title's check moves to the
+ * bottom right.
+ */
+export const WithTool: Story = {
+  args: {
+    title: 'Glut',
+    caption: '2019',
+    posterUrl: art.posterEmber,
+    accent: accents.ember,
+    watchedLabel: 'Gesehen',
+    tool: (
+      <Button
+        variant="secondary"
+        size="sm"
+        icon="pen"
+        iconOnly
+        aria-label="Glut: Metadaten bearbeiten"
+      />
+    ),
+  },
+};
+
+/** Tab after the card's link reaches the pen: the cell stays scaled once, the pen grows. */
+export const WithToolFocused: Story = {
+  ...WithTool,
+  tags: ['press:Tab+Tab'],
 };
 
 /**

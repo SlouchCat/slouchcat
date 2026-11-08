@@ -479,7 +479,7 @@ export function HomePage() {
           const images = (series ?? item).images;
           const progress = row.key === 'continue' ? startedProgress(item) : undefined;
           const edited = editedTitle(row, item);
-          const card = (
+          return (
             <PosterCard
               key={cardKey(row, item)}
               focusKey={cardKey(row, item)}
@@ -508,17 +508,12 @@ export function HomePage() {
                     }
                   : undefined
               }
+              tool={
+                canManage && EDITABLE_KINDS.has(edited.kind) ? (
+                  <CoverPen item={edited} onEdit={setEditing} />
+                ) : undefined
+              }
             />
-          );
-          return canManage && EDITABLE_KINDS.has(edited.kind) ? (
-            <div key={cardKey(row, item)} className={styles.cell}>
-              {card}
-              <div className={styles.tool}>
-                <CoverPen item={edited} onEdit={setEditing} />
-              </div>
-            </div>
-          ) : (
-            card
           );
         })}
       </Row>

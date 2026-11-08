@@ -58,7 +58,7 @@ interface PosterCardProps {
   posterSmallUrl?: string;
   /** The title's accent colour (`#rrggbb`, ItemRef.accent): placeholder tint and focus glow. */
   accent?: string;
-  /** Small label on the poster (the kind of an extra: "Trailer", "Featurette"; an age rating). */
+  /** Small label on the poster (the kind of an extra: "Trailer", "Featurette"). */
   badge?: string;
   /** A finished title: a check mark on the poster, with this as its spoken name ("Gesehen"). */
   watchedLabel?: string;
@@ -77,6 +77,13 @@ interface PosterCardProps {
   deferImage?: boolean;
   /** `square` for audiobooks and podcasts (cover 1:1, M6); the image URLs stay the same. */
   shape?: 'poster' | 'square';
+  /**
+   * A control beside the card's link (or button), over the top right of its cover: the pen
+   * (concept 15 7.4). Not inside the link, so Tab reaches it after the link and the arrow keys pass
+   * it by. Card and tool then share one cell that carries the focus scale, so the card stays large
+   * while the pointer or the focus is on the tool (concept 17 D-7).
+   */
+  tool?: ReactNode;
   focusKey?: string;
 }
 
@@ -111,6 +118,7 @@ export function PosterCard({
   onImageShown,
   deferImage = false,
   shape = 'poster',
+  tool,
   focusKey,
 }: PosterCardProps) {
   const { ref, onFocus } = useSpatialItem<HTMLElement>({ focusKey, onArrowPress });
@@ -176,8 +184,8 @@ export function PosterCard({
       </span>
     </>
   );
-  if (href === undefined) {
-    return (
+  const card =
+    href === undefined ? (
       <button
         ref={ref as Ref<HTMLButtonElement>}
         type="button"
@@ -194,20 +202,25 @@ export function PosterCard({
       >
         {content}
       </button>
+    ) : (
+      <AppLink
+        ref={ref as Ref<HTMLAnchorElement>}
+        href={href}
+        className={className}
+        style={itemAccentStyle(accent)}
+        aria-label={label}
+        aria-current={ariaCurrent}
+        tabIndex={tabIndex}
+        onFocus={onFocus}
+      >
+        {content}
+      </AppLink>
     );
-  }
+  if (tool === undefined) return card;
   return (
-    <AppLink
-      ref={ref as Ref<HTMLAnchorElement>}
-      href={href}
-      className={className}
-      style={itemAccentStyle(accent)}
-      aria-label={label}
-      aria-current={ariaCurrent}
-      tabIndex={tabIndex}
-      onFocus={onFocus}
-    >
-      {content}
-    </AppLink>
+    <div className={styles.cell}>
+      {card}
+      <div className={styles.tool}>{tool}</div>
+    </div>
   );
 }

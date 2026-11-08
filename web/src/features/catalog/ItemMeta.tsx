@@ -1,12 +1,12 @@
 import type { ItemRef } from '@slouchcat/api-client';
 import { useTranslation } from 'react-i18next';
 import { formatDate, formatDuration, formatRuntime } from '@/lib/format';
-import { Chip } from '@/ui';
 import styles from './ItemMeta.module.css';
 
 /**
- * Year · runtime · FSK, as shown under titles in the hero and on the detail page. A podcast
- * episode has its publication date instead of the year, audio titles their duration (M6).
+ * Year · runtime, as shown under titles in the hero and on the detail page. A podcast episode has
+ * its publication date instead of the year, audio titles their duration (M6). No age rating: viewers
+ * do not see it (concept 17 F-10); the administration shows it.
  */
 export function ItemMeta({ item }: { item: ItemRef }) {
   const { t, i18n } = useTranslation();
@@ -24,9 +24,6 @@ export function ItemMeta({ item }: { item: ItemRef }) {
   ].filter((part): part is string => Boolean(part));
   return (
     <span className={styles.meta}>
-      {item.rating !== undefined && (
-        <Chip tone="outline">{t('rating.fsk', { age: item.rating })}</Chip>
-      )}
       {parts.map((part) => (
         <span key={part} className={styles.part}>
           {part}

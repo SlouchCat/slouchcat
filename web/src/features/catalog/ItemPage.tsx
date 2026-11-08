@@ -293,6 +293,7 @@ function PosterPen({ item }: { item: ItemDetail }) {
         size="sm"
         icon="pen"
         iconOnly
+        overlay
         aria-label={t('item.editMetadata')}
         title={t('item.editMetadata')}
         onPress={() => setEditing(true)}

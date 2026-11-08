@@ -24,7 +24,7 @@ const SUBTITLES_TITLE = 'Slouchcat Test Subtitles';
 const PGS_TITLE = 'Slouchcat Test PGS';
 const MULTI_AUDIO_TITLE = 'Slouchcat Test Multi Audio';
 
-const picksRow = (page: Page) => page.getByRole('region', { name: "Cat's Empfehlungen" });
+const picksRow = (page: Page) => page.getByRole('region', { name: 'User-Empfehlungen' });
 // The first card: the row's header also links its page ("Alle anzeigen ›", concept 08).
 const firstPick = (page: Page) => picksRow(page).getByRole('list').getByRole('link').first();
 
@@ -102,12 +102,12 @@ test('picks page by keyboard: add with a note, place at the top, time window in 
   test.setTimeout(120_000);
   const note = 'E2E: unbedingt mit Untertiteln schauen';
   await page.goto('/admin/picks');
-  const heading = page.getByRole('heading', { level: 1, name: "Cat's Empfehlungen" });
+  const heading = page.getByRole('heading', { level: 1, name: 'User-Empfehlungen' });
   await expect(heading).toBeVisible();
   await expect(
     page
       .getByRole('navigation', { name: 'Verwaltung' })
-      .getByRole('link', { name: "Cat's Empfehlungen" }),
+      .getByRole('link', { name: 'User-Empfehlungen' }),
   ).toHaveAttribute('aria-current', 'page');
   const tabs = page.getByRole('tablist', { name: 'Empfehlungen nach Zeitraum' });
   await expect(tabs.getByRole('tab', { selected: true })).toHaveAccessibleName(
@@ -147,7 +147,7 @@ test('picks page by keyboard: add with a note, place at the top, time window in 
   await page.keyboard.press('Enter');
   expect((await created).status()).toBe(201);
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByText(`${SUBTITLES_TITLE} ist in Cat's Empfehlungen.`)).toBeVisible();
+  await expect(page.getByText(`${SUBTITLES_TITLE} ist in den User-Empfehlungen.`)).toBeVisible();
   await expectFocusOn(page, add);
   await expect(pickRow(page, SUBTITLES_TITLE)).toContainText(note);
   await expect(pickRow(page, SUBTITLES_TITLE)).toContainText('Alle');
@@ -313,7 +313,7 @@ test('picks page by keyboard: add with a note, place at the top, time window in 
   await tabTo(page, remove, 20);
   await page.keyboard.press('Enter');
   const confirm = page.getByRole('alertdialog', {
-    name: `${SUBTITLES_TITLE} aus Cat's Empfehlungen entfernen?`,
+    name: `${SUBTITLES_TITLE} aus den User-Empfehlungen entfernen?`,
   });
   await expectFocusOn(page, confirm.getByRole('button', { name: 'Entfernen' }));
   await page.keyboard.press('Escape');

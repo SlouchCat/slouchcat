@@ -31,14 +31,21 @@
     "menu": "Menu",
     "menuClose": "Close menu",
     "libraries": "My media",
-    "toggleLibraries": "Expand or collapse my media",
     "libraryLabel_one": "{{name}}, {{count}} title",
     "libraryLabel_other": "{{name}}, {{count}} titles",
     "librariesOffline": "Offline: libraries not available",
     "librariesOfflineLink": "Go to downloads",
     "hideSidebar": "Hide sidebar",
     "showSidebar": "Show sidebar",
-    "radio": "Radio"
+    "radio": "Radio",
+    "account": "Account",
+    "switchProfileShort": "Switch",
+    "switchProfileCard": "Switch profile, currently {{name}}",
+    "profileRole": {
+      "other": "Additional profile",
+      "primary": "Primary profile",
+      "admin": "Server admin"
+    }
   },
   "system": {
     "server": {
@@ -424,7 +431,7 @@
   },
   "home": {
     "title": "Home",
-    "picks": "Cat's picks",
+    "picks": "User picks",
     "rows": {
       "continue": "Continue watching",
       "recent": "Recently added",
@@ -605,7 +612,7 @@
       "hint": "Notify me about new episodes"
     },
     "collections": "Collections",
-    "addToPicks": "Add to Cat's picks",
+    "addToPicks": "Add to User picks",
     "logoAlt": "{{title}}"
   },
   "rating": {
@@ -2053,7 +2060,7 @@
       }
     },
     "picks": {
-      "title": "Cat's picks",
+      "title": "User picks",
       "intro": "Hand-picked titles as a row of their own on the start page. For every profile or for single ones; each profile only sees titles of its age rating and only within the chosen time window.",
       "list": "Picks in the order of the row",
       "empty": "No picks yet. Without picks the start page shows no carousel.",
@@ -2130,7 +2137,7 @@
         "description": "Search a title and choose who it is recommended to. New picks go to the end.",
         "submit": "Add",
         "submitting": "Adding …",
-        "done": "{{title}} is in Cat's picks.",
+        "done": "{{title}} is in User picks.",
         "titleRequired": "Choose a title first.",
         "presetMissing": "The title of the link no longer exists. Search it again."
       },
@@ -2144,7 +2151,7 @@
       "remove": {
         "action": "Remove",
         "label": "Remove {{title}}",
-        "title": "Remove {{title}} from Cat's picks?",
+        "title": "Remove {{title}} from User picks?",
         "body": "The title stays in the library; only the pick goes.",
         "confirm": "Remove",
         "done": "{{title}} is no longer a pick."
@@ -2476,7 +2483,7 @@
         "title": "Spotlight"
       },
       "picks": {
-        "title": "Cat's picks"
+        "title": "User picks"
       },
       "collections": {
         "title": "Collections"
@@ -4445,8 +4452,8 @@
   },
   "picks": {
     "page": {
-      "title": "Cat's picks",
-      "intro": "Titles Cat picked for you, in Cat's order.",
+      "title": "User picks",
+      "intro": "Titles picked for you, in the chosen order.",
       "count_one": "{{count}} title",
       "count_other": "{{count}} titles"
     }

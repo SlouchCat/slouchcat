@@ -259,6 +259,30 @@ const paths = {
       fill="none"
     />
   ),
+  // Side navigation (concept 17, D-8): start, watchlist, series and audiobook libraries, playback.
+  home: (
+    <path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1v-8.5Z" fill="none" />
+  ),
+  bookmark: <path d="M6.5 5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v15L12 16l-5.5 4V5Z" fill="none" />,
+  tv: (
+    <>
+      <rect x="3" y="7" width="18" height="13" rx="2" fill="none" />
+      <path d="M8 3l4 4 4-4" fill="none" />
+    </>
+  ),
+  book: (
+    <path
+      d="M12 7c-1.8-1.3-4.5-2-7.5-2v13c3 0 5.7.7 7.5 2 1.8-1.3 4.5-2 7.5-2V5c-3 0-5.7.7-7.5 2ZM12 7v13"
+      fill="none"
+    />
+  ),
+  sliders: (
+    <>
+      <path d="M4 7h9.5M18.5 7H20M4 17h3.5M12.5 17H20" fill="none" />
+      <circle cx="16" cy="7" r="2.5" fill="none" />
+      <circle cx="10" cy="17" r="2.5" fill="none" />
+    </>
+  ),
 } as const;
 
 export type IconName = keyof typeof paths;

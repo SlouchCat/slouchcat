@@ -29,12 +29,79 @@
   list-style: none;
 }
 
-.list[hidden] {
-  display: none;
+/*
+ * The active profile at the top (concept 17, D-8 variant B): avatar, name and role, and the link
+ * to the profile picker. The avatar is the session's accent, like the header's.
+ */
+.profile {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  margin-bottom: var(--sc-space-2);
+  padding: var(--sc-space-2);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-1);
 }
 
-/* Every entry: a full-width line, the count or the badge at its end. */
+.avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--sc-space-8);
+  height: var(--sc-space-8);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
+  font-weight: var(--sc-font-weight-bold);
+  line-height: 1;
+  user-select: none;
+}
+
+.profileText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.profileName {
+  overflow: hidden;
+  color: var(--sc-color-text-primary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A longer role wraps instead of being cut: the column is narrow and "Wechseln" takes room. */
+.profileRole {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.switch {
+  flex: none;
+  padding: var(--sc-space-1) var(--sc-space-2);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-surface-3);
+  color: var(--sc-color-text-primary);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  text-decoration: none;
+  transition: background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+@media (hover: hover) {
+  .switch:hover {
+    background-color: var(--sc-color-surface-2);
+  }
+}
+
+/* Every entry: a full-width line with its icon, the count or the badge at its end. */
 .entry {
+  position: relative;
   display: flex;
   gap: var(--sc-space-3);
   align-items: center;
@@ -56,13 +123,26 @@
     background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
 }
 
+.entry > svg {
+  color: var(--sc-color-text-muted);
+  transition: color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
 .entry:focus-visible {
+  color: var(--sc-color-text-primary);
+}
+
+.entry:focus-visible > svg {
   color: var(--sc-color-text-primary);
 }
 
 @media (hover: hover) {
   .entry:hover {
     background-color: var(--sc-color-surface-2);
+    color: var(--sc-color-text-primary);
+  }
+
+  .entry:hover > svg {
     color: var(--sc-color-text-primary);
   }
 }
@@ -73,6 +153,22 @@
   font-weight: var(--sc-font-weight-semibold);
 }
 
+.entry[aria-current='page'] > svg {
+  color: var(--sc-accent);
+}
+
+/* The current page's stroke in the accent at the left edge, inside the entry (as in the mockup). */
+.entry[aria-current='page']::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  border-radius: var(--sc-radius-md) 0 0 var(--sc-radius-md);
+  background-color: var(--sc-accent);
+  content: '';
+}
+
 .label {
   overflow: hidden;
   min-width: 0;
@@ -80,14 +176,22 @@
   white-space: nowrap;
 }
 
+/* The count as a pill (titles of a library, user picks). */
 .count {
+  flex: none;
   margin-left: auto;
+  padding: 0 var(--sc-space-2);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-surface-1);
   color: var(--sc-color-text-muted);
   font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-medium);
+  line-height: calc(var(--sc-space-5) + 2px);
   font-variant-numeric: tabular-nums;
 }
 
 .badge {
+  flex: none;
   margin-left: auto;
   padding: 0 var(--sc-space-2);
   border-radius: var(--sc-radius-full);
@@ -102,31 +206,31 @@
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-1);
+  margin-top: var(--sc-space-3);
 }
 
-/* The group's title is the button that opens and closes it. */
-.groupTitle {
-  justify-content: space-between;
-  min-height: var(--sc-size-control-height);
-  color: var(--sc-color-text-muted);
-  font-size: var(--sc-font-size-xs);
-  font-weight: var(--sc-font-weight-semibold);
+/*
+ * The group title as a band, as in the administration's sidebar (AdminSideNav.module.css): the
+ * accent at 16 % over the column, text in the accent. No button: «Meine Medien» is always open.
+ */
+.band {
+  --sc-band-tint: color-mix(in srgb, var(--sc-accent) 16%, transparent);
+
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  min-height: calc(var(--sc-space-8) + 2px);
+  padding: 0 var(--sc-space-3);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-band-tint);
+  color: var(--sc-accent);
+
+  /* 0.8125 rem, halfway between xs and sm. */
+  font-size: calc((var(--sc-font-size-xs) + var(--sc-font-size-sm)) / 2);
+  font-weight: var(--sc-font-weight-bold);
+  line-height: var(--sc-font-line-height-tight);
   letter-spacing: var(--sc-font-letter-spacing-caps);
   text-transform: uppercase;
-}
-
-/* A chevron drawn with two borders: right while closed, down while open. */
-.chevron {
-  width: var(--sc-space-2);
-  height: var(--sc-space-2);
-  border-right: 2px solid currentcolor;
-  border-bottom: 2px solid currentcolor;
-  transform: rotate(-45deg);
-  transition: transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
-}
-
-.chevron[data-open] {
-  transform: rotate(45deg);
 }
 
 .offline {
@@ -141,10 +245,10 @@
   font-size: var(--sc-font-size-sm);
 }
 
-.footer {
+/* Sign out and hide or show: at the bottom, below a flexible space. */
+.end {
   margin-top: auto;
-  padding-top: var(--sc-space-2);
-  border-top: 1px solid var(--sc-color-border-subtle);
+  padding-top: var(--sc-space-4);
 }
 
 .quiet {

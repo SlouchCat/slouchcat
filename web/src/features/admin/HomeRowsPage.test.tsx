@@ -47,7 +47,7 @@ const configured: TraktStatus = {
 };
 const names = [
   'Spotlight',
-  "Cat's Empfehlungen",
+  'User-Empfehlungen',
   'Weiterschauen',
   'Neu hinzugefügt',
   'Kürzlich veröffentlicht',
@@ -117,7 +117,7 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     await user.click(rank('Neu hinzugefügt'));
     await user.selectOptions(rank('Neu hinzugefügt'), 'Platz 3');
     expect(rowNames().slice(1, 4)).toEqual([
-      "Cat's Empfehlungen",
+      'User-Empfehlungen',
       'Neu hinzugefügt',
       'Weiterschauen',
     ]);
@@ -130,7 +130,7 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     // Far down: the rows in between move up by one.
     await user.selectOptions(rank('Spotlight'), 'Platz 6');
     expect(rowNames()).toEqual([
-      "Cat's Empfehlungen",
+      'User-Empfehlungen',
       'Neu hinzugefügt',
       'Weiterschauen',
       'Kürzlich veröffentlicht',
@@ -288,7 +288,7 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     expect(previewNames()).toEqual([
       '1. Merkliste',
       '2. Spotlight',
-      "3. Cat's Empfehlungen",
+      '3. User-Empfehlungen',
       '4. Weiterschauen',
       '5. Neu hinzugefügt',
       '6. Kürzlich veröffentlicht',
@@ -329,7 +329,7 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     renderApp('/admin/home-rows');
     const user = userEvent.setup();
     await screen.findByRole('table', { name: 'Reihen der Startseite' });
-    const picks = within(table()).getByRole('button', { name: "Cat's Empfehlungen" });
+    const picks = within(table()).getByRole('button', { name: 'User-Empfehlungen' });
     expect(picks).toHaveAttribute('aria-expanded', 'false');
     picks.focus();
     await user.keyboard('{Enter}');
@@ -337,7 +337,7 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     const detail = document.getElementById(picks.getAttribute('aria-controls') ?? '')!;
     expect(detail).toHaveTextContent('Von Hand gepflegt, mit Notiz, Zielprofil und Zeitfenster.');
     expect(
-      within(detail).getByRole('link', { name: "Zur Seite «Cat's Empfehlungen»" }),
+      within(detail).getByRole('link', { name: 'Zur Seite «User-Empfehlungen»' }),
     ).toHaveAttribute('href', '/admin/picks');
 
     // A row without a page of its own has only its description.
@@ -350,12 +350,12 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     // The open rows stay open across the preview, and move with their row.
     await user.click(screen.getByRole('tab', { name: /^Vorschau/ }));
     await user.click(screen.getByRole('tab', { name: /^Reihenfolge/ }));
-    expect(within(table()).getByRole('button', { name: "Cat's Empfehlungen" })).toHaveAttribute(
+    expect(within(table()).getByRole('button', { name: 'User-Empfehlungen' })).toHaveAttribute(
       'aria-expanded',
       'true',
     );
-    await user.selectOptions(rank("Cat's Empfehlungen"), 'Platz 8');
-    expect(within(table()).getByRole('button', { name: "Cat's Empfehlungen" })).toHaveAttribute(
+    await user.selectOptions(rank('User-Empfehlungen'), 'Platz 8');
+    expect(within(table()).getByRole('button', { name: 'User-Empfehlungen' })).toHaveAttribute(
       'aria-expanded',
       'true',
     );

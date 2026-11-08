@@ -1,56 +1,83 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import type { ReactNode } from 'react';
 import { SideNav, type SideNavEntry, type SideNavProps } from './SideNav';
 
-// The column of the side navigation (concept 08) at 1280 px, with Marco's libraries. The drawer,
-// its other rendering, has stories of its own (SideNavDrawer.stories.tsx).
+// The column of the side navigation (concepts 08 and 17) at 1280 px, with Marco's libraries. The
+// drawer, its other rendering, has stories of its own (SideNavDrawer.stories.tsx). What a profile
+// sees depends on its role (concept 17, 9.2): every profile media and playback, the primary
+// profile of an account also the profiles, the server admin also the administration.
 
-/** The libraries group's state on this device, set before the story mounts. */
-function GroupState({ open, children }: { open: boolean; children: ReactNode }) {
-  try {
-    if (open) localStorage.removeItem('slouchcat.sidenav.libraries');
-    else localStorage.setItem('slouchcat.sidenav.libraries', 'closed');
-  } catch {
-    // The story then shows the group open.
-  }
-  return <>{children}</>;
-}
+const playback: SideNavEntry = { href: '#playback', label: 'Meine Wiedergabe', icon: 'sliders' };
+const profiles: SideNavEntry = { href: '#profiles', label: 'Profile', icon: 'users' };
+const admin: SideNavEntry = {
+  href: '#admin',
+  label: 'Verwaltung',
+  icon: 'wrench',
+  badge: 'Update',
+  accessibleLabel: 'Verwaltung, Update auf Version 1.4.0 verfügbar',
+};
+
+const profile = (name: string, role: string): SideNavProps['profile'] => ({
+  name,
+  role,
+  href: '#profiles',
+  switchLabel: 'Wechseln',
+  switchAccessibleLabel: `Profil wechseln, jetzt ${name}`,
+});
 
 export const sideNavArgs: SideNavProps = {
   label: 'Hauptnavigation',
+  profile: profile('Marco', 'Server-Admin'),
   primary: [
-    { href: '#home', label: 'Start', current: true },
-    { href: '#search', label: 'Suche' },
-    { href: '#watchlist', label: 'Merkliste' },
-    { href: '#downloads', label: 'Downloads' },
+    { href: '#home', label: 'Start', icon: 'home', current: true },
+    { href: '#search', label: 'Suche', icon: 'search' },
+    { href: '#watchlist', label: 'Merkliste', icon: 'bookmark' },
+    { href: '#radio', label: 'Radio', icon: 'radio' },
+    { href: '#downloads', label: 'Downloads', icon: 'download' },
   ],
   librariesLabel: 'Meine Medien',
-  toggleLibrariesLabel: 'Meine Medien ein- oder ausklappen',
   libraries: [
-    { href: '#movies', label: 'Filme', count: 2514, accessibleLabel: 'Filme, 2514 Titel' },
-    { href: '#series', label: 'Serien', count: 412, accessibleLabel: 'Serien, 412 Titel' },
-    { href: '#docs', label: 'Dokus', count: 87, accessibleLabel: 'Dokus, 87 Titel' },
-    { href: '#kids', label: 'Kids', count: 143, accessibleLabel: 'Kids, 143 Titel' },
-    { href: '#books', label: 'Hörbücher', count: 56, accessibleLabel: 'Hörbücher, 56 Titel' },
-    { href: '#podcasts', label: 'Podcasts', count: 12, accessibleLabel: 'Podcasts, 12 Titel' },
+    {
+      href: '#movies',
+      label: 'Filme',
+      icon: 'film',
+      count: 2514,
+      accessibleLabel: 'Filme, 2514 Titel',
+    },
+    {
+      href: '#series',
+      label: 'Serien',
+      icon: 'tv',
+      count: 412,
+      accessibleLabel: 'Serien, 412 Titel',
+    },
+    { href: '#docs', label: 'Dokus', icon: 'film', count: 87, accessibleLabel: 'Dokus, 87 Titel' },
+    { href: '#kids', label: 'Kids', icon: 'film', count: 143, accessibleLabel: 'Kids, 143 Titel' },
+    {
+      href: '#books',
+      label: 'Hörbücher',
+      icon: 'book',
+      count: 56,
+      accessibleLabel: 'Hörbücher, 56 Titel',
+    },
+    {
+      href: '#podcasts',
+      label: 'Podcasts',
+      icon: 'mic',
+      count: 12,
+      accessibleLabel: 'Podcasts, 12 Titel',
+    },
   ],
   picks: {
     href: '#picks',
-    label: "Cat's Empfehlungen",
+    label: 'User-Empfehlungen',
+    icon: 'star',
     count: 24,
-    accessibleLabel: "Cat's Empfehlungen, 24 Titel",
+    accessibleLabel: 'User-Empfehlungen, 24 Titel',
   },
   librariesOffline: 'Offline: Bibliotheken nicht verfügbar',
   offlineLink: { href: '#downloads', label: 'Zu den Downloads' },
-  footer: [
-    {
-      href: '#admin',
-      label: 'Verwaltung',
-      badge: 'Update',
-      accessibleLabel: 'Verwaltung, Update auf Version 1.4.0 verfügbar',
-    },
-    { href: '#profiles', label: 'Profile' },
-  ],
+  accountLabel: 'Konto',
+  account: [playback, profiles, admin],
   logoutLabel: 'Abmelden',
   onLogout: () => undefined,
   hideLabel: 'Seitenleiste ausblenden',
@@ -62,20 +89,23 @@ const meta = {
   component: SideNav,
   parameters: { layout: 'fullscreen' },
   args: sideNavArgs,
-  decorators: [
-    (Story) => (
-      <GroupState open>
-        <Story />
-      </GroupState>
-    ),
-  ],
 } satisfies Meta<typeof SideNav>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** The column with every entry; the start page is current, the main account sees an update. */
+/** The server admin: every entry; the start page is current, an update is available. */
 export const Bar: Story = {};
+
+/** The primary profile of another account: profiles, no administration. */
+export const PrimaryProfile: Story = {
+  args: { profile: profile('Lea', 'Hauptprofil'), account: [playback, profiles] },
+};
+
+/** Any further profile: media and playback only. */
+export const OtherProfile: Story = {
+  args: { profile: profile('Lina', 'Weiteres Profil'), account: [playback] },
+};
 
 /** A library page is current. */
 export const LibraryCurrent: Story = {
@@ -88,19 +118,8 @@ export const LibraryCurrent: Story = {
   },
 };
 
-/** "Meine Medien" collapsed on this device. */
-export const CollapsedGroup: Story = {
-  decorators: [
-    (Story) => (
-      <GroupState open={false}>
-        <Story />
-      </GroupState>
-    ),
-  ],
-};
-
-/** The libraries could not be read: the group says so and points to the downloads. */
+/** The libraries could not be read: the band says so and points to the downloads. */
 export const Offline: Story = { args: { libraries: 'offline', picks: undefined } };
 
-/** The first entry focused by Tab, with its ring. */
+/** The first stop focused by Tab, the profile card's «Wechseln», with its ring. */
 export const Focused: Story = { tags: ['press:Tab'] };

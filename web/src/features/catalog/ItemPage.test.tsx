@@ -12,7 +12,8 @@ describe('detail page', () => {
     renderApp(`/items/${ids.alien}`);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Alien' })).toBeVisible();
-    expect(screen.getByText('FSK 16')).toBeVisible();
+    // The title has an age rating (16); viewers do not see it (concept 17 F-10).
+    expect(screen.queryByText('FSK 16')).not.toBeInTheDocument();
     expect(screen.getByText('Horror, Science-Fiction')).toBeVisible();
     expect(screen.getByText('Im Weltraum hört dich niemand schreien.')).toBeVisible();
     expect(screen.getByRole('link', { name: 'Weiterschauen ab 00:42:13' })).toHaveAttribute(
@@ -171,10 +172,10 @@ describe('detail page', () => {
     );
   });
 
-  it('links the owner to "Zu Cat\'s Empfehlungen", never other profiles', async () => {
+  it('links the owner to "Zu den User-Empfehlungen", never other profiles', async () => {
     mockApi({ ...signedIn, [`GET /items/${ids.alien}`]: () => json(alienDetail) });
     const view = renderApp(`/items/${ids.alien}`);
-    expect(await screen.findByRole('link', { name: "Zu Cat's Empfehlungen" })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: 'Zu den User-Empfehlungen' })).toHaveAttribute(
       'href',
       `/admin/picks?add=${ids.alien}`,
     );
@@ -188,7 +189,9 @@ describe('detail page', () => {
     });
     renderApp(`/items/${ids.alien}`);
     await screen.findByRole('heading', { level: 1, name: 'Alien' });
-    expect(screen.queryByRole('link', { name: "Zu Cat's Empfehlungen" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Zu den User-Empfehlungen' }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Merken' })).toBeVisible();
   });
 

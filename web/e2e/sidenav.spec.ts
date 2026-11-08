@@ -7,15 +7,20 @@ import { expectFocusOn, expectVisibleFocus, resetFocus, tabTo } from './keyboard
 // Concept 08, 7.1/7.4/8: the side navigation. From 768 px a column at the left (Playwright's
 // desktop viewport is 1280 px), below 768 px and wherever the viewer hid the column a drawer behind
 // the header's menu button. Both carry the <nav> "Hauptnavigation", never at the same time.
+// Concept 17 (D-8, variant B): a profile card with «Wechseln» on top, icons, the bands «Meine
+// Medien» (always open) and «Konto».
 //
 // Tab order: skip link, header (menu button where there is one, logo, search, inbox, profile),
-// the side navigation, the content.
+// the side navigation (the profile card's «Wechseln» first), the content.
 
 const nav = (page: Page) => page.getByRole('navigation', { name: 'Hauptnavigation' });
 const menuButton = (page: Page) => page.getByRole('button', { name: 'Menü', exact: true });
 const drawer = (page: Page) => page.getByRole('dialog', { name: 'Menü' });
 const hideButton = (page: Page) =>
   nav(page).getByRole('button', { name: 'Seitenleiste ausblenden' });
+/** The profile card's «Wechseln», named with the active profile. */
+const switchLink = (scope: Locator) =>
+  scope.getByRole('link', { name: /^Profil wechseln, jetzt / });
 const recentRow = (page: Page) => page.getByRole('region', { name: 'Neu hinzugefügt' });
 const hero = (page: Page) => page.locator('main section[aria-roledescription]');
 
@@ -57,15 +62,23 @@ test('the column at 1280 px: its entries, arrows between them, Enter, into the c
   await expect(nav(page)).toHaveCount(1);
   await expect(menuButton(page)).toHaveCount(0);
 
-  for (const name of ['Start', 'Suche', 'Merkliste', 'Downloads']) {
+  // The profile card: the owner's primary profile, server admin; «Wechseln» leads to the picker.
+  await expect(nav(page).getByText('Server-Admin', { exact: true })).toBeVisible();
+  await expect(switchLink(nav(page))).toHaveAttribute('href', '/profiles');
+  await expect(switchLink(nav(page))).toHaveText('Wechseln');
+
+  for (const name of ['Start', 'Suche', 'Merkliste', 'Radio', 'Downloads']) {
     await expect(nav(page).getByRole('link', { name, exact: true })).toBeVisible();
   }
   await expect(nav(page).getByRole('link', { name: 'Start', exact: true })).toHaveAttribute(
     'aria-current',
     'page',
   );
-  const toggle = nav(page).getByRole('button', { name: 'Meine Medien ein- oder ausklappen' });
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  // «Meine Medien» and «Konto» are bands naming their lists; nothing opens or closes.
+  const media = nav(page).getByRole('list', { name: 'Meine Medien' });
+  await expect(media).toBeVisible();
+  await expect(nav(page).getByRole('list', { name: 'Konto' })).toBeVisible();
+  await expect(nav(page).locator('[aria-expanded]')).toHaveCount(0);
   // One entry per library of the suite (global-setup.ts) the profile sees, with its count.
   const libraries = await visibleLibraries(owner);
   expect(libraries.map((library) => library.name)).toContain('Filme');
@@ -78,16 +91,15 @@ test('the column at 1280 px: its entries, arrows between them, Enter, into the c
     ).toHaveAttribute('href', `/libraries/${library.id}`);
   }
   await expect(
-    nav(page).getByRole('link', {
-      name: `Cat's Empfehlungen, ${await picksTotal(owner)} Titel`,
+    media.getByRole('link', {
+      name: `User-Empfehlungen, ${await picksTotal(owner)} Titel`,
       exact: true,
     }),
   ).toHaveAttribute('href', '/picks');
-  await expect(nav(page).getByRole('link', { name: 'Verwaltung' })).toHaveAttribute(
-    'href',
-    '/admin',
-  );
-  await expect(nav(page).getByRole('link', { name: 'Profile', exact: true })).toBeVisible();
+  const account = nav(page).getByRole('list', { name: 'Konto' });
+  await expect(account.getByRole('link', { name: 'Verwaltung' })).toHaveAttribute('href', '/admin');
+  await expect(account.getByRole('link', { name: 'Profile', exact: true })).toBeVisible();
+  await expect(account.getByRole('link', { name: 'Meine Wiedergabe' })).toBeVisible();
   await expect(nav(page).getByRole('button', { name: 'Abmelden' })).toBeVisible();
   await expect(hideButton(page)).toBeVisible();
 
@@ -100,6 +112,19 @@ test('the column at 1280 px: its entries, arrows between them, Enter, into the c
   await expectFocusOn(page, nav(page).getByRole('link', { name: 'Merkliste', exact: true }));
   await page.keyboard.press('ArrowUp');
   await expectFocusOn(page, nav(page).getByRole('link', { name: 'Suche', exact: true }));
+
+  // Up from «Start» is the profile card's «Wechseln»; Enter opens the picker, back returns.
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, start);
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, switchLink(nav(page)));
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/profiles$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Wer schaut?' })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(recentRow(page).getByRole('link').first()).toBeVisible();
+  await expect(start).toHaveAttribute('aria-current', 'page');
 
   // Arrow left from the first card of a row lands on the current page's entry; arrow right
   // returns to the card the viewer left.
@@ -125,14 +150,11 @@ test('the column at 1280 px: its entries, arrows between them, Enter, into the c
   await expect(filmsEntry).toHaveAttribute('aria-current', 'page');
   await expect(start).not.toHaveAttribute('aria-current');
 
-  // The group closes and opens with its button; the state stays on this device.
-  await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(filmsEntry).toHaveCount(0);
+  // «Meine Medien» stays open, even where an earlier version stored it as closed.
+  await page.evaluate(() => localStorage.setItem('slouchcat.sidenav.libraries', 'closed'));
   await page.reload();
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await toggle.click();
   await expect(filmsEntry).toBeVisible();
+  await page.evaluate(() => localStorage.removeItem('slouchcat.sidenav.libraries'));
 });
 
 test('Tab: skip link, header, the column, then the content', async ({ page }) => {
@@ -144,6 +166,7 @@ test('Tab: skip link, header, the column, then the content', async ({ page }) =>
   const header = page.locator('header');
   await tabTo(page, header.getByRole('link', { name: 'Suche öffnen' }), 2);
   await tabTo(page, header.getByRole('link', { name: /^Profil wechseln/ }), 2);
+  await tabTo(page, switchLink(nav(page)), 1);
   await tabTo(page, nav(page).getByRole('link', { name: 'Start', exact: true }), 1);
   await tabTo(page, nav(page).getByRole('button', { name: 'Abmelden' }), 20);
   await tabTo(page, hideButton(page), 1);
@@ -180,6 +203,9 @@ test('hide the column: the menu button opens the drawer, which shows it again', 
   await expect(drawer(page)).toBeVisible();
   await expect(nav(page)).toHaveCount(1);
   await expectFocusOn(page, drawer(page).getByRole('link', { name: 'Start', exact: true }));
+  // The profile card stands above it, one Shift+Tab away.
+  await page.keyboard.press('Shift+Tab');
+  await expectFocusOn(page, switchLink(drawer(page)));
   await expect(drawer(page).getByRole('button', { name: 'Seitenleiste ausblenden' })).toHaveCount(
     0,
   );
@@ -343,7 +369,7 @@ test('the prepaints lie on the band and on the first card, column shown and hidd
         else localStorage.removeItem('slouchcat.sidenav');
       }, hidden);
       await page.reload();
-      await expect(page.getByRole('region', { name: "Cat's Empfehlungen" })).toBeVisible();
+      await expect(page.getByRole('region', { name: 'User-Empfehlungen' })).toBeVisible();
       await expect(hero(page)).toHaveCount(0);
       await insertPrepaint(
         page,
