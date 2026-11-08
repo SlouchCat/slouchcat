@@ -1,5 +1,46 @@
 # Aktueller Stand
 
+## Konzept 17 Stufe 2 «Detailseite und Merken auf dem Cover» (8. November 2026): Pull Request, Release 1.20.0
+
+**Vertrag 1.20.0, additiv**, keine Migration, keine neue Operation. Zweig `claude/detailseiten-stufe2` ab `main`
+`6c05eda7` (Release 1.19.2). Bau auf Marcos Wort vom 8. November 2026 («Weiter mit Stufe 2») nach Plan in drei Spuren
+(Server, Detailseite, Merken auf dem Cover) mit Kritiker-Review des Plans (REVISE, 0 Blocker, 5 Major, 8 Minor,
+eingearbeitet), Security-Review der neuen Abfragen (LOW, L-1 behoben) und Code-Review (kein Blocker, Befunde behoben).
+Randentscheide im Nachtrag zu Frage 24.
+
+- **Vertrag:** Schema `NextUp { reason: start|resume|next|rewatch, episode }` und `ItemDetail.nextUp` (Serie; Staffel
+  auf die Staffel eingeschränkt); `ItemRef.inWatchlist` (immer gesetzt) und `ItemRef.overview` (in Listen nur bei den
+  Folgen einer Staffel) stehen neu in `ItemRef`; `ItemRef.watchedCount` (Staffeln), `ItemRef.year` für Staffeln aus
+  `release_date`; `CollectionRef.members` (höchstens 20, nur auf der Detailseite).
+- **Server:** `ListWatchlistMarks` (eine Abfrage je Liste), `ListSeriesNextUpEpisodes` (sichtbare Folgen und Staffeln
+  einer Serie, Regel in Go `visibility.nextUp`, Tabellentest mit 25 Fällen), `watched_count` in
+  `ListVisibleChildCounts`. Messung: Abfrage für eine Serie mit 260 Folgen p50 0,65 ms (unter Last 1,1 ms),
+  `Reader.Item` einer Serie p50 6,8 ms; die Bibliotheksreihen bleiben mit der Merk-Abfrage im Rauschen.
+- **Detailseite (D-1 bis D-4):** ein Kopf für Film, Serie, Staffel und Sammlung (runder Zurück-Pfeil, Cover, Logo,
+  Kennzahlen, Tagline, Knöpfe, Inhalt); grosser Knopf mit zweiter Zeile (Abspielen, Weiterschauen, Nächste Folge,
+  Nochmals ansehen, Fortsetzen) und Startfokus; beschriftete Rundknöpfe (Trailer, Von vorne, Merken, Favorit,
+  User-Empfehlungen, Download, Verwalten; `ui/RoundAction`); Staffelregal mit Staffelcovern, Jahr, Folgen und
+  Fortschritt, Folgenliste mit zwei Zeilen Inhalt (`ui/EpisodeListItem`), Staffeltext, Staffelseite mit eigenem
+  Kopf; Sammlung als Reihe direkt nach dem Kopf für jede Art, «Alle zeigen»; Sammlungsseite mit demselben Kopf und
+  Gesehen-Haken. Merken und Favorit sind offline gesperrt.
+- **Merken auf dem Cover (D-9):** Knopf unten rechts (`PosterCard` `mark`, `CoverWatchlist`), beim Zeigen und mit dem
+  Fokus sichtbar, gemerkt immer, auf Touch immer; Gesehen-Haken oben links; per Tab nach dem Stift, in der
+  Spotlight-Reihe nur beim aktiven Poster; offline gesperrt. Orte: Bibliothek, Startseitenreihen und Spotlight-Reihe,
+  Sammlungsseite, Suche, Merkliste, User-Empfehlungen, Personenseite, Detailseite und ihre Sammlungsreihe. Der Zustand
+  ändert sich sofort in allen Caches und geht bei einem Fehler zurück; abgebrochene Seiten laden nach.
+- **Restgrenzen:** Serien in Sammlungen zeigen keinen Gesehen-Haken (eine Serie hat in Listen keinen Fortschritt). Der
+  Tab-Weg über die Startseite ist pro Poster einen Halt länger (Budgets in `admin-collections` und `home-radio`
+  begründet erhöht). Die Personenseite ist in e2e nicht abgedeckt (ohne TMDB-Schlüssel keine Personen), nur in Vitest.
+- **Prüfung:** `task ci` auf `56cb0239`: Server 39 Pakete grün, Web 1643 Vitest-Tests, Storybook 429 Geschichten, e2e
+  in drei Shards 551 von 552 grün; der rote Test (`home-radio.spec.ts:41`, Firefox) war ein echter Befund (Tab-Budget
+  80 zu knapp für die zusätzlichen Halte), behoben in `5a7124a7` und danach in Firefox und Chromium grün. Danach
+  `task check:fast` grün.
+- Versionsstellen auf 1.20.0 (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/compose.updater.yaml`,
+  `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`).
+- **Offen für die Abnahme auf CT 190:** Serienseite (Knopf je Fortschritt, Staffelregal), Staffelseite, Film mit
+  Sammlung, Sammlungsseite, Merken auf dem Cover mit Maus, Tastatur und Handy. Merge und Tag `v1.20.0` erst auf Marcos
+  Wort.
+
 ## Konzept 17 Stufe 1 «Stift, Seitenleiste, FSK, Name» (8. November 2026): Pull Request, Release 1.19.2
 
 Patch ohne Vertragsänderung (Vertrag bleibt 1.19.0), keine Migration. Zweig `claude/detailseiten-stufe1` ab `main`
