@@ -49,9 +49,26 @@ type Options struct {
 	ConfigDir string       // Existing directory that holds the database and backups/.
 	Version   string       // Server version, part of backup file names.
 	Logger    *slog.Logger // Redacting logger.
+	// Schema hears the schema version around the migrations (the server's start record for the
+	// updater companion, ADR 0024); zero = nobody listens (dump, scanbench, tests).
+	Schema SchemaHooks
 
 	migrations fs.FS            // Overrides the embedded migrations in tests.
 	now        func() time.Time // Overrides the clock in tests.
+}
+
+// SchemaHooks are told the schema version at every Open, with or without a pending migration.
+// Before runs right before the migrations with the version found (0 for a new database) and the
+// base name of the backup taken for them ("" when nothing was pending or the database is new);
+// After runs once they are through and the foreign keys checked, with the version they left. A
+// failed backup or migration skips the rest, so After never runs for a database that did not
+// reach its schema. Either may be nil. KeepBackup is the base name of a pre-migration backup that
+// pruning never deletes ("" = none): the one the start record of this version names (ADR 0024),
+// so a crash loop of a half-migrated version cannot prune the way back.
+type SchemaHooks struct {
+	Before     func(schema int64, backup string)
+	After      func(schema int64)
+	KeepBackup string
 }
 
 // Open checks the file system of the config directory, applies a staged restore (restore.go),

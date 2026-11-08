@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.15.0
+  version: 1.18.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -46,6 +46,11 @@ info:
     Stream tokens (plan 5.4): the media stream and the HLS endpoints are authorised by the query
     parameter `st` from `PlaybackInfo.streamUrl` instead of the cookie, so native players work too.
     Every response carries `Referrer-Policy: no-referrer`, so the token never leaves in a Referer.
+
+    Webradio (concept 16, contract 1.17.0): the stations of the Radio Browser catalog, merged into one
+    station per broadcaster with a stable id, filtered, searched and kept as favourites per profile
+    (tag `radio`). Every station plays through a relay of the server; `startRadioListen` opens a listen
+    session whose HLS playlist and segments are authorised by the listen token `rt`, like `st`.
 
     Offline (M5): a profile downloads movies, episodes and seasons to its device (`createDownloads`). The
     server prepares a fragmented MP4 per title in the background; the device fetches it through
@@ -97,6 +102,8 @@ tags:
     description: Announcements of the main user to every profile (M8, A-7).
   - name: integrations
     description: Incoming webhooks of Radarr and Sonarr (M9, I-8).
+  - name: radio
+    description: Webradio stations, favourites and listen sessions of the active profile (concept 16).
 paths:
   /healthz:
     get:
@@ -6102,6 +6109,14 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/AdminOnly"
+        "409":
+          description: |
+            Since contract 1.16.0: an install of an update is running (`update_running`); the updater
+            companion restarts the server under the backup.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
         "422":
           description: |
             `passphrase_required` (secrets without a passphrase), `passphrase_too_short` (fewer than 12
@@ -6200,7 +6215,9 @@ paths:
         "403":
           $ref: "#/components/responses/AdminOnly"
         "409":
-          description: A restart or another restore is already scheduled (`restart_pending`).
+          description: |
+            A restart or another restore is already scheduled (`restart_pending`). Since contract
+            1.16.0 also while an install of an update is running (`update_running`).
           content:
             application/problem+json:
               schema:
@@ -6248,7 +6265,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
         "409":
-          description: A restart or another restore is already scheduled (`restart_pending`).
+          description: |
+            A restart or another restore is already scheduled (`restart_pending`). Since contract
+            1.16.0 also while an install of an update is running (`update_running`).
           content:
             application/problem+json:
               schema:
@@ -6288,7 +6307,8 @@ paths:
         "409":
           description: |
             `backup_busy` while a backup or a restore is running (the restart would cut it off),
-            `restart_pending` while a restart or a restore is already scheduled.
+            `restart_pending` while a restart or a restore is already scheduled. Since contract 1.16.0
+            `update_running` while an install of an update is running.
           content:
             application/problem+json:
               schema:
@@ -6297,10 +6317,13 @@ paths:
   /admin/update:
     get:
       operationId: getUpdateState
-      summary: State of the update check (A-5)
+      summary: State of the update check and of the updater companion (A-5)
       description: |
         The running version, the newest published version from the release manifest and when it was
-        checked. The check runs daily while it is enabled; it only reads the manifest and never installs.
+        checked. The check runs daily while it is enabled and only reads the manifest. Since contract
+        1.16.0 (concept 15 P-8, ADR 0024) the state also says whether the optional updater companion is
+        reachable (`updaterAvailable`) and carries the last install it reported (`install`); an install
+        starts only with `installUpdate`.
       tags: [admin]
       x-visibility: admin
       responses:
@@ -6339,6 +6362,89 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+
+  /admin/update/install:
+    post:
+      operationId: installUpdate
+      summary: Install the newest release through the updater companion (A-5, ADR 0024)
+      description: |
+        Since contract 1.16.0 (concept 15 P-8). Asks the updater companion to install the newest
+        published release; the server names no version, the companion reads the release manifest
+        itself and refuses one that is not newer than the running server. The companion backs up
+        `.env`, pulls the image, checks its digest and restarts the server, which goes away during the
+        restart: follow the progress with `getUpdateInstallStatus` and the health check. Without a
+        reachable companion the card shows the manual steps.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "202":
+          description: |
+            The install started; the state the companion reported when it took the order (normally
+            `backing_up` with `from` and `to`; `checking` without `from` and `to` when its answer did not
+            read). The companion answers only after its checks, which can take about 25 s.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateInstallStatus"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "409":
+          description: |
+            An install is already running (`update_running`); a backup or a restore is running
+            (`backup_busy`); a restart or a restore is scheduled (`restart_pending`). While the
+            install runs, `restartServer`, the restores and `createBackup` answer `update_running`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            The companion refused before it changed anything. `code` is its reason: `not_newer`,
+            `manifest_unreachable`, `manifest_invalid`, `no_digest`, `no_compose_labels` (the server was
+            not started with Compose), `outside_deploy_dir` (a Compose file lies outside
+            `SLOUCHCAT_DEPLOY_DIR`); `detail` carries its message. A refusal without a readable code
+            answers `update_refused`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: |
+            No updater companion is configured, it does not answer, or it refused the server's token
+            (`updater_unavailable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/update/status:
+    get:
+      operationId: getUpdateInstallStatus
+      summary: State of the last install of the updater companion (A-5, ADR 0024)
+      description: |
+        Since contract 1.16.0 (concept 15 P-8). Read from the companion's `state.json` in the shared
+        folder, not from the companion itself, so it answers while the companion is down and right
+        after the restart. `idle` when no install was ever reported (also without a companion), when
+        `state.json` does not read or names an unknown phase, and for a finished install that names
+        neither `from` nor `to` as the running version. A running phase older than 70 minutes while
+        the companion does not answer was interrupted: it is reported as `failed` without `code`, with
+        a `message`. A refusal (422 of `installUpdate`) is not recorded there: the file keeps the
+        previous install.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateInstallStatus"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
 
   /admin/accounts:
     get:
@@ -7295,6 +7401,1023 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  # Webradio, concept 16 stage 1 (contract 1.17.0, ADR 0025). No radio response carries an ItemRef;
+  # a station the profile may not reach (hidden, country excluded by the setting) answers 404.
+  /radio/stations:
+    get:
+      operationId: listRadioStations
+      summary: One page of radio stations, filtered, searched and sorted (contract 1.17.0)
+      description: |
+        Since contract 1.17.0 (concept 16 stage 1). The stations of the Radio Browser catalog the
+        server keeps (daily sync), merged into one station per broadcaster (several streams, one stable
+        `id`). Filters of different parameters combine with AND, several values of one parameter with
+        OR. `q` searches the folded name, region and tags. `titles` keeps the stations whose stream
+        shows titles, `favorites` the favourites of the active profile. `sort`: `popular` (votes and
+        clicks of the catalog, the default), `name` (sort key of the name), `quality` (`high` first,
+        then bitrate), `new` (newest station first). Hidden stations, stations of a country the
+        administration excludes (`RadioConfig.countries`) and, while `RadioConfig.hideBroken` is on,
+        broken stations are never listed. Stations missing from the catalog are listed with
+        `state: missing` until they are removed. Before the first sync the list answers 503
+        `radio_catalog_loading`.
+      tags: [radio]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/RadioQ"
+        - $ref: "#/components/parameters/RadioCountry"
+        - $ref: "#/components/parameters/RadioRegion"
+        - $ref: "#/components/parameters/RadioLanguage"
+        - $ref: "#/components/parameters/RadioGenre"
+        - $ref: "#/components/parameters/RadioKind"
+        - $ref: "#/components/parameters/RadioMood"
+        - $ref: "#/components/parameters/RadioQualityFilter"
+        - $ref: "#/components/parameters/RadioTitles"
+        - $ref: "#/components/parameters/RadioFavorites"
+        - name: sort
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/RadioSort"
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 120
+            default: 60
+      responses:
+        "200":
+          description: One page of stations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadioStationPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          description: A parameter is outside its range (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          $ref: "#/components/responses/RadioCatalogLoading"
+
+  /radio/facets:
+    get:
+      operationId: getRadioFacets
+      summary: Counts per filter value for the current radio filter (contract 1.17.0)
+      description: |
+        Since contract 1.17.0. The values of every filter with the number of stations each would give
+        under the other filters of the request: the counts of one facet ignore the selection of that
+        same facet, so the client can offer every value that still has hits. `titles` is the number of
+        stations that show titles. Same rules as `listRadioStations` for hidden, excluded and broken
+        stations. Before the first sync 503 `radio_catalog_loading`.
+      tags: [radio]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/RadioQ"
+        - $ref: "#/components/parameters/RadioCountry"
+        - $ref: "#/components/parameters/RadioRegion"
+        - $ref: "#/components/parameters/RadioLanguage"
+        - $ref: "#/components/parameters/RadioGenre"
+        - $ref: "#/components/parameters/RadioKind"
+        - $ref: "#/components/parameters/RadioMood"
+        - $ref: "#/components/parameters/RadioQualityFilter"
+        - $ref: "#/components/parameters/RadioTitles"
+        - $ref: "#/components/parameters/RadioFavorites"
+      responses:
+        "200":
+          description: The facets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadioFacets"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          description: A parameter is outside its range (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          $ref: "#/components/responses/RadioCatalogLoading"
+
+  /radio/stations/{stationId}:
+    get:
+      operationId: getRadioStation
+      summary: One radio station (contract 1.17.0)
+      description: |
+        Since contract 1.17.0. A broken station answers 200 with `state: broken` also while
+        `RadioConfig.hideBroken` hides it from the lists, so a favourite still opens.
+      tags: [radio]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/RadioStationID"
+      responses:
+        "200":
+          description: The station.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadioStation"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/RadioStationNotFound"
+
+  /radio/favorites:
+    get:
+      operationId: listRadioFavorites
+      summary: The favourite stations of the active profile in its order (contract 1.17.0)
+      description: |
+        Since contract 1.17.0. Broken and missing favourites are listed with their `state`; a hidden
+        station and one of an excluded country are left out. A station removed from the catalog takes
+        its favourite marks with it (F-18).
+      tags: [radio]
+      x-visibility: scoped
+      responses:
+        "200":
+          description: The favourites, first first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RadioStation"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+    put:
+      operationId: setRadioFavoriteOrder
+      summary: Reorder the favourite stations (contract 1.17.0)
+      description: |
+        Since contract 1.17.0. `stationIds` is the complete new order of the profile's favourites as
+        `listRadioFavorites` returns them; another set (a station missing, added or twice) answers 422.
+      tags: [radio]
+      x-visibility: scoped
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RadioFavoriteOrder"
+      responses:
+        "204":
+          description: Stored.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          description: The ids are not the profile's favourites (`validation_failed`, field `stationIds`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /radio/favorites/{stationId}:
+    put:
+      operationId: addRadioFavorite
+      summary: Mark a station as favourite of the active profile (contract 1.17.0)
+      description: Since contract 1.17.0. Idempotent; a new favourite goes to the end of the order.
+      tags: [radio]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/RadioStationID"
+      responses:
+        "204":
+          description: Marked.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/RadioStationNotFound"
+    delete:
+      operationId: removeRadioFavorite
+      summary: Remove the favourite mark of a station (contract 1.17.0)
+      description: Since contract 1.17.0. Idempotent, also for a station that is no longer reachable.
+      tags: [radio]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/RadioStationID"
+      responses:
+        "204":
+          description: Removed.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+
+  /radio/stations/{stationId}/listen:
+    post:
+      operationId: startRadioListen
+      summary: Start or join the relay of a station and open a listen session (contract 1.17.0)
+      description: |
+        Since contract 1.17.0 (concept 16 section 7). The server plays every station through its own
+        relay (one per station, shared by all listeners) and answers with a listen session: the HLS
+        playlist `playlistUrl` (fMP4 audio, authorised by the listen token `rt` in the URL, so the
+        native player of Safari works too), the heartbeat interval and the start offset behind the
+        live edge. The client sends a heartbeat every `heartbeatSeconds` and ends the session with
+        `endRadioListen`; a session without heartbeat and without live requests expires after the
+        buffer time. Radio counts to the profile's daily watch time (K-5, F-16), not to the stream
+        limits (F-19). A broken station may be started; a success clears its broken mark.
+      tags: [radio]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/RadioStationID"
+      responses:
+        "201":
+          description: The listen session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadioListen"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: The profile's daily watch time is used up (`watch_limit_reached`, extensions `limitMinutes`, `usedMinutes`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          $ref: "#/components/responses/RadioStationNotFound"
+        "409":
+          description: |
+            The server runs as many relays as it may (`radio_capacity`, extensions `running` and `max`);
+            joining a running relay never fails this way.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: The stream does not deliver audio (`radio_not_audio`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: No stream of the station answered (`radio_unreachable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /radio/listen/{listenId}/heartbeat:
+    post:
+      operationId: radioListenHeartbeat
+      summary: Keep a listen session open (contract 1.17.0)
+      description: |
+        Since contract 1.17.0. Every `RadioListen.heartbeatSeconds` seconds while the session exists,
+        playing or paused; `playing: false` marks a pause (segments fetched during a pause do not count
+        as listen time). The answer carries the new expiry and, for a profile with a daily limit, the
+        remaining watch time.
+      tags: [radio]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/RadioListenID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RadioHeartbeatRequest"
+      responses:
+        "200":
+          description: The session is open.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadioHeartbeat"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: The profile's daily watch time is used up (`watch_limit_reached`); the session ended.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Unknown listen session or one of another profile (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "410":
+          description: The relay of the session ended (`radio_unreachable`); the client may start again.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /radio/listen/{listenId}:
+    delete:
+      operationId: endRadioListen
+      summary: End a listen session (contract 1.17.0)
+      description: |
+        Since contract 1.17.0. Idempotent for an ended session of the profile. The relay runs on for
+        `RadioConfig.graceSeconds` after its last listener left.
+      tags: [radio]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/RadioListenID"
+      responses:
+        "204":
+          description: Ended.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Unknown listen session or one of another profile (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /radio/stations/{stationId}/now:
+    get:
+      operationId: getRadioNow
+      summary: The titles the stream of a station announced (contract 1.17.0)
+      description: |
+        Since contract 1.17.0. The entries of the running relay's title timeline, oldest first, each
+        stamped with the program date-time (`at`) of the segment it arrived in, so the client shows the
+        entry whose `at` is the last one before its playback position. `since` (Unix ms) returns only
+        newer entries. `live` is false when no relay of the station runs; `entries` is then empty.
+      tags: [radio]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/RadioStationID"
+        - name: since
+          in: query
+          required: false
+          description: Unix milliseconds; only entries with a later `at`.
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+      responses:
+        "200":
+          description: The timeline.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadioNow"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/RadioStationNotFound"
+
+  /radio/preferences:
+    get:
+      operationId: getRadioPreferences
+      summary: Default country, last filter and sort of the active profile (contract 1.17.0)
+      description: |
+        Since contract 1.17.0 (F-12). `defaultCountry` is the profile's choice or, while it has none,
+        the country of the server's time zone (fallback: the rating country of the metadata settings).
+      tags: [radio]
+      x-visibility: scoped
+      responses:
+        "200":
+          description: The preferences.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadioPreferences"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+    put:
+      operationId: setRadioPreferences
+      summary: Store default country, last filter and sort of the active profile (contract 1.17.0)
+      description: Since contract 1.17.0. Replaces all three; absent `lastFilter` and `lastSort` clear them.
+      tags: [radio]
+      x-visibility: scoped
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RadioPreferences"
+      responses:
+        "200":
+          description: The stored preferences.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadioPreferences"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          description: A value is invalid (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /radio/live/{listenId}/index.m3u8:
+    get:
+      operationId: getRadioLivePlaylist
+      summary: HLS live playlist of a listen session (binary, contract 1.17.0)
+      description: |
+        Since contract 1.17.0. Implemented as an `http.Handler` (CLAUDE.md rule 6), authorised by the
+        listen token `rt` instead of the cookie (middleware `radioAuth`). A sliding live window of 4-s
+        fMP4 audio segments (HLS version 9) with `EXT-X-PROGRAM-DATE-TIME`, `EXT-X-START:TIME-OFFSET=-8`
+        and `EXT-X-SERVER-CONTROL:CAN-SKIP-UNTIL`; `_HLS_skip` asks for a delta playlist. Segment and init
+        URIs are relative and carry the token. `Cache-Control: no-store`; gzip when `Accept-Encoding`
+        lists it. Every request keeps the listen session alive. A token of another listen session, an
+        ended or expired session and a missing token answer 401.
+      tags: [radio]
+      x-visibility: scoped
+      security:
+        - radioToken: []
+      parameters:
+        - $ref: "#/components/parameters/RadioListenID"
+        - $ref: "#/components/parameters/RadioToken"
+        - name: _HLS_skip
+          in: query
+          required: false
+          description: Delta playlist request of the client (RFC 8216bis); `v2` also skips date ranges.
+          schema:
+            type: string
+            enum: ["YES", v2]
+      responses:
+        "200":
+          description: Live playlist.
+          content:
+            application/vnd.apple.mpegurl:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/RadioLiveUnauthenticated"
+        "404":
+          $ref: "#/components/responses/RadioLiveNotFound"
+
+  /radio/live/{listenId}/init/{gen}:
+    get:
+      operationId: getRadioLiveInit
+      summary: fMP4 initialisation segment of a relay generation (binary, contract 1.17.0)
+      description: |
+        Since contract 1.17.0. Implemented as an `http.Handler`, authorised by `rt`. `ftyp` and `moov` of
+        one ffmpeg generation of the relay; a reconnect that changes the stream format starts a new
+        generation behind an `EXT-X-DISCONTINUITY`.
+      tags: [radio]
+      x-visibility: scoped
+      security:
+        - radioToken: []
+      parameters:
+        - $ref: "#/components/parameters/RadioListenID"
+        - name: gen
+          in: path
+          required: true
+          description: Generation number, from 0.
+          schema:
+            type: integer
+            minimum: 0
+        - $ref: "#/components/parameters/RadioToken"
+      responses:
+        "200":
+          description: Initialisation segment.
+          content:
+            audio/mp4:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/RadioLiveUnauthenticated"
+        "404":
+          $ref: "#/components/responses/RadioLiveNotFound"
+
+  /radio/live/{listenId}/seg/{n}:
+    get:
+      operationId: getRadioLiveSegment
+      summary: fMP4 audio segment of a relay (binary, contract 1.17.0)
+      description: |
+        Since contract 1.17.0. Implemented as an `http.Handler`, authorised by `rt`. Segment numbers rise
+        across generations; a segment outside the buffer window answers 404. `Cache-Control: private,
+        immutable`. Delivered segments count as listen time of the profile (K-5) unless the last
+        heartbeat said `playing: false`.
+      tags: [radio]
+      x-visibility: scoped
+      security:
+        - radioToken: []
+      parameters:
+        - $ref: "#/components/parameters/RadioListenID"
+        - name: n
+          in: path
+          required: true
+          description: Segment number.
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+        - $ref: "#/components/parameters/RadioToken"
+      responses:
+        "200":
+          description: Media segment.
+          content:
+            audio/mp4:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/RadioLiveUnauthenticated"
+        "404":
+          $ref: "#/components/responses/RadioLiveNotFound"
+
+  /radio/images/{id}/{kind}/{size}:
+    get:
+      operationId: getRadioImage
+      summary: Logo of a radio station (binary, contract 1.17.0)
+      description: |
+        Since contract 1.17.0. Implemented as an `http.Handler` behind the session middleware. `id` is
+        the station id. The logo comes from the catalog, the station's website or the administration
+        (section 6 of concept 16), scaled to a square. WebP when `Accept` lists `image/webp`, PNG otherwise
+        (`Vary: Accept`); `Cache-Control: private, max-age=31536000, immutable`, `v` is the content hash
+        (`RadioStation.logo.url` carries it). A station without a logo answers 404; the client shows
+        the initials. A hidden station or one of an excluded country answers 404.
+      tags: [radio]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/RadioImageStationID"
+        - $ref: "#/components/parameters/RadioImageKind"
+        - $ref: "#/components/parameters/RadioImageSize"
+        - name: v
+          in: query
+          required: false
+          description: Content hash for cache busting; ignored by the server.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The image.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Unknown, hidden or excluded station, or no image of this kind (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/radio/config:
+    get:
+      operationId: getRadioConfig
+      summary: Radio settings (contract 1.17.0)
+      description: |
+        Since contract 1.17.0 (concept 16 sections 7.3 and 11). `bufferMode` says where the relays keep
+        their buffer: `tmpfs` (the RAM disk of the compose file) or `memory` (no RAM disk: radio plays
+        live only, without time shift, and the page warns). `maxRelaysByBudget` is the number of relays
+        the byte budget allows at the current buffer length.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The settings.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadioConfig"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+    patch:
+      operationId: updateRadioConfig
+      summary: Change radio settings (contract 1.17.0)
+      description: |
+        Since contract 1.17.0. Absent fields keep their value; `countries: null` admits every country
+        again. `bufferMinutes`, `budgetMb` and `maxRelays` apply to new relays only: running relays keep
+        their window and reservation until they stop, and a lower budget or maximum never stops a running
+        relay, it only refuses new ones until the running total fits. `graceSeconds`, `hideBroken` and
+        `countries` apply at once; open listen sessions of a station that a new `countries` excludes play
+        on until they end.
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RadioConfigUpdate"
+      responses:
+        "200":
+          description: The stored settings.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadioConfig"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: A value is outside its range (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/radio/catalog:
+    get:
+      operationId: getRadioCatalog
+      summary: State of the radio catalog and its sync (contract 1.17.0)
+      description: Since contract 1.17.0. Numbers of the last sync, the next scheduled run and a running sync job.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The catalog state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadioCatalogState"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+
+  /admin/radio/catalog/sync:
+    post:
+      operationId: syncRadioCatalog
+      summary: Sync the radio catalog now (contract 1.17.0)
+      description: |
+        Since contract 1.17.0. Queues the sync job with manual priority, or answers the running or queued
+        one (idempotent).
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "202":
+          description: The sync job.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadioCatalogSync"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+
+  /admin/radio/stations:
+    get:
+      operationId: listAdminRadioStations
+      summary: Radio stations for the administration (contract 1.17.0)
+      description: |
+        Since contract 1.17.0. Unfiltered by the viewer rules: hidden, broken and excluded stations are
+        listed. `exceptions` (default true) keeps the stations the administration changed (a lock),
+        hid, recommended and the broken ones; `exceptions=false` lists every station. `state` narrows to
+        `reachable`, `broken` or `hidden`.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+        - name: country
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: "^[A-Z]{2}$"
+        - name: genre
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 40
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [reachable, broken, hidden]
+        - name: exceptions
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: One page of stations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminRadioStationPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: A parameter is outside its range (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/radio/stations/{stationId}:
+    get:
+      operationId: getAdminRadioStation
+      summary: One radio station with streams, tags, facets and locks (contract 1.17.0)
+      description: Since contract 1.17.0. Also for hidden and excluded stations.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/RadioStationID"
+      responses:
+        "200":
+          description: The station.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminRadioStation"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown station (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    patch:
+      operationId: updateAdminRadioStation
+      summary: Change a radio station (contract 1.17.0)
+      description: |
+        Since contract 1.17.0 (concept 16 section 5.5). Absent fields keep their value. A field that is
+        set locks itself (`locks` gains `name`, `region`, `genre`, `kind`, `mood` or `stream`), so the
+        daily sync never overwrites it; `locks` replaces the set of locks, so removing a name gives the
+        field back to the catalog at the next sync. `region: null` clears the region,
+        `preferredStreamId: null` returns to the ranking. `hidden` and `recommended` are marks, not locks.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/RadioStationID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminRadioStationPatch"
+      responses:
+        "200":
+          description: The changed station.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminRadioStation"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown station (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            A value is invalid (`validation_failed`): an unknown facet value, a stream of another station,
+            an unknown lock name, a name outside 1..200 characters or a region that is no ISO 3166-2 code.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/radio/stations/{stationId}/probe:
+    post:
+      operationId: probeRadioStation
+      summary: Check a stream of a station (contract 1.17.0)
+      description: |
+        Since contract 1.17.0. Opens the stream (`streamId`, or the best ranked one) through the guarded
+        dialer, reads at most 10 s and reports format, codec, bitrate, sample rate, channels, whether it
+        carries titles (and the first one) and the time to the first byte.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/RadioStationID"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RadioProbeRequest"
+      responses:
+        "200":
+          description: The probe.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadioProbe"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown station or stream (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: The stream does not deliver audio (`radio_not_audio`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: The stream did not answer (`radio_unreachable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/radio/stations/{stationId}/logo:
+    put:
+      operationId: uploadRadioStationLogo
+      summary: Upload an own logo for a station (binary upload, contract 1.17.0)
+      description: |
+        Since contract 1.17.0. Implemented as an `http.Handler` (CLAUDE.md rule 6). The body is
+        `multipart/form-data` with the part `file`, at most 20 MB (like `uploadItemImage`); JPEG, PNG or
+        WebP by content, at most 50 megapixels. The logo becomes the station's logo (`logoState: own`) and
+        the field `logo` is locked.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/RadioStationID"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ItemImageUpload"
+            encoding:
+              file:
+                contentType: image/jpeg, image/png, image/webp
+      responses:
+        "200":
+          description: The station after the upload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminRadioStation"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown station (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            Validation failed (`validation_failed`), field `file`: `required`, `invalid_value`, `too_large`,
+            `unsupported_format` or `too_many_pixels`, as for `uploadItemImage`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: deleteRadioStationLogo
+      summary: Remove the own logo of a station (contract 1.17.0)
+      description: Since contract 1.17.0. Lifts the lock `logo`; the logo chain (catalog, website) runs again.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/RadioStationID"
+      responses:
+        "200":
+          description: The station.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminRadioStation"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown station (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/radio/images/{id}/{kind}/{size}:
+    get:
+      operationId: getAdminRadioImage
+      summary: Logo of any radio station for the administration (binary, contract 1.17.0)
+      description: |
+        Since contract 1.17.0. Implemented as an `http.Handler`; like `getRadioImage`, but also for hidden
+        stations and those of an excluded country. `id` is the station id.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/RadioImageStationID"
+        - $ref: "#/components/parameters/RadioImageKind"
+        - $ref: "#/components/parameters/RadioImageSize"
+        - name: v
+          in: query
+          required: false
+          description: Content hash for cache busting; ignored by the server.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The image.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown station or no image of this kind (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/radio/relays:
+    get:
+      operationId: listRadioRelays
+      summary: Running radio relays, their listeners and the server load (contract 1.17.0)
+      description: Since contract 1.17.0 (concept 16 section 11, tab «Übersicht»).
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The relays.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadioRelays"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+
+  /admin/radio/listeners/{listenId}:
+    delete:
+      operationId: stopRadioListener
+      summary: Stop the listen session of a listener (contract 1.17.0)
+      description: Since contract 1.17.0. Ends the session (`ended_by` admin); its next live request answers 401.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/RadioListenID"
+      responses:
+        "204":
+          description: Stopped.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown or ended listen session (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
 components:
   responses:
     Unauthenticated:
@@ -7381,6 +8504,38 @@ components:
         application/problem+json:
           schema:
             $ref: "#/components/schemas/Problem"
+    RadioCatalogLoading:
+      description: |
+        The radio catalog has not been synced yet (`radio_catalog_loading`); `Retry-After` names the pause
+        in seconds.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    RadioStationNotFound:
+      description: Unknown station, hidden, or of a country the administration excludes (`not_found`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    RadioLiveUnauthenticated:
+      description: |
+        Listen token missing, forged, of another listen session, or the session ended or expired
+        (`unauthenticated`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    RadioLiveNotFound:
+      description: The segment or generation is outside the buffer window (`not_found`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
   securitySchemes:
     sessionCookie:
       type: apiKey
@@ -7407,6 +8562,14 @@ components:
         Download token from `DownloadManifest.fileUrl`: `<download id>.<profile id>.<base64url HMAC-SHA256
         over download, item and profile>`. No expiry; every request checks the download and that the
         profile still sees the title. Redacted in all logs.
+    radioToken:
+      type: apiKey
+      in: query
+      name: rt
+      description: |
+        Listen token of a radio listen session (contract 1.17.0), part of `RadioListen.playlistUrl`. Bound
+        to the listen session and its station; the session's expiry slides with every heartbeat and live
+        request. Redacted in all logs.
   parameters:
     ProfileID:
       name: id
@@ -7566,6 +8729,166 @@ components:
       schema:
         type: integer
         format: int64
+    RadioStationID:
+      name: stationId
+      in: path
+      required: true
+      description: Station id (`RadioStation.id`), stable across catalog syncs.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    RadioImageStationID:
+      name: id
+      in: path
+      required: true
+      description: Station id (`RadioStation.id`).
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    RadioImageKind:
+      name: kind
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/RadioImageKind"
+    RadioImageSize:
+      name: size
+      in: path
+      required: true
+      description: Square edge in pixels.
+      schema:
+        type: string
+        enum: [w96, w256, w512]
+    RadioListenID:
+      name: listenId
+      in: path
+      required: true
+      description: Listen session id (ULID) from `RadioListen.listenId`.
+      schema:
+        type: string
+        pattern: "^[0-9A-HJKMNP-TV-Z]{26}$"
+    RadioToken:
+      name: rt
+      in: query
+      required: true
+      description: Listen token from `RadioListen.playlistUrl`. Redacted in all logs.
+      schema:
+        type: string
+        maxLength: 128
+    RadioQ:
+      name: q
+      in: query
+      required: false
+      description: Search in the folded name, region and tags.
+      schema:
+        type: string
+        maxLength: 100
+    RadioCountry:
+      name: country
+      in: query
+      required: false
+      style: form
+      explode: true
+      description: ISO 3166-1 alpha-2 codes; several are combined with OR.
+      schema:
+        type: array
+        maxItems: 50
+        items:
+          type: string
+          pattern: "^[A-Z]{2}$"
+    RadioRegion:
+      name: region
+      in: query
+      required: false
+      style: form
+      explode: true
+      description: ISO 3166-2 codes (`CH-ZH`); several are combined with OR.
+      schema:
+        type: array
+        maxItems: 50
+        items:
+          type: string
+          pattern: "^[A-Z]{2}-[A-Z0-9]{1,3}$"
+    RadioLanguage:
+      name: language
+      in: query
+      required: false
+      style: form
+      explode: true
+      description: ISO 639-1 codes; several are combined with OR.
+      schema:
+        type: array
+        maxItems: 50
+        items:
+          type: string
+          pattern: "^[a-z]{2}$"
+    RadioGenre:
+      name: genre
+      in: query
+      required: false
+      style: form
+      explode: true
+      description: Genre keys as `getRadioFacets` lists them; several are combined with OR.
+      schema:
+        type: array
+        maxItems: 50
+        items:
+          type: string
+          maxLength: 40
+    RadioKind:
+      name: kind
+      in: query
+      required: false
+      style: form
+      explode: true
+      description: Programme kind keys (music, news, talk …) as `getRadioFacets` lists them; OR.
+      schema:
+        type: array
+        maxItems: 50
+        items:
+          type: string
+          maxLength: 40
+    RadioMood:
+      name: mood
+      in: query
+      required: false
+      style: form
+      explode: true
+      description: Mood keys as `getRadioFacets` lists them; OR.
+      schema:
+        type: array
+        maxItems: 50
+        items:
+          type: string
+          maxLength: 40
+    RadioQualityFilter:
+      name: quality
+      in: query
+      required: false
+      style: form
+      explode: true
+      description: Quality classes; OR.
+      schema:
+        type: array
+        maxItems: 3
+        items:
+          $ref: "#/components/schemas/RadioQuality"
+    RadioTitles:
+      name: titles
+      in: query
+      required: false
+      description: true = only stations whose stream shows titles.
+      schema:
+        type: boolean
+    RadioFavorites:
+      name: favorites
+      in: query
+      required: false
+      description: true = only the favourites of the active profile.
+      schema:
+        type: boolean
   schemas:
     Health:
       type: object
@@ -12881,7 +14204,7 @@ components:
 
     UpdateState:
       type: object
-      required: [enabled, currentVersion, development, available]
+      required: [enabled, currentVersion, development, available, updaterConfigured, updaterAvailable]
       properties:
         enabled:
           type: boolean
@@ -12904,7 +14227,10 @@ components:
             administration shows the build as a development state instead.
         available:
           type: boolean
-          description: latestVersion is newer than the running version (never for a development build).
+          description: |
+            latestVersion is newer than the running version (never for a development build). Since
+            contract 1.18.0 only a plain release `X.Y.Z` counts; a pre-release in the manifest is
+            stored but never offered.
         url:
           type: string
           format: uri
@@ -12915,9 +14241,90 @@ components:
         checkedAt:
           type: string
           format: date-time
+        lastSuccessAt:
+          type: string
+          format: date-time
+          description: |
+            Since contract 1.18.0. The last check that read the release manifest. A failed check
+            keeps it together with the known release (`latestVersion`, `available`), so a failure
+            does not hide an update.
         error:
           type: string
           description: Why the last check failed.
+        updaterConfigured:
+          type: boolean
+          description: |
+            Since contract 1.16.0. An address of the updater companion is set (`SLOUCHCAT_UPDATER_URL`);
+            with `updaterAvailable` false the companion is set up but does not answer.
+        updaterAvailable:
+          type: boolean
+          description: |
+            Since contract 1.16.0. The server reaches the updater companion with its token
+            (`installUpdate` can start); false without a companion, which the card answers with the
+            manual steps. Checked at most every few seconds; a read waits for the check at most half
+            a second and otherwise carries the last answer.
+        updaterVersion:
+          type: string
+          description: |
+            Since contract 1.18.0. Version of the updater companion from its status answer; absent
+            when no companion answers or the companion is older than 1.18.0 and does not report it.
+          examples: ["1.18.0"]
+        install:
+          $ref: "#/components/schemas/UpdateInstallStatus"
+          description: |
+            Since contract 1.16.0. The last install the companion reported (`state.json`), as
+            `getUpdateInstallStatus` reports it; absent when it never reported one, when `state.json`
+            does not read or names an unknown phase, and for a finished install that names neither
+            `from` nor `to` as the running version.
+
+    UpdateInstallStatus:
+      type: object
+      description: |
+        State of an install by the updater companion (concept 15 P-8, ADR 0024), as the companion
+        writes it to `state.json`. The phases run `checking`, `backing_up`, `pulling`, `verifying`,
+        `restarting`, `waiting` and end in `done`, `rolled_back` (the new version did not become
+        healthy and no migration ran; the old one runs again) or `failed` (`code` says why).
+      required: [phase, migrated]
+      properties:
+        phase:
+          type: string
+          enum: [idle, checking, backing_up, pulling, verifying, restarting, waiting, done, rolled_back, failed]
+        from:
+          type: string
+          description: Version that ran when the install started.
+          examples: ["1.15.0"]
+        to:
+          type: string
+          description: Version the companion installs.
+          examples: ["1.16.0"]
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+          description: Set once the phase is `done`, `rolled_back` or `failed`.
+        migrated:
+          type: boolean
+          description: The new server migrated the database; then nothing is rolled back.
+        backup:
+          type: string
+          description: Name of the backup before the migration (`pre-migration-…`) when one was made.
+        code:
+          type: string
+          pattern: "^[a-z][a-z0-9_]*$"
+          description: |
+            Machine reason of a refused, failed or rolled back install: `busy`, `not_newer`,
+            `manifest_unreachable`, `manifest_invalid`, `no_digest`, `no_compose_labels`,
+            `outside_deploy_dir`, `pull_failed`, `digest_mismatch`, `unhealthy`, `rollback_failed`,
+            `migrated_no_rollback`, `disk_full` (Docker found no space for the new image, since
+            contract 1.18.0), `deploy_files` (the Compose files of the release could not be fetched or
+            written; nothing was changed, since contract 1.18.0). A newer companion may add codes. A failed install may have no code
+            and only a `message` (the backup of `.env` failed, or the companion found an interrupted
+            install when it started).
+        message:
+          type: string
+          description: The companion's explanation (English, plain text, no secret).
 
     UpdateNotice:
       type: object
@@ -13920,3 +15327,784 @@ components:
           description: Names that have reported nothing for seven days.
           items:
             type: string
+
+    # Webradio (concept 16 stage 1, contract 1.17.0). Times are Unix milliseconds.
+    RadioSort:
+      type: string
+      enum: [popular, name, quality, new]
+      default: popular
+
+    RadioQuality:
+      type: string
+      description: |
+        Quality class of the best stream (concept 16 section 5.4): `high` from 256 kbit/s or lossless,
+        `good` 128 to 255 kbit/s, `basic` below 128.
+      enum: [high, good, basic]
+
+    RadioStationState:
+      type: string
+      description: |
+        `ok`; `broken`: no catalog entry answered at its last check or the server's own relay failed three
+        times in a row; `missing`: the station left the catalog and is removed at `removalAt`.
+      enum: [ok, broken, missing]
+
+    RadioImageKind:
+      type: string
+      description: Kind of a station image; Stage 2 of concept 16 adds `cover` (additive).
+      enum: [logo]
+
+    RadioLogo:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          description: URL of `getRadioImage` (w256) with `v` = content hash; another size replaces `w256`.
+
+    RadioStation:
+      type: object
+      description: A radio station as the app shows it (contract 1.17.0). Not an `ItemRef`.
+      required: [id, name, languages, genres, kinds, moods, hls, showsTitles, favorite, recommended, state]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2.
+        region:
+          type: string
+          description: ISO 3166-2 (`CH-ZH`).
+        languages:
+          type: array
+          description: ISO 639-1 codes.
+          items:
+            type: string
+        genres:
+          type: array
+          description: Stable genre keys (texts in the app's locale files).
+          items:
+            type: string
+        kinds:
+          type: array
+          description: Stable programme kind keys.
+          items:
+            type: string
+        moods:
+          type: array
+          description: Stable mood keys.
+          items:
+            type: string
+        quality:
+          $ref: "#/components/schemas/RadioQuality"
+        codec:
+          type: string
+          description: Codec of the best stream as the catalog names it (`MP3`, `AAC`, `AAC+`, `OGG` …).
+        bitrateKbps:
+          type: integer
+          minimum: 0
+        hls:
+          type: boolean
+          description: The best stream is an HLS source.
+        showsTitles:
+          type: boolean
+          description: A relay of the server saw titles in the stream.
+        favorite:
+          type: boolean
+          description: A favourite of the active profile.
+        recommended:
+          type: boolean
+          description: Recommended by the administration.
+        state:
+          $ref: "#/components/schemas/RadioStationState"
+        missingSince:
+          type: integer
+          format: int64
+          description: Unix ms since when every catalog entry of the station is gone (`state` missing).
+        removalAt:
+          type: integer
+          format: int64
+          description: Unix ms when the server removes the missing station (`missingSince` + 7 days).
+        logo:
+          $ref: "#/components/schemas/RadioLogo"
+        homepage:
+          type: string
+
+    RadioStationPage:
+      type: object
+      required: [items, total, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadioStation"
+        total:
+          type: integer
+          minimum: 0
+        offset:
+          type: integer
+          minimum: 0
+
+    RadioFacetCount:
+      type: object
+      required: [value, count]
+      properties:
+        value:
+          type: string
+        count:
+          type: integer
+          minimum: 0
+
+    RadioFacets:
+      type: object
+      description: |
+        Counts per value under the other filters of the request; the counts of a facet ignore its own
+        selection. `titles` is the number of stations that show titles.
+      required: [country, region, language, genre, kind, mood, quality, titles]
+      properties:
+        country:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadioFacetCount"
+        region:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadioFacetCount"
+        language:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadioFacetCount"
+        genre:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadioFacetCount"
+        kind:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadioFacetCount"
+        mood:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadioFacetCount"
+        quality:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadioFacetCount"
+        titles:
+          type: integer
+          minimum: 0
+
+    RadioFavoriteOrder:
+      type: object
+      required: [stationIds]
+      properties:
+        stationIds:
+          type: array
+          maxItems: 1000
+          items:
+            type: integer
+            format: int64
+
+    RadioListen:
+      type: object
+      description: A listen session (concept 16 section 7.5).
+      required: [listenId, playlistUrl, heartbeatSeconds, startOffsetSeconds, station]
+      properties:
+        listenId:
+          type: string
+          pattern: "^[0-9A-HJKMNP-TV-Z]{26}$"
+        playlistUrl:
+          type: string
+          description: URL of `getRadioLivePlaylist` with the listen token `rt`.
+        heartbeatSeconds:
+          type: integer
+          minimum: 1
+          description: Interval of `radioListenHeartbeat` (30).
+        startOffsetSeconds:
+          type: integer
+          description: Start position relative to the live edge (-8), as `EXT-X-START` says.
+        station:
+          $ref: "#/components/schemas/RadioStation"
+
+    RadioHeartbeatRequest:
+      type: object
+      required: [playing]
+      properties:
+        playing:
+          type: boolean
+          description: false while the client pauses.
+
+    RadioHeartbeat:
+      type: object
+      required: [expiresAt]
+      properties:
+        expiresAt:
+          type: integer
+          format: int64
+          description: Unix ms when the session expires without a further heartbeat or live request.
+        watchTime:
+          $ref: "#/components/schemas/WatchTime"
+
+    RadioNowEntry:
+      type: object
+      required: [at, text]
+      properties:
+        at:
+          type: integer
+          format: int64
+          description: Program date-time (Unix ms) of the segment the entry arrived in.
+        text:
+          type: string
+          description: The title text as the stream sent it.
+        artist:
+          type: string
+          description: Artist, when the text splits into artist and title.
+        title:
+          type: string
+
+    RadioNow:
+      type: object
+      required: [live, entries]
+      properties:
+        live:
+          type: boolean
+          description: A relay of the station runs.
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadioNowEntry"
+
+    RadioFilter:
+      type: object
+      description: The filter parameters of `listRadioStations` as an object.
+      properties:
+        q:
+          type: string
+          maxLength: 100
+        country:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            pattern: "^[A-Z]{2}$"
+        region:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            pattern: "^[A-Z]{2}-[A-Z0-9]{1,3}$"
+        language:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            pattern: "^[a-z]{2}$"
+        genre:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            maxLength: 40
+        kind:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            maxLength: 40
+        mood:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            maxLength: 40
+        quality:
+          type: array
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/RadioQuality"
+        titles:
+          type: boolean
+        favorites:
+          type: boolean
+
+    RadioPreferences:
+      type: object
+      description: Radio preferences of the active profile (F-12).
+      required: [defaultCountry]
+      properties:
+        defaultCountry:
+          type: string
+          pattern: "^[A-Z]{2}$"
+          description: ISO 3166-1 alpha-2 country the radio page starts with.
+        lastFilter:
+          $ref: "#/components/schemas/RadioFilter"
+        lastSort:
+          $ref: "#/components/schemas/RadioSort"
+
+    RadioBufferMode:
+      type: string
+      description: |
+        `tmpfs`: the relays buffer in the RAM disk of the compose file (time shift possible); `memory`: no
+        RAM disk, radio plays live only and the administration warns.
+      enum: [tmpfs, memory]
+
+    RadioConfig:
+      type: object
+      required: [bufferMinutes, budgetMb, maxRelays, graceSeconds, hideBroken, countries, bufferMode, maxRelaysByBudget]
+      properties:
+        bufferMinutes:
+          type: integer
+          enum: [10, 30, 60]
+        budgetMb:
+          type: integer
+          minimum: 64
+          maximum: 4096
+        maxRelays:
+          type: integer
+          minimum: 1
+          maximum: 50
+        graceSeconds:
+          type: integer
+          minimum: 0
+          maximum: 1800
+        hideBroken:
+          type: boolean
+        countries:
+          type: array
+          nullable: true
+          description: ISO 3166-1 alpha-2 codes the viewers see; null = every country.
+          items:
+            type: string
+            pattern: "^[A-Z]{2}$"
+        bufferMode:
+          $ref: "#/components/schemas/RadioBufferMode"
+        maxRelaysByBudget:
+          type: integer
+          minimum: 0
+          description: Relays the byte budget allows at the current buffer length.
+
+    RadioConfigUpdate:
+      type: object
+      properties:
+        bufferMinutes:
+          type: integer
+          enum: [10, 30, 60]
+        budgetMb:
+          type: integer
+          minimum: 64
+          maximum: 4096
+        maxRelays:
+          type: integer
+          minimum: 1
+          maximum: 50
+        graceSeconds:
+          type: integer
+          minimum: 0
+          maximum: 1800
+        hideBroken:
+          type: boolean
+        countries:
+          type: array
+          nullable: true
+          maxItems: 300
+          items:
+            type: string
+            pattern: "^[A-Z]{2}$"
+
+    RadioCatalogState:
+      type: object
+      required: [source, syncFailures, entriesTotal, entriesReachable, stationsTotal, lastAdded, lastRemoved]
+      properties:
+        source:
+          type: string
+          enum: [radio-browser]
+          description: The catalog (Radio Browser, radio-browser.info).
+        lastSyncAt:
+          type: integer
+          format: int64
+          description: Unix ms of the last sync, successful or not; absent before the first.
+        lastSyncError:
+          type: string
+          description: Error of the last sync (redacted); absent after a successful one.
+        syncFailures:
+          type: integer
+          minimum: 0
+          description: Failed syncs in a row.
+        entriesTotal:
+          type: integer
+          minimum: 0
+          description: Catalog entries of the last successful sync.
+        entriesReachable:
+          type: integer
+          minimum: 0
+        stationsTotal:
+          type: integer
+          minimum: 0
+          description: Stations after merging the entries.
+        lastAdded:
+          type: integer
+          minimum: 0
+        lastRemoved:
+          type: integer
+          minimum: 0
+        nextRunAt:
+          type: integer
+          format: int64
+          description: Unix ms of the next scheduled sync.
+        runningJobId:
+          type: integer
+          format: int64
+          description: The queued or running sync job.
+
+    RadioCatalogSync:
+      type: object
+      required: [jobId]
+      properties:
+        jobId:
+          type: integer
+          format: int64
+
+    RadioStationSource:
+      type: string
+      description: "`catalog`: from Radio Browser; `own`: added by the administration (stage 2)."
+      enum: [catalog, own]
+
+    RadioLogoState:
+      type: string
+      description: |
+        Where the logo comes from: `none` (not tried yet), `queued`, `catalog`, `website`, `own` (uploaded)
+        or `failed` (no source gave one; the app shows initials).
+      enum: [none, queued, catalog, website, own, failed]
+
+    RadioLockField:
+      type: string
+      enum: [name, logo, genre, kind, mood, region, stream]
+
+    RadioStationFacet:
+      type: object
+      required: [facet, value, manual]
+      properties:
+        facet:
+          type: string
+          enum: [genre, kind, mood]
+        value:
+          type: string
+        manual:
+          type: boolean
+          description: Set by the administration, not derived from the tags.
+
+    RadioStream:
+      type: object
+      required: [id, url, hls, reachable, preferred, rank]
+      properties:
+        id:
+          type: integer
+          format: int64
+        url:
+          type: string
+        urlResolved:
+          type: string
+        codec:
+          type: string
+        bitrateKbps:
+          type: integer
+          minimum: 0
+        hls:
+          type: boolean
+        reachable:
+          type: boolean
+          description: The catalog's last check of this entry succeeded.
+        preferred:
+          type: boolean
+          description: Chosen by the administration (lock `stream`).
+        rank:
+          type: integer
+          minimum: 0
+          description: Position in the ranking of section 5.3, 0 = the stream the relay plays.
+
+    AdminRadioStation:
+      type: object
+      description: The administration view of a station (contract 1.17.0). Not an `ItemRef`.
+      required: [id, name, languages, genres, kinds, moods, hls, showsTitles, recommended, state, source, hidden,
+        failures, tags, facets, locks, logoState, aliasCount, streams, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        country:
+          type: string
+        region:
+          type: string
+        languages:
+          type: array
+          items:
+            type: string
+        genres:
+          type: array
+          items:
+            type: string
+        kinds:
+          type: array
+          items:
+            type: string
+        moods:
+          type: array
+          items:
+            type: string
+        quality:
+          $ref: "#/components/schemas/RadioQuality"
+        codec:
+          type: string
+        bitrateKbps:
+          type: integer
+          minimum: 0
+        hls:
+          type: boolean
+        showsTitles:
+          type: boolean
+        recommended:
+          type: boolean
+        state:
+          $ref: "#/components/schemas/RadioStationState"
+        missingSince:
+          type: integer
+          format: int64
+        removalAt:
+          type: integer
+          format: int64
+        logo:
+          $ref: "#/components/schemas/RadioLogo"
+        homepage:
+          type: string
+        source:
+          $ref: "#/components/schemas/RadioStationSource"
+        hidden:
+          type: boolean
+        failures:
+          type: integer
+          minimum: 0
+          description: Relay aborts of the server in a row (three mark the station broken).
+        brokenAt:
+          type: integer
+          format: int64
+          description: Unix ms when the server's own relay marked the station broken.
+        tags:
+          type: array
+          description: Raw catalog tags.
+          items:
+            type: string
+        facets:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadioStationFacet"
+        locks:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadioLockField"
+        logoState:
+          $ref: "#/components/schemas/RadioLogoState"
+        aliasCount:
+          type: integer
+          minimum: 0
+          description: Catalog entries merged into the station.
+        streams:
+          type: array
+          description: The streams, best first.
+          items:
+            $ref: "#/components/schemas/RadioStream"
+        createdAt:
+          type: integer
+          format: int64
+        updatedAt:
+          type: integer
+          format: int64
+
+    AdminRadioStationPage:
+      type: object
+      required: [items, total, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminRadioStation"
+        total:
+          type: integer
+          minimum: 0
+        offset:
+          type: integer
+          minimum: 0
+
+    AdminRadioStationPatch:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        region:
+          type: string
+          nullable: true
+          pattern: "^[A-Z]{2}-[A-Z0-9]{1,3}$"
+        genres:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            maxLength: 40
+        kinds:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            maxLength: 40
+        moods:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            maxLength: 40
+        preferredStreamId:
+          type: integer
+          format: int64
+          nullable: true
+        hidden:
+          type: boolean
+        recommended:
+          type: boolean
+        locks:
+          type: array
+          maxItems: 7
+          items:
+            $ref: "#/components/schemas/RadioLockField"
+
+    RadioProbeRequest:
+      type: object
+      properties:
+        streamId:
+          type: integer
+          format: int64
+          description: The stream to check; absent = the best ranked one.
+
+    RadioProbe:
+      type: object
+      required: [format, codec, bitrateKbps, sampleRate, channels, hasMetadata, responseMs]
+      properties:
+        format:
+          type: string
+          description: Transport of the stream, for example `icy`, `http` or `hls`.
+        codec:
+          type: string
+        bitrateKbps:
+          type: integer
+          minimum: 0
+        sampleRate:
+          type: integer
+          minimum: 0
+        channels:
+          type: integer
+          minimum: 0
+        hasMetadata:
+          type: boolean
+          description: The stream carries titles.
+        title:
+          type: string
+          description: The first title seen.
+        responseMs:
+          type: integer
+          minimum: 0
+          description: Time to the first byte of audio.
+
+    RadioRelayState:
+      type: string
+      enum: [connecting, live, reconnecting, ending]
+
+    RadioRelayListener:
+      type: object
+      required: [listenId, profileName, accountEmail, playing, since]
+      properties:
+        listenId:
+          type: string
+        profileName:
+          type: string
+        accountEmail:
+          type: string
+        playing:
+          type: boolean
+        since:
+          type: integer
+          format: int64
+          description: Unix ms when the listen session started.
+
+    RadioRelay:
+      type: object
+      required: [stationId, name, transcoded, startedAt, bufferSeconds, bufferBytes, state, listeners]
+      properties:
+        stationId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        codec:
+          type: string
+        bitrateKbps:
+          type: integer
+          minimum: 0
+        transcoded:
+          type: boolean
+          description: ffmpeg encodes the audio (MP3, Ogg …); false = AAC repackaged.
+        startedAt:
+          type: integer
+          format: int64
+        bufferSeconds:
+          type: integer
+          minimum: 0
+        bufferBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        state:
+          $ref: "#/components/schemas/RadioRelayState"
+        listeners:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadioRelayListener"
+
+    RadioLoad:
+      type: object
+      required: [relays, maxRelays, bufferBytes, budgetBytes, uploadKbps, bufferMode]
+      properties:
+        relays:
+          type: integer
+          minimum: 0
+        maxRelays:
+          type: integer
+          minimum: 0
+        bufferBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        budgetBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        uploadKbps:
+          type: integer
+          minimum: 0
+          description: Bitrate the server delivers to all listeners together.
+        bufferMode:
+          $ref: "#/components/schemas/RadioBufferMode"
+
+    RadioRelays:
+      type: object
+      required: [relays, load]
+      properties:
+        relays:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadioRelay"
+        load:
+          $ref: "#/components/schemas/RadioLoad"

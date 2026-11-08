@@ -175,12 +175,48 @@ async function waitForScan(api: APIRequestContext): Promise<void> {
   }
 }
 
+/** Stations of the webradio's first catalog sync must appear within this time. */
+const RADIO_SYNC_TIMEOUT_MS = 30_000;
+
+/**
+ * Runs the first catalog sync of the webradio against the local Radio Browser (radio-server.mjs,
+ * testdata/radio/catalog.json) and waits until the catalog has stations; a synced catalog stays.
+ */
+async function ensureRadioCatalog(api: APIRequestContext): Promise<void> {
+  type Catalog = { stationsTotal: number; lastSyncError?: string; runningJobId?: number };
+  const state = async (): Promise<Catalog> => {
+    const response = await api.get('/api/v1/admin/radio/catalog');
+    if (!response.ok()) throw new Error(`GET /admin/radio/catalog answered ${response.status()}`);
+    return (await response.json()) as Catalog;
+  };
+  if ((await state()).stationsTotal > 0) return;
+  const sync = await api.post('/api/v1/admin/radio/catalog/sync');
+  if (sync.status() !== 202) {
+    throw new Error(
+      `POST /admin/radio/catalog/sync answered ${sync.status()}: ${await sync.text()}`,
+    );
+  }
+  const deadline = Date.now() + RADIO_SYNC_TIMEOUT_MS;
+  for (;;) {
+    const catalog = await state();
+    if (catalog.stationsTotal > 0) return;
+    if (catalog.lastSyncError && !catalog.runningJobId) {
+      throw new Error(`radio catalog sync failed: ${catalog.lastSyncError}`);
+    }
+    if (Date.now() > deadline) {
+      throw new Error(`radio catalog empty after ${RADIO_SYNC_TIMEOUT_MS} ms`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+}
+
 /**
  * Builds nothing and expects the server from start-server.mjs: runs the setup wizard through the
  * API (main account, the audiobook library on testdata/media/Audiobooks, no TMDB key), adds the
  * podcast library, subscribes to the local feed and notes the ids of the test books, then adds
  * the video libraries on testdata/media/Movies and testdata/media/TV and waits for their scans.
- * Last, one global pick of the H264 film gives the start page its carousel (M7).
+ * Then the webradio's first catalog sync (concept 16). Last, one global pick of the H264 film gives
+ * the start page its carousel (M7).
  * The order matters: the start page's "Neu hinzugefügt" holds the 20 newest titles, and the test
  * media have exactly 20 films and series; scanned last, they fill the row in every run (titles of
  * one scan batch share their time, so the row would otherwise drop an arbitrary older title).
@@ -220,6 +256,7 @@ export default async function globalSetup(): Promise<void> {
     await storeAudioIds(api);
     await ensureVideoLibraries(api);
     await waitForScan(api);
+    await ensureRadioCatalog(api);
     // Since M7 the start page has a carousel only with picks: one global pick of the H264 film.
     await ensureBaselinePick(api);
     await api.storageState({ path: STORAGE_STATE });

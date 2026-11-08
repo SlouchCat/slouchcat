@@ -318,3 +318,73 @@ func BenchmarkImagePipelineTitle(b *testing.B) {
 		}
 	}
 }
+
+func TestSquareImageArgs(t *testing.T) {
+	got, err := SquareImageArgs("/c/in.png", "png_pipe", []ImageOutput{
+		{Path: "/c/a", Width: 96, Format: ImageWebP},
+		{Path: "/c/b", Width: 96, Format: ImagePNG},
+		{Path: "/c/c", Width: 512, Format: ImagePNG},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	graph := got[slices.Index(got, "-filter_complex")+1]
+	want := "[0:v]format=rgba,split=2[s0][s1];" +
+		"[s0]scale=96:96:force_original_aspect_ratio=decrease:flags=lanczos,pad=96:96:(ow-iw)/2:(oh-ih)/2:color=0x00000000,split=2[o0][o1];" +
+		"[s1]scale=512:512:force_original_aspect_ratio=decrease:flags=lanczos,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000,split=1[o2]"
+	if graph != want {
+		t.Fatalf("graph\n%s\nwant\n%s", graph, want)
+	}
+	if !slices.Contains(got, "-max_pixels") || got[len(got)-1] != "/c/c" {
+		t.Fatalf("args %v", got)
+	}
+	// The source of a logo comes from a station's site: no probing, no protocol but a local file,
+	// both before the input.
+	in := slices.Index(got, "-i")
+	if w := slices.Index(got, "-protocol_whitelist"); w < 0 || w > in || got[w+1] != "file" {
+		t.Fatalf("args without -protocol_whitelist file before the input: %v", got)
+	}
+	if f := slices.Index(got, "-f"); f < 0 || f > in || got[f+1] != "png_pipe" {
+		t.Fatalf("args without the input format before the input: %v", got)
+	}
+	if _, err := SquareImageArgs("/c/in.png", "png_pipe", nil); err == nil {
+		t.Fatal("no outputs accepted")
+	}
+	if _, err := SquareImageArgs("/c/in.png", "", []ImageOutput{{Path: "/c/a", Width: 96, Format: ImagePNG}}); err == nil {
+		t.Fatal("no input format accepted")
+	}
+}
+
+func TestSquareImagePads(t *testing.T) {
+	r := ffmpegRunner(t)
+	dir := t.TempDir()
+	in := filepath.Join(dir, "wide.jpg")
+	writeJPEG(t, in, 200, 100, color.NRGBA{R: 255, A: 255})
+	outs := []ImageOutput{{Path: filepath.Join(dir, "sq.png"), Width: 96, Format: ImagePNG},
+		{Path: filepath.Join(dir, "sq.webp"), Width: 256, Format: ImageWebP}}
+	if err := r.SquareImage(context.Background(), in, "jpeg_pipe", outs); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.Open(outs[0].Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	img, _, err := image.Decode(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b := img.Bounds(); b.Dx() != 96 || b.Dy() != 96 {
+		t.Fatalf("size %v, want 96×96", b)
+	}
+	// 200×100 fits as 96×48: transparent bands above and below, the image in the middle.
+	if _, _, _, a := img.At(48, 5).RGBA(); a != 0 {
+		t.Fatalf("top band alpha %d, want transparent", a)
+	}
+	if rr, _, _, a := img.At(10, 48).RGBA(); a != 0xFFFF || rr < 0xE000 {
+		t.Fatalf("middle pixel r=%d a=%d, want opaque red", rr, a)
+	}
+	if st, err := os.Stat(outs[1].Path); err != nil || st.Size() == 0 {
+		t.Fatalf("webp output: %v", err)
+	}
+}

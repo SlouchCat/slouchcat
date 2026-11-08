@@ -393,6 +393,20 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 			ext["maxStreams"], ext["activeStreams"] = sl.MaxStreams, sl.ActiveStreams
 		}
 		p.writeExtended(w, r, http.StatusConflict, "stream_limit_reached", "The profile already runs as many streams as it may.", ext)
+	case errors.Is(err, model.ErrRadioCapacity):
+		ext := map[string]int{}
+		var rc *model.RadioCapacityError
+		if errors.As(err, &rc) {
+			ext["running"], ext["max"] = rc.Running, rc.Max
+		}
+		p.writeExtended(w, r, http.StatusConflict, "radio_capacity", "The server runs as many radio relays as it may.", ext)
+	case errors.Is(err, model.ErrRadioUnreachable):
+		p.write(w, r, http.StatusBadGateway, "radio_unreachable", "No stream of the station answered.")
+	case errors.Is(err, model.ErrRadioNotAudio):
+		p.write(w, r, http.StatusUnprocessableEntity, "radio_not_audio", "The stream does not deliver audio.")
+	case errors.Is(err, model.ErrRadioCatalogLoading):
+		w.Header().Set("Retry-After", "30")
+		p.write(w, r, http.StatusServiceUnavailable, "radio_catalog_loading", "The radio catalog is being loaded; try again shortly.")
 	case errors.Is(err, model.ErrPathNotBrowsable):
 		p.write(w, r, http.StatusNotFound, "path_not_browsable", "No such folder below a browsable root.")
 	case errors.Is(err, model.ErrPathUnreachable):
@@ -452,7 +466,7 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, model.ErrRestartPending):
 		p.write(w, r, http.StatusConflict, "restart_pending", "A restart or a restore is already scheduled; the server restarts shortly.")
 	case errors.Is(err, model.ErrBackupBusy):
-		p.write(w, r, http.StatusConflict, "backup_busy", "A backup or a restore is running; restart once it is done.")
+		p.write(w, r, http.StatusConflict, "backup_busy", "A backup or a restore is running; try again once it is done.")
 	case errors.Is(err, model.ErrBackupNewerThanServer):
 		p.write(w, r, http.StatusUnprocessableEntity, "backup_newer_than_server", "The backup comes from a newer server version.")
 	case errors.Is(err, model.ErrEmailNotConfigured):
@@ -479,6 +493,20 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusConflict, "job_type_not_windowable", "This job type has no time window of its own.")
 	case errors.Is(err, model.ErrUpdateCheckDisabled):
 		p.write(w, r, http.StatusUnprocessableEntity, "update_check_disabled", "The update check is switched off.")
+	case errors.Is(err, model.ErrUpdateRunning):
+		p.write(w, r, http.StatusConflict, "update_running", "An update is already being installed.")
+	case errors.Is(err, model.ErrUpdaterUnavailable):
+		p.write(w, r, http.StatusServiceUnavailable, "updater_unavailable", "The updater companion is not set up, does not answer or refused the server's token.")
+	case errors.Is(err, model.ErrUpdateRefused):
+		var refused *model.UpdateRefusedError
+		code, detail := "update_refused", "The updater refused the install."
+		if errors.As(err, &refused) {
+			code = refused.Code
+			if refused.Message != "" {
+				detail = refused.Message
+			}
+		}
+		p.write(w, r, http.StatusUnprocessableEntity, code, detail)
 	case errors.Is(err, model.ErrChannelUnavailable):
 		p.write(w, r, http.StatusUnprocessableEntity, "channel_unavailable", "The server has this channel not configured.")
 	case errors.Is(err, model.ErrChannelDisabled):

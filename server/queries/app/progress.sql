@@ -47,16 +47,29 @@ ORDER BY client_time DESC, seq DESC
 LIMIT 1;
 
 -- name: SumPlayedMs :one
--- Played time of a profile in [from, to) by server time (K-5 watch time, one calendar day).
-SELECT CAST(COALESCE(SUM(played_ms), 0) AS INTEGER) AS played_ms FROM progress_events
-WHERE profile_id = @profile_id AND server_time >= @from_ms AND server_time < @to_ms;
+-- Played time of a profile in [from, to) by server time (K-5 watch time, one calendar day): titles
+-- plus listened radio (radio_listen_time, concept 16 section 7.10). Radio counts per quarter hour;
+-- a day starts on a quarter hour (see below), so a quarter lies wholly inside or outside the day.
+SELECT CAST(
+    COALESCE((SELECT SUM(pe.played_ms) FROM progress_events AS pe
+              WHERE pe.profile_id = @profile_id AND pe.server_time >= @from_ms AND pe.server_time < @to_ms), 0)
+  + COALESCE((SELECT SUM(rl.played_ms) FROM radio_listen_time AS rl
+              WHERE rl.profile_id = @profile_id AND rl.quarter * 900000 >= @from_ms
+                AND rl.quarter * 900000 < @to_ms), 0)
+  AS INTEGER) AS played_ms;
 
 -- name: SumPlayedMsByQuarterHour :many
 -- Played time of a profile in [from, to) per quarter hour of server time (K-5 report): every UTC
 -- offset is a multiple of 15 minutes, so each quarter hour lies within one local calendar day.
-SELECT CAST(server_time / 900000 AS INTEGER) AS quarter, CAST(SUM(played_ms) AS INTEGER) AS played_ms
-FROM progress_events
-WHERE profile_id = @profile_id AND server_time >= @from_ms AND server_time < @to_ms
+-- Listened radio (radio_listen_time) adds to the quarter hours of titles (concept 16 section 7.10).
+SELECT CAST(quarter AS INTEGER) AS quarter, CAST(SUM(played_ms) AS INTEGER) AS played_ms
+FROM (
+    SELECT pe.server_time / 900000 AS quarter, pe.played_ms FROM progress_events AS pe
+    WHERE pe.profile_id = @profile_id AND pe.server_time >= @from_ms AND pe.server_time < @to_ms
+    UNION ALL
+    SELECT rl.quarter, rl.played_ms FROM radio_listen_time AS rl
+    WHERE rl.profile_id = @profile_id AND rl.quarter * 900000 >= @from_ms AND rl.quarter * 900000 < @to_ms
+) AS played
 GROUP BY quarter
 ORDER BY quarter;
 

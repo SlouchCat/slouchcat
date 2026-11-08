@@ -351,16 +351,46 @@ var adminRegistry = map[string]adminCall{
 		ownerStatus: http.StatusNotFound},
 	// Concept 11: the fixture's restart function is a fake (profileFixture.restarts). Its own
 	// fixture, because the scheduled restart makes the restores answer restart_pending.
-	"restartServer":       {contract: "POST /admin/server/restart", path: "/admin/server/restart", ownerStatus: http.StatusAccepted, fresh: true},
-	"getUpdateState":      {contract: "GET /admin/update", path: "/admin/update", ownerStatus: http.StatusOK},
-	"checkForUpdate":      {contract: "POST /admin/update/check", path: "/admin/update/check", ownerStatus: http.StatusOK},
-	"listAccounts":        {contract: "GET /admin/accounts", path: "/admin/accounts", ownerStatus: http.StatusOK},
-	"getStats":            {contract: "GET /admin/stats", path: "/admin/stats?days=7", ownerStatus: http.StatusOK},
-	"listAnnouncements":   {contract: "GET /admin/announcements", path: "/admin/announcements", ownerStatus: http.StatusOK},
-	"createAnnouncement":  {contract: "POST /admin/announcements", path: "/admin/announcements", body: `{"title":"Hallo","body":"Text"}`, ownerStatus: http.StatusCreated},
-	"updateAnnouncement":  {contract: "PUT /admin/announcements/{id}", path: "/admin/announcements/9999", body: `{"title":"Hallo","body":"Text"}`, ownerStatus: http.StatusNotFound},
-	"deleteAnnouncement":  {contract: "DELETE /admin/announcements/{id}", path: "/admin/announcements/9999", ownerStatus: http.StatusNotFound},
-	"publishAnnouncement": {contract: "POST /admin/announcements/{id}/publish", path: "/admin/announcements/9999/publish", ownerStatus: http.StatusNotFound},
+	"restartServer":  {contract: "POST /admin/server/restart", path: "/admin/server/restart", ownerStatus: http.StatusAccepted, fresh: true},
+	"getUpdateState": {contract: "GET /admin/update", path: "/admin/update", ownerStatus: http.StatusOK},
+	"checkForUpdate": {contract: "POST /admin/update/check", path: "/admin/update/check", ownerStatus: http.StatusOK},
+	// Concept 15 P-8 (ADR 0024): the fixture has no updater companion, so the install answers 503
+	// and the status idle; TestUpdateInstallOverHTTP talks to a fake companion.
+	"installUpdate":          {contract: "POST /admin/update/install", path: "/admin/update/install", ownerStatus: http.StatusServiceUnavailable},
+	"getUpdateInstallStatus": {contract: "GET /admin/update/status", path: "/admin/update/status", ownerStatus: http.StatusOK},
+	"listAccounts":           {contract: "GET /admin/accounts", path: "/admin/accounts", ownerStatus: http.StatusOK},
+	"getStats":               {contract: "GET /admin/stats", path: "/admin/stats?days=7", ownerStatus: http.StatusOK},
+	"listAnnouncements":      {contract: "GET /admin/announcements", path: "/admin/announcements", ownerStatus: http.StatusOK},
+	"createAnnouncement":     {contract: "POST /admin/announcements", path: "/admin/announcements", body: `{"title":"Hallo","body":"Text"}`, ownerStatus: http.StatusCreated},
+	"updateAnnouncement":     {contract: "PUT /admin/announcements/{id}", path: "/admin/announcements/9999", body: `{"title":"Hallo","body":"Text"}`, ownerStatus: http.StatusNotFound},
+	"deleteAnnouncement":     {contract: "DELETE /admin/announcements/{id}", path: "/admin/announcements/9999", ownerStatus: http.StatusNotFound},
+	"publishAnnouncement":    {contract: "POST /admin/announcements/{id}/publish", path: "/admin/announcements/9999/publish", ownerStatus: http.StatusNotFound},
+	// Webradio (concept 16 stage 1, contract 1.17.0): the real radio service of the fixture on the
+	// stations of vistest.AddRadio. The administration sees the hidden station; ids it does not
+	// have answer 404; the fixture stations have no logo.
+	"getRadioConfig": {contract: "GET /admin/radio/config", path: "/admin/radio/config", ownerStatus: http.StatusOK},
+	"updateRadioConfig": {contract: "PATCH /admin/radio/config", path: "/admin/radio/config", body: `{"countries":null}`,
+		ownerStatus: http.StatusOK},
+	"getRadioCatalog":  {contract: "GET /admin/radio/catalog", path: "/admin/radio/catalog", ownerStatus: http.StatusOK},
+	"syncRadioCatalog": {contract: "POST /admin/radio/catalog/sync", path: "/admin/radio/catalog/sync", ownerStatus: http.StatusAccepted},
+	"listAdminRadioStations": {contract: "GET /admin/radio/stations", path: "/admin/radio/stations?exceptions=false",
+		ownerStatus: http.StatusOK},
+	"getAdminRadioStation": {contract: "GET /admin/radio/stations/{stationId}", path: "/admin/radio/stations/" + radioHidden,
+		ownerStatus: http.StatusOK},
+	"updateAdminRadioStation": {contract: "PATCH /admin/radio/stations/{stationId}", path: "/admin/radio/stations/9999",
+		body: `{"hidden":true,"region":null}`, ownerStatus: http.StatusNotFound},
+	"probeRadioStation": {contract: "POST /admin/radio/stations/{stationId}/probe", path: "/admin/radio/stations/9999/probe",
+		body: `{}`, ownerStatus: http.StatusNotFound},
+	"uploadRadioStationLogo": {contract: "PUT /admin/radio/stations/{stationId}/logo", path: "/admin/radio/stations/9999/logo",
+		body: uploadImageBody("logo.png", "\x89PNG a PNG for the fake"), header: map[string]string{"Content-Type": uploadImageContentType},
+		ownerStatus: http.StatusNotFound},
+	"deleteRadioStationLogo": {contract: "DELETE /admin/radio/stations/{stationId}/logo", path: "/admin/radio/stations/9999/logo",
+		ownerStatus: http.StatusNotFound},
+	"getAdminRadioImage": {contract: "GET /admin/radio/images/{id}/{kind}/{size}", path: "/admin/radio/images/" + radioHidden + "/logo/w96",
+		ownerStatus: http.StatusNotFound},
+	"listRadioRelays": {contract: "GET /admin/radio/relays", path: "/admin/radio/relays", ownerStatus: http.StatusOK},
+	"stopRadioListener": {contract: "DELETE /admin/radio/listeners/{listenId}", path: "/admin/radio/listeners/" + radioDummyListen,
+		ownerStatus: http.StatusNotFound},
 }
 
 // Fixed ids of the vistest fixture (vistest.addMovie: "01J9000000000000000000R0" + label).

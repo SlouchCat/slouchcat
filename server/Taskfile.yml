@@ -94,6 +94,16 @@ tasks:
     cmds:
       - go build -trimpath -ldflags "-s -w -X main.version={{.VERSION}}" -o bin/slouchcat ./cmd/slouchcat
 
+  build:e2e:
+    desc: >-
+      Build the e2e server binary bin/slouchcat-e2e with the tag radiotest (plan 3.8): the radio
+      reads its catalog URL from SLOUCHCAT_TEST_RADIO_CATALOG_URL and may dial the loopback. Only
+      the Playwright suite runs it; the image and bin/slouchcat never carry the tag
+    env:
+      CGO_ENABLED: "0"
+    cmds:
+      - go build -tags radiotest -trimpath -ldflags "-s -w -X main.version={{.VERSION}}" -o bin/slouchcat-e2e ./cmd/slouchcat
+
   dev:
     desc: Run the server in development mode with data under ../.dev
     cmds:

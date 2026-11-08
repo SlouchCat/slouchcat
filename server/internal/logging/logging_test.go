@@ -26,6 +26,8 @@ var fakeSecrets = []string{
 	// The device cookie: the lockout key of AN-11 (ADR 0005); its value was logged on a cancelled write.
 	"device-FAKE-cookie",
 	"WebhookFAKEshouty-01234567890abcdefgh",
+	// Concept 15 P-8 (ADR 0024): the shared token of the updater companion.
+	"updater-FAKE-token", "updater-FAKE-bearer",
 }
 
 func logAll(t *testing.T, format Format) string {
@@ -102,6 +104,10 @@ func logAll(t *testing.T, format Format) string {
 		"err", fmt.Errorf("receive: %w", errors.New(`POST "/api/v1/webhooks/WebhookFAKEerrtoken-01234567890abcdef": EOF`)),
 		"reported_path", "/movies/Dune (2021)",
 	)
+	// The updater companion: the server sends its token only as a header and never logs it; a slip
+	// with the key names still is redacted.
+	log.Info("updater request", "updater_token", "updater-FAKE-token", "Authorization", "Bearer updater-FAKE-bearer",
+		"updater_url", "http://slouchcat-updater:8099/status")
 	// A mistyped route still carries a real token: the guard must not care about the spelling.
 	log.Info("webhook 404", "path", "/api/v1/WEBHOOKS/WebhookFAKEshouty-01234567890abcdefgh")
 	return buf.String()
@@ -155,5 +161,28 @@ func TestIsSensitiveKey(t *testing.T) {
 func TestNewRejectsUnknownFormat(t *testing.T) {
 	if _, err := New(&bytes.Buffer{}, "xml", slog.LevelInfo); err == nil {
 		t.Fatal("expected an error for format xml")
+	}
+}
+
+// The listen token of the radio's live routes (rt, concept 16, rule 10) never reaches the log;
+// the other query values and parameters that merely end in rt stay readable.
+func TestRedactRadioToken(t *testing.T) {
+	var buf bytes.Buffer
+	log, err := New(&buf, FormatText, slog.LevelDebug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Info("http request", "path", "/api/v1/radio/live/01JZZZZZZZZZZZZZZZZZZZZZZZ/index.m3u8?rt=rt-FAKE-token&_HLS_skip=YES&start=4",
+		"err", fmt.Errorf("live: %w", errors.New(`GET "/api/v1/radio/live/1/seg/7?RT=rterr-FAKE-token": EOF`)))
+	out := buf.String()
+	for _, secret := range []string{"rt-FAKE-token", "rterr-FAKE-token"} {
+		if strings.Contains(out, secret) {
+			t.Errorf("output contains %q: %s", secret, out)
+		}
+	}
+	for _, keep := range []string{"rt=" + Redacted, "_HLS_skip=YES", "start=4", "/seg/7"} {
+		if !strings.Contains(out, keep) {
+			t.Errorf("output lost %q: %s", keep, out)
+		}
 	}
 }

@@ -33,6 +33,7 @@ var largeBodies = map[string]int64{
 	http.MethodPost + " " + BasePath + "/offline/revocations":   MaxBatchBodyBytes,
 	http.MethodPost + " " + BasePath + "/admin/backups/restore": MaxRestoreBodyBytes,
 	http.MethodPut + " " + BasePath + itemImageUploadPath:       MaxImageUploadBodyBytes,
+	http.MethodPut + " " + BasePath + radioLogoUploadPath:       MaxImageUploadBodyBytes,
 }
 
 // bodyLimit returns the larger limit of the route ("METHOD path") from largeBodies, 0 when it has

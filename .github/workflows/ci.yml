@@ -270,7 +270,10 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: slouchcat-binary
-          path: server/bin/slouchcat
+          # Both builds: the e2e suite runs slouchcat-e2e (tag radiotest, plan 3.8).
+          path: |
+            server/bin/slouchcat
+            server/bin/slouchcat-e2e
           retention-days: 1
           if-no-files-found: error
 
@@ -342,7 +345,7 @@ jobs:
       # An artefact is a zip, and a zip from upload-artifact carries no execute bit: without this
       # the server never starts and every spec of the shard fails at the first page load.
       - name: Make the binary executable again (artefacts lose the bit)
-        run: chmod +x server/bin/slouchcat
+        run: chmod +x server/bin/slouchcat server/bin/slouchcat-e2e
 
       # Every shard plans the same split (deterministic) and runs its part with --test-list.
       - run: task ci:e2e SHARD=${{ matrix.shard }}/${{ strategy.job-total }}
@@ -427,6 +430,20 @@ jobs:
           load: true
           tags: slouchcat:ci-arm64
           cache-from: type=gha
+
+      # The updater companion (ADR 0024) is published with every release; building it here keeps
+      # the first release that carries it from being the first build. A Go cross-compile on the
+      # Docker CLI image, nothing runs under QEMU. Own cache scope.
+      - name: Build the updater image for linux/amd64 and linux/arm64 (no push)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: deploy/Dockerfile.updater
+          platforms: linux/amd64,linux/arm64
+          build-args: VERSION=${{ steps.version.outputs.version }}
+          push: false
+          cache-from: type=gha,scope=updater
+          cache-to: type=gha,mode=max,scope=updater
 
       - name: amd64 turns healthy (< 5 s, idle RSS below the gate in measure-healthy.sh)
         run: IMAGE=slouchcat:ci-amd64 deploy/scripts/measure-healthy.sh

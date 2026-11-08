@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -31,6 +32,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/notify"
 	"github.com/slouchcat/slouchcat/server/internal/offline"
 	"github.com/slouchcat/slouchcat/server/internal/playback"
+	"github.com/slouchcat/slouchcat/server/internal/radio"
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
@@ -82,6 +84,9 @@ type profileCall struct {
 	invisibleStatus int // expected status for an invisible item; 0 = 404 not_found
 	mint            string
 	streamOnly      bool
+	// radioMint starts a listen session of the profile on vistest.RadioCH (contractRadio) and
+	// replaces {ls} with its id and {rt} with its listen token.
+	radioMint bool
 	// subtitle mints the playback with the text track {track} of the file selected for WebVTT.
 	subtitle bool
 	// download mints a prepared download of the movie on the device of the profile's browser
@@ -850,6 +855,84 @@ var profileRegistry = map[string]profileCall{
 				t.Errorf("reportProgress %s = %s", m.Label, rec.Body.String())
 			}
 		}},
+	// Webradio (concept 16 stage 1, contract 1.17.0): the real radio service on the stations of
+	// vistest.AddRadio (contractRadio, live part fake). Every profile reaches the visible CH
+	// station; the hidden and the excluded-country station answer 404 in TestRadioHiddenStations404.
+	// The operations run in name order, so addRadioFavorite and removeRadioFavorite leave only the
+	// fixture favourite of P6 (RadioDE) for setRadioFavoriteOrder.
+	"listRadioStations": {contract: "GET /radio/stations", path: "/radio/stations?country=CH&country=DE&country=FR&sort=popular",
+		want: radioStatus(http.StatusOK), check: radioListedOnly},
+	"getRadioFacets":     {contract: "GET /radio/facets", path: "/radio/facets?country=CH", want: radioStatus(http.StatusOK), check: radioListedOnly},
+	"getRadioStation":    {contract: "GET /radio/stations/{stationId}", path: "/radio/stations/" + radioCH, want: radioStatus(http.StatusOK)},
+	"listRadioFavorites": {contract: "GET /radio/favorites", path: "/radio/favorites", want: radioStatus(http.StatusOK)},
+	"setRadioFavoriteOrder": {contract: "PUT /radio/favorites", path: "/radio/favorites", body: `{"stationIds":[]}`,
+		want: func(f *vistest.Fixture, p model.Profile) int {
+			if p.ID == f.P6.ID {
+				return http.StatusUnprocessableEntity // the order lacks RadioDE
+			}
+			return http.StatusNoContent
+		}},
+	"addRadioFavorite":    {contract: "PUT /radio/favorites/{stationId}", path: "/radio/favorites/" + radioCH, want: radioStatus(http.StatusNoContent)},
+	"removeRadioFavorite": {contract: "DELETE /radio/favorites/{stationId}", path: "/radio/favorites/" + radioCH, want: radioStatus(http.StatusNoContent)},
+	"startRadioListen": {contract: "POST /radio/stations/{stationId}/listen", path: "/radio/stations/" + radioCH + "/listen",
+		want: radioStatus(http.StatusCreated)},
+	// A listen session of nobody: 404 for the heartbeat and the end.
+	"radioListenHeartbeat": {contract: "POST /radio/listen/{listenId}/heartbeat", path: "/radio/listen/" + radioDummyListen + "/heartbeat",
+		body: `{"playing":true}`, want: radioStatus(http.StatusNotFound)},
+	"endRadioListen":      {contract: "DELETE /radio/listen/{listenId}", path: "/radio/listen/" + radioDummyListen, want: radioStatus(http.StatusNotFound)},
+	"getRadioNow":         {contract: "GET /radio/stations/{stationId}/now", path: "/radio/stations/" + radioCH + "/now?since=0", want: radioStatus(http.StatusOK)},
+	"getRadioPreferences": {contract: "GET /radio/preferences", path: "/radio/preferences", want: radioStatus(http.StatusOK)},
+	"setRadioPreferences": {contract: "PUT /radio/preferences", path: "/radio/preferences",
+		body: `{"defaultCountry":"CH","lastFilter":{"country":["CH"]},"lastSort":"name"}`, want: radioStatus(http.StatusOK)},
+	// The fixture stations have no logo.
+	"getRadioImage": {contract: "GET /radio/images/{id}/{kind}/{size}", path: "/radio/images/" + radioCH + "/logo/w256",
+		want: radioStatus(http.StatusNotFound)},
+	// Minted: a listen session of the profile on the CH station ({ls}, {rt}).
+	"getRadioLivePlaylist": {contract: "GET /radio/live/{listenId}/index.m3u8", streamOnly: true, radioMint: true,
+		path: "/radio/live/{ls}/index.m3u8?rt={rt}", want: radioStatus(http.StatusOK)},
+	"getRadioLiveInit": {contract: "GET /radio/live/{listenId}/init/{gen}", streamOnly: true, radioMint: true,
+		path: "/radio/live/{ls}/init/0?rt={rt}", want: radioStatus(http.StatusOK)},
+	"getRadioLiveSegment": {contract: "GET /radio/live/{listenId}/seg/{n}", streamOnly: true, radioMint: true,
+		path: "/radio/live/{ls}/seg/0?rt={rt}", want: radioStatus(http.StatusOK)},
+}
+
+// A syntactically valid listen session id and listen token of nobody, and the fixture stations as
+// path segments.
+const (
+	radioDummyListen = "01JRAD10000000000000000000"
+	radioDummyToken  = radioDummyListen + ".AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+)
+
+var (
+	radioCH       = strconv.FormatInt(vistest.RadioCH, 10)
+	radioHidden   = strconv.FormatInt(vistest.RadioHidden, 10)
+	radioExcluded = strconv.FormatInt(vistest.RadioExcluded, 10)
+)
+
+// radioStatus is the want of a radio entry: the same status for every profile.
+func radioStatus(code int) func(*vistest.Fixture, model.Profile) int {
+	return func(*vistest.Fixture, model.Profile) int { return code }
+}
+
+// radioListedOnly checks that a list or facet answer names none of the stations the S2 table keeps
+// out of lists: hidden, excluded country, broken (hide_broken is on).
+func radioListedOnly(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+	t.Helper()
+	body := rec.Body.String()
+	for _, id := range []int64{vistest.RadioHidden, vistest.RadioExcluded, vistest.RadioBroken} {
+		if strings.Contains(body, fmt.Sprintf(`"id":%d`, id)) {
+			t.Errorf("station %d listed: %s", id, body)
+		}
+	}
+	if strings.Contains(body, `"FR"`) {
+		t.Errorf("the excluded country appears: %s", body)
+	}
+	if strings.Contains(body, `"items"`) && !strings.Contains(body, fmt.Sprintf(`"id":%d`, vistest.RadioCH)) {
+		t.Errorf("the visible CH station is not listed: %s", body)
+	}
+	if strings.Contains(body, `"genre"`) && !strings.Contains(body, `"value":"pop"`) {
+		t.Errorf("the facets lack the genre pop: %s", body)
+	}
 }
 
 func send(t *testing.T, h http.Handler, method, path, token, body string, header map[string]string) *httptest.ResponseRecorder {
@@ -958,6 +1041,8 @@ type profileFixture struct {
 	pb       *playback.Service
 	opts     Options
 
+	radio *contractRadio // webradio: the real service with a fake live part (concept 16)
+
 	notifySvc *notify.Service  // M8 channels and announcements (fake senders)
 	senders   *contractSenders // what they sent
 
@@ -1038,6 +1123,13 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	pf.off.RegisterTypes(registry)
 	pf.notifySvc.RegisterTypes(registry)
 	pods.RegisterTypes(registry)
+	// Concept 16: the radio service on the stations of AddRadio; profile deletion reaches it
+	// through the playback hook only (m-3).
+	f.AddRadio(t)
+	pf.radio = newContractRadio(radio.New(f.DB, log, radio.WithTokenKey(testRadioKey), radio.WithQueue(pf.queue),
+		radio.WithCacheDir(t.TempDir())))
+	pf.radio.RegisterTypes(registry)
+	pf.pb.OnProfileEnd(pf.radio.EndProfile)
 	scheduler := jobs.NewScheduler(pf.queue, registry, log)
 	if err := scheduler.Start(context.Background()); err != nil {
 		t.Fatal(err)
@@ -1053,6 +1145,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 		Playback: pf.pb,
 		Offline:  pf.off,
 		Notify:   pf.notifySvc,
+		Radio:    pf.radio,
 
 		Integrations: pf.integrations,
 	}
@@ -1418,7 +1511,15 @@ func TestContractChildProfiles(t *testing.T) {
 				}
 				method := strings.Fields(call.contract)[0]
 				if !call.perItem {
-					rec := send(t, h, method, BasePath+call.path, token, call.body, call.header)
+					path := call.path
+					if call.radioMint {
+						l, err := pf.radio.Listen(context.Background(), pf.sessions[token], vistest.RadioCH)
+						if err != nil {
+							t.Fatalf("%s: mint listen: %v", op, err)
+						}
+						path = strings.NewReplacer("{ls}", l.ListenID, "{rt}", url.QueryEscape(l.Token)).Replace(path)
+					}
+					rec := send(t, h, method, BasePath+path, token, call.body, call.header)
 					// An operation of the M8 base answers 501 until its lane lands; its entry expects it.
 					stub := rec.Code == http.StatusNotImplemented && call.want != nil && call.want(f, profile) == http.StatusNotImplemented
 					if rec.Code >= 500 && !stub {

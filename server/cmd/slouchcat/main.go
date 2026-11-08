@@ -46,12 +46,17 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/notify/telegram"
 	"github.com/slouchcat/slouchcat/server/internal/offline"
 	"github.com/slouchcat/slouchcat/server/internal/playback"
+	"github.com/slouchcat/slouchcat/server/internal/radio"
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
+	"github.com/slouchcat/slouchcat/server/internal/updater"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 	"github.com/slouchcat/slouchcat/server/internal/webassets"
 )
+
+// The radio service implements the API's webradio (package radio must not import api).
+var _ api.RadioService = (*radio.Service)(nil)
 
 // version is set at build time with -ldflags "-X main.version=...".
 var version = "dev"
@@ -235,7 +240,12 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 			return fmt.Errorf("create directory: %w", err)
 		}
 	}
-	db, err := store.Open(ctx, store.Options{ConfigDir: cfg.ConfigDir, Version: version, Logger: log})
+	// The start record for the updater companion (ADR 0024): server.json in its shared folder
+	// before and after the migrations; without the folder nothing is written. The pre-migration
+	// backup an earlier start of this version recorded is never pruned.
+	rec := updater.NewRecorder(cfg.UpdaterDir(), version, log)
+	db, err := store.Open(ctx, store.Options{ConfigDir: cfg.ConfigDir, Version: version, Logger: log,
+		Schema: store.SchemaHooks{Before: rec.Before, After: rec.After, KeepBackup: rec.KeptBackup()}})
 	if err != nil {
 		return err
 	}
@@ -286,6 +296,9 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	if !cfg.Dev && cfg.TestSpotlightRefreshGap != "" {
 		log.Warn("SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP is ignored without --dev")
 	}
+	if !cfg.Dev && cfg.TestUpdaterDir != "" {
+		log.Warn("SLOUCHCAT_TEST_UPDATER_DIR is ignored without --dev")
+	}
 	// The match hands a matched title to the library, which is created after the metadata service
 	// because it takes the metadata checks; the closure reads libSvc when a match runs.
 	var libSvc *library.Service
@@ -329,6 +342,9 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	// for the dashboard.
 	adminSvc.WithAnnouncements(notifySvc).WithTelegram(notifySvc).WithEmailTester(notifySvc).WithPushRotator(notifySvc).WithChannels(notifySvc)
 	notifySvc.SetConfig(adminSvc)
+	// The updater companion (concept 15 P-8, ADR 0024): optional; a failed or rolled back install
+	// goes to the administration once as the event errors.
+	adminSvc.WithUpdater(cfg.UpdaterURL, cfg.UpdaterDir(), notifySvc.UpdateInstallFailed)
 	// Incoming Radarr/Sonarr webhooks (M9, I-8): the address shown once carries the public URL of
 	// the administration's settings, so it can be pasted into "Connect → Webhook" as it is.
 	integrationSvc := integrations.New(db, libSvc, log, integrations.WithBaseURL(func(ctx context.Context) string {
@@ -352,16 +368,29 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	// with a schedule (full scan, sweep, podcast poll, Trakt lists, update check) from
 	// job_schedules, which replaces the ticker loops the services ran until 1.4.0.
 	registry := jobs.NewRegistry(queue, log)
+	// The schedules and the job windows read the zone of the statistics: time.Local is the same
+	// clock but only named "Local", and its name reaches the admin (windowTimeZone, timeZone).
+	scheduler := jobs.NewScheduler(queue, registry, log, jobs.WithLocation(zone))
+	// The webradio (concept 16, ADR 0025): the Radio Browser catalog, relays as live HLS in the
+	// tmpfs of the compose file, listen time in the daily watch time of playback. Playback exists
+	// first, so the radio hears a profile's end through a setter instead of a constructor cycle.
+	radioSvc := radio.New(db, log, radio.WithRunner(runner), radio.WithCacheDir(cfg.CacheDir),
+		radio.WithDir(cfg.RadioDir), radio.WithTokenKey(keyring.Derive("radio-token")),
+		radio.WithWatchClock(playbackSvc), radio.WithUserAgent("Slouchcat/"+version),
+		radio.WithQueue(queue), radio.WithScheduler(scheduler))
+	playbackSvc.OnProfileEnd(radioSvc.EndProfile)
 	libSvc.RegisterTypes(registry)
 	metaSvc.RegisterTypes(registry)
 	adminSvc.RegisterTypes(registry)
 	offlineSvc.RegisterTypes(registry)
 	notifySvc.RegisterTypes(registry)
-	// The schedules and the job windows read the zone of the statistics: time.Local is the same
-	// clock but only named "Local", and its name reaches the admin (windowTimeZone, timeZone).
-	scheduler := jobs.NewScheduler(queue, registry, log, jobs.WithLocation(zone))
+	radioSvc.RegisterTypes(registry)
 	if err := scheduler.Start(ctx); err != nil {
 		return fmt.Errorf("start job scheduler: %w", err)
+	}
+	// The index of the catalog, and the first sync ten minutes ahead while it is empty (R-3).
+	if err := radioSvc.Start(ctx); err != nil {
+		return fmt.Errorf("start radio: %w", err)
 	}
 	poolCounts := poolWorkers(cfg.Workers)
 	adminSvc.WithJobControl(registry, scheduler, poolCounts)
@@ -371,6 +400,9 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	// Run polls Telegram while link codes are open and prunes old deliveries.
 	workers.Go(func() { notifySvc.Run(ctx) })
 	workers.Go(func() { scheduler.Run(ctx) })
+	// The end of an install the companion reported (state.json), once, also while it still runs,
+	// and of every install this server starts, until the server stops.
+	workers.Go(func() { adminSvc.WatchUpdateInstall(ctx) })
 	// The library watchers; the full scan at the start and every 6 h is the schedule scan.library.
 	workers.Go(func() {
 		if err := libSvc.Start(ctx); err != nil && ctx.Err() == nil {
@@ -398,6 +430,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	var sweeper sync.WaitGroup
 	sweeper.Go(func() { playbackSvc.Run(sweepCtx) })
 	sweeper.Go(func() { offlineSvc.Run(sweepCtx) })
+	// Listen sessions of the last run end, the 30-s sweep runs, and every relay stops at the end.
+	sweeper.Go(func() { radioSvc.Run(sweepCtx) })
 	defer func() {
 		stopSweep() // the sweep stops transcodes, so it ends before the manager closes
 		sweeper.Wait()
@@ -416,6 +450,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 			Playback: playbackSvc,
 			Offline:  offlineSvc,
 			Notify:   notifySvc,
+			Radio:    radioSvc,
 
 			Integrations: integrationSvc,
 		}),

@@ -38,9 +38,9 @@ func TestFFmpegArgsGolden(t *testing.T) {
 		want  string
 	}{
 		{"remux", Capabilities{Backend: BackendNVENC}, hevc, Target{Mode: ModeRemux, VideoCopy: true, AudioCopy: true, VideoTag: "hvc1"}, 0,
-			`-nostdin -hide_banner -loglevel warning -copyts -i /media/Film (2024)/Film.mkv -map 0:0 -map 0:2 -map_metadata -1 -map_chapters -1 -c:v copy -tag:v hvc1 -c:a copy -output_ts_offset 10.000000 {mux} -segment_times 5.000000,9.100000,3613.000000 -segment_time_delta 0.002000 -segment_start_number 0 {list}`},
+			`-nostdin -hide_banner -loglevel warning -copyts -i /media/Film (2024)/Film.mkv -map 0:0 -map 0:2 -map_metadata -1 -map_chapters -1 -c:v copy -copytb 1 -bsf:v {setts} -tag:v hvc1 -c:a copy -output_ts_offset 10.000000 {mux} -segment_times 5.000000,9.100000,3613.000000 -segment_time_delta 0.002000 -segment_start_number 0 {list}`},
 		{"remux-restart", Capabilities{Backend: BackendNVENC}, hevc, Target{Mode: ModeRemux, VideoCopy: true, VideoTag: "hvc1"}, 2,
-			`-nostdin -hide_banner -loglevel warning -copyts -ss 9.100000 -i /media/Film (2024)/Film.mkv -map 0:0 -map 0:2 -map_metadata -1 -map_chapters -1 -c:v copy -tag:v hvc1 -c:a aac -b:a 160k -ac 2 -ss 8.850000 -output_ts_offset 18.850000 {mux} -segment_times 3603.900000 -segment_time_delta 0.002000 -segment_start_number 2 {list}`},
+			`-nostdin -hide_banner -loglevel warning -copyts -ss 7.000000 -i /media/Film (2024)/Film.mkv -map 0:0 -map 0:2 -map_metadata -1 -map_chapters -1 -c:v copy -copytb 1 -bsf:v {setts} -tag:v hvc1 -c:a aac -b:a 160k -ac 2 -ss 8.850000 -output_ts_offset 18.850000 {mux} -segment_times 3603.900000 -segment_time_delta 0.002000 -segment_start_number 2 {list}`},
 		{"sw", Capabilities{Backend: BackendSoftware}, hevc, Target{Mode: ModeTranscode, MaxHeight: 720}, 0,
 			`-nostdin -hide_banner -loglevel warning -copyts -i /media/Film (2024)/Film.mkv -map 0:0 -map 0:2 -map_metadata -1 -map_chapters -1 -vf scale=w=1280:h=720:flags=bicubic,format=yuv420p -c:v libx264 -preset veryfast -crf 23 -maxrate 4000000 -bufsize 8000000 -profile:v high -level:v 4.1 -g 9999 -sc_threshold 0 -force_key_frames 4.000000,8.000000,12.000000 -c:a aac -b:a 160k -ac 2 -output_ts_offset 10.000000 {mux} -segment_times 4.000000,8.000000,12.000000,3613.000000 -segment_time_delta 0.250000 -segment_start_number 0 {list}`},
 		{"sw-restart", Capabilities{Backend: BackendSoftware}, hevc, Target{Mode: ModeTranscode}, 1,
@@ -68,7 +68,7 @@ func TestFFmpegArgsGolden(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			want := strings.NewReplacer("{mux}", mux, "{list}", list).Replace(c.want)
+			want := strings.NewReplacer("{mux}", mux, "{list}", list, "{setts}", copyDurations).Replace(c.want)
 			if got := strings.Join(args, " "); got != want {
 				t.Errorf("args differ\ngot:  %s\nwant: %s", got, want)
 			}

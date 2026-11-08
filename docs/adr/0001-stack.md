@@ -34,7 +34,7 @@ Gewichtete Entscheidungstreiber (Plan 2.2):
 | Migrationen | `goose`, nur vorwärts, eingebettet; Vorlage mit `-- +goose NO TRANSACTION`, `PRAGMA foreign_keys=OFF`, `PRAGMA foreign_key_check`, `PRAGMA foreign_keys=ON`; vor jedem Lauf `VACUUM INTO` nach `/config/backups/`, die letzten 5 Sicherungen bleiben |
 | Jobs | eigene persistente Queue in SQLite (Lease, Idempotenz-Schlüssel, Debounce, Retry mit Backoff, Priorität 0–9, Abbruch, Zeitpläne); `goqite` wurde in M0 geprüft und verworfen (keine Idempotenz-Schlüssel, keine Zeitpläne, kein Backoff), siehe ADR 0002 |
 | Logging | `log/slog` mit Redaction-Handler für `password`, `pin`, `token`, `apiKey`, `Authorization`, `X-Api-Key`, Query-Parameter `api_key` und `st` |
-| Transcoding, Bilder | ffmpeg/ffprobe aus dem jellyfin-ffmpeg-Build, ausschliesslich hinter dem Paket `transcode`; `os/exec` ist sonst verboten |
+| Transcoding, Bilder | ffmpeg/ffprobe aus dem jellyfin-ffmpeg-Build, ausschliesslich hinter dem Paket `transcode`; `os/exec` ist sonst verboten (einzige Ausnahme seit Konzept 15: `docker compose` im Updater-Begleiter `server/cmd/updater`, ADR 0024) |
 | Lint | `golangci-lint` mit `forbidigo`, `depguard`, `gosec`; eigener Analyzer `itemsaccess`; `govulncheck` |
 
 ### Web

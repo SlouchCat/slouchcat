@@ -53,8 +53,19 @@ func (s *server) DeleteAccount(ctx context.Context, req gen.DeleteAccountRequest
 		return nil, err
 	}
 	var end func(context.Context, int64) error
-	if s.opts.Playback != nil {
-		end = s.opts.Playback.EndAccount
+	if s.opts.Playback != nil || s.opts.Radio != nil {
+		// Playback and the radio's listen sessions (concept 16, 3.7) end before the account goes.
+		end = func(ctx context.Context, accountID int64) error {
+			if s.opts.Playback != nil {
+				if err := s.opts.Playback.EndAccount(ctx, accountID); err != nil {
+					return err
+				}
+			}
+			if s.opts.Radio != nil {
+				return s.opts.Radio.EndAccount(ctx, accountID)
+			}
+			return nil
+		}
 	}
 	err = svc.DeleteAccount(ctx, req.Id, end)
 	s.forgetDashboardCounts()

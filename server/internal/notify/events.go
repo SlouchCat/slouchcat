@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -84,6 +86,54 @@ func (s *Service) RootContentChanged(ctx context.Context, libraryName, path, fro
 		Body: text(lang, "root_content_changed_body", path, libraryName, text(lang, "content_"+from), text(lang, "content_"+to), items, files),
 		Link: "/admin/libraries",
 	})
+}
+
+// UpdateInstallFailed tells the administration that an install by the updater companion ended
+// rolled back or failed (event errors; admin.WithUpdater, concept 15 9.3, ADR 0024): from and to,
+// what happened, and when the database was migrated already, the backup to go back with. The
+// administration reports each install once; the source (target version and finish time) keeps a
+// second send of the same install within the hour out, not the next failed install to the same
+// version.
+func (s *Service) UpdateInstallFailed(ctx context.Context, in model.UpdateInstall) error {
+	lang := s.ownerLanguage(ctx)
+	outcome := "update_failed"
+	if in.Phase == "rolled_back" {
+		outcome = "update_rolled_back"
+	}
+	from, to := orUnknown(lang, in.From), orUnknown(lang, in.To)
+	parts := []string{text(lang, outcome+"_body", from, to)}
+	if in.Code != "" {
+		parts = append(parts, text(lang, "update_code", in.Code))
+	}
+	if in.Message != "" {
+		parts = append(parts, in.Message)
+	}
+	switch {
+	case in.Migrated && in.Backup != "":
+		parts = append(parts, text(lang, "update_migrated_backup", in.Backup))
+	case in.Migrated:
+		parts = append(parts, text(lang, "update_migrated"))
+	}
+	return s.Emit(ctx, model.Event{
+		Type: model.EventErrors, Source: updateSource(in), Subject: text(lang, outcome+"_subject", to),
+		Body: strings.Join(parts, "\n\n"), Link: "/admin",
+	})
+}
+
+// updateSource is the event source of an install: its target version and finish time.
+func updateSource(in model.UpdateInstall) string {
+	finished := ""
+	if in.FinishedAt != nil {
+		finished = in.FinishedAt.UTC().Format(time.RFC3339Nano)
+	}
+	return "update:" + in.To + ":" + finished
+}
+
+func orUnknown(lang, version string) string {
+	if version == "" {
+		return text(lang, "update_version_unknown")
+	}
+	return version
 }
 
 // ownerLanguage is the language of the owner's primary profile (German without one). The texts of

@@ -75,6 +75,9 @@ export const SMTP_HTTP_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E
 export const PUSH_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_PUSH_PORT ?? PORT - 5)}`;
 export const TELEGRAM_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_TELEGRAM_PORT ?? PORT - 6)}`;
 export const UPDATE_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_UPDATE_PORT ?? PORT - 7)}`;
+// The Radio Browser and the test station of the webradio (radio-server.mjs, concept 16) nine
+// below: GET /drop cuts every open stream of the test station.
+export const RADIO_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_RADIO_PORT ?? PORT - 9)}`;
 
 /** Copy of the server's log, written by start-server.mjs and scanned by global-teardown.ts (A-9). */
 export const SERVER_LOG = `${ARTEFACTS}server.log`;

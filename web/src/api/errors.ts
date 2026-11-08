@@ -14,6 +14,8 @@ const problemKeys = {
   // Concept 11: restart and restore.
   restart_pending: 'errors.code.restart_pending',
   backup_busy: 'errors.code.backup_busy',
+  // Concept 15 P-8: an install of an update runs.
+  update_running: 'errors.code.update_running',
   announcement_published: 'errors.code.announcement_published',
   library_path_invalid: 'errors.code.library_path_invalid',
   // The folder browser of the library form (idea 02).
@@ -80,6 +82,12 @@ const problemKeys = {
   job_type_not_windowable: 'errors.code.job_type_not_windowable',
   // The spotlight list (M11): another entry holds the place an entry is pinned to.
   rank_taken: 'errors.code.rank_taken',
+  // Webradio (concept 16, contract 1.17.0): the relays are full, the station does not answer or
+  // sends no audio, the catalog is not synced yet.
+  radio_capacity: 'errors.code.radio_capacity',
+  radio_unreachable: 'errors.code.radio_unreachable',
+  radio_not_audio: 'errors.code.radio_not_audio',
+  radio_catalog_loading: 'errors.code.radio_catalog_loading',
 } as const;
 
 // Field error codes (`Problem.errors[].code`); unknown codes read as "invalid value".

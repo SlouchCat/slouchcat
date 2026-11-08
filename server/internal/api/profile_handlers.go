@@ -81,6 +81,12 @@ func (s *server) SelectProfile(ctx context.Context, req gen.SelectProfileRequest
 			return s.problem(ctx, err), nil
 		}
 	}
+	// So do the listen tokens of the radio (concept 16, 3.7).
+	if s.opts.Radio != nil {
+		if err := s.opts.Radio.EndSession(ctx, session.ID, model.StoppedByRevoked); err != nil {
+			return s.problem(ctx, err), nil
+		}
+	}
 	return sessionSwitched{session: switched, update: s.updateNotice(ctx, switched)}, nil
 }
 

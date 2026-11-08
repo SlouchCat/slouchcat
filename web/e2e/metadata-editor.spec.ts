@@ -21,6 +21,12 @@ import { episodeIds, itemIdByTitle } from './playback';
 // the byte copy of the H264 film, which only the maintenance spec reads (its duplicates); every
 // change goes back after the test.
 
+// The worker registers on the first page load and takes the page over (clientsClaim) within
+// seconds; from then on Firefox sends the page's requests through it, where the context's routes
+// do not see them. The editor's close reads the start page again, so the mocked rows would give
+// way to the server's in the middle of a test. The editor needs no worker.
+test.use({ serviceWorkers: 'block' });
+
 const TITLE = H264_COPY_TITLE;
 const LIBRARY = 'Filme';
 const PEN = 'Metadaten bearbeiten';
@@ -85,7 +91,7 @@ function filmCell(page: Page) {
 
 /**
  * Shows the film as watched in the library grid: its response only, the server keeps the state.
- * The context's route catches the service worker's requests too.
+ * The spec blocks the service worker, so the context's route sees every request.
  */
 async function showWatched(page: Page): Promise<void> {
   await page.context().route('**/api/v1/libraries/*/items?*', async (route) => {

@@ -1,5 +1,217 @@
 # Aktueller Stand
 
+## Update, das immer durchgeht (Vertrag 1.18.0, 8. November 2026)
+
+Zweig `claude/manifest-fallback` ab `main` `216ea50a` (Release 1.17.0). Vertrag **1.18.0, additiv**, keine
+Migration. Entscheide im Nachtrag vom 8. November 2026 in ADR 0024.
+
+Anlass: Am 8. November 2026 meldete die Update-Prüfung auf CT 190 «Letzte Prüfung fehlgeschlagen», weil
+GitHub die Download-Adresse der Releases stundenlang mit 504 beantwortete (auch für fremde Projekte), während
+API, Ablage der Anhänge und `ghcr.io` liefen. Marco verteilt Slouchcat weltweit und kann auf keinen Server
+zugreifen; er hat entschieden, alle Lücken des Update-Wegs in einem Zug zu schliessen. Ein Architektur-Audit
+fand dazu: Der Updater aktualisierte sich nie, Compose-Dateien reisten nie mit, nirgends gab es eine
+Wiederholung, alte Images blieben liegen, Vorabversionen konnten «latest» werden.
+
+- **Release-Dateien lesen** (`updater.FetchReleaseFile`): zwei Versuche, danach GitHub-API (latest und Tag),
+  nur Anhänge desselben Repositorys; Fehler nennt beide Wege.
+- **Selbstupdate des Updaters** über einen Hilfscontainer aus dem neuen Image; Rückkehr zur alten Version,
+  wenn der neue nicht stabil läuft; höchstens ein Versuch je Version und 6 h.
+- **Compose-Dateien reisen mit** (`deploy`, `deployKnown` im Manifest): ersetzt wird nur eine Datei, die seit
+  einem Release unverändert ist, mit Sicherung und Rücknahme; eine selbst geänderte bleibt liegen.
+- **Pull** bis dreimal, Grund in der Meldung, `disk_full`; **Aufräumen** alter Images ausser der Vorversion.
+- **Release-Lauf**: nur die höchste `vX.Y.Z` wird «latest» und `:latest`; Vorabversionen bleiben Vorabversion.
+- **Karte**: letzte erfolgreiche Prüfung, Version des Updaters, Warnung mit Befehl für Updater vor 1.18.0.
+- **Neustartschleife**: Docker meldet einen Container zwischen zwei Neustarts als `running` und
+  `restarting`; der Updater wartete deshalb die vollen 10 min. Jetzt gibt er nach drei Neustarts auf.
+
+**Prüfung:** Zwei Reviews (Architektur-Audit, Code-Review mit Nachprüfung, APPROVE). `task ci` auf
+`9c303e64`: Server grün; Web, Storybook (392), Build und e2e (537 in 3 Shards) grün; ein Radio-Test
+(`useRadio.test.tsx` «shows the code of a start the server refused») fiel einmal unter Last und lief danach
+fünfmal grün; er stammt aus dem Webradio und ist ein Flake. Danach `task check:fast` und gezielte Tests.
+
+**Abnahme auf CT 190** (8. November 2026, mit Test-Images 1.17.90–1.17.93 aus einer lokalen Registry und
+einem Test-Manifest über https mit eigener CA):
+- Lauf 1: Update 1.17.90 → 1.17.91 in 3 s `done`; `compose.yaml` und `compose.updater.yaml` ersetzt (Sicherung
+  `.bak-vor-1.17.91`), `compose.intel.yaml` gleich und unberührt; der Updater hob sich selbst auf 1.17.91, der
+  Hilfscontainer entfernte sich; Aufräumen behielt Server 1.17.91 und 1.17.90.
+- Lauf 2: eigene Änderung in `compose.yaml` blieb liegen, Meldung «has own changes»; Selbstupdate auf einen
+  absichtlich kaputten Updater 1.17.92: nach 60 s zurück auf 1.17.91, keine Schleife.
+- Lauf 3: Server 1.17.93 in der Neustartschleife → Rücknahme auf 1.17.92, `compose.yaml` wiederhergestellt;
+  zuerst nach 10 min, mit dem Fix `93d00976` nach 11 s.
+- Danach CT 190 zurück auf Release 1.17.0 mit Updater 1.16.0, Testteile entfernt; Sicherungen in
+  `/root/abnahme118` auf dem CT.
+
+**Für bestehende Installationen:** Ein Updater vor 1.18.0 hebt sich nicht selbst; einmal von Hand heben
+(Befehl auf der Karte und in `docs/INSTALLATION.md`). Danach folgt er dem Server.
+
+## Release 1.17.0 (8. November 2026): Webradio, Stufe 1
+
+Release ab `main` nach PR #113 (Merge `a2598bea`, Konzept 16 Stufe 1). Vertrag **1.17.0, additiv**,
+**Migration 00038**. Merge und Tag auf Marcos Wort vom 8. November 2026.
+
+- Versionsstellen auf 1.17.0 im Zweig `claude/release-1.17.0` (`deploy/.env.example`,
+  `deploy/compose.yaml`, `deploy/compose.updater.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`,
+  `docs/dev/HANDOVER.md`).
+- Die Compose-Datei hat neu eine `tmpfs` `/run/slouchcat/radio` (564 MB). Wer nur das Image hebt
+  (Updater), behält die alte Compose-Datei: Radio spielt dann nur live, die Verwaltung warnt. CT 190
+  bekommt die `tmpfs` von Hand.
+
+## Konzept 16 Stufe 1 «Webradio: Hören» (7. November 2026): gemergt (PR #113)
+
+Zweig `claude/webradio-stufe1` ab `main` `2bfa9979` (Release 1.16.1). **Vertrag 1.17.0 additiv,
+Migration 00038**, Frage 23, ADR 0025. Bau auf Marcos Wort vom 7. November 2026, nach Plan in drei Spuren
+(Relay, Katalog, Web) mit Kritiker-Review des Plans, Code-Review und Security-Review; alle Befunde behoben.
+
+- **Katalog:** ganzer Radio-Browser-Katalog (Daten gemeinfrei), täglicher Abgleich `radio.catalog.sync`
+  im Fenster ab 04:30, erster Lauf 10 Minuten nach dem Start bei leerem Katalog; stabile Kennung über
+  `radio_station_aliases`; Einordnung in Land, Region, Sprache, Genre, Sendeart, Stimmung und Qualität
+  über eingebettete Regeln (`server/internal/radio/rules/default.json`); Schutz gegen eine zu kurze Liste
+  eines Spiegels.
+- **Weiterleitung:** eigener Go-Leser (ICY, Shoutcast v1, HLS, Ogg-Titel) über `netguard`, ffmpeg nur
+  zwischen `pipe:0` und `pipe:1` (AAC kopiert mit `+delay_moov`, sonst AAC 96–192 kbit/s), Stücke und
+  Delta-Listen aus Go in die `tmpfs` `/run/slouchcat/radio`; ohne `tmpfs` nur live. Budget 512 MB,
+  höchstens 10 Sender, 2 Minuten Nachlauf. Hör-Sitzungen mit Token je Sender (`rt`, geschwärzt), Hörzeit
+  je Viertelstunde im Tageslimit (K-5), nicht in den Stream-Grenzen (W-8).
+- **App:** Seite `/radio` (Variante A) mit Suche, Schnellfiltern, Filtern mit Zählern, Sortierung und
+  Favoriten; Standardland je Profil aus der Zeitzone des Servers; Radio-Player auf App-Ebene mit
+  Mini-Player und «Jetzt läuft». **Verwaltung** `/admin/radio` mit Reitern Übersicht, Sender,
+  Einstellungen.
+- **Container:** `deploy/compose.yaml` bekommt die `tmpfs` für die Puffer; ältere Compose-Dateien spielen
+  nur live.
+- **Tests:** Test-Sender und Testkatalog nur im Build `bin/slouchcat-e2e` (Tag `radiotest`); drei
+  Playwright-Specs mit Tastaturprüfung; eingefrorener Stand `testdata/db/webradio.sql`.
+- **Offen für die Abnahme auf CT 190:** Messungen nach `docs/perf/radio.md` (erster Ton, Liste und
+  Suche, Abgleich, CPU und RAM je Relay), `+delay_moov` mit dem ffmpeg im Container, iPhone mit
+  gesperrtem Bildschirm, Schweizer Sender trotz «gestört» bei Radio Browser (Prüfung aus Deutschland,
+  ADR 0025 «Folgen»). Stufe 2 (Zeitversatz-Regler, Cover, Startseiten-Reihe, Regeln, eigene Sender) folgt
+  danach.
+
+## Release 1.16.1 (7. November 2026): Ruckler beim Remux
+
+Patch ohne Vertragsänderung (Vertrag bleibt 1.16.0), keine Migration. Zweig `claude/remux-seams`.
+
+Marco sah beim Schauen von Silo S03E09 (HEVC aus MKV, EAC3 zu AAC, Remux) gelegentliche Mikroruckler.
+Diagnose an CT 190, unabhängige Zweitmeinung und eine Messung im Browser (Firefox,
+`requestVideoFrameCallback`): Alle drei markierten Ruckler lagen 0,6–0,9 s nach einem ffmpeg-Neustart.
+
+- **Ton-Lücke an jedem Neustart** (etwa 134 ms, beim normalen Schauen rund jede Minute wegen
+  `MaxAhead`): Der Eingangs-Seek landete auf dem Keyframe der Grenze, der neue Lauf las keinen Ton davor.
+  Jetzt sucht der Eingang den letzten Keyframe vor dem Ausgabe-Seek; der Ton überlappt die Naht.
+- **Keyframe drei Frames zu früh** an fast jeder zweiten Grenze (mp4-Muxer, Paketdauer vor dem Keyframe
+  zwei Frames): `setts` setzt die Paketdauern des kopierten Videos auf den Abstand zur nächsten
+  Dekodierzeit; `-copytb 1` verhindert, dass ffmpeg 6.1 die Zeitstempel dabei rundet.
+- Tests `TestHLSRemuxSeams`, `TestRemuxInputSeek`; Review APPROVE (Auflagen umgesetzt); Einzelheiten im Nachtrag von ADR 0003. Nachmessung mit den neuen Argumenten
+  an der Originaldatei im Container (ffmpeg 7.1.4-Jellyfin): keine Muxer-Warnung, 40 von 40 Grenzen exakt,
+  Naht 116 ms Überlappung statt 134 ms Lücke.
+- Nebenbefund, nicht behoben: Das Herauslösen eingebetteter Text-Untertitel (`ffmpeg webvtt`) bricht bei
+  grossen Dateien auf dem langsamen NAS nach 60 s ab (`signal: killed`, 500); bei Silo S03E09 fehlten so
+  die deutschen Forced-Untertitel.
+- Versionsstellen auf 1.16.1 (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/compose.updater.yaml`,
+  `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`).
+
+## Release 1.16.0 (7. November 2026): veröffentlicht
+
+Release ab `main` nach PR #108 (Konzept 15, Stufe 4). Vertrag **1.16.0, additiv**, keine Migration.
+Neu ist das zweite Image `ghcr.io/slouchcat/slouchcat-updater` (Updater-Begleiter, ADR 0024).
+
+- Versionsstellen auf 1.16.0 im Zweig `claude/release-1.16.0` (`deploy/.env.example`,
+  `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`),
+  gemergt als **PR #109** (Merge `266415ba`).
+- Tag `v1.16.0` von Marco auf `266415ba` gesetzt (7. November 2026, Release-Notes
+  `release-notes-1.16.0.txt`). Release-Lauf `42385465442` grün, GitHub-Release um 16:18
+  veröffentlicht. Das Manifest trägt erstmals das Feld `image`
+  (`ghcr.io/slouchcat/slouchcat@sha256:84361004…`). Beide Images lassen sich ohne Anmeldung ziehen;
+  das neue Paket `slouchcat-updater` war ohne Handgriff öffentlich.
+- **CT 190 hat sich selbst auf 1.16.0 gehoben:** Updater auf sein Release-Image 1.16.0, Testdatei
+  `compose.abnahme.yaml` entfernt, dann der Auftrag an den Updater (1.15.0 hat noch keinen Knopf).
+  Echtes Manifest von GitHub, Digest geprüft, `done` nach 13 s; 1.16.0 schrieb `server.json` selbst
+  (Schema 37, keine Migration). Sicherung `.env.bak-vor-1.16.0` (→ 1.15.0). `COMPOSE_FILE` ist jetzt
+  `compose.yaml:compose.ct.yaml:compose.intel.yaml:compose.updater.yaml`; Port 8096 und GPU wie
+  vorher, 0 ERROR. Testimages, Bau- und Storybook-Ordner der Abnahme, Build-Cache (2,1 GB), Zweige
+  und Schritt-Klone der Stufe 4 sind aufgeräumt.
+
+## Konzept 15 «Feinschliff», Stufe 4: gemergt und auf CT 190 abgenommen (7. November 2026)
+
+Zweig `claude/feinschliff-stufe4` ab `main` `88d03c11` (Release 1.15.0 veröffentlicht). Geplant als
+Release **1.16.0**: Vertrag **1.16.0, additiv**, **keine Migration**. Neue **ADR 0024
+«Updater-Begleiter»**; Spec A-5 erweitert; `CLAUDE.md` Regel 3 mit der benannten Ausnahme
+`server/cmd/updater` (Lint erlaubt dort nur `exec.CommandContext`).
+
+- **P-8 Updater-Begleiter** `server/cmd/updater`, eigenes Image `ghcr.io/slouchcat/slouchcat-updater`
+  (`deploy/Dockerfile.updater` auf `docker:29.9.3-cli`, per Digest gepinnt), freiwillig über die
+  Override-Datei `deploy/compose.updater.yaml` (statt nur eines Profils: der Server braucht eine
+  Einhängung und eine Variable). Nur der Updater hat `/var/run/docker.sock`; `deploy/` ist unter
+  demselben Pfad eingehängt (`SLOUCHCAT_DEPLOY_DIR`), `./config` und `./cache` sind darin mit
+  schreibgeschütztem tmpfs überdeckt. Kein offener Port, Bearer-Token in `deploy/updater/token`.
+  Ablauf: Manifest (nur https) prüfen, neuere Version und Digest Pflicht, `.env` sichern
+  (`.env.bak-vor-<X>`, `0600`, der Updater löscht nie eine Sicherung), nur den Wert `SLOUCHCAT_VERSION` ändern, Compose mit
+  genau den Dateien aus den Labels des laufenden Containers (`config --format json`, `pull`,
+  `up -d --no-deps --no-build`), Digest prüfen, bis 10 min selbst auf «healthy» warten (kein
+  `--wait`: der Healthcheck meldet eine lange Migration nach 16 s als krank). Ohne Migration nimmt er
+  ein gescheitertes Update zurück, mit Migration meldet er nur die Sicherung (F-14). Nach einem
+  Stopp oder Neustart des Updaters macht er beim nächsten Start weiter, ohne zurückzunehmen.
+- **Server und Vertrag:** `SLOUCHCAT_UPDATER_URL`; `server.json` vor und nach den Migrationen
+  (Hooks in `store.Options.Schema`; ein zweiter Start derselben Version behält den ersten Stand und
+  die erste Sicherung, die nie weggeräumt wird); `UpdateState.updaterConfigured` und
+  `updaterAvailable`, `UpdateState.install` (`UpdateInstallStatus`); `POST /admin/update/install`
+  (202, 409 `update_running`/`backup_busy`/`restart_pending`, 422 mit dem Grund des Updaters, 503
+  `updater_unavailable`) und `GET /admin/update/status` (liest `state.json` direkt). Neustart,
+  Sicherung und Wiederherstellung antworten während eines Updates 409 `update_running`. Ein
+  gescheitertes oder zurückgenommenes Update meldet der Server einmal als Ereignis «Fehler»
+  (Einstellung `update_install_reported`).
+- **Karte «Server»:** «Update auf X installieren» mit Release-Notizen im Bestätigungsdialog, danach
+  die Phasen (Herunterladen, Neustart, Gesundheitsprüfung), Neuladen, sobald die neue Version
+  antwortet; Ergebnis bleibt sichtbar. Ohne Updater (oder bei `no_compose_labels`,
+  `outside_deploy_dir`) die Schritte von Hand zum Kopieren (Rückfall C).
+- **Release-Lauf:** baut, veröffentlicht und attestiert auch das Updater-Image; das Manifest bekommt
+  das Feld `image` (`ghcr.io/slouchcat/slouchcat@sha256:…`). `ci.yml` baut das Updater-Image mit.
+  Das neue Paket `slouchcat-updater` muss nach dem ersten Release einmal von Hand öffentlich
+  gemacht werden (Kopf von `release.yml`).
+- **Reviews** (OMC-Code-Reviewer und Verifier): Updater REQUEST CHANGES (2 High: `config --images`
+  listete wegen `depends_on` zwei Images, jedes Update wäre gescheitert; `chown` über einen Pfad im
+  vom Server beschreibbaren Ordner hätte einem übernommenen Server Root auf dem Gastgeber geben
+  können. 4 Medium, 9 Low); Server und Karte REQUEST CHANGES (1 High: `server.json` verlor beim
+  zweiten Start den Beweis der Migration. 5 Medium, 9 Low); Verifier: alle behoben, 6 weitere Low
+  ebenfalls behoben. Ein versehentlich mitgeschriebenes Programm `server/updater` (11 MB) wurde vor
+  dem Push aus allen Commits entfernt, `.gitignore` ergänzt.
+- **Bildspeicher geprüft:** Nach `docker compose pull` zeigt `RepoDigests` den Index-Digest des
+  Release-Laufs, mit dem containerd-Speicher und mit dem klassischen. Ein echtes Update 1.1.0 →
+  1.15.0 lief lokal mit einem eigenen https-Manifest durch (`done` nach 12 s).
+
+**Belege auf `b10945c1`** (Inhalt gleich `d1bb86ed`, vor den letzten sieben Low-Fixes): `task ci`
+grün bis auf Storybook: 371 gleich, **1 neue Story ohne Vergleichsbild**
+(`ui-confirmdialog--with-details`); Go alle Pakete ok, Vitest 1504, api-client 4, design-tokens 2.
+e2e `task build` + `task ci:e2e:parallel`: **522/523**, `admin-picks.spec.ts:98` (Firefox) einzeln
+grün. Nach den Low-Fixes (`aa3abad3`): gezielte Go-Tests, `-race -count=3 ./cmd/updater/`, Lint,
+`task check:fast`, AdminHomePage-Vitest 56/56 und `task e2e:quick -- e2e/admin-home.spec.ts` 9/9 grün.
+
+**Abnahme auf CT 190 (7. November 2026):** Vergleichsbild `ui-confirmdialog--with-details` auf CT 190
+geschossen (`66c3703f`, 367 passed). Testimage aus `66c3703f` mit der Version **1.14.99** (damit 1.15.0
+als neuer gilt) und Updater-Image `abnahme-66c3703`, eingerichtet mit `compose.updater.yaml` und einer
+Testdatei `compose.abnahme.yaml` (Test-Manifest über https mit eigener CA, Version 1.15.0 und dem echten
+Index-Digest von 1.15.0). Port 8096, `/dev/dri` und Gruppe 993 standen danach wie vorher; im Updater ist
+`config` leer und schreibgeschützt. Marco hat zweimal auf «Update auf 1.15.0 installieren» geklickt:
+
+- **Lauf 1, Rücknahme:** Herunterladen, Digest, Neustart in 2 s; 1.15.0 lief gesund, schrieb aber
+  (als Release vor 1.16) kein `server.json`. Nach 10 min nahm der Updater das Update zurück
+  (`rolled_back`), 1.14.99 lief wieder, der Server meldete einmal das Ereignis «Fehler».
+- **Lauf 2, Erfolg:** dasselbe, `server.json` für 1.15.0 von Hand geschrieben, eine Sekunde später
+  `done`; CT 190 läuft seither auf Release 1.15.0.
+- **Befunde und Fixes:** Der Updater löschte alle `.env.bak-vor-*` ausser den fünf neuesten (auf CT 190
+  rund 20 von Hand) und überschrieb eine gleichnamige Sicherung: er löscht und ersetzt jetzt keine
+  Sicherung mehr, sondern wählt `-2`, `-3`, … (`242ca4de`, `2a3a68de`). Die Meldung nach der Wartezeit
+  unterscheidet jetzt «läuft gesund, meldet sich aber nicht» von «wird nicht gesund» (`af3a6607`).
+
+Marco hat Stufe 4 am 7. November 2026 freigegeben.
+
+Die GitHub-CI fand auf dem Zweig einen Testfehler, der nur dort auftrat: In Firefox übernahm der
+Service Worker die Seite mitten in `metadata-editor.spec.ts:539`, und die Test-Attrappe für
+`/api/v1/home` griff nicht mehr. Die Testdatei blockiert jetzt den Service Worker wie zehn andere
+(`1f9fe1fb`; CI-Teillauf 1/6 lokal 99/99). Gemergt als **PR #108** (Merge `a96e196f`, GitHub-CI 19/19
+grün auf `1f9fe1fb`).
+
+Veröffentlicht als Release 1.16.0 (siehe oben).
+
 ## Release 1.15.0 (7. November 2026): veröffentlicht
 
 Release ab `main` nach PR #104 (Konzept 15, Stufe 3). Vertrag **1.15.0, brechend für `getHome` und

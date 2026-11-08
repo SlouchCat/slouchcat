@@ -34,7 +34,23 @@ var (
 	ErrUpdateCheckDisabled   = errors.New("update check disabled")        // 422 update_check_disabled
 	ErrRankTaken             = errors.New("spotlight rank taken")         // 409 rank_taken (M11)
 	ErrRefreshTooSoon        = errors.New("refresh too soon")             // 429 too_many_requests (M11: one manual spotlight refresh a minute)
+	ErrUpdateRunning         = errors.New("update running")               // 409 update_running (concept 15 P-8)
+	ErrUpdaterUnavailable    = errors.New("updater unavailable")          // 503 updater_unavailable (concept 15 P-8)
+	ErrUpdateRefused         = errors.New("update refused")               // 422 with the updater's code (see UpdateRefusedError)
 )
+
+// UpdateRefusedError is ErrUpdateRefused with the reason the updater companion gave before it
+// changed anything (Code, for example "not_newer"; Message, its English explanation without a
+// secret); errors.Is(err, ErrUpdateRefused) holds.
+type UpdateRefusedError struct {
+	Code    string
+	Message string
+}
+
+func (e *UpdateRefusedError) Error() string { return fmt.Sprintf("%v: %s", ErrUpdateRefused, e.Code) }
+
+// Is makes errors.Is(err, ErrUpdateRefused) true.
+func (e *UpdateRefusedError) Is(target error) bool { return target == ErrUpdateRefused }
 
 // EnvWinsError is ErrEnvWins with the request field (contract name, for example "keys.tmdb") whose
 // value comes from the environment; errors.Is(err, ErrEnvWins) holds.
@@ -403,7 +419,32 @@ type UpdateState struct {
 	URL         string
 	Notes       string
 	CheckedAt   *time.Time
-	Error       string
+	// LastSuccessAt is the last check that read the manifest; a failed check keeps it (contract
+	// 1.18.0).
+	LastSuccessAt *time.Time
+	Error         string
+	// UpdaterConfigured: an address of the updater companion is set (config.UpdaterURL).
+	UpdaterConfigured bool
+	// UpdaterAvailable: the server reaches the updater companion with its token (ADR 0024).
+	UpdaterAvailable bool
+	// UpdaterVersion is the companion's version from its status answer; empty when it does not
+	// answer or is older than 1.18.0 (contract 1.18.0).
+	UpdaterVersion string
+	// Install is the last install the companion reported (state.json); nil when none.
+	Install *UpdateInstall
+}
+
+// UpdateInstall is the state of an install by the updater companion (updater.State; contract
+// UpdateInstallStatus).
+type UpdateInstall struct {
+	Phase      string // idle, checking, backing_up, pulling, verifying, restarting, waiting, done, rolled_back, failed
+	From, To   string
+	StartedAt  *time.Time
+	FinishedAt *time.Time
+	Migrated   bool
+	Backup     string // pre-migration backup when known
+	Code       string
+	Message    string
 }
 
 // UpdateNotice is the header badge of the main account: a newer version is published.

@@ -314,6 +314,11 @@ type AdminService interface {
 	UpdateState(ctx context.Context) (model.UpdateState, error)
 	CheckForUpdate(ctx context.Context) (model.UpdateState, error)
 	UpdateAvailable(ctx context.Context) *model.UpdateNotice
+	// InstallUpdate asks the updater companion to install the newest release (ADR 0024):
+	// model.ErrUpdaterUnavailable, model.ErrUpdateRunning, *model.UpdateRefusedError.
+	// InstallStatus reads its last install from state.json (idle without one).
+	InstallUpdate(ctx context.Context) (model.UpdateInstall, error)
+	InstallStatus(ctx context.Context) (model.UpdateInstall, error)
 	// ListAccounts returns the main account first, then the guests, newest first (A-2).
 	ListAccounts(ctx context.Context) ([]model.AdminAccount, error)
 	// Stats returns the statistics of the last days days: 7, 30, 90 or 365 (*model.ValidationError).
@@ -489,4 +494,91 @@ type IntegrationService interface {
 	// model.ErrWebhookPathOutside (422) and *model.ValidationError (422, an acting event without
 	// a path). Every other event is accepted and reported as ignored.
 	Receive(ctx context.Context, token string, p model.WebhookPayload) (model.WebhookReceipt, error)
+}
+
+// RadioService is the webradio of concept 16 stage 1 (package radio, contract 1.17.0, ADR 0025).
+// Every method that takes the session acts for its active profile. A station the profile may not
+// reach (hidden, or of a country the setting excludes) answers model.ErrNotFound, never a 403.
+// Methods that read the catalog answer model.ErrRadioCatalogLoading before the first sync.
+type RadioService interface {
+	// ListStations and Facets read the in-memory index: never hidden or excluded stations, broken
+	// ones only while the setting hide_broken is off. *model.ValidationError for a bad value.
+	ListStations(ctx context.Context, session model.Session, q model.RadioQuery) (model.RadioStationPage, error)
+	Facets(ctx context.Context, session model.Session, q model.RadioQuery) (model.RadioFacets, error)
+	// Station returns one station, broken and missing ones included.
+	Station(ctx context.Context, session model.Session, stationID int64) (model.RadioStation, error)
+	// Favorites returns the profile's favourites in its order, without hidden and excluded ones.
+	Favorites(ctx context.Context, session model.Session) ([]model.RadioStation, error)
+	// SetFavoriteOrder stores the complete new order; another set of ids is a
+	// *model.ValidationError on field stationIds.
+	SetFavoriteOrder(ctx context.Context, session model.Session, stationIDs []int64) error
+	AddFavorite(ctx context.Context, session model.Session, stationID int64) error
+	RemoveFavorite(ctx context.Context, session model.Session, stationID int64) error
+	// Listen starts or joins the station's relay and opens a listen session. Errors:
+	// model.ErrNotFound, *model.RadioCapacityError, model.ErrRadioUnreachable,
+	// model.ErrRadioNotAudio, *model.WatchLimitError.
+	Listen(ctx context.Context, session model.Session, stationID int64) (model.RadioListen, error)
+	// Heartbeat keeps a listen session of the profile open. Errors: model.ErrNotFound (unknown or
+	// another profile's session), *model.WatchLimitError (the session ended at the limit),
+	// model.ErrRadioUnreachable (the relay ended; the handler answers 410).
+	Heartbeat(ctx context.Context, session model.Session, listenID string, playing bool) (model.RadioHeartbeat, error)
+	// EndListen ends a listen session of the profile (idempotent; model.ErrNotFound for an unknown
+	// or another profile's session).
+	EndListen(ctx context.Context, session model.Session, listenID string) error
+	// Now returns the title timeline of the station's running relay after since (zero = all).
+	Now(ctx context.Context, session model.Session, stationID int64, since time.Time) (model.RadioNow, error)
+	Preferences(ctx context.Context, session model.Session) (model.RadioPreferences, error)
+	// SetPreferences replaces the preferences (*model.ValidationError for a bad value).
+	SetPreferences(ctx context.Context, session model.Session, p model.RadioPreferences) (model.RadioPreferences, error)
+
+	// AuthorizeLive resolves the listen token of a live request; a forged token, a token of
+	// another listen session, an ended or expired session answer model.ErrUnauthenticated. Every
+	// call slides the session's expiry.
+	AuthorizeLive(ctx context.Context, listenID, token string) (model.RadioGrant, error)
+	// Playlist returns the live playlist; skip is the _HLS_skip query value ("" = full list).
+	Playlist(ctx context.Context, g model.RadioGrant, skip string) ([]byte, error)
+	// Init returns the fMP4 initialisation segment of a relay generation (model.ErrNotFound
+	// outside the window).
+	Init(ctx context.Context, g model.RadioGrant, gen int) ([]byte, error)
+	// Segment returns one fMP4 segment (model.ErrNotFound outside the window) and a channel that
+	// closes when the listen session is revoked, so the handler cuts a running write.
+	Segment(ctx context.Context, g model.RadioGrant, n int64) ([]byte, <-chan struct{}, error)
+	// Image opens a station image (kind logo; size w96, w256 or w512) as WebP or PNG. admin
+	// false applies the viewer rules (hidden or excluded → model.ErrNotFound); no logo is
+	// model.ErrNotFound as well.
+	Image(ctx context.Context, stationID int64, kind, size string, webp, admin bool) (model.StreamSource, error)
+
+	// Administration (x-visibility admin).
+	Config(ctx context.Context) (model.RadioConfig, error)
+	// UpdateConfig changes the settings (*model.ValidationError for a value out of range).
+	UpdateConfig(ctx context.Context, upd model.RadioConfigUpdate) (model.RadioConfig, error)
+	CatalogState(ctx context.Context) (model.RadioCatalogState, error)
+	// SyncCatalog queues the catalog sync with manual priority (or names the queued or running
+	// one) and returns its job id.
+	SyncCatalog(ctx context.Context) (int64, error)
+	AdminStations(ctx context.Context, q model.AdminRadioQuery) (model.AdminRadioStationPage, error)
+	AdminStation(ctx context.Context, stationID int64) (model.AdminRadioStation, error)
+	// UpdateStation applies a patch; a set field locks itself. Errors: model.ErrNotFound,
+	// *model.ValidationError.
+	UpdateStation(ctx context.Context, stationID int64, patch model.AdminRadioStationPatch) (model.AdminRadioStation, error)
+	// Probe checks a stream of the station (streamID 0 = the best ranked) within 10 s. Errors:
+	// model.ErrNotFound, model.ErrRadioUnreachable, model.ErrRadioNotAudio.
+	Probe(ctx context.Context, stationID, streamID int64) (model.RadioProbe, error)
+	// SetLogo stores an uploaded logo (at most model.MaxImageUploadBytes, already limited by the
+	// handler) and locks the field logo. Errors: model.ErrNotFound, *model.ValidationError on
+	// field file (unsupported_format, too_many_pixels).
+	SetLogo(ctx context.Context, stationID int64, r io.Reader) (model.AdminRadioStation, error)
+	// DeleteLogo removes an uploaded logo and lifts the lock, so the logo chain runs again.
+	DeleteLogo(ctx context.Context, stationID int64) (model.AdminRadioStation, error)
+	Relays(ctx context.Context) (model.RadioRelays, error)
+	// StopListener ends a listen session (ended_by admin); model.ErrNotFound for an unknown or
+	// ended one.
+	StopListener(ctx context.Context, listenID string) error
+
+	// Session hooks: the login session ended (by model.StoppedByLogout or model.StoppedByRevoked
+	// for a profile switch), a profile's sessions ended (by model.StoppedBy*), an account was
+	// revoked. Each ends the listen sessions concerned; their next live request answers 401.
+	EndSession(ctx context.Context, sessionID int64, by string) error
+	EndProfile(ctx context.Context, profileID int64, by string) error
+	EndAccount(ctx context.Context, accountID int64) error
 }

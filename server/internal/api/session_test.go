@@ -166,6 +166,11 @@ func TestMapError(t *testing.T) {
 		code   string
 	}{
 		model.ErrNotFound:                                        {404, "not_found"},
+		model.ErrRadioCapacity:                                   {409, "radio_capacity"},
+		&model.RadioCapacityError{Running: 10, Max: 10}:          {409, "radio_capacity"},
+		model.ErrRadioUnreachable:                                {502, "radio_unreachable"},
+		model.ErrRadioNotAudio:                                   {422, "radio_not_audio"},
+		model.ErrRadioCatalogLoading:                             {503, "radio_catalog_loading"},
 		model.ErrInvalidCredentials:                              {401, "invalid_credentials"},
 		model.ErrSetupDone:                                       {409, "setup_done"},
 		model.ErrTooManyAttempts:                                 {429, "too_many_attempts"},
@@ -203,6 +208,10 @@ func TestMapError(t *testing.T) {
 		model.ErrPushUnavailable:       {404, "push_unavailable"},
 		model.ErrAnnouncementPublished: {409, "announcement_published"},
 		model.ErrNotImplemented:        {501, "not_implemented"},
+		// Concept 15 P-8: the updater companion (ADR 0024); a refusal carries the updater's code.
+		model.ErrUpdateRunning:      {409, "update_running"},
+		model.ErrUpdaterUnavailable: {503, "updater_unavailable"},
+		&model.UpdateRefusedError{Code: "no_compose_labels", Message: "the server container was not started by Compose"}: {422, "no_compose_labels"},
 	}
 	for err, want := range cases {
 		rec := httptest.NewRecorder()
@@ -215,6 +224,10 @@ func TestMapError(t *testing.T) {
 		}
 		if want.code == "env_wins" && !strings.Contains(rec.Body.String(), `{"code":"env_wins","field":"keys.tmdb"}`) {
 			t.Errorf("env_wins problem lacks the field: %s", rec.Body.String())
+		}
+		var refused *model.UpdateRefusedError
+		if errors.As(err, &refused) && !strings.Contains(rec.Body.String(), `"detail":"`+refused.Message+`"`) {
+			t.Errorf("%s problem lacks the updater's message: %s", want.code, rec.Body.String())
 		}
 		var send *model.SendError
 		if errors.As(err, &send) && !strings.Contains(rec.Body.String(), `"detail":"`+send.Detail+`"`) {

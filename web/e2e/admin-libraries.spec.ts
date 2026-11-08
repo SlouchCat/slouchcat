@@ -13,6 +13,12 @@ import {
 // sources of a folder ordered by position (S-16). Other specs add libraries of their own ("E2E
 // leer", "Dokus", "E2E Ordner"), so every count and Tab budget leaves room for them.
 
+// The worker registers on the first page load and takes the page over (clientsClaim) within
+// seconds; from then on it sends every GET under /api to the network itself, where the page's
+// routes do not see it. Two tests answer or hold back the library list through a route, which
+// would give way to the server's in the middle of a test. The page needs no worker.
+test.use({ serviceWorkers: 'block' });
+
 /** The toggle of a library's row: its name. */
 const toggle = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
 /** The table row of a library. */

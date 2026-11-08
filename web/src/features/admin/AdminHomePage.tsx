@@ -5,10 +5,11 @@ import type {
   IntegrationStatus,
   StorageInfo,
   SystemInfo,
+  UpdateInstallStatus,
 } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, isApiError, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -46,7 +47,7 @@ import { composeCommand, SYSCTL_COMMAND } from '../shared/SystemState';
 import { useHealth } from '../system/useHealth';
 import { formatSeconds, typeName } from './jobsFormat';
 import { DASHBOARD_POLL_MS, dashboardQuery, systemQuery } from './queries';
-import { reloadPage } from './restart';
+import { reloadPage, RESTART_POLL_MS, restartedSince } from './restart';
 import { RestartPanel } from './RestartPanel';
 import { streamMode } from './streams/format';
 import styles from './AdminHomePage.module.css';
@@ -341,6 +342,490 @@ function HintsCard({ hints }: { hints: Hint[] }) {
   );
 }
 
+/** Phases of a running install (UpdateInstallStatus); the others end it or never began one. */
+const INSTALL_RUNNING: ReadonlySet<UpdateInstallStatus['phase']> = new Set([
+  'checking',
+  'backing_up',
+  'pulling',
+  'verifying',
+  'restarting',
+  'waiting',
+]);
+
+type RunningPhase = 'checking' | 'backing_up' | 'pulling' | 'verifying' | 'restarting' | 'waiting';
+
+const isInstalling = (
+  install: UpdateInstallStatus | undefined,
+): install is UpdateInstallStatus & { phase: RunningPhase } =>
+  install !== undefined && INSTALL_RUNNING.has(install.phase);
+
+/** The three steps the card shows (concept 15, 9.3), each with the companion's phases in it. */
+const INSTALL_STEPS = [
+  { key: 'download', phases: ['checking', 'backing_up', 'pulling', 'verifying'] },
+  { key: 'restart', phases: ['restarting'] },
+  { key: 'health', phases: ['waiting'] },
+] as const satisfies readonly {
+  key: string;
+  phases: readonly UpdateInstallStatus['phase'][];
+}[];
+
+/** Refusals of the companion (422 of installUpdate) the card explains in its own words. */
+const REFUSALS = [
+  'not_newer',
+  'no_digest',
+  'no_compose_labels',
+  'outside_deploy_dir',
+  'manifest_invalid',
+  'manifest_unreachable',
+] as const;
+
+/** Reasons of a failed install (contract 1.18.0) the card explains in its own words. */
+const FAILURES = ['disk_full', 'deploy_files'] as const;
+
+const failureKey = (code: string | undefined) =>
+  code !== undefined && (FAILURES as readonly string[]).includes(code)
+    ? (`admin.home.install.failure.${code as (typeof FAILURES)[number]}` as const)
+    : undefined;
+
+/** Refusals that mean the companion cannot restart this server: the card shows the manual steps. */
+const MANUAL_REFUSALS: readonly string[] = ['no_compose_labels', 'outside_deploy_dir'];
+
+/**
+ * How long the card waits for the server during an install before it says that something is
+ * wrong: the server reports a running install older than that as interrupted (installStaleAfter).
+ */
+const INSTALL_GIVE_UP_MS = 70 * 60_000;
+
+const refusalKey = (code: string) =>
+  (REFUSALS as readonly string[]).includes(code)
+    ? (`admin.home.install.refused.${code as (typeof REFUSALS)[number]}` as const)
+    : 'admin.home.install.refused.other';
+
+/** The guide to the updater companion (docs/INSTALLATION.md, section 8). */
+const UPDATER_GUIDE =
+  'https://github.com/SlouchCat/slouchcat/blob/main/docs/INSTALLATION.md#update-per-knopf-der-updater-begleiter-freiwillig';
+
+/** The two commands of the manual update (fallback C), run in deploy/ with the start's files. */
+const PULL_COMMAND = 'docker compose pull';
+const UP_COMMAND = 'docker compose up -d';
+
+/** A step before, at and after the current one. */
+const STEP_STATES = ['done', 'current', 'pending'] as const;
+
+const installStatusKey = ['admin', 'update', 'status'] as const;
+
+/** The steps of a running install: the done ones, the current one, the ones still to come. */
+function InstallSteps({ install }: { install: UpdateInstallStatus }) {
+  const { t } = useTranslation();
+  const current = INSTALL_STEPS.findIndex((step) =>
+    (step.phases as readonly string[]).includes(install.phase),
+  );
+  return (
+    <ol className={styles.steps} aria-label={t('admin.home.install.stepsLabel')}>
+      {INSTALL_STEPS.map((step, index) => {
+        const state = STEP_STATES[Math.sign(index - current) + 1] ?? STEP_STATES[2];
+        return (
+          <li
+            key={step.key}
+            className={styles.step}
+            aria-current={state === 'current' ? 'step' : undefined}
+          >
+            <StatusDot
+              state={state === 'done' ? 'success' : state === 'current' ? 'active' : 'pending'}
+            />
+            {t(`admin.home.install.steps.${step.key}`)}
+            <VisuallyHidden>
+              {t('format.separator')}
+              {t(`admin.home.install.stepState.${state}`)}
+            </VisuallyHidden>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/** How the last install ended, as the companion reported it; nothing for `idle`. */
+function InstallResult({ install }: { install: UpdateInstallStatus }) {
+  const { t, i18n } = useTranslation();
+  const finished = install.finishedAt && (
+    <Text as="span" tone="secondary" variant="caption">
+      {t('admin.home.install.finished', {
+        date: formatDateTime(install.finishedAt, i18n.language),
+      })}
+    </Text>
+  );
+  if (install.phase === 'done') {
+    if (!install.to) return null;
+    return (
+      <span className={styles.installDone}>
+        <StatusDot state="success" />
+        {t('admin.home.install.done', { version: install.to })}
+        {finished}
+      </span>
+    );
+  }
+  if (install.phase === 'rolled_back') {
+    return (
+      <Notice
+        tone="warning"
+        live={false}
+        title={
+          install.from && install.to
+            ? t('admin.home.install.rolledBack', { from: install.from, to: install.to })
+            : t('admin.home.install.rolledBackNoVersion')
+        }
+      >
+        {install.message && <span className={styles.installMessage}>{install.message}</span>}
+        {finished}
+      </Notice>
+    );
+  }
+  if (install.phase !== 'failed') return null;
+  const failure = failureKey(install.code);
+  return (
+    <Notice
+      tone="danger"
+      live={false}
+      title={
+        install.to
+          ? t('admin.home.install.failed', { version: install.to })
+          : t('admin.home.install.failedNoVersion')
+      }
+    >
+      {failure && <span>{t(failure)}</span>}
+      {install.migrated && (
+        <span>
+          {install.backup
+            ? t('admin.home.install.migrated', { backup: install.backup })
+            : t('admin.home.install.migratedNoBackup')}
+        </span>
+      )}
+      {install.message && <span className={styles.installMessage}>{install.message}</span>}
+      {finished}
+    </Notice>
+  );
+}
+
+/**
+ * Why the card shows the manual steps: no companion is set up (`none`), it is set up but does not
+ * answer (`unavailable`), or it refused because it cannot restart this server (`refused`, the
+ * refusal stands above).
+ */
+type ManualReason = 'none' | 'unavailable' | 'refused';
+
+/**
+ * Fallback C (concept 15, 9.3): the line for .env and the two commands. It takes the focus when
+ * the install button it replaces had it (`focusRef`).
+ */
+function ManualUpdate({
+  version,
+  reason,
+  focusRef,
+}: {
+  version: string;
+  reason: ManualReason;
+  focusRef: Ref<HTMLDivElement>;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div ref={focusRef} tabIndex={-1} className={styles.manual}>
+      {reason === 'unavailable' && (
+        <Notice tone="warning">{t('admin.home.install.manual.unavailable')}</Notice>
+      )}
+      <Text variant="caption">
+        {reason === 'none'
+          ? t('admin.home.install.manual.intro')
+          : t('admin.home.install.manual.introByHand')}
+      </Text>
+      <Command code={`SLOUCHCAT_VERSION=${version}`} label={t('admin.home.install.manual.env')} />
+      <Command code={PULL_COMMAND} label={t('admin.home.install.manual.pull')} />
+      <Command code={UP_COMMAND} label={t('admin.home.install.manual.up')} />
+      <Text tone="secondary" variant="caption">
+        {t('admin.home.install.manual.files')}
+      </Text>
+      <TextLink href={UPDATER_GUIDE} external>
+        {t('admin.home.install.manual.docs')}
+      </TextLink>
+    </div>
+  );
+}
+
+/**
+ * «Update installieren» on the server card (concept 15 P-8, ADR 0024). With the companion a
+ * button and its confirmation start the install; the card then shows the companion's phases from
+ * getUpdateInstallStatus, and while the server is away the health check like after «Neu starten»
+ * until the new version answers, which reloads the page. Without the companion (or a 503) the
+ * manual steps stand there instead. The last result stays until a newer install starts; the
+ * server decides everything, the card only shows it.
+ */
+function UpdateInstall({
+  update,
+  dashboardAt,
+  installAt,
+  onInstallAt,
+}: {
+  update: Dashboard['update'];
+  /** When the dashboard that brought `update` answered (ms). */
+  dashboardAt: number;
+  /** When this page started (or joined) an install, ms; null while it watches none. */
+  installAt: number | null;
+  onInstallAt: (at: number | null) => void;
+}) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  // A 503 of installUpdate: the companion went away since the dashboard said otherwise.
+  const [unavailable, setUnavailable] = useState(false);
+  // A 422: the companion refused before it changed anything; state.json keeps the last install.
+  const [refusal, setRefusal] = useState<{ code: string; detail?: string } | null>(null);
+  const watching = installAt !== null || isInstalling(update.install);
+  // A page that joins a running install (a reload, a second tab) follows it like its own: the
+  // health check, and the reload once the new version answers. Once per page.
+  const joined = useRef(false);
+  useEffect(() => {
+    if (joined.current || installAt !== null || !isInstalling(update.install)) return;
+    joined.current = true;
+    onInstallAt(Date.now());
+  }, [installAt, update.install, onInstallAt]);
+  // The health check of the restart panel (RestartPanel): who answers, and since when.
+  const health = useQuery({
+    queryKey: ['update', 'health', installAt],
+    queryFn: ({ signal }) => request(api.GET('/healthz', { signal })),
+    enabled: installAt !== null,
+    refetchInterval: RESTART_POLL_MS,
+    retry: false,
+    gcTime: 0,
+  });
+  const away = installAt !== null && health.isError;
+  // The server stays away far longer than an install takes: something went wrong on the host.
+  const silent = away && health.errorUpdatedAt - installAt >= INSTALL_GIVE_UP_MS;
+  const status = useQuery({
+    queryKey: installStatusKey,
+    queryFn: ({ signal }) => request(api.GET('/admin/update/status', { signal })),
+    enabled: watching,
+    // The 202's state counts as a fresh answer; while the server is away only the health check asks.
+    staleTime: RESTART_POLL_MS,
+    refetchInterval: away ? false : RESTART_POLL_MS,
+    retry: false,
+  });
+  // The newer of the two answers: the status while the dashboard waits, the dashboard after it.
+  const install =
+    status.data !== undefined && status.dataUpdatedAt > dashboardAt ? status.data : update.install;
+  const running = isInstalling(install);
+
+  const start = useMutation({
+    mutationFn: () => request(api.POST('/admin/update/install')),
+    onMutate: () => {
+      setRefusal(null);
+      setUnavailable(false);
+    },
+    onSuccess: (state) => {
+      const at = Date.now();
+      queryClient.setQueryData(installStatusKey, state);
+      onInstallAt(at);
+    },
+    onError: (error) => {
+      if (isApiError(error, 409) && error.code === 'update_running') {
+        onInstallAt(Date.now());
+        void queryClient.invalidateQueries({ queryKey: installStatusKey });
+      } else if (isApiError(error, 422)) {
+        setRefusal({ code: error.code, detail: error.problem?.detail });
+      } else if (isApiError(error, 503)) {
+        setUnavailable(true);
+      }
+    },
+  });
+  const handled =
+    (isApiError(start.error, 409) && start.error.code === 'update_running') ||
+    isApiError(start.error, 422) ||
+    isApiError(start.error, 503);
+
+  // The page reloads once for the new server: when the new version answers the health check, or
+  // when the companion reports the install done (whichever comes first).
+  const reloaded = useRef(false);
+  const target = install?.to;
+  const back =
+    installAt !== null &&
+    health.data !== undefined &&
+    target !== undefined &&
+    health.data.version === target &&
+    restartedSince(health.data, installAt, health.dataUpdatedAt);
+  const ended =
+    installAt !== null &&
+    status.data !== undefined &&
+    !isInstalling(status.data) &&
+    status.dataUpdatedAt >= installAt;
+  useEffect(() => {
+    if (reloaded.current) return;
+    if (back || (ended && status.data?.phase === 'done')) {
+      reloaded.current = true;
+      reloadPage();
+      return;
+    }
+    // Rolled back or failed: the old server runs on; the dashboard asks again and shows it.
+    if (ended) {
+      onInstallAt(null);
+      void queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey });
+    }
+  }, [back, ended, status.data, onInstallAt, queryClient]);
+
+  // The button goes away once the install runs: the focus it had moves to the install's state.
+  const state = useRef<HTMLDivElement>(null);
+  const started = installAt !== null || start.isPending;
+  useEffect(() => {
+    if (running && started && document.activeElement === document.body) state.current?.focus();
+  }, [running, started]);
+
+  const latest = update.available ? update.latestVersion : undefined;
+  const refusedForGood = refusal !== null && MANUAL_REFUSALS.includes(refusal.code);
+  const manual: ManualReason | null = refusedForGood
+    ? 'refused'
+    : unavailable || (update.updaterConfigured && !update.updaterAvailable)
+      ? 'unavailable'
+      : !update.updaterAvailable
+        ? 'none'
+        : null;
+  // A 503 or a refusal for good replaces the install button: its focus moves to the manual steps.
+  const manualBlock = useRef<HTMLDivElement>(null);
+  const replaced = unavailable || refusedForGood;
+  useEffect(() => {
+    if (replaced && document.activeElement === document.body) manualBlock.current?.focus();
+  }, [replaced]);
+  if (!latest && !install && !refusal) return null;
+
+  return (
+    <div className={styles.install}>
+      {install && install.phase !== 'idle' && (
+        <div ref={state} role="status" tabIndex={-1} className={styles.installState}>
+          {running ? (
+            <>
+              <span className={styles.installTitle}>
+                {install.to
+                  ? t('admin.home.install.running', { version: install.to })
+                  : t('admin.home.install.runningNoVersion')}
+              </span>
+              <InstallSteps install={install} />
+              <Text as="span" tone="secondary" variant="caption">
+                {away
+                  ? t('admin.home.install.down')
+                  : t(`admin.home.install.phase.${install.phase}`)}
+              </Text>
+              {silent && (
+                <Notice tone="warning" live={false} title={t('admin.home.install.silent.title')}>
+                  <span>{t('admin.home.install.silent.body')}</span>
+                  <TextLink href={UPDATER_GUIDE} external>
+                    {t('admin.home.install.manual.docs')}
+                  </TextLink>
+                </Notice>
+              )}
+            </>
+          ) : (
+            <InstallResult install={install} />
+          )}
+        </div>
+      )}
+      {refusal && (
+        <Notice tone="danger" title={t('admin.home.install.refused.title')}>
+          <span>{t(refusalKey(refusal.code))}</span>
+          {refusal.detail && <span className={styles.installMessage}>{refusal.detail}</span>}
+        </Notice>
+      )}
+      {start.error && !handled ? (
+        <Notice tone="danger">{problemMessage(t, start.error)}</Notice>
+      ) : null}
+      {latest && !running && manual === null && (
+        <ConfirmDialog
+          trigger={
+            <AriaButton variant="primary" icon="download" isPending={start.isPending}>
+              {t('admin.home.install.action', { version: latest })}
+            </AriaButton>
+          }
+          title={t('admin.home.install.title', { version: latest })}
+          body={t('admin.home.install.body')}
+          confirmLabel={t('admin.home.install.confirm')}
+          cancelLabel={t('common.cancel')}
+          onConfirm={() => start.mutate()}
+        >
+          {update.notes && (
+            // Plain text from the manifest, rendered as text, never as markup. Text that scrolls
+            // must take the focus (axe «scrollable-region-focusable»); the arrows then scroll it.
+            <div
+              role="region"
+              aria-label={t('admin.home.install.notes')}
+              // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+              tabIndex={0}
+              className={styles.notes}
+            >
+              {update.notes}
+            </div>
+          )}
+        </ConfirmDialog>
+      )}
+      {latest && !running && manual !== null && (
+        <ManualUpdate version={latest} reason={manual} focusRef={manualBlock} />
+      )}
+    </div>
+  );
+}
+
+/** A plain release "X.Y.Z" as numbers; undefined for anything else (a pre-release, a build). */
+const plainRelease = (v: string | undefined) => {
+  const m = v === undefined ? null : /^(\d+)\.(\d+)\.(\d+)$/.exec(v);
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : undefined;
+};
+
+/** The first companion version that follows the server on its own. */
+const SELF_UPDATE_SINCE = [1, 18, 0] as const;
+
+/**
+ * Whether the companion answers but comes from before 1.18.0: it does not report its version, or
+ * reports a release older than 1.18.0. Such a companion does not update itself and is lifted by
+ * hand once (ADR 0024, addendum of 8 Nov 2026). One from 1.18.0 that lags behind the server lifts
+ * itself; a development build of the server or the companion is its builder's business.
+ */
+function updaterOutdated(update: Dashboard['update']): boolean {
+  if (!update.updaterAvailable || plainRelease(update.currentVersion) === undefined) return false;
+  if (update.updaterVersion === undefined) return true;
+  const companion = plainRelease(update.updaterVersion);
+  if (companion === undefined) return false;
+  const diff = companion.map((n, i) => n - (SELF_UPDATE_SINCE[i] ?? 0)).find((d) => d !== 0) ?? 0;
+  return diff < 0;
+}
+
+/** The hint to lift a companion that does not update itself, with the one command for it. */
+function UpdaterOutdated({ version }: { version: string }) {
+  const { t } = useTranslation();
+  // The line may be missing from an .env of an older install: then it is appended.
+  const line = `SLOUCHCAT_UPDATER_VERSION=${version}`;
+  const command =
+    `cd ${t('admin.home.install.outdated.deployDir')} && ` +
+    `(grep -q '^SLOUCHCAT_UPDATER_VERSION=' .env && ` +
+    `sed -i 's/^SLOUCHCAT_UPDATER_VERSION=.*/${line}/' .env || echo '${line}' >> .env) && ` +
+    'docker compose up -d updater';
+  return (
+    <Notice tone="warning" live={false} title={t('admin.home.install.outdated.title')}>
+      <Command code={command} label={t('admin.home.install.outdated.command')} />
+      <Text tone="secondary" variant="caption">
+        {t('admin.home.install.outdated.files')}
+      </Text>
+    </Notice>
+  );
+}
+
+/** The companion in one line: its version, or that it does not answer; nothing without one. */
+function updaterFact(t: TFunction, update: Dashboard['update']): [string, string] | undefined {
+  if (update.updaterAvailable) {
+    return [
+      t('admin.home.server.updater'),
+      update.updaterVersion ?? t('admin.home.server.updaterUnknown'),
+    ];
+  }
+  if (update.updaterConfigured) {
+    return [t('admin.home.server.updater'), t('admin.home.server.updaterDown')];
+  }
+  return undefined;
+}
+
 /** The update state in one line: what runs against the newest release. */
 function updateState(t: TFunction, update: Dashboard['update']): string {
   if (update.development) return t('admin.home.server.updateDevelopment');
@@ -358,6 +843,8 @@ function ServerCard({
   system,
   systemError,
   onRestart,
+  installAt,
+  onInstallAt,
 }: {
   data: Dashboard;
   /** The moment of the poll: the uptime counts on to it. */
@@ -365,6 +852,8 @@ function ServerCard({
   system: SystemInfo | undefined;
   systemError: unknown;
   onRestart: () => void;
+  installAt: number | null;
+  onInstallAt: (at: number | null) => void;
 }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
@@ -392,6 +881,10 @@ function ServerCard({
   const { update } = data;
   const streams = data.streams.length;
   const error = check.error ?? restart.error;
+  // While an install runs the companion restarts the server; the server refuses a restart
+  // (update_running) as well.
+  const installing = installAt !== null || isInstalling(update.install);
+  const updater = updaterFact(t, update);
 
   return (
     <DashCard
@@ -409,26 +902,28 @@ function ServerCard({
           >
             {t('admin.home.server.check')}
           </AriaButton>
-          <ConfirmDialog
-            trigger={
-              <AriaButton variant="ghost" icon="power" isPending={restart.isPending}>
-                {t('admin.home.restart.action')}
-              </AriaButton>
-            }
-            title={t('admin.home.restart.title')}
-            body={
-              streams > 0
-                ? t('admin.home.restart.streams', { count: streams })
-                : t('admin.home.restart.idle')
-            }
-            confirmLabel={t('admin.home.restart.confirm')}
-            cancelLabel={t('common.cancel')}
-            tone="danger"
-            onConfirm={() => {
-              check.reset();
-              restart.mutate();
-            }}
-          />
+          {!installing && (
+            <ConfirmDialog
+              trigger={
+                <AriaButton variant="ghost" icon="power" isPending={restart.isPending}>
+                  {t('admin.home.restart.action')}
+                </AriaButton>
+              }
+              title={t('admin.home.restart.title')}
+              body={
+                streams > 0
+                  ? t('admin.home.restart.streams', { count: streams })
+                  : t('admin.home.restart.idle')
+              }
+              confirmLabel={t('admin.home.restart.confirm')}
+              cancelLabel={t('common.cancel')}
+              tone="danger"
+              onConfirm={() => {
+                check.reset();
+                restart.mutate();
+              }}
+            />
+          )}
         </>
       }
     >
@@ -454,6 +949,7 @@ function ServerCard({
                 ]
               : [t('system.inotify.limit'), t('system.inotify.unknown')],
             [t('admin.home.server.update'), updateState(t, update)],
+            ...(updater ? [updater] : []),
           ]}
         />
       ) : systemError ? (
@@ -468,10 +964,25 @@ function ServerCard({
           })}
         </Text>
       )}
+      {/* A failed check keeps the known release: when it was read stays in sight. */}
+      {update.error && update.lastSuccessAt && (
+        <Text tone="secondary" variant="caption">
+          {t('admin.home.server.lastSuccess', {
+            date: formatDateTime(update.lastSuccessAt, i18n.language),
+          })}
+        </Text>
+      )}
+      {updaterOutdated(update) && <UpdaterOutdated version={update.currentVersion} />}
       {error ? <Notice tone="danger">{problemMessage(t, error)}</Notice> : null}
       {check.isSuccess && !error && (
         <Notice live={false}>{t('admin.home.server.checkedNow')}</Notice>
       )}
+      <UpdateInstall
+        update={update}
+        dashboardAt={now}
+        installAt={installAt}
+        onInstallAt={onInstallAt}
+      />
     </DashCard>
   );
 }
@@ -865,12 +1376,16 @@ function Cards({
   system,
   systemError,
   onRestart,
+  installAt,
+  onInstallAt,
 }: {
   data: Dashboard;
   now: number;
   system: SystemInfo | undefined;
   systemError: unknown;
   onRestart: () => void;
+  installAt: number | null;
+  onInstallAt: (at: number | null) => void;
 }) {
   const hints = useHints(data, system);
   return (
@@ -883,6 +1398,8 @@ function Cards({
             system={system}
             systemError={systemError}
             onRestart={onRestart}
+            installAt={installAt}
+            onInstallAt={onInstallAt}
           />
           <StreamsCard streams={data.streams} />
           <TasksCard jobs={data.jobs} />
@@ -912,10 +1429,13 @@ export function AdminHomePage() {
   const allowed = session.account.role === 'admin' && session.profile.isPrimary;
   // When the server accepted the restart (ms): the waiting panel replaces the cards.
   const [restartAt, setRestartAt] = useState<number | null>(null);
+  // When this page started an update install (ms): the server goes away during it, so the
+  // dashboard waits while the card follows the install itself.
+  const [installAt, setInstallAt] = useState<number | null>(null);
   const dashboard = useQuery({
     ...dashboardQuery,
     enabled: allowed && restartAt === null,
-    refetchInterval: DASHBOARD_POLL_MS,
+    refetchInterval: installAt === null ? DASHBOARD_POLL_MS : false,
   });
   const system = useQuery({ ...systemQuery, enabled: allowed });
   const data = dashboard.data;
@@ -969,6 +1489,8 @@ export function AdminHomePage() {
                 system={system.data}
                 systemError={system.error}
                 onRestart={() => setRestartAt(Date.now())}
+                installAt={installAt}
+                onInstallAt={setInstallAt}
               />
             )}
           </div>

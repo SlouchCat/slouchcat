@@ -60,7 +60,7 @@ func TestGetHealth(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	if want := (gen.Health{Status: gen.Ok, Version: "0.1.0+test", UptimeSeconds: 90}); got != want {
+	if want := (gen.Health{Status: gen.HealthStatusOk, Version: "0.1.0+test", UptimeSeconds: 90}); got != want {
 		t.Fatalf("health = %+v, want %+v", got, want)
 	}
 	if rec.Header().Get(HeaderRequestID) == "" {

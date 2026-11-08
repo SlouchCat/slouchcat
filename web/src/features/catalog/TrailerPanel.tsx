@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
+import { useRadio } from '@/app/radio/useRadio';
 import { TrailerDialog } from '@/ui/aria';
 import { languageName } from './labels';
 import { trailersQuery } from './queries';
@@ -26,9 +27,12 @@ interface TrailerPanelProps {
 /**
  * The trailer dialog of a detail page (W-10), loaded on demand with react-aria: the languages the
  * server returned (profile language first), the trailer of the chosen one in YouTube's player.
+ * The radio pauses while it is open and plays on after it closed (concept 16, 10.3).
  */
 export function TrailerPanel({ itemId, title, onClose }: TrailerPanelProps) {
   const { t } = useTranslation();
+  const { hold } = useRadio();
+  useEffect(() => hold('trailer'), [hold]);
   const trailers = useQuery(trailersQuery(itemId));
   const list = trailers.data ?? [];
   const languages = [...new Set(list.map((trailer) => trailer.lang))];

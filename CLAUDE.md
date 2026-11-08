@@ -31,7 +31,8 @@ sind `docs/spec/01-anforderungen-v1.md` (Spec), `docs/planning/03-plan-v1.md` (P
    `notify`, `offline` erlaubt (Analyzer `itemsaccess`, `depguard`). Abfragen in `queries/scoped/` müssen
    `visible_items` enthalten. Nicht sichtbar heisst 404, nie 403.
 3. **`os/exec` nur im Paket `transcode`**, immer `exec.CommandContext` mit Argumentliste, nie Shell
-   (`forbidigo`).
+   (`forbidigo`). Einzige benannte Ausnahme: der Updater-Begleiter `server/cmd/updater` ruft
+   `docker compose` auf (ADR 0024), mit denselben Bedingungen.
 4. **Dateizugriff mit Benutzerdaten nur über `paths`.** Relativ zu registrierten Wurzeln, `..` wird
    verworfen, Symlinks nur innerhalb der Wurzeln.
 5. **Migrationen nur vorwärts, nach Vorlage** (`server/migrations/TEMPLATE.sql.txt`):
@@ -50,7 +51,7 @@ sind `docs/spec/01-anforderungen-v1.md` (Spec), `docs/planning/03-plan-v1.md` (P
    Admin und Zuschauer nutzen dieselben Komponenten aus `web/src/ui`.
 10. **Keine Secrets in Logs.** Nur `slog` über den Redaction-Handler aus `internal/logging`; neue
     Schlüsselnamen mit Secrets in die Redaction-Liste und in den Test.
-11. **Keine Nicht-Ziele bauen** (Spec "Non-Goals": Musik, Fotos, Live-TV, TV-Apps, native Apps, Plugins,
+11. **Keine Nicht-Ziele bauen** (Spec "Non-Goals": Musik (ausser Live-Webradio, Frage 23), Fotos, Live-TV, TV-Apps, native Apps, Plugins,
     algorithmische Empfehlungen, Trakt-Login, eigene Wunschverwaltung, Steuerung von Arr/Seerr, Mandanten,
     Cloud, YouTube-Downloads). Nichts aus einem späteren Meilenstein vorziehen.
 12. **Entscheid im Server, offline nur Nachschlagen.** Der Client implementiert keine Sichtbarkeits- oder

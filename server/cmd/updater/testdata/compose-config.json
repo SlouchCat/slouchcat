@@ -1,0 +1,134 @@
+{
+  "name": "slouchcat",
+  "networks": {
+    "default": {
+      "name": "slouchcat_default",
+      "ipam": {}
+    }
+  },
+  "services": {
+    "slouchcat": {
+      "restart": "unless-stopped",
+      "container_name": "slouchcat",
+      "command": null,
+      "devices": [
+        {
+          "source": "/dev/dri",
+          "target": "/dev/dri",
+          "permissions": "rwm"
+        }
+      ],
+      "entrypoint": null,
+      "environment": {
+        "SLOUCHCAT_BROWSE_ROOTS": "",
+        "SLOUCHCAT_FANART_API_KEY": "",
+        "SLOUCHCAT_FANART_CLIENT_KEY": "",
+        "SLOUCHCAT_LOG_FORMAT": "json",
+        "SLOUCHCAT_PUBLIC_URL": "",
+        "SLOUCHCAT_SMTP_FROM": "",
+        "SLOUCHCAT_SMTP_HOST": "",
+        "SLOUCHCAT_SMTP_PASSWORD": "",
+        "SLOUCHCAT_SMTP_PORT": "",
+        "SLOUCHCAT_SMTP_TLS": "",
+        "SLOUCHCAT_SMTP_USER": "",
+        "SLOUCHCAT_TELEGRAM_BOT_TOKEN": "",
+        "SLOUCHCAT_TMDB_API_KEY": "",
+        "SLOUCHCAT_TRAILER_AI": "off",
+        "SLOUCHCAT_TRAKT_CLIENT_ID": "",
+        "SLOUCHCAT_TRUSTED_PROXIES": "",
+        "SLOUCHCAT_TVDB_API_KEY": "",
+        "SLOUCHCAT_TVDB_PIN": "",
+        "SLOUCHCAT_UPDATER_URL": "http://slouchcat-updater:8099",
+        "SLOUCHCAT_YOUTUBE_API_KEY": "",
+        "TZ": "Europe/Zurich"
+      },
+      "group_add": [
+        "993"
+      ],
+      "image": "ghcr.io/slouchcat/slouchcat:1.15.0",
+      "networks": {
+        "default": null
+      },
+      "user": "1000:1000",
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/srv/slouchcat/deploy/config",
+          "target": "/config",
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/srv/slouchcat/deploy/cache",
+          "target": "/cache",
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/srv/media",
+          "target": "/media",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/srv/slouchcat/deploy/updater",
+          "target": "/run/slouchcat-updater",
+          "bind": {}
+        }
+      ],
+      "build": {
+        "context": "/srv/slouchcat",
+        "dockerfile": "deploy/Dockerfile"
+      },
+      "depends_on": {
+        "updater": {
+          "condition": "service_started",
+          "required": true
+        }
+      },
+      "ports": [
+        {
+          "mode": "ingress",
+          "target": 8096,
+          "published": "8096",
+          "protocol": "tcp"
+        }
+      ]
+    },
+    "updater": {
+      "restart": "unless-stopped",
+      "container_name": "slouchcat-updater",
+      "command": null,
+      "entrypoint": null,
+      "environment": {
+        "PGID": "1000",
+        "PUID": "1000",
+        "SLOUCHCAT_DEPLOY_DIR": "/srv/slouchcat/deploy",
+        "TZ": "Europe/Zurich"
+      },
+      "image": "ghcr.io/slouchcat/slouchcat-updater:1.16.0",
+      "networks": {
+        "default": null
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/var/run/docker.sock",
+          "target": "/var/run/docker.sock",
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/srv/slouchcat/deploy",
+          "target": "/srv/slouchcat/deploy",
+          "bind": {}
+        }
+      ],
+      "build": {
+        "context": "/srv/slouchcat",
+        "dockerfile": "deploy/Dockerfile.updater"
+      }
+    }
+  }
+}

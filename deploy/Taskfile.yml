@@ -3,6 +3,7 @@ version: "3"
 
 vars:
   IMAGE: slouchcat:dev
+  UPDATER_IMAGE: slouchcat-updater:dev
   PLATFORM: linux/amd64
   VERSION:
     sh: git describe --tags --always --dirty 2>/dev/null || echo dev
@@ -25,6 +26,18 @@ tasks:
         -t {{.IMAGE}}
         --build-arg VERSION={{.VERSION}}
         -f Dockerfile
+        ..
+
+  build:updater:
+    desc: Build the updater companion image {{.UPDATER_IMAGE}} for {{.PLATFORM}} (ADR 0024)
+    cmds:
+      - >-
+        docker buildx build
+        --platform {{.PLATFORM}}
+        --load
+        -t {{.UPDATER_IMAGE}}
+        --build-arg VERSION={{.VERSION}}
+        -f Dockerfile.updater
         ..
 
   binfmt:
@@ -98,7 +111,7 @@ tasks:
       - "{{.COMPOSE}} down"
 
   config:
-    desc: Validate compose.yaml and all GPU overrides
+    desc: Validate compose.yaml, all GPU overrides and the updater override
     env:
       RENDER_GID: '{{.RENDER_GID | default "992"}}'
     cmds:
@@ -108,6 +121,10 @@ tasks:
       - docker compose -f compose.yaml -f compose.nvidia.yaml config --quiet
       - docker compose -f compose.yaml -f compose.intel.yaml config --quiet
       - docker compose -f compose.yaml -f compose.amd.yaml config --quiet
+      - SLOUCHCAT_DEPLOY_DIR="$PWD" docker compose -f compose.yaml -f compose.updater.yaml config --quiet
+      - >-
+        SLOUCHCAT_DEPLOY_DIR="$PWD" docker compose -f compose.yaml -f compose.https-only.yaml
+        -f compose.intel.yaml -f compose.updater.yaml --profile https config --quiet
 
   healthy-time:
     desc: Measure time to "healthy" (< 5 s) and idle RSS (< 60 MB) of {{.IMAGE}}

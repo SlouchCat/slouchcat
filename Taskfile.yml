@@ -44,10 +44,13 @@ tasks:
       - task: web:test
 
   build:
-    desc: Build web app and server binary (web assets are embedded into the binary)
+    desc: >-
+      Build web app and server binaries (web assets are embedded): bin/slouchcat and the e2e
+      build bin/slouchcat-e2e (tag radiotest)
     cmds:
       - task: web:build
       - task: server:build
+      - task: server:build:e2e
 
   e2e:
     desc: Playwright keyboard and playback suite against the built server binary (needs task build and testdata:media)
@@ -98,8 +101,10 @@ tasks:
       - server/internal/webassets/dist/**/*
     generates:
       - server/bin/slouchcat
+      - server/bin/slouchcat-e2e
     cmds:
       - task: server:build
+      - task: server:build:e2e
 
   # The fast checks of a change before a commit: the web half here, the server half in
   # server/Taskfile.yml (`server:check:fast`). Not a replacement for `task ci`.

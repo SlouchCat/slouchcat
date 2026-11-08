@@ -244,6 +244,21 @@ const paths = {
   power: <path d="M12 3v8M6.3 6.3a8 8 0 1 0 11.4 0" fill="none" />,
   disk: <path d="M4 14h16v5H4zM4 14l3-9h10l3 9M8 16.5h.01" fill="none" />,
   activity: <path d="M3 12h4l3-8 4 16 3-8h4" fill="none" />,
+  // Webradio (concept 16): the page, the mini player and the favourite mark of a station. The
+  // heart is a line; a pressed favourite button fills it (MiniPlayer.module.css).
+  radio: (
+    <>
+      <rect x="3" y="8.5" width="18" height="11.5" rx="2" fill="none" />
+      <path d="M7 8.5 17 4M6.5 12.5h4.5M6.5 16h4.5" fill="none" />
+      <circle cx="16" cy="14.25" r="2.5" fill="none" />
+    </>
+  ),
+  heart: (
+    <path
+      d="M12 20 4.7 12.9a4.6 4.6 0 0 1 6.5-6.5l.8.8.8-.8a4.6 4.6 0 0 1 6.5 6.5L12 20Z"
+      fill="none"
+    />
+  ),
 } as const;
 
 export type IconName = keyof typeof paths;
