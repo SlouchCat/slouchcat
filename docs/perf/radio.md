@@ -57,4 +57,26 @@ SLOUCHCAT_URL=http://localhost:8096 SLOUCHCAT_EMAIL=… SLOUCHCAT_PASSWORD=… S
 
 ## 3. Ergebnisse auf CT 190
 
-Folgen mit der Abnahme.
+### 3.1 Erste Werte aus dem Server-Log (8. November 2026, Release 1.18.1)
+
+CT 190 (4 GB RAM, 3,8 GB frei), ffmpeg 7.1.4-Jellyfin im Container, `tmpfs` `/run/slouchcat/radio` 564 MB.
+
+| Grösse | Wert | Ziel |
+|---|---|---|
+| Abgleich des ganzen Katalogs | 21 s (`radio.catalog.sync`) | unter 2 Minuten ✔ |
+| Sender nach dem Zusammenführen | 55 646 aus 63 562 Einträgen | erwartet 35 000 bis 40 000 (mehr, weil der Katalog seit der Schätzung wuchs) |
+| Filter mit Zählern (`/radio/facets`) | 8 bis 17 ms | ✔ |
+| Senderliste ohne neue Logos | 6 bis 59 ms | ✔ |
+| Start eines neuen Relays (Server, `POST …/listen`) | 1,3 s | Teil der 6 s bis zum ersten Ton |
+| Verwaltung «Sender», 50 Einträge | **15 s** | Befund, behoben in 1.18.2 |
+| Senderliste mit neuen Logos | **bis 20 s** | Befund, behoben in 1.18.2 |
+
+Ursache der beiden Befunde: das Nachladen eines Senders las den ganzen Katalog (rund 300 ms je Sender).
+Mit 1.18.2 liest es nur die Zeilen des Senders; auf dem Entwicklungsrechner sinkt eine Verwaltungsseite
+über 40 000 Sender von 4,8 s auf 13 ms.
+
+### 3.2 Offen
+
+Erster Ton je Engine, iPhone mit gesperrtem Bildschirm, CPU und RAM je Relay, p95 von Liste und Suche mit
+`measure-home.sh`, Wiedergabeliste je Abruf, `+delay_moov` mit dem ffmpeg im Container, Nachmessung der
+Verwaltung mit 1.18.2.
