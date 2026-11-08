@@ -236,9 +236,15 @@ func toGenreRefs(genres []model.GenreRef) []gen.GenreRef {
 	return out
 }
 
-// toCollectionRef maps a collection with its visible member count and its cover.
+// toCollectionRef maps a collection with its visible member count, its cover and, on a title's
+// detail only, its first members.
 func toCollectionRef(profileID int64, c model.CollectionRef) gen.CollectionRef {
-	return gen.CollectionRef{Id: c.ID, Name: c.Name, Count: c.Count, Cover: optItemRef(profileID, c.Cover)}
+	out := gen.CollectionRef{Id: c.ID, Name: c.Name, Count: c.Count, Cover: optItemRef(profileID, c.Cover)}
+	if c.Members != nil {
+		members := toItemRefList(profileID, c.Members)
+		out.Members = &members
+	}
+	return out
 }
 
 // toCollectionRefs maps collections; never nil.

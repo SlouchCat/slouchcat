@@ -928,6 +928,9 @@ type CollectionRef struct {
 	Name  string
 	Count int
 	Cover *ItemSummary
+	// Members are the first visible members in collection order, at most 20 (concept 17 section
+	// 4.2, contract 1.20.0); set only on the collections of a title's detail, nil elsewhere.
+	Members []ItemSummary
 }
 
 // Collection is a collection with one page of its visible members.

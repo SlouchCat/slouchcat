@@ -2,6 +2,8 @@ package visibility
 
 import (
 	"context"
+	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -97,6 +99,71 @@ func TestSummaryOverviewInProfileLanguage(t *testing.T) {
 		if len(d.Episodes) == 0 || d.Episodes[0].Overview != tc.episode || d.Overview != tc.season || d.ItemSummary.Overview != tc.season {
 			t.Fatalf("%s (%s): episodes %+v, season overview %q / %q, want %q and %q",
 				tc.p.Language, tc.p.Name, d.Episodes, d.Overview, d.ItemSummary.Overview, tc.episode, tc.season)
+		}
+	}
+}
+
+// Concept 17 section 4.2 (E-7): the collections of a detail carry their first MaxRowItems visible
+// members in collection order with progress and watchlist marks; other collection lists do not.
+func TestCollectionMembersOnDetail(t *testing.T) {
+	t.Parallel()
+	f := discoverFixture(t)
+	ctx := context.Background()
+	r := New(f.DB, vistest.Logger())
+	members := func(p model.Profile, itemID string) model.CollectionRef {
+		t.Helper()
+		d, err := r.Item(ctx, Profile(p), itemID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, c := range d.Collections {
+			if c.ID == vistest.MixedCollectionID {
+				return c
+			}
+		}
+		t.Fatalf("%s: detail of %s without the mixed collection: %+v", p.Name, itemID, d.Collections)
+		return model.CollectionRef{}
+	}
+	// Visibility: P12 does not see the film rated 18, P18 does; order by position.
+	for _, tc := range []struct {
+		p    model.Profile
+		want []string
+	}{
+		{f.P12, []string{f.Rated(6).ID, f.Rated(12).ID}},
+		{f.P18, []string{f.Rated(6).ID, f.Rated(12).ID, f.Rated(18).ID}},
+	} {
+		c := members(tc.p, f.Rated(6).ID)
+		if !slices.Equal(ids(c.Members), tc.want) || c.Count != len(tc.want) {
+			t.Errorf("%s members = %v (count %d), want %v", tc.p.Name, ids(c.Members), c.Count, tc.want)
+		}
+	}
+	// Progress and the watchlist mark of the profile come with the members.
+	setProgress(t, f, f.P18, f.Rated(12).ID, false, 5)
+	c := members(f.P18, f.Rated(6).ID)
+	if c.Members[1].Progress == nil || c.Members[1].Progress.Completed || !c.Members[2].InWatchlist || c.Members[0].InWatchlist {
+		t.Errorf("P18 members: progress %+v, marks %v %v %v", c.Members[1].Progress,
+			c.Members[0].InWatchlist, c.Members[1].InWatchlist, c.Members[2].InWatchlist)
+	}
+	// The limit: 25 more films after the three (same position, then by id); the first 20 in order.
+	f.AddSpotlightFilms(t, 25)
+	want := []string{f.Rated(6).ID, f.Rated(12).ID, f.Rated(18).ID}
+	for k := 1; k <= 25; k++ {
+		id := fmt.Sprintf("01J9SPOTLIGHT00000000%05d", k)
+		exec(t, f, `INSERT INTO collection_items (collection_id, item_id, position, created_at) VALUES (?, ?, 3, 1)`, vistest.MixedCollectionID, id)
+		want = append(want, id)
+	}
+	c = members(f.P18, f.Rated(6).ID)
+	if !slices.Equal(ids(c.Members), want[:MaxRowItems]) || c.Count != 28 {
+		t.Errorf("P18 members of 28 = %v (count %d), want the first %d", ids(c.Members), c.Count, MaxRowItems)
+	}
+	// Only the detail sets members.
+	refs, err := r.Collections(ctx, Profile(f.P18), MaxRowItems)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ref := range refs {
+		if ref.Members != nil {
+			t.Errorf("collection list %s carries members %v", ref.ID, ids(ref.Members))
 		}
 	}
 }
