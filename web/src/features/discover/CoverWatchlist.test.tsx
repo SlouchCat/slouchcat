@@ -93,6 +93,39 @@ describe('CoverWatchlist', () => {
     expect(onRemoved).not.toHaveBeenCalled();
   });
 
+  it('ignores a press while another button changes the same title', async () => {
+    let answer: (response: Response) => void = () => undefined;
+    const { calls } = mockApi({
+      'PUT /items/*/watchlist': () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve;
+        }),
+      'DELETE /items/*/watchlist': () => new Response(null, { status: 204 }),
+    });
+    // The same title twice (two rows of the start page): two buttons, two mutations.
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    queryClient.setQueryData(['item', id], film);
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Cover />
+        <Cover />
+      </QueryClientProvider>,
+    );
+    const user = userEvent.setup();
+    const [first] = screen.getAllByRole('button', { name: 'Alien merken' });
+    await user.click(first!);
+    const pressed = await screen.findAllByRole('button', {
+      name: 'Alien von der Merkliste nehmen',
+    });
+    for (const button of pressed) expect(button).toHaveAttribute('aria-disabled', 'true');
+    await user.click(pressed[1]!);
+    expect(calls.filter((c) => c.method === 'DELETE')).toHaveLength(0);
+
+    answer(new Response(null, { status: 204 }));
+    await waitFor(() => expect(pressed[1]).not.toHaveAttribute('aria-disabled'));
+    expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1);
+  });
+
   it('is disabled offline', () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     renderCover(film);

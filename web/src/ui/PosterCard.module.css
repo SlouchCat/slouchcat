@@ -260,16 +260,18 @@
 }
 
 /*
- * Shown while the pointer is on the cell (F-12); a marked title shows it always. A screen without
- * hover shows it always too: nothing else would reveal it there. Hidden by opacity only, so it
- * stays in the Tab order and shows with its focus.
+ * Shown while the pointer is on the cell (F-12); a marked title shows it always, and so does a
+ * mark that says why a change failed (its note must not vanish when the pointer leaves). A screen
+ * without hover shows it always too: nothing else would reveal it there. Hidden by opacity only,
+ * so it stays in the Tab order and shows with its focus.
  */
 @media (hover: hover) {
   .mark {
     opacity: 0;
   }
 
-  .mark:has([aria-pressed='true']) {
+  .mark:has([aria-pressed='true']),
+  .mark:has([role='alert']) {
     opacity: 1;
   }
 

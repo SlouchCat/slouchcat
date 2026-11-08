@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
 import { useOnline } from '@/lib/useOnline';
 import { Button } from '@/ui';
-import { useWatchlistMutation } from './queries';
+import { useWatchlistMutation, useWatchlistPending } from './queries';
 import styles from './CoverWatchlist.module.css';
 
 /**
@@ -34,13 +34,15 @@ interface CoverWatchlistProps {
 /**
  * The watchlist button on a cover (concept 17 D-9): a toggle beside the card's link, after the pen
  * in the Tab order and outside the arrow-key navigation, like `CoverPen`. Filled while the title is
- * on the watchlist. Offline it is disabled (the watchlist lives on the server). A failed change
- * turns back in every list (useWatchlistMutation) and says why next to the button.
+ * on the watchlist. Offline it is disabled (the watchlist lives on the server). While a change of
+ * the title is in flight (from this or another button) a press does nothing. A failed change turns
+ * back in every list (useWatchlistMutation) and says why next to the button.
  */
 export function CoverWatchlist({ item, excludeFromTabOrder, onRemoved }: CoverWatchlistProps) {
   const { t } = useTranslation();
   const online = useOnline();
   const mutation = useWatchlistMutation();
+  const pending = useWatchlistPending(item.id);
   if (!WATCHLIST_KINDS.has(item.kind)) return null;
   const on = item.inWatchlist;
   return (
@@ -57,10 +59,10 @@ export function CoverWatchlist({ item, excludeFromTabOrder, onRemoved }: CoverWa
         })}
         title={t(on ? 'item.watchlist.added' : 'item.watchlist.add')}
         isDisabled={!online}
-        aria-disabled={mutation.isPending || undefined}
+        aria-disabled={pending || undefined}
         excludeFromTabOrder={excludeFromTabOrder}
         onPress={() => {
-          if (mutation.isPending) return;
+          if (pending) return;
           mutation.mutate({ id: item.id, on: !on }, { onSuccess: on ? onRemoved : undefined });
         }}
       />

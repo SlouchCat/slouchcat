@@ -9,6 +9,7 @@ import type {
 import {
   infiniteQueryOptions,
   queryOptions,
+  useIsMutating,
   useMutation,
   useQueryClient,
   type QueryKey,
@@ -140,11 +141,33 @@ export function patchWatchlist(data: unknown, id: string, on: boolean): unknown 
   return next === data ? undefined : next;
 }
 
+/** Every watchlist change shares this key, so a second button of the same title sees it. */
+const WATCHLIST_MUTATION_KEY = ['watchlist'] as const;
+
+interface WatchlistChange {
+  id: string;
+  on: boolean;
+}
+
+/**
+ * Whether a watchlist change of title `id` is in flight, from any button (the cover and the
+ * detail page's "Merken" are separate mutations): a press meanwhile is ignored.
+ */
+export function useWatchlistPending(id: string): boolean {
+  return (
+    useIsMutating({
+      mutationKey: WATCHLIST_MUTATION_KEY,
+      predicate: (mutation) => (mutation.state.variables as WatchlistChange | undefined)?.id === id,
+    }) > 0
+  );
+}
+
 /**
  * Adds a title to or removes it from the watchlist (E-5). The new state stands at once in every
  * cached list and page that shows the title (only those queries are cancelled and patched); an
  * error turns the same queries back. Afterwards only the watchlist and the start page are read
- * again: the library and the detail keep their patched data (concept 17 8.2).
+ * again, and the queries whose fetch the change cancelled ("Mehr laden"): the library and the
+ * detail keep their patched data (concept 17 8.2).
  */
 export function useWatchlistMutation() {
   const queryClient = useQueryClient();
@@ -154,31 +177,39 @@ export function useWatchlistMutation() {
     }
   };
   return useMutation({
-    mutationFn: ({ id, on }: { id: string; on: boolean }) =>
+    mutationKey: WATCHLIST_MUTATION_KEY,
+    mutationFn: ({ id, on }: WatchlistChange) =>
       request(
         on
           ? api.PUT('/items/{id}/watchlist', { params: { path: { id } } })
           : api.DELETE('/items/{id}/watchlist', { params: { path: { id } } }),
       ),
     onMutate: async ({ id, on }) => {
-      const keys = queryClient
+      const queries = queryClient
         .getQueryCache()
         .findAll()
-        .filter((query) => patchWatchlist(query.state.data, id, on) !== undefined)
+        .filter((query) => patchWatchlist(query.state.data, id, on) !== undefined);
+      const keys = queries.map((query) => query.queryKey);
+      // A fetch the cancel aborts (a page being loaded) is read again once the change settled.
+      const aborted = queries
+        .filter((query) => query.state.fetchStatus === 'fetching')
         .map((query) => query.queryKey);
       await Promise.all(
         keys.map((queryKey) => queryClient.cancelQueries({ queryKey, exact: true })),
       );
       patch(keys, id, on);
-      return { keys };
+      return { keys, aborted };
     },
     onError: (_error, { id, on }, context) => {
       if (context) patch(context.keys, id, !on);
     },
-    onSettled: () =>
+    onSettled: (_data, _error, _variables, context) =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: ['watchlist'] }),
         queryClient.invalidateQueries({ queryKey: ['home'] }),
+        ...(context?.aborted ?? []).map((queryKey) =>
+          queryClient.invalidateQueries({ queryKey, exact: true }),
+        ),
       ]),
   });
 }

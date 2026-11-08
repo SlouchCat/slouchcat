@@ -4,7 +4,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockApi, problem } from '@/test/api';
-import { patchWatchlist, useWatchlistMutation } from './queries';
+import { patchWatchlist, useWatchlistMutation, useWatchlistPending } from './queries';
 
 const ref = (id: string, inWatchlist = false): ItemRef => ({
   id,
@@ -136,6 +136,64 @@ describe('useWatchlistMutation', () => {
     expect(queryClient.getQueryState(['library', 'films', {}])?.isInvalidated).toBe(false);
     expect(queryClient.getQueryState(['item', target])?.isInvalidated).toBe(false);
     expect(mark(['library', 'films', {}])).toBe('true');
+  });
+
+  it('reads a query again whose page load the change cancelled ("Mehr laden")', async () => {
+    let answer: (response: Response) => void = () => undefined;
+    mockApi({
+      'PUT /items/*/watchlist': () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve;
+        }),
+    });
+    const { queryClient, result, mark } = setup();
+    // A page of the search is being loaded while the title is marked.
+    queryClient.setQueryData(['search', {}], { pages: [{ items: [ref(target)] }] });
+    void queryClient.prefetchQuery({
+      queryKey: ['search', {}],
+      queryFn: () => new Promise(() => undefined),
+    });
+    expect(queryClient.getQueryState(['search', {}])?.fetchStatus).toBe('fetching');
+
+    act(() => result.current.mutate({ id: target, on: true }));
+    await waitFor(() => expect(mark(['search', {}])).toBe('true'));
+    expect(queryClient.getQueryState(['search', {}])?.fetchStatus).toBe('idle');
+    act(() => answer(new Response(null, { status: 204 })));
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    // The aborted query is read again; the library, which was not loading, keeps its data.
+    expect(queryClient.getQueryState(['search', {}])?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(['library', 'films', {}])?.isInvalidated).toBe(false);
+  });
+
+  it('tells every button of a title that a change of it is in flight', async () => {
+    let answer: (response: Response) => void = () => undefined;
+    mockApi({
+      'PUT /items/*/watchlist': () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve;
+        }),
+    });
+    const queryClient = new QueryClient();
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    // Two separate mutations (the cover and the detail page's "Merken").
+    const { result } = renderHook(
+      () => ({
+        cover: useWatchlistMutation(),
+        detail: useWatchlistMutation(),
+        pending: useWatchlistPending(target),
+        otherPending: useWatchlistPending(other),
+      }),
+      { wrapper },
+    );
+    expect(result.current.pending).toBe(false);
+    act(() => result.current.cover.mutate({ id: target, on: true }));
+    await waitFor(() => expect(result.current.pending).toBe(true));
+    expect(result.current.detail.isPending).toBe(false);
+    expect(result.current.otherPending).toBe(false);
+    act(() => answer(new Response(null, { status: 204 })));
+    await waitFor(() => expect(result.current.pending).toBe(false));
   });
 
   it('turns the same queries back when the server refuses', async () => {
