@@ -17,10 +17,11 @@ import (
 // profile may not see is absent from every list, and a person exists for the profile only through
 // the visible titles of their credits.
 
-// treeExtras fills the child counts of series and seasons, the completed episodes of seasons, the parents the profile may see, the
-// series titles of seasons and episodes (the text chain of the scope, then the parsed title) and
-// the series of episodes with their images (concept 15 P-1). The series of all items are loaded
-// together: one query for their texts and, when the items hold an episode, one for their images.
+// treeExtras fills the child counts of series and seasons, the completed episodes of seasons, the
+// parents the profile may see, the series titles of seasons and episodes (the text chain of the
+// scope, then the parsed title) and the series of episodes with their images (concept 15 P-1). The
+// series of all items are loaded together: one query for their texts and, when the items hold an
+// episode, one for their images.
 func (r *Reader) treeExtras(ctx context.Context, pid int64, lang langPref, ids []string, out *extras) error {
 	counts, err := r.q.ListVisibleChildCounts(ctx, scopedq.ListVisibleChildCountsParams{ProfileID: pid, ItemIds: ids})
 	if err != nil {
@@ -97,9 +98,10 @@ func (r *Reader) treeExtras(ctx context.Context, pid int64, lang langPref, ids [
 }
 
 // completeDetail adds what the detail page of each kind shows: seasons, extras and next up of a
-// series, episodes, extras, next up and the series of a season, the season, series and next episode of an episode,
-// the extras of a film, and for every kind the cast, the number of trailers, the favourite mark
-// of the profile and the visible collections of the title (the watchlist mark is on the summary).
+// series, episodes, extras, next up and the series of a season, the season, series and next
+// episode of an episode, the extras of a film, and for every kind the cast, the number of
+// trailers, the favourite mark of the profile and the visible collections of the title (the
+// watchlist mark is on the summary).
 func (r *Reader) completeDetail(ctx context.Context, s Scope, pid int64, it scopedq.Item, d *model.ItemDetail) error {
 	self := sql.NullString{String: it.ID, Valid: true}
 	var err error

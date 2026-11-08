@@ -946,12 +946,12 @@ type ListSeriesNextUpEpisodesRow struct {
 // The visible episodes of one series, or of one season of it when @season_id is not empty, with
 // what the rule of NextUp (contract 1.20.0, concept 17 section 3.3, Go: visibility.nextUp) reads:
 // the season numbers of the episode and of its season (the caller takes the season's when the
-// episode has none, like ListContinueWatching), the episode
-// number, the last episode of a file with several and the progress of the profile (0 without a
-// row). The seasons of the series come first from items_parent, then their episodes from
-// items_episode (CROSS JOIN fixes that order), so only the one series is read. The season must be
-// visible too, so the button never points into a season the shelf does not show. Ordered by
-// season, number and id; episodes without a season or episode number last.
+// episode has none, like ListContinueWatching), the episode number, the last episode of a file
+// with several and the progress of the profile (0 without a row). The seasons of the series come
+// first from items_parent, then their episodes from items_episode (CROSS JOIN fixes that order),
+// so only the one series is read. The season must be visible too, so the button never points into
+// a season the shelf does not show. Ordered by season, number and id; episodes without a number
+// last within their season, episodes without a season last.
 func (q *Queries) ListSeriesNextUpEpisodes(ctx context.Context, arg ListSeriesNextUpEpisodesParams) ([]ListSeriesNextUpEpisodesRow, error) {
 	rows, err := q.db.QueryContext(ctx, listSeriesNextUpEpisodes, arg.ProfileID, arg.SeriesID, arg.SeasonID)
 	if err != nil {
@@ -1102,10 +1102,12 @@ SELECT i.id,
        (SELECT count(*) FROM items AS c
         JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
         WHERE c.parent_id = i.id AND c.kind IN ('season', 'episode')) AS child_count,
-       (SELECT count(*) FROM items AS c
-        JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
-        JOIN progress AS pc ON pc.profile_id = ?1 AND pc.item_id = c.id AND pc.completed = 1
-        WHERE c.parent_id = i.id AND c.kind = 'episode') AS watched_count
+       CAST(CASE WHEN i.kind = 'season' THEN
+         (SELECT count(*) FROM items AS c
+          JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
+          JOIN progress AS pc ON pc.profile_id = ?1 AND pc.item_id = c.id AND pc.completed = 1
+          WHERE c.parent_id = i.id AND c.kind = 'episode')
+       ELSE 0 END AS INTEGER) AS watched_count
 FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 WHERE i.id IN (/*SLICE:item_ids*/?) AND i.kind IN ('series', 'season')

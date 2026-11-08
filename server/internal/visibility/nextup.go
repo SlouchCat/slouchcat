@@ -30,8 +30,8 @@ type nextUpEpisode struct {
 
 // nextUp returns the reason and the episode the big button of a series (or of one season) plays,
 // by the rule of contract 1.20.0 (NextUp, concept 17 section 3.3). eps are the visible episodes in
-// the order of ListSeriesNextUpEpisodes: by season, number and id, those without a season or an
-// episode number last. Without an episode ok is false.
+// the order of ListSeriesNextUpEpisodes: by season, number and id; episodes without a number last
+// within their season, episodes without a season last. Without an episode ok is false.
 //
 //   - Regular episodes are those of season 1 or later; without one every episode is regular (a
 //     series of specials only, the season page of the specials).
