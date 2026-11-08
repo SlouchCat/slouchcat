@@ -11,6 +11,7 @@ import {
   queryOptions,
   useMutation,
   useQueryClient,
+  type QueryKey,
 } from '@tanstack/react-query';
 import { api, request } from '@/api/client';
 
@@ -96,9 +97,62 @@ export const notificationsQuery = queryOptions({
   staleTime: 10_000,
 });
 
-/** Adds a title to or removes it from the watchlist; refreshes the detail, list and start page. */
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  if (typeof value !== 'object' || value === null) return false;
+  const prototype = Object.getPrototypeOf(value) as unknown;
+  return prototype === Object.prototype || prototype === null;
+};
+
+function walkWatchlist(value: unknown, id: string, on: boolean): unknown {
+  if (Array.isArray(value)) {
+    let changed = false;
+    const next = value.map((entry: unknown) => {
+      const patched = walkWatchlist(entry, id, on);
+      if (patched !== entry) changed = true;
+      return patched;
+    });
+    return changed ? next : value;
+  }
+  if (!isPlainObject(value)) return value;
+  let next: Record<string, unknown> | undefined;
+  for (const [key, entry] of Object.entries(value)) {
+    const patched = walkWatchlist(entry, id, on);
+    if (patched !== entry) {
+      next ??= { ...value };
+      next[key] = patched;
+    }
+  }
+  if (value.id === id && typeof value.inWatchlist === 'boolean' && value.inWatchlist !== on) {
+    next ??= { ...value };
+    next.inWatchlist = on;
+  }
+  return next ?? value;
+}
+
+/**
+ * Sets `inWatchlist` of title `id` to `on` wherever it stands in a query's data (concept 17 D-9,
+ * plan E-18): a walk over plain objects and arrays only, which keeps every untouched subtree as the
+ * same object (structural sharing). Undefined when nothing changed, so `setQueryData` leaves such a
+ * query alone instead of marking it fresh.
+ */
+export function patchWatchlist(data: unknown, id: string, on: boolean): unknown {
+  const next = walkWatchlist(data, id, on);
+  return next === data ? undefined : next;
+}
+
+/**
+ * Adds a title to or removes it from the watchlist (E-5). The new state stands at once in every
+ * cached list and page that shows the title (only those queries are cancelled and patched); an
+ * error turns the same queries back. Afterwards only the watchlist and the start page are read
+ * again: the library and the detail keep their patched data (concept 17 8.2).
+ */
 export function useWatchlistMutation() {
   const queryClient = useQueryClient();
+  const patch = (keys: readonly QueryKey[], id: string, on: boolean) => {
+    for (const queryKey of keys) {
+      queryClient.setQueryData(queryKey, (data: unknown) => patchWatchlist(data, id, on));
+    }
+  };
   return useMutation({
     mutationFn: ({ id, on }: { id: string; on: boolean }) =>
       request(
@@ -106,9 +160,23 @@ export function useWatchlistMutation() {
           ? api.PUT('/items/{id}/watchlist', { params: { path: { id } } })
           : api.DELETE('/items/{id}/watchlist', { params: { path: { id } } }),
       ),
-    onSettled: (_data, _error, { id }) =>
+    onMutate: async ({ id, on }) => {
+      const keys = queryClient
+        .getQueryCache()
+        .findAll()
+        .filter((query) => patchWatchlist(query.state.data, id, on) !== undefined)
+        .map((query) => query.queryKey);
+      await Promise.all(
+        keys.map((queryKey) => queryClient.cancelQueries({ queryKey, exact: true })),
+      );
+      patch(keys, id, on);
+      return { keys };
+    },
+    onError: (_error, { id, on }, context) => {
+      if (context) patch(context.keys, id, !on);
+    },
+    onSettled: () =>
       Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['item', id], exact: true }),
         queryClient.invalidateQueries({ queryKey: ['watchlist'] }),
         queryClient.invalidateQueries({ queryKey: ['home'] }),
       ]),
