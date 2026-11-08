@@ -674,7 +674,7 @@ func (s *server) UpdateAdminRadioStation(ctx context.Context, req gen.UpdateAdmi
 	patch := model.AdminRadioStationPatch{Name: b.Name, Region: b.Region, ClearRegion: nulls["region"], Genres: b.Genres,
 		Kinds: b.Kinds, Moods: b.Moods, PreferredStreamID: b.PreferredStreamId, ClearPreferredStream: nulls["preferredStreamId"],
 		Hidden: b.Hidden, Recommended: b.Recommended, StreamURL: b.StreamUrl, Homepage: b.Homepage,
-		ClearHomepage: nulls["homepage"], Country: b.Country, ClearCountry: nulls["country"]}
+		ClearHomepage: nulls["homepage"], Country: b.Country, ClearCountry: nulls["country"], Languages: b.Languages}
 	if b.Locks != nil {
 		locks := make([]string, 0, len(*b.Locks))
 		for _, l := range *b.Locks {
@@ -727,7 +727,7 @@ func (s *server) CreateRadioStation(ctx context.Context, req gen.CreateRadioStat
 	}
 	b := req.Body
 	c := model.AdminRadioStationCreate{Name: b.Name, StreamURL: b.StreamUrl, Homepage: deref(b.Homepage), Country: deref(b.Country),
-		Region: deref(b.Region), Genres: deref(b.Genres), Kinds: deref(b.Kinds), Moods: deref(b.Moods)}
+		Region: deref(b.Region), Languages: deref(b.Languages), Genres: deref(b.Genres), Kinds: deref(b.Kinds), Moods: deref(b.Moods)}
 	a, err := s.opts.Radio.CreateStation(ctx, c)
 	if err != nil {
 		return s.problem(ctx, err), nil

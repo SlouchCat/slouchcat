@@ -16247,6 +16247,13 @@ components:
           nullable: true
           pattern: "^[A-Z]{2}$"
           description: Since contract 1.19.0, own stations only; null clears it.
+        languages:
+          type: array
+          maxItems: 10
+          description: Since contract 1.19.0, own stations only. ISO 639-1 codes; an empty list clears them.
+          items:
+            type: string
+            pattern: "^[a-z]{2}$"
 
     AdminRadioStationCreate:
       type: object
@@ -16270,6 +16277,13 @@ components:
         region:
           type: string
           pattern: "^[A-Z]{2}-[A-Z0-9]{1,3}$"
+        languages:
+          type: array
+          maxItems: 10
+          description: ISO 639-1 codes of the station's languages.
+          items:
+            type: string
+            pattern: "^[a-z]{2}$"
         genres:
           type: array
           maxItems: 20

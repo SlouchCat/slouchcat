@@ -291,6 +291,7 @@ type AdminRadioStationPatch struct {
 	ClearHomepage bool
 	Country       *string
 	ClearCountry  bool
+	Languages     *[]string // ISO 639-1; an empty list clears them
 }
 
 // AdminRadioStationCreate is an own station (contract AdminRadioStationCreate, concept 16 section
@@ -301,6 +302,7 @@ type AdminRadioStationCreate struct {
 	Homepage  string
 	Country   string
 	Region    string
+	Languages []string // ISO 639-1
 	Genres    []string
 	Kinds     []string
 	Moods     []string

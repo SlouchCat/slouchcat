@@ -8823,6 +8823,8 @@ export interface components {
             homepage?: string | null;
             /** @description Since contract 1.19.0, own stations only; null clears it. */
             country?: string | null;
+            /** @description Since contract 1.19.0, own stations only. ISO 639-1 codes; an empty list clears them. */
+            languages?: string[];
         };
         /** @description An own station (contract 1.19.0, concept 16 section 5.6). */
         AdminRadioStationCreate: {
@@ -8831,6 +8833,8 @@ export interface components {
             homepage?: string;
             country?: string;
             region?: string;
+            /** @description ISO 639-1 codes of the station's languages. */
+            languages?: string[];
             genres?: string[];
             kinds?: string[];
             moods?: string[];
