@@ -38,6 +38,9 @@ import (
 // install that was sent as the event errors.
 const SettingUpdateInstallReported = "update_install_reported"
 
+// updaterLabel is a version or build label the card may show.
+var updaterLabel = regexp.MustCompile(`^[0-9A-Za-z][0-9A-Za-z.+_-]{0,39}$`)
+
 const (
 	// updaterProbeTimeout bounds GET /status for UpdateState.UpdaterAvailable; updaterProbeTTL is
 	// how long its answer counts, so the admin pages stay fast while the companion is down.
@@ -84,9 +87,10 @@ type updaterLink struct {
 	// starting is set while InstallUpdate waits for the companion's answer (it holds backups.mu).
 	starting atomic.Bool
 
-	probeMu   sync.Mutex // guards probedAt, available and probing
+	probeMu   sync.Mutex // guards probedAt, available, version and probing
 	probedAt  time.Time
 	available bool
+	version   string        // the companion's version from its status answer; "" = unknown
 	probing   chan struct{} // closed when the running probe ends; nil = none
 
 	stateMu  sync.Mutex
@@ -303,6 +307,12 @@ func (s *Service) isRunningVersion(v string) bool {
 func (s *Service) withUpdaterState(ctx context.Context, out model.UpdateState) model.UpdateState {
 	out.UpdaterConfigured = s.ops.updater.url != ""
 	out.UpdaterAvailable = s.updaterAvailable(ctx)
+	if out.UpdaterAvailable {
+		u := &s.ops.updater
+		u.probeMu.Lock()
+		out.UpdaterVersion = u.version
+		u.probeMu.Unlock()
+	}
 	if st, ok := s.installState(ctx); ok {
 		s.reportInstall(ctx, st)
 		if st, ok = s.shownInstall(ctx, st); ok {
@@ -350,21 +360,29 @@ func (s *Service) probeUpdater(ctx context.Context, done chan struct{}) {
 	u := &s.ops.updater
 	ctx, cancel := context.WithTimeout(ctx, updaterProbeTimeout)
 	defer cancel()
-	ok := false
+	ok, ver := false, ""
 	resp, err := s.callUpdater(ctx, http.MethodGet, updater.PathStatus)
 	switch {
 	case err != nil:
 		s.log.DebugContext(ctx, "updater not reached", "err", err)
 	default:
-		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, updater.MaxFileBytes))
-		_ = resp.Body.Close()
 		ok = resp.StatusCode == http.StatusOK
-		if !ok {
+		if ok {
+			// The version is shown on the card as the companion reports it (a release, or the label of
+			// a development build); one with other characters, or an answer that does not read, counts
+			// as unknown, like that of a companion before 1.18.0.
+			var st updater.State
+			if err := decodeState(resp.Body, &st); err == nil && updaterLabel.MatchString(st.Updater) {
+				ver = st.Updater
+			}
+		} else {
 			s.log.DebugContext(ctx, "updater status refused", "status", resp.StatusCode)
 		}
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, updater.MaxFileBytes))
+		_ = resp.Body.Close()
 	}
 	u.probeMu.Lock()
-	u.probedAt, u.available, u.probing = s.now(), ok, nil
+	u.probedAt, u.available, u.version, u.probing = s.now(), ok, ver, nil
 	u.probeMu.Unlock()
 	close(done)
 }

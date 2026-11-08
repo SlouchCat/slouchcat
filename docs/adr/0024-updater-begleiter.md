@@ -201,6 +201,56 @@ im Netz, obwohl Caddy davor sein soll, und die GPU fehlte.
 - Abnahme auf CT 190 (F-15) mit seinen drei Compose-Dateien und `compose.updater.yaml`; danach
   stehen Port und GPU wie vorher.
 
+## Nachtrag 8. November 2026: Update, das ohne Zugriff auf den Server immer durchgeht (Vertrag 1.18.0)
+
+Anlass: Am 8. November 2026 antwortete die Download-Adresse der Releases
+(`github.com/<owner>/<repo>/releases/latest/download/manifest.json`) stundenlang mit 504, auch für fremde
+Projekte; Update-Prüfung und Installation scheiterten, API (`api.github.com`), Ablage der Anhänge und
+`ghcr.io` arbeiteten. Marco verteilt Slouchcat weltweit und kann auf keinen Server zugreifen: Ein Update
+muss ohne Handarbeit durchgehen. Ein Audit des ganzen Wegs fand dazu weitere Lücken. Marco hat am
+8. November 2026 entschieden, alle in einem Zug zu schliessen; die Entscheide unten traf Claude.
+
+1. **Release-Dateien lesen** (`updater.FetchReleaseFile`, Server und Updater): Die Download-Adresse wird
+   zweimal gefragt (je 4 s, 1 s Pause); bleibt es bei Netzfehler oder 5xx, liest der Abruf dieselbe Datei
+   über die API (Release `latest` bzw. `tags/<tag>`, Anhang nach Name, nur eine Anhangsadresse desselben
+   Repositorys, Gross- und Kleinschreibung egal). Andere Antworten (404, 403) sind endgültig. Scheitert auch
+   die API, nennt der Fehler beide Gründe. Die API erlaubt ohne Anmeldung 60 Anfragen pro Stunde und
+   Adresse; der Ausweichweg braucht zwei. Ein Aufruf bleibt in 20 s.
+2. **Der Updater folgt dem Server** (Selbstupdate): Das Manifest nennt zusätzlich `updaterImage`
+   (`ghcr.io/slouchcat/slouchcat-updater@sha256:…`). Läuft der Server in der Version des Manifests und ist
+   der Updater älter, aktualisiert er sich selbst: nach jeder erfolgreichen Installation, beim Start und
+   alle 6 Stunden. Er setzt `SLOUCHCAT_UPDATER_VERSION` in derselben env-Datei (Sicherung wie für
+   `SLOUCHCAT_VERSION`), zieht das Image, prüft den Digest und lässt einen kurzlebigen Hilfscontainer
+   aus dem neuen Image (`slouchcat-updater self-update`, mit Docker-Socket und deploy-Ordner) seinen
+   Dienst `updater` neu erstellen; ein Container kann sich nicht selbst ersetzen, ohne den Befehl dabei
+   abzubrechen. Kommt der neue Updater nicht hoch, stellt der Hilfscontainer die env-Datei zurück und
+   startet den alten. Den Server fasst das Selbstupdate nie an. Updater vor 1.18.0 kennen das nicht:
+   Sie hebt man einmal von Hand (Release-Notizen, Hinweis auf der Karte).
+3. **Compose-Dateien reisen mit**: Jedes Release hängt `deploy/compose*.yaml` an und nennt im Manifest
+   `deploy` (Name → sha256) sowie `deployKnown` (Name → alle sha256, die die Datei in früheren Releases
+   hatte). Vor dem Pull ersetzt der Updater jede Compose-Datei des laufenden Projekts (im Projektordner),
+   deren Name im Manifest steht, deren Inhalt abweicht und deren Hash in `deployKnown` steht, also seit
+   einem Release unverändert ist. Eine selbst angepasste Datei bleibt liegen; die Installation läuft
+   weiter und sagt es in `message`. Ersetzen: Abruf mit Ausweichweg, Prüfsumme, Sicherung
+   `<Datei>.bak-vor-<Version>` (dieselbe Endung für alle, `State.DeployBackup`), atomares Ersetzen. Bei
+   einer Rücknahme ohne Migration kommen die Sicherungen zurück. Andere Dateien (eigene Overrides, `.env`)
+   fasst er nie an. Regel für die Compose-Dateien: Eigene Anpassungen gehören in `.env` oder in eine
+   eigene Override-Datei; jede neue Variable braucht einen Standardwert (`${X:-…}`), damit eine ältere
+   `.env` weiter passt. Scheitert der Schritt, bricht die Installation vor dem Pull ab (`deploy_files`).
+4. **Pull mit Wiederholung**: bis zu drei Versuche (Pausen 15 s und 45 s) innerhalb `PullTimeout`; die
+   letzte Zeile von stderr (bereinigt) steht in `message`; «no space left on device» wird `disk_full`.
+5. **Aufräumen**: Nach einer erfolgreichen Installation entfernt der Updater Images des Servers ausser der
+   laufenden und der vorherigen Version (Ziel einer Rücknahme), nach einem Selbstupdate ältere eigene Images
+   ausser dem laufenden; ohne `--force`, ein benutztes Image bleibt.
+6. **Nur echte Releases**: Der Release-Lauf markiert nur einen Tag `vX.Y.Z` als «latest» und nur, wenn er
+   die höchste Version ist (ein Nachtrag auf einer älteren Linie bleibt ohne «latest»); ein Tag mit Zusatz
+   (`-rc1`) wird Vorabversion ohne `:latest`. Der Server bietet nur `X.Y.Z` als Update an
+   (`updater.ValidRelease`), wie der Updater.
+7. **Sichtbarkeit** (Vertrag 1.18.0, additiv): `UpdateState.lastSuccessAt` (letzte erfolgreiche Prüfung;
+   ein Fehlschlag löscht das bekannte Update nicht) und `UpdateState.updaterVersion` (aus `/status`, leer
+   bei einem Updater vor 1.18.0). Die Karte zeigt «Updater veraltet» mit dem Befehl, wenn die Version
+   fehlt oder älter als die des Servers ist.
+
 ## Verworfen
 
 - **Docker-Socket im Slouchcat-Container (Variante B):** Wer die Web-App übernimmt, hätte Root auf

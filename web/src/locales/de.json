@@ -2464,7 +2464,11 @@
         "updateDevelopment": "Entwicklungsstand",
         "updateFailed": "Letzte Prüfung fehlgeschlagen",
         "updateOff": "Prüfung ausgeschaltet",
+        "updater": "Updater",
+        "updaterUnknown": "Version unbekannt",
+        "updaterDown": "Antwortet nicht",
         "checked": "Zuletzt geprüft: {{date}}",
+        "lastSuccess": "Zuletzt erfolgreich geprüft: {{date}}",
         "check": "Nach Updates suchen",
         "checkedNow": "Nach Updates gesucht."
       },
@@ -2517,6 +2521,10 @@
         "failedNoVersion": "Update fehlgeschlagen",
         "migrated": "Migration gelaufen, zurück nur mit der Sicherung {{backup}}.",
         "migratedNoBackup": "Migration gelaufen, zurück nur mit der Sicherung vor der Migration.",
+        "failure": {
+          "disk_full": "Auf dem Server ist kein Platz für das neue Image. Platz schaffen und erneut versuchen.",
+          "deploy_files": "Die Compose-Dateien des Releases liessen sich nicht laden oder schreiben; das Update wurde abgebrochen."
+        },
         "finished": "Beendet: {{date}}",
         "refused": {
           "title": "Der Updater hat das Update nicht gestartet",
@@ -2537,6 +2545,12 @@
           "up": "Mit der neuen Version starten",
           "files": "Nimm dieselben -f-Dateien wie beim Start (zum Beispiel docker compose -f compose.yaml -f compose.intel.yaml pull), sonst fehlen sie nach dem Update.",
           "docs": "Anleitung: Update per Knopf mit dem Updater-Begleiter"
+        },
+        "outdated": {
+          "title": "Der Updater ist veraltet und aktualisiert sich ab Version 1.18.0 selbst. Einmal von Hand heben:",
+          "command": "Im deploy-Ordner ausführen",
+          "deployDir": "<deploy-ordner>",
+          "files": "Wer die Compose-Dateien mit -f aufzählt statt mit COMPOSE_FILE, hängt dieselbe -f-Liste an."
         }
       },
       "activity": {

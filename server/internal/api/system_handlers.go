@@ -248,7 +248,8 @@ func toUpdateState(u model.UpdateState) gen.UpdateState {
 		Enabled: u.Enabled, CurrentVersion: u.CurrentVersion, LatestVersion: optString(u.LatestVersion),
 		Development: u.Development, Available: u.Available,
 		Url: optString(u.URL), Notes: optString(u.Notes), CheckedAt: utc(u.CheckedAt), Error: optString(u.Error),
-		UpdaterConfigured: u.UpdaterConfigured, UpdaterAvailable: u.UpdaterAvailable,
+		LastSuccessAt: utc(u.LastSuccessAt), UpdaterConfigured: u.UpdaterConfigured, UpdaterAvailable: u.UpdaterAvailable,
+		UpdaterVersion: optString(u.UpdaterVersion),
 	}
 	if u.Install != nil {
 		in := toUpdateInstall(*u.Install)

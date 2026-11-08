@@ -11,6 +11,13 @@
 # sha256:..."). `version` is the tag without the leading v, so it compares as a semantic version
 # against the one built into the binary. The updater (server/cmd/updater) refuses a manifest
 # without image and compares the pulled image against that digest before it restarts anything.
+# Since 1.18.0 (ADR 0024, addendum of 2026-11-08) it also carries updaterImage (the updater image,
+# pinned by digest, so the updater can follow the server) and deploy (base name -> sha256 of every
+# deploy/compose*.yaml). Those compose files are attached to the release next to manifest.json.
+#
+# Only a plain tag `vX.Y.Z` that is the highest of the repository becomes the "latest" release and
+# gets the image tag `:latest`. A backport on an older line gets neither; a tag with a suffix
+# (`v1.18.0-rc1`) becomes a pre-release without them. The version tag is always set.
 #
 # After the FIRST release a package has to be made public by hand, once -- GitHub creates a new
 # one private, and `docker compose pull` would ask every installation for a login. Decision 1 of
@@ -67,6 +74,26 @@ jobs:
           echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
           echo "updater_image=ghcr.io/${GITHUB_REPOSITORY,,}-updater" >> "$GITHUB_OUTPUT"
 
+      # Decides what kind of release this tag is, before any image is pushed (the image tags depend
+      # on it). fetch-depth 0 above brought all tags of the repository.
+      - name: Decide whether the tag is a pre-release, a backport or the latest release
+        id: kind
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          plain='^v[0-9]+\.[0-9]+\.[0-9]+$'
+          prerelease=false
+          latest=false
+          if [[ "$tag" =~ $plain ]]; then
+            highest="$(git tag -l 'v*.*.*' | grep -E "$plain" | sort -V | tail -n 1)"
+            if [ "$highest" = "$tag" ]; then latest=true; fi
+          else
+            prerelease=true
+          fi
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "tag $tag: prerelease=$prerelease latest=$latest"
+
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
         with:
           platforms: arm64
@@ -92,7 +119,7 @@ jobs:
           push: true
           tags: |
             ${{ steps.version.outputs.image }}:${{ steps.version.outputs.version }}
-            ${{ steps.version.outputs.image }}:latest
+            ${{ steps.kind.outputs.latest == 'true' && format('{0}:latest', steps.version.outputs.image) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: mode=max
@@ -127,7 +154,7 @@ jobs:
           push: true
           tags: |
             ${{ steps.version.outputs.updater_image }}:${{ steps.version.outputs.version }}
-            ${{ steps.version.outputs.updater_image }}:latest
+            ${{ steps.kind.outputs.latest == 'true' && format('{0}:latest', steps.version.outputs.updater_image) || '' }}
           cache-from: type=gha,scope=updater
           cache-to: type=gha,mode=max,scope=updater
           provenance: mode=max
@@ -163,25 +190,54 @@ jobs:
           [ -n "$notes" ] || notes="$subject"
           [ -n "$notes" ] || notes="Slouchcat ${{ steps.version.outputs.version }}"
           printf '%s\n' "$notes" > release-notes.md
+          # Base name -> lowercase sha256 of every compose file; the updater replaces a file of the
+          # running project when its hash differs (base names are unique across deploy/).
+          deploy="$(sha256sum deploy/compose*.yaml | jq -R -s \
+            'split("\n") | map(select(length > 0) | split("  ") | {key: (.[1] | split("/") | last), value: .[0]}) | from_entries')"
+          # Base name -> every sha256 the file had in an earlier release: the updater replaces only a
+          # file that is one of those (unchanged since some release), never one with own changes.
+          known='{}'
+          for f in deploy/compose*.yaml; do
+            n="$(basename "$f")"
+            hashes="$(for t in $(git tag -l 'v*.*.*'); do
+                [ "$t" = "$GITHUB_REF_NAME" ] && continue
+                if git cat-file -e "$t:deploy/$n" 2>/dev/null; then git show "$t:deploy/$n" | sha256sum | cut -d' ' -f1; fi
+              done | sort -u | jq -R -s 'split("\n") | map(select(length > 0))')"
+            known="$(jq -n --argjson k "$known" --arg n "$n" --argjson h "$hashes" '$k + {($n): $h}')"
+          done
           jq -n \
+            --argjson deploy "$deploy" \
+            --argjson deployKnown "$known" \
             --arg version "${{ steps.version.outputs.version }}" \
             --arg url "${{ github.server_url }}/${{ github.repository }}/releases/tag/${GITHUB_REF_NAME}" \
             --arg notes "$notes" \
             --arg publishedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg image "${{ steps.version.outputs.image }}@${{ steps.build.outputs.digest }}" \
-            '{version: $version, url: $url, notes: $notes, publishedAt: $publishedAt, image: $image}' > manifest.json
+            --arg updaterImage "${{ steps.version.outputs.updater_image }}@${{ steps.build-updater.outputs.digest }}" \
+            '{version: $version, url: $url, notes: $notes, publishedAt: $publishedAt, image: $image, updaterImage: $updaterImage, deploy: $deploy, deployKnown: $deployKnown}' > manifest.json
           # The updater accepts only this form (server/cmd/updater, digestRef).
           jq -e '.image | test("^[a-z0-9][a-z0-9._/:-]*@sha256:[0-9a-f]{64}$")' manifest.json
+          jq -e '.updaterImage | test("^[a-z0-9][a-z0-9._/:-]*/slouchcat-updater@sha256:[0-9a-f]{64}$")' manifest.json
+          # Names the updater may fetch and write next to the compose file; hashes are lower-case hex.
+          jq -e '(.deploy | length > 0) and (.deploy | to_entries | all(.key | test("^compose[a-z0-9.-]*\\.yaml$"))) and (.deploy | all(.[]; test("^[0-9a-f]{64}$")))' manifest.json
+          jq -e '.deployKnown | to_entries | all((.key | test("^compose[a-z0-9.-]*\\.yaml$")) and (.value | length <= 200) and (.value | all(test("^[0-9a-f]{64}$"))))' manifest.json
           cat manifest.json
 
       # The written offer for the GPL source of the ffmpeg build travels with every release
-      # (ADR 0001, deploy/licenses/FFMPEG-NOTICE.md).
-      - name: Create the release with the manifest and the ffmpeg notice
+      # (ADR 0001, deploy/licenses/FFMPEG-NOTICE.md). So do the compose files, as
+      # releases/download/<tag>/<name>, which the updater fetches.
+      - name: Create the release with the manifest, the compose files and the ffmpeg notice
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
+          flags=(--latest=false)
+          if [ "${{ steps.kind.outputs.latest }}" = true ]; then flags=(--latest); fi
+          if [ "${{ steps.kind.outputs.prerelease }}" = true ]; then flags+=(--prerelease); fi
           gh release create "${GITHUB_REF_NAME}" \
             --title "Slouchcat ${{ steps.version.outputs.version }}" \
             --notes-file release-notes.md \
+            "${flags[@]}" \
             manifest.json \
+            deploy/compose*.yaml \
             deploy/licenses/FFMPEG-NOTICE.md

@@ -419,11 +419,17 @@ type UpdateState struct {
 	URL         string
 	Notes       string
 	CheckedAt   *time.Time
-	Error       string
+	// LastSuccessAt is the last check that read the manifest; a failed check keeps it (contract
+	// 1.18.0).
+	LastSuccessAt *time.Time
+	Error         string
 	// UpdaterConfigured: an address of the updater companion is set (config.UpdaterURL).
 	UpdaterConfigured bool
 	// UpdaterAvailable: the server reaches the updater companion with its token (ADR 0024).
 	UpdaterAvailable bool
+	// UpdaterVersion is the companion's version from its status answer; empty when it does not
+	// answer or is older than 1.18.0 (contract 1.18.0).
+	UpdaterVersion string
 	// Install is the last install the companion reported (state.json); nil when none.
 	Install *UpdateInstall
 }

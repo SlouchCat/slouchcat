@@ -2,8 +2,10 @@
 // runs in its own container with the Docker socket and the deploy folder, listens only on the
 // internal Docker network and installs the newest release on the server's request: it reads the
 // release manifest itself, sets SLOUCHCAT_VERSION in the env file of the running compose project,
-// pulls, checks the digest, recreates the server container and waits for it. A failed start
-// without a migration is taken back; with a migration it only reports. It never updates itself.
+// replaces the compose files the release names, pulls, checks the digest, recreates the server
+// container and waits for it. A failed start without a migration is taken back; with a migration
+// it only reports. Once the server runs the release, the updater follows it (self-update, ADR 0024
+// addendum point 2): `slouchcat-updater self-update` is the helper container that recreates it.
 //
 // Environment:
 //
@@ -11,6 +13,7 @@
 //	PUID, PGID                     owner of deploy/updater/ and its files (default 1000)
 //	SLOUCHCAT_UPDATE_MANIFEST_URL  release manifest, https only (default config.DefaultUpdateManifestURL)
 //	SLOUCHCAT_CONTAINER            container name of the server (default slouchcat)
+//	SLOUCHCAT_UPDATER_CONTAINER    container name of the updater itself (default slouchcat-updater)
 //	SLOUCHCAT_LOG_FORMAT           json (default) or text
 //
 // The protocol with the server (paths, files, phases, codes) is package internal/updater.
@@ -53,15 +56,23 @@ const (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == helperCommand {
+		os.Exit(selfUpdateMain(os.Args[2:]))
+	}
 	os.Exit(run())
 }
 
-func run() int {
+// newLog is the logger of both commands, through the redaction handler (CLAUDE.md rule 10).
+func newLog() (*slog.Logger, error) {
 	format := logging.Format(strings.TrimSpace(os.Getenv("SLOUCHCAT_LOG_FORMAT")))
 	if format == "" {
 		format = logging.FormatJSON
 	}
-	log, err := logging.New(os.Stdout, format, slog.LevelInfo)
+	return logging.New(os.Stdout, format, slog.LevelInfo)
+}
+
+func run() int {
+	log, err := newLog()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "updater:", err)
 		return 2
@@ -75,6 +86,10 @@ func run() int {
 	defer stop()
 
 	docker := dockerCLI{failed: func(args []string, err error, last string) {
+		if strings.Contains(last, "No such container") { // the answer to "is the helper there?"
+			log.Debug("updater: docker command failed", "args", strings.Join(args, " "), "last_line", last)
+			return
+		}
 		log.Warn("updater: docker command failed", "args", strings.Join(args, " "), "err", err, "last_line", last)
 	}}
 	u, token, err := newUpdater(ctx, cfg, docker, log)
@@ -83,6 +98,7 @@ func run() int {
 		return 1
 	}
 	u.Resume()
+	u.wg.Go(u.Watch)
 	srv := &http.Server{
 		Addr:              updater.ListenAddr,
 		Handler:           u.handler(token),
@@ -117,6 +133,10 @@ type settings struct {
 	uid, gid    int
 	manifestURL string
 	container   string
+	// updaterContainer is the updater's own container, which a self-update recreates.
+	updaterContainer string
+	// tz is TZ, passed on to the helper container of a self-update.
+	tz string
 }
 
 // sharedDir is the folder in deploy/ shared with the server.
@@ -129,12 +149,18 @@ func loadConfig(getenv func(string) string) (settings, error) {
 	c := settings{
 		manifestURL: strings.TrimSpace(getenv("SLOUCHCAT_UPDATE_MANIFEST_URL")),
 		container:   strings.TrimSpace(getenv("SLOUCHCAT_CONTAINER")),
+
+		updaterContainer: strings.TrimSpace(getenv("SLOUCHCAT_UPDATER_CONTAINER")),
+		tz:               strings.TrimSpace(getenv("TZ")),
 	}
 	if c.manifestURL == "" {
 		c.manifestURL = config.DefaultUpdateManifestURL // the manifest the server's update check reads
 	}
 	if c.container == "" {
 		c.container = service
+	}
+	if c.updaterContainer == "" {
+		c.updaterContainer = defaultUpdaterContainer
 	}
 	if u, err := url.Parse(c.manifestURL); err != nil || u.Scheme != "https" || u.Host == "" {
 		return c, fmt.Errorf("SLOUCHCAT_UPDATE_MANIFEST_URL must be an https URL, got %q", c.manifestURL)
@@ -183,7 +209,8 @@ func newUpdater(ctx context.Context, cfg settings, docker Docker, log *slog.Logg
 	u := &Updater{
 		cfg: cfg, docker: docker, log: log, now: time.Now, ctx: ctx,
 		client: &http.Client{Timeout: manifestTimeout, CheckRedirect: httpsRedirects},
-		every:  pollInterval, wait: waitTimeout,
+		every:  pollInterval, wait: waitTimeout, version: version,
+		pullPauses: pullPauses, selfEvery: selfEvery, helperCheck: helperCheck,
 	}
 	u.recover()
 	return u, token, nil
@@ -285,8 +312,8 @@ func readToken(f *os.File, uid, gid int) (token []byte, regular bool, err error)
 // finish, and the next start ends it:
 //
 //   - checking, backing_up, pulling, verifying: the old container still runs. The env file is put
-//     back from the backup the install wrote (.env.bak-vor-<to>, -2, …) when it still names the new version and the backup exists;
-//     the install is failed.
+//     back from the backup the install wrote (.env.bak-vor-<to>, -2, …) when it still names the new version and the backup exists,
+//     and so are the compose files it replaced (State.DeployBackup, recoverDeploy); the install is failed.
 //   - restarting, waiting: compose up may have run. The install goes on in the phase waiting, and
 //     Resume waits for the new version in the background as run does (u.wait from now, with the
 //     early end of Container.GaveUp); /status answers meanwhile and /install is busy. It ends
@@ -333,7 +360,7 @@ func (u *Updater) recover() {
 		s.Message = "the updater stopped while checking the release; nothing was changed"
 	} else {
 		msg, _ := u.recoverEnv(ctx, s.To, s.EnvBackup)
-		s.Message = fmt.Sprintf("the updater stopped during the phase %s before the restart; ", interrupted) + msg
+		s.Message = fmt.Sprintf("the updater stopped during the phase %s before the restart; ", interrupted) + msg + u.recoverDeploy(ctx, s)
 	}
 	u.log.Warn("updater: interrupted install ended", "interrupted", interrupted, "phase", s.Phase, "to", s.To)
 	u.set(s)
@@ -367,6 +394,7 @@ func (u *Updater) resumeWait(s updater.State, interrupted updater.Phase) {
 	case waitOK:
 		s.Phase, s.Message = updater.PhaseDone, ""
 		s.Migrated, s.Backup = rec.Migrated(), rec.Backup
+		defer u.afterDone(s.From) // after the final state below
 	default:
 		s.Phase = updater.PhaseFailed
 		cause := u.failCause(end)
@@ -432,11 +460,11 @@ func (u *Updater) recoverEnv(ctx context.Context, to, backup string) (msg string
 func (u *Updater) handler(token []byte) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET "+updater.PathStatus, func(w http.ResponseWriter, _ *http.Request) {
-		writeState(w, http.StatusOK, u.State())
+		u.writeState(w, http.StatusOK, u.State())
 	})
 	mux.HandleFunc("POST "+updater.PathInstall, func(w http.ResponseWriter, _ *http.Request) {
 		s, status := u.Start()
-		writeState(w, status, s)
+		u.writeState(w, status, s)
 	})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		got, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
@@ -449,7 +477,9 @@ func (u *Updater) handler(token []byte) http.Handler {
 	})
 }
 
-func writeState(w http.ResponseWriter, status int, s updater.State) {
+// writeState answers with s and the updater's own version (State.Updater, not in state.json).
+func (u *Updater) writeState(w http.ResponseWriter, status int, s updater.State) {
+	s.Updater = u.version
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(s)

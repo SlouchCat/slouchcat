@@ -112,6 +112,8 @@ const (
 	CodeUnhealthy           Code = "unhealthy"            // the new server did not become healthy in time
 	CodeRollbackFailed      Code = "rollback_failed"      // the old version did not come back either
 	CodeMigratedNoRollback  Code = "migrated_no_rollback" // a migration ran; back only with the backup
+	CodeDiskFull            Code = "disk_full"            // Docker found no space for the new image
+	CodeDeployFiles         Code = "deploy_files"         // the compose files of the release could not be fetched or written
 )
 
 // State is the content of state.json and the answer of PathStatus.
@@ -136,6 +138,14 @@ type State struct {
 	// with -2, -3, … when the name was taken), so that a start after an interruption puts back
 	// that one. Only the updater reads it; the server does not map it into the API.
 	EnvBackup string `json:"envBackup,omitempty"`
+	// DeployBackup is the suffix of the compose file backups this install wrote (".bak-vor-<To>",
+	// with -2, -3, … when a name was taken; the same for every file it replaced), so that a
+	// rollback after an interruption puts them back. Empty when it replaced none. Only the updater
+	// reads it.
+	DeployBackup string `json:"deployBackup,omitempty"`
+	// Updater is the version of the companion that answers (since 1.18.0); empty from an older
+	// one. The updater sets it on every answer of PathStatus, not in state.json.
+	Updater string `json:"updater,omitempty"`
 }
 
 // ServerRecord is the content of server.json: the server writes it at every start before and

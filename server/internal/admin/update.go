@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"sync"
@@ -15,6 +14,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
+	"github.com/slouchcat/slouchcat/server/internal/updater"
 	"github.com/slouchcat/slouchcat/server/internal/version"
 )
 
@@ -43,7 +43,7 @@ const (
 	UpdateInterval   = 24 * time.Hour
 	updateStartDelay = 60 * time.Second
 	updateTimeout    = 20 * time.Second
-	maxManifestBytes = 64 << 10
+	maxManifestBytes = updater.MaxManifestBytes
 )
 
 // storedUpdate is the setting update_state (times in Unix ms).
@@ -52,6 +52,9 @@ type storedUpdate struct {
 	URL           string `json:"url,omitempty"`
 	Notes         string `json:"notes,omitempty"`
 	CheckedAt     int64  `json:"checkedAt,omitempty"`
+	// LastSuccessAt is the last check that read the manifest; a failed check keeps it together
+	// with the known release (contract 1.18.0).
+	LastSuccessAt int64  `json:"lastSuccessAt,omitempty"`
 	Error         string `json:"error,omitempty"`
 	// Failures counts the failed checks of the job in a row (0 after a success); it picks the
 	// retry delay.
@@ -213,10 +216,16 @@ func (s *Service) checkState(ctx context.Context) (model.UpdateState, error) {
 		return model.UpdateState{}, err
 	}
 	out.LatestVersion, out.URL, out.Notes, out.Error = st.LatestVersion, st.URL, st.Notes, st.Error
-	out.Available = st.URL != "" && !out.Development && newerVersion(st.LatestVersion, out.CurrentVersion)
+	// Only a plain release is offered, as the updater installs only one (ADR 0024, addendum of
+	// 8 Nov 2026): a pre-release in the manifest is stored and shown, never offered.
+	out.Available = st.URL != "" && !out.Development && updater.Newer(st.LatestVersion, out.CurrentVersion)
 	if st.CheckedAt != 0 {
 		t := time.UnixMilli(st.CheckedAt).UTC()
 		out.CheckedAt = &t
+	}
+	if st.LastSuccessAt != 0 {
+		t := time.UnixMilli(st.LastSuccessAt).UTC()
+		out.LastSuccessAt = &t
 	}
 	return out, nil
 }
@@ -296,7 +305,7 @@ func (s *Service) checkUpdate(ctx context.Context, scheduled bool) (model.Update
 		}
 		s.log.WarnContext(ctx, "update check failed", "err", err, "failures", st.Failures, "scheduled", scheduled)
 	} else {
-		st.LatestVersion, st.URL, st.Notes = m.Version, m.URL, m.Notes
+		st.LatestVersion, st.URL, st.Notes, st.LastSuccessAt = m.Version, m.URL, m.Notes, st.CheckedAt
 		if st.RetryAt != 0 {
 			s.clearUpdateRetry(ctx, st.RetryAt)
 		}
@@ -386,23 +395,12 @@ func (s *Service) fetchManifest(ctx context.Context) (manifest, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, updateTimeout)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.manifest, nil)
-	if err != nil {
-		return manifest{}, fmt.Errorf("manifest request: %w", err)
+	body, err := updater.FetchManifest(ctx, u.client, u.manifest, "Slouchcat/"+s.version())
+	if se := (*updater.StatusError)(nil); errors.As(err, &se) {
+		return manifest{}, fmt.Errorf("release manifest: status %d", se.Code)
 	}
-	req.Header.Set("User-Agent", "Slouchcat/"+s.version())
-	req.Header.Set("Accept", "application/json")
-	resp, err := u.client.Do(req)
 	if err != nil {
 		return manifest{}, fmt.Errorf("release manifest unreachable: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return manifest{}, fmt.Errorf("release manifest: status %d", resp.StatusCode)
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxManifestBytes+1))
-	if err != nil {
-		return manifest{}, fmt.Errorf("read release manifest: %w", err)
 	}
 	if len(body) > maxManifestBytes {
 		return manifest{}, fmt.Errorf("%w: larger than 64 KiB", errManifest)
@@ -462,15 +460,4 @@ func truncateRunes(s string, n int) string {
 func isRelease(v string) bool {
 	_, ok := version.Parse(v)
 	return ok
-}
-
-// newerVersion reports whether latest is newer than current. Neither side is newer when it does not
-// parse; a development build is isRelease's business, not this one's.
-func newerVersion(latest, current string) bool {
-	l, ok := version.Parse(latest)
-	if !ok {
-		return false
-	}
-	c, ok := version.Parse(current)
-	return ok && l.Compare(c) > 0
 }

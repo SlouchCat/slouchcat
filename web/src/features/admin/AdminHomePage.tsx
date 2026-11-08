@@ -379,6 +379,14 @@ const REFUSALS = [
   'manifest_unreachable',
 ] as const;
 
+/** Reasons of a failed install (contract 1.18.0) the card explains in its own words. */
+const FAILURES = ['disk_full', 'deploy_files'] as const;
+
+const failureKey = (code: string | undefined) =>
+  code !== undefined && (FAILURES as readonly string[]).includes(code)
+    ? (`admin.home.install.failure.${code as (typeof FAILURES)[number]}` as const)
+    : undefined;
+
 /** Refusals that mean the companion cannot restart this server: the card shows the manual steps. */
 const MANUAL_REFUSALS: readonly string[] = ['no_compose_labels', 'outside_deploy_dir'];
 
@@ -474,6 +482,7 @@ function InstallResult({ install }: { install: UpdateInstallStatus }) {
     );
   }
   if (install.phase !== 'failed') return null;
+  const failure = failureKey(install.code);
   return (
     <Notice
       tone="danger"
@@ -484,6 +493,7 @@ function InstallResult({ install }: { install: UpdateInstallStatus }) {
           : t('admin.home.install.failedNoVersion')
       }
     >
+      {failure && <span>{t(failure)}</span>}
       {install.migrated && (
         <span>
           {install.backup
@@ -758,6 +768,64 @@ function UpdateInstall({
   );
 }
 
+/** A plain release "X.Y.Z" as numbers; undefined for anything else (a pre-release, a build). */
+const plainRelease = (v: string | undefined) => {
+  const m = v === undefined ? null : /^(\d+)\.(\d+)\.(\d+)$/.exec(v);
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : undefined;
+};
+
+/** The first companion version that follows the server on its own. */
+const SELF_UPDATE_SINCE = [1, 18, 0] as const;
+
+/**
+ * Whether the companion answers but comes from before 1.18.0: it does not report its version, or
+ * reports a release older than 1.18.0. Such a companion does not update itself and is lifted by
+ * hand once (ADR 0024, addendum of 8 Nov 2026). One from 1.18.0 that lags behind the server lifts
+ * itself; a development build of the server or the companion is its builder's business.
+ */
+function updaterOutdated(update: Dashboard['update']): boolean {
+  if (!update.updaterAvailable || plainRelease(update.currentVersion) === undefined) return false;
+  if (update.updaterVersion === undefined) return true;
+  const companion = plainRelease(update.updaterVersion);
+  if (companion === undefined) return false;
+  const diff = companion.map((n, i) => n - (SELF_UPDATE_SINCE[i] ?? 0)).find((d) => d !== 0) ?? 0;
+  return diff < 0;
+}
+
+/** The hint to lift a companion that does not update itself, with the one command for it. */
+function UpdaterOutdated({ version }: { version: string }) {
+  const { t } = useTranslation();
+  // The line may be missing from an .env of an older install: then it is appended.
+  const line = `SLOUCHCAT_UPDATER_VERSION=${version}`;
+  const command =
+    `cd ${t('admin.home.install.outdated.deployDir')} && ` +
+    `(grep -q '^SLOUCHCAT_UPDATER_VERSION=' .env && ` +
+    `sed -i 's/^SLOUCHCAT_UPDATER_VERSION=.*/${line}/' .env || echo '${line}' >> .env) && ` +
+    'docker compose up -d updater';
+  return (
+    <Notice tone="warning" live={false} title={t('admin.home.install.outdated.title')}>
+      <Command code={command} label={t('admin.home.install.outdated.command')} />
+      <Text tone="secondary" variant="caption">
+        {t('admin.home.install.outdated.files')}
+      </Text>
+    </Notice>
+  );
+}
+
+/** The companion in one line: its version, or that it does not answer; nothing without one. */
+function updaterFact(t: TFunction, update: Dashboard['update']): [string, string] | undefined {
+  if (update.updaterAvailable) {
+    return [
+      t('admin.home.server.updater'),
+      update.updaterVersion ?? t('admin.home.server.updaterUnknown'),
+    ];
+  }
+  if (update.updaterConfigured) {
+    return [t('admin.home.server.updater'), t('admin.home.server.updaterDown')];
+  }
+  return undefined;
+}
+
 /** The update state in one line: what runs against the newest release. */
 function updateState(t: TFunction, update: Dashboard['update']): string {
   if (update.development) return t('admin.home.server.updateDevelopment');
@@ -816,6 +884,7 @@ function ServerCard({
   // While an install runs the companion restarts the server; the server refuses a restart
   // (update_running) as well.
   const installing = installAt !== null || isInstalling(update.install);
+  const updater = updaterFact(t, update);
 
   return (
     <DashCard
@@ -880,6 +949,7 @@ function ServerCard({
                 ]
               : [t('system.inotify.limit'), t('system.inotify.unknown')],
             [t('admin.home.server.update'), updateState(t, update)],
+            ...(updater ? [updater] : []),
           ]}
         />
       ) : systemError ? (
@@ -894,6 +964,15 @@ function ServerCard({
           })}
         </Text>
       )}
+      {/* A failed check keeps the known release: when it was read stays in sight. */}
+      {update.error && update.lastSuccessAt && (
+        <Text tone="secondary" variant="caption">
+          {t('admin.home.server.lastSuccess', {
+            date: formatDateTime(update.lastSuccessAt, i18n.language),
+          })}
+        </Text>
+      )}
+      {updaterOutdated(update) && <UpdaterOutdated version={update.currentVersion} />}
       {error ? <Notice tone="danger">{problemMessage(t, error)}</Notice> : null}
       {check.isSuccess && !error && (
         <Notice live={false}>{t('admin.home.server.checkedNow')}</Notice>
