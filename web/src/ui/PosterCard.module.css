@@ -230,3 +230,64 @@
 .cell:has(:focus-visible) .card::before {
   opacity: 0.7;
 }
+
+/*
+ * The watchlist button over the bottom right of the cover (concept 17 D-9), the same size as the
+ * pen and in the same scaled cell. The area has the cover's shape over the card's top, so the
+ * button sits on the cover's corner, not under the title; only the button takes the pointer.
+ */
+.markArea {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: var(--sc-space-2);
+  aspect-ratio: 2 / 3;
+  pointer-events: none;
+}
+
+.squareCell .markArea {
+  aspect-ratio: 1 / 1;
+}
+
+.mark {
+  display: flex;
+  pointer-events: auto;
+  transition: opacity var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
+}
+
+/*
+ * Shown while the pointer is on the cell (F-12); a marked title shows it always. A screen without
+ * hover shows it always too: nothing else would reveal it there. Hidden by opacity only, so it
+ * stays in the Tab order and shows with its focus.
+ */
+@media (hover: hover) {
+  .mark {
+    opacity: 0;
+  }
+
+  .mark:has([aria-pressed='true']) {
+    opacity: 1;
+  }
+
+  .cell:hover .mark {
+    opacity: 1;
+  }
+}
+
+.cell:focus-within .mark {
+  opacity: 1;
+}
+
+/* With the mark at the bottom right, a finished title's check goes to the top left (no badge
+   there: extras have no mark) and the progress bar ends left of the button. */
+.marked .watched {
+  inset: var(--sc-space-2) auto auto var(--sc-space-2);
+}
+
+.marked .progress {
+  right: calc(var(--sc-space-2) * 2 + var(--sc-space-8));
+}

@@ -168,6 +168,26 @@
   }
 }
 
+/*
+ * A pressed overlay toggle (the watchlist button on a cover, concept 17 D-9): filled in the
+ * profile's accent with its icon filled, also on hover and focus; it still grows like the pen.
+ */
+.secondary.overlay[aria-pressed='true'],
+.secondary.overlay[aria-pressed='true']:focus-visible {
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
+}
+
+.secondary.overlay[aria-pressed='true'] path {
+  fill: currentcolor;
+}
+
+@media (hover: hover) {
+  .secondary.overlay[aria-pressed='true']:hover:not(:disabled) {
+    background-color: var(--sc-accent);
+  }
+}
+
 .block {
   width: 100%;
 }
