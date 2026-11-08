@@ -688,9 +688,10 @@ func (s *Service) Relays(ctx context.Context) (model.RadioRelays, error) {
 }
 
 // Run sweeps the listen sessions and relays every 30 s until ctx ends, then stops every relay
-// (started by the server next to playback.Service.Run).
+// (started by the server next to playback.Service.Run); it also runs the cover worker (cover.go).
 func (s *Service) Run(ctx context.Context) {
 	s.relayStart(ctx)
+	go s.runCovers(ctx)
 	t := time.NewTicker(sweepInterval)
 	defer t.Stop()
 	for {
@@ -709,7 +710,7 @@ func (s *Service) Run(ctx context.Context) {
 }
 
 // sweep expires listen sessions past their expiry, writes the listen time, stops relays without
-// a listener for grace_seconds and deletes old listen time.
+// a listener for grace_seconds, deletes old listen time and, once a day, expired covers.
 func (s *Service) sweep(ctx context.Context) {
 	now := s.now()
 	var expired []string
@@ -723,6 +724,7 @@ func (s *Service) sweep(ctx context.Context) {
 	s.endRows(ctx, expired, model.RadioEndedExpired)
 	s.flushListenTime(ctx)
 	s.stopIdleRelays(ctx, now)
+	s.sweepCovers(ctx, now)
 	s.rel.mu.Lock()
 	prune := now.Sub(s.rel.pruned) >= time.Hour
 	if prune {

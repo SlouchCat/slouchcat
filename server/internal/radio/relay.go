@@ -106,6 +106,7 @@ type relay struct {
 type titleEntry struct {
 	model.RadioNowEntry
 	streamURL string // StreamUrl of the ICY block (cover.go)
+	coverKey  string // key of its cover lookup (coverJobFor), "" without one
 	gen       int
 	offset    time.Duration
 	pending   bool
@@ -496,6 +497,8 @@ func (r *relay) title(ctx context.Context, ev streamEvent, names []string, f *fe
 	default:
 		te.gen, te.offset, te.pending = f.g.n, r.fed, true
 	}
+	job, lookup := coverJobFor(te)
+	te.coverKey = job.key
 	r.titles = append(r.titles, te)
 	if n := len(r.titles); n > maxRelayTitles {
 		r.titles = slices.Delete(r.titles, 0, n-maxRelayTitles)
@@ -505,6 +508,9 @@ func (r *relay) title(ctx context.Context, ev streamEvent, names []string, f *fe
 	first := !r.showsTitles
 	r.showsTitles = true
 	r.mu.Unlock()
+	if lookup {
+		r.s.queueCover(job)
+	}
 	if first {
 		r.s.stationShowsTitles(ctx, r.stationID)
 	}

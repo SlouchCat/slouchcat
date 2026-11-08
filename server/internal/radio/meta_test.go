@@ -111,7 +111,7 @@ func TestStreamURLReachesTheTimeline(t *testing.T) {
 		t.Fatalf("event %+v", ev)
 	}
 	r := bufferRelay(t, "", 30*time.Minute, 1<<40, 1, 4*time.Second, nil)
-	r.s, r.showsTitles = &Service{now: time.Now}, true
+	r.s, r.showsTitles = New(nil, testLogger()), true
 	r.title(context.Background(), ev, nil, &feedState{})
 	if len(r.titles) != 1 || r.titles[0].streamURL != ev.StreamURL || r.titles[0].Artist != "Band" {
 		t.Fatalf("timeline %+v", r.titles)
