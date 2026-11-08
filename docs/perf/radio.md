@@ -136,6 +136,9 @@ Kopfzeilen inbegriffen) ✔; die volle Liste mit 27 Stücken hat 3014 Byte, die 
 AAC-Senders enthält `esds`; ffprobe liest aus Init und erstem Stück `aac`, Profil LC, 44,1 kHz, Stereo,
 AudioSpecificConfig 2 Byte ✔.
 
-### 3.4 Offen
+### 3.4 Firefox und iPhone
 
-Erster Ton in Firefox, iPhone (nativ) mit gesperrtem Bildschirm; beides von Hand.
+- **Firefox** (hls.js): Marco hat am 8. November 2026 auf CT 190 mit 1.18.2 Sender gestartet und gewechselt,
+  der Ton kam ohne merkliche Wartezeit. Keine Stoppuhr-Werte; im Server-Log 0 ERROR.
+- **iPhone mit gesperrtem Bildschirm:** nicht geprüft, Marco hat kein iPhone zum Testen. Das Risiko aus
+  Konzept 16 Abschnitt 16 bleibt offen, bis jemand mit einem iPhone es prüft.
