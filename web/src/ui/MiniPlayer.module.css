@@ -2,6 +2,7 @@
   --sc-mini-ground: color-mix(in srgb, var(--sc-color-surface-2) 94%, transparent);
 
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--sc-space-2);
   min-width: 0;
@@ -50,6 +51,37 @@
   font-size: var(--sc-font-size-xs);
 }
 
+/* The note of a long pause: a line of its own over the bar, with «Live» beside it. */
+.hint {
+  display: flex;
+  flex-basis: 100%;
+  align-items: center;
+  gap: var(--sc-space-3);
+  margin: 0;
+  padding: 0 var(--sc-space-1);
+  color: var(--sc-color-state-warning);
+  font-size: var(--sc-font-size-xs);
+}
+
+.hint > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.hintAction {
+  flex: none;
+  padding: var(--sc-space-1) var(--sc-space-3);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-full);
+  background-color: transparent;
+  color: var(--sc-color-text-primary);
+  font: inherit;
+  font-weight: var(--sc-font-weight-bold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
 /* A message is read whole (the watch limit says limit and minutes): it wraps. */
 .bar[data-state='error'] .line {
   color: var(--sc-color-state-warning);
@@ -70,6 +102,12 @@
 
 .bar[data-state='live'] .state {
   color: var(--sc-color-state-danger);
+}
+
+/* Behind live: the offset in the warning tone, figures that do not jump. */
+.bar[data-state='shifted'] .state {
+  color: var(--sc-color-state-warning);
+  font-variant-numeric: tabular-nums;
 }
 
 .dot {

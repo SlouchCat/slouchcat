@@ -44,14 +44,19 @@ interface StationLogoProps {
   name: string;
   /** URL of the logo; without one (or when it fails to load) the initials show. */
   src?: string;
+  /**
+   * The picture when `src` fails to load: a title's cover gives way to the station's logo
+   * (concept 16, 8 point 6), the logo to the initials.
+   */
+  fallbackSrc?: string;
   /** `sm` 2.5 rem (lists, the mini player), `md` 4 rem, `lg` 8 rem, `fill` the container's width. */
   size?: 'sm' | 'md' | 'lg' | 'fill';
 }
 
 /** Square station picture; decorative, the surrounding control names the station. */
-export function StationLogo({ name, src, size = 'md' }: StationLogoProps) {
-  const [failed, setFailed] = useState<string | null>(null);
-  const image = src && failed !== src ? src : undefined;
+export function StationLogo({ name, src, fallbackSrc, size = 'md' }: StationLogoProps) {
+  const [failed, setFailed] = useState<readonly string[]>([]);
+  const image = [src, fallbackSrc].find((url) => url !== undefined && !failed.includes(url));
   return (
     <span
       className={`${styles.logo} ${styles[size]}`}
@@ -66,7 +71,7 @@ export function StationLogo({ name, src, size = 'md' }: StationLogoProps) {
           alt=""
           loading="lazy"
           decoding="async"
-          onError={() => setFailed(image)}
+          onError={() => setFailed((before) => [...before, image])}
         />
       ) : (
         <span className={styles.initials}>{stationInitials(name)}</span>

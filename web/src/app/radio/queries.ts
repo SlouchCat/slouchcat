@@ -41,17 +41,46 @@ export const endRadioListen = (listenId: string): Promise<void> =>
 /** How often «Jetzt läuft» asks for the titles of the running station. */
 export const RADIO_NOW_INTERVAL_MS = 10_000;
 
-/** The titles the station's stream announced; asked again every 10 s while the tab is visible. */
-export const radioNowQuery = (stationId: number) =>
+/**
+ * The titles the station's stream announced; asked again every 10 s while the tab is visible.
+ * With a time shift window (`windowSeconds`, contract 1.19.0) it asks from the start of the window
+ * on, so «Zuvor gespielt» holds the whole timeline a listener can play back to (7.6).
+ */
+export const radioNowQuery = (stationId: number, windowSeconds = 0) =>
   queryOptions({
     queryKey: radioKeys.now(stationId),
     queryFn: ({ signal }): Promise<RadioNow> =>
       request(
-        api.GET('/radio/stations/{stationId}/now', { params: { path: { stationId } }, signal }),
+        api.GET('/radio/stations/{stationId}/now', {
+          params: {
+            path: { stationId },
+            ...(windowSeconds > 0 ? { query: { since: Date.now() - windowSeconds * 1000 } } : {}),
+          },
+          signal,
+        }),
       ),
     refetchInterval: RADIO_NOW_INTERVAL_MS,
     refetchIntervalInBackground: false,
   });
+
+/** Sizes of a cover or a logo (contract 1.19.0, `RadioImageSize`). */
+export type RadioImageSize = 'w96' | 'w256' | 'w512';
+
+/**
+ * A cover or logo URL of the server (w256) in another size: the contract names the size in the
+ * path, so it is replaced there.
+ */
+export const radioImageSize = (url: string | undefined, size: RadioImageSize) =>
+  url?.replace(/\/w256(?=[/?]|$)/, `/${size}`);
+
+/** The entries before `current`, newest first: «Zuvor gespielt» (7.6). */
+export function previousRadioEntries(
+  entries: readonly RadioNowEntry[],
+  current: RadioNowEntry | null,
+): RadioNowEntry[] {
+  const index = current ? entries.indexOf(current) : -1;
+  return index <= 0 ? [] : entries.slice(0, index).reverse();
+}
 
 /**
  * The entry of the title timeline that sounds at `date`: the last one stamped at or before it.

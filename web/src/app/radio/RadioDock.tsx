@@ -3,11 +3,18 @@ import { lazy, Suspense, useState, type ComponentProps, type ComponentType } fro
 import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
 import { codeMessage } from '@/api/errors';
+import { formatPlayerTime } from '@/lib/format';
 import { MiniPlayer, SpatialGroup, type MiniPlayerState } from '@/ui';
 import type { NowPlayingDialog as NowPlayingDialogType } from '@/ui/aria';
+import { RADIO_SEGMENT_SECONDS } from './engine';
 import { facetValueName, radioLanguageName, stationPlace } from './labels';
 import { wantsSound, type RadioNotice, type RadioStation } from './priority';
-import { useRadioFavorite } from './queries';
+import {
+  radioImageSize,
+  useRadioFavorite,
+  type RadioImageSize,
+  type RadioNowEntry,
+} from './queries';
 import { useRadio } from './useRadio';
 
 // The radio's controls in the app shell (AppLayout): the mini player while a station is chosen
@@ -82,29 +89,60 @@ function facts(t: TFunction, language: string, station: RadioStation) {
   return list;
 }
 
+/** «12 Minuten 30 Sekunden zurück», «Live»: the spoken time shift. */
+function shiftText(t: TFunction, offset: number): string {
+  if (offset < RADIO_SEGMENT_SECONDS) return t('radio.player.live');
+  const minutes = Math.floor(offset / 60);
+  const seconds = offset % 60;
+  const parts = [
+    minutes > 0 && t('radio.player.shift.minutes', { count: minutes }),
+    seconds > 0 && t('radio.player.shift.seconds', { count: seconds }),
+  ].filter(Boolean);
+  return t('radio.player.shift.back', { time: parts.join(' ') });
+}
+
+/** «−12:30», «Live»: the shown time shift. */
+const shiftShown = (t: TFunction, offset: number) =>
+  offset < RADIO_SEGMENT_SECONDS
+    ? t('radio.player.live')
+    : t('radio.player.shift.behind', { time: formatPlayerTime(offset * 1000, 0) });
+
+/** The URL of an entry's cover in a size; undefined without a cover. */
+const coverOf = (entry: RadioNowEntry | null | undefined, size: RadioImageSize) =>
+  imageUrl(entry?.cover && { url: radioImageSize(entry.cover.url, size) ?? entry.cover.url });
+
 export function RadioDock() {
   const { t, i18n } = useTranslation();
   const radio = useRadio();
   const favorite = useRadioFavorite();
   const [open, setOpen] = useState(false);
-  const { state, playing, entry } = radio;
+  const { state, playing, entry, history, offset, timeShiftSeconds } = radio;
   const station = state.station;
   if (!station) return null;
 
   const notice = state.notice;
+  const isLive = offset < RADIO_SEGMENT_SECONDS;
   const view: MiniPlayerState = notice
     ? 'error'
     : state.phase === 'starting'
       ? 'starting'
       : playing
-        ? 'live'
+        ? isLive
+          ? 'live'
+          : 'shifted'
         : 'paused';
   const stateLabel = {
     error: undefined,
     starting: t('radio.player.starting'),
     live: t('radio.player.live'),
+    shifted: shiftShown(t, offset),
     paused: t('radio.player.paused'),
   }[view];
+  const windowMinutes = Math.round(timeShiftSeconds / 60);
+  const longPause = radio.longPause
+    ? t('radio.player.longPause', { minutes: windowMinutes })
+    : undefined;
+  const time = new Intl.DateTimeFormat(i18n.language, { hour: '2-digit', minute: '2-digit' });
   const titleLine = entry
     ? entry.artist && entry.title
       ? t('radio.player.artistTitle', { artist: entry.artist, title: entry.title })
@@ -131,9 +169,15 @@ export function RadioDock() {
           label={t('radio.player.region')}
           stationName={station.name}
           logoUrl={logo}
+          coverUrl={coverOf(entry, 'w96')}
           line={notice ? noticeText(t, notice) : titleLine}
           state={view}
           stateLabel={stateLabel}
+          hint={
+            longPause && !notice
+              ? { text: longPause, actionLabel: t('radio.player.toLive'), onAction: radio.toLive }
+              : undefined
+          }
           openLabel={t('radio.player.open', { name: station.name })}
           onOpen={() => setOpen(true)}
           toggle={toggle}
@@ -155,12 +199,47 @@ export function RadioDock() {
             closeLabel={t('radio.player.close')}
             stationName={station.name}
             logoUrl={logo}
+            coverUrl={coverOf(entry, 'w512')}
             place={stationPlace(t, i18n.language, station)}
             title={entry ? (entry.title ?? entry.text) : t('radio.player.programme')}
             subtitle={entry ? (entry.title ? entry.artist : undefined) : t('radio.player.noTitles')}
             toggle={toggle}
             liveLabel={t('radio.player.toLive')}
             onLive={radio.toLive}
+            isLive={isLive}
+            timeShift={
+              timeShiftSeconds > 0 && state.phase === 'live'
+                ? {
+                    label: t('radio.player.shift.label', { minutes: windowMinutes }),
+                    maxSeconds: timeShiftSeconds,
+                    offset,
+                    onSeek: radio.seek,
+                    valueText: (value) => shiftText(t, value),
+                    shownText: (value) => shiftShown(t, value),
+                    startLabel: t('radio.player.shift.behind', {
+                      time: formatPlayerTime(timeShiftSeconds * 1000, 0),
+                    }),
+                    endLabel: t('radio.player.live'),
+                  }
+                : undefined
+            }
+            notice={notice ? undefined : longPause}
+            played={
+              entry || history.length > 0
+                ? {
+                    heading: t('radio.player.played.heading'),
+                    empty: t('radio.player.played.empty'),
+                    entries: history.map((played) => ({
+                      key: `${played.at}-${played.text}`,
+                      title: played.title ?? played.text,
+                      subtitle: played.title ? played.artist : undefined,
+                      time: time.format(played.at),
+                      dateTime: new Date(played.at).toISOString(),
+                      coverUrl: coverOf(played, 'w96'),
+                    })),
+                  }
+                : undefined
+            }
             favorite={notice ? undefined : favoriteToggle}
             facts={facts(t, i18n.language, station)}
             hint={t('radio.player.serverHint')}

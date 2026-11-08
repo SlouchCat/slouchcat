@@ -51,3 +51,80 @@ export const WithoutTitle: Story = {
     favorite: { pressed: false, label: 'Kanal K in Meine Sender', onPress: noop },
   },
 };
+
+const shift = {
+  label: 'Zeitversatz, bis 30 Minuten zurück',
+  maxSeconds: 1800,
+  offset: 750,
+  onSeek: noop,
+  valueText: () => '12 Minuten 30 Sekunden zurück',
+  shownText: () => '−12:30',
+  startLabel: '−30:00',
+  endLabel: 'Live',
+};
+
+const played = {
+  heading: 'Zuvor gespielt',
+  empty: 'Vor diesem Titel hat der Sender noch keine Titel gemeldet.',
+  entries: [
+    {
+      key: '2',
+      title: 'Flowers',
+      subtitle: 'Miley Cyrus',
+      time: '14:28',
+      dateTime: '2026-11-08T13:28:00.000Z',
+      coverUrl: art.posterEmber,
+    },
+    {
+      key: '1',
+      title: 'Hello',
+      subtitle: 'Adele',
+      time: '14:24',
+      dateTime: '2026-11-08T13:24:00.000Z',
+    },
+    {
+      key: '0',
+      title: 'Radio Swiss Pop – Die Musik',
+      time: '14:21',
+      dateTime: '2026-11-08T13:21:00.000Z',
+    },
+  ],
+};
+
+/**
+ * Stage 2: 12:30 behind live with the slider, the cover large and blurred behind the view, and
+ * «Zuvor gespielt» (an entry without a cover shows the logo).
+ */
+export const TimeShiftWithCover: Story = {
+  args: {
+    coverUrl: art.posterDusk,
+    isLive: false,
+    timeShift: shift,
+    played,
+  },
+};
+
+/** At live: «Live» pressed, the slider at its right end. */
+export const AtLive: Story = {
+  args: {
+    coverUrl: art.posterDusk,
+    isLive: true,
+    timeShift: { ...shift, offset: 0, valueText: () => 'Live', shownText: () => 'Live' },
+    played: { ...played, entries: [] },
+  },
+};
+
+/** The pause lasted longer than the window: the note over the controls. */
+export const LongPause: Story = {
+  args: {
+    isLive: false,
+    timeShift: { ...shift, offset: 1796, shownText: () => '−29:56' },
+    notice: 'Die Pause war länger als 30 Minuten. Weiter ab dem ältesten Stand.',
+    played,
+  },
+};
+
+/** The server keeps no buffer (D-9): no slider, «Live» only. */
+export const WithoutTimeShift: Story = {
+  args: { isLive: true, played },
+};

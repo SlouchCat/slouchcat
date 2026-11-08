@@ -72,3 +72,26 @@ export const Failed: Story = {
     favorite: undefined,
   },
 };
+
+/** Behind live (concept 16 stage 2): the offset in place of «Live», the title's cover. */
+export const TimeShifted: Story = {
+  args: {
+    state: 'shifted',
+    stateLabel: '−12:30',
+    coverUrl: art.posterDusk,
+    line: 'Adele – Hello',
+  },
+};
+
+/** The pause lasted longer than the window: the note with «Live» over the bar. */
+export const LongPause: Story = {
+  args: {
+    state: 'shifted',
+    stateLabel: '−29:56',
+    hint: {
+      text: 'Die Pause war länger als 30 Minuten. Weiter ab dem ältesten Stand.',
+      actionLabel: 'Live',
+      onAction: noop,
+    },
+  },
+};

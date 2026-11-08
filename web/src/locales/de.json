@@ -4505,6 +4505,20 @@
       "noTitles": "Ohne Titelangaben vom Sender",
       "favorite": "{{name}} in Meine Sender",
       "serverHint": "Über Slouchcat, Standort des Servers",
+      "shift": {
+        "label": "Zeitversatz, bis {{minutes}} Minuten zurück",
+        "behind": "−{{time}}",
+        "back": "{{time}} zurück",
+        "minutes_one": "{{count}} Minute",
+        "minutes_other": "{{count}} Minuten",
+        "seconds_one": "{{count}} Sekunde",
+        "seconds_other": "{{count}} Sekunden"
+      },
+      "longPause": "Die Pause war länger als {{minutes}} Minuten. Weiter ab dem ältesten Stand.",
+      "played": {
+        "heading": "Zuvor gespielt",
+        "empty": "Vor diesem Titel hat der Sender noch keine Titel gemeldet."
+      },
       "ended": "Die Wiedergabe wurde beendet.",
       "failed": "Dieser Sender lässt sich in diesem Browser nicht abspielen.",
       "kbps_one": "{{count}} kbit/s",

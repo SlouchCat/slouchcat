@@ -4505,6 +4505,20 @@
       "noTitles": "The station sends no titles",
       "favorite": "{{name}} in My stations",
       "serverHint": "Through Slouchcat, from the server's location",
+      "shift": {
+        "label": "Time shift, up to {{minutes}} minutes back",
+        "behind": "−{{time}}",
+        "back": "{{time}} back",
+        "minutes_one": "{{count}} minute",
+        "minutes_other": "{{count}} minutes",
+        "seconds_one": "{{count}} second",
+        "seconds_other": "{{count}} seconds"
+      },
+      "longPause": "The pause was longer than {{minutes}} minutes. Playing on from the oldest point.",
+      "played": {
+        "heading": "Previously played",
+        "empty": "The station announced no titles before this one yet."
+      },
       "ended": "Playback was ended.",
       "failed": "This station cannot be played in this browser.",
       "kbps_one": "{{count}} kbit/s",
