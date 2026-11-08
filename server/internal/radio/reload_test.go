@@ -100,33 +100,41 @@ func TestOneStationQueriesUseKeys(t *testing.T) {
 	for _, name := range []string{"GetRadioStationForIndex", "ListRadioStationFacetsByStation",
 		"ListRadioStationTags", "ListRadioStationLocks", "ListRadioStreamsRanked", "GetRadioStation"} {
 		query := oneStatement(t, src, name)
-		rows, err := e.db.Read.QueryContext(e.ctx, "EXPLAIN QUERY PLAN "+query, sql.Named("station_id", 1), sql.Named("id", 1))
-		if err != nil {
-			t.Fatalf("explain %s: %v", name, err)
-		}
-		var plan strings.Builder
-		for rows.Next() {
-			var id, parent, unused int
-			var detail string
-			if err := rows.Scan(&id, &parent, &unused, &detail); err != nil {
-				t.Fatal(err)
-			}
-			plan.WriteString(detail + "\n")
-		}
-		if err := rows.Close(); err != nil {
-			t.Fatal(err)
-		}
+		plan := explain(t, e, query)
 		// Every SCAN except the materialised CTE (subquery-N, the alias r of its one row) reads a
 		// whole table; a plan without SEARCH means the statement was not explained at all.
-		for _, line := range strings.Split(plan.String(), "\n") {
+		for _, line := range strings.Split(plan, "\n") {
 			if strings.HasPrefix(line, "SCAN ") && !strings.HasPrefix(line, "SCAN (subquery-") && !strings.HasPrefix(line, "SCAN r ") {
-				t.Errorf("%s scans a table (%s):\n%s", name, line, plan.String())
+				t.Errorf("%s scans a table (%s):\n%s", name, line, plan)
 			}
 		}
-		if !strings.Contains(plan.String(), "SEARCH ") {
-			t.Errorf("%s has no keyed read:\n%s", name, plan.String())
+		if !strings.Contains(plan, "SEARCH ") {
+			t.Errorf("%s has no keyed read:\n%s", name, plan)
 		}
 	}
+}
+
+// explain returns the detail lines of EXPLAIN QUERY PLAN for query, its parameters bound to 1.
+func explain(t *testing.T, e *catEnv, query string) string {
+	t.Helper()
+	rows, err := e.db.Read.QueryContext(e.ctx, "EXPLAIN QUERY PLAN "+query, sql.Named("station_id", 1), sql.Named("id", 1))
+	if err != nil {
+		t.Fatalf("explain: %v\n%s", err, query)
+	}
+	defer rows.Close()
+	var plan strings.Builder
+	for rows.Next() {
+		var id, parent, unused int
+		var detail string
+		if err := rows.Scan(&id, &parent, &unused, &detail); err != nil {
+			t.Fatal(err)
+		}
+		plan.WriteString(detail + "\n")
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return plan.String()
 }
 
 // oneStatement returns the statement of the named query in src without its comment lines (a
