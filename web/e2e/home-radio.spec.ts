@@ -73,7 +73,9 @@ test('«Meine Sender» on the start page: reached by keyboard, plays, names the 
       page,
       row.getByRole('button', { name: `${STATION} in Meine Sender`, pressed: true }),
     );
-    await expectNoFocusTrap(page);
+    // The poster rows below give the server administrator three Tab stops per poster since
+    // concept 17 D-9 (link, pen, watchlist button), more than the default budget of 80.
+    await expectNoFocusTrap(page, 160);
 
     // The relay runs on after the page went (2 minutes without listeners): the reloaded start
     // page names the title at its live edge.
