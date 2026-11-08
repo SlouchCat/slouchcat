@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"sync"
@@ -15,6 +14,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
+	"github.com/slouchcat/slouchcat/server/internal/updater"
 	"github.com/slouchcat/slouchcat/server/internal/version"
 )
 
@@ -43,7 +43,7 @@ const (
 	UpdateInterval   = 24 * time.Hour
 	updateStartDelay = 60 * time.Second
 	updateTimeout    = 20 * time.Second
-	maxManifestBytes = 64 << 10
+	maxManifestBytes = updater.MaxManifestBytes
 )
 
 // storedUpdate is the setting update_state (times in Unix ms).
@@ -386,23 +386,12 @@ func (s *Service) fetchManifest(ctx context.Context) (manifest, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, updateTimeout)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.manifest, nil)
-	if err != nil {
-		return manifest{}, fmt.Errorf("manifest request: %w", err)
+	body, err := updater.FetchManifest(ctx, u.client, u.manifest, "Slouchcat/"+s.version())
+	if se := (*updater.StatusError)(nil); errors.As(err, &se) {
+		return manifest{}, fmt.Errorf("release manifest: status %d", se.Code)
 	}
-	req.Header.Set("User-Agent", "Slouchcat/"+s.version())
-	req.Header.Set("Accept", "application/json")
-	resp, err := u.client.Do(req)
 	if err != nil {
 		return manifest{}, fmt.Errorf("release manifest unreachable: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return manifest{}, fmt.Errorf("release manifest: status %d", resp.StatusCode)
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxManifestBytes+1))
-	if err != nil {
-		return manifest{}, fmt.Errorf("read release manifest: %w", err)
 	}
 	if len(body) > maxManifestBytes {
 		return manifest{}, fmt.Errorf("%w: larger than 64 KiB", errManifest)

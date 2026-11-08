@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -31,7 +31,7 @@ const (
 	labelVersion = "org.opencontainers.image.version"
 
 	manifestTimeout  = 20 * time.Second
-	maxManifestBytes = 64 << 10
+	maxManifestBytes = updater.MaxManifestBytes
 	// The bounds of an install are shared with the server (updater.InstallWorstCase).
 	checkTimeout   = updater.CheckTimeout
 	pullTimeout    = updater.PullTimeout
@@ -196,22 +196,13 @@ type manifest struct {
 func (u *Updater) fetchManifest(ctx context.Context) (manifest, error) {
 	ctx, cancel := context.WithTimeout(ctx, manifestTimeout)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.cfg.manifestURL, http.NoBody) //nolint:gosec // G704: the operator-configured manifest address
-	if err != nil {
-		return manifest{}, refuse(updater.CodeManifestUnreachable, "manifest request: %v", err)
-	}
-	if req.URL.Scheme != "https" {
+	if p, err := url.Parse(u.cfg.manifestURL); err != nil || p.Scheme != "https" {
 		return manifest{}, refuse(updater.CodeManifestUnreachable, "manifest address is not https")
 	}
-	resp, err := u.client.Do(req) //nolint:gosec // G704: the operator-configured manifest address
-	if err != nil {
-		return manifest{}, refuse(updater.CodeManifestUnreachable, "manifest: %v", err)
+	data, err := updater.FetchManifest(ctx, u.client, u.cfg.manifestURL, "slouchcat-updater")
+	if se := (*updater.StatusError)(nil); errors.As(err, &se) {
+		return manifest{}, refuse(updater.CodeManifestUnreachable, "manifest: HTTP %d", se.Code)
 	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return manifest{}, refuse(updater.CodeManifestUnreachable, "manifest: HTTP %d", resp.StatusCode)
-	}
-	data, err := io.ReadAll(io.LimitReader(resp.Body, maxManifestBytes+1))
 	if err != nil {
 		return manifest{}, refuse(updater.CodeManifestUnreachable, "manifest: %v", err)
 	}
