@@ -652,3 +652,51 @@ func (q *Queries) ListWatchlist(ctx context.Context, arg ListWatchlistParams) ([
 	}
 	return items, nil
 }
+
+const listWatchlistMarks = `-- name: ListWatchlistMarks :many
+SELECT w.item_id FROM watchlist AS w
+JOIN visible_items AS v ON v.item_id = w.item_id AND v.profile_id = w.profile_id
+WHERE w.profile_id = ?1 AND w.item_id IN (/*SLICE:item_ids*/?)
+`
+
+type ListWatchlistMarksParams struct {
+	ProfileID int64
+	ItemIds   []string
+}
+
+// The titles of a list that are on the watchlist of the profile (concept 17 D-9, every ItemRef
+// carries the mark since contract 1.20.0): one lookup per id on the primary key (profile_id,
+// item_id); an invisible title is never marked.
+func (q *Queries) ListWatchlistMarks(ctx context.Context, arg ListWatchlistMarksParams) ([]string, error) {
+	query := listWatchlistMarks
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.ProfileID)
+	if len(arg.ItemIds) > 0 {
+		for _, v := range arg.ItemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(arg.ItemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var item_id string
+		if err := rows.Scan(&item_id); err != nil {
+			return nil, err
+		}
+		items = append(items, item_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

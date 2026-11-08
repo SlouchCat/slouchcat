@@ -335,15 +335,10 @@ func placeSpotlight(rows []scopedq.ListSpotlightRowRow) []scopedq.ListSpotlightR
 	return out
 }
 
-// discoverDetail sets the watchlist and favourite marks and the visible collections of a title on
-// its detail.
+// discoverDetail sets the favourite mark and the visible collections of a title on its detail;
+// the watchlist mark comes with the summary (extras, contract 1.20.0).
 func (r *Reader) discoverDetail(ctx context.Context, s Scope, pid int64, itemID string, d *model.ItemDetail) error {
-	n, err := r.q.GetWatchlistEntry(ctx, scopedq.GetWatchlistEntryParams{ProfileID: pid, ItemID: itemID})
-	if err != nil {
-		return fmt.Errorf("get watchlist entry: %w", err)
-	}
-	d.InWatchlist = n > 0
-	n, err = r.q.GetFavorite(ctx, scopedq.GetFavoriteParams{ProfileID: pid, ItemID: itemID})
+	n, err := r.q.GetFavorite(ctx, scopedq.GetFavoriteParams{ProfileID: pid, ItemID: itemID})
 	if err != nil {
 		return fmt.Errorf("get favorite: %w", err)
 	}

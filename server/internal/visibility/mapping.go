@@ -229,6 +229,7 @@ func summarize(it scopedq.Item, ex extras, lang langPref) model.ItemSummary {
 	s.ExtraKind = it.ExtraKind.String
 	s.SeriesTitle = ex.seriesTitles[it.ID]
 	s.SeriesRef = ex.series[it.ID] // episodes of a visible series only
+	s.InWatchlist = ex.watchlist[it.ID]
 	if it.Kind == "series" || it.Kind == "season" {
 		n := ex.childCounts[it.ID]
 		s.ChildCount = &n
