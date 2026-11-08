@@ -176,3 +176,57 @@
 .card:focus-visible .title {
   color: var(--sc-color-text-primary);
 }
+
+/*
+ * A card with a tool beside its link (the pen, concept 17 D-7): the cell carries the focus scale,
+ * so the card stays large while the pointer or the keyboard focus is on the tool, and the tool
+ * grows with it. The card in a cell does not scale again on its own.
+ */
+.cell {
+  position: relative;
+  transition: transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+/* Over the top right of the cover, always shown, on touch screens too (concept 15 7.4). */
+.tool {
+  position: absolute;
+  top: var(--sc-space-2);
+  right: var(--sc-space-2);
+}
+
+/* A finished title's check moves to the bottom right, where it shows no progress bar. */
+.cell .watched {
+  top: auto;
+  bottom: var(--sc-space-2);
+}
+
+@media (hover: hover) {
+  .cell:hover {
+    transform: scale(var(--sc-focus-scale));
+  }
+
+  .cell .card:hover {
+    transform: none;
+  }
+
+  .cell:hover .card::before {
+    opacity: 0.5;
+  }
+
+  .cell:hover .dimmed .frame {
+    opacity: 1;
+  }
+}
+
+/* After the hover rules, so the focus glow wins over the pointer's, as on a card alone. */
+.cell:has(:focus-visible) {
+  transform: scale(var(--sc-focus-scale));
+}
+
+.cell .card:focus-visible {
+  transform: none;
+}
+
+.cell:has(:focus-visible) .card::before {
+  opacity: 0.7;
+}

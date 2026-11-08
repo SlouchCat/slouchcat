@@ -47,6 +47,9 @@ const PHONE = { width: 390, height: 844 };
 /** The pen of a cover on the library or the start page: named after its title. */
 const COVER_PEN = /: Metadaten bearbeiten$/;
 const recentRow = (page: Page) => page.getByRole('region', { name: 'Neu hinzugefügt' });
+/** Computed transforms of a scaled card (focus.scale 1.06) and a grown pen (tool.hover.scale 1.18). */
+const SCALED_CARD = 'matrix(1.06, 0, 0, 1.06, 0, 0)';
+const SCALED_PEN = 'matrix(1.18, 0, 0, 1.18, 0, 0)';
 
 /** The first card of a start page row that carries a pen, its pen and the title it edits. */
 async function penCell(row: Locator) {
@@ -433,10 +436,23 @@ test('library grid: Tab reaches the card, then its pen; Enter opens, Escape retu
   await page.mouse.move(0, 0);
   await expect(cardPen).toBeVisible();
   await expect(cardPen.locator('xpath=..')).toHaveCSS('opacity', '1');
+  // On the pen the card stays large: the cell of card and pen carries the focus scale, the card
+  // does not scale again, and the pen grows on its own (concept 17 D-7).
+  const scaledCell = cardPen.locator('xpath=../..');
+  await cardPen.hover();
+  await expect(scaledCell).toHaveCSS('transform', SCALED_CARD);
+  await expect(card).toHaveCSS('transform', 'none');
+  await expect(cardPen).toHaveCSS('transform', SCALED_PEN);
+  await page.mouse.move(0, 0);
+  await expect(scaledCell).toHaveCSS('transform', 'none');
   await resetFocus(page);
   await tabTo(page, card, 80);
+  await expect(scaledCell).toHaveCSS('transform', SCALED_CARD);
+  await expect(card).toHaveCSS('transform', 'none');
   await page.keyboard.press('Tab');
   await expectFocusOn(page, cardPen);
+  await expect(scaledCell).toHaveCSS('transform', SCALED_CARD);
+  await expect(cardPen).toHaveCSS('transform', SCALED_PEN);
   await page.keyboard.press('Enter');
   await expect(dialog(page)).toBeVisible();
   await page.keyboard.press('Escape');

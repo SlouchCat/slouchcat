@@ -79,6 +79,15 @@
       "$description": "Scale of a focused card; must stay at or below 1.06."
     }
   },
+  "tool": {
+    "hover": {
+      "scale": {
+        "$type": "number",
+        "$value": 1.18,
+        "$description": "Scale of a small tool over a cover (the pen) on hover and keyboard focus (concept 17 D-7)."
+      }
+    }
+  },
   "size": {
     "$type": "dimension",
     "poster": {

@@ -141,6 +141,32 @@
   width: var(--sc-space-8);
 }
 
+/*
+ * A small tool over a picture (the pen on a cover, concept 17 D-7): dark over the artwork, larger
+ * and lighter on hover and keyboard focus (tool.hover.scale), and still a little smaller while
+ * pressed. The class chain outranks the variant's own hover, focus and press rules above.
+ */
+.secondary.sm.iconOnly {
+  background-color: var(--sc-color-scrim-strong);
+}
+
+.secondary.sm.iconOnly:focus-visible,
+.secondary.sm.iconOnly[data-focus-visible] {
+  background-color: var(--sc-color-surface-3);
+  transform: scale(var(--sc-tool-hover-scale));
+}
+
+@media (hover: hover) {
+  .secondary.sm.iconOnly:hover:not(:disabled) {
+    background-color: var(--sc-color-surface-3);
+    transform: scale(var(--sc-tool-hover-scale));
+  }
+
+  .secondary.sm.iconOnly:active:not(:disabled) {
+    transform: scale(calc(var(--sc-tool-hover-scale) * 0.97));
+  }
+}
+
 .block {
   width: 100%;
 }
