@@ -23,6 +23,10 @@ func TestMetaCleanup(t *testing.T) {
 	}{
 		{"  Künstler   -  Lied  ", "Künstler", "Lied", true},
 		{"Band – Song - Remix", "Band", "Song - Remix", true},
+		{"Rihanna \u02d7 Diamonds", "Rihanna", "Diamonds", true},
+		{"Artist \u2014 Title", "Artist", "Title", true},
+		{"Artist \u2212 Title - Live", "Artist", "Title - Live", true},
+		{"Jay-Z - Song", "Jay-Z", "Song", true},
 		{"Only a title", "", "", true},
 		{"Radio Test FM", "", "", false}, // the station name
 		{"radio test fm", "", "", false},
