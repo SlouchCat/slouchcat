@@ -22,8 +22,9 @@ test('"Merken" on the detail page fills the list and the row, per profile (E-5)'
 }) => {
   const id = await itemIdByTitle(owner, H264_TITLE);
   await page.goto(`/items/${id}`);
-  await page.getByRole('button', { name: 'Merken' }).click();
-  await expect(page.getByRole('button', { name: 'Gemerkt' })).toBeVisible();
+  // The round action, not the button on the cover ("… merken", concept 17 D-9).
+  await page.getByRole('button', { name: 'Merken', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Gemerkt', exact: true })).toBeVisible();
   expect(await watchlistTitles(owner)).toEqual([H264_TITLE]);
 
   await page.goto('/');
@@ -122,4 +123,103 @@ test('watchlist by keyboard: arrows, Enter, remove, back; no focus trap @keyboar
   await resetFocus(page);
   await page.keyboard.press('Escape');
   await expect(page).toHaveURL((url) => url.pathname === '/');
+});
+
+// Concept 17 D-9: the watchlist button on every cover, shown on hover or focus, filled when marked.
+
+const coverMark = (page: Page, title: string, on: boolean) =>
+  page.getByRole('button', {
+    name: on ? `${title} von der Merkliste nehmen` : `${title} merken`,
+    exact: true,
+  });
+
+test('marks a title from its cover in the search; list, row and cover follow (D-9)', async ({
+  page,
+  owner,
+}) => {
+  await page.goto('/search?q=H264');
+  const titles = page.getByRole('list', { name: 'Titel' });
+  const mark = titles.getByRole('button', { name: `${H264_TITLE} merken`, exact: true });
+  // Not marked: hidden until the pointer is on the cover.
+  await expect(mark).toHaveAttribute('aria-pressed', 'false');
+  await expect(mark.locator('xpath=../..')).toHaveCSS('opacity', '0');
+  await titles
+    .getByRole('listitem')
+    .filter({ has: coverMark(page, H264_TITLE, false) })
+    .getByRole('link')
+    .hover();
+  await expect(mark.locator('xpath=../..')).toHaveCSS('opacity', '1');
+  await mark.click();
+
+  const marked = titles.getByRole('button', {
+    name: `${H264_TITLE} von der Merkliste nehmen`,
+    exact: true,
+  });
+  await expect(marked).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(() => watchlistTitles(owner)).toEqual([H264_TITLE]);
+  // Marked: shown without the pointer too.
+  await page.mouse.move(0, 0);
+  await expect(marked.locator('xpath=../..')).toHaveCSS('opacity', '1');
+  // The server knows the mark in every list (ItemRef.inWatchlist).
+  await page.reload();
+  await expect(marked).toHaveAttribute('aria-pressed', 'true');
+
+  await page.goto('/');
+  await expect(coverMark(page, H264_TITLE, true).first()).toBeAttached();
+  await expect(
+    watchlistRow(page).getByRole('link', { name: new RegExp(H264_TITLE) }),
+  ).toBeVisible();
+
+  // Off from the cover on the watchlist page: the title leaves the list.
+  await page.goto('/watchlist');
+  await grid(page)
+    .getByRole('button', { name: `${H264_TITLE} von der Merkliste nehmen`, exact: true })
+    .click();
+  await expect(page.getByText('Deine Merkliste ist leer')).toBeVisible();
+  expect(await watchlistTitles(owner)).toEqual([]);
+});
+
+test('the cover button by keyboard: Tab after the card, arrows pass it, focus to the neighbour @keyboard', async ({
+  page,
+  owner,
+}) => {
+  // Newest first: the extras film was added last.
+  await setWatchlist(owner, await itemIdByTitle(owner, H264_TITLE), true);
+  await setWatchlist(owner, await itemIdByTitle(owner, EXTRAS_TITLE), true);
+  await page.goto('/watchlist');
+  const cards = grid(page).getByRole('link');
+  await expect(cards).toHaveCount(2);
+  await resetFocus(page);
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, cards.first());
+
+  // Tab: the card's cover button, shown with the focus. The arrow keys pass it by and move on
+  // from the card.
+  const first = coverMark(page, EXTRAS_TITLE, true);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, first);
+  await expect(first.locator('xpath=../..')).toHaveCSS('opacity', '1');
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, cards.nth(1));
+  await page.keyboard.press('ArrowLeft');
+  await expectFocusOn(page, cards.first());
+
+  // Tab order in the cell: card, cover button, "Entfernen".
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, first);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(
+    page,
+    grid(page).getByRole('button', { name: `${EXTRAS_TITLE} von der Merkliste entfernen` }),
+  );
+  await page.keyboard.press('Shift+Tab');
+  await expectFocusOn(page, first);
+
+  // Enter on the button takes the title off; the focus goes to the neighbour's card.
+  await page.keyboard.press('Enter');
+  await expect(cards).toHaveCount(1);
+  await expectFocusOn(page, cards.first());
+  await expect(cards.first()).toHaveAccessibleName(new RegExp(H264_TITLE));
+  expect(await watchlistTitles(owner)).toEqual([H264_TITLE]);
+  await expectNoFocusTrap(page);
 });
