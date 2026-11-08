@@ -31,14 +31,21 @@
     "menu": "Menu",
     "menuClose": "Close menu",
     "libraries": "My media",
-    "toggleLibraries": "Expand or collapse my media",
     "libraryLabel_one": "{{name}}, {{count}} title",
     "libraryLabel_other": "{{name}}, {{count}} titles",
     "librariesOffline": "Offline: libraries not available",
     "librariesOfflineLink": "Go to downloads",
     "hideSidebar": "Hide sidebar",
     "showSidebar": "Show sidebar",
-    "radio": "Radio"
+    "radio": "Radio",
+    "account": "Account",
+    "switchProfileShort": "Switch",
+    "switchProfileCard": "Switch profile, currently {{name}}",
+    "profileRole": {
+      "other": "Additional profile",
+      "primary": "Primary profile",
+      "admin": "Primary profile · server admin"
+    }
   },
   "system": {
     "server": {

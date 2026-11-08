@@ -51,6 +51,11 @@ const names: IconName[] = [
   'activity',
   'radio',
   'heart',
+  'home',
+  'bookmark',
+  'tv',
+  'book',
+  'sliders',
 ];
 
 const meta = {

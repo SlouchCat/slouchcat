@@ -802,7 +802,9 @@ describe('start page', () => {
       '/settings/profiles',
     );
     expect(within(nav).queryByRole('link', { name: 'Bibliotheken' })).not.toBeInTheDocument();
-    expect(screen.getByText('Marco')).toBeVisible();
+    // The name stands in the header and on the side navigation's profile card (concept 17, D-8).
+    expect(within(screen.getByRole('banner')).getByText('Marco')).toBeVisible();
+    expect(within(nav).getByText('Marco')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Abmelden' })).toBeVisible();
   });
 

@@ -11,6 +11,7 @@ import {
   type ComponentType,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { components } from '@slouchcat/api-client';
 import { picksCountQuery, visibleLibrariesQuery } from '@/features/catalog/queries';
 import { notificationsPageQuery, notificationsQuery } from '@/features/discover/queries';
 import { Announcements } from '@/features/notifications/Announcements';
@@ -27,8 +28,8 @@ import {
   SideNavMenu,
   sideNavFocusKey,
   SpatialGroup,
-  type NavItem,
   type SideNavEntry,
+  type IconName,
   type SideNavProps,
 } from '@/ui';
 import { paths } from './paths';
@@ -77,6 +78,16 @@ function storeSideNavHidden(hidden: boolean): void {
   }
   if (hidden) document.documentElement.dataset.sidenav = 'hidden';
   else delete document.documentElement.dataset.sidenav;
+}
+
+/**
+ * Icon of a library in the side navigation (concept 17, D-8): a video library that holds only
+ * series folders the television, any other video library the film strip.
+ */
+function libraryIcon({ kind, contents }: components['schemas']['LibraryNav']): IconName {
+  if (kind === 'audiobooks') return 'book';
+  if (kind === 'podcasts') return 'mic';
+  return contents.length > 0 && contents.every((content) => content === 'series') ? 'tv' : 'film';
 }
 
 /** Id of the drawer, named by the menu button. */
@@ -211,6 +222,7 @@ export function AppLayout() {
     ? librariesQuery.data.map((library) => ({
         href: paths.library(library.id),
         label: library.name,
+        icon: libraryIcon(library),
         count: library.itemCount,
         accessibleLabel: t('nav.libraryLabel', { name: library.name, count: library.itemCount }),
         current: pathname === paths.library(library.id),
@@ -221,6 +233,7 @@ export function AppLayout() {
   const picks: SideNavEntry = {
     href: paths.picks,
     label: t('home.picks'),
+    icon: 'star',
     count: picksCount.data,
     accessibleLabel:
       picksCount.data === undefined
@@ -229,65 +242,96 @@ export function AppLayout() {
     current: pathname === paths.picks,
   };
 
-  const nav: NavItem[] = [
-    { href: paths.home, label: t('nav.home'), current: pathname === '/' },
-    { href: paths.search, label: t('nav.search'), current: pathname.startsWith(paths.search) },
+  const nav: SideNavEntry[] = [
+    { href: paths.home, label: t('nav.home'), icon: 'home', current: pathname === '/' },
+    {
+      href: paths.search,
+      label: t('nav.search'),
+      icon: 'search',
+      current: pathname.startsWith(paths.search),
+    },
+    // Without a count (concept 17, decision of 8 November 2026).
     {
       href: paths.watchlist,
       label: t('nav.watchlist'),
+      icon: 'bookmark',
       current: pathname.startsWith(paths.watchlist),
     },
     // Webradio (concept 16, 10.1).
-    { href: paths.radio, label: t('nav.radio'), current: pathname.startsWith(paths.radio) },
+    {
+      href: paths.radio,
+      label: t('nav.radio'),
+      icon: 'radio',
+      current: pathname.startsWith(paths.radio),
+    },
   ];
   // Every profile has its downloads on this device (M5), where the browser can keep them (K13).
   if (offlineSupported()) {
     nav.push({
       href: paths.downloads,
       label: t('nav.downloads'),
+      icon: 'download',
       current: pathname.startsWith(paths.downloads),
     });
   }
-  const footer: SideNavEntry[] = [];
+  // The band «Konto» (concept 17, D-8): every profile sets its own languages and subtitles
+  // (concept 13 11.4, F-13).
+  const account: SideNavEntry[] = [
+    {
+      href: paths.playbackSettings,
+      label: t('nav.playback'),
+      icon: 'sliders',
+      current: pathname.startsWith(paths.playbackSettings),
+    },
+  ];
+  if (isPrimary) {
+    account.push({
+      href: paths.profileSettings,
+      label: t('nav.profiles'),
+      icon: 'users',
+      current: pathname.startsWith(paths.profileSettings),
+    });
+  }
   // The administration is one entry (M8): its pages have a sidebar of their own (AdminShellNav).
   // The update hint of the main account (A-5) is its badge; on /admin/* the sidebar's overview
   // entry carries it.
   if (isAdmin) {
     const update = session.updateAvailable;
-    footer.push({
+    account.push({
       href: paths.admin,
       label: t('nav.admin'),
+      icon: 'wrench',
       current: pathname === paths.admin || pathname.startsWith(`${paths.admin}/`),
       badge: update ? t('nav.update') : undefined,
       accessibleLabel: update ? t('nav.adminUpdateLabel', { version: update.version }) : undefined,
     });
   }
-  if (isPrimary) {
-    footer.push({
-      href: paths.profileSettings,
-      label: t('nav.profiles'),
-      current: pathname.startsWith(paths.profileSettings),
-    });
-  }
-  // Every profile sets its own languages and subtitles (concept 13 11.4, F-13).
-  footer.push({
-    href: paths.playbackSettings,
-    label: t('nav.playback'),
-    current: pathname.startsWith(paths.playbackSettings),
-  });
 
   const sideNav: SideNavProps = {
     label: t('nav.main'),
+    profile: {
+      name: session.profile.name,
+      role: t(
+        isAdmin
+          ? 'nav.profileRole.admin'
+          : isPrimary
+            ? 'nav.profileRole.primary'
+            : 'nav.profileRole.other',
+      ),
+      href: paths.profiles,
+      switchLabel: t('nav.switchProfileShort'),
+      switchAccessibleLabel: t('nav.switchProfileCard', { name: session.profile.name }),
+    },
     primary: nav,
     librariesLabel: t('nav.libraries'),
-    toggleLibrariesLabel: t('nav.toggleLibraries'),
     libraries,
     picks: libraries === 'offline' ? undefined : picks,
     librariesOffline: t('nav.librariesOffline'),
     offlineLink: offlineSupported()
       ? { href: paths.downloads, label: t('nav.librariesOfflineLink') }
       : undefined,
-    footer,
+    accountLabel: t('nav.account'),
+    account,
     logoutLabel: t('nav.logout'),
     onLogout: () => logout.mutate(),
     hideLabel: t('nav.hideSidebar'),
@@ -299,7 +343,7 @@ export function AppLayout() {
   // loaded; leaving, the app column on the current page's entry (or the menu button when the
   // column is hidden). What the sidebar carried from an earlier visit is forgotten either way.
   const currentEntry = [...nav, ...(typeof libraries === 'string' ? [] : [...libraries, picks])]
-    .concat(footer)
+    .concat(account)
     .find((entry) => entry.current);
   const returnKey = barShown ? currentEntry && sideNavFocusKey(currentEntry.href) : HEADER_MENU_KEY;
   const wasAdminShell = useRef(adminShell);
