@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"io"
 	"log/slog"
 	"testing"
@@ -25,27 +26,34 @@ func TestMigration00039RadioStage2(t *testing.T) {
 		hidden    int
 		updatedAt int64
 	}
+	read := func(q *sql.DB) map[string]row {
+		t.Helper()
+		rows, err := q.QueryContext(ctx, `SELECT id, key, COALESCE(library_id, 0), position, hidden, updated_at FROM home_rows`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer rows.Close()
+		out := map[string]row{}
+		for rows.Next() {
+			var r row
+			if err := rows.Scan(&r.id, &r.key, &r.library, &r.position, &r.hidden, &r.updatedAt); err != nil {
+				t.Fatal(err)
+			}
+			out[r.id] = r
+		}
+		if err := rows.Err(); err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
 	raw := openRaw(t, path)
-	before := map[string]row{}
-	rows, err := raw.QueryContext(ctx, `SELECT id, key, COALESCE(library_id, 0), position, hidden, updated_at FROM home_rows`)
-	if err != nil {
+	before := read(raw)
+	if err := raw.Close(); err != nil {
 		t.Fatal(err)
 	}
 	maxPos := -1
-	for rows.Next() {
-		var r row
-		if err := rows.Scan(&r.id, &r.key, &r.library, &r.position, &r.hidden, &r.updatedAt); err != nil {
-			t.Fatal(err)
-		}
-		before[r.id] = r
+	for _, r := range before {
 		maxPos = max(maxPos, r.position)
-	}
-	if err := rows.Err(); err != nil {
-		t.Fatal(err)
-	}
-	_ = rows.Close()
-	if err := raw.Close(); err != nil {
-		t.Fatal(err)
 	}
 	if len(before) == 0 {
 		t.Fatal("frozen state holds no home rows")
@@ -56,33 +64,20 @@ func TestMigration00039RadioStage2(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	after, err := db.Read.QueryContext(ctx, `SELECT id, key, COALESCE(library_id, 0), position, hidden, updated_at FROM home_rows`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	n := 0
-	for after.Next() {
-		var r row
-		if err := after.Scan(&r.id, &r.key, &r.library, &r.position, &r.hidden, &r.updatedAt); err != nil {
-			t.Fatal(err)
-		}
-		n++
-		if r.id == "radio" {
+	after := read(db.Read)
+	for id, r := range after {
+		if id == "radio" {
 			if want := (row{id: "radio", key: "radio", position: maxPos + 1, hidden: 1}); r != want {
 				t.Errorf("row radio %+v, want %+v", r, want)
 			}
 			continue
 		}
-		if old, ok := before[r.id]; !ok || r != old {
+		if old, ok := before[id]; !ok || r != old {
 			t.Errorf("row %+v, want %+v carried over", r, old)
 		}
 	}
-	if err := after.Err(); err != nil {
-		t.Fatal(err)
-	}
-	_ = after.Close()
-	if n != len(before)+1 {
-		t.Errorf("%d home rows after the migration, want %d", n, len(before)+1)
+	if len(after) != len(before)+1 {
+		t.Errorf("%d home rows after the migration, want %d", len(after), len(before)+1)
 	}
 
 	// The trigger of 00035 still adds a library's row, hidden, behind «Meine Sender».
