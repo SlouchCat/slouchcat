@@ -84,6 +84,14 @@ interface PosterCardProps {
    * while the pointer or the focus is on the tool (concept 17 D-7).
    */
   tool?: ReactNode;
+  /**
+   * A second control beside the card's link, over the bottom right of its cover: the watchlist
+   * button (concept 17 D-9). In the same cell as `tool` and after it in the DOM, so Tab goes link,
+   * pen, mark. Shown while the pointer is on the cell or the focus is in it, always while it is
+   * pressed (`aria-pressed="true"`) and on screens without hover. With a mark the check of a
+   * finished title sits at the top left and the progress bar ends left of the button.
+   */
+  mark?: ReactNode;
   focusKey?: string;
 }
 
@@ -119,6 +127,7 @@ export function PosterCard({
   deferImage = false,
   shape = 'poster',
   tool,
+  mark,
   focusKey,
 }: PosterCardProps) {
   const { ref, onFocus } = useSpatialItem<HTMLElement>({ focusKey, onArrowPress });
@@ -216,11 +225,24 @@ export function PosterCard({
         {content}
       </AppLink>
     );
-  if (tool === undefined) return card;
+  if (tool === undefined && mark === undefined) return card;
   return (
-    <div className={styles.cell}>
+    <div
+      className={[
+        styles.cell,
+        mark !== undefined && styles.marked,
+        shape === 'square' && styles.squareCell,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       {card}
-      <div className={styles.tool}>{tool}</div>
+      {tool !== undefined && <div className={styles.tool}>{tool}</div>}
+      {mark !== undefined && (
+        <div className={styles.markArea}>
+          <div className={styles.mark}>{mark}</div>
+        </div>
+      )}
     </div>
   );
 }

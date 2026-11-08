@@ -123,6 +123,7 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 		SeriesTitle:    ref.SeriesTitle,
 		ExtraKind:      ref.ExtraKind,
 		ChildCount:     ref.ChildCount,
+		WatchedCount:   ref.WatchedCount,
 		Author:         ref.Author,
 		PublishedAt:    ref.PublishedAt,
 		DurationMs:     ref.DurationMs,
@@ -151,6 +152,14 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 	}
 	if out.Genres == nil {
 		out.Genres = []string{}
+	}
+	if n := d.NextUp; n != nil {
+		out.NextUp = &gen.NextUp{Reason: gen.NextUpReason(n.Reason), Episode: toItemRef(pid, n.Episode)}
+	}
+	if d.Kind == "season" { // the episode list of a season carries the overviews (contract 1.20.0)
+		for i, e := range d.Episodes {
+			(*out.Episodes)[i].Overview = optString(e.Overview)
+		}
 	}
 	if d.SeriesIndex != nil {
 		idx := float32(*d.SeriesIndex)
@@ -517,6 +526,8 @@ func toImageRef(itemID string, profileID int64, img *model.Image) *gen.ImageRef 
 	return &gen.ImageRef{Url: imageURL(itemID, *img, profileID), Width: img.Width, Height: img.Height}
 }
 
+// toItemRef maps a summary; its overview stays out of lists (GetItem sets it on the episodes of a
+// season only, contract 1.20.0).
 func toItemRef(profileID int64, it model.ItemSummary) gen.ItemRef {
 	ref := gen.ItemRef{
 		Id:             it.ID,
@@ -524,6 +535,7 @@ func toItemRef(profileID int64, it model.ItemSummary) gen.ItemRef {
 		Title:          it.Title,
 		Year:           it.Year,
 		RuntimeMinutes: it.RuntimeMinutes,
+		InWatchlist:    it.InWatchlist,
 		Images: gen.ItemImages{
 			Poster:        toImageRef(it.ID, profileID, it.Poster),
 			PosterSmall:   toImageRef(it.ID, profileID, it.PosterSmall),
@@ -564,6 +576,7 @@ func toItemRef(profileID int64, it model.ItemSummary) gen.ItemRef {
 		ref.ParentId = &it.ParentID
 	}
 	ref.SeasonNumber, ref.EpisodeNumber, ref.EpisodeEnd, ref.ChildCount = it.SeasonNumber, it.EpisodeNumber, it.EpisodeEnd, it.ChildCount
+	ref.WatchedCount = it.WatchedCount // seasons only
 	ref.SeriesTitle = optString(it.SeriesTitle)
 	if s := it.SeriesRef; s != nil { // episodes only (contract 1.14.0); the image URLs name the series
 		ref.SeriesRef = &gen.SeriesRef{Id: s.ID, Title: s.Title, Images: gen.ItemImages{

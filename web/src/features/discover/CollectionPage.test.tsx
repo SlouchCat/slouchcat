@@ -31,11 +31,16 @@ describe('collection page', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Alien-Reihe' })).toBeVisible();
     expect(screen.getByText('Die Filme um die Nostromo und ihre Nachfolger.')).toBeVisible();
     expect(screen.getByText('3 Titel')).toBeVisible();
+    // The head of a detail page (concept 17 E-16): the back arrow, the first member's cover.
+    expect(screen.getByRole('button', { name: 'Zurück' })).toBeVisible();
+    expect(
+      document.querySelector(`img[src="/api/v1/items/${ids.alien}/images/poster/w500?v=abc"]`),
+    ).not.toBeNull();
     const members = screen.getByRole('region', { name: 'Titel' });
-    expect(within(members).getByRole('link', { name: /Alien/ })).toHaveAttribute(
-      'href',
-      `/items/${ids.alien}`,
-    );
+    const alienCard = within(members).getByRole('link', { name: /Alien/ });
+    expect(alienCard).toHaveAttribute('href', `/items/${ids.alien}`);
+    // The watch state on the cards.
+    expect(within(alienCard).getByRole('progressbar', { name: '36 % gesehen' })).toBeVisible();
     expect(document.title).toBe('Alien-Reihe · Slouchcat');
 
     await userEvent.setup().click(within(members).getByRole('button', { name: 'Mehr laden' }));

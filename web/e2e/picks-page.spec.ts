@@ -67,6 +67,15 @@ test('User picks by keyboard: the note, arrows, Enter, back; no focus trap @keyb
   await resetFocus(page);
   await tabTo(page, page.getByRole('button', { name: 'Zurück' }));
   await tabTo(page, cards(page).first(), 3);
+  // Then the card's watchlist button (concept 17 D-9).
+  await page.keyboard.press('Tab');
+  await expectFocusOn(
+    page,
+    grid(page)
+      .getByRole('listitem')
+      .first()
+      .getByRole('button', { name: / merken$/ }),
+  );
   await expectNoFocusTrap(page);
 
   // Escape goes back; opened directly, that is the start page.

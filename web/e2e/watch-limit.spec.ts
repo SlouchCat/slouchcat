@@ -62,7 +62,7 @@ test('one minute played: the start answers 403 with the hint; the report shows t
   await page.goto(`/items/${itemId}`);
   await expect(page.getByRole('heading', { level: 1, name: H264_TITLE })).toBeVisible();
   const playLink = page.getByRole('link', {
-    name: /^(Abspielen|Weiterschauen ab \d{2}:\d{2}:\d{2})$/,
+    name: /^(Abspielen|Fortsetzen|Nochmals ansehen)( |$)/,
   });
   await playLink.focus();
   const start = await startOf(page, () => page.keyboard.press('Enter'));

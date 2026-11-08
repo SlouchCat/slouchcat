@@ -9,6 +9,7 @@ const show = {
   id: seriesIds.show,
   kind: 'series' as const,
   title: 'Slouchcat Test Show',
+  inWatchlist: false,
   images: {},
 };
 

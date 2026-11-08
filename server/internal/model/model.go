@@ -591,6 +591,9 @@ type ItemSummary struct {
 	SeriesTitle   string
 	ExtraKind     string // trailer, featurette, deleted_scene, behind_the_scenes, interview, scene, short, other
 	ChildCount    *int   // visible seasons of a series, visible episodes of a season
+	// WatchedCount is the number of visible episodes of a season the profile has completed
+	// (concept 17 section 2.3, contract 1.20.0); set on seasons only.
+	WatchedCount *int
 	// SeriesRef is the visible series of an episode with its title and images (concept 15 P-1,
 	// contract 1.14.0 ItemRef.seriesRef); nil on every other kind.
 	SeriesRef *SeriesRef
@@ -608,6 +611,13 @@ type ItemSummary struct {
 	// HasTrailer says whether a trailer is stored (M11, D3); nil = not looked up (the contract's
 	// optional ItemRef.hasTrailer), filled for the rows spotlight and picks of the start page only.
 	HasTrailer *bool
+	// Overview is the overview in the profile language (concept 17 section 2.3); the contract
+	// passes it on only in the episode list of a season's detail (ItemDetail.Overview is the
+	// detail's own, the same text).
+	Overview string
+	// InWatchlist says whether the title is on the profile's watchlist (E-5); on every summary
+	// since contract 1.20.0 (concept 17 D-9, the watchlist button on the cover).
+	InWatchlist bool
 }
 
 // SeriesRef is the series of an episode as its card shows it: id, title in the profile language and
@@ -768,8 +778,8 @@ type ItemDetail struct {
 	OriginalTitle string
 	Tagline       string
 	Overview      string
-	// Discover (M7): on the watchlist / a favourite of the profile; the visible collections.
-	InWatchlist bool
+	// Discover (M7): a favourite of the profile; the visible collections (the watchlist mark is
+	// on ItemSummary since contract 1.20.0).
 	Favorite    bool
 	Collections []CollectionRef
 	ReleaseDate string // YYYY-MM-DD or empty
@@ -784,6 +794,7 @@ type ItemDetail struct {
 	Episodes     []ItemSummary // of a season, by number
 	Extras       []ItemSummary // of a film, series or season
 	NextEpisode  *ItemSummary  // next visible episode of the same series
+	NextUp       *NextUp       // of a series (every season) or a season (that season), concept 17 3.3
 	Cast         []CastMember
 	TrailerCount int
 
@@ -795,6 +806,13 @@ type ItemDetail struct {
 	Chapters     []Chapter
 	EpisodeCount *int
 	Podcast      *ItemSummary
+}
+
+// NextUp is the episode the big button of a series or season plays (contract 1.20.0, concept 17
+// section 3.3): Reason is start, resume, next or rewatch.
+type NextUp struct {
+	Reason  string
+	Episode ItemSummary
 }
 
 // HomeRow is one row of the start page (M7: key order from home_rows). Collections and Genres
@@ -918,6 +936,9 @@ type CollectionRef struct {
 	Name  string
 	Count int
 	Cover *ItemSummary
+	// Members are the first visible members in collection order, at most 20 (concept 17 section
+	// 4.2, contract 1.20.0); set only on the collections of a title's detail, nil elsewhere.
+	Members []ItemSummary
 }
 
 // Collection is a collection with one page of its visible members.

@@ -242,7 +242,9 @@ describe('start page', () => {
     }
 
     // A slide without the small size falls back to w1280 without srcset.
-    fireEvent.click(within(hero).getByRole('button', { name: /^Arrival(?!:)/ }));
+    fireEvent.click(
+      within(hero).getByRole('button', { name: /^Arrival(?!:| merken$| von der Merkliste)/ }),
+    );
     const third = images().find((image) => image.getAttribute('src')?.includes(ids.arrival));
     expect(third).toHaveAttribute(
       'src',
@@ -616,12 +618,14 @@ describe('start page', () => {
     expect(within(hero).getByRole('heading', { name: 'Arrival' })).toBeVisible();
     // The poster row marks the active slide's poster, named after its title, with the time bar.
     const row = within(hero).getByRole('list', { name: 'Spotlight-Titel' });
-    const arrivalPoster = within(row).getByRole('button', { name: /^Arrival(?!:)/ });
+    const arrivalPoster = within(row).getByRole('button', {
+      name: /^Arrival(?!:| merken$| von der Merkliste)/,
+    });
     expect(arrivalPoster).toHaveAttribute('aria-current', 'true');
     expect(arrivalPoster.querySelector('[class*="timer"]')).not.toBeNull();
-    expect(within(row).getByRole('button', { name: /^Heat(?!:)/ })).not.toHaveAttribute(
-      'aria-current',
-    );
+    expect(
+      within(row).getByRole('button', { name: /^Heat(?!:| merken$| von der Merkliste)/ }),
+    ).not.toHaveAttribute('aria-current');
   });
 
   it('begins with heroStart and keeps the slide when a refetch draws another (F-2)', async () => {
@@ -673,7 +677,9 @@ describe('start page', () => {
     // No room after the last poster any more (N-4 is gone for this row).
     expect(row.querySelector(':scope > [aria-hidden="true"]')).toBeNull();
     // A click on the last poster as seen turns the row by two: Heat leads, the focus stays on it.
-    const heatPoster = within(row).getByRole('button', { name: /^Heat(?!:)/ });
+    const heatPoster = within(row).getByRole('button', {
+      name: /^Heat(?!:| merken$| von der Merkliste)/,
+    });
     act(() => heatPoster.focus());
     fireEvent.click(heatPoster);
     expect(within(hero).getByRole('heading', { name: 'Heat' })).toBeVisible();
@@ -736,7 +742,9 @@ describe('start page', () => {
     expect(hero).not.toHaveAttribute('data-paused');
     // Any focus in the poster row holds the band, visible or not, so a screen reader reads the row
     // in peace (concept 15, 6.3); choosing the focused poster shows its slide without navigating.
-    const poster = within(hero).getByRole('button', { name: /^Arrival(?!:)/ });
+    const poster = within(hero).getByRole('button', {
+      name: /^Arrival(?!:| merken$| von der Merkliste)/,
+    });
     act(() => poster.focus());
     fireEvent.click(poster);
     expect(within(hero).getByRole('heading', { name: 'Arrival' })).toBeVisible();
@@ -1327,6 +1335,81 @@ describe('start page', () => {
       expect(
         screen.queryByRole('button', { name: /Metadaten bearbeiten$/ }),
       ).not.toBeInTheDocument();
+    });
+  });
+
+  describe('the watchlist button on the covers (concept 17 D-9)', () => {
+    const episode: ItemRef = {
+      ...alien,
+      id: '55555555-5555-4555-8555-555555555555',
+      kind: 'episode',
+      title: 'Folge eins',
+    };
+
+    it('marks every title row poster after its pen, the active spotlight poster only in Tab order', async () => {
+      mockApi({
+        ...signedIn,
+        'GET /home': () =>
+          json({
+            heroRow: 'spotlight',
+            rows: [
+              { id: 'spotlight', key: 'spotlight', items: [heat, arrival] },
+              { id: 'continue', key: 'continue', items: [episode, alien] },
+              { id: 'recent', key: 'recent', items: [{ ...arrival, inWatchlist: true }] },
+            ],
+          }),
+      });
+      renderApp('/');
+      const recent = await screen.findByRole('region', { name: 'Neu hinzugefügt' });
+      const link = within(recent).getByRole('link', { name: /^Arrival/ });
+      const pen = within(recent).getByRole('button', { name: 'Arrival: Metadaten bearbeiten' });
+      const mark = within(recent).getByRole('button', { name: 'Arrival von der Merkliste nehmen' });
+      expect(mark).toHaveAttribute('aria-pressed', 'true');
+      expect(mark.closest('a')).toBeNull();
+      expect(link.compareDocumentPosition(pen) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(pen.compareDocumentPosition(mark) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      // An episode has no mark on its cover; the film beside it has one.
+      const continueRow = screen.getByRole('region', { name: 'Weiterschauen' });
+      expect(within(continueRow).getAllByRole('button', { name: /merken$/ })).toHaveLength(1);
+      expect(within(continueRow).getByRole('button', { name: 'Alien merken' })).toBeVisible();
+
+      // The spotlight row: only the active poster's mark is a Tab stop; none on the stage.
+      const hero = screen.getByRole('region', { name: 'Spotlight' });
+      const strip = within(hero).getByRole('list', { name: 'Spotlight-Titel' });
+      expect(within(strip).getByRole('button', { name: 'Heat merken' })).not.toHaveAttribute(
+        'tabindex',
+      );
+      expect(within(strip).getByRole('button', { name: 'Arrival merken' })).toHaveAttribute(
+        'tabindex',
+        '-1',
+      );
+      expect(
+        within(hero)
+          .getAllByRole('button', { name: /merken$/ })
+          .every((button) => strip.contains(button)),
+      ).toBe(true);
+    });
+
+    it('moves the focus to the next card when a title leaves the row «Merkliste» from its cover', async () => {
+      let items: ItemRef[] = [heat, arrival].map((item) => ({ ...item, inWatchlist: true }));
+      mockApi({
+        ...signedIn,
+        'GET /home': () => json({ rows: [{ id: 'watchlist', key: 'watchlist', items }] }),
+        'DELETE /items/*/watchlist': () => {
+          items = items.filter((item) => item.id !== ids.heat);
+          return new Response(null, { status: 204 });
+        },
+      });
+      renderApp('/');
+      const row = await screen.findByRole('region', { name: 'Merkliste' });
+      await userEvent
+        .setup()
+        .click(within(row).getByRole('button', { name: 'Heat von der Merkliste nehmen' }));
+      const arrivalCard = within(row).getByRole('link', { name: /^Arrival/ });
+      await waitFor(() => expect(arrivalCard).toHaveFocus());
+      await waitFor(() =>
+        expect(within(row).queryByRole('link', { name: /^Heat/ })).not.toBeInTheDocument(),
+      );
     });
   });
 

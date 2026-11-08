@@ -8,15 +8,9 @@ import { paths } from '@/app/paths';
 import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
-import {
-  Button,
-  ButtonLink,
-  Notice,
-  Skeleton,
-  SpatialButton,
-  SpatialGroup,
-  SpatialPage,
-} from '@/ui';
+import { BACK_KEY, DetailBody, DetailHeader, DetailPage } from '@/features/catalog/DetailHeader';
+import { isAudioKind } from '@/features/catalog/labels';
+import { Button, ButtonLink, Notice, Skeleton, SpatialPage } from '@/ui';
 import { cardKey, ItemGrid, MoreButton } from './ItemGrid';
 import { collectionQuery } from './queries';
 import styles from './Discover.module.css';
@@ -24,9 +18,12 @@ import styles from './Discover.module.css';
 const route = getRouteApi('/_authed/_active/_chrome/collections/$collectionId');
 
 const GRID_KEY = 'collection-item';
-const BACK_KEY = 'collection-back';
 
-/** A collection (E-6): name, description and the members the active profile may see. */
+/**
+ * A collection (E-6): the head of a detail page (concept 17 E-16; the first member's cover and
+ * backdrop, name, "N Titel", description, no play button) and the members the active profile may
+ * see, with their watch state.
+ */
 export function CollectionPage() {
   const { collectionId } = route.useParams();
   return <CollectionView key={collectionId} id={collectionId} />;
@@ -81,34 +78,42 @@ function CollectionView({ id }: { id: string }) {
   const first = items[0];
   return (
     <SpatialPage defaultFocusKey={first ? cardKey(GRID_KEY, first) : BACK_KEY}>
-      <main className={styles.page}>
-        <div className={styles.head}>
-          <h1 className={styles.title}>{collection.name}</h1>
-          <p className={styles.muted}>{t('collection.count', { count: collection.total })}</p>
-          {collection.overview && <p className={styles.overview}>{collection.overview}</p>}
-          <SpatialGroup className={styles.actions}>
-            <SpatialButton focusKey={BACK_KEY} variant="ghost" icon="back" onPress={goBack}>
-              {t('common.back')}
-            </SpatialButton>
-          </SpatialGroup>
-        </div>
-        <section className={styles.section} aria-labelledby="collection-members">
-          <h2 id="collection-members" className={styles.sectionTitle}>
-            {t('collection.members')}
-          </h2>
-          <ItemGrid items={items} focusKey={GRID_KEY} label={t('collection.members')} />
-          <MoreButton
-            shown={items.length}
-            keys={items.map((item) => cardKey(GRID_KEY, item))}
-            hasMore={query.hasNextPage}
-            loading={query.isFetchingNextPage}
-            failed={query.isFetchNextPageError}
-            label={t('collection.more')}
-            focusKey="collection-more"
-            onMore={() => void query.fetchNextPage()}
-          />
-        </section>
-      </main>
+      <DetailPage>
+        <DetailHeader
+          images={first?.images ?? {}}
+          accent={first?.accent}
+          cover={first && isAudioKind(first.kind) ? 'square' : 'poster'}
+          onBack={goBack}
+          title={collection.name}
+          facts={
+            <p className={styles.muted}>{t('collection.count', { count: collection.total })}</p>
+          }
+          overview={collection.overview}
+        />
+        <DetailBody>
+          <section className={styles.members} aria-labelledby="collection-members">
+            <h2 id="collection-members" className={styles.sectionTitle}>
+              {t('collection.members')}
+            </h2>
+            <ItemGrid
+              items={items}
+              focusKey={GRID_KEY}
+              label={t('collection.members')}
+              showWatched
+            />
+            <MoreButton
+              shown={items.length}
+              keys={items.map((item) => cardKey(GRID_KEY, item))}
+              hasMore={query.hasNextPage}
+              loading={query.isFetchingNextPage}
+              failed={query.isFetchNextPageError}
+              label={t('collection.more')}
+              focusKey="collection-more"
+              onMore={() => void query.fetchNextPage()}
+            />
+          </section>
+        </DetailBody>
+      </DetailPage>
     </SpatialPage>
   );
 }

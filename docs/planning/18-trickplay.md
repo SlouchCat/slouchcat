@@ -18,6 +18,8 @@
   **1.19.0** (`api/openapi.yaml:4`), letzte Migration **`00039_radio_stage2.sql`**, letzte ADR in
   `main` **`0025`**, letzte Frage im Entscheidungsprotokoll **24**. Reserviert und nicht gebaut:
   Konzept 17 Stufe 2 (Vertrag 1.20.0) und Stufe 3 (Vertrag 1.21.0, Migration 00040, ADR 0026).
+  Nachgeführt am 8. November 2026 auf `main` **`e0299fdd`** (Konzept 17 Stufe 2 gemergt, Vertrag
+  **1.20.0**, PR #127); Stufe 2 berührt weder Trickplay noch die Empfehlungen.
 - **Nummern:** Dieses Papier ist **Konzept 18** und reserviert **Frage 25**, **ADR 0027** (Teil A)
   und **ADR 0028** («User-Empfehlungen von Profil zu Profil», Teil B), dazu für ADR 0027
   («Trickplay: Erzeugen beim Start, Springen an Keyframes, Einstellungen je Bibliothek»). Vertrag:

@@ -49,7 +49,7 @@ test('a series and a podcast become favourites; a film cannot (E-8)', async ({
   // A film has no favourite button, and the API refuses it (422 not_favoritable).
   const film = await itemIdByTitle(owner, H264_TITLE);
   await page.goto(`/items/${film}`);
-  await expect(page.getByRole('button', { name: 'Merken' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Merken', exact: true })).toBeVisible();
   await expect(favorite(page)).toHaveCount(0);
   const refused = await page.request.put(`/api/v1/items/${film}/favorite`, {
     headers: { 'X-Requested-With': 'Slouchcat' },
@@ -65,12 +65,15 @@ test('favourite by keyboard: arrows to the button, Enter toggles; no focus trap 
   await page.goto(`/items/${await itemIdByTitle(owner, INTRO_SHOW_TITLE)}`);
   await expect(favorite(page)).toBeVisible();
   await resetFocus(page);
-  // ↓ lands on "Zurück" (a series has no play button), ↓ again on the row under the actions:
-  // "Merken", then → "Favorit".
+  // ↓ lands on the big button (the series' next episode, concept 17 E-10), ↓ again on the round
+  // actions: "Merken", then → "Favorit".
   await page.keyboard.press('ArrowDown');
-  await expectFocusOn(page, page.getByRole('button', { name: 'Zurück' }));
+  await expectFocusOn(
+    page,
+    page.getByRole('link', { name: /^(Abspielen|Weiterschauen|Nächste Folge|Nochmals ansehen) / }),
+  );
   await page.keyboard.press('ArrowDown');
-  await expectFocusOn(page, page.getByRole('button', { name: 'Merken' }));
+  await expectFocusOn(page, page.getByRole('button', { name: 'Merken', exact: true }));
   await page.keyboard.press('ArrowRight');
   await expectFocusOn(page, favorite(page));
   await page.keyboard.press('Enter');
@@ -81,14 +84,11 @@ test('favourite by keyboard: arrows to the button, Enter toggles; no focus trap 
 
   // "Merken" sits left of it and toggles the same way.
   await page.keyboard.press('ArrowLeft');
-  await expectFocusOn(page, page.getByRole('button', { name: 'Merken' }));
+  await expectFocusOn(page, page.getByRole('button', { name: 'Merken', exact: true }));
   await page.keyboard.press('Enter');
-  await expectFocusOn(page, page.getByRole('button', { name: 'Gemerkt' }));
+  await expectFocusOn(page, page.getByRole('button', { name: 'Gemerkt', exact: true }));
 
-  // Down leaves the actions for the seasons.
-  await arrowTo(
-    page,
-    page.getByRole('group', { name: 'Staffel wählen' }).getByRole('button').first(),
-  );
+  // Down leaves the actions for the season shelf.
+  await arrowTo(page, page.getByRole('list', { name: 'Staffeln' }).getByRole('button').first());
   await expectNoFocusTrap(page);
 });

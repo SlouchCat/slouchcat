@@ -83,6 +83,12 @@ interface HeroCarouselProps {
    * `order` of the list item); while it has the focus the band holds like on the poster.
    */
   tool?: (slide: HeroSlide, active: boolean) => ReactNode;
+  /**
+   * A second control over the bottom right of a poster of the row (the watchlist button, concept
+   * 17 D-9), after `tool` in the Tab order and, like it, out of the Tab order for every poster but
+   * the active one. Not on the band above.
+   */
+  mark?: (slide: HeroSlide, active: boolean) => ReactNode;
 }
 
 export const HERO_PLAY_KEY = 'hero-play';
@@ -208,6 +214,7 @@ export function HeroCarousel({
   intervalSeconds = 5,
   onArtShown,
   tool,
+  mark,
 }: HeroCarouselProps) {
   const { t } = useTranslation();
   const navigate = useAppNavigate();
@@ -615,6 +622,7 @@ export function HeroCarousel({
                 tabIndex={active ? 0 : -1}
                 onArrowPress={holdEnds(position)}
                 tool={tool?.(item, active)}
+                mark={mark?.(item, active)}
               >
                 {/* Time to the next slide; gone while the band holds, anew when it moves on. */}
                 {active && !paused && <span className={styles.timer} />}

@@ -89,6 +89,31 @@ JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
 ORDER BY n.updated_at DESC, i.id DESC
 LIMIT @limit_count;
 
+-- The visible episodes of one series, or of one season of it when @season_id is not empty, with
+-- what the rule of NextUp (contract 1.20.0, concept 17 section 3.3, Go: visibility.nextUp) reads:
+-- the season numbers of the episode and of its season (the caller takes the season's when the
+-- episode has none, like ListContinueWatching), the episode number, the last episode of a file
+-- with several and the progress of the profile (0 without a row). The seasons of the series come
+-- first from items_parent, then their episodes from items_episode (CROSS JOIN fixes that order),
+-- so only the one series is read. The season must be visible too, so the button never points into
+-- a season the shelf does not show. Ordered by season, number and id; episodes without a number
+-- last within their season, episodes without a season last.
+-- name: ListSeriesNextUpEpisodes :many
+SELECT e.id, e.season_number, se.season_number AS season_season_number,
+       e.episode_number, e.episode_end,
+       CAST(coalesce(p.completed, 0) AS INTEGER) AS completed,
+       CAST(coalesce(p.position_ms, 0) AS INTEGER) AS position_ms,
+       CAST(coalesce(p.updated_at, 0) AS INTEGER) AS updated_at
+FROM items AS se
+CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind = 'episode'
+JOIN visible_items AS vse ON vse.item_id = se.id AND vse.profile_id = @profile_id
+JOIN visible_items AS v ON v.item_id = e.id AND v.profile_id = @profile_id
+LEFT JOIN progress AS p ON p.profile_id = @profile_id AND p.item_id = e.id
+WHERE se.parent_id = @series_id AND se.kind = 'season'
+  AND (se.id = @season_id OR @season_id = '')
+ORDER BY coalesce(e.season_number, se.season_number) IS NULL, coalesce(e.season_number, se.season_number),
+         e.episode_number IS NULL, e.episode_number, e.id;
+
 -- Cat's recommendations (E-1, E-2) for the profile: global rows (profile_id NULL) and rows of the
 -- profile, inside their optional time window, with the main user's note. An item listed twice is
 -- deduplicated by the caller (the row of the profile wins over the global one), so the query has
@@ -153,11 +178,19 @@ WHERE i.id IN (sqlc.slice('item_ids'));
 
 -- Number of visible content children of visible series and seasons: seasons of a series, episodes
 -- of a season (extras never count). One query with a correlated subquery over visible_items.
+-- watched_count counts the visible episodes of a season the profile has completed (concept 17
+-- section 2.3, like the "done" of the library's episode statistics); 0 for a series.
 -- name: ListVisibleChildCounts :many
 SELECT i.id,
        (SELECT count(*) FROM items AS c
         JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = @profile_id
-        WHERE c.parent_id = i.id AND c.kind IN ('season', 'episode')) AS child_count
+        WHERE c.parent_id = i.id AND c.kind IN ('season', 'episode')) AS child_count,
+       CAST(CASE WHEN i.kind = 'season' THEN
+         (SELECT count(*) FROM items AS c
+          JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = @profile_id
+          JOIN progress AS pc ON pc.profile_id = @profile_id AND pc.item_id = c.id AND pc.completed = 1
+          WHERE c.parent_id = i.id AND c.kind = 'episode')
+       ELSE 0 END AS INTEGER) AS watched_count
 FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
 WHERE i.id IN (sqlc.slice('item_ids')) AND i.kind IN ('series', 'season');

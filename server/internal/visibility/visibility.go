@@ -418,16 +418,19 @@ type extras struct {
 	images       map[string][]scopedq.Image
 	progress     map[string]scopedq.Progress
 	childCounts  map[string]int              // visible seasons of a series, visible episodes of a season
+	watched      map[string]int              // completed visible episodes of a season
 	seriesTitles map[string]string           // title of the series of a season or episode, profile language
 	series       map[string]*model.SeriesRef // the series of an episode with its images
 	parents      map[string]string           // parent id of an item whose parent is visible too
+	watchlist    map[string]bool             // on the watchlist of the profile (concept 17 D-9)
 }
 
-// extras loads texts, images, progress, child counts and series titles for a set of visible
-// items; lang picks the series titles.
+// extras loads texts, images, progress, watchlist marks, child counts and series titles for a set
+// of visible items; lang picks the series titles.
 func (r *Reader) extras(ctx context.Context, pid int64, lang langPref, ids []string) (extras, error) {
 	out := extras{texts: map[string][]scopedq.ItemText{}, images: map[string][]scopedq.Image{}, progress: map[string]scopedq.Progress{},
-		childCounts: map[string]int{}, seriesTitles: map[string]string{}, series: map[string]*model.SeriesRef{}, parents: map[string]string{}}
+		childCounts: map[string]int{}, watched: map[string]int{}, seriesTitles: map[string]string{}, series: map[string]*model.SeriesRef{}, parents: map[string]string{},
+		watchlist: map[string]bool{}}
 	if len(ids) == 0 {
 		return out, nil
 	}
@@ -457,6 +460,13 @@ func (r *Reader) extras(ctx context.Context, pid int64, lang langPref, ids []str
 	}
 	for _, p := range progress {
 		out.progress[p.ItemID] = p
+	}
+	marks, err := r.q.ListWatchlistMarks(ctx, scopedq.ListWatchlistMarksParams{ProfileID: pid, ItemIds: ids})
+	if err != nil {
+		return out, fmt.Errorf("list watchlist marks: %w", err)
+	}
+	for _, id := range marks {
+		out.watchlist[id] = true
 	}
 	return out, nil
 }

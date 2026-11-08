@@ -4,7 +4,14 @@ import { useTranslation } from 'react-i18next';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import { useOnline } from '@/lib/useOnline';
-import { Chip, setSpatialFocus, SpatialButton, SpatialButtonLink, VisuallyHidden } from '@/ui';
+import {
+  Chip,
+  RoundAction,
+  setSpatialFocus,
+  SpatialButton,
+  SpatialButtonLink,
+  VisuallyHidden,
+} from '@/ui';
 import { downloadStatus } from './labels';
 import { isDownloadable } from './support';
 import type { StoredDownload } from './types';
@@ -28,6 +35,8 @@ interface DownloadActionProps {
   available?: boolean;
   focusKey?: string;
   size?: 'md' | 'lg';
+  /** `round`: a RoundAction in the detail page's row of round actions (concept 17 D-2). */
+  appearance?: 'button' | 'round';
 }
 
 /**
@@ -41,6 +50,7 @@ export function DownloadAction({
   available = true,
   focusKey,
   size = 'lg',
+  appearance = 'button',
 }: DownloadActionProps) {
   const { t } = useTranslation();
   const session = useActiveSession();
@@ -85,7 +95,24 @@ export function DownloadAction({
 
   return (
     <>
-      {existing ? (
+      {appearance === 'round' ? (
+        existing ? (
+          <RoundAction
+            focusKey={focusKey}
+            href={paths.downloads}
+            icon="download"
+            label={t('offline.status.open')}
+          />
+        ) : (
+          <RoundAction
+            focusKey={focusKey}
+            icon="download"
+            label={season ? t('offline.dialog.seasonButton') : t('offline.dialog.button')}
+            isDisabled={!online || !available}
+            onPress={() => setOpen(true)}
+          />
+        )
+      ) : existing ? (
         <SpatialButtonLink
           focusKey={focusKey}
           href={paths.downloads}

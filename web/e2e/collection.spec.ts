@@ -17,6 +17,8 @@ test('a manual collection: page, start page row and detail page (E-6)', async ({
     await page.goto(`/collections/${id}`);
     await expect(page.getByRole('heading', { level: 1, name: NAME })).toBeVisible();
     await expect(page.getByText('2 Titel')).toBeVisible();
+    // The head of a detail page (concept 17 E-16): the round back arrow.
+    await expect(page.getByRole('button', { name: 'Zurück', exact: true })).toBeVisible();
     const members = page.getByRole('list', { name: 'Titel' }).getByRole('link');
     // The admin's order.
     await expect(members).toHaveCount(2);
@@ -31,9 +33,17 @@ test('a manual collection: page, start page row and detail page (E-6)', async ({
       `/collections/${id}`,
     );
 
+    // On a member's detail page the collection is a row right after the head (concept 17 E-8):
+    // its members in order, this title ringed, "Alle zeigen" to the collection page.
     await page.goto(`/items/${h264}`);
-    const section = page.getByRole('region', { name: 'Sammlungen' });
-    await section.getByRole('link', { name: new RegExp(NAME) }).click();
+    const section = page.getByRole('region', { name: NAME });
+    await expect(section.getByText('2 Titel')).toBeVisible();
+    const shelf = section.getByRole('list', { name: NAME }).getByRole('link');
+    await expect(shelf).toHaveCount(2);
+    await expect(shelf.first()).toContainText(H264_TITLE);
+    await expect(shelf.first()).toHaveAttribute('aria-current', 'true');
+    await expect(shelf.nth(1)).not.toHaveAttribute('aria-current');
+    await section.getByRole('link', { name: `Alle zeigen: ${NAME}` }).click();
     await expect(page).toHaveURL(new RegExp(`/collections/${id}$`));
   } finally {
     await deleteCollection(owner, id);
@@ -61,9 +71,9 @@ test('collection by keyboard: arrows, Enter, back; no focus trap @keyboard', asy
     await expectFocusOn(page, members.nth(1));
     await page.keyboard.press('ArrowLeft');
     await expectFocusOn(page, members.first());
-    // Up from the first column leaves the grid for "Zurück" above it.
+    // Up from the first column leaves the grid for the back arrow over the head.
     await page.keyboard.press('ArrowUp');
-    await expectFocusOn(page, page.getByRole('button', { name: 'Zurück' }));
+    await expectFocusOn(page, page.getByRole('button', { name: 'Zurück', exact: true }));
     await page.keyboard.press('ArrowDown');
     await expectVisibleFocus(page);
 

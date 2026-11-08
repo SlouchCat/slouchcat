@@ -1,6 +1,7 @@
 import type {
   AdminPodcast,
   Chapter,
+  CollectionRef,
   HomePage,
   ItemDetail,
   ItemRef,
@@ -29,6 +30,7 @@ export const heat: ItemRef = {
   id: ids.heat,
   kind: 'movie',
   title: 'Heat',
+  inWatchlist: false,
   year: 1995,
   runtimeMinutes: 170,
   rating: 16,
@@ -39,6 +41,7 @@ export const alien: ItemRef = {
   id: ids.alien,
   kind: 'movie',
   title: 'Alien',
+  inWatchlist: false,
   year: 1979,
   runtimeMinutes: 117,
   rating: 16,
@@ -56,6 +59,7 @@ export const arrival: ItemRef = {
   id: ids.arrival,
   kind: 'movie',
   title: 'Arrival',
+  inWatchlist: false,
   year: 2016,
   runtimeMinutes: 116,
   images: {},
@@ -304,6 +308,7 @@ const showRef: ItemRef = {
   id: seriesIds.show,
   kind: 'series',
   title: 'Slouchcat Test Show',
+  inWatchlist: false,
   year: 2024,
   images: {},
   childCount: 2,
@@ -318,6 +323,7 @@ const seasonRef = (
   id,
   kind: 'season',
   title,
+  inWatchlist: false,
   seasonNumber,
   parentId: seriesIds.show,
   seriesTitle: showRef.title,
@@ -335,6 +341,7 @@ const episodeRef = (
   id,
   kind: 'episode',
   title,
+  inWatchlist: false,
   seasonNumber,
   episodeNumber,
   parentId: seasonNumber === 0 ? seriesIds.specials : seriesIds.season1,
@@ -368,10 +375,18 @@ export const showSeriesRef: NonNullable<ItemRef['seriesRef']> = {
   images: images(seriesIds.show),
 };
 
+// Season 1 has one finished episode (S01E03–E04) and a started one (the pilot); the specials
+// none (concept 17 E-5, watchedCount).
 const seasons = [
-  seasonRef(seriesIds.season1, 'Season 1', 1, 3),
-  seasonRef(seriesIds.specials, 'Specials', 0, 1),
+  { ...seasonRef(seriesIds.season1, 'Season 1', 1, 3), year: 2024, watchedCount: 1 },
+  { ...seasonRef(seriesIds.specials, 'Specials', 0, 1), watchedCount: 0 },
 ];
+
+/** The newest activity of the series is the started pilot (concept 17 3.3). */
+export const showNextUp: NonNullable<ItemDetail['nextUp']> = {
+  reason: 'resume',
+  episode: episodes.e1,
+};
 
 const file = (id: string, label: string, height: number): ItemDetail['mediaFiles'][number] => ({
   id,
@@ -395,11 +410,13 @@ export const showDetail: ItemDetail = {
   collections: [],
   mediaFiles: [],
   seasons,
+  nextUp: showNextUp,
   extras: [
     {
       id: seriesIds.extra,
       kind: 'extra',
       title: 'Making Of',
+      inWatchlist: false,
       extraKind: 'featurette',
       parentId: seriesIds.show,
       images: {},
@@ -420,7 +437,23 @@ export const season1Detail: ItemDetail = {
   collections: [],
   mediaFiles: [],
   series: showRef,
-  episodes: [episodes.e1, episodes.e2, episodes.e34],
+  overview: 'Weber übernimmt ihren ersten Fall.',
+  nextUp: showNextUp,
+  // In a season's episodes the server sets their overview (concept 17 E-6).
+  episodes: [
+    { ...episodes.e1, overview: 'Ein Anruf in der Nacht führt Weber an den Hafen.' },
+    episodes.e2,
+    {
+      ...episodes.e34,
+      progress: {
+        positionMs: 2_700_000,
+        durationMs: 2_700_000,
+        percent: 100,
+        completed: true,
+        updatedAt: '2026-10-17T19:00:00Z',
+      },
+    },
+  ],
 };
 
 export const specialsDetail: ItemDetail = {
@@ -431,6 +464,7 @@ export const specialsDetail: ItemDetail = {
   collections: [],
   mediaFiles: [],
   series: showRef,
+  nextUp: { reason: 'start', episode: episodes.s0e1 },
   episodes: [episodes.s0e1],
 };
 
@@ -470,6 +504,7 @@ export const alienVersions: ItemDetail = {
       id: '01JB8Z6Q4M7N9P2R3S5T7V9W5A',
       kind: 'extra',
       title: 'Alien Trailer',
+      inWatchlist: false,
       extraKind: 'trailer',
       parentId: ids.alien,
       images: {},
@@ -478,6 +513,7 @@ export const alienVersions: ItemDetail = {
       id: '01JB8Z6Q4M7N9P2R3S5T7V9W5B',
       kind: 'extra',
       title: 'On Set',
+      inWatchlist: false,
       extraKind: 'behind_the_scenes',
       parentId: ids.alien,
       images: {},
@@ -485,6 +521,31 @@ export const alienVersions: ItemDetail = {
   ],
   cast: [{ personId: 3, name: 'Sigourney Weaver', role: 'cast', character: 'Ellen Ripley' }],
   trailerCount: 2,
+};
+
+/**
+ * A collection of Alien with its members (contract 1.20.0, concept 17 E-8): Alien itself
+ * (started), Heat finished, Arrival not yet seen.
+ */
+export const alienCollection: CollectionRef = {
+  id: '01JB8Z6Q4M7N9P2R3S5T7V9C02',
+  name: 'Weltraum-Reihe',
+  count: 3,
+  cover: alien,
+  members: [
+    alien,
+    {
+      ...heat,
+      progress: {
+        positionMs: 10_200_000,
+        durationMs: 10_200_000,
+        percent: 100,
+        completed: true,
+        updatedAt: '2026-10-10T20:00:00Z',
+      },
+    },
+    arrival,
+  ],
 };
 
 // M6: an audiobook with twelve 5-s chapters (like the M4B test book), a podcast with three
@@ -507,6 +568,7 @@ export const audiobook: ItemRef = {
   id: audioIds.book,
   kind: 'audiobook',
   title: 'Slouchcat Test Audiobook M4B',
+  inWatchlist: false,
   year: 2024,
   rating: 0,
   author: 'Slouchcat Test Author',
@@ -559,6 +621,7 @@ const podcastEpisodeRef = (
   id,
   kind: 'podcast_episode',
   title: `Slouchcat Test Episode ${number}`,
+  inWatchlist: false,
   parentId: audioIds.podcast,
   author: 'Slouchcat Test Author',
   publishedAt,
@@ -589,6 +652,7 @@ export const podcast: ItemRef = {
   id: audioIds.podcast,
   kind: 'podcast',
   title: 'Slouchcat Test Podcast',
+  inWatchlist: false,
   author: 'Slouchcat Test Author',
   rating: 0,
   images: {

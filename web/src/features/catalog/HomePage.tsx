@@ -27,12 +27,14 @@ import {
   PosterCard,
   Row,
   Skeleton,
+  setSpatialFocus,
   SpatialPage,
   StationTile,
   Text,
   VisuallyHidden,
   type HeroSlide,
 } from '@/ui';
+import { CoverWatchlist, WATCHLIST_KINDS } from '@/features/discover/CoverWatchlist';
 import { CoverPen, EDITABLE_KINDS, EditMetadata } from './EditMetadata';
 import { ItemMeta } from './ItemMeta';
 import { homeRowTitle, isAudioKind } from './labels';
@@ -342,6 +344,26 @@ export function HomePage() {
     ) : undefined;
   };
 
+  // The watchlist button of a spotlight poster (concept 17 D-9): a Tab stop only on the active
+  // poster, like its pen.
+  const spotlightMark = (row: HomeRow, slide: HeroSlide, active: boolean) => {
+    const item = row.items.find((entry) => entry.id === slide.id);
+    return item && WATCHLIST_KINDS.has(item.kind) ? (
+      <CoverWatchlist item={item} excludeFromTabOrder={!active} />
+    ) : undefined;
+  };
+
+  // A title taken off the watchlist from its cover in the row «Merkliste»: the focus goes to the
+  // neighbouring card (or the header) before the card disappears, as on the watchlist page.
+  const unmarkedFrom = (row: HomeRow, item: ItemRef) => {
+    if (row.key !== 'watchlist') return undefined;
+    return () => {
+      const index = row.items.findIndex((entry) => entry.id === item.id);
+      const neighbour = row.items[index + 1] ?? row.items[index - 1];
+      setSpatialFocus(neighbour ? cardKey(row, neighbour) : 'header');
+    };
+  };
+
   const posterRow = (row: HomeRow) => {
     const title = homeRowTitle(t, row);
     const focusKey = `row-${row.id}`;
@@ -513,6 +535,12 @@ export function HomePage() {
                   <CoverPen item={edited} onEdit={setEditing} />
                 ) : undefined
               }
+              // A series card of "Weiterschauen" shows an episode: no watchlist button (kinds).
+              mark={
+                WATCHLIST_KINDS.has(item.kind) ? (
+                  <CoverWatchlist item={item} onRemoved={unmarkedFrom(row, item)} />
+                ) : undefined
+              }
             />
           );
         })}
@@ -550,6 +578,7 @@ export function HomePage() {
                     tool={
                       canManage ? (slide, active) => spotlightPen(row, slide, active) : undefined
                     }
+                    mark={(slide, active) => spotlightMark(row, slide, active)}
                   />
                 );
               }

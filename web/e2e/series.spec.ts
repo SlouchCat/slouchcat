@@ -14,10 +14,19 @@ import {
 
 let series = '';
 
-const seasons = (page: Page) => page.getByRole('group', { name: 'Staffel wählen' });
+const shelf = (page: Page) => page.getByRole('list', { name: 'Staffeln' });
+const seasonCards = (page: Page) => shelf(page).getByRole('button');
 const episodes = (page: Page) => page.getByRole('list', { name: 'Folgen' });
+// The big button of a series names its nextUp episode (concept 17 3.3); other specs may have left
+// progress behind, so any of the four reasons.
+const seriesPlay = (page: Page) =>
+  page.getByRole('link', {
+    name: /^(Abspielen|Weiterschauen|Nächste Folge|Nochmals ansehen) (S\d\dE\d\d|Alles gesehen)/,
+  });
+const episodePlay = (page: Page) =>
+  page.getByRole('link', { name: /^(Abspielen|Fortsetzen|Nochmals ansehen)( |$)/ });
 
-/** Index of the focused card in the episode list, or -1. */
+/** Index of the focused row in the episode list, or -1. */
 const focusedEpisode = (page: Page) =>
   episodes(page)
     .getByRole('link')
@@ -39,34 +48,42 @@ test('the start page lists the series once and never its episodes', async ({ pag
   await expect(recent.getByRole('link', { name: /S\d\dE\d\d|^Episode \d/ })).toHaveCount(0);
 });
 
-test('seasons: Season 1 first, specials last; S01E03–E04 is one episode', async ({ page }) => {
-  const chips = seasons(page).getByRole('button');
-  await expect(chips).toHaveCount(2);
-  await expect(chips.first()).toHaveAttribute('aria-pressed', 'true');
-  await expect(chips.last()).toHaveText(/Specials|Season 0|Staffel 0/);
+test('seasons: a shelf with Season 1 first, specials last; S01E03–E04 is one episode', async ({
+  page,
+}) => {
+  await expect(seasonCards(page)).toHaveCount(2);
+  await expect(seasonCards(page).first()).toHaveAttribute('aria-current', 'true');
+  await expect(seasonCards(page).first()).toContainText('3 Folgen');
+  await expect(seasonCards(page).last()).toContainText(/Specials|Season 0|Staffel 0/);
   await expect(episodes(page).getByRole('link')).toHaveCount(3);
   await expect(episodes(page).getByText('S01E01', { exact: true })).toBeVisible();
   await expect(episodes(page).getByText('S01E03–E04', { exact: true })).toBeVisible();
+  // The big button plays the nextUp episode of the series (E-10).
+  await expect(seriesPlay(page)).toHaveAttribute('href', /^\/play\//);
   await expect(page).toHaveTitle(`${SHOW_TITLE} · Slouchcat`);
 });
 
-test('arrows: back → seasons → episodes; Enter on a season chip shows the specials', async ({
+test('arrows: play → round actions → season shelf → episodes; Enter on a season shows the specials', async ({
   page,
 }) => {
-  // No play button on a series: the first arrow lands on "Zurück".
+  // The start focus is the big button (E-10).
   await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, seriesPlay(page));
+  await page.keyboard.press('ArrowUp');
   await expectFocusOn(page, page.getByRole('button', { name: 'Zurück' }));
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, seriesPlay(page));
 
   for (let presses = 0; presses < 4; presses += 1) {
-    if (await seasons(page).locator(':focus').count()) break;
+    if (await shelf(page).locator(':focus').count()) break;
     await page.keyboard.press('ArrowDown');
   }
-  await expectFocusOn(page, seasons(page).getByRole('button').first());
+  await expectFocusOn(page, seasonCards(page).first());
   await page.keyboard.press('ArrowRight');
-  const specials = seasons(page).getByRole('button').last();
+  const specials = seasonCards(page).last();
   await expectFocusOn(page, specials);
   await page.keyboard.press('Enter');
-  await expect(specials).toHaveAttribute('aria-pressed', 'true');
+  await expect(specials).toHaveAttribute('aria-current', 'true');
   await expect(episodes(page).getByText('S00E01', { exact: true })).toBeVisible();
   await expect(episodes(page).getByRole('link')).toHaveCount(1);
 
@@ -78,8 +95,8 @@ test('arrows: back → seasons → episodes; Enter on a season chip shows the sp
   await expect.poll(() => focusedEpisode(page)).toBeGreaterThanOrEqual(0);
   await expectVisibleFocus(page);
   const start = await focusedEpisode(page);
-  await page.keyboard.press('ArrowRight');
-  await expect.poll(() => focusedEpisode(page)).toBe(start + 1);
+  await page.keyboard.press(start < 2 ? 'ArrowDown' : 'ArrowUp');
+  await expect.poll(() => focusedEpisode(page)).toBe(start < 2 ? start + 1 : start - 1);
   await expectVisibleFocus(page);
 });
 
@@ -93,10 +110,7 @@ test('Enter opens an episode, play starts it; Backspace and Escape walk back', a
 
   await resetFocus(page);
   await page.keyboard.press('ArrowDown');
-  await expectFocusOn(
-    page,
-    page.getByRole('link', { name: /^(Abspielen|Weiterschauen ab \d{2}:\d{2}:\d{2})$/ }),
-  );
+  await expectFocusOn(page, episodePlay(page));
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/play\//);
   const player = page.getByRole('main', { name: 'Videoplayer' });
@@ -109,11 +123,65 @@ test('Enter opens an episode, play starts it; Backspace and Escape walk back', a
   await expect(page).toHaveURL(new RegExp(`${series}$`));
 });
 
-test('Tab: header, back, seasons, episodes; no focus trap @keyboard', async ({ page }) => {
+test('Tab: header, back, actions, the chosen season, episodes; no focus trap @keyboard', async ({
+  page,
+}) => {
   await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
   await tabTo(page, page.getByRole('button', { name: 'Zurück' }), 3);
-  // "Verwalten", then "Merken", "Favorit" and "Zu den User-Empfehlungen" (M7).
-  await tabTo(page, seasons(page).getByRole('button').first(), 7);
-  await tabTo(page, episodes(page).getByRole('link').first(), 4);
+  // The pen and the watchlist button on the cover, play, then the round actions: "Merken",
+  // "Favorit", "Zu den User-Empfehlungen" and "Verwalten".
+  await tabTo(page, seriesPlay(page), 4);
+  await tabTo(page, page.getByRole('button', { name: 'Favorit' }), 4);
+  // Only the chosen season is a Tab stop of the shelf (roving tabindex).
+  await tabTo(page, seasonCards(page).first(), 4);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, episodes(page).getByRole('link').first());
   await expectNoFocusTrap(page);
+});
+
+test('season page by keyboard: the series link, play, the episodes; no focus trap @keyboard', async ({
+  page,
+}) => {
+  // The season page of Season 1 (its id from the series' detail).
+  const seasonPath = await page.evaluate(async (path) => {
+    const response = await fetch(`/api/v1/items/${path.split('/').pop() ?? ''}`);
+    const body = (await response.json()) as { seasons?: { id: string }[] };
+    return `/items/${body.seasons?.[0]?.id ?? ''}`;
+  }, series);
+  await page.goto(seasonPath);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Season 1|Staffel 1/);
+  const seriesLink = page.getByRole('link', { name: SHOW_TITLE, exact: true });
+  await expect(seriesLink).toHaveAttribute('href', series);
+  await expect(episodes(page).getByRole('link')).toHaveCount(3);
+  // No watchlist and no favourite for a season (concept 17 E-15).
+  await expect(page.getByRole('button', { name: /^(Merken|Gemerkt|Favorit)$/ })).toHaveCount(0);
+
+  // Arrows: the start focus on play, ↑ to the series link, ↓ back, ↓ into the episodes.
+  await resetFocus(page);
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, seriesPlay(page));
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, seriesLink);
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, seriesPlay(page));
+  for (let presses = 0; presses < 4; presses += 1) {
+    if ((await focusedEpisode(page)) >= 0) break;
+    await page.keyboard.press('ArrowDown');
+  }
+  await expect.poll(() => focusedEpisode(page)).toBeGreaterThanOrEqual(0);
+  await expectVisibleFocus(page);
+
+  // Tab from the top: the back arrow, the series link, play, then the episodes.
+  await resetFocus(page);
+  await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
+  await tabTo(page, page.getByRole('button', { name: 'Zurück' }), 3);
+  await tabTo(page, seriesLink, 3);
+  await tabTo(page, seriesPlay(page), 2);
+  await tabTo(page, episodes(page).getByRole('link').first(), 6);
+  await expectNoFocusTrap(page);
+
+  // Enter on the series link leads to the series.
+  await seriesLink.focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(new RegExp(`${series}$`));
 });

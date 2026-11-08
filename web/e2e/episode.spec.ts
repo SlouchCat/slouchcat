@@ -7,8 +7,9 @@ import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard'
 let series = '';
 let firstEpisode = '';
 
+// The big button (concept 17 E-10); other specs may have left progress behind.
 const play = (page: Page) =>
-  page.getByRole('link', { name: /^(Abspielen|Weiterschauen ab \d{2}:\d{2}:\d{2})$/ });
+  page.getByRole('link', { name: /^(Abspielen|Fortsetzen|Nochmals ansehen)( |$)/ });
 const next = (page: Page) => page.getByRole('link', { name: /^Nächste Folge/ });
 
 test.beforeEach(async ({ page }) => {
@@ -53,15 +54,16 @@ test('"Zur Serie" leads to the series; browser back returns', async ({ page }) =
   await expect(page).toHaveURL(new RegExp(`${firstEpisode}$`));
 });
 
-test('arrows: play → back, down to the next episode', async ({ page }) => {
+test('arrows: play → back arrow and back, down to the next episode', async ({ page }) => {
   await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, play(page));
-  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowUp');
   await expectFocusOn(page, page.getByRole('button', { name: 'Zurück' }));
-  await page.keyboard.press('ArrowLeft');
-  // The row under the actions (watchlist, M7) comes first.
   await page.keyboard.press('ArrowDown');
-  await expectFocusOn(page, page.getByRole('button', { name: 'Merken' }));
+  await expectFocusOn(page, play(page));
+  // The round actions under the big button (watchlist, M7) come first.
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, page.getByRole('button', { name: /^(Merken|Gemerkt)$/ }));
   await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, next(page));
 });
@@ -73,9 +75,11 @@ test('Tab reaches play and the next episode after the header; no focus trap @key
   page,
 }) => {
   await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
-  // The side navigation's last stop, then for the server administrator the pen on the still
-  // (concept 15 7.4), then play.
+  // The side navigation's last stop, the back arrow, then for the server administrator the pen on
+  // the still (concept 15 7.4), then play.
   await tabTo(page, page.getByRole('button', { name: 'Seitenleiste ausblenden' }), 2);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByRole('button', { name: 'Zurück' }));
   await page.keyboard.press('Tab');
   await expectFocusOn(
     page,
@@ -83,7 +87,7 @@ test('Tab reaches play and the next episode after the header; no focus trap @key
   );
   await page.keyboard.press('Tab');
   await expectFocusOn(page, play(page));
-  // Back, the download, then "Merken" and "Zu den User-Empfehlungen" (M7).
+  // The round actions: "Merken", "Zu den User-Empfehlungen" and the download (M7, E-11).
   await tabTo(page, next(page), 8);
   await expectNoFocusTrap(page);
 });

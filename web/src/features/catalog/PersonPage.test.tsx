@@ -15,6 +15,7 @@ const person: Person = {
         id: seriesIds.show,
         kind: 'series',
         title: 'Slouchcat Test Show',
+        inWatchlist: false,
         year: 2024,
         images: {},
       },
@@ -54,6 +55,11 @@ describe('person page', () => {
     expect(film).toHaveAttribute('href', `/items/${ids.alien}`);
     expect(within(film).getByText('als Ellen Ripley')).toBeVisible();
     expect(within(row).getByText('Regie')).toBeVisible();
+    // Each credit carries the watchlist button on its cover (concept 17 D-9), after its link.
+    const mark = within(row).getByRole('button', { name: 'Alien merken' });
+    expect(mark).toHaveAttribute('aria-pressed', 'false');
+    expect(film.compareDocumentPosition(mark) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(row).getByRole('button', { name: 'Slouchcat Test Show merken' })).toBeVisible();
     expect(document.title).toBe('Sigourney Weaver · Slouchcat');
   });
 
