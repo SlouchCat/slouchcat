@@ -75,8 +75,25 @@ Ursache der beiden Befunde: das Nachladen eines Senders las den ganzen Katalog (
 Mit 1.18.2 liest es nur die Zeilen des Senders; auf dem Entwicklungsrechner sinkt eine Verwaltungsseite
 über 40 000 Sender von 4,8 s auf 13 ms.
 
-### 3.2 Offen
+### 3.2 Nachmessung mit 1.18.2 (8. November 2026, Server-Log)
 
-Erster Ton je Engine, iPhone mit gesperrtem Bildschirm, CPU und RAM je Relay, p95 von Liste und Suche mit
-`measure-home.sh`, Wiedergabeliste je Abruf, `+delay_moov` mit dem ffmpeg im Container, Nachmessung der
-Verwaltung mit 1.18.2.
+Marco hat die Verwaltung «Sender» und die Seite Radio der App durchgeklickt; dabei liefen 155
+`radio.logo.fetch` im Hintergrund. 0 ERROR.
+
+| Aufruf | Anzahl | Dauer 1.18.2 | Dauer 1.18.1 |
+|---|---|---|---|
+| Verwaltung «Sender», Ausnahmen, 50 Einträge | 6 | 31 bis 47 ms | 15 s |
+| Verwaltung «Sender», Land CH, Seiten 1 bis 5 | 7 | 29 bis 43 ms | 14,7 s |
+| Verwaltung «Sender», CH mit Ausnahmen | 1 | 4 ms | 0,5 bis 0,7 s |
+| App: Senderliste mit Filtern, Suche und Favoriten | 32 | 2,6 bis 52 ms | 6 ms bis 20,7 s |
+| App: Filter mit Zählern | 10 | 3,9 bis 12 ms | 8 bis 17 ms |
+| Start eines neuen Relays (`POST …/listen`) | 3 | 0,9 bis 3,4 s (AAC kopiert und MP3 umgerechnet) | 1,3 s |
+
+Die Ziele «Liste p95 unter 200 ms» und «Suche p95 unter 150 ms» hält schon der langsamste Einzelwert;
+ein p95 mit `measure-home.sh` folgt mit der übrigen Abnahme.
+
+### 3.3 Offen
+
+Erster Ton je Engine (Zeit bis `playing` im Browser), iPhone mit gesperrtem Bildschirm, CPU und RAM je
+Relay, p95 von Liste und Suche mit `measure-home.sh`, Wiedergabeliste je Abruf, `+delay_moov` mit dem
+ffmpeg im Container.
