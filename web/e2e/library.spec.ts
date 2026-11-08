@@ -76,6 +76,18 @@ test('library by keyboard: Tab order, arrows into the letter bar and back, Enter
   await page.keyboard.press('ArrowLeft');
   await expectFocusOn(page, cards(page).first());
 
+  // Tab from a card: its pen, then its watchlist button (concept 17 D-9); the arrows pass both
+  // and move on from the card.
+  const firstCell = grid(page).getByRole('listitem').first();
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, firstCell.getByRole('button', { name: /: Metadaten bearbeiten$/ }));
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, firstCell.getByRole('button', { name: / merken$/ }));
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, cards(page).nth(1));
+  await page.keyboard.press('ArrowLeft');
+  await expectFocusOn(page, cards(page).first());
+
   // Right from the last column reaches the letter bar; left returns to the same card.
   let lastCard = '';
   for (let presses = 0; presses < 12 && !(await isInside(letterBar(page))); presses += 1) {
