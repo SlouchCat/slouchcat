@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
@@ -35,6 +36,16 @@ type frameHeader struct {
 	channels    int
 	bitrateKbps int // MP3 only
 	length      int // frame length in bytes, header included
+	samples     int // audio samples per channel the frame decodes to
+}
+
+// duration is how long the audio of the frame plays (concept 16 section 7.6: the relay stamps the
+// titles with the audio position it counts from these).
+func (h frameHeader) duration() time.Duration {
+	if h.sampleRate <= 0 {
+		return 0
+	}
+	return time.Duration(int64(h.samples) * int64(time.Second) / int64(h.sampleRate))
 }
 
 // sameStream reports whether h and o come from the same encoder settings: codec, version or
@@ -90,8 +101,12 @@ func parseMP3Header(b []byte) (frameHeader, bool) {
 	if b[3]>>6 == 3 {
 		channels = 1
 	}
+	samples := 1152 // MPEG-1 Layer III; MPEG-2 and 2.5 Layer III frames hold half as many
+	if version != 1 {
+		samples = 576
+	}
 	return frameHeader{codec: "mp3", version: version, sampleRate: rate, channels: channels, bitrateKbps: br,
-		length: coef*br*1000/rate + pad}, true
+		length: coef*br*1000/rate + pad, samples: samples}, true
 }
 
 // parseADTSHeader parses an ADTS frame header at b[0:7].
@@ -112,8 +127,9 @@ func parseADTSHeader(b []byte) (frameHeader, bool) {
 		return frameHeader{}, false
 	}
 	channels := int(b[2]&1)<<2 | int(b[3]>>6)
+	blocks := int(b[6]&3) + 1 // raw data blocks of 1024 samples each
 	return frameHeader{codec: "aac", version: int(b[2]>>6) + 1, sampleRate: adtsRates[si], channels: channels,
-		length: length}, true
+		length: length, samples: 1024 * blocks}, true
 }
 
 // parseFrameHeader parses a header of codec ("mp3" or "aac") at b.

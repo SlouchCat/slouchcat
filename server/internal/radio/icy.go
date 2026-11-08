@@ -189,9 +189,9 @@ func (s *icyStream) Close() error {
 func (s *icyStream) collect(n int) ([]byte, error) {
 	var audio []byte
 	for len(audio) < n && len(s.pending) < maxCollectEvents {
-		b, title, ok, err := s.read()
+		b, title, ok, streamURL, err := s.read()
 		if len(b) > 0 || ok {
-			s.pending = append(s.pending, streamEvent{Audio: b, Title: title, TitleSet: ok})
+			s.pending = append(s.pending, streamEvent{Audio: b, Title: title, TitleSet: ok, StreamURL: streamURL})
 			audio = append(audio, b...)
 		}
 		if err != nil {
@@ -210,14 +210,14 @@ func (s *icyStream) Next(ctx context.Context) (streamEvent, error) {
 		ev = s.pending[0]
 		s.pending = s.pending[1:]
 	} else {
-		b, title, ok, err := s.read()
+		b, title, ok, streamURL, err := s.read()
 		if err != nil && len(b) == 0 && !ok {
 			if ctx.Err() != nil {
 				return streamEvent{}, ctx.Err()
 			}
 			return streamEvent{}, err
 		}
-		ev = streamEvent{Audio: b, Title: title, TitleSet: ok}
+		ev = streamEvent{Audio: b, Title: title, TitleSet: ok, StreamURL: streamURL}
 	}
 	if s.ogg != nil && len(ev.Audio) > 0 {
 		if t, ok := s.ogg.push(ev.Audio); ok && !ev.TitleSet {
@@ -228,23 +228,23 @@ func (s *icyStream) Next(ctx context.Context) (streamEvent, error) {
 }
 
 // read returns the next audio bytes up to the next metadata block, or the title of a metadata
-// block (ok) with no audio.
-func (s *icyStream) read() (audio []byte, title string, ok bool, err error) {
+// block (ok) with its StreamUrl and no audio.
+func (s *icyStream) read() (audio []byte, title string, ok bool, streamURL string, err error) {
 	if s.inf.MetaInt > 0 && s.left == 0 {
 		s.left = s.inf.MetaInt
 		n, err := s.resp.body.ReadByte()
 		if err != nil {
-			return nil, "", false, err
+			return nil, "", false, "", err
 		}
 		if n == 0 {
-			return nil, "", false, nil
+			return nil, "", false, "", nil
 		}
 		block := make([]byte, int(n)*16)
 		if _, err := io.ReadFull(s.resp.body, block); err != nil {
-			return nil, "", false, err
+			return nil, "", false, "", err
 		}
-		t, has, _ := parseICYMeta(block)
-		return nil, t, has, nil
+		t, has, u := parseICYMeta(block)
+		return nil, t, has, u, nil
 	}
 	size := icyReadChunk
 	if s.inf.MetaInt > 0 {
@@ -255,5 +255,5 @@ func (s *icyStream) read() (audio []byte, title string, ok bool, err error) {
 	if s.inf.MetaInt > 0 {
 		s.left -= n
 	}
-	return buf[:n], "", false, err
+	return buf[:n], "", false, "", err
 }

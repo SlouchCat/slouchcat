@@ -278,7 +278,7 @@ func TestRelayReadyAfterTwoSegments(t *testing.T) {
 	if d := time.Since(start); d > 6*time.Second {
 		t.Fatalf("listen took %v, want ≤ 6 s on an Icecast burst", d)
 	}
-	if l.HeartbeatSeconds != 30 || l.StartOffsetSeconds != -8 || l.Station.ID != id || l.Token == "" {
+	if l.HeartbeatSeconds != 30 || l.StartOffsetSeconds != -8 || l.Station.ID != id || l.Token == "" || l.TimeShiftSeconds != 30*60 {
 		t.Fatalf("listen %+v", l)
 	}
 	segs := segments(e.relay(id))
@@ -608,7 +608,9 @@ func TestMemoryModeWithoutTmpfs(t *testing.T) {
 	e.s.rel.tmpfs = func(string) bool { return false }
 	e.st.Set("/live", mp3Mount(t, false))
 	id := e.addStation("Test FM", "CH", "MP3", 128, e.st.URL("/live"))
-	e.listen(e.f.P18, id)
+	if _, l := e.listen(e.f.P18, id); l.TimeShiftSeconds != 0 {
+		t.Fatalf("time shift %d s in memory mode, want 0 (live only)", l.TimeShiftSeconds)
+	}
 	r := e.relay(id)
 	waitSegments(t, r, 20)
 	if n := len(segments(r)); n > memorySegments {
