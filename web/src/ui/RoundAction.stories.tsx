@@ -27,7 +27,7 @@ export const Disabled: Story = {
   args: { label: 'Herunterladen', icon: 'download', isDisabled: true },
 };
 
-/** Focus: the ring on the circle, the label in the primary text colour. */
+/** Focus: the ring around circle and label, the label in the primary text colour. */
 export const Focused: Story = { tags: ['press:Tab'], args: { label: 'Von vorne', icon: 'replay' } };
 
 /** The row of the detail page: labels of different length side by side. */

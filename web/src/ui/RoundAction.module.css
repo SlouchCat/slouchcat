@@ -18,11 +18,6 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* The focus ring sits on the circle, not around circle and label. */
-.action:focus-visible {
-  outline: none;
-}
-
 .circle {
   display: inline-grid;
   place-items: center;
@@ -47,9 +42,8 @@
   color: var(--sc-on-accent);
 }
 
+/* The focus ring (global.css) goes around circle and label: one element, one ring. */
 .action:focus-visible .circle {
-  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
-  outline-offset: var(--sc-focus-ring-offset);
   background-color: var(--sc-color-surface-2);
 }
 

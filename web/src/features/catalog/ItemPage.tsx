@@ -528,6 +528,7 @@ function ItemView({ itemId }: { itemId: string }) {
           accent={item.accent}
           cover={item.kind === 'episode' ? 'still' : audio ? 'square' : 'poster'}
           onBack={goBack}
+          belowBack={target?.available ? PLAY_KEY : undefined}
           coverTool={<PosterPen item={item} />}
           coverMark={coverMark(item)}
           kicker={kickerLine}

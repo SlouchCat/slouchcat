@@ -2,7 +2,14 @@ import type { ItemRef } from '@slouchcat/api-client';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiUrl, imageUrl } from '@/api/client';
-import { Backdrop, itemAccentStyle, PosterFallback, SpatialButton, TitleOrLogo } from '@/ui';
+import {
+  Backdrop,
+  itemAccentStyle,
+  PosterFallback,
+  setSpatialFocus,
+  SpatialButton,
+  TitleOrLogo,
+} from '@/ui';
 import styles from './DetailHeader.module.css';
 
 /** The round back arrow over the head; the page's start focus when it has no big button. */
@@ -27,6 +34,11 @@ interface DetailHeaderProps {
   /** `poster` 2:3, `square` for audiobooks and podcasts (M6), `still` 16:9 for an episode. */
   cover: 'poster' | 'square' | 'still';
   onBack: () => void;
+  /**
+   * Where ↓ from the back arrow goes (the big button). By geometry it would pass the head and land
+   * on the first section under the cover.
+   */
+  belowBack?: string;
   /** Over the top right of the cover: the pen of the metadata editor (concept 15 7.4). */
   coverTool?: ReactNode;
   /**
@@ -61,6 +73,7 @@ export function DetailHeader({
   accent,
   cover,
   onBack,
+  belowBack,
   coverTool,
   coverMark,
   kicker,
@@ -144,6 +157,11 @@ export function DetailHeader({
           aria-label={t('common.back')}
           title={t('common.back')}
           onPress={onBack}
+          onArrowPress={(direction) => {
+            if (direction !== 'down' || !belowBack) return true;
+            setSpatialFocus(belowBack);
+            return false;
+          }}
         />
       </div>
 

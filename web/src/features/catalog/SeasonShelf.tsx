@@ -152,7 +152,15 @@ export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; 
     seasons[0];
   if (!current) return null;
   return (
-    <section className={styles.shelf} aria-labelledby="item-seasons-heading">
+    // One group for shelf and episodes, as wide as the page: ↓ from the actions in the head enters
+    // it at the shelf (by geometry the wider episode list would win over the narrow shelf).
+    <SpatialGroup
+      as="section"
+      className={styles.shelf}
+      aria-labelledby="item-seasons-heading"
+      preferredChildFocusKey="detail-seasons"
+      rememberLastChild={false}
+    >
       <h2 id="item-seasons-heading" className={`${styles.sectionTitle} ${styles.gutter}`}>
         {t('item.seasons')}
       </h2>
@@ -210,6 +218,6 @@ export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; 
           </Suspense>
         )}
       </div>
-    </section>
+    </SpatialGroup>
   );
 }
