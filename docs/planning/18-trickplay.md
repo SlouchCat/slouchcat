@@ -430,7 +430,7 @@ schreibgeschützt eingebunden, `/media:ro`).
 | `visibility` | `MediaFileLocation` bekommt `LibraryID` und die Trickplay-Einstellung der Titelart, damit `playback` sie ohne eigenes SQL auf `media_files` kennt (Regel 2) |
 | `playback` | `Start` reiht ein und liefert `PlaybackInfo.trickplay` (5.2); Wiedergabe-Pflege löscht temporäre Sätze (6.5, 6.7) |
 | `jobs` | Pool `trickplay` (ein Arbeiter) |
-| `admin` | `trickplay` beim Anlegen und Ändern einer Bibliothek, Grösse der Sätze je Bibliothek und Titelart |
+| `admin` | `trickplay` beim Anlegen und Ändern einer Bibliothek, Grösse der Sätze je Bibliothek und Titelart, geschätzter Speicherbedarf (9) |
 | `offline` | Blätter kopieren, auf den Satz warten (6.8), Download-Manifest |
 | `api` | Handler `getTrickplay`, `getTrickplaySheet`, `getDownloadTrickplaySheet` |
 | `cmd/slouchcat` | Arbeiter des neuen Pools in `poolWorkers`/`startWorkers` |
@@ -449,6 +449,9 @@ schreibgeschützt eingebunden, `/media:ro`).
   nie 403.
 - **`GET /downloads/{id}/trickplay/{sheet}`** (`getDownloadTrickplaySheet`, `http.Handler`,
   `x-visibility: scoped`, mit Download-Token wie `getDownloadFile` und `getDownloadSubtitle`).
+- **`LibraryTrickplayEstimate`** in der Lese-Operation einer Videobibliothek (nur Admin): je
+  Titelart Anzahl Titel und Laufzeit, Schätzung pro Film bzw. pro Folge, Staffel und Serie (Mittel
+  und grösste), für die ganze Bibliothek, und der heute belegte Platz (9).
 - **`DownloadManifest.trickplay`** (optional): Raster, `pointsMs` und die Blattnummern.
 - **`Library.trickplay`** (`LibraryTrickplay`): `{ movies: { mode: ahead|on_start|off, keep },
   series: { mode: ahead|on_start|series_start|off, keep, scope: series|season_rest|next_episode } }`
@@ -505,6 +508,19 @@ Cache-Ordner und in `jobs`. Eingefrorener DB-Stand in `testdata/db/` nach Regel 
     Start» der Haken «Speichern», bei «Beim Start alle Folgen» die Auswahl «Ganze Serie», «Rest der
     Staffel», «Nächste Folge».
   - Unter jeder Gruppe ein Satz zu Speicherbedarf und Dauer der gewählten Einstellung.
+  - **Geschätzter Speicherbedarf** (Marcos Wunsch vom 8. November 2026), je nach Einstellung:
+    - «Im Voraus»: pro Film; pro Folge, pro Staffel, pro Serie (Mittelwerte) und für die ganze
+      Bibliothek.
+    - «Beim Start» mit «Speichern»: pro geschautem Film bzw. pro geschauter Folge und Staffel, dazu
+      das Höchstmass, wenn alles geschaut ist.
+    - «Beim Start» ohne «Speichern»: dauerhaft 0 MB, dazu der Platz während einer Wiedergabe.
+    - «Beim Start alle Folgen»: pro Folge und je nach Umfang pro angefangene Serie, Staffel oder
+      Folge mit der nächsten, dazu die grösste Serie oder Staffel der Bibliothek und das Höchstmass.
+    - «Aus»: 0 MB.
+    - Daneben der heute belegte Platz je Titelart und der freie Platz im Cache.
+    - Die Schätzung rechnet der Server aus der Laufzeit der Titel (`media_files.duration_ms`) mit
+      rund 1,5 MB je Stunde Video (Messung 3.6: 1,3 MB/h bei 16:9, 1,8 MB/h bei 2,40:1); die
+      Bibliotheksseite liest sie über `LibraryTrickplayEstimate` (8.2).
   Die Bibliotheksseite zeigt die Grösse der gespeicherten Sätze. «Hintergrundjobs» zeigt
   `trickplay.generate`, `trickplay.series` und `trickplay.backfill`, das Nachholen mit Knopf und
   Zeitplan.
