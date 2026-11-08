@@ -3,7 +3,7 @@
 - **Status: Fassung 4 (8. November 2026): Messungen, Marcos Antworten F-1 bis F-15 (Abschnitt 11),
   das Kritiker-Review von Fassung 2 (REVISE, 1 Blocker, 8 Major, 13 Minor; Abschnitt 13) und Marcos
   feinere Einstellungen je Bibliothek für Filme und Serien (F-13 bis F-15, Abschnitt 6) eingearbeitet.
-  Offen ist nur O-1 (Abschnitt 11.2). Die Änderungen von Fassung 4 hat noch kein Kritiker gesehen.** Auslöser ist Marcos Auftrag vom 8. November 2026: Vorschaubilder für Filme und
+  Offen ist nur O-1 (Abschnitt 11.2). Die Änderungen von Fassung 4 hat noch kein Kritiker gesehen. Eingetragen als Frage 25 im Entscheidungsprotokoll.** Auslöser ist Marcos Auftrag vom 8. November 2026: Vorschaubilder für Filme und
   Folgen, erzeugt **sobald eine Folge oder ein Film gestartet wird**; dazu die Fragen, wie lange
   das dauert und ob die Bilder gespeichert werden. Grundlage ist Idee 05
   (`docs/ideas/05-trickplay.md`, aus Konzept 13 V-21, Frage 19 F-7 «später»).
