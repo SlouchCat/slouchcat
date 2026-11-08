@@ -110,3 +110,47 @@
   align-items: flex-start;
   gap: var(--sc-space-4);
 }
+
+/* «Einordnung» and «Eigene Sender»: a section with its title line and its table. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
+
+/* A catalog tag as the stream lists name it, in a quiet pill. */
+.tag {
+  display: inline-block;
+  padding: 0 var(--sc-space-2);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-surface-2);
+  font-size: var(--sc-font-size-sm);
+  white-space: nowrap;
+}
+
+/* The form of an own station. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+}
+
+.formRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--sc-space-3) var(--sc-space-4);
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sc-space-2);
+}
+
+/* A stream address in a table cell: may break anywhere, it is one long word. */
+.url {
+  font-family: var(--sc-font-family-mono);
+  font-size: var(--sc-font-size-xs);
+  overflow-wrap: anywhere;
+}

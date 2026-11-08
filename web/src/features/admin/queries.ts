@@ -482,6 +482,11 @@ export type RadioConfigUpdate = components['schemas']['RadioConfigUpdate'];
 export type RadioCatalogState = components['schemas']['RadioCatalogState'];
 export type RadioRelays = components['schemas']['RadioRelays'];
 export type RadioProbe = components['schemas']['RadioProbe'];
+export type AdminRadioStationCreate = components['schemas']['AdminRadioStationCreate'];
+export type RadioTagRules = components['schemas']['RadioTagRules'];
+export type RadioTagRule = components['schemas']['RadioTagRule'];
+export type RadioTagRuleView = components['schemas']['RadioTagRuleView'];
+export type RadioTagRuleFacet = components['schemas']['RadioTagRuleFacet'];
 
 /** The relays and their listeners are asked again every 5 s while «Übersicht» is open. */
 export const RADIO_RELAYS_POLL_MS = 5000;
@@ -520,6 +525,8 @@ export interface AdminRadioStationFilter {
   country?: string;
   genre?: string;
   state?: 'reachable' | 'broken' | 'hidden';
+  /** Catalog or own stations (contract 1.19.0, tab «Eigene Sender»). */
+  source?: 'catalog' | 'own';
   exceptions: boolean;
 }
 
@@ -585,3 +592,22 @@ export const deleteRadioLogo = (stationId: number) =>
   request(
     api.DELETE('/admin/radio/stations/{stationId}/logo', { params: { path: { stationId } } }),
   );
+
+/** Adds an own station (contract 1.19.0, concept 16, 5.6). */
+export const createRadioStation = (body: AdminRadioStationCreate): Promise<AdminRadioStation> =>
+  request(api.POST('/admin/radio/stations', { body }));
+
+/** Deletes an own station; a catalog station can only be hidden. */
+export const deleteRadioStation = (stationId: number) =>
+  request(api.DELETE('/admin/radio/stations/{stationId}', { params: { path: { stationId } } }));
+
+/** The tag rules, the worklist and the coverage of the tab «Einordnung» (contract 1.19.0). */
+export const radioTagRulesQuery = queryOptions({
+  queryKey: [...radioAdminKeys.all, 'tagRules'],
+  queryFn: ({ signal }): Promise<RadioTagRules> =>
+    request(api.GET('/admin/radio/tag-rules', { signal })),
+});
+
+/** Replaces the administration's rules with `rules` (the whole list); answers the new state. */
+export const setRadioTagRules = (rules: readonly RadioTagRule[]): Promise<RadioTagRules> =>
+  request(api.PUT('/admin/radio/tag-rules', { body: { rules: [...rules] } }));

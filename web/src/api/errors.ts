@@ -129,6 +129,10 @@ const fieldKeys = {
   library_kind: 'errors.field.library_kind',
   unknown_item: 'errors.field.unknown_item',
   env_wins: 'errors.code.env_wins',
+  // Own radio stations (concept 16, 5.6, F-15): an address in the local network, a field that
+  // only an own station has.
+  local_address: 'errors.field.local_address',
+  not_own: 'errors.field.not_own',
 } as const;
 
 const has = <K extends string>(map: Record<K, string>, key: string): key is K =>

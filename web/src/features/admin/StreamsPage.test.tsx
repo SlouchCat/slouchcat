@@ -1,4 +1,4 @@
-import type { AdminStream } from '@slouchcat/api-client';
+import type { AdminStream, components } from '@slouchcat/api-client';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -64,6 +64,49 @@ const mixed: AdminStream[] = [
   },
 ];
 
+type RadioRelays = components['schemas']['RadioRelays'];
+
+/** The radio's relays with their listeners, as `listRadioRelays` answers. */
+const relays = (list: RadioRelays['relays']): RadioRelays => ({
+  relays: list,
+  load: {
+    relays: list.length,
+    maxRelays: 10,
+    bufferBytes: 0,
+    budgetBytes: 512_000_000,
+    uploadKbps: 128,
+    bufferMode: 'tmpfs',
+  },
+});
+
+const swissPop: RadioRelays['relays'][number] = {
+  stationId: 7,
+  name: 'Radio Swiss Pop',
+  codec: 'AAC',
+  bitrateKbps: 128,
+  transcoded: false,
+  startedAt: Date.parse('2026-11-08T08:00:00Z'),
+  bufferSeconds: 600,
+  bufferBytes: 9_600_000,
+  state: 'live',
+  listeners: [
+    {
+      listenId: 'L1',
+      profileName: 'Lena',
+      accountEmail: 'gast@example.test',
+      playing: true,
+      since: Date.parse('2026-11-08T08:05:00Z'),
+    },
+    {
+      listenId: 'L2',
+      profileName: 'Nora',
+      accountEmail: 'gast@example.test',
+      playing: false,
+      since: Date.parse('2026-11-08T08:06:00Z'),
+    },
+  ],
+};
+
 const tileOf = (profile: string) =>
   screen.getByRole('button', { name: `Stream von ${profile} beenden` }).closest('article')!;
 
@@ -85,6 +128,8 @@ describe('admin streams (W-6)', () => {
   const routes = (list: () => AdminStream[], extra: Routes = {}): Routes => ({
     ...signedIn,
     'GET /admin/streams': () => json(list()),
+    // The radio's listeners come from its relays (concept 16 stage 2, D-11); none by default.
+    'GET /admin/radio/relays': () => json(relays([])),
     ...extra,
   });
 
@@ -421,5 +466,64 @@ describe('admin streams (W-6)', () => {
     renderApp('/admin/streams');
     expect(await screen.findByText('Nur für Administratoren')).toBeVisible();
     expect(calls.some((call) => call.path.startsWith('/admin/'))).toBe(false);
+  });
+
+  describe('radio listeners (concept 16 stage 2, D-11)', () => {
+    it('shows a tile per listener in the section «Radio» and counts them under «Serverlast»', async () => {
+      mockApi(routes(() => streams, { 'GET /admin/radio/relays': () => json(relays([swissPop])) }));
+      renderApp('/admin/streams');
+      const section = await screen.findByRole('region', { name: 'Radio' });
+      const lena = within(section).getByRole('article', { name: 'Lena: Radio Swiss Pop' });
+      expect(within(lena).getByText('gast@example.test')).toBeVisible();
+      expect(within(lena).getByText(/AAC · 128\skbit\/s/)).toBeVisible();
+      expect(within(lena).getByText('Hört')).toBeVisible();
+      expect(
+        within(section).getByRole('article', { name: 'Nora: Radio Swiss Pop' }),
+      ).toHaveTextContent('Pausiert');
+      expect(within(loadOf('Radio')).getAllByRole('definition')[0]).toHaveTextContent('2');
+    });
+
+    it('stops a listener after the confirmation through the radio', async () => {
+      let listed = [swissPop];
+      const { calls } = mockApi(
+        routes(() => [], {
+          'GET /admin/radio/relays': () => json(relays(listed)),
+          'DELETE /admin/radio/listeners/L1': () => {
+            listed = [{ ...swissPop, listeners: swissPop.listeners.slice(1) }];
+            return new Response(null, { status: 204 });
+          },
+        }),
+      );
+      renderApp('/admin/streams');
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole('button', { name: 'Radio von Lena beenden' }));
+      const dialog = await screen.findByRole('alertdialog', { name: 'Radio von Lena beenden?' });
+      expect(dialog).toHaveTextContent('Radio Swiss Pop');
+      await user.click(within(dialog).getByRole('button', { name: 'Radio beenden' }));
+      expect(await screen.findByText('Radio von Lena beendet.')).toBeVisible();
+      expect(
+        calls.some((call) => call.method === 'DELETE' && call.path === '/admin/radio/listeners/L1'),
+      ).toBe(true);
+      await waitFor(() =>
+        expect(screen.queryByRole('article', { name: 'Lena: Radio Swiss Pop' })).toBeNull(),
+      );
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { level: 1, name: 'Streams' })).toHaveFocus(),
+      );
+      // The page says nothing plays only when no radio listener is left either.
+      expect(screen.queryByText('Gerade läuft nichts.')).toBeNull();
+    });
+
+    it('steps with the arrow keys between the radio tiles too', async () => {
+      mockApi(routes(() => [], { 'GET /admin/radio/relays': () => json(relays([swissPop])) }));
+      renderApp('/admin/streams');
+      const lena = await screen.findByRole('button', { name: 'Radio von Lena beenden' });
+      const nora = screen.getByRole('button', { name: 'Radio von Nora beenden' });
+      lena.focus();
+      fireEvent.keyDown(lena, { key: 'ArrowRight' });
+      expect(nora).toHaveFocus();
+      fireEvent.keyDown(nora, { key: 'ArrowLeft' });
+      expect(lena).toHaveFocus();
+    });
   });
 });

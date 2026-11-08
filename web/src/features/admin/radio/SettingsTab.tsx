@@ -35,6 +35,8 @@ interface Draft {
   hideBroken: boolean;
   allCountries: boolean;
   countries: string;
+  coverMusicbrainz: boolean;
+  coverItunes: boolean;
 }
 
 const draftOf = (config: RadioConfig): Draft => ({
@@ -45,6 +47,8 @@ const draftOf = (config: RadioConfig): Draft => ({
   hideBroken: config.hideBroken,
   allCountries: config.countries === null,
   countries: (config.countries ?? []).join(', '),
+  coverMusicbrainz: config.coverMusicbrainz,
+  coverItunes: config.coverItunes,
 });
 
 /** ISO 3166-1 codes from the field, each once, in upper case; anything else is dropped. */
@@ -70,6 +74,10 @@ function changes(config: RadioConfig, draft: Draft): RadioConfigUpdate {
   if (draft.hideBroken !== config.hideBroken) update.hideBroken = draft.hideBroken;
   const countries = draft.allCountries ? null : countryCodes(draft.countries);
   if (JSON.stringify(countries) !== JSON.stringify(config.countries)) update.countries = countries;
+  if (draft.coverMusicbrainz !== config.coverMusicbrainz) {
+    update.coverMusicbrainz = draft.coverMusicbrainz;
+  }
+  if (draft.coverItunes !== config.coverItunes) update.coverItunes = draft.coverItunes;
   return update;
 }
 
@@ -80,8 +88,8 @@ interface SettingsTabProps {
 }
 
 /**
- * «Einstellungen» (concept 16, 7.3 and 11) as rows: time shift, budget, maximum stations, run-on,
- * broken stations, countries. Time shift, budget and maximum apply to relays that start from now
+ * «Einstellungen» (concept 16, 7.3, 8 and 11) as rows: time shift, budget, maximum stations,
+ * run-on, broken stations, countries and the two cover lookups (D-10). Time shift, budget and maximum apply to relays that start from now
  * on (the running ones keep theirs, S2), the others at once.
  */
 export function SettingsTab({ config, titleRef }: SettingsTabProps) {
@@ -202,6 +210,25 @@ function SettingsForm({
             />
           )}
         </div>
+      </SettingRow>
+      <SettingRow
+        label={t('admin.radio.settings.coverMusicbrainz')}
+        help={t('admin.radio.settings.coverMusicbrainzHelp')}
+      >
+        <Switch
+          isSelected={draft.coverMusicbrainz}
+          onChange={(value) => set('coverMusicbrainz', value)}
+        >
+          {t('admin.radio.settings.coverMusicbrainz')}
+        </Switch>
+      </SettingRow>
+      <SettingRow
+        label={t('admin.radio.settings.coverItunes')}
+        help={t('admin.radio.settings.coverItunesHelp')}
+      >
+        <Switch isSelected={draft.coverItunes} onChange={(value) => set('coverItunes', value)}>
+          {t('admin.radio.settings.coverItunes')}
+        </Switch>
       </SettingRow>
       <Text tone="secondary">{t('admin.radio.settings.rights')}</Text>
       <SaveBar

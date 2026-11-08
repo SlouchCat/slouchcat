@@ -207,7 +207,9 @@
       "content_not_allowed": "This content does not fit the kind of the library.",
       "providers_not_allowed": "This list of metadata sources is not allowed for this content.",
       "roots_required": "At least one folder is required.",
-      "provider_not_searchable": "Only TMDB and TVDB can be searched."
+      "provider_not_searchable": "Only TMDB and TVDB can be searched.",
+      "local_address": "This address is in the local network. Own stations must come from the internet as well.",
+      "not_own": "Only an own station can change this."
     }
   },
   "setup": {
@@ -971,7 +973,9 @@
         "liveValue": "{{relays}} · {{listeners}}",
         "liveNote": "stations · listeners",
         "changed": "Changed by hand",
-        "changedNote": "exceptions"
+        "changedNote": "exceptions",
+        "tags": "Tags without a rule",
+        "tagsNote": "of more than 50 stations"
       },
       "memory": {
         "title": "No RAM buffer",
@@ -981,7 +985,9 @@
         "label": "Sections",
         "overview": "Overview",
         "stations": "Stations",
-        "settings": "Settings"
+        "settings": "Settings",
+        "rules": "Tagging",
+        "own": "Own stations"
       },
       "catalog": {
         "title": "Catalog",
@@ -1103,7 +1109,11 @@
         "countriesChosen": "Chosen countries only",
         "countriesField": "Countries (ISO codes, separated by commas)",
         "rights": "Stations see the Slouchcat server, not the device, so the server's location counts. Slouchcat passes the sound only to signed-in profiles of this installation; whether that is allowed for a station is up to the operator of the installation.",
-        "saved": "The settings are saved."
+        "saved": "The settings are saved.",
+        "coverMusicbrainz": "Cover lookup MusicBrainz",
+        "coverMusicbrainzHelp": "Looks up the cover of the playing title at MusicBrainz and the Cover Art Archive, only when the title of a running station changes and at most once a second.",
+        "coverItunes": "Cover lookup iTunes",
+        "coverItunesHelp": "Asks the iTunes search when MusicBrainz finds nothing; at most 20 requests a minute. A picture the station sends itself always counts."
       },
       "editor": {
         "close": "Close",
@@ -1144,6 +1154,93 @@
         "lockHelp": "The daily sync never overwrites a locked field.",
         "save": "Save",
         "saved": "{{name}} is saved."
+      },
+      "rules": {
+        "title": "Tagging",
+        "open": "Go to tagging",
+        "coverage": "Coverage per filter",
+        "coverageHelp": "Share of the reachable, shown stations with a value. A kind counts only when a tag, the name or the administration sets it.",
+        "coverageCount": "{{assigned}} of {{total}} stations",
+        "unassigned_one": "{{count}} tag without a rule",
+        "unassigned_other": "{{count}} tags without a rule",
+        "worklist": "Tags without a rule",
+        "worklistHelp_one": "By number of stations. Tags of fewer than {{count}} station are not listed. A rule applies at once to every station with the tag.",
+        "worklistHelp_other": "By number of stations. Tags of fewer than {{count}} stations are not listed. A rule applies at once to every station with the tag.",
+        "worklistEmpty": "Every common tag has a rule.",
+        "rules": "Rules",
+        "rulesHelp": "Tag → facet. An own rule replaces the default for its facet; what was set by hand on a station stays.",
+        "rulesEmpty": "No rule matches the search.",
+        "search": "Search rules",
+        "count_one": "{{count}} rule",
+        "count_other": "{{count}} rules",
+        "more_one": "Show {{count}} more",
+        "more_other": "Show {{count}} more",
+        "columns": {
+          "tag": "Tag",
+          "stations": "Stations",
+          "assign": "Assign to",
+          "actions": "Actions",
+          "facet": "Facet",
+          "target": "Becomes",
+          "source": "Source"
+        },
+        "choose": "Choose a facet …",
+        "chooseLabel": "Facet for the tag {{tag}}",
+        "ignore": "Ignore (no facet)",
+        "assign": "Assign",
+        "assignLabel": "Assign the tag {{tag}}",
+        "target": "{{facet}}: {{value}}",
+        "none": "None",
+        "ignored": "Ignored",
+        "ignoreFacet": "Ignore",
+        "ruleLabel": "{{facet}} for the tag {{tag}}",
+        "source": {
+          "default": "Default",
+          "admin": "Own rule"
+        },
+        "remove": "Remove",
+        "removeLabel": "Remove the rule {{facet}} for {{tag}}",
+        "removeTitle": "Remove the rule for “{{tag}}”?",
+        "removeBody": "“{{tag}}” falls back to the default for this facet. The stations are sorted again at once.",
+        "removeIgnoreBody": "“{{tag}}” goes back on the list of tags without a rule.",
+        "assignedDone": "“{{tag}}” is now {{target}}. The stations are sorted again.",
+        "ignoredDone": "“{{tag}}” is ignored.",
+        "changedDone": "The rule for “{{tag}}” is saved. The stations are sorted again.",
+        "removedDone": "The rule for “{{tag}}” is removed."
+      },
+      "own": {
+        "title": "Own stations",
+        "help": "Stations the catalog lacks, such as neighbourhood or stadium radios. The sync never changes them.",
+        "add": "Add an own station",
+        "empty": "No own station yet.",
+        "created": "{{name}} is added.",
+        "deleted": "{{name}} is deleted.",
+        "delete": "Delete",
+        "deleteLabel": "Delete {{name}}",
+        "deleteTitle": "Delete {{name}}?",
+        "deleteBody": "The station goes for every profile, also from “My stations”. Whoever listens to it now is cut off.",
+        "editorHelp": "Own station: the stream address, homepage, country and languages can be changed here.",
+        "columns": {
+          "stream": "Stream address"
+        },
+        "fields": {
+          "name": "Name",
+          "streamUrl": "Stream address",
+          "streamUrlHelp": "A direct address or a playlist (.pls, .m3u); the server resolves it. Addresses in the local network are not allowed.",
+          "homepage": "Homepage",
+          "homepageHelp": "Optional; the server fetches the logo from there.",
+          "country": "Country",
+          "countryHelp": "ISO code, for example CH. Empty: no country.",
+          "languages": "Languages",
+          "languagesHelp": "ISO codes, separated by commas, for example de, fr.",
+          "none": "None",
+          "kindAuto": "Automatic"
+        },
+        "create": {
+          "title": "Add an own station",
+          "description": "A station the catalog lacks. It can be filtered like any other.",
+          "submit": "Add"
+        }
       }
     },
     "editor": {
@@ -1873,7 +1970,23 @@
           "label": "Total bandwidth",
           "note": "Sum of the bit rates",
           "notePartial": "Sum of the known bit rates"
+        },
+        "radio": {
+          "label": "Radio",
+          "note": "listeners, no transcoding"
         }
+      },
+      "radio": {
+        "title": "Radio",
+        "help": "Who listens to web radio through the server right now; a station runs once for all its listeners.",
+        "mode": "Radio",
+        "playing": "Listening",
+        "paused": "Paused",
+        "stopLabel": "Stop the radio of {{profile}}",
+        "stopTitle": "Stop the radio of {{profile}}?",
+        "stopBody": "The playback of “{{station}}” stops on the device within seconds.",
+        "stopConfirm": "Stop the radio",
+        "stopped": "Radio of {{profile}} stopped."
       }
     },
     "podcasts": {

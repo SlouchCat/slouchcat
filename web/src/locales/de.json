@@ -207,7 +207,9 @@
       "content_not_allowed": "Dieser Inhalt passt nicht zur Art der Bibliothek.",
       "providers_not_allowed": "Diese Liste von Metadatenquellen ist für diesen Inhalt nicht erlaubt.",
       "roots_required": "Mindestens ein Ordner ist nötig.",
-      "provider_not_searchable": "Nur TMDB und TVDB lassen sich durchsuchen."
+      "provider_not_searchable": "Nur TMDB und TVDB lassen sich durchsuchen.",
+      "local_address": "Diese Adresse liegt im lokalen Netz. Auch eigene Sender müssen aus dem Internet kommen.",
+      "not_own": "Das lässt sich nur bei eigenen Sendern ändern."
     }
   },
   "setup": {
@@ -971,7 +973,9 @@
         "liveValue": "{{relays}} · {{listeners}}",
         "liveNote": "Sender · Hörer",
         "changed": "Von Hand geändert",
-        "changedNote": "Ausnahmen"
+        "changedNote": "Ausnahmen",
+        "tags": "Schlagworte ohne Zuordnung",
+        "tagsNote": "mit mehr als 50 Sendern"
       },
       "memory": {
         "title": "Kein RAM-Puffer",
@@ -981,7 +985,9 @@
         "label": "Bereiche",
         "overview": "Übersicht",
         "stations": "Sender",
-        "settings": "Einstellungen"
+        "settings": "Einstellungen",
+        "rules": "Einordnung",
+        "own": "Eigene Sender"
       },
       "catalog": {
         "title": "Katalog",
@@ -1103,7 +1109,11 @@
         "countriesChosen": "Nur gewählte Länder",
         "countriesField": "Länder (ISO-Codes, mit Komma getrennt)",
         "rights": "Die Sender sehen den Slouchcat-Server und nicht das Gerät, darum gilt der Standort des Servers. Slouchcat gibt den Ton nur an angemeldete Profile dieser Installation weiter; ob das für einen Sender zulässig ist, verantwortet der Betreiber der Installation.",
-        "saved": "Die Einstellungen sind gespeichert."
+        "saved": "Die Einstellungen sind gespeichert.",
+        "coverMusicbrainz": "Cover-Suche MusicBrainz",
+        "coverMusicbrainzHelp": "Sucht zum laufenden Titel das Cover bei MusicBrainz und im Cover Art Archive, nur beim Titelwechsel eines laufenden Senders und höchstens einmal je Sekunde.",
+        "coverItunes": "Cover-Suche iTunes",
+        "coverItunesHelp": "Fragt die iTunes-Suche, wenn MusicBrainz nichts findet; höchstens 20 Anfragen je Minute. Ein Bild, das der Sender selbst mitschickt, gilt immer."
       },
       "editor": {
         "close": "Schliessen",
@@ -1144,6 +1154,93 @@
         "lockHelp": "Ein gesperrtes Feld überschreibt der tägliche Abgleich nicht.",
         "save": "Speichern",
         "saved": "{{name}} ist gespeichert."
+      },
+      "rules": {
+        "title": "Einordnung",
+        "open": "Zur Einordnung",
+        "coverage": "Abdeckung je Filter",
+        "coverageHelp": "Anteil der erreichbaren, sichtbaren Sender mit einem Wert. Eine Sendeart zählt nur, wenn ein Schlagwort, der Name oder die Verwaltung sie setzt.",
+        "coverageCount": "{{assigned}} von {{total}} Sendern",
+        "unassigned_one": "{{count}} Schlagwort ohne Zuordnung",
+        "unassigned_other": "{{count}} Schlagworte ohne Zuordnung",
+        "worklist": "Nicht zugeordnete Schlagworte",
+        "worklistHelp_one": "Nach Zahl der Sender. Schlagworte mit weniger als {{count}} Sender stehen nicht auf der Liste. Eine Zuordnung wirkt sofort auf alle Sender mit diesem Schlagwort.",
+        "worklistHelp_other": "Nach Zahl der Sender. Schlagworte mit weniger als {{count}} Sendern stehen nicht auf der Liste. Eine Zuordnung wirkt sofort auf alle Sender mit diesem Schlagwort.",
+        "worklistEmpty": "Alle häufigen Schlagworte sind zugeordnet.",
+        "rules": "Regeln",
+        "rulesHelp": "Schlagwort → Merkmal. Eine eigene Regel ersetzt die Vorgabe für ihr Merkmal; was bei einem Sender von Hand gesetzt ist, bleibt.",
+        "rulesEmpty": "Keine Regel passt zur Suche.",
+        "search": "Regeln durchsuchen",
+        "count_one": "{{count}} Regel",
+        "count_other": "{{count}} Regeln",
+        "more_one": "{{count}} weitere anzeigen",
+        "more_other": "{{count}} weitere anzeigen",
+        "columns": {
+          "tag": "Schlagwort",
+          "stations": "Sender",
+          "assign": "Zuordnen zu",
+          "actions": "Aktionen",
+          "facet": "Merkmal",
+          "target": "Wird zu",
+          "source": "Quelle"
+        },
+        "choose": "Merkmal wählen …",
+        "chooseLabel": "Merkmal für das Schlagwort {{tag}}",
+        "ignore": "Ignorieren (kein Merkmal)",
+        "assign": "Zuordnen",
+        "assignLabel": "Schlagwort {{tag}} zuordnen",
+        "target": "{{facet}}: {{value}}",
+        "none": "Keins",
+        "ignored": "Ignoriert",
+        "ignoreFacet": "Ignorieren",
+        "ruleLabel": "{{facet}} für das Schlagwort {{tag}}",
+        "source": {
+          "default": "Vorgabe",
+          "admin": "Eigene Regel"
+        },
+        "remove": "Entfernen",
+        "removeLabel": "Regel {{facet}} für {{tag}} entfernen",
+        "removeTitle": "Regel für «{{tag}}» entfernen?",
+        "removeBody": "«{{tag}}» fällt für dieses Merkmal auf die Vorgabe zurück. Die Sender werden sofort neu eingeordnet.",
+        "removeIgnoreBody": "«{{tag}}» kommt wieder auf die Liste der nicht zugeordneten Schlagworte.",
+        "assignedDone": "«{{tag}}» ist jetzt {{target}}. Die Sender sind neu eingeordnet.",
+        "ignoredDone": "«{{tag}}» wird ignoriert.",
+        "changedDone": "Die Regel für «{{tag}}» ist gespeichert. Die Sender sind neu eingeordnet.",
+        "removedDone": "Die Regel für «{{tag}}» ist entfernt."
+      },
+      "own": {
+        "title": "Eigene Sender",
+        "help": "Sender, die im Katalog fehlen, zum Beispiel Quartier- oder Stadionradios. Der Abgleich ändert sie nie.",
+        "add": "Eigenen Sender hinzufügen",
+        "empty": "Noch kein eigener Sender.",
+        "created": "{{name}} ist hinzugefügt.",
+        "deleted": "{{name}} ist gelöscht.",
+        "delete": "Löschen",
+        "deleteLabel": "{{name}} löschen",
+        "deleteTitle": "{{name}} löschen?",
+        "deleteBody": "Der Sender verschwindet für alle Profile, auch aus «Meine Sender». Wer ihn gerade hört, wird getrennt.",
+        "editorHelp": "Eigener Sender: Stream-Adresse, Webseite, Land und Sprachen lassen sich hier ändern.",
+        "columns": {
+          "stream": "Stream-Adresse"
+        },
+        "fields": {
+          "name": "Name",
+          "streamUrl": "Stream-Adresse",
+          "streamUrlHelp": "Direkte Adresse oder Wiedergabeliste (.pls, .m3u); der Server löst sie auf. Adressen im lokalen Netz sind nicht erlaubt.",
+          "homepage": "Webseite",
+          "homepageHelp": "Freiwillig; von dort holt der Server das Logo.",
+          "country": "Land",
+          "countryHelp": "ISO-Code, zum Beispiel CH. Leer: kein Land.",
+          "languages": "Sprachen",
+          "languagesHelp": "ISO-Codes, mit Komma getrennt, zum Beispiel de, fr.",
+          "none": "Ohne",
+          "kindAuto": "Automatisch"
+        },
+        "create": {
+          "title": "Eigenen Sender hinzufügen",
+          "description": "Ein Sender, der im Katalog fehlt. Er lässt sich filtern wie jeder andere.",
+          "submit": "Hinzufügen"
+        }
       }
     },
     "editor": {
@@ -1873,7 +1970,23 @@
           "label": "Bandbreite gesamt",
           "note": "Summe der Bitraten",
           "notePartial": "Summe der bekannten Bitraten"
+        },
+        "radio": {
+          "label": "Radio",
+          "note": "Hörer, ohne Transcoding"
         }
+      },
+      "radio": {
+        "title": "Radio",
+        "help": "Wer gerade Webradio über den Server hört; ein Sender läuft für alle Hörer nur einmal.",
+        "mode": "Radio",
+        "playing": "Hört",
+        "paused": "Pausiert",
+        "stopLabel": "Radio von {{profile}} beenden",
+        "stopTitle": "Radio von {{profile}} beenden?",
+        "stopBody": "Die Wiedergabe von «{{station}}» stoppt auf dem Gerät innert Sekunden.",
+        "stopConfirm": "Radio beenden",
+        "stopped": "Radio von {{profile}} beendet."
       }
     },
     "podcasts": {
