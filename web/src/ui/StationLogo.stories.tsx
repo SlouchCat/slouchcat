@@ -51,3 +51,18 @@ export const LongName: Story = {
     </div>
   ),
 };
+
+/** A cover that fails to load gives way to the station's logo (concept 16, 8 point 6). */
+export const CoverFallback: Story = {
+  render: () => (
+    <Stack direction="row" gap={4}>
+      <StationLogo
+        name="Radio Swiss Pop"
+        src="missing-cover.webp"
+        fallbackSrc={art.posterMoss}
+        size="lg"
+      />
+      <StationLogo name="Kanal K" src="missing-cover.webp" size="lg" />
+    </Stack>
+  ),
+};

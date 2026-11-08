@@ -1,0 +1,35 @@
+.slider {
+  display: grid;
+  flex: 1;
+  gap: var(--sc-space-1);
+  min-width: 0;
+}
+
+.range {
+  width: 100%;
+  height: var(--sc-space-6);
+  margin: 0;
+  accent-color: var(--sc-accent);
+  cursor: pointer;
+}
+
+.scale {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sc-space-2);
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Behind live the offset stands out in the warning tone; at live it says so in the live red. */
+.value {
+  color: var(--sc-color-state-warning);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.value[data-live] {
+  color: var(--sc-color-state-danger);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
+}

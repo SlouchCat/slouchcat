@@ -184,6 +184,27 @@ img {
   object-fit: cover;
 }
 
+/*
+ * «Meine Sender» on top (concept 16, 10.2): the first stations' logos with the geometry of the
+ * square StationTile in its row (a card wide, StationLogo `fill`: 1:1 on surface-2, the logo
+ * contained).
+ */
+#poster-prepaint > .station {
+  display: block;
+  flex: none;
+  overflow: hidden;
+  width: calc((100% - 2 * var(--sc-space-4)) / 3 + 0.5px);
+  aspect-ratio: 1 / 1;
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-2);
+}
+
+#poster-prepaint > .station > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 @media (hover: hover) and (pointer: fine) {
   :root {
     --row-header-height: var(--sc-size-control-height);
@@ -219,6 +240,10 @@ img {
   #poster-prepaint > .tile {
     width: calc(2 * var(--sc-size-poster-md) + var(--sc-space-4));
   }
+
+  #poster-prepaint > .station {
+    width: calc(var(--sc-size-poster-md) + 0.5px);
+  }
 }
 
 @media (width >= 1440px) {
@@ -232,5 +257,9 @@ img {
 
   #poster-prepaint > .tile {
     width: calc(2 * var(--sc-size-poster-lg) + var(--sc-space-4));
+  }
+
+  #poster-prepaint > .station {
+    width: calc(var(--sc-size-poster-lg) + 0.5px);
   }
 }

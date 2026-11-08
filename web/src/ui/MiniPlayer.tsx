@@ -8,7 +8,8 @@ import { StationLogo } from './StationLogo';
 // header. Plain buttons with arrow-key navigation (norigin), no react-aria: it is part of the
 // start bundle (P-10). The texts come from the app (rule 9).
 
-export type MiniPlayerState = 'starting' | 'live' | 'paused' | 'error';
+/** `shifted`: plays behind live (the badge says «−12:30», concept 16 stage 2). */
+export type MiniPlayerState = 'starting' | 'live' | 'shifted' | 'paused' | 'error';
 
 interface MiniPlayerToggle {
   pressed: boolean;
@@ -21,11 +22,18 @@ interface MiniPlayerProps {
   label: string;
   stationName: string;
   logoUrl?: string;
+  /** The cover of the title that plays; the logo shows while it has none or it fails. */
+  coverUrl?: string;
   /** The second line: artist and title, «Live», or the message of a stopped station. */
   line: string;
   state: MiniPlayerState;
-  /** The badge beside the controls: «LIVE», «Pausiert», «Verbindet …». */
+  /** The badge beside the controls: «LIVE», «−12:30», «Pausiert», «Verbindet …». */
   stateLabel?: string;
+  /**
+   * A note over the bar with its action: the pause lasted longer than the time shift window
+   * («Die Pause war länger als 30 Minuten …» with «Live»).
+   */
+  hint?: { text: string; actionLabel: string; onAction: () => void };
   /** Opens «Jetzt läuft»; its accessible name says so. */
   openLabel: string;
   onOpen: () => void;
@@ -91,9 +99,11 @@ export function MiniPlayer({
   label,
   stationName,
   logoUrl,
+  coverUrl,
   line,
   state,
   stateLabel,
+  hint,
   openLabel,
   onOpen,
   toggle,
@@ -110,13 +120,31 @@ export function MiniPlayer({
       data-testid="radio-mini-player"
       {...space}
     >
+      {hint && (
+        <p className={styles.hint} data-testid="radio-mini-hint">
+          <span>{hint.text}</span>
+          <BarButton
+            className={styles.hintAction}
+            label={hint.actionLabel}
+            onPress={hint.onAction}
+            testId="radio-mini-hint-live"
+          >
+            {hint.actionLabel}
+          </BarButton>
+        </p>
+      )}
       <BarButton
         className={styles.open}
         label={openLabel}
         onPress={onOpen}
         testId="radio-mini-open"
       >
-        <StationLogo name={stationName} src={logoUrl} size="sm" />
+        <StationLogo
+          name={stationName}
+          src={coverUrl ?? logoUrl}
+          fallbackSrc={coverUrl ? logoUrl : undefined}
+          size="sm"
+        />
         <span className={styles.text}>
           <span className={styles.name}>{stationName}</span>
           <span className={styles.line} data-testid="radio-mini-line">
@@ -125,7 +153,7 @@ export function MiniPlayer({
         </span>
       </BarButton>
       {stateLabel && (
-        <span className={styles.state} aria-hidden="true">
+        <span className={styles.state} aria-hidden="true" data-testid="radio-mini-state">
           {state === 'live' && <span className={styles.dot} />}
           {stateLabel}
         </span>

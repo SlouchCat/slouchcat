@@ -1326,4 +1326,115 @@ describe('start page', () => {
       ).not.toBeInTheDocument();
     });
   });
+
+  describe('the row «Meine Sender» (concept 16, 10.2)', () => {
+    const station = (id: number, name: string, logo = true) => ({
+      id,
+      name,
+      country: 'CH',
+      languages: ['de'],
+      genres: ['pop'],
+      kinds: ['music'],
+      moods: [],
+      hls: false,
+      showsTitles: true,
+      favorite: true,
+      recommended: false,
+      state: 'ok' as const,
+      ...(logo ? { logo: { url: `/radio/images/${id}/logo/w256?v=h${id}` } } : {}),
+    });
+    const radioRow = {
+      id: 'radio',
+      key: 'radio' as const,
+      items: [],
+      stations: [
+        {
+          station: station(7, 'Radio Swiss Pop'),
+          now: { at: 1, text: 'Dua Lipa - Houdini', artist: 'Dua Lipa', title: 'Houdini' },
+        },
+        { station: station(8, 'Kanal K', false) },
+      ],
+    };
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      document.getElementById('poster-prepaint')?.remove();
+    });
+
+    it('shows the favourites as tiles with the current title or the place and links to /radio', async () => {
+      mockApi({ ...signedIn, 'GET /home': () => json({ rows: [radioRow] }) });
+      renderApp('/');
+      const row = await screen.findByRole('region', { name: 'Meine Sender' });
+      const first = within(row).getByRole('button', { name: 'Radio Swiss Pop abspielen' });
+      expect(first).toHaveTextContent('Dua Lipa – Houdini');
+      expect(first.querySelector('img')).toHaveAttribute(
+        'src',
+        '/api/v1/radio/images/7/logo/w256?v=h7',
+      );
+      expect(first.querySelector('img')).toHaveAttribute('fetchpriority', 'high');
+      // Without a running relay: country and genre (D-7).
+      expect(within(row).getByRole('button', { name: 'Kanal K abspielen' })).toHaveTextContent(
+        'Schweiz · Pop',
+      );
+      expect(within(row).getByRole('button', { name: 'Kanal K in Meine Sender' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      expect(within(row).getByRole('link', { name: 'Alle anzeigen ›' })).toHaveAttribute(
+        'href',
+        '/radio',
+      );
+      // The tiles are named by the row and the station (firstKey, arrow-key navigation).
+      act(() => first.focus());
+      await waitFor(() => expect(spatialFocusKey()).toBe('radio-7'));
+    });
+
+    it('plays a station through the radio of the app', async () => {
+      vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+      const api = mockApi({ ...signedIn, 'GET /home': () => json({ rows: [radioRow] }) });
+      renderApp('/');
+      const row = await screen.findByRole('region', { name: 'Meine Sender' });
+      await userEvent.click(within(row).getByRole('button', { name: 'Radio Swiss Pop abspielen' }));
+      await waitFor(() =>
+        expect(
+          api.calls.some(
+            (call) => call.method === 'POST' && call.path === '/radio/stations/7/listen',
+          ),
+        ).toBe(true),
+      );
+      expect(await screen.findByTestId('radio-mini-player')).toHaveTextContent('Radio Swiss Pop');
+    });
+
+    it('leaves the row out without favourites', async () => {
+      mockApi({
+        ...signedIn,
+        'GET /home': () =>
+          json({
+            rows: [
+              { ...radioRow, stations: [] },
+              { id: 'recent', key: 'recent', items: [alien] },
+            ],
+          }),
+      });
+      renderApp('/');
+      await screen.findByRole('heading', { name: 'Neu hinzugefügt' });
+      expect(screen.queryByRole('region', { name: 'Meine Sender' })).not.toBeInTheDocument();
+    });
+
+    it('lets the prepaint give way once the first logo is on screen', async () => {
+      const painted = document.createElement('div');
+      painted.id = 'poster-prepaint';
+      document.body.append(painted);
+      mockApi({ ...signedIn, 'GET /home': () => json({ rows: [radioRow] }) });
+      renderApp('/');
+      const row = await screen.findByRole('region', { name: 'Meine Sender' });
+      await act(() => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))));
+      expect(painted.dataset.done).toBeUndefined();
+      const logo = within(row)
+        .getByRole('button', { name: 'Radio Swiss Pop abspielen' })
+        .querySelector('img');
+      fireEvent.load(logo!);
+      await waitFor(() => expect(painted.dataset.done).toBe(''));
+    });
+  });
 });

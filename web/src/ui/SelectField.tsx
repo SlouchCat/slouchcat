@@ -2,19 +2,33 @@ import { useId } from 'react';
 import styles from './SelectField.module.css';
 import { useSpatialItem } from './spatial';
 
-interface SelectOption<T extends string> {
+export interface SelectOption<T extends string> {
   value: T;
   label: string;
+}
+
+/** A labelled group of options (`<optgroup>`): the facets of a tag rule. */
+export interface SelectGroup<T extends string> {
+  group: string;
+  options: readonly SelectOption<T>[];
 }
 
 interface SelectFieldProps<T extends string> {
   /** Shown before the select ("Sortieren") and its accessible name. */
   label: string;
+  /** The label for screen readers only: a select in a table row, named by its column. */
+  hideLabel?: boolean;
   value: T;
-  options: readonly SelectOption<T>[];
+  options: readonly (SelectOption<T> | SelectGroup<T>)[];
   onChange: (value: T) => void;
   focusKey?: string;
 }
+
+const optionOf = <T extends string>(option: SelectOption<T>) => (
+  <option key={option.value} value={option.value}>
+    {option.label}
+  </option>
+);
 
 /**
  * A native select for the browsing pages without react-aria (P-10): the sort order of a library.
@@ -22,6 +36,7 @@ interface SelectFieldProps<T extends string> {
  */
 export function SelectField<T extends string>({
   label,
+  hideLabel = false,
   value,
   options,
   onChange,
@@ -34,12 +49,15 @@ export function SelectField<T extends string>({
   });
   return (
     <span className={styles.field}>
-      <label htmlFor={id} className={styles.label}>
-        {label}
-      </label>
+      {!hideLabel && (
+        <label htmlFor={id} className={styles.label}>
+          {label}
+        </label>
+      )}
       <select
         ref={ref}
         id={id}
+        aria-label={hideLabel ? label : undefined}
         className={styles.select}
         value={value}
         onFocus={onFocus}
@@ -49,11 +67,15 @@ export function SelectField<T extends string>({
         }}
         onChange={(event) => onChange(event.target.value as T)}
       >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
+        {options.map((entry) =>
+          'group' in entry ? (
+            <optgroup key={entry.group} label={entry.group}>
+              {entry.options.map(optionOf)}
+            </optgroup>
+          ) : (
+            optionOf(entry)
+          ),
+        )}
       </select>
     </span>
   );

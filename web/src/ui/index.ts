@@ -41,7 +41,7 @@ export { ProfileAvatar, ProfileTile } from './ProfileTile';
 export { ProgressBar } from './ProgressBar';
 export { Row, RowList } from './Row';
 export { SearchField } from './SearchField';
-export { SelectField } from './SelectField';
+export { SelectField, type SelectGroup, type SelectOption } from './SelectField';
 export {
   SIDENAV_HIDE_KEY,
   SideNav,

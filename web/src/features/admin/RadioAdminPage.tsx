@@ -6,30 +6,32 @@ import { problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Notice } from '@/ui';
-import { AdminPage, StatusStrip, Tabs, useSearchSelection } from '@/ui/aria';
+import { AdminPage, StatusStrip, Tabs, afterRender, useSearchSelection } from '@/ui/aria';
 import {
   adminRadioStationsQuery,
   RADIO_RELAYS_POLL_MS,
   radioCatalogQuery,
   radioConfigQuery,
   radioRelaysQuery,
+  radioTagRulesQuery,
 } from './queries';
 import { OverviewTab } from './radio/OverviewTab';
+import { OwnStationsTab } from './radio/OwnStationsTab';
 import { SettingsTab } from './radio/SettingsTab';
 import { StationEditor } from './radio/StationEditor';
 import { StationsTab } from './radio/StationsTab';
+import { TagRulesTab } from './radio/TagRulesTab';
 
 const route = getRouteApi('/_authed/_active/_chrome/admin/radio');
 
-/**
- * The tabs of stage 1 (R-16). The ids stay stable: stage 2 adds `einordnung` and `eigene`.
- */
-const TABS = ['uebersicht', 'sender', 'einstellungen'] as const;
+/** The tabs (R-16, concept 16 stage 2); the ids are part of links and stay stable. */
+const TABS = ['uebersicht', 'sender', 'einordnung', 'eigene', 'einstellungen'] as const;
 
 /**
  * Webradio in the administration (concept 16, 11; variant A «Reiter»): the counters, a warning
- * without RAM buffer, the tabs «Übersicht» (catalog, live relays, server load), «Sender» (the
- * exceptions first, the editor in `?item=`) and «Einstellungen». The tab is `?tab=` (S-14).
+ * without RAM buffer, the tabs «Übersicht» (catalog, coverage, live relays, server load),
+ * «Sender» (the exceptions first, the editor in `?item=`), «Einordnung» (tag rules, D-1 to D-4),
+ * «Eigene Sender» and «Einstellungen». The tab is `?tab=` (S-14).
  */
 export function RadioAdminPage() {
   const { t } = useTranslation();
@@ -75,6 +77,16 @@ function RadioAdminContent() {
   });
   // The number of exceptions for the counter: the first page of «Nur Ausnahmen» says the total.
   const exceptions = useInfiniteQuery(adminRadioStationsQuery({ exceptions: true }));
+  // Coverage and open tags for «Übersicht» and the status strip (the server caches the answer).
+  const tagRules = useQuery(radioTagRulesQuery);
+  const openTags = tagRules.data?.openTags ?? 0;
+  const openRules = () => {
+    selectTab('einordnung');
+    // The button that asked for it goes with «Übersicht»: the chosen tab takes the focus.
+    void afterRender().then(() =>
+      document.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus(),
+    );
+  };
 
   const listeners = (relays.data?.relays ?? []).reduce(
     (sum, relay) => sum + relay.listeners.length,
@@ -120,6 +132,18 @@ function RadioAdminContent() {
           value: number.format(exceptions.data?.pages[0]?.total ?? 0),
           note: t('admin.radio.strip.changedNote'),
         },
+        // Named while tags of more than 50 stations wait for a rule (paper 11).
+        ...(openTags > 0
+          ? [
+              {
+                key: 'tags',
+                label: t('admin.radio.strip.tags'),
+                value: number.format(openTags),
+                note: t('admin.radio.strip.tagsNote'),
+                tone: 'warning' as const,
+              },
+            ]
+          : []),
       ]}
     />
   );
@@ -150,6 +174,8 @@ function RadioAdminContent() {
               <OverviewTab
                 catalog={catalog}
                 relays={relays}
+                tagRules={tagRules}
+                onOpenRules={openRules}
                 titleRef={titleRef}
                 onConfirmOpenChange={setHoldPoll}
               />
@@ -159,6 +185,16 @@ function RadioAdminContent() {
             id: 'sender',
             label: t('admin.radio.tabs.stations'),
             content: <StationsTab onEdit={openEditor} />,
+          },
+          {
+            id: 'einordnung',
+            label: t('admin.radio.tabs.rules'),
+            content: <TagRulesTab titleRef={titleRef} />,
+          },
+          {
+            id: 'eigene',
+            label: t('admin.radio.tabs.own'),
+            content: <OwnStationsTab onEdit={openEditor} titleRef={titleRef} />,
           },
           {
             id: 'einstellungen',
