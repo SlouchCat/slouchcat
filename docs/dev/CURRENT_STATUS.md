@@ -1,5 +1,19 @@
 # Aktueller Stand
 
+## Release 1.19.1 (8. November 2026): Radiotitel mit weiteren Trennstrichen
+
+Patch ohne Vertragsänderung (Vertrag bleibt 1.19.0), keine Migration. Zweig `claude/radio-title-dash` ab `main`
+`85223f7a`. Fix und Versionsstellen in einem Pull Request.
+
+- Befund aus der Abnahme von Konzept 16 Stufe 2 auf CT 190 (`docs/perf/radio.md` 4.1): Energy Zürich meldet Titel
+  als «Rihanna ˗ Diamonds» mit U+02D7. `cleanTitle` trennte nur an « - » und « – », darum fehlten Interpret und
+  Titel und damit jedes Cover.
+- `cleanTitle` trennt jetzt auch an Geviertstrich (U+2014), Minuszeichen (U+2212) und U+02D7, jeweils zwischen
+  Leerzeichen, am ersten im Text (`titleSeparators`). Test in `TestMetaCleanup`.
+- Prüfung: `go test -race ./internal/radio/...` ok, `task server:lint` 0 issues, `task check:fast` grün.
+- Versionsstellen auf 1.19.1 (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/compose.updater.yaml`,
+  `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`).
+
 ## Konzept 16 Stufe 2 «Webradio: Zurück und Cover» (8. November 2026): Pull Request
 
 Zweig `claude/webradio-stufe2-09f306` ab `main` `344ebe33` (Release 1.18.2). **Vertrag 1.19.0, brechend für `getHome`

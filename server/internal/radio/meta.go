@@ -33,7 +33,7 @@ func decodeMetaText(b []byte) string {
 func foldTitle(s string) string { return model.SortKey("", s) }
 
 // cleanTitle turns announced text into a timeline entry (At is set by the relay): spaces trimmed
-// and collapsed, cut to maxTitleRunes, artist and title split at the first " - " or " – ". ok is false when the text
+// and collapsed, cut to maxTitleRunes, artist and title split at the first titleSeparators. ok is false when the text
 // announces no title: empty, only punctuation, the name of the station (icy-name or the catalog
 // name), or a pattern of rules/notitle.json.
 func cleanTitle(text string, stationNames ...string) (model.RadioNowEntry, bool) {
@@ -56,15 +56,21 @@ func cleanTitle(text string, stationNames ...string) (model.RadioNowEntry, bool)
 		}
 	}
 	e := model.RadioNowEntry{Text: text}
-	i, sep := strings.Index(text, " - "), " - "
-	if j := strings.Index(text, " – "); j >= 0 && (i < 0 || j < i) {
-		i, sep = j, " – "
+	i, sep := -1, ""
+	for _, cand := range titleSeparators {
+		if j := strings.Index(text, cand); j >= 0 && (i < 0 || j < i) {
+			i, sep = j, cand
+		}
 	}
 	if i > 0 && i+len(sep) < len(text) {
 		e.Artist, e.Title = strings.TrimSpace(text[:i]), strings.TrimSpace(text[i+len(sep):])
 	}
 	return e, true
 }
+
+// titleSeparators split artist and title, each between spaces: hyphen, en dash, em dash, minus sign
+// and the modifier letter minus sign U+02D7 (Energy Zürich announces «Rihanna ˗ Diamonds»).
+var titleSeparators = []string{" - ", " \u2013 ", " \u2014 ", " \u2212 ", " \u02d7 "}
 
 // maxTitleRunes bounds an announced title; longer text is cut.
 const maxTitleRunes = 512
