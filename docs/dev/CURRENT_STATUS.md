@@ -1,5 +1,19 @@
 # Aktueller Stand
 
+## Release 1.18.1 (8. November 2026): ganzer Radiokatalog
+
+Patch ohne Vertragsänderung (Vertrag bleibt 1.18.0), keine Migration. Release ab `main` nach PR #116
+(Merge `ddfc61ec`), Zweig `claude/release-1.18.1`. Release auf Marcos Wort vom 8. November 2026.
+
+- Radio Browser antwortet auf `/json/stations` ohne `limit` nur mit den ersten 1000 Einträgen. CT 190 hatte
+  mit 1.17.0 deshalb nur 986 Sender (`entries=998`), kaum Schweizer. `catalogStationsPath` fragt jetzt mit
+  `limit=1000000`: rund 63 500 Sender, davon 661 mit `countrycode=CH`, etwa 75 MB. Der Testkatalog in
+  `sync_test.go` lehnt eine Anfrage ohne `limit` ab.
+- Bestehende Installationen bekommen die fehlenden Sender beim nächsten Abgleich (täglich ab 04:30 oder
+  «Jetzt abgleichen» auf der Seite Radio).
+- Versionsstellen auf 1.18.1 (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/compose.updater.yaml`,
+  `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`).
+
 ## Update, das immer durchgeht (Vertrag 1.18.0, 8. November 2026)
 
 Zweig `claude/manifest-fallback` ab `main` `216ea50a` (Release 1.17.0). Vertrag **1.18.0, additiv**, keine
