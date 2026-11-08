@@ -40,10 +40,11 @@ type nextUpEpisode struct {
 //   - No activity: start, the first regular episode.
 //   - The newest one started, not completed: resume, that episode.
 //   - The newest one completed: next, the first regular episode after it by season and number
-//     (after its last episode for a file with several), watched or not. That step is empty when
-//     the completed episode is not regular (a special of a series with regular episodes) or lacks
-//     its season or episode number; then next, the first regular episode not completed; when every
-//     regular episode is completed, rewatch with the first one.
+//     (after its last episode for a file with several), watched or not. Every regular episode
+//     comes after a special, so a completed special of a series with regular episodes leads to the
+//     first regular one (Marco's answer of 8 November 2026). That step is empty when the completed
+//     episode lacks its season or episode number or is the last one; then next, the first regular
+//     episode not completed; when every regular episode is completed, rewatch with the first one.
 func nextUp(eps []nextUpEpisode) (reason string, ep nextUpEpisode, ok bool) {
 	regular := make([]nextUpEpisode, 0, len(eps))
 	for _, e := range eps {
@@ -74,8 +75,10 @@ func nextUp(eps []nextUpEpisode) (reason string, ep nextUpEpisode, ok bool) {
 	if !n.Completed {
 		return NextUpResume, n, true
 	}
-	isRegular := allRegular || (n.Season != nil && *n.Season >= 1)
-	if isRegular && n.Season != nil && n.Number != nil {
+	if !allRegular && n.Season != nil && *n.Season < 1 {
+		return NextUpNext, regular[0], true
+	}
+	if n.Season != nil && n.Number != nil {
 		last := *n.Number
 		if n.End != nil {
 			last = *n.End

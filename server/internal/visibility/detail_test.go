@@ -209,11 +209,12 @@ func TestNextUpOnDetail(t *testing.T) {
 	check("visible next", f.P16, show.Series.ID, NextUpNext, show.E2.ID)
 	check("another profile's progress", f.P18, show.Series.ID, NextUpStart, show.E1.ID)
 
-	// P16 finishes the special last: the series page goes on with the first regular episode not
-	// completed; the season page of season 1 does not see the special; the specials page, all of
-	// whose episodes are completed, offers the rewatch.
+	// P16 finishes the special last: the series page goes on with the first regular episode,
+	// watched or not (S01E01, Marco's answer of 8 November 2026); the season page of season 1 does
+	// not see the special; the specials page, all of whose episodes are completed, offers the
+	// rewatch.
 	setProgress(t, f, f.P16, show.Special.ID, true, 9)
-	check("newest is a special", f.P16, show.Series.ID, NextUpNext, show.E2.ID)
+	check("newest is a special", f.P16, show.Series.ID, NextUpNext, show.E1.ID)
 	check("season 1 ignores the special", f.P16, show.Season.ID, NextUpNext, show.E2.ID)
 	check("specials page", f.P16, show.Specials.ID, NextUpRewatch, show.Special.ID)
 

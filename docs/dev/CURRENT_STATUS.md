@@ -6,7 +6,8 @@
 `6c05eda7` (Release 1.19.2). Bau auf Marcos Wort vom 8. November 2026 («Weiter mit Stufe 2») nach Plan in drei Spuren
 (Server, Detailseite, Merken auf dem Cover) mit Kritiker-Review des Plans (REVISE, 0 Blocker, 5 Major, 8 Minor,
 eingearbeitet), Security-Review der neuen Abfragen (LOW, L-1 behoben) und Code-Review (kein Blocker, Befunde behoben).
-Randentscheide im Nachtrag zu Frage 24.
+Randentscheide und Marcos drei Antworten (Sammlung bei Serien direkt nach dem Kopf; nach einem Special nennt der Knopf
+S01E01; Haken für Serien in Sammlungen später) im Nachtrag zu Frage 24.
 
 - **Vertrag:** Schema `NextUp { reason: start|resume|next|rewatch, episode }` und `ItemDetail.nextUp` (Serie; Staffel
   auf die Staffel eingeschränkt); `ItemRef.inWatchlist` (immer gesetzt) und `ItemRef.overview` (in Listen nur bei den

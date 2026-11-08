@@ -5280,8 +5280,9 @@ export interface components {
          *     a special only when there are no regular ones). `resume`: the newest activity is a started,
          *     not completed episode, that episode. `next`: the newest activity is a completed episode, the
          *     next regular episode after it by season and number (after the last episode of a file with
-         *     several), watched or not; without one, or when the completed episode is a special or has no
-         *     season or episode number, the first regular episode not completed yet. `rewatch`: every
+         *     several), watched or not, so after a special the first regular episode; without one, or when
+         *     the completed episode has no season or episode number, the first regular episode not
+         *     completed yet. `rewatch`: every
          *     regular episode is completed, the first one. Season numbers fall back to the season's number
          *     when the episode has none.
          */
