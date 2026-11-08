@@ -1,6 +1,6 @@
 # Konzept: Serien- und Filmseite, Bibliotheksraster und Seitenleiste
 
-- **Status: Fassung 4 (7. November 2026), Kritiker-Review eingearbeitet (REVISE, 0 Blocker, 8 Major, 13 Minor; Abschnitt 14), mit klickbarem Mockup.** Marco hat am 7. November 2026
+- **Status: Fassung 4 (7. November 2026), freigegeben und gemergt am 8. November 2026 (Frage 24), Kritiker-Review eingearbeitet (REVISE, 0 Blocker, 8 Major, 13 Minor; Abschnitt 14), mit klickbarem Mockup.** Marco hat am 7. November 2026
   alle Fragen **F-1 bis F-17** beantwortet (Abschnitt 11): **Serie A**,
   **Knöpfe A mit Trailer in der Reihe der Rundknöpfe**, **Sammlung nur als Reihe** (2),
   **Seitenleiste B mit Profilkopf, «Meine Medien» immer offen**. Abweichend von der Empfehlung:
@@ -432,7 +432,7 @@ Betroffene Tests, die mitziehen: `e2e/library.spec.ts` (Buchstabenfilter :31-69,
 Seitenleiste, Storybook-Baselines von `PosterCard`, `CastCard`, `LetterBar`, `SideNav`.
 
 Nachzuführen beim Bau: ADR 0016 Punkt (f) und die Zeilen zum Buchstabenfilter (`0016:50,64`),
-Konzept 08 N-2 (Symbole) und die zuklappbare Gruppe, Entscheidungsprotokoll Frage 24.
+Konzept 08 N-2 (Symbole) und die zuklappbare Gruppe, Nummern von Vertrag und Migration in Frage 24.
 
 ## 13. Was nicht dazugehört
 
