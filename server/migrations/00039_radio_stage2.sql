@@ -15,6 +15,9 @@
 --                    miss 24 hours (expires_at); the images live below <cache>/radio/covers/.
 --   radio_config     two new columns: cover_musicbrainz and cover_itunes switch the two steps of the
 --                    cover chain (paper 11 «Einstellungen»), both on.
+--   indexes          radio_favorites and radio_listen_sessions by station: deleting a station
+--                    (an own one, or a catalog one 7 days after it left the catalog) cascades into
+--                    both, and without them each delete scanned the two tables.
 --   home_rows        the new key radio («Meine Sender», 10.2). SQLite cannot change a CHECK
 --                    constraint, so the table is rebuilt; every row keeps its id, key, library,
 --                    position, hidden flag and time. The row radio is added hidden at the end (F-17).
@@ -51,6 +54,9 @@ CREATE INDEX radio_tracks_expires ON radio_tracks (expires_at);
 
 ALTER TABLE radio_config ADD COLUMN cover_musicbrainz INTEGER NOT NULL DEFAULT 1 CHECK (cover_musicbrainz IN (0, 1));
 ALTER TABLE radio_config ADD COLUMN cover_itunes INTEGER NOT NULL DEFAULT 1 CHECK (cover_itunes IN (0, 1));
+
+CREATE INDEX radio_favorites_station ON radio_favorites (station_id);
+CREATE INDEX radio_listen_sessions_station ON radio_listen_sessions (station_id);
 
 DROP TRIGGER home_rows_library_added;
 
