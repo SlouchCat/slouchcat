@@ -18,6 +18,7 @@ import {
   SpatialGroup,
   SpatialPage,
 } from '@/ui';
+import { CoverWatchlist, WATCHLIST_KINDS } from '@/features/discover/CoverWatchlist';
 import { creditCaption } from './labels';
 import { personQuery } from './queries';
 import styles from './PersonPage.module.css';
@@ -103,6 +104,11 @@ export function PersonPage() {
                 posterUrl={imageUrl(credit.item.images.poster)}
                 posterSmallUrl={imageUrl(credit.item.images.posterSmall)}
                 accent={credit.item.accent}
+                mark={
+                  WATCHLIST_KINDS.has(credit.item.kind) ? (
+                    <CoverWatchlist item={credit.item} />
+                  ) : undefined
+                }
               />
             ))}
           </Row>

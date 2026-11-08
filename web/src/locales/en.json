@@ -4271,6 +4271,10 @@
     "title": "Watchlist",
     "remove": "Remove",
     "removeLabel": "Remove {{title}} from the watchlist",
+    "cover": {
+      "add": "Add {{title}} to the watchlist",
+      "remove": "Take {{title}} off the watchlist"
+    },
     "more": "Load more",
     "empty": {
       "title": "Your watchlist is empty",

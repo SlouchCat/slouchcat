@@ -4271,6 +4271,10 @@
     "title": "Merkliste",
     "remove": "Entfernen",
     "removeLabel": "{{title}} von der Merkliste entfernen",
+    "cover": {
+      "add": "{{title}} merken",
+      "remove": "{{title}} von der Merkliste nehmen"
+    },
     "more": "Mehr laden",
     "empty": {
       "title": "Deine Merkliste ist leer",
