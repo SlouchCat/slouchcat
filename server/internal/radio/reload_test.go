@@ -13,7 +13,9 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 )
 
-// The entry of one station equals its entry in the full load, locks and facets included.
+// The entry of one station equals its entry in the full load, locks and facets included, and both
+// carry the best stream of ListRadioStreamsRanked: a worse preferred stream wins only under the lock
+// "stream", and a station without streams has no codec.
 func TestLoadEntryMatchesFullLoad(t *testing.T) {
 	e := newCatEnv(t)
 	e.sync()
@@ -21,6 +23,13 @@ func TestLoadEntryMatchesFullLoad(t *testing.T) {
 	if _, err := e.s.UpdateStation(e.ctx, e.stationID("Radio 24"), model.AdminRadioStationPatch{Name: &name}); err != nil {
 		t.Fatal(err)
 	}
+	lockedPref, freePref, noStreams := e.stationID("Testradio Eins"), e.stationID("Testradio Zwei"), e.stationID("Testradio Drei")
+	for _, id := range []int64{lockedPref, freePref} {
+		e.exec(`INSERT INTO radio_streams (station_id, url, codec, bitrate, lastcheckok, preferred, updated_at)
+			VALUES (?, 'http://example.invalid/worse', 'OGG', 32, 0, 1, 0)`, id)
+	}
+	e.exec(`INSERT INTO radio_station_locks (station_id, field) VALUES (?, 'stream')`, lockedPref)
+	e.exec(`DELETE FROM radio_streams WHERE station_id = ?`, noStreams)
 	q := appq.New(e.db.Read)
 	all, err := loadEntries(e.ctx, q, sql.NullInt64{})
 	if err != nil {
@@ -38,14 +47,46 @@ func TestLoadEntryMatchesFullLoad(t *testing.T) {
 		if want.locked {
 			locked++
 		}
+		streams, err := q.ListRadioStreamsRanked(e.ctx, want.st.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(streams) == 0 {
+			if want.st.Codec != "" || want.st.BitrateKbps != 0 {
+				t.Errorf("station %d without streams: codec %q, bitrate %d", want.st.ID, want.st.Codec, want.st.BitrateKbps)
+			}
+			continue
+		}
+		if want.st.Codec != streams[0].Codec.String || want.st.BitrateKbps != int(streams[0].Bitrate.Int64) {
+			t.Errorf("station %d: best stream %s/%d, ranked first %s/%d", want.st.ID, want.st.Codec, want.st.BitrateKbps,
+				streams[0].Codec.String, streams[0].Bitrate.Int64)
+		}
 	}
-	if len(all) == 0 || locked != 1 {
-		t.Errorf("%d stations, %d locked; want some and one", len(all), locked)
+	if len(all) == 0 || locked != 2 {
+		t.Errorf("%d stations, %d locked; want some and two", len(all), locked)
+	}
+	if got := codecOf(t, all, lockedPref); got != "OGG" {
+		t.Errorf("preferred stream under the lock: best codec %q, want OGG", got)
+	}
+	if got := codecOf(t, all, freePref); got == "OGG" {
+		t.Error("a preferred stream without the lock won")
 	}
 	gone, err := loadEntries(e.ctx, q, sql.NullInt64{Int64: 1 << 40, Valid: true})
 	if err != nil || len(gone) != 0 {
 		t.Errorf("a missing station loaded %v, %v", gone, err)
 	}
+}
+
+// codecOf returns the codec of the station id in entries.
+func codecOf(t *testing.T, entries []*indexEntry, id int64) string {
+	t.Helper()
+	for _, e := range entries {
+		if e.st.ID == id {
+			return e.st.Codec
+		}
+	}
+	t.Fatalf("station %d not loaded", id)
+	return ""
 }
 
 // The queries of one station read through its keys and never scan a whole table: the reload
@@ -58,11 +99,8 @@ func TestOneStationQueriesUseKeys(t *testing.T) {
 	}
 	for _, name := range []string{"GetRadioStationForIndex", "ListRadioStationFacetsByStation",
 		"ListRadioStationTags", "ListRadioStationLocks", "ListRadioStreamsRanked", "GetRadioStation"} {
-		m := regexp.MustCompile(`(?s)-- name: ` + name + ` :\w+\n(.*?);`).FindSubmatch(src)
-		if m == nil {
-			t.Fatalf("query %s not found", name)
-		}
-		rows, err := e.db.Read.QueryContext(e.ctx, "EXPLAIN QUERY PLAN "+string(m[1]), sql.Named("station_id", 1), sql.Named("id", 1))
+		query := oneStatement(t, src, name)
+		rows, err := e.db.Read.QueryContext(e.ctx, "EXPLAIN QUERY PLAN "+query, sql.Named("station_id", 1), sql.Named("id", 1))
 		if err != nil {
 			t.Fatalf("explain %s: %v", name, err)
 		}
@@ -78,10 +116,38 @@ func TestOneStationQueriesUseKeys(t *testing.T) {
 		if err := rows.Close(); err != nil {
 			t.Fatal(err)
 		}
-		if regexp.MustCompile(`(?m)^SCAN (radio_|st\b|s\b|l\b)`).MatchString(plan.String()) {
-			t.Errorf("%s scans a table:\n%s", name, plan.String())
+		// Every SCAN except the materialised CTE (subquery-N, the alias r of its one row) reads a
+		// whole table; a plan without SEARCH means the statement was not explained at all.
+		for _, line := range strings.Split(plan.String(), "\n") {
+			if strings.HasPrefix(line, "SCAN ") && !strings.HasPrefix(line, "SCAN (subquery-") && !strings.HasPrefix(line, "SCAN r ") {
+				t.Errorf("%s scans a table (%s):\n%s", name, line, plan.String())
+			}
+		}
+		if !strings.Contains(plan.String(), "SEARCH ") {
+			t.Errorf("%s has no keyed read:\n%s", name, plan.String())
 		}
 	}
+}
+
+// oneStatement returns the statement of the named query in src without its comment lines (a
+// comment may hold a semicolon), cut at its semicolon.
+func oneStatement(t *testing.T, src []byte, name string) string {
+	t.Helper()
+	m := regexp.MustCompile(`(?s)-- name: ` + name + ` :\w+\n(.*?)(?:\n-- name: |\z)`).FindSubmatch(src)
+	if m == nil {
+		t.Fatalf("query %s not found", name)
+	}
+	var b strings.Builder
+	for _, line := range strings.Split(string(m[1]), "\n") {
+		if !strings.HasPrefix(strings.TrimSpace(line), "--") {
+			b.WriteString(line + "\n")
+		}
+	}
+	stmt, _, ok := strings.Cut(b.String(), ";")
+	if !ok {
+		t.Fatalf("query %s has no semicolon", name)
+	}
+	return stmt
 }
 
 // BenchmarkAdminStationsLarge measures one page of the admin list (exceptions) over the synthetic
