@@ -15,7 +15,7 @@ a{color:#e8794a}a:hover{color:#f3a27f}
 .tp-btn:focus-visible{outline:2px solid #f3f3f5;outline-offset:3px}
 </style>
 </helmet>
-<div style="width: 1280px; height: 860px; box-sizing: border-box; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column;">
+<div style="width: 1280px; height: 940px; box-sizing: border-box; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column;">
 
   <div style="position: relative; height: 470px; overflow: hidden; background: linear-gradient(120deg, hsl(205,45%,22%) 0%, hsl(230,40%,14%) 55%, #0b0c10 100%);">
     <div style="position: absolute; right: 80px; top: 60px; width: 380px; height: 260px; border-radius: 50%; background: hsl(35,80%,70%); opacity: 0.18;"></div>
@@ -61,11 +61,12 @@ a{color:#e8794a}a:hover{color:#f3a27f}
     <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px;">
       <span style="font-size: 13px; color: #9095a3; background: #16181f; border: 1px solid #ffffff14; border-radius: 8px; padding: 8px 12px;">Ein Klick auf den Stern nimmt den Titel auf, ein zweiter nimmt die eigene Empfehlung zurück.</span>
       <span style="font-size: 13px; color: #9095a3; background: #16181f; border: 1px solid #ffffff14; border-radius: 8px; padding: 8px 12px;">Empfehlen mehrere Profile denselben Titel, steht er nur einmal da. Er fällt 60 Tage nach der jüngsten Empfehlung heraus.</span>
+      <span style="font-size: 13px; color: #9095a3; background: #16181f; border: 1px solid #ffffff14; border-radius: 8px; padding: 8px 12px;">Den Stern sehen nur Profile des Besitzerkontos. Andere Konten sehen die Liste ohne Stern.</span>
     </div>
   </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":860}}'>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":940}}'>
 class Component extends DCLogic {
   constructor(props) {
     super(props);

@@ -379,6 +379,10 @@ Symbolen gibt es weiterhin nicht (die Leiste wird ausgeblendet, nicht eingeklapp
 - Nur Texte: keine Änderung an Vertrag, Datenbank oder Routen (`/picks` und der Reihenschlüssel
   `picks` bleiben). Stufe 1. Tests und Storybook-Baselines, die den Text prüfen, ziehen mit.
 - Frühere Einträge im Entscheidungsprotokoll behalten den alten Namen; sie beschreiben ihren Stand.
+- **Hinweis (8. November 2026, Konzept 18 Teil B, Frage 25):** Die Admin-Pflege der Liste fällt weg;
+  Profile des Besitzerkontos empfehlen selbst über einen Stern «Empfehlen» / «Empfohlen ✓». Der
+  Knopf «Zu den User-Empfehlungen» der Knopfzeile (Stufe 2) wird dann zu diesem Stern, nicht
+  zusätzlich gebaut.
 
 ## 10. Was sich gegenüber früheren Entscheiden ändert
 

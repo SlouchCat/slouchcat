@@ -6,7 +6,10 @@
   Offen ist nur O-1 (Abschnitt 11.2). Die Änderungen von Fassung 4 hat noch kein Kritiker gesehen. Eingetragen als Frage 25 im Entscheidungsprotokoll.**
 - **Fassung 5 (8. November 2026): Teil B «User-Empfehlungen von Profil zu Profil»** (Abschnitt 14)
   kam auf Marcos Wunsch dazu, mit seinen Antworten U-F1 bis U-F8. Abschnitte 0 bis 13 sind Teil A
-  «Trickplay». Auslöser ist Marcos Auftrag vom 8. November 2026: Vorschaubilder für Filme und
+  «Trickplay».
+- **Fassung 6 (8. November 2026):** zweites Kritiker-Review über Fassung 4 und 5 (REVISE, 1 Blocker,
+  8 Major, 12 Minor; Abschnitt 15) eingearbeitet, mit Marcos Antworten F-16 und U-F9 bis U-F11
+  (Ausnahme vom Nicht-Ziel, Gäste nur lesen, alte Einträge verwerfen, Vorlauf gedrosselt). Auslöser ist Marcos Auftrag vom 8. November 2026: Vorschaubilder für Filme und
   Folgen, erzeugt **sobald eine Folge oder ein Film gestartet wird**; dazu die Fragen, wie lange
   das dauert und ob die Bilder gespeichert werden. Grundlage ist Idee 05
   (`docs/ideas/05-trickplay.md`, aus Konzept 13 V-21, Frage 19 F-7 «später»).
@@ -15,11 +18,12 @@
   **1.19.0** (`api/openapi.yaml:4`), letzte Migration **`00039_radio_stage2.sql`**, letzte ADR in
   `main` **`0025`**, letzte Frage im Entscheidungsprotokoll **24**. Reserviert und nicht gebaut:
   Konzept 17 Stufe 2 (Vertrag 1.20.0) und Stufe 3 (Vertrag 1.21.0, Migration 00040, ADR 0026).
-- **Nummern:** Dieses Papier ist **Konzept 18** und reserviert **Frage 25** und **ADR 0027**
+- **Nummern:** Dieses Papier ist **Konzept 18** und reserviert **Frage 25**, **ADR 0027** (Teil A)
+  und **ADR 0028** («User-Empfehlungen von Profil zu Profil», Teil B), dazu für ADR 0027
   («Trickplay: Erzeugen beim Start, Springen an Keyframes, Einstellungen je Bibliothek»). Vertrag:
-  vorläufig **1.22.0**, durch Teil B **brechend** (14.8), **eine Migration**, vorläufig **00041**
-  (Spalten `libraries.trickplay_*`, Abschnitt 8.3, und Tabelle `user_picks`, 14.8); beide endgültig
-  beim Baubeginn. ADR 0027 ändert
+  vorläufig **1.22.0**, durch Teil B **brechend** (14.8), **zwei Migrationen**, vorläufig **00041**
+  (Teil B: `user_picks`, `picks_config`, `top_picks` weg, 14.8) und **00042** (Teil A: Spalten
+  `libraries.trickplay_*`, 8.3); alle Nummern endgültig beim Baubeginn. ADR 0027 ändert
   ADR 0022 nicht: Trickplay nimmt **nicht** an der Pausen-Ausnahme teil (5.3).
 - `:Zeile`-Angaben beziehen sich auf `6c05eda7`; **nach Namen suchen, nicht nach Zeile.** Pfade
   ohne Präfix liegen unter `server/` (Go) oder `web/src/` (Web-App).
@@ -48,7 +52,7 @@
 - **Das NAS merkt bei 1080p wenig davon:** rund **1 MB je Bild**, also 350 MB für die Folge und
   590 MB für den Film, statt 1,2 GB bzw. 6,2 GB beim Lesen der ganzen Datei (dauert auf CT 190 31 s bzw. 160 s). Ein laufender Stream wird
   nicht gebremst (Abschnitt 3.4). Für 4K über das NAS ist die Last
-  noch nicht gemessen (Bauschritt 6).
+  noch nicht gemessen (Bauschritt 8).
 - **Speichern lohnt sich:** WebP mit 320 px Breite braucht **1,3 bis 1,8 MB je Stunde Video**.
   Ein Film belegt rund 4 MB, eine Folge 1 bis 2 MB. Selbst der ganze Bestand (rund 31 000 Stunden)
   käme auf etwa 55 GB, nur die geschauten Titel auf wenige GB. Jedes Mal neu erzeugen hiesse
@@ -63,8 +67,10 @@
 - **Teil B, User-Empfehlungen (Abschnitt 14):** Jedes Profil empfiehlt Titel mit einem Klick auf den
   Stern der Titelseite, **anonym**; jeder Titel steht **einmal** in der Liste, **neueste zuerst**,
   für alle Profile, die ihn sehen dürfen. Nach **60 Tagen** ab der jüngsten Empfehlung fällt er
-  heraus (einstellbar). Eigene Empfehlungen lassen sich zurücknehmen. Die Admin-Pflege mit Notiz,
-  Zielprofil und Zeitfenster fällt weg; bestehende Einträge werden übernommen.
+  heraus (einstellbar). Eigene Empfehlungen lassen sich zurücknehmen. Empfehlen dürfen die Profile
+  des Besitzerkontos, alle anderen Konten lesen nur. Die Admin-Pflege mit Notiz, Zielprofil und
+  Zeitfenster fällt weg, die heutigen Einträge werden verworfen. Dafür bekommt das Nicht-Ziel
+  «Interaktion zwischen Profilen» eine Ausnahme nur für diese Empfehlungen.
 
 ## 1. Was Marco will
 
@@ -84,6 +90,9 @@
 | Frage 19, F-7: Trickplay **«später»**; Konzept 13 V-21 entfällt, Idee 05 | Trickplay wird gebaut (dieses Papier) | Marcos Auftrag vom 8. November 2026 |
 | Idee 05 Abschnitt 7: «Ein Durchlauf liest die **ganze Datei**» | Ein Durchlauf liest **nur die Keyframes an den Bildpunkten**, rund 1 MB je Bild | Messung 3.2: der Sprung kostet 0,4 bis 1 MB, nicht 6 bis 23 MB, wenn ffmpeg mit `-fps_mode passthrough` läuft |
 | Konzept 13, 11.6: Kapitelbilder **nie während der Wiedergabe**, erst 10 Minuten nach dem Ende | Trickplay läuft **während** der Wiedergabe, gleich nach dem Start (T-2) | Messung 3.4: ein QSV-Transcode daneben bleibt schneller als Echtzeit; die NAS-Last ist klein. Die Regel für Kapitelbilder bleibt unverändert |
+| Spec «Non-Goals»: «Interaktion zwischen Profilen (Bewertungen, Empfehlungen untereinander)»; Spec-Status «Profil-Interaktion zurückgestellt», Plan 03 «Nicht eingeplant» | **Ausnahme seit 8. November 2026** nur für anonyme Empfehlungen (Teil B); Bewertungen, Kommentare und Nachrichten zwischen Profilen bleiben Nicht-Ziele | Marco, U-F9 |
+| Spec E-2: der Hauptbenutzer pflegt Cat's Empfehlungen (Notiz, Zielprofil, Reihenfolge, Zeitraum) | Profile des Besitzerkontos empfehlen selbst, anonym, mit Ablauf; die Admin-Pflege fällt weg | Marco, U-F1 bis U-F11 |
+| Konzept 17 D-10/F-17: Knopf «Zu den User-Empfehlungen» nur für den Admin, führt in die Verwaltung | Stern «Empfehlen» / «Empfohlen ✓» für alle empfehlenden Profile | Teil B ersetzt den Knopf; Konzept 17 9.3 trägt einen Hinweis |
 | Bibliotheken haben keine Einstellung zu erzeugten Bildern | Neue Einstellungen **«Vorschau beim Spulen»** je Videobibliothek (`LibraryKind` `video`), getrennt für Filme und Serien (F-1, F-10, F-13) | Marco: «Parameter in den Einstellungen», «analog Emby» |
 
 ## 3. Messungen
@@ -167,7 +176,7 @@ Quere.
 
 **Grenze:** Ein Transcode mit **CPU-Tonemapping** (HDR auf QSV, ADR 0021) belegt selbst die CPU.
 Läuft so einer, soll der Trickplay-Job auf **einen** Prozess zurückgehen (Abschnitt 5, Punkt 2).
-Das ist nicht gemessen und gehört in die Messung von Bauschritt 5.
+Das ist nicht gemessen und gehört in die Messung von Bauschritt 8.
 
 ### 3.5 HDR und Dolby Vision
 
@@ -242,11 +251,13 @@ App: PlaybackInfo.trickplay kommt bei jedem Start mit (ausser «Aus»), auch lee
 ### 5.2 Auslöser
 
 1. **Start:** `playback.Start` reiht `trickplay.generate` ein (Payload `{"mediaFileId",
-   "startMs"}`, Schlüssel `trickplay:<id>`), wenn die Einstellung der Titelart nicht `off` ist, der Titel ein Film
-   oder eine Folge mit Video-Stream ist (`chapterKind`) und kein vollständiger Satz vorliegt. Gibt
-   es schon einen Auftrag mit dem Schlüssel, schreibt `Start` nur `startMs` in dessen Payload
-   (wartend über `SetQueuedPayload`, laufend über die Payload, die der Job nach jedem Blatt neu
-   liest) und hebt einen wartenden Auftrag an. Hörbücher, Podcasts und Radio bekommen nie Trickplay.
+   "startMs", "origin"}`, Schlüssel `trickplay:<id>`), wenn die Einstellung der Titelart nicht `off`
+   ist, der Titel ein Film oder eine Folge mit Video-Stream ist (`chapterKind`) und kein
+   vollständiger Satz vorliegt. Eingereiht wird **immer über `EnqueueOverridingWindow`**: Das hebt
+   die Priorität eines wartenden Auftrags desselben Schlüssels und setzt nur `override_window`, nie
+   `override_pause` (5.3). Gibt es schon einen Auftrag, schreibt `Start` `startMs` und
+   `origin: start` in dessen Payload (wartend über `SetQueuedPayload`, laufend über die Payload, die
+   der Job nach jedem Blatt neu liest). Hörbücher, Podcasts und Radio bekommen nie Trickplay.
 2. **Neue Datei** (nur `ahead`, F-5, F-8): der Probe einer Datei, die ein Scan nach einem
    vollständigen Scan der Bibliothek hinzufügte oder änderte, reiht den Auftrag mit **Priorität 2**
    ein (Muster `probeJob`/`chapterImages`). Er wartet nicht auf das Ende einer laufenden Wiedergabe.
@@ -254,32 +265,44 @@ App: PlaybackInfo.trickplay kommt bei jedem Start mit (ausser «Aus»), auch lee
 4. **Serienvorlauf** (nur `series_start`): 6.4.
 5. **Download:** 6.8.
 
-**Die Einstellung steht nicht im Auftrag.** Der Job liest sie beim Start aus der Bibliothek
-(Einstellung der Titelart: Film oder Folge) und nach jedem Blatt neu; daraus folgt der Ziel-Ordner:
-gespeichert bei `ahead`, `series_start` und `on_start` mit Haken, sonst temporär (6.3, 6.5). Ist
-die Einstellung inzwischen `off`, oder speichert sie nicht und spielt keine Wiedergabe der Datei
-mehr, endet der Auftrag ohne weitere Arbeit.
+**Die Einstellung steht nicht im Auftrag, die Herkunft schon.** `origin` ist `start`, `import`,
+`backfill`, `series` oder `download`; ein späterer Auslöser mit höherem Vorrang überschreibt sie
+(`start` vor `download` vor `series` vor `import` vor `backfill`). Der Job liest die Einstellung der
+Titelart beim Start aus der Bibliothek und nach jedem Blatt neu. Daraus folgt der Ziel-Ordner
+(gespeichert bei `ahead`, `series_start` und `on_start` mit Haken, sonst temporär; 6.3, 6.5) und ob
+der Auftrag weiterläuft: Er endet ohne weitere Arbeit, wenn die aktuelle Einstellung seine Herkunft
+nicht mehr auslöst (`import` und `backfill` nur bei `ahead`, `series` nur bei `series_start`), wenn
+sie `off` ist, oder wenn sie nicht speichert und keine Wiedergabe der Datei mehr offen ist. So
+endet nach einem Wechsel von «Im Voraus» auf «Beim Start» ein laufendes Nachholen nach dem
+nächsten Blatt.
 
 ### 5.3 Vorrang, Pause und Last
 
 - **Pool `trickplay` mit einem Arbeiter.** Höchstens ein Satz entsteht gleichzeitig.
 - **Start-Aufträge** laufen mit Priorität 9, Serienvorlauf mit 3, Import-Aufträge mit 2,
-  Nachholen mit 1. Weil ein
-  laufender Auftrag nie abgebrochen wird (`RaiseQueuedJobForPlayback`), prüft ein Auftrag aus
-  Import, Nachholen oder Download **nach jedem Blatt**, ob im Pool ein Start-Auftrag wartet; dann
-  gibt er mit `jobs.RetryLater(0, …)` ab, und seine fertigen Blätter bleiben. Ein Start wartet so
-  höchstens ein Blatt (5 bis 10 s, bei 4K HDR rund 30 s). Serienvorlauf gibt ebenso ab.
+  Nachholen mit 1. Weil ein laufender Auftrag nie abgebrochen wird, prüft ein Auftrag aus Import,
+  Nachholen, Serienvorlauf oder Download **nach jedem Blatt**, ob im Pool ein Start-Auftrag wartet;
+  dann gibt er mit `jobs.RetryLater(0, …)` ab, und seine fertigen Blätter bleiben. Ein Start wartet
+  so höchstens ein Blatt (5 bis 10 s, bei 4K HDR rund 30 s).
 - **Zwei Zuschauer, zwei Titel:** Der zweite Start wartet, bis der erste Satz fertig ist (20 bis
   45 s), weil Start-Aufträge einander nicht abgeben. Siehe O-1.
 - **Keine Pausen-Ausnahme.** Trickplay ist eine Annehmlichkeit; pausiert der Admin die Jobart,
   pausiert sie ganz. Die Pausen-Ausnahme und ihr Deckel `MaxPauseOverrides = 3` (ADR 0022, O-7)
-  bleiben den Keyframe-Aufträgen vorbehalten.
+  bleiben den Keyframe-Aufträgen vorbehalten. Darum nutzt Trickplay **nie**
+  `RaiseQueuedJobForPlayback` oder `EnqueueOverridingPause` (beide setzen `override_pause`, Abfrage
+  in `queries/system/jobs.sql`), sondern nur `Enqueue` und `EnqueueOverridingWindow`. Ein Test
+  prüft: Eine pausierte Jobart bleibt pausiert, und die Zahl der Pausen-Ausnahmen ändert sich nicht.
 - **Zwei ffmpeg-Prozesse** (F-7), nur **einer**, solange ein Transcode auf der CPU läuft (Tonemapping
   auf der CPU, reiner CPU-Transcode oder ein Download-Encode). Dazu bekommt `transcode.Manager`
   eine Abfrage `CPUHeavy()`; `library` sieht sie über ein Interface, geprüft je Blatt.
-- **Zeitfenster:** `trickplay.backfill` und die Import-Aufträge sind `Windowable` (Nachtfenster
-  möglich, Konzept 09); Start-, Serienvorlauf- und Download-Aufträge nicht, weil jemand gerade
-  schaut.
+- **Zeitfenster:** `Windowable` gilt je Jobart (`jobs/registry.go`). `trickplay.generate` ist
+  `Windowable`: Import-Aufträge warten auf das Fenster. Start-, Serienvorlauf- und
+  Download-Aufträge derselben Jobart gehen über `EnqueueOverridingWindow` am Fenster vorbei, weil
+  jemand gerade schaut. Das Fenster des Nachholens steht im Zeitplan von `trickplay.backfill`
+  (Schedule-Typ). `trickplay.series` ist nicht `Windowable`.
+- **Gedrosselter Serienvorlauf** (F-16): Aufträge mit `origin: series` ausser den nächsten zwei
+  Folgen nutzen nur **einen** ffmpeg-Prozess, solange irgendeine Wiedergabe-Sitzung offen ist
+  (dieselbe Abfrage wie `CPUHeavy`, um offene Sitzungen erweitert).
 
 ### 5.4 Bildpunkte (F-2 «nächstes Keyframe»)
 
@@ -356,16 +379,25 @@ bleibt aus F-1 und F-12 dabei. Der Haken «Speichern» ist ab Werk gesetzt.
 ### 6.4 Serienvorlauf (`series_start`)
 
 - Startet eine Folge einer Serie mit dieser Einstellung, reiht `playback.Start` neben dem
-  Start-Auftrag der Folge einen Auftrag `trickplay.series` ein (Payload `{"seriesId",
-  "episodeId"}`, Schlüssel `trickplay_series:<seriesId>`). Er reiht für jede Folge im Umfang ohne
-  vollständigen Satz `trickplay.generate` mit **Priorität 3** ein und endet dann.
+  Start-Auftrag der Folge einen Auftrag `trickplay.series` ein (Pool `general`, Payload
+  `{"seriesId", "episodeId"}`, Schlüssel `trickplay_series:<seriesId>`). Wartet schon einer, schreibt
+  `Start` die neue `episodeId` hinein (`SetQueuedPayload`, die jüngste Folge gewinnt).
+- Der Auftrag reiht für jede Folge im Umfang ohne vollständigen Satz `trickplay.generate` mit
+  `origin: series` ein, über `EnqueueOverridingWindow` (hebt auch wartende Import- oder
+  Nachhol-Aufträge derselben Datei an), und endet dann:
+  - **die nächsten zwei Folgen** mit **Priorität 3** und voller Leistung (F-16);
+  - **den Rest** mit Priorität 2, **gedrosselt** auf einen ffmpeg-Prozess, solange jemand schaut
+    (5.3).
+- **Welche Datei:** je Folge nur die Standardversion, die `playback` ohne Wahl nehmen würde, und nur
+  vorhandene Dateien (`missing_since IS NULL`); fehlende und gelöschte Folgen werden übersprungen.
 - **Umfang** (F-14, je Bibliothek wählbar): **ganze Serie** (ab Werk), **Rest der Staffel** (ab der
-  gestarteten Folge bis Staffelende; beim Start der letzten Folge die nächste Staffel) oder
-  **nächste Folge**.
+  gestarteten Folge bis Staffelende; beim Start der letzten Folge die erste Staffel danach) oder
+  **nächste Folge** (die folgende Folge derselben Staffel, am Staffelende die erste der nächsten).
+  Specials (Staffel 0) nur bei «ganze Serie», zuletzt.
 - **Reihenfolge:** ab der gestarteten Folge vorwärts in Staffel- und Folgenreihenfolge, danach die
-  Folgen davor; Specials (Staffel 0) zuletzt.
+  Folgen davor.
 - Der Vorlauf wird bei jedem Start einer Folge erneut eingereiht; er findet dann nur noch fehlende
-  Folgen. Ist ein Vorlauf derselben Serie schon eingereiht, wird nichts doppelt angelegt.
+  Folgen.
 - Der Vorlauf ist ein Systemauftrag ohne Profil: Er erzeugt Bilder für alle Folgen der Serie, auch
   solche, die das startende Profil nicht sehen darf. Ausgeliefert werden sie trotzdem nur über die
   Sichtbarkeit (8.2, Regel 2).
@@ -447,7 +479,7 @@ schreibgeschützt eingebunden, `/media:ro`).
 | `api` | Handler `getTrickplay`, `getTrickplaySheet`, `getDownloadTrickplaySheet` |
 | `cmd/slouchcat` | Arbeiter des neuen Pools in `poolWorkers`/`startWorkers` |
 
-### 8.2 Vertrag (vorläufig 1.22.0, additiv)
+### 8.2 Vertrag (vorläufig 1.22.0; Teil A additiv, Teil B brechend, 14.8)
 
 - **`Trickplay`** (Schema): `{ version, state (queued|running|complete|failed), intervalMs,
   tileWidth, tileHeight, columns, rows, pointsMs[], sheets: [{ index, url }] }`.
@@ -461,9 +493,12 @@ schreibgeschützt eingebunden, `/media:ro`).
   nie 403.
 - **`GET /downloads/{id}/trickplay/{sheet}`** (`getDownloadTrickplaySheet`, `http.Handler`,
   `x-visibility: scoped`, mit Download-Token wie `getDownloadFile` und `getDownloadSubtitle`).
-- **`LibraryTrickplayEstimate`** in der Lese-Operation einer Videobibliothek (nur Admin): je
+- **`LibraryTrickplayEstimate`** nur in `getLibrary` (nicht in `listLibraries`), nur Admin: je
   Titelart Anzahl Titel und Laufzeit, Schätzung pro Film bzw. pro Folge (Mittel) und für die ganze
-  Bibliothek, und der heute belegte Platz (9).
+  Bibliothek, und der heute belegte Platz (9). Die Laufzeit zählt je vorhandener Mediendatei (auch
+  mehrere Versionen), Dateien ohne `duration_ms` fallen weg. Den belegten Platz rechnet die
+  stündliche `library.sweep` beim Durchgang durch die Sätze und legt ihn je Bibliothek und Titelart
+  im Speicher ab; `getLibrary` liest nur diesen Wert.
 - **`DownloadManifest.trickplay`** (optional): Raster, `pointsMs` und die Blattnummern.
 - **`Library.trickplay`** (`LibraryTrickplay`): `{ movies: { mode: ahead|on_start|off, keep },
   series: { mode: ahead|on_start|series_start|off, keep, scope: series|season_rest|next_episode } }`
@@ -476,7 +511,8 @@ schreibgeschützt eingebunden, `/media:ro`).
 
 ### 8.3 Datenbank
 
-**Eine Migration** (vorläufig 00041, nach Vorlage, nur vorwärts), fünf Spalten in `libraries`:
+**Eine Migration für Teil A** (vorläufig 00042, nach Vorlage, nur vorwärts; 00041 ist Teil B, 14.8),
+fünf Spalten in `libraries`:
 
 ```sql
 ALTER TABLE libraries ADD COLUMN trickplay_movies TEXT NOT NULL DEFAULT 'ahead'
@@ -550,7 +586,10 @@ Cache-Ordner und in `jobs`. Eingefrorener DB-Stand in `testdata/db/` nach Regel 
 | 7 `x-visibility` | alle drei Operationen `scoped`, Vertragstest |
 | 8 Tastaturtest | Zeitleiste und Bibliotheksdialog (9) |
 | 9 Farben und Texte | Vorschaufeld und Dialog nur mit Tokens und `locales` |
-| 11 Nicht-Ziele | berührt keins |
+| 11 Nicht-Ziele | Teil A berührt keins. Teil B berührt «Interaktion zwischen Profilen» und hat dafür eine Ausnahme nur für anonyme Empfehlungen (U-F9, Spec-Änderung in 14.8) |
+| 2 (Teil B) | `ListUserPicks` in `queries/scoped` mit `visible_items`; das Schreiben prüft vorher die Sichtbarkeit (unsichtbar heisst 404) und liegt im Muster der Merkliste (`discover`) |
+| 7 (Teil B) | sechs neue und geänderte Operationen mit `x-visibility` im Vertragstest (14.8) |
+| 8 (Teil B) | Stern in der Knopfzeile und die neue Verwaltungsseite mit Tastaturtest (14.9) |
 | 12 Entscheid im Server | Einstellung, Sichtbarkeit und Version entscheidet der Server, die App zeigt nur |
 
 ## 11. Fragen an Marco
@@ -574,6 +613,7 @@ Cache-Ordner und in `jobs`. Eingefrorener DB-Stand in `testdata/db/` nach Regel 
 | F-13 | Feinere Einstellungen (Marcos Skizze): je Bibliothek Filme und Serien getrennt, auch gemischt? | ein Modus mit Vorlauf | **Genau wie skizziert**: Filme «Im Voraus», «Beim Start» (Haken «Speichern»); Serien zusätzlich «Beim Start alle Folgen»; «Aus» bleibt (6.1) |
 | F-14 | Umfang von «Beim Start alle Folgen»? | Rest der Staffel | **Einstellbar**: ganze Serie (ab Werk, wie skizziert), Rest der Staffel, nächste Folge (6.4) |
 | F-15 | Weitere Ideen: Merkliste als Auslöser, Ablauf/Budget, Knopf je Titel? | – | **Keine Präferenz**: nicht aufgenommen (6.9) |
+| F-16 | Wie zurückhaltend ist der Serienvorlauf (ganze Serie: bis eine Stunde mit rund 19 MB/s vom NAS)? | nächste 2 sofort, Rest nachts | **Nächste 2 sofort, Rest gedrosselt** (ein ffmpeg-Prozess, solange jemand schaut; 5.3, 6.4) |
 
 ### 11.2 Offen
 
@@ -583,21 +623,22 @@ Cache-Ordner und in `jobs`. Eingefrorener DB-Stand in `testdata/db/` nach Regel 
 
 ## 12. Bauplan
 
-Ein Release für beide Teile (Vertrag vorläufig 1.22.0 brechend, eine Migration vorläufig 00041),
-nach Konzept 17. Teil B ist klein und kommt zuerst, damit der brechende Vertrag früh steht.
+Ein Release für beide Teile (Vertrag vorläufig 1.22.0 brechend), nach Konzept 17. **Teil B kommt
+zuerst** mit Migration 00041, weil er klein ist und den brechenden Vertrag früh festlegt; Teil A folgt
+mit Migration 00042. Eine eingecheckte Migration wird nie mehr geändert.
 
 | Schritt | Inhalt | Tage |
 |---|---|---|
-| 0 | Frage 25 und ADR 0027, Idee 05 auf «übernommen», Spec E-2 neu | 0,5 |
-| 1 | `transcode`: Bildpunkt-Aufruf, Blatt-Aufruf, `CPUHeavy`, Tests mit den Testmedien (SDR, HDR, anamorph, MP4) | 1 |
-| 2 | Migration, Vertrag (Schemas, drei Operationen, Pool-Enum), `task gen`, `admin`: `trickplay`, `visibility.MediaFileLocation` | 1 |
-| 3 | `library`: Raster, Jobs, Ablage je Einstellung, Auslöser Start/Import/Nachholen/Serienvorlauf, Abgabe an Start-Aufträge, Fehler, Platzgrenze, Pflege, Pool `trickplay` | 3 |
-| 4 | `playback.Start`, Handler, Wiedergabe-Pflege, `offline` (Kopie, Warten, Manifest), Vertragstest | 1,5 |
-| 5 | App: `SeekBar` (Kachel, Finger, Tastatur), Nachfragen, Offline-Ablage, Bibliotheksdialoge mit Film- und Seriengruppe, Storybook, Playwright | 2,5 |
-| 6 | Messung auf CT 190: Start, Blattzeit, Last neben QSV- und CPU-Transcode, **4K über NFS**, Remux neben Trickplay, gleichzeitige volle Keyframe-Lesung; `docs/perf/18-trickplay.md` | 0,5 |
-| 7 | Teil B Server: `user_picks`, Übernahme aus `top_picks`, Abfragen, Pflege, Operationen, Einstellung, Wiederverknüpfung | 1 |
-| 8 | Teil B App: Stern «Empfehlen»/«Empfohlen ✓», Reihe und Seite ohne Notiz, Verwaltungsseite «User-Empfehlungen», Storybook, Playwright | 1,5 |
-| | **Summe** | **12,5** |
+| 0 | Frage 25, ADR 0027 (Teil A) und ADR 0028 (Teil B), Idee 05 auf «übernommen», Spec (Nicht-Ziel, E-1 bis E-3, Status, Glossar) und Plan 03 nachgeführt, Hinweis in Konzept 17 | 0,5 |
+| 1 | Teil B Server: Migration 00041, `ListUserPicks`, Schreiben, Pflege, Einstellung, Verschieben beim Zusammenführen und Wiederverknüpfen, Vertrag, `task gen`, Tests und Altlasten aus 14.9 | 1,5 |
+| 2 | Teil B App: Stern «Empfehlen»/«Empfohlen ✓», Reihe und Seite ohne Notiz, Verwaltungsseite «User-Empfehlungen», Storybook, Playwright | 1,5 |
+| 3 | Teil A `transcode`: Bildpunkt-Aufruf, Blatt-Aufruf, `CPUHeavy`, Tests mit den Testmedien (SDR, HDR, anamorph, MP4) | 1 |
+| 4 | Teil A Migration 00042, Vertrag (Schemas, drei Operationen, Pool-Enum), `task gen`, `admin`: `trickplay`, `visibility.MediaFileLocation` | 1 |
+| 5 | Teil A `library`: Raster, Jobs mit `origin`, Ablage je Einstellung, Auslöser Start/Import/Nachholen/Serienvorlauf, Abgabe an Start-Aufträge, Drosselung, Fehler, Platzgrenze, Pflege, Pool `trickplay` | 3 |
+| 6 | Teil A `playback.Start`, Handler, Wiedergabe-Pflege, `offline` (Kopie, Warten, Manifest), Vertragstest | 1,5 |
+| 7 | Teil A App: `SeekBar` (Kachel, Finger, Tastatur), Nachfragen, Offline-Ablage, Bibliotheksdialoge mit Film- und Seriengruppe, Storybook, Playwright | 2,5 |
+| 8 | Messung auf CT 190: Start, Blattzeit, Last neben QSV- und CPU-Transcode, **4K über NFS**, Remux neben Trickplay, gleichzeitige volle Keyframe-Lesung, **Serienvorlauf über eine Stunde neben einem 4K-Remux**; `docs/perf/18-trickplay.md` | 0,5 |
+| | **Summe** | **13** |
 
 ## 13. Kritiker-Review von Fassung 2 (8. November 2026)
 
@@ -626,7 +667,7 @@ Der OMC-Kritiker hat Fassung 2 gegen Code und Regeln geprüft: **REVISE, 1 Block
 | m-9 | Nachfragen endet nach 5 Minuten zu früh | 9 |
 | m-10 | Gespeicherter Satz verschwindet mitten in der Wiedergabe | 6.6 |
 | m-11 | Rechenfehler: CPU je Start, 36 s/h und 13 Tage, 540 MB | 0, 6.2, 6.3 |
-| m-12 | 4K über NFS ungemessen | 0, 12 Schritt 6 |
+| m-12 | 4K über NFS ungemessen | 0, 12 Schritt 8 |
 | m-13 | Querverweise F-Nummern, Status | Kopf, 5.3 |
 
 Offene Fragen des Kritikers: «temporären Satz beim Umstellen übernehmen» ist in 6.6 entschieden
@@ -657,37 +698,42 @@ Offene Fragen des Kritikers: «temporären Satz beim Umstellen übernehmen» ist
 
 | Nr. | Frage | Antwort |
 |---|---|---|
-| U-F1 | Was passiert mit der Admin-Liste (Notiz, Zielprofil, Zeitfenster, Reihenfolge)? | **Nur noch Profile.** Die Admin-Pflege fällt weg; der Admin empfiehlt wie jedes Profil über den Knopf. Bestehende Einträge werden übernommen. |
-| U-F2 | Wer sieht eine Empfehlung? | **Alle Profile**, die den Titel sehen dürfen (Altersfreigabe gilt immer). |
+| U-F1 | Was passiert mit der Admin-Liste (Notiz, Zielprofil, Zeitfenster, Reihenfolge)? | **Nur noch Profile.** Die Admin-Pflege fällt weg. (Die Übernahme der heutigen Einträge ist durch U-F11 ersetzt.) |
+| U-F2 | Wer sieht eine Empfehlung? | **Alle Profile aller Konten**, die den Titel sehen dürfen (Altersfreigabe gilt immer). |
 | U-F3 | Was steht an einer Empfehlung? | **Anonym:** kein Name, keine Notiz. |
 | U-F4 | Mehrere Profile empfehlen denselben Titel? | **Nur einmal anzeigen, anonym.** |
 | U-F5 | Ab wann zählen die 60 Tage? | **Ab der jüngsten Empfehlung**; jede neue startet sie neu. |
-| U-F6 | Wer darf empfehlen? | **Alle Profile**, auch Kinderprofile. |
+| U-F6 | Wer darf empfehlen? | **Alle Profile**, auch Kinderprofile, eingeschränkt durch U-F10. |
 | U-F7 | Eigene Empfehlung zurücknehmen? | **Ja.** Der Titel verschwindet nur, wenn ihn kein anderes Profil empfohlen hat; der Admin kann jeden Eintrag entfernen. |
 | U-F8 | Reihenfolge der Liste? | **Neueste zuerst.** |
+| U-F9 | Die Spec führt «Interaktion zwischen Profilen (Bewertungen, Empfehlungen untereinander)» als Nicht-Ziel. Ausnahme? | **Ausnahme nur für Empfehlungen**; Bewertungen, Kommentare und Nachrichten zwischen Profilen bleiben Nicht-Ziele. |
+| U-F10 | Dürfen eingeladene Konten empfehlen? | **Nur lesen.** Empfehlen dürfen die Profile des **Besitzerkontos** (`accounts.is_owner = 1`, «Haushalt des Besitzers» wie heute in `AdminOwnerProfileIDs`); alle anderen Konten sehen die Liste, aber keinen Stern. |
+| U-F11 | Was passiert mit den heutigen Einträgen? | **Verwerfen.** Die Liste startet nach dem Update leer. |
 
 ### 14.4 Ablauf für Zuschauer
 
-- **Detailseite** (Film, Serie, auch Hörbuch und Podcast wie heute die Reihe): Rundknopf mit Stern
-  **«Empfehlen»** in der Knopfzeile (Konzept 17, Variante A). Für alle Profile.
-  - Klick: Der Titel kommt in die Liste; der Knopf zeigt **«Empfohlen ✓»**, kurzer Hinweis
-    «Zu den User-Empfehlungen hinzugefügt. Bleibt 60 Tage.»
+- **Detailseite** (alle Titelarten, die heute in die Liste dürfen: alles ausser Staffeln und Extras,
+  wie `checkCurationItem` in `admin/picks.go`): Rundknopf mit Stern **«Empfehlen»** in der
+  Knopfzeile (Konzept 17, Variante A), nur für Profile des Besitzerkontos (U-F10).
+  - Klick: Der Titel kommt in die Liste; der Knopf zeigt **«Empfohlen ✓»** und einen kurzen Hinweis
+    «Zu den User-Empfehlungen hinzugefügt. Bleibt N Tage.», N aus der Antwort des Servers.
   - Nochmals Klick: Die eigene Empfehlung wird zurückgenommen (U-F7); Hinweis «Empfehlung
     zurückgenommen».
-  - Hat das Profil schon empfohlen und empfiehlt nach Ablauf nochmals, beginnt alles neu.
 - **Startseiten-Reihe «User-Empfehlungen»** und **Seite `/picks`**: jeder Titel **einmal**, ohne
-  Namen und ohne Notiz, **neueste Empfehlung zuerst** (U-F3, U-F4, U-F8). Die Reihe bleibt bei
-  20 Titeln, die Seite blättert wie heute.
+  Namen und ohne Notiz, **neueste Empfehlung zuerst**, für alle Konten (U-F2, U-F3, U-F4, U-F8). Die
+  Reihe bleibt bei 20 Titeln, die Seite blättert wie heute.
 - Wer den Titel nicht sehen darf, sieht weder Eintrag noch Knopf (Regel 2: unsichtbar heisst 404).
 - Die Seitenleiste zeigt «User-Empfehlungen» weiter mit der Zahl der sichtbaren Einträge.
 
 ### 14.5 Ablauf und Pflege
 
 - Eine Empfehlung ist eine Zeile **(Titel, Profil, Zeitpunkt)**. Empfiehlt dasselbe Profil denselben
-  Titel nochmals (nach dem Zurücknehmen oder Ablauf), gibt es nur eine Zeile mit neuem Zeitpunkt.
+  Titel nochmals, gibt es nur eine Zeile mit neuem Zeitpunkt.
 - Ein Titel steht in der Liste, solange seine **jüngste** Empfehlung jünger als die Ablaufdauer ist
-  (U-F5). Ab Werk **60 Tage**, einstellbar von **7 bis 365 Tagen** (14.7).
-- Die stündliche Pflege löscht abgelaufene Zeilen (Muster `library.sweep`, ohne eigene Jobart). Die
+  (U-F5). Ab Werk **60 Tage**, einstellbar von **7 bis 365 Tagen** (14.7). Damit kann ein Profil einen
+  Titel durch Zurücknehmen und erneutes Empfehlen beliebig lange oben halten; das ist so gewollt
+  (U-F5).
+- Die stündliche Pflege löscht abgelaufene Zeilen (Muster `library.sweep`, ohne eigene Jobart). Alle
   Abfragen filtern zusätzlich nach Zeit, damit ein abgelaufener Titel nicht bis zur nächsten Pflege
   stehen bleibt. Eine kürzere Ablaufdauer wirkt sofort.
 - Wird ein Profil oder ein Titel gelöscht, gehen seine Empfehlungen mit (Fremdschlüssel mit
@@ -695,30 +741,34 @@ Offene Fragen des Kritikers: «temporären Satz beim Umstellen übernehmen» ist
 
 ### 14.6 Anonymität
 
-- Kein Zuschauer und keine Antwort an die App erfährt, **wer** empfohlen hat. Die App bekommt pro
-  Titel nur, ob er empfohlen ist und ob **das aktive Profil selbst** empfohlen hat
-  (`recommendedByMe`), damit der Knopf «Empfohlen ✓» zeigen kann.
+- Die App bekommt pro Titel nur **`recommendedByMe`**: ob das aktive Profil selbst eine **gültige**
+  Empfehlung hat (eigene Zeile **und** jünger als die Ablaufdauer). Ein Feld «von wem» oder «wie
+  viele» gibt es für Zuschauer nicht.
 - Der Server speichert das Profil, weil sonst Zurücknehmen (U-F7) und die Zusammenfassung (U-F4)
   nicht gingen.
-- Die Verwaltung zeigt je Titel die **Anzahl** der Empfehlungen und das Ablaufdatum, **keine Namen**.
+- Die Verwaltung zeigt je Titel die **Anzahl** und den **Tag** der jüngsten Empfehlung, **keine
+  Namen**.
+- **Bewusst hingenommen:** Bei einer Anzahl von 1 könnte ein Admin über das Aktivitätsprotokoll
+  erraten, wer empfohlen hat; und wer seine eigene Empfehlung zurücknimmt und den Titel weiter in der
+  Liste sieht, weiss, dass ein anderes Profil ihn auch empfohlen hat.
 
 ### 14.7 Einstellungsseite in der Verwaltung (Mockup)
 
 `/admin/picks` wird neu zur Seite **«User-Empfehlungen»** (Gruppe «Kuratierung», Symbol Stern):
 
 - **Ablauf:** Zahlenfeld «Empfehlungen bleiben … Tage» (7–365, ab Werk 60), darunter der Satz
-  «Jede neue Empfehlung desselben Titels startet die Frist neu.» Gespeichert in `settings` unter
-  `picks.retention_days`.
-- **Aktuelle Empfehlungen:** Liste mit Cover, Titel, «zuletzt empfohlen vor 3 Tagen», «läuft ab in
-  57 Tagen», Anzahl Empfehlungen, Knopf «Entfernen» (entfernt alle Empfehlungen des Titels).
-  Sortierung neueste zuerst wie bei den Zuschauern.
-- **Hinweis** oben: «Profile empfehlen selbst über den Stern auf der Titelseite. Namen bleiben
-  verborgen.»
+  «Jede neue Empfehlung desselben Titels startet die Frist neu.» Gespeichert in der neuen
+  Einzeilen-Tabelle `picks_config` (Muster `spotlight_config`, `radio_config`).
+- **Aktuelle Empfehlungen:** Liste mit Cover (über die Admin-Bildroute, Entscheid vom 25. Oktober
+  2026), Titel, «zuletzt empfohlen am …» (nur der Tag), «läuft ab in N Tagen», Anzahl, Knopf
+  «Entfernen» (entfernt alle Empfehlungen des Titels). Neueste zuerst wie bei den Zuschauern.
+- **Hinweis** oben: «Profile des Besitzerkontos empfehlen über den Stern auf der Titelseite. Namen
+  bleiben verborgen.»
 - Die Knöpfe für Reihenfolge, Zielprofil, Notiz und Zeitfenster der alten Seite entfallen.
 
-### 14.8 Server, Vertrag und Datenbank
+### 14.8 Server, Vertrag, Datenbank und Spec
 
-- **Tabelle `user_picks`** (in derselben Migration wie Teil A, vorläufig 00041):
+- **Migration 00041** (Teil B, nach Vorlage, nur vorwärts):
 
   ```sql
   CREATE TABLE user_picks (
@@ -728,39 +778,113 @@ Offene Fragen des Kritikers: «temporären Satz beim Umstellen übernehmen» ist
       PRIMARY KEY (item_id, profile_id)
   ) STRICT, WITHOUT ROWID;
   CREATE INDEX user_picks_created ON user_picks (created_at);
+  CREATE TABLE picks_config (
+      id             INTEGER PRIMARY KEY CHECK (id = 1),
+      retention_days INTEGER NOT NULL DEFAULT 60 CHECK (retention_days BETWEEN 7 AND 365),
+      updated_at     INTEGER NOT NULL
+  ) STRICT;
+  INSERT INTO picks_config (id, retention_days, updated_at) VALUES (1, 60, 0);
+  DROP TABLE top_picks;
   ```
 
-- **Übernahme** (U-F1): Jeder Titel aus `top_picks` wird **einmal** übernommen, als Empfehlung des
-  Hauptprofils des Admin-Kontos mit dem Zeitpunkt der Migration; er läuft also 60 Tage nach dem
-  Update ab. Notiz, Zielprofil, Zeitfenster und Reihenfolge gehen verloren. Danach wird `top_picks`
-  gelöscht. Die Notiz an Spotlight-Einträgen (`ItemRef.note`) bleibt.
-- **Abfragen:** `ListTopPicks` wird `ListUserPicks` in `queries/scoped/items.sql`: `GROUP BY
-  item_id`, `MAX(created_at)` als Zeitpunkt, nur jünger als die Ablaufdauer, über `visible_items`,
-  sortiert neueste zuerst (Regel 2).
+  Die heutigen Einträge werden **verworfen** (U-F11); `top_picks` geht ganz weg, samt Index.
+- **Lesen:** `ListTopPicks` wird `ListUserPicks` in `queries/scoped/items.sql`: `GROUP BY item_id`,
+  `MAX(created_at)` als Zeitpunkt, nur jünger als die Ablaufdauer, über `visible_items`, neueste
+  zuerst, **mit `LIMIT`/`OFFSET` in SQL und einer Zählabfrage** (die heutige Blätterung in Go in
+  `visibility.picks` setzt eine kleine, von Hand gepflegte Tabelle voraus). Der Zähler der
+  Seitenleiste nutzt die Zählabfrage.
+- **Schreiben** im Muster der Merkliste (`discover`, `queries/app/discover.sql`): erst die
+  Sichtbarkeit des Titels für das aktive Profil prüfen (sonst 404), dann prüfen, ob das Profil zum
+  Besitzerkonto gehört (sonst 404 wie ein unbekannter Titel, Regel 2), dann `INSERT … ON CONFLICT DO
+  UPDATE SET created_at = excluded.created_at`. Zurücknehmen löscht die eigene Zeile.
+- **Zusammenführen und Wiederverknüpfen:** `AdminMoveTopPicks` (`queries/system/admin.sql`), gerufen
+  von `admin.MergeItems` und von der Wiederverknüpfung (`library/relink.go`), wird
+  `AdminMoveUserPicks`: `INSERT INTO user_picks SELECT @target, profile_id, created_at FROM
+  user_picks WHERE item_id = @source ON CONFLICT DO UPDATE SET created_at = max(created_at,
+  excluded.created_at)`; die Zeilen der Quelle gehen mit der Quelle. Ein einfaches `UPDATE` scheiterte
+  am Primärschlüssel, sobald ein Profil beide Kopien empfohlen hat. `CountRelinkUserData`
+  (`queries/system/relink.sql`) zählt `user_picks`.
 - **Vertrag, brechend** (vorläufig 1.22.0 für beide Teile):
-  - neu `PUT /items/{id}/pick` und `DELETE /items/{id}/pick` (`recommendItem`, `unrecommendItem`,
-    `x-visibility: scoped`, 204; unsichtbarer Titel 404);
-  - neu `ItemDetail.recommendedByMe` (bool);
-  - `listPicks` und die Reihe `picks` von `getHome` ohne `note`; Beschreibung neu;
-  - weg `createTopPicks`, `reorderTopPicks`, `updateTopPick`, `deleteTopPick` und die Schemas `PickRequest`,
-    `AdminPick`; neu `listAdminUserPicks` (`GET /admin/picks`: Titel, Anzahl, zuletzt, läuft ab),
+  - neu `PUT /items/{id}/pick` (`recommendItem`, 200 mit `{ expiresAt, retentionDays }`) und
+    `DELETE /items/{id}/pick` (`unrecommendItem`, 204), beide `x-visibility: scoped`; unsichtbarer
+    Titel, Staffel, Extra und Profil ausserhalb des Besitzerkontos 404;
+  - neu `ItemDetail.recommendedByMe` (bool, 14.6) und `ItemDetail.canRecommend` (bool, U-F10), damit
+    die App den Stern nur zeigt, wo er wirkt;
+  - `listPicks` und die Reihe `picks` von `getHome` ohne `note`; Beschreibungen neu;
+  - weg: `listTopPicks`, `createTopPicks`, `reorderTopPicks`, `updateTopPick`, `deleteTopPick`, die
+    Schemas `AdminPick`, `PickRequest`, `PickUpdate`, `PickOrder` und der Parameter `PickID`;
+  - neu, alle `x-visibility: admin`: `listAdminUserPicks` (`GET /admin/picks`: Titel, `posterUrl`
+    über die Admin-Bildroute, Anzahl, Tag der jüngsten Empfehlung, läuft ab),
     `removeAdminUserPick` (`DELETE /admin/picks/{itemId}`), `getPicksSettings` und
-    `updatePicksSettings` (`/admin/picks/settings`, `retentionDays`), alle `x-visibility: admin`;
-  - `RelinkUserData.topPicks` (Wiederverknüpfung nach Wurzelwechsel, ADR 0023) wird `userPicks`;
-    die Wiederverknüpfung nimmt `user_picks` mit.
-- **Spec und Plan:** E-2 heisst neu «Profile empfehlen einander Titel, anonym, mit einstellbarer
-  Ablaufdauer». Der Entscheid vom 25. Oktober 2026 («Cat's Empfehlungen wird nie zur Bühne») gilt
-  unverändert für die Reihe.
-- **Regel 11:** keine algorithmische Empfehlung, nur Klicks von Menschen.
+    `updatePicksSettings` (`/admin/picks/settings`, `retentionDays` 7–365);
+  - `RelinkUserData.topPicks` wird `userPicks`;
+  - alle neuen Operationen im Vertragstest; `contract_access_test.go` nachgeführt.
+- Nach einer Änderung verwirft die App die Abfragen der Detailseite, der Startseite, von `/picks` und
+  den Zähler der Seitenleiste.
+- **Spec und Plan** (Schritt 0): Nicht-Ziel «Interaktion zwischen Profilen» mit Ausnahme wie beim
+  Webradio («Ausnahme seit 8. November 2026: anonyme Empfehlungen zwischen Profilen, Frage 25»);
+  Statuszeile «Entdecken und Kuratierung» (Karussell heisst «User-Empfehlungen») und
+  «Profil-Interaktion zurückgestellt»; E-1 (Name der Reihe), **E-2 neu** («Die Profile des
+  Besitzerkontos empfehlen Titel anonym; jeder Titel einmal, neueste zuerst; Ablauf N Tage nach der
+  jüngsten Empfehlung, einstellbar»), E-3 (Sichtbarkeit gilt auch hier); Glossar «Cat's
+  Empfehlungen»; Plan 03 «Nicht eingeplant … Profil-Interaktion».
+- **ADR 0028** «User-Empfehlungen von Profil zu Profil» hält Tabelle, Anonymität, Ablauf, die
+  Ausnahme vom Nicht-Ziel und den Wegfall der Admin-Pflege fest.
+- **Konzept 17:** Der Knopf «Zu den User-Empfehlungen» (D-10, F-17) aus Stufe 2 wird mit Teil B zum
+  Stern «Empfehlen»; ein Hinweis in Konzept 17 Abschnitt 9.3 verhindert, dass er zweimal gebaut wird.
 
-### 14.9 Tests
+### 14.9 Tests und Altlasten
 
-- Server: Zusammenfassen und Ablauf ab der jüngsten Empfehlung, Zurücknehmen mit und ohne weitere
-  Profile, Kinderprofil sieht fremde Empfehlung eines gesperrten Titels nicht (404), Übernahme aus
-  `top_picks`, Löschkaskaden, Vertragstest für alle neuen Operationen.
-- App: Knopf «Empfehlen» und «Empfohlen ✓» in der Knopfzeile (Tastatur: Enter, sichtbarer Fokus),
-  `picks-page.spec.ts` und `admin-picks.spec.ts` neu für die Einstellungsseite (Regel 8), Storybook
-  für die Knopfzeile.
+- **Server:** Zusammenfassen und Ablauf ab der jüngsten Empfehlung; `recommendedByMe` falsch für eine
+  abgelaufene eigene Zeile, und ein Klick darauf erneuert sie statt sie zu löschen; Zurücknehmen mit
+  und ohne weitere Profile; Profil ausserhalb des Besitzerkontos bekommt 404 beim Empfehlen und sieht
+  die Liste; Kinderprofil sieht die Empfehlung eines gesperrten Titels nicht (404);
+  Zusammenführen und Wiederverknüpfen, wenn ein Profil beide Kopien empfohlen hat;
+  `picks_config`-Grenzen; Löschkaskaden; Vertragstest.
+- **Migrationstest 00041:** `top_picks` ist weg, `user_picks` leer, `picks_config` hat 60.
+- **Eingefrorene Stände** (`internal/store/frozen_m7_test.go`, `frozen_m8_test.go`,
+  `frozen_startseite_test.go`) fragen heute `top_picks` ab. Sie prüfen neu, dass die Tabelle nach
+  00041 fehlt und `user_picks` leer ist; die Prüfungen werden umgeschrieben, nicht gestrichen.
+- **Testhilfen:** `internal/visibility/vistest/vistest.go` und `discover.go` legen Empfehlungen über
+  `user_picks` an; die e2e-Hilfe `web/e2e/curation.ts` (genutzt von `home.spec.ts`,
+  `admin-home.spec.ts`, `admin-phone.spec.ts`) empfiehlt über `recommendItem` statt
+  `createTopPicks`.
+- **App:** Stern «Empfehlen»/«Empfohlen ✓» in der Knopfzeile (Tastatur: Enter, sichtbarer Fokus);
+  kein Stern für Konten ausserhalb des Besitzerkontos; `picks-page.spec.ts` und `admin-picks.spec.ts`
+  neu für die Einstellungsseite (Regel 8); Storybook für die Knopfzeile.
+
+## 15. Kritiker-Review von Fassung 4 und 5 (8. November 2026)
+
+Der OMC-Kritiker hat die Änderungen seit Fassung 3 geprüft: **REVISE, 1 Blocker, 8 Major,
+12 Minor.** Eingearbeitet in Fassung 6:
+
+| Befund | Kern | Wo jetzt |
+|---|---|---|
+| B-1 | Teil B ist ein Nicht-Ziel der Spec, das Papier sagte «berührt keins» | U-F9, 2, 10, 14.8 |
+| M-1 | Anheben über `RaiseQueuedJobForPlayback` setzt die Pausen-Ausnahme | 5.2, 5.3 |
+| M-2 | `Windowable` gilt je Jobart, nicht je Auftrag | 5.3 |
+| M-3 | Auftrag kennt seine Herkunft nicht, Nachholen läuft nach dem Umstellen weiter | 5.2 |
+| M-4 | Verschieben beim Zusammenführen und Wiederverknüpfen scheitert am Primärschlüssel | 14.8 |
+| M-5 | Wegfall von `top_picks` bricht eingefrorene Tests, Testhilfen und e2e | 14.9 |
+| M-6 | Übernahme der alten Einträge unklar (Besitzer, Zeitfenster, Zielprofil) | entfällt: Marco verwirft sie (U-F11) |
+| M-7 | Serienvorlauf belastet das NAS stundenlang während einer Wiedergabe | F-16, 5.3, 6.4, 12 Schritt 8 |
+| M-8 | Serienauftrag unklar (alte Folge, Pool, Versionen, Anheben, nächste Folge) | 6.4 |
+| m-1 | Kopf «brechend», 8.2 «additiv» | 8.2 |
+| m-2 | Reihenfolge der Teile und eine gemeinsame Migration | Kopf, 12 (00041 Teil B, 00042 Teil A) |
+| m-3 | Wegfallende Operationen und Schemas unvollständig, Cover in der Verwaltung | 14.7, 14.8 |
+| m-4 | Erlaubte Titelarten fürs Empfehlen | 14.4, 14.8 |
+| m-5 | Schreibweg, Blättern in SQL, Abfragen verwerfen | 14.8 |
+| m-6 | Zuschauer kennen die Ablaufdauer nicht, `recommendedByMe` ohne Ablauf | 14.4, 14.6, 14.8 |
+| m-7 | Feld «ob empfohlen» fehlt | 14.6 (nur `recommendedByMe`) |
+| m-8 | Anonymität: Anzahl 1 und Zurücknehmen verraten etwas | 14.6 (Tag statt Zeit, bewusst hingenommen) |
+| m-9 | `settings` ohne Prüfung | 14.7, 14.8 (`picks_config` mit CHECK) |
+| m-10 | Knopf aus Konzept 17 würde doppelt gebaut | 2, 14.8 |
+| m-11 | `LibraryTrickplayEstimate`: Operation, belegter Platz, Versionen, fehlende Laufzeit | 8.2 |
+| m-12 | ADR 0027 deckt nur Trickplay | Kopf, 14.8 (ADR 0028) |
+
+Offene Fragen des Kritikers: Übernahme der alten Einträge (verworfen, U-F11), Empfehlungen über
+Konten hinweg (lesen ja, empfehlen nur Besitzerkonto, U-F10), Dauer-Empfehlen durch
+Zurücknehmen und erneutes Empfehlen (gewollt, 14.5).
 
 ## Anhang: Messskripte
 
