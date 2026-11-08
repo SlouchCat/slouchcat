@@ -1,6 +1,8 @@
 # Idee 05: Vorschau beim Spulen (Trickplay)
 
-- **Status: Ausgearbeitet** (4. November 2026). Nicht beauftragt.
+- **Status: Im Konzept** (8. November 2026): Marco will Trickplay, erzeugt beim Start einer Wiedergabe;
+  ausgearbeitet in `docs/planning/18-trickplay.md` (Konzept 18, Frage 25). Die offene Frage «Wann
+  erzeugen?» und die Annahme «liest die ganze Datei» (Abschnitt 7) beantwortet die Messung dort.
 - **Herkunft:** Konzept 13 «Abspielseite», Vorschlag V-21 (`docs/planning/13-abspielseite.md`,
   Abschnitt 6.3). Marco hat auf F-7 am 1. November 2026 «**später**» geantwortet (Frage 19).
   V-21 entfällt darum in Konzept 13 und steht hier, damit er später ohne neue Grundsatzdiskussion
