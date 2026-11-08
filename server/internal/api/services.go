@@ -548,8 +548,9 @@ type RadioService interface {
 	// model.ErrNotFound as well.
 	Image(ctx context.Context, stationID int64, kind, size string, webp, admin bool) (model.StreamSource, error)
 	// Cover opens the cover of a title (contract 1.19.0, radio_tracks; size w96, w256 or w512) as
-	// WebP or PNG; an unknown, expired or missing one is model.ErrNotFound.
-	Cover(ctx context.Context, trackID int64, size string, webp bool) (model.StreamSource, error)
+	// WebP or PNG; hash is the v of the URL. An unknown, expired or missing one, or another hash,
+	// is model.ErrNotFound.
+	Cover(ctx context.Context, trackID int64, size, hash string, webp bool) (model.StreamSource, error)
 
 	// Administration (x-visibility admin).
 	Config(ctx context.Context) (model.RadioConfig, error)

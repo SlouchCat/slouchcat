@@ -124,6 +124,7 @@ func newCoverEnv(t *testing.T) *coverEnv {
 	e.s = withDialControl(New(db, log, WithRunner(testRunner()), WithCacheDir(e.cache), WithClock(e.clock.Now),
 		WithUserAgent("Slouchcat/1.19.0")), loopbackOnly)
 	e.s.cov.mb, e.s.cov.itunes = ratelimit.New("test-mb", 1000, 1000), ratelimit.New("test-itunes", 1000, 1000)
+	e.s.cov.stream = ratelimit.New("test-stream", 1000, 1000)
 	e.s.cov.mbBase, e.s.cov.caaBase, e.s.cov.itunesBase = e.fake.srv.URL, e.fake.srv.URL, e.fake.srv.URL
 	return e
 }
@@ -188,9 +189,9 @@ func (e *coverEnv) exec(query string, args ...any) {
 }
 
 // openCover reads a cover through Cover.
-func (e *coverEnv) openCover(id int64, size string, webp bool) ([]byte, string, error) {
+func (e *coverEnv) openCover(id int64, size, hash string, webp bool) ([]byte, string, error) {
 	e.t.Helper()
-	src, err := e.s.Cover(e.ctx, id, size, webp)
+	src, err := e.s.Cover(e.ctx, id, size, hash, webp)
 	if err != nil {
 		return nil, "", err
 	}
@@ -214,17 +215,22 @@ func TestCoverFromStreamImageFirst(t *testing.T) {
 	}
 	for _, size := range []string{"w96", "w256", "w512"} {
 		for _, webp := range []bool{true, false} {
-			b, mt, err := e.openCover(row.ID, size, webp)
+			b, mt, err := e.openCover(row.ID, size, row.ImageHash.String, webp)
 			if err != nil || len(b) == 0 || webp != (mt == "image/webp") {
 				t.Fatalf("cover %s webp %v: %d bytes %q %v", size, webp, len(b), mt, err)
 			}
 		}
 	}
-	if _, _, err := e.openCover(row.ID, "w100", true); !errors.Is(err, model.ErrNotFound) {
+	if _, _, err := e.openCover(row.ID, "w100", row.ImageHash.String, true); !errors.Is(err, model.ErrNotFound) {
 		t.Fatalf("size w100: %v", err)
 	}
-	if _, _, err := e.openCover(row.ID+1, "w256", true); !errors.Is(err, model.ErrNotFound) {
+	if _, _, err := e.openCover(row.ID+1, "w256", row.ImageHash.String, true); !errors.Is(err, model.ErrNotFound) {
 		t.Fatalf("unknown track: %v", err)
+	}
+	for _, v := range []string{"", "x" + row.ImageHash.String[1:]} { // no hash, an old one
+		if _, _, err := e.openCover(row.ID, "w256", v, true); !errors.Is(err, model.ErrNotFound) {
+			t.Fatalf("cover with v %q: %v", v, err)
+		}
 	}
 }
 
@@ -331,7 +337,7 @@ func TestCoverCacheHitAndMiss(t *testing.T) {
 	if _, err := os.Stat(dir); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("cover files after found → none: %v", err)
 	}
-	if _, _, err := e.openCover(found.ID, "w256", true); !errors.Is(err, model.ErrNotFound) {
+	if _, _, err := e.openCover(found.ID, "w256", found.ImageHash.String, true); !errors.Is(err, model.ErrNotFound) {
 		t.Fatalf("cover of a miss: %v", err)
 	}
 }
@@ -541,6 +547,7 @@ func TestCoverReachesTheTimeline(t *testing.T) {
 	e := newRelayEnv(t)
 	fake := newCoverFake(t)
 	e.s.o.cacheDir = t.TempDir()
+	e.s.cov.minGap = 0 // both titles come within a second (TestCoverMinGapPerRelay)
 	e.s.cov.mb, e.s.cov.itunes = ratelimit.New("test-mb", 1000, 1000), ratelimit.New("test-itunes", 1000, 1000)
 	e.s.cov.mbBase, e.s.cov.caaBase, e.s.cov.itunesBase = fake.srv.URL, fake.srv.URL, fake.srv.URL
 	fake.body("/ws/2/recording", "application/json", mbAnswer(100, [4]string{"r", "Official", "Album", "g"}))

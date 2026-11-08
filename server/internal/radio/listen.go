@@ -688,10 +688,15 @@ func (s *Service) Relays(ctx context.Context) (model.RadioRelays, error) {
 }
 
 // Run sweeps the listen sessions and relays every 30 s until ctx ends, then stops every relay
-// (started by the server next to playback.Service.Run); it also runs the cover worker (cover.go).
+// (started by the server next to playback.Service.Run); it also runs the cover worker (cover.go)
+// and returns only after the worker has ended.
 func (s *Service) Run(ctx context.Context) {
 	s.relayStart(ctx)
-	go s.runCovers(ctx)
+	covers := make(chan struct{})
+	go func() {
+		defer close(covers)
+		s.runCovers(ctx)
+	}()
 	t := time.NewTicker(sweepInterval)
 	defer t.Stop()
 	for {
@@ -703,6 +708,7 @@ func (s *Service) Run(ctx context.Context) {
 			s.rel.mu.Unlock()
 			s.stopRelays()
 			s.flushListenTime(context.WithoutCancel(ctx))
+			<-covers // no lookup writes after Run returned (the database closes after it)
 			return
 		case <-t.C:
 			s.sweep(ctx)

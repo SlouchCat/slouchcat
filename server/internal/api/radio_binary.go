@@ -194,7 +194,8 @@ func (s *server) serveRadioImage(w http.ResponseWriter, r *http.Request, admin b
 }
 
 // getRadioCover serves the cover of a title for the active profile (contract 1.19.0): any profile
-// session may read it, a cover names no station; an unknown or expired track answers 404.
+// session may read it, a cover names no station; an unknown or expired track, or a v that is not
+// its image hash, answers 404.
 func (s *server) getRadioCover(w http.ResponseWriter, r *http.Request) {
 	if s.opts.Radio == nil {
 		s.p.mapError(w, r, model.ErrNotImplemented)
@@ -207,7 +208,7 @@ func (s *server) getRadioCover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Add("Vary", "Accept")
-	src, err := s.opts.Radio.Cover(r.Context(), id, size, acceptsWebP(r.Header.Values("Accept")))
+	src, err := s.opts.Radio.Cover(r.Context(), id, size, r.URL.Query().Get("v"), acceptsWebP(r.Header.Values("Accept")))
 	if err != nil {
 		s.p.mapError(w, r, err)
 		return

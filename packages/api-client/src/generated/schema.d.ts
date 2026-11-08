@@ -17449,7 +17449,7 @@ export interface operations {
     getRadioCover: {
         parameters: {
             query?: {
-                /** @description Content hash for cache busting; ignored by the server. */
+                /** @description Content hash for cache busting; must match; another hash answers 404. */
                 v?: string;
             };
             header?: never;
