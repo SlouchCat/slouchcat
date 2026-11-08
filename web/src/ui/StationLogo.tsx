@@ -51,10 +51,21 @@ interface StationLogoProps {
   fallbackSrc?: string;
   /** `sm` 2.5 rem (lists, the mini player), `md` 4 rem, `lg` 8 rem, `fill` the container's width. */
   size?: 'sm' | 'md' | 'lg' | 'fill';
+  /** Loads at once and with high priority: the first tile of the start page (P-10). */
+  priority?: boolean;
+  /** Told once the picture is on screen (the start page's prepaint gives way then). */
+  onShown?: () => void;
 }
 
 /** Square station picture; decorative, the surrounding control names the station. */
-export function StationLogo({ name, src, fallbackSrc, size = 'md' }: StationLogoProps) {
+export function StationLogo({
+  name,
+  src,
+  fallbackSrc,
+  size = 'md',
+  priority = false,
+  onShown,
+}: StationLogoProps) {
   const [failed, setFailed] = useState<readonly string[]>([]);
   const image = [src, fallbackSrc].find((url) => url !== undefined && !failed.includes(url));
   return (
@@ -69,9 +80,15 @@ export function StationLogo({ name, src, fallbackSrc, size = 'md' }: StationLogo
           className={styles.image}
           src={image}
           alt=""
-          loading="lazy"
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : undefined}
           decoding="async"
-          onError={() => setFailed((before) => [...before, image])}
+          onLoad={onShown}
+          onError={() => {
+            setFailed((before) => [...before, image]);
+            // The last picture failed: the initials show, which is on screen as well.
+            if (image === (fallbackSrc ?? src)) onShown?.();
+          }}
         />
       ) : (
         <span className={styles.initials}>{stationInitials(name)}</span>

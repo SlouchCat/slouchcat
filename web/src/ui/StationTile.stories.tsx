@@ -54,3 +54,15 @@ export const Missing: Story = {
 
 /** The focused tile grows a little, as the posters do. */
 export const Focused: Story = { tags: ['press:Tab'] };
+
+/**
+ * A tile of «Meine Sender» on the start page (concept 16, 10.2): a favourite whose relay runs,
+ * with the title at its live edge; the first tile loads its logo at once (`priority`).
+ */
+export const HomeRowWithTitle: Story = {
+  args: {
+    caption: 'Dua Lipa – Houdini',
+    priority: true,
+    favorite: { pressed: true, label: 'Radio Swiss Pop in Meine Sender', onPress: noop },
+  },
+};

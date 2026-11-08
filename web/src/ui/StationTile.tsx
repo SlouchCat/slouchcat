@@ -23,6 +23,10 @@ interface StationTileProps {
   onPlay: () => void;
   favorite: { pressed: boolean; label: string; onPress: () => void };
   focusKey?: string;
+  /** The first tile of the start page: its logo loads at once (P-10). */
+  priority?: boolean;
+  /** Told once the logo is on screen. */
+  onImageShown?: () => void;
 }
 
 export function StationTile({
@@ -36,6 +40,8 @@ export function StationTile({
   onPlay,
   favorite,
   focusKey,
+  priority,
+  onImageShown,
 }: StationTileProps) {
   const { ref: mainRef, onFocus: onMainFocus } = useSpatialItem<HTMLButtonElement>({ focusKey });
   const { ref: heartRef, onFocus: onHeartFocus } = useSpatialItem<HTMLButtonElement>({
@@ -52,7 +58,13 @@ export function StationTile({
         onClick={onPlay}
       >
         <span className={styles.picture}>
-          <StationLogo name={name} src={logoUrl} size="fill" />
+          <StationLogo
+            name={name}
+            src={logoUrl}
+            size="fill"
+            priority={priority}
+            onShown={onImageShown}
+          />
           {state && stateLabel && (
             <span className={styles.badge}>
               <Icon name={state === 'playing' ? 'volume' : 'pause'} size="sm" />

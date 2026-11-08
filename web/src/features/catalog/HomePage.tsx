@@ -1,5 +1,5 @@
-import type { HomeRow, ItemRef } from '@slouchcat/api-client';
-import { useQuery } from '@tanstack/react-query';
+import type { components, HomeRow, ItemRef } from '@slouchcat/api-client';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
 import { lazy, Suspense, useEffect, useState } from 'react';
@@ -7,6 +7,10 @@ import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
+import { countryName, facetValueName } from '@/app/radio/labels';
+import { wantsSound } from '@/app/radio/priority';
+import { useRadioFavorite } from '@/app/radio/queries';
+import { useRadio, type RadioPlayer } from '@/app/radio/useRadio';
 import { formatRuntime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import {
@@ -24,6 +28,7 @@ import {
   Row,
   Skeleton,
   SpatialPage,
+  StationTile,
   Text,
   VisuallyHidden,
   type HeroSlide,
@@ -46,6 +51,7 @@ const TrailerPanel = lazy(() =>
 const rowPages: Partial<Record<HomeRow['key'], string>> = {
   picks: paths.picks,
   watchlist: paths.watchlist,
+  radio: paths.radio,
 };
 const rowPage = (row: HomeRow): string | undefined =>
   row.key === 'library' && row.libraryId !== undefined
@@ -67,7 +73,8 @@ const hasEntries = (row: HomeRow) =>
   row.items.length > 0 ||
   (row.collections?.length ?? 0) > 0 ||
   (row.genres?.length ?? 0) > 0 ||
-  (row.libraries?.length ?? 0) > 0;
+  (row.libraries?.length ?? 0) > 0 ||
+  (row.stations?.length ?? 0) > 0;
 
 /** Focus key of the first card of a row (the default focus when the stage does not lead). */
 function firstKey(row: HomeRow): string | undefined {
@@ -77,8 +84,40 @@ function firstKey(row: HomeRow): string | undefined {
   if (collection) return `${row.id}-${collection.id}`;
   const tile = row.libraries?.[0];
   if (tile) return `${row.id}-${tile.id}`;
+  const station = row.stations?.[0];
+  if (station) return `${row.id}-${station.station.id}`;
   const genre = row.genres?.[0];
   return genre ? `${row.id}-${genre.name}` : undefined;
+}
+
+type RadioHomeStation = components['schemas']['RadioHomeStation'];
+
+/**
+ * The line under a station of «Meine Sender» (concept 16, 10.2): the title its relay plays at the
+ * live edge, while one runs; otherwise country and genre (D-7: nothing is kept for a station
+ * nobody listens to).
+ */
+function stationCaption(t: TFunction, language: string, tile: RadioHomeStation) {
+  const { station, now } = tile;
+  if (now) {
+    return now.artist && now.title
+      ? t('radio.player.artistTitle', { artist: now.artist, title: now.title })
+      : now.text;
+  }
+  const parts = [
+    station.country && countryName(language, station.country),
+    station.genres[0] && facetValueName(t, 'genre', station.genres[0]),
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(t('format.separator')) : undefined;
+}
+
+/**
+ * A station in the app's radio: `playing` (also while it still starts, a press pauses it),
+ * `paused`, or undefined when another or none is chosen.
+ */
+function stationState(radio: RadioPlayer, stationId: number) {
+  if (radio.state.phase === 'idle' || radio.state.station?.id !== stationId) return undefined;
+  return wantsSound(radio.state) ? ('playing' as const) : ('paused' as const);
 }
 
 const genreHref = (name: string) => `${paths.search}?genre=${encodeURIComponent(name)}`;
@@ -178,7 +217,10 @@ function HomeSkeleton() {
  * `heroRow` every row is a poster row.
  */
 export function HomePage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const queryClient = useQueryClient();
+  const radio = useRadio();
+  const favorite = useRadioFavorite();
   useDocumentTitle(t('home.title'));
   const { session } = authed.useRouteContext();
   const home = useQuery(homeQuery);
@@ -220,7 +262,11 @@ export function HomePage() {
     : (leadRow?.items[0] ?? leadRow?.libraries?.[0]?.items[0]);
   // A series card shows the series poster, which the server paints ahead as well (cardPoster).
   const leadImages = leadRow && leadCard && (seriesOf(leadRow, leadCard) ?? leadCard).images;
-  const leadCardHasArt = Boolean(leadImages && (leadImages.poster ?? leadImages.posterSmall));
+  // «Meine Sender» on top paints the logos of its first stations (B3); the first logo leads.
+  const leadStation = home.data?.heroRow ? undefined : leadRow?.stations?.[0]?.station;
+  const leadCardHasArt =
+    Boolean(leadImages && (leadImages.poster ?? leadImages.posterSmall)) ||
+    Boolean(leadStation?.logo);
   const posterPrepaintDone = home.isError || (home.isSuccess && (!leadCardHasArt || posterShown));
   useEffect(() => {
     if (posterPrepaintDone) dismissPosterPrepaint();
@@ -325,6 +371,56 @@ export function HomePage() {
                 priority={leads}
                 onImageShown={leads ? () => setPosterShown(true) : undefined}
                 deferImage={heroHasArt && !heroShown}
+              />
+            );
+          })}
+        </Row>
+      );
+    }
+    if (row.key === 'radio') {
+      // «Meine Sender» (concept 16, 10.2): square station tiles that play through the app's radio.
+      const moreHref = rowPage(row);
+      return (
+        <Row
+          key={row.id}
+          title={title}
+          focusKey={focusKey}
+          moreHref={moreHref}
+          moreLabel={moreHref ? t('home.rows.all') : undefined}
+        >
+          {(row.stations ?? []).map((tile, tileIndex) => {
+            const { station } = tile;
+            const state = stationState(radio, station.id);
+            const leads = posterLeads && eagerRow && tileIndex === 0;
+            return (
+              <StationTile
+                key={station.id}
+                focusKey={`${row.id}-${station.id}`}
+                name={station.name}
+                logoUrl={imageUrl(station.logo)}
+                caption={stationCaption(t, i18n.language, tile)}
+                state={state}
+                stateLabel={state && t(`radio.page.${state}`)}
+                playLabel={
+                  state === 'playing'
+                    ? t('radio.page.pause', { name: station.name })
+                    : state === 'paused'
+                      ? t('radio.page.resume', { name: station.name })
+                      : t('radio.page.play', { name: station.name })
+                }
+                onPlay={() => (state ? radio.toggle() : radio.play(station))}
+                favorite={{
+                  pressed: station.favorite,
+                  label: t('radio.player.favorite', { name: station.name }),
+                  onPress: () =>
+                    favorite.mutate(
+                      { stationId: station.id, favorite: !station.favorite },
+                      // The row lists the favourites: it follows the change.
+                      { onSettled: () => void queryClient.invalidateQueries(homeQuery) },
+                    ),
+                }}
+                priority={leads}
+                onImageShown={leads ? () => setPosterShown(true) : undefined}
               />
             );
           })}
