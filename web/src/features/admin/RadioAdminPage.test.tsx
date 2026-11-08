@@ -343,10 +343,21 @@ describe('radio administration', () => {
     const user = userEvent.setup();
     // The default rule has no «Entfernen»; changing its value makes it an own rule.
     expect(within(rules).queryByRole('button', { name: /für pop entfernen/ })).toBeNull();
+    const apply = within(rules).getByRole('button', {
+      name: 'Regel Genre für pop übernehmen',
+    });
+    expect(apply).toBeDisabled();
+    // A choice alone saves nothing (the arrow keys of a closed select pass every value).
+    await user.selectOptions(
+      within(rules).getByRole('combobox', { name: 'Genre für das Schlagwort pop' }),
+      'genre:rock',
+    );
     await user.selectOptions(
       within(rules).getByRole('combobox', { name: 'Genre für das Schlagwort pop' }),
       'genre:',
     );
+    expect(calls.filter((call) => call.method === 'PUT')).toHaveLength(0);
+    await user.click(apply);
     await waitFor(() => {
       const put = calls.findLast((call) => call.method === 'PUT');
       expect((put?.body as { rules: unknown[] }).rules).toContainEqual({
@@ -355,9 +366,10 @@ describe('radio administration', () => {
         value: null,
       });
     });
-    await user.click(
-      within(rules).getByRole('button', { name: 'Regel Sendeart für news entfernen' }),
-    );
+    const remove = within(rules).getByRole('button', { name: 'Regel Sendeart für news entfernen' });
+    // Every save waits for the one before it.
+    await waitFor(() => expect(remove).toBeEnabled());
+    await user.click(remove);
     const dialog = await screen.findByRole('alertdialog', { name: 'Regel für «news» entfernen?' });
     await user.click(within(dialog).getByRole('button', { name: 'Entfernen' }));
     await waitFor(() => {
@@ -514,5 +526,62 @@ describe('radio administration', () => {
       expect(patch?.body).toEqual({ coverItunes: false });
     });
     expect(screen.getByRole('switch', { name: 'Cover-Suche MusicBrainz' })).toBeChecked();
+  });
+
+  it('saves one rule at a time: the next assign waits and builds on the answer before it', async () => {
+    let answerFirst: (response: Response) => void = () => undefined;
+    let puts = 0;
+    const afterFirst = tagRules({
+      rules: [
+        ...tagRules().rules,
+        { tag: '80s', facet: 'genre', value: 'oldies', source: 'admin', stations: 2105 },
+      ],
+      worklist: [{ tag: 'local', stations: 40 }],
+    });
+    const { calls } = mockApi(
+      radioRoutes({
+        'PUT /admin/radio/tag-rules': () => {
+          puts += 1;
+          if (puts > 1) return json(afterFirst);
+          return new Promise<Response>((resolve) => {
+            answerFirst = resolve;
+          });
+        },
+      }),
+    );
+    await renderAdminPage('/admin/radio?tab=einordnung');
+    const worklist = await screen.findByTestId('radio-worklist');
+    const user = userEvent.setup();
+    await user.selectOptions(
+      within(worklist).getByRole('combobox', { name: 'Merkmal für das Schlagwort 80s' }),
+      'genre:oldies',
+    );
+    await user.selectOptions(
+      within(worklist).getByRole('combobox', { name: 'Merkmal für das Schlagwort local' }),
+      'ignore',
+    );
+    const second = () =>
+      within(worklist).getByRole('button', { name: 'Schlagwort local zuordnen' });
+    await user.click(within(worklist).getByRole('button', { name: 'Schlagwort 80s zuordnen' }));
+    // While the first is on its way the other saves wait.
+    await waitFor(() => expect(second()).toBeDisabled());
+    expect(calls.filter((call) => call.method === 'PUT')).toHaveLength(1);
+    answerFirst(json(afterFirst));
+    // The answer took «80s» off the list; «local» may be saved now.
+    await waitFor(() =>
+      expect(within(worklist).queryByRole('rowheader', { name: '80s' })).toBeNull(),
+    );
+    await waitFor(() => expect(second()).toBeEnabled());
+    await user.click(second());
+    await waitFor(() => expect(calls.filter((call) => call.method === 'PUT')).toHaveLength(2));
+    // The second list holds the first's rule: built from the answer, nothing lost.
+    expect(calls.filter((call) => call.method === 'PUT')[1]?.body).toEqual({
+      rules: [
+        { tag: 'news', facet: 'kind', value: 'news' },
+        { tag: 'fm', facet: 'ignore', value: null },
+        { tag: '80s', facet: 'genre', value: 'oldies' },
+        { tag: 'local', facet: 'ignore', value: null },
+      ],
+    });
   });
 });

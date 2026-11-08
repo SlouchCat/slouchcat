@@ -127,10 +127,12 @@ const server = spawn(
       SLOUCHCAT_TELEGRAM_BASE_URL: `http://127.0.0.1:${telegram.port}`,
       SLOUCHCAT_UPDATE_MANIFEST_URL: `http://127.0.0.1:${update.port}/manifest.json`,
       // The radio catalog of the mock (read by the radiotest build only) and the relay buffers in
-      // the artefact folder: no tmpfs there, so the relays run in memory mode, which the suite
-      // accepts.
+      // the artefact folder. It is no tmpfs; the radiotest build takes it as one with
+      // SLOUCHCAT_TEST_RADIO_DISK_BUFFER (plan D-14), so the relays keep a time shift window and
+      // the player can play behind live (concept 16 stage 2). Never set in production.
       SLOUCHCAT_TEST_RADIO_CATALOG_URL: `http://127.0.0.1:${radio.port}`,
       SLOUCHCAT_RADIO_DIR: join(dirname(logFile), 'radio'),
+      SLOUCHCAT_TEST_RADIO_DISK_BUFFER: '1',
       // The spotlight stage starts at slide 0 in the suite instead of a random one (concept 08).
       SLOUCHCAT_HERO_START: '0',
       // One manual spotlight fetch every 2 s instead of every minute (discover.ts refreshSpotlight):

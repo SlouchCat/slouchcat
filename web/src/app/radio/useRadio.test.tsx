@@ -15,7 +15,7 @@ import { sessionQuery } from '../session';
 import type { RadioEngine, RadioEngineEvents, RadioEngineFactory } from './engine';
 import type { RadioListen, RadioStation } from './priority';
 import { RadioProvider } from './RadioProvider';
-import { useRadio, type RadioPlayer } from './useRadio';
+import { useRadio, useRadioOffset, type RadioPlayer } from './useRadio';
 
 const station: RadioStation = {
   id: 7,
@@ -59,18 +59,32 @@ class FakeChannel {
 }
 
 /** The player of the provider, as the probe last saw it. */
-const probe: { current: RadioPlayer | null } = { current: null };
+const probe: { current: RadioPlayer | null; offset: number } = { current: null, offset: 0 };
 
 function Probe() {
   const radio = useRadio();
+  const offset = useRadioOffset();
   useEffect(() => {
     probe.current = radio;
+    probe.offset = offset;
   });
   return (
     <output data-testid="radio">
       {radio.state.phase}/{radio.playing ? 'playing' : 'held'}/{radio.state.notice?.kind ?? '-'}
     </output>
   );
+}
+
+/** Renders of a page that uses the player but not its offset. */
+const pageRenders = { count: 0 };
+
+function PageConsumer() {
+  useRadio();
+  // An effect without dependencies runs after every render (committed ones).
+  useEffect(() => {
+    pageRenders.count += 1;
+  });
+  return null;
 }
 
 const player = () => {
@@ -130,6 +144,7 @@ function setup(routes: Routes = {}) {
     component: () => (
       <RadioProvider engine={engine}>
         <Probe />
+        <PageConsumer />
         <Outlet />
       </RadioProvider>
     ),
@@ -421,12 +436,12 @@ describe('RadioProvider', () => {
     const context = setup();
     await startLive(context);
     expect(player().timeShiftSeconds).toBe(1800);
-    expect(player().offset).toBe(0);
+    expect(probe.offset).toBe(0);
     act(() => player().seek(750));
     expect(context.fakes[0]?.engine.seekTo).toHaveBeenCalledWith(750);
-    await waitFor(() => expect(player().offset).toBe(750));
+    await waitFor(() => expect(probe.offset).toBe(750));
     act(() => player().toLive());
-    await waitFor(() => expect(player().offset).toBe(0));
+    await waitFor(() => expect(probe.offset).toBe(0));
   });
 
   it('plays on from the oldest position after a pause longer than the window', async () => {
@@ -446,7 +461,7 @@ describe('RadioProvider', () => {
     const playOrder = playSpy.mock.invocationCallOrder[0] ?? -Infinity;
     expect(resumeOrder).toBeLessThan(playOrder);
     await waitFor(() => expect(player().longPause).toBe(true));
-    expect(player().offset).toBe(1796);
+    expect(probe.offset).toBe(1796);
     // «Live» ends the notice.
     act(() => player().toLive());
     await waitFor(() => expect(player().longPause).toBe(false));
@@ -463,7 +478,7 @@ describe('RadioProvider', () => {
     expect(player().longPause).toBe(false);
   });
 
-  it('asks for the titles from the start of the window and lists the earlier ones', async () => {
+  it('asks for the whole timeline, without a client-clock since, and lists the earlier ones', async () => {
     const at = Date.now();
     const entries = [
       { at: at - 600_000, text: 'A - One', artist: 'A', title: 'One' },
@@ -477,8 +492,25 @@ describe('RadioProvider', () => {
     const asked = context.fetchMock.mock.calls
       .map(([request]) => new URL(request.url))
       .find((url) => url.pathname.endsWith('/radio/stations/7/now'));
-    const since = Number(asked?.searchParams.get('since'));
-    expect(since).toBeGreaterThan(at - 1_800_000 - 5_000);
-    expect(since).toBeLessThanOrEqual(Date.now() - 1_800_000);
+    expect(asked).toBeDefined();
+    expect(asked?.searchParams.has('since')).toBe(false);
+  });
+
+  it('reads the offset every second while paused without rendering the pages again', async () => {
+    const context = setup();
+    await startLive(context);
+    act(() => player().toggle());
+    await waitFor(() => expect(status()).toBe('live/held/-'));
+    const fake = context.fakes[0];
+    if (!fake) throw new Error('no engine');
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    const before = pageRenders.count;
+    // The live edge moves on while paused: the offset grows, the pages stay as they are.
+    for (const behind of [10, 20, 30]) {
+      fake.shift.behind = behind;
+      await act(() => vi.advanceTimersByTimeAsync(1000));
+      expect(probe.offset).toBe(behind);
+    }
+    expect(pageRenders.count).toBe(before);
   });
 });

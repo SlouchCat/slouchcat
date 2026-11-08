@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { APIRequestContext, Page } from '@playwright/test';
 import { loginOwner } from './accounts';
 import { CSRF, HEVC_LONG_TITLE } from './catalog';
 import { OWNER_PROFILE, STORAGE_STATE } from './env';
@@ -343,5 +343,79 @@ test('partly buffered and without the stop watch: the 401 of a segment stops the
     console.log(JSON.stringify({ measurement: 'admin-stop-401', stopMs, buffered }));
   } finally {
     await context.close();
+  }
+});
+
+/** Ends every listen session of the radio (the fixture stops playback sessions only). */
+async function stopRadio(owner: APIRequestContext): Promise<void> {
+  const response = await owner.get('/api/v1/admin/radio/relays');
+  if (!response.ok()) return;
+  const { relays } = (await response.json()) as { relays: { listeners: { listenId: string }[] }[] };
+  for (const listener of relays.flatMap((relay) => relay.listeners)) {
+    await owner.delete(`/api/v1/admin/radio/listeners/${listener.listenId}`, { headers: CSRF });
+  }
+}
+
+/** Opens a listen session of the owner's profile on the test station `name`. */
+async function listen(owner: APIRequestContext, name: string) {
+  const response = await owner.get(
+    `/api/v1/admin/radio/stations?exceptions=false&limit=50&q=${encodeURIComponent(name)}`,
+  );
+  const { items } = (await response.json()) as { items: { id: number; name: string }[] };
+  const station = items.find((entry) => entry.name === name);
+  expect(station, `station "${name}" in the catalog`).toBeDefined();
+  const started = await owner.post(`/api/v1/radio/stations/${station!.id}/listen`, {
+    headers: CSRF,
+  });
+  expect(started.status(), await started.text()).toBe(201);
+}
+
+test('radio listeners as tiles in «Radio»: arrow keys between them, «Beenden» after the confirmation @keyboard', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(90_000);
+  await stopRadio(owner);
+  try {
+    // Two listen sessions of the owner's profile (D-11: read from the radio's relays).
+    await listen(owner, 'Testradio Eins');
+    await listen(owner, 'Testradio Zwei');
+    await page.goto('/admin/streams');
+    const radio = page.getByRole('region', { name: 'Radio' });
+    const first = radio.getByRole('article', { name: `${OWNER_PROFILE}: Testradio Eins` });
+    const second = radio.getByRole('article', { name: `${OWNER_PROFILE}: Testradio Zwei` });
+    await expect(first).toBeVisible({ timeout: 15_000 });
+    await expect(second).toBeVisible();
+    await expect(first).toContainText('Radio');
+    await expect(
+      page
+        .getByRole('group', { name: 'Serverlast' })
+        .getByText('Radio', { exact: true })
+        .locator('xpath=ancestor::dl[1]'),
+    ).toContainText('2');
+
+    const stopFirst = first.getByRole('button', { name: `Radio von ${OWNER_PROFILE} beenden` });
+    const stopSecond = second.getByRole('button', { name: `Radio von ${OWNER_PROFILE} beenden` });
+    await resetFocus(page);
+    await tabTo(page, stopFirst, 60);
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, stopSecond);
+    await page.keyboard.press('ArrowLeft');
+    await expectFocusOn(page, stopFirst);
+
+    await page.keyboard.press('Enter');
+    const confirm = page.getByRole('alertdialog', {
+      name: `Radio von ${OWNER_PROFILE} beenden?`,
+    });
+    await expect(confirm).toContainText('Testradio Eins');
+    await expectFocusOn(page, confirm.getByRole('button', { name: 'Radio beenden' }));
+    await page.keyboard.press('Enter');
+    await expect(page.getByText(`Radio von ${OWNER_PROFILE} beendet.`)).toBeVisible();
+    await expect(first).toHaveCount(0, { timeout: 15_000 });
+    await expect(second).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Streams' })).toBeFocused();
+    await expectNoFocusTrap(page);
+  } finally {
+    await stopRadio(owner);
   }
 });

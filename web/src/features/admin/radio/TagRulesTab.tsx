@@ -87,12 +87,25 @@ interface TagRulesTabProps {
   titleRef: RefObject<HTMLHeadingElement | null>;
 }
 
+/** The key of a rule in the table and in the drafts: tag and facet (D-2). */
+const ruleKey = (rule: { tag: string; facet: string }) => `${rule.tag}\n${rule.facet}`;
+
+/** A save: the whole list, the message after it, and the row it came from. */
+interface Save {
+  list: RadioTagRule[];
+  done: string;
+  /** The worklist tag or the rule key (ruleKey) whose button saves. */
+  row: string;
+}
+
 /**
  * «Einordnung» (concept 16, 5.4 and 11; D-1 to D-4): the coverage per facet, the worklist of the
  * tags no rule maps (most stations first; a choice and «Zuordnen» add a rule, «Ignorieren» takes
  * the tag off the list) and the effective rules, defaults and the administration's, whose value
- * can change; the administration's own rules can be removed after a confirmation. Every change
- * sends the administration's whole list and applies at once.
+ * changes with a choice and «Übernehmen»; the administration's own rules can be removed after a
+ * confirmation. Every change sends the administration's whole list, built from the last answer,
+ * and applies at once; while one is on its way every other save waits (no PUT overtakes another
+ * and loses its rule).
  */
 export function TagRulesTab({ titleRef }: TagRulesTabProps) {
   const { t, i18n } = useTranslation();
@@ -104,7 +117,9 @@ export function TagRulesTab({ titleRef }: TagRulesTabProps) {
   // Genres the catalog uses beyond the known keys (a newer default of the server).
   const facets = useQuery(radioFacetsQuery(radioQueryParams({})));
 
+  // Worklist choices by tag, rule drafts by ruleKey; a saved row drops its own.
   const [choices, setChoices] = useState<Record<string, string>>({});
+  const [ruleChoices, setRuleChoices] = useState<Record<string, string>>({});
   const [workShown, setWorkShown] = useState(PAGE);
   const [rulesShown, setRulesShown] = useState(PAGE);
   const [query, setQuery] = useState('');
@@ -112,9 +127,13 @@ export function TagRulesTab({ titleRef }: TagRulesTabProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const save = useMutation({
-    mutationFn: ({ list }: { list: RadioTagRule[]; done: string }) => setRadioTagRules(list),
-    onSuccess: async (next, { done }) => {
+    mutationFn: ({ list }: Save) => setRadioTagRules(list),
+    onSuccess: async (next, { done, row }) => {
       queryClient.setQueryData(radioTagRulesQuery.queryKey, next);
+      const drop = (before: Record<string, string>) =>
+        Object.fromEntries(Object.entries(before).filter(([key]) => key !== row));
+      setChoices(drop);
+      setRuleChoices(drop);
       setMessage(done);
       // The stations' facets changed with the rules: their lists and counts follow.
       await queryClient.invalidateQueries({
@@ -151,10 +170,13 @@ export function TagRulesTab({ titleRef }: TagRulesTabProps) {
   }
 
   const current = adminRules(data);
+  const busy = save.isPending;
+  const saving = (row: string) => busy && save.variables.row === row;
   const assign = (tag: string) => {
     const target = parseTarget(choices[tag] ?? '');
-    if (!target) return;
+    if (!target || busy) return;
     save.mutate({
+      row: tag,
       list: withRule(current, { tag, ...target }),
       done:
         target.facet === 'ignore'
@@ -209,8 +231,8 @@ export function TagRulesTab({ titleRef }: TagRulesTabProps) {
       cell: (entry) => (
         <AriaButton
           size="sm"
-          isDisabled={!choices[entry.tag]}
-          isPending={save.isPending && save.variables.list.some((rule) => rule.tag === entry.tag)}
+          isDisabled={!choices[entry.tag] || (busy && !saving(entry.tag))}
+          isPending={saving(entry.tag)}
           aria-label={t('admin.radio.rules.assignLabel', { tag: entry.tag })}
           onPress={() => assign(entry.tag)}
         >
@@ -220,29 +242,43 @@ export function TagRulesTab({ titleRef }: TagRulesTabProps) {
     },
   ];
 
+  /** The value a rule's select shows: the draft, else the stored target. */
+  const ruleDraft = (rule: RadioTagRuleView) =>
+    ruleChoices[ruleKey(rule)] ?? targetOf(rule.facet, rule.value);
+  const ruleChanged = (rule: RadioTagRuleView) =>
+    ruleDraft(rule) !== targetOf(rule.facet, rule.value);
+  const facetName = (rule: RadioTagRuleView) =>
+    rule.facet === 'ignore' ? t('admin.radio.rules.ignoreFacet') : facetLabel(t, rule.facet);
+
+  // A choice is a draft until «Übernehmen»: the arrow keys on a closed select go through the
+  // values without a save for each.
   const ruleTarget = (rule: RadioTagRuleView) => {
-    if (rule.facet === 'ignore')
+    if (rule.facet === 'ignore') {
       return <Text tone="secondary">{t('admin.radio.rules.ignored')}</Text>;
+    }
     const facet = rule.facet;
     return (
       <SelectField
         label={t('admin.radio.rules.ruleLabel', { tag: rule.tag, facet: facetLabel(t, facet) })}
         hideLabel
-        value={targetOf(facet, rule.value)}
+        value={ruleDraft(rule)}
         options={[
           ...facetGroup(t, facet, values[facet]).options,
           { value: targetOf(facet, null), label: t('admin.radio.rules.none') },
         ]}
-        onChange={(value) => {
-          const target = parseTarget(value);
-          if (!target || target.facet === 'ignore') return;
-          save.mutate({
-            list: withRule(current, { tag: rule.tag, facet, value: target.value }),
-            done: t('admin.radio.rules.changedDone', { tag: rule.tag }),
-          });
-        }}
+        onChange={(value) => setRuleChoices((before) => ({ ...before, [ruleKey(rule)]: value }))}
       />
     );
+  };
+
+  const applyRule = (rule: RadioTagRuleView) => {
+    const target = parseTarget(ruleDraft(rule));
+    if (!target || target.facet === 'ignore' || rule.facet === 'ignore' || busy) return;
+    save.mutate({
+      row: ruleKey(rule),
+      list: withRule(current, { tag: rule.tag, facet: rule.facet, value: target.value }),
+      done: t('admin.radio.rules.changedDone', { tag: rule.tag }),
+    });
   };
 
   const ruleColumns: DataColumn<RadioTagRuleView>[] = [
@@ -275,26 +311,41 @@ export function TagRulesTab({ titleRef }: TagRulesTabProps) {
       header: t('admin.radio.rules.columns.actions'),
       hideHeader: true,
       align: 'end',
-      cell: (rule) =>
-        rule.source === 'admin' ? (
-          <AriaButton
-            variant="ghost"
-            size="sm"
-            aria-label={t('admin.radio.rules.removeLabel', {
-              tag: rule.tag,
-              facet:
-                rule.facet === 'ignore'
-                  ? t('admin.radio.rules.ignoreFacet')
-                  : facetLabel(t, rule.facet),
-            })}
-            onPress={() => {
-              setRemoving(rule);
-              setConfirmOpen(true);
-            }}
-          >
-            {t('admin.radio.rules.remove')}
-          </AriaButton>
-        ) : null,
+      cell: (rule) => (
+        <span className={styles.actions}>
+          {rule.facet !== 'ignore' && (
+            <AriaButton
+              size="sm"
+              isDisabled={!ruleChanged(rule) || (busy && !saving(ruleKey(rule)))}
+              isPending={saving(ruleKey(rule))}
+              aria-label={t('admin.radio.rules.applyLabel', {
+                tag: rule.tag,
+                facet: facetName(rule),
+              })}
+              onPress={() => applyRule(rule)}
+            >
+              {t('admin.radio.rules.apply')}
+            </AriaButton>
+          )}
+          {rule.source === 'admin' && (
+            <AriaButton
+              variant="ghost"
+              size="sm"
+              isDisabled={busy}
+              aria-label={t('admin.radio.rules.removeLabel', {
+                tag: rule.tag,
+                facet: facetName(rule),
+              })}
+              onPress={() => {
+                setRemoving(rule);
+                setConfirmOpen(true);
+              }}
+            >
+              {t('admin.radio.rules.remove')}
+            </AriaButton>
+          )}
+        </span>
+      ),
     },
   ];
 
@@ -372,7 +423,7 @@ export function TagRulesTab({ titleRef }: TagRulesTabProps) {
               caption={t('admin.radio.rules.rules')}
               columns={ruleColumns}
               rows={shownRules.slice(0, rulesShown)}
-              rowKey={(rule) => `${rule.tag}\n${rule.facet}`}
+              rowKey={ruleKey}
             />
             {shownRules.length > rulesShown && (
               <AriaButton onPress={() => setRulesShown((shown) => shown + PAGE)}>
@@ -401,6 +452,7 @@ export function TagRulesTab({ titleRef }: TagRulesTabProps) {
           tone="danger"
           onConfirm={() =>
             save.mutate({
+              row: ruleKey(removing),
               list: withoutRule(current, removing),
               done: t('admin.radio.rules.removedDone', { tag: removing.tag }),
             })

@@ -43,21 +43,15 @@ export const RADIO_NOW_INTERVAL_MS = 10_000;
 
 /**
  * The titles the station's stream announced; asked again every 10 s while the tab is visible.
- * With a time shift window (`windowSeconds`, contract 1.19.0) it asks from the start of the window
- * on, so «Zuvor gespielt» holds the whole timeline a listener can play back to (7.6).
+ * Without `since` the server answers the whole timeline over its buffer, so «Zuvor gespielt»
+ * holds every title a listener can play back to (7.6); the client clock decides nothing.
  */
-export const radioNowQuery = (stationId: number, windowSeconds = 0) =>
+export const radioNowQuery = (stationId: number) =>
   queryOptions({
     queryKey: radioKeys.now(stationId),
     queryFn: ({ signal }): Promise<RadioNow> =>
       request(
-        api.GET('/radio/stations/{stationId}/now', {
-          params: {
-            path: { stationId },
-            ...(windowSeconds > 0 ? { query: { since: Date.now() - windowSeconds * 1000 } } : {}),
-          },
-          signal,
-        }),
+        api.GET('/radio/stations/{stationId}/now', { params: { path: { stationId } }, signal }),
       ),
     refetchInterval: RADIO_NOW_INTERVAL_MS,
     refetchIntervalInBackground: false,

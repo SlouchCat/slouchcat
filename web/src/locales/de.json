@@ -1199,6 +1199,8 @@
           "admin": "Eigene Regel"
         },
         "remove": "Entfernen",
+        "apply": "Übernehmen",
+        "applyLabel": "Regel {{facet}} für {{tag}} übernehmen",
         "removeLabel": "Regel {{facet}} für {{tag}} entfernen",
         "removeTitle": "Regel für «{{tag}}» entfernen?",
         "removeBody": "«{{tag}}» fällt für dieses Merkmal auf die Vorgabe zurück. Die Sender werden sofort neu eingeordnet.",

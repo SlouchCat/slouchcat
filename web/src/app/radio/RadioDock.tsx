@@ -15,7 +15,7 @@ import {
   type RadioImageSize,
   type RadioNowEntry,
 } from './queries';
-import { useRadio } from './useRadio';
+import { useRadio, useRadioOffset } from './useRadio';
 
 // The radio's controls in the app shell (AppLayout): the mini player while a station is chosen
 // and, opened from it, «Jetzt läuft». The dialog builds on react-aria and loads on first use, so
@@ -114,9 +114,10 @@ const coverOf = (entry: RadioNowEntry | null | undefined, size: RadioImageSize) 
 export function RadioDock() {
   const { t, i18n } = useTranslation();
   const radio = useRadio();
+  const offset = useRadioOffset();
   const favorite = useRadioFavorite();
   const [open, setOpen] = useState(false);
-  const { state, playing, entry, history, offset, timeShiftSeconds } = radio;
+  const { state, playing, entry, history, timeShiftSeconds } = radio;
   const station = state.station;
   if (!station) return null;
 

@@ -35,7 +35,7 @@ import {
   sendRadioHeartbeat,
   startRadioListen,
 } from './queries';
-import { RadioContext, type RadioPlayer } from './useRadio';
+import { RadioContext, RadioOffsetContext, type RadioPlayer } from './useRadio';
 
 // The radio player of the whole app (concept 16, 10.3; plan W1). It sits in the route `_authed`
 // (R-1), so it outlives the profile picker and every page with or without the app header; the
@@ -403,7 +403,7 @@ export function RadioProvider({ children, engine = createRadioEngine }: RadioPro
   // «Jetzt läuft»: the title timeline of the running station.
   const liveStation = state.phase === 'live' ? state.station?.id : undefined;
   const now = useQuery({
-    ...radioNowQuery(liveStation ?? 0, timeShiftSeconds),
+    ...radioNowQuery(liveStation ?? 0),
     enabled: liveStation !== undefined,
   });
   const entries = liveStation === undefined ? undefined : now.data?.entries;
@@ -425,7 +425,6 @@ export function RadioProvider({ children, engine = createRadioEngine }: RadioPro
       playing,
       entry,
       history,
-      offset,
       timeShiftSeconds,
       longPause,
       play,
@@ -442,7 +441,6 @@ export function RadioProvider({ children, engine = createRadioEngine }: RadioPro
       playing,
       entry,
       history,
-      offset,
       timeShiftSeconds,
       longPause,
       play,
@@ -458,13 +456,15 @@ export function RadioProvider({ children, engine = createRadioEngine }: RadioPro
 
   return (
     <RadioContext.Provider value={value}>
-      {/* The radio's own element; nothing to see, the mini player is the control. Live radio has
+      <RadioOffsetContext.Provider value={offset}>
+        {/* The radio's own element; nothing to see, the mini player is the control. Live radio has
           no caption track. */}
-      {hasAudio && (
-        // eslint-disable-next-line jsx-a11y/media-has-caption
-        <audio ref={audioRef} preload="none" data-testid="radio-audio" hidden />
-      )}
-      {children}
+        {hasAudio && (
+          // eslint-disable-next-line jsx-a11y/media-has-caption
+          <audio ref={audioRef} preload="none" data-testid="radio-audio" hidden />
+        )}
+        {children}
+      </RadioOffsetContext.Provider>
     </RadioContext.Provider>
   );
 }

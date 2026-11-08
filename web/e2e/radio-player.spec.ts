@@ -21,7 +21,10 @@ import {
 // with the focus back on the mini player; the arrow keys lead from the page down into the mini
 // player and up back into the page (AppLayout); navigation (also into /admin) and Back keep
 // playing, a title on /play stops the radio and ends the listen session; a second page that
-// starts radio pauses the first; no focus trap.
+// starts radio pauses the first; no focus trap. Since concept 16 stage 2 the relay keeps a time
+// shift window of 10 minutes (D-14: the radiotest build takes the disk buffer as a tmpfs): the
+// slider of «Jetzt läuft» goes behind live by keyboard, «Live» returns, «Zuvor gespielt» lists the
+// earlier titles.
 
 const AAC_STATION = 'Testradio Drei';
 const MP3_STATION = 'Testradio Eins';
@@ -32,6 +35,8 @@ const OTHER_STATION = 'Testradio Zwei';
  */
 const ICY_LINE = /^Slouchcat Testton – Titel \d+$/;
 const ICY_TITLE = /^Titel \d+$/;
+/** The title inside a longer text (a row of «Zuvor gespielt» with its time). */
+const ICY_TITLE_PART = /Titel \d+/;
 /** Relay start (ffmpeg, the first segments) plus the first title poll (10 s). */
 const LIVE_TIMEOUT_MS = 30_000;
 
@@ -205,7 +210,10 @@ test('the transcoded MP3 station shows the title of its stream', async ({ page, 
   await miniOpen(page).click();
   const now = page.getByRole('dialog', { name: 'Jetzt läuft' });
   await expect(now.getByTestId('radio-now-title')).toHaveText(ICY_TITLE);
-  await expect(now.getByText('Slouchcat Testton', { exact: true })).toBeVisible();
+  // The artist under the title (the live region); «Zuvor gespielt» may name it again below.
+  await expect(
+    now.locator('[aria-live="polite"]').getByText('Slouchcat Testton', { exact: true }),
+  ).toBeVisible();
   await expect(now.getByText('Über Slouchcat, Standort des Servers')).toBeVisible();
   await page.keyboard.press('Escape');
   // «Radio beenden» ends the session.
@@ -228,4 +236,57 @@ test('a second page that starts radio pauses the first', async ({ page, context 
   } finally {
     await second.close();
   }
+});
+
+test('«Jetzt läuft» by keyboard: the slider goes behind live, «Zuvor gespielt», «Live» returns @keyboard', async ({
+  page,
+}) => {
+  test.setTimeout(150_000);
+  await playStation(page, AAC_STATION);
+  await expect(page.getByTestId('radio-mini-line')).toHaveText(ICY_LINE, {
+    timeout: LIVE_TIMEOUT_MS,
+  });
+
+  await resetFocus(page);
+  await tabTo(page, miniOpen(page), 80);
+  await page.keyboard.press('Enter');
+  const now = page.getByRole('dialog', { name: 'Jetzt läuft' });
+  await expect(now).toBeVisible();
+
+  // The test station names a new title every 10 s: once one followed the first, «Zuvor gespielt»
+  // lists the earlier one (the timeline from the start of the window, 7.6).
+  const played = now.getByTestId('radio-played');
+  await expect(played.getByRole('listitem').first()).toContainText(ICY_TITLE_PART, {
+    timeout: 60_000,
+  });
+  const titleNumber = (text: string) => Number(/Titel (\d+)/.exec(text)?.[1]);
+  const current = titleNumber(await now.getByTestId('radio-now-title').innerText());
+  const previous = titleNumber(await played.getByRole('listitem').first().innerText());
+  expect(previous).toBeLessThan(current);
+
+  // The slider (10 minutes in the suite, D-14): Tab reaches it with a visible ring, the arrow keys
+  // move it in steps of 5 s, the player seeks once it rests.
+  const slider = now.getByRole('slider', { name: 'Zeitversatz, bis 10 Minuten zurück' });
+  await tabTo(page, slider, 20);
+  await expect(slider).toHaveAttribute('aria-valuetext', 'Live');
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
+  await expect(slider).toHaveAttribute('aria-valuetext', '10 Sekunden zurück');
+  await expect(miniPlayer(page)).toHaveAttribute('data-state', 'shifted', { timeout: 15_000 });
+  await expect(page.getByTestId('radio-mini-state')).toHaveText(/^−\d+:\d\d$/);
+  const live = now.getByTestId('radio-now-live');
+  await expect(live).toHaveAttribute('aria-pressed', 'false');
+
+  // «Live» returns to the live position.
+  await tabTo(page, live, 10);
+  await page.keyboard.press('Enter');
+  await expect(live).toHaveAttribute('aria-pressed', 'true', { timeout: 15_000 });
+  await expect(miniPlayer(page)).toHaveAttribute('data-state', 'live');
+  await expect(slider).toHaveAttribute('aria-valuetext', 'Live');
+
+  // Escape closes it with the focus back on the mini player; no focus trap.
+  await page.keyboard.press('Escape');
+  await expect(now).toHaveCount(0);
+  await expectFocusOn(page, miniOpen(page));
+  await expectNoFocusTrap(page);
 });
