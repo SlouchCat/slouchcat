@@ -15,19 +15,43 @@ import (
 	"syscall"
 )
 
-// versionKey is the one variable the updater writes (ADR 0024 point 11).
-const versionKey = "SLOUCHCAT_VERSION"
+// versionKey is the variable an install writes (ADR 0024 point 11); updaterVersionKey the one a
+// self-update writes (ADR 0024 addendum point 2). The updater writes no other.
+const (
+	versionKey        = "SLOUCHCAT_VERSION"
+	updaterVersionKey = "SLOUCHCAT_UPDATER_VERSION"
+)
 
-// versionLine matches a SLOUCHCAT_VERSION assignment at the start of a line, with the optional
-// indent and "export " that compose's dotenv parser accepts. Group 1 is everything up to and
-// including "=".
-var versionLine = regexp.MustCompile(`^([ \t]*(?:export[ \t]+)?` + versionKey + `[ \t]*=)`)
+// keyLine matches an assignment of key at the start of a line, with the optional indent and
+// "export " that compose's dotenv parser accepts. Group 1 is everything up to and including "=".
+func keyLine(key string) *regexp.Regexp {
+	return regexp.MustCompile(`^([ \t]*(?:export[ \t]+)?` + regexp.QuoteMeta(key) + `[ \t]*=)`)
+}
 
-// setVersion returns data with the value of every SLOUCHCAT_VERSION line set to v and all other
+// versionLine matches a SLOUCHCAT_VERSION assignment, updaterVersionLine one of
+// SLOUCHCAT_UPDATER_VERSION.
+var (
+	versionLine        = keyLine(versionKey)
+	updaterVersionLine = keyLine(updaterVersionKey)
+)
+
+// lineOf returns the pattern of key, one of the two keys the updater writes.
+func lineOf(key string) *regexp.Regexp {
+	if key == updaterVersionKey {
+		return updaterVersionLine
+	}
+	return versionLine
+}
+
+// setVersion returns data with the value of every SLOUCHCAT_VERSION line set to v (setValue).
+func setVersion(data []byte, v string) []byte { return setValue(data, versionKey, v) }
+
+// setValue returns data with the value of every line assigning key set to v and all other
 // bytes unchanged: line endings, the spaces around the value, its quotes ("…" or '…') and a
 // trailing comment. Without such a line it appends one, with the line ending the file already
 // uses (CRLF when it has one, else LF), after closing an unterminated last line.
-func setVersion(data []byte, v string) []byte {
+func setValue(data []byte, key, v string) []byte {
+	re := lineOf(key)
 	var out bytes.Buffer
 	found := false
 	rest := data
@@ -43,7 +67,7 @@ func setVersion(data []byte, v string) []byte {
 		} else {
 			rest = nil
 		}
-		if m := versionLine.FindSubmatch(line); m != nil {
+		if m := re.FindSubmatch(line); m != nil {
 			found = true
 			value := line[len(m[1]):]
 			start, stop := valueSpan(value)
@@ -62,7 +86,7 @@ func setVersion(data []byte, v string) []byte {
 	if len(data) > 0 && !bytes.HasSuffix(data, []byte("\n")) {
 		out.WriteString(eol)
 	}
-	out.WriteString(versionKey + "=" + v + eol)
+	out.WriteString(key + "=" + v + eol)
 	return out.Bytes()
 }
 
@@ -116,21 +140,25 @@ func envVersion(data []byte) (string, bool) {
 	return v, found
 }
 
-// hasVersion reports whether data assigns SLOUCHCAT_VERSION.
-func hasVersion(data []byte) bool {
+// hasKey reports whether data assigns key.
+func hasKey(data []byte, key string) bool {
+	re := lineOf(key)
 	for line := range bytes.Lines(data) {
-		if versionLine.Match(line) {
+		if re.Match(line) {
 			return true
 		}
 	}
 	return false
 }
 
-// envTarget picks the env file whose SLOUCHCAT_VERSION line is edited: the last listed file that
+// envTarget picks the env file whose SLOUCHCAT_VERSION line is edited (envTargetFor).
+func envTarget(files []string) (string, error) { return envTargetFor(files, versionKey) }
+
+// envTargetFor picks the env file whose line of key is edited: the last listed file that
 // contains it (compose lets a later --env-file win), otherwise the last listed file, where the
 // line is appended. A file that does not exist counts as empty. A symbolic link is read through
 // its target (checked by inside), and the file must be a regular one (readRegular).
-func envTarget(files []string) (string, error) {
+func envTargetFor(files []string, key string) (string, error) {
 	for i := len(files) - 1; i >= 0; i-- {
 		path := files[i]
 		if target, err := filepath.EvalSymlinks(path); err == nil {
@@ -143,7 +171,7 @@ func envTarget(files []string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("read env file: %w", err)
 		}
-		if hasVersion(data) {
+		if hasKey(data, key) {
 			return files[i], nil
 		}
 	}
@@ -253,6 +281,18 @@ func (f envFile) backup(v string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("no free backup name %s.bak-vor-%s-N", filepath.Base(f.path), v)
+}
+
+// saveAs writes the content to the new file name (0600, owned like the original) through a
+// temporary file linked to it, as backup does: it fails when name exists, even as a dangling
+// symbolic link, and a backup never shows half written.
+func (f envFile) saveAs(name string) error {
+	tmp, err := writeTemp(name, f.data, 0o600, f.uid, f.gid)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = os.Remove(tmp) }()
+	return os.Link(tmp, name)
 }
 
 // findBackup returns the path of the backup taken before installing v, next to the env file.

@@ -29,13 +29,21 @@ const (
 	oldEnv     = "# Slouchcat\r\nSLOUCHCAT_VERSION=1.15.0\r\nSLOUCHCAT_SMTP_PASSWORD=secret-FAKE\r\nPUID=1000"
 )
 
-// fakeDocker records the compose calls and plays the server container.
+// fakeDocker records the compose calls and plays the server container (and the updater's own).
 type fakeDocker struct {
 	mu        sync.Mutex
 	c         Container
+	self      *Container // the container slouchcat-updater; nil: not found
 	digests   []string
+	selfDigs  []string // RepoDigests of the updater image
 	pullErr   error
+	pullErrs  []error // the errors of the first pulls, in order; then pullErr
 	upErr     error
+	images    []Image
+	rmErr     map[string]error // RemoveImage errors by reference
+	removed   []string
+	runs      [][]string
+	runErr    error
 	pullGate  chan struct{} // when set, pull waits for it
 	calls     [][]string
 	ups       int
@@ -46,6 +54,9 @@ type fakeDocker struct {
 func (f *fakeDocker) Container(_ context.Context, name string) (Container, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if name == defaultUpdaterContainer && f.self != nil {
+		return *f.self, nil
+	}
 	if name != "slouchcat" {
 		return Container{}, errors.New("no such container")
 	}
@@ -61,12 +72,21 @@ func (f *fakeDocker) ComposeImage(_ context.Context, p Project, service string) 
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.calls = append(f.calls, append(p.args(), "config", "--format", "json", service))
+	if service == updaterService {
+		return "ghcr.io/slouchcat/slouchcat-updater:1.18.0", nil
+	}
 	return "ghcr.io/slouchcat/slouchcat:1.16.0", nil
 }
 
-func (f *fakeDocker) RepoDigests(context.Context, string) ([]string, error) {
+func (f *fakeDocker) RepoDigests(_ context.Context, ref string) ([]string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if strings.Contains(ref, "slouchcat-updater") {
+		if f.selfDigs == nil {
+			return nil, errors.New("no such image")
+		}
+		return f.selfDigs, nil
+	}
 	if f.digests == nil {
 		return nil, errors.New("no such image")
 	}
@@ -87,6 +107,13 @@ func (f *fakeDocker) Compose(ctx context.Context, p Project, args ...string) err
 				return ctx.Err()
 			}
 		}
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		if len(f.pullErrs) > 0 {
+			err := f.pullErrs[0]
+			f.pullErrs = f.pullErrs[1:]
+			return err
+		}
 		return f.pullErr
 	case "up":
 		f.mu.Lock()
@@ -100,6 +127,35 @@ func (f *fakeDocker) Compose(ctx context.Context, p Project, args ...string) err
 		}
 	}
 	return nil
+}
+
+func (f *fakeDocker) Images(_ context.Context, repo string) ([]Image, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []Image
+	for _, im := range f.images {
+		if im.Repository == repo {
+			out = append(out, im)
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeDocker) RemoveImage(_ context.Context, ref string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.rmErr[ref]; err != nil {
+		return err
+	}
+	f.removed = append(f.removed, ref)
+	return nil
+}
+
+func (f *fakeDocker) Run(_ context.Context, args ...string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.runs = append(f.runs, args)
+	return f.runErr
 }
 
 // verbs returns the compose subcommands called, in order ("pull", "config", "up").
@@ -122,9 +178,11 @@ type harness struct {
 	env      string
 	fake     *fakeDocker
 	manifest string
+	files    map[string]string // release files served next to the manifest, by path ("/compose.yaml")
 	u        *Updater
 	stop     context.CancelFunc // ends the updater's process context (SIGTERM)
 	wait     time.Duration      // u.wait when set; start applies it before Resume
+	version  string             // u.version when set (the updater's own version, "dev" otherwise)
 	token    []byte
 	logs     *bytes.Buffer
 	srv      *httptest.Server
@@ -168,6 +226,10 @@ func newHarness(t *testing.T) *harness {
 			http.Redirect(w, r, to, http.StatusFound)
 			return
 		}
+		if body, ok := h.files[r.URL.Path]; ok {
+			_, _ = w.Write([]byte(body))
+			return
+		}
 		_, _ = w.Write([]byte(h.manifest))
 	}))
 	t.Cleanup(h.srv.Close)
@@ -181,7 +243,8 @@ func (h *harness) start() {
 	if err != nil {
 		h.t.Fatal(err)
 	}
-	cfg := settings{deployDir: h.deploy, uid: os.Getuid(), gid: os.Getgid(), manifestURL: h.srv.URL, container: "slouchcat"}
+	cfg := settings{deployDir: h.deploy, uid: os.Getuid(), gid: os.Getgid(), manifestURL: h.srv.URL, container: "slouchcat",
+		updaterContainer: defaultUpdaterContainer}
 	ctx, stop := context.WithCancel(h.t.Context())
 	h.t.Cleanup(stop)
 	u, token, err := newUpdater(ctx, cfg, h.fake, log)
@@ -191,6 +254,10 @@ func (h *harness) start() {
 	h.stop = stop
 	u.client.Transport = h.srv.Client().Transport // trusts the test certificate; CheckRedirect stays
 	u.every, u.wait = 2*time.Millisecond, 150*time.Millisecond
+	u.pullPauses = []time.Duration{time.Millisecond, time.Millisecond}
+	if h.version != "" {
+		u.version = h.version
+	}
 	if h.wait != 0 {
 		u.wait = h.wait
 	}

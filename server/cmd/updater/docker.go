@@ -24,14 +24,28 @@ type Docker interface {
 	ComposeImage(ctx context.Context, p Project, service string) (string, error)
 	// RepoDigests returns the repository digests ("repo@sha256:…") of the local image ref.
 	RepoDigests(ctx context.Context, ref string) ([]string, error)
-	// Compose runs `docker compose <project arguments> <args>`.
+	// Compose runs `docker compose <project arguments> <args>`. A failed call returns a
+	// *commandError with the last line docker printed to stderr.
 	Compose(ctx context.Context, p Project, args ...string) error
+	// Images lists the local images of the repository (`docker image ls`).
+	Images(ctx context.Context, repository string) ([]Image, error)
+	// RemoveImage runs `docker image rm ref`, never with --force: an image in use stays.
+	RemoveImage(ctx context.Context, ref string) error
+	// Run runs `docker run <args>` (the helper container of a self-update).
+	Run(ctx context.Context, args ...string) error
+}
+
+// Image is one line of `docker image ls`; Tag and Digest are "<none>" when the image has none.
+type Image struct {
+	ID, Repository, Tag, Digest string
 }
 
 // Container is the part of `docker container inspect` the updater reads.
 type Container struct {
 	// Image is the reference the container was created from (Config.Image).
 	Image string
+	// ImageID is the ID of the image the container runs (Image of the inspect output).
+	ImageID string
 	// Labels are the container labels; they include the labels of its image.
 	Labels map[string]string
 	// Running is State.Running.
@@ -133,9 +147,57 @@ func (d dockerCLI) run(ctx context.Context, args ...string) ([]byte, error) {
 			}
 			d.failed(args, err, lastLine(out))
 		}
-		return nil, fmt.Errorf("docker %s: %w", args[0], err)
+		return nil, newCommandError(args[0], err, stderr.Bytes())
 	}
 	return stdout.Bytes(), nil
+}
+
+// maxErrorLine caps the stderr line a commandError carries; it ends up in the message of the
+// install (ADR 0024 addendum point 4).
+const maxErrorLine = 300
+
+// diskFullText is what Docker prints when the image does not fit.
+const diskFullText = "no space left on device"
+
+// commandError is a failed docker call: the subcommand, its error (exit status) and the last
+// non-empty line of its stderr, redacted as by lastLine.
+type commandError struct {
+	verb     string
+	err      error
+	line     string
+	diskFull bool // stderr reported "no space left on device"
+}
+
+func newCommandError(verb string, err error, stderr []byte) *commandError {
+	line := lastLine(stderr)
+	if len(line) > maxErrorLine {
+		line = strings.ToValidUTF8(line[:maxErrorLine], "")
+	}
+	return &commandError{verb: verb, err: err, line: line,
+		diskFull: strings.Contains(strings.ToLower(string(stderr)), diskFullText)}
+}
+
+func (e *commandError) Error() string {
+	if e.line == "" {
+		return fmt.Sprintf("docker %s: %v", e.verb, e.err)
+	}
+	return fmt.Sprintf("docker %s: %v: %s", e.verb, e.err, e.line)
+}
+
+func (e *commandError) Unwrap() error { return e.err }
+
+// errorLine returns the stderr line of a failed docker call ("" for another error).
+func errorLine(err error) string {
+	if ce := (*commandError)(nil); errors.As(err, &ce) {
+		return ce.line
+	}
+	return ""
+}
+
+// diskFull reports whether a failed docker call ran out of disk space.
+func diskFull(err error) bool {
+	ce := (*commandError)(nil)
+	return errors.As(err, &ce) && ce.diskFull
 }
 
 // maxLogLine caps the line lastLine returns.
@@ -175,6 +237,7 @@ func (d dockerCLI) Container(ctx context.Context, name string) (Container, error
 		return Container{}, err
 	}
 	var list []struct {
+		Image  string
 		Config struct {
 			Image  string
 			Labels map[string]string
@@ -200,7 +263,7 @@ func (d dockerCLI) Container(ctx context.Context, name string) (Container, error
 		return Container{}, fmt.Errorf("inspect %s: %d results", name, len(list))
 	}
 	c := list[0]
-	res := Container{Image: c.Config.Image, Labels: c.Config.Labels, Running: c.State.Running,
+	res := Container{Image: c.Config.Image, ImageID: c.Image, Labels: c.Config.Labels, Running: c.State.Running,
 		Status: c.State.Status, ExitCode: c.State.ExitCode, RestartCount: c.RestartCount,
 		RestartPolicy: c.HostConfig.RestartPolicy.Name, MaxRetries: c.HostConfig.RestartPolicy.MaximumRetryCount}
 	if c.State.Health != nil {
@@ -253,5 +316,43 @@ func (d dockerCLI) RepoDigests(ctx context.Context, ref string) ([]string, error
 
 func (d dockerCLI) Compose(ctx context.Context, p Project, args ...string) error {
 	_, err := d.run(ctx, append(p.args(), args...)...)
+	return err
+}
+
+// imageFormat prints the fields of Image, one image per line.
+const imageFormat = "{{.ID}}\t{{.Repository}}\t{{.Tag}}\t{{.Digest}}"
+
+func (d dockerCLI) Images(ctx context.Context, repository string) ([]Image, error) {
+	if repository == "" {
+		return nil, errors.New("image ls: no repository") // would list every image
+	}
+	out, err := d.run(ctx, "image", "ls", "--no-trunc", "--digests", "--format", imageFormat, repository)
+	if err != nil {
+		return nil, err
+	}
+	return parseImages(out), nil
+}
+
+// parseImages reads the output of docker image ls with imageFormat; a line without four fields
+// is skipped.
+func parseImages(out []byte) []Image {
+	var list []Image
+	for line := range strings.SplitSeq(string(out), "\n") {
+		f := strings.Split(strings.TrimSpace(line), "\t")
+		if len(f) != 4 || f[0] == "" {
+			continue
+		}
+		list = append(list, Image{ID: f[0], Repository: f[1], Tag: f[2], Digest: f[3]})
+	}
+	return list
+}
+
+func (d dockerCLI) RemoveImage(ctx context.Context, ref string) error {
+	_, err := d.run(ctx, "image", "rm", ref)
+	return err
+}
+
+func (d dockerCLI) Run(ctx context.Context, args ...string) error {
+	_, err := d.run(ctx, append([]string{"run"}, args...)...)
 	return err
 }

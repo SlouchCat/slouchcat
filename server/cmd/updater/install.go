@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -18,9 +19,11 @@ import (
 )
 
 const (
-	// service is the compose service of the server; the updater never touches another one, itself
-	// included (ADR 0024 point 13).
-	service = "slouchcat"
+	// service is the compose service of the server; an install never touches another one, the
+	// updater included (ADR 0024 point 13). updaterService is the updater's own, which only a
+	// self-update recreates (ADR 0024 addendum point 2).
+	service        = "slouchcat"
+	updaterService = "updater"
 
 	labelProject     = "com.docker.compose.project"
 	labelConfigFiles = "com.docker.compose.project.config_files"
@@ -40,6 +43,10 @@ const (
 	pollInterval   = 2 * time.Second
 )
 
+// pullPauses are the waits between the attempts of docker compose pull (ADR 0024 addendum
+// point 4): three attempts, all within pullTimeout.
+var pullPauses = []time.Duration{15 * time.Second, 45 * time.Second}
+
 // digestRef is the form of the manifest field image: a repository with a sha256 digest.
 var digestRef = regexp.MustCompile(`^[a-z0-9][a-z0-9._/:-]*@(sha256:[0-9a-f]{64})$`)
 
@@ -51,8 +58,16 @@ type Updater struct {
 	log    *slog.Logger
 	now    func() time.Time
 
+	// version is the updater's own (main.version); /status reports it, and a self-update
+	// compares it with the release.
+	version string
+
 	// The waits; tests shorten them.
 	every, wait time.Duration
+	// pullPauses are the waits between pull attempts; selfEvery the interval of the self-update
+	// check (Watch).
+	pullPauses []time.Duration
+	selfEvery  time.Duration
 
 	// ctx is the lifetime of the process; an install runs under it, not under its request.
 	ctx context.Context
@@ -63,6 +78,11 @@ type Updater struct {
 
 	mu    sync.Mutex
 	state updater.State
+	// selfBusy is set while a self-update runs its steps, selfHold until when /install stays busy
+	// after the helper started (it recreates this container). An install and a self-update never
+	// overlap.
+	selfBusy bool
+	selfHold time.Time
 }
 
 // plan is an accepted install.
@@ -70,7 +90,8 @@ type plan struct {
 	from, to string
 	digest   string // sha256:… of the manifest
 	project  Project
-	env      string // the env file whose SLOUCHCAT_VERSION line is set
+	env      string            // the env file whose SLOUCHCAT_VERSION line is set
+	deploy   map[string]string // compose files of the release: base name → sha256 (manifest)
 }
 
 // refusal stops an install before anything changed.
@@ -96,6 +117,11 @@ func (u *Updater) State() updater.State {
 // statePath is <deploy>/updater/state.json.
 func (u *Updater) statePath() string { return filepath.Join(u.cfg.dir(), updater.StateFile) }
 
+// busy reports whether an install or a self-update runs; u.mu is held.
+func (u *Updater) busy() bool {
+	return u.state.Phase.Running() || u.selfBusy || u.now().Before(u.selfHold)
+}
+
 // set makes s the current state and writes it to state.json.
 func (u *Updater) set(s updater.State) {
 	u.mu.Lock()
@@ -114,11 +140,12 @@ func (u *Updater) persist(s updater.State) {
 }
 
 // Start begins an install. It runs the checks first and answers with the status code of the
-// HTTP response: 202 and the new state when the install runs, 409 while one runs already, 422
+// HTTP response: 202 and the new state when the install runs, 409 while one runs already (or a
+// self-update), 422
 // with a failed state (not written to state.json) when a check refused it.
 func (u *Updater) Start() (updater.State, int) {
 	u.mu.Lock()
-	if u.state.Phase.Running() {
+	if u.busy() {
 		s := u.state
 		u.mu.Unlock()
 		s.Code = updater.CodeBusy
@@ -184,13 +211,66 @@ func (u *Updater) check(ctx context.Context) (plan, error) {
 	if err != nil {
 		return plan{}, withVersions(refuse(updater.CodeOutsideDeployDir, "%v", err))
 	}
-	return plan{from: from, to: m.Version, digest: match[1], project: proj, env: env}, nil
+	return plan{from: from, to: m.Version, digest: match[1], project: proj, env: env, deploy: m.Deploy}, nil
 }
 
-// manifest is the part of the release manifest the updater reads.
+// manifest is the part of the release manifest the updater reads. UpdaterImage and Deploy came
+// with 1.18.0 (ADR 0024 addendum points 2 and 3); an older manifest has neither.
 type manifest struct {
-	Version string `json:"version"`
-	Image   string `json:"image"`
+	Version      string            `json:"version"`
+	Image        string            `json:"image"`
+	UpdaterImage string            `json:"updaterImage"`
+	Deploy       map[string]string `json:"deploy"`
+}
+
+var (
+	// deployName is the form of a file name in the manifest field deploy: a compose file of
+	// deploy/, never .env or a path.
+	deployName = regexp.MustCompile(`^compose[a-z0-9.-]*\.yaml$`)
+	// sha256Hex is a sha256 in lowercase hex.
+	sha256Hex = regexp.MustCompile(`^[0-9a-f]{64}$`)
+)
+
+// checkOptional drops a field since 1.18.0 that does not have its form, with a log line instead
+// of a refusal: an install needs neither. A deploy list with one bad entry is dropped whole, so
+// the compose files of a release are replaced together or not at all.
+func (u *Updater) checkOptional(m *manifest) {
+	if m.UpdaterImage != "" && updaterRef(m.UpdaterImage) == "" {
+		u.log.Warn("updater: manifest field updaterImage ignored: not a slouchcat-updater image with a digest",
+			"updater_image", truncate(m.UpdaterImage, 200))
+		m.UpdaterImage = ""
+	}
+	for name, sum := range m.Deploy {
+		if !deployName.MatchString(name) || !sha256Hex.MatchString(sum) {
+			u.log.Warn("updater: manifest field deploy ignored: an entry is not a compose file with a sha256",
+				"name", truncate(name, 80))
+			m.Deploy = nil
+			break
+		}
+	}
+}
+
+// updaterRef returns the manifest field updaterImage as repository@digest (a tag dropped), or ""
+// when it is not a digest reference (digestRef) of a repository named slouchcat-updater.
+func updaterRef(s string) string {
+	match := digestRef.FindStringSubmatch(s)
+	if match == nil {
+		return ""
+	}
+	repo := repository(s)
+	if path.Base(repo) != "slouchcat-updater" {
+		return ""
+	}
+	return repo + "@" + match[1]
+}
+
+// repository returns an image reference without its digest and tag.
+func repository(ref string) string {
+	ref, _, _ = strings.Cut(ref, "@")
+	if i := strings.LastIndexByte(ref, ':'); i > strings.LastIndexByte(ref, '/') {
+		ref = ref[:i]
+	}
+	return ref
 }
 
 func (u *Updater) fetchManifest(ctx context.Context) (manifest, error) {
@@ -216,6 +296,7 @@ func (u *Updater) fetchManifest(ctx context.Context) (manifest, error) {
 	if !updater.ValidRelease(m.Version) {
 		return manifest{}, refuse(updater.CodeManifestInvalid, "manifest version %q is not a release", m.Version)
 	}
+	u.checkOptional(&m)
 	return m, nil
 }
 
@@ -236,9 +317,12 @@ func runningVersion(c Container) string {
 	return ""
 }
 
-// project reads the compose labels of the container and checks that every file lies inside the
-// deploy folder (ADR 0024 points 5 and 6).
-func (u *Updater) project(c Container) (Project, *refusal) {
+// project reads the compose labels of the server container (projectOf).
+func (u *Updater) project(c Container) (Project, *refusal) { return u.projectOf(c, u.cfg.container) }
+
+// projectOf reads the compose labels of the container name and checks that every file lies
+// inside the deploy folder (ADR 0024 points 5 and 6).
+func (u *Updater) projectOf(c Container, name string) (Project, *refusal) {
 	p := Project{Name: c.Labels[labelProject], WorkingDir: c.Labels[labelWorkingDir]}
 	for f := range strings.SplitSeq(c.Labels[labelConfigFiles], ",") {
 		if f = strings.TrimSpace(f); f != "" {
@@ -246,7 +330,7 @@ func (u *Updater) project(c Container) (Project, *refusal) {
 		}
 	}
 	if p.Name == "" || p.WorkingDir == "" || len(p.ConfigFiles) == 0 {
-		return Project{}, refuse(updater.CodeNoComposeLabels, "container %s was not started by docker compose", u.cfg.container)
+		return Project{}, refuse(updater.CodeNoComposeLabels, "container %s was not started by docker compose", name)
 	}
 	for f := range strings.SplitSeq(c.Labels[labelEnvFile], ",") {
 		if f = strings.TrimSpace(f); f != "" {
@@ -314,18 +398,37 @@ func (u *Updater) run(p plan, s updater.State) {
 		finish(updater.PhaseFailed, "", "could not write the env file: "+err.Error())
 		return
 	}
-
-	// pulling
-	phase(updater.PhasePulling)
-	pullCtx, cancel := context.WithTimeout(ctx, pullTimeout)
-	err = u.docker.Compose(pullCtx, p.project, "pull", service)
-	cancel()
+	// The compose files of the release, still before the pull (ADR 0024 addendum point 3).
+	deploy, err := u.replaceDeployFiles(ctx, p, &s)
 	if err != nil {
+		u.log.Error("updater: compose files", "err", err)
 		u.restoreEnv(env)
 		if interrupted() {
 			return
 		}
-		finish(updater.PhaseFailed, updater.CodePullFailed, "docker compose pull failed")
+		finish(updater.PhaseFailed, updater.CodeDeployFiles, "could not replace the compose files of the release: "+err.Error())
+		return
+	}
+	// undo puts back the env file and the compose files where the install stops before the
+	// restart.
+	undo := func() {
+		u.restoreDeploy(deploy)
+		u.restoreEnv(env)
+	}
+
+	// pulling
+	phase(updater.PhasePulling)
+	err = u.pull(ctx, p.project, service)
+	if err != nil {
+		undo()
+		if interrupted() {
+			return
+		}
+		code := updater.CodePullFailed
+		if diskFull(err) {
+			code = updater.CodeDiskFull
+		}
+		finish(updater.PhaseFailed, code, failedMessage("docker compose pull failed", err))
 		return
 	}
 
@@ -337,7 +440,7 @@ func (u *Updater) run(p plan, s updater.State) {
 	code, msg := u.verify(cctx, p)
 	cancel()
 	if code != "" || ctx.Err() != nil {
-		u.restoreEnv(env)
+		undo()
 		if interrupted() {
 			return
 		}
@@ -362,6 +465,7 @@ func (u *Updater) run(p plan, s updater.State) {
 			s.Migrated = rec.Migrated()
 			s.Backup = rec.Backup
 			finish(updater.PhaseDone, "", "")
+			u.afterDone(p.from)
 			return
 		}
 		causeMsg = fmt.Sprintf("version %s %s", p.to, u.failCause(end))
@@ -386,6 +490,11 @@ func (u *Updater) run(p plan, s updater.State) {
 	if err := env.restore(); err != nil {
 		u.log.Error("updater: restore env file", "err", err)
 		finish(updater.PhaseFailed, updater.CodeRollbackFailed, "could not restore the env file: "+err.Error())
+		return
+	}
+	if err := putBack(deploy); err != nil {
+		u.log.Error("updater: restore compose files", "err", err)
+		finish(updater.PhaseFailed, updater.CodeRollbackFailed, "could not restore the compose files: "+err.Error())
 		return
 	}
 	cctx, cancel = upCtx()
@@ -440,6 +549,11 @@ func (u *Updater) rollbackAfterRestart(s updater.State) {
 		finish(updater.PhaseFailed, updater.CodeRollbackFailed, cause+"; "+envMsg)
 		return
 	}
+	if err := u.restoreDeployBackups(proj, s.To, s.DeployBackup); err != nil {
+		u.log.Error("updater: restore compose files", "err", err)
+		finish(updater.PhaseFailed, updater.CodeRollbackFailed, cause+"; could not restore the compose files: "+err.Error())
+		return
+	}
 	cctx, cancel = context.WithTimeout(context.WithoutCancel(ctx), commandTimeout)
 	err := u.up(cctx, proj)
 	cancel()
@@ -476,7 +590,12 @@ func (u *Updater) drain(d time.Duration) bool {
 
 // verify compares the digest of the image compose resolves now with the manifest.
 func (u *Updater) verify(ctx context.Context, p plan) (updater.Code, string) {
-	ref, err := u.docker.ComposeImage(ctx, p.project, service)
+	return u.verifyDigest(ctx, p.project, service, p.digest)
+}
+
+// verifyDigest compares the digest of the image compose resolves now for svc with digest.
+func (u *Updater) verifyDigest(ctx context.Context, p Project, svc, digest string) (updater.Code, string) {
+	ref, err := u.docker.ComposeImage(ctx, p, svc)
 	if err != nil {
 		return updater.CodePullFailed, "could not resolve the image of the service"
 	}
@@ -487,7 +606,7 @@ func (u *Updater) verify(ctx context.Context, p plan) (updater.Code, string) {
 	for _, d := range digests {
 		// The digest is content-addressed: equal digests are the same image, whatever the
 		// repository name (a mirror, a renamed registry).
-		if _, got, ok := strings.Cut(d, "@"); ok && got == p.digest {
+		if _, got, ok := strings.Cut(d, "@"); ok && got == digest {
 			return "", ""
 		}
 	}
@@ -497,6 +616,34 @@ func (u *Updater) verify(ctx context.Context, p plan) (updater.Code, string) {
 // up recreates only the server container with what is on disk now.
 func (u *Updater) up(ctx context.Context, p Project) error {
 	return u.docker.Compose(ctx, p, "up", "-d", "--no-deps", "--no-build", service)
+}
+
+// pull runs docker compose pull for svc up to len(u.pullPauses)+1 times, with those pauses in
+// between, all within pullTimeout (ADR 0024 addendum point 4). A full disk is final, and so is
+// the end of ctx.
+func (u *Updater) pull(ctx context.Context, p Project, svc string) error {
+	ctx, cancel := context.WithTimeout(ctx, pullTimeout)
+	defer cancel()
+	for i := 0; ; i++ {
+		err := u.docker.Compose(ctx, p, "pull", svc)
+		if err == nil || diskFull(err) || i >= len(u.pullPauses) || ctx.Err() != nil {
+			return err
+		}
+		u.log.Warn("updater: pull failed, trying again", "service", svc, "attempt", i+1, "pause", u.pullPauses[i], "err", err)
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(u.pullPauses[i]):
+		}
+	}
+}
+
+// failedMessage is msg with the stderr line of the failed docker call, when it has one.
+func failedMessage(msg string, err error) string {
+	if line := errorLine(err); line != "" {
+		return msg + ": " + line
+	}
+	return msg
 }
 
 // restoreEnv puts the env file back and logs a failure; used where the install stops anyway.
