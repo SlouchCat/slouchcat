@@ -1,11 +1,11 @@
 import type { Issue, IssueKind, Library } from '@slouchcat/api-client';
-import { useInfiniteQuery } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
-import { Notice, Skeleton, Text, TextLink, VisuallyHidden } from '@/ui';
+import { PAGED_LIST_PAGE, PAGED_LIST_VIRTUAL_FROM, usePagedList } from '@/lib/pagedList';
+import { Notice, Skeleton, Text, TextLink, useNearEnd, VisuallyHidden } from '@/ui';
 import {
   AriaButton,
   DataTable,
@@ -15,7 +15,7 @@ import {
   type DataColumn,
   type StatusMessage,
 } from '@/ui/aria';
-import { issuesQuery } from '../queries';
+import { issuesSource } from '../queries';
 import { issueKey, libraryKey, titleWithYear } from './shared';
 import styles from './Maintenance.module.css';
 
@@ -53,8 +53,8 @@ interface LibrarySection {
 
 /**
  * The loaded issues by library (11.3): the sections follow the libraries page, a library the
- * list does not know (yet) comes last under its id. Only what is loaded is grouped; «Mehr laden»
- * adds to the sections.
+ * list does not know (yet) comes last under its id. Only what is loaded is grouped; the pages read
+ * while the tab scrolls add to the sections (concept 18 C-3).
  */
 function sectionsOf(
   t: TFunction,
@@ -99,8 +99,8 @@ function LongText({ text, code = false }: { text: string | undefined; code?: boo
 
 /**
  * One tab of the maintenance page (PFL-2): the hint, the outcome of the last action, the toolbar
- * with the actions and the selection, one section per library with a table of the loaded issues,
- * «X von Y» and «Mehr laden» (50 per page).
+ * with the actions and the selection, one section per library with a table of the loaded issues
+ * and «X von Y»; the next page loads as the end comes into view (concept 18 C-3, 100 per page).
  */
 export function IssueTab({
   kind,
@@ -115,9 +115,23 @@ export function IssueTab({
 }: IssueTabProps) {
   const { t, i18n } = useTranslation();
   const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
-  const issues = useInfiniteQuery({ ...issuesQuery(kind), refetchOnWindowFocus: !hold });
-  const list = useMemo(() => issues.data?.pages.flatMap((page) => page.items) ?? [], [issues.data]);
-  const total = issues.data?.pages.at(-1)?.total ?? 0;
+  // The issues from the first on, a page more whenever the end of the tab comes within half a
+  // screen (concept 18 C-3): only what is loaded is grouped, selected and counted.
+  const [wanted, setWanted] = useState(PAGED_LIST_PAGE);
+  const paged = usePagedList(
+    issuesSource(kind),
+    { start: 0, end: wanted - 1 },
+    { refetchOnWindowFocus: !hold },
+  );
+  const issues = paged.first;
+  const { loaded, slots } = paged;
+  const list = useMemo(
+    () => slots.slice(0, loaded).filter((issue): issue is Issue => issue !== undefined),
+    [loaded, slots],
+  );
+  const total = paged.total;
+  const [end, near] = useNearEnd();
+  if (near && loaded >= wanted && wanted < total) setWanted(wanted + PAGED_LIST_PAGE);
   const sections = useMemo(() => sectionsOf(t, list, libraries), [t, list, libraries]);
 
   const selectedKeys = useMemo(() => new Set(selected), [selected]);
@@ -267,7 +281,10 @@ export function IssueTab({
               <div className={styles.actions}>{actions[kind]}</div>
               <div className={styles.actions}>
                 <span className={styles.muted} aria-live="polite">
-                  {t('admin.maintenance.selected', { count: chosen.length })}
+                  {t('admin.maintenance.selectedOfLoaded', {
+                    count: chosen.length,
+                    loaded: number.format(list.length),
+                  })}
                 </span>
                 <AriaButton
                   variant="ghost"
@@ -308,24 +325,21 @@ export function IssueTab({
                   rows={section.issues}
                   rowKey={issueKey}
                   layout="fixed"
+                  virtual={total > PAGED_LIST_VIRTUAL_FROM}
                 />
               </DisclosureGroup>
             );
           })}
-          <div className={styles.actions}>
+          <div ref={end} className={styles.actions}>
             <span className={styles.muted}>
               {t('admin.maintenance.shown', {
                 shown: number.format(list.length),
                 total: number.format(total),
               })}
             </span>
-            {issues.hasNextPage && (
-              <AriaButton
-                variant="secondary"
-                isPending={issues.isFetchingNextPage}
-                onPress={() => void issues.fetchNextPage()}
-              >
-                {t('admin.maintenance.more')}
+            {paged.failed && (
+              <AriaButton variant="secondary" icon="refresh" onPress={paged.retry}>
+                {t('common.retry')}
               </AriaButton>
             )}
           </div>

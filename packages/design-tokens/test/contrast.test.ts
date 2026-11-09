@@ -59,6 +59,34 @@ const pairs: { pair: string; foreground: string; background: string }[] = [
   }),
 ];
 
+/** A translucent `rgba(r, g, b, a)` token laid over an opaque `#rrggbb`, as the browser paints it. */
+function over(top: string, bottom: string): string {
+  const match = /^rgba\((\d+), (\d+), (\d+), ([\d.]+)\)$/.exec(top);
+  if (!match) throw new Error(`expected an rgba() colour, got ${top}`);
+  const [r, g, b, alpha] = match.slice(1).map(Number) as [number, number, number, number];
+  const base = [1, 3, 5].map((start) => parseInt(bottom.slice(start, start + 2), 16));
+  return `#${[r, g, b]
+    .map((channel, index) => Math.round(channel * alpha + (base[index] as number) * (1 - alpha)))
+    .map((channel) => channel.toString(16).padStart(2, '0'))
+    .join('')}`;
+}
+
+// The name and the count of a library tile (concept 18 C-2) sit on a poster that can be white:
+// the whole-tile shade and the gradient's ground under them must keep them readable.
+const tileGround = over(tokens.color.tile.labelGround, over(tokens.color.tile.shade, '#ffffff'));
+pairs.push(
+  {
+    pair: 'text.primary / tile label over white',
+    foreground: tokens.color.text.primary,
+    background: tileGround,
+  },
+  {
+    pair: 'text.secondary / tile label over white',
+    foreground: tokens.color.text.secondary,
+    background: tileGround,
+  },
+);
+
 describe('colour contrast (WCAG 2.x, minimum 4.5:1)', () => {
   it('defines exactly eight accent colours', () => {
     expect(accentNames).toHaveLength(8);

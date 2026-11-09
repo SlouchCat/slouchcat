@@ -2,13 +2,14 @@ import type {
   Collection,
   GenreRef,
   ItemPage,
+  ItemRef,
+  Notification,
   NotificationPage,
   SearchRequest,
   SearchResult,
   UserPickResult,
 } from '@slouchcat/api-client';
 import {
-  infiniteQueryOptions,
   queryOptions,
   useIsMutating,
   useMutation,
@@ -16,29 +17,19 @@ import {
   type QueryKey,
 } from '@tanstack/react-query';
 import { api, request } from '@/api/client';
+import type { PagedSource } from '@/lib/pagedList';
 
-/** Page size of "Mehr laden" on the search, watchlist, collection and notification pages. */
-export const PAGE_SIZE = 50;
-
-const nextOffset = (last: { offset: number; total: number }, count: number) => {
-  const next = last.offset + count;
-  return next < last.total && count > 0 ? next : undefined;
-};
-
-/** Search (E-4): titles paged; people and collections come with the first page. */
-export const searchQuery = (body: Omit<SearchRequest, 'offset' | 'limit'>) =>
-  infiniteQueryOptions({
-    queryKey: ['search', body],
-    queryFn: ({ pageParam, signal }): Promise<SearchResult> =>
-      request(
-        api.POST('/search', { body: { ...body, offset: pageParam, limit: PAGE_SIZE }, signal }),
-      ),
-    initialPageParam: 0,
-    getNextPageParam: (last) => nextOffset(last, last.items.length),
-    // Typing refines the same search: keep the previous results until the new ones arrive.
-    placeholderData: (previous) => previous,
-    staleTime: 30_000,
-  });
+/** Search (E-4): titles paged (concept 18 C-3); people and collections come with page 0. */
+export const searchSource = (
+  body: Omit<SearchRequest, 'offset' | 'limit'>,
+): PagedSource<SearchResult, ItemRef> => ({
+  key: ['search', body],
+  fetch: (offset, limit, signal) =>
+    request(api.POST('/search', { body: { ...body, offset, limit }, signal })),
+  items: (page) => page.items,
+  total: (page) => page.total,
+  id: (item) => item.id,
+});
 
 /** Genres with visible titles, for the search filter. */
 export const genresQuery = queryOptions({
@@ -47,45 +38,37 @@ export const genresQuery = queryOptions({
   staleTime: 5 * 60_000,
 });
 
-/** A collection with its visible members, paged (E-6). */
-export const collectionQuery = (id: string) =>
-  infiniteQueryOptions({
-    queryKey: ['collection', id],
-    queryFn: ({ pageParam, signal }): Promise<Collection> =>
-      request(
-        api.GET('/collections/{id}', {
-          params: { path: { id }, query: { offset: pageParam, limit: PAGE_SIZE } },
-          signal,
-        }),
-      ),
-    initialPageParam: 0,
-    getNextPageParam: (last) => nextOffset(last, last.items.length),
-  });
-
-/** The watchlist of the active profile, newest first (E-5). */
-export const watchlistQuery = infiniteQueryOptions({
-  queryKey: ['watchlist'],
-  queryFn: ({ pageParam, signal }): Promise<ItemPage> =>
+/** A collection with its visible members, paged (E-6, concept 18 C-3); page 0 names it. */
+export const collectionSource = (id: string): PagedSource<Collection, ItemRef> => ({
+  key: ['collection', id],
+  fetch: (offset, limit, signal) =>
     request(
-      api.GET('/watchlist', { params: { query: { offset: pageParam, limit: PAGE_SIZE } }, signal }),
+      api.GET('/collections/{id}', { params: { path: { id }, query: { offset, limit } }, signal }),
     ),
-  initialPageParam: 0,
-  getNextPageParam: (last) => nextOffset(last, last.items.length),
+  items: (page) => page.items,
+  total: (page) => page.total,
+  id: (item) => item.id,
 });
 
-/** The inbox page (E-8), newest first. */
-export const notificationsPageQuery = infiniteQueryOptions({
-  queryKey: ['notifications', 'page'],
-  queryFn: ({ pageParam, signal }): Promise<NotificationPage> =>
-    request(
-      api.GET('/notifications', {
-        params: { query: { offset: pageParam, limit: PAGE_SIZE } },
-        signal,
-      }),
-    ),
-  initialPageParam: 0,
-  getNextPageParam: (last) => nextOffset(last, last.notifications.length),
-});
+/** The watchlist of the active profile, newest first (E-5, concept 18 C-3). */
+export const watchlistSource: PagedSource<ItemPage, ItemRef> = {
+  key: ['watchlist'],
+  fetch: (offset, limit, signal) =>
+    request(api.GET('/watchlist', { params: { query: { offset, limit } }, signal })),
+  items: (page) => page.items,
+  total: (page) => page.total,
+  id: (item) => item.id,
+};
+
+/** The inbox page (E-8), newest first (concept 18 C-3); page 0 counts the unread. */
+export const notificationsSource: PagedSource<NotificationPage, Notification> = {
+  key: ['notifications', 'list'],
+  fetch: (offset, limit, signal) =>
+    request(api.GET('/notifications', { params: { query: { offset, limit } }, signal })),
+  items: (page) => page.notifications,
+  total: (page) => page.total,
+  id: (entry) => entry.id,
+};
 
 /**
  * The unread count for the header badge: one entry is enough, `unread` counts them all. Asked
@@ -167,7 +150,7 @@ export function useWatchlistPending(id: string): boolean {
  * Adds a title to or removes it from the watchlist (E-5). The new state stands at once in every
  * cached list and page that shows the title (only those queries are cancelled and patched); an
  * error turns the same queries back. Afterwards only the watchlist and the start page are read
- * again, and the queries whose fetch the change cancelled ("Mehr laden"): the library and the
+ * again, and the queries whose fetch the change cancelled (a page on its way): the library and the
  * detail keep their patched data (concept 17 8.2).
  */
 export function useWatchlistMutation() {

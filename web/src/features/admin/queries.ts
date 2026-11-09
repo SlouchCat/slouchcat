@@ -20,6 +20,7 @@ import type {
   IntegrationEvent,
   IntegrationRequest,
   Invitation,
+  Issue,
   IssueKind,
   IssuePage,
   JobCancelResult,
@@ -49,6 +50,7 @@ import type {
 } from '@slouchcat/api-client';
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { api, request } from '@/api/client';
+import type { PagedSource } from '@/lib/pagedList';
 
 /** Poll interval while a scan is queued or running. */
 export const SCAN_POLL_MS = 5000;
@@ -98,9 +100,6 @@ export const issueKinds = [
   'rating_mismatch',
 ] as const satisfies readonly IssueKind[];
 
-/** Page size of the issue lists ("Mehr laden" fetches the next one). */
-export const ISSUE_PAGE = 50;
-
 const fetchIssues = (
   kind: IssueKind,
   limit: number,
@@ -117,16 +116,14 @@ const fetchIssues = (
 /** Everything under this key changes with a maintenance action (lists, counts, duplicates). */
 export const maintenanceKey = ['admin', 'maintenance'] as const;
 
-export const issuesQuery = (kind: IssueKind) =>
-  infiniteQueryOptions({
-    queryKey: [...maintenanceKey, 'issues', kind],
-    queryFn: ({ pageParam, signal }) => fetchIssues(kind, ISSUE_PAGE, pageParam, signal),
-    initialPageParam: 0,
-    getNextPageParam: (last, pages) => {
-      const loaded = pages.reduce((sum, page) => sum + page.items.length, 0);
-      return loaded < last.total && last.items.length > 0 ? loaded : undefined;
-    },
-  });
+/** The issues of a kind, read page by page as the tab scrolls (concept 18 C-3). */
+export const issuesSource = (kind: IssueKind): PagedSource<IssuePage, Issue> => ({
+  key: [...maintenanceKey, 'issues', kind],
+  fetch: (offset, limit, signal) => fetchIssues(kind, limit, offset, signal),
+  items: (page) => page.items,
+  total: (page) => page.total,
+  id: (issue) => `${issue.itemId}:${issue.mediaFileId ?? ''}`,
+});
 
 /** The number of issues of a kind (one small request per tab label). */
 export const issueCountQuery = (kind: IssueKind) =>
@@ -479,6 +476,7 @@ export const applyMetadata = (body: ApplyMetadataRequest): Promise<ApplyMetadata
 // Webradio (concept 16, stage 1): the administration's radio page. Its queries share the key
 // `['admin', 'radio']`, so a change invalidates them together.
 export type AdminRadioStation = components['schemas']['AdminRadioStation'];
+type AdminRadioStationPage = components['schemas']['AdminRadioStationPage'];
 export type AdminRadioStationPatch = components['schemas']['AdminRadioStationPatch'];
 export type RadioConfig = components['schemas']['RadioConfig'];
 export type RadioConfigUpdate = components['schemas']['RadioConfigUpdate'];
@@ -533,7 +531,24 @@ export interface AdminRadioStationFilter {
   exceptions: boolean;
 }
 
-/** One page of the tab «Sender». */
+/** The stations of a filter, read page by page as the table scrolls (concept 18 C-3). */
+export const adminRadioStationsSource = (
+  filter: AdminRadioStationFilter,
+): PagedSource<AdminRadioStationPage, AdminRadioStation> => ({
+  key: [...radioAdminKeys.all, 'stations', filter],
+  fetch: (offset, limit, signal) =>
+    request(
+      api.GET('/admin/radio/stations', {
+        params: { query: { ...filter, offset, limit } },
+        signal,
+      }),
+    ),
+  items: (page) => page.items,
+  total: (page) => page.total,
+  id: (station) => station.id,
+});
+
+/** One page of the counter of «Nur Ausnahmen». */
 export const ADMIN_RADIO_PAGE_SIZE = 50;
 
 export const adminRadioStationsQuery = (filter: AdminRadioStationFilter) =>

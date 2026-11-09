@@ -1,8 +1,8 @@
 import type { Chapter, ItemDetail, ItemRef, MediaFileInfo } from '@slouchcat/api-client';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { imageUrl, isApiError } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -16,6 +16,12 @@ import {
   formatRuntime,
   formatResolution,
 } from '@/lib/format';
+import {
+  PAGED_LIST_VIRTUAL_FROM,
+  rangeBySize,
+  usePagedList,
+  type PlaceRange,
+} from '@/lib/pagedList';
 import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
@@ -38,7 +44,9 @@ import {
   SpatialPage,
   setSpatialFocus,
   spatialFocusKey,
+  VirtualList,
 } from '@/ui';
+import { PageRetry } from '@/features/discover/ItemGrid';
 import { CoverWatchlist, WATCHLIST_KINDS } from '@/features/discover/CoverWatchlist';
 import { CollectionShelf } from './CollectionShelf';
 import { DetailActions, PLAY_KEY, playTarget, TRAILER_KEY } from './DetailActions';
@@ -46,7 +54,7 @@ import { BACK_KEY, DetailBody, DetailHeader, DetailPage } from './DetailHeader';
 import { EDITABLE_KINDS, EditMetadata } from './EditMetadata';
 import { ItemMeta } from './ItemMeta';
 import { creditCaption, episodeCode, extraKindLabel, isAudioKind } from './labels';
-import { itemQuery, podcastEpisodesQuery } from './queries';
+import { itemQuery, podcastEpisodesSource } from './queries';
 import { EpisodeList, SeasonShelf, seasonFacts } from './SeasonShelf';
 import styles from './ItemPage.module.css';
 
@@ -251,35 +259,25 @@ function AudiobookChapters({
 }
 
 /**
- * The episodes of a podcast, newest first (H-2): the detail carries the newest 50, "Mehr laden"
- * pages through the rest (listPodcastEpisodes). Every episode plays on its own; the podcast has
- * no play button.
+ * The episodes of a podcast, newest first (H-2): the detail carries the newest 50; a podcast with
+ * more reads the whole list page by page as it scrolls (listPodcastEpisodes, concept 18 C-3),
+ * drawn virtually above PAGED_LIST_VIRTUAL_FROM episodes. Every episode plays on its own; the
+ * podcast has no play button.
  */
+/** An episode row's expected height in px (EpisodeRow: two lines and its padding). */
+const EPISODE_ROW_HEIGHT = 72;
+
 function PodcastEpisodes({ item }: { item: ItemDetail }) {
   const { t, i18n } = useTranslation();
-  const first = item.episodes ?? [];
-  const total = item.episodeCount ?? first.length;
-  const [more, setMore] = useState(false);
-  const pages = useInfiniteQuery({
-    ...podcastEpisodesQuery(item.id, first.length),
+  const newest = item.episodes ?? [];
+  const more = (item.episodeCount ?? newest.length) > newest.length;
+  const [span, setSpan] = useState<PlaceRange>({ start: 0, end: 0 });
+  const paged = usePagedList(podcastEpisodesSource(item.id), rangeBySize(span), {
     enabled: more,
   });
-  const episodes = useMemo(() => {
-    const newest = item.episodes ?? [];
-    const loaded = pages.data?.pages.flatMap((page) => page.episodes) ?? [];
-    return [...newest, ...loaded.filter((entry) => !newest.some((e) => e.id === entry.id))];
-  }, [item.episodes, pages.data]);
-  // A failed page leaves the button as a retry; while a page loads it stays focusable.
-  const hasMore =
-    episodes.length < total && (!more || pages.isFetching || pages.hasNextPage || pages.isError);
-  // After a page, focus moves to its first episode (the button may go away with the last one).
-  const focusFrom = useRef<number | null>(null);
-  useEffect(() => {
-    const target = focusFrom.current === null ? undefined : episodes[focusFrom.current];
-    if (!target) return;
-    focusFrom.current = null;
-    setSpatialFocus(`podcast-episode-${target.id}`);
-  }, [episodes]);
+  // The newest episodes of the detail until the list's page 0 is there.
+  const episodes: readonly (ItemRef | undefined)[] =
+    more && paged.first.data ? paged.slots : newest;
   const caption = (episode: ItemRef) =>
     [
       episode.publishedAt ? formatDate(episode.publishedAt, i18n.language) : undefined,
@@ -287,6 +285,7 @@ function PodcastEpisodes({ item }: { item: ItemDetail }) {
     ]
       .filter(Boolean)
       .join(t('format.separator')) || undefined;
+  const error = paged.first.error ?? undefined;
 
   return (
     <section className={styles.block} aria-labelledby="item-podcast-episodes-heading">
@@ -296,46 +295,46 @@ function PodcastEpisodes({ item }: { item: ItemDetail }) {
       {episodes.length === 0 ? (
         <p className={styles.muted}>{t('item.podcast.empty')}</p>
       ) : (
-        <SpatialGroup
-          as="ul"
+        <VirtualList
+          slots={episodes}
+          virtual={episodes.length > PAGED_LIST_VIRTUAL_FROM}
+          onRange={setSpan}
           className={styles.episodeList}
-          aria-label={t('item.podcast.episodes')}
-        >
-          {episodes.map((episode) => (
-            <li key={episode.id}>
-              <EpisodeRow
-                focusKey={`podcast-episode-${episode.id}`}
-                href={paths.item(episode.id)}
-                title={episode.title}
-                caption={caption(episode)}
-                progress={watchedProgress(t, episode)}
-                playHref={paths.play(episode.id)}
-                playLabel={t('item.podcast.play', { title: episode.title })}
-              />
-            </li>
-          ))}
-        </SpatialGroup>
+          label={t('item.podcast.episodes')}
+          estimate={EPISODE_ROW_HEIGHT}
+          itemKey={(episode) => episode.id}
+          renderPlaceholder={() => <Skeleton shape="line" />}
+          renderItem={(episode) => (
+            <EpisodeRow
+              focusKey={`podcast-episode-${episode.id}`}
+              href={paths.item(episode.id)}
+              title={episode.title}
+              caption={caption(episode)}
+              progress={watchedProgress(t, episode)}
+              playHref={paths.play(episode.id)}
+              playLabel={t('item.podcast.play', { title: episode.title })}
+            />
+          )}
+        />
       )}
-      {pages.isError && <Notice tone="danger">{problemMessage(t, pages.error)}</Notice>}
-      {hasMore && (
-        <div>
-          <SpatialButton
-            focusKey="podcast-more"
-            variant="secondary"
-            icon="plus"
-            aria-disabled={pages.isFetching || undefined}
-            onPress={() => {
-              if (pages.isFetching) return;
-              focusFrom.current = episodes.length;
-              if (!more) setMore(true);
-              else if (!pages.data) void pages.refetch();
-              else void pages.fetchNextPage();
-            }}
-          >
-            {pages.isError ? t('common.retry') : t('item.podcast.more')}
-          </SpatialButton>
-        </div>
+      {error && !paged.first.data && (
+        <Notice
+          tone="danger"
+          title={problemMessage(t, error)}
+          actions={
+            <SpatialGroup>
+              <SpatialButton
+                variant="secondary"
+                icon="refresh"
+                onPress={() => void paged.first.refetch()}
+              >
+                {t('common.retry')}
+              </SpatialButton>
+            </SpatialGroup>
+          }
+        />
       )}
+      {paged.failed && <PageRetry onRetry={paged.retry} />}
     </section>
   );
 }

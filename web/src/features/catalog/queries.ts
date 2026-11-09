@@ -2,12 +2,14 @@ import type {
   components,
   HomePage,
   ItemDetail,
+  ItemRef,
   Person,
   PodcastEpisodes,
   Trailer,
 } from '@slouchcat/api-client';
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { api, request } from '@/api/client';
+import type { PagedSource } from '@/lib/pagedList';
 
 type LibraryNav = components['schemas']['LibraryNav'];
 type PicksPage = components['schemas']['PicksPage'];
@@ -64,26 +66,20 @@ export const personQuery = (id: number) =>
       request(api.GET('/people/{id}', { params: { path: { id } }, signal })),
   });
 
-/** Page size of "Mehr laden" on a podcast (the detail carries the newest 50). */
-export const EPISODE_PAGE = 50;
-
-/** The episodes of a podcast after the first `offset` (listPodcastEpisodes, newest first). */
-export const podcastEpisodesQuery = (id: string, offset: number) =>
-  infiniteQueryOptions({
-    queryKey: ['item', id, 'episodes', offset],
-    queryFn: ({ pageParam, signal }): Promise<PodcastEpisodes> =>
-      request(
-        api.GET('/items/{id}/episodes', {
-          params: { path: { id }, query: { offset: pageParam, limit: EPISODE_PAGE } },
-          signal,
-        }),
-      ),
-    initialPageParam: offset,
-    getNextPageParam: (last) => {
-      const next = last.offset + last.episodes.length;
-      return next < last.total && last.episodes.length > 0 ? next : undefined;
-    },
-  });
+/** The episodes of a podcast, newest first (listPodcastEpisodes, concept 18 C-3). */
+export const podcastEpisodesSource = (id: string): PagedSource<PodcastEpisodes, ItemRef> => ({
+  key: ['item', id, 'episodes'],
+  fetch: (offset, limit, signal) =>
+    request(
+      api.GET('/items/{id}/episodes', {
+        params: { path: { id }, query: { offset, limit } },
+        signal,
+      }),
+    ),
+  items: (page) => page.episodes,
+  total: (page) => page.total,
+  id: (episode) => episode.id,
+});
 
 /** Titles per page of the user picks page, read while scrolling: the contract's maximum. */
 export const PICKS_PAGE = 100;

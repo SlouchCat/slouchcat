@@ -459,7 +459,6 @@ function LibraryView({ id }: { id: number | null }) {
                   slots={slots}
                   focusKey={GRID_KEY}
                   label={library.name}
-                  square={audio}
                   onRange={onRange}
                   tool={
                     canManage

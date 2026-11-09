@@ -900,7 +900,8 @@ test('no stage: without the spotlight row the page starts with a poster row (3.5
       .getByRole('list')
       .getByRole('link')
       .first()
-      .locator('img');
+      // The cover, not its blurred ground (a square cover, concept 18 C-1).
+      .locator('img:not([aria-hidden])');
     await expect(firstCard).toHaveAttribute('fetchpriority', 'high');
     await expect(firstCard).toHaveAttribute(
       'src',
@@ -917,8 +918,8 @@ test('no stage: without the spotlight row the page starts with a poster row (3.5
       ),
     );
     // No layout shift when the app takes over: the prepainted cover lies exactly on the card's
-    // image. The markup goes in where the shell has it, in front of #root; the card is measured at
-    // rest, without the focus scale.
+    // frame (a square cover sits in the middle of both, concept 18 C-1). The markup goes in where
+    // the shell has it, in front of #root; the card is measured at rest, without the focus scale.
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     const firstLink = sections(page).first().getByRole('list').getByRole('link').first();
     await expect
@@ -934,7 +935,10 @@ test('no stage: without the spotlight row the page starts with a poster row (3.5
       };
       return [
         box(document.querySelector('#poster-prepaint > img')),
-        box(document.querySelector('main section[aria-labelledby] a img')),
+        box(
+          document.querySelector('main section[aria-labelledby] a img')?.closest('a')
+            ?.firstElementChild,
+        ),
       ];
     }, prepaint);
     expect(painted).toHaveLength(4);

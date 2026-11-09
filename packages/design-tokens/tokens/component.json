@@ -107,6 +107,26 @@
       "$description": "Gap between a setting's label and its help line."
     }
   },
+  "library-tile": {
+    "$type": "dimension",
+    "$description": "The name and the count on a library tile of «Meine Medien» (concept 18 C-2, Marco chose 26 px).",
+    "label-size": {
+      "$value": "1.625rem",
+      "$description": "26 px: the name at its full size."
+    },
+    "label-size-min": {
+      "$value": "1.25rem",
+      "$description": "20 px: the least size of the name on a narrow tile (a phone)."
+    },
+    "label-size-fluid": {
+      "$value": "9cqi",
+      "$description": "The name between the two sizes follows the tile's width (a container query unit)."
+    },
+    "count-size": {
+      "$value": "{font.size.sm}",
+      "$description": "14 px: the number of titles under the name."
+    }
+  },
   "density": {
     "compact": {
       "$type": "dimension",

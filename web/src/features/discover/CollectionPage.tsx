@@ -1,18 +1,19 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import { useMemo } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { isApiError } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useBackKeys } from '@/lib/useBackKeys';
+import { rangeBySize, usePagedList, type PlaceRange } from '@/lib/pagedList';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
 import { BACK_KEY, DetailBody, DetailHeader, DetailPage } from '@/features/catalog/DetailHeader';
 import { isAudioKind } from '@/features/catalog/labels';
 import { Button, ButtonLink, Notice, Skeleton, SpatialPage } from '@/ui';
-import { cardKey, ItemGrid, MoreButton } from './ItemGrid';
-import { collectionQuery } from './queries';
+import { cardKey, PageRetry } from './ItemGrid';
+import { PagedItemGrid } from './PagedItemGrid';
+import { collectionSource } from './queries';
 import styles from './Discover.module.css';
 
 const route = getRouteApi('/_authed/_active/_chrome/collections/$collectionId');
@@ -31,16 +32,18 @@ export function CollectionPage() {
 
 function CollectionView({ id }: { id: string }) {
   const { t } = useTranslation();
-  const query = useInfiniteQuery(collectionQuery(id));
+  // Every member, read page by page as the grid asks (concept 18 C-3).
+  const [span, setSpan] = useState<PlaceRange>({ start: 0, end: 0 });
+  const paged = usePagedList(collectionSource(id), rangeBySize(span));
+  const query = paged.first;
   const goBack = useGoBack(paths.home);
   useBackKeys(goBack);
   // A refetch that finds the collection gone (deleted, no longer visible) wins over the cache.
   const gone = isApiError(query.error, 404);
-  const collection = gone ? undefined : query.data?.pages[0];
+  const collection = gone ? undefined : query.data;
   useDocumentTitle(
     collection?.name ?? (query.isError ? t('collection.notFound.title') : undefined),
   );
-  const items = useMemo(() => query.data?.pages.flatMap((page) => page.items) ?? [], [query.data]);
 
   if (query.isPending) {
     return (
@@ -75,7 +78,7 @@ function CollectionView({ id }: { id: string }) {
     );
   }
 
-  const first = items[0];
+  const first = paged.slots[0];
   return (
     <SpatialPage defaultFocusKey={first ? cardKey(GRID_KEY, first) : BACK_KEY}>
       <DetailPage>
@@ -96,22 +99,14 @@ function CollectionView({ id }: { id: string }) {
             <h2 id="collection-members" className={styles.sectionTitle}>
               {t('collection.members')}
             </h2>
-            <ItemGrid
-              items={items}
+            <PagedItemGrid
+              slots={paged.slots}
+              onRange={setSpan}
               focusKey={GRID_KEY}
               label={t('collection.members')}
               showWatched
             />
-            <MoreButton
-              shown={items.length}
-              keys={items.map((item) => cardKey(GRID_KEY, item))}
-              hasMore={query.hasNextPage}
-              loading={query.isFetchingNextPage}
-              failed={query.isFetchNextPageError}
-              label={t('collection.more')}
-              focusKey="collection-more"
-              onMore={() => void query.fetchNextPage()}
-            />
+            {paged.failed && <PageRetry onRetry={paged.retry} />}
           </section>
         </DetailBody>
       </DetailPage>

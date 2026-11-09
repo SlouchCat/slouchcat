@@ -12,7 +12,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { picksCountQuery, visibleLibrariesQuery } from '@/features/catalog/queries';
-import { notificationsPageQuery, notificationsQuery } from '@/features/discover/queries';
+import { notificationsQuery, notificationsSource } from '@/features/discover/queries';
 import { Announcements } from '@/features/notifications/Announcements';
 import type { AdminShellNav as AdminShellNavType } from '@/features/admin/AdminShellNav';
 import { offlineSupported } from '@/features/offline/support';
@@ -124,7 +124,7 @@ export function AppLayout() {
     const before = lastCounted.current;
     lastCounted.current = counted;
     if (before !== undefined && counted !== undefined && counted > before) {
-      void queryClient.invalidateQueries({ queryKey: notificationsPageQuery.queryKey });
+      void queryClient.invalidateQueries({ queryKey: notificationsSource.key });
     }
   }, [counted, queryClient]);
 

@@ -147,7 +147,8 @@ export function PathBrowserDialog({
 
   const items = atRoots ? rootItems(t, roots.data) : entryItems(t, listing?.entries);
   const pending = atRoots ? roots.isPending : dir.isPending;
-  const error = atRoots ? roots.error : dir.error;
+  // A later page that failed keeps the rows read so far; its own notice offers to read it again.
+  const error = atRoots ? roots.error : dir.isFetchNextPageError ? null : dir.error;
 
   return (
     <FormDialog
@@ -229,6 +230,12 @@ export function PathBrowserDialog({
             items={items}
             onAction={enter}
             onKeyDown={onKeyDown}
+            // The next page of a long folder as the list nears its end (concept 18 C-3).
+            onLoadMore={
+              !atRoots && dir.hasNextPage && !dir.isFetchingNextPage && !dir.isError
+                ? () => void dir.fetchNextPage()
+                : undefined
+            }
             emptyText={
               atRoots
                 ? t('library.browse.emptyRoots', { name: 'SLOUCHCAT_BROWSE_ROOTS' })
@@ -236,12 +243,18 @@ export function PathBrowserDialog({
             }
           />
         )}
-        {dir.hasNextPage && (
-          <div>
-            <AriaButton isPending={dir.isFetchingNextPage} onPress={() => void dir.fetchNextPage()}>
-              {t('library.browse.loadMore')}
-            </AriaButton>
-          </div>
+        {!atRoots && dir.isFetchNextPageError && (
+          <Notice
+            tone="danger"
+            live={false}
+            actions={
+              <AriaButton icon="refresh" onPress={() => void dir.fetchNextPage()}>
+                {t('common.retry')}
+              </AriaButton>
+            }
+          >
+            {problemMessage(t, dir.error)}
+          </Notice>
         )}
         <div className={styles.actions}>
           <AriaButton icon="back" isDisabled={atRoots} onPress={up}>

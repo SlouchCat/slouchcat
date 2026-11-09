@@ -1,13 +1,18 @@
 import type { Notification } from '@slouchcat/api-client';
-import { useInfiniteQuery } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
-import { useMemo } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { episodeCode } from '@/features/catalog/labels';
 import { formatDateTime } from '@/lib/format';
 import { useBackKeys } from '@/lib/useBackKeys';
+import {
+  PAGED_LIST_VIRTUAL_FROM,
+  rangeBySize,
+  usePagedList,
+  type PlaceRange,
+} from '@/lib/pagedList';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
 import {
@@ -20,15 +25,18 @@ import {
   SpatialGroup,
   SpatialPage,
   setSpatialFocus,
+  VirtualList,
 } from '@/ui';
-import { MoreButton } from './ItemGrid';
-import { notificationsPageQuery, useMarkAllReadMutation, useMarkReadMutation } from './queries';
+import { PageRetry } from './ItemGrid';
+import { notificationsSource, useMarkAllReadMutation, useMarkReadMutation } from './queries';
 import styles from './Discover.module.css';
 
 const BACK_KEY = 'notifications-back';
 const READ_ALL_KEY = 'notifications-read-all';
 const CHANNELS_KEY = 'notifications-channels';
 const entryKey = (entry: Notification) => `notification-${entry.id}`;
+/** An entry's expected height in px (InboxEntry: three lines in its padding). */
+const ENTRY_HEIGHT = 88;
 
 /** "S01E03 · Pilot" for an episode, the title for a podcast episode. */
 function entryTitle(t: TFunction, entry: Notification): string {
@@ -63,15 +71,15 @@ export function NotificationsPage() {
   useDocumentTitle(t('notifications.title'));
   const goBack = useGoBack(paths.home);
   useBackKeys(goBack);
-  const inbox = useInfiniteQuery(notificationsPageQuery);
+  // Every entry, read page by page as the list asks (concept 18 C-3); a new entry on top changes
+  // the total and reads the list again from page 0.
+  const [span, setSpan] = useState<PlaceRange>({ start: 0, end: 0 });
+  const paged = usePagedList(notificationsSource, rangeBySize(span));
+  const inbox = paged.first;
   const markRead = useMarkReadMutation();
   const markAll = useMarkAllReadMutation();
-  const entries = useMemo(
-    () => inbox.data?.pages.flatMap((page) => page.notifications) ?? [],
-    [inbox.data],
-  );
-  const unread = inbox.data?.pages[0]?.unread ?? 0;
-  const first = entries[0];
+  const unread = inbox.data?.unread ?? 0;
+  const first = paged.slots[0];
 
   return (
     <SpatialPage defaultFocusKey={first ? entryKey(first) : BACK_KEY}>
@@ -129,40 +137,37 @@ export function NotificationsPage() {
         )}
         {markAll.isError && <Notice tone="danger" title={problemMessage(t, markAll.error)} />}
 
-        {inbox.isSuccess && entries.length === 0 && (
+        {inbox.isSuccess && paged.total === 0 && (
           <Notice title={t('notifications.empty.title')}>{t('notifications.empty.body')}</Notice>
         )}
 
-        {entries.length > 0 && (
+        {paged.total > 0 && (
           <section className={styles.section}>
-            <SpatialGroup as="ul" className={styles.inbox} aria-label={t('notifications.title')}>
-              {entries.map((entry) => (
-                <li key={entry.id}>
-                  <InboxEntry
-                    focusKey={entryKey(entry)}
-                    href={paths.item(entry.item.id)}
-                    title={entryTitle(t, entry)}
-                    context={entryContext(t, entry)}
-                    time={formatDateTime(entry.createdAt, i18n.language)}
-                    unread={!entry.readAt}
-                    label={entryLabel(t, entry, i18n.language)}
-                    onOpen={() => {
-                      if (!entry.readAt) markRead.mutate(entry.id);
-                    }}
-                  />
-                </li>
-              ))}
-            </SpatialGroup>
-            <MoreButton
-              shown={entries.length}
-              keys={entries.map(entryKey)}
-              hasMore={inbox.hasNextPage}
-              loading={inbox.isFetchingNextPage}
-              failed={inbox.isFetchNextPageError}
-              label={t('notifications.more')}
-              focusKey="notifications-more"
-              onMore={() => void inbox.fetchNextPage()}
+            <VirtualList
+              slots={paged.slots}
+              virtual={paged.total > PAGED_LIST_VIRTUAL_FROM}
+              onRange={setSpan}
+              className={styles.inbox}
+              label={t('notifications.title')}
+              estimate={ENTRY_HEIGHT}
+              itemKey={(entry) => entry.id}
+              renderPlaceholder={() => <Skeleton shape="line" />}
+              renderItem={(entry) => (
+                <InboxEntry
+                  focusKey={entryKey(entry)}
+                  href={paths.item(entry.item.id)}
+                  title={entryTitle(t, entry)}
+                  context={entryContext(t, entry)}
+                  time={formatDateTime(entry.createdAt, i18n.language)}
+                  unread={!entry.readAt}
+                  label={entryLabel(t, entry, i18n.language)}
+                  onOpen={() => {
+                    if (!entry.readAt) markRead.mutate(entry.id);
+                  }}
+                />
+              )}
             />
+            {paged.failed && <PageRetry onRetry={paged.retry} />}
           </section>
         )}
       </main>

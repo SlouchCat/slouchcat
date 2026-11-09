@@ -253,7 +253,8 @@ func heroPrepaint(item model.ItemSummary, start int, profileID int64) string {
 // posterPrepaint returns the first cards of a start page without a stage as markup for the app
 // shell: up to posterPrepaintCards posters, nothing but images. It sits outside #root with the
 // geometry of the first row's cards (#poster-prepaint in web/src/ui/global.css; a square cover for
-// audiobooks and podcasts, like PosterCard's shape) and the attributes of their images (URLs,
+// audiobooks and podcasts sits in the middle of the same 2:3 frame on a dark ground, like
+// PosterCard's square shape, concept 18 C-1) and the attributes of their images (URLs,
 // srcset, sizes; the first one with priority and sync decoding, like the preload); the start page
 // fades it out once its own first poster is on screen. It stops at the first title without a
 // poster: the card shows the lettered fallback there, and a gap would misplace the cards after it.
@@ -373,8 +374,9 @@ func cardPoster(item model.ItemSummary) (string, *model.Image, *model.Image) {
 	return item.ID, item.Poster, item.PosterSmall
 }
 
-// squareCover reports whether a card shows a square cover instead of a 2:3 poster: audiobooks and
-// podcasts (isAudioKind in web/src/features/catalog/labels.ts, M6).
+// squareCover reports whether a card shows a square cover in its 2:3 frame instead of a 2:3
+// poster: audiobooks and podcasts (isAudioKind in web/src/features/catalog/labels.ts, M6; the
+// frame since concept 18 C-1).
 func squareCover(kind string) bool {
 	return kind == "audiobook" || kind == "podcast" || kind == "podcast_episode"
 }

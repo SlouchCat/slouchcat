@@ -62,6 +62,21 @@
       "soft": { "$value": "#0b0c1033" },
       "clear": { "$value": "#0b0c1000", "$description": "Fully transparent end stop of the scrim." }
     },
+    "tile": {
+      "$description": "The library tile of «Meine Medien» (concept 18 C-2): the collage darkened as a whole, darker towards the name at the bottom.",
+      "shade": {
+        "$value": "#0b0c1073",
+        "$description": "Over the whole collage, so the name stays readable on any poster."
+      },
+      "label-ground": {
+        "$value": "#0b0c10d9",
+        "$description": "Bottom of the gradient, behind the name and the count; text.primary on it over a white poster stays above 4.5:1."
+      },
+      "label-shadow": {
+        "$value": "#000000b3",
+        "$description": "Shadow of the name."
+      }
+    },
     "media": {
       "$description": "Letterbox behind the video element.",
       "backdrop": { "$value": "#000000" }

@@ -1,6 +1,5 @@
 import type { Collection, ItemRef } from '@slouchcat/api-client';
 import { fireEvent, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { alien, arrival, heat, ids, podcast, seriesIds } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
@@ -19,32 +18,38 @@ const collection: Collection = {
 describe('collection page', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('shows name, description and the visible members, and pages the rest', async () => {
+  it('shows name, description and the visible members, and reads the rest without «Mehr laden»', async () => {
+    // 101 members: page 0 holds 100 (concept 18 C-3), the last one comes with page 1.
+    const fillers = Array.from({ length: 98 }, (_, index) => ({
+      ...heat,
+      id: `${ids.heat.slice(0, -2)}${String(index).padStart(2, '0')}`,
+      title: `Heat ${index}`,
+    }));
     const { calls } = mockApi({
       ...signedIn,
       [`GET /collections/${id}`]: () =>
         calls.filter((call) => call.path === `/collections/${id}`).length > 1
-          ? json({ ...collection, items: [arrival], offset: 2 })
-          : json(collection),
+          ? json({ ...collection, items: [arrival], total: 101, offset: 100, limit: 100 })
+          : json({ ...collection, items: [alien, heat, ...fillers], total: 101, limit: 100 }),
     });
     renderApp(`/collections/${id}`);
     expect(await screen.findByRole('heading', { level: 1, name: 'Alien-Reihe' })).toBeVisible();
     expect(screen.getByText('Die Filme um die Nostromo und ihre Nachfolger.')).toBeVisible();
-    expect(screen.getByText('3 Titel')).toBeVisible();
+    expect(screen.getByText('101 Titel')).toBeVisible();
     // The head of a detail page (concept 17 E-16): the back arrow, the first member's cover.
     expect(screen.getByRole('button', { name: 'Zurück' })).toBeVisible();
     expect(
       document.querySelector(`img[src="/api/v1/items/${ids.alien}/images/poster/w500?v=abc"]`),
     ).not.toBeNull();
     const members = screen.getByRole('region', { name: 'Titel' });
-    const alienCard = within(members).getByRole('link', { name: /Alien/ });
+    const alienCard = within(members).getAllByRole('link', { name: /Alien/ })[0]!;
     expect(alienCard).toHaveAttribute('href', `/items/${ids.alien}`);
     // The watch state on the cards.
     expect(within(alienCard).getByRole('progressbar', { name: '36 % gesehen' })).toBeVisible();
     expect(document.title).toBe('Alien-Reihe · Slouchcat');
 
-    await userEvent.setup().click(within(members).getByRole('button', { name: 'Mehr laden' }));
     expect(await within(members).findByRole('link', { name: /Arrival/ })).toBeVisible();
+    expect(calls.filter((call) => call.path === `/collections/${id}`)).toHaveLength(2);
     expect(within(members).queryByRole('button', { name: 'Mehr laden' })).not.toBeInTheDocument();
   });
 

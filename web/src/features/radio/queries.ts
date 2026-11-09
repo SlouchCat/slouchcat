@@ -7,7 +7,8 @@ import {
 } from '@tanstack/react-query';
 import { api, isApiError, request } from '@/api/client';
 import { radioKeys } from '@/app/radio/queries';
-import type { RadioQueryParams, RadioSort, RadioFilter } from './filters';
+import type { PagedSource } from '@/lib/pagedList';
+import { TOP_COUNT, type RadioQueryParams, type RadioSort, type RadioFilter } from './filters';
 
 // The radio page's API calls (contract 1.17.0). Before the first catalog sync the list and the
 // facets answer 503 `radio_catalog_loading`; the queries then ask again after `Retry-After`
@@ -18,8 +19,6 @@ type RadioStationPage = components['schemas']['RadioStationPage'];
 type RadioFacets = components['schemas']['RadioFacets'];
 export type RadioPreferences = components['schemas']['RadioPreferences'];
 
-/** One page of the grid. */
-export const RADIO_PAGE_SIZE = 60;
 /** The default wait when the server names none. */
 const CATALOG_RETRY_MS = 30_000;
 
@@ -28,13 +27,14 @@ export const isCatalogLoading = (error: unknown) =>
   isApiError(error, 503) && error.code === 'radio_catalog_loading';
 
 /** Ask again while the catalog loads, after the time the server named; nothing else retries. */
-const catalogRetry = {
+export const catalogRetry = {
   retry: (_count: number, error: unknown) => isCatalogLoading(error),
   retryDelay: (_count: number, error: unknown) =>
     (isApiError(error) ? error.retryAfterMs : null) ?? CATALOG_RETRY_MS,
 };
 
-export const radioStationsQuery = (params: RadioQueryParams, limit = RADIO_PAGE_SIZE) =>
+/** The first `limit` stations of a filter (a row of the radio page). */
+export const radioStationsQuery = (params: RadioQueryParams, limit: number) =>
   infiniteQueryOptions({
     queryKey: [...radioKeys.all, 'stations', params, limit] as const,
     queryFn: ({ pageParam, signal }): Promise<RadioStationPage> =>
@@ -51,6 +51,26 @@ export const radioStationsQuery = (params: RadioQueryParams, limit = RADIO_PAGE_
     },
     ...catalogRetry,
   });
+
+/**
+ * The stations of the radio page's grid as a list operation (concept 18 C-3): read page by page as
+ * the grid scrolls. `top` is the list of the most popular stations: one short page, its stations
+ * all there is.
+ */
+export const radioStationsSource = (
+  params: RadioQueryParams,
+  top: boolean,
+): PagedSource<RadioStationPage, RadioStation> => ({
+  key: [...radioKeys.all, 'stations', params, top ? 'top' : 'all'],
+  fetch: (offset, limit, signal) =>
+    request(
+      api.GET('/radio/stations', { params: { query: { ...params, offset, limit } }, signal }),
+    ),
+  items: (page) => page.items,
+  total: (page) => (top ? page.items.length : page.total),
+  id: (station) => station.id,
+  ...(top ? { pageSize: TOP_COUNT } : {}),
+});
 
 export const radioFacetsQuery = (params: RadioQueryParams) =>
   queryOptions({
