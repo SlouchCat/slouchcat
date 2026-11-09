@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.20.0
+  version: 1.21.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -947,10 +947,14 @@ paths:
         `watched` when every visible episode is completed, `started` when at least one episode
         has progress and not all are completed, else `unwatched` (exclusive). `letter` is one
         character of `[A-Z#]` (`#` = digits and other characters) and is allowed only with
-        `sort=title` (422 `letter_requires_title_sort`). The answer carries `facets`: the letters
+        `sort=title` (422 `letter_requires_title_sort`); deprecated since 1.21.0, the app jumps
+        with `facets.letterStarts` instead. The answer carries `facets`: the letters
         of the filtered set (without the letter filter), the genres with hits in the library and
         the age ratings present below the profile's ceiling; the client offers only what the
-        facets name (rule 12). `progress.completed` is set for series and podcasts by the status
+        facets name (rule 12). On the first page sorted by title (`sort=title`, `offset=0`) the
+        facets also carry `letterStarts` (since contract 1.21.0, concept 17 section 6): the offset
+        of the first title of every initial letter in the active direction, so the client can load
+        any page of the list and jump to a letter. `progress.completed` is set for series and podcasts by the status
         rule above. A library the profile may not see and a library without a visible title answer
         404 (never 403).
       tags: [items]
@@ -1015,10 +1019,13 @@ paths:
         - name: letter
           in: query
           required: false
+          deprecated: true
           schema:
             type: string
             pattern: "^[A-Z#]$"
-          description: Only with `sort=title`.
+          description: |
+            Only with `sort=title`. Deprecated since 1.21.0, see `letterStarts` in the facets; the
+            app no longer sends it.
         - name: offset
           in: query
           required: false
@@ -9833,6 +9840,11 @@ components:
 
     ImageRef:
       type: object
+      description: |
+        One image the client may load: a title's poster, backdrop or logo, and since contract 1.21.0
+        (concept 17 section 5) the portrait of a person (`/people/{id}/image`, TMDB `w185`) and the
+        TMDB poster of a collection (`/collections/{id}/image`, `w400`). The endpoint picks WebP or
+        JPEG by `Accept`; width and height are those of the JPEG.
       required: [url, width, height]
       properties:
         url:
@@ -10178,6 +10190,11 @@ components:
           enum: [cast, director, writer, creator]
         character:
           type: string
+        image:
+          $ref: "#/components/schemas/ImageRef"
+          description: |
+            The portrait of the person (since contract 1.21.0, concept 17 section 5). Absent when no
+            portrait was fetched yet or TMDB has none; the client then shows the initial.
 
     Person:
       type: object
@@ -10188,6 +10205,11 @@ components:
           format: int64
         name:
           type: string
+        image:
+          $ref: "#/components/schemas/ImageRef"
+          description: |
+            The portrait of the person (since contract 1.21.0, concept 17 section 5). Absent when no
+            portrait was fetched yet or TMDB has none.
         credits:
           type: array
           items:
@@ -12852,6 +12874,11 @@ components:
           format: int64
         name:
           type: string
+        image:
+          $ref: "#/components/schemas/ImageRef"
+          description: |
+            The portrait of the person (since contract 1.21.0, concept 17 section 5). Absent when no
+            portrait was fetched yet or TMDB has none.
 
     GenreRef:
       type: object
@@ -12883,7 +12910,14 @@ components:
           minimum: 0
         cover:
           $ref: "#/components/schemas/ItemRef"
-          description: The first visible member; its poster represents the collection.
+          description: The first visible member; its poster represents the collection when `image` is absent.
+        image:
+          $ref: "#/components/schemas/ImageRef"
+          description: |
+            The TMDB poster of the collection (since contract 1.21.0, concept 17 section 5). Set only
+            when every member of the collection is visible to the active profile and at least one is;
+            otherwise, and for collections made by the admin, absent, and the poster of `cover`
+            represents the collection.
         members:
           type: array
           maxItems: 20
@@ -12904,6 +12938,12 @@ components:
           type: string
         overview:
           type: string
+        image:
+          $ref: "#/components/schemas/ImageRef"
+          description: |
+            The TMDB poster of the collection for the head of the collection page (since contract
+            1.21.0), by the rule of `CollectionRef.image`; absent, the page shows the poster of the
+            first member.
         items:
           type: array
           items:
@@ -12977,6 +13017,28 @@ components:
           description: Age ratings present among the visible titles of the library, all at or below the profile's ceiling, ascending.
           items:
             $ref: "#/components/schemas/Rating"
+        letterStarts:
+          type: array
+          description: |
+            Since contract 1.21.0 (concept 17 section 6): one entry per change of the initial letter
+            in the filtered set (the same filters as `total`) in the active direction, with the
+            offset of the first title of that letter. Set only with `sort=title` and `offset=0`,
+            absent otherwise. `#` can appear twice: digits sort before A and other characters after
+            Z (mirrored with `order=desc`). Offsets ascend.
+          items:
+            $ref: "#/components/schemas/LetterStart"
+
+    LetterStart:
+      type: object
+      required: [letter, offset]
+      properties:
+        letter:
+          type: string
+          pattern: "^[A-Z#]$"
+        offset:
+          type: integer
+          minimum: 0
+          description: Position of the first title with this initial letter in the sorted list.
 
     LibraryItemsPage:
       type: object

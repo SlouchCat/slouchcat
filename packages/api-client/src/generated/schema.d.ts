@@ -427,10 +427,14 @@ export interface paths {
          *     `watched` when every visible episode is completed, `started` when at least one episode
          *     has progress and not all are completed, else `unwatched` (exclusive). `letter` is one
          *     character of `[A-Z#]` (`#` = digits and other characters) and is allowed only with
-         *     `sort=title` (422 `letter_requires_title_sort`). The answer carries `facets`: the letters
+         *     `sort=title` (422 `letter_requires_title_sort`); deprecated since 1.21.0, the app jumps
+         *     with `facets.letterStarts` instead. The answer carries `facets`: the letters
          *     of the filtered set (without the letter filter), the genres with hits in the library and
          *     the age ratings present below the profile's ceiling; the client offers only what the
-         *     facets name (rule 12). `progress.completed` is set for series and podcasts by the status
+         *     facets name (rule 12). On the first page sorted by title (`sort=title`, `offset=0`) the
+         *     facets also carry `letterStarts` (since contract 1.21.0, concept 17 section 6): the offset
+         *     of the first title of every initial letter in the active direction, so the client can load
+         *     any page of the list and jump to a letter. `progress.completed` is set for series and podcasts by the status
          *     rule above. A library the profile may not see and a library without a visible title answer
          *     404 (never 403).
          */
@@ -5070,6 +5074,12 @@ export interface components {
          * @enum {string}
          */
         ImageKind: "poster" | "backdrop" | "logo";
+        /**
+         * @description One image the client may load: a title's poster, backdrop or logo, and since contract 1.21.0
+         *     (concept 17 section 5) the portrait of a person (`/people/{id}/image`, TMDB `w185`) and the
+         *     TMDB poster of a collection (`/collections/{id}/image`, `w400`). The endpoint picks WebP or
+         *     JPEG by `Accept`; width and height are those of the JPEG.
+         */
         ImageRef: {
             /**
              * Format: uri-reference
@@ -5300,11 +5310,21 @@ export interface components {
             /** @enum {string} */
             role: "cast" | "director" | "writer" | "creator";
             character?: string;
+            /**
+             * @description The portrait of the person (since contract 1.21.0, concept 17 section 5). Absent when no
+             *     portrait was fetched yet or TMDB has none; the client then shows the initial.
+             */
+            image?: components["schemas"]["ImageRef"];
         };
         Person: {
             /** Format: int64 */
             id: number;
             name: string;
+            /**
+             * @description The portrait of the person (since contract 1.21.0, concept 17 section 5). Absent when no
+             *     portrait was fetched yet or TMDB has none.
+             */
+            image?: components["schemas"]["ImageRef"];
             credits: {
                 item: components["schemas"]["ItemRef"];
                 /** @enum {string} */
@@ -6876,6 +6896,11 @@ export interface components {
             /** Format: int64 */
             id: number;
             name: string;
+            /**
+             * @description The portrait of the person (since contract 1.21.0, concept 17 section 5). Absent when no
+             *     portrait was fetched yet or TMDB has none.
+             */
+            image?: components["schemas"]["ImageRef"];
         };
         GenreRef: {
             name: string;
@@ -6889,8 +6914,15 @@ export interface components {
             /** @description Name in the profile language (TMDB), or the admin's name. */
             name: string;
             count: number;
-            /** @description The first visible member; its poster represents the collection. */
+            /** @description The first visible member; its poster represents the collection when `image` is absent. */
             cover?: components["schemas"]["ItemRef"];
+            /**
+             * @description The TMDB poster of the collection (since contract 1.21.0, concept 17 section 5). Set only
+             *     when every member of the collection is visible to the active profile and at least one is;
+             *     otherwise, and for collections made by the admin, absent, and the poster of `cover`
+             *     represents the collection.
+             */
+            image?: components["schemas"]["ImageRef"];
             /**
              * @description The first visible members in collection order (position, then release date), at most 20,
              *     with their progress (since contract 1.20.0, concept 17 section 4.2). Set only in
@@ -6902,6 +6934,12 @@ export interface components {
             id: components["schemas"]["CollectionID"];
             name: string;
             overview?: string;
+            /**
+             * @description The TMDB poster of the collection for the head of the collection page (since contract
+             *     1.21.0), by the rule of `CollectionRef.image`; absent, the page shows the poster of the
+             *     first member.
+             */
+            image?: components["schemas"]["ImageRef"];
             items: components["schemas"]["ItemRef"][];
             total: number;
             offset: number;
@@ -6943,6 +6981,19 @@ export interface components {
             genres: components["schemas"]["GenreRef"][];
             /** @description Age ratings present among the visible titles of the library, all at or below the profile's ceiling, ascending. */
             ratings: components["schemas"]["Rating"][];
+            /**
+             * @description Since contract 1.21.0 (concept 17 section 6): one entry per change of the initial letter
+             *     in the filtered set (the same filters as `total`) in the active direction, with the
+             *     offset of the first title of that letter. Set only with `sort=title` and `offset=0`,
+             *     absent otherwise. `#` can appear twice: digits sort before A and other characters after
+             *     Z (mirrored with `order=desc`). Offsets ascend.
+             */
+            letterStarts?: components["schemas"]["LetterStart"][];
+        };
+        LetterStart: {
+            letter: string;
+            /** @description Position of the first title with this initial letter in the sorted list. */
+            offset: number;
         };
         LibraryItemsPage: {
             items: components["schemas"]["ItemRef"][];
@@ -10190,7 +10241,11 @@ export interface operations {
                 maxRating?: components["schemas"]["Rating"];
                 /** @description Several values are combined with OR. */
                 status?: components["schemas"]["LibraryItemStatus"][];
-                /** @description Only with `sort=title`. */
+                /**
+                 * @deprecated
+                 * @description Only with `sort=title`. Deprecated since 1.21.0, see `letterStarts` in the facets; the
+                 *     app no longer sends it.
+                 */
                 letter?: string;
                 offset?: number;
                 limit?: number;
