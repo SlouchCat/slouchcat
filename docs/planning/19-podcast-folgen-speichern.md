@@ -4,9 +4,9 @@
   Grundsatzfragen **F-1 bis F-4** beantwortet (Abschnitt 2) und nach dem ersten Blick auf die Mockups
   zwei Dinge geändert: der Umfang hat **drei** Werte («Nur neue Folgen», «Neue + letzte N», «Alle
   Folgen»; «Neue und fehlende Folgen» entfällt), und «Gleichzeitig laden» geht **bis 5**. Für die
-  abonnierten Podcasts hat er **Variante A (Liste mit Covern)** gewählt (F-5). Offen sind die
-  Variante der Einstellung (**F-6**) und die Punkte in Abschnitt 16 (O-1, O-4 und O-9 sind
-  erledigt). Ein Kritiker-Review steht noch aus.
+  abonnierten Podcasts hat er **Variante A (Liste mit Covern)** gewählt (F-5), für die
+  Einstellung **Variante B (Band auf der Podcasts-Seite)** (F-6). Offen sind nur noch die Punkte in
+  Abschnitt 16 (O-1, O-4 und O-9 sind erledigt). Ein Kritiker-Review steht noch aus.
   **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Auslöser:** Marco will, dass Slouchcat neue Podcast-Folgen als Datei in den Ordner des Podcasts
   speichert, statt nur den Link zum Anbieter zu halten. Vorhandene Dateien sollen wie heute erkannt
@@ -50,7 +50,7 @@
 | F-3 | Audiobookshelf lädt heute noch in denselben Ordner. Wie weiter? | **Slouchcat übernimmt.** Marco schaltet die automatischen Downloads in Audiobookshelf ab; Slouchcat schreibt im selben Layout. |
 | F-4 | Wie lange bleiben gespeicherte Folgen? | **Für immer.** Slouchcat löscht nie eine Datei im Podcast-Ordner. |
 | F-5 | Welche Variante für die abonnierten Podcasts (A Liste, B Raster, C Tabelle)? | **A, Liste mit Covern** (9. November 2026; Empfehlung). |
-| F-6 | Welche Variante für die Einstellung (A Dialog in der Bibliothek, B Band auf der Podcasts-Seite)? | **offen**, Empfehlung A mit dem Abschnitt «Downloads» aus B (11.3) |
+| F-6 | Welche Variante für die Einstellung (A Dialog in der Bibliothek, B Band auf der Podcasts-Seite)? | **B, Band auf der Podcasts-Seite** (9. November 2026; empfohlen war A). Folge: eine Bestätigung mit Schätzung, bevor ein grösserer Umfang gilt (11.3). |
 
 ## 3. Was sich gegenüber früheren Entscheiden ändert
 
@@ -146,16 +146,16 @@ alte Folgen nachreicht, löst so keine Lawine aus.
 |---|---|
 | `link` → `save` | `save_since` = jetzt; der Planer (6.1) läuft für die betroffenen Podcasts und reiht je nach Umfang Folgen ein. |
 | `save` → `link` | Wartende Downloads werden abgebrochen, laufende beendet der Abbruch-Haken und entfernt die Teildatei. **Gespeicherte Dateien bleiben** (F-4). |
-| Umfang grösser (z. B. `new` → `all`) | Der Planer reiht die zusätzlichen Folgen ein. Vor dem Speichern zeigt der Dialog, wie viele Folgen und wie viel Platz das ungefähr sind. |
+| Umfang grösser (z. B. `new` → `all`) | Das Band fragt zuerst nach und zeigt, wie viele Folgen und wie viel Platz das ungefähr sind (11.3). Erst nach der Bestätigung gilt der neue Umfang, und der Planer reiht die zusätzlichen Folgen ein. |
 | Umfang kleiner | Wartende Downloads, die nicht mehr dazugehören, werden abgebrochen. Nichts wird gelöscht. |
 | Knopf «Fehlende nachladen» am Podcast | Einmalig alle Folgen des Feeds ohne Datei, gleich welcher Umfang gilt. Auch einzeln je Folge («Laden»). |
 
 ### 5.4 Der Ordner muss schreibbar sein
 
 «Speichern» lässt sich nur wählen, wenn der Zielordner schreibbar ist. Der Server prüft es mit einer
-Testdatei (`.slouchcat-schreibtest`, sofort wieder entfernt) beim Öffnen des Dialogs, beim Speichern
+Testdatei (`.slouchcat-schreibtest`, sofort wieder entfernt) beim Laden der Podcasts-Seite, beim Speichern
 (422 `root_not_writable`) und vor jedem Download. Ist der Ordner nur lesbar eingebunden, sagt der
-Dialog das und verweist auf die Installationsanleitung (Abschnitt 12).
+Band das und verweist auf die Installationsanleitung (Abschnitt 12).
 
 ## 6. Vom Feed zur Datei
 
@@ -305,6 +305,7 @@ Jede Operation trägt `x-visibility: admin` und bekommt ihren Eintrag im Vertrag
 | 1 | `AdminPodcast` wächst um `mode`, `scope` (je `inherit` oder Wert), `effectiveMode`, `effectiveScope`, `storedBytes`, `missingEpisodeCount`, `downloads` (`queued`, `running`, `failed`), `latestEpisodeAt`, `folder`. |
 | 1 | neu `updatePodcast` (`PATCH /admin/podcasts/{id}`): `mode`, `scope`, `lastN`. |
 | 1 | neu `downloadPodcastEpisodes` (`POST /admin/podcasts/{id}/download`): alle fehlenden oder eine Liste von Episoden; 202. 409 `mode_link`, wenn der Podcast auf «Nur Link» steht und keine Liste mitkommt. |
+| 1 | neu `estimatePodcastDownloads` (`POST /admin/libraries/{id}/podcast-episodes/estimate`): nimmt eine gedachte Einstellung (Bibliothek oder ein Podcast) und liefert Anzahl Folgen und Bytes, die sie einmalig nachladen würde (aus `enclosure_length`, sonst dem Mittel des Podcasts), dazu den freien Platz. Ändert nichts. Für die Bestätigung im Band (11.3). |
 | 2 | neu `listAdminPodcastEpisodes` (`GET /admin/podcasts/{id}/episodes`, seitenweise): Schema `AdminPodcastEpisode` mit Titel, Datum, Dauer, Grösse, `state` (`file`, `link`, `queued`, `running`, `failed`, `removed`, `unclear`), Fortschritt, Fehlercode, Dateiname. Eigenes Schema, kein `ItemRef` (das wäre `scoped`). |
 | 2 | neu `cancelPodcastDownload` (`DELETE /admin/podcasts/{id}/episodes/{episodeId}/download`). |
 | 2 | neu `listPodcastDownloads` (`GET /admin/podcasts/downloads`): die Warteschlange für den Abschnitt «Downloads». |
@@ -349,9 +350,23 @@ mit «Laden», «Abbrechen», «Erneut»; oben «N fehlende nachladen».
 | **A Dialog in der Bibliothek** (`Einstellung`) | Wie «Vorschau beim Spulen»: unter Bibliotheken, mit Erklärung je Wahl, Schreibtest des Ordners, «So läuft es» und Schätzung vor dem Speichern. | Gleiches Muster wie Trickplay; Platz für Erklärung und Warnung; der Ordner gehört zur Bibliothek. | Ein Seitenwechsel von der Podcasts-Seite (ein Knopf «Einstellungen» führt hin). |
 | **B Band auf der Podcasts-Seite** (`EinstellungB`) | Ein Band zuoberst, zugeklappt eine Zeile Zusammenfassung, aufgeklappt Knöpfe; jede Änderung gilt sofort. Darunter der Abschnitt «Downloads» mit Warteschlange, Anhalten, Abbrechen. | Einstellung und Wirkung auf einer Seite. | Wenig Platz für Erklärung; «gilt sofort» ist bei «Alle Folgen» heikel (Dutzende GB mit einem Klick). |
 
-**Empfehlung: A, dazu der Abschnitt «Downloads» aus B auf der Podcasts-Seite.** Ein Umfang wie
-«Alle Folgen» soll eine Schätzung zeigen und einen Knopf «Speichern» brauchen. Die Warteschlange
-gehört dorthin, wo man die Podcasts ansieht.
+**Gewählt: B** (Marco, 9. November 2026; empfohlen war A). Der Dialog in der Bibliothek wird nicht
+gebaut. Damit B die Schwäche «gilt sofort» nicht hat, gilt:
+
+- **Kleine Änderungen gelten sofort** («Gleichzeitig laden», N kleiner, Umfang kleiner, «Speichern»
+  → «Nur Link»), mit der Rückmeldung «Gespeichert».
+- **Alles, was einmalig nachlädt, fragt zuerst nach:** «Nur Link» → «Speichern» mit Umfang «Alle
+  Folgen» oder «Neue + letzte N», Umfang grösser, N grösser. Das Band zeigt eine Zeile mit der
+  Schätzung (Anzahl Folgen, Platz, freier Platz; `estimatePodcastDownloads`) und den Knöpfen «Laden»
+  und «Abbrechen». Ohne Bestätigung ändert sich nichts. Dasselbe gilt für die Einstellung am
+  einzelnen Podcast.
+- **Je Bibliothek ein Band.** Die Seite hat heute Reiter je Podcast-Bibliothek; das Band gehört zum
+  gewählten Reiter. Mit einer einzigen Podcast-Bibliothek steht es immer da, im Reiter «Alle» mit
+  mehreren Bibliotheken steht je Bibliothek eine Zeile.
+- **Der Ordner steht im Band** mit dem Ergebnis des Schreibtests («beschreibbar, 62 TB frei» oder
+  «nur lesbar eingebunden» mit dem Verweis auf die Installationsanleitung). Bei «nur lesbar» ist
+  «Speichern» gesperrt.
+- Darunter der Abschnitt **«Downloads»** mit Warteschlange, «Anhalten» und «Abbrechen» je Folge.
 
 ### 11.4 Regeln
 
@@ -398,7 +413,7 @@ stimmt.
 | Stufe | Inhalt | Release | Aufwand |
 |---|---|---|---|
 | **0** | Messauftrag M-1 (Abschnitt 8) auf CT 190, Ergebnis nach `docs/perf/19-podcasts.md`. Frage 26 und ADR 0029. | – | 0,5 Tage |
-| **1 «Speichern»** | Paket `internal/fetch` (aus `offline` herausgelöst), Migration, Planer und Download mit Pool `podcast`, Schreibtest, Dateinamen-Abgleich, Vertrag 1.24.0, Dialog «Neue Folgen» in der Bibliothek (Variante A), auf der heutigen Podcasts-Seite: Wahl je Podcast im Ausklapp, Spalte «gespeichert», Knopf «Fehlende nachladen». `compose.yaml` und Installationsanleitung. | 1.24.0 | 6 bis 7 Tage |
+| **1 «Speichern»** | Paket `internal/fetch` (aus `offline` herausgelöst), Migration, Planer und Download mit Pool `podcast`, Schreibtest, Dateinamen-Abgleich, Vertrag 1.24.0, Band «Neue Folgen» auf der Podcasts-Seite (Variante B) mit Schätzung und Bestätigung, auf der heutigen Podcasts-Seite: Wahl je Podcast im Ausklapp, Spalte «gespeichert», Knopf «Fehlende nachladen». `compose.yaml` und Installationsanleitung. | 1.24.0 | 6 bis 7 Tage |
 | **2 «Neue Podcasts-Seite»** | Liste mit Covern (Variante A), Seite «Podcast» mit Folgenliste, Abschnitt «Downloads», Cover, Vertrag 1.25.0. | 1.25.0 | 4 bis 5 Tage |
 
 Stufe 1 ist für sich nützlich: nach ihr speichert Slouchcat Folgen, und Audiobookshelf kann die
@@ -414,12 +429,13 @@ Downloads abgeben. Jeder Schritt ist ein eigener Commit; geprüft wird nach den 
 | P-3 | Ein Podcast auf «Nur Link» in einer Bibliothek auf «Speichern»: neue Folge bleibt Link, keine Datei entsteht. |
 | P-4 | «Neue + letzte 3» einschalten: genau die drei jüngsten Folgen ohne Datei werden geladen. |
 | P-5 | «Alle Folgen»: eine von Hand gelöschte Datei wird nicht wieder geladen (Zustand «entfernt»), eine nie geladene Folge schon; fünf Downloads laufen gleichzeitig, wenn «Gleichzeitig laden» auf 5 steht, je Anbieter aber nur einer. |
-| P-6 | Ordner read-only eingebunden: «Speichern» ist nicht wählbar, der Dialog sagt warum; nach dem Umbinden besteht der Schreibtest. |
+| P-6 | Ordner read-only eingebunden: «Speichern» ist nicht wählbar, das Band sagt warum; nach dem Umbinden besteht der Schreibtest. |
 | P-7 | Download bricht ab (Netz weg): die Folge bleibt als Link abspielbar, im Ordner liegt keine sichtbare Teildatei, der nächste Versuch setzt fort. |
 | P-8 | Eine vorhandene Datei mit dem Namen des Folgentitels: es wird nicht geladen, sondern zugeordnet. |
 | P-9 | Abo ohne Ordner: der erste Download legt Ordner, `metadata.json` und `cover.jpg` an; ein Scan danach erzeugt keinen zweiten Podcast. |
 | P-10 | «Speichern» → «Nur Link»: wartende Downloads verschwinden, alle Dateien bleiben. |
 | P-11 | Während 200 Folgen nachladen, startet ein Geräte-Download am Handy ohne Wartezeit. |
+| P-13 | Umstellen auf «Alle Folgen» zeigt zuerst die Schätzung; nach «Abbrechen» gilt der alte Umfang und nichts wird geladen, nach «Laden» beginnt das Nachladen. |
 | P-12 | Tastatur: die Seiten «Podcasts» und «Podcast» sind mit Pfeiltasten, Tab, Enter und Zurück bedienbar (Playwright). |
 
 ## 16. Offene Punkte

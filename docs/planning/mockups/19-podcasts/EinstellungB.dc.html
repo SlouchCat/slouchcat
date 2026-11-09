@@ -73,6 +73,13 @@ a{color:#f3a27f}a:hover{color:#ffc4a8}
               </sc-if>
             </div>
           </div>
+          <sc-if value="{{confirmAll}}" hint-placeholder-val="{{false}}">
+            <div role="alertdialog" aria-label="Alle Folgen laden?" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 10px; border: 1px solid #e8b84a; background: #e8b84a1f;">
+              <span style="flex: 999 1 320px; font-size: 14px; line-height: 1.45;">«Alle Folgen» lädt einmalig rund <strong style="font-weight: 700;">1.894 Folgen, etwa 52 GB</strong> (11 Podcasts ohne eigene Einstellung, Beispielwerte). Frei: 2,1 TB.</span>
+              <button class="k-btn" onClick="{{applyAll}}" style="min-height: 44px; padding: 0 16px; border-radius: 22px; background: #e8794a; color: #1c0d06; border: 0; font-size: 14px; font-weight: 600;">Alle laden</button>
+              <button class="k-btn" onClick="{{cancelAll}}" style="min-height: 44px; padding: 0 16px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">Abbrechen</button>
+            </div>
+          </sc-if>
           <div style="display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center;">
             <span style="flex: 0 0 150px; font-size: 14px; color: #b6b9c4;">Ordner</span>
             <span style="font-size: 14px; overflow-wrap: anywhere;">/media/Audiobookshelf/Podcast</span>
@@ -139,7 +146,7 @@ a{color:#f3a27f}a:hover{color:#ffc4a8}
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { open: true, mode: 'save', scope: 'new', n: 10, par: 2, saved: false, paused: false, queue: this.fresh() };
+    this.state = { open: true, mode: 'save', scope: 'new', n: 10, par: 2, saved: false, paused: false, confirmAll: false, queue: this.fresh() };
   }
   fresh() {
     return [
@@ -202,7 +209,14 @@ class Component extends DCLogic {
       summary: saves ? 'Speichern · ' + scopeName + ' · /media/Audiobookshelf/Podcast · ' + st.par + ' gleichzeitig' : 'Nur Link · nichts wird gespeichert',
       saves: saves, showN: st.scope === 'lastn', n: String(st.n), hint: hint,
       modeOpts: opts('mode', [['save', 'Speichern'], ['link', 'Nur Link']]),
-      scopeOpts: opts('scope', [['new', 'Nur neue Folgen'], ['lastn', 'Neue + letzte N'], ['all', 'Alle Folgen']]),
+      scopeOpts: opts('scope', [['new', 'Nur neue Folgen'], ['lastn', 'Neue + letzte N'], ['all', 'Alle Folgen']]).map(function (o, i) {
+        if (i === 2 && st.scope !== 'all') o.pick = function () { self.setState({ confirmAll: true }); };
+        else { var pick = o.pick; o.pick = function () { self.setState({ confirmAll: false }); pick(); }; }
+        return o;
+      }),
+      confirmAll: st.confirmAll && saves,
+      applyAll: function () { self.flash({ scope: 'all', confirmAll: false }); },
+      cancelAll: function () { self.setState({ confirmAll: false }); },
       parOpts: [1, 2, 3, 4, 5].map(function (v) { var on = st.par === v; return { label: String(v), pressed: on ? 'true' : 'false', style: pill(on) + ' width: 44px; padding: 0;', pick: function () { self.flash({ par: v }); } }; }),
       lessN: function () { self.flash({ n: Math.max(1, st.n - (st.n > 10 ? 5 : 1)) }); },
       moreN: function () { self.flash({ n: Math.min(100, st.n + (st.n >= 10 ? 5 : 1)) }); },
