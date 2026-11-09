@@ -59,8 +59,13 @@ export interface StoredDownload {
   bytesWritten: number;
   /** Subtitle track ids stored as `<track>.vtt`. */
   subtitlesStored: number[];
+  /**
+   * Sheets of `manifest.trickplay` stored as `trickplay-<sheet>.webp` (concept 18, 6.8); absent
+   * in downloads stored before contract 1.23.0, which have none.
+   */
+  trickplayStored?: number[];
   posterStored: boolean;
-  /** File, subtitles and poster are on the device (`complete` of the next sync). */
+  /** File, subtitles, preview sheets and poster are on the device (`complete` of the next sync). */
   complete: boolean;
   /**
    * Error code of the last local fetch attempt (FetchErrorCode, `quota`, `storage`); server-side

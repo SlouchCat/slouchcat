@@ -206,6 +206,50 @@ describe('offline engine', () => {
     expect(storedProfiles().map((profile) => profile.id)).toEqual([1]);
   });
 
+  it('stores the preview sheets of the manifest with the download (concept 18, 6.8)', async () => {
+    const withSheets = {
+      ...manifest(),
+      trickplay: {
+        version: '9000-1',
+        state: 'complete' as const,
+        intervalMs: 10_000,
+        tileWidth: 320,
+        tileHeight: 180,
+        columns: 10,
+        rows: 10,
+        pointsMs: [0],
+        sheets: [0, 1].map((index) => ({
+          index,
+          url: `/downloads/${downloadIds.alien}/trickplay/${index}?dt=${downloadIds.alien}.1.token`,
+        })),
+      },
+    };
+    const seen = server(
+      readyAlien({
+        'GET /downloads/*/manifest': () => Response.json(withSheets),
+        'GET /downloads/*/trickplay/0': () => new Response(new Uint8Array([7, 7])),
+        // A sheet the server lost: left out, the download still completes.
+        'GET /downloads/*/trickplay/1': () => Response.json({ code: 'not_found' }, { status: 404 }),
+      }),
+    );
+    start();
+    const alienDownload = () => storedDownloads().find((entry) => entry.id === downloadIds.alien);
+    await vi.waitFor(() => expect(alienDownload()?.complete).toBe(true), { timeout: 3000 });
+    expect(alienDownload()?.trickplayStored).toEqual([0, 1]);
+    expect(storedFiles(downloadIds.alien).sort()).toEqual([
+      '21.vtt',
+      'media.mp4',
+      'poster',
+      'trickplay-0.webp',
+    ]);
+    expect(
+      seen.filter((entry) => entry.path.includes('/trickplay/')).map((entry) => entry.path),
+    ).toEqual([
+      `/downloads/${downloadIds.alien}/trickplay/0`,
+      `/downloads/${downloadIds.alien}/trickplay/1`,
+    ]);
+  });
+
   it('a 401 of the sync asks for the revocation list and deletes what it names (AN-4)', async () => {
     await putDownloads([storedDownload({ accountId: 5, allowedProfileIds: [9] })]);
     await putProfiles([

@@ -2,10 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { shiftCues } from '@/features/player/SubtitleLayer';
 import { useAudioControls } from '@/features/player/useAudioControls';
-import { AriaButton, AudioPlayer, focusOnMount } from '@/ui/aria';
+import { seekBarTrickplay } from '@/features/player/useTrickplay';
+import { AriaButton, AudioPlayer, focusOnMount, type SeekBarTrickplay } from '@/ui/aria';
 import { offlineLoader } from './loader';
 import { OfflineVideo, type StoredSubtitle } from './OfflineVideo';
-import { readFile, subtitleFile } from './opfs';
+import { readFile, subtitleFile, trickplayFile } from './opfs';
 import { recordPlayback, storeRate, type OfflinePlayback, type PlaybackSample } from './playback';
 import { buildPlaylist } from './playlist';
 import type { DownloadManifest, StoredWatchTime } from './types';
@@ -35,6 +36,8 @@ interface OfflinePlayerProps {
   playback: OfflinePlayback;
   /** Stored subtitle track ids (StoredDownload.subtitlesStored). */
   subtitleIds: readonly number[];
+  /** Stored preview sheets (StoredDownload.trickplayStored). */
+  trickplayIds?: readonly number[];
   /** Position to resume from (source timeline). */
   resumeMs: number;
   /** Watch time of the profile; undefined without a daily limit. */
@@ -97,6 +100,7 @@ export function OfflinePlayer({
   media,
   playback,
   subtitleIds,
+  trickplayIds,
   resumeMs,
   watch,
   serverOffsetMs,
@@ -128,6 +132,7 @@ export function OfflinePlayer({
   );
   const [limitReached, setLimitReached] = useState(usedUp);
   const [subtitles, setSubtitles] = useState<StoredSubtitle[]>([]);
+  const [trickplay, setTrickplay] = useState<SeekBarTrickplay | undefined>(undefined);
   // Seconds the element's timeline is ahead of the source (blob fallback only).
   const offset = useRef(0);
   const watchRef = useRef(watch);
@@ -303,6 +308,30 @@ export function OfflinePlayer({
       for (const url of urls) URL.revokeObjectURL(url);
     };
   }, [manifest.subtitles, playback.downloadId, subtitleIds]);
+
+  // ---------- preview sheets from OPFS (concept 18, 6.8) ----------
+
+  useEffect(() => {
+    const set = manifest.trickplay;
+    if (!set || !trickplayIds || trickplayIds.length === 0) return;
+    let active = true;
+    const urls = new Map<number, string>();
+    void (async () => {
+      for (const sheet of set.sheets) {
+        if (!trickplayIds.includes(sheet.index)) continue;
+        const file = await readFile(playback.downloadId, trickplayFile(sheet.index)).catch(
+          () => null,
+        );
+        if (!file || file.size === 0) continue;
+        urls.set(sheet.index, URL.createObjectURL(file));
+      }
+      if (active) setTrickplay(seekBarTrickplay(set, (_url, index) => urls.get(index)));
+    })();
+    return () => {
+      active = false;
+      for (const url of urls.values()) URL.revokeObjectURL(url);
+    };
+  }, [manifest.trickplay, playback.downloadId, trickplayIds]);
 
   // ---------- controls ----------
 
@@ -586,6 +615,7 @@ export function OfflinePlayer({
       chapters={manifest.chapters ?? []}
       audioTrack={manifest.audio}
       subtitles={subtitles}
+      trickplay={trickplay}
       profileLanguage={profileLanguage}
       failed={failed}
       limitReached={limitReached}

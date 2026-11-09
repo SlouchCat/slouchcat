@@ -13,6 +13,7 @@ import {
   readFile,
   removeFiles,
   subtitleFile,
+  trickplayFile,
   truncateMedia,
   writeFile,
 } from './opfs';
@@ -444,7 +445,9 @@ async function checkStoredFiles(): Promise<void> {
     if (size === download.manifest.sizeBytes) continue;
     await patch(download.id, {
       complete: false,
-      ...(size === 0 ? { bytesWritten: 0, subtitlesStored: [], posterStored: false } : {}),
+      ...(size === 0
+        ? { bytesWritten: 0, subtitlesStored: [], trickplayStored: [], posterStored: false }
+        : {}),
     });
   }
 }
@@ -554,6 +557,7 @@ async function recordFetchError(id: string, error: unknown): Promise<void> {
           ? {
               bytesWritten: 0,
               subtitlesStored: [],
+              trickplayStored: [],
               manifest: undefined,
               fileEtag: undefined,
               fileReadyAt: undefined,
@@ -569,7 +573,10 @@ const patch = (id: string, change: Partial<StoredDownload>, progress = false) =>
     progress,
   });
 
-/** Manifest, file, subtitles and poster of one download; then it counts as complete. */
+/**
+ * Manifest, file, subtitles, preview sheets and poster of one download; then it counts as
+ * complete.
+ */
 async function fetchDownload(
   download: StoredDownload,
   session: SessionInfo | null | undefined,
@@ -579,6 +586,7 @@ async function fetchDownload(
   let manifest = download.manifest;
   let bytes = download.bytesWritten;
   let subtitles = download.subtitlesStored;
+  let sheets = download.trickplayStored ?? [];
   let etag = download.fileEtag;
   // The server prepared the copy again since these bytes came (another readyAt, O1).
   let restart =
@@ -607,7 +615,13 @@ async function fetchDownload(
         manifest: fresh,
         fileReadyAt: download.readyAt,
         ...(restart
-          ? { bytesWritten: 0, subtitlesStored: [], fileEtag: undefined, complete: false }
+          ? {
+              bytesWritten: 0,
+              subtitlesStored: [],
+              trickplayStored: [],
+              fileEtag: undefined,
+              complete: false,
+            }
           : {}),
       });
       reset = restart;
@@ -620,12 +634,14 @@ async function fetchDownload(
       await patch(id, {
         bytesWritten: 0,
         subtitlesStored: [],
+        trickplayStored: [],
         fileEtag: undefined,
         fileReadyAt: download.readyAt,
       });
     }
     bytes = 0;
     subtitles = [];
+    sheets = [];
     etag = undefined;
   }
 
@@ -672,6 +688,26 @@ async function fetchDownload(
     // A 404 subtitle is not on the server any more; the player offers the stored ones only.
     subtitles = [...subtitles, subtitle.track.id];
     await patch(id, { subtitlesStored: subtitles });
+  }
+
+  // The preview sheets the server copied into the download (concept 18, 6.8): the offline seek
+  // bar shows them from here. A 404 sheet is left out; the bar shows the chapter there.
+  for (const sheet of manifest.trickplay?.sheets ?? []) {
+    if (sheets.includes(sheet.index)) continue;
+    const response = await fetch(apiUrl(sheet.url), {
+      signal,
+      cache: 'no-store',
+      credentials: 'same-origin',
+    });
+    if (response.status === 410) throw new FetchError('evicted', 'trickplay 410', 410);
+    if (response.status === 401) throw new FetchError('unauthorized', 'trickplay 401', 401);
+    if (response.ok) {
+      await writeFile(id, trickplayFile(sheet.index), await response.blob());
+    } else if (response.status !== 404) {
+      throw new FetchError('network', `trickplay HTTP ${response.status}`, response.status);
+    }
+    sheets = [...sheets, sheet.index];
+    await patch(id, { trickplayStored: sheets });
   }
 
   const latest = await getDownload(id);
