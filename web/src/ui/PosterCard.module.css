@@ -56,12 +56,6 @@
   opacity: 0.18;
 }
 
-/* Audiobooks and podcasts: a square cover, glow and frame alike (M6). */
-.square::before,
-.square .frame {
-  aspect-ratio: 1 / 1;
-}
-
 /* A card without href (the spotlight row): a button with the link's look. */
 .button {
   padding: 0;
@@ -101,6 +95,30 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/*
+ * Audiobooks and podcasts (M6): the square cover in the middle of the 2:3 frame, on a blurred and
+ * darkened copy of the same image that fills the frame (concept 18 C-1, variant B). Scaled up a
+ * little, so the blur's soft edge stays outside the frame.
+ */
+.ground {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(var(--sc-cover-ground-blur)) brightness(var(--sc-cover-ground-brightness));
+  transform: scale(var(--sc-cover-ground-scale));
+}
+
+.cover {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  transform: translateY(-50%);
 }
 
 .badge {
@@ -253,10 +271,6 @@
   padding: var(--sc-space-2);
   aspect-ratio: 2 / 3;
   pointer-events: none;
-}
-
-.squareCell .markArea {
-  aspect-ratio: 1 / 1;
 }
 
 .mark {

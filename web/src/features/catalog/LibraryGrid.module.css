@@ -34,16 +34,12 @@
   height: var(--library-card);
 }
 
-/* An empty place while its page loads: the cover's shape, not focusable. */
+/* An empty place while its page loads: the card's 2:3 frame (square covers too), not focusable. */
 .placeholder {
   display: block;
   overflow: hidden;
   border-radius: var(--sc-radius-lg);
   aspect-ratio: 2 / 3;
-}
-
-.square {
-  aspect-ratio: 1 / 1;
 }
 
 /*

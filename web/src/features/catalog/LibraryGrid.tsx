@@ -37,8 +37,6 @@ interface LibraryGridProps {
   /** Focus key prefix: the grid is `<prefix>`, each card `<prefix>-<id>`. */
   focusKey: string;
   label: string;
-  /** Square covers (audiobooks and podcasts). */
-  square: boolean;
   tool?: (item: ItemRef) => ReactNode;
   /** The drawn places (for their pages) and the places of the top row in view below the header. */
   onRange: (range: DrawnRange, top: DrawnRange) => void;
@@ -56,7 +54,7 @@ interface Metrics {
   header: number;
 }
 
-function measure(list: HTMLElement, probe: HTMLElement, square: boolean): Metrics {
+function measure(list: HTMLElement, probe: HTMLElement): Metrics {
   const style = getComputedStyle(list);
   const tracks = style.gridTemplateColumns
     .split(' ')
@@ -66,7 +64,8 @@ function measure(list: HTMLElement, probe: HTMLElement, square: boolean): Metric
   const text = probe.getBoundingClientRect();
   return {
     columns: Math.max(1, tracks.length),
-    card: Math.ceil(width * (square ? 1 : 1.5) + text.height),
+    // Every card has the 2:3 frame, a square cover too (concept 18 C-1).
+    card: Math.ceil(width * 1.5 + text.height),
     rowGap: parseFloat(style.rowGap) || 0,
     top: list.getBoundingClientRect().top + window.scrollY,
     header: text.width,
@@ -91,15 +90,7 @@ interface Pending {
 
 const FOCUSABLE = 'a[href], button:not([disabled])';
 
-export function LibraryGrid({
-  slots,
-  focusKey,
-  label,
-  square,
-  tool,
-  onRange,
-  ref,
-}: LibraryGridProps) {
+export function LibraryGrid({ slots, focusKey, label, tool, onRange, ref }: LibraryGridProps) {
   const root = useRef<HTMLDivElement>(null);
   const probe = useRef<HTMLSpanElement>(null);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
@@ -110,13 +101,13 @@ export function LibraryGrid({
     if (!node || !text) return;
     // Columns and gaps follow the width; the top follows what stands above (filters, chips).
     const observer = new ResizeObserver(() => {
-      const next = measure(node, text, square);
+      const next = measure(node, text);
       setMetrics((previous) => (same(previous, next) ? previous : next));
     });
     observer.observe(node);
     observer.observe(node.closest('main') ?? document.body);
     return () => observer.disconnect();
-  }, [square]);
+  }, []);
 
   const total = slots.length;
   const columns = metrics?.columns ?? 1;
@@ -338,9 +329,7 @@ export function LibraryGrid({
                   onArrowPress={(direction) => arrow(index, direction)}
                 />
               ) : (
-                <span
-                  className={square ? `${styles.placeholder} ${styles.square}` : styles.placeholder}
-                >
+                <span className={styles.placeholder}>
                   <Skeleton shape="poster" />
                 </span>
               )}

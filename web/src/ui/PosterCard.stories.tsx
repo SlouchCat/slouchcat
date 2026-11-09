@@ -78,7 +78,10 @@ export const WithBadge: Story = {
   args: { title: 'Making Of', caption: undefined, posterUrl: undefined, badge: 'Featurette' },
 };
 
-/** An audiobook or a podcast: the cover is square (M6). */
+/**
+ * An audiobook or a podcast: the cover is square (M6). It sits in the middle of the 2:3 frame of
+ * every card, on a blurred and darkened copy of itself (concept 18 C-1, variant B).
+ */
 export const Square: Story = {
   args: {
     title: 'Die Stunde der Dämmerung',
@@ -296,4 +299,28 @@ export const ButtonWithTimeBar: Story = {
       />
     ),
   },
+};
+
+/**
+ * A poster and a square cover side by side, as in a mixed row or grid: both frames are 2:3, so the
+ * titles start on one line (concept 18 C-1).
+ */
+export const TitlesOnOneLine: Story = {
+  render: (args) => (
+    <div style={{ display: 'flex', gap: 'var(--sc-space-4)', alignItems: 'flex-start' }}>
+      <div style={{ flex: 1 }}>
+        <PosterCard {...args} accent={accents.dusk} />
+      </div>
+      <div style={{ flex: 1 }}>
+        <PosterCard
+          {...args}
+          title="Glut"
+          caption="Mara Lindqvist"
+          posterUrl={art.posterEmber}
+          accent={accents.ember}
+          shape="square"
+        />
+      </div>
+    </div>
+  ),
 };

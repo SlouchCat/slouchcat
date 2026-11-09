@@ -77,7 +77,11 @@ interface PosterCardProps {
   onImageShown?: () => void;
   /** Keep the image out of the document for now (the hero artwork goes first); the frame stays. */
   deferImage?: boolean;
-  /** `square` for audiobooks and podcasts (cover 1:1, M6); the image URLs stay the same. */
+  /**
+   * `square` for audiobooks and podcasts (cover 1:1, M6); the image URLs stay the same. The frame
+   * stays 2:3 like every other card, so the titles of a row or a grid start on one line: the
+   * cover sits in its middle on a blurred, darkened copy of itself (concept 18 C-1, variant B).
+   */
   shape?: 'poster' | 'square';
   /**
    * A control beside the card's link (or button), over the top right of its cover: the pen
@@ -98,7 +102,7 @@ interface PosterCardProps {
 }
 
 /**
- * 2:3 poster (or a square cover) with its title below, one link to the title. The link carries the focus ring and
+ * 2:3 poster (or a square cover in a 2:3 frame) with its title below, one link to the title. The link carries the focus ring and
  * scales on focus (focus.scale token); a soft glow in the title's accent colour lights up behind
  * the poster, and the same colour tints the frame while the image is still on its way.
  *
@@ -135,41 +139,57 @@ export function PosterCard({
 }: PosterCardProps) {
   const { ref, onFocus } = useSpatialItem<HTMLElement>({ focusKey, onArrowPress });
   const source = posterUrl ?? posterSmallUrl;
-  const className = [
-    styles.card,
-    shape === 'square' && styles.square,
-    active && styles.active,
-    dimmed && styles.dimmed,
-  ]
+  const srcSet =
+    posterUrl && posterSmallUrl ? `${posterSmallUrl} 200w, ${posterUrl} 400w` : undefined;
+  const sizes = posterUrl && posterSmallUrl ? CARD_SIZES : undefined;
+  const className = [styles.card, active && styles.active, dimmed && styles.dimmed]
     .filter(Boolean)
     .join(' ');
   const content = (
     <>
       <span className={styles.frame}>
         {deferImage ? null : source ? (
-          <img
-            className={styles.image}
-            src={source}
-            srcSet={
-              posterUrl && posterSmallUrl ? `${posterSmallUrl} 200w, ${posterUrl} 400w` : undefined
-            }
-            sizes={posterUrl && posterSmallUrl ? CARD_SIZES : undefined}
-            alt=""
-            width={400}
-            height={shape === 'square' ? 400 : 600}
-            loading={eager ? 'eager' : 'lazy'}
-            fetchPriority={priority ? 'high' : undefined}
-            decoding="async"
-            draggable={false}
-            onLoad={
-              onImageShown &&
-              (() => {
-                // Two frames: the one that paints the image, then the next (as HeroCarousel does).
-                requestAnimationFrame(() => requestAnimationFrame(onImageShown));
-              })
-            }
-            onError={onImageShown}
-          />
+          <>
+            {shape === 'square' && (
+              // The blurred ground above and below a square cover (concept 18 C-1, variant B): the
+              // same image with the same srcset and sizes, so the browser picks the same file and
+              // loads it once.
+              <img
+                className={styles.ground}
+                src={source}
+                srcSet={srcSet}
+                sizes={sizes}
+                alt=""
+                width={400}
+                height={600}
+                loading={eager ? 'eager' : 'lazy'}
+                decoding="async"
+                draggable={false}
+                aria-hidden="true"
+              />
+            )}
+            <img
+              className={shape === 'square' ? `${styles.image} ${styles.cover}` : styles.image}
+              src={source}
+              srcSet={srcSet}
+              sizes={sizes}
+              alt=""
+              width={400}
+              height={shape === 'square' ? 400 : 600}
+              loading={eager ? 'eager' : 'lazy'}
+              fetchPriority={priority ? 'high' : undefined}
+              decoding="async"
+              draggable={false}
+              onLoad={
+                onImageShown &&
+                (() => {
+                  // Two frames: the one that paints the image, then the next (as HeroCarousel does).
+                  requestAnimationFrame(() => requestAnimationFrame(onImageShown));
+                })
+              }
+              onError={onImageShown}
+            />
+          </>
         ) : (
           <PosterFallback />
         )}
@@ -234,15 +254,7 @@ export function PosterCard({
     );
   if (tool === undefined && mark === undefined) return card;
   return (
-    <div
-      className={[
-        styles.cell,
-        mark !== undefined && styles.marked,
-        shape === 'square' && styles.squareCell,
-      ]
-        .filter(Boolean)
-        .join(' ')}
-    >
+    <div className={mark !== undefined ? `${styles.cell} ${styles.marked}` : styles.cell}>
       {card}
       {tool !== undefined && <div className={styles.tool}>{tool}</div>}
       {mark !== undefined && (

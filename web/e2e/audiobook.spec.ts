@@ -416,12 +416,20 @@ test('the start page lists a started book under "Weiterschauen" with a square co
   // In the continue row the caption is the time left; the progress says "gehört" for audio.
   await expect(card.getByText(/^Noch /)).toBeVisible();
   await expect(card.getByRole('progressbar', { name: /^\d+ % gehört$/ })).toBeVisible();
-  // The card's frame (its first child) holds the cover, square for audio titles.
-  const frame = await card.evaluate((link) => {
-    const box = link.firstElementChild!.getBoundingClientRect();
-    return { width: box.width, height: box.height };
+  // The card's frame (its first child) is 2:3 like every card's, so the titles of a row start on
+  // one line; the square cover sits in its middle on a blurred copy (concept 18 C-1).
+  const shape = await card.evaluate((link) => {
+    const frame = link.firstElementChild!.getBoundingClientRect();
+    const cover = link.firstElementChild!.querySelector('img:not([aria-hidden])')!;
+    const box = cover.getBoundingClientRect();
+    return {
+      frame: { width: frame.width, height: frame.height, middle: frame.top + frame.height / 2 },
+      cover: { width: box.width, height: box.height, middle: box.top + box.height / 2 },
+    };
   });
-  expect(Math.abs(frame.width - frame.height)).toBeLessThanOrEqual(1);
+  expect(Math.abs(shape.frame.height - 1.5 * shape.frame.width)).toBeLessThanOrEqual(1);
+  expect(Math.abs(shape.cover.width - shape.cover.height)).toBeLessThanOrEqual(1);
+  expect(Math.abs(shape.cover.middle - shape.frame.middle)).toBeLessThanOrEqual(1);
   await setAudioProgress(page.request, m4b, 0, 60_000);
 });
 

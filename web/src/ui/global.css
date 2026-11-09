@@ -156,9 +156,13 @@ img {
   object-fit: cover;
 }
 
-/* Audiobooks and podcasts: a square cover, like PosterCard's `square` shape (M6). */
+/*
+ * Audiobooks and podcasts: the square cover in the middle of the same 2:3 frame on a dark ground,
+ * where PosterCard's `square` shape lays its blurred copy (concept 18 C-1); the first row does not
+ * jump when the cards take over.
+ */
 #poster-prepaint > img.square {
-  aspect-ratio: 1 / 1;
+  object-fit: contain;
 }
 
 /*
