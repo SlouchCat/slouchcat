@@ -61,6 +61,33 @@ func (s *Service) trickplayFor(ctx context.Context, item model.ItemSummary, loc 
 	return out, nil
 }
 
+// queueTrickplay is the start trigger of the preview set (library.QueueTrickplayForPlayback): the
+// file from the start position, and for an episode at «Beim Start alle Folgen» the look-ahead of
+// its series. A failure is logged; the playback starts all the same.
+func (s *Service) queueTrickplay(ctx context.Context, item model.ItemSummary, loc visibility.MediaFileLocation, startMs int64, seriesID string) {
+	if s.queue == nil || s.cacheDir == "" {
+		return
+	}
+	err := library.QueueTrickplayForPlayback(context.WithoutCancel(ctx), s.queue, s.cacheDir, library.TrickplayStart{
+		MediaFileID: loc.File.ID, Version: library.FileVersion{Size: loc.File.SizeBytes, Mtime: loc.Mtime}, Kind: item.Kind,
+		StartMs: startMs, Setting: loc.Trickplay.For(item.Kind), SeriesID: seriesID, EpisodeID: item.ID,
+	})
+	if err != nil {
+		s.log.WarnContext(ctx, "queue trickplay", "media_file_id", loc.File.ID, "err", err)
+	}
+}
+
+// sweepTrickplay removes the temporary preview sets of files without an open playback for 10
+// minutes (library.SweepTrickplaySessions, concept 18 6.5); a failure is logged.
+func (s *Service) sweepTrickplay(ctx context.Context, now time.Time) {
+	if s.cacheDir == "" {
+		return
+	}
+	if err := library.SweepTrickplaySessions(ctx, s.db.Read, s.cacheDir, now); err != nil {
+		s.log.WarnContext(ctx, "sweep temporary trickplay sets", "err", err)
+	}
+}
+
 // TrickplaySheetURL is the relative URL of getTrickplaySheet; v is the version of the set
 // (library.TrickplayVersion), so the immutable sheet of another file version is never shown.
 func TrickplaySheetURL(itemID, mediaFileID string, sheet int, version string) string {

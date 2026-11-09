@@ -365,7 +365,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	// Offline downloads (M5): prepared in <cache>/downloads within the download budget, encoded with
 	// the transcode manager's admission (live playback preempts them, plan 3.5).
 	offlineSvc := offline.New(db, visibility.New(db, log), queue, runner, log,
-		offline.WithDir(cfg.DownloadsDir()), offline.WithBudget(int64(cfg.DownloadBudgetGB)<<30),
+		offline.WithDir(cfg.DownloadsDir()), offline.WithCacheDir(cfg.CacheDir), offline.WithBudget(int64(cfg.DownloadBudgetGB)<<30),
 		offline.WithTokenKey(keyring.Derive("download-token")), offline.WithManager(mgr, caps),
 		offline.WithPlayback(playbackSvc), offline.WithPins(authSvc))
 

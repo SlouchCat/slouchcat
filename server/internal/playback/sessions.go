@@ -327,6 +327,9 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	}
 	if mediaKind == model.MediaKindVideo {
 		// The preview tiles never fail a start: without them the seek bar shows the chapter image.
+		// The job is queued after the session row exists, so a setting that does not store sees the
+		// open playback (concept 18, 5.2).
+		s.queueTrickplay(ctx, item, loc, resume, seriesID)
 		if info.Trickplay, err = s.trickplayFor(ctx, item, loc, probe, in.kf); err != nil {
 			s.log.WarnContext(ctx, "trickplay state", "media_file_id", file.ID, "err", err)
 			info.Trickplay = nil
@@ -1216,6 +1219,7 @@ func (s *Service) sweep(ctx context.Context) {
 		s.log.WarnContext(ctx, "delete ended playback sessions", "err", err)
 	}
 	s.sweepChapterImages(ctx, now) // chapters.go: images of the files whose playback ended
+	s.sweepTrickplay(ctx, now)     // trickplay.go: temporary preview sets without playback
 	s.sweepCondense(ctx, now)      // condense.go: raw progress events older than 90 days (M10)
 	s.sweepSubtitles(time.Now())   // file times are wall-clock times
 }
