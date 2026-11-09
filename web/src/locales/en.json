@@ -369,7 +369,6 @@
     "page": {
       "count_one": "{{count}} {{noun}}",
       "count_other": "{{count}} {{noun}}",
-      "countLetter": "{{count}} {{noun}} starting with {{letter}}",
       "filtered": "{{text}} · filtered",
       "sort": "Sort",
       "direction": "Order:",
@@ -409,8 +408,6 @@
     },
     "letters": {
       "label": "Initial letter",
-      "all": "All letters",
-      "allMark": "•",
       "other": "Digit or symbol"
     },
     "filters": {

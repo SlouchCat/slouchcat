@@ -35,6 +35,7 @@ import {
   SORTS,
   STATUSES,
   statusesOf,
+  validateLibraryParams,
   type LibraryParams,
   type LibrarySort,
 } from './libraryParams';
@@ -87,10 +88,13 @@ function LibraryView({ id }: { id: number | null }) {
   const request = useMemo(() => libraryRequest(params), [params]);
   const grid = useRef<LibraryGridHandle>(null);
   const [drawn, setDrawn] = useState<DrawnRange>({ start: 0, end: 0 });
-  const onRange = useCallback((range: DrawnRange) => {
+  // The first place in view: its letter is marked in the letter bar.
+  const [top, setTop] = useState(0);
+  const onRange = useCallback((range: DrawnRange, first: number) => {
     setDrawn((previous) =>
       previous.start === range.start && previous.end === range.end ? previous : range,
     );
+    setTop(first);
   }, []);
   const { first: query, slots } = useLibraryPages(id, request, drawn);
   const notFound = id === null || (libraries.isSuccess && !library) || isApiError(query.error, 404);
@@ -99,8 +103,9 @@ function LibraryView({ id }: { id: number | null }) {
 
   const update = (change: Partial<LibraryParams>) =>
     void navigate({
+      // Only the valid parameters go on: an old link's `letter` (before 1.21.0) leaves the URL.
       search: (previous) => {
-        const next: LibraryParams = { ...previous, ...change };
+        const next: LibraryParams = { ...validateLibraryParams(previous), ...change };
         for (const key of Object.keys(next) as (keyof LibraryParams)[]) {
           if (next[key] === undefined || next[key] === '') delete next[key];
         }
@@ -193,13 +198,7 @@ function LibraryView({ id }: { id: number | null }) {
   const statuses = statusesOf(params);
 
   const noun = t(`library.page.noun.${library.kind}`, { count: total });
-  const counted = params.letter
-    ? t('library.page.countLetter', {
-        count: total,
-        noun,
-        letter: params.letter === '#' ? t('library.letters.other') : params.letter,
-      })
-    : t('library.page.count', { count: total, noun });
+  const counted = t('library.page.count', { count: total, noun });
 
   const genreOptions = [
     { value: '', label: t('library.filters.allGenres') },
@@ -212,8 +211,15 @@ function LibraryView({ id }: { id: number | null }) {
   const ratings: Rating[] = [...facets.ratings];
   if (params.rating !== undefined && !ratings.includes(params.rating)) ratings.push(params.rating);
 
-  // The letter bar filters a list sorted by title; podcasts have none (F-12).
-  const showLetters = sort === 'title' && library.kind !== 'podcasts';
+  // The letter bar jumps in a list sorted by title (letterStarts, concept 17 section 6); podcasts
+  // have none (F-12). `#` can start twice (digits first, other scripts last): the first counts.
+  const starts = facets.letterStarts ?? [];
+  const showLetters = sort === 'title' && library.kind !== 'podcasts' && starts.length > 0;
+  const currentLetter = starts.findLast((start) => start.offset <= top)?.letter;
+  const jump = (letter: string) => {
+    const start = starts.find((entry) => entry.letter === letter);
+    if (start) grid.current?.jump(start.offset);
+  };
 
   const firstItem = slots[0];
   return (
@@ -235,7 +241,6 @@ function LibraryView({ id }: { id: number | null }) {
               onChange={(content) =>
                 update({
                   content: content === '' ? undefined : (content as LibraryParams['content']),
-                  letter: undefined,
                 })
               }
               options={[
@@ -256,13 +261,9 @@ function LibraryView({ id }: { id: number | null }) {
               value,
               label: t(`library.sort.${value}`),
             }))}
-            // A new order starts in its own direction and without a letter (title only).
+            // A new order starts in its own direction.
             onChange={(next) =>
-              update({
-                sort: next === 'title' ? undefined : next,
-                order: undefined,
-                letter: undefined,
-              })
+              update({ sort: next === 'title' ? undefined : next, order: undefined })
             }
           />
           <SpatialButton
@@ -386,11 +387,9 @@ function LibraryView({ id }: { id: number | null }) {
             <LetterBar
               label={t('library.letters.label')}
               letters={LETTERS}
-              available={facets.letters}
-              value={params.letter}
-              onChange={(letter) => update({ letter })}
-              allMark={t('library.letters.allMark')}
-              allLabel={t('library.letters.all')}
+              available={starts.map((start) => start.letter)}
+              current={currentLetter}
+              onJump={jump}
               letterLabels={{ '#': t('library.letters.other') }}
               focusKey="library-letter"
               className={styles.letters}

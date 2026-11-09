@@ -20,7 +20,6 @@ describe('validateLibraryParams', () => {
       content: 'series',
       sort: 'title',
       order: 'desc',
-      letter: 'B',
       genre: 'Drama',
       status: 'unwatched,watched',
       from: 1990,
@@ -42,12 +41,11 @@ describe('validateLibraryParams', () => {
         rating: 7,
       }),
     ).toEqual({});
-    expect(validateLibraryParams({ letter: 'b' })).toEqual({});
-    expect(validateLibraryParams({ letter: '#' })).toEqual({ letter: '#' });
   });
 
-  it('keeps a letter only with the title order', () => {
-    expect(validateLibraryParams({ letter: 'S' })).toEqual({ letter: 'S' });
+  it('drops the letter of an old link: the letter bar jumps since contract 1.21.0', () => {
+    expect(validateLibraryParams({ letter: 'S' })).toEqual({});
+    expect(validateLibraryParams({ letter: '#' })).toEqual({});
     expect(validateLibraryParams({ sort: 'added', letter: 'S' })).toEqual({ sort: 'added' });
   });
 
@@ -80,7 +78,6 @@ describe('libraryRequest', () => {
     ).toEqual({
       content: 'movie',
       sort: 'title',
-      letter: '#',
       genre: 'Drama',
       status: ['started', 'watched'],
       yearFrom: 1990,
@@ -92,7 +89,7 @@ describe('libraryRequest', () => {
 
   it('counts each status and each year as a filter', () => {
     expect(filterCount({ genre: 'Drama', status: 'unwatched,started', from: 1990 })).toBe(4);
-    expect(filterCount({ sort: 'added', letter: 'A', content: 'movie' })).toBe(0);
+    expect(filterCount({ sort: 'added', content: 'movie' })).toBe(0);
   });
 });
 

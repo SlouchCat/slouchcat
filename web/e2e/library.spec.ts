@@ -53,8 +53,8 @@ test('library by keyboard: Tab order, arrows into the letter bar and back, Enter
   await expect(page.getByRole('group', { name: 'Inhalt' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Mehr laden/ })).toHaveCount(0);
 
-  // Tab: header, sort, direction, "Filter", the letter bar ("•", then the letters with titles),
-  // the grid. Disabled letters are skipped.
+  // Tab: header, sort, direction, "Filter", the letter bar (the letters with titles), the grid.
+  // Disabled letters are skipped.
   await resetFocus(page);
   await tabTo(page, sort(page));
   await page.keyboard.press('Tab');
@@ -63,10 +63,8 @@ test('library by keyboard: Tab order, arrows into the letter bar and back, Enter
   await expectFocusOn(page, filterButton(page));
   await expect(filterButton(page)).toHaveAttribute('aria-expanded', 'false');
   await page.keyboard.press('Tab');
-  await expectFocusOn(page, letter(page, 'Alle Buchstaben'));
-  await expect(letter(page, 'Alle Buchstaben')).toHaveAttribute('aria-pressed', 'true');
-  await page.keyboard.press('Tab');
   await expectFocusOn(page, letter(page, 'S'));
+  await expect(letter(page, 'S')).toHaveAttribute('aria-current', 'true');
   await page.keyboard.press('Tab');
   await expectFocusOn(page, cards(page).first());
 
@@ -150,7 +148,7 @@ test('the filter panel opens from "Filter", closes with Escape and gives the foc
   await expect(page.getByRole('button', { name: 'Filter (1)' })).toBeFocused();
 });
 
-test('sort and direction live in the URL; the letter bar filters by title', async ({
+test('sort and direction live in the URL; the letter bar jumps by title', async ({
   page,
   owner,
 }) => {
@@ -159,20 +157,27 @@ test('sort and direction live in the URL; the letter bar filters by title', asyn
   await expect(cards(page).first()).toBeVisible();
   const total = await cards(page).count();
 
-  // The letter bar: every test film starts with "S"; a letter without titles is disabled.
+  // The letter bar (concept 17 section 6): every test film starts with "S", marked as the letter
+  // in view; a letter without titles is disabled. A letter jumps to its first title and focuses
+  // it; the URL and the list stay.
   await expect(letter(page, 'A')).toBeDisabled();
   await expect(letter(page, 'Ziffer oder Zeichen')).toBeDisabled();
+  await expect(letter(page, 'S')).toHaveAttribute('aria-current', 'true');
   await letter(page, 'S').click();
-  await expect(page).toHaveURL(`/libraries/${id}?letter=S`);
-  await expect(letter(page, 'S')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByRole('status').filter({ hasText: `${total} Titel mit S` })).toBeVisible();
+  await expect(cards(page).first()).toBeFocused();
+  await expect(page).toHaveURL(`/libraries/${id}`);
   await expect(cards(page)).toHaveCount(total);
   await expect(
     cards(page).filter({ has: page.getByText(H264_TITLE, { exact: true }) }),
   ).toHaveCount(1);
   for (const name of await cards(page).allTextContents()) expect(name).toMatch(/^Slouchcat/);
+  // An old link with a letter (before contract 1.21.0) opens the whole list at its top.
+  await page.goto(`/libraries/${id}?letter=S`);
+  await expect(page.getByRole('status').filter({ hasText: `${total} Titel` })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'mit S' })).toHaveCount(0);
+  await expect(cards(page)).toHaveCount(total);
 
-  // A new order: into the URL, its own direction (newest first), no letter and no bar.
+  // A new order: into the URL, its own direction (newest first), no letter bar.
   await sort(page).focus();
   await sort(page).selectOption('added');
   await expect(page).toHaveURL(`/libraries/${id}?sort=added`);

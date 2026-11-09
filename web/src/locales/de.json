@@ -369,7 +369,6 @@
     "page": {
       "count_one": "{{count}} {{noun}}",
       "count_other": "{{count}} {{noun}}",
-      "countLetter": "{{count}} {{noun}} mit {{letter}}",
       "filtered": "{{text}} · gefiltert",
       "sort": "Sortieren",
       "direction": "Reihenfolge:",
@@ -409,8 +408,6 @@
     },
     "letters": {
       "label": "Anfangsbuchstabe",
-      "all": "Alle Buchstaben",
-      "allMark": "•",
       "other": "Ziffer oder Zeichen"
     },
     "filters": {
