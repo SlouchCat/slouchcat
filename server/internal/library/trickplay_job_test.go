@@ -196,8 +196,12 @@ func TestTrickplayStartJob(t *testing.T) {
 	if state != TrickplayComplete || !slices.Equal(sheets, []int{0, 1, 2}) || len(m.PointsMs) != 250 || m.Source != TrickplaySourceFallback {
 		t.Errorf("status %q %v, %d points, source %q", state, sheets, len(m.PointsMs), m.Source)
 	}
-	if len(e.seeks) != 250 || e.seeks[0] != 1_000_000*time.Millisecond {
-		t.Errorf("%d points grabbed, first at %v", len(e.seeks), e.seeks[0])
+	// The two workers of a sheet grab its points in either order; the first 100 grabbed are
+	// those of sheet 1 (points 100 to 199), since a sheet ends before the next one starts.
+	if len(e.seeks) != 250 {
+		t.Errorf("%d points grabbed", len(e.seeks))
+	} else if first := e.seeks[:transcode.TrickplayColumns*transcode.TrickplayRows]; slices.Min(first) != 1_000_000*time.Millisecond || slices.Max(first) != 1_990_000*time.Millisecond {
+		t.Errorf("first sheet grabbed %v to %v", slices.Min(first), slices.Max(first))
 	}
 	e.start(id, 0, ahead)
 	if n := e.int(`SELECT count(*) FROM jobs WHERE type = ? AND state = 'queued'`, JobTrickplay); n != 0 {
@@ -556,6 +560,13 @@ func TestTrickplayBackfill(t *testing.T) {
 		!slices.Contains(e.setFiles(TrickplayDir, done), "complete") {
 		t.Fatalf("fallback set: %d jobs, files %v", n, e.setFiles(TrickplayDir, done))
 	}
+	// The backfill queues the file without a set again, at the same priority and (fake clock) the
+	// same time; the claim order of the two is then the order of the media file ids, ULIDs of one
+	// millisecond whose shared entropy tests in parallel reset. Only the job of done is under test.
+	if n := e.int(`SELECT count(*) FROM jobs WHERE idempotency_key = ? AND state = 'queued'`, trickplayKey(open)); n != 1 {
+		t.Fatalf("open file: %d jobs", n)
+	}
+	e.exec(`DELETE FROM jobs WHERE idempotency_key = ? AND state = 'queued'`, trickplayKey(open))
 	// While the job makes the index set, the fallback set serves.
 	e.svc.trickplaySheetFn = func(_ context.Context, _ [][]byte, _ int, out string) error {
 		if m, _, state := e.status(done); state != TrickplayComplete || m.Source != TrickplaySourceFallback {
