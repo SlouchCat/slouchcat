@@ -502,7 +502,10 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Vorschau beim Spulen: Filme' });
     const movies = dialog.querySelector<HTMLElement>('[data-trickplay-group="movies"]')!;
     await waitFor(() => expect(within(movies).getByText('412 Filme, 783 h')).toBeVisible());
-    expect(within(movies).getByText('Pro Film').nextSibling).toHaveTextContent('≈ 3 MB');
+    // One decimal below 10 MB, so 2.9 MB does not read «3 MB».
+    expect(within(movies).getByText('Pro Film').nextSibling).toHaveTextContent(/^≈ 2[.,]9 MB$/);
+    // A kind with nothing stored reads «0 MB», not «0 Byte».
+    expect(within(dialog).getByText(/^Heute belegt: Filme .* · Serien 0 MB$/)).toBeVisible();
     expect(within(movies).getByText('Ganze Bibliothek').nextSibling).toHaveTextContent(
       /^≈ 1[.,]2 GB$/,
     );

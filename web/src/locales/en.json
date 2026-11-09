@@ -841,13 +841,7 @@
     },
     "subtitleStyle": {
       "title": "Subtitle style",
-      "size": {
-        "title": "Size",
-        "s": "S",
-        "m": "M",
-        "l": "L",
-        "xl": "XL"
-      },
+      "size": { "title": "Size", "s": "S", "m": "M", "l": "L", "xl": "XL" },
       "background": {
         "title": "Background",
         "none": "None",
@@ -855,16 +849,8 @@
         "translucent": "Translucent",
         "box": "Box"
       },
-      "color": {
-        "title": "Colour",
-        "white": "White",
-        "yellow": "Yellow"
-      },
-      "position": {
-        "title": "Position",
-        "bottom": "Bottom",
-        "raised": "A little higher"
-      },
+      "color": { "title": "Colour", "white": "White", "yellow": "Yellow" },
+      "position": { "title": "Position", "bottom": "Bottom", "raised": "A little higher" },
       "offset": {
         "title": "Offset",
         "earlier": "0.1 s earlier",
@@ -917,16 +903,8 @@
       "tapBack": "−{{seconds}} s",
       "tapForward": "+{{seconds}} s"
     },
-    "tabs": {
-      "label": "More about the title",
-      "next": "Up next",
-      "info": "Info"
-    },
-    "pauseView": {
-      "label": "Paused",
-      "paused": "Paused",
-      "chapter": "Chapter: {{chapter}}"
-    },
+    "tabs": { "label": "More about the title", "next": "Up next", "info": "Info" },
+    "pauseView": { "label": "Paused", "paused": "Paused", "chapter": "Chapter: {{chapter}}" },
     "slow": {
       "label": "Slow connection",
       "text": "Slow connection – switch to {{quality}}?",

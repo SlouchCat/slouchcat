@@ -296,6 +296,8 @@ export function OfflinePlayer({
         const file = await readFile(playback.downloadId, subtitleFile(entry.track.id)).catch(
           () => null,
         );
+        // The effect was cleaned up while the file was read: no URL is made that nobody revokes.
+        if (!active) return;
         if (!file) continue;
         const url = URL.createObjectURL(file);
         urls.push(url);
@@ -322,6 +324,8 @@ export function OfflinePlayer({
         const file = await readFile(playback.downloadId, trickplayFile(sheet.index)).catch(
           () => null,
         );
+        // The effect was cleaned up while the file was read: no URL is made that nobody revokes.
+        if (!active) return;
         if (!file || file.size === 0) continue;
         urls.set(sheet.index, URL.createObjectURL(file));
       }

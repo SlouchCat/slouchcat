@@ -64,6 +64,20 @@ interface EstimateRow {
 }
 
 /**
+ * The size of one title: «1,5 MB» below 10 MB, because `formatBytes` rounds megabytes to whole
+ * numbers and a title of 1.5 MB would read «2 MB».
+ */
+function formatBytesSmall(bytes: number, language: string): string {
+  if (bytes < 1_000_000 || bytes >= 10_000_000) return formatBytes(bytes, language);
+  return new Intl.NumberFormat(language, {
+    style: 'unit',
+    unit: 'megabyte',
+    unitDisplay: 'short',
+    maximumFractionDigits: 1,
+  }).format(bytes / 1_000_000);
+}
+
+/**
  * The estimate of one kind for its setting (concept 18, 9): per film or episode and the whole
  * library; «höchstens» where only started titles get one, «nur während der Wiedergabe» and 0 for
  * the library without «Speichern», 0 for «Aus».
@@ -75,10 +89,12 @@ export function estimateRows(
   setting: { mode: Mode; keep: boolean },
   estimate: LibraryTrickplayKindEstimate,
 ): EstimateRow[] {
-  const size = (bytes: number) =>
+  const size = (bytes: number, oneDecimal = false) =>
     bytes === 0
       ? t('admin.libraries.trickplay.estimate.zero')
-      : t('admin.libraries.trickplay.estimate.approx', { size: formatBytes(bytes, language) });
+      : t('admin.libraries.trickplay.estimate.approx', {
+          size: oneDecimal ? formatBytesSmall(bytes, language) : formatBytes(bytes, language),
+        });
   const per = kind === 'movies' ? 'perMovie' : 'perEpisode';
   const library = (bytes: number, atMost = false): EstimateRow => ({
     label: t(`admin.libraries.trickplay.estimate.${atMost ? 'libraryAtMost' : 'library'}`),
@@ -92,13 +108,16 @@ export function estimateRows(
     return [
       {
         label: t(`admin.libraries.trickplay.estimate.${per}Playing`),
-        value: size(estimate.perTitleBytes),
+        value: size(estimate.perTitleBytes, true),
       },
       library(0),
     ];
   }
   return [
-    { label: t(`admin.libraries.trickplay.estimate.${per}`), value: size(estimate.perTitleBytes) },
+    {
+      label: t(`admin.libraries.trickplay.estimate.${per}`),
+      value: size(estimate.perTitleBytes, true),
+    },
     library(estimate.libraryBytes, setting.mode !== 'ahead'),
   ];
 }
@@ -201,6 +220,9 @@ export function TrickplayFields({ value, onChange, estimate }: TrickplayFieldsPr
     );
   };
 
+  const storedSize = (bytes: number) =>
+    bytes === 0 ? t('admin.libraries.trickplay.estimate.zero') : formatBytes(bytes, i18n.language);
+
   return (
     <div className={styles.trickplay}>
       {group('movies')}
@@ -210,8 +232,8 @@ export function TrickplayFields({ value, onChange, estimate }: TrickplayFieldsPr
           <span className={styles.muted}>{t('admin.libraries.trickplay.estimate.basis')}</span>
           <span className={styles.muted}>
             {t('admin.libraries.trickplay.estimate.stored', {
-              movies: formatBytes(estimate.movies.storedBytes, i18n.language),
-              series: formatBytes(estimate.series.storedBytes, i18n.language),
+              movies: storedSize(estimate.movies.storedBytes),
+              series: storedSize(estimate.series.storedBytes),
             })}
           </span>
           {estimate.cacheFreeBytes !== undefined && (

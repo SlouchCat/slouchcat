@@ -273,6 +273,28 @@ test('content and metadata sources by keyboard: Space ticks, the position orders
   await page.keyboard.press('Enter');
   await expect(second).toHaveCount(0);
   await expectFocusOn(page, form.getByRole('button', { name: 'Weiteren Ordner hinzufügen' }));
+
+  // «Vorschau beim Spulen» of the new video library (concept 18, 9): the group of the films takes
+  // the focus on its chosen radio, ↓ picks «Beim Start», which brings «Speichern», Space unticks it.
+  const films = form.getByRole('radiogroup', { name: 'Filme' });
+  await tabTo(page, films.getByRole('radio', { name: 'Im Voraus' }), 10);
+  await expectVisibleFocus(page);
+  await page.keyboard.press('ArrowDown');
+  await expect(films.getByRole('radio', { name: 'Beim Start' })).toBeChecked();
+  const keep = form.getByRole('switch', { name: 'Speichern' });
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, keep);
+  await expect(keep).toBeChecked();
+  await page.keyboard.press('Space');
+  await expect(keep).not.toBeChecked();
+  // The series group follows; the focus walks on to the buttons without a trap.
+  await page.keyboard.press('Tab');
+  await expectFocusOn(
+    page,
+    form.getByRole('radiogroup', { name: 'Serien' }).getByRole('radio', {
+      name: 'Im Voraus',
+    }),
+  );
   await expectNoFocusTrap(page);
 });
 

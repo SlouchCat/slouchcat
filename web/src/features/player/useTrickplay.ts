@@ -11,21 +11,27 @@ export const TRICKPLAY_POLL_MS = 10_000;
 export const trickplayPending = (trickplay: Pick<Trickplay, 'state'> | undefined): boolean =>
   trickplay?.state === 'queued' || trickplay?.state === 'running';
 
-/** The contract's `Trickplay` as the seek bar takes it, with every sheet URL resolved. */
+/**
+ * The contract's `Trickplay` as the seek bar takes it, with every sheet URL resolved. A set that
+ * `failed` without a sheet has nothing to show: undefined, so the field shows only time and name
+ * (concept 18, 9).
+ */
 export function seekBarTrickplay(
   trickplay: Trickplay,
   resolve: (url: string, index: number) => string | undefined = apiUrl,
-): SeekBarTrickplay {
+): SeekBarTrickplay | undefined {
+  const sheets = trickplay.sheets.flatMap((sheet) => {
+    const url = resolve(sheet.url, sheet.index);
+    return url ? [{ index: sheet.index, url }] : [];
+  });
+  if (trickplay.state === 'failed' && sheets.length === 0) return undefined;
   return {
     tileWidth: trickplay.tileWidth,
     tileHeight: trickplay.tileHeight,
     columns: trickplay.columns,
     rows: trickplay.rows,
     pointsMs: trickplay.pointsMs,
-    sheets: trickplay.sheets.flatMap((sheet) => {
-      const url = resolve(sheet.url, sheet.index);
-      return url ? [{ index: sheet.index, url }] : [];
-    }),
+    sheets,
   };
 }
 

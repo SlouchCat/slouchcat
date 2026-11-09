@@ -40,13 +40,19 @@ describe('seekBarTrickplay', () => {
     const bar = seekBarTrickplay(set('running', [0, 2]), (url, index) =>
       index === 2 ? undefined : `blob:${url}`,
     );
-    expect(bar.sheets).toEqual([
+    expect(bar?.sheets).toEqual([
       { index: 0, url: 'blob:/items/i1/trickplay/0?mediaFileId=f1&v=1000-17' },
     ]);
     expect(bar).toMatchObject({ tileWidth: 320, tileHeight: 180, columns: 10, rows: 10 });
-    expect(seekBarTrickplay(set('complete', [1])).sheets[0]?.url).toBe(
+    expect(seekBarTrickplay(set('complete', [1]))?.sheets[0]?.url).toBe(
       '/api/v1/items/i1/trickplay/1?mediaFileId=f1&v=1000-17',
     );
+  });
+
+  it('gives nothing for a set that failed without a sheet, but keeps one with sheets', () => {
+    expect(seekBarTrickplay(set('failed', []))).toBeUndefined();
+    expect(seekBarTrickplay(set('failed', [0]))?.sheets).toHaveLength(1);
+    expect(seekBarTrickplay(set('running', []))?.sheets).toEqual([]);
   });
 });
 
