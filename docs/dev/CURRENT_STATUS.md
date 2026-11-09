@@ -1,5 +1,38 @@
 # Aktueller Stand
 
+## Konzept 18 «Vorschau beim Spulen, Empfehlungen, lange Listen, Streamübersicht» (9. November 2026): gebaut, Abnahme auf CT 190 offen
+
+**Vertrag 1.23.0, brechend**, Migrationen **00041** (Teil B) und **00042** (Teil A), ADR 0027 (Trickplay) und
+ADR 0028 (User-Empfehlungen). Zweig `claude/k18-bau`, Stand: gebaut, Abnahme auf CT 190 offen, Merge und Tag
+erst auf Marcos Wort. Bau nach Marcos Auftrag vom 9. November 2026 zu 100 % automatisch, die Entscheide beim
+Bau stehen im Entscheidungsprotokoll (Zeile «Konzept 18 gebaut: Entscheide beim Bau»). Konzept:
+`docs/planning/18-trickplay.md`, Frage 25.
+
+- **Teil A, Vorschau beim Spulen (Trickplay):** Einstellung «Vorschau beim Spulen» je Bibliothek, getrennt für
+  Filme und Serien (Migration 00042, Spalten `trickplay_*` in `libraries`, Vorgabe «Im Voraus»); Bilder an den
+  Keyframes (`transcode` liest je Bild über den Sprung auf das Keyframe, Sätze aus Kacheln); neue Operationen
+  `getTrickplay`, `getTrickplaySheet` und `getDownloadTrickplaySheet`; Aufträge «Vorschau» in den
+  Hintergrundjobs, Anstoss beim Abspielstart, Mitnahme in Downloads; Vorschaubilder auf der Suchleiste des
+  Players; Dialog «Vorschau beim Spulen» in der Bibliotheksverwaltung. Tastaturtest in `e2e`.
+- **Teil B, User-Empfehlungen von Profil zu Profil:** Migration 00041 (`user_picks`, `picks_config`, die
+  Empfehlung der Verwaltung `top_picks` entfällt); Operationen `recommendItem`, `unrecommendItem`,
+  `listAdminUserPicks`, `getPicksSettings`; Stern «Empfehlen» auf der Detailseite, Reihe der Startseite und
+  Verwaltungsliste über die Seiten der Verwaltung.
+- **Teil C, lange Listen:** allgemeiner Baustein für seitenweise Listen, jede Liste lädt beim Scrollen nach
+  statt «Mehr laden»; Radio- und Sendertabellen sind immer virtuell.
+- **Teil D, Streamübersicht:** eine Liste «Läuft gerade» mit jeder Art (Film, Folge, Radio, Hörbuch, Podcast)
+  und einem Artfilter; der Server nennt Art, Eltern, Kapitel und Ton jedes Streams.
+- **Dazu:** grössere Bibliotheksnamen auf den Kacheln «Meine Medien», quadratische Cover im 2:3-Rahmen auf
+  unscharfem Grund.
+- **Prüfung:** je Spur Stufe 1 (`task check:fast` und gezielte Tests) mit Belegen in den Spurberichten;
+  eingefrorener Stand `testdata/db/trickplay.sql` (Migration 00042, aus `empfehlungen.sql`), der Test von 00042
+  startet bei `empfehlungen.sql`; `go test ./internal/store -run 'Frozen|Migration0004' -count=1` grün.
+  `task ci` startet der Koordinator vor dem Pull Request.
+- Versionsstellen auf 1.23.0 (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/compose.updater.yaml`,
+  `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`).
+- **Offen:** Abnahme auf CT 190 (Vorschau mit echten Filmen, Zeit und Platz je Stunde Video prüfen),
+  `task ci`, Pull Request, Merge und Tag `v1.23.0` auf Marcos Wort.
+
 ## Gesehen-Haken für Serien und Podcasts in Listen (9. November 2026): Pull Request, Release 1.22.0
 
 **Vertrag 1.22.0, additiv**, keine Migration, keine neue Operation. Zweig `claude/serien-haken` ab `main`
