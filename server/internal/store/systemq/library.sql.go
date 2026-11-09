@@ -132,6 +132,22 @@ func (q *Queries) CountMediaFilesOfRoot(ctx context.Context, rootID int64) (int6
 	return count, err
 }
 
+const deleteExpiredUserPicks = `-- name: DeleteExpiredUserPicks :execrows
+DELETE FROM user_picks
+WHERE created_at <= ?1 - (SELECT c.retention_days FROM picks_config AS c WHERE c.id = 1) * 86400000
+`
+
+// User picks whose time is past the retention of picks_config at @now (concept 18 part B, 14.5):
+// deleted by the hourly library.sweep. The reads filter by time as well, so this only keeps the
+// table small.
+func (q *Queries) DeleteExpiredUserPicks(ctx context.Context, now int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteExpiredUserPicks, now)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteIgnoredFilesOfRoot = `-- name: DeleteIgnoredFilesOfRoot :execrows
 DELETE FROM ignored_files WHERE root_id = ?1
 `

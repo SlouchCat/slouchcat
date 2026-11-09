@@ -11,7 +11,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
 )
 
-// Curation contract of M7 (design 3.2): Cat's picks (E-2, E-3), collections (E-6) and the order of
+// Curation contract of M7 (design 3.2): the user picks (E-2, E-3, concept 18 part B), collections (E-6) and the order of
 // the start page rows (E-9), all as the owner with the primary profile (p18).
 
 // fieldProblem returns "field code" of a 422 validation_failed answer with exactly one field error.
@@ -51,137 +51,117 @@ func picksOf(t *testing.T, h http.Handler, token string) []string {
 	return rows["picks"]
 }
 
-func TestContractAdminPicks(t *testing.T) {
+// Concept 18 part B (14.7 to 14.9, ADR 0028): a pick by the star reaches every profile that may see
+// the title, once and without a note; a guest reads but cannot recommend; the administration lists
+// the picks anonymously (count and day, never a profile), removes all picks of a title and sets
+// the retention, which works at once.
+func TestContractUserPicks(t *testing.T) {
 	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
-	create := func(body string) []gen.AdminPick {
+	m0, m12 := f.Rated(0).ID, f.Rated(12).ID
+	// The fixture's picks are dated 2100 (vistest.PickedAt); this test runs on the real clock.
+	if _, err := f.DB.Write.Exec(`DELETE FROM user_picks`); err != nil {
+		t.Fatal(err)
+	}
+	put := func(token, id string) *httptest.ResponseRecorder {
 		t.Helper()
-		rec := send(t, h, http.MethodPost, BasePath+"/admin/picks", "p18", body, nil)
-		adminCurationAnswer(t, rec, http.StatusCreated)
-		var out []gen.AdminPick
-		decode(t, rec, &out)
-		return out
+		return send(t, h, http.MethodPut, BasePath+"/items/"+id+"/pick", token, "", nil)
 	}
-	list := func() []gen.AdminPick {
+	detail := func(token, id string) gen.ItemDetail {
 		t.Helper()
-		rec := send(t, h, http.MethodGet, BasePath+"/admin/picks", "p18", "", nil)
-		adminCurationAnswer(t, rec, http.StatusOK)
-		var out []gen.AdminPick
-		decode(t, rec, &out)
-		return out
+		var d gen.ItemDetail
+		decode(t, send(t, h, http.MethodGet, BasePath+"/items/"+id, token, "", nil), &d)
+		return d
 	}
-
-	global := create(`{"itemId":"` + f.Rated(0).ID + `","note":"Für alle"}`)
-	if len(global) != 1 || global[0].ProfileId != nil || global[0].Note == nil || *global[0].Note != "Für alle" ||
-		global[0].Title != "Film 00" || global[0].Kind != "movie" {
-		t.Fatalf("global pick %+v", global)
+	if d := detail("p12", m0); d.RecommendedByMe || !d.CanRecommend {
+		t.Fatalf("P12 detail before: recommendedByMe %v, canRecommend %v", d.RecommendedByMe, d.CanRecommend)
 	}
-	forP12 := create(fmt.Sprintf(`{"itemId":"%s","profileIds":[%d]}`, f.Rated(12).ID, f.P12.ID))
-	if len(forP12) != 1 || forP12[0].ProfileId == nil || *forP12[0].ProfileId != f.P12.ID || forP12[0].ProfileName == nil || *forP12[0].ProfileName != "P12" {
-		t.Fatalf("pick for P12 %+v", forP12)
+	rec := put("p12", m0)
+	wantStatus(t, rec, http.StatusOK)
+	if !strings.Contains(rec.Body.String(), `"retentionDays":60`) || strings.Contains(rec.Body.String(), "profile") {
+		t.Errorf("recommendItem answer %s", rec.Body.String())
 	}
-	// E-3: a pick for P12 of a title P12 may not see never reaches P12.
-	create(fmt.Sprintf(`{"itemId":"%s","profileIds":[%d]}`, f.Rated(18).ID, f.P12.ID))
-	// E-2: outside its window a pick is invisible.
-	create(`{"itemId":"` + f.Rated(16).ID + `","startsAt":"1999-01-01T00:00:00Z","endsAt":"2000-01-01T00:00:00Z"}`)
-	create(`{"itemId":"` + f.Show.Series.ID + `","startsAt":"2100-01-01T00:00:00Z"}`)
-
-	for body, want := range map[string]string{
-		`{"itemId":"` + unknownItemID + `"}`:                                                                   "itemId unknown_item",
-		`{"itemId":"` + f.Show.Season.ID + `"}`:                                                                "itemId invalid_value",
-		`{"itemId":"` + f.Show.Extra.ID + `"}`:                                                                 "itemId invalid_value",
-		fmt.Sprintf(`{"itemId":"%s","profileIds":[%d]}`, f.Rated(0).ID, f.PG.ID):                               "profileIds invalid_value",
-		`{"itemId":"` + f.Rated(0).ID + `","note":"` + strings.Repeat("x", 281) + `"}`:                         "note too_long",
-		`{"itemId":"` + f.Rated(0).ID + `","startsAt":"2026-02-01T00:00:00Z","endsAt":"2026-01-01T00:00:00Z"}`: "endsAt invalid_value",
-	} {
-		if got := fieldProblem(t, send(t, h, http.MethodPost, BasePath+"/admin/picks", "p18", body, nil)); got != want {
-			t.Errorf("POST %s: %s, want %s", body, got, want)
+	wantStatus(t, put("p6", m0), http.StatusOK) // a second profile: the title stays once
+	if d := detail("p12", m0); !d.RecommendedByMe {
+		t.Error("P12 detail after recommending: recommendedByMe false")
+	}
+	if d := detail("p16", m0); d.RecommendedByMe {
+		t.Error("P16 sees the recommendation of P12 as its own")
+	}
+	for _, token := range []string{"p16", "p0", "pg"} {
+		picks := picksOf(t, h, token)
+		if !slices.Equal(picks, []string{m0}) {
+			t.Errorf("%s picks = %v, want the film rated 0 once", token, picks)
 		}
 	}
-
-	p12 := picksOf(t, h, "p12")
-	for _, m := range []string{f.Rated(0).ID, f.Rated(6).ID, f.Rated(12).ID} {
-		if !slices.Contains(p12, m) {
-			t.Errorf("P12 picks %v miss %s", p12, m)
+	// A guest reads the list, but never recommends, and sees no star (U-F10).
+	if d := detail("pg", m12); d.CanRecommend || d.RecommendedByMe {
+		t.Errorf("guest detail: canRecommend %v, recommendedByMe %v", d.CanRecommend, d.RecommendedByMe)
+	}
+	if rec := put("pg", m12); rec.Code != http.StatusNotFound || problemCode(t, rec) != "not_found" {
+		t.Errorf("guest recommendItem: %d %s, want 404 not_found", rec.Code, rec.Body.String())
+	}
+	if rec := send(t, h, http.MethodDelete, BasePath+"/items/"+m12+"/pick", "pg", "", nil); rec.Code != http.StatusNotFound {
+		t.Errorf("guest unrecommendItem: %d, want 404", rec.Code)
+	}
+	// Seasons and extras are no picks; the detail says so.
+	for _, m := range []string{f.Show.Season.ID, f.Show.Extra.ID} {
+		if rec := put("p18", m); rec.Code != http.StatusNotFound {
+			t.Errorf("recommendItem %s: %d, want 404", m, rec.Code)
+		}
+		if d := detail("p18", m); d.CanRecommend {
+			t.Errorf("detail of %s: canRecommend true", m)
 		}
 	}
-	for _, m := range []string{f.Rated(18).ID, f.Rated(16).ID, f.Show.Series.ID} {
-		if slices.Contains(p12, m) {
-			t.Errorf("P12 picks %v contain %s", p12, m)
-		}
-	}
-	if p16 := picksOf(t, h, "p16"); slices.Contains(p16, f.Rated(12).ID) || !slices.Contains(p16, f.Rated(0).ID) {
-		t.Errorf("P16 picks %v: the pick for P12 leaked or the global one is missing", p16)
+	// P12 takes its pick back: the title stays for the pick of P6.
+	wantStatus(t, send(t, h, http.MethodDelete, BasePath+"/items/"+m0+"/pick", "p12", "", nil), http.StatusNoContent)
+	if picks := picksOf(t, h, "p16"); !slices.Equal(picks, []string{m0}) {
+		t.Errorf("P16 picks after P12 took back = %v, want the film rated 0", picks)
 	}
 
-	// Reorder: the global pick of the film rated 0 first.
-	all := list()
-	ids := []int64{global[0].Id}
-	for _, p := range all {
-		if p.Id != global[0].Id {
-			ids = append(ids, p.Id)
+	// The administration: anonymous, one row per title, count and day.
+	rec = send(t, h, http.MethodGet, BasePath+"/admin/picks", "p18", "", nil)
+	adminCurationAnswer(t, rec, http.StatusOK)
+	for _, name := range []string{"P6", "P12", "P18", "profile"} {
+		if strings.Contains(rec.Body.String(), name) {
+			t.Errorf("admin picks name %q: %s", name, rec.Body.String())
 		}
 	}
-	order := func(ids []int64) string {
-		parts := make([]string, 0, len(ids))
-		for _, id := range ids {
-			parts = append(parts, fmt.Sprint(id))
+	var picks []gen.AdminUserPick
+	decode(t, rec, &picks)
+	if len(picks) != 1 || picks[0].ItemId != m0 || picks[0].Count != 1 || picks[0].ExpiresInDays != 60 || picks[0].LastPickedOn.IsZero() {
+		t.Fatalf("admin picks = %+v, want the film rated 0 with one pick and 60 days", picks)
+	}
+	wantStatus(t, send(t, h, http.MethodDelete, BasePath+"/admin/picks/"+m0, "p18", "", nil), http.StatusNoContent)
+	if rec := send(t, h, http.MethodDelete, BasePath+"/admin/picks/"+m0, "p18", "", nil); rec.Code != http.StatusNotFound {
+		t.Errorf("second remove: %d, want 404", rec.Code)
+	}
+	if slices.Contains(picksOf(t, h, "p16"), m0) {
+		t.Error("a removed title is still on the start page")
+	}
+
+	// The retention: 7..365, 422 outside, and the stored value comes back.
+	for body, want := range map[string]string{`{"retentionDays":6}`: "retentionDays invalid_value", `{"retentionDays":366}`: "retentionDays invalid_value"} {
+		if got := fieldProblem(t, send(t, h, http.MethodPut, BasePath+"/admin/picks/settings", "p18", body, nil)); got != want {
+			t.Errorf("settings %s: %s, want %s", body, got, want)
 		}
-		return `{"ids":[` + strings.Join(parts, ",") + `]}`
 	}
-	rec := send(t, h, http.MethodPut, BasePath+"/admin/picks/order", "p18", order(ids), nil)
-	wantStatus(t, rec, http.StatusNoContent)
-	if got := list(); got[0].Id != global[0].Id || got[0].Position != 0 {
-		t.Errorf("first pick after reorder %+v", got[0])
+	rec = send(t, h, http.MethodPut, BasePath+"/admin/picks/settings", "p18", `{"retentionDays":7}`, nil)
+	wantStatus(t, rec, http.StatusOK)
+	var settings gen.PicksSettings
+	decode(t, send(t, h, http.MethodGet, BasePath+"/admin/picks/settings", "p18", "", nil), &settings)
+	if settings.RetentionDays != 7 {
+		t.Errorf("settings = %+v, want 7 days", settings)
 	}
-	if p16 := picksOf(t, h, "p16"); len(p16) == 0 || p16[0] != f.Rated(0).ID {
-		t.Errorf("P16 picks after reorder %v, want the film rated 0 first", p16)
+	rec = put("p18", m12)
+	wantStatus(t, rec, http.StatusOK)
+	if !strings.Contains(rec.Body.String(), `"retentionDays":7`) {
+		t.Errorf("recommendItem with 7 days: %s", rec.Body.String())
 	}
-	if got := fieldProblem(t, send(t, h, http.MethodPut, BasePath+"/admin/picks/order", "p18", order(ids[1:]), nil)); got != "ids invalid_value" {
-		t.Errorf("reorder without one pick: %s", got)
-	}
-
-	// PATCH: absent keeps, null clears.
-	path := fmt.Sprintf("%s/admin/picks/%d", BasePath, global[0].Id)
-	patch := func(body string) gen.AdminPick {
-		t.Helper()
-		rec := send(t, h, http.MethodPatch, path, "p18", body, nil)
-		adminCurationAnswer(t, rec, http.StatusOK)
-		var p gen.AdminPick
-		decode(t, rec, &p)
-		return p
-	}
-	if p := patch(`{"endsAt":"2000-01-01T00:00:00Z"}`); p.Note == nil || *p.Note != "Für alle" || p.EndsAt == nil {
-		t.Errorf("after setting endsAt %+v, want the note kept", p)
-	}
-	if slices.Contains(picksOf(t, h, "p16"), f.Rated(0).ID) {
-		t.Error("an expired pick is still on the start page")
-	}
-	if p := patch(`{"endsAt":null,"note":null}`); p.Note != nil || p.EndsAt != nil {
-		t.Errorf("after clearing %+v", p)
-	}
-	if !slices.Contains(picksOf(t, h, "p16"), f.Rated(0).ID) {
-		t.Error("the pick did not come back after clearing endsAt")
-	}
-	// k5: encoding/json matches field names without regard to case, so does the null detection.
-	if p := patch(`{"note":"wieder da"}`); p.Note == nil || *p.Note != "wieder da" {
-		t.Errorf("after setting the note again %+v", p)
-	}
-	if p := patch(`{"Note":null}`); p.Note != nil {
-		t.Errorf(`after {"Note":null} %+v, want the note cleared`, p)
-	}
-	if got := fieldProblem(t, send(t, h, http.MethodPatch, path, "p18", `{"startsAt":"2026-02-01T00:00:00Z","endsAt":"2026-01-01T00:00:00Z"}`, nil)); got != "endsAt invalid_value" {
-		t.Errorf("PATCH with an empty window: %s", got)
-	}
-	if rec := send(t, h, http.MethodPatch, BasePath+"/admin/picks/9999", "p18", `{"note":"x"}`, nil); rec.Code != http.StatusNotFound {
-		t.Errorf("PATCH unknown pick: %d", rec.Code)
-	}
-
-	wantStatus(t, send(t, h, http.MethodDelete, path, "p18", "", nil), http.StatusNoContent)
-	wantStatus(t, send(t, h, http.MethodDelete, path, "p18", "", nil), http.StatusNotFound)
-	if got := list(); len(got) != len(all)-1 {
-		t.Errorf("%d picks after the delete, want %d", len(got), len(all)-1)
+	// A viewer never reaches the administration.
+	if rec := send(t, h, http.MethodGet, BasePath+"/admin/picks", "p12", "", nil); rec.Code != http.StatusForbidden {
+		t.Errorf("admin picks as P12: %d, want 403", rec.Code)
 	}
 }
 

@@ -271,3 +271,11 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   liegen nicht im Stand (nur die Zeilen). Dann `store.Dump`, keine neuen Pfade im Stand.
   `TestFrozenDetailseiten3StateCoversTheConcept` prüft, dass jede dieser Datenarten vorhanden ist;
   `TestMigration00040PersonCollectionImages` prüft den Schritt von `webradio2.sql` aus.
+- `empfehlungen.sql`: Stand nach Teil B des Konzepts 18 «User-Empfehlungen von Profil zu Profil» (Migration 00041 mit
+  `user_picks` und `picks_config`, `top_picks` verworfen; ADR 0028). Erzeugt am 9. November 2026 aus `detailseiten3.sql`:
+  Stand eingespielt, mit `store.Open` migriert (00041 verwirft die Empfehlung der Verwaltung mit Notiz), dann per SQL, weil
+  der Dienst `discover` aus dem Paket `store` nicht erreichbar ist: der erste Film von beiden Profilen empfohlen (vor 3 und
+  vor 1 Tag), die erste Serie vom Hauptprofil (vor 2 Tagen) und ein zweiter Film von «Original» vor 90 Tagen (abgelaufen),
+  Stichtag 9. November 2026, 12:00 UTC; `picks_config` auf 45 Tage. Dann `store.Dump`, keine neuen Pfade im Stand.
+  `TestFrozenEmpfehlungenStateCoversTheConcept` prüft, dass jede dieser Datenarten vorhanden ist;
+  `TestMigration00041UserPicks` prüft den Schritt von `detailseiten3.sql` aus.

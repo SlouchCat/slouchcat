@@ -11,6 +11,26 @@ import (
 	"strings"
 )
 
+const countUserPicks = `-- name: CountUserPicks :one
+SELECT count(DISTINCT u.item_id)
+FROM user_picks AS u
+JOIN picks_config AS c ON c.id = 1
+JOIN visible_items AS v ON v.item_id = u.item_id AND v.profile_id = ?1
+WHERE u.created_at > ?2 - c.retention_days * 86400000
+`
+
+type CountUserPicksParams struct {
+	ProfileID int64
+	Now       int64
+}
+
+func (q *Queries) CountUserPicks(ctx context.Context, arg CountUserPicksParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUserPicks, arg.ProfileID, arg.Now)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countVisibleTrailers = `-- name: CountVisibleTrailers :one
 SELECT count(*) FROM trailers AS t
 JOIN visible_items AS v ON v.item_id = t.item_id AND v.profile_id = ?1
@@ -176,6 +196,30 @@ func (q *Queries) GetNextVisibleEpisode(ctx context.Context, arg GetNextVisibleE
 		&i.OriginalLanguage,
 	)
 	return i, err
+}
+
+const getOwnUserPick = `-- name: GetOwnUserPick :one
+SELECT count(*)
+FROM user_picks AS u
+JOIN picks_config AS c ON c.id = 1
+JOIN visible_items AS v ON v.item_id = u.item_id AND v.profile_id = u.profile_id
+WHERE u.profile_id = ?1 AND u.item_id = ?2
+  AND u.created_at > ?3 - c.retention_days * 86400000
+`
+
+type GetOwnUserPickParams struct {
+	ProfileID int64
+	ItemID    string
+	Now       int64
+}
+
+// 1 when the profile itself holds a recommendation of the visible title that has not expired at
+// @now (ItemDetail.recommendedByMe, 14.6), else 0. An expired own row is not a recommendation.
+func (q *Queries) GetOwnUserPick(ctx context.Context, arg GetOwnUserPickParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getOwnUserPick, arg.ProfileID, arg.ItemID, arg.Now)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const getVisibleItem = `-- name: GetVisibleItem :one
@@ -984,41 +1028,49 @@ func (q *Queries) ListSeriesNextUpEpisodes(ctx context.Context, arg ListSeriesNe
 	return items, nil
 }
 
-const listTopPicks = `-- name: ListTopPicks :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, t.note, t.profile_id AS pick_profile_id
-FROM top_picks AS t
-JOIN items AS i ON i.id = t.item_id
+const listUserPicks = `-- name: ListUserPicks :many
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, CAST(max(u.created_at) AS INTEGER) AS picked_at
+FROM user_picks AS u
+JOIN picks_config AS c ON c.id = 1
+JOIN items AS i ON i.id = u.item_id
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
-WHERE (t.profile_id IS NULL OR t.profile_id = ?1)
-  AND (t.starts_at IS NULL OR t.starts_at <= ?2)
-  AND (t.ends_at IS NULL OR t.ends_at > ?2)
-ORDER BY t.position, t.id
+WHERE u.created_at > ?2 - c.retention_days * 86400000
+GROUP BY i.id
+ORDER BY picked_at DESC, i.id
+LIMIT ?4 OFFSET ?3
 `
 
-type ListTopPicksParams struct {
-	ProfileID int64
-	Now       sql.NullInt64
+type ListUserPicksParams struct {
+	ProfileID   int64
+	Now         int64
+	OffsetCount int64
+	LimitCount  int64
 }
 
-type ListTopPicksRow struct {
-	Item          Item
-	Note          sql.NullString
-	PickProfileID sql.NullInt64
+type ListUserPicksRow struct {
+	Item     Item
+	PickedAt int64
 }
 
-// Cat's recommendations (E-1, E-2) for the profile: global rows (profile_id NULL) and rows of the
-// profile, inside their optional time window, with the main user's note. An item listed twice is
-// deduplicated by the caller (the row of the profile wins over the global one), so the query has
-// no limit: the caller cuts after the deduplication (the table is small, curated by hand).
-func (q *Queries) ListTopPicks(ctx context.Context, arg ListTopPicksParams) ([]ListTopPicksRow, error) {
-	rows, err := q.db.QueryContext(ctx, listTopPicks, arg.ProfileID, arg.Now)
+// User picks (E-1, E-2, concept 18 part B, ADR 0028): every title the profile may see that one of the
+// profiles of the owner's account recommended, once, newest recommendation first. A recommendation
+// counts while it is younger than picks_config.retention_days at @now (Unix milliseconds); the
+// hourly library.sweep deletes the expired rows, the filter here makes a shorter retention work at
+// once. Paged in SQL; CountUserPicks is the total of the page and of the side navigation.
+func (q *Queries) ListUserPicks(ctx context.Context, arg ListUserPicksParams) ([]ListUserPicksRow, error) {
+	rows, err := q.db.QueryContext(ctx, listUserPicks,
+		arg.ProfileID,
+		arg.Now,
+		arg.OffsetCount,
+		arg.LimitCount,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListTopPicksRow{}
+	items := []ListUserPicksRow{}
 	for rows.Next() {
-		var i ListTopPicksRow
+		var i ListUserPicksRow
 		if err := rows.Scan(
 			&i.Item.ID,
 			&i.Item.Kind,
@@ -1081,8 +1133,7 @@ func (q *Queries) ListTopPicks(ctx context.Context, arg ListTopPicksParams) ([]L
 			&i.Item.FilledProviders,
 			&i.Item.VoteAverage,
 			&i.Item.OriginalLanguage,
-			&i.Note,
-			&i.PickProfileID,
+			&i.PickedAt,
 		); err != nil {
 			return nil, err
 		}

@@ -39,7 +39,7 @@ const userDataKeys = [
   'favorites',
   'collectionItems',
   'notifications',
-  'topPicks',
+  'userPicks',
   'downloads',
   'activityEvents',
 ] as const satisfies readonly (keyof RelinkUserData)[];

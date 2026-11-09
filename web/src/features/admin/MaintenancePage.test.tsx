@@ -87,7 +87,7 @@ const noUserData: RelinkUserData = {
   favorites: 0,
   collectionItems: 0,
   notifications: 0,
-  topPicks: 0,
+  userPicks: 0,
   downloads: 0,
   activityEvents: 0,
 };
@@ -742,7 +742,7 @@ describe('maintenance page', () => {
         year: 1995,
         deletedTitle: 'Heat',
         deletedYear: 1995,
-        userData: { ...noUserData, progress: 2, topPicks: 1 },
+        userData: { ...noUserData, progress: 2, userPicks: 1 },
       });
     relinkPairs = {
       total: 3,
@@ -790,7 +790,7 @@ describe('maintenance page', () => {
     dialog = await screen.findByRole('alertdialog', { name: 'Benutzerdaten umhängen?' });
     expect(
       within(dialog).getByText(
-        '2 Kopien gehen in ihren gelöschten Titeln auf. Die alten Titel kommen zurück und behalten ihre Adressen. Es bleiben erhalten: 2 Fortschritte, 1 Top-Pick. Die Kopien werden endgültig entfernt. Eine weitere Kopie desselben Titels wird übersprungen und steht danach unter «Duplikate».',
+        '2 Kopien gehen in ihren gelöschten Titeln auf. Die alten Titel kommen zurück und behalten ihre Adressen. Es bleiben erhalten: 2 Fortschritte, 1 User-Empfehlung. Die Kopien werden endgültig entfernt. Eine weitere Kopie desselben Titels wird übersprungen und steht danach unter «Duplikate».',
       ),
     ).toBeVisible();
     await user.click(within(dialog).getByRole('button', { name: 'Umhängen' }));

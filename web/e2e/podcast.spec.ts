@@ -201,7 +201,7 @@ test('episode page by keyboard: play, download, "Zum Podcast", back; no focus tr
     await expect(download).toBeVisible();
 
     // Arrows: ↓ lands on play, ↑ on the back arrow, ↓ returns; ↓ to the round actions ("Merken",
-    // "Zu den User-Empfehlungen", the download, concept 17 E-11), ↓ to "Zum Podcast".
+    // "Empfehlen", the download, concept 17 E-11 and concept 18 part B), ↓ to "Zum Podcast".
     await page.keyboard.press('ArrowDown');
     await expectFocusOn(page, play);
     await page.keyboard.press('ArrowUp');
@@ -216,8 +216,8 @@ test('episode page by keyboard: play, download, "Zum Podcast", back; no focus tr
     await page.keyboard.press('ArrowDown');
     await expectFocusOn(page, toPodcast);
 
-    // Tab from the top: the header, the back arrow, play, the round actions ("Merken", "Zu den
-    // User-Empfehlungen", the download, "Verwalten"), then "Zum Podcast"; no trap.
+    // Tab from the top: the header, the back arrow, play, the round actions ("Merken",
+    // "Empfehlen", the download, "Verwalten"), then "Zum Podcast"; no trap.
     await resetFocus(page);
     await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
     await tabTo(page, back, 3);

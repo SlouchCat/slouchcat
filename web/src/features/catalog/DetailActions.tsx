@@ -1,12 +1,13 @@
 import type { ItemDetail, ItemRef, MediaFileInfo } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import {
   useFavoriteMutation,
+  useRecommendMutation,
   useWatchlistMutation,
   useWatchlistPending,
 } from '@/features/discover/queries';
@@ -32,6 +33,7 @@ const RESTART_KEY = 'detail-restart';
 const DOWNLOAD_KEY = 'detail-download';
 const WATCHLIST_KEY = 'detail-watchlist';
 const FAVORITE_KEY = 'detail-favorite';
+export const RECOMMEND_KEY = 'detail-recommend';
 
 type NextUp = NonNullable<ItemDetail['nextUp']>;
 
@@ -170,8 +172,11 @@ interface DetailActionsProps {
 /**
  * The actions of a detail page (concept 17 D-2, variant A; E-10, E-11): the big button with its
  * second line and progress stroke, under it the round actions in this order: Trailer, Von vorne,
- * Merken, Favorit, User-Empfehlungen, Download, Verwalten. Offline Merken and Favorit are disabled
- * (both live on the server), like the cover's watchlist button.
+ * Merken, Favorit, Empfehlen, Download, Verwalten. Offline Merken, Favorit and Empfehlen are
+ * disabled (they live on the server), like the cover's watchlist button. «Empfehlen» (concept 18
+ * part B) stands only where the server says it applies (`canRecommend`: the owner's account, no
+ * season or extra); a press puts the title into the user picks or takes the own pick back, and a
+ * hint under the row says so.
  */
 export function DetailActions({ item, file, target, onTrailer }: DetailActionsProps) {
   const { t } = useTranslation();
@@ -189,7 +194,9 @@ export function DetailActions({ item, file, target, onTrailer }: DetailActionsPr
   const watchlist = useWatchlistMutation();
   const watchlistPending = useWatchlistPending(item.id);
   const favorite = useFavoriteMutation();
-  const failed = watchlist.error ?? favorite.error;
+  const recommend = useRecommendMutation();
+  const [pickHint, setPickHint] = useState<string | null>(null);
+  const failed = watchlist.error ?? favorite.error ?? recommend.error;
 
   return (
     <>
@@ -245,7 +252,7 @@ export function DetailActions({ item, file, target, onTrailer }: DetailActionsPr
         {favoritable && (
           <RoundAction
             focusKey={FAVORITE_KEY}
-            icon="star"
+            icon="heart"
             label={t('item.favorite.label')}
             pressed={item.favorite}
             description={t('item.favorite.hint')}
@@ -254,12 +261,29 @@ export function DetailActions({ item, file, target, onTrailer }: DetailActionsPr
             onPress={() => favorite.mutate({ id: item.id, on: !item.favorite })}
           />
         )}
-        {listable && canManage && (
+        {item.canRecommend && (
           <RoundAction
-            icon="users"
-            label={t('item.action.picks')}
-            aria-label={t('item.addToPicks')}
-            href={`${paths.adminPicks}?add=${encodeURIComponent(item.id)}`}
+            focusKey={RECOMMEND_KEY}
+            icon="star"
+            label={item.recommendedByMe ? t('item.recommend.done') : t('item.recommend.add')}
+            pressed={item.recommendedByMe}
+            description={t('item.recommend.hint')}
+            isDisabled={!online}
+            busy={recommend.isPending}
+            onPress={() => {
+              setPickHint(null);
+              recommend.mutate(
+                { id: item.id, on: !item.recommendedByMe },
+                {
+                  onSuccess: (pick) =>
+                    setPickHint(
+                      pick
+                        ? t('item.recommend.added', { count: pick.retentionDays })
+                        : t('item.recommend.removed'),
+                    ),
+                },
+              );
+            }}
           />
         )}
         {offlineSupported() && isDownloadable(item.kind) && (
@@ -279,6 +303,7 @@ export function DetailActions({ item, file, target, onTrailer }: DetailActionsPr
           <RoundAction icon="info" label={t('item.manage')} href={paths.adminItem(item.id)} />
         )}
       </SpatialGroup>
+      {pickHint && !failed && <Notice title={pickHint} />}
       {failed && <Notice tone="danger" title={problemMessage(t, failed)} />}
     </>
   );

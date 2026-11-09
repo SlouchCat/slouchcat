@@ -23,7 +23,7 @@ type curationFixture struct {
 }
 
 // newCurationFixture seeds the films, the series tree and the guest account; vistest adds two
-// global picks (the films rated 18 and 6).
+// user picks of P18 (the films rated 18 and 6).
 func newCurationFixture(t *testing.T) curationFixture {
 	t.Helper()
 	f := vistest.New(t)
@@ -52,123 +52,68 @@ func wantField(t *testing.T, what string, err error, field, code string) {
 	}
 }
 
-func pickIDs(picks []model.AdminPick) []int64 {
-	out := make([]int64, 0, len(picks))
-	for _, p := range picks {
-		out = append(out, p.ID)
-	}
-	return out
-}
-
-func TestTopPicks(t *testing.T) {
+// Concept 18 part B (14.7, ADR 0028): the administration lists every title with a pick that has
+// not expired, newest pick first, with the number of picks, the day of the newest one in the
+// server zone and the days left, never a profile; removing takes every pick of the title, and the
+// retention is 7 to 365 days and works at once.
+func TestUserPicksAdministration(t *testing.T) {
 	c := newCurationFixture(t)
 	f := c.f
-	// vistest names every title "Film X" (de) and "Movie X" (en); the film rated 12 has no German text.
-	c.exec(t, `UPDATE item_texts SET title = 'Sechzehn' WHERE item_id = ? AND lang = 'de'`, f.Rated(16).ID)
-	c.exec(t, `DELETE FROM item_texts WHERE item_id = ? AND lang = 'de'`, f.Rated(12).ID)
-
-	seeded, err := c.svc.ListTopPicks(c.ctx)
+	now := c.svc.now()
+	const day = int64(24 * 60 * 60 * 1000)
+	c.exec(t, `DELETE FROM user_picks`)
+	c.exec(t, `INSERT INTO user_picks (item_id, profile_id, created_at) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?), (?, ?, ?), (?, ?, ?)`,
+		f.Rated(16).ID, f.P18.ID, now.UnixMilli()-10*day,
+		f.Rated(16).ID, f.P12.ID, now.UnixMilli()-60*60*1000, // newest: one hour ago
+		f.Rated(6).ID, f.P6.ID, now.UnixMilli()-59*day-day/2, // half a day left
+		f.Rated(0).ID, f.P0.ID, now.UnixMilli()-61*day, // expired
+		f.Rated(12).ID, f.PG.ID, now.UnixMilli()-2*day) // a stored row of a guest still counts here
+	picks, err := c.svc.ListUserPicks(c.ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(seeded) != 2 || seeded[0].ItemID != f.Rated(18).ID || seeded[0].ProfileID != nil || seeded[0].Title != "Film 18" || seeded[0].Kind != "movie" {
-		t.Fatalf("seeded picks %+v", seeded)
+	type row struct {
+		id, title, on string
+		count, left   int
+	}
+	var got []row
+	for _, p := range picks {
+		got = append(got, row{p.ItemID, p.Title, p.PickedOn, p.Count, p.ExpiresInDays})
+	}
+	want := []row{
+		{f.Rated(16).ID, "Film 16", "2026-10-21", 2, 60},
+		{f.Rated(12).ID, "Film 12", "2026-10-19", 1, 58},
+		{f.Rated(6).ID, "Film 06", "2026-08-23", 1, 1},
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("user picks = %+v, want %+v", got, want)
 	}
 
-	// Global pick with note and window; the German text names it.
-	starts, ends := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
-	global, err := c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Rated(16).ID, Note: "Cat mag ihn", StartsAt: &starts, EndsAt: &ends})
-	if err != nil {
+	if err := c.svc.RemoveUserPick(c.ctx, f.Rated(16).ID); err != nil {
 		t.Fatal(err)
 	}
-	if len(global) != 1 || global[0].ProfileID != nil || global[0].Title != "Sechzehn" || global[0].Note != "Cat mag ihn" ||
-		global[0].Position != 2 || !global[0].StartsAt.Equal(starts) || !global[0].EndsAt.Equal(ends) || global[0].Year == nil {
-		t.Fatalf("global pick %+v", global)
+	if err := c.svc.RemoveUserPick(c.ctx, f.Rated(16).ID); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("second remove: %v, want ErrNotFound", err)
 	}
-	// One pick per profile, at the end; the English text when there is no German one.
-	per, err := c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Rated(12).ID, ProfileIDs: []int64{f.P12.ID, f.P6.ID, f.P12.ID}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(per) != 2 || *per[0].ProfileID != f.P12.ID || per[0].ProfileName != "P12" || *per[1].ProfileID != f.P6.ID ||
-		per[0].Position != 3 || per[1].Position != 4 || per[0].Title != "Movie 12" || per[0].Note != "" || per[0].StartsAt != nil {
-		t.Fatalf("per-profile picks %+v", per)
-	}
-	// Episodes may be picked.
-	if _, err := c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Show.E1.ID}); err != nil {
-		t.Errorf("episode pick: %v", err)
+	var left int
+	if err := f.DB.Read.QueryRowContext(c.ctx, `SELECT count(*) FROM user_picks WHERE item_id = ?`, f.Rated(16).ID).Scan(&left); err != nil || left != 0 {
+		t.Errorf("rows of the removed title: %d (%v)", left, err)
 	}
 
-	wantField(t, "unknown item", errOf(c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: unknownID})), "itemId", "unknown_item")
-	wantField(t, "missing item", errOf(c.svc.CreateTopPicks(c.ctx, model.PickRequest{})), "itemId", "required")
-	wantField(t, "season", errOf(c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Show.Season.ID})), "itemId", "invalid_value")
-	wantField(t, "extra", errOf(c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Show.Extra.ID})), "itemId", "invalid_value")
-	wantField(t, "guest profile", errOf(c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Rated(0).ID, ProfileIDs: []int64{f.P18.ID, f.PG.ID}})), "profileIds", "invalid_value")
-	// E-2 with ADR 0014: a pick targets the profiles of the owner's household. A second
-	// administrator runs the server, but its children are not the audience of Cat's
-	// recommendations, so their profiles are refused like any other.
-	wantField(t, "second administrator's profile", errOf(c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Rated(0).ID, ProfileIDs: []int64{f.PA2.ID}})), "profileIds", "invalid_value")
-	wantField(t, "second administrator's child", errOf(c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Rated(0).ID, ProfileIDs: []int64{f.PA2K.ID}})), "profileIds", "invalid_value")
-	wantField(t, "unknown profile", errOf(c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Rated(0).ID, ProfileIDs: []int64{999}})), "profileIds", "invalid_value")
-	wantField(t, "window", errOf(c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Rated(0).ID, StartsAt: &ends, EndsAt: &starts})), "endsAt", "invalid_value")
-	wantField(t, "empty window", errOf(c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Rated(0).ID, StartsAt: &starts, EndsAt: &starts})), "endsAt", "invalid_value")
-	wantField(t, "long note", errOf(c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Rated(0).ID, Note: strings.Repeat("ä", 281)})), "note", "too_long")
-	if _, err := c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Rated(0).ID, Note: strings.Repeat("ä", 280)}); err != nil {
-		t.Errorf("note of 280 characters: %v", err)
+	if days, err := c.svc.PicksRetention(c.ctx); err != nil || days != 60 {
+		t.Errorf("default retention %d (%v), want 60", days, err)
 	}
-
-	// Update: absent keeps, a Clear flag clears, the window is checked on the result.
-	note := "neu"
-	upd, err := c.svc.UpdateTopPick(c.ctx, global[0].ID, model.PickUpdate{Note: &note, ClearStartsAt: true})
-	if err != nil {
-		t.Fatal(err)
+	for _, bad := range []int{6, 366, 0, -1} {
+		wantField(t, "retention "+strconv.Itoa(bad), errOf(c.svc.SetPicksRetention(c.ctx, bad)), "retentionDays", "invalid_value")
 	}
-	if upd.Note != "neu" || upd.StartsAt != nil || upd.EndsAt == nil || !upd.EndsAt.Equal(ends) {
-		t.Errorf("updated pick %+v", upd)
+	for _, good := range []int{365, 7} {
+		if days, err := c.svc.SetPicksRetention(c.ctx, good); err != nil || days != good {
+			t.Errorf("SetPicksRetention(%d) = %d, %v", good, days, err)
+		}
 	}
-	late := ends.Add(time.Hour)
-	wantField(t, "update window", errOf(c.svc.UpdateTopPick(c.ctx, global[0].ID, model.PickUpdate{StartsAt: &late})), "endsAt", "invalid_value")
-	if upd, err = c.svc.UpdateTopPick(c.ctx, global[0].ID, model.PickUpdate{ClearNote: true, ClearEndsAt: true}); err != nil || upd.Note != "" || upd.EndsAt != nil {
-		t.Errorf("cleared pick %+v (%v)", upd, err)
-	}
-	if _, err := c.svc.UpdateTopPick(c.ctx, 9999, model.PickUpdate{}); !errors.Is(err, model.ErrNotFound) {
-		t.Errorf("update of an unknown pick: %v", err)
-	}
-
-	// Reorder: every pick exactly once.
-	all, err := c.svc.ListTopPicks(c.ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ids := pickIDs(all)
-	reversed := slices.Clone(ids)
-	slices.Reverse(reversed)
-	if err := c.svc.ReorderTopPicks(c.ctx, reversed); err != nil {
-		t.Fatal(err)
-	}
-	after, err := c.svc.ListTopPicks(c.ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := pickIDs(after); !slices.Equal(got, reversed) || after[0].Position != 0 || after[len(after)-1].Position != len(after)-1 {
-		t.Errorf("order after reorder %v, want %v", got, reversed)
-	}
-	for name, bad := range map[string][]int64{
-		"missing one": reversed[1:], "duplicate": append(slices.Clone(reversed[1:]), reversed[1]),
-		"unknown": append(slices.Clone(reversed[1:]), 9999), "empty": nil,
-	} {
-		wantField(t, "reorder "+name, c.svc.ReorderTopPicks(c.ctx, bad), "ids", "invalid_value")
-	}
-
-	// Delete.
-	if err := c.svc.DeleteTopPick(c.ctx, global[0].ID); err != nil {
-		t.Fatal(err)
-	}
-	if err := c.svc.DeleteTopPick(c.ctx, global[0].ID); !errors.Is(err, model.ErrNotFound) {
-		t.Errorf("second delete: %v, want ErrNotFound", err)
-	}
-	if final, err := c.svc.ListTopPicks(c.ctx); err != nil || len(final) != len(all)-1 {
-		t.Errorf("%d picks after the delete (%v), want %d", len(final), err, len(all)-1)
+	// Seven days: only the pick of two days ago is left, with five days.
+	if picks, err = c.svc.ListUserPicks(c.ctx); err != nil || len(picks) != 1 || picks[0].ItemID != f.Rated(12).ID || picks[0].ExpiresInDays != 5 {
+		t.Errorf("user picks with 7 days = %+v (%v), want the film rated 12 with 5 days", picks, err)
 	}
 }
 
@@ -319,7 +264,8 @@ func TestSearchItems(t *testing.T) {
 	wantField(t, "limit", errOf(c.svc.SearchItems(c.ctx, "movie", 51)), "limit", "invalid_value")
 }
 
-// Merging titles (B-9) moves watchlist, favourites, collection membership and notifications.
+// Merging titles (B-9) moves watchlist, favourites, collection membership, notifications and user
+// picks (concept 18 part B, 14.8: a profile that picked both keeps the newer time).
 func TestMergeMovesDiscoverRows(t *testing.T) {
 	m := newMaintFixture(t)
 	f := m.f
@@ -331,8 +277,16 @@ func TestMergeMovesDiscoverRows(t *testing.T) {
 	m.exec(t, `INSERT INTO collection_items (collection_id, item_id, position, created_at) VALUES ('01J9000000000000000000COLL', ?, 5, 1)`, source.ID)
 	m.exec(t, `INSERT INTO notifications (profile_id, kind, item_id, parent_id, created_at) VALUES (?, 'new_episode', ?, ?, 1)`,
 		f.P18.ID, source.ID, source.ID)
+	m.exec(t, `DELETE FROM user_picks`)
+	m.exec(t, `INSERT INTO user_picks (item_id, profile_id, created_at) VALUES (?, ?, 5), (?, ?, 3), (?, ?, 4)`,
+		source.ID, f.P18.ID, target.ID, f.P18.ID, source.ID, f.P16.ID)
 	if _, err := m.svc.MergeItems(m.ctx, target.ID, []string{source.ID}); err != nil {
 		t.Fatal(err)
+	}
+	var picks string
+	if err := f.DB.Read.QueryRow(`SELECT group_concat(item_id || ':' || profile_id || ':' || created_at, ' ') FROM (SELECT * FROM user_picks ORDER BY profile_id)`).Scan(&picks); err != nil ||
+		picks != target.ID+":"+strconv.FormatInt(f.P18.ID, 10)+":5 "+target.ID+":"+strconv.FormatInt(f.P16.ID, 10)+":4" {
+		t.Errorf("user picks after the merge = %s (%v), want P18 at 5 and P16 at 4 on the target", picks, err)
 	}
 	for what, q := range map[string]string{
 		"watchlist P18":     `SELECT count(*) FROM watchlist WHERE profile_id = ` + strconv.FormatInt(f.P18.ID, 10) + ` AND item_id = ?`,

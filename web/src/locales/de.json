@@ -606,7 +606,14 @@
       "label": "Favorit",
       "hint": "Bei neuen Folgen benachrichtigen"
     },
-    "addToPicks": "Zu den User-Empfehlungen",
+    "recommend": {
+      "add": "Empfehlen",
+      "done": "Empfohlen ✓",
+      "hint": "Für alle Profile, die den Titel sehen dürfen, ohne deinen Namen",
+      "added_one": "Zu den User-Empfehlungen hinzugefügt. Bleibt {{count}} Tag.",
+      "added_other": "Zu den User-Empfehlungen hinzugefügt. Bleibt {{count}} Tage.",
+      "removed": "Empfehlung zurückgenommen."
+    },
     "logoAlt": "{{title}}",
     "action": {
       "resume": "Fortsetzen",
@@ -616,8 +623,7 @@
       "resumeAt": "bei {{time}} · noch {{left}}",
       "watchedOn": "Gesehen am {{date}}",
       "listenedOn": "Gehört am {{date}}",
-      "restart": "Von vorne",
-      "picks": "User-Empfehlungen"
+      "restart": "Von vorne"
     },
     "nextUp": {
       "start": "Abspielen",
@@ -1674,8 +1680,8 @@
           "collectionItems_other": "{{count}} Sammlungseinträge",
           "notifications_one": "{{count}} Benachrichtigung",
           "notifications_other": "{{count}} Benachrichtigungen",
-          "topPicks_one": "{{count}} Top-Pick",
-          "topPicks_other": "{{count}} Top-Picks",
+          "userPicks_one": "{{count}} User-Empfehlung",
+          "userPicks_other": "{{count}} User-Empfehlungen",
           "downloads_one": "{{count}} Download",
           "downloads_other": "{{count}} Downloads",
           "activityEvents_one": "{{count}} Aktivität",
@@ -2122,98 +2128,38 @@
     },
     "picks": {
       "title": "User-Empfehlungen",
-      "intro": "Von Hand ausgesuchte Titel als eigene Reihe der Startseite. Für alle Profile oder für einzelne; jedes Profil sieht nur Titel seiner Altersstufe und nur im gewählten Zeitraum.",
-      "list": "Empfehlungen in der Reihenfolge der Reihe",
-      "empty": "Noch keine Empfehlung. Ohne Empfehlung zeigt die Startseite kein Karussell.",
-      "emptyTab": "Keine Empfehlung in diesem Reiter.",
-      "allProfiles": "Alle",
-      "noNote": "–",
-      "noNoteSpoken": "keine Notiz",
-      "quoted": "«{{note}}»",
-      "changed": "geändert",
-      "count": {
-        "entries_one": "{{number}} Eintrag",
-        "entries_other": "{{number}} Einträge",
-        "planned_one": "{{number}} geplant",
-        "planned_other": "{{number}} geplant",
-        "both": "{{entries}} · {{planned}}"
+      "intro": "Profile des Besitzerkontos empfehlen Titel über den Stern auf der Titelseite; alle anderen Konten sehen die Liste nur. Namen bleiben verborgen, jeder Titel steht nur einmal in der Liste.",
+      "retention": {
+        "title": "Ablauf",
+        "label": "Empfehlungen bleiben",
+        "unit": "Tage in der Liste",
+        "help": "7 bis 365 Tage, ab Werk 60. Jede neue Empfehlung desselben Titels startet die Frist neu. Eine kürzere Frist gilt sofort.",
+        "saved_one": "Empfehlungen bleiben jetzt {{count}} Tag.",
+        "saved_other": "Empfehlungen bleiben jetzt {{count}} Tage."
       },
-      "tabs": {
-        "label": "Empfehlungen nach Zeitraum",
-        "all": "Alle",
-        "active": "Aktiv",
-        "scheduled": "Geplant",
-        "expired": "Abgelaufen",
-        "count_one": "{{number}} Empfehlung",
-        "count_other": "{{number}} Empfehlungen"
-      },
+      "list": "Aktuelle Empfehlungen",
+      "count_one": "{{number}} Titel",
+      "count_other": "{{number}} Titel",
+      "empty": "Zurzeit empfiehlt kein Profil einen Titel. Ohne Empfehlung zeigt die Startseite keine Reihe «User-Empfehlungen».",
+      "anonymous": "Die Verwaltung sieht die Anzahl der Empfehlungen, aber nie, welches Profil empfohlen hat.",
       "homeRowsHint": "Wo die Reihe auf der Startseite steht und ob sie erscheint, stellst du unter <page>Startseite</page> ein.",
-      "moved": "{{title}} steht jetzt an Stelle {{position}}.",
       "columns": {
-        "position": "Nr.",
         "title": "Titel",
-        "target": "Für",
-        "note": "Notiz",
-        "window": "Zeitraum"
+        "picked": "Zuletzt empfohlen am",
+        "expires": "Läuft ab",
+        "count": "Anzahl",
+        "actions": "Aktionen"
       },
-      "window": {
-        "always": "Immer",
-        "from": "Ab {{date}}",
-        "until": "Bis {{date}}",
-        "range": "{{from}} bis {{to}}",
-        "expired": "Abgelaufen",
-        "scheduled": "Geplant"
-      },
-      "detail": {
-        "place": "Stelle in der Reihe",
-        "target": "Für"
-      },
-      "search": {
-        "label": "Titel suchen",
-        "hint": "Ab zwei Zeichen: Filme, Serien, Folgen, Hörbücher und Podcasts.",
-        "empty": "Kein passender Titel gefunden.",
-        "results": "Gefundene Titel",
-        "select": "Wählen",
-        "selectLabel": "{{title}} wählen",
-        "chosen": "Gewählt: {{title}}",
-        "none": "Noch kein Titel gewählt."
-      },
-      "targets": {
-        "label": "Für",
-        "all": "Alle Profile",
-        "description": "Alle Profile oder einzelne. Ein Profil sieht die Empfehlung nur, wenn es den Titel sehen darf.",
-        "required": "Wähle «Alle Profile» oder mindestens ein Profil."
-      },
-      "form": {
-        "note": "Notiz",
-        "noteHint": "Erscheint im Karussell unter dem Titel, höchstens {{max}} Zeichen.",
-        "from": "Sichtbar ab",
-        "to": "Sichtbar bis",
-        "windowHint": "Leer lassen: ab sofort und ohne Ende.",
-        "endBeforeStart": "Das Ende muss nach dem Beginn liegen."
-      },
-      "add": {
-        "action": "Hinzufügen",
-        "title": "Empfehlung hinzufügen",
-        "description": "Suche einen Titel und wähle, für wen er empfohlen wird. Neue Empfehlungen kommen ans Ende.",
-        "submit": "Hinzufügen",
-        "submitting": "Wird hinzugefügt …",
-        "done": "{{title}} ist in den User-Empfehlungen.",
-        "titleRequired": "Wähle zuerst einen Titel.",
-        "presetMissing": "Den Titel aus dem Link gibt es nicht mehr. Suche ihn neu."
-      },
-      "edit": {
-        "label": "{{title}} bearbeiten",
-        "saveLabel": "{{title}} speichern",
-        "discard": "Verwerfen",
-        "discardLabel": "Änderungen an {{title}} verwerfen",
-        "done": "{{title}} ist gespeichert."
-      },
+      "expiresIn_one": "in {{count}} Tag",
+      "expiresIn_other": "in {{count}} Tagen",
+      "expiresToday": "heute",
+      "countValue_one": "{{count}} Empfehlung",
+      "countValue_other": "{{count}} Empfehlungen",
       "remove": {
         "action": "Entfernen",
         "label": "{{title}} entfernen",
         "title": "{{title}} aus den User-Empfehlungen entfernen?",
-        "body": "Der Titel bleibt in der Bibliothek, nur die Empfehlung verschwindet.",
+        "body": "Alle Empfehlungen dieses Titels verschwinden. Der Titel bleibt in der Bibliothek.",
         "confirm": "Entfernen",
         "done": "{{title}} ist nicht mehr empfohlen."
       }
@@ -4530,7 +4476,7 @@
   "picks": {
     "page": {
       "title": "User-Empfehlungen",
-      "intro": "Titel, die für dich ausgesucht wurden, in der gewählten Reihenfolge.",
+      "intro": "Titel, die Profile dieses Haushalts empfehlen, neueste Empfehlung zuerst.",
       "count_one": "{{count}} Titel",
       "count_other": "{{count}} Titel"
     }

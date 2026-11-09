@@ -28,70 +28,98 @@ func exec(t *testing.T, f *vistest.Fixture, query string, args ...any) {
 	}
 }
 
-// E-2: a pick is visible only inside its time window, by the Reader's clock.
-func TestPicksTimeWindowClock(t *testing.T) {
+// E-2 (concept 18 part B, U-F5): a title stays while its newest pick is younger than the retention
+// of picks_config at the Reader's clock; a newer pick of another profile keeps it, and a shorter
+// retention works at once. recommendedByMe follows the own row only while it has not expired.
+func TestUserPicksRetentionFromTheNewestPick(t *testing.T) {
 	t.Parallel()
 	f := discoverFixture(t)
 	ctx := context.Background()
+	const day = int64(24 * 60 * 60 * 1000)
+	now := time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC)
 	m0 := f.Rated(0).ID
-	for _, tc := range []struct {
-		name string
-		at   int64
-		want bool
-	}{
-		{"inside the expired window", vistest.ExpiredPickEnd - 1, true},
-		{"at the end of the expired window", vistest.ExpiredPickEnd, false},
-		{"between both windows", time.Date(2026, 10, 21, 12, 0, 0, 0, time.UTC).UnixMilli(), false},
-		{"before the future window", vistest.FuturePickStart - 1, false},
-		{"at the start of the future window", vistest.FuturePickStart, true},
-	} {
-		at := time.UnixMilli(tc.at)
+	// P0 picked the film rated 0 61 days ago (expired at 60), P6 30 days ago: the title stays, once.
+	exec(t, f, `INSERT INTO user_picks (item_id, profile_id, created_at) VALUES (?, ?, ?), (?, ?, ?)`,
+		m0, f.P0.ID, now.UnixMilli()-61*day, m0, f.P6.ID, now.UnixMilli()-30*day)
+	r := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return now }))
+	has := func(at time.Time) (bool, int) {
+		t.Helper()
 		r := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return at }))
-		picks, err := r.Picks(ctx, Profile(f.P0), 20)
+		picks, total, err := r.PicksPage(ctx, Profile(f.P0), 0, 100)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := slices.Contains(ids(picks), m0); got != tc.want {
-			t.Errorf("%s: P0 picks = %v, want the film rated 0 %v", tc.name, ids(picks), tc.want)
+		return slices.Contains(ids(picks), m0), total
+	}
+	if ok, total := has(now); !ok || total != 1 {
+		t.Errorf("P0 picks now: film rated 0 %v, total %d; want it once", ok, total)
+	}
+	if ok, _ := has(now.Add(30*24*time.Hour - time.Millisecond)); !ok {
+		t.Error("P0 picks just before 60 days after the newest pick: film rated 0 missing")
+	}
+	if ok, _ := has(now.Add(30 * 24 * time.Hour)); ok {
+		t.Error("P0 picks 60 days after the newest pick: film rated 0 still listed")
+	}
+	// recommendedByMe: P6 holds a valid pick, P0 an expired one.
+	for _, tc := range []struct {
+		p    model.Profile
+		want bool
+	}{{f.P6, true}, {f.P0, false}} {
+		d, err := r.Item(ctx, Profile(tc.p), m0)
+		if err != nil || d.RecommendedByMe != tc.want {
+			t.Errorf("%s recommendedByMe = %v (%v), want %v", tc.p.Name, d.RecommendedByMe, err, tc.want)
 		}
+	}
+	// A retention of 7 days drops the title at once.
+	exec(t, f, `UPDATE picks_config SET retention_days = 7`)
+	if ok, total := has(now); ok || total != 0 {
+		t.Errorf("P0 picks with 7 days: film rated 0 %v, total %d; want none", ok, total)
+	}
+	if d, err := r.Item(ctx, Profile(f.P6), m0); err != nil || d.RecommendedByMe {
+		t.Errorf("P6 recommendedByMe with 7 days = %v (%v), want false", d.RecommendedByMe, err)
 	}
 }
 
-// E-1, E-2, E-3: a pick for one profile carries its note and reaches only that profile; a pick of
-// a title above the profile's ceiling never appears, not even when it targets the profile.
-func TestPicksPerProfileWithNote(t *testing.T) {
+// E-1 to E-3 (U-F2, U-F4, U-F8): a pick reaches every profile that may see the title, the title
+// appears once whatever the number of picks, newest pick first, never with a note; a pick of a
+// title above the profile's ceiling never appears (E-3 negative test).
+func TestUserPicksOnceNewestFirstAndRated(t *testing.T) {
 	t.Parallel()
 	f := discoverFixture(t)
 	ctx := context.Background()
 	r := New(f.DB, vistest.Logger())
-	// A pick of the film rated 18 only for P12 (E-3 negative test) and a global pick of the film
-	// rated 12 with another note at the front: the own pick of P12 (place and note) wins over it.
-	exec(t, f, `INSERT INTO top_picks (item_id, profile_id, position, note, created_at) VALUES (?, ?, 0, 'zu alt', 1)`, f.Rated(18).ID, f.P12.ID)
-	exec(t, f, `INSERT INTO top_picks (item_id, position, note, created_at) VALUES (?, 0, 'global', 1)`, f.Rated(12).ID)
-
-	picks, err := r.Picks(ctx, Profile(f.P12), 20)
-	if err != nil {
-		t.Fatal(err)
+	// P12 picks the film rated 18 (above its own ceiling, as a stored row) and P16 picks the film
+	// rated 6 again, newer than every fixture pick: the film rated 6 moves to the front, once.
+	exec(t, f, `INSERT INTO user_picks (item_id, profile_id, created_at) VALUES (?, ?, ?), (?, ?, ?)`,
+		f.Rated(18).ID, f.P12.ID, vistest.PickedAt+10, f.Rated(6).ID, f.P16.ID, vistest.PickedAt+20)
+	for _, tc := range []struct {
+		p    model.Profile
+		want []string
+	}{
+		{f.P12, []string{f.Rated(6).ID, f.Rated(12).ID}},
+		{f.P16, []string{f.Rated(6).ID, f.Rated(12).ID}},
+		{f.P18, []string{f.Rated(6).ID, f.Rated(18).ID, f.Rated(12).ID}},
+		{f.P6, []string{f.Rated(6).ID}},
+		{f.P0, nil},
+	} {
+		picks, err := r.Picks(ctx, Profile(tc.p), 20)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(ids(picks), tc.want) {
+			t.Errorf("%s picks = %v, want %v", tc.p.Name, ids(picks), tc.want)
+		}
+		for _, p := range picks {
+			if p.Note != "" {
+				t.Errorf("%s pick %s carries the note %q", tc.p.Name, p.ID, p.Note)
+			}
+		}
 	}
-	if want := []string{f.Rated(6).ID, f.Rated(12).ID}; !slices.Equal(ids(picks), want) {
-		t.Fatalf("P12 picks = %v, want %v", ids(picks), want)
-	}
-	if picks[0].Note != "" || picks[1].Note != f.Discover.PickNote {
-		t.Errorf("P12 notes = %q, %q, want none and %q", picks[0].Note, picks[1].Note, f.Discover.PickNote)
-	}
-	picks, err = r.Picks(ctx, Profile(f.P16), 20)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := []string{f.Rated(12).ID, f.Rated(6).ID}; !slices.Equal(ids(picks), want) || picks[0].Note != "global" {
-		t.Errorf("P16 picks = %v (%+v), want %v with the global note", ids(picks), picks, want)
-	}
-	picks, err = r.Picks(ctx, Profile(f.P18), 20)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(picks) == 0 || picks[0].ID != f.Rated(18).ID || picks[0].Note != "" {
-		t.Errorf("P18 picks = %v, want the global pick of the film rated 18 first, without the note of P12", ids(picks))
+	// A profile of another account reads the picks it may see (U-F10: reading is for everyone).
+	f.AddGuest(t)
+	picks, err := r.Picks(ctx, Profile(f.PG), 20)
+	if err != nil || !slices.Equal(ids(picks), []string{f.Rated(6).ID, f.Rated(12).ID}) {
+		t.Errorf("guest picks = %v (%v), want the films rated 6 and 12", ids(picks), err)
 	}
 }
 

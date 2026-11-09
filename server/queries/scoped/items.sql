@@ -114,19 +114,38 @@ WHERE se.parent_id = @series_id AND se.kind = 'season'
 ORDER BY coalesce(e.season_number, se.season_number) IS NULL, coalesce(e.season_number, se.season_number),
          e.episode_number IS NULL, e.episode_number, e.id;
 
--- Cat's recommendations (E-1, E-2) for the profile: global rows (profile_id NULL) and rows of the
--- profile, inside their optional time window, with the main user's note. An item listed twice is
--- deduplicated by the caller (the row of the profile wins over the global one), so the query has
--- no limit: the caller cuts after the deduplication (the table is small, curated by hand).
--- name: ListTopPicks :many
-SELECT sqlc.embed(i), t.note, t.profile_id AS pick_profile_id
-FROM top_picks AS t
-JOIN items AS i ON i.id = t.item_id
+-- User picks (E-1, E-2, concept 18 part B, ADR 0028): every title the profile may see that one of the
+-- profiles of the owner's account recommended, once, newest recommendation first. A recommendation
+-- counts while it is younger than picks_config.retention_days at @now (Unix milliseconds); the
+-- hourly library.sweep deletes the expired rows, the filter here makes a shorter retention work at
+-- once. Paged in SQL; CountUserPicks is the total of the page and of the side navigation.
+-- name: ListUserPicks :many
+SELECT sqlc.embed(i), CAST(max(u.created_at) AS INTEGER) AS picked_at
+FROM user_picks AS u
+JOIN picks_config AS c ON c.id = 1
+JOIN items AS i ON i.id = u.item_id
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
-WHERE (t.profile_id IS NULL OR t.profile_id = @profile_id)
-  AND (t.starts_at IS NULL OR t.starts_at <= @now)
-  AND (t.ends_at IS NULL OR t.ends_at > @now)
-ORDER BY t.position, t.id;
+WHERE u.created_at > @now - c.retention_days * 86400000
+GROUP BY i.id
+ORDER BY picked_at DESC, i.id
+LIMIT @limit_count OFFSET @offset_count;
+
+-- name: CountUserPicks :one
+SELECT count(DISTINCT u.item_id)
+FROM user_picks AS u
+JOIN picks_config AS c ON c.id = 1
+JOIN visible_items AS v ON v.item_id = u.item_id AND v.profile_id = @profile_id
+WHERE u.created_at > @now - c.retention_days * 86400000;
+
+-- 1 when the profile itself holds a recommendation of the visible title that has not expired at
+-- @now (ItemDetail.recommendedByMe, 14.6), else 0. An expired own row is not a recommendation.
+-- name: GetOwnUserPick :one
+SELECT count(*)
+FROM user_picks AS u
+JOIN picks_config AS c ON c.id = 1
+JOIN visible_items AS v ON v.item_id = u.item_id AND v.profile_id = u.profile_id
+WHERE u.profile_id = @profile_id AND u.item_id = @item_id
+  AND u.created_at > @now - c.retention_days * 86400000;
 
 -- name: ListItemTexts :many
 SELECT t.* FROM item_texts AS t

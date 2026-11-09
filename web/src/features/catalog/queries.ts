@@ -85,8 +85,8 @@ export const podcastEpisodesQuery = (id: string, offset: number) =>
     },
   });
 
-/** Page size of "Mehr laden" on the page of Cat's recommendations. */
-export const LIBRARY_PAGE = 50;
+/** Titles per page of the user picks page, read while scrolling: the contract's maximum. */
+export const PICKS_PAGE = 100;
 
 const nextOffset = (last: { offset: number; total: number; items: unknown[] }) => {
   const next = last.offset + last.items.length;
@@ -101,8 +101,7 @@ export const visibleLibrariesQuery = queryOptions({
   staleTime: 60_000,
 });
 
-/** All of Cat's recommendations for the active profile, in Cat's order (E-2). */
-/** How many of Cat's recommendations the active profile sees: the side navigation's count. */
+/** How many user picks the active profile sees: the side navigation's count. */
 export const picksCountQuery = queryOptions({
   queryKey: ['picks', 'count'],
   queryFn: async ({ signal }): Promise<number> =>
@@ -110,12 +109,13 @@ export const picksCountQuery = queryOptions({
   staleTime: 60_000,
 });
 
+/** The user picks the active profile sees, newest pick first (E-2, concept 18 part B), paged. */
 export const picksPageQuery = infiniteQueryOptions({
   queryKey: ['picks', 'page'],
   queryFn: ({ pageParam, signal }): Promise<PicksPage> =>
     request(
       api.GET('/picks', {
-        params: { query: { offset: pageParam, limit: LIBRARY_PAGE } },
+        params: { query: { offset: pageParam, limit: PICKS_PAGE } },
         signal,
       }),
     ),

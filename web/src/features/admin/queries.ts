@@ -5,7 +5,7 @@ import type {
   AdminSettingsUpdate,
   AdminDevice,
   AdminItemHit,
-  AdminPick,
+  AdminUserPick,
   AdminPodcast,
   AdminItem,
   AdminStream,
@@ -40,8 +40,7 @@ import type {
   ApplyMetadataRequest,
   ApplyMetadataResponse,
   PathMapping,
-  PickRequest,
-  PickUpdate,
+  PicksSettings,
   SystemInfo,
   Stats,
   StatsDays,
@@ -178,12 +177,22 @@ export const podcastsQuery = queryOptions({
   queryFn: ({ signal }): Promise<AdminPodcast[]> => request(api.GET('/admin/podcasts', { signal })),
 });
 
-// Curation (M7): Cat's recommendations, collections, start page rows and the Trakt lists.
+// Curation (M7): the user picks, collections, start page rows and the Trakt lists.
 
-/** Cat's recommendations in carousel order (E-2), global ones and those of single profiles. */
+/**
+ * The user picks (concept 18 part B, ADR 0028): one row per title, newest pick first, with the
+ * number of picks and the days left, never a profile.
+ */
 export const picksQuery = queryOptions({
   queryKey: ['admin', 'picks'],
-  queryFn: ({ signal }): Promise<AdminPick[]> => request(api.GET('/admin/picks', { signal })),
+  queryFn: ({ signal }): Promise<AdminUserPick[]> => request(api.GET('/admin/picks', { signal })),
+});
+
+/** How many days a title stays after its newest pick (7 to 365). */
+export const picksSettingsQuery = queryOptions({
+  queryKey: ['admin', 'picks', 'settings'],
+  queryFn: ({ signal }): Promise<PicksSettings> =>
+    request(api.GET('/admin/picks/settings', { signal })),
 });
 
 /** Shortest search text the server takes (`q` minLength). */
@@ -279,18 +288,12 @@ export const adminAnnouncementsQuery = queryOptions({
     request(api.GET('/admin/announcements', { signal })),
 });
 
-export const createPicks = (body: PickRequest): Promise<AdminPick[]> =>
-  request(api.POST('/admin/picks', { body }));
+/** Removes every pick of a title. */
+export const removeUserPick = (itemId: string) =>
+  request(api.DELETE('/admin/picks/{itemId}', { params: { path: { itemId } } }));
 
-export const updatePick = (id: number, body: PickUpdate): Promise<AdminPick> =>
-  request(api.PATCH('/admin/picks/{id}', { params: { path: { id } }, body }));
-
-export const deletePick = (id: number) =>
-  request(api.DELETE('/admin/picks/{id}', { params: { path: { id } } }));
-
-/** Every pick id exactly once, in the new order. */
-export const reorderPicks = (ids: number[]) =>
-  request(api.PUT('/admin/picks/order', { body: { ids } }));
+export const updatePicksSettings = (body: PicksSettings): Promise<PicksSettings> =>
+  request(api.PUT('/admin/picks/settings', { body }));
 
 export const createCollection = (body: CollectionRequest): Promise<AdminCollection> =>
   request(api.POST('/admin/collections', { body }));

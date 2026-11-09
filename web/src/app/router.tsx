@@ -401,19 +401,11 @@ const accessRoute = createRoute({
 });
 
 // admin M7
-/**
- * Cat's recommendations; `add` (the detail page's link) opens the dialog with that title, `tab`
- * filters the list by time.
- */
+/** The user picks (concept 18 part B): their retention and the titles recommended now. */
 const picksRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/picks',
-  validateSearch: (search: Record<string, unknown>): AdminSearch & { add?: string } => ({
-    ...adminSearch(search),
-    ...(typeof search.add === 'string' && /^[0-9A-HJKMNP-TV-Z]{26}$/.test(search.add)
-      ? { add: search.add }
-      : {}),
-  }),
+  validateSearch: adminSearch,
   component: lazyRouteComponent(() => import('@/features/admin/picks/PicksPage'), 'PicksPage'),
 });
 

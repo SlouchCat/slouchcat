@@ -239,12 +239,14 @@ func (q *Queries) AdminDeleteItem(ctx context.Context, id string) error {
 	return err
 }
 
-const adminDeleteTopPick = `-- name: AdminDeleteTopPick :execrows
-DELETE FROM top_picks WHERE id = ?1
+const adminDeleteUserPicksOfItem = `-- name: AdminDeleteUserPicksOfItem :execrows
+DELETE FROM user_picks WHERE item_id = ?1
 `
 
-func (q *Queries) AdminDeleteTopPick(ctx context.Context, id int64) (int64, error) {
-	result, err := q.db.ExecContext(ctx, adminDeleteTopPick, id)
+// Every recommendation of a title (removeAdminUserPick), and the rows a merge or a relink left on
+// its source after AdminMoveUserPicks.
+func (q *Queries) AdminDeleteUserPicksOfItem(ctx context.Context, itemID string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, adminDeleteUserPicksOfItem, itemID)
 	if err != nil {
 		return 0, err
 	}
@@ -299,81 +301,20 @@ func (q *Queries) AdminGetItemImage(ctx context.Context, arg AdminGetItemImagePa
 	return i, err
 }
 
-const adminGetTopPick = `-- name: AdminGetTopPick :one
-SELECT t.id, t.item_id, t.profile_id, t.position, t.note, t.starts_at, t.ends_at, t.created_at,
-       i.kind, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title, i.year, COALESCE(p.name, '') AS profile_name
-FROM top_picks AS t
-JOIN items AS i ON i.id = t.item_id
-LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
-LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'
-LEFT JOIN profiles AS p ON p.id = t.profile_id
-WHERE t.id = ?1
+const adminGetPicksConfig = `-- name: AdminGetPicksConfig :one
+SELECT retention_days, updated_at FROM picks_config WHERE id = 1
 `
 
-type AdminGetTopPickRow struct {
-	ID          int64
-	ItemID      string
-	ProfileID   sql.NullInt64
-	Position    int64
-	Note        sql.NullString
-	StartsAt    sql.NullInt64
-	EndsAt      sql.NullInt64
-	CreatedAt   int64
-	Kind        string
-	Title       string
-	Year        sql.NullInt64
-	ProfileName string
+type AdminGetPicksConfigRow struct {
+	RetentionDays int64
+	UpdatedAt     int64
 }
 
-func (q *Queries) AdminGetTopPick(ctx context.Context, id int64) (AdminGetTopPickRow, error) {
-	row := q.db.QueryRowContext(ctx, adminGetTopPick, id)
-	var i AdminGetTopPickRow
-	err := row.Scan(
-		&i.ID,
-		&i.ItemID,
-		&i.ProfileID,
-		&i.Position,
-		&i.Note,
-		&i.StartsAt,
-		&i.EndsAt,
-		&i.CreatedAt,
-		&i.Kind,
-		&i.Title,
-		&i.Year,
-		&i.ProfileName,
-	)
+func (q *Queries) AdminGetPicksConfig(ctx context.Context) (AdminGetPicksConfigRow, error) {
+	row := q.db.QueryRowContext(ctx, adminGetPicksConfig)
+	var i AdminGetPicksConfigRow
+	err := row.Scan(&i.RetentionDays, &i.UpdatedAt)
 	return i, err
-}
-
-const adminInsertTopPick = `-- name: AdminInsertTopPick :one
-INSERT INTO top_picks (item_id, profile_id, position, note, starts_at, ends_at, created_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-RETURNING id
-`
-
-type AdminInsertTopPickParams struct {
-	ItemID    string
-	ProfileID sql.NullInt64
-	Position  int64
-	Note      sql.NullString
-	StartsAt  sql.NullInt64
-	EndsAt    sql.NullInt64
-	Now       int64
-}
-
-func (q *Queries) AdminInsertTopPick(ctx context.Context, arg AdminInsertTopPickParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, adminInsertTopPick,
-		arg.ItemID,
-		arg.ProfileID,
-		arg.Position,
-		arg.Note,
-		arg.StartsAt,
-		arg.EndsAt,
-		arg.Now,
-	)
-	var id int64
-	err := row.Scan(&id)
-	return id, err
 }
 
 const adminListFileAndFeedEpisodes = `-- name: AdminListFileAndFeedEpisodes :many
@@ -927,99 +868,6 @@ func (q *Queries) AdminListTitleYearDuplicates(ctx context.Context, libraryID in
 	return items, nil
 }
 
-const adminListTopPickIDs = `-- name: AdminListTopPickIDs :many
-SELECT id FROM top_picks ORDER BY id
-`
-
-func (q *Queries) AdminListTopPickIDs(ctx context.Context) ([]int64, error) {
-	rows, err := q.db.QueryContext(ctx, adminListTopPickIDs)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []int64{}
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		items = append(items, id)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const adminListTopPicks = `-- name: AdminListTopPicks :many
-
-SELECT t.id, t.item_id, t.profile_id, t.position, t.note, t.starts_at, t.ends_at, t.created_at,
-       i.kind, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title, i.year, COALESCE(p.name, '') AS profile_name
-FROM top_picks AS t
-JOIN items AS i ON i.id = t.item_id
-LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
-LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'
-LEFT JOIN profiles AS p ON p.id = t.profile_id
-ORDER BY t.position, t.id
-`
-
-type AdminListTopPicksRow struct {
-	ID          int64
-	ItemID      string
-	ProfileID   sql.NullInt64
-	Position    int64
-	Note        sql.NullString
-	StartsAt    sql.NullInt64
-	EndsAt      sql.NullInt64
-	CreatedAt   int64
-	Kind        string
-	Title       string
-	Year        sql.NullInt64
-	ProfileName string
-}
-
-// Cat's picks (E-2, M7). Administration view: unfiltered, owner only, titles in plain text.
-// Every pick in carousel order with kind, title (German text, else English, else the first language
-// by rank, else the parsed title) and year of the title and the name of the target profile (” = all profiles).
-func (q *Queries) AdminListTopPicks(ctx context.Context) ([]AdminListTopPicksRow, error) {
-	rows, err := q.db.QueryContext(ctx, adminListTopPicks)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []AdminListTopPicksRow{}
-	for rows.Next() {
-		var i AdminListTopPicksRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.ItemID,
-			&i.ProfileID,
-			&i.Position,
-			&i.Note,
-			&i.StartsAt,
-			&i.EndsAt,
-			&i.CreatedAt,
-			&i.Kind,
-			&i.Title,
-			&i.Year,
-			&i.ProfileName,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const adminListUnmatched = `-- name: AdminListUnmatched :many
 SELECT i.id, i.kind, i.title, i.year, i.library_id, i.metadata_state, i.metadata_error FROM items AS i
 WHERE i.deleted_at IS NULL AND i.kind IN ('movie', 'series', 'episode')
@@ -1188,6 +1036,63 @@ func (q *Queries) AdminListUnrated(ctx context.Context, arg AdminListUnratedPara
 			&i.Title,
 			&i.Year,
 			&i.LibraryID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const adminListUserPicks = `-- name: AdminListUserPicks :many
+
+SELECT u.item_id, i.kind,
+       COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title,
+       i.year, count(*) AS pick_count, CAST(max(u.created_at) AS INTEGER) AS picked_at
+FROM user_picks AS u
+JOIN picks_config AS c ON c.id = 1
+JOIN items AS i ON i.id = u.item_id
+LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
+LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'
+WHERE u.created_at > ?1 - c.retention_days * 86400000 AND i.deleted_at IS NULL
+GROUP BY u.item_id
+ORDER BY picked_at DESC, u.item_id
+`
+
+type AdminListUserPicksRow struct {
+	ItemID    string
+	Kind      string
+	Title     string
+	Year      sql.NullInt64
+	PickCount int64
+	PickedAt  int64
+}
+
+// User picks (concept 18 part B, 14.7, ADR 0028). Administration view: unfiltered, titles in plain
+// text, never a profile name. One row per title with a recommendation younger than the retention
+// at @now: the number of those recommendations and the newest of them, newest first.
+func (q *Queries) AdminListUserPicks(ctx context.Context, now int64) ([]AdminListUserPicksRow, error) {
+	rows, err := q.db.QueryContext(ctx, adminListUserPicks, now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AdminListUserPicksRow{}
+	for rows.Next() {
+		var i AdminListUserPicksRow
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.Kind,
+			&i.Title,
+			&i.Year,
+			&i.PickCount,
+			&i.PickedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1436,20 +1341,6 @@ func (q *Queries) AdminMoveProgressEvents(ctx context.Context, arg AdminMoveProg
 	return err
 }
 
-const adminMoveTopPicks = `-- name: AdminMoveTopPicks :exec
-UPDATE top_picks SET item_id = ?1 WHERE item_id = ?2
-`
-
-type AdminMoveTopPicksParams struct {
-	TargetID string
-	SourceID string
-}
-
-func (q *Queries) AdminMoveTopPicks(ctx context.Context, arg AdminMoveTopPicksParams) error {
-	_, err := q.db.ExecContext(ctx, adminMoveTopPicks, arg.TargetID, arg.SourceID)
-	return err
-}
-
 const adminMoveTrailers = `-- name: AdminMoveTrailers :exec
 UPDATE OR IGNORE trailers SET item_id = ?1 WHERE item_id = ?2
 `
@@ -1462,6 +1353,24 @@ type AdminMoveTrailersParams struct {
 // A trailer the target already has (same language and video) stays with the source and goes with it.
 func (q *Queries) AdminMoveTrailers(ctx context.Context, arg AdminMoveTrailersParams) error {
 	_, err := q.db.ExecContext(ctx, adminMoveTrailers, arg.TargetID, arg.SourceID)
+	return err
+}
+
+const adminMoveUserPicks = `-- name: AdminMoveUserPicks :exec
+INSERT INTO user_picks (item_id, profile_id, created_at)
+SELECT ?1, s.profile_id, s.created_at FROM user_picks AS s WHERE s.item_id = ?2
+ON CONFLICT (item_id, profile_id) DO UPDATE SET created_at = max(user_picks.created_at, excluded.created_at)
+`
+
+type AdminMoveUserPicksParams struct {
+	TargetID string
+	SourceID string
+}
+
+// A profile that recommended both titles keeps the newer time on the target; a plain UPDATE would
+// fail on the primary key. The caller deletes the source's rows afterwards (AdminDeleteUserPicksOfItem).
+func (q *Queries) AdminMoveUserPicks(ctx context.Context, arg AdminMoveUserPicksParams) error {
+	_, err := q.db.ExecContext(ctx, adminMoveUserPicks, arg.TargetID, arg.SourceID)
 	return err
 }
 
@@ -1479,17 +1388,6 @@ type AdminMoveWatchlistParams struct {
 func (q *Queries) AdminMoveWatchlist(ctx context.Context, arg AdminMoveWatchlistParams) error {
 	_, err := q.db.ExecContext(ctx, adminMoveWatchlist, arg.TargetID, arg.SourceID)
 	return err
-}
-
-const adminNextTopPickPosition = `-- name: AdminNextTopPickPosition :one
-SELECT CAST(COALESCE(max(position), -1) + 1 AS INTEGER) AS next FROM top_picks
-`
-
-func (q *Queries) AdminNextTopPickPosition(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, adminNextTopPickPosition)
-	var next int64
-	err := row.Scan(&next)
-	return next, err
 }
 
 const adminOwnerProfileIDs = `-- name: AdminOwnerProfileIDs :many
@@ -1522,17 +1420,17 @@ func (q *Queries) AdminOwnerProfileIDs(ctx context.Context) ([]int64, error) {
 	return items, nil
 }
 
-const adminSetTopPickPosition = `-- name: AdminSetTopPickPosition :exec
-UPDATE top_picks SET position = ?1 WHERE id = ?2
+const adminSetPicksConfig = `-- name: AdminSetPicksConfig :exec
+UPDATE picks_config SET retention_days = ?1, updated_at = ?2 WHERE id = 1
 `
 
-type AdminSetTopPickPositionParams struct {
-	Position int64
-	ID       int64
+type AdminSetPicksConfigParams struct {
+	RetentionDays int64
+	Now           int64
 }
 
-func (q *Queries) AdminSetTopPickPosition(ctx context.Context, arg AdminSetTopPickPositionParams) error {
-	_, err := q.db.ExecContext(ctx, adminSetTopPickPosition, arg.Position, arg.ID)
+func (q *Queries) AdminSetPicksConfig(ctx context.Context, arg AdminSetPicksConfigParams) error {
+	_, err := q.db.ExecContext(ctx, adminSetPicksConfig, arg.RetentionDays, arg.Now)
 	return err
 }
 
@@ -1694,28 +1592,4 @@ func (q *Queries) AdminStreamItems(ctx context.Context, itemIds []string) ([]Adm
 		return nil, err
 	}
 	return items, nil
-}
-
-const adminUpdateTopPick = `-- name: AdminUpdateTopPick :execrows
-UPDATE top_picks SET note = ?1, starts_at = ?2, ends_at = ?3 WHERE id = ?4
-`
-
-type AdminUpdateTopPickParams struct {
-	Note     sql.NullString
-	StartsAt sql.NullInt64
-	EndsAt   sql.NullInt64
-	ID       int64
-}
-
-func (q *Queries) AdminUpdateTopPick(ctx context.Context, arg AdminUpdateTopPickParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, adminUpdateTopPick,
-		arg.Note,
-		arg.StartsAt,
-		arg.EndsAt,
-		arg.ID,
-	)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
 }

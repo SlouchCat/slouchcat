@@ -40,7 +40,7 @@ counts AS (
     UNION ALL
     SELECT t.root, 'notifications', count(*) FROM tree AS t JOIN notifications AS x ON x.item_id = t.id GROUP BY t.root
     UNION ALL
-    SELECT t.root, 'top_picks', count(*) FROM tree AS t JOIN top_picks AS x ON x.item_id = t.id GROUP BY t.root
+    SELECT t.root, 'user_picks', count(*) FROM tree AS t JOIN user_picks AS x ON x.item_id = t.id GROUP BY t.root
     UNION ALL
     SELECT t.root, 'downloads', count(*) FROM tree AS t JOIN downloads AS x ON x.item_id = t.id GROUP BY t.root
     UNION ALL
@@ -55,7 +55,7 @@ SELECT CAST(counts.root AS TEXT) AS id,
     CAST(sum(CASE counts.tbl WHEN 'favorites' THEN counts.n ELSE 0 END) AS INTEGER)         AS favorites,
     CAST(sum(CASE counts.tbl WHEN 'collection_items' THEN counts.n ELSE 0 END) AS INTEGER)  AS collection_items,
     CAST(sum(CASE counts.tbl WHEN 'notifications' THEN counts.n ELSE 0 END) AS INTEGER)     AS notifications,
-    CAST(sum(CASE counts.tbl WHEN 'top_picks' THEN counts.n ELSE 0 END) AS INTEGER)         AS top_picks,
+    CAST(sum(CASE counts.tbl WHEN 'user_picks' THEN counts.n ELSE 0 END) AS INTEGER)        AS user_picks,
     CAST(sum(CASE counts.tbl WHEN 'downloads' THEN counts.n ELSE 0 END) AS INTEGER)         AS downloads,
     CAST(sum(CASE counts.tbl WHEN 'activity_events' THEN counts.n ELSE 0 END) AS INTEGER)   AS activity_events
 FROM counts
@@ -72,7 +72,7 @@ type CountRelinkUserDataRow struct {
 	Favorites        int64
 	CollectionItems  int64
 	Notifications    int64
-	TopPicks         int64
+	UserPicks        int64
 	Downloads        int64
 	ActivityEvents   int64
 }
@@ -109,7 +109,7 @@ func (q *Queries) CountRelinkUserData(ctx context.Context, ids []string) ([]Coun
 			&i.Favorites,
 			&i.CollectionItems,
 			&i.Notifications,
-			&i.TopPicks,
+			&i.UserPicks,
 			&i.Downloads,
 			&i.ActivityEvents,
 		); err != nil {

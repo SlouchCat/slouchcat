@@ -11,7 +11,7 @@ import {
   seriesIds,
   showDetail,
 } from '@/test/fixtures';
-import { json, mockApi, problem, renderApp, session, signedIn } from '@/test/api';
+import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
 
 describe('detail page', () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -266,27 +266,53 @@ describe('detail page', () => {
     ).toHaveAttribute('href', `/collections/${collectionId}`);
   });
 
-  it('links the owner to "Zu den User-Empfehlungen", never other profiles', async () => {
-    mockApi({ ...signedIn, [`GET /items/${ids.alien}`]: () => json(alienDetail) });
-    const view = renderApp(`/items/${ids.alien}`);
-    expect(await screen.findByRole('link', { name: 'Zu den User-Empfehlungen' })).toHaveAttribute(
-      'href',
-      `/admin/picks?add=${ids.alien}`,
+  it('recommends with the star and takes the own pick back (concept 18 part B)', async () => {
+    let recommended = false;
+    const { calls } = mockApi({
+      ...signedIn,
+      [`GET /items/${ids.alien}`]: () => json({ ...alienDetail, recommendedByMe: recommended }),
+      [`PUT /items/${ids.alien}/pick`]: () => {
+        recommended = true;
+        return json({ expiresAt: '2027-01-08T12:00:00Z', retentionDays: 60 });
+      },
+      [`DELETE /items/${ids.alien}/pick`]: () => {
+        recommended = false;
+        return new Response(null, { status: 204 });
+      },
+    });
+    renderApp(`/items/${ids.alien}`);
+    const user = userEvent.setup();
+    const star = await screen.findByRole('button', { name: 'Empfehlen' });
+    expect(star).toHaveAttribute('aria-pressed', 'false');
+    await user.click(star);
+    expect(
+      await screen.findByText('Zu den User-Empfehlungen hinzugefügt. Bleibt 60 Tage.'),
+    ).toBeVisible();
+    const done = await screen.findByRole('button', { name: 'Empfohlen ✓' });
+    expect(done).toHaveAttribute('aria-pressed', 'true');
+    await user.click(done);
+    expect(await screen.findByText('Empfehlung zurückgenommen.')).toBeVisible();
+    expect(await screen.findByRole('button', { name: 'Empfehlen' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
     );
-    view.unmount();
-    vi.unstubAllGlobals();
+    expect(
+      calls.filter((call) => call.path === `/items/${ids.alien}/pick`).map((call) => call.method),
+    ).toEqual(['PUT', 'DELETE']);
+  });
 
+  it('shows no star where the server says it does not apply', async () => {
     mockApi({
-      'GET /auth/session': () =>
-        json({ ...session, profile: { ...session.profile, isPrimary: false } }),
-      [`GET /items/${ids.alien}`]: () => json(alienDetail),
+      ...signedIn,
+      [`GET /items/${ids.alien}`]: () => json({ ...alienDetail, canRecommend: false }),
     });
     renderApp(`/items/${ids.alien}`);
     await screen.findByRole('heading', { level: 1, name: 'Alien' });
+    expect(screen.getByRole('button', { name: 'Merken' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Empfehlen' })).not.toBeInTheDocument();
     expect(
       screen.queryByRole('link', { name: 'Zu den User-Empfehlungen' }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Merken' })).toBeVisible();
   });
 
   it('offers no watchlist button on a season', async () => {

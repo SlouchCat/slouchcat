@@ -28,7 +28,7 @@
 | Video-Bibliothek und Metadaten | active | Filme und Serien: Scannen, Erkennen, TMDB/TVDB, Versionen, Trailer, Extras, Pflegewerkzeuge | Kriterien B-1 bis B-9 |
 | Hörbücher und Podcasts | active | Hörbücher mit Kapiteln, Podcast-Abos per Feed, Fortschritt je Profil | Kriterien H-1 bis H-4; **Musik, Fotos, Live-TV zurückgestellt** (Runde 4) |
 | Wiedergabe und Transcoding | active | Direct Play, GPU-Transcoding zu HLS, Tonemapping, Qualitätsregeln, Komfortfunktionen, Geräte-Fähigkeiten | Kriterien W-1 bis W-10 |
-| Entdecken und Kuratierung | active | Startseite mit Karussell „Cat's Empfehlungen“ und fünf Reihen, Suche mit Filtern, Trakt-Top-Listen aus der eigenen Bibliothek, Favoriten mit Benachrichtigung | Kriterien E-1 bis E-9; **algorithmische Empfehlungen, Profil-Interaktion sowie Assistent, Zufall, Trailer-Reel und Themenlisten zurückgestellt** (Runden 6 und 18) |
+| Entdecken und Kuratierung | active | Startseite mit Karussell „User-Empfehlungen“ (bis Konzept 17 „Cat's Empfehlungen“) und fünf Reihen, Suche mit Filtern, Trakt-Top-Listen aus der eigenen Bibliothek, Favoriten mit Benachrichtigung | Kriterien E-1 bis E-9; **algorithmische Empfehlungen, Profil-Interaktion sowie Assistent, Zufall, Trailer-Reel und Themenlisten zurückgestellt** (Runden 6 und 18); Ausnahme seit 8. November 2026: anonyme Empfehlungen zwischen Profilen (Frage 25, ADR 0028) |
 | Offline-Wiedergabe | active | Downloads einzelner Titel, Staffeln, Auto-Downloads, kein Ablauf, Profilregeln offline | Kriterien O-1 bis O-7 |
 | Clients und Design | active | Web-App als PWA für Desktop, Handy, Tablet; eigenes Design-System; Admin-Oberfläche gleichwertig | Kriterien C-1 bis C-5; **TV-Apps und native Mobile-Apps zurückgestellt** (Runde 3) |
 | Server-Administration | active | Einrichtungsassistent, zentrale Verwaltung, Dashboard, Sicherung, Update-Hinweis, Benachrichtigungen, Statistiken, Ankündigungen | Kriterien A-1 bis A-9 |
@@ -57,7 +57,9 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
   (Frage 23 im Entscheidungsprotokoll, Konzept 16, ADR 0025); Musikbibliothek und DVR bleiben Nicht-Ziele.
 - TV-Apps (Android TV, Apple TV, webOS, Tizen) und native iOS-/Android-Apps (spätere Versionen).
 - Plugin-System oder Erweiterungs-Marktplatz.
-- Automatische, algorithmische Empfehlungen („Weil du X gesehen hast") und Interaktion zwischen Profilen (Bewertungen, Empfehlungen untereinander).
+- Automatische, algorithmische Empfehlungen („Weil du X gesehen hast") und Interaktion zwischen Profilen (Bewertungen, Empfehlungen untereinander). Ausnahme seit 8. November 2026: anonyme
+  Empfehlungen zwischen Profilen (Frage 25 im Entscheidungsprotokoll, Konzept 18 Teil B, ADR 0028); Bewertungen,
+  Kommentare und Nachrichten zwischen Profilen bleiben Nicht-Ziele.
 - Entdecken-Hilfen „Was schauen wir heute?“-Assistent, Zufallsauswahl, Trailer-Reel und automatische Themenlisten (Kandidaten für Version 1.x, in Runde 18 nicht gewählt).
 - Trakt-Konten je Profil, Scrobbling, Import von Trakt-Watchlists.
 - Freigabe-Anfragen von Kinderprofilen an den Hauptbenutzer.
@@ -112,9 +114,9 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 - [ ] W-10 Trailer lassen sich von der Detailseite aus abspielen.
 
 ### Entdecken und Kuratierung (E)
-- [ ] E-1 Die Startseite beginnt mit einem Karussell „Cat's Empfehlungen“ (die Top Picks des Hauptbenutzers); darunter folgen die Reihen Weiterschauen, Neu hinzugefügt, Merkliste sowie Sammlungen und Genres.
-- [ ] E-2 Der Hauptbenutzer pflegt Cat's Empfehlungen für alle Profile oder für einzelne Profile, mit Reihenfolge, optionaler persönlicher Notiz und optionalem Zeitraum.
-- [ ] E-3 Cat's Empfehlungen respektieren die Altersstufe: Ein Profil sieht nur Picks, die es sehen darf.
+- [ ] E-1 Die Startseite beginnt mit einem Karussell „User-Empfehlungen“ (die Empfehlungen der Profile, E-2; bis Konzept 17 „Cat's Empfehlungen“); darunter folgen die Reihen Weiterschauen, Neu hinzugefügt, Merkliste sowie Sammlungen und Genres.
+- [ ] E-2 Die Profile des Besitzerkontos empfehlen Titel anonym über den Stern der Titelseite; jeder Titel steht einmal in der Liste, neueste Empfehlung zuerst, für alle Profile aller Konten, die ihn sehen dürfen. Eine Empfehlung läuft N Tage nach der jüngsten Empfehlung des Titels ab (ab Werk 60, einstellbar 7 bis 365 Tage in der Verwaltung); die eigene Empfehlung lässt sich zurücknehmen, der Administrator entfernt jeden Eintrag (Neufassung 8. November 2026, Frage 25; vorher pflegte der Hauptbenutzer die Liste mit Zielprofil, Reihenfolge, Notiz und Zeitraum).
+- [ ] E-3 Die User-Empfehlungen respektieren die Altersstufe und die Bibliotheksrechte: Ein Profil sieht nur Empfehlungen von Titeln, die es sehen darf, und empfiehlt nur solche.
 - [ ] E-4 Die Suche findet Titel, Personen und Sammlungen ab dem zweiten Zeichen und filtert nach Genre, Jahr, Altersfreigabe, Medientyp und Verfügbarkeit (lokal, Download, in Beschaffung).
 - [ ] E-5 Jedes Profil hat eine eigene Merkliste.
 - [ ] E-6 Sammlungen entstehen automatisch aus TMDB-Reihen und manuell durch den Admin.
@@ -200,7 +202,7 @@ Greenfield. Leeres Repository unter `/mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slou
 | Version / Medien-Datei | supporting | Pfad, Container, Codecs, Auflösung, HDR | gehört zu Titel |
 | Trailer | supporting | Quelle (YouTube), Sprache, manuell gesetzt | gehört zu Titel |
 | Sammlung | supporting | Name, automatisch/manuell | gruppiert Titel |
-| Cat's Empfehlung (Top Pick) | core domain | Zielprofil oder alle, Reihenfolge, Notiz, Zeitraum | verweist auf Titel |
+| User-Empfehlung (bis Konzept 17 Cat's Empfehlung, Top Pick) | core domain | Titel, empfehlendes Profil (nie angezeigt), Zeitpunkt; Ablauf N Tage nach der jüngsten Empfehlung des Titels (seit Frage 25; vorher Zielprofil, Reihenfolge, Notiz, Zeitraum) | Profil × Titel |
 | Favorit | supporting | Serie, Benachrichtigung aktiv | Profil × Serie |
 | Trakt-Liste | external system | Typ (Trending, Beliebt), Einträge, Stand | gefiltert auf Titel der Bibliothek |
 | Merkliste | supporting | Einträge | gehört zu Profil |

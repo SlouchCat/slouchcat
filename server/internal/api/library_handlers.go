@@ -11,7 +11,7 @@ import (
 )
 
 // Library views of the active profile (concept 08, ADR 0016): the libraries of the side
-// navigation, one page of a library with its facets and all of Cat's recommendations. The catalog
+// navigation, one page of a library with its facets and the user picks. The catalog
 // service reads through the visibility layer; a library without a visible title for the profile
 // (unknown, not permitted or empty) answers 404 not_found, never 403.
 

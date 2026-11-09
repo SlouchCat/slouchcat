@@ -501,8 +501,9 @@ export interface paths {
          * @description Returns the rows in the order the main user set (`setHomeRows`): `spotlight` (the library titles
          *     of the public Trakt list chosen in the administration, in list order with the curation of the
          *     main user applied, E-7, I-7, ADR 0011; how many titles it shows and below how many hits it is
-         *     omitted are settings, not constants), `picks` (Cat's recommendations, E-2, with the optional
-         *     `note` on each item), `continue`, `recent`, `released` (titles released in the last twelve
+         *     omitted are settings, not constants), `picks` (the user picks, E-2, ADR 0028: every visible title
+         *     a profile of the owner's account recommended, once, newest recommendation first, without a
+         *     note; at most 20), `continue`, `recent`, `released` (titles released in the last twelve
          *     months by `releaseDate`, a series by its newest visible episode), `watchlist` (E-5),
          *     `collections` (`collections` instead of `items`, E-6) and `genres` (`genres` instead of
          *     `items`). Since contract 1.15.0 (concept 15 P-7; breaking: new keys, rows named by `id`):
@@ -550,11 +551,12 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * All of Cat's recommendations for the active profile (E-2, concept 08)
-         * @description The same recommendations as the row `picks` of `getHome` (recipient, time window and
-         *     visibility applied, in Cat's order, with the `note` of the main user on every title), without
-         *     the row's cut to 20 titles, paged. The page "Cat's recommendations" behind the entry in the
-         *     side navigation and behind "show all" at the row.
+         * All user picks the active profile may see (E-2, ADR 0028)
+         * @description The same recommendations as the row `picks` of `getHome` (every visible title a profile of the
+         *     owner's account recommended and whose newest recommendation is younger than the retention,
+         *     once, newest recommendation first, anonymous and without a note), without the row's cut to 20
+         *     titles, paged in the database. The page «User-Empfehlungen» behind the entry in the side
+         *     navigation and behind «show all» at the row; `total` is the number of the side navigation.
          */
         get: operations["listPicks"];
         put?: never;
@@ -1835,10 +1837,10 @@ export interface paths {
         /**
          * Poster or backdrop of a title for the administration (binary, system-wide)
          * @description Implemented as an `http.Handler` (CLAUDE.md rule 6), like `getItemImage`, but without the
-         *     profile check: the administration is system-wide (M11 step 5b, ADR 0011), so the picks page
-         *     shows the poster of a pick for a child profile that the main profile may not watch. `kind`
+         *     profile check: the administration is system-wide (M11 step 5b, ADR 0011), so the page of the
+         *     user picks shows the poster of a title that the main profile may not watch. `kind`
          *     is `poster` or `backdrop`, `size` one of the stored sizes (`w200` for the admin tables).
-         *     `AdminPick.posterUrl` and `SpotlightEntry.posterUrl` point here with `?v=<content hash>`
+         *     `AdminUserPick.posterUrl` and `SpotlightEntry.posterUrl` point here with `?v=<content hash>`
          *     for cache busting; the address carries no profile id. 404 when no such image is stored.
          *     Not cached by the service worker: the administration is no offline case.
          */
@@ -2470,6 +2472,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/items/{id}/pick": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Recommend a title to every profile that may see it (user picks, ADR 0028)
+         * @description Stores or renews the recommendation of the active profile; the title stays in the user picks
+         *     until `retentionDays` after its newest recommendation. Anonymous: nobody sees who recommended.
+         *     Only profiles of the owner's account recommend (U-F10); every kind except seasons and extras.
+         *     An invisible or unknown title, a season, an extra and a profile of another account answer 404.
+         */
+        put: operations["recommendItem"];
+        post?: never;
+        /**
+         * Take the own recommendation of a title back
+         * @description Idempotent; deletes the recommendation of the active profile only. The title leaves the user
+         *     picks unless another profile recommended it. 404 as for `recommendItem`.
+         */
+        delete: operations["unrecommendItem"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/favorites": {
         parameters: {
             query?: never;
@@ -2581,37 +2611,13 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Cat's recommendations in display order (E-2)
-         * @description Every pick, global ones and those of single profiles, in the order of the carousel.
+         * The current user picks (concept 18 part B, 14.7, ADR 0028)
+         * @description Every title with a recommendation younger than the retention, newest recommendation first,
+         *     unfiltered: the number of its recommendations, the day of the newest one (server time zone,
+         *     never the time) and the days until it expires. Never the name of a recommending profile.
          */
-        get: operations["listTopPicks"];
+        get: operations["listAdminUserPicks"];
         put?: never;
-        /**
-         * Add a title to Cat's recommendations, for all profiles or for single ones (E-2)
-         * @description Without `profileIds` one global pick; with them one pick per profile of the main account. New picks
-         *     go to the end of the carousel. A profile sees a pick only when it may see the title (E-3), and only
-         *     inside the optional time window.
-         */
-        post: operations["createTopPicks"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/picks/order": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Set the order of Cat's recommendations (E-2, E-9)
-         * @description Every existing pick id exactly once, in the new order.
-         */
-        put: operations["reorderTopPicks"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2619,7 +2625,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/picks/{id}": {
+    "/admin/picks/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How long a user pick stays (concept 18 part B, 14.7) */
+        get: operations["getPicksSettings"];
+        /**
+         * Set how long a user pick stays
+         * @description A title stays in the user picks while its newest recommendation is younger than
+         *     `retentionDays` (7 to 365); every new recommendation of the title starts the period again. A
+         *     shorter period takes effect at once.
+         */
+        put: operations["updatePicksSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/picks/{itemId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2629,15 +2658,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Remove a pick */
-        delete: operations["deleteTopPick"];
+        /** Remove every recommendation of a title from the user picks */
+        delete: operations["removeAdminUserPick"];
         options?: never;
         head?: never;
-        /**
-         * Change the note or the time window of a pick
-         * @description A field set to `null` clears it; an absent field keeps its value.
-         */
-        patch: operations["updateTopPick"];
+        patch?: never;
         trace?: never;
     };
     "/admin/items/search": {
@@ -5270,8 +5295,8 @@ export interface components {
             /** @description Podcast or episode flagged `itunes:explicit` in the feed (AN-2: counts as FSK 18). */
             explicit?: boolean;
             /**
-             * @description The personal note of the main user on this title (E-2): on a pick in the row `picks` and
-             *     on a curated entry in the row `spotlight`.
+             * @description The personal note of the main user on a curated entry in the row `spotlight` (M11). The
+             *     user picks carry no note (contract 1.23.0, ADR 0028).
              */
             note?: string;
             /**
@@ -5294,6 +5319,17 @@ export interface components {
         ItemDetail: components["schemas"]["ItemRef"] & {
             /** @description A favourite of the active profile (E-8; series and podcasts only). */
             favorite: boolean;
+            /**
+             * @description The active profile holds a recommendation of this title that has not expired (the star
+             *     shows «Empfohlen ✓», contract 1.23.0, ADR 0028). Never who else or how many recommended it.
+             */
+            recommendedByMe: boolean;
+            /**
+             * @description The active profile may recommend this title: it belongs to the owner's account and the
+             *     title is neither a season nor an extra (U-F10). Profiles of other accounts read the user
+             *     picks only and see no star.
+             */
+            canRecommend: boolean;
             /** @description The visible collections the title belongs to (E-6). */
             collections: components["schemas"]["CollectionRef"][];
             originalTitle?: string;
@@ -6450,7 +6486,7 @@ export interface components {
             /** Format: int64 */
             notifications: number;
             /** Format: int64 */
-            topPicks: number;
+            userPicks: number;
             /** Format: int64 */
             downloads: number;
             /** Format: int64 */
@@ -7102,7 +7138,7 @@ export interface components {
             facets: components["schemas"]["LibraryFacets"];
         };
         PicksPage: {
-            /** @description Cat's recommendations in Cat's order, each with `note` when the main user wrote one. */
+            /** @description The user picks, newest recommendation first, without a note. */
             items: components["schemas"]["ItemRef"][];
             total: number;
             offset: number;
@@ -7135,54 +7171,44 @@ export interface components {
             offset: number;
             limit: number;
         };
-        /** @description One of Cat's recommendations in the administration (not an `ItemRef`). */
-        AdminPick: {
-            /** Format: int64 */
-            id: number;
+        /**
+         * @description A title of the user picks in the administration (not an `ItemRef`, ADR 0028): anonymous, only
+         *     the number of recommendations and days.
+         */
+        AdminUserPick: {
             itemId: components["schemas"]["ItemID"];
             kind: components["schemas"]["ItemKind"];
             /** @description Title of the item (German text, else English, else the parsed name). */
             title: string;
             year?: number;
+            /** @description How many profiles hold a recommendation that has not expired. */
+            count: number;
             /**
-             * Format: int64
-             * @description The single profile this pick is for; absent = all profiles.
+             * Format: date
+             * @description The day of the newest recommendation in the time zone of the server.
              */
-            profileId?: number;
-            profileName?: string;
-            position: number;
-            note?: string;
-            /** Format: date-time */
-            startsAt?: string;
-            /** Format: date-time */
-            endsAt?: string;
-            /** Format: date-time */
-            createdAt: string;
+            lastPickedOn: string;
+            /** @description Whole days until the title leaves the list (rounded up; 0 = within the day). */
+            expiresInDays: number;
             /**
              * @description The poster (`w200`) through `getAdminItemImage`, system-wide and without profile id;
              *     absent when no poster is stored (the page shows its placeholder).
              */
             posterUrl?: string;
         };
-        PickRequest: {
-            itemId: components["schemas"]["ItemID"];
-            /** @description Profiles of the main account the pick is for; absent or empty = all profiles. */
-            profileIds?: number[];
-            note?: string;
-            /** Format: date-time */
-            startsAt?: string;
-            /** Format: date-time */
-            endsAt?: string;
+        PicksSettings: {
+            /** @description Days a title stays after its newest recommendation (default 60). */
+            retentionDays: number;
         };
-        PickUpdate: {
-            note?: string | null;
-            /** Format: date-time */
-            startsAt?: string | null;
-            /** Format: date-time */
-            endsAt?: string | null;
-        };
-        PickOrder: {
-            ids: number[];
+        /** @description The answer to `recommendItem`. */
+        UserPickResult: {
+            /**
+             * Format: date-time
+             * @description When the recommendation expires unless it is renewed.
+             */
+            expiresAt: string;
+            /** @description The retention the hint names («Bleibt N Tage»). */
+            retentionDays: number;
         };
         /** @description A title found for curation (not an `ItemRef`, no images). */
         AdminItemHit: {
@@ -9333,8 +9359,6 @@ export interface components {
         ItemID: components["schemas"]["ItemID"];
         /** @description Collection ID (ULID). */
         CollectionID: components["schemas"]["CollectionID"];
-        /** @description Pick ID from `listTopPicks`. */
-        PickID: number;
         /** @description Playback session ID (ULID) from `PlaybackInfo.playbackSessionId`. */
         PlaybackSessionID: string;
         /** @description Device id (32 characters, the device cookie value). */
@@ -14190,6 +14214,70 @@ export interface operations {
             };
         };
     };
+    recommendItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recommended. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserPickResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown, not visible, not recommendable or not the owner's account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    unrecommendItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Not recommended by the active profile (any more). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown, not visible, not recommendable or not the owner's account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listFavorites: {
         parameters: {
             query?: never;
@@ -14355,7 +14443,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
         };
     };
-    listTopPicks: {
+    listAdminUserPicks: {
         parameters: {
             query?: never;
             header?: never;
@@ -14364,20 +14452,42 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The picks. */
+            /** @description The user picks. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AdminPick"][];
+                    "application/json": components["schemas"]["AdminUserPick"][];
                 };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
         };
     };
-    createTopPicks: {
+    getPicksSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PicksSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    updatePicksSettings: {
         parameters: {
             query?: never;
             header?: never;
@@ -14386,26 +14496,22 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PickRequest"];
+                "application/json": components["schemas"]["PicksSettings"];
             };
         };
         responses: {
-            /** @description The created picks. */
-            201: {
+            /** @description The stored settings. */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AdminPick"][];
+                    "application/json": components["schemas"]["PicksSettings"];
                 };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
-            /**
-             * @description Validation failed (`validation_failed`; `itemId` `unknown_item` or `invalid_value` for seasons and
-             *     extras, `profileIds` `invalid_value` for profiles outside the main account, `note` `too_long`,
-             *     `endsAt` `invalid_value` when not after `startsAt`).
-             */
+            /** @description Validation failed (`validation_failed`; `retentionDays` `invalid_value` outside 7..365). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -14416,46 +14522,13 @@ export interface operations {
             };
         };
     };
-    reorderTopPicks: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PickOrder"];
-            };
-        };
-        responses: {
-            /** @description Reordered. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["AdminOnly"];
-            /** @description Validation failed (`validation_failed`; `ids` `invalid_value` unless every pick appears once). */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    deleteTopPick: {
+    removeAdminUserPick: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description Pick ID from `listTopPicks`. */
-                id: components["parameters"]["PickID"];
+                /** @description Item ID (ULID). */
+                itemId: components["schemas"]["ItemID"];
             };
             cookie?: never;
         };
@@ -14470,55 +14543,8 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
-            /** @description Unknown pick (`not_found`). */
+            /** @description The title has no recommendation (`not_found`). */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    updateTopPick: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Pick ID from `listTopPicks`. */
-                id: components["parameters"]["PickID"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PickUpdate"];
-            };
-        };
-        responses: {
-            /** @description The updated pick. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminPick"];
-                };
-            };
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["AdminOnly"];
-            /** @description Unknown pick (`not_found`). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Validation failed (`validation_failed`; `note` `too_long`, `endsAt` `invalid_value`). */
-            422: {
                 headers: {
                     [name: string]: unknown;
                 };

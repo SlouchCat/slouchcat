@@ -2,11 +2,10 @@ import { type APIRequestContext, type Locator, type Page } from '@playwright/tes
 import { audioItemId, AUDIO_READY_MS, M4B_TITLE } from './audio';
 import { CSRF, EXTRAS_TITLE, H264_TITLE, SHOW_TITLE } from './catalog';
 import {
-  createPick,
   DEFAULT_HOME_ROWS,
   deletePick,
   listHomeRows,
-  listPicks,
+  recommendItem,
   setHomeRows,
 } from './curation';
 import { homeRowKeys, refreshSpotlight, ROW_TITLES, traktMockStatus } from './discover';
@@ -110,24 +109,25 @@ test('rows: never an empty one, cards in a 2:3 frame, at most eight rows (E-1, E
   }
 });
 
-test('a pick with a note shows in the picks row (E-2)', async ({ page, owner }) => {
-  const note = 'E2E: unbedingt mit Ton schauen.';
-  // A second pick next to the baseline pick of the global setup (the H264 film).
-  const [pick] = await createPick(owner, {
-    itemId: await itemIdByTitle(owner, EXTRAS_TITLE),
-    note,
-  });
-  if (!pick) throw new Error('no pick created');
+test('a recommended title leads the picks row, once (E-2, concept 18 part B)', async ({
+  page,
+  owner,
+}) => {
+  // A second pick next to the baseline pick of the global setup (the H264 film); recommending it
+  // twice renews the pick and keeps one card.
+  const itemId = await itemIdByTitle(owner, EXTRAS_TITLE);
+  await recommendItem(owner, itemId);
+  await recommendItem(owner, itemId);
   try {
     await page.reload();
-    // The picks are never the stage (plan 3.5): a poster row whose card shows the note.
+    // The picks are never the stage (plan 3.5): a poster row, newest pick first.
     const picks = page.getByRole('region', { name: ROW_TITLES.picks });
     await expect(picks).not.toHaveAttribute('aria-roledescription');
-    await expect(
-      picks.getByRole('link').filter({ hasText: EXTRAS_TITLE }).getByText(note),
-    ).toBeVisible();
+    const cards = picks.getByRole('list').getByRole('link');
+    await expect(cards.first()).toContainText(EXTRAS_TITLE);
+    await expect(cards.filter({ hasText: EXTRAS_TITLE })).toHaveCount(1);
   } finally {
-    await deletePick(owner, pick.id);
+    await deletePick(owner, itemId);
   }
 });
 
@@ -856,17 +856,11 @@ test('no stage: without the spotlight row the page starts with a poster row (3.5
   delete settings.listKinds;
   const put = (enabled: boolean) =>
     owner.put('/api/v1/admin/spotlight', { headers: CSRF, data: { ...settings, enabled } });
-  // The test films have no artwork; the M4B book has a cover. As the first pick its card is the
+  // The test films have no artwork; the M4B book has a cover. As the newest pick its card is the
   // first one of the page, the card whose poster the shell preloads (P-10).
-  const [cover] = await createPick(owner, { itemId: await audioItemId(owner, M4B_TITLE) });
-  if (!cover) throw new Error('no pick created');
+  const cover = { itemId: await audioItemId(owner, M4B_TITLE) };
+  await recommendItem(owner, cover.itemId);
   try {
-    const ids = (await listPicks(owner)).map((pick) => pick.id).filter((id) => id !== cover.id);
-    const order = await owner.put('/api/v1/admin/picks/order', {
-      headers: CSRF,
-      data: { ids: [cover.id, ...ids] },
-    });
-    expect(order.status(), await order.text()).toBe(204);
     const off = await put(false);
     expect(off.status(), await off.text()).toBe(200);
     expect(await homeRowKeys(owner)).not.toContain('spotlight');
@@ -952,7 +946,7 @@ test('no stage: without the spotlight row the page starts with a poster row (3.5
   } finally {
     const on = await put(true);
     expect(on.status(), await on.text()).toBe(200);
-    await deletePick(owner, cover.id);
+    await deletePick(owner, cover.itemId);
   }
 });
 

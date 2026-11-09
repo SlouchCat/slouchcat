@@ -191,3 +191,10 @@ WHERE m.id = @id AND i.deleted_at IS NULL AND m.probe_error IS NULL;
 -- playback).
 SELECT count(*) FROM playback_sessions
 WHERE media_file_id = @media_file_id AND revoked_at IS NULL AND expires_at > @now AND last_activity_at >= @active_after;
+
+-- User picks whose time is past the retention of picks_config at @now (concept 18 part B, 14.5):
+-- deleted by the hourly library.sweep. The reads filter by time as well, so this only keeps the
+-- table small.
+-- name: DeleteExpiredUserPicks :execrows
+DELETE FROM user_picks
+WHERE created_at <= @now - (SELECT c.retention_days FROM picks_config AS c WHERE c.id = 1) * 86400000;
