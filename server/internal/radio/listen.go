@@ -642,9 +642,14 @@ func (s *Service) Segment(_ context.Context, g model.RadioGrant, n int64) ([]byt
 	return data, ls.done, nil
 }
 
-// Relays lists the running relays with their listeners and the load (administration).
+// Relays lists the running relays with their listeners and the load (administration). Each
+// listener names the device of its login session and each relay the logo of its station (concept
+// 18, 17.4). An open listen session whose relay no longer runs (its relay ended and closing the
+// session failed, or the station's relay was started anew) is listed under its ended relay in the
+// state relayFailed, so the overview shows it instead of hiding it; the load counts no such relay.
 func (s *Service) Relays(ctx context.Context) (model.RadioRelays, error) {
-	cfg, err := appq.New(s.db.Read).GetRadioConfig(ctx)
+	q := appq.New(s.db.Read)
+	cfg, err := q.GetRadioConfig(ctx)
 	if err != nil {
 		return model.RadioRelays{}, fmt.Errorf("get radio config: %w", err)
 	}
@@ -653,15 +658,40 @@ func (s *Service) Relays(ctx context.Context) (model.RadioRelays, error) {
 	for _, r := range s.rel.relays {
 		relays = append(relays, r)
 	}
-	listeners := map[int64][]model.RadioListenerInfo{}
+	listeners := map[*relay][]model.RadioListenerInfo{}
+	var failed []*relay // ended relays that still have open listen sessions
+	sessionIDs := map[string]int64{}
 	for _, ls := range s.rel.sessions {
-		listeners[ls.stationID] = append(listeners[ls.stationID], model.RadioListenerInfo{ListenID: ls.id,
+		if s.rel.relays[ls.stationID] != ls.relay && listeners[ls.relay] == nil {
+			failed = append(failed, ls.relay)
+		}
+		listeners[ls.relay] = append(listeners[ls.relay], model.RadioListenerInfo{ListenID: ls.id,
 			ProfileName: ls.profile.Name, AccountEmail: ls.accountEmail, Playing: ls.playing, Since: ls.created})
+		sessionIDs[ls.id] = ls.sessionID
 	}
 	s.rel.mu.Unlock()
+	devices, err := s.listenDevices(ctx, sessionIDs)
+	if err != nil {
+		return model.RadioRelays{}, err
+	}
+	stationIDs := make([]int64, 0, len(relays)+len(failed))
+	for _, r := range slices.Concat(relays, failed) {
+		stationIDs = append(stationIDs, r.stationID)
+	}
+	logos := map[int64]string{}
+	if len(stationIDs) > 0 {
+		rows, err := q.RadioStationLogoHashes(ctx, stationIDs)
+		if err != nil {
+			return model.RadioRelays{}, fmt.Errorf("radio station logos: %w", err)
+		}
+		for _, row := range rows {
+			logos[row.ID] = row.LogoHash.String
+		}
+	}
 	out := model.RadioRelays{Relays: []model.RadioRelayInfo{}, Load: model.RadioLoad{
 		Relays: len(relays), MaxRelays: int(cfg.MaxRelays), BudgetBytes: cfg.BudgetMb << 20, BufferMode: s.bufferMode()}}
-	for _, r := range relays {
+	for _, r := range slices.Concat(relays, failed) {
+		running := !slices.Contains(failed, r)
 		r.mu.Lock()
 		kbps := r.out.BitrateKbps
 		if r.out.Copy && kbps == 0 {
@@ -669,21 +699,53 @@ func (s *Service) Relays(ctx context.Context) (model.RadioRelays, error) {
 		}
 		info := model.RadioRelayInfo{StationID: r.stationID, Name: r.name, Codec: r.in.Codec, BitrateKbps: kbps,
 			Transcoded: !r.out.Copy && r.in.Codec != "", StartedAt: r.startedAt, BufferSeconds: int(r.buf.total.Seconds()),
-			BufferBytes: r.buf.bytes, State: r.state, Listeners: listeners[r.stationID]}
+			BufferBytes: r.buf.bytes, State: r.state, Listeners: listeners[r], LogoHash: logos[r.stationID]}
 		r.mu.Unlock()
+		if !running {
+			info.State, info.BufferSeconds, info.BufferBytes = relayFailed, 0, 0
+		}
+		for i := range info.Listeners {
+			info.Listeners[i].Device = devices[info.Listeners[i].ListenID]
+		}
 		slices.SortFunc(info.Listeners, func(a, b model.RadioListenerInfo) int { return a.Since.Compare(b.Since) })
 		if info.Listeners == nil {
 			info.Listeners = []model.RadioListenerInfo{}
 		}
-		for _, l := range info.Listeners {
-			if l.Playing {
-				out.Load.UploadKbps += kbps
+		if running {
+			for _, l := range info.Listeners {
+				if l.Playing {
+					out.Load.UploadKbps += kbps
+				}
 			}
+			out.Load.BufferBytes += info.BufferBytes
 		}
-		out.Load.BufferBytes += info.BufferBytes
 		out.Relays = append(out.Relays, info)
 	}
 	slices.SortFunc(out.Relays, func(a, b model.RadioRelayInfo) int { return a.StartedAt.Compare(b.StartedAt) })
+	return out, nil
+}
+
+// listenDevices returns listen id -> the device of its login session (sessionIDs: listen id ->
+// login session id), for the listen sessions whose login session has a device.
+func (s *Service) listenDevices(ctx context.Context, sessionIDs map[string]int64) (map[string]*model.DeviceRef, error) {
+	out := map[string]*model.DeviceRef{}
+	if len(sessionIDs) == 0 {
+		return out, nil
+	}
+	ids := slices.Sorted(maps.Values(sessionIDs))
+	rows, err := appq.New(s.db.Read).RadioListenDevices(ctx, slices.Compact(ids))
+	if err != nil {
+		return nil, fmt.Errorf("radio listen devices: %w", err)
+	}
+	bySession := make(map[int64]*model.DeviceRef, len(rows))
+	for _, row := range rows {
+		bySession[row.SessionID] = &model.DeviceRef{ID: row.DeviceID, Name: row.DeviceName.String}
+	}
+	for listenID, sessionID := range sessionIDs {
+		if d := bySession[sessionID]; d != nil {
+			out[listenID] = d
+		}
+	}
 	return out, nil
 }
 

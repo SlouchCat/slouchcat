@@ -25,7 +25,7 @@ import (
 // for the profile of the scope (queries/scoped/library.sql holds the fixed statements). The page,
 // its total and its facets are read in one read-only transaction.
 
-// Pages of the library page and of the page "Cat's recommendations": at most MaxLibraryPage
+// Pages of the library page and of the page of the user picks: at most MaxLibraryPage
 // titles, DefaultLibraryPage without a limit.
 const (
 	DefaultLibraryPage = 50

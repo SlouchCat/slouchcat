@@ -1,10 +1,10 @@
 import type { ItemRef } from '@slouchcat/api-client';
-import { useEffect, useRef, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
 import { paths } from '@/app/paths';
 import { isAudioKind, isFinished } from '@/features/catalog/labels';
-import { PosterCard, setSpatialFocus, SpatialButton, SpatialGroup } from '@/ui';
+import { Notice, PosterCard, SpatialButton, SpatialGroup } from '@/ui';
 import { CoverWatchlist, WATCHLIST_KINDS } from './CoverWatchlist';
 import styles from './Discover.module.css';
 
@@ -155,58 +155,23 @@ export function ItemGrid({
   );
 }
 
-interface MoreButtonProps {
-  /** Number of entries shown now: the first of the next page gets the focus. */
-  shown: number;
-  /** Focus keys of all entries, in order (after the next page has arrived). */
-  keys: readonly string[];
-  hasMore: boolean;
-  loading: boolean;
-  failed: boolean;
-  label: string;
-  focusKey: string;
-  onMore: () => void;
-}
-
 /**
- * "Mehr laden" under a paged list. After a page the focus moves to its first entry (the button
- * may go away with the last page); a failed page turns the button into a retry.
+ * A page of a list that could not be read (concept 18 C-3: the lists load as they scroll, without
+ * «Mehr laden»): «Erneut versuchen» under the list reads the failed pages again.
  */
-export function MoreButton({
-  shown,
-  keys,
-  hasMore,
-  loading,
-  failed,
-  label,
-  focusKey,
-  onMore,
-}: MoreButtonProps) {
+export function PageRetry({ onRetry }: { onRetry: () => void }) {
   const { t } = useTranslation();
-  const focusFrom = useRef<number | null>(null);
-  const joined = keys.join('|');
-  useEffect(() => {
-    const target = focusFrom.current === null ? undefined : joined.split('|')[focusFrom.current];
-    if (!target) return;
-    focusFrom.current = null;
-    setSpatialFocus(target);
-  }, [joined]);
-  if (!hasMore && !failed) return null;
   return (
-    <SpatialGroup>
-      <SpatialButton
-        focusKey={focusKey}
-        variant="secondary"
-        icon={failed ? 'refresh' : 'plus'}
-        aria-disabled={loading || undefined}
-        onPress={() => {
-          if (loading) return;
-          focusFrom.current = shown;
-          onMore();
-        }}
-      >
-        {failed ? t('common.retry') : label}
-      </SpatialButton>
-    </SpatialGroup>
+    <Notice
+      tone="danger"
+      title={t('library.page.pageFailed')}
+      actions={
+        <SpatialGroup>
+          <SpatialButton variant="secondary" icon="refresh" onPress={onRetry}>
+            {t('common.retry')}
+          </SpatialButton>
+        </SpatialGroup>
+      }
+    />
   );
 }

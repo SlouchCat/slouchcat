@@ -501,8 +501,9 @@ export interface paths {
          * @description Returns the rows in the order the main user set (`setHomeRows`): `spotlight` (the library titles
          *     of the public Trakt list chosen in the administration, in list order with the curation of the
          *     main user applied, E-7, I-7, ADR 0011; how many titles it shows and below how many hits it is
-         *     omitted are settings, not constants), `picks` (Cat's recommendations, E-2, with the optional
-         *     `note` on each item), `continue`, `recent`, `released` (titles released in the last twelve
+         *     omitted are settings, not constants), `picks` (the user picks, E-2, ADR 0028: every visible title
+         *     a profile of the owner's account recommended, once, newest recommendation first, without a
+         *     note; at most 20), `continue`, `recent`, `released` (titles released in the last twelve
          *     months by `releaseDate`, a series by its newest visible episode), `watchlist` (E-5),
          *     `collections` (`collections` instead of `items`, E-6) and `genres` (`genres` instead of
          *     `items`). Since contract 1.15.0 (concept 15 P-7; breaking: new keys, rows named by `id`):
@@ -550,11 +551,12 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * All of Cat's recommendations for the active profile (E-2, concept 08)
-         * @description The same recommendations as the row `picks` of `getHome` (recipient, time window and
-         *     visibility applied, in Cat's order, with the `note` of the main user on every title), without
-         *     the row's cut to 20 titles, paged. The page "Cat's recommendations" behind the entry in the
-         *     side navigation and behind "show all" at the row.
+         * All user picks the active profile may see (E-2, ADR 0028)
+         * @description The same recommendations as the row `picks` of `getHome` (every visible title a profile of the
+         *     owner's account recommended and whose newest recommendation is younger than the retention,
+         *     once, newest recommendation first, anonymous and without a note), without the row's cut to 20
+         *     titles, paged in the database. The page «User-Empfehlungen» behind the entry in the side
+         *     navigation and behind «show all» at the row; `total` is the number of the side navigation.
          */
         get: operations["listPicks"];
         put?: never;
@@ -639,6 +641,65 @@ export interface paths {
          *     older URL is never shown for a new probe.
          */
         get: operations["getChapterImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/{id}/trickplay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview tiles of the seek bar of a film or an episode (trickplay, contract 1.23.0)
+         * @description The same `Trickplay` that `PlaybackInfo.trickplay` carries, to ask again while `state` is `queued`
+         *     or `running` (concept 18 part A, ADR 0027): the player asks every 10 s without a time limit and
+         *     stops at `complete` or `failed`. The server decides everything (rule 12): the setting of the
+         *     library for the kind of the title, the visibility and the file version. Nothing is queued by
+         *     this operation; a start of the playback queues the preview job. The title and the file are
+         *     resolved through the scope of the active profile: an unknown, invisible or age-restricted
+         *     title, a `mediaFileId` that is no ULID or no file of this title, a title without video (an
+         *     audiobook, a podcast episode) and a library whose setting for this kind is `off` answer 404,
+         *     never 403. Before the first sheet exists the answer has `sheets: []` and the grid the job will
+         *     write.
+         */
+        get: operations["getTrickplay"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/{id}/trickplay/{sheet}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One sheet of preview tiles (binary, contract 1.23.0)
+         * @description Implemented as an `http.Handler` (concept 18 part A, rule 6). `Trickplay.sheets[].url` names this
+         *     route for every sheet that exists; the client does not build the URL itself. A sheet is one WebP
+         *     of `columns` x `rows` tiles of `tileWidth` x `tileHeight` pixels (the last sheet only as many rows
+         *     as it needs); tile `k` of the set is at sheet `k / (columns * rows)`, row and column in reading
+         *     order, and shows the time `pointsMs[k]`. The handler resolves the file of the title through the
+         *     scope of the active profile: an unknown, invisible or age-restricted title, a `mediaFileId` that
+         *     is no ULID or no file of this title, a `sheet` that is no decimal number and a sheet that does not
+         *     exist answer 404, never 403. `v` is the version of the set (`Trickplay.version`): a `v` of the
+         *     current set answers with `ETag` (the version and the sheet in quotes) and `Cache-Control: private,
+         *     max-age=31536000, immutable`; another or no `v` serves the sheet of the current set with
+         *     `Cache-Control: private, no-cache`.
+         */
+        get: operations["getTrickplaySheet"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1157,6 +1218,29 @@ export interface paths {
          *     Any other track → 404. `Cache-Control: private, no-store`.
          */
         get: operations["getDownloadSubtitle"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/downloads/{id}/trickplay/{sheet}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One sheet of preview tiles of a prepared download (binary, contract 1.23.0)
+         * @description Implemented as an `http.Handler`, authorised by `dt` like `getDownloadFile` (concept 18, 6.8). The
+         *     sheets listed in `DownloadManifest.trickplay`, copied into the download when it was prepared, so
+         *     the PWA stores them with the file and shows them offline. Any other sheet → 404.
+         *     `Cache-Control: private, no-store`.
+         */
+        get: operations["getDownloadTrickplaySheet"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1835,10 +1919,10 @@ export interface paths {
         /**
          * Poster or backdrop of a title for the administration (binary, system-wide)
          * @description Implemented as an `http.Handler` (CLAUDE.md rule 6), like `getItemImage`, but without the
-         *     profile check: the administration is system-wide (M11 step 5b, ADR 0011), so the picks page
-         *     shows the poster of a pick for a child profile that the main profile may not watch. `kind`
+         *     profile check: the administration is system-wide (M11 step 5b, ADR 0011), so the page of the
+         *     user picks shows the poster of a title that the main profile may not watch. `kind`
          *     is `poster` or `backdrop`, `size` one of the stored sizes (`w200` for the admin tables).
-         *     `AdminPick.posterUrl` and `SpotlightEntry.posterUrl` point here with `?v=<content hash>`
+         *     `AdminUserPick.posterUrl` and `SpotlightEntry.posterUrl` point here with `?v=<content hash>`
          *     for cache busting; the address carries no profile id. 404 when no such image is stored.
          *     Not cached by the service worker: the administration is no offline case.
          */
@@ -2470,6 +2554,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/items/{id}/pick": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Recommend a title to every profile that may see it (user picks, ADR 0028)
+         * @description Stores or renews the recommendation of the active profile; the title stays in the user picks
+         *     until `retentionDays` after its newest recommendation. Anonymous: nobody sees who recommended.
+         *     Only profiles of the owner's account recommend (U-F10); every kind except seasons and extras.
+         *     An invisible or unknown title, a season, an extra and a profile of another account answer 404.
+         */
+        put: operations["recommendItem"];
+        post?: never;
+        /**
+         * Take the own recommendation of a title back
+         * @description Idempotent; deletes the recommendation of the active profile only. The title leaves the user
+         *     picks unless another profile recommended it. 404 as for `recommendItem`.
+         */
+        delete: operations["unrecommendItem"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/favorites": {
         parameters: {
             query?: never;
@@ -2581,37 +2693,13 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Cat's recommendations in display order (E-2)
-         * @description Every pick, global ones and those of single profiles, in the order of the carousel.
+         * The current user picks (concept 18 part B, 14.7, ADR 0028)
+         * @description Every title with a recommendation younger than the retention, newest recommendation first,
+         *     unfiltered: the number of its recommendations, the day of the newest one (server time zone,
+         *     never the time) and the days until it expires. Never the name of a recommending profile.
          */
-        get: operations["listTopPicks"];
+        get: operations["listAdminUserPicks"];
         put?: never;
-        /**
-         * Add a title to Cat's recommendations, for all profiles or for single ones (E-2)
-         * @description Without `profileIds` one global pick; with them one pick per profile of the main account. New picks
-         *     go to the end of the carousel. A profile sees a pick only when it may see the title (E-3), and only
-         *     inside the optional time window.
-         */
-        post: operations["createTopPicks"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/picks/order": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Set the order of Cat's recommendations (E-2, E-9)
-         * @description Every existing pick id exactly once, in the new order.
-         */
-        put: operations["reorderTopPicks"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2619,7 +2707,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/picks/{id}": {
+    "/admin/picks/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How long a user pick stays (concept 18 part B, 14.7) */
+        get: operations["getPicksSettings"];
+        /**
+         * Set how long a user pick stays
+         * @description A title stays in the user picks while its newest recommendation is younger than
+         *     `retentionDays` (7 to 365); every new recommendation of the title starts the period again. A
+         *     shorter period takes effect at once.
+         */
+        put: operations["updatePicksSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/picks/{itemId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2629,15 +2740,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Remove a pick */
-        delete: operations["deleteTopPick"];
+        /** Remove every recommendation of a title from the user picks */
+        delete: operations["removeAdminUserPick"];
         options?: never;
         head?: never;
-        /**
-         * Change the note or the time window of a pick
-         * @description A field set to `null` clears it; an absent field keeps its value.
-         */
-        patch: operations["updateTopPick"];
+        patch?: never;
         trace?: never;
     };
     "/admin/items/search": {
@@ -5270,8 +5377,8 @@ export interface components {
             /** @description Podcast or episode flagged `itunes:explicit` in the feed (AN-2: counts as FSK 18). */
             explicit?: boolean;
             /**
-             * @description The personal note of the main user on this title (E-2): on a pick in the row `picks` and
-             *     on a curated entry in the row `spotlight`.
+             * @description The personal note of the main user on a curated entry in the row `spotlight` (M11). The
+             *     user picks carry no note (contract 1.23.0, ADR 0028).
              */
             note?: string;
             /**
@@ -5294,6 +5401,17 @@ export interface components {
         ItemDetail: components["schemas"]["ItemRef"] & {
             /** @description A favourite of the active profile (E-8; series and podcasts only). */
             favorite: boolean;
+            /**
+             * @description The active profile holds a recommendation of this title that has not expired (the star
+             *     shows «Empfohlen ✓», contract 1.23.0, ADR 0028). Never who else or how many recommended it.
+             */
+            recommendedByMe: boolean;
+            /**
+             * @description The active profile may recommend this title: it belongs to the owner's account and the
+             *     title is neither a season nor an extra (U-F10). Profiles of other accounts read the user
+             *     picks only and see no star.
+             */
+            canRecommend: boolean;
             /** @description The visible collections the title belongs to (E-6). */
             collections: components["schemas"]["CollectionRef"][];
             originalTitle?: string;
@@ -5821,6 +5939,14 @@ export interface components {
             segments: components["schemas"]["Segments"];
             /** @description The next visible episode of the same series (auto-next, W-9). */
             nextEpisode?: components["schemas"]["ItemRef"];
+            /**
+             * @description Preview tiles of the seek bar (since contract 1.23.0, concept 18 part A). Present for every
+             *     film and episode with video whose library setting for its kind is not `off`; absent for
+             *     audiobooks, podcast episodes, titles without video and the setting `off`. The first start
+             *     of a file without a set carries `state: queued` and `sheets: []`; ask `getTrickplay` again
+             *     while `state` is `queued` or `running`.
+             */
+            trickplay?: components["schemas"]["Trickplay"];
             watchTime?: components["schemas"]["WatchTime"];
             /** @description The device this playback was recorded for (W-7). */
             device?: {
@@ -5969,19 +6095,55 @@ export interface components {
             lastActivityAt: string;
             /** Format: int64 */
             positionMs?: number;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description The length of the media file of the session; for an audiobook always the whole book (the sum
+             *     of its parts), for a podcast episode from a feed the length the feed names.
+             */
             durationMs?: number;
             /**
-             * @description The poster (`w200`) through `getAdminItemImage`, for an episode the poster of its series;
-             *     absent when no poster is stored.
+             * @description The poster (`w200`) through `getAdminItemImage`, for an episode the poster of its series, for
+             *     an extra that of its movie or series, for a podcast episode without cover of its own that of
+             *     its podcast; absent when no poster is stored.
              */
             posterUrl?: string;
             /**
              * @description The backdrop (`w780`) through `getAdminItemImage` with the content hash, for an episode the
-             *     backdrop of its series; absent when no backdrop is stored.
+             *     backdrop of its series, for an extra that of its movie or series; absent when no backdrop is
+             *     stored and always for an audiobook and a podcast episode (they show the square `posterUrl`).
              */
             backdropUrl?: string;
+            kind: components["schemas"]["AdminStreamKind"];
+            /**
+             * @description Since contract 1.23.0. The podcast of a podcast episode, the movie or series of an extra (an
+             *     episode names its series in `itemTitle`); absent for the other kinds.
+             */
+            parentTitle?: string;
+            /** @description Since contract 1.23.0. The audiobook's chapter at `positionMs`; absent without chapters. */
+            chapterTitle?: string;
+            /** @description Since contract 1.23.0. The number of parts of an audiobook of several files. */
+            partCount?: number;
+            /**
+             * @description Since contract 1.23.0, audiobooks and podcast episodes only. Played directly the codec of the
+             *     file's probe, over HLS `aac`, from a feed the codec of the enclosure's MIME type.
+             */
+            audioCodec?: string;
+            /**
+             * @description Since contract 1.23.0, audiobooks and podcast episodes only; bit/s. Played directly the bit
+             *     rate of the file's probe, over HLS the session's; absent from a feed (no probe).
+             */
+            audioBitrate?: number;
+            /**
+             * @description Since contract 1.23.0. `feed` is a podcast episode played from its enclosure, without media file.
+             * @enum {string}
+             */
+            source: "file" | "feed";
         };
+        /**
+         * @description Since contract 1.23.0. What a stream plays (concept 18, 17.4).
+         * @enum {string}
+         */
+        AdminStreamKind: "movie" | "episode" | "extra" | "audiobook" | "podcast_episode";
         ProgressEvent: {
             mediaFileId?: string;
             /** @description The playback session this event belongs to; the server records the position for the stream overview (W-6). */
@@ -6414,7 +6576,7 @@ export interface components {
             /** Format: int64 */
             notifications: number;
             /** Format: int64 */
-            topPicks: number;
+            userPicks: number;
             /** Format: int64 */
             downloads: number;
             /** Format: int64 */
@@ -6515,6 +6677,11 @@ export interface components {
              *     below it (`rating_below_library_default`).
              */
             defaultRating?: components["schemas"]["Rating"];
+            /**
+             * @description The settings «Vorschau beim Spulen» (since contract 1.23.0); only for `video` (`not_allowed`
+             *     otherwise). Absent: films and series «Im Voraus» with `keep` and the scope `series`.
+             */
+            trickplay?: components["schemas"]["LibraryTrickplay"];
         };
         /** @description One folder of a library with what it holds and who describes it (ADR 0015). */
         LibraryRootRequest: {
@@ -6573,6 +6740,13 @@ export interface components {
              *     video libraries.
              */
             defaultRating?: components["schemas"]["Rating"];
+            /**
+             * @description New settings «Vorschau beim Spulen» of a video library, both groups at once (since contract
+             *     1.23.0); `not_allowed` for audio libraries. A change to a setting that does not store (`off`,
+             *     `on_start` without `keep`) removes the stored sets of that kind at the next maintenance, once no
+             *     playback of the file is open; waiting import, backfill and look-ahead jobs end without work.
+             */
+            trickplay?: components["schemas"]["LibraryTrickplay"];
         };
         /**
          * @description `aborted` means the loss protection stopped the scan (root missing or empty, or more than 20 % of
@@ -6592,6 +6766,10 @@ export interface components {
             scan: components["schemas"]["LibraryScan"];
             /** @description Keyframe index coverage of a video library; absent for audio libraries (since contract 1.13.0). */
             keyframeIndex?: components["schemas"]["LibraryKeyframeIndex"];
+            /** @description The settings «Vorschau beim Spulen» of a video library; absent for audio libraries (since contract 1.23.0). */
+            trickplay?: components["schemas"]["LibraryTrickplay"];
+            /** @description Storage estimate of the previews of a video library; only in `getLibrary`, absent for audio libraries (since contract 1.23.0). */
+            trickplayEstimate?: components["schemas"]["LibraryTrickplayEstimate"];
             /** Format: date-time */
             createdAt: string;
         };
@@ -6609,6 +6787,136 @@ export interface components {
             pending: number;
             /** @description Files whose index cannot be built; they are always transcoded. */
             unavailable: number;
+        };
+        /**
+         * @description The settings «Vorschau beim Spulen» of a video library (concept 18, 6.1; since contract 1.23.0),
+         *     one for films (titles of kind `movie`) and one for series (kind `episode`), also in a library
+         *     that holds both.
+         */
+        LibraryTrickplay: {
+            movies: components["schemas"]["LibraryTrickplayMovies"];
+            series: components["schemas"]["LibraryTrickplaySeries"];
+        };
+        /** @description The trickplay setting of the films of a library. */
+        LibraryTrickplayMovies: {
+            mode: components["schemas"]["TrickplayMoviesMode"];
+            /** @description «Speichern» of `on_start`; stored for every mode, read only with `on_start`. */
+            keep: boolean;
+        };
+        /** @description The trickplay setting of the episodes of a library. */
+        LibraryTrickplaySeries: {
+            mode: components["schemas"]["TrickplaySeriesMode"];
+            /** @description «Speichern» of `on_start`; stored for every mode, read only with `on_start`. */
+            keep: boolean;
+            scope: components["schemas"]["TrickplaySeriesScope"];
+        };
+        /**
+         * @description `ahead` «Im Voraus» (default): on import of new files, by the backfill (`trickplay.backfill`) and at
+         *     a start when missing, always stored. `on_start` «Beim Start»: at a start, stored with `keep`, else
+         *     only while it plays. `off` «Aus»: never; the seek bar shows the chapter image.
+         * @enum {string}
+         */
+        TrickplayMoviesMode: "ahead" | "on_start" | "off";
+        /**
+         * @description As `TrickplayMoviesMode`, and `series_start` «Beim Start alle Folgen»: a start of an episode makes
+         *     its previews and, in the background, those of the other episodes in `scope`; always stored.
+         * @enum {string}
+         */
+        TrickplaySeriesMode: "ahead" | "on_start" | "series_start" | "off";
+        /**
+         * @description The look-ahead of `series_start` (F-14): `series` the whole series (default, specials last),
+         *     `season_rest` from the started episode to the end of its season (at the last episode the first
+         *     season after it), `next_episode` the following episode.
+         * @enum {string}
+         */
+        TrickplaySeriesScope: "series" | "season_rest" | "next_episode";
+        /**
+         * @description Storage estimate of the previews of a video library per kind (concept 18, 9; since contract
+         *     1.23.0), computed from the running time of the present media files (every version counts, files
+         *     without a duration do not) at about 1.5 MB per hour of video. The values hold for a storing
+         *     setting; the client says «at most» for `on_start` with `keep` and `series_start`, and shows 0 for
+         *     `off` and `on_start` without `keep`. `storedBytes` is what the stored sets take today, counted by
+         *     the hourly `library.sweep`.
+         */
+        LibraryTrickplayEstimate: {
+            movies: components["schemas"]["LibraryTrickplayKindEstimate"];
+            series: components["schemas"]["LibraryTrickplayKindEstimate"];
+            /**
+             * Format: int64
+             * @description Free space on the drive of the cache directory; absent when unknown.
+             */
+            cacheFreeBytes?: number;
+        };
+        LibraryTrickplayKindEstimate: {
+            /** @description Films or episodes of the library with a present media file. */
+            titles: number;
+            /** @description Present media files of these titles with a duration. */
+            files: number;
+            /**
+             * Format: int64
+             * @description Running time of these files together.
+             */
+            durationMs: number;
+            /**
+             * Format: int64
+             * @description Estimate for one film or one episode (mean running time); 0 without files.
+             */
+            perTitleBytes: number;
+            /**
+             * Format: int64
+             * @description Estimate for every file of this kind in the library.
+             */
+            libraryBytes: number;
+            /**
+             * Format: int64
+             * @description Bytes of the stored sets of this kind today (0 before the first count).
+             */
+            storedBytes: number;
+        };
+        /**
+         * @description The preview tiles of the seek bar of one media file (concept 18 part A, ADR 0027; since contract
+         *     1.23.0). One point every `intervalMs` (10 s); point `k` is the keyframe the job took for the
+         *     section from `k * intervalMs`, its time is `pointsMs[k]`. For a pointer position the client
+         *     shows the last point with `pointsMs[k] <= position`. Tile `k` lies on sheet
+         *     `floor(k / (columns * rows))` at row `floor(k mod (columns * rows) / columns)` and column
+         *     `k mod columns`, each tile `tileWidth` x `tileHeight` pixels. `sheets` lists the sheets that
+         *     exist now, in any order (the job makes the sheet of the start position first).
+         */
+        Trickplay: {
+            /**
+             * @description Version of the set, `<size>-<mtime>-<source><tileHeight>`: size and mtime of the media file,
+             *     the source of the points (`index` or `fallback`) and the tile height, so a set made again
+             *     gets new sheet URLs. The `v` of the sheet URLs; the client treats it as opaque.
+             */
+            version: string;
+            /**
+             * @description `queued`: the job waits (or the set is not started); `running`: it makes sheets now;
+             *     `complete`: every sheet exists; `failed`: the job gave up, the sheets that exist stay.
+             * @enum {string}
+             */
+            state: "queued" | "running" | "complete" | "failed";
+            /** @description Distance of the points (10000). */
+            intervalMs: number;
+            /** @description Width of a tile in pixels (320). */
+            tileWidth: number;
+            /** @description Height of a tile in pixels (by the display aspect ratio of the file, even). */
+            tileHeight: number;
+            /** @description Tiles per row of a sheet (10). */
+            columns: number;
+            /** @description Rows of a full sheet (10); the last sheet has only as many as it needs. */
+            rows: number;
+            /** @description Time of every point in milliseconds, ascending. */
+            pointsMs: number[];
+            sheets: components["schemas"]["TrickplaySheet"][];
+        };
+        TrickplaySheet: {
+            /** @description Number of the sheet, from 0. */
+            index: number;
+            /**
+             * Format: uri-reference
+             * @description Relative URL of `getTrickplaySheet` (online) or `getDownloadTrickplaySheet` (in a download).
+             */
+            url: string;
         };
         LibraryRoot: {
             /** Format: int64 */
@@ -6797,6 +7105,13 @@ export interface components {
              *     fetches no chapter images.
              */
             chapters: components["schemas"]["Chapter"][];
+            /**
+             * @description The preview tiles copied into the download (since contract 1.23.0, concept 18, 6.8), always with
+             *     `state: complete`; `sheets[].url` names `getDownloadTrickplaySheet` with the download token.
+             *     Absent when the library setting is `off` or no complete set was ready within 10 minutes of the
+             *     preparation.
+             */
+            trickplay?: components["schemas"]["Trickplay"];
         };
         OfflineSyncRequest: {
             held: {
@@ -7066,7 +7381,7 @@ export interface components {
             facets: components["schemas"]["LibraryFacets"];
         };
         PicksPage: {
-            /** @description Cat's recommendations in Cat's order, each with `note` when the main user wrote one. */
+            /** @description The user picks, newest recommendation first, without a note. */
             items: components["schemas"]["ItemRef"][];
             total: number;
             offset: number;
@@ -7099,54 +7414,44 @@ export interface components {
             offset: number;
             limit: number;
         };
-        /** @description One of Cat's recommendations in the administration (not an `ItemRef`). */
-        AdminPick: {
-            /** Format: int64 */
-            id: number;
+        /**
+         * @description A title of the user picks in the administration (not an `ItemRef`, ADR 0028): anonymous, only
+         *     the number of recommendations and days.
+         */
+        AdminUserPick: {
             itemId: components["schemas"]["ItemID"];
             kind: components["schemas"]["ItemKind"];
             /** @description Title of the item (German text, else English, else the parsed name). */
             title: string;
             year?: number;
+            /** @description How many profiles hold a recommendation that has not expired. */
+            count: number;
             /**
-             * Format: int64
-             * @description The single profile this pick is for; absent = all profiles.
+             * Format: date
+             * @description The day of the newest recommendation in the time zone of the server.
              */
-            profileId?: number;
-            profileName?: string;
-            position: number;
-            note?: string;
-            /** Format: date-time */
-            startsAt?: string;
-            /** Format: date-time */
-            endsAt?: string;
-            /** Format: date-time */
-            createdAt: string;
+            lastPickedOn: string;
+            /** @description Whole days until the title leaves the list (rounded up; 1 = within the next 24 hours). */
+            expiresInDays: number;
             /**
              * @description The poster (`w200`) through `getAdminItemImage`, system-wide and without profile id;
              *     absent when no poster is stored (the page shows its placeholder).
              */
             posterUrl?: string;
         };
-        PickRequest: {
-            itemId: components["schemas"]["ItemID"];
-            /** @description Profiles of the main account the pick is for; absent or empty = all profiles. */
-            profileIds?: number[];
-            note?: string;
-            /** Format: date-time */
-            startsAt?: string;
-            /** Format: date-time */
-            endsAt?: string;
+        PicksSettings: {
+            /** @description Days a title stays after its newest recommendation (default 60). */
+            retentionDays: number;
         };
-        PickUpdate: {
-            note?: string | null;
-            /** Format: date-time */
-            startsAt?: string | null;
-            /** Format: date-time */
-            endsAt?: string | null;
-        };
-        PickOrder: {
-            ids: number[];
+        /** @description The answer to `recommendItem`. */
+        UserPickResult: {
+            /**
+             * Format: date-time
+             * @description When the recommendation expires unless it is renewed.
+             */
+            expiresAt: string;
+            /** @description The retention the hint names («Bleibt N Tage»). */
+            retentionDays: number;
         };
         /** @description A title found for curation (not an `ItemRef`, no images). */
         AdminItemHit: {
@@ -7839,7 +8144,7 @@ export interface components {
             /** @enum {string} */
             trigger: "schedule" | "event" | "manual";
             /** @enum {string} */
-            pool: "general" | "download" | "notify" | "index";
+            pool: "general" | "download" | "notify" | "index" | "trickplay";
             paused: boolean;
             /** Format: date-time */
             pausedAt?: string;
@@ -7882,10 +8187,11 @@ export interface components {
         };
         JobPool: {
             /**
-             * @description `index` has one worker: the full keyframe reads (concept 14; since contract 1.13.0).
+             * @description `index` has one worker: the full keyframe reads (concept 14; since contract 1.13.0). `trickplay` has
+             *     one worker: the preview tiles of the seek bar (concept 18; since contract 1.23.0).
              * @enum {string}
              */
-            pool: "general" | "download" | "notify" | "index";
+            pool: "general" | "download" | "notify" | "index" | "trickplay";
             workers: number;
             /** @description Estimated work waiting in the pool, divided by its workers; absent without any median. */
             backlogSeconds?: number;
@@ -9065,8 +9371,13 @@ export interface components {
             openTags: number;
             coverage: components["schemas"]["RadioCoverage"][];
         };
-        /** @enum {string} */
-        RadioRelayState: "connecting" | "live" | "reconnecting" | "ending";
+        /**
+         * @description `failed` (since contract 1.23.0): no relay runs any more for these open listen sessions (it ended
+         *     and its sessions could not be closed, or the station's relay was started anew); they hear nothing
+         *     until they end or expire. `listRadioRelays` lists them under the ended relay; `load` counts it not.
+         * @enum {string}
+         */
+        RadioRelayState: "connecting" | "live" | "reconnecting" | "ending" | "failed";
         RadioRelayListener: {
             listenId: string;
             profileName: string;
@@ -9077,7 +9388,16 @@ export interface components {
              * @description Unix ms when the listen session started.
              */
             since: number;
+            /** @description Since contract 1.23.0. The device of the listen session's login session, like `AdminStream.device`. */
+            device?: {
+                id: string;
+                name?: string;
+            };
         };
+        /**
+         * @description A relay with its listeners. Since contract 1.23.0 `logo` is the station's logo through
+         *     `getAdminRadioImage` (w256, `v` = content hash), absent without one.
+         */
         RadioRelay: {
             /** Format: int64 */
             stationId: number;
@@ -9093,6 +9413,7 @@ export interface components {
             bufferBytes: number;
             state: components["schemas"]["RadioRelayState"];
             listeners: components["schemas"]["RadioRelayListener"][];
+            logo?: components["schemas"]["RadioLogo"];
         };
         RadioLoad: {
             relays: number;
@@ -9282,8 +9603,6 @@ export interface components {
         ItemID: components["schemas"]["ItemID"];
         /** @description Collection ID (ULID). */
         CollectionID: components["schemas"]["CollectionID"];
-        /** @description Pick ID from `listTopPicks`. */
-        PickID: number;
         /** @description Playback session ID (ULID) from `PlaybackInfo.playbackSessionId`. */
         PlaybackSessionID: string;
         /** @description Device id (32 characters, the device cookie value). */
@@ -10678,6 +10997,98 @@ export interface operations {
             };
         };
     };
+    getTrickplay: {
+        parameters: {
+            query: {
+                /** @description The media file the playback plays (`PlaybackInfo.mediaFile.id`, a ULID). */
+                mediaFileId: string;
+            };
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The preview set of the file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Trickplay"];
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown or not visible title, no such file of this title, or no preview for this title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getTrickplaySheet: {
+        parameters: {
+            query: {
+                /** @description The media file of the set (a ULID). */
+                mediaFileId: string;
+                /** @description Version of the set as in `Trickplay.version`; decides the caching of the answer. */
+                v?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+                /** @description Number of the sheet, from 0. */
+                sheet: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The sheet. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": string;
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown or not visible title, no such file of this title, or no such sheet (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getItemTrailers: {
         parameters: {
             query?: never;
@@ -11655,6 +12066,37 @@ export interface operations {
             410: components["responses"]["DownloadEvicted"];
         };
     };
+    getDownloadTrickplaySheet: {
+        parameters: {
+            query: {
+                /** @description Download token from `DownloadManifest.fileUrl`. Redacted in all logs. */
+                dt: components["parameters"]["DownloadToken"];
+            };
+            header?: never;
+            path: {
+                /** @description Download ID (ULID). */
+                id: components["parameters"]["DownloadID"];
+                /** @description Number of the sheet, from 0. */
+                sheet: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The sheet. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["DownloadUnauthenticated"];
+            404: components["responses"]["DownloadNotFound"];
+            410: components["responses"]["DownloadEvicted"];
+        };
+    };
     syncOffline: {
         parameters: {
             query?: never;
@@ -12056,7 +12498,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Validation failed (`validation_failed`; `defaultRating` `not_allowed` for video libraries). */
+            /** @description Validation failed (`validation_failed`; `defaultRating` `not_allowed` for video libraries, `trickplay` `not_allowed` for audio libraries). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -14139,6 +14581,70 @@ export interface operations {
             };
         };
     };
+    recommendItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recommended. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserPickResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown, not visible, not recommendable or not the owner's account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    unrecommendItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Not recommended by the active profile (any more). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown, not visible, not recommendable or not the owner's account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listFavorites: {
         parameters: {
             query?: never;
@@ -14304,7 +14810,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
         };
     };
-    listTopPicks: {
+    listAdminUserPicks: {
         parameters: {
             query?: never;
             header?: never;
@@ -14313,20 +14819,42 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The picks. */
+            /** @description The user picks. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AdminPick"][];
+                    "application/json": components["schemas"]["AdminUserPick"][];
                 };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
         };
     };
-    createTopPicks: {
+    getPicksSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PicksSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    updatePicksSettings: {
         parameters: {
             query?: never;
             header?: never;
@@ -14335,26 +14863,22 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PickRequest"];
+                "application/json": components["schemas"]["PicksSettings"];
             };
         };
         responses: {
-            /** @description The created picks. */
-            201: {
+            /** @description The stored settings. */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AdminPick"][];
+                    "application/json": components["schemas"]["PicksSettings"];
                 };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
-            /**
-             * @description Validation failed (`validation_failed`; `itemId` `unknown_item` or `invalid_value` for seasons and
-             *     extras, `profileIds` `invalid_value` for profiles outside the main account, `note` `too_long`,
-             *     `endsAt` `invalid_value` when not after `startsAt`).
-             */
+            /** @description Validation failed (`validation_failed`; `retentionDays` `invalid_value` outside 7..365). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -14365,46 +14889,13 @@ export interface operations {
             };
         };
     };
-    reorderTopPicks: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PickOrder"];
-            };
-        };
-        responses: {
-            /** @description Reordered. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["AdminOnly"];
-            /** @description Validation failed (`validation_failed`; `ids` `invalid_value` unless every pick appears once). */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    deleteTopPick: {
+    removeAdminUserPick: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description Pick ID from `listTopPicks`. */
-                id: components["parameters"]["PickID"];
+                /** @description Item ID (ULID). */
+                itemId: components["schemas"]["ItemID"];
             };
             cookie?: never;
         };
@@ -14419,55 +14910,8 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
-            /** @description Unknown pick (`not_found`). */
+            /** @description The title has no recommendation (`not_found`). */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    updateTopPick: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Pick ID from `listTopPicks`. */
-                id: components["parameters"]["PickID"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PickUpdate"];
-            };
-        };
-        responses: {
-            /** @description The updated pick. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminPick"];
-                };
-            };
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["AdminOnly"];
-            /** @description Unknown pick (`not_found`). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Validation failed (`validation_failed`; `note` `too_long`, `endsAt` `invalid_value`). */
-            422: {
                 headers: {
                     [name: string]: unknown;
                 };

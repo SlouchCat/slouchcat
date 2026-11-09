@@ -87,7 +87,7 @@ const noUserData: RelinkUserData = {
   favorites: 0,
   collectionItems: 0,
   notifications: 0,
-  topPicks: 0,
+  userPicks: 0,
   downloads: 0,
   activityEvents: 0,
 };
@@ -236,15 +236,18 @@ describe('maintenance page', () => {
 
     // A section folds away with its button; the others stay open, the selection stays.
     await user.click(within(series).getByRole('checkbox', { name: 'Titel 21 auswählen' }));
-    // The section's heading line counts its selected entries.
-    expect(within(panel()).getAllByText('1 ausgewählt')).toHaveLength(2);
+    // The section's heading line counts its selected entries; the toolbar counts them among the
+    // loaded ones (concept 18 C-3).
+    expect(within(panel()).getByText('1 ausgewählt')).toBeVisible();
+    expect(within(panel()).getByText(/^1 von \d+ geladenen ausgewählt$/)).toBeVisible();
     const toggle = screen.getByRole('button', { name: 'Serien 2 Einträge' });
     toggle.focus();
     await user.keyboard('{Enter}');
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('link', { name: 'Titel 21' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Titel 22' })).toBeVisible();
-    expect(within(panel()).getAllByText('1 ausgewählt')).toHaveLength(2);
+    expect(within(panel()).getByText('1 ausgewählt')).toBeVisible();
+    expect(within(panel()).getByText(/^1 von \d+ geladenen ausgewählt$/)).toBeVisible();
     await user.keyboard('{Enter}');
     expect(screen.getByRole('checkbox', { name: 'Titel 21 auswählen' })).toBeChecked();
   });
@@ -396,7 +399,7 @@ describe('maintenance page', () => {
     expect(await screen.findByText(/^1 von 2 Titeln nicht aktualisiert: /)).toBeVisible();
     expect(calls.filter((call) => call.path.endsWith('/refresh'))).toHaveLength(2);
     await waitFor(() => expect(listed()).toBeGreaterThan(before));
-    expect(screen.getByText('0 ausgewählt')).toBeVisible();
+    expect(screen.getByText(/^0 von \d+ geladenen ausgewählt$/)).toBeVisible();
     // The button went off with the selection: the h1 takes the focus.
     await waitFor(() => expect(title()).toHaveFocus());
   });
@@ -412,12 +415,12 @@ describe('maintenance page', () => {
     expect(assign).toBeDisabled();
 
     await user.click(within(panel()).getByRole('button', { name: 'Alle auswählen' }));
-    expect(within(panel()).getAllByText('2 ausgewählt')[0]).toBeVisible();
+    expect(within(panel()).getByText('2 von 2 geladenen ausgewählt')).toBeVisible();
     for (const box of await boxes()) expect(box).toBeChecked();
     expect(assign).toBeEnabled();
 
     await user.click(within(panel()).getByRole('button', { name: 'Auswahl aufheben' }));
-    expect(within(panel()).getAllByText('0 ausgewählt')[0]).toBeVisible();
+    expect(within(panel()).getByText('0 von 2 geladenen ausgewählt')).toBeVisible();
     for (const box of await boxes()) expect(box).not.toBeChecked();
     expect(assign).toBeDisabled();
     expect(within(panel()).getByRole('button', { name: 'Alle auswählen' })).toBeVisible();
@@ -742,7 +745,7 @@ describe('maintenance page', () => {
         year: 1995,
         deletedTitle: 'Heat',
         deletedYear: 1995,
-        userData: { ...noUserData, progress: 2, topPicks: 1 },
+        userData: { ...noUserData, progress: 2, userPicks: 1 },
       });
     relinkPairs = {
       total: 3,
@@ -790,7 +793,7 @@ describe('maintenance page', () => {
     dialog = await screen.findByRole('alertdialog', { name: 'Benutzerdaten umhängen?' });
     expect(
       within(dialog).getByText(
-        '2 Kopien gehen in ihren gelöschten Titeln auf. Die alten Titel kommen zurück und behalten ihre Adressen. Es bleiben erhalten: 2 Fortschritte, 1 Top-Pick. Die Kopien werden endgültig entfernt. Eine weitere Kopie desselben Titels wird übersprungen und steht danach unter «Duplikate».',
+        '2 Kopien gehen in ihren gelöschten Titeln auf. Die alten Titel kommen zurück und behalten ihre Adressen. Es bleiben erhalten: 2 Fortschritte, 1 User-Empfehlung. Die Kopien werden endgültig entfernt. Eine weitere Kopie desselben Titels wird übersprungen und steht danach unter «Duplikate».',
       ),
     ).toBeVisible();
     await user.click(within(dialog).getByRole('button', { name: 'Umhängen' }));
@@ -897,28 +900,49 @@ describe('maintenance page', () => {
     expect(screen.getByRole('link', { name: 'Silo' })).toBeVisible();
   });
 
-  it('loads further pages with "Mehr laden" per tab; the new entries join their sections', async () => {
-    const user = userEvent.setup();
-    lists.orphaned = Array.from({ length: 60 }, (_, index) =>
-      issue('orphaned', 10 + index, { libraryId: index < 55 ? 1 : 2 }),
+  it('loads the next page as the end of a tab comes into view; the new entries join their sections', async () => {
+    // The end of the list is in view at once (concept 18 C-3: no «Mehr laden»).
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(private readonly callback: IntersectionObserverCallback) {}
+        observe() {
+          this.callback([{ isIntersecting: true } as IntersectionObserverEntry], this as never);
+        }
+        disconnect() {}
+      },
     );
-    setup();
+    const user = userEvent.setup();
+    lists.orphaned = Array.from({ length: 160 }, (_, index) =>
+      issue('orphaned', 10 + index, { libraryId: index < 155 ? 1 : 2 }),
+    );
+    const { calls, fetchMock } = setup();
     renderApp('/admin/maintenance');
     await user.click(await screen.findByRole('tab', { name: /^Verwaist \d/ }));
-    expect(await screen.findByText('50 von 60')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Filme 50 Einträge' })).toBeVisible();
-    expect(screen.queryByRole('button', { name: /^Serien/ })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Mehr laden' }));
-    expect(await screen.findByText('60 von 60')).toBeVisible();
+    // Page 1 is asked for once page 0 is drawn, its end is in view and the range rested
+    // (PAGED_LIST_SETTLE_MS); then 160 rows are drawn. Waiting for the request first keeps the
+    // costly text query over the table out of that chain: polled for all of it, it used up the
+    // wait on a busy runner before the rows were drawn (run 42673625842).
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.map(([request]) => new URL(request.url).search)).toContain(
+        '?kind=orphaned&limit=100&offset=100',
+      ),
+    );
+    expect(await screen.findByText('160 von 160')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Mehr laden' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Filme 55 Einträge' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Filme 155 Einträge' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Serien 5 Einträge' })).toBeVisible();
+    // Pages of 100, one after the other.
+    const pages = calls.filter(
+      (call) => call.method === 'GET' && call.path === '/admin/maintenance/issues',
+    );
+    expect(pages.length).toBeGreaterThanOrEqual(2);
 
     // Every tab counts its own: another tab shows its own «X von Y».
     await user.click(screen.getByRole('tab', { name: /^Altersfreigabe fehlt/ }));
     expect(await screen.findByText('2 von 2')).toBeVisible();
     await user.click(screen.getByRole('tab', { name: /^Verwaist \d/ }));
-    expect(await screen.findByText('60 von 60')).toBeVisible();
+    expect(await screen.findByText('160 von 160')).toBeVisible();
   });
 
   it('keeps the selection and the outcome of a tab when another tab was open (S-17)', async () => {
@@ -930,7 +954,7 @@ describe('maintenance page', () => {
     );
     await user.click(screen.getByRole('tab', { name: /^Verwaist \d/ }));
     await screen.findByRole('link', { name: 'Titel 5' });
-    expect(screen.getByText('0 ausgewählt')).toBeVisible();
+    expect(screen.getByText(/^0 von \d+ geladenen ausgewählt$/)).toBeVisible();
     await user.click(screen.getByRole('tab', { name: /^Altersfreigabe fehlt/ }));
     expect(
       await screen.findByRole('checkbox', { name: 'Slouchcat Test Unrated auswählen' }),

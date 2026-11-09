@@ -113,8 +113,8 @@ func (s *Service) startEnclosure(ctx context.Context, session model.Session, ite
 		Mode:      ModeDirect,
 		Item:      item,
 		MediaFile: model.MediaFile{
-			Container: containerOfType(mime), MimeType: mime, DurationMs: enc.DurationMs, SizeBytes: enc.Length,
-			AudioCodec: codecOfType(mime), Available: true,
+			Container: model.EnclosureContainer(mime), MimeType: mime, DurationMs: enc.DurationMs, SizeBytes: enc.Length,
+			AudioCodec: model.EnclosureCodec(mime), Available: true,
 		},
 		StreamURL:         "/api/v1/items/" + url.PathEscape(item.ID) + "/stream?st=" + st,
 		PlaybackSessionID: id,
@@ -128,34 +128,6 @@ func (s *Service) startEnclosure(ctx context.Context, session model.Session, ite
 	}
 	s.log.InfoContext(ctx, "playback started", "playback_id", id, "item_id", item.ID, "mode", ModeDirect, "source", "enclosure")
 	return info, nil
-}
-
-// containerOfType maps the MIME type of an enclosure to a container name.
-func containerOfType(mime string) string {
-	switch strings.ToLower(strings.TrimSpace(strings.Split(mime, ";")[0])) {
-	case "audio/mpeg", "audio/mp3":
-		return "mp3"
-	case "audio/mp4", "audio/x-m4a", "audio/aac", "video/mp4":
-		return "m4a"
-	case "audio/ogg", "audio/opus":
-		return "ogg"
-	case "audio/flac", "audio/x-flac":
-		return "flac"
-	}
-	return "unknown"
-}
-
-// codecOfType is the audio codec an enclosure of the MIME type usually carries ("" when unknown).
-func codecOfType(mime string) string {
-	switch containerOfType(mime) {
-	case "mp3":
-		return "mp3"
-	case "m4a":
-		return "aac"
-	case "flac":
-		return "flac"
-	}
-	return ""
 }
 
 // ProxyEnclosure answers the stream endpoint for a playback session without media file: after

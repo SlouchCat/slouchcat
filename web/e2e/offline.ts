@@ -39,6 +39,8 @@ export interface StoredDownloadData {
     chapters?: { startMs: number; endMs: number; title?: string }[];
     audio?: { index: number; language?: string };
     subtitles: { track: { id: number; language?: string } }[];
+    /** Preview sheets (concept 18, 6.8). */
+    trickplay?: { state: string; sheets: { index: number; url: string }[] };
   };
   positions?: Record<string, { positionMs: number; at: number }>;
   /** Speed per profile set in offline playback of an audio download (M6). */

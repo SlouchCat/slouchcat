@@ -109,7 +109,10 @@ func (s *Service) DeleteDevice(ctx context.Context, id string) error {
 }
 
 // ListStreams returns the running playback sessions (W-6), newest first, with the title in plain
-// text ("Series · S01E02 · Title" for an episode) and the duration of the media file.
+// text ("Series · S01E02 · Title" for an episode), what each plays and its duration (concept 18,
+// 17.4): the kind; the podcast of a podcast episode and the movie or series of an extra as parent
+// title; for an audiobook the chapter at the position, the number of parts and the whole book's
+// length; for audio the codec and bit rate; and whether it comes from a file or a feed.
 func (s *Service) ListStreams(ctx context.Context) ([]model.AdminStream, error) {
 	if s.streams == nil {
 		return nil, ErrNotConfigured
@@ -124,54 +127,124 @@ func (s *Service) ListStreams(ctx context.Context) ([]model.AdminStream, error) 
 		itemIDs = append(itemIDs, st.ItemID)
 		fileIDs = append(fileIDs, st.MediaFileID)
 	}
-	items, err := s.sys.AdminStreamItems(ctx, itemIDs)
+	rows, err := s.sys.AdminStreamItems(ctx, itemIDs)
 	if err != nil {
 		return nil, fmt.Errorf("stream titles: %w", err)
 	}
-	titles := make(map[string]string, len(items))
-	posterOf := make(map[string]string, len(items)) // item id -> the title whose images it shows
-	posterIDs := make([]string, 0, len(items))
-	for _, it := range items {
-		titles[it.ID] = streamTitle(it)
+	items := make(map[string]systemq.AdminStreamItemsRow, len(rows))
+	posterOf := make(map[string]string, len(rows)) // item id -> the title whose images it shows
+	imageIDs := make([]string, 0, 2*len(rows))
+	var books []string
+	for _, it := range rows {
+		items[it.ID] = it
 		pid := it.ID
-		if it.Kind == "episode" && it.SeriesID.Valid {
+		switch {
+		case it.Kind == "episode" && it.SeriesID.Valid:
 			pid = it.SeriesID.String // an episode shows the images of its series (concepts 11 and 12)
+		case (it.Kind == "extra" || it.Kind == "podcast_episode") && it.OwnerID.Valid:
+			pid = it.OwnerID.String // an extra its movie's or series', an episode without cover its podcast's
 		}
 		posterOf[it.ID] = pid
-		posterIDs = append(posterIDs, pid)
+		imageIDs = append(imageIDs, it.ID, pid)
+		if it.Kind == "audiobook" {
+			books = append(books, it.ID)
+		}
 	}
-	posters, err := posterHashes(ctx, s.sys, posterIDs)
+	posters, err := posterHashes(ctx, s.sys, imageIDs)
 	if err != nil {
 		return nil, fmt.Errorf("stream posters: %w", err)
 	}
-	backdrops, err := backdropHashes(ctx, s.sys, posterIDs)
+	backdrops, err := backdropHashes(ctx, s.sys, imageIDs)
 	if err != nil {
 		return nil, fmt.Errorf("stream backdrops: %w", err)
 	}
-	durations, err := s.sys.AdminMediaFileDurations(ctx, fileIDs)
+	files, err := s.sys.AdminMediaFileDurations(ctx, fileIDs)
 	if err != nil {
 		return nil, fmt.Errorf("stream durations: %w", err)
 	}
-	byFile := make(map[string]int64, len(durations))
-	for _, d := range durations {
-		if d.DurationMs.Valid {
-			byFile[d.ID] = d.DurationMs.Int64
+	byFile := make(map[string]systemq.AdminMediaFileDurationsRow, len(files))
+	for _, f := range files {
+		byFile[f.ID] = f
+	}
+	chapters := map[string][]systemq.AdminStreamChaptersRow{}
+	if len(books) > 0 {
+		list, err := s.sys.AdminStreamChapters(ctx, books)
+		if err != nil {
+			return nil, fmt.Errorf("stream chapters: %w", err)
+		}
+		for _, c := range list {
+			chapters[c.ItemID] = append(chapters[c.ItemID], c)
 		}
 	}
+	out := streams[:0]
 	for i := range streams {
 		st := &streams[i]
-		st.ItemTitle = titles[st.ItemID]
-		if pid := posterOf[st.ItemID]; posters[pid] != "" {
+		it, ok := items[st.ItemID]
+		if !ok {
+			continue // the title was deleted between the two reads: no kind to name (AdminStreamKind)
+		}
+		st.ItemTitle, st.Kind, st.Source = streamTitle(it), it.Kind, model.StreamSourceFile
+		file, hasFile := byFile[st.MediaFileID]
+		if st.MediaFileID == "" {
+			st.Source = model.StreamSourceFeed
+		}
+		audio := it.Kind == "audiobook" || it.Kind == "podcast_episode"
+		if it.Kind == "extra" || it.Kind == "podcast_episode" {
+			st.ParentTitle = it.OwnerTitle
+		}
+		pid := posterOf[st.ItemID]
+		switch {
+		case it.Kind == "podcast_episode" && posters[st.ItemID] != "":
+			st.PosterItemID, st.PosterHash = st.ItemID, posters[st.ItemID] // the episode's own cover
+		case posters[pid] != "":
 			st.PosterItemID, st.PosterHash = pid, posters[pid]
 		}
-		if pid := posterOf[st.ItemID]; backdrops[pid] != "" {
+		if !audio && backdrops[pid] != "" { // audio shows its square cover, never a backdrop
 			st.BackdropItemID, st.BackdropHash = pid, backdrops[pid]
 		}
-		if d, ok := byFile[st.MediaFileID]; ok {
+		switch {
+		case (it.Kind == "audiobook" || !hasFile) && it.DurationMs.Valid:
+			d := it.DurationMs.Int64 // the whole book (its parts summed), or the feed's length
+			st.DurationMs = &d
+		case hasFile && file.DurationMs.Valid:
+			d := file.DurationMs.Int64
 			st.DurationMs = &d
 		}
+		if it.Kind == "audiobook" {
+			st.ChapterTitle = chapterAt(chapters[st.ItemID], st.PositionMs)
+			if it.PartCount > 1 {
+				st.PartCount = int(it.PartCount)
+			}
+		}
+		if audio {
+			switch {
+			case !hasFile:
+				st.AudioCodec = model.EnclosureCodec(it.EnclosureType.String) // no probe of a feed
+			case st.Mode == "direct":
+				st.AudioCodec, st.AudioBitrate = file.AudioCodec.String, int(file.BitRate)
+			default:
+				st.AudioCodec, st.AudioBitrate = "aac", st.Bitrate // HLS delivers AAC
+			}
+		}
+		out = append(out, *st)
 	}
-	return streams, nil
+	return out, nil
+}
+
+// chapterAt is the title of the last chapter that starts at or before the position ("" without a
+// position or before the first chapter); chapters are in order of their start.
+func chapterAt(chapters []systemq.AdminStreamChaptersRow, positionMs *int64) string {
+	if positionMs == nil {
+		return ""
+	}
+	title := ""
+	for _, c := range chapters {
+		if c.StartMs > *positionMs {
+			break
+		}
+		title = c.Title
+	}
+	return title
 }
 
 // streamTitle names a title for the overview: an episode as "Series · S01E02 · Title" (a

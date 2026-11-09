@@ -11,15 +11,31 @@ const FRAME_FALLBACK_MS = 100;
 /**
  * Resolves once React has rendered what was just set: a task, then the next frame. A browser
  * tab in the background paints no frames, so a timeout of 100 ms stands in for the frame there;
- * the focus does not wait until the tab is shown again.
+ * the focus does not wait until the tab is shown again. The timer and the frame that lose are
+ * cleared. `signal` (the page unmounted) clears them as well and resolves at once: under Vitest
+ * `window.setTimeout` is a Node timer that outlives jsdom, and one that fired after the file
+ * ended threw "document is not defined" (PicksPage.test.tsx).
  */
-export const afterRender = () =>
+export const afterRender = (signal?: AbortSignal) =>
   new Promise<void>((resolve) => {
-    window.setTimeout(() => {
-      void Promise.race([
-        new Promise<void>((frame) => window.requestAnimationFrame(() => frame())),
-        new Promise<void>((late) => window.setTimeout(late, FRAME_FALLBACK_MS)),
-      ]).then(resolve);
+    if (signal?.aborted) {
+      resolve();
+      return;
+    }
+    let task = 0;
+    let frame = 0;
+    let late = 0;
+    const done = () => {
+      window.clearTimeout(task);
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(late);
+      signal?.removeEventListener('abort', done);
+      resolve();
+    };
+    signal?.addEventListener('abort', done);
+    task = window.setTimeout(() => {
+      frame = window.requestAnimationFrame(done);
+      late = window.setTimeout(done, FRAME_FALLBACK_MS);
     }, 0);
   });
 
@@ -28,15 +44,20 @@ export const afterRender = () =>
  * popover or menu stays in the DOM while it plays its exit animation (`data-exiting`), and only
  * then gives the focus back to the element that opened it. Waits for at most 60 more rounds:
  * about one second at 60 frames per second, about six seconds in a background tab, where each
- * round takes the 100 ms of the fallback.
+ * round takes the 100 ms of the fallback. `signal` ends the wait at once (see `afterRender`);
+ * the caller then leaves the focus alone.
  */
-export async function afterDialogsClosed(): Promise<void> {
-  await afterRender();
-  for (let rounds = 0; rounds < 60 && document.querySelector('[data-exiting]'); rounds += 1) {
-    await afterRender();
+export async function afterDialogsClosed(signal?: AbortSignal): Promise<void> {
+  await afterRender(signal);
+  for (
+    let rounds = 0;
+    rounds < 60 && !signal?.aborted && document.querySelector('[data-exiting]');
+    rounds += 1
+  ) {
+    await afterRender(signal);
   }
   // react-aria hands the focus back in a frame after the unmount; that comes first.
-  await afterRender();
+  await afterRender(signal);
 }
 
 /**

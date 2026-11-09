@@ -42,4 +42,7 @@ type OfflineService interface {
 	// OpenSubtitle opens a WebVTT sidecar of a grant (model.ErrNotFound for a track it does not
 	// carry, model.ErrDownloadEvicted when removed).
 	OpenSubtitle(ctx context.Context, g model.DownloadGrant, trackID int64) (model.StreamSource, error)
+	// OpenTrickplaySheet opens a sheet of the preview set copied into a download
+	// (getDownloadTrickplaySheet; model.ErrNotFound for a sheet it does not carry).
+	OpenTrickplaySheet(ctx context.Context, g model.DownloadGrant, n int) (model.StreamSource, error)
 }

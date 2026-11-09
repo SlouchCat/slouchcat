@@ -92,6 +92,47 @@ describe('afterRender and afterDialogsClosed', () => {
     expect(done).toBe(true);
   });
 
+  it('afterRender leaves no timer or frame behind', async () => {
+    vi.useFakeTimers({
+      toFake: ['setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame'],
+    });
+    try {
+      const pending = afterRender();
+      await vi.advanceTimersByTimeAsync(20);
+      await pending;
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a page that unmounts ends the wait at once and clears its timers', async () => {
+    vi.useFakeTimers({
+      toFake: ['setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame'],
+    });
+    try {
+      const overlay = document.createElement('div');
+      overlay.setAttribute('data-exiting', 'true');
+      document.body.append(overlay);
+      const unmounted = new AbortController();
+      let done = false;
+      const pending = afterDialogsClosed(unmounted.signal).then(() => {
+        done = true;
+      });
+      await vi.advanceTimersByTimeAsync(50);
+      expect(done).toBe(false);
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+      unmounted.abort();
+      await pending;
+      expect(vi.getTimerCount()).toBe(0);
+      // An aborted signal starts no timer at all.
+      await afterDialogsClosed(unmounted.signal);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('afterDialogsClosed gives up after about one second', async () => {
     const overlay = document.createElement('div');
     overlay.setAttribute('data-exiting', 'true');

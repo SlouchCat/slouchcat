@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { chapterIndexAt, SeekBar } from './SeekBar';
+import { chapterIndexAt, KEY_PREVIEW_MS, SeekBar, trickplayTileAt } from './SeekBar';
 
 const chapters = [
   { startMs: 0, title: 'Anfang' },
@@ -212,5 +212,175 @@ describe('SeekBar (concept 13, V-8)', () => {
     } finally {
       error.mockRestore();
     }
+  });
+});
+
+// A set of 30 minutes, a point every 10 s at the keyframe 2 s after the section start: 180 tiles on
+// two sheets of 10 x 10, the second with 8 rows.
+const pointsMs = Array.from({ length: 180 }, (_, k) => k * 10_000 + 2000);
+const trickplay = {
+  tileWidth: 320,
+  tileHeight: 180,
+  columns: 10,
+  rows: 10,
+  pointsMs,
+  sheets: [
+    { index: 0, url: '/t/0.webp' },
+    { index: 1, url: '/t/1.webp' },
+  ],
+};
+
+describe('trickplayTileAt (concept 18, 7)', () => {
+  it('takes the last point at or before the position, null before the first', () => {
+    expect(trickplayTileAt(trickplay, 0)).toBeNull();
+    expect(trickplayTileAt(trickplay, 1999)).toBeNull();
+    expect(trickplayTileAt(trickplay, 2000)).toMatchObject({
+      index: 0,
+      sheet: 0,
+      column: 0,
+      row: 0,
+    });
+    expect(trickplayTileAt(trickplay, 11_999)).toMatchObject({ index: 0 });
+    expect(trickplayTileAt(trickplay, 12_000)).toMatchObject({ index: 1, column: 1, row: 0 });
+    expect(trickplayTileAt({ ...trickplay, pointsMs: [] }, 5000)).toBeNull();
+  });
+
+  it('finds sheet, row and column, and the rows of the last sheet', () => {
+    // Tile 123: sheet 1, tile 23 there, row 2, column 3; the second sheet has 80 tiles, 8 rows.
+    expect(trickplayTileAt(trickplay, 1_232_000)).toEqual({
+      index: 123,
+      sheet: 1,
+      column: 3,
+      row: 2,
+      sheetRows: 8,
+    });
+    expect(trickplayTileAt(trickplay, 99 * 10_000 + 2000)).toMatchObject({
+      index: 99,
+      sheet: 0,
+      column: 9,
+      row: 9,
+      sheetRows: 10,
+    });
+    // Past the end: the last point.
+    expect(trickplayTileAt(trickplay, 99_999_999)).toMatchObject({ index: 179, row: 7 });
+  });
+});
+
+describe('SeekBar with preview tiles (concept 18, 9)', () => {
+  const preview = (container: HTMLElement) =>
+    container.querySelector<HTMLElement>('[data-seek-preview]');
+  const tile = (container: HTMLElement) =>
+    container.querySelector<HTMLElement>('[data-trickplay-tile]');
+
+  it('shows the tile under the pointer as a cut-out of its sheet, in the tile’s ratio', () => {
+    const { slider, container } = renderBar({ trickplay, chapters });
+    // 0.7 of 30 minutes: 21:00 = 1 260 000 ms, point 125 (at 1 252 000), sheet 1 row 2 column 5.
+    fireEvent.pointerMove(slider, { clientX: 700 });
+    const shown = tile(container)!;
+    expect(shown).toHaveAttribute('data-trickplay-tile', '125');
+    expect(shown.style.backgroundImage).toBe('url("/t/1.webp")');
+    expect(shown.style.backgroundSize).toBe('1000% 800%');
+    expect(shown.style.backgroundPosition).toBe(`${(5 / 9) * 100}% ${(2 / 7) * 100}%`);
+    expect(shown.style.aspectRatio).toBe('320 / 180');
+    expect(preview(container)).toHaveTextContent('21:00Ende');
+    expect(container.querySelector('img')).toBeNull();
+  });
+
+  it('shows the chapter image, or the empty box in the tile’s ratio, where the sheet is missing', () => {
+    const partial = { ...trickplay, tileHeight: 134, sheets: [{ index: 1, url: '/t/1.webp' }] };
+    const { slider, container } = renderBar({
+      trickplay: partial,
+      chapters: [{ startMs: 0, title: 'Anfang', imageUrl: '/c/0.webp' }, { startMs: 600_000 }],
+    });
+    fireEvent.pointerMove(slider, { clientX: 100 });
+    expect(tile(container)).toBeNull();
+    expect(container.querySelector('img')).toHaveAttribute('src', '/c/0.webp');
+    expect(container.querySelector('img')!.style.aspectRatio).toBe('320 / 134');
+    // Chapter 2 has no image: the box keeps the height of the tiles.
+    fireEvent.pointerMove(slider, { clientX: 500 });
+    const box = container.querySelector<HTMLElement>('[data-image-box]')!;
+    expect(box.style.aspectRatio).toBe('320 / 134');
+    // On sheet 1 the tile is there.
+    fireEvent.pointerMove(slider, { clientX: 600 });
+    expect(tile(container)).not.toBeNull();
+  });
+
+  it('loads the next sheet ahead of the pointer, not the others', () => {
+    const sources: string[] = [];
+    const original = window.Image;
+    class RecordingImage {
+      set src(value: string) {
+        sources.push(value);
+      }
+    }
+    window.Image = RecordingImage as unknown as typeof Image;
+    try {
+      const { slider } = renderBar({ trickplay });
+      fireEvent.pointerMove(slider, { clientX: 100 });
+      expect(sources).toEqual(['/t/1.webp']);
+      fireEvent.pointerMove(slider, { clientX: 700 });
+      expect(sources).toEqual(['/t/1.webp']);
+    } finally {
+      window.Image = original;
+    }
+  });
+
+  it('shows the field over the new position after a seek by key, for a moment', () => {
+    vi.useFakeTimers();
+    try {
+      const { container, rerender } = renderBar({ trickplay });
+      expect(preview(container)).toBeNull();
+      const bar = (currentMs: number, keySeeks: number) => (
+        <SeekBar
+          label="Wiedergabeposition"
+          valueText=""
+          currentMs={currentMs}
+          durationMs={1_800_000}
+          buffered={[]}
+          onSeek={() => undefined}
+          trickplay={trickplay}
+          keySeeks={keySeeks}
+        />
+      );
+      rerender(bar(310_000, 1));
+      expect(preview(container)).toHaveTextContent('5:10');
+      expect(tile(container)).toHaveAttribute('data-trickplay-tile', '30');
+      // A held key seeks again before the time is up: the field stays.
+      act(() => {
+        vi.advanceTimersByTime(KEY_PREVIEW_MS - 100);
+      });
+      rerender(bar(320_000, 2));
+      act(() => {
+        vi.advanceTimersByTime(KEY_PREVIEW_MS - 100);
+      });
+      expect(preview(container)).toHaveTextContent('5:20');
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(preview(container)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('lets a finger drag the preview and seeks only where it lets go', () => {
+    const { slider, onSeek, container } = renderBar({ trickplay });
+    fireEvent.pointerDown(slider, { clientX: 250, pointerId: 1, pointerType: 'touch' });
+    expect(onSeek).not.toHaveBeenCalled();
+    expect(preview(container)).toHaveTextContent('7:30');
+    fireEvent.pointerMove(slider, { clientX: 500, pointerId: 1, pointerType: 'touch' });
+    expect(onSeek).not.toHaveBeenCalled();
+    expect(preview(container)).toHaveTextContent('15:00');
+    fireEvent.pointerUp(slider, { clientX: 600, pointerId: 1, pointerType: 'touch' });
+    expect(onSeek).toHaveBeenCalledOnce();
+    expect(onSeek).toHaveBeenLastCalledWith(1_080_000);
+  });
+
+  it('seeks nowhere when the system cancels a finger drag', () => {
+    const { slider, onSeek, container } = renderBar({ trickplay });
+    fireEvent.pointerDown(slider, { clientX: 250, pointerId: 1, pointerType: 'touch' });
+    fireEvent.pointerCancel(slider, { pointerId: 1, pointerType: 'touch' });
+    expect(onSeek).not.toHaveBeenCalled();
+    expect(preview(container)).toBeNull();
   });
 });

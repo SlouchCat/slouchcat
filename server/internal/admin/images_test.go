@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/logging"
@@ -134,12 +135,13 @@ func TestItemImage(t *testing.T) {
 	}
 }
 
-// Every pick carries the content hash of its title's w200 JPEG poster; a deleted title has none,
-// like the image route answers 404 for it.
-func TestTopPicksPosterHash(t *testing.T) {
+// Every user pick carries the content hash of its title's w200 JPEG poster; a deleted title is
+// not listed at all (concept 18 part B), like the image route answers 404 for it.
+func TestUserPicksPosterHash(t *testing.T) {
 	t.Parallel()
 	f, svc, _ := imageFixture(t)
-	picks, err := svc.ListTopPicks(context.Background())
+	svc.now = func() time.Time { return time.UnixMilli(vistest.PickedAt) }
+	picks, err := svc.ListUserPicks(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,21 +149,17 @@ func TestTopPicksPosterHash(t *testing.T) {
 	for _, m := range f.Movies {
 		deleted[m.ID] = m.Deleted
 	}
-	seenDeleted := false
 	for _, p := range picks {
 		if deleted[p.ItemID] {
-			seenDeleted = true
-			if p.PosterHash != "" {
-				t.Errorf("pick %d of a deleted title has poster hash %q", p.ID, p.PosterHash)
-			}
+			t.Errorf("pick of the deleted title %s listed", p.ItemID)
 			continue
 		}
 		sum := sha256.Sum256(cacheFile(t, f, "images/"+p.ItemID+"/poster-"+model.AdminPosterSize+".jpg"))
 		if want := hex.EncodeToString(sum[:]); p.PosterHash != want {
-			t.Errorf("pick %d (%s): poster hash %q, want %q", p.ID, p.ItemID, p.PosterHash, want)
+			t.Errorf("pick %s: poster hash %q, want %q", p.ItemID, p.PosterHash, want)
 		}
 	}
-	if len(picks) == 0 || !seenDeleted {
-		t.Fatalf("fixture picks %+v lack a deleted title", picks)
+	if len(picks) < 2 {
+		t.Fatalf("fixture picks %+v, want the films rated 18 and 6 at least", picks)
 	}
 }

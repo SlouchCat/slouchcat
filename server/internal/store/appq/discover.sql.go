@@ -49,6 +49,31 @@ func (q *Queries) AddWatchlist(ctx context.Context, arg AddWatchlistParams) erro
 	return err
 }
 
+const deleteUserPick = `-- name: DeleteUserPick :exec
+DELETE FROM user_picks WHERE item_id = ?1 AND profile_id = ?2
+`
+
+type DeleteUserPickParams struct {
+	ItemID    string
+	ProfileID int64
+}
+
+func (q *Queries) DeleteUserPick(ctx context.Context, arg DeleteUserPickParams) error {
+	_, err := q.db.ExecContext(ctx, deleteUserPick, arg.ItemID, arg.ProfileID)
+	return err
+}
+
+const getPicksRetention = `-- name: GetPicksRetention :one
+SELECT retention_days FROM picks_config WHERE id = 1
+`
+
+func (q *Queries) GetPicksRetention(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getPicksRetention)
+	var retention_days int64
+	err := row.Scan(&retention_days)
+	return retention_days, err
+}
+
 const listHomeRows = `-- name: ListHomeRows :many
 
 SELECT h.id, h.key, h.library_id, COALESCE(l.name, '') AS library_name, h.position, h.hidden, h.updated_at
@@ -152,4 +177,24 @@ func (q *Queries) SetHomeRow(ctx context.Context, arg SetHomeRowParams) (int64, 
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const upsertUserPick = `-- name: UpsertUserPick :exec
+
+INSERT INTO user_picks (item_id, profile_id, created_at) VALUES (?1, ?2, ?3)
+ON CONFLICT (item_id, profile_id) DO UPDATE SET created_at = excluded.created_at
+`
+
+type UpsertUserPickParams struct {
+	ItemID    string
+	ProfileID int64
+	Now       int64
+}
+
+// User picks (concept 18 part B, ADR 0028). Owner: discover package; it checks the visibility of the
+// title and that the profile belongs to the owner's account first. Recommending again renews the
+// time, taking back deletes the own row only.
+func (q *Queries) UpsertUserPick(ctx context.Context, arg UpsertUserPickParams) error {
+	_, err := q.db.ExecContext(ctx, upsertUserPick, arg.ItemID, arg.ProfileID, arg.Now)
+	return err
 }

@@ -1,5 +1,5 @@
 import type { Rating } from '@slouchcat/api-client';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +7,7 @@ import { imageUrl } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useBackKeys } from '@/lib/useBackKeys';
+import { rangeBySize, usePagedList, type PlaceRange } from '@/lib/pagedList';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
 import {
@@ -21,8 +22,9 @@ import {
   SpatialGroup,
   SpatialPage,
 } from '@/ui';
-import { cardKey, ItemGrid, MoreButton } from './ItemGrid';
-import { genresQuery, searchQuery } from './queries';
+import { PageRetry } from './ItemGrid';
+import { PagedItemGrid } from './PagedItemGrid';
+import { genresQuery, searchSource } from './queries';
 import {
   AVAILABILITY,
   availabilityOf,
@@ -110,22 +112,20 @@ export function SearchPage() {
   }, []);
 
   const body = useMemo(() => searchRequest(params), [params]);
-  const results = useInfiniteQuery({
-    ...searchQuery(body ?? {}),
+  // Every title found, read page by page as the grid asks (concept 18 C-3).
+  const [span, setSpan] = useState<PlaceRange>({ start: 0, end: 0 });
+  const paged = usePagedList(searchSource(body ?? {}), rangeBySize(span), {
     enabled: body !== null,
   });
+  const results = paged.first;
   const genres = useQuery(genresQuery);
 
   const typed = text.trim();
-  const first = results.data?.pages[0];
-  const items = useMemo(
-    () => results.data?.pages.flatMap((page) => page.items) ?? [],
-    [results.data],
-  );
-  const total = first?.total ?? 0;
+  const first = results.data;
+  const total = paged.total;
   const people = first?.people ?? [];
   const collections = first?.collections ?? [];
-  const found = items.length + people.length + collections.length > 0;
+  const found = total + people.length + collections.length > 0;
   const showResults = body !== null && results.isSuccess;
 
   const genreOptions = [
@@ -280,22 +280,18 @@ export function SearchPage() {
             <Notice title={t('search.empty.title')}>{t('search.empty.body')}</Notice>
           )}
 
-          {showResults && items.length > 0 && (
+          {showResults && total > 0 && (
             <section className={styles.section} aria-labelledby="search-titles">
               <h2 id="search-titles" className={styles.sectionTitle}>
                 {t('search.sections.titles')}
               </h2>
-              <ItemGrid items={items} focusKey="search-item" label={t('search.sections.titles')} />
-              <MoreButton
-                shown={items.length}
-                keys={items.map((item) => cardKey('search-item', item))}
-                hasMore={results.hasNextPage}
-                loading={results.isFetchingNextPage}
-                failed={results.isFetchNextPageError}
-                label={t('search.more')}
-                focusKey="search-more"
-                onMore={() => void results.fetchNextPage()}
+              <PagedItemGrid
+                slots={paged.slots}
+                onRange={setSpan}
+                focusKey="search-item"
+                label={t('search.sections.titles')}
               />
+              {paged.failed && <PageRetry onRetry={paged.retry} />}
             </section>
           )}
 

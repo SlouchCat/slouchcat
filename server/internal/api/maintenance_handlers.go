@@ -338,7 +338,7 @@ func (s *server) ListRelinkPairs(ctx context.Context, req gen.ListRelinkPairsReq
 			UserData: gen.RelinkUserData{
 				Progress: u.Progress, ProgressEvents: u.ProgressEvents, ProgressDays: u.ProgressDays,
 				PlaybackSessions: u.PlaybackSessions, Watchlist: u.Watchlist, Favorites: u.Favorites,
-				CollectionItems: u.CollectionItems, Notifications: u.Notifications, TopPicks: u.TopPicks,
+				CollectionItems: u.CollectionItems, Notifications: u.Notifications, UserPicks: u.UserPicks,
 				Downloads: u.Downloads, ActivityEvents: u.ActivityEvents,
 			},
 		})

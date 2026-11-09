@@ -10,6 +10,7 @@ export { AccentPicker } from './AccentPicker';
 export { ActivityFeed, type ActivityEntry, type ActivityTone } from './ActivityFeed';
 export { DashCard } from './DashCard';
 export { StreamRow } from './StreamRow';
+export { ToggleToolbar, type ToggleToolbarOption } from './ToggleToolbar';
 export { TaskRow } from './TaskRow';
 export {
   AdminSideNav,
@@ -84,7 +85,12 @@ export {
   type PlayerChromeTab,
 } from './PlayerChrome';
 export { PlayerPanel } from './PlayerPanel';
-export { SeekBar, type SeekBarChapter, type SeekBarSegment } from './SeekBar';
+export {
+  SeekBar,
+  type SeekBarChapter,
+  type SeekBarSegment,
+  type SeekBarTrickplay,
+} from './SeekBar';
 export { BOOST_MAX, clampVolume, VOLUME_STEP, VolumeControl } from './VolumeControl';
 // Building blocks of the administration pages (concept 12, 11.2).
 export { ActionMenu, type ActionMenuItem } from './ActionMenu';
@@ -102,7 +108,7 @@ export { SaveBar } from './SaveBar';
 export { SectionHeader } from './SectionHeader';
 export { SettingRow } from './SettingRow';
 export { StatusStrip } from './StatusStrip';
-export { StreamTile, type StreamFact } from './StreamTile';
+export { StreamTile, type StreamFact, type StreamImage, type StreamKind } from './StreamTile';
 export { type TabItem } from './Tabs';
 export { useDrafts, type Drafts } from './useDrafts';
 export { useSearchSelection } from './useSearchSelection';

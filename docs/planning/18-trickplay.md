@@ -37,13 +37,13 @@
   **1.20.0**, PR #127); Stufe 2 berührt weder Trickplay noch die Empfehlungen.
   Teil C und D sind am 9. November 2026 gegen `main` **`e40ecf1c`** (Release 1.22.0, PR #129,
   letzte Migration `00040`) geprüft; Teil A und B sind gegen diesen Stand nicht neu geprüft.
-- **Nummern:** Dieses Papier ist **Konzept 18** und reserviert **Frage 25**, **ADR 0027** (Teil A)
-  und **ADR 0028** («User-Empfehlungen von Profil zu Profil», Teil B), dazu für ADR 0027
-  («Trickplay: Erzeugen beim Start, Springen an Keyframes, Einstellungen je Bibliothek»). Vertrag:
-  vorläufig **1.23.0** (1.22.0 ist seit 9. November 2026 als Release vergeben), durch Teil B
-  **brechend** (14.8), **zwei Migrationen**, vorläufig **00041**
+- **Nummern (endgültig seit Baubeginn am 9. November 2026):** Dieses Papier ist **Konzept 18** mit
+  **Frage 25**, **ADR 0027** («Trickplay: Erzeugen beim Start, Springen an Keyframes, Einstellungen
+  je Bibliothek», Teil A) und **ADR 0028** («User-Empfehlungen von Profil zu Profil», Teil B).
+  Vertrag **1.23.0** (1.22.0 ist seit 9. November 2026 als Release vergeben), durch Teil B
+  **brechend** (14.8), **zwei Migrationen**: **00041**
   (Teil B: `user_picks`, `picks_config`, `top_picks` weg, 14.8) und **00042** (Teil A: Spalten
-  `libraries.trickplay_*`, 8.3); alle Nummern endgültig beim Baubeginn. ADR 0027 ändert
+  `libraries.trickplay_*`, 8.3). Wo der Text unten «vorläufig» sagt, gelten diese Nummern. ADR 0027 ändert
   ADR 0022 nicht: Trickplay nimmt **nicht** an der Pausen-Ausnahme teil (5.3). Teil D braucht
   keine Migration und ändert den Vertrag nur additiv (17.4); kommt er vor Teil A und B, erhält er
   eine eigene Minor-Version.
@@ -586,7 +586,9 @@ Cache-Ordner und in `jobs`. Eingefrorener DB-Stand in `testdata/db/` nach Regel 
     - Die Schätzung rechnet der Server aus der Laufzeit der Titel (`media_files.duration_ms`) mit
       rund 1,5 MB je Stunde Video (Messung 3.6: 1,3 MB/h bei 16:9, 1,8 MB/h bei 2,40:1); die
       Bibliotheksseite liest sie über `LibraryTrickplayEstimate` (8.2).
-  Die Bibliotheksseite zeigt die Grösse der gespeicherten Sätze. «Hintergrundjobs» zeigt
+  Die Bibliotheksseite zeigt die Grösse der gespeicherten Sätze, im Dialog «Vorschau beim Spulen»
+  (dort liegt die Schätzung von `getLibrary`); die ausgeklappte Zeile der Liste zeigt sie nicht,
+  weil `listLibraries` keine Schätzung trägt. «Hintergrundjobs» zeigt
   `trickplay.generate`, `trickplay.series` und `trickplay.backfill`, das Nachholen mit Knopf und
   Zeitplan.
 - **Tests (Regel 8, 9):** Texte nur aus `locales`, Farben nur aus Tokens. Keine neue Seite; neu
@@ -743,6 +745,8 @@ Offene Fragen des Kritikers: «temporären Satz beim Umstellen übernehmen» ist
     «Zu den User-Empfehlungen hinzugefügt. Bleibt N Tage.», N aus der Antwort des Servers.
   - Nochmals Klick: Die eigene Empfehlung wird zurückgenommen (U-F7); Hinweis «Empfehlung
     zurückgenommen».
+  - Der Stern gehört damit «Empfehlen»; der Rundknopf «Favorit» wechselt auf das Herz (wie im
+    Mockup), damit nicht zwei Knöpfe dasselbe Zeichen tragen.
 - **Startseiten-Reihe «User-Empfehlungen»** und **Seite `/picks`**: jeder Titel **einmal**, ohne
   Namen und ohne Notiz, **neueste Empfehlung zuerst**, für alle Konten (U-F2, U-F3, U-F4, U-F8). Die
   Reihe bleibt bei 20 Titeln, die Seite blättert wie heute.

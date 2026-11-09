@@ -6,15 +6,16 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"testing"
 )
 
 // The frozen M7 state carries every kind of M7 data (testdata/db/README.md), so later migrations
-// are tested against picks (global and per profile with note and window), a manual collection
-// with members, a watchlist entry, favourites, a changed row order with a hidden row, the Trakt
-// lists of a run and an in-app notification; the search index and the genres come from the
-// triggers. Migration 00021 (M11, ADR 0011) carries the trending entries over into
+// are tested against picks (global and per profile with note and window; discarded by 00041), a
+// manual collection with members, a watchlist entry, favourites, a changed row order with a
+// hidden row, the Trakt lists of a run and an in-app notification; the search index and the
+// genres come from the triggers. Migration 00021 (M11, ADR 0011) carries the trending entries over into
 // spotlight_entries and seeds the singleton spotlight_config with the former constants.
 func TestFrozenM7StateCoversM7Data(t *testing.T) {
 	t.Parallel()
@@ -29,18 +30,27 @@ func TestFrozenM7StateCoversM7Data(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
+	// The picks of the administration (global with a note, one profile with a time window) are in
+	// the state; migration 00041 discards them (concept 18 part B, U-F11, ADR 0028).
+	for what, pattern := range map[string]string{
+		"global pick with a note":                `INSERT INTO "top_picks" VALUES \(\d+, '[0-9A-Z]{26}', NULL, \d+, '[^']+', NULL, NULL, \d+\);`,
+		"pick of one profile with a time window": `INSERT INTO "top_picks" VALUES \(\d+, '[0-9A-Z]{26}', \d+, \d+, '[^']*', \d+, \d+, \d+\);`,
+	} {
+		if !regexp.MustCompile(pattern).Match(script) {
+			t.Errorf("frozen M7 state has no %s", what)
+		}
+	}
 	for what, query := range map[string]string{
-		"global pick with a note":                   `SELECT count(*) FROM top_picks WHERE profile_id IS NULL AND note <> ''`,
-		"pick of one profile with a time window":    `SELECT count(*) FROM top_picks WHERE profile_id IS NOT NULL AND starts_at IS NOT NULL AND ends_at IS NOT NULL`,
-		"manual collection with ordered members":    `SELECT count(*) FROM collections c WHERE c.source = 'manual' AND (SELECT count(*) FROM collection_items m WHERE m.collection_id = c.id) = 2`,
-		"collection in the search index":            `SELECT count(*) FROM search_index WHERE kind = 'collection'`,
-		"watchlist entry":                           `SELECT count(*) FROM watchlist`,
-		"favourite series":                          `SELECT count(*) FROM favorites f JOIN items i ON i.id = f.item_id WHERE i.kind = 'series'`,
-		"favourite podcast":                         `SELECT count(*) FROM favorites f JOIN items i ON i.id = f.item_id WHERE i.kind = 'podcast'`,
-		"changed row order with a hidden row":       `SELECT count(*) FROM home_rows WHERE key = 'genres' AND hidden = 1`,
-		"eight home rows":                           `SELECT count(*) FROM home_rows WHERE (SELECT count(*) FROM home_rows WHERE key NOT IN ('libraries', 'library', 'radio')) = 8`,
-		"spotlight movies and shows":                `SELECT count(*) FROM spotlight_entries s WHERE s.list_key = 'trending' AND s.media = 'show' AND EXISTS (SELECT 1 FROM spotlight_entries u WHERE u.list_key = 'trending' AND u.media = 'movie')`,
-		"spotlight entries matching library titles": `SELECT count(*) FROM spotlight_entries s JOIN items i ON i.tmdb_id = s.tmdb_id AND i.kind = CASE s.media WHEN 'movie' THEN 'movie' ELSE 'series' END`,
+		"picks discarded by 00041, user picks empty": `SELECT (SELECT count(*) FROM sqlite_master WHERE name LIKE 'top_picks%') = 0 AND (SELECT count(*) FROM user_picks) = 0`,
+		"manual collection with ordered members":     `SELECT count(*) FROM collections c WHERE c.source = 'manual' AND (SELECT count(*) FROM collection_items m WHERE m.collection_id = c.id) = 2`,
+		"collection in the search index":             `SELECT count(*) FROM search_index WHERE kind = 'collection'`,
+		"watchlist entry":                            `SELECT count(*) FROM watchlist`,
+		"favourite series":                           `SELECT count(*) FROM favorites f JOIN items i ON i.id = f.item_id WHERE i.kind = 'series'`,
+		"favourite podcast":                          `SELECT count(*) FROM favorites f JOIN items i ON i.id = f.item_id WHERE i.kind = 'podcast'`,
+		"changed row order with a hidden row":        `SELECT count(*) FROM home_rows WHERE key = 'genres' AND hidden = 1`,
+		"eight home rows":                            `SELECT count(*) FROM home_rows WHERE (SELECT count(*) FROM home_rows WHERE key NOT IN ('libraries', 'library', 'radio')) = 8`,
+		"spotlight movies and shows":                 `SELECT count(*) FROM spotlight_entries s WHERE s.list_key = 'trending' AND s.media = 'show' AND EXISTS (SELECT 1 FROM spotlight_entries u WHERE u.list_key = 'trending' AND u.media = 'movie')`,
+		"spotlight entries matching library titles":  `SELECT count(*) FROM spotlight_entries s JOIN items i ON i.tmdb_id = s.tmdb_id AND i.kind = CASE s.media WHEN 'movie' THEN 'movie' ELSE 'series' END`,
 		"spotlight config with the former constants": `SELECT count(*) FROM spotlight_config WHERE (SELECT count(*) FROM spotlight_config) = 1
 		                                                AND id = 1 AND list_key = 'trending' AND item_count = 20 AND min_hits = 5 AND interval_hours = 24`,
 		"notification for a new episode": `SELECT count(*) FROM notifications n JOIN items i ON i.id = n.item_id WHERE n.kind = 'new_episode' AND i.kind = 'podcast_episode' AND n.parent_id IS NOT NULL`,

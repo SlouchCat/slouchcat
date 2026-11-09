@@ -221,6 +221,47 @@ describe('offline player', () => {
     expect(hls.state.instances[0]?.config.startPosition).toBe(30);
   });
 
+  it('shows the stored preview sheets on the timeline, offline (concept 18, 6.8)', async () => {
+    stubMedia(90);
+    await putDownloads([
+      storedDownload({
+        manifest: {
+          ...manifest(),
+          durationMs: 90_000,
+          trickplay: {
+            version: '9000-1',
+            state: 'complete',
+            intervalMs: 10_000,
+            tileWidth: 320,
+            tileHeight: 180,
+            columns: 10,
+            rows: 10,
+            pointsMs: Array.from({ length: 9 }, (_, k) => k * 10_000),
+            sheets: [{ index: 0, url: `/downloads/${downloadIds.alien}/trickplay/0?dt=x` }],
+          },
+        },
+        trickplayStored: [0],
+      }),
+    ]);
+    seedFile(downloadIds.alien, 'trickplay-0.webp', new Uint8Array([7, 7]));
+    mockApi({});
+    const { container } = renderApp(`/offline/play/${downloadIds.alien}`);
+    await player();
+    const slider = await screen.findByRole('slider', { name: 'Wiedergabeposition' });
+    vi.spyOn(slider, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 900, 24));
+    // 0.5 of 90 s: the tile of 40 s, column 4, from the stored blob.
+    await waitFor(() => {
+      fireEvent.pointerMove(slider, { clientX: 450 });
+      expect(container.querySelector('[data-trickplay-tile]')).toHaveAttribute(
+        'data-trickplay-tile',
+        '4',
+      );
+    });
+    expect(
+      container.querySelector<HTMLElement>('[data-trickplay-tile]')!.style.backgroundImage,
+    ).toBe('url("blob:offline-test")');
+  });
+
   it('stops with the hint when the offline watch time is used up (AN-18)', async () => {
     stubMedia();
     const now = Date.now();

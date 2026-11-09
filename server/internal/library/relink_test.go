@@ -106,6 +106,7 @@ func TestRelinkSeriesMergesTreeAndUserData(t *testing.T) {
 	e.progressEvent(deadE11)
 	e.playbackSession("01AAAAAAAAAAAAAAAAAAAAAAAA", deadE11)
 	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (1, ?, 1)`, dead)
+	e.exec(`INSERT INTO user_picks (item_id, profile_id, created_at) VALUES (?, 1, 5)`, dead)
 
 	newDir := tree(t, []string{
 		"Show/Season 01/Show - S01E02 - copy.mkv", "Show/Season 02/Show - S02E02.mkv", "Show/Season 03/Show - S03E01.mkv",
@@ -131,6 +132,8 @@ func TestRelinkSeriesMergesTreeAndUserData(t *testing.T) {
 	e.progressEvent(liveE12)
 	e.playbackSession("01BBBBBBBBBBBBBBBBBBBBBBBB", liveE12)
 	e.exec(`INSERT INTO activity_events (at, kind, item_id, subject) VALUES (1, 'played', ?, 'Show')`, live)
+	// Profile 1 picked both copies, the copy later (concept 18 part B, 14.8): the newer time wins.
+	e.exec(`INSERT INTO user_picks (item_id, profile_id, created_at) VALUES (?, 1, 9), (?, 2, 7)`, live, live)
 
 	// metadata.match gives the copy the ids of the deleted series.
 	e.exec(`UPDATE items SET tvdb_id = 300, tmdb_id = 2691 WHERE id = ?`, live)
@@ -139,11 +142,12 @@ func TestRelinkSeriesMergesTreeAndUserData(t *testing.T) {
 		t.Fatalf("pairs = %+v, %v", pairs, err)
 	}
 	byTitle, err := e.svc.CountRelinkUserData(e.ctx, []string{dead, live})
-	if counts := byTitle[dead]; err != nil || counts.Progress != 3 || counts.ProgressEvents != 1 || counts.PlaybackSessions != 1 || counts.Watchlist != 1 {
+	if counts := byTitle[dead]; err != nil || counts.Progress != 3 || counts.ProgressEvents != 1 || counts.PlaybackSessions != 1 || counts.Watchlist != 1 || counts.UserPicks != 1 {
 		t.Fatalf("user data of the deleted series = %+v, %v", counts, err)
 	}
-	// The copy's own rows count apart: progress on two episodes, an event, a session, an activity.
-	if counts := byTitle[live]; counts != (RelinkUserData{Progress: 3, ProgressEvents: 1, PlaybackSessions: 1, ActivityEvents: 1}) {
+	// The copy's own rows count apart: progress on two episodes, an event, a session, an activity,
+	// two user picks.
+	if counts := byTitle[live]; counts != (RelinkUserData{Progress: 3, ProgressEvents: 1, PlaybackSessions: 1, ActivityEvents: 1, UserPicks: 2}) {
 		t.Fatalf("user data of the copy = %+v", counts)
 	}
 
@@ -195,6 +199,9 @@ func TestRelinkSeriesMergesTreeAndUserData(t *testing.T) {
 	}
 	if n := e.count(`SELECT count(*) FROM watchlist WHERE item_id = ?`, dead); n != 1 {
 		t.Error("watchlist entry lost")
+	}
+	if v := e.str(`SELECT group_concat(item_id || ':' || profile_id || ':' || created_at, ' ') FROM (SELECT * FROM user_picks ORDER BY profile_id)`); v != dead+":1:9 "+dead+":2:7" {
+		t.Errorf("user picks = %s, want both profiles on the kept series with the newer time", v)
 	}
 	if n := e.count(`SELECT count(*) FROM jobs WHERE type = 'metadata.match' AND idempotency_key = ? AND state = 'queued'`, "match:"+dead); n != 1 {
 		t.Error("no metadata.match for the kept series")

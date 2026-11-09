@@ -8,6 +8,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
 
@@ -89,6 +90,116 @@ func TestAdminStreams(t *testing.T) {
 		t.Errorf("stop unknown: %v", err)
 	}
 }
+
+// A session whose title was deleted between the list of sessions and the read of their titles is
+// left out: the overview has no kind for it, and the contract requires one.
+func TestAdminStreamsTitleGone(t *testing.T) {
+	m := newMaintFixture(t)
+	film := m.f.Rated(6)
+	m.svc.WithStreams(&fakeStreams{list: []model.AdminStream{
+		{ID: "01JAAAAAAAAAAAAAAAAAAAAAAA", ItemID: "01JZZZZZZZZZZZZZZZZZZZZZZZ", MediaFileID: "gone", Mode: "direct"},
+		{ID: "01JBBBBBBBBBBBBBBBBBBBBBBB", ItemID: film.ID, MediaFileID: film.FileID, Mode: "direct"},
+	}})
+	list, err := m.svc.ListStreams(m.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0].ID != "01JBBBBBBBBBBBBBBBBBBBBBBB" || list[0].Kind != "movie" {
+		t.Fatalf("streams = %+v, want only the film's with kind movie", list)
+	}
+}
+
+// Concept 18, 17.4: the overview names what each stream plays. A film, an episode and an extra show
+// the backdrop of themselves, their series and their film; a podcast episode names its podcast and
+// shows its own cover, from the feed the podcast's and the feed's duration; an audiobook of several
+// parts shows its cover, the chapter at the position, the number of parts and the whole book's
+// length, and audio names its codec and bit rate.
+func TestAdminStreamsKinds(t *testing.T) {
+	m := newMaintFixture(t)
+	f := m.f
+	f.AddAudio(t)
+	a := f.Audio
+	film, extra, episode, podcastFile := f.Rated(6), f.Extras[0], a.Episodes[0], a.Episodes[0]
+	m.exec(t, `UPDATE items SET duration_ms = 1234567 WHERE id = ?`, a.EnclosureOnly.ID)
+	m.exec(t, `INSERT INTO chapters (item_id, idx, title, start_ms, end_ms) VALUES (?, 0, 'Kapitel 1', 0, 1000), (?, 1, 'Kapitel 2', 1000, 9000)`,
+		a.Parts.ID, a.Parts.ID)
+	pos := func(ms int64) *int64 { return &ms }
+	m.svc.WithStreams(&fakeStreams{list: []model.AdminStream{
+		{ID: "01JAAAAAAAAAAAAAAAAAAAAAAA", ItemID: film.ID, MediaFileID: film.FileID, Mode: "direct"},
+		{ID: "01JBBBBBBBBBBBBBBBBBBBBBBB", ItemID: f.Show.E1.ID, MediaFileID: f.Show.E1.FileID, Mode: "transcode", Bitrate: 8_000_000},
+		{ID: "01JCCCCCCCCCCCCCCCCCCCCCCC", ItemID: extra.ID, MediaFileID: extra.FileID, Mode: "remux"},
+		{ID: "01JDDDDDDDDDDDDDDDDDDDDDDD", ItemID: podcastFile.ID, MediaFileID: podcastFile.FileID, Mode: "direct"},
+		{ID: "01JEEEEEEEEEEEEEEEEEEEEEEE", ItemID: a.EnclosureOnly.ID, Mode: "direct", PositionMs: pos(60_000)},
+		{ID: "01JFFFFFFFFFFFFFFFFFFFFFFF", ItemID: a.Parts.ID, MediaFileID: a.Parts.FileID, Mode: "remux", Bitrate: 64_000, PositionMs: pos(2000)},
+	}})
+	hash := func(itemID, kind, size string) string {
+		t.Helper()
+		var h string
+		if err := f.DB.Read.QueryRow(`SELECT content_hash FROM images WHERE item_id = ? AND kind = ? AND size = ? AND format = 'jpeg'`,
+			itemID, kind, size).Scan(&h); err != nil {
+			t.Fatalf("hash of %s %s: %v", itemID, kind, err)
+		}
+		return h
+	}
+	type want struct {
+		kind, title, parent, chapter, poster, backdrop, codec, source string
+		duration                                                      int64
+		parts, bitrate                                                int
+	}
+	wants := []want{
+		{kind: "movie", title: "Film 06", poster: film.ID, backdrop: film.ID, source: "file", duration: vistest.DurationMs},
+		{kind: "episode", title: "Film SS · S01E01 · Film E1", poster: f.Show.Series.ID, backdrop: f.Show.Series.ID, source: "file", duration: vistest.DurationMs},
+		{kind: "extra", title: "Film XT", parent: "Film 06", poster: film.ID, backdrop: film.ID, source: "file", duration: vistest.DurationMs},
+		{kind: "podcast_episode", title: "Film " + episode.Label, parent: "Film PC", poster: episode.ID, codec: "mp3", bitrate: 256000,
+			source: "file", duration: vistest.DurationMs},
+		{kind: "podcast_episode", title: "Film QE", parent: "Film PC", poster: a.Podcast.ID, codec: "mp3", source: "feed", duration: 1234567},
+		{kind: "audiobook", title: "Film AP", chapter: "Kapitel 2", poster: a.Parts.ID, codec: "aac", bitrate: 64_000, parts: 3,
+			source: "file", duration: 3 * vistest.DurationMs},
+	}
+	list, err := m.svc.ListStreams(m.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != len(wants) {
+		t.Fatalf("streams = %d, want %d", len(list), len(wants))
+	}
+	for i, w := range wants {
+		st := list[i]
+		if st.Kind != w.kind || st.ItemTitle != w.title || st.ParentTitle != w.parent || st.ChapterTitle != w.chapter ||
+			st.Source != w.source || st.PartCount != w.parts || st.AudioCodec != w.codec || st.AudioBitrate != w.bitrate {
+			t.Errorf("stream %d = kind %q title %q parent %q chapter %q source %q parts %d audio %q %d, want %+v",
+				i, st.Kind, st.ItemTitle, st.ParentTitle, st.ChapterTitle, st.Source, st.PartCount, st.AudioCodec, st.AudioBitrate, w)
+		}
+		if st.DurationMs == nil || *st.DurationMs != w.duration {
+			t.Errorf("stream %d (%s) duration = %v, want %d", i, w.kind, st.DurationMs, w.duration)
+		}
+		if st.PosterItemID != w.poster || st.PosterHash != hash(w.poster, "poster", model.AdminPosterSize) {
+			t.Errorf("stream %d (%s) poster = %q %q, want %q", i, w.kind, st.PosterItemID, st.PosterHash, w.poster)
+		}
+		switch {
+		case w.backdrop == "" && (st.BackdropItemID != "" || st.BackdropHash != ""):
+			t.Errorf("stream %d (%s) backdrop = %q, want none", i, w.kind, st.BackdropItemID)
+		case w.backdrop != "" && (st.BackdropItemID != w.backdrop || st.BackdropHash != hash(w.backdrop, "backdrop", model.AdminBackdropSize)):
+			t.Errorf("stream %d (%s) backdrop = %q %q, want %q", i, w.kind, st.BackdropItemID, st.BackdropHash, w.backdrop)
+		}
+	}
+}
+
+// The chapter at a position is the last one that starts at or before it; without a position or
+// before the first chapter there is none.
+func TestChapterAt(t *testing.T) {
+	chapters := []systemq.AdminStreamChaptersRow{{Title: "Eins", StartMs: 500, EndMs: 1000}, {Title: "Zwei", StartMs: 1000, EndMs: 2000}}
+	for _, c := range []struct {
+		pos  *int64
+		want string
+	}{{nil, ""}, {ptr64(0), ""}, {ptr64(500), "Eins"}, {ptr64(999), "Eins"}, {ptr64(1000), "Zwei"}, {ptr64(5000), "Zwei"}} {
+		if got := chapterAt(chapters, c.pos); got != c.want {
+			t.Errorf("chapterAt(%v) = %q, want %q", c.pos, got, c.want)
+		}
+	}
+}
+
+func ptr64(v int64) *int64 { return &v }
 
 // W-7: devices with owner, capabilities and running streams; forgetting one revokes its sessions,
 // ends its playback and deletes its PIN counters and row.

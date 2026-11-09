@@ -1,20 +1,17 @@
 import type { APIRequestContext, APIResponse } from '@playwright/test';
 import { CSRF, H264_TITLE } from './catalog';
 
-// API helpers for the curation of M7 (stream C2): Cat's recommendations, manual collections and
-// the order of the start page rows. They throw instead of using `expect`, so the global setup and
+// API helpers for the curation of M7 (stream C2): the user picks (concept 18 part B), manual
+// collections and the order of the start page rows. They throw instead of using `expect`, so the global setup and
 // the `owner` fixture can use them as well as the specs.
 
+/** A title of the user picks as the administration lists it (anonymous). */
 export interface PickData {
-  id: number;
   itemId: string;
   title: string;
-  profileId?: number;
-  profileName?: string;
-  position: number;
-  note?: string;
-  startsAt?: string;
-  endsAt?: string;
+  count: number;
+  lastPickedOn: string;
+  expiresInDays: number;
 }
 
 export interface CollectionData {
@@ -71,42 +68,29 @@ export async function listPicks(api: APIRequestContext): Promise<PickData[]> {
   return ok<PickData[]>(await api.get('/api/v1/admin/picks'), [200]);
 }
 
-/** Creates a pick: global without `profileIds`, else one per profile. */
-export async function createPick(
+/**
+ * Recommends a title as the active profile of `api` (the star of the title page, concept 18 part
+ * B): a profile of the owner's account; the title goes to the front of the user picks.
+ */
+export async function recommendItem(
   api: APIRequestContext,
-  body: {
-    itemId: string;
-    profileIds?: number[];
-    note?: string;
-    startsAt?: string;
-    endsAt?: string;
-  },
-): Promise<PickData[]> {
-  return ok<PickData[]>(
-    await api.post('/api/v1/admin/picks', { headers: CSRF, data: body }),
-    [201],
-  );
+  itemId: string,
+): Promise<{ expiresAt: string; retentionDays: number }> {
+  return ok(await api.put(`/api/v1/items/${itemId}/pick`, { headers: CSRF }), [200]);
 }
 
-export async function deletePick(api: APIRequestContext, id: number): Promise<void> {
-  await ok(await api.delete(`/api/v1/admin/picks/${id}`, { headers: CSRF }), [204, 404]);
+/** Removes every pick of a title (the administration's «Entfernen»); no pick is fine. */
+export async function deletePick(api: APIRequestContext, itemId: string): Promise<void> {
+  await ok(await api.delete(`/api/v1/admin/picks/${itemId}`, { headers: CSRF }), [204, 404]);
 }
-
-/** The pick every run starts with: the H264 film for all profiles, without note and window. */
-const isBaseline = (pick: PickData) =>
-  pick.title === H264_TITLE &&
-  pick.profileId == null &&
-  !pick.note &&
-  !pick.startsAt &&
-  !pick.endsAt;
 
 /**
- * One global pick of the H264 film, so the start page has its carousel (without picks there is
- * none since M7). Idempotent: an existing one is kept.
+ * One pick of the H264 film, so the start page has its row of user picks (without picks there is
+ * none). Idempotent: an existing one is kept.
  */
 export async function ensureBaselinePick(api: APIRequestContext): Promise<void> {
-  if ((await listPicks(api)).some(isBaseline)) return;
-  await createPick(api, { itemId: await titleId(api, H264_TITLE) });
+  if ((await listPicks(api)).some((pick) => pick.title === H264_TITLE)) return;
+  await recommendItem(api, await titleId(api, H264_TITLE));
 }
 
 export async function listCollections(api: APIRequestContext): Promise<CollectionData[]> {
@@ -166,15 +150,10 @@ export async function setHomeRows(
  * (none in the e2e run, the server has no key) cannot be deleted and stay.
  */
 export async function resetCuration(api: APIRequestContext): Promise<void> {
-  let kept = false;
   for (const pick of await listPicks(api)) {
-    if (!kept && isBaseline(pick)) {
-      kept = true;
-      continue;
-    }
-    await deletePick(api, pick.id);
+    if (pick.title !== H264_TITLE) await deletePick(api, pick.itemId);
   }
-  if (!kept) await ensureBaselinePick(api);
+  await ensureBaselinePick(api);
   for (const collection of await listCollections(api)) {
     if (collection.source === 'manual') await deleteCollection(api, collection.id);
   }

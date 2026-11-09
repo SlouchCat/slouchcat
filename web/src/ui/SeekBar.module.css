@@ -100,7 +100,8 @@
   pointer-events: none;
 }
 
-/* The chapter image, or its empty box for a chapter without one (in the surface colour). */
+/* The chapter image, or its empty box for a chapter without one (in the surface colour); the
+   inline aspect ratio of the preview tiles replaces the 16:9 when the title has them. */
 .previewImage {
   display: block;
   width: 100%;
@@ -109,6 +110,11 @@
   border-radius: var(--sc-radius-sm);
   background-color: var(--sc-color-surface-2);
   object-fit: cover;
+}
+
+/* A preview tile: its sheet as background, sized and placed inline (SeekBar tileStyle). */
+.previewTile {
+  background-repeat: no-repeat;
 }
 
 .previewTime {

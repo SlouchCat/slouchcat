@@ -217,3 +217,55 @@ func TestStartEndsSessionsOfTheLastRun(t *testing.T) {
 		t.Fatalf("ended by %q, want restart", row.EndedBy.String)
 	}
 }
+
+// Concept 18, 17.4: the relays name their station's logo and each listener the device of its login
+// session. An open listen session whose relay no longer runs stays listed, under its ended relay in
+// the state failed, which the load does not count.
+func TestRelaysDeviceLogoAndFailed(t *testing.T) {
+	e := newRelayEnv(t)
+	e.st.Set("/live", mp3Mount(t, true))
+	id := e.addStation("Test FM", "CH", "MP3", 128, e.st.URL("/live"))
+	e.exec(`UPDATE radio_stations SET logo_state = 'own', logo_hash = 'logohash' WHERE id = ?`, id)
+	ctx := context.Background()
+	withDevice, l1 := e.listen(e.f.P18, id)
+	_, l2 := e.listen(e.f.P12, id)
+	e.exec(`INSERT INTO devices (id, created_at, last_seen_at, name) VALUES ('dddddddddddddddddddddddddddddddd', 1, 1, 'Küche (iPhone)')`)
+	e.exec(`UPDATE sessions SET device_id = 'dddddddddddddddddddddddddddddddd' WHERE id = ?`, withDevice.ID)
+	rel, err := e.s.Relays(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rel.Relays) != 1 || rel.Relays[0].LogoHash != "logohash" || rel.Relays[0].State == relayFailed || len(rel.Relays[0].Listeners) != 2 {
+		t.Fatalf("relays %+v", rel)
+	}
+	byID := map[string]model.RadioListenerInfo{}
+	for _, l := range rel.Relays[0].Listeners {
+		byID[l.ListenID] = l
+	}
+	if d := byID[l1.ListenID].Device; d == nil || d.ID != "dddddddddddddddddddddddddddddddd" || d.Name != "Küche (iPhone)" {
+		t.Errorf("device of the listener with a device = %+v", d)
+	}
+	if d := byID[l2.ListenID].Device; d != nil {
+		t.Errorf("device of the listener without a device = %+v", d)
+	}
+
+	// The relay stops while its listen sessions stay open (as when ending them failed).
+	r := e.relay(id)
+	e.s.rel.mu.Lock()
+	delete(e.s.rel.relays, id)
+	e.s.rel.mu.Unlock()
+	r.stop()
+	if rel, err = e.s.Relays(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if len(rel.Relays) != 1 || rel.Relays[0].State != relayFailed || rel.Relays[0].StationID != id || rel.Relays[0].Name != "Test FM" ||
+		rel.Relays[0].LogoHash != "logohash" || len(rel.Relays[0].Listeners) != 2 || rel.Relays[0].BufferBytes != 0 {
+		t.Fatalf("relays after the relay stopped %+v", rel)
+	}
+	if rel.Load.Relays != 0 || rel.Load.UploadKbps != 0 || rel.Load.BufferBytes != 0 {
+		t.Errorf("load counts the failed relay: %+v", rel.Load)
+	}
+	if d := rel.Relays[0].Listeners[0].Device; d == nil || d.ID != "dddddddddddddddddddddddddddddddd" {
+		t.Errorf("device of the failed listener = %+v", d)
+	}
+}

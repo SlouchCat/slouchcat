@@ -471,7 +471,7 @@ type RelinkUserData struct {
 	Favorites        int64
 	CollectionItems  int64
 	Notifications    int64
-	TopPicks         int64
+	UserPicks        int64
 	Downloads        int64
 	ActivityEvents   int64
 }
@@ -788,11 +788,14 @@ type ItemDetail struct {
 	// on ItemSummary since contract 1.20.0).
 	Favorite    bool
 	Collections []CollectionRef
-	ReleaseDate string // YYYY-MM-DD or empty
-	Genres      []string
-	TMDBID      *int64
-	TVDBID      *int64
-	MediaFiles  []MediaFile // versions, primary first; VersionLabel always set
+	// RecommendedByMe: the profile holds a user pick of the title that has not expired (concept 18
+	// part B, 14.6); never who else or how many recommended it.
+	RecommendedByMe bool
+	ReleaseDate     string // YYYY-MM-DD or empty
+	Genres          []string
+	TMDBID          *int64
+	TVDBID          *int64
+	MediaFiles      []MediaFile // versions, primary first; VersionLabel always set
 
 	Series       *ItemSummary  // of a season or an episode
 	Season       *ItemSummary  // of an episode
@@ -972,47 +975,42 @@ type Notification struct {
 	Parent    *ItemSummary // the favourite series or podcast, nil when not visible
 }
 
-// AdminPick is one of Cat's recommendations in the administration (E-2).
-type AdminPick struct {
-	ID          int64
-	ItemID      string
-	Kind        string
-	Title       string
-	Year        *int
-	ProfileID   *int64 // nil = all profiles
-	ProfileName string
-	Position    int
-	Note        string
-	StartsAt    *time.Time
-	EndsAt      *time.Time
-	CreatedAt   time.Time
-	PosterHash  string // content hash of the AdminPosterSize poster; "" = none stored
+// AdminUserPick is a title of the user picks in the administration (concept 18 part B, 14.7, ADR
+// 0028): anonymous, the number of recommendations that have not expired and the newest of them.
+type AdminUserPick struct {
+	ItemID        string
+	Kind          string
+	Title         string
+	Year          *int
+	Count         int
+	PickedOn      string // day of the newest recommendation (YYYY-MM-DD, server zone), never the time
+	ExpiresInDays int    // whole days until the title leaves the list, rounded up
+	PosterHash    string // content hash of the AdminPosterSize poster; "" = none stored
 }
+
+// UserPick is the answer to a recommendation (recommendItem): when it expires unless renewed and
+// the retention in days.
+type UserPick struct {
+	ExpiresAt     time.Time
+	RetentionDays int
+}
+
+// Recommendable reports whether a title of this kind may be a user pick: every kind except seasons
+// and extras (concept 18 part B, 14.4).
+func Recommendable(kind string) bool { return kind != "season" && kind != "extra" }
+
+// Bounds of the retention of the user picks in days (picks_config.retention_days, default 60;
+// concept 18 part B, 14.7).
+const (
+	PicksRetentionMin = 7
+	PicksRetentionMax = 365
+)
 
 // AdminPosterSize is the poster size of the administration tables (posterUrl, M11 step 5b).
 const AdminPosterSize = "w200"
 
 // AdminBackdropSize is the backdrop size of the administration tiles (backdropUrl, concept 12).
 const AdminBackdropSize = "w780"
-
-// PickRequest creates picks: one global pick, or one per profile in ProfileIDs.
-type PickRequest struct {
-	ItemID     string
-	ProfileIDs []int64
-	Note       string
-	StartsAt   *time.Time
-	EndsAt     *time.Time
-}
-
-// PickUpdate changes note and time window; a nil field keeps its value, a Clear* flag clears it.
-type PickUpdate struct {
-	Note          *string
-	ClearNote     bool
-	StartsAt      *time.Time
-	ClearStartsAt bool
-	EndsAt        *time.Time
-	ClearEndsAt   bool
-}
 
 // AdminItemHit is a title found by the admin search (never an ItemRef).
 type AdminItemHit struct {
@@ -1150,6 +1148,30 @@ type PlaybackInfo struct {
 	NextEpisode       *ItemSummary
 	WatchTime         *WatchTime
 	Device            *DeviceRef
+	// Trickplay are the preview tiles of the seek bar (concept 18 part A); nil for audio titles,
+	// titles without video and the library setting off.
+	Trickplay *Trickplay
+}
+
+// Trickplay is the preview set of one media file for the app (concept 18, 8.2): the grid, the
+// time of every point and the sheets that exist, with the state of the set (queued, running,
+// complete, failed).
+type Trickplay struct {
+	Version    string
+	State      string
+	IntervalMs int64
+	TileWidth  int
+	TileHeight int
+	Columns    int
+	Rows       int
+	PointsMs   []int64
+	Sheets     []TrickplaySheet
+}
+
+// TrickplaySheet is one sheet of a preview set with its relative URL.
+type TrickplaySheet struct {
+	Index int
+	URL   string
 }
 
 // Media kinds of a playback (PlaybackInfo.MediaKind).
@@ -1450,6 +1472,9 @@ type LibraryRequest struct {
 	Kind          string // video, audiobooks, podcasts
 	Roots         []LibraryRootRequest
 	DefaultRating *int // audiobooks and podcasts only (AN-2); nil = 0 for those kinds
+	// Trickplay is the trickplay setting of a video library (concept 18, 6.1); nil = the defaults
+	// (DefaultLibraryTrickplay). Not allowed for audio libraries.
+	Trickplay *LibraryTrickplay
 }
 
 // LibraryRootRequest is one folder of a library with what it holds and who describes it.
@@ -1474,6 +1499,7 @@ type LibraryRootUpdate struct {
 type LibraryUpdate struct {
 	Name          *string
 	DefaultRating *int
+	Trickplay     *LibraryTrickplay // video libraries only (concept 18, 6.1)
 }
 
 // SetupRequest is the input of the first-start wizard.
@@ -1523,7 +1549,110 @@ type Library struct {
 	Roots         []LibraryRoot
 	Scan          LibraryScan
 	KeyframeIndex *LibraryKeyframeIndex // video libraries only (concept 14, F-7)
-	CreatedAt     time.Time
+	Trickplay     *LibraryTrickplay     // video libraries only (concept 18, 6.1)
+	// TrickplayEstimate is the storage estimate of the previews (concept 18, 9); getLibrary of a
+	// video library only.
+	TrickplayEstimate *LibraryTrickplayEstimate
+	CreatedAt         time.Time
+}
+
+// Trickplay modes of a library (concept 18, 6.1; libraries.trickplay_movies and
+// trickplay_series). TrickplaySeriesStart is for series only.
+const (
+	TrickplayAhead       = "ahead"
+	TrickplayOnStart     = "on_start"
+	TrickplaySeriesStart = "series_start"
+	TrickplayOff         = "off"
+)
+
+// Scopes of the series look-ahead of TrickplaySeriesStart (F-14).
+const (
+	TrickplayScopeSeries      = "series"
+	TrickplayScopeSeasonRest  = "season_rest"
+	TrickplayScopeNextEpisode = "next_episode"
+)
+
+// TrickplaySetting is the trickplay setting of one kind of title in a library: the mode, Keep
+// («Speichern», read only with on_start) and Scope (series only, read only with series_start).
+type TrickplaySetting struct {
+	Mode  string
+	Keep  bool
+	Scope string
+}
+
+// Stores reports whether the setting keeps the sets for good (ahead, series_start, on_start with
+// Keep); a setting that does not store keeps them only while a playback is open.
+func (t TrickplaySetting) Stores() bool {
+	return t.Mode == TrickplayAhead || t.Mode == TrickplaySeriesStart || (t.Mode == TrickplayOnStart && t.Keep)
+}
+
+// LibraryTrickplay is the trickplay setting of a video library, one for films (titles of kind
+// movie) and one for series (kind episode).
+type LibraryTrickplay struct {
+	Movies TrickplaySetting
+	Series TrickplaySetting
+}
+
+// DefaultLibraryTrickplay is the setting of a new video library (F-11): «Im Voraus» for both, with
+// «Speichern» and the whole series as scope.
+func DefaultLibraryTrickplay() LibraryTrickplay {
+	return LibraryTrickplay{
+		Movies: TrickplaySetting{Mode: TrickplayAhead, Keep: true},
+		Series: TrickplaySetting{Mode: TrickplayAhead, Keep: true, Scope: TrickplayScopeSeries},
+	}
+}
+
+// For returns the setting of a title kind: movie the films, episode the series; any other kind
+// has no trickplay (an empty setting, Mode "").
+func (t LibraryTrickplay) For(kind string) TrickplaySetting {
+	switch kind {
+	case "movie":
+		return t.Movies
+	case "episode":
+		return t.Series
+	}
+	return TrickplaySetting{}
+}
+
+// Validate returns the field errors of t below field ("trickplay"): an unknown mode or scope is
+// invalid_value, series_start for films too.
+func (t LibraryTrickplay) Validate(verr *ValidationError, field string) *ValidationError {
+	switch t.Movies.Mode {
+	case TrickplayAhead, TrickplayOnStart, TrickplayOff:
+	default:
+		verr = verr.Add(field+".movies.mode", "invalid_value")
+	}
+	switch t.Series.Mode {
+	case TrickplayAhead, TrickplayOnStart, TrickplaySeriesStart, TrickplayOff:
+	default:
+		verr = verr.Add(field+".series.mode", "invalid_value")
+	}
+	switch t.Series.Scope {
+	case TrickplayScopeSeries, TrickplayScopeSeasonRest, TrickplayScopeNextEpisode:
+	default:
+		verr = verr.Add(field+".series.scope", "invalid_value")
+	}
+	return verr
+}
+
+// LibraryTrickplayEstimate is the storage estimate of the previews of a video library per kind
+// (concept 18, 9) and the free space of the cache drive (-1: unknown).
+type LibraryTrickplayEstimate struct {
+	Movies         TrickplayKindEstimate
+	Series         TrickplayKindEstimate
+	CacheFreeBytes int64
+}
+
+// TrickplayKindEstimate is the estimate of one kind: titles with a present file, the present files
+// with a duration and their running time, the estimate per title (mean) and for the library, and
+// the bytes the stored sets take today.
+type TrickplayKindEstimate struct {
+	Titles        int
+	Files         int
+	DurationMs    int64
+	PerTitleBytes int64
+	LibraryBytes  int64
+	StoredBytes   int64
 }
 
 // LibraryKeyframeIndex is the keyframe index coverage of the files of a video library that are
@@ -1714,7 +1843,29 @@ type AdminStream struct {
 	// BackdropItemID and BackdropHash name the AdminBackdropSize backdrop the same way (concept 12).
 	BackdropItemID string
 	BackdropHash   string
+	// Kind is what the stream plays (concept 18, 17.4): the item kind movie, episode, extra,
+	// audiobook or podcast_episode.
+	Kind string
+	// ParentTitle is the podcast of a podcast episode and the movie or series of an extra.
+	ParentTitle string
+	// ChapterTitle is an audiobook's chapter at PositionMs.
+	ChapterTitle string
+	// PartCount is the number of parts of an audiobook of several files (0 otherwise).
+	PartCount int
+	// AudioCodec and AudioBitrate (bit/s, 0 unknown) describe the audio of an audiobook or a
+	// podcast episode: the probe's when played directly, aac and the session's over HLS, the
+	// enclosure's codec from a feed.
+	AudioCodec   string
+	AudioBitrate int
+	// Source is StreamSourceFeed for a podcast episode played from its enclosure, else StreamSourceFile.
+	Source string
 }
+
+// Where a stream's audio or video comes from (AdminStream.Source).
+const (
+	StreamSourceFile = "file"
+	StreamSourceFeed = "feed"
+)
 
 // PlaybackGrant is a valid stream token resolved to its playback session: the browser session
 // (account and profile) it was issued to and the title and media file it covers.

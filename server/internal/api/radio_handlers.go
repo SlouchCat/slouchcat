@@ -793,10 +793,17 @@ func (s *server) ListRadioRelays(ctx context.Context, _ gen.ListRadioRelaysReque
 		g := gen.RadioRelay{StationId: r.StationID, Name: r.Name, Codec: optString(r.Codec), BitrateKbps: optPositive(r.BitrateKbps),
 			Transcoded: r.Transcoded, StartedAt: r.StartedAt.UnixMilli(), BufferSeconds: r.BufferSeconds,
 			BufferBytes: r.BufferBytes, State: gen.RadioRelayState(r.State),
-			Listeners: make([]gen.RadioRelayListener, 0, len(r.Listeners))}
+			Listeners: make([]gen.RadioRelayListener, 0, len(r.Listeners)), Logo: radioLogoURL("/admin/radio/images", r.StationID, r.LogoHash)}
 		for _, li := range r.Listeners {
-			g.Listeners = append(g.Listeners, gen.RadioRelayListener{ListenId: li.ListenID, ProfileName: li.ProfileName,
-				AccountEmail: li.AccountEmail, Playing: li.Playing, Since: li.Since.UnixMilli()})
+			l := gen.RadioRelayListener{ListenId: li.ListenID, ProfileName: li.ProfileName,
+				AccountEmail: li.AccountEmail, Playing: li.Playing, Since: li.Since.UnixMilli()}
+			if d := li.Device; d != nil {
+				l.Device = &struct {
+					Id   string  `json:"id"`
+					Name *string `json:"name,omitempty"`
+				}{Id: d.ID, Name: optString(d.Name)}
+			}
+			g.Listeners = append(g.Listeners, l)
 		}
 		out.Relays = append(out.Relays, g)
 	}

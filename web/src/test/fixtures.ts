@@ -84,6 +84,8 @@ export const alienDetail: ItemDetail = {
   genres: ['Horror', 'Science-Fiction'],
   inWatchlist: false,
   favorite: false,
+  recommendedByMe: false,
+  canRecommend: true,
   collections: [],
   mediaFiles: [
     {
@@ -234,9 +236,16 @@ export const library = (overrides: Partial<Library> = {}): Library => ({
     },
   ],
   scan: { state: 'done', itemCount: 12, fileCount: 14, finishedAt: '2026-10-18T18:05:00Z' },
-  // Video libraries carry their keyframe index coverage (contract 1.13.0); audio libraries omit it.
+  // Video libraries carry their keyframe index coverage (contract 1.13.0) and their trickplay
+  // settings (1.23.0); audio libraries omit both.
   ...((overrides.kind ?? 'video') === 'video'
-    ? { keyframeIndex: { videoFiles: 14, indexed: 14, pending: 0, unavailable: 0 } }
+    ? {
+        keyframeIndex: { videoFiles: 14, indexed: 14, pending: 0, unavailable: 0 },
+        trickplay: {
+          movies: { mode: 'ahead', keep: true },
+          series: { mode: 'ahead', keep: true, scope: 'series' },
+        },
+      }
     : {}),
   ...overrides,
 });
@@ -407,6 +416,8 @@ export const showDetail: ItemDetail = {
   genres: ['Drama'],
   inWatchlist: false,
   favorite: false,
+  recommendedByMe: false,
+  canRecommend: true,
   collections: [],
   mediaFiles: [],
   seasons,
@@ -434,6 +445,8 @@ export const season1Detail: ItemDetail = {
   genres: [],
   inWatchlist: false,
   favorite: false,
+  recommendedByMe: false,
+  canRecommend: true,
   collections: [],
   mediaFiles: [],
   series: showRef,
@@ -461,6 +474,8 @@ export const specialsDetail: ItemDetail = {
   genres: [],
   inWatchlist: false,
   favorite: false,
+  recommendedByMe: false,
+  canRecommend: true,
   collections: [],
   mediaFiles: [],
   series: showRef,
@@ -474,6 +489,8 @@ export const episode2Detail: ItemDetail = {
   genres: [],
   inWatchlist: false,
   favorite: false,
+  recommendedByMe: false,
+  canRecommend: true,
   collections: [],
   mediaFiles: [file('mf-e2', '1080p', 1080)],
   series: showRef,
@@ -491,6 +508,8 @@ export const extraDetail: ItemDetail = {
   genres: [],
   inWatchlist: false,
   favorite: false,
+  recommendedByMe: false,
+  canRecommend: true,
   collections: [],
   mediaFiles: [file('mf-extra', '720p', 720)],
 };
@@ -593,6 +612,8 @@ export const audiobookDetail: ItemDetail = {
   genres: ['Test'],
   inWatchlist: false,
   favorite: false,
+  recommendedByMe: false,
+  canRecommend: true,
   collections: [],
   narrator: 'Slouchcat Test Narrator',
   seriesName: 'Slouchcat Test Audio Series',
@@ -660,13 +681,15 @@ export const podcast: ItemRef = {
   },
 };
 
-/** The podcast's detail carries its newest episodes; "Mehr laden" fetches the third. */
+/** The podcast's detail carries its newest episodes; the next page holds the third. */
 export const podcastDetail: ItemDetail = {
   ...podcast,
   overview: 'Ein Test-Podcast aus Sinustoenen.',
   genres: [],
   inWatchlist: false,
   favorite: false,
+  recommendedByMe: false,
+  canRecommend: true,
   collections: [],
   mediaFiles: [],
   episodes: [podcastEpisodes.ep3, podcastEpisodes.ep2],
@@ -679,6 +702,8 @@ export const podcastEpisodeDetail: ItemDetail = {
   genres: [],
   inWatchlist: false,
   favorite: false,
+  recommendedByMe: false,
+  canRecommend: true,
   collections: [],
   mediaFiles: [],
   podcast,

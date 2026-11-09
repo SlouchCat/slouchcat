@@ -120,6 +120,9 @@ func toAdminStream(st model.AdminStream) gen.AdminStream {
 		Width: optPositive(st.Width), Height: optPositive(st.Height), Bitrate: optPositive(st.Bitrate), Reason: optString(st.Reason),
 		StartedAt: st.StartedAt.UTC(), LastActivityAt: st.LastActivityAt.UTC(), PositionMs: st.PositionMs, DurationMs: st.DurationMs,
 		PosterUrl: adminPosterURL(st.PosterItemID, st.PosterHash), BackdropUrl: adminBackdropURL(st.BackdropItemID, st.BackdropHash),
+		Kind: gen.AdminStreamKind(st.Kind), Source: gen.AdminStreamSource(st.Source), ParentTitle: optString(st.ParentTitle),
+		ChapterTitle: optString(st.ChapterTitle), PartCount: optPositive(st.PartCount), AudioCodec: optString(st.AudioCodec),
+		AudioBitrate: optPositive(st.AudioBitrate),
 	}
 	if st.Quality != "" {
 		q := gen.Quality(st.Quality)
@@ -329,6 +332,7 @@ func toPlaybackInfo(profileID int64, info model.PlaybackInfo) gen.PlaybackInfo {
 			Available: q.Available, Current: q.Current})
 	}
 	out.Chapters = toChapters(info.Chapters)
+	out.Trickplay = toTrickplay(info.Trickplay)
 	if len(info.Parts) > 0 {
 		parts := make([]gen.PlaybackPart, 0, len(info.Parts))
 		for _, p := range info.Parts {

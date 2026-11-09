@@ -5,7 +5,7 @@ import type {
   AdminSettingsUpdate,
   AdminDevice,
   AdminItemHit,
-  AdminPick,
+  AdminUserPick,
   AdminPodcast,
   AdminItem,
   AdminStream,
@@ -20,6 +20,7 @@ import type {
   IntegrationEvent,
   IntegrationRequest,
   Invitation,
+  Issue,
   IssueKind,
   IssuePage,
   JobCancelResult,
@@ -40,8 +41,7 @@ import type {
   ApplyMetadataRequest,
   ApplyMetadataResponse,
   PathMapping,
-  PickRequest,
-  PickUpdate,
+  PicksSettings,
   SystemInfo,
   Stats,
   StatsDays,
@@ -50,6 +50,7 @@ import type {
 } from '@slouchcat/api-client';
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { api, request } from '@/api/client';
+import type { PagedSource } from '@/lib/pagedList';
 
 /** Poll interval while a scan is queued or running. */
 export const SCAN_POLL_MS = 5000;
@@ -99,9 +100,6 @@ export const issueKinds = [
   'rating_mismatch',
 ] as const satisfies readonly IssueKind[];
 
-/** Page size of the issue lists ("Mehr laden" fetches the next one). */
-export const ISSUE_PAGE = 50;
-
 const fetchIssues = (
   kind: IssueKind,
   limit: number,
@@ -118,16 +116,14 @@ const fetchIssues = (
 /** Everything under this key changes with a maintenance action (lists, counts, duplicates). */
 export const maintenanceKey = ['admin', 'maintenance'] as const;
 
-export const issuesQuery = (kind: IssueKind) =>
-  infiniteQueryOptions({
-    queryKey: [...maintenanceKey, 'issues', kind],
-    queryFn: ({ pageParam, signal }) => fetchIssues(kind, ISSUE_PAGE, pageParam, signal),
-    initialPageParam: 0,
-    getNextPageParam: (last, pages) => {
-      const loaded = pages.reduce((sum, page) => sum + page.items.length, 0);
-      return loaded < last.total && last.items.length > 0 ? loaded : undefined;
-    },
-  });
+/** The issues of a kind, read page by page as the tab scrolls (concept 18 C-3). */
+export const issuesSource = (kind: IssueKind): PagedSource<IssuePage, Issue> => ({
+  key: [...maintenanceKey, 'issues', kind],
+  fetch: (offset, limit, signal) => fetchIssues(kind, limit, offset, signal),
+  items: (page) => page.items,
+  total: (page) => page.total,
+  id: (issue) => `${issue.itemId}:${issue.mediaFileId ?? ''}`,
+});
 
 /** The number of issues of a kind (one small request per tab label). */
 export const issueCountQuery = (kind: IssueKind) =>
@@ -178,12 +174,22 @@ export const podcastsQuery = queryOptions({
   queryFn: ({ signal }): Promise<AdminPodcast[]> => request(api.GET('/admin/podcasts', { signal })),
 });
 
-// Curation (M7): Cat's recommendations, collections, start page rows and the Trakt lists.
+// Curation (M7): the user picks, collections, start page rows and the Trakt lists.
 
-/** Cat's recommendations in carousel order (E-2), global ones and those of single profiles. */
+/**
+ * The user picks (concept 18 part B, ADR 0028): one row per title, newest pick first, with the
+ * number of picks and the days left, never a profile.
+ */
 export const picksQuery = queryOptions({
   queryKey: ['admin', 'picks'],
-  queryFn: ({ signal }): Promise<AdminPick[]> => request(api.GET('/admin/picks', { signal })),
+  queryFn: ({ signal }): Promise<AdminUserPick[]> => request(api.GET('/admin/picks', { signal })),
+});
+
+/** How many days a title stays after its newest pick (7 to 365). */
+export const picksSettingsQuery = queryOptions({
+  queryKey: ['admin', 'picks', 'settings'],
+  queryFn: ({ signal }): Promise<PicksSettings> =>
+    request(api.GET('/admin/picks/settings', { signal })),
 });
 
 /** Shortest search text the server takes (`q` minLength). */
@@ -279,18 +285,12 @@ export const adminAnnouncementsQuery = queryOptions({
     request(api.GET('/admin/announcements', { signal })),
 });
 
-export const createPicks = (body: PickRequest): Promise<AdminPick[]> =>
-  request(api.POST('/admin/picks', { body }));
+/** Removes every pick of a title. */
+export const removeUserPick = (itemId: string) =>
+  request(api.DELETE('/admin/picks/{itemId}', { params: { path: { itemId } } }));
 
-export const updatePick = (id: number, body: PickUpdate): Promise<AdminPick> =>
-  request(api.PATCH('/admin/picks/{id}', { params: { path: { id } }, body }));
-
-export const deletePick = (id: number) =>
-  request(api.DELETE('/admin/picks/{id}', { params: { path: { id } } }));
-
-/** Every pick id exactly once, in the new order. */
-export const reorderPicks = (ids: number[]) =>
-  request(api.PUT('/admin/picks/order', { body: { ids } }));
+export const updatePicksSettings = (body: PicksSettings): Promise<PicksSettings> =>
+  request(api.PUT('/admin/picks/settings', { body }));
 
 export const createCollection = (body: CollectionRequest): Promise<AdminCollection> =>
   request(api.POST('/admin/collections', { body }));
@@ -476,6 +476,7 @@ export const applyMetadata = (body: ApplyMetadataRequest): Promise<ApplyMetadata
 // Webradio (concept 16, stage 1): the administration's radio page. Its queries share the key
 // `['admin', 'radio']`, so a change invalidates them together.
 export type AdminRadioStation = components['schemas']['AdminRadioStation'];
+type AdminRadioStationPage = components['schemas']['AdminRadioStationPage'];
 export type AdminRadioStationPatch = components['schemas']['AdminRadioStationPatch'];
 export type RadioConfig = components['schemas']['RadioConfig'];
 export type RadioConfigUpdate = components['schemas']['RadioConfigUpdate'];
@@ -530,7 +531,24 @@ export interface AdminRadioStationFilter {
   exceptions: boolean;
 }
 
-/** One page of the tab «Sender». */
+/** The stations of a filter, read page by page as the table scrolls (concept 18 C-3). */
+export const adminRadioStationsSource = (
+  filter: AdminRadioStationFilter,
+): PagedSource<AdminRadioStationPage, AdminRadioStation> => ({
+  key: [...radioAdminKeys.all, 'stations', filter],
+  fetch: (offset, limit, signal) =>
+    request(
+      api.GET('/admin/radio/stations', {
+        params: { query: { ...filter, offset, limit } },
+        signal,
+      }),
+    ),
+  items: (page) => page.items,
+  total: (page) => page.total,
+  id: (station) => station.id,
+});
+
+/** One page of the counter of «Nur Ausnahmen». */
 export const ADMIN_RADIO_PAGE_SIZE = 50;
 
 export const adminRadioStationsQuery = (filter: AdminRadioStationFilter) =>

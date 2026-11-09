@@ -151,6 +151,7 @@ function OfflinePlayback({
           playbackId,
         }}
         subtitleIds={download.subtitlesStored}
+        trickplayIds={download.trickplayStored}
         resumeMs={resume}
         watch={state.watch}
         serverOffsetMs={state.serverOffsetMs}

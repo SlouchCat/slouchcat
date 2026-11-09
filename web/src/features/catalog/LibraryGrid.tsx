@@ -37,9 +37,16 @@ interface LibraryGridProps {
   /** Focus key prefix: the grid is `<prefix>`, each card `<prefix>-<id>`. */
   focusKey: string;
   label: string;
-  /** Square covers (audiobooks and podcasts). */
-  square: boolean;
   tool?: (item: ItemRef) => ReactNode;
+  /** The watch state on each card (ItemGrid `showWatched`); on by default. */
+  showWatched?: boolean;
+  /**
+   * A control under each card (the watchlist's "Entfernen", ItemGrid `below`): the rows grow by a
+   * control's height.
+   */
+  below?: (item: ItemRef) => ReactNode;
+  /** Called once a title was taken off the watchlist from its cover (ItemGrid `onUnmarked`). */
+  onUnmarked?: (item: ItemRef) => void;
   /** The drawn places (for their pages) and the places of the top row in view below the header. */
   onRange: (range: DrawnRange, top: DrawnRange) => void;
   ref?: Ref<LibraryGridHandle>;
@@ -56,7 +63,7 @@ interface Metrics {
   header: number;
 }
 
-function measure(list: HTMLElement, probe: HTMLElement, square: boolean): Metrics {
+function measure(list: HTMLElement, probe: HTMLElement): Metrics {
   const style = getComputedStyle(list);
   const tracks = style.gridTemplateColumns
     .split(' ')
@@ -66,7 +73,8 @@ function measure(list: HTMLElement, probe: HTMLElement, square: boolean): Metric
   const text = probe.getBoundingClientRect();
   return {
     columns: Math.max(1, tracks.length),
-    card: Math.ceil(width * (square ? 1 : 1.5) + text.height),
+    // Every card has the 2:3 frame, a square cover too (concept 18 C-1).
+    card: Math.ceil(width * 1.5 + text.height),
     rowGap: parseFloat(style.rowGap) || 0,
     top: list.getBoundingClientRect().top + window.scrollY,
     header: text.width,
@@ -95,8 +103,10 @@ export function LibraryGrid({
   slots,
   focusKey,
   label,
-  square,
   tool,
+  showWatched = true,
+  below,
+  onUnmarked,
   onRange,
   ref,
 }: LibraryGridProps) {
@@ -110,13 +120,13 @@ export function LibraryGrid({
     if (!node || !text) return;
     // Columns and gaps follow the width; the top follows what stands above (filters, chips).
     const observer = new ResizeObserver(() => {
-      const next = measure(node, text, square);
+      const next = measure(node, text);
       setMetrics((previous) => (same(previous, next) ? previous : next));
     });
     observer.observe(node);
     observer.observe(node.closest('main') ?? document.body);
     return () => observer.disconnect();
-  }, [square]);
+  }, []);
 
   const total = slots.length;
   const columns = metrics?.columns ?? 1;
@@ -150,9 +160,9 @@ export function LibraryGrid({
   const lastRow = Math.min(rows - 1, (visible?.endIndex ?? 0) + overscan);
   const drawnStart = firstRow * columns;
   const drawnEnd = rows > 0 ? (lastRow + 1) * columns - 1 : -1;
-  const below = (virtualizer.scrollOffset ?? 0) + (metrics?.header ?? 0);
+  const underHeader = (virtualizer.scrollOffset ?? 0) + (metrics?.header ?? 0);
   const topRow =
-    virtualRows.find((row) => row.end - (metrics?.rowGap ?? 0) > below)?.index ??
+    virtualRows.find((row) => row.end - (metrics?.rowGap ?? 0) > underHeader)?.index ??
     visible?.startIndex ??
     0;
   const topStart = topRow * columns;
@@ -310,7 +320,11 @@ export function LibraryGrid({
           : undefined
       }
     >
-      <span ref={probe} className={styles.probe} aria-hidden="true" />
+      <span
+        ref={probe}
+        className={below ? `${styles.probe} ${styles.probeBelow}` : styles.probe}
+        aria-hidden="true"
+      />
       <SpatialGroup as="ul" focusKey={focusKey} className={styles.grid} aria-label={label}>
         {indexes.map((index) => {
           const item = slots[index];
@@ -322,25 +336,27 @@ export function LibraryGrid({
           return (
             <li
               key={item ? item.id : `place-${index}`}
-              className={styles.cell}
+              className={below ? `${styles.cell} ${styles.withBelow}` : styles.cell}
               style={placement}
               data-index={index}
               aria-setsize={total}
               aria-posinset={index + 1}
             >
               {item ? (
-                <ItemCell
-                  item={item}
-                  focusKey={focusKey}
-                  showWatched
-                  tool={tool}
-                  clampCaption
-                  onArrowPress={(direction) => arrow(index, direction)}
-                />
+                <>
+                  <ItemCell
+                    item={item}
+                    focusKey={focusKey}
+                    showWatched={showWatched}
+                    tool={tool}
+                    onUnmarked={onUnmarked}
+                    clampCaption
+                    onArrowPress={(direction) => arrow(index, direction)}
+                  />
+                  {below?.(item)}
+                </>
               ) : (
-                <span
-                  className={square ? `${styles.placeholder} ${styles.square}` : styles.placeholder}
-                >
+                <span className={styles.placeholder}>
                   <Skeleton shape="poster" />
                 </span>
               )}

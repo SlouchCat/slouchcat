@@ -1,43 +1,44 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
-import { cardKey, ItemGrid, MoreButton } from '@/features/discover/ItemGrid';
+import { cardKey, PageRetry } from '@/features/discover/ItemGrid';
+import { PagedItemGrid } from '@/features/discover/PagedItemGrid';
+import { rangeBySize, usePagedList, type PlaceRange } from '@/lib/pagedList';
 import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
 import { Button, Notice, Skeleton, SpatialButton, SpatialGroup, SpatialPage } from '@/ui';
-import { picksPageQuery } from './queries';
-import { useBackFocus } from './useBackFocus';
+import { picksSource } from './queries';
 import styles from '@/features/discover/Discover.module.css';
 
 const GRID_KEY = 'picks-item';
 const BACK_KEY = 'picks-back';
 
 /**
- * Every one of Cat's recommendations for the active profile (concept 08), in Cat's order and with
- * Cat's note under the poster; the start page row shows the first 20 of them.
+ * Every user pick the active profile sees (concept 18 part B, E-2): each title once, newest pick
+ * first, without a note; the start page row shows the first 20. No «Mehr laden» (concept 18,
+ * 16.4, C-3): the pages are read as the grid asks (usePagedList). A page with another total, or
+ * one that holds a title of another place (a pick made again moved it to the front meanwhile),
+ * reads the list again, so every title stands once.
  */
 export function PicksPage() {
   const { t } = useTranslation();
   useDocumentTitle(t('picks.page.title'));
   const goBack = useGoBack(paths.home);
   useBackKeys(goBack);
-  const list = useInfiniteQuery(picksPageQuery);
-  const items = useMemo(() => list.data?.pages.flatMap((page) => page.items) ?? [], [list.data]);
-  const total = list.data?.pages[0]?.total ?? 0;
-  const cardKeys = useMemo(() => items.map((item) => cardKey(GRID_KEY, item)), [items]);
-  useBackFocus(GRID_KEY, cardKeys);
+  const [span, setSpan] = useState<PlaceRange>({ start: 0, end: 0 });
+  const paged = usePagedList(picksSource, rangeBySize(span));
+  const list = paged.first;
 
-  const first = items[0];
+  const first = paged.slots[0];
   return (
     <SpatialPage defaultFocusKey={first ? cardKey(GRID_KEY, first) : BACK_KEY}>
       <main className={styles.page} aria-busy={list.isPending || undefined}>
         <div className={styles.head}>
           <h1 className={styles.title}>{t('picks.page.title')}</h1>
           {list.isSuccess && (
-            <p className={styles.muted}>{t('picks.page.count', { count: total })}</p>
+            <p className={styles.muted}>{t('picks.page.count', { count: paged.total })}</p>
           )}
           <p className={styles.overview}>{t('picks.page.intro')}</p>
           <SpatialGroup className={styles.actions}>
@@ -60,19 +61,16 @@ export function PicksPage() {
           />
         )}
 
-        {items.length > 0 && (
+        {paged.total > 0 && (
           <section className={styles.section}>
-            <ItemGrid items={items} focusKey={GRID_KEY} label={t('picks.page.title')} />
-            <MoreButton
-              shown={items.length}
-              keys={cardKeys}
-              hasMore={list.hasNextPage}
-              loading={list.isFetchingNextPage}
-              failed={list.isFetchNextPageError}
-              label={t('library.page.more', { count: Math.max(0, total - items.length) })}
-              focusKey="picks-more"
-              onMore={() => void list.fetchNextPage()}
+            <PagedItemGrid
+              slots={paged.slots}
+              onRange={setSpan}
+              focusKey={GRID_KEY}
+              label={t('picks.page.title')}
+              showWatched
             />
+            {paged.failed && <PageRetry onRetry={paged.retry} />}
           </section>
         )}
       </main>

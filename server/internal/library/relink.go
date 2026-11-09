@@ -65,7 +65,7 @@ type RelinkUserData struct {
 	Favorites        int64
 	CollectionItems  int64
 	Notifications    int64
-	TopPicks         int64
+	UserPicks        int64
 	Downloads        int64
 	ActivityEvents   int64
 }
@@ -121,7 +121,7 @@ func (s *Service) CountRelinkUserData(ctx context.Context, itemIDs []string) (ma
 		out[r.ID] = RelinkUserData{
 			Progress: r.Progress, ProgressEvents: r.ProgressEvents, ProgressDays: r.ProgressDays,
 			PlaybackSessions: r.PlaybackSessions, Watchlist: r.Watchlist, Favorites: r.Favorites,
-			CollectionItems: r.CollectionItems, Notifications: r.Notifications, TopPicks: r.TopPicks,
+			CollectionItems: r.CollectionItems, Notifications: r.Notifications, UserPicks: r.UserPicks,
 			Downloads: r.Downloads, ActivityEvents: r.ActivityEvents,
 		}
 	}
@@ -347,7 +347,7 @@ func (s *Service) relinkTwin(ctx context.Context, liveID string) (string, bool, 
 // same number, an episode into the season's episode with the same number (both restored when the
 // copy's node is live). A child without counterpart (and every extra) moves below the twin. The
 // user data of every merged node follows with the rules of the duplicate merge (B-9): progress per
-// profile (completed wins, then the larger position), events, days, top picks, watchlist,
+// profile (completed wins, then the larger position), events, days, user picks, watchlist,
 // favourites, collections, notifications and downloads, plus playback sessions and activity
 // events. The copy's curated state comes along (relinker.carry): locked provider ids, an age
 // rating never milder than the copy's (its locked one wins), the administrator's images, local
@@ -569,8 +569,12 @@ func (r *relinker) moveRows(ctx context.Context, target, source string) error {
 		{"progress days", func() error {
 			return q.AdminMergeProgressDays(ctx, systemq.AdminMergeProgressDaysParams{TargetID: target, SourceID: source})
 		}},
-		{"top picks", func() error {
-			return q.AdminMoveTopPicks(ctx, systemq.AdminMoveTopPicksParams{TargetID: target, SourceID: source})
+		{"user picks", func() error {
+			if err := q.AdminMoveUserPicks(ctx, systemq.AdminMoveUserPicksParams{TargetID: target, SourceID: source}); err != nil {
+				return err
+			}
+			_, err := q.AdminDeleteUserPicksOfItem(ctx, source)
+			return err
 		}},
 		{"watchlist", func() error {
 			return q.AdminMoveWatchlist(ctx, systemq.AdminMoveWatchlistParams{TargetID: target, SourceID: source})

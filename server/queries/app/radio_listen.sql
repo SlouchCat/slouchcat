@@ -117,3 +117,15 @@ INSERT INTO radio_station_locks (station_id, field) VALUES (@station_id, 'logo')
 -- name: UnlockRadioStationLogo :exec
 DELETE FROM radio_station_locks WHERE station_id = @station_id AND field = 'logo';
 
+
+-- name: RadioListenDevices :many
+-- The device of each login session of ids: the stream overview names the device of a listener
+-- (concept 18, 17.4). A session without device is absent.
+SELECT s.id AS session_id, d.id AS device_id, d.name AS device_name
+FROM sessions AS s
+JOIN devices AS d ON d.id = s.device_id
+WHERE s.id IN (sqlc.slice('session_ids'));
+
+-- name: RadioStationLogoHashes :many
+-- The logo content hash of each station of ids that has a logo (stream overview, concept 18, 17.4).
+SELECT id, logo_hash FROM radio_stations WHERE id IN (sqlc.slice('ids')) AND logo_hash IS NOT NULL;

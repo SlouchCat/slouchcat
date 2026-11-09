@@ -23,6 +23,18 @@ func (s *Service) handleSweep(ctx context.Context, _ *jobs.Job) error {
 	if err := s.sweepChapterImages(ctx); err != nil {
 		s.log.WarnContext(ctx, "chapter image sweep failed", "err", err)
 	}
+	// User picks past their retention (concept 18 part B, 14.5); the reads filter by time as well,
+	// so a failure is logged and the sweep of the titles stands.
+	if n, err := systemq.New(s.db.Write).DeleteExpiredUserPicks(ctx, s.now().UnixMilli()); err != nil {
+		s.log.WarnContext(ctx, "user pick sweep failed", "err", err)
+	} else if n > 0 {
+		s.log.InfoContext(ctx, "expired user picks deleted", "picks", n)
+	}
+	// The trickplay sets of deleted files, other versions and settings that no longer store
+	// (trickplay_maint.go); a failure is logged as well.
+	if err := s.sweepTrickplay(ctx); err != nil {
+		s.log.WarnContext(ctx, "trickplay sweep failed", "err", err)
+	}
 	return nil
 }
 

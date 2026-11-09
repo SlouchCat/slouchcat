@@ -1,4 +1,4 @@
-import type { Library, LibraryKeyframeIndex } from '@slouchcat/api-client';
+import type { Library, LibraryKeyframeIndex, LibraryTrickplay } from '@slouchcat/api-client';
 import { memo, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { paths } from '@/app/paths';
@@ -24,14 +24,17 @@ export interface LibraryHandlers {
   onCancelScan: (id: number) => void;
   onFolders: (id: number) => void;
   onRating: (id: number) => void;
+  /** «Vorschau beim Spulen» of a video library (concept 18, 9). */
+  onTrickplay: (id: number) => void;
   onAcceptLoss: (library: Library) => void;
 }
 
 /**
  * The fold-out of a library (Bib-C): «Erneut scannen» or, while a scan runs, «Scan abbrechen»,
- * and «Ordner» as buttons; «Standardstufe ändern» (audio) and «Verlust akzeptieren» (danger) in
- * «Weitere Aktionen» (S-6); the link to its metadata (video); the progress of a running scan,
- * the error band of the last one, and every folder with its whole path (BIB-1 to BIB-4).
+ * and «Ordner» as buttons, «Vorschau beim Spulen» for a video library (concept 18, 9);
+ * «Standardstufe ändern» (audio) and «Verlust akzeptieren» (danger) in «Weitere Aktionen» (S-6);
+ * the link to its metadata (video); the progress of a running scan, the error band of the last
+ * one, the trickplay setting, and every folder with its whole path (BIB-1 to BIB-4).
  */
 export const LibraryDetail = memo(function LibraryDetail({
   library,
@@ -100,6 +103,15 @@ export const LibraryDetail = memo(function LibraryDetail({
         >
           {t('admin.libraries.openFolders')}
         </AriaButton>
+        {library.kind === 'video' && (
+          <AriaButton
+            icon="image"
+            aria-label={t('admin.libraries.trickplay.actionLabel', { name: library.name })}
+            onPress={() => handlers.onTrickplay(library.id)}
+          >
+            {t('admin.libraries.trickplay.action')}
+          </AriaButton>
+        )}
         {menu.length > 0 && <ActionMenu rowName={library.name} items={menu} onAction={onMenu} />}
         {library.kind === 'video' && (
           <TextLink href={`${paths.adminMetadata}?library=${library.id}`}>
@@ -131,6 +143,7 @@ export const LibraryDetail = memo(function LibraryDetail({
       )}
 
       {library.keyframeIndex && <KeyframeCoverage coverage={library.keyframeIndex} />}
+      {library.trickplay && <TrickplaySummary setting={library.trickplay} />}
 
       <Folders library={library} />
     </section>
@@ -164,6 +177,25 @@ function KeyframeCoverage({ coverage }: { coverage: LibraryKeyframeIndex }) {
           {t('admin.libraries.keyframes.backfill')}
         </TextLink>
       )}
+    </p>
+  );
+}
+
+/** The setting «Vorschau beim Spulen» of a video library in one line, films and series. */
+function TrickplaySummary({ setting }: { setting: LibraryTrickplay }) {
+  const { t } = useTranslation();
+  const label = (value: { mode: LibraryTrickplay['series']['mode']; keep: boolean }) =>
+    value.mode === 'on_start' && !value.keep
+      ? t('admin.libraries.trickplay.summaryNoKeep')
+      : t(`admin.libraries.trickplay.mode.${value.mode}`);
+  return (
+    <p className={styles.keyframes}>
+      <span className={styles.muted}>
+        {t('admin.libraries.trickplay.summary', {
+          movies: label(setting.movies),
+          series: label(setting.series),
+        })}
+      </span>
     </p>
   );
 }

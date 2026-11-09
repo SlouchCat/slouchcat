@@ -1,4 +1,17 @@
 {
+  "stream-tile": {
+    "$description": "The square form of the stream tile for covers and station logos (concept 18, 17.3): the picture in the middle on a blurred, darkened copy of itself.",
+    "ground-blur": {
+      "$type": "dimension",
+      "$value": "22px",
+      "$description": "Blur radius of the ground behind a square cover or logo."
+    },
+    "ground-dim": {
+      "$type": "number",
+      "$value": 0.45,
+      "$description": "Brightness of the blurred ground (1 = unchanged): dark enough for the badges on it."
+    }
+  },
   "control": {
     "$type": "dimension",
     "$description": "Component tokens (concept 12, ADR 0020): what the ui building blocks read instead of the general scale. The default is today's value; density.compact holds the administration's values.",
@@ -92,6 +105,26 @@
     "text-gap": {
       "$value": "{space.1}",
       "$description": "Gap between a setting's label and its help line."
+    }
+  },
+  "library-tile": {
+    "$type": "dimension",
+    "$description": "The name and the count on a library tile of «Meine Medien» (concept 18 C-2, Marco chose 26 px).",
+    "label-size": {
+      "$value": "1.625rem",
+      "$description": "26 px: the name at its full size."
+    },
+    "label-size-min": {
+      "$value": "1.25rem",
+      "$description": "20 px: the least size of the name on a narrow tile (a phone)."
+    },
+    "label-size-fluid": {
+      "$value": "9cqi",
+      "$description": "The name between the two sizes follows the tile's width (a container query unit)."
+    },
+    "count-size": {
+      "$value": "{font.size.sm}",
+      "$description": "14 px: the number of titles under the name."
     }
   },
   "density": {

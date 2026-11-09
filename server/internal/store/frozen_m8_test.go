@@ -39,7 +39,7 @@ func TestFrozenM8StateCoversM8Data(t *testing.T) {
 		"encrypted mail server password":         `SELECT count(*) FROM settings WHERE key = 'smtp_password' AND value LIKE 'v1:%'`,
 		"public url and update check setting":    `SELECT count(*) FROM settings s WHERE s.key = 'public_url' AND EXISTS (SELECT 1 FROM settings WHERE key = 'update_check_enabled')`,
 		"progress event with its device":         `SELECT count(*) FROM progress_events p JOIN devices d ON d.id = p.device_id`,
-		"pick and favourite of M7":               `SELECT count(*) FROM top_picks WHERE EXISTS (SELECT 1 FROM favorites)`,
+		"favourite of M7, its pick discarded":    `SELECT count(*) FROM favorites WHERE (SELECT count(*) FROM sqlite_master WHERE name LIKE 'top_picks%') = 0 AND (SELECT count(*) FROM user_picks) = 0`,
 	} {
 		var n int
 		if err := db.Read.QueryRow(query).Scan(&n); err != nil {
@@ -48,6 +48,10 @@ func TestFrozenM8StateCoversM8Data(t *testing.T) {
 		if n == 0 {
 			t.Errorf("frozen M8 state has no %s", what)
 		}
+	}
+	// The pick of M7 is in the state; migration 00041 discards it (concept 18 part B, ADR 0028).
+	if !strings.Contains(string(script), `INSERT INTO "top_picks" VALUES (`) {
+		t.Error("frozen M8 state has no pick of M7")
 	}
 	// No secret ever reaches the frozen state in the clear (A-9, 3.8.3).
 	for _, plain := range []string{"FAKE-frozen-smtp-pass", "frozen-owner-pass"} {

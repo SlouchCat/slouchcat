@@ -79,6 +79,26 @@
       "$description": "Scale of a focused card; must stay at or below 1.06."
     }
   },
+  "cover": {
+    "ground": {
+      "$description": "The ground of a square cover in a 2:3 card frame (concept 18 C-1, variant B): the same image blurred and darkened behind it.",
+      "blur": {
+        "$type": "dimension",
+        "$value": "16px",
+        "$description": "Blur radius of the ground."
+      },
+      "brightness": {
+        "$type": "number",
+        "$value": 0.45,
+        "$description": "Brightness of the ground (CSS brightness()): dark enough that the cover stands apart from it."
+      },
+      "scale": {
+        "$type": "number",
+        "$value": 1.15,
+        "$description": "The ground drawn a little larger than the frame, so the blur's soft edge stays outside it."
+      }
+    }
+  },
   "tool": {
     "hover": {
       "scale": {

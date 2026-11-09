@@ -304,7 +304,6 @@
       "roots": "Freigegebene Ordner",
       "empty": "Dieser Ordner hat keine Unterordner.",
       "emptyRoots": "Es ist kein Ordner freigegeben. Setze {{name}} auf die Medienordner des Containers und starte den Server neu.",
-      "loadMore": "Mehr laden",
       "truncated": "Dieser Ordner hat sehr viele Einträge. Angezeigt werden die ersten 50 000; den Rest erreichst du, indem du den Pfad eintippst.",
       "symlink": "Verknüpfung, wird nicht durchsucht",
       "closedRoot": "Nicht freigegeben, nur Anzeige",
@@ -380,7 +379,6 @@
       "clear": "Zurücksetzen",
       "emptyFilters": "Nichts passt zu diesen Filtern",
       "pageFailed": "Ein Teil der Liste konnte nicht geladen werden.",
-      "more": "Mehr laden ({{count}} weitere)",
       "noun": {
         "video_one": "Titel",
         "video_other": "Titel",
@@ -594,7 +592,6 @@
     "podcast": {
       "episodes": "Episoden",
       "empty": "Keine Episoden.",
-      "more": "Mehr laden",
       "link": "Zum Podcast",
       "play": "{{title}} abspielen"
     },
@@ -606,7 +603,14 @@
       "label": "Favorit",
       "hint": "Bei neuen Folgen benachrichtigen"
     },
-    "addToPicks": "Zu den User-Empfehlungen",
+    "recommend": {
+      "add": "Empfehlen",
+      "done": "Empfohlen ✓",
+      "hint": "Für alle Profile, die den Titel sehen dürfen, ohne deinen Namen",
+      "added_one": "Zu den User-Empfehlungen hinzugefügt. Bleibt {{count}} Tag.",
+      "added_other": "Zu den User-Empfehlungen hinzugefügt. Bleibt {{count}} Tage.",
+      "removed": "Empfehlung zurückgenommen."
+    },
     "logoAlt": "{{title}}",
     "action": {
       "resume": "Fortsetzen",
@@ -616,8 +620,7 @@
       "resumeAt": "bei {{time}} · noch {{left}}",
       "watchedOn": "Gesehen am {{date}}",
       "listenedOn": "Gehört am {{date}}",
-      "restart": "Von vorne",
-      "picks": "User-Empfehlungen"
+      "restart": "Von vorne"
     },
     "nextUp": {
       "start": "Abspielen",
@@ -1055,7 +1058,8 @@
           "connecting": "Verbindet",
           "live": "Live",
           "reconnecting": "Verbindet neu",
-          "ending": "Endet"
+          "ending": "Endet",
+          "failed": "Relais gestört"
         },
         "stop": {
           "label": "Hören von {{profile}} stoppen",
@@ -1116,7 +1120,6 @@
         "hiddenDone": "{{name}} ist ausgeblendet.",
         "shownDone": "{{name}} ist eingeblendet.",
         "empty": "Keine Sender gefunden.",
-        "more": "Weitere Sender",
         "count_one": "{{count}} Sender",
         "count_other": "{{count}} Sender"
       },
@@ -1520,6 +1523,76 @@
         "images": "Bilder abweichend",
         "both": "Sprachen und Bilder abweichend",
         "link": "Metadaten der Bibliothek"
+      },
+      "trickplay": {
+        "action": "Vorschau beim Spulen",
+        "actionLabel": "Vorschau beim Spulen von {{name}}",
+        "title": "Vorschau beim Spulen: {{name}}",
+        "description": "Kleine Bilder über der Zeitleiste, ein Bild alle 10 Sekunden. Filme und Serien werden getrennt eingestellt, auch in einer gemischten Bibliothek.",
+        "movies": "Filme",
+        "series": "Serien",
+        "mode": {
+          "ahead": "Im Voraus",
+          "on_start": "Beim Start",
+          "series_start": "Beim Start alle Folgen",
+          "off": "Aus"
+        },
+        "keep": "Speichern",
+        "keepHint": "Ab dem zweiten Start sofort da. Ohne Speichern wird die Vorschau nach der Wiedergabe gelöscht.",
+        "scope": {
+          "label": "Umfang",
+          "series": "Ganze Serie",
+          "season_rest": "Rest der Staffel",
+          "next_episode": "Nächste Folge"
+        },
+        "facts": {
+          "ahead": {
+            "movie": "Neue Filme bekommen die Vorschau beim Einlesen; den Bestand holen «Jetzt erzeugen» oder der Zeitplan auf «Hintergrundjobs» nach. Fehlt sie beim Start, entsteht sie in 20 bis 45 Sekunden und bleibt gespeichert.",
+            "episode": "Neue Folgen bekommen die Vorschau beim Einlesen; den Bestand holen «Jetzt erzeugen» oder der Zeitplan auf «Hintergrundjobs» nach. Fehlt sie beim Start, entsteht sie in 20 bis 45 Sekunden und bleibt gespeichert."
+          },
+          "onStartKeep": "Beim ersten Start entsteht die Vorschau in 20 bis 45 Sekunden, das erste Blatt nach 5 bis 10 Sekunden, und bleibt gespeichert. Nie geschaute Titel belegen keinen Platz.",
+          "onStart": "Bei jedem Start entsteht die Vorschau neu in 20 bis 45 Sekunden; 10 Minuten nach dem Ende wird sie gelöscht. Das kostet bei jedem Start Rechenzeit und einige hundert MB vom NAS.",
+          "seriesStart": {
+            "series": "Startet eine Folge, entsteht ihre Vorschau sofort, danach im Hintergrund die aller übrigen Folgen der Serie. Alles bleibt gespeichert.",
+            "season_rest": "Startet eine Folge, entsteht ihre Vorschau sofort, danach im Hintergrund die der übrigen Folgen der Staffel (bei der letzten Folge die der nächsten Staffel). Alles bleibt gespeichert.",
+            "next_episode": "Startet eine Folge, entsteht ihre Vorschau sofort, danach im Hintergrund die der nächsten Folge. Alles bleibt gespeichert."
+          },
+          "off": "Keine Vorschau. Die Zeitleiste zeigt wie bisher Kapitelname und Kapitelbild."
+        },
+        "estimate": {
+          "counts": {
+            "movies_one": "{{count}} Film, {{hours}} h",
+            "movies_other": "{{count}} Filme, {{hours}} h",
+            "series_one": "{{count}} Folge, {{hours}} h",
+            "series_other": "{{count}} Folgen, {{hours}} h"
+          },
+          "approx": "≈ {{size}}",
+          "zero": "0 MB",
+          "perMovie": "Pro Film",
+          "perMoviePlaying": "Pro Film, nur während der Wiedergabe",
+          "perEpisode": "Pro Folge",
+          "perEpisodePlaying": "Pro Folge, nur während der Wiedergabe",
+          "library": "Ganze Bibliothek",
+          "libraryAtMost": "Ganze Bibliothek, höchstens",
+          "basis": "Geschätzter Speicherbedarf aus der Laufzeit der Titel, rund 1,5 MB je Stunde Video.",
+          "stored": "Heute belegt: Filme {{movies}} · Serien {{series}}",
+          "free": "Freier Platz im Cache: {{size}}",
+          "unavailable": "Die Schätzung des Speicherbedarfs ist gerade nicht verfügbar."
+        },
+        "drop": {
+          "movies": "Nach dem Speichern werden die gespeicherten Vorschauen der Filme gelöscht ({{size}}). Laufende Wiedergaben behalten sie bis zum Ende.",
+          "series": "Nach dem Speichern werden die gespeicherten Vorschauen der Serien gelöscht ({{size}}). Laufende Wiedergaben behalten sie bis zum Ende.",
+          "both": "Nach dem Speichern werden die gespeicherten Vorschauen gelöscht: Filme ({{movies}}) und Serien ({{series}}). Laufende Wiedergaben behalten sie bis zum Ende."
+        },
+        "generate": {
+          "action": "Jetzt erzeugen",
+          "hint": "Holt die fehlenden Vorschauen aller Bibliotheken mit «Im Voraus» nach, wie «Vorschau beim Spulen nachholen» auf «Hintergrundjobs».",
+          "queued": "Das Nachholen der Vorschauen ist eingereiht."
+        },
+        "submit": "Speichern",
+        "saved": "Die Vorschau beim Spulen von {{name}} ist gespeichert.",
+        "summary": "Vorschau beim Spulen: Filme {{movies}} · Serien {{series}}",
+        "summaryNoKeep": "Beim Start, ohne Speichern"
       }
     },
     "access": {
@@ -1556,9 +1629,9 @@
       "selection": "Auswahl",
       "selectItem": "{{title}} auswählen",
       "selected": "{{count}} ausgewählt",
+      "selectedOfLoaded": "{{count}} von {{loaded}} geladenen ausgewählt",
       "selectAll": "Alle auswählen",
       "selectNone": "Auswahl aufheben",
-      "more": "Mehr laden",
       "shown": "{{shown}} von {{total}}",
       "entries_one": "{{count}} Eintrag",
       "entries_other": "{{count}} Einträge",
@@ -1673,8 +1746,8 @@
           "collectionItems_other": "{{count}} Sammlungseinträge",
           "notifications_one": "{{count}} Benachrichtigung",
           "notifications_other": "{{count}} Benachrichtigungen",
-          "topPicks_one": "{{count}} Top-Pick",
-          "topPicks_other": "{{count}} Top-Picks",
+          "userPicks_one": "{{count}} User-Empfehlung",
+          "userPicks_other": "{{count}} User-Empfehlungen",
           "downloads_one": "{{count}} Download",
           "downloads_other": "{{count}} Downloads",
           "activityEvents_one": "{{count}} Aktivität",
@@ -1952,17 +2025,49 @@
     },
     "streams": {
       "title": "Streams",
-      "intro": "Laufende Wiedergaben. Die Liste aktualisiert sich alle 5 Sekunden.",
-      "list": "Laufende Streams",
+      "intro": "Alles, was gerade läuft. Die Liste aktualisiert sich alle 5 Sekunden.",
+      "list": "Läuft gerade",
+      "listHelp": "Neueste zuerst, Radio in derselben Liste.",
       "tileLabel": "{{profile}}: {{title}}",
       "empty": "Gerade läuft nichts.",
+      "emptyKind": "Gerade läuft nichts dieser Art.",
+      "filter": {
+        "label": "Nach Art filtern",
+        "all": "Alle",
+        "video": "Video",
+        "audiobook": "Hörbücher",
+        "podcast": "Podcasts",
+        "radio": "Radio",
+        "unknown": "Anzahl unbekannt"
+      },
+      "kinds": {
+        "movie": "Film",
+        "episode": "Serie",
+        "extra": "Extra",
+        "audiobook": "Hörbuch",
+        "podcast": "Podcast",
+        "radio": "Radio"
+      },
+      "partial": {
+        "streams": "Wiedergaben fehlen in der Liste, bis die Anfrage wieder gelingt.",
+        "radio": "Radiohörer fehlen in der Liste, bis die Anfrage wieder gelingt."
+      },
       "facts": {
         "device": "Gerät",
         "quality": "Qualität",
-        "reason": "Grund"
+        "reason": "Grund",
+        "format": "Format",
+        "source": "Quelle",
+        "listeners": "Hörer"
       },
       "unknownDevice": "Unbekanntes Gerät",
       "original": "Original",
+      "source": {
+        "file": "Datei",
+        "feed": "Feed"
+      },
+      "parts_one": "{{count}} Teil",
+      "parts_other": "{{count}} Teile",
       "qualityValue": "{{quality}} · {{bitrate}}",
       "modes": {
         "direct": "Direct",
@@ -1983,6 +2088,7 @@
       "stopped": "Stream von {{profile}} beendet.",
       "since": "Seit {{time}}",
       "noPosition": "–",
+      "noFormat": "–",
       "load": {
         "title": "Serverlast",
         "hw": {
@@ -2012,11 +2118,13 @@
         }
       },
       "radio": {
-        "title": "Radio",
-        "help": "Wer gerade Webradio über den Server hört; ein Sender läuft für alle Hörer nur einmal.",
-        "mode": "Radio",
         "playing": "Hört",
         "paused": "Pausiert",
+        "failed": "Relais gestört",
+        "transcoded": "umkodiert",
+        "copied": "umgepackt",
+        "listeners_one": "{{count}} Hörer dieses Senders",
+        "listeners_other": "{{count}} Hörer dieses Senders",
         "stopLabel": "Radio von {{profile}} beenden",
         "stopTitle": "Radio von {{profile}} beenden?",
         "stopBody": "Die Wiedergabe von «{{station}}» stoppt auf dem Gerät innert Sekunden.",
@@ -2087,98 +2195,37 @@
     },
     "picks": {
       "title": "User-Empfehlungen",
-      "intro": "Von Hand ausgesuchte Titel als eigene Reihe der Startseite. Für alle Profile oder für einzelne; jedes Profil sieht nur Titel seiner Altersstufe und nur im gewählten Zeitraum.",
-      "list": "Empfehlungen in der Reihenfolge der Reihe",
-      "empty": "Noch keine Empfehlung. Ohne Empfehlung zeigt die Startseite kein Karussell.",
-      "emptyTab": "Keine Empfehlung in diesem Reiter.",
-      "allProfiles": "Alle",
-      "noNote": "–",
-      "noNoteSpoken": "keine Notiz",
-      "quoted": "«{{note}}»",
-      "changed": "geändert",
-      "count": {
-        "entries_one": "{{number}} Eintrag",
-        "entries_other": "{{number}} Einträge",
-        "planned_one": "{{number}} geplant",
-        "planned_other": "{{number}} geplant",
-        "both": "{{entries}} · {{planned}}"
+      "intro": "Profile des Besitzerkontos empfehlen Titel über den Stern auf der Titelseite; alle anderen Konten sehen die Liste nur. Namen bleiben verborgen, jeder Titel steht nur einmal in der Liste.",
+      "retention": {
+        "title": "Ablauf",
+        "label": "Empfehlungen bleiben",
+        "unit": "Tage in der Liste",
+        "help": "7 bis 365 Tage, ab Werk 60. Jede neue Empfehlung desselben Titels startet die Frist neu. Eine kürzere Frist gilt sofort.",
+        "saved_one": "Empfehlungen bleiben jetzt {{count}} Tag.",
+        "saved_other": "Empfehlungen bleiben jetzt {{count}} Tage."
       },
-      "tabs": {
-        "label": "Empfehlungen nach Zeitraum",
-        "all": "Alle",
-        "active": "Aktiv",
-        "scheduled": "Geplant",
-        "expired": "Abgelaufen",
-        "count_one": "{{number}} Empfehlung",
-        "count_other": "{{number}} Empfehlungen"
-      },
+      "list": "Aktuelle Empfehlungen",
+      "count_one": "{{number}} Titel",
+      "count_other": "{{number}} Titel",
+      "empty": "Zurzeit empfiehlt kein Profil einen Titel. Ohne Empfehlung zeigt die Startseite keine Reihe «User-Empfehlungen».",
+      "anonymous": "Die Verwaltung sieht die Anzahl der Empfehlungen, aber nie, welches Profil empfohlen hat.",
       "homeRowsHint": "Wo die Reihe auf der Startseite steht und ob sie erscheint, stellst du unter <page>Startseite</page> ein.",
-      "moved": "{{title}} steht jetzt an Stelle {{position}}.",
       "columns": {
-        "position": "Nr.",
         "title": "Titel",
-        "target": "Für",
-        "note": "Notiz",
-        "window": "Zeitraum"
+        "picked": "Zuletzt empfohlen am",
+        "expires": "Läuft ab",
+        "count": "Anzahl",
+        "actions": "Aktionen"
       },
-      "window": {
-        "always": "Immer",
-        "from": "Ab {{date}}",
-        "until": "Bis {{date}}",
-        "range": "{{from}} bis {{to}}",
-        "expired": "Abgelaufen",
-        "scheduled": "Geplant"
-      },
-      "detail": {
-        "place": "Stelle in der Reihe",
-        "target": "Für"
-      },
-      "search": {
-        "label": "Titel suchen",
-        "hint": "Ab zwei Zeichen: Filme, Serien, Folgen, Hörbücher und Podcasts.",
-        "empty": "Kein passender Titel gefunden.",
-        "results": "Gefundene Titel",
-        "select": "Wählen",
-        "selectLabel": "{{title}} wählen",
-        "chosen": "Gewählt: {{title}}",
-        "none": "Noch kein Titel gewählt."
-      },
-      "targets": {
-        "label": "Für",
-        "all": "Alle Profile",
-        "description": "Alle Profile oder einzelne. Ein Profil sieht die Empfehlung nur, wenn es den Titel sehen darf.",
-        "required": "Wähle «Alle Profile» oder mindestens ein Profil."
-      },
-      "form": {
-        "note": "Notiz",
-        "noteHint": "Erscheint im Karussell unter dem Titel, höchstens {{max}} Zeichen.",
-        "from": "Sichtbar ab",
-        "to": "Sichtbar bis",
-        "windowHint": "Leer lassen: ab sofort und ohne Ende.",
-        "endBeforeStart": "Das Ende muss nach dem Beginn liegen."
-      },
-      "add": {
-        "action": "Hinzufügen",
-        "title": "Empfehlung hinzufügen",
-        "description": "Suche einen Titel und wähle, für wen er empfohlen wird. Neue Empfehlungen kommen ans Ende.",
-        "submit": "Hinzufügen",
-        "submitting": "Wird hinzugefügt …",
-        "done": "{{title}} ist in den User-Empfehlungen.",
-        "titleRequired": "Wähle zuerst einen Titel.",
-        "presetMissing": "Den Titel aus dem Link gibt es nicht mehr. Suche ihn neu."
-      },
-      "edit": {
-        "label": "{{title}} bearbeiten",
-        "saveLabel": "{{title}} speichern",
-        "discard": "Verwerfen",
-        "discardLabel": "Änderungen an {{title}} verwerfen",
-        "done": "{{title}} ist gespeichert."
-      },
+      "expiresIn_one": "in {{count}} Tag",
+      "expiresIn_other": "in {{count}} Tagen",
+      "countValue_one": "{{count}} Empfehlung",
+      "countValue_other": "{{count}} Empfehlungen",
       "remove": {
         "action": "Entfernen",
         "label": "{{title}} entfernen",
         "title": "{{title}} aus den User-Empfehlungen entfernen?",
-        "body": "Der Titel bleibt in der Bibliothek, nur die Empfehlung verschwindet.",
+        "body": "Alle Empfehlungen dieses Titels verschwinden. Der Titel bleibt in der Bibliothek.",
         "confirm": "Entfernen",
         "done": "{{title}} ist nicht mehr empfohlen."
       }
@@ -2286,7 +2333,7 @@
       "tooMany": "Schon {{count}} Reihen sichtbar. Blende zuerst eine andere aus.",
       "rows": {
         "spotlight": "Die Trakt-Liste, geschnitten mit der Bibliothek. Erscheint als Bühne mit Hintergrundbild an ihrem Platz; unter der Mindestzahl Treffer fehlt sie.",
-        "picks": "Von Hand gepflegt, mit Notiz, Zielprofil und Zeitfenster.",
+        "picks": "Titel, die Profile des Besitzerkontos empfehlen; neueste zuerst, mit Ablauf.",
         "continue": "Angefangene Titel des Profils.",
         "recent": "Die zuletzt in eine Bibliothek gekommenen Titel.",
         "released": "Nach Erscheinungsdatum der letzten zwölf Monate; eine Serie nach ihrer neusten Folge.",
@@ -3378,6 +3425,7 @@
         "download": "Downloads",
         "notify": "Benachrichtigungen",
         "index": "Keyframe-Index",
+        "trickplay": "Vorschau beim Spulen",
         "workers": "{{count}} Arbeiter",
         "backlog": "Stau ca. {{duration}}",
         "free": "frei",
@@ -3627,6 +3675,22 @@
           "name": "Kapitelbilder nachholen",
           "description": "Reiht alle Dateien ohne Kapitelbilder zum Erzeugen ein.",
           "trigger": "Zeitplan (ab Werk aus, wöchentlich) oder Termin, «Jetzt ausführen»: für alle Filme und Folgen ohne Kapitelbilder"
+        },
+        "trickplay_generate": {
+          "name": "Vorschau beim Spulen erzeugen",
+          "description": "Erzeugt die Vorschaubilder der Zeitleiste einer Datei, Blatt für Blatt.",
+          "trigger": "beim Start eines Films oder einer Folge, für neue Dateien bei «Im Voraus», beim Nachholen, beim Serienvorlauf und für Offline-Downloads"
+        },
+        "trickplay_series": {
+          "name": "Vorschau für die übrigen Folgen",
+          "description": "Reiht die Vorschau der übrigen Folgen einer Serie ein, die nächsten zwei zuerst.",
+          "trigger": "beim Start einer Folge, wenn die Bibliothek «Beim Start alle Folgen» einstellt"
+        },
+        "trickplay_backfill": {
+          "name": "Vorschau beim Spulen nachholen",
+          "description": "Reiht alle Filme und Folgen ohne fertige Vorschau zum Erzeugen ein.",
+          "trigger": "Zeitplan (ab Werk aus, wöchentlich) oder Termin, «Jetzt ausführen»: für Bibliotheken mit «Im Voraus»",
+          "progress": "Dateien geprüft: {{done}} von {{total}}"
         },
         "library_relink": {
           "name": "Gelöschten Titel wiederverknüpfen",
@@ -4299,7 +4363,6 @@
     },
     "results_one": "{{count}} Titel gefunden",
     "results_other": "{{count}} Titel gefunden",
-    "more": "Mehr laden",
     "empty": {
       "title": "Nichts gefunden",
       "body": "Versuche einen anderen Begriff oder weniger Filter."
@@ -4313,7 +4376,6 @@
       "add": "{{title}} merken",
       "remove": "{{title}} von der Merkliste nehmen"
     },
-    "more": "Mehr laden",
     "empty": {
       "title": "Deine Merkliste ist leer",
       "body": "Merke dir Titel auf ihrer Detailseite mit «Merken».",
@@ -4324,7 +4386,6 @@
     "count_one": "{{count}} Titel",
     "count_other": "{{count}} Titel",
     "members": "Titel",
-    "more": "Mehr laden",
     "notFound": {
       "title": "Sammlung nicht gefunden",
       "body": "Diese Sammlung gibt es nicht, oder sie enthält keinen Titel für dieses Profil."
@@ -4342,7 +4403,6 @@
     "newEpisodeAlone": "Neue Folge",
     "summary_one": "{{count}} ungelesen",
     "summary_other": "{{count}} ungelesen",
-    "more": "Mehr laden",
     "empty": {
       "title": "Keine Benachrichtigungen",
       "body": "Markiere Serien oder Podcasts als Favorit, dann erfährst du hier von neuen Folgen."
@@ -4495,7 +4555,7 @@
   "picks": {
     "page": {
       "title": "User-Empfehlungen",
-      "intro": "Titel, die für dich ausgesucht wurden, in der gewählten Reihenfolge.",
+      "intro": "Titel, die Profile dieses Haushalts empfehlen, neueste Empfehlung zuerst.",
       "count_one": "{{count}} Titel",
       "count_other": "{{count}} Titel"
     }
@@ -4563,7 +4623,6 @@
         "title": "Der Senderkatalog wird geladen",
         "body": "Slouchcat holt die Sender gerade zum ersten Mal. Die Seite versucht es gleich wieder."
       },
-      "more": "Weitere Sender",
       "play": "{{name}} abspielen",
       "pause": "{{name}} pausieren",
       "resume": "{{name}} weiter abspielen",

@@ -49,6 +49,7 @@ const relayTone = {
   live: 'success',
   reconnecting: 'warning',
   ending: 'pending',
+  failed: 'danger',
 } as const;
 
 /**
@@ -195,7 +196,7 @@ export function OverviewTab({
         ) : (
           <ul className={styles.relays} data-testid="radio-relays">
             {relays.data?.relays.map((relay) => (
-              <li key={relay.stationId} className={styles.relay}>
+              <li key={`${relay.stationId}:${relay.startedAt}`} className={styles.relay}>
                 <div className={styles.relayHead}>
                   <StatusDot state={relayTone[relay.state]} />
                   <span className={styles.relayName}>{relay.name}</span>

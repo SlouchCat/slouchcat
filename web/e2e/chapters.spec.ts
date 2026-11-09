@@ -114,6 +114,16 @@ test('chapter images: the row by keyboard and the field over the timeline (stage
   };
   await expect.poll(pending, { timeout: 30_000 }).toBe(0);
 
+  // The field over the timeline shows the chapter image where the title has no preview tile
+  // (concept 18, 9). Whether the set of this file exists depends on what played before (a start
+  // queues it), so the start answers here as in a library whose trickplay is «Aus»: without
+  // `trickplay`. The tile itself is player.spec.ts's.
+  await page.route(/\/api\/v1\/items\/[^/]+\/play$/, async (route) => {
+    const response = await route.fetch();
+    const body = (await response.json()) as Record<string, unknown>;
+    delete body.trickplay;
+    await route.fulfill({ response, json: body });
+  });
   // A start lists the images (Chapter.imageUrl, only once they exist); the server serves them.
   const info = await play(page, itemId);
   const urls = info.chapters.map((chapter) => chapter.imageUrl);
@@ -304,11 +314,14 @@ test.describe('intro show', () => {
     await resetProgress(page.request, episodes[1]);
     await play(page, episodes[0]);
     await page.keyboard.press('Space');
+    // The tab comes with the season's episodes, a request after the title's details (whose «Info»
+    // tab is there first); the keys start once it is there.
+    const strip = page.getByRole('toolbar', { name: 'Mehr zum Titel' });
+    const tab = strip.getByRole('button', { name: 'Als Nächstes' });
+    await expect(tab).toBeVisible();
     // From play/pause ↓ goes to the tab strip, → along it.
     await page.keyboard.press('ArrowDown');
-    const strip = page.getByRole('toolbar', { name: 'Mehr zum Titel' });
     await expect(strip.locator(':focus')).toHaveCount(1);
-    const tab = strip.getByRole('button', { name: 'Als Nächstes' });
     await arrowTo(page, tab, 'ArrowRight');
     await expectVisibleFocus(page);
     await page.keyboard.press('Enter');

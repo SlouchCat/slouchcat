@@ -30,6 +30,8 @@ const dashboard = (overrides: Partial<Dashboard> = {}): Dashboard =>
         itemId: '01JB8Z6Q4M7N9P2R3S5T7V9W1X',
         itemTitle: 'Heat',
         mediaFileId: 'mf-1',
+        kind: 'movie',
+        source: 'file',
         mode: 'transcode',
         hardware: true,
         startedAt: '2026-10-21T09:00:00Z',

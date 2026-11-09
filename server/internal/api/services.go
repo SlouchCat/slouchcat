@@ -206,15 +206,13 @@ type AdminService interface {
 	// RefreshPodcast queues the fetch of a subscription now (model.ErrNotFound).
 	RefreshPodcast(ctx context.Context, id string) (model.AdminPodcast, error)
 
-	// Curation (M7). Picks (E-2): one global pick or one per profile of the main account;
-	// *model.ValidationError for unknown items, seasons, extras, foreign profiles or a window that
-	// ends before it starts; model.ErrNotFound for an unknown pick id.
-	ListTopPicks(ctx context.Context) ([]model.AdminPick, error)
-	CreateTopPicks(ctx context.Context, req model.PickRequest) ([]model.AdminPick, error)
-	UpdateTopPick(ctx context.Context, id int64, upd model.PickUpdate) (model.AdminPick, error)
-	DeleteTopPick(ctx context.Context, id int64) error
-	// ReorderTopPicks stores the order; every existing pick exactly once (*model.ValidationError).
-	ReorderTopPicks(ctx context.Context, ids []int64) error
+	// User picks (concept 18 part B, ADR 0028): the current picks, anonymous, newest first;
+	// RemoveUserPick removes every pick of a title (model.ErrNotFound without one); the retention
+	// in days, 7..365 (*model.ValidationError).
+	ListUserPicks(ctx context.Context) ([]model.AdminUserPick, error)
+	RemoveUserPick(ctx context.Context, itemID string) error
+	PicksRetention(ctx context.Context) (int, error)
+	SetPicksRetention(ctx context.Context, days int) (int, error)
 	// SearchItems finds titles by name without any profile filter (admin dialogs).
 	SearchItems(ctx context.Context, query string, limit int) ([]model.AdminItemHit, error)
 	// Collections (E-6): TMDB collections are read-only (model.ErrNotEditable).
@@ -381,11 +379,16 @@ type CatalogService interface {
 	Favorites(ctx context.Context, profile model.Profile) ([]model.ItemSummary, error)
 	AddFavorite(ctx context.Context, profile model.Profile, itemID string) error
 	RemoveFavorite(ctx context.Context, profile model.Profile, itemID string) error
+	// User picks (concept 18 part B, ADR 0028): Recommend stores or renews the profile's pick,
+	// Unrecommend takes it back; model.ErrNotFound for an invisible title, a season, an extra and
+	// a profile outside the owner's account (owner false).
+	Recommend(ctx context.Context, profile model.Profile, owner bool, itemID string) (model.UserPick, error)
+	Unrecommend(ctx context.Context, profile model.Profile, owner bool, itemID string) error
 
 	// Library views (concept 08, ADR 0016). VisibleLibraries lists the libraries with a visible
 	// top-level title; LibraryItems answers one page of a library with its facets
 	// (model.ErrNotFound for a library without a visible title, *model.ValidationError for an
-	// invalid query); PicksPage pages all of Cat's recommendations with their total.
+	// invalid query); PicksPage pages the user picks with their total.
 	VisibleLibraries(ctx context.Context, profile model.Profile) ([]model.LibraryNav, error)
 	LibraryItems(ctx context.Context, profile model.Profile, libraryID int64, q model.LibraryQuery) (model.LibraryPage, error)
 	PicksPage(ctx context.Context, profile model.Profile, offset, limit int) ([]model.ItemSummary, int, error)
@@ -459,6 +462,13 @@ type PlaybackService interface {
 	// version is the v of the image URL (library.ChapterImagesVersion); the ETag of the result
 	// names the version the image belongs to.
 	ChapterImage(ctx context.Context, profile model.Profile, itemID, mediaFileID string, idx int, version string) (model.StreamSource, error)
+	// Trickplay returns the preview set of a media file of a visible title (getTrickplay, concept
+	// 18); model.ErrNotFound when the title is not visible, the file is not one of its files or the
+	// title gets no preview.
+	Trickplay(ctx context.Context, profile model.Profile, itemID, mediaFileID string) (model.Trickplay, error)
+	// TrickplaySheet opens a sheet of the preview set of a media file of a visible title at its
+	// current version (getTrickplaySheet) and returns that version; model.ErrNotFound otherwise.
+	TrickplaySheet(ctx context.Context, profile model.Profile, itemID, mediaFileID string, n int) (model.StreamSource, string, error)
 	// State reports from memory whether a playback session of the browser session still runs
 	// (concept 13); model.ErrNotFound for any other and for one the server does not know.
 	State(session model.Session, playbackID string) (model.PlaybackState, error)

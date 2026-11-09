@@ -13,6 +13,8 @@ const stream: AdminStream = {
   itemId: '01J9000000000000000000FILM',
   itemTitle: 'Alien',
   mediaFileId: 'mf-1',
+  kind: 'movie',
+  source: 'file',
   mode: 'remux',
   hardware: false,
   startedAt: '2026-11-04T20:00:00Z',

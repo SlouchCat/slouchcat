@@ -22,6 +22,10 @@ func (e serviceProblem) VisitListGenresResponse(w http.ResponseWriter) error    
 func (e serviceProblem) VisitGetCollectionResponse(w http.ResponseWriter) error  { return e.visit(w) }
 func (e serviceProblem) VisitListWatchlistResponse(w http.ResponseWriter) error  { return e.visit(w) }
 func (e serviceProblem) VisitAddToWatchlistResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitRecommendItemResponse(w http.ResponseWriter) error  { return e.visit(w) }
+func (e serviceProblem) VisitUnrecommendItemResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
 func (e serviceProblem) VisitRemoveFromWatchlistResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
@@ -180,6 +184,29 @@ func (s *server) RemoveFromWatchlist(ctx context.Context, req gen.RemoveFromWatc
 		return s.problem(ctx, err), nil
 	}
 	return gen.RemoveFromWatchlist204Response{}, nil
+}
+
+func (s *server) RecommendItem(ctx context.Context, req gen.RecommendItemRequestObject) (gen.RecommendItemResponseObject, error) {
+	session, err := s.itemSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	pick, err := s.opts.Catalog.Recommend(ctx, session.Profile, session.IsOwner(), req.Id)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.RecommendItem200JSONResponse{ExpiresAt: pick.ExpiresAt.UTC(), RetentionDays: pick.RetentionDays}, nil
+}
+
+func (s *server) UnrecommendItem(ctx context.Context, req gen.UnrecommendItemRequestObject) (gen.UnrecommendItemResponseObject, error) {
+	session, err := s.itemSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.opts.Catalog.Unrecommend(ctx, session.Profile, session.IsOwner(), req.Id); err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.UnrecommendItem204Response{}, nil
 }
 
 func (s *server) ListFavorites(ctx context.Context, _ gen.ListFavoritesRequestObject) (gen.ListFavoritesResponseObject, error) {

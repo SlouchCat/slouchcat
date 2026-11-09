@@ -3,6 +3,7 @@ package discover
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
@@ -93,4 +94,50 @@ func (s *Service) RemoveFavorite(ctx context.Context, profile model.Profile, ite
 		return fmt.Errorf("remove favorite: %w", err)
 	}
 	return nil
+}
+
+// Recommend stores or renews the user pick of the profile for a visible title (concept 18 part B,
+// ADR 0028) and returns when it expires. Only a profile of the owner's account recommends (owner,
+// U-F10); an invisible title, a season, an extra and a profile of another account are all
+// model.ErrNotFound, like an unknown title (rule 2).
+func (s *Service) Recommend(ctx context.Context, profile model.Profile, owner bool, itemID string) (model.UserPick, error) {
+	it, err := s.recommendable(ctx, profile, owner, itemID)
+	if err != nil {
+		return model.UserPick{}, err
+	}
+	now := s.now()
+	if err := s.write.UpsertUserPick(ctx, appq.UpsertUserPickParams{ItemID: it, ProfileID: profile.ID, Now: now.UnixMilli()}); err != nil {
+		return model.UserPick{}, fmt.Errorf("upsert user pick: %w", err)
+	}
+	days, err := s.write.GetPicksRetention(ctx)
+	if err != nil {
+		return model.UserPick{}, fmt.Errorf("get picks retention: %w", err)
+	}
+	return model.UserPick{ExpiresAt: now.Add(time.Duration(days) * 24 * time.Hour), RetentionDays: int(days)}, nil
+}
+
+// Unrecommend takes the profile's own user pick of a title back (idempotent); the title stays in the
+// list while another profile recommends it (U-F7). The same 404 cases as Recommend.
+func (s *Service) Unrecommend(ctx context.Context, profile model.Profile, owner bool, itemID string) error {
+	it, err := s.recommendable(ctx, profile, owner, itemID)
+	if err != nil {
+		return err
+	}
+	if err := s.write.DeleteUserPick(ctx, appq.DeleteUserPickParams{ItemID: it, ProfileID: profile.ID}); err != nil {
+		return fmt.Errorf("delete user pick: %w", err)
+	}
+	return nil
+}
+
+// recommendable checks the visibility of the title first, then its kind and the account, and
+// returns the title id.
+func (s *Service) recommendable(ctx context.Context, profile model.Profile, owner bool, itemID string) (string, error) {
+	it, err := s.vis.Summary(ctx, visibility.Profile(profile), itemID)
+	if err != nil {
+		return "", err
+	}
+	if !model.Recommendable(it.Kind) || !owner {
+		return "", model.ErrNotFound
+	}
+	return it.ID, nil
 }

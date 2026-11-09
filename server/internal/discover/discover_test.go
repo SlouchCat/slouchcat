@@ -246,32 +246,116 @@ func TestHomeStoredOrderAndSpotlightRow(t *testing.T) {
 	}
 }
 
-// E-2 through the service clock; E-3: the FSK-18 pick never reaches P12; the note travels.
-func TestHomePicksClockAndNote(t *testing.T) {
+// E-2 through the service clock (concept 18 part B): a pick stays in the row until the retention
+// after it has passed; E-3: the pick of a title above the profile's ceiling never reaches it.
+func TestHomePicksClockAndRated(t *testing.T) {
 	t.Parallel()
 	f := discoverFixture(t)
 	ctx := context.Background()
-	exec(t, f, `INSERT INTO top_picks (item_id, profile_id, position, note, created_at) VALUES (?, ?, 0, 'zu alt', 1)`, f.Rated(18).ID, f.P12.ID)
-	inWindow := time.UnixMilli(vistest.FuturePickStart + 1)
-	s := New(f.DB, f.CacheDir, vistest.Logger(), WithClock(func() time.Time { return inWindow }))
-	rows, err := homeRows(ctx, s, f.P12)
-	if err != nil {
+	picked := time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC)
+	exec(t, f, `INSERT INTO user_picks (item_id, profile_id, created_at) VALUES (?, ?, ?), (?, ?, ?)`,
+		f.Rated(0).ID, f.P0.ID, picked.UnixMilli(), f.Rated(18).ID, f.P12.ID, vistest.PickedAt+1)
+	for _, tc := range []struct {
+		at   time.Time
+		want []string
+	}{
+		{picked.Add(60*24*time.Hour - time.Millisecond), []string{f.Rated(6).ID, f.Rated(12).ID, f.Rated(0).ID}},
+		{picked.Add(60 * 24 * time.Hour), []string{f.Rated(6).ID, f.Rated(12).ID}},
+	} {
+		s := New(f.DB, f.CacheDir, vistest.Logger(), WithClock(func() time.Time { return tc.at }))
+		rows, err := homeRows(ctx, s, f.P12)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := itemIDs(rowOf(rows, RowPicks).Items); !slices.Equal(got, tc.want) {
+			t.Errorf("P12 picks at %s = %v, want %v", tc.at, got, tc.want)
+		}
+	}
+}
+
+// Concept 18 part B (14.4, 14.9, U-F7, U-F10): recommending stores or renews the own pick and
+// answers its expiry, an expired own pick is renewed (not taken back), taking back removes only the
+// own pick, and an invisible or unknown title, a season, an extra and a profile outside the owner's
+// account all answer model.ErrNotFound without writing.
+func TestRecommendAndUnrecommend(t *testing.T) {
+	t.Parallel()
+	f := discoverFixture(t)
+	ctx := context.Background()
+	now := time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC)
+	s := New(f.DB, f.CacheDir, vistest.Logger(), WithClock(func() time.Time { return now }))
+	m0 := f.Rated(0).ID
+	own := func(p model.Profile, id string) bool {
+		t.Helper()
+		d, err := s.Item(ctx, p, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d.RecommendedByMe
+	}
+	count := func(id string) (n int) {
+		t.Helper()
+		if err := f.DB.Read.QueryRowContext(ctx, `SELECT count(*) FROM user_picks WHERE item_id = ?`, id).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+
+	// An expired own pick (the fixture's pick of P18 on the film rated 0) is not a recommendation;
+	// recommending renews it.
+	if own(f.P18, m0) {
+		t.Fatal("P18 recommendedByMe for an expired pick")
+	}
+	pick, err := s.Recommend(ctx, f.P18, true, m0)
+	if err != nil || pick.RetentionDays != 60 || !pick.ExpiresAt.Equal(now.Add(60*24*time.Hour)) {
+		t.Fatalf("Recommend = %+v, %v; want 60 days from now", pick, err)
+	}
+	if !own(f.P18, m0) || count(m0) != 1 {
+		t.Errorf("after renewing: recommendedByMe %v, %d rows; want true and one row", own(f.P18, m0), count(m0))
+	}
+	// Twice is idempotent; the retention of the settings travels.
+	exec(t, f, `UPDATE picks_config SET retention_days = 30`)
+	if pick, err = s.Recommend(ctx, f.P18, true, m0); err != nil || pick.RetentionDays != 30 || count(m0) != 1 {
+		t.Errorf("second Recommend = %+v, %v, %d rows", pick, err, count(m0))
+	}
+	// P0 recommends the same title; P18 takes its own back: the title stays for P0's pick.
+	if _, err := s.Recommend(ctx, f.P0, true, m0); err != nil {
 		t.Fatal(err)
 	}
-	picks := rowOf(rows, RowPicks).Items
-	if want := []string{f.Rated(6).ID, f.Rated(12).ID, f.Rated(0).ID}; !slices.Equal(itemIDs(picks), want) {
-		t.Fatalf("P12 picks in the future window = %v, want %v", itemIDs(picks), want)
-	}
-	if picks[1].Note != f.Discover.PickNote {
-		t.Errorf("P12 pick note = %q", picks[1].Note)
-	}
-	s = New(f.DB, f.CacheDir, vistest.Logger())
-	rows, err = homeRows(ctx, s, f.P12)
-	if err != nil {
+	if err := s.Unrecommend(ctx, f.P18, true, m0); err != nil {
 		t.Fatal(err)
 	}
-	if got := itemIDs(rowOf(rows, RowPicks).Items); slices.Contains(got, f.Rated(0).ID) || slices.Contains(got, f.Rated(18).ID) {
-		t.Errorf("P12 picks now = %v, want neither the future pick nor the FSK-18 pick", got)
+	if err := s.Unrecommend(ctx, f.P18, true, m0); err != nil { // idempotent
+		t.Fatal(err)
+	}
+	if own(f.P18, m0) || !own(f.P0, m0) || count(m0) != 1 {
+		t.Errorf("after taking back: P18 %v, P0 %v, %d rows; want false, true, one row", own(f.P18, m0), own(f.P0, m0), count(m0))
+	}
+	picks, _, err := s.PicksPage(ctx, f.P6, 0, 100)
+	if err != nil || !slices.Contains(itemIDs(picks), m0) {
+		t.Errorf("P6 picks = %v (%v), want the film rated 0 picked by P0", itemIDs(picks), err)
+	}
+
+	before := count(f.Rated(18).ID) + count(f.Show.Season.ID) + count(f.Show.Extra.ID)
+	for name, tc := range map[string]struct {
+		p     model.Profile
+		owner bool
+		id    string
+	}{
+		"invisible":     {f.P6, true, f.Rated(18).ID},
+		"unknown":       {f.P18, true, "01J9000000000000000000ZZZZ"},
+		"season":        {f.P18, true, f.Show.Season.ID},
+		"extra":         {f.P18, true, f.Show.Extra.ID},
+		"other account": {f.P18, false, f.Rated(18).ID},
+	} {
+		if _, err := s.Recommend(ctx, tc.p, tc.owner, tc.id); !errors.Is(err, model.ErrNotFound) {
+			t.Errorf("Recommend %s = %v, want not found", name, err)
+		}
+		if err := s.Unrecommend(ctx, tc.p, tc.owner, tc.id); !errors.Is(err, model.ErrNotFound) {
+			t.Errorf("Unrecommend %s = %v, want not found", name, err)
+		}
+	}
+	if after := count(f.Rated(18).ID) + count(f.Show.Season.ID) + count(f.Show.Extra.ID); after != before {
+		t.Errorf("refused recommendations wrote rows: %d before, %d after", before, after)
 	}
 }
 
@@ -372,33 +456,6 @@ func TestWatchlistAndFavoriteWrites(t *testing.T) {
 	}
 	if err := s.RemoveFavorite(ctx, f.P6, f.Show.Series.ID); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("remove invisible favourite: err = %v", err)
-	}
-}
-
-// k1 (M7 review): a global pick of a title at the front and the profile's own pick of the same
-// title further back: the own pick wins in Home, and a profile without an own pick of the film still
-// gets the global one first.
-func TestPicksAfterDeduplication(t *testing.T) {
-	t.Parallel()
-	f := discoverFixture(t)
-	s := New(f.DB, f.CacheDir, vistest.Logger())
-	ctx := context.Background()
-	// The fixture holds the own pick of P12 on the film rated 12 at position 5; a global pick of the
-	// same film goes in front of every other pick.
-	exec(t, f, `INSERT INTO top_picks (item_id, position, note, created_at) VALUES (?, -1, 'global', 1)`, f.Rated(12).ID)
-	rows, err := homeRows(ctx, s, f.P12)
-	if err != nil {
-		t.Fatal(err)
-	}
-	picks := rowOf(rows, RowPicks).Items
-	if want := []string{f.Rated(6).ID, f.Rated(12).ID}; !slices.Equal(itemIDs(picks), want) || picks[1].Note != f.Discover.PickNote {
-		t.Fatalf("P12 picks = %v (%+v), want %v with the own note last", itemIDs(picks), picks, want)
-	}
-	if rows, err = homeRows(ctx, s, f.P16); err != nil {
-		t.Fatal(err)
-	}
-	if picks := rowOf(rows, RowPicks).Items; len(picks) == 0 || picks[0].ID != f.Rated(12).ID {
-		t.Errorf("P16 picks = %v, want the global pick of the film rated 12 first", itemIDs(picks))
 	}
 }
 

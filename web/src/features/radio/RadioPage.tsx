@@ -18,6 +18,7 @@ import { wantsSound } from '@/app/radio/priority';
 import { useRadioFavorite } from '@/app/radio/queries';
 import { useRadio } from '@/app/radio/useRadio';
 import { formatDate } from '@/lib/format';
+import { usePagedList, type PlaceRange } from '@/lib/pagedList';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useWideScreen } from '@/lib/useWideScreen';
 import {
@@ -31,7 +32,9 @@ import {
   SpatialButton,
   SpatialGroup,
   SpatialPage,
+  Skeleton,
   StationTile,
+  VirtualList,
   type ActiveFilter,
 } from '@/ui';
 import { FacetSelect, RankHint, RankSelect, rankTo, type FacetOption } from '@/ui/aria';
@@ -41,7 +44,6 @@ import {
   RADIO_FACETS,
   RADIO_SORTS,
   radioQueryParams,
-  TOP_COUNT,
   toRadioFilter,
   valuesOf,
   withValues,
@@ -50,12 +52,13 @@ import {
   type RadioSort,
 } from './filters';
 import {
+  catalogRetry,
   isCatalogLoading,
-  RADIO_PAGE_SIZE,
   radioFacetsQuery,
   radioFavoritesQuery,
   radioPreferencesQuery,
   radioStationsQuery,
+  radioStationsSource,
   useRadioFavoriteOrder,
   useSaveRadioPreferences,
 } from './queries';
@@ -81,6 +84,8 @@ const TILE_KEYS = {
 } as const;
 /** Tiles of the browse rows. */
 const ROW_SIZE = 12;
+/** A station tile's name, place and gaps under its square picture, in px (a row's estimate). */
+const STATION_TEXT_HEIGHT = 64;
 
 /** The text of one facet value in the UI language. */
 function valueLabel(t: TFunction, language: string, facet: RadioFacetKey, value: string): string {
@@ -204,9 +209,11 @@ export function RadioPage() {
   const filtered = hasRadioFilter(search);
   const facets = useQuery(radioFacetsQuery(params));
   const allFacets = useQuery(radioFacetsQuery(radioQueryParams({})));
-  const stations = useInfiniteQuery(
-    radioStationsQuery(params, search.top ? TOP_COUNT : RADIO_PAGE_SIZE),
-  );
+  // Every station of the filter, read page by page as the grid scrolls; the grid is always
+  // virtual, a country or genre has thousands (concept 18 C-3).
+  const [span, setSpan] = useState<PlaceRange>({ start: 0, end: 0 });
+  const paged = usePagedList(radioStationsSource(params, search.top === true), span, catalogRetry);
+  const stations = paged.first;
   const defaultCountry = prefs?.defaultCountry;
   const favorites = useQuery({ ...radioFavoritesQuery, enabled: !filtered });
   const popularIn = useInfiniteQuery({
@@ -217,8 +224,7 @@ export function RadioPage() {
   const loading = [stations, facets].some((query) =>
     isCatalogLoading(query.failureReason ?? query.error),
   );
-  const items = stations.data?.pages.flatMap((page) => page.items) ?? [];
-  const total = search.top ? items.length : (stations.data?.pages[0]?.total ?? 0);
+  const total = paged.total;
 
   const note = (station: RadioStation): string | undefined => {
     const at =
@@ -589,7 +595,7 @@ export function RadioPage() {
             <Notice tone="danger" title={problemMessage(t, stations.error)} />
           )}
 
-          {stations.isSuccess && items.length === 0 && (
+          {stations.isSuccess && total === 0 && (
             <Notice
               title={t('radio.page.empty.title')}
               actions={
@@ -606,31 +612,39 @@ export function RadioPage() {
             </Notice>
           )}
 
-          {items.length > 0 && (
-            <SpatialGroup
-              as="ul"
+          {total > 0 && (
+            <VirtualList
+              slots={paged.slots}
+              virtual
+              layout="grid"
+              onRange={setSpan}
               className={styles.grid}
-              aria-label={filtered ? t('radio.page.results') : t('radio.page.allStations')}
+              cellClassName={styles.cell}
+              label={filtered ? t('radio.page.results') : t('radio.page.allStations')}
               focusKey="radio-grid"
-            >
-              {items.map((station) => (
-                <li key={station.id} className={styles.cell}>
-                  {tile(station, TILE_KEYS.station)}
-                </li>
-              ))}
-            </SpatialGroup>
+              estimate={(width) => width + STATION_TEXT_HEIGHT}
+              itemKey={(station) => station.id}
+              renderPlaceholder={() => (
+                <span className={styles.placeholder}>
+                  <Skeleton shape="poster" />
+                </span>
+              )}
+              renderItem={(station) => tile(station, TILE_KEYS.station)}
+            />
           )}
 
-          {!search.top && stations.hasNextPage && (
-            <SpatialGroup>
-              <SpatialButton
-                variant="secondary"
-                isDisabled={stations.isFetchingNextPage}
-                onPress={() => void stations.fetchNextPage()}
-              >
-                {t('radio.page.more')}
-              </SpatialButton>
-            </SpatialGroup>
+          {paged.failed && (
+            <Notice
+              tone="danger"
+              title={t('library.page.pageFailed')}
+              actions={
+                <SpatialGroup>
+                  <SpatialButton variant="secondary" icon="refresh" onPress={paged.retry}>
+                    {t('common.retry')}
+                  </SpatialButton>
+                </SpatialGroup>
+              }
+            />
           )}
         </section>
       </main>

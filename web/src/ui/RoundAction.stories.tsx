@@ -30,6 +30,14 @@ export const Disabled: Story = {
 /** Focus: the ring around circle and label, the label in the primary text colour. */
 export const Focused: Story = { tags: ['press:Tab'], args: { label: 'Von vorne', icon: 'replay' } };
 
+/**
+ * «Empfehlen» once pressed (concept 18 part B): the title is in the user picks; a second press
+ * takes the own pick back.
+ */
+export const Recommended: Story = {
+  args: { label: 'Empfohlen ✓', icon: 'star', pressed: true },
+};
+
 /** The row of the detail page: labels of different length side by side. */
 export const Row: Story = {
   render: () => (
@@ -44,13 +52,8 @@ export const Row: Story = {
       <RoundAction label="Trailer" icon="play" onPress={() => undefined} />
       <RoundAction label="Von vorne" icon="replay" href="#" />
       <RoundAction label="Gemerkt" icon="plus" pressed onPress={() => undefined} />
-      <RoundAction label="Favorit" icon="star" pressed={false} onPress={() => undefined} />
-      <RoundAction
-        label="User-Empfehlungen"
-        aria-label="Zu den User-Empfehlungen"
-        icon="users"
-        href="#"
-      />
+      <RoundAction label="Favorit" icon="heart" pressed={false} onPress={() => undefined} />
+      <RoundAction label="Empfehlen" icon="star" pressed={false} onPress={() => undefined} />
       <RoundAction label="Herunterladen" icon="download" onPress={() => undefined} />
     </div>
   ),

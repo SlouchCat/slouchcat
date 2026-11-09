@@ -416,19 +416,24 @@ type JobType struct {
 }
 
 type Library struct {
-	ID                 int64
-	Name               string
-	Kind               string
-	DefaultRating      sql.NullInt64
-	CreatedAt          int64
-	UpdatedAt          int64
-	LastScanState      string
-	LastScanStartedAt  sql.NullInt64
-	LastScanFinishedAt sql.NullInt64
-	LastScanError      sql.NullString
-	ScanFilesSeen      int64
-	ScanFilesTotal     int64
-	LossAcceptedAt     sql.NullInt64
+	ID                   int64
+	Name                 string
+	Kind                 string
+	DefaultRating        sql.NullInt64
+	CreatedAt            int64
+	UpdatedAt            int64
+	LastScanState        string
+	LastScanStartedAt    sql.NullInt64
+	LastScanFinishedAt   sql.NullInt64
+	LastScanError        sql.NullString
+	ScanFilesSeen        int64
+	ScanFilesTotal       int64
+	LossAcceptedAt       sql.NullInt64
+	TrickplayMovies      string
+	TrickplayMoviesKeep  int64
+	TrickplaySeries      string
+	TrickplaySeriesKeep  int64
+	TrickplaySeriesScope string
 }
 
 type LibraryMetadatum struct {
@@ -519,6 +524,12 @@ type PersonImage struct {
 	Height      sql.NullInt64
 	Bytes       sql.NullInt64
 	FetchedAt   int64
+}
+
+type PicksConfig struct {
+	ID            int64
+	RetentionDays int64
+	UpdatedAt     int64
 }
 
 type PinAttempt struct {
@@ -866,17 +877,6 @@ type TelegramLink struct {
 	CreatedAt int64
 }
 
-type TopPick struct {
-	ID        int64
-	ItemID    string
-	ProfileID sql.NullInt64
-	Position  int64
-	Note      sql.NullString
-	StartsAt  sql.NullInt64
-	EndsAt    sql.NullInt64
-	CreatedAt int64
-}
-
 type Track struct {
 	ID                int64
 	MediaFileID       string
@@ -900,6 +900,12 @@ type Trailer struct {
 	Title     sql.NullString
 	Source    string
 	Official  int64
+	CreatedAt int64
+}
+
+type UserPick struct {
+	ItemID    string
+	ProfileID int64
 	CreatedAt int64
 }
 

@@ -359,7 +359,7 @@ test.describe('orphaned user data (requests intercepted)', () => {
       favorites: 0,
       collectionItems: 0,
       notifications: 0,
-      topPicks: 0,
+      userPicks: 0,
       downloads: 0,
       activityEvents: 0,
     };

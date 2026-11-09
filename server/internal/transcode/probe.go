@@ -75,6 +75,9 @@ type Stream struct {
 	// avg_frame_rate, for the H.264 level); 0 when unknown and in probes stored before concept 13
 	// step 11.
 	FrameRate float64 `json:"frameRate,omitempty"`
+	// SAR is the sample aspect ratio of a video stream as ffprobe reports it ("32:27"; empty when
+	// unknown and in probes stored before contract 1.23.0); see SampleAspect.
+	SAR string `json:"sar,omitempty"`
 }
 
 // HDR formats of HDRFormat.
@@ -179,6 +182,7 @@ type rawProbe struct {
 		Height         int    `json:"height"`
 		AvgFrameRate   string `json:"avg_frame_rate"`
 		PixFmt         string `json:"pix_fmt"`
+		SAR            string `json:"sample_aspect_ratio"`
 		ColorTransfer  string `json:"color_transfer"`
 		ColorPrimaries string `json:"color_primaries"`
 		Channels       int    `json:"channels"`
@@ -326,6 +330,7 @@ func ParseProbe(data []byte) (Probe, error) {
 			Height:              s.Height,
 			FrameRate:           frameRate(s.CodecType, s.AvgFrameRate),
 			PixFmt:              s.PixFmt,
+			SAR:                 videoSAR(s.CodecType, s.SAR),
 			ColorTransfer:       s.ColorTransfer,
 			ColorPrimaries:      s.ColorPrimaries,
 			Channels:            s.Channels,
@@ -578,4 +583,13 @@ func integer(s string) int64 {
 		return 0
 	}
 	return n
+}
+
+// videoSAR keeps the sample aspect ratio of a video stream when it is known and not square
+// ("0:1" is unknown, "1:1" the default), so probes of square-pixel files stay as they were.
+func videoSAR(codecType, sar string) string {
+	if codecType != "video" || sar == "" || sar == "0:1" || sar == "1:1" || sar == "N/A" {
+		return ""
+	}
+	return sar
 }

@@ -66,11 +66,16 @@ const (
 	// The portrait of a person and the TMDB poster of a collection (contract 1.21.0, ADR 0026).
 	personImagePath     = "/people/{id}/image"
 	collectionImagePath = "/collections/{id}/image"
+	// The sheets of the preview tiles of a media file and of a prepared download (contract 1.23.0,
+	// ADR 0027).
+	trickplaySheetPath         = "/items/{id}/trickplay/{sheet}"
+	downloadTrickplaySheetPath = "/downloads/{id}/trickplay/{sheet}"
 )
 
 var binaryRoutes = map[string]string{
 	"GET " + BasePath + binaryImagePath:     "scoped",
 	"GET " + BasePath + chapterImagePath:    "scoped",
+	"GET " + BasePath + trickplaySheetPath:  "scoped",
 	"GET " + BasePath + personImagePath:     "scoped",
 	"GET " + BasePath + collectionImagePath: "scoped",
 	"GET " + BasePath + binaryStreamPath:    "scoped",
@@ -80,8 +85,9 @@ var binaryRoutes = map[string]string{
 	"GET " + BasePath + hlsSegmentPath:      "scoped",
 	"GET " + BasePath + subtitlePath:        "scoped",
 
-	"GET " + BasePath + downloadFilePath:     "scoped",
-	"GET " + BasePath + downloadSubtitlePath: "scoped",
+	"GET " + BasePath + downloadFilePath:           "scoped",
+	"GET " + BasePath + downloadSubtitlePath:       "scoped",
+	"GET " + BasePath + downloadTrickplaySheetPath: "scoped",
 
 	"GET " + BasePath + backupDownloadPath:   "admin",
 	"GET " + BasePath + adminImagePath:       "admin",
@@ -169,6 +175,7 @@ func NewHandler(o Options) http.Handler {
 		hlsAuth := p.streamAuth(o.Playback, true)
 		r.With(authorize).Get(binaryImagePath, s.getItemImage)
 		r.With(authorize).Get(chapterImagePath, s.getChapterImage)
+		r.With(authorize).Get(trickplaySheetPath, s.getTrickplaySheet)
 		r.With(authorize).Get(personImagePath, s.getPersonImage)
 		r.With(authorize).Get(collectionImagePath, s.getCollectionImage)
 		r.With(streamAuth).Get(binaryStreamPath, s.getItemStream)
@@ -180,6 +187,7 @@ func NewHandler(o Options) http.Handler {
 		downloadAuth := p.downloadAuth(o.Offline)
 		r.With(downloadAuth).Get(downloadFilePath, s.getDownloadFile)
 		r.With(downloadAuth).Get(downloadSubtitleRoute, s.getDownloadSubtitle)
+		r.With(downloadAuth).Get(downloadTrickplaySheetPath, s.getDownloadTrickplaySheet)
 		r.With(authorize).Get(backupDownloadPath, s.downloadBackup)
 		r.With(authorize).Get(adminImagePath, s.getAdminItemImage)
 		r.With(authorize).Get(candidatePreviewPath, s.getItemImageCandidatePreview)

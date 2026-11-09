@@ -271,3 +271,19 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   liegen nicht im Stand (nur die Zeilen). Dann `store.Dump`, keine neuen Pfade im Stand.
   `TestFrozenDetailseiten3StateCoversTheConcept` prüft, dass jede dieser Datenarten vorhanden ist;
   `TestMigration00040PersonCollectionImages` prüft den Schritt von `webradio2.sql` aus.
+- `empfehlungen.sql`: Stand nach Teil B des Konzepts 18 «User-Empfehlungen von Profil zu Profil» (Migration 00041 mit
+  `user_picks` und `picks_config`, `top_picks` verworfen; ADR 0028). Erzeugt am 9. November 2026 aus `detailseiten3.sql`:
+  Stand eingespielt, mit `store.Open` migriert (00041 verwirft die Empfehlung der Verwaltung mit Notiz), dann per SQL, weil
+  der Dienst `discover` aus dem Paket `store` nicht erreichbar ist: der erste Film von beiden Profilen empfohlen (vor 3 und
+  vor 1 Tag), die erste Serie vom Hauptprofil (vor 2 Tagen) und ein zweiter Film von «Original» vor 90 Tagen (abgelaufen),
+  Stichtag 9. November 2026, 12:00 UTC; `picks_config` auf 45 Tage. Dann `store.Dump`, keine neuen Pfade im Stand.
+  `TestFrozenEmpfehlungenStateCoversTheConcept` prüft, dass jede dieser Datenarten vorhanden ist;
+  `TestMigration00041UserPicks` prüft den Schritt von `detailseiten3.sql` aus.
+- `trickplay.sql`: Stand nach Teil A des Konzepts 18 «Vorschau beim Spulen» (Migration 00042 mit den Spalten
+  `trickplay_*` in `libraries`; ADR 0027). Erzeugt am 9. November 2026 aus `empfehlungen.sql`: Stand eingespielt, mit
+  `store.Open` migriert (00042 setzt jede Bibliothek auf «Im Voraus», «Speichern», «ganze Serie»), dann per SQL
+  Abweichungen von den Vorgaben: «Filme» mit Filmen «Beim Start» ohne Speichern und der Serienvorschau «Ab Serienstart»
+  über den Rest der Staffel, «Serien» mit Filmen «Aus» und Serien «Beim Start» ohne Speichern mit der Vorschau
+  «nächste Folge», «Hörbücher» bei den Vorgaben. Der Zustand der Vorschau-Sätze liegt im Cache und in Jobs, nicht in der
+  Datenbank. Dann `store.Dump`, keine neuen Pfade im Stand. `TestFrozenTrickplayStateCoversTheConcept` prüft, dass jede
+  dieser Datenarten vorhanden ist; `TestMigration00042Trickplay` prüft den Schritt von `empfehlungen.sql` aus.

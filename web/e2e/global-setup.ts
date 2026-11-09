@@ -276,7 +276,7 @@ export default async function globalSetup(): Promise<void> {
     await waitForScan(api);
     await ensureRadioCatalog(api);
     await ensureRadioBuffer(api);
-    // Since M7 the start page has a carousel only with picks: one global pick of the H264 film.
+    // The start page has a row of user picks only with a pick: the owner recommends the H264 film.
     await ensureBaselinePick(api);
     await api.storageState({ path: STORAGE_STATE });
   } finally {

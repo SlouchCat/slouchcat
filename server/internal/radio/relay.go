@@ -29,6 +29,9 @@ const (
 	relayLive         = "live"
 	relayReconnecting = "reconnecting"
 	relayEnding       = "ending"
+	// relayFailed is no relay state: Relays lists open listen sessions whose relay no longer runs
+	// under it in this state (concept 18, 17.4).
+	relayFailed = "failed"
 )
 
 // maxRelayTitles bounds the title timeline of a relay: a source that changes its title every

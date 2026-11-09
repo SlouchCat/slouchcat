@@ -13,6 +13,103 @@
   background-color: var(--sc-color-bg-elevated);
 }
 
+/* The image with the kind badge (top left) and the mode pill (top right); a fallback title of
+   ImageTile stays at the bottom, clear of both. */
+.media {
+  position: relative;
+}
+
+.kind,
+.mode {
+  position: absolute;
+  top: var(--sc-space-2);
+  display: flex;
+}
+
+.kind {
+  left: var(--sc-space-2);
+  align-items: center;
+  min-height: var(--sc-space-6);
+  padding: 0 var(--sc-space-2);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-kind-base);
+  color: var(--sc-kind-on);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-bold);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.mode {
+  right: var(--sc-space-2);
+}
+
+/* One accent per kind (mockup «Verwaltung: Streams, alles in einer Liste»). */
+.movie {
+  --sc-kind-base: var(--sc-color-accent-sky-base);
+  --sc-kind-on: var(--sc-color-accent-sky-on);
+}
+
+.episode {
+  --sc-kind-base: var(--sc-color-accent-violet-base);
+  --sc-kind-on: var(--sc-color-accent-violet-on);
+}
+
+.extra {
+  --sc-kind-base: var(--sc-color-accent-rose-base);
+  --sc-kind-on: var(--sc-color-accent-rose-on);
+}
+
+.audiobook {
+  --sc-kind-base: var(--sc-color-accent-teal-base);
+  --sc-kind-on: var(--sc-color-accent-teal-on);
+}
+
+.podcast {
+  --sc-kind-base: var(--sc-color-accent-ember-base);
+  --sc-kind-on: var(--sc-color-accent-ember-on);
+}
+
+.radio {
+  --sc-kind-base: var(--sc-color-accent-amber-base);
+  --sc-kind-on: var(--sc-color-accent-amber-on);
+}
+
+/* The square form (concept 18, 17.3): as high as a backdrop, the cover or logo in the middle on a
+   blurred, darkened copy of itself; its own ground, independent of PosterCard. */
+.square {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-2);
+}
+
+/* Larger than the box by three blur radii on each side, so the blur's soft edge stays outside. */
+.ground {
+  position: absolute;
+  top: calc(-3 * var(--sc-stream-tile-ground-blur));
+  left: calc(-3 * var(--sc-stream-tile-ground-blur));
+  width: calc(100% + 6 * var(--sc-stream-tile-ground-blur));
+  height: calc(100% + 6 * var(--sc-stream-tile-ground-blur));
+  max-width: none;
+  object-fit: cover;
+  filter: blur(var(--sc-stream-tile-ground-blur)) brightness(var(--sc-stream-tile-ground-dim));
+}
+
+.cover {
+  --sc-cover-shadow: 0 var(--sc-space-1) var(--sc-space-4) var(--sc-color-scrim-strong);
+
+  position: relative;
+  display: block;
+  height: 80%;
+  aspect-ratio: 1;
+  border-radius: var(--sc-radius-lg);
+  box-shadow: var(--sc-cover-shadow);
+}
+
 .title {
   margin: var(--sc-space-1) 0 0;
   color: var(--sc-color-text-primary);

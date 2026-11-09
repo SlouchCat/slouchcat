@@ -19,7 +19,7 @@ Slouchcat ist ein eigenständiger, selbst gehosteter Media-Server für einen Hau
 | Video-Bibliothek, Metadaten | B-1 … B-9 | Filme/Serien aus read-only Ordnern, TMDB/TVDB de/en, Änderungen < 60 s sichtbar, Versionen, Extras, YouTube-Trailer, Pflegewerkzeuge |
 | Hörbücher, Podcasts | H-1 … H-4 | Kapitel, Feeds, Fortschritt je Profil, gleiche Profil-/Offline-Regeln wie Video |
 | Wiedergabe, Transcoding | W-1 … W-10 | Direct Play zuerst, sonst HLS mit GPU und Tonemapping, 4K-HEVC-Start < 5 s, Spurwechsel, Qualitätsregeln, Geräteprofile |
-| Entdecken, Kuratierung | E-1 … E-9 | Karussell "Cat's Empfehlungen", max. 8 Reihen, Suche ab 2. Zeichen, Trakt-Listen nur aus eigener Bibliothek, Favoriten-Benachrichtigung |
+| Entdecken, Kuratierung | E-1 … E-9 | Karussell "User-Empfehlungen" (seit Frage 25 von den Profilen des Besitzerkontos empfohlen, anonym, mit Ablauf), max. 8 Reihen, Suche ab 2. Zeichen, Trakt-Listen nur aus eigener Bibliothek, Favoriten-Benachrichtigung |
 | Offline | O-1 … O-7 | Downloads im Browser-Speicher, Staffeln, Auto-Downloads, Flugmodus, kein Ablauf, Profilregeln offline |
 | Clients, Design | C-1 … C-5 | Eine PWA, Design-System mit Tokens, de/en, Tastatur-/Fernbedienungs-Navigation, OpenAPI |
 | Administration | A-1 … A-9 | Assistent, zentrale Verwaltung, Dashboard, Sicherung, Update-Hinweis, Kanäle, Statistiken, Ankündigungen, keine Secrets in Logs |
@@ -27,7 +27,7 @@ Slouchcat ist ein eigenständiger, selbst gehosteter Media-Server für einen Hau
 
 Harte Rahmenbedingungen (Spec "Constraints"): nur Docker Compose auf Linux, GPU optional; genau ein Client (PWA); Medientypen Filme, Serien, Hörbücher, Podcasts; Solo mit Claude Code und oh-my-claudecode, keine Deadline; erster Meilenstein vertikaler Durchstich "innerhalb der ersten Wochen"; Stack nach "sehr stabil, läuft überall gut, performant" mit Klartext-Begründung.
 
-Nicht eingeplant (Spec "Non-Goals"): Musik, Fotos, Live-TV/DVR, TV-Apps, native Apps, Plugin-System, algorithmische Empfehlungen, Profil-Interaktion, Assistent/Zufall/Trailer-Reel/Themenlisten, Trakt-Login/Scrobbling, Freigabe-Anfragen, eigene Wunschverwaltung und Seerr-Bereich zum Wünschen, Beschaffungsstatus am Titel, SABnzbd-Fortschritt, Steuerung von Radarr/Sonarr/SABnzbd/Seerr, eigene Untertitel-Beschaffung, Mandanten, Cloud/native Pakete/Windows/macOS-Server, YouTube-Downloads.
+Nicht eingeplant (Spec "Non-Goals"): Musik, Fotos, Live-TV/DVR, TV-Apps, native Apps, Plugin-System, algorithmische Empfehlungen, Profil-Interaktion (Ausnahme seit 8. November 2026: anonyme Empfehlungen zwischen Profilen, Frage 25, Konzept 18 Teil B, ADR 0028), Assistent/Zufall/Trailer-Reel/Themenlisten, Trakt-Login/Scrobbling, Freigabe-Anfragen, eigene Wunschverwaltung und Seerr-Bereich zum Wünschen, Beschaffungsstatus am Titel, SABnzbd-Fortschritt, Steuerung von Radarr/Sonarr/SABnzbd/Seerr, eigene Untertitel-Beschaffung, Mandanten, Cloud/native Pakete/Windows/macOS-Server, YouTube-Downloads.
 
 ---
 
@@ -560,7 +560,7 @@ Durchstich-Ziel "innerhalb der ersten Wochen" (Spec "Constraints"): M0 + M1a = 1
 | W-9 | M4 | Intro-Erkennung ±2 s bei ≥ 80 % der Folgen einer Test-Staffel; Auto-Next nach 10-s-Countdown; Kapitelsprung ±1 s |
 | W-10 | M3 | E2E: Trailer-Knopf startet YouTube-IFrame (`youtube-nocookie.com`); offline ausgeblendet |
 | E-1 | M1a, M7 | Test: Reihenfolge Karussell, Weiterschauen, Neu hinzugefügt, Merkliste, Sammlungen, Genres |
-| E-2 | M7 | E2E: Pick für alle und für ein Profil; Reihenfolge per Maus und Tastatur; Notiz sichtbar; vor Start und nach Ende des Zeitraums unsichtbar (Uhr-Mock) |
+| E-2 | M7, Konzept 18 Teil B | E2E: Stern «Empfehlen»/«Empfohlen ✓» auf der Titelseite per Maus und Tastatur; Titel einmal in Reihe und Seite, neueste zuerst; Gastkonto ohne Stern; Verwaltungsseite «User-Empfehlungen» mit Ablauf und Entfernen; Server-Test für den Ablauf ab der jüngsten Empfehlung (bis Frage 25: Pick für alle und für ein Profil, Reihenfolge, Notiz, Zeitraum) |
 | E-3 | M7 | 10.2: FSK-18-Pick "für alle" fehlt bei P0–P16, erscheint bei P18 |
 | E-4 | M7 | Test: 2 Zeichen finden Titel, Person, Sammlung; jeder Filter einzeln und kombiniert (Genre, Jahr, Freigabe, Medientyp, Verfügbarkeit lokal/Download); < 200 ms p95 bei 10 000 Titeln |
 | E-5 | M7 | E2E: Merkliste von P1 und P2 getrennt; hinzufügen/entfernen; Reihe erscheint bzw. verschwindet |
@@ -615,7 +615,7 @@ Durchstich-Ziel "innerhalb der ersten Wochen" (Spec "Constraints"): M0 + M1a = 1
 | P-12 | Lint: 0 Farbwerte ausserhalb Tokens, 0 UI-Literaltexte, 0 Operationen ohne `x-visibility`, 0 `os/exec` ausserhalb `transcode` | C-2, C-3, C-5 | CI |
 | P-13 | Sicherung + Wiederherstellung identisch; automatische Sicherung vor jeder Migration; Migrationstest aller DB-Stände grün; Sicherung mit Schlüssel nur mit Passphrase erzeugbar (Test) | A-4 | CI |
 | P-14 | 0 Secrets in Logs über einen kompletten E2E-Lauf | A-9 | Log-Scan |
-| P-15 | Tastatursuite (Pfeiltasten, Tab, Enter, Zurück per Escape/Backspace/Browser-Zurück; sichtbarer Fokus; keine Fokusfalle) besteht auf allen Seiten. **Zuschauer:** Profilwahl, PIN-Eingabe, Startseite, Detail Film, Detail Serie/Staffel, Video-Player, Audio-Player, Suche, Merkliste, Downloads, Profil-Einstellungen, Benachrichtigungen, Ankündigungen. **Admin:** Assistent, Dashboard, Bibliotheken, Konten und Profile, Gäste und Einladungen, Geräte, Streams, Integrationen, Cat's Empfehlungen, Startseiten-Reihen, Sammlungen, Pflegewerkzeuge, Benachrichtigungskanäle, Ankündigungen, Statistiken, Sicherung. Die Zuschauerseite "Wünschen" ist mit dem M9-Zuschnitt vom 22.10.2026 entfallen und darum nicht mehr aufgeführt | C-4, A-2 | Playwright |
+| P-15 | Tastatursuite (Pfeiltasten, Tab, Enter, Zurück per Escape/Backspace/Browser-Zurück; sichtbarer Fokus; keine Fokusfalle) besteht auf allen Seiten. **Zuschauer:** Profilwahl, PIN-Eingabe, Startseite, Detail Film, Detail Serie/Staffel, Video-Player, Audio-Player, Suche, Merkliste, Downloads, Profil-Einstellungen, Benachrichtigungen, Ankündigungen. **Admin:** Assistent, Dashboard, Bibliotheken, Konten und Profile, Gäste und Einladungen, Geräte, Streams, Integrationen, User-Empfehlungen (bis Konzept 17 Cat's Empfehlungen), Startseiten-Reihen, Sammlungen, Pflegewerkzeuge, Benachrichtigungskanäle, Ankündigungen, Statistiken, Sicherung. Die Zuschauerseite "Wünschen" ist mit dem M9-Zuschnitt vom 22.10.2026 entfallen und darum nicht mehr aufgeführt | C-4, A-2 | Playwright |
 | P-16 | Fremd-Client nur aus `openapi.yaml` führt alle Zuschauerfunktionen aus: Login, Profilwahl mit PIN, Startseiten-Reihen, Suche mit Filtern, Detail, Merkliste, Favoriten, Abspielstart mit Fähigkeitsprofil, Abruf Direct Play/HLS mit Stream-Token, Spur- und Untertitelwahl, Fortschritt melden, Download vorbereiten und abrufen, Offline-Ereignisse hochladen, Benachrichtigungen und Ankündigungen lesen, Trailer-Info, Hörbuch-Kapitel, Podcast-Episoden ("Wünschen" ist mit dem M9-Zuschnitt vom 22.10.2026 entfallen) | C-5 | Fremd-Client-Test M10 |
 
 Alle 16 Kriterien haben ein Mass oder eine abschliessende Aufzählung.

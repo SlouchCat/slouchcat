@@ -1,8 +1,9 @@
 import type { BlockWriter } from './downloader';
 
 // Files of the downloads in the origin private file system: `/downloads/<id>/media.mp4` (init
-// segment and media segments as the server prepared them), `<track>.vtt` per text subtitle and
-// `poster` (the poster image; offline images must not depend on the service worker's cache).
+// segment and media segments as the server prepared them), `<track>.vtt` per text subtitle,
+// `trickplay-<sheet>.webp` per sheet of preview tiles (concept 18, 6.8) and `poster` (the poster
+// image; offline images must not depend on the service worker's cache).
 // Writes go through the dedicated worker with createSyncAccessHandle; createWritable is the
 // fallback for browsers without the sync handle (decision in docs/perf/M1-ios-offline.md).
 
@@ -10,6 +11,7 @@ const ROOT = 'downloads';
 export const MEDIA_FILE = 'media.mp4';
 export const POSTER_FILE = 'poster';
 export const subtitleFile = (track: number) => `${track}.vtt`;
+export const trickplayFile = (sheet: number) => `trickplay-${sheet}.webp`;
 
 /**
  * With createWritable, progress is durable only at a commit (every this many blocks; each reopen
@@ -233,7 +235,7 @@ export async function truncateMedia(id: string, size: number): Promise<void> {
   await stream.close();
 }
 
-/** Stores a whole small file (subtitle, poster) of a download. */
+/** Stores a whole small file (subtitle, sheet, poster) of a download. */
 export async function writeFile(id: string, name: string, data: Blob): Promise<void> {
   const dir = await downloadDir(id, true);
   if (!dir) throw new Error('download folder missing');

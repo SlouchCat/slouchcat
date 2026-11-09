@@ -23,10 +23,13 @@ export const setupRootsQuery = queryOptions({
   retry: false,
 });
 
+/** Folders per page: they load as the list scrolls (concept 18 C-3). */
+const BROWSE_PAGE = 100;
+
 /**
  * One directory below a root, paged. `keepPreviousData` holds the rows of the previous directory
  * on screen while the next one loads: an empty frame would take the focus out of the list, and a
- * folder with more than 200 entries loads the rest through `nextCursor`.
+ * folder with more than BROWSE_PAGE entries loads the rest through `nextCursor`.
  */
 export const directoryQuery = (rootId: string, rel: string, enabled: boolean) =>
   infiniteQueryOptions({
@@ -34,7 +37,7 @@ export const directoryQuery = (rootId: string, rel: string, enabled: boolean) =>
     queryFn: ({ pageParam, signal }): Promise<DirectoryListing> =>
       request(
         api.POST('/admin/fs/browse', {
-          body: { rootId, rel, ...(pageParam ? { cursor: pageParam } : {}) },
+          body: { rootId, rel, limit: BROWSE_PAGE, ...(pageParam ? { cursor: pageParam } : {}) },
           signal,
         }),
       ),

@@ -12,8 +12,6 @@ type Discover struct {
 	MixedCollection string
 	// ManualCollection is the admin's collection "Late Night" with only the film rated 18.
 	ManualCollection string
-	// PickNote is the note of the pick of P12 on the film rated 12.
-	PickNote string
 	// MixedImageRel and MixedImageWebPRel are the TMDB poster of MixedCollection
 	// (people.images, ADR 0026), relative to Fixture.CacheDir; the manual collection has none.
 	MixedImageRel, MixedImageWebPRel string
@@ -26,25 +24,28 @@ const (
 	MixedCollectionDe    = "Sammlung Test"
 	ManualCollectionID   = "01J9000000000000000000CM18"
 	ManualCollectionName = "Late Night"
-	// ExpiredPickEnd is the end of the window of the expired pick (1970-01-01T00:16:40Z); the
-	// future pick starts at FuturePickStart (2100-01-01T00:00:00Z). Both are global picks of the
-	// film rated 0.
-	ExpiredPickEnd  int64 = 1_000_000
-	FuturePickStart int64 = 4_102_444_800_000
+	// PickedAt is the time of the fixture's user picks (2100-01-01T00:00:00Z, concept 18 part B):
+	// a pick counts while it is younger than the retention, a lower bound only, so a pick of the
+	// future counts at every test clock before 2100, the real one too. Newer picks of a test need a
+	// later time, PickedAt plus some milliseconds.
+	PickedAt int64 = 4_102_444_800_000
+	// ExpiredPickAt is the time of the expired user pick of P18 on the film rated 0
+	// (1970-01-01T00:16:40Z): past the retention at every test clock after March 1970.
+	ExpiredPickAt int64 = 1_000_000
 )
 
 // AddDiscover adds the M7 data: the TMDB collection MixedCollectionID with the films rated 6, 12
 // and 18, the manual collection ManualCollectionID with only the film rated 18, the watchlist
 // entries of P6 (film rated 6) and P18 (film rated 18), the favourite of P18 on the series of
-// AddSeries (which it needs), a pick only for P12 on the film rated 12 with a note, and two global
-// picks of the film rated 0 outside their time window (one expired, one in the future). The start
-// page rows keep the default order of migration 00015.
+// AddSeries (which it needs), a user pick of P12 on the film rated 12 (older than the picks of
+// P18) and an expired user pick of P18 on the film rated 0 (ExpiredPickAt). The start page rows
+// keep the default order of migration 00015.
 func (f *Fixture) AddDiscover(t testing.TB) {
 	t.Helper()
 	if f.Show.Series.ID == "" {
 		t.Fatal("vistest: AddDiscover needs AddSeries")
 	}
-	f.Discover = Discover{MixedCollection: MixedCollectionID, ManualCollection: ManualCollectionID, PickNote: "Für P12 ausgesucht"}
+	f.Discover = Discover{MixedCollection: MixedCollectionID, ManualCollection: ManualCollectionID}
 	exec(t, f.DB, `INSERT INTO collections (id, source, tmdb_id, name, name_de, overview, overview_de, created_at, updated_at)
 	               VALUES (?, 'tmdb', 5000, ?, ?, 'Three films', 'Drei Filme', 1, 1),
 	                      (?, 'manual', NULL, ?, NULL, NULL, NULL, 1, 1)`,
@@ -58,10 +59,8 @@ func (f *Fixture) AddDiscover(t testing.TB) {
 	exec(t, f.DB, `INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (?, ?, 10), (?, ?, 10)`,
 		f.P6.ID, f.Rated(6).ID, f.P18.ID, f.Rated(18).ID)
 	exec(t, f.DB, `INSERT INTO favorites (profile_id, item_id, created_at) VALUES (?, ?, 10)`, f.P18.ID, f.Show.Series.ID)
-	exec(t, f.DB, `INSERT INTO top_picks (item_id, profile_id, position, note, created_at) VALUES (?, ?, 5, ?, 1)`,
-		f.Rated(12).ID, f.P12.ID, f.Discover.PickNote)
-	exec(t, f.DB, `INSERT INTO top_picks (item_id, position, ends_at, created_at) VALUES (?, 6, ?, 1)`, f.Rated(0).ID, ExpiredPickEnd)
-	exec(t, f.DB, `INSERT INTO top_picks (item_id, position, starts_at, created_at) VALUES (?, 7, ?, 1)`, f.Rated(0).ID, FuturePickStart)
+	exec(t, f.DB, `INSERT INTO user_picks (item_id, profile_id, created_at) VALUES (?, ?, ?), (?, ?, ?)`,
+		f.Rated(12).ID, f.P12.ID, PickedAt-1500, f.Rated(0).ID, f.P18.ID, ExpiredPickAt)
 }
 
 // AddSpotlightFilms adds n films rated 0 (visible to every profile) with the TMDB ids 8001..8000+n

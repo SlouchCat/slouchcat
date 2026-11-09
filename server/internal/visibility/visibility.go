@@ -84,7 +84,7 @@ type Reader struct {
 // Option configures a Reader.
 type Option func(*Reader)
 
-// WithClock replaces time.Now, the clock of the time windows of Cat's recommendations (E-2).
+// WithClock replaces time.Now, the clock of the retention of the user picks (E-2).
 func WithClock(now func() time.Time) Option {
 	return func(r *Reader) { r.now = now }
 }
@@ -256,86 +256,51 @@ func (r *Reader) ContinueWatching(ctx context.Context, s Scope, limit int) ([]mo
 	return r.summaries(ctx, s, pid, items)
 }
 
-// Picks returns Cat's recommendations (E-1, E-2) that the profile may see, in their curated order,
-// inside their time window by the Reader's clock; each summary carries the main user's note. A title
-// picked for all profiles and for this profile appears once, with the note and the place of the
-// profile's pick, which is the more specific one. Without a visible pick the list is empty and the
-// start page has no carousel (E-9: no empty rows).
+// Picks returns the user picks (E-1, E-2, concept 18 part B, ADR 0028) that the profile may see:
+// every title one of the profiles of the owner's account recommended, once, newest recommendation
+// first, while that recommendation is younger than the retention at the Reader's clock; at most
+// limit (clamped to 1..MaxRowItems). Without a visible pick the list is empty and the start page has
+// no carousel (E-9: no empty rows). Anonymous: the summaries carry no note and no profile.
 func (r *Reader) Picks(ctx context.Context, s Scope, limit int) ([]model.ItemSummary, error) {
 	pid, err := r.profile(ctx, s)
 	if err != nil {
 		return nil, err
 	}
-	items, notes, err := r.picks(ctx, pid)
-	if err != nil {
-		return nil, err
-	}
-	// Cut after the deduplication: a cut before it could keep a global row the profile's own pick
-	// replaces further down, or drop the own pick (k1).
-	if n := int(clamp(limit)); len(items) > n {
-		items = items[:n]
-	}
-	return r.noted(ctx, s, pid, items, notes)
+	return r.picksPage(ctx, s, pid, 0, int(clamp(limit)))
 }
 
 // PicksPage returns one page of the same list as Picks without its cut to MaxRowItems (the page
-// "Cat's recommendations", concept 08, listPicks) and the number of recommendations after the
-// deduplication. offset is clamped to 0 and above, limit to 1..MaxSearchPage (0 or less =
-// DefaultSearchPage).
+// «User-Empfehlungen», listPicks) and the number of visible picks; paged in SQL. offset is clamped to
+// 0 and above, limit to 1..MaxLibraryPage (0 or less = DefaultLibraryPage).
 func (r *Reader) PicksPage(ctx context.Context, s Scope, offset, limit int) ([]model.ItemSummary, int, error) {
 	pid, err := r.profile(ctx, s)
 	if err != nil {
 		return nil, 0, err
 	}
-	items, notes, err := r.picks(ctx, pid)
+	offset, limit = libraryPage(offset, limit)
+	total, err := r.q.CountUserPicks(ctx, scopedq.CountUserPicksParams{ProfileID: pid, Now: r.now().UnixMilli()})
+	if err != nil {
+		return nil, 0, fmt.Errorf("count user picks: %w", err)
+	}
+	items, err := r.picksPage(ctx, s, pid, offset, limit)
 	if err != nil {
 		return nil, 0, err
 	}
-	offset, limit = libraryPage(offset, limit)
-	total := len(items)
-	items = items[min(offset, total):min(offset+limit, total)]
-	out, err := r.noted(ctx, s, pid, items, notes)
-	return out, total, err
+	return items, int(total), nil
 }
 
-// picks returns the visible recommendations of the profile in Cat's order, deduplicated (see
-// Picks), and their notes by title id.
-func (r *Reader) picks(ctx context.Context, pid int64) ([]scopedq.Item, map[string]string, error) {
-	rows, err := r.q.ListTopPicks(ctx, scopedq.ListTopPicksParams{ProfileID: pid, Now: sql.NullInt64{Int64: r.now().UnixMilli(), Valid: true}})
+func (r *Reader) picksPage(ctx context.Context, s Scope, pid int64, offset, limit int) ([]model.ItemSummary, error) {
+	rows, err := r.q.ListUserPicks(ctx, scopedq.ListUserPicksParams{
+		ProfileID: pid, Now: r.now().UnixMilli(), LimitCount: int64(limit), OffsetCount: int64(offset),
+	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("list top picks: %w", err)
-	}
-	own := make(map[string]bool, len(rows))
-	for _, row := range rows {
-		if row.PickProfileID.Valid {
-			own[row.Item.ID] = true
-		}
+		return nil, fmt.Errorf("list user picks: %w", err)
 	}
 	items := make([]scopedq.Item, 0, len(rows))
-	notes := make(map[string]string, len(rows))
 	for _, row := range rows {
-		if own[row.Item.ID] && !row.PickProfileID.Valid {
-			continue // the profile's own pick of the title wins over the global one
-		}
-		if _, seen := notes[row.Item.ID]; seen {
-			continue
-		}
-		notes[row.Item.ID] = row.Note.String
 		items = append(items, row.Item)
 	}
-	return items, notes, nil
-}
-
-// noted returns the summaries of items with the notes of their picks.
-func (r *Reader) noted(ctx context.Context, s Scope, pid int64, items []scopedq.Item, notes map[string]string) ([]model.ItemSummary, error) {
-	out, err := r.summaries(ctx, s, pid, items)
-	if err != nil {
-		return nil, err
-	}
-	for i := range out {
-		out[i].Note = notes[out[i].ID]
-	}
-	return out, nil
+	return r.summaries(ctx, s, pid, items)
 }
 
 // MediaFileLocation is a media file of a visible title with the data needed to open it through the
@@ -351,6 +316,10 @@ type MediaFileLocation struct {
 	// Mtime is the modification time of the file row (Unix ms); with File.SizeBytes the version
 	// a keyframe index computed for playback is stored for (library.StoreKeyframes, concept 14).
 	Mtime int64
+	// LibraryID is the library of the file's root; Trickplay its trickplay setting (concept 18,
+	// 8.1; LibraryTrickplay.For picks the one of the title's kind).
+	LibraryID int64
+	Trickplay model.LibraryTrickplay
 }
 
 // MediaFile returns a media file of a visible title. An empty fileID selects the primary file: the
@@ -367,7 +336,11 @@ func (r *Reader) MediaFile(ctx context.Context, s Scope, itemID, fileID string) 
 	}
 	for _, f := range files {
 		if (fileID == "" && !f.MissingSince.Valid) || (fileID != "" && f.ID == fileID) {
-			return MediaFileLocation{ItemID: f.ItemID, File: mediaFile(f), RootPath: f.RootPath, RelPath: f.RelPath, ProbedAt: f.ProbedAt.Int64, Mtime: f.Mtime}, nil
+			return MediaFileLocation{ItemID: f.ItemID, File: mediaFile(f), RootPath: f.RootPath, RelPath: f.RelPath, ProbedAt: f.ProbedAt.Int64, Mtime: f.Mtime,
+				LibraryID: f.LibraryID, Trickplay: model.LibraryTrickplay{
+					Movies: model.TrickplaySetting{Mode: f.TrickplayMovies, Keep: f.TrickplayMoviesKeep == 1},
+					Series: model.TrickplaySetting{Mode: f.TrickplaySeries, Keep: f.TrickplaySeriesKeep == 1, Scope: f.TrickplaySeriesScope},
+				}}, nil
 		}
 	}
 	return MediaFileLocation{}, model.ErrNotFound

@@ -273,6 +273,28 @@ test('content and metadata sources by keyboard: Space ticks, the position orders
   await page.keyboard.press('Enter');
   await expect(second).toHaveCount(0);
   await expectFocusOn(page, form.getByRole('button', { name: 'Weiteren Ordner hinzufügen' }));
+
+  // «Vorschau beim Spulen» of the new video library (concept 18, 9): the group of the films takes
+  // the focus on its chosen radio, ↓ picks «Beim Start», which brings «Speichern», Space unticks it.
+  const films = form.getByRole('radiogroup', { name: 'Filme' });
+  await tabTo(page, films.getByRole('radio', { name: 'Im Voraus' }), 10);
+  await expectVisibleFocus(page);
+  await page.keyboard.press('ArrowDown');
+  await expect(films.getByRole('radio', { name: 'Beim Start' })).toBeChecked();
+  const keep = form.getByRole('switch', { name: 'Speichern' });
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, keep);
+  await expect(keep).toBeChecked();
+  await page.keyboard.press('Space');
+  await expect(keep).not.toBeChecked();
+  // The series group follows; the focus walks on to the buttons without a trap.
+  await page.keyboard.press('Tab');
+  await expectFocusOn(
+    page,
+    form.getByRole('radiogroup', { name: 'Serien' }).getByRole('radio', {
+      name: 'Im Voraus',
+    }),
+  );
   await expectNoFocusTrap(page);
 });
 
@@ -407,6 +429,99 @@ test('the audio libraries show kind and default rating; the menu opens the ratin
     foldOut(page, 'Podcasts').getByText('Kein Ordner: Die Titel kommen aus abonnierten Feeds.'),
   ).toBeVisible();
   await expectNoFocusTrap(page);
+});
+
+test('«Vorschau beim Spulen» by keyboard: groups with arrows, Speichern, scope, Escape and save (concept 18, 9) @keyboard', async ({
+  page,
+}) => {
+  const libraryId = async () => {
+    const listed = await page.request.get('/api/v1/admin/libraries');
+    const movies = ((await listed.json()) as { id: number; name: string }[]).find(
+      (library) => library.name === 'Filme',
+    );
+    if (!movies) throw new Error('no library Filme');
+    return movies.id;
+  };
+  const id = await libraryId();
+  try {
+    await openRow(page, 'Filme');
+    await expect(
+      foldOut(page, 'Filme').getByText('Vorschau beim Spulen: Filme Im Voraus · Serien Im Voraus'),
+    ).toBeVisible();
+    const open = foldOut(page, 'Filme').getByRole('button', {
+      name: 'Vorschau beim Spulen von Filme',
+    });
+    await tabTo(page, open, 20);
+    await expectVisibleFocus(page);
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('dialog', { name: 'Vorschau beim Spulen: Filme' });
+    await expect(dialog).toBeVisible();
+    const movies = dialog.getByRole('radiogroup', { name: 'Filme' });
+    const series = dialog.getByRole('radiogroup', { name: 'Serien' });
+    // The estimate of getLibrary.
+    await expect(dialog.getByText(/^Heute belegt: Filme .* · Serien /)).toBeVisible();
+
+    // Films: ↓ to «Beim Start» shows «Speichern», Tab reaches it, Space unticks it.
+    await tabTo(page, movies.getByRole('radio', { name: 'Im Voraus' }), 10);
+    await expectVisibleFocus(page);
+    await page.keyboard.press('ArrowDown');
+    await expect(movies.getByRole('radio', { name: 'Beim Start' })).toBeChecked();
+    const keep = dialog.getByRole('switch', { name: 'Speichern' });
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, keep);
+    await page.keyboard.press('Space');
+    await expect(keep).not.toBeChecked();
+    await expect(dialog.getByText('Pro Film, nur während der Wiedergabe')).toBeVisible();
+
+    // Escape drops the change: nothing was saved, the focus is back on the button.
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expectFocusOn(page, open);
+    await page.keyboard.press('Enter');
+    await expect(movies.getByRole('radio', { name: 'Im Voraus' })).toBeChecked();
+
+    // Series: ↓↓ to «Beim Start alle Folgen», Tab to the scope, ↓↓ to «Nächste Folge», save.
+    await tabTo(page, series.getByRole('radio', { name: 'Im Voraus' }), 10);
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await expect(series.getByRole('radio', { name: 'Beim Start alle Folgen' })).toBeChecked();
+    const scope = dialog.getByRole('radiogroup', { name: 'Umfang' });
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, scope.getByRole('radio', { name: 'Ganze Serie' }));
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await expect(scope.getByRole('radio', { name: 'Nächste Folge' })).toBeChecked();
+    const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
+    await tabTo(page, save, 10);
+    await expectVisibleFocus(page);
+    await page.keyboard.press('Enter');
+    await expect(dialog).toBeHidden();
+    await expect(
+      page.getByText('Die Vorschau beim Spulen von Filme ist gespeichert.'),
+    ).toBeVisible();
+    await expect(
+      foldOut(page, 'Filme').getByText(
+        'Vorschau beim Spulen: Filme Im Voraus · Serien Beim Start alle Folgen',
+      ),
+    ).toBeVisible();
+    const stored = await page.request.get(`/api/v1/admin/libraries/${id}`);
+    expect(((await stored.json()) as { trickplay: unknown }).trickplay).toEqual({
+      movies: { mode: 'ahead', keep: true },
+      series: { mode: 'series_start', keep: true, scope: 'next_episode' },
+    });
+  } finally {
+    // Other specs play the library with its setting from the start.
+    const reset = await page.request.patch(`/api/v1/admin/libraries/${id}`, {
+      headers: { 'X-Requested-With': 'Slouchcat' },
+      data: {
+        trickplay: {
+          movies: { mode: 'ahead', keep: true },
+          series: { mode: 'ahead', keep: true, scope: 'series' },
+        },
+      },
+    });
+    expect(reset.status(), await reset.text()).toBe(200);
+  }
 });
 
 test('browser back leaves the page to the start page', async ({ page }) => {

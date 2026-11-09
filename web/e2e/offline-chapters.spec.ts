@@ -33,6 +33,15 @@ for (const quality of ['high', 'low'] as const) {
     const [download] = await waitForComplete(page, 1, (entry) => entry.id === created.id);
     const chapters = download.manifest!.chapters ?? [];
     expect(chapters.map((chapter) => chapter.title)).toEqual(TITLES);
+    // The preview sheets came with it (concept 18, 6.8): a complete set, served with the token.
+    const trickplay = download.manifest!.trickplay;
+    expect(trickplay?.state).toBe('complete');
+    expect(trickplay?.sheets.length).toBeGreaterThan(0);
+    for (const sheet of trickplay?.sheets ?? []) {
+      expect(sheet.url).toMatch(
+        new RegExp(`^/api/v1/downloads/${created.id}/trickplay/${sheet.index}\\?dt=`),
+      );
+    }
     // The same marks as online; only the online ones carry their images (Chapter.imageUrl is
     // absent in DownloadManifest.chapters, contract 1.12.0).
     const started = await owner.post(`/api/v1/items/${itemId}/play`, {
@@ -119,6 +128,18 @@ for (const quality of ['high', 'low'] as const) {
     await page.keyboard.press('Escape');
     await expect(cards).toHaveCount(0);
     await expectFocusOn(page, tab);
+
+    // ↑↑ to the timeline; ← shows the tile of the new position from the stored sheet, offline.
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('ArrowUp');
+    await expectFocusOn(page, player.getByRole('slider', { name: 'Wiedergabeposition' }));
+    await page.keyboard.press('ArrowLeft');
+    const tile = player.locator('[data-seek-preview] [data-trickplay-tile]');
+    await expect(tile).toBeVisible();
+    expect(await tile.evaluate((element) => getComputedStyle(element).backgroundImage)).toMatch(
+      /^url\("blob:/,
+    );
+    await expectVisibleFocus(page);
     await expectNoFocusTrap(page);
     // Back: Escape leaves the player for the downloads.
     await page.keyboard.press('Escape');

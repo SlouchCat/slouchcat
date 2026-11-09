@@ -304,7 +304,6 @@
       "roots": "Released folders",
       "empty": "This folder has no subfolders.",
       "emptyRoots": "No folder is released. Set {{name}} to the media folders of the container and restart the server.",
-      "loadMore": "Load more",
       "truncated": "This folder holds a great many entries. The first 50,000 are shown; type the path to reach the rest.",
       "symlink": "Symlink, not scanned",
       "closedRoot": "Not released, shown only",
@@ -380,7 +379,6 @@
       "clear": "Reset",
       "emptyFilters": "Nothing matches these filters",
       "pageFailed": "Part of the list could not be loaded.",
-      "more": "Load more ({{count}} more)",
       "noun": {
         "video_one": "title",
         "video_other": "titles",
@@ -594,7 +592,6 @@
     "podcast": {
       "episodes": "Episodes",
       "empty": "No episodes.",
-      "more": "Load more",
       "link": "Go to podcast",
       "play": "Play {{title}}"
     },
@@ -606,7 +603,14 @@
       "label": "Favourite",
       "hint": "Notify me about new episodes"
     },
-    "addToPicks": "Add to User picks",
+    "recommend": {
+      "add": "Recommend",
+      "done": "Recommended ✓",
+      "hint": "For every profile that may see the title, without your name",
+      "added_one": "Added to the user picks. Stays {{count}} day.",
+      "added_other": "Added to the user picks. Stays {{count}} days.",
+      "removed": "Pick taken back."
+    },
     "logoAlt": "{{title}}",
     "action": {
       "resume": "Resume",
@@ -616,8 +620,7 @@
       "resumeAt": "at {{time}} · {{left}} left",
       "watchedOn": "Watched on {{date}}",
       "listenedOn": "Listened on {{date}}",
-      "restart": "From the start",
-      "picks": "User picks"
+      "restart": "From the start"
     },
     "nextUp": {
       "start": "Play",
@@ -1055,7 +1058,8 @@
           "connecting": "Connecting",
           "live": "Live",
           "reconnecting": "Reconnecting",
-          "ending": "Ending"
+          "ending": "Ending",
+          "failed": "Relay failed"
         },
         "stop": {
           "label": "Stop {{profile}} listening",
@@ -1116,7 +1120,6 @@
         "hiddenDone": "{{name}} is hidden.",
         "shownDone": "{{name}} is shown.",
         "empty": "No stations found.",
-        "more": "More stations",
         "count_one": "{{count}} station",
         "count_other": "{{count}} stations"
       },
@@ -1520,6 +1523,76 @@
         "images": "images deviate",
         "both": "languages and images deviate",
         "link": "Metadata of the library"
+      },
+      "trickplay": {
+        "action": "Seek preview",
+        "actionLabel": "Seek preview of {{name}}",
+        "title": "Seek preview: {{name}}",
+        "description": "Small pictures above the timeline, one every 10 seconds. Films and series are set separately, also in a library that holds both.",
+        "movies": "Films",
+        "series": "Series",
+        "mode": {
+          "ahead": "In advance",
+          "on_start": "At start",
+          "series_start": "At start, all episodes",
+          "off": "Off"
+        },
+        "keep": "Keep",
+        "keepHint": "There at once from the second start. Without keeping, the preview is deleted after playback.",
+        "scope": {
+          "label": "Scope",
+          "series": "Whole series",
+          "season_rest": "Rest of the season",
+          "next_episode": "Next episode"
+        },
+        "facts": {
+          "ahead": {
+            "movie": "New films get their preview when they are imported; «Generate now» or the schedule on «Background jobs» catch up on the rest. If one is missing at a start, it takes 20 to 45 seconds and is kept.",
+            "episode": "New episodes get their preview when they are imported; «Generate now» or the schedule on «Background jobs» catch up on the rest. If one is missing at a start, it takes 20 to 45 seconds and is kept."
+          },
+          "onStartKeep": "At the first start the preview takes 20 to 45 seconds, the first sheet 5 to 10 seconds, and is kept. Titles nobody watches take no space.",
+          "onStart": "Every start makes the preview anew in 20 to 45 seconds; it is deleted 10 minutes after the end. Each start costs processing time and a few hundred MB from the NAS.",
+          "seriesStart": {
+            "series": "When an episode starts, its preview is made at once, then in the background those of every other episode of the series. Everything is kept.",
+            "season_rest": "When an episode starts, its preview is made at once, then in the background those of the other episodes of the season (at the last episode those of the next season). Everything is kept.",
+            "next_episode": "When an episode starts, its preview is made at once, then in the background that of the next episode. Everything is kept."
+          },
+          "off": "No preview. The timeline shows the chapter name and image as before."
+        },
+        "estimate": {
+          "counts": {
+            "movies_one": "{{count}} film, {{hours}} h",
+            "movies_other": "{{count}} films, {{hours}} h",
+            "series_one": "{{count}} episode, {{hours}} h",
+            "series_other": "{{count}} episodes, {{hours}} h"
+          },
+          "approx": "≈ {{size}}",
+          "zero": "0 MB",
+          "perMovie": "Per film",
+          "perMoviePlaying": "Per film, only during playback",
+          "perEpisode": "Per episode",
+          "perEpisodePlaying": "Per episode, only during playback",
+          "library": "Whole library",
+          "libraryAtMost": "Whole library, at most",
+          "basis": "Estimated storage from the running time of the titles, about 1.5 MB per hour of video.",
+          "stored": "Used today: films {{movies}} · series {{series}}",
+          "free": "Free space in the cache: {{size}}",
+          "unavailable": "The storage estimate is not available right now."
+        },
+        "drop": {
+          "movies": "After saving, the kept previews of the films are deleted ({{size}}). Running playbacks keep them until they end.",
+          "series": "After saving, the kept previews of the series are deleted ({{size}}). Running playbacks keep them until they end.",
+          "both": "After saving, the kept previews are deleted: films ({{movies}}) and series ({{series}}). Running playbacks keep them until they end."
+        },
+        "generate": {
+          "action": "Generate now",
+          "hint": "Catches up on the missing previews of every library «In advance», like «Backfill seek previews» on «Background jobs».",
+          "queued": "Catching up on the previews is queued."
+        },
+        "submit": "Save",
+        "saved": "The seek preview of {{name}} is saved.",
+        "summary": "Seek preview: films {{movies}} · series {{series}}",
+        "summaryNoKeep": "At start, not kept"
       }
     },
     "access": {
@@ -1556,9 +1629,9 @@
       "selection": "Selection",
       "selectItem": "Select {{title}}",
       "selected": "{{count}} selected",
+      "selectedOfLoaded": "{{count}} of {{loaded}} loaded selected",
       "selectAll": "Select all",
       "selectNone": "Clear selection",
-      "more": "Load more",
       "shown": "{{shown}} of {{total}}",
       "entries_one": "{{count}} entry",
       "entries_other": "{{count}} entries",
@@ -1673,8 +1746,8 @@
           "collectionItems_other": "{{count}} collection entries",
           "notifications_one": "{{count}} notification",
           "notifications_other": "{{count}} notifications",
-          "topPicks_one": "{{count}} top pick",
-          "topPicks_other": "{{count}} top picks",
+          "userPicks_one": "{{count}} user pick",
+          "userPicks_other": "{{count}} user picks",
           "downloads_one": "{{count}} download",
           "downloads_other": "{{count}} downloads",
           "activityEvents_one": "{{count}} activity",
@@ -1952,17 +2025,49 @@
     },
     "streams": {
       "title": "Streams",
-      "intro": "Running playbacks. The list refreshes every 5 seconds.",
-      "list": "Running streams",
+      "intro": "Everything that is playing now. The list refreshes every 5 seconds.",
+      "list": "Playing now",
+      "listHelp": "Newest first, radio in the same list.",
       "tileLabel": "{{profile}}: {{title}}",
       "empty": "Nothing is playing right now.",
+      "emptyKind": "Nothing of this kind is playing.",
+      "filter": {
+        "label": "Filter by kind",
+        "all": "All",
+        "video": "Video",
+        "audiobook": "Audiobooks",
+        "podcast": "Podcasts",
+        "radio": "Radio",
+        "unknown": "Count unknown"
+      },
+      "kinds": {
+        "movie": "Film",
+        "episode": "Series",
+        "extra": "Extra",
+        "audiobook": "Audiobook",
+        "podcast": "Podcast",
+        "radio": "Radio"
+      },
+      "partial": {
+        "streams": "Playbacks are missing from the list until the request succeeds again.",
+        "radio": "Radio listeners are missing from the list until the request succeeds again."
+      },
       "facts": {
         "device": "Device",
         "quality": "Quality",
-        "reason": "Reason"
+        "reason": "Reason",
+        "format": "Format",
+        "source": "Source",
+        "listeners": "Listeners"
       },
       "unknownDevice": "Unknown device",
       "original": "Original",
+      "source": {
+        "file": "File",
+        "feed": "Feed"
+      },
+      "parts_one": "{{count}} part",
+      "parts_other": "{{count}} parts",
       "qualityValue": "{{quality}} · {{bitrate}}",
       "modes": {
         "direct": "Direct",
@@ -1983,6 +2088,7 @@
       "stopped": "Stream of {{profile}} stopped.",
       "since": "Since {{time}}",
       "noPosition": "–",
+      "noFormat": "–",
       "load": {
         "title": "Server load",
         "hw": {
@@ -2012,11 +2118,13 @@
         }
       },
       "radio": {
-        "title": "Radio",
-        "help": "Who listens to web radio through the server right now; a station runs once for all its listeners.",
-        "mode": "Radio",
         "playing": "Listening",
         "paused": "Paused",
+        "failed": "Relay failed",
+        "transcoded": "transcoded",
+        "copied": "repackaged",
+        "listeners_one": "{{count}} listener of this station",
+        "listeners_other": "{{count}} listeners of this station",
         "stopLabel": "Stop the radio of {{profile}}",
         "stopTitle": "Stop the radio of {{profile}}?",
         "stopBody": "The playback of “{{station}}” stops on the device within seconds.",
@@ -2087,100 +2195,39 @@
     },
     "picks": {
       "title": "User picks",
-      "intro": "Hand-picked titles as a row of their own on the start page. For every profile or for single ones; each profile only sees titles of its age rating and only within the chosen time window.",
-      "list": "Picks in the order of the row",
-      "empty": "No picks yet. Without picks the start page shows no carousel.",
-      "emptyTab": "No pick in this tab.",
-      "allProfiles": "Everyone",
-      "noNote": "–",
-      "noNoteSpoken": "no note",
-      "quoted": "“{{note}}”",
-      "changed": "changed",
-      "count": {
-        "entries_one": "{{number}} entry",
-        "entries_other": "{{number}} entries",
-        "planned_one": "{{number}} scheduled",
-        "planned_other": "{{number}} scheduled",
-        "both": "{{entries}} · {{planned}}"
+      "intro": "Profiles of the owner's account recommend titles with the star on the title page; every other account only sees the list. Names stay hidden, and every title is listed once.",
+      "retention": {
+        "title": "Expiry",
+        "label": "Picks stay",
+        "unit": "days in the list",
+        "help": "7 to 365 days, 60 by default. Every new pick of the same title starts the period again. A shorter period applies at once.",
+        "saved_one": "Picks now stay {{count}} day.",
+        "saved_other": "Picks now stay {{count}} days."
       },
-      "tabs": {
-        "label": "Picks by time window",
-        "all": "All",
-        "active": "Active",
-        "scheduled": "Scheduled",
-        "expired": "Expired",
-        "count_one": "{{number}} pick",
-        "count_other": "{{number}} picks"
-      },
+      "list": "Current picks",
+      "count_one": "{{number}} title",
+      "count_other": "{{number}} titles",
+      "empty": "No profile recommends a title right now. Without a pick the start page shows no row «User picks».",
+      "anonymous": "The administration sees how many picks a title has, never which profile picked it.",
       "homeRowsHint": "Where the row stands on the start page and whether it appears is set under <page>Start page</page>.",
-      "moved": "{{title}} is now at position {{position}}.",
       "columns": {
-        "position": "No.",
         "title": "Title",
-        "target": "For",
-        "note": "Note",
-        "window": "Time window"
+        "picked": "Last picked on",
+        "expires": "Expires",
+        "count": "Count",
+        "actions": "Actions"
       },
-      "window": {
-        "always": "Always",
-        "from": "From {{date}}",
-        "until": "Until {{date}}",
-        "range": "{{from}} to {{to}}",
-        "expired": "Expired",
-        "scheduled": "Scheduled"
-      },
-      "detail": {
-        "place": "Place in the row",
-        "target": "For"
-      },
-      "search": {
-        "label": "Search titles",
-        "hint": "Two characters or more: films, series, episodes, audiobooks and podcasts.",
-        "empty": "No matching title found.",
-        "results": "Titles found",
-        "select": "Choose",
-        "selectLabel": "Choose {{title}}",
-        "chosen": "Chosen: {{title}}",
-        "none": "No title chosen yet."
-      },
-      "targets": {
-        "label": "For",
-        "all": "All profiles",
-        "description": "All profiles or single ones. A profile only sees the pick when it may see the title.",
-        "required": "Choose “All profiles” or at least one profile."
-      },
-      "form": {
-        "note": "Note",
-        "noteHint": "Shown in the carousel below the title, at most {{max}} characters.",
-        "from": "Visible from",
-        "to": "Visible until",
-        "windowHint": "Leave empty: from now on and without end.",
-        "endBeforeStart": "The end must be after the start."
-      },
-      "add": {
-        "action": "Add",
-        "title": "Add a pick",
-        "description": "Search a title and choose who it is recommended to. New picks go to the end.",
-        "submit": "Add",
-        "submitting": "Adding …",
-        "done": "{{title}} is in User picks.",
-        "titleRequired": "Choose a title first.",
-        "presetMissing": "The title of the link no longer exists. Search it again."
-      },
-      "edit": {
-        "label": "Edit {{title}}",
-        "saveLabel": "Save {{title}}",
-        "discard": "Discard",
-        "discardLabel": "Discard the changes to {{title}}",
-        "done": "{{title}} is saved."
-      },
+      "expiresIn_one": "in {{count}} day",
+      "expiresIn_other": "in {{count}} days",
+      "countValue_one": "{{count}} pick",
+      "countValue_other": "{{count}} picks",
       "remove": {
         "action": "Remove",
         "label": "Remove {{title}}",
-        "title": "Remove {{title}} from User picks?",
-        "body": "The title stays in the library; only the pick goes.",
+        "title": "Remove {{title}} from the user picks?",
+        "body": "Every pick of this title goes. The title stays in the library.",
         "confirm": "Remove",
-        "done": "{{title}} is no longer a pick."
+        "done": "{{title}} is no longer picked."
       }
     },
     "collections": {
@@ -2286,7 +2333,7 @@
       "tooMany": "Already {{count}} rows visible. Hide another one first.",
       "rows": {
         "spotlight": "The Trakt list, intersected with the library. Shown as a stage with a backdrop at its place; below the minimum number of matches it is left out.",
-        "picks": "Kept by hand, with a note, target profiles and a time window.",
+        "picks": "Titles the profiles of the owner account recommend; newest first, with an expiry.",
         "continue": "Titles the profile has started.",
         "recent": "The titles that came into a library most recently.",
         "released": "By release date within the last twelve months; a series by its newest episode.",
@@ -3378,6 +3425,7 @@
         "download": "Downloads",
         "notify": "Notifications",
         "index": "Keyframe index",
+        "trickplay": "Seek previews",
         "workers": "{{count}} workers",
         "backlog": "backlog about {{duration}}",
         "free": "free",
@@ -3627,6 +3675,22 @@
           "name": "Backfill chapter images",
           "description": "Queues every file without chapter images for creation.",
           "trigger": "Schedule (off by default, weekly) or a one-off date, “Run now”: for every film and episode without chapter images"
+        },
+        "trickplay_generate": {
+          "name": "Create seek previews",
+          "description": "Creates the preview images of the seek bar of a file, sheet by sheet.",
+          "trigger": "when a film or an episode starts, for new files with “In advance”, by the backfill, by the series look-ahead and for offline downloads"
+        },
+        "trickplay_series": {
+          "name": "Previews of the other episodes",
+          "description": "Queues the previews of the other episodes of a series, the next two first.",
+          "trigger": "when an episode starts and the library is set to “At start, all episodes”"
+        },
+        "trickplay_backfill": {
+          "name": "Backfill seek previews",
+          "description": "Queues every film and episode without a complete preview for creation.",
+          "trigger": "Schedule (off by default, weekly) or a one-off date, “Run now”: for libraries set to “In advance”",
+          "progress": "Files checked: {{done}} of {{total}}"
         },
         "library_relink": {
           "name": "Relink deleted title",
@@ -4299,7 +4363,6 @@
     },
     "results_one": "{{count}} title found",
     "results_other": "{{count}} titles found",
-    "more": "Load more",
     "empty": {
       "title": "Nothing found",
       "body": "Try another term or fewer filters."
@@ -4313,7 +4376,6 @@
       "add": "Add {{title}} to the watchlist",
       "remove": "Take {{title}} off the watchlist"
     },
-    "more": "Load more",
     "empty": {
       "title": "Your watchlist is empty",
       "body": "Keep titles for later with “Add to watchlist” on their detail page.",
@@ -4324,7 +4386,6 @@
     "count_one": "{{count}} title",
     "count_other": "{{count}} titles",
     "members": "Titles",
-    "more": "Load more",
     "notFound": {
       "title": "Collection not found",
       "body": "This collection does not exist or holds no title for this profile."
@@ -4342,7 +4403,6 @@
     "newEpisodeAlone": "New episode",
     "summary_one": "{{count}} unread",
     "summary_other": "{{count}} unread",
-    "more": "Load more",
     "empty": {
       "title": "No notifications",
       "body": "Mark series or podcasts as favourites to hear about new episodes here."
@@ -4495,7 +4555,7 @@
   "picks": {
     "page": {
       "title": "User picks",
-      "intro": "Titles picked for you, in the chosen order.",
+      "intro": "Titles the profiles of this household recommend, newest pick first.",
       "count_one": "{{count}} title",
       "count_other": "{{count}} titles"
     }
@@ -4563,7 +4623,6 @@
         "title": "The station catalog is loading",
         "body": "Slouchcat is fetching the stations for the first time. The page tries again in a moment."
       },
-      "more": "More stations",
       "play": "Play {{name}}",
       "pause": "Pause {{name}}",
       "resume": "Resume {{name}}",

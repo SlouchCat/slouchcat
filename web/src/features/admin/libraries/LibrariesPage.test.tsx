@@ -423,7 +423,118 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
       name: 'Dokus',
       kind: 'video',
       roots: [{ path: '/media/Dokus', content: 'movie', providers: ['tmdb'] }],
+      trickplay: {
+        movies: { mode: 'ahead', keep: true },
+        series: { mode: 'ahead', keep: true, scope: 'series' },
+      },
     });
+  });
+
+  it('sets «Vorschau beim Spulen» of a new video library, films and series apart (concept 18, 9)', async () => {
+    const { calls } = mockApi({
+      ...signedIn,
+      'GET /admin/libraries': () => json([]),
+      'POST /admin/libraries': () => json(library({ name: 'Dokus' }), 201),
+    });
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    const dialog = await openAdd(user);
+    await user.type(within(dialog).getByLabelText('Name'), 'Dokus');
+    await user.type(within(dialog).getByLabelText('Ordner'), '/media/Dokus');
+    const movies = within(dialog).getByRole('radiogroup', { name: 'Filme' });
+    const series = within(dialog).getByRole('radiogroup', { name: 'Serien' });
+    expect(within(movies).getByRole('radio', { name: 'Im Voraus' })).toBeChecked();
+    // Films have no «Beim Start alle Folgen».
+    expect(within(movies).queryByRole('radio', { name: 'Beim Start alle Folgen' })).toBeNull();
+    await user.click(within(movies).getByText('Beim Start'));
+    await user.click(within(dialog).getByRole('switch', { name: 'Speichern' }));
+    await user.click(within(series).getByText('Beim Start alle Folgen'));
+    const seriesGroup = dialog.querySelector<HTMLElement>('[data-trickplay-group="series"]')!;
+    expect(within(seriesGroup).queryByRole('switch')).toBeNull();
+    await user.click(within(dialog).getByText('Rest der Staffel'));
+    expect(within(dialog).getByText(/die der übrigen Folgen der Staffel/)).toBeVisible();
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Bibliothek mit 1 Ordner hinzufügen' }),
+    );
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'POST')?.body).toMatchObject({
+        trickplay: {
+          movies: { mode: 'on_start', keep: false },
+          series: { mode: 'series_start', keep: true, scope: 'season_rest' },
+        },
+      }),
+    );
+  });
+
+  it('changes «Vorschau beim Spulen» with the estimate, warns before dropping and generates now', async () => {
+    const estimateKind = (titles: number, perTitleBytes: number, storedBytes: number) => ({
+      titles,
+      files: titles,
+      durationMs: titles * 6_840_000,
+      perTitleBytes,
+      libraryBytes: titles * perTitleBytes,
+      storedBytes,
+    });
+    const { calls } = mockApi({
+      ...signedIn,
+      'GET /admin/libraries': () => json([library()]),
+      'GET /admin/libraries/1': () =>
+        json({
+          ...library(),
+          trickplayEstimate: {
+            movies: estimateKind(412, 2_900_000, 1_200_000_000),
+            series: estimateKind(0, 0, 0),
+            cacheFreeBytes: 33_000_000_000,
+          },
+        }),
+      'POST /admin/job-types/trickplay.backfill/run': () => json([], 202),
+      'PATCH /admin/libraries/1': ({ body }) => json({ ...library(), ...(body as object) }),
+    });
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    const detail = await openRow(user, 'Filme');
+    expect(
+      within(detail).getByText('Vorschau beim Spulen: Filme Im Voraus · Serien Im Voraus'),
+    ).toBeVisible();
+    await user.click(
+      within(detail).getByRole('button', { name: 'Vorschau beim Spulen von Filme' }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Vorschau beim Spulen: Filme' });
+    const movies = dialog.querySelector<HTMLElement>('[data-trickplay-group="movies"]')!;
+    await waitFor(() => expect(within(movies).getByText('412 Filme, 783 h')).toBeVisible());
+    // One decimal below 10 MB, so 2.9 MB does not read «3 MB».
+    expect(within(movies).getByText('Pro Film').nextSibling).toHaveTextContent(/^≈ 2[.,]9 MB$/);
+    // A kind with nothing stored reads «0 MB», not «0 Byte».
+    expect(within(dialog).getByText(/^Heute belegt: Filme .* · Serien 0 MB$/)).toBeVisible();
+    expect(within(movies).getByText('Ganze Bibliothek').nextSibling).toHaveTextContent(
+      /^≈ 1[.,]2 GB$/,
+    );
+    expect(within(dialog).getByText('Freier Platz im Cache: 33 GB')).toBeVisible();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Jetzt erzeugen' }));
+    expect(
+      await within(dialog).findByText('Das Nachholen der Vorschauen ist eingereiht.'),
+    ).toBeVisible();
+
+    // «Beim Start» with «Speichern»: «höchstens»; without it only during playback, 0 for the
+    // library, and the stored previews go.
+    await user.click(within(movies).getByText('Beim Start'));
+    expect(within(movies).getByText('Ganze Bibliothek, höchstens')).toBeVisible();
+    await user.click(within(dialog).getByRole('switch', { name: 'Speichern' }));
+    expect(within(movies).getByText('Pro Film, nur während der Wiedergabe')).toBeVisible();
+    expect(within(movies).getByText('Ganze Bibliothek').nextSibling).toHaveTextContent('0 MB');
+    expect(
+      within(dialog).getByText(/gespeicherten Vorschauen der Filme gelöscht \(1[.,]2 GB\)/),
+    ).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({
+      trickplay: {
+        movies: { mode: 'on_start', keep: false },
+        series: { mode: 'ahead', keep: true, scope: 'series' },
+      },
+    });
+    expect(screen.getByText('Die Vorschau beim Spulen von Filme ist gespeichert.')).toBeVisible();
   });
 
   it('keeps what was typed when the dialog is closed without adding (S-13)', async () => {
@@ -472,6 +583,10 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
         name: 'Serien',
         kind: 'video',
         roots: [{ path: '/media/Serien', content: 'series', providers: ['tvdb', 'tmdb'] }],
+        trickplay: {
+          movies: { mode: 'ahead', keep: true },
+          series: { mode: 'ahead', keep: true, scope: 'series' },
+        },
       }),
     );
   });

@@ -4,23 +4,32 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"time"
+
+	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
-// M7 curation operations of the main user (plan M7, design sections 2 and 3.2): Cat's picks,
-// collections, the row order and the Trakt state. Every answer names titles by id and plain title,
+// Curation operations of the administration (plan M7, design sections 2 and 3.2): the user picks
+// (concept 18 part B, ADR 0028), collections, the row order and the Trakt state. Every answer names titles by id and plain title,
 // never as ItemRef and never with an image URL (the administration is unfiltered).
 
-func (e serviceProblem) VisitListTopPicksResponse(w http.ResponseWriter) error     { return e.visit(w) }
-func (e serviceProblem) VisitCreateTopPicksResponse(w http.ResponseWriter) error   { return e.visit(w) }
-func (e serviceProblem) VisitReorderTopPicksResponse(w http.ResponseWriter) error  { return e.visit(w) }
-func (e serviceProblem) VisitUpdateTopPickResponse(w http.ResponseWriter) error    { return e.visit(w) }
-func (e serviceProblem) VisitDeleteTopPickResponse(w http.ResponseWriter) error    { return e.visit(w) }
+func (e serviceProblem) VisitListAdminUserPicksResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+func (e serviceProblem) VisitRemoveAdminUserPickResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+func (e serviceProblem) VisitGetPicksSettingsResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitUpdatePicksSettingsResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
 func (e serviceProblem) VisitSearchAdminItemsResponse(w http.ResponseWriter) error { return e.visit(w) }
 func (e serviceProblem) VisitListCollectionsResponse(w http.ResponseWriter) error  { return e.visit(w) }
 func (e serviceProblem) VisitCreateCollectionResponse(w http.ResponseWriter) error { return e.visit(w) }
@@ -36,60 +45,47 @@ func (e serviceProblem) VisitGetHomeRowsResponse(w http.ResponseWriter) error   
 func (e serviceProblem) VisitSetHomeRowsResponse(w http.ResponseWriter) error    { return e.visit(w) }
 func (e serviceProblem) VisitGetTraktStatusResponse(w http.ResponseWriter) error { return e.visit(w) }
 
-func (s *server) ListTopPicks(ctx context.Context, _ gen.ListTopPicksRequestObject) (gen.ListTopPicksResponseObject, error) {
-	picks, err := s.opts.Admin.ListTopPicks(ctx)
+func (s *server) ListAdminUserPicks(ctx context.Context, _ gen.ListAdminUserPicksRequestObject) (gen.ListAdminUserPicksResponseObject, error) {
+	picks, err := s.opts.Admin.ListUserPicks(ctx)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	out := make(gen.ListTopPicks200JSONResponse, 0, len(picks))
+	out := make(gen.ListAdminUserPicks200JSONResponse, 0, len(picks))
 	for _, p := range picks {
-		out = append(out, toAdminPick(p))
+		day, err := time.Parse(time.DateOnly, p.PickedOn)
+		if err != nil {
+			return nil, fmt.Errorf("day of the user pick %s: %w", p.ItemID, err)
+		}
+		out = append(out, gen.AdminUserPick{
+			ItemId: p.ItemID, Kind: gen.ItemKind(p.Kind), Title: p.Title, Year: p.Year, Count: p.Count,
+			LastPickedOn: openapi_types.Date{Time: day}, ExpiresInDays: p.ExpiresInDays,
+			PosterUrl: adminPosterURL(p.ItemID, p.PosterHash),
+		})
 	}
 	return out, nil
 }
 
-func (s *server) CreateTopPicks(ctx context.Context, req gen.CreateTopPicksRequestObject) (gen.CreateTopPicksResponseObject, error) {
-	b := deref(req.Body)
-	picks, err := s.opts.Admin.CreateTopPicks(ctx, model.PickRequest{
-		ItemID: b.ItemId, ProfileIDs: deref(b.ProfileIds), Note: deref(b.Note), StartsAt: b.StartsAt, EndsAt: b.EndsAt,
-	})
+func (s *server) RemoveAdminUserPick(ctx context.Context, req gen.RemoveAdminUserPickRequestObject) (gen.RemoveAdminUserPickResponseObject, error) {
+	if err := s.opts.Admin.RemoveUserPick(ctx, req.ItemId); err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.RemoveAdminUserPick204Response{}, nil
+}
+
+func (s *server) GetPicksSettings(ctx context.Context, _ gen.GetPicksSettingsRequestObject) (gen.GetPicksSettingsResponseObject, error) {
+	days, err := s.opts.Admin.PicksRetention(ctx)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	out := make(gen.CreateTopPicks201JSONResponse, 0, len(picks))
-	for _, p := range picks {
-		out = append(out, toAdminPick(p))
-	}
-	return out, nil
+	return gen.GetPicksSettings200JSONResponse{RetentionDays: days}, nil
 }
 
-func (s *server) ReorderTopPicks(ctx context.Context, req gen.ReorderTopPicksRequestObject) (gen.ReorderTopPicksResponseObject, error) {
-	if err := s.opts.Admin.ReorderTopPicks(ctx, deref(req.Body).Ids); err != nil {
-		return s.problem(ctx, err), nil
-	}
-	return gen.ReorderTopPicks204Response{}, nil
-}
-
-func (s *server) UpdateTopPick(ctx context.Context, req gen.UpdateTopPickRequestObject) (gen.UpdateTopPickResponseObject, error) {
-	b := deref(req.Body)
-	nulls, _ := ctx.Value(pickNullsKey{}).(map[string]bool)
-	upd := model.PickUpdate{
-		Note: b.Note, ClearNote: nulls["note"],
-		StartsAt: b.StartsAt, ClearStartsAt: nulls["startsAt"],
-		EndsAt: b.EndsAt, ClearEndsAt: nulls["endsAt"],
-	}
-	p, err := s.opts.Admin.UpdateTopPick(ctx, req.Id, upd)
+func (s *server) UpdatePicksSettings(ctx context.Context, req gen.UpdatePicksSettingsRequestObject) (gen.UpdatePicksSettingsResponseObject, error) {
+	days, err := s.opts.Admin.SetPicksRetention(ctx, deref(req.Body).RetentionDays)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	return gen.UpdateTopPick200JSONResponse(toAdminPick(p)), nil
-}
-
-func (s *server) DeleteTopPick(ctx context.Context, req gen.DeleteTopPickRequestObject) (gen.DeleteTopPickResponseObject, error) {
-	if err := s.opts.Admin.DeleteTopPick(ctx, req.Id); err != nil {
-		return s.problem(ctx, err), nil
-	}
-	return gen.DeleteTopPick204Response{}, nil
+	return gen.UpdatePicksSettings200JSONResponse{RetentionDays: days}, nil
 }
 
 func (s *server) SearchAdminItems(ctx context.Context, req gen.SearchAdminItemsRequestObject) (gen.SearchAdminItemsResponseObject, error) {
@@ -191,15 +187,6 @@ func (s *server) GetTraktStatus(ctx context.Context, _ gen.GetTraktStatusRequest
 	}), nil
 }
 
-func toAdminPick(p model.AdminPick) gen.AdminPick {
-	return gen.AdminPick{
-		Id: p.ID, ItemId: p.ItemID, Kind: gen.ItemKind(p.Kind), Title: p.Title, Year: p.Year,
-		ProfileId: p.ProfileID, ProfileName: optString(p.ProfileName), Position: p.Position, Note: optString(p.Note),
-		StartsAt: utc(p.StartsAt), EndsAt: utc(p.EndsAt), CreatedAt: p.CreatedAt.UTC(),
-		PosterUrl: adminPosterURL(p.ItemID, p.PosterHash),
-	}
-}
-
 func toAdminCollection(c model.AdminCollection) gen.AdminCollection {
 	items := make([]gen.AdminCollectionItem, 0, len(c.Items))
 	for _, it := range c.Items {
@@ -228,20 +215,18 @@ func toHomeRowSettings(rows []model.HomeRowSetting) []gen.HomeRowSetting {
 
 type pickNullsKey struct{}
 
-// pickUpdateFields are the nullable fields of PickUpdate, by their contract names.
-var pickUpdateFields = []string{"note", "startsAt", "endsAt"}
-
-// pickUpdateNulls records which top-level fields of a PATCH /admin/picks/{id} body are JSON null:
-// the generated PickUpdate cannot tell null (clear the field) from absent (keep it). It does the
-// same for PATCH /admin/spotlight/entries/{media}/{tmdbId} (SpotlightEntryOverride, M11), PATCH
-// /admin/radio/config and PATCH /admin/radio/stations/{stationId} (contract 1.17.0). Field names
-// match without regard to case, like encoding/json matches them when it decodes the body into
-// PickUpdate ({"Note": null} clears the note as {"note": null} does). The body is handed on
+// pickUpdateNulls records which top-level fields of a PATCH body are JSON null: the generated
+// request types cannot tell null (clear the field) from absent (keep it). It serves PATCH
+// /admin/spotlight/entries/{media}/{tmdbId} (SpotlightEntryOverride, M11), PATCH
+// /admin/radio/config and PATCH /admin/radio/stations/{stationId} (contract 1.17.0); it was made
+// for the PATCH of the former curated picks (gone with contract 1.23.0, ADR 0028), hence the
+// name. Field names match without regard to case, like encoding/json matches them when it decodes
+// the body ({"Note": null} clears the note as {"note": null} does). The body is handed on
 // unchanged; a read error (such as a body over the size limit) reaches the decoder of the strict
 // handler after the bytes read so far.
 func pickUpdateNulls(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		names := pickUpdateFields
+		var names []string
 		switch {
 		case strings.HasPrefix(r.URL.Path, BasePath+"/admin/spotlight/entries/"):
 			names = spotlightOverrideFields
@@ -249,8 +234,6 @@ func pickUpdateNulls(next http.Handler) http.Handler {
 			names = radioConfigNullFields
 		case strings.HasPrefix(r.URL.Path, BasePath+"/admin/radio/stations/"):
 			names = radioStationNullFields
-		case !strings.HasPrefix(r.URL.Path, BasePath+"/admin/picks/"):
-			names = nil
 		}
 		if r.Method != http.MethodPatch || r.Body == nil || names == nil {
 			next.ServeHTTP(w, r)

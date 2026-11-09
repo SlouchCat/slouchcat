@@ -252,8 +252,12 @@ ON CONFLICT (profile_id, item_id, device_id, day) DO UPDATE
 SET played_ms = progress_days.played_ms + excluded.played_ms,
     plays = progress_days.plays + excluded.plays;
 
--- name: AdminMoveTopPicks :exec
-UPDATE top_picks SET item_id = @target_id WHERE item_id = @source_id;
+-- name: AdminMoveUserPicks :exec
+-- A profile that recommended both titles keeps the newer time on the target; a plain UPDATE would
+-- fail on the primary key. The caller deletes the source's rows afterwards (AdminDeleteUserPicksOfItem).
+INSERT INTO user_picks (item_id, profile_id, created_at)
+SELECT @target_id, s.profile_id, s.created_at FROM user_picks AS s WHERE s.item_id = @source_id
+ON CONFLICT (item_id, profile_id) DO UPDATE SET created_at = max(user_picks.created_at, excluded.created_at);
 
 -- name: AdminMoveWatchlist :exec
 -- A profile that has both titles on its watchlist keeps the target's entry; the source's one goes
@@ -302,10 +306,16 @@ UPDATE items SET deleted_at = @now, updated_at = @now WHERE id = @id AND deleted
 
 -- name: AdminStreamItems :many
 -- Title (German text, else English, else the first language by rank, else the parsed title; ADR 0018)
--- with, for an episode, the series id and title and the season and episode numbers.
+-- with, for an episode, the series id and title and the season and episode numbers; the owner of a
+-- podcast episode (its podcast) and of an extra (its movie, else its series) with the owner's title;
+-- the title's own duration (the book sum of an audiobook, the feed's of a podcast episode), the MIME
+-- type of an enclosure and the number of present media files (an audiobook's parts; concept 18, 17.4).
 SELECT i.id, i.kind, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title, i.season_number, i.episode_number, i.episode_end,
        p.season_number AS parent_season_number, COALESCE(sd.title, se.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = s.id ORDER BY tr.rank, tr.lang LIMIT 1), s.title, '') AS series_title,
-       s.id AS series_id
+       s.id AS series_id,
+       o.id AS owner_id, COALESCE(od.title, oe.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = o.id ORDER BY tr.rank, tr.lang LIMIT 1), o.title, '') AS owner_title,
+       i.duration_ms, i.enclosure_type,
+       (SELECT COUNT(*) FROM media_files AS m WHERE m.item_id = i.id AND m.missing_since IS NULL AND m.probe_error IS NULL) AS part_count
 FROM items AS i
 LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
 LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'
@@ -313,10 +323,19 @@ LEFT JOIN items AS p ON p.id = i.parent_id
 LEFT JOIN items AS s ON s.kind = 'series' AND (s.id = p.parent_id OR s.id = p.id)
 LEFT JOIN item_texts AS sd ON sd.item_id = s.id AND sd.lang = 'de'
 LEFT JOIN item_texts AS se ON se.item_id = s.id AND se.lang = 'en'
+LEFT JOIN items AS o ON o.id = CASE i.kind WHEN 'podcast_episode' THEN i.parent_id WHEN 'extra' THEN COALESCE(s.id, p.id) END
+LEFT JOIN item_texts AS od ON od.item_id = o.id AND od.lang = 'de'
+LEFT JOIN item_texts AS oe ON oe.item_id = o.id AND oe.lang = 'en'
 WHERE i.id IN (sqlc.slice('item_ids'));
 
+-- name: AdminStreamChapters :many
+-- The chapters of the titles of running streams (an audiobook's chapter at the position, 17.4).
+SELECT item_id, title, start_ms, end_ms FROM chapters WHERE item_id IN (sqlc.slice('item_ids')) ORDER BY item_id, start_ms, idx;
+
 -- name: AdminMediaFileDurations :many
-SELECT id, duration_ms FROM media_files WHERE id IN (sqlc.slice('ids'));
+-- Duration, audio codec and the probed overall bit rate (bit/s, the format's; 0 unknown) of media files.
+SELECT id, duration_ms, audio_codec, CAST(COALESCE(json_extract(probe, '$.format.bitRate'), 0) AS INTEGER) AS bit_rate
+FROM media_files WHERE id IN (sqlc.slice('ids'));
 
 -- Library settings (updateLibrary, M6 AN-2).
 
@@ -328,49 +347,33 @@ UPDATE items SET own_rating = @own_rating, updated_at = @now
 WHERE library_id = @library_id AND deleted_at IS NULL
   AND (rating_source = 'library' OR (rating_source = 'manual' AND own_rating < @own_rating));
 
--- Cat's picks (E-2, M7). Administration view: unfiltered, owner only, titles in plain text.
+-- User picks (concept 18 part B, 14.7, ADR 0028). Administration view: unfiltered, titles in plain
+-- text, never a profile name. One row per title with a recommendation younger than the retention
+-- at @now: the number of those recommendations and the newest of them, newest first.
 
--- name: AdminListTopPicks :many
--- Every pick in carousel order with kind, title (German text, else English, else the first language
--- by rank, else the parsed title) and year of the title and the name of the target profile ('' = all profiles).
-SELECT t.id, t.item_id, t.profile_id, t.position, t.note, t.starts_at, t.ends_at, t.created_at,
-       i.kind, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title, i.year, COALESCE(p.name, '') AS profile_name
-FROM top_picks AS t
-JOIN items AS i ON i.id = t.item_id
+-- name: AdminListUserPicks :many
+SELECT u.item_id, i.kind,
+       COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title,
+       i.year, count(*) AS pick_count, CAST(max(u.created_at) AS INTEGER) AS picked_at
+FROM user_picks AS u
+JOIN picks_config AS c ON c.id = 1
+JOIN items AS i ON i.id = u.item_id
 LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
 LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'
-LEFT JOIN profiles AS p ON p.id = t.profile_id
-ORDER BY t.position, t.id;
+WHERE u.created_at > @now - c.retention_days * 86400000 AND i.deleted_at IS NULL
+GROUP BY u.item_id
+ORDER BY picked_at DESC, u.item_id;
 
--- name: AdminGetTopPick :one
-SELECT t.id, t.item_id, t.profile_id, t.position, t.note, t.starts_at, t.ends_at, t.created_at,
-       i.kind, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title, i.year, COALESCE(p.name, '') AS profile_name
-FROM top_picks AS t
-JOIN items AS i ON i.id = t.item_id
-LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
-LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'
-LEFT JOIN profiles AS p ON p.id = t.profile_id
-WHERE t.id = @id;
+-- name: AdminDeleteUserPicksOfItem :execrows
+-- Every recommendation of a title (removeAdminUserPick), and the rows a merge or a relink left on
+-- its source after AdminMoveUserPicks.
+DELETE FROM user_picks WHERE item_id = @item_id;
 
--- name: AdminNextTopPickPosition :one
-SELECT CAST(COALESCE(max(position), -1) + 1 AS INTEGER) AS next FROM top_picks;
+-- name: AdminGetPicksConfig :one
+SELECT retention_days, updated_at FROM picks_config WHERE id = 1;
 
--- name: AdminInsertTopPick :one
-INSERT INTO top_picks (item_id, profile_id, position, note, starts_at, ends_at, created_at)
-VALUES (@item_id, @profile_id, @position, @note, @starts_at, @ends_at, @now)
-RETURNING id;
-
--- name: AdminUpdateTopPick :execrows
-UPDATE top_picks SET note = @note, starts_at = @starts_at, ends_at = @ends_at WHERE id = @id;
-
--- name: AdminDeleteTopPick :execrows
-DELETE FROM top_picks WHERE id = @id;
-
--- name: AdminListTopPickIDs :many
-SELECT id FROM top_picks ORDER BY id;
-
--- name: AdminSetTopPickPosition :exec
-UPDATE top_picks SET position = @position WHERE id = @id;
+-- name: AdminSetPicksConfig :exec
+UPDATE picks_config SET retention_days = @retention_days, updated_at = @now WHERE id = 1;
 
 -- name: AdminOwnerProfileIDs :many
 -- Profiles of the owner's account: the only targets of a pick (E-2). The owner badge, not the
@@ -416,3 +419,15 @@ WHERE fe.kind = 'podcast_episode' AND fe.deleted_at IS NULL AND fe.enclosure_url
   AND ((fe.published_at IS NOT NULL AND ne.published_at IS NOT NULL AND fe.published_at / 60000 = ne.published_at / 60000)
        OR fe.sort_title = ne.sort_title)
 ORDER BY fe.parent_id, fe.id, ne.id;
+
+-- name: AdminTrickplayDurations :many
+-- The running time of the films and episodes of a library for the storage estimate of trickplay
+-- (concept 18, 9): per kind the titles with a present media file, the present files with a
+-- duration (every version counts) and their running time together.
+SELECT i.kind, count(DISTINCT i.id) AS titles, count(m.duration_ms) AS files,
+       CAST(coalesce(sum(m.duration_ms), 0) AS INTEGER) AS duration_ms
+FROM media_files AS m
+JOIN items AS i ON i.id = m.item_id
+WHERE i.library_id = @library_id AND i.kind IN ('movie', 'episode') AND i.deleted_at IS NULL
+  AND m.missing_since IS NULL
+GROUP BY i.kind;

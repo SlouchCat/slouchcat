@@ -308,6 +308,7 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 		Every: chapterImagesBackfillEvery, Seed: jobs.SeedOff,
 	})
 	r.Register(s.keyframesBackfillType())
+	s.trickplayTypes(r) // concept 18: trickplay.generate, trickplay.series, trickplay.backfill
 }
 
 // cancelScanJob is the cancel hook of scan.library and scan.path (jobs.Type.Cancel, concept 09
