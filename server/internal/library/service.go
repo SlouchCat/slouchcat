@@ -315,13 +315,13 @@ func (s *Service) Create(ctx context.Context, req model.LibraryRequest) (model.L
 	if err != nil {
 		return model.Library{}, fmt.Errorf("insert library: %w", err)
 	}
-	if req.Trickplay != nil {
-		if err := SetLibraryTrickplay(ctx, q, lib.ID, trickplay, now); err != nil {
-			return model.Library{}, err
-		}
-		lib.TrickplayMovies, lib.TrickplayMoviesKeep = trickplay.Movies.Mode, boolInt(trickplay.Movies.Keep)
-		lib.TrickplaySeries, lib.TrickplaySeriesKeep, lib.TrickplaySeriesScope = trickplay.Series.Mode, boolInt(trickplay.Series.Keep), trickplay.Series.Scope
+	// The setting is always written, the defaults too: the column default 'ahead' of migration
+	// 00042 is no longer the default of a new library (1.23.1, migration 00043).
+	if err := SetLibraryTrickplay(ctx, q, lib.ID, trickplay, now); err != nil {
+		return model.Library{}, err
 	}
+	lib.TrickplayMovies, lib.TrickplayMoviesKeep = trickplay.Movies.Mode, boolInt(trickplay.Movies.Keep)
+	lib.TrickplaySeries, lib.TrickplaySeriesKeep, lib.TrickplaySeriesScope = trickplay.Series.Mode, boolInt(trickplay.Series.Keep), trickplay.Series.Scope
 	rows := make([]appq.LibraryRoot, 0, len(roots))
 	for _, r := range roots {
 		row, err := insertRoot(ctx, q, lib.ID, r, now)

@@ -1593,12 +1593,13 @@ type LibraryTrickplay struct {
 	Series TrickplaySetting
 }
 
-// DefaultLibraryTrickplay is the setting of a new video library (F-11): «Im Voraus» for both, with
-// «Speichern» and the whole series as scope.
+// DefaultLibraryTrickplay is the setting of a new library: «Aus» for both (decision of
+// 9 November 2026, 1.23.1; replaces «Im Voraus» of F-11), with «Speichern» and the whole series as
+// scope. Create writes it explicitly: the column default 'ahead' of migration 00042 is unused.
 func DefaultLibraryTrickplay() LibraryTrickplay {
 	return LibraryTrickplay{
-		Movies: TrickplaySetting{Mode: TrickplayAhead, Keep: true},
-		Series: TrickplaySetting{Mode: TrickplayAhead, Keep: true, Scope: TrickplayScopeSeries},
+		Movies: TrickplaySetting{Mode: TrickplayOff, Keep: true},
+		Series: TrickplaySetting{Mode: TrickplayOff, Keep: true, Scope: TrickplayScopeSeries},
 	}
 }
 

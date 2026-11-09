@@ -62,8 +62,23 @@ func newTPEnv(t *testing.T) *tpEnv {
 		e.mu.Unlock()
 		return os.WriteFile(out, []byte("RIFF"+strconv.Itoa(len(tiles))), 0o600)
 	}
-	e.lib = e.create(e.dir).ID
+	req := testRequest("Filme", e.dir)
+	ahead := trickplayAheadSetting
+	req.Trickplay = &ahead
+	lib, err := e.svc.Create(e.ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.lib = lib.ID
 	return e
+}
+
+// trickplayAheadSetting is «Im Voraus» for films and series with «Speichern» and the whole series
+// (the default before 1.23.1, now «Aus»): the setting of the trickplay tests that generate on
+// import, backfill and start.
+var trickplayAheadSetting = model.LibraryTrickplay{
+	Movies: model.TrickplaySetting{Mode: model.TrickplayAhead, Keep: true},
+	Series: model.TrickplaySetting{Mode: model.TrickplayAhead, Keep: true, Scope: model.TrickplayScopeSeries},
 }
 
 // film adds a placeholder film with a stored probe and the given duration and returns its file id.
@@ -171,7 +186,7 @@ func TestTrickplayStartJob(t *testing.T) {
 	t.Parallel()
 	e := newTPEnv(t)
 	id := e.film("Film (2020)", 2_500_000) // 250 points, 3 sheets
-	ahead := model.DefaultLibraryTrickplay().Movies
+	ahead := trickplayAheadSetting.Movies
 	if _, _, state := e.status(id); state != TrickplayQueued {
 		t.Errorf("state before the start %q", state)
 	}
@@ -233,7 +248,7 @@ func TestTrickplayPreemption(t *testing.T) {
 		t.Fatal(err)
 	}
 	// While it runs, a viewer starts the second film.
-	e.start(second, 0, model.DefaultLibraryTrickplay().Movies)
+	e.start(second, 0, trickplayAheadSetting.Movies)
 	err = e.svc.handleTrickplay(e.ctx, j)
 	var later *jobs.RetryLaterError
 	if !errors.As(err, &later) || later.After != 0 {
@@ -261,7 +276,7 @@ func TestTrickplayPreemption(t *testing.T) {
 	if _, err := enqueueTrickplay(e.ctx, e.queue, trickplayPayload{MediaFileID: third, Origin: TrickplayOriginImport}, prioTrickplayImport, false); err != nil {
 		t.Fatal(err)
 	}
-	e.start(third, 20_000, model.DefaultLibraryTrickplay().Movies)
+	e.start(third, 20_000, trickplayAheadSetting.Movies)
 	var p trickplayPayload
 	if err := json.Unmarshal([]byte(e.str(`SELECT payload FROM jobs WHERE idempotency_key = ? AND state = 'queued'`, trickplayKey(third))), &p); err != nil {
 		t.Fatal(err)
@@ -284,7 +299,7 @@ func TestTrickplayPauseHolds(t *testing.T) {
 	e := newTPEnv(t)
 	id := e.film("Film (2020)", 30_000)
 	e.exec(`INSERT INTO job_types (type, paused_at, updated_at) VALUES (?, 1, 1)`, JobTrickplay)
-	e.start(id, 0, model.DefaultLibraryTrickplay().Movies)
+	e.start(id, 0, trickplayAheadSetting.Movies)
 	if j, err := e.queue.Claim(e.ctx, "trickplay-1", []string{JobTrickplay}); err != nil || j != nil {
 		t.Errorf("claimed %v while paused (%v)", j, err)
 	}
@@ -362,7 +377,7 @@ func TestTrickplayBrokenPoints(t *testing.T) {
 		}
 		return nil
 	}
-	e.start(id, 0, model.DefaultLibraryTrickplay().Movies)
+	e.start(id, 0, trickplayAheadSetting.Movies)
 	if _, err := e.run(); err != nil {
 		t.Fatalf("one broken point: %v", err)
 	}
@@ -374,7 +389,7 @@ func TestTrickplayBrokenPoints(t *testing.T) {
 		return nil
 	}
 	e.sheets = nil
-	e.start(broken, 0, model.DefaultLibraryTrickplay().Movies)
+	e.start(broken, 0, trickplayAheadSetting.Movies)
 	if _, err := e.run(); !errors.Is(err, errTrickplayFailures) {
 		t.Fatalf("five broken points: %v", err)
 	}
@@ -540,7 +555,7 @@ func TestTrickplayBackfill(t *testing.T) {
 	e := newTPEnv(t)
 	done := e.film("Fertig (2020)", 30_000)
 	open := e.film("Offen (2021)", 30_000)
-	e.start(done, 0, model.DefaultLibraryTrickplay().Movies)
+	e.start(done, 0, trickplayAheadSetting.Movies)
 	if _, err := e.run(); err != nil {
 		t.Fatal(err)
 	}
@@ -599,7 +614,7 @@ func TestTrickplaySweep(t *testing.T) {
 	t.Parallel()
 	e := newTPEnv(t)
 	id := e.film("Film (2020)", 30_000)
-	e.start(id, 0, model.DefaultLibraryTrickplay().Movies)
+	e.start(id, 0, trickplayAheadSetting.Movies)
 	if _, err := e.run(); err != nil {
 		t.Fatal(err)
 	}
@@ -670,7 +685,7 @@ func TestTrickplayJobRealFFmpeg(t *testing.T) {
 	if err := e.svc.handleProbe(e.ctx, e.probeJobOf(id)); err != nil {
 		t.Fatal(err)
 	}
-	e.start(id, 0, model.DefaultLibraryTrickplay().Movies)
+	e.start(id, 0, trickplayAheadSetting.Movies)
 	if _, err := e.run(); err != nil {
 		t.Fatal(err)
 	}
