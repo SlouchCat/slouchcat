@@ -3,8 +3,9 @@
 - **Status: Fassung 2 (9. November 2026), mit klickbaren Mockups.** Marco hat am 9. November 2026 die
   Grundsatzfragen **F-1 bis F-4** beantwortet (Abschnitt 2) und nach dem ersten Blick auf die Mockups
   zwei Dinge geändert: der Umfang hat **drei** Werte («Nur neue Folgen», «Neue + letzte N», «Alle
-  Folgen»; «Neue und fehlende Folgen» entfällt), und «Gleichzeitig laden» geht **bis 5**. Offen sind
-  die Wahl der Mockup-Varianten (**F-5, F-6**) und die Punkte in Abschnitt 16 (O-1 und O-4 sind
+  Folgen»; «Neue und fehlende Folgen» entfällt), und «Gleichzeitig laden» geht **bis 5**. Für die
+  abonnierten Podcasts hat er **Variante A (Liste mit Covern)** gewählt (F-5). Offen sind die
+  Variante der Einstellung (**F-6**) und die Punkte in Abschnitt 16 (O-1, O-4 und O-9 sind
   erledigt). Ein Kritiker-Review steht noch aus.
   **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Auslöser:** Marco will, dass Slouchcat neue Podcast-Folgen als Datei in den Ordner des Podcasts
@@ -48,7 +49,7 @@
 | F-2 | Was wird geladen, wenn Speichern eingeschaltet ist? | **Eine Auswahl aus drei Werten:** «Nur neue Folgen», «Neue + letzte N», «Alle Folgen (plus neue)». Zuerst nannte Marco auch «Neue und fehlende Folgen»; nach dem Mockup hat er den Wert gestrichen. **Gleichzeitig laden: bis zu 5.** |
 | F-3 | Audiobookshelf lädt heute noch in denselben Ordner. Wie weiter? | **Slouchcat übernimmt.** Marco schaltet die automatischen Downloads in Audiobookshelf ab; Slouchcat schreibt im selben Layout. |
 | F-4 | Wie lange bleiben gespeicherte Folgen? | **Für immer.** Slouchcat löscht nie eine Datei im Podcast-Ordner. |
-| F-5 | Welche Variante für die abonnierten Podcasts (A Liste, B Raster, C Tabelle)? | **offen**, Empfehlung A (11.2) |
+| F-5 | Welche Variante für die abonnierten Podcasts (A Liste, B Raster, C Tabelle)? | **A, Liste mit Covern** (9. November 2026; Empfehlung). |
 | F-6 | Welche Variante für die Einstellung (A Dialog in der Bibliothek, B Band auf der Podcasts-Seite)? | **offen**, Empfehlung A mit dem Abschnitt «Downloads» aus B (11.3) |
 
 ## 3. Was sich gegenüber früheren Entscheiden ändert
@@ -308,7 +309,6 @@ Jede Operation trägt `x-visibility: admin` und bekommt ihren Eintrag im Vertrag
 | 2 | neu `cancelPodcastDownload` (`DELETE /admin/podcasts/{id}/episodes/{episodeId}/download`). |
 | 2 | neu `listPodcastDownloads` (`GET /admin/podcasts/downloads`): die Warteschlange für den Abschnitt «Downloads». |
 | 2 | `AdminPodcast.coverUrl` für das Cover in der Liste (Bild-Endpunkt wie für Titelbilder, als `http.Handler`, Regel 6). |
-| 2 | nur mit Variante C: `updatePodcasts` (Mehrfachauswahl, eine Liste von Ids mit denselben Feldern). |
 
 Neue Fehlercodes: `root_not_writable`, `root_required` (Bibliothek ohne Podcast-Ordner),
 `mode_link`.
@@ -334,8 +334,9 @@ Folge, Zustand (aktuell, lädt, Feed-Fehler).
 | **B Raster mit Seitenfeld** (`AbosB`) | Cover-Kacheln, rechts das Feld des gewählten Podcasts mit Einstellung und letzten Folgen. | Schön, schnell zu überblicken, wenn man die Cover kennt. | Wenig Zahlen je Kachel; das Seitenfeld rutscht am Handy unter das Raster. |
 | **C Tabelle mit Mehrfachauswahl** (`AbosC`) | Wie heute, dazu Cover, «Neue Folgen» als Auswahl in der Zeile, sortierbare Spalten, Häkchen und Sammelaktionen. | Am dichtesten; 20 Podcasts in einem Zug umstellen. | Am wenigsten «schöner»; am Handy seitlich scrollen. |
 
-**Empfehlung: A.** Sie erfüllt W-4 am besten und bleibt am Handy bedienbar. Die Mehrfachauswahl aus C
-lässt sich später nachrüsten, wenn sie fehlt; mit der Vorgabe je Bibliothek braucht es sie selten.
+**Gewählt: A** (Marco, 9. November 2026). Sie erfüllt W-4 am besten und bleibt am Handy bedienbar.
+B und C werden nicht gebaut. Die Mehrfachauswahl aus C lässt sich später nachrüsten, wenn sie fehlt;
+mit der Vorgabe je Bibliothek braucht es sie selten.
 
 In jeder Variante führt ein Klick zum **einzelnen Podcast** (`Podcast`): eigene Seite mit Cover,
 Einstellung und der Folgenliste. Je Folge steht «Gespeichert», «Nur Link», «Lädt», «Fehlgeschlagen»
@@ -398,7 +399,7 @@ stimmt.
 |---|---|---|---|
 | **0** | Messauftrag M-1 (Abschnitt 8) auf CT 190, Ergebnis nach `docs/perf/19-podcasts.md`. Frage 26 und ADR 0029. | – | 0,5 Tage |
 | **1 «Speichern»** | Paket `internal/fetch` (aus `offline` herausgelöst), Migration, Planer und Download mit Pool `podcast`, Schreibtest, Dateinamen-Abgleich, Vertrag 1.24.0, Dialog «Neue Folgen» in der Bibliothek (Variante A), auf der heutigen Podcasts-Seite: Wahl je Podcast im Ausklapp, Spalte «gespeichert», Knopf «Fehlende nachladen». `compose.yaml` und Installationsanleitung. | 1.24.0 | 6 bis 7 Tage |
-| **2 «Neue Podcasts-Seite»** | Gewählte Listenvariante, Seite «Podcast» mit Folgenliste, Abschnitt «Downloads», Cover, Vertrag 1.25.0. | 1.25.0 | 4 bis 5 Tage |
+| **2 «Neue Podcasts-Seite»** | Liste mit Covern (Variante A), Seite «Podcast» mit Folgenliste, Abschnitt «Downloads», Cover, Vertrag 1.25.0. | 1.25.0 | 4 bis 5 Tage |
 
 Stufe 1 ist für sich nützlich: nach ihr speichert Slouchcat Folgen, und Audiobookshelf kann die
 Downloads abgeben. Jeder Schritt ist ein eigener Commit; geprüft wird nach den Teststufen in
@@ -433,7 +434,7 @@ Downloads abgeben. Jeder Schritt ist ein eigener Commit; geprüft wird nach den 
 | O-6 | Bandbreite begrenzen? | nein; Zeitfenster und «Gleichzeitig laden» genügen |
 | O-7 | Tags in die Datei schreiben (Titel, Datum)? | nein; die Datei bleibt, wie der Anbieter sie liefert, Slouchcat kennt die Daten aus dem Feed |
 | O-8 | Schlägt die Sonde einer geladenen Datei fehl: Datei löschen? | nein (F-4); Fehler zeigen, Marco entscheidet |
-| O-9 | Mehrfachauswahl (Variante C) zusätzlich zu A? | erst bei Bedarf |
+| O-9 | ~~Mehrfachauswahl (Variante C) zusätzlich zu A?~~ | **erledigt** (9. November 2026): Marco hat A gewählt; Mehrfachauswahl erst bei Bedarf, nicht Teil dieses Konzepts |
 
 ## Anhang A: Mockups
 
