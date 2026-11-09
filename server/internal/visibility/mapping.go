@@ -248,6 +248,9 @@ func summarize(it scopedq.Item, ex extras, lang langPref) model.ItemSummary {
 		w := ex.watched[it.ID]
 		s.WatchedCount = &w
 	}
+	if done, ok := ex.allWatched[it.ID]; ok && (it.Kind == "series" || it.Kind == "podcast") {
+		s.Watched = &done
+	}
 	return s
 }
 

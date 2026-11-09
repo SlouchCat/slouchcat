@@ -1,8 +1,8 @@
-import type { Collection } from '@slouchcat/api-client';
+import type { Collection, ItemRef } from '@slouchcat/api-client';
 import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { alien, arrival, heat, ids } from '@/test/fixtures';
+import { alien, arrival, heat, ids, podcast, seriesIds } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
 
 const id = '01JB8Z6Q4M7N9P2R3S5T7V9C01';
@@ -67,6 +67,38 @@ describe('collection page', () => {
     expect(cover()?.getAttribute('src')).toBe(
       `/api/v1/items/${ids.alien}/images/poster/w500?v=abc`,
     );
+  });
+
+  it('checks a watched series and a heard podcast, not an open series (contract 1.22.0)', async () => {
+    const series = (seriesId: string, title: string, watched?: boolean): ItemRef => ({
+      id: seriesId,
+      kind: 'series',
+      title,
+      inWatchlist: false,
+      images: {},
+      ...(watched === undefined ? {} : { watched }),
+    });
+    mockApi({
+      ...signedIn,
+      [`GET /collections/${id}`]: () =>
+        json({
+          ...collection,
+          items: [
+            series(seriesIds.show, 'Ganz gesehen', true),
+            series(seriesIds.season1, 'Halb gesehen', false),
+            series(seriesIds.specials, 'Ohne Folgen'),
+            { ...podcast, watched: true },
+          ],
+          total: 4,
+        }),
+    });
+    renderApp(`/collections/${id}`);
+    const members = await screen.findByRole('region', { name: 'Titel' });
+    const card = (name: RegExp) => within(members).getByRole('link', { name });
+    expect(within(card(/Ganz gesehen/)).getByRole('img', { name: 'Gesehen' })).toBeVisible();
+    expect(within(card(/Halb gesehen/)).queryByRole('img', { name: 'Gesehen' })).toBeNull();
+    expect(within(card(/Ohne Folgen/)).queryByRole('img', { name: 'Gesehen' })).toBeNull();
+    expect(within(card(/Test Podcast/)).getByRole('img', { name: 'Gehört' })).toBeVisible();
   });
 
   it('says "nicht gefunden" for an unknown or invisible collection', async () => {

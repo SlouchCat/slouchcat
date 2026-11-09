@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"slices"
 	"strings"
@@ -334,6 +335,65 @@ func TestContractDetailImages(t *testing.T) {
 	for place, n := range images {
 		if strings.HasPrefix(place, "without ") && n != 0 {
 			t.Errorf("%s: %d answers with an image, want none", place, n)
+		}
+	}
+}
+
+// Contract 1.22.0: ItemRef.watched on series and podcasts, in the detail and in the library list,
+// by the rule of the library status watched (TestSeriesWatched and TestPodcastWatched in
+// visibility hold the cases); every other kind leaves it out.
+func TestContractSeriesAndPodcastWatched(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	f, h := pf.f, pf.h
+	show, a := f.Show, f.Audio
+	// P12 completes every episode it may see (not E2, rated 16) and every podcast episode rated
+	// up to 12.
+	for _, id := range []string{show.E1.ID, show.E3.ID, show.Special.ID, a.Episodes[0].ID, a.Episodes[1].ID, a.Episodes[2].ID, a.EnclosureOnly.ID} {
+		if _, err := f.DB.Write.Exec(`INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at) VALUES (?, ?, 5000, 5000, 1, 1)`, f.P12.ID, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	listed := func(token string, libraryID int64, id string) rawDetail {
+		t.Helper()
+		rec := send(t, h, http.MethodGet, fmt.Sprintf("%s/libraries/%d/items?limit=100", BasePath, libraryID), token, "", nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s listLibraryItems %d: %d %s", token, libraryID, rec.Code, rec.Body.String())
+		}
+		var page rawDetail
+		if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
+			t.Fatal(err)
+		}
+		for _, it := range page.list(t, "items") {
+			if it.str("id") == id {
+				return it
+			}
+			if _, ok := it["watched"]; ok && it.str("kind") != "series" && it.str("kind") != "podcast" {
+				t.Errorf("%s: %s %s carries watched", token, it.str("kind"), it.str("id"))
+			}
+		}
+		t.Fatalf("%s: %s missing from library %d", token, id, libraryID)
+		return nil
+	}
+	for _, tc := range []struct {
+		token string
+		want  bool
+	}{{"p12", true}, {"p18", false}} {
+		for _, title := range []struct {
+			id  string
+			lib int64
+		}{{show.Series.ID, fixtureLibrary}, {a.Podcast.ID, a.PodcastLibraryID}} {
+			if got, ok := getRawDetail(t, h, tc.token, title.id).flag("watched"); !ok || got != tc.want {
+				t.Errorf("%s getItem %s: watched %v (set %v), want %v", tc.token, title.id, got, ok, tc.want)
+			}
+			if got, ok := listed(tc.token, title.lib, title.id).flag("watched"); !ok || got != tc.want {
+				t.Errorf("%s list %s: watched %v (set %v), want %v", tc.token, title.id, got, ok, tc.want)
+			}
+		}
+	}
+	for _, id := range []string{show.Season.ID, show.E1.ID, f.Rated(12).ID} {
+		if _, ok := getRawDetail(t, h, "p12", id)["watched"]; ok {
+			t.Errorf("getItem %s carries watched", id)
 		}
 	}
 }

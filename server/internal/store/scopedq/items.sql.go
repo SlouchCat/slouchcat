@@ -1099,18 +1099,35 @@ func (q *Queries) ListTopPicks(ctx context.Context, arg ListTopPicksParams) ([]L
 
 const listVisibleChildCounts = `-- name: ListVisibleChildCounts :many
 SELECT i.id,
-       (SELECT count(*) FROM items AS c
-        JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
-        WHERE c.parent_id = i.id AND c.kind IN ('season', 'episode')) AS child_count,
+       CAST(CASE WHEN i.kind IN ('series', 'season') THEN
+         (SELECT count(*) FROM items AS c
+          JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
+          WHERE c.parent_id = i.id AND c.kind IN ('season', 'episode'))
+       ELSE 0 END AS INTEGER) AS child_count,
        CAST(CASE WHEN i.kind = 'season' THEN
          (SELECT count(*) FROM items AS c
           JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
           JOIN progress AS pc ON pc.profile_id = ?1 AND pc.item_id = c.id AND pc.completed = 1
           WHERE c.parent_id = i.id AND c.kind = 'episode')
-       ELSE 0 END AS INTEGER) AS watched_count
+       ELSE 0 END AS INTEGER) AS watched_count,
+       CASE WHEN i.kind NOT IN ('series', 'podcast') THEN NULL
+         WHEN EXISTS (
+           SELECT 1 FROM items AS se
+           CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+           LEFT JOIN progress AS pe ON pe.profile_id = ?1 AND pe.item_id = e.id
+           CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+           WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season'))
+             AND +e.library_id = i.library_id AND COALESCE(pe.completed, 0) = 0) THEN 0
+         WHEN EXISTS (
+           SELECT 1 FROM items AS se
+           CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+           JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+           WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season'))
+             AND +e.library_id = i.library_id) THEN 1
+       END AS watched
 FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
-WHERE i.id IN (/*SLICE:item_ids*/?) AND i.kind IN ('series', 'season')
+WHERE i.id IN (/*SLICE:item_ids*/?) AND i.kind IN ('series', 'season', 'podcast')
 `
 
 type ListVisibleChildCountsParams struct {
@@ -1122,12 +1139,21 @@ type ListVisibleChildCountsRow struct {
 	ID           string
 	ChildCount   int64
 	WatchedCount int64
+	Watched      interface{}
 }
 
 // Number of visible content children of visible series and seasons: seasons of a series, episodes
-// of a season (extras never count). One query with a correlated subquery over visible_items.
-// watched_count counts the visible episodes of a season the profile has completed (concept 17
-// section 2.3, like the "done" of the library's episode statistics); 0 for a series.
+// of a season (extras never count); 0 for a podcast. One query with correlated subqueries over
+// visible_items. watched_count counts the visible episodes of a season the profile has completed
+// (concept 17 section 2.3, like the "done" of the library's episode statistics). watched
+// (ItemRef.watched, contract 1.22.0) is set for series and podcasts only, over the episodes of the
+// library status rule (visibility.episodeStatsBody): an episode or podcast episode of the title's
+// library in one of its seasons (specials included) or directly below it. It is 0 when a visible
+// episode is not completed, 1 when every visible episode is, NULL without a visible episode. The
+// first EXISTS reads the progress before visible_items (CROSS JOIN), so a completed episode costs
+// no visibility check and an unwatched title stops at its first open episode; the second runs
+// only when no episode is open. The unary + on e.library_id keeps the planner on the parent index
+// (items_episode) instead of reading every episode of the library.
 func (q *Queries) ListVisibleChildCounts(ctx context.Context, arg ListVisibleChildCountsParams) ([]ListVisibleChildCountsRow, error) {
 	query := listVisibleChildCounts
 	var queryParams []interface{}
@@ -1148,7 +1174,12 @@ func (q *Queries) ListVisibleChildCounts(ctx context.Context, arg ListVisibleChi
 	items := []ListVisibleChildCountsRow{}
 	for rows.Next() {
 		var i ListVisibleChildCountsRow
-		if err := rows.Scan(&i.ID, &i.ChildCount, &i.WatchedCount); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.ChildCount,
+			&i.WatchedCount,
+			&i.Watched,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

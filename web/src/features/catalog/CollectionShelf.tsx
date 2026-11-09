@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
 import { paths } from '@/app/paths';
 import { PosterCard, RowList, SpatialButtonLink, SpatialGroup } from '@/ui';
-import { isAudioKind } from './labels';
+import { isAudioKind, isFinished } from './labels';
 import styles from './ItemPage.module.css';
 
 const memberKey = (collection: CollectionRef, member: ItemRef) =>
@@ -55,6 +55,7 @@ export function CollectionShelf({ collection, currentId, coverMark }: Collection
         >
           {members.map((member) => {
             const progress = member.progress;
+            const finished = isFinished(member);
             const audio = isAudioKind(member.kind);
             const active = member.id === currentId;
             return (
@@ -71,12 +72,12 @@ export function CollectionShelf({ collection, currentId, coverMark }: Collection
                 active={active}
                 aria-current={active ? 'true' : undefined}
                 watchedLabel={
-                  progress?.completed
+                  finished
                     ? t(audio ? 'library.status.heard' : 'library.status.watched')
                     : undefined
                 }
                 progress={
-                  progress && !progress.completed && progress.positionMs > 0
+                  progress && !finished && progress.positionMs > 0
                     ? {
                         percent: progress.percent,
                         label: t(audio ? 'item.listened' : 'item.watched', {
