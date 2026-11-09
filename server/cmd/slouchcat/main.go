@@ -475,21 +475,23 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 }
 
 // poolWorkers returns the workers per pool: general workers from SLOUCHCAT_WORKERS, one each for
-// downloads, notifications and the keyframe index (concept 09 F-9, concept 14 F-2; not adjustable).
+// downloads, notifications, the keyframe index and trickplay (concept 09 F-9, concept 14 F-2,
+// concept 18 O-1; not adjustable).
 func poolWorkers(general int) map[jobs.Pool]int {
-	return map[jobs.Pool]int{jobs.PoolGeneral: general, jobs.PoolDownload: 1, jobs.PoolNotify: 1, jobs.PoolIndex: 1}
+	return map[jobs.Pool]int{jobs.PoolGeneral: general, jobs.PoolDownload: 1, jobs.PoolNotify: 1, jobs.PoolIndex: 1, jobs.PoolTrickplay: 1}
 }
 
 // startWorkers starts the workers of counts (poolWorkers) on wg, each claiming only the job types
-// of its pool: worker-1 … for the general pool, download-1, notify-1 and index-1 for the others.
+// of its pool: worker-1 … for the general pool, download-1, notify-1, index-1 and trickplay-1 for
+// the others.
 // onFinalFailure hears of a job that failed its last attempt on every pool but notify.
 func startWorkers(ctx context.Context, wg *sync.WaitGroup, queue *jobs.Queue, registry *jobs.Registry, counts map[jobs.Pool]int,
 	log *slog.Logger, onFinalFailure ...func(context.Context, jobs.Job, error)) {
 	// The general workers, then a worker of its own for download preparations (long encodes never
 	// hold up scans and probes), for notification deliveries (M8: a slow mail server never holds
 	// up scans) and for the full keyframe reads (concept 14, 6.3: a read of minutes never holds
-	// up a general worker, and two never run at once).
-	for _, pool := range []jobs.Pool{jobs.PoolGeneral, jobs.PoolDownload, jobs.PoolNotify, jobs.PoolIndex} {
+	// up a general worker, and two never run at once) and for the preview tiles (concept 18).
+	for _, pool := range []jobs.Pool{jobs.PoolGeneral, jobs.PoolDownload, jobs.PoolNotify, jobs.PoolIndex, jobs.PoolTrickplay} {
 		prefix := string(pool)
 		if pool == jobs.PoolGeneral {
 			prefix = "worker"

@@ -351,6 +351,10 @@ type MediaFileLocation struct {
 	// Mtime is the modification time of the file row (Unix ms); with File.SizeBytes the version
 	// a keyframe index computed for playback is stored for (library.StoreKeyframes, concept 14).
 	Mtime int64
+	// LibraryID is the library of the file's root; Trickplay its trickplay setting (concept 18,
+	// 8.1; LibraryTrickplay.For picks the one of the title's kind).
+	LibraryID int64
+	Trickplay model.LibraryTrickplay
 }
 
 // MediaFile returns a media file of a visible title. An empty fileID selects the primary file: the
@@ -367,7 +371,11 @@ func (r *Reader) MediaFile(ctx context.Context, s Scope, itemID, fileID string) 
 	}
 	for _, f := range files {
 		if (fileID == "" && !f.MissingSince.Valid) || (fileID != "" && f.ID == fileID) {
-			return MediaFileLocation{ItemID: f.ItemID, File: mediaFile(f), RootPath: f.RootPath, RelPath: f.RelPath, ProbedAt: f.ProbedAt.Int64, Mtime: f.Mtime}, nil
+			return MediaFileLocation{ItemID: f.ItemID, File: mediaFile(f), RootPath: f.RootPath, RelPath: f.RelPath, ProbedAt: f.ProbedAt.Int64, Mtime: f.Mtime,
+				LibraryID: f.LibraryID, Trickplay: model.LibraryTrickplay{
+					Movies: model.TrickplaySetting{Mode: f.TrickplayMovies, Keep: f.TrickplayMoviesKeep == 1},
+					Series: model.TrickplaySetting{Mode: f.TrickplaySeries, Keep: f.TrickplaySeriesKeep == 1, Scope: f.TrickplaySeriesScope},
+				}}, nil
 		}
 	}
 	return MediaFileLocation{}, model.ErrNotFound

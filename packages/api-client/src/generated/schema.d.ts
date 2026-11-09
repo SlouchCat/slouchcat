@@ -647,6 +647,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/items/{id}/trickplay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview tiles of the seek bar of a film or an episode (trickplay, contract 1.23.0)
+         * @description The same `Trickplay` that `PlaybackInfo.trickplay` carries, to ask again while `state` is `queued`
+         *     or `running` (concept 18 part A, ADR 0027): the player asks every 10 s without a time limit and
+         *     stops at `complete` or `failed`. The server decides everything (rule 12): the setting of the
+         *     library for the kind of the title, the visibility and the file version. Nothing is queued by
+         *     this operation; a start of the playback queues the preview job. The title and the file are
+         *     resolved through the scope of the active profile: an unknown, invisible or age-restricted
+         *     title, a `mediaFileId` that is no ULID or no file of this title, a title without video (an
+         *     audiobook, a podcast episode) and a library whose setting for this kind is `off` answer 404,
+         *     never 403. Before the first sheet exists the answer has `sheets: []` and the grid the job will
+         *     write.
+         */
+        get: operations["getTrickplay"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/{id}/trickplay/{sheet}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One sheet of preview tiles (binary, contract 1.23.0)
+         * @description Implemented as an `http.Handler` (concept 18 part A, rule 6). `Trickplay.sheets[].url` names this
+         *     route for every sheet that exists; the client does not build the URL itself. A sheet is one WebP
+         *     of `columns` x `rows` tiles of `tileWidth` x `tileHeight` pixels (the last sheet only as many rows
+         *     as it needs); tile `k` of the set is at sheet `k / (columns * rows)`, row and column in reading
+         *     order, and shows the time `pointsMs[k]`. The handler resolves the file of the title through the
+         *     scope of the active profile: an unknown, invisible or age-restricted title, a `mediaFileId` that
+         *     is no ULID or no file of this title, a `sheet` that is no decimal number and a sheet that does not
+         *     exist answer 404, never 403. `v` is the version of the set (`Trickplay.version`, size and mtime
+         *     of the file): a `v` of the file's current version answers with `ETag` (the version and the sheet
+         *     in quotes) and `Cache-Control: private, max-age=31536000, immutable`; another or no `v` serves
+         *     the sheet of the current version with `Cache-Control: private, no-cache`.
+         */
+        get: operations["getTrickplaySheet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/items/{id}/trailers": {
         parameters: {
             query?: never;
@@ -1157,6 +1216,29 @@ export interface paths {
          *     Any other track → 404. `Cache-Control: private, no-store`.
          */
         get: operations["getDownloadSubtitle"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/downloads/{id}/trickplay/{sheet}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One sheet of preview tiles of a prepared download (binary, contract 1.23.0)
+         * @description Implemented as an `http.Handler`, authorised by `dt` like `getDownloadFile` (concept 18, 6.8). The
+         *     sheets listed in `DownloadManifest.trickplay`, copied into the download when it was prepared, so
+         *     the PWA stores them with the file and shows them offline. Any other sheet → 404.
+         *     `Cache-Control: private, no-store`.
+         */
+        get: operations["getDownloadTrickplaySheet"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5821,6 +5903,14 @@ export interface components {
             segments: components["schemas"]["Segments"];
             /** @description The next visible episode of the same series (auto-next, W-9). */
             nextEpisode?: components["schemas"]["ItemRef"];
+            /**
+             * @description Preview tiles of the seek bar (since contract 1.23.0, concept 18 part A). Present for every
+             *     film and episode with video whose library setting for its kind is not `off`; absent for
+             *     audiobooks, podcast episodes, titles without video and the setting `off`. The first start
+             *     of a file without a set carries `state: queued` and `sheets: []`; ask `getTrickplay` again
+             *     while `state` is `queued` or `running`.
+             */
+            trickplay?: components["schemas"]["Trickplay"];
             watchTime?: components["schemas"]["WatchTime"];
             /** @description The device this playback was recorded for (W-7). */
             device?: {
@@ -6515,6 +6605,11 @@ export interface components {
              *     below it (`rating_below_library_default`).
              */
             defaultRating?: components["schemas"]["Rating"];
+            /**
+             * @description The settings «Vorschau beim Spulen» (since contract 1.23.0); only for `video` (`not_allowed`
+             *     otherwise). Absent: films and series «Im Voraus» with `keep` and the scope `series`.
+             */
+            trickplay?: components["schemas"]["LibraryTrickplay"];
         };
         /** @description One folder of a library with what it holds and who describes it (ADR 0015). */
         LibraryRootRequest: {
@@ -6573,6 +6668,13 @@ export interface components {
              *     video libraries.
              */
             defaultRating?: components["schemas"]["Rating"];
+            /**
+             * @description New settings «Vorschau beim Spulen» of a video library, both groups at once (since contract
+             *     1.23.0); `not_allowed` for audio libraries. A change to a setting that does not store (`off`,
+             *     `on_start` without `keep`) removes the stored sets of that kind at the next maintenance, once no
+             *     playback of the file is open; waiting import, backfill and look-ahead jobs end without work.
+             */
+            trickplay?: components["schemas"]["LibraryTrickplay"];
         };
         /**
          * @description `aborted` means the loss protection stopped the scan (root missing or empty, or more than 20 % of
@@ -6592,6 +6694,10 @@ export interface components {
             scan: components["schemas"]["LibraryScan"];
             /** @description Keyframe index coverage of a video library; absent for audio libraries (since contract 1.13.0). */
             keyframeIndex?: components["schemas"]["LibraryKeyframeIndex"];
+            /** @description The settings «Vorschau beim Spulen» of a video library; absent for audio libraries (since contract 1.23.0). */
+            trickplay?: components["schemas"]["LibraryTrickplay"];
+            /** @description Storage estimate of the previews of a video library; only in `getLibrary`, absent for audio libraries (since contract 1.23.0). */
+            trickplayEstimate?: components["schemas"]["LibraryTrickplayEstimate"];
             /** Format: date-time */
             createdAt: string;
         };
@@ -6609,6 +6715,132 @@ export interface components {
             pending: number;
             /** @description Files whose index cannot be built; they are always transcoded. */
             unavailable: number;
+        };
+        /**
+         * @description The settings «Vorschau beim Spulen» of a video library (concept 18, 6.1; since contract 1.23.0),
+         *     one for films (titles of kind `movie`) and one for series (kind `episode`), also in a library
+         *     that holds both.
+         */
+        LibraryTrickplay: {
+            movies: components["schemas"]["LibraryTrickplayMovies"];
+            series: components["schemas"]["LibraryTrickplaySeries"];
+        };
+        /** @description The trickplay setting of the films of a library. */
+        LibraryTrickplayMovies: {
+            mode: components["schemas"]["TrickplayMoviesMode"];
+            /** @description «Speichern» of `on_start`; stored for every mode, read only with `on_start`. */
+            keep: boolean;
+        };
+        /** @description The trickplay setting of the episodes of a library. */
+        LibraryTrickplaySeries: {
+            mode: components["schemas"]["TrickplaySeriesMode"];
+            /** @description «Speichern» of `on_start`; stored for every mode, read only with `on_start`. */
+            keep: boolean;
+            scope: components["schemas"]["TrickplaySeriesScope"];
+        };
+        /**
+         * @description `ahead` «Im Voraus» (default): on import of new files, by the backfill (`trickplay.backfill`) and at
+         *     a start when missing, always stored. `on_start` «Beim Start»: at a start, stored with `keep`, else
+         *     only while it plays. `off` «Aus»: never; the seek bar shows the chapter image.
+         * @enum {string}
+         */
+        TrickplayMoviesMode: "ahead" | "on_start" | "off";
+        /**
+         * @description As `TrickplayMoviesMode`, and `series_start` «Beim Start alle Folgen»: a start of an episode makes
+         *     its previews and, in the background, those of the other episodes in `scope`; always stored.
+         * @enum {string}
+         */
+        TrickplaySeriesMode: "ahead" | "on_start" | "series_start" | "off";
+        /**
+         * @description The look-ahead of `series_start` (F-14): `series` the whole series (default, specials last),
+         *     `season_rest` from the started episode to the end of its season (at the last episode the first
+         *     season after it), `next_episode` the following episode.
+         * @enum {string}
+         */
+        TrickplaySeriesScope: "series" | "season_rest" | "next_episode";
+        /**
+         * @description Storage estimate of the previews of a video library per kind (concept 18, 9; since contract
+         *     1.23.0), computed from the running time of the present media files (every version counts, files
+         *     without a duration do not) at about 1.5 MB per hour of video. The values hold for a storing
+         *     setting; the client says «at most» for `on_start` with `keep` and `series_start`, and shows 0 for
+         *     `off` and `on_start` without `keep`. `storedBytes` is what the stored sets take today, counted by
+         *     the hourly `library.sweep`.
+         */
+        LibraryTrickplayEstimate: {
+            movies: components["schemas"]["LibraryTrickplayKindEstimate"];
+            series: components["schemas"]["LibraryTrickplayKindEstimate"];
+            /**
+             * Format: int64
+             * @description Free space on the drive of the cache directory; absent when unknown.
+             */
+            cacheFreeBytes?: number;
+        };
+        LibraryTrickplayKindEstimate: {
+            /** @description Films or episodes of the library with a present media file. */
+            titles: number;
+            /** @description Present media files of these titles with a duration. */
+            files: number;
+            /**
+             * Format: int64
+             * @description Running time of these files together.
+             */
+            durationMs: number;
+            /**
+             * Format: int64
+             * @description Estimate for one film or one episode (mean running time); 0 without files.
+             */
+            perTitleBytes: number;
+            /**
+             * Format: int64
+             * @description Estimate for every file of this kind in the library.
+             */
+            libraryBytes: number;
+            /**
+             * Format: int64
+             * @description Bytes of the stored sets of this kind today (0 before the first count).
+             */
+            storedBytes: number;
+        };
+        /**
+         * @description The preview tiles of the seek bar of one media file (concept 18 part A, ADR 0027; since contract
+         *     1.23.0). One point every `intervalMs` (10 s); point `k` is the keyframe the job took for the
+         *     section from `k * intervalMs`, its time is `pointsMs[k]`. For a pointer position the client
+         *     shows the last point with `pointsMs[k] <= position`. Tile `k` lies on sheet
+         *     `floor(k / (columns * rows))` at row `floor(k mod (columns * rows) / columns)` and column
+         *     `k mod columns`, each tile `tileWidth` x `tileHeight` pixels. `sheets` lists the sheets that
+         *     exist now, in any order (the job makes the sheet of the start position first).
+         */
+        Trickplay: {
+            /** @description Version of the set, `<size>-<mtime>` of the media file; the `v` of the sheet URLs. */
+            version: string;
+            /**
+             * @description `queued`: the job waits (or the set is not started); `running`: it makes sheets now;
+             *     `complete`: every sheet exists; `failed`: the job gave up, the sheets that exist stay.
+             * @enum {string}
+             */
+            state: "queued" | "running" | "complete" | "failed";
+            /** @description Distance of the points (10000). */
+            intervalMs: number;
+            /** @description Width of a tile in pixels (320). */
+            tileWidth: number;
+            /** @description Height of a tile in pixels (by the display aspect ratio of the file, even). */
+            tileHeight: number;
+            /** @description Tiles per row of a sheet (10). */
+            columns: number;
+            /** @description Rows of a full sheet (10); the last sheet has only as many as it needs. */
+            rows: number;
+            /** @description Time of every point in milliseconds, ascending. */
+            pointsMs: number[];
+            sheets: components["schemas"]["TrickplaySheet"][];
+        };
+        TrickplaySheet: {
+            /** @description Number of the sheet, from 0. */
+            index: number;
+            /**
+             * Format: uri-reference
+             * @description Relative URL of `getTrickplaySheet` (online) or `getDownloadTrickplaySheet` (in a download).
+             */
+            url: string;
         };
         LibraryRoot: {
             /** Format: int64 */
@@ -6797,6 +7029,13 @@ export interface components {
              *     fetches no chapter images.
              */
             chapters: components["schemas"]["Chapter"][];
+            /**
+             * @description The preview tiles copied into the download (since contract 1.23.0, concept 18, 6.8), always with
+             *     `state: complete`; `sheets[].url` names `getDownloadTrickplaySheet` with the download token.
+             *     Absent when the library setting is `off` or no complete set was ready within 10 minutes of the
+             *     preparation.
+             */
+            trickplay?: components["schemas"]["Trickplay"];
         };
         OfflineSyncRequest: {
             held: {
@@ -7839,7 +8078,7 @@ export interface components {
             /** @enum {string} */
             trigger: "schedule" | "event" | "manual";
             /** @enum {string} */
-            pool: "general" | "download" | "notify" | "index";
+            pool: "general" | "download" | "notify" | "index" | "trickplay";
             paused: boolean;
             /** Format: date-time */
             pausedAt?: string;
@@ -7882,10 +8121,11 @@ export interface components {
         };
         JobPool: {
             /**
-             * @description `index` has one worker: the full keyframe reads (concept 14; since contract 1.13.0).
+             * @description `index` has one worker: the full keyframe reads (concept 14; since contract 1.13.0). `trickplay` has
+             *     one worker: the preview tiles of the seek bar (concept 18; since contract 1.23.0).
              * @enum {string}
              */
-            pool: "general" | "download" | "notify" | "index";
+            pool: "general" | "download" | "notify" | "index" | "trickplay";
             workers: number;
             /** @description Estimated work waiting in the pool, divided by its workers; absent without any median. */
             backlogSeconds?: number;
@@ -10678,6 +10918,98 @@ export interface operations {
             };
         };
     };
+    getTrickplay: {
+        parameters: {
+            query: {
+                /** @description The media file the playback plays (`PlaybackInfo.mediaFile.id`, a ULID). */
+                mediaFileId: string;
+            };
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The preview set of the file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Trickplay"];
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown or not visible title, no such file of this title, or no preview for this title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getTrickplaySheet: {
+        parameters: {
+            query: {
+                /** @description The media file of the set (a ULID). */
+                mediaFileId: string;
+                /** @description Version of the set as in `Trickplay.version`; decides the caching of the answer. */
+                v?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+                /** @description Number of the sheet, from 0. */
+                sheet: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The sheet. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": string;
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown or not visible title, no such file of this title, or no such sheet (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getItemTrailers: {
         parameters: {
             query?: never;
@@ -11655,6 +11987,37 @@ export interface operations {
             410: components["responses"]["DownloadEvicted"];
         };
     };
+    getDownloadTrickplaySheet: {
+        parameters: {
+            query: {
+                /** @description Download token from `DownloadManifest.fileUrl`. Redacted in all logs. */
+                dt: components["parameters"]["DownloadToken"];
+            };
+            header?: never;
+            path: {
+                /** @description Download ID (ULID). */
+                id: components["parameters"]["DownloadID"];
+                /** @description Number of the sheet, from 0. */
+                sheet: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The sheet. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["DownloadUnauthenticated"];
+            404: components["responses"]["DownloadNotFound"];
+            410: components["responses"]["DownloadEvicted"];
+        };
+    };
     syncOffline: {
         parameters: {
             query?: never;
@@ -12056,7 +12419,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Validation failed (`validation_failed`; `defaultRating` `not_allowed` for video libraries). */
+            /** @description Validation failed (`validation_failed`; `defaultRating` `not_allowed` for video libraries, `trickplay` `not_allowed` for audio libraries). */
             422: {
                 headers: {
                     [name: string]: unknown;

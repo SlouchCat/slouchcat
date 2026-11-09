@@ -148,12 +148,16 @@ WHERE p.profile_id = @profile_id AND p.item_id IN (sqlc.slice('item_ids'));
 -- Media files (versions, B-5) of a visible title with the path of their library root: available
 -- files first, then the largest height, then the oldest, so the first row is the primary file.
 -- name: ListMediaFilesForItem :many
+-- With the library of the root and its trickplay setting (concept 18, 8.1), so playback knows it
+-- without reading media_files itself.
 SELECT m.id, m.item_id, m.rel_path, m.size, m.mtime, m.container, m.video_codec, m.audio_codec,
        m.width, m.height, m.duration_ms, m.version_label, m.missing_since, m.created_at, m.probed_at,
-       r.path AS root_path
+       r.path AS root_path, l.id AS library_id, l.trickplay_movies, l.trickplay_movies_keep,
+       l.trickplay_series, l.trickplay_series_keep, l.trickplay_series_scope
 FROM media_files AS m
 JOIN visible_items AS v ON v.item_id = m.item_id AND v.profile_id = @profile_id
 JOIN library_roots AS r ON r.id = m.root_id
+JOIN libraries AS l ON l.id = r.library_id
 WHERE m.item_id = @item_id
 ORDER BY m.missing_since IS NOT NULL, COALESCE(m.height, 0) DESC, m.created_at, m.id;
 

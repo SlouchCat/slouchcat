@@ -1150,6 +1150,30 @@ type PlaybackInfo struct {
 	NextEpisode       *ItemSummary
 	WatchTime         *WatchTime
 	Device            *DeviceRef
+	// Trickplay are the preview tiles of the seek bar (concept 18 part A); nil for audio titles,
+	// titles without video and the library setting off.
+	Trickplay *Trickplay
+}
+
+// Trickplay is the preview set of one media file for the app (concept 18, 8.2): the grid, the
+// time of every point and the sheets that exist, with the state of the set (queued, running,
+// complete, failed).
+type Trickplay struct {
+	Version    string
+	State      string
+	IntervalMs int64
+	TileWidth  int
+	TileHeight int
+	Columns    int
+	Rows       int
+	PointsMs   []int64
+	Sheets     []TrickplaySheet
+}
+
+// TrickplaySheet is one sheet of a preview set with its relative URL.
+type TrickplaySheet struct {
+	Index int
+	URL   string
 }
 
 // Media kinds of a playback (PlaybackInfo.MediaKind).
@@ -1450,6 +1474,9 @@ type LibraryRequest struct {
 	Kind          string // video, audiobooks, podcasts
 	Roots         []LibraryRootRequest
 	DefaultRating *int // audiobooks and podcasts only (AN-2); nil = 0 for those kinds
+	// Trickplay is the trickplay setting of a video library (concept 18, 6.1); nil = the defaults
+	// (DefaultLibraryTrickplay). Not allowed for audio libraries.
+	Trickplay *LibraryTrickplay
 }
 
 // LibraryRootRequest is one folder of a library with what it holds and who describes it.
@@ -1474,6 +1501,7 @@ type LibraryRootUpdate struct {
 type LibraryUpdate struct {
 	Name          *string
 	DefaultRating *int
+	Trickplay     *LibraryTrickplay // video libraries only (concept 18, 6.1)
 }
 
 // SetupRequest is the input of the first-start wizard.
@@ -1523,7 +1551,110 @@ type Library struct {
 	Roots         []LibraryRoot
 	Scan          LibraryScan
 	KeyframeIndex *LibraryKeyframeIndex // video libraries only (concept 14, F-7)
-	CreatedAt     time.Time
+	Trickplay     *LibraryTrickplay     // video libraries only (concept 18, 6.1)
+	// TrickplayEstimate is the storage estimate of the previews (concept 18, 9); getLibrary of a
+	// video library only.
+	TrickplayEstimate *LibraryTrickplayEstimate
+	CreatedAt         time.Time
+}
+
+// Trickplay modes of a library (concept 18, 6.1; libraries.trickplay_movies and
+// trickplay_series). TrickplaySeriesStart is for series only.
+const (
+	TrickplayAhead       = "ahead"
+	TrickplayOnStart     = "on_start"
+	TrickplaySeriesStart = "series_start"
+	TrickplayOff         = "off"
+)
+
+// Scopes of the series look-ahead of TrickplaySeriesStart (F-14).
+const (
+	TrickplayScopeSeries      = "series"
+	TrickplayScopeSeasonRest  = "season_rest"
+	TrickplayScopeNextEpisode = "next_episode"
+)
+
+// TrickplaySetting is the trickplay setting of one kind of title in a library: the mode, Keep
+// («Speichern», read only with on_start) and Scope (series only, read only with series_start).
+type TrickplaySetting struct {
+	Mode  string
+	Keep  bool
+	Scope string
+}
+
+// Stores reports whether the setting keeps the sets for good (ahead, series_start, on_start with
+// Keep); a setting that does not store keeps them only while a playback is open.
+func (t TrickplaySetting) Stores() bool {
+	return t.Mode == TrickplayAhead || t.Mode == TrickplaySeriesStart || (t.Mode == TrickplayOnStart && t.Keep)
+}
+
+// LibraryTrickplay is the trickplay setting of a video library, one for films (titles of kind
+// movie) and one for series (kind episode).
+type LibraryTrickplay struct {
+	Movies TrickplaySetting
+	Series TrickplaySetting
+}
+
+// DefaultLibraryTrickplay is the setting of a new video library (F-11): «Im Voraus» for both, with
+// «Speichern» and the whole series as scope.
+func DefaultLibraryTrickplay() LibraryTrickplay {
+	return LibraryTrickplay{
+		Movies: TrickplaySetting{Mode: TrickplayAhead, Keep: true},
+		Series: TrickplaySetting{Mode: TrickplayAhead, Keep: true, Scope: TrickplayScopeSeries},
+	}
+}
+
+// For returns the setting of a title kind: movie the films, episode the series; any other kind
+// has no trickplay (an empty setting, Mode "").
+func (t LibraryTrickplay) For(kind string) TrickplaySetting {
+	switch kind {
+	case "movie":
+		return t.Movies
+	case "episode":
+		return t.Series
+	}
+	return TrickplaySetting{}
+}
+
+// Validate returns the field errors of t below field ("trickplay"): an unknown mode or scope is
+// invalid_value, series_start for films too.
+func (t LibraryTrickplay) Validate(verr *ValidationError, field string) *ValidationError {
+	switch t.Movies.Mode {
+	case TrickplayAhead, TrickplayOnStart, TrickplayOff:
+	default:
+		verr = verr.Add(field+".movies.mode", "invalid_value")
+	}
+	switch t.Series.Mode {
+	case TrickplayAhead, TrickplayOnStart, TrickplaySeriesStart, TrickplayOff:
+	default:
+		verr = verr.Add(field+".series.mode", "invalid_value")
+	}
+	switch t.Series.Scope {
+	case TrickplayScopeSeries, TrickplayScopeSeasonRest, TrickplayScopeNextEpisode:
+	default:
+		verr = verr.Add(field+".series.scope", "invalid_value")
+	}
+	return verr
+}
+
+// LibraryTrickplayEstimate is the storage estimate of the previews of a video library per kind
+// (concept 18, 9) and the free space of the cache drive (-1: unknown).
+type LibraryTrickplayEstimate struct {
+	Movies         TrickplayKindEstimate
+	Series         TrickplayKindEstimate
+	CacheFreeBytes int64
+}
+
+// TrickplayKindEstimate is the estimate of one kind: titles with a present file, the present files
+// with a duration and their running time, the estimate per title (mean) and for the library, and
+// the bytes the stored sets take today.
+type TrickplayKindEstimate struct {
+	Titles        int
+	Files         int
+	DurationMs    int64
+	PerTitleBytes int64
+	LibraryBytes  int64
+	StoredBytes   int64
 }
 
 // LibraryKeyframeIndex is the keyframe index coverage of the files of a video library that are

@@ -263,6 +263,15 @@ func (s *Service) Create(ctx context.Context, req model.LibraryRequest) (model.L
 	if !model.ValidLibraryKind(req.Kind) {
 		verr = verr.Add("kind", "invalid_value")
 	}
+	trickplay := model.DefaultLibraryTrickplay()
+	if req.Trickplay != nil {
+		if req.Kind != model.LibraryVideo {
+			verr = verr.Add("trickplay", "not_allowed")
+		} else {
+			verr = req.Trickplay.Validate(verr, "trickplay")
+			trickplay = *req.Trickplay
+		}
+	}
 	if verr != nil {
 		return model.Library{}, verr
 	}
@@ -291,6 +300,13 @@ func (s *Service) Create(ctx context.Context, req model.LibraryRequest) (model.L
 	lib, err := q.InsertLibrary(ctx, appq.InsertLibraryParams{Name: name, Kind: req.Kind, DefaultRating: defaultRating, Now: now})
 	if err != nil {
 		return model.Library{}, fmt.Errorf("insert library: %w", err)
+	}
+	if req.Trickplay != nil {
+		if err := SetLibraryTrickplay(ctx, q, lib.ID, trickplay, now); err != nil {
+			return model.Library{}, err
+		}
+		lib.TrickplayMovies, lib.TrickplayMoviesKeep = trickplay.Movies.Mode, boolInt(trickplay.Movies.Keep)
+		lib.TrickplaySeries, lib.TrickplaySeriesKeep, lib.TrickplaySeriesScope = trickplay.Series.Mode, boolInt(trickplay.Series.Keep), trickplay.Series.Scope
 	}
 	rows := make([]appq.LibraryRoot, 0, len(roots))
 	for _, r := range roots {
@@ -790,6 +806,10 @@ func (s *Service) toModel(ctx context.Context, l appq.Library) (model.Library, e
 			ItemCount:      int(items),
 			FileCount:      int(files),
 		},
+	}
+	if l.Kind == model.LibraryVideo {
+		t := LibraryTrickplay(l)
+		m.Trickplay = &t
 	}
 	for _, r := range roots {
 		_, warning := WatchMode(r.FsType)

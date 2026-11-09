@@ -416,19 +416,24 @@ type JobType struct {
 }
 
 type Library struct {
-	ID                 int64
-	Name               string
-	Kind               string
-	DefaultRating      sql.NullInt64
-	CreatedAt          int64
-	UpdatedAt          int64
-	LastScanState      string
-	LastScanStartedAt  sql.NullInt64
-	LastScanFinishedAt sql.NullInt64
-	LastScanError      sql.NullString
-	ScanFilesSeen      int64
-	ScanFilesTotal     int64
-	LossAcceptedAt     sql.NullInt64
+	ID                   int64
+	Name                 string
+	Kind                 string
+	DefaultRating        sql.NullInt64
+	CreatedAt            int64
+	UpdatedAt            int64
+	LastScanState        string
+	LastScanStartedAt    sql.NullInt64
+	LastScanFinishedAt   sql.NullInt64
+	LastScanError        sql.NullString
+	ScanFilesSeen        int64
+	ScanFilesTotal       int64
+	LossAcceptedAt       sql.NullInt64
+	TrickplayMovies      string
+	TrickplayMoviesKeep  int64
+	TrickplaySeries      string
+	TrickplaySeriesKeep  int64
+	TrickplaySeriesScope string
 }
 
 type LibraryMetadatum struct {

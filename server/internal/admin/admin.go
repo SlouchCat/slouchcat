@@ -200,6 +200,7 @@ type Service struct {
 	schedules Schedules          // nil until WithSchedules or WithJobControl
 	jobctl    *jobControl        // nil until WithJobControl (concept 09, step 3)
 	libraries Libraries
+	trickplay TrickplayUsage     // nil: no stored bytes and no free space in the estimate
 	maint     LibraryMaintenance // nil until WithLibraryMaintenance
 	meta      Metadata           // nil until WithMetadata
 	streams   Streams            // nil until WithStreams
@@ -493,9 +494,17 @@ func (s *Service) ListLibraries(ctx context.Context) ([]model.Library, error) {
 	return libs, nil
 }
 
-// GetLibrary returns one library or model.ErrNotFound.
+// GetLibrary returns one library or model.ErrNotFound; a video library carries its trickplay
+// estimate (concept 18, 9; only here, not in ListLibraries).
 func (s *Service) GetLibrary(ctx context.Context, id int64) (model.Library, error) {
-	return s.withKeyframeIndex(ctx)(s.libraries.Get(ctx, id))
+	lib, err := s.withKeyframeIndex(ctx)(s.libraries.Get(ctx, id))
+	if err != nil || lib.Kind != model.LibraryVideo {
+		return lib, err
+	}
+	if lib.TrickplayEstimate, err = s.trickplayEstimate(ctx, id); err != nil {
+		return model.Library{}, err
+	}
+	return lib, nil
 }
 
 // fillKeyframeIndex sets Library.KeyframeIndex of the video libraries in libs from one count over

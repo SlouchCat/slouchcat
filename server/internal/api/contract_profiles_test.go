@@ -440,6 +440,12 @@ var profileRegistry = map[string]profileCall{
 	// TestChapterImage covers the image itself, a foreign file and the age rule.
 	"getChapterImage": {contract: "GET /items/{id}/chapters/{idx}/image", path: "/items/{id}/chapters/0/image?mediaFileId={file}",
 		perItem: true, okStatus: http.StatusNotFound},
+	// Trickplay (concept 18): the fixture's files carry no probe, so no title gets a preview set and
+	// no sheet exists; an invisible title is 404 all the same (positive checks in package playback).
+	"getTrickplay": {contract: "GET /items/{id}/trickplay", path: "/items/{id}/trickplay?mediaFileId={file}",
+		perItem: true, okStatus: http.StatusNotFound},
+	"getTrickplaySheet": {contract: "GET /items/{id}/trickplay/{sheet}", path: "/items/{id}/trickplay/0?mediaFileId={file}",
+		perItem: true, okStatus: http.StatusNotFound},
 	"startPlayback": {contract: "POST /items/{id}/play", path: "/items/{id}/play", perItem: true, okStatus: http.StatusOK,
 		body: `{"deviceId":"contract-test","capabilities":{"video":["h264"],"audio":["aac"],"hls":"mse"}}`,
 		check: func(t *testing.T, _ *vistest.Fixture, h http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
@@ -824,6 +830,14 @@ var profileRegistry = map[string]profileCall{
 			if ct := rec.Header().Get("Content-Type"); ct != "text/vtt; charset=utf-8" || rec.Header().Get("Cache-Control") != "private, no-store" ||
 				rec.Body.String() != mintedVTT {
 				t.Errorf("download subtitle of %s: %s %q", m.Label, ct, rec.Body.String())
+			}
+		}},
+	"getDownloadTrickplaySheet": {contract: "GET /downloads/{id}/trickplay/{sheet}", path: "/downloads/{dl}/trickplay/0?dt={dt}",
+		perItem: true, download: true, streamOnly: true, okStatus: http.StatusOK,
+		check: func(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
+			if ct := rec.Header().Get("Content-Type"); ct != "image/webp" || rec.Header().Get("Cache-Control") != "private, no-store" ||
+				rec.Body.String() != mintedSheet {
+				t.Errorf("download trickplay sheet of %s: %s %q", m.Label, ct, rec.Body.String())
 			}
 		}},
 	"syncOffline": {contract: "POST /offline/sync", path: "/offline/sync", body: `{"held":[],"network":"wifi"}`,
@@ -1314,6 +1328,10 @@ func downloadableStatus(status int) func(m vistest.Movie) int {
 const (
 	mintedInit = "ftyp-moov"
 	mintedVTT  = "WEBVTT\n\nNOTE minted download\n"
+	// mintedSheet and mintedTrickplay are the preview set copied into the download (concept 18).
+	mintedSheet     = "RIFF-minted-sheet"
+	mintedTrickplay = `{"version":"1-1","intervalMs":10000,"tileWidth":320,"tileHeight":180,"columns":10,"rows":10,` +
+		`"pointsMs":[0],"seekMs":[0],"source":"fallback"}`
 )
 
 func mintedMedia(m vistest.Movie) []byte {
@@ -1348,6 +1366,7 @@ func (pf profileFixture) mintDownload(t *testing.T, token string, m vistest.Movi
 	dir := filepath.Join(pf.dlDir, id)
 	for name, data := range map[string]string{
 		"media.mp4": string(media), "index.jsonl": index, fmt.Sprintf("subs/%d.vtt", pf.tracks[m.FileID].Text): mintedVTT,
+		"trickplay/manifest.json": mintedTrickplay, "trickplay/0.webp": mintedSheet,
 	} {
 		path := filepath.Join(dir, filepath.FromSlash(name))
 		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {

@@ -416,3 +416,15 @@ WHERE fe.kind = 'podcast_episode' AND fe.deleted_at IS NULL AND fe.enclosure_url
   AND ((fe.published_at IS NOT NULL AND ne.published_at IS NOT NULL AND fe.published_at / 60000 = ne.published_at / 60000)
        OR fe.sort_title = ne.sort_title)
 ORDER BY fe.parent_id, fe.id, ne.id;
+
+-- name: AdminTrickplayDurations :many
+-- The running time of the films and episodes of a library for the storage estimate of trickplay
+-- (concept 18, 9): per kind the titles with a present media file, the present files with a
+-- duration (every version counts) and their running time together.
+SELECT i.kind, count(DISTINCT i.id) AS titles, count(m.duration_ms) AS files,
+       CAST(coalesce(sum(m.duration_ms), 0) AS INTEGER) AS duration_ms
+FROM media_files AS m
+JOIN items AS i ON i.id = m.item_id
+WHERE i.library_id = @library_id AND i.kind IN ('movie', 'episode') AND i.deleted_at IS NULL
+  AND m.missing_since IS NULL
+GROUP BY i.kind;

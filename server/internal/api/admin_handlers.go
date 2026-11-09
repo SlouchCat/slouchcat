@@ -200,12 +200,41 @@ func toLibrary(l model.Library) gen.Library {
 	if k := l.KeyframeIndex; k != nil {
 		out.KeyframeIndex = &gen.LibraryKeyframeIndex{VideoFiles: k.VideoFiles, Indexed: k.Indexed, Pending: k.Pending, Unavailable: k.Unavailable}
 	}
+	if t := l.Trickplay; t != nil {
+		out.Trickplay = &gen.LibraryTrickplay{
+			Movies: gen.LibraryTrickplayMovies{Mode: gen.TrickplayMoviesMode(t.Movies.Mode), Keep: t.Movies.Keep},
+			Series: gen.LibraryTrickplaySeries{Mode: gen.TrickplaySeriesMode(t.Series.Mode), Keep: t.Series.Keep, Scope: gen.TrickplaySeriesScope(t.Series.Scope)},
+		}
+	}
+	if e := l.TrickplayEstimate; e != nil {
+		est := gen.LibraryTrickplayEstimate{Movies: toTrickplayKindEstimate(e.Movies), Series: toTrickplayKindEstimate(e.Series)}
+		if e.CacheFreeBytes >= 0 {
+			est.CacheFreeBytes = &e.CacheFreeBytes
+		}
+		out.TrickplayEstimate = &est
+	}
 	return out
+}
+
+func toTrickplayKindEstimate(k model.TrickplayKindEstimate) gen.LibraryTrickplayKindEstimate {
+	return gen.LibraryTrickplayKindEstimate{Titles: k.Titles, Files: k.Files, DurationMs: k.DurationMs,
+		PerTitleBytes: k.PerTitleBytes, LibraryBytes: k.LibraryBytes, StoredBytes: k.StoredBytes}
+}
+
+// libraryTrickplay maps the trickplay setting of a request; nil stays nil.
+func libraryTrickplay(t *gen.LibraryTrickplay) *model.LibraryTrickplay {
+	if t == nil {
+		return nil
+	}
+	return &model.LibraryTrickplay{
+		Movies: model.TrickplaySetting{Mode: string(t.Movies.Mode), Keep: t.Movies.Keep},
+		Series: model.TrickplaySetting{Mode: string(t.Series.Mode), Keep: t.Series.Keep, Scope: string(t.Series.Scope)},
+	}
 }
 
 // libraryRequest maps the contract request with its folders.
 func libraryRequest(body gen.LibraryRequest) model.LibraryRequest {
-	req := model.LibraryRequest{Name: body.Name, Kind: string(body.Kind), Roots: rootRequests(body.Roots)}
+	req := model.LibraryRequest{Name: body.Name, Kind: string(body.Kind), Roots: rootRequests(body.Roots), Trickplay: libraryTrickplay(body.Trickplay)}
 	if body.DefaultRating != nil {
 		r := int(*body.DefaultRating)
 		req.DefaultRating = &r

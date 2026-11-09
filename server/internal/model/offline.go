@@ -154,6 +154,8 @@ type DownloadManifest struct {
 	Audio         *Track
 	Subtitles     []DownloadSubtitle
 	Chapters      []Chapter // audiobooks (M6): chapters on the file's timeline; empty otherwise
+	// Trickplay is the preview set copied into the download (concept 18, 6.8); nil without one.
+	Trickplay *Trickplay
 }
 
 // DownloadGrant is a resolved download token: the download, its title and the profile the token

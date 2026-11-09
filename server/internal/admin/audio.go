@@ -8,6 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
@@ -46,7 +47,10 @@ func (s *Service) WithPodcasts(p Podcasts) *Service {
 // (rating_source library) in the same transaction, and a manual rating below it is raised to it
 // (AN-2: a manual rating may only be stricter); feed and tag ratings stay. Errors:
 // model.ErrNotFound, *model.ValidationError (name required or too_long, defaultRating
-// invalid_value, not_allowed for video libraries).
+// invalid_value, not_allowed for video libraries; trickplay invalid_value, not_allowed for audio
+// libraries). A new trickplay setting is stored as it is; the trickplay jobs read it before every
+// sheet and the maintenance removes the stored sets of a kind that no longer stores (concept 18,
+// 6.6).
 func (s *Service) UpdateLibrary(ctx context.Context, id int64, upd model.LibraryUpdate) (model.Library, error) {
 	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	lib, err := s.read.GetLibrary(ctx, id)
@@ -78,6 +82,13 @@ func (s *Service) UpdateLibrary(ctx context.Context, id int64, upd model.Library
 			rating = sql.NullInt64{Int64: int64(*upd.DefaultRating), Valid: true}
 		}
 	}
+	if upd.Trickplay != nil {
+		if lib.Kind != model.LibraryVideo {
+			verr = verr.Add("trickplay", "not_allowed")
+		} else {
+			verr = upd.Trickplay.Validate(verr, "trickplay")
+		}
+	}
 	if verr != nil {
 		return model.Library{}, verr
 	}
@@ -90,6 +101,11 @@ func (s *Service) UpdateLibrary(ctx context.Context, id int64, upd model.Library
 	if _, err := appq.New(tx).UpdateLibrarySettings(ctx, appq.UpdateLibrarySettingsParams{Name: name, DefaultRating: rating, Now: now, ID: id}); err != nil {
 		return model.Library{}, fmt.Errorf("update library: %w", err)
 	}
+	if upd.Trickplay != nil {
+		if err := library.SetLibraryTrickplay(ctx, appq.New(tx), id, *upd.Trickplay, now); err != nil {
+			return model.Library{}, err
+		}
+	}
 	var titles int64
 	if rating != lib.DefaultRating && rating.Valid {
 		if titles, err = systemq.New(tx).AdminApplyLibraryRating(ctx, systemq.AdminApplyLibraryRatingParams{
@@ -101,7 +117,8 @@ func (s *Service) UpdateLibrary(ctx context.Context, id int64, upd model.Library
 	if err := tx.Commit(); err != nil {
 		return model.Library{}, fmt.Errorf("commit: %w", err)
 	}
-	s.log.InfoContext(ctx, "library updated", "library_id", id, "default_rating_changed", rating != lib.DefaultRating, "titles_rerated", titles)
+	s.log.InfoContext(ctx, "library updated", "library_id", id, "default_rating_changed", rating != lib.DefaultRating, "titles_rerated", titles,
+		"trickplay_changed", upd.Trickplay != nil)
 	return s.withKeyframeIndex(ctx)(s.libraries.Get(ctx, id))
 }
 

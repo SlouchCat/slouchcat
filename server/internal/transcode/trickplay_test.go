@@ -19,10 +19,10 @@ func TestTrickplayTileHeight(t *testing.T) {
 	}{
 		{Stream{Width: 1920, Height: 1080}, 180},
 		{Stream{Width: 3840, Height: 2160}, 180},
-		{Stream{Width: 1920, Height: 800}, 132},             // 2.40:1: 133.3 down to even
+		{Stream{Width: 1920, Height: 800}, 132},              // 2.40:1: 133.3 down to even
 		{Stream{Width: 720, Height: 480, SAR: "32:27"}, 180}, // 16:9 DVD
 		{Stream{Width: 720, Height: 576, SAR: "16:15"}, 240}, // 4:3 PAL
-		{Stream{Width: 720, Height: 480, SAR: "0:1"}, 212},  // unknown: square pixels
+		{Stream{Width: 720, Height: 480, SAR: "0:1"}, 212},   // unknown: square pixels
 		{Stream{Width: 720, Height: 480, SAR: "x"}, 212},
 		{Stream{}, 180},
 		{Stream{Width: 100000, Height: 1}, 2},

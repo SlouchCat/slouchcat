@@ -380,6 +380,7 @@ func (s *Service) Manifest(ctx context.Context, session model.Session, id string
 			return model.DownloadManifest{}, err
 		}
 		out.Chapters = transcode.Chapters(parseProbe(pf.Probe), item.Kind, pf.DurationMs)
+		out.Trickplay = downloadTrickplay(root, id, token)
 	}
 	for _, e := range ix.entries {
 		out.Segments = append(out.Segments, model.DownloadSegment{StartMs: e.StartMs, DurationMs: e.DurationMs, Offset: e.Offset, Length: e.Length})

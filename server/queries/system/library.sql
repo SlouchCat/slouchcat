@@ -191,3 +191,62 @@ WHERE m.id = @id AND i.deleted_at IS NULL AND m.probe_error IS NULL;
 -- playback).
 SELECT count(*) FROM playback_sessions
 WHERE media_file_id = @media_file_id AND revoked_at IS NULL AND expires_at > @now AND last_activity_at >= @active_after;
+
+-- Trickplay (concept 18 part A, ADR 0027). The setting of the library comes with every file, so the
+-- job reads it before each sheet.
+
+-- name: GetTrickplayFile :one
+-- A film or episode file for trickplay.generate: version, duration, stored probe and keyframe
+-- index, the folder it lies in and the trickplay setting of its library. A file of a deleted title
+-- or whose last probe failed has none.
+SELECT m.id, m.item_id, m.size, m.mtime, m.duration_ms, m.probe, m.probed_at, m.keyframes, m.keyframes_source,
+       m.missing_since, m.rel_path, i.kind, i.library_id, r.path AS root_path,
+       l.trickplay_movies, l.trickplay_movies_keep, l.trickplay_series, l.trickplay_series_keep, l.trickplay_series_scope
+FROM media_files AS m
+JOIN items AS i ON i.id = m.item_id
+JOIN library_roots AS r ON r.id = m.root_id
+JOIN libraries AS l ON l.id = i.library_id
+WHERE m.id = @id AND i.deleted_at IS NULL AND m.probe_error IS NULL;
+
+-- name: ListTrickplayFiles :many
+-- Every film and episode file of a title that is not deleted, with its version, whether it is
+-- missing or probed, its keyframe source and the setting of its library: the backfill queues the
+-- files without a complete set, the sweep keeps the sets of exactly these files at their version.
+SELECT m.id, m.size, m.mtime, m.missing_since IS NOT NULL AS missing, m.probed_at IS NOT NULL AND m.probe_error IS NULL AS probed,
+       m.keyframes_source, i.kind, i.library_id,
+       l.trickplay_movies, l.trickplay_movies_keep, l.trickplay_series, l.trickplay_series_keep, l.trickplay_series_scope
+FROM media_files AS m
+JOIN items AS i ON i.id = m.item_id
+JOIN libraries AS l ON l.id = i.library_id
+WHERE i.kind IN ('movie', 'episode') AND i.deleted_at IS NULL
+ORDER BY m.id;
+
+-- name: ListTrickplaySeriesFiles :many
+-- The present, probed files of the episodes of a series for its look-ahead (concept 18, 6.4), in
+-- season and episode order; per episode the primary file first (largest height, then the oldest),
+-- the rule of visibility.MediaFile without a choice.
+SELECT e.id AS item_id, CAST(coalesce(e.season_number, se.season_number, 0) AS INTEGER) AS season,
+       CAST(coalesce(e.episode_number, 0) AS INTEGER) AS episode, m.id AS media_file_id
+FROM items AS e
+JOIN items AS se ON se.id = e.parent_id AND se.kind = 'season'
+JOIN media_files AS m ON m.item_id = e.id
+WHERE se.parent_id = @series_id AND e.kind = 'episode' AND e.deleted_at IS NULL
+  AND m.missing_since IS NULL AND m.probed_at IS NOT NULL AND m.probe_error IS NULL
+ORDER BY season, episode, e.id, COALESCE(m.height, 0) DESC, m.created_at, m.id;
+
+-- name: CountWaitingTrickplayStarts :one
+-- Start jobs of trickplay.generate that wait and may run now (priority @priority and higher): a
+-- running import, backfill, look-ahead or download job yields to them after its sheet.
+SELECT count(*) FROM jobs
+WHERE type = 'trickplay.generate' AND state = 'queued' AND priority >= @priority AND run_after <= @now;
+
+-- name: CountOpenPlaybacks :one
+-- Playback sessions that are open (neither revoked nor expired): the series look-ahead beyond the
+-- next two episodes runs one ffmpeg process while one exists.
+SELECT count(*) FROM playback_sessions WHERE revoked_at IS NULL AND expires_at > @now;
+
+-- name: CountPlaybacksOfFileOpenSince :one
+-- Playback sessions of a media file that were open at some point since @since (still open, or
+-- revoked or expired after it): a set that does not store goes 10 minutes after the last one.
+SELECT count(*) FROM playback_sessions
+WHERE media_file_id = @media_file_id AND expires_at > @since AND (revoked_at IS NULL OR revoked_at > @since);

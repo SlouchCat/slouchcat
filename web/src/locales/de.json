@@ -3378,6 +3378,7 @@
         "download": "Downloads",
         "notify": "Benachrichtigungen",
         "index": "Keyframe-Index",
+        "trickplay": "Vorschau beim Spulen",
         "workers": "{{count}} Arbeiter",
         "backlog": "Stau ca. {{duration}}",
         "free": "frei",
@@ -3627,6 +3628,22 @@
           "name": "Kapitelbilder nachholen",
           "description": "Reiht alle Dateien ohne Kapitelbilder zum Erzeugen ein.",
           "trigger": "Zeitplan (ab Werk aus, wöchentlich) oder Termin, «Jetzt ausführen»: für alle Filme und Folgen ohne Kapitelbilder"
+        },
+        "trickplay_generate": {
+          "name": "Vorschau beim Spulen erzeugen",
+          "description": "Erzeugt die Vorschaubilder der Zeitleiste einer Datei, Blatt für Blatt.",
+          "trigger": "beim Start eines Films oder einer Folge, für neue Dateien bei «Im Voraus», beim Nachholen, beim Serienvorlauf und für Offline-Downloads"
+        },
+        "trickplay_series": {
+          "name": "Vorschau für die übrigen Folgen",
+          "description": "Reiht die Vorschau der übrigen Folgen einer Serie ein, die nächsten zwei zuerst.",
+          "trigger": "beim Start einer Folge, wenn die Bibliothek «Beim Start alle Folgen» einstellt"
+        },
+        "trickplay_backfill": {
+          "name": "Vorschau beim Spulen nachholen",
+          "description": "Reiht alle Filme und Folgen ohne fertige Vorschau zum Erzeugen ein.",
+          "trigger": "Zeitplan (ab Werk aus, wöchentlich) oder Termin, «Jetzt ausführen»: für Bibliotheken mit «Im Voraus»",
+          "progress": "Dateien geprüft: {{done}} von {{total}}"
         },
         "library_relink": {
           "name": "Gelöschten Titel wiederverknüpfen",

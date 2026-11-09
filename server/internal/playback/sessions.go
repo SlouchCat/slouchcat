@@ -325,6 +325,13 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		Segments:    segments,
 		NextEpisode: next,
 	}
+	if mediaKind == model.MediaKindVideo {
+		// The preview tiles never fail a start: without them the seek bar shows the chapter image.
+		if info.Trickplay, err = s.trickplayFor(ctx, item, loc, probe, in.kf); err != nil {
+			s.log.WarnContext(ctx, "trickplay state", "media_file_id", file.ID, "err", err)
+			info.Trickplay = nil
+		}
+	}
 	if d.SubtitleDelivery == model.SubtitleText {
 		info.SubtitleURL = fmt.Sprintf("/api/v1/playback/sessions/%s/subtitles/%d.vtt?st=%s", id, d.SubtitleTrack, st)
 	}

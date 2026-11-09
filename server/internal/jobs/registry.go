@@ -42,6 +42,9 @@ const (
 	// PoolIndex has exactly one worker (concept 14 F-2): the full keyframe reads of minutes run one
 	// after the other and never hold up a general worker.
 	PoolIndex Pool = "index"
+	// PoolTrickplay has exactly one worker (concept 18 O-1, ADR 0027): one preview set at a time,
+	// with at most two ffmpeg processes of its own.
+	PoolTrickplay Pool = "trickplay"
 )
 
 // Trigger says what starts a run of the type: the scheduler, an event in the server (a scan, a

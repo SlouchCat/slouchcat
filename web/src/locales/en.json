@@ -3378,6 +3378,7 @@
         "download": "Downloads",
         "notify": "Notifications",
         "index": "Keyframe index",
+        "trickplay": "Seek previews",
         "workers": "{{count}} workers",
         "backlog": "backlog about {{duration}}",
         "free": "free",
@@ -3627,6 +3628,22 @@
           "name": "Backfill chapter images",
           "description": "Queues every file without chapter images for creation.",
           "trigger": "Schedule (off by default, weekly) or a one-off date, “Run now”: for every film and episode without chapter images"
+        },
+        "trickplay_generate": {
+          "name": "Create seek previews",
+          "description": "Creates the preview images of the seek bar of a file, sheet by sheet.",
+          "trigger": "when a film or an episode starts, for new files with “In advance”, by the backfill, by the series look-ahead and for offline downloads"
+        },
+        "trickplay_series": {
+          "name": "Previews of the other episodes",
+          "description": "Queues the previews of the other episodes of a series, the next two first.",
+          "trigger": "when an episode starts and the library is set to “At start, all episodes”"
+        },
+        "trickplay_backfill": {
+          "name": "Backfill seek previews",
+          "description": "Queues every film and episode without a complete preview for creation.",
+          "trigger": "Schedule (off by default, weekly) or a one-off date, “Run now”: for libraries set to “In advance”",
+          "progress": "Files checked: {{done}} of {{total}}"
         },
         "library_relink": {
           "name": "Relink deleted title",
