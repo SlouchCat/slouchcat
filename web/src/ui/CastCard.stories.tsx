@@ -1,6 +1,7 @@
 import type { Decorator, Meta, StoryObj } from '@storybook/react-vite';
 import { CastCard } from './CastCard';
 import { Row } from './Row';
+import { art } from './stories/fixtures';
 
 const narrow: Decorator = (Story) => (
   <div style={{ width: 'var(--sc-size-poster-md)', padding: 'var(--sc-space-6)' }}>
@@ -19,6 +20,9 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = { decorators: [narrow] };
 
+/** With a portrait; the focused card keeps the ring and scale. */
+export const WithPortrait: Story = { decorators: [narrow], args: { imageUrl: art.posterDusk } };
+
 export const Focused: Story = { decorators: [narrow], tags: ['press:Tab'] };
 
 /** The cast row of a detail page. */
@@ -27,7 +31,12 @@ export const InRow: Story = {
   render: () => (
     <div style={{ paddingTop: 'var(--sc-space-6)' }}>
       <Row title="Besetzung">
-        <CastCard href="#" name="Sigourney Weaver" caption="als Ellen Ripley" />
+        <CastCard
+          href="#"
+          name="Sigourney Weaver"
+          caption="als Ellen Ripley"
+          imageUrl={art.posterMoss}
+        />
         <CastCard href="#" name="Tom Skerritt" caption="als Dallas" />
         <CastCard href="#" name="Ridley Scott" caption="Regie" />
       </Row>

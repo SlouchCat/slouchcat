@@ -16,19 +16,9 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.avatar {
+.portrait {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 4.5rem;
-  height: 4.5rem;
   margin-bottom: var(--sc-space-2);
-  border-radius: var(--sc-radius-full);
-  background-color: var(--sc-color-surface-3);
-  color: var(--sc-color-text-primary);
-  font-size: var(--sc-font-size-xl);
-  font-weight: var(--sc-font-weight-bold);
-  line-height: 1;
 }
 
 .name {
@@ -55,7 +45,7 @@
   transform: scale(var(--sc-focus-scale));
 }
 
-.card:focus-visible .avatar {
-  background-color: var(--sc-accent);
-  color: var(--sc-on-accent);
+.card:focus-visible .portrait {
+  --avatar-bg: var(--sc-accent);
+  --avatar-fg: var(--sc-on-accent);
 }
