@@ -50,8 +50,8 @@ func TestPersonImage(t *testing.T) {
 }
 
 // The TMDB poster of the mixed collection (films rated 6, 12, 18) answers only for a profile that
-// sees every live member: P18, and P12 once the film rated 18 is deleted; never for the manual
-// collection without a poster (ADR 0026).
+// sees every member: P18; never for the manual collection without a poster, and for nobody once a
+// member is deleted, since a deleted member may be one a child profile must not see (ADR 0026).
 func TestCollectionImage(t *testing.T) {
 	t.Parallel()
 	f := vistest.New(t)
@@ -97,11 +97,30 @@ func TestCollectionImage(t *testing.T) {
 	if _, err := f.DB.Write.Exec(`UPDATE items SET deleted_at = 1 WHERE id = ?`, f.Rated(18).ID); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := r.CollectionImage(ctx, Profile(f.P12), vistest.MixedCollectionID, false); err != nil || got.RelPath != f.Discover.MixedImageRel {
-		t.Errorf("P12 after the hidden member was deleted = %+v, %v", got, err)
+	// The child profile P12 sees both live members now, yet the poster stays hidden: the endpoint
+	// and the fields alike.
+	for _, p := range []model.Profile{f.P12, f.P18, f.P6} {
+		if _, err := r.CollectionImage(ctx, Profile(p), vistest.MixedCollectionID, false); !errors.Is(err, model.ErrNotFound) {
+			t.Errorf("profile %d after the member rated 18 was deleted: err = %v, want ErrNotFound", p.MaxRating, err)
+		}
 	}
-	if _, err := r.CollectionImage(ctx, Profile(f.P6), vistest.MixedCollectionID, false); !errors.Is(err, model.ErrNotFound) {
-		t.Errorf("P6 still misses the film rated 12: err = %v, want ErrNotFound", err)
+	for _, p := range []model.Profile{f.P12, f.P18} {
+		col, err := r.Collection(ctx, Profile(p), vistest.MixedCollectionID, 0, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if col.Image != nil {
+			t.Errorf("profile %d collection page image %+v after a member was deleted, want none", p.MaxRating, col.Image)
+		}
+		refs, err := r.Collections(ctx, Profile(p), MaxRowItems)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, c := range refs {
+			if c.Image != nil {
+				t.Errorf("profile %d collection %s image %+v after a member was deleted, want none", p.MaxRating, c.ID, c.Image)
+			}
+		}
 	}
 }
 

@@ -13,10 +13,11 @@ ORDER BY pi.format = 'webp' DESC
 LIMIT 1;
 
 -- The 'ok' rows (JPEG and WebP) of the collections among @collection_ids that are fully visible to
--- the profile: at least one visible member and no member that is not deleted and not visible. The
--- TMDB poster may show any member, so it is shown only to a profile that may see all of them; the
--- one rule for the endpoint and the fields of CollectionRef and Collection. visible_items holds only
--- available titles, so a member whose file is missing makes its collection not fully visible.
+-- the profile: at least one visible member and no member that is not visible. The TMDB poster may
+-- show any member, so it is shown only to a profile that may see all of them; the one rule for the
+-- endpoint and the fields of CollectionRef and Collection. visible_items holds only available
+-- titles that are not deleted, so a member whose file is missing or that is deleted makes its
+-- collection not fully visible (a deleted member may be one the profile must not see).
 -- @profile_id comes before the slice: sqlc numbers it, and a numbered parameter after the expanded
 -- slice would name one of its values.
 -- name: ListFullyVisibleCollectionImages :many
@@ -26,8 +27,7 @@ WHERE EXISTS (SELECT 1 FROM collection_items AS m
               WHERE m.collection_id = ci.collection_id)
   AND ci.collection_id IN (sqlc.slice('collection_ids')) AND ci.status = 'ok'
   AND NOT EXISTS (SELECT 1 FROM collection_items AS m
-                  JOIN items AS i ON i.id = m.item_id
-                  WHERE m.collection_id = ci.collection_id AND i.deleted_at IS NULL
+                  WHERE m.collection_id = ci.collection_id
                     AND NOT EXISTS (SELECT 1 FROM visible_items AS vh
                                     WHERE vh.item_id = m.item_id AND vh.profile_id = @profile_id))
 ORDER BY ci.collection_id, ci.format;
