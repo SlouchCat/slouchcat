@@ -122,3 +122,43 @@ func mintedMediaOf(t *testing.T, e *env, id string) []byte {
 	}
 	return b
 }
+
+// A sheet that goes while the set is copied (the maintenance of the cache, a set made again) does
+// not fail the download: it counts as a missing set, and the half copy goes.
+func TestDownloadTrickplaySheetGoneWhileCopied(t *testing.T) {
+	t.Parallel()
+	cache := t.TempDir()
+	e := newEnv(t, WithCacheDir(cache))
+	f := e.f
+	m := f.Rated(6)
+	e.exec(`UPDATE media_files SET probed_at = 1, duration_ms = 1100000 WHERE id = ?`, m.FileID)
+	var size, mtime int64
+	if err := f.DB.Read.QueryRow(`SELECT size, mtime FROM media_files WHERE id = ?`, m.FileID).Scan(&size, &mtime); err != nil {
+		t.Fatal(err)
+	}
+	set := filepath.Join(cache, library.TrickplayDir, library.TrickplaySetName(m.FileID, library.FileVersion{Size: size, Mtime: mtime}))
+	if err := os.MkdirAll(set, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	points := make([]int64, 110) // two sheets; sheet 1 is gone
+	for i := range points {
+		points[i] = int64(i) * 10_000
+	}
+	manifest, _ := json.Marshal(library.TrickplayManifest{Version: "v", IntervalMs: 10_000, TileWidth: 320, TileHeight: 180, Columns: 10, Rows: 10,
+		PointsMs: points, SeekMs: points, Source: library.TrickplaySourceFallback})
+	for name, data := range map[string]string{"manifest.json": string(manifest), "0.webp": "RIFF-sheet", "complete": ""} {
+		if err := os.WriteFile(filepath.Join(set, name), []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	st := e.create(f.P12, e.devA, m.ID, model.DownloadLow)
+	e.runJobs()
+	if r := e.row(st.ID); r.state != model.DownloadReady {
+		t.Fatalf("state: %s %s", r.state, r.err)
+	}
+	for _, name := range []string{trickplayDir, trickplayDir + ".tmp"} {
+		if _, err := os.Stat(filepath.Join(e.dir, st.ID, name)); err == nil {
+			t.Errorf("%s stays in the download", name)
+		}
+	}
+}

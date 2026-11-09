@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/library"
@@ -47,14 +48,7 @@ func TestTrickplayEndpoints(t *testing.T) {
 	if tp.State != "queued" || tp.TileWidth != 320 || tp.TileHeight != 180 || tp.Columns != 10 || len(tp.PointsMs) == 0 || tp.Sheets == nil || len(tp.Sheets) != 0 {
 		t.Fatalf("getTrickplay %s", rec.Body.String())
 	}
-	set := filepath.Join(dir, library.TrickplayDir, m12.FileID+"-"+tp.Version)
-	if err := os.MkdirAll(set, 0o750); err != nil {
-		t.Fatal(err)
-	}
-	sheet := []byte("RIFF\x10\x00\x00\x00WEBPVP8 sheet")
-	if err := os.WriteFile(filepath.Join(set, "0.webp"), sheet, 0o600); err != nil {
-		t.Fatal(err)
-	}
+	sheet := writeTrickplaySet(t, dir, m12.FileID, tp.Version, tp.PointsMs)
 	rec = send(t, h, http.MethodGet, BasePath+"/items/"+m12.ID+"/trickplay?mediaFileId="+m12.FileID, "p12", "", nil)
 	if err := json.Unmarshal(rec.Body.Bytes(), &tp); err != nil || len(tp.Sheets) != 1 {
 		t.Fatalf("getTrickplay with a sheet: %s", rec.Body.String())
@@ -83,4 +77,27 @@ func TestTrickplayEndpoints(t *testing.T) {
 			t.Errorf("%s: status %d (%s), want 404 not_found", c.name, rec.Code, rec.Body.String())
 		}
 	}
+}
+
+// writeTrickplaySet writes the manifest and sheet 0 of the set of a file at the set version
+// version below the cache directory dir, as the job trickplay.generate does, and returns the sheet.
+func writeTrickplaySet(t *testing.T, dir, fileID, version string, points []int64) []byte {
+	t.Helper()
+	parts := strings.SplitN(version, "-", 3) // "<size>-<mtime>-<source><height>": the folder has size and mtime
+	set := filepath.Join(dir, library.TrickplayDir, fileID+"-"+parts[0]+"-"+parts[1])
+	if err := os.MkdirAll(set, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(library.TrickplayManifest{Version: version, IntervalMs: 10_000, TileWidth: 320, TileHeight: 180, Columns: 10, Rows: 10,
+		PointsMs: points, SeekMs: points, Source: library.TrickplaySourceFallback})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sheet := []byte("RIFF\x10\x00\x00\x00WEBPVP8 sheet")
+	for name, data := range map[string][]byte{"manifest.json": raw, "0.webp": sheet} {
+		if err := os.WriteFile(filepath.Join(set, name), data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return sheet
 }

@@ -25,7 +25,10 @@ import (
 // holds manifest.json (written first: grid, points, seek times, source of the points), one
 // <sheet>.webp per finished sheet (written under a temporary name and renamed, so an existing sheet
 // is finished) and the empty marker complete (written last). A run that stops keeps the manifest
-// and the sheets; the next run makes only the missing ones.
+// and the sheets; the next run makes only the missing ones. A complete set made again (a fallback
+// set once the file has a keyframe index, a tile height that no longer fits) is made in the folder
+// <name>.next beside it and replaces it when complete; the version of the set names the source and
+// the tile height, so the new sheets get new URLs.
 const (
 	// TrickplayDir and TrickplaySessionDir are the folders of the stored and of the temporary
 	// sets below the cache directory (concept 18, 6.3 and 6.5).
@@ -39,6 +42,8 @@ const (
 	// trickplayTempPrefix starts the name of a sheet or a manifest being written; the sweep
 	// removes one older than chapterTempMaxAge (6 hours).
 	trickplayTempPrefix = ".tmp-"
+	// trickplayNextSuffix ends the folder of a set that is made again beside the complete one.
+	trickplayNextSuffix = ".next"
 )
 
 // Job types of trickplay (concept 18 5.2, 6.3, 6.4).
@@ -70,7 +75,7 @@ const (
 // two points with the same seek time share the frame (a section without a keyframe of its own
 // repeats the tile before it).
 type TrickplayManifest struct {
-	Version    string  `json:"version"`
+	Version    string  `json:"version"` // TrickplaySetVersion
 	IntervalMs int64   `json:"intervalMs"`
 	TileWidth  int     `json:"tileWidth"`
 	TileHeight int     `json:"tileHeight"`
@@ -97,10 +102,23 @@ func (m TrickplayManifest) SheetPoints(n int) (from, to int) {
 	return from, min(from+per, len(m.PointsMs))
 }
 
-// TrickplayVersion is the version of the set of a media file: its size and mtime (FileVersion, so a
-// new probe alone keeps the set, concept 18 5.1).
+// TrickplayVersion is the file version of the set of a media file: its size and mtime (FileVersion,
+// so a new probe alone keeps the set, concept 18 5.1). It names the folder of the set.
 func TrickplayVersion(v FileVersion) string {
 	return strconv.FormatInt(v.Size, 10) + "-" + strconv.FormatInt(v.Mtime, 10)
+}
+
+// TrickplaySetVersion is the version of a set (manifest, Trickplay.version, the v of the sheet URLs
+// and their ETag): the file version, the source of the points and the tile height,
+// "<size>-<mtime>-<source><tileHeight>". A set made again from an index or at another tile height
+// gets a new version, so a browser never keeps an immutable sheet of the set before.
+func TrickplaySetVersion(fileVersion, source string, tileHeight int) string {
+	return fileVersion + "-" + source + strconv.Itoa(tileHeight)
+}
+
+// trickplayOfFile reports whether the set version version belongs to the file version fileVersion.
+func trickplayOfFile(version, fileVersion string) bool {
+	return strings.HasPrefix(version, fileVersion+"-")
 }
 
 // TrickplaySetName is the folder name of the set of a media file at a version.
@@ -113,25 +131,29 @@ func TrickplaySheetName(n int) string { return strconv.Itoa(n) + ".webp" }
 
 // TrickplayGrid computes the manifest of a media file (concept 18, 5.4 and 7): one point per 10-s
 // section of durationMs, tiles of transcode.TrickplayTileWidth and the height of the display aspect
-// ratio of the video stream v. With a keyframe index each section takes the first keyframe at or
+// ratio of the video stream v, at the file version fileVersion (TrickplayVersion; the manifest
+// carries TrickplaySetVersion). With a keyframe index each section takes the first keyframe at or
 // after its start that no earlier section took, seeked at the keyframe plus 1 ms (the index rounds
 // to milliseconds; a rounded-down value would land a whole GOP early in MP4); a section without a
 // keyframe of its own repeats the point before it. Without an index (kf empty) every section seeks
 // its start (source fallback): the frame is then the keyframe before it. A file without a duration
 // has no points.
-func TrickplayGrid(durationMs int64, kf []time.Duration, v transcode.Stream, version string) TrickplayManifest {
+func TrickplayGrid(durationMs int64, kf []time.Duration, v transcode.Stream, fileVersion string) TrickplayManifest {
 	m := TrickplayManifest{
-		Version: version, IntervalMs: TrickplayInterval.Milliseconds(), TileWidth: transcode.TrickplayTileWidth,
+		IntervalMs: TrickplayInterval.Milliseconds(), TileWidth: transcode.TrickplayTileWidth,
 		TileHeight: transcode.TrickplayTileHeight(v), Columns: transcode.TrickplayColumns, Rows: transcode.TrickplayRows,
 		PointsMs: []int64{}, SeekMs: []int64{}, Source: TrickplaySourceIndex,
 	}
+	if len(kf) == 0 {
+		m.Source = TrickplaySourceFallback
+	}
+	m.Version = TrickplaySetVersion(fileVersion, m.Source, m.TileHeight)
 	if durationMs <= 0 {
 		return m
 	}
 	step := m.IntervalMs
 	n := int((durationMs + step - 1) / step)
 	if len(kf) == 0 {
-		m.Source = TrickplaySourceFallback
 		for k := range n {
 			at := int64(k) * step
 			m.PointsMs = append(m.PointsMs, at)
@@ -197,7 +219,10 @@ type TrickplayFile struct {
 // TrickplayStatus is the state of the set of a media file for the app (getTrickplay,
 // PlaybackInfo.trickplay): the manifest of the set (or the grid the job will write, before it
 // exists), the sheets that exist and the state from the marker and the job under the key
-// trickplay:<id>. ok is false for a file without video or duration. db is a read connection.
+// trickplay:<id>: complete with the marker, running or queued while a job holds the key, failed
+// when the last job ended without a complete set (failed, or done or cancelled without one: an
+// unreadable file, a cancel, a setting that no longer wants it), queued before any job. ok is false
+// for a file without video or duration. db is a read connection.
 func TrickplayStatus(ctx context.Context, db *sql.DB, cacheDir string, f TrickplayFile) (m TrickplayManifest, sheets []int, state string, ok bool, err error) {
 	if f.Video == nil || f.DurationMs <= 0 {
 		return TrickplayManifest{}, nil, "", false, nil
@@ -211,7 +236,7 @@ func TrickplayStatus(ctx context.Context, db *sql.DB, cacheDir string, f Trickpl
 			return TrickplayManifest{}, nil, "", false, err
 		}
 		if rel, found := findTrickplaySet(cache, TrickplaySetName(f.ID, f.Version)); found {
-			if stored, rerr := readTrickplayManifest(cache, rel); rerr == nil && stored.Version == version {
+			if stored, rerr := readTrickplayManifest(cache, rel); rerr == nil && trickplayOfFile(stored.Version, version) {
 				m = stored
 			}
 			names, rerr := paths.ReadDirNames(cache, rel, 0)
@@ -246,13 +271,11 @@ func TrickplayStatus(ctx context.Context, db *sql.DB, cacheDir string, f Trickpl
 			state = TrickplayRunning
 		}
 	case errors.Is(err, sql.ErrNoRows):
-		failed, err := read.LastJobFailedSince(ctx, systemq.LastJobFailedSinceParams{
-			Type: JobTrickplay, IdempotencyKey: key, Since: sql.NullInt64{Int64: 0, Valid: true},
-		})
+		ended, err := read.TrickplayJobEnded(ctx, key)
 		if err != nil {
 			return TrickplayManifest{}, nil, "", false, fmt.Errorf("last trickplay job of %s: %w", f.ID, err)
 		}
-		if failed {
+		if ended {
 			state = TrickplayFailed
 		}
 	default:
@@ -333,6 +356,27 @@ func OpenTrickplaySheet(cacheDir, mediaFileID string, v FileVersion, n int) (*os
 	}
 	defer root.Close() // a file opened through the root stays usable after it is closed
 	return root.Open(rel + "/" + TrickplaySheetName(n))
+}
+
+// TrickplaySetVersionOf returns the version of the set of a media file at version v (stored, else
+// temporary) from its manifest; ok is false without a readable manifest of that file version.
+func TrickplaySetVersionOf(cacheDir, mediaFileID string, v FileVersion) (version string, ok bool) {
+	if cacheDir == "" {
+		return "", false
+	}
+	cache, err := paths.NewRoot(cacheDir)
+	if err != nil {
+		return "", false
+	}
+	rel, found := findTrickplaySet(cache, TrickplaySetName(mediaFileID, v))
+	if !found {
+		return "", false
+	}
+	m, err := readTrickplayManifest(cache, rel)
+	if err != nil || !trickplayOfFile(m.Version, TrickplayVersion(v)) {
+		return "", false
+	}
+	return m.Version, true
 }
 
 // readTrickplayManifest reads manifest.json of the set at rel below the cache root.

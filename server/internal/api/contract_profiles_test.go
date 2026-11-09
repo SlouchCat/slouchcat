@@ -441,11 +441,18 @@ var profileRegistry = map[string]profileCall{
 	"getChapterImage": {contract: "GET /items/{id}/chapters/{idx}/image", path: "/items/{id}/chapters/0/image?mediaFileId={file}",
 		perItem: true, okStatus: http.StatusNotFound},
 	// Trickplay (concept 18): the fixture's files carry no probe, so no title gets a preview set and
-	// no sheet exists; an invisible title is 404 all the same (positive checks in package playback).
+	// no sheet exists; an invisible title is 404 all the same. The check stores a probe for the
+	// moment and asks again: a visible film or episode answers its set and, once written, its sheet.
 	"getTrickplay": {contract: "GET /items/{id}/trickplay", path: "/items/{id}/trickplay?mediaFileId={file}",
-		perItem: true, okStatus: http.StatusNotFound},
+		perItem: true, okStatus: http.StatusNotFound,
+		check: func(t *testing.T, f *vistest.Fixture, h http.Handler, token string, m vistest.Movie, _ *httptest.ResponseRecorder) {
+			checkContractTrickplay(t, f, h, token, m, false)
+		}},
 	"getTrickplaySheet": {contract: "GET /items/{id}/trickplay/{sheet}", path: "/items/{id}/trickplay/0?mediaFileId={file}",
-		perItem: true, okStatus: http.StatusNotFound},
+		perItem: true, okStatus: http.StatusNotFound,
+		check: func(t *testing.T, f *vistest.Fixture, h http.Handler, token string, m vistest.Movie, _ *httptest.ResponseRecorder) {
+			checkContractTrickplay(t, f, h, token, m, true)
+		}},
 	"startPlayback": {contract: "POST /items/{id}/play", path: "/items/{id}/play", perItem: true, okStatus: http.StatusOK,
 		body: `{"deviceId":"contract-test","capabilities":{"video":["h264"],"audio":["aac"],"hls":"mse"}}`,
 		check: func(t *testing.T, _ *vistest.Fixture, h http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
@@ -1185,8 +1192,11 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 		pf.newSession(t, name, p)
 	}
 	pf.newSession(t, "none", model.Profile{})
+	pbCache := t.TempDir()
+	contractTrickplayCaches.Store(f, pbCache) // the registry checks of the trickplay operations
+	t.Cleanup(func() { contractTrickplayCaches.Delete(f) })
 	pf.pb = playback.New(f.DB, log, playback.WithTokenKey(testTokenKey), playback.WithTranscoder(pf.tc),
-		playback.WithSubtitleConverter(fakeEmbeddedVTT, fakeSidecarVTT), playback.WithCacheDir(t.TempDir()))
+		playback.WithSubtitleConverter(fakeEmbeddedVTT, fakeSidecarVTT), playback.WithCacheDir(pbCache))
 	adm.WithStreams(pf.pb)
 	pf.dlDir, pf.queue = filepath.Join(t.TempDir(), "downloads"), jobs.NewQueue(f.DB.Write, nil)
 	// M8 administration: the queue of the fixture, a mock release manifest and a fake VAPID rotation.

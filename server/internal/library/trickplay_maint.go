@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -39,9 +40,11 @@ func (s *Service) trickplayTypes(r *jobs.Registry) {
 
 // queueTrickplayAfterProbe is the import trigger (5.2 (2), 5.1): after the probe of a film or
 // episode file that a scan added or changed after a complete scan of its library (newFile) at
-// «Im Voraus», and after the probe of a file whose set of an earlier version exists at a setting
-// that stores, it queues trickplay.generate at priority 2 with origin import (the time window of
-// the type applies). It does not wait for a playback to end. A failure is logged.
+// «Im Voraus», and after the probe of a file whose set of an earlier version exists at «Im Voraus»,
+// it queues trickplay.generate at priority 2 with origin import (the time window of the type
+// applies). It does not wait for a playback to end. At another setting that stores (an import job
+// would end at once, 5.2) the stored sets of the earlier versions go now and the next start makes
+// the set. A failure is logged.
 func (s *Service) queueTrickplayAfterProbe(ctx context.Context, f systemq.MediaFile, item systemq.Item, newFile bool) {
 	if s.cacheDir == "" || !chapterKind(item.Kind) {
 		return
@@ -58,6 +61,10 @@ func (s *Service) queueTrickplayAfterProbe(ctx context.Context, f systemq.MediaF
 	switch {
 	case newFile && setting.Mode == model.TrickplayAhead:
 	case setting.Stores() && s.hadTrickplay(f.ID, version):
+		if setting.Mode != model.TrickplayAhead {
+			s.dropOtherTrickplayVersions(ctx, f.ID, version)
+			return
+		}
 	default:
 		return
 	}
@@ -82,11 +89,36 @@ func (s *Service) hadTrickplay(mediaFileID string, v FileVersion) bool {
 	}
 	current := TrickplaySetName(mediaFileID, v)
 	for _, n := range names {
-		if strings.HasPrefix(n, mediaFileID+"-") && n != current {
+		if strings.HasPrefix(n, mediaFileID+"-") && strings.TrimSuffix(n, trickplayNextSuffix) != current {
 			return true
 		}
 	}
 	return false
+}
+
+// dropOtherTrickplayVersions removes the stored sets of other versions of a file (6.7, at once
+// instead of at the next maintenance); not while a job holds the key. A failure is logged.
+func (s *Service) dropOtherTrickplayVersions(ctx context.Context, mediaFileID string, v FileVersion) {
+	if active, err := trickplayJobActive(ctx, systemq.New(s.db.Read), mediaFileID); err != nil || active {
+		return
+	}
+	cache, err := paths.NewRoot(s.cacheDir)
+	if err != nil {
+		return
+	}
+	names, err := paths.ReadDirNames(cache, TrickplayDir, 0)
+	if err != nil {
+		return
+	}
+	current := TrickplaySetName(mediaFileID, v)
+	for _, n := range names {
+		if !strings.HasPrefix(n, mediaFileID+"-") || strings.TrimSuffix(n, trickplayNextSuffix) == current {
+			continue
+		}
+		if err := removeTrickplaySet(cache, TrickplayDir+"/"+n); err != nil {
+			s.log.WarnContext(ctx, "remove trickplay set of an earlier version", "folder", n, "err", err)
+		}
+	}
 }
 
 // trickplayEpisode is one episode of a look-ahead.
@@ -157,12 +189,43 @@ func trickplayLookAhead(all []trickplayEpisode, episodeID, scope string) []trick
 // through EnqueueOverridingWindow (a waiting import or backfill job of the file is raised), the
 // next two at priority 3, the rest at priority 2 throttled, and ends. Per episode only the file
 // playback takes without a choice, only present files. A system job without a profile: the
-// previews are served only through the visibility of the viewer (rule 2).
+// previews are served only through the visibility of the viewer (rule 2). A start of another
+// episode while it runs writes its payload (QueueTrickplayForPlayback); the job then runs again for
+// that episode.
 func (s *Service) handleTrickplaySeries(ctx context.Context, j *jobs.Job) error {
 	var p trickplaySeriesPayload
 	if err := decodePayload(j, &p); err != nil {
 		return err
 	}
+	for range trickplaySeriesRounds {
+		if err := s.trickplaySeries(ctx, p); err != nil {
+			return err
+		}
+		next, again := s.trickplaySeriesAgain(ctx, j.ID, p)
+		if !again {
+			return nil
+		}
+		p = next
+	}
+	return nil
+}
+
+// trickplaySeriesRounds bounds the runs of one trickplay.series job for starts that came while it
+// ran (each later start queues a new job once this one ended).
+const trickplaySeriesRounds = 5
+
+// trickplaySeriesAgain reads the payload of the running look-ahead job id: again is true when a
+// start of another episode wrote one that differs from done.
+func (s *Service) trickplaySeriesAgain(ctx context.Context, id int64, done trickplaySeriesPayload) (next trickplaySeriesPayload, again bool) {
+	cur, err := s.queue.Get(ctx, id)
+	if err != nil || json.Unmarshal(cur.Payload, &next) != nil {
+		return done, false
+	}
+	return next, next != done
+}
+
+// trickplaySeries is one look-ahead of handleTrickplaySeries.
+func (s *Service) trickplaySeries(ctx context.Context, p trickplaySeriesPayload) error {
 	if s.cacheDir == "" || p.SeriesID == "" {
 		return nil
 	}
@@ -194,6 +257,7 @@ func (s *Service) handleTrickplaySeries(ctx context.Context, j *jobs.Job) error 
 	}
 	if !s.trickplaySpaceOK() {
 		s.log.WarnContext(ctx, "cache drive below the free-space floor, no trickplay look-ahead", "series_id", p.SeriesID)
+		jobs.Progress(ctx, 0, 0, trickplayFloorStopNote)
 		return nil
 	}
 	queued := 0
@@ -235,24 +299,22 @@ func (s *Service) runTrickplayBackfill(ctx context.Context, q *jobs.Queue, prio 
 
 // handleTrickplayBackfill queues trickplay.generate (priority 1, origin backfill) for every present,
 // probed film and episode file whose kind stands at «Im Voraus» in its library and that has no
-// complete set, or a complete fallback set while the file has a keyframe index now (5.4: the
-// fallback set is removed and made again). Below the free-space floor it queues nothing.
+// complete set, or a complete fallback set while the file has a keyframe index now (5.4: the job
+// makes it again beside the fallback set, which serves until the new one is complete). Below the
+// free-space floor it queues nothing.
 func (s *Service) handleTrickplayBackfill(ctx context.Context, _ *jobs.Job) error {
 	if s.cacheDir == "" {
 		return nil
 	}
 	if !s.trickplaySpaceOK() {
 		s.log.WarnContext(ctx, "cache drive below the free-space floor, no trickplay backfill")
+		jobs.Progress(ctx, 0, 0, trickplayFloorStopNote)
 		return nil
 	}
 	read := systemq.New(s.db.Read)
 	rows, err := read.ListTrickplayFiles(ctx)
 	if err != nil {
 		return fmt.Errorf("list trickplay files: %w", err)
-	}
-	cache, err := paths.NewRoot(s.cacheDir)
-	if err != nil {
-		return err
 	}
 	queued := 0
 	for i, r := range rows {
@@ -270,15 +332,6 @@ func (s *Service) handleTrickplayBackfill(ctx context.Context, _ *jobs.Job) erro
 			if m.Source != TrickplaySourceFallback || !indexed {
 				continue
 			}
-			if running, err := trickplayJobRunning(ctx, read, r.ID); err != nil || running {
-				continue
-			}
-			if rel, found := findTrickplaySet(cache, TrickplaySetName(r.ID, v)); found {
-				if err := removeTrickplaySet(cache, rel); err != nil {
-					s.log.WarnContext(ctx, "remove fallback trickplay set", "media_file_id", r.ID, "err", err)
-					continue
-				}
-			}
 		}
 		if _, err := enqueueTrickplay(ctx, s.queue, trickplayPayload{MediaFileID: r.ID, Origin: TrickplayOriginBackfill}, prioTrickplayBackfill, false); err != nil {
 			return err
@@ -290,20 +343,15 @@ func (s *Service) handleTrickplayBackfill(ctx context.Context, _ *jobs.Job) erro
 	return nil
 }
 
-// trickplayJobRunning reports whether trickplay.generate of a file runs right now.
-func trickplayJobRunning(ctx context.Context, read *systemq.Queries, mediaFileID string) (bool, error) {
-	id, err := read.GetActiveJobIDByKey(ctx, sql.NullString{String: trickplayKey(mediaFileID), Valid: true})
+// trickplayJobActive reports whether trickplay.generate of a file waits or runs: the lock of its
+// folders for the maintenance (6.7). A waiting job counts too, so one claimed between the look
+// and the removal never finds its folder gone.
+func trickplayJobActive(ctx context.Context, read *systemq.Queries, mediaFileID string) (bool, error) {
+	_, err := read.GetActiveJobIDByKey(ctx, sql.NullString{String: trickplayKey(mediaFileID), Valid: true})
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
-	if err != nil {
-		return false, err
-	}
-	j, err := read.GetJob(ctx, id)
-	if err != nil {
-		return false, err
-	}
-	return j.State == string(jobs.StateRunning), nil
+	return err == nil, err
 }
 
 // removeTrickplaySet removes the set folder rel below the cache root.
@@ -316,8 +364,10 @@ func removeTrickplaySet(cache paths.Root, rel string) error {
 	return root.RemoveAll(rel)
 }
 
-// parseTrickplaySet splits a set folder name into media file id and version.
+// parseTrickplaySet splits a set folder name (also of a set made again, <name>.next) into media
+// file id and version.
 func parseTrickplaySet(name string) (id string, v FileVersion, ok bool) {
+	name = strings.TrimSuffix(name, trickplayNextSuffix)
 	if len(name) < 30 || name[26] != '-' {
 		return "", FileVersion{}, false
 	}
@@ -343,7 +393,8 @@ type trickplayFileInfo struct {
 // sets of other versions, of files that are gone or whose title was deleted, and stored sets of a
 // kind whose setting no longer stores once no playback session of the file is open; it removes
 // temporary sheets older than 6 hours, runs SweepTrickplaySessions and counts the bytes of the
-// stored sets per library and kind (TrickplayUsage). The folder of a running job is never touched.
+// stored sets per library and kind (TrickplayUsage). The folders of a file whose job waits or runs
+// are never touched.
 func (s *Service) sweepTrickplay(ctx context.Context) error {
 	if s.cacheDir == "" {
 		return nil
@@ -380,7 +431,7 @@ func (s *Service) sweepTrickplay(ctx context.Context) error {
 		if !ok {
 			continue
 		}
-		if running, err := trickplayJobRunning(ctx, read, id); err != nil || running {
+		if active, err := trickplayJobActive(ctx, read, id); err != nil || active {
 			continue
 		}
 		f, known := files[id]
@@ -462,9 +513,9 @@ func (s *Service) TrickplayUsage(libraryID int64) (movies, series, cacheFree int
 
 // SweepTrickplaySessions removes the temporary sets (6.5): of files that are gone or changed, and
 // of files without a playback session open within the last TrickplaySessionKeep when the set
-// itself is older than that (a download copies a fresh set first). Not the folder of a running
-// job. Package playback runs it every minute (6.7), library.sweep every hour. db is a read
-// connection.
+// itself is older than that (a download copies a fresh set first). Not the folders of a file whose
+// job waits or runs. Package playback runs it every minute (6.7), library.sweep every hour. db is
+// a read connection.
 func SweepTrickplaySessions(ctx context.Context, db *sql.DB, cacheDir string, now time.Time) error {
 	if cacheDir == "" {
 		return nil
@@ -488,7 +539,7 @@ func SweepTrickplaySessions(ctx context.Context, db *sql.DB, cacheDir string, no
 		if !ok {
 			continue
 		}
-		if running, err := trickplayJobRunning(ctx, read, id); err != nil || running {
+		if active, err := trickplayJobActive(ctx, read, id); err != nil || active {
 			continue
 		}
 		keep := false

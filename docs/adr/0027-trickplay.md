@@ -32,8 +32,15 @@ bremst und je Bibliothek einstellbar ist.
 2. **Blätter.** 10 × 10 Kacheln je Blatt, WebP Qualität 75, das letzte Blatt nur so hoch wie nötig.
    Rund 1,3 bis 1,8 MB je Stunde Video. Ein Satz ist ein Ordner je Datei und Dateiversion
    `<mediaFileId>-<size>-<mtime>` mit `manifest.json` (zuerst), den Blättern (je unter Zwischennamen
-   geschrieben und umbenannt) und dem leeren Merker `complete` (zuletzt). Ein abgebrochener Lauf
-   macht beim nächsten Mal nur die fehlenden Blätter.
+   geschrieben, auf das Laufwerk geschrieben und umbenannt) und dem leeren Merker `complete`
+   (zuletzt). Ein abgebrochener Lauf macht beim nächsten Mal nur die fehlenden Blätter. Die Version
+   des Satzes (`Trickplay.version`, `v` der Blatt-Adressen, ETag) ist
+   `<size>-<mtime>-<quelle><kachelhöhe>`: Wird ein vollständiger Satz neu gebaut (ein
+   `fallback`-Satz, sobald die Datei einen Index hat; eine Kachelhöhe, die nicht mehr passt), entsteht
+   er im Ordner `<name>.next` daneben, der alte dient bis zum Tausch, und die neuen Blätter bekommen
+   neue Adressen. Die Kachelhöhe ist auf 1280 px begrenzt (ein Blatt bleibt unter den 16 383 px von
+   libwebp); einem gespeicherten Probe ohne Seitenverhältnis der Bildpunkte (vor 1.23.0) liest der
+   Job es einmal aus der Datei nach.
 3. **Einstellung je Bibliothek, getrennt für Filme und Serien** (Migration 00042, fünf Spalten in
    `libraries`): Filme `ahead` (ab Werk), `on_start` mit `keep` oder `off`; Serien zusätzlich
    `series_start` mit Umfang `series` (ab Werk), `season_rest` oder `next_episode`. Gespeichert wird
@@ -58,16 +65,21 @@ bremst und je Bibliothek einstellbar ist.
    `RaiseQueuedJobForPlayback`. Pausiert der Admin `trickplay.generate`, pausiert es ganz;
    `MaxPauseOverrides` zählt Trickplay nicht.
 7. **Fehler.** Je Bildpunkt höchstens 15 s; ein kaputter Bildpunkt wird schwarz gefüllt, fünf in
-   Folge oder eine unlesbare Datei mitten im Lauf beenden den Auftrag als fehlgeschlagen, fertige
-   Blätter bleiben. Eine unlesbare Datei beim Beginn: Start, Vorlauf, Download und nicht speichernde
+   Folge oder eine unlesbare Datei mitten im Lauf beenden den Auftrag sofort als fehlgeschlagen
+   (die Arbeiter brechen das Blatt ab, `jobs.Final`), fertige Blätter bleiben. Der Auftrag hat zwei
+   Versuche; der zweite dient nur einem Lauf, den ein abgelaufener Lease abschnitt (Absturz), damit
+   ein Import bei «Im Voraus» ohne Zeitplan nicht liegen bleibt. Endet der letzte Auftrag ohne
+   vollständigen Satz (fehlgeschlagen, abgebrochen, unlesbare Datei, nicht mehr gewünscht), meldet
+   der Zustand `failed`, und der Player fragt nicht weiter nach. Eine unlesbare Datei beim Beginn: Start, Vorlauf, Download und nicht speichernde
    Aufträge enden ohne Wiederholung, Import und Nachholen warten wie die Kapitelbilder (1 h, Aufgeben
    nach 7 Tagen). Ändert sich die Datei während des Laufs, endet er; der Probe reiht neu ein.
 8. **Speicherplatz.** Unter 10 GB oder 10 % frei auf dem Cache-Laufwerk stoppen Import, Nachholen und
-   Vorlauf; ein Start schreibt dann einen temporären Satz.
+   Vorlauf; ein Start schreibt dann einen temporären Satz. Beides steht im Protokoll und als Notiz
+   des Laufs auf «Hintergrundjobs».
 9. **Pflege** ohne eigene Jobart in `library.sweep` (stündlich) und der Wiedergabe-Pflege (minütlich):
    Sätze anderer Versionen, verschwundener Dateien, gelöschter Titel, temporäre Sätze ohne offene
-   Sitzung seit 10 Minuten und gespeicherte Sätze einer Titelart, die nicht mehr speichert; nie der
-   Ordner eines laufenden Auftrags, Zwischennamen erst nach 6 Stunden.
+   Sitzung seit 10 Minuten und gespeicherte Sätze einer Titelart, die nicht mehr speichert; nie die
+   Ordner einer Datei, deren Auftrag wartet oder läuft, Zwischennamen erst nach 6 Stunden.
 10. **Vertrag.** `PlaybackInfo.trickplay` (Schema `Trickplay`) kommt bei jedem Start ausser «Aus» mit,
     beim ersten Mal mit `state: queued` und `sheets: []`; `getTrickplay` zum Nachfragen,
     `getTrickplaySheet` (`http.Handler`, `immutable` mit passendem `v`) und

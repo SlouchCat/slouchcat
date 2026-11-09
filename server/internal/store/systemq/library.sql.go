@@ -775,6 +775,22 @@ func (q *Queries) SoftDeleteItemsOfRootWithoutOtherFiles(ctx context.Context, ar
 	return result.RowsAffected()
 }
 
+const trickplayJobEnded = `-- name: TrickplayJobEnded :one
+SELECT EXISTS (
+    SELECT 1 FROM jobs
+    WHERE type = 'trickplay.generate' AND state IN ('done', 'failed', 'cancelled') AND idempotency_key = ?1
+)
+`
+
+// Whether a run of trickplay.generate under @idempotency_key ended (done, failed or cancelled): with
+// no active job and no complete set, the set of the file ended without being made (state failed).
+func (q *Queries) TrickplayJobEnded(ctx context.Context, idempotencyKey sql.NullString) (bool, error) {
+	row := q.db.QueryRowContext(ctx, trickplayJobEnded, idempotencyKey)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const updateItemsProvidersByRoot = `-- name: UpdateItemsProvidersByRoot :execrows
 UPDATE items SET providers = ?1, updated_at = ?2
 WHERE deleted_at IS NULL AND (
