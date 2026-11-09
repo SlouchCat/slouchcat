@@ -10,14 +10,22 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
 
-// A new video library starts at «Im Voraus» (F-11) unless the request names a setting; an audio
-// library refuses one (concept 18, 8.2).
+// A new video library starts at «Aus» for films and series (1.23.1; before «Im Voraus», F-11)
+// unless the request names a setting, stored in the row and not left to the column default 'ahead'
+// of 00042; an audio library refuses one (concept 18, 8.2).
 func TestCreateLibraryTrickplay(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	lib := e.create(t.TempDir())
-	if lib.Trickplay == nil || *lib.Trickplay != model.DefaultLibraryTrickplay() {
+	off := model.LibraryTrickplay{
+		Movies: model.TrickplaySetting{Mode: model.TrickplayOff, Keep: true},
+		Series: model.TrickplaySetting{Mode: model.TrickplayOff, Keep: true, Scope: model.TrickplayScopeSeries},
+	}
+	if lib.Trickplay == nil || *lib.Trickplay != off || *lib.Trickplay != model.DefaultLibraryTrickplay() {
 		t.Errorf("default setting %+v", lib.Trickplay)
+	}
+	if got, err := e.svc.Get(e.ctx, lib.ID); err != nil || got.Trickplay == nil || *got.Trickplay != off {
+		t.Errorf("stored default setting %+v, %v", got.Trickplay, err)
 	}
 	req := testRequest("Serien", t.TempDir())
 	set := model.LibraryTrickplay{

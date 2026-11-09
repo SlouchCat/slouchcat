@@ -10,7 +10,8 @@ import (
 // Migration 00042 (concept 18 part A, 8.3) adds the trickplay settings to libraries on the frozen
 // state of migration 00041 (empfehlungen.sql): every existing library stands at «Im Voraus» for
 // films and series with «Speichern» and the scope «ganze Serie» (F-11), and the CHECK constraints
-// refuse every other value.
+// refuse every other value. Open runs 00043 as well, which switches «Im Voraus» to «Aus» (1.23.1);
+// TestMigration00043TrickplayOff checks that step on its own.
 func TestMigration00042Trickplay(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -27,8 +28,8 @@ func TestMigration00042Trickplay(t *testing.T) {
 		t.Fatalf("foreign_key_check after 00042: %d violations (%v)", violations, err)
 	}
 	var libraries, defaults int
-	if err := db.Read.QueryRowContext(ctx, `SELECT count(*), coalesce(sum(trickplay_movies = 'ahead' AND trickplay_movies_keep = 1
-		AND trickplay_series = 'ahead' AND trickplay_series_keep = 1 AND trickplay_series_scope = 'series'), 0) FROM libraries`).Scan(&libraries, &defaults); err != nil {
+	if err := db.Read.QueryRowContext(ctx, `SELECT count(*), coalesce(sum(trickplay_movies = 'off' AND trickplay_movies_keep = 1
+		AND trickplay_series = 'off' AND trickplay_series_keep = 1 AND trickplay_series_scope = 'series'), 0) FROM libraries`).Scan(&libraries, &defaults); err != nil {
 		t.Fatal(err)
 	}
 	if libraries == 0 || defaults != libraries {

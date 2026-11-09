@@ -117,6 +117,16 @@ async function storeAudioIds(api: APIRequestContext): Promise<void> {
 }
 
 /**
+ * «Vorschau beim Spulen» «Im Voraus» for films and series (concept 18, 6.1): the specs of the
+ * preview tiles (player, offline chapters, chapters) need sets made on import. A new library
+ * starts at «Aus» since 1.23.1, so "Filme" and "Serien" name the setting; "Dokus" keeps the default.
+ */
+const TRICKPLAY_AHEAD = {
+  movies: { mode: 'ahead', keep: true },
+  series: { mode: 'ahead', keep: true, scope: 'series' },
+};
+
+/**
  * The video libraries, once per run: "Filme" on testdata/media/Movies, the series library of M3
  * on testdata/media/TV, and the mixed library "Dokus" (ADR 0015, F-13) with a film folder and a
  * series folder created in one request. Its folders are hidden below the media root and hold no
@@ -144,6 +154,7 @@ async function ensureVideoLibraries(api: APIRequestContext): Promise<void> {
       name: 'Filme',
       kind: 'video',
       roots: [{ path: MOVIES_DIR, content: 'movie', providers: ['tmdb'] }],
+      trickplay: TRICKPLAY_AHEAD,
     });
   }
   if (existsSync(TV_DIR) && !libraries.some((library) => library.name === 'Serien')) {
@@ -151,6 +162,7 @@ async function ensureVideoLibraries(api: APIRequestContext): Promise<void> {
       name: 'Serien',
       kind: 'video',
       roots: [{ path: TV_DIR, content: 'series', providers: ['tmdb', 'tvdb'] }],
+      trickplay: TRICKPLAY_AHEAD,
     });
   }
 }

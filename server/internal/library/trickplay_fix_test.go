@@ -45,7 +45,7 @@ func TestTrickplayStateAfterEndedJob(t *testing.T) {
 	if err := os.Remove(e.filmPath(gone)); err != nil {
 		t.Fatal(err)
 	}
-	e.start(gone, 0, model.DefaultLibraryTrickplay().Movies)
+	e.start(gone, 0, trickplayAheadSetting.Movies)
 	if _, _, state := e.status(gone); state != TrickplayQueued {
 		t.Errorf("waiting: %q", state)
 	}
@@ -59,7 +59,7 @@ func TestTrickplayStateAfterEndedJob(t *testing.T) {
 		t.Errorf("after a start of an unreadable file: %q, want failed", state)
 	}
 	// A cancelled job.
-	e.start(cancelled, 0, model.DefaultLibraryTrickplay().Movies)
+	e.start(cancelled, 0, trickplayAheadSetting.Movies)
 	if _, err := e.queue.Cancel(e.ctx, e.int(`SELECT id FROM jobs WHERE idempotency_key = ?`, trickplayKey(cancelled))); err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestTrickplayStateAfterEndedJob(t *testing.T) {
 		t.Errorf("after a cancel: %q, want failed", state)
 	}
 	// A new start asks again: queued.
-	e.start(cancelled, 0, model.DefaultLibraryTrickplay().Movies)
+	e.start(cancelled, 0, trickplayAheadSetting.Movies)
 	if _, _, state := e.status(cancelled); state != TrickplayQueued {
 		t.Errorf("after a new start: %q, want queued", state)
 	}
@@ -84,7 +84,7 @@ func TestTrickplayHangingPointsStopEarly(t *testing.T) {
 		calls.Add(1)
 		return nil, fmt.Errorf("ffmpeg: %w", context.DeadlineExceeded)
 	}
-	e.start(id, 0, model.DefaultLibraryTrickplay().Movies)
+	e.start(id, 0, trickplayAheadSetting.Movies)
 	j, err := e.run()
 	if !errors.Is(err, errTrickplayFailures) {
 		t.Fatalf("hanging points: %v", err)
@@ -109,7 +109,7 @@ func TestTrickplayHangingPointsStopEarly(t *testing.T) {
 		_ = os.Remove(path)
 		return nil, errors.New("Input/output error")
 	}
-	e.start(other, 0, model.DefaultLibraryTrickplay().Movies)
+	e.start(other, 0, trickplayAheadSetting.Movies)
 	if _, err := e.run(); err == nil || !strings.Contains(err.Error(), "unreadable during trickplay") {
 		t.Fatalf("share gone: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestTrickplayStartPullsWaitingJobForward(t *testing.T) {
 	if err := os.Rename(path+".off", path); err != nil {
 		t.Fatal(err)
 	}
-	e.start(id, 0, model.DefaultLibraryTrickplay().Movies)
+	e.start(id, 0, trickplayAheadSetting.Movies)
 	now := e.clock.Now().UnixMilli()
 	if at := e.int(`SELECT run_after FROM jobs WHERE idempotency_key = ? AND state = 'queued'`, trickplayKey(id)); at > now {
 		t.Errorf("run_after %d, %d ms after now", at, at-now)
@@ -167,7 +167,7 @@ func TestTrickplayUnreadableFile(t *testing.T) {
 	if err := os.Remove(e.filmPath(id)); err != nil {
 		t.Fatal(err)
 	}
-	e.start(id, 0, model.DefaultLibraryTrickplay().Movies)
+	e.start(id, 0, trickplayAheadSetting.Movies)
 	if _, err := e.run(); err != nil || e.jobCount(JobTrickplay) != 1 {
 		t.Fatalf("unreadable start: %v, %d jobs", err, e.jobCount(JobTrickplay))
 	}
@@ -275,7 +275,7 @@ func TestTrickplaySampleAspect(t *testing.T) {
 		probes++
 		return transcode.Probe{Streams: []transcode.Stream{{Index: 0, Type: "video", Width: 720, Height: 576, SAR: "16:15"}}}, nil
 	}
-	e.start(id, 0, model.DefaultLibraryTrickplay().Movies)
+	e.start(id, 0, trickplayAheadSetting.Movies)
 	if _, err := e.run(); err != nil {
 		t.Fatal(err)
 	}
@@ -285,7 +285,7 @@ func TestTrickplaySampleAspect(t *testing.T) {
 	}
 	// The stored probe learns another ratio (a new probe): the set is made again.
 	e.exec(`UPDATE media_files SET probe = ? WHERE id = ?`, strings.Replace(pal, `"height":576`, `"height":576,"sar":"64:45"`, 1), id)
-	e.start(id, 0, model.DefaultLibraryTrickplay().Movies)
+	e.start(id, 0, trickplayAheadSetting.Movies)
 	if n := e.jobCount(JobTrickplay); n != 1 {
 		t.Fatalf("a complete set queued %d jobs", n)
 	}
@@ -407,7 +407,7 @@ func TestTrickplaySweepWaitingJobLocks(t *testing.T) {
 	t.Parallel()
 	e := newTPEnv(t)
 	id := e.film("Warten (2020)", 30_000)
-	e.start(id, 0, model.DefaultLibraryTrickplay().Movies)
+	e.start(id, 0, trickplayAheadSetting.Movies)
 	if _, err := e.run(); err != nil {
 		t.Fatal(err)
 	}
@@ -436,7 +436,7 @@ func TestTrickplayRestoresSetMadeAgain(t *testing.T) {
 	t.Parallel()
 	e := newTPEnv(t)
 	id := e.film("Neu (2020)", 30_000)
-	e.start(id, 0, model.DefaultLibraryTrickplay().Movies)
+	e.start(id, 0, trickplayAheadSetting.Movies)
 	if _, err := e.run(); err != nil {
 		t.Fatal(err)
 	}

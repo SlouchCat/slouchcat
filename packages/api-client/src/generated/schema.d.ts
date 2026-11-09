@@ -6679,7 +6679,8 @@ export interface components {
             defaultRating?: components["schemas"]["Rating"];
             /**
              * @description The settings «Vorschau beim Spulen» (since contract 1.23.0); only for `video` (`not_allowed`
-             *     otherwise). Absent: films and series «Im Voraus» with `keep` and the scope `series`.
+             *     otherwise). Absent: films and series «Aus» with `keep` and the scope `series` (since 1.23.1;
+             *     before «Im Voraus»).
              */
             trickplay?: components["schemas"]["LibraryTrickplay"];
         };
@@ -6811,9 +6812,9 @@ export interface components {
             scope: components["schemas"]["TrickplaySeriesScope"];
         };
         /**
-         * @description `ahead` «Im Voraus» (default): on import of new files, by the backfill (`trickplay.backfill`) and at
-         *     a start when missing, always stored. `on_start` «Beim Start»: at a start, stored with `keep`, else
-         *     only while it plays. `off` «Aus»: never; the seek bar shows the chapter image.
+         * @description `off` «Aus» (default since 1.23.1): never; the seek bar shows the chapter image. `ahead` «Im Voraus»:
+         *     on import of new files, by the backfill (`trickplay.backfill`) and at a start when missing, always
+         *     stored. `on_start` «Beim Start»: at a start, stored with `keep`, else only while it plays.
          * @enum {string}
          */
         TrickplayMoviesMode: "ahead" | "on_start" | "off";
