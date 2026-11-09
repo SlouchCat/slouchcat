@@ -110,7 +110,7 @@ export function useLibraryPages(
   const pages = useQueries({
     queries: drawn.map((page) => ({
       ...libraryPageQuery(id ?? 0, shown, page),
-      enabled: ready && shown === query && asked.has(String(page)),
+      enabled: ready && asked.has(String(page)),
       staleTime: PAGE_STALE_MS,
     })),
     combine: (results) => ({
