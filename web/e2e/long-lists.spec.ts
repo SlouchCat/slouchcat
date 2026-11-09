@@ -141,11 +141,15 @@ test("the station table of 40'000 draws a few rows and ↓ goes on past them @ke
     table.getByRole('rowheader', { name: /^Sender (19|20)\d{3}$/ }).first(),
   ).toBeVisible();
   expect(offsets.length).toBeLessThan(10);
+  // The row with the focus stays drawn far above, with its entry: the focus stays on it.
+  await expect(edit(111)).toBeFocused();
 
   // ↑ onto a row above the drawn ones scrolls it into view below the fixed header, not under it.
-  const top = Number(
-    await table.locator('tbody tr[data-place]').first().getAttribute('data-place'),
-  );
+  // The top of the rows drawn in the middle (the row with the focus comes before them).
+  const places = await table
+    .locator('tbody tr[data-place]')
+    .evaluateAll((rows) => rows.map((row) => Number(row.getAttribute('data-place'))));
+  const top = Math.min(...places.filter((place) => place > 110));
   await edit(top + 2).focus();
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('ArrowUp');

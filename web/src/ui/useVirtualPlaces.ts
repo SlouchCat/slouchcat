@@ -14,6 +14,11 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObje
 export interface PlaceSpan {
   start: number;
   end: number;
+  /**
+   * The places of the row with the focus when it lies outside `start` to `end`: that row stays
+   * drawn, so its entries must stay read as well.
+   */
+  keep?: { start: number; end: number };
 }
 
 interface VirtualPlacesOptions {
@@ -189,9 +194,20 @@ export function useVirtualPlaces({
   const spanEnd = virtual
     ? Math.min(count - 1, ((visible?.endIndex ?? 0) + extra + 1) * columns - 1)
     : count - 1;
+  // The row with the focus stays drawn (rangeExtractor) and its page stays read: without its
+  // entry it would turn into an empty place and the focus would fall to the page.
   useEffect(() => {
-    if (count > 0) onRange?.({ start: spanStart, end: spanEnd });
-  }, [count, onRange, spanEnd, spanStart]);
+    if (count === 0) return;
+    const row = virtual ? focusedRow.current : null;
+    const first = row === null ? 0 : row * columns;
+    const last = Math.min(count - 1, first + columns - 1);
+    const outside = row !== null && first < count && (first < spanStart || last > spanEnd);
+    onRange?.(
+      outside
+        ? { start: spanStart, end: spanEnd, keep: { start: first, end: last } }
+        : { start: spanStart, end: spanEnd },
+    );
+  }, [columns, count, onRange, spanEnd, spanStart, virtual]);
 
   // What the key handlers read: they run later.
   const live = useRef({ count, columns, ready, virtual });

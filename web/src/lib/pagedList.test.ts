@@ -155,6 +155,19 @@ describe('usePagedList', () => {
     expect(result.current.slots[150]).toBeUndefined();
   });
 
+  it('keeps the page of the row with the focus read far from the drawn rows', async () => {
+    const server = list(PAGED_LIST_VIRTUAL_FROM + 300);
+    const { result } = render(server.source, {
+      start: 320,
+      end: 380,
+      keep: { start: 150, end: 150 },
+    });
+    await waitFor(() => expect(result.current.slots[350]).toEqual({ id: 350 }));
+    await waitFor(() => expect(result.current.slots[150]).toEqual({ id: 150 }));
+    expect([...server.asked].sort((a, b) => a - b)).toEqual([0, 100, 300]);
+    expect(result.current.slots[250]).toBeUndefined();
+  });
+
   it('reads a list of up to 200 entries whole, whatever the drawn rows ask', () => {
     expect(rangeBySize({ start: 5, end: 9 })(PAGED_LIST_VIRTUAL_FROM)).toEqual({
       start: 0,

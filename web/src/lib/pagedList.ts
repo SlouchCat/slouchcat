@@ -94,6 +94,8 @@ export const pagedListQuery = <TPage, TItem>(source: PagedSource<TPage, TItem>, 
 export interface PlaceRange {
   start: number;
   end: number;
+  /** More places to keep read outside `start` to `end` (the row with the focus, PlaceSpan). */
+  keep?: { start: number; end: number };
 }
 
 /** Every place of a list of `total` entries (a list drawn whole). */
@@ -129,16 +131,24 @@ export interface PagedList<TPage, TItem> {
   retry: () => void;
 }
 
-/** The pages other than 0 that hold places of `range`, in order. */
-function pagesOf(range: PlaceRange, total: number, size: number): number[] {
-  const last = Math.min(range.end, total - 1);
+/** The pages other than 0 that hold places from `start` to `end`, in order. */
+function pagesBetween(start: number, end: number, total: number, size: number): number[] {
+  const last = Math.min(end, total - 1);
   const out: number[] = [];
-  if (last < range.start) return out;
-  for (let page = Math.max(1, Math.floor(range.start / size)); page <= Math.floor(last / size);) {
+  if (last < start) return out;
+  for (let page = Math.max(1, Math.floor(start / size)); page <= Math.floor(last / size);) {
     out.push(page);
     page += 1;
   }
   return out;
+}
+
+/** The pages other than 0 that hold places of `range`, in order; those it keeps come last. */
+function pagesOf(range: PlaceRange, total: number, size: number): number[] {
+  const out = pagesBetween(range.start, range.end, total, size);
+  if (!range.keep) return out;
+  const kept = pagesBetween(range.keep.start, range.keep.end, total, size);
+  return [...out, ...kept.filter((page) => !out.includes(page))];
 }
 
 interface Options {

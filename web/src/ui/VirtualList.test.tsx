@@ -123,7 +123,8 @@ describe('VirtualList', () => {
   });
 
   it('keeps the focused entry drawn at its place when the list scrolls far away', async () => {
-    render(<List slots={entries(2_000)} virtual />);
+    const onRange = vi.fn<(span: PlaceSpan) => void>();
+    render(<List slots={entries(2_000)} virtual onRange={onRange} />);
     await waitFor(() => expect(drawn()).toContain(10));
     screen.getByRole('button', { name: 'Eintrag 10' }).focus();
     act(() => {
@@ -132,6 +133,13 @@ describe('VirtualList', () => {
     });
     await waitFor(() => expect(drawn()).toContain(1_000));
     expect(drawn()).toContain(10);
+    // Its entry stays read with the places in view (else its page would leave the range).
+    await waitFor(() =>
+      expect(onRange).toHaveBeenLastCalledWith(
+        expect.objectContaining({ keep: { start: 10, end: 10 } }),
+      ),
+    );
+    expect(onRange.mock.lastCall![0].start).toBeGreaterThan(900);
     // Room for the rows between them: the focused row does not move up to the others.
     const list = screen.getByRole('list', { name: 'Liste' });
     const focused = list.querySelector('[data-place="10"]')!;
