@@ -19,6 +19,20 @@ ON CONFLICT (profile_id, item_id) DO NOTHING;
 -- name: RemoveFavorite :exec
 DELETE FROM favorites WHERE profile_id = @profile_id AND item_id = @item_id;
 
+-- User picks (concept 18 part B, ADR 0028). Owner: discover package; it checks the visibility of the
+-- title and that the profile belongs to the owner's account first. Recommending again renews the
+-- time, taking back deletes the own row only.
+
+-- name: UpsertUserPick :exec
+INSERT INTO user_picks (item_id, profile_id, created_at) VALUES (@item_id, @profile_id, @now)
+ON CONFLICT (item_id, profile_id) DO UPDATE SET created_at = excluded.created_at;
+
+-- name: DeleteUserPick :exec
+DELETE FROM user_picks WHERE item_id = @item_id AND profile_id = @profile_id;
+
+-- name: GetPicksRetention :one
+SELECT retention_days FROM picks_config WHERE id = 1;
+
 -- Home rows (stream B1): the order and visibility of the start page rows (E-9, concept 15 P-7).
 -- A row is named by its id: the key for the fixed rows, 'library:<id>' for a library row
 -- (migration 00035). The administration rewrites the positions in one transaction. A library

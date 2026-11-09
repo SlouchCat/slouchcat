@@ -471,7 +471,7 @@ type RelinkUserData struct {
 	Favorites        int64
 	CollectionItems  int64
 	Notifications    int64
-	TopPicks         int64
+	UserPicks        int64
 	Downloads        int64
 	ActivityEvents   int64
 }
@@ -788,11 +788,14 @@ type ItemDetail struct {
 	// on ItemSummary since contract 1.20.0).
 	Favorite    bool
 	Collections []CollectionRef
-	ReleaseDate string // YYYY-MM-DD or empty
-	Genres      []string
-	TMDBID      *int64
-	TVDBID      *int64
-	MediaFiles  []MediaFile // versions, primary first; VersionLabel always set
+	// RecommendedByMe: the profile holds a user pick of the title that has not expired (concept 18
+	// part B, 14.6); never who else or how many recommended it.
+	RecommendedByMe bool
+	ReleaseDate     string // YYYY-MM-DD or empty
+	Genres          []string
+	TMDBID          *int64
+	TVDBID          *int64
+	MediaFiles      []MediaFile // versions, primary first; VersionLabel always set
 
 	Series       *ItemSummary  // of a season or an episode
 	Season       *ItemSummary  // of an episode
@@ -972,47 +975,42 @@ type Notification struct {
 	Parent    *ItemSummary // the favourite series or podcast, nil when not visible
 }
 
-// AdminPick is one of Cat's recommendations in the administration (E-2).
-type AdminPick struct {
-	ID          int64
-	ItemID      string
-	Kind        string
-	Title       string
-	Year        *int
-	ProfileID   *int64 // nil = all profiles
-	ProfileName string
-	Position    int
-	Note        string
-	StartsAt    *time.Time
-	EndsAt      *time.Time
-	CreatedAt   time.Time
-	PosterHash  string // content hash of the AdminPosterSize poster; "" = none stored
+// AdminUserPick is a title of the user picks in the administration (concept 18 part B, 14.7, ADR
+// 0028): anonymous, the number of recommendations that have not expired and the newest of them.
+type AdminUserPick struct {
+	ItemID        string
+	Kind          string
+	Title         string
+	Year          *int
+	Count         int
+	PickedOn      string // day of the newest recommendation (YYYY-MM-DD, server zone), never the time
+	ExpiresInDays int    // whole days until the title leaves the list, rounded up
+	PosterHash    string // content hash of the AdminPosterSize poster; "" = none stored
 }
+
+// UserPick is the answer to a recommendation (recommendItem): when it expires unless renewed and
+// the retention in days.
+type UserPick struct {
+	ExpiresAt     time.Time
+	RetentionDays int
+}
+
+// Recommendable reports whether a title of this kind may be a user pick: every kind except seasons
+// and extras (concept 18 part B, 14.4).
+func Recommendable(kind string) bool { return kind != "season" && kind != "extra" }
+
+// Bounds of the retention of the user picks in days (picks_config.retention_days, default 60;
+// concept 18 part B, 14.7).
+const (
+	PicksRetentionMin = 7
+	PicksRetentionMax = 365
+)
 
 // AdminPosterSize is the poster size of the administration tables (posterUrl, M11 step 5b).
 const AdminPosterSize = "w200"
 
 // AdminBackdropSize is the backdrop size of the administration tiles (backdropUrl, concept 12).
 const AdminBackdropSize = "w780"
-
-// PickRequest creates picks: one global pick, or one per profile in ProfileIDs.
-type PickRequest struct {
-	ItemID     string
-	ProfileIDs []int64
-	Note       string
-	StartsAt   *time.Time
-	EndsAt     *time.Time
-}
-
-// PickUpdate changes note and time window; a nil field keeps its value, a Clear* flag clears it.
-type PickUpdate struct {
-	Note          *string
-	ClearNote     bool
-	StartsAt      *time.Time
-	ClearStartsAt bool
-	EndsAt        *time.Time
-	ClearEndsAt   bool
-}
 
 // AdminItemHit is a title found by the admin search (never an ItemRef).
 type AdminItemHit struct {

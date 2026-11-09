@@ -3,9 +3,10 @@
 // paths package, relative to the cache directory.
 //
 // Start page (M7, M11, E-1, E-9, ADR 0011, concept 15 P-7): the rows spotlight (the configured
-// Trakt list intersected with the library, with the main user's curation), picks (Cat's
-// recommendations), continue (continue watching), recent (recently added), released (by release
-// date within twelve months, a series by its newest visible episode, S-5, S-6), watchlist,
+// Trakt list intersected with the library, with the main user's curation), picks (the user
+// picks of the profiles, concept 18 part B), continue (continue watching), recent (recently
+// added), released (by release date within twelve months, a series by its newest visible
+// episode, S-5, S-6), watchlist,
 // collections, genres, libraries («Meine Medien», one tile per visible library), one row
 // library («Neu in …») per library and radio («Meine Sender», the profile's favourite stations,
 // concept 16 section 10.2, through HomeRadio), in the order the administration stored (table
@@ -15,7 +16,7 @@
 // none; picks is never the stage) and carries hasTrailer for the rows spotlight and picks only (D3).
 // With a stage it names the title the stage begins with, drawn once per page view (HeroStart,
 // concept 08, F-2, ADR 0016), and the rhythm of the stage (HeroIntervalSeconds, F-10).
-// The library views of concept 08 (side navigation, library page, Cat's recommendations) pass
+// The library views of concept 08 (side navigation, library page, user picks) pass
 // through to visibility.
 // The package also answers search, genres, collections, the watchlist and the favourites of a
 // profile (m7.go).
@@ -94,8 +95,8 @@ type Service struct {
 // Option configures a Service.
 type Option func(*Service)
 
-// WithClock replaces time.Now: the time windows of the picks (E-2) and the time of watchlist and
-// favourite entries.
+// WithClock replaces time.Now: the retention of the user picks (E-2) and the time of user picks,
+// watchlist and favourite entries.
 func WithClock(now func() time.Time) Option {
 	return func(s *Service) { s.now = now }
 }
@@ -497,8 +498,8 @@ func (s *Service) LibraryItems(ctx context.Context, profile model.Profile, libra
 	return s.vis.LibraryItems(ctx, visibility.Profile(profile), libraryID, q)
 }
 
-// PicksPage returns one page of all of Cat's recommendations for the profile and their number
-// (concept 08, listPicks), the row picks without its cut; without HasTrailer.
+// PicksPage returns one page of the user picks the profile may see and their number (listPicks,
+// concept 18 part B), the row picks without its cut; without HasTrailer.
 func (s *Service) PicksPage(ctx context.Context, profile model.Profile, offset, limit int) ([]model.ItemSummary, int, error) {
 	return s.vis.PicksPage(ctx, visibility.Profile(profile), offset, limit)
 }

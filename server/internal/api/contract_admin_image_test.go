@@ -16,7 +16,7 @@ import (
 )
 
 // Images of the administration (M11 step 5b, plan 05-plan-spotlight.md 5b-a and 5b-b):
-// getAdminItemImage is system-wide, and the posterUrl of picks and spotlight entries carries the
+// getAdminItemImage is system-wide, and the posterUrl of user picks and spotlight entries carries the
 // content hash but no profile id.
 
 // adminImageFile reads an image of the fixture's cache in the layout of vistest.addImage.
@@ -135,10 +135,10 @@ func checkAdminPosterURL(t *testing.T, pf profileFixture, label, itemID, posterU
 	}
 }
 
-// Counterpart of TestImageURLsCarryProfileID for the administration: every pick of a title with a
-// poster carries a posterUrl without profile id, also when the active profile may not see the
-// title; a deleted title has none. Spotlight entries carry one for a library hit with a poster
-// only.
+// Counterpart of TestImageURLsCarryProfileID for the administration: every user pick of a title
+// with a poster carries a posterUrl without profile id, also when the active profile may not see
+// the title; a deleted title is not listed (concept 18 part B). Spotlight entries carry one for a
+// library hit with a poster only.
 func TestAdminImageURLsCarryNoProfileID(t *testing.T) {
 	t.Parallel()
 	pf := newProfileFixture(t)
@@ -151,26 +151,23 @@ func TestAdminImageURLsCarryNoProfileID(t *testing.T) {
 
 	rec := send(t, h, http.MethodGet, BasePath+"/admin/picks", "p18", "", nil)
 	adminCurationAnswer(t, rec, http.StatusOK)
-	var picks []gen.AdminPick
+	var picks []gen.AdminUserPick
 	decode(t, rec, &picks)
-	sawHidden, sawDeleted := false, false
+	sawHidden := false
 	for _, p := range picks {
 		if deleted[p.ItemId] {
-			sawDeleted = true
-			if p.PosterUrl != nil {
-				t.Errorf("pick %d of a deleted title has posterUrl %q", p.Id, *p.PosterUrl)
-			}
+			t.Errorf("pick of the deleted title %s listed", p.ItemId)
 			continue
 		}
 		if p.PosterUrl == nil {
-			t.Errorf("pick %d (%s) has no posterUrl", p.Id, p.ItemId)
+			t.Errorf("pick %s has no posterUrl", p.ItemId)
 			continue
 		}
 		sawHidden = sawHidden || p.ItemId == hidden.ID
 		checkAdminPosterURL(t, pf, "pick "+p.ItemId, p.ItemId, *p.PosterUrl)
 	}
-	if !sawHidden || !sawDeleted {
-		t.Errorf("picks lack the hidden title %s or a deleted title: hidden %v, deleted %v", hidden.ID, sawHidden, sawDeleted)
+	if !sawHidden {
+		t.Errorf("picks lack the hidden title %s", hidden.ID)
 	}
 
 	// Spotlight: the film rated 12 (TMDB id 1002) is a hit with poster, spotlight film 1 (8001) a

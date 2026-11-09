@@ -416,7 +416,7 @@ func (s *Service) ListDuplicates(ctx context.Context, libraryID *int64) ([]model
 // MergeItems merges duplicate titles into the target (B-9): media files, children (seasons,
 // episodes, extras), trailers and credits of the sources move to the target (rows the target
 // already has stay behind), progress merges per profile (completed wins, then the larger
-// position), progress events, top picks and downloads follow (a device that holds the target
+// position), progress events, user picks (the newer time wins) and downloads follow (a device that holds the target
 // already keeps that download), then the sources are deleted for good. Sources
 // must have the kind and the library of the target; all are checked before anything moves. One
 // transaction per source (plan 3.6: bounded transactions), so each source merges whole or not at
@@ -510,8 +510,12 @@ func (s *Service) mergeSource(ctx context.Context, check func(*systemq.Queries, 
 		{"progress days", func() error {
 			return q.AdminMergeProgressDays(ctx, systemq.AdminMergeProgressDaysParams{TargetID: targetID, SourceID: id})
 		}},
-		{"top picks", func() error {
-			return q.AdminMoveTopPicks(ctx, systemq.AdminMoveTopPicksParams{TargetID: targetID, SourceID: id})
+		{"user picks", func() error {
+			if err := q.AdminMoveUserPicks(ctx, systemq.AdminMoveUserPicksParams{TargetID: targetID, SourceID: id}); err != nil {
+				return err
+			}
+			_, err := q.AdminDeleteUserPicksOfItem(ctx, id)
+			return err
 		}},
 		// M7: watchlist, favourites, collection membership and notifications follow the title.
 		{"watchlist", func() error {

@@ -369,6 +369,11 @@ func (r *Reader) discoverDetail(ctx context.Context, s Scope, pid int64, itemID 
 		return fmt.Errorf("get favorite: %w", err)
 	}
 	d.Favorite = n > 0
+	// The own recommendation counts only while it has not expired (concept 18 part B, 14.6).
+	if n, err = r.q.GetOwnUserPick(ctx, scopedq.GetOwnUserPickParams{ProfileID: pid, ItemID: itemID, Now: r.now().UnixMilli()}); err != nil {
+		return fmt.Errorf("get own user pick: %w", err)
+	}
+	d.RecommendedByMe = n > 0
 	d.Collections, err = r.collectionsOf(ctx, s, pid, itemID)
 	return err
 }

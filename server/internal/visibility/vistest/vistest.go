@@ -1,14 +1,14 @@
 // Package vistest builds the child-profile fixture of plan section 10.2 for tests: a temporary
 // database with one movie library, movies rated FSK 0, 6, 12, 16, 18 and one without rating, each
 // with a real media file, texts in de and en, a stored poster and backdrop (w1280 and w780),
-// progress rows and top picks, plus the profiles P18, P16, P12, P6 and P0 of one account.
+// progress rows and user picks of P18, plus the profiles P18, P16, P12, P6 and P0 of the owner's account.
 // AddEdgeCases adds a second library with a profile restricted to the first one, a title whose
 // only file is missing and a soft-deleted title. AddSeries adds a series tree (series rated 12,
 // season 1 with an episode without own rating, one rated 16 and a multi-episode file, the specials
 // season with one episode, an extra) to library 1 with the M3 data around the movies (extras,
 // versions, trailers, a person, an ignored file), and AddGuest an account limited to FSK 12
 // and library 1 with the profiles PG (primary) and PG18. AddDiscover adds the M7 data: collections
-// with mixed ratings, watchlist and favourite rows and picks per profile and with time windows.
+// with mixed ratings, watchlist and favourite rows, a user pick of P12 and an expired one.
 //
 // It lives below visibility because seeding writes the title tables directly, which only the
 // packages allowed by the itemsaccess analyzer may do. Only tests import it.
@@ -380,13 +380,14 @@ func (f *Fixture) seedMovies(t testing.TB, ctx context.Context) {
 		f.P18.ID, f.Rated(12).ID, DurationMs/6, DurationMs)
 	exec(t, f.DB, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at) VALUES (?, ?, ?, ?, 0, 5000)`,
 		f.P6.ID, f.Rated(6).ID, DurationMs/6, DurationMs)
-	// Top picks for every profile: the 18-rated movie first, then the 6-rated one.
-	exec(t, f.DB, `INSERT INTO top_picks (item_id, position, created_at) VALUES (?, 0, 1), (?, 1, 1)`, f.Rated(18).ID, f.Rated(6).ID)
+	// User picks of P18 (concept 18 part B): the 18-rated movie newest, then the 6-rated one.
+	exec(t, f.DB, `INSERT INTO user_picks (item_id, profile_id, created_at) VALUES (?, ?, ?), (?, ?, ?)`,
+		f.Rated(18).ID, f.P18.ID, PickedAt, f.Rated(6).ID, f.P18.ID, PickedAt-1000)
 }
 
 // AddEdgeCases seeds library X with a movie rated 0, the profile PX (max 18, only library 1), a
 // movie rated 0 whose only file is missing and a soft-deleted movie rated 0, each with file,
-// texts, images, progress of P18 and PX and a top pick, so only the visibility rules hide them.
+// texts, images, progress of P18 and PX and a user pick of P18, so only the visibility rules hide them.
 func (f *Fixture) AddEdgeCases(t testing.TB) {
 	t.Helper()
 	ctx := context.Background()
@@ -427,7 +428,7 @@ func (f *Fixture) AddEdgeCases(t testing.TB) {
 			exec(t, f.DB, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at) VALUES (?, ?, ?, ?, 0, 6000)`,
 				pid, m.ID, DurationMs/6, DurationMs)
 		}
-		exec(t, f.DB, `INSERT INTO top_picks (item_id, position, created_at) VALUES (?, ?, 1)`, m.ID, 2+i)
+		exec(t, f.DB, `INSERT INTO user_picks (item_id, profile_id, created_at) VALUES (?, ?, ?)`, m.ID, f.P18.ID, PickedAt-2000-int64(i)*1000)
 		f.Movies = append(f.Movies, m)
 	}
 }

@@ -539,7 +539,7 @@ func TestLibraryItemsAudioStatus(t *testing.T) {
 	}
 }
 
-// listPicks: the row's list without its cut, total after the deduplication, paged.
+// listPicks: the row's list without its cut, each title once in the total, paged in SQL.
 func TestPicksPage(t *testing.T) {
 	t.Parallel()
 	f := libraryFixture(t)
@@ -557,11 +557,6 @@ func TestPicksPage(t *testing.T) {
 		if !slices.Equal(ids(page), ids(row)) || total != len(row) {
 			t.Errorf("%s picks page = %v (total %d), want the row %v", p.Name, ids(page), total, ids(row))
 		}
-		for i := range page {
-			if page[i].Note != row[i].Note {
-				t.Errorf("%s pick %s note %q, want %q", p.Name, page[i].ID, page[i].Note, row[i].Note)
-			}
-		}
 		if len(row) > 1 {
 			tail, total2, err := r.PicksPage(ctx, Profile(p), 1, 1)
 			if err != nil || total2 != total || !slices.Equal(ids(tail), ids(row)[1:2]) {
@@ -572,11 +567,12 @@ func TestPicksPage(t *testing.T) {
 			t.Errorf("%s picks beyond the end = %v, %v", p.Name, ids(beyond), err)
 		}
 	}
-	// Without the cut of 20: 25 global picks of the film rated 0 in library 1 deduplicate to one,
-	// so add distinct titles instead.
+	// Without the cut of 20: picks of 25 distinct titles (the same title picked by several
+	// profiles counts once), each picked by P0 and P18.
 	f.AddSpotlightFilms(t, 25)
 	for k := 1; k <= 25; k++ {
-		exec(t, f, `INSERT INTO top_picks (item_id, position, created_at) VALUES (printf('01J9SPOTLIGHT00000000%05d', ?), ?, 1)`, k, 100+k)
+		exec(t, f, `INSERT INTO user_picks (item_id, profile_id, created_at) VALUES (printf('01J9SPOTLIGHT00000000%05d', ?), ?, ?), (printf('01J9SPOTLIGHT00000000%05d', ?), ?, ?)`,
+			k, f.P0.ID, vistest.PickedAt-10_000-int64(k), k, f.P18.ID, vistest.PickedAt-20_000)
 	}
 	row, err := r.Picks(ctx, Profile(f.P0), MaxRowItems)
 	if err != nil {

@@ -23,6 +23,7 @@ import (
 	"github.com/oklog/ulid/v2"
 
 	"github.com/slouchcat/slouchcat/server/internal/admin"
+	"github.com/slouchcat/slouchcat/server/internal/api/gen"
 	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/discover"
 	"github.com/slouchcat/slouchcat/server/internal/integrations"
@@ -96,6 +97,8 @@ type profileCall struct {
 	download bool
 	// okFor overrides okStatus per title (createDownloads and getDownloadOptions refuse extras).
 	okFor func(m vistest.Movie) int
+	// okForProfile overrides okStatus per profile and title (recommendItem: the owner's account only).
+	okForProfile func(f *vistest.Fixture, p model.Profile, m vistest.Movie) int
 	// invisibleFor overrides invisibleStatus per profile (deleteDownload: the primary profile).
 	invisibleFor func(p model.Profile) int
 	// want is the expected status of a call without {id} for a profile; nil = any status below 500.
@@ -143,6 +146,17 @@ func mixedMembers(f *vistest.Fixture, p model.Profile) []string {
 		}
 	}
 	return out
+}
+
+// recommendStatus is status for the profiles of the owner's account on every kind but extras
+// (seasons never reach the per-item loop) and 404 not_found otherwise (concept 18 part B, U-F10).
+func recommendStatus(status int) func(f *vistest.Fixture, p model.Profile, m vistest.Movie) int {
+	return func(f *vistest.Fixture, p model.Profile, m vistest.Movie) int {
+		if p.AccountID != f.Account.ID || m.Kind == "extra" {
+			return http.StatusNotFound
+		}
+		return status
+	}
 }
 
 // listableStatus is status for titles the watchlist takes and 422 not_listable for extras (seasons
@@ -612,6 +626,31 @@ var profileRegistry = map[string]profileCall{
 		okStatus: http.StatusNoContent, okFor: listableStatus},
 	"removeFromWatchlist": {contract: "DELETE /items/{id}/watchlist", path: "/items/{id}/watchlist", perItem: true,
 		okStatus: http.StatusNoContent},
+	// Concept 18 part B (U-F10): only the profiles of the owner's account recommend, never an
+	// extra; a guest and an extra answer 404 like an invisible title.
+	"recommendItem": {contract: "PUT /items/{id}/pick", path: "/items/{id}/pick", perItem: true,
+		okStatus: http.StatusOK, okForProfile: recommendStatus(http.StatusOK),
+		check: func(t *testing.T, f *vistest.Fixture, h http.Handler, token string, m vistest.Movie, rec *httptest.ResponseRecorder) {
+			var pick gen.UserPickResult
+			decode(t, rec, &pick)
+			if pick.RetentionDays != 60 || time.Until(pick.ExpiresAt) < 59*24*time.Hour {
+				t.Errorf("recommendItem %s for %s = %+v, want 60 days", m.Label, token, pick)
+			}
+			var d gen.ItemDetail
+			decode(t, send(t, h, http.MethodGet, BasePath+"/items/"+m.ID, token, "", nil), &d)
+			if !d.RecommendedByMe || !d.CanRecommend {
+				t.Errorf("detail of %s for %s after recommending: recommendedByMe %v, canRecommend %v", m.Label, token, d.RecommendedByMe, d.CanRecommend)
+			}
+		}},
+	"unrecommendItem": {contract: "DELETE /items/{id}/pick", path: "/items/{id}/pick", perItem: true,
+		okStatus: http.StatusNoContent, okForProfile: recommendStatus(http.StatusNoContent),
+		check: func(t *testing.T, f *vistest.Fixture, h http.Handler, token string, m vistest.Movie, _ *httptest.ResponseRecorder) {
+			var d gen.ItemDetail
+			decode(t, send(t, h, http.MethodGet, BasePath+"/items/"+m.ID, token, "", nil), &d)
+			if d.RecommendedByMe {
+				t.Errorf("detail of %s for %s after taking back: still recommendedByMe", m.Label, token)
+			}
+		}},
 	"listFavorites": {contract: "GET /favorites", path: "/favorites",
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK },
 		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
@@ -1492,7 +1531,7 @@ func TestContractChildProfiles(t *testing.T) {
 			t.Errorf("P18 watchlist row = %v", rows["watchlist"])
 		}
 		// Each level sees its own rating and not the next one; PX sees library 1 only. Titles that
-		// are missing or deleted show up nowhere, although they carry progress and a top pick.
+		// are missing or deleted show up nowhere, although they carry progress and a user pick.
 		for _, tc := range []struct {
 			token     string
 			see, hide vistest.Movie
@@ -1516,12 +1555,13 @@ func TestContractChildProfiles(t *testing.T) {
 		if keys, _ := homeRows(t, send(t, h, http.MethodGet, BasePath+"/home", "px", "", nil)); slices.Contains(keys, "continue") {
 			t.Errorf("PX rows = %v: progress on invisible titles only, continue must be omitted", keys)
 		}
-		// E-1, E-3: the pick of P12 carries its note; the global FSK-18 pick never reaches P12.
+		// E-1, E-3 (concept 18 part B): the user picks newest first, without a note; the pick of
+		// the FSK-18 film never reaches P12.
 		p12 := homePage(t, send(t, h, http.MethodGet, BasePath+"/home", "p12", "", nil))
 		picks := p12.row("picks").Items
-		if len(picks) != 3 || picks[0].ID != f.Rated(6).ID || picks[1].ID != other.ID || picks[2].ID != f.Rated(12).ID ||
-			picks[2].Note != f.Discover.PickNote || picks[0].Note != "" {
-			t.Errorf("P12 picks = %+v, want the films rated 6, X0 and 12, the last with the note", picks)
+		if len(picks) != 3 || picks[0].ID != f.Rated(6).ID || picks[1].ID != f.Rated(12).ID || picks[2].ID != other.ID ||
+			picks[0].Note != "" || picks[1].Note != "" || picks[2].Note != "" {
+			t.Errorf("P12 picks = %+v, want the films rated 6, 12 and X0, without a note", picks)
 		}
 		// E-6: the collections row counts visible members only, with a visible cover.
 		for _, tc := range []struct {
@@ -1547,13 +1587,13 @@ func TestContractChildProfiles(t *testing.T) {
 				t.Errorf("%s genres row = %+v", tc.token, page.row("genres"))
 			}
 		}
-		// E-2 with a fake clock: the global pick of the film rated 0 exists only inside its windows.
+		// E-2 with a fake clock: the pick of the film rated 0 stays 60 days (the retention).
+		const sixtyDays = int64(60 * 24 * 60 * 60 * 1000)
 		for _, tc := range []struct {
 			at   int64
 			want bool
 		}{
-			{vistest.ExpiredPickEnd - 1, true}, {vistest.ExpiredPickEnd, false},
-			{vistest.FuturePickStart - 1, false}, {vistest.FuturePickStart, true},
+			{vistest.ExpiredPickAt + sixtyDays - 1, true}, {vistest.ExpiredPickAt + sixtyDays, false},
 		} {
 			o := pf.opts
 			at := time.UnixMilli(tc.at)
@@ -1642,6 +1682,9 @@ func TestContractChildProfiles(t *testing.T) {
 					okStatus := call.okStatus
 					if call.okFor != nil {
 						okStatus = call.okFor(m)
+					}
+					if call.okForProfile != nil {
+						okStatus = call.okForProfile(f, profile, m)
 					}
 					if rec.Code != okStatus {
 						t.Errorf("%s movie %s: status %d (%s), want %d", op, m.Label, rec.Code, rec.Body.String(), okStatus)

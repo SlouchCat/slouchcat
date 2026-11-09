@@ -521,6 +521,12 @@ type PersonImage struct {
 	FetchedAt   int64
 }
 
+type PicksConfig struct {
+	ID            int64
+	RetentionDays int64
+	UpdatedAt     int64
+}
+
 type PinAttempt struct {
 	ProfileID   int64
 	DeviceID    string
@@ -866,17 +872,6 @@ type TelegramLink struct {
 	CreatedAt int64
 }
 
-type TopPick struct {
-	ID        int64
-	ItemID    string
-	ProfileID sql.NullInt64
-	Position  int64
-	Note      sql.NullString
-	StartsAt  sql.NullInt64
-	EndsAt    sql.NullInt64
-	CreatedAt int64
-}
-
 type Track struct {
 	ID                int64
 	MediaFileID       string
@@ -900,6 +895,12 @@ type Trailer struct {
 	Title     sql.NullString
 	Source    string
 	Official  int64
+	CreatedAt int64
+}
+
+type UserPick struct {
+	ItemID    string
+	ProfileID int64
 	CreatedAt int64
 }
 
