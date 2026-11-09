@@ -99,3 +99,67 @@ benachbarte Kacheln doppelt (Grund für die Wahl des nächsten Keyframes im Konz
 - CT 190, Datenbank nur lesend: 2 107 Filme mit 3 925 Stunden, 291 Folgen mit 116 Stunden;
   Keyframe-Index: `scan` 2 115, `cues` 902, `mp4` 2, ohne 87.
 - NAS: 35 896 Folgen-Dateien unter `Serien`, `KinderSerien`, `MangaSerien` (`find`, `.mkv`/`.mp4`).
+
+## 6. Messung beim Bau (9. November 2026, CT 190, `k18-175443c` = `v1.22.0-54-g175443ce`)
+
+Gemessen vom Koordinator im laufenden Container auf CT 190 (Aufbau wie Abschnitt 1, Medien per
+NFS). Zeiten mit «etwa» stammen aus wiederholtem Abfragen des Zustands und sind so genau wie dessen
+Takt.
+
+**Migrationen** (vorher wie immer die Sicherung der Datenbank): 00041 in **1,06 s**, 00042 in
+**1,10 s**.
+
+**Film beim Start der Wiedergabe:** «A Beautiful Mind» (2 h 15 min, 1080p, 9,3 GB über NFS),
+Einstellung «Im Voraus», ohne Satz gestartet, also beim Start erzeugt:
+
+| Messgrösse | Wert |
+|---|---|
+| Job | 66,4 s, 9 Blätter |
+| Erstes Blatt sichtbar | nach etwa 12 s |
+| Container | etwa 170–205 % CPU, 2 ffmpeg-Prozesse, höchstens 262 MiB Speicher |
+
+**Neben einem QSV-Transcode** (720p H.264, 4 Mbit/s, «10DANCE», 2 h 08 min): Der Transcode lieferte
+in 60 s **1 040 s** Medien (**17-fache Echtzeit**), während Trickplay lief. Container etwa 290–300 %
+CPU, 3 Trickplay- und QSV-ffmpeg-Prozesse, höchstens 434 MiB.
+
+| Datei | Job | Bemerkung |
+|---|---|---|
+| «10DANCE» (2 h 08 min) | 54,7 s | neben dem eigenen Transcode |
+| «23 000 Lives» (1 h 54 min) | 73,0 s | wartete zuerst auf «10DANCE» (ein Worker, O-1 angenommen); erstes Blatt etwa 69 s nach seinem Start |
+
+**Serienvorlauf:** «Two and a Half Men» S09, Folgen von etwa 20 min, Einstellung «Beim Start alle
+Folgen», Umfang «Rest der Staffel»:
+
+| Folge | Job | ffmpeg |
+|---|---|---|
+| gestartete Folge | 6,9 s | 2 |
+| die nächsten zwei, gleichzeitig | 7,0 s und 6,8 s | je 2 |
+| der Rest, solange die Sitzung offen war (gedrosselt) | 11,5–13,2 s je Folge | 1 |
+
+Container dabei etwa 90–100 % CPU.
+
+**Nicht gemessen:**
+
+- 4K über NFS: keine 4K-Datei in den Bibliotheken von CT 190 (damit auch kein Transcode mit
+  CPU-Tonemapping neben Trickplay, Abschnitt 3.4 des Konzepts).
+- Remux neben Trickplay.
+- Volles Lesen der Keyframes parallel dazu.
+- Vorlauf über eine Stunde neben einem 4K-Remux.
+- P-10 mit einem Hörbuch in der ersten Reihe und Scrollen auf dem Telefon: Der Browser-Bereich war
+  verborgen, ohne CPU-Drosselung; offen für Marcos Abnahme auf dem Telefon.
+
+**Vergleich mit dem Konzept (Abschnitt 3):** Das Konzept rechnet für einen Film von 2 Stunden mit
+30 s (vier Prozesse) bis 42 s (zwei Prozesse) und für eine Folge von 61 min mit 19 s, das erste
+Blatt nach 5 bis 10 s. Auf die Länge umgerechnet (42,3 s für 118 min, 18,7 s für 61 min, je zwei
+Prozesse) wären es für «A Beautiful Mind» etwa 48 s (gemessen 66,4 s), für «10DANCE» etwa 46 s
+(54,7 s) und für eine Folge von 20 min etwa 6 s (6,8–7,0 s). Das erste Blatt kam nach etwa 12 s.
+Der gedrosselte Vorlauf mit einem Prozess braucht knapp das Doppelte (11,5–13,2 s), wie für
+einen statt zwei Prozesse zu erwarten. Der Transcode mit 17-facher Echtzeit ist mit der 11,1-
+bzw. 11,4-fachen aus Abschnitt 3.4 des Konzepts nicht direkt vergleichbar (720p mit 4 Mbit/s statt
+1080p mit 6 Mbit/s).
+
+**Lesart:** Der echte Job ist bei Filmen rund 20 bis 40 % langsamer als die Messung vom
+8. November, bei kurzen Folgen etwa 10 %. Er tut mehr als jene Messung (Blätter als WebP
+zusammensetzen, Prüfung nach jedem Blatt, Schreiben mit fsync), und «A Beautiful Mind» hat mit rund
+9,2 Mbit/s eine höhere Bitrate als «28 Days Later» (7,0 Mbit/s); welcher Anteil worauf fällt, ist
+nicht gemessen. Der QSV-Stream lief neben Trickplay weit schneller als die Wiedergabe braucht.
