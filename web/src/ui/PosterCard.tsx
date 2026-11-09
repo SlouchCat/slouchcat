@@ -46,6 +46,8 @@ interface PosterCardProps {
   title: string;
   /** Secondary line under the title (year, remaining time). */
   caption?: string;
+  /** The caption on one line, cut with an ellipsis (a grid whose rows have a fixed height). */
+  clampCaption?: boolean;
   /**
    * Spoken name of the card when the title and caption shown do not say enough (a card of
    * "Weiterschauen" that shows the series also names its episode, concept 15 P-1). Without it the
@@ -114,6 +116,7 @@ export function PosterCard({
   children,
   title,
   caption,
+  clampCaption = false,
   label,
   posterUrl,
   posterSmallUrl,
@@ -189,7 +192,11 @@ export function PosterCard({
       </span>
       <span className={styles.meta}>
         <span className={styles.title}>{title}</span>
-        {caption && <span className={styles.caption}>{caption}</span>}
+        {caption && (
+          <span className={clampCaption ? `${styles.caption} ${styles.clamped}` : styles.caption}>
+            {caption}
+          </span>
+        )}
       </span>
     </>
   );

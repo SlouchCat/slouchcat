@@ -8,10 +8,8 @@ import type {
 } from '@slouchcat/api-client';
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { api, request } from '@/api/client';
-import type { LibraryRequest } from './libraryParams';
 
 type LibraryNav = components['schemas']['LibraryNav'];
-type LibraryItemsPage = components['schemas']['LibraryItemsPage'];
 type PicksPage = components['schemas']['PicksPage'];
 
 /**
@@ -87,7 +85,7 @@ export const podcastEpisodesQuery = (id: string, offset: number) =>
     },
   });
 
-/** Page size of "Mehr laden" on the library page and the page of Cat's recommendations. */
+/** Page size of "Mehr laden" on the page of Cat's recommendations. */
 export const LIBRARY_PAGE = 50;
 
 const nextOffset = (last: { offset: number; total: number; items: unknown[] }) => {
@@ -102,23 +100,6 @@ export const visibleLibrariesQuery = queryOptions({
     request(api.GET('/libraries/visible', { signal })),
   staleTime: 60_000,
 });
-
-/** One library's titles with the facets of its filters, paged; 404 when it shows nothing. */
-export const libraryItemsQuery = (id: number, query: LibraryRequest) =>
-  infiniteQueryOptions({
-    queryKey: ['library', id, query],
-    queryFn: ({ pageParam, signal }): Promise<LibraryItemsPage> =>
-      request(
-        api.GET('/libraries/{id}/items', {
-          params: { path: { id }, query: { ...query, offset: pageParam, limit: LIBRARY_PAGE } },
-          signal,
-        }),
-      ),
-    initialPageParam: 0,
-    getNextPageParam: nextOffset,
-    // A changed sort or filter keeps the previous grid until the new one arrives (no jump).
-    placeholderData: (previous) => previous,
-  });
 
 /** All of Cat's recommendations for the active profile, in Cat's order (E-2). */
 /** How many of Cat's recommendations the active profile sees: the side navigation's count. */

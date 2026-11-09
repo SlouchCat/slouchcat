@@ -1,9 +1,10 @@
 import type { components, ItemRef } from '@slouchcat/api-client';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { alien, arrival, audiobook, heat, ids } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
+import { virtualLayout } from '@/test/virtual';
 
 type LibraryNav = components['schemas']['LibraryNav'];
 type LibraryItemsPage = components['schemas']['LibraryItemsPage'];
@@ -45,7 +46,7 @@ const page = (items: ItemRef[], overrides: Partial<LibraryItemsPage> = {}): Libr
   items,
   total: items.length,
   offset: 0,
-  limit: 50,
+  limit: 100,
   facets: {
     letters: ['A', 'H'],
     genres: [
@@ -83,7 +84,11 @@ function mockLibrary(
 }
 
 describe('library page', () => {
-  afterEach(() => vi.unstubAllGlobals());
+  beforeEach(() => virtualLayout());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 
   it('shows the name, the count, the grid with watch state and rating, and the letter bar', async () => {
     const { fetchMock } = mockLibrary();
@@ -122,7 +127,7 @@ describe('library page', () => {
 
     const [first] = itemRequests(fetchMock);
     expect(first?.get('offset')).toBe('0');
-    expect(first?.get('limit')).toBe('50');
+    expect(first?.get('limit')).toBe('100');
     expect(first?.has('sort')).toBe(false);
   });
 

@@ -49,7 +49,7 @@ test('library by keyboard: Tab order, arrows into the letter bar and back, Enter
   const total = await cards(page).count();
   expect(total).toBeGreaterThan(1);
   await expect(page.getByRole('status').filter({ hasText: `${total} Titel` })).toBeVisible();
-  // One content kind: no chips; fewer than 50 titles: no "Mehr laden".
+  // One content kind: no chips; the grid holds every title, no "Mehr laden" (concept 17 D-6).
   await expect(page.getByRole('group', { name: 'Inhalt' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Mehr laden/ })).toHaveCount(0);
 

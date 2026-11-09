@@ -1,13 +1,13 @@
 import type { components, Rating } from '@slouchcat/api-client';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { isApiError } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
-import { cardKey, ItemGrid, MoreButton } from '@/features/discover/ItemGrid';
+import { cardKey } from '@/features/discover/ItemGrid';
 import { YearField } from '@/features/discover/YearField';
 import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
@@ -39,8 +39,9 @@ import {
   type LibrarySort,
 } from './libraryParams';
 import { CoverPen, EDITABLE_KINDS, EditMetadata } from './EditMetadata';
-import { libraryItemsQuery, visibleLibrariesQuery } from './queries';
-import { useBackFocus } from './useBackFocus';
+import { LibraryGrid, type LibraryGridHandle } from './LibraryGrid';
+import { useLibraryPages, type DrawnRange } from './libraryPages';
+import { visibleLibrariesQuery } from './queries';
 import styles from './LibraryPage.module.css';
 
 type LibraryNav = components['schemas']['LibraryNav'];
@@ -84,17 +85,17 @@ function LibraryView({ id }: { id: number | null }) {
   const libraries = useQuery(visibleLibrariesQuery);
   const library = libraries.data?.find((entry) => entry.id === id);
   const request = useMemo(() => libraryRequest(params), [params]);
-  const query = useInfiniteQuery({
-    ...libraryItemsQuery(id ?? 0, request),
-    enabled: id !== null,
-  });
+  const grid = useRef<LibraryGridHandle>(null);
+  const [drawn, setDrawn] = useState<DrawnRange>({ start: 0, end: 0 });
+  const onRange = useCallback((range: DrawnRange) => {
+    setDrawn((previous) =>
+      previous.start === range.start && previous.end === range.end ? previous : range,
+    );
+  }, []);
+  const { first: query, slots } = useLibraryPages(id, request, drawn);
   const notFound = id === null || (libraries.isSuccess && !library) || isApiError(query.error, 404);
   useDocumentTitle(library?.name ?? (notFound ? t('library.notFound.title') : undefined));
-
-  const items = useMemo(() => query.data?.pages.flatMap((page) => page.items) ?? [], [query.data]);
-  const cardKeys = useMemo(() => items.map((item) => cardKey(GRID_KEY, item)), [items]);
-  useBackFocus(GRID_KEY, cardKeys);
-  const first = query.data?.pages[0];
+  const first = query.data;
 
   const update = (change: Partial<LibraryParams>) =>
     void navigate({
@@ -214,7 +215,7 @@ function LibraryView({ id }: { id: number | null }) {
   // The letter bar filters a list sorted by title; podcasts have none (F-12).
   const showLetters = sort === 'title' && library.kind !== 'podcasts';
 
-  const firstItem = items[0];
+  const firstItem = slots[0];
   return (
     <SpatialPage defaultFocusKey={firstItem ? cardKey(GRID_KEY, firstItem) : SORT_KEY}>
       <main className={styles.page}>
@@ -398,7 +399,7 @@ function LibraryView({ id }: { id: number | null }) {
 
           {/* While a changed view loads, the previous grid stays: busy, not gone. */}
           <div className={styles.results} aria-busy={query.isFetching || undefined}>
-            {items.length === 0 ? (
+            {total === 0 ? (
               <Notice
                 title={t('library.page.emptyFilters')}
                 actions={
@@ -417,12 +418,13 @@ function LibraryView({ id }: { id: number | null }) {
               />
             ) : (
               <>
-                <ItemGrid
-                  items={items}
+                <LibraryGrid
+                  ref={grid}
+                  slots={slots}
                   focusKey={GRID_KEY}
                   label={library.name}
-                  className={styles.grid}
-                  showWatched
+                  square={audio}
+                  onRange={onRange}
                   tool={
                     canManage
                       ? (item) =>
@@ -433,16 +435,6 @@ function LibraryView({ id }: { id: number | null }) {
                   }
                 />
                 {editing && <EditMetadata itemId={editing} onClose={() => setEditing(null)} />}
-                <MoreButton
-                  shown={items.length}
-                  keys={cardKeys}
-                  hasMore={query.hasNextPage}
-                  loading={query.isFetchingNextPage}
-                  failed={query.isFetchNextPageError}
-                  label={t('library.page.more', { count: Math.max(0, total - items.length) })}
-                  focusKey="library-more"
-                  onMore={() => void query.fetchNextPage()}
-                />
               </>
             )}
           </div>
