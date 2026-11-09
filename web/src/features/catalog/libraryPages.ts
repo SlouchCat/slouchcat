@@ -75,8 +75,9 @@ function pagesOf(range: DrawnRange, total: number): number[] {
  * The titles of a library view as places with gaps. Page 0 always; any other page while `range`
  * holds one of its places, asked for once the range rested for LIBRARY_PAGE_SETTLE_MS and only
  * after page 0 of this view arrived (its offsets belong to the view). A page that leaves the range
- * while on its way is cancelled (its signal). Should a page report another total than page 0, the
- * list changed meanwhile: page 0 is read again and the other pages are dropped. While a changed
+ * while on its way is cancelled (its signal). Should a page report another total than page 0 or
+ * hold a title of another place, the list changed meanwhile: page 0 is read again and the other
+ * pages are dropped. While a changed
  * view loads, the previous view's places stay.
  */
 export function useLibraryPages(
@@ -120,18 +121,41 @@ export function useLibraryPages(
     }),
   });
 
-  // Another total on a page: the list changed meanwhile. A page read after page 0 tells so of page
-  // 0: it is read again and the other pages are dropped. A page read before it is out of date
-  // itself: only that page is read again. Nothing while page 0 is on its way; its running read is
-  // never cancelled, else a faster page would restart it over and over during a scan.
-  const stale = drawn.filter((_, n) => {
-    const page = pages.data[n];
-    return page !== undefined && page.total !== total;
-  });
-  const staleKey = stale.join(',');
-  const newer = drawn.some(
-    (page, n) => stale.includes(page) && (pages.updated[n] ?? 0) > first.dataUpdatedAt,
-  );
+  // The places: page 0 first, then the other pages, the newest first. A page with another total,
+  // or with a title that already sits in another place (the list shifted between the reads, the
+  // total stayed), is left out: no title is drawn twice, and the page counts as out of date.
+  const { slots, stale } = useMemo(() => {
+    const out = new Array<ItemRef | undefined>(total).fill(undefined);
+    const placed = new Set<string>();
+    const place = (page: LibraryItemsPage) =>
+      page.items.forEach((item, index) => {
+        if (page.offset + index >= total) return;
+        out[page.offset + index] = item;
+        placed.add(item.id);
+      });
+    if (first.data?.total === total) place(first.data);
+    const left: number[] = [];
+    const order = pages.data
+      .map((_, n) => n)
+      .sort((a, b) => (pages.updated[b] ?? 0) - (pages.updated[a] ?? 0));
+    for (const n of order) {
+      const page = pages.data[n];
+      if (page === undefined) continue;
+      if (page.total !== total || page.items.some((item) => placed.has(item.id))) {
+        left.push(n);
+      } else {
+        place(page);
+      }
+    }
+    return { slots: out, stale: left };
+  }, [first.data, pages.data, pages.updated, total]);
+
+  // A page out of date: the list changed meanwhile. A page read after page 0 tells so of page 0:
+  // it is read again and the other pages are dropped. A page read before it is out of date itself:
+  // only that page is read again. Nothing while page 0 is on its way; its running read is never
+  // cancelled, else a faster page would restart it over and over during a scan.
+  const staleKey = stale.map((n) => drawn[n]).join(',');
+  const newer = stale.some((n) => (pages.updated[n] ?? 0) > first.dataUpdatedAt);
   useEffect(() => {
     if (!ready || id === null || first.isFetching || staleKey === '') return;
     const base = libraryPageQuery(id, query, 0).queryKey;
@@ -145,17 +169,6 @@ export function useLibraryPages(
         entry.queryKey[4] !== 0 && (newer || outdated.has(Number(entry.queryKey[4]))),
     });
   }, [first.isFetching, id, newer, query, queryClient, ready, staleKey]);
-
-  const slots = useMemo(() => {
-    const out = new Array<ItemRef | undefined>(total).fill(undefined);
-    for (const page of [first.data, ...pages.data]) {
-      if (page?.total !== total) continue;
-      page.items.forEach((item, index) => {
-        if (page.offset + index < total) out[page.offset + index] = item;
-      });
-    }
-    return out;
-  }, [first.data, pages.data, total]);
 
   return { first, slots, failed: pages.failed };
 }

@@ -31,10 +31,10 @@ interface Asked {
 /**
  * A library of `total` titles behind fetch. Every request is recorded; `hold(offset)` keeps the
  * answer to that offset back until `release(offset)` (or forever); `delay` holds every page other
- * than 0 back for so many milliseconds.
+ * than 0 back for so many milliseconds; `order` lists the titles' numbers in place of 0 to total.
  */
 function library(initial: number) {
-  const state = { total: initial, delay: 0 };
+  const state = { total: initial, delay: 0, order: null as number[] | null };
   const asked: Asked[] = [];
   const held = new Map<number, (() => void)[]>();
   const holding = new Set<number>();
@@ -42,7 +42,7 @@ function library(initial: number) {
     const total = genre ? Math.floor(state.total / 2) : state.total;
     const items = Array.from(
       { length: Math.max(0, Math.min(LIBRARY_GRID_PAGE, total - offset)) },
-      (_, index) => item(offset + index),
+      (_, index) => item(state.order?.[offset + index] ?? offset + index),
     );
     const page: LibraryItemsPage = {
       items,
@@ -90,12 +90,17 @@ function render(range: DrawnRange, query: LibraryRequest = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const wrapper = ({ children }: { children: ReactNode }) =>
     createElement(QueryClientProvider, { client: queryClient }, children);
+  // Every render's places, for what was drawn on the way.
+  const drawn: (readonly (ItemRef | undefined)[])[] = [];
   const hook = renderHook(
-    (props: { range: DrawnRange; query: LibraryRequest }) =>
-      useLibraryPages(7, props.query, props.range),
+    (props: { range: DrawnRange; query: LibraryRequest }) => {
+      const pages = useLibraryPages(7, props.query, props.range);
+      drawn.push(pages.slots);
+      return pages;
+    },
     { wrapper, initialProps: { range, query } },
   );
-  return { ...hook, queryClient };
+  return { ...hook, queryClient, drawn };
 }
 
 const filled = (slots: readonly (ItemRef | undefined)[]) =>
@@ -260,6 +265,24 @@ describe('useLibraryPages', () => {
     rerender({ range: { start: 250, end: 281 }, query: {} });
     await new Promise((resolve) => setTimeout(resolve, 150));
     expect(server.offsets()).toEqual([0, 200, 0, 200]);
+  });
+
+  it('a page that shifted with the same total draws no title twice and reads page 0 again', async () => {
+    const server = library(450);
+    const { result, rerender, drawn } = render({ start: 0, end: 59 });
+    await waitFor(() => expect(result.current.slots).toHaveLength(450));
+    // A title is added at the top and the last one removed: the same total, every title one
+    // place further down. Page 1 now starts with title 99, which page 0 holds at place 99.
+    server.state.order = [1000, ...Array.from({ length: 449 }, (_, index) => index)];
+    rerender({ range: { start: 120, end: 160 }, query: {} });
+    await waitFor(() => expect(result.current.slots[0]).toEqual(item(1000)));
+    await waitFor(() => expect(runs(result.current.slots)).toEqual([[0, 199]]));
+    expect(result.current.slots[100]).toEqual(item(99));
+    expect(server.offsets()).toEqual([0, 100, 0, 100]);
+    for (const slots of drawn) {
+      const ids = slots.flatMap((slot) => (slot ? [slot.id] : []));
+      expect(new Set(ids).size).toBe(ids.length);
+    }
   });
 
   it('cancels a page that leaves the range on its way', async () => {
