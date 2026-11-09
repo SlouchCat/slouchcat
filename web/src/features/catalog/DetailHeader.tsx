@@ -1,5 +1,5 @@
 import type { ItemRef } from '@slouchcat/api-client';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiUrl, imageUrl } from '@/api/client';
 import {
@@ -30,6 +30,11 @@ const POSTER_SIZES = 'clamp(13rem, 20vw, 18rem)';
 
 interface DetailHeaderProps {
   images: ItemRef['images'];
+  /**
+   * A poster of the page's own that stands on the cover before the poster in `images` (the TMDB
+   * poster of a collection, concept 17 D-5). Failing to load, the poster in `images` shows.
+   */
+  ownPoster?: NonNullable<ItemRef['images']['poster']>;
   accent?: string;
   /** `poster` 2:3, `square` for audiobooks and podcasts (M6), `still` 16:9 for an episode. */
   cover: 'poster' | 'square' | 'still';
@@ -70,6 +75,7 @@ interface DetailHeaderProps {
  */
 export function DetailHeader({
   images,
+  ownPoster,
   accent,
   cover,
   onBack,
@@ -89,12 +95,25 @@ export function DetailHeader({
 }: DetailHeaderProps) {
   const { t } = useTranslation();
   const still = images.backdropSmall ?? images.backdrop;
+  const [failedPoster, setFailedPoster] = useState<string>();
+  const own = ownPoster && ownPoster.url !== failedPoster ? ownPoster : undefined;
   const hasArt = Boolean(
-    images.backdrop ?? images.backdropSmall ?? images.backdropLarge ?? images.poster,
+    images.backdrop ?? images.backdropSmall ?? images.backdropLarge ?? images.poster ?? own,
   );
 
   let coverImage: ReactNode;
-  if (cover === 'still' && still) {
+  if (own) {
+    coverImage = (
+      <img
+        src={apiUrl(own.url)}
+        alt=""
+        width={own.width}
+        height={own.height}
+        className={styles.posterImage}
+        onError={() => setFailedPoster(own.url)}
+      />
+    );
+  } else if (cover === 'still' && still) {
     coverImage = (
       <img
         src={apiUrl(still.url)}

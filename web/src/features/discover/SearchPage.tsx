@@ -337,6 +337,7 @@ export function SearchPage() {
                       href={paths.collection(collection.id)}
                       name={collection.name}
                       caption={t('collection.count', { count: collection.count })}
+                      imageUrl={imageUrl(collection.image)}
                       posterUrl={imageUrl(collection.cover?.images.poster)}
                       posterSmallUrl={imageUrl(collection.cover?.images.posterSmall)}
                       accent={collection.cover?.accent}

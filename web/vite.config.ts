@@ -140,9 +140,13 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//, /^\/spike\//],
         runtimeCaching: [
           {
-            // Posters and backdrops: immutable per content hash (`v`), served with the session.
+            // Posters and backdrops, the portraits of people and the posters of collections:
+            // immutable per content hash (`v`), served with the session.
             urlPattern: ({ url, sameOrigin }) =>
-              sameOrigin && /^\/api\/v1\/items\/[^/]+\/images\//.test(url.pathname),
+              sameOrigin &&
+              /^\/api\/v1\/(items\/[^/]+\/images\/|(people|collections)\/[^/]+\/image$)/.test(
+                url.pathname,
+              ),
             handler: 'CacheFirst',
             options: {
               cacheName: 'slouchcat-images',
