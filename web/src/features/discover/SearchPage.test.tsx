@@ -272,9 +272,15 @@ describe('search page', () => {
     );
     renderApp('/search?q=He');
     const titles = await screen.findByRole('region', { name: 'Titel' });
-    // Up to 200 titles the whole list is read at once and drawn as one grid.
-    expect(await within(titles).findByRole('link', { name: /Arrival/ })).toBeVisible();
+    // Up to 200 titles the whole list is read at once and drawn as one grid. Page 1 is asked for
+    // once page 0 is there and the range rested (PAGED_LIST_SETTLE_MS): wait for that request,
+    // then for its title by text. A role query over the 101 cards computes every name and costs
+    // ~100 ms (far more on a busy runner); polled by findByRole for the whole chain it used up the
+    // wait before the page was drawn (run 42673625842), so it runs once the card is there.
+    await waitFor(() => expect(searches(calls)).toHaveLength(2));
     expect((searches(calls).at(-1)?.body as { offset: number }).offset).toBe(100);
+    expect(await within(titles).findByText('Arrival')).toBeVisible();
+    expect(within(titles).getByRole('link', { name: /Arrival/ })).toBeVisible();
     expect(within(titles).queryByRole('button', { name: 'Mehr laden' })).not.toBeInTheDocument();
   });
 

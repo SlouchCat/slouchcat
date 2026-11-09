@@ -916,9 +916,18 @@ describe('maintenance page', () => {
     lists.orphaned = Array.from({ length: 160 }, (_, index) =>
       issue('orphaned', 10 + index, { libraryId: index < 155 ? 1 : 2 }),
     );
-    const { calls } = setup();
+    const { calls, fetchMock } = setup();
     renderApp('/admin/maintenance');
     await user.click(await screen.findByRole('tab', { name: /^Verwaist \d/ }));
+    // Page 1 is asked for once page 0 is drawn, its end is in view and the range rested
+    // (PAGED_LIST_SETTLE_MS); then 160 rows are drawn. Waiting for the request first keeps the
+    // costly text query over the table out of that chain: polled for all of it, it used up the
+    // wait on a busy runner before the rows were drawn (run 42673625842).
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.map(([request]) => new URL(request.url).search)).toContain(
+        '?kind=orphaned&limit=100&offset=100',
+      ),
+    );
     expect(await screen.findByText('160 von 160')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Mehr laden' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Filme 155 Einträge' })).toBeVisible();
