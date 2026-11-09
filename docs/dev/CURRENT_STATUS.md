@@ -1,5 +1,39 @@
 # Aktueller Stand
 
+## Gesehen-Haken für Serien und Podcasts in Listen (9. November 2026): Pull Request, Release 1.22.0
+
+**Vertrag 1.22.0, additiv**, keine Migration, keine neue Operation. Zweig `claude/serien-haken` ab `main`
+`43eb1f8a` (Release 1.21.0). Hebt die Restgrenze aus Konzept 17 Stufe 2 auf (Marco: «Mach doch noch den
+Gesehen Haken»); Podcasts bekommen den Haken auch (Marco: «Doch, Podcast sollen den Haken auch erhalten»).
+Nachtrag zu Frage 24 vom 9. November 2026.
+
+- **Vertrag:** `ItemRef.watched` (Boolean), nur bei Serien und Podcasts: alle sichtbaren Folgen hat das aktive
+  Profil fertig, dieselbe Regel wie der Status «gesehen» der Bibliothek (Specials zählen mit, gesperrte Folgen
+  nicht); `false`, solange eine sichtbare Folge offen ist; fehlt ohne sichtbare Folge und bei jeder anderen Art.
+- **Server:** `ListVisibleChildCounts`, die jede Zusammenfassung einer Liste schon gebündelt liest, antwortet
+  neu auch für Podcasts und prüft je Serie oder Podcast zwei `EXISTS` (eine sichtbare Folge; eine sichtbare,
+  nicht fertige Folge). Die zweite liest den Fortschritt vor `visible_items`, eine fertige Folge kostet so keine
+  Sichtbarkeitsprüfung, eine ungesehene Serie endet bei ihrer ersten offenen Folge. Damit tragen Bibliothek,
+  Startseite, Suche, Sammlungen, Merkliste, User-Empfehlungen, Personenseite und Detailseite das Feld, ohne
+  Abfrage pro Titel.
+- **App:** `isFinished` (Katalog-Beschriftungen) nimmt einen Titel als fertig nach seinem Fortschritt oder,
+  bei Serie und Podcast, nach `watched`. Der Haken steht dort, wo ihn ein Film heute zeigt: Bibliotheksraster,
+  Sammlungsseite und Sammlungsreihe der Detailseite; auf dem quadratischen Podcast-Cover heisst er «Gehört».
+  Startseite, Suche, Merkliste, User-Empfehlungen und Personenseite zeigen auch bei Filmen keinen Haken.
+- **Messung** (`BenchmarkSeriesNextUp`, 100 Serien × 13 Staffeln × 20 Folgen, p50 vorher → nachher):
+  `ListVisibleChildCounts` für 100 Serien 1,32 → 2,7 ms (P18, eine Serie halb gesehen) und 1,33 → 17,9 ms
+  (P16 hat alle 26'000 Folgen fertig, der ungünstigste Fall); Bibliotheksseite mit 100 Serien 49,2 → 50,6 ms
+  und 53,4 → 69,6 ms. Die Filmbibliothek (`BenchmarkLibraryRows`, 10'000 Filme) bleibt gleich (Titel 42,6 →
+  43,0 ms). Eine erste Fassung mit `count(*)` über alle Folgen brauchte 212 ms und wurde verworfen.
+- **Prüfung (Stufe 1):** `task check:fast` grün (Server: geänderte Pakete `go vet` und `go test`, Web: eslint,
+  prettier, tsc); `go tool golangci-lint run ./internal/visibility/... ./internal/api/... ./internal/model/...`
+  0 issues; `go test ./internal/visibility -run 'TestSeriesWatched|TestPodcastWatched'` und
+  `go test ./internal/api -run TestContractSeriesAndPodcastWatched` grün;
+  `go test ./internal/store -run TestScopedQueriesJoinVisibleItems` grün; `vitest related` für die geänderten
+  Dateien 1053 Tests grün; `E2E_PORT=8197 task e2e:quick -- e2e/collection.spec.ts` 4 von 4 grün.
+- Versionsstellen auf 1.22.0 (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/compose.updater.yaml`,
+  `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`).
+
 ## Konzept 17 Stufe 3 «Personen- und Sammlungsbilder, Bibliotheksraster» (9. November 2026): Pull Request, Release 1.21.0
 
 **Vertrag 1.21.0, additiv**, **Migration 00040** (`person_images`, `collection_images`), ADR 0026. Zweig
