@@ -287,3 +287,10 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   «nächste Folge», «Hörbücher» bei den Vorgaben. Der Zustand der Vorschau-Sätze liegt im Cache und in Jobs, nicht in der
   Datenbank. Dann `store.Dump`, keine neuen Pfade im Stand. `TestFrozenTrickplayStateCoversTheConcept` prüft, dass jede
   dieser Datenarten vorhanden ist; `TestMigration00042Trickplay` prüft den Schritt von `empfehlungen.sql` aus.
+- `trickplay-aus.sql`: Stand nach dem Patch 1.23.1 «Trickplay ab Werk Aus» (Migration 00043 stellt jede Bibliothek, die
+  noch «Im Voraus» hat, je Art auf «Aus»; Entscheid von Marco vom 9. November 2026). Erzeugt am 9. November 2026 aus
+  `trickplay.sql`: Stand eingespielt, mit `store.Open` migriert (00043 stellt «Hörbücher» bei Filmen und Serien auf
+  «Aus», «Filme» und «Serien» bleiben), dann per SQL die Filme der Bibliothek «Filme» von Hand zurück auf «Im Voraus»
+  (Stichtag 9. November 2026, 12:00 UTC). Dann `store.Dump`, keine neuen Pfade im Stand.
+  `TestFrozenTrickplayAusStateCoversThePatch` prüft, dass jede dieser Datenarten vorhanden ist;
+  `TestMigration00043TrickplayOff` prüft den Schritt von `trickplay.sql` aus.
