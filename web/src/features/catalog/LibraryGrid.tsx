@@ -300,10 +300,13 @@ export function LibraryGrid({
     <div
       ref={root}
       className={styles.root}
-      // One row of the fixed card height per row of the list (LibraryGrid.module.css .grid).
+      // The whole list's rows of the fixed card height (LibraryGrid.module.css .grid).
       style={
         metrics
-          ? ({ '--library-rows': rows, '--library-card': `${metrics.card}px` } as CSSProperties)
+          ? ({
+              '--library-height': `${Math.max(0, rows * rowSize - metrics.rowGap)}px`,
+              '--library-card': `${metrics.card}px`,
+            } as CSSProperties)
           : undefined
       }
     >
@@ -311,9 +314,10 @@ export function LibraryGrid({
       <SpatialGroup as="ul" focusKey={focusKey} className={styles.grid} aria-label={label}>
         {indexes.map((index) => {
           const item = slots[index];
+          // The row's top in the list (its virtual start less the list's top) and its column.
           const placement = {
-            gridRow: Math.floor(index / columns) + 1,
-            gridColumn: (index % columns) + 1,
+            top: Math.floor(index / columns) * rowSize,
+            gridColumn: `${(index % columns) + 1} / span 1`,
           };
           return (
             <li

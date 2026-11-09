@@ -239,11 +239,12 @@ test.describe('a large library in the virtual grid', () => {
     year: 2000,
     images: {},
   });
-  const letterStarts = [
+  /** Where each letter starts in a list of `total` titles (PER_LETTER for TOTAL). */
+  const letterStarts = (total: number) => [
     { letter: '#', offset: 0 },
     ...Array.from({ length: 26 }, (_, n) => ({
       letter: String.fromCharCode(65 + n),
-      offset: NUMBERS + n * PER_LETTER,
+      offset: NUMBERS + n * Math.floor((total - NUMBERS) / 26),
     })),
   ];
 
@@ -251,7 +252,7 @@ test.describe('a large library in the virtual grid', () => {
   async function openLarge(
     page: Page,
     owner: APIRequestContext,
-    failing = new Map<number, number>(),
+    { failing = new Map<number, number>(), total = TOTAL } = {},
   ): Promise<number> {
     const id = await libraryId(owner, LIBRARY);
     await page.route(`**/api/v1/libraries/${id}/items?*`, async (route) => {
@@ -270,23 +271,23 @@ test.describe('a large library in the virtual grid', () => {
       }
       await route.fulfill({
         json: {
-          items: Array.from({ length: Math.max(0, Math.min(limit, TOTAL - offset)) }, (_, n) =>
+          items: Array.from({ length: Math.max(0, Math.min(limit, total - offset)) }, (_, n) =>
             fake(offset + n),
           ),
-          total: TOTAL,
+          total,
           offset,
           limit,
           facets: {
             letters: ['#', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'],
             genres: [],
             ratings: [],
-            ...(offset === 0 ? { letterStarts } : {}),
+            ...(offset === 0 ? { letterStarts: letterStarts(total) } : {}),
           },
         },
       });
     });
     await page.goto(`/libraries/${id}`);
-    await expect(page.getByRole('status').filter({ hasText: `${TOTAL} Titel` })).toBeVisible();
+    await expect(page.getByRole('status').filter({ hasText: `${total} Titel` })).toBeVisible();
     await expect(cards(page).first()).toBeVisible();
     return id;
   }
@@ -385,7 +386,7 @@ test.describe('a large library in the virtual grid', () => {
     owner,
   }) => {
     // Page 2 fails twice: its read and the one retry of the app's queries.
-    await openLarge(page, owner, new Map([[200, 2]]));
+    await openLarge(page, owner, { failing: new Map([[200, 2]]) });
     const d = NUMBERS + 3 * PER_LETTER;
     await letter(page, 'D').focus();
     await page.keyboard.press('Enter');
@@ -400,6 +401,30 @@ test.describe('a large library in the virtual grid', () => {
     await expect(alert).toHaveCount(0);
     await expect(grid(page).locator(`[data-index="${d}"] a[href]`)).toBeVisible();
     await expect.poll(() => emptyInView(page)).toEqual([]);
+  });
+
+  test('more than 10000 rows: a jump far down draws its cards in view @keyboard', async ({
+    page,
+    owner,
+  }) => {
+    // Three columns on a phone: 40'000 titles are 13'334 rows, past the 10'000 grid lines of
+    // Firefox (the places are not grid rows).
+    await page.setViewportSize({ width: 390, height: 844 });
+    const total = 40_000;
+    await openLarge(page, owner, { total });
+    expect(await columnsOf(page)).toBe(3);
+    const z = letterStarts(total).at(-1)!.offset;
+    expect(Math.floor(z / 3)).toBeGreaterThan(10_000);
+    await letter(page, 'Z').focus();
+    await page.keyboard.press('Enter');
+    await expect.poll(() => focusedPlace(page)).toBe(z);
+    await expect(page.locator(':focus')).toBeInViewport();
+    await expectVisibleFocus(page);
+    await expect.poll(() => emptyInView(page)).toEqual([]);
+    // ArrowDown goes on to the row below, still in view.
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => focusedPlace(page)).toBe(z + 3);
+    await expect(page.locator(':focus')).toBeInViewport();
   });
 
   test('Tab leaves the grid after the last card; the wheel keeps the focus @keyboard', async ({
