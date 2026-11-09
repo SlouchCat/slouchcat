@@ -1,13 +1,13 @@
 # Konzept 18: Vorschau beim Spulen (Trickplay), User-Empfehlungen und Raster-Feinschliff
 
-- **Status: Fassung 7 (9. November 2026), drei Teile:** A «Trickplay» (Abschnitte 0 bis 13),
-  B «User-Empfehlungen von Profil zu Profil» (14, 15), C «Raster-Feinschliff» (16). Offen ist nur
-  O-1 (11.2). Eingetragen als **Frage 25** im Entscheidungsprotokoll.
+- **Status: Fassung 8 (9. November 2026), vier Teile:** A «Trickplay» (Abschnitte 0 bis 13),
+  B «User-Empfehlungen von Profil zu Profil» (14, 15), C «Raster-Feinschliff» (16), D
+  «Streamübersicht für alles, was läuft» (17). Offen ist nur O-1 (11.2). Eingetragen als **Frage 25** im Entscheidungsprotokoll.
   **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Auslöser:** Marcos Auftrag vom 8. November 2026: Vorschaubilder für Filme und Folgen, erzeugt
   **sobald eine Folge oder ein Film gestartet wird**; dazu die Fragen, wie lange das dauert und ob
   die Bilder gespeichert werden. Grundlage ist Idee 05 (`docs/ideas/05-trickplay.md`, aus Konzept
-  13 V-21, Frage 19 F-7 «später»). Teil B und C kamen auf Marcos Wunsch dazu.
+  13 V-21, Frage 19 F-7 «später»). Teil B, C und D kamen auf Marcos Wunsch dazu.
 - **Verlauf:**
   - Fassung 1 bis 3 (8. November 2026): Messungen, Marcos Antworten F-1 bis F-12, Kritiker-Review
     von Fassung 2 (REVISE, 1 Blocker, 8 Major, 13 Minor; Abschnitt 13).
@@ -22,6 +22,10 @@
     Startseite). Marco hat am Mockup **Variante B**
     und eine Beschriftung von **26 px** gewählt (zuerst 40 px, dann «doch etwas zu gross»). Teil C
     hat noch kein Kritiker gesehen.
+  - Fassung 8 (9. November 2026): Teil D (Abschnitt 17): die Streamübersicht zeigt alles, was
+    läuft, in einer Liste mit Filterknöpfen; Marcos Antworten D-1 bis D-3. Teil D ist gegen
+    `main` `43eb1f8a` (Konzept 17 Stufe 3, Vertrag 1.21.0, Migration 00040) geschrieben und hat
+    noch kein Kritiker gesehen.
 - **Verankert gegen:** `main` **`6c05eda7`** (Merge PR #125, Release 1.19.2), Vertragsfassung
   **1.19.0** (`api/openapi.yaml:4`), letzte Migration **`00039_radio_stage2.sql`**, letzte ADR in
   `main` **`0025`**, letzte Frage im Entscheidungsprotokoll **24**. Reserviert und nicht gebaut:
@@ -34,7 +38,8 @@
   vorläufig **1.22.0**, durch Teil B **brechend** (14.8), **zwei Migrationen**, vorläufig **00041**
   (Teil B: `user_picks`, `picks_config`, `top_picks` weg, 14.8) und **00042** (Teil A: Spalten
   `libraries.trickplay_*`, 8.3); alle Nummern endgültig beim Baubeginn. ADR 0027 ändert
-  ADR 0022 nicht: Trickplay nimmt **nicht** an der Pausen-Ausnahme teil (5.3).
+  ADR 0022 nicht: Trickplay nimmt **nicht** an der Pausen-Ausnahme teil (5.3). Teil D braucht
+  keine Migration und ändert den Vertrag nur additiv (17.4).
 - `:Zeile`-Angaben beziehen sich auf `6c05eda7`; **nach Namen suchen, nicht nach Zeile.** Pfade
   ohne Präfix liegen unter `server/` (Go) oder `web/src/` (Web-App).
 - Massgeblich bleiben `docs/spec/01-anforderungen-v1.md`, `docs/planning/04-entscheidungen.md` und
@@ -984,6 +989,98 @@ enthält nur Verweise, keine Bilder).
 - C-1, C-2 und C-3 für die übrigen Listen: eigener Schritt in Konzept 18 **nach** Konzept 17 Stufe 3,
   vor Teil B, als Patch ohne Vertragsbruch (rund 3 Tage: Karten und Kacheln 1, Listen 1,5, Tests und
   Baselines 0,5).
+
+## 17. Teil D: Streamübersicht für alles, was läuft
+
+### 17.1 Was Marco will (9. November 2026)
+
+| Nr. | Wunsch | Abschnitt |
+|---|---|---|
+| D-1 | Die Streamübersicht (`/admin/streams`) zeigt **alles, was gerade läuft**: Film, Serie, Hörbuch, Podcast und Radio. Marco nutzt sie als allgemeine Übersicht. | 17.3 |
+| D-2 | **Eine Liste**, neueste zuerst, jede Kachel mit ihrer Art. Radio steht nicht mehr in einem eigenen Abschnitt. | 17.3 |
+| D-3 | **Filterknöpfe** oben: «Alle», «Video», «Hörbücher», «Podcasts», «Radio», je mit Anzahl. | 17.3 |
+
+Marcos Angaben zum heutigen Stand: Filme und Serien erscheinen; Hörbücher und Podcasts hat er nicht
+geprüft; Radio kam nicht.
+
+### 17.2 Heute (`main` `43eb1f8a`, 1.21.0)
+
+- `listStreams` (`server/internal/playback/devices.go` `ListStreams`, Abfrage
+  `ListActivePlaybackSessions`) liefert **jede** Wiedergabesitzung ohne Filter nach Art: Film,
+  Folge, Hörbuch (eine Datei oder HLS über alle Teile) und Podcast-Folge (mit Bibliotheksdatei oder
+  über den Feed, `playback/enclosure.go`, `media_file_id` leer). Hörbücher und Podcasts erscheinen
+  also schon, aber schlecht erkennbar:
+  - Der Titel ist nur der Titel der Folge, ohne Podcastnamen (`streamTitle` kennt nur Serien).
+  - Bild: `posterOf` springt nur bei Folgen einer Serie zum Elternteil; eine Podcast-Folge ohne
+    eigenes Bild zeigt keines, das quadratische Cover wird wie ein Hintergrund beschnitten.
+  - Dauer: kommt aus `media_files`; ohne Bibliotheksdatei (Feed) fehlt sie, der Fortschritt fehlt.
+  - Die Kachel zeigt Videoangaben (Auflösung, HW/SW-Encoder), die bei Audio leer oder irreführend sind.
+- **Radio** steht seit 1.19.0 (Konzept 16 Stufe 2, D-11) in einem eigenen Abschnitt «Radio» unter
+  der Liste, gelesen aus `listRadioRelays` (`RadioRelayListener`: Profil, Konto, `playing`, `since`;
+  ohne Gerät und ohne Senderlogo).
+- **Warum Radio bei Marco fehlte:** Auf CT 190 sind die letzten Hör-Sitzungen
+  (`radio_listen_sessions`) vom 8. November 2026 17:54, also vor dem Wechsel auf 1.19.0 um 18:47; seither
+  lief dort kein Radio. Vor 1.19.0 gab es den Abschnitt noch nicht. Ein Fehler ist damit nicht
+  belegt. Die Abnahme von Teil D prüft Radio ausdrücklich (17.6).
+
+### 17.3 Neu: eine Liste «Läuft gerade»
+
+- **Eine Liste**, neueste zuerst (Startzeit), mit Kacheln für Wiedergaben und Radiohörer. Der
+  Abschnitt «Radio» fällt weg; «Serverlast» oben bleibt, mit Radio als eigener Kennzahl wie heute.
+- **Abzeichen** auf jeder Kachel: «Film», «Serie», «Hörbuch», «Podcast», «Radio».
+- **Filterknöpfe** über der Liste: «Alle», «Video» (Filme und Folgen), «Hörbücher», «Podcasts»,
+  «Radio», je mit Anzahl; ein Knopf ohne Treffer bleibt sichtbar mit 0. Die Wahl gilt nur auf
+  dieser Seite und bleibt beim Neuladen der Liste (alle 5 s) stehen. Tastatur (Regel 8): die Knöpfe
+  sind eine Gruppe mit ←/→, Tab führt in die Kacheln.
+- **Kacheln nach Art:**
+
+| Art | Titel | Bild | Angaben | Fortschritt |
+|---|---|---|---|---|
+| Film | Titel | Hintergrund wie heute | Gerät, Qualität, Modus, Grund | Position / Dauer |
+| Serie | «Serie · S01E02 · Titel» wie heute | Hintergrund der Serie | wie Film | Position / Dauer |
+| Hörbuch | «Buch · Kapitel» (Kapitel an der Position, sonst nur Buch) | Cover mittig auf unscharfem Grund (Teil C, Variante B) | Gerät, Format (Codec, Bitrate), Modus | Position / Dauer des ganzen Buchs |
+| Podcast | «Podcast · Folge» | Cover der Folge, sonst des Podcasts, wie Hörbuch | Gerät, Format, Quelle «Datei» oder «Feed» | Position / Dauer (aus dem Feed, wenn die Datei fehlt) |
+| Radio | Sendername | Senderlogo wie Hörbuch, sonst Platzhalter | Format (Codec, Bitrate), «umkodiert» oder nicht, Hörer dieses Senders, «Hört» oder «Pausiert» | keiner, nur «seit …» |
+
+- «Beenden» bleibt auf jeder Kachel, mit derselben Bestätigung wie heute (Wiedergabe:
+  `stopStream`; Radio: `stopRadioListener`).
+
+### 17.4 Server und Vertrag
+
+- `AdminStream` erhält additiv:
+  - `kind` (`movie`, `episode`, `audiobook`, `podcast_episode`);
+  - `parentTitle` (Podcastname, bei Serien wie heute im Titel);
+  - `chapterTitle` (Hörbuch, Kapitel an `positionMs` aus der Tabelle `chapters`);
+  - `audioCodec` und `audioBitrate` (aus der Probe der Datei, bei HLS die Ausgabe);
+  - `source` (`file` oder `feed`).
+  `durationMs` kommt ohne Datei aus `items.duration_ms` (die Dauer aus dem Feed, Migration 00014),
+  wenn der Feed eine nennt.
+- Bilder: `posterOf` springt bei einer Podcast-Folge ohne eigenes Bild zum Podcast; Hörbuch und
+  Podcast liefern `posterUrl` (quadratisch) und keinen `backdropUrl`.
+- `RadioRelayListener` erhält additiv `device` (wie `AdminStream.device`; die Hör-Sitzung kennt
+  ihre Browsersitzung `session_id`, darüber das Gerät) und `RadioRelay` den Logo-Pfad
+  `logoUrl` über `getAdminRadioImage`.
+- Die Web-App mischt beide Listen (`listStreams` und `listRadioRelays`) zu einer, sortiert nach
+  `startedAt` bzw. `since`. Keine neue Operation, keine Migration; alles additiv im vorläufigen
+  Vertrag 1.22.0.
+- Die Admin-Ansicht bleibt ungefiltert (`x-visibility: admin`, keine `ItemRef`), wie heute.
+
+### 17.5 Mockup
+
+Artboard «Verwaltung: Streams, alles in einer Liste» der Leinwand «Konzept 18»: Serverlast oben,
+Filterknöpfe mit Anzahl, sechs Kacheln (Film, Folge, Hörbuch, Podcast aus Datei, Podcast aus dem
+Feed, Radio) mit echten Bildern aus dem Bild-Cache von CT 190 (nur in der privaten Leinwand).
+
+### 17.6 Bau und Abnahme
+
+- Eigener Schritt, unabhängig von Teil A bis C, rund **2 Tage**: Server und Vertrag 0,5, Seite
+  und Kacheln 1, Tests 0,5. Er kann vor oder nach Teil C gebaut werden.
+- Tests: Vertragstest für die neuen Felder; Go-Test `ListStreams` mit je einer Sitzung jeder Art
+  (Podcast mit und ohne Datei, Hörbuch mehrteilig mit Kapitel); Playwright-Test der Seite mit allen
+  Arten, Filterknöpfen und Tastatur (Regel 8); Storybook-Baselines von `StreamTile`.
+- **Abnahme auf CT 190:** gleichzeitig ein Film, eine Folge, ein Hörbuch, ein Podcast aus der
+  Bibliothek, ein Podcast über den Feed und ein Radiosender; alle sechs Kacheln erscheinen innert
+  5 s, jeder Filterknopf zeigt die richtige Anzahl, «Beenden» stoppt jede Art.
 
 ## Anhang: Messskripte
 
