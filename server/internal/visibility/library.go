@@ -324,20 +324,24 @@ func (r *Reader) LibraryItems(ctx context.Context, s Scope, libraryID int64, q m
 	if err != nil {
 		return model.LibraryPage{}, err
 	}
-	letters := libraryStmt(s, pid, libraryID, f, "SELECT DISTINCT lower(substr(sort_key, 1, 1)) FROM lib WHERE 1", false)
-	firsts, err := textColumn(ctx, tx, letters.sql.String(), letters.args...)
+	// The letters ignore the deprecated letter filter, the letter starts take it: one grouped
+	// query serves both without it.
+	firsts, err := firstChars(ctx, tx, libraryStmt(s, pid, libraryID, f, firstCharsHead, false))
 	if err != nil {
 		return model.LibraryPage{}, fmt.Errorf("library letters: %w", err)
 	}
-	out.Facets.Letters = sortLetters(firsts)
+	chars := make([]string, 0, len(firsts))
+	for _, fc := range firsts {
+		chars = append(chars, fc.c)
+	}
+	out.Facets.Letters = sortLetters(chars)
 	if f.Sort == model.LibrarySortTitle && f.Offset == 0 {
-		keys := libraryStmt(s, pid, libraryID, f, "SELECT sort_key FROM lib WHERE 1", true)
-		keys.add(" ORDER BY " + libraryOrderBy(f))
-		sortKeys, err := textColumn(ctx, tx, keys.sql.String(), keys.args...)
-		if err != nil {
-			return model.LibraryPage{}, fmt.Errorf("library letter starts: %w", err)
+		if f.Letter != "" {
+			if firsts, err = firstChars(ctx, tx, libraryStmt(s, pid, libraryID, f, firstCharsHead, true)); err != nil {
+				return model.LibraryPage{}, fmt.Errorf("library letter starts: %w", err)
+			}
 		}
-		out.Facets.LetterStarts = letterStarts(sortKeys)
+		out.Facets.LetterStarts = letterStarts(firsts, f.desc)
 	}
 	qtx := r.q.WithTx(tx)
 	genres, err := qtx.ListLibraryGenres(ctx, scopedq.ListLibraryGenresParams{ProfileID: pid, Lang: s.metaLang, LibraryID: libraryID})
@@ -587,15 +591,57 @@ func sortLetters(firsts []string) []string {
 	return out
 }
 
-// letterStarts returns one entry per change of the letter (model.SortLetter, the source of the
-// letter bar) along sort keys in page order, with the offset of the first key of that letter.
-// # can start twice: digits and punctuation sort before a, other characters after z.
-func letterStarts(sortKeys []string) []model.LetterStart {
-	out := []model.LetterStart{}
-	for i, k := range sortKeys {
-		if l := model.SortLetter(k); len(out) == 0 || out[len(out)-1].Letter != l {
-			out = append(out, model.LetterStart{Letter: l, Offset: i})
+// firstCharsHead selects the first character of the sort key over lib; firstChars groups by it.
+const firstCharsHead = "SELECT substr(sort_key, 1, 1) AS c, count(*) FROM lib WHERE 1"
+
+// firstChar is a first character of the sort keys of the filtered set and the number of its keys.
+type firstChar struct {
+	c string
+	n int
+}
+
+// firstChars runs b (from firstCharsHead) grouped by the first character and returns the
+// characters with their counts in byte order. That is the order of sort_key: UTF-8 is prefix-free,
+// so the keys sort by their first character before the rest, and the keys of one first character
+// are contiguous in either direction.
+func firstChars(ctx context.Context, tx *sql.Tx, b *stmt) ([]firstChar, error) {
+	b.add(" GROUP BY c")
+	rows, err := tx.QueryContext(ctx, b.sql.String(), b.args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []firstChar
+	for rows.Next() {
+		var fc firstChar
+		if err := rows.Scan(&fc.c, &fc.n); err != nil {
+			return nil, err
 		}
+		out = append(out, fc)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	slices.SortFunc(out, func(a, b firstChar) int { return strings.Compare(a.c, b.c) })
+	return out, nil
+}
+
+// letterStarts returns one entry per change of the letter (model.SortLetter, the source of the
+// letter bar) along the first characters in page order (byte order, reversed for desc), with the
+// offset of the first key of that letter: the running sum of the counts before it. # can start
+// twice: digits and punctuation sort before a, other characters after z.
+func letterStarts(firsts []firstChar, desc bool) []model.LetterStart {
+	out := []model.LetterStart{}
+	offset := 0
+	for i := range firsts {
+		fc := firsts[i]
+		if desc {
+			fc = firsts[len(firsts)-1-i]
+		}
+		if l := model.SortLetter(fc.c); len(out) == 0 || out[len(out)-1].Letter != l {
+			out = append(out, model.LetterStart{Letter: l, Offset: offset})
+		}
+		offset += fc.n
 	}
 	return out
 }

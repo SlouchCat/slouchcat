@@ -2,6 +2,7 @@ package visibility
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"slices"
 	"strconv"
@@ -348,6 +349,60 @@ func TestLibraryItemsLetterStarts(t *testing.T) {
 		if got := libraryItems(t, r, f.P18, f.LibraryID(), q).Facets.LetterStarts; got != nil {
 			t.Errorf("%s: letter starts %v, want none", name, got)
 		}
+	}
+}
+
+// The letter starts from the first characters grouped in SQLite equal the former walk over every
+// sort key in the page order of SQLite (the full sort), on keys with digits, punctuation, an empty
+// key, folded and unfolded non-ASCII letters, stripped articles and other scripts, in both
+// directions; the letters are those of every key.
+func TestLetterStartsMatchFullSort(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	ctx := t.Context()
+	keys := []string{"", "Upper", "~tilde", "é-raw", "Ωmega", "_under"} // raw keys, not from model.SortKey
+	for _, title := range []string{"2001: A Space Odyssey", "12 Monkeys", "...And Justice for All", "Amélie",
+		"Ärger im Paradies", "The Matrix", "Der Mann", "Das Örtchen", "Die Zeit", "東京物語", "Øresund", "Zorro",
+		"zebra", "Ça ira", "¡Three Amigos!", "a", "B", "b", "The The", "007"} {
+		keys = append(keys, model.SortKey("de", title), model.SortKey("en", title))
+	}
+	raw, err := json.Marshal(keys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx, err := f.DB.Read.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	const lib = "WITH lib(sort_key) AS (SELECT value FROM json_each(?)) "
+	b := &stmt{}
+	b.add(lib+firstCharsHead, string(raw))
+	firsts, err := firstChars(ctx, tx, b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dir := range []string{"ASC", "DESC"} {
+		sorted, err := textColumn(ctx, tx, lib+"SELECT sort_key FROM lib ORDER BY sort_key "+dir, string(raw))
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []model.LetterStart{}
+		for i, k := range sorted {
+			if l := model.SortLetter(k); len(want) == 0 || want[len(want)-1].Letter != l {
+				want = append(want, model.LetterStart{Letter: l, Offset: i})
+			}
+		}
+		if got := letterStarts(firsts, dir == "DESC"); !slices.Equal(got, want) {
+			t.Errorf("%s: letter starts %v, want the full sort's %v", dir, got, want)
+		}
+	}
+	chars := make([]string, 0, len(firsts))
+	for _, fc := range firsts {
+		chars = append(chars, fc.c)
+	}
+	if got, want := sortLetters(chars), sortLetters(keys); !slices.Equal(got, want) {
+		t.Errorf("letters %v, want %v", got, want)
 	}
 }
 
