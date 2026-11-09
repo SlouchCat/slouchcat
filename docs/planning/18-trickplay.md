@@ -907,7 +907,8 @@ Zurücknehmen und erneutes Empfehlen (gewollt, 14.5).
 | C-2 | Bei «Meine Medien» ist die Unterscheidung zu schwach: Die Beschriftung «Filme», «Serien» usw. wird grösser (**26 px**). | 16.3 |
 | C-3 | **Kein «Mehr laden»** mehr: Die Bibliotheksseite (Menü → Filme oder «Meine Medien» → Filme) lädt alles, mit guter Leistung; ebenso Serien und **überall**, wo heute «Mehr laden» steht, auch bei Podcasts usw. Die Reihen der Startseite bleiben kurz wie heute (Richtigstellung von Marco, 9. November 2026). | 16.4 |
 
-Mockup: Artboard «Startseite: Titel unten bündig, Meine Medien» der Leinwand «Konzept 18», mit echten
+Mockups: Artboards «Startseite: Titel unten bündig, Meine Medien» und «Startseite kurz, Bibliothek lädt
+alles» der Leinwand «Konzept 18», mit echten
 Postern und Covern aus dem Bild-Cache von CT 190 (nur in der privaten Leinwand; die Repo-Kopie
 enthält nur Verweise, keine Bilder).
 

@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Startseite und Bibliothek laden</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#e8794a}a:hover{color:#f3a27f}
+.tp-btn{font:inherit;cursor:pointer}
+.tp-btn:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 1280px; height: 960px; box-sizing: border-box; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: flex;">
+
+  <nav style="width: 210px; flex-shrink: 0; background: #101218; border-right: 1px solid #ffffff14; padding: 28px 14px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px;">
+    <span style="font-size: 18px; font-weight: 800; padding: 0 12px 18px;">Slouchcat</span>
+    <sc-for list="{{menu}}" as="m" hint-placeholder-count="5">
+      <button class="tp-btn" onClick="{{m.go}}" style="{{m.style}}">{{m.label}}</button>
+    </sc-for>
+  </nav>
+
+  <div style="flex-grow: 1; min-width: 0; padding: 28px 36px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px;">
+
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <span style="{{badgeStyle}}">{{badge}}</span>
+      <span style="font-size: 14px; color: #b6b9c4;">{{hint}}</span>
+    </div>
+
+    <sc-if value="{{isHome}}" hint-placeholder-val="{{true}}">
+      <div style="display: flex; flex-direction: column; gap: 22px;">
+        <sc-for list="{{rows}}" as="r" hint-placeholder-count="2">
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; align-items: baseline; gap: 14px;">
+              <span style="font-size: 22px; font-weight: 700;">{{r.name}}</span>
+              <span style="font-size: 13px; color: #9095a3;">{{r.note}}</span>
+              <span style="flex-grow: 1;"></span>
+              <button class="tp-btn" onClick="{{r.all}}" style="background: none; border: 0; color: #e8794a; font-size: 14px; padding: 4px 0;">Alle anzeigen ›</button>
+            </div>
+            <div style="display: flex; gap: 16px; overflow: hidden;">
+              <sc-for list="{{r.cards}}" as="c" hint-placeholder-count="7">
+                <div style="width: 132px; flex-shrink: 0; display: flex; flex-direction: column; gap: 6px;">
+                  <img src="{{c.img}}" alt="{{c.title}}" style="width: 132px; height: 198px; object-fit: cover; border-radius: 10px; display: block;">
+                  <span style="font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{c.title}}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <span style="font-size: 22px; font-weight: 700;">Meine Medien</span>
+          <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px;">
+            <sc-for list="{{tiles}}" as="t" hint-placeholder-count="4">
+              <button class="tp-btn" onClick="{{t.go}}" aria-label="{{t.name}} öffnen" style="position: relative; height: 150px; border-radius: 14px; overflow: hidden; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 0; border: 0; background: #16181f; color: #f3f3f5; text-align: left;">
+                <sc-for list="{{t.imgs}}" as="s" hint-placeholder-count="4">
+                  <img src="{{s}}" alt="" style="width: 100%; height: 150px; object-fit: cover; display: block;">
+                </sc-for>
+                <span style="position: absolute; inset: 0; background: linear-gradient(0deg, #0b0c10f5 0%, #0b0c10c0 50%, #0b0c1060 100%);"></span>
+                <span style="position: absolute; left: 18px; right: 18px; bottom: 14px; display: flex; flex-direction: column; gap: 2px;">
+                  <span style="font-size: 26px; line-height: 1.05; font-weight: 700; text-shadow: 0 2px 12px #000000c0;">{{t.name}}</span>
+                  <span style="font-size: 14px; color: #d0d2da;">{{t.count}}</span>
+                </span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isLib}}" hint-placeholder-val="{{false}}">
+      <div style="display: flex; flex-direction: column; gap: 12px; flex-grow: 1; min-height: 0;">
+        <div style="display: flex; align-items: baseline; gap: 14px;">
+          <button class="tp-btn" onClick="{{back}}" style="background: none; border: 0; color: #e8794a; font-size: 14px; padding: 4px 0;">‹ Startseite</button>
+          <span style="font-size: 26px; font-weight: 700;">{{libName}}</span>
+          <span style="font-size: 14px; color: #b6b9c4;">{{libCount}}</span>
+          <span style="flex-grow: 1;"></span>
+          <span style="font-size: 13px; color: #9095a3;">{{loadedText}}</span>
+        </div>
+        <div style="display: flex; gap: 12px; flex-grow: 1; min-height: 0;">
+          <div onScroll="{{onScroll}}" style="flex-grow: 1; height: 720px; overflow-y: auto; border: 1px solid #ffffff14; border-radius: 12px; padding: 16px; box-sizing: border-box;">
+            <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 16px;">
+              <sc-for list="{{grid}}" as="g" hint-placeholder-count="21">
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                  <img src="{{g.img}}" alt="{{g.title}}" loading="lazy" style="width: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 8px; display: block;">
+                  <span style="font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{g.title}}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="padding: 18px 0 4px; text-align: center; font-size: 13px; color: #9095a3;">{{endText}}</div>
+          </div>
+          <sc-if value="{{letters}}" hint-placeholder-val="{{true}}">
+            <div style="display: flex; flex-direction: column; font-size: 11px; color: #b6b9c4; width: 22px; align-items: center; justify-content: space-between; height: 720px;">
+              <span>#</span><span style="color: #e8794a; font-weight: 700;">A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span><span>G</span><span>H</span><span>K</span><span>M</span><span>P</span><span>S</span><span>T</span><span>Z</span>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":960}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { view: 'home', loaded: 100 };
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var B = function (id) { return '/_blob/' + id; };
+    var films = [['A Beautiful Mind', '028941712ae0025679d4faa7ab0a3933'], ['A Bridge Too Far', '81e6f38810300066fc354d7b9c569f93'], ['A Charlie Brown Christmas', '5f52f147c93ccc41c42121ca40d8f594'], ['A Charlie Brown Thanksgiving', '993c9ec4054f5bef0fac27172765031d'], ['A Christmas Carol', '4ca101143871628846fbfe3be1204ae0'], ['A Christmas Story', '55880f1f6ffd4da041864333b4d8b147'], ['A Christmas Story Christmas', '0e8a0503dfe27e744bab5f061711ed41'], ['A Cinderella Story', 'd93b1da637861eb2dea7522c474d125f'], ['A Clockwork Orange', 'e320433fe2cdfb22cf7787225ac8d6af'], ['A Few Good Men', 'dc556a494c9abbbe0b77ce2d5d49666d'], ['A Good Day to Die Hard', '5c5f2f54993da61403663cd2ea0caabf'], ['A House of Dynamite', 'eac8d4d63ead73a42b44286ec8167bfe'], ['A Legend', '9cea21c7b96a0f96faeee26eeee89011'], ['A Man Apart', '610a818a0e7c6eed73194b83d647f05a'], ['A Man Called Otto', '2ad60c7fdbcb8a15b611e68d741c1df7'], ['The Punisher: One Last Kill', '00ef7458104bdaca9279c11ec7912bbf'], ['A Million Minutes', '20c479f8aff1382a8bd6898334fef43a'], ['A Minecraft Movie', 'bdc5fe33a19b1458739969cc075098bb'], ['A Nightmare on Elm Street', '674fd906c0eaf50431c2df787dd82985'], ['A Prayer Before Dawn', '9496d7058b35c049c816b15426da4520'], ['A Quiet Place', '11549ef59c6a8b8d76501363995c3ed0'], ['A Quiet Place: Day One', '33420d06c5f38104a9b9b541e237c551']];
+    var series = [['Two and a Half Men', 'c43d47511f84e1a9bda0b25f586b2ef3'], ['Serie', '205ed4882715dafb24f2795fd34002ff'], ['Serie', 'd8ac6a19a2ac7e81f6730f164400f843'], ['Serie', 'e7f3bccd8750016afca288289262ea03']];
+    var libs = {
+      filme: { name: 'Filme', total: 1800, letters: true, list: films, imgs: ['028941712ae0025679d4faa7ab0a3933', 'dc556a494c9abbbe0b77ce2d5d49666d', 'e320433fe2cdfb22cf7787225ac8d6af', '2ad60c7fdbcb8a15b611e68d741c1df7'] },
+      serien: { name: 'Serien', total: 312, letters: true, list: series, imgs: ['c43d47511f84e1a9bda0b25f586b2ef3', '205ed4882715dafb24f2795fd34002ff', 'd8ac6a19a2ac7e81f6730f164400f843', 'e7f3bccd8750016afca288289262ea03'] },
+      kinder: { name: 'Kinderfilme', total: 304, letters: true, list: films.slice(2, 8), imgs: ['0cdc1ca1449317bf8c7b7012a1322af8', '01417dff7deb8eb7f45ba82fb83474e8', '5d118607b62b7d26052bae5aa164f2ea', '8f2d29f387e98cae02e95a7f53d05c0c'] },
+      podcasts: { name: 'Podcasts', total: 94, letters: false, list: [['Apropos', '859152a7d979dbbc5a72b7a2c6134e82'], ['Alles gesagt?', 'd114c80d872eb509ebb2059757fed654'], ['Bad Friends', '55c42a58a186abf9c5c29a677af3d5f1'], ['Podcast', '5a8c9344e5e8d58155b629f3526f596c'], ['Podcast', '5184ce60eb6275c9fd62daa85917642b'], ['Podcast', '9775aad3fadf248744a7b970b9cd532a']], imgs: ['5a8c9344e5e8d58155b629f3526f596c', '5184ce60eb6275c9fd62daa85917642b', '9775aad3fadf248744a7b970b9cd532a', '859152a7d979dbbc5a72b7a2c6134e82'] }
+    };
+    var open = function (key) { return function () { self.setState({ view: key, loaded: Math.min(100, libs[key].total) }); }; };
+    var home = function () { self.setState({ view: 'home' }); };
+    var isHome = st.view === 'home';
+    var menuDefs = [['home', 'Startseite'], ['filme', 'Filme'], ['serien', 'Serien'], ['kinder', 'Kinderfilme'], ['podcasts', 'Podcasts']];
+    var menu = menuDefs.map(function (d) {
+      var on = st.view === d[0];
+      return { label: d[1], go: d[0] === 'home' ? home : open(d[0]), style: 'text-align: left; height: 42px; padding: 0 12px; border-radius: 10px; border: 0; font-size: 15px; color: ' + (on ? '#f3f3f5' : '#b6b9c4') + '; background: ' + (on ? '#e8794a33' : 'transparent') + '; font-weight: ' + (on ? 700 : 500) + ';' };
+    });
+    var pick = function (list, n, off) { var out = []; for (var i = 0; i < n; i++) { var f = list[(i + off) % list.length]; out.push({ title: f[0], img: B(f[1]) }); } return out; };
+    var rows = [
+      { name: 'Neu hinzugefügt', note: 'Reihe zeigt nur die neuesten Titel, kein Nachladen', cards: pick(films, 7, 9), all: open('filme') },
+      { name: 'Filme', note: 'Reihe bleibt kurz wie heute', cards: pick(films, 7, 0), all: open('filme') }
+    ];
+    var tiles = ['filme', 'serien', 'kinder', 'podcasts'].map(function (k) {
+      var l = libs[k];
+      return { name: l.name, count: l.total.toLocaleString('de-CH') + (k === 'podcasts' ? ' Podcasts' : ' Titel'), imgs: l.imgs.map(B), go: open(k) };
+    });
+    var vals = { menu: menu, isHome: isHome, isLib: !isHome, rows: rows, tiles: tiles, back: home };
+    if (isHome) {
+      vals.badge = 'Startseite';
+      vals.badgeStyle = 'height: 30px; line-height: 30px; padding: 0 14px; border-radius: 15px; background: #1d2029; border: 1px solid #ffffff2e; font-size: 13px; font-weight: 600;';
+      vals.hint = 'Reihen bleiben kurz wie heute. «Alle anzeigen», eine Kachel bei «Meine Medien» oder das Menü links öffnen die Bibliothek.';
+      vals.grid = []; vals.letters = false;
+      return vals;
+    }
+    var lib = libs[st.view];
+    var n = Math.min(st.loaded, lib.total);
+    vals.badge = 'Bibliothek: lädt alles';
+    vals.badgeStyle = 'height: 30px; line-height: 30px; padding: 0 14px; border-radius: 15px; background: #e8794a33; border: 1px solid #e8794a; color: #f3a27f; font-size: 13px; font-weight: 600;';
+    vals.hint = 'Kein «Mehr laden»: beim Scrollen kommen die nächsten 100 Titel, bis alle da sind.';
+    vals.libName = lib.name;
+    vals.libCount = lib.total.toLocaleString('de-CH') + ' Titel';
+    vals.loadedText = n + ' von ' + lib.total.toLocaleString('de-CH') + ' geladen';
+    vals.endText = n >= lib.total ? 'Alle ' + lib.total.toLocaleString('de-CH') + ' Titel geladen.' : 'Weiter scrollen: die nächsten 100 laden von selbst …';
+    vals.letters = lib.letters;
+    vals.grid = pick(lib.list, n, 0);
+    vals.onScroll = function (e) {
+      var el = e.currentTarget || e.target;
+      if (el.scrollTop + el.clientHeight > el.scrollHeight - el.clientHeight / 2 && self.state.loaded < lib.total) {
+        self.setState({ loaded: Math.min(lib.total, self.state.loaded + 100) });
+      }
+    };
+    return vals;
+  }
+}
+</script>
+</body>
+</html>
