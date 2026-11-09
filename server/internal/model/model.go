@@ -594,6 +594,10 @@ type ItemSummary struct {
 	// WatchedCount is the number of visible episodes of a season the profile has completed
 	// (concept 17 section 2.3, contract 1.20.0); set on seasons only.
 	WatchedCount *int
+	// Watched marks a series or podcast whose visible episodes the profile has all completed, by the
+	// rule of the library status watched (contract 1.22.0); nil on other kinds and on a series or
+	// podcast without visible episodes.
+	Watched *bool
 	// SeriesRef is the visible series of an episode with its title and images (concept 15 P-1,
 	// contract 1.14.0 ItemRef.seriesRef); nil on every other kind.
 	SeriesRef *SeriesRef

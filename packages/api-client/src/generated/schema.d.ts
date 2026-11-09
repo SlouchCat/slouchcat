@@ -5215,6 +5215,14 @@ export interface components {
              *     concept 17 section 2.3); set only on seasons, next to `childCount`.
              */
             watchedCount?: number;
+            /**
+             * @description Series and podcasts only (since contract 1.22.0): every visible episode is completed by
+             *     the active profile, by the same rule as the library status `watched` (specials count
+             *     like every other episode). False when at least one visible episode is open; absent for
+             *     a series or podcast without visible episodes and on every other kind. Set on every
+             *     series and podcast ItemRef in every list and on `ItemDetail`.
+             */
+            watched?: boolean;
             runtimeMinutes?: number;
             /** @description Effective FSK rating; omitted when unknown (then hidden from profiles under 18). */
             rating?: components["schemas"]["Rating"];
