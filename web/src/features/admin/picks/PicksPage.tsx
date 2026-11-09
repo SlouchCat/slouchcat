@@ -1,6 +1,6 @@
 import type { AdminUserPick, PicksSettings } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { formErrors, problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
@@ -54,6 +54,13 @@ function PicksContent() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const titleRef = useRef<HTMLHeadingElement>(null);
+  // Aborted on unmount: the focus work after a removal stops and clears its timers.
+  const unmounted = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    unmounted.current = controller;
+    return () => controller.abort();
+  }, []);
   const [message, setMessage] = useStatusMessage();
   const [failure, setFailure] = useState<unknown>(null);
   /** The pick «Entfernen» asks about and the button that asked (the focus goes back there). */
@@ -80,8 +87,9 @@ function PicksContent() {
       setMessage(t('admin.picks.remove.done', { title: pick.title }));
       await invalidate();
       // The row and its button are gone: once React rendered that, the h1 takes the focus.
-      await afterDialogsClosed();
-      focusTitleIfLost(titleRef);
+      const signal = unmounted.current?.signal;
+      await afterDialogsClosed(signal);
+      if (!signal?.aborted) focusTitleIfLost(titleRef);
     },
     onError: (error) => {
       setMessage(null);
@@ -98,7 +106,9 @@ function PicksContent() {
     const button = asking?.from;
     setAsking(null);
     // Back to the button that asked; it may be gone by now (its row went), then the h1.
-    void afterDialogsClosed().then(() => {
+    const signal = unmounted.current?.signal;
+    void afterDialogsClosed(signal).then(() => {
+      if (signal?.aborted) return;
       if (focusLost() && button?.isConnected) button.focus();
       else focusTitleIfLost(titleRef);
     });
