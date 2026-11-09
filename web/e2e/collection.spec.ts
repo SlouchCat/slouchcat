@@ -147,6 +147,8 @@ test.describe('the TMDB poster of a collection (concept 17 D-5)', () => {
       const row = page.getByRole('region', { name: ROW_TITLES.collections });
       const homeCard = row.getByRole('link', { name: new RegExp(NAME) });
       await expect(homeCard).toBeVisible();
+      // The card is below the fold and its image lazy: Firefox loads it only once it is near.
+      await homeCard.scrollIntoViewIfNeeded();
       await expect.poll(() => loaded(homeCard.locator('img'))).toBeGreaterThan(0);
 
       await page.goto('/search?q=Abendprogramm');
