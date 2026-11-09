@@ -101,3 +101,15 @@ bremst und je Bibliothek einstellbar ist.
   das Nachholen baut ihn neu.
 - Offen bis Bauschritt 8: Last von 4K über NFS, Trickplay neben CPU-Tonemapping und neben einem
   4K-Remux.
+
+## Nachtrag vom 9. November 2026 (1.23.1)
+
+Marco hat nach der Abnahme von 1.23.0 entschieden: **«Aus» gilt ab Werk** und steht in der Auswahl
+zuoberst, für Filme und Serien. Migration **00043** stellt jede Bibliothek, die noch auf «Im Voraus»
+steht, je Art auf «Aus»; «Beim Start», «Beim Start alle Folgen», «Aus», «Speichern» und der Umfang
+bleiben. Der Spaltenvorgabewert `'ahead'` aus 00042 bleibt im Schema, wird aber nicht mehr gelesen:
+`library.Service.Create` schreibt die Einstellung jeder neuen Bibliothek ausdrücklich
+(`model.DefaultLibraryTrickplay`). Einen Vorgabewert ändert SQLite nur mit einem Neubau der Tabelle
+`libraries`, auf die ein grosser Teil des Schemas verweist; das lohnt sich für einen ungenutzten Wert
+nicht. Folgen: Wartende Aufträge dieser Bibliotheken enden ohne Arbeit (`trickplayWanted`), die nächste
+Pflege entfernt ihre gespeicherten Sätze. Der Vertrag bleibt 1.23.0 (nur Beschreibungstexte).

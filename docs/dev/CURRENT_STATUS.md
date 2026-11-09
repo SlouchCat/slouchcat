@@ -1,5 +1,18 @@
 # Aktueller Stand
 
+## Release 1.23.1 (9. November 2026): Vorschau beim Spulen ab Werk «Aus»
+
+Patch nach der Abnahme von 1.23.0, Zweig `claude/k18-aus` ab `main` `f1fd8aad` (Release 1.23.0). Marcos
+Entscheid vom 9. November 2026: Im Dialog «Vorschau beim Spulen» steht **«Aus» zuoberst** und gilt **ab Werk**
+für neue Bibliotheken (Filme und Serien); bestehende Bibliotheken mit «Im Voraus» stellt Migration **00043** je
+Art auf «Aus» («Speichern» und Umfang bleiben). Wartende Vorschau-Aufträge dieser Bibliotheken enden ohne
+Arbeit, die nächste Pflege entfernt ihre gespeicherten Vorschauen. Vertrag bleibt **1.23.0** (nur
+Beschreibungstexte); der Spaltenvorgabewert `'ahead'` aus 00042 ist ungenutzt, `library.Service.Create`
+schreibt die Einstellung immer. Eingefrorener Stand `testdata/db/trickplay-aus.sql`, Test
+`TestMigration00043TrickplayOff` ab `trickplay.sql`. Die e2e-Bibliotheken «Filme» und «Serien» stehen
+ausdrücklich auf «Im Voraus», weil die Vorschau-Tests Sätze vom Einlesen brauchen. Nachtrag im Konzept 18, ADR
+0027 und im Entscheidungsprotokoll («Trickplay ab Werk Aus»).
+
 ## Konzept 18 «Vorschau beim Spulen, Empfehlungen, lange Listen, Streamübersicht» (9. November 2026): gebaut, Abnahme auf CT 190 offen
 
 **Vertrag 1.23.0, brechend**, Migrationen **00041** (Teil B) und **00042** (Teil A), ADR 0027 (Trickplay) und

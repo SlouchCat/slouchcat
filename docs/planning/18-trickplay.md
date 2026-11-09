@@ -29,6 +29,10 @@
   - Fassung 9 (9. November 2026): Kritiker-Review von Teil C und D gegen `main` `e40ecf1c`
     (Release 1.22.0; REVISE, kein Blocker, 6 Major, 11 Minor; Abschnitt 18) eingearbeitet; O-1
     hingenommen. Vertrag vorläufig **1.23.0**, weil 1.22.0 vergeben ist.
+  - Nachtrag 9. November 2026 (Patch **1.23.1**, nach der Abnahme von 1.23.0): Marco hat
+    entschieden, dass **«Aus» zuoberst steht und ab Werk gilt**, in beiden Gruppen; Bibliotheken,
+    die noch auf «Im Voraus» stehen, stellt Migration **00043** auf «Aus». Das ersetzt «Im Voraus»
+    ab Werk aus F-11 (Abschnitte 6.1, 8.3, 9 und 11).
 - **Verankert gegen:** `main` **`6c05eda7`** (Merge PR #125, Release 1.19.2), Vertragsfassung
   **1.19.0** (`api/openapi.yaml:4`), letzte Migration **`00039_radio_stage2.sql`**, letzte ADR in
   `main` **`0025`**, letzte Frage im Entscheidungsprotokoll **24**. Reserviert und nicht gebaut:
@@ -80,8 +84,8 @@
   käme auf etwa 55 GB, nur die geschauten Titel auf wenige GB. Jedes Mal neu erzeugen hiesse
   dagegen bei jedem Start wieder 20 bis 80 s CPU und einige hundert MB NAS-Lesen.
 - **Marcos Entscheid (F-1 bis F-15):** Jede Videobibliothek stellt **Filme und Serien getrennt**
-  ein, auch eine gemischte. Filme: **«Im Voraus»** (beim Einlesen und per Job, ab Werk),
-  **«Beim Start»** mit Haken **«Speichern»** oder **«Aus»**. Serien dieselben drei und zusätzlich
+  ein, auch eine gemischte. Filme: **«Aus»** (ab Werk seit 1.23.1), **«Im Voraus»** (beim
+  Einlesen und per Job, bis 1.23.0 ab Werk) oder **«Beim Start»** mit Haken **«Speichern»**. Serien dieselben drei und zusätzlich
   **«Beim Start alle Folgen»**: Die erste gestartete Folge löst die Vorschau für die übrigen Folgen
   aus, im Umfang **ganze Serie** (ab Werk), **Rest der Staffel** oder **nächste Folge**. Bildpunkt
   **am nächsten Keyframe**, alle **10 s**, **320 px**, zwei ffmpeg-Prozesse, alle Profile; Downloads
@@ -366,13 +370,20 @@ eine Folge der Serien-Einstellung (Titelart `movie` bzw. `episode`).
 
 | Einstellung | Filme | Serien | Wann entsteht die Vorschau | Gespeichert |
 |---|---|---|---|---|
-| **Im Voraus** (`ahead`, ab Werk) | ✓ | ✓ | beim Einlesen neuer Dateien, per Nachholen (Knopf, Zeitplan) und beim Start, falls noch nicht da | immer |
+| **Im Voraus** (`ahead`, bis 1.23.0 ab Werk) | ✓ | ✓ | beim Einlesen neuer Dateien, per Nachholen (Knopf, Zeitplan) und beim Start, falls noch nicht da | immer |
 | **Beim Start** (`on_start`) mit Haken **«Speichern»** | ✓ | ✓ | beim Start des Titels | mit Haken dauerhaft, ohne Haken nur während der Wiedergabe |
 | **Beim Start alle Folgen** (`series_start`) | – | ✓ | beim Start einer Folge für diese Folge und im Hintergrund für die übrigen im Umfang **ganze Serie** (ab Werk), **Rest der Staffel** oder **nächste Folge** | immer |
-| **Aus** (`off`) | ✓ | ✓ | nie; Zeitleiste wie heute mit Kapitelbild | – |
+| **Aus** (`off`, ab Werk seit 1.23.1) | ✓ | ✓ | nie; Zeitleiste wie heute mit Kapitelbild | – |
 
 Marcos Skizze vom 8. November 2026 nannte für Filme zwei und für Serien drei Möglichkeiten; «Aus»
 bleibt aus F-1 und F-12 dabei. Der Haken «Speichern» ist ab Werk gesetzt.
+
+**Nachtrag 9. November 2026 (1.23.1):** Marco hat nach der Abnahme von 1.23.0 entschieden, dass
+**«Aus» ab Werk gilt** und in der Auswahl **zuoberst** steht (Filme: Aus, Im Voraus, Beim Start;
+Serien: Aus, Im Voraus, Beim Start, Beim Start alle Folgen), und dass bestehende Bibliotheken mit
+«Im Voraus» auf «Aus» wechseln (Migration 00043, je Art; «Speichern» und Umfang bleiben). Wartende
+Aufträge solcher Bibliotheken enden ohne Arbeit, die nächste Pflege entfernt ihre gespeicherten
+Vorschauen.
 
 ### 6.2 Abwägung
 
@@ -550,7 +561,9 @@ ALTER TABLE libraries ADD COLUMN trickplay_series_scope TEXT NOT NULL DEFAULT 's
 ```
 
 (Vorbilder für `ADD COLUMN` mit `CHECK` auf STRICT-Tabellen: 00032, 00039.) Bestehende
-Videobibliotheken stehen damit auf «Im Voraus» (F-11) mit Zeitplan aus; bei Hörbuch- und
+Videobibliotheken stehen damit auf «Im Voraus» (F-11) mit Zeitplan aus (seit 1.23.1 stellt
+Migration 00043 sie auf «Aus»; der Spaltenvorgabewert `'ahead'` bleibt ungenutzt, weil das Anlegen
+die Einstellung immer schreibt); bei Hörbuch- und
 Podcast-Bibliotheken bleiben die Spalten ohne Wirkung. Der Zustand der Sätze steckt im
 Cache-Ordner und in `jobs`. Eingefrorener DB-Stand in `testdata/db/` nach Regel 5.
 
@@ -573,8 +586,9 @@ Cache-Ordner und in `jobs`. Eingefrorener DB-Stand in `testdata/db/` nach Regel 
 - **Verwaltung:** Im Dialog «Bibliothek hinzufügen» (`AddLibraryDialog`) und in einem neuen Dialog
   auf der Bibliotheksseite (`LibraryDetail`, neben `DefaultRatingDialog`) der Abschnitt «Vorschau
   beim Spulen», nur bei Videobibliotheken, mit zwei Gruppen:
-  - **Filme:** Auswahl «Im Voraus», «Beim Start», «Aus»; bei «Beim Start» der Haken «Speichern».
-  - **Serien:** Auswahl «Im Voraus», «Beim Start», «Beim Start alle Folgen», «Aus»; bei «Beim
+  - **Filme:** Auswahl «Aus», «Im Voraus», «Beim Start» (seit 1.23.1 «Aus» zuoberst); bei «Beim
+    Start» der Haken «Speichern».
+  - **Serien:** Auswahl «Aus», «Im Voraus», «Beim Start», «Beim Start alle Folgen»; bei «Beim
     Start» der Haken «Speichern», bei «Beim Start alle Folgen» die Auswahl «Ganze Serie», «Rest der
     Staffel», «Nächste Folge».
   - Unter jeder Gruppe ein Satz zu Speicherbedarf und Dauer der gewählten Einstellung.
@@ -632,7 +646,7 @@ Cache-Ordner und in `jobs`. Eingefrorener DB-Stand in `testdata/db/` nach Regel 
 | F-8 | Auch beim Einlesen neuer Dateien? | nein | **Ja, beim Speichern** (siehe F-5) |
 | F-9 | Alle Profile, auch Kinder? | ja | **Ja** |
 | F-10 | Wo liegt die Einstellung? | je Bibliothek | **Je Bibliothek** |
-| F-11 | Ab Werk? | Speichern, Zeitplan aus | **Speichern, Zeitplan aus** |
+| F-11 | Ab Werk? | Speichern, Zeitplan aus | **Speichern, Zeitplan aus**; Nachtrag 9. November 2026 (1.23.1): ab Werk **«Aus»** statt «Im Voraus», bestehende «Im Voraus» per Migration 00043 auf «Aus» (6.1) |
 | F-12 | Gespeicherte Bilder beim Umstellen weg von «Speichern»? | löschen | **Löschen** |
 | F-13 | Feinere Einstellungen (Marcos Skizze): je Bibliothek Filme und Serien getrennt, auch gemischt? | ein Modus mit Vorlauf | **Genau wie skizziert**: Filme «Im Voraus», «Beim Start» (Haken «Speichern»); Serien zusätzlich «Beim Start alle Folgen»; «Aus» bleibt (6.1) |
 | F-14 | Umfang von «Beim Start alle Folgen»? | Rest der Staffel | **Einstellbar**: ganze Serie (ab Werk, wie skizziert), Rest der Staffel, nächste Folge (6.4) |
