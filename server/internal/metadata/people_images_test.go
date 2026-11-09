@@ -334,8 +334,8 @@ func TestPeopleImagesMissing(t *testing.T) {
 	}
 }
 
-// 5xx, 429, a timeout and an ffmpeg error write nothing; three of them in a row end the run with
-// an error, a success in between resets the count.
+// 5xx, 429 and a timeout write nothing; three of them in a row end the run with an error, a
+// success in between resets the count.
 func TestPeopleImagesFailuresWriteNothing(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -356,12 +356,6 @@ func TestPeopleImagesFailuresWriteNothing(t *testing.T) {
 			e.svc.client.http = &http.Client{Timeout: 50 * time.Millisecond}
 			for _, p := range []string{"a", "b", "c"} {
 				cdn.set("/t/p/w185/"+p+".jpg", cdnAnswer{delay: time.Second, data: jpegBytes(t, 185, 278)})
-			}
-		}},
-		{"ffmpeg", func(e *env, cdn *fakeCDN) {
-			e.svc.runner = transcode.Runner{FFmpegPath: failingFFmpeg(t)}
-			for _, p := range []string{"a", "b", "c"} {
-				cdn.set("/t/p/w185/"+p+".jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
 			}
 		}},
 	} {
@@ -407,6 +401,86 @@ func TestPeopleImagesFailuresWriteNothing(t *testing.T) {
 			t.Errorf("%d requests of a failed image in one run, want 1", n)
 		}
 	})
+}
+
+// Answers that would come again the same way record 'missing' rows and never end the run, however
+// many come in a row: another 4xx, an answer above maxImageBytes, an image ffmpeg cannot decode, a
+// path with a space or a control character (not asked) and a request that cannot be built.
+func TestPeopleImagesDeterministicFailuresMissing(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		paths     []string
+		downloads int
+		setup     func(e *env, cdn *fakeCDN)
+	}{
+		{"4xx", []string{"/a.jpg", "/b.jpg", "/c.jpg"}, 3, func(e *env, cdn *fakeCDN) {
+			for p, status := range map[string]int{"a": http.StatusForbidden, "b": http.StatusBadRequest, "c": http.StatusGone} {
+				cdn.set("/t/p/w185/"+p+".jpg", cdnAnswer{status: status})
+			}
+		}},
+		{"oversize", []string{"/a.jpg", "/b.jpg", "/c.jpg"}, 3, func(e *env, cdn *fakeCDN) {
+			big := append(jpegBytes(t, 185, 278), make([]byte, maxImageBytes)...)
+			for _, p := range []string{"a", "b", "c"} {
+				cdn.set("/t/p/w185/"+p+".jpg", cdnAnswer{data: big})
+			}
+		}},
+		{"ffmpeg", []string{"/a.jpg", "/b.jpg", "/c.jpg"}, 3, func(e *env, cdn *fakeCDN) {
+			e.svc.runner = transcode.Runner{FFmpegPath: failingFFmpeg(t)}
+			for _, p := range []string{"a", "b", "c"} {
+				cdn.set("/t/p/w185/"+p+".jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
+			}
+		}},
+		{"path", []string{"/a b.jpg", "/a\x01.jpg", "/a\t.jpg"}, 0, func(*env, *fakeCDN) {}},
+		{"request", []string{"/a.jpg", "/b.jpg", "/c.jpg"}, 0, func(e *env, _ *fakeCDN) {
+			e.svc.client.imageBase = "http://bad host/t/p"
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e, cdn := newPeopleEnv(t)
+			tc.setup(e, cdn)
+			for i, p := range tc.paths {
+				e.addPerson(t, int64(i+1), p, itemLive)
+			}
+			if _, err := e.runPeopleImages(t); err != nil {
+				t.Fatalf("run = %v, want no error", err)
+			}
+			for i := range tc.paths {
+				p := e.personRows(t, int64(i+1))
+				if len(p) != 1 || p["jpeg"].Status != "missing" || p["jpeg"].RelPath.Valid {
+					t.Errorf("person %d rows %+v, want one missing JPEG row", i+1, p)
+				}
+			}
+			if n := cdn.total(); n != tc.downloads {
+				t.Errorf("%d downloads, want %d", n, tc.downloads)
+			}
+			if entries, _ := os.ReadDir(filepath.Join(e.cache, "people")); len(entries) != 0 {
+				t.Errorf("files left behind: %v", entries)
+			}
+		})
+	}
+}
+
+// A collection id that is no ULID names no directory: a 'missing' row without a download, and the
+// next run leaves it alone.
+func TestPeopleImagesCollectionIDNotULID(t *testing.T) {
+	t.Parallel()
+	e, cdn := newPeopleEnv(t)
+	cdn.set("/t/p/w500/c1.jpg", cdnAnswer{data: jpegBytes(t, 500, 750)})
+	const bad = "../people/0000000000000000" // 26 characters, as the table demands
+	e.addCollection(t, bad, "tmdb", "/c1.jpg", itemLive)
+	for range 2 {
+		if _, err := e.runPeopleImages(t); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if c := e.collectionRows(t, bad); len(c) != 1 || c["jpeg"].Status != "missing" {
+		t.Errorf("rows %+v, want one missing JPEG row", c)
+	}
+	if n := cdn.total(); n != 0 {
+		t.Errorf("%d downloads, want none", n)
+	}
 }
 
 // failingFFmpeg returns an ffmpeg that always fails.
@@ -584,7 +658,8 @@ func TestTMDBImagePath(t *testing.T) {
 	t.Parallel()
 	for p, want := range map[string]bool{
 		"/abc.jpg": true, "": false, "/": false, "abc.jpg": false, "/a/b.jpg": false, "/../x": false,
-		"/a.jpg?x=1": false, "/a%2F.jpg": false,
+		"/a.jpg?x=1": false, "/a%2F.jpg": false, "/a b.jpg": false, "/a\x00.jpg": false, "/a\n.jpg": false,
+		"/a\u00a0.jpg": false, "/a\x7f.jpg": false, "/ä.jpg": true,
 	} {
 		if got := tmdbImagePath(p); got != want {
 			t.Errorf("tmdbImagePath(%q) = %v, want %v", p, got, want)

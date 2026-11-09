@@ -13,8 +13,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
@@ -29,11 +31,13 @@ import (
 // the CDN limiter of the client (Client.DownloadCDNImage), not the API limiter.
 //
 // One run is one job under the key people.images: first the people, then the collections, each in
-// batches of peopleImagesBatch by id (queries/system/people_images.sql says what is open). A 404,
-// an empty or undecodable answer records a 'missing' row, so no run asks again before the row is
-// older than peopleImagesMissingAge. Any other failure (5xx, 429 after the retries, a timeout, an
-// ffmpeg error) writes nothing; peopleImagesFailures of them in a row end the run with an error
-// and the queue retries it after its backoff. After the last batch the run starts another pass
+// batches of peopleImagesBatch by id (queries/system/people_images.sql says what is open). An
+// answer that would come again the same way records a 'missing' row, so no run asks again before
+// the row is older than peopleImagesMissingAge: a 404 or another 4xx but 429, an answer above
+// maxImageBytes, an empty or undecodable answer, an image ffmpeg cannot decode, a path that is no
+// TMDB image path or a request that cannot be built. A failure of the transport (5xx, 429 after
+// the retries, a timeout, the network) and any local failure write nothing; peopleImagesFailures
+// of them in a row end the run with an error and the queue retries it after its backoff. After the last batch the run starts another pass
 // while open work is left that did not fail in this run (a match or the backfill meanwhile; a new
 // job would be swallowed by the running one), at most peopleImagesPasses passes in all.
 //
@@ -125,7 +129,7 @@ type imagesRun struct {
 // imageSubject is a person or a collection as one pass sees it.
 type imageSubject struct {
 	key        string // person:<id>, collection:<id>
-	dir        string // below the cache root
+	dir        string // below the cache root; "" when the id names none
 	source     string // the provider path; "" when there is none
 	open       bool   // the open condition of the query
 	jpegStatus string // "" without a JPEG row
@@ -252,10 +256,6 @@ func (s *Service) peopleImagesPass(ctx context.Context, root *os.Root, run *imag
 		for _, r := range rows {
 			afterColl = r.ID
 			jobs.Progress(ctx, done, max(total, done), "")
-			if !isULID(r.ID) {
-				done++
-				continue // the id names a directory; a collection id is always a ULID
-			}
 			if err := s.processSubject(ctx, root, run, s.collectionSubject(r)); err != nil {
 				return err
 			}
@@ -287,10 +287,16 @@ func (s *Service) personSubject(r systemq.ListPersonImageCandidatesRow) imageSub
 }
 
 // collectionSubject describes a collection row: poster w500 fetched, w400 derived in both formats.
+// The id names a directory; a collection id is always a ULID, any other gets no directory and a
+// 'missing' row.
 func (s *Service) collectionSubject(r systemq.ListCollectionImageCandidatesRow) imageSubject {
 	id := r.ID
+	dir := ""
+	if isULID(id) {
+		dir = collectionImagesDir + "/" + id
+	}
 	return imageSubject{
-		key: collectionKey(id), dir: collectionImagesDir + "/" + id, source: r.PosterPath.String,
+		key: collectionKey(id), dir: dir, source: r.PosterPath.String,
 		open: r.IsOpen == 1, jpegStatus: r.JpegStatus.String, jpegRel: r.JpegRelPath.String, webpRel: r.WebpRelPath.String,
 		fetchSize: collectionFetchSize, size: collectionImageSize, width: collectionImageWidth,
 		upsert: func(ctx context.Context, format, status string, f *storedFile) error {
@@ -342,18 +348,18 @@ func (s *Service) processSubject(ctx context.Context, root *os.Root, run *images
 		run.dropped++
 		return nil
 	}
-	if !tmdbImagePath(sub.source) {
+	if sub.dir == "" || !tmdbImagePath(sub.source) {
 		return s.markMissing(ctx, root, run, sub)
 	}
 	data, _, err := s.client.DownloadCDNImage(ctx, sub.fetchSize, sub.source)
-	switch {
-	case errors.Is(err, ErrNotFound):
-		return s.markMissing(ctx, root, run, sub)
-	case err != nil:
+	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
 		}
-		return s.failSubject(run, sub, err)
+		if errors.Is(err, model.ErrTMDBUnreachable) {
+			return s.failSubject(run, sub, err) // 5xx, 429 after the retries, a timeout, the network
+		}
+		return s.markMissing(ctx, root, run, sub) // a 4xx, too large, no request: the same next time
 	}
 	cfg, format, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil || cfg.Width <= 0 || cfg.Height <= 0 {
@@ -363,6 +369,9 @@ func (s *Service) processSubject(ctx context.Context, root *os.Root, run *images
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
+		}
+		if errors.Is(err, transcode.ErrImageExit) {
+			return s.markMissing(ctx, root, run, sub) // ffmpeg cannot decode what the header promised
 		}
 		return s.failSubject(run, sub, err)
 	}
@@ -404,14 +413,19 @@ func (s *Service) markMissing(ctx context.Context, root *os.Root, run *imagesRun
 
 // removeSubjectDir deletes the files of a subject; a missing directory is fine.
 func (s *Service) removeSubjectDir(root *os.Root, sub imageSubject) {
+	if sub.dir == "" {
+		return
+	}
 	if err := root.RemoveAll(sub.dir); err != nil {
 		s.log.Warn("remove person or collection images", "subject", sub.key, "err", err)
 	}
 }
 
-// tmdbImagePath accepts a TMDB image path: one segment after the slash, no query.
+// tmdbImagePath accepts a TMDB image path: one segment after the slash, no query, no space and no
+// control character.
 func tmdbImagePath(p string) bool {
-	return len(p) > 1 && p[0] == '/' && !strings.ContainsAny(p[1:], "/\\?#%") && !strings.Contains(p, "..")
+	return len(p) > 1 && p[0] == '/' && !strings.ContainsAny(p[1:], "/\\?#%") && !strings.Contains(p, "..") &&
+		!strings.ContainsFunc(p, func(r rune) bool { return unicode.IsSpace(r) || unicode.IsControl(r) })
 }
 
 // storeSubjectFiles writes the JPEG and the WebP of a subject from the fetched data of the given

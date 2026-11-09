@@ -405,8 +405,9 @@ func (c *Client) DownloadURL(ctx context.Context, rawURL string) (body io.ReadCl
 // DownloadCDNImage fetches the TMDB image path in size (w185, w500) from the image host without
 // credentials, through the CDN limiter instead of the API limiter (people.images, ADR 0026). It
 // reads the whole answer (at most maxImageBytes) and returns it with the media type of its
-// Content-Type. A 404 is ErrNotFound; a network error, a timeout, 429 after the retries and 5xx
-// are model.ErrTMDBUnreachable.
+// Content-Type. A network error, a timeout, 429 after the retries and 5xx are
+// model.ErrTMDBUnreachable; every other error (a 404 is ErrNotFound, another 4xx, an answer above
+// maxImageBytes, a request that cannot be built) comes again the same way.
 func (c *Client) DownloadCDNImage(ctx context.Context, size, path string) ([]byte, string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.imageURL(size, path), nil)
 	if err != nil {
