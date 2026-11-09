@@ -177,7 +177,8 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 	}
 	cast := make([]gen.CastMember, 0, len(d.Cast))
 	for _, c := range d.Cast {
-		cast = append(cast, gen.CastMember{PersonId: c.PersonID, Name: c.Name, Role: gen.CastMemberRole(c.Role), Character: optString(c.Character)})
+		cast = append(cast, gen.CastMember{PersonId: c.PersonID, Name: c.Name, Role: gen.CastMemberRole(c.Role), Character: optString(c.Character),
+			Image: toPersonImageRef(c.PersonID, session.Profile.ID, c.Image)})
 	}
 	out.Cast = &cast
 	return gen.GetItem200JSONResponse(out), nil
@@ -228,7 +229,7 @@ func (s *server) GetPerson(ctx context.Context, req gen.GetPersonRequestObject) 
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	out := gen.GetPerson200JSONResponse{Id: p.ID, Name: p.Name}
+	out := gen.GetPerson200JSONResponse{Id: p.ID, Name: p.Name, Image: toPersonImageRef(p.ID, session.Profile.ID, p.Image)}
 	out.Credits = make([]struct {
 		Character *string               `json:"character,omitempty"`
 		Item      gen.ItemRef           `json:"item"`
@@ -541,6 +542,26 @@ func adminBackdropURL(itemID, hash string) *string {
 	}
 	u := adminImageURL(itemID, "backdrop", model.AdminBackdropSize, hash)
 	return &u
+}
+
+// toPersonImageRef is the portrait of a person (getPersonImage) with the content hash v and the
+// profile id p for the caches, like imageURL; nil without one.
+func toPersonImageRef(personID, profileID int64, img *model.Image) *gen.ImageRef {
+	if img == nil {
+		return nil
+	}
+	u := BasePath + "/people/" + strconv.FormatInt(personID, 10) + "/image?v=" + url.QueryEscape(img.ContentHash) + "&p=" + strconv.FormatInt(profileID, 10)
+	return &gen.ImageRef{Url: u, Width: img.Width, Height: img.Height}
+}
+
+// toCollectionImageRef is the TMDB poster of a collection (getCollectionImage), like
+// toPersonImageRef; nil without one.
+func toCollectionImageRef(collectionID string, profileID int64, img *model.Image) *gen.ImageRef {
+	if img == nil {
+		return nil
+	}
+	u := BasePath + "/collections/" + url.PathEscape(collectionID) + "/image?v=" + url.QueryEscape(img.ContentHash) + "&p=" + strconv.FormatInt(profileID, 10)
+	return &gen.ImageRef{Url: u, Width: img.Width, Height: img.Height}
 }
 
 func toImageRef(itemID string, profileID int64, img *model.Image) *gen.ImageRef {

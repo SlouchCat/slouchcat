@@ -158,7 +158,8 @@ func (r *Reader) completeDetail(ctx context.Context, s Scope, pid int64, it scop
 	}
 	d.Cast = make([]model.CastMember, 0, len(credits))
 	for _, c := range credits {
-		d.Cast = append(d.Cast, model.CastMember{PersonID: c.PersonID, Name: c.Name, Role: c.Role, Character: c.Character.String})
+		d.Cast = append(d.Cast, model.CastMember{PersonID: c.PersonID, Name: c.Name, Role: c.Role, Character: c.Character.String,
+			Image: portrait(c.ImageHash, c.ImageWidth, c.ImageHeight)})
 	}
 	n, err := r.q.CountVisibleTrailers(ctx, scopedq.CountVisibleTrailersParams{ProfileID: pid, ItemID: it.ID})
 	if err != nil {
@@ -293,7 +294,8 @@ func (r *Reader) Person(ctx context.Context, s Scope, personID int64) (model.Per
 	if err != nil {
 		return model.Person{}, err
 	}
-	out := model.Person{ID: personID, Name: rows[0].PersonName, Credits: make([]model.PersonCredit, 0, len(rows))}
+	out := model.Person{ID: personID, Name: rows[0].PersonName, Credits: make([]model.PersonCredit, 0, len(rows)),
+		Image: portrait(rows[0].ImageHash, rows[0].ImageWidth, rows[0].ImageHeight)}
 	for i, row := range rows {
 		out.Credits = append(out.Credits, model.PersonCredit{Item: sums[i], Role: row.Role, Character: row.Character.String})
 	}

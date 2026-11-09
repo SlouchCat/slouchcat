@@ -75,6 +75,25 @@ func TestCollectionImage(t *testing.T) {
 	if _, err := r.CollectionImage(ctx, Profile(f.P18), vistest.ManualCollectionID, false); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("manual collection: err = %v, want ErrNotFound", err)
 	}
+	// The fields take the same rule, for several collections in one query (E-7).
+	for _, p := range []model.Profile{f.P18, f.P12} {
+		refs, err := r.Collections(ctx, Profile(p), MaxRowItems)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, c := range refs {
+			if want := c.ID == vistest.MixedCollectionID && p.ID == f.P18.ID; (c.Image != nil) != want {
+				t.Errorf("profile %d collection %s image %+v, want set %v", p.MaxRating, c.ID, c.Image, want)
+			}
+		}
+		col, err := r.Collection(ctx, Profile(p), vistest.MixedCollectionID, 0, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if (col.Image != nil) != (p.ID == f.P18.ID) || (col.Image != nil && (col.Image.ContentHash == "" || col.Image.Width != 8)) {
+			t.Errorf("profile %d collection page image %+v", p.MaxRating, col.Image)
+		}
+	}
 	if _, err := f.DB.Write.Exec(`UPDATE items SET deleted_at = 1 WHERE id = ?`, f.Rated(18).ID); err != nil {
 		t.Fatal(err)
 	}
@@ -83,5 +102,67 @@ func TestCollectionImage(t *testing.T) {
 	}
 	if _, err := r.CollectionImage(ctx, Profile(f.P6), vistest.MixedCollectionID, false); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("P6 still misses the film rated 12: err = %v, want ErrNotFound", err)
+	}
+}
+
+// The portrait comes with the cast of a title, the person and the people of a search, from the
+// LEFT JOIN on the 'ok' JPEG row; with or without image rows the lists keep their length (m-3).
+func TestPersonPortraitFields(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	f.AddSeries(t)
+	f.AddDiscover(t)
+	r := New(f.DB, vistest.Logger())
+	ctx := t.Context()
+	m6 := f.Rated(6).ID
+	type counts struct{ cast, credits, people int }
+	read := func(wantImage bool) counts {
+		t.Helper()
+		d, err := r.Item(ctx, Profile(f.P18), m6)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, c := range d.Cast {
+			if c.PersonID == f.Person.ID && (c.Image != nil) != wantImage {
+				t.Errorf("cast image %+v, want set %v", c.Image, wantImage)
+			}
+		}
+		p, err := r.Person(ctx, Profile(f.P18), f.Person.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if (p.Image != nil) != wantImage || (wantImage && (p.Image.Width != 6 || p.Image.Height != 9 || p.Image.ContentHash == "")) {
+			t.Errorf("person image %+v, want set %v", p.Image, wantImage)
+		}
+		res, err := r.Search(ctx, Profile(f.P18), model.SearchQuery{Text: "Pat", MaxRating: -1})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(res.People) == 0 {
+			t.Fatal("search found no person")
+		}
+		for _, sp := range res.People {
+			if sp.ID == f.Person.ID && (sp.Image != nil) != wantImage {
+				t.Errorf("search person image %+v, want set %v", sp.Image, wantImage)
+			}
+		}
+		return counts{len(d.Cast), len(p.Credits), len(res.People)}
+	}
+	with := read(true)
+	// A 'missing' row, like no row, gives no image.
+	if _, err := f.DB.Write.Exec(`DELETE FROM person_images WHERE format = 'webp'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.DB.Write.Exec(`UPDATE person_images SET status = 'missing', rel_path = NULL, content_hash = NULL, media_type = NULL,
+	                                width = NULL, height = NULL, bytes = NULL`); err != nil {
+		t.Fatal(err)
+	}
+	missing := read(false)
+	if _, err := f.DB.Write.Exec(`DELETE FROM person_images`); err != nil {
+		t.Fatal(err)
+	}
+	without := read(false)
+	if with != without || missing != without {
+		t.Errorf("rows with images %+v, missing %+v, without %+v; want equal", with, missing, without)
 	}
 }

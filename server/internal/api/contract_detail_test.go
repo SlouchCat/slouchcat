@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
@@ -244,6 +245,95 @@ func TestContractDetailCollectionMembers(t *testing.T) {
 			if on, ok := m.flag("inWatchlist"); !ok || on != (m.str("id") == tc.marked) {
 				t.Errorf("%s member %s inWatchlist = %v (set %v)", tc.token, m.str("id"), on, ok)
 			}
+		}
+	}
+}
+
+// subjectImageMatches checks the rule of concept 17 stage 3 (m-4, ADR 0026) for one object of an
+// answer: its image is set exactly when the image endpoint answers 200 for the profile, and then
+// its url answers 200 as well.
+func subjectImageMatches(t *testing.T, h http.Handler, token, what, endpoint string, obj rawDetail) {
+	t.Helper()
+	img := obj.object(t, "image")
+	code := send(t, h, http.MethodGet, BasePath+endpoint, token, "", nil).Code
+	if (img != nil) != (code == http.StatusOK) {
+		t.Errorf("%s %s: image %v, endpoint %s status %d", token, what, img, endpoint, code)
+		return
+	}
+	if img == nil {
+		return
+	}
+	if w, _ := img.num("width"); w < 1 {
+		t.Errorf("%s %s: image %v without width", token, what, img)
+	}
+	if got := send(t, h, http.MethodGet, img.str("url"), token, "", nil).Code; got != http.StatusOK {
+		t.Errorf("%s %s: image url %s status %d", token, what, img.str("url"), got)
+	}
+}
+
+// The portrait on the cast of a title and on the person page, and the TMDB poster on the
+// collections of a title and on the collection page, follow the endpoints for every fixture
+// profile (P18 sees the poster, P12 not); without rows the fields are absent.
+func TestContractDetailImages(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	f, h := pf.f, pf.h
+	tokens := []string{"p0", "p6", "p12", "p16", "p18", "px", "pg", "pg18"}
+	personPath := "/people/1/image"
+	collPath := "/collections/" + vistest.MixedCollectionID + "/image"
+	images := map[string]int{} // place → answers with an image
+	check := func(stage string) {
+		for _, token := range tokens {
+			p := fixtureProfile(f, token)
+			if f.VisibleTo(p, f.Rated(6)) {
+				d := getRawDetail(t, h, token, f.Rated(6).ID)
+				for _, c := range d.list(t, "cast") {
+					if n, _ := c.num("personId"); n == int(f.Person.ID) {
+						subjectImageMatches(t, h, token, stage+" cast", personPath, c)
+						images[stage+" cast"] += len(c.object(t, "image"))
+					}
+				}
+				for _, c := range d.list(t, "collections") {
+					if c.str("id") == vistest.MixedCollectionID {
+						subjectImageMatches(t, h, token, stage+" detail collection", collPath, c)
+						images[stage+" detail collection"] += len(c.object(t, "image"))
+					}
+				}
+			}
+			if rec := send(t, h, http.MethodGet, BasePath+"/people/1", token, "", nil); rec.Code == http.StatusOK {
+				var person rawDetail
+				decode(t, rec, &person)
+				subjectImageMatches(t, h, token, stage+" person", personPath, person)
+				images[stage+" person"] += len(person.object(t, "image"))
+			}
+			for _, id := range []string{vistest.MixedCollectionID, vistest.ManualCollectionID} {
+				rec := send(t, h, http.MethodGet, BasePath+"/collections/"+id, token, "", nil)
+				if rec.Code != http.StatusOK {
+					continue
+				}
+				var c rawDetail
+				decode(t, rec, &c)
+				subjectImageMatches(t, h, token, stage+" collection "+id, "/collections/"+id+"/image", c)
+				images[stage+" collection "+id] += len(c.object(t, "image"))
+			}
+		}
+	}
+	check("with")
+	for _, place := range []string{"cast", "detail collection", "person", "collection " + vistest.MixedCollectionID} {
+		if images["with "+place] == 0 {
+			t.Errorf("no profile got an image on the %s", place)
+		}
+	}
+	if images["with collection "+vistest.ManualCollectionID] != 0 {
+		t.Errorf("the manual collection carries an image")
+	}
+	if _, err := f.DB.Write.Exec(`DELETE FROM person_images; DELETE FROM collection_images`); err != nil {
+		t.Fatal(err)
+	}
+	check("without")
+	for place, n := range images {
+		if strings.HasPrefix(place, "without ") && n != 0 {
+			t.Errorf("%s: %d answers with an image, want none", place, n)
 		}
 	}
 }

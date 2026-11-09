@@ -100,7 +100,7 @@ func (s *server) Search(ctx context.Context, req gen.SearchRequestObject) (gen.S
 		People: make([]gen.PersonRef, 0, len(res.People)), Collections: toCollectionRefs(pid, res.Collections),
 	}
 	for _, p := range res.People {
-		out.People = append(out.People, toPersonRef(p))
+		out.People = append(out.People, toPersonRef(pid, p))
 	}
 	return gen.Search200JSONResponse(out), nil
 }
@@ -129,7 +129,7 @@ func (s *server) GetCollection(ctx context.Context, req gen.GetCollectionRequest
 	}
 	return gen.GetCollection200JSONResponse(gen.Collection{
 		Id: c.ID, Name: c.Name, Overview: optString(c.Overview), Items: toItemRefList(session.Profile.ID, c.Items),
-		Total: c.Total, Offset: offset, Limit: limit,
+		Total: c.Total, Offset: offset, Limit: limit, Image: toCollectionImageRef(c.ID, session.Profile.ID, c.Image),
 	}), nil
 }
 
@@ -235,8 +235,8 @@ func toItemRefList(profileID int64, items []model.ItemSummary) []gen.ItemRef {
 	return out
 }
 
-func toPersonRef(p model.PersonRef) gen.PersonRef {
-	return gen.PersonRef{Id: p.ID, Name: p.Name}
+func toPersonRef(profileID int64, p model.PersonRef) gen.PersonRef {
+	return gen.PersonRef{Id: p.ID, Name: p.Name, Image: toPersonImageRef(p.ID, profileID, p.Image)}
 }
 
 func toGenreRef(g model.GenreRef) gen.GenreRef {
@@ -255,7 +255,8 @@ func toGenreRefs(genres []model.GenreRef) []gen.GenreRef {
 // toCollectionRef maps a collection with its visible member count, its cover and, on a title's
 // detail only, its first members.
 func toCollectionRef(profileID int64, c model.CollectionRef) gen.CollectionRef {
-	out := gen.CollectionRef{Id: c.ID, Name: c.Name, Count: c.Count, Cover: optItemRef(profileID, c.Cover)}
+	out := gen.CollectionRef{Id: c.ID, Name: c.Name, Count: c.Count, Cover: optItemRef(profileID, c.Cover),
+		Image: toCollectionImageRef(c.ID, profileID, c.Image)}
 	if c.Members != nil {
 		members := toItemRefList(profileID, c.Members)
 		out.Members = &members

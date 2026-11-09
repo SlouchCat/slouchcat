@@ -17,12 +17,14 @@ LIMIT 1;
 -- TMDB poster may show any member, so it is shown only to a profile that may see all of them; the
 -- one rule for the endpoint and the fields of CollectionRef and Collection. visible_items holds only
 -- available titles, so a member whose file is missing makes its collection not fully visible.
+-- @profile_id comes before the slice: sqlc numbers it, and a numbered parameter after the expanded
+-- slice would name one of its values.
 -- name: ListFullyVisibleCollectionImages :many
 SELECT ci.* FROM collection_images AS ci
-WHERE ci.collection_id IN (sqlc.slice('collection_ids')) AND ci.status = 'ok'
-  AND EXISTS (SELECT 1 FROM collection_items AS m
+WHERE EXISTS (SELECT 1 FROM collection_items AS m
               JOIN visible_items AS v ON v.item_id = m.item_id AND v.profile_id = @profile_id
               WHERE m.collection_id = ci.collection_id)
+  AND ci.collection_id IN (sqlc.slice('collection_ids')) AND ci.status = 'ok'
   AND NOT EXISTS (SELECT 1 FROM collection_items AS m
                   JOIN items AS i ON i.id = m.item_id
                   WHERE m.collection_id = ci.collection_id AND i.deleted_at IS NULL

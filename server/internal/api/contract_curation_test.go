@@ -410,3 +410,49 @@ func TestContractHomeRows(t *testing.T) {
 	rec = send(t, h, http.MethodPut, BasePath+"/admin/home-rows", "p18", "["+strings.Join(all(true), ",")+"]", nil)
 	adminCurationAnswer(t, rec, http.StatusOK)
 }
+
+// The collections of the start page and the people and collections of a search follow the image
+// endpoints for every fixture profile (m-4, ADR 0026).
+func TestContractHomeAndSearchImages(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	h := pf.h
+	var seen int
+	for _, token := range []string{"p0", "p6", "p12", "p16", "p18", "px", "pg", "pg18"} {
+		rec := send(t, h, http.MethodGet, BasePath+"/home", token, "", nil)
+		wantStatus(t, rec, http.StatusOK)
+		var home struct {
+			Rows []struct {
+				Collections []rawDetail `json:"collections"`
+			} `json:"rows"`
+		}
+		decode(t, rec, &home)
+		for _, r := range home.Rows {
+			for _, c := range r.Collections {
+				subjectImageMatches(t, h, token, "home collection "+c.str("id"), "/collections/"+c.str("id")+"/image", c)
+				seen += len(c.object(t, "image"))
+			}
+		}
+		for _, q := range []string{"Pat", "Test Collection", "Sammlung"} {
+			rec := send(t, h, http.MethodPost, BasePath+"/search", token, `{"query":"`+q+`"}`, nil)
+			wantStatus(t, rec, http.StatusOK)
+			var res struct {
+				People      []rawDetail `json:"people"`
+				Collections []rawDetail `json:"collections"`
+			}
+			decode(t, rec, &res)
+			for _, p := range res.People {
+				id, _ := p.num("id")
+				subjectImageMatches(t, h, token, "search person", "/people/"+fmt.Sprint(id)+"/image", p)
+				seen += len(p.object(t, "image"))
+			}
+			for _, c := range res.Collections {
+				subjectImageMatches(t, h, token, "search collection", "/collections/"+c.str("id")+"/image", c)
+				seen += len(c.object(t, "image"))
+			}
+		}
+	}
+	if seen == 0 {
+		t.Error("no home row or search answer carried an image")
+	}
+}

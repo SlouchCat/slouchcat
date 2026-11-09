@@ -457,6 +457,37 @@ func (r *Reader) CollectionImage(ctx context.Context, s Scope, collectionID stri
 	return ImageLocation{RelPath: pick.RelPath.String, MediaType: pick.MediaType.String, ContentHash: pick.ContentHash.String, Bytes: pick.Bytes.Int64, ModTime: pick.FetchedAt}, nil
 }
 
+// portrait returns the portrait of a person from its 'ok' JPEG row (the columns of a LEFT JOIN on
+// person_images), nil without one. The person has a role on a visible title wherever it is read,
+// so getPersonImage opens it.
+func portrait(hash sql.NullString, width, height sql.NullInt64) *model.Image {
+	if !hash.Valid {
+		return nil
+	}
+	return &model.Image{Kind: "portrait", Size: "w185", ContentHash: hash.String, Width: int(width.Int64), Height: int(height.Int64)}
+}
+
+// fullyVisibleCollectionImages returns the TMDB posters (JPEG rows) of the collections among ids
+// that the profile sees completely (ListFullyVisibleCollectionImages, the rule of
+// getCollectionImage), by collection id.
+func (r *Reader) fullyVisibleCollectionImages(ctx context.Context, pid int64, ids []string) (map[string]*model.Image, error) {
+	out := map[string]*model.Image{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	rows, err := r.q.ListFullyVisibleCollectionImages(ctx, scopedq.ListFullyVisibleCollectionImagesParams{CollectionIds: ids, ProfileID: pid})
+	if err != nil {
+		return nil, fmt.Errorf("collection images: %w", err)
+	}
+	for _, im := range rows {
+		if im.Format == "jpeg" {
+			out[im.CollectionID] = &model.Image{Kind: "poster", Size: im.Size, ContentHash: im.ContentHash.String,
+				Width: int(im.Width.Int64), Height: int(im.Height.Int64)}
+		}
+	}
+	return out, nil
+}
+
 // extras holds the per-item rows that complete a summary.
 type extras struct {
 	texts        map[string][]scopedq.ItemText

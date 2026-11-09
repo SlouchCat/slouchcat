@@ -53,21 +53,21 @@ func (q *Queries) GetVisiblePersonImage(ctx context.Context, arg GetVisiblePerso
 
 const listFullyVisibleCollectionImages = `-- name: ListFullyVisibleCollectionImages :many
 SELECT ci.collection_id, ci.format, ci.status, ci.source, ci.size, ci.rel_path, ci.content_hash, ci.media_type, ci.width, ci.height, ci.bytes, ci.fetched_at FROM collection_images AS ci
-WHERE ci.collection_id IN (/*SLICE:collection_ids*/?) AND ci.status = 'ok'
-  AND EXISTS (SELECT 1 FROM collection_items AS m
-              JOIN visible_items AS v ON v.item_id = m.item_id AND v.profile_id = ?2
+WHERE EXISTS (SELECT 1 FROM collection_items AS m
+              JOIN visible_items AS v ON v.item_id = m.item_id AND v.profile_id = ?1
               WHERE m.collection_id = ci.collection_id)
+  AND ci.collection_id IN (/*SLICE:collection_ids*/?) AND ci.status = 'ok'
   AND NOT EXISTS (SELECT 1 FROM collection_items AS m
                   JOIN items AS i ON i.id = m.item_id
                   WHERE m.collection_id = ci.collection_id AND i.deleted_at IS NULL
                     AND NOT EXISTS (SELECT 1 FROM visible_items AS vh
-                                    WHERE vh.item_id = m.item_id AND vh.profile_id = ?2))
+                                    WHERE vh.item_id = m.item_id AND vh.profile_id = ?1))
 ORDER BY ci.collection_id, ci.format
 `
 
 type ListFullyVisibleCollectionImagesParams struct {
-	CollectionIds []string
 	ProfileID     int64
+	CollectionIds []string
 }
 
 // The 'ok' rows (JPEG and WebP) of the collections among @collection_ids that are fully visible to
@@ -75,9 +75,12 @@ type ListFullyVisibleCollectionImagesParams struct {
 // TMDB poster may show any member, so it is shown only to a profile that may see all of them; the
 // one rule for the endpoint and the fields of CollectionRef and Collection. visible_items holds only
 // available titles, so a member whose file is missing makes its collection not fully visible.
+// @profile_id comes before the slice: sqlc numbers it, and a numbered parameter after the expanded
+// slice would name one of its values.
 func (q *Queries) ListFullyVisibleCollectionImages(ctx context.Context, arg ListFullyVisibleCollectionImagesParams) ([]CollectionImage, error) {
 	query := listFullyVisibleCollectionImages
 	var queryParams []interface{}
+	queryParams = append(queryParams, arg.ProfileID)
 	if len(arg.CollectionIds) > 0 {
 		for _, v := range arg.CollectionIds {
 			queryParams = append(queryParams, v)
@@ -86,7 +89,6 @@ func (q *Queries) ListFullyVisibleCollectionImages(ctx context.Context, arg List
 	} else {
 		query = strings.Replace(query, "/*SLICE:collection_ids*/?", "NULL", 1)
 	}
-	queryParams = append(queryParams, arg.ProfileID)
 	rows, err := q.db.QueryContext(ctx, query, queryParams...)
 	if err != nil {
 		return nil, err
