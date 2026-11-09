@@ -103,9 +103,14 @@ function moveBetweenRows(event: KeyboardEvent) {
   if (!(cell instanceof HTMLTableCellElement) || !isRecordRow(row)) return;
   const step = (from: Element) =>
     event.key === 'ArrowDown' ? from.nextElementSibling : from.previousElementSibling;
-  // Fold-outs, open or closed, are rows of their own; the arrows go from record to record.
+  // Fold-outs, open or closed, are rows of their own; the arrows go from record to record. The
+  // room for rows of a virtual table that are not drawn ends the way (useVirtualPlaces goes on).
+  const isSpacer = (element: Element | null) => element?.hasAttribute('data-spacer') === true;
   let next = step(row);
-  while (next instanceof HTMLTableRowElement && !isRecordRow(next)) next = step(next);
+  while (next instanceof HTMLTableRowElement && !isSpacer(next) && !isRecordRow(next)) {
+    next = step(next);
+  }
+  if (isSpacer(next)) return;
   if (!(next instanceof HTMLTableRowElement)) return;
   const sameColumn = next.cells[cell.cellIndex]?.querySelector<HTMLElement>(FOCUSABLE);
   const destination = sameColumn ?? next.querySelector<HTMLElement>(FOCUSABLE);
@@ -165,7 +170,13 @@ export function DataTable<T>({
   // Room for the rows that are not drawn: a row of its own above and below them.
   const spacer = (height: number, end: number) =>
     height > 0 ? (
-      <tr key={`spacer-${end}`} className={styles.spacer} aria-hidden="true" style={{ height }}>
+      <tr
+        key={`spacer-${end}`}
+        className={styles.spacer}
+        data-spacer=""
+        aria-hidden="true"
+        style={{ height }}
+      >
         <td colSpan={columns.length} />
       </tr>
     ) : null;
@@ -206,25 +217,28 @@ export function DataTable<T>({
           </tr>
         </thead>
         <tbody ref={body}>
-          {spacer(places.before, 0)}
-          {places.rows.map(({ index }) => {
+          {places.rows.map(({ index, space }) => {
             const row = rows[index];
+            // Room for the rows above that are not drawn (useVirtualPlaces).
+            const room = spacer(space, index);
             // A virtual table measures each drawn row (useVirtualPlaces).
             const measured = virtual ? { 'data-index': index, ref: places.measure } : {};
             if (row === undefined) {
               // An empty place: a record row without controls, so ↑/↓ stop at it until it fills.
               return (
-                <tr
-                  key={`place-${index}`}
-                  className={styles.row}
-                  data-row-key={`place-${index}`}
-                  data-place={index}
-                  {...measured}
-                >
-                  <td colSpan={columns.length} className={styles.cell}>
-                    <Skeleton />
-                  </td>
-                </tr>
+                <Fragment key={`place-${index}`}>
+                  {room}
+                  <tr
+                    className={styles.row}
+                    data-row-key={`place-${index}`}
+                    data-place={index}
+                    {...measured}
+                  >
+                    <td colSpan={columns.length} className={styles.cell}>
+                      <Skeleton />
+                    </td>
+                  </tr>
+                </Fragment>
               );
             }
             const key = rowKey(row);
@@ -232,6 +246,7 @@ export function DataTable<T>({
             const detailId = `${id}-${index}`;
             return (
               <Fragment key={key}>
+                {room}
                 <tr className={styles.row} data-row-key={key} data-place={index} {...measured}>
                   {columns.map((column) => {
                     const className = `${styles.cell} ${column.align === 'end' ? styles.end : ''}`;
@@ -273,7 +288,7 @@ export function DataTable<T>({
               </Fragment>
             );
           })}
-          {spacer(places.after, 1)}
+          {spacer(places.after, -1)}
         </tbody>
       </table>
     </div>

@@ -100,6 +100,24 @@ describe('VirtualList', () => {
     expect(drawn().length).toBeLessThan(60);
   });
 
+  it('keeps the focused entry drawn at its place when the list scrolls far away', async () => {
+    render(<List slots={entries(2_000)} virtual />);
+    await waitFor(() => expect(drawn()).toContain(10));
+    screen.getByRole('button', { name: 'Eintrag 10' }).focus();
+    act(() => {
+      scrollY = 1_000 * ROW;
+      window.dispatchEvent(new Event('scroll'));
+    });
+    await waitFor(() => expect(drawn()).toContain(1_000));
+    expect(drawn()).toContain(10);
+    // Room for the rows between them: the focused row does not move up to the others.
+    const list = screen.getByRole('list', { name: 'Liste' });
+    const focused = list.querySelector('[data-place="10"]')!;
+    const room = focused.nextElementSibling as HTMLElement;
+    expect(room).toHaveAttribute('role', 'presentation');
+    expect(parseFloat(room.style.height)).toBeGreaterThan(900 * ROW);
+  });
+
   it('Tab past the last drawn entry scrolls on and focuses the next one', async () => {
     render(<List slots={entries(2_000)} virtual />);
     await waitFor(() => expect(drawn().at(-1)).toBeGreaterThan(16));

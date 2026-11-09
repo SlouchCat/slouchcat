@@ -8,7 +8,6 @@ import {
   useVirtualizer,
   windowScroll,
   type Range,
-  type VirtualItem,
 } from '@tanstack/react-virtual';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 
@@ -51,11 +50,20 @@ interface VirtualPlacesOptions {
   arrows?: boolean;
 }
 
+/** A row to draw: its index and the room to leave above it for the rows that are not drawn. */
+export interface DrawnRow {
+  index: number;
+  /**
+   * Height in px of the room above this row (the rows before it that are not drawn), less the
+   * container's gaps around that room; 0 when the row follows the one drawn before it.
+   */
+  space: number;
+}
+
 export interface VirtualPlaces {
-  /** The rows to draw, in order: their index and, when virtual, their start. */
-  rows: readonly VirtualItem[] | readonly { index: number; key: number }[];
-  /** Space above the first and below the last drawn row, in px. */
-  before: number;
+  /** The rows to draw, in order. */
+  rows: readonly DrawnRow[];
+  /** The room below the last drawn row, in px (less one gap), as `space`. */
   after: number;
   /** Measures a drawn row: the element carries `data-index` (the row's index). */
   measure: (element: Element | null) => void;
@@ -149,17 +157,28 @@ export function useVirtualPlaces({
       : {}),
   });
 
+  // The drawn rows with the room for the others: a room of its own before a row that does not
+  // follow the one before it (the row with the focus stays drawn far from the view), so every row
+  // keeps its place in the document. A room between two rows takes two of the container's gaps.
   const items = virtualizer.getVirtualItems();
-  const rows = virtual
-    ? items
-    : Array.from({ length: rowCount }, (_, index) => ({ index, key: index }));
-  const first = items[0];
+  const margin0 = virtualizer.options.scrollMargin;
+  const rows: DrawnRow[] = virtual
+    ? items.map((item, n) => {
+        const previous = items[n - 1];
+        if (previous === undefined) {
+          return { index: item.index, space: item.index > 0 ? item.start - margin0 - gap : 0 };
+        }
+        return {
+          index: item.index,
+          space: item.index === previous.index + 1 ? 0 : item.start - previous.end - 2 * gap,
+        };
+      })
+    : Array.from({ length: rowCount }, (_, index) => ({ index, space: 0 }));
   const last = items.at(-1);
-  const before = virtual && first ? first.start - virtualizer.options.scrollMargin : 0;
   const after =
-    virtual && last
-      ? Math.max(0, virtualizer.getTotalSize() - (last.end - virtualizer.options.scrollMargin))
-      : virtual
+    virtual && last && last.index < rowCount - 1
+      ? Math.max(0, virtualizer.getTotalSize() - (last.end - margin0) - gap)
+      : virtual && !last
         ? virtualizer.getTotalSize()
         : 0;
 
@@ -219,8 +238,10 @@ export function useVirtualPlaces({
     const onKeyDown = (event: KeyboardEvent) => {
       // A list drawn whole keeps the keys of its controls and of the spatial navigation.
       if (!live.current.virtual) return;
-      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
-      if (!(event.target instanceof HTMLElement)) return;
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      // A handler before this one moved the focus already (a table's own ↑/↓). Not
+      // `defaultPrevented`: a browsing page prevents every arrow's scroll (SpatialPage).
+      if (!(event.target instanceof HTMLElement) || document.activeElement !== event.target) return;
       const place = event.target.closest<HTMLElement>('[data-place]');
       if (!place || !node.contains(place)) return;
       const index = Number(place.dataset.place);
@@ -249,11 +270,15 @@ export function useVirtualPlaces({
       else if (direction === 'right' && perRow > 1 && index % perRow < perRow - 1) {
         target = index + 1 < total ? index + 1 : null;
       } else if (direction === 'left' && perRow > 1 && index % perRow > 0) target = index - 1;
-      if (target === null || isReady(target)) return;
-      // The spatial navigation (on the window) and the table's own keys know only drawn places.
+      if (target === null) return; // the list's edge: the spatial navigation leaves it
+      // Between the places of a virtual list the list moves the focus itself: the spatial
+      // navigation (on the window) knows only what is drawn and measures rows that come and go.
+      // A table's own keys went first (DataTable): they leave only a row that is not drawn.
       event.preventDefault();
       event.stopPropagation();
-      go(target);
+      const next = placeOf(target);
+      if (isReady(target) && next) controls(next)[0]?.focus();
+      else go(target);
     };
     const onFocusIn = (event: FocusEvent) => {
       const place =
@@ -279,5 +304,5 @@ export function useVirtualPlaces({
     };
   });
 
-  return { rows, before, after, measure: virtualizer.measureElement, go };
+  return { rows, after, measure: virtualizer.measureElement, go };
 }

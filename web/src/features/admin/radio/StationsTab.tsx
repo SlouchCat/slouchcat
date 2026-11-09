@@ -115,20 +115,20 @@ export function StationsTab({ onEdit }: StationsTabProps) {
     },
     {
       key: 'place',
-      width: '16%',
+      width: '14%',
       header: t('admin.radio.stations.columns.place'),
       cell: (station) => stationPlace(t, language, station) ?? '–',
     },
     {
       key: 'genres',
-      width: '18%',
+      width: '16%',
       header: t('admin.radio.stations.columns.genres'),
       cell: (station) =>
         station.genres.map((key) => facetValueName(t, 'genre', key)).join(', ') || '–',
     },
     {
       key: 'state',
-      width: '10rem',
+      width: '9rem',
       header: t('admin.radio.stations.columns.state'),
       cell: (station) => {
         const shown = stationState(station);
@@ -142,7 +142,7 @@ export function StationsTab({ onEdit }: StationsTabProps) {
     },
     {
       key: 'marks',
-      width: '12%',
+      width: '10%',
       header: t('admin.radio.stations.columns.marks'),
       cell: (station) =>
         [
@@ -155,7 +155,7 @@ export function StationsTab({ onEdit }: StationsTabProps) {
     },
     {
       key: 'actions',
-      width: '13rem',
+      width: '15rem',
       header: t('admin.radio.stations.columns.actions'),
       hideHeader: true,
       align: 'end',

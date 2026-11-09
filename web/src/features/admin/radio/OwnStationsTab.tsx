@@ -112,7 +112,7 @@ export function OwnStationsTab({ onEdit, titleRef }: OwnStationsTabProps) {
     },
     {
       key: 'actions',
-      width: '12rem',
+      width: '14rem',
       header: t('admin.radio.stations.columns.actions'),
       hideHeader: true,
       align: 'end',

@@ -99,6 +99,15 @@ export function VirtualList<T>({
   }, [layout]);
 
   const { columns } = shape;
+  // Room for rows that are not drawn: a whole row of the grid, not an entry of the list.
+  const spacer = (height: number, before: number) => (
+    <li
+      key={`space-${before}`}
+      role="presentation"
+      aria-hidden="true"
+      style={{ height, gridColumn: '1 / -1' }}
+    />
+  );
   const size = typeof estimate === 'number' ? estimate : estimate(shape.columnWidth);
   const places = useVirtualPlaces({
     count: slots.length,
@@ -114,13 +123,11 @@ export function VirtualList<T>({
   });
 
   return (
-    <div
-      ref={root}
-      style={virtual ? { paddingTop: places.before, paddingBottom: places.after } : undefined}
-    >
+    <div ref={root}>
       <SpatialGroup as="ul" focusKey={focusKey} className={className} aria-label={label}>
-        {places.rows.flatMap((row) =>
-          Array.from({ length: columns }, (_, column) => row.index * columns + column)
+        {places.rows.flatMap((row) => [
+          ...(row.space > 0 ? [spacer(row.space, row.index)] : []),
+          ...Array.from({ length: columns }, (_, column) => row.index * columns + column)
             .filter((index) => index < slots.length)
             .map((index, column) => {
               const item = slots[index];
@@ -142,7 +149,8 @@ export function VirtualList<T>({
                 </li>
               );
             }),
-        )}
+        ])}
+        {places.after > 0 && spacer(places.after, -1)}
       </SpatialGroup>
     </div>
   );
