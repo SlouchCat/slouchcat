@@ -87,7 +87,7 @@ test('Tab reaches play and the next episode after the header; no focus trap @key
   );
   await page.keyboard.press('Tab');
   await expectFocusOn(page, play(page));
-  // The round actions: "Merken", "Zu den User-Empfehlungen" and the download (M7, E-11).
+  // The round actions: "Merken", "Empfehlen" and the download (M7, E-11; concept 18 part B).
   await tabTo(page, next(page), 8);
   await expectNoFocusTrap(page);
 });

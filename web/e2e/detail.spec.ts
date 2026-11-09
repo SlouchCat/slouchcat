@@ -17,6 +17,8 @@ test.beforeEach(async ({ page }) => {
 const play = (page: Page) =>
   page.getByRole('link', { name: /^(Abspielen|Fortsetzen|Nochmals ansehen)( |$)/ });
 const back = (page: Page) => page.getByRole('button', { name: 'Zurück' });
+/** «Empfehlen» or «Empfohlen ✓» (concept 18 part B): another spec may have taken the pick back. */
+const star = (page: Page) => page.getByRole('button', { name: /^(Empfehlen|Empfohlen ✓)$/ });
 
 test('arrows: start on play, up to the back arrow, down to the round actions; facts are shown', async ({
   page,
@@ -36,7 +38,8 @@ test('arrows: start on play, up to the back arrow, down to the round actions; fa
   }
   await expectFocusOn(page, merken);
   await page.keyboard.press('ArrowRight');
-  await expectFocusOn(page, page.getByRole('link', { name: 'Zu den User-Empfehlungen' }));
+  // The star of the user picks (concept 18 part B); the global setup recommended this film.
+  await expectFocusOn(page, star(page));
   await page.keyboard.press('ArrowUp');
   await expectFocusOn(page, play(page));
   const file = page.getByRole('region', { name: 'Datei' });
@@ -68,7 +71,7 @@ test('Tab: back arrow, pen, watchlist on the cover, play, round actions; no focu
   await expectFocusOn(page, play(page));
   await tabTo(page, page.getByRole('button', { name: /^(Merken|Gemerkt)$/ }), 3);
   await page.keyboard.press('Tab');
-  await expectFocusOn(page, page.getByRole('link', { name: 'Zu den User-Empfehlungen' }));
+  await expectFocusOn(page, star(page));
   await expectNoFocusTrap(page);
 });
 

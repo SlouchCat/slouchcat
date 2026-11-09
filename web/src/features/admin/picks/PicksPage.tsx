@@ -1,7 +1,6 @@
-import type { AdminPick, PickUpdate } from '@slouchcat/api-client';
+import type { AdminUserPick, PicksSettings } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getRouteApi } from '@tanstack/react-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { formErrors, problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
@@ -14,76 +13,25 @@ import {
   BandPanel,
   ConfirmDialog,
   DataTable,
+  Form,
+  SettingRow,
   StatusRegion,
+  TextField,
   afterDialogsClosed,
-  afterRender,
   focusLost,
   focusTitleIfLost,
-  rankTo,
-  useDrafts,
-  useSearchSelection,
   useStatusMessage,
-  useUnsavedChanges,
-  type TabItem,
 } from '@/ui/aria';
-import { fromLocalInput, toLocalInput } from '../CurationParts';
-import { deletePick, picksQuery, reorderPicks, updatePick } from '../queries';
-import { AddPickDialog } from './AddPickDialog';
-import { phaseOf, pickColumns, type PickPhase } from './columns';
-import { PickDetail, type PickDraft } from './PickDetail';
+import { picksQuery, picksSettingsQuery, removeUserPick, updatePicksSettings } from '../queries';
+import { pickColumns } from './columns';
 import styles from './Picks.module.css';
 
-const route = getRouteApi('/_authed/_active/_chrome/admin/picks');
-
-const REORDER_KEY = ['admin', 'picks', 'order'];
-
-/** The filter tabs (PIC-2): every pick, then by where it stands in time. */
-const ALL = 'all';
-const TAB_IDS: readonly string[] = [ALL, 'active', 'scheduled', 'expired'];
-
-/** A save of the fold-out: the pick, what goes to the server and the fields as they were sent. */
-interface Save {
-  pick: AdminPick;
-  body: PickUpdate;
-  sent: PickDraft;
-}
-
-/** A choice of «Stelle»: the new order and the pick that moved. */
-interface Move {
-  order: AdminPick[];
-  pick: AdminPick;
-}
-
-/** A question of the page (only «Entfernen» asks today). */
-interface Confirmation {
-  title: string;
-  body: string;
-  confirmLabel: string;
-  onConfirm: () => void;
-}
-
-/** What the server holds of a pick, in the form of the fields. */
-const draftOf = (pick: AdminPick): PickDraft => ({
-  note: pick.note ?? '',
-  from: toLocalInput(pick.startsAt),
-  to: toLocalInput(pick.endsAt),
-});
-
 /**
- * Whether a draft says something else than the server: the note as it is saved (trimmed), the
- * window as the times it sends. A blank typed after the note is no change worth asking about.
- */
-const differs = (draft: PickDraft, original: PickDraft) =>
-  draft.note.trim() !== original.note ||
-  fromLocalInput(draft.from) !== fromLocalInput(original.from) ||
-  fromLocalInput(draft.to) !== fromLocalInput(original.to);
-
-/**
- * Cat's recommendations (M7, E-2; concept 12, variant C): the picks in carousel order, filtered by
- * tabs «Alle», «Aktiv», «Geplant» and «Abgelaufen» (time only, rule 12). Each pick folds out into
- * its note and time window, saved in place, its place in the row as a choice (S-16) and
- * «Entfernen». «Hinzufügen» opens a dialog; `?add=<itemId>` (the detail page's link) opens it with
- * that title chosen.
+ * «User-Empfehlungen» (concept 18 part B, 14.7, ADR 0028): how long a title stays after its newest
+ * pick, and the titles the profiles of the owner's account recommend now, newest first, with the
+ * day of the newest pick, the days left and the number of picks, never a profile. «Entfernen»
+ * removes every pick of a title. The profiles recommend on the title page (the star); the
+ * administration does not add titles.
  */
 export function PicksPage() {
   const { t } = useTranslation();
@@ -105,414 +53,129 @@ export function PicksPage() {
 function PicksContent() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const { add } = route.useSearch();
-  const navigate = route.useNavigate();
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
   const titleRef = useRef<HTMLHeadingElement>(null);
-  const addButton = useRef<HTMLButtonElement>(null);
-  /** The button that opened «Hinzufügen» (the header's or the empty list's). */
-  const addOpener = useRef<HTMLElement | null>(null);
-  /** The fold-out of each open pick, to find its «Stelle» again after a refused move. */
-  const details = useRef(new Map<string, HTMLElement>());
-
-  // The drafts need what the server holds before the list query knows whether to pause for them:
-  // a passive observer reads the same cache entry without fetching.
-  const cached = useQuery({ ...picksQuery, enabled: false }).data;
-  const originals = useMemo(
-    () => new Map((cached ?? []).map((pick) => [String(pick.id), draftOf(pick)] as const)),
-    [cached],
-  );
-  const originalOf = useCallback((id: string) => originals.get(id), [originals]);
-  const drafts = useDrafts<PickDraft>(originalOf);
-  const { set: setDraft, discard: discardDraft, valueOf: draftValue } = drafts;
-  /** The pick has input that the server does not hold yet (S-17). */
-  const isChanged = useCallback(
-    (id: string) => {
-      const original = originalOf(id);
-      const draft = draftValue(id);
-      return original !== undefined && draft !== undefined && differs(draft, original);
-    },
-    [originalOf, draftValue],
-  );
-  const changedIds = drafts.dirtyIds.filter(isChanged);
-  const unsaved = useUnsavedChanges(changedIds.length > 0, { keep: ['add'] });
-
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
-  const onExpandedChange = useCallback(
-    (key: string, open: boolean) =>
-      setExpanded((current) => {
-        const next = new Set(current);
-        if (open) next.add(key);
-        else next.delete(key);
-        return next;
-      }),
-    [],
-  );
-  const [adding, setAdding] = useState(false);
-  const addOpen = adding || Boolean(add);
-  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  /** The button that asked: it gets the focus back when the question closes without a change. */
-  const asker = useRef<HTMLElement | null>(null);
-  // No refetch on focus while a dialog is open or an open fold-out has unsaved input; a draft
-  // kept in a folded pick does not hold the list (it keeps its draft either way, useDrafts).
-  const hold = confirmOpen || addOpen || changedIds.some((id) => expanded.has(id));
-  const picks = useQuery({ ...picksQuery, refetchOnWindowFocus: !hold });
-
-  // An unknown `?tab=` shows «Alle»; the address says so too.
-  const [tab, selectTab] = useSearchSelection('tab', TAB_IDS, ALL, { normalise: true });
-
-  // Every message gets its own number, so the same words twice are announced twice.
   const [message, setMessage] = useStatusMessage();
-  const say = useCallback((text: string) => setMessage(text), [setMessage]);
   const [failure, setFailure] = useState<unknown>(null);
-  // Saving and the server's last refusal belong to one pick each: two fold-outs save on their own.
-  const [saving, setSaving] = useState<ReadonlySet<string>>(() => new Set());
-  const [saveErrors, setSaveErrors] = useState<ReadonlyMap<string, unknown>>(() => new Map());
-  const setSaveError = useCallback(
-    (id: string, error: unknown) =>
-      setSaveErrors((current) => {
-        if (error === undefined && !current.has(id)) return current;
-        const next = new Map(current);
-        if (error === undefined) next.delete(id);
-        else next.set(id, error);
-        return next;
-      }),
-    [],
+  /** The pick «Entfernen» asks about and the button that asked (the focus goes back there). */
+  const [asking, setAsking] = useState<{ pick: AdminUserPick; from: HTMLElement | null } | null>(
+    null,
   );
-  const failed = useCallback(
-    (error: unknown) => {
-      setMessage(null);
-      setFailure(error);
-    },
-    [setMessage],
-  );
+  const picks = useQuery({ ...picksQuery, refetchOnWindowFocus: asking === null });
+  const settings = useQuery(picksSettingsQuery);
 
-  /**
-   * The focus is gone from the fold-out of `id` (its row moved back after a refused move):
-   * `selector` in that fold-out takes it, else the h1.
-   */
-  const focusDetailIfLost = useCallback((id: string, selector: string) => {
-    if (!focusLost()) return;
-    const target = details.current.get(id)?.querySelector<HTMLElement>(selector);
-    if (target) target.focus();
-    else focusTitleIfLost(titleRef);
-  }, []);
+  // The start page, the viewer's page of picks and the side navigation's count show them.
+  const invalidate = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['admin', 'picks'] }),
+      queryClient.invalidateQueries({ queryKey: ['home'] }),
+      queryClient.invalidateQueries({ queryKey: ['picks'] }),
+    ]);
 
-  // The start page and the viewer's page of picks show them: asked again after every change.
-  const invalidate = useCallback(
-    () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: picksQuery.queryKey }),
-        queryClient.invalidateQueries({ queryKey: ['home'] }),
-        queryClient.invalidateQueries({ queryKey: ['picks'] }),
-      ]),
-    [queryClient],
-  );
-
-  // Quick choices queue their PUTs in order (scope); each shows its order at once, and only the
-  // last one to settle asks the server again, so an earlier answer cannot undo a later move.
-  const reorder = useMutation({
-    mutationKey: REORDER_KEY,
-    scope: { id: REORDER_KEY.join('/') },
-    mutationFn: ({ order }: Move) => reorderPicks(order.map((pick) => pick.id)),
-    onMutate: async ({ order }) => {
-      setFailure(null);
-      await queryClient.cancelQueries({ queryKey: picksQuery.queryKey });
-      const previous = queryClient.getQueryData(picksQuery.queryKey);
-      queryClient.setQueryData(picksQuery.queryKey, order);
-      return { previous };
-    },
-    onError: async (error, { pick }, context) => {
-      failed(error);
-      // Later moves still wait in the queue: their orders build on this one, and the last one to
-      // settle asks the server again, which puts right whatever this refusal left.
-      if (!context?.previous || queryClient.isMutating({ mutationKey: REORDER_KEY }) > 1) return;
-      queryClient.setQueryData(picksQuery.queryKey, context.previous);
-      // Back in place, the row moved and its «Stelle» lost the focus: it takes it back.
-      await afterRender();
-      focusDetailIfLost(String(pick.id), 'select');
-    },
-    onSettled: () =>
-      queryClient.isMutating({ mutationKey: REORDER_KEY }) > 1 ? undefined : invalidate(),
-  });
-  const update = useMutation({
-    mutationFn: ({ pick, body }: Save) => updatePick(pick.id, body),
-    onMutate: ({ pick }) => {
-      const id = String(pick.id);
-      setSaving((current) => new Set(current).add(id));
-      setSaveError(id, undefined);
-    },
-    onSuccess: async (saved, { pick, sent }) => {
-      const id = String(pick.id);
-      setFailure(null);
-      // The answer is what the server holds now; the list shows it before it is asked again.
-      queryClient.setQueryData(picksQuery.queryKey, (current: AdminPick[] | undefined) =>
-        current?.map((entry) => (entry.id === saved.id ? saved : entry)),
-      );
-      // The draft is spent when it still says what was sent (the server may hold the note
-      // trimmed); what was typed while the save ran stays a draft.
-      setDraft(id, (current) =>
-        JSON.stringify(current) === JSON.stringify(sent) ? draftOf(saved) : current,
-      );
-      say(t('admin.picks.edit.done', { title: pick.title }));
-      await invalidate();
-    },
-    onError: (error, { pick }) => setSaveError(String(pick.id), error),
-    onSettled: (_data, _error, { pick }) =>
-      setSaving((current) => {
-        const next = new Set(current);
-        next.delete(String(pick.id));
-        return next;
-      }),
-  });
   const remove = useMutation({
-    mutationFn: (pick: AdminPick) => deletePick(pick.id),
+    mutationFn: (pick: AdminUserPick) => removeUserPick(pick.itemId),
     onSuccess: async (_data, pick) => {
       setFailure(null);
-      say(t('admin.picks.remove.done', { title: pick.title }));
-      onExpandedChange(String(pick.id), false);
+      setMessage(t('admin.picks.remove.done', { title: pick.title }));
       await invalidate();
-      // The row and its buttons are gone: once React rendered that, the h1 takes the focus.
+      // The row and its button are gone: once React rendered that, the h1 takes the focus.
       await afterDialogsClosed();
       focusTitleIfLost(titleRef);
     },
-    onError: failed,
+    onError: (error) => {
+      setMessage(null);
+      setFailure(error);
+    },
   });
 
-  // The confirmation is the page's own: a row that goes while it is open (another tab, a
-  // refetch) cannot take the dialog with it.
-  const ask = (next: Confirmation) => {
-    asker.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    setConfirmation(next);
-    setConfirmOpen(true);
-  };
+  const onRemove = useCallback((pick: AdminUserPick) => {
+    const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setAsking({ pick, from });
+  }, []);
   const onConfirmOpenChange = (open: boolean) => {
     if (open) return;
-    setConfirmOpen(false);
+    const button = asking?.from;
+    setAsking(null);
     // Back to the button that asked; it may be gone by now (its row went), then the h1.
     void afterDialogsClosed().then(() => {
-      const button = asker.current;
-      asker.current = null;
       if (focusLost() && button?.isConnected) button.focus();
       else focusTitleIfLost(titleRef);
     });
   };
-  const askRemove = (pick: AdminPick) =>
-    ask({
-      title: t('admin.picks.remove.title', { title: pick.title }),
-      body: t('admin.picks.remove.body'),
-      confirmLabel: t('admin.picks.remove.confirm'),
-      onConfirm: () => remove.mutate(pick),
-    });
 
-  const list = useMemo(() => picks.data ?? [], [picks.data]);
-  const place = useCallback((pick: AdminPick) => list.indexOf(pick), [list]);
-  const { mutate: reorderMutate } = reorder;
-  const onPlace = useCallback(
-    (pick: AdminPick, position: number) => {
-      const from = list.indexOf(pick);
-      if (from < 0 || from === position) return;
-      say(t('admin.picks.moved', { title: pick.title, position: position + 1 }));
-      reorderMutate({ order: rankTo(list, from, position, 'move'), pick });
-    },
-    [list, say, t, reorderMutate],
-  );
-  const onChange = useCallback(
-    (pick: AdminPick, next: Partial<PickDraft>) =>
-      setDraft(String(pick.id), (current) => ({ ...current, ...next })),
-    [setDraft],
-  );
-  const { mutate: updateMutate } = update;
-  const onSave = useCallback(
-    (pick: AdminPick) => {
-      const id = String(pick.id);
-      const draft = draftValue(id);
-      // Nothing changed: nothing to send.
-      if (!draft || !isChanged(id)) return;
-      const note = draft.note.trim();
-      updateMutate({
-        pick,
-        body: {
-          note: note || null,
-          startsAt: fromLocalInput(draft.from) ?? null,
-          endsAt: fromLocalInput(draft.to) ?? null,
-        },
-        sent: draft,
-      });
-    },
-    [draftValue, isChanged, updateMutate],
-  );
-  const onDiscard = useCallback(
-    (pick: AdminPick) => {
-      const id = String(pick.id);
-      discardDraft(id);
-      // The server's refusal was about the input that is gone now.
-      setSaveError(id, undefined);
-    },
-    [discardDraft, setSaveError],
-  );
-
-  // Expired, scheduled or active as of the list's fetch (the list is asked again after every
-  // change), so a row does not change its tab while it is being looked at.
-  const now = picks.dataUpdatedAt;
   const columns = useMemo(
-    () =>
-      pickColumns(
-        t,
-        i18n.language,
-        now,
-        (pick) => place(pick) + 1,
-        (pick) => isChanged(String(pick.id)),
-      ),
-    [t, i18n.language, now, place, isChanged],
+    () => pickColumns(t, i18n.language, onRemove),
+    [t, i18n.language, onRemove],
   );
-  const detail = (pick: AdminPick) => {
-    const id = String(pick.id);
-    const saveError = saveErrors.get(id);
-    return (
-      <div
-        ref={(node) => {
-          if (node) details.current.set(id, node);
-          else details.current.delete(id);
-        }}
-      >
-        <PickDetail
-          pick={pick}
-          draft={draftValue(id) ?? draftOf(pick)}
-          changed={isChanged(id)}
-          saving={saving.has(id)}
-          errors={saveError === undefined ? null : formErrors(t, saveError)}
-          place={place(pick)}
-          count={list.length}
-          onChange={onChange}
-          onSave={onSave}
-          onDiscard={onDiscard}
-          onPlace={onPlace}
-          onRemove={askRemove}
-        />
-      </div>
-    );
-  };
-
-  const phases = useMemo(() => {
-    const byPhase: Record<PickPhase, AdminPick[]> = { active: [], scheduled: [], expired: [] };
-    for (const pick of list) byPhase[phaseOf(pick, now)].push(pick);
-    return byPhase;
-  }, [list, now]);
-  const tabOf = (id: string, label: string, rows: AdminPick[]): TabItem => ({
-    id,
-    label,
-    count: number.format(rows.length),
-    countLabel: t('admin.picks.tabs.count', {
-      count: rows.length,
-      number: number.format(rows.length),
-    }),
-    content:
-      rows.length === 0 ? (
-        <Text tone="secondary">{t('admin.picks.emptyTab')}</Text>
-      ) : (
-        <DataTable
-          caption={t('admin.picks.list')}
-          columns={columns}
-          rows={rows}
-          rowKey={(pick) => String(pick.id)}
-          expand={{ render: detail, expandedKeys: expanded, onExpandedChange }}
-          layout="fixed"
-        />
-      ),
-  });
-
-  const entries = t('admin.picks.count.entries', {
-    count: list.length,
-    number: number.format(list.length),
-  });
-  const planned = phases.scheduled.length;
-  const counts =
-    planned > 0
-      ? t('admin.picks.count.both', {
-          entries,
-          planned: t('admin.picks.count.planned', {
-            count: planned,
-            number: number.format(planned),
-          }),
-        })
-      : entries;
-
-  const closeAdd = () => {
-    setAdding(false);
-    // The link's title is used once: a reload must not open the dialog again.
-    if (add) {
-      void navigate({
-        search: (previous) => ({ ...previous, add: undefined }),
-        replace: true,
-      });
-    }
-    // Back to the button that opened it; the header's after a link's `?add=` or when the empty
-    // list's button went with the new pick.
-    const opener = addOpener.current;
-    addOpener.current = null;
-    (opener?.isConnected ? opener : addButton.current)?.focus();
-  };
-  const openAdd = ({ target }: { target: Element }) => {
-    addOpener.current = target instanceof HTMLElement ? target : null;
-    setAdding(true);
-  };
+  const list = picks.data ?? [];
 
   return (
-    <AdminPage
-      title={t('admin.picks.title')}
-      help={t('admin.picks.intro')}
-      titleRef={titleRef}
-      actions={
-        <AriaButton ref={addButton} variant="primary" icon="plus" onPress={openAdd}>
-          {t('admin.picks.add.action')}
-        </AriaButton>
-      }
-    >
+    <AdminPage title={t('admin.picks.title')} help={t('admin.picks.intro')} titleRef={titleRef}>
       {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
       <StatusRegion message={failure === null ? message : null} />
-      {picks.isPending && <Skeleton shape="block" />}
-      {picks.isError && (
-        <Notice
-          tone="danger"
-          title={problemMessage(t, picks.error)}
-          actions={
-            <AriaButton icon="refresh" onPress={() => void picks.refetch()}>
-              {t('common.retry')}
-            </AriaButton>
-          }
-        />
-      )}
-      {picks.data?.length === 0 && (
-        <Notice
-          actions={
-            <AriaButton variant="secondary" icon="plus" onPress={openAdd}>
-              {t('admin.picks.add.action')}
-            </AriaButton>
-          }
-        >
-          {t('admin.picks.empty')}
-        </Notice>
-      )}
-      {picks.data && picks.data.length > 0 && (
-        <BandPanel
-          title={t('admin.picks.list')}
-          icon="star"
-          meta={counts}
-          tabs={{
-            label: t('admin.picks.tabs.label'),
-            selectedKey: tab,
-            onSelectionChange: selectTab,
-            tabs: [
-              tabOf(ALL, t('admin.picks.tabs.all'), list),
-              tabOf('active', t('admin.picks.tabs.active'), phases.active),
-              tabOf('scheduled', t('admin.picks.tabs.scheduled'), phases.scheduled),
-              tabOf('expired', t('admin.picks.tabs.expired'), phases.expired),
-            ],
-          }}
-        />
-      )}
+
+      <BandPanel title={t('admin.picks.retention.title')} icon="settings">
+        {settings.isPending && <Skeleton shape="block" />}
+        {settings.isError && (
+          <Notice
+            tone="danger"
+            title={problemMessage(t, settings.error)}
+            actions={
+              <AriaButton icon="refresh" onPress={() => void settings.refetch()}>
+                {t('common.retry')}
+              </AriaButton>
+            }
+          />
+        )}
+        {settings.data && (
+          <RetentionForm
+            stored={settings.data}
+            onSaved={async (saved) => {
+              setFailure(null);
+              setMessage(t('admin.picks.retention.saved', { count: saved.retentionDays }));
+              queryClient.setQueryData(picksSettingsQuery.queryKey, saved);
+              await invalidate();
+            }}
+          />
+        )}
+      </BandPanel>
+
+      <BandPanel
+        title={t('admin.picks.list')}
+        icon="star"
+        meta={
+          picks.data
+            ? t('admin.picks.count', {
+                count: list.length,
+                number: new Intl.NumberFormat(i18n.language).format(list.length),
+              })
+            : undefined
+        }
+      >
+        {picks.isPending && <Skeleton shape="block" />}
+        {picks.isError && (
+          <Notice
+            tone="danger"
+            title={problemMessage(t, picks.error)}
+            actions={
+              <AriaButton icon="refresh" onPress={() => void picks.refetch()}>
+                {t('common.retry')}
+              </AriaButton>
+            }
+          />
+        )}
+        {picks.data?.length === 0 && <Text tone="secondary">{t('admin.picks.empty')}</Text>}
+        {list.length > 0 && (
+          <DataTable
+            caption={t('admin.picks.list')}
+            columns={columns}
+            rows={list}
+            rowKey={(pick) => pick.itemId}
+            layout="fixed"
+          />
+        )}
+        <Text tone="secondary">{t('admin.picks.anonymous')}</Text>
+      </BandPanel>
+
       <p className={styles.hint}>
         <Icon name="info" size="sm" />
         <span>
@@ -523,31 +186,70 @@ function PicksContent() {
           />
         </span>
       </p>
-      {confirmation && (
+      {asking && (
         <ConfirmDialog
-          isOpen={confirmOpen}
+          isOpen
           onOpenChange={onConfirmOpenChange}
-          title={confirmation.title}
-          body={confirmation.body}
-          confirmLabel={confirmation.confirmLabel}
+          title={t('admin.picks.remove.title', { title: asking.pick.title })}
+          body={t('admin.picks.remove.body')}
+          confirmLabel={t('admin.picks.remove.confirm')}
           cancelLabel={t('common.cancel')}
           tone="danger"
-          onConfirm={confirmation.onConfirm}
-        />
-      )}
-      <ConfirmDialog {...unsaved.dialog} />
-      {addOpen && (
-        <AddPickDialog
-          presetId={adding ? undefined : add}
-          onClose={closeAdd}
-          onAdded={(title) => {
-            setFailure(null);
-            say(t('admin.picks.add.done', { title }));
-            void invalidate();
-            closeAdd();
-          }}
+          onConfirm={() => remove.mutate(asking.pick)}
         />
       )}
     </AdminPage>
+  );
+}
+
+/**
+ * «Empfehlungen bleiben … Tage in der Liste» with «Speichern». The server checks the range (7 to
+ * 365, rule 12); its refusal shows at the field.
+ */
+function RetentionForm({
+  stored,
+  onSaved,
+}: {
+  stored: PicksSettings;
+  onSaved: (saved: PicksSettings) => Promise<unknown>;
+}) {
+  const { t } = useTranslation();
+  const [days, setDays] = useState(() => String(stored.retentionDays));
+  const save = useMutation({
+    mutationFn: (body: PicksSettings) => updatePicksSettings(body),
+    onSuccess: async (saved) => {
+      setDays(String(saved.retentionDays));
+      await onSaved(saved);
+    },
+  });
+  const errors = save.error ? formErrors(t, save.error) : null;
+  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const value = Number(days.trim());
+    // Not a whole number: the server would refuse it the same way.
+    save.mutate({ retentionDays: Number.isInteger(value) ? value : 0 });
+  };
+  return (
+    <Form className={styles.form} onSubmit={onSubmit} validationErrors={errors?.fields}>
+      <SettingRow label={t('admin.picks.retention.label')} help={t('admin.picks.retention.help')}>
+        <div className={styles.retention}>
+          <TextField
+            name="retentionDays"
+            type="number"
+            inputMode="numeric"
+            label={t('admin.picks.retention.label')}
+            hideLabel
+            isRequired
+            value={days}
+            onChange={setDays}
+          />
+          <span className={styles.unit}>{t('admin.picks.retention.unit')}</span>
+          <AriaButton type="submit" variant="primary" isPending={save.isPending}>
+            {save.isPending ? t('common.saving') : t('common.save')}
+          </AriaButton>
+        </div>
+      </SettingRow>
+      {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
+    </Form>
   );
 }

@@ -606,7 +606,14 @@
       "label": "Favourite",
       "hint": "Notify me about new episodes"
     },
-    "addToPicks": "Add to User picks",
+    "recommend": {
+      "add": "Recommend",
+      "done": "Recommended ✓",
+      "hint": "For every profile that may see the title, without your name",
+      "added_one": "Added to the user picks. Stays {{count}} day.",
+      "added_other": "Added to the user picks. Stays {{count}} days.",
+      "removed": "Pick taken back."
+    },
     "logoAlt": "{{title}}",
     "action": {
       "resume": "Resume",
@@ -616,8 +623,7 @@
       "resumeAt": "at {{time}} · {{left}} left",
       "watchedOn": "Watched on {{date}}",
       "listenedOn": "Listened on {{date}}",
-      "restart": "From the start",
-      "picks": "User picks"
+      "restart": "From the start"
     },
     "nextUp": {
       "start": "Play",
@@ -1673,8 +1679,8 @@
           "collectionItems_other": "{{count}} collection entries",
           "notifications_one": "{{count}} notification",
           "notifications_other": "{{count}} notifications",
-          "topPicks_one": "{{count}} top pick",
-          "topPicks_other": "{{count}} top picks",
+          "userPicks_one": "{{count}} user pick",
+          "userPicks_other": "{{count}} user picks",
           "downloads_one": "{{count}} download",
           "downloads_other": "{{count}} downloads",
           "activityEvents_one": "{{count}} activity",
@@ -2087,100 +2093,40 @@
     },
     "picks": {
       "title": "User picks",
-      "intro": "Hand-picked titles as a row of their own on the start page. For every profile or for single ones; each profile only sees titles of its age rating and only within the chosen time window.",
-      "list": "Picks in the order of the row",
-      "empty": "No picks yet. Without picks the start page shows no carousel.",
-      "emptyTab": "No pick in this tab.",
-      "allProfiles": "Everyone",
-      "noNote": "–",
-      "noNoteSpoken": "no note",
-      "quoted": "“{{note}}”",
-      "changed": "changed",
-      "count": {
-        "entries_one": "{{number}} entry",
-        "entries_other": "{{number}} entries",
-        "planned_one": "{{number}} scheduled",
-        "planned_other": "{{number}} scheduled",
-        "both": "{{entries}} · {{planned}}"
+      "intro": "Profiles of the owner's account recommend titles with the star on the title page; every other account only sees the list. Names stay hidden, and every title is listed once.",
+      "retention": {
+        "title": "Expiry",
+        "label": "Picks stay",
+        "unit": "days in the list",
+        "help": "7 to 365 days, 60 by default. Every new pick of the same title starts the period again. A shorter period applies at once.",
+        "saved_one": "Picks now stay {{count}} day.",
+        "saved_other": "Picks now stay {{count}} days."
       },
-      "tabs": {
-        "label": "Picks by time window",
-        "all": "All",
-        "active": "Active",
-        "scheduled": "Scheduled",
-        "expired": "Expired",
-        "count_one": "{{number}} pick",
-        "count_other": "{{number}} picks"
-      },
+      "list": "Current picks",
+      "count_one": "{{number}} title",
+      "count_other": "{{number}} titles",
+      "empty": "No profile recommends a title right now. Without a pick the start page shows no row «User picks».",
+      "anonymous": "The administration sees how many picks a title has, never which profile picked it.",
       "homeRowsHint": "Where the row stands on the start page and whether it appears is set under <page>Start page</page>.",
-      "moved": "{{title}} is now at position {{position}}.",
       "columns": {
-        "position": "No.",
         "title": "Title",
-        "target": "For",
-        "note": "Note",
-        "window": "Time window"
+        "picked": "Last picked on",
+        "expires": "Expires",
+        "count": "Count",
+        "actions": "Actions"
       },
-      "window": {
-        "always": "Always",
-        "from": "From {{date}}",
-        "until": "Until {{date}}",
-        "range": "{{from}} to {{to}}",
-        "expired": "Expired",
-        "scheduled": "Scheduled"
-      },
-      "detail": {
-        "place": "Place in the row",
-        "target": "For"
-      },
-      "search": {
-        "label": "Search titles",
-        "hint": "Two characters or more: films, series, episodes, audiobooks and podcasts.",
-        "empty": "No matching title found.",
-        "results": "Titles found",
-        "select": "Choose",
-        "selectLabel": "Choose {{title}}",
-        "chosen": "Chosen: {{title}}",
-        "none": "No title chosen yet."
-      },
-      "targets": {
-        "label": "For",
-        "all": "All profiles",
-        "description": "All profiles or single ones. A profile only sees the pick when it may see the title.",
-        "required": "Choose “All profiles” or at least one profile."
-      },
-      "form": {
-        "note": "Note",
-        "noteHint": "Shown in the carousel below the title, at most {{max}} characters.",
-        "from": "Visible from",
-        "to": "Visible until",
-        "windowHint": "Leave empty: from now on and without end.",
-        "endBeforeStart": "The end must be after the start."
-      },
-      "add": {
-        "action": "Add",
-        "title": "Add a pick",
-        "description": "Search a title and choose who it is recommended to. New picks go to the end.",
-        "submit": "Add",
-        "submitting": "Adding …",
-        "done": "{{title}} is in User picks.",
-        "titleRequired": "Choose a title first.",
-        "presetMissing": "The title of the link no longer exists. Search it again."
-      },
-      "edit": {
-        "label": "Edit {{title}}",
-        "saveLabel": "Save {{title}}",
-        "discard": "Discard",
-        "discardLabel": "Discard the changes to {{title}}",
-        "done": "{{title}} is saved."
-      },
+      "expiresIn_one": "in {{count}} day",
+      "expiresIn_other": "in {{count}} days",
+      "expiresToday": "today",
+      "countValue_one": "{{count}} pick",
+      "countValue_other": "{{count}} picks",
       "remove": {
         "action": "Remove",
         "label": "Remove {{title}}",
-        "title": "Remove {{title}} from User picks?",
-        "body": "The title stays in the library; only the pick goes.",
+        "title": "Remove {{title}} from the user picks?",
+        "body": "Every pick of this title goes. The title stays in the library.",
         "confirm": "Remove",
-        "done": "{{title}} is no longer a pick."
+        "done": "{{title}} is no longer picked."
       }
     },
     "collections": {
@@ -4495,7 +4441,7 @@
   "picks": {
     "page": {
       "title": "User picks",
-      "intro": "Titles picked for you, in the chosen order.",
+      "intro": "Titles the profiles of this household recommend, newest pick first.",
       "count_one": "{{count}} title",
       "count_other": "{{count}} titles"
     }

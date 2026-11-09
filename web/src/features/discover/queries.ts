@@ -5,6 +5,7 @@ import type {
   NotificationPage,
   SearchRequest,
   SearchResult,
+  UserPickResult,
 } from '@slouchcat/api-client';
 import {
   infiniteQueryOptions,
@@ -226,6 +227,30 @@ export function useFavoriteMutation() {
       ),
     onSettled: (_data, _error, { id }) =>
       queryClient.invalidateQueries({ queryKey: ['item', id], exact: true }),
+  });
+}
+
+/**
+ * Recommends a title to every profile that may see it, or takes the own recommendation back
+ * (concept 18 part B, ADR 0028). The answer of a recommendation names its retention in days
+ * (the hint «Bleibt N Tage»); taking back answers nothing. Afterwards the detail, the start page,
+ * the page of the user picks and the side navigation's count are read again.
+ */
+export function useRecommendMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, on }: { id: string; on: boolean }): Promise<UserPickResult | undefined> =>
+      on
+        ? request(api.PUT('/items/{id}/pick', { params: { path: { id } } }))
+        : request(api.DELETE('/items/{id}/pick', { params: { path: { id } } })).then(
+            () => undefined,
+          ),
+    onSettled: (_data, _error, { id }) =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['item', id], exact: true }),
+        queryClient.invalidateQueries({ queryKey: ['home'] }),
+        queryClient.invalidateQueries({ queryKey: ['picks'] }),
+      ]),
   });
 }
 

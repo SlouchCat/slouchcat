@@ -129,7 +129,7 @@ test('Tab: header, back, actions, the chosen season, episodes; no focus trap @ke
   await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
   await tabTo(page, page.getByRole('button', { name: 'Zurück' }), 3);
   // The pen and the watchlist button on the cover, play, then the round actions: "Merken",
-  // "Favorit", "Zu den User-Empfehlungen" and "Verwalten".
+  // "Favorit", "Empfehlen" and "Verwalten".
   await tabTo(page, seriesPlay(page), 4);
   await tabTo(page, page.getByRole('button', { name: 'Favorit' }), 4);
   // Only the chosen season is a Tab stop of the shelf (roving tabindex).

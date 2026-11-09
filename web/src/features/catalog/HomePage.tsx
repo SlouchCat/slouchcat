@@ -188,7 +188,7 @@ function seriesCardText(t: TFunction, series: { title: string }, item: ItemRef) 
 }
 
 function cardCaption(t: TFunction, row: HomeRow, item: ItemRef): string | undefined {
-  // A curated title carries the main user's note (picks, E-2); it says more than the year.
+  // A curated spotlight title carries the main user's note (M11); it says more than the year.
   if (item.note) return item.note;
   const progress = startedProgress(item);
   if (row.key === 'continue' && progress) return remaining(t, progress);
