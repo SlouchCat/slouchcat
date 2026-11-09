@@ -379,7 +379,6 @@
       "clear": "Zurücksetzen",
       "emptyFilters": "Nichts passt zu diesen Filtern",
       "pageFailed": "Ein Teil der Liste konnte nicht geladen werden.",
-      "more": "Mehr laden ({{count}} weitere)",
       "noun": {
         "video_one": "Titel",
         "video_other": "Titel",

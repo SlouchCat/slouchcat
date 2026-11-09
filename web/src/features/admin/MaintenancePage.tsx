@@ -47,7 +47,7 @@ type ActionDialog = { type: 'match'; issue: Issue } | { type: 'rating'; itemIds:
 /**
  * Library maintenance (B-9; concept 12, variant C): one tab per kind of issue with its count
  * (PFL-1) and the duplicates. A tab shows its hint, the toolbar with the actions and the
- * selection, and the loaded issues in one section per library with «Mehr laden» (PFL-2, PFL-3);
+ * selection, and the issues in one section per library, read as the tab scrolls (PFL-2, PFL-3; concept 18 C-3);
  * the duplicates come as one section per group (PFL-4), the orphaned user data as one table of
  * pairs (ADR 0023). Selection, outcome and the title to keep belong to the page, so they stay
  * when the tab changes (S-17).

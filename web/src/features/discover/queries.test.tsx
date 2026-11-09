@@ -138,7 +138,7 @@ describe('useWatchlistMutation', () => {
     expect(mark(['library', 'films', {}])).toBe('true');
   });
 
-  it('reads a query again whose page load the change cancelled ("Mehr laden")', async () => {
+  it('reads a query again whose page load the change cancelled', async () => {
     let answer: (response: Response) => void = () => undefined;
     mockApi({
       'PUT /items/*/watchlist': () =>

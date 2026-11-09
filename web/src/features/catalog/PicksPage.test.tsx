@@ -53,7 +53,7 @@ describe('User picks page', () => {
     expect(screen.queryByRole('button', { name: /Mehr laden/ })).not.toBeInTheDocument();
   });
 
-  it('reads the next page once the grid scrolls to its end', async () => {
+  it('reads a long list page by page as the grid scrolls', async () => {
     // The offset of the request being answered (the side navigation asks with limit 1).
     const offsets: number[] = [];
     const { fetchMock } = mockApi({
@@ -62,17 +62,46 @@ describe('User picks page', () => {
         const url = new URL(fetchMock.mock.calls.at(-1)![0].url);
         const offset = Number(url.searchParams.get('offset') ?? 0);
         if (url.searchParams.get('limit') === '100') offsets.push(offset);
-        return json(offset === 100 ? page(many(20, 100), 120, 100) : page(many(100), 120));
+        return json(page(many(Math.min(100, 250 - offset), offset), 250, offset));
       },
     });
     renderApp('/picks');
     await screen.findByRole('list', { name: 'User-Empfehlungen' });
-    expect(await screen.findByText('120 Titel')).toBeVisible();
+    expect(await screen.findByText('250 Titel')).toBeVisible();
     // One page only while the top is in view.
+    await waitFor(() => expect(screen.getByRole('link', { name: /Heat 0/ })).toBeVisible());
     expect(offsets).toEqual([0]);
     act(() => layout.scroll(layout.top + 17 * layout.rowSize));
-    await waitFor(() => expect(screen.getByRole('link', { name: /Heat 119/ })).toBeVisible());
+    await waitFor(() => expect(screen.getByRole('link', { name: /Heat 105/ })).toBeVisible());
     expect(offsets).toEqual([0, 100]);
     expect(screen.queryByRole('button', { name: /Mehr laden/ })).not.toBeInTheDocument();
+  });
+
+  it('a title recommended again beyond the first page stands once, at the front', async () => {
+    // Between the reads of page 0 and page 1, «Heat 110» is recommended again: same total, the
+    // title moves to the front and page 1 now starts with «Heat 99», which page 0 already holds.
+    const before = many(120);
+    const after = [before[110]!, ...before.slice(0, 110), ...before.slice(111)];
+    let moved = false;
+    const { fetchMock } = mockApi({
+      ...signedIn,
+      'GET /picks': () => {
+        const url = new URL(fetchMock.mock.calls.at(-1)![0].url);
+        const offset = Number(url.searchParams.get('offset') ?? 0);
+        const limit = Number(url.searchParams.get('limit') ?? 100);
+        const list = moved ? after : before;
+        if (offset === 0 && limit === 100) moved = true;
+        return json(page(list.slice(offset, offset + limit), 120, offset));
+      },
+    });
+    renderApp('/picks');
+    const grid = await screen.findByRole('list', { name: 'User-Empfehlungen' });
+    await waitFor(() => expect(within(grid).getAllByRole('link')[0]).toHaveTextContent('Heat 110'));
+    await waitFor(() => expect(within(grid).getAllByRole('link')).toHaveLength(120));
+    const hrefs = within(grid)
+      .getAllByRole('link')
+      .map((card) => card.getAttribute('href'));
+    expect(new Set(hrefs).size).toBe(120);
+    expect(hrefs).toEqual(after.map((item) => `/items/${item.id}`));
   });
 });

@@ -7,7 +7,7 @@ import type {
   PodcastEpisodes,
   Trailer,
 } from '@slouchcat/api-client';
-import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
+import { queryOptions } from '@tanstack/react-query';
 import { api, request } from '@/api/client';
 import type { PagedSource } from '@/lib/pagedList';
 
@@ -81,14 +81,6 @@ export const podcastEpisodesSource = (id: string): PagedSource<PodcastEpisodes, 
   id: (episode) => episode.id,
 });
 
-/** Titles per page of the user picks page, read while scrolling: the contract's maximum. */
-export const PICKS_PAGE = 100;
-
-const nextOffset = (last: { offset: number; total: number; items: unknown[] }) => {
-  const next = last.offset + last.items.length;
-  return next < last.total && last.items.length > 0 ? next : undefined;
-};
-
 /** The libraries with at least one title the active profile may see (concept 08). */
 export const visibleLibrariesQuery = queryOptions({
   queryKey: ['libraries', 'visible'],
@@ -105,16 +97,12 @@ export const picksCountQuery = queryOptions({
   staleTime: 60_000,
 });
 
-/** The user picks the active profile sees, newest pick first (E-2, concept 18 part B), paged. */
-export const picksPageQuery = infiniteQueryOptions({
-  queryKey: ['picks', 'page'],
-  queryFn: ({ pageParam, signal }): Promise<PicksPage> =>
-    request(
-      api.GET('/picks', {
-        params: { query: { offset: pageParam, limit: PICKS_PAGE } },
-        signal,
-      }),
-    ),
-  initialPageParam: 0,
-  getNextPageParam: nextOffset,
-});
+/** The user picks the active profile sees, newest pick first (E-2, concept 18 part B, C-3). */
+export const picksSource: PagedSource<PicksPage, ItemRef> = {
+  key: ['picks', 'page'],
+  fetch: (offset, limit, signal) =>
+    request(api.GET('/picks', { params: { query: { offset, limit } }, signal })),
+  items: (page) => page.items,
+  total: (page) => page.total,
+  id: (item) => item.id,
+};

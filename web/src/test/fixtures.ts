@@ -674,7 +674,7 @@ export const podcast: ItemRef = {
   },
 };
 
-/** The podcast's detail carries its newest episodes; "Mehr laden" fetches the third. */
+/** The podcast's detail carries its newest episodes; the next page holds the third. */
 export const podcastDetail: ItemDetail = {
   ...podcast,
   overview: 'Ein Test-Podcast aus Sinustoenen.',
