@@ -89,14 +89,15 @@ func (s *Service) sweepTrickplay(ctx context.Context, now time.Time) {
 }
 
 // TrickplaySheetURL is the relative URL of getTrickplaySheet; v is the version of the set
-// (library.TrickplayVersion), so the immutable sheet of another file version is never shown.
+// (library.TrickplaySetVersion), so the immutable sheet of another file version or of a set made
+// again is never shown.
 func TrickplaySheetURL(itemID, mediaFileID string, sheet int, version string) string {
 	return "/api/v1/items/" + url.PathEscape(itemID) + "/trickplay/" + strconv.Itoa(sheet) + "?mediaFileId=" +
 		url.QueryEscape(mediaFileID) + "&v=" + url.QueryEscape(version)
 }
 
-// TrickplaySheetETag is the strong validator of a sheet: version and sheet in quotes. A sheet of
-// one version never changes.
+// TrickplaySheetETag is the strong validator of a sheet: version of the set and sheet in quotes. A
+// sheet of one set version never changes.
 func TrickplaySheetETag(version string, sheet int) string {
 	return strconv.Quote(version + "/" + strconv.Itoa(sheet))
 }
@@ -135,8 +136,8 @@ func (s *Service) Trickplay(ctx context.Context, profile model.Profile, itemID, 
 // TrickplaySheet opens sheet n of the preview set of the media file mediaFileID of a visible title
 // (getTrickplaySheet) at the file's current version. Anything else, also an invisible title, a
 // file of another title, a title whose library setting is off and a sheet that does not exist, is
-// model.ErrNotFound (never 403). The ETag is TrickplaySheetETag of the current version; the caller
-// caches it for good only when v names that version.
+// model.ErrNotFound (never 403). The ETag is TrickplaySheetETag of the version of the set that
+// serves the sheet; the caller caches it for good only when v names that version.
 func (s *Service) TrickplaySheet(ctx context.Context, profile model.Profile, itemID, mediaFileID string, n int) (model.StreamSource, string, error) {
 	if s.cacheDir == "" || n < 0 || n > maxTrickplaySheet {
 		return model.StreamSource{}, "", model.ErrNotFound
@@ -168,7 +169,8 @@ func (s *Service) TrickplaySheet(ctx context.Context, profile model.Profile, ite
 	if err != nil {
 		return model.StreamSource{}, "", errors.Join(fmt.Errorf("stat trickplay sheet: %w", err), f.Close())
 	}
-	version := library.TrickplayVersion(v)
+	// The version of the set that serves the sheet (its manifest): a set made again gets new URLs.
+	version, _ := library.TrickplaySetVersionOf(s.cacheDir, loc.File.ID, v)
 	return model.StreamSource{
 		File: f, MediaType: "image/webp", Size: info.Size(), ModTime: info.ModTime().UTC(),
 		Name: itemID + "/trickplay/" + strconv.Itoa(n), ETag: TrickplaySheetETag(version, n),

@@ -26,10 +26,23 @@ func TestTrickplayTileHeight(t *testing.T) {
 		{Stream{Width: 720, Height: 480, SAR: "x"}, 212},
 		{Stream{}, 180},
 		{Stream{Width: 100000, Height: 1}, 2},
+		{Stream{Width: 1920, Height: 1080, SAR: "1:1000"}, TrickplayMaxTileHeight}, // 180 000 px asked
+		{Stream{Width: 1080, Height: 1920}, 568},                                   // portrait 9:16
+		{Stream{Width: 1, Height: 100000}, TrickplayMaxTileHeight},
 	} {
 		if got := TrickplayTileHeight(c.v); got != c.want {
 			t.Errorf("TrickplayTileHeight(%+v) = %d, want %d", c.v, got, c.want)
 		}
+	}
+	// A sheet of the highest tiles stays below the 16 383 px of libwebp; higher tiles are refused.
+	if TrickplayMaxTileHeight*TrickplayRows > 16383 {
+		t.Errorf("a sheet of %d px tiles is %d px high", TrickplayMaxTileHeight, TrickplayMaxTileHeight*TrickplayRows)
+	}
+	if _, err := TrickplaySheetArgs(TrickplayMaxTileHeight+2, 1, "/x.webp"); err == nil {
+		t.Error("TrickplaySheetArgs accepted a tile above the bound")
+	}
+	if _, err := TrickplayFrameArgs("/x.mkv", 0, TrickplayMaxTileHeight+2, Stream{}); err == nil {
+		t.Error("TrickplayFrameArgs accepted a tile above the bound")
 	}
 	if n, d := (Stream{SAR: "4:3"}).SampleAspect(); n != 4 || d != 3 {
 		t.Errorf("SampleAspect = %d:%d", n, d)

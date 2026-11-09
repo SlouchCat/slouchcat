@@ -95,6 +95,9 @@ type Service struct {
 	// TrickplaySheet (test seams; nil outside tests); diskSpace is the statfs of the cache drive.
 	trickplayFrameFn func(ctx context.Context, in string, at time.Duration, height int, v transcode.Stream) ([]byte, error)
 	trickplaySheetFn func(ctx context.Context, tiles [][]byte, height int, out string) error
+	// trickplayProbeFn replaces transcode.Runner.Probe for the sample aspect ratio of a stored probe
+	// without one (test seam; nil outside tests).
+	trickplayProbeFn func(ctx context.Context, in string) (transcode.Probe, error)
 	diskSpace        func(dir string) (total, free int64, err error)
 	// trickplayMu guards trickplayBytes: the bytes of the stored trickplay sets per library and
 	// kind (0 movies, 1 series), counted by the hourly sweep (TrickplayUsage).

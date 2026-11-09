@@ -52,7 +52,7 @@ func TestStartTrickplay(t *testing.T) {
 	}
 
 	// The job wrote the manifest and sheet 0 of the current version.
-	set := filepath.Join(cache, library.TrickplayDir, m.FileID+"-"+tp.Version)
+	set := filepath.Join(cache, library.TrickplayDir, trickplayFolder(m.FileID, tp.Version))
 	if err := os.MkdirAll(set, 0o750); err != nil {
 		t.Fatal(err)
 	}
@@ -127,4 +127,11 @@ func TestStartTrickplay(t *testing.T) {
 	if _, _, err := s.TrickplaySheet(ctx, f.P6, m.ID, m.FileID, 0); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("sheet at off: %v", err)
 	}
+}
+
+// trickplayFolder returns the folder name of the set of a file from the version of the set
+// (library.TrickplaySetVersion "<size>-<mtime>-<source><height>": the folder carries size and mtime).
+func trickplayFolder(fileID, version string) string {
+	parts := strings.SplitN(version, "-", 3)
+	return fileID + "-" + parts[0] + "-" + parts[1]
 }

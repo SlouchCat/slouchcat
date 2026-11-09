@@ -165,7 +165,7 @@ func (w *Worker) run(ctx context.Context, job *Job) {
 	case err != nil:
 		log.Warn("job failed", "err", err, "duration", time.Since(start))
 		ferr = w.queue.Fail(fctx, w.id, job, err)
-		if ferr == nil && job.Attempts >= job.MaxAttempts {
+		if ferr == nil && (job.Attempts >= job.MaxAttempts || isFinal(err)) {
 			for _, fn := range w.onFinalFailure {
 				fn(fctx, *job, err)
 			}

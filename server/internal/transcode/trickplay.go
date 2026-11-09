@@ -29,19 +29,23 @@ const (
 	trickplaySheetQuality = 75
 	// defaultTileHeight is the height of a tile of a stream without dimensions (16:9).
 	defaultTileHeight = 180
+	// TrickplayMaxTileHeight bounds the height of a tile (a portrait of 1:4): a sheet of
+	// TrickplayRows tiles stays below the 16 383 px of libwebp, and a sample aspect ratio of 1:1000
+	// cannot ask for a tile of 180 000 px.
+	TrickplayMaxTileHeight = 1280
 )
 
 // TrickplayTileHeight returns the height of a tile of the video stream v: TrickplayTileWidth
 // divided by the display aspect ratio (width and height of the stream with its sample aspect ratio,
-// so an anamorphic source comes out undistorted), rounded down to an even number, at least 2. A
-// stream without dimensions gets 16:9.
+// so an anamorphic source comes out undistorted), rounded down to an even number, at least 2 and at
+// most TrickplayMaxTileHeight. A stream without dimensions gets 16:9.
 func TrickplayTileHeight(v Stream) int {
 	if v.Width <= 0 || v.Height <= 0 {
 		return defaultTileHeight
 	}
 	num, den := v.SampleAspect()
-	h := TrickplayTileWidth * v.Height * den / (v.Width * num)
-	return max(h/2*2, 2)
+	h := int64(TrickplayTileWidth) * int64(v.Height) * int64(den) / (int64(v.Width) * int64(num))
+	return int(min(max(h/2*2, 2), TrickplayMaxTileHeight))
 }
 
 // SampleAspect returns the sample aspect ratio of a video stream as numerator and denominator
@@ -84,7 +88,7 @@ func BlackTrickplayTile(height int) []byte {
 // tonemapped to BT.709 on the CPU when v is HDR (the chain of GrabFrameArgs), as raw yuv420p on
 // standard output.
 func TrickplayFrameArgs(inPath string, at time.Duration, height int, v Stream) ([]string, error) {
-	if inPath == "" || at < 0 || height <= 0 || height%2 != 0 {
+	if inPath == "" || at < 0 || height <= 0 || height%2 != 0 || height > TrickplayMaxTileHeight {
 		return nil, fmt.Errorf("invalid trickplay frame request: %q at %v, height %d", inPath, at, height)
 	}
 	w, h := strconv.Itoa(TrickplayTileWidth), strconv.Itoa(height)
@@ -107,7 +111,9 @@ func TrickplayFrameArgs(inPath string, at time.Duration, height int, v Stream) (
 // TrickplayFrame returns the tile of the video stream v of the file at inPath at the time point at
 // as raw yuv420p of TrickplayTileWidth x height (TrickplayTileBytes). The frame is the keyframe at
 // or before at; callers seek to a keyframe plus 1 ms (concept 18, 5.4). A time point past the last
-// frame is ErrNoFrame; FrameFailed tells a broken point from a file ffmpeg could not read. Callers
+// frame gives the last keyframe (the input seek without accurate seeking lands there); a run that
+// writes no whole frame is ErrNoFrame. FrameFailed tells a broken point from a file ffmpeg could not
+// read. Callers
 // pass an absolute path resolved through package paths and bound ctx (15 s per point).
 func (r Runner) TrickplayFrame(ctx context.Context, inPath string, at time.Duration, height int, v Stream) ([]byte, error) {
 	args, err := TrickplayFrameArgs(inPath, at, height, v)
@@ -131,7 +137,7 @@ func (r Runner) TrickplayFrame(ctx context.Context, inPath string, at time.Durat
 // TrickplayTileWidth x height from standard input, laid out TrickplayColumns wide and rows high,
 // one WebP (quality 75) to outPath.
 func TrickplaySheetArgs(height, rows int, outPath string) ([]string, error) {
-	if height <= 0 || height%2 != 0 || rows <= 0 || rows > TrickplayRows || outPath == "" {
+	if height <= 0 || height%2 != 0 || height > TrickplayMaxTileHeight || rows <= 0 || rows > TrickplayRows || outPath == "" {
 		return nil, fmt.Errorf("invalid trickplay sheet: height %d, rows %d", height, rows)
 	}
 	return []string{"-nostdin", "-hide_banner", "-loglevel", "error", "-y",

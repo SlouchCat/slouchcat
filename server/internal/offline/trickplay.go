@@ -51,39 +51,16 @@ func (s *Service) queueTrickplay(ctx context.Context, p planned) {
 // copyTrickplay copies the complete set of the source into download id (6.8) and returns its
 // bytes. Without a complete set it queues one and reports wait, until trickplayPatience after the
 // first wait (the marker in the download); then, and for a file that gets no preview (the setting
-// off, no cache directory, an audio title), the download goes on without one.
+// off, no cache directory, an audio title), the download goes on without one. A set that goes
+// while it is copied counts as missing (waitTrickplay).
 func (s *Service) copyTrickplay(ctx context.Context, root *os.Root, id string, p planned) (bytes int64, wait bool, err error) {
 	if s.cacheDir == "" || p.fileID == "" || p.audio {
 		return 0, false, nil
 	}
 	m, ok := library.ReadTrickplayManifest(s.cacheDir, p.fileID, p.version)
 	if !ok {
-		queued, err := library.QueueTrickplayForDownload(context.WithoutCancel(ctx), s.db.Read, s.queue, s.cacheDir, p.fileID)
-		if err != nil {
-			return 0, false, fmt.Errorf("queue trickplay of %s: %w", p.fileID, err)
-		}
-		if !queued {
-			return 0, false, nil
-		}
-		marker := id + "/" + trickplayWaitMarker
-		info, err := root.Stat(marker)
-		if errors.Is(err, fs.ErrNotExist) {
-			if err := root.WriteFile(marker, nil, 0o600); err != nil {
-				return 0, false, fmt.Errorf("mark trickplay wait: %w", err)
-			}
-			return 0, true, nil
-		}
-		if err != nil {
-			return 0, false, fmt.Errorf("trickplay wait marker: %w", err)
-		}
-		if time.Since(info.ModTime()) < trickplayPatience {
-			return 0, true, nil
-		}
-		s.log.InfoContext(ctx, "trickplay not ready after the wait, download without preview", "download_id", id, "media_file_id", p.fileID)
-		_ = root.Remove(marker)
-		return 0, false, nil
+		return s.waitTrickplay(ctx, root, id, p)
 	}
-	_ = root.Remove(id + "/" + trickplayWaitMarker)
 	tmp := id + "/" + trickplayDir + ".tmp"
 	if err := root.RemoveAll(tmp); err != nil {
 		return 0, false, err
@@ -101,11 +78,20 @@ func (s *Service) copyTrickplay(ctx context.Context, root *os.Root, id string, p
 	bytes = int64(len(raw))
 	for n := range m.Sheets() {
 		written, err := s.copySheet(root, tmp, p, n)
+		if errors.Is(err, fs.ErrNotExist) {
+			// The set went while it was copied (the maintenance of the cache, a set made again):
+			// ask for it again and wait as for a missing one.
+			if rerr := root.RemoveAll(tmp); rerr != nil {
+				return 0, false, rerr
+			}
+			return s.waitTrickplay(ctx, root, id, p)
+		}
 		if err != nil {
 			return 0, false, err
 		}
 		bytes += written
 	}
+	_ = root.Remove(id + "/" + trickplayWaitMarker)
 	if err := root.RemoveAll(id + "/" + trickplayDir); err != nil {
 		return 0, false, err
 	}
@@ -113,6 +99,37 @@ func (s *Service) copyTrickplay(ctx context.Context, root *os.Root, id string, p
 		return 0, false, fmt.Errorf("store trickplay of the download: %w", err)
 	}
 	return bytes, false, nil
+}
+
+// waitTrickplay queues the set of the source of download id (copyTrickplay) and reports wait until
+// trickplayPatience after the first wait (the marker in the download); then, and for a file that
+// gets no preview, the download goes on without one.
+func (s *Service) waitTrickplay(ctx context.Context, root *os.Root, id string, p planned) (bytes int64, wait bool, err error) {
+	queued, err := library.QueueTrickplayForDownload(context.WithoutCancel(ctx), s.db.Read, s.queue, s.cacheDir, p.fileID)
+	if err != nil {
+		return 0, false, fmt.Errorf("queue trickplay of %s: %w", p.fileID, err)
+	}
+	marker := id + "/" + trickplayWaitMarker
+	if !queued {
+		_ = root.Remove(marker)
+		return 0, false, nil
+	}
+	info, err := root.Stat(marker)
+	if errors.Is(err, fs.ErrNotExist) {
+		if err := root.WriteFile(marker, nil, 0o600); err != nil {
+			return 0, false, fmt.Errorf("mark trickplay wait: %w", err)
+		}
+		return 0, true, nil
+	}
+	if err != nil {
+		return 0, false, fmt.Errorf("trickplay wait marker: %w", err)
+	}
+	if time.Since(info.ModTime()) < trickplayPatience {
+		return 0, true, nil
+	}
+	s.log.InfoContext(ctx, "trickplay not ready after the wait, download without preview", "download_id", id, "media_file_id", p.fileID)
+	_ = root.Remove(marker)
+	return 0, false, nil
 }
 
 // copySheet copies sheet n of the set of the source into the folder dir of the download.

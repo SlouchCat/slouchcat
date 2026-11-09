@@ -180,7 +180,7 @@ func TestTrickplayStartJob(t *testing.T) {
 		e.int(`SELECT override_pause FROM jobs WHERE type = ?`, JobTrickplay); prio != 9 || win != 1 || pause != 0 {
 		t.Errorf("start job: priority %d, window override %d, pause override %d", prio, win, pause)
 	}
-	if max := e.int(`SELECT max_attempts FROM jobs WHERE type = ?`, JobTrickplay); max != 1 {
+	if max := e.int(`SELECT max_attempts FROM jobs WHERE type = ?`, JobTrickplay); max != trickplayAttempts {
 		t.Errorf("max attempts %d", max)
 	}
 	if _, err := e.run(); err != nil {
@@ -409,8 +409,19 @@ func TestTrickplayAfterProbe(t *testing.T) {
 	if n := e.jobCount(JobTrickplay); n != 0 {
 		t.Errorf("on_start queued %d import jobs", n)
 	}
-	// A stored set of an earlier version: a changed file is queued at a storing setting.
-	if err := os.MkdirAll(filepath.Join(e.cache, TrickplayDir, id+"-1-1"), 0o750); err != nil {
+	// A stored set of an earlier version at «Beim Start» with «Speichern»: an import job would end at
+	// once, so the old set goes now and nothing is queued; the next start makes the set.
+	old := filepath.Join(e.cache, TrickplayDir, id+"-1-1")
+	if err := os.MkdirAll(old, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	e.svc.queueTrickplayAfterProbe(e.ctx, f, item, false)
+	if _, err := os.Stat(old); err == nil || e.jobCount(JobTrickplay) != 0 {
+		t.Errorf("changed file at on_start: old set stays %v, %d jobs", err == nil, e.jobCount(JobTrickplay))
+	}
+	// At «Im Voraus» a changed file is queued.
+	e.setting(model.TrickplayAhead, true)
+	if err := os.MkdirAll(old, 0o750); err != nil {
 		t.Fatal(err)
 	}
 	e.svc.queueTrickplayAfterProbe(e.ctx, f, item, false)
@@ -518,7 +529,8 @@ func TestTrickplaySeriesJob(t *testing.T) {
 }
 
 // The backfill queues files at «Im Voraus» without a complete set, and a complete fallback set
-// once the file has a keyframe index.
+// once the file has a keyframe index: the job makes the index set beside the fallback set, which
+// serves until the new one replaces it under a new version (new sheet URLs).
 func TestTrickplayBackfill(t *testing.T) {
 	t.Parallel()
 	e := newTPEnv(t)
@@ -539,8 +551,33 @@ func TestTrickplayBackfill(t *testing.T) {
 	if err := e.svc.handleTrickplayBackfill(e.ctx, &jobs.Job{}); err != nil {
 		t.Fatal(err)
 	}
-	if n := e.int(`SELECT count(*) FROM jobs WHERE idempotency_key = ? AND state = 'queued'`, trickplayKey(done)); n != 1 || e.setFiles(TrickplayDir, done) != nil {
-		t.Errorf("fallback set: %d jobs, files %v", n, e.setFiles(TrickplayDir, done))
+	before, _, _ := e.status(done)
+	if n := e.int(`SELECT count(*) FROM jobs WHERE idempotency_key = ? AND state = 'queued'`, trickplayKey(done)); n != 1 ||
+		!slices.Contains(e.setFiles(TrickplayDir, done), "complete") {
+		t.Fatalf("fallback set: %d jobs, files %v", n, e.setFiles(TrickplayDir, done))
+	}
+	// While the job makes the index set, the fallback set serves.
+	e.svc.trickplaySheetFn = func(_ context.Context, _ [][]byte, _ int, out string) error {
+		if m, _, state := e.status(done); state != TrickplayComplete || m.Source != TrickplaySourceFallback {
+			t.Errorf("during the rebuild: %q, source %q", state, m.Source)
+		}
+		if !strings.Contains(out, TrickplaySetName(done, e.version(done))+trickplayNextSuffix+"/") {
+			t.Errorf("rebuild writes %s", out)
+		}
+		return os.WriteFile(out, []byte("RIFF"), 0o600)
+	}
+	if _, err := e.run(); err != nil {
+		t.Fatal(err)
+	}
+	after, sheets, state := e.status(done)
+	if state != TrickplayComplete || after.Source != TrickplaySourceIndex || after.Version == before.Version || !slices.Equal(sheets, []int{0}) {
+		t.Errorf("after the rebuild: %q %v, source %q, version %q (was %q)", state, sheets, after.Source, after.Version, before.Version)
+	}
+	if _, err := os.Stat(filepath.Join(e.cache, TrickplayDir, TrickplaySetName(done, e.version(done))+trickplayNextSuffix)); err == nil {
+		t.Error("the folder of the rebuild stays")
+	}
+	if v, ok := TrickplaySetVersionOf(e.cache, done, e.version(done)); !ok || v != after.Version {
+		t.Errorf("set version %q %v, want %q", v, ok, after.Version)
 	}
 }
 

@@ -247,6 +247,14 @@ ORDER BY season, episode, e.id, COALESCE(m.height, 0) DESC, m.created_at, m.id;
 SELECT count(*) FROM jobs
 WHERE type = 'trickplay.generate' AND state = 'queued' AND priority >= @priority AND run_after <= @now;
 
+-- name: TrickplayJobEnded :one
+-- Whether a run of trickplay.generate under @idempotency_key ended (done, failed or cancelled): with
+-- no active job and no complete set, the set of the file ended without being made (state failed).
+SELECT EXISTS (
+    SELECT 1 FROM jobs
+    WHERE type = 'trickplay.generate' AND state IN ('done', 'failed', 'cancelled') AND idempotency_key = @idempotency_key
+);
+
 -- name: CountOpenPlaybacks :one
 -- Playback sessions that are open (neither revoked nor expired): the series look-ahead beyond the
 -- next two episodes runs one ffmpeg process while one exists.

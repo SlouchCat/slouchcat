@@ -26,6 +26,13 @@ func (f *Fixture) SetMediaFile(t testing.TB, fileID, container, videoCodec, audi
 		container, videoCodec, audioCodec, sql.NullString{String: probe, Valid: probe != ""}, keyframes, keyframes, keyframes, fileID)
 }
 
+// SetProbe sets the stored probe of a media file alone (JSON; empty = none, NULL), as the probe of
+// package library would.
+func (f *Fixture) SetProbe(t testing.TB, fileID, probe string) {
+	t.Helper()
+	exec(t, f.DB, `UPDATE media_files SET probe = ? WHERE id = ?`, sql.NullString{String: probe, Valid: probe != ""}, fileID)
+}
+
 // SetKeyframes sets the keyframe index of a media file as a writer of package library would:
 // blob, source (empty = none yet, NULL) and time (Unix ms, 0 = NULL).
 func (f *Fixture) SetKeyframes(t testing.TB, fileID string, blob []byte, source string, at int64) {

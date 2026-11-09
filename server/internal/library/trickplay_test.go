@@ -64,7 +64,7 @@ func TestTrickplayGrid(t *testing.T) {
 	// Keyframes every 4.4 s on average, one gap of 25 s (20.0 → 45.0).
 	kf := ms(0, 4400, 9999, 12000, 20000, 45000, 47000, 51000)
 	m := TrickplayGrid(55_000, kf, v, "1-2")
-	if m.Source != TrickplaySourceIndex || m.TileWidth != 320 || m.TileHeight != 132 || m.Columns != 10 || m.Rows != 10 || m.IntervalMs != 10_000 || m.Version != "1-2" {
+	if m.Source != TrickplaySourceIndex || m.TileWidth != 320 || m.TileHeight != 132 || m.Columns != 10 || m.Rows != 10 || m.IntervalMs != 10_000 || m.Version != "1-2-index132" {
 		t.Errorf("grid %+v", m)
 	}
 	wantPoints := []int64{0, 12000, 20000, 20000, 45000, 51000}

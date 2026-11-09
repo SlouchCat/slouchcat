@@ -694,10 +694,10 @@ export interface paths {
          *     order, and shows the time `pointsMs[k]`. The handler resolves the file of the title through the
          *     scope of the active profile: an unknown, invisible or age-restricted title, a `mediaFileId` that
          *     is no ULID or no file of this title, a `sheet` that is no decimal number and a sheet that does not
-         *     exist answer 404, never 403. `v` is the version of the set (`Trickplay.version`, size and mtime
-         *     of the file): a `v` of the file's current version answers with `ETag` (the version and the sheet
-         *     in quotes) and `Cache-Control: private, max-age=31536000, immutable`; another or no `v` serves
-         *     the sheet of the current version with `Cache-Control: private, no-cache`.
+         *     exist answer 404, never 403. `v` is the version of the set (`Trickplay.version`): a `v` of the
+         *     current set answers with `ETag` (the version and the sheet in quotes) and `Cache-Control: private,
+         *     max-age=31536000, immutable`; another or no `v` serves the sheet of the current set with
+         *     `Cache-Control: private, no-cache`.
          */
         get: operations["getTrickplaySheet"];
         put?: never;
@@ -6883,7 +6883,11 @@ export interface components {
          *     exist now, in any order (the job makes the sheet of the start position first).
          */
         Trickplay: {
-            /** @description Version of the set, `<size>-<mtime>` of the media file; the `v` of the sheet URLs. */
+            /**
+             * @description Version of the set, `<size>-<mtime>-<source><tileHeight>`: size and mtime of the media file,
+             *     the source of the points (`index` or `fallback`) and the tile height, so a set made again
+             *     gets new sheet URLs. The `v` of the sheet URLs; the client treats it as opaque.
+             */
             version: string;
             /**
              * @description `queued`: the job waits (or the set is not started); `running`: it makes sheets now;
