@@ -15,7 +15,12 @@ import { AriaButton } from './AriaButton';
 import { focusLost } from './focusAfter';
 import type { IconName } from './Icon';
 import styles from './PlayerChrome.module.css';
-import { SeekBar, type SeekBarChapter, type SeekBarSegment } from './SeekBar';
+import {
+  SeekBar,
+  type SeekBarChapter,
+  type SeekBarSegment,
+  type SeekBarTrickplay,
+} from './SeekBar';
 import { TitleOrLogo } from './TitleOrLogo';
 import { VolumeControl } from './VolumeControl';
 
@@ -344,6 +349,10 @@ interface PlayerChromeProps {
   chapters?: readonly SeekBarChapter[];
   segments?: { intro?: SeekBarSegment; outro?: SeekBarSegment };
   onSeek: (ms: number) => void;
+  /** Preview tiles of the timeline (concept 18 part A); absent: chapter images as before. */
+  trickplay?: SeekBarTrickplay;
+  /** Counts the seeks by key (←/→): the timeline shows the preview of each new position. */
+  keySeeks?: number;
   /** Shift+←/→ on the timeline. */
   onPreviousChapter?: () => void;
   onNextChapter?: () => void;
@@ -434,6 +443,8 @@ export function PlayerChrome({
   chapters,
   segments,
   onSeek,
+  trickplay,
+  keySeeks,
   onPreviousChapter,
   onNextChapter,
   onTimelineUp,
@@ -735,6 +746,8 @@ export function PlayerChrome({
         segments={segments}
         onPreviousChapter={onPreviousChapter}
         onNextChapter={onNextChapter}
+        trickplay={trickplay}
+        keySeeks={keySeeks}
       />
     </div>
   );

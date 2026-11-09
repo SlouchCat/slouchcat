@@ -49,6 +49,7 @@ import { useFullscreen } from './useFullscreen';
 import { usePlayerKeys } from './usePlayerKeys';
 import { usePlayerPrefs } from './usePlayerPrefs';
 import { useSubtitleStyle } from './useSubtitleStyle';
+import { useTrickplay } from './useTrickplay';
 import { SubtitleLayer, useSubtitleCues } from './SubtitleLayer';
 import { useProgressReporter } from './useProgressReporter';
 import { lowerQuality, useSlowConnection } from './useSlowConnection';
@@ -464,6 +465,22 @@ export function VideoPlayer({
     },
     [seekTo],
   );
+  // ←/→: the timeline shows the preview of each new position for a moment (concept 18, 9).
+  const [keySeeks, setKeySeeks] = useState(0);
+  const seekByKey = useCallback(
+    (seconds: number) => {
+      seekBy(seconds);
+      setKeySeeks((count) => count + 1);
+    },
+    [seekBy],
+  );
+  // The preview tiles: the start's answer, asked again while the server makes them.
+  const trickplay = useTrickplay({
+    itemId: info.item.id,
+    mediaFileId: info.mediaFile.id,
+    playbackSessionId: info.playbackSessionId,
+    initial: info.trickplay,
+  });
 
   // Up to 150 % and night mode through Web Audio, except in Safari (11.15).
   const { volume, webAudio, nightMode, setNightMode, changeVolume, toggleMute } = useBoostedVolume(
@@ -659,7 +676,7 @@ export function VideoPlayer({
     leaving,
     actions: {
       togglePlay,
-      seekBy,
+      seekBy: seekByKey,
       seekTo,
       changeVolume,
       changeRate,
@@ -1236,6 +1253,8 @@ export function VideoPlayer({
         chapters={chapters}
         segments={info.segments}
         onSeek={seekTo}
+        trickplay={trickplay}
+        keySeeks={keySeeks}
         onPreviousChapter={hasChapters ? previousChapter : undefined}
         onNextChapter={hasChapters ? nextChapter : undefined}
         onTimelineUp={() => {

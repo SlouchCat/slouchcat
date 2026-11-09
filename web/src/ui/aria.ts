@@ -84,7 +84,12 @@ export {
   type PlayerChromeTab,
 } from './PlayerChrome';
 export { PlayerPanel } from './PlayerPanel';
-export { SeekBar, type SeekBarChapter, type SeekBarSegment } from './SeekBar';
+export {
+  SeekBar,
+  type SeekBarChapter,
+  type SeekBarSegment,
+  type SeekBarTrickplay,
+} from './SeekBar';
 export { BOOST_MAX, clampVolume, VOLUME_STEP, VolumeControl } from './VolumeControl';
 // Building blocks of the administration pages (concept 12, 11.2).
 export { ActionMenu, type ActionMenuItem } from './ActionMenu';

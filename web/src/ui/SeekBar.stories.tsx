@@ -79,18 +79,72 @@ const pointAt =
  */
 export const Preview: Story = { args: { chapters }, play: pointAt(0.3) };
 
+/** Room above the bar for a field with a picture. */
+const roomForPicture = (Story: () => React.JSX.Element) => (
+  <div style={{ paddingTop: '6rem' }}>
+    <Story />
+  </div>
+);
+
 /**
  * Stage 3: the chapters have images, and the field shows the image of the chapter under the
  * pointer («Los Angeles») above the time and the name.
  */
 export const PreviewImage: Story = {
   args: { chapters: chapters.map((chapter) => ({ ...chapter, imageUrl: art.backdropDusk })) },
-  decorators: [
-    (Story) => (
-      <div style={{ paddingTop: '6rem' }}>
-        <Story />
-      </div>
-    ),
-  ],
+  decorators: [roomForPicture],
+  play: pointAt(0.4),
+};
+
+/**
+ * A drawn sheet of 10 x 10 tiles of 320 x 180 (no film frames): each tile its own hue, with a
+ * lighter band whose place moves with the tile, so the right cut-out is visible.
+ */
+function drawnSheet(rows: number): string {
+  const tiles = Array.from({ length: rows * 10 }, (_, k) => {
+    const x = (k % 10) * 320;
+    const y = Math.floor(k / 10) * 180;
+    return (
+      `<rect x='${x}' y='${y}' width='320' height='180' fill='hsl(${(k * 37) % 360} 45% 32%)'/>` +
+      `<rect x='${x + 20 + (k % 10) * 26}' y='${y + 30}' width='24' height='120' fill='hsl(${(k * 37) % 360} 60% 70%)'/>`
+    );
+  }).join('');
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3200 ${rows * 180}'>${tiles}</svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+// Two hours, a point every 10 s: 720 tiles on eight sheets, the last with 2 rows.
+const trickplay = {
+  tileWidth: 320,
+  tileHeight: 180,
+  columns: 10,
+  rows: 10,
+  pointsMs: Array.from({ length: 720 }, (_, k) => k * 10_000),
+  sheets: Array.from({ length: 8 }, (_, index) => ({
+    index,
+    url: drawnSheet(index === 7 ? 2 : 10),
+  })),
+};
+
+/**
+ * Concept 18 part A: the field shows the preview tile of the position (here 0:48:00, tile 288 on
+ * sheet 2) above the time and the chapter, in the tile's aspect ratio.
+ */
+export const PreviewTile: Story = {
+  args: { chapters, trickplay },
+  decorators: [roomForPicture],
+  play: pointAt(0.4),
+};
+
+/**
+ * While the set is made, a sheet that is not there yet shows the chapter image in the box of the
+ * tiles, so the field keeps its height (2.40:1 here).
+ */
+export const PreviewTilePending: Story = {
+  args: {
+    chapters: chapters.map((chapter) => ({ ...chapter, imageUrl: art.backdropDusk })),
+    trickplay: { ...trickplay, tileHeight: 134, sheets: [] },
+  },
+  decorators: [roomForPicture],
   play: pointAt(0.4),
 };
