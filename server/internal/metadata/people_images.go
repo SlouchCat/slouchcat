@@ -41,9 +41,10 @@ import (
 // while open work is left that did not fail in this run (a match or the backfill meanwhile; a new
 // job would be swallowed by the running one), at most peopleImagesPasses passes in all.
 //
-// The job is queued after a match that wrote credits or a collection (applyTitle) and at the end
-// of QueuePendingMetadata when something is open, so the first full scan after the update fetches
-// the whole stock. people.images_backfill is a schedule type without a handler (off by default):
+// The job is queued after a match that wrote credits or a collection (applyTitle) when something
+// is open, and at the end of QueuePendingMetadata when something is open or a sample of the stored
+// files is gone (a restore, a wiped cache), so the first full scan after the update fetches the
+// whole stock. people.images_backfill is a schedule type without a handler (off by default):
 // it deletes the 'missing' rows and queues people.images, the button «Jetzt ausführen» of the
 // jobs page.
 const (
@@ -62,6 +63,8 @@ const (
 	peopleImagesPasses = 3
 	// peopleImagesMissingAge is how long a failed fetch ('missing') stands before a run asks again.
 	peopleImagesMissingAge = 30 * 24 * time.Hour
+	// peopleImagesSample is how many 'ok' rows per table QueuePeopleImages looks for on disk.
+	peopleImagesSample = 8
 
 	peopleImagesDir      = "people"
 	collectionImagesDir  = "collections"
@@ -84,15 +87,52 @@ func (s *Service) enqueuePeopleImages(ctx context.Context, q *jobs.Queue, prio i
 	return id, nil
 }
 
-// QueuePeopleImages queues people.images when a person or a collection is open and reports
-// whether it did (QueuePendingMetadata, after every full scan).
+// QueuePeopleImages queues people.images when a person or a collection is open, or when a sample
+// of the stored files is gone (peopleImagesLost), and reports whether it did
+// (QueuePendingMetadata, after every full scan). The run brings the lost files back, so the next
+// call finds them and queues nothing.
 func (s *Service) QueuePeopleImages(ctx context.Context) (bool, error) {
 	open, err := s.peopleImagesLeft(ctx, nil)
+	if err == nil && !open {
+		open, err = s.peopleImagesLost(ctx)
+	}
 	if err != nil || !open {
 		return false, err
 	}
 	_, err = s.enqueuePeopleImages(ctx, s.queue, peopleImagesPriority)
 	return err == nil, err
+}
+
+// peopleImagesLost reports whether a file of up to peopleImagesSample 'ok' rows per table, taken
+// at random among the candidates, is gone: a restore or a wiped cache leaves rows that the open
+// listings take as done, while a run fetches them again (imageSubject.pending).
+func (s *Service) peopleImagesLost(ctx context.Context) (bool, error) {
+	if s.cacheE != nil {
+		return false, nil // no cache, no run
+	}
+	people, err := s.read.SampleStoredPersonImages(ctx, peopleImagesSample)
+	if err != nil {
+		return false, fmt.Errorf("sample person images: %w", err)
+	}
+	colls, err := s.read.SampleStoredCollectionImages(ctx, peopleImagesSample)
+	if err != nil {
+		return false, fmt.Errorf("sample collection images: %w", err)
+	}
+	if len(people)+len(colls) == 0 {
+		return false, nil
+	}
+	root, err := paths.Open(s.cache)
+	if err != nil {
+		return false, fmt.Errorf("open image cache: %w", err)
+	}
+	defer root.Close()
+	exists := rootExists(root)
+	for _, rel := range append(people, colls...) {
+		if !exists(rel.String) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // runPeopleImagesBackfill is the Run of people.images_backfill: it deletes the 'missing' rows of

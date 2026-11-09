@@ -317,7 +317,8 @@ type ListPersonImageCandidatesRow struct {
 // not deleted, or when it has rows but no poster_path. A candidate is open when it has no path
 // (rows to drop), no JPEG row of the current path, a 'missing' row older than @missing_before, or
 // an 'ok' JPEG row without a WebP row of the same path. An 'ok' row whose file is gone is open as
-// well; the job sees that through the file system, not here. The open condition is written out in
+// well; the job sees that through the file system, not here (QueuePeopleImages samples the files
+// through SampleStored*Images). The open condition is written out in
 // both the candidate listing (column is_open) and the open listing; keep them equal.
 // The candidates by id after the cursor @after_id, @limit_count at a time, with the JPEG and WebP
 // rows they have.
@@ -341,6 +342,79 @@ func (q *Queries) ListPersonImageCandidates(ctx context.Context, arg ListPersonI
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const sampleStoredCollectionImages = `-- name: SampleStoredCollectionImages :many
+SELECT cimg.rel_path
+FROM collection_images AS cimg
+JOIN collections AS c ON c.id = cimg.collection_id
+WHERE cimg.status = 'ok' AND cimg.rel_path IS NOT NULL AND c.source = 'tmdb' AND c.poster_path IS NOT NULL
+  AND EXISTS (SELECT 1 FROM collection_items AS ci JOIN items AS i ON i.id = ci.item_id
+              WHERE ci.collection_id = c.id AND i.deleted_at IS NULL)
+ORDER BY random()
+LIMIT ?1
+`
+
+// The files of up to @limit_count 'ok' rows of collection candidates with a path, at random (like
+// SampleStoredPersonImages).
+func (q *Queries) SampleStoredCollectionImages(ctx context.Context, limitCount int64) ([]sql.NullString, error) {
+	rows, err := q.db.QueryContext(ctx, sampleStoredCollectionImages, limitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []sql.NullString{}
+	for rows.Next() {
+		var rel_path sql.NullString
+		if err := rows.Scan(&rel_path); err != nil {
+			return nil, err
+		}
+		items = append(items, rel_path)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const sampleStoredPersonImages = `-- name: SampleStoredPersonImages :many
+SELECT pi.rel_path
+FROM person_images AS pi
+JOIN people AS p ON p.id = pi.person_id
+WHERE pi.status = 'ok' AND pi.rel_path IS NOT NULL AND p.profile_path IS NOT NULL
+  AND EXISTS (SELECT 1 FROM credits AS c JOIN items AS i ON i.id = c.item_id
+              WHERE c.person_id = p.id AND i.deleted_at IS NULL)
+ORDER BY random()
+LIMIT ?1
+`
+
+// The files of up to @limit_count 'ok' rows of candidates with a path, at random: QueuePeopleImages
+// looks for them on disk, since a restore or a wiped cache leaves rows that the open listing takes
+// as done.
+func (q *Queries) SampleStoredPersonImages(ctx context.Context, limitCount int64) ([]sql.NullString, error) {
+	rows, err := q.db.QueryContext(ctx, sampleStoredPersonImages, limitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []sql.NullString{}
+	for rows.Next() {
+		var rel_path sql.NullString
+		if err := rows.Scan(&rel_path); err != nil {
+			return nil, err
+		}
+		items = append(items, rel_path)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

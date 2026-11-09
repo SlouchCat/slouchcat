@@ -954,9 +954,14 @@ func (s *Service) applyTitle(ctx context.Context, snap systemq.Item, rec TitleRe
 		}
 	}
 	if (!locked["cast"] && len(rec.Credits) > 0) || (cur.Kind == "movie" && rec.Collection != nil && rec.Collection.TMDBID > 0) {
-		// New people or a collection may want their images (ADR 0026); the key makes one job.
-		if _, err := s.enqueuePeopleImages(ctx, s.queue, peopleImagesPriority); err != nil {
-			return snap, false, fmt.Errorf("metadata.match: %w", err)
+		// New people or a collection may want their images (ADR 0026); the key makes one job. The
+		// match is stored: a failure here leaves the images to the next full scan.
+		if open, err := s.peopleImagesLeft(ctx, nil); err != nil {
+			s.log.Warn("person and collection images after a match: check failed", "item_id", itemID, "err", err)
+		} else if open {
+			if _, err := s.enqueuePeopleImages(ctx, s.queue, peopleImagesPriority); err != nil {
+				s.log.Warn("person and collection images after a match: queue failed", "item_id", itemID, "err", err)
+			}
 		}
 	}
 	written := cur

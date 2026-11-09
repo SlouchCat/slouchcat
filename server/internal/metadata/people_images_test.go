@@ -588,8 +588,73 @@ func TestPeopleImagesStopsOnCancel(t *testing.T) {
 	}
 }
 
-// A match that writes credits queues one people.images, however many matches follow; so does a
-// series match, and QueuePendingMetadata when something is open.
+// An 'ok' row whose file is gone (a restore, a wiped cache) is not open in the listings, yet
+// QueuePeopleImages queues a run for it, which fetches the file again; once the files are back it
+// queues nothing. A lost file of a subject that is no candidate queues nothing either.
+func TestPeopleImagesQueuedForLostFiles(t *testing.T) {
+	t.Parallel()
+	e, cdn := newPeopleEnv(t)
+	cdn.set("/t/p/w185/p1.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
+	cdn.set("/t/p/w500/c1.jpg", cdnAnswer{data: jpegBytes(t, 500, 750)})
+	e.addPerson(t, 1, "/p1.jpg", itemLive)
+	e.addCollection(t, collTMDB, "tmdb", "/c1.jpg", itemLive)
+	if _, err := e.runPeopleImages(t); err != nil {
+		t.Fatal(err)
+	}
+	queue := func(name string, want bool) {
+		t.Helper()
+		if got, err := e.svc.QueuePeopleImages(t.Context()); err != nil || got != want {
+			t.Fatalf("%s: QueuePeopleImages = %v, %v; want %v", name, got, err, want)
+		}
+	}
+	queue("files in place", false)
+	for _, c := range []struct {
+		name, rel string
+	}{
+		{"cache wiped", ""}, // its content; the directory stays
+		{"collection files gone", "collections"},
+		{"person WebP gone", "people/1/w185.webp"},
+	} {
+		gone := []string{filepath.Join(e.cache, filepath.FromSlash(c.rel))}
+		if c.rel == "" {
+			entries, err := os.ReadDir(e.cache)
+			if err != nil {
+				t.Fatal(err)
+			}
+			gone = gone[:0]
+			for _, en := range entries {
+				gone = append(gone, filepath.Join(e.cache, en.Name()))
+			}
+		}
+		for _, g := range gone {
+			if err := os.RemoveAll(g); err != nil {
+				t.Fatal(err)
+			}
+		}
+		queue(c.name, true)
+		if n := e.peopleImageJobs(t); n != 1 {
+			t.Errorf("%s: %d people.images jobs, want 1", c.name, n)
+		}
+		if _, err := e.runPeopleImages(t); err != nil {
+			t.Fatal(err)
+		}
+		for _, rel := range []string{"people/1/w185.jpg", "people/1/w185.webp", "collections/" + collTMDB + "/w400.jpg", "collections/" + collTMDB + "/w400.webp"} {
+			if !e.cacheFile(rel) {
+				t.Errorf("%s: %s not fetched again", c.name, rel)
+			}
+		}
+		queue(c.name+", fetched again", false)
+	}
+	// The person's only title is deleted: no candidate, its lost file is left alone.
+	mustExec(t, e.db.Write, `UPDATE items SET deleted_at = 1 WHERE id = ?`, itemLive)
+	if err := os.RemoveAll(filepath.Join(e.cache, "people")); err != nil {
+		t.Fatal(err)
+	}
+	queue("no candidate", false)
+}
+
+// A match that writes credits queues one people.images, however many matches follow, and none
+// when nothing is open; so does a series match, and QueuePendingMetadata when something is open.
 func TestPeopleImagesQueuedByMatch(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, goodToken)
@@ -605,6 +670,18 @@ func TestPeopleImagesQueuedByMatch(t *testing.T) {
 	var prio int
 	if err := e.db.Read.QueryRow(`SELECT priority FROM jobs WHERE type = ?`, JobPeopleImages).Scan(&prio); err != nil || prio != peopleImagesPriority {
 		t.Errorf("priority %d (%v), want %d", prio, err, peopleImagesPriority)
+	}
+	// Nothing open after a match (every portrait and poster has a fresh 'missing' row): no job.
+	mustExec(t, e.db.Write, `DELETE FROM jobs WHERE type = ?`, JobPeopleImages)
+	mustExec(t, e.db.Write, `INSERT INTO person_images (person_id, format, status, source, size, fetched_at)
+		SELECT id, 'jpeg', 'missing', profile_path, 'w185', ? FROM people WHERE profile_path IS NOT NULL`, testNow.UnixMilli())
+	mustExec(t, e.db.Write, `INSERT INTO collection_images (collection_id, format, status, source, size, fetched_at)
+		SELECT id, 'jpeg', 'missing', poster_path, 'w400', ? FROM collections WHERE poster_path IS NOT NULL`, testNow.UnixMilli())
+	if err := e.svc.match(t.Context(), idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.peopleImageJobs(t); n != 0 {
+		t.Errorf("%d people.images jobs after a match with nothing open, want 0", n)
 	}
 
 	s := newEnv(t, goodToken)

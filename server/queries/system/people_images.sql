@@ -7,7 +7,8 @@
 -- not deleted, or when it has rows but no poster_path. A candidate is open when it has no path
 -- (rows to drop), no JPEG row of the current path, a 'missing' row older than @missing_before, or
 -- an 'ok' JPEG row without a WebP row of the same path. An 'ok' row whose file is gone is open as
--- well; the job sees that through the file system, not here. The open condition is written out in
+-- well; the job sees that through the file system, not here (QueuePeopleImages samples the files
+-- through SampleStored*Images). The open condition is written out in
 -- both the candidate listing (column is_open) and the open listing; keep them equal.
 
 -- name: ListPersonImageCandidates :many
@@ -56,6 +57,19 @@ WHERE ((p.profile_path IS NOT NULL
        OR (pj.status = 'missing' AND pj.fetched_at < @missing_before)
        OR (pj.status = 'ok' AND (pw.person_id IS NULL OR pw.source <> p.profile_path)))
 ORDER BY p.id
+LIMIT @limit_count;
+
+-- name: SampleStoredPersonImages :many
+-- The files of up to @limit_count 'ok' rows of candidates with a path, at random: QueuePeopleImages
+-- looks for them on disk, since a restore or a wiped cache leaves rows that the open listing takes
+-- as done.
+SELECT pi.rel_path
+FROM person_images AS pi
+JOIN people AS p ON p.id = pi.person_id
+WHERE pi.status = 'ok' AND pi.rel_path IS NOT NULL AND p.profile_path IS NOT NULL
+  AND EXISTS (SELECT 1 FROM credits AS c JOIN items AS i ON i.id = c.item_id
+              WHERE c.person_id = p.id AND i.deleted_at IS NULL)
+ORDER BY random()
 LIMIT @limit_count;
 
 -- name: UpsertPersonImage :exec
@@ -120,6 +134,18 @@ WHERE ((c.source = 'tmdb' AND c.poster_path IS NOT NULL
        OR (cj.status = 'missing' AND cj.fetched_at < @missing_before)
        OR (cj.status = 'ok' AND (cw.collection_id IS NULL OR cw.source <> c.poster_path)))
 ORDER BY c.id
+LIMIT @limit_count;
+
+-- name: SampleStoredCollectionImages :many
+-- The files of up to @limit_count 'ok' rows of collection candidates with a path, at random (like
+-- SampleStoredPersonImages).
+SELECT cimg.rel_path
+FROM collection_images AS cimg
+JOIN collections AS c ON c.id = cimg.collection_id
+WHERE cimg.status = 'ok' AND cimg.rel_path IS NOT NULL AND c.source = 'tmdb' AND c.poster_path IS NOT NULL
+  AND EXISTS (SELECT 1 FROM collection_items AS ci JOIN items AS i ON i.id = ci.item_id
+              WHERE ci.collection_id = c.id AND i.deleted_at IS NULL)
+ORDER BY random()
 LIMIT @limit_count;
 
 -- name: UpsertCollectionImage :exec
