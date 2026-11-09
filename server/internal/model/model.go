@@ -1797,6 +1797,15 @@ type LibraryFacets struct {
 	Letters []string   // present initial letters of the filtered set, A..Z then #
 	Genres  []GenreRef // genres with visible titles in the library, most frequent first
 	Ratings []int      // present ratings at or below the profile ceiling, ascending
+	// LetterStarts are the offsets of the first title of each initial letter in the active
+	// direction, only with sort title at offset 0 (nil otherwise; concept 17 section 6).
+	LetterStarts []LetterStart
+}
+
+// LetterStart is the offset of the first title of an initial letter (contract LetterStart).
+type LetterStart struct {
+	Letter string // A..Z or #
+	Offset int
 }
 
 // LibraryPage is one page of a library with its facets (contract LibraryItemsPage).

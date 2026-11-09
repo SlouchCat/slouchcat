@@ -270,7 +270,8 @@ func validateLibraryQuery(q model.LibraryQuery) (libraryFilter, *model.Validatio
 // MaxRating lowers the ceiling of visible_items for this page (an unknown rating never passes
 // it). Facets: the letters of the filtered set without the letter filter (A..Z, then #), the
 // genres of the library's visible top-level titles in the profile language and their known
-// ratings, all at or below the profile's ceiling.
+// ratings, all at or below the profile's ceiling; on the first page sorted by title also the
+// letter starts of the filtered set (letterStarts, concept 17 section 6).
 func (r *Reader) LibraryItems(ctx context.Context, s Scope, libraryID int64, q model.LibraryQuery) (model.LibraryPage, error) {
 	pid, err := r.profile(ctx, s)
 	if err != nil {
@@ -329,6 +330,15 @@ func (r *Reader) LibraryItems(ctx context.Context, s Scope, libraryID int64, q m
 		return model.LibraryPage{}, fmt.Errorf("library letters: %w", err)
 	}
 	out.Facets.Letters = sortLetters(firsts)
+	if f.Sort == model.LibrarySortTitle && f.Offset == 0 {
+		keys := libraryStmt(s, pid, libraryID, f, "SELECT sort_key FROM lib WHERE 1", true)
+		keys.add(" ORDER BY " + libraryOrderBy(f))
+		sortKeys, err := textColumn(ctx, tx, keys.sql.String(), keys.args...)
+		if err != nil {
+			return model.LibraryPage{}, fmt.Errorf("library letter starts: %w", err)
+		}
+		out.Facets.LetterStarts = letterStarts(sortKeys)
+	}
 	qtx := r.q.WithTx(tx)
 	genres, err := qtx.ListLibraryGenres(ctx, scopedq.ListLibraryGenresParams{ProfileID: pid, Lang: s.metaLang, LibraryID: libraryID})
 	if err == nil && len(genres) == 0 && s.metaLang != s.language {
@@ -574,5 +584,18 @@ func sortLetters(firsts []string) []string {
 		}
 		return strings.Compare(a, b)
 	})
+	return out
+}
+
+// letterStarts returns one entry per change of the letter (model.SortLetter, the source of the
+// letter bar) along sort keys in page order, with the offset of the first key of that letter.
+// # can start twice: digits and punctuation sort before a, other characters after z.
+func letterStarts(sortKeys []string) []model.LetterStart {
+	out := []model.LetterStart{}
+	for i, k := range sortKeys {
+		if l := model.SortLetter(k); len(out) == 0 || out[len(out)-1].Letter != l {
+			out = append(out, model.LetterStart{Letter: l, Offset: i})
+		}
+	}
 	return out
 }
