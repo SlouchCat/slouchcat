@@ -18,7 +18,16 @@
   align-items: flex-start;
 }
 
+/* The portrait left of the name; the name wraps beside it on a narrow screen. */
+.identity {
+  display: flex;
+  gap: var(--sc-space-5);
+  align-items: center;
+  min-width: 0;
+}
+
 .name {
+  min-width: 0;
   font-size: clamp(var(--sc-font-size-2xl), 4.5vw, var(--sc-font-size-display));
   font-weight: var(--sc-font-weight-bold);
   line-height: var(--sc-font-line-height-tight);
