@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
 
@@ -741,5 +743,49 @@ func TestTMDBImagePath(t *testing.T) {
 		if got := tmdbImagePath(p); got != want {
 			t.Errorf("tmdbImagePath(%q) = %v, want %v", p, got, want)
 		}
+	}
+}
+
+// The image host's redirects are followed only to https on the same host (L-4): another host and
+// plain http stop at the 3xx answer, an error that is not ErrTMDBUnreachable (a 'missing' row).
+func TestDownloadCDNImageRedirects(t *testing.T) {
+	t.Parallel()
+	var otherHits sync.Map
+	other := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		otherHits.Store(r.URL.Path, true)
+		_, _ = w.Write(jpegBytes(t, 10, 10))
+	}))
+	t.Cleanup(other.Close)
+	cdn := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/t/p/w185/real.jpg":
+			w.Header().Set("Content-Type", "image/jpeg")
+			_, _ = w.Write(jpegBytes(t, 10, 10))
+		case "/t/p/w185/same.jpg":
+			http.Redirect(w, r, "/t/p/w185/real.jpg", http.StatusFound)
+		case "/t/p/w185/other.jpg":
+			http.Redirect(w, r, other.URL+"/t/p/w185/real.jpg", http.StatusFound)
+		case "/t/p/w185/plain.jpg":
+			http.Redirect(w, r, "http://"+r.Host+"/t/p/w185/real.jpg", http.StatusMovedPermanently)
+		case "/t/p/w185/loop.jpg":
+			http.Redirect(w, r, "/t/p/w185/loop.jpg", http.StatusFound)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(cdn.Close)
+	c := NewClient(cdn.URL, cdn.URL+"/t/p", cdn.Client())
+	data, mediaType, err := c.DownloadCDNImage(t.Context(), "w185", "/same.jpg")
+	if err != nil || mediaType != "image/jpeg" || len(data) == 0 {
+		t.Fatalf("same-host https redirect = %d bytes, %q, %v; want the image", len(data), mediaType, err)
+	}
+	for _, p := range []string{"/other.jpg", "/plain.jpg", "/loop.jpg"} {
+		data, _, err := c.DownloadCDNImage(t.Context(), "w185", p)
+		if err == nil || errors.Is(err, model.ErrTMDBUnreachable) || errors.Is(err, ErrNotFound) || data != nil {
+			t.Errorf("%s: %d bytes, %v; want a stopped redirect", p, len(data), err)
+		}
+	}
+	if _, hit := otherHits.Load("/t/p/w185/real.jpg"); hit {
+		t.Error("redirect to another host followed")
 	}
 }

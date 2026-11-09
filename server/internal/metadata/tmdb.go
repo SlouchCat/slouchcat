@@ -31,6 +31,8 @@ const (
 	// thousands of portraits does not take the requests of the matches.
 	cdnRate  = 10
 	cdnBurst = 10
+	// maxCDNRedirects bounds the same-host redirects of DownloadCDNImage (cdnRedirect).
+	maxCDNRedirects = 5
 )
 
 // Languages fetched for every title (B-3).
@@ -403,7 +405,8 @@ func (c *Client) DownloadURL(ctx context.Context, rawURL string) (body io.ReadCl
 }
 
 // DownloadCDNImage fetches the TMDB image path in size (w185, w500) from the image host without
-// credentials, through the CDN limiter instead of the API limiter (people.images, ADR 0026). It
+// credentials, through the CDN limiter instead of the API limiter (people.images, ADR 0026),
+// following redirects only to https on the same host (cdnRedirect). It
 // reads the whole answer (at most maxImageBytes) and returns it with the media type of its
 // Content-Type. A network error, a timeout, 429 after the retries and 5xx are
 // model.ErrTMDBUnreachable; every other error (a 404 is ErrNotFound, another 4xx, an answer above
@@ -414,7 +417,9 @@ func (c *Client) DownloadCDNImage(ctx context.Context, size, path string) ([]byt
 		return nil, "", fmt.Errorf("image request: %w", err)
 	}
 	logRequest(c.log, ProviderTMDB, req)
-	resp, err := c.cdn.Do(ctx, c.http, req)
+	hc := *c.http // the same transport and timeout; only the redirects differ
+	hc.CheckRedirect = cdnRedirect
+	resp, err := c.cdn.Do(ctx, &hc, req)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, "", ctxErr
@@ -437,6 +442,16 @@ func (c *Client) DownloadCDNImage(ctx context.Context, size, path string) ([]byt
 	}
 	mediaType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 	return data, mediaType, nil
+}
+
+// cdnRedirect follows a redirect of the image host only to https on the same host, at most
+// maxCDNRedirects times. Any other redirect stops there: its 3xx answer is the result, an error that
+// comes again the same way.
+func cdnRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) >= maxCDNRedirects || req.URL.Scheme != "https" || req.URL.Host != via[0].URL.Host {
+		return http.ErrUseLastResponse
+	}
+	return nil
 }
 
 // imageURL is the public URL of an image; it carries no secret and is stored as source_url.
