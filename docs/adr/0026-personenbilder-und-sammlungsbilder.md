@@ -46,13 +46,19 @@ Historie und ohne dass ein Sammlungsposter einem Kinderprofil einen verborgenen 
      bzw. eine TMDB-Sammlung mit `poster_path` und einem nicht gelöschten Mitglied, wenn keine Zeile
      zum aktuellen Pfad besteht, die `missing`-Zeile älter als 30 Tage ist oder die Datei einer
      `ok`-Zeile fehlt (geprüft in jedem Lauf). Ohne Pfad gehen Zeilen und Dateien.
-   - **Fehler:** Nur 404 oder eine leere bzw. nicht lesbare Antwort ergibt `missing`. 5xx, 429 nach
-     den Wiederholungen, Zeitüberschreitung und ein ffmpeg-Fehler schreiben nichts; drei in Folge
-     beenden den Lauf mit Fehler, die Warteschlange wiederholt ihn nach ihrem Backoff.
+   - **Fehler:** Was beim nächsten Versuch gleich ausfiele, ergibt `missing`: 404 und jede andere
+     4xx-Antwort ausser 429, eine Antwort über 20 MB, eine leere bzw. nicht lesbare Antwort, ein Bild,
+     das ffmpeg trotz gültigem Kopf nicht lesen kann, ein Pfad mit Leer- oder Steuerzeichen und eine
+     Anfrage, die sich nicht bauen lässt. Weiterleitungen folgt der Download nur auf https beim
+     selben Host. Nur Transportfehler (5xx, 429 nach den Wiederholungen, Zeitüberschreitung, Netz)
+     und lokale Fehler schreiben nichts; drei in Folge beenden den Lauf mit Fehler, die
+     Warteschlange wiederholt ihn nach ihrem Backoff. ffmpeg liest die Datei mit dem Demuxer des
+     erkannten Formats und nur als lokale Datei.
    - **Durchgänge:** Nach dem letzten Paket folgt ein weiterer Durchgang, solange offene Arbeit da
      ist, die in diesem Lauf nicht schon fehlschlug; höchstens drei Durchgänge je Lauf.
    - **Eingereiht** nach einem Abgleich, der Rollen oder eine Sammlung geschrieben hat (Film und
-     Serie), und am Ende von `QueuePendingMetadata`, wenn etwas offen ist. Der erste volle Scan nach
+     Serie), wenn etwas offen ist, und am Ende von `QueuePendingMetadata`, wenn etwas offen ist oder
+     in einer Stichprobe von `ok`-Zeilen eine Datei fehlt (Wiederherstellung, geleerter Cache). Der erste volle Scan nach
      dem Update holt so den Bestand. Der Schlüssel macht aus vielen Abgleichen einen Auftrag; was
      während eines Laufs dazukommt, nimmt der nächste Durchgang mit.
 
@@ -64,7 +70,8 @@ Historie und ohne dass ein Sammlungsposter einem Kinderprofil einen verborgenen 
 6. **Sichtbarkeit im Server.** `GET /people/{id}/image` liefert das Porträt nur, wenn die Person eine
    Rolle auf einem für das Profil sichtbaren Titel hat. `GET /collections/{id}/image` liefert das
    Poster nur für eine **ganz sichtbare** Sammlung: mindestens ein sichtbares und kein nicht
-   gelöschtes, nicht sichtbares Mitglied. Sonst 404, nie 403, und nie das Poster eines Mitglieds.
+   sichtbares Mitglied; auch ein gelöschtes Mitglied sperrt das Poster, weil es ein für das Profil
+   gesperrter Titel sein kann. Sonst 404, nie 403, und nie das Poster eines Mitglieds.
    Die Regel steht einmal in `ListFullyVisibleCollectionImages` (`queries/scoped/people.sql`); der
    Endpunkt und die Felder nutzen dieselbe Abfrage. Weil `visible_items` nur verfügbare Titel führt
    (`available = 1`), gilt eine Sammlung mit einem Mitglied ohne Datei als nicht ganz sichtbar und
