@@ -115,22 +115,36 @@ export function useLibraryPages(
     })),
     combine: (results) => ({
       data: results.map((result) => result.data),
+      updated: results.map((result) => result.dataUpdatedAt),
       failed: results.some((result) => result.isError && result.data === undefined),
     }),
   });
 
-  // Another total on a page: the list changed after page 0 was read.
-  const totals = pages.data.map((page) => page?.total ?? '').join(',');
+  // Another total on a page: the list changed meanwhile. A page read after page 0 tells so of page
+  // 0: it is read again and the other pages are dropped. A page read before it is out of date
+  // itself: only that page is read again. Nothing while page 0 is on its way; its running read is
+  // never cancelled, else a faster page would restart it over and over during a scan.
+  const stale = drawn.filter((_, n) => {
+    const page = pages.data[n];
+    return page !== undefined && page.total !== total;
+  });
+  const staleKey = stale.join(',');
+  const newer = drawn.some(
+    (page, n) => stale.includes(page) && (pages.updated[n] ?? 0) > first.dataUpdatedAt,
+  );
   useEffect(() => {
-    if (!ready || id === null) return;
-    if (!totals.split(',').some((value) => value !== '' && Number(value) !== total)) return;
+    if (!ready || id === null || first.isFetching || staleKey === '') return;
     const base = libraryPageQuery(id, query, 0).queryKey;
-    void queryClient.invalidateQueries({ queryKey: base, exact: true });
+    if (newer) {
+      void queryClient.invalidateQueries({ queryKey: base, exact: true }, { cancelRefetch: false });
+    }
+    const outdated = new Set(staleKey.split(',').map(Number));
     void queryClient.resetQueries({
       queryKey: base.slice(0, 4),
-      predicate: (entry) => entry.queryKey[4] !== 0,
+      predicate: (entry) =>
+        entry.queryKey[4] !== 0 && (newer || outdated.has(Number(entry.queryKey[4]))),
     });
-  }, [id, query, queryClient, ready, total, totals]);
+  }, [first.isFetching, id, newer, query, queryClient, ready, staleKey]);
 
   const slots = useMemo(() => {
     const out = new Array<ItemRef | undefined>(total).fill(undefined);

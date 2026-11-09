@@ -30,10 +30,11 @@ interface Asked {
 
 /**
  * A library of `total` titles behind fetch. Every request is recorded; `hold(offset)` keeps the
- * answer to that offset back until `release(offset)` (or forever).
+ * answer to that offset back until `release(offset)` (or forever); `delay` holds every page other
+ * than 0 back for so many milliseconds.
  */
 function library(initial: number) {
-  const state = { total: initial };
+  const state = { total: initial, delay: 0 };
   const asked: Asked[] = [];
   const held = new Map<number, (() => void)[]>();
   const holding = new Set<number>();
@@ -59,6 +60,9 @@ function library(initial: number) {
       const offset = Number(url.searchParams.get('offset'));
       const genre = url.searchParams.get('genre');
       asked.push({ offset, genre, signal: input.signal });
+      if (offset > 0 && state.delay > 0) {
+        await new Promise((resolve) => setTimeout(resolve, state.delay));
+      }
       if (holding.has(offset)) {
         await new Promise<void>((resolve) =>
           held.set(offset, [...(held.get(offset) ?? []), resolve]),
@@ -204,6 +208,57 @@ describe('useLibraryPages', () => {
         [200, 299],
       ]),
     );
+    expect(server.offsets()).toEqual([0, 200, 0, 200]);
+  });
+
+  it('a page faster than page 0 during a change of the total does not restart page 0', async () => {
+    const server = library(450);
+    const { result, rerender } = render({ start: 0, end: 59 });
+    await waitFor(() => expect(result.current.slots).toHaveLength(450));
+    // A scan adds a title; page 0 (it computes the letter starts) answers later than page 2.
+    server.state.total = 451;
+    server.state.delay = 20;
+    server.hold(0);
+    rerender({ range: { start: 250, end: 280 }, query: {} });
+    await waitFor(() => expect(server.offsets()).toEqual([0, 200, 0, 200]));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    // Page 0 was asked for once more and kept on its way; page 2 once more, not over and over.
+    expect(server.offsets()).toEqual([0, 200, 0, 200]);
+    expect(server.asked[2]!.signal.aborted).toBe(false);
+    act(() => server.release(0));
+    await waitFor(() => expect(result.current.slots).toHaveLength(451));
+    await waitFor(() =>
+      expect(runs(result.current.slots)).toEqual([
+        [0, 99],
+        [200, 299],
+      ]),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(server.offsets()).toEqual([0, 200, 0, 200]);
+  });
+
+  it('a page read before page 0 with another total is read again, page 0 is not', async () => {
+    const server = library(450);
+    const { result, rerender } = render({ start: 250, end: 280 });
+    await waitFor(() =>
+      expect(runs(result.current.slots)).toEqual([
+        [0, 99],
+        [200, 299],
+      ]),
+    );
+    // Page 0 alone is read again (the window got the focus back) and finds a new title.
+    server.state.total = 451;
+    await act(() => result.current.first.refetch());
+    await waitFor(() => expect(result.current.slots).toHaveLength(451));
+    await waitFor(() =>
+      expect(runs(result.current.slots)).toEqual([
+        [0, 99],
+        [200, 299],
+      ]),
+    );
+    expect(server.offsets()).toEqual([0, 200, 0, 200]);
+    rerender({ range: { start: 250, end: 281 }, query: {} });
+    await new Promise((resolve) => setTimeout(resolve, 150));
     expect(server.offsets()).toEqual([0, 200, 0, 200]);
   });
 
