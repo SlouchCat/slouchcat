@@ -941,7 +941,10 @@ test('no stage: without the spotlight row the page starts with a poster row (3.5
       };
       return [
         box(document.querySelector('#poster-prepaint > img')),
-        box(document.querySelector('main section[aria-labelledby] a')?.firstElementChild),
+        box(
+          document.querySelector('main section[aria-labelledby] a img')?.closest('a')
+            ?.firstElementChild,
+        ),
       ];
     }, prepaint);
     expect(painted).toHaveLength(4);
