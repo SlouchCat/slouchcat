@@ -241,11 +241,15 @@ ORDER BY COALESCE(i.season_number, s.season_number), i.episode_number, i.id
 LIMIT 1;
 
 -- Credits of a visible title with the people's names, in the provider's order.
+-- The portrait comes along (ADR 0026): at most one 'ok' JPEG row per person, so the LEFT JOIN
+-- keeps the number of rows.
 -- name: ListVisibleCredits :many
-SELECT c.person_id, p.name, c.role, c.character, c.ord
+SELECT c.person_id, p.name, c.role, c.character, c.ord,
+       pi.content_hash AS image_hash, pi.width AS image_width, pi.height AS image_height
 FROM credits AS c
 JOIN visible_items AS v ON v.item_id = c.item_id AND v.profile_id = @profile_id
 JOIN people AS p ON p.id = c.person_id
+LEFT JOIN person_images AS pi ON pi.person_id = c.person_id AND pi.format = 'jpeg' AND pi.status = 'ok'
 WHERE c.item_id = @item_id
 ORDER BY c.ord, c.role, p.name, c.person_id;
 
@@ -263,12 +267,15 @@ WHERE t.item_id = @item_id
 ORDER BY t.lang, t.official DESC, t.id;
 
 -- Credits of a person on visible titles only (a person without one does not exist for the profile).
+-- The portrait comes along like in ListVisibleCredits (ADR 0026).
 -- name: ListVisiblePersonCredits :many
-SELECT sqlc.embed(i), p.name AS person_name, c.role, c.character
+SELECT sqlc.embed(i), p.name AS person_name, c.role, c.character,
+       pi.content_hash AS image_hash, pi.width AS image_width, pi.height AS image_height
 FROM credits AS c
 JOIN people AS p ON p.id = c.person_id
 JOIN items AS i ON i.id = c.item_id
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
+LEFT JOIN person_images AS pi ON pi.person_id = p.id AND pi.format = 'jpeg' AND pi.status = 'ok'
 WHERE c.person_id = @person_id
 ORDER BY i.year IS NULL, i.year DESC, i.sort_title, i.id, c.role;
 

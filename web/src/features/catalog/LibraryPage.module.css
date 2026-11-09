@@ -72,6 +72,13 @@
   justify-content: flex-end;
 }
 
+/* A page of the grid failed: the notice stays in view below the header above the cards. */
+.pageFailed {
+  position: sticky;
+  top: calc(var(--sc-size-header-height) + var(--sc-space-2));
+  z-index: 1;
+}
+
 /* The grid, with the letter bar above it on phones and at its right from 768 px. */
 .body {
   display: grid;
@@ -87,11 +94,6 @@
   min-width: 0;
 }
 
-/* Three columns on phones, as the rows show three posters (N-3). */
-.results .grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
 @media (width >= 768px) {
   .body {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -100,10 +102,6 @@
   .results {
     grid-row: 1;
     grid-column: 1;
-  }
-
-  .results .grid {
-    grid-template-columns: repeat(auto-fill, minmax(var(--sc-size-poster-md), 1fr));
   }
 
   /* Sticky below the header; a short window scrolls the column itself. */

@@ -1,3 +1,4 @@
+import type { Locator } from '@playwright/test';
 import { createCollection, deleteCollection } from './curation';
 import { ROW_TITLES } from './discover';
 import { expect, test } from './fixtures';
@@ -91,4 +92,93 @@ test('collection by keyboard: arrows, Enter, back; no focus trap @keyboard', asy
   } finally {
     await deleteCollection(owner, id);
   }
+});
+
+test.describe('the TMDB poster of a collection (concept 17 D-5)', () => {
+  // The routes below must see the requests; a service worker would make them on its own.
+  test.use({ serviceWorkers: 'block' });
+
+  // 1x1 PNG: a poster the browser decodes.
+  const POSTER = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+    'base64',
+  );
+
+  test('the poster shows on the card and the head, the neutral tile without the file; keyboard @keyboard', async ({
+    page,
+    owner,
+  }) => {
+    const { id } = await createCollection(owner, NAME, [await itemIdByTitle(owner, H264_TITLE)]);
+    try {
+      // The e2e server has no TMDB key, so a manual collection has no poster: name one in the
+      // answers of the start page, the search and the collection page.
+      const image = { url: `/collections/${id}/image?v=a&p=1`, width: 400, height: 600 };
+      await page.route('**/api/v1/home*', async (route) => {
+        const response = await route.fetch();
+        const body = (await response.json()) as {
+          rows: { key: string; collections?: { id: string; image?: unknown }[] }[];
+        };
+        for (const row of body.rows) {
+          for (const collection of row.collections ?? []) collection.image = image;
+        }
+        await route.fulfill({ response, json: body });
+      });
+      await page.route('**/api/v1/search', async (route) => {
+        const response = await route.fetch();
+        const body = (await response.json()) as { collections: { image?: unknown }[] };
+        for (const collection of body.collections) collection.image = image;
+        await route.fulfill({ response, json: body });
+      });
+      await page.route(new RegExp(`/api/v1/collections/${id}(\\?.*)?$`), async (route) => {
+        const response = await route.fetch();
+        const body = (await response.json()) as Record<string, unknown>;
+        await route.fulfill({ response, json: { ...body, image } });
+      });
+      let file: 'png' | 'gone' = 'png';
+      await page.route(`**/api/v1/collections/${id}/image*`, (route) =>
+        file === 'png'
+          ? route.fulfill({ status: 200, contentType: 'image/png', body: POSTER })
+          : route.fulfill({ status: 404, contentType: 'text/plain', body: 'gone' }),
+      );
+      const loaded = (locator: Locator) =>
+        locator.evaluate((element: HTMLImageElement) => element.naturalWidth);
+
+      await page.goto('/');
+      const row = page.getByRole('region', { name: ROW_TITLES.collections });
+      const homeCard = row.getByRole('link', { name: new RegExp(NAME) });
+      await expect(homeCard).toBeVisible();
+      // The card is below the fold and its image lazy: Firefox loads it only once it is near.
+      await homeCard.scrollIntoViewIfNeeded();
+      await expect.poll(() => loaded(homeCard.locator('img'))).toBeGreaterThan(0);
+
+      await page.goto('/search?q=Abendprogramm');
+      const found = page.getByRole('region', { name: 'Sammlungen' });
+      const card = found.getByRole('link', { name: new RegExp(NAME) });
+      await expect(card).toBeVisible();
+      await expect.poll(() => loaded(card.locator('img'))).toBeGreaterThan(0);
+
+      // By keyboard: the card, Enter, the head shows the poster, back returns to the search.
+      await resetFocus(page);
+      await card.focus();
+      await expectFocusOn(page, card);
+      await page.keyboard.press('Enter');
+      await expect(page).toHaveURL(new RegExp(`/collections/${id}$`));
+      const cover = page.locator(`main img[src*="/collections/${id}/image"]`);
+      await expect.poll(() => loaded(cover)).toBeGreaterThan(0);
+      await page.goBack();
+      await expect(card).toBeVisible();
+
+      // The file is gone although the answers name it: neutral tile and no broken image.
+      file = 'gone';
+      await page.goto('/search?q=Abendprogramm');
+      await expect(card).toBeVisible();
+      await expect(card.locator('img')).toHaveCount(0);
+      await page.goto(`/collections/${id}`);
+      await expect(page.getByRole('heading', { level: 1, name: NAME })).toBeVisible();
+      await expect(cover).toHaveCount(0);
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+    } finally {
+      await deleteCollection(owner, id);
+    }
+  });
 });

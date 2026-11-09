@@ -90,6 +90,21 @@ type Collection struct {
 	UpdatedAt  int64
 }
 
+type CollectionImage struct {
+	CollectionID string
+	Format       string
+	Status       string
+	Source       string
+	Size         string
+	RelPath      sql.NullString
+	ContentHash  sql.NullString
+	MediaType    sql.NullString
+	Width        sql.NullInt64
+	Height       sql.NullInt64
+	Bytes        sql.NullInt64
+	FetchedAt    int64
+}
+
 type CollectionItem struct {
 	CollectionID string
 	ItemID       string
@@ -489,6 +504,21 @@ type Person struct {
 	Name        string
 	ProfilePath sql.NullString
 	CreatedAt   int64
+}
+
+type PersonImage struct {
+	PersonID    int64
+	Format      string
+	Status      string
+	Source      string
+	Size        string
+	RelPath     sql.NullString
+	ContentHash sql.NullString
+	MediaType   sql.NullString
+	Width       sql.NullInt64
+	Height      sql.NullInt64
+	Bytes       sql.NullInt64
+	FetchedAt   int64
 }
 
 type PinAttempt struct {

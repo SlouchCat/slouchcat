@@ -58,10 +58,27 @@ func imageEncoderArgs(f ImageFormat) ([]string, error) {
 // canvas around a bigger frame, a JPEG with several frame headers).
 const MaxImagePixels = 50_000_000
 
+// ImageDemuxer returns the ffmpeg demuxer of an image format as image.DecodeConfig names it
+// (jpeg, png, gif, webp), "" for any other.
+func ImageDemuxer(format string) string {
+	switch format {
+	case "jpeg":
+		return "jpeg_pipe"
+	case "png":
+		return "png_pipe"
+	case "webp":
+		return "webp_pipe"
+	case "gif":
+		return "gif"
+	}
+	return ""
+}
+
 // ScaleImageArgs builds the ffmpeg argument list of ScaleImage. One run decodes the input once
 // (at most MaxImagePixels), scales it once per distinct width (lanczos) and encodes every output
-// from that frame.
-func ScaleImageArgs(inPath string, outs []ImageOutput) ([]string, error) {
+// from that frame. ffmpeg reads the input only from a local file; a non-empty inFormat names its
+// demuxer (ImageDemuxer), so ffmpeg does not probe a file that came from elsewhere.
+func ScaleImageArgs(inPath, inFormat string, outs []ImageOutput) ([]string, error) {
 	if len(outs) == 0 {
 		return nil, errors.New("no image outputs")
 	}
@@ -88,8 +105,11 @@ func ScaleImageArgs(inPath string, outs []ImageOutput) ([]string, error) {
 			graph.WriteString("[o" + strconv.Itoa(i) + "]")
 		}
 	}
-	args := []string{"-nostdin", "-hide_banner", "-loglevel", "error", "-y",
-		"-max_pixels", strconv.Itoa(MaxImagePixels), "-i", inPath, "-filter_complex", graph.String()}
+	args := []string{"-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-protocol_whitelist", "file"}
+	if inFormat != "" {
+		args = append(args, "-f", inFormat)
+	}
+	args = append(args, "-max_pixels", strconv.Itoa(MaxImagePixels), "-i", inPath, "-filter_complex", graph.String())
 	for i, o := range outs {
 		enc, err := imageEncoderArgs(o.Format)
 		if err != nil {
@@ -102,10 +122,11 @@ func ScaleImageArgs(inPath string, outs []ImageOutput) ([]string, error) {
 	return args, nil
 }
 
-// ScaleImage writes every output of the image at inPath in a single ffmpeg run (the original is
-// decoded once). Existing files at the output paths are overwritten.
-func (r Runner) ScaleImage(ctx context.Context, inPath string, outs []ImageOutput) error {
-	args, err := ScaleImageArgs(inPath, outs)
+// ScaleImage writes every output of the image at inPath, read with the demuxer inFormat ("" lets
+// ffmpeg probe), in a single ffmpeg run (the original is decoded once). Existing files at the
+// output paths are overwritten.
+func (r Runner) ScaleImage(ctx context.Context, inPath, inFormat string, outs []ImageOutput) error {
+	args, err := ScaleImageArgs(inPath, inFormat, outs)
 	if err != nil {
 		return err
 	}

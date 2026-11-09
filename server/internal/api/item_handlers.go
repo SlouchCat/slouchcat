@@ -177,7 +177,8 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 	}
 	cast := make([]gen.CastMember, 0, len(d.Cast))
 	for _, c := range d.Cast {
-		cast = append(cast, gen.CastMember{PersonId: c.PersonID, Name: c.Name, Role: gen.CastMemberRole(c.Role), Character: optString(c.Character)})
+		cast = append(cast, gen.CastMember{PersonId: c.PersonID, Name: c.Name, Role: gen.CastMemberRole(c.Role), Character: optString(c.Character),
+			Image: toPersonImageRef(c.PersonID, session.Profile.ID, c.Image)})
 	}
 	out.Cast = &cast
 	return gen.GetItem200JSONResponse(out), nil
@@ -228,7 +229,7 @@ func (s *server) GetPerson(ctx context.Context, req gen.GetPersonRequestObject) 
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	out := gen.GetPerson200JSONResponse{Id: p.ID, Name: p.Name}
+	out := gen.GetPerson200JSONResponse{Id: p.ID, Name: p.Name, Image: toPersonImageRef(p.ID, session.Profile.ID, p.Image)}
 	out.Credits = make([]struct {
 		Character *string               `json:"character,omitempty"`
 		Item      gen.ItemRef           `json:"item"`
@@ -341,6 +342,31 @@ func (s *server) getItemImage(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Add("Vary", "Accept")
 	src, err := s.opts.Catalog.Image(r.Context(), session.Profile, id, kind, size, acceptsWebP(r.Header.Values("Accept")))
+	s.serveImage(w, r, src, err)
+}
+
+// getPersonImage serves the portrait of a person with scope (binary endpoint, CLAUDE.md rule 6,
+// ADR 0026): 404 for an id that is no positive number, a person without a role on a visible title
+// or without a portrait. The format follows Accept like getItemImage.
+func (s *server) getPersonImage(w http.ResponseWriter, r *http.Request) {
+	session, ok := sessionFrom(r.Context())
+	if !ok || s.opts.Catalog == nil {
+		s.p.internal(w, r, errNoItemsServices)
+		return
+	}
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil || id < 1 {
+		s.p.write(w, r, http.StatusNotFound, "not_found", "")
+		return
+	}
+	w.Header().Add("Vary", "Accept")
+	src, err := s.opts.Catalog.PersonImage(r.Context(), session.Profile, id, acceptsWebP(r.Header.Values("Accept")))
+	s.serveImage(w, r, src, err)
+}
+
+// serveImage answers an opened image of the catalog for a year in the private cache, or maps err.
+// The browser takes the stored media type as it is (nosniff).
+func (s *server) serveImage(w http.ResponseWriter, r *http.Request, src model.StreamSource, err error) {
 	if err != nil {
 		s.p.mapError(w, r, err)
 		return
@@ -348,6 +374,7 @@ func (s *server) getItemImage(w http.ResponseWriter, r *http.Request) {
 	defer src.File.Close()
 	w.Header().Set("Content-Type", src.MediaType)
 	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	http.ServeContent(w, r, "", src.ModTime, src.File)
 }
 
@@ -517,6 +544,26 @@ func adminBackdropURL(itemID, hash string) *string {
 	}
 	u := adminImageURL(itemID, "backdrop", model.AdminBackdropSize, hash)
 	return &u
+}
+
+// toPersonImageRef is the portrait of a person (getPersonImage) with the content hash v and the
+// profile id p for the caches, like imageURL; nil without one.
+func toPersonImageRef(personID, profileID int64, img *model.Image) *gen.ImageRef {
+	if img == nil {
+		return nil
+	}
+	u := BasePath + "/people/" + strconv.FormatInt(personID, 10) + "/image?v=" + url.QueryEscape(img.ContentHash) + "&p=" + strconv.FormatInt(profileID, 10)
+	return &gen.ImageRef{Url: u, Width: img.Width, Height: img.Height}
+}
+
+// toCollectionImageRef is the TMDB poster of a collection (getCollectionImage), like
+// toPersonImageRef; nil without one.
+func toCollectionImageRef(collectionID string, profileID int64, img *model.Image) *gen.ImageRef {
+	if img == nil {
+		return nil
+	}
+	u := BasePath + "/collections/" + url.PathEscape(collectionID) + "/image?v=" + url.QueryEscape(img.ContentHash) + "&p=" + strconv.FormatInt(profileID, 10)
+	return &gen.ImageRef{Url: u, Width: img.Width, Height: img.Height}
 }
 
 func toImageRef(itemID string, profileID int64, img *model.Image) *gen.ImageRef {

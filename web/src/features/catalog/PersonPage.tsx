@@ -8,6 +8,7 @@ import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
 import {
+  Avatar,
   Button,
   ButtonLink,
   Notice,
@@ -82,7 +83,10 @@ export function PersonPage() {
     <SpatialPage defaultFocusKey={first ? `person-credit-0` : BACK_KEY}>
       <main className={styles.page}>
         <div className={styles.head}>
-          <h1 className={styles.name}>{person.name}</h1>
+          <div className={styles.identity}>
+            <Avatar name={person.name} imageUrl={imageUrl(person.image)} size="lg" />
+            <h1 className={styles.name}>{person.name}</h1>
+          </div>
           <SpatialGroup>
             <SpatialButton focusKey={BACK_KEY} variant="ghost" icon="back" onPress={goBack}>
               {t('common.back')}

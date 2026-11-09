@@ -43,7 +43,6 @@ export interface LibraryParams {
   content?: RootContent;
   sort?: LibrarySort;
   order?: SortOrder;
-  letter?: string;
   genre?: string;
   status?: string;
   from?: number;
@@ -71,9 +70,8 @@ export function validateLibraryParams(search: Record<string, unknown>): LibraryP
   if (sort) params.sort = sort;
   const order = oneOf(search.order, ['asc', 'desc'] as const);
   if (order) params.order = order;
-  // The letter filters only a list sorted by title (the server answers 422 otherwise).
-  const letter = oneOf(search.letter, LETTERS);
-  if (letter && (sort ?? 'title') === 'title') params.letter = letter;
+  // `letter` filtered before contract 1.21.0; the letter bar now jumps, an old link opens the
+  // list at its top.
   if (typeof search.genre === 'string' && search.genre !== '') {
     params.genre = search.genre.slice(0, 80);
   }
@@ -120,7 +118,6 @@ export function libraryRequest(params: LibraryParams): LibraryRequest {
     ...(params.content !== undefined ? { content: params.content } : {}),
     ...(params.sort !== undefined ? { sort: params.sort } : {}),
     ...(params.order !== undefined ? { order: params.order } : {}),
-    ...(params.letter !== undefined ? { letter: params.letter } : {}),
     ...(params.genre !== undefined ? { genre: params.genre } : {}),
     ...(status.length > 0 ? { status } : {}),
     ...(params.from !== undefined ? { yearFrom: params.from } : {}),

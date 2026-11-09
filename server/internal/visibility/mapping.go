@@ -24,6 +24,8 @@ const (
 	backdropLargeSize = "w1920"
 	backdropUhdSize   = "w3840"
 	logoSize          = "w400"
+	// portraitSize is the one size of a person's portrait (people.images, ADR 0026).
+	portraitSize = "w185"
 )
 
 // fallbackLang is the last language the trailer order and the genre chain try after the

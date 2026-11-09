@@ -103,7 +103,7 @@ func TestSearchTitlesPeopleCollections(t *testing.T) {
 		}
 
 		res = search(t, r, f, tc.p, textQuery("Pat"))
-		if want := tc.person; want != (len(res.People) == 1 && res.People[0] == model.PersonRef{ID: f.Person.ID, Name: f.Person.Name}) {
+		if want := tc.person; want != (len(res.People) == 1 && res.People[0].ID == f.Person.ID && res.People[0].Name == f.Person.Name) {
 			t.Errorf("%s \"Pat\" people = %+v, want the person %v", tc.p.Name, res.People, want)
 		}
 		if len(res.Items) != 0 {

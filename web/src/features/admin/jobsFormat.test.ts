@@ -1,6 +1,6 @@
 import { t } from 'i18next';
 import { describe, expect, it } from 'vitest';
-import { formatClock, formatOnce, formatSeconds, typeName } from './jobsFormat';
+import { formatClock, formatOnce, formatSeconds, typeDescription, typeName } from './jobsFormat';
 
 describe('job type names', () => {
   it('names metadata.apply from the locale instead of showing the code (concept 12, 10.3)', () => {
@@ -13,6 +13,22 @@ describe('job type names', () => {
   it('names the keyframe index types (concept 14, 7.3)', () => {
     expect(typeName(t, 'keyframes.backfill')).toBe('Keyframe-Index nachholen');
     expect(typeName(t, 'probe.keyframes')).toBe('Keyframe-Index (ganze Datei lesen)');
+  });
+});
+
+describe('person and collection image job types (concept 17 D-5)', () => {
+  it('names the job and its catch-up from the locale, with the progress text', () => {
+    expect(typeName(t, 'people.images')).toBe('Personen- und Sammlungsbilder holen');
+    expect(typeName(t, 'people.images_backfill')).toBe('Personen- und Sammlungsbilder nachholen');
+    expect(t('admin.jobs.types.people_images.progress', { done: 3, total: 10 })).toBe(
+      'Bilder geprüft: 3 von 10',
+    );
+    expect(typeDescription(t, { type: 'people.images', known: true })).toBe(
+      'Lädt die Porträts der Personen und die Poster der TMDB-Sammlungen und rechnet die Grössen.',
+    );
+    expect(typeDescription(t, { type: 'people.images_backfill', known: true })).toBe(
+      'Versucht alle Personen und Sammlungen noch einmal, für die TMDB kein Bild hatte.',
+    );
   });
 });
 

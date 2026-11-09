@@ -48,6 +48,75 @@ interface ItemGridProps {
   onUnmarked?: (item: ItemRef) => void;
 }
 
+interface ItemCellProps {
+  item: ItemRef;
+  /** Focus key prefix of the grid: the card is `<prefix>-<id>`. */
+  focusKey: string;
+  showWatched?: boolean;
+  tool?: (item: ItemRef) => ReactNode;
+  mark?: boolean;
+  onUnmarked?: (item: ItemRef) => void;
+  /** Return false to consume an arrow press (the virtual library grid, concept 17 E-12). */
+  onArrowPress?: (direction: string) => boolean;
+  /** The caption on one line (the virtual library grid, whose rows have a fixed height). */
+  clampCaption?: boolean;
+}
+
+/** One title's poster card in a grid: watch state, pen and watchlist button (ItemGrid). */
+export function ItemCell({
+  item,
+  focusKey,
+  showWatched = false,
+  tool,
+  mark = true,
+  onUnmarked,
+  onArrowPress,
+  clampCaption,
+}: ItemCellProps) {
+  const { t } = useTranslation();
+  const audio = isAudioKind(item.kind);
+  const progress = showWatched ? item.progress : undefined;
+  return (
+    <PosterCard
+      focusKey={cardKey(focusKey, item)}
+      href={paths.item(item.id)}
+      title={item.title}
+      caption={
+        item.kind === 'episode' && item.seriesTitle
+          ? item.seriesTitle
+          : (caption(item) ?? t(`kind.${item.kind}`))
+      }
+      clampCaption={clampCaption}
+      posterUrl={imageUrl(item.images.poster)}
+      posterSmallUrl={imageUrl(item.images.posterSmall)}
+      accent={item.accent}
+      shape={audio ? 'square' : 'poster'}
+      watchedLabel={
+        progress?.completed
+          ? t(audio ? 'library.status.heard' : 'library.status.watched')
+          : undefined
+      }
+      progress={
+        progress && !progress.completed && progress.percent > 0
+          ? {
+              percent: progress.percent,
+              label: t(audio ? 'item.listened' : 'item.watched', {
+                percent: Math.round(progress.percent),
+              }),
+            }
+          : undefined
+      }
+      onArrowPress={onArrowPress}
+      tool={tool?.(item)}
+      mark={
+        mark && WATCHLIST_KINDS.has(item.kind) ? (
+          <CoverWatchlist item={item} onRemoved={onUnmarked && (() => onUnmarked(item))} />
+        ) : undefined
+      }
+    />
+  );
+}
+
 /** Titles as poster cards in a grid; arrow keys move between them (spatial navigation). */
 export function ItemGrid({
   items,
@@ -60,7 +129,6 @@ export function ItemGrid({
   mark = true,
   onUnmarked,
 }: ItemGridProps) {
-  const { t } = useTranslation();
   return (
     <SpatialGroup
       as="ul"
@@ -68,50 +136,19 @@ export function ItemGrid({
       className={className ? `${styles.grid} ${className}` : styles.grid}
       aria-label={label}
     >
-      {items.map((item) => {
-        const audio = isAudioKind(item.kind);
-        const progress = showWatched ? item.progress : undefined;
-        return (
-          <li key={item.id} className={styles.cell}>
-            <PosterCard
-              focusKey={cardKey(focusKey, item)}
-              href={paths.item(item.id)}
-              title={item.title}
-              caption={
-                item.kind === 'episode' && item.seriesTitle
-                  ? item.seriesTitle
-                  : (caption(item) ?? t(`kind.${item.kind}`))
-              }
-              posterUrl={imageUrl(item.images.poster)}
-              posterSmallUrl={imageUrl(item.images.posterSmall)}
-              accent={item.accent}
-              shape={audio ? 'square' : 'poster'}
-              watchedLabel={
-                progress?.completed
-                  ? t(audio ? 'library.status.heard' : 'library.status.watched')
-                  : undefined
-              }
-              progress={
-                progress && !progress.completed && progress.percent > 0
-                  ? {
-                      percent: progress.percent,
-                      label: t(audio ? 'item.listened' : 'item.watched', {
-                        percent: Math.round(progress.percent),
-                      }),
-                    }
-                  : undefined
-              }
-              tool={tool?.(item)}
-              mark={
-                mark && WATCHLIST_KINDS.has(item.kind) ? (
-                  <CoverWatchlist item={item} onRemoved={onUnmarked && (() => onUnmarked(item))} />
-                ) : undefined
-              }
-            />
-            {below?.(item)}
-          </li>
-        );
-      })}
+      {items.map((item) => (
+        <li key={item.id} className={styles.cell}>
+          <ItemCell
+            item={item}
+            focusKey={focusKey}
+            showWatched={showWatched}
+            tool={tool}
+            mark={mark}
+            onUnmarked={onUnmarked}
+          />
+          {below?.(item)}
+        </li>
+      ))}
     </SpatialGroup>
   );
 }

@@ -30,5 +30,8 @@ export const Default: Story = {};
 /** Focus: ring and scale like a poster card. */
 export const Focused: Story = { tags: ['press:Tab'] };
 
+/** The collection's own poster (every member visible) stands before the cover title's. */
+export const WithOwnPoster: Story = { args: { imageUrl: art.posterEmber } };
+
 /** No visible member has a poster yet: the lettered fallback tile on the stack. */
 export const WithoutPoster: Story = { args: { posterUrl: undefined, name: 'Meine Sammlung' } };

@@ -353,6 +353,11 @@ type CatalogService interface {
 	// Image opens a stored image of a visible item (WebP when preferWebP and stored, else JPEG) or
 	// returns model.ErrNotFound.
 	Image(ctx context.Context, profile model.Profile, itemID, kind, size string, preferWebP bool) (model.StreamSource, error)
+	// PersonImage opens the portrait of a person with a role on a visible title, CollectionImage
+	// the TMDB poster of a fully visible collection (WebP when preferWebP and stored, else JPEG);
+	// model.ErrNotFound otherwise (concept 17 stage 3, ADR 0026).
+	PersonImage(ctx context.Context, profile model.Profile, personID int64, preferWebP bool) (model.StreamSource, error)
+	CollectionImage(ctx context.Context, profile model.Profile, collectionID string, preferWebP bool) (model.StreamSource, error)
 	// Trailers returns the trailers of a visible item, the profile language first, or model.ErrNotFound.
 	Trailers(ctx context.Context, profile model.Profile, itemID string) ([]model.Trailer, error)
 	// Person returns a person with the credits on visible titles; model.ErrNotFound when the person

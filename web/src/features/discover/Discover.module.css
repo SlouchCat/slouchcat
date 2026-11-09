@@ -94,13 +94,9 @@
   min-width: 0;
 }
 
-.links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sc-space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
+/* A row of cards (the people of a search) out to the page edges: the row brings its own gutter. */
+.bleed {
+  margin-inline: calc(-1 * var(--page-gutter));
 }
 
 /* Search: the field across the content width, the filters below it. */

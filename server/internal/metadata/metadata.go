@@ -57,6 +57,11 @@
 //     chain TMDB videos → YouTube Data API (daily quota) → AI (off in M3) for movies and series
 //     with a tmdb_id (trailers.go, youtube.go). metadata.match enqueues it after every match;
 //     QueuePendingMetadata (after every full scan) enqueues it for titles still pending.
+//   - people.images, no payload, key people.images, priority 1 (people_images.go, ADR 0026): fetches
+//     the TMDB portraits of people with a role and the TMDB posters of collections into
+//     <cache>/people and <cache>/collections, queued after a match with credits or a collection and
+//     by QueuePendingMetadata; people.images_backfill (schedule, off by default) deletes the failed
+//     fetches and queues it.
 //   - podcast.fetch, payload {"podcastId": "<ULID>"}, key podcast:<podcastId>, priority 4: fetches
 //     the RSS feed of a podcast subscription (podcast.go, M6 H-2) and stores the channel and its
 //     episodes; the schedule podcast.poll (every 5 minutes) enqueues it for every subscription
@@ -362,7 +367,9 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 // start of the server while titles wait for a vote (QueuePendingMetadata), so it has no Run.
 // metadata.original_language_backfill (concept 13 11.7) is queued once at the first start after
 // migration 00032; since concept 15 P-3 it is a schedule type every 7 days with the schedule off
-// by default, so later runs start by hand or by its schedule.
+// by default, so later runs start by hand or by its schedule. people.images (an event type with a
+// time window of its own) fetches the person and collection images; people.images_backfill is
+// its schedule type without a handler, off by default (people_images.go, ADR 0026).
 func (s *Service) RegisterTypes(r *jobs.Registry) {
 	atStart := time.Duration(0)
 	r.Register(jobs.Type{Name: JobMatch, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: matchPriority, Handler: s.handleMatch})
@@ -381,6 +388,15 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 	r.Register(jobs.Type{
 		Name: JobPodcastPoll, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
 		Priority: podcastFetchPriority, Run: s.runPodcastPoll, Every: feedPollInterval, StartDelay: &atStart,
+	})
+	r.Register(jobs.Type{
+		Name: JobPeopleImages, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent,
+		Priority: peopleImagesPriority, Handler: s.handlePeopleImages, Windowable: true,
+	})
+	r.Register(jobs.Type{
+		Name: JobPeopleImagesBackfill, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
+		Priority: peopleImagesPriority, Run: s.runPeopleImagesBackfill, Every: peopleImagesBackfillEvery,
+		Seed: jobs.SeedOff,
 	})
 	r.Register(jobs.Type{
 		Name: JobTraktRefresh, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,

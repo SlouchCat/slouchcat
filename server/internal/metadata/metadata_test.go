@@ -1475,15 +1475,16 @@ func TestJobChainWithWorker(t *testing.T) {
 	if err := e.db.Read.QueryRow(`SELECT group_concat(type || '=' || state, ',') FROM (SELECT type, state FROM jobs ORDER BY id)`).Scan(&states); err != nil {
 		t.Fatal(err)
 	}
-	for !strings.Contains(states, "image.fetch=done") || !strings.Contains(states, "trailer.find=done") {
+	for !strings.Contains(states, "image.fetch=done") || !strings.Contains(states, "trailer.find=done") || !strings.Contains(states, "people.images=done") {
 		if time.Now().After(deadline) {
 			t.Fatalf("job states %s", states)
 		}
 		time.Sleep(20 * time.Millisecond)
 		_ = e.db.Read.QueryRow(`SELECT group_concat(type || '=' || state, ',') FROM (SELECT type, state FROM jobs ORDER BY id)`).Scan(&states)
 	}
-	// The match queues its fill in its transaction (ADR 0015), before the images and trailers.
-	if states != "metadata.match=done,metadata.fill=done,image.fetch=done,trailer.find=done" {
+	// The match queues its fill in its transaction (ADR 0015) and the person images right after it
+	// (ADR 0026), before the images and trailers.
+	if states != "metadata.match=done,metadata.fill=done,people.images=done,image.fetch=done,trailer.find=done" {
 		t.Fatalf("job states %s", states)
 	}
 	if r := e.item(t, idByIMDB); r.State != "matched" || r.Source.String != "tmdb:DE" {

@@ -369,7 +369,6 @@
     "page": {
       "count_one": "{{count}} {{noun}}",
       "count_other": "{{count}} {{noun}}",
-      "countLetter": "{{count}} {{noun}} starting with {{letter}}",
       "filtered": "{{text}} · filtered",
       "sort": "Sort",
       "direction": "Order:",
@@ -380,6 +379,7 @@
       "apply": "Apply",
       "clear": "Reset",
       "emptyFilters": "Nothing matches these filters",
+      "pageFailed": "Part of the list could not be loaded.",
       "more": "Load more ({{count}} more)",
       "noun": {
         "video_one": "title",
@@ -409,8 +409,6 @@
     },
     "letters": {
       "label": "Initial letter",
-      "all": "All letters",
-      "allMark": "•",
       "other": "Digit or symbol"
     },
     "filters": {
@@ -3659,6 +3657,18 @@
           "name": "Fetch images",
           "description": "Downloads the chosen images of a title and renders their sizes.",
           "trigger": "After the match, catch-up at start"
+        },
+        "people_images": {
+          "name": "Fetch person and collection images",
+          "description": "Downloads the portraits of people and the posters of TMDB collections and renders their sizes.",
+          "trigger": "After the match of a title with cast or a collection, and after a full scan, which fetches the backlog",
+          "progress": "Images checked: {{done}} of {{total}}"
+        },
+        "people_images_backfill": {
+          "name": "Backfill person and collection images",
+          "description": "Tries every person and collection again for which TMDB had no image.",
+          "trigger": "Schedule (off by default, weekly) or a one-off date, “Run now”: forgets the failures and queues the run",
+          "progress": "Images checked: {{done}} of {{total}}"
         },
         "metadata_apply": {
           "name": "Apply metadata",
