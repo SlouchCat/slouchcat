@@ -137,7 +137,7 @@ class Component extends DCLogic {
         barFill: 'height: 4px; border-radius: 2px; background: #e8794a; width: ' + Math.round(it.p * 100) + '%;'
       };
     });
-    var tileModes = [['today', 'Heute (15 px)'], ['26', 'Neu: 26 px (gewählt)']].map(function (d) { return { label: d[1], style: chip(st.tiles === d[0]), pick: function () { self.setState({ tiles: d[0] }); } }; });
+    var tileModes = [['today', 'Heute (16 px)'], ['26', 'Neu: 26 px (gewählt)']].map(function (d) { return { label: d[1], style: chip(st.tiles === d[0]), pick: function () { self.setState({ tiles: d[0] }); } }; });
     var px = st.tiles === 'today' ? 0 : Number(st.tiles);
     var libs = [
       ['Filme', '1 800 Titel', ['/_blob/028941712ae0025679d4faa7ab0a3933', '/_blob/dc556a494c9abbbe0b77ce2d5d49666d', '/_blob/e320433fe2cdfb22cf7787225ac8d6af', '/_blob/2ad60c7fdbcb8a15b611e68d741c1df7']],

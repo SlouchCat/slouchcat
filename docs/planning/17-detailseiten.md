@@ -278,7 +278,7 @@ wenn **alle** Mitglieder sichtbar sind, sonst Poster des ersten sichtbaren Mitgl
    keine Buchstabenleiste).
    **Nachtrag (9. November 2026, Konzept 18 Teil C, 16.4):** Nachladen beim Scrollen und das
    virtualisierte Raster gelten auch für Hörbuch- und Podcast-Bibliotheken; nur die Buchstabenleiste
-   bleibt bei Filmen und Serien.
+   bleibt bei Filmen und Serien. So gebaut in Stufe 3 (1.21.0, PR #128).
 
 Messung beim Bau nach `docs/perf/`: erste Zeile und Scrollen über 1'795 Titel auf dem Handy.
 Abnahme mit Playwright: ↓ über 300 Zeilen, Sprung auf «M» und Zurück auf Karte N, Tab aus dem Raster.

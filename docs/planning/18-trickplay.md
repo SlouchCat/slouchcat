@@ -1,8 +1,8 @@
 # Konzept 18: Vorschau beim Spulen (Trickplay), User-Empfehlungen und Raster-Feinschliff
 
-- **Status: Fassung 8 (9. November 2026), vier Teile:** A «Trickplay» (Abschnitte 0 bis 13),
+- **Status: Fassung 9 (9. November 2026), vier Teile:** A «Trickplay» (Abschnitte 0 bis 13),
   B «User-Empfehlungen von Profil zu Profil» (14, 15), C «Raster-Feinschliff» (16), D
-  «Streamübersicht für alles, was läuft» (17). Offen ist nur O-1 (11.2). Eingetragen als **Frage 25** im Entscheidungsprotokoll.
+  «Streamübersicht für alles, was läuft» (17). Alle Fragen sind entschieden, O-1 am 9. November 2026 (11.2). Eingetragen als **Frage 25** im Entscheidungsprotokoll.
   **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Auslöser:** Marcos Auftrag vom 8. November 2026: Vorschaubilder für Filme und Folgen, erzeugt
   **sobald eine Folge oder ein Film gestartet wird**; dazu die Fragen, wie lange das dauert und ob
@@ -25,22 +25,28 @@
   - Fassung 8 (9. November 2026): Teil D (Abschnitt 17): die Streamübersicht zeigt alles, was
     läuft, in einer Liste mit Filterknöpfen; Marcos Antworten D-1 bis D-3. Marco hat das
     Streams-Mockup am 9. November 2026 ohne Änderung abgenommen («Passt so»). Teil D ist gegen
-    `main` `43eb1f8a` (Konzept 17 Stufe 3, Vertrag 1.21.0, Migration 00040) geschrieben und hat
-    noch kein Kritiker gesehen.
+    `main` `43eb1f8a` (Konzept 17 Stufe 3, Vertrag 1.21.0, Migration 00040) geschrieben.
+  - Fassung 9 (9. November 2026): Kritiker-Review von Teil C und D gegen `main` `e40ecf1c`
+    (Release 1.22.0; REVISE, kein Blocker, 6 Major, 11 Minor; Abschnitt 18) eingearbeitet; O-1
+    hingenommen. Vertrag vorläufig **1.23.0**, weil 1.22.0 vergeben ist.
 - **Verankert gegen:** `main` **`6c05eda7`** (Merge PR #125, Release 1.19.2), Vertragsfassung
   **1.19.0** (`api/openapi.yaml:4`), letzte Migration **`00039_radio_stage2.sql`**, letzte ADR in
   `main` **`0025`**, letzte Frage im Entscheidungsprotokoll **24**. Reserviert und nicht gebaut:
   Konzept 17 Stufe 2 (Vertrag 1.20.0) und Stufe 3 (Vertrag 1.21.0, Migration 00040, ADR 0026).
   Nachgeführt am 8. November 2026 auf `main` **`e0299fdd`** (Konzept 17 Stufe 2 gemergt, Vertrag
   **1.20.0**, PR #127); Stufe 2 berührt weder Trickplay noch die Empfehlungen.
+  Teil C und D sind am 9. November 2026 gegen `main` **`e40ecf1c`** (Release 1.22.0, PR #129,
+  letzte Migration `00040`) geprüft; Teil A und B sind gegen diesen Stand nicht neu geprüft.
 - **Nummern:** Dieses Papier ist **Konzept 18** und reserviert **Frage 25**, **ADR 0027** (Teil A)
   und **ADR 0028** («User-Empfehlungen von Profil zu Profil», Teil B), dazu für ADR 0027
   («Trickplay: Erzeugen beim Start, Springen an Keyframes, Einstellungen je Bibliothek»). Vertrag:
-  vorläufig **1.22.0**, durch Teil B **brechend** (14.8), **zwei Migrationen**, vorläufig **00041**
+  vorläufig **1.23.0** (1.22.0 ist seit 9. November 2026 als Release vergeben), durch Teil B
+  **brechend** (14.8), **zwei Migrationen**, vorläufig **00041**
   (Teil B: `user_picks`, `picks_config`, `top_picks` weg, 14.8) und **00042** (Teil A: Spalten
   `libraries.trickplay_*`, 8.3); alle Nummern endgültig beim Baubeginn. ADR 0027 ändert
   ADR 0022 nicht: Trickplay nimmt **nicht** an der Pausen-Ausnahme teil (5.3). Teil D braucht
-  keine Migration und ändert den Vertrag nur additiv (17.4).
+  keine Migration und ändert den Vertrag nur additiv (17.4); kommt er vor Teil A und B, erhält er
+  eine eigene Minor-Version.
 - `:Zeile`-Angaben beziehen sich auf `6c05eda7`; **nach Namen suchen, nicht nach Zeile.** Pfade
   ohne Präfix liegen unter `server/` (Go) oder `web/src/` (Web-App).
 - Massgeblich bleiben `docs/spec/01-anforderungen-v1.md`, `docs/planning/04-entscheidungen.md` und
@@ -495,7 +501,7 @@ schreibgeschützt eingebunden, `/media:ro`).
 | `api` | Handler `getTrickplay`, `getTrickplaySheet`, `getDownloadTrickplaySheet` |
 | `cmd/slouchcat` | Arbeiter des neuen Pools in `poolWorkers`/`startWorkers` |
 
-### 8.2 Vertrag (vorläufig 1.22.0; Teil A additiv, Teil B brechend, 14.8)
+### 8.2 Vertrag (vorläufig 1.23.0; Teil A additiv, Teil B brechend, 14.8)
 
 - **`Trickplay`** (Schema): `{ version, state (queued|running|complete|failed), intervalMs,
   tileWidth, tileHeight, columns, rows, pointsMs[], sheets: [{ index, url }] }`.
@@ -631,15 +637,15 @@ Cache-Ordner und in `jobs`. Eingefrorener DB-Stand in `testdata/db/` nach Regel 
 | F-15 | Weitere Ideen: Merkliste als Auslöser, Ablauf/Budget, Knopf je Titel? | – | **Keine Präferenz**: nicht aufgenommen (6.9) |
 | F-16 | Wie zurückhaltend ist der Serienvorlauf (ganze Serie: bis eine Stunde mit rund 19 MB/s vom NAS)? | nächste 2 sofort, Rest nachts | **Nächste 2 sofort, Rest gedrosselt** (ein ffmpeg-Prozess, solange jemand schaut; 5.3, 6.4) |
 
-### 11.2 Offen
+### 11.2 Nachträglich entschieden
 
-| Nr. | Frage | Empfehlung |
-|---|---|---|
-| O-1 | Starten zwei Zuschauer gleichzeitig zwei verschiedene Titel ohne Satz, wartet der zweite 20 bis 45 s auf seine Vorschau (ein Arbeiter). Hinnehmen, oder ein zweiter Arbeiter nur für Start-Aufträge (dann bis vier ffmpeg-Prozesse neben zwei Streams auf 6 Threads)? | **Hinnehmen.** Im Haushalt selten; die Vorschau des zweiten erscheint nur später, die Wiedergabe startet sofort |
+| Nr. | Frage | Empfehlung | Marcos Antwort (9. November 2026) |
+|---|---|---|---|
+| O-1 | Starten zwei Zuschauer gleichzeitig zwei verschiedene Titel ohne Satz, wartet der zweite 20 bis 45 s auf seine Vorschau (ein Arbeiter). Hinnehmen, oder ein zweiter Arbeiter nur für Start-Aufträge (dann bis vier ffmpeg-Prozesse neben zwei Streams auf 6 Threads)? | **Hinnehmen.** Im Haushalt selten; die Vorschau des zweiten erscheint nur später, die Wiedergabe startet sofort | **Hinnehmen** («O-1 ist ok so»): ein Arbeiter, kein zweiter für Start-Aufträge |
 
 ## 12. Bauplan
 
-Ein Release für beide Teile (Vertrag vorläufig 1.22.0 brechend), nach Konzept 17. **Teil B kommt
+Ein Release für Teil A und B (Vertrag vorläufig 1.23.0 brechend), nach Konzept 17. **Teil B kommt
 zuerst** mit Migration 00041, weil er klein ist und den brechenden Vertrag früh festlegt; Teil A folgt
 mit Migration 00042. Eine eingecheckte Migration wird nie mehr geändert.
 
@@ -654,8 +660,9 @@ mit Migration 00042. Eine eingecheckte Migration wird nie mehr geändert.
 | 6 | Teil A `playback.Start`, Handler, Wiedergabe-Pflege, `offline` (Kopie, Warten, Manifest), Vertragstest | 1,5 |
 | 7 | Teil A App: `SeekBar` (Kachel, Finger, Tastatur), Nachfragen, Offline-Ablage, Bibliotheksdialoge mit Film- und Seriengruppe, Storybook, Playwright | 2,5 |
 | 8 | Messung auf CT 190: Start, Blattzeit, Last neben QSV- und CPU-Transcode, **4K über NFS**, Remux neben Trickplay, gleichzeitige volle Keyframe-Lesung, **Serienvorlauf über eine Stunde neben einem 4K-Remux**; `docs/perf/18-trickplay.md` | 0,5 |
-| 9 | Teil C (nach Konzept 17 Stufe 3, vor Schritt 1): Karten unten bündig, «Meine Medien», Nachladen in allen übrigen Listen, Tests und Baselines | 3 |
-| | **Summe** | **16** |
+| 9 | Teil C (vor Schritt 1, Patch ohne Vertragsänderung): Karten unten bündig samt Raster- und Vorab-Höhen, «Meine Medien», Nachladen und Virtualisierung in den übrigen Listen, Tests, Baselines, P-10 (16.5) | 4,5 |
+| 10 | Teil D (unabhängig, eigene Minor-Version, wenn vor A/B): Streamübersicht für alle Arten (17.6) | 2,5 |
+| | **Summe** | **20** |
 
 ## 13. Kritiker-Review von Fassung 2 (8. November 2026)
 
@@ -821,7 +828,7 @@ Offene Fragen des Kritikers: «temporären Satz beim Umstellen übernehmen» ist
   excluded.created_at)`; die Zeilen der Quelle gehen mit der Quelle. Ein einfaches `UPDATE` scheiterte
   am Primärschlüssel, sobald ein Profil beide Kopien empfohlen hat. `CountRelinkUserData`
   (`queries/system/relink.sql`) zählt `user_picks`.
-- **Vertrag, brechend** (vorläufig 1.22.0 für beide Teile):
+- **Vertrag, brechend** (vorläufig 1.23.0 für beide Teile):
   - neu `PUT /items/{id}/pick` (`recommendItem`, 200 mit `{ expiresAt, retentionDays }`) und
     `DELETE /items/{id}/pick` (`unrecommendItem`, 204), beide `x-visibility: scoped`; unsichtbarer
     Titel, Staffel, Extra und Profil ausserhalb des Besitzerkontos 404;
@@ -936,12 +943,23 @@ enthält nur Verweise, keine Bilder).
     Kartenbreite). Nichts beschnitten, aber ungleich breite Karten; im Raster bricht das die Spalten
     und ist darum nur in Reihen möglich.
 - **Entschieden (Marco, 9. November 2026): Variante B**, Cover auf unscharfem Grund (O-2).
-- Umsetzung in `web/src/ui/PosterCard` (Form `square` erhält den Posterrahmen), Storybook-Baselines
-  aller betroffenen Bauteile neu, Fokus- und Glanzrahmen (`.card::before`) folgen dem Rahmen.
+- **Umsetzung** an allen Stellen, die heute mit der quadratischen Höhe rechnen (Stand `e40ecf1c`):
+  - `web/src/ui/PosterCard`: Form `square` erhält den Posterrahmen 2:3; Bildmasse (`height` heute
+    400 statt 600) und Fokus- und Glanzrahmen (`.card::before`) folgen dem Rahmen.
+  - `web/src/features/catalog/LibraryGrid.tsx` `measure` (Zeilenhöhe heute `square ? 1 : 1.5`) und
+    die Platzhalter (`LibraryGrid.module.css`): Faktor 1,5 für alle, sonst überlappen die Zeilen
+    im virtualisierten Hörbuch- und Podcast-Raster.
+  - Vorab-Karten der Startseite: `server/internal/api/preload.go` (`squareCover`) und
+    `web/src/ui/global.css` (`#poster-prepaint > img.square`) zeichnen dasselbe 2:3-Rahmenbild mit
+    dunklem Grund, damit die erste Reihe beim Wechsel zur echten Karte nicht springt.
+  - Das unscharfe zweite `<img>` trägt dieselben `src`, `srcset` und `sizes` wie das Cover, sonst
+    wählt der Browser womöglich eine andere Grösse und lädt doch zweimal.
+  - Storybook-Baselines aller betroffenen Bauteile neu.
+- Abnahme: P-10 (erste Reihe der Startseite) mit einem Hörbuch in der ersten Reihe neu messen.
 
 ### 16.3 C-2 «Meine Medien» mit grosser Beschriftung
 
-- **Heute:** `LibraryTile` zeigt den Namen in `--sc-font-size-md` (halbfett) und die Anzahl in
+- **Heute:** `LibraryTile` zeigt den Namen in `--sc-font-size-md` (1rem, also 16 px, halbfett) und die Anzahl in
   `--sc-font-size-xs` auf einem schmalen Verlauf am unteren Rand.
 - **Neu** (Marco wählte am Mockup **26 px**, nach Vergleich mit 30, 34 und 40 px): Name **26 px**,
   fett, mit Schatten; die Anzahl darunter in kleiner Textgrösse (14 px); die Collage wird über die ganze Kachel abgedunkelt, damit der Name auf
@@ -952,44 +970,54 @@ enthält nur Verweise, keine Bilder).
 
 ### 16.4 C-3 Alles laden statt «Mehr laden»
 
-- **Heute** steht «Mehr laden» in: Bibliotheken (`LibraryPage`, Filme, Serien, Hörbücher, Podcasts),
-  User-Empfehlungen (`PicksPage`), Suche (`SearchPage`), Merkliste (`WatchlistPage`), Sammlung
+- **Heute (`main` `e40ecf1c`, 1.22.0):** Die **Bibliotheken aller vier Arten** laden schon alles:
+  Konzept 17 Stufe 3 (1.21.0, PR #128) hat `LibraryPage` auf das virtualisierte `LibraryGrid`
+  (`@tanstack/react-virtual`, Seiten zu 100, Buchstabensprung nur bei Filmen und Serien)
+  umgestellt, mit `square` auch für Hörbücher und Podcasts. Marcos Wunsch (9. November 2026),
+  das auch für Hörbücher und Podcasts zu haben, ist damit **bestätigt und schon gebaut**.
+- «Mehr laden» steht noch in: Suche (`SearchPage`), Merkliste (`WatchlistPage`), Sammlung
   (`CollectionPage`), Mitteilungen (`NotificationsPage`), Podcast-Folgen auf der Titelseite
-  (`ItemPage`, `item.podcast.more`), Radio (`RadioPage`) und in der Verwaltung (Wartung `IssueTab`,
-  Radio-Sender `StationsTab`, `OwnStationsTab`).
+  (`ItemPage`, `item.podcast.more`), Radio (`RadioPage`), User-Empfehlungen (`PicksPage`), in der
+  Verwaltung (Wartung `IssueTab`, Radio-Sender `StationsTab`, `OwnStationsTab`) und im
+  Ordnerwähler (`PathBrowserDialog`, `library.browse.loadMore`). Teil C stellt alle um.
+  `PicksPage` stellt **Teil B** um, wenn er die Seite ohnehin neu baut (14.6), damit sie nicht
+  doppelt gebaut wird.
 - **Nicht betroffen:** die Reihen der Startseite («Weiterschauen», «Neu hinzugefügt» usw.). Sie
   zeigen weiterhin nur die ersten Titel und führen mit «Alle anzeigen» auf die Bibliotheks- oder
   Listenseite; erst dort wird alles geladen (Richtigstellung von Marco, 9. November 2026).
-- **Schon geplant:** Konzept 17 Stufe 3 (D-6, 6.2) baut für die **Film- und Serienbibliotheken** ein
-  Seitenmodell mit Lücken, ein virtualisiertes Raster mit `@tanstack/react-virtual` und den
-  Buchstabensprung (`letterStarts`), mit Fokusregeln, Zurück-Fokus und einer Messung über 1'795 Titel
-  auf dem Handy.
-- **Entscheid (Marco, 9. November 2026):** Konzept 17 Stufe 3 baut das wie geplant und **zusätzlich
-  für Hörbuch- und Podcast-Bibliotheken** (ohne Buchstabenleiste, wie heute); die Ausnahme in
-  Konzept 17 6.2 Punkt 5 fällt für das Nachladen weg. **Teil C** überträgt danach dieselben Bausteine
-  (Seitenmodell, virtualisierte Liste bzw. Raster, Nachladen beim Scrollen) auf **alle übrigen
-  Listen** oben, auch die der Verwaltung.
+- **Bausteine:** Teil C löst das Seitenmodell aus `LibraryGrid` (heute an `listLibraryItems` und
+  `letterStarts` gebunden) zu einem allgemeinen Baustein für beliebige Listen-Operationen mit
+  `offset`, `limit` und `total`, als Raster (Karten) und als Liste (Zeilen, Tabellen).
 - **Leistung:**
-  - Nur sichtbare Zeilen plus je eine Bildschirmhöhe davor und danach im DOM; Bilder (`posterSmall`)
-    erst kurz vor dem Sichtbarwerden, mit festen Bildmassen gegen Springen.
+  - **Virtualisiert nach Grösse, nicht nach Seitentyp:** sobald `total` über 200 liegt, sind nur
+    sichtbare Zeilen plus je eine Bildschirmhöhe davor und danach im DOM. Immer virtualisiert:
+    Radio (`RadioPage`, Länder und Genres mit Tausenden Sendern) und die Sendertabellen der
+    Verwaltung (`StationsTab`, `OwnStationsTab`, rund 40'000 Sender, `docs/perf/radio.md`).
+    Mitteilungen (ungelesene bleiben, `queries/system/notify.sql`) und Wartung wachsen ebenfalls
+    und fallen unter dieselbe Regel.
+  - Bilder (`posterSmall`) erst kurz vor dem Sichtbarwerden, mit festen Bildmassen gegen Springen.
   - Seiten zu 100 Einträgen, Nachladen ab einer halben Bildschirmhöhe vor dem Ende; nie mehr als zwei
     Seitenabrufe gleichzeitig.
-  - Listen unter 200 Einträgen (Mitteilungen, Verwaltung) brauchen keine Virtualisierung: Nachladen
-    beim Scrollen genügt.
+  - **Verschobene Seiten:** Kommen beim Scrollen neue Einträge vorne dazu (Merkliste,
+    Mitteilungen), verschieben sich die Plätze. Der Baustein verwirft doppelte Einträge nach ID und
+    lädt bei geänderter `total` von vorn neu, wie `LibraryGrid` heute bei einem Wechsel der
+    Gesamtzahl.
   - Ziel auf dem Handy (Messung beim Bau nach `docs/perf/`): erste Zeile wie heute, flüssiges Scrollen
-    über 1'800 Filme und über einen Podcast mit über 1'000 Folgen.
-- **Server:** keine neue Operation; die Listen-Operationen haben schon `offset`/`limit`. Wo `limit`
-  heute unter 100 liegt, wird es auf 100 angehoben (Vertrag additiv, nur Grenzwerte).
+    über einen Podcast mit über 1'000 Folgen und über die Sendertabelle der Verwaltung.
+- **Mehrfachauswahl in der Wartung:** «Alle auswählen» und «X von Y» in `IssueTab` gelten wie heute
+  nur für die **geladenen** Einträge; der Zähler sagt das ausdrücklich («X von Y geladenen»).
+- **Server:** keine Änderung. Alle betroffenen Operationen haben schon `offset`/`limit` bis
+  mindestens 100 und liefern `total`; Teil C ist ein Patch ohne Vertragsänderung.
 - Tastatur (Regel 8): dieselben Fokusregeln wie Konzept 17 6.2 Punkt 2; jede betroffene Seite behält
   ihren Playwright-Tastaturtest, «Mehr laden»-Schritte darin werden durch Scrollen ersetzt.
 
 ### 16.5 Bau
 
-- C-3 für Bibliotheken: **in Konzept 17 Stufe 3** (Nachtrag in Frage 24 und ein Hinweis in Konzept 17
-  6.2 Punkt 5).
-- C-1, C-2 und C-3 für die übrigen Listen: eigener Schritt in Konzept 18 **nach** Konzept 17 Stufe 3,
-  vor Teil B, als Patch ohne Vertragsbruch (rund 3 Tage: Karten und Kacheln 1, Listen 1,5, Tests und
-  Baselines 0,5).
+- C-3 für Bibliotheken: **schon gebaut** in Konzept 17 Stufe 3 (1.21.0); nur der Nachtrag in
+  Konzept 17 6.2 Punkt 5 hält das fest.
+- C-1, C-2 und C-3 für die übrigen Listen: eigener Schritt vor Teil B, als Patch ohne
+  Vertragsänderung (rund **4,5 Tage**: Karten, Raster- und Vorab-Höhen 1, «Meine Medien» 0,5,
+  allgemeiner Listenbaustein und Listen 2,5, Tests, Baselines und P-10 0,5).
 
 ## 17. Teil D: Streamübersicht für alles, was läuft
 
@@ -1004,17 +1032,21 @@ enthält nur Verweise, keine Bilder).
 Marcos Angaben zum heutigen Stand: Filme und Serien erscheinen; Hörbücher und Podcasts hat er nicht
 geprüft; Radio kam nicht.
 
-### 17.2 Heute (`main` `43eb1f8a`, 1.21.0)
+### 17.2 Heute (`main` `e40ecf1c`, 1.22.0)
 
 - `listStreams` (`server/internal/playback/devices.go` `ListStreams`, Abfrage
-  `ListActivePlaybackSessions`) liefert **jede** Wiedergabesitzung ohne Filter nach Art: Film,
-  Folge, Hörbuch (eine Datei oder HLS über alle Teile) und Podcast-Folge (mit Bibliotheksdatei oder
+  `ListActivePlaybackSessions`; Titel, Bild und Dauer setzt `server/internal/admin/streams.go` über
+  `AdminStreamItems` in `queries/system/admin.sql`, das nur zu Serien verbindet) liefert **jede**
+  Wiedergabesitzung ohne Filter nach Art: Film, Folge, Extra (Trailer, Making-of), Hörbuch (eine Datei oder HLS über alle Teile) und Podcast-Folge (mit Bibliotheksdatei oder
   über den Feed, `playback/enclosure.go`, `media_file_id` leer). Hörbücher und Podcasts erscheinen
   also schon, aber schlecht erkennbar:
   - Der Titel ist nur der Titel der Folge, ohne Podcastnamen (`streamTitle` kennt nur Serien).
-  - Bild: `posterOf` springt nur bei Folgen einer Serie zum Elternteil; eine Podcast-Folge ohne
-    eigenes Bild zeigt keines, das quadratische Cover wird wie ein Hintergrund beschnitten.
-  - Dauer: kommt aus `media_files`; ohne Bibliotheksdatei (Feed) fehlt sie, der Fortschritt fehlt.
+  - Bild: Die Seite liest nur `backdropUrl` (`StreamsPage.tsx`), nie `posterUrl`; Hörbücher und
+    Podcasts haben meist keinen Hintergrund und zeigen darum kein Bild. `posterOf` springt nur bei
+    Folgen einer Serie zum Elternteil.
+  - Dauer: kommt aus `media_files` der Sitzungsdatei. Ohne Bibliotheksdatei (Feed) fehlt sie; bei
+    einem mehrteiligen Hörbuch ist es nur die Dauer von Teil 1 (`playback/audio.go` nimmt den
+    ersten Teil als Sitzungsdatei), während die Position buchweit läuft.
   - Die Kachel zeigt Videoangaben (Auflösung, HW/SW-Encoder), die bei Audio leer oder irreführend sind.
 - **Radio** steht seit 1.19.0 (Konzept 16 Stufe 2, D-11) in einem eigenen Abschnitt «Radio» unter
   der Liste, gelesen aus `listRadioRelays` (`RadioRelayListener`: Profil, Konto, `playing`, `since`;
@@ -1028,42 +1060,68 @@ geprüft; Radio kam nicht.
 
 - **Eine Liste**, neueste zuerst (Startzeit), mit Kacheln für Wiedergaben und Radiohörer. Der
   Abschnitt «Radio» fällt weg; «Serverlast» oben bleibt, mit Radio als eigener Kennzahl wie heute.
-- **Abzeichen** auf jeder Kachel: «Film», «Serie», «Hörbuch», «Podcast», «Radio».
-- **Filterknöpfe** über der Liste: «Alle», «Video» (Filme und Folgen), «Hörbücher», «Podcasts»,
-  «Radio», je mit Anzahl; ein Knopf ohne Treffer bleibt sichtbar mit 0. Die Wahl gilt nur auf
-  dieser Seite und bleibt beim Neuladen der Liste (alle 5 s) stehen. Tastatur (Regel 8): die Knöpfe
-  sind eine Gruppe mit ←/→, Tab führt in die Kacheln.
+- **Sortierung:** nach Startzeit absteigend, bei Gleichstand nach ID, damit die Kacheln beim
+  Abruf alle 5 s nicht springen. Die Web-App vereinheitlicht dafür `startedAt` (Wiedergabe, ISO)
+  und `since` (Radiohörer).
+- **Abzeichen** auf jeder Kachel: «Film», «Serie», «Extra», «Hörbuch», «Podcast», «Radio».
+- **Filterknöpfe** über der Liste: «Alle», «Video» (Filme, Folgen und Extras), «Hörbücher»,
+  «Podcasts», «Radio», je mit Anzahl; «Alle» ist die Summe der übrigen. Ein Knopf ohne Treffer
+  bleibt sichtbar mit 0. Die Wahl gilt nur auf dieser Seite und bleibt beim Neuladen der Liste
+  (alle 5 s) stehen, auch wenn der gewählte Filter leer wird; dann steht dort «Gerade läuft nichts
+  dieser Art.» (Locale-Schlüssel `admin.streams.emptyKind`), ohne jeden Filter wie heute der
+  bestehende Leertext.
+- **Tastatur und ARIA (Regel 8):** die Knöpfe sind eine Werkzeugleiste (`role="toolbar"`) aus
+  Umschaltknöpfen mit `aria-pressed`, ←/→ zwischen den Knöpfen, Tab führt in die Kacheln.
+- **Teilausfall:** Schlägt einer der beiden Abrufe fehl (`listStreams` oder `listRadioRelays`),
+  bleibt die andere Hälfte stehen, mit einem Hinweis über der Liste; die betroffenen Zähler zeigen
+  «–». Heute blendet ein Fehler von `listStreams` die ganze Liste aus.
 - **Kacheln nach Art:**
 
 | Art | Titel | Bild | Angaben | Fortschritt |
 |---|---|---|---|---|
 | Film | Titel | Hintergrund wie heute | Gerät, Qualität, Modus, Grund | Position / Dauer |
 | Serie | «Serie · S01E02 · Titel» wie heute | Hintergrund der Serie | wie Film | Position / Dauer |
-| Hörbuch | «Buch · Kapitel» (Kapitel an der Position, sonst nur Buch) | Cover mittig auf unscharfem Grund (Teil C, Variante B) | Gerät, Format (Codec, Bitrate), Modus | Position / Dauer des ganzen Buchs |
+| Extra | «Film oder Serie · Extra» | Hintergrund des Films oder der Serie | wie Film | Position / Dauer |
+| Hörbuch | «Buch · Kapitel» (Kapitel an der Position, sonst nur Buch) | Cover mittig auf unscharfem Grund (wie Teil C, Variante B, aber in `StreamTile` selbst) | Gerät, Format (Codec, Bitrate, Anzahl Teile), Modus | Position / Dauer des ganzen Buchs |
 | Podcast | «Podcast · Folge» | Cover der Folge, sonst des Podcasts, wie Hörbuch | Gerät, Format, Quelle «Datei» oder «Feed» | Position / Dauer (aus dem Feed, wenn die Datei fehlt) |
 | Radio | Sendername | Senderlogo wie Hörbuch, sonst Platzhalter | Format (Codec, Bitrate), «umkodiert» oder nicht, Hörer dieses Senders, «Hört» oder «Pausiert» | keiner, nur «seit …» |
 
 - «Beenden» bleibt auf jeder Kachel, mit derselben Bestätigung wie heute (Wiedergabe:
   `stopStream`; Radio: `stopRadioListener`).
+- **Bild in `StreamTile`:** neue Bildform für quadratische Cover und Logos mit eigenem unscharfem
+  Grund, unabhängig von `PosterCard` (Teil D kann vor Teil C kommen). Abdunkelung und Unschärfe als
+  neue Tokens (Regel 9); eine Storybook-Geschichte je Form.
 
 ### 17.4 Server und Vertrag
 
 - `AdminStream` erhält additiv:
-  - `kind` (`movie`, `episode`, `audiobook`, `podcast_episode`);
-  - `parentTitle` (Podcastname, bei Serien wie heute im Titel);
+  - `kind` (`movie`, `episode`, `extra`, `audiobook`, `podcast_episode`);
+  - `parentTitle` (Podcastname; bei einem Extra der Film oder die Serie; bei Serien wie heute im
+    Titel). Dafür verbindet `AdminStreamItems` auch zum Eltern-`podcast` und zum Besitzer eines
+    Extras, nicht nur zur Serie;
   - `chapterTitle` (Hörbuch, Kapitel an `positionMs` aus der Tabelle `chapters`);
-  - `audioCodec` und `audioBitrate` (aus der Probe der Datei, bei HLS die Ausgabe);
+  - `partCount` (Hörbuch, Anzahl Teile, wenn mehr als einer);
+  - `audioCodec` und `audioBitrate`: direkt abgespielt Codec und Bitrate aus der Sonde der Datei;
+    über HLS `aac` und `playback_sessions.bitrate`; über den Feed der Codec aus dem MIME-Typ der
+    Enclosure, Bitrate leer (keine Sonde, `playback/enclosure.go`);
   - `source` (`file` oder `feed`).
-  `durationMs` kommt ohne Datei aus `items.duration_ms` (die Dauer aus dem Feed, Migration 00014),
-  wenn der Feed eine nennt.
-- Bilder: `posterOf` springt bei einer Podcast-Folge ohne eigenes Bild zum Podcast; Hörbuch und
-  Podcast liefern `posterUrl` (quadratisch) und keinen `backdropUrl`.
+- `durationMs`: bei `audiobook` **immer** `items.duration_ms` (Summe aller Teile, Migration 00014);
+  bei `podcast_episode` ohne Datei `items.duration_ms` aus dem Feed, wenn er eine nennt; sonst wie
+  heute `media_files.duration_ms` der Sitzungsdatei.
+- Bilder: `posterOf` springt bei einer Podcast-Folge ohne eigenes Bild zum Podcast und bei einem
+  Extra zum Film oder zur Serie; Hörbuch und Podcast liefern `posterUrl` (quadratisch) und keinen
+  `backdropUrl`.
 - `RadioRelayListener` erhält additiv `device` (wie `AdminStream.device`; die Hör-Sitzung kennt
-  ihre Browsersitzung `session_id`, darüber das Gerät) und `RadioRelay` den Logo-Pfad
-  `logoUrl` über `getAdminRadioImage`.
-- Die Web-App mischt beide Listen (`listStreams` und `listRadioRelays`) zu einer, sortiert nach
-  `startedAt` bzw. `since`. Keine neue Operation, keine Migration; alles additiv im vorläufigen
-  Vertrag 1.22.0.
+  ihre Browsersitzung `session_id`, darüber das Gerät) und `RadioRelay` das Logo als
+  `logo: RadioLogo` wie `RadioStation.logo` (URL von `getAdminRadioImage`, Breite 256, `v` als
+  Inhalts-Hash).
+- **Beim Bau prüfen:** `radio/listen.go` gibt Hörer nur für laufende Relais aus. Kann eine offene
+  Hör-Sitzung ohne laufendes Relais bestehen (Relais gestört oder gestoppt), erscheint sie als
+  Radio-Kachel mit Zustand «Relais gestört» statt zu fehlen.
+- Die Web-App mischt beide Listen (`listStreams` und `listRadioRelays`) zu einer (Sortierung und
+  Teilausfall in 17.3). Keine neue Operation, keine Migration, alles additiv. Kommt Teil D vor
+  Teil A und B, erhält er eine **eigene Minor-Version** (vorläufig 1.23.0, Regel Vertrag = Tag), und
+  der A/B-Vertrag rückt eine Nummer weiter; sonst steckt er im A/B-Vertrag.
 - Die Admin-Ansicht bleibt ungefiltert (`x-visibility: admin`, keine `ItemRef`), wie heute.
 
 ### 17.5 Mockup
@@ -1075,14 +1133,49 @@ Marco hat das Mockup am 9. November 2026 ohne Änderung abgenommen.
 
 ### 17.6 Bau und Abnahme
 
-- Eigener Schritt, unabhängig von Teil A bis C, rund **2 Tage**: Server und Vertrag 0,5, Seite
-  und Kacheln 1, Tests 0,5. Er kann vor oder nach Teil C gebaut werden.
-- Tests: Vertragstest für die neuen Felder; Go-Test `ListStreams` mit je einer Sitzung jeder Art
-  (Podcast mit und ohne Datei, Hörbuch mehrteilig mit Kapitel); Playwright-Test der Seite mit allen
-  Arten, Filterknöpfen und Tastatur (Regel 8); Storybook-Baselines von `StreamTile`.
-- **Abnahme auf CT 190:** gleichzeitig ein Film, eine Folge, ein Hörbuch, ein Podcast aus der
-  Bibliothek, ein Podcast über den Feed und ein Radiosender; alle sechs Kacheln erscheinen innert
-  5 s, jeder Filterknopf zeigt die richtige Anzahl, «Beenden» stoppt jede Art.
+- Eigener Schritt, unabhängig von Teil A bis C (Bauplan Schritt 10), rund **2,5 Tage**: Server und
+  Vertrag 0,75, Seite, Kacheln und Bildform 1,25, Tests 0,5. Er kann vor oder nach Teil C gebaut
+  werden.
+- Tests:
+  - Vertragstest für die neuen Felder.
+  - Go-Test `ListStreams` mit je einer Sitzung jeder Art: Film, Folge, Extra, Podcast mit und ohne
+    Datei, Hörbuch mehrteilig mit Kapitel; geprüft werden `kind`, `parentTitle`, Bild und dass
+    `durationMs` beim mehrteiligen Hörbuch der Buchsumme entspricht.
+  - Go-Test im Paket `radio` für `listRadioRelays` mit `device` und `logo`.
+  - Playwright-Test der Seite mit allen Arten, Filterknöpfen, leerem Filter, Teilausfall und
+    Tastatur (Regel 8); Storybook-Baselines von `StreamTile` je Bildform.
+- **Abnahme auf CT 190:** gleichzeitig ein Film, eine Folge, ein Extra, ein Hörbuch, ein Podcast aus
+  der Bibliothek, ein Podcast über den Feed und ein Radiosender; alle sieben Kacheln erscheinen innert
+  5 s, jeder Filterknopf zeigt die richtige Anzahl und «Alle» deren Summe; das Hörbuch zeigt Kapitel
+  und Buchdauer, der Podcast seinen Namen, das Radio Gerät und Logo; «Beenden» stoppt jede Art.
+
+## 18. Kritiker-Review von Teil C und D (9. November 2026)
+
+Der OMC-Kritiker hat Abschnitt 16 und 17, Frage 25 und die drei Mockups gegen `main` `e40ecf1c`
+(Release 1.22.0) geprüft: **REVISE, kein Blocker, 6 Major, 11 Minor.** Eingearbeitet in Fassung 9:
+
+| Befund | Kern | Wo jetzt |
+|---|---|---|
+| M-1 | Bibliotheken aller Arten sind seit 1.21.0 schon virtualisiert, das Papier plante sie neu | 16.4, 16.5, Frage 25, Konzept 17 6.2 |
+| M-2 | Variante B betrifft auch Rasterhöhe, Platzhalter, Vorab-Karten und Bildmasse | 16.2 |
+| M-3 | Mehrteiliges Hörbuch zeigt die Dauer von Teil 1 | 17.2, 17.4, 17.6 |
+| M-4 | Extras laufen über `playback_sessions`, `kind` kannte sie nicht | 17.2, 17.3, 17.4, 17.6 |
+| M-5 | Listen über 200 Einträge (Radio, Sendertabellen rund 40'000, Mitteilungen), Schätzung zu knapp | 16.4, 16.5, 12 |
+| M-6 | Vertrag 1.22.0 vergeben, Teil D fehlte im Bauplan | Kopf, 8.2, 12, 14.8, 17.4 |
+| m-1 | Pfad, Abfrage und Hash in 17.2 | 17.2 |
+| m-2 | Seite liest nur `backdropUrl`, Hörbuch und Podcast ohne Bild | 17.2, 17.3 |
+| m-3 | Logo als `RadioLogo` statt `logoUrl` | 17.4 |
+| m-4 | Format bei Feed-Folgen und HLS offen, «12 Teile» ohne Feld | 17.4 (`partCount`) |
+| m-5 | Teilausfall und Sortierung der zusammengeführten Liste | 17.3 |
+| m-6 | Leerzustand je Filter und ARIA-Muster | 17.3 |
+| m-7 | `PathBrowserDialog` fehlte | 16.4 |
+| m-8 | Satz zu `limit` überflüssig | 16.4 (gestrichen) |
+| m-9 | Schrift heute 16 px, nicht 15 px | 16.3, Frage 25, Mockup |
+| m-10 | Abnahme prüfte die neuen Felder nicht | 17.6 |
+| m-11 | `StreamTile` braucht den unscharfen Grund selbst | 17.3 |
+
+Offene Fragen des Kritikers: Hör-Sitzung ohne laufendes Relais (beim Bau prüfen, 17.4),
+verschobene Seiten beim Nachladen (16.4), `PicksPage` doppelt gebaut (Teil B stellt sie um, 16.4).
 
 ## Anhang: Messskripte
 
