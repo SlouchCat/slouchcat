@@ -37,13 +37,13 @@
   **1.20.0**, PR #127); Stufe 2 berührt weder Trickplay noch die Empfehlungen.
   Teil C und D sind am 9. November 2026 gegen `main` **`e40ecf1c`** (Release 1.22.0, PR #129,
   letzte Migration `00040`) geprüft; Teil A und B sind gegen diesen Stand nicht neu geprüft.
-- **Nummern:** Dieses Papier ist **Konzept 18** und reserviert **Frage 25**, **ADR 0027** (Teil A)
-  und **ADR 0028** («User-Empfehlungen von Profil zu Profil», Teil B), dazu für ADR 0027
-  («Trickplay: Erzeugen beim Start, Springen an Keyframes, Einstellungen je Bibliothek»). Vertrag:
-  vorläufig **1.23.0** (1.22.0 ist seit 9. November 2026 als Release vergeben), durch Teil B
-  **brechend** (14.8), **zwei Migrationen**, vorläufig **00041**
+- **Nummern (endgültig seit Baubeginn am 9. November 2026):** Dieses Papier ist **Konzept 18** mit
+  **Frage 25**, **ADR 0027** («Trickplay: Erzeugen beim Start, Springen an Keyframes, Einstellungen
+  je Bibliothek», Teil A) und **ADR 0028** («User-Empfehlungen von Profil zu Profil», Teil B).
+  Vertrag **1.23.0** (1.22.0 ist seit 9. November 2026 als Release vergeben), durch Teil B
+  **brechend** (14.8), **zwei Migrationen**: **00041**
   (Teil B: `user_picks`, `picks_config`, `top_picks` weg, 14.8) und **00042** (Teil A: Spalten
-  `libraries.trickplay_*`, 8.3); alle Nummern endgültig beim Baubeginn. ADR 0027 ändert
+  `libraries.trickplay_*`, 8.3). Wo der Text unten «vorläufig» sagt, gelten diese Nummern. ADR 0027 ändert
   ADR 0022 nicht: Trickplay nimmt **nicht** an der Pausen-Ausnahme teil (5.3). Teil D braucht
   keine Migration und ändert den Vertrag nur additiv (17.4); kommt er vor Teil A und B, erhält er
   eine eigene Minor-Version.
