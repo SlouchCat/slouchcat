@@ -1055,7 +1055,8 @@
           "connecting": "Connecting",
           "live": "Live",
           "reconnecting": "Reconnecting",
-          "ending": "Ending"
+          "ending": "Ending",
+          "failed": "Relay failed"
         },
         "stop": {
           "label": "Stop {{profile}} listening",

@@ -1055,7 +1055,8 @@
           "connecting": "Verbindet",
           "live": "Live",
           "reconnecting": "Verbindet neu",
-          "ending": "Endet"
+          "ending": "Endet",
+          "failed": "Relais gestört"
         },
         "stop": {
           "label": "Hören von {{profile}} stoppen",

@@ -8,6 +8,7 @@ package appq
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
 
 const addRadioListenTime = `-- name: AddRadioListenTime :exec
@@ -387,6 +388,54 @@ func (q *Queries) MarkRadioLogoQueued(ctx context.Context, arg MarkRadioLogoQueu
 	return result.RowsAffected()
 }
 
+const radioListenDevices = `-- name: RadioListenDevices :many
+SELECT s.id AS session_id, d.id AS device_id, d.name AS device_name
+FROM sessions AS s
+JOIN devices AS d ON d.id = s.device_id
+WHERE s.id IN (/*SLICE:session_ids*/?)
+`
+
+type RadioListenDevicesRow struct {
+	SessionID  int64
+	DeviceID   string
+	DeviceName sql.NullString
+}
+
+// The device of each login session of ids: the stream overview names the device of a listener
+// (concept 18, 17.4). A session without device is absent.
+func (q *Queries) RadioListenDevices(ctx context.Context, sessionIds []int64) ([]RadioListenDevicesRow, error) {
+	query := radioListenDevices
+	var queryParams []interface{}
+	if len(sessionIds) > 0 {
+		for _, v := range sessionIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:session_ids*/?", strings.Repeat(",?", len(sessionIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:session_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RadioListenDevicesRow{}
+	for rows.Next() {
+		var i RadioListenDevicesRow
+		if err := rows.Scan(&i.SessionID, &i.DeviceID, &i.DeviceName); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const radioLoginSessionValid = `-- name: RadioLoginSessionValid :one
 SELECT EXISTS (
     SELECT 1 FROM sessions WHERE id = ?1 AND revoked_at IS NULL AND expires_at > ?2
@@ -405,6 +454,49 @@ func (q *Queries) RadioLoginSessionValid(ctx context.Context, arg RadioLoginSess
 	var valid bool
 	err := row.Scan(&valid)
 	return valid, err
+}
+
+const radioStationLogoHashes = `-- name: RadioStationLogoHashes :many
+SELECT id, logo_hash FROM radio_stations WHERE id IN (/*SLICE:ids*/?) AND logo_hash IS NOT NULL
+`
+
+type RadioStationLogoHashesRow struct {
+	ID       int64
+	LogoHash sql.NullString
+}
+
+// The logo content hash of each station of ids that has a logo (stream overview, concept 18, 17.4).
+func (q *Queries) RadioStationLogoHashes(ctx context.Context, ids []int64) ([]RadioStationLogoHashesRow, error) {
+	query := radioStationLogoHashes
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RadioStationLogoHashesRow{}
+	for rows.Next() {
+		var i RadioStationLogoHashesRow
+		if err := rows.Scan(&i.ID, &i.LogoHash); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const recordRadioRelayAbort = `-- name: RecordRadioRelayAbort :one

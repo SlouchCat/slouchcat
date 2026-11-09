@@ -1203,14 +1203,18 @@ func (q *Queries) AdminListUnrated(ctx context.Context, arg AdminListUnratedPara
 }
 
 const adminMediaFileDurations = `-- name: AdminMediaFileDurations :many
-SELECT id, duration_ms FROM media_files WHERE id IN (/*SLICE:ids*/?)
+SELECT id, duration_ms, audio_codec, CAST(COALESCE(json_extract(probe, '$.format.bitRate'), 0) AS INTEGER) AS bit_rate
+FROM media_files WHERE id IN (/*SLICE:ids*/?)
 `
 
 type AdminMediaFileDurationsRow struct {
 	ID         string
 	DurationMs sql.NullInt64
+	AudioCodec sql.NullString
+	BitRate    int64
 }
 
+// Duration, audio codec and the probed overall bit rate (bit/s, the format's; 0 unknown) of media files.
 func (q *Queries) AdminMediaFileDurations(ctx context.Context, ids []string) ([]AdminMediaFileDurationsRow, error) {
 	query := adminMediaFileDurations
 	var queryParams []interface{}
@@ -1230,7 +1234,12 @@ func (q *Queries) AdminMediaFileDurations(ctx context.Context, ids []string) ([]
 	items := []AdminMediaFileDurationsRow{}
 	for rows.Next() {
 		var i AdminMediaFileDurationsRow
-		if err := rows.Scan(&i.ID, &i.DurationMs); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.DurationMs,
+			&i.AudioCodec,
+			&i.BitRate,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -1544,11 +1553,64 @@ func (q *Queries) AdminSoftDeleteItem(ctx context.Context, arg AdminSoftDeleteIt
 	return result.RowsAffected()
 }
 
+const adminStreamChapters = `-- name: AdminStreamChapters :many
+SELECT item_id, title, start_ms, end_ms FROM chapters WHERE item_id IN (/*SLICE:item_ids*/?) ORDER BY item_id, start_ms, idx
+`
+
+type AdminStreamChaptersRow struct {
+	ItemID  string
+	Title   string
+	StartMs int64
+	EndMs   int64
+}
+
+// The chapters of the titles of running streams (an audiobook's chapter at the position, 17.4).
+func (q *Queries) AdminStreamChapters(ctx context.Context, itemIds []string) ([]AdminStreamChaptersRow, error) {
+	query := adminStreamChapters
+	var queryParams []interface{}
+	if len(itemIds) > 0 {
+		for _, v := range itemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(itemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AdminStreamChaptersRow{}
+	for rows.Next() {
+		var i AdminStreamChaptersRow
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.Title,
+			&i.StartMs,
+			&i.EndMs,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const adminStreamItems = `-- name: AdminStreamItems :many
 
 SELECT i.id, i.kind, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title, i.season_number, i.episode_number, i.episode_end,
        p.season_number AS parent_season_number, COALESCE(sd.title, se.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = s.id ORDER BY tr.rank, tr.lang LIMIT 1), s.title, '') AS series_title,
-       s.id AS series_id
+       s.id AS series_id,
+       o.id AS owner_id, COALESCE(od.title, oe.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = o.id ORDER BY tr.rank, tr.lang LIMIT 1), o.title, '') AS owner_title,
+       i.duration_ms, i.enclosure_type,
+       (SELECT COUNT(*) FROM media_files AS m WHERE m.item_id = i.id AND m.missing_since IS NULL AND m.probe_error IS NULL) AS part_count
 FROM items AS i
 LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
 LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'
@@ -1556,6 +1618,9 @@ LEFT JOIN items AS p ON p.id = i.parent_id
 LEFT JOIN items AS s ON s.kind = 'series' AND (s.id = p.parent_id OR s.id = p.id)
 LEFT JOIN item_texts AS sd ON sd.item_id = s.id AND sd.lang = 'de'
 LEFT JOIN item_texts AS se ON se.item_id = s.id AND se.lang = 'en'
+LEFT JOIN items AS o ON o.id = CASE i.kind WHEN 'podcast_episode' THEN i.parent_id WHEN 'extra' THEN COALESCE(s.id, p.id) END
+LEFT JOIN item_texts AS od ON od.item_id = o.id AND od.lang = 'de'
+LEFT JOIN item_texts AS oe ON oe.item_id = o.id AND oe.lang = 'en'
 WHERE i.id IN (/*SLICE:item_ids*/?)
 `
 
@@ -1569,12 +1634,20 @@ type AdminStreamItemsRow struct {
 	ParentSeasonNumber sql.NullInt64
 	SeriesTitle        string
 	SeriesID           sql.NullString
+	OwnerID            sql.NullString
+	OwnerTitle         string
+	DurationMs         sql.NullInt64
+	EnclosureType      sql.NullString
+	PartCount          int64
 }
 
 // Stream overview (W-6, M4): titles and durations of running playback sessions. The overview is
 // unfiltered (owner only) and names titles in plain text, never as ItemRef.
 // Title (German text, else English, else the first language by rank, else the parsed title; ADR 0018)
-// with, for an episode, the series id and title and the season and episode numbers.
+// with, for an episode, the series id and title and the season and episode numbers; the owner of a
+// podcast episode (its podcast) and of an extra (its movie, else its series) with the owner's title;
+// the title's own duration (the book sum of an audiobook, the feed's of a podcast episode), the MIME
+// type of an enclosure and the number of present media files (an audiobook's parts; concept 18, 17.4).
 func (q *Queries) AdminStreamItems(ctx context.Context, itemIds []string) ([]AdminStreamItemsRow, error) {
 	query := adminStreamItems
 	var queryParams []interface{}
@@ -1604,6 +1677,11 @@ func (q *Queries) AdminStreamItems(ctx context.Context, itemIds []string) ([]Adm
 			&i.ParentSeasonNumber,
 			&i.SeriesTitle,
 			&i.SeriesID,
+			&i.OwnerID,
+			&i.OwnerTitle,
+			&i.DurationMs,
+			&i.EnclosureType,
+			&i.PartCount,
 		); err != nil {
 			return nil, err
 		}

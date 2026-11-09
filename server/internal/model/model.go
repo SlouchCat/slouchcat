@@ -1714,7 +1714,29 @@ type AdminStream struct {
 	// BackdropItemID and BackdropHash name the AdminBackdropSize backdrop the same way (concept 12).
 	BackdropItemID string
 	BackdropHash   string
+	// Kind is what the stream plays (concept 18, 17.4): the item kind movie, episode, extra,
+	// audiobook or podcast_episode.
+	Kind string
+	// ParentTitle is the podcast of a podcast episode and the movie or series of an extra.
+	ParentTitle string
+	// ChapterTitle is an audiobook's chapter at PositionMs.
+	ChapterTitle string
+	// PartCount is the number of parts of an audiobook of several files (0 otherwise).
+	PartCount int
+	// AudioCodec and AudioBitrate (bit/s, 0 unknown) describe the audio of an audiobook or a
+	// podcast episode: the probe's when played directly, aac and the session's over HLS, the
+	// enclosure's codec from a feed.
+	AudioCodec   string
+	AudioBitrate int
+	// Source is StreamSourceFeed for a podcast episode played from its enclosure, else StreamSourceFile.
+	Source string
 }
+
+// Where a stream's audio or video comes from (AdminStream.Source).
+const (
+	StreamSourceFile = "file"
+	StreamSourceFeed = "feed"
+)
 
 // PlaybackGrant is a valid stream token resolved to its playback session: the browser session
 // (account and profile) it was issued to and the title and media file it covers.

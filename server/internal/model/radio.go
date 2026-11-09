@@ -419,6 +419,8 @@ type RadioListenerInfo struct {
 	AccountEmail string
 	Playing      bool
 	Since        time.Time
+	// Device is the device of the listen session's login session; nil without one.
+	Device *DeviceRef
 }
 
 // RadioRelayInfo is one running relay (admin view, contract RadioRelay).
@@ -431,8 +433,10 @@ type RadioRelayInfo struct {
 	StartedAt     time.Time
 	BufferSeconds int
 	BufferBytes   int64
-	State         string // connecting, live, reconnecting, ending
+	State         string // connecting, live, reconnecting, ending, failed
 	Listeners     []RadioListenerInfo
+	// LogoHash is the content hash of the station's logo ("" without one).
+	LogoHash string
 }
 
 // RadioLoad is the load of all relays together (contract RadioLoad).

@@ -5969,19 +5969,55 @@ export interface components {
             lastActivityAt: string;
             /** Format: int64 */
             positionMs?: number;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description The length of the media file of the session; for an audiobook always the whole book (the sum
+             *     of its parts), for a podcast episode from a feed the length the feed names.
+             */
             durationMs?: number;
             /**
-             * @description The poster (`w200`) through `getAdminItemImage`, for an episode the poster of its series;
-             *     absent when no poster is stored.
+             * @description The poster (`w200`) through `getAdminItemImage`, for an episode the poster of its series, for
+             *     an extra that of its movie or series, for a podcast episode without cover of its own that of
+             *     its podcast; absent when no poster is stored.
              */
             posterUrl?: string;
             /**
              * @description The backdrop (`w780`) through `getAdminItemImage` with the content hash, for an episode the
-             *     backdrop of its series; absent when no backdrop is stored.
+             *     backdrop of its series, for an extra that of its movie or series; absent when no backdrop is
+             *     stored and always for an audiobook and a podcast episode (they show the square `posterUrl`).
              */
             backdropUrl?: string;
+            kind: components["schemas"]["AdminStreamKind"];
+            /**
+             * @description Since contract 1.23.0. The podcast of a podcast episode, the movie or series of an extra (an
+             *     episode names its series in `itemTitle`); absent for the other kinds.
+             */
+            parentTitle?: string;
+            /** @description Since contract 1.23.0. The audiobook's chapter at `positionMs`; absent without chapters. */
+            chapterTitle?: string;
+            /** @description Since contract 1.23.0. The number of parts of an audiobook of several files. */
+            partCount?: number;
+            /**
+             * @description Since contract 1.23.0, audiobooks and podcast episodes only. Played directly the codec of the
+             *     file's probe, over HLS `aac`, from a feed the codec of the enclosure's MIME type.
+             */
+            audioCodec?: string;
+            /**
+             * @description Since contract 1.23.0, audiobooks and podcast episodes only; bit/s. Played directly the bit
+             *     rate of the file's probe, over HLS the session's; absent from a feed (no probe).
+             */
+            audioBitrate?: number;
+            /**
+             * @description Since contract 1.23.0. `feed` is a podcast episode played from its enclosure, without media file.
+             * @enum {string}
+             */
+            source: "file" | "feed";
         };
+        /**
+         * @description Since contract 1.23.0. What a stream plays (concept 18, 17.4).
+         * @enum {string}
+         */
+        AdminStreamKind: "movie" | "episode" | "extra" | "audiobook" | "podcast_episode";
         ProgressEvent: {
             mediaFileId?: string;
             /** @description The playback session this event belongs to; the server records the position for the stream overview (W-6). */
@@ -9065,8 +9101,13 @@ export interface components {
             openTags: number;
             coverage: components["schemas"]["RadioCoverage"][];
         };
-        /** @enum {string} */
-        RadioRelayState: "connecting" | "live" | "reconnecting" | "ending";
+        /**
+         * @description `failed` (since contract 1.23.0): no relay runs any more for these open listen sessions (it ended
+         *     and its sessions could not be closed, or the station's relay was started anew); they hear nothing
+         *     until they end or expire. `listRadioRelays` lists them under the ended relay; `load` counts it not.
+         * @enum {string}
+         */
+        RadioRelayState: "connecting" | "live" | "reconnecting" | "ending" | "failed";
         RadioRelayListener: {
             listenId: string;
             profileName: string;
@@ -9077,7 +9118,16 @@ export interface components {
              * @description Unix ms when the listen session started.
              */
             since: number;
+            /** @description Since contract 1.23.0. The device of the listen session's login session, like `AdminStream.device`. */
+            device?: {
+                id: string;
+                name?: string;
+            };
         };
+        /**
+         * @description A relay with its listeners. Since contract 1.23.0 `logo` is the station's logo through
+         *     `getAdminRadioImage` (w256, `v` = content hash), absent without one.
+         */
         RadioRelay: {
             /** Format: int64 */
             stationId: number;
@@ -9093,6 +9143,7 @@ export interface components {
             bufferBytes: number;
             state: components["schemas"]["RadioRelayState"];
             listeners: components["schemas"]["RadioRelayListener"][];
+            logo?: components["schemas"]["RadioLogo"];
         };
         RadioLoad: {
             relays: number;
