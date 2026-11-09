@@ -623,7 +623,7 @@ func (s *Service) scaleDerived(ctx context.Context, root *os.Root, dir, itemID, 
 			args = append(args, transcode.ImageOutput{Path: abs, Width: sz.width, Format: f.format})
 		}
 	}
-	if err := s.runner.ScaleImage(ctx, in, args); err != nil {
+	if err := s.runner.ScaleImage(ctx, in, "", args); err != nil {
 		return nil, fmt.Errorf("scale %s: %w", origRel, err)
 	}
 	if kind == "poster" {

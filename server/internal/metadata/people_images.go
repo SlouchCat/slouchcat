@@ -359,7 +359,7 @@ func (s *Service) processSubject(ctx context.Context, root *os.Root, run *images
 	if err != nil || cfg.Width <= 0 || cfg.Height <= 0 {
 		return s.markMissing(ctx, root, run, sub) // empty or not an image
 	}
-	jpeg, webp, err := s.storeSubjectFiles(ctx, root, sub, data, format == "jpeg")
+	jpeg, webp, err := s.storeSubjectFiles(ctx, root, sub, data, cfg.Width, format)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
@@ -414,11 +414,12 @@ func tmdbImagePath(p string) bool {
 	return len(p) > 1 && p[0] == '/' && !strings.ContainsAny(p[1:], "/\\?#%") && !strings.Contains(p, "..")
 }
 
-// storeSubjectFiles writes the JPEG and the WebP of a subject from the fetched data: a person's
-// JPEG stays as fetched (isJPEG) and its WebP gets the same width; otherwise ffmpeg scales both
-// formats to sub.width (or the fetched width). The files are scaled to temporary names and renamed
+// storeSubjectFiles writes the JPEG and the WebP of a subject from the fetched data of the given
+// width and format (image.DecodeConfig): a person's JPEG stays as fetched and its WebP gets the
+// same width; otherwise ffmpeg scales both formats to sub.width (or the fetched width). ffmpeg
+// reads the data with the demuxer of format. The files are scaled to temporary names and renamed
 // into place only when both exist.
-func (s *Service) storeSubjectFiles(ctx context.Context, root *os.Root, sub imageSubject, data []byte, isJPEG bool) (jpeg, webp *storedFile, err error) {
+func (s *Service) storeSubjectFiles(ctx context.Context, root *os.Root, sub imageSubject, data []byte, fetchedWidth int, format string) (jpeg, webp *storedFile, err error) {
 	if err := root.MkdirAll(sub.dir, 0o750); err != nil {
 		return nil, nil, fmt.Errorf("create image dir: %w", err)
 	}
@@ -437,14 +438,10 @@ func (s *Service) storeSubjectFiles(ctx context.Context, root *os.Root, sub imag
 			}
 		}
 	}()
-	keep := sub.width == 0 && isJPEG
+	keep := sub.width == 0 && format == "jpeg"
 	width := sub.width
 	if width == 0 {
-		cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
-		if err != nil {
-			return nil, nil, fmt.Errorf("decode image header: %w", err)
-		}
-		width = cfg.Width
+		width = fetchedWidth
 	}
 	formats := []imageFormat{imageFormats[1]} // WebP
 	if !keep {
@@ -469,7 +466,7 @@ func (s *Service) storeSubjectFiles(ctx context.Context, root *os.Root, sub imag
 		outs = append(outs, transcode.ImageOutput{Path: abs, Width: width, Format: f.format})
 		rels = append(rels, tmp)
 	}
-	if err := s.runner.ScaleImage(ctx, in, outs); err != nil {
+	if err := s.runner.ScaleImage(ctx, in, transcode.ImageDemuxer(format), outs); err != nil {
 		return nil, nil, fmt.Errorf("scale %s: %w", sub.key, err)
 	}
 	files := map[transcode.ImageFormat]*storedFile{}
