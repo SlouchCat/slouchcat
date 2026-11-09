@@ -89,6 +89,17 @@ type Service struct {
 	keyframeVerifier func(ctx context.Context, abs string, at []time.Duration, seed uint64) error
 	// indexTimeout bounds the read of the container index (indexReadTimeout; shorter in tests).
 	indexTimeout time.Duration
+	// trickplayLoad tells whether a transcode keeps the CPU busy (WithTrickplayLoad; nil: never).
+	trickplayLoad TrickplayLoad
+	// trickplayFrameFn and trickplaySheetFn replace transcode.Runner.TrickplayFrame and
+	// TrickplaySheet (test seams; nil outside tests); diskSpace is the statfs of the cache drive.
+	trickplayFrameFn func(ctx context.Context, in string, at time.Duration, height int, v transcode.Stream) ([]byte, error)
+	trickplaySheetFn func(ctx context.Context, tiles [][]byte, height int, out string) error
+	diskSpace        func(dir string) (total, free int64, err error)
+	// trickplayMu guards trickplayBytes: the bytes of the stored trickplay sets per library and
+	// kind (0 movies, 1 series), counted by the hourly sweep (TrickplayUsage).
+	trickplayMu    sync.Mutex
+	trickplayBytes map[int64][2]int64
 
 	mu       sync.Mutex
 	runCtx   context.Context // context of Start; watchers of libraries created later run under it
@@ -197,7 +208,7 @@ func WithVisibilityRecheck(recheck func(ctx context.Context) error) Option {
 // New returns the library service. queue must work on db.Write.
 func New(db *store.DB, queue *jobs.Queue, probe transcode.Runner, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{
-		db: db, queue: queue, probe: probe, log: log, now: time.Now, indexTimeout: indexReadTimeout,
+		db: db, queue: queue, probe: probe, log: log, now: time.Now, indexTimeout: indexReadTimeout, diskSpace: diskSpace,
 		watchers: map[int64]*Watcher{}, watcherStop: map[int64]context.CancelFunc{},
 		retrying: map[int64]bool{}, scanLocks: map[int64]chan struct{}{},
 		runs:        map[int64]map[*scanRun]bool{},

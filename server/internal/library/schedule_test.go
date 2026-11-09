@@ -68,8 +68,8 @@ func TestRunSweepRaisesWaitingSweep(t *testing.T) {
 			t.Errorf("%s = %+v, want a schedule type that fires at the start", name, ty)
 		}
 	}
-	if len(r.Types()) != 11 {
-		t.Errorf("registered types = %d, want the ten job types of the library plus jobs.prune", len(r.Types()))
+	if len(r.Types()) != 14 {
+		t.Errorf("registered types = %d, want the 13 job types of the library (three of trickplay) plus jobs.prune", len(r.Types()))
 	}
 	// Concept 13 stage 3: chapters.images is an event type. Concept 15 P-3: its backfill is a
 	// schedule type every 7 days, not at the start, with the schedule off by default.
