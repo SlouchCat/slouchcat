@@ -1,0 +1,62 @@
+/* A row of toggle buttons with counts (concept 18, 17.3, mockup «Verwaltung: Streams»): the pressed
+   one carries the profile's accent. */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+}
+
+.button {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  min-height: var(--sc-control-height);
+  padding: 0 var(--sc-space-4);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-surface-2);
+  color: var(--sc-color-text-primary);
+  font: inherit;
+  font-size: var(--sc-control-font-size);
+  white-space: nowrap;
+  cursor: pointer;
+  outline: none;
+  transition:
+    background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    border-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.button[data-hovered] {
+  background-color: var(--sc-color-surface-3);
+}
+
+.button[data-selected] {
+  --sc-toggle-tint: color-mix(in srgb, var(--sc-accent) 20%, transparent);
+
+  border-color: var(--sc-accent);
+  background-color: var(--sc-toggle-tint);
+}
+
+.button[data-focus-visible] {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+}
+
+.count {
+  min-width: var(--sc-space-5);
+  padding: 0 var(--sc-space-2);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-surface-3);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: calc(var(--sc-space-5) + 2px);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.button[data-selected] .count {
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
+}

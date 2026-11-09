@@ -1953,17 +1953,49 @@
     },
     "streams": {
       "title": "Streams",
-      "intro": "Laufende Wiedergaben. Die Liste aktualisiert sich alle 5 Sekunden.",
-      "list": "Laufende Streams",
+      "intro": "Alles, was gerade läuft. Die Liste aktualisiert sich alle 5 Sekunden.",
+      "list": "Läuft gerade",
+      "listHelp": "Neueste zuerst, Radio in derselben Liste.",
       "tileLabel": "{{profile}}: {{title}}",
       "empty": "Gerade läuft nichts.",
+      "emptyKind": "Gerade läuft nichts dieser Art.",
+      "filter": {
+        "label": "Nach Art filtern",
+        "all": "Alle",
+        "video": "Video",
+        "audiobook": "Hörbücher",
+        "podcast": "Podcasts",
+        "radio": "Radio",
+        "unknown": "Anzahl unbekannt"
+      },
+      "kinds": {
+        "movie": "Film",
+        "episode": "Serie",
+        "extra": "Extra",
+        "audiobook": "Hörbuch",
+        "podcast": "Podcast",
+        "radio": "Radio"
+      },
+      "partial": {
+        "streams": "Wiedergaben fehlen in der Liste, bis die Anfrage wieder gelingt.",
+        "radio": "Radiohörer fehlen in der Liste, bis die Anfrage wieder gelingt."
+      },
       "facts": {
         "device": "Gerät",
         "quality": "Qualität",
-        "reason": "Grund"
+        "reason": "Grund",
+        "format": "Format",
+        "source": "Quelle",
+        "listeners": "Hörer"
       },
       "unknownDevice": "Unbekanntes Gerät",
       "original": "Original",
+      "source": {
+        "file": "Datei",
+        "feed": "Feed"
+      },
+      "parts_one": "{{count}} Teil",
+      "parts_other": "{{count}} Teile",
       "qualityValue": "{{quality}} · {{bitrate}}",
       "modes": {
         "direct": "Direct",
@@ -2013,11 +2045,13 @@
         }
       },
       "radio": {
-        "title": "Radio",
-        "help": "Wer gerade Webradio über den Server hört; ein Sender läuft für alle Hörer nur einmal.",
-        "mode": "Radio",
         "playing": "Hört",
         "paused": "Pausiert",
+        "failed": "Relais gestört",
+        "transcoded": "umkodiert",
+        "copied": "umgepackt",
+        "listeners_one": "{{count}} Hörer dieses Senders",
+        "listeners_other": "{{count}} Hörer dieses Senders",
         "stopLabel": "Radio von {{profile}} beenden",
         "stopTitle": "Radio von {{profile}} beenden?",
         "stopBody": "Die Wiedergabe von «{{station}}» stoppt auf dem Gerät innert Sekunden.",

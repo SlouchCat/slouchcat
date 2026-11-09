@@ -1,4 +1,17 @@
 {
+  "stream-tile": {
+    "$description": "The square form of the stream tile for covers and station logos (concept 18, 17.3): the picture in the middle on a blurred, darkened copy of itself.",
+    "ground-blur": {
+      "$type": "dimension",
+      "$value": "22px",
+      "$description": "Blur radius of the ground behind a square cover or logo."
+    },
+    "ground-dim": {
+      "$type": "number",
+      "$value": 0.45,
+      "$description": "Brightness of the blurred ground (1 = unchanged): dark enough for the badges on it."
+    }
+  },
   "control": {
     "$type": "dimension",
     "$description": "Component tokens (concept 12, ADR 0020): what the ui building blocks read instead of the general scale. The default is today's value; density.compact holds the administration's values.",

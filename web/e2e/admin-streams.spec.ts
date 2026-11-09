@@ -53,7 +53,7 @@ interface AdminStreamData {
 /** The tiles of a profile: articles with its «Beenden». */
 const tileOf = (page: Page, profile: string) =>
   page
-    .getByRole('region', { name: 'Laufende Streams' })
+    .getByRole('region', { name: 'Läuft gerade' })
     .getByRole('article')
     .filter({ has: page.getByRole('button', { name: `Stream von ${profile} beenden` }) });
 
@@ -163,7 +163,7 @@ test('two streams listed; the admin ends one, its player stops within 5 s', asyn
     // viewer's tile (reading order); Enter, Enter.
     await resetFocus(overview);
     const stops = overview
-      .getByRole('region', { name: 'Laufende Streams' })
+      .getByRole('region', { name: 'Läuft gerade' })
       .getByRole('button', { name: /^Stream von .+ beenden$/ });
     const stopViewer = overview.getByRole('button', {
       name: `Stream von ${viewerProfile} beenden`,
@@ -370,7 +370,7 @@ async function listen(owner: APIRequestContext, name: string) {
   expect(started.status(), await started.text()).toBe(201);
 }
 
-test('radio listeners as tiles in «Radio»: arrow keys between them, «Beenden» after the confirmation @keyboard', async ({
+test('radio listeners as tiles in «Läuft gerade», filtered to «Radio»: arrow keys between them, «Beenden» after the confirmation @keyboard', async ({
   page,
   owner,
 }) => {
@@ -381,12 +381,21 @@ test('radio listeners as tiles in «Radio»: arrow keys between them, «Beenden�
     await listen(owner, 'Testradio Eins');
     await listen(owner, 'Testradio Zwei');
     await page.goto('/admin/streams');
-    const radio = page.getByRole('region', { name: 'Radio' });
-    const first = radio.getByRole('article', { name: `${OWNER_PROFILE}: Testradio Eins` });
-    const second = radio.getByRole('article', { name: `${OWNER_PROFILE}: Testradio Zwei` });
+    // One list for everything (concept 18, 17.3); the filter «Radio» keeps only the listeners.
+    const list = page.getByRole('region', { name: 'Läuft gerade' });
+    const first = list.getByRole('article', { name: `${OWNER_PROFILE}: Testradio Eins` });
+    const second = list.getByRole('article', { name: `${OWNER_PROFILE}: Testradio Zwei` });
     await expect(first).toBeVisible({ timeout: 15_000 });
     await expect(second).toBeVisible();
-    await expect(first).toContainText('Radio');
+    await expect(first.getByText('Radio', { exact: true })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Radio' })).toHaveCount(0);
+    const radioFilter = page
+      .getByRole('toolbar', { name: 'Nach Art filtern' })
+      .getByRole('button', { name: /^Radio/ });
+    await expect(radioFilter).toHaveText('Radio 2');
+    await radioFilter.click();
+    await expect(radioFilter).toHaveAttribute('aria-pressed', 'true');
+    await expect(list.getByRole('article')).toHaveCount(2);
     await expect(
       page
         .getByRole('group', { name: 'Serverlast' })
@@ -396,11 +405,10 @@ test('radio listeners as tiles in «Radio»: arrow keys between them, «Beenden�
 
     const stopFirst = first.getByRole('button', { name: `Radio von ${OWNER_PROFILE} beenden` });
     const stopSecond = second.getByRole('button', { name: `Radio von ${OWNER_PROFILE} beenden` });
+    // Newest first: «Zwei» started listening after «Eins».
     await resetFocus(page);
-    await tabTo(page, stopFirst, 60);
+    await tabTo(page, stopSecond, 60);
     await page.keyboard.press('ArrowRight');
-    await expectFocusOn(page, stopSecond);
-    await page.keyboard.press('ArrowLeft');
     await expectFocusOn(page, stopFirst);
 
     await page.keyboard.press('Enter');

@@ -1,6 +1,13 @@
 /* The streams page (concept 12, mockup Str-D2): what AdminPage, BandPanel and StreamTile do not
    lay out themselves. */
 
+/* The filter, the notices of a failed half and the tiles below the section's heading. */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+}
+
 /* The tiles: as many columns as fit, equally high per row (S-8). */
 .tiles {
   display: grid;

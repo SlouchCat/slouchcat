@@ -1953,17 +1953,49 @@
     },
     "streams": {
       "title": "Streams",
-      "intro": "Running playbacks. The list refreshes every 5 seconds.",
-      "list": "Running streams",
+      "intro": "Everything that is playing now. The list refreshes every 5 seconds.",
+      "list": "Playing now",
+      "listHelp": "Newest first, radio in the same list.",
       "tileLabel": "{{profile}}: {{title}}",
       "empty": "Nothing is playing right now.",
+      "emptyKind": "Nothing of this kind is playing.",
+      "filter": {
+        "label": "Filter by kind",
+        "all": "All",
+        "video": "Video",
+        "audiobook": "Audiobooks",
+        "podcast": "Podcasts",
+        "radio": "Radio",
+        "unknown": "Count unknown"
+      },
+      "kinds": {
+        "movie": "Film",
+        "episode": "Series",
+        "extra": "Extra",
+        "audiobook": "Audiobook",
+        "podcast": "Podcast",
+        "radio": "Radio"
+      },
+      "partial": {
+        "streams": "Playbacks are missing from the list until the request succeeds again.",
+        "radio": "Radio listeners are missing from the list until the request succeeds again."
+      },
       "facts": {
         "device": "Device",
         "quality": "Quality",
-        "reason": "Reason"
+        "reason": "Reason",
+        "format": "Format",
+        "source": "Source",
+        "listeners": "Listeners"
       },
       "unknownDevice": "Unknown device",
       "original": "Original",
+      "source": {
+        "file": "File",
+        "feed": "Feed"
+      },
+      "parts_one": "{{count}} part",
+      "parts_other": "{{count}} parts",
       "qualityValue": "{{quality}} · {{bitrate}}",
       "modes": {
         "direct": "Direct",
@@ -2013,11 +2045,13 @@
         }
       },
       "radio": {
-        "title": "Radio",
-        "help": "Who listens to web radio through the server right now; a station runs once for all its listeners.",
-        "mode": "Radio",
         "playing": "Listening",
         "paused": "Paused",
+        "failed": "Relay failed",
+        "transcoded": "transcoded",
+        "copied": "repackaged",
+        "listeners_one": "{{count}} listener of this station",
+        "listeners_other": "{{count}} listeners of this station",
         "stopLabel": "Stop the radio of {{profile}}",
         "stopTitle": "Stop the radio of {{profile}}?",
         "stopBody": "The playback of “{{station}}” stops on the device within seconds.",

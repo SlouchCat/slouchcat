@@ -4,8 +4,9 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, session, signedIn, type Routes } from '@/test/api';
 
-// W-6 streams for the main account's primary profile (concept 12, mockup Str-D2): tiles with the
-// backdrop, «Serverlast» with the streams per mode and the bandwidth. The server lists and stops;
+// W-6 streams for the main account's primary profile (concept 12, mockup Str-D2; concept 18,
+// 17.3): one list «Läuft gerade» of playbacks and radio listeners, newest first, with the kind
+// filter, «Serverlast» with the streams per mode and the bandwidth. The server lists and stops;
 // the page shows the answers and sends «Beenden».
 
 const streams: AdminStream[] = [
@@ -26,7 +27,7 @@ const streams: AdminStream[] = [
     width: 1280,
     height: 720,
     bitrate: 4_000_000,
-    startedAt: '2026-10-20T08:00:00Z',
+    startedAt: '2026-10-20T08:10:00Z',
     lastActivityAt: '2026-10-20T08:30:00Z',
     positionMs: 65_000,
     durationMs: 600_000,
@@ -43,7 +44,7 @@ const streams: AdminStream[] = [
     source: 'file',
     mode: 'direct',
     hardware: false,
-    startedAt: '2026-10-20T08:10:00Z',
+    startedAt: '2026-10-20T08:00:00Z',
     lastActivityAt: '2026-10-20T08:30:00Z',
   },
 ];
@@ -55,6 +56,7 @@ const mixed: AdminStream[] = [
     ...streams[0]!,
     id: 'ps-3',
     profileName: 'Sandra',
+    startedAt: '2026-10-20T07:50:00Z',
     hardware: false,
     backend: 'libx264',
     bitrate: 2_500_000,
@@ -63,6 +65,7 @@ const mixed: AdminStream[] = [
     ...streams[1]!,
     id: 'ps-4',
     profileName: 'Nora',
+    startedAt: '2026-10-20T07:40:00Z',
     mode: 'remux',
     bitrate: 9_800_000,
   },
@@ -114,8 +117,8 @@ const swissPop: RadioRelays['relays'][number] = {
 const tileOf = (profile: string) =>
   screen.getByRole('button', { name: `Stream von ${profile} beenden` }).closest('article')!;
 
-/** The list of tiles, in its section «Laufende Streams» (the admin sidebar has lists too). */
-const tiles = () => screen.getByRole('region', { name: 'Laufende Streams' });
+/** The list of tiles, in its section «Läuft gerade» (the admin sidebar has lists too). */
+const tiles = () => screen.getByRole('region', { name: 'Läuft gerade' });
 
 const loadOf = (label: string) =>
   within(screen.getByRole('group', { name: 'Serverlast' }))
@@ -244,7 +247,7 @@ describe('admin streams (W-6)', () => {
         }),
     });
     renderApp('/admin/streams');
-    const region = await screen.findByRole('region', { name: 'Laufende Streams' });
+    const region = await screen.findByRole('region', { name: 'Läuft gerade' });
     expect(region).toHaveAttribute('aria-busy', 'true');
     release(json(streams));
     await waitFor(() => expect(region).toHaveAttribute('aria-busy', 'false'));
@@ -416,7 +419,13 @@ describe('admin streams (W-6)', () => {
   });
 
   it('announces the same message again for a second stop', async () => {
-    const second: AdminStream = { ...streams[0]!, id: 'ps-5', itemTitle: 'Slouchcat Test H264' };
+    // Started after the first: the list is newest first.
+    const second: AdminStream = {
+      ...streams[0]!,
+      id: 'ps-5',
+      itemTitle: 'Slouchcat Test H264',
+      startedAt: '2026-10-20T08:05:00Z',
+    };
     let listed = [streams[0]!, second];
     mockApi(
       routes(() => listed, {
@@ -472,18 +481,244 @@ describe('admin streams (W-6)', () => {
     expect(calls.some((call) => call.path.startsWith('/admin/'))).toBe(false);
   });
 
+  describe('every kind in one list (concept 18, 17.3)', () => {
+    /** An extra, an audiobook of twelve parts and a podcast episode from the feed. */
+    const kinds: AdminStream[] = [
+      {
+        ...streams[1]!,
+        id: 'ps-x',
+        profileName: 'Kim',
+        kind: 'extra',
+        itemTitle: 'Making-of',
+        parentTitle: 'Oppenheimer',
+        startedAt: '2026-10-20T08:20:00Z',
+        backdropUrl: '/api/v1/admin/items/film/images/backdrop/w780?v=x',
+      },
+      {
+        ...streams[1]!,
+        id: 'ps-b',
+        profileName: 'Kids',
+        kind: 'audiobook',
+        itemTitle: 'Moos und Stein',
+        chapterTitle: 'Kapitel 7: Der Sturm',
+        partCount: 12,
+        audioCodec: 'aac',
+        audioBitrate: 64_000,
+        mode: 'remux',
+        positionMs: 13_270_000,
+        durationMs: 31_560_000,
+        posterUrl: '/api/v1/admin/items/book/images/poster/w200?v=b',
+        startedAt: '2026-10-20T08:30:00Z',
+      },
+      {
+        ...streams[1]!,
+        id: 'ps-p',
+        profileName: 'Lena',
+        kind: 'podcast_episode',
+        source: 'feed',
+        itemTitle: 'Folge vom 9. November',
+        parentTitle: 'Apropos',
+        audioCodec: 'mp3',
+        posterUrl: '/api/v1/admin/items/pod/images/poster/w200?v=p',
+        startedAt: '2026-10-20T08:40:00Z',
+      },
+    ];
+    const radio = relays([
+      {
+        ...swissPop,
+        listeners: [{ ...swissPop.listeners[0]!, since: Date.parse('2026-10-20T08:50:00Z') }],
+      },
+    ]);
+    const filterButton = (name: RegExp) =>
+      within(screen.getByRole('toolbar', { name: 'Nach Art filtern' })).getByRole('button', {
+        name,
+      });
+
+    it('names the kind of each tile, newest first across playbacks and the radio', async () => {
+      mockApi(
+        routes(() => [...streams, ...kinds], { 'GET /admin/radio/relays': () => json(radio) }),
+      );
+      renderApp('/admin/streams');
+      await screen.findByRole('article', { name: 'Lena: Radio Swiss Pop' });
+      expect(
+        within(tiles())
+          .getAllByRole('article')
+          .map((tile) => tile.getAttribute('aria-label')),
+      ).toEqual([
+        'Lena: Radio Swiss Pop',
+        'Lena: Apropos · Folge vom 9. November',
+        'Kids: Moos und Stein · Kapitel 7: Der Sturm',
+        'Kim: Oppenheimer · Making-of',
+        'Marco: Slouchcat Test Multi Audio',
+        'Lena: Slouchcat Test H264',
+      ]);
+      const badge = (name: string) =>
+        within(screen.getByRole('article', { name })).getByText(
+          /^(Film|Serie|Extra|Hörbuch|Podcast|Radio)$/,
+          { selector: 'span' },
+        );
+      expect(badge('Marco: Slouchcat Test Multi Audio')).toHaveTextContent('Film');
+      expect(badge('Kim: Oppenheimer · Making-of')).toHaveTextContent('Extra');
+      expect(badge('Kids: Moos und Stein · Kapitel 7: Der Sturm')).toHaveTextContent('Hörbuch');
+      expect(badge('Lena: Apropos · Folge vom 9. November')).toHaveTextContent('Podcast');
+      expect(badge('Lena: Radio Swiss Pop')).toHaveTextContent('Radio');
+    });
+
+    it('shows an audiobook with its cover, chapter, format and the whole book', async () => {
+      mockApi(routes(() => kinds));
+      renderApp('/admin/streams');
+      const book = await screen.findByRole('article', {
+        name: 'Kids: Moos und Stein · Kapitel 7: Der Sturm',
+      });
+      expect(within(book).getByText('Format').closest('dt')).not.toBeNull();
+      expect(within(book).getByText(/^AAC · 64\skbit\/s · 12 Teile$/)).toBeVisible();
+      expect(within(book).getByText('3:41:10 von 8:46:00')).toBeVisible();
+      expect(within(book).getByText('Remux')).toBeVisible();
+      // The square cover: on its blurred ground and in the middle, never the backdrop.
+      const images = [...book.querySelectorAll('img')];
+      expect(images.length).toBeGreaterThan(0);
+      for (const image of images) expect(image).toHaveAttribute('src', kinds[1]!.posterUrl);
+      const podcast = screen.getByRole('article', {
+        name: 'Lena: Apropos · Folge vom 9. November',
+      });
+      expect(within(podcast).getByText('Quelle').closest('dt')).not.toBeNull();
+      expect(within(podcast).getByText('Feed')).toBeVisible();
+      expect(within(podcast).getByText(/^MP3$/)).toBeVisible();
+      const extra = screen.getByRole('article', { name: 'Kim: Oppenheimer · Making-of' });
+      expect(extra.querySelector('img')).toHaveAttribute('src', kinds[0]!.backdropUrl);
+    });
+
+    it('filters by kind with counts; the choice holds across the poll, also when it runs out', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      let listed = [...streams, ...kinds];
+      mockApi(routes(() => listed, { 'GET /admin/radio/relays': () => json(radio) }));
+      renderApp('/admin/streams');
+      const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+      await screen.findByRole('article', { name: 'Lena: Radio Swiss Pop' });
+      expect(filterButton(/^Alle/)).toHaveTextContent('Alle 6');
+      expect(filterButton(/^Video/)).toHaveTextContent('Video 3');
+      expect(filterButton(/^Hörbücher/)).toHaveTextContent('Hörbücher 1');
+      expect(filterButton(/^Podcasts/)).toHaveTextContent('Podcasts 1');
+      expect(filterButton(/^Radio/)).toHaveTextContent('Radio 1');
+      expect(filterButton(/^Alle/)).toHaveAttribute('aria-pressed', 'true');
+      await user.click(filterButton(/^Video/));
+      expect(filterButton(/^Video/)).toHaveAttribute('aria-pressed', 'true');
+      expect(filterButton(/^Alle/)).toHaveAttribute('aria-pressed', 'false');
+      expect(within(tiles()).getAllByRole('article')).toHaveLength(3);
+      // Pressed again, it stays.
+      await user.click(filterButton(/^Video/));
+      expect(filterButton(/^Video/)).toHaveAttribute('aria-pressed', 'true');
+      await user.click(filterButton(/^Podcasts/));
+      expect(
+        within(tiles())
+          .getAllByRole('article')
+          .map((tile) => tile.getAttribute('aria-label')),
+      ).toEqual(['Lena: Apropos · Folge vom 9. November']);
+      listed = [...streams, kinds[0]!, kinds[1]!];
+      await act(() => vi.advanceTimersByTimeAsync(5000));
+      expect(await screen.findByText('Gerade läuft nichts dieser Art.')).toBeVisible();
+      expect(filterButton(/^Podcasts/)).toHaveAttribute('aria-pressed', 'true');
+      expect(filterButton(/^Podcasts/)).toHaveTextContent('Podcasts 0');
+      expect(filterButton(/^Alle/)).toHaveTextContent('Alle 5');
+      expect(screen.queryByText('Gerade läuft nichts.')).toBeNull();
+    });
+
+    it('moves with ←/→ between the filter buttons; Enter presses one', async () => {
+      mockApi(routes(() => streams, { 'GET /admin/radio/relays': () => json(radio) }));
+      renderApp('/admin/streams');
+      const user = userEvent.setup();
+      await screen.findByRole('article', { name: 'Lena: Radio Swiss Pop' });
+      filterButton(/^Alle/).focus();
+      await user.keyboard('{ArrowRight}');
+      expect(filterButton(/^Video/)).toHaveFocus();
+      await user.keyboard('{ArrowRight}');
+      expect(filterButton(/^Hörbücher/)).toHaveFocus();
+      await user.keyboard('{ArrowLeft}');
+      expect(filterButton(/^Video/)).toHaveFocus();
+      await user.keyboard('{Enter}');
+      expect(filterButton(/^Video/)).toHaveAttribute('aria-pressed', 'true');
+      // Tab out of the toolbar into the tiles needs the browser's own Tab: e2e checks it.
+    });
+
+    it('keeps the playbacks when the radio fails, with a notice and «–» for its counts', async () => {
+      mockApi(routes(() => kinds, { 'GET /admin/radio/relays': () => problem(500, 'internal') }));
+      renderApp('/admin/streams');
+      await screen.findByRole('article', { name: 'Kim: Oppenheimer · Making-of' });
+      expect(
+        screen.getByText('Radiohörer fehlen in der Liste, bis die Anfrage wieder gelingt.'),
+      ).toBeVisible();
+      expect(within(tiles()).getAllByRole('article')).toHaveLength(3);
+      expect(filterButton(/^Radio/)).toHaveTextContent('Radio –');
+      expect(filterButton(/^Alle/)).toHaveTextContent('Alle –');
+      expect(filterButton(/^Video/)).toHaveTextContent('Video 1');
+      expect(within(loadOf('Radio')).getAllByRole('definition')[0]).toHaveTextContent('–');
+    });
+
+    it('keeps the radio when the playbacks fail', async () => {
+      mockApi({
+        ...signedIn,
+        'GET /admin/streams': () => problem(500, 'internal'),
+        'GET /admin/radio/relays': () => json(radio),
+      });
+      renderApp('/admin/streams');
+      await screen.findByRole('article', { name: 'Lena: Radio Swiss Pop' });
+      expect(
+        screen.getByText('Wiedergaben fehlen in der Liste, bis die Anfrage wieder gelingt.'),
+      ).toBeVisible();
+      expect(filterButton(/^Video/)).toHaveTextContent('Video –');
+      expect(filterButton(/^Radio/)).toHaveTextContent('Radio 1');
+      // The kinds of the failed half are unknown: no text claims they are empty.
+      const user = userEvent.setup();
+      await user.click(filterButton(/^Video/));
+      expect(screen.queryByText('Gerade läuft nichts dieser Art.')).toBeNull();
+    });
+
+    it('names the device of a listener and a listener whose relay failed', async () => {
+      mockApi(
+        routes(() => [], {
+          'GET /admin/radio/relays': () =>
+            json(
+              relays([
+                {
+                  ...swissPop,
+                  state: 'failed',
+                  logo: { url: '/api/v1/admin/radio/images/7/logo/w256?v=l' },
+                  listeners: [
+                    { ...swissPop.listeners[0]!, device: { id: 'd', name: 'Küche (iPhone)' } },
+                  ],
+                },
+              ]),
+            ),
+        }),
+      );
+      renderApp('/admin/streams');
+      const lena = await screen.findByRole('article', { name: 'Lena: Radio Swiss Pop' });
+      expect(within(lena).getByText('Küche (iPhone)')).toBeVisible();
+      expect(within(lena).getByText('Relais gestört')).toBeVisible();
+      expect(within(lena).queryByText('Hört')).toBeNull();
+      expect(lena.querySelector('img')).toHaveAttribute(
+        'src',
+        '/api/v1/admin/radio/images/7/logo/w256?v=l',
+      );
+    });
+  });
+
   describe('radio listeners (concept 16 stage 2, D-11)', () => {
-    it('shows a tile per listener in the section «Radio» and counts them under «Serverlast»', async () => {
+    it('shows a tile per listener in the one list and counts them under «Serverlast»', async () => {
       mockApi(routes(() => streams, { 'GET /admin/radio/relays': () => json(relays([swissPop])) }));
       renderApp('/admin/streams');
-      const section = await screen.findByRole('region', { name: 'Radio' });
-      const lena = within(section).getByRole('article', { name: 'Lena: Radio Swiss Pop' });
+      const lena = await within(
+        await screen.findByRole('region', { name: 'Läuft gerade' }),
+      ).findByRole('article', { name: 'Lena: Radio Swiss Pop' });
       expect(within(lena).getByText('gast@example.test')).toBeVisible();
-      expect(within(lena).getByText(/AAC · 128\skbit\/s/)).toBeVisible();
+      expect(within(lena).getByText(/AAC · 128\skbit\/s · umgepackt/)).toBeVisible();
+      expect(within(lena).getByText('2 Hörer dieses Senders')).toBeVisible();
       expect(within(lena).getByText('Hört')).toBeVisible();
+      expect(within(lena).getByText('Radio', { selector: 'span' })).toBeVisible();
       expect(
-        within(section).getByRole('article', { name: 'Nora: Radio Swiss Pop' }),
+        within(tiles()).getByRole('article', { name: 'Nora: Radio Swiss Pop' }),
       ).toHaveTextContent('Pausiert');
+      expect(screen.queryByRole('region', { name: 'Radio' })).toBeNull();
       expect(within(loadOf('Radio')).getAllByRole('definition')[0]).toHaveTextContent('2');
     });
 
@@ -521,13 +756,14 @@ describe('admin streams (W-6)', () => {
     it('steps with the arrow keys between the radio tiles too', async () => {
       mockApi(routes(() => [], { 'GET /admin/radio/relays': () => json(relays([swissPop])) }));
       renderApp('/admin/streams');
+      // Nora started listening later: her tile comes first.
       const lena = await screen.findByRole('button', { name: 'Radio von Lena beenden' });
       const nora = screen.getByRole('button', { name: 'Radio von Nora beenden' });
-      lena.focus();
-      fireEvent.keyDown(lena, { key: 'ArrowRight' });
-      expect(nora).toHaveFocus();
-      fireEvent.keyDown(nora, { key: 'ArrowLeft' });
+      nora.focus();
+      fireEvent.keyDown(nora, { key: 'ArrowRight' });
       expect(lena).toHaveFocus();
+      fireEvent.keyDown(lena, { key: 'ArrowLeft' });
+      expect(nora).toHaveFocus();
     });
   });
 });
