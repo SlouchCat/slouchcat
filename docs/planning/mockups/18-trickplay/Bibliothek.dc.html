@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Bibliothek bearbeiten: Vorschau beim Spulen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#e8794a}a:hover{color:#f3a27f}
+.tp-opt{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:10px;cursor:pointer}
+.tp-opt input{margin:3px 0 0;width:18px;height:18px;accent-color:#e8794a}
+.tp-btn{font:inherit;cursor:pointer}
+.tp-btn:focus-visible,.tp-opt input:focus-visible,select:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 880px; height: 1400px; box-sizing: border-box; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 32px; display: flex; flex-direction: column; gap: 18px;">
+
+  <div style="display: flex; flex-direction: column; gap: 4px;">
+    <span style="font-size: 13px; color: #9095a3;">Verwaltung › Bibliotheken › Filme und Serien</span>
+    <h1 style="margin: 0; font-size: 24px; font-weight: 600;">Vorschau beim Spulen</h1>
+    <span style="font-size: 14px; color: #b6b9c4;">Kleine Bilder über der Zeitleiste, ein Bild alle 10 Sekunden. Filme und Serien werden getrennt eingestellt, auch in einer gemischten Bibliothek.</span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px;">
+
+    <fieldset style="margin: 0; border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; padding: 16px; display: flex; flex-direction: column; gap: 6px;">
+      <legend style="padding: 0 6px; font-size: 16px; font-weight: 600;">Filme</legend>
+      <sc-for list="{{movieOpts}}" as="o" hint-placeholder-count="3">
+        <label class="tp-opt" style="{{o.style}}">
+          <input type="radio" name="movies" checked="{{o.checked}}" onChange="{{o.pick}}">
+          <span style="display: flex; flex-direction: column; gap: 3px;">
+            <span style="font-size: 15px; font-weight: 600;">{{o.label}}</span>
+            <span style="font-size: 13px; color: #b6b9c4;">{{o.hint}}</span>
+          </span>
+        </label>
+      </sc-for>
+      <sc-if value="{{movieShowKeep}}" hint-placeholder-val="{{false}}">
+        <label class="tp-opt" style="margin-left: 30px; background: #1d2029;">
+          <input type="checkbox" checked="{{movieKeep}}" onChange="{{toggleMovieKeep}}">
+          <span style="display: flex; flex-direction: column; gap: 3px;">
+            <span style="font-size: 14px; font-weight: 600;">Speichern</span>
+            <span style="font-size: 13px; color: #b6b9c4;">Ab dem zweiten Start sofort da. Ohne Haken wird die Vorschau nach der Wiedergabe gelöscht.</span>
+          </span>
+        </label>
+      </sc-if>
+    </fieldset>
+
+    <fieldset style="margin: 0; border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; padding: 16px; display: flex; flex-direction: column; gap: 6px;">
+      <legend style="padding: 0 6px; font-size: 16px; font-weight: 600;">Serien</legend>
+      <sc-for list="{{seriesOpts}}" as="o" hint-placeholder-count="4">
+        <label class="tp-opt" style="{{o.style}}">
+          <input type="radio" name="series" checked="{{o.checked}}" onChange="{{o.pick}}">
+          <span style="display: flex; flex-direction: column; gap: 3px;">
+            <span style="font-size: 15px; font-weight: 600;">{{o.label}}</span>
+            <span style="font-size: 13px; color: #b6b9c4;">{{o.hint}}</span>
+          </span>
+        </label>
+      </sc-for>
+      <sc-if value="{{seriesShowKeep}}" hint-placeholder-val="{{false}}">
+        <label class="tp-opt" style="margin-left: 30px; background: #1d2029;">
+          <input type="checkbox" checked="{{seriesKeep}}" onChange="{{toggleSeriesKeep}}">
+          <span style="display: flex; flex-direction: column; gap: 3px;">
+            <span style="font-size: 14px; font-weight: 600;">Speichern</span>
+            <span style="font-size: 13px; color: #b6b9c4;">Ab dem zweiten Start sofort da. Ohne Haken wird die Vorschau nach der Wiedergabe gelöscht.</span>
+          </span>
+        </label>
+      </sc-if>
+      <sc-if value="{{seriesShowScope}}" hint-placeholder-val="{{false}}">
+        <div style="margin-left: 30px; padding: 12px 14px; border-radius: 10px; background: #1d2029; display: flex; flex-direction: column; gap: 8px;">
+          <label for="scope" style="font-size: 14px; font-weight: 600;">Umfang</label>
+          <select id="scope" onChange="{{pickScope}}" value="{{scope}}" style="height: 44px; border-radius: 8px; background: #262a35; color: #f3f3f5; border: 1px solid #ffffff2e; padding: 0 10px; font: inherit;">
+            <option value="series">Ganze Serie</option>
+            <option value="season_rest">Rest der Staffel</option>
+            <option value="next_episode">Nächste Folge</option>
+          </select>
+          <span style="font-size: 13px; color: #b6b9c4;">{{scopeHint}}</span>
+        </div>
+      </sc-if>
+    </fieldset>
+  </div>
+
+  <div style="border: 1px solid #ffffff14; border-radius: 14px; background: #16181f; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+    <span style="font-size: 16px; font-weight: 600;">So läuft es mit dieser Einstellung</span>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px;">
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-size: 13px; color: #9095a3;">Filme</span>
+        <sc-for list="{{movieFacts}}" as="f" hint-placeholder-count="3">
+          <span style="font-size: 14px; color: #f3f3f5; line-height: 1.4;">• {{f}}</span>
+        </sc-for>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-size: 13px; color: #9095a3;">Serien</span>
+        <sc-for list="{{seriesFacts}}" as="f" hint-placeholder-count="3">
+          <span style="font-size: 14px; color: #f3f3f5; line-height: 1.4;">• {{f}}</span>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <div style="border: 1px solid #ffffff14; border-radius: 14px; background: #16181f; padding: 18px; display: flex; flex-direction: column; gap: 12px;">
+    <div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;">
+      <span style="font-size: 16px; font-weight: 600;">Geschätzter Speicherbedarf</span>
+      <span style="font-size: 13px; color: #9095a3;">aus der Laufzeit der Titel, rund 1,5 MB je Stunde Video</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px;">
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <span style="font-size: 13px; color: #9095a3;">Filme · 412 Titel, 780 h</span>
+        <sc-for list="{{movieEst}}" as="r" hint-placeholder-count="2">
+          <div style="{{r.style}}">
+            <span style="color: #b6b9c4;">{{r.k}}</span>
+            <span style="font-weight: 600; white-space: nowrap;">{{r.v}}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <span style="font-size: 13px; color: #9095a3;">Serien · 38 Serien, 2 950 Folgen, 2 100 h</span>
+        <sc-for list="{{seriesEst}}" as="r" hint-placeholder-count="2">
+          <div style="{{r.style}}">
+            <span style="color: #b6b9c4;">{{r.k}}</span>
+            <span style="font-weight: 600; white-space: nowrap;">{{r.v}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="display: flex; gap: 16px; font-size: 13px; color: #b6b9c4; flex-wrap: wrap; border-top: 1px solid #ffffff14; padding-top: 10px;">
+      <span>Heute belegt: Filme 1,2 GB · Serien 640 MB</span>
+      <span>Freier Platz im Cache: 33 GB</span>
+    </div>
+  </div>
+
+  <sc-if value="{{showWarning}}" hint-placeholder-val="{{false}}">
+    <div style="border: 1px solid #e8794a; background: #e8794a1a; border-radius: 10px; padding: 12px 14px; font-size: 14px;">{{warning}}</div>
+  </sc-if>
+
+  <span style="flex-grow: 1;"></span>
+  <div style="display: flex; justify-content: flex-end; gap: 12px;">
+    <button class="tp-btn" style="height: 44px; padding: 0 18px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e;">Abbrechen</button>
+    <button class="tp-btn" style="height: 44px; padding: 0 22px; border-radius: 22px; background: #e8794a; color: #1c0d06; border: 0; font-weight: 600;">Speichern</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":880,"height":1400}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { movies: 'ahead', moviesKeep: true, series: 'ahead', seriesKeep: true, scope: 'series' };
+  }
+  opts(kind, defs) {
+    var self = this, cur = this.state[kind];
+    return defs.map(function (d) {
+      var on = cur === d[0];
+      var o = {}; o.label = d[1]; o.hint = d[2]; o.checked = on;
+      o.pick = function () { var s = {}; s[kind] = d[0]; self.setState(s); };
+      o.style = 'border: 1px solid ' + (on ? '#e8794a' : '#ffffff14') + '; background: ' + (on ? '#e8794a1f' : 'transparent') + ';';
+      return o;
+    });
+  }
+  facts(mode, keep, scope, kind) {
+    var noun = kind === 'movies' ? 'Film' : 'Folge';
+    if (mode === 'off') return ['Keine Vorschau. Die Zeitleiste zeigt wie heute Kapitelname und Kapitelbild.', 'Gespeicherte Vorschauen werden in der nächsten Stunde gelöscht.'];
+    if (mode === 'ahead') return ['Neue Dateien bekommen die Vorschau beim Einlesen.', 'Den Bestand holt der Knopf «Jetzt ausführen» oder der Zeitplan auf «Hintergrundjobs» nach (Zeitplan ab Werk aus).', 'Fehlt sie beim Start trotzdem: 20–45 s für einen ' + noun + ', danach gespeichert.'];
+    if (mode === 'on_start') return keep
+      ? ['Erster Start: Vorschau entsteht in 20–45 s, das erste Blatt nach 5–10 s.', 'Danach gespeichert: ab dem zweiten Start sofort da.', 'Nie geschaute Titel belegen keinen Platz.']
+      : ['Jeder Start: Vorschau entsteht neu in 20–45 s.', 'Nichts bleibt gespeichert: 10 Minuten nach dem Ende wird sie gelöscht.', 'Kostet bei jedem Start 20–80 s Rechenzeit und einige hundert MB vom NAS.'];
+    var sc = { series: 'alle übrigen Folgen der Serie', season_rest: 'die übrigen Folgen der Staffel (bei der letzten Folge die nächste Staffel)', next_episode: 'die nächste Folge' }[scope];
+    return ['Startet eine Folge, entsteht ihre Vorschau sofort (20–45 s).', 'Danach im Hintergrund: ' + sc + ', ab der gestarteten Folge vorwärts.', 'Alles wird gespeichert; ein anderer Start hat immer Vorrang.'];
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var common = [['ahead', 'Im Voraus', 'Beim Einlesen und per Job. Ab Werk.'], ['on_start', 'Beim Start', 'Erst wenn jemand den Titel startet.']];
+    var movieOpts = this.opts('movies', common.concat([['off', 'Aus', 'Keine Vorschau, nur Kapitelbild.']]));
+    var seriesOpts = this.opts('series', common.concat([['series_start', 'Beim Start alle Folgen', 'Die erste gestartete Folge löst die übrigen aus.'], ['off', 'Aus', 'Keine Vorschau, nur Kapitelbild.']]));
+    var scopeHint = { series: 'Beispiel: 220 Folgen à 42 min ≈ 50 min Arbeit im Hintergrund, rund 200 MB.', season_rest: 'Beispiel: Staffel mit 10 Folgen ≈ 3 min Arbeit, rund 9 MB.', next_episode: 'Eine Folge ≈ 15 s Arbeit, rund 1 MB.' }[st.scope];
+    var dropsMovies = st.movies === 'off' || (st.movies === 'on_start' && !st.moviesKeep);
+    var dropsSeries = st.series === 'off' || (st.series === 'on_start' && !st.seriesKeep);
+    var parts = [];
+    if (dropsMovies) parts.push('Filme (1,2 GB)');
+    if (dropsSeries) parts.push('Serien (640 MB)');
+    var row = function (k, v, total) {
+      return { k: k, v: v, style: 'display: flex; justify-content: space-between; gap: 12px; font-size: 14px; padding: 8px 10px; border-radius: 8px; background: ' + (total ? '#e8794a1a' : '#1d2029') + '; border: 1px solid ' + (total ? '#e8794a66' : '#ffffff0f') + ';' };
+    };
+    var est = function (mode, keep, per, perVal, lib) {
+      if (mode === 'off') return [row(per, '0 MB'), row('Ganze Bibliothek', '0 MB', true)];
+      if (mode === 'on_start' && !keep) return [row(per + ', nur während der Wiedergabe', perVal), row('Ganze Bibliothek', '0 MB', true)];
+      return [row(per, perVal), row('Ganze Bibliothek' + (mode === 'ahead' ? '' : ', höchstens'), lib, true)];
+    };
+    var movieEst = est(st.movies, st.moviesKeep, 'Pro Film (Ø 1 h 54)', '≈ 3 MB', '≈ 1,2 GB');
+    var seriesEst = est(st.series, st.seriesKeep, 'Pro Folge (Ø 43 min)', '≈ 1,1 MB', '≈ 3,2 GB');
+    return {
+      movieEst: movieEst, seriesEst: seriesEst,
+      movieOpts: movieOpts, seriesOpts: seriesOpts,
+      movieShowKeep: st.movies === 'on_start', movieKeep: st.moviesKeep,
+      seriesShowKeep: st.series === 'on_start', seriesKeep: st.seriesKeep,
+      seriesShowScope: st.series === 'series_start', scope: st.scope, scopeHint: scopeHint,
+      toggleMovieKeep: function () { self.setState({ moviesKeep: !st.moviesKeep }); },
+      toggleSeriesKeep: function () { self.setState({ seriesKeep: !st.seriesKeep }); },
+      pickScope: function (e) { self.setState({ scope: e.target.value }); },
+      movieFacts: this.facts(st.movies, st.moviesKeep, st.scope, 'movies'),
+      seriesFacts: this.facts(st.series, st.seriesKeep, st.scope, 'series'),
+      showWarning: parts.length > 0,
+      warning: 'Nach dem Speichern werden die gespeicherten Vorschauen gelöscht: ' + parts.join(' und ') + '. Laufende Wiedergaben behalten sie bis zum Ende.'
+    };
+  }
+}
+</script>
+</body>
+</html>

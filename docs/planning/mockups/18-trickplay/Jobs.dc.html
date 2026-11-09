@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Hintergrundjobs: Vorschau beim Spulen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#e8794a}a:hover{color:#f3a27f}
+</style>
+</helmet>
+<div style="width: 1280px; height: 600px; box-sizing: border-box; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 32px; display: flex; flex-direction: column; gap: 18px;">
+
+  <div style="display: flex; align-items: flex-end; gap: 16px;">
+    <div style="display: flex; flex-direction: column; gap: 4px; flex-grow: 1;">
+      <span style="font-size: 13px; color: #9095a3;">Verwaltung › Hintergrundjobs › Pool «Vorschau beim Spulen» (1 Arbeiter)</span>
+      <h1 style="margin: 0; font-size: 24px; font-weight: 600;">Vorschau beim Spulen</h1>
+    </div>
+    <span style="font-size: 13px; color: #b6b9c4; background: #16181f; border: 1px solid #ffffff14; padding: 8px 12px; border-radius: 8px;">Cache: 33 GB frei · Grenze 10 GB</span>
+  </div>
+
+  <div style="border: 1px solid #ffffff14; border-radius: 14px; overflow: hidden; background: #13151b;">
+    <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr) 150px 120px 150px; gap: 16px; padding: 12px 18px; font-size: 12px; color: #9095a3; border-bottom: 1px solid #ffffff14;">
+      <span>Jobart</span><span>Inhalt</span><span>Auslöser</span><span>Priorität</span><span>Zustand</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr) 150px 120px 150px; gap: 16px; padding: 14px 18px; font-size: 14px; border-bottom: 1px solid #ffffff14; align-items: center;">
+      <span style="font-weight: 600;">Vorschau erzeugen</span>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <span>Beispielserie S02E04 · Blatt 2 von 3</span>
+        <div style="height: 6px; border-radius: 3px; background: #ffffff1f; overflow: hidden;"><div style="width: 55%; height: 6px; background: #e8794a;"></div></div>
+      </div>
+      <span style="color: #b6b9c4;">Start</span>
+      <span style="color: #b6b9c4;">9</span>
+      <span style="color: #e8794a;">läuft</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr) 150px 120px 150px; gap: 16px; padding: 14px 18px; font-size: 14px; border-bottom: 1px solid #ffffff14; align-items: center;">
+      <span style="font-weight: 600;">Serienvorlauf</span>
+      <span>Beispielserie: 18 Folgen eingereiht (ganze Serie), 3 fertig</span>
+      <span style="color: #b6b9c4;">Start einer Folge</span>
+      <span style="color: #b6b9c4;">3</span>
+      <span style="color: #b6b9c4;">wartet</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr) 150px 120px 150px; gap: 16px; padding: 14px 18px; font-size: 14px; border-bottom: 1px solid #ffffff14; align-items: center;">
+      <span style="font-weight: 600;">Vorschau erzeugen</span>
+      <span>Beispielfilm (neu eingelesen) · gab nach Blatt 4 von 8 an einen Start ab</span>
+      <span style="color: #b6b9c4;">Einlesen</span>
+      <span style="color: #b6b9c4;">2</span>
+      <span style="color: #b6b9c4;">wartet</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr) 150px 120px 150px; gap: 16px; padding: 14px 18px; font-size: 14px; align-items: center;">
+      <span style="font-weight: 600;">Vorschau nachholen</span>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <span>Alle Titel mit «Im Voraus» ohne Vorschau: 2 107 Filme, 291 Folgen</span>
+        <span style="font-size: 13px; color: #9095a3;">Dauer etwa 20 s je Stunde Video, ganzer Bestand rund 7–8 Tage. Nachtfenster möglich.</span>
+      </div>
+      <span style="color: #b6b9c4;">Knopf, Zeitplan</span>
+      <span style="color: #b6b9c4;">1</span>
+      <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start;">
+        <span style="color: #9095a3;">Zeitplan aus</span>
+        <button style="height: 36px; padding: 0 14px; border-radius: 18px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font: inherit; font-size: 13px; cursor: pointer;">Jetzt ausführen</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; font-size: 13px; color: #b6b9c4;">
+    <div style="background: #16181f; border: 1px solid #ffffff14; border-radius: 10px; padding: 12px 14px; line-height: 1.45;">Ein Start hat immer Vorrang: Einlesen, Vorlauf und Nachholen geben nach jedem fertigen Blatt ab, fertige Blätter bleiben.</div>
+    <div style="background: #16181f; border: 1px solid #ffffff14; border-radius: 10px; padding: 12px 14px; line-height: 1.45;">Zwei ffmpeg-Prozesse, nur einer, solange ein Transcode die CPU braucht. Pausiert der Admin die Jobart, pausiert sie ganz.</div>
+    <div style="background: #16181f; border: 1px solid #ffffff14; border-radius: 10px; padding: 12px 14px; line-height: 1.45;">Unter 10 GB freiem Platz stoppen Einlesen, Vorlauf und Nachholen; ein Start erzeugt dann nur eine temporäre Vorschau.</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":600}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

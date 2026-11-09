@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Verwaltung: Streams</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.tp-btn{font:inherit;cursor:pointer}
+.tp-btn:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 1280px; height: 1180px; box-sizing: border-box; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 32px 40px; display: flex; flex-direction: column; gap: 20px;">
+
+  <div style="display: flex; flex-direction: column; gap: 4px;">
+    <span style="font-size: 13px; color: #9095a3;">Verwaltung › Streams</span>
+    <h1 style="margin: 0; font-size: 26px; font-weight: 700;">Streams</h1>
+    <span style="font-size: 14px; color: #b6b9c4;">Alles, was gerade läuft. Die Liste aktualisiert sich alle 5 Sekunden.</span>
+  </div>
+
+  <div style="border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+    <span style="font-size: 15px; font-weight: 600;">Serverlast</span>
+    <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px;">
+      <sc-for list="{{load}}" as="l" hint-placeholder-count="6">
+        <div style="background: #1d2029; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 22px; font-weight: 700;">{{l.value}}</span>
+          <span style="font-size: 13px;">{{l.label}}</span>
+          <span style="font-size: 12px; color: #9095a3;">{{l.note}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: baseline; gap: 14px;">
+    <span style="font-size: 20px; font-weight: 700;">Läuft gerade</span>
+    <span style="font-size: 13px; color: #9095a3;">neueste zuerst · Radio in derselben Liste</span>
+  </div>
+  <div role="group" aria-label="Nach Art filtern" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: -8px;">
+    <sc-for list="{{filters}}" as="f" hint-placeholder-count="5">
+      <button class="tp-btn" aria-pressed="{{f.pressed}}" onClick="{{f.pick}}" style="{{f.style}}">{{f.label}} <span style="{{f.countStyle}}">{{f.count}}</span></button>
+    </sc-for>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px;">
+    <sc-for list="{{tiles}}" as="t" hint-placeholder-count="6">
+      <div style="border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; overflow: hidden; display: flex; flex-direction: column;">
+        <div style="position: relative; height: 150px; overflow: hidden; background: #1d2029;">
+          <sc-if value="{{t.wide}}" hint-placeholder-val="{{true}}">
+            <img src="{{t.img}}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 25%; display: block;">
+          </sc-if>
+          <sc-if value="{{t.square}}" hint-placeholder-val="{{false}}">
+            <img src="{{t.img}}" alt="" style="position: absolute; inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px); object-fit: cover; filter: blur(22px) brightness(0.45);">
+            <img src="{{t.img}}" alt="" style="position: absolute; left: 50%; top: 15px; width: 120px; height: 120px; margin-left: -60px; object-fit: cover; border-radius: 8px; box-shadow: 0 6px 18px #00000080;">
+          </sc-if>
+          <sc-if value="{{t.logo}}" hint-placeholder-val="{{false}}">
+            <div style="{{t.logoBg}}"></div>
+            <div style="position: absolute; left: 50%; top: 15px; width: 120px; height: 120px; margin-left: -60px; border-radius: 8px; background: #f3f3f5; color: #0b0c10; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 22px; font-weight: 800; line-height: 1.1; box-shadow: 0 6px 18px #00000080;">{{t.logoText}}</div>
+          </sc-if>
+          <span style="{{t.badgeStyle}}">{{t.badge}}</span>
+        </div>
+        <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; flex-grow: 1;">
+          <span style="font-size: 13px; color: #b6b9c4;">{{t.who}}</span>
+          <span style="font-size: 15px; font-weight: 600; line-height: 1.3; min-height: 40px;">{{t.title}}</span>
+          <div style="display: flex; flex-direction: column; gap: 3px;">
+            <sc-for list="{{t.facts}}" as="x" hint-placeholder-count="3">
+              <div style="display: flex; gap: 8px; font-size: 13px;"><span style="color: #9095a3; width: 70px; flex-shrink: 0;">{{x.k}}</span><span>{{x.v}}</span></div>
+            </sc-for>
+          </div>
+          <sc-if value="{{t.hasBar}}" hint-placeholder-val="{{true}}">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <div style="height: 4px; border-radius: 2px; background: #ffffff26;"><div style="{{t.bar}}"></div></div>
+              <span style="font-size: 12px; color: #9095a3;">{{t.pos}}</span>
+            </div>
+          </sc-if>
+          <div style="display: flex; align-items: center; gap: 10px; margin-top: auto;">
+            <span style="font-size: 12px; color: #9095a3;">{{t.since}}</span>
+            <span style="flex-grow: 1;"></span>
+            <button class="tp-btn" style="height: 36px; padding: 0 14px; border-radius: 18px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 13px;">Beenden</button>
+          </div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+  <sc-if value="{{empty}}" hint-placeholder-val="{{false}}">
+    <span style="font-size: 14px; color: #b6b9c4;">Gerade läuft nichts dieser Art.</span>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1180}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { filter: 'all' };
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var B = function (id) { return '/_blob/' + id; };
+    var all = [
+      { group: 'radio', badge: 'Radio', look: 'logo', logoText: 'SRF 3', who: 'Marco · Küche (iPhone)', title: 'Radio SRF 3', facts: [['Format', 'AAC 128 kbit/s, umgepackt'], ['Sender', '1 Hörer'], ['Status', 'Hört']], since: 'seit 18:42' },
+      { group: 'podcast', badge: 'Podcast', look: 'square', img: '859152a7d979dbbc5a72b7a2c6134e82', who: 'Lena · Wohnzimmer (Firefox)', title: 'Apropos – der tägliche Podcast · Folge vom 9. November', facts: [['Format', 'MP3 128 kbit/s, direkt'], ['Quelle', 'Feed']], p: 0.35, pos: '7:12 / 20:31', since: 'seit 18:39' },
+      { group: 'video', badge: 'Serie', look: 'wide', img: 'c43d47511f84e1a9bda0b25f586b2ef3', who: 'Marco · Wohnzimmer (Chrome)', title: 'Two and a Half Men · S09E12', facts: [['Qualität', '1080p · 8 Mbit/s'], ['Modus', 'Transcode HW (QSV)'], ['Grund', 'Audio nicht unterstützt']], p: 0.55, pos: '11:32 / 21:04', since: 'seit 18:31' },
+      { group: 'audiobook', badge: 'Hörbuch', look: 'logo', logoText: 'Hörbuch', who: 'Kids · Kinderzimmer (iPad)', title: 'Beispiel-Hörbuch · Kapitel 7: Der Sturm', facts: [['Format', 'AAC 64 kbit/s, Remux über 12 Teile'], ['Quelle', 'Datei']], p: 0.42, pos: '3:41:10 / 8:46:00', since: 'seit 18:20' },
+      { group: 'podcast', badge: 'Podcast', look: 'square', img: '55c42a58a186abf9c5c29a677af3d5f1', who: 'Lena · Auto (Android)', title: 'Bad Friends · neueste Folge', facts: [['Format', 'MP3 192 kbit/s, direkt'], ['Quelle', 'Datei']], p: 0.7, pos: '51:03 / 1:12:40', since: 'seit 17:58' },
+      { group: 'video', badge: 'Film', look: 'wide', img: '028941712ae0025679d4faa7ab0a3933', who: 'Gast · Gästezimmer (Edge)', title: 'A Beautiful Mind', facts: [['Qualität', '4K · direkt'], ['Modus', 'Direct'], ['Grund', '–']], p: 0.2, pos: '27:40 / 2:15:30', since: 'seit 17:45' }
+    ];
+    var defs = [['all', 'Alle'], ['video', 'Video'], ['audiobook', 'Hörbücher'], ['podcast', 'Podcasts'], ['radio', 'Radio']];
+    var filters = defs.map(function (d) {
+      var on = st.filter === d[0];
+      var n = d[0] === 'all' ? all.length : all.filter(function (x) { return x.group === d[0]; }).length;
+      return {
+        label: d[1], count: String(n), pressed: on ? 'true' : 'false',
+        pick: function () { self.setState({ filter: d[0] }); },
+        style: 'height: 38px; padding: 0 14px; border-radius: 19px; display: flex; align-items: center; gap: 8px; font-size: 14px; color: #f3f3f5; border: 1px solid ' + (on ? '#e8794a' : '#ffffff2e') + '; background: ' + (on ? '#e8794a33' : '#1d2029') + ';',
+        countStyle: 'font-size: 12px; min-width: 20px; height: 20px; line-height: 20px; border-radius: 10px; text-align: center; background: ' + (on ? '#e8794a' : '#ffffff1f') + '; color: ' + (on ? '#1c0d06' : '#d0d2da') + ';'
+      };
+    });
+    var shown = all.filter(function (x) { return st.filter === 'all' || x.group === st.filter; });
+    var tones = { Film: '#4a8fe8', Serie: '#8f6be8', 'Hörbuch': '#3fb58a', Podcast: '#e8794a', Radio: '#e8c34a' };
+    var tiles = shown.map(function (x) {
+      return {
+        wide: x.look === 'wide', square: x.look === 'square', logo: x.look === 'logo',
+        img: x.img ? B(x.img) : '', logoText: x.logoText,
+        logoBg: 'position: absolute; inset: 0; background: linear-gradient(140deg, #3a3020 0%, #1d2029 100%);',
+        badge: x.badge,
+        badgeStyle: 'position: absolute; left: 12px; top: 12px; height: 24px; line-height: 24px; padding: 0 10px; border-radius: 12px; font-size: 12px; font-weight: 700; color: #0b0c10; background: ' + tones[x.badge] + ';',
+        who: x.who, title: x.title, since: x.since,
+        facts: x.facts.map(function (f) { return { k: f[0], v: f[1] }; }),
+        hasBar: x.p !== undefined, pos: x.pos || '',
+        bar: 'height: 4px; border-radius: 2px; background: #e8794a; width: ' + Math.round((x.p || 0) * 100) + '%;'
+      };
+    });
+    var load = [['1', 'Transcode HW', 'Grafikkarte'], ['0', 'Transcode SW', 'Prozessor'], ['1', 'Remux', 'nur umgepackt'], ['3', 'Direct', 'ohne Last'], ['1', 'Radio', 'Hörer, ohne Transcoding'], ['8,4 Mbit/s', 'Bandbreite gesamt', 'Summe der Bitraten']]
+      .map(function (l) { return { value: l[0], label: l[1], note: l[2] }; });
+    return { filters: filters, tiles: tiles, load: load, empty: tiles.length === 0 };
+  }
+}
+</script>
+</body>
+</html>

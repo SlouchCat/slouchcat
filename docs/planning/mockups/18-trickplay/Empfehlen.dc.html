@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Titel empfehlen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#e8794a}a:hover{color:#f3a27f}
+.tp-btn{font:inherit;cursor:pointer}
+.tp-btn:focus-visible{outline:2px solid #f3f3f5;outline-offset:3px}
+</style>
+</helmet>
+<div style="width: 1280px; height: 940px; box-sizing: border-box; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column;">
+
+  <div style="position: relative; height: 470px; overflow: hidden; background: linear-gradient(120deg, hsl(205,45%,22%) 0%, hsl(230,40%,14%) 55%, #0b0c10 100%);">
+    <div style="position: absolute; right: 80px; top: 60px; width: 380px; height: 260px; border-radius: 50%; background: hsl(35,80%,70%); opacity: 0.18;"></div>
+    <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 200px; background: linear-gradient(0deg, #0b0c10 0%, #0b0c1000 100%);"></div>
+    <div style="position: absolute; left: 48px; top: 48px; display: flex; gap: 32px; align-items: flex-end;">
+      <div style="width: 200px; height: 300px; border-radius: 12px; background: linear-gradient(160deg, hsl(205,50%,40%) 0%, hsl(240,40%,20%) 100%); display: flex; align-items: flex-end; padding: 16px; box-sizing: border-box; font-size: 18px; font-weight: 700; box-shadow: 0 12px 32px #00000080;">Beispielfilm</div>
+      <div style="display: flex; flex-direction: column; gap: 14px; padding-bottom: 6px;">
+        <span style="font-size: 13px; color: #b6b9c4;">Film · 2026 · 1 h 54 min · Drama</span>
+        <h1 style="margin: 0; font-size: 40px; font-weight: 700;">Beispielfilm</h1>
+        <div style="display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap;">
+          <button class="tp-btn" style="height: 56px; padding: 0 28px; border-radius: 28px; background: #f3f3f5; color: #0b0c10; border: 0; font-size: 17px; font-weight: 700;">▶ Abspielen</button>
+          <sc-for list="{{roundBtns}}" as="b" hint-placeholder-count="4">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 92px;">
+              <button class="tp-btn" aria-label="{{b.label}}" aria-pressed="{{b.pressed}}" onClick="{{b.onClick}}" style="{{b.style}}">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="{{b.fill}}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{b.icon}}"></path></svg>
+              </button>
+              <span style="{{b.labelStyle}}">{{b.label}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+    <sc-if value="{{showToast}}" hint-placeholder-val="{{false}}">
+      <div role="status" style="position: absolute; right: 48px; top: 40px; background: #1d2029; border: 1px solid #ffffff2e; border-radius: 12px; padding: 14px 18px; font-size: 14px; box-shadow: 0 8px 24px #00000080; max-width: 360px;">{{toast}}</div>
+    </sc-if>
+  </div>
+
+  <div style="padding: 8px 48px 32px; display: flex; flex-direction: column; gap: 14px;">
+    <div style="display: flex; align-items: baseline; gap: 14px;">
+      <span style="font-size: 20px; font-weight: 700;">User-Empfehlungen</span>
+      <span style="font-size: 13px; color: #9095a3;">Startseite · neueste zuerst · ohne Namen</span>
+      <span style="flex-grow: 1;"></span>
+      <a href="#" style="font-size: 14px;">Alle anzeigen</a>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 16px;">
+      <sc-for list="{{row}}" as="p" hint-placeholder-count="7">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="{{p.style}}">{{p.title}}</div>
+          <span style="font-size: 13px; color: #b6b9c4;">{{p.meta}}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px;">
+      <span style="font-size: 13px; color: #9095a3; background: #16181f; border: 1px solid #ffffff14; border-radius: 8px; padding: 8px 12px;">Ein Klick auf den Stern nimmt den Titel auf, ein zweiter nimmt die eigene Empfehlung zurück.</span>
+      <span style="font-size: 13px; color: #9095a3; background: #16181f; border: 1px solid #ffffff14; border-radius: 8px; padding: 8px 12px;">Empfehlen mehrere Profile denselben Titel, steht er nur einmal da. Er fällt 60 Tage nach der jüngsten Empfehlung heraus.</span>
+      <span style="font-size: 13px; color: #9095a3; background: #16181f; border: 1px solid #ffffff14; border-radius: 8px; padding: 8px 12px;">Den Stern sehen nur Profile des Besitzerkontos. Andere Konten sehen die Liste ohne Stern.</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":940}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { picked: false, watch: false, fav: false, toast: '' };
+  }
+  componentWillUnmount() { clearTimeout(this.t); }
+  say(text) {
+    this.setState({ toast: text });
+    clearTimeout(this.t);
+    this.t = setTimeout(() => this.setState({ toast: '' }), 2600);
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var STAR = 'M12 2.8l2.8 5.7 6.3.9-4.6 4.4 1.1 6.2L12 17l-5.6 3 1.1-6.2L2.9 9.4l6.3-.9z';
+    var PLAY = 'M8 5v14l11-7z';
+    var BOOK = 'M6 3h12v18l-6-4-6 4z';
+    var HEART = 'M12 20s-7-4.4-9.2-8.6C1.3 8.3 3.2 5 6.4 5c2 0 3.3 1.1 4 2.3h3.2c.7-1.2 2-2.3 4-2.3 3.2 0 5.1 3.3 3.6 6.4C19 15.6 12 20 12 20z';
+    var mk = function (label, icon, on, accent, click) {
+      return {
+        label: label, icon: icon, pressed: on ? 'true' : 'false', fill: on ? 'currentColor' : 'none', onClick: click,
+        style: 'width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid ' + (on && accent ? '#e8794a' : '#ffffff2e') + '; background: ' + (on && accent ? '#e8794a33' : '#1d2029cc') + '; color: ' + (on && accent ? '#e8794a' : '#f3f3f5') + ';',
+        labelStyle: 'font-size: 12px; text-align: center; color: ' + (on && accent ? '#e8794a' : '#b6b9c4') + ';'
+      };
+    };
+    var roundBtns = [
+      mk('Trailer', PLAY, false, false, function () {}),
+      mk(st.watch ? 'Gemerkt' : 'Merken', BOOK, st.watch, false, function () { self.setState({ watch: !st.watch }); }),
+      mk('Favorit', HEART, st.fav, false, function () { self.setState({ fav: !st.fav }); }),
+      mk(st.picked ? 'Empfohlen ✓' : 'Empfehlen', STAR, st.picked, true, function () {
+        self.setState({ picked: !st.picked });
+        self.say(st.picked ? 'Empfehlung zurückgenommen.' : 'Zu den User-Empfehlungen hinzugefügt. Bleibt 60 Tage.');
+      })
+    ];
+    var base = [['Nordlicht', 200, 'Serie · 2025'], ['Die Brücke', 20, 'Film · 2023'], ['Hafenstadt', 160, 'Serie · 2024'], ['Sommer 84', 40, 'Film · 2019'], ['Kater Karl', 120, 'Film · 2021'], ['Stille Wasser', 260, 'Film · 2026'], ['Funkenflug', 320, 'Serie · 2022']];
+    if (st.picked) base = [['Beispielfilm', 215, 'Film · 2026']].concat(base.slice(0, 6));
+    var row = base.map(function (b, i) {
+      var hl = st.picked && i === 0;
+      return {
+        title: b[0], meta: b[2],
+        style: 'aspect-ratio: 2 / 3; border-radius: 10px; display: flex; align-items: flex-end; padding: 12px; box-sizing: border-box; font-size: 15px; font-weight: 700; background: linear-gradient(160deg, hsl(' + b[1] + ',45%,42%) 0%, hsl(' + ((b[1] + 30) % 360) + ',40%,18%) 100%);' + (hl ? ' outline: 2px solid #e8794a; outline-offset: 3px;' : '')
+      };
+    });
+    return { roundBtns: roundBtns, row: row, showToast: st.toast !== '', toast: st.toast };
+  }
+}
+</script>
+</body>
+</html>

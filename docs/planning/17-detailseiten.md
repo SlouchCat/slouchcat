@@ -276,6 +276,9 @@ wenn **alle** Mitglieder sichtbar sind, sonst Poster des ersten sichtbaren Mitgl
    der Suche und die Sortierung `age` bleiben.
 5. Gilt für Film- und Serienbibliotheken, nicht für Podcasts und Hörbücher (die haben schon heute
    keine Buchstabenleiste).
+   **Nachtrag (9. November 2026, Konzept 18 Teil C, 16.4):** Nachladen beim Scrollen und das
+   virtualisierte Raster gelten auch für Hörbuch- und Podcast-Bibliotheken; nur die Buchstabenleiste
+   bleibt bei Filmen und Serien. So gebaut in Stufe 3 (1.21.0, PR #128).
 
 Messung beim Bau nach `docs/perf/`: erste Zeile und Scrollen über 1'795 Titel auf dem Handy.
 Abnahme mit Playwright: ↓ über 300 Zeilen, Sprung auf «M» und Zurück auf Karte N, Tab aus dem Raster.
@@ -379,6 +382,10 @@ Symbolen gibt es weiterhin nicht (die Leiste wird ausgeblendet, nicht eingeklapp
 - Nur Texte: keine Änderung an Vertrag, Datenbank oder Routen (`/picks` und der Reihenschlüssel
   `picks` bleiben). Stufe 1. Tests und Storybook-Baselines, die den Text prüfen, ziehen mit.
 - Frühere Einträge im Entscheidungsprotokoll behalten den alten Namen; sie beschreiben ihren Stand.
+- **Hinweis (8. November 2026, Konzept 18 Teil B, Frage 25):** Die Admin-Pflege der Liste fällt weg;
+  Profile des Besitzerkontos empfehlen selbst über einen Stern «Empfehlen» / «Empfohlen ✓». Der
+  Knopf «Zu den User-Empfehlungen» der Knopfzeile (Stufe 2) wird dann zu diesem Stern, nicht
+  zusätzlich gebaut.
 
 ## 10. Was sich gegenüber früheren Entscheiden ändert
 

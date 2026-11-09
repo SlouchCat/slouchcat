@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Verwaltung: User-Empfehlungen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#e8794a}a:hover{color:#f3a27f}
+.tp-btn{font:inherit;cursor:pointer}
+.tp-btn:focus-visible,input:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 880px; height: 1040px; box-sizing: border-box; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 32px; display: flex; flex-direction: column; gap: 18px;">
+
+  <div style="display: flex; flex-direction: column; gap: 4px;">
+    <span style="font-size: 13px; color: #9095a3;">Verwaltung › Kuratierung</span>
+    <h1 style="margin: 0; font-size: 24px; font-weight: 600;">User-Empfehlungen</h1>
+    <span style="font-size: 14px; color: #b6b9c4;">Profile des Besitzerkontos empfehlen Titel über den Stern auf der Titelseite; alle anderen Konten sehen die Liste nur. Namen bleiben verborgen, jeder Titel steht nur einmal in der Liste.</span>
+  </div>
+
+  <div style="border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; padding: 18px; display: flex; flex-direction: column; gap: 12px;">
+    <span style="font-size: 16px; font-weight: 600;">Ablauf</span>
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <label for="days" style="font-size: 15px;">Empfehlungen bleiben</label>
+      <input id="days" type="number" min="7" max="365" value="{{days}}" onChange="{{setDays}}" style="width: 96px; height: 44px; box-sizing: border-box; border-radius: 8px; background: #262a35; color: #f3f3f5; border: 1px solid #ffffff2e; padding: 0 10px; font: inherit; font-size: 16px;">
+      <span style="font-size: 15px;">Tage in der Liste</span>
+      <span style="flex-grow: 1;"></span>
+      <button class="tp-btn" style="height: 44px; padding: 0 20px; border-radius: 22px; background: #e8794a; color: #1c0d06; border: 0; font-weight: 600;">Speichern</button>
+    </div>
+    <span style="font-size: 13px; color: #b6b9c4;">7 bis 365 Tage, ab Werk 60. Jede neue Empfehlung desselben Titels startet die Frist neu. Eine kürzere Frist gilt sofort.</span>
+  </div>
+
+  <div style="border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; overflow: hidden; display: flex; flex-direction: column;">
+    <div style="display: flex; align-items: baseline; gap: 12px; padding: 16px 18px; border-bottom: 1px solid #ffffff14;">
+      <span style="font-size: 16px; font-weight: 600;">Aktuelle Empfehlungen</span>
+      <span style="font-size: 13px; color: #9095a3;">{{countText}}</span>
+    </div>
+    <sc-for list="{{items}}" as="it" hint-placeholder-count="7">
+      <div style="{{it.rowStyle}}">
+        <div style="{{it.cover}}"></div>
+        <div style="display: flex; flex-direction: column; gap: 3px; flex-grow: 1; min-width: 0;">
+          <span style="font-size: 15px; font-weight: 600;">{{it.title}}</span>
+          <span style="font-size: 13px; color: #b6b9c4;">{{it.when}}</span>
+        </div>
+        <span style="{{it.expStyle}}">{{it.expires}}</span>
+        <span style="font-size: 13px; color: #b6b9c4; width: 120px; text-align: right;">{{it.count}}</span>
+        <button class="tp-btn" onClick="{{it.remove}}" aria-label="{{it.removeLabel}}" style="height: 40px; padding: 0 14px; border-radius: 20px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 13px;">Entfernen</button>
+      </div>
+    </sc-for>
+  </div>
+  <span style="font-size: 13px; color: #9095a3;">Die Verwaltung sieht die Anzahl der Empfehlungen, aber nie, welches Profil empfohlen hat.</span>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":880,"height":1040}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      days: 60,
+      items: [
+        { id: 1, title: 'Nordlicht', kind: 'Serie', age: 2, n: 3, hue: 200 },
+        { id: 2, title: 'Die Brücke', kind: 'Film', age: 5, n: 1, hue: 20 },
+        { id: 3, title: 'Hafenstadt', kind: 'Serie', age: 9, n: 2, hue: 160 },
+        { id: 4, title: 'Sommer 84', kind: 'Film', age: 12, n: 1, hue: 40 },
+        { id: 5, title: 'Kater Karl', kind: 'Film', age: 20, n: 4, hue: 120 },
+        { id: 6, title: 'Stille Wasser', kind: 'Film', age: 31, n: 1, hue: 260 },
+        { id: 7, title: 'Funkenflug', kind: 'Serie', age: 44, n: 2, hue: 320 }
+      ]
+    };
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var days = Math.min(365, Math.max(7, Number(st.days) || 60));
+    var live = 0;
+    var items = st.items.map(function (it) {
+      var left = days - it.age, expired = left <= 0;
+      if (!expired) live++;
+      return {
+        title: it.title + ' · ' + it.kind,
+        when: it.age === 0 ? 'heute zuletzt empfohlen' : 'zuletzt empfohlen vor ' + it.age + (it.age === 1 ? ' Tag' : ' Tagen'),
+        expires: expired ? 'abgelaufen, fällt in der nächsten Stunde heraus' : 'läuft ab in ' + left + (left === 1 ? ' Tag' : ' Tagen'),
+        expStyle: 'font-size: 13px; width: 190px; text-align: right; color: ' + (expired ? '#e8794a' : (left <= 7 ? '#f3f3f5' : '#b6b9c4')) + ';',
+        count: it.n === 1 ? '1 Empfehlung' : it.n + ' Empfehlungen',
+        cover: 'width: 44px; height: 66px; flex-shrink: 0; border-radius: 6px; background: linear-gradient(160deg, hsl(' + it.hue + ',45%,42%) 0%, hsl(' + ((it.hue + 30) % 360) + ',40%,18%) 100%);',
+        rowStyle: 'display: flex; align-items: center; gap: 16px; padding: 12px 18px; border-bottom: 1px solid #ffffff0f;' + (expired ? ' opacity: 0.55;' : ''),
+        removeLabel: it.title + ' aus den User-Empfehlungen entfernen',
+        remove: function () { self.setState({ items: st.items.filter(function (x) { return x.id !== it.id; }) }); }
+      };
+    });
+    return {
+      days: st.days,
+      setDays: function (e) { self.setState({ days: e.target.value }); },
+      items: items,
+      countText: live + (live === 1 ? ' Titel' : ' Titel') + ' in der Liste · neueste zuerst'
+    };
+  }
+}
+</script>
+</body>
+</html>

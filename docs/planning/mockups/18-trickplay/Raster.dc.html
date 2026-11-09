@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Titel unten bündig und Meine Medien</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#e8794a}a:hover{color:#f3a27f}
+.tp-btn{font:inherit;cursor:pointer}
+.tp-btn:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 1280px; height: 1260px; box-sizing: border-box; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 32px 40px; display: flex; flex-direction: column; gap: 22px;">
+
+  <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+    <span style="font-size: 13px; color: #b6b9c4; margin-right: 6px;">Titel in Reihen:</span>
+    <sc-for list="{{variants}}" as="v" hint-placeholder-count="4">
+      <button class="tp-btn" onClick="{{v.pick}}" style="{{v.style}}">{{v.label}}</button>
+    </sc-for>
+  </div>
+  <span style="font-size: 14px; color: #b6b9c4; margin-top: -10px;">{{variantHint}}</span>
+
+  <div style="display: flex; flex-direction: column; gap: 14px;">
+    <span style="font-size: 22px; font-weight: 700;">Weiterschauen</span>
+    <div style="display: flex; gap: 20px; align-items: flex-start;">
+      <sc-for list="{{cards}}" as="c" hint-placeholder-count="5">
+        <div style="{{c.cellStyle}}">
+          <div style="{{c.frameStyle}}">
+            <sc-if value="{{c.blur}}" hint-placeholder-val="{{false}}">
+              <img src="{{c.img}}" alt="" style="position: absolute; inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px); object-fit: cover; filter: blur(20px) brightness(0.5);">
+            </sc-if>
+            <img src="{{c.img}}" alt="{{c.title}}" style="{{c.imgStyle}}">
+            <div style="position: absolute; left: 10px; right: 10px; bottom: 10px; height: 4px; border-radius: 2px; background: #ffffff40;"><div style="{{c.barFill}}"></div></div>
+          </div>
+          <span style="font-size: 15px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{c.title}}</span>
+          <span style="font-size: 13px; color: #9095a3;">{{c.meta}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="height: 1px; background: #ffffff14;"></div>
+
+  <div style="display: flex; align-items: center; gap: 10px;">
+    <span style="font-size: 13px; color: #b6b9c4; margin-right: 6px;">Meine Medien:</span>
+    <sc-for list="{{tileModes}}" as="v" hint-placeholder-count="2">
+      <button class="tp-btn" onClick="{{v.pick}}" style="{{v.style}}">{{v.label}}</button>
+    </sc-for>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 14px;">
+    <span style="font-size: 22px; font-weight: 700;">Meine Medien</span>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px;">
+      <sc-for list="{{tiles}}" as="t" hint-placeholder-count="4">
+        <div style="position: relative; height: 190px; border-radius: 14px; overflow: hidden; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));">
+          <sc-for list="{{t.imgs}}" as="s" hint-placeholder-count="4">
+            <img src="{{s}}" alt="" style="width: 100%; height: 190px; object-fit: cover; display: block;">
+          </sc-for>
+          <div style="{{t.scrim}}"></div>
+          <div style="{{t.labelBox}}">
+            <span style="{{t.nameStyle}}">{{t.name}}</span>
+            <span style="{{t.countStyle}}">{{t.count}}</span>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="height: 1px; background: #ffffff14;"></div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="display: flex; align-items: baseline; gap: 14px;">
+      <span style="font-size: 22px; font-weight: 700;">Filme</span>
+      <span style="font-size: 13px; color: #9095a3;">1 800 Titel · kein «Mehr laden»: lädt beim Scrollen nach, Buchstaben springen</span>
+    </div>
+    <div style="display: flex; gap: 14px;">
+      <div style="flex-grow: 1; height: 300px; overflow-y: auto; border: 1px solid #ffffff14; border-radius: 12px; padding: 14px; box-sizing: border-box;">
+        <div style="display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 14px;">
+          <sc-for list="{{grid}}" as="g" hint-placeholder-count="16">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <img src="{{g.img}}" alt="{{g.title}}" style="width: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 8px; display: block;">
+              <span style="font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{g.title}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; font-size: 11px; color: #b6b9c4; width: 22px; align-items: center; justify-content: space-between; height: 300px;">
+        <span>#</span><span style="color: #e8794a; font-weight: 700;">A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span><span>G</span><span>H</span><span>K</span><span>M</span><span>P</span><span>S</span><span>T</span><span>Z</span>
+      </div>
+    </div>
+    <span style="font-size: 13px; color: #9095a3;">Gilt überall, wo heute «Mehr laden» steht: Bibliotheken (auch Hörbücher und Podcasts), User-Empfehlungen, Suche, Merkliste, Sammlung, Mitteilungen, Podcast-Folgen, Radio und Verwaltungslisten. Die Reihen der Startseite bleiben kurz wie heute.</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1260}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { variant: 'b', tiles: '26' };
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var chip = function (on) { return 'height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid ' + (on ? '#e8794a' : '#ffffff2e') + '; background: ' + (on ? '#e8794a33' : '#1d2029') + '; color: #f3f3f5; font-size: 13px;'; };
+    var vdefs = [['today', 'Heute'], ['a', 'A: Cover unten im Posterrahmen'], ['b', 'B: Cover auf unscharfem Grund'], ['c', 'C: gleiche Höhe, eigene Breite']];
+    var variants = vdefs.map(function (d) { return { label: d[1], style: chip(st.variant === d[0]), pick: function () { self.setState({ variant: d[0] }); } }; });
+    var hints = {
+      today: 'Heute: quadratische Podcast- und Hörbuch-Cover sind niedriger als Poster, darum springen die Titel nach oben.',
+      a: 'Jede Karte hat den Rahmen eines Posters (2:3). Ein quadratisches Cover sitzt unten im Rahmen, darüber bleibt dunkler Platz. Alle Titel auf einer Linie.',
+      b: 'Wie A, aber über und unter dem Cover liegt dasselbe Bild unscharf und dunkel. Alle Titel auf einer Linie, keine Lücke.',
+      c: 'Alle Bilder gleich hoch; ein quadratisches Cover ist dafür breiter als ein Poster. Alle Titel auf einer Linie, nichts wird beschnitten.'
+    };
+    var items = [
+      { title: 'Two and a Half Men', meta: 'S9 · F12 · Noch 11 min', sq: false, p: 0.55, img: '/_blob/c43d47511f84e1a9bda0b25f586b2ef3' },
+      { title: 'Apropos – der tägliche Podcast', meta: 'Noch 18 min', sq: true, p: 0.3, img: '/_blob/859152a7d979dbbc5a72b7a2c6134e82' },
+      { title: 'A Story of Derry', meta: '2026 · Noch 42 min', sq: false, p: 0.2, img: '/_blob/61ebf7b24de9df3244ce0441e15a50cb' },
+      { title: 'Alles gesagt?', meta: 'Noch 2 h 4 min', sq: true, p: 0.7, img: '/_blob/d114c80d872eb509ebb2059757fed654' },
+      { title: 'Bad Friends', meta: 'Noch 51 min', sq: true, p: 0.4, img: '/_blob/55c42a58a186abf9c5c29a677af3d5f1' }
+    ];
+    var W = 180, H = 270;
+    var cards = items.map(function (it) {
+      var cellW = W, frameH = H, imgW = W, imgH = H, imgTop = 0, blur = false, round = '0';
+      if (it.sq) {
+        if (st.variant === 'today') { frameH = W; imgH = W; }
+        else if (st.variant === 'a') { imgH = W; imgTop = H - W; round = '10px'; }
+        else if (st.variant === 'b') { imgH = W; imgTop = (H - W) / 2; blur = true; round = '8px'; }
+        else { cellW = H; imgW = H; imgH = H; }
+      }
+      return {
+        title: it.title, meta: it.meta, img: it.img, blur: blur,
+        cellStyle: 'width: ' + cellW + 'px; flex-shrink: 0; display: flex; flex-direction: column; gap: 6px;',
+        frameStyle: 'position: relative; width: ' + cellW + 'px; height: ' + frameH + 'px; border-radius: 12px; overflow: hidden; background: #16181f;',
+        imgStyle: 'position: absolute; left: 0; top: ' + imgTop + 'px; width: ' + imgW + 'px; height: ' + imgH + 'px; object-fit: cover; display: block; border-radius: ' + round + ';',
+        barFill: 'height: 4px; border-radius: 2px; background: #e8794a; width: ' + Math.round(it.p * 100) + '%;'
+      };
+    });
+    var tileModes = [['today', 'Heute (16 px)'], ['26', 'Neu: 26 px (gewählt)']].map(function (d) { return { label: d[1], style: chip(st.tiles === d[0]), pick: function () { self.setState({ tiles: d[0] }); } }; });
+    var px = st.tiles === 'today' ? 0 : Number(st.tiles);
+    var libs = [
+      ['Filme', '1 800 Titel', ['/_blob/028941712ae0025679d4faa7ab0a3933', '/_blob/dc556a494c9abbbe0b77ce2d5d49666d', '/_blob/e320433fe2cdfb22cf7787225ac8d6af', '/_blob/2ad60c7fdbcb8a15b611e68d741c1df7']],
+      ['Serien', '312 Titel', ['/_blob/c43d47511f84e1a9bda0b25f586b2ef3', '/_blob/205ed4882715dafb24f2795fd34002ff', '/_blob/d8ac6a19a2ac7e81f6730f164400f843', '/_blob/e7f3bccd8750016afca288289262ea03']],
+      ['Kinderfilme', '304 Titel', ['/_blob/0cdc1ca1449317bf8c7b7012a1322af8', '/_blob/01417dff7deb8eb7f45ba82fb83474e8', '/_blob/5d118607b62b7d26052bae5aa164f2ea', '/_blob/8f2d29f387e98cae02e95a7f53d05c0c']],
+      ['Podcasts', '94 Podcasts', ['/_blob/5a8c9344e5e8d58155b629f3526f596c', '/_blob/5184ce60eb6275c9fd62daa85917642b', '/_blob/9775aad3fadf248744a7b970b9cd532a', '/_blob/859152a7d979dbbc5a72b7a2c6134e82']]
+    ];
+    var big = px > 0;
+    var tiles = libs.map(function (l) {
+      return {
+        name: l[0], count: l[1], imgs: l[2],
+        scrim: big ? 'position: absolute; inset: 0; background: linear-gradient(0deg, #0b0c10f5 0%, #0b0c10c0 50%, #0b0c1060 100%);' : 'position: absolute; left: 0; right: 0; bottom: 0; height: 70px; background: linear-gradient(0deg, #0b0c10cc 0%, #0b0c1000 100%);',
+        labelBox: big ? 'position: absolute; left: 20px; right: 20px; bottom: 16px; display: flex; flex-direction: column; gap: 2px;' : 'position: absolute; left: 12px; right: 12px; bottom: 10px; display: flex; justify-content: space-between; align-items: baseline;',
+        nameStyle: big ? 'font-size: ' + px + 'px; line-height: 1.05; font-weight: ' + (px >= 34 ? 800 : 700) + '; letter-spacing: -0.01em; text-shadow: 0 2px 12px #000000c0;' : 'font-size: 15px; font-weight: 600;',
+        countStyle: big ? 'font-size: ' + (px >= 34 ? 15 : 14) + 'px; color: #d0d2da;' : 'font-size: 11px; color: #b6b9c4;'
+      };
+    });
+    var films = [['A Beautiful Mind', '028941712ae0025679d4faa7ab0a3933'], ['A Bridge Too Far', '81e6f38810300066fc354d7b9c569f93'], ['A Charlie Brown Christmas', '5f52f147c93ccc41c42121ca40d8f594'], ['A Charlie Brown Thanksgiving', '993c9ec4054f5bef0fac27172765031d'], ['A Christmas Carol', '4ca101143871628846fbfe3be1204ae0'], ['A Christmas Story', '55880f1f6ffd4da041864333b4d8b147'], ['A Christmas Story Christmas', '0e8a0503dfe27e744bab5f061711ed41'], ['A Cinderella Story', 'd93b1da637861eb2dea7522c474d125f'], ['A Clockwork Orange', 'e320433fe2cdfb22cf7787225ac8d6af'], ['A Few Good Men', 'dc556a494c9abbbe0b77ce2d5d49666d'], ['A Good Day to Die Hard', '5c5f2f54993da61403663cd2ea0caabf'], ['A House of Dynamite', 'eac8d4d63ead73a42b44286ec8167bfe'], ['A Legend', '9cea21c7b96a0f96faeee26eeee89011'], ['A Man Apart', '610a818a0e7c6eed73194b83d647f05a'], ['A Man Called Otto', '2ad60c7fdbcb8a15b611e68d741c1df7'], ['The Punisher: One Last Kill', '00ef7458104bdaca9279c11ec7912bbf'], ['A Million Minutes', '20c479f8aff1382a8bd6898334fef43a'], ['A Minecraft Movie', 'bdc5fe33a19b1458739969cc075098bb'], ['A Nightmare on Elm Street', '674fd906c0eaf50431c2df787dd82985'], ['A Prayer Before Dawn', '9496d7058b35c049c816b15426da4520'], ['A Quiet Place', '11549ef59c6a8b8d76501363995c3ed0'], ['A Quiet Place: Day One', '33420d06c5f38104a9b9b541e237c551']];
+    var grid = [];
+    for (var i = 0; i < 48; i++) { var f = films[i % films.length]; grid.push({ title: f[0], img: '/_blob/' + f[1] }); }
+    return { variants: variants, variantHint: hints[st.variant], cards: cards, tileModes: tileModes, tiles: tiles, grid: grid };
+  }
+}
+</script>
+</body>
+</html>
