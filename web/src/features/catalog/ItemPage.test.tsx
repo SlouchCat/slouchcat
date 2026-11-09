@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  alien,
   alienCollection,
   alienDetail,
   homePage,
@@ -105,6 +106,40 @@ describe('detail page', () => {
     // Before the file section (E-9).
     const file = screen.getByRole('region', { name: 'Datei' });
     expect(shelf.compareDocumentPosition(file) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('checks a watched series in its collection shelf (contract 1.22.0)', async () => {
+    const member = (seriesId: string, title: string, watched: boolean) => ({
+      id: seriesId,
+      kind: 'series' as const,
+      title,
+      inWatchlist: false,
+      images: {},
+      watched,
+    });
+    mockApi({
+      ...signedIn,
+      [`GET /items/${ids.alien}`]: () =>
+        json({
+          ...alienDetail,
+          collections: [
+            {
+              ...alienCollection,
+              members: [
+                alien,
+                member(seriesIds.show, 'Ganz gesehen', true),
+                member(seriesIds.season1, 'Halb gesehen', false),
+              ],
+            },
+          ],
+        }),
+    });
+    renderApp(`/items/${ids.alien}`);
+    const shelf = await screen.findByRole('region', { name: 'Weltraum-Reihe' });
+    const list = within(shelf).getByRole('list', { name: 'Weltraum-Reihe' });
+    const card = (name: RegExp) => within(list).getByRole('link', { name });
+    expect(within(card(/Ganz gesehen/)).getByRole('img', { name: 'Gesehen' })).toBeVisible();
+    expect(within(card(/Halb gesehen/)).queryByRole('img', { name: 'Gesehen' })).toBeNull();
   });
 
   it('tints backdrop and poster with the title accent and offers every image size', async () => {

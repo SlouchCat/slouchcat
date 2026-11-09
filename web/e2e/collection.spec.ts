@@ -1,9 +1,10 @@
-import type { Locator } from '@playwright/test';
+import type { APIRequestContext, Locator } from '@playwright/test';
+import { CSRF, SHOW_TITLE } from './catalog';
 import { createCollection, deleteCollection } from './curation';
 import { ROW_TITLES } from './discover';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus, resetFocus } from './keyboard';
-import { CHAPTERS_TITLE, H264_TITLE, itemIdByTitle } from './playback';
+import { CHAPTERS_TITLE, H264_TITLE, itemIdByTitle, useFreshProfile } from './playback';
 
 // E-6: a manual collection of the main user (admin API) as a page of its own and as a card in the
 // start page's row "Sammlungen" and on its members' detail pages.
@@ -89,6 +90,70 @@ test('collection by keyboard: arrows, Enter, back; no focus trap @keyboard', asy
     await resetFocus(page);
     await page.keyboard.press('Backspace');
     await expect(page).toHaveURL((url) => url.pathname === '/');
+  } finally {
+    await deleteCollection(owner, id);
+  }
+});
+
+/** Ids of every episode of every season of a series (specials included), for the profile of api. */
+async function allEpisodeIds(api: APIRequestContext, seriesId: string): Promise<string[]> {
+  const series = (await (await api.get(`/api/v1/items/${seriesId}`)).json()) as {
+    seasons?: { id: string }[];
+  };
+  const out: string[] = [];
+  for (const season of series.seasons ?? []) {
+    const detail = (await (await api.get(`/api/v1/items/${season.id}`)).json()) as {
+      episodes?: { id: string }[];
+    };
+    out.push(...(detail.episodes ?? []).map((episode) => episode.id));
+  }
+  return out;
+}
+
+/** Reports an episode as watched to the end for the profile of api. */
+async function finish(api: APIRequestContext, itemId: string): Promise<void> {
+  const response = await api.post(`/api/v1/items/${itemId}/progress`, {
+    headers: CSRF,
+    data: {
+      positionMs: 1_800_000,
+      durationMs: 1_800_000,
+      playedMs: 1_800_000,
+      seq: 1,
+      state: 'ended',
+      clientTime: new Date().toISOString(),
+    },
+  });
+  expect(response.ok(), await response.text()).toBe(true);
+}
+
+test('a series in a collection carries the check once every episode is watched (contract 1.22.0)', async ({
+  page,
+  owner,
+}) => {
+  // A profile of its own: its progress is only this test's.
+  await useFreshProfile(page, owner, 'E2E Serien-Haken');
+  const h264 = await itemIdByTitle(owner, H264_TITLE);
+  const series = await itemIdByTitle(owner, SHOW_TITLE);
+  const episodes = await allEpisodeIds(page.request, series);
+  // Season 1 (three files) and the special.
+  expect(episodes.length).toBeGreaterThanOrEqual(4);
+  const { id } = await createCollection(owner, NAME, [h264, series]);
+  try {
+    const seriesCard = (list: Locator) => list.getByRole('link', { name: new RegExp(SHOW_TITLE) });
+    const check = (card: Locator) => card.getByRole('img', { name: 'Gesehen', exact: true });
+    // Every episode but the last (the special comes last) watched: no check yet.
+    for (const episode of episodes.slice(0, -1)) await finish(page.request, episode);
+    await page.goto(`/collections/${id}`);
+    const members = page.getByRole('list', { name: 'Titel' });
+    await expect(seriesCard(members)).toBeVisible();
+    await expect(check(seriesCard(members))).toHaveCount(0);
+
+    await finish(page.request, episodes.at(-1)!);
+    await page.reload();
+    await expect(check(seriesCard(members))).toBeVisible();
+    // The collection shelf on the film's detail page shows it too.
+    await page.goto(`/items/${h264}`);
+    await expect(check(seriesCard(page.getByRole('list', { name: NAME })))).toBeVisible();
   } finally {
     await deleteCollection(owner, id);
   }

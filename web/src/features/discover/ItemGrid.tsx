@@ -3,7 +3,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
 import { paths } from '@/app/paths';
-import { isAudioKind } from '@/features/catalog/labels';
+import { isAudioKind, isFinished } from '@/features/catalog/labels';
 import { PosterCard, setSpatialFocus, SpatialButton, SpatialGroup } from '@/ui';
 import { CoverWatchlist, WATCHLIST_KINDS } from './CoverWatchlist';
 import styles from './Discover.module.css';
@@ -30,7 +30,10 @@ interface ItemGridProps {
   label: string;
   /** Extra controls under a card (the watchlist's "Entfernen"). */
   below?: (item: ItemRef) => ReactNode;
-  /** The watch state on each card: a check mark when finished, else the progress (library). */
+  /**
+   * The watch state on each card: a check mark when finished (a series or podcast by `watched`),
+   * else the progress (library).
+   */
   showWatched?: boolean;
   /** Extra class of the grid (the library's column count). */
   className?: string;
@@ -76,6 +79,7 @@ export function ItemCell({
   const { t } = useTranslation();
   const audio = isAudioKind(item.kind);
   const progress = showWatched ? item.progress : undefined;
+  const finished = showWatched && isFinished(item);
   return (
     <PosterCard
       focusKey={cardKey(focusKey, item)}
@@ -92,12 +96,10 @@ export function ItemCell({
       accent={item.accent}
       shape={audio ? 'square' : 'poster'}
       watchedLabel={
-        progress?.completed
-          ? t(audio ? 'library.status.heard' : 'library.status.watched')
-          : undefined
+        finished ? t(audio ? 'library.status.heard' : 'library.status.watched') : undefined
       }
       progress={
-        progress && !progress.completed && progress.percent > 0
+        progress && !finished && progress.percent > 0
           ? {
               percent: progress.percent,
               label: t(audio ? 'item.listened' : 'item.watched', {

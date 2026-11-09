@@ -42,6 +42,13 @@ export const homeRowTitle = (
 export const isAudioKind = (kind: ItemRef['kind']): boolean =>
   kind === 'audiobook' || kind === 'podcast' || kind === 'podcast_episode';
 
+/**
+ * A finished title for the check mark on its cover: a film, episode or book by its progress, a
+ * series or podcast by `watched` (every visible episode completed, contract 1.22.0).
+ */
+export const isFinished = (item: ItemRef): boolean =>
+  item.progress?.completed === true || item.watched === true;
+
 export const extraKindLabel = (t: TFunction, kind: ExtraKind | undefined): string =>
   t(`extraKind.${kind ?? 'other'}`);
 
