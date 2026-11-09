@@ -11,8 +11,8 @@
   8 Major, 12 Minor; Abschnitt 15) eingearbeitet, mit Marcos Antworten F-16 und U-F9 bis U-F11
   (Ausnahme vom Nicht-Ziel, Gäste nur lesen, alte Einträge verwerfen, Vorlauf gedrosselt).
 - **Fassung 7 (9. November 2026): Teil C** (Abschnitt 16) auf Marcos Wunsch: Titel unten bündig,
-  grössere Beschriftung bei «Meine Medien», alles laden statt «Mehr laden» überall. Offen: O-2
-  (Variante für «unten bündig»). Auslöser ist Marcos Auftrag vom 8. November 2026: Vorschaubilder für Filme und
+  grössere Beschriftung bei «Meine Medien», alles laden statt «Mehr laden» überall. Marco hat am
+  Mockup **Variante B** und die **40-px-Beschriftung** gewählt. Auslöser ist Marcos Auftrag vom 8. November 2026: Vorschaubilder für Filme und
   Folgen, erzeugt **sobald eine Folge oder ein Film gestartet wird**; dazu die Fragen, wie lange
   das dauert und ob die Bilder gespeichert werden. Grundlage ist Idee 05
   (`docs/ideas/05-trickplay.md`, aus Konzept 13 V-21, Frage 19 F-7 «später»).
@@ -624,7 +624,6 @@ Cache-Ordner und in `jobs`. Eingefrorener DB-Stand in `testdata/db/` nach Regel 
 
 | Nr. | Frage | Empfehlung |
 |---|---|---|
-| O-2 | Teil C: Variante für «Titel unten bündig» (A Posterrahmen, B unscharfer Grund, C gleiche Höhe; Mockup) | **B** |
 | O-1 | Starten zwei Zuschauer gleichzeitig zwei verschiedene Titel ohne Satz, wartet der zweite 20 bis 45 s auf seine Vorschau (ein Arbeiter). Hinnehmen, oder ein zweiter Arbeiter nur für Start-Aufträge (dann bis vier ffmpeg-Prozesse neben zwei Streams auf 6 Threads)? | **Hinnehmen.** Im Haushalt selten; die Vorschau des zweiten erscheint nur später, die Wiedergabe startet sofort |
 
 ## 12. Bauplan
@@ -924,7 +923,7 @@ enthält nur Verweise, keine Bilder).
   - **C:** Alle Bilder gleich hoch; ein quadratisches Cover ist dafür breiter (1,5-fache
     Kartenbreite). Nichts beschnitten, aber ungleich breite Karten; im Raster bricht das die Spalten
     und ist darum nur in Reihen möglich.
-- **Offen: O-2**, Marcos Wahl am Mockup.
+- **Entschieden (Marco, 9. November 2026): Variante B**, Cover auf unscharfem Grund (O-2).
 - Umsetzung in `web/src/ui/PosterCard` (Form `square` erhält den Posterrahmen), Storybook-Baselines
   aller betroffenen Bauteile neu, Fokus- und Glanzrahmen (`.card::before`) folgen dem Rahmen.
 
@@ -932,7 +931,7 @@ enthält nur Verweise, keine Bilder).
 
 - **Heute:** `LibraryTile` zeigt den Namen in `--sc-font-size-md` (halbfett) und die Anzahl in
   `--sc-font-size-xs` auf einem schmalen Verlauf am unteren Rand.
-- **Neu** (Marco: «noch grösser»): Name **rund 40 px**, sehr fett, mit Schatten; die Anzahl darunter
+- **Neu** (Marco: «noch grösser», am Mockup bestätigt): Name **rund 40 px**, sehr fett, mit Schatten; die Anzahl darunter
   in normaler Textgrösse; die Collage wird über die ganze Kachel abgedunkelt, damit der Name auf
   jedem Bild lesbar bleibt. Auf dem Handy skaliert die Schrift mit der Kachelbreite
   (`clamp()`, mindestens 28 px).
