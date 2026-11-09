@@ -315,6 +315,24 @@ describe('useLibraryPages', () => {
     expect(queryClient.getQueryState(libraryPageQuery(7, {}, 1).queryKey)?.status).toBe('success');
   });
 
+  it('retry reads a failed page again; it counts as failed until it is there', async () => {
+    const server = library(450);
+    const { result, rerender } = render({ start: 0, end: 59 });
+    await waitFor(() => expect(result.current.slots).toHaveLength(450));
+    vi.mocked(fetch).mockImplementationOnce(() =>
+      Promise.resolve(Response.json({}, { status: 500 })),
+    );
+    rerender({ range: { start: 120, end: 160 }, query: {} });
+    await waitFor(() => expect(result.current.failed).toBe(true));
+    server.hold(100);
+    act(() => result.current.retry());
+    await waitFor(() => expect(server.offsets()).toEqual([0, 100]));
+    expect(result.current.failed).toBe(true);
+    act(() => server.release(100));
+    await waitFor(() => expect(runs(result.current.slots)).toEqual([[0, 199]]));
+    expect(result.current.failed).toBe(false);
+  });
+
   it('an invalidation of the library reads page 0 and the drawn pages again', async () => {
     const server = library(450);
     const { result, queryClient } = render({ start: 250, end: 280 });

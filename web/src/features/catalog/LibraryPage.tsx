@@ -96,6 +96,15 @@ function LibraryView({ id }: { id: number | null }) {
     setTop((previous) => (same(previous, row) ? previous : row));
   }, []);
   const { first: query, slots, failed: pageFailed, retry } = useLibraryPages(id, request, drawn);
+  // The retry button goes with its notice once the page is there; the focus it held moves to the
+  // first card in view, not to norigin's restore (the list's first card, far up).
+  const retried = useRef(false);
+  useEffect(() => {
+    if (pageFailed || !retried.current) return;
+    retried.current = false;
+    const active = document.activeElement;
+    if (active === null || active === document.body) grid.current?.jump(top.start);
+  }, [pageFailed, top.start]);
   const notFound = id === null || (libraries.isSuccess && !library) || isApiError(query.error, 404);
   useDocumentTitle(library?.name ?? (notFound ? t('library.notFound.title') : undefined));
   const first = query.data;
@@ -430,7 +439,14 @@ function LibraryView({ id }: { id: number | null }) {
                       title={t('library.page.pageFailed')}
                       actions={
                         <SpatialGroup>
-                          <SpatialButton focusKey="library-retry" icon="refresh" onPress={retry}>
+                          <SpatialButton
+                            focusKey="library-retry"
+                            icon="refresh"
+                            onPress={() => {
+                              retried.current = true;
+                              retry();
+                            }}
+                          >
                             {t('common.retry')}
                           </SpatialButton>
                         </SpatialGroup>

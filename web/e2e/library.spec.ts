@@ -399,8 +399,13 @@ test.describe('a large library in the virtual grid', () => {
     await tabTo(page, retry);
     await page.keyboard.press('Enter');
     await expect(alert).toHaveCount(0);
-    await expect(grid(page).locator(`[data-index="${d}"] a[href]`)).toBeVisible();
+    await expect(grid(page).locator(`[data-index="${d}"] a[href]`)).toBeInViewport();
     await expect.poll(() => emptyInView(page)).toEqual([]);
+    // The focus the button held goes to the first card in view, the list stays where it was.
+    const columns = await columnsOf(page);
+    await expect.poll(() => focusedPlace(page)).toBe(Math.floor(d / columns) * columns);
+    await expectVisibleFocus(page);
+    await expect(grid(page).locator(`[data-index="${d}"] a[href]`)).toBeInViewport();
   });
 
   test('more than 10000 rows: a jump far down draws its cards in view @keyboard', async ({

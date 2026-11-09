@@ -52,7 +52,10 @@ export interface LibraryPages {
   first: UseQueryResult<LibraryItemsPage>;
   /** One place per title of the list, undefined while its page is not there. */
   slots: readonly (ItemRef | undefined)[];
-  /** A page of the drawn range failed; drawing it again asks once more, so does `retry`. */
+  /**
+   * A page of the drawn range failed, also while it is read again (a new read starts without the
+   * error); drawing it again asks once more, so does `retry`.
+   */
   failed: boolean;
   /** Reads the failed pages of the drawn range again. */
   retry: () => void;
@@ -119,7 +122,11 @@ export function useLibraryPages(
     combine: (results) => ({
       data: results.map((result) => result.data),
       updated: results.map((result) => result.dataUpdatedAt),
-      failed: results.some((result) => result.isError && result.data === undefined),
+      failed: results.some(
+        (result) =>
+          result.data === undefined &&
+          (result.isError || (result.isFetching && result.errorUpdateCount > 0)),
+      ),
       retry: () => {
         for (const result of results) {
           if (result.isError && result.data === undefined) void result.refetch();

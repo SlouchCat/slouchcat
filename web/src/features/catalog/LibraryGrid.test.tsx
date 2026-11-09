@@ -108,6 +108,8 @@ describe('library grid', () => {
     await waitFor(() => expect(card(300)).toHaveAccessibleName(/Titel 300/));
     expect(screen.queryByRole('alert')).toBeNull();
     expect(offsets).toEqual([0, 200, 300, 300]);
+    // The button went with the notice: its focus moved to the first card in view (row 50).
+    await waitFor(() => expect(card(300)).toHaveFocus());
   });
 
   it('ArrowDown from the last drawn row scrolls on and focuses the card below once it is there', async () => {
