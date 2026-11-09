@@ -39,8 +39,8 @@ interface LibraryTileProps {
 
 /**
  * A library on the start page (concept 15 P-7, «Meine Medien»): a collage of the posters of its
- * newest titles, two cards wide, with the name and the number of titles on a scrim. One link to
- * the library page; focus and hover behave like a PosterCard.
+ * newest titles, two cards wide, with the name (26 px, concept 18 C-2) and the number of titles
+ * on the darkened collage. One link to the library page; focus and hover behave like a PosterCard.
  */
 export function LibraryTile({
   href,

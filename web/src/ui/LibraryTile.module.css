@@ -19,6 +19,9 @@
   transition: transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
   isolation: isolate;
   -webkit-tap-highlight-color: transparent;
+
+  /* The name's size follows the tile's width (concept 18 C-2). */
+  container-type: inline-size;
 }
 
 /* The posters side by side, as many columns as titles (one to four). */
@@ -44,14 +47,18 @@ span.slice {
   opacity: 0.18;
 }
 
-/* Scrim under the name and the count. */
+/*
+ * The whole collage darkened, darker still towards the name at the bottom (concept 18 C-2): the
+ * name reads on any poster (the contrast test of the tokens checks it over a white one).
+ */
 .tile::after {
   position: absolute;
   inset: 0;
+  background-color: var(--sc-color-tile-shade);
   background-image: linear-gradient(
     to top,
-    var(--sc-color-scrim-strong) 0%,
-    var(--sc-color-scrim-clear) 65%
+    var(--sc-color-tile-label-ground) 0%,
+    var(--sc-color-scrim-clear) 70%
   );
   content: '';
   pointer-events: none;
@@ -64,25 +71,30 @@ span.slice {
   bottom: var(--sc-space-3);
   left: var(--sc-space-3);
   display: flex;
-  align-items: baseline;
-  gap: var(--sc-space-2);
-  justify-content: space-between;
+  flex-direction: column;
+  gap: var(--sc-space-1);
 }
 
+/* 26 px (Marco's choice, concept 18 C-2), with the tile's width down to 20 px on a phone. */
 .name {
   overflow: hidden;
-  font-size: var(--sc-font-size-md);
-  font-weight: var(--sc-font-weight-semibold);
-  line-height: var(--sc-font-line-height-snug);
+  font-size: clamp(
+    var(--sc-library-tile-label-size-min),
+    var(--sc-library-tile-label-size-fluid),
+    var(--sc-library-tile-label-size)
+  );
+  font-weight: var(--sc-font-weight-bold);
+  line-height: var(--sc-font-line-height-tight);
   text-overflow: ellipsis;
+  text-shadow: 0 1px var(--sc-space-1) var(--sc-color-tile-label-shadow);
   white-space: nowrap;
 }
 
 .caption {
-  flex: none;
   color: var(--sc-color-text-secondary);
-  font-size: var(--sc-font-size-xs);
+  font-size: var(--sc-library-tile-count-size);
   font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px var(--sc-space-1) var(--sc-color-tile-label-shadow);
 }
 
 @media (hover: hover) {
