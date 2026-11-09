@@ -7188,7 +7188,7 @@ export interface components {
              * @description The day of the newest recommendation in the time zone of the server.
              */
             lastPickedOn: string;
-            /** @description Whole days until the title leaves the list (rounded up; 0 = within the day). */
+            /** @description Whole days until the title leaves the list (rounded up; 1 = within the next 24 hours). */
             expiresInDays: number;
             /**
              * @description The poster (`w200`) through `getAdminItemImage`, system-wide and without profile id;

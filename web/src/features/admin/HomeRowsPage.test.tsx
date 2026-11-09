@@ -335,7 +335,9 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     await user.keyboard('{Enter}');
     expect(picks).toHaveAttribute('aria-expanded', 'true');
     const detail = document.getElementById(picks.getAttribute('aria-controls') ?? '')!;
-    expect(detail).toHaveTextContent('Von Hand gepflegt, mit Notiz, Zielprofil und Zeitfenster.');
+    expect(detail).toHaveTextContent(
+      'Titel, die Profile des Besitzerkontos empfehlen; neueste zuerst, mit Ablauf.',
+    );
     expect(
       within(detail).getByRole('link', { name: 'Zur Seite «User-Empfehlungen»' }),
     ).toHaveAttribute('href', '/admin/picks');

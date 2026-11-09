@@ -63,12 +63,14 @@ function PicksContent() {
   const picks = useQuery({ ...picksQuery, refetchOnWindowFocus: asking === null });
   const settings = useQuery(picksSettingsQuery);
 
-  // The start page, the viewer's page of picks and the side navigation's count show them.
+  // The start page, the viewer's page of picks, the side navigation's count and the star of a
+  // title page (`recommendedByMe`) show them.
   const invalidate = () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: ['admin', 'picks'] }),
       queryClient.invalidateQueries({ queryKey: ['home'] }),
       queryClient.invalidateQueries({ queryKey: ['picks'] }),
+      queryClient.invalidateQueries({ queryKey: ['item'] }),
     ]);
 
   const remove = useMutation({
@@ -215,6 +217,12 @@ function RetentionForm({
 }) {
   const { t } = useTranslation();
   const [days, setDays] = useState(() => String(stored.retentionDays));
+  // A value read later (another administrator saved one, a refetch) replaces what the field shows.
+  const [shown, setShown] = useState(stored.retentionDays);
+  if (shown !== stored.retentionDays) {
+    setShown(stored.retentionDays);
+    setDays(String(stored.retentionDays));
+  }
   const save = useMutation({
     mutationFn: (body: PicksSettings) => updatePicksSettings(body),
     onSuccess: async (saved) => {

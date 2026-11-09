@@ -176,9 +176,13 @@ func (s *Service) ListStreams(ctx context.Context) ([]model.AdminStream, error) 
 			chapters[c.ItemID] = append(chapters[c.ItemID], c)
 		}
 	}
+	out := streams[:0]
 	for i := range streams {
 		st := &streams[i]
-		it := items[st.ItemID]
+		it, ok := items[st.ItemID]
+		if !ok {
+			continue // the title was deleted between the two reads: no kind to name (AdminStreamKind)
+		}
 		st.ItemTitle, st.Kind, st.Source = streamTitle(it), it.Kind, model.StreamSourceFile
 		file, hasFile := byFile[st.MediaFileID]
 		if st.MediaFileID == "" {
@@ -222,8 +226,9 @@ func (s *Service) ListStreams(ctx context.Context) ([]model.AdminStream, error) 
 				st.AudioCodec, st.AudioBitrate = "aac", st.Bitrate // HLS delivers AAC
 			}
 		}
+		out = append(out, *st)
 	}
-	return streams, nil
+	return out, nil
 }
 
 // chapterAt is the title of the last chapter that starts at or before the position ("" without a

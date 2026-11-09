@@ -280,8 +280,11 @@ function StreamsContent() {
     };
   }, [list]);
 
+  // «–» while the playbacks are unknown (17.3, Teilausfall), not a zero that claims none run.
   const count = (load: StreamLoad) =>
-    (running ?? []).filter((stream) => streamLoad(stream) === load).length;
+    running === undefined
+      ? '–'
+      : number.format(running.filter((stream) => streamLoad(stream) === load).length);
   const separator = t('format.separator');
   const kbps = (bitsPerSecond: number) =>
     t('radio.player.kbps', { count: Math.round(bitsPerSecond / 1000) });
@@ -316,7 +319,7 @@ function StreamsContent() {
         stream.partCount !== undefined && t('admin.streams.parts', { count: stream.partCount }),
       ]
         .filter(Boolean)
-        .join(separator) || t('admin.streams.noPosition');
+        .join(separator) || t('admin.streams.noFormat');
     const facts: StreamFact[] = audio
       ? [
           device(stream.device),
@@ -396,7 +399,7 @@ function StreamsContent() {
     const { relay, listener } = entry;
     const format =
       [
-        relay.codec,
+        relay.codec?.toUpperCase(),
         relay.bitrateKbps !== undefined && t('radio.player.kbps', { count: relay.bitrateKbps }),
         relay.codec !== undefined &&
           (relay.transcoded
@@ -404,7 +407,7 @@ function StreamsContent() {
             : t('admin.streams.radio.copied')),
       ]
         .filter(Boolean)
-        .join(separator) || t('admin.streams.noPosition');
+        .join(separator) || t('admin.streams.noFormat');
     const state =
       relay.state === 'failed'
         ? t('admin.streams.radio.failed')
@@ -461,38 +464,37 @@ function StreamsContent() {
     >
       {stop.error && <Notice tone="danger">{problemMessage(t, stop.error)}</Notice>}
       <StatusRegion message={!stop.error ? message : null} />
-      {running && (
-        <BandPanel title={t('admin.streams.load.title')} icon="server">
-          <StatusStrip
-            label={t('admin.streams.load.title')}
-            tiles={[
-              ...streamLoads.map((load) => ({
-                key: load,
-                label: t(`admin.streams.load.${load}.label`),
-                value: number.format(count(load)),
-                note: t(`admin.streams.load.${load}.note`),
-                tone: loadTone[load],
-              })),
-              // Radio listeners cost no transcoding: one relay per station, whoever listens.
-              {
-                key: 'radio',
-                label: t('admin.streams.load.radio.label'),
-                value: radio ? number.format(listeners) : '–',
-                note: t('admin.streams.load.radio.note'),
-              },
-              {
-                key: 'bandwidth',
-                label: t('admin.streams.load.bandwidth.label'),
-                value: formatBitrate(totalBitrate(running), i18n.language),
-                // Direct play reports no bit rate: then the sum covers only the known ones.
-                note: running.every((stream) => stream.bitrate !== undefined)
-                  ? t('admin.streams.load.bandwidth.note')
-                  : t('admin.streams.load.bandwidth.notePartial'),
-              },
-            ]}
-          />
-        </BandPanel>
-      )}
+      <BandPanel title={t('admin.streams.load.title')} icon="server">
+        <StatusStrip
+          label={t('admin.streams.load.title')}
+          tiles={[
+            ...streamLoads.map((load) => ({
+              key: load,
+              label: t(`admin.streams.load.${load}.label`),
+              value: count(load),
+              note: t(`admin.streams.load.${load}.note`),
+              tone: loadTone[load],
+            })),
+            // Radio listeners cost no transcoding: one relay per station, whoever listens.
+            {
+              key: 'radio',
+              label: t('admin.streams.load.radio.label'),
+              value: radio ? number.format(listeners) : '–',
+              note: t('admin.streams.load.radio.note'),
+            },
+            {
+              key: 'bandwidth',
+              label: t('admin.streams.load.bandwidth.label'),
+              value: running ? formatBitrate(totalBitrate(running), i18n.language) : '–',
+              // Direct play reports no bit rate: then the sum covers only the known ones.
+              note:
+                running && !running.every((stream) => stream.bitrate !== undefined)
+                  ? t('admin.streams.load.bandwidth.notePartial')
+                  : t('admin.streams.load.bandwidth.note'),
+            },
+          ]}
+        />
+      </BandPanel>
       <section aria-labelledby={listHeading} aria-busy={pending}>
         <SectionHeader
           id={listHeading}

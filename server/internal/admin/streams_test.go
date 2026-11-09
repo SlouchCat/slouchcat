@@ -91,6 +91,24 @@ func TestAdminStreams(t *testing.T) {
 	}
 }
 
+// A session whose title was deleted between the list of sessions and the read of their titles is
+// left out: the overview has no kind for it, and the contract requires one.
+func TestAdminStreamsTitleGone(t *testing.T) {
+	m := newMaintFixture(t)
+	film := m.f.Rated(6)
+	m.svc.WithStreams(&fakeStreams{list: []model.AdminStream{
+		{ID: "01JAAAAAAAAAAAAAAAAAAAAAAA", ItemID: "01JZZZZZZZZZZZZZZZZZZZZZZZ", MediaFileID: "gone", Mode: "direct"},
+		{ID: "01JBBBBBBBBBBBBBBBBBBBBBBB", ItemID: film.ID, MediaFileID: film.FileID, Mode: "direct"},
+	}})
+	list, err := m.svc.ListStreams(m.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0].ID != "01JBBBBBBBBBBBBBBBBBBBBBBB" || list[0].Kind != "movie" {
+		t.Fatalf("streams = %+v, want only the film's with kind movie", list)
+	}
+}
+
 // Concept 18, 17.4: the overview names what each stream plays. A film, an episode and an extra show
 // the backdrop of themselves, their series and their film; a podcast episode names its podcast and
 // shows its own cover, from the feed the podcast's and the feed's duration; an audiobook of several
@@ -125,8 +143,8 @@ func TestAdminStreamsKinds(t *testing.T) {
 	}
 	type want struct {
 		kind, title, parent, chapter, poster, backdrop, codec, source string
-		duration                                                     int64
-		parts, bitrate                                               int
+		duration                                                      int64
+		parts, bitrate                                                int
 	}
 	wants := []want{
 		{kind: "movie", title: "Film 06", poster: film.ID, backdrop: film.ID, source: "file", duration: vistest.DurationMs},

@@ -17,7 +17,8 @@ import (
 const pickDay = 24 * time.Hour
 
 // ListUserPicks returns every title with a pick that has not expired, newest pick first: the number
-// of those picks, the day of the newest one in the server zone and the whole days until it expires.
+// of those picks, the day of the newest one in the server zone and the whole days until it expires,
+// rounded up (1 = within the next 24 hours).
 // Titles are plain text, never an ItemRef and never a profile; the poster is the content hash of the
 // image that getAdminItemImage serves.
 func (s *Service) ListUserPicks(ctx context.Context) ([]model.AdminUserPick, error) {
@@ -38,7 +39,7 @@ func (s *Service) ListUserPicks(ctx context.Context) ([]model.AdminUserPick, err
 		out = append(out, model.AdminUserPick{
 			ItemID: r.ItemID, Kind: r.Kind, Title: r.Title, Year: optInt(r.Year), Count: int(r.PickCount),
 			PickedOn:      picked.In(s.zone).Format(time.DateOnly),
-			ExpiresInDays: int((max(left, 0) + pickDay - 1) / pickDay),
+			ExpiresInDays: max(int((left+pickDay-1)/pickDay), 1), // listed means not expired: at least 1
 		})
 	}
 	if err := withPosters(ctx, s.sys, out, userPickPoster); err != nil {

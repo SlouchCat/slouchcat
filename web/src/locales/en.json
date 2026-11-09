@@ -2018,6 +2018,7 @@
       "stopped": "Stream of {{profile}} stopped.",
       "since": "Since {{time}}",
       "noPosition": "–",
+      "noFormat": "–",
       "load": {
         "title": "Server load",
         "hw": {
@@ -2148,7 +2149,6 @@
       },
       "expiresIn_one": "in {{count}} day",
       "expiresIn_other": "in {{count}} days",
-      "expiresToday": "today",
       "countValue_one": "{{count}} pick",
       "countValue_other": "{{count}} picks",
       "remove": {
@@ -2263,7 +2263,7 @@
       "tooMany": "Already {{count}} rows visible. Hide another one first.",
       "rows": {
         "spotlight": "The Trakt list, intersected with the library. Shown as a stage with a backdrop at its place; below the minimum number of matches it is left out.",
-        "picks": "Kept by hand, with a note, target profiles and a time window.",
+        "picks": "Titles the profiles of the owner account recommend; newest first, with an expiry.",
         "continue": "Titles the profile has started.",
         "recent": "The titles that came into a library most recently.",
         "released": "By release date within the last twelve months; a series by its newest episode.",

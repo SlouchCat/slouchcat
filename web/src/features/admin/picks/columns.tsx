@@ -15,9 +15,9 @@ export function pickDay(day: string, language: string): string {
   );
 }
 
-/** «läuft ab in 12 Tagen», «heute». */
+/** «in 12 Tagen», «in 1 Tag» (the server rounds up: a listed pick has at least one day). */
 export function expiresIn(t: TFunction, days: number): string {
-  return days <= 0 ? t('admin.picks.expiresToday') : t('admin.picks.expiresIn', { count: days });
+  return t('admin.picks.expiresIn', { count: days });
 }
 
 /**

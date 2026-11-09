@@ -1,5 +1,7 @@
 import type { Page } from '@playwright/test';
+import { acceptInvitation, createInvitation } from './accounts';
 import { EXTRAS_TITLE, H264_TITLE, itemPath } from './catalog';
+import { GUEST_PASSWORD } from './env';
 import { ROW_TITLES } from './discover';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
@@ -111,4 +113,40 @@ test('User picks by keyboard: the star, arrows, Enter, back; no focus trap @keyb
       (pick) => pick.title,
     ),
   ).not.toContain(EXTRAS_TITLE);
+});
+
+// U-F10 (plan 03 E-2): a guest account reads the user picks but has no star on the title page.
+test('a guest account sees the user picks without the star', async ({
+  browser,
+  baseURL,
+  extraHTTPHeaders,
+  owner,
+}) => {
+  const invitation = await createInvitation(owner);
+  const guestContext = await browser.newContext({
+    baseURL,
+    locale: 'de-CH',
+    extraHTTPHeaders,
+    storageState: { cookies: [], origins: [] },
+  });
+  try {
+    await acceptInvitation(guestContext.request, invitation.token, {
+      email: 'empfehlungen-gast@slouchcat.test',
+      password: GUEST_PASSWORD,
+      profileName: 'Gast',
+      language: 'de',
+    });
+    const guest = await guestContext.newPage();
+    await guest.goto(await itemPath(guest, H264_TITLE));
+    await expect(guest.getByRole('heading', { level: 1, name: H264_TITLE })).toBeVisible();
+    await expect(guest.getByRole('button', { name: /^(Merken|Gemerkt)$/ })).toBeVisible();
+    await expect(guest.getByRole('button', { name: /^(Empfehlen|Empfohlen ✓)$/ })).toHaveCount(0);
+
+    // The list itself is there for every account: the baseline pick.
+    await guest.goto('/picks');
+    await expect(cards(guest)).toHaveCount(1);
+    await expect(cards(guest).first()).toContainText(H264_TITLE);
+  } finally {
+    await guestContext.close();
+  }
 });

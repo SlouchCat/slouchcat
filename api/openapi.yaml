@@ -13343,8 +13343,8 @@ components:
           description: The day of the newest recommendation in the time zone of the server.
         expiresInDays:
           type: integer
-          minimum: 0
-          description: Whole days until the title leaves the list (rounded up; 0 = within the day).
+          minimum: 1
+          description: Whole days until the title leaves the list (rounded up; 1 = within the next 24 hours).
         posterUrl:
           type: string
           description: |

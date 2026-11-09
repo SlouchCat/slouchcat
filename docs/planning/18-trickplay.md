@@ -743,6 +743,8 @@ Offene Fragen des Kritikers: «temporären Satz beim Umstellen übernehmen» ist
     «Zu den User-Empfehlungen hinzugefügt. Bleibt N Tage.», N aus der Antwort des Servers.
   - Nochmals Klick: Die eigene Empfehlung wird zurückgenommen (U-F7); Hinweis «Empfehlung
     zurückgenommen».
+  - Der Stern gehört damit «Empfehlen»; der Rundknopf «Favorit» wechselt auf das Herz (wie im
+    Mockup), damit nicht zwei Knöpfe dasselbe Zeichen tragen.
 - **Startseiten-Reihe «User-Empfehlungen»** und **Seite `/picks`**: jeder Titel **einmal**, ohne
   Namen und ohne Notiz, **neueste Empfehlung zuerst**, für alle Konten (U-F2, U-F3, U-F4, U-F8). Die
   Reihe bleibt bei 20 Titeln, die Seite blättert wie heute.

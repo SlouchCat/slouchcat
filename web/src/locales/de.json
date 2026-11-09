@@ -2018,6 +2018,7 @@
       "stopped": "Stream von {{profile}} beendet.",
       "since": "Seit {{time}}",
       "noPosition": "–",
+      "noFormat": "–",
       "load": {
         "title": "Serverlast",
         "hw": {
@@ -2148,7 +2149,6 @@
       },
       "expiresIn_one": "in {{count}} Tag",
       "expiresIn_other": "in {{count}} Tagen",
-      "expiresToday": "heute",
       "countValue_one": "{{count}} Empfehlung",
       "countValue_other": "{{count}} Empfehlungen",
       "remove": {
@@ -2263,7 +2263,7 @@
       "tooMany": "Schon {{count}} Reihen sichtbar. Blende zuerst eine andere aus.",
       "rows": {
         "spotlight": "Die Trakt-Liste, geschnitten mit der Bibliothek. Erscheint als Bühne mit Hintergrundbild an ihrem Platz; unter der Mindestzahl Treffer fehlt sie.",
-        "picks": "Von Hand gepflegt, mit Notiz, Zielprofil und Zeitfenster.",
+        "picks": "Titel, die Profile des Besitzerkontos empfehlen; neueste zuerst, mit Ablauf.",
         "continue": "Angefangene Titel des Profils.",
         "recent": "Die zuletzt in eine Bibliothek gekommenen Titel.",
         "released": "Nach Erscheinungsdatum der letzten zwölf Monate; eine Serie nach ihrer neusten Folge.",

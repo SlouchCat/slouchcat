@@ -129,4 +129,33 @@ describe('admin user picks page (concept 18 part B)', () => {
     expect(await screen.findByText('Empfehlungen bleiben jetzt 30 Tage.')).toBeInTheDocument();
     expect(bodies).toEqual([{ retentionDays: 6 }, { retentionDays: 30 }]);
   });
+
+  it('follows a retention read later and reads the title pages again after a change', async () => {
+    let retention = 60;
+    mockApi({
+      ...routes,
+      'GET /admin/picks': () => json([heatPick]),
+      'GET /admin/picks/settings': () => json({ retentionDays: retention }),
+      [`DELETE /admin/picks/${ids.heat}`]: () => new Response(null, { status: 204 }),
+    });
+    const { queryClient } = await renderAdminPage('/admin/picks');
+    const field = await screen.findByRole('spinbutton', { name: 'Empfehlungen bleiben' });
+    expect(field).toHaveValue(60);
+    // Another administrator saved 90 meanwhile: the next read shows it.
+    retention = 90;
+    await queryClient.invalidateQueries({ queryKey: ['admin', 'picks', 'settings'] });
+    await waitFor(() => expect(field).toHaveValue(90));
+
+    // A removal reads the title pages again: their star («Empfohlen ✓») may change.
+    queryClient.setQueryData(['item', ids.heat], { id: ids.heat });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Heat entfernen' }));
+    const dialog = await screen.findByRole('alertdialog', {
+      name: 'Heat aus den User-Empfehlungen entfernen?',
+    });
+    await user.click(within(dialog).getByRole('button', { name: 'Entfernen' }));
+    await waitFor(() =>
+      expect(queryClient.getQueryState(['item', ids.heat])?.isInvalidated).toBe(true),
+    );
+  });
 });

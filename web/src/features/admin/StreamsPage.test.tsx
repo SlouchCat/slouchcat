@@ -218,7 +218,10 @@ describe('admin streams (W-6)', () => {
     mockApi(routes(() => mixed));
     renderApp('/admin/streams');
     expect(await screen.findByRole('heading', { level: 2, name: 'Serverlast' })).toBeVisible();
-    expect(within(loadOf('Transcode HW')).getAllByRole('definition')[0]).toHaveTextContent('1');
+    // The panel stands from the start, with «–» until the playbacks are there.
+    await waitFor(() =>
+      expect(within(loadOf('Transcode HW')).getAllByRole('definition')[0]).toHaveTextContent('1'),
+    );
     expect(within(loadOf('Transcode HW')).getByText('Grafikkarte')).toBeVisible();
     expect(within(loadOf('Transcode SW')).getAllByRole('definition')[0]).toHaveTextContent('1');
     expect(within(loadOf('Remux')).getAllByRole('definition')[0]).toHaveTextContent('1');
@@ -667,6 +670,13 @@ describe('admin streams (W-6)', () => {
       ).toBeVisible();
       expect(filterButton(/^Video/)).toHaveTextContent('Video –');
       expect(filterButton(/^Radio/)).toHaveTextContent('Radio 1');
+      // «Serverlast» stays with the known radio count; the playbacks' counters are unknown (17.3).
+      expect(screen.getByRole('heading', { level: 2, name: 'Serverlast' })).toBeVisible();
+      expect(within(loadOf('Radio')).getAllByRole('definition')[0]).not.toHaveTextContent('–');
+      expect(within(loadOf('Transcode HW')).getAllByRole('definition')[0]).toHaveTextContent('–');
+      expect(within(loadOf('Bandbreite gesamt')).getAllByRole('definition')[0]).toHaveTextContent(
+        '–',
+      );
       // The kinds of the failed half are unknown: no text claims they are empty.
       const user = userEvent.setup();
       await user.click(filterButton(/^Video/));
@@ -681,6 +691,7 @@ describe('admin streams (W-6)', () => {
               relays([
                 {
                   ...swissPop,
+                  codec: 'mp3',
                   state: 'failed',
                   logo: { url: '/api/v1/admin/radio/images/7/logo/w256?v=l' },
                   listeners: [
@@ -694,6 +705,8 @@ describe('admin streams (W-6)', () => {
       renderApp('/admin/streams');
       const lena = await screen.findByRole('article', { name: 'Lena: Radio Swiss Pop' });
       expect(within(lena).getByText('Küche (iPhone)')).toBeVisible();
+      // Codecs in capitals, as on the playbacks' tiles.
+      expect(within(lena).getByText(/^MP3 · /)).toBeVisible();
       expect(within(lena).getByText('Relais gestört')).toBeVisible();
       expect(within(lena).queryByText('Hört')).toBeNull();
       expect(lena.querySelector('img')).toHaveAttribute(
