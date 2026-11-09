@@ -8,13 +8,14 @@ import (
 )
 
 // Migration 00042 (concept 18 part A, 8.3) adds the trickplay settings to libraries on the frozen
-// state of migration 00040: every existing library stands at «Im Voraus» for films and series with
-// «Speichern» and the scope «ganze Serie» (F-11), and the CHECK constraints refuse every other value.
+// state of migration 00041 (empfehlungen.sql): every existing library stands at «Im Voraus» for
+// films and series with «Speichern» and the scope «ganze Serie» (F-11), and the CHECK constraints
+// refuse every other value.
 func TestMigration00042Trickplay(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	cfg := t.TempDir()
-	replay(t, cfg+"/"+FileName, frozenState(t, "detailseiten3.sql"))
+	replay(t, cfg+"/"+FileName, frozenState(t, "empfehlungen.sql"))
 	db, err := Open(ctx, Options{ConfigDir: cfg, Version: "migration-test", Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 	if err != nil {
 		t.Fatal(err)

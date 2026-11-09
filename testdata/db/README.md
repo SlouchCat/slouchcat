@@ -279,3 +279,11 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   Stichtag 9. November 2026, 12:00 UTC; `picks_config` auf 45 Tage. Dann `store.Dump`, keine neuen Pfade im Stand.
   `TestFrozenEmpfehlungenStateCoversTheConcept` prüft, dass jede dieser Datenarten vorhanden ist;
   `TestMigration00041UserPicks` prüft den Schritt von `detailseiten3.sql` aus.
+- `trickplay.sql`: Stand nach Teil A des Konzepts 18 «Vorschau beim Spulen» (Migration 00042 mit den Spalten
+  `trickplay_*` in `libraries`; ADR 0027). Erzeugt am 9. November 2026 aus `empfehlungen.sql`: Stand eingespielt, mit
+  `store.Open` migriert (00042 setzt jede Bibliothek auf «Im Voraus», «Speichern», «ganze Serie»), dann per SQL
+  Abweichungen von den Vorgaben: «Filme» mit Filmen «Beim Start» ohne Speichern und der Serienvorschau «Ab Serienstart»
+  über den Rest der Staffel, «Serien» mit Filmen «Aus» und Serien «Beim Start» ohne Speichern mit der Vorschau
+  «nächste Folge», «Hörbücher» bei den Vorgaben. Der Zustand der Vorschau-Sätze liegt im Cache und in Jobs, nicht in der
+  Datenbank. Dann `store.Dump`, keine neuen Pfade im Stand. `TestFrozenTrickplayStateCoversTheConcept` prüft, dass jede
+  dieser Datenarten vorhanden ist; `TestMigration00042Trickplay` prüft den Schritt von `empfehlungen.sql` aus.
