@@ -95,8 +95,8 @@ type Type struct {
 	OverridesPauseForPlayback bool
 	// Windowable: the administrator may hold the type to a time window of the day (concept 15,
 	// 4.3; Registry.SetWindow): outside it no worker claims its jobs, except a playback request
-	// (override_window). Only an event type that reads whole files carries it; a schedule type has
-	// its window in the schedule.
+	// (override_window). Only an event type that reads whole files or downloads in bulk
+	// (people.images, ADR 0026) carries it; a schedule type has its window in the schedule.
 	Windowable bool
 }
 
