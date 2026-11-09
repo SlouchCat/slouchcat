@@ -841,7 +841,13 @@
     },
     "subtitleStyle": {
       "title": "Untertitel-Stil",
-      "size": { "title": "Grösse", "s": "S", "m": "M", "l": "L", "xl": "XL" },
+      "size": {
+        "title": "Grösse",
+        "s": "S",
+        "m": "M",
+        "l": "L",
+        "xl": "XL"
+      },
       "background": {
         "title": "Hintergrund",
         "none": "Keiner",
@@ -849,8 +855,16 @@
         "translucent": "Halbtransparent",
         "box": "Box"
       },
-      "color": { "title": "Farbe", "white": "Weiss", "yellow": "Gelb" },
-      "position": { "title": "Position", "bottom": "Unten", "raised": "Etwas höher" },
+      "color": {
+        "title": "Farbe",
+        "white": "Weiss",
+        "yellow": "Gelb"
+      },
+      "position": {
+        "title": "Position",
+        "bottom": "Unten",
+        "raised": "Etwas höher"
+      },
       "offset": {
         "title": "Versatz",
         "earlier": "0,1 s früher",
@@ -903,8 +917,16 @@
       "tapBack": "−{{seconds}} s",
       "tapForward": "+{{seconds}} s"
     },
-    "tabs": { "label": "Mehr zum Titel", "next": "Als Nächstes", "info": "Info" },
-    "pauseView": { "label": "Pause", "paused": "Pausiert", "chapter": "Kapitel: {{chapter}}" },
+    "tabs": {
+      "label": "Mehr zum Titel",
+      "next": "Als Nächstes",
+      "info": "Info"
+    },
+    "pauseView": {
+      "label": "Pause",
+      "paused": "Pausiert",
+      "chapter": "Kapitel: {{chapter}}"
+    },
     "slow": {
       "label": "Langsame Verbindung",
       "text": "Verbindung langsam – auf {{quality}} wechseln?",
@@ -1520,6 +1542,76 @@
         "images": "Bilder abweichend",
         "both": "Sprachen und Bilder abweichend",
         "link": "Metadaten der Bibliothek"
+      },
+      "trickplay": {
+        "action": "Vorschau beim Spulen",
+        "actionLabel": "Vorschau beim Spulen von {{name}}",
+        "title": "Vorschau beim Spulen: {{name}}",
+        "description": "Kleine Bilder über der Zeitleiste, ein Bild alle 10 Sekunden. Filme und Serien werden getrennt eingestellt, auch in einer gemischten Bibliothek.",
+        "movies": "Filme",
+        "series": "Serien",
+        "mode": {
+          "ahead": "Im Voraus",
+          "on_start": "Beim Start",
+          "series_start": "Beim Start alle Folgen",
+          "off": "Aus"
+        },
+        "keep": "Speichern",
+        "keepHint": "Ab dem zweiten Start sofort da. Ohne Speichern wird die Vorschau nach der Wiedergabe gelöscht.",
+        "scope": {
+          "label": "Umfang",
+          "series": "Ganze Serie",
+          "season_rest": "Rest der Staffel",
+          "next_episode": "Nächste Folge"
+        },
+        "facts": {
+          "ahead": {
+            "movie": "Neue Filme bekommen die Vorschau beim Einlesen; den Bestand holen «Jetzt erzeugen» oder der Zeitplan auf «Hintergrundjobs» nach. Fehlt sie beim Start, entsteht sie in 20 bis 45 Sekunden und bleibt gespeichert.",
+            "episode": "Neue Folgen bekommen die Vorschau beim Einlesen; den Bestand holen «Jetzt erzeugen» oder der Zeitplan auf «Hintergrundjobs» nach. Fehlt sie beim Start, entsteht sie in 20 bis 45 Sekunden und bleibt gespeichert."
+          },
+          "onStartKeep": "Beim ersten Start entsteht die Vorschau in 20 bis 45 Sekunden, das erste Blatt nach 5 bis 10 Sekunden, und bleibt gespeichert. Nie geschaute Titel belegen keinen Platz.",
+          "onStart": "Bei jedem Start entsteht die Vorschau neu in 20 bis 45 Sekunden; 10 Minuten nach dem Ende wird sie gelöscht. Das kostet bei jedem Start Rechenzeit und einige hundert MB vom NAS.",
+          "seriesStart": {
+            "series": "Startet eine Folge, entsteht ihre Vorschau sofort, danach im Hintergrund die aller übrigen Folgen der Serie. Alles bleibt gespeichert.",
+            "season_rest": "Startet eine Folge, entsteht ihre Vorschau sofort, danach im Hintergrund die der übrigen Folgen der Staffel (bei der letzten Folge die der nächsten Staffel). Alles bleibt gespeichert.",
+            "next_episode": "Startet eine Folge, entsteht ihre Vorschau sofort, danach im Hintergrund die der nächsten Folge. Alles bleibt gespeichert."
+          },
+          "off": "Keine Vorschau. Die Zeitleiste zeigt wie bisher Kapitelname und Kapitelbild."
+        },
+        "estimate": {
+          "counts": {
+            "movies_one": "{{count}} Film, {{hours}} h",
+            "movies_other": "{{count}} Filme, {{hours}} h",
+            "series_one": "{{count}} Folge, {{hours}} h",
+            "series_other": "{{count}} Folgen, {{hours}} h"
+          },
+          "approx": "≈ {{size}}",
+          "zero": "0 MB",
+          "perMovie": "Pro Film",
+          "perMoviePlaying": "Pro Film, nur während der Wiedergabe",
+          "perEpisode": "Pro Folge",
+          "perEpisodePlaying": "Pro Folge, nur während der Wiedergabe",
+          "library": "Ganze Bibliothek",
+          "libraryAtMost": "Ganze Bibliothek, höchstens",
+          "basis": "Geschätzter Speicherbedarf aus der Laufzeit der Titel, rund 1,5 MB je Stunde Video.",
+          "stored": "Heute belegt: Filme {{movies}} · Serien {{series}}",
+          "free": "Freier Platz im Cache: {{size}}",
+          "unavailable": "Die Schätzung des Speicherbedarfs ist gerade nicht verfügbar."
+        },
+        "drop": {
+          "movies": "Nach dem Speichern werden die gespeicherten Vorschauen der Filme gelöscht ({{size}}). Laufende Wiedergaben behalten sie bis zum Ende.",
+          "series": "Nach dem Speichern werden die gespeicherten Vorschauen der Serien gelöscht ({{size}}). Laufende Wiedergaben behalten sie bis zum Ende.",
+          "both": "Nach dem Speichern werden die gespeicherten Vorschauen gelöscht: Filme ({{movies}}) und Serien ({{series}}). Laufende Wiedergaben behalten sie bis zum Ende."
+        },
+        "generate": {
+          "action": "Jetzt erzeugen",
+          "hint": "Holt die fehlenden Vorschauen aller Bibliotheken mit «Im Voraus» nach, wie «Vorschau beim Spulen nachholen» auf «Hintergrundjobs».",
+          "queued": "Das Nachholen der Vorschauen ist eingereiht."
+        },
+        "submit": "Speichern",
+        "saved": "Die Vorschau beim Spulen von {{name}} ist gespeichert.",
+        "summary": "Vorschau beim Spulen: Filme {{movies}} · Serien {{series}}",
+        "summaryNoKeep": "Beim Start, ohne Speichern"
       }
     },
     "access": {
