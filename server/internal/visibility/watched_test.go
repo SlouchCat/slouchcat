@@ -74,6 +74,16 @@ func TestSeriesWatched(t *testing.T) {
 	if d, l := watchedOf(f.P18); !is(d, false) || !is(l, false) {
 		t.Errorf("P18 with E2 started again: detail %v list %v, want false", d, l)
 	}
+	// An episode that is deleted or unavailable is not visible, so its open state does not count.
+	exec(t, f, `UPDATE items SET deleted_at = 1 WHERE id = ?`, show.E2.ID)
+	if d, l := watchedOf(f.P18); !is(d, true) || !is(l, true) {
+		t.Errorf("P18 with only the deleted E2 open: detail %v list %v, want true", d, l)
+	}
+	exec(t, f, `UPDATE items SET deleted_at = NULL, available = 0 WHERE id = ?`, show.E2.ID)
+	if d, l := watchedOf(f.P18); !is(d, true) || !is(l, true) {
+		t.Errorf("P18 with only the unavailable E2 open: detail %v list %v, want true", d, l)
+	}
+	exec(t, f, `UPDATE items SET available = 1 WHERE id = ?`, show.E2.ID)
 	// Seasons and episodes never carry it.
 	for _, id := range []string{show.Season.ID, show.E1.ID} {
 		d, err := r.Item(ctx, Profile(f.P12), id)
