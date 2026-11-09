@@ -377,6 +377,38 @@ var profileRegistry = map[string]profileCall{
 				t.Errorf("getPerson for %s = %s, want credits %v", token, rec.Body.String(), want)
 			}
 		}},
+	// ADR 0026: the portrait answers for a profile that sees one of the person's titles (P0 sees
+	// neither: 404), in the format of Accept, cached privately for a year.
+	"getPersonImage": {contract: "GET /people/{id}/image", path: "/people/1/image",
+		want: func(f *vistest.Fixture, p model.Profile) int {
+			if len(personCredits(f, p)) == 0 {
+				return http.StatusNotFound
+			}
+			return http.StatusOK
+		},
+		check: func(t *testing.T, f *vistest.Fixture, h http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+			checkSubjectImage(t, f, h, token, "/people/1/image", f.Person.ImageRel, f.Person.ImageWebPRel, rec)
+			for _, bad := range []string{"/people/999/image", "/people/0/image", "/people/x/image"} {
+				if got := send(t, h, http.MethodGet, BasePath+bad, token, "", nil); got.Code != http.StatusNotFound {
+					t.Errorf("%s for %s: status %d, want 404", bad, token, got.Code)
+				}
+			}
+		}},
+	// ADR 0026: the TMDB poster of the mixed collection only for a profile that sees all three
+	// members (P12 gets 404, P18 the image); the manual collection has none.
+	"getCollectionImage": {contract: "GET /collections/{id}/image", path: "/collections/" + vistest.MixedCollectionID + "/image",
+		want: func(f *vistest.Fixture, p model.Profile) int {
+			if len(mixedMembers(f, p)) != 3 {
+				return http.StatusNotFound
+			}
+			return http.StatusOK
+		},
+		check: func(t *testing.T, f *vistest.Fixture, h http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+			checkSubjectImage(t, f, h, token, "/collections/"+vistest.MixedCollectionID+"/image", f.Discover.MixedImageRel, f.Discover.MixedImageWebPRel, rec)
+			if got := send(t, h, http.MethodGet, BasePath+"/collections/"+vistest.ManualCollectionID+"/image", token, "", nil); got.Code != http.StatusNotFound {
+				t.Errorf("manual collection image for %s: status %d, want 404", token, got.Code)
+			}
+		}},
 	"getItemImage": {contract: "GET /items/{id}/images/{kind}/{size}", path: "/items/{id}/images/poster/w400", perItem: true, okStatus: http.StatusOK,
 		check: func(t *testing.T, f *vistest.Fixture, h http.Handler, token string, m vistest.Movie, rec *httptest.ResponseRecorder) {
 			// Both backdrop sizes answer for the same visible titles.
@@ -935,6 +967,33 @@ func radioListedOnly(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string,
 	}
 	if strings.Contains(body, `"genre"`) && !strings.Contains(body, `"value":"pop"`) {
 		t.Errorf("the facets lack the genre pop: %s", body)
+	}
+}
+
+// checkSubjectImage checks a person or collection image answer (ADR 0026): the JPEG file without
+// WebP in Accept, the WebP file with it, Vary: Accept and the private cache of a year.
+func checkSubjectImage(t *testing.T, f *vistest.Fixture, h http.Handler, token, path, jpgRel, webpRel string, rec *httptest.ResponseRecorder) {
+	t.Helper()
+	for _, c := range []struct {
+		rec       *httptest.ResponseRecorder
+		rel, mime string
+	}{
+		{rec, jpgRel, "image/jpeg"},
+		{send(t, h, http.MethodGet, BasePath+path, token, "", map[string]string{"Accept": "image/avif,image/webp,*/*"}), webpRel, "image/webp"},
+	} {
+		want, err := os.ReadFile(filepath.Join(f.CacheDir, filepath.FromSlash(c.rel)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.rec.Code != http.StatusOK || c.rec.Header().Get("Content-Type") != c.mime || !bytes.Equal(c.rec.Body.Bytes(), want) {
+			t.Errorf("%s for %s: status %d, type %q, want the %s file", path, token, c.rec.Code, c.rec.Header().Get("Content-Type"), c.mime)
+		}
+		if cc := c.rec.Header().Get("Cache-Control"); cc != "private, max-age=31536000, immutable" {
+			t.Errorf("%s: cache control %q", path, cc)
+		}
+		if v := c.rec.Header().Values("Vary"); !slices.Contains(v, "Accept") {
+			t.Errorf("%s: Vary %v, want Accept", path, v)
+		}
 	}
 }
 

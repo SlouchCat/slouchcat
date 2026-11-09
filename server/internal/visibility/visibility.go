@@ -412,6 +412,51 @@ func (r *Reader) Image(ctx context.Context, s Scope, itemID, kind, size string, 
 	return ImageLocation{RelPath: im.RelPath, MediaType: im.MediaType, ContentHash: im.ContentHash, Bytes: im.Bytes, ModTime: im.CreatedAt}, nil
 }
 
+// PersonImage returns the stored portrait of a person with a role on a title the profile may see
+// (concept 17 5.1, ADR 0026): the WebP row with preferWebP, else the JPEG row; model.ErrNotFound
+// without such a role or portrait.
+func (r *Reader) PersonImage(ctx context.Context, s Scope, personID int64, preferWebP bool) (ImageLocation, error) {
+	pid, err := r.profile(ctx, s)
+	if err != nil {
+		return ImageLocation{}, err
+	}
+	format := "jpeg"
+	if preferWebP {
+		format = "webp"
+	}
+	im, err := r.q.GetVisiblePersonImage(ctx, scopedq.GetVisiblePersonImageParams{PersonID: personID, Format: format, ProfileID: pid})
+	if err != nil {
+		return ImageLocation{}, notFound(err)
+	}
+	return ImageLocation{RelPath: im.RelPath.String, MediaType: im.MediaType.String, ContentHash: im.ContentHash.String, Bytes: im.Bytes.Int64, ModTime: im.FetchedAt}, nil
+}
+
+// CollectionImage returns the stored TMDB poster of a collection that is fully visible to the
+// profile (ListFullyVisibleCollectionImages, concept 17 5.2): the WebP row with preferWebP, else
+// the JPEG row; model.ErrNotFound otherwise. It never returns a member's poster.
+func (r *Reader) CollectionImage(ctx context.Context, s Scope, collectionID string, preferWebP bool) (ImageLocation, error) {
+	pid, err := r.profile(ctx, s)
+	if err != nil {
+		return ImageLocation{}, err
+	}
+	rows, err := r.q.ListFullyVisibleCollectionImages(ctx, scopedq.ListFullyVisibleCollectionImagesParams{CollectionIds: []string{collectionID}, ProfileID: pid})
+	if err != nil {
+		return ImageLocation{}, fmt.Errorf("collection image: %w", err)
+	}
+	var pick *scopedq.CollectionImage
+	for i := range rows {
+		if rows[i].Format == "jpeg" || (preferWebP && rows[i].Format == "webp") {
+			if pick == nil || rows[i].Format == "webp" {
+				pick = &rows[i]
+			}
+		}
+	}
+	if pick == nil {
+		return ImageLocation{}, model.ErrNotFound
+	}
+	return ImageLocation{RelPath: pick.RelPath.String, MediaType: pick.MediaType.String, ContentHash: pick.ContentHash.String, Bytes: pick.Bytes.Int64, ModTime: pick.FetchedAt}, nil
+}
+
 // extras holds the per-item rows that complete a summary.
 type extras struct {
 	texts        map[string][]scopedq.ItemText

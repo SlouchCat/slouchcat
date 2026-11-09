@@ -341,6 +341,30 @@ func (s *server) getItemImage(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Add("Vary", "Accept")
 	src, err := s.opts.Catalog.Image(r.Context(), session.Profile, id, kind, size, acceptsWebP(r.Header.Values("Accept")))
+	s.serveImage(w, r, src, err)
+}
+
+// getPersonImage serves the portrait of a person with scope (binary endpoint, CLAUDE.md rule 6,
+// ADR 0026): 404 for an id that is no positive number, a person without a role on a visible title
+// or without a portrait. The format follows Accept like getItemImage.
+func (s *server) getPersonImage(w http.ResponseWriter, r *http.Request) {
+	session, ok := sessionFrom(r.Context())
+	if !ok || s.opts.Catalog == nil {
+		s.p.internal(w, r, errNoItemsServices)
+		return
+	}
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil || id < 1 {
+		s.p.write(w, r, http.StatusNotFound, "not_found", "")
+		return
+	}
+	w.Header().Add("Vary", "Accept")
+	src, err := s.opts.Catalog.PersonImage(r.Context(), session.Profile, id, acceptsWebP(r.Header.Values("Accept")))
+	s.serveImage(w, r, src, err)
+}
+
+// serveImage answers an opened image of the catalog for a year in the private cache, or maps err.
+func (s *server) serveImage(w http.ResponseWriter, r *http.Request, src model.StreamSource, err error) {
 	if err != nil {
 		s.p.mapError(w, r, err)
 		return

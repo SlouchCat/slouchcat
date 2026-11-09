@@ -1510,6 +1510,65 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /people/{id}/image:
+    get:
+      operationId: getPersonImage
+      summary: Portrait of a person (binary, contract 1.21.0)
+      description: |
+        Implemented as an `http.Handler` (CLAUDE.md rule 6, concept 17 section 5.1, ADR 0026). The TMDB
+        portrait in `w185`, fetched by the job `people.images`. The handler checks the scope: a person
+        without a role on a title the active profile may see, or without a stored portrait, answers 404
+        (never 403). WebP when the request's `Accept` header lists `image/webp`, JPEG otherwise, with
+        `Vary: Accept` and `Cache-Control: private, max-age=31536000, immutable`. `CastMember.image`,
+        `PersonRef.image` and `Person.image` point here; the query parameters `v` (content hash) and `p`
+        (profile id) serve cache busting only.
+      tags: [items]
+      x-visibility: scoped
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+        - name: v
+          in: query
+          required: false
+          description: Content hash for cache busting; ignored by the server.
+          schema:
+            type: string
+        - name: p
+          in: query
+          required: false
+          description: Profile id for cache separation; ignored by the server.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The portrait.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: No valid session (`unauthenticated`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Unknown person, no role on a visible title, or no portrait (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /items/{id}/play:
     post:
       operationId: startPlayback
@@ -4627,6 +4686,57 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "404":
           description: Unknown or without a visible member (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /collections/{id}/image:
+    get:
+      operationId: getCollectionImage
+      summary: TMDB poster of a collection (binary, contract 1.21.0)
+      description: |
+        Implemented as an `http.Handler` (CLAUDE.md rule 6, concept 17 section 5.2, ADR 0026). The TMDB
+        poster of a TMDB collection in `w400`, fetched by the job `people.images`. Only for a collection
+        that is fully visible to the active profile: at least one visible member and no member that is
+        not deleted and not visible (a member whose file is missing counts as not visible). Otherwise,
+        and without a stored poster, 404 (never 403); the endpoint never answers with a member's poster,
+        the fallback is `CollectionRef.cover`. WebP when the request's `Accept` header lists
+        `image/webp`, JPEG otherwise, with `Vary: Accept` and
+        `Cache-Control: private, max-age=31536000, immutable`. `CollectionRef.image` and
+        `Collection.image` point here; `v` and `p` serve cache busting only.
+      tags: [discover]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/CollectionID"
+        - name: v
+          in: query
+          required: false
+          description: Content hash for cache busting; ignored by the server.
+          schema:
+            type: string
+        - name: p
+          in: query
+          required: false
+          description: Profile id for cache separation; ignored by the server.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The poster.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Unknown, not fully visible, or no poster (`not_found`).
           content:
             application/problem+json:
               schema:

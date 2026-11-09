@@ -37,3 +37,6 @@ output-options:
     - getAdminRadioImage
     - getRadioCover
     - uploadRadioStationLogo
+    # Person and collection images (contract 1.21.0, ADR 0026).
+    - getPersonImage
+    - getCollectionImage

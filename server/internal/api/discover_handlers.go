@@ -6,6 +6,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
@@ -129,6 +131,20 @@ func (s *server) GetCollection(ctx context.Context, req gen.GetCollectionRequest
 		Id: c.ID, Name: c.Name, Overview: optString(c.Overview), Items: toItemRefList(session.Profile.ID, c.Items),
 		Total: c.Total, Offset: offset, Limit: limit,
 	}), nil
+}
+
+// getCollectionImage serves the TMDB poster of a collection that is fully visible to the active
+// profile (binary endpoint, CLAUDE.md rule 6, ADR 0026); 404 otherwise, never a member's poster.
+// The format follows Accept like getItemImage.
+func (s *server) getCollectionImage(w http.ResponseWriter, r *http.Request) {
+	session, ok := sessionFrom(r.Context())
+	if !ok || s.opts.Catalog == nil {
+		s.p.internal(w, r, errNoItemsServices)
+		return
+	}
+	w.Header().Add("Vary", "Accept")
+	src, err := s.opts.Catalog.CollectionImage(r.Context(), session.Profile, chi.URLParam(r, "id"), acceptsWebP(r.Header.Values("Accept")))
+	s.serveImage(w, r, src, err)
 }
 
 func (s *server) ListWatchlist(ctx context.Context, req gen.ListWatchlistRequestObject) (gen.ListWatchlistResponseObject, error) {

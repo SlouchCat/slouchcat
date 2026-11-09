@@ -101,6 +101,9 @@ func (s Show) All() []Movie {
 type Person struct {
 	ID   int64
 	Name string
+	// ImageRel and ImageWebPRel are the portrait (people.images, ADR 0026), relative to
+	// Fixture.CacheDir.
+	ImageRel, ImageWebPRel string
 }
 
 // Fixture is the seeded database with its directories.
@@ -532,6 +535,34 @@ func (f *Fixture) addImage(t testing.TB, itemID, kind, size, format string, w, h
 	return rel
 }
 
+// addSubjectImage writes the JPEG and WebP of a person or collection image (people.images, ADR
+// 0026) below dir and records their 'ok' rows in table; it returns both rel_paths.
+func (f *Fixture) addSubjectImage(t testing.TB, table, idCol string, id any, dir, size string, w, h int) (jpg, webp string) {
+	t.Helper()
+	for _, format := range []string{"jpeg", "webp"} {
+		var buf bytes.Buffer
+		ext, mediaType := "jpg", "image/jpeg"
+		if format == "webp" {
+			ext, mediaType = "webp", "image/webp"
+			buf.WriteString("RIFF\x00\x00\x00\x00WEBP" + dir)
+		} else if err := jpeg.Encode(&buf, image.NewRGBA(image.Rect(0, 0, w, h)), nil); err != nil {
+			t.Fatal(err)
+		}
+		rel := dir + "/" + size + "." + ext
+		writeFile(t, filepath.Join(f.CacheDir, filepath.FromSlash(rel)), buf.Bytes())
+		sum := sha256.Sum256(buf.Bytes())
+		exec(t, f.DB, `INSERT INTO `+table+` (`+idCol+`, format, status, source, size, rel_path, content_hash, media_type, width, height, bytes, fetched_at)
+		               VALUES (?, ?, 'ok', '/source.jpg', ?, ?, ?, ?, ?, ?, ?, 1)`,
+			id, format, size, rel, hex.EncodeToString(sum[:]), mediaType, w, h, buf.Len())
+		if format == "webp" {
+			webp = rel
+		} else {
+			jpg = rel
+		}
+	}
+	return jpg, webp
+}
+
 func writeFile(t testing.TB, path string, data []byte) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
@@ -638,6 +669,7 @@ func (f *Fixture) AddSeries(t testing.TB) {
 	exec(t, f.DB, `INSERT INTO people (id, tmdb_id, name, created_at) VALUES (?, 9001, ?, 1)`, f.Person.ID, f.Person.Name)
 	exec(t, f.DB, `INSERT INTO credits (item_id, person_id, role, character, ord) VALUES (?, ?, 'cast', 'Hero', 0), (?, ?, 'director', NULL, 0)`,
 		m6.ID, f.Person.ID, f.Rated(18).ID, f.Person.ID)
+	f.Person.ImageRel, f.Person.ImageWebPRel = f.addSubjectImage(t, "person_images", "person_id", f.Person.ID, "people/1", "w185", 6, 9)
 
 	// A file the administrator removed (B-9); the scanner skips it.
 	f.IgnoredRelPath = "Broken (2024)/Broken (2024).mkv"

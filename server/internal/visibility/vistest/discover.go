@@ -14,6 +14,9 @@ type Discover struct {
 	ManualCollection string
 	// PickNote is the note of the pick of P12 on the film rated 12.
 	PickNote string
+	// MixedImageRel and MixedImageWebPRel are the TMDB poster of MixedCollection
+	// (people.images, ADR 0026), relative to Fixture.CacheDir; the manual collection has none.
+	MixedImageRel, MixedImageWebPRel string
 }
 
 // Fixed ids and names of AddDiscover.
@@ -50,6 +53,8 @@ func (f *Fixture) AddDiscover(t testing.TB) {
 		exec(t, f.DB, `INSERT INTO collection_items (collection_id, item_id, position, created_at) VALUES (?, ?, ?, 1)`, MixedCollectionID, m.ID, i)
 	}
 	exec(t, f.DB, `INSERT INTO collection_items (collection_id, item_id, position, created_at) VALUES (?, ?, 0, 1)`, ManualCollectionID, f.Rated(18).ID)
+	f.Discover.MixedImageRel, f.Discover.MixedImageWebPRel = f.addSubjectImage(t, "collection_images", "collection_id", MixedCollectionID,
+		"collections/"+MixedCollectionID, "w400", 8, 12)
 	exec(t, f.DB, `INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (?, ?, 10), (?, ?, 10)`,
 		f.P6.ID, f.Rated(6).ID, f.P18.ID, f.Rated(18).ID)
 	exec(t, f.DB, `INSERT INTO favorites (profile_id, item_id, created_at) VALUES (?, ?, 10)`, f.P18.ID, f.Show.Series.ID)

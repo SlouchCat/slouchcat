@@ -693,6 +693,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/people/{id}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Portrait of a person (binary, contract 1.21.0)
+         * @description Implemented as an `http.Handler` (CLAUDE.md rule 6, concept 17 section 5.1, ADR 0026). The TMDB
+         *     portrait in `w185`, fetched by the job `people.images`. The handler checks the scope: a person
+         *     without a role on a title the active profile may see, or without a stored portrait, answers 404
+         *     (never 403). WebP when the request's `Accept` header lists `image/webp`, JPEG otherwise, with
+         *     `Vary: Accept` and `Cache-Control: private, max-age=31536000, immutable`. `CastMember.image`,
+         *     `PersonRef.image` and `Person.image` point here; the query parameters `v` (content hash) and `p`
+         *     (profile id) serve cache busting only.
+         */
+        get: operations["getPersonImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/items/{id}/play": {
         parameters: {
             query?: never;
@@ -2364,6 +2390,34 @@ export interface paths {
          *     collection order (paged). A collection without a visible member answers 404 (10.2).
          */
         get: operations["getCollection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/collections/{id}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * TMDB poster of a collection (binary, contract 1.21.0)
+         * @description Implemented as an `http.Handler` (CLAUDE.md rule 6, concept 17 section 5.2, ADR 0026). The TMDB
+         *     poster of a TMDB collection in `w400`, fetched by the job `people.images`. Only for a collection
+         *     that is fully visible to the active profile: at least one visible member and no member that is
+         *     not deleted and not visible (a member whose file is missing counts as not visible). Otherwise,
+         *     and without a stored poster, 404 (never 403); the endpoint never answers with a member's poster,
+         *     the fallback is `CollectionRef.cover`. WebP when the request's `Accept` header lists
+         *     `image/webp`, JPEG otherwise, with `Vary: Accept` and
+         *     `Cache-Control: private, max-age=31536000, immutable`. `CollectionRef.image` and
+         *     `Collection.image` point here; `v` and `p` serve cache busting only.
+         */
+        get: operations["getCollectionImage"];
         put?: never;
         post?: never;
         delete?: never;
@@ -10697,6 +10751,52 @@ export interface operations {
             };
         };
     };
+    getPersonImage: {
+        parameters: {
+            query?: {
+                /** @description Content hash for cache busting; ignored by the server. */
+                v?: string;
+                /** @description Profile id for cache separation; ignored by the server. */
+                p?: string;
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The portrait. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/webp": string;
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown person, no role on a visible title, or no portrait (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     startPlayback: {
         parameters: {
             query?: never;
@@ -13887,6 +13987,45 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             /** @description Unknown or without a visible member (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getCollectionImage: {
+        parameters: {
+            query?: {
+                /** @description Content hash for cache busting; ignored by the server. */
+                v?: string;
+                /** @description Profile id for cache separation; ignored by the server. */
+                p?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Collection ID (ULID). */
+                id: components["parameters"]["CollectionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The poster. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown, not fully visible, or no poster (`not_found`). */
             404: {
                 headers: {
                     [name: string]: unknown;
