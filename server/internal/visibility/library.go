@@ -372,7 +372,9 @@ func (r *Reader) LibraryItems(ctx context.Context, s Scope, libraryID int64, q m
 	for i := range out.Items {
 		it := &out.Items[i]
 		if it.Kind == "series" || it.Kind == "podcast" {
-			it.Progress = stats[it.ID].progress()
+			e := stats[it.ID]
+			it.Progress = e.progress()
+			it.Watched = e.watched() // the same aggregate as the status filter
 		}
 	}
 	return out, nil
@@ -530,6 +532,16 @@ func (e episodeStat) progress() *model.Progress {
 		return nil
 	}
 	return &model.Progress{Completed: e.n > 0 && e.done == e.n, UpdatedAt: time.UnixMilli(e.playedAt.Int64).UTC()}
+}
+
+// watched returns ItemRef.watched of a series or podcast (contract 1.22.0): every visible episode
+// completed, nil without a visible episode.
+func (e episodeStat) watched() *bool {
+	if e.n == 0 {
+		return nil
+	}
+	w := e.done == e.n
+	return &w
 }
 
 // episodeStats returns the episode aggregates of the given series and podcasts of a library.
