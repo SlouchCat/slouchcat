@@ -133,7 +133,6 @@ a{color:#f3a27f}a:hover{color:#ffc4a8}
                     <select value="{{r.scope}}" onChange="{{r.setScope}}" style="height: 44px; border-radius: 10px; background: #262a35; color: #f3f3f5; border: 1px solid #ffffff2e; padding: 0 10px; font: inherit; font-size: 14px;">
                       <option value="inherit">Wie Bibliothek (Nur neue Folgen)</option>
                       <option value="new">Nur neue Folgen</option>
-                      <option value="gaps">Neue und fehlende Folgen</option>
                       <option value="lastn">Neue + letzte 10</option>
                       <option value="all">Alle Folgen</option>
                     </select>
@@ -289,7 +288,7 @@ class Component extends DCLogic {
         { label: 'Podcasts', value: String(all.length), note: 'gezeigt von 94' },
         { label: 'Neue Folgen', value: saving + ' speichern', note: (all.length - saving) + ' nur Link' },
         { label: 'Belegt auf dem NAS', value: gbf(total), note: '2,1 TB frei' },
-        { label: 'Downloads', value: queue ? queue + ' laufen' : 'Keine', note: queue ? 'höchstens 2 gleichzeitig' : 'Warteschlange leer' }
+        { label: 'Downloads', value: queue ? queue + ' laufen' : 'Keine', note: queue ? '2 gleichzeitig (einstellbar bis 5)' : 'Warteschlange leer' }
       ]
     };
   }

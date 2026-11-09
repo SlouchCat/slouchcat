@@ -177,9 +177,9 @@ class Component extends DCLogic {
       return defs.map(function (d) { var on = st[key] === d[0]; var c = {}; c[key] = d[0]; return { label: d[1], pressed: on ? 'true' : 'false', style: pill(on), pick: function () { self.flash(c); } }; });
     };
     var saves = st.mode === 'save';
-    var scopeName = { 'new': 'Nur neue Folgen', gaps: 'Neue und fehlende Folgen', lastn: 'Neue + letzte ' + st.n, all: 'Alle Folgen' }[st.scope];
+    var scopeName = { 'new': 'Nur neue Folgen', lastn: 'Neue + letzte ' + st.n, all: 'Alle Folgen' }[st.scope];
     var hint = !saves ? 'Neue Folgen bleiben ein Link und werden beim Abspielen vom Anbieter gestreamt. Vorhandene Dateien bleiben.'
-      : { 'new': 'Geladen wird nur, was ab jetzt erscheint. Ältere Folgen ohne Datei bleiben Link.', gaps: 'Neue Folgen und Lücken: was jünger ist als die älteste gespeicherte Datei und noch fehlt.', lastn: 'Neue Folgen und je Podcast die letzten ' + st.n + ' Folgen des Feeds, soweit sie fehlen.', all: 'Der ganze Feed, höchstens 2000 Folgen je Podcast. Kann sehr viel Platz brauchen.' }[st.scope];
+      : { 'new': 'Geladen wird nur, was ab jetzt erscheint. Ältere Folgen ohne Datei bleiben Link.', lastn: 'Neue Folgen und je Podcast die letzten ' + st.n + ' Folgen des Feeds, soweit sie fehlen.', all: 'Der ganze Feed (höchstens 2000 Folgen je Podcast) und jede neue Folge. Kann sehr viel Platz brauchen.' }[st.scope];
     var active = 0;
     var queue = (saves ? st.queue : []).map(function (d) {
       var running = !st.paused && active < st.par; if (running) active++;
@@ -202,8 +202,8 @@ class Component extends DCLogic {
       summary: saves ? 'Speichern · ' + scopeName + ' · /media/Audiobookshelf/Podcast · ' + st.par + ' gleichzeitig' : 'Nur Link · nichts wird gespeichert',
       saves: saves, showN: st.scope === 'lastn', n: String(st.n), hint: hint,
       modeOpts: opts('mode', [['save', 'Speichern'], ['link', 'Nur Link']]),
-      scopeOpts: opts('scope', [['new', 'Nur neue Folgen'], ['gaps', 'Neue und fehlende'], ['lastn', 'Neue + letzte N'], ['all', 'Alle Folgen']]),
-      parOpts: [1, 2, 3].map(function (v) { var on = st.par === v; return { label: String(v), pressed: on ? 'true' : 'false', style: pill(on) + ' width: 44px; padding: 0;', pick: function () { self.flash({ par: v }); } }; }),
+      scopeOpts: opts('scope', [['new', 'Nur neue Folgen'], ['lastn', 'Neue + letzte N'], ['all', 'Alle Folgen']]),
+      parOpts: [1, 2, 3, 4, 5].map(function (v) { var on = st.par === v; return { label: String(v), pressed: on ? 'true' : 'false', style: pill(on) + ' width: 44px; padding: 0;', pick: function () { self.flash({ par: v }); } }; }),
       lessN: function () { self.flash({ n: Math.max(1, st.n - (st.n > 10 ? 5 : 1)) }); },
       moreN: function () { self.flash({ n: Math.min(100, st.n + (st.n >= 10 ? 5 : 1)) }); },
       queue: queue, queueEmpty: queue.length === 0,

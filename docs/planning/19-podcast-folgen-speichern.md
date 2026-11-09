@@ -1,8 +1,11 @@
 # Konzept: Podcast-Folgen speichern und neue Podcasts-Seite
 
-- **Status: Fassung 1 (9. November 2026), mit klickbaren Mockups.** Marco hat am 9. November 2026 die
-  Grundsatzfragen **F-1 bis F-4** beantwortet (Abschnitt 2). Offen sind die Wahl der Mockup-Varianten
-  (**F-5, F-6**) und die Punkte **O-1 bis O-9** (Abschnitt 16). Ein Kritiker-Review steht noch aus.
+- **Status: Fassung 2 (9. November 2026), mit klickbaren Mockups.** Marco hat am 9. November 2026 die
+  Grundsatzfragen **F-1 bis F-4** beantwortet (Abschnitt 2) und nach dem ersten Blick auf die Mockups
+  zwei Dinge geändert: der Umfang hat **drei** Werte («Nur neue Folgen», «Neue + letzte N», «Alle
+  Folgen»; «Neue und fehlende Folgen» entfällt), und «Gleichzeitig laden» geht **bis 5**. Offen sind
+  die Wahl der Mockup-Varianten (**F-5, F-6**) und die Punkte in Abschnitt 16 (O-1 und O-4 sind
+  erledigt). Ein Kritiker-Review steht noch aus.
   **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Auslöser:** Marco will, dass Slouchcat neue Podcast-Folgen als Datei in den Ordner des Podcasts
   speichert, statt nur den Link zum Anbieter zu halten. Vorhandene Dateien sollen wie heute erkannt
@@ -42,7 +45,7 @@
 | Nr. | Frage | Marcos Antwort |
 |---|---|---|
 | F-1 | Wo wird eingestellt, ob gespeichert oder verlinkt wird? | **Je Bibliothek, je Podcast abweichend** (Empfehlung). |
-| F-2 | Was wird geladen, wenn Speichern eingeschaltet ist? | **Eine Auswahl:** «Alle Folgen», «Neue und fehlende Folgen», «Nur neue Folgen», «Neue + letzte N». |
+| F-2 | Was wird geladen, wenn Speichern eingeschaltet ist? | **Eine Auswahl aus drei Werten:** «Nur neue Folgen», «Neue + letzte N», «Alle Folgen (plus neue)». Zuerst nannte Marco auch «Neue und fehlende Folgen»; nach dem Mockup hat er den Wert gestrichen. **Gleichzeitig laden: bis zu 5.** |
 | F-3 | Audiobookshelf lädt heute noch in denselben Ordner. Wie weiter? | **Slouchcat übernimmt.** Marco schaltet die automatischen Downloads in Audiobookshelf ab; Slouchcat schreibt im selben Layout. |
 | F-4 | Wie lange bleiben gespeicherte Folgen? | **Für immer.** Slouchcat löscht nie eine Datei im Podcast-Ordner. |
 | F-5 | Welche Variante für die abonnierten Podcasts (A Liste, B Raster, C Tabelle)? | **offen**, Empfehlung A (11.2) |
@@ -111,25 +114,24 @@ das stärkste Merkmal, um eine vorhandene Datei einer Feed-Episode zuzuordnen.
 
 | Ebene | Werte | Ab Werk |
 |---|---|---|
-| Bibliothek (Art Podcasts) | **Neue Folgen:** `save` «Speichern» oder `link` «Nur Link». **Umfang** (nur bei `save`): `new`, `gaps`, `last_n` (mit N von 1 bis 100), `all`. **Ordner für neue Abos:** einer der Podcast-Ordner der Bibliothek. **Gleichzeitig laden:** 1 bis 3. | `link`, Umfang `new`, N 10, erster Podcast-Ordner, 2 |
-| Podcast | **Neue Folgen:** «Wie Bibliothek», «Speichern», «Nur Link». **Umfang:** «Wie Bibliothek» oder einer der vier Werte. | beide «Wie Bibliothek» |
+| Bibliothek (Art Podcasts) | **Neue Folgen:** `save` «Speichern» oder `link` «Nur Link». **Umfang** (nur bei `save`): `new`, `last_n` (mit N von 1 bis 100), `all`. **Ordner für neue Abos:** einer der Podcast-Ordner der Bibliothek. **Gleichzeitig laden:** 1 bis 5. | `link`, Umfang `new`, N 10, erster Podcast-Ordner, 2 |
+| Podcast | **Neue Folgen:** «Wie Bibliothek», «Speichern», «Nur Link». **Umfang:** «Wie Bibliothek» oder einer der drei Werte. | beide «Wie Bibliothek» |
 
 Ab Werk steht `link`: nach dem Update verhält sich Slouchcat genau wie heute, bis Marco «Speichern»
 wählt (O-2). Es gilt die Einstellung des Podcasts, wenn er eine eigene hat, sonst die der Bibliothek.
 Der Server rechnet das aus und liefert das Ergebnis mit (`effectiveMode`, `effectiveScope`); der
 Client rechnet nichts (Regel 12).
 
-### 5.2 Was die vier Umfänge heissen
+### 5.2 Was die drei Umfänge heissen
 
 | Umfang | Geladen wird | Beispiel «Weltwoche Daily» (2'017 im Feed, 545 Dateien) |
 |---|---|---|
 | **Nur neue Folgen** (`new`) | Folgen, die ein Feed-Abruf **nach dem Einschalten** neu anlegt. | nur was ab jetzt erscheint |
-| **Neue und fehlende Folgen** (`gaps`) | Wie `new`, dazu **Lücken**: Folgen ohne Datei, die jünger sind als die älteste gespeicherte Datei des Podcasts. | zusätzlich die Lücken seit der ältesten Datei |
 | **Neue + letzte N** (`last_n`) | Wie `new`, dazu die N jüngsten Folgen des Feeds, soweit sie keine Datei haben. | zusätzlich höchstens 10 |
-| **Alle Folgen** (`all`) | Jede Folge des Feeds ohne Datei (der Server hält höchstens die 2'000 jüngsten je Feed). | zusätzlich rund 1'470 Folgen, etwa 36 GB (seine Dateien haben im Mittel 25 MB) |
+| **Alle Folgen** (`all`) | Wie `new`, dazu jede Folge des Feeds ohne Datei (der Server hält höchstens die 2'000 jüngsten je Feed). | zusätzlich rund 1'470 Folgen, etwa 36 GB (seine Dateien haben im Mittel 25 MB) |
 
-Die Lesart von «Neue und fehlende» ist meine Auslegung von Marcos Antwort und steht als **O-1** zur
-Bestätigung. Ohne sie wäre «fehlend» dasselbe wie «alle».
+Lücken im Bestand eines Podcasts füllt kein eigener Umfang mehr: dafür gibt es «Alle Folgen» oder den
+Knopf «Fehlende nachladen» am Podcast (5.3).
 
 «Nach dem Einschalten» hält der Server je Podcast als Zeitpunkt fest (`save_since`): gesetzt, sobald
 «Speichern» für diesen Podcast wirksam wird, gelöscht bei «Nur Link». Eine Folge gilt als neu, wenn
@@ -193,8 +195,8 @@ Die Ladelogik zieht aus `offline.fetchSource` in ein gemeinsames Paket um (Arbei
 `internal/fetch`: Wiederaufnahme, Grenzen, `contentRange`, Endungen), das `offline` und `library`
 benutzen. Verhalten und Tests des Geräte-Downloads bleiben gleich.
 
-**Warteschlange:** eigener Pool `podcast` mit drei Arbeitern; die Einstellung «Gleichzeitig laden»
-(1 bis 3) begrenzt, wie viele davon gleichzeitig laden. Der Pool `download` (ein Arbeiter) bleibt
+**Warteschlange:** eigener Pool `podcast` mit fünf Arbeitern; die Einstellung «Gleichzeitig laden»
+(1 bis 5, ab Werk 2) begrenzt, wie viele davon gleichzeitig laden. Der Pool `download` (ein Arbeiter) bleibt
 den Geräte-Downloads, damit ein Nachladen von tausend Folgen niemanden am Handy warten lässt. Je
 Anbieter-Host läuft höchstens ein Download gleichzeitig (`ratelimit`). Die Jobart ist `Windowable`:
 auf «Hintergrundjobs» lässt sich ein Zeitfenster setzen, pausieren und abbrechen wie bei jeder
@@ -237,7 +239,7 @@ legt, werden weiter erkannt.
 
 **Das Risiko doppelter Dateien.** Heute bleiben Datei- und Feed-Episode getrennt, wenn das
 Verheiraten kein eindeutiges Paar findet. Für den Planer sähe die Feed-Episode dann aus wie «ohne
-Datei», und bei «Alle Folgen» oder «Neue und fehlende» lüde er eine Folge, die schon im Ordner
+Datei», und bei «Alle Folgen» oder «Neue + letzte N» lüde er eine Folge, die schon im Ordner
 liegt. Dagegen stehen zwei Riegel:
 
 1. **Abgleich über den Dateinamen.** Vor dem Einreihen prüft der Planer, ob im Ordner eine
@@ -267,7 +269,7 @@ wirksam (F-4: Slouchcat löscht nichts, aber es macht Marcos Löschen auch nicht
 2. In Audiobookshelf je Podcast den automatischen Download abschalten.
 3. In Slouchcat die Bibliothek auf «Speichern» stellen, Umfang nach Wahl.
 
-Zwischen 2 und 3 erschienene Folgen fängt «Neue und fehlende» oder der Knopf «Fehlende nachladen».
+Zwischen 2 und 3 erschienene Folgen fängt «Neue + letzte N» oder der Knopf «Fehlende nachladen».
 Laufen beide eine Weile parallel, verhindert Schritt 5 in 6.2 (nie überschreiben) kaputte Dateien,
 nicht aber zwei Dateien mit leicht anderem Namen; darum die Reihenfolge.
 
@@ -282,7 +284,7 @@ Nach Vorlage (`server/migrations/TEMPLATE.sql.txt`), nur vorwärts.
 
 | Wo | Was |
 |---|---|
-| `libraries` | `podcast_mode` (`'save'`, `'link'`; Standard `'link'`), `podcast_scope` (`'new'`, `'gaps'`, `'last_n'`, `'all'`; Standard `'new'`), `podcast_last_n` (1 bis 100, Standard 10), `podcast_root_id` (nullable, Fremdschlüssel auf `library_roots`), `podcast_parallel` (1 bis 3, Standard 2). Per `ALTER TABLE … ADD COLUMN … CHECK`, wie die Trickplay-Spalten in 00042. |
+| `libraries` | `podcast_mode` (`'save'`, `'link'`; Standard `'link'`), `podcast_scope` (`'new'`, `'last_n'`, `'all'`; Standard `'new'`), `podcast_last_n` (1 bis 100, Standard 10), `podcast_root_id` (nullable, Fremdschlüssel auf `library_roots`), `podcast_parallel` (1 bis 5, Standard 2). Per `ALTER TABLE … ADD COLUMN … CHECK`, wie die Trickplay-Spalten in 00042. |
 | neu `podcast_settings` | `item_id` (Podcast, Primärschlüssel), `mode` (nullable: `NULL` = wie Bibliothek), `scope` (nullable), `last_n` (nullable), `save_since` (nullable), `root_id` und `folder` (der Ordner des Podcasts, sobald bekannt). |
 | neu `podcast_downloads` | `item_id` (Episode, Primärschlüssel), `state` (`queued`, `running`, `failed`, `removed`), `error` (Code), `attempts`, `bytes_done`, `bytes_total`, `updated_at`. Eine Zeile gibt es nur, solange etwas zu sagen ist; «gespeichert» ergibt sich aus `media_files`, «nur Link» aus deren Fehlen. |
 
@@ -410,7 +412,7 @@ Downloads abgeben. Jeder Schritt ist ein eigener Commit; geprüft wird nach den 
 | P-2 | Dieselbe Folge erscheint genau einmal; kein Eintrag `file_and_feed`. |
 | P-3 | Ein Podcast auf «Nur Link» in einer Bibliothek auf «Speichern»: neue Folge bleibt Link, keine Datei entsteht. |
 | P-4 | «Neue + letzte 3» einschalten: genau die drei jüngsten Folgen ohne Datei werden geladen. |
-| P-5 | «Neue und fehlende»: eine von Hand entfernte Lücke wird nicht gefüllt (Zustand «entfernt»), eine nie geladene Lücke schon. |
+| P-5 | «Alle Folgen»: eine von Hand gelöschte Datei wird nicht wieder geladen (Zustand «entfernt»), eine nie geladene Folge schon; fünf Downloads laufen gleichzeitig, wenn «Gleichzeitig laden» auf 5 steht, je Anbieter aber nur einer. |
 | P-6 | Ordner read-only eingebunden: «Speichern» ist nicht wählbar, der Dialog sagt warum; nach dem Umbinden besteht der Schreibtest. |
 | P-7 | Download bricht ab (Netz weg): die Folge bleibt als Link abspielbar, im Ordner liegt keine sichtbare Teildatei, der nächste Versuch setzt fort. |
 | P-8 | Eine vorhandene Datei mit dem Namen des Folgentitels: es wird nicht geladen, sondern zugeordnet. |
@@ -423,10 +425,10 @@ Downloads abgeben. Jeder Schritt ist ein eigener Commit; geprüft wird nach den 
 
 | Nr. | Punkt | Empfehlung |
 |---|---|---|
-| O-1 | Heisst «Neue und fehlende Folgen» «Lücken seit der ältesten gespeicherten Datei» (5.2)? | ja; sonst wäre es dasselbe wie «Alle Folgen» |
+| O-1 | ~~Lesart von «Neue und fehlende Folgen»~~ | **erledigt** (9. November 2026): Marco hat den Wert gestrichen |
 | O-2 | Stand nach dem Update: «Nur Link», bis Marco umstellt? | ja; kein Download ohne sein Zutun |
 | O-3 | Formate, die der Scanner nicht liest (`aac`, `wav`, Video-Podcasts als `mp4`; auf dem NAS liegen 10 MP4): Link lassen? | ja, mit Hinweis «Format wird nicht gespeichert»; Video-Podcasts sind ein eigenes Thema |
-| O-4 | «Gleichzeitig laden» als Einstellung (1 bis 3) oder fest 2? | Einstellung, sie kostet wenig |
+| O-4 | ~~«Gleichzeitig laden» als Einstellung oder fest?~~ | **erledigt** (9. November 2026): Einstellung, 1 bis 5 |
 | O-5 | Neue Folge sofort beim Feed-Abruf melden oder erst, wenn die Datei da ist? | sofort, die Folge ist als Stream hörbar |
 | O-6 | Bandbreite begrenzen? | nein; Zeitfenster und «Gleichzeitig laden» genügen |
 | O-7 | Tags in die Datei schreiben (Titel, Datum)? | nein; die Datei bleibt, wie der Anbieter sie liefert, Slouchcat kennt die Daten aus dem Feed |

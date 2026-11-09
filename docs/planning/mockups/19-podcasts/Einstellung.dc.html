@@ -141,22 +141,21 @@ class Component extends DCLogic {
     var saves = st.mode === 'save';
     var scopeFact = {
       'new': 'Geladen wird nur, was ab jetzt im Feed erscheint. Ältere Folgen ohne Datei bleiben Link; je Podcast gibt es den Knopf «Fehlende nachladen».',
-      gaps: 'Zusätzlich füllt Slouchcat Lücken: Folgen, die jünger sind als die älteste gespeicherte Datei des Podcasts und noch fehlen.',
       lastn: 'Zusätzlich lädt Slouchcat je Podcast die letzten ' + st.n + ' Folgen des Feeds, soweit sie noch fehlen.',
-      all: 'Slouchcat lädt alles, was der Feed aufführt (höchstens 2000 Folgen je Podcast), älteste zuletzt.'
+      all: 'Slouchcat lädt alles, was der Feed aufführt (höchstens 2000 Folgen je Podcast), älteste zuletzt, und danach jede neue Folge.'
     }[st.scope];
     var facts = saves
       ? ['Erscheint eine Folge, lädt Slouchcat die Datei in den Ordner des Podcasts. Bis sie da ist, spielt die Folge als Stream vom Anbieter.', scopeFact, 'Schlägt ein Download fehl, bleibt die Folge als Link abspielbar und wird später erneut versucht.']
       : ['Neue Folgen bleiben ein Link zum Anbieter. Beim Abspielen streamt Slouchcat sie durch, auf dem NAS wird nichts gespeichert.', 'Dateien, die schon im Ordner liegen, bleiben und werden weiter erkannt.', 'Nimmt der Anbieter eine Folge aus dem Netz, ist sie nicht mehr abspielbar.'];
-    var estimate = { 'new': 'nichts', gaps: '219 Folgen · ≈ 6 GB', lastn: Math.min(st.n * 3, 219 + st.n) + ' Folgen · ≈ ' + Math.max(1, Math.round(st.n * 3 * 0.028)) + ' GB', all: '1.894 Folgen · ≈ 52 GB' }[st.scope];
+    var estimate = { 'new': 'nichts', lastn: Math.min(st.n * 3, 219 + st.n) + ' Folgen · ≈ ' + Math.max(1, Math.round(st.n * 3 * 0.028)) + ' GB', all: '1.894 Folgen · ≈ 52 GB' }[st.scope];
     var blocked = saves && !st.writable;
     return {
       saves: saves, showN: saves && st.scope === 'lastn', n: String(st.n), facts: facts, estimate: estimate, saved: st.saved, blocked: blocked,
       modeOpts: opt('mode', [['save', 'Speichern', 'Die Datei wird in den Ordner des Podcasts geladen und gehört danach dir, auch wenn der Anbieter sie löscht.'], ['link', 'Nur Link', 'Die Folge erscheint in Slouchcat und wird beim Abspielen vom Anbieter gestreamt. Braucht keinen Platz.']]),
-      scopeOpts: opt('scope', [['new', 'Nur neue Folgen', 'Was ab jetzt erscheint.'], ['gaps', 'Neue und fehlende Folgen', 'Neue Folgen und Lücken im Bestand.'], ['lastn', 'Neue + letzte N', 'Neue Folgen und die letzten N des Feeds.'], ['all', 'Alle Folgen', 'Der ganze Feed. Kann sehr viel Platz brauchen.']]),
+      scopeOpts: opt('scope', [['new', 'Nur neue Folgen', 'Was ab jetzt erscheint.'], ['lastn', 'Neue + letzte N', 'Neue Folgen und die letzten N des Feeds.'], ['all', 'Alle Folgen', 'Der ganze Feed und jede neue Folge. Kann sehr viel Platz brauchen.']]),
       lessN: function () { self.setState({ n: Math.max(1, st.n - (st.n > 10 ? 5 : 1)), saved: false }); },
       moreN: function () { self.setState({ n: Math.min(100, st.n + (st.n >= 10 ? 5 : 1)), saved: false }); },
-      parOpts: [1, 2, 3].map(function (v) {
+      parOpts: [1, 2, 3, 4, 5].map(function (v) {
         var on = st.par === v;
         return { label: String(v), pressed: on ? 'true' : 'false', pick: function () { self.setState({ par: v, saved: false }); },
           style: 'width: 44px; height: 44px; border-radius: 22px; font-size: 15px; font-weight: 600; color: #f3f3f5; border: 1px solid ' + (on ? '#e8794a' : '#ffffff2e') + '; background: ' + (on ? '#e8794a33' : '#1d2029') + ';' };
