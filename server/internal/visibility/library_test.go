@@ -274,7 +274,7 @@ func TestLibraryItemsLetterStarts(t *testing.T) {
 	filler := f.All()[slices.IndexFunc(f.All(), func(m vistest.Movie) bool { return m.Label == "A8" })] // the second film rated 18
 	keys := map[string]string{
 		f.Rated(0).ID:    model.SortKey("en", "2001: A Space Odyssey"), // digit, before a
-		f.Rated(6).ID:    model.SortKey("de", "Ärger im Paradies"),     // umlaut folded to a
+		f.Rated(6).ID:    model.SortKey("de", "Ärger im Garten"),       // umlaut folded to a
 		f.Rated(12).ID:   model.SortKey("de", "Amélie"),
 		f.Rated(16).ID:   model.SortKey("en", "The Matrix"), // article stripped
 		f.Rated(18).ID:   model.SortKey("de", "Der Mann"),
