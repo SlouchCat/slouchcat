@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
 import { paths } from '@/app/paths';
 import { isAudioKind, isFinished } from '@/features/catalog/labels';
-import { PosterCard, setSpatialFocus, SpatialButton, SpatialGroup } from '@/ui';
+import { Notice, PosterCard, setSpatialFocus, SpatialButton, SpatialGroup } from '@/ui';
 import { CoverWatchlist, WATCHLIST_KINDS } from './CoverWatchlist';
 import styles from './Discover.module.css';
 
@@ -155,6 +155,27 @@ export function ItemGrid({
   );
 }
 
+/**
+ * A page of a list that could not be read (concept 18 C-3: the lists load as they scroll, without
+ * «Mehr laden»): «Erneut versuchen» under the list reads the failed pages again.
+ */
+export function PageRetry({ onRetry }: { onRetry: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <Notice
+      tone="danger"
+      title={t('library.page.pageFailed')}
+      actions={
+        <SpatialGroup>
+          <SpatialButton variant="secondary" icon="refresh" onPress={onRetry}>
+            {t('common.retry')}
+          </SpatialButton>
+        </SpatialGroup>
+      }
+    />
+  );
+}
+
 interface MoreButtonProps {
   /** Number of entries shown now: the first of the next page gets the focus. */
   shown: number;
@@ -169,7 +190,8 @@ interface MoreButtonProps {
 }
 
 /**
- * "Mehr laden" under a paged list. After a page the focus moves to its first entry (the button
+ * "Mehr laden" under a paged list (only Cat's recommendations still, until concept 18 part B
+ * rebuilds that page; every other list loads as it scrolls, C-3). After a page the focus moves to its first entry (the button
  * may go away with the last page); a failed page turns the button into a retry.
  */
 export function MoreButton({

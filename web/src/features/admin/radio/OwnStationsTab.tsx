@@ -1,9 +1,10 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { facetValueName, stationPlace } from '@/app/radio/labels';
+import { usePagedList, type PlaceRange } from '@/lib/pagedList';
 import { Notice, Skeleton, StationLogo, Text } from '@/ui';
 import {
   AriaButton,
@@ -17,7 +18,7 @@ import {
   type DataColumn,
 } from '@/ui/aria';
 import {
-  adminRadioStationsQuery,
+  adminRadioStationsSource,
   deleteRadioStation,
   radioAdminKeys,
   type AdminRadioStation,
@@ -45,7 +46,11 @@ export function OwnStationsTab({ onEdit, titleRef }: OwnStationsTabProps) {
   const language = i18n.language;
   const queryClient = useQueryClient();
   const [message, setMessage] = useStatusMessage();
-  const stations = useInfiniteQuery(adminRadioStationsQuery(OWN));
+  // Every own station, read page by page as the table scrolls; always virtual like «Sender»
+  // (concept 18 C-3).
+  const [span, setSpan] = useState<PlaceRange>({ start: 0, end: 0 });
+  const paged = usePagedList(adminRadioStationsSource(OWN), span);
+  const stations = paged.first;
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<AdminRadioStation | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -67,7 +72,7 @@ export function OwnStationsTab({ onEdit, titleRef }: OwnStationsTabProps) {
     },
   });
 
-  const rows = stations.data?.pages.flatMap((page) => page.items) ?? [];
+  const total = paged.total;
   const add = (
     <AriaButton variant="primary" icon="plus" onPress={() => setCreating(true)}>
       {t('admin.radio.own.add')}
@@ -88,22 +93,26 @@ export function OwnStationsTab({ onEdit, titleRef }: OwnStationsTabProps) {
     },
     {
       key: 'stream',
+      width: '24%',
       header: t('admin.radio.own.columns.stream'),
       cell: (station) => <span className={styles.url}>{station.streams[0]?.url ?? '–'}</span>,
     },
     {
       key: 'place',
+      width: '16%',
       header: t('admin.radio.stations.columns.place'),
       cell: (station) => stationPlace(t, language, station) ?? '–',
     },
     {
       key: 'genres',
+      width: '18%',
       header: t('admin.radio.stations.columns.genres'),
       cell: (station) =>
         station.genres.map((key) => facetValueName(t, 'genre', key)).join(', ') || '–',
     },
     {
       key: 'actions',
+      width: '12rem',
       header: t('admin.radio.stations.columns.actions'),
       hideHeader: true,
       align: 'end',
@@ -141,12 +150,12 @@ export function OwnStationsTab({ onEdit, titleRef }: OwnStationsTabProps) {
         <SectionHeader
           title={t('admin.radio.own.title')}
           description={t('admin.radio.own.help')}
-          actions={rows.length > 0 ? add : undefined}
+          actions={total > 0 ? add : undefined}
         />
         {stations.isError && <Notice tone="danger" title={problemMessage(t, stations.error)} />}
         {stations.isPending ? (
           <Skeleton shape="block" />
-        ) : rows.length === 0 ? (
+        ) : total === 0 ? (
           <div className={styles.actions}>
             <Text tone="secondary">{t('admin.radio.own.empty')}</Text>
             {add}
@@ -156,16 +165,22 @@ export function OwnStationsTab({ onEdit, titleRef }: OwnStationsTabProps) {
             <DataTable
               caption={t('admin.radio.own.title')}
               columns={columns}
-              rows={rows}
+              rows={paged.slots}
               rowKey={(station) => String(station.id)}
+              layout="fixed"
+              virtual
+              onRange={setSpan}
             />
-            {stations.hasNextPage && (
-              <AriaButton
-                isPending={stations.isFetchingNextPage}
-                onPress={() => void stations.fetchNextPage()}
-              >
-                {t('admin.radio.stations.more')}
-              </AriaButton>
+            {paged.failed && (
+              <Notice
+                tone="danger"
+                title={t('library.page.pageFailed')}
+                actions={
+                  <AriaButton icon="refresh" onPress={paged.retry}>
+                    {t('common.retry')}
+                  </AriaButton>
+                }
+              />
             )}
           </>
         )}

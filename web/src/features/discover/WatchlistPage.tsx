@@ -1,10 +1,10 @@
 import type { ItemRef } from '@slouchcat/api-client';
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useBackKeys } from '@/lib/useBackKeys';
+import { rangeBySize, usePagedList, type PlaceRange } from '@/lib/pagedList';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
 import {
@@ -17,8 +17,9 @@ import {
   SpatialPage,
   setSpatialFocus,
 } from '@/ui';
-import { cardKey, ItemGrid, MoreButton } from './ItemGrid';
-import { useWatchlistMutation, watchlistQuery } from './queries';
+import { cardKey, PageRetry } from './ItemGrid';
+import { PagedItemGrid } from './PagedItemGrid';
+import { useWatchlistMutation, watchlistSource } from './queries';
 import styles from './Discover.module.css';
 
 const GRID_KEY = 'watchlist-item';
@@ -31,9 +32,15 @@ export function WatchlistPage() {
   useDocumentTitle(t('watchlist.title'));
   const goBack = useGoBack(paths.home);
   useBackKeys(goBack);
-  const list = useInfiniteQuery(watchlistQuery);
+  // Every title, read page by page as the grid asks (concept 18 C-3).
+  const [span, setSpan] = useState<PlaceRange>({ start: 0, end: 0 });
+  const paged = usePagedList(watchlistSource, rangeBySize(span));
+  const list = paged.first;
   const remove = useWatchlistMutation();
-  const items = useMemo(() => list.data?.pages.flatMap((page) => page.items) ?? [], [list.data]);
+  const items = useMemo(
+    () => paged.slots.filter((item): item is ItemRef => item !== undefined),
+    [paged.slots],
+  );
 
   const neighbourOf = (item: ItemRef) => {
     const index = items.findIndex((entry) => entry.id === item.id);
@@ -83,7 +90,7 @@ export function WatchlistPage() {
         )}
         {remove.isError && <Notice tone="danger" title={problemMessage(t, remove.error)} />}
 
-        {list.isSuccess && items.length === 0 && (
+        {list.isSuccess && paged.total === 0 && (
           <Notice
             title={t('watchlist.empty.title')}
             actions={
@@ -102,10 +109,11 @@ export function WatchlistPage() {
           </Notice>
         )}
 
-        {items.length > 0 && (
+        {paged.total > 0 && (
           <section className={styles.section}>
-            <ItemGrid
-              items={items}
+            <PagedItemGrid
+              slots={paged.slots}
+              onRange={setSpan}
               focusKey={GRID_KEY}
               label={t('watchlist.title')}
               onUnmarked={onUnmarked}
@@ -124,16 +132,7 @@ export function WatchlistPage() {
                 </SpatialButton>
               )}
             />
-            <MoreButton
-              shown={items.length}
-              keys={items.map((item) => cardKey(GRID_KEY, item))}
-              hasMore={list.hasNextPage}
-              loading={list.isFetchingNextPage}
-              failed={list.isFetchNextPageError}
-              label={t('watchlist.more')}
-              focusKey="watchlist-more"
-              onMore={() => void list.fetchNextPage()}
-            />
+            {paged.failed && <PageRetry onRetry={paged.retry} />}
           </section>
         )}
       </main>

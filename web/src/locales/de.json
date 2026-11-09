@@ -304,7 +304,6 @@
       "roots": "Freigegebene Ordner",
       "empty": "Dieser Ordner hat keine Unterordner.",
       "emptyRoots": "Es ist kein Ordner freigegeben. Setze {{name}} auf die Medienordner des Containers und starte den Server neu.",
-      "loadMore": "Mehr laden",
       "truncated": "Dieser Ordner hat sehr viele Einträge. Angezeigt werden die ersten 50 000; den Rest erreichst du, indem du den Pfad eintippst.",
       "symlink": "Verknüpfung, wird nicht durchsucht",
       "closedRoot": "Nicht freigegeben, nur Anzeige",
@@ -594,7 +593,6 @@
     "podcast": {
       "episodes": "Episoden",
       "empty": "Keine Episoden.",
-      "more": "Mehr laden",
       "link": "Zum Podcast",
       "play": "{{title}} abspielen"
     },
@@ -1116,7 +1114,6 @@
         "hiddenDone": "{{name}} ist ausgeblendet.",
         "shownDone": "{{name}} ist eingeblendet.",
         "empty": "Keine Sender gefunden.",
-        "more": "Weitere Sender",
         "count_one": "{{count}} Sender",
         "count_other": "{{count}} Sender"
       },
@@ -1556,9 +1553,9 @@
       "selection": "Auswahl",
       "selectItem": "{{title}} auswählen",
       "selected": "{{count}} ausgewählt",
+      "selectedOfLoaded": "{{count}} von {{loaded}} geladenen ausgewählt",
       "selectAll": "Alle auswählen",
       "selectNone": "Auswahl aufheben",
-      "more": "Mehr laden",
       "shown": "{{shown}} von {{total}}",
       "entries_one": "{{count}} Eintrag",
       "entries_other": "{{count}} Einträge",
@@ -4299,7 +4296,6 @@
     },
     "results_one": "{{count}} Titel gefunden",
     "results_other": "{{count}} Titel gefunden",
-    "more": "Mehr laden",
     "empty": {
       "title": "Nichts gefunden",
       "body": "Versuche einen anderen Begriff oder weniger Filter."
@@ -4313,7 +4309,6 @@
       "add": "{{title}} merken",
       "remove": "{{title}} von der Merkliste nehmen"
     },
-    "more": "Mehr laden",
     "empty": {
       "title": "Deine Merkliste ist leer",
       "body": "Merke dir Titel auf ihrer Detailseite mit «Merken».",
@@ -4324,7 +4319,6 @@
     "count_one": "{{count}} Titel",
     "count_other": "{{count}} Titel",
     "members": "Titel",
-    "more": "Mehr laden",
     "notFound": {
       "title": "Sammlung nicht gefunden",
       "body": "Diese Sammlung gibt es nicht, oder sie enthält keinen Titel für dieses Profil."
@@ -4342,7 +4336,6 @@
     "newEpisodeAlone": "Neue Folge",
     "summary_one": "{{count}} ungelesen",
     "summary_other": "{{count}} ungelesen",
-    "more": "Mehr laden",
     "empty": {
       "title": "Keine Benachrichtigungen",
       "body": "Markiere Serien oder Podcasts als Favorit, dann erfährst du hier von neuen Folgen."
@@ -4563,7 +4556,6 @@
         "title": "Der Senderkatalog wird geladen",
         "body": "Slouchcat holt die Sender gerade zum ersten Mal. Die Seite versucht es gleich wieder."
       },
-      "more": "Weitere Sender",
       "play": "{{name}} abspielen",
       "pause": "{{name}} pausieren",
       "resume": "{{name}} weiter abspielen",

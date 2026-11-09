@@ -307,11 +307,18 @@ export const ButtonWithTimeBar: Story = {
  */
 export const TitlesOnOneLine: Story = {
   render: (args) => (
-    <div style={{ display: 'flex', gap: 'var(--sc-space-4)', alignItems: 'flex-start' }}>
-      <div style={{ flex: 1 }}>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+        gap: 'var(--sc-space-4)',
+        alignItems: 'start',
+      }}
+    >
+      <div>
         <PosterCard {...args} accent={accents.dusk} />
       </div>
-      <div style={{ flex: 1 }}>
+      <div>
         <PosterCard
           {...args}
           title="Glut"

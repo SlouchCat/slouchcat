@@ -304,7 +304,6 @@
       "roots": "Released folders",
       "empty": "This folder has no subfolders.",
       "emptyRoots": "No folder is released. Set {{name}} to the media folders of the container and restart the server.",
-      "loadMore": "Load more",
       "truncated": "This folder holds a great many entries. The first 50,000 are shown; type the path to reach the rest.",
       "symlink": "Symlink, not scanned",
       "closedRoot": "Not released, shown only",
@@ -594,7 +593,6 @@
     "podcast": {
       "episodes": "Episodes",
       "empty": "No episodes.",
-      "more": "Load more",
       "link": "Go to podcast",
       "play": "Play {{title}}"
     },
@@ -1116,7 +1114,6 @@
         "hiddenDone": "{{name}} is hidden.",
         "shownDone": "{{name}} is shown.",
         "empty": "No stations found.",
-        "more": "More stations",
         "count_one": "{{count}} station",
         "count_other": "{{count}} stations"
       },
@@ -1556,9 +1553,9 @@
       "selection": "Selection",
       "selectItem": "Select {{title}}",
       "selected": "{{count}} selected",
+      "selectedOfLoaded": "{{count}} of {{loaded}} loaded selected",
       "selectAll": "Select all",
       "selectNone": "Clear selection",
-      "more": "Load more",
       "shown": "{{shown}} of {{total}}",
       "entries_one": "{{count}} entry",
       "entries_other": "{{count}} entries",
@@ -4299,7 +4296,6 @@
     },
     "results_one": "{{count}} title found",
     "results_other": "{{count}} titles found",
-    "more": "Load more",
     "empty": {
       "title": "Nothing found",
       "body": "Try another term or fewer filters."
@@ -4313,7 +4309,6 @@
       "add": "Add {{title}} to the watchlist",
       "remove": "Take {{title}} off the watchlist"
     },
-    "more": "Load more",
     "empty": {
       "title": "Your watchlist is empty",
       "body": "Keep titles for later with “Add to watchlist” on their detail page.",
@@ -4324,7 +4319,6 @@
     "count_one": "{{count}} title",
     "count_other": "{{count}} titles",
     "members": "Titles",
-    "more": "Load more",
     "notFound": {
       "title": "Collection not found",
       "body": "This collection does not exist or holds no title for this profile."
@@ -4342,7 +4336,6 @@
     "newEpisodeAlone": "New episode",
     "summary_one": "{{count}} unread",
     "summary_other": "{{count}} unread",
-    "more": "Load more",
     "empty": {
       "title": "No notifications",
       "body": "Mark series or podcasts as favourites to hear about new episodes here."
@@ -4563,7 +4556,6 @@
         "title": "The station catalog is loading",
         "body": "Slouchcat is fetching the stations for the first time. The page tries again in a moment."
       },
-      "more": "More stations",
       "play": "Play {{name}}",
       "pause": "Pause {{name}}",
       "resume": "Resume {{name}}",

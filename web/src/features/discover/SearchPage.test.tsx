@@ -11,7 +11,7 @@ const result = (overrides: Partial<SearchResult> = {}): SearchResult => ({
   items: [heat, alien],
   total: 2,
   offset: 0,
-  limit: 50,
+  limit: 100,
   people: [{ id: 3, name: 'Sigourney Weaver' }],
   collections: [{ id: collectionId, name: 'Alien-Reihe', count: 2, cover: alien }],
   ...overrides,
@@ -59,7 +59,7 @@ describe('search page', () => {
     );
     // One request for the whole word: typing within 200 ms does not ask per key.
     expect(searches(calls)).toHaveLength(1);
-    expect(searches(calls)[0]?.body).toEqual({ query: 'Al', offset: 0, limit: 50 });
+    expect(searches(calls)[0]?.body).toEqual({ query: 'Al', offset: 0, limit: 100 });
     expect(router.state.location.search).toEqual({ q: 'Al' });
     expect(screen.getByText('2 Titel gefunden')).toBeVisible();
 
@@ -119,7 +119,7 @@ describe('search page', () => {
       mediaTypes: ['movie', 'series'],
       availability: ['local'],
       offset: 0,
-      limit: 50,
+      limit: 100,
     });
     const genre = screen.getByRole('group', { name: 'Genre' });
     expect(within(genre).getByRole('button', { name: 'Drama' })).toHaveAttribute(
@@ -170,7 +170,7 @@ describe('search page', () => {
         mediaTypes: ['audiobook'],
         availability: ['download'],
         offset: 0,
-        limit: 50,
+        limit: 100,
       }),
     );
 
@@ -254,8 +254,8 @@ describe('search page', () => {
     await waitFor(() => expect(area).not.toHaveAttribute('aria-busy'));
   });
 
-  it('loads more titles with "Mehr laden"', async () => {
-    const many = Array.from({ length: 50 }, (_, index) => ({
+  it('reads every page of the titles without «Mehr laden» (concept 18 C-3)', async () => {
+    const many = Array.from({ length: 100 }, (_, index) => ({
       ...heat,
       id: `${ids.heat.slice(0, -2)}${String(index).padStart(2, '0')}`,
       title: `Heat ${index}`,
@@ -265,17 +265,16 @@ describe('search page', () => {
         const offset = (call.body as { offset: number }).offset;
         return json(
           offset === 0
-            ? result({ items: many, total: 51 })
-            : result({ items: [arrival], total: 51, offset: 50 }),
+            ? result({ items: many, total: 101 })
+            : result({ items: [arrival], total: 101, offset: 100 }),
         );
       }),
     );
     renderApp('/search?q=He');
     const titles = await screen.findByRole('region', { name: 'Titel' });
-    expect(within(titles).getAllByRole('link')).toHaveLength(50);
-    await userEvent.setup().click(within(titles).getByRole('button', { name: 'Mehr laden' }));
+    // Up to 200 titles the whole list is read at once and drawn as one grid.
     expect(await within(titles).findByRole('link', { name: /Arrival/ })).toBeVisible();
-    expect((searches(calls).at(-1)?.body as { offset: number }).offset).toBe(50);
+    expect((searches(calls).at(-1)?.body as { offset: number }).offset).toBe(100);
     expect(within(titles).queryByRole('button', { name: 'Mehr laden' })).not.toBeInTheDocument();
   });
 
