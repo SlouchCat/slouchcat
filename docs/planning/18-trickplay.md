@@ -1,22 +1,26 @@
 # Konzept 18: Vorschau beim Spulen (Trickplay), User-Empfehlungen und Raster-Feinschliff
 
-- **Status: Fassung 4 (8. November 2026): Messungen, Marcos Antworten F-1 bis F-15 (Abschnitt 11),
-  das Kritiker-Review von Fassung 2 (REVISE, 1 Blocker, 8 Major, 13 Minor; Abschnitt 13) und Marcos
-  feinere Einstellungen je Bibliothek für Filme und Serien (F-13 bis F-15, Abschnitt 6) eingearbeitet.
-  Offen ist nur O-1 (Abschnitt 11.2). Die Änderungen von Fassung 4 hat noch kein Kritiker gesehen. Eingetragen als Frage 25 im Entscheidungsprotokoll.**
-- **Fassung 5 (8. November 2026): Teil B «User-Empfehlungen von Profil zu Profil»** (Abschnitt 14)
-  kam auf Marcos Wunsch dazu, mit seinen Antworten U-F1 bis U-F8. Abschnitte 0 bis 13 sind Teil A
-  «Trickplay».
-- **Fassung 6 (8. November 2026):** zweites Kritiker-Review über Fassung 4 und 5 (REVISE, 1 Blocker,
-  8 Major, 12 Minor; Abschnitt 15) eingearbeitet, mit Marcos Antworten F-16 und U-F9 bis U-F11
-  (Ausnahme vom Nicht-Ziel, Gäste nur lesen, alte Einträge verwerfen, Vorlauf gedrosselt).
-- **Fassung 7 (9. November 2026): Teil C** (Abschnitt 16) auf Marcos Wunsch: Titel unten bündig,
-  grössere Beschriftung bei «Meine Medien», alles laden statt «Mehr laden» überall. Marco hat am
-  Mockup **Variante B** und die **40-px-Beschriftung** gewählt. Auslöser ist Marcos Auftrag vom 8. November 2026: Vorschaubilder für Filme und
-  Folgen, erzeugt **sobald eine Folge oder ein Film gestartet wird**; dazu die Fragen, wie lange
-  das dauert und ob die Bilder gespeichert werden. Grundlage ist Idee 05
-  (`docs/ideas/05-trickplay.md`, aus Konzept 13 V-21, Frage 19 F-7 «später»).
+- **Status: Fassung 7 (9. November 2026), drei Teile:** A «Trickplay» (Abschnitte 0 bis 13),
+  B «User-Empfehlungen von Profil zu Profil» (14, 15), C «Raster-Feinschliff» (16). Offen ist nur
+  O-1 (11.2). Eingetragen als **Frage 25** im Entscheidungsprotokoll.
   **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
+- **Auslöser:** Marcos Auftrag vom 8. November 2026: Vorschaubilder für Filme und Folgen, erzeugt
+  **sobald eine Folge oder ein Film gestartet wird**; dazu die Fragen, wie lange das dauert und ob
+  die Bilder gespeichert werden. Grundlage ist Idee 05 (`docs/ideas/05-trickplay.md`, aus Konzept
+  13 V-21, Frage 19 F-7 «später»). Teil B und C kamen auf Marcos Wunsch dazu.
+- **Verlauf:**
+  - Fassung 1 bis 3 (8. November 2026): Messungen, Marcos Antworten F-1 bis F-12, Kritiker-Review
+    von Fassung 2 (REVISE, 1 Blocker, 8 Major, 13 Minor; Abschnitt 13).
+  - Fassung 4 (8. November 2026): Einstellungen je Bibliothek getrennt für Filme und Serien
+    (F-13 bis F-15, Abschnitt 6).
+  - Fassung 5 (8. November 2026): Teil B mit Marcos Antworten U-F1 bis U-F8 (Abschnitt 14).
+  - Fassung 6 (8. November 2026): zweites Kritiker-Review über Fassung 4 und 5 (REVISE, 1 Blocker,
+    8 Major, 12 Minor; Abschnitt 15), mit Marcos Antworten F-16 und U-F9 bis U-F11 (Ausnahme vom
+    Nicht-Ziel, Gäste nur lesen, alte Einträge verwerfen, Vorlauf gedrosselt).
+  - Fassung 7 (9. November 2026): Teil C (Abschnitt 16): Titel unten bündig, grössere Beschriftung
+    bei «Meine Medien», alles laden statt «Mehr laden» überall. Marco hat am Mockup **Variante B**
+    und eine Beschriftung von **26 px** gewählt (zuerst 40 px, dann «doch etwas zu gross»). Teil C
+    hat noch kein Kritiker gesehen.
 - **Verankert gegen:** `main` **`6c05eda7`** (Merge PR #125, Release 1.19.2), Vertragsfassung
   **1.19.0** (`api/openapi.yaml:4`), letzte Migration **`00039_radio_stage2.sql`**, letzte ADR in
   `main` **`0025`**, letzte Frage im Entscheidungsprotokoll **24**. Reserviert und nicht gebaut:
@@ -899,7 +903,7 @@ Zurücknehmen und erneutes Empfehlen (gewollt, 14.5).
 | Nr. | Wunsch | Abschnitt |
 |---|---|---|
 | C-1 | Der Titel unter einer Karte steht **immer auf derselben Linie**, egal ob Film, Serie, Hörbuch oder Podcast, in jeder Reihe («Weiterschauen», «Neu hinzugefügt», …) und in jedem Raster. | 16.2 |
-| C-2 | Bei «Meine Medien» ist die Unterscheidung zu schwach: Die Beschriftung «Filme», «Serien» usw. wird **viel grösser**. | 16.3 |
+| C-2 | Bei «Meine Medien» ist die Unterscheidung zu schwach: Die Beschriftung «Filme», «Serien» usw. wird grösser (**26 px**). | 16.3 |
 | C-3 | **Kein «Mehr laden»** mehr: Filme und Serien laden alles, mit guter Leistung; **überall**, auch bei Podcasts usw. | 16.4 |
 
 Mockup: Artboard «Startseite: Titel unten bündig, Meine Medien» der Leinwand «Konzept 18», mit echten
@@ -931,10 +935,10 @@ enthält nur Verweise, keine Bilder).
 
 - **Heute:** `LibraryTile` zeigt den Namen in `--sc-font-size-md` (halbfett) und die Anzahl in
   `--sc-font-size-xs` auf einem schmalen Verlauf am unteren Rand.
-- **Neu** (Marco: «noch grösser», am Mockup bestätigt): Name **rund 40 px**, sehr fett, mit Schatten; die Anzahl darunter
-  in normaler Textgrösse; die Collage wird über die ganze Kachel abgedunkelt, damit der Name auf
+- **Neu** (Marco wählte am Mockup **26 px**, nach Vergleich mit 30, 34 und 40 px): Name **26 px**,
+  fett, mit Schatten; die Anzahl darunter in kleiner Textgrösse (14 px); die Collage wird über die ganze Kachel abgedunkelt, damit der Name auf
   jedem Bild lesbar bleibt. Auf dem Handy skaliert die Schrift mit der Kachelbreite
-  (`clamp()`, mindestens 28 px).
+  (`clamp()`, mindestens 20 px).
 - Neue Tokens in `packages/design-tokens/tokens/` für die Schriftgrösse und den Verlauf (Regel 9);
   Kontrast des Namens mindestens 4.5:1 auf dem dunkelsten Verlaufspunkt.
 
