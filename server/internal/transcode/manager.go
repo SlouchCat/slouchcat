@@ -365,6 +365,39 @@ func (m *Manager) Stats() Stats {
 	return st
 }
 
+// CPUHeavy reports whether a transcode keeps the CPU busy right now (concept 18, 5.3): a session
+// with a running ffmpeg that encodes video in software or tonemaps on the CPU, or a download encode
+// holding budget. The trickplay job then runs one ffmpeg instead of two.
+func (m *Manager) CPUHeavy() bool {
+	m.mu.Lock()
+	if len(m.leases) > 0 {
+		m.mu.Unlock()
+		return true
+	}
+	sessions := make([]*Session, 0, len(m.sessions))
+	for _, s := range m.sessions {
+		if m.cpuPlan(s.plan) {
+			sessions = append(sessions, s)
+		}
+	}
+	m.mu.Unlock()
+	for _, s := range sessions {
+		if running, _ := s.state(); running {
+			return true
+		}
+	}
+	return false
+}
+
+// cpuPlan reports whether a plan encodes on the CPU of this manager: a video transcode on the
+// software backend or with tonemapping the GPU does not do.
+func (m *Manager) cpuPlan(p Plan) bool {
+	if p.Target.VideoCopy {
+		return false
+	}
+	return m.caps.Backend == BackendSoftware || (p.Target.Tonemap && !m.caps.HWTonemap)
+}
+
 // cost is the admission cost of a plan on this manager's backend: the plan's cost (plan 3.5),
 // raised to costHDRCPU for an HDR transcode whose tonemapping runs on the CPU.
 func (m *Manager) cost(p Plan) float64 {

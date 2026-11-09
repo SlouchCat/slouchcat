@@ -289,11 +289,20 @@ var ErrImageExit = errors.New("ffmpeg exited with an error")
 
 // runImageFFmpeg runs the configured ffmpeg with an argument list and returns its standard output.
 func (r Runner) runImageFFmpeg(ctx context.Context, args ...string) ([]byte, error) {
+	return r.runFFmpeg(ctx, nil, args...)
+}
+
+// runFFmpeg runs the configured ffmpeg with an argument list, stdin (nil: none) on its standard
+// input, and returns its standard output.
+func (r Runner) runFFmpeg(ctx context.Context, stdin []byte, args ...string) ([]byte, error) {
 	if r.FFmpegPath == "" {
-		return nil, errors.New("ffmpeg path is not configured")
+		return nil, errNoFFmpeg
 	}
 	var stdout, stderr bytes.Buffer
 	cmd := exec.CommandContext(ctx, r.FFmpegPath, args...) //nolint:gosec // G204: configured binary, fixed argument list, paths resolved by package paths
+	if stdin != nil {
+		cmd.Stdin = bytes.NewReader(stdin)
+	}
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
