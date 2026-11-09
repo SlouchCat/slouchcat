@@ -1,5 +1,49 @@
 # Aktueller Stand
 
+## Konzept 17 Stufe 3 «Personen- und Sammlungsbilder, Bibliotheksraster» (9. November 2026): Pull Request, Release 1.21.0
+
+**Vertrag 1.21.0, additiv**, **Migration 00040** (`person_images`, `collection_images`), ADR 0026. Zweig
+`claude/detailseiten-stufe3` ab `main` `e0299fdd` (Release 1.20.0). Bau auf Marcos Wort vom 8. November 2026
+(«Stufe 3 starten») nach Plan mit Vertrag und Migration vorab und drei Spuren (Server-Bilder, App-Bilder,
+Bibliotheksraster); Kritiker-Review des Plans (REVISE, 0 Blocker, 10 Major, 17 Minor, eingearbeitet),
+Code-Review (REQUEST CHANGES, 0 Blocker, 4 Major, 9 Minor, behoben) und Security-Review (LOW, 5 Low, behoben).
+Randentscheide und Marcos drei Antworten (Hörbücher wie Filme; Personen in der Suche als Bildkarten; Messung
+mit Handy-Emulation, Telefon bei der Abnahme) im Nachtrag zu Frage 24 vom 9. November 2026.
+
+- **Vertrag:** `image` (`ImageRef`) in `CastMember`, `Person`, `PersonRef`, `Collection`, `CollectionRef`;
+  Operationen `getPersonImage` und `getCollectionImage` (`http.Handler`, `scoped`, 404 statt 403);
+  `LibraryFacets.letterStarts` (`LetterStart { letter, offset }`, nur bei `sort=title` und `offset=0`); der
+  Parameter `letter` ist veraltet.
+- **Server (D-5):** Job `people.images` (Ereignistyp mit Zeitfenster, Drossel 10/s für das CDN, nur 404 und
+  kaputte Bilder werden `missing`, nach drei Transportfehlern in Folge Abbruch, verlorene Dateien lösen einen
+  Lauf aus) und Zeitplan `people.images_backfill` (aus); Personenbild nur mit Rolle in einem sichtbaren Titel,
+  TMDB-Sammlungsposter nur, wenn alle Mitglieder sichtbar und keines gelöscht ist, sonst das Poster des ersten
+  sichtbaren Mitglieds. ffmpeg mit festem Demuxer und `-protocol_whitelist file`, `nosniff`, Weiterleitungen
+  nur auf denselben Host.
+- **App (D-5):** Porträts auf den Besetzungskarten (`ui/Avatar`), auf der Personenseite und als runde Karten in
+  der Suche; Sammlungsposter auf Karte und Kopf der Sammlungsseite; Rückfall auf Buchstabe bzw. Mitgliedsposter;
+  der Service Worker hält gesehene Porträts offline.
+- **Bibliothek (D-6):** Seitenmodell mit Lücken (Seiten zu 100, nur sichtbare Seiten, Wechsel der Gesamtzahl
+  ohne Schlaufe), virtualisiertes Raster mit `@tanstack/react-virtual` 3.14.22 (feste Zeilenhöhe, Karten einzeln
+  positioniert wegen der Grenze von 9'999 Rasterzeilen in Firefox), Fokusregeln für nicht gezeichnete Zeilen,
+  Zurück stellt Karte und Scrollstand her, Buchstaben springen (`#` zweimal), Hinweis mit «Erneut versuchen»
+  bei einer fehlgeschlagenen Seite. Gilt für Film-, Serien- und Hörbuchbibliotheken; «User-Empfehlungen»
+  bleiben beim alten Weg.
+- **Messung** (`docs/perf/detailseiten.md`): erster Lauf `people.images` auf CT 190 31 min für 18'199 Subjekte,
+  0 Fehler, 17'794 Personen und 405 Sammlungen, zusammen rund 0,5 GB (Schätzung 0,9 GB); Seite 0 mit
+  `letterStarts` im Benchmark so schnell wie eine Seite ohne Facetten (p50 42,4 ms); Handy-Emulation ohne
+  CPU-Drosselung: erste Bilder nach 237 ms, Durchscrollen von 1'800 Filmen ohne lange Aufgaben.
+- **Restgrenzen:** TMDB-Sammlungsteile, die nie in der Bibliothek waren, prüft der Server nicht (offene Frage in
+  ADR 0026); das Löschen einer Sammlung lässt bis zu zwei Dateien im Cache; der Fehlerhinweis über dem Raster
+  verschiebt es um seine Höhe; die Messung auf dem Telefon steht aus (Abnahme).
+- **Prüfung:** `task ci` auf `6b087ece`: Server 39 Pakete grün, Web 1678 Vitest-Tests, Storybook 435
+  Geschichten, e2e in drei Shards 569 von 569 grün (588 s). Danach nur Doku (`task check:fast`).
+- Versionsstellen auf 1.21.0 (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/compose.updater.yaml`,
+  `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`).
+- **Offen für die Abnahme auf CT 190** (läuft auf `detailseiten3-c18cb81`): Porträts auf Detail-, Personen- und
+  Suchseite, Sammlungsposter, Bibliothek mit springenden Buchstaben, Scrollen und Zurück mit Maus, Tastatur und
+  Handy. Merge und Tag `v1.21.0` erst auf Marcos Wort.
+
 ## Konzept 17 Stufe 2 «Detailseite und Merken auf dem Cover» (8. November 2026): Pull Request, Release 1.20.0
 
 **Vertrag 1.20.0, additiv**, keine Migration, keine neue Operation. Zweig `claude/detailseiten-stufe2` ab `main`
