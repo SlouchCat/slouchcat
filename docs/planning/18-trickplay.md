@@ -1,4 +1,4 @@
-# Konzept 18: Vorschau beim Spulen (Trickplay) und User-Empfehlungen
+# Konzept 18: Vorschau beim Spulen (Trickplay), User-Empfehlungen und Raster-Feinschliff
 
 - **Status: Fassung 4 (8. November 2026): Messungen, Marcos Antworten F-1 bis F-15 (Abschnitt 11),
   das Kritiker-Review von Fassung 2 (REVISE, 1 Blocker, 8 Major, 13 Minor; Abschnitt 13) und Marcos
@@ -9,7 +9,10 @@
   «Trickplay».
 - **Fassung 6 (8. November 2026):** zweites Kritiker-Review über Fassung 4 und 5 (REVISE, 1 Blocker,
   8 Major, 12 Minor; Abschnitt 15) eingearbeitet, mit Marcos Antworten F-16 und U-F9 bis U-F11
-  (Ausnahme vom Nicht-Ziel, Gäste nur lesen, alte Einträge verwerfen, Vorlauf gedrosselt). Auslöser ist Marcos Auftrag vom 8. November 2026: Vorschaubilder für Filme und
+  (Ausnahme vom Nicht-Ziel, Gäste nur lesen, alte Einträge verwerfen, Vorlauf gedrosselt).
+- **Fassung 7 (9. November 2026): Teil C** (Abschnitt 16) auf Marcos Wunsch: Titel unten bündig,
+  grössere Beschriftung bei «Meine Medien», alles laden statt «Mehr laden» überall. Offen: O-2
+  (Variante für «unten bündig»). Auslöser ist Marcos Auftrag vom 8. November 2026: Vorschaubilder für Filme und
   Folgen, erzeugt **sobald eine Folge oder ein Film gestartet wird**; dazu die Fragen, wie lange
   das dauert und ob die Bilder gespeichert werden. Grundlage ist Idee 05
   (`docs/ideas/05-trickplay.md`, aus Konzept 13 V-21, Frage 19 F-7 «später»).
@@ -621,6 +624,7 @@ Cache-Ordner und in `jobs`. Eingefrorener DB-Stand in `testdata/db/` nach Regel 
 
 | Nr. | Frage | Empfehlung |
 |---|---|---|
+| O-2 | Teil C: Variante für «Titel unten bündig» (A Posterrahmen, B unscharfer Grund, C gleiche Höhe; Mockup) | **B** |
 | O-1 | Starten zwei Zuschauer gleichzeitig zwei verschiedene Titel ohne Satz, wartet der zweite 20 bis 45 s auf seine Vorschau (ein Arbeiter). Hinnehmen, oder ein zweiter Arbeiter nur für Start-Aufträge (dann bis vier ffmpeg-Prozesse neben zwei Streams auf 6 Threads)? | **Hinnehmen.** Im Haushalt selten; die Vorschau des zweiten erscheint nur später, die Wiedergabe startet sofort |
 
 ## 12. Bauplan
@@ -640,7 +644,8 @@ mit Migration 00042. Eine eingecheckte Migration wird nie mehr geändert.
 | 6 | Teil A `playback.Start`, Handler, Wiedergabe-Pflege, `offline` (Kopie, Warten, Manifest), Vertragstest | 1,5 |
 | 7 | Teil A App: `SeekBar` (Kachel, Finger, Tastatur), Nachfragen, Offline-Ablage, Bibliotheksdialoge mit Film- und Seriengruppe, Storybook, Playwright | 2,5 |
 | 8 | Messung auf CT 190: Start, Blattzeit, Last neben QSV- und CPU-Transcode, **4K über NFS**, Remux neben Trickplay, gleichzeitige volle Keyframe-Lesung, **Serienvorlauf über eine Stunde neben einem 4K-Remux**; `docs/perf/18-trickplay.md` | 0,5 |
-| | **Summe** | **13** |
+| 9 | Teil C (nach Konzept 17 Stufe 3, vor Schritt 1): Karten unten bündig, «Meine Medien», Nachladen in allen übrigen Listen, Tests und Baselines | 3 |
+| | **Summe** | **16** |
 
 ## 13. Kritiker-Review von Fassung 2 (8. November 2026)
 
@@ -887,6 +892,90 @@ Der OMC-Kritiker hat die Änderungen seit Fassung 3 geprüft: **REVISE, 1 Blocke
 Offene Fragen des Kritikers: Übernahme der alten Einträge (verworfen, U-F11), Empfehlungen über
 Konten hinweg (lesen ja, empfehlen nur Besitzerkonto, U-F10), Dauer-Empfehlen durch
 Zurücknehmen und erneutes Empfehlen (gewollt, 14.5).
+
+## 16. Teil C: Titel unten bündig, «Meine Medien», alles laden statt «Mehr laden»
+
+### 16.1 Was Marco will (9. November 2026)
+
+| Nr. | Wunsch | Abschnitt |
+|---|---|---|
+| C-1 | Der Titel unter einer Karte steht **immer auf derselben Linie**, egal ob Film, Serie, Hörbuch oder Podcast, in jeder Reihe («Weiterschauen», «Neu hinzugefügt», …) und in jedem Raster. | 16.2 |
+| C-2 | Bei «Meine Medien» ist die Unterscheidung zu schwach: Die Beschriftung «Filme», «Serien» usw. wird **viel grösser**. | 16.3 |
+| C-3 | **Kein «Mehr laden»** mehr: Filme und Serien laden alles, mit guter Leistung; **überall**, auch bei Podcasts usw. | 16.4 |
+
+Mockup: Artboard «Startseite: Titel unten bündig, Meine Medien» der Leinwand «Konzept 18», mit echten
+Postern und Covern aus dem Bild-Cache von CT 190 (nur in der privaten Leinwand; die Repo-Kopie
+enthält nur Verweise, keine Bilder).
+
+### 16.2 C-1 Titel unten bündig
+
+- **Heute:** `PosterCard` hat zwei Formen, `poster` (2:3) und `square` (1:1, Hörbücher und Podcasts,
+  `PosterCard.module.css` `.square`). In einer gemischten Reihe ist ein quadratisches Cover niedriger,
+  der Titel darunter rutscht nach oben.
+- **Regel:** Alle Karten einer Reihe oder eines Rasters haben **dieselbe Bildhöhe**; der Titel beginnt
+  bei allen auf derselben Linie. Gilt für jede Reihe der Startseite, die Bibliotheks- und
+  Suchraster, Merkliste, Sammlung, User-Empfehlungen, Personenseite und die Offline-Bibliothek.
+- **Varianten** (Mockup, Umschalter oben):
+  - **A:** Jede Karte hat den Posterrahmen 2:3; das quadratische Cover sitzt unten im Rahmen, darüber
+    bleibt dunkler Platz.
+  - **B (Empfehlung):** wie A, aber das Cover sitzt in der Mitte, und über und unter ihm liegt
+    dasselbe Bild unscharf und abgedunkelt (CSS `filter: blur()` auf einem zweiten `<img>` derselben
+    Quelle, kein zusätzlicher Download). Ruhiges Raster ohne Lücken.
+  - **C:** Alle Bilder gleich hoch; ein quadratisches Cover ist dafür breiter (1,5-fache
+    Kartenbreite). Nichts beschnitten, aber ungleich breite Karten; im Raster bricht das die Spalten
+    und ist darum nur in Reihen möglich.
+- **Offen: O-2**, Marcos Wahl am Mockup.
+- Umsetzung in `web/src/ui/PosterCard` (Form `square` erhält den Posterrahmen), Storybook-Baselines
+  aller betroffenen Bauteile neu, Fokus- und Glanzrahmen (`.card::before`) folgen dem Rahmen.
+
+### 16.3 C-2 «Meine Medien» mit grosser Beschriftung
+
+- **Heute:** `LibraryTile` zeigt den Namen in `--sc-font-size-md` (halbfett) und die Anzahl in
+  `--sc-font-size-xs` auf einem schmalen Verlauf am unteren Rand.
+- **Neu** (Marco: «noch grösser»): Name **rund 40 px**, sehr fett, mit Schatten; die Anzahl darunter
+  in normaler Textgrösse; die Collage wird über die ganze Kachel abgedunkelt, damit der Name auf
+  jedem Bild lesbar bleibt. Auf dem Handy skaliert die Schrift mit der Kachelbreite
+  (`clamp()`, mindestens 28 px).
+- Neue Tokens in `packages/design-tokens/tokens/` für die Schriftgrösse und den Verlauf (Regel 9);
+  Kontrast des Namens mindestens 4.5:1 auf dem dunkelsten Verlaufspunkt.
+
+### 16.4 C-3 Alles laden statt «Mehr laden»
+
+- **Heute** steht «Mehr laden» in: Bibliotheken (`LibraryPage`, Filme, Serien, Hörbücher, Podcasts),
+  User-Empfehlungen (`PicksPage`), Suche (`SearchPage`), Merkliste (`WatchlistPage`), Sammlung
+  (`CollectionPage`), Mitteilungen (`NotificationsPage`), Podcast-Folgen auf der Titelseite
+  (`ItemPage`, `item.podcast.more`), Radio (`RadioPage`) und in der Verwaltung (Wartung `IssueTab`,
+  Radio-Sender `StationsTab`, `OwnStationsTab`).
+- **Schon geplant:** Konzept 17 Stufe 3 (D-6, 6.2) baut für die **Film- und Serienbibliotheken** ein
+  Seitenmodell mit Lücken, ein virtualisiertes Raster mit `@tanstack/react-virtual` und den
+  Buchstabensprung (`letterStarts`), mit Fokusregeln, Zurück-Fokus und einer Messung über 1'795 Titel
+  auf dem Handy.
+- **Entscheid (Marco, 9. November 2026):** Konzept 17 Stufe 3 baut das wie geplant und **zusätzlich
+  für Hörbuch- und Podcast-Bibliotheken** (ohne Buchstabenleiste, wie heute); die Ausnahme in
+  Konzept 17 6.2 Punkt 5 fällt für das Nachladen weg. **Teil C** überträgt danach dieselben Bausteine
+  (Seitenmodell, virtualisierte Liste bzw. Raster, Nachladen beim Scrollen) auf **alle übrigen
+  Listen** oben, auch die der Verwaltung.
+- **Leistung:**
+  - Nur sichtbare Zeilen plus je eine Bildschirmhöhe davor und danach im DOM; Bilder (`posterSmall`)
+    erst kurz vor dem Sichtbarwerden, mit festen Bildmassen gegen Springen.
+  - Seiten zu 100 Einträgen, Nachladen ab einer halben Bildschirmhöhe vor dem Ende; nie mehr als zwei
+    Seitenabrufe gleichzeitig.
+  - Listen unter 200 Einträgen (Mitteilungen, Verwaltung) brauchen keine Virtualisierung: Nachladen
+    beim Scrollen genügt.
+  - Ziel auf dem Handy (Messung beim Bau nach `docs/perf/`): erste Zeile wie heute, flüssiges Scrollen
+    über 1'800 Filme und über einen Podcast mit über 1'000 Folgen.
+- **Server:** keine neue Operation; die Listen-Operationen haben schon `offset`/`limit`. Wo `limit`
+  heute unter 100 liegt, wird es auf 100 angehoben (Vertrag additiv, nur Grenzwerte).
+- Tastatur (Regel 8): dieselben Fokusregeln wie Konzept 17 6.2 Punkt 2; jede betroffene Seite behält
+  ihren Playwright-Tastaturtest, «Mehr laden»-Schritte darin werden durch Scrollen ersetzt.
+
+### 16.5 Bau
+
+- C-3 für Bibliotheken: **in Konzept 17 Stufe 3** (Nachtrag in Frage 24 und ein Hinweis in Konzept 17
+  6.2 Punkt 5).
+- C-1, C-2 und C-3 für die übrigen Listen: eigener Schritt in Konzept 18 **nach** Konzept 17 Stufe 3,
+  vor Teil B, als Patch ohne Vertragsbruch (rund 3 Tage: Karten und Kacheln 1, Listen 1,5, Tests und
+  Baselines 0,5).
 
 ## Anhang: Messskripte
 
