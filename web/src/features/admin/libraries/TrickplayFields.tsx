@@ -9,18 +9,22 @@ import { formatBytes } from '@/lib/format';
 import { RadioGroup, Switch } from '@/ui/aria';
 import styles from './Libraries.module.css';
 
-/** What a new video library starts with (F-11): both kinds «Im Voraus», stored, whole series. */
+/**
+ * What a new video library starts with: both kinds «Aus» (since 1.23.1, before «Im Voraus» by
+ * F-11), «Speichern» and the whole series kept for a later change of the mode.
+ */
 export const DEFAULT_TRICKPLAY: LibraryTrickplay = {
-  movies: { mode: 'ahead', keep: true },
-  series: { mode: 'ahead', keep: true, scope: 'series' },
+  movies: { mode: 'off', keep: true },
+  series: { mode: 'off', keep: true, scope: 'series' },
 };
 
 type Kind = keyof LibraryTrickplay;
 type Mode = LibraryTrickplay['series']['mode'];
 type Scope = LibraryTrickplay['series']['scope'];
 
-const MOVIE_MODES = ['ahead', 'on_start', 'off'] as const;
-const SERIES_MODES = ['ahead', 'on_start', 'series_start', 'off'] as const;
+/** The choices in the order of the dialog: «Aus» first (1.23.1). */
+const MOVIE_MODES = ['off', 'ahead', 'on_start'] as const;
+const SERIES_MODES = ['off', 'ahead', 'on_start', 'series_start'] as const;
 const SCOPES = ['series', 'season_rest', 'next_episode'] as const;
 
 /** Whether a setting keeps its previews (6.3): `ahead`, `series_start`, `on_start` with «Speichern». */

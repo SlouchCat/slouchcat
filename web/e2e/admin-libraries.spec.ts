@@ -274,11 +274,16 @@ test('content and metadata sources by keyboard: Space ticks, the position orders
   await expect(second).toHaveCount(0);
   await expectFocusOn(page, form.getByRole('button', { name: 'Weiteren Ordner hinzufügen' }));
 
-  // «Vorschau beim Spulen» of the new video library (concept 18, 9): the group of the films takes
-  // the focus on its chosen radio, ↓ picks «Beim Start», which brings «Speichern», Space unticks it.
+  // «Vorschau beim Spulen» of the new video library (concept 18, 9): «Aus» comes first and is
+  // chosen (1.23.1); the group of the films takes the focus on it, ↓ picks «Im Voraus», ↓ again
+  // «Beim Start», which brings «Speichern», Space unticks it.
   const films = form.getByRole('radiogroup', { name: 'Filme' });
-  await tabTo(page, films.getByRole('radio', { name: 'Im Voraus' }), 10);
+  await expect(films.getByRole('radio').first()).toHaveAccessibleName('Aus');
+  await expect(films.getByRole('radio', { name: 'Aus', exact: true })).toBeChecked();
+  await tabTo(page, films.getByRole('radio', { name: 'Aus', exact: true }), 10);
   await expectVisibleFocus(page);
+  await page.keyboard.press('ArrowDown');
+  await expect(films.getByRole('radio', { name: 'Im Voraus' })).toBeChecked();
   await page.keyboard.press('ArrowDown');
   await expect(films.getByRole('radio', { name: 'Beim Start' })).toBeChecked();
   const keep = form.getByRole('switch', { name: 'Speichern' });
@@ -287,14 +292,12 @@ test('content and metadata sources by keyboard: Space ticks, the position orders
   await expect(keep).toBeChecked();
   await page.keyboard.press('Space');
   await expect(keep).not.toBeChecked();
-  // The series group follows; the focus walks on to the buttons without a trap.
+  // The series group follows, «Aus» first and chosen; the focus walks on to the buttons without a
+  // trap.
   await page.keyboard.press('Tab');
-  await expectFocusOn(
-    page,
-    form.getByRole('radiogroup', { name: 'Serien' }).getByRole('radio', {
-      name: 'Im Voraus',
-    }),
-  );
+  const seriesGroup = form.getByRole('radiogroup', { name: 'Serien' });
+  await expect(seriesGroup.getByRole('radio').first()).toHaveAccessibleName('Aus');
+  await expectFocusOn(page, seriesGroup.getByRole('radio', { name: 'Aus', exact: true }));
   await expectNoFocusTrap(page);
 });
 

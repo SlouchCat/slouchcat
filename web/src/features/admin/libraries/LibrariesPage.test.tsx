@@ -424,8 +424,8 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
       kind: 'video',
       roots: [{ path: '/media/Dokus', content: 'movie', providers: ['tmdb'] }],
       trickplay: {
-        movies: { mode: 'ahead', keep: true },
-        series: { mode: 'ahead', keep: true, scope: 'series' },
+        movies: { mode: 'off', keep: true },
+        series: { mode: 'off', keep: true, scope: 'series' },
       },
     });
   });
@@ -443,7 +443,19 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     await user.type(within(dialog).getByLabelText('Ordner'), '/media/Dokus');
     const movies = within(dialog).getByRole('radiogroup', { name: 'Filme' });
     const series = within(dialog).getByRole('radiogroup', { name: 'Serien' });
-    expect(within(movies).getByRole('radio', { name: 'Im Voraus' })).toBeChecked();
+    // «Aus» first and chosen (1.23.1), in both groups.
+    expect(
+      within(movies)
+        .getAllByRole('radio')
+        .map((radio) => radio.getAttribute('value')),
+    ).toEqual(['off', 'ahead', 'on_start']);
+    expect(
+      within(series)
+        .getAllByRole('radio')
+        .map((radio) => radio.getAttribute('value')),
+    ).toEqual(['off', 'ahead', 'on_start', 'series_start']);
+    expect(within(movies).getByRole('radio', { name: 'Aus' })).toBeChecked();
+    expect(within(series).getByRole('radio', { name: 'Aus' })).toBeChecked();
     // Films have no «Beim Start alle Folgen».
     expect(within(movies).queryByRole('radio', { name: 'Beim Start alle Folgen' })).toBeNull();
     await user.click(within(movies).getByText('Beim Start'));
@@ -584,8 +596,8 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
         kind: 'video',
         roots: [{ path: '/media/Serien', content: 'series', providers: ['tvdb', 'tmdb'] }],
         trickplay: {
-          movies: { mode: 'ahead', keep: true },
-          series: { mode: 'ahead', keep: true, scope: 'series' },
+          movies: { mode: 'off', keep: true },
+          series: { mode: 'off', keep: true, scope: 'series' },
         },
       }),
     );
