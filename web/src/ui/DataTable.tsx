@@ -8,6 +8,8 @@ import {
   type ReactNode,
 } from 'react';
 import { Icon } from './Icon';
+import { Skeleton } from './Skeleton';
+import { useVirtualPlaces, type PlaceSpan } from './useVirtualPlaces';
 import styles from './DataTable.module.css';
 
 export interface DataColumn<T> {
@@ -43,7 +45,8 @@ interface DataTableProps<T> {
   /** Name of the table (its caption, visible to screen readers only). */
   caption: string;
   columns: readonly DataColumn<T>[];
-  rows: readonly T[];
+  /** The records; an undefined one is an empty place while its page is on its way. */
+  rows: readonly (T | undefined)[];
   rowKey: (row: T) => string;
   /**
    * Rows that fold out: the cell of the row-header column (else the first) becomes a button with
@@ -58,7 +61,19 @@ interface DataTableProps<T> {
    * content.
    */
   layout?: 'auto' | 'fixed';
+  /**
+   * A long table (concept 18 C-3, useVirtualPlaces): only the rows near the view are in the
+   * document, with room for the others above and below; ↑/↓ and Tab bring a row that is not
+   * drawn into view. Best with `layout="fixed"`, so the columns keep their widths while the rows
+   * change. No fold-outs (`expand`) in a virtual table.
+   */
+  virtual?: boolean;
+  /** The places to read (a virtual table, useVirtualPlaces). */
+  onRange?: (span: PlaceSpan) => void;
 }
+
+/** The expected height of a row of a virtual table in px, until it is measured. */
+const ROW_ESTIMATE = 48;
 
 const FOCUSABLE = 'a[href], button:not(:disabled), input:not(:disabled), [tabindex="0"]';
 
@@ -112,6 +127,8 @@ export function DataTable<T>({
   rowKey,
   expand,
   layout = 'auto',
+  virtual = false,
+  onRange,
 }: DataTableProps<T>) {
   const id = useId();
   const [ownExpanded, setOwnExpanded] = useState<ReadonlySet<string>>(() => new Set());
@@ -135,8 +152,25 @@ export function DataTable<T>({
     node.addEventListener('keydown', moveBetweenRows);
     return () => node.removeEventListener('keydown', moveBetweenRows);
   }, []);
+  const frame = useRef<HTMLDivElement>(null);
+  const places = useVirtualPlaces({
+    count: rows.length,
+    virtual,
+    estimate: ROW_ESTIMATE,
+    root: frame,
+    onRange,
+    ready: (index) => rows[index] !== undefined,
+    arrows: true,
+  });
+  // Room for the rows that are not drawn: a row of its own above and below them.
+  const spacer = (height: number, end: number) =>
+    height > 0 ? (
+      <tr key={`spacer-${end}`} className={styles.spacer} aria-hidden="true" style={{ height }}>
+        <td colSpan={columns.length} />
+      </tr>
+    ) : null;
   return (
-    <div className={styles.frame}>
+    <div ref={frame} className={styles.frame}>
       <table className={`${styles.table} ${layout === 'fixed' ? styles.fixed : ''}`}>
         <caption className={styles.caption}>{caption}</caption>
         {layout === 'fixed' && (
@@ -172,13 +206,33 @@ export function DataTable<T>({
           </tr>
         </thead>
         <tbody ref={body}>
-          {rows.map((row, index) => {
+          {spacer(places.before, 0)}
+          {places.rows.map(({ index }) => {
+            const row = rows[index];
+            // A virtual table measures each drawn row (useVirtualPlaces).
+            const measured = virtual ? { 'data-index': index, ref: places.measure } : {};
+            if (row === undefined) {
+              // An empty place: a record row without controls, so ↑/↓ stop at it until it fills.
+              return (
+                <tr
+                  key={`place-${index}`}
+                  className={styles.row}
+                  data-row-key={`place-${index}`}
+                  data-place={index}
+                  {...measured}
+                >
+                  <td colSpan={columns.length} className={styles.cell}>
+                    <Skeleton />
+                  </td>
+                </tr>
+              );
+            }
             const key = rowKey(row);
             const open = expanded.has(key);
             const detailId = `${id}-${index}`;
             return (
               <Fragment key={key}>
-                <tr className={styles.row} data-row-key={key}>
+                <tr className={styles.row} data-row-key={key} data-place={index} {...measured}>
                   {columns.map((column) => {
                     const className = `${styles.cell} ${column.align === 'end' ? styles.end : ''}`;
                     const content =
@@ -219,6 +273,7 @@ export function DataTable<T>({
               </Fragment>
             );
           })}
+          {spacer(places.after, 1)}
         </tbody>
       </table>
     </div>

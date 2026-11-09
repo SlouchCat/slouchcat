@@ -136,3 +136,9 @@ th.cell {
   padding: var(--sc-space-3) var(--sc-space-4) var(--sc-space-4);
   color: var(--sc-color-text-secondary);
 }
+
+/* Room for the rows of a virtual table that are not drawn (concept 18 C-3). */
+.spacer > td {
+  padding: 0;
+  border: 0;
+}

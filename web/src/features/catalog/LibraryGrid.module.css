@@ -34,6 +34,13 @@
   height: var(--library-card);
 }
 
+/* A card with a control under it (the watchlist's "Entfernen"), as in ItemGrid. */
+.withBelow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
 /* An empty place while its page loads: the card's 2:3 frame (square covers too), not focusable. */
 .placeholder {
   display: block;
@@ -58,4 +65,13 @@
   );
   visibility: hidden;
   pointer-events: none;
+}
+
+/* Cards with a control under them: the gap and a control's height more. */
+.probeBelow {
+  height: calc(
+    var(--sc-space-3) + 2 * var(--sc-font-size-sm) * var(--sc-font-line-height-snug) +
+      var(--sc-space-1) + var(--sc-font-size-xs) * var(--sc-font-line-height-normal) +
+      var(--sc-space-2) + var(--sc-control-height)
+  );
 }

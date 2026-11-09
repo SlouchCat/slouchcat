@@ -38,6 +38,15 @@ interface LibraryGridProps {
   focusKey: string;
   label: string;
   tool?: (item: ItemRef) => ReactNode;
+  /** The watch state on each card (ItemGrid `showWatched`); on by default. */
+  showWatched?: boolean;
+  /**
+   * A control under each card (the watchlist's "Entfernen", ItemGrid `below`): the rows grow by a
+   * control's height.
+   */
+  below?: (item: ItemRef) => ReactNode;
+  /** Called once a title was taken off the watchlist from its cover (ItemGrid `onUnmarked`). */
+  onUnmarked?: (item: ItemRef) => void;
   /** The drawn places (for their pages) and the places of the top row in view below the header. */
   onRange: (range: DrawnRange, top: DrawnRange) => void;
   ref?: Ref<LibraryGridHandle>;
@@ -90,7 +99,17 @@ interface Pending {
 
 const FOCUSABLE = 'a[href], button:not([disabled])';
 
-export function LibraryGrid({ slots, focusKey, label, tool, onRange, ref }: LibraryGridProps) {
+export function LibraryGrid({
+  slots,
+  focusKey,
+  label,
+  tool,
+  showWatched = true,
+  below,
+  onUnmarked,
+  onRange,
+  ref,
+}: LibraryGridProps) {
   const root = useRef<HTMLDivElement>(null);
   const probe = useRef<HTMLSpanElement>(null);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
@@ -141,9 +160,9 @@ export function LibraryGrid({ slots, focusKey, label, tool, onRange, ref }: Libr
   const lastRow = Math.min(rows - 1, (visible?.endIndex ?? 0) + overscan);
   const drawnStart = firstRow * columns;
   const drawnEnd = rows > 0 ? (lastRow + 1) * columns - 1 : -1;
-  const below = (virtualizer.scrollOffset ?? 0) + (metrics?.header ?? 0);
+  const underHeader = (virtualizer.scrollOffset ?? 0) + (metrics?.header ?? 0);
   const topRow =
-    virtualRows.find((row) => row.end - (metrics?.rowGap ?? 0) > below)?.index ??
+    virtualRows.find((row) => row.end - (metrics?.rowGap ?? 0) > underHeader)?.index ??
     visible?.startIndex ??
     0;
   const topStart = topRow * columns;
@@ -301,7 +320,11 @@ export function LibraryGrid({ slots, focusKey, label, tool, onRange, ref }: Libr
           : undefined
       }
     >
-      <span ref={probe} className={styles.probe} aria-hidden="true" />
+      <span
+        ref={probe}
+        className={below ? `${styles.probe} ${styles.probeBelow}` : styles.probe}
+        aria-hidden="true"
+      />
       <SpatialGroup as="ul" focusKey={focusKey} className={styles.grid} aria-label={label}>
         {indexes.map((index) => {
           const item = slots[index];
@@ -313,21 +336,25 @@ export function LibraryGrid({ slots, focusKey, label, tool, onRange, ref }: Libr
           return (
             <li
               key={item ? item.id : `place-${index}`}
-              className={styles.cell}
+              className={below ? `${styles.cell} ${styles.withBelow}` : styles.cell}
               style={placement}
               data-index={index}
               aria-setsize={total}
               aria-posinset={index + 1}
             >
               {item ? (
-                <ItemCell
-                  item={item}
-                  focusKey={focusKey}
-                  showWatched
-                  tool={tool}
-                  clampCaption
-                  onArrowPress={(direction) => arrow(index, direction)}
-                />
+                <>
+                  <ItemCell
+                    item={item}
+                    focusKey={focusKey}
+                    showWatched={showWatched}
+                    tool={tool}
+                    onUnmarked={onUnmarked}
+                    clampCaption
+                    onArrowPress={(direction) => arrow(index, direction)}
+                  />
+                  {below?.(item)}
+                </>
               ) : (
                 <span className={styles.placeholder}>
                   <Skeleton shape="poster" />

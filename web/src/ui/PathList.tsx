@@ -36,6 +36,12 @@ interface PathListProps {
    * It happens once per mounted list: give the list a key per directory to focus it again.
    */
   autoFocus?: boolean;
+  /**
+   * Reads the next page of a long folder (concept 18 C-3, instead of «Mehr laden»): called when the
+   * list is scrolled to less than half its height before its end, or does not fill its height.
+   * Leave it out while a page is on its way or none is left.
+   */
+  onLoadMore?: () => void;
 }
 
 /**
@@ -59,6 +65,7 @@ export function PathList({
   emptyText,
   onKeyDown,
   autoFocus,
+  onLoadMore,
 }: PathListProps) {
   const [node, setNode] = useState<HTMLDivElement | null>(null);
   const handler = useRef(onKeyDown);
@@ -74,6 +81,26 @@ export function PathList({
   // The rows arrive with the answer of the server, after the list itself: this runs after every
   // render until there is a row to focus, then stops. The ListBox's own autoFocus is no use
   // here, because the dialog shows a skeleton while the first answer is on its way.
+  const loadMore = useRef(onLoadMore);
+  useEffect(() => {
+    loadMore.current = onLoadMore;
+  }, [onLoadMore]);
+  useEffect(() => {
+    if (!node) return;
+    const check = () => {
+      const left = node.scrollHeight - node.scrollTop - node.clientHeight;
+      if (left < node.clientHeight / 2) loadMore.current?.();
+    };
+    node.addEventListener('scroll', check, { passive: true });
+    return () => node.removeEventListener('scroll', check);
+  }, [node]);
+  // A page that arrived may still leave the list short of its end: read on.
+  useEffect(() => {
+    if (!node || !onLoadMore || node.clientHeight === 0) return;
+    if (node.scrollHeight - node.scrollTop - node.clientHeight < node.clientHeight / 2) {
+      onLoadMore();
+    }
+  }, [items, node, onLoadMore]);
   const pending = useRef(autoFocus === true);
   useEffect(() => {
     if (!pending.current || !node) return;
