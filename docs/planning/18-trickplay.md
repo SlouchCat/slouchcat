@@ -18,7 +18,8 @@
     8 Major, 12 Minor; Abschnitt 15), mit Marcos Antworten F-16 und U-F9 bis U-F11 (Ausnahme vom
     Nicht-Ziel, Gäste nur lesen, alte Einträge verwerfen, Vorlauf gedrosselt).
   - Fassung 7 (9. November 2026): Teil C (Abschnitt 16): Titel unten bündig, grössere Beschriftung
-    bei «Meine Medien», alles laden statt «Mehr laden» überall. Marco hat am Mockup **Variante B**
+    bei «Meine Medien», alles laden statt «Mehr laden» auf allen Listenseiten (nicht in den Reihen der
+    Startseite). Marco hat am Mockup **Variante B**
     und eine Beschriftung von **26 px** gewählt (zuerst 40 px, dann «doch etwas zu gross»). Teil C
     hat noch kein Kritiker gesehen.
 - **Verankert gegen:** `main` **`6c05eda7`** (Merge PR #125, Release 1.19.2), Vertragsfassung
@@ -904,7 +905,7 @@ Zurücknehmen und erneutes Empfehlen (gewollt, 14.5).
 |---|---|---|
 | C-1 | Der Titel unter einer Karte steht **immer auf derselben Linie**, egal ob Film, Serie, Hörbuch oder Podcast, in jeder Reihe («Weiterschauen», «Neu hinzugefügt», …) und in jedem Raster. | 16.2 |
 | C-2 | Bei «Meine Medien» ist die Unterscheidung zu schwach: Die Beschriftung «Filme», «Serien» usw. wird grösser (**26 px**). | 16.3 |
-| C-3 | **Kein «Mehr laden»** mehr: Filme und Serien laden alles, mit guter Leistung; **überall**, auch bei Podcasts usw. | 16.4 |
+| C-3 | **Kein «Mehr laden»** mehr: Die Bibliotheksseite (Menü → Filme oder «Meine Medien» → Filme) lädt alles, mit guter Leistung; ebenso Serien und **überall**, wo heute «Mehr laden» steht, auch bei Podcasts usw. Die Reihen der Startseite bleiben kurz wie heute (Richtigstellung von Marco, 9. November 2026). | 16.4 |
 
 Mockup: Artboard «Startseite: Titel unten bündig, Meine Medien» der Leinwand «Konzept 18», mit echten
 Postern und Covern aus dem Bild-Cache von CT 190 (nur in der privaten Leinwand; die Repo-Kopie
@@ -949,6 +950,9 @@ enthält nur Verweise, keine Bilder).
   (`CollectionPage`), Mitteilungen (`NotificationsPage`), Podcast-Folgen auf der Titelseite
   (`ItemPage`, `item.podcast.more`), Radio (`RadioPage`) und in der Verwaltung (Wartung `IssueTab`,
   Radio-Sender `StationsTab`, `OwnStationsTab`).
+- **Nicht betroffen:** die Reihen der Startseite («Weiterschauen», «Neu hinzugefügt» usw.). Sie
+  zeigen weiterhin nur die ersten Titel und führen mit «Alle anzeigen» auf die Bibliotheks- oder
+  Listenseite; erst dort wird alles geladen (Richtigstellung von Marco, 9. November 2026).
 - **Schon geplant:** Konzept 17 Stufe 3 (D-6, 6.2) baut für die **Film- und Serienbibliotheken** ein
   Seitenmodell mit Lücken, ein virtualisiertes Raster mit `@tanstack/react-virtual` und den
   Buchstabensprung (`letterStarts`), mit Fokusregeln, Zurück-Fokus und einer Messung über 1'795 Titel
