@@ -994,6 +994,9 @@ func checkSubjectImage(t *testing.T, f *vistest.Fixture, h http.Handler, token, 
 		if v := c.rec.Header().Values("Vary"); !slices.Contains(v, "Accept") {
 			t.Errorf("%s: Vary %v, want Accept", path, v)
 		}
+		if n := c.rec.Header().Get("X-Content-Type-Options"); n != "nosniff" {
+			t.Errorf("%s: X-Content-Type-Options %q, want nosniff", path, n)
+		}
 	}
 }
 

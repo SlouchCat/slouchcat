@@ -464,7 +464,7 @@ func portrait(hash sql.NullString, width, height sql.NullInt64) *model.Image {
 	if !hash.Valid {
 		return nil
 	}
-	return &model.Image{Kind: "portrait", Size: "w185", ContentHash: hash.String, Width: int(width.Int64), Height: int(height.Int64)}
+	return &model.Image{Kind: "portrait", Size: portraitSize, ContentHash: hash.String, Width: int(width.Int64), Height: int(height.Int64)}
 }
 
 // fullyVisibleCollectionImages returns the TMDB posters (JPEG rows) of the collections among ids

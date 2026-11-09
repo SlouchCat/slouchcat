@@ -365,6 +365,7 @@ func (s *server) getPersonImage(w http.ResponseWriter, r *http.Request) {
 }
 
 // serveImage answers an opened image of the catalog for a year in the private cache, or maps err.
+// The browser takes the stored media type as it is (nosniff).
 func (s *server) serveImage(w http.ResponseWriter, r *http.Request, src model.StreamSource, err error) {
 	if err != nil {
 		s.p.mapError(w, r, err)
@@ -373,6 +374,7 @@ func (s *server) serveImage(w http.ResponseWriter, r *http.Request, src model.St
 	defer src.File.Close()
 	w.Header().Set("Content-Type", src.MediaType)
 	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	http.ServeContent(w, r, "", src.ModTime, src.File)
 }
 
