@@ -362,7 +362,7 @@ func TestLetterStartsMatchFullSort(t *testing.T) {
 	ctx := t.Context()
 	keys := []string{"", "Upper", "~tilde", "é-raw", "Ωmega", "_under"} // raw keys, not from model.SortKey
 	for _, title := range []string{"2001: A Space Odyssey", "12 Monkeys", "...And Justice for All", "Amélie",
-		"Ärger im Paradies", "The Matrix", "Der Mann", "Das Örtchen", "Die Zeit", "東京物語", "Øresund", "Zorro",
+		"Ärger im Revier", "The Matrix", "Der Mann", "Das Örtchen", "Die Zeit", "東京物語", "Øresund", "Zorro",
 		"zebra", "Ça ira", "¡Three Amigos!", "a", "B", "b", "The The", "007"} {
 		keys = append(keys, model.SortKey("de", title), model.SortKey("en", title))
 	}
