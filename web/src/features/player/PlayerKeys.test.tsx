@@ -197,6 +197,36 @@ describe('video player controls (concept 13, step 3)', () => {
     expect(button('Pause')).toHaveFocus();
   });
 
+  it('shows the preview tile over the new position after ←/→ for 1.5 s (concept 18, 9)', async () => {
+    const trickplay = {
+      version: '1-1',
+      state: 'complete' as const,
+      intervalMs: 10_000,
+      tileWidth: 320,
+      tileHeight: 180,
+      columns: 10,
+      rows: 10,
+      pointsMs: Array.from({ length: 60 }, (_, k) => k * 10_000),
+      sheets: [{ index: 0, url: `/items/${ids.alien}/trickplay/0?mediaFileId=f&v=1-1` }],
+    };
+    const { media, calls } = await start({ ...film, trickplay });
+    const preview = () => region().querySelector('[data-seek-preview]');
+    expect(preview()).toBeNull();
+    key(button('Pause'), 'ArrowUp');
+    key(seekBar(), 'ArrowRight');
+    expect(media.currentTime).toBe(110);
+    expect(preview()).toHaveTextContent('1:50');
+    expect(region().querySelector('[data-trickplay-tile]')).toHaveAttribute(
+      'data-trickplay-tile',
+      '11',
+    );
+    await act(() => vi.advanceTimersByTimeAsync(1600));
+    expect(preview()).toBeNull();
+    // The focus stays on the timeline; a complete set is never asked for again.
+    expect(seekBar()).toHaveFocus();
+    expect(calls.some((call) => call.path.endsWith('/trickplay'))).toBe(false);
+  });
+
   it('with the controls faded out the arrows seek and change the volume wherever the focus is', async () => {
     const { media, video } = await start();
     await act(() => vi.advanceTimersByTimeAsync(CONTROLS_HIDE_MS + 100));

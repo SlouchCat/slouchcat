@@ -188,6 +188,10 @@ type planned struct {
 	root    string // library root of the source (sidecar subtitles)
 	fileID  string
 	cleanup string // fetched enclosure below the downloads root, removed once ready (M6)
+	// version is the size and mtime of the source file (its trickplay set, concept 18); audio
+	// marks an audiobook or podcast download, which gets none.
+	version library.FileVersion
+	audio   bool
 }
 
 // planFor resolves the source through package paths and plans the download. A remux uses the
@@ -248,7 +252,7 @@ func (s *Service) planFor(ctx context.Context, row systemq.Download) (planned, e
 	if err != nil {
 		return planned{}, fmt.Errorf("plan download %s: %w", row.ID, err)
 	}
-	return planned{src: src, plan: plan, choice: c, root: m.RootPath, fileID: m.ID}, nil
+	return planned{src: src, plan: plan, choice: c, root: m.RootPath, fileID: m.ID, version: library.FileVersion{Size: m.Size, Mtime: m.Mtime}}, nil
 }
 
 // readable opens the source file below its library root through package paths: a missing root
@@ -519,6 +523,7 @@ func (s *Service) encode(ctx context.Context, j *jobs.Job, row systemq.Download)
 	if err != nil {
 		return s.attemptFailed(ctx, j, id, err)
 	}
+	s.queueTrickplay(ctx, p) // made while the download encodes (concept 18, 6.8)
 	root, err := s.root()
 	if err != nil {
 		return s.attemptFailed(ctx, j, id, err)
@@ -598,7 +603,16 @@ func (s *Service) encode(ctx context.Context, j *jobs.Job, row systemq.Download)
 	if err := s.sidecars(ctx, root, id, p); err != nil {
 		return s.attemptFailed(ctx, j, id, err)
 	}
-	size := files.ix.end()
+	previews, wait, err := s.copyTrickplay(ctx, root, id, p)
+	if err != nil {
+		return s.attemptFailed(ctx, j, id, err)
+	}
+	if wait {
+		s.log.InfoContext(ctx, "download waits for its trickplay set", "download_id", id, "retry_in", trickplayRetry.String())
+		return s.wait(ctx, j, id, model.DownloadPreparing, "", trickplayRetry)
+	}
+	// The offline budget counts the previews with the file (6.8).
+	size := files.ix.end() + previews
 	rows, err := s.write.SetDownloadReady(ctx, systemq.SetDownloadReadyParams{
 		SizeBytes: sql.NullInt64{Int64: size, Valid: true}, SegmentsDone: int64(total), Now: ms(s.now()), ID: id,
 	})

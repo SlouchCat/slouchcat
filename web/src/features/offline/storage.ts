@@ -23,7 +23,12 @@ export async function storageInfo(): Promise<StorageInfo> {
   };
 }
 
-/** Bytes the downloads take on this device: whole files, plus what incomplete ones hold so far. */
+/**
+ * Bytes the downloads take on this device: whole files, plus what incomplete ones hold so far.
+ * The stored preview sheets (concept 18, 6.8) are not counted: the manifest names no size for a
+ * sheet and the record keeps none, so this is the media files without a few megabytes per title;
+ * the device's own estimate in the storage panel includes them.
+ */
 export function downloadsBytes(downloads: readonly StoredDownload[]): number {
   return downloads.reduce(
     (sum, download) =>

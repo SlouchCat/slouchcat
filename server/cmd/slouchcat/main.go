@@ -309,7 +309,12 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		metadata.WithVisibilityRecheck(playbackSvc.RecheckVisibility), metadata.WithFeedUserAgent("Slouchcat/"+version),
 		metadata.WithNewEpisodes(notifySvc.NewEpisodes), metadata.WithAniList(cfg.AniList), metadata.WithRelink(relink),
 		metadata.WithTrakt(cfg.TraktClientID, metadata.WithTraktBaseURL(traktBase)))
-	libSvc = library.New(db, queue, runner, log,
+	// Trickplay runs one ffmpeg instead of two while a transcode keeps the CPU busy (concept 18).
+	var load library.TrickplayLoad
+	if mgr != nil {
+		load = mgr
+	}
+	libSvc = library.New(db, queue, runner, log, library.WithTrickplayLoad(load),
 		library.WithImageCheck(metaSvc.QueueIncompleteImages),
 		library.WithMetadataCheck(metaSvc.QueuePendingMetadata),
 		library.WithNewEpisodes(notifySvc.NewEpisodes), library.WithScanAborted(notifySvc.ScanAborted),
@@ -322,6 +327,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	zone, zoneName := admin.ResolveZone(os.Getenv)
 	adminSvc.WithLocation(zone)
 	log.Info("time zone of the statistics", "zone", zoneName)
+	adminSvc.WithTrickplay(libSvc)
 	adminSvc.WithAniList(cfg.AniList).WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc).
 		WithTrakt(metaSvc).WithBackups(cfg.ConfigDir, version).WithRestart(requestRestart).
 		// The browsable roots are classified once, here: the wizard's root list answers before
@@ -359,7 +365,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	// Offline downloads (M5): prepared in <cache>/downloads within the download budget, encoded with
 	// the transcode manager's admission (live playback preempts them, plan 3.5).
 	offlineSvc := offline.New(db, visibility.New(db, log), queue, runner, log,
-		offline.WithDir(cfg.DownloadsDir()), offline.WithBudget(int64(cfg.DownloadBudgetGB)<<30),
+		offline.WithDir(cfg.DownloadsDir()), offline.WithCacheDir(cfg.CacheDir), offline.WithBudget(int64(cfg.DownloadBudgetGB)<<30),
 		offline.WithTokenKey(keyring.Derive("download-token")), offline.WithManager(mgr, caps),
 		offline.WithPlayback(playbackSvc), offline.WithPins(authSvc))
 
@@ -475,21 +481,23 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 }
 
 // poolWorkers returns the workers per pool: general workers from SLOUCHCAT_WORKERS, one each for
-// downloads, notifications and the keyframe index (concept 09 F-9, concept 14 F-2; not adjustable).
+// downloads, notifications, the keyframe index and trickplay (concept 09 F-9, concept 14 F-2,
+// concept 18 O-1; not adjustable).
 func poolWorkers(general int) map[jobs.Pool]int {
-	return map[jobs.Pool]int{jobs.PoolGeneral: general, jobs.PoolDownload: 1, jobs.PoolNotify: 1, jobs.PoolIndex: 1}
+	return map[jobs.Pool]int{jobs.PoolGeneral: general, jobs.PoolDownload: 1, jobs.PoolNotify: 1, jobs.PoolIndex: 1, jobs.PoolTrickplay: 1}
 }
 
 // startWorkers starts the workers of counts (poolWorkers) on wg, each claiming only the job types
-// of its pool: worker-1 … for the general pool, download-1, notify-1 and index-1 for the others.
+// of its pool: worker-1 … for the general pool, download-1, notify-1, index-1 and trickplay-1 for
+// the others.
 // onFinalFailure hears of a job that failed its last attempt on every pool but notify.
 func startWorkers(ctx context.Context, wg *sync.WaitGroup, queue *jobs.Queue, registry *jobs.Registry, counts map[jobs.Pool]int,
 	log *slog.Logger, onFinalFailure ...func(context.Context, jobs.Job, error)) {
 	// The general workers, then a worker of its own for download preparations (long encodes never
 	// hold up scans and probes), for notification deliveries (M8: a slow mail server never holds
 	// up scans) and for the full keyframe reads (concept 14, 6.3: a read of minutes never holds
-	// up a general worker, and two never run at once).
-	for _, pool := range []jobs.Pool{jobs.PoolGeneral, jobs.PoolDownload, jobs.PoolNotify, jobs.PoolIndex} {
+	// up a general worker, and two never run at once) and for the preview tiles (concept 18).
+	for _, pool := range []jobs.Pool{jobs.PoolGeneral, jobs.PoolDownload, jobs.PoolNotify, jobs.PoolIndex, jobs.PoolTrickplay} {
 		prefix := string(pool)
 		if pool == jobs.PoolGeneral {
 			prefix = "worker"

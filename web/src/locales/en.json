@@ -1523,6 +1523,76 @@
         "images": "images deviate",
         "both": "languages and images deviate",
         "link": "Metadata of the library"
+      },
+      "trickplay": {
+        "action": "Seek preview",
+        "actionLabel": "Seek preview of {{name}}",
+        "title": "Seek preview: {{name}}",
+        "description": "Small pictures above the timeline, one every 10 seconds. Films and series are set separately, also in a library that holds both.",
+        "movies": "Films",
+        "series": "Series",
+        "mode": {
+          "ahead": "In advance",
+          "on_start": "At start",
+          "series_start": "At start, all episodes",
+          "off": "Off"
+        },
+        "keep": "Keep",
+        "keepHint": "There at once from the second start. Without keeping, the preview is deleted after playback.",
+        "scope": {
+          "label": "Scope",
+          "series": "Whole series",
+          "season_rest": "Rest of the season",
+          "next_episode": "Next episode"
+        },
+        "facts": {
+          "ahead": {
+            "movie": "New films get their preview when they are imported; «Generate now» or the schedule on «Background jobs» catch up on the rest. If one is missing at a start, it takes 20 to 45 seconds and is kept.",
+            "episode": "New episodes get their preview when they are imported; «Generate now» or the schedule on «Background jobs» catch up on the rest. If one is missing at a start, it takes 20 to 45 seconds and is kept."
+          },
+          "onStartKeep": "At the first start the preview takes 20 to 45 seconds, the first sheet 5 to 10 seconds, and is kept. Titles nobody watches take no space.",
+          "onStart": "Every start makes the preview anew in 20 to 45 seconds; it is deleted 10 minutes after the end. Each start costs processing time and a few hundred MB from the NAS.",
+          "seriesStart": {
+            "series": "When an episode starts, its preview is made at once, then in the background those of every other episode of the series. Everything is kept.",
+            "season_rest": "When an episode starts, its preview is made at once, then in the background those of the other episodes of the season (at the last episode those of the next season). Everything is kept.",
+            "next_episode": "When an episode starts, its preview is made at once, then in the background that of the next episode. Everything is kept."
+          },
+          "off": "No preview. The timeline shows the chapter name and image as before."
+        },
+        "estimate": {
+          "counts": {
+            "movies_one": "{{count}} film, {{hours}} h",
+            "movies_other": "{{count}} films, {{hours}} h",
+            "series_one": "{{count}} episode, {{hours}} h",
+            "series_other": "{{count}} episodes, {{hours}} h"
+          },
+          "approx": "≈ {{size}}",
+          "zero": "0 MB",
+          "perMovie": "Per film",
+          "perMoviePlaying": "Per film, only during playback",
+          "perEpisode": "Per episode",
+          "perEpisodePlaying": "Per episode, only during playback",
+          "library": "Whole library",
+          "libraryAtMost": "Whole library, at most",
+          "basis": "Estimated storage from the running time of the titles, about 1.5 MB per hour of video.",
+          "stored": "Used today: films {{movies}} · series {{series}}",
+          "free": "Free space in the cache: {{size}}",
+          "unavailable": "The storage estimate is not available right now."
+        },
+        "drop": {
+          "movies": "After saving, the kept previews of the films are deleted ({{size}}). Running playbacks keep them until they end.",
+          "series": "After saving, the kept previews of the series are deleted ({{size}}). Running playbacks keep them until they end.",
+          "both": "After saving, the kept previews are deleted: films ({{movies}}) and series ({{series}}). Running playbacks keep them until they end."
+        },
+        "generate": {
+          "action": "Generate now",
+          "hint": "Catches up on the missing previews of every library «In advance», like «Backfill seek previews» on «Background jobs».",
+          "queued": "Catching up on the previews is queued."
+        },
+        "submit": "Save",
+        "saved": "The seek preview of {{name}} is saved.",
+        "summary": "Seek preview: films {{movies}} · series {{series}}",
+        "summaryNoKeep": "At start, not kept"
       }
     },
     "access": {
@@ -3355,6 +3425,7 @@
         "download": "Downloads",
         "notify": "Notifications",
         "index": "Keyframe index",
+        "trickplay": "Seek previews",
         "workers": "{{count}} workers",
         "backlog": "backlog about {{duration}}",
         "free": "free",
@@ -3604,6 +3675,22 @@
           "name": "Backfill chapter images",
           "description": "Queues every file without chapter images for creation.",
           "trigger": "Schedule (off by default, weekly) or a one-off date, “Run now”: for every film and episode without chapter images"
+        },
+        "trickplay_generate": {
+          "name": "Create seek previews",
+          "description": "Creates the preview images of the seek bar of a file, sheet by sheet.",
+          "trigger": "when a film or an episode starts, for new files with “In advance”, by the backfill, by the series look-ahead and for offline downloads"
+        },
+        "trickplay_series": {
+          "name": "Previews of the other episodes",
+          "description": "Queues the previews of the other episodes of a series, the next two first.",
+          "trigger": "when an episode starts and the library is set to “At start, all episodes”"
+        },
+        "trickplay_backfill": {
+          "name": "Backfill seek previews",
+          "description": "Queues every film and episode without a complete preview for creation.",
+          "trigger": "Schedule (off by default, weekly) or a one-off date, “Run now”: for libraries set to “In advance”",
+          "progress": "Files checked: {{done}} of {{total}}"
         },
         "library_relink": {
           "name": "Relink deleted title",

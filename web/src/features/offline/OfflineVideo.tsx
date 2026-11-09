@@ -21,7 +21,7 @@ import { usePhoneTap } from '@/features/player/usePhoneTap';
 import { usePlayerKeys } from '@/features/player/usePlayerKeys';
 import { usePlayerPrefs } from '@/features/player/usePlayerPrefs';
 import { useSubtitleStyle } from '@/features/player/useSubtitleStyle';
-import { AriaButton, focusOnMount, PlayerChrome } from '@/ui/aria';
+import { AriaButton, focusOnMount, PlayerChrome, type SeekBarTrickplay } from '@/ui/aria';
 import styles from '@/features/player/Player.module.css';
 
 /** A subtitle of the download, stored as WebVTT in OPFS and offered through a blob URL. */
@@ -58,6 +58,8 @@ interface OfflineVideoProps {
   audioTrack: Track | undefined;
   /** The subtitles stored with the download. */
   subtitles: readonly StoredSubtitle[];
+  /** The preview sheets stored with the download (concept 18, 6.8), as blob URLs. */
+  trickplay?: SeekBarTrickplay;
   /** The profile's language, first in the panels (11.10). */
   profileLanguage: string | undefined;
   failed: boolean;
@@ -95,6 +97,7 @@ export function OfflineVideo({
   chapters,
   audioTrack,
   subtitles,
+  trickplay,
   profileLanguage,
   failed,
   limitReached,
@@ -206,13 +209,22 @@ export function OfflineVideo({
   // Faded out: no input while playing, nothing open that needs the controls.
   const hidden = idle && playing && panel === null && tab === null;
   const hasSubtitles = subtitles.length > 0;
+  // ←/→: the timeline shows the preview of each new position for a moment (concept 18, 9).
+  const [keySeeks, setKeySeeks] = useState(0);
+  const seekByKey = useCallback(
+    (seconds: number) => {
+      seekBy(seconds);
+      setKeySeeks((count) => count + 1);
+    },
+    [seekBy],
+  );
   usePlayerKeys({
     hidden,
     durationMs,
     onKey: poke,
     actions: {
       togglePlay,
-      seekBy,
+      seekBy: seekByKey,
       seekTo,
       changeVolume,
       changeRate,
@@ -387,6 +399,8 @@ export function OfflineVideo({
         onTimeDisplayChange={(display) => setPrefs({ timeDisplay: display })}
         chapters={chapters}
         onSeek={seekTo}
+        trickplay={trickplay}
+        keySeeks={keySeeks}
         onPreviousChapter={hasChapters ? previousChapter : undefined}
         onNextChapter={hasChapters ? nextChapter : undefined}
         playing={playing}

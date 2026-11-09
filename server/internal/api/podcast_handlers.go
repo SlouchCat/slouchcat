@@ -26,7 +26,7 @@ func (e serviceProblem) VisitListPodcastEpisodesResponse(w http.ResponseWriter) 
 // are re-checked, because titles rated by the library may have changed their rating.
 func (s *server) UpdateLibrary(ctx context.Context, req gen.UpdateLibraryRequestObject) (gen.UpdateLibraryResponseObject, error) {
 	body := deref(req.Body)
-	upd := model.LibraryUpdate{Name: body.Name}
+	upd := model.LibraryUpdate{Name: body.Name, Trickplay: libraryTrickplay(body.Trickplay)}
 	if body.DefaultRating != nil {
 		r := int(*body.DefaultRating)
 		upd.DefaultRating = &r

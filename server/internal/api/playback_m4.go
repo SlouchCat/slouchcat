@@ -332,6 +332,7 @@ func toPlaybackInfo(profileID int64, info model.PlaybackInfo) gen.PlaybackInfo {
 			Available: q.Available, Current: q.Current})
 	}
 	out.Chapters = toChapters(info.Chapters)
+	out.Trickplay = toTrickplay(info.Trickplay)
 	if len(info.Parts) > 0 {
 		parts := make([]gen.PlaybackPart, 0, len(info.Parts))
 		for _, p := range info.Parts {

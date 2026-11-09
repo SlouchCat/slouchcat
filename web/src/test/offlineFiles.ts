@@ -5,6 +5,7 @@ import type { BlockWriter } from '@/features/offline/downloader';
 export const MEDIA_FILE = 'media.mp4';
 export const POSTER_FILE = 'poster';
 export const subtitleFile = (track: number) => `${track}.vtt`;
+export const trickplayFile = (sheet: number) => `trickplay-${sheet}.webp`;
 
 const folders = new Map<string, Map<string, Blob>>();
 /** Writers open per download: like a sync access handle, they lock the folder against removal. */

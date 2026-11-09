@@ -586,7 +586,9 @@ Cache-Ordner und in `jobs`. Eingefrorener DB-Stand in `testdata/db/` nach Regel 
     - Die Schätzung rechnet der Server aus der Laufzeit der Titel (`media_files.duration_ms`) mit
       rund 1,5 MB je Stunde Video (Messung 3.6: 1,3 MB/h bei 16:9, 1,8 MB/h bei 2,40:1); die
       Bibliotheksseite liest sie über `LibraryTrickplayEstimate` (8.2).
-  Die Bibliotheksseite zeigt die Grösse der gespeicherten Sätze. «Hintergrundjobs» zeigt
+  Die Bibliotheksseite zeigt die Grösse der gespeicherten Sätze, im Dialog «Vorschau beim Spulen»
+  (dort liegt die Schätzung von `getLibrary`); die ausgeklappte Zeile der Liste zeigt sie nicht,
+  weil `listLibraries` keine Schätzung trägt. «Hintergrundjobs» zeigt
   `trickplay.generate`, `trickplay.series` und `trickplay.backfill`, das Nachholen mit Knopf und
   Zeitplan.
 - **Tests (Regel 8, 9):** Texte nur aus `locales`, Farben nur aus Tokens. Keine neue Seite; neu

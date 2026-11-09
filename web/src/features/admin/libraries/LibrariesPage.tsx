@@ -26,6 +26,7 @@ import { DefaultRatingDialog } from './DefaultRatingDialog';
 import { libraryColumns } from './libraryColumns';
 import { LibraryDetail, type LibraryHandlers } from './LibraryDetail';
 import { LibraryFoldersDialog } from './LibraryFoldersDialog';
+import { TrickplayDialog } from './TrickplayDialog';
 import styles from './Libraries.module.css';
 
 /** The filter tabs by kind (Bib-C): all libraries, then one per kind. */
@@ -80,10 +81,14 @@ function LibrariesContent() {
   const [ratingOpen, setRatingOpen] = useState(false);
   // Each opening of the rating dialog mounts it afresh, so it starts at the library's value.
   const [ratingSession, setRatingSession] = useState(0);
+  // The same for «Vorschau beim Spulen» (concept 18, 9).
+  const [trickplayId, setTrickplayId] = useState<number | null>(null);
+  const [trickplayOpen, setTrickplayOpen] = useState(false);
+  const [trickplaySession, setTrickplaySession] = useState(0);
   const draft = useLibraryDraft();
   const unsaved = useUnsavedChanges(draft.dirty);
   // The draft lives outside the dialog, so `unsaved.pausePolling` stays out of this.
-  const hold = confirmOpen || addOpen || foldersOpen || ratingOpen;
+  const hold = confirmOpen || addOpen || foldersOpen || ratingOpen || trickplayOpen;
 
   // An unknown `?tab=` shows the first tab; the address says so too.
   const [tab, selectTab] = useSearchSelection('tab', TABS, 'all', { normalise: true });
@@ -222,6 +227,11 @@ function LibrariesContent() {
         setRatingSession((session) => session + 1);
         setRatingOpen(true);
       },
+      onTrickplay: (id) => {
+        setTrickplayId(id);
+        setTrickplaySession((session) => session + 1);
+        setTrickplayOpen(true);
+      },
       onAcceptLoss: (library) =>
         ask({
           title: t('admin.libraries.acceptLoss.title'),
@@ -244,6 +254,7 @@ function LibrariesContent() {
   );
   const foldersLibrary = data?.find((library) => library.id === foldersId);
   const ratingLibrary = data?.find((library) => library.id === ratingId);
+  const trickplayLibrary = data?.find((library) => library.id === trickplayId);
 
   const tabName = (id: TabId) =>
     id === 'all' ? t('admin.libraries.tabs.all') : t(`library.kind.${id}`);
@@ -344,6 +355,19 @@ function LibrariesContent() {
                 }),
               );
             }
+            void refresh(updated);
+          }}
+        />
+      )}
+      {trickplayLibrary && (
+        <TrickplayDialog
+          key={trickplaySession}
+          library={trickplayLibrary}
+          isOpen={trickplayOpen}
+          onOpenChange={setTrickplayOpen}
+          onSaved={(updated) => {
+            setFailure(null);
+            setMessage(t('admin.libraries.trickplay.saved', { name: updated.name }));
             void refresh(updated);
           }}
         />

@@ -237,6 +237,7 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
+	s.queueTrickplayAfterProbe(ctx, t.file, item, payload.ChapterImages)
 	if item.Kind == "podcast_episode" {
 		return s.finishPodcastEpisode(ctx, item, t.file, &pr)
 	}

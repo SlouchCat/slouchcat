@@ -30,6 +30,11 @@ func (s *Service) handleSweep(ctx context.Context, _ *jobs.Job) error {
 	} else if n > 0 {
 		s.log.InfoContext(ctx, "expired user picks deleted", "picks", n)
 	}
+	// The trickplay sets of deleted files, other versions and settings that no longer store
+	// (trickplay_maint.go); a failure is logged as well.
+	if err := s.sweepTrickplay(ctx); err != nil {
+		s.log.WarnContext(ctx, "trickplay sweep failed", "err", err)
+	}
 	return nil
 }
 

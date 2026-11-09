@@ -1,6 +1,6 @@
-import type { Library, LibraryRequest } from '@slouchcat/api-client';
+import type { Library, LibraryRequest, LibraryTrickplay } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useState, type FormEvent } from 'react';
+import { useCallback, useId, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { formErrors } from '@/api/errors';
@@ -21,6 +21,7 @@ import {
 } from '../../shared/LibraryFields';
 import { PathBrowserButton } from '../../shared/PathBrowserButton';
 import { librariesQuery, metadataProvidersQuery } from '../queries';
+import { DEFAULT_TRICKPLAY, sameTrickplay, TrickplayFields } from './TrickplayFields';
 import styles from './Libraries.module.css';
 
 /** What «Bibliothek hinzufügen» holds; the page owns it, so it outlives the dialog (S-13, S-17). */
@@ -32,6 +33,9 @@ export interface LibraryDraft {
   setRating: (rating: string) => void;
   folders: FolderEntry[];
   setFolders: (update: (folders: FolderEntry[]) => FolderEntry[]) => void;
+  /** «Vorschau beim Spulen» of a video library (concept 18, 9). */
+  trickplay: LibraryTrickplay;
+  setTrickplay: (trickplay: LibraryTrickplay) => void;
   /** Kind and folders together: a new kind starts with its own cards. */
   changeKind: (kind: LibraryKind) => void;
   /** Something differs from an empty form (an untouched form is no draft). */
@@ -60,6 +64,7 @@ export function useLibraryDraft(): LibraryDraft {
   const [rating, setRating] = useState('0');
   // The folders are controlled values: the browse dialog writes the chosen path into a card.
   const [folders, setFolders] = useState<FolderEntry[]>(() => initialFolders('video'));
+  const [trickplay, setTrickplay] = useState<LibraryTrickplay>(DEFAULT_TRICKPLAY);
   const changeKind = (next: LibraryKind) => {
     if (next === kind) return;
     setKind(next);
@@ -70,10 +75,28 @@ export function useLibraryDraft(): LibraryDraft {
     setKind('video');
     setRating('0');
     setFolders(initialFolders('video'));
+    setTrickplay(DEFAULT_TRICKPLAY);
   }, []);
   const dirty =
-    name.trim() !== '' || kind !== 'video' || rating !== '0' || !untouchedFolders(folders);
-  return { name, setName, kind, rating, setRating, folders, setFolders, changeKind, dirty, reset };
+    name.trim() !== '' ||
+    kind !== 'video' ||
+    rating !== '0' ||
+    !untouchedFolders(folders) ||
+    !sameTrickplay(trickplay, DEFAULT_TRICKPLAY);
+  return {
+    name,
+    setName,
+    kind,
+    rating,
+    setRating,
+    folders,
+    setFolders,
+    trickplay,
+    setTrickplay,
+    changeKind,
+    dirty,
+    reset,
+  };
 }
 
 interface AddLibraryDialogProps {
@@ -87,7 +110,8 @@ interface AddLibraryDialogProps {
 /**
  * «Bibliothek hinzufügen» (BIB-6; concept 12, 11.5 point 8: from the page into a dialog): name,
  * kind, default rating of an audio library, the folder cards with their sources (by position,
- * S-16) and the folder browser, «N Ordner hinzufügen». The draft is the page's, so what was
+ * S-16) and the folder browser, «Vorschau beim Spulen» of a video library (concept 18, 9),
+ * «N Ordner hinzufügen». The draft is the page's, so what was
  * typed is still there when the dialog is closed without adding and opened again, and leaving the
  * page asks first (S-13); a library that was added empties it.
  */
@@ -100,6 +124,8 @@ export function AddLibraryDialog({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { name, setName, kind, rating, setRating, folders, setFolders, changeKind } = draft;
+  const { trickplay, setTrickplay } = draft;
+  const trickplayHeading = useId();
   const providers = useQuery({ ...metadataProvidersQuery, enabled: isOpen });
   const create = useMutation({
     mutationFn: (body: LibraryRequest): Promise<Library> =>
@@ -118,7 +144,8 @@ export function AddLibraryDialog({
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    create.mutate(libraryRequest(name.trim(), kind, folders, rating));
+    const body = libraryRequest(name.trim(), kind, folders, rating);
+    create.mutate(kind === 'video' ? { ...body, trickplay } : body);
   };
   // A message belongs to the request that is over once the dialog closes; the draft stays.
   const close = () => {
@@ -175,6 +202,15 @@ export function AddLibraryDialog({
             />
           )}
         />
+        {kind === 'video' && (
+          <section className={styles.trickplaySection} aria-labelledby={trickplayHeading}>
+            <h3 id={trickplayHeading} className={styles.rootsTitle}>
+              {t('admin.libraries.trickplay.action')}
+            </h3>
+            <p className={styles.muted}>{t('admin.libraries.trickplay.description')}</p>
+            <TrickplayFields value={trickplay} onChange={setTrickplay} />
+          </section>
+        )}
         {listError && folders.some((folder) => folder.path.trim()) && (
           <Notice tone="warning" live={false}>
             {listError}

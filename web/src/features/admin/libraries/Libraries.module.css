@@ -133,3 +133,89 @@
   gap: var(--sc-space-2);
   justify-content: flex-end;
 }
+
+/* «Vorschau beim Spulen» (concept 18, 9): the film and the series group side by side where there
+   is room, each with its choice, its sentence and its estimate. */
+.trickplay {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--sc-space-4);
+}
+
+.trickplayGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  padding: var(--sc-space-4);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+}
+
+.trickplayGroup p {
+  margin: 0;
+}
+
+.trickplayKeep {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+}
+
+.trickplayEstimate {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.trickplayRows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  margin: 0;
+}
+
+.trickplayRows > div {
+  display: flex;
+  gap: var(--sc-space-3);
+  justify-content: space-between;
+  padding: var(--sc-space-2) var(--sc-space-3);
+  border-radius: var(--sc-radius-sm);
+  background-color: var(--sc-color-surface-2);
+  font-size: var(--sc-font-size-sm);
+}
+
+.trickplayRows > div[data-total] {
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.trickplayRows dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.trickplayFooter {
+  display: flex;
+  flex-direction: column;
+  grid-column: 1 / -1;
+  gap: var(--sc-space-1);
+}
+
+/* «Jetzt erzeugen» with its hint beside it. */
+.trickplayGenerate {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-3);
+  align-items: center;
+}
+
+/* The section «Vorschau beim Spulen» of «Bibliothek hinzufügen». */
+.trickplaySection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.trickplaySection p {
+  margin: 0;
+}

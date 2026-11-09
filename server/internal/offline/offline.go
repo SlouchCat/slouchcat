@@ -134,6 +134,7 @@ type Service struct {
 	now   func() time.Time
 
 	dir      string
+	cacheDir string // the server cache with the trickplay sets (WithCacheDir); empty: no previews
 	budget   int64
 	key      []byte
 	playback PlaybackPort

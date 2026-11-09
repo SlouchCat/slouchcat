@@ -132,6 +132,57 @@ func (q *Queries) CountMediaFilesOfRoot(ctx context.Context, rootID int64) (int6
 	return count, err
 }
 
+const countOpenPlaybacks = `-- name: CountOpenPlaybacks :one
+SELECT count(*) FROM playback_sessions WHERE revoked_at IS NULL AND expires_at > ?1
+`
+
+// Playback sessions that are open (neither revoked nor expired): the series look-ahead beyond the
+// next two episodes runs one ffmpeg process while one exists.
+func (q *Queries) CountOpenPlaybacks(ctx context.Context, now int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countOpenPlaybacks, now)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countPlaybacksOfFileOpenSince = `-- name: CountPlaybacksOfFileOpenSince :one
+SELECT count(*) FROM playback_sessions
+WHERE media_file_id = ?1 AND expires_at > ?2 AND (revoked_at IS NULL OR revoked_at > ?2)
+`
+
+type CountPlaybacksOfFileOpenSinceParams struct {
+	MediaFileID string
+	Since       int64
+}
+
+// Playback sessions of a media file that were open at some point since @since (still open, or
+// revoked or expired after it): a set that does not store goes 10 minutes after the last one.
+func (q *Queries) CountPlaybacksOfFileOpenSince(ctx context.Context, arg CountPlaybacksOfFileOpenSinceParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countPlaybacksOfFileOpenSince, arg.MediaFileID, arg.Since)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countWaitingTrickplayStarts = `-- name: CountWaitingTrickplayStarts :one
+SELECT count(*) FROM jobs
+WHERE type = 'trickplay.generate' AND state = 'queued' AND priority >= ?1 AND run_after <= ?2
+`
+
+type CountWaitingTrickplayStartsParams struct {
+	Priority int64
+	Now      int64
+}
+
+// Start jobs of trickplay.generate that wait and may run now (priority @priority and higher): a
+// running import, backfill, look-ahead or download job yields to them after its sheet.
+func (q *Queries) CountWaitingTrickplayStarts(ctx context.Context, arg CountWaitingTrickplayStartsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countWaitingTrickplayStarts, arg.Priority, arg.Now)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteExpiredUserPicks = `-- name: DeleteExpiredUserPicks :execrows
 DELETE FROM user_picks
 WHERE created_at <= ?1 - (SELECT c.retention_days FROM picks_config AS c WHERE c.id = 1) * 86400000
@@ -236,6 +287,72 @@ func (q *Queries) GetChapterImageFile(ctx context.Context, id string) (GetChapte
 		&i.MissingSince,
 		&i.Kind,
 		&i.RootPath,
+	)
+	return i, err
+}
+
+const getTrickplayFile = `-- name: GetTrickplayFile :one
+
+SELECT m.id, m.item_id, m.size, m.mtime, m.duration_ms, m.probe, m.probed_at, m.keyframes, m.keyframes_source,
+       m.missing_since, m.rel_path, i.kind, i.library_id, r.path AS root_path,
+       l.trickplay_movies, l.trickplay_movies_keep, l.trickplay_series, l.trickplay_series_keep, l.trickplay_series_scope
+FROM media_files AS m
+JOIN items AS i ON i.id = m.item_id
+JOIN library_roots AS r ON r.id = m.root_id
+JOIN libraries AS l ON l.id = i.library_id
+WHERE m.id = ?1 AND i.deleted_at IS NULL AND m.probe_error IS NULL
+`
+
+type GetTrickplayFileRow struct {
+	ID                   string
+	ItemID               string
+	Size                 int64
+	Mtime                int64
+	DurationMs           sql.NullInt64
+	Probe                sql.NullString
+	ProbedAt             sql.NullInt64
+	Keyframes            []byte
+	KeyframesSource      sql.NullString
+	MissingSince         sql.NullInt64
+	RelPath              string
+	Kind                 string
+	LibraryID            int64
+	RootPath             string
+	TrickplayMovies      string
+	TrickplayMoviesKeep  int64
+	TrickplaySeries      string
+	TrickplaySeriesKeep  int64
+	TrickplaySeriesScope string
+}
+
+// Trickplay (concept 18 part A, ADR 0027). The setting of the library comes with every file, so the
+// job reads it before each sheet.
+// A film or episode file for trickplay.generate: version, duration, stored probe and keyframe
+// index, the folder it lies in and the trickplay setting of its library. A file of a deleted title
+// or whose last probe failed has none.
+func (q *Queries) GetTrickplayFile(ctx context.Context, id string) (GetTrickplayFileRow, error) {
+	row := q.db.QueryRowContext(ctx, getTrickplayFile, id)
+	var i GetTrickplayFileRow
+	err := row.Scan(
+		&i.ID,
+		&i.ItemID,
+		&i.Size,
+		&i.Mtime,
+		&i.DurationMs,
+		&i.Probe,
+		&i.ProbedAt,
+		&i.Keyframes,
+		&i.KeyframesSource,
+		&i.MissingSince,
+		&i.RelPath,
+		&i.Kind,
+		&i.LibraryID,
+		&i.RootPath,
+		&i.TrickplayMovies,
+		&i.TrickplayMoviesKeep,
+		&i.TrickplaySeries,
+		&i.TrickplaySeriesKeep,
+		&i.TrickplaySeriesScope,
 	)
 	return i, err
 }
@@ -440,6 +557,122 @@ func (q *Queries) ListTitleIDsOfRoot(ctx context.Context, rootID int64) ([]strin
 			return nil, err
 		}
 		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTrickplayFiles = `-- name: ListTrickplayFiles :many
+SELECT m.id, m.size, m.mtime, m.missing_since IS NOT NULL AS missing, m.probed_at IS NOT NULL AND m.probe_error IS NULL AS probed,
+       m.keyframes_source, i.kind, i.library_id,
+       l.trickplay_movies, l.trickplay_movies_keep, l.trickplay_series, l.trickplay_series_keep, l.trickplay_series_scope
+FROM media_files AS m
+JOIN items AS i ON i.id = m.item_id
+JOIN libraries AS l ON l.id = i.library_id
+WHERE i.kind IN ('movie', 'episode') AND i.deleted_at IS NULL
+ORDER BY m.id
+`
+
+type ListTrickplayFilesRow struct {
+	ID                   string
+	Size                 int64
+	Mtime                int64
+	Missing              bool
+	Probed               sql.NullBool
+	KeyframesSource      sql.NullString
+	Kind                 string
+	LibraryID            int64
+	TrickplayMovies      string
+	TrickplayMoviesKeep  int64
+	TrickplaySeries      string
+	TrickplaySeriesKeep  int64
+	TrickplaySeriesScope string
+}
+
+// Every film and episode file of a title that is not deleted, with its version, whether it is
+// missing or probed, its keyframe source and the setting of its library: the backfill queues the
+// files without a complete set, the sweep keeps the sets of exactly these files at their version.
+func (q *Queries) ListTrickplayFiles(ctx context.Context) ([]ListTrickplayFilesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTrickplayFiles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTrickplayFilesRow{}
+	for rows.Next() {
+		var i ListTrickplayFilesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Size,
+			&i.Mtime,
+			&i.Missing,
+			&i.Probed,
+			&i.KeyframesSource,
+			&i.Kind,
+			&i.LibraryID,
+			&i.TrickplayMovies,
+			&i.TrickplayMoviesKeep,
+			&i.TrickplaySeries,
+			&i.TrickplaySeriesKeep,
+			&i.TrickplaySeriesScope,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTrickplaySeriesFiles = `-- name: ListTrickplaySeriesFiles :many
+SELECT e.id AS item_id, CAST(coalesce(e.season_number, se.season_number, 0) AS INTEGER) AS season,
+       CAST(coalesce(e.episode_number, 0) AS INTEGER) AS episode, m.id AS media_file_id
+FROM items AS e
+JOIN items AS se ON se.id = e.parent_id AND se.kind = 'season'
+JOIN media_files AS m ON m.item_id = e.id
+WHERE se.parent_id = ?1 AND e.kind = 'episode' AND e.deleted_at IS NULL
+  AND m.missing_since IS NULL AND m.probed_at IS NOT NULL AND m.probe_error IS NULL
+ORDER BY season, episode, e.id, COALESCE(m.height, 0) DESC, m.created_at, m.id
+`
+
+type ListTrickplaySeriesFilesRow struct {
+	ItemID      string
+	Season      int64
+	Episode     int64
+	MediaFileID string
+}
+
+// The present, probed files of the episodes of a series for its look-ahead (concept 18, 6.4), in
+// season and episode order; per episode the primary file first (largest height, then the oldest),
+// the rule of visibility.MediaFile without a choice.
+func (q *Queries) ListTrickplaySeriesFiles(ctx context.Context, seriesID sql.NullString) ([]ListTrickplaySeriesFilesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTrickplaySeriesFiles, seriesID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTrickplaySeriesFilesRow{}
+	for rows.Next() {
+		var i ListTrickplaySeriesFilesRow
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.Season,
+			&i.Episode,
+			&i.MediaFileID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

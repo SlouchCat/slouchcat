@@ -40,3 +40,6 @@ output-options:
     # Person and collection images (contract 1.21.0, ADR 0026).
     - getPersonImage
     - getCollectionImage
+    # Trickplay sheets (contract 1.23.0, ADR 0027).
+    - getTrickplaySheet
+    - getDownloadTrickplaySheet

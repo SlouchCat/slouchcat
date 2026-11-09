@@ -273,7 +273,7 @@ func (s *Service) planAudio(ctx context.Context, row systemq.Download, item syst
 	if err != nil {
 		return planned{}, fmt.Errorf("plan download %s: %w", row.ID, err)
 	}
-	return planned{src: src, plan: plan, choice: c, cleanup: cleanup}, nil
+	return planned{src: src, plan: plan, choice: c, cleanup: cleanup, audio: true}, nil
 }
 
 // fetchSource fetches the enclosure of a download into <dir>/<id>/source.<ext> and returns the file

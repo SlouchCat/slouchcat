@@ -462,6 +462,13 @@ type PlaybackService interface {
 	// version is the v of the image URL (library.ChapterImagesVersion); the ETag of the result
 	// names the version the image belongs to.
 	ChapterImage(ctx context.Context, profile model.Profile, itemID, mediaFileID string, idx int, version string) (model.StreamSource, error)
+	// Trickplay returns the preview set of a media file of a visible title (getTrickplay, concept
+	// 18); model.ErrNotFound when the title is not visible, the file is not one of its files or the
+	// title gets no preview.
+	Trickplay(ctx context.Context, profile model.Profile, itemID, mediaFileID string) (model.Trickplay, error)
+	// TrickplaySheet opens a sheet of the preview set of a media file of a visible title at its
+	// current version (getTrickplaySheet) and returns that version; model.ErrNotFound otherwise.
+	TrickplaySheet(ctx context.Context, profile model.Profile, itemID, mediaFileID string, n int) (model.StreamSource, string, error)
 	// State reports from memory whether a playback session of the browser session still runs
 	// (concept 13); model.ErrNotFound for any other and for one the server does not know.
 	State(session model.Session, playbackID string) (model.PlaybackState, error)

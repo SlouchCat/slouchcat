@@ -10,6 +10,13 @@ RETURNING *;
 UPDATE libraries SET name = @name, default_rating = @default_rating, updated_at = @now WHERE id = @id
 RETURNING *;
 
+-- name: SetLibraryTrickplay :exec
+-- The trickplay settings ("Vorschau beim Spulen") of a video library (concept 18, 6.1; migration 00042).
+UPDATE libraries SET trickplay_movies = @movies, trickplay_movies_keep = @movies_keep,
+    trickplay_series = @series, trickplay_series_keep = @series_keep, trickplay_series_scope = @series_scope,
+    updated_at = @now
+WHERE id = @id;
+
 -- name: InsertLibraryRoot :one
 -- content and providers come from the request; the column defaults only serve migration 00023.
 INSERT INTO library_roots (library_id, path, fs_type, watch, content, providers, created_at)

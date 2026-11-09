@@ -25,7 +25,7 @@ func (q *Queries) AcceptLibraryLoss(ctx context.Context, arg AcceptLibraryLossPa
 }
 
 const getLibrary = `-- name: GetLibrary :one
-SELECT id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at FROM libraries WHERE id = ?1
+SELECT id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at, trickplay_movies, trickplay_movies_keep, trickplay_series, trickplay_series_keep, trickplay_series_scope FROM libraries WHERE id = ?1
 `
 
 func (q *Queries) GetLibrary(ctx context.Context, id int64) (Library, error) {
@@ -45,6 +45,11 @@ func (q *Queries) GetLibrary(ctx context.Context, id int64) (Library, error) {
 		&i.ScanFilesSeen,
 		&i.ScanFilesTotal,
 		&i.LossAcceptedAt,
+		&i.TrickplayMovies,
+		&i.TrickplayMoviesKeep,
+		&i.TrickplaySeries,
+		&i.TrickplaySeriesKeep,
+		&i.TrickplaySeriesScope,
 	)
 	return i, err
 }
@@ -73,7 +78,7 @@ const insertLibrary = `-- name: InsertLibrary :one
 
 INSERT INTO libraries (name, kind, default_rating, created_at, updated_at)
 VALUES (?1, ?2, ?3, ?4, ?4)
-RETURNING id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at
+RETURNING id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at, trickplay_movies, trickplay_movies_keep, trickplay_series, trickplay_series_keep, trickplay_series_scope
 `
 
 type InsertLibraryParams struct {
@@ -107,6 +112,11 @@ func (q *Queries) InsertLibrary(ctx context.Context, arg InsertLibraryParams) (L
 		&i.ScanFilesSeen,
 		&i.ScanFilesTotal,
 		&i.LossAcceptedAt,
+		&i.TrickplayMovies,
+		&i.TrickplayMoviesKeep,
+		&i.TrickplaySeries,
+		&i.TrickplaySeriesKeep,
+		&i.TrickplaySeriesScope,
 	)
 	return i, err
 }
@@ -189,7 +199,7 @@ func (q *Queries) ListAllLibraryRoots(ctx context.Context) ([]LibraryRoot, error
 }
 
 const listLibraries = `-- name: ListLibraries :many
-SELECT id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at FROM libraries ORDER BY id
+SELECT id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at, trickplay_movies, trickplay_movies_keep, trickplay_series, trickplay_series_keep, trickplay_series_scope FROM libraries ORDER BY id
 `
 
 func (q *Queries) ListLibraries(ctx context.Context) ([]Library, error) {
@@ -215,6 +225,11 @@ func (q *Queries) ListLibraries(ctx context.Context) ([]Library, error) {
 			&i.ScanFilesSeen,
 			&i.ScanFilesTotal,
 			&i.LossAcceptedAt,
+			&i.TrickplayMovies,
+			&i.TrickplayMoviesKeep,
+			&i.TrickplaySeries,
+			&i.TrickplaySeriesKeep,
+			&i.TrickplaySeriesScope,
 		); err != nil {
 			return nil, err
 		}
@@ -280,6 +295,37 @@ func (q *Queries) SetLibraryScanProgress(ctx context.Context, arg SetLibraryScan
 	_, err := q.db.ExecContext(ctx, setLibraryScanProgress,
 		arg.Seen,
 		arg.Total,
+		arg.Now,
+		arg.ID,
+	)
+	return err
+}
+
+const setLibraryTrickplay = `-- name: SetLibraryTrickplay :exec
+UPDATE libraries SET trickplay_movies = ?1, trickplay_movies_keep = ?2,
+    trickplay_series = ?3, trickplay_series_keep = ?4, trickplay_series_scope = ?5,
+    updated_at = ?6
+WHERE id = ?7
+`
+
+type SetLibraryTrickplayParams struct {
+	Movies      string
+	MoviesKeep  int64
+	Series      string
+	SeriesKeep  int64
+	SeriesScope string
+	Now         int64
+	ID          int64
+}
+
+// The trickplay settings ("Vorschau beim Spulen") of a video library (concept 18, 6.1; migration 00042).
+func (q *Queries) SetLibraryTrickplay(ctx context.Context, arg SetLibraryTrickplayParams) error {
+	_, err := q.db.ExecContext(ctx, setLibraryTrickplay,
+		arg.Movies,
+		arg.MoviesKeep,
+		arg.Series,
+		arg.SeriesKeep,
+		arg.SeriesScope,
 		arg.Now,
 		arg.ID,
 	)
@@ -360,7 +406,7 @@ func (q *Queries) UpdateLibraryRootPath(ctx context.Context, arg UpdateLibraryRo
 
 const updateLibrarySettings = `-- name: UpdateLibrarySettings :one
 UPDATE libraries SET name = ?1, default_rating = ?2, updated_at = ?3 WHERE id = ?4
-RETURNING id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at
+RETURNING id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at, trickplay_movies, trickplay_movies_keep, trickplay_series, trickplay_series_keep, trickplay_series_scope
 `
 
 type UpdateLibrarySettingsParams struct {
@@ -392,6 +438,11 @@ func (q *Queries) UpdateLibrarySettings(ctx context.Context, arg UpdateLibrarySe
 		&i.ScanFilesSeen,
 		&i.ScanFilesTotal,
 		&i.LossAcceptedAt,
+		&i.TrickplayMovies,
+		&i.TrickplayMoviesKeep,
+		&i.TrickplaySeries,
+		&i.TrickplaySeriesKeep,
+		&i.TrickplaySeriesScope,
 	)
 	return i, err
 }

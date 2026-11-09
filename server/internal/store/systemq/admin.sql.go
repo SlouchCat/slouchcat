@@ -1593,3 +1593,51 @@ func (q *Queries) AdminStreamItems(ctx context.Context, itemIds []string) ([]Adm
 	}
 	return items, nil
 }
+
+const adminTrickplayDurations = `-- name: AdminTrickplayDurations :many
+SELECT i.kind, count(DISTINCT i.id) AS titles, count(m.duration_ms) AS files,
+       CAST(coalesce(sum(m.duration_ms), 0) AS INTEGER) AS duration_ms
+FROM media_files AS m
+JOIN items AS i ON i.id = m.item_id
+WHERE i.library_id = ?1 AND i.kind IN ('movie', 'episode') AND i.deleted_at IS NULL
+  AND m.missing_since IS NULL
+GROUP BY i.kind
+`
+
+type AdminTrickplayDurationsRow struct {
+	Kind       string
+	Titles     int64
+	Files      int64
+	DurationMs int64
+}
+
+// The running time of the films and episodes of a library for the storage estimate of trickplay
+// (concept 18, 9): per kind the titles with a present media file, the present files with a
+// duration (every version counts) and their running time together.
+func (q *Queries) AdminTrickplayDurations(ctx context.Context, libraryID int64) ([]AdminTrickplayDurationsRow, error) {
+	rows, err := q.db.QueryContext(ctx, adminTrickplayDurations, libraryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AdminTrickplayDurationsRow{}
+	for rows.Next() {
+		var i AdminTrickplayDurationsRow
+		if err := rows.Scan(
+			&i.Kind,
+			&i.Titles,
+			&i.Files,
+			&i.DurationMs,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
