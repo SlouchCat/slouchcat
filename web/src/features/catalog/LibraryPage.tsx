@@ -95,7 +95,7 @@ function LibraryView({ id }: { id: number | null }) {
     setDrawn((previous) => (same(previous, range) ? previous : range));
     setTop((previous) => (same(previous, row) ? previous : row));
   }, []);
-  const { first: query, slots } = useLibraryPages(id, request, drawn);
+  const { first: query, slots, failed: pageFailed, retry } = useLibraryPages(id, request, drawn);
   const notFound = id === null || (libraries.isSuccess && !library) || isApiError(query.error, 404);
   useDocumentTitle(library?.name ?? (notFound ? t('library.notFound.title') : undefined));
   const first = query.data;
@@ -421,6 +421,23 @@ function LibraryView({ id }: { id: number | null }) {
               />
             ) : (
               <>
+                {/* A page of the drawn rows failed: its places stay empty until it is read again.
+                    Sticky below the header, so it stays in view wherever the grid is scrolled. */}
+                {pageFailed && (
+                  <div className={styles.pageFailed}>
+                    <Notice
+                      tone="danger"
+                      title={t('library.page.pageFailed')}
+                      actions={
+                        <SpatialGroup>
+                          <SpatialButton focusKey="library-retry" icon="refresh" onPress={retry}>
+                            {t('common.retry')}
+                          </SpatialButton>
+                        </SpatialGroup>
+                      }
+                    />
+                  </div>
+                )}
                 <LibraryGrid
                   ref={grid}
                   slots={slots}

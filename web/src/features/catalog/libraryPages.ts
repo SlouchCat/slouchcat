@@ -52,8 +52,10 @@ export interface LibraryPages {
   first: UseQueryResult<LibraryItemsPage>;
   /** One place per title of the list, undefined while its page is not there. */
   slots: readonly (ItemRef | undefined)[];
-  /** A page of the drawn range failed; drawing it again asks once more. */
+  /** A page of the drawn range failed; drawing it again asks once more, so does `retry`. */
   failed: boolean;
+  /** Reads the failed pages of the drawn range again. */
+  retry: () => void;
 }
 
 /** The pages other than 0 that hold places of `range`, in order. */
@@ -118,6 +120,11 @@ export function useLibraryPages(
       data: results.map((result) => result.data),
       updated: results.map((result) => result.dataUpdatedAt),
       failed: results.some((result) => result.isError && result.data === undefined),
+      retry: () => {
+        for (const result of results) {
+          if (result.isError && result.data === undefined) void result.refetch();
+        }
+      },
     }),
   });
 
@@ -170,5 +177,5 @@ export function useLibraryPages(
     });
   }, [first.isFetching, id, newer, query, queryClient, ready, staleKey]);
 
-  return { first, slots, failed: pages.failed };
+  return { first, slots, failed: pages.failed, retry: pages.retry };
 }

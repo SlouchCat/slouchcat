@@ -72,6 +72,13 @@
   justify-content: flex-end;
 }
 
+/* A page of the grid failed: the notice stays in view below the header above the cards. */
+.pageFailed {
+  position: sticky;
+  top: calc(var(--sc-size-header-height) + var(--sc-space-2));
+  z-index: 1;
+}
+
 /* The grid, with the letter bar above it on phones and at its right from 768 px. */
 .body {
   display: grid;

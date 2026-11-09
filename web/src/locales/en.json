@@ -379,6 +379,7 @@
       "apply": "Apply",
       "clear": "Reset",
       "emptyFilters": "Nothing matches these filters",
+      "pageFailed": "Part of the list could not be loaded.",
       "more": "Load more ({{count}} more)",
       "noun": {
         "video_one": "title",

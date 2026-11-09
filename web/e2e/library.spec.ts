@@ -247,13 +247,27 @@ test.describe('a large library in the virtual grid', () => {
     })),
   ];
 
-  async function openLarge(page: Page, owner: APIRequestContext): Promise<number> {
+  /** `failing` maps an offset to how many of its reads fail (500) before it answers. */
+  async function openLarge(
+    page: Page,
+    owner: APIRequestContext,
+    failing = new Map<number, number>(),
+  ): Promise<number> {
     const id = await libraryId(owner, LIBRARY);
     await page.route(`**/api/v1/libraries/${id}/items?*`, async (route) => {
       const url = new URL(route.request().url());
       const offset = Number(url.searchParams.get('offset') ?? 0);
       const limit = Number(url.searchParams.get('limit') ?? 50);
       if (offset > 0) await new Promise((resolve) => setTimeout(resolve, DELAY_MS));
+      const fails = failing.get(offset) ?? 0;
+      if (fails > 0) {
+        failing.set(offset, fails - 1);
+        await route.fulfill({
+          status: 500,
+          json: { type: 'about:blank', title: 'internal', status: 500, code: 'internal' },
+        });
+        return;
+      }
       await route.fulfill({
         json: {
           items: Array.from({ length: Math.max(0, Math.min(limit, TOTAL - offset)) }, (_, n) =>
@@ -364,6 +378,28 @@ test.describe('a large library in the virtual grid', () => {
     await expect.poll(() => columnsOf(page)).toBeLessThan(COLUMNS);
     await expect.poll(() => focusedPlace(page)).toBe(chosen);
     await expect(page.locator(':focus')).toBeInViewport();
+  });
+
+  test('a failed page says so; its retry button is reached by Tab and reads it again @keyboard', async ({
+    page,
+    owner,
+  }) => {
+    // Page 2 fails twice: its read and the one retry of the app's queries.
+    await openLarge(page, owner, new Map([[200, 2]]));
+    const d = NUMBERS + 3 * PER_LETTER;
+    await letter(page, 'D').focus();
+    await page.keyboard.press('Enter');
+    const alert = page.getByRole('alert').filter({ hasText: 'Ein Teil der Liste' });
+    await expect(alert).toBeVisible();
+    await expect(alert).toBeInViewport();
+    await expect(grid(page).locator(`[data-index="${d}"] a[href]`)).toHaveCount(0);
+    // From the letter bar, Tab reaches the retry button; Enter reads the page again.
+    const retry = alert.getByRole('button', { name: 'Erneut versuchen' });
+    await tabTo(page, retry);
+    await page.keyboard.press('Enter');
+    await expect(alert).toHaveCount(0);
+    await expect(grid(page).locator(`[data-index="${d}"] a[href]`)).toBeVisible();
+    await expect.poll(() => emptyInView(page)).toEqual([]);
   });
 
   test('Tab leaves the grid after the last card; the wheel keeps the focus @keyboard', async ({

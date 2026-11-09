@@ -1,8 +1,9 @@
 import type { components, ItemRef } from '@slouchcat/api-client';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { setSpatialFocus } from '@/ui';
-import { json, mockApi, renderApp, signedIn } from '@/test/api';
+import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
 import { virtualLayout } from '@/test/virtual';
 
 type LibraryItemsPage = components['schemas']['LibraryItemsPage'];
@@ -22,7 +23,8 @@ const title = (index: number): ItemRef => ({
   images: {},
 });
 
-function mockLibrary() {
+/** `failing` maps an offset to how many of its reads fail (500) before it answers. */
+function mockLibrary(failing = new Map<number, number>()) {
   const offsets: number[] = [];
   const api = mockApi({
     ...signedIn,
@@ -32,6 +34,11 @@ function mockLibrary() {
       const url = new URL(api.fetchMock.mock.calls.at(-1)![0].url);
       const offset = Number(url.searchParams.get('offset'));
       offsets.push(offset);
+      const fails = failing.get(offset) ?? 0;
+      if (fails > 0) {
+        failing.set(offset, fails - 1);
+        return problem(500, 'internal');
+      }
       const limit = Number(url.searchParams.get('limit'));
       const page: LibraryItemsPage = {
         items: Array.from({ length: Math.min(limit, TOTAL - offset) }, (_, index) =>
@@ -53,9 +60,9 @@ const place = (index: number) =>
   grid().querySelector<HTMLElement>(`[data-index="${index}"]`) ?? undefined;
 const card = (index: number) => place(index)?.querySelector<HTMLAnchorElement>('a[href]');
 
-async function open() {
+async function open(failing?: Map<number, number>) {
   const layout = virtualLayout();
-  const offsets = mockLibrary();
+  const offsets = mockLibrary(failing);
   renderApp('/libraries/3');
   await waitFor(() => expect(card(0)).toBeDefined());
   return { layout, offsets };
@@ -88,6 +95,19 @@ describe('library grid', () => {
     expect(place(300)!.querySelector('[tabindex], a, button')).toBeNull();
     await waitFor(() => expect(card(300)).toHaveAccessibleName(/Titel 300/));
     expect(offsets).toEqual([0, 200, 300]);
+  });
+
+  it('a failed page says so and its retry button reads it again', async () => {
+    const { layout, offsets } = await open(new Map([[300, 1]]));
+    expect(screen.queryByRole('alert')).toBeNull();
+    act(() => layout.scroll(layout.top + 50 * layout.rowSize));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Ein Teil der Liste konnte nicht geladen werden.');
+    expect(card(300) ?? null).toBeNull();
+    await userEvent.setup().click(within(alert).getByRole('button', { name: 'Erneut versuchen' }));
+    await waitFor(() => expect(card(300)).toHaveAccessibleName(/Titel 300/));
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(offsets).toEqual([0, 200, 300, 300]);
   });
 
   it('ArrowDown from the last drawn row scrolls on and focuses the card below once it is there', async () => {
