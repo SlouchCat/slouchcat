@@ -23,7 +23,8 @@
     und eine Beschriftung von **26 px** gewählt (zuerst 40 px, dann «doch etwas zu gross»). Teil C
     hat noch kein Kritiker gesehen.
   - Fassung 8 (9. November 2026): Teil D (Abschnitt 17): die Streamübersicht zeigt alles, was
-    läuft, in einer Liste mit Filterknöpfen; Marcos Antworten D-1 bis D-3. Teil D ist gegen
+    läuft, in einer Liste mit Filterknöpfen; Marcos Antworten D-1 bis D-3. Marco hat das
+    Streams-Mockup am 9. November 2026 ohne Änderung abgenommen («Passt so»). Teil D ist gegen
     `main` `43eb1f8a` (Konzept 17 Stufe 3, Vertrag 1.21.0, Migration 00040) geschrieben und hat
     noch kein Kritiker gesehen.
 - **Verankert gegen:** `main` **`6c05eda7`** (Merge PR #125, Release 1.19.2), Vertragsfassung
@@ -1070,6 +1071,7 @@ geprüft; Radio kam nicht.
 Artboard «Verwaltung: Streams, alles in einer Liste» der Leinwand «Konzept 18»: Serverlast oben,
 Filterknöpfe mit Anzahl, sechs Kacheln (Film, Folge, Hörbuch, Podcast aus Datei, Podcast aus dem
 Feed, Radio) mit echten Bildern aus dem Bild-Cache von CT 190 (nur in der privaten Leinwand).
+Marco hat das Mockup am 9. November 2026 ohne Änderung abgenommen.
 
 ### 17.6 Bau und Abnahme
 
