@@ -409,6 +409,45 @@ test('controls hide after 3 s of playback and come back on a key press', async (
   await expect(player).toHaveAttribute('data-controls', 'visible');
 });
 
+test('←/→ on the timeline show the preview tile of the new position for a moment (concept 18, 9) @keyboard', async ({
+  page,
+}) => {
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  const player = page.getByRole('main', { name: 'Videoplayer' });
+  await expect(player).toHaveAttribute('data-start-ms', /\d+/);
+  const seek = page.getByRole('slider', { name: 'Wiedergabeposition' });
+  const preview = player.locator('[data-seek-preview]');
+  // Paused, so the ten seconds of the title do not run out; ↑ leads to the timeline.
+  await page.keyboard.press('Space');
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, seek);
+  await expectVisibleFocus(page);
+  await expect(preview).toHaveCount(0);
+
+  // ← jumps (here to 0:00) and the field shows the new position; after 1.5 s it goes, the focus
+  // stays visible on the timeline.
+  await page.keyboard.press('ArrowLeft');
+  await expect(preview).toBeVisible();
+  await expect(preview).toContainText('0:00');
+  await expect(preview).toHaveCount(0, { timeout: 3000 });
+  await expectFocusOn(page, seek);
+  await expectVisibleFocus(page);
+
+  // The start queued the preview (or the import made it): once the player has asked again and
+  // the sheet is there, the field shows its tile. The set of a 10-s title is one sheet, made in a
+  // few seconds; the player asks every 10 s.
+  await expect(async () => {
+    await page.keyboard.press('ArrowLeft');
+    await expect(preview.locator('[data-trickplay-tile]')).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 45_000 });
+  const tile = preview.locator('[data-trickplay-tile]');
+  await expect(tile).toHaveAttribute('data-trickplay-tile', '0');
+  expect(await tile.evaluate((element) => getComputedStyle(element).backgroundImage)).toMatch(
+    /\/api\/v1\/items\/[^/]+\/trickplay\/0\?/,
+  );
+});
+
 test('Backspace and browser back return to the detail page', async ({ page }) => {
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
