@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Verwaltung: Podcasts, Liste mit Covern</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f3a27f}a:hover{color:#ffc4a8}
+.k-btn{font:inherit;cursor:pointer}
+.k-btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+</style>
+</helmet>
+<div style="box-sizing: border-box; min-height: 100vh; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 20px 16px 48px;">
+<div style="max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px;">
+
+  <nav aria-label="Mockup-Navigation" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: #b6b9c4; border: 1px dashed #ffffff3d; border-radius: 12px; padding: 8px 12px;">
+    <span>Mockup:</span>
+    <a href="Main.dc.html" aria-current="page" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #e8794a; background: #e8794a33; color: #f3f3f5; text-decoration: none;">Abos A · Liste</a>
+    <a href="AbosB.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Abos B · Raster</a>
+    <a href="AbosC.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Abos C · Tabelle</a>
+    <a href="Einstellung.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Einstellung A · Dialog</a>
+    <a href="EinstellungB.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Einstellung B · Band</a>
+    <a href="Podcast.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Einzelner Podcast</a>
+  </nav>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+    <div style="display: flex; flex-direction: column; gap: 4px; flex: 999 1 320px; min-width: 0;">
+      <h1 style="margin: 0; font-size: 26px; font-weight: 700;">Podcasts</h1>
+      <span style="font-size: 14px; color: #b6b9c4;">Bibliothek «Podcasts» · neue Folgen werden gespeichert in /media/Audiobookshelf/Podcast</span>
+    </div>
+    <a href="Einstellung.dc.html" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; text-decoration: none; font-size: 14px;">
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+      Einstellungen
+    </a>
+    <button class="k-btn" onClick="{{refreshAll}}" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 6.3"/><path d="M20 4v7h-7"/></svg>
+      Alle abrufen
+    </button>
+    <button class="k-btn" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 22px; background: #f3f3f5; color: #0b0c10; border: 0; font-size: 14px; font-weight: 600;">
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Feed abonnieren
+    </button>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px;">
+    <sc-for list="{{kpis}}" as="k" hint-placeholder-count="4">
+      <div style="background: #13151b; border: 1px solid #ffffff14; border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 2px;">
+        <span style="font-size: 13px; color: #b6b9c4;">{{k.label}}</span>
+        <span style="font-size: 24px; font-weight: 700;">{{k.value}}</span>
+        <span style="font-size: 13px; color: #9ea3b0;">{{k.note}}</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; overflow: hidden;">
+    <div style="background: #2b1d17; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e8794a" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      <span style="font-size: 16px; font-weight: 600; margin-right: 8px;">Abonnierte Podcasts</span>
+      <div role="group" aria-label="Filtern" style="display: flex; flex-wrap: wrap; gap: 8px;">
+        <sc-for list="{{filters}}" as="f" hint-placeholder-count="5">
+          <button class="k-btn" aria-pressed="{{f.pressed}}" onClick="{{f.pick}}" style="{{f.style}}">{{f.label}} <span style="{{f.countStyle}}">{{f.count}}</span></button>
+        </sc-for>
+      </div>
+    </div>
+    <div style="padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border-bottom: 1px solid #ffffff14;">
+      <label for="q" style="font-size: 13px; color: #b6b9c4;">Suchen</label>
+      <input id="q" type="search" value="{{q}}" onChange="{{setQ}}" placeholder="Titel oder Autor" style="flex: 1 1 220px; min-width: 0; height: 44px; border-radius: 10px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; padding: 0 12px; font: inherit; font-size: 14px;">
+      <label for="sort" style="font-size: 13px; color: #b6b9c4;">Sortieren</label>
+      <select id="sort" value="{{sort}}" onChange="{{setSort}}" style="height: 44px; border-radius: 10px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; padding: 0 10px; font: inherit; font-size: 14px;">
+        <option value="title">Titel</option>
+        <option value="newest">Neueste Folge</option>
+        <option value="size">Speicher</option>
+        <option value="eps">Anzahl Folgen</option>
+      </select>
+    </div>
+
+    <sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
+      <div style="border-bottom: 1px solid #ffffff14;">
+        <div style="display: flex; flex-wrap: wrap; gap: 14px; align-items: center; padding: 12px 16px;">
+          <div aria-hidden="true" style="{{r.coverStyle}}">{{r.initials}}</div>
+          <div style="flex: 999 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 15px; font-weight: 600; line-height: 1.3;">{{r.title}}</span>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+              <span style="font-size: 13px; color: #b6b9c4; margin-right: 4px;">{{r.author}}</span>
+              <span style="{{r.modeChip}}">{{r.modeText}}</span>
+              <sc-if value="{{r.override}}" hint-placeholder-val="{{false}}">
+                <span style="font-size: 12px; padding: 2px 8px; border-radius: 6px; border: 1px dashed #ffffff5c; color: #d0d2da;">weicht ab</span>
+              </sc-if>
+              <sc-if value="{{r.explicit}}" hint-placeholder-val="{{false}}">
+                <span style="font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: #e8b84a; color: #1c1503;">Explizit</span>
+              </sc-if>
+            </div>
+          </div>
+          <div style="flex: 0 0 170px; display: flex; flex-direction: column; gap: 5px;">
+            <span style="font-size: 14px;"><strong style="font-weight: 600;">{{r.eps}}</strong> Folgen</span>
+            <div aria-hidden="true" style="height: 5px; border-radius: 3px; background: #ffffff26;"><div style="{{r.bar}}"></div></div>
+            <span style="font-size: 12px; color: #b6b9c4;">{{r.localText}}</span>
+          </div>
+          <div style="flex: 0 0 84px; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 12px; color: #9ea3b0;">Speicher</span>
+            <span style="font-size: 14px;">{{r.size}}</span>
+          </div>
+          <div style="flex: 0 0 120px; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 12px; color: #9ea3b0;">Neueste Folge</span>
+            <span style="font-size: 14px;">{{r.newest}}</span>
+          </div>
+          <div style="flex: 0 0 132px;">
+            <span style="{{r.stateStyle}}">{{r.stateText}}</span>
+          </div>
+          <button class="k-btn" aria-expanded="{{r.expanded}}" aria-label="{{r.toggleLabel}}" onClick="{{r.toggle}}" style="width: 44px; height: 44px; border-radius: 22px; background: #1d2029; border: 1px solid #ffffff2e; color: #f3f3f5; display: inline-flex; align-items: center; justify-content: center;">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="{{r.chevron}}"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+        </div>
+
+        <sc-if value="{{r.open}}" hint-placeholder-val="{{false}}">
+          <div style="display: flex; flex-wrap: wrap; gap: 14px; padding: 4px 16px 18px 16px;">
+            <div style="flex: 1 1 380px; min-width: 0; background: #1a1c24; border: 1px solid #ffffff14; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+              <span style="font-size: 14px; font-weight: 600;">Neue Folgen</span>
+              <div role="group" aria-label="Neue Folgen" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                <sc-for list="{{r.modeOpts}}" as="o" hint-placeholder-count="3">
+                  <button class="k-btn" aria-pressed="{{o.pressed}}" onClick="{{o.pick}}" style="{{o.style}}">{{o.label}}</button>
+                </sc-for>
+              </div>
+              <span style="font-size: 13px; color: #b6b9c4; line-height: 1.45;">{{r.modeHint}}</span>
+              <sc-if value="{{r.saves}}" hint-placeholder-val="{{true}}">
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #b6b9c4;">Umfang
+                    <select value="{{r.scope}}" onChange="{{r.setScope}}" style="height: 44px; border-radius: 10px; background: #262a35; color: #f3f3f5; border: 1px solid #ffffff2e; padding: 0 10px; font: inherit; font-size: 14px;">
+                      <option value="inherit">Wie Bibliothek (Nur neue Folgen)</option>
+                      <option value="new">Nur neue Folgen</option>
+                      <option value="gaps">Neue und fehlende Folgen</option>
+                      <option value="lastn">Neue + letzte 10</option>
+                      <option value="all">Alle Folgen</option>
+                    </select>
+                  </label>
+                  <span style="font-size: 13px; color: #b6b9c4;">Ordner: <span style="color: #f3f3f5; overflow-wrap: anywhere;">/media/Audiobookshelf/Podcast/{{r.folder}}/</span></span>
+                </div>
+              </sc-if>
+            </div>
+            <div style="flex: 1 1 380px; min-width: 0; background: #1a1c24; border: 1px solid #ffffff14; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+              <span style="font-size: 14px; font-weight: 600;">Feed</span>
+              <span style="font-size: 13px; color: #b6b9c4; overflow-wrap: anywhere;">{{r.feed}}</span>
+              <span style="font-size: 13px; color: #b6b9c4;">Letzter Abruf: <span style="color: #f3f3f5;">{{r.checked}}</span></span>
+              <sc-if value="{{r.hasError}}" hint-placeholder-val="{{false}}">
+                <div style="border: 1px solid #ff8f7a; background: #ff8f7a1f; border-radius: 10px; padding: 10px 12px; font-size: 13px; line-height: 1.45;">{{r.error}}</div>
+              </sc-if>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto;">
+                <button class="k-btn" onClick="{{r.refresh}}" style="min-height: 44px; padding: 0 14px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">Jetzt abrufen</button>
+                <sc-if value="{{r.canLoad}}" hint-placeholder-val="{{false}}">
+                  <button class="k-btn" onClick="{{r.loadMissing}}" style="min-height: 44px; padding: 0 14px; border-radius: 22px; background: #e8794a; color: #1c0d06; border: 0; font-size: 14px; font-weight: 600;">{{r.loadLabel}}</button>
+                </sc-if>
+                <a href="Podcast.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: 22px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none; font-size: 14px;">Folgen ansehen</a>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-for>
+    <sc-if value="{{empty}}" hint-placeholder-val="{{false}}">
+      <div style="padding: 24px 16px; font-size: 14px; color: #b6b9c4;">Kein Podcast passt zu Filter und Suche.</div>
+    </sc-if>
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1560}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { filter: 'all', q: '', sort: 'title', open: { zw: true }, mode: { ww: 'link', tg: 'link' }, scope: {}, prog: { ug: 0.43 }, fetching: {}, local: {} };
+  }
+  componentDidMount() {
+    var self = this;
+    this.timer = setInterval(function () {
+      var prog = self.state.prog, ids = Object.keys(prog);
+      if (!ids.length) return;
+      var next = {}, local = Object.assign({}, self.state.local);
+      ids.forEach(function (id) {
+        var v = prog[id] + 0.07;
+        if (v >= 1) local[id] = 'all'; else next[id] = v;
+      });
+      self.setState({ prog: next, local: local });
+    }, 450);
+  }
+  componentWillUnmount() { clearInterval(this.timer); }
+  data() {
+    return [
+      { id: 'ug', title: '{ungeskriptet} - Der Meinungsfreiheit verpflichtet.', author: 'Ben Berndt', ini: 'UG', hue: 12, eps: 374, local: 371, gb: 41.2, newest: 'heute, 06:00', age: 0, explicit: true },
+      { id: 'zg', title: 'Zum Glück ist Freitag', author: 'SRF', ini: 'ZG', hue: 48, eps: 51, local: 51, gb: 2.1, newest: 'Freitag', age: 3 },
+      { id: 'zv', title: 'Zu viel! – der Mental-Health-Podcast', author: 'ARD', ini: 'ZV', hue: 300, eps: 61, local: 61, gb: 2.6, newest: 'vor 5 Tagen', age: 5 },
+      { id: 'zw', title: 'ZEIT WISSEN. Woher weisst Du das?', author: 'DIE ZEIT', ini: 'ZW', hue: 210, eps: 151, local: 148, gb: 6.9, newest: 'gestern', age: 1 },
+      { id: 'wm', title: 'Wissenschaftsmagazin', author: 'SRF', ini: 'WM', hue: 160, eps: 50, local: 50, gb: 1.3, newest: 'Samstag', age: 2 },
+      { id: 'wk', title: 'Wissen Weekly', author: 'Spotify Studios', ini: 'WW', hue: 90, eps: 267, local: 260, gb: 5.4, newest: 'vor 4 Tagen', age: 4 },
+      { id: 'ww', title: 'Weltwoche Daily', author: 'Weltwoche', ini: 'WD', hue: 0, eps: 2017, local: 545, gb: 12.9, newest: 'heute, 07:00', age: 0 },
+      { id: 'wb', title: 'Was bisher geschah - Geschichtspodcast', author: 'Wondery', ini: 'WB', hue: 28, eps: 181, local: 181, gb: 9.8, newest: 'vor 6 Tagen', age: 6 },
+      { id: 'wz', title: 'WDR Zeitzeichen', author: 'WDR', ini: 'WZ', hue: 235, eps: 606, local: 420, gb: 5.1, newest: 'heute, 05:00', age: 0 },
+      { id: 'vn', title: 'Verbrechen von nebenan: True Crime aus der Nachbarschaft', author: 'Philipp Fleiter', ini: 'VN', hue: 340, eps: 210, local: 210, gb: 11.4, newest: 'vor 3 Tagen', age: 3 },
+      { id: 'uf', title: 'UNFASSBAR – ein Simplicissimus Podcast', author: 'Simplicissimus', ini: 'UN', hue: 265, eps: 64, local: 64, gb: 3.0, newest: 'vor 8 Tagen', age: 8 },
+      { id: 'tc', title: 'True Crime Schweiz', author: 'CH Media', ini: 'TC', hue: 185, eps: 22, local: 22, gb: 0.9, newest: 'vor 12 Tagen', age: 12 },
+      { id: 'tg', title: 'Tagesgespräch', author: 'SRF', ini: 'TG', hue: 130, eps: 106, local: 90, gb: 2.2, newest: 'heute, 13:00', age: 0 },
+      { id: 'sp', title: 'Sternstunde Philosophie', author: 'SRF', ini: 'SP', hue: 60, eps: 101, local: 101, gb: 5.6, newest: 'vor 9 Tagen', age: 9, error: 'Feed nicht erreichbar: der Server des Anbieters antwortet mit HTTP 503. Slouchcat versucht es in 55 Minuten wieder; gespeicherte Folgen bleiben abspielbar.' }
+    ];
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var nf = function (n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); };
+    var gbf = function (g) { return g.toFixed(1).replace('.', ',') + ' GB'; };
+    var pill = function (on) {
+      return 'min-height: 40px; padding: 0 14px; border-radius: 20px; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: #f3f3f5; border: 1px solid ' + (on ? '#e8794a' : '#ffffff2e') + '; background: ' + (on ? '#e8794a33' : '#1d2029') + ';';
+    };
+    var all = this.data().map(function (p) {
+      var mode = st.mode[p.id] || 'inherit';
+      var saves = mode !== 'link';
+      var local = st.local[p.id] === 'all' ? p.eps : p.local;
+      var prog = st.prog[p.id];
+      var loading = prog !== undefined, fetching = !!st.fetching[p.id];
+      var state = loading ? 'loading' : (p.error ? 'error' : 'ok');
+      return Object.assign({}, p, { mode: mode, saves: saves, localNow: local, prog: prog, loading: loading, fetching: fetching, state: state });
+    });
+    var match = function (p, f) {
+      if (f === 'save') return p.saves;
+      if (f === 'link') return !p.saves;
+      if (f === 'loading') return p.loading;
+      if (f === 'error') return p.state === 'error';
+      return true;
+    };
+    var filters = [['all', 'Alle'], ['save', 'Speichert'], ['link', 'Nur Link'], ['loading', 'Lädt'], ['error', 'Fehler']].map(function (d) {
+      var on = st.filter === d[0];
+      return {
+        label: d[1], pressed: on ? 'true' : 'false', count: String(all.filter(function (p) { return match(p, d[0]); }).length),
+        pick: function () { self.setState({ filter: d[0] }); }, style: pill(on),
+        countStyle: 'font-size: 12px; min-width: 20px; height: 20px; line-height: 20px; border-radius: 10px; text-align: center; background: ' + (on ? '#e8794a' : '#ffffff1f') + '; color: ' + (on ? '#1c0d06' : '#d0d2da') + ';'
+      };
+    });
+    var q = st.q.trim().toLowerCase();
+    var shown = all.filter(function (p) { return match(p, st.filter) && (!q || (p.title + ' ' + p.author).toLowerCase().indexOf(q) >= 0); });
+    var cmp = { title: function (a, b) { return a.title.replace(/^\W+/, '').localeCompare(b.title.replace(/^\W+/, ''), 'de'); }, newest: function (a, b) { return a.age - b.age; }, size: function (a, b) { return b.gb - a.gb; }, eps: function (a, b) { return b.eps - a.eps; } }[st.sort];
+    shown.sort(cmp);
+    var set = function (key, id, val) { var o = Object.assign({}, st[key]); if (val === undefined) delete o[id]; else o[id] = val; var s = {}; s[key] = o; self.setState(s); };
+    var rows = shown.map(function (p) {
+      var open = !!st.open[p.id];
+      var missing = p.eps - p.localNow;
+      var modeText = p.saves ? 'Speichert' : 'Nur Link';
+      var stateText = p.fetching ? 'Wird abgerufen' : p.loading ? 'Lädt ' + Math.round(p.prog * 100) + ' %' : p.state === 'error' ? 'Feed-Fehler' : 'Aktuell';
+      var stateTone = p.fetching || p.loading ? ['#7fb2ff', '#7fb2ff24'] : p.state === 'error' ? ['#ff8f7a', '#ff8f7a24'] : ['#b6b9c4', 'transparent'];
+      var modeHint = p.mode === 'inherit' ? 'Vorgabe der Bibliothek: neue Folgen werden als Datei im Ordner gespeichert.' : p.mode === 'save' ? 'Abweichend von der Bibliothek: neue Folgen werden immer gespeichert.' : 'Abweichend von der Bibliothek: neue Folgen bleiben ein Link zum Anbieter und werden beim Abspielen über Slouchcat gestreamt. Vorhandene Dateien bleiben.';
+      return {
+        title: p.title, author: p.author, initials: p.ini, folder: p.title.replace(/[{}?:]/g, ''),
+        coverStyle: 'flex: 0 0 56px; width: 56px; height: 56px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; letter-spacing: 0.5px; color: #0b0c10; background: linear-gradient(135deg, hsl(' + p.hue + ' 70% 72%), hsl(' + ((p.hue + 40) % 360) + ' 60% 52%));',
+        modeText: modeText, override: p.mode !== 'inherit', explicit: !!p.explicit, saves: p.saves,
+        modeChip: 'font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 6px; ' + (p.saves ? 'background: #8fd6b0; color: #06140c;' : 'border: 1px solid #ffffff5c; color: #f3f3f5;'),
+        eps: nf(p.eps), size: gbf(p.gb), newest: p.newest,
+        localText: missing === 0 ? 'alle gespeichert' : nf(p.localNow) + ' gespeichert · ' + nf(missing) + ' nur Link',
+        bar: 'height: 5px; border-radius: 3px; background: #8fd6b0; width: ' + Math.round(100 * (p.loading ? (p.localNow + missing * p.prog) : p.localNow) / p.eps) + '%;',
+        stateText: stateText, stateStyle: 'display: inline-flex; align-items: center; min-height: 26px; padding: 0 10px; border-radius: 13px; font-size: 13px; color: ' + stateTone[0] + '; background: ' + stateTone[1] + '; border: 1px solid ' + (stateTone[1] === 'transparent' ? '#ffffff2e' : stateTone[0]) + ';',
+        open: open, expanded: open ? 'true' : 'false', toggleLabel: (open ? 'Einklappen: ' : 'Aufklappen: ') + p.title,
+        toggle: function () { set('open', p.id, open ? undefined : true); },
+        chevron: 'transition: transform 0.15s; transform: rotate(' + (open ? 180 : 0) + 'deg);',
+        modeOpts: [['inherit', 'Wie Bibliothek (Speichern)'], ['save', 'Speichern'], ['link', 'Nur Link']].map(function (d) {
+          var on = p.mode === d[0];
+          return { label: d[1], pressed: on ? 'true' : 'false', style: pill(on), pick: function () { set('mode', p.id, d[0] === 'inherit' ? undefined : d[0]); } };
+        }),
+        modeHint: modeHint, scope: st.scope[p.id] || 'inherit',
+        setScope: function (e) { set('scope', p.id, e.target.value); },
+        feed: 'https://feeds.example.org/' + p.id + '/podcast.xml', checked: p.fetching ? 'läuft …' : 'heute, 22:21',
+        hasError: p.state === 'error' && !p.fetching, error: p.error || '',
+        refresh: function () { set('fetching', p.id, true); setTimeout(function () { var o = Object.assign({}, self.state.fetching); delete o[p.id]; self.setState({ fetching: o }); }, 1800); },
+        canLoad: p.saves && missing > 0 && !p.loading, loadLabel: nf(missing) + ' fehlende Folgen nachladen',
+        loadMissing: function () { set('prog', p.id, 0.02); }
+      };
+    });
+    var saving = all.filter(function (p) { return p.saves; }).length;
+    var total = all.reduce(function (s, p) { return s + p.gb; }, 0);
+    var queue = all.filter(function (p) { return p.loading; }).length;
+    return {
+      q: st.q, sort: st.sort, filters: filters, rows: rows, empty: rows.length === 0,
+      setQ: function (e) { self.setState({ q: e.target.value }); },
+      setSort: function (e) { self.setState({ sort: e.target.value }); },
+      refreshAll: function () {
+        var f = {}; all.forEach(function (p) { f[p.id] = true; });
+        self.setState({ fetching: f }); setTimeout(function () { self.setState({ fetching: {} }); }, 2200);
+      },
+      kpis: [
+        { label: 'Podcasts', value: String(all.length), note: 'gezeigt von 94' },
+        { label: 'Neue Folgen', value: saving + ' speichern', note: (all.length - saving) + ' nur Link' },
+        { label: 'Belegt auf dem NAS', value: gbf(total), note: '2,1 TB frei' },
+        { label: 'Downloads', value: queue ? queue + ' laufen' : 'Keine', note: queue ? 'höchstens 2 gleichzeitig' : 'Warteschlange leer' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
