@@ -68,21 +68,38 @@ describe('useBackFocus', () => {
   });
 
   it('brings a card that is not mounted back by its place, then focuses it', async () => {
-    const list = { indexOf: vi.fn(() => 640), reveal: vi.fn() };
+    const list = { indexOf: vi.fn(() => 640), reveal: vi.fn(() => true) };
     const router = makeRouter(['grid-a', 'grid-b'], list);
     await leaveAndReturn(router, 'grid-z');
     expect(list.indexOf).toHaveBeenCalledWith('grid-z');
-    // The cards drawn now do not hold it: its place comes into view, once.
+    // The cards drawn now do not hold it: its place comes into view, again when other cards are
+    // drawn without it (the router's scroll came after), at most three times.
     await waitFor(() => expect(list.reveal).toHaveBeenCalledWith(640));
-    act(() => shown.set?.(['grid-y']));
-    expect(list.reveal).toHaveBeenCalledTimes(1);
+    for (const keys of [['grid-x'], ['grid-w'], ['grid-v'], ['grid-y']])
+      act(() => shown.set?.(keys));
+    expect(list.reveal).toHaveBeenCalledTimes(3);
     expect(setSpatialFocus).not.toHaveBeenCalled();
     act(() => shown.set?.(['grid-y', 'grid-z']));
     await waitFor(() => expect(setSpatialFocus).toHaveBeenCalledWith('grid-z'));
   });
 
+  it('counts only the reveals that scrolled (the place drawn, its page on the way)', async () => {
+    const list = { indexOf: vi.fn(() => 640), reveal: vi.fn(() => false) };
+    const router = makeRouter(['grid-a'], list);
+    await leaveAndReturn(router, 'grid-z');
+    for (const keys of [['grid-x'], ['grid-w'], ['grid-v'], ['grid-u']]) {
+      act(() => shown.set?.(keys));
+    }
+    await waitFor(() => expect(list.reveal).toHaveBeenCalledTimes(5));
+    list.reveal.mockReturnValue(true);
+    for (const keys of [['grid-t'], ['grid-s'], ['grid-r'], ['grid-q']]) {
+      act(() => shown.set?.(keys));
+    }
+    expect(list.reveal).toHaveBeenCalledTimes(8);
+  });
+
   it('waits for the first card before it brings a place back', async () => {
-    const list = { indexOf: vi.fn(() => 12), reveal: vi.fn() };
+    const list = { indexOf: vi.fn(() => 12), reveal: vi.fn(() => true) };
     const router = makeRouter([], list);
     await leaveAndReturn(router, 'grid-q');
     expect(list.reveal).not.toHaveBeenCalled();
@@ -91,7 +108,7 @@ describe('useBackFocus', () => {
   });
 
   it('remembers nothing for a focus outside the grid', async () => {
-    const list = { indexOf: vi.fn(() => 3), reveal: vi.fn() };
+    const list = { indexOf: vi.fn(() => 3), reveal: vi.fn(() => true) };
     const router = makeRouter(['grid-a'], list);
     await leaveAndReturn(router, 'library-sort');
     act(() => shown.set?.(['grid-a', 'grid-b']));

@@ -214,3 +214,220 @@ test('on a phone the letter bar runs above a grid of three columns', async ({ pa
   expect(tops[2]).toBe(tops[0]);
   expect(tops[3]).toBeGreaterThan(tops[0] ?? 0);
 });
+
+// Concept 17 section 6 (D-6): a large library in the virtual grid, by keyboard. The library
+// "Filme" answers with 1'800 made-up titles (360 rows of five at 1280 px beside the side
+// navigation, posters without a file), each page 300 ms late, so the grid meets its empty places
+// (plan C-5, M-8).
+test.describe('a large library in the virtual grid', () => {
+  test.use({ serviceWorkers: 'block', viewport: { width: 1280, height: 800 } });
+
+  const TOTAL = 1800;
+  const NUMBERS = 32;
+  const PER_LETTER = 68;
+  const DELAY_MS = 300;
+  /** Budget of one arrow press: the quiet time (100 ms), the late page and drawing it. */
+  const PRESS_MS = 2_000;
+
+  const letterOf = (index: number) =>
+    index < NUMBERS ? '#' : String.fromCharCode(65 + Math.floor((index - NUMBERS) / PER_LETTER));
+  const fake = (index: number) => ({
+    id: `01J9E2EB1GL1BRARY${String(index).padStart(9, '0')}`,
+    kind: 'movie',
+    title: index < NUMBERS ? `${index} Nummer` : `${letterOf(index)} Titel ${index}`,
+    inWatchlist: false,
+    year: 2000,
+    images: {},
+  });
+  const letterStarts = [
+    { letter: '#', offset: 0 },
+    ...Array.from({ length: 26 }, (_, n) => ({
+      letter: String.fromCharCode(65 + n),
+      offset: NUMBERS + n * PER_LETTER,
+    })),
+  ];
+
+  async function openLarge(page: Page, owner: APIRequestContext): Promise<number> {
+    const id = await libraryId(owner, LIBRARY);
+    await page.route(`**/api/v1/libraries/${id}/items?*`, async (route) => {
+      const url = new URL(route.request().url());
+      const offset = Number(url.searchParams.get('offset') ?? 0);
+      const limit = Number(url.searchParams.get('limit') ?? 50);
+      if (offset > 0) await new Promise((resolve) => setTimeout(resolve, DELAY_MS));
+      await route.fulfill({
+        json: {
+          items: Array.from({ length: Math.max(0, Math.min(limit, TOTAL - offset)) }, (_, n) =>
+            fake(offset + n),
+          ),
+          total: TOTAL,
+          offset,
+          limit,
+          facets: {
+            letters: ['#', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'],
+            genres: [],
+            ratings: [],
+            ...(offset === 0 ? { letterStarts } : {}),
+          },
+        },
+      });
+    });
+    await page.goto(`/libraries/${id}`);
+    await expect(page.getByRole('status').filter({ hasText: `${TOTAL} Titel` })).toBeVisible();
+    await expect(cards(page).first()).toBeVisible();
+    return id;
+  }
+
+  /** The grid's columns, from its CSS (five at 1280 px). */
+  const columnsOf = (page: Page) =>
+    grid(page).evaluate((list) => getComputedStyle(list).gridTemplateColumns.split(' ').length);
+
+  /** The place of the focused element in the grid, or -1 outside it. */
+  const focusedPlace = (page: Page) =>
+    page.evaluate(() => {
+      const place = document.activeElement?.closest<HTMLElement>('[data-index]');
+      return place ? Number(place.dataset.index) : -1;
+    });
+
+  /** Places in view without a card (an empty row the reader would see). */
+  const emptyInView = (page: Page) =>
+    page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>('[data-index]')]
+        .filter((place) => {
+          const box = place.getBoundingClientRect();
+          return box.bottom > 0 && box.top < window.innerHeight;
+        })
+        .filter((place) => place.querySelector('a[href]') === null)
+        .map((place) => Number(place.dataset.index)),
+    );
+
+  test('ArrowDown walks all 360 rows without losing the focus @keyboard', async ({
+    page,
+    owner,
+  }) => {
+    // 360 presses, each within its budget: the test takes longer than one page view.
+    test.setTimeout(360 * PRESS_MS);
+    await openLarge(page, owner);
+    const COLUMNS = await columnsOf(page);
+    expect(COLUMNS).toBe(5);
+    await resetFocus(page);
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => focusedPlace(page)).toBe(0);
+    for (let row = 1; row < TOTAL / COLUMNS; row += 1) {
+      await page.keyboard.press('ArrowDown');
+      await expect
+        .poll(() => focusedPlace(page), { timeout: PRESS_MS, message: `row ${row}` })
+        .toBe(row * COLUMNS);
+    }
+    expect(await focusedPlace(page)).toBe(TOTAL - COLUMNS);
+    await expectVisibleFocus(page);
+    await expect(page.locator(':focus')).toBeInViewport();
+    await expect.poll(() => emptyInView(page)).toEqual([]);
+    // The last row: ArrowDown keeps the focus in it.
+    await page.keyboard.press('ArrowDown');
+    expect(await focusedPlace(page)).toBeGreaterThanOrEqual(TOTAL - COLUMNS);
+  });
+
+  test('a letter jumps; Enter opens a card and back returns to it @keyboard', async ({
+    page,
+    owner,
+  }) => {
+    const id = await openLarge(page, owner);
+    const COLUMNS = await columnsOf(page);
+    const m = NUMBERS + 12 * PER_LETTER;
+    await letter(page, 'M').focus();
+    await page.keyboard.press('Enter');
+    await expect.poll(() => focusedPlace(page)).toBe(m);
+    await expectVisibleFocus(page);
+    await expect(page.locator(':focus')).toBeInViewport();
+    await expect(page.locator(':focus')).toContainText('M Titel');
+    await expect(letter(page, 'M')).toHaveAttribute('aria-current', 'true');
+    await expect.poll(() => emptyInView(page)).toEqual([]);
+    // Two rows down, Enter, back: the same card with the focus, in view.
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    const chosen = m + 2 * COLUMNS;
+    await expect.poll(() => focusedPlace(page)).toBe(chosen);
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(`/items/${fake(chosen).id}`);
+    await page.goBack();
+    await expect(page).toHaveURL(`/libraries/${id}`);
+    await expect.poll(() => focusedPlace(page)).toBe(chosen);
+    await expect(page.locator(':focus')).toBeInViewport();
+    await expectVisibleFocus(page);
+
+    // Back at another width (fewer columns, the card in another row): its place comes back into
+    // view, then its card with the focus.
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(`/items/${fake(chosen).id}`);
+    await page.setViewportSize({ width: 1060, height: 800 });
+    await page.goBack();
+    await expect.poll(() => columnsOf(page)).toBeLessThan(COLUMNS);
+    await expect.poll(() => focusedPlace(page)).toBe(chosen);
+    await expect(page.locator(':focus')).toBeInViewport();
+  });
+
+  test('Tab leaves the grid after the last card; the wheel keeps the focus @keyboard', async ({
+    page,
+    owner,
+    browserName,
+  }) => {
+    await openLarge(page, owner);
+    const COLUMNS = await columnsOf(page);
+    // The focus on the first card stays while the wheel scrolls far away from it.
+    await resetFocus(page);
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => focusedPlace(page)).toBe(0);
+    const first = page.locator(':focus');
+    const href = await first.getAttribute('href');
+    await page.mouse.move(400, 400);
+    // Firefox scrolls less per wheel turn than Chromium: turn until far enough.
+    const scrolled = () => page.evaluate(() => window.scrollY);
+    for (let turn = 0; turn < 40 && (await scrolled()) <= 10_000; turn += 1) {
+      await page.mouse.wheel(0, 2_000);
+    }
+    await expect.poll(scrolled).toBeGreaterThan(10_000);
+    await expect.poll(() => emptyInView(page), { timeout: 5_000 }).toEqual([]);
+    expect(await focusedPlace(page)).toBe(0);
+    await expect(grid(page).locator(`a[href="${href}"]`)).toBeFocused();
+    // ArrowDown goes on from it.
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => focusedPlace(page)).toBe(COLUMNS);
+
+    // The last card of the list: Tab through its controls, then out of the grid.
+    await letter(page, 'Z').focus();
+    await page.keyboard.press('Enter');
+    await expect.poll(() => focusedPlace(page)).toBe(NUMBERS + 25 * PER_LETTER);
+    for (let place = await focusedPlace(page); place < TOTAL - COLUMNS;) {
+      await page.keyboard.press('ArrowDown');
+      await expect
+        .poll(() => focusedPlace(page), { timeout: PRESS_MS })
+        .toBe(Math.min(place + COLUMNS, TOTAL - 1));
+      place = await focusedPlace(page);
+    }
+    for (let place = await focusedPlace(page); place < TOTAL - 1; place += 1) {
+      await page.keyboard.press('ArrowRight');
+      await expect.poll(() => focusedPlace(page)).toBe(place + 1);
+    }
+    await expect.poll(() => focusedPlace(page)).toBe(TOTAL - 1);
+    const last = grid(page).locator(`[data-index="${TOTAL - 1}"]`);
+    const controls = await last.locator('a[href], button:not([disabled])').all();
+    // Each Tab waits for its focus (Firefox moves it a moment after the key on a fresh cell).
+    for (const control of controls.slice(1)) {
+      await page.keyboard.press('Tab');
+      await expect(control).toBeFocused();
+    }
+    // The grid lets this Tab go (it keeps only a Tab towards a place not drawn or still empty).
+    // Nothing focusable follows the grid, so the focus leaves the page; Firefox (headless) keeps it
+    // on the button at the end of the document, Chromium hands it on.
+    await page.evaluate(() => {
+      window.addEventListener(
+        'keydown',
+        (event) => document.body.setAttribute('data-tab-prevented', String(event.defaultPrevented)),
+        { once: true },
+      );
+    });
+    await page.keyboard.press('Tab');
+    await expect(page.locator('body')).toHaveAttribute('data-tab-prevented', 'false');
+    if (browserName === 'chromium') await expect.poll(() => isInside(grid(page))).toBe(false);
+  });
+});

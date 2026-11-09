@@ -40,8 +40,8 @@ interface LibraryGridProps {
   /** Square covers (audiobooks and podcasts). */
   square: boolean;
   tool?: (item: ItemRef) => ReactNode;
-  /** The drawn places (for their pages) and the first place in view. */
-  onRange: (range: DrawnRange, top: number) => void;
+  /** The drawn places (for their pages) and the places of the top row in view below the header. */
+  onRange: (range: DrawnRange, top: DrawnRange) => void;
   ref?: Ref<LibraryGridHandle>;
 }
 
@@ -122,7 +122,8 @@ export function LibraryGrid({
   const columns = metrics?.columns ?? 1;
   const rows = metrics ? Math.ceil(total / columns) : 0;
   const rowSize = metrics ? metrics.card + metrics.rowGap : 1;
-  // The row with the focus stays drawn, else a scroll with the wheel would drop the focus.
+  // The row with the focus stays drawn, else a scroll with the wheel would drop the focus; so does
+  // the row the focus is on its way to (norigin sets it a little later).
   const focusedRow = useRef<number | null>(null);
   const rangeExtractor = useCallback((range: Range) => {
     const drawn = defaultRangeExtractor(range);
@@ -149,10 +150,16 @@ export function LibraryGrid({
   const lastRow = Math.min(rows - 1, (visible?.endIndex ?? 0) + overscan);
   const drawnStart = firstRow * columns;
   const drawnEnd = rows > 0 ? (lastRow + 1) * columns - 1 : -1;
-  const top = (visible?.startIndex ?? 0) * columns;
+  const below = (virtualizer.scrollOffset ?? 0) + (metrics?.header ?? 0);
+  const topRow =
+    virtualRows.find((row) => row.end - (metrics?.rowGap ?? 0) > below)?.index ??
+    visible?.startIndex ??
+    0;
+  const topStart = topRow * columns;
+  const topEnd = Math.min(topStart + columns - 1, total - 1);
   useEffect(() => {
-    if (rows > 0) onRange({ start: drawnStart, end: drawnEnd }, top);
-  }, [drawnEnd, drawnStart, onRange, rows, top]);
+    if (rows > 0) onRange({ start: drawnStart, end: drawnEnd }, { start: topStart, end: topEnd });
+  }, [drawnEnd, drawnStart, onRange, rows, topEnd, topStart]);
 
   const indexes = useMemo(
     () =>
@@ -198,6 +205,7 @@ export function LibraryGrid({
 
   const go = (index: number, part: Pending['part'], align: 'auto' | 'start' = 'auto') => {
     pending.current = { index, part, from: document.activeElement };
+    focusedRow.current = Math.floor(index / live.current.columns);
     virtualizer.scrollToIndex(Math.floor(index / live.current.columns), { align });
     settle();
   };
@@ -279,8 +287,12 @@ export function LibraryGrid({
       return index < 0 ? undefined : index;
     },
     reveal: (index) => {
-      if (cell(index)) return; // drawn: the router's scroll stands, its page is on the way
+      if (index >= live.current.total) return false; // past the end: gone
+      focusedRow.current = Math.floor(index / live.current.columns);
+      // Drawn: the router's scroll stands and its page is on the way.
+      if (cell(index)) return false;
       virtualizer.scrollToIndex(Math.floor(index / live.current.columns), { align: 'center' });
+      return true;
     },
   });
 

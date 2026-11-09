@@ -88,13 +88,12 @@ function LibraryView({ id }: { id: number | null }) {
   const request = useMemo(() => libraryRequest(params), [params]);
   const grid = useRef<LibraryGridHandle>(null);
   const [drawn, setDrawn] = useState<DrawnRange>({ start: 0, end: 0 });
-  // The first place in view: its letter is marked in the letter bar.
-  const [top, setTop] = useState(0);
-  const onRange = useCallback((range: DrawnRange, first: number) => {
-    setDrawn((previous) =>
-      previous.start === range.start && previous.end === range.end ? previous : range,
-    );
-    setTop(first);
+  // The top row in view: the letter bar marks its letter (LibraryGrid onRange).
+  const [top, setTop] = useState<DrawnRange>({ start: 0, end: 0 });
+  const onRange = useCallback((range: DrawnRange, row: DrawnRange) => {
+    const same = (a: DrawnRange, b: DrawnRange) => a.start === b.start && a.end === b.end;
+    setDrawn((previous) => (same(previous, range) ? previous : range));
+    setTop((previous) => (same(previous, row) ? previous : row));
   }, []);
   const { first: query, slots } = useLibraryPages(id, request, drawn);
   const notFound = id === null || (libraries.isSuccess && !library) || isApiError(query.error, 404);
@@ -215,7 +214,12 @@ function LibraryView({ id }: { id: number | null }) {
   // have none (F-12). `#` can start twice (digits first, other scripts last): the first counts.
   const starts = facets.letterStarts ?? [];
   const showLetters = sort === 'title' && library.kind !== 'podcasts' && starts.length > 0;
-  const currentLetter = starts.findLast((start) => start.offset <= top)?.letter;
+  // The marked letter: the first one that starts in the top row in view (a jump puts its row
+  // there, after the end of the letter before), else the one the row lies in.
+  const currentLetter = (
+    starts.find((start) => start.offset >= top.start && start.offset <= top.end) ??
+    starts.findLast((start) => start.offset <= top.start)
+  )?.letter;
   const jump = (letter: string) => {
     const start = starts.find((entry) => entry.letter === letter);
     if (start) grid.current?.jump(start.offset);
