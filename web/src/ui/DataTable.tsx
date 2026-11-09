@@ -157,12 +157,12 @@ export function DataTable<T>({
     node.addEventListener('keydown', moveBetweenRows);
     return () => node.removeEventListener('keydown', moveBetweenRows);
   }, []);
-  const frame = useRef<HTMLDivElement>(null);
+  // The rows start at the body, below the header row: its top is the scroll margin.
   const places = useVirtualPlaces({
     count: rows.length,
     virtual,
     estimate: ROW_ESTIMATE,
-    root: frame,
+    root: body,
     onRange,
     ready: (index) => rows[index] !== undefined,
     arrows: true,
@@ -181,8 +181,12 @@ export function DataTable<T>({
       </tr>
     ) : null;
   return (
-    <div ref={frame} className={styles.frame}>
-      <table className={`${styles.table} ${layout === 'fixed' ? styles.fixed : ''}`}>
+    <div className={styles.frame}>
+      <table
+        className={`${styles.table} ${layout === 'fixed' ? styles.fixed : ''}`}
+        // A virtual table has only some of its rows in the document: their count and positions.
+        {...(virtual ? { 'aria-rowcount': rows.length + 1 } : {})}
+      >
         <caption className={styles.caption}>{caption}</caption>
         {layout === 'fixed' && (
           <colgroup>
@@ -200,7 +204,7 @@ export function DataTable<T>({
           </colgroup>
         )}
         <thead>
-          <tr>
+          <tr {...(virtual ? { 'aria-rowindex': 1 } : {})}>
             {columns.map((column) => (
               <th
                 key={column.key}
@@ -222,7 +226,10 @@ export function DataTable<T>({
             // Room for the rows above that are not drawn (useVirtualPlaces).
             const room = spacer(space, index);
             // A virtual table measures each drawn row (useVirtualPlaces).
-            const measured = virtual ? { 'data-index': index, ref: places.measure } : {};
+            // Its position among all rows (the header row is the first) for screen readers.
+            const measured = virtual
+              ? { 'data-index': index, ref: places.measure, 'aria-rowindex': index + 2 }
+              : {};
             if (row === undefined) {
               // An empty place: a record row without controls, so ↑/↓ stop at it until it fills.
               return (

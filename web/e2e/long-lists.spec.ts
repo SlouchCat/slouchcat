@@ -1,11 +1,12 @@
 import type { Page, Route } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { expectVisibleFocus } from './keyboard';
+import { expectFocusOn, expectVisibleFocus } from './keyboard';
 
 // Concept 18 C-3: no list has «Mehr laden» any more; a long one reads its pages as it scrolls and
-// draws only the rows near the view. The test media hold no list this long, so the two lists come
-// from routes: an inbox of 450 entries and the station table of the administration with 40'000.
-// The keyboard rules are concept 17 6.2 point 2: ↓ and Tab go on past what is drawn.
+// draws only the rows near the view. The test media hold no list this long, so the lists come from
+// routes: an inbox of 450 entries, the station table of the administration with 40'000 and a
+// watchlist of 150. The keyboard rules are concept 17 6.2 point 2: ↓ and Tab go on past what is
+// drawn.
 
 // The routes answer the page; a service worker would fetch past them.
 test.use({ serviceWorkers: 'block' });
@@ -140,4 +141,63 @@ test("the station table of 40'000 draws a few rows and ↓ goes on past them @ke
     table.getByRole('rowheader', { name: /^Sender (19|20)\d{3}$/ }).first(),
   ).toBeVisible();
   expect(offsets.length).toBeLessThan(10);
+
+  // ↑ onto a row above the drawn ones scrolls it into view below the fixed header, not under it.
+  const top = Number(
+    await table.locator('tbody tr[data-place]').first().getAttribute('data-place'),
+  );
+  await edit(top + 2).focus();
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');
+  await expect(edit(top)).toBeFocused();
+  const header = await page.getByRole('banner').boundingBox();
+  const row = await edit(top).boundingBox();
+  expect(row!.y).toBeGreaterThanOrEqual(header!.y + header!.height - 1);
+});
+
+const WATCHLIST = 150;
+
+test('focus stays after removing on page 2 of the watchlist @keyboard', async ({ page }) => {
+  // The titles' numbers in order; «Entfernen» takes one off. A second read of page 2 answers
+  // late, so page 1 with the new total is there first (the order after an invalidation).
+  const titles = Array.from({ length: WATCHLIST }, (_, n) => n + 1);
+  const offsets: number[] = [];
+  await page.route('**/api/v1/watchlist?*', async (route: Route) => {
+    const query = new URL(route.request().url()).searchParams;
+    const offset = Number(query.get('offset') ?? 0);
+    const limit = Number(query.get('limit') ?? 100);
+    offsets.push(offset);
+    const answer = {
+      total: titles.length,
+      offset,
+      limit,
+      items: titles.slice(offset, offset + limit).map((n) => ({
+        id: `01JWATCHLIST${String(n).padStart(14, '0')}`,
+        kind: 'movie',
+        title: `Titel ${n}`,
+        inWatchlist: true,
+        images: {},
+      })),
+    };
+    if (offset > 0 && titles.length < WATCHLIST) await new Promise((late) => setTimeout(late, 800));
+    await route.fulfill({ json: answer });
+  });
+  await page.route('**/api/v1/items/*/watchlist', async (route: Route) => {
+    titles.splice(titles.indexOf(121), 1);
+    await route.fulfill({ status: 204 });
+  });
+  await page.goto('/watchlist');
+  const grid = page.getByRole('list', { name: 'Merkliste' });
+  const remove = (n: number) =>
+    grid.getByRole('button', { name: `Titel ${n} von der Merkliste entfernen` });
+  await expect(remove(150)).toBeAttached();
+  await remove(121).focus();
+  await page.keyboard.press('Enter');
+  // The focus goes to the neighbour and stays there while page 2 is read again and after.
+  await expectFocusOn(page, remove(122));
+  await expect.poll(() => offsets.filter((offset) => offset === 100).length).toBe(2);
+  await expect(grid.getByRole('link', { name: /^Titel 150\b/ })).toBeAttached();
+  await expect(remove(121)).toHaveCount(0);
+  await expectFocusOn(page, remove(122));
+  await expect(grid.getByRole('listitem')).toHaveCount(WATCHLIST - 1);
 });

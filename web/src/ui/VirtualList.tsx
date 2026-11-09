@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { SpatialGroup } from './spatial';
 import { useVirtualPlaces, type PlaceSpan } from './useVirtualPlaces';
 
@@ -29,8 +29,6 @@ interface VirtualListProps<T> {
   onRange?: (span: PlaceSpan) => void;
   /** Focus key of the list for the spatial navigation. */
   focusKey?: string;
-  /** The element that scrolls the list; the window when left out. */
-  scrollElement?: RefObject<HTMLElement | null>;
 }
 
 interface Layout {
@@ -72,7 +70,6 @@ export function VirtualList<T>({
   renderPlaceholder,
   onRange,
   focusKey,
-  scrollElement,
 }: VirtualListProps<T>) {
   const root = useRef<HTMLDivElement>(null);
   const [shape, setShape] = useState<Layout>({ columns: 1, columnWidth: 0, gap: 0 });
@@ -113,9 +110,9 @@ export function VirtualList<T>({
     count: slots.length,
     virtual,
     columns,
-    estimate: size + shape.gap,
+    // The virtualizer adds the gap between two rows itself.
+    estimate: size,
     gap: shape.gap,
-    scrollElement,
     root,
     onRange,
     ready: (index) => slots[index] !== undefined,

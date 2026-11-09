@@ -1,22 +1,14 @@
-import {
-  defaultRangeExtractor,
-  elementScroll,
-  observeElementOffset,
-  observeElementRect,
-  observeWindowOffset,
-  observeWindowRect,
-  useVirtualizer,
-  windowScroll,
-  type Range,
-} from '@tanstack/react-virtual';
+import { defaultRangeExtractor, useWindowVirtualizer, type Range } from '@tanstack/react-virtual';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 
 // The drawn part of a long list (concept 18 C-3): its places in rows of `columns`, only the rows
 // in view and a screen's height above and below in the document once the list is `virtual`, each
 // row measured as it is drawn. The keys follow concept 17 6.2 point 2: an arrow press or Tab
 // towards a place that is not drawn or still empty scrolls its row into view and focuses it once
-// its entry is there; the row with the focus stays drawn. VirtualList (lists and grids) and
-// DataTable (tables) draw the rows.
+// its entry is there, on the same control it left (the same column of a table); the row with the
+// focus stays drawn. In a grid ← and → first go through the controls of a place (a tile's heart)
+// before they leave it. VirtualList (lists and grids) and DataTable (tables) draw the rows; the
+// window scrolls them.
 
 /** The places a list should have read: `start` to `end`, both included. */
 export interface PlaceSpan {
@@ -31,12 +23,10 @@ interface VirtualPlacesOptions {
   virtual: boolean;
   /** Places per row (1 for a list). */
   columns?: number;
-  /** A row's expected height in px (with its gap), until it is measured. */
+  /** A row's expected height in px (without the gap), until it is measured. */
   estimate: number;
   /** The gap between two rows in px (the container's CSS row gap). */
   gap?: number;
-  /** The element that scrolls the list (a dialog's list); the window when left out. */
-  scrollElement?: RefObject<HTMLElement | null>;
   /** The list's element: the keys are handled on it and its top is the scroll margin. */
   root: RefObject<HTMLElement | null>;
   /**
@@ -67,16 +57,35 @@ export interface VirtualPlaces {
   after: number;
   /** Measures a drawn row: the element carries `data-index` (the row's index). */
   measure: (element: Element | null) => void;
-  /** Scrolls place `index` into view and focuses its first control once its entry is there. */
-  go: (index: number, part?: 'first' | 'last') => void;
+  /**
+   * Scrolls place `index` into view and focuses one of its controls once its entry is there: the
+   * first, the last, or the one at this position (the last of fewer).
+   */
+  go: (index: number, control?: Control) => void;
 }
+
+/** A control of a place: the first, the last, or the one at this position among its controls. */
+export type Control = 'first' | 'last' | number;
 
 /** The controls of a place that take the focus. */
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex="0"]';
 
+/** The height of the app's fixed header in px (the token), 0 without one. */
+function headerHeight(): number {
+  const probe = document.createElement('div');
+  probe.style.cssText =
+    'position:absolute;visibility:hidden;pointer-events:none;height:var(--sc-size-header-height)';
+  document.body.append(probe);
+  const height = probe.getBoundingClientRect().height;
+  probe.remove();
+  return height;
+}
+
 interface Pending {
   index: number;
-  part: 'first' | 'last';
+  control: Control;
+  /** The column of a table row whose control takes the focus, if that row has one there. */
+  column: number | null;
   /** The element focused when the move began; another focus meanwhile cancels it. */
   from: Element | null;
 }
@@ -98,27 +107,30 @@ export function useVirtualPlaces({
   columns = 1,
   estimate,
   gap = 0,
-  scrollElement,
   root,
   onRange,
   ready,
   arrows = false,
 }: VirtualPlacesOptions): VirtualPlaces {
   const rowCount = Math.ceil(count / Math.max(1, columns));
-  const onWindow = scrollElement === undefined;
 
   // The list's top in the document: the window's scroll margin. It follows what stands above.
+  // The fixed header covers the top of the window: a row scrolled up into view stops below it.
   const [margin, setMargin] = useState(0);
+  const [header, setHeader] = useState(0);
   useLayoutEffect(() => {
     const node = root.current;
-    if (!node || !onWindow || !virtual) return;
-    const update = () => setMargin(Math.round(node.getBoundingClientRect().top + window.scrollY));
+    if (!node || !virtual) return;
+    const update = () => {
+      setMargin(Math.round(node.getBoundingClientRect().top + window.scrollY));
+      setHeader(headerHeight());
+    };
     update();
     if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(update);
     observer.observe(node.closest('main') ?? document.body);
     return () => observer.disconnect();
-  }, [onWindow, root, virtual]);
+  }, [root, virtual]);
 
   // The row with the focus stays drawn, else a scroll with the wheel would drop the focus; so does
   // the row the focus is on its way to.
@@ -129,32 +141,20 @@ export function useVirtualPlaces({
     if (row === null || row >= range.count || drawn.includes(row)) return drawn;
     return [...drawn, row].sort((a, b) => a - b);
   }, []);
-  const viewport = () =>
-    scrollElement?.current?.clientHeight ??
-    (typeof window === 'undefined' ? 800 : window.innerHeight);
+  const viewport = () => (typeof window === 'undefined' ? 800 : window.innerHeight);
   const overscan = Math.max(1, Math.ceil(viewport() / Math.max(1, estimate)));
-  // The virtualizer's results are read during this render only, never memoized downstream.
-  // eslint-disable-next-line react-hooks/incompatible-library -- see above
-  const virtualizer = useVirtualizer<Element, Element>({
+  const virtualizer = useWindowVirtualizer<Element>({
     count: virtual ? rowCount : 0,
     estimateSize: () => estimate,
     gap,
     overscan,
-    scrollMargin: onWindow ? margin : 0,
+    scrollMargin: margin,
+    scrollPaddingStart: header,
     rangeExtractor,
     // Rows measured while React commits: no synchronous re-render from inside it.
     useFlushSync: false,
-    getScrollElement: () =>
-      onWindow ? (window as unknown as Element) : (scrollElement.current ?? null),
-    ...(onWindow
-      ? {
-          observeElementRect: observeWindowRect as unknown as typeof observeElementRect,
-          observeElementOffset: observeWindowOffset as unknown as typeof observeElementOffset,
-          scrollToFn: windowScroll as unknown as typeof elementScroll,
-          initialRect: { width: window.innerWidth, height: window.innerHeight },
-          initialOffset: () => window.scrollY,
-        }
-      : {}),
+    initialRect: { width: window.innerWidth, height: window.innerHeight },
+    initialOffset: () => window.scrollY,
   });
 
   // The drawn rows with the room for the others: a room of its own before a row that does not
@@ -208,6 +208,19 @@ export function useVirtualPlaces({
     return live.current.ready(index) && place !== null && controls(place).length > 0;
   };
 
+  // The control of `place` that takes the focus: the one in the same column of a table row (if it
+  // has one), else the one at the position (the last of fewer).
+  const controlOf = (place: HTMLElement, control: Control, column: number | null) => {
+    if (column !== null && place instanceof HTMLTableRowElement) {
+      const inColumn = place.cells[column]?.querySelector<HTMLElement>(FOCUSABLE);
+      if (inColumn) return inColumn;
+    }
+    const list = controls(place);
+    if (control === 'first') return list[0];
+    if (control === 'last') return list.at(-1);
+    return list[Math.min(control, list.length - 1)];
+  };
+
   const settle = () => {
     const move = pending.current;
     if (!move) return;
@@ -218,14 +231,13 @@ export function useVirtualPlaces({
     if (!isReady(move.index)) return;
     pending.current = null;
     const place = placeOf(move.index);
-    const list = place ? controls(place) : [];
-    (move.part === 'first' ? list[0] : list.at(-1))?.focus();
+    if (place) controlOf(place, move.control, move.column)?.focus();
   };
   // After every render: the row may have been drawn or its page arrived.
   useEffect(settle);
 
-  const go = (index: number, part: 'first' | 'last' = 'first') => {
-    pending.current = { index, part, from: document.activeElement };
+  const go = (index: number, control: Control = 'first', column: number | null = null) => {
+    pending.current = { index, control, column, from: document.activeElement };
     const row = Math.floor(index / live.current.columns);
     focusedRow.current = row;
     if (live.current.virtual) virtualizer.scrollToIndex(row, { align: 'auto' });
@@ -262,6 +274,22 @@ export function useVirtualPlaces({
       if (!direction) return;
       // Fields, selects and the like keep their arrows.
       if (event.target.closest('input:not([type="checkbox"]), select, textarea')) return;
+      // The control the focus leaves: the next place takes the focus on the same one.
+      const own = controls(place);
+      const position = Math.max(0, own.indexOf(event.target));
+      const cell = event.target.closest('td, th');
+      const column = cell instanceof HTMLTableCellElement ? cell.cellIndex : null;
+      // In a grid ← and → go through the controls of a place first (a tile's heart), as the
+      // spatial navigation does in a grid that is drawn whole.
+      if (perRow > 1 && (direction === 'left' || direction === 'right')) {
+        const inside = own[position + (direction === 'right' ? 1 : -1)];
+        if (inside && own.includes(event.target)) {
+          event.preventDefault();
+          event.stopPropagation();
+          inside.focus();
+          return;
+        }
+      }
       const row = Math.floor(index / perRow);
       const lastRow = Math.floor((total - 1) / perRow);
       let target: number | null = null;
@@ -276,9 +304,13 @@ export function useVirtualPlaces({
       // A table's own keys went first (DataTable): they leave only a row that is not drawn.
       event.preventDefault();
       event.stopPropagation();
+      // Sideways a place is entered at the control next to the one left: → at its first, ← at
+      // its last; up and down on the same control.
+      const control: Control =
+        direction === 'right' ? 'first' : direction === 'left' ? 'last' : position;
       const next = placeOf(target);
-      if (isReady(target) && next) controls(next)[0]?.focus();
-      else go(target);
+      if (isReady(target) && next) controlOf(next, control, column)?.focus();
+      else go(target, control, column);
     };
     const onFocusIn = (event: FocusEvent) => {
       const place =

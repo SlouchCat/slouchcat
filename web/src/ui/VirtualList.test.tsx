@@ -49,23 +49,45 @@ function List({
   slots,
   virtual,
   onRange,
+  two = false,
+  layout,
+  className,
 }: {
   slots: readonly ({ id: number; name: string } | undefined)[];
   virtual: boolean;
   onRange?: (span: PlaceSpan) => void;
+  /** Two controls per place: the entry and «Ausblenden». */
+  two?: boolean;
+  layout?: 'list' | 'grid';
+  className?: string;
 }) {
   return (
     <VirtualList
       slots={slots}
       virtual={virtual}
+      layout={layout}
+      className={className}
       label="Liste"
       estimate={ROW}
       itemKey={(entry) => entry.id}
       onRange={onRange}
       renderPlaceholder={(index) => <span>Platz {index}</span>}
-      renderItem={(entry) => <button type="button">{entry.name}</button>}
+      renderItem={(entry) => (
+        <>
+          <button type="button">{entry.name}</button>
+          {two && <button type="button">{`Ausblenden ${entry.id}`}</button>}
+        </>
+      )}
     />
   );
+}
+
+/** A stylesheet for the test's lists (jsdom computes what it declares). */
+function sheet(css: string) {
+  const style = document.createElement('style');
+  style.textContent = css;
+  document.head.append(style);
+  return () => style.remove();
 }
 
 const drawn = () =>
@@ -141,6 +163,95 @@ describe('VirtualList', () => {
     rerender(<List slots={entries(2_000)} virtual />);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Eintrag 3' })).toHaveFocus());
   });
+
+  it('an arrow onto a place that is not drawn focuses the same control of it', async () => {
+    render(<List slots={entries(2_000)} virtual two />);
+    await waitFor(() => expect(drawn().at(-1)).toBeGreaterThan(16));
+    const last = drawn().at(-1)!;
+    const hide = screen.getByRole('button', { name: `Ausblenden ${last}` });
+    hide.focus();
+    fireEvent.keyDown(hide, { key: 'ArrowDown' });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: `Ausblenden ${last + 1}` })).toHaveFocus(),
+    );
+    // And back up onto a drawn place: the same control again.
+    const next = screen.getByRole('button', { name: `Ausblenden ${last + 1}` });
+    fireEvent.keyDown(next, { key: 'ArrowUp' });
+    expect(screen.getByRole('button', { name: `Ausblenden ${last}` })).toHaveFocus();
+  });
+
+  it('↑ onto a row above the drawn ones scrolls it to just below the fixed header', async () => {
+    const HEADER = 64;
+    // The app's header token, measured by a probe of its height.
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: Element,
+    ) {
+      return this instanceof HTMLElement && this.style.height.includes('--sc-size-header-height')
+        ? new DOMRect(0, 0, 0, HEADER)
+        : new DOMRect();
+    });
+    render(<List slots={entries(2_000)} virtual />);
+    await waitFor(() => expect(drawn().at(-1)).toBeGreaterThan(16));
+    act(() => {
+      scrollY = 1_000 * ROW;
+      window.dispatchEvent(new Event('scroll'));
+    });
+    await waitFor(() => expect(drawn()).toContain(1_000));
+    const top = drawn()[0]!;
+    const button = screen.getByRole('button', { name: `Eintrag ${top}` });
+    button.focus();
+    fireEvent.keyDown(button, { key: 'ArrowUp' });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: `Eintrag ${top - 1}` })).toHaveFocus(),
+    );
+    expect(scrollTo).toHaveBeenLastCalledWith(
+      expect.objectContaining({ top: (top - 1) * ROW - HEADER }),
+    );
+  });
+
+  it('the room for the rows not drawn counts each gap once', async () => {
+    const GAP = 10;
+    const unstyle = sheet(`ul.gapped { row-gap: ${GAP}px; }`);
+    try {
+      render(<List slots={entries(2_000)} virtual className="gapped" />);
+      await waitFor(() => expect(drawn().at(-1)).toBeGreaterThan(16));
+      const last = drawn().at(-1)!;
+      const list = screen.getByRole('list', { name: 'Liste' });
+      const room = list.lastElementChild as HTMLElement;
+      expect(room).toHaveAttribute('role', 'presentation');
+      // The rows after the last drawn one, each a row and a gap high, less the gap before them.
+      const rest = 2_000 - last - 1;
+      expect(parseFloat(room.style.height)).toBeCloseTo(rest * (ROW + GAP) - GAP, -1);
+    } finally {
+      unstyle();
+    }
+  });
+
+  it('in a grid ← and → go through the controls of a place before they leave it', async () => {
+    const unstyle = sheet('ul.tiles { display: grid; grid-template-columns: 100px 100px 100px; }');
+    try {
+      render(<List slots={entries(2_000)} virtual two layout="grid" className="tiles" />);
+      await waitFor(() => expect(drawn().at(-1)).toBeGreaterThan(16));
+      const tile = screen.getByRole('button', { name: 'Eintrag 0' });
+      tile.focus();
+      fireEvent.keyDown(tile, { key: 'ArrowRight' });
+      const heart = screen.getByRole('button', { name: 'Ausblenden 0' });
+      expect(heart).toHaveFocus();
+      fireEvent.keyDown(heart, { key: 'ArrowRight' });
+      expect(screen.getByRole('button', { name: 'Eintrag 1' })).toHaveFocus();
+      // ← enters the place before at its last control, then goes on to its first.
+      fireEvent.keyDown(screen.getByRole('button', { name: 'Eintrag 1' }), { key: 'ArrowLeft' });
+      expect(heart).toHaveFocus();
+      fireEvent.keyDown(heart, { key: 'ArrowLeft' });
+      expect(tile).toHaveFocus();
+      // ↓ keeps the control: the heart of the tile below.
+      fireEvent.keyDown(tile, { key: 'ArrowRight' });
+      fireEvent.keyDown(heart, { key: 'ArrowDown' });
+      expect(screen.getByRole('button', { name: 'Ausblenden 3' })).toHaveFocus();
+    } finally {
+      unstyle();
+    }
+  });
 });
 
 describe('DataTable (virtual)', () => {
@@ -170,6 +281,10 @@ describe('DataTable (virtual)', () => {
     expect(within(table).getAllByRole('row').length).toBeLessThan(60);
     const spacer = table.querySelector<HTMLElement>('tbody tr[aria-hidden="true"]');
     expect(parseFloat(spacer?.style.height ?? '0')).toBeGreaterThan(1_000_000);
+    // Screen readers learn the whole count and where each drawn row stands (the header first).
+    expect(table).toHaveAttribute('aria-rowcount', '40001');
+    expect(table.querySelector('thead tr')).toHaveAttribute('aria-rowindex', '1');
+    expect(table.querySelector('tr[data-place="5"]')).toHaveAttribute('aria-rowindex', '7');
   });
 
   it('↓ from the last drawn row scrolls on and focuses the same control of the next row', async () => {
@@ -194,6 +309,39 @@ describe('DataTable (virtual)', () => {
     fireEvent.keyDown(button, { key: 'ArrowDown' });
     await waitFor(() =>
       expect(screen.getByRole('button', { name: `Bearbeiten ${last + 1}` })).toHaveFocus(),
+    );
+  });
+
+  it('↓ onto a row not drawn keeps the column of the control, not the first one', async () => {
+    const two: DataColumn<{ id: number; name: string }>[] = [
+      ...columns,
+      {
+        key: 'hide',
+        header: 'Ausblenden',
+        cell: (row) => <button type="button">{`Ausblenden ${row.id}`}</button>,
+      },
+    ];
+    render(
+      <DataTable
+        caption="Sender"
+        columns={two}
+        rows={entries(40_000)}
+        rowKey={(row) => String(row.id)}
+        layout="fixed"
+        virtual
+      />,
+    );
+    const table = screen.getByRole('table', { name: 'Sender' });
+    await waitFor(() => expect(within(table).getAllByRole('row').length).toBeGreaterThan(17));
+    const places = [...table.querySelectorAll<HTMLElement>('tr[data-place]')].map((row) =>
+      Number(row.dataset.place),
+    );
+    const last = Math.max(...places);
+    const hide = screen.getByRole('button', { name: `Ausblenden ${last}` });
+    hide.focus();
+    fireEvent.keyDown(hide, { key: 'ArrowDown' });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: `Ausblenden ${last + 1}` })).toHaveFocus(),
     );
   });
 });
