@@ -373,6 +373,7 @@ function Cast({ item }: { item: ItemDetail }) {
           href={paths.person(member.personId)}
           name={member.name}
           caption={creditCaption(t, member)}
+          imageUrl={imageUrl(member.image)}
         />
       ))}
     </Row>

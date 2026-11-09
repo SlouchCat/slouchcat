@@ -52,26 +52,39 @@ func writeJPEG(t *testing.T, path string, w, h int, fill color.NRGBA) {
 }
 
 func TestScaleImageArgs(t *testing.T) {
-	got, err := ScaleImageArgs("/c/in.jpg", []ImageOutput{
+	outs := []ImageOutput{
 		{Path: "/c/a", Width: 200, Format: ImageWebP},
 		{Path: "/c/b", Width: 200, Format: ImageJPEG},
 		{Path: "/c/c", Width: 400, Format: ImageWebP},
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
-	want := []string{"-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-max_pixels", "50000000", "-i", "/c/in.jpg", "-filter_complex",
+	tail := []string{"-max_pixels", "50000000", "-i", "/c/in.jpg", "-filter_complex",
 		"[0:v]split=2[s0][s1];[s0]scale=200:-2:flags=lanczos,split=2[o0][o1];[s1]scale=400:-2:flags=lanczos,split=1[o2]",
 		"-map", "[o0]", "-frames:v", "1", "-c:v", "libwebp", "-quality", "82", "-compression_level", "4", "-f", "webp", "/c/a",
 		"-map", "[o1]", "-frames:v", "1", "-c:v", "mjpeg", "-q:v", "3", "-pix_fmt", "yuvj420p", "-f", "mjpeg", "/c/b",
 		"-map", "[o2]", "-frames:v", "1", "-c:v", "libwebp", "-quality", "82", "-compression_level", "4", "-f", "webp", "/c/c",
 	}
-	if !slices.Equal(got, want) {
-		t.Fatalf("args\n got %q\nwant %q", got, want)
+	head := []string{"-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-protocol_whitelist", "file"}
+	// Only local files in either case; the named demuxer comes before the input, no name probes.
+	for inFormat, want := range map[string][]string{
+		"":          slices.Concat(head, tail),
+		"jpeg_pipe": slices.Concat(head, []string{"-f", "jpeg_pipe"}, tail),
+	} {
+		got, err := ScaleImageArgs("/c/in.jpg", inFormat, outs)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(got, want) {
+			t.Fatalf("args with %q\n got %q\nwant %q", inFormat, got, want)
+		}
 	}
 	for _, bad := range [][]ImageOutput{nil, {{Path: "/x", Width: 0, Format: ImageJPEG}}, {{Path: "/x", Width: 10, Format: "gif"}}, {{Width: 10, Format: ImageJPEG}}} {
-		if _, err := ScaleImageArgs("/in", bad); err == nil {
+		if _, err := ScaleImageArgs("/in", "", bad); err == nil {
 			t.Errorf("ScaleImageArgs(%+v) accepted", bad)
+		}
+	}
+	for format, want := range map[string]string{"jpeg": "jpeg_pipe", "png": "png_pipe", "webp": "webp_pipe", "gif": "gif", "bmp": "", "": ""} {
+		if got := ImageDemuxer(format); got != want {
+			t.Errorf("ImageDemuxer(%q) = %q, want %q", format, got, want)
 		}
 	}
 }
@@ -86,7 +99,7 @@ func TestScaleImageAndPalette(t *testing.T) {
 		{Path: filepath.Join(dir, ".tmp-2"), Width: 200, Format: ImageJPEG},
 		{Path: filepath.Join(dir, ".tmp-3"), Width: 120, Format: ImageJPEG},
 	}
-	if err := r.ScaleImage(context.Background(), in, outs); err != nil {
+	if err := r.ScaleImage(context.Background(), in, "jpeg_pipe", outs); err != nil {
 		t.Fatal(err)
 	}
 	for _, o := range outs {
@@ -135,7 +148,7 @@ func TestScaleImageErrors(t *testing.T) {
 	if err := os.WriteFile(bad, []byte("not an image"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := r.ScaleImage(context.Background(), bad, []ImageOutput{{Path: filepath.Join(dir, "o"), Width: 10, Format: ImageJPEG}}); !errors.Is(err, ErrImageExit) {
+	if err := r.ScaleImage(context.Background(), bad, "", []ImageOutput{{Path: filepath.Join(dir, "o"), Width: 10, Format: ImageJPEG}}); !errors.Is(err, ErrImageExit) {
 		t.Fatalf("ScaleImage of a broken input: %v, want ErrImageExit", err)
 	}
 	if _, err := r.Palette(context.Background(), bad, 8); err == nil {
@@ -144,7 +157,7 @@ func TestScaleImageErrors(t *testing.T) {
 	if _, err := r.Palette(context.Background(), bad, 1); err == nil {
 		t.Fatal("Palette accepted one colour")
 	}
-	if err := (Runner{}).ScaleImage(context.Background(), bad, []ImageOutput{{Path: "o", Width: 10, Format: ImageJPEG}}); err == nil || errors.Is(err, ErrImageExit) {
+	if err := (Runner{}).ScaleImage(context.Background(), bad, "", []ImageOutput{{Path: "o", Width: 10, Format: ImageJPEG}}); err == nil || errors.Is(err, ErrImageExit) {
 		t.Fatalf("ScaleImage without an ffmpeg path: %v, want an error other than ErrImageExit", err)
 	}
 }
@@ -185,7 +198,7 @@ func TestScaleImageMaxPixels(t *testing.T) {
 	if err := os.WriteFile(in, png.Bytes(), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	err := r.ScaleImage(context.Background(), in, []ImageOutput{{Path: filepath.Join(dir, "o"), Width: 200, Format: ImageJPEG}})
+	err := r.ScaleImage(context.Background(), in, "png_pipe", []ImageOutput{{Path: filepath.Join(dir, "o"), Width: 200, Format: ImageJPEG}})
 	if !errors.Is(err, ErrImageExit) || !strings.Contains(err.Error(), "max pixel") {
 		t.Fatalf("ScaleImage of %d×%d: %v, want ErrImageExit for the pixel limit", side, side, err)
 	}
@@ -305,7 +318,7 @@ func BenchmarkImagePipelineTitle(b *testing.B) {
 					outs = append(outs, ImageOutput{Path: filepath.Join(dir, kind+"-"+strconv.Itoa(w)+"."+string(f)), Width: w, Format: f})
 				}
 			}
-			if err := r.ScaleImage(ctx, filepath.Join(dir, kind+".jpg"), outs); err != nil {
+			if err := r.ScaleImage(ctx, filepath.Join(dir, kind+".jpg"), "jpeg_pipe", outs); err != nil {
 				b.Fatal(err)
 			}
 		}

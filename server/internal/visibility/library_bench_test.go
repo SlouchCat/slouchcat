@@ -14,7 +14,9 @@ import (
 // BenchmarkLibraryRows measures the start page rows of concept 15 P-7 for a library of 10 000
 // films with one playable file each (docs/perf/feinschliff.md): LibraryTiles («Meine Medien») and
 // LibraryNewest («Neu in …»), next to what the start page and the library page already read
-// (VisibleLibraries for the side navigation, Recent, LibraryItems sorted by added). Run:
+// (VisibleLibraries for the side navigation, Recent, LibraryItems sorted by added), and the
+// library page sorted by title at offset 0 (with the letter starts of concept 17 section 6) and
+// at offset 900. Run:
 //
 //	go test -run '^$' -bench LibraryRows -benchtime 200x -v ./internal/visibility/
 func BenchmarkLibraryRows(b *testing.B) {
@@ -50,6 +52,14 @@ func BenchmarkLibraryRows(b *testing.B) {
 		}},
 		{"page/LibraryItems-added", func() (int, error) {
 			p, err := r.LibraryItems(ctx, scope, f.LibraryID(), model.LibraryQuery{Sort: model.LibrarySortAdded, MaxRating: -1, Limit: MaxRowItems})
+			return len(p.Items), err
+		}},
+		{"page/LibraryItems-title", func() (int, error) {
+			p, err := r.LibraryItems(ctx, scope, f.LibraryID(), model.LibraryQuery{Sort: model.LibrarySortTitle, MaxRating: -1, Limit: MaxLibraryPage})
+			return len(p.Items), err
+		}},
+		{"page/LibraryItems-title-offset", func() (int, error) {
+			p, err := r.LibraryItems(ctx, scope, f.LibraryID(), model.LibraryQuery{Sort: model.LibrarySortTitle, MaxRating: -1, Offset: 900, Limit: MaxLibraryPage})
 			return len(p.Items), err
 		}},
 	} {

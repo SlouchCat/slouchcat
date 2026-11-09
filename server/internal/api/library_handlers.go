@@ -101,9 +101,17 @@ func (s *server) ListLibraryItems(ctx context.Context, req gen.ListLibraryItemsR
 	if letters == nil {
 		letters = []string{}
 	}
+	facets := gen.LibraryFacets{Letters: letters, Genres: toGenreRefs(page.Facets.Genres), Ratings: ratings}
+	if page.Facets.LetterStarts != nil {
+		starts := make([]gen.LetterStart, 0, len(page.Facets.LetterStarts))
+		for _, ls := range page.Facets.LetterStarts {
+			starts = append(starts, gen.LetterStart{Letter: ls.Letter, Offset: ls.Offset})
+		}
+		facets.LetterStarts = &starts
+	}
 	return gen.ListLibraryItems200JSONResponse(gen.LibraryItemsPage{
 		Items: toItemRefList(session.Profile.ID, page.Items), Total: page.Total, Offset: q.Offset, Limit: q.Limit,
-		Facets: gen.LibraryFacets{Letters: letters, Genres: toGenreRefs(page.Facets.Genres), Ratings: ratings},
+		Facets: facets,
 	}), nil
 }
 

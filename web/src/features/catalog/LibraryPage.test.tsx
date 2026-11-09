@@ -1,9 +1,10 @@
 import type { components, ItemRef } from '@slouchcat/api-client';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { alien, arrival, audiobook, heat, ids } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
+import { virtualLayout } from '@/test/virtual';
 
 type LibraryNav = components['schemas']['LibraryNav'];
 type LibraryItemsPage = components['schemas']['LibraryItemsPage'];
@@ -45,9 +46,13 @@ const page = (items: ItemRef[], overrides: Partial<LibraryItemsPage> = {}): Libr
   items,
   total: items.length,
   offset: 0,
-  limit: 50,
+  limit: 100,
   facets: {
     letters: ['A', 'H'],
+    letterStarts: [
+      { letter: 'A', offset: 0 },
+      { letter: 'H', offset: 2 },
+    ],
     genres: [
       { name: 'Drama', count: 2 },
       { name: 'Krimi', count: 1 },
@@ -83,7 +88,11 @@ function mockLibrary(
 }
 
 describe('library page', () => {
-  afterEach(() => vi.unstubAllGlobals());
+  beforeEach(() => virtualLayout());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 
   it('shows the name, the count, the grid with watch state and rating, and the letter bar', async () => {
     const { fetchMock } = mockLibrary();
@@ -110,41 +119,42 @@ describe('library page', () => {
     expect(within(sort).queryByRole('option', { name: 'Autor' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /aufsteigend/ })).toBeVisible();
 
+    // The letter bar jumps (letterStarts): the letter of the titles in view is marked.
     const letters = screen.getByRole('navigation', { name: 'Anfangsbuchstabe' });
-    expect(within(letters).getByRole('button', { name: 'Alle Buchstaben' })).toHaveAttribute(
-      'aria-pressed',
+    expect(within(letters).getByRole('button', { name: 'A' })).toHaveAttribute(
+      'aria-current',
       'true',
     );
     expect(within(letters).getByRole('button', { name: 'H' })).toBeEnabled();
+    expect(within(letters).getByRole('button', { name: 'H' })).not.toHaveAttribute('aria-current');
     expect(within(letters).getByRole('button', { name: 'B' })).toBeDisabled();
     expect(within(letters).getByRole('button', { name: 'Ziffer oder Zeichen' })).toBeDisabled();
     expect(document.title).toContain('Filme');
 
     const [first] = itemRequests(fetchMock);
     expect(first?.get('offset')).toBe('0');
-    expect(first?.get('limit')).toBe('50');
+    expect(first?.get('limit')).toBe('100');
     expect(first?.has('sort')).toBe(false);
   });
 
-  it('a letter filters by the URL and the count names it', async () => {
-    const { fetchMock } = mockLibrary((query) =>
-      json(query.get('letter') === 'H' ? page([heat]) : page([alien, heat])),
-    );
-    const { router } = renderApp('/libraries/3');
+  it('a letter jumps to its first title; an old link with a letter opens the list at its top', async () => {
+    const { fetchMock } = mockLibrary();
+    const { router } = renderApp('/libraries/3?letter=H');
     const letters = await screen.findByRole('navigation', { name: 'Anfangsbuchstabe' });
+    expect(itemRequests(fetchMock).at(-1)?.has('letter')).toBe(false);
+    expect(screen.getByText('3 Titel')).toBeVisible();
+    const before = router.state.location.href;
     await userEvent.setup().click(within(letters).getByRole('button', { name: 'H' }));
-    await waitFor(() => expect(router.state.location.search).toEqual({ letter: 'H' }));
-    expect(await screen.findByText('1 Titel mit H')).toBeVisible();
-    expect(within(letters).getByRole('button', { name: 'H' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-    expect(itemRequests(fetchMock).at(-1)?.get('letter')).toBe('H');
+    const grid = screen.getByRole('list', { name: 'Filme' });
+    await waitFor(() => expect(within(grid).getByRole('link', { name: /Heat/ })).toHaveFocus());
+    // A jump changes neither the URL nor the query.
+    expect(router.state.location.href).toBe(before);
+    expect(itemRequests(fetchMock).every((query) => !query.has('letter'))).toBe(true);
   });
 
   it('a new sort order goes into the URL, starts in its own direction and hides the letters', async () => {
     const { fetchMock } = mockLibrary();
-    const { router } = renderApp('/libraries/3?letter=H');
+    const { router } = renderApp('/libraries/3');
     const sort = await screen.findByRole('combobox', { name: 'Sortieren' });
     const user = userEvent.setup();
     await user.selectOptions(sort, 'added');

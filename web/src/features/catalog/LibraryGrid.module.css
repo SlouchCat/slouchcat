@@ -1,0 +1,65 @@
+/*
+ * The virtual library grid (concept 17 E-11): the list is as tall as the whole list's rows of the
+ * fixed card height; only the drawn rows hold cards, each placed absolutely at its row's top in its
+ * column (no grid rows: Firefox stops at 10'000 grid lines). The columns follow the same bounds as
+ * the other grids of titles (three on phones, as the rows show three posters, N-3).
+ */
+.root {
+  position: relative;
+  padding: var(--sc-space-2) 0;
+}
+
+.grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  height: var(--library-height);
+  gap: var(--sc-space-6) var(--sc-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (width >= 768px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(var(--sc-size-poster-md), 1fr));
+  }
+}
+
+.cell {
+  position: absolute;
+  right: 0;
+  left: 0;
+  min-width: 0;
+  height: var(--library-card);
+}
+
+/* An empty place while its page loads: the cover's shape, not focusable. */
+.placeholder {
+  display: block;
+  overflow: hidden;
+  border-radius: var(--sc-radius-lg);
+  aspect-ratio: 2 / 3;
+}
+
+.square {
+  aspect-ratio: 1 / 1;
+}
+
+/*
+ * Measured, never shown: its height is a card's text under the cover (PosterCard .meta: the
+ * padding, two lines of title, the gap and one line of caption), its width the header's height
+ * (the grid scrolls a row below the header, not under it).
+ */
+.probe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--sc-size-header-height);
+  height: calc(
+    var(--sc-space-3) + 2 * var(--sc-font-size-sm) * var(--sc-font-line-height-snug) +
+      var(--sc-space-1) + var(--sc-font-size-xs) * var(--sc-font-line-height-normal)
+  );
+  visibility: hidden;
+  pointer-events: none;
+}

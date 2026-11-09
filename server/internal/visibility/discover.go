@@ -220,9 +220,17 @@ func (r *Reader) collectionRefs(ctx context.Context, s Scope, pid int64, rows []
 			covers[it.ID] = it
 		}
 	}
+	ids := make([]string, 0, len(rows))
+	for _, c := range rows {
+		ids = append(ids, c.ID)
+	}
+	images, err := r.fullyVisibleCollectionImages(ctx, pid, ids)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]model.CollectionRef, 0, len(rows))
 	for _, c := range rows {
-		ref := model.CollectionRef{ID: c.ID, Name: localized(s.language, c.Name, c.NameDe), Count: int(c.MemberCount)}
+		ref := model.CollectionRef{ID: c.ID, Name: localized(s.language, c.Name, c.NameDe), Count: int(c.MemberCount), Image: images[c.ID]}
 		if cover, ok := covers[c.CoverID]; ok {
 			ref.Cover = &cover
 		}
@@ -259,12 +267,17 @@ func (r *Reader) Collection(ctx context.Context, s Scope, id string, offset, lim
 	if err != nil {
 		return model.Collection{}, err
 	}
+	images, err := r.fullyVisibleCollectionImages(ctx, pid, []string{c.ID})
+	if err != nil {
+		return model.Collection{}, err
+	}
 	return model.Collection{
 		ID:       c.ID,
 		Name:     localized(s.language, c.Name, c.NameDe),
 		Overview: localized(s.language, c.Overview.String, c.OverviewDe),
 		Items:    items,
 		Total:    int(c.MemberCount),
+		Image:    images[c.ID],
 	}, nil
 }
 

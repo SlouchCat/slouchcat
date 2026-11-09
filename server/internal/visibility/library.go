@@ -270,7 +270,8 @@ func validateLibraryQuery(q model.LibraryQuery) (libraryFilter, *model.Validatio
 // MaxRating lowers the ceiling of visible_items for this page (an unknown rating never passes
 // it). Facets: the letters of the filtered set without the letter filter (A..Z, then #), the
 // genres of the library's visible top-level titles in the profile language and their known
-// ratings, all at or below the profile's ceiling.
+// ratings, all at or below the profile's ceiling; on the first page sorted by title also the
+// letter starts of the filtered set (letterStarts, concept 17 section 6).
 func (r *Reader) LibraryItems(ctx context.Context, s Scope, libraryID int64, q model.LibraryQuery) (model.LibraryPage, error) {
 	pid, err := r.profile(ctx, s)
 	if err != nil {
@@ -323,12 +324,25 @@ func (r *Reader) LibraryItems(ctx context.Context, s Scope, libraryID int64, q m
 	if err != nil {
 		return model.LibraryPage{}, err
 	}
-	letters := libraryStmt(s, pid, libraryID, f, "SELECT DISTINCT lower(substr(sort_key, 1, 1)) FROM lib WHERE 1", false)
-	firsts, err := textColumn(ctx, tx, letters.sql.String(), letters.args...)
+	// The letters ignore the deprecated letter filter, the letter starts take it: one grouped
+	// query serves both without it.
+	firsts, err := firstChars(ctx, tx, libraryStmt(s, pid, libraryID, f, firstCharsHead, false))
 	if err != nil {
 		return model.LibraryPage{}, fmt.Errorf("library letters: %w", err)
 	}
-	out.Facets.Letters = sortLetters(firsts)
+	chars := make([]string, 0, len(firsts))
+	for _, fc := range firsts {
+		chars = append(chars, fc.c)
+	}
+	out.Facets.Letters = sortLetters(chars)
+	if f.Sort == model.LibrarySortTitle && f.Offset == 0 {
+		if f.Letter != "" {
+			if firsts, err = firstChars(ctx, tx, libraryStmt(s, pid, libraryID, f, firstCharsHead, true)); err != nil {
+				return model.LibraryPage{}, fmt.Errorf("library letter starts: %w", err)
+			}
+		}
+		out.Facets.LetterStarts = letterStarts(firsts, f.desc)
+	}
 	qtx := r.q.WithTx(tx)
 	genres, err := qtx.ListLibraryGenres(ctx, scopedq.ListLibraryGenresParams{ProfileID: pid, Lang: s.metaLang, LibraryID: libraryID})
 	if err == nil && len(genres) == 0 && s.metaLang != s.language {
@@ -358,7 +372,9 @@ func (r *Reader) LibraryItems(ctx context.Context, s Scope, libraryID int64, q m
 	for i := range out.Items {
 		it := &out.Items[i]
 		if it.Kind == "series" || it.Kind == "podcast" {
-			it.Progress = stats[it.ID].progress()
+			e := stats[it.ID]
+			it.Progress = e.progress()
+			it.Watched = e.watched() // the same aggregate as the status filter
 		}
 	}
 	return out, nil
@@ -518,6 +534,16 @@ func (e episodeStat) progress() *model.Progress {
 	return &model.Progress{Completed: e.n > 0 && e.done == e.n, UpdatedAt: time.UnixMilli(e.playedAt.Int64).UTC()}
 }
 
+// watched returns ItemRef.watched of a series or podcast (contract 1.22.0): every visible episode
+// completed, nil without a visible episode.
+func (e episodeStat) watched() *bool {
+	if e.n == 0 {
+		return nil
+	}
+	w := e.done == e.n
+	return &w
+}
+
 // episodeStats returns the episode aggregates of the given series and podcasts of a library.
 func episodeStats(ctx context.Context, tx *sql.Tx, pid, libraryID int64, ids []string) (map[string]episodeStat, error) {
 	out := make(map[string]episodeStat, len(ids))
@@ -574,5 +600,60 @@ func sortLetters(firsts []string) []string {
 		}
 		return strings.Compare(a, b)
 	})
+	return out
+}
+
+// firstCharsHead selects the first character of the sort key over lib; firstChars groups by it.
+const firstCharsHead = "SELECT substr(sort_key, 1, 1) AS c, count(*) FROM lib WHERE 1"
+
+// firstChar is a first character of the sort keys of the filtered set and the number of its keys.
+type firstChar struct {
+	c string
+	n int
+}
+
+// firstChars runs b (from firstCharsHead) grouped by the first character and returns the
+// characters with their counts in byte order. That is the order of sort_key: UTF-8 is prefix-free,
+// so the keys sort by their first character before the rest, and the keys of one first character
+// are contiguous in either direction.
+func firstChars(ctx context.Context, tx *sql.Tx, b *stmt) ([]firstChar, error) {
+	b.add(" GROUP BY c")
+	rows, err := tx.QueryContext(ctx, b.sql.String(), b.args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []firstChar
+	for rows.Next() {
+		var fc firstChar
+		if err := rows.Scan(&fc.c, &fc.n); err != nil {
+			return nil, err
+		}
+		out = append(out, fc)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	slices.SortFunc(out, func(a, b firstChar) int { return strings.Compare(a.c, b.c) })
+	return out, nil
+}
+
+// letterStarts returns one entry per change of the letter (model.SortLetter, the source of the
+// letter bar) along the first characters in page order (byte order, reversed for desc), with the
+// offset of the first key of that letter: the running sum of the counts before it. # can start
+// twice: digits and punctuation sort before a, other characters after z.
+func letterStarts(firsts []firstChar, desc bool) []model.LetterStart {
+	out := []model.LetterStart{}
+	offset := 0
+	for i := range firsts {
+		fc := firsts[i]
+		if desc {
+			fc = firsts[len(firsts)-1-i]
+		}
+		if l := model.SortLetter(fc.c); len(out) == 0 || out[len(out)-1].Letter != l {
+			out = append(out, model.LetterStart{Letter: l, Offset: offset})
+		}
+		offset += fc.n
+	}
 	return out
 }

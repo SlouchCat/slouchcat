@@ -17,11 +17,12 @@ import (
 // profile may not see is absent from every list, and a person exists for the profile only through
 // the visible titles of their credits.
 
-// treeExtras fills the child counts of series and seasons, the completed episodes of seasons, the
+// treeExtras fills the child counts of series and seasons, the completed episodes of seasons,
+// whether a series or podcast is watched (every visible episode completed, contract 1.22.0), the
 // parents the profile may see, the series titles of seasons and episodes (the text chain of the
-// scope, then the parsed title) and the series of episodes with their images (concept 15 P-1). The
-// series of all items are loaded together: one query for their texts and, when the items hold an
-// episode, one for their images.
+// scope, then the parsed title) and the series of episodes with their images (concept 15 P-1).
+// The series of all items are loaded together: one query for their texts and, when the items hold
+// an episode, one for their images.
 func (r *Reader) treeExtras(ctx context.Context, pid int64, lang langPref, ids []string, out *extras) error {
 	counts, err := r.q.ListVisibleChildCounts(ctx, scopedq.ListVisibleChildCountsParams{ProfileID: pid, ItemIds: ids})
 	if err != nil {
@@ -30,6 +31,9 @@ func (r *Reader) treeExtras(ctx context.Context, pid int64, lang langPref, ids [
 	for _, c := range counts {
 		out.childCounts[c.ID] = int(c.ChildCount)
 		out.watched[c.ID] = int(c.WatchedCount)
+		if w, ok := c.Watched.(int64); ok { // NULL: no visible episode (or not a series or podcast)
+			out.allWatched[c.ID] = w == 1
+		}
 	}
 	parents, err := r.q.ListVisibleParents(ctx, scopedq.ListVisibleParentsParams{ProfileID: pid, ItemIds: ids})
 	if err != nil {
@@ -158,7 +162,8 @@ func (r *Reader) completeDetail(ctx context.Context, s Scope, pid int64, it scop
 	}
 	d.Cast = make([]model.CastMember, 0, len(credits))
 	for _, c := range credits {
-		d.Cast = append(d.Cast, model.CastMember{PersonID: c.PersonID, Name: c.Name, Role: c.Role, Character: c.Character.String})
+		d.Cast = append(d.Cast, model.CastMember{PersonID: c.PersonID, Name: c.Name, Role: c.Role, Character: c.Character.String,
+			Image: portrait(c.ImageHash, c.ImageWidth, c.ImageHeight)})
 	}
 	n, err := r.q.CountVisibleTrailers(ctx, scopedq.CountVisibleTrailersParams{ProfileID: pid, ItemID: it.ID})
 	if err != nil {
@@ -293,7 +298,8 @@ func (r *Reader) Person(ctx context.Context, s Scope, personID int64) (model.Per
 	if err != nil {
 		return model.Person{}, err
 	}
-	out := model.Person{ID: personID, Name: rows[0].PersonName, Credits: make([]model.PersonCredit, 0, len(rows))}
+	out := model.Person{ID: personID, Name: rows[0].PersonName, Credits: make([]model.PersonCredit, 0, len(rows)),
+		Image: portrait(rows[0].ImageHash, rows[0].ImageWidth, rows[0].ImageHeight)}
 	for i, row := range rows {
 		out.Credits = append(out.Credits, model.PersonCredit{Item: sums[i], Role: row.Role, Character: row.Character.String})
 	}

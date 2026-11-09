@@ -369,7 +369,6 @@
     "page": {
       "count_one": "{{count}} {{noun}}",
       "count_other": "{{count}} {{noun}}",
-      "countLetter": "{{count}} {{noun}} mit {{letter}}",
       "filtered": "{{text}} · gefiltert",
       "sort": "Sortieren",
       "direction": "Reihenfolge:",
@@ -380,6 +379,7 @@
       "apply": "Anwenden",
       "clear": "Zurücksetzen",
       "emptyFilters": "Nichts passt zu diesen Filtern",
+      "pageFailed": "Ein Teil der Liste konnte nicht geladen werden.",
       "more": "Mehr laden ({{count}} weitere)",
       "noun": {
         "video_one": "Titel",
@@ -409,8 +409,6 @@
     },
     "letters": {
       "label": "Anfangsbuchstabe",
-      "all": "Alle Buchstaben",
-      "allMark": "•",
       "other": "Ziffer oder Zeichen"
     },
     "filters": {
@@ -3659,6 +3657,18 @@
           "name": "Bilder holen",
           "description": "Lädt die gewählten Bilder eines Titels und rechnet die Grössen.",
           "trigger": "nach der Zuordnung, Nachholen beim Start"
+        },
+        "people_images": {
+          "name": "Personen- und Sammlungsbilder holen",
+          "description": "Lädt die Porträts der Personen und die Poster der TMDB-Sammlungen und rechnet die Grössen.",
+          "trigger": "nach der Zuordnung eines Titels mit Besetzung oder Sammlung und nach einem vollständigen Scan, der den Bestand holt",
+          "progress": "Bilder geprüft: {{done}} von {{total}}"
+        },
+        "people_images_backfill": {
+          "name": "Personen- und Sammlungsbilder nachholen",
+          "description": "Versucht alle Personen und Sammlungen noch einmal, für die TMDB kein Bild hatte.",
+          "trigger": "Zeitplan (ab Werk aus, wöchentlich) oder Termin, «Jetzt ausführen»: vergisst die Fehlschläge und reiht den Lauf ein",
+          "progress": "Bilder geprüft: {{done}} von {{total}}"
         },
         "metadata_apply": {
           "name": "Metadaten anwenden",

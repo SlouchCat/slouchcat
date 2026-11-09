@@ -1,13 +1,13 @@
 import type { components, Rating } from '@slouchcat/api-client';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { isApiError } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
-import { cardKey, ItemGrid, MoreButton } from '@/features/discover/ItemGrid';
+import { cardKey } from '@/features/discover/ItemGrid';
 import { YearField } from '@/features/discover/YearField';
 import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
@@ -35,12 +35,14 @@ import {
   SORTS,
   STATUSES,
   statusesOf,
+  validateLibraryParams,
   type LibraryParams,
   type LibrarySort,
 } from './libraryParams';
 import { CoverPen, EDITABLE_KINDS, EditMetadata } from './EditMetadata';
-import { libraryItemsQuery, visibleLibrariesQuery } from './queries';
-import { useBackFocus } from './useBackFocus';
+import { LibraryGrid, type LibraryGridHandle } from './LibraryGrid';
+import { useLibraryPages, type DrawnRange } from './libraryPages';
+import { visibleLibrariesQuery } from './queries';
 import styles from './LibraryPage.module.css';
 
 type LibraryNav = components['schemas']['LibraryNav'];
@@ -84,22 +86,34 @@ function LibraryView({ id }: { id: number | null }) {
   const libraries = useQuery(visibleLibrariesQuery);
   const library = libraries.data?.find((entry) => entry.id === id);
   const request = useMemo(() => libraryRequest(params), [params]);
-  const query = useInfiniteQuery({
-    ...libraryItemsQuery(id ?? 0, request),
-    enabled: id !== null,
-  });
+  const grid = useRef<LibraryGridHandle>(null);
+  const [drawn, setDrawn] = useState<DrawnRange>({ start: 0, end: 0 });
+  // The top row in view: the letter bar marks its letter (LibraryGrid onRange).
+  const [top, setTop] = useState<DrawnRange>({ start: 0, end: 0 });
+  const onRange = useCallback((range: DrawnRange, row: DrawnRange) => {
+    const same = (a: DrawnRange, b: DrawnRange) => a.start === b.start && a.end === b.end;
+    setDrawn((previous) => (same(previous, range) ? previous : range));
+    setTop((previous) => (same(previous, row) ? previous : row));
+  }, []);
+  const { first: query, slots, failed: pageFailed, retry } = useLibraryPages(id, request, drawn);
+  // The retry button goes with its notice once the page is there; the focus it held moves to the
+  // first card in view, not to norigin's restore (the list's first card, far up).
+  const retried = useRef(false);
+  useEffect(() => {
+    if (pageFailed || !retried.current) return;
+    retried.current = false;
+    const active = document.activeElement;
+    if (active === null || active === document.body) grid.current?.jump(top.start);
+  }, [pageFailed, top.start]);
   const notFound = id === null || (libraries.isSuccess && !library) || isApiError(query.error, 404);
   useDocumentTitle(library?.name ?? (notFound ? t('library.notFound.title') : undefined));
-
-  const items = useMemo(() => query.data?.pages.flatMap((page) => page.items) ?? [], [query.data]);
-  const cardKeys = useMemo(() => items.map((item) => cardKey(GRID_KEY, item)), [items]);
-  useBackFocus(GRID_KEY, cardKeys);
-  const first = query.data?.pages[0];
+  const first = query.data;
 
   const update = (change: Partial<LibraryParams>) =>
     void navigate({
+      // Only the valid parameters go on: an old link's `letter` (before 1.21.0) leaves the URL.
       search: (previous) => {
-        const next: LibraryParams = { ...previous, ...change };
+        const next: LibraryParams = { ...validateLibraryParams(previous), ...change };
         for (const key of Object.keys(next) as (keyof LibraryParams)[]) {
           if (next[key] === undefined || next[key] === '') delete next[key];
         }
@@ -192,13 +206,7 @@ function LibraryView({ id }: { id: number | null }) {
   const statuses = statusesOf(params);
 
   const noun = t(`library.page.noun.${library.kind}`, { count: total });
-  const counted = params.letter
-    ? t('library.page.countLetter', {
-        count: total,
-        noun,
-        letter: params.letter === '#' ? t('library.letters.other') : params.letter,
-      })
-    : t('library.page.count', { count: total, noun });
+  const counted = t('library.page.count', { count: total, noun });
 
   const genreOptions = [
     { value: '', label: t('library.filters.allGenres') },
@@ -211,10 +219,22 @@ function LibraryView({ id }: { id: number | null }) {
   const ratings: Rating[] = [...facets.ratings];
   if (params.rating !== undefined && !ratings.includes(params.rating)) ratings.push(params.rating);
 
-  // The letter bar filters a list sorted by title; podcasts have none (F-12).
-  const showLetters = sort === 'title' && library.kind !== 'podcasts';
+  // The letter bar jumps in a list sorted by title (letterStarts, concept 17 section 6); podcasts
+  // have none (F-12). `#` can start twice (digits first, other scripts last): the first counts.
+  const starts = facets.letterStarts ?? [];
+  const showLetters = sort === 'title' && library.kind !== 'podcasts' && starts.length > 0;
+  // The marked letter: the first one that starts in the top row in view (a jump puts its row
+  // there, after the end of the letter before), else the one the row lies in.
+  const currentLetter = (
+    starts.find((start) => start.offset >= top.start && start.offset <= top.end) ??
+    starts.findLast((start) => start.offset <= top.start)
+  )?.letter;
+  const jump = (letter: string) => {
+    const start = starts.find((entry) => entry.letter === letter);
+    if (start) grid.current?.jump(start.offset);
+  };
 
-  const firstItem = items[0];
+  const firstItem = slots[0];
   return (
     <SpatialPage defaultFocusKey={firstItem ? cardKey(GRID_KEY, firstItem) : SORT_KEY}>
       <main className={styles.page}>
@@ -234,7 +254,6 @@ function LibraryView({ id }: { id: number | null }) {
               onChange={(content) =>
                 update({
                   content: content === '' ? undefined : (content as LibraryParams['content']),
-                  letter: undefined,
                 })
               }
               options={[
@@ -255,13 +274,9 @@ function LibraryView({ id }: { id: number | null }) {
               value,
               label: t(`library.sort.${value}`),
             }))}
-            // A new order starts in its own direction and without a letter (title only).
+            // A new order starts in its own direction.
             onChange={(next) =>
-              update({
-                sort: next === 'title' ? undefined : next,
-                order: undefined,
-                letter: undefined,
-              })
+              update({ sort: next === 'title' ? undefined : next, order: undefined })
             }
           />
           <SpatialButton
@@ -385,11 +400,9 @@ function LibraryView({ id }: { id: number | null }) {
             <LetterBar
               label={t('library.letters.label')}
               letters={LETTERS}
-              available={facets.letters}
-              value={params.letter}
-              onChange={(letter) => update({ letter })}
-              allMark={t('library.letters.allMark')}
-              allLabel={t('library.letters.all')}
+              available={starts.map((start) => start.letter)}
+              current={currentLetter}
+              onJump={jump}
               letterLabels={{ '#': t('library.letters.other') }}
               focusKey="library-letter"
               className={styles.letters}
@@ -398,7 +411,7 @@ function LibraryView({ id }: { id: number | null }) {
 
           {/* While a changed view loads, the previous grid stays: busy, not gone. */}
           <div className={styles.results} aria-busy={query.isFetching || undefined}>
-            {items.length === 0 ? (
+            {total === 0 ? (
               <Notice
                 title={t('library.page.emptyFilters')}
                 actions={
@@ -417,12 +430,37 @@ function LibraryView({ id }: { id: number | null }) {
               />
             ) : (
               <>
-                <ItemGrid
-                  items={items}
+                {/* A page of the drawn rows failed: its places stay empty until it is read again.
+                    Sticky below the header, so it stays in view wherever the grid is scrolled. */}
+                {pageFailed && (
+                  <div className={styles.pageFailed}>
+                    <Notice
+                      tone="danger"
+                      title={t('library.page.pageFailed')}
+                      actions={
+                        <SpatialGroup>
+                          <SpatialButton
+                            focusKey="library-retry"
+                            icon="refresh"
+                            onPress={() => {
+                              retried.current = true;
+                              retry();
+                            }}
+                          >
+                            {t('common.retry')}
+                          </SpatialButton>
+                        </SpatialGroup>
+                      }
+                    />
+                  </div>
+                )}
+                <LibraryGrid
+                  ref={grid}
+                  slots={slots}
                   focusKey={GRID_KEY}
                   label={library.name}
-                  className={styles.grid}
-                  showWatched
+                  square={audio}
+                  onRange={onRange}
                   tool={
                     canManage
                       ? (item) =>
@@ -433,16 +471,6 @@ function LibraryView({ id }: { id: number | null }) {
                   }
                 />
                 {editing && <EditMetadata itemId={editing} onClose={() => setEditing(null)} />}
-                <MoreButton
-                  shown={items.length}
-                  keys={cardKeys}
-                  hasMore={query.hasNextPage}
-                  loading={query.isFetchingNextPage}
-                  failed={query.isFetchNextPageError}
-                  label={t('library.page.more', { count: Math.max(0, total - items.length) })}
-                  focusKey="library-more"
-                  onMore={() => void query.fetchNextPage()}
-                />
               </>
             )}
           </div>

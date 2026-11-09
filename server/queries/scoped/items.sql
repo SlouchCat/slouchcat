@@ -177,23 +177,48 @@ JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
 WHERE i.id IN (sqlc.slice('item_ids'));
 
 -- Number of visible content children of visible series and seasons: seasons of a series, episodes
--- of a season (extras never count). One query with a correlated subquery over visible_items.
--- watched_count counts the visible episodes of a season the profile has completed (concept 17
--- section 2.3, like the "done" of the library's episode statistics); 0 for a series.
+-- of a season (extras never count); 0 for a podcast. One query with correlated subqueries over
+-- visible_items. watched_count counts the visible episodes of a season the profile has completed
+-- (concept 17 section 2.3, like the "done" of the library's episode statistics). watched
+-- (ItemRef.watched, contract 1.22.0) is set for series and podcasts only, over the episodes of the
+-- library status rule (visibility.episodeStatsBody): an episode or podcast episode of the title's
+-- library in one of its seasons (specials included) or directly below it. It is 0 when a visible
+-- episode is not completed, 1 when every visible episode is, NULL without a visible episode. The
+-- first EXISTS reads the progress before visible_items (CROSS JOIN), so a completed episode costs
+-- no visibility check and an unwatched title stops at its first open episode; the second runs
+-- only when no episode is open. The unary + on e.library_id keeps the planner on the parent index
+-- (items_episode) instead of reading every episode of the library.
 -- name: ListVisibleChildCounts :many
 SELECT i.id,
-       (SELECT count(*) FROM items AS c
-        JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = @profile_id
-        WHERE c.parent_id = i.id AND c.kind IN ('season', 'episode')) AS child_count,
+       CAST(CASE WHEN i.kind IN ('series', 'season') THEN
+         (SELECT count(*) FROM items AS c
+          JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = @profile_id
+          WHERE c.parent_id = i.id AND c.kind IN ('season', 'episode'))
+       ELSE 0 END AS INTEGER) AS child_count,
        CAST(CASE WHEN i.kind = 'season' THEN
          (SELECT count(*) FROM items AS c
           JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = @profile_id
           JOIN progress AS pc ON pc.profile_id = @profile_id AND pc.item_id = c.id AND pc.completed = 1
           WHERE c.parent_id = i.id AND c.kind = 'episode')
-       ELSE 0 END AS INTEGER) AS watched_count
+       ELSE 0 END AS INTEGER) AS watched_count,
+       CASE WHEN i.kind NOT IN ('series', 'podcast') THEN NULL
+         WHEN EXISTS (
+           SELECT 1 FROM items AS se
+           CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+           LEFT JOIN progress AS pe ON pe.profile_id = @profile_id AND pe.item_id = e.id
+           CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = @profile_id
+           WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season'))
+             AND +e.library_id = i.library_id AND COALESCE(pe.completed, 0) = 0) THEN 0
+         WHEN EXISTS (
+           SELECT 1 FROM items AS se
+           CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+           JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = @profile_id
+           WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season'))
+             AND +e.library_id = i.library_id) THEN 1
+       END AS watched
 FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
-WHERE i.id IN (sqlc.slice('item_ids')) AND i.kind IN ('series', 'season');
+WHERE i.id IN (sqlc.slice('item_ids')) AND i.kind IN ('series', 'season', 'podcast');
 
 -- The series of visible seasons (parent) and episodes (grandparent), when the series is visible.
 -- name: ListVisibleSeriesOf :many
@@ -241,11 +266,15 @@ ORDER BY COALESCE(i.season_number, s.season_number), i.episode_number, i.id
 LIMIT 1;
 
 -- Credits of a visible title with the people's names, in the provider's order.
+-- The portrait comes along (ADR 0026): at most one 'ok' JPEG row per person, so the LEFT JOIN
+-- keeps the number of rows.
 -- name: ListVisibleCredits :many
-SELECT c.person_id, p.name, c.role, c.character, c.ord
+SELECT c.person_id, p.name, c.role, c.character, c.ord,
+       pi.content_hash AS image_hash, pi.width AS image_width, pi.height AS image_height
 FROM credits AS c
 JOIN visible_items AS v ON v.item_id = c.item_id AND v.profile_id = @profile_id
 JOIN people AS p ON p.id = c.person_id
+LEFT JOIN person_images AS pi ON pi.person_id = c.person_id AND pi.format = 'jpeg' AND pi.status = 'ok'
 WHERE c.item_id = @item_id
 ORDER BY c.ord, c.role, p.name, c.person_id;
 
@@ -263,12 +292,15 @@ WHERE t.item_id = @item_id
 ORDER BY t.lang, t.official DESC, t.id;
 
 -- Credits of a person on visible titles only (a person without one does not exist for the profile).
+-- The portrait comes along like in ListVisibleCredits (ADR 0026).
 -- name: ListVisiblePersonCredits :many
-SELECT sqlc.embed(i), p.name AS person_name, c.role, c.character
+SELECT sqlc.embed(i), p.name AS person_name, c.role, c.character,
+       pi.content_hash AS image_hash, pi.width AS image_width, pi.height AS image_height
 FROM credits AS c
 JOIN people AS p ON p.id = c.person_id
 JOIN items AS i ON i.id = c.item_id
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
+LEFT JOIN person_images AS pi ON pi.person_id = p.id AND pi.format = 'jpeg' AND pi.status = 'ok'
 WHERE c.person_id = @person_id
 ORDER BY i.year IS NULL, i.year DESC, i.sort_title, i.id, c.role;
 

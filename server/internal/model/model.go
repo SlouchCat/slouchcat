@@ -594,6 +594,10 @@ type ItemSummary struct {
 	// WatchedCount is the number of visible episodes of a season the profile has completed
 	// (concept 17 section 2.3, contract 1.20.0); set on seasons only.
 	WatchedCount *int
+	// Watched marks a series or podcast whose visible episodes the profile has all completed, by the
+	// rule of the library status watched (contract 1.22.0); nil on other kinds and on a series or
+	// podcast without visible episodes.
+	Watched *bool
 	// SeriesRef is the visible series of an episode with its title and images (concept 15 P-1,
 	// contract 1.14.0 ItemRef.seriesRef); nil on every other kind.
 	SeriesRef *SeriesRef
@@ -640,6 +644,7 @@ type CastMember struct {
 	Name      string
 	Role      string // cast, director, writer, creator
 	Character string
+	Image     *Image // the portrait (w185 JPEG row, ADR 0026), nil without one
 }
 
 // Trailer is a YouTube trailer of a title in one language (B-8, W-10).
@@ -669,6 +674,7 @@ type Person struct {
 	ID      int64
 	Name    string
 	Credits []PersonCredit
+	Image   *Image // the portrait (w185 JPEG row, ADR 0026), nil without one
 }
 
 // MediaFile describes one playable file of a title.
@@ -919,8 +925,9 @@ type SearchResult struct {
 
 // PersonRef is a person in search results.
 type PersonRef struct {
-	ID   int64
-	Name string
+	ID    int64
+	Name  string
+	Image *Image // the portrait (w185 JPEG row, ADR 0026), nil without one
 }
 
 // GenreRef is a genre with the number of visible titles.
@@ -939,6 +946,9 @@ type CollectionRef struct {
 	// Members are the first visible members in collection order, at most 20 (concept 17 section
 	// 4.2, contract 1.20.0); set only on the collections of a title's detail, nil elsewhere.
 	Members []ItemSummary
+	// Image is the TMDB poster (w400 JPEG row, ADR 0026), set only when the profile sees every
+	// live member.
+	Image *Image
 }
 
 // Collection is a collection with one page of its visible members.
@@ -948,6 +958,7 @@ type Collection struct {
 	Overview string
 	Items    []ItemSummary
 	Total    int
+	Image    *Image // the TMDB poster like CollectionRef.Image
 }
 
 // Notification is one entry of a profile's in-app inbox (E-8).
@@ -1790,6 +1801,15 @@ type LibraryFacets struct {
 	Letters []string   // present initial letters of the filtered set, A..Z then #
 	Genres  []GenreRef // genres with visible titles in the library, most frequent first
 	Ratings []int      // present ratings at or below the profile ceiling, ascending
+	// LetterStarts are the offsets of the first title of each initial letter in the active
+	// direction, only with sort title at offset 0 (nil otherwise; concept 17 section 6).
+	LetterStarts []LetterStart
+}
+
+// LetterStart is the offset of the first title of an initial letter (contract LetterStart).
+type LetterStart struct {
+	Letter string // A..Z or #
+	Offset int
 }
 
 // LibraryPage is one page of a library with its facets (contract LibraryItemsPage).

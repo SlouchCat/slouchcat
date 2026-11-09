@@ -33,6 +33,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"slices"
+	"strconv"
 	"sync"
 	"time"
 
@@ -541,6 +542,33 @@ func (s *Service) Image(ctx context.Context, profile model.Profile, itemID, kind
 	if err != nil {
 		return model.StreamSource{}, err
 	}
+	return s.openImage(ctx, loc, itemID+"/"+kind+"/"+size)
+}
+
+// PersonImage opens the portrait of a person with a role on a visible title (concept 17 5.1):
+// WebP when preferWebP is set and stored, JPEG otherwise; model.ErrNotFound without one. The caller
+// closes the file.
+func (s *Service) PersonImage(ctx context.Context, profile model.Profile, personID int64, preferWebP bool) (model.StreamSource, error) {
+	loc, err := s.vis.PersonImage(ctx, visibility.Profile(profile), personID, preferWebP)
+	if err != nil {
+		return model.StreamSource{}, err
+	}
+	return s.openImage(ctx, loc, "people/"+strconv.FormatInt(personID, 10))
+}
+
+// CollectionImage opens the TMDB poster of a collection that is fully visible to the profile
+// (concept 17 5.2); model.ErrNotFound otherwise. The caller closes the file.
+func (s *Service) CollectionImage(ctx context.Context, profile model.Profile, collectionID string, preferWebP bool) (model.StreamSource, error) {
+	loc, err := s.vis.CollectionImage(ctx, visibility.Profile(profile), collectionID, preferWebP)
+	if err != nil {
+		return model.StreamSource{}, err
+	}
+	return s.openImage(ctx, loc, "collections/"+collectionID)
+}
+
+// openImage opens a stored image below the cache directory through package paths; a row whose
+// file is gone answers model.ErrNotFound. name names the image in the log and the source.
+func (s *Service) openImage(ctx context.Context, loc visibility.ImageLocation, name string) (model.StreamSource, error) {
 	root, err := paths.NewRoot(s.cacheDir)
 	if err != nil {
 		return model.StreamSource{}, err
@@ -553,7 +581,7 @@ func (s *Service) Image(ctx context.Context, profile model.Profile, itemID, kind
 	f, err := dir.Open(loc.RelPath)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			s.log.WarnContext(ctx, "image row without file", "item_id", itemID, "kind", kind, "size", size)
+			s.log.WarnContext(ctx, "image row without file", "image", name)
 			return model.StreamSource{}, model.ErrNotFound
 		}
 		return model.StreamSource{}, err
@@ -567,6 +595,6 @@ func (s *Service) Image(ctx context.Context, profile model.Profile, itemID, kind
 		MediaType: loc.MediaType,
 		Size:      info.Size(),
 		ModTime:   time.UnixMilli(loc.ModTime).UTC(),
-		Name:      itemID + "/" + kind + "/" + size,
+		Name:      name,
 	}, nil
 }

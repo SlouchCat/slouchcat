@@ -1099,18 +1099,35 @@ func (q *Queries) ListTopPicks(ctx context.Context, arg ListTopPicksParams) ([]L
 
 const listVisibleChildCounts = `-- name: ListVisibleChildCounts :many
 SELECT i.id,
-       (SELECT count(*) FROM items AS c
-        JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
-        WHERE c.parent_id = i.id AND c.kind IN ('season', 'episode')) AS child_count,
+       CAST(CASE WHEN i.kind IN ('series', 'season') THEN
+         (SELECT count(*) FROM items AS c
+          JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
+          WHERE c.parent_id = i.id AND c.kind IN ('season', 'episode'))
+       ELSE 0 END AS INTEGER) AS child_count,
        CAST(CASE WHEN i.kind = 'season' THEN
          (SELECT count(*) FROM items AS c
           JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
           JOIN progress AS pc ON pc.profile_id = ?1 AND pc.item_id = c.id AND pc.completed = 1
           WHERE c.parent_id = i.id AND c.kind = 'episode')
-       ELSE 0 END AS INTEGER) AS watched_count
+       ELSE 0 END AS INTEGER) AS watched_count,
+       CASE WHEN i.kind NOT IN ('series', 'podcast') THEN NULL
+         WHEN EXISTS (
+           SELECT 1 FROM items AS se
+           CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+           LEFT JOIN progress AS pe ON pe.profile_id = ?1 AND pe.item_id = e.id
+           CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+           WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season'))
+             AND +e.library_id = i.library_id AND COALESCE(pe.completed, 0) = 0) THEN 0
+         WHEN EXISTS (
+           SELECT 1 FROM items AS se
+           CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+           JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+           WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season'))
+             AND +e.library_id = i.library_id) THEN 1
+       END AS watched
 FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
-WHERE i.id IN (/*SLICE:item_ids*/?) AND i.kind IN ('series', 'season')
+WHERE i.id IN (/*SLICE:item_ids*/?) AND i.kind IN ('series', 'season', 'podcast')
 `
 
 type ListVisibleChildCountsParams struct {
@@ -1122,12 +1139,21 @@ type ListVisibleChildCountsRow struct {
 	ID           string
 	ChildCount   int64
 	WatchedCount int64
+	Watched      interface{}
 }
 
 // Number of visible content children of visible series and seasons: seasons of a series, episodes
-// of a season (extras never count). One query with a correlated subquery over visible_items.
-// watched_count counts the visible episodes of a season the profile has completed (concept 17
-// section 2.3, like the "done" of the library's episode statistics); 0 for a series.
+// of a season (extras never count); 0 for a podcast. One query with correlated subqueries over
+// visible_items. watched_count counts the visible episodes of a season the profile has completed
+// (concept 17 section 2.3, like the "done" of the library's episode statistics). watched
+// (ItemRef.watched, contract 1.22.0) is set for series and podcasts only, over the episodes of the
+// library status rule (visibility.episodeStatsBody): an episode or podcast episode of the title's
+// library in one of its seasons (specials included) or directly below it. It is 0 when a visible
+// episode is not completed, 1 when every visible episode is, NULL without a visible episode. The
+// first EXISTS reads the progress before visible_items (CROSS JOIN), so a completed episode costs
+// no visibility check and an unwatched title stops at its first open episode; the second runs
+// only when no episode is open. The unary + on e.library_id keeps the planner on the parent index
+// (items_episode) instead of reading every episode of the library.
 func (q *Queries) ListVisibleChildCounts(ctx context.Context, arg ListVisibleChildCountsParams) ([]ListVisibleChildCountsRow, error) {
 	query := listVisibleChildCounts
 	var queryParams []interface{}
@@ -1148,7 +1174,12 @@ func (q *Queries) ListVisibleChildCounts(ctx context.Context, arg ListVisibleChi
 	items := []ListVisibleChildCountsRow{}
 	for rows.Next() {
 		var i ListVisibleChildCountsRow
-		if err := rows.Scan(&i.ID, &i.ChildCount, &i.WatchedCount); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.ChildCount,
+			&i.WatchedCount,
+			&i.Watched,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -1163,10 +1194,12 @@ func (q *Queries) ListVisibleChildCounts(ctx context.Context, arg ListVisibleChi
 }
 
 const listVisibleCredits = `-- name: ListVisibleCredits :many
-SELECT c.person_id, p.name, c.role, c.character, c.ord
+SELECT c.person_id, p.name, c.role, c.character, c.ord,
+       pi.content_hash AS image_hash, pi.width AS image_width, pi.height AS image_height
 FROM credits AS c
 JOIN visible_items AS v ON v.item_id = c.item_id AND v.profile_id = ?1
 JOIN people AS p ON p.id = c.person_id
+LEFT JOIN person_images AS pi ON pi.person_id = c.person_id AND pi.format = 'jpeg' AND pi.status = 'ok'
 WHERE c.item_id = ?2
 ORDER BY c.ord, c.role, p.name, c.person_id
 `
@@ -1177,14 +1210,19 @@ type ListVisibleCreditsParams struct {
 }
 
 type ListVisibleCreditsRow struct {
-	PersonID  int64
-	Name      string
-	Role      string
-	Character sql.NullString
-	Ord       int64
+	PersonID    int64
+	Name        string
+	Role        string
+	Character   sql.NullString
+	Ord         int64
+	ImageHash   sql.NullString
+	ImageWidth  sql.NullInt64
+	ImageHeight sql.NullInt64
 }
 
 // Credits of a visible title with the people's names, in the provider's order.
+// The portrait comes along (ADR 0026): at most one 'ok' JPEG row per person, so the LEFT JOIN
+// keeps the number of rows.
 func (q *Queries) ListVisibleCredits(ctx context.Context, arg ListVisibleCreditsParams) ([]ListVisibleCreditsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listVisibleCredits, arg.ProfileID, arg.ItemID)
 	if err != nil {
@@ -1200,6 +1238,9 @@ func (q *Queries) ListVisibleCredits(ctx context.Context, arg ListVisibleCredits
 			&i.Role,
 			&i.Character,
 			&i.Ord,
+			&i.ImageHash,
+			&i.ImageWidth,
+			&i.ImageHeight,
 		); err != nil {
 			return nil, err
 		}
@@ -1576,11 +1617,13 @@ func (q *Queries) ListVisibleParents(ctx context.Context, arg ListVisibleParents
 }
 
 const listVisiblePersonCredits = `-- name: ListVisiblePersonCredits :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, p.name AS person_name, c.role, c.character
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, p.name AS person_name, c.role, c.character,
+       pi.content_hash AS image_hash, pi.width AS image_width, pi.height AS image_height
 FROM credits AS c
 JOIN people AS p ON p.id = c.person_id
 JOIN items AS i ON i.id = c.item_id
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+LEFT JOIN person_images AS pi ON pi.person_id = p.id AND pi.format = 'jpeg' AND pi.status = 'ok'
 WHERE c.person_id = ?2
 ORDER BY i.year IS NULL, i.year DESC, i.sort_title, i.id, c.role
 `
@@ -1591,13 +1634,17 @@ type ListVisiblePersonCreditsParams struct {
 }
 
 type ListVisiblePersonCreditsRow struct {
-	Item       Item
-	PersonName string
-	Role       string
-	Character  sql.NullString
+	Item        Item
+	PersonName  string
+	Role        string
+	Character   sql.NullString
+	ImageHash   sql.NullString
+	ImageWidth  sql.NullInt64
+	ImageHeight sql.NullInt64
 }
 
 // Credits of a person on visible titles only (a person without one does not exist for the profile).
+// The portrait comes along like in ListVisibleCredits (ADR 0026).
 func (q *Queries) ListVisiblePersonCredits(ctx context.Context, arg ListVisiblePersonCreditsParams) ([]ListVisiblePersonCreditsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listVisiblePersonCredits, arg.ProfileID, arg.PersonID)
 	if err != nil {
@@ -1672,6 +1719,9 @@ func (q *Queries) ListVisiblePersonCredits(ctx context.Context, arg ListVisibleP
 			&i.PersonName,
 			&i.Role,
 			&i.Character,
+			&i.ImageHash,
+			&i.ImageWidth,
+			&i.ImageHeight,
 		); err != nil {
 			return nil, err
 		}

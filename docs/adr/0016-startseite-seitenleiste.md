@@ -118,3 +118,17 @@ aktive Titel steht immer vorne, die gezeigten wandern ans Ende; der Leerraum am 
 DOM-Reihenfolge bleibt fest, gedreht wird über CSS `order`. Option e (Reihe je Bibliothek) wird mit
 Stufe 3 doch gebaut: Kachelreihe «Meine Medien» und je Bibliothek «Neu in …» (F-11), höchstens 15
 sichtbare Reihen (F-12).
+
+## Nachtrag (9. November 2026)
+
+Konzept 17 (Frage 24) ändert zwei Punkte:
+
+- **Verworfene Option (f), Seitenleiste mit Symbolzustand:** Seit 1.19.2 trägt die Seitenleiste
+  Symbole (Konzept 17, Stufe 1). Einen schmalen Zustand nur mit Symbolen gibt es weiterhin nicht:
+  «Einklappen» heisst ausblenden, und unter 768 px öffnet die Schublade die volle Leiste.
+- **Buchstabenleiste der Bibliotheksseite** (Zeile «Bibliotheksseite»): Seit 1.21.0 filtert sie
+  nicht mehr, sie springt. Ihre Buchstaben sind die von `letterStarts` in den Facetten (nur bei
+  `sort=title` und `offset=0`); ein Druck springt zum ersten Titel mit diesem Buchstaben in der
+  aktiven Richtung, der Knopf «•» entfällt. Der Filterparameter `letter` von `listLibraryItems` ist
+  veraltet (er funktioniert weiter, die App sendet ihn nicht mehr); ein alter Link mit `?letter=`
+  öffnet die Liste oben. `letters` bleibt als Facette unverändert.

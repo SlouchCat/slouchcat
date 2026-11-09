@@ -1,8 +1,10 @@
+import type { APIRequestContext, Locator } from '@playwright/test';
+import { CSRF, SHOW_TITLE } from './catalog';
 import { createCollection, deleteCollection } from './curation';
 import { ROW_TITLES } from './discover';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus, resetFocus } from './keyboard';
-import { CHAPTERS_TITLE, H264_TITLE, itemIdByTitle } from './playback';
+import { CHAPTERS_TITLE, H264_TITLE, itemIdByTitle, useFreshProfile } from './playback';
 
 // E-6: a manual collection of the main user (admin API) as a page of its own and as a card in the
 // start page's row "Sammlungen" and on its members' detail pages.
@@ -91,4 +93,157 @@ test('collection by keyboard: arrows, Enter, back; no focus trap @keyboard', asy
   } finally {
     await deleteCollection(owner, id);
   }
+});
+
+/** Ids of every episode of every season of a series (specials included), for the profile of api. */
+async function allEpisodeIds(api: APIRequestContext, seriesId: string): Promise<string[]> {
+  const series = (await (await api.get(`/api/v1/items/${seriesId}`)).json()) as {
+    seasons?: { id: string }[];
+  };
+  const out: string[] = [];
+  for (const season of series.seasons ?? []) {
+    const detail = (await (await api.get(`/api/v1/items/${season.id}`)).json()) as {
+      episodes?: { id: string }[];
+    };
+    out.push(...(detail.episodes ?? []).map((episode) => episode.id));
+  }
+  return out;
+}
+
+/** Reports an episode as watched to the end for the profile of api. */
+async function finish(api: APIRequestContext, itemId: string): Promise<void> {
+  const response = await api.post(`/api/v1/items/${itemId}/progress`, {
+    headers: CSRF,
+    data: {
+      positionMs: 1_800_000,
+      durationMs: 1_800_000,
+      playedMs: 1_800_000,
+      seq: 1,
+      state: 'ended',
+      clientTime: new Date().toISOString(),
+    },
+  });
+  expect(response.ok(), await response.text()).toBe(true);
+}
+
+test('a series in a collection carries the check once every episode is watched (contract 1.22.0)', async ({
+  page,
+  owner,
+}) => {
+  // A profile of its own: its progress is only this test's.
+  await useFreshProfile(page, owner, 'E2E Serien-Haken');
+  const h264 = await itemIdByTitle(owner, H264_TITLE);
+  const series = await itemIdByTitle(owner, SHOW_TITLE);
+  const episodes = await allEpisodeIds(page.request, series);
+  // Season 1 (three files) and the special.
+  expect(episodes.length).toBeGreaterThanOrEqual(4);
+  const { id } = await createCollection(owner, NAME, [h264, series]);
+  try {
+    const seriesCard = (list: Locator) => list.getByRole('link', { name: new RegExp(SHOW_TITLE) });
+    const check = (card: Locator) => card.getByRole('img', { name: 'Gesehen', exact: true });
+    // Every episode but the last (the special comes last) watched: no check yet.
+    for (const episode of episodes.slice(0, -1)) await finish(page.request, episode);
+    await page.goto(`/collections/${id}`);
+    const members = page.getByRole('list', { name: 'Titel' });
+    await expect(seriesCard(members)).toBeVisible();
+    await expect(check(seriesCard(members))).toHaveCount(0);
+
+    await finish(page.request, episodes.at(-1)!);
+    await page.reload();
+    await expect(check(seriesCard(members))).toBeVisible();
+    // The collection shelf on the film's detail page shows it too.
+    await page.goto(`/items/${h264}`);
+    await expect(check(seriesCard(page.getByRole('list', { name: NAME })))).toBeVisible();
+  } finally {
+    await deleteCollection(owner, id);
+  }
+});
+
+test.describe('the TMDB poster of a collection (concept 17 D-5)', () => {
+  // The routes below must see the requests; a service worker would make them on its own.
+  test.use({ serviceWorkers: 'block' });
+
+  // 1x1 PNG: a poster the browser decodes.
+  const POSTER = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+    'base64',
+  );
+
+  test('the poster shows on the card and the head, the neutral tile without the file; keyboard @keyboard', async ({
+    page,
+    owner,
+  }) => {
+    const { id } = await createCollection(owner, NAME, [await itemIdByTitle(owner, H264_TITLE)]);
+    try {
+      // The e2e server has no TMDB key, so a manual collection has no poster: name one in the
+      // answers of the start page, the search and the collection page.
+      const image = { url: `/collections/${id}/image?v=a&p=1`, width: 400, height: 600 };
+      await page.route('**/api/v1/home*', async (route) => {
+        const response = await route.fetch();
+        const body = (await response.json()) as {
+          rows: { key: string; collections?: { id: string; image?: unknown }[] }[];
+        };
+        for (const row of body.rows) {
+          for (const collection of row.collections ?? []) collection.image = image;
+        }
+        await route.fulfill({ response, json: body });
+      });
+      await page.route('**/api/v1/search', async (route) => {
+        const response = await route.fetch();
+        const body = (await response.json()) as { collections: { image?: unknown }[] };
+        for (const collection of body.collections) collection.image = image;
+        await route.fulfill({ response, json: body });
+      });
+      await page.route(new RegExp(`/api/v1/collections/${id}(\\?.*)?$`), async (route) => {
+        const response = await route.fetch();
+        const body = (await response.json()) as Record<string, unknown>;
+        await route.fulfill({ response, json: { ...body, image } });
+      });
+      let file: 'png' | 'gone' = 'png';
+      await page.route(`**/api/v1/collections/${id}/image*`, (route) =>
+        file === 'png'
+          ? route.fulfill({ status: 200, contentType: 'image/png', body: POSTER })
+          : route.fulfill({ status: 404, contentType: 'text/plain', body: 'gone' }),
+      );
+      const loaded = (locator: Locator) =>
+        locator.evaluate((element: HTMLImageElement) => element.naturalWidth);
+
+      await page.goto('/');
+      const row = page.getByRole('region', { name: ROW_TITLES.collections });
+      const homeCard = row.getByRole('link', { name: new RegExp(NAME) });
+      await expect(homeCard).toBeVisible();
+      // The card is below the fold and its image lazy: Firefox loads it only once it is near.
+      await homeCard.scrollIntoViewIfNeeded();
+      await expect.poll(() => loaded(homeCard.locator('img'))).toBeGreaterThan(0);
+
+      await page.goto('/search?q=Abendprogramm');
+      const found = page.getByRole('region', { name: 'Sammlungen' });
+      const card = found.getByRole('link', { name: new RegExp(NAME) });
+      await expect(card).toBeVisible();
+      await expect.poll(() => loaded(card.locator('img'))).toBeGreaterThan(0);
+
+      // By keyboard: the card, Enter, the head shows the poster, back returns to the search.
+      await resetFocus(page);
+      await card.focus();
+      await expectFocusOn(page, card);
+      await page.keyboard.press('Enter');
+      await expect(page).toHaveURL(new RegExp(`/collections/${id}$`));
+      const cover = page.locator(`main img[src*="/collections/${id}/image"]`);
+      await expect.poll(() => loaded(cover)).toBeGreaterThan(0);
+      await page.goBack();
+      await expect(card).toBeVisible();
+
+      // The file is gone although the answers name it: neutral tile and no broken image.
+      file = 'gone';
+      await page.goto('/search?q=Abendprogramm');
+      await expect(card).toBeVisible();
+      await expect(card.locator('img')).toHaveCount(0);
+      await page.goto(`/collections/${id}`);
+      await expect(page.getByRole('heading', { level: 1, name: NAME })).toBeVisible();
+      await expect(cover).toHaveCount(0);
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+    } finally {
+      await deleteCollection(owner, id);
+    }
+  });
 });

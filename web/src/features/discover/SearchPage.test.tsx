@@ -1,5 +1,5 @@
 import type { SearchResult } from '@slouchcat/api-client';
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { alien, arrival, heat, ids } from '@/test/fixtures';
@@ -74,6 +74,37 @@ describe('search page', () => {
       `/collections/${collectionId}`,
     );
     expect(within(collections).getByText('2 Titel')).toBeVisible();
+  });
+
+  it('shows the people as round cards: the portrait, the initial without one or when it fails', async () => {
+    mockApi(
+      routes(() =>
+        json(
+          result({
+            people: [
+              {
+                id: 3,
+                name: 'Sigourney Weaver',
+                image: { url: '/people/3/image?v=a&p=1', width: 185, height: 278 },
+              },
+              { id: 4, name: 'Tom Skerritt' },
+            ],
+          }),
+        ),
+      ),
+    );
+    renderApp('/search?q=Al');
+    const people = await screen.findByRole('region', { name: 'Personen' });
+    const weaver = within(people).getByRole('link', { name: 'Sigourney Weaver' });
+    const skerritt = within(people).getByRole('link', { name: 'Tom Skerritt' });
+    expect(skerritt).toHaveAttribute('href', '/people/4');
+    expect(skerritt.querySelector('img')).toBeNull();
+    expect(skerritt).toHaveTextContent('T');
+    const image = weaver.querySelector('img');
+    expect(image?.getAttribute('src')).toContain('/people/3/image?v=a&p=1');
+    if (image) fireEvent.error(image);
+    expect(weaver.querySelector('img')).toBeNull();
+    expect(weaver).toHaveTextContent('S');
   });
 
   it('browses a genre from a link without text and sends every filter of the URL', async () => {

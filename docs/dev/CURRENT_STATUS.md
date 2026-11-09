@@ -1,5 +1,95 @@
 # Aktueller Stand
 
+## Gesehen-Haken für Serien und Podcasts in Listen (9. November 2026): Pull Request, Release 1.22.0
+
+**Vertrag 1.22.0, additiv**, keine Migration, keine neue Operation. Zweig `claude/serien-haken` ab `main`
+`43eb1f8a` (Release 1.21.0). Hebt die Restgrenze aus Konzept 17 Stufe 2 auf (Marco: «Mach doch noch den
+Gesehen Haken»); Podcasts bekommen den Haken auch (Marco: «Doch, Podcast sollen den Haken auch erhalten»).
+Nachtrag zu Frage 24 vom 9. November 2026.
+
+- **Vertrag:** `ItemRef.watched` (Boolean), nur bei Serien und Podcasts: alle sichtbaren Folgen hat das aktive
+  Profil fertig, dieselbe Regel wie der Status «gesehen» der Bibliothek (Specials zählen mit, gesperrte Folgen
+  nicht); `false`, solange eine sichtbare Folge offen ist; fehlt ohne sichtbare Folge und bei jeder anderen Art.
+- **Server:** `ListVisibleChildCounts`, die jede Zusammenfassung einer Liste schon gebündelt liest, antwortet
+  neu auch für Podcasts und liefert je Serie oder Podcast eine Spalte `watched` (0 offen, 1 alles fertig, NULL
+  ohne sichtbare Folge) aus zwei `EXISTS` (eine sichtbare, nicht fertige Folge; sonst eine sichtbare Folge),
+  über dieselben Folgen wie der Status der Bibliothek (gleiche Bibliothek). Die erste liest den Fortschritt vor
+  `visible_items`, eine fertige Folge kostet so keine Sichtbarkeitsprüfung, eine ungesehene Serie endet bei
+  ihrer ersten offenen Folge; die Zahl der Kinder rechnet sie nur noch für Serien und Staffeln. Damit tragen
+  Bibliothek, Startseite, Suche, Sammlungen, Merkliste, User-Empfehlungen, Personenseite und Detailseite das
+  Feld, ohne Abfrage pro Titel; die Bibliotheksseite nimmt es aus derselben Folgenstatistik wie ihr
+  Statusfilter.
+- **App:** `isFinished` (Katalog-Beschriftungen) nimmt eine Serie oder einen Podcast allein nach `watched`
+  als fertig, jeden anderen Titel nach seinem Fortschritt. Der Haken steht dort, wo ihn ein Film heute zeigt:
+  Bibliotheksraster, Sammlungsseite und Sammlungsreihe der Detailseite; auf dem quadratischen Podcast-Cover
+  heisst er «Gehört». Startseite, Suche, Merkliste, User-Empfehlungen und Personenseite zeigen auch bei Filmen
+  keinen Haken.
+- **Messung** (p50, Release 1.21.0 → 1.22.0): `BenchmarkSeriesNextUp` (100 Serien × 13 Staffeln × 20 Folgen):
+  `ListVisibleChildCounts` für 100 Serien 1,32 → 2,2 ms (P18, eine Serie halb gesehen) und 1,33 → 18,5 ms
+  (P16 hat alle 26'000 Folgen fertig, der ungünstigste Fall); Bibliotheksseite mit 100 Serien 49,2 → 50,3 ms
+  und 53,4 → 70,3 ms. `BenchmarkPodcastLibrary` (neu, 100 Podcasts × 1000 Folgen): Abfrage für 100 Podcasts
+  0,9 ms (nichts gehört) und 72,8 ms (alle 100'000 Folgen gehört); Bibliotheksseite 188,9 → 190,1 ms und
+  211,1 → 284,0 ms. Die Filmbibliothek (`BenchmarkLibraryRows`, 10'000 Filme) bleibt gleich (Titel 42,6 →
+  42,9 ms). Verworfen: eine erste Fassung mit `count(*)` über alle Folgen (212 ms für 100 Serien) und die Zahl
+  der Kinder für Podcasts (18,3 ms für 100 ungehörte Podcasts). Auf der Bibliotheksseite rechnet die Abfrage
+  `watched` noch einmal, obwohl die Folgenstatistik es schon hat; das Weglassen bräuchte einen Schalter durch
+  `ordered`, `summaries` und `extras`.
+- **Prüfung (Stufe 1):** `task check:fast` grün (Server: geänderte Pakete `go vet` und `go test`, Web: eslint,
+  prettier, tsc); `go tool golangci-lint run ./internal/visibility/... ./internal/api/... ./internal/model/...`
+  0 issues; `go test ./internal/visibility -run 'TestSeriesWatched|TestPodcastWatched'` und
+  `go test ./internal/api -run TestContractSeriesAndPodcastWatched` grün;
+  `go test ./internal/store -run TestScopedQueriesJoinVisibleItems` grün; `vitest related` für die geänderten
+  Dateien 1053 Tests grün; `E2E_PORT=8197 task e2e:quick -- e2e/collection.spec.ts` 4 von 4 grün. `task ci`
+  auf `af630d88` grün (Koordinator). Nach dem Code-Review: `task check:fast` grün, golangci-lint und
+  `itemsaccess` für `visibility` und `store` ohne Befund, `go test ./internal/visibility ./internal/store`
+  grün, `vitest related` 1055 Tests grün.
+- Versionsstellen auf 1.22.0 (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/compose.updater.yaml`,
+  `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`).
+
+## Konzept 17 Stufe 3 «Personen- und Sammlungsbilder, Bibliotheksraster» (9. November 2026): Pull Request, Release 1.21.0
+
+**Vertrag 1.21.0, additiv**, **Migration 00040** (`person_images`, `collection_images`), ADR 0026. Zweig
+`claude/detailseiten-stufe3` ab `main` `e0299fdd` (Release 1.20.0). Bau auf Marcos Wort vom 8. November 2026
+(«Stufe 3 starten») nach Plan mit Vertrag und Migration vorab und drei Spuren (Server-Bilder, App-Bilder,
+Bibliotheksraster); Kritiker-Review des Plans (REVISE, 0 Blocker, 10 Major, 17 Minor, eingearbeitet),
+Code-Review (REQUEST CHANGES, 0 Blocker, 4 Major, 9 Minor, behoben) und Security-Review (LOW, 5 Low, behoben).
+Randentscheide und Marcos drei Antworten (Hörbücher wie Filme; Personen in der Suche als Bildkarten; Messung
+mit Handy-Emulation, Telefon bei der Abnahme) im Nachtrag zu Frage 24 vom 9. November 2026.
+
+- **Vertrag:** `image` (`ImageRef`) in `CastMember`, `Person`, `PersonRef`, `Collection`, `CollectionRef`;
+  Operationen `getPersonImage` und `getCollectionImage` (`http.Handler`, `scoped`, 404 statt 403);
+  `LibraryFacets.letterStarts` (`LetterStart { letter, offset }`, nur bei `sort=title` und `offset=0`); der
+  Parameter `letter` ist veraltet.
+- **Server (D-5):** Job `people.images` (Ereignistyp mit Zeitfenster, Drossel 10/s für das CDN, nur 404 und
+  kaputte Bilder werden `missing`, nach drei Transportfehlern in Folge Abbruch, verlorene Dateien lösen einen
+  Lauf aus) und Zeitplan `people.images_backfill` (aus); Personenbild nur mit Rolle in einem sichtbaren Titel,
+  TMDB-Sammlungsposter nur, wenn alle Mitglieder sichtbar und keines gelöscht ist, sonst das Poster des ersten
+  sichtbaren Mitglieds. ffmpeg mit festem Demuxer und `-protocol_whitelist file`, `nosniff`, Weiterleitungen
+  nur auf denselben Host.
+- **App (D-5):** Porträts auf den Besetzungskarten (`ui/Avatar`), auf der Personenseite und als runde Karten in
+  der Suche; Sammlungsposter auf Karte und Kopf der Sammlungsseite; Rückfall auf Buchstabe bzw. Mitgliedsposter;
+  der Service Worker hält gesehene Porträts offline.
+- **Bibliothek (D-6):** Seitenmodell mit Lücken (Seiten zu 100, nur sichtbare Seiten, Wechsel der Gesamtzahl
+  ohne Schlaufe), virtualisiertes Raster mit `@tanstack/react-virtual` 3.14.22 (feste Zeilenhöhe, Karten einzeln
+  positioniert wegen der Grenze von 9'999 Rasterzeilen in Firefox), Fokusregeln für nicht gezeichnete Zeilen,
+  Zurück stellt Karte und Scrollstand her, Buchstaben springen (`#` zweimal), Hinweis mit «Erneut versuchen»
+  bei einer fehlgeschlagenen Seite. Gilt für Film-, Serien- und Hörbuchbibliotheken; «User-Empfehlungen»
+  bleiben beim alten Weg.
+- **Messung** (`docs/perf/detailseiten.md`): erster Lauf `people.images` auf CT 190 31 min für 18'199 Subjekte,
+  0 Fehler, 17'794 Personen und 405 Sammlungen, zusammen rund 0,5 GB (Schätzung 0,9 GB); Seite 0 mit
+  `letterStarts` im Benchmark so schnell wie eine Seite ohne Facetten (p50 42,4 ms); Handy-Emulation ohne
+  CPU-Drosselung: erste Bilder nach 237 ms, Durchscrollen von 1'800 Filmen ohne lange Aufgaben.
+- **Restgrenzen:** TMDB-Sammlungsteile, die nie in der Bibliothek waren, prüft der Server nicht (offene Frage in
+  ADR 0026); das Löschen einer Sammlung lässt bis zu zwei Dateien im Cache; der Fehlerhinweis über dem Raster
+  verschiebt es um seine Höhe; die Messung auf dem Telefon steht aus (Abnahme).
+- **Prüfung:** `task ci` auf `6b087ece`: Server 39 Pakete grün, Web 1678 Vitest-Tests, Storybook 435
+  Geschichten, e2e in drei Shards 569 von 569 grün (588 s). Danach nur Doku (`task check:fast`).
+- Versionsstellen auf 1.21.0 (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/compose.updater.yaml`,
+  `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`).
+- **Offen für die Abnahme auf CT 190** (läuft auf `detailseiten3-c18cb81`): Porträts auf Detail-, Personen- und
+  Suchseite, Sammlungsposter, Bibliothek mit springenden Buchstaben, Scrollen und Zurück mit Maus, Tastatur und
+  Handy. Merge und Tag `v1.21.0` erst auf Marcos Wort.
+
 ## Konzept 17 Stufe 2 «Detailseite und Merken auf dem Cover» (8. November 2026): Pull Request, Release 1.20.0
 
 **Vertrag 1.20.0, additiv**, keine Migration, keine neue Operation. Zweig `claude/detailseiten-stufe2` ab `main`

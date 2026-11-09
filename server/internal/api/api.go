@@ -63,17 +63,22 @@ const (
 	radioLogoUploadPath   = "/admin/radio/stations/{stationId}/logo"
 	// The cover of a title (concept 16 stage 2, contract 1.19.0).
 	radioCoverPath = "/radio/covers/{trackId}/{size}"
+	// The portrait of a person and the TMDB poster of a collection (contract 1.21.0, ADR 0026).
+	personImagePath     = "/people/{id}/image"
+	collectionImagePath = "/collections/{id}/image"
 )
 
 var binaryRoutes = map[string]string{
-	"GET " + BasePath + binaryImagePath:  "scoped",
-	"GET " + BasePath + chapterImagePath: "scoped",
-	"GET " + BasePath + binaryStreamPath: "scoped",
-	"GET " + BasePath + hlsMasterPath:    "scoped",
-	"GET " + BasePath + hlsMediaPath:     "scoped",
-	"GET " + BasePath + hlsInitPath:      "scoped",
-	"GET " + BasePath + hlsSegmentPath:   "scoped",
-	"GET " + BasePath + subtitlePath:     "scoped",
+	"GET " + BasePath + binaryImagePath:     "scoped",
+	"GET " + BasePath + chapterImagePath:    "scoped",
+	"GET " + BasePath + personImagePath:     "scoped",
+	"GET " + BasePath + collectionImagePath: "scoped",
+	"GET " + BasePath + binaryStreamPath:    "scoped",
+	"GET " + BasePath + hlsMasterPath:       "scoped",
+	"GET " + BasePath + hlsMediaPath:        "scoped",
+	"GET " + BasePath + hlsInitPath:         "scoped",
+	"GET " + BasePath + hlsSegmentPath:      "scoped",
+	"GET " + BasePath + subtitlePath:        "scoped",
 
 	"GET " + BasePath + downloadFilePath:     "scoped",
 	"GET " + BasePath + downloadSubtitlePath: "scoped",
@@ -164,6 +169,8 @@ func NewHandler(o Options) http.Handler {
 		hlsAuth := p.streamAuth(o.Playback, true)
 		r.With(authorize).Get(binaryImagePath, s.getItemImage)
 		r.With(authorize).Get(chapterImagePath, s.getChapterImage)
+		r.With(authorize).Get(personImagePath, s.getPersonImage)
+		r.With(authorize).Get(collectionImagePath, s.getCollectionImage)
 		r.With(streamAuth).Get(binaryStreamPath, s.getItemStream)
 		r.With(hlsAuth).Get(hlsMasterPath, s.getPlaybackMaster)
 		r.With(hlsAuth).Get(hlsMediaPath, s.getPlaybackMedia)

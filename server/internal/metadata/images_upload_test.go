@@ -29,7 +29,7 @@ func (e *env) webpBytes(t *testing.T, w, h int) []byte {
 		t.Fatal(err)
 	}
 	out := filepath.Join(dir, "out.webp")
-	if err := e.svc.runner.ScaleImage(context.Background(), in, []transcode.ImageOutput{{Path: out, Width: w, Format: transcode.ImageWebP}}); err != nil {
+	if err := e.svc.runner.ScaleImage(context.Background(), in, "png_pipe", []transcode.ImageOutput{{Path: out, Width: w, Format: transcode.ImageWebP}}); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(out)

@@ -2,8 +2,11 @@ package visibility
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -257,6 +260,149 @@ func TestLibraryItemsLetters(t *testing.T) {
 	films := libraryItems(t, r, f.P18, f.LibraryID(), model.LibraryQuery{Content: model.RootMovie})
 	if !slices.Equal(films.Facets.Letters, []string{"A", "M", "#"}) || slices.Contains(ids(films.Items), f.Show.Series.ID) {
 		t.Errorf("P18 films letters = %v, items %v", films.Facets.Letters, ids(films.Items))
+	}
+}
+
+// letterStarts (concept 17 section 6): one entry per change of the letter in the active
+// direction over the filtered set, only on the first page sorted by title. The sort keys come
+// from model.SortKey (articles stripped, diacritics folded); the file name's sort title carries
+// them here, the text rows have none.
+func TestLibraryItemsLetterStarts(t *testing.T) {
+	t.Parallel()
+	f := libraryFixture(t)
+	r := New(f.DB, vistest.Logger())
+	filler := f.All()[slices.IndexFunc(f.All(), func(m vistest.Movie) bool { return m.Label == "A8" })] // the second film rated 18
+	keys := map[string]string{
+		f.Rated(0).ID:    model.SortKey("en", "2001: A Space Odyssey"), // digit, before a
+		f.Rated(6).ID:    model.SortKey("de", "Ärger im Garten"),       // umlaut folded to a
+		f.Rated(12).ID:   model.SortKey("de", "Amélie"),
+		f.Rated(16).ID:   model.SortKey("en", "The Matrix"), // article stripped
+		f.Rated(18).ID:   model.SortKey("de", "Der Mann"),
+		f.Unrated().ID:   model.SortKey("de", "東京物語"), // another script, after z
+		f.Show.Series.ID: model.SortKey("de", "Das Örtchen"),
+		filler.ID:        model.SortKey("de", "Die Zeit"),
+	}
+	if visible := libraryOracle(f, f.P18, f.LibraryID()); len(visible) != len(keys) {
+		t.Fatalf("P18 sees %d titles of library 1, the test names %d", len(visible), len(keys))
+	}
+	exec(t, f, `UPDATE item_texts SET sort_key = NULL WHERE item_id IN (SELECT id FROM items WHERE library_id = ?)`, f.LibraryID())
+	for id, key := range keys {
+		exec(t, f, `UPDATE items SET sort_title = ? WHERE id = ?`, key, id)
+	}
+	// A second genre on three titles and P18's progress on the film rated 12 (fixture).
+	for _, id := range []string{f.Rated(12).ID, f.Rated(16).ID, f.Show.Series.ID} {
+		exec(t, f, `INSERT INTO item_genres (item_id, lang, name) VALUES (?, 'de', 'Krimi')`, id)
+	}
+	// starts reads "#0 A1" as the letter starts # at 0 and A at 1.
+	starts := func(s string) []model.LetterStart {
+		out := []model.LetterStart{}
+		for _, e := range strings.Fields(s) {
+			n, err := strconv.Atoi(e[1:])
+			if err != nil {
+				t.Fatal(err)
+			}
+			out = append(out, model.LetterStart{Letter: e[:1], Offset: n})
+		}
+		return out
+	}
+	// check compares the letter starts with want and with the pages at their offsets: the first
+	// title there has the letter, the one before it another.
+	check := func(name string, q model.LibraryQuery, want []model.LetterStart) {
+		t.Helper()
+		page := libraryItems(t, r, f.P18, f.LibraryID(), q)
+		if !slices.Equal(page.Facets.LetterStarts, want) {
+			t.Errorf("%s: letter starts %v, want %v", name, page.Facets.LetterStarts, want)
+		}
+		for _, ls := range page.Facets.LetterStarts {
+			q := q
+			q.Offset, q.Limit = max(ls.Offset-1, 0), 2
+			at := libraryItems(t, r, f.P18, f.LibraryID(), q)
+			if at.Facets.LetterStarts != nil && q.Offset > 0 {
+				t.Errorf("%s: offset %d carries letter starts %v", name, q.Offset, at.Facets.LetterStarts)
+			}
+			got := ids(at.Items)
+			if ls.Offset > 0 {
+				if model.SortLetter(keys[got[0]]) == ls.Letter {
+					t.Errorf("%s: title before %v is %q, same letter", name, ls, keys[got[0]])
+				}
+				got = got[1:]
+			}
+			if len(got) == 0 || model.SortLetter(keys[got[0]]) != ls.Letter {
+				t.Errorf("%s: page at %d = %v, want a first title with %s", name, ls.Offset, got, ls.Letter)
+			}
+		}
+	}
+	// Ascending: 2001, amelie, arger, mann, matrix, ortchen, zeit, 東京物語.
+	check("asc", model.LibraryQuery{}, starts("#0 A1 M3 O5 Z6 #7"))
+	check("desc", model.LibraryQuery{Order: "desc"}, starts("#0 Z1 O2 M3 A5 #7"))
+	check("genre", model.LibraryQuery{Genre: "Krimi"}, starts("A0 M1 O2"))
+	check("status started", model.LibraryQuery{Status: []string{model.LibraryStatusStarted}}, starts("A0"))
+	check("status unwatched", model.LibraryQuery{Status: []string{model.LibraryStatusUnwatched}}, starts("#0 A1 M2 O4 Z5 #6"))
+	check("deprecated letter", model.LibraryQuery{Letter: "M"}, starts("M0"))
+	check("no match", model.LibraryQuery{Genre: "Western"}, starts(""))
+	// Only on the first page sorted by title.
+	for name, q := range map[string]model.LibraryQuery{
+		"offset 1":   {Offset: 1},
+		"sort added": {Sort: model.LibrarySortAdded},
+		"sort vote":  {Sort: model.LibrarySortVote, Order: "asc"},
+	} {
+		if got := libraryItems(t, r, f.P18, f.LibraryID(), q).Facets.LetterStarts; got != nil {
+			t.Errorf("%s: letter starts %v, want none", name, got)
+		}
+	}
+}
+
+// The letter starts from the first characters grouped in SQLite equal the former walk over every
+// sort key in the page order of SQLite (the full sort), on keys with digits, punctuation, an empty
+// key, folded and unfolded non-ASCII letters, stripped articles and other scripts, in both
+// directions; the letters are those of every key.
+func TestLetterStartsMatchFullSort(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	ctx := t.Context()
+	keys := []string{"", "Upper", "~tilde", "é-raw", "Ωmega", "_under"} // raw keys, not from model.SortKey
+	for _, title := range []string{"2001: A Space Odyssey", "12 Monkeys", "...And Justice for All", "Amélie",
+		"Ärger im Revier", "The Matrix", "Der Mann", "Das Örtchen", "Die Zeit", "東京物語", "Øresund", "Zorro",
+		"zebra", "Ça ira", "¡Three Amigos!", "a", "B", "b", "The The", "007"} {
+		keys = append(keys, model.SortKey("de", title), model.SortKey("en", title))
+	}
+	raw, err := json.Marshal(keys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx, err := f.DB.Read.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	const lib = "WITH lib(sort_key) AS (SELECT value FROM json_each(?)) "
+	b := &stmt{}
+	b.add(lib+firstCharsHead, string(raw))
+	firsts, err := firstChars(ctx, tx, b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dir := range []string{"ASC", "DESC"} {
+		sorted, err := textColumn(ctx, tx, lib+"SELECT sort_key FROM lib ORDER BY sort_key "+dir, string(raw))
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []model.LetterStart{}
+		for i, k := range sorted {
+			if l := model.SortLetter(k); len(want) == 0 || want[len(want)-1].Letter != l {
+				want = append(want, model.LetterStart{Letter: l, Offset: i})
+			}
+		}
+		if got := letterStarts(firsts, dir == "DESC"); !slices.Equal(got, want) {
+			t.Errorf("%s: letter starts %v, want the full sort's %v", dir, got, want)
+		}
+	}
+	chars := make([]string, 0, len(firsts))
+	for _, fc := range firsts {
+		chars = append(chars, fc.c)
+	}
+	if got, want := sortLetters(chars), sortLetters(keys); !slices.Equal(got, want) {
+		t.Errorf("letters %v, want %v", got, want)
 	}
 }
 

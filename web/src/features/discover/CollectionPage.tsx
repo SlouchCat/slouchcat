@@ -81,6 +81,7 @@ function CollectionView({ id }: { id: string }) {
       <DetailPage>
         <DetailHeader
           images={first?.images ?? {}}
+          ownPoster={collection.image}
           accent={first?.accent}
           cover={first && isAudioKind(first.kind) ? 'square' : 'poster'}
           onBack={goBack}

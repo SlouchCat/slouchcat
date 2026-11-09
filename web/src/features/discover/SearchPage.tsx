@@ -10,13 +10,14 @@ import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
 import {
+  CastCard,
   ChoiceChips,
   CollectionCard,
   FilterChips,
   Notice,
+  RowList,
   SearchField,
   SpatialButton,
-  SpatialButtonLink,
   SpatialGroup,
   SpatialPage,
 } from '@/ui';
@@ -303,23 +304,19 @@ export function SearchPage() {
               <h2 id="search-people" className={styles.sectionTitle}>
                 {t('search.sections.people')}
               </h2>
-              <SpatialGroup
-                as="ul"
-                className={styles.links}
-                aria-label={t('search.sections.people')}
-              >
-                {people.map((person) => (
-                  <li key={person.id}>
-                    <SpatialButtonLink
+              <div className={styles.bleed}>
+                <RowList focusKey="search-people" aria-label={t('search.sections.people')}>
+                  {people.map((person) => (
+                    <CastCard
+                      key={person.id}
                       focusKey={`search-person-${person.id}`}
                       href={paths.person(person.id)}
-                      variant="secondary"
-                    >
-                      {person.name}
-                    </SpatialButtonLink>
-                  </li>
-                ))}
-              </SpatialGroup>
+                      name={person.name}
+                      imageUrl={imageUrl(person.image)}
+                    />
+                  ))}
+                </RowList>
+              </div>
             </section>
           )}
 
@@ -340,6 +337,7 @@ export function SearchPage() {
                       href={paths.collection(collection.id)}
                       name={collection.name}
                       caption={t('collection.count', { count: collection.count })}
+                      imageUrl={imageUrl(collection.image)}
                       posterUrl={imageUrl(collection.cover?.images.poster)}
                       posterSmallUrl={imageUrl(collection.cover?.images.posterSmall)}
                       accent={collection.cover?.accent}

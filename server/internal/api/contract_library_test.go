@@ -47,7 +47,11 @@ type libraryPageJSON struct {
 			Name  string `json:"name"`
 			Count int    `json:"count"`
 		} `json:"genres"`
-		Ratings []int `json:"ratings"`
+		Ratings      []int `json:"ratings"`
+		LetterStarts *[]struct {
+			Letter string `json:"letter"`
+			Offset int    `json:"offset"`
+		} `json:"letterStarts"`
 	} `json:"facets"`
 }
 
@@ -240,6 +244,52 @@ func TestContractLibraryItemsChildProfile(t *testing.T) {
 	watched := libraryPage(t, h, "p12", "&status=watched")
 	if !slices.Equal(watched.ids(), []string{f.Show.Series.ID}) || watched.Items[0].Progress == nil || !watched.Items[0].Progress.Completed {
 		t.Errorf("p12 watched = %+v, want the series with progress completed", watched.Items)
+	}
+}
+
+// letterStarts (contract 1.21.0, concept 17 section 6): on the first page sorted by title, one
+// entry per letter in the active direction whose offset leads to a title of that letter; absent
+// at another offset or sort, an empty list for an empty filtered set.
+func TestContractLibraryLetterStarts(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	h := pf.h
+	for _, order := range []string{"asc", "desc"} {
+		page := libraryPage(t, h, "p18", "&sort=title&order="+order)
+		if page.Facets.LetterStarts == nil || len(*page.Facets.LetterStarts) == 0 {
+			t.Fatalf("p18 %s: letterStarts = %v, want entries", order, page.Facets.LetterStarts)
+		}
+		starts := *page.Facets.LetterStarts
+		if starts[0].Offset != 0 {
+			t.Errorf("p18 %s: first letter start %+v, want offset 0", order, starts[0])
+		}
+		var letters []string
+		for i, ls := range starts {
+			if i > 0 && (ls.Offset <= starts[i-1].Offset || ls.Letter == starts[i-1].Letter) {
+				t.Errorf("p18 %s: letter starts %+v not one per change with ascending offsets", order, starts)
+			}
+			at := libraryPage(t, h, "p18", fmt.Sprintf("&sort=title&order=%s&offset=%d&limit=1", order, ls.Offset))
+			if len(at.Items) != 1 || (at.Facets.LetterStarts != nil && ls.Offset > 0) {
+				t.Errorf("p18 %s offset %d = %+v, want one title and no letter starts", order, ls.Offset, at)
+			}
+			letters = append(letters, ls.Letter)
+		}
+		want := slices.Clone(page.Facets.Letters)
+		if order == "desc" {
+			slices.Reverse(want)
+		}
+		if !slices.Equal(letters, want) { // every key of the fixture starts with a letter: no second #
+			t.Errorf("p18 %s: letters of the starts %v, want the letters facet %v", order, letters, want)
+		}
+	}
+	for _, query := range []string{"&offset=1", "&sort=added", "&sort=vote&order=asc"} {
+		rec := send(t, h, http.MethodGet, fmt.Sprintf("%s/libraries/%d/items?%s", BasePath, fixtureLibrary, strings.TrimPrefix(query, "&")), "p18", "", nil)
+		if rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), "letterStarts") {
+			t.Errorf("%s: status %d, body %s; want 200 without letterStarts", query, rec.Code, rec.Body.String())
+		}
+	}
+	if empty := libraryPage(t, h, "p18", "&genre=Western"); empty.Total != 0 || empty.Facets.LetterStarts == nil || len(*empty.Facets.LetterStarts) != 0 {
+		t.Errorf("p18 genre Western = %+v, want no title and an empty letterStarts", empty.Facets)
 	}
 }
 

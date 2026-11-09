@@ -7,18 +7,17 @@ const letters = ['#', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'];
 const available = ['#', 'A', 'B', 'D', 'G', 'H', 'M', 'S', 'T', 'Z'];
 
 function Letters({ initial }: { initial?: string }) {
-  const [value, setValue] = useState(initial);
+  // The list's jump puts the chosen letter's titles in view: the bar then marks it.
+  const [current, setCurrent] = useState(initial);
   return (
-    <SpatialPage defaultFocusKey="letters-all">
+    <SpatialPage defaultFocusKey="letters-#">
       <div style={{ height: '40rem' }}>
         <LetterBar
           label="Anfangsbuchstabe"
           letters={letters}
           available={available}
-          value={value}
-          onChange={setValue}
-          allMark="•"
-          allLabel="Alle Buchstaben"
+          current={current}
+          onJump={setCurrent}
           letterLabels={{ '#': 'Ziffer oder Zeichen' }}
           focusKey="letters"
         />
@@ -34,22 +33,20 @@ const meta = {
     label: 'Anfangsbuchstabe',
     letters,
     available,
-    value: undefined,
-    onChange: () => undefined,
-    allMark: '•',
-    allLabel: 'Alle Buchstaben',
+    current: undefined,
+    onJump: () => undefined,
   },
-  render: () => <Letters />,
+  render: () => <Letters initial="#" />,
 } satisfies Meta<typeof LetterBar>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** Letters without titles are disabled; "•" (all) is chosen. */
+/** Letters without titles are disabled; the titles in view start with "#". */
 export const Default: Story = {};
 
-/** A chosen letter. */
+/** The titles in view start with "S" (after a jump or a scroll). */
 export const Chosen: Story = { render: () => <Letters initial="S" /> };
 
-/** Focused by Tab: the ring on "•". */
+/** Focused by Tab: the ring on "#". */
 export const Focused: Story = { tags: ['press:Tab'] };

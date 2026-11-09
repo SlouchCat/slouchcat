@@ -1,8 +1,8 @@
-import type { Collection } from '@slouchcat/api-client';
-import { screen, within } from '@testing-library/react';
+import type { Collection, ItemRef } from '@slouchcat/api-client';
+import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { alien, arrival, heat, ids } from '@/test/fixtures';
+import { alien, arrival, heat, ids, podcast, seriesIds } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
 
 const id = '01JB8Z6Q4M7N9P2R3S5T7V9C01';
@@ -46,6 +46,59 @@ describe('collection page', () => {
     await userEvent.setup().click(within(members).getByRole('button', { name: 'Mehr laden' }));
     expect(await within(members).findByRole('link', { name: /Arrival/ })).toBeVisible();
     expect(within(members).queryByRole('button', { name: 'Mehr laden' })).not.toBeInTheDocument();
+  });
+
+  it("puts the collection poster on the cover; a failing file gives the first member's poster back", async () => {
+    mockApi({
+      ...signedIn,
+      [`GET /collections/${id}`]: () =>
+        json({
+          ...collection,
+          image: { url: `/collections/${id}/image?v=a&p=1`, width: 400, height: 600 },
+        }),
+    });
+    renderApp(`/collections/${id}`);
+    await screen.findByRole('heading', { level: 1, name: 'Alien-Reihe' });
+    // The cover of the head (the members below carry the same posters on their cards).
+    const cover = () => document.querySelector('img[class*="posterImage"]');
+    expect(cover()?.getAttribute('src')).toContain(`/collections/${id}/image?v=a&p=1`);
+    const own = cover();
+    if (own) fireEvent.error(own);
+    expect(cover()?.getAttribute('src')).toBe(
+      `/api/v1/items/${ids.alien}/images/poster/w500?v=abc`,
+    );
+  });
+
+  it('checks a watched series and a heard podcast, not an open series (contract 1.22.0)', async () => {
+    const series = (seriesId: string, title: string, watched?: boolean): ItemRef => ({
+      id: seriesId,
+      kind: 'series',
+      title,
+      inWatchlist: false,
+      images: {},
+      ...(watched === undefined ? {} : { watched }),
+    });
+    mockApi({
+      ...signedIn,
+      [`GET /collections/${id}`]: () =>
+        json({
+          ...collection,
+          items: [
+            series(seriesIds.show, 'Ganz gesehen', true),
+            series(seriesIds.season1, 'Halb gesehen', false),
+            series(seriesIds.specials, 'Ohne Folgen'),
+            { ...podcast, watched: true },
+          ],
+          total: 4,
+        }),
+    });
+    renderApp(`/collections/${id}`);
+    const members = await screen.findByRole('region', { name: 'Titel' });
+    const card = (name: RegExp) => within(members).getByRole('link', { name });
+    expect(within(card(/Ganz gesehen/)).getByRole('img', { name: 'Gesehen' })).toBeVisible();
+    expect(within(card(/Halb gesehen/)).queryByRole('img', { name: 'Gesehen' })).toBeNull();
+    expect(within(card(/Ohne Folgen/)).queryByRole('img', { name: 'Gesehen' })).toBeNull();
+    expect(within(card(/Test Podcast/)).getByRole('img', { name: 'Gehört' })).toBeVisible();
   });
 
   it('says "nicht gefunden" for an unknown or invisible collection', async () => {

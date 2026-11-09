@@ -4,13 +4,13 @@ import { SpatialGroup, useSpatialItem } from './spatial';
 function LetterButton({
   text,
   label,
-  pressed,
+  current,
   focusKey,
   onPress,
 }: {
   text: string;
   label?: string;
-  pressed: boolean;
+  current: boolean;
   focusKey?: string;
   onPress: () => void;
 }) {
@@ -21,7 +21,7 @@ function LetterButton({
       type="button"
       className={styles.letter}
       aria-label={label}
-      aria-pressed={pressed}
+      aria-current={current ? 'true' : undefined}
       onFocus={onFocus}
       onClick={onPress}
     >
@@ -37,32 +37,29 @@ interface LetterBarProps {
   letters: readonly string[];
   /** The letters with titles; the others are disabled. */
   available: readonly string[];
-  /** The chosen letter; undefined is "all". */
-  value: string | undefined;
-  onChange: (letter: string | undefined) => void;
-  /** The first button, which lifts the choice: its mark ("•") and its spoken name. */
-  allMark: string;
-  allLabel: string;
+  /** The letter of the titles in view (`aria-current`); undefined for none. */
+  current: string | undefined;
+  /** Called with a letter that has titles: the list jumps to its first title. */
+  onJump: (letter: string) => void;
   /** Spoken names of letters that are symbols (`#`: "Ziffer oder Zeichen"). */
   letterLabels?: Partial<Record<string, string>>;
-  /** Focus key prefix: the bar is `<prefix>`, each button `<prefix>-<letter>` (`-all` first). */
+  /** Focus key prefix: the bar is `<prefix>`, each button `<prefix>-<letter>`. */
   focusKey?: string;
   className?: string;
 }
 
 /**
  * The initial letters of a list sorted by title (library page): a column at the side from 768 px,
- * a strip that scrolls sideways below. A letter filters the list; a letter without titles is
- * disabled and skipped by the arrow keys.
+ * a strip that scrolls sideways below. A letter jumps to the first title with it (concept 17
+ * section 6); the letter of the titles in view is marked. A letter without titles is disabled and
+ * skipped by the arrow keys.
  */
 export function LetterBar({
   label,
   letters,
   available,
-  value,
-  onChange,
-  allMark,
-  allLabel,
+  current,
+  onJump,
   letterLabels = {},
   focusKey,
   className,
@@ -75,23 +72,16 @@ export function LetterBar({
       className={className ? `${styles.bar} ${className}` : styles.bar}
       aria-label={label}
     >
-      <LetterButton
-        text={allMark}
-        label={allLabel}
-        pressed={value === undefined}
-        focusKey={key('all')}
-        onPress={() => onChange(undefined)}
-      />
       {letters.map((letter) =>
         // Hooks stay per component: an offered letter registers for the arrows, a disabled one not.
-        available.includes(letter) || letter === value ? (
+        available.includes(letter) ? (
           <LetterButton
             key={letter}
             text={letter}
             label={letterLabels[letter]}
-            pressed={letter === value}
+            current={letter === current}
             focusKey={key(letter)}
-            onPress={() => onChange(letter === value ? undefined : letter)}
+            onPress={() => onJump(letter)}
           />
         ) : (
           <button
@@ -99,7 +89,6 @@ export function LetterBar({
             type="button"
             className={styles.letter}
             aria-label={letterLabels[letter]}
-            aria-pressed={false}
             disabled
           >
             {letter}

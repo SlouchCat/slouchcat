@@ -8,7 +8,8 @@ import { arrowTo, itemIdByTitle } from './playback';
 
 // E-4: search from the second character over titles, people and collections, with filters. The
 // e2e server has no TMDB key: titles carry no genres and no cast, so the person section and the
-// genre list stay empty here (the contract test covers both, stream A).
+// genre list stay empty here (the contract test covers both, stream A); the people section is
+// covered with a mocked answer at the end (concept 17 D-5).
 
 const field = (page: Page) => page.getByRole('searchbox', { name: 'Suchbegriff' });
 const titles = (page: Page) => page.getByRole('region', { name: 'Titel' });
@@ -172,4 +173,73 @@ test('search by keyboard: "/", arrows, Enter, back; no focus trap @keyboard', as
   await resetFocus(page);
   await page.keyboard.press('Backspace');
   await expect(page).toHaveURL((url) => url.pathname === '/' && url.search === '');
+});
+
+test.describe('the people of a search as round portrait cards (concept 17 D-5)', () => {
+  // The routes below must see the requests; a service worker would make them on its own.
+  test.use({ serviceWorkers: 'block' });
+
+  // 1x1 PNG: a portrait the browser decodes.
+  const PORTRAIT = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+    'base64',
+  );
+
+  test('portrait or initial; arrows, Enter and back by keyboard @keyboard', async ({ page }) => {
+    // The e2e server has no TMDB key and so no people: add two to the answer.
+    await page.route('**/api/v1/search', async (route) => {
+      const response = await route.fetch();
+      const body = (await response.json()) as Record<string, unknown>;
+      body.people = [
+        {
+          id: 9001,
+          name: 'Anna Beispiel',
+          image: { url: '/people/9001/image?v=a&p=1', width: 185, height: 278 },
+        },
+        { id: 9002, name: 'Bruno Muster' },
+      ];
+      await route.fulfill({ response, json: body });
+    });
+    await page.route('**/api/v1/people/9001/image*', (route) =>
+      route.fulfill({ status: 200, contentType: 'image/png', body: PORTRAIT }),
+    );
+    await page.goto('/search?q=H2');
+    const people = page.getByRole('region', { name: 'Personen' });
+    const anna = people.getByRole('link', { name: 'Anna Beispiel' });
+    const bruno = people.getByRole('link', { name: 'Bruno Muster' });
+    await expect(anna).toHaveAttribute('href', '/people/9001');
+    await expect
+      .poll(() => anna.locator('img').evaluate((image: HTMLImageElement) => image.naturalWidth))
+      .toBeGreaterThan(0);
+    // No portrait named: the initial, no image.
+    await expect(bruno.locator('img')).toHaveCount(0);
+    await expect(bruno).toContainText('B');
+
+    // ↓ from a title card reaches the people, → walks the row, ← comes back.
+    await resetFocus(page);
+    await anna.focus();
+    await expectFocusOn(page, anna);
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, bruno);
+    await page.keyboard.press('ArrowLeft');
+    await expectFocusOn(page, anna);
+    // ↑ leaves the people for the title cards above.
+    await page.keyboard.press('ArrowUp');
+    await expect(titles(page).getByRole('link').first()).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, anna);
+    // Tab walks on, no focus trap.
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, bruno);
+    await expectNoFocusTrap(page, 120);
+
+    // Enter opens the person (the e2e server does not know them: not found); back returns.
+    await anna.focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/people\/9001$/);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/search\?q=H2$/);
+    await expect(anna).toBeVisible();
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+  });
 });

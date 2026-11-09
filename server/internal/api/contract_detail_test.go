@@ -2,8 +2,10 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
@@ -244,6 +246,154 @@ func TestContractDetailCollectionMembers(t *testing.T) {
 			if on, ok := m.flag("inWatchlist"); !ok || on != (m.str("id") == tc.marked) {
 				t.Errorf("%s member %s inWatchlist = %v (set %v)", tc.token, m.str("id"), on, ok)
 			}
+		}
+	}
+}
+
+// subjectImageMatches checks the rule of concept 17 stage 3 (m-4, ADR 0026) for one object of an
+// answer: its image is set exactly when the image endpoint answers 200 for the profile, and then
+// its url answers 200 as well.
+func subjectImageMatches(t *testing.T, h http.Handler, token, what, endpoint string, obj rawDetail) {
+	t.Helper()
+	img := obj.object(t, "image")
+	code := send(t, h, http.MethodGet, BasePath+endpoint, token, "", nil).Code
+	if (img != nil) != (code == http.StatusOK) {
+		t.Errorf("%s %s: image %v, endpoint %s status %d", token, what, img, endpoint, code)
+		return
+	}
+	if img == nil {
+		return
+	}
+	if w, _ := img.num("width"); w < 1 {
+		t.Errorf("%s %s: image %v without width", token, what, img)
+	}
+	if got := send(t, h, http.MethodGet, img.str("url"), token, "", nil).Code; got != http.StatusOK {
+		t.Errorf("%s %s: image url %s status %d", token, what, img.str("url"), got)
+	}
+}
+
+// The portrait on the cast of a title and on the person page, and the TMDB poster on the
+// collections of a title and on the collection page, follow the endpoints for every fixture
+// profile (P18 sees the poster, P12 not); without rows the fields are absent.
+func TestContractDetailImages(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	f, h := pf.f, pf.h
+	tokens := []string{"p0", "p6", "p12", "p16", "p18", "px", "pg", "pg18"}
+	personPath := "/people/1/image"
+	collPath := "/collections/" + vistest.MixedCollectionID + "/image"
+	images := map[string]int{} // place → answers with an image
+	check := func(stage string) {
+		for _, token := range tokens {
+			p := fixtureProfile(f, token)
+			if f.VisibleTo(p, f.Rated(6)) {
+				d := getRawDetail(t, h, token, f.Rated(6).ID)
+				for _, c := range d.list(t, "cast") {
+					if n, _ := c.num("personId"); n == int(f.Person.ID) {
+						subjectImageMatches(t, h, token, stage+" cast", personPath, c)
+						images[stage+" cast"] += len(c.object(t, "image"))
+					}
+				}
+				for _, c := range d.list(t, "collections") {
+					if c.str("id") == vistest.MixedCollectionID {
+						subjectImageMatches(t, h, token, stage+" detail collection", collPath, c)
+						images[stage+" detail collection"] += len(c.object(t, "image"))
+					}
+				}
+			}
+			if rec := send(t, h, http.MethodGet, BasePath+"/people/1", token, "", nil); rec.Code == http.StatusOK {
+				var person rawDetail
+				decode(t, rec, &person)
+				subjectImageMatches(t, h, token, stage+" person", personPath, person)
+				images[stage+" person"] += len(person.object(t, "image"))
+			}
+			for _, id := range []string{vistest.MixedCollectionID, vistest.ManualCollectionID} {
+				rec := send(t, h, http.MethodGet, BasePath+"/collections/"+id, token, "", nil)
+				if rec.Code != http.StatusOK {
+					continue
+				}
+				var c rawDetail
+				decode(t, rec, &c)
+				subjectImageMatches(t, h, token, stage+" collection "+id, "/collections/"+id+"/image", c)
+				images[stage+" collection "+id] += len(c.object(t, "image"))
+			}
+		}
+	}
+	check("with")
+	for _, place := range []string{"cast", "detail collection", "person", "collection " + vistest.MixedCollectionID} {
+		if images["with "+place] == 0 {
+			t.Errorf("no profile got an image on the %s", place)
+		}
+	}
+	if images["with collection "+vistest.ManualCollectionID] != 0 {
+		t.Errorf("the manual collection carries an image")
+	}
+	if _, err := f.DB.Write.Exec(`DELETE FROM person_images; DELETE FROM collection_images`); err != nil {
+		t.Fatal(err)
+	}
+	check("without")
+	for place, n := range images {
+		if strings.HasPrefix(place, "without ") && n != 0 {
+			t.Errorf("%s: %d answers with an image, want none", place, n)
+		}
+	}
+}
+
+// Contract 1.22.0: ItemRef.watched on series and podcasts, in the detail and in the library list,
+// by the rule of the library status watched (TestSeriesWatched and TestPodcastWatched in
+// visibility hold the cases); every other kind leaves it out.
+func TestContractSeriesAndPodcastWatched(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	f, h := pf.f, pf.h
+	show, a := f.Show, f.Audio
+	// P12 completes every episode it may see (not E2, rated 16) and every podcast episode rated
+	// up to 12.
+	for _, id := range []string{show.E1.ID, show.E3.ID, show.Special.ID, a.Episodes[0].ID, a.Episodes[1].ID, a.Episodes[2].ID, a.EnclosureOnly.ID} {
+		if _, err := f.DB.Write.Exec(`INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at) VALUES (?, ?, 5000, 5000, 1, 1)`, f.P12.ID, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	listed := func(token string, libraryID int64, id string) rawDetail {
+		t.Helper()
+		rec := send(t, h, http.MethodGet, fmt.Sprintf("%s/libraries/%d/items?limit=100", BasePath, libraryID), token, "", nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s listLibraryItems %d: %d %s", token, libraryID, rec.Code, rec.Body.String())
+		}
+		var page rawDetail
+		if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
+			t.Fatal(err)
+		}
+		for _, it := range page.list(t, "items") {
+			if it.str("id") == id {
+				return it
+			}
+			if _, ok := it["watched"]; ok && it.str("kind") != "series" && it.str("kind") != "podcast" {
+				t.Errorf("%s: %s %s carries watched", token, it.str("kind"), it.str("id"))
+			}
+		}
+		t.Fatalf("%s: %s missing from library %d", token, id, libraryID)
+		return nil
+	}
+	for _, tc := range []struct {
+		token string
+		want  bool
+	}{{"p12", true}, {"p18", false}} {
+		for _, title := range []struct {
+			id  string
+			lib int64
+		}{{show.Series.ID, fixtureLibrary}, {a.Podcast.ID, a.PodcastLibraryID}} {
+			if got, ok := getRawDetail(t, h, tc.token, title.id).flag("watched"); !ok || got != tc.want {
+				t.Errorf("%s getItem %s: watched %v (set %v), want %v", tc.token, title.id, got, ok, tc.want)
+			}
+			if got, ok := listed(tc.token, title.lib, title.id).flag("watched"); !ok || got != tc.want {
+				t.Errorf("%s list %s: watched %v (set %v), want %v", tc.token, title.id, got, ok, tc.want)
+			}
+		}
+	}
+	for _, id := range []string{show.Season.ID, show.E1.ID, f.Rated(12).ID} {
+		if _, ok := getRawDetail(t, h, "p12", id)["watched"]; ok {
+			t.Errorf("getItem %s carries watched", id)
 		}
 	}
 }

@@ -1,5 +1,5 @@
 import type { Person } from '@slouchcat/api-client';
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { alien, homePage, ids, seriesIds } from '@/test/fixtures';
@@ -61,6 +61,30 @@ describe('person page', () => {
     expect(film.compareDocumentPosition(mark) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(row).getByRole('button', { name: 'Slouchcat Test Show merken' })).toBeVisible();
     expect(document.title).toBe('Sigourney Weaver · Slouchcat');
+  });
+
+  it('shows the portrait left of the name, and the initial without one or when it fails', async () => {
+    const portrait = { url: '/people/3/image?v=a&p=1', width: 185, height: 278 };
+    mockApi({
+      ...signedIn,
+      'GET /people/3': () => json({ ...person, image: portrait }),
+      'GET /people/4': () => json({ ...person, id: 4, name: 'Tom Skerritt' }),
+    });
+    const { router } = renderApp('/people/3');
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Sigourney Weaver' });
+    const head = heading.parentElement;
+    const image = head?.querySelector('img');
+    expect(image?.getAttribute('src')).toContain('/people/3/image?v=a&p=1');
+    // The file is gone: the initial takes the portrait's place.
+    if (image) fireEvent.error(image);
+    expect(head?.querySelector('img')).toBeNull();
+    expect(head).toHaveTextContent('S');
+
+    // A person without a portrait shows the initial from the start.
+    await router.navigate({ to: '/people/$personId', params: { personId: '4' } });
+    const other = await screen.findByRole('heading', { level: 1, name: 'Tom Skerritt' });
+    expect(other.parentElement?.querySelector('img')).toBeNull();
+    expect(other.parentElement).toHaveTextContent('T');
   });
 
   it('answers a person without visible credits (404) with the not-found notice', async () => {

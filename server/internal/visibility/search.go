@@ -221,9 +221,11 @@ func (r *Reader) Search(ctx context.Context, s Scope, q model.SearchQuery) (mode
 
 // searchPeople returns the people whose name matches and who have a credit on a visible title.
 func (r *Reader) searchPeople(ctx context.Context, pid int64, match string) ([]model.PersonRef, error) {
-	rows, err := r.read.QueryContext(ctx, `SELECT p.id, p.name FROM search_index AS s
+	// The portrait comes along (ADR 0026): at most one 'ok' JPEG row per person.
+	rows, err := r.read.QueryContext(ctx, `SELECT p.id, p.name, pi.content_hash, pi.width, pi.height FROM search_index AS s
 		JOIN visible_items AS v ON v.item_id = s.item_id AND v.profile_id = ?
 		JOIN people AS p ON p.id = CAST(s.ref_id AS INTEGER)
+		LEFT JOIN person_images AS pi ON pi.person_id = p.id AND pi.format = 'jpeg' AND pi.status = 'ok'
 		WHERE s.search_index MATCH ? AND s.kind = 'person'
 		GROUP BY p.id ORDER BY min(s.rank), p.name, p.id LIMIT ?`, pid, match, SearchSideHits)
 	if err != nil {
@@ -233,9 +235,12 @@ func (r *Reader) searchPeople(ctx context.Context, pid int64, match string) ([]m
 	out := []model.PersonRef{}
 	for rows.Next() {
 		var p model.PersonRef
-		if err := rows.Scan(&p.ID, &p.Name); err != nil {
+		var hash sql.NullString
+		var width, height sql.NullInt64
+		if err := rows.Scan(&p.ID, &p.Name, &hash, &width, &height); err != nil {
 			return nil, fmt.Errorf("scan person: %w", err)
 		}
+		p.Image = portrait(hash, width, height)
 		out = append(out, p)
 	}
 	if err := rows.Err(); err != nil {

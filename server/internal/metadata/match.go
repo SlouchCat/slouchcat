@@ -953,6 +953,17 @@ func (s *Service) applyTitle(ctx context.Context, snap systemq.Item, rec TitleRe
 			s.log.Warn("visibility recheck after a rating change failed", "item_id", itemID, "err", err)
 		}
 	}
+	if (!locked["cast"] && len(rec.Credits) > 0) || (cur.Kind == "movie" && rec.Collection != nil && rec.Collection.TMDBID > 0) {
+		// New people or a collection may want their images (ADR 0026); the key makes one job. The
+		// match is stored: a failure here leaves the images to the next full scan.
+		if open, err := s.peopleImagesLeft(ctx, nil); err != nil {
+			s.log.Warn("person and collection images after a match: check failed", "item_id", itemID, "err", err)
+		} else if open {
+			if _, err := s.enqueuePeopleImages(ctx, s.queue, peopleImagesPriority); err != nil {
+				s.log.Warn("person and collection images after a match: queue failed", "item_id", itemID, "err", err)
+			}
+		}
+	}
 	written := cur
 	written.TmdbID, written.TvdbID, written.ImdbID = p.TmdbID, p.TvdbID, p.ImdbID
 	return written, true, nil
@@ -1287,7 +1298,8 @@ const maxUpgradeMatches = 200
 // titles whose trailers are still pending
 // (QueuePendingTrailers, for example after the YouTube quota ran out). It also starts
 // metadata.vote_backfill once while titles wait for a vote (QueueVoteBackfill, concept 08 4.2; not
-// counted, the job is not one of the library's). The library scan calls it after every complete
+// counted, the job is not one of the library's) and people.images when a person or collection
+// image is open (QueuePeopleImages, ADR 0026; not counted either). The library scan calls it after every complete
 // run, so enrichment converges after aborted scans, failed jobs and the upgrade. It returns the
 // number of jobs queued.
 func (s *Service) QueuePendingMetadata(ctx context.Context, libraryID int64) (int, error) {
@@ -1328,6 +1340,9 @@ func (s *Service) QueuePendingMetadata(ctx context.Context, libraryID int64) (in
 		return n, err
 	}
 	if _, err := s.QueueVoteBackfill(ctx); err != nil {
+		return n, err
+	}
+	if _, err := s.QueuePeopleImages(ctx); err != nil {
 		return n, err
 	}
 	return n, nil

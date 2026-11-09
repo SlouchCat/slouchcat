@@ -9,7 +9,9 @@
 # SLOUCHCAT_MOVIES_ID and SLOUCHCAT_SERIES_ID are the ids of the film and series libraries
 # (GET /api/v1/libraries/visible); the cases are the paper's: the side navigation, the first page of
 # the film library in every default view, and the heaviest one, "series, status started, sorted by
-# title, letter S" (the EXISTS over the episodes meets the large library).
+# title" (the EXISTS over the episodes meets the large library). Since concept 17 section 6 the grid
+# reads pages of 100 and the letter bar jumps: page 0 sorted by title carries letterStarts, a page
+# further down (offset 900) carries none; the letter filter of before 1.21.0 is gone from the app.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -21,10 +23,11 @@ for path in \
   "/api/v1/libraries/$movies/items" \
   "/api/v1/libraries/$movies/items?sort=added" \
   "/api/v1/libraries/$movies/items?sort=vote" \
-  "/api/v1/libraries/$movies/items?sort=title&letter=S" \
+  "/api/v1/libraries/$movies/items?sort=title&limit=100" \
+  "/api/v1/libraries/$movies/items?sort=title&offset=900&limit=100" \
   "/api/v1/libraries/$series/items" \
   "/api/v1/libraries/$series/items?sort=played" \
-  "/api/v1/libraries/$series/items?sort=title&letter=S&status=started" \
+  "/api/v1/libraries/$series/items?sort=title&status=started&limit=100" \
   "/api/v1/picks"; do
   bash "$here/measure-home.sh" "$path"
 done

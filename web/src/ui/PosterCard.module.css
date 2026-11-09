@@ -151,6 +151,12 @@
   font-size: var(--sc-font-size-xs);
 }
 
+.clamped {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (hover: hover) {
   .dimmed:hover .frame {
     opacity: 1;

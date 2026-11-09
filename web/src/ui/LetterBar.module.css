@@ -28,7 +28,7 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.letter[aria-pressed='true'] {
+.letter[aria-current='true'] {
   background-color: var(--sc-color-text-primary);
   color: var(--sc-color-bg-base);
 }
@@ -39,7 +39,7 @@
 }
 
 @media (hover: hover) {
-  .letter:hover:not(:disabled, [aria-pressed='true']) {
+  .letter:hover:not(:disabled, [aria-current='true']) {
     background-color: var(--sc-color-surface-2);
     color: var(--sc-color-text-primary);
   }
