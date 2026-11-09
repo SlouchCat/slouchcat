@@ -495,6 +495,7 @@ type extras struct {
 	progress     map[string]scopedq.Progress
 	childCounts  map[string]int              // visible seasons of a series, visible episodes of a season
 	watched      map[string]int              // completed visible episodes of a season
+	allWatched   map[string]bool             // a series or podcast with visible episodes, all completed (1.22.0)
 	seriesTitles map[string]string           // title of the series of a season or episode, profile language
 	series       map[string]*model.SeriesRef // the series of an episode with its images
 	parents      map[string]string           // parent id of an item whose parent is visible too
@@ -505,7 +506,7 @@ type extras struct {
 // of visible items; lang picks the series titles.
 func (r *Reader) extras(ctx context.Context, pid int64, lang langPref, ids []string) (extras, error) {
 	out := extras{texts: map[string][]scopedq.ItemText{}, images: map[string][]scopedq.Image{}, progress: map[string]scopedq.Progress{},
-		childCounts: map[string]int{}, watched: map[string]int{}, seriesTitles: map[string]string{}, series: map[string]*model.SeriesRef{}, parents: map[string]string{},
+		childCounts: map[string]int{}, watched: map[string]int{}, allWatched: map[string]bool{}, seriesTitles: map[string]string{}, series: map[string]*model.SeriesRef{}, parents: map[string]string{},
 		watchlist: map[string]bool{}}
 	if len(ids) == 0 {
 		return out, nil

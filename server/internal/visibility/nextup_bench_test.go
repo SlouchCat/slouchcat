@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/scopedq"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
@@ -20,6 +21,10 @@ import (
 // filter on the one series is what is measured. The profile P18 has completed the first 130
 // episodes of the series one hour apart. It reports p50 and p95 of the query alone (series and one
 // season) and of Reader.Item on the series (detail with next up), and logs EXPLAIN QUERY PLAN.
+// The same fixture measures the series in lists (contract 1.22.0, ItemRef.watched): the child
+// counts of all 100 series in one ListVisibleChildCounts and the library page sorted by title
+// (100 series with their summaries), for P18 and for P16, who has completed all 26 000 episodes
+// (the worst case: every series is read to its last episode).
 // Run:
 //
 //	go test -run '^$' -bench SeriesNextUp -benchtime 200x -v ./internal/visibility/
@@ -62,9 +67,15 @@ func BenchmarkSeriesNextUp(b *testing.B) {
 	 FROM items AS e JOIN items AS s ON s.id = e.parent_id
 	 WHERE s.parent_id = ? AND (s.season_number - 1) * %[3]d + e.episode_number <= 130`, vistest.DurationMs, hour, perSeason),
 		f.P18.ID, seriesID)
+	benchExec(b, f, fmt.Sprintf(`INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at)
+	 SELECT ?, id, %[1]d, %[1]d, 1, 1 FROM items WHERE id LIKE '01J9NEXTUPE%%'`, vistest.DurationMs), f.P16.ID)
 	b.Logf("fixture: %d series × %d seasons × %d episodes in %v", series, seasons, perSeason, time.Since(start).Round(time.Millisecond))
 	logNextUpPlan(b, f, f.P18.ID, seriesID)
 
+	allSeries := make([]string, 0, series)
+	for s := 1; s <= series; s++ {
+		allSeries = append(allSeries, fmt.Sprintf("01J9NEXTUPS%015d", s))
+	}
 	scope := Profile(f.P18)
 	for _, tc := range []struct {
 		name string
@@ -77,6 +88,22 @@ func BenchmarkSeriesNextUp(b *testing.B) {
 		{"query/season", func() (string, error) {
 			rows, err := r.q.ListSeriesNextUpEpisodes(ctx, scopedq.ListSeriesNextUpEpisodesParams{ProfileID: f.P18.ID, SeriesID: sql.NullString{String: seriesID, Valid: true}, SeasonID: seasonID})
 			return fmt.Sprint(len(rows)), err
+		}},
+		{"query/child-counts-100-series", func() (string, error) {
+			rows, err := r.q.ListVisibleChildCounts(ctx, scopedq.ListVisibleChildCountsParams{ProfileID: f.P18.ID, ItemIds: allSeries})
+			return fmt.Sprint(len(rows)), err
+		}},
+		{"page/LibraryItems-series-title", func() (string, error) {
+			p, err := r.LibraryItems(ctx, scope, f.LibraryID(), model.LibraryQuery{Sort: model.LibrarySortTitle, MaxRating: -1, Limit: MaxLibraryPage})
+			return fmt.Sprint(len(p.Items)), err
+		}},
+		{"query/child-counts-100-series-all-watched", func() (string, error) {
+			rows, err := r.q.ListVisibleChildCounts(ctx, scopedq.ListVisibleChildCountsParams{ProfileID: f.P16.ID, ItemIds: allSeries})
+			return fmt.Sprint(len(rows)), err
+		}},
+		{"page/LibraryItems-series-title-all-watched", func() (string, error) {
+			p, err := r.LibraryItems(ctx, Profile(f.P16), f.LibraryID(), model.LibraryQuery{Sort: model.LibrarySortTitle, MaxRating: -1, Limit: MaxLibraryPage})
+			return fmt.Sprint(len(p.Items)), err
 		}},
 		{"reader/Item-series", func() (string, error) {
 			d, err := r.Item(ctx, scope, seriesID)
@@ -97,7 +124,9 @@ func BenchmarkSeriesNextUp(b *testing.B) {
 				}
 				lat = append(lat, time.Since(t0))
 			}
-			want := map[string]string{"query/series": "260", "query/season": "20", "reader/Item-series": NextUpNext + " " + wantNext}[tc.name]
+			want := map[string]string{"query/series": "260", "query/season": "20", "query/child-counts-100-series": "100",
+				"page/LibraryItems-series-title": "100", "query/child-counts-100-series-all-watched": "100",
+				"page/LibraryItems-series-title-all-watched": "100", "reader/Item-series": NextUpNext + " " + wantNext}[tc.name]
 			if got != want {
 				b.Fatalf("got %q, want %q", got, want)
 			}

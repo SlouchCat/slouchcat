@@ -1107,10 +1107,21 @@ SELECT i.id,
           JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
           JOIN progress AS pc ON pc.profile_id = ?1 AND pc.item_id = c.id AND pc.completed = 1
           WHERE c.parent_id = i.id AND c.kind = 'episode')
-       ELSE 0 END AS INTEGER) AS watched_count
+       ELSE 0 END AS INTEGER) AS watched_count,
+       CAST(i.kind IN ('series', 'podcast') AND EXISTS (
+         SELECT 1 FROM items AS se
+         CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+         JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+         WHERE se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season')) AS INTEGER) AS has_episodes,
+       CAST(i.kind IN ('series', 'podcast') AND EXISTS (
+         SELECT 1 FROM items AS se
+         CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+         LEFT JOIN progress AS pe ON pe.profile_id = ?1 AND pe.item_id = e.id
+         CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+         WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season')) AND COALESCE(pe.completed, 0) = 0) AS INTEGER) AS has_open
 FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
-WHERE i.id IN (/*SLICE:item_ids*/?) AND i.kind IN ('series', 'season')
+WHERE i.id IN (/*SLICE:item_ids*/?) AND i.kind IN ('series', 'season', 'podcast')
 `
 
 type ListVisibleChildCountsParams struct {
@@ -1122,12 +1133,20 @@ type ListVisibleChildCountsRow struct {
 	ID           string
 	ChildCount   int64
 	WatchedCount int64
+	HasEpisodes  int64
+	HasOpen      int64
 }
 
 // Number of visible content children of visible series and seasons: seasons of a series, episodes
 // of a season (extras never count). One query with a correlated subquery over visible_items.
 // watched_count counts the visible episodes of a season the profile has completed (concept 17
-// section 2.3, like the "done" of the library's episode statistics); 0 for a series.
+// section 2.3, like the "done" of the library's episode statistics). For a series or podcast,
+// has_episodes says whether it has a visible episode and has_open whether one of them is not
+// completed by the profile (ItemRef.watched, contract 1.22.0), over the episodes of the library
+// status rule: an episode or podcast episode of one of its seasons (specials included) or directly
+// below it. Both are EXISTS, so an unwatched title stops at its first open episode; has_open reads
+// the progress before visible_items (CROSS JOIN), so a completed episode costs no visibility check.
+// Both are 0 for a season; a podcast has no child count.
 func (q *Queries) ListVisibleChildCounts(ctx context.Context, arg ListVisibleChildCountsParams) ([]ListVisibleChildCountsRow, error) {
 	query := listVisibleChildCounts
 	var queryParams []interface{}
@@ -1148,7 +1167,13 @@ func (q *Queries) ListVisibleChildCounts(ctx context.Context, arg ListVisibleChi
 	items := []ListVisibleChildCountsRow{}
 	for rows.Next() {
 		var i ListVisibleChildCountsRow
-		if err := rows.Scan(&i.ID, &i.ChildCount, &i.WatchedCount); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.ChildCount,
+			&i.WatchedCount,
+			&i.HasEpisodes,
+			&i.HasOpen,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

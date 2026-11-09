@@ -17,11 +17,12 @@ import (
 // profile may not see is absent from every list, and a person exists for the profile only through
 // the visible titles of their credits.
 
-// treeExtras fills the child counts of series and seasons, the completed episodes of seasons, the
-// parents the profile may see, the series titles of seasons and episodes (the text chain of the
-// scope, then the parsed title) and the series of episodes with their images (concept 15 P-1). The
-// series of all items are loaded together: one query for their texts and, when the items hold an
-// episode, one for their images.
+// treeExtras fills the child counts of series and seasons, the completed episodes of seasons,
+// whether a series or podcast is watched (every visible episode completed, contract 1.22.0), the
+// parents the profile may see, the series titles of seasons and episodes (the text chain of the scope, then the
+// parsed title) and the series of episodes with their images (concept 15 P-1). The series of all
+// items are loaded together: one query for their texts and, when the items hold an episode, one
+// for their images.
 func (r *Reader) treeExtras(ctx context.Context, pid int64, lang langPref, ids []string, out *extras) error {
 	counts, err := r.q.ListVisibleChildCounts(ctx, scopedq.ListVisibleChildCountsParams{ProfileID: pid, ItemIds: ids})
 	if err != nil {
@@ -30,6 +31,9 @@ func (r *Reader) treeExtras(ctx context.Context, pid int64, lang langPref, ids [
 	for _, c := range counts {
 		out.childCounts[c.ID] = int(c.ChildCount)
 		out.watched[c.ID] = int(c.WatchedCount)
+		if c.HasEpisodes == 1 { // a series or podcast without visible episodes stays absent
+			out.allWatched[c.ID] = c.HasOpen == 0
+		}
 	}
 	parents, err := r.q.ListVisibleParents(ctx, scopedq.ListVisibleParentsParams{ProfileID: pid, ItemIds: ids})
 	if err != nil {
