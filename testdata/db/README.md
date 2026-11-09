@@ -262,3 +262,12 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   (iTunes-Suche aus). Per SQL: zwei Zeilen im Cover-Cache (ein Treffer, ein Fehlschlag) und die Reihe «Meine Sender»
   eingeblendet. Dann `go run ./cmd/slouchcat dump --config-dir <config>`, keine Pfade im Stand.
   `TestFrozenWebradio2StateCoversTheConcept` prüft, dass jede dieser Datenarten vorhanden ist.
+- `detailseiten3.sql`: Stand nach Stufe 3 des Konzepts «Detailseiten» (Konzept 17; Migration 00040 mit `person_images`
+  und `collection_images`). Erzeugt am 9. November 2026 aus `webradio2.sql`: Stand eingespielt, mit `store.Open` migriert,
+  dann per SQL, weil der Job `people.images` erst in Spur A entsteht: zwei TMDB-Sammlungen mit je zwei Filmen als
+  Mitgliedern («Slouchcat Test Collection» mit deutschem Namen, «Slouchcat Test HDR Collection»), für Person 1 eine
+  Zeile `ok` als JPEG und WebP (`w185`, `source` = `profile_path`), für Person 2 eine Zeile `missing` (nur JPEG, ohne
+  Datei), für die erste Sammlung `ok` als JPEG und WebP (`w400`), für die zweite `missing`. Die Bilddateien selbst
+  liegen nicht im Stand (nur die Zeilen). Dann `store.Dump`, keine neuen Pfade im Stand.
+  `TestFrozenDetailseiten3StateCoversTheConcept` prüft, dass jede dieser Datenarten vorhanden ist;
+  `TestMigration00040PersonCollectionImages` prüft den Schritt von `webradio2.sql` aus.
