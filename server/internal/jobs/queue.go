@@ -110,6 +110,28 @@ func RetryLater(after time.Duration, reason string) error {
 	return &RetryLaterError{After: after, Reason: reason}
 }
 
+// finalError is the error of Final.
+type finalError struct{ err error }
+
+func (e *finalError) Error() string { return e.err.Error() }
+func (e *finalError) Unwrap() error { return e.err }
+
+// Final wraps err so the attempt ends the job as failed at once, whatever attempts it has left
+// (Queue.Fail): a type that keeps a further attempt only for an attempt an expired lease cut short
+// (an unclean stop) fails its handler errors this way. Wrapped errors count too.
+func Final(err error) error {
+	if err == nil {
+		return nil
+	}
+	return &finalError{err: err}
+}
+
+// isFinal reports whether err asks to end the job without its attempts left (Final).
+func isFinal(err error) bool {
+	var f *finalError
+	return errors.As(err, &f)
+}
+
 // State is the lifecycle state of a job.
 type State string
 
@@ -435,11 +457,11 @@ func (q *Queue) Complete(ctx context.Context, workerID string, id int64) error {
 }
 
 // Fail records a failed attempt of a running job. The job is retried with exponential backoff
-// until it has used MaxAttempts; then it ends in state failed.
+// until it has used MaxAttempts; then, and at once for a cause of Final, it ends in state failed.
 func (q *Queue) Fail(ctx context.Context, workerID string, j *Job, cause error) error {
 	now := q.now()
 	state, runAfter := StateFailed, now
-	if j.Attempts < j.MaxAttempts {
+	if j.Attempts < j.MaxAttempts && !isFinal(cause) {
 		state, runAfter = StateQueued, now.Add(Backoff(j.Attempts))
 	}
 	n, err := q.q.FailJob(ctx, systemq.FailJobParams{
