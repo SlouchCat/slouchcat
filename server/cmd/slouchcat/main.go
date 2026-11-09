@@ -309,7 +309,12 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		metadata.WithVisibilityRecheck(playbackSvc.RecheckVisibility), metadata.WithFeedUserAgent("Slouchcat/"+version),
 		metadata.WithNewEpisodes(notifySvc.NewEpisodes), metadata.WithAniList(cfg.AniList), metadata.WithRelink(relink),
 		metadata.WithTrakt(cfg.TraktClientID, metadata.WithTraktBaseURL(traktBase)))
-	libSvc = library.New(db, queue, runner, log,
+	// Trickplay runs one ffmpeg instead of two while a transcode keeps the CPU busy (concept 18).
+	var load library.TrickplayLoad
+	if mgr != nil {
+		load = mgr
+	}
+	libSvc = library.New(db, queue, runner, log, library.WithTrickplayLoad(load),
 		library.WithImageCheck(metaSvc.QueueIncompleteImages),
 		library.WithMetadataCheck(metaSvc.QueuePendingMetadata),
 		library.WithNewEpisodes(notifySvc.NewEpisodes), library.WithScanAborted(notifySvc.ScanAborted),
@@ -322,6 +327,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	zone, zoneName := admin.ResolveZone(os.Getenv)
 	adminSvc.WithLocation(zone)
 	log.Info("time zone of the statistics", "zone", zoneName)
+	adminSvc.WithTrickplay(libSvc)
 	adminSvc.WithAniList(cfg.AniList).WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc).
 		WithTrakt(metaSvc).WithBackups(cfg.ConfigDir, version).WithRestart(requestRestart).
 		// The browsable roots are classified once, here: the wizard's root list answers before
@@ -359,7 +365,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	// Offline downloads (M5): prepared in <cache>/downloads within the download budget, encoded with
 	// the transcode manager's admission (live playback preempts them, plan 3.5).
 	offlineSvc := offline.New(db, visibility.New(db, log), queue, runner, log,
-		offline.WithDir(cfg.DownloadsDir()), offline.WithBudget(int64(cfg.DownloadBudgetGB)<<30),
+		offline.WithDir(cfg.DownloadsDir()), offline.WithCacheDir(cfg.CacheDir), offline.WithBudget(int64(cfg.DownloadBudgetGB)<<30),
 		offline.WithTokenKey(keyring.Derive("download-token")), offline.WithManager(mgr, caps),
 		offline.WithPlayback(playbackSvc), offline.WithPins(authSvc))
 
