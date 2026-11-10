@@ -7,10 +7,11 @@
   «Gleichzeitig laden» geht **bis 5**, die abonnierten Podcasts erscheinen als **Liste mit Covern**
   (F-5, Variante A), die Einstellung steht als **Band auf der Podcasts-Seite** (F-6, Variante B).
   Offen sind nur die Punkte in Abschnitt 17.
-  **Fassung 4 (10. November 2026): Teil B Radio dazu.** Marco will Podcast und Radio in einem Konzept.
+  **Fassung 5 (10. November 2026): Teil B Radio dazu.** Marco will Podcast und Radio in einem Konzept.
   Teil B beschreibt das Radio-Angebot (Länder, je Land einzelne Sender) und die Sender-Metadaten,
-  die der Server erst nach dem Hinzufügen holt; entschieden über klickbare Mockups (B2, Anhang B).
-  Offen sind die Punkte in B14.
+  die der Server erst nach dem Hinzufügen holt; entschieden über klickbare Mockups (B2, Anhang B),
+  Kritiker-Review eingearbeitet (REVISE, 0 Blocker, 17 Major, 10 Minor; B15). Offen sind die Punkte
+  in B14.
   **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Aufbau:** **Teil A Podcasts** (Abschnitte 1 bis 18, Anhang A) und **Teil B Radio** (Abschnitte
   B1 bis B14, Anhang B). Die Teile sind unabhängig; jeder hat eigene Stufen und Releases.
@@ -619,7 +620,8 @@ vor der Weiterleitung), alle im Text entschieden.
 # Teil B: Radio-Angebot und Sender-Metadaten
 
 Teil B gehört zu Konzept 19, weil Marco Podcast und Radio in einem Konzept will (10. November 2026).
-Er ist vom Teil A unabhängig: eigene Stufen, eigener Zweig, eigene Releases (B12).
+Er ist vom Teil A unabhängig: eigene Stufen, eigener Zweig, eigene Releases (B12). **Fassung 2 des
+Teils** (10. November 2026), Kritiker-Review eingearbeitet (B15).
 
 ## B1. Was Marco will
 
@@ -629,7 +631,7 @@ Er ist vom Teil A unabhängig: eigene Stufen, eigener Zweig, eigene Releases (B1
 | R-2 | Wählen, welche Sender es gibt: je Land, und im Land einzelne Sender markieren und demarkieren, mit «Alle markieren». | B4, B9 |
 | R-3 | Nicht erreichbare Sender löschen können. | B6 |
 | R-4 | Sprachunabhängig: Slouchcat wird weltweit angeboten; keine Vorgaben wie «Deutschsprachig» oder «Nachbarländer». | B4 |
-| R-5 | Den Anbieter eines Senders ermitteln. | B7 |
+| R-5 | Den Anbieter eines Senders ermitteln. | B7.4 |
 | R-6 | Mehr Metadaten aus weiteren Quellen, vom Server selbst geholt, **aber erst nach dem Hinzufügen, vorher nicht**. | B7 |
 | R-7 | Einfacher und übersichtlicher. Die Reiter «Einstellungen» und «Eigene Sender» passen. | B9 |
 
@@ -639,7 +641,7 @@ Marco hat die Radio-Verwaltung über eine klickbare Leinwand entschieden (Anhang
 
 | Nr. | Vorlage | Marcos Entscheid |
 |---|---|---|
-| RF-1 | Drei Wege, das Angebot zu wählen: A Pakete, B Länder zuerst, C Regeln. | Vorgaben für Sprache oder Nachbarländer **streichen**, stattdessen ein allgemeiner Sprachenfilter. |
+| RF-1 | Drei Wege, das Angebot zu wählen: A Pakete, B Länder zuerst, C Regeln. | Vorgaben für Sprache oder Nachbarländer **streichen**, «stattdessen ein Sprachenfilter». Gemeint war der Filter in Paket A; mit B und RF-7 entfällt er dort. Der Sprachenfilter der App (`language`) bleibt unverändert. |
 | RF-2 | Auch das Angebot wählen ist «eine Flut an Kanälen»; ganz anders denken. | Mockup «Meine Sender statt Katalog» bestellt, danach aber **B (Länder zuerst) «eigentlich gut»**. |
 | RF-3 | B mit nur einigen Ländern. | **Alle Länder**, ohne dass es unübersichtlich wird: Suche, gewählte Länder, Kontinente. |
 | RF-4 | Kachelblock «Die 30 grössten». | **Streichen.** |
@@ -654,116 +656,182 @@ Marco hat die Radio-Verwaltung über eine klickbare Leinwand entschieden (Anhang
 Nicht gewählt: Angebot A (Pakete), Angebot C (Regeln), «Meine Sender statt Katalog» (das Angebot
 entstünde aus dem, was Profile über die Suche hinzufügen).
 
+**Spannung RF-6 und RF-8:** Logos gibt es in der Senderliste der Verwaltung nur, wo der Server schon
+eines hat (B7.1). Vor dem ersten Hinzufügen eines Landes stehen dort meist Initialen; das Mockup zeigt
+genau das.
+
 ## B3. Was sich gegenüber früheren Entscheiden ändert
 
 | Bisher | Neu | Grund |
 |---|---|---|
-| Frage 23, F-2: «ganzer Katalog von Radio Browser, täglich abgeglichen; Filter und Einordnung entstehen automatisch über Regeln, der Admin pflegt nur Ausnahmen». Die App zeigt den ganzen Katalog (Konzept 16, 5.2). | Der ganze Katalog wird weiter täglich abgeglichen, aber **nur noch als Auswahlliste der Verwaltung**. Die App zeigt nur das **Angebot**: gewählte Länder mit ihren markierten Sendern und die eigenen Sender. | R-2, RF-2 bis RF-5 |
-| Konzept 16, 5.4 und Stufe 2: Der Admin ordnet auf «Einordnung» Schlagworte zu (`radio_tag_rules`) und setzt je Sender Genre, Sendeart und Stimmung mit Schloss (5.5). | **Keine Zuordnung von Hand.** Reiter «Einordnung» und die Felder Genre, Sendeart, Stimmung im Editor entfallen. Die Filter der App entstehen weiter automatisch aus der mitgelieferten Regeldatei `radio/rules/default.json`. | R-1 |
-| Konzept 16, 11: Einstellung «Länder im Katalog (alle oder gewählte)» als Zeile mit Ländercodes (`radio_config.countries`). | Ersetzt durch den Reiter **«Angebot»** (B4, B9). | R-2 |
-| Konzept 16, 6: Logos holt der Server beim ersten Anzeigen, nach dem Abgleich für Favoriten und Empfohlene. | Logos und alle weiteren Angaben holt er **nur für Sender im Angebot**, sofort nach «Übernehmen» und für neue Sender im Angebot nach dem Abgleich (B7). Eine Liste der Verwaltung löst nie einen Abruf aus. | RF-8 |
-| Konzept 16, 5.2: «Gestörte Sender» sind in der App ausgeblendet (Schalter, ab Werk an). | Bleibt als Schalter «Nicht erreichbare weglassen». Neu: **«Nicht erreichbare entfernen»** nimmt sie endgültig aus dem Angebot (B6). | R-3 |
+| Frage 23, F-2: «ganzer Katalog von Radio Browser, täglich abgeglichen; Filter und Einordnung entstehen automatisch über Regeln «Schlagwort → Filterwert», der Admin pflegt nur Ausnahmen.» Die App zeigt den ganzen Katalog (Konzept 16, 5.2). | Der ganze Katalog wird weiter täglich abgeglichen, aber **nur noch als Auswahlliste der Verwaltung**. Die App zeigt nur das **Angebot** (B4). | R-2, RF-2 bis RF-5 |
+| Konzept 16, 5.4, 5.5 und Stufe 2: Der Admin ordnet auf «Einordnung» Schlagworte zu (`radio_tag_rules`) und setzt je Sender Genre, Sendeart und Stimmung mit Schloss, auch beim Anlegen eines eigenen Senders. | **Keine Zuordnung von Hand** (B5). Die Filter der App entstehen nur noch aus der mitgelieferten Regeldatei `radio/rules/default.json`. | R-1 |
+| Konzept 16, 11: Einstellung «Länder im Katalog (alle oder gewählte)» (`radio_config.countries`); der Länderfilter gilt auch für eigene Sender (`index.go`, `reachable`). | Ersetzt durch den Reiter **«Angebot»**. **Eigene Sender sind immer im Angebot**, gleich welches Land, ausser der Admin nimmt einen heraus. | R-2 |
+| Konzept 16, 5.5: «Ausblenden» je Sender (`radio_stations.hidden`). | Heisst **«Aus dem Angebot nehmen»** und ist eine Ausnahme im Angebot (B4.1). | R-2 |
+| Konzept 16, 6: Logos holt der Server beim ersten Anzeigen, nach dem Abgleich für Favoriten und Empfohlene. | Logos und alle weiteren Angaben holt er **nur für Sender im Angebot** (B7). | RF-8 |
+| Konzept 16, 5.2: «Gestörte Sender» sind in der App ausgeblendet (Schalter, ab Werk an). | Bleibt als Schalter «Nicht erreichbare weglassen», zieht in den Reiter «Angebot». Neu: **«Nicht erreichbare entfernen»** (B6). | R-3 |
+| Neue Installation: die App zeigt den ganzen Katalog. | Eine neue Installation startet mit dem **Standardland des Servers** im Angebot (B4.4). | R-2 |
 
 Unberührt bleiben ADR 0025 für Weiterleitung, Zeitversatz, Hör-Sitzungen und Hörzeit, die stabile
-Kennung der Sender (Konzept 16, 5.3), das Standardland je Profil (F-12) und Regel 12: Was im Angebot
-ist, entscheidet der Server; der Client fragt nur ab.
+Kennung der Sender (Konzept 16, 5.3), das Standardland je Profil (F-12), der Sprachenfilter der App
+und Regel 12: Was im Angebot ist, entscheidet der Server; der Client fragt nur ab.
 
 ## B4. Das Angebot
 
-### B4.1 Was es ist
+### B4.1 Regel
 
-Das Angebot ist die Menge der Sender, die die App zeigt. Es besteht aus:
+Das Angebot ist die Menge der Sender, die die App zeigt. Es besteht aus zwei Teilen:
 
-1. **Ländern mit einem Modus** je Land:
-   - **«Alle»**: alle Sender des Landes, ausser den einzeln demarkierten. Neue Sender des Landes
-     kommen beim Abgleich von selbst dazu.
-   - **«Nur markierte»**: nur die einzeln markierten Sender. Neue Sender kommen nicht von selbst
-     dazu.
-2. **Ausnahmen je Sender** innerhalb eines gewählten Landes (demarkiert bei «Alle», markiert bei
-   «Nur markierte»).
-3. **Eigenen Sendern**: immer im Angebot, unabhängig vom Land.
+1. **Gewählte Länder mit Modus:** «Alle» oder «Nur markierte».
+2. **Ausnahmen je Sender:** «markiert» oder «demarkiert». Eine Ausnahme hängt am Sender, nicht am
+   Land.
 
-Ein Land, das nicht gewählt ist, trägt nichts bei. Sender ohne gültiges Land (Radio Browser:
-1'049 von 50'073 nach Namen zusammengeführten Sendern, B10) lassen sich nicht wählen; für sie
-gibt es «Eigene Sender» (OB-7).
+Ein Sender ist im Angebot, wenn gilt (der Reihe nach, erste Regel mit Treffer):
 
-**Wie die Modi entstehen.** Ein Land wählen heisst «Alle». «Alle demarkieren» setzt das Land auf
-«Nur markierte» ohne Ausnahmen; jeder Haken danach ist eine Ausnahme. «Alle markieren» setzt es
-auf «Alle» ohne Ausnahmen. Ein einzelner Haken ändert nur die Ausnahme, nie den Modus. Steht in der
-Suche der Senderliste ein Text, wirken «Gezeigte markieren» und «Gezeigte demarkieren» nur auf die
-Treffer (Beispiel: `1.fm` demarkiert in der Schweiz 77 Kanäle von 1.FM auf einen Klick); sie ändern
-den Modus nicht. Die Regel für neue Sender ist **OB-1**.
+| Fall | Im Angebot? |
+|---|---|
+| Ausnahme «demarkiert» | nein |
+| Ausnahme «markiert» | ja, gleich in welchem Land |
+| eigener Sender | ja |
+| Land gewählt mit «Alle» | ja |
+| sonst (Land «Nur markierte», Land nicht gewählt, kein Land) | nein |
+
+Folgen der Regel:
+
+- **Neue Sender** eines Landes mit «Alle» sind nach dem nächsten Abgleich von selbst im Angebot; bei
+  «Nur markierte» nicht (**OB-1**).
+- **Wechselt ein Sender das Land** (der Abgleich leitet das Land bei jeder Änderung neu ab), folgt
+  ihm seine Ausnahme: ein demarkierter bleibt draussen, ein markierter drin. Ohne Ausnahme gilt der
+  Modus des neuen Landes.
+- **Sender ohne gültiges Land** (rund 1'000) lassen sich in der Verwaltung nicht wählen (es gibt kein
+  Land dafür, **OB-7**). Ein solcher Favorit bleibt nach dem Update erhalten, weil die Übernahme ihn
+  markiert (B4.4).
+- **Eigene Sender** zählen nicht in «n von m» eines Landes und erscheinen in der App im Länderfilter,
+  wenn sie ein Land haben.
+- **Ein Sender, der nach 7 Tagen ohne Katalogeintrag gelöscht wird**, nimmt seine Ausnahme mit
+  (`ON DELETE CASCADE`).
+
+**Bedienung** (B9.2), jeweils im Entwurf bis «Übernehmen»:
+
+| Aktion | Wirkung |
+|---|---|
+| Land wählen | Land mit «Alle» |
+| Land entfernen | Land weg, dazu alle Ausnahmen der Sender, die jetzt in diesem Land stehen |
+| Alle markieren | Land auf «Alle», Ausnahmen seiner Sender weg |
+| Alle demarkieren | Land auf «Nur markierte», Ausnahmen seiner Sender weg |
+| Haken an einem Sender | Ausnahme dieses Senders; entspricht sie dem Modus, fällt sie weg |
+| Gezeigte markieren / demarkieren (mit Suchtext) | Ausnahme für jeden Sender des Landes, der zur Suche passt; der Server löst die Suche auf (B4.3) |
+
+Beispiel: In der Schweiz `1.fm` suchen und «Gezeigte demarkieren» nimmt alle 77 Kanäle von 1.FM aus
+dem Angebot; die Schweiz bleibt auf «Alle».
 
 ### B4.2 Wo entschieden wird
 
-Im **Index** des Pakets `radio`, wie heute `radio_config.countries`: Die Prüfung `reachable`
-(`radio/index.go`, `catalogView.reachable`) fragt statt «Land in der Liste» neu «im Angebot».
-Damit gilt alles, was heute für ein ausgeschlossenes Land gilt, für jeden Sender ausserhalb des
-Angebots:
+Heute liest jede Anfrage der App `radio_config` aus der Datenbank (`config.go`, `view()`), und
+`catalogView.reachable` (`index.go`) prüft das Land gegen diese Liste. Für Tausende Ausnahmen taugt
+das nicht. Neu:
 
-- Er erscheint in keiner Liste, keinem Zähler, keinem Filter und keiner Startseiten-Reihe der App.
-- Station, Hören, Titelangaben, Bild und Favorit setzen antworten mit **404** (`listen.go`,
-  `catalog_profile.go`), nie 403.
-- Ein Favorit bleibt in der Datenbank stehen, wird aber nicht gezeigt; kommt der Sender zurück ins
-  Angebot, ist er wieder da (heutiges Verhalten bei `countries`).
+- Das Angebot liegt als **eigene, unveränderliche Momentaufnahme im Speicher**: Land → Modus,
+  Sender → Ausnahme, Schalter «Nicht erreichbare weglassen», Versionsnummer. Geladen beim Start,
+  nach jedem «Übernehmen» ganz ersetzt (Zeiger tauschen). Der Senderindex wird dafür **nicht** neu
+  gebaut.
+- `catalogView` bekommt einen Zeiger auf die Momentaufnahme; `reachable` wendet die Regel aus B4.1
+  an. Das ist ein Nachschlagen in zwei Tabellen je Sender.
+- Alles, was heute für ein ausgeschlossenes Land gilt, gilt für jeden Sender ausserhalb des Angebots:
+  keine Liste, kein Zähler, kein Filter, keine Startseiten-Reihe; Station, Hören, Titelangaben, Bild
+  und «Favorit setzen» antworten mit **404** (`listen.go`, `catalog_profile.go`), nie 403. Ein
+  Favorit bleibt in der Datenbank und erscheint wieder, sobald der Sender zurück im Angebot ist.
+- **Laufendes Hören:** Nach dem Tausch ruft der Server `closeUnreachable` wie heute nach
+  `updateRadioConfig` (`config.go`): Sitzungen auf Sendern, die das Angebot verlassen haben, enden
+  (`ended_by = 'admin'`), ihr Relay stoppt.
+- Die Verwaltung sieht den ganzen Katalog; jeder Sender trägt `offered` (gespeicherter Stand).
 
-Der Index wird nach jedem «Übernehmen» neu gebaut, wie heute nach `updateRadioConfig`. Die
-Verwaltung sieht weiter den ganzen Katalog (`listAdminRadioStations` ignoriert das Angebot wie
-heute `countries`) und bekommt je Sender das Feld `offered`.
+### B4.3 Entwurf, Vorschau und Übernehmen
 
-### B4.3 Die App
+Änderungen sammeln sich im Reiter «Angebot» als **Liste von Schritten** (die Aktionen aus B4.1). Der
+Server rechnet, der Client zeigt nur an:
+
+- **Vorschau:** Der Client schickt die Schritte; der Server wendet sie auf den gespeicherten Stand an,
+  ohne zu speichern, und liefert die Summen, den Unterschied («4'875 Sender kommen dazu, 77 fallen
+  weg»), je Land «n von m» und, auf Wunsch, eine Seite der Senderliste eines Landes mit dem Stand
+  im Entwurf. So zeigt die Liste auch nach «Gezeigte markieren» über 300 Treffer den richtigen Haken,
+  ohne dass der Client die Regel kennt.
+- **Übernehmen:** dieselben Schritte mit der Versionsnummer des Stands, auf dem der Entwurf beruht.
+  Stimmt sie nicht mehr (ein zweiter Tab, «Nicht erreichbare entfernen» auf «Sender»), antwortet der
+  Server mit **409**; der Client holt den neuen Stand, rechnet die Vorschau mit denselben Schritten
+  neu und zeigt sie zum zweiten Übernehmen. Weil die Schritte relativ sind («Land wählen»,
+  «diese Sender demarkieren»), gehen dabei weder der Entwurf noch die andere Änderung verloren.
+- **Zahlen:** `m` = alle Sender des Landes im Katalog, nicht erreichbare eingeschlossen; `n` = davon
+  im Angebot. Die Zusammenfassung nennt zusätzlich «davon nicht erreichbar».
+- **Verlassen mit Entwurf:** Frage wie auf anderen Verwaltungsseiten (`ui/useUnsavedChanges`).
+
+### B4.4 Erster Start nach dem Update und neue Installation
+
+Die Migration legt die Tabellen an und setzt ein Merkmal «Angebot noch nicht befüllt». Befüllt wird
+**beim ersten Start im Server**, weil SQL das wirksame Standardland nicht kennt (Zeitzone, dann
+`metadata.rating_country`, dann `DE`; `catalog_profile.go`, `defaultCountry`). Empfehlung (**OB-2**):
+
+1. Ist `radio_config.countries` gesetzt: diese Länder mit «Alle».
+2. Sonst: das Standardland jedes Profils (gespeichert oder wirksam) mit «Alle». Auf einer neuen
+   Installation ohne Profil: das Standardland des Servers.
+3. Jeder Favorit, der **heute sichtbar** ist (nicht ausgeblendet, Land in der Liste oder keine
+   Liste) und nach 1 und 2 nicht im Angebot wäre, wird **markiert**. Das gilt auch für Favoriten ohne
+   Land. Damit verliert kein Profil einen Favoriten, den es heute sieht; Favoriten, die heute verborgen
+   sind, bleiben verborgen.
+4. Jeder ausgeblendete Sender (`hidden = 1`), auch ein eigener, wird **demarkiert**.
+5. Danach: Filterwerte neu ableiten (B5), Anbieter nachtragen (B7.4), Logos des Angebots
+   vorholen (B7.2), Merkmal löschen.
+
+`radio_config.countries` und `radio_stations.hidden` bleiben in den Tabellen und werden nicht mehr
+gelesen (wie der Vorgabewert `'ahead'` aus 00042; kein Neubau der Tabellen).
+
+### B4.5 Die App
 
 - **Filter «Land»** und der Schnellfilter «Mein Land» zeigen nur Länder mit Sendern im Angebot.
-- **Standardland ausserhalb des Angebots:** Die Radioseite öffnet mit dem grössten Land im
-  Angebot; die gespeicherte Wahl des Profils bleibt und gilt wieder, sobald ihr Land im Angebot ist
-  (OB-10).
-- **Leeres Angebot:** Die Radioseite sagt «Noch keine Sender ausgewählt» und, für den Admin, wo das
-  Angebot gewählt wird. Kein Katalog-Durchblättern.
-- Genre, Sendeart und Stimmung bleiben als Filter, abgeleitet aus der Regeldatei (B5).
-
-### B4.4 Nach dem Update
-
-Heute zeigt die App den ganzen Katalog, oder die Länder in `radio_config.countries`. Damit nach dem
-Update nicht plötzlich 50'000 Sender im Angebot stehen und ein Favorit nicht verschwindet,
-übernimmt die Migration (Empfehlung, **OB-2**):
-
-1. Ist `countries` gesetzt: diese Länder mit «Alle».
-2. Sonst: die Standardländer aller Profile (`radio_profile_state.default_country`, auf CT 190 die
-   Schweiz) mit «Alle».
-3. Jeder Favorit eines Profils, dessen Land so nicht im Angebot ist: sein Land mit «Nur markierte»
-   und der Sender als Ausnahme.
-4. Jeder ausgeblendete Sender (`hidden = 1`) in einem gewählten Land: demarkiert.
-
-`radio_stations.hidden` entfällt danach als eigener Zustand der Verwaltung; «Ausblenden» heisst
-neu demarkieren (B9.3). Die Spalte bleibt in der Tabelle und wird nicht mehr gelesen (wie der
-Vorgabewert `'ahead'` aus 00042, kein Neubau der Tabelle).
+- **Standardland ausserhalb des Angebots:** Der Server liefert neben dem gespeicherten
+  `defaultCountry` ein `effectiveCountry`: das gespeicherte Land, wenn es Sender im Angebot hat, sonst
+  das Land mit den meisten Sendern im Angebot. Die Radioseite öffnet mit `effectiveCountry`, auch für
+  «Beliebt in <Land>», und schreibt nur `defaultCountry` zurück. Die gespeicherte Wahl bleibt so
+  erhalten (**OB-10**).
+- **Gespeicherter Filter** (`lastFilter`) mit einem Land ausserhalb des Angebots: Der Server lässt
+  dieses Land beim Lesen weg.
+- **Leeres Angebot:** `RadioFacets.offerEmpty`; die Radioseite sagt «Noch keine Sender ausgewählt»
+  statt «Kein Sender passt zum Filter», für den Admin mit Link zum Reiter «Angebot».
+- Genre, Sendeart, Stimmung und Sprache bleiben als Filter, abgeleitet aus der Regeldatei und dem
+  Katalog (B5).
 
 ## B5. Keine Zuordnung von Hand
 
 - **Entfällt:** Reiter «Einordnung» (`TagRulesTab.tsx`), die Operationen `getRadioTagRules` und
-  `setRadioTagRules`, im Editor die Felder Genre, Sendeart, Stimmung und ihre Schlösser, in der
-  Übersicht die Abdeckung je Filter.
-- **Bleibt:** die mitgelieferte Regeldatei `radio/rules/default.json` und die automatische
-  Ableitung (`deriveFacets`). Die Regeldatei wird im Repository gepflegt wie die Sprachdateien.
+  `setRadioTagRules`, die Felder Genre, Sendeart, Stimmung im Editor (`StationEditor.tsx`) und beim
+  Anlegen eines eigenen Senders (`CreateStationDialog.tsx`), ihre Schlösser, die Abdeckung je Filter
+  in der Übersicht und die Kachel «Schlagworte» der Zustandsleiste.
+- **Bleibt:** die mitgelieferte Regeldatei `radio/rules/default.json` und `deriveFacets` (Schlagworte,
+  sonst Wörter im Namen, sonst «Musik»). Die Regeldatei wird im Repository gepflegt wie die
+  Sprachdateien.
 - **Bestehende Regeln und Handwerte:** Die Migration löscht `radio_tag_rules`, die Zeilen in
-  `radio_station_facets` mit `manual = 1` und die Schlösser `genre`, `kind`, `mood`; danach leitet
-  der Server die Filterwerte aller Sender neu ab (Empfehlung, **OB-4**). Schlösser für Name, Logo,
-  Region und Stream bleiben, weil diese Felder im Editor bleiben.
+  `radio_station_facets` mit `manual = 1` und die Schlösser `genre`, `kind`, `mood` (Empfehlung,
+  **OB-4**). Schlösser für Name, Logo, Region und Stream bleiben.
+- **Neu ableiten:** Weder der Abgleich (nur geänderte Einträge, `sync.go`) noch `applyRules` (nur
+  Sender mit Schlagworten, `tagrules.go`) erreichen alle Sender. Darum leitet der erste Start nach dem
+  Update (B4.4, Schritt 5) die Filterwerte **aller** Sender neu ab, auch der eigenen und der Sender
+  ohne Schlagworte.
 
 ## B6. Nicht erreichbare Sender
 
-Zwei Wege, weil «löschen» bei einem Katalogsender nicht heissen kann, ihn aus dem Katalog zu
-löschen: der nächste Abgleich brächte ihn zurück.
+«Löschen» kann bei einem Katalogsender nicht heissen, ihn aus dem Katalog zu löschen: der nächste
+Abgleich brächte ihn zurück. Darum zwei Wege:
 
 | Weg | Wirkung | Wo |
 |---|---|---|
-| Schalter **«Nicht erreichbare weglassen»** (ab Werk an, heute `hide_broken`) | Nicht erreichbare Sender im Angebot sind in der App unsichtbar, solange sie nicht antworten. Sie kommen von selbst zurück. | Reiter «Angebot», Zusammenfassung |
-| Knopf **«Nicht erreichbare entfernen (n)»** | Demarkiert alle zurzeit nicht erreichbaren Sender im Angebot. Sie kommen nicht zurück, auch wenn sie wieder antworten. Mit «Rückgängig» bis zum Verlassen der Seite. | Reiter «Sender», über der Liste |
+| Schalter **«Nicht erreichbare weglassen»** (ab Werk an, heute `hide_broken`) | Nicht erreichbare Sender im Angebot erscheinen in Listen und Zählern der App nicht. Sie kommen zurück, sobald der Abgleich oder das eigene Abspielen sie wieder als erreichbar führt. Teil des Entwurfs. | Reiter «Angebot», Zusammenfassung |
+| Knopf **«Nicht erreichbare entfernen (n)»** | Demarkiert alle zurzeit nicht erreichbaren Sender im Angebot, **ausser Favoriten und eigenen Sendern**. Sie kommen nicht zurück. «Rückgängig» markiert die gelieferten Sender wieder, solange die Meldung steht. Wirkt sofort. | Reiter «Sender», über der Liste |
 
-Ein **eigener** Sender wird über «Eigene Sender» gelöscht wie heute (`deleteRadioStation`).
-«Nicht erreichbar» heisst wie heute `reachable = 0` oder `broken_at` gesetzt (`index.go`); ein
-Favorit, der nicht erreichbar ist, bleibt sichtbar und abspielbar wie heute, solange der Schalter es
-erlaubt (OB-6).
+- «Nicht erreichbar» heisst wie heute `reachable = 0` oder `broken_at` gesetzt (`index.go`).
+- Favoriten bleiben wie heute immer sichtbar und abspielbar, auch nicht erreichbare (sie gehen über
+  `reachable`, nicht über `listed`; `catalog_profile.go`); die App zeigt den Hinweis «gestört»
+  (**OB-6**).
+- Einen **eigenen** Sender löscht «Eigene Sender» wie heute (`deleteRadioStation`).
 
 ## B7. Metadaten erst nach dem Hinzufügen
 
@@ -775,156 +843,189 @@ Server zusätzlich abrufen muss**, holt er nur für Sender im Angebot (Lesart vo
 
 | Angabe | Quelle | Stufe |
 |---|---|---|
-| Logo | Logo-Adresse des Katalogs (`favicon`), sonst Webseite des Senders (`apple-touch-icon`, Symbole im Manifest, `og:image`), sonst Wikidata (P154) | B1 (Katalog, Webseite: heutige Kette), B2 (Wikidata) |
-| Anbieter | Eigentümer aus Wikidata (P127), sonst Host des Streams | B2 |
-| Gründung, Beschreibung | Wikidata (P571, Beschreibung) | B2, nur Verwaltung (OB-5) |
+| Logo | eigenes Bild, sonst Logo-Adresse des Katalogs (`favicon`), sonst Webseite des Senders (`apple-touch-icon`, Symbole im Manifest, `og:image`); heutige Kette | B1 |
+| Anbieter | Host des Streams, in B2 der Eigentümer aus Wikidata | B1, B2 |
+| Eigentümer, Gründung | Wikidata (P127, P571), nur in der Verwaltung | B2 (**OB-5**) |
 
-Das heisst konkret:
+Wikidata liefert **keine Logos**: Die Dateien auf Wikimedia Commons haben je eigene Lizenzen, viele
+verlangen eine Namensnennung, und der Gewinn ist klein (in der Schweiz 53 Logos bei 81 Treffern, fast
+alle schon über Katalog oder Webseite abgedeckt; B7.5).
 
-- `queueLogos` reiht nur Sender im Angebot ein. Die heutigen Auslöser (Listen, Favoriten,
-  Startseite) sehen ohnehin nur das Angebot; neu kommt der Auslöser «Übernehmen» dazu (B7.2).
-  `queueSyncLogos` holt nach dem Abgleich neue Sender im Angebot statt Favoriten und Empfohlene.
-- Die **Senderliste im Reiter «Angebot»** zeigt Logos nur für Sender, die schon im Angebot sind und
-  eines haben; sonst die Initialen wie heute `StationLogo`. Sie löst keinen Abruf aus.
-- Fällt ein Sender aus dem Angebot, bleiben seine Bilder im Cache, bis die Pflege sie nach 30 Tagen
-  entfernt; kommt er zurück, ist das Logo sofort da.
+**Senderliste der Verwaltung:** Sie zeigt ein Logo, wenn der Server schon eines im Cache hat (auch von
+früher), sonst Initialen wie `StationLogo`. Sie löst nie einen Abruf aus.
 
-### B7.2 Ablauf nach «Übernehmen»
+### B7.2 Wann der Server Logos holt
 
-1. Der Server speichert das neue Angebot in einer Transaktion und baut den Index neu.
-2. Er bestimmt die **neu ins Angebot gekommenen** Sender ohne Logo und reiht sie in
-   `radio.logo.fetch` ein (heutige Jobart, Pool `general`, Priorität 0, ein Auftrag je Sender,
-   Schlüssel `radio.logo:<id>`).
-3. Reihenfolge: zuerst Favoriten, dann nach Klicks im Katalog. Die Priorität 0 lässt Wiedergabe,
-   Scan und jeden manuellen Auftrag vor.
-4. **Je Host höchstens ein Abruf gleichzeitig** (neu; heute kann `general` mit bis zu vier Workern
-   denselben Host parallel treffen). Damit trifft ein Land mit 77 Kanälen eines Anbieters dessen
-   Server nicht vierfach.
-5. Ein Fehlschlag wird nach 30 Tagen wieder versucht (heute `logoRetryAfter`).
+Heute reiht `queueLogos` (`logo.go`) Sender ein, wenn eine Liste der App sie zeigt (Haken `onListed`:
+Listen, Favoriten, Startseiten-Reihe) und nach dem Abgleich die Favoriten und Empfohlenen
+(`queueSyncLogos`); dazu holt `deleteOwnLogo` und das Anlegen eines eigenen Senders das Logo neu
+(`own.go`). Neu:
 
-Die Antwort von «Übernehmen» nennt, wie viele Sender dazukommen und für wie viele Angaben geladen
-werden; die Meldung unten auf der Seite sagt «Logos und weitere Angaben lädt der Server jetzt im
-Hintergrund».
+| Auslöser | Heute | Neu |
+|---|---|---|
+| Listen, Favoriten, Startseite (`onListed`) | jeder gezeigte Sender | unverändert; die App zeigt ohnehin nur das Angebot |
+| nach dem Abgleich (`queueSyncLogos`) | Favoriten, Empfohlene | **neu ins Angebot gekommene** Sender (neue Sender in Ländern mit «Alle»), Favoriten, Empfohlene im Angebot |
+| eigener Sender angelegt, eigenes Logo gelöscht | ja | unverändert |
+| **«Übernehmen»** | – | neu: alle Sender, die dazukamen und kein Logo haben |
+| **erster Start nach dem Update** | – | neu: das ganze übernommene Angebot (B4.4) |
+| Senderliste und Bildroute der Verwaltung | – | nie |
+
+Reihenfolge innerhalb eines Auslösers: Favoriten, dann nach Beliebtheit (`popularity` = Stimmen plus
+Klicks im Katalog, `index.go`). Ein Fehlschlag wird nach 30 Tagen wieder versucht (`logoRetryAfter`).
+
+**Drossel.** Heute gilt eine gemeinsame Drossel von **2 Abrufen je Sekunde** für alle Logo-Aufträge
+(`logo_state.go`, `ratelimit.New("radio-logo", 2, 2)`). Neu kommt **je Host höchstens ein Abruf
+gleichzeitig** dazu (Host der Adresse vor einer Weiterleitung, wie Teil A 6.2):
+
+- Ein Auftrag versucht die Sperre des Hosts; ist sie belegt, gibt er mit `jobs.RetryLater(15 s)`
+  zurück, ohne einen Versuch zu verbrauchen, und blockiert keinen Worker. Scans und
+  `probe.keyframes` (Priorität 9) finden so immer einen freien Worker.
+- Die gemeinsame Drossel steigt auf **4 je Sekunde** (Empfehlung, **OB-11**); die Messung in B0
+  prüft, ob das reicht und ob Sender sich beschweren (Antwort 429).
 
 ### B7.3 Wikidata (Stufe B2)
 
 - **Ein Abruf für alles:** eine SPARQL-Abfrage an `query.wikidata.org` nach Radiosendern mit
-  Webseite (P856), dazu Logo (P154), Eigentümer (P127), Gründung (P571). Gemessen am 10. November
-  2026: 1,5 s, 4,6 MB, 19'229 Sender, davon 1'900 mit Logo.
-- **Abgleich lokal** über die Webseite (Host und Pfad, ohne `www.`); mehrdeutige Treffer zählen
-  nicht. Gespeichert wird nur, was zu einem Sender **im Angebot** passt.
-- **Wann:** nach «Übernehmen», wenn neue Sender dazukamen, höchstens einmal je Tag, und einmal je
-  Woche zum Nachführen. Jobart **`radio.wikidata.sync`** (Ereignis plus Zeitplan, Pool `general`,
-  Priorität 0), Abruf über den Netzwächter, User-Agent mit Kontaktadresse nach der Regel von
-  Wikimedia, Antwort höchstens 20 MB.
-- **Lizenz:** Die Daten von Wikidata sind CC0. Die Logo-Dateien auf Wikimedia Commons haben eigene
-  Lizenzen; Slouchcat speichert sie nur verkleinert im eigenen Cache für die eigene Anzeige, wie
-  heute die Logos aus dem Katalog. Das steht in ADR 0030.
+  Webseite (P856), dazu Eigentümer (P127) und Gründung (P571). Gemessen am 10. November 2026 (mit
+  Logo P154): 1,5 s, 4,6 MB, 19'229 Sender.
+- **Abgleich lokal** über die Webseite (Host ohne `www.` und Pfad); mehrdeutige Treffer zählen nicht.
+  Gespeichert wird nur, was zu einem Sender **im Angebot** passt.
+- **Jobart `radio.wikidata.sync`:** `TriggerSchedule` mit `Handler`, `Run`, `Every` 7 Tage und
+  `Seed`, wie `radio.catalog.sync` (`radio/jobs.go`); «Übernehmen» reiht sie zusätzlich direkt ein
+  (Schlüssel `radio.wikidata.sync`), aber nur, wenn neue Sender dazukamen und der letzte Lauf über 24
+  Stunden her ist (`radio_config.wikidata_synced_at`). Priorität 4, Pool `general`; Eintrag in der
+  Prioritätsleiter (`jobs/queue.go`) zusammen mit `radio.logo.fetch` (0).
+- **Netz:** über den Netzwächter, Antwort höchstens 20 MB, User-Agent
+  `Slouchcat/<Version> (+https://github.com/SlouchCat/slouchcat)` ohne Kontaktdaten des Admins.
+- **Einstellung «Wikidata verwenden»** (ab Werk an), wie die Schalter für MusicBrainz und iTunes.
+- **Sprache:** Bezeichnungen in der Sprache der App, sonst Englisch.
+- **Lizenz:** Die Daten von Wikidata sind CC0; das steht in ADR 0030.
 
 ### B7.4 Anbieter
 
 Ein Sender bekommt die Spalte `provider`:
 
-1. **Eigentümer aus Wikidata**, wenn ein eindeutiger Treffer da ist (z. B. «Schweizer Radio und
-   Fernsehen» für Radio SRF 3).
-2. Sonst die **registrierbare Domain des bevorzugten Streams** (`url_resolved`): `srg-ssr.ch`,
-   `streamtheworld.com`, `zeno.fm`, `infomaniak.ch`. Berechnet beim Abgleich, ohne Abruf, mit der
-   Liste der öffentlichen Suffixe aus `golang.org/x/net/publicsuffix`, falls das Modul schon im
-   `go.mod` steht; sonst mit einer kurzen eingebetteten Liste der mehrteiligen Endungen (`co.uk`,
-   `com.au` …). Das klärt Stufe B0.
+1. **Stufe B1:** die registrierbare Domain des ersten Streams in `ListRadioStreamsRanked`
+   (`url_resolved`, sonst `url`): `srg-ssr.ch`, `streamtheworld.com`, `zeno.fm`, `infomaniak.ch`.
+   Berechnet mit `golang.org/x/net/publicsuffix` (das Modul steht schon in `server/go.mod`). Gesetzt
+   bei jeder Änderung durch den Abgleich und einmal für alle Sender beim ersten Start (B4.4).
+2. **Stufe B2:** der Eigentümer aus Wikidata, wenn ein eindeutiger Treffer da ist (z. B. «Schweizer
+   Radio und Fernsehen» für Radio SRF 3).
 
-Gezeigt wird der Anbieter in der Verwaltung (Reiter «Sender», Spalte und Filter), nicht in der App
-(**OB-8**). Messung am Katalog vom 9. November 2026: in der Schweiz kommen 41 von 127 geprüften
-Sendern über `srg-ssr.ch`, weltweit führen `zeno.fm` (494) und `streamtheworld` (436).
+Gezeigt wird der Anbieter nur in der Verwaltung (Reiter «Sender», Spalte und Filter; **OB-8**).
+Stichprobe der 8'000 meistgeklickten Katalogeinträge (9. November 2026): `zeno.fm` 494,
+`streamtheworld` 436, `infomaniak` 168; von 127 Schweizer Einträgen darin laufen 41 über
+`srg-ssr.ch`.
 
 ### B7.5 Gemessen (10. November 2026)
 
-452 Schweizer Sender (Radio Browser, nach Namen zusammengeführt), vier Abrufe gleichzeitig, einer je
-Host, 8 s Zeitgrenze, Bild ab 64 Pixel:
+Auf dem Arbeitsrechner (nicht CT 190), 452 Schweizer Sender (Radio Browser, nach Namen
+zusammengeführt), vier Abrufe gleichzeitig, einer je Host, 8 s Zeitgrenze, Bild ab 64 Pixel, **ohne**
+die Drossel von 2 je Sekunde:
 
 | Quelle | Sender mit Logo | Anteil |
 |---|---|---|
 | Katalog allein | 158 | 35 % |
 | Webseite allein | 356 | 79 % |
 | Katalog oder Webseite | 379 | 84 % |
-| Wikidata, genauer Treffer über die Webseite | 81 Sender, davon 53 mit Logo | 18 % / 12 % |
+| Wikidata, eindeutiger Treffer über die Webseite | 81 Sender, davon 53 mit Logo | 18 % / 12 % |
 
-Aufwand: **86 s, 702 Abrufe, 52,6 MB** für alle 452; je Webseite Median 0,39 s, 90 % unter 2,43 s.
-Hochgerechnet (nicht gemessen): 5'000 Sender rund 16 Minuten, der ganze Katalog rund 2,5 Stunden.
-Die Messung für Deutschland und die USA hat Marco abgebrochen; sie wird in Stufe B0 mit 96 Pixeln
-(heutige Untergrenze) wiederholt (**OB-9**).
+Aufwand: **86 s, 702 Abrufe, 52,6 MB**; je Webseite Median 0,39 s, 90 % unter 2,43 s. Die Messung
+für Deutschland und die USA hat Marco abgebrochen.
+
+**Schätzungen mit Drossel** (nicht gemessen; rund 1,6 Abrufe je Sender):
+
+| Sender | bei 2 je Sekunde (heute) | bei 4 je Sekunde (OB-11) |
+|---|---|---|
+| 452 (Schweiz) | rund 6 Minuten | rund 3 Minuten |
+| 5'000 | rund 65 Minuten | rund 33 Minuten |
+| 55'000 (ganzer Katalog) | rund 12 Stunden | rund 6 Stunden |
 
 **Grenze der Messung:** Das Bild einer Webseite ist das Logo der Webseite, nicht des Kanals. Alle
 1.FM-Kanäle bekommen dasselbe 1.FM-Logo, die SRF-Sender teilen sich eines. Darum bleibt die
-heutige Reihenfolge: Logo des Katalogs vor der Webseite.
+heutige Reihenfolge: Logo des Katalogs vor der Webseite. Stufe B0 misst auf CT 190 mit der echten
+Kette (96 Pixel, Drossel, Sperre je Host) für die Schweiz und Deutschland (**OB-9**).
 
 ## B8. Leistung
 
 | Teil | Last | Begründung |
 |---|---|---|
-| Abgleich | unverändert 21 s auf CT 190 (`docs/perf/radio.md`) | lädt wie heute den ganzen Katalog |
-| Angebot prüfen | vernachlässigbar | ein Nachschlagen je Sender im Index, der nach «Übernehmen» neu gebaut wird |
-| Metadaten | einmalig je Sender im Angebot; Schweiz rund 1,5 Minuten | B7.5; nur Pool `general`, Priorität 0, einer je Host |
-| Wikidata | ein Abruf von 4,6 MB, höchstens täglich | B7.3 |
-| Speicher | heutige Logogrössen (96, 256, 512 Pixel, WebP und PNG) je Sender im Angebot | wird in B0 für die Schweiz gemessen |
+| Abgleich | unverändert, 21 s auf CT 190 (`docs/perf/radio.md`) | lädt wie heute den ganzen Katalog |
+| Angebot prüfen | ein Nachschlagen je Sender in zwei Tabellen im Speicher | B4.2; kein Lesen von `radio_config` je Anfrage mehr |
+| Vorschau | ein Durchgang über die rund 55'000 Sender des Index je Anfrage | B0 misst die Zeit auf CT 190; Ziel unter 100 ms |
+| Übernehmen | Schreiben der Schritte in einer Transaktion, Momentaufnahme tauschen | kein Neubau des Index |
+| Logos | einmalig je Sender im Angebot, gedrosselt | B7.5 |
+| Wikidata | ein Abruf von rund 4 MB, höchstens täglich | B7.3 |
+| Speicher | heutige Logogrössen (96, 256, 512 Pixel, WebP und PNG) je Sender mit Logo | B0 misst für die Schweiz |
 
-Die Wiedergabe merkt davon nichts: Relays laufen nicht über die Job-Queue, und die Queue lässt
-Wiedergabe-Aufträge vor (Konzept 09).
+Die Wiedergabe merkt davon nichts: Relays laufen nicht über die Job-Queue, und Logo-Aufträge mit
+Priorität 0 blockieren keinen Worker (B7.2).
+
+**Aufräumen (neu):** Heute löscht nichts die Bilder unter `images/radio/<id>`, auch nicht nach dem
+Löschen eines Senders. Neu entfernt der Abgleich nach dem Löschen eines Senders dessen Ordner. Bilder
+von Sendern ausserhalb des Angebots bleiben (wenige KB je Sender); kommt der Sender zurück, ist das
+Logo sofort da.
 
 ## B9. Die Verwaltung
 
-### B9.1 Reiter
+### B9.1 Reiter und Zustandsleiste
 
 | Heute | Neu |
 |---|---|
-| Übersicht | **Übersicht**: Katalog und Abgleich, Angebot in Zahlen (Länder, Sender, nicht erreichbar, Logos geladen), Relays und Serverlast. Ohne Abdeckung der Einordnung. |
+| Übersicht | **Übersicht**: Katalog und Abgleich, Angebot in Zahlen (Länder, Sender, nicht erreichbar, mit Logo), Relays und Serverlast. Ohne Abdeckung der Einordnung. |
 | – | **Angebot** (neu, B9.2) |
 | Sender | **Sender** (B9.3) |
 | Einordnung | entfällt |
-| Eigene Sender | **Eigene Sender**, unverändert |
-| Einstellungen | **Einstellungen** ohne die Zeile «Länder» und ohne den Schalter für gestörte Sender (beide ziehen in «Angebot») |
+| Eigene Sender | **Eigene Sender** ohne Genre, Sendeart, Stimmung beim Anlegen; sonst wie heute |
+| Einstellungen | **Einstellungen** ohne die Zeile «Länder» und ohne den Schalter für gestörte Sender (beide in «Angebot»); neu «Wikidata verwenden» (B2) |
+
+Zustandsleiste (`RadioAdminPage.tsx`): Die Kachel «Schlagworte» (offene Schlagworte) entfällt; die
+Kachel «Geändert» (Ausnahmen inklusive ausgeblendeter) wird zu **«Im Angebot»** (Sender und Länder).
 
 ### B9.2 Reiter «Angebot» (Mockup `AngebotB`, gewählt)
 
 Von oben nach unten:
 
-1. **Länder:** Suchfeld «Land suchen» (Name oder Ländercode), darunter die **sechs Kontinente**
-   (Europa, Nord- und Mittelamerika, Südamerika, Asien, Afrika, Ozeanien) mit Zahl der Länder und
-   Sender. Ein Kontinent klappt seine Länder alphabetisch als schmale Zeilen auf, mit «Alle Länder
-   wählen» und «Alle abwählen»; nur einer ist offen, die Liste scrollt in sich. Länder heissen in der
-   Sprache der App (Landesnamen wie heute über `countryName`). Die Zuordnung Land → Kontinent liefert
-   der Server aus einer eingebetteten Tabelle (UN M49, wie CLDR).
+1. **Länder:** Suchfeld «Land suchen» (Name oder Ländercode), darunter die **sechs Kontinente** mit
+   Zahl der Länder und Sender. Ein Kontinent klappt seine Länder alphabetisch als schmale Zeilen auf,
+   mit «Alle Länder wählen» und «Alle abwählen»; nur einer ist offen, die Liste scrollt in sich.
+   Länder heissen in der Sprache der App (wie heute `countryName`).
 2. **Sender der gewählten Länder:** Liste «Gewählte Länder» mit je «n von m Sendern», «Sender
    wählen» und «Land entfernen»; darunter die **Senderliste** des geöffneten Landes: Suche, «Alle
-   markieren» und «Alle demarkieren» (mit Suchtext «Gezeigte …»), je Sender Haken, Logo oder
-   Initialen, Name, Schlagworte, Hinweis «nicht erreichbar». Sortiert nach Klicks im Katalog.
-   Virtuell, Seiten zu 100 (Konzept 18, Teil C).
-3. **Ganz unten:** Leiste «Übernehmen» und «Verwerfen» mit dem Unterschied («4'875 Sender kommen
-   dazu. Favoriten und eigene Sender bleiben.»), nach dem Übernehmen die Meldung «Übernommen. Die
-   Radioseite zeigt das neue Angebot sofort. Logos und weitere Angaben lädt der Server jetzt im
-   Hintergrund.» (RF-10).
+   markieren» und «Alle demarkieren» (mit Suchtext «Gezeigte …»), im Kopf der gültige Modus («Neue
+   Sender kommen von selbst dazu» oder «… nicht»), je Sender Haken, Logo oder Initialen, Name,
+   Schlagworte, Hinweis «nicht erreichbar». Sortiert nach Beliebtheit. Seiten zu 100, virtuell
+   (Konzept 18, Teil C), geliefert von der Vorschau (B4.3).
+3. **Ganz unten:** Leiste «Übernehmen» und «Verwerfen» mit dem Unterschied aus der Vorschau, nach dem
+   Übernehmen die Meldung «Übernommen. Die Radioseite zeigt das neue Angebot sofort. Logos und weitere
+   Angaben lädt der Server jetzt im Hintergrund.» (RF-10).
 
-Daneben die **Zusammenfassung**: Sender im Angebot, gewählte Länder, markierte Sender, Schalter
-«Nicht erreichbare weglassen». Auf schmalen Bildschirmen steht sie unter den Ländern.
+Daneben die **Zusammenfassung**: Sender im Angebot, davon nicht erreichbar, gewählte Länder,
+markierte Sender, Schalter «Nicht erreichbare weglassen». Auf schmalen Bildschirmen steht sie unter
+den Ländern.
 
-Änderungen sammeln sich, bis «Übernehmen» gedrückt ist; «Verwerfen» stellt den gespeicherten Stand
-her. Wer die Seite mit offenen Änderungen verlässt, wird gefragt (wie im Metadaten-Editor).
+**Kontinente.** Der Server liefert je Land den Kontinent aus einer eingebetteten Tabelle nach den
+Unterregionen von UN M49, zusammengefasst zu sechs Gruppen: Europa; Nord- und Mittelamerika (mit
+Karibik und Mittelamerika); Südamerika; Asien; Afrika; Ozeanien (mit der Antarktis `AQ`). Kosovo
+(`XK`, nicht in M49) zählt zu Europa. Die Namen der Kontinente stehen in den Sprachdateien.
 
 ### B9.3 Reiter «Sender»
 
-Liste der Sender **im Angebot** (Vorgabe) oder des ganzen Katalogs (Umschalter), Suche, Filter
-Land, Anbieter, Zustand (erreichbar, nicht erreichbar, ohne Logo). Spalte **Anbieter**. Über der
-Liste «Nicht erreichbare entfernen (n)» (B6). Je Sender:
+Liste der Sender **im Angebot** (Vorgabe) oder des ganzen Katalogs (Umschalter), Suche, Filter Land,
+Anbieter, Zustand (erreichbar, nicht erreichbar, ohne Logo), sortiert nach Beliebtheit oder Name.
+Spalte **Anbieter**. Über der Liste «Nicht erreichbare entfernen (n)» (B6). Je Sender:
 
-- **Aufklappen** zeigt die Herkunft jeder Angabe (Katalog, Stream, Webseite, Wikidata) und die
-  Streams.
+- **Aufklappen** zeigt Streams und die Herkunft jeder Angabe (Katalog, Stream, Webseite, ab B2
+  Wikidata).
 - **Bearbeiten** wie heute für Name, Logo, Region, Stream (mit Schloss), «Stream prüfen»,
   «Empfehlen». Ohne Genre, Sendeart, Stimmung.
-- **Aus dem Angebot nehmen** (heute «Ausblenden»): demarkiert den Sender in seinem Land.
+- **Aus dem Angebot nehmen** (heute «Ausblenden») und **Ins Angebot nehmen**: Ausnahme, sofort
+  gespeichert (eigene Version, B4.3).
 
 ### B9.4 Regeln der Seite
 
-- Seitenmuster S-1 bis S-17 (Konzept 12), Texte nur aus `de.json`/`en.json`, Farben nur aus Tokens.
+- Seitenmuster S-1 bis S-17 (Konzept 12), Texte nur aus `de.json`/`en.json`, Farben nur aus Tokens,
+  Bausteine aus `web/src/ui`.
 - Tastatur: Pfeiltasten in den Länder- und Senderlisten, Leertaste für den Haken, Enter öffnet,
   Escape schliesst den Kontinent oder die Senderliste; Playwright-Test (Regel 8).
 
@@ -933,89 +1034,143 @@ Liste «Nicht erreichbare entfernen (n)» (B6). Je Sender:
 | Tabelle oder Spalte | Inhalt |
 |---|---|
 | `radio_offer_countries` | `country` (zwei Grossbuchstaben, Primärschlüssel), `mode` (`all`/`marked`), `updated_at` |
-| `radio_offer_marks` | `station_id` (Primärschlüssel, `ON DELETE CASCADE`), `marked` (0/1), `updated_at`; gilt nur für Sender in einem Land aus `radio_offer_countries` |
-| `radio_stations.provider` | Anbieter (B7.4), beim Abgleich gesetzt, in B2 durch Wikidata ersetzt |
-| `radio_config.countries` | bleibt, wird nicht mehr gelesen |
-| `radio_stations.hidden` | bleibt, wird nicht mehr gelesen (B4.4) |
-| `radio_tag_rules`, manuelle Filterwerte, Schlösser `genre`/`kind`/`mood` | Zeilen gelöscht (B5) |
-
-Die Migration füllt `radio_offer_countries` und `radio_offer_marks` nach B4.4. Eine Ausnahme, deren
-Sender das Land wechselt, gilt nicht mehr und wird beim nächsten «Übernehmen» entfernt.
+| `radio_offer_exceptions` | `station_id` (Primärschlüssel, Fremdschlüssel auf `radio_stations`, `ON DELETE CASCADE`), `offered` (0/1), `updated_at`; gilt unabhängig vom Land (B4.1) |
+| `radio_config.offer_version` | Versionsnummer des Angebots (B4.3) |
+| `radio_config.offer_seeded` | 0 nach der Migration, 1 nach der Befüllung beim ersten Start (B4.4) |
+| `radio_config.hide_broken` | bleibt, gehört jetzt zum Angebot |
+| `radio_stations.provider` | Anbieter (B7.4) |
+| `radio_config.countries`, `radio_stations.hidden` | bleiben, werden nicht mehr gelesen |
+| `radio_tag_rules`, `radio_station_facets` mit `manual = 1`, `radio_station_locks` für `genre`/`kind`/`mood` | Zeilen gelöscht (B5) |
 
 **Stufe B2, Migration 00046 (vorläufig):** `radio_station_wikidata` (`station_id` Primärschlüssel,
-`qid`, `owner`, `founded`, `description`, `logo_url`, `fetched_at`).
+`qid`, `owner`, `founded`, `fetched_at`), `radio_config.wikidata_enabled`,
+`radio_config.wikidata_synced_at`.
 
-Nach Vorlage (`TEMPLATE.sql.txt`), nur vorwärts, eingefrorene Stände in `testdata/db/`. Die Zahlen
-in diesem Teil (50'073 Sender, 1'049 ohne Land) stammen aus dem Katalog vom 9. November 2026, nach
-Namen zusammengeführt; Slouchcat gruppiert nach Name, Land und Host und kommt auf CT 190 auf 55'646
+Nach Vorlage (`TEMPLATE.sql.txt`), nur vorwärts. Eingefrorene Stände in `testdata/db/`; die
+vistest-Fixture ersetzt `RadioHidden` durch einen demarkierten Sender und `countries` durch
+`radio_offer_countries`.
+
+**Zahlen:** 50'073 Sender und 1'049 ohne Land stammen aus dem Katalog vom 9. November 2026, nach
+Namen zusammengeführt. Slouchcat gruppiert nach Name, Land und Host und kommt auf CT 190 auf 55'646
 Sender aus 63'562 Einträgen (`docs/perf/radio.md`). Die Verwaltung zeigt die Zahlen des Servers.
 
 ## B11. Vertrag
 
-**Stufe B1, vorläufig 1.26.0 (brechend für die Verwaltung):**
+Im Repository heisst eine brechende Änderung eine neue Nebenversion mit dem Vermerk «brechend» (wie
+1.2.0 und 1.18.0).
 
-| Operation | `x-visibility` | Zweck |
+**Stufe B1, vorläufig 1.26.0 (brechend für die Verwaltung, additiv für die App):**
+
+| Operation oder Schema | `x-visibility` | Änderung |
 |---|---|---|
-| `GET /admin/radio/offer` | `admin` | Angebot: Länder mit Modus, Kontinent, Zahl der Sender und der markierten; Ausnahmen; Summen; Schalter «Nicht erreichbare weglassen» |
-| `PUT /admin/radio/offer` | `admin` | Angebot ganz ersetzen (Länder, Modus, Ausnahmen, Schalter); Antwort: neue Summen, Zahl der Sender, für die Angaben geladen werden |
-| `POST /admin/radio/offer/remove-unreachable` | `admin` | B6, Antwort mit den demarkierten Kennungen für «Rückgängig» |
-| `listAdminRadioStations` | `admin` | neu Parameter `offered` und `country` (gibt es schon) mit Sortierung nach Klicks; Antwortfeld `offered`, `provider` |
+| `GET /admin/radio/offer` | `admin` | **neu:** gespeicherter Stand mit Version, Ländern (Code, Kontinent, Modus, `n`, `m`, nicht erreichbar), Summen, `hideBroken` |
+| `POST /admin/radio/offer/preview` | `admin` | **neu:** Schritte rechnen ohne Speichern; Summen, Unterschied, Länder, auf Wunsch eine Seite der Senderliste eines Landes (`country`, `q`, `offset`, `limit` ≤ 100) mit Stand im Entwurf |
+| `POST /admin/radio/offer/apply` | `admin` | **neu:** Schritte mit `version` speichern; 409 bei abweichender Version; Antwort neuer Stand und Zahl der eingereihten Logo-Aufträge. Schritte: `chooseCountry`, `removeCountry`, `markAll`, `demarkAll`, `mark`/`demark` (Kennungen, höchstens 5'000 je Schritt), `markMatching`/`demarkMatching` (`country`, `q`), `demarkUnreachable`, `setHideBroken`; höchstens 1'000 Schritte |
+| `listAdminRadioStations` | `admin` | neu Parameter `offered`, `provider`, Zustand `noLogo`, Sortierung `popularity`; **entfallen** Parameter `genre`, Zustand `hidden`, Bedeutung von `exceptions` (hiess «geändert oder ausgeblendet») |
+| `AdminRadioStation` | – | neu `offered`, `provider`; **entfallen** `hidden`, `facets` (mit `RadioStationFacet.manual`), Werte `genre`/`kind`/`mood` in `locks` |
+| `updateAdminRadioStation` (`AdminRadioStationUpdate`) | `admin` | **entfallen** `genres`, `kinds`, `moods`, `hidden` und die Schlösser dazu |
+| `createRadioStation` (`AdminRadioStationCreate`) | `admin` | **entfallen** `genres`, `kinds`, `moods` |
+| `RadioConfig`, `RadioConfigUpdate` | `admin` | **entfallen** `countries`, `hideBroken` |
 | `getRadioTagRules`, `setRadioTagRules` | – | **entfallen** |
-| `RadioConfig.countries`, `RadioConfig.hideBroken` | – | **entfallen** (ziehen ins Angebot) |
-| `updateAdminRadioStation` | `admin` | Felder `genres`, `kinds`, `moods` und ihre Schlösser **entfallen**; `hidden` entfällt (B9.3) |
+| `RadioPreferences` | `scoped` | neu `effectiveCountry` (additiv) |
+| `RadioFacets` | `scoped` | neu `offerEmpty` (additiv) |
 
-Die Zuschauer-Operationen bleiben gleich; was nicht im Angebot ist, antwortet mit 404 wie heute ein
-ausgeschlossenes Land. Jede neue Operation bekommt ihren Eintrag in `adminRegistry`
-(`contract_access_test.go`); `vistest.AddRadio` bekommt einen Sender ausserhalb des Angebots in einem
-gewählten Land (demarkiert) zusätzlich zum heutigen ausgeschlossenen Land.
+«Nicht erreichbare entfernen» und «Aus dem Angebot nehmen» im Reiter «Sender» sind
+`POST /admin/radio/offer/apply` mit einem Schritt; «Rückgängig» ebenso (`mark` mit den gelieferten
+Kennungen).
+
+Betroffene Stellen im Client: `SettingsTab`, `StationEditor`, `StationsTab`, `CreateStationDialog`,
+`OverviewTab`, Zustandsleiste in `RadioAdminPage`, `TagRulesTab` (weg), `radio/facets.ts`,
+`features/admin/queries.ts`, `features/radio/RadioPage.tsx`. Vertragstest: neue Operationen in
+`adminRegistry` (`contract_access_test.go`, auch der heutige Körper `{"countries":null}`),
+`vistest.AddRadio` mit dem demarkierten Sender.
 
 **Stufe B2, vorläufig 1.27.0 (additiv):** `AdminRadioStation.sources` (Herkunft je Angabe),
-`wikidata` (Eigentümer, Gründung, Beschreibung, Kennung); Jobart `radio.wikidata.sync` mit Text in
-`admin.jobs.types`.
+`AdminRadioStation.wikidata` (Eigentümer, Gründung, Kennung), `RadioConfig.wikidataEnabled`, Jobart
+`radio.wikidata.sync` mit Text in `admin.jobs.types`.
 
 ## B12. Bauplan
 
 | Stufe | Inhalt | Release | Aufwand |
 |---|---|---|---|
-| **B0** | Messung auf CT 190 mit 96 Pixeln für die Schweiz und Deutschland (gedrosselt), Speicher je Logo, Zahlen je Land aus dem echten Index; `publicsuffix` klären; ADR 0030 «Radio-Angebot statt ganzer Katalog» (ergänzt ADR 0025). | – | ½ Tag |
-| **B1 «Angebot»** | Migration 00045 mit Übernahme (B4.4) und Bereinigung (B5), Angebot im Index, `queueLogos` nur für das Angebot, Auslöser «Übernehmen», einer je Host, Anbieter aus dem Stream-Host, Vertrag 1.26.0, Reiter «Angebot», «Sender» neu, «Einordnung» weg, Editor ohne Filterfelder, Einstellungen ohne Länder, Radioseite mit Angebot und leerem Zustand. | 1.26.0 | 5 bis 6 Tage |
-| **B2 «Mehr Angaben»** | Migration 00046, `radio.wikidata.sync`, Logo aus Wikidata als dritte Stufe, Anbieter aus Wikidata, Herkunft je Angabe im Aufklapp, Vertrag 1.27.0. | 1.27.0 | 3 bis 4 Tage |
+| **B0** | Messung auf CT 190 mit der echten Logo-Kette (96 Pixel, Drossel 2 und 4 je Sekunde, Sperre je Host) für die Schweiz und Deutschland, Speicher je Logo, Zeit einer Vorschau über den ganzen Index, Zahlen je Land aus dem echten Index. Ergebnis nach `docs/perf/19-radio.md`. ADR 0030 «Radio-Angebot statt ganzer Katalog» (ergänzt ADR 0025). | – | ½ Tag |
+| **B1 «Angebot»** | Migration 00045, Befüllung beim ersten Start (B4.4), Momentaufnahme im Speicher, Regel in `reachable`, `closeUnreachable` nach dem Tausch, Vorschau und Übernehmen mit Version, neue Logo-Auslöser, Sperre je Host, Drossel, Aufräumen gelöschter Sender, Anbieter aus dem Stream-Host, Neuableitung der Filterwerte, Vertrag 1.26.0. Oberfläche: Reiter «Angebot», «Sender» neu, «Einordnung» weg, Editor und Anlegen ohne Filterfelder, Einstellungen ohne Länder, Zustandsleiste, Radioseite mit `effectiveCountry` und leerem Angebot. | 1.26.0 | 6 bis 7 Tage |
+| **B2 «Mehr Angaben»** | Migration 00046, `radio.wikidata.sync`, Eigentümer als Anbieter, Gründung, Herkunft je Angabe im Aufklapp, Einstellung «Wikidata verwenden», Vertrag 1.27.0. | 1.27.0 | 2 bis 3 Tage |
 
-Die Versionen sind vorläufig: Teil A und Teil B sind unabhängig, die Reihenfolge bestimmt Marco; die
-echten Nummern werden beim Baubeginn vergeben. Jede Stufe ist ein eigener Zweig, ein PR, Abnahme auf
-CT 190 und ein Release.
+Die Nummern sind vorläufig. Teil A und Teil B sind unabhängig; baut Marco Teil B zuerst, bekommt er
+die nächste freie Migration und Vertragsfassung, und alle Verweise in B4.4, B10, B11 und PB-6 folgen
+der echten Nummer. Jede Stufe ist ein eigener Zweig, ein PR, eine Abnahme auf CT 190 und ein Release.
+**Gebaut wird erst auf Marcos ausdrückliches Wort.**
 
 ## B13. Abnahme und Tests
 
 | Nr. | Prüfung | Stufe der Prüfung |
 |---|---|---|
-| PB-1 | Schweiz wählen, übernehmen: die Radioseite zeigt nur Schweizer Sender und eigene Sender; ein deutscher Sender antwortet auf Station, Hören und Bild mit 404. | Go (Index, `vistest`), e2e |
-| PB-2 | «Alle demarkieren», drei Sender markieren: genau diese drei im Angebot; ein neuer Schweizer Sender im nächsten Abgleich kommt nicht dazu. Bei «Alle» kommt er dazu. | Go (Sync gegen Fixture) |
-| PB-3 | Suche `1.fm`, «Gezeigte demarkieren»: genau die Treffer fallen weg, der Modus bleibt «Alle». | Vitest |
-| PB-4 | Nach «Übernehmen» werden nur die neu dazugekommenen Sender ohne Logo eingereiht, Favoriten zuerst; die Senderliste der Verwaltung reiht nichts ein. | Go (Queue-Attrappe) |
-| PB-5 | Zwei Logo-Aufträge mit demselben Host laufen nacheinander, zwei mit verschiedenen Hosts gleichzeitig. | Go |
-| PB-6 | Migration: `countries = ["CH"]` → Schweiz «Alle»; ohne `countries` → Standardländer; ein Favorit in Frankreich → Frankreich «Nur markierte» mit diesem Sender; ein ausgeblendeter Schweizer Sender → demarkiert. | Go (eingefrorener Stand) |
-| PB-7 | Migration: Regeln des Admins, manuelle Filterwerte und Schlösser für Filter sind weg; die Filterwerte entsprechen der Regeldatei. | Go |
-| PB-8 | «Nicht erreichbare entfernen» demarkiert genau die nicht erreichbaren Sender im Angebot; «Rückgängig» stellt sie wieder her. | Go, Vitest |
-| PB-9 | Standardland eines Profils nicht im Angebot: die Radioseite öffnet mit dem grössten Land im Angebot; die gespeicherte Wahl bleibt. | Vitest, e2e |
+| PB-1 | Schweiz wählen, übernehmen: die Radioseite zeigt nur Schweizer Sender und eigene Sender; ein deutscher Sender antwortet auf Station, Hören und Bild mit 404. | Go (`vistest`), e2e |
+| PB-2 | «Alle demarkieren», drei Sender markieren: genau diese drei im Angebot; ein neuer Schweizer Sender im nächsten Abgleich kommt nicht dazu. Bei «Alle» kommt er dazu. Ein demarkierter Sender, der das Land wechselt, bleibt draussen. | Go (Abgleich gegen Fixture) |
+| PB-3 | `markMatching`/`demarkMatching` mit über 100 Treffern: genau die Treffer ändern sich, der Modus bleibt; die Vorschau zeigt die zweite Seite richtig. | Go |
+| PB-4 | Nach «Übernehmen» werden nur die neu dazugekommenen Sender ohne Logo eingereiht, Favoriten zuerst; Vorschau, Senderliste und Bildroute der Verwaltung reihen nichts ein. | Go (Queue-Attrappe) |
+| PB-5 | 77 Logo-Aufträge mit demselben Host: nie zwei gleichzeitig; ein Scan-Auftrag wird in dieser Zeit sofort angenommen. | Go |
+| PB-6 | Erster Start nach der Migration: `countries = ["CH"]` → Schweiz «Alle»; ohne `countries` und ohne gespeichertes Profilland → Standardland des Servers; ein sichtbarer Favorit in Frankreich und einer ohne Land → markiert; ein ausgeblendeter Schweizer und ein ausgeblendeter eigener Sender → demarkiert; ein heute verborgener Favorit bleibt verborgen. | Go (eingefrorener Stand) |
+| PB-7 | Erster Start nach der Migration: Regeln des Admins, manuelle Filterwerte und Filterschlösser sind weg; die Filterwerte eines Katalogsenders, eines Senders ohne Schlagworte und eines eigenen Senders entsprechen der Regeldatei. | Go (eingefrorener Stand) |
+| PB-8 | «Nicht erreichbare entfernen» demarkiert genau die nicht erreichbaren Sender im Angebot ausser Favoriten und eigenen; «Rückgängig» stellt sie wieder her. | Go, Vitest |
+| PB-9 | Standardland eines Profils nicht im Angebot: `effectiveCountry` ist das grösste Land im Angebot, `defaultCountry` bleibt; ein gespeicherter Filter verliert das Land. Leeres Angebot: `offerEmpty`. | Go, Vitest |
 | PB-10 | Tastatur im Reiter «Angebot»: Land suchen, Kontinent öffnen, Land wählen, Senderliste öffnen, Haken setzen, übernehmen, ohne Maus; sichtbarer Fokus, keine Fokusfalle. | Playwright |
-| PB-11 | Vertrag: jede neue Operation im Vertragstest; die entfallenen Operationen sind aus Vertrag, Client und Tests verschwunden. | Go (Vertragstest) |
-| PB-12 | B2: Ein Sender mit eindeutigem Wikidata-Treffer bekommt Eigentümer und Logo als dritte Stufe; ein mehrdeutiger Treffer bleibt leer; ein Sender ausserhalb des Angebots wird nicht gespeichert. | Go (Fixture der SPARQL-Antwort) |
+| PB-11 | Zwei Entwürfe: der zweite «Übernehmen» bekommt 409, die neu gerechnete Vorschau enthält beide Änderungen. | Go, Vitest |
+| PB-12 | Ein Sender verlässt das Angebot, während ein Profil ihn hört: der nächste Heartbeat bekommt 404, das Relay stoppt. | Go |
+| PB-13 | Vertrag: jede neue Operation im Vertragstest; die entfallenen Operationen und Felder sind aus Vertrag, Client und Tests verschwunden. | Go (Vertragstest) |
+| PB-14 | B2: Ein Sender mit eindeutigem Wikidata-Treffer bekommt Eigentümer und Gründung; ein mehrdeutiger bleibt leer; ein Sender ausserhalb des Angebots wird nicht gespeichert; bei ausgeschalteter Einstellung kein Abruf. | Go (Fixture der SPARQL-Antwort) |
 
 ## B14. Offene Punkte zum Teil B
 
 | Nr. | Punkt | Empfehlung |
 |---|---|---|
-| OB-1 | Neue Sender eines Landes: bei «Alle» kommen sie von selbst dazu, nach «Alle demarkieren» nicht (B4.1). | so; die Senderliste zeigt im Kopf, welcher Modus gilt |
-| OB-2 | Angebot nach dem Update (B4.4): gesetzte Länder, sonst Standardländer der Profile, dazu jeder Favorit einzeln. | so; kein Profil verliert einen Favoriten |
+| OB-1 | Neue Sender eines Landes: bei «Alle» kommen sie von selbst dazu, nach «Alle demarkieren» nicht (B4.1). | so; der Kopf der Senderliste sagt, was gilt |
+| OB-2 | Angebot beim ersten Start (B4.4): gesetzte Länder, sonst Standardländer der Profile oder des Servers, dazu jeder heute sichtbare Favorit einzeln. | so; kein Profil verliert einen sichtbaren Favoriten |
 | OB-3 | Lesart von «Metadaten erst nach dem Hinzufügen»: Grunddaten des Katalogs für alle, jeder zusätzliche Abruf nur für das Angebot (B7.1). | so |
 | OB-4 | Regeln des Admins, manuelle Filterwerte und Filterschlösser löschen (B5) oder still weiter gelten lassen? | löschen; «keine Zuordnung von Hand» heisst auch keine alten |
-| OB-5 | Wikidata: Eigentümer und Gründung nur in der Verwaltung, oder auch in der App («Jetzt läuft»)? | nur Verwaltung; die App zeigt das Logo |
-| OB-6 | Ein Favorit, der nicht erreichbar ist: bei eingeschaltetem «Nicht erreichbare weglassen» unsichtbar oder sichtbar mit Hinweis (heute: sichtbar)? | sichtbar mit Hinweis, wie heute |
-| OB-7 | Sender ohne gültiges Land (rund 1'000) nur über «Eigene Sender». | so |
+| OB-5 | Wikidata: nur Eigentümer und Gründung, nur in der Verwaltung, keine Logos (B7.1). | so |
+| OB-6 | Nicht erreichbare Favoriten bleiben sichtbar mit Hinweis, und «Nicht erreichbare entfernen» lässt Favoriten und eigene Sender aus (B6). | so |
+| OB-7 | Sender ohne gültiges Land lassen sich nicht neu wählen, nur über «Eigene Sender»; heutige Favoriten bleiben (B4.4). | so |
 | OB-8 | Anbieter nur in der Verwaltung (B7.4). | so |
 | OB-9 | Untergrenze für ein Logo: heute 96 Pixel, gemessen mit 64. | 96 behalten; B0 misst mit 96 |
-| OB-10 | Standardland ausserhalb des Angebots (B4.3). | grösstes Land im Angebot, gespeicherte Wahl bleibt |
+| OB-10 | Standardland ausserhalb des Angebots: `effectiveCountry` = grösstes Land im Angebot, gespeicherte Wahl bleibt (B4.5). | so |
+| OB-11 | Gemeinsame Drossel für Logos von 2 auf 4 Abrufe je Sekunde, zusammen mit der Sperre je Host (B7.2). | 4; B0 misst beide Werte |
+
+## B15. Kritiker-Review vom 10. November 2026
+
+Geprüft wurde Fassung 1 des Teils (`72b71f5a`) gegen den Code. Urteil **REVISE**: 0 Blocker,
+17 Major, 10 Minor. Alle Befunde sind eingearbeitet:
+
+| Nr. | Schwere | Befund | Wo eingearbeitet |
+|---|---|---|---|
+| 1 | Major | Der Index wird nach `updateRadioConfig` nicht neu gebaut; `view()` liest `radio_config` je Anfrage. | Momentaufnahme im Speicher (B4.2), Leistung (B8), Messung (B12) |
+| 2 | Major | Laufende Sitzungen auf Sendern, die das Angebot verlassen, waren nicht geregelt. | `closeUnreachable` nach dem Tausch (B4.2), PB-12 |
+| 3 | Major | Die gemeinsame Drossel von 2 Abrufen je Sekunde fehlte; Zeiten waren um das Vierfache zu tief. | B7.2, Schätzungen in B7.5, OB-11 |
+| 4 | Major | «Einer je Host» ohne Mechanismus hätte Worker blockiert. | Sperre mit `RetryLater` (B7.2), PB-5 |
+| 5 | Major | Wikidata mit Priorität 0 liefe nach den Logos; die dritte Logo-Stufe käme nie. | Wikidata ohne Logos, Priorität 4 (B7.1, B7.3) |
+| 6 | Major | «Ereignis plus Zeitplan» ist keine gültige Jobart. | Muster von `radio.catalog.sync`, Sperre 24 Stunden (B7.3) |
+| 7 | Major | Die Übernahme des Standardlands geht nicht in SQL. | Befüllung beim ersten Start (B4.4), PB-6 |
+| 8 | Major | Eine neue Installation hätte ein leeres Angebot. | Standardland des Servers (B3, B4.4) |
+| 9 | Major | Favoriten ohne Land gingen verloren; verborgene Favoriten kämen zurück. | Ausnahmen unabhängig vom Land, nur sichtbare Favoriten (B4.1, B4.4) |
+| 10 | Major | Ausgeblendete Sender ausserhalb der gewählten Länder und eigene ausgeblendete Sender waren nicht abgedeckt. | jede Ausblendung wird Ausnahme, auch für eigene (B4.4) |
+| 11 | Major | «Eigene Sender immer im Angebot» ändert heutiges Verhalten. | Zeile in B3, B4.1 |
+| 12 | Major | Das Neuableiten der Filterwerte geschähe nicht von selbst. | Durchgang über alle Sender beim ersten Start (B5), PB-7 |
+| 13 | Major | Der Dialog für eigene Sender setzt Filterwerte von Hand. | B5, B9.1, B11 |
+| 14 | Major | Die Liste der brechenden Änderungen war unvollständig. | B11 Feld für Feld, Versionsregel, betroffene Stellen |
+| 15 | Major | «Gezeigte markieren» geht nicht mit Seiten zu 100 im Client. | Schritte mit Suche, vom Server aufgelöst (B4.3, B11), PB-3 |
+| 16 | Major | Der Unterschied vor «Übernehmen» hatte keine Quelle. | Vorschau (B4.3, B11), Definition von `n` und `m` |
+| 17 | Major | Gleichzeitige Änderungen hätten sich still überschrieben. | Version und 409, relative Schritte (B4.3), PB-11 |
+| 18 | Major | Leeres Angebot und Ersatzland brauchen Unterstützung des Servers. | `offerEmpty`, `effectiveCountry`, Filter bereinigt (B4.5, B11), PB-9 |
+| 19 | Minor | Favoriten gehen über `reachable`, der Schalter blendet sie nie aus; B6 entschied OB-6 halb. | B6, OB-6 |
+| 20 | Major | Ein Aufräumen von Logos gibt es heute nicht. | Aufräumen gelöschter Sender neu (B8), Satz zu 30 Tagen gestrichen |
+| 21 | Minor | Bedeutung von `marked` hing vom Modus ab; Landwechsel unklar. | Ausnahmen am Sender, Regeltabelle (B4.1, B10) |
+| 22 | Minor | Anbieter wäre für unveränderte Sender nie gesetzt worden; `publicsuffix` ist schon da. | Nachtrag beim ersten Start, erster Stream der Rangliste (B7.4) |
+| 23 | Minor | Logo-Auslöser waren unvollständig; das übernommene Angebot würde nie vorgeholt. | Tabelle der Auslöser (B7.2), Logos aus dem Cache in der Verwaltung (B7.1), Spannung RF-6 (B2) |
+| 24 | Minor | Die Zustandsleiste las Schlagwort-Regeln und Ausgeblendete. | B9.1 |
+| 25 | Minor | Der Sprachenfilter aus RF-1 war nicht erklärt. | RF-1, B3, B4.5 |
+| 26 | Minor | Wikidata ohne Schalter, Kontaktadresse, Sprache und Lizenz der Logos offen. | B7.3, keine Logos (B7.1) |
+| 27 | Minor | Kontinente, Sortierung, Messort, Zitat aus Frage 23, «Bau auf Marcos Wort», vistest. | B9.2, B7.2, B7.4, B7.5, B3, B12, B10 |
 
 ## Anhang A: Mockups
 
