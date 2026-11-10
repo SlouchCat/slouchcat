@@ -51,6 +51,7 @@ func TestAudiobookMetadataOverHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer rows.Close()
 	var texts []string
 	for rows.Next() {
 		var s string
@@ -59,7 +60,9 @@ func TestAudiobookMetadataOverHTTP(t *testing.T) {
 		}
 		texts = append(texts, s)
 	}
-	_ = rows.Close()
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
 	if want := []string{"de=Neuer Titel/Neu/Teil eins", "en=Neuer Titel/Neu/Teil eins"}; !slices.Equal(texts, want) {
 		t.Errorf("text rows %v, want %v", texts, want)
 	}

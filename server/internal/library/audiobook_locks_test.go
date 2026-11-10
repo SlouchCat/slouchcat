@@ -109,22 +109,7 @@ func (e *env) reprobe() {
 	if _, err := e.db.Write.ExecContext(e.ctx, `UPDATE jobs SET state = 'done'`); err != nil {
 		e.t.Fatal(err)
 	}
-	rows, err := e.db.Read.QueryContext(e.ctx, `SELECT id FROM media_files ORDER BY id`)
-	if err != nil {
-		e.t.Fatal(err)
-	}
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			e.t.Fatal(err)
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Close(); err != nil {
-		e.t.Fatal(err)
-	}
-	for _, id := range ids {
+	for _, id := range e.mediaFileIDs(e.t) {
 		if err := e.svc.handleProbe(e.ctx, mediaJob(e.t, JobProbeFile, id)); err != nil {
 			e.t.Fatal(err)
 		}
