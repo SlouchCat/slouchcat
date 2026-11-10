@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/slouchcat/slouchcat/server/internal/library/audioseries"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
@@ -24,8 +25,8 @@ const (
 	SettingBookAudnexusURL      = "metadata.books.audnexus_url"
 	SettingBookAutoMatch        = "metadata.books.auto_match"
 	SettingBookTolerance        = "metadata.books.tolerance"
-	SettingBookNormalizeAuthors = "metadata.books.normalize_authors"
-	SettingBookNormalizeSeries  = "metadata.books.normalize_series"
+	SettingBookNormalizeAuthors = audioseries.SettingNormalizeAuthors
+	SettingBookNormalizeSeries  = audioseries.SettingNormalizeSeries
 	// SettingBookFirstRunQueued marks that the first start with auto_match all queued every book
 	// without match state (QueueFirstBookMatches).
 	SettingBookFirstRunQueued = "metadata.books.first_run_queued"
@@ -90,17 +91,13 @@ func (s *Service) BookSettings(ctx context.Context) (BookSettings, error) {
 				st.Tolerance = n
 			}
 		case SettingBookNormalizeAuthors:
-			st.NormalizeAuthors = settingOn(v)
+			st.NormalizeAuthors = audioseries.SwitchOn(v, true)
 		case SettingBookNormalizeSeries:
-			st.NormalizeSeries = settingOn(v)
+			st.NormalizeSeries = audioseries.SwitchOn(v, true)
 		}
 	}
 	return st, nil
 }
-
-// settingOn reads a switch: "0" and "false" are off, anything else on (the reading of package
-// library).
-func settingOn(v string) bool { return v != "0" && v != "false" }
 
 // normalAudnexusURL checks an Audnexus address: http or https with a host, no user info, query or
 // fragment; the trailing slash goes.

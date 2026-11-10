@@ -211,6 +211,7 @@ type Service struct {
 	meta      Metadata           // nil until WithMetadata
 	streams   Streams            // nil until WithStreams
 	podcasts  Podcasts           // nil until WithPodcasts
+	books     BookSources        // nil until WithBooks (concept 19 D6)
 	trakt     Trakt              // nil until WithTrakt
 	ops       opsState           // M8: system state, jobs, errors, notification settings, update check (dashboard.go)
 	backups   backupState        // directory and version from WithBackups, restart from WithRestart

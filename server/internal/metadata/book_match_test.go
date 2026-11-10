@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"slices"
@@ -545,5 +546,67 @@ func TestBookRefetch(t *testing.T) {
 	}
 	if b.BookMatchState.String != BookStateMatched || b.BookMatchID.String != "B0TEST0001" {
 		t.Errorf("match after the refetch %+v %+v", b.BookMatchState, b.BookMatchID)
+	}
+}
+
+// PD-9: the match in the editor writes only the ticked fields that are not locked, locks them (a
+// text in every row), credits them to the source and chooses the cover; the errors of a source
+// are field errors.
+func TestApplyBookMatch(t *testing.T) {
+	t.Parallel()
+	e := newBookEnv(t)
+	e.addBookLibrary(t, "local")
+	e.audnexus("B0TEST0001", fmt.Sprintf(audnexusTestBook, e.srv.srv.URL))
+	const id = "01JBOOKAPPLY00000000000000"
+	e.addBook(t, bookSeed{id: id, title: "Der Testbnd", author: "Erika Muster", narrator: "Datei Sprecherin", minutes: 612})
+	mustExec(t, e.db.Write, `UPDATE items SET locked_fields = '["narrator"]' WHERE id = ?`, id)
+	ctx := context.Background()
+	p, err := e.svc.BookMatchPreview(ctx, id, ProviderAudible, "B0TEST0001", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Fields) != len(BookMatchFields) || p.DurationMatches == nil || !*p.DurationMatches {
+		t.Fatalf("preview %+v", p)
+	}
+	if err := e.svc.ApplyBookMatch(ctx, id, ProviderAudible, "B0TEST0001", "", []string{"title", "narrator", "publisher", "cover"}); err != nil {
+		t.Fatal(err)
+	}
+	b := e.book(t, id)
+	locks := lockedFields(b.LockedFields)
+	if b.Title != "Der Testband" || b.Narrator.String != "Datei Sprecherin" || b.Publisher.String != "Testverlag Hören" || b.Isbn.Valid {
+		t.Errorf("fields %q %+v %+v %+v", b.Title, b.Narrator, b.Publisher, b.Isbn)
+	}
+	for _, l := range []string{"title:de", "title:en", "publisher", "narrator", "poster"} {
+		if !locks[l] {
+			t.Errorf("lock %s missing in %s", l, b.LockedFields)
+		}
+	}
+	if locks["isbn"] || locks["overview:de"] {
+		t.Errorf("unticked field locked: %s", b.LockedFields)
+	}
+	if e.text(t, id, "en").Title != "Der Testband" || e.fieldSource(t, id, "title", "de") != ProviderAudible || e.fieldSource(t, id, "publisher", "") != ProviderAudible {
+		t.Error("texts or sources of the match")
+	}
+	if b.BookMatchState.String != BookStateMatched || b.BookMatchManual != 1 {
+		t.Errorf("match %+v manual %d", b.BookMatchState, b.BookMatchManual)
+	}
+	var chosen int
+	if err := e.db.Read.QueryRow(`SELECT chosen FROM item_images WHERE item_id = ? AND kind = 'poster'`, id).Scan(&chosen); err != nil || chosen != 1 {
+		t.Errorf("cover chosen %d (%v)", chosen, err)
+	}
+	// An automatic run never changes a match from the editor.
+	e.match(t, itemPayload{ItemID: id, Book: true})
+	if got := e.book(t, id); got.BookMatchManual != 1 || got.Publisher.String != "Testverlag Hören" {
+		t.Errorf("automatic run changed the manual match")
+	}
+	var verr *model.ValidationError
+	if err := e.svc.ApplyBookMatch(ctx, id, ProviderAudible, "B0TEST0009", "", nil); !errors.As(err, &verr) || verr.Error() == "" ||
+		!strings.Contains(fmt.Sprint(verr.Fields), "not_found") {
+		t.Errorf("unknown entry: %v", err)
+	}
+	e.srv.route("/dnb", func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "down", http.StatusBadGateway) })
+	if _, err := e.svc.SearchBookSource(ctx, model.BookSearch{Provider: ProviderDNB, Query: "X"}); !errors.As(err, &verr) ||
+		!strings.Contains(fmt.Sprint(verr.Fields), "provider_unreachable") {
+		t.Errorf("failing source: %v", err)
 	}
 }

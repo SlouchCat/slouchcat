@@ -1166,6 +1166,7 @@ func scopedOperations(t *testing.T) map[string]string {
 }
 
 type profileFixture struct {
+	books    *contractBooks // the mock of the book sources (contract 1.26.0)
 	f        *vistest.Fixture
 	off      *offline.Service // M5 offline service (fake encoder, no worker)
 	dlDir    string           // its download directory
@@ -1228,11 +1229,19 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pods := metadata.New(f.DB, jobs.NewQueue(f.DB.Write, nil), nil, t.TempDir(), transcode.Runner{}, log)
+	// The book sources ask a mock (contract 1.26.0); a path without route answers 404.
+	// The Google Books key comes from the administration (its keyring), as in the server.
+	books := newContractBooks(t)
+	var googleKey func(context.Context) (string, error)
+	pods := metadata.New(f.DB, jobs.NewQueue(f.DB.Write, nil), nil, t.TempDir(), transcode.Runner{}, log,
+		metadata.WithBookSourceURLs(metadata.BookSourceURLsFromBase(books.srv.URL)),
+		metadata.WithGoogleBooksKey(func(ctx context.Context) (string, error) { return googleKey(ctx) }))
 	a.WithMetadataLanguages(pods.AvailableMetadataLanguages)
 	adm := admin.New(f.DB, a, &authTestLibraries{}, ring, &authTestTMDB{}, func(string) string { return "" }, log).
 		WithMetadata(contractMetadata{}).WithLibraryMaintenance(contractLibraryMaintenance{}).WithPodcasts(pods).WithTrakt(pods).
+		WithBooks(pods).
 		WithBackups(t.TempDir(), "test")
+	googleKey = adm.GoogleBooksKey
 	restarts := &atomic.Int32{}
 	adm.WithRestart(func() { restarts.Add(1) })
 
@@ -1242,7 +1251,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 		"p18": f.P18, "p16": f.P16, "p12": f.P12, "p6": f.P6, "p0": f.P0, "px": f.PX, "pg": f.PG, "pg18": f.PG18,
 		"pa2": f.PA2, "pa2k": f.PA2K,
 	}
-	pf := profileFixture{f: f, tokens: tokens, sessions: sessions, tc: newFakeTranscoder(), a: a, pa: pa, admin: adm, tracks: tracks, restarts: restarts}
+	pf := profileFixture{books: books, f: f, tokens: tokens, sessions: sessions, tc: newFakeTranscoder(), a: a, pa: pa, admin: adm, tracks: tracks, restarts: restarts}
 	for name, p := range tokens {
 		pf.newSession(t, name, p)
 	}

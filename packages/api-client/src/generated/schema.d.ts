@@ -6844,6 +6844,35 @@ export interface components {
              */
             imageKinds?: components["schemas"]["ImageKind"][];
             metadata?: components["schemas"]["AdminItemMetadata"];
+            /**
+             * Format: int64
+             * @description Length of an audiobook's files (since contract 1.26.0); absent for other kinds and while not probed.
+             */
+            durationMs?: number;
+            bookMatch?: components["schemas"]["AdminBookMatch"];
+        };
+        /**
+         * @description The match of an audiobook against its book sources (since contract 1.26.0, concept 19 D6.3);
+         *     absent for other kinds and for a book never tried.
+         */
+        AdminBookMatch: {
+            /** @enum {string} */
+            state: "matched" | "review" | "none" | "error";
+            /** @description The source of a `matched` book. */
+            provider?: components["schemas"]["MetadataProvider"];
+            /** @description The entry at the source of a `matched` book. */
+            providerId?: string;
+            /** @description The Audible marketplace of the entry. */
+            region?: components["schemas"]["AudibleRegion"];
+            /**
+             * Format: date-time
+             * @description Time of the last run (or of the match in the editor).
+             */
+            matchedAt?: string;
+            /** @description Matched in the editor; the automatic match never changes it. */
+            manual: boolean;
+            /** @description Why the last run failed (state `error`), as `<source>:<reason>`. */
+            error?: string;
         };
         /**
          * @description A field of the metadata editor (since contract 1.15.0, concept 15 7.5). `author` to `asin` since contract

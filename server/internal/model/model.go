@@ -413,17 +413,41 @@ type AdminItem struct {
 	// Metadata is the editable metadata in the server's metadata language (concept 15 7.4,
 	// contract 1.15.0).
 	Metadata *AdminItemMetadata
+	// DurationMs is the length of an audiobook's files; BookMatch its match against the book
+	// sources, nil for a book never tried (contract 1.26.0, concept 19 D6.3).
+	DurationMs *int64
+	BookMatch  *AdminBookMatch
+}
+
+// AdminBookMatch is the match of an audiobook (items.book_match_*).
+type AdminBookMatch struct {
+	State, Provider, ProviderID, Region, Error string
+	MatchedAt                                  *time.Time
+	Manual                                     bool
 }
 
 // MetadataCandidate is a search result of a metadata provider (manual match, B-6).
 type MetadataCandidate struct {
-	Provider      string // tmdb, tvdb
+	Provider      string // tmdb, tvdb, or a book source (concept 19 D6)
 	ProviderID    string
 	Title         string
 	OriginalTitle string
 	Year          *int
 	Overview      string
 	PosterURL     string // small poster at the provider's image host
+	// The fields of a book source (contract 1.26.0); empty for films and series.
+	Subtitle           string
+	Authors, Narrators []string
+	Publisher          string
+	SeriesName         string
+	SeriesIndex        *float64
+	Language           string
+	DurationMs         int64 // 0 = unknown
+	ASIN, ISBN         string
+	CoverURL           string
+	Region             string   // the Audible marketplace
+	DurationMatches    *bool    // with a book to compare: the length lies within the tolerance
+	Score              *float64 // with a book to compare: 0.7 length, 0.2 title, 0.1 author
 }
 
 // Issue is one entry of the maintenance lists (B-9).

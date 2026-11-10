@@ -402,7 +402,13 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		}
 		return st.AudibleRegion
 	}
+	// An address given by option (tests, SLOUCHCAT_TEST_BOOKS_BASE_URL in development mode) wins over
+	// the setting, so a mock is never left for the real Audnexus.
+	fixedAudnexus := o.bookURLs != nil && o.bookURLs.Audnexus != ""
 	svc.books.audible.audnexus = func(ctx context.Context) string {
+		if fixedAudnexus {
+			return audnexusDefault(ctx)
+		}
 		v, err := svc.bookSetting(ctx, SettingBookAudnexusURL)
 		if err != nil {
 			log.Warn("book settings for the audnexus address", "err", err)

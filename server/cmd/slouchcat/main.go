@@ -305,9 +305,11 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	relink := func(ctx context.Context, itemID string) (bool, error) {
 		return libSvc.QueueRelink(ctx, itemID)
 	}
-	// The unified author names after a book match (concept 19 D6.4) are step 4 of stage D3
-	// (library.Service.QueueAuthorDisplay); this closure calls it once that step is merged.
-	authorDisplay := func(context.Context) error { return nil }
+	// The unified author names after a book match and a change of the switches «Vereinheitlichen»
+	// (concept 19 D6.4); the closure reads libSvc when a match runs, like relink.
+	authorDisplay := func(ctx context.Context) error {
+		return libSvc.QueueAuthorDisplay(ctx)
+	}
 	// The audiobook sources (concept 19 D6): the e2e suite points them at a mock, in development
 	// mode only.
 	metaOpts := []metadata.Option{metadata.WithTrailerAI(cfg.TrailerAI),
@@ -340,7 +342,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	adminSvc.WithLocation(zone)
 	log.Info("time zone of the statistics", "zone", zoneName)
 	adminSvc.WithTrickplay(libSvc)
-	adminSvc.WithAniList(cfg.AniList).WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc).
+	adminSvc.WithAniList(cfg.AniList).WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc).WithBooks(metaSvc).
 		WithTrakt(metaSvc).WithBackups(cfg.ConfigDir, version).WithRestart(requestRestart).
 		// The browsable roots are classified once, here: the wizard's root list answers before
 		// any account exists and must make no system call per request (idea 02, E5).

@@ -3,6 +3,7 @@ package metadata
 import (
 	"context"
 	"errors"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -54,7 +55,7 @@ func TestSearch(t *testing.T) {
 	}
 	want := model.MetadataCandidate{Provider: "tmdb", ProviderID: "900", Title: "Test Show", OriginalTitle: "Test Show",
 		Year: series[0].Year, Overview: "English series overview", PosterURL: e.tmdb.srv.URL + "/t/p/w200/tvposter900.jpg"}
-	if len(series) != 1 || series[0] != want || *series[0].Year != 2010 {
+	if len(series) != 1 || !reflect.DeepEqual(series[0], want) || *series[0].Year != 2010 {
 		t.Fatalf("series candidates %+v", series)
 	}
 	tv, err := e.svc.Search(ctx, "tvdb", "series", "Only On TVDB", intp(2015))

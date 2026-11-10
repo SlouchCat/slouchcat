@@ -71,7 +71,19 @@ func (s *server) SetItemMatch(ctx context.Context, req gen.SetItemMatchRequestOb
 		return s.problem(ctx, (&model.ValidationError{}).Add("provider", "required")), nil
 	}
 	if isBookProvider(string(req.Body.Provider)) {
-		return s.problem(ctx, errBookSourcesNotBuilt), nil // the book match of contract 1.26.0
+		// The book match of contract 1.26.0: synchronous, the ticked fields (nil = the default).
+		var fields []string
+		if f := req.Body.Fields; f != nil {
+			fields = make([]string, 0, len(*f))
+			for _, v := range *f {
+				fields = append(fields, string(v))
+			}
+		}
+		it, err := s.opts.Admin.SetBookMatch(ctx, req.Id, string(req.Body.Provider), req.Body.ProviderId, regionParam(req.Body.Region), fields)
+		if err != nil {
+			return s.problem(ctx, err), nil
+		}
+		return gen.SetItemMatch202JSONResponse(toAdminItem(it)), nil
 	}
 	it, err := s.opts.Admin.SetItemMatch(ctx, req.Id, string(req.Body.Provider), req.Body.ProviderId)
 	if err != nil {
@@ -83,10 +95,11 @@ func (s *server) SetItemMatch(ctx context.Context, req gen.SetItemMatchRequestOb
 func (s *server) RefreshItem(ctx context.Context, req gen.RefreshItemRequestObject) (gen.RefreshItemResponseObject, error) {
 	// Without a body as before; unlockAll lifts the locks first (contract 1.15.0).
 	unlockAll := req.Body != nil && req.Body.UnlockAll != nil && *req.Body.UnlockAll
+	refresh := s.opts.Admin.RefreshItem
 	if req.Body != nil && req.Body.FromProvider != nil && *req.Body.FromProvider {
-		return s.problem(ctx, errBookSourcesNotBuilt), nil // the refetch of contract 1.26.0
+		refresh = s.opts.Admin.RefreshItemFromProvider // the refetch of contract 1.26.0
 	}
-	it, err := s.opts.Admin.RefreshItem(ctx, req.Id, unlockAll)
+	it, err := refresh(ctx, req.Id, unlockAll)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
@@ -252,10 +265,17 @@ func (s *server) SearchMetadata(ctx context.Context, req gen.SearchMetadataReque
 	p := req.Params
 	if p.Kind == gen.SearchMetadataParamsKindAudiobook {
 		// The book sources of contract 1.26.0 search audiobooks; tmdb, tvdb, anilist and local do not.
-		if !isBookProvider(string(p.Provider)) {
-			return s.problem(ctx, (&model.ValidationError{}).Add("provider", "provider_not_searchable")), nil
+		q := model.BookSearch{Provider: string(p.Provider), Query: deref(p.Query), Author: deref(p.Author), ASIN: deref(p.Asin),
+			ISBN: deref(p.Isbn), Region: regionParam(p.Region), ItemID: deref(p.ItemId)}
+		list, err := s.opts.Admin.SearchBooks(ctx, q)
+		if err != nil {
+			return s.problem(ctx, err), nil
 		}
-		return s.problem(ctx, errBookSourcesNotBuilt), nil
+		out := make(gen.SearchMetadata200JSONResponse, 0, len(list))
+		for _, c := range list {
+			out = append(out, toMetadataCandidate(c))
+		}
+		return out, nil
 	}
 	// query is optional in the contract since 1.26.0 (audiobooks search by ASIN or ISBN too); films
 	// and series still need it, which SearchMetadata reports as query required.
@@ -405,6 +425,8 @@ func toAdminItem(it model.AdminItem) gen.AdminItem {
 		Providers:        providerEnums(it.Providers),
 		FieldSources:     make([]gen.FieldSource, 0, len(it.FieldSources)),
 		Metadata:         toAdminItemMetadata(it.Metadata),
+		DurationMs:       it.DurationMs,
+		BookMatch:        toAdminBookMatch(it.BookMatch),
 	}
 	for _, f := range it.FieldSources {
 		out.FieldSources = append(out.FieldSources, gen.FieldSource{Field: f.Field, Lang: f.Lang, Provider: f.Provider})

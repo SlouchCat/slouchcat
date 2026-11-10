@@ -268,16 +268,15 @@ var adminRegistry = map[string]adminCall{
 		body: `{"itemIds":["` + unknownItemID + `"],"rating":12}`, ownerStatus: http.StatusOK},
 	"searchMetadata": {contract: "GET /admin/metadata/search", path: "/admin/metadata/search?provider=tvdb&kind=series&query=Show",
 		ownerStatus: http.StatusUnprocessableEntity},
-	// Concept 19 D6 (contract 1.26.0): the match preview and the page «Hörbücher: Quellen». Step 3
-	// of stage D3 builds their service; until then the handlers answer 500 (errBookSourcesNotBuilt)
-	// and step 3 sets the real answers here.
+	// Concept 19 D6 (contract 1.26.0): the match preview (a film is no audiobook) and the page
+	// «Hörbücher: Quellen»; TestBookSourcesOverHTTP covers the answers.
 	"getMatchPreview": {contract: "GET /admin/items/{id}/match/preview",
-		path: "/admin/items/" + fixtureFilm6 + "/match/preview?provider=audible&providerId=B0TEST0001", ownerStatus: http.StatusInternalServerError},
-	"getAudiobookSources": {contract: "GET /admin/metadata/audiobooks", path: "/admin/metadata/audiobooks", ownerStatus: http.StatusInternalServerError},
+		path: "/admin/items/" + fixtureFilm6 + "/match/preview?provider=audible&providerId=B0TEST0001", ownerStatus: http.StatusUnprocessableEntity},
+	"getAudiobookSources": {contract: "GET /admin/metadata/audiobooks", path: "/admin/metadata/audiobooks", ownerStatus: http.StatusOK},
 	"updateAudiobookSources": {contract: "PATCH /admin/metadata/audiobooks", path: "/admin/metadata/audiobooks",
-		body: `{"tolerancePercent":3}`, ownerStatus: http.StatusInternalServerError},
-	"matchAllAudiobooks":    {contract: "POST /admin/metadata/audiobooks/match-all", path: "/admin/metadata/audiobooks/match-all", ownerStatus: http.StatusInternalServerError},
-	"listAudiobookReview":   {contract: "GET /admin/metadata/audiobooks/review", path: "/admin/metadata/audiobooks/review", ownerStatus: http.StatusInternalServerError},
+		body: `{"tolerancePercent":3}`, ownerStatus: http.StatusOK},
+	"matchAllAudiobooks":    {contract: "POST /admin/metadata/audiobooks/match-all", path: "/admin/metadata/audiobooks/match-all", ownerStatus: http.StatusAccepted},
+	"listAudiobookReview":   {contract: "GET /admin/metadata/audiobooks/review", path: "/admin/metadata/audiobooks/review", ownerStatus: http.StatusOK},
 	"listMaintenanceIssues": {contract: "GET /admin/maintenance/issues", path: "/admin/maintenance/issues?kind=unrated", ownerStatus: http.StatusOK},
 	"listDuplicates":        {contract: "GET /admin/maintenance/duplicates", path: "/admin/maintenance/duplicates", ownerStatus: http.StatusOK},
 	"mergeItems": {contract: "POST /admin/maintenance/merge", path: "/admin/maintenance/merge",
