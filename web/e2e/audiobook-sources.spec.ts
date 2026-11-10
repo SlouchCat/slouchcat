@@ -69,7 +69,7 @@ test('«Hörbücher: Quellen» by keyboard: folder dialog, settings, «Jetzt all
   const metadata = page.getByRole('heading', { level: 1, name: 'Metadaten' });
   await expect(metadata).toBeVisible();
   await resetFocus(page);
-  await tabTo(page, page.getByRole('link', { name: 'Quellen für Hörbücher' }), 120);
+  await tabTo(page, page.getByRole('link', { name: 'Quellen öffnen' }), 120);
   await page.keyboard.press('Enter');
   await expect(heading(page)).toBeVisible();
 

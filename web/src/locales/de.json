@@ -1628,7 +1628,8 @@
         "texts": "Sprachen abweichend",
         "images": "Bilder abweichend",
         "both": "Sprachen und Bilder abweichend",
-        "link": "Metadaten der Bibliothek"
+        "link": "Metadaten der Bibliothek",
+        "audiobooksLink": "Quellen für Hörbücher"
       },
       "trickplay": {
         "action": "Vorschau beim Spulen",
@@ -3935,8 +3936,12 @@
       "links": {
         "roots": "Die Reihenfolge der Quellen steht je Ordner unter Bibliotheken.",
         "jobs": "Die Zeitpläne stehen unter Hintergrundjobs.",
-        "keys": "Schlüssel unter Integrationen",
-        "audiobooks": "Quellen für Hörbücher"
+        "keys": "Schlüssel unter Integrationen"
+      },
+      "audiobooks": {
+        "title": "Hörbücher: Quellen",
+        "body": "Woher Slouchcat Angaben, Länge und Cover für Hörbücher holt, automatisches Zuordnen und die Liste «Prüfen».",
+        "open": "Quellen öffnen"
       },
       "areas": {
         "label": "Bereiche",

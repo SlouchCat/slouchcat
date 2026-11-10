@@ -1628,7 +1628,8 @@
         "texts": "languages deviate",
         "images": "images deviate",
         "both": "languages and images deviate",
-        "link": "Metadata of the library"
+        "link": "Metadata of the library",
+        "audiobooksLink": "Sources for audiobooks"
       },
       "trickplay": {
         "action": "Seek preview",
@@ -3935,8 +3936,12 @@
       "links": {
         "roots": "The order of the sources is set per folder under Libraries.",
         "jobs": "The schedules are under Background jobs.",
-        "keys": "Keys under Integrations",
-        "audiobooks": "Sources for audiobooks"
+        "keys": "Keys under Integrations"
+      },
+      "audiobooks": {
+        "title": "Audiobooks: sources",
+        "body": "Where Slouchcat gets details, length and covers for audiobooks, automatic matching and the list «Review».",
+        "open": "Open sources"
       },
       "areas": {
         "label": "Areas",

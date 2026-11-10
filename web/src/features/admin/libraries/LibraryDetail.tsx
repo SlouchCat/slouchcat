@@ -118,6 +118,11 @@ export const LibraryDetail = memo(function LibraryDetail({
             {t('admin.libraries.metadata.link')}
           </TextLink>
         )}
+        {library.kind === 'audiobooks' && (
+          <TextLink href={paths.adminAudiobookSources}>
+            {t('admin.libraries.metadata.audiobooksLink')}
+          </TextLink>
+        )}
       </div>
 
       {showProgress && (

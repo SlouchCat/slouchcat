@@ -347,7 +347,7 @@ describe('AudiobookSourcesPage', () => {
       }),
     );
     await renderAdminPage('/admin/metadata');
-    expect(await screen.findByRole('link', { name: 'Quellen für Hörbücher' })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: 'Quellen öffnen' })).toHaveAttribute(
       'href',
       '/admin/metadata/audiobooks',
     );
