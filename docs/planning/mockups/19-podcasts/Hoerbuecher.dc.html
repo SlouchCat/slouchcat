@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Hörbücher: Übersicht mit Reihen und Bleistift</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f3a27f}a:hover{color:#ffc4a8}
+.k-btn{font:inherit;cursor:pointer}
+.k-btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+.k-card{position:relative;display:flex;flex-direction:column;gap:8px;min-width:0}
+.k-card .k-pen{opacity:.0;transition:opacity .15s}
+.k-card:hover .k-pen,.k-card:focus-within .k-pen{opacity:1}
+.k-cover{display:block;position:relative;border-radius:12px;aspect-ratio:1/1;overflow:visible;text-decoration:none;color:inherit}
+.k-cover:focus-visible{outline:2px solid #f3f3f5;outline-offset:3px}
+</style>
+</helmet>
+<div style="box-sizing: border-box; min-height: 100vh; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 20px 16px 48px;">
+<div style="max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px;">
+
+  <nav aria-label="Mockup-Navigation" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: #b6b9c4; border: 1px dashed #ffffff3d; border-radius: 12px; padding: 8px 12px;">
+    <span>Mockup Hörbücher:</span>
+    <a href="Hoerbuecher.dc.html" aria-current="page" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #e8794a; background: #e8794a33; color: #f3f3f5; text-decoration: none;">Übersicht</a>
+    <a href="Reihe.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Reihe</a>
+    <a href="Editor.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Bleistift: Editor</a>
+    <a href="Quellen.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Verwaltung: Quellen</a>
+    <span style="flex: 1 1 auto;"></span>
+    <span>Reihen zeigen als</span>
+    <sc-for list="{{variants}}" as="v" hint-placeholder-count="2">
+      <button class="k-btn" aria-pressed="{{v.pressed}}" onClick="{{v.pick}}" style="{{v.style}}">{{v.label}}</button>
+    </sc-for>
+  </nav>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline;">
+    <h1 style="margin: 0; font-size: 40px; font-weight: 800; letter-spacing: -0.5px;">Hörbücher</h1>
+    <span style="font-size: 15px; color: #b6b9c4;">{{countNote}}</span>
+    <span style="flex: 1 1 auto;"></span>
+    <label for="sort" style="font-size: 13px; color: #b6b9c4;">Sortieren</label>
+    <select id="sort" value="{{sort}}" onChange="{{setSort}}" style="height: 40px; border-radius: 10px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; padding: 0 10px; font: inherit; font-size: 14px;">
+      <option value="title">Titel</option>
+      <option value="author">Autor</option>
+    </select>
+  </div>
+
+  <sc-if value="{{rowVariant}}" hint-placeholder-val="{{false}}">
+    <section aria-label="Reihen" style="display: flex; flex-direction: column; gap: 10px;">
+      <h2 style="margin: 0; font-size: 20px; font-weight: 700;">Reihen</h2>
+      <div style="display: grid; grid-auto-flow: column; grid-auto-columns: 168px; gap: 16px; overflow-x: auto; padding: 6px 4px 10px;">
+        <sc-for list="{{seriesCards}}" as="c" hint-placeholder-count="6">
+          <div class="k-card">
+            <a class="k-cover" href="Reihe.dc.html" aria-label="{{c.aria}}" style="{{c.stack}}">
+              <span aria-hidden="true" style="{{c.cover}}">{{c.coverText}}</span>
+              <span style="position: absolute; left: 8px; bottom: 8px; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 10px; background: #0b0c10d9;">{{c.badge}}</span>
+            </a>
+            <span style="font-size: 14px; font-weight: 600; line-height: 1.3;">{{c.title}}</span>
+            <span style="font-size: 12px; color: #9ea3b0;">{{c.sub}}</span>
+          </div>
+        </sc-for>
+      </div>
+      <h2 style="margin: 6px 0 0; font-size: 20px; font-weight: 700;">Alle Hörbücher</h2>
+    </section>
+  </sc-if>
+
+  <ul aria-label="Hörbücher" style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 24px 16px;">
+    <sc-for list="{{cards}}" as="c" hint-placeholder-count="18">
+      <li class="k-card">
+        <a class="k-cover" href="{{c.href}}" aria-label="{{c.aria}}" style="{{c.stack}}">
+          <span aria-hidden="true" style="{{c.cover}}">{{c.coverText}}</span>
+          <sc-if value="{{c.isSeries}}" hint-placeholder-val="{{false}}">
+            <span style="position: absolute; left: 8px; bottom: 8px; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 10px; background: #0b0c10d9;">{{c.badge}}</span>
+          </sc-if>
+          <sc-if value="{{c.hasProgress}}" hint-placeholder-val="{{false}}">
+            <span aria-hidden="true" style="position: absolute; left: 10px; right: 10px; bottom: 8px; height: 4px; border-radius: 2px; background: #ffffff40;"><span style="{{c.progress}}"></span></span>
+          </sc-if>
+        </a>
+        <a class="k-pen" href="{{c.penHref}}" aria-label="{{c.penAria}}" title="Metadaten bearbeiten" style="position: absolute; top: 8px; right: 8px; width: 36px; height: 36px; border-radius: 18px; display: inline-flex; align-items: center; justify-content: center; background: #0b0c10cc; border: 1px solid #ffffff3d; color: #f3f3f5; text-decoration: none; font-size: 16px;">✎</a>
+        <span style="font-size: 14px; font-weight: 600; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">{{c.title}}</span>
+        <span style="font-size: 12px; color: #9ea3b0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{c.sub}}</span>
+      </li>
+    </sc-for>
+  </ul>
+
+  <div style="font-size: 13px; color: #b6b9c4; border: 1px dashed #ffffff3d; border-radius: 12px; padding: 10px 14px; line-height: 1.5;">
+    Teil C: quadratische Cover ohne unscharfen Rahmen. Teil D: eine Reihe steht als <strong>eine Kachel</strong> mit Zahl der Bände (Stapel), Antippen öffnet die Reihe. Der Bleistift erscheint beim Zeigen oder mit dem Fokus, nur für Admins. Gezeigt sind 24 Kacheln aus Marcos Bibliothek, Cover sind Platzhalter.
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1400}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { variant: 'tile', sort: 'title' };
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var S = [
+      ['Harry Potter', 'J. K. Rowling', 8, 2], ['Bodyguard', 'Chris Bradford', 6, 4], ['Die Känguru-Werke', 'Marc-Uwe Kling', 4, 0],
+      ['Der Herr der Ringe', 'J. R. R. Tolkien', 3, 1], ['Silo', 'Hugh Howey', 3, 0], ['Flammengeküsst', 'Rebecca Yarros', 2, 0]
+    ];
+    var B = [
+      ['Die 1%-Methode', 'James Clear'], ['4000 Wochen', 'Oliver Burkeman'], ['Alt genug', 'Ildikó von Kürthy'], ['Brainhacks', 'Henry Hildebrandt'],
+      ["Can't Hurt Me", 'David Goggins'], ['Der Junge muss an die frische Luft', 'Hape Kerkeling'], ['Gebt mir etwas Zeit', 'Hape Kerkeling'],
+      ['Der Nachbar', 'Sebastian Fitzek'], ['Passagier 23', 'Sebastian Fitzek'], ['Freiheit', 'Angela Merkel'], ['Frühstück mit Kängurus', 'Bill Bryson'],
+      ['Einmal Rupert und zurück', 'Douglas Adams'], ['Todsünde', 'Tess Gerritsen'], ['All Inclusive – Auch der Tod', 'Frank Goldammer'],
+      ['Ach, diese Lücke, diese entsetzliche Lücke', 'Joachim Meyerhoff'], ['Der Fall von Gondolin', 'J. R. R. Tolkien'], ['Exit', 'Hugh Howey'], ['Die Seele will frei sein', 'Michael A. Singer']
+    ];
+    var hue = function (s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360; return h; };
+    var cover = function (t) { var h = hue(t); return 'position: absolute; inset: 0; border-radius: 12px; display: flex; align-items: flex-end; padding: 12px; box-sizing: border-box; font: 700 15px/1.2 Georgia, serif; color: #0b0c10; background: linear-gradient(150deg, hsl(' + h + ' 70% 72%), hsl(' + ((h + 50) % 360) + ' 55% 42%));'; };
+    var stack = 'box-shadow: 6px -6px 0 -1px #2b2f3a, 12px -12px 0 -2px #1d2029; margin: 12px 12px 0 0;';
+    var seriesCard = function (s) {
+      return { title: s[0], sub: s[1] + ' · ' + s[2] + ' Bände', cover: cover(s[0]), coverText: s[0], stack: stack, badge: s[2] + ' Bände',
+        isSeries: true, href: 'Reihe.dc.html', aria: 'Reihe ' + s[0] + ', ' + s[2] + ' Bände', penHref: 'Reihe.dc.html', penAria: 'Reihe ' + s[0] + ' bearbeiten',
+        hasProgress: s[3] > 0, progress: 'display: block; height: 4px; border-radius: 2px; background: #e8794a; width: ' + Math.round(100 * s[3] / s[2]) + '%;' };
+    };
+    var bookCard = function (b, i) {
+      var p = [0, 35, 0, 0, 80, 0, 12, 0, 0, 0, 0, 0, 55, 0, 0, 0, 0, 0][i % 18];
+      return { title: b[0], sub: b[1], cover: cover(b[0]), coverText: b[0], stack: '', badge: '', isSeries: false, href: 'Editor.dc.html',
+        aria: b[0] + ' von ' + b[1], penHref: 'Editor.dc.html', penAria: 'Metadaten bearbeiten: ' + b[0], hasProgress: p > 0,
+        progress: 'display: block; height: 4px; border-radius: 2px; background: #e8794a; width: ' + p + '%;' };
+    };
+    var key = function (c) { return (st.sort === 'author' ? c.sub : c.title).toLowerCase().replace(/^(der|die|das) /, ''); };
+    var tiles = st.variant === 'tile';
+    var list = (tiles ? S.map(seriesCard) : []).concat(B.map(bookCard));
+    if (!tiles) S.forEach(function (s) { for (var i = 1; i <= Math.min(2, s[2]); i++) list.push(bookCard([s[0] + ' ' + i, s[1]], i)); });
+    list.sort(function (a, b) { return key(a).localeCompare(key(b), 'de'); });
+    var pill = function (on) { return 'min-height: 36px; padding: 0 12px; border-radius: 18px; color: #f3f3f5; font-size: 13px; border: 1px solid ' + (on ? '#e8794a' : '#ffffff2e') + '; background: ' + (on ? '#e8794a33' : 'transparent') + ';'; };
+    return {
+      variants: [['tile', 'A · Kachel je Reihe'], ['row', 'B · Reihen-Zeile oben']].map(function (v) {
+        var on = st.variant === v[0];
+        return { label: v[1], pressed: on ? 'true' : 'false', style: pill(on), pick: function () { self.setState({ variant: v[0] }); } };
+      }),
+      rowVariant: !tiles,
+      seriesCards: S.map(seriesCard),
+      cards: list,
+      countNote: tiles ? '89 Hörbücher · 17 Reihen' : '89 Hörbücher',
+      sort: st.sort, setSort: function (e) { self.setState({ sort: e.target.value }); }
+    };
+  }
+}
+</script>
+</body>
+</html>
