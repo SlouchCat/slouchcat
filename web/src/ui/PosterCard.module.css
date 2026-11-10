@@ -47,6 +47,11 @@
   background-color: var(--sc-color-surface-1);
 }
 
+/* The library overview of audio: a square frame of its own (concept 19 C, .own below). */
+.own .frame {
+  aspect-ratio: 1 / 1;
+}
+
 /* The accent tints the empty frame while the poster waits (the hero goes first, P-10). */
 .frame::before {
   position: absolute;
@@ -312,4 +317,14 @@
 
 .marked .progress {
   right: calc(var(--sc-space-2) * 2 + var(--sc-space-8));
+}
+
+/*
+ * A square cover in a square frame of its own (concept 19 C): the library overview of audiobooks
+ * and podcasts. The glow and the area of the watchlist button take the cover's shape, as the frame
+ * does (.own .frame above).
+ */
+.own::before,
+.own .markArea {
+  aspect-ratio: 1 / 1;
 }

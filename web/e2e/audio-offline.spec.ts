@@ -7,7 +7,7 @@ import {
   M4B_TITLE,
   setAudioProgress,
 } from './audio';
-import { STORAGE_STATE } from './env';
+import { OWNER_PROFILE, STORAGE_STATE } from './env';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus } from './keyboard';
 import {
@@ -153,5 +153,21 @@ test('flight mode: the downloaded audiobook plays with its chapters; progress sy
     await second.close();
   }
   expect((await storedDownloads(page)).map((entry) => entry.id)).toEqual([download.id]);
+
+  // PC-6 (concept 19 C): only audio on the device: one list without a heading, the cover square
+  // in a frame of its own (no blurred copy behind it).
+  await page.goto('/offline');
+  await page
+    .getByRole('list', { name: 'Profile' })
+    .getByRole('button', { name: new RegExp(OWNER_PROFILE) })
+    .click();
+  const offlineCard = page
+    .getByRole('list', { name: 'Heruntergeladene Titel' })
+    .getByRole('link', { name: new RegExp(M4B_TITLE) });
+  await expect(offlineCard).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Hörbücher und Podcasts' })).toHaveCount(0);
+  const frame = (await offlineCard.locator('> span').first().boundingBox())!;
+  expect(Math.abs(frame.height - frame.width)).toBeLessThanOrEqual(1);
+  expect(await offlineCard.locator('img').count()).toBeLessThanOrEqual(1);
   await setAudioProgress(owner, book, 0, 60_000, 1);
 });

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { setSpatialFocus } from '@/ui';
 import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
 import { virtualLayout } from '@/test/virtual';
+import { measure } from './LibraryGrid';
 
 type LibraryItemsPage = components['schemas']['LibraryItemsPage'];
 
@@ -67,6 +68,24 @@ async function open(failing?: Map<number, number>) {
   await waitFor(() => expect(card(0)).toBeDefined());
   return { layout, offsets };
 }
+
+describe('measure', () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+    vi.restoreAllMocks();
+  });
+
+  it('PC-1: a card is its cover (2:3 or, in the overview of audio, square) plus the text', () => {
+    const list = document.createElement('ul');
+    list.style.gridTemplateColumns = '100px 100px 100px';
+    list.style.rowGap = '20px';
+    const probe = document.createElement('span');
+    vi.spyOn(probe, 'getBoundingClientRect').mockReturnValue({ height: 40, width: 64 } as DOMRect);
+    document.body.append(list, probe);
+    expect(measure(list, probe)).toMatchObject({ columns: 3, card: 190, rowGap: 20, header: 64 });
+    expect(measure(list, probe, 'square')).toMatchObject({ columns: 3, card: 140 });
+  });
+});
 
 describe('library grid', () => {
   afterEach(() => {

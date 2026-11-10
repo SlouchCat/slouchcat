@@ -497,3 +497,181 @@ test.describe('a large library in the virtual grid', () => {
     if (browserName === 'chromium') await expect.poll(() => isInside(grid(page))).toBe(false);
   });
 });
+
+// Concept 19 part C: the overview of an audio library shows its covers square, without the 2:3
+// frame (PC-1, PC-4); a mixed library does so only with the content filter on audio (PC-2).
+test.describe('square covers in the overview of audio', () => {
+  test.use({ serviceWorkers: 'block', viewport: { width: 1280, height: 800 } });
+
+  const BOOKS = 'Hörbücher';
+  const audioGrid = (page: Page, name: string) => page.getByRole('list', { name });
+
+  /** Height per width of the drawn covers' frames, rounded to tenths. */
+  const frameRatios = (list: Locator) =>
+    list.evaluate((node) =>
+      [...node.querySelectorAll('a[href] > span:first-child')].map((frame) => {
+        const box = frame.getBoundingClientRect();
+        return Math.round((box.height / box.width) * 10) / 10;
+      }),
+    );
+
+  /**
+   * Cards that do not fit their place or overlap the next row: a card's link ends below its
+   * place, or a place reaches into the place under it.
+   */
+  const crowded = (list: Locator) =>
+    list.evaluate((node) => {
+      const places = [...node.querySelectorAll<HTMLElement>('[data-index]')];
+      const found: string[] = [];
+      for (const place of places) {
+        const box = place.getBoundingClientRect();
+        const link = place.querySelector('a[href]')?.getBoundingClientRect();
+        if (link && link.bottom > box.bottom + 1) found.push(`card ${place.dataset.index}`);
+        for (const other of places) {
+          const below = other.getBoundingClientRect();
+          if (other !== place && below.top > box.top && below.top < box.bottom - 1) {
+            found.push(`place ${place.dataset.index}/${other.dataset.index}`);
+          }
+        }
+      }
+      return found;
+    });
+
+  const fakeBook = (index: number) => ({
+    id: `01J9E2EB1GAUD1OBOOK${String(index).padStart(7, '0')}`,
+    kind: 'audiobook',
+    title: `Hörbuch ${index}`,
+    author: 'Slouchcat Test Author',
+    inWatchlist: false,
+    images: {},
+  });
+
+  test('PC-1: the audiobook library shows its covers square, titles of a row on one line', async ({
+    page,
+    owner,
+  }) => {
+    const id = await libraryId(owner, BOOKS);
+    await page.goto(`/libraries/${id}`);
+    const list = audioGrid(page, BOOKS);
+    await expect(list.getByRole('link').first()).toBeVisible();
+    expect(new Set(await frameRatios(list))).toEqual(new Set([1]));
+    // No blurred copy behind a cover: one image per card.
+    for (const card of await list.getByRole('link').all()) {
+      expect(await card.locator('img').count()).toBeLessThanOrEqual(1);
+    }
+    const titleTops = await list.evaluate((node) =>
+      [...node.querySelectorAll('a[href] > span:last-child')].map((meta) =>
+        Math.round(meta.getBoundingClientRect().top),
+      ),
+    );
+    expect(new Set(titleTops).size).toBe(1);
+    expect(await crowded(list)).toEqual([]);
+  });
+
+  test('PC-1: 250 audiobooks scroll by without overlap', async ({ page, owner }) => {
+    const id = await libraryId(owner, BOOKS);
+    const total = 250;
+    await page.route(`**/api/v1/libraries/${id}/items?*`, async (route) => {
+      const url = new URL(route.request().url());
+      const offset = Number(url.searchParams.get('offset') ?? 0);
+      const limit = Number(url.searchParams.get('limit') ?? 50);
+      await route.fulfill({
+        json: {
+          items: Array.from({ length: Math.max(0, Math.min(limit, total - offset)) }, (_, n) =>
+            fakeBook(offset + n),
+          ),
+          total,
+          offset,
+          limit,
+          facets: { letters: ['H'], genres: [], ratings: [] },
+        },
+      });
+    });
+    await page.goto(`/libraries/${id}`);
+    const list = audioGrid(page, BOOKS);
+    await expect(page.getByRole('status').filter({ hasText: `${total} Hörbücher` })).toBeVisible();
+    const last = list.locator(`[data-index="${total - 1}"] a[href]`);
+    for (let step = 0; step < 40 && !(await last.isVisible()); step += 1) {
+      await page.mouse.wheel(0, 700);
+      await expect.poll(() => crowded(list)).toEqual([]);
+      expect(new Set(await frameRatios(list))).toEqual(new Set([1]));
+    }
+    await expect(last).toBeVisible();
+  });
+
+  test('PC-4: the square overview by keyboard: arrows, Tab, Enter, back to the same card @keyboard', async ({
+    page,
+    owner,
+  }) => {
+    const id = await libraryId(owner, BOOKS);
+    await page.goto(`/libraries/${id}`);
+    const list = audioGrid(page, BOOKS);
+    const books = list.getByRole('link');
+    await expect(books.first()).toBeVisible();
+    expect(await books.count()).toBeGreaterThan(1);
+    await resetFocus(page);
+    await tabTo(page, books.first(), 40);
+    await expectVisibleFocus(page);
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, books.nth(1));
+    await page.keyboard.press('ArrowLeft');
+    await expectFocusOn(page, books.first());
+    const href = await books.first().getAttribute('href');
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(href!);
+    await page.goBack();
+    await expect(page).toHaveURL(`/libraries/${id}`);
+    await expectFocusOn(page, list.locator(`a[href="${href}"]`));
+    await expectNoFocusTrap(page, 120);
+  });
+
+  test('PC-2: a mixed library: «Alle» keeps the 2:3 frame, «Hörbücher» is square', async ({
+    page,
+    owner,
+  }) => {
+    const id = await libraryId(owner, LIBRARY);
+    // The film library as a mixed one: films and audiobooks.
+    await page.route('**/api/v1/libraries/visible', async (route) => {
+      const response = await route.fetch();
+      const libraries = (await response.json()) as { id: number; contents: string[] }[];
+      await route.fulfill({
+        response,
+        json: libraries.map((library) =>
+          library.id === id ? { ...library, contents: ['movie', 'audiobook'] } : library,
+        ),
+      });
+    });
+    await page.route(`**/api/v1/libraries/${id}/items?*`, async (route) => {
+      const url = new URL(route.request().url());
+      if (url.searchParams.get('content') !== 'audiobook') {
+        await route.fallback();
+        return;
+      }
+      const offset = Number(url.searchParams.get('offset') ?? 0);
+      const limit = Number(url.searchParams.get('limit') ?? 50);
+      await route.fulfill({
+        json: {
+          items: Array.from({ length: Math.max(0, Math.min(limit, 40 - offset)) }, (_, n) =>
+            fakeBook(offset + n),
+          ),
+          total: 40,
+          offset,
+          limit,
+          facets: { letters: ['H'], genres: [], ratings: [] },
+        },
+      });
+    });
+    await page.goto(`/libraries/${id}`);
+    const list = grid(page);
+    await expect(cards(page).first()).toBeVisible();
+    expect(new Set(await frameRatios(list))).toEqual(new Set([1.5]));
+    const chips = page.getByRole('group', { name: 'Inhalt' });
+    await chips.getByRole('button', { name: 'Hörbücher' }).click();
+    await expect(list.getByRole('link', { name: /Hörbuch 0/ })).toBeVisible();
+    await expect.poll(async () => [...new Set(await frameRatios(list))]).toEqual([1]);
+    await expect.poll(() => crowded(list)).toEqual([]);
+    await chips.getByRole('button', { name: 'Alle' }).click();
+    await expect.poll(async () => [...new Set(await frameRatios(list))]).toEqual([1.5]);
+    await expect.poll(() => crowded(list)).toEqual([]);
+  });
+});

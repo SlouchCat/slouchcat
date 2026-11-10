@@ -138,6 +138,13 @@
   }
 }
 
+/* Films and series, audiobooks and podcasts: a list each (concept 19 C). */
+.kindSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+}
+
 .pendingList {
   display: flex;
   flex-direction: column;

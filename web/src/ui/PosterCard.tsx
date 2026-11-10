@@ -84,6 +84,12 @@ interface PosterCardProps {
    */
   shape?: 'poster' | 'square';
   /**
+   * `own`: a square cover in a square frame of its own, without the blurred ground (concept 19 C):
+   * the library overview of audiobooks and podcasts, where every card of the grid is square.
+   * Ignored for `shape="poster"`.
+   */
+  frame?: 'poster' | 'own';
+  /**
    * A control beside the card's link (or button), over the top right of its cover: the pen
    * (concept 15 7.4). Not inside the link, so Tab reaches it after the link and the arrow keys pass
    * it by. Card and tool then share one cell that carries the focus scale, so the card stays large
@@ -102,7 +108,7 @@ interface PosterCardProps {
 }
 
 /**
- * 2:3 poster (or a square cover in a 2:3 frame) with its title below, one link to the title. The link carries the focus ring and
+ * 2:3 poster (or a square cover in a 2:3 frame, or in a square frame of its own) with its title below, one link to the title. The link carries the focus ring and
  * scales on focus (focus.scale token); a soft glow in the title's accent colour lights up behind
  * the poster, and the same colour tints the frame while the image is still on its way.
  *
@@ -133,6 +139,7 @@ export function PosterCard({
   onImageShown,
   deferImage = false,
   shape = 'poster',
+  frame = 'poster',
   tool,
   mark,
   focusKey,
@@ -142,7 +149,15 @@ export function PosterCard({
   const srcSet =
     posterUrl && posterSmallUrl ? `${posterSmallUrl} 200w, ${posterUrl} 400w` : undefined;
   const sizes = posterUrl && posterSmallUrl ? CARD_SIZES : undefined;
-  const className = [styles.card, active && styles.active, dimmed && styles.dimmed]
+  // A square cover in a frame of its own (concept 19 C), else every card has the 2:3 frame.
+  const own = shape === 'square' && frame === 'own';
+  const framed = shape === 'square' && !own;
+  const className = [
+    styles.card,
+    own && styles.own,
+    active && styles.active,
+    dimmed && styles.dimmed,
+  ]
     .filter(Boolean)
     .join(' ');
   const content = (
@@ -150,7 +165,7 @@ export function PosterCard({
       <span className={styles.frame}>
         {deferImage ? null : source ? (
           <>
-            {shape === 'square' && (
+            {framed && (
               // The blurred ground above and below a square cover (concept 18 C-1, variant B): the
               // same image with the same srcset and sizes, so the browser picks the same file and
               // loads it once.
@@ -169,7 +184,7 @@ export function PosterCard({
               />
             )}
             <img
-              className={shape === 'square' ? `${styles.image} ${styles.cover}` : styles.image}
+              className={framed ? `${styles.image} ${styles.cover}` : styles.image}
               src={source}
               srcSet={srcSet}
               sizes={sizes}
@@ -254,7 +269,11 @@ export function PosterCard({
     );
   if (tool === undefined && mark === undefined) return card;
   return (
-    <div className={mark !== undefined ? `${styles.cell} ${styles.marked}` : styles.cell}>
+    <div
+      className={[styles.cell, mark !== undefined && styles.marked, own && styles.own]
+        .filter(Boolean)
+        .join(' ')}
+    >
       {card}
       {tool !== undefined && <div className={styles.tool}>{tool}</div>}
       {mark !== undefined && (

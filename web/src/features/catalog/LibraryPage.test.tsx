@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { alien, arrival, audiobook, heat, ids } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
 import { virtualLayout } from '@/test/virtual';
+import { gridCover } from './LibraryPage';
 
 type LibraryNav = components['schemas']['LibraryNav'];
 type LibraryItemsPage = components['schemas']['LibraryItemsPage'];
@@ -254,6 +255,39 @@ describe('library page', () => {
     const status = screen.getByRole('group', { name: 'Status' });
     expect(within(status).getByRole('button', { name: 'Ungehört' })).toBeVisible();
     expect(within(status).getByRole('button', { name: 'Gehört' })).toBeVisible();
+  });
+
+  it('PC-1: an audiobook library shows its covers square, without the 2:3 frame (concept 19 C)', async () => {
+    mockLibrary(() =>
+      json(page([audiobook], { facets: { letters: [], genres: [], ratings: [] } })),
+    );
+    renderApp('/libraries/5');
+    const grid = await screen.findByRole('list', { name: 'Hörbücher' });
+    const link = await within(grid).findByRole('link', { name: new RegExp(audiobook.title) });
+    // One image, no blurred copy behind it; the card has the square frame.
+    expect(link.querySelectorAll('img')).toHaveLength(1);
+    expect(link).toHaveClass('own');
+  });
+
+  it('PC-1: a film library keeps the 2:3 frame', async () => {
+    mockLibrary();
+    renderApp('/libraries/3');
+    const grid = await screen.findByRole('list', { name: 'Filme' });
+    const link = await within(grid).findByRole('link', { name: new RegExp(alien.title) });
+    expect(link).not.toHaveClass('own');
+  });
+
+  it('PC-2: square only where every title the grid can show is audio', () => {
+    expect(gridCover(['audiobook'], undefined)).toBe('square');
+    expect(gridCover(['podcast'], undefined)).toBe('square');
+    expect(gridCover(['audiobook', 'podcast'], undefined)).toBe('square');
+    // Mixed: «Alle» keeps the 2:3 frame (OC-1), the content filter on audio is square.
+    expect(gridCover(['movie', 'audiobook'], undefined)).toBe('poster');
+    expect(gridCover(['movie', 'audiobook'], 'audiobook')).toBe('square');
+    expect(gridCover(['series', 'podcast'], 'podcast')).toBe('square');
+    expect(gridCover(['movie', 'audiobook'], 'movie')).toBe('poster');
+    // A library without titles yet.
+    expect(gridCover([], undefined)).toBe('poster');
   });
 
   it('nothing matching the filters says so and offers to reset them', async () => {

@@ -2,7 +2,7 @@ import type { ItemPage, ItemRef } from '@slouchcat/api-client';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { alien, heat, ids } from '@/test/fixtures';
+import { alien, audiobook, heat, ids } from '@/test/fixtures';
 import { json, mockApi, renderApp, signedIn } from '@/test/api';
 
 const page = (items: ItemRef[]): ItemPage => ({ items, total: items.length, offset: 0, limit: 50 });
@@ -74,6 +74,15 @@ describe('watchlist page', () => {
     expect(
       calls.some((c) => c.method === 'DELETE' && c.path === `/items/${ids.heat}/watchlist`),
     ).toBe(true);
+  });
+
+  it('PC-3: an audiobook keeps the 2:3 frame with its blurred ground (concept 19 C)', async () => {
+    mockApi({ ...signedIn, 'GET /watchlist': () => json(page([heat, audiobook])) });
+    renderApp('/watchlist');
+    const list = await screen.findByRole('list', { name: 'Merkliste' });
+    const card = within(list).getByRole('link', { name: new RegExp(audiobook.title) });
+    expect(card).not.toHaveClass('own');
+    expect(card.querySelectorAll('img')).toHaveLength(2);
   });
 
   it('shows an empty state with the way to the search', async () => {

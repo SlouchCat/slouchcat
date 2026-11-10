@@ -60,6 +60,21 @@ const sortsOf = (kind: LibraryNav['kind']): LibrarySort[] =>
     (sort) => (sort !== 'author' || kind === 'audiobooks') && (sort !== 'age' || kind === 'video'),
   );
 
+/**
+ * The cover shape of the grid (concept 19 C): square where every title it can show is an audiobook
+ * or a podcast (an audio library, or the content filter on audio), else the 2:3 frame, so the
+ * titles of a mixed row stay on one line (OC-1).
+ */
+export const gridCover = (
+  contents: readonly components['schemas']['RootContent'][],
+  content: components['schemas']['RootContent'] | undefined,
+): 'poster' | 'square' => {
+  const shown = content ? [content] : contents;
+  return shown.length > 0 && shown.every((kind) => kind === 'audiobook' || kind === 'podcast')
+    ? 'square'
+    : 'poster';
+};
+
 /** A library (concept 08): every title the active profile may see, sorted and filtered. */
 export function LibraryPage() {
   const { libraryId } = route.useParams();
@@ -459,6 +474,7 @@ function LibraryView({ id }: { id: number | null }) {
                   slots={slots}
                   focusKey={GRID_KEY}
                   label={library.name}
+                  cover={gridCover(library.contents, params.content)}
                   onRange={onRange}
                   tool={
                     canManage
