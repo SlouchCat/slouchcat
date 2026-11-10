@@ -187,7 +187,8 @@ func (s *Service) markChosen(ctx context.Context, itemID, kind string, list mode
 	out := model.ImageCandidateList{Candidates: slices.Clone(list.Candidates), Unavailable: list.Unavailable}
 	decided := false
 	for _, r := range rows {
-		if r.Kind != kind {
+		if r.Kind != kind || (r.Chosen != 1 && isBookCover(r.Provider, r.Source)) {
+			// A book source's cover that was not chosen is only a candidate (concept 19 D6.3).
 			continue
 		}
 		decided = true
@@ -577,6 +578,9 @@ func (s *Service) ItemImages(ctx context.Context, itemID string) ([]model.AdminI
 	out := []model.AdminItemImage{}
 	for _, kind := range choosableKinds[item.Kind] {
 		r, ok := byKind[kind]
+		if ok && item.Kind == "audiobook" && r.Chosen != 1 && !locked[kind] {
+			ok = false // the cover of a book source a match stored is no choice (concept 19 D6.3)
+		}
 		if !ok && !locked[kind] {
 			if item.Kind == "audiobook" {
 				// No choice: the cover of the book's files.

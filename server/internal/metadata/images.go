@@ -231,9 +231,13 @@ func (s *Service) fetchImages(ctx context.Context, itemID string) error {
 		src := imageRequest{provider: ImageSourceCover}
 		switch {
 		case audioKinds[item.Kind] && (!hasRow || row.Chosen != 1):
-			// The cover of the files; a book's chosen cover (concept 19 D5.3) is fetched below.
+			// The cover of the files; a book's chosen cover (concept 19 D5.3) is fetched below. A
+			// book whose files have none takes the cover of a book source (concept 19 D6.3).
 			if src.url, err = s.coverSource(ctx, item); err != nil {
 				return fmt.Errorf("image.fetch %s cover: %w", item.ID, err)
+			}
+			if src.url == "" && hasRow && item.Kind == "audiobook" {
+				src = s.imageSource(item, row)
 			}
 		case hasRow:
 			src = s.imageSource(item, row)
@@ -290,6 +294,8 @@ func (s *Service) imageSource(item systemq.Item, row systemq.ItemImage) imageReq
 		out.url = src
 	case strings.HasPrefix(src, s.tvdb.artBase+"/"), s.anilist.imageURL(src), s.fanart.assetURL(src):
 		out.url = src
+	case isBookCover(row.Provider, src):
+		out.url = src // fetched through the guarded cover client (fetchOriginal)
 	default:
 		s.log.Warn("image path of an unknown host ignored", "item_id", item.ID, "kind", row.Kind)
 	}
@@ -1059,12 +1065,15 @@ func unversioned(source string) string {
 	return source
 }
 
-// feedOf returns the feed URL of the podcast of an item (a podcast's own, an episode's parent's);
-// "" for any other item.
+// feedOf returns the feed URL of the podcast of an item (a podcast's own, an episode's parent's),
+// for an audiobook the address of the source of its cover (bookCoverOrigin); "" for any other item.
 func (s *Service) feedOf(ctx context.Context, itemID string) (feedURL, origin string) {
 	item, err := s.read.GetItemSystem(ctx, itemID)
 	if err != nil {
 		return "", ""
+	}
+	if item.Kind == "audiobook" {
+		return s.bookCoverOrigin(ctx, item.ID)
 	}
 	if item.Kind == "podcast_episode" && item.ParentID.Valid {
 		if p, err := s.read.PodcastGet(ctx, item.ParentID.String); err == nil {

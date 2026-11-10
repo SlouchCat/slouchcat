@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
@@ -132,8 +134,9 @@ func (s *Service) finishAudiobooks(ctx context.Context, ids map[string]bool) {
 // it also writes the book-wide chapters (parts that failed to probe are left out), the duration
 // (sum of the parts), the metadata (metadata.json > tags of the first part > folder names; locked
 // fields and manual ratings stay), the cover (folder image, else the picture embedded in the first
-// part that has one) and queues image.fetch for the cover. In the same transaction the book is
-// linked to its series (RelinkAudioSeries). Anything but an undeleted audiobook is left alone.
+// part that has one) and queues image.fetch for the cover, and metadata.match for the match against
+// the sources of its folder (queueBookMatch). In the same transaction the book is linked to its
+// series (RelinkAudioSeries). Anything but an undeleted audiobook is left alone.
 func (s *Service) finishAudiobook(ctx context.Context, itemID string) error {
 	sq := systemq.New(s.db.Read)
 	item, err := sq.GetItemSystem(ctx, itemID)
@@ -170,11 +173,13 @@ func (s *Service) finishAudiobook(ctx context.Context, itemID string) error {
 
 	var meta bookMeta
 	var lib appq.Library
+	var sources []string // the folder's list of sources
 	if done {
 		root, err := appq.New(s.db.Read).GetLibraryRoot(ctx, files[0].RootID)
 		if err != nil {
 			return fmt.Errorf("load library root: %w", err)
 		}
+		sources = model.ParseProviders(root.Providers)
 		if lib, err = appq.New(s.db.Read).GetLibrary(ctx, item.LibraryID); err != nil {
 			return fmt.Errorf("load library: %w", err)
 		}
@@ -222,12 +227,37 @@ func (s *Service) finishAudiobook(ctx context.Context, itemID string) error {
 		if err := s.writeBook(ctx, q, item, lib, parts, meta); err != nil {
 			return err
 		}
+		if err := queueBookMatch(ctx, q, item, sources, s.now()); err != nil {
+			return err
+		}
 	}
 	// The series follows the series name and the author the book has now (concept 19 D4.4).
 	if err := RelinkAudioSeries(ctx, q, []string{item.ID}, s.now()); err != nil {
 		return err
 	}
 	return tx.Commit()
+}
+
+// settingBookAutoMatch is the automatic match of audiobooks (metadata.SettingBookAutoMatch: off,
+// new, all; absent = all).
+const settingBookAutoMatch = "metadata.books.auto_match"
+
+// queueBookMatch queues metadata.match for a book whose parts are all probed, so its length is known
+// (concept 19 D6.3 point 6), unless its folder lists no source besides local, the automatic match
+// is off or the book was matched or reviewed already: only a book not tried yet or in state error
+// goes again.
+func queueBookMatch(ctx context.Context, q *systemq.Queries, item systemq.Item, sources []string, now time.Time) error {
+	if st := item.BookMatchState.String; (st != "" && st != "error") || !slices.ContainsFunc(sources, func(p string) bool { return p != model.ProviderLocal }) {
+		return nil
+	}
+	mode, err := q.GetSystemSetting(ctx, settingBookAutoMatch)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("read %s: %w", settingBookAutoMatch, err)
+	}
+	if strings.TrimSpace(mode) == "off" {
+		return nil
+	}
+	return enqueueTx(ctx, q, now, matchJob(item.ID))
 }
 
 // hasCover reports whether a probe has an attached picture.

@@ -21,7 +21,10 @@
 //     stills and metadata.match for episodes that still wait. Season: skipped
 //     (season_via_series) unless the series job already matched it. Episode: needs a matched
 //     series (else skipped/series_unmatched); an episode that is already matched makes no
-//     provider call. Other kinds: skipped (unsupported_kind). A write that finds other provider
+//     provider call. Audiobook (concept 19 D6.3, book_match.go): once all its parts are probed, the
+//     match against the sources of its folder when the payload asks (book, refetch) or the setting
+//     auto_match allows it for a book not tried yet or in error; image.fetch follows in any case.
+//     Other kinds: skipped (unsupported_kind). A write that finds other provider
 //     ids or locked fields on the title (or its series) than the job resolved with, because a
 //     manual match or refresh came in meanwhile, writes nothing and fails the attempt, so the queue
 //     retries with the new ids. A manual match or refresh raises a queued match job to priority 7.
@@ -176,6 +179,10 @@ type Service struct {
 	feeds feedFetcher // podcast feeds (podcast.go)
 
 	books bookSources // the audiobook sources (book_provider.go, concept 19 D6)
+	// relinkSeries links books to their series inside a transaction (WithAudioSeriesRelink).
+	relinkSeries func(ctx context.Context, q *systemq.Queries, itemIDs []string, now time.Time) error
+	// authorDisplay queues the recomputation of the unified author names (WithAuthorDisplay).
+	authorDisplay func(ctx context.Context) error
 }
 
 type options struct {
@@ -206,6 +213,8 @@ type options struct {
 	// The audiobook sources (book_provider.go): addresses and the Google Books key.
 	bookURLs       *BookSourceURLs
 	googleBooksKey func(ctx context.Context) (string, error)
+	relinkSeries   func(ctx context.Context, q *systemq.Queries, itemIDs []string, now time.Time) error
+	authorDisplay  func(ctx context.Context) error
 }
 
 // Option configures New.
@@ -284,6 +293,20 @@ func WithRelink(fn func(ctx context.Context, itemID string) (bool, error)) Optio
 	return func(o *options) { o.relink = fn }
 }
 
+// WithAudioSeriesRelink sets the function a book match calls inside its transaction after it wrote
+// the fields of a book (library.RelinkAudioSeries, concept 19 D4.4: a series name or author from a
+// source moves the book to the series of its new key). Without it no book is relinked.
+func WithAudioSeriesRelink(fn func(ctx context.Context, q *systemq.Queries, itemIDs []string, now time.Time) error) Option {
+	return func(o *options) { o.relinkSeries = fn }
+}
+
+// WithAuthorDisplay sets the function a book match calls after it wrote an author, and a change of
+// the switches «Vereinheitlichen» (library.Service.QueueAuthorDisplay, concept 19 D6.4); an error
+// is logged. Without it nothing is queued.
+func WithAuthorDisplay(fn func(ctx context.Context) error) Option {
+	return func(o *options) { o.authorDisplay = fn }
+}
+
 // WithHTTPClient replaces the HTTP client (default: 15 s timeout).
 func WithHTTPClient(c *http.Client) Option {
 	return func(o *options) { o.http = c }
@@ -340,6 +363,8 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		recheck:         o.recheck,
 		newEpisodes:     o.newEpisodes,
 		relink:          o.relink,
+		relinkSeries:    o.relinkSeries,
+		authorDisplay:   o.authorDisplay,
 		trakt:           newTraktConfig(o.traktID, o.trakt, o.now, o.feedAgent),
 
 		accentRetries: map[string]int{},
@@ -363,7 +388,30 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		st, err := svc.Settings(ctx)
 		return err == nil && st.FanartEnabled
 	}
+	if o.googleBooksKey == nil && keys != nil {
+		o.googleBooksKey = keys.GoogleBooksKey
+	}
 	svc.books = newBookSources(svc, o)
+	// The Audible region and the Audnexus address of the page «Hörbücher: Quellen», read per call.
+	audnexusDefault := svc.books.audible.audnexus
+	svc.books.audible.region = func(ctx context.Context) string {
+		st, err := svc.BookSettings(ctx)
+		if err != nil {
+			log.Warn("book settings for the audible region", "err", err)
+			return DefaultAudibleRegion
+		}
+		return st.AudibleRegion
+	}
+	svc.books.audible.audnexus = func(ctx context.Context) string {
+		v, err := svc.bookSetting(ctx, SettingBookAudnexusURL)
+		if err != nil {
+			log.Warn("book settings for the audnexus address", "err", err)
+		}
+		if u, ok := normalAudnexusURL(v); ok {
+			return u
+		}
+		return audnexusDefault(ctx)
+	}
 	return svc
 }
 
@@ -424,10 +472,16 @@ func (s *Service) CheckKey(ctx context.Context, key string) error {
 // marks a match queued by package library after its library.relink of the title failed for good
 // or was cancelled: the match skips the relink hook (WithRelink) and completes the title, so it
 // does not hand the title back to the relink it just left.
+//
+// Book and Refetch are for audiobooks (concept 19 D6.3): Book asks for the book match whatever the
+// setting auto_match says (match-all, the switch to all, the first run), Refetch fetches the entry
+// of the stored match again (refreshItem with fromProvider).
 type itemPayload struct {
 	ItemID   string `json:"itemId"`
 	Images   bool   `json:"images,omitempty"`
 	NoRelink bool   `json:"noRelink,omitempty"`
+	Book     bool   `json:"book,omitempty"`
+	Refetch  bool   `json:"refetch,omitempty"`
 }
 
 func parsePayload(j *jobs.Job) (string, error) {

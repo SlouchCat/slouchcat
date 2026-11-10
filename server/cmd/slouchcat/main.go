@@ -305,10 +305,22 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	relink := func(ctx context.Context, itemID string) (bool, error) {
 		return libSvc.QueueRelink(ctx, itemID)
 	}
-	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, runner, log, metadata.WithTrailerAI(cfg.TrailerAI),
-		metadata.WithVisibilityRecheck(playbackSvc.RecheckVisibility), metadata.WithFeedUserAgent("Slouchcat/"+version),
+	// The unified author names after a book match (concept 19 D6.4) are step 4 of stage D3
+	// (library.Service.QueueAuthorDisplay); this closure calls it once that step is merged.
+	authorDisplay := func(context.Context) error { return nil }
+	// The audiobook sources (concept 19 D6): the e2e suite points them at a mock, in development
+	// mode only.
+	metaOpts := []metadata.Option{metadata.WithTrailerAI(cfg.TrailerAI),
+		metadata.WithVisibilityRecheck(playbackSvc.RecheckVisibility), metadata.WithFeedUserAgent("Slouchcat/" + version),
 		metadata.WithNewEpisodes(notifySvc.NewEpisodes), metadata.WithAniList(cfg.AniList), metadata.WithRelink(relink),
-		metadata.WithTrakt(cfg.TraktClientID, metadata.WithTraktBaseURL(traktBase)))
+		metadata.WithTrakt(cfg.TraktClientID, metadata.WithTraktBaseURL(traktBase)),
+		metadata.WithAudioSeriesRelink(library.RelinkAudioSeries), metadata.WithAuthorDisplay(authorDisplay)}
+	if cfg.Dev && cfg.TestBooksBaseURL != "" {
+		metaOpts = append(metaOpts, metadata.WithBookSourceURLs(metadata.BookSourceURLsFromBase(cfg.TestBooksBaseURL)))
+	} else if cfg.TestBooksBaseURL != "" {
+		log.Warn("SLOUCHCAT_TEST_BOOKS_BASE_URL is ignored without --dev")
+	}
+	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, runner, log, metaOpts...)
 	// Trickplay runs one ffmpeg instead of two while a transcode keeps the CPU busy (concept 18).
 	var load library.TrickplayLoad
 	if mgr != nil {
@@ -433,6 +445,11 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		// queued once at the first start after it, later only by hand.
 		if _, err := metaSvc.QueueOriginalLanguageBackfillOnce(ctx); err != nil && ctx.Err() == nil {
 			log.Warn("original language backfill not queued", "err", err)
+		}
+		// Every audiobook without match once, at the first start with the automatic match on all
+		// (concept 19 D6.3, OD-4).
+		if _, err := metaSvc.QueueFirstBookMatches(ctx); err != nil && ctx.Err() == nil {
+			log.Warn("first audiobook match not queued", "err", err)
 		}
 	})
 	defer func() {
