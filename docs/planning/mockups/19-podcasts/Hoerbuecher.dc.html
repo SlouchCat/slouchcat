@@ -49,7 +49,7 @@ a{color:#f3a27f}a:hover{color:#ffc4a8}
 
   <sc-if value="{{rowVariant}}" hint-placeholder-val="{{false}}">
     <section aria-label="Reihen" style="display: flex; flex-direction: column; gap: 10px;">
-      <h2 style="margin: 0; font-size: 20px; font-weight: 700;">Reihen</h2>
+      <h2 style="margin: 0; font-size: 20px; font-weight: 700;">Reihen und Sammlungen</h2>
       <div style="display: grid; grid-auto-flow: column; grid-auto-columns: 168px; gap: 16px; overflow-x: auto; padding: 6px 4px 10px;">
         <sc-for list="{{seriesCards}}" as="c" hint-placeholder-count="6">
           <div class="k-card">
@@ -86,7 +86,7 @@ a{color:#f3a27f}a:hover{color:#ffc4a8}
   </ul>
 
   <div style="font-size: 13px; color: #b6b9c4; border: 1px dashed #ffffff3d; border-radius: 12px; padding: 10px 14px; line-height: 1.5;">
-    Teil C: quadratische Cover ohne unscharfen Rahmen. Teil D: eine Reihe steht als <strong>eine Kachel</strong> mit Zahl der Bände (Stapel), Antippen öffnet die Reihe. Der Bleistift erscheint beim Zeigen oder mit dem Fokus, nur für Admins. Gezeigt sind 24 Kacheln aus Marcos Bibliothek, Cover sind Platzhalter.
+    Teil C: quadratische Cover ohne unscharfen Rahmen. Teil D, Marcos Wahl B: Reihen aus den Metadaten und von Hand angelegte Hörbuch-Sammlungen stehen in einer <strong>Zeile oben</strong>, darunter alle Hörbücher einzeln; Variante A zum Vergleich. Der Bleistift erscheint beim Zeigen oder mit dem Fokus, nur für Admins. Gezeigt sind 24 Kacheln aus Marcos Bibliothek, Cover sind Platzhalter.
   </div>
 </div>
 </div>
@@ -95,13 +95,13 @@ a{color:#f3a27f}a:hover{color:#ffc4a8}
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { variant: 'tile', sort: 'title' };
+    this.state = { variant: 'row', sort: 'title' };
   }
   renderVals() {
     var st = this.state, self = this;
     var S = [
       ['Harry Potter', 'J. K. Rowling', 8, 2], ['Bodyguard', 'Chris Bradford', 6, 4], ['Die Känguru-Werke', 'Marc-Uwe Kling', 4, 0],
-      ['Der Herr der Ringe', 'J. R. R. Tolkien', 3, 1], ['Silo', 'Hugh Howey', 3, 0], ['Flammengeküsst', 'Rebecca Yarros', 2, 0]
+      ['Der Herr der Ringe', 'J. R. R. Tolkien', 3, 1], ['Silo', 'Hugh Howey', 3, 0], ['Flammengeküsst', 'Rebecca Yarros', 2, 0], ['Hape für unterwegs', 'Sammlung von Hand', 3, 0]
     ];
     var B = [
       ['Die 1%-Methode', 'James Clear'], ['4000 Wochen', 'Oliver Burkeman'], ['Alt genug', 'Ildikó von Kürthy'], ['Brainhacks', 'Henry Hildebrandt'],
@@ -131,14 +131,14 @@ class Component extends DCLogic {
     list.sort(function (a, b) { return key(a).localeCompare(key(b), 'de'); });
     var pill = function (on) { return 'min-height: 36px; padding: 0 12px; border-radius: 18px; color: #f3f3f5; font-size: 13px; border: 1px solid ' + (on ? '#e8794a' : '#ffffff2e') + '; background: ' + (on ? '#e8794a33' : 'transparent') + ';'; };
     return {
-      variants: [['tile', 'A · Kachel je Reihe'], ['row', 'B · Reihen-Zeile oben']].map(function (v) {
+      variants: [['row', 'B · Reihen-Zeile oben (gewählt)'], ['tile', 'A · Kachel je Reihe']].map(function (v) {
         var on = st.variant === v[0];
         return { label: v[1], pressed: on ? 'true' : 'false', style: pill(on), pick: function () { self.setState({ variant: v[0] }); } };
       }),
       rowVariant: !tiles,
       seriesCards: S.map(seriesCard),
       cards: list,
-      countNote: tiles ? '89 Hörbücher · 17 Reihen' : '89 Hörbücher',
+      countNote: '89 Hörbücher · 17 Reihen · 1 Sammlung',
       sort: st.sort, setSort: function (e) { self.setState({ sort: e.target.value }); }
     };
   }

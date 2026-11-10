@@ -103,7 +103,7 @@ a{color:#f3a27f}a:hover{color:#ffc4a8}
   </div>
 
   <div style="font-size: 13px; color: #b6b9c4; border: 1px dashed #ffffff3d; border-radius: 12px; padding: 10px 14px; line-height: 1.5;">
-    Zahlen unter «Stand» aus Marcos Ordner (107 metadata.json, 46 mit Reihe, 1 mit ASIN, 2 mit ISBN). Audible und Audnexus sind ab Werk aus: Audibles Nutzungsbedingungen verbieten das automatische Auslesen; der Admin schaltet sie selbst ein (Konzept 19, Teil D).
+    Zahlen unter «Stand» aus Marcos Ordner (107 metadata.json, 46 mit Reihe, 1 mit ASIN, 2 mit ISBN). Marcos Wahl: alle Quellen samt Audible ab Werk an, «Alle ohne Zuordnung» automatisch. Audibles Nutzungsbedingungen verbieten das automatische Auslesen; der Hinweis bleibt, jeder Admin kann die Quelle ausschalten (Konzept 19, Teil D).
   </div>
 </div>
 </div>
@@ -112,14 +112,14 @@ a{color:#f3a27f}a:hover{color:#ffc4a8}
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { order: ['files', 'audible', 'dnb', 'itunes', 'openlib', 'google'], on: { files: true, audible: false, dnb: true, itunes: true, openlib: false, google: false },
-      auto: 'new', tol: '3', norm: { author: true, series: true }, ran: false };
+    this.state = { order: ['files', 'audible', 'dnb', 'itunes', 'openlib', 'google'], on: { files: true, audible: true, dnb: true, itunes: true, openlib: false, google: false },
+      auto: 'all', tol: '3', norm: { author: true, series: true }, ran: false };
   }
   renderVals() {
     var st = this.state, self = this;
     var P = {
       files: ['Dateien', 'immer', 'metadata.json, Tags, Ordner Autor/Reihe/Titel, Cover im Ordner oder eingebettet.', '', ''],
-      audible: ['Audible (Suche) und Audnexus (Details)', 'inoffiziell, ab Werk aus', 'Fast alles: Untertitel, Sprecher, Reihe und Band, Verlag, Länge, Beschreibung, ASIN, ISBN, Cover 2400 px, Autorenbild. Region:', 'Region', 'Schweiz → audible.de'],
+      audible: ['Audible (Suche) und Audnexus (Details)', 'inoffiziell, ab Werk an', 'Fast alles: Untertitel, Sprecher, Reihe und Band, Verlag, Länge, Beschreibung, ASIN, ISBN, Cover 2400 px, Autorenbild. Region:', 'Region', 'Schweiz → audible.de'],
       dnb: ['Deutsche Nationalbibliothek', 'CC0', 'Titel, Autor, Sprecher, Verlag, Jahr, Sprache, ISBN; prüft deutsche Titel. Keine Cover, keine Beschreibung.', '', ''],
       itunes: ['Apple Books', 'ohne Schlüssel', 'Cover bis 3000 px, Beschreibung, Genre. Kein Sprecher, keine Reihe.', '', ''],
       openlib: ['Open Library', 'offen', 'ISBN-Suche, selten Hörbuch-Angaben, selten quadratische Cover.', '', ''],

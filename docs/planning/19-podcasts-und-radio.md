@@ -1,4 +1,4 @@
-# Konzept: Podcasts, Radio, quadratische Cover und Hörbücher
+# Konzept: Podcasts, Radio, Hörbücher, quadratische Cover und Lautstärke
 
 - **Status: Fassung 3 (10. November 2026), Kritiker-Review eingearbeitet (REVISE, 0 Blocker,
   13 Major, 6 Minor; Abschnitt 18), mit klickbaren Mockups.** Marco hat am 9. November 2026 die
@@ -17,11 +17,14 @@
   **Fassung 7 (10. November 2026): Teil D dazu.** Hörbuch-Reihen im Bereich Hörbücher statt unter
   «Sammlungen», Bleistift und Editor für Hörbücher, externe Quellen («Scraper»); mit klickbaren
   Mockups (Anhang A). Offen: D11.
+  **Fassung 8 (10. November 2026):** Marcos Antworten auf alle offenen Fragen der Teile A bis D
+  eingetragen (17, B14, C6, D11). **Teil E dazu:** zwei Fehler der Lautstärke (Radio ohne Regler,
+  Regler im Podcast-Player flackert). Offen: E6.
   **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Aufbau:** **Teil A Podcasts** (Abschnitte 1 bis 18, Anhang A), **Teil B Radio** (Abschnitte
   B1 bis B15, Anhang B), **Teil C Quadratische Cover** (Abschnitte C1 bis C6) und **Teil D Hörbücher**
-  (Abschnitte D1 bis D11, Mockups in Anhang A). Die Teile sind unabhängig; jeder hat eigene Stufen und
-  Releases.
+  (Abschnitte D1 bis D11, Mockups in Anhang A) und **Teil E Lautstärke** (Abschnitte E1 bis E6). Die
+  Teile sind unabhängig; jeder hat eigene Stufen und Releases.
 - **Auslöser:** Marco will, dass Slouchcat neue Podcast-Folgen als Datei in den Ordner des Podcasts
   speichert, statt nur den Link zum Anbieter zu halten. Vorhandene Dateien sollen wie heute erkannt
   und ausgelesen werden. In der Verwaltung soll wählbar sein, ob neue Folgen gespeichert oder nur
@@ -47,7 +50,8 @@
 > wird; Abschnitt 15 teilt den Bau in zwei Stufen. Teil B beschreibt, wie der Admin das Radio-Angebot
 > wählt und woher der Server Logos und weitere Angaben holt; B12 teilt den Bau in zwei Stufen. Teil C
 > beschreibt quadratische Cover in der Übersicht von Hörbuch- und Podcast-Bibliotheken (eine Stufe).
-> Teil D beschreibt Reihen, Bleistift und externe Quellen für Hörbücher (vier Stufen, D9).
+> Teil D beschreibt Reihen, Bleistift und externe Quellen für Hörbücher (vier Stufen, D9). Teil E behebt
+> zwei Fehler der Lautstärke (eine Stufe).
 
 # Teil A: Podcasts
 
@@ -305,6 +309,26 @@ damit Audiobookshelf und Freigaben des NAS neue Folgen lesen können. Besitzer i
 Containers; im unprivilegierten LXC von CT 190 ist das eine andere Nummer als die von
 Audiobookshelf (`100999:100991`). Die Ordnerprüfung (5.4) meldet, wenn Gruppe oder Lesbarkeit nicht
 stimmen.
+
+### 6.5 Tags schreiben (O-7)
+
+Marco will, dass gespeicherte Folgen Titel und Datum in den Tags tragen (10. November 2026). Neu
+zwischen Schritt 4 (Sonde) und Schritt 5 (Name) in 6.2:
+
+- **4b. Tags:** `transcode.Runner.TagAudio` schreibt mit ffmpeg ohne Umkodieren (`-map 0 -c copy`,
+  Regel 3: nur im Paket `transcode`, Argumentliste) die Teildatei in eine zweite eigene Teildatei
+  `.slouchcat-<episodeId>.tagged`: **Titel** der Folge, **Album** = Name des Podcasts, **Interpret** =
+  Autor des Feeds, **Datum** = Veröffentlichung, **Kommentar** = Adresse der Seite der Folge, wenn sie
+  im Feed steht. Vorhandene Tags des Anbieters bleiben, wo Slouchcat nichts setzt.
+- Nur für `mp3` (ID3v2.4) und `m4a`/`m4b` (MP4-Tags); andere Formate bleiben unverändert.
+- Danach läuft die Sonde noch einmal auf der getaggten Datei; schlägt sie fehl, nimmt der Download die
+  ungetaggte Teildatei und schreibt einen Hinweis ins Jobprotokoll.
+- Die Datei weicht damit von der des Anbieters ab. Der Schlüssel gegen doppelte Downloads (Abschnitt 8)
+  vergleicht Namen und Titel, nicht Inhalte; er ist davon nicht betroffen.
+- Ein vorhandenes Cover in der Datei bleibt; Slouchcat bettet kein eigenes ein.
+- Test P-19: eine geladene `mp3` und eine `m4a` tragen danach Titel, Album und Datum; eine `ogg` bleibt
+  unverändert; die Sonde nach dem Taggen schlägt in einem Test fehl und die ungetaggte Datei wird
+  eingetragen.
 
 ## 7. Abspielen, Benachrichtigen, Geräte-Downloads
 
@@ -573,6 +597,7 @@ Downloads abgeben. Jeder Schritt ist ein eigener Commit; geprüft wird nach den 
 | P-16 | Eine fremde Datei mit dem Zielnamen entsteht kurz vor dem Eintragen: sie bleibt unverändert, die Folge bekommt den nächsten Namen. | Go |
 | P-17 | Keine Enclosure-Adresse in Jobnotiz, Fehlercode oder Log. | Go (Redaktionstest) |
 | P-18 | Der Geräte-Download verhält sich nach dem Umzug nach `internal/fetch` wie vorher. | bestehende Tests von `offline` |
+| P-19 | Tags (6.5): `mp3` und `m4a` tragen Titel, Album und Datum; `ogg` bleibt unverändert; scheitert die Sonde nach dem Taggen, wird die ungetaggte Datei eingetragen. | Go (`transcode` mit Testdateien) |
 
 Eingefrorener Datenbankstand nach der Migration (`testdata/db/`), Vertragstest für jede neue
 Operation, `task storybook:test` für das Cover.
@@ -582,17 +607,17 @@ Operation, `task storybook:test` für das Cover.
 | Nr. | Punkt | Empfehlung |
 |---|---|---|
 | O-1 | ~~Lesart von «Neue und fehlende Folgen»~~ | **erledigt** (9. November 2026): Marco hat den Wert gestrichen |
-| O-2 | Stand nach dem Update: «Nur Link», bis Marco umstellt? | ja; kein Download ohne sein Zutun |
-| O-3 | Formate, die der Scanner nicht liest (`aac`, `wav`, Video-Podcasts als `mp4`; auf dem NAS liegen 10 MP4): Link lassen? | ja, mit Hinweis «Format wird nicht gespeichert»; Video-Podcasts sind ein eigenes Thema |
+| O-2 | ~~Stand nach dem Update~~ | **beantwortet** (10. November 2026): «Nur Link», bis Marco umstellt |
+| O-3 | ~~Formate, die der Scanner nicht liest~~ | **beantwortet** (10. November 2026): Link lassen, mit Hinweis «Format wird nicht gespeichert»; Video-Podcasts sind ein eigenes Thema |
 | O-4 | ~~«Gleichzeitig laden» als Einstellung oder fest?~~ | **erledigt** (9. November 2026): Einstellung, 1 bis 5 |
-| O-5 | Neue Folge sofort beim Feed-Abruf melden oder erst, wenn die Datei da ist? | sofort, die Folge ist als Stream hörbar |
-| O-6 | Bandbreite begrenzen? | nein; Zeitfenster und «Gleichzeitig laden» genügen |
-| O-7 | Tags in die Datei schreiben (Titel, Datum)? | nein; die Datei bleibt, wie der Anbieter sie liefert |
+| O-5 | ~~Neue Folge sofort melden oder erst mit Datei?~~ | **beantwortet** (10. November 2026): sofort beim Feed-Abruf |
+| O-6 | ~~Bandbreite begrenzen?~~ | **beantwortet** (10. November 2026): nein |
+| O-7 | ~~Tags in die Datei schreiben?~~ | **beantwortet** (10. November 2026): **ja**, gegen die Empfehlung; Umsetzung in 6.5 |
 | O-8 | ~~Schlägt die Sonde einer geladenen Datei fehl: Datei löschen?~~ | **erledigt** (Review, Befund 3): die Sonde läuft vor dem Eintragen auf der eigenen Teildatei; was durchfällt, kommt nie in den Ordner |
 | O-9 | ~~Mehrfachauswahl (Variante C) zusätzlich zu A?~~ | **erledigt** (9. November 2026): Marco hat A gewählt; Mehrfachauswahl erst bei Bedarf |
-| O-10 | «Je Anbieter einer»: Podcasts hinter demselben Zähl-Dienst laden nacheinander. Reicht das, oder soll der Host nach der Weiterleitung zählen? | vor der Weiterleitung (einfach, schonend); M-1 zählt die Hosts, danach entscheiden |
-| O-11 | Hört Marco nach dem Wechsel weiter mit Audiobookshelf? Dann müssen dessen Benutzer die neuen Dateien lesen können (6.4). | Rechte 0664 und 0775 genügen dafür; bei der Abnahme prüfen |
-| O-12 | Dateisysteme ohne harte Links (manche SMB-Freigaben): «Speichern» gesperrt. Genügt das? | ja; Marcos Ordner liegt auf NFS |
+| O-10 | ~~Welcher Host zählt für «je Anbieter einer»?~~ | **beantwortet** (10. November 2026): der Host vor der Weiterleitung (der Zähldienst) |
+| O-11 | ~~Hört Marco weiter mit Audiobookshelf?~~ | **beantwortet** (10. November 2026): nein, nur noch Slouchcat; die Rechte 0664 und 0775 bleiben trotzdem |
+| O-12 | ~~Ohne harte Links «Speichern» gesperrt?~~ | **beantwortet** (10. November 2026): ja, gesperrt |
 
 ## 18. Kritiker-Review vom 9. November 2026
 
@@ -679,7 +704,7 @@ genau das.
 | Konzept 16, 5.5: «Ausblenden» je Sender (`radio_stations.hidden`). | Heisst **«Aus dem Angebot nehmen»** und ist eine Ausnahme im Angebot (B4.1). | R-2 |
 | Konzept 16, 6: Logos holt der Server beim ersten Anzeigen, nach dem Abgleich für Favoriten und Empfohlene. | Logos und alle weiteren Angaben holt er **nur für Sender im Angebot** (B7). | RF-8 |
 | Konzept 16, 5.2: «Gestörte Sender» sind in der App ausgeblendet (Schalter, ab Werk an). | Bleibt als Schalter «Nicht erreichbare weglassen», zieht in den Reiter «Angebot». Neu: **«Nicht erreichbare entfernen»** (B6). | R-3 |
-| Neue Installation: die App zeigt den ganzen Katalog. | Eine neue Installation startet mit dem **Standardland des Servers** im Angebot (B4.4). | R-2 |
+| Neue Installation und Update: die App zeigt den ganzen Katalog (oder die gewählten Länder). | Das Angebot ist nach dem Update und auf einer neuen Installation **leer**, bis der Admin Länder wählt (B4.4, Marcos Antwort auf OB-2). | R-2, OB-2 |
 
 Unberührt bleiben ADR 0025 für Weiterleitung, Zeitversatz, Hör-Sitzungen und Hörzeit, die stabile
 Kennung der Sender (Konzept 16, 5.3), das Standardland je Profil (F-12), der Sprachenfilter der App
@@ -713,8 +738,8 @@ Folgen der Regel:
   ihm seine Ausnahme: ein demarkierter bleibt draussen, ein markierter drin. Ohne Ausnahme gilt der
   Modus des neuen Landes.
 - **Sender ohne gültiges Land** (rund 1'000) lassen sich in der Verwaltung nicht wählen (es gibt kein
-  Land dafür, **OB-7**). Ein solcher Favorit bleibt nach dem Update erhalten, weil die Übernahme ihn
-  markiert (B4.4).
+  Land dafür, OB-7); wer einen will, trägt ihn als eigenen Sender ein. Ein solcher Favorit bleibt in der
+  Datenbank, erscheint aber nicht.
 - **Eigene Sender** zählen nicht in «n von m» eines Landes und erscheinen in der App im Länderfilter,
   wenn sie ein Land haben.
 - **Ein Sender, der nach 7 Tagen ohne Katalogeintrag gelöscht wird**, nimmt seine Ausnahme mit
@@ -776,32 +801,35 @@ Server rechnet, der Client zeigt nur an:
 
 ### B4.4 Erster Start nach dem Update und neue Installation
 
-Die Migration legt die Tabellen an und setzt ein Merkmal «Angebot noch nicht befüllt». Befüllt wird
-**beim ersten Start im Server**, weil SQL das wirksame Standardland nicht kennt (Zeitzone, dann
-`metadata.rating_country`, dann `DE`; `catalog_profile.go`, `defaultCountry`). Empfehlung (**OB-2**):
+**Marcos Entscheid (OB-2, 10. November 2026): Das Angebot ist nach dem Update leer.** Auch eine neue
+Installation beginnt leer. Bis der Admin im Reiter «Angebot» Länder wählt, zeigt die Radioseite keinen
+Sender; Favoriten bleiben in der Datenbank und erscheinen wieder, sobald ihr Sender im Angebot ist.
 
-1. Ist `radio_config.countries` gesetzt: diese Länder mit «Alle».
-2. Sonst: das Standardland jedes Profils (gespeichert oder wirksam) mit «Alle». Auf einer neuen
-   Installation ohne Profil: das Standardland des Servers.
-3. Jeder Favorit, der **heute sichtbar** ist (nicht ausgeblendet, Land in der Liste oder keine
-   Liste) und nach 1 und 2 nicht im Angebot wäre, wird **markiert**. Das gilt auch für Favoriten ohne
-   Land. Damit verliert kein Profil einen Favoriten, den es heute sieht; Favoriten, die heute verborgen
-   sind, bleiben verborgen.
-4. Jeder ausgeblendete Sender (`hidden = 1`), auch ein eigener, wird **demarkiert**.
-5. Danach: Filterwerte neu ableiten (B5), Anbieter nachtragen (B7.4), Logos des Angebots
-   vorholen (B7.2), Merkmal löschen.
+Die Migration legt die Tabellen an und setzt ein Merkmal «nach dem Update noch nicht vorbereitet».
+Beim ersten Start erledigt der Server im Go-Code, was SQL allein nicht kann:
+
+1. Jeder ausgeblendete Sender (`hidden = 1`), auch ein eigener, wird **demarkiert**. Wählt der Admin
+   später sein Land, bleibt er draussen wie heute.
+2. Filterwerte aller Sender neu ableiten (B5), Anbieter nachtragen (B7.4), Merkmal löschen.
+3. Keine Logos vorholen: im Angebot ist noch nichts.
 
 `radio_config.countries` und `radio_stations.hidden` bleiben in den Tabellen und werden nicht mehr
-gelesen (wie der Vorgabewert `'ahead'` aus 00042; kein Neubau der Tabellen).
+gelesen (wie der Vorgabewert `'ahead'` aus 00042; kein Neubau der Tabellen). Die Werte aus
+`countries` übernimmt das Angebot **nicht**.
+
+**Hinweise:** Die Zustandsleiste der Verwaltung zeigt bei leerem Angebot «Noch keine Sender im
+Angebot» mit Link zum Reiter «Angebot»; die Radioseite zeigt den leeren Zustand aus B4.5. Die
+Versionshinweise des Releases sagen es deutlich.
 
 ### B4.5 Die App
 
 - **Filter «Land»** und der Schnellfilter «Mein Land» zeigen nur Länder mit Sendern im Angebot.
-- **Standardland ausserhalb des Angebots:** Der Server liefert neben dem gespeicherten
-  `defaultCountry` ein `effectiveCountry`: das gespeicherte Land, wenn es Sender im Angebot hat, sonst
-  das Land mit den meisten Sendern im Angebot. Die Radioseite öffnet mit `effectiveCountry`, auch für
-  «Beliebt in <Land>», und schreibt nur `defaultCountry` zurück. Die gespeicherte Wahl bleibt so
-  erhalten (**OB-10**).
+- **Standardland ausserhalb des Angebots** (Marcos Entscheid OB-10): Der Server liefert neben dem
+  gespeicherten `defaultCountry` ein `effectiveCountry`: das gespeicherte Land, wenn es Sender im
+  Angebot hat, sonst **leer**. Leer heisst: die Radioseite öffnet **ohne Landfilter** mit allen Sendern
+  des Angebots, und die Reihe «Beliebt in <Land>» heisst «Beliebt» und gilt für das ganze Angebot. Die
+  Seite schreibt nur `defaultCountry` zurück; die gespeicherte Wahl bleibt und gilt wieder, sobald ihr
+  Land im Angebot ist.
 - **Gespeicherter Filter** (`lastFilter`) mit einem Land ausserhalb des Angebots: Der Server lässt
   dieses Land beim Lesen weg.
 - **Leeres Angebot:** `RadioFacets.offerEmpty`; die Radioseite sagt «Noch keine Sender ausgewählt»
@@ -876,7 +904,7 @@ Listen, Favoriten, Startseiten-Reihe) und nach dem Abgleich die Favoriten und Em
 | nach dem Abgleich (`queueSyncLogos`) | Favoriten, Empfohlene | **neu ins Angebot gekommene** Sender (neue Sender in Ländern mit «Alle»), Favoriten, Empfohlene im Angebot |
 | eigener Sender angelegt, eigenes Logo gelöscht | ja | unverändert |
 | **«Übernehmen»** | – | neu: alle Sender, die dazukamen und kein Logo haben |
-| **erster Start nach dem Update** | – | neu: das ganze übernommene Angebot (B4.4) |
+| erster Start nach dem Update | – | nichts; das Angebot ist leer (B4.4) |
 | Senderliste und Bildroute der Verwaltung | – | nie |
 
 Reihenfolge innerhalb eines Auslösers: Favoriten, dann nach Beliebtheit (`popularity` = Stimmen plus
@@ -921,7 +949,9 @@ Ein Sender bekommt die Spalte `provider`:
 2. **Stufe B2:** der Eigentümer aus Wikidata, wenn ein eindeutiger Treffer da ist (z. B. «Schweizer
    Radio und Fernsehen» für Radio SRF 3).
 
-Gezeigt wird der Anbieter nur in der Verwaltung (Reiter «Sender», Spalte und Filter; **OB-8**).
+Gezeigt wird der Anbieter in der Verwaltung (Reiter «Sender», Spalte und Filter) **und in der App**
+(Marcos Entscheid OB-8): in der Senderliste und in «Jetzt läuft» unter dem Namen, nach Land und Region
+(«Schweiz · srg-ssr.ch»; ab B2 der Eigentümer, «Schweiz · Schweizer Radio und Fernsehen»).
 Stichprobe der 8'000 meistgeklickten Katalogeinträge (9. November 2026): `zeno.fm` 494,
 `streamtheworld` 436, `infomaniak` 168; von 127 Schweizer Einträgen darin laufen 41 über
 `srg-ssr.ch`.
@@ -1045,7 +1075,7 @@ Spalte **Anbieter**. Über der Liste «Nicht erreichbare entfernen (n)» (B6). J
 | `radio_offer_countries` | `country` (zwei Grossbuchstaben, Primärschlüssel), `mode` (`all`/`marked`), `updated_at` |
 | `radio_offer_exceptions` | `station_id` (Primärschlüssel, Fremdschlüssel auf `radio_stations`, `ON DELETE CASCADE`), `offered` (0/1), `updated_at`; gilt unabhängig vom Land (B4.1) |
 | `radio_config.offer_version` | Versionsnummer des Angebots (B4.3) |
-| `radio_config.offer_seeded` | 0 nach der Migration, 1 nach der Befüllung beim ersten Start (B4.4) |
+| `radio_config.offer_seeded` | 0 nach der Migration, 1 nach der Vorbereitung beim ersten Start (B4.4) |
 | `radio_config.hide_broken` | bleibt, gehört jetzt zum Angebot |
 | `radio_stations.provider` | Anbieter (B7.4) |
 | `radio_config.countries`, `radio_stations.hidden` | bleiben, werden nicht mehr gelesen |
@@ -1081,7 +1111,8 @@ Im Repository heisst eine brechende Änderung eine neue Nebenversion mit dem Ver
 | `createRadioStation` (`AdminRadioStationCreate`) | `admin` | **entfallen** `genres`, `kinds`, `moods` |
 | `RadioConfig`, `RadioConfigUpdate` | `admin` | **entfallen** `countries`, `hideBroken` |
 | `getRadioTagRules`, `setRadioTagRules` | – | **entfallen** |
-| `RadioPreferences` | `scoped` | neu `effectiveCountry` (additiv) |
+| `RadioPreferences` | `scoped` | neu `effectiveCountry` (additiv; leer = ohne Landfilter) |
+| `RadioStation` | `scoped` | neu `provider` (additiv, B7.4) |
 | `RadioFacets` | `scoped` | neu `offerEmpty` (additiv) |
 
 «Nicht erreichbare entfernen» und «Aus dem Angebot nehmen» im Reiter «Sender» sind
@@ -1103,7 +1134,7 @@ Betroffene Stellen im Client: `SettingsTab`, `StationEditor`, `StationsTab`, `Cr
 | Stufe | Inhalt | Release | Aufwand |
 |---|---|---|---|
 | **B0** | Messung auf CT 190 mit der echten Logo-Kette (96 Pixel, Drossel 2 und 4 je Sekunde, Sperre je Host) für die Schweiz und Deutschland, Speicher je Logo, Zeit einer Vorschau über den ganzen Index, Zahlen je Land aus dem echten Index. Ergebnis nach `docs/perf/19-radio.md`. ADR 0030 «Radio-Angebot statt ganzer Katalog» (ergänzt ADR 0025). | – | ½ Tag |
-| **B1 «Angebot»** | Migration 00045, Befüllung beim ersten Start (B4.4), Momentaufnahme im Speicher, Regel in `reachable`, `closeUnreachable` nach dem Tausch, Vorschau und Übernehmen mit Version, neue Logo-Auslöser, Sperre je Host, Drossel, Aufräumen gelöschter Sender, Anbieter aus dem Stream-Host, Neuableitung der Filterwerte, Vertrag 1.26.0. Oberfläche: Reiter «Angebot», «Sender» neu, «Einordnung» weg, Editor und Anlegen ohne Filterfelder, Einstellungen ohne Länder, Zustandsleiste, Radioseite mit `effectiveCountry` und leerem Angebot. | 1.26.0 | 6 bis 7 Tage |
+| **B1 «Angebot»** | Migration 00045, Vorbereitung beim ersten Start (B4.4, Angebot leer), Momentaufnahme im Speicher, Regel in `reachable`, `closeUnreachable` nach dem Tausch, Vorschau und Übernehmen mit Version, neue Logo-Auslöser, Sperre je Host, Drossel, Aufräumen gelöschter Sender, Anbieter aus dem Stream-Host, Neuableitung der Filterwerte, Vertrag 1.26.0. Oberfläche: Reiter «Angebot», «Sender» neu, «Einordnung» weg, Editor und Anlegen ohne Filterfelder, Einstellungen ohne Länder, Zustandsleiste, Radioseite mit `effectiveCountry` und leerem Angebot. | 1.26.0 | 6 bis 7 Tage |
 | **B2 «Mehr Angaben»** | Migration 00046, `radio.wikidata.sync`, Eigentümer als Anbieter, Gründung, Herkunft je Angabe im Aufklapp, Einstellung «Wikidata verwenden», Vertrag 1.27.0. | 1.27.0 | 2 bis 3 Tage |
 
 Die Nummern sind vorläufig. Teil A und Teil B sind unabhängig; baut Marco Teil B zuerst, bekommt er
@@ -1120,10 +1151,10 @@ der echten Nummer. Jede Stufe ist ein eigener Zweig, ein PR, eine Abnahme auf CT
 | PB-3 | `markMatching`/`demarkMatching` mit über 100 Treffern: genau die Treffer ändern sich, der Modus bleibt; die Vorschau zeigt die zweite Seite richtig. | Go |
 | PB-4 | Nach «Übernehmen» werden nur die neu dazugekommenen Sender ohne Logo eingereiht, Favoriten zuerst; Vorschau, Senderliste und Bildroute der Verwaltung reihen nichts ein. | Go (Queue-Attrappe) |
 | PB-5 | 77 Logo-Aufträge mit demselben Host: nie zwei gleichzeitig; ein Scan-Auftrag wird in dieser Zeit sofort angenommen. | Go |
-| PB-6 | Erster Start nach der Migration: `countries = ["CH"]` → Schweiz «Alle»; ohne `countries` und ohne gespeichertes Profilland → Standardland des Servers; ein sichtbarer Favorit in Frankreich und einer ohne Land → markiert; ein ausgeblendeter Schweizer und ein ausgeblendeter eigener Sender → demarkiert; ein heute verborgener Favorit bleibt verborgen. | Go (eingefrorener Stand) |
+| PB-6 | Erster Start nach der Migration: das Angebot ist leer, auch mit `countries = ["CH"]`; ein ausgeblendeter Schweizer und ein ausgeblendeter eigener Sender sind demarkiert; Favoriten stehen noch in der Datenbank. Wählt der Admin danach die Schweiz, sind der Schweizer Favorit wieder da und der ausgeblendete Sender nicht. | Go (eingefrorener Stand) |
 | PB-7 | Erster Start nach der Migration: Regeln des Admins, manuelle Filterwerte und Filterschlösser sind weg; die Filterwerte eines Katalogsenders, eines Senders ohne Schlagworte und eines eigenen Senders entsprechen der Regeldatei. | Go (eingefrorener Stand) |
 | PB-8 | «Nicht erreichbare entfernen» demarkiert genau die nicht erreichbaren Sender im Angebot ausser Favoriten und eigenen; «Rückgängig» stellt sie wieder her. | Go, Vitest |
-| PB-9 | Standardland eines Profils nicht im Angebot: `effectiveCountry` ist das grösste Land im Angebot, `defaultCountry` bleibt; ein gespeicherter Filter verliert das Land. Leeres Angebot: `offerEmpty`. | Go, Vitest |
+| PB-9 | Standardland eines Profils nicht im Angebot: `effectiveCountry` ist leer, die Radioseite zeigt alle Sender des Angebots ohne Landfilter und die Reihe «Beliebt»; `defaultCountry` bleibt; ein gespeicherter Filter verliert das Land. Leeres Angebot: `offerEmpty`. | Go, Vitest |
 | PB-10 | Tastatur im Reiter «Angebot»: Land suchen, Kontinent öffnen, Land wählen, Senderliste öffnen, Haken setzen, übernehmen, ohne Maus; sichtbarer Fokus, keine Fokusfalle. | Playwright |
 | PB-11 | Zwei Entwürfe: der zweite «Übernehmen» bekommt 409, die neu gerechnete Vorschau enthält beide Änderungen. | Go, Vitest |
 | PB-12 | Ein Sender verlässt das Angebot, während ein Profil ihn hört: der nächste Heartbeat bekommt 404, das Relay stoppt. | Go |
@@ -1132,19 +1163,21 @@ der echten Nummer. Jede Stufe ist ein eigener Zweig, ein PR, eine Abnahme auf CT
 
 ## B14. Offene Punkte zum Teil B
 
-| Nr. | Punkt | Empfehlung |
+Alle beantwortet am 10. November 2026.
+
+| Nr. | Punkt | Marcos Antwort |
 |---|---|---|
-| OB-1 | Neue Sender eines Landes: bei «Alle» kommen sie von selbst dazu, nach «Alle demarkieren» nicht (B4.1). | so; der Kopf der Senderliste sagt, was gilt |
-| OB-2 | Angebot beim ersten Start (B4.4): gesetzte Länder, sonst Standardländer der Profile oder des Servers, dazu jeder heute sichtbare Favorit einzeln. | so; kein Profil verliert einen sichtbaren Favoriten |
-| OB-3 | Lesart von «Metadaten erst nach dem Hinzufügen»: Grunddaten des Katalogs für alle, jeder zusätzliche Abruf nur für das Angebot (B7.1). | so |
-| OB-4 | Regeln des Admins, manuelle Filterwerte und Filterschlösser löschen (B5) oder still weiter gelten lassen? | löschen; «keine Zuordnung von Hand» heisst auch keine alten |
-| OB-5 | Wikidata: nur Eigentümer und Gründung, nur in der Verwaltung, keine Logos (B7.1). | so |
-| OB-6 | Nicht erreichbare Favoriten bleiben sichtbar mit Hinweis, und «Nicht erreichbare entfernen» lässt Favoriten und eigene Sender aus (B6). | so |
-| OB-7 | Sender ohne gültiges Land lassen sich nicht neu wählen, nur über «Eigene Sender»; heutige Favoriten bleiben (B4.4). | so |
-| OB-8 | Anbieter nur in der Verwaltung (B7.4). | so |
-| OB-9 | Untergrenze für ein Logo: heute 96 Pixel, gemessen mit 64. | 96 behalten; B0 misst mit 96 |
-| OB-10 | Standardland ausserhalb des Angebots: `effectiveCountry` = grösstes Land im Angebot, gespeicherte Wahl bleibt (B4.5). | so |
-| OB-11 | Gemeinsame Drossel für Logos von 2 auf 4 Abrufe je Sekunde, zusammen mit der Sperre je Host (B7.2). | 4; B0 misst beide Werte |
+| OB-1 | Neue Sender eines Landes | bei «Alle» kommen sie von selbst dazu, nach «Alle demarkieren» nicht (Empfehlung) |
+| OB-2 | Angebot nach dem Update | **leer**, bis der Admin Länder wählt (gegen die Empfehlung; B4.4) |
+| OB-3 | Lesart «Metadaten erst nach dem Hinzufügen» | wie B7.1 (Empfehlung) |
+| OB-4 | Alte Regeln und Handwerte | löschen (Empfehlung) |
+| OB-5 | Wikidata | Eigentümer und Gründung, nur in der Verwaltung, keine Logos (Empfehlung) |
+| OB-6 | Nicht erreichbare Favoriten | sichtbar mit Hinweis; «Nicht erreichbare entfernen» lässt Favoriten und eigene Sender aus (Empfehlung) |
+| OB-7 | Sender ohne gültiges Land | nur über «Eigene Sender» (Empfehlung) |
+| OB-8 | Wo der Anbieter erscheint | **auch in der App** (gegen die Empfehlung; B7.4) |
+| OB-9 | Untergrenze Logo | 96 Pixel (Empfehlung) |
+| OB-10 | Standardland ausserhalb des Angebots | **ohne Landfilter** (gegen die Empfehlung; B4.5) |
+| OB-11 | Drossel für Logos | 4 je Sekunde, mit Sperre je Host (Empfehlung) |
 
 ## B15. Kritiker-Review vom 10. November 2026
 
@@ -1220,9 +1253,15 @@ dem Filter «Inhalt» (`params.content`):
 | gemischt mit Filmen oder Serien, Filter «Alle» | 2:3-Rahmen wie heute (C-1 gilt, der Titel bleibt bündig) |
 | gemischt, Filter «Inhalt» auf Hörbücher oder Podcasts | quadratisch |
 
+**Offline-Bibliothek** (Marcos Antwort auf OC-2): Heruntergeladene Hörbücher und Podcasts zeigen ihr
+Cover ebenfalls quadratisch ohne Rahmen. Damit die Titel einer Zeile bündig bleiben (OC-1), teilt die
+Seite die fertigen Downloads in zwei Abschnitte, sobald beide Arten da sind: **«Filme und Serien»**
+(2:3) und **«Hörbücher und Podcasts»** (quadratisch). Gibt es nur eine Art, gibt es nur einen Abschnitt
+ohne Überschrift. Der Abschnitt «Wird geladen» bleibt gemischt im 2:3-Rahmen.
+
 **Unverändert (2:3-Rahmen mit unscharfem Grund, C-1):** die Startseite mit allen Reihen und ihren
 Vorab-Karten (`preload.go`, `#poster-prepaint`), Suche, Merkliste, Sammlung, User-Empfehlungen,
-Personenseite, Offline-Bibliothek und jede Liste über `PagedItemGrid`.
+Personenseite und jede Liste über `PagedItemGrid`.
 
 ## C3. Umsetzung
 
@@ -1236,6 +1275,8 @@ Personenseite, Offline-Bibliothek und jede Liste über `PagedItemGrid`.
   zwischen gemischt und Audio, misst das Raster neu (wie bei einer anderen Spaltenbreite).
 - `LibraryPage` setzt `cover="square"` nach der Tabelle in C2. `PagedItemGrid` setzt nichts und
   bleibt beim 2:3-Rahmen.
+- `OfflineLibraryPage` (`DownloadCard`): `frame="own"` für Audio im Abschnitt «Hörbücher und
+  Podcasts»; die fertigen Downloads werden nach Art in zwei Abschnitte geteilt.
 - Kein Vertrag, keine Migration, keine Änderung am Server. Farben und Masse nur aus Tokens.
 
 ## C4. Abnahme und Tests
@@ -1247,6 +1288,7 @@ Personenseite, Offline-Bibliothek und jede Liste über `PagedItemGrid`.
 | PC-3 | Startseite, Suche und Merkliste zeigen Hörbücher und Podcasts unverändert im 2:3-Rahmen. | Vitest |
 | PC-4 | Tastatur in der quadratischen Übersicht: Pfeiltasten, Tab, Enter, Zurück zur selben Karte, sichtbarer Fokus. | Playwright (bestehender Test der Bibliotheksseite um eine Audio-Bibliothek ergänzt) |
 | PC-5 | Storybook: `PosterCard` quadratisch ohne Rahmen, mit Stift und mit «Gesehen»-Haken; Baselines neu. | `task storybook:test` |
+| PC-6 | Offline-Bibliothek mit einem Film und einem Hörbuch: zwei Abschnitte, das Hörbuch quadratisch ohne Rahmen; nur Hörbücher: ein Abschnitt ohne Überschrift. | Vitest, Playwright (bestehender Offline-Test) |
 
 ## C5. Bauplan
 
@@ -1259,10 +1301,12 @@ ausdrückliches Wort.**
 
 ## C6. Offene Punkte zum Teil C
 
-| Nr. | Punkt | Empfehlung |
+Beantwortet am 10. November 2026.
+
+| Nr. | Punkt | Marcos Antwort |
 |---|---|---|
-| OC-1 | Gemischte Bibliothek mit Filter «Alle»: 2:3-Rahmen wie heute (C2), damit die Titel bündig bleiben? | ja |
-| OC-2 | Die neue Podcasts-Seite der Verwaltung (Teil A, Stufe 2) zeigt ihre Cover ohnehin quadratisch; die Offline-Bibliothek bleibt beim Rahmen. Einverstanden? | ja; «Nur in der Bibliotheksübersicht» |
+| OC-1 | Gemischte Bibliothek mit Filter «Alle» | 2:3-Rahmen wie heute, Titel bündig (Empfehlung) |
+| OC-2 | Offline-Bibliothek | **auch quadratisch** (gegen die Empfehlung); umgesetzt mit zwei Abschnitten, damit OC-1 auch dort gilt (C2) |
 
 # Teil D: Hörbücher – Reihen, Bleistift und Quellen
 
@@ -1277,10 +1321,10 @@ einer Stelle an Teil C (quadratische Kacheln, D4.2) und ist sonst von Teil A und
 | H-2 | «Auch bei den Hörbüchern möchte ich den Bleistift, um die Metadaten anzupassen.» Dazu ein Mockup. | D5, Anhang A |
 | H-3 | «Auch benötigen wir da wohl ein paar Scraper.» Ins Konzept nehmen und das Ganze planen. | D6 |
 
-Zu H-1 hat Marco zwei Fragen nicht beantwortet (Quelle der Sammlungen, Art der Anzeige), sondern
-gleich H-2 und H-3 nachgeschoben. Teil D nimmt darum die Empfehlungen an und führt sie als offene
-Punkte (OD-1, OD-2): Die Sammlungen sind die **Reihen aus den Metadaten** der Hörbücher, gezeigt als
-**eine Kachel je Reihe**.
+Marcos Antworten vom 10. November 2026 (D11): Hörbuch-Sammlungen sind **beides**, die Reihen aus den
+Metadaten **und** von Hand angelegte Sammlungen mit Hörbüchern (OD-1); gezeigt als **Zeile «Reihen und
+Sammlungen» über allen Hörbüchern** (OD-2). Alle Quellen samt Audible sind ab Werk an (OD-3), und
+Slouchcat ordnet **alle Hörbücher ohne Zuordnung** automatisch zu (OD-4).
 
 ## D2. Was sich gegenüber früheren Entscheiden ändert
 
@@ -1289,7 +1333,7 @@ Punkte (OD-1, OD-2): Die Sammlungen sind die **Reihen aus den Metadaten** der H�
 | Konzept 07 und ADR 0015: «Der «Hörbuch Scraper» ist der heutige lokale Erkenner. Ein externer Hörbuch-Anbieter kommt im Scraper-Konzept» (`07-bibliotheken.md`, Entscheid vom 28. Oktober 2026); ADR 0007: «Metadaten ohne externen Dienst». | **Externe Quellen für Hörbücher**, je Quelle ein Schalter; die Dateien bleiben die erste Quelle (D6). | H-3 |
 | Konzept 15, 7.1 bis 7.5: Bleistift und Editor für Film, Serie, Staffel und Folge. | Dazu **Hörbuch** (D5). | H-2 |
 | Konzept 10: «Für Hörbücher und Podcasts bleibt `coverSource`, wie es ist.» | Für **Hörbücher** gibt es Cover-Kandidaten und Hochladen (D5.3); Podcasts bleiben, wie sie sind. | H-2 |
-| Konzept 17, «Reihe»: ein Abschnitt je Sammlung auf der Detailseite, für jede Art, die in einer Sammlung sein kann. | Hörbuch-Reihen sind **keine Sammlungen** (keine Zeile in `collections`, nicht in der Startseiten-Reihe «Sammlungen»); sie haben eine eigene Seite in der Bibliothek (D4). Von Hand angelegte Sammlungen mit Hörbüchern bleiben, wie sie sind. | H-1 |
+| Konzept 17, «Reihe», und Konzept 08 E-6: Sammlungen aller Arten stehen in der Startseiten-Reihe «Sammlungen» und als Abschnitt auf der Detailseite. | Hörbuch-Reihen sind **keine Sammlungen** (keine Zeile in `collections`); sie haben eine eigene Seite in der Bibliothek (D4). **Von Hand angelegte Sammlungen, die nur Hörbücher enthalten, stehen im Bereich Hörbücher statt in der Startseiten-Reihe «Sammlungen».** | H-1, OD-1 |
 
 ## D3. Befund (Stand `e90109a6`)
 
@@ -1345,10 +1389,14 @@ Punkte (OD-1, OD-2): Die Sammlungen sind die **Reihen aus den Metadaten** der H�
 
 ## D4. Reihen im Bereich Hörbücher (H-1)
 
-### D4.1 Was eine Reihe ist
+### D4.1 Was im Bereich Hörbücher erscheint
+
+Zwei Arten von Hörbuch-Sammlungen (Marcos Antwort OD-1, «beides»):
+
+**Reihen aus den Metadaten**
 
 - **Quelle:** die Reihe jedes Hörbuchs (`series_name`, Band `series_index`) aus Dateien, Editor oder
-  Anbieter. Nichts von Hand anzulegen (OD-1).
+  Anbieter. Nichts von Hand anzulegen.
 - **Zusammenfassen:** Bücher gehören zur selben Reihe, wenn sie in derselben Bibliothek liegen und der
   **Schlüssel ihrer Reihe** gleich ist: Name vereinheitlicht (Gross- und Kleinschreibung, Leerzeichen,
   Bindestriche, Artikel am Anfang) und um bekannte Anhängsel gekürzt («- Band», «-Reihe», «- Gesprochen
@@ -1356,33 +1404,40 @@ Punkte (OD-1, OD-2): Die Sammlungen sind die **Reihen aus den Metadaten** der H�
   Anhängsel liegt als eingebettete Datei im Paket `library`, gepflegt wie die Regeldatei des Radios.
 - **Name der Reihe:** der Name eines Anbieters, wenn ein Band zugeordnet ist; sonst die häufigste
   Schreibweise ohne Anhängsel; von Hand änderbar (D5.4).
-- **Eine Reihe braucht mindestens zwei Bände.** Ein Buch mit einer Reihe, aber ohne zweiten Band,
-  steht als einzelnes Buch da.
-- **Kein Eintrag in `collections`.** Die Reihe erscheint weder in der Startseiten-Reihe «Sammlungen»
-  noch auf der Detailseite als Sammlung. Eine von Hand angelegte Sammlung mit Hörbüchern bleibt eine
-  Sammlung.
-- **Sichtbarkeit:** Eine Reihe ist sichtbar, wenn mindestens ein Band für das Profil sichtbar ist
-  (wie Sammlungen, Konzept 08 E-6). Gezählt und gezeigt werden nur sichtbare Bände.
+- **Eine Reihe braucht mindestens zwei Bände.** Ein Buch mit einer Reihe, aber ohne zweiten Band, steht
+  nur als einzelnes Buch da.
+- **Kein Eintrag in `collections`.**
 
-### D4.2 Die Übersicht der Bibliothek (Mockup `Hoerbuecher`)
+**Von Hand angelegte Sammlungen mit Hörbüchern**
 
-**Variante A, eine Kachel je Reihe (Empfehlung, OD-2):** Im Raster steht jede Reihe als **eine
-quadratische Kachel** mit Stapel-Rand und dem Abzeichen «6 Bände»; Antippen öffnet die Seite der Reihe.
-Bücher ohne Reihe stehen einzeln. Die Kachel trägt das Cover von Band 1 (oder des kleinsten Bandes),
-den Namen der Reihe und darunter Autor und Zahl der Bände. Ein Fortschrittsbalken zeigt, wie viele Bände
-das Profil gehört hat.
+- Eine Sammlung (`collections`, Quelle `manual`), deren Mitglieder **alle Hörbücher** sind, gilt als
+  Hörbuch-Sammlung. Sie erscheint im Bereich Hörbücher jeder Bibliothek, die mindestens ein Mitglied
+  enthält, mit den Mitgliedern dieser Bibliothek, und öffnet die vorhandene Seite einer Sammlung
+  (`/collections/$collectionId`).
+- Sie erscheint **nicht** mehr in der Startseiten-Reihe «Sammlungen». Angelegt und gepflegt wird sie
+  weiter unter «Verwaltung › Sammlungen».
+- Eine gemischte Sammlung (Filme und Hörbücher) bleibt eine gewöhnliche Sammlung.
 
-- Sortieren nach Titel ordnet die Reihe unter ihrem Namen ein, nach Autor unter dem Autor des ersten
-  Bandes; die Buchstabenleiste zählt Kacheln.
-- Filter (Genre, Jahr, Inhalt) gelten für die Bände; eine Reihe erscheint, wenn mindestens ein Band
-  passt, und zeigt dann «2 von 6 Bänden».
-- Die Kopfzeile sagt «89 Hörbücher · 17 Reihen».
+**Für beide gilt:** sichtbar, wenn mindestens ein Mitglied für das Profil sichtbar ist (wie Sammlungen,
+Konzept 08 E-6); gezählt und gezeigt werden nur sichtbare Mitglieder.
 
-**Variante B, Reihen-Zeile oben:** eine Zeile «Reihen» mit den Reihen-Kacheln über dem Raster, darunter
-alle Bücher einzeln wie heute. Das Mockup schaltet zwischen A und B um.
+### D4.2 Die Übersicht der Bibliothek (Mockup `Hoerbuecher`, Variante B)
 
-Die Kacheln sind quadratisch wie in Teil C. Gilt nur für Bibliotheken, deren Raster nur Hörbücher zeigt;
-Podcasts haben keine Reihen.
+**Marcos Wahl (OD-2): Variante B, Zeile «Reihen und Sammlungen» oben.** Über dem Raster steht eine
+waagrechte Zeile mit einer quadratischen Kachel je Reihe und je Hörbuch-Sammlung, mit Stapel-Rand und
+dem Abzeichen «6 Bände»; darunter alle Hörbücher einzeln wie heute (quadratisch nach Teil C).
+
+- Die Kachel trägt das Cover von Band 1 (oder des kleinsten Bandes; bei einer Sammlung das Bild der
+  Sammlung oder das Cover des ersten Mitglieds), den Namen und darunter Autor und Zahl der Bände. Ein
+  Balken zeigt, wie viele Bände das Profil gehört hat. Antippen öffnet die Seite der Reihe (D4.3) oder
+  der Sammlung.
+- Die Zeile ist nach Name sortiert, unabhängig von der Sortierung des Rasters, und scrollt waagrecht wie
+  eine Reihe der Startseite (Pfeiltasten, Tab).
+- Filter (Genre, Jahr) gelten auch für die Zeile: eine Reihe erscheint, wenn mindestens ein Band passt.
+  Die Buchstabenleiste gilt nur für das Raster.
+- Die Zeile erscheint nur in Bibliotheken mit Hörbüchern und nur, wenn es mindestens eine Reihe oder
+  Sammlung gibt. Die Kopfzeile sagt «89 Hörbücher · 17 Reihen».
+- Variante A (eine Kachel je Reihe im Raster) ist nicht gewählt; das Mockup zeigt beide.
 
 ### D4.3 Die Seite einer Reihe (Mockup `Reihe`)
 
@@ -1403,6 +1458,9 @@ Podcasts haben keine Reihen.
   eindeutig je Bibliothek und Schlüssel) und Spalte `items.audio_series_id`. Gepflegt von
   `finishAudiobook` im Paket `library` bei jedem Schreiben eines Buches; eine Reihe ohne Band
   verschwindet beim Sweep.
+- Hörbuch-Sammlungen brauchen keine Tabelle: «nur Hörbücher» wird beim Lesen geprüft. Die Abfrage der
+  Startseiten-Reihe «Sammlungen» (`ListVisibleCollections`) lässt Sammlungen weg, deren sichtbare
+  Mitglieder alle Hörbücher sind.
 - Die Abfragen der Übersicht und der Reihe laufen im Paket `visibility` über `visible_items` (Regel 2).
 - Die Kennung ist stabil, solange der Schlüssel gleich bleibt; ändert der Admin den Namen, bleibt sie.
 
@@ -1473,16 +1531,21 @@ rechtliche Risiko. Die DNB ist die saubere Quelle, hat aber weder Cover noch Lä
 Cover jeder Quelle bleiben Werke der Verlage: Slouchcat speichert sie nur verkleinert im eigenen Cache
 für die eigene Anzeige und gibt sie nie weiter. Das ist keine Rechtsberatung für die Schweiz.
 
-### D6.2 Empfehlung (OD-3)
+### D6.2 Quellen ab Werk (Marcos Antwort OD-3)
 
 | Quelle | Ab Werk | Rolle |
 |---|---|---|
 | Dateien | immer an, zuerst | `metadata.json`, Tags, Ordner, Cover im Ordner oder eingebettet |
+| Audible (Suche) und Audnexus (Details) | **an** (Marcos Entscheid, gegen die Empfehlung «aus») | alle Felder, Reihe und Band, Länge für den Abgleich, Cover 2400 px |
 | Deutsche Nationalbibliothek | an | ISBN, Sprecher, Verlag, deutsche Titel prüfen |
 | Apple Books | an | Cover in hoher Auflösung, Beschreibung |
-| Audible (Suche) und Audnexus (Details) | **aus**, der Admin schaltet ein; Hinweis auf die Nutzungsbedingungen | alle Felder, Reihe und Band, Länge für den Abgleich |
 | Open Library | aus | ISBN-Suche als Rückfall |
 | Google Books | aus, nur mit Schlüssel | Rückfall |
+
+Marco hat Audible im Wissen um dessen Nutzungsbedingungen ab Werk eingeschaltet. Die Seite «Quellen»
+nennt den Hinweis weiter, und jeder Admin kann die Quelle ausschalten. ADR 0031 hält den Entscheid und
+das Risiko fest (inoffizielle Schnittstelle, kann brechen; dann fällt die Zuordnung auf die übrigen
+Quellen zurück, ohne Fehler für die Zuschauer).
 
 audiosilo-meta und MusicBrainz baut Teil D nicht; beide lassen sich später als weitere Quelle anhängen.
 Audnexus bekommt eine einstellbare Adresse, damit Marco eine eigene Instanz nutzen kann.
@@ -1504,7 +1567,12 @@ Audnexus bekommt eine einstellbare Adresse, damit Marco eine eigene Instanz nutz
 5. **Mehrere Quellen je Feld:** die obere Quelle in der Reihenfolge gewinnt; die Reihenfolge stellt der
    Admin auf der Seite «Quellen» um.
 6. **Automatisch zuordnen** (Einstellung): «Aus», «Neue Hörbücher» (beim Scan) oder «Alle ohne
-   Zuordnung» (einmal für die Bibliothek). Ab Werk **«Aus»** (OD-4).
+   Zuordnung» (einmal für die Bibliothek, danach wie «Neue Hörbücher»). Ab Werk **«Alle ohne
+   Zuordnung»** (Marcos Antwort OD-4): Nach dem Update auf Stufe D3 läuft die Zuordnung einmal für alle
+   Hörbücher im Hintergrund (Pool `general`, Priorität wie der Abgleich von Filmen, gedrosselt nach
+   D6.5). Weil eine automatische Zuordnung nur leere Felder füllt und nur eindeutige Treffer mit
+   passender Länge nimmt, ändert sie an Marcos gepflegten `metadata.json` nichts, was schon steht. Die
+   Messung D0 zeigt vorher, wie viele Treffer eindeutig sind.
 
 ### D6.4 Vereinheitlichen
 
@@ -1557,8 +1625,9 @@ Start nach dem Update aus den vorhandenen Büchern (ein Durchgang wie das Neuabl
 
 | Operation oder Schema | `x-visibility` | Änderung |
 |---|---|---|
-| `listLibraryItems` | `scoped` | neu Parameter `group=series`; Antwort zusätzlich `entries` (Buch oder Reihe), Zählung und Buchstaben je Eintrag |
+| `GET /libraries/{id}/audio-groups` (`listAudioGroups`) | `scoped` | Zeile «Reihen und Sammlungen»: Reihen und Hörbuch-Sammlungen der Bibliothek mit Name, Bild, Autor, Zahl der sichtbaren Bände, gehörte Bände; Filter wie `listLibraryItems` |
 | `GET /libraries/{id}/series/{seriesId}` (`getAudioSeries`) | `scoped` | Reihe mit sichtbaren Bänden, Bandnummern, «Weiterhören»; 404, wenn kein Band sichtbar |
+| Startseiten-Reihe «Sammlungen» (`getHome`) | `scoped` | ohne Sammlungen, deren sichtbare Mitglieder alle Hörbücher sind (Verhalten, kein neues Feld) |
 | `ItemDetail` | `scoped` | neu `seriesId` |
 | `PATCH /admin/audio-series/{seriesId}` | `admin` | Name ändern, auf Wunsch in alle Bände schreiben |
 | `AdminMetadataField`, `AdminItem.metadata` | `admin` | Felder aus D5.3 |
@@ -1577,7 +1646,7 @@ Eintrag in `profileRegistry`.
 |---|---|---|---|
 | **D0** | Messung an Marcos 107 Büchern: wie viele trifft jede Quelle eindeutig, wie viele haben eine passende Länge; prüfen, ob der Audible-Katalog von CT 190 aus antwortet. Ergebnis nach `docs/perf/19-hoerbuecher.md`. ADR 0031 «Externe Quellen für Hörbücher» (ersetzt den Satz aus ADR 0007 und ADR 0015). | – | ½ Tag |
 | **D1 «Bleistift»** | Editor für Hörbücher mit allen Feldern, Schlösser vereinheitlicht, Cover-Kandidaten aus Ordner und Datei, Hochladen, Bleistift überall, Migration für Verlag, ISBN, ASIN, Sprache. | vorläufig 1.28.0 | 3 bis 4 Tage |
-| **D2 «Reihen»** | `audio_series`, Schlüssel und Anhängsel, Übersicht mit Reihen-Kacheln, Seite der Reihe, Link von der Detailseite, «Reihe bearbeiten». | vorläufig 1.29.0 | 3 bis 4 Tage |
+| **D2 «Reihen»** | `audio_series`, Schlüssel und Anhängsel, Zeile «Reihen und Sammlungen» mit Hörbuch-Sammlungen, Startseiten-Reihe «Sammlungen» ohne diese, Seite der Reihe, Link von der Detailseite, «Reihe bearbeiten». | vorläufig 1.29.0 | 3 bis 4 Tage |
 | **D3 «Quellen»** | `BookProvider` mit sechs Quellen, Zuordnen im Editor, automatische Zuordnung, Liste «Prüfen», Vereinheitlichen, Seite «Quellen». | vorläufig 1.30.0 | 6 bis 8 Tage |
 
 D1 vor D3, weil D3 den Reiter «Zuordnen» des Editors braucht; D2 ist unabhängig. Die Nummern folgen
@@ -1590,27 +1659,119 @@ der Bau-Reihenfolge aller Teile. **Gebaut wird erst auf Marcos ausdrückliches W
 | PD-1 | Bleistift auf einer Hörbuch-Karte öffnet den Editor; Autor, Sprecher, Reihe und Band ändern, speichern; ein Scan danach überschreibt nichts. | Go (Schlösser, beide Namensformen), e2e |
 | PD-2 | Cover: Kandidaten aus Ordner und eingebettetem Bild erscheinen quadratisch; Wahl und Hochladen wirken in Übersicht, Detailseite und Startseite. | Go, Vitest, e2e |
 | PD-3 | Reihen: «Bodyguard» und «Bodyguard - Band» ergeben eine Reihe mit Bänden 1 bis 6; ein Buch ohne zweiten Band steht einzeln. | Go (Schlüssel, Fixture mit Marcos Schreibweisen) |
-| PD-4 | Übersicht: Reihen-Kachel mit Zahl der Bände; ein Kinderprofil, das nur zwei Bände sehen darf, sieht «2 Bände»; keine Reihe ohne sichtbaren Band. | Go (`vistest`), e2e |
+| PD-4 | Zeile «Reihen und Sammlungen»: Reihen-Kachel mit Zahl der Bände; ein Kinderprofil, das nur zwei Bände sehen darf, sieht «2 Bände»; keine Reihe ohne sichtbaren Band; darunter alle Hörbücher einzeln. | Go (`vistest`), e2e |
 | PD-5 | Seite der Reihe: Reihenfolge 0,5 vor 1, Bände ohne Nummer am Ende; «Weiterhören» nimmt den ersten nicht fertigen Band. | Vitest, e2e |
-| PD-6 | Reihen erscheinen nicht unter «Sammlungen»; eine von Hand angelegte Sammlung mit Hörbüchern schon. | Go |
+| PD-6 | Reihen und eine von Hand angelegte Sammlung nur mit Hörbüchern erscheinen in der Zeile der Hörbücher und nicht in der Startseiten-Reihe «Sammlungen»; eine gemischte Sammlung erscheint dort weiter. | Go |
 | PD-7 | Zuordnen im Editor: Treffer mit passender Länge oben; Übernehmen schreibt nur angehakte, nicht gesperrte Felder und sperrt sie. | Go (Quellen mit `httptest`), Vitest |
-| PD-8 | Automatisch zuordnen: ein eindeutiger Treffer innerhalb 3 % wird zugeordnet und füllt nur leere Felder; zwei Treffer oder eine falsche Länge kommen in «Prüfen». | Go |
-| PD-9 | Quellen aus: kein Abruf; Audible und Audnexus sind ab Werk aus; der Schlüssel für Google Books erscheint in keinem Log. | Go (Redaktionstest) |
+| PD-8 | Automatisch zuordnen («Alle ohne Zuordnung» ab Werk): ein eindeutiger Treffer innerhalb 3 % wird zugeordnet und füllt nur leere Felder; zwei Treffer oder eine falsche Länge kommen in «Prüfen»; ein zweiter Lauf ändert nichts. | Go |
+| PD-9 | Quelle aus: kein Abruf; ab Werk sind Dateien, Audible mit Audnexus, DNB und Apple Books an; fällt Audible aus, ordnet der Lauf mit den übrigen Quellen zu; der Schlüssel für Google Books erscheint in keinem Log. | Go (Redaktionstest) |
 | PD-10 | Vereinheitlichen: «J R R Tolkien» und «J.R.R. Tolkien» sortieren und suchen als «J. R. R. Tolkien»; die Dateien bleiben unverändert. | Go |
 | PD-11 | Tastatur: Bleistift per Tab erreichbar, Editor mit allen Reitern ohne Maus, Seite der Reihe und Seite «Quellen» mit Pfeiltasten, Tab, Enter, Zurück. | Playwright |
 | PD-12 | Vertrag: jede neue Operation im Vertragstest; `updateItemMetadata` für Hörbücher statt `kind:invalid_value`. | Go (Vertragstest) |
 
 ## D11. Offene Punkte zum Teil D
 
+Beantwortet am 10. November 2026.
+
+| Nr. | Punkt | Marcos Antwort |
+|---|---|---|
+| OD-1 | Woher kommen Hörbuch-Sammlungen? | **beides:** Reihen aus den Metadaten und von Hand angelegte Sammlungen nur mit Hörbüchern (D4.1) |
+| OD-2 | Anzeige in der Übersicht | **B, Zeile «Reihen und Sammlungen» oben** (gegen die Empfehlung A; D4.2) |
+| OD-3 | Quellen ab Werk | **alle samt Audible an**, Open Library und Google Books aus (gegen die Empfehlung; D6.2) |
+| OD-4 | Automatisch zuordnen ab Werk | **«Alle ohne Zuordnung»** (gegen die Empfehlung «Aus»; D6.3) |
+| OD-5 | Doppelte Bücher | nur Hinweis auf der Seite der Reihe (Empfehlung) |
+| OD-6 | Bleistift auf der Startseite | ja (Empfehlung) |
+| OD-7 | Seite eines Autors mit Bild und Text | nicht jetzt; als Idee festhalten (Empfehlung) |
+
+# Teil E: Lautstärke (zwei Fehler)
+
+Marco am 10. November 2026: «Radio benötigt noch einen Lautstärke Regler und der Lautstärke Regler bei
+Podcast flackert. Nimm diese Fehler auch noch ins Konzept.» Teil E ist von den anderen Teilen
+unabhängig und kann als erster gebaut werden.
+
+## E1. Befund (Stand `e90109a6`)
+
+**Radio hat keinen Regler.**
+
+- Das Radio spielt über ein eigenes `<audio>`-Element der App (`app/radio/RadioProvider.tsx`,
+  `engine.ts`). Weder der Mini-Player (`RadioDock`, `ui/MiniPlayer.tsx`) noch «Jetzt läuft»
+  (`ui/NowPlayingDialog.tsx`) noch die Engine setzen eine Lautstärke; das Element läuft immer mit 100 %.
+- Konzept 16 und ADR 0025 erwähnen die Lautstärke nicht. Es ist eine Lücke, kein Entscheid.
+
+**Der Regler im Podcast- und Hörbuch-Player flackert.** Nicht nachgestellt; drei Ursachen kommen aus
+dem Code in Frage, die erste ist die wahrscheinlichste:
+
+1. **Die Schublade verschiebt die Zeile.** `VolumeControl` (`ui/VolumeControl.tsx`) öffnet den Schieber
+   und die Prozentzahl beim Zeigen: die Schublade wächst von `max-width: 0` auf `12rem`
+   (`VolumeControl.module.css`). Im Player steht der Regler in der Zeile `.extras` mit
+   `justify-content: center` und `flex-wrap: wrap` (`ui/AudioPlayer.module.css`). Wächst ein Element in
+   einer zentrierten Zeile, rückt der Knopf unter dem Zeiger um die halbe Breite weg, oder der Regler
+   bricht in die nächste Zeile um. Der Zeiger liegt dann nicht mehr über dem Regler, die Schublade
+   schliesst, der Knopf rückt zurück unter den Zeiger, die Schublade öffnet wieder: ein Kreis, der als
+   Flackern erscheint.
+2. **Zwei Ereignisse je Schritt.** `changeVolume` (`features/player/useAudioControls.ts`) setzt
+   `volume` und `muted` getrennt; jedes löst `volumechange` aus, und jeder Wert beim Ziehen zeigt
+   zusätzlich die Einblendung (`showOsd`). Der Daumen kann so zwischen altem und neuem Wert springen.
+3. Die Lautstärke des Audio-Players wird nicht gespeichert (`useState(1)`); jeder Start beginnt bei
+   100 %. Das flackert nicht, fällt aber beim Prüfen auf.
+
+## E2. Behebung im Player (Podcasts und Hörbücher)
+
+1. **Zuerst nachstellen:** ein Playwright-Test fährt mit dem Zeiger auf den Lautstärkeknopf des
+   Audio-Players in Desktop-Breite und prüft, dass die Schublade offen bleibt und die Nachbarn der Zeile
+   sich nicht bewegen. Er muss vor der Behebung fehlschlagen; schlägt er nicht fehl, wird zuerst
+   Ursache 2 geprüft.
+2. **Schublade ohne Verschieben:** `VolumeControl` öffnet den Schieber **über** den Nachbarn (absolut
+   neben dem Knopf, mit Hintergrund und Rand aus den Tokens) statt die Zeile breiter zu machen. Beim
+   Verlassen bleibt sie 300 ms offen (`--sc-motion-duration-*`), damit ein kurzes Abrutschen sie nicht
+   schliesst. Ohne Zeiger (Touch) bleibt sie wie heute offen. Der Fokus öffnet sie wie heute.
+3. **Ein Ereignis je Schritt:** `muted` wird nur gesetzt, wenn es sich ändert; die Einblendung kommt
+   nur bei Tasten und Mausrad, nicht beim Ziehen am Schieber (wie im Video-Player).
+4. **Merken:** der Audio-Player merkt sich die Lautstärke auf dem Gerät, wie der Video-Player
+   (`usePlayerPrefs`, `localStorage`), getrennt oder gemeinsam mit dem Radio nach OE-1.
+
+Weil `VolumeControl` ein Baustein aus `web/src/ui` ist, wirkt Punkt 2 auch im Video-Player und im
+Offline-Player; ihre Tests und Storybook-Baselines laufen mit.
+
+## E3. Regler für das Radio
+
+- **Wo:** im Mini-Player rechts neben Abspielen/Anhalten und in «Jetzt läuft» unter den Knöpfen; der
+  gleiche Baustein `VolumeControl`, ohne Verstärkung über 100 % (das Radio hat keinen Web-Audio-Graphen).
+- **iPhone:** nur der Stummschalter (`muteOnly`); Safari auf dem iPhone lässt eine Seite die Lautstärke
+  nicht setzen (Konzept 13, 11.2).
+- **Wirkung:** setzt `volume` und `muted` des Radio-Elements; gilt sofort, auch beim Wechsel des Senders
+  und nach einem Wiederaufbau der Verbindung (`engine.ts` setzt die Werte nach jedem neuen Start).
+- **Merken:** auf dem Gerät (`localStorage`), nicht auf dem Server; ohne Speicher (privates Fenster)
+  beginnt das Radio bei 100 %.
+- **Tastatur:** Tab erreicht Knopf und Schieber; ←/→ 5 %, Bild auf/ab 10 %, Pos1/Ende; M schaltet stumm,
+  solange der Fokus im Mini-Player oder in «Jetzt läuft» liegt.
+- Texte aus `de.json`/`en.json` (die vorhandenen `player.volumeControl.*`), Farben aus Tokens.
+
+## E4. Abnahme und Tests
+
+| Nr. | Prüfung | Stufe der Prüfung |
+|---|---|---|
+| PE-1 | Podcast-Player in Desktop-Breite: Zeiger auf den Lautstärkeknopf, die Schublade öffnet einmal und bleibt offen; Lage der Nachbarknöpfe unverändert; Zeiger weg, nach 300 ms zu. | Playwright (zuerst rot, nach der Behebung grün) |
+| PE-2 | Ziehen am Schieber: je Schritt ein `volumechange`, keine Einblendung; Tasten zeigen die Einblendung weiter. | Vitest |
+| PE-3 | Radio: Mini-Player hat den Regler; 40 % gesetzt → das Element spielt mit 0,4; nach Senderwechsel und Neuladen der Seite weiter 40 %. | Vitest, Playwright |
+| PE-4 | Radio auf dem iPhone (Emulation): nur der Stummschalter. | Vitest |
+| PE-5 | Tastatur: Regler im Mini-Player und in «Jetzt läuft» mit Tab, Pfeiltasten und M bedienbar, sichtbarer Fokus, keine Fokusfalle. | Playwright |
+| PE-6 | Storybook: `VolumeControl` offen über Nachbarn, `MiniPlayer` mit Regler; Baselines neu. | `task storybook:test` |
+
+## E5. Bauplan
+
+| Stufe | Inhalt | Release | Aufwand |
+|---|---|---|---|
+| **E1 «Lautstärke»** | E2 und E3 mit den Tests aus E4 | Patch ohne Vertragsänderung | ½ bis 1 Tag |
+
+**Gebaut wird erst auf Marcos ausdrückliches Wort.**
+
+## E6. Offene Punkte zum Teil E
+
 | Nr. | Punkt | Empfehlung |
 |---|---|---|
-| OD-1 | Woher kommen die Hörbuch-Sammlungen: aus der Reihe in den Metadaten, nur von Hand, oder beides? | aus der Reihe, automatisch; von Hand angelegte Sammlungen bleiben Sammlungen |
-| OD-2 | Anzeige in der Übersicht: A eine Kachel je Reihe, oder B eine Zeile «Reihen» über allen Büchern? | A |
-| OD-3 | Quellen ab Werk: Dateien, DNB und Apple Books an; Audible mit Audnexus, Open Library und Google Books aus. | so; Audible schaltet Marco selbst ein, im Wissen um die Nutzungsbedingungen |
-| OD-4 | Automatisch zuordnen ab Werk «Aus», «Neue Hörbücher» oder «Alle ohne Zuordnung»? | «Aus», bis D0 gemessen hat, wie gut die Treffer sind |
-| OD-5 | Doppelte Bücher in Marcos Ordner (D3): nur zeigen (Hinweis auf der Seite der Reihe) oder in der Übersicht eines davon ausblenden? | nur zeigen; Aufräumen macht Marco im Ordner |
-| OD-6 | Bleistift auch auf der Startseite (D5.1)? Marco sagte zu den Covern, die Startseite bleibe, wie sie ist. | ja; der Bleistift ändert das Aussehen der Karte nicht |
-| OD-7 | Autorenbild und -text von Audnexus (Seite eines Autors)? | nicht in Teil D; eigene Idee |
+| OE-1 | Eine Lautstärke für alles Hörbare auf dem Gerät (Radio, Podcasts, Hörbücher) oder je eine für Radio und für den Audio-Player? | eine gemeinsame; wer leiser hört, hört meist alles leiser |
+| OE-2 | Schublade über den Nachbarn (E2, Punkt 2) oder fester Platz für den Schieber (die Zeile wird immer so breit, als wäre er offen)? | über den Nachbarn; die Zeile bleibt schmal |
 
 ## Anhang A: Mockups
 
