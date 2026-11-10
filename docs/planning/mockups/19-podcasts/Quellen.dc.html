@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Verwaltung: Quellen für Hörbücher</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f3a27f}a:hover{color:#ffc4a8}
+.k-btn{font:inherit;cursor:pointer}
+.k-btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+.k-in{box-sizing:border-box;min-width:0;height:40px;border-radius:10px;background:#1d2029;color:#f3f3f5;border:1px solid #ffffff2e;padding:0 10px;font:inherit;font-size:14px}
+</style>
+</helmet>
+<div style="box-sizing: border-box; min-height: 100vh; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 20px 16px 48px;">
+<div style="max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px;">
+
+  <nav aria-label="Mockup-Navigation" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: #b6b9c4; border: 1px dashed #ffffff3d; border-radius: 12px; padding: 8px 12px;">
+    <span>Mockup Hörbücher:</span>
+    <a href="Hoerbuecher.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Übersicht</a>
+    <a href="Reihe.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Reihe</a>
+    <a href="Editor.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Bleistift: Editor</a>
+    <a href="Quellen.dc.html" aria-current="page" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #e8794a; background: #e8794a33; color: #f3f3f5; text-decoration: none;">Verwaltung: Quellen</a>
+  </nav>
+
+  <div style="display: flex; flex-direction: column; gap: 4px;">
+    <span style="font-size: 13px; color: #b6b9c4;">Verwaltung › Metadaten</span>
+    <h1 style="margin: 0; font-size: 26px; font-weight: 700;">Hörbücher: Quellen</h1>
+    <span style="font-size: 14px; color: #b6b9c4;">Woher Slouchcat Angaben und Cover für Hörbücher holt. Die Dateien kommen immer zuerst; ein Anbieter füllt nur, was fehlt, und nie ein Feld mit Schloss.</span>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start;">
+    <section aria-label="Quellen" style="flex: 999 1 560px; min-width: 0; background: #13151b; border: 1px solid #ffffff14; border-radius: 14px; overflow: hidden;">
+      <div style="background: #2b1d17; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline;">
+        <span style="font-size: 16px; font-weight: 600;">Reihenfolge</span>
+        <span style="font-size: 13px; color: #d0d2da;">obere Quelle gewinnt je Feld</span>
+      </div>
+      <ol style="list-style: none; margin: 0; padding: 8px; display: flex; flex-direction: column; gap: 8px;">
+        <sc-for list="{{rows}}" as="r" hint-placeholder-count="7">
+          <li style="{{r.style}}">
+            <span style="flex: 0 0 28px; font-size: 16px; font-weight: 800; color: #9ea3b0; text-align: center;">{{r.no}}</span>
+            <span style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+              <span style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+                <span style="font-size: 15px; font-weight: 600;">{{r.name}}</span>
+                <span style="{{r.tagStyle}}">{{r.tag}}</span>
+              </span>
+              <span style="font-size: 13px; color: #b6b9c4; line-height: 1.45;">{{r.gives}}</span>
+              <sc-if value="{{r.hasExtra}}" hint-placeholder-val="{{false}}">
+                <span style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: #d0d2da;">{{r.extraLabel}} <input class="k-in" aria-label="{{r.extraLabel}}" value="{{r.extra}}" style="flex: 1 1 220px;"></span>
+              </sc-if>
+            </span>
+            <span style="display: inline-flex; gap: 6px; align-items: center;">
+              <button class="k-btn" aria-label="{{r.upAria}}" disabled="{{r.first}}" onClick="{{r.up}}" style="width: 36px; height: 36px; border-radius: 18px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e;">↑</button>
+              <button class="k-btn" aria-label="{{r.downAria}}" disabled="{{r.last}}" onClick="{{r.down}}" style="width: 36px; height: 36px; border-radius: 18px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e;">↓</button>
+              <label style="display: inline-flex; gap: 8px; align-items: center; min-height: 44px; cursor: pointer; font-size: 13px;">
+                <input type="checkbox" role="switch" checked="{{r.on}}" disabled="{{r.fixed}}" onChange="{{r.toggle}}" style="width: 22px; height: 22px; accent-color: #e8794a;"> {{r.onLabel}}
+              </label>
+            </span>
+          </li>
+        </sc-for>
+      </ol>
+    </section>
+
+    <aside style="flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 14px;">
+      <section aria-label="Automatisch zuordnen" style="background: #13151b; border: 1px solid #ffffff14; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+        <span style="font-size: 16px; font-weight: 600;">Automatisch zuordnen</span>
+        <div role="group" aria-label="Automatisch zuordnen" style="display: flex; flex-direction: column; gap: 6px;">
+          <sc-for list="{{autoOpts}}" as="o" hint-placeholder-count="3">
+            <button class="k-btn" aria-pressed="{{o.pressed}}" onClick="{{o.pick}}" style="{{o.style}}">
+              <span style="font-size: 14px; font-weight: 600;">{{o.label}}</span>
+              <span style="font-size: 12px; color: #b6b9c4;">{{o.hint}}</span>
+            </button>
+          </sc-for>
+        </div>
+        <label style="display: flex; gap: 10px; align-items: center; font-size: 14px;">Länge darf abweichen um
+          <select class="k-in" value="{{tol}}" onChange="{{setTol}}"><option value="1">1 %</option><option value="3">3 %</option><option value="5">5 %</option></select>
+        </label>
+        <span style="font-size: 12px; color: #9ea3b0; line-height: 1.45;">Zugeordnet wird nur ein eindeutiger Treffer: gleicher Autor, ähnlicher Titel, passende Länge. Sonst bleibt das Hörbuch bei den Angaben der Dateien und erscheint unter «Prüfen».</span>
+      </section>
+
+      <section aria-label="Vereinheitlichen" style="background: #13151b; border: 1px solid #ffffff14; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+        <span style="font-size: 16px; font-weight: 600;">Vereinheitlichen</span>
+        <sc-for list="{{norms}}" as="n" hint-placeholder-count="2">
+          <label style="display: flex; gap: 10px; align-items: flex-start; min-height: 44px; cursor: pointer;">
+            <input type="checkbox" role="switch" checked="{{n.on}}" onChange="{{n.toggle}}" style="width: 22px; height: 22px; flex: 0 0 22px; margin-top: 2px; accent-color: #e8794a;">
+            <span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px; font-weight: 600;">{{n.label}}</span><span style="font-size: 12px; color: #b6b9c4; line-height: 1.4;">{{n.hint}}</span></span>
+          </label>
+        </sc-for>
+      </section>
+
+      <section aria-label="Stand" style="background: #13151b; border: 1px solid #ffffff14; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+        <span style="font-size: 16px; font-weight: 600;">Stand der Bibliothek «Hörbücher»</span>
+        <sc-for list="{{stats}}" as="s" hint-placeholder-count="4">
+          <div style="display: flex; justify-content: space-between; gap: 10px; font-size: 13px;"><span style="color: #d0d2da;">{{s.k}}</span><span style="font-variant-numeric: tabular-nums;">{{s.v}}</span></div>
+        </sc-for>
+        <button class="k-btn" onClick="{{runAll}}" style="min-height: 44px; padding: 0 16px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px; margin-top: 4px;">{{runLabel}}</button>
+      </section>
+    </aside>
+  </div>
+
+  <div style="font-size: 13px; color: #b6b9c4; border: 1px dashed #ffffff3d; border-radius: 12px; padding: 10px 14px; line-height: 1.5;">
+    Zahlen unter «Stand» aus Marcos Ordner (107 metadata.json, 46 mit Reihe, 1 mit ASIN, 2 mit ISBN). Marcos Wahl: alle Quellen samt Audible ab Werk an, «Alle ohne Zuordnung» automatisch. Audibles Nutzungsbedingungen verbieten das automatische Auslesen; der Hinweis bleibt, jeder Admin kann die Quelle ausschalten (Konzept 19, Teil D).
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1300}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { order: ['files', 'audible', 'dnb', 'itunes', 'openlib', 'google'], on: { files: true, audible: true, dnb: true, itunes: true, openlib: false, google: false },
+      auto: 'all', tol: '3', norm: { author: true, series: true }, ran: false };
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var P = {
+      files: ['Dateien', 'immer', 'metadata.json, Tags, Ordner Autor/Reihe/Titel, Cover im Ordner oder eingebettet.', '', ''],
+      audible: ['Audible (Suche) und Audnexus (Details)', 'inoffiziell, ab Werk an', 'Fast alles: Untertitel, Sprecher, Reihe und Band, Verlag, Länge, Beschreibung, ASIN, ISBN, Cover 2400 px, Autorenbild. Region:', 'Region', 'Schweiz → audible.de'],
+      dnb: ['Deutsche Nationalbibliothek', 'CC0', 'Titel, Autor, Sprecher, Verlag, Jahr, Sprache, ISBN; prüft deutsche Titel. Keine Cover, keine Beschreibung.', '', ''],
+      itunes: ['Apple Books', 'ohne Schlüssel', 'Cover bis 3000 px, Beschreibung, Genre. Kein Sprecher, keine Reihe.', '', ''],
+      openlib: ['Open Library', 'offen', 'ISBN-Suche, selten Hörbuch-Angaben, selten quadratische Cover.', '', ''],
+      google: ['Google Books', 'Schlüssel nötig', 'Titel, Verlag, ISBN, Beschreibung. Kein Sprecher, keine Länge.', 'API-Schlüssel', '']
+    };
+    var move = function (i, d) { var o = st.order.slice(); var t = o[i]; o[i] = o[i + d]; o[i + d] = t; self.setState({ order: o }); };
+    var opt = function (on) { return 'display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 10px 12px; border-radius: 10px; color: #f3f3f5; border: 1px solid ' + (on ? '#e8794a' : '#ffffff2e') + '; background: ' + (on ? '#e8794a33' : '#1d2029') + ';'; };
+    return {
+      rows: st.order.map(function (k, i) {
+        var p = P[k], on = !!st.on[k], fixed = k === 'files';
+        return { no: i + 1, name: p[0], tag: p[1], gives: p[2], hasExtra: !!p[3] && on, extraLabel: p[3], extra: p[4],
+          tagStyle: 'font-size: 11px; padding: 2px 8px; border-radius: 8px; border: 1px solid ' + (k === 'audible' ? '#e8794a' : '#ffffff3d') + '; color: #d0d2da;',
+          on: on, fixed: fixed, onLabel: fixed ? 'immer' : on ? 'an' : 'aus',
+          toggle: function () { var o = Object.assign({}, st.on); o[k] = !on; self.setState({ on: o }); },
+          first: i === 0 || i === 1 && st.order[0] === 'files', last: i === st.order.length - 1 || fixed,
+          up: function () { if (i > 1) move(i, -1); }, down: function () { if (!fixed && i < st.order.length - 1) move(i, 1); },
+          upAria: p[0] + ' nach oben', downAria: p[0] + ' nach unten',
+          style: 'display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 12px; border-radius: 12px; background: #1a1c23; border: 1px solid #ffffff14;' + (on ? '' : ' opacity: .7;') };
+      }),
+      autoOpts: [['off', 'Aus', 'Nur von Hand über den Bleistift.'], ['new', 'Neue Hörbücher', 'Beim Scan, für Hörbücher ohne Zuordnung.'], ['all', 'Alle ohne Zuordnung', 'Einmal für die ganze Bibliothek, danach wie «Neue».']].map(function (o) {
+        var on = st.auto === o[0]; return { label: o[1], hint: o[2], pressed: on ? 'true' : 'false', style: opt(on), pick: function () { self.setState({ auto: o[0] }); } };
+      }),
+      tol: st.tol, setTol: function (e) { self.setState({ tol: e.target.value }); },
+      norms: [['author', 'Autorennamen vereinheitlichen', '«J R R Tolkien», «J.R.R. Tolkien» und «J. R. R. Tolkien» werden eine Person.'], ['series', 'Reihennamen vereinheitlichen', '«Bodyguard - Band» wird «Bodyguard», «Der Herr Der Ringe - Band» wird «Der Herr der Ringe».']].map(function (n) {
+        var on = !!st.norm[n[0]]; return { label: n[1], hint: n[2], on: on, toggle: function () { var o = Object.assign({}, st.norm); o[n[0]] = !on; self.setState({ norm: o }); } };
+      }),
+      stats: [{ k: 'Hörbücher', v: '107' }, { k: 'Zugeordnet', v: st.ran ? '91' : '0' }, { k: 'Zu prüfen', v: st.ran ? '9' : '–' }, { k: 'Ohne Treffer', v: st.ran ? '7' : '–' }],
+      runLabel: st.ran ? 'Zuordnung gelaufen (Beispielzahlen)' : 'Jetzt alle ohne Zuordnung zuordnen',
+      runAll: function () { self.setState({ ran: true }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

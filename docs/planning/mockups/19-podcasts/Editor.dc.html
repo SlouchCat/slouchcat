@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Hörbücher: Metadaten bearbeiten</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f3a27f}a:hover{color:#ffc4a8}
+.k-btn{font:inherit;cursor:pointer}
+.k-btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+.k-in{box-sizing:border-box;width:100%;min-width:0;height:40px;border-radius:10px;background:#1d2029;color:#f3f3f5;border:1px solid #ffffff2e;padding:0 10px;font:inherit;font-size:14px}
+</style>
+</helmet>
+<div style="box-sizing: border-box; min-height: 100vh; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 20px 16px 48px;">
+<div style="max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px;">
+
+  <nav aria-label="Mockup-Navigation" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: #b6b9c4; border: 1px dashed #ffffff3d; border-radius: 12px; padding: 8px 12px;">
+    <span>Mockup Hörbücher:</span>
+    <a href="Hoerbuecher.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Übersicht</a>
+    <a href="Reihe.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Reihe</a>
+    <a href="Editor.dc.html" aria-current="page" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #e8794a; background: #e8794a33; color: #f3f3f5; text-decoration: none;">Bleistift: Editor</a>
+    <a href="Quellen.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Verwaltung: Quellen</a>
+  </nav>
+
+  <div role="dialog" aria-modal="true" aria-labelledby="ed-title" style="align-self: center; width: 100%; max-width: 980px; background: #13151b; border: 1px solid #ffffff24; border-radius: 18px; overflow: hidden; box-shadow: 0 24px 80px #000a;">
+    <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: center; padding: 18px; background: #1a1c23; border-bottom: 1px solid #ffffff14;">
+      <div aria-hidden="true" style="{{headCover}}">{{headCoverText}}</div>
+      <div style="flex: 999 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+        <span style="font-size: 12px; color: #b6b9c4; text-transform: uppercase; letter-spacing: 1px;">Hörbuch bearbeiten</span>
+        <h1 id="ed-title" style="margin: 0; font-size: 24px; font-weight: 700;">{{vTitle}}</h1>
+        <span style="font-size: 14px; color: #d0d2da;">{{headSub}}</span>
+        <span style="font-size: 12px; color: #9ea3b0;">{{matchNote}}</span>
+      </div>
+      <a href="Hoerbuecher.dc.html" aria-label="Schliessen" style="width: 44px; height: 44px; border-radius: 22px; display: inline-flex; align-items: center; justify-content: center; background: #1d2029; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none; font-size: 18px;">✕</a>
+    </div>
+
+    <div role="tablist" aria-label="Bereiche" style="display: flex; flex-wrap: wrap; gap: 4px; padding: 0 12px; border-bottom: 1px solid #ffffff24;">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="4">
+        <button class="k-btn" role="tab" aria-selected="{{t.sel}}" onClick="{{t.pick}}" style="{{t.style}}">{{t.label}}</button>
+      </sc-for>
+    </div>
+
+    <div style="padding: 18px; display: flex; flex-direction: column; gap: 14px;">
+
+      <sc-if value="{{isMeta}}" hint-placeholder-val="{{true}}">
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px 18px;">
+          <sc-for list="{{fields}}" as="f" hint-placeholder-count="12">
+            <div style="{{f.wrap}}">
+              <div style="display: flex; gap: 8px; align-items: center; justify-content: space-between;">
+                <label for="{{f.id}}" style="font-size: 13px; color: #d0d2da; font-weight: 600;">{{f.label}}</label>
+                <span style="display: inline-flex; gap: 6px; align-items: center;">
+                  <span style="{{f.srcStyle}}">{{f.src}}</span>
+                  <button class="k-btn" aria-pressed="{{f.locked}}" aria-label="{{f.lockAria}}" title="{{f.lockAria}}" onClick="{{f.toggleLock}}" style="{{f.lockStyle}}">{{f.lockIcon}}</button>
+                </span>
+              </div>
+              <sc-if value="{{f.multi}}" hint-placeholder-val="{{false}}">
+                <textarea id="{{f.id}}" value="{{f.value}}" onChange="{{f.set}}" rows="4" class="k-in" style="height: auto; padding: 8px 10px; resize: vertical;"></textarea>
+              </sc-if>
+              <sc-if value="{{f.single}}" hint-placeholder-val="{{true}}">
+                <input id="{{f.id}}" class="k-in" value="{{f.value}}" onChange="{{f.set}}">
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <span style="font-size: 12px; color: #9ea3b0; line-height: 1.5;">Ein geändertes Feld bekommt ein Schloss: kein Scan und kein Anbieter überschreibt es. «Datei» heisst metadata.json, Tags oder Ordnername.</span>
+      </sc-if>
+
+      <sc-if value="{{isCover}}" hint-placeholder-val="{{false}}">
+        <span style="font-size: 13px; color: #b6b9c4;">Cover wählen. Quadratisch; Grösse in Pixeln.</span>
+        <div role="radiogroup" aria-label="Cover" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px;">
+          <sc-for list="{{covers}}" as="c" hint-placeholder-count="5">
+            <button class="k-btn" role="radio" aria-checked="{{c.checked}}" onClick="{{c.pick}}" style="{{c.style}}">
+              <span aria-hidden="true" style="{{c.img}}">{{c.text}}</span>
+              <span style="font-size: 13px; font-weight: 600;">{{c.src}}</span>
+              <span style="font-size: 12px; color: #9ea3b0;">{{c.size}}</span>
+            </button>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{isMatch}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;">
+          <label style="flex: 2 1 220px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #d0d2da;">Titel<input class="k-in" value="{{qTitle}}" onChange="{{setQTitle}}"></label>
+          <label style="flex: 1 1 160px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #d0d2da;">Autor<input class="k-in" value="{{qAuthor}}" onChange="{{setQAuthor}}"></label>
+          <label style="flex: 1 1 180px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #d0d2da;">Quelle
+            <select class="k-in" value="{{src}}" onChange="{{setSrc}}">
+              <option value="audible-de">Audible Deutschland</option>
+              <option value="audible-com">Audible USA</option>
+              <option value="itunes-ch">Apple Books Schweiz</option>
+              <option value="dnb">Deutsche Nationalbibliothek</option>
+            </select>
+          </label>
+          <button class="k-btn" onClick="{{search}}" style="min-height: 40px; padding: 0 18px; border-radius: 20px; background: #e8794a; color: #1c0d06; border: 0; font-size: 14px; font-weight: 700;">Suchen</button>
+        </div>
+        <sc-if value="{{hasResults}}" hint-placeholder-val="{{true}}">
+          <div role="listbox" aria-label="Treffer" style="display: flex; flex-direction: column; gap: 8px;">
+            <sc-for list="{{results}}" as="r" hint-placeholder-count="3">
+              <button class="k-btn" role="option" aria-selected="{{r.sel}}" onClick="{{r.pick}}" style="{{r.style}}">
+                <span aria-hidden="true" style="{{r.img}}"></span>
+                <span style="flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 3px; text-align: left;">
+                  <span style="font-size: 15px; font-weight: 600;">{{r.title}}</span>
+                  <span style="font-size: 13px; color: #d0d2da;">{{r.people}}</span>
+                  <span style="font-size: 12px; color: #9ea3b0;">{{r.meta}}</span>
+                </span>
+                <span style="{{r.lenStyle}}">{{r.len}}</span>
+              </button>
+            </sc-for>
+          </div>
+          <span style="font-size: 12px; color: #9ea3b0;">Sortiert wie bei Audiobookshelf: zuerst passende Länge, dann Titel, dann Autor. Länge der Dateien: 22 Std. 54 Min.</span>
+        </sc-if>
+        <sc-if value="{{hasPick}}" hint-placeholder-val="{{false}}">
+          <div style="border: 1px solid #e8794a; border-radius: 12px; overflow: hidden;">
+            <div style="padding: 10px 14px; background: #2b1d17; font-size: 14px; font-weight: 600;">Was übernommen wird</div>
+            <div role="table" aria-label="Vergleich" style="display: flex; flex-direction: column;">
+              <sc-for list="{{diff}}" as="d" hint-placeholder-count="8">
+                <div role="row" style="display: grid; grid-template-columns: 40px 120px 1fr 1fr; gap: 10px; align-items: center; padding: 8px 14px; border-top: 1px solid #ffffff14; font-size: 13px;">
+                  <input type="checkbox" aria-label="{{d.aria}}" checked="{{d.on}}" disabled="{{d.locked}}" onChange="{{d.toggle}}" style="width: 20px; height: 20px; accent-color: #e8794a;">
+                  <span role="cell" style="color: #d0d2da; font-weight: 600;">{{d.label}}</span>
+                  <span role="cell" style="color: #9ea3b0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{d.now}}</span>
+                  <span role="cell" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{d.next}}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border-top: 1px solid #ffffff14;">
+              <button class="k-btn" onClick="{{apply}}" style="min-height: 44px; padding: 0 18px; border-radius: 22px; background: #e8794a; color: #1c0d06; border: 0; font-size: 14px; font-weight: 700;">{{applyLabel}}</button>
+              <span style="font-size: 12px; color: #9ea3b0;">Felder mit Schloss bleiben. Die Zuordnung gilt auch für späteres «Vom Anbieter neu holen».</span>
+            </div>
+          </div>
+        </sc-if>
+      </sc-if>
+
+      <sc-if value="{{isRefresh}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <sc-for list="{{refreshOpts}}" as="o" hint-placeholder-count="2">
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 14px; border-radius: 12px; background: #1a1c23; border: 1px solid #ffffff14;">
+              <span style="flex: 1 1 360px; display: flex; flex-direction: column; gap: 4px;">
+                <span style="font-size: 15px; font-weight: 600;">{{o.title}}</span>
+                <span style="font-size: 13px; color: #b6b9c4; line-height: 1.45;">{{o.hint}}</span>
+              </span>
+              <button class="k-btn" onClick="{{o.run}}" disabled="{{o.disabled}}" style="min-height: 44px; padding: 0 18px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">{{o.label}}</button>
+            </div>
+          </sc-for>
+          <label style="display: flex; gap: 10px; align-items: center; min-height: 44px; font-size: 14px; cursor: pointer;">
+            <input type="checkbox" checked="{{unlock}}" onChange="{{toggleUnlock}}" style="width: 20px; height: 20px; accent-color: #e8794a;"> Dabei alle Schlösser lösen
+          </label>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+        <div role="status" style="border: 1px solid #8fd6b0; background: #8fd6b01f; border-radius: 10px; padding: 10px 14px; font-size: 14px;">{{toast}}</div>
+      </sc-if>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: flex-end; padding: 14px 18px; border-top: 1px solid #ffffff14; background: #1a1c23;">
+      <span style="flex: 1 1 auto; font-size: 13px; color: #b6b9c4;">{{dirtyNote}}</span>
+      <a href="Hoerbuecher.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px; text-decoration: none;">Abbrechen</a>
+      <button class="k-btn" onClick="{{save}}" disabled="{{notDirty}}" style="min-height: 44px; padding: 0 20px; border-radius: 22px; background: #e8794a; color: #1c0d06; border: 0; font-size: 14px; font-weight: 700;">Speichern</button>
+    </div>
+  </div>
+
+  <div style="font-size: 13px; color: #b6b9c4; border: 1px dashed #ffffff3d; border-radius: 12px; padding: 10px 14px; line-height: 1.5;">
+    Derselbe Editor wie bei Filmen und Serien (Konzept 15), für Hörbücher mit eigenen Feldern und quadratischem Cover. Ausgangslage aus Marcos Ordner «J R R Tolkien / Der Herr Der Ringe - Band / 01 - Die Gefährten». Treffer und Werte der Anbieter sind Beispiele.
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1500}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    var F = {
+      title: ['Titel', 'Die Gefährten', 'Datei'], subtitle: ['Untertitel', '', ''], sortTitle: ['Sortiertitel', 'Gefährten, Die', 'Datei'],
+      author: ['Autor', 'J R R Tolkien', 'Datei'], narrator: ['Sprecher', 'Achim Höppner', 'Datei'], series: ['Reihe', 'Der Herr Der Ringe - Band', 'Datei'],
+      volume: ['Band', '1', 'Datei'], year: ['Jahr', '2002', 'Datei'], publisher: ['Verlag', '', ''], language: ['Sprache', 'Deutsch', 'Datei'],
+      genres: ['Genres', 'Fantasy', 'Datei'], isbn: ['ISBN', '', ''], asin: ['ASIN', '', ''],
+      overview: ['Beschreibung', 'Der Hobbit Frodo erbt einen Ring …', 'Datei']
+    };
+    this.state = { tab: 'meta', f: F, lock: {}, edited: {}, cover: 0, src: 'audible-de', qTitle: 'Die Gefährten', qAuthor: 'J R R Tolkien',
+      searched: false, pick: -1, take: {}, matched: '', toast: '', unlock: false, saved: false };
+  }
+  renderVals() {
+    var st = this.state, self = this, F = st.f;
+    var R = {
+      'audible-de': [
+        { title: 'Die Gefährten', sub: 'Der Herr der Ringe 1', author: 'J. R. R. Tolkien', narrator: 'Achim Höppner', series: 'Der Herr der Ringe', volume: '1', year: '2002', publisher: 'Der Hörverlag', language: 'Deutsch', genres: 'Fantasy, Klassiker', len: 1374, id: 'ASIN B0EXAMPLE1', cover: '2400 × 2400', overview: 'Die Gefährten ist der erste Teil der Trilogie …' },
+        { title: 'Die Gefährten', sub: 'Der Herr der Ringe 1 (Hörspiel)', author: 'J. R. R. Tolkien', narrator: 'Diverse', series: 'Der Herr der Ringe (Hörspiel)', volume: '1', year: '1992', publisher: 'Der Hörverlag', language: 'Deutsch', genres: 'Hörspiel', len: 240, id: 'ASIN B0EXAMPLE2', cover: '2400 × 2400', overview: 'Das Hörspiel des WDR …' },
+        { title: 'Die Gefährten', sub: 'Neuübersetzung', author: 'J. R. R. Tolkien', narrator: 'Gert Heidenreich', series: 'Der Herr der Ringe', volume: '1', year: '2012', publisher: 'Der Hörverlag', language: 'Deutsch', genres: 'Fantasy', len: 1380, id: 'ASIN B0EXAMPLE3', cover: '2400 × 2400', overview: 'Neu gelesen von Gert Heidenreich …' }
+      ],
+      'audible-com': [{ title: 'The Fellowship of the Ring', sub: 'The Lord of the Rings, Book 1', author: 'J. R. R. Tolkien', narrator: 'Andy Serkis', series: 'The Lord of the Rings', volume: '1', year: '2021', publisher: 'HarperCollins', language: 'Englisch', genres: 'Fantasy', len: 1350, id: 'ASIN B0EXAMPLE4', cover: '2400 × 2400', overview: 'In ancient times …' }],
+      'itunes-ch': [{ title: 'Der Herr der Ringe – Die Gefährten', sub: '', author: 'J. R. R. Tolkien', narrator: '', series: '', volume: '', year: '2002', publisher: 'Der Hörverlag', language: '', genres: 'Fantasy', len: 0, id: 'Apple 000000001', cover: '3000 × 3000', overview: 'Die Gefährten …' }],
+      dnb: [{ title: 'Die Gefährten', sub: 'Ungekürzte Lesung', author: 'Tolkien, J. R. R.', narrator: 'Achim Höppner', series: 'Der Herr der Ringe ; 1', volume: '1', year: '2002', publisher: 'Der Hörverlag', language: 'Deutsch', genres: 'Fantasy', len: 0, id: 'ISBN 978-3-00-000000-0', cover: '–', overview: '' }]
+    };
+    var hue = function (s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360; return h; };
+    var grad = function (s, l) { var h = hue(s); return 'background: linear-gradient(150deg, hsl(' + h + ' 70% ' + (l || 72) + '%), hsl(' + ((h + 50) % 360) + ' 55% 40%));'; };
+    var CV = [['Ordner: cover.jpg', '600 × 600', 'Die Gefährten'], ['Eingebettet', '500 × 500', 'Gefährten'], ['Audible', '2400 × 2400', 'Herr der Ringe'], ['Apple Books', '3000 × 3000', 'HdR Gefährten'], ['Hochladen …', 'eigene Datei', '+']];
+    var setF = function (k, v, src) { var f = Object.assign({}, st.f); f[k] = [F[k][0], v, src]; return f; };
+    var hm = function (m) { return m ? Math.floor(m / 60) + ' Std. ' + (m % 60) + ' Min.' : 'Länge unbekannt'; };
+    var tabStyle = function (on) { return 'min-height: 48px; padding: 0 16px; background: transparent; border: 0; border-bottom: 3px solid ' + (on ? '#e8794a' : 'transparent') + '; color: ' + (on ? '#f3f3f5' : '#d0d2da') + '; font-size: 15px; font-weight: ' + (on ? 600 : 400) + ';'; };
+    var keys = Object.keys(F);
+    var srcStyle = function (s) { var c = s === 'Von Hand' ? '#e8794a' : s === 'Datei' ? '#8fa8d6' : s ? '#8fd6b0' : 'transparent'; return 'font-size: 11px; padding: 2px 8px; border-radius: 8px; border: 1px solid ' + c + '; color: ' + (s ? '#d0d2da' : 'transparent') + ';'; };
+    var results = (st.searched && R[st.src]) || [];
+    var pick = st.pick >= 0 ? results[st.pick] : null;
+    var mapPick = pick ? { title: pick.title, subtitle: pick.sub, author: pick.author, narrator: pick.narrator, series: pick.series, volume: pick.volume, year: pick.year, publisher: pick.publisher, language: pick.language, genres: pick.genres, overview: pick.overview } : {};
+    if (pick) { if (pick.id.indexOf('ASIN') === 0) mapPick.asin = pick.id.slice(5); if (pick.id.indexOf('ISBN') === 0) mapPick.isbn = pick.id.slice(5); }
+    var srcName = { 'audible-de': 'Audible', 'audible-com': 'Audible', 'itunes-ch': 'Apple Books', dnb: 'DNB' }[st.src];
+    var dk = keys.filter(function (k) { return pick && mapPick[k] && mapPick[k] !== F[k][1]; });
+    var takeOn = function (k) { return st.lock[k] ? false : st.take[k] !== undefined ? st.take[k] : true; };
+    var nTake = dk.filter(takeOn).length;
+    var nEdited = Object.keys(st.edited).length;
+    return {
+      headCover: 'flex: 0 0 96px; width: 96px; height: 96px; border-radius: 12px; display: flex; align-items: flex-end; padding: 8px; box-sizing: border-box; font: 700 12px/1.2 Georgia, serif; color: #0b0c10; ' + grad(CV[st.cover][2]),
+      headCoverText: CV[st.cover][2],
+      vTitle: F.title[1], headSub: F.author[1] + (F.narrator[1] ? ' · gelesen von ' + F.narrator[1] : '') + (F.series[1] ? ' · ' + F.series[1] + ' ' + F.volume[1] : ''),
+      matchNote: st.matched ? 'Zugeordnet: ' + st.matched : 'Nicht zugeordnet: Angaben nur aus den Dateien',
+      tabs: [['meta', 'Metadaten'], ['cover', 'Cover'], ['match', 'Zuordnen'], ['refresh', 'Aktualisieren']].map(function (t) {
+        var on = st.tab === t[0]; return { label: t[1], sel: on ? 'true' : 'false', style: tabStyle(on), pick: function () { self.setState({ tab: t[0], toast: '' }); } };
+      }),
+      isMeta: st.tab === 'meta', isCover: st.tab === 'cover', isMatch: st.tab === 'match', isRefresh: st.tab === 'refresh',
+      fields: keys.map(function (k) {
+        var locked = !!st.lock[k], src = st.edited[k] ? 'Von Hand' : F[k][2], multi = k === 'overview';
+        return { id: 'f-' + k, label: F[k][0], value: F[k][1], multi: multi, single: !multi, src: src || 'leer', srcStyle: srcStyle(src),
+          wrap: 'display: flex; flex-direction: column; gap: 6px;' + (multi ? ' grid-column: 1 / -1;' : ''),
+          locked: locked ? 'true' : 'false', lockIcon: locked ? '🔒' : '🔓', lockAria: (locked ? 'Schloss lösen: ' : 'Sperren: ') + F[k][0],
+          lockStyle: 'width: 32px; height: 32px; border-radius: 16px; border: 1px solid ' + (locked ? '#e8794a' : '#ffffff2e') + '; background: ' + (locked ? '#e8794a33' : 'transparent') + '; color: #f3f3f5; font-size: 13px;',
+          toggleLock: function () { var l = Object.assign({}, st.lock); if (l[k]) delete l[k]; else l[k] = true; self.setState({ lock: l }); },
+          set: function (e) { var ed = Object.assign({}, st.edited); ed[k] = true; var l = Object.assign({}, st.lock); l[k] = true; self.setState({ f: setF(k, e.target.value, 'Von Hand'), edited: ed, lock: l, saved: false }); } };
+      }),
+      covers: CV.map(function (c, i) {
+        var on = st.cover === i;
+        return { src: c[0], size: c[1], text: c[2], checked: on ? 'true' : 'false', pick: function () { if (i < 4) self.setState({ cover: i }); },
+          img: 'display: flex; align-items: flex-end; aspect-ratio: 1 / 1; border-radius: 10px; padding: 8px; box-sizing: border-box; font: 700 13px/1.2 Georgia, serif; color: #0b0c10; ' + (i < 4 ? grad(c[2]) : 'background: #1d2029; color: #b6b9c4; justify-content: center; align-items: center; font-size: 32px;'),
+          style: 'display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 8px; border-radius: 14px; color: #f3f3f5; background: ' + (on ? '#2b1d17' : 'transparent') + '; border: 2px solid ' + (on ? '#e8794a' : '#ffffff14') + ';' };
+      }),
+      qTitle: st.qTitle, qAuthor: st.qAuthor, src: st.src,
+      setQTitle: function (e) { self.setState({ qTitle: e.target.value }); }, setQAuthor: function (e) { self.setState({ qAuthor: e.target.value }); },
+      setSrc: function (e) { self.setState({ src: e.target.value, searched: false, pick: -1, take: {} }); },
+      search: function () { self.setState({ searched: true, pick: -1, take: {} }); },
+      hasResults: results.length > 0,
+      results: results.map(function (r, i) {
+        var on = st.pick === i, ok = r.len && Math.abs(r.len - 1374) <= 15;
+        return { title: r.title + (r.sub ? ' – ' + r.sub : ''), people: r.author + (r.narrator ? ' · gelesen von ' + r.narrator : ''), meta: [r.publisher, r.year, r.id, 'Cover ' + r.cover].filter(Boolean).join(' · '),
+          len: r.len ? (ok ? '✓ ' : '≠ ') + hm(r.len) : 'Länge unbekannt', sel: on ? 'true' : 'false',
+          lenStyle: 'font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 10px; white-space: nowrap; color: ' + (ok ? '#8fd6b0' : '#d0d2da') + '; background: ' + (ok ? '#8fd6b01f' : '#1d2029') + ';',
+          img: 'flex: 0 0 64px; width: 64px; height: 64px; border-radius: 8px; ' + grad(r.title + r.sub),
+          pick: function () { self.setState({ pick: i, take: {} }); },
+          style: 'display: flex; flex-wrap: wrap; gap: 14px; align-items: center; padding: 10px 12px; border-radius: 12px; color: #f3f3f5; background: ' + (on ? '#2b1d17' : '#1a1c23') + '; border: 1px solid ' + (on ? '#e8794a' : '#ffffff14') + ';' };
+      }),
+      hasPick: !!pick,
+      diff: dk.map(function (k) {
+        var on = takeOn(k);
+        return { label: F[k][0], now: F[k][1] || '–', next: mapPick[k], on: on, locked: !!st.lock[k], aria: F[k][0] + ' übernehmen' + (st.lock[k] ? ' (gesperrt)' : ''),
+          toggle: function () { var t = Object.assign({}, st.take); t[k] = !on; self.setState({ take: t }); } };
+      }),
+      applyLabel: nTake + (nTake === 1 ? ' Feld übernehmen' : ' Felder übernehmen'),
+      apply: function () {
+        var f = Object.assign({}, st.f);
+        dk.forEach(function (k) { if (takeOn(k)) f[k] = [F[k][0], mapPick[k], srcName]; });
+        self.setState({ f: f, matched: srcName + ', ' + pick.id, pick: -1, searched: false, tab: 'meta', toast: nTake + ' Felder von ' + srcName + ' übernommen. Neues Cover unter «Cover» wählbar.', saved: false });
+      },
+      refreshOpts: [
+        { title: 'Aus den Dateien neu lesen', hint: 'metadata.json, Tags und Ordnernamen noch einmal lesen. Felder mit Schloss bleiben.', label: 'Neu lesen', disabled: false,
+          run: function () { self.setState({ toast: 'Die Dateien werden neu gelesen.' }); } },
+        { title: 'Vom Anbieter neu holen', hint: st.matched ? 'Die Angaben von ' + st.matched + ' neu holen. Felder mit Schloss bleiben.' : 'Erst unter «Zuordnen» einen Treffer wählen.', label: 'Neu holen', disabled: !st.matched,
+          run: function () { self.setState({ toast: 'Angaben von ' + st.matched + ' werden neu geholt.' }); } }
+      ],
+      unlock: st.unlock, toggleUnlock: function () { self.setState({ unlock: !st.unlock }); },
+      hasToast: !!st.toast || st.saved, toast: st.saved ? 'Gespeichert.' : st.toast,
+      dirtyNote: nEdited ? nEdited + (nEdited === 1 ? ' Feld von Hand geändert' : ' Felder von Hand geändert') : st.matched ? 'Werte vom Anbieter übernommen, noch nicht gespeichert' : 'Keine Änderungen',
+      notDirty: !nEdited && !st.matched, save: function () { self.setState({ saved: true, toast: '' }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

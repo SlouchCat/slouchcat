@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Verwaltung: Podcasts, Tabelle mit Mehrfachauswahl</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f3a27f}a:hover{color:#ffc4a8}
+.k-btn{font:inherit;cursor:pointer}
+.k-btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+</style>
+</helmet>
+<div style="box-sizing: border-box; min-height: 100vh; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 20px 16px 48px;">
+<div style="max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px;">
+
+  <nav aria-label="Mockup-Navigation" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: #b6b9c4; border: 1px dashed #ffffff3d; border-radius: 12px; padding: 8px 12px;">
+    <span>Mockup:</span>
+    <a href="Main.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Abos A · Liste</a>
+    <a href="AbosB.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Abos B · Raster</a>
+    <a href="AbosC.dc.html" aria-current="page" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #e8794a; background: #e8794a33; color: #f3f3f5; text-decoration: none;">Abos C · Tabelle</a>
+    <a href="Einstellung.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Einstellung A · Dialog</a>
+    <a href="EinstellungB.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Einstellung B · Band</a>
+    <a href="Podcast.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Einzelner Podcast</a>
+  </nav>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+    <div style="display: flex; flex-direction: column; gap: 4px; flex: 999 1 320px; min-width: 0;">
+      <h1 style="margin: 0; font-size: 26px; font-weight: 700;">Podcasts</h1>
+      <span style="font-size: 14px; color: #b6b9c4;">Kompakt wie heute, dazu Cover, «Neue Folgen» direkt in der Zeile und Mehrfachauswahl.</span>
+    </div>
+    <a href="Einstellung.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; text-decoration: none; font-size: 14px;">Einstellungen</a>
+    <button class="k-btn" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 22px; background: #f3f3f5; color: #0b0c10; border: 0; font-size: 14px; font-weight: 600;">
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Feed abonnieren
+    </button>
+  </div>
+
+  <div style="border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; overflow: hidden;">
+    <div style="background: #2b1d17; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; min-height: 44px;">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e8794a" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      <span style="font-size: 16px; font-weight: 600; margin-right: 8px;">Abonnierte Podcasts</span>
+      <span style="font-size: 13px; color: #d0d2da;">{{summary}}</span>
+    </div>
+
+    <sc-if value="{{hasSelection}}" hint-placeholder-val="{{true}}">
+      <div role="group" aria-label="Aktionen für die Auswahl" style="padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: #e8794a1f; border-bottom: 1px solid #e8794a66;">
+        <span style="font-size: 14px; font-weight: 600; margin-right: 6px;">{{selectionText}}</span>
+        <span style="font-size: 13px; color: #d0d2da;">Neue Folgen:</span>
+        <button class="k-btn" onClick="{{bulkSave}}" style="min-height: 40px; padding: 0 14px; border-radius: 20px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">Speichern</button>
+        <button class="k-btn" onClick="{{bulkLink}}" style="min-height: 40px; padding: 0 14px; border-radius: 20px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">Nur Link</button>
+        <button class="k-btn" onClick="{{bulkInherit}}" style="min-height: 40px; padding: 0 14px; border-radius: 20px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">Wie Bibliothek</button>
+        <button class="k-btn" onClick="{{bulkLoad}}" style="min-height: 40px; padding: 0 14px; border-radius: 20px; background: #e8794a; color: #1c0d06; border: 0; font-size: 14px; font-weight: 600;">Fehlende nachladen</button>
+        <span style="flex-grow: 1;"></span>
+        <button class="k-btn" onClick="{{clearSelection}}" style="min-height: 40px; padding: 0 12px; border-radius: 20px; background: transparent; color: #f3f3f5; border: 0; font-size: 14px; text-decoration: underline;">Auswahl aufheben</button>
+      </div>
+    </sc-if>
+
+    <div style="overflow-x: auto;">
+      <div role="table" aria-label="Abonnierte Podcasts" style="min-width: 1040px;">
+        <div role="row" style="display: grid; grid-template-columns: 52px minmax(260px, 1fr) 210px 80px 120px 90px 130px 130px; align-items: center; padding: 0 8px; border-bottom: 1px solid #ffffff14; font-size: 12px; letter-spacing: 0.6px; text-transform: uppercase; color: #b6b9c4;">
+          <div role="columnheader" style="display: flex; justify-content: center;"><input type="checkbox" aria-label="Alle auswählen" checked="{{allChecked}}" onChange="{{toggleAll}}" style="width: 20px; height: 20px; accent-color: #e8794a;"></div>
+          <sc-for list="{{heads}}" as="h" hint-placeholder-count="7">
+            <div role="columnheader" style="{{h.cell}}">
+              <sc-if value="{{h.sortable}}" hint-placeholder-val="{{true}}">
+                <button class="k-btn" onClick="{{h.pick}}" aria-label="{{h.aria}}" style="min-height: 44px; padding: 0 8px; background: transparent; border: 0; color: #f3f3f5; font-size: 12px; letter-spacing: 0.6px; text-transform: uppercase; display: inline-flex; align-items: center; gap: 6px;">{{h.label}} <span aria-hidden="true">{{h.arrow}}</span></button>
+              </sc-if>
+              <sc-if value="{{h.plain}}" hint-placeholder-val="{{false}}">
+                <span style="padding: 0 8px;">{{h.label}}</span>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+
+        <sc-for list="{{rows}}" as="r" hint-placeholder-count="10">
+          <div role="row" style="{{r.style}}">
+            <div role="cell" style="display: flex; justify-content: center;"><input type="checkbox" aria-label="{{r.checkLabel}}" checked="{{r.checked}}" onChange="{{r.toggle}}" style="width: 20px; height: 20px; accent-color: #e8794a;"></div>
+            <div role="cell" style="display: flex; gap: 12px; align-items: center; min-width: 0; padding: 8px;">
+              <div aria-hidden="true" style="{{r.cover}}">{{r.initials}}</div>
+              <div style="min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+                <a href="Podcast.dc.html" style="font-size: 14px; font-weight: 600; color: #f3f3f5; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{r.title}}</a>
+                <span style="font-size: 12px; color: #b6b9c4;">{{r.author}}</span>
+              </div>
+            </div>
+            <div role="cell" style="padding: 0 8px;">
+              <select aria-label="{{r.modeLabel}}" value="{{r.mode}}" onChange="{{r.setMode}}" style="{{r.select}}">
+                <option value="inherit">Wie Bibliothek</option>
+                <option value="save">Speichern</option>
+                <option value="link">Nur Link</option>
+              </select>
+            </div>
+            <div role="cell" style="padding: 0 8px; text-align: right; font-size: 14px; font-variant-numeric: tabular-nums;">{{r.eps}}</div>
+            <div role="cell" style="padding: 0 8px; display: flex; flex-direction: column; gap: 4px;">
+              <span style="font-size: 13px; font-variant-numeric: tabular-nums;">{{r.localText}}</span>
+              <div aria-hidden="true" style="height: 4px; border-radius: 2px; background: #ffffff26;"><div style="{{r.bar}}"></div></div>
+            </div>
+            <div role="cell" style="padding: 0 8px; text-align: right; font-size: 14px; font-variant-numeric: tabular-nums;">{{r.size}}</div>
+            <div role="cell" style="padding: 0 8px; font-size: 14px;">{{r.newest}}</div>
+            <div role="cell" style="padding: 0 8px;"><span style="{{r.stateStyle}}">{{r.stateText}}</span></div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  <span style="font-size: 13px; color: #b6b9c4;">Titel antippen öffnet den Podcast mit seinen Folgen. Spaltenköpfe sortieren.</span>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1100}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sort: 'title', dir: 1, picked: { ww: true, wz: true, tg: true }, mode: { ww: 'link', tg: 'link' }, prog: {}, done: {} };
+  }
+  componentDidMount() {
+    var self = this;
+    this.timer = setInterval(function () {
+      var prog = self.state.prog, ids = Object.keys(prog);
+      if (!ids.length) return;
+      var next = {}, done = Object.assign({}, self.state.done);
+      ids.forEach(function (id) { var v = prog[id] + 0.06; if (v >= 1) done[id] = true; else next[id] = v; });
+      self.setState({ prog: next, done: done });
+    }, 450);
+  }
+  componentWillUnmount() { clearInterval(this.timer); }
+  renderVals() {
+    var st = this.state, self = this;
+    var nf = function (n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); };
+    var gbf = function (g) { return g.toFixed(1).replace('.', ',') + ' GB'; };
+    var raw = [
+      ['ug', '{ungeskriptet} - Der Meinungsfreiheit verpflichtet.', 'Ben Berndt', 'UG', 12, 374, 371, 41.2, 'heute, 06:00', 0], ['zg', 'Zum Glück ist Freitag', 'SRF', 'ZG', 48, 51, 51, 2.1, 'Freitag', 3],
+      ['zv', 'Zu viel! – der Mental-Health-Podcast', 'ARD', 'ZV', 300, 61, 61, 2.6, 'vor 5 Tagen', 5], ['zw', 'ZEIT WISSEN. Woher weisst Du das?', 'DIE ZEIT', 'ZW', 210, 151, 148, 6.9, 'gestern', 1],
+      ['wm', 'Wissenschaftsmagazin', 'SRF', 'WM', 160, 50, 50, 1.3, 'Samstag', 2], ['wk', 'Wissen Weekly', 'Spotify Studios', 'WW', 90, 267, 260, 5.4, 'vor 4 Tagen', 4],
+      ['ww', 'Weltwoche Daily', 'Weltwoche', 'WD', 0, 2017, 545, 12.9, 'heute, 07:00', 0], ['wb', 'Was bisher geschah - Geschichtspodcast', 'Wondery', 'WB', 28, 181, 181, 9.8, 'vor 6 Tagen', 6],
+      ['wz', 'WDR Zeitzeichen', 'WDR', 'WZ', 235, 606, 420, 5.1, 'heute, 05:00', 0], ['vn', 'Verbrechen von nebenan', 'Philipp Fleiter', 'VN', 340, 210, 210, 11.4, 'vor 3 Tagen', 3],
+      ['uf', 'UNFASSBAR – ein Simplicissimus Podcast', 'Simplicissimus', 'UN', 265, 64, 64, 3.0, 'vor 8 Tagen', 8], ['tc', 'True Crime Schweiz', 'CH Media', 'TC', 185, 22, 22, 0.9, 'vor 12 Tagen', 12],
+      ['tg', 'Tagesgespräch', 'SRF', 'TG', 130, 106, 90, 2.2, 'heute, 13:00', 0], ['sp', 'Sternstunde Philosophie', 'SRF', 'SP', 60, 101, 101, 5.6, 'vor 9 Tagen', 9]
+    ];
+    var all = raw.map(function (r) {
+      var mode = st.mode[r[0]] || 'inherit', prog = st.prog[r[0]];
+      return { id: r[0], title: r[1], author: r[2], ini: r[3], hue: r[4], eps: r[5], local: st.done[r[0]] ? r[5] : r[6], gb: r[7], newest: r[8], age: r[9], mode: mode, saves: mode !== 'link', prog: prog, loading: prog !== undefined, error: r[0] === 'sp' };
+    });
+    var keyOf = { title: function (p) { return p.title.replace(/^\W+/, '').toLowerCase(); }, eps: function (p) { return p.eps; }, local: function (p) { return p.local / p.eps; }, size: function (p) { return p.gb; }, newest: function (p) { return p.age; } };
+    var k = keyOf[st.sort];
+    all.sort(function (a, b) { var x = k(a), y = k(b); return (x < y ? -1 : x > y ? 1 : 0) * st.dir; });
+    var cols = 'display: grid; grid-template-columns: 52px minmax(260px, 1fr) 210px 80px 120px 90px 130px 130px; align-items: center; padding: 0 8px; border-bottom: 1px solid #ffffff14;';
+    var heads = [['title', 'Podcast', ''], ['', 'Neue Folgen', ''], ['eps', 'Folgen', 'right'], ['local', 'Gespeichert', ''], ['size', 'Speicher', 'right'], ['newest', 'Neueste Folge', ''], ['', 'Zustand', '']].map(function (h) {
+      var on = st.sort === h[0];
+      return {
+        label: h[1], sortable: h[0] !== '', plain: h[0] === '', arrow: on ? (st.dir === 1 ? '▲' : '▼') : '',
+        aria: h[1] + ' sortieren', cell: 'display: flex; ' + (h[2] === 'right' ? 'justify-content: flex-end;' : ''),
+        pick: function () { self.setState({ sort: h[0], dir: on ? -st.dir : 1 }); }
+      };
+    });
+    var setMode = function (ids, val) { var o = Object.assign({}, st.mode); ids.forEach(function (id) { if (val === 'inherit') delete o[id]; else o[id] = val; }); self.setState({ mode: o }); };
+    var rows = all.map(function (p) {
+      var on = !!st.picked[p.id], missing = p.eps - p.local;
+      var tone = p.loading ? ['#7fb2ff', '#7fb2ff24', 'Lädt ' + Math.round(p.prog * 100) + ' %'] : p.error ? ['#ff8f7a', '#ff8f7a24', 'Feed-Fehler'] : ['#b6b9c4', 'transparent', 'Aktuell'];
+      return {
+        title: p.title, author: p.author, initials: p.ini, eps: nf(p.eps), size: gbf(p.gb), newest: p.newest,
+        style: cols + ' min-height: 60px; background: ' + (on ? '#e8794a14' : 'transparent') + ';',
+        checked: on, checkLabel: 'Auswählen: ' + p.title,
+        toggle: function () { var o = Object.assign({}, st.picked); if (on) delete o[p.id]; else o[p.id] = true; self.setState({ picked: o }); },
+        cover: 'flex: 0 0 40px; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #0b0c10; background: linear-gradient(135deg, hsl(' + p.hue + ' 70% 72%), hsl(' + ((p.hue + 40) % 360) + ' 60% 52%));',
+        mode: p.mode, modeLabel: 'Neue Folgen für ' + p.title, setMode: function (e) { setMode([p.id], e.target.value); },
+        select: 'width: 100%; height: 44px; border-radius: 10px; color: #f3f3f5; padding: 0 10px; font: inherit; font-size: 14px; background: #1d2029; border: 1px ' + (p.mode === 'inherit' ? 'solid #ffffff2e' : 'dashed #f3a27f') + ';',
+        localText: missing ? nf(p.local) + ' · ' + nf(missing) + ' fehlen' : 'alle',
+        bar: 'height: 4px; border-radius: 2px; background: #8fd6b0; width: ' + Math.round(100 * (p.loading ? p.local + missing * p.prog : p.local) / p.eps) + '%;',
+        stateText: tone[2], stateStyle: 'display: inline-flex; align-items: center; min-height: 26px; padding: 0 10px; border-radius: 13px; font-size: 13px; white-space: nowrap; color: ' + tone[0] + '; background: ' + tone[1] + '; border: 1px solid ' + (tone[1] === 'transparent' ? '#ffffff2e' : tone[0]) + ';'
+      };
+    });
+    var ids = Object.keys(st.picked);
+    var saving = all.filter(function (p) { return p.saves; }).length;
+    return {
+      heads: heads, rows: rows, summary: all.length + ' von 94 · ' + saving + ' speichern · ' + (all.length - saving) + ' nur Link',
+      hasSelection: ids.length > 0, selectionText: ids.length + ' gewählt',
+      allChecked: ids.length === all.length,
+      toggleAll: function () { var o = {}; if (ids.length !== all.length) all.forEach(function (p) { o[p.id] = true; }); self.setState({ picked: o }); },
+      clearSelection: function () { self.setState({ picked: {} }); },
+      bulkSave: function () { setMode(ids, 'save'); }, bulkLink: function () { setMode(ids, 'link'); }, bulkInherit: function () { setMode(ids, 'inherit'); },
+      bulkLoad: function () {
+        var o = Object.assign({}, st.prog);
+        all.forEach(function (p) { if (st.picked[p.id] && p.saves && p.local < p.eps && !p.loading) o[p.id] = 0.02; });
+        self.setState({ prog: o });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

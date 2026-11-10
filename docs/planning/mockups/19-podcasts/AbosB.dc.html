@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Verwaltung: Podcasts, Raster mit Seitenfeld</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f3a27f}a:hover{color:#ffc4a8}
+.k-btn{font:inherit;cursor:pointer}
+.k-btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+</style>
+</helmet>
+<div style="box-sizing: border-box; min-height: 100vh; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 20px 16px 48px;">
+<div style="max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px;">
+
+  <nav aria-label="Mockup-Navigation" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: #b6b9c4; border: 1px dashed #ffffff3d; border-radius: 12px; padding: 8px 12px;">
+    <span>Mockup:</span>
+    <a href="Main.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Abos A · Liste</a>
+    <a href="AbosB.dc.html" aria-current="page" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #e8794a; background: #e8794a33; color: #f3f3f5; text-decoration: none;">Abos B · Raster</a>
+    <a href="AbosC.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Abos C · Tabelle</a>
+    <a href="Einstellung.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Einstellung A · Dialog</a>
+    <a href="EinstellungB.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Einstellung B · Band</a>
+    <a href="Podcast.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Einzelner Podcast</a>
+  </nav>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+    <div style="display: flex; flex-direction: column; gap: 4px; flex: 999 1 320px; min-width: 0;">
+      <h1 style="margin: 0; font-size: 26px; font-weight: 700;">Podcasts</h1>
+      <span style="font-size: 14px; color: #b6b9c4;">{{summary}}</span>
+    </div>
+    <a href="Einstellung.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; text-decoration: none; font-size: 14px;">Einstellungen</a>
+    <button class="k-btn" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 22px; background: #f3f3f5; color: #0b0c10; border: 0; font-size: 14px; font-weight: 600;">
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Feed abonnieren
+    </button>
+  </div>
+
+  <div role="group" aria-label="Filtern" style="display: flex; flex-wrap: wrap; gap: 8px;">
+    <sc-for list="{{filters}}" as="f" hint-placeholder-count="4">
+      <button class="k-btn" aria-pressed="{{f.pressed}}" onClick="{{f.pick}}" style="{{f.style}}">{{f.label}} <span style="{{f.countStyle}}">{{f.count}}</span></button>
+    </sc-for>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start;">
+
+    <div style="flex: 999 1 520px; min-width: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px;">
+      <sc-for list="{{cards}}" as="c" hint-placeholder-count="12">
+        <button class="k-btn" aria-pressed="{{c.pressed}}" onClick="{{c.pick}}" style="{{c.style}}">
+          <span aria-hidden="true" style="{{c.cover}}">
+            {{c.initials}}
+            <span style="{{c.badge}}">{{c.badgeText}}</span>
+          </span>
+          <span style="font-size: 14px; font-weight: 600; line-height: 1.3; min-height: 36px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{c.title}}</span>
+          <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #b6b9c4;">
+            <span style="{{c.dot}}"></span>{{c.line}}
+          </span>
+        </button>
+      </sc-for>
+    </div>
+
+    <aside aria-label="Gewählter Podcast" style="flex: 1 1 340px; min-width: 0; background: #13151b; border: 1px solid #ffffff14; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; gap: 14px; align-items: center;">
+        <div aria-hidden="true" style="{{sel.cover}}">{{sel.initials}}</div>
+        <div style="min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 17px; font-weight: 700; line-height: 1.3;">{{sel.title}}</span>
+          <span style="font-size: 13px; color: #b6b9c4;">{{sel.author}}</span>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+        <sc-for list="{{sel.stats}}" as="s" hint-placeholder-count="3">
+          <div style="background: #1d2029; border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 16px; font-weight: 700;">{{s.v}}</span>
+            <span style="font-size: 12px; color: #b6b9c4;">{{s.k}}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <span style="font-size: 14px; font-weight: 600;">Neue Folgen</span>
+        <div role="group" aria-label="Neue Folgen" style="display: flex; flex-direction: column; gap: 6px;">
+          <sc-for list="{{sel.modeOpts}}" as="o" hint-placeholder-count="3">
+            <button class="k-btn" aria-pressed="{{o.pressed}}" onClick="{{o.pick}}" style="{{o.style}}">
+              <span style="font-size: 14px; font-weight: 600;">{{o.label}}</span>
+              <span style="font-size: 12px; color: #b6b9c4;">{{o.hint}}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+      <sc-if value="{{sel.saves}}" hint-placeholder-val="{{true}}">
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #b6b9c4;">Umfang
+          <select value="{{sel.scope}}" onChange="{{sel.setScope}}" style="height: 44px; border-radius: 10px; background: #262a35; color: #f3f3f5; border: 1px solid #ffffff2e; padding: 0 10px; font: inherit; font-size: 14px;">
+            <option value="inherit">Wie Bibliothek (Nur neue Folgen)</option>
+            <option value="new">Nur neue Folgen</option>
+            <option value="lastn">Neue + letzte 10</option>
+            <option value="all">Alle Folgen</option>
+          </select>
+        </label>
+      </sc-if>
+
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-size: 14px; font-weight: 600;">Letzte Folgen</span>
+        <sc-for list="{{sel.episodes}}" as="e" hint-placeholder-count="4">
+          <div style="display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: #1a1c24;">
+            <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+              <span style="font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{e.title}}</span>
+              <span style="font-size: 12px; color: #9ea3b0;">{{e.meta}}</span>
+            </div>
+            <span style="{{e.chip}}">{{e.state}}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+        <button class="k-btn" onClick="{{sel.refresh}}" style="min-height: 44px; padding: 0 14px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">{{sel.refreshLabel}}</button>
+        <sc-if value="{{sel.canLoad}}" hint-placeholder-val="{{false}}">
+          <button class="k-btn" onClick="{{sel.loadMissing}}" style="min-height: 44px; padding: 0 14px; border-radius: 22px; background: #e8794a; color: #1c0d06; border: 0; font-size: 14px; font-weight: 600;">{{sel.loadLabel}}</button>
+        </sc-if>
+        <a href="Podcast.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: 22px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none; font-size: 14px;">Alle Folgen</a>
+      </div>
+    </aside>
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1240}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { filter: 'all', picked: 'ww', mode: { ww: 'link', tg: 'link' }, scope: {}, prog: {}, done: {}, fetching: false };
+  }
+  componentDidMount() {
+    var self = this;
+    this.timer = setInterval(function () {
+      var prog = self.state.prog, ids = Object.keys(prog);
+      if (!ids.length) return;
+      var next = {}, done = Object.assign({}, self.state.done);
+      ids.forEach(function (id) { var v = prog[id] + 0.08; if (v >= 1) done[id] = true; else next[id] = v; });
+      self.setState({ prog: next, done: done });
+    }, 450);
+  }
+  componentWillUnmount() { clearInterval(this.timer); }
+  renderVals() {
+    var st = this.state, self = this;
+    var nf = function (n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); };
+    var gbf = function (g) { return g.toFixed(1).replace('.', ',') + ' GB'; };
+    var grad = function (h) { return 'linear-gradient(135deg, hsl(' + h + ' 70% 72%), hsl(' + ((h + 40) % 360) + ' 60% 52%))'; };
+    var raw = [
+      ['ug', '{ungeskriptet} - Der Meinungsfreiheit verpflichtet.', 'Ben Berndt', 'UG', 12, 374, 371, 41.2], ['zg', 'Zum Glück ist Freitag', 'SRF', 'ZG', 48, 51, 51, 2.1],
+      ['zv', 'Zu viel! – der Mental-Health-Podcast', 'ARD', 'ZV', 300, 61, 61, 2.6], ['zw', 'ZEIT WISSEN. Woher weisst Du das?', 'DIE ZEIT', 'ZW', 210, 151, 148, 6.9],
+      ['wm', 'Wissenschaftsmagazin', 'SRF', 'WM', 160, 50, 50, 1.3], ['wk', 'Wissen Weekly', 'Spotify Studios', 'WW', 90, 267, 260, 5.4],
+      ['ww', 'Weltwoche Daily', 'Weltwoche', 'WD', 0, 2017, 545, 12.9], ['wb', 'Was bisher geschah - Geschichtspodcast', 'Wondery', 'WB', 28, 181, 181, 9.8],
+      ['wz', 'WDR Zeitzeichen', 'WDR', 'WZ', 235, 606, 420, 5.1], ['vn', 'Verbrechen von nebenan', 'Philipp Fleiter', 'VN', 340, 210, 210, 11.4],
+      ['uf', 'UNFASSBAR – ein Simplicissimus Podcast', 'Simplicissimus', 'UN', 265, 64, 64, 3.0], ['tc', 'True Crime Schweiz', 'CH Media', 'TC', 185, 22, 22, 0.9],
+      ['tg', 'Tagesgespräch', 'SRF', 'TG', 130, 106, 90, 2.2], ['sp', 'Sternstunde Philosophie', 'SRF', 'SP', 60, 101, 101, 5.6]
+    ];
+    var all = raw.map(function (r) {
+      var mode = st.mode[r[0]] || 'inherit', prog = st.prog[r[0]];
+      var local = st.done[r[0]] ? r[5] : r[6];
+      return { id: r[0], title: r[1], author: r[2], ini: r[3], hue: r[4], eps: r[5], local: local, gb: r[7], mode: mode, saves: mode !== 'link', prog: prog, loading: prog !== undefined, error: r[0] === 'sp' };
+    });
+    var match = function (p, f) { return f === 'save' ? p.saves : f === 'link' ? !p.saves : f === 'gaps' ? p.local < p.eps : true; };
+    var filters = [['all', 'Alle'], ['save', 'Speichert'], ['link', 'Nur Link'], ['gaps', 'Mit fehlenden Folgen']].map(function (d) {
+      var on = st.filter === d[0];
+      return {
+        label: d[1], pressed: on ? 'true' : 'false', count: String(all.filter(function (p) { return match(p, d[0]); }).length),
+        pick: function () { self.setState({ filter: d[0] }); },
+        style: 'min-height: 40px; padding: 0 14px; border-radius: 20px; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: #f3f3f5; border: 1px solid ' + (on ? '#e8794a' : '#ffffff2e') + '; background: ' + (on ? '#e8794a33' : '#1d2029') + ';',
+        countStyle: 'font-size: 12px; min-width: 20px; height: 20px; line-height: 20px; border-radius: 10px; text-align: center; background: ' + (on ? '#e8794a' : '#ffffff1f') + '; color: ' + (on ? '#1c0d06' : '#d0d2da') + ';'
+      };
+    });
+    var cards = all.filter(function (p) { return match(p, st.filter); }).map(function (p) {
+      var on = st.picked === p.id, missing = p.eps - p.local;
+      var tone = p.loading ? '#7fb2ff' : p.error ? '#ff8f7a' : p.saves ? '#8fd6b0' : '#9ea3b0';
+      return {
+        title: p.title, initials: p.ini, pressed: on ? 'true' : 'false', pick: function () { self.setState({ picked: p.id }); },
+        style: 'text-align: left; color: #f3f3f5; display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 14px; background: ' + (on ? '#e8794a1f' : '#13151b') + '; border: 2px solid ' + (on ? '#e8794a' : '#ffffff14') + ';',
+        cover: 'position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 34px; font-weight: 800; color: #0b0c10; background: ' + grad(p.hue) + ';',
+        badge: 'position: absolute; left: 8px; bottom: 8px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: #0b0c10e0; color: #f3f3f5;',
+        badgeText: p.saves ? 'Speichert' : 'Nur Link',
+        dot: 'width: 8px; height: 8px; border-radius: 4px; flex: 0 0 8px; background: ' + tone + ';',
+        line: p.loading ? 'lädt ' + Math.round(p.prog * 100) + ' %' : p.error ? 'Feed-Fehler' : missing ? nf(p.local) + ' von ' + nf(p.eps) + ' gespeichert' : nf(p.eps) + ' Folgen, alle gespeichert'
+      };
+    });
+    var p = all.filter(function (x) { return x.id === st.picked; })[0] || all[0];
+    var missing = p.eps - p.local;
+    var setMap = function (key, val) { var o = Object.assign({}, st[key]); if (val === undefined) delete o[p.id]; else o[p.id] = val; var s = {}; s[key] = o; self.setState(s); };
+    var chip = function (kind) {
+      var c = { file: ['#8fd6b0', '#06140c', 'Gespeichert'], link: ['transparent', '#f3f3f5', 'Nur Link'], load: ['#7fb2ff', '#04122b', 'Lädt'] }[kind];
+      return { state: c[2], chip: 'flex: 0 0 auto; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: ' + c[0] + '; color: ' + c[1] + ';' + (kind === 'link' ? ' border: 1px solid #ffffff5c;' : '') };
+    };
+    var newestKind = p.loading ? 'load' : (p.saves || st.done[p.id]) ? 'file' : 'link';
+    var episodes = [['Folge vom 9. November', 'heute · 31 min · 28 MB', newestKind], ['Folge vom 8. November', 'gestern · 29 min · 26 MB', p.saves ? 'file' : 'link'], ['Folge vom 7. November', 'vor 2 Tagen · 34 min · 31 MB', 'file'], ['Folge vom 6. November', 'vor 3 Tagen · 30 min · 27 MB', 'file']].map(function (e) {
+      return Object.assign({ title: e[0], meta: e[1] }, chip(e[2]));
+    });
+    var sel = {
+      title: p.title, author: p.author, initials: p.ini, saves: p.saves, episodes: episodes,
+      cover: 'flex: 0 0 72px; width: 72px; height: 72px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; color: #0b0c10; background: ' + grad(p.hue) + ';',
+      stats: [{ k: 'Folgen', v: nf(p.eps) }, { k: 'gespeichert', v: nf(p.local) }, { k: 'belegt', v: gbf(p.gb) }],
+      modeOpts: [['inherit', 'Wie Bibliothek', 'Zurzeit: Speichern'], ['save', 'Speichern', 'Datei im Podcast-Ordner'], ['link', 'Nur Link', 'Stream vom Anbieter über Slouchcat']].map(function (d) {
+        var on = p.mode === d[0];
+        return { label: d[1], hint: d[2], pressed: on ? 'true' : 'false', pick: function () { setMap('mode', d[0] === 'inherit' ? undefined : d[0]); },
+          style: 'text-align: left; color: #f3f3f5; display: flex; flex-direction: column; gap: 2px; min-height: 44px; padding: 8px 12px; border-radius: 10px; border: 1px solid ' + (on ? '#e8794a' : '#ffffff2e') + '; background: ' + (on ? '#e8794a33' : '#1d2029') + ';' };
+      }),
+      scope: st.scope[p.id] || 'inherit', setScope: function (e) { setMap('scope', e.target.value); },
+      refreshLabel: st.fetching ? 'Wird abgerufen …' : 'Jetzt abrufen',
+      refresh: function () { self.setState({ fetching: true }); setTimeout(function () { self.setState({ fetching: false }); }, 1800); },
+      canLoad: p.saves && missing > 0 && !p.loading, loadLabel: nf(missing) + ' fehlende nachladen',
+      loadMissing: function () { setMap('prog', 0.02); }
+    };
+    var saving = all.filter(function (x) { return x.saves; }).length;
+    return {
+      filters: filters, cards: cards, sel: sel,
+      summary: all.length + ' Podcasts (von 94) · ' + saving + ' speichern, ' + (all.length - saving) + ' nur Link · ' + gbf(all.reduce(function (s, x) { return s + x.gb; }, 0)) + ' belegt'
+    };
+  }
+}
+</script>
+</body>
+</html>

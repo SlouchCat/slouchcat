@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Hörbücher: Seite einer Reihe</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f3a27f}a:hover{color:#ffc4a8}
+.k-btn{font:inherit;cursor:pointer}
+.k-btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+</style>
+</helmet>
+<div style="box-sizing: border-box; min-height: 100vh; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 20px 16px 48px;">
+<div style="max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px;">
+
+  <nav aria-label="Mockup-Navigation" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: #b6b9c4; border: 1px dashed #ffffff3d; border-radius: 12px; padding: 8px 12px;">
+    <span>Mockup Hörbücher:</span>
+    <a href="Hoerbuecher.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Übersicht</a>
+    <a href="Reihe.dc.html" aria-current="page" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #e8794a; background: #e8794a33; color: #f3f3f5; text-decoration: none;">Reihe</a>
+    <a href="Editor.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Bleistift: Editor</a>
+    <a href="Quellen.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Verwaltung: Quellen</a>
+  </nav>
+
+  <a href="Hoerbuecher.dc.html" style="font-size: 14px; align-self: flex-start; display: inline-flex; align-items: center; min-height: 44px;">‹ Hörbücher</a>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end;">
+    <div aria-hidden="true" style="flex: 0 0 220px; width: 220px; height: 220px; border-radius: 16px; box-shadow: 10px -10px 0 -2px #2b2f3a, 20px -20px 0 -4px #1d2029; margin: 20px 20px 0 0; display: flex; align-items: flex-end; padding: 16px; box-sizing: border-box; font: 700 22px/1.2 Georgia, serif; color: #0b0c10; background: linear-gradient(150deg, hsl(18 70% 72%), hsl(68 55% 42%));">Bodyguard</div>
+    <div style="flex: 999 1 360px; min-width: 0; display: flex; flex-direction: column; gap: 10px;">
+      <span style="font-size: 13px; color: #b6b9c4; text-transform: uppercase; letter-spacing: 1px;">Reihe</span>
+      <h1 style="margin: 0; font-size: 36px; font-weight: 800;">Bodyguard</h1>
+      <span style="font-size: 15px; color: #d0d2da;">Chris Bradford · gelesen von Philipp Oehme · 6 Bände · 66 Std. 50 Min.</span>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px;">
+        <button class="k-btn" onClick="{{play}}" style="min-height: 48px; padding: 0 22px; border-radius: 24px; background: #e8794a; color: #1c0d06; border: 0; font-size: 15px; font-weight: 700;">{{playLabel}}</button>
+        <a href="Editor.dc.html" style="display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 18px; border-radius: 24px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px; text-decoration: none;">✎ Reihe bearbeiten</a>
+      </div>
+    </div>
+  </div>
+
+  <sc-if value="{{showMerged}}" hint-placeholder-val="{{true}}">
+    <div role="status" style="border: 1px solid #e8794a; background: #e8794a14; border-radius: 12px; padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;">
+      <span style="font-size: 14px; line-height: 1.5; flex: 1 1 420px;">Nur für Admins: Diese Reihe steht in den Dateien unter zwei Namen, «Bodyguard» (6 Bände) und «Bodyguard - Band» (5 Bände). Slouchcat zeigt sie als eine Reihe. Fünf Bände liegen zweimal im Ordner; gezeigt wird je Band der zuerst gefundene.</span>
+      <button class="k-btn" onClick="{{hideMerged}}" style="min-height: 40px; padding: 0 14px; border-radius: 20px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 13px;">Verstanden</button>
+    </div>
+  </sc-if>
+
+  <section aria-label="Bände" style="display: flex; flex-direction: column; gap: 8px;">
+    <h2 style="margin: 6px 0 4px; font-size: 20px; font-weight: 700;">Bände</h2>
+    <sc-for list="{{vols}}" as="v" hint-placeholder-count="6">
+      <div style="{{v.row}}">
+        <span style="flex: 0 0 44px; font-size: 22px; font-weight: 800; color: #9ea3b0; text-align: center; font-variant-numeric: tabular-nums;">{{v.no}}</span>
+        <span aria-hidden="true" style="{{v.cover}}"></span>
+        <span style="flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 16px; font-weight: 600;">{{v.title}}</span>
+          <span style="font-size: 13px; color: #b6b9c4;">{{v.sub}}</span>
+          <sc-if value="{{v.hasProgress}}" hint-placeholder-val="{{false}}">
+            <span aria-hidden="true" style="height: 4px; max-width: 320px; border-radius: 2px; background: #ffffff26;"><span style="{{v.progress}}"></span></span>
+          </sc-if>
+        </span>
+        <span style="font-size: 13px; color: #9ea3b0; font-variant-numeric: tabular-nums;">{{v.dur}}</span>
+        <button class="k-btn" aria-label="{{v.playAria}}" onClick="{{v.play}}" style="min-height: 44px; min-width: 44px; padding: 0 14px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">{{v.playLabel}}</button>
+        <a href="Editor.dc.html" aria-label="{{v.penAria}}" title="Metadaten bearbeiten" style="width: 44px; height: 44px; border-radius: 22px; display: inline-flex; align-items: center; justify-content: center; background: #1d2029; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">✎</a>
+      </div>
+    </sc-for>
+  </section>
+
+  <div style="font-size: 13px; color: #b6b9c4; border: 1px dashed #ffffff3d; border-radius: 12px; padding: 10px 14px; line-height: 1.5;">
+    Die Reihe entsteht automatisch aus «Reihe» und «Band» der Hörbücher, ohne Eintrag unter «Sammlungen». «Weiterhören» nimmt den ersten nicht fertigen Band. Bände ohne Nummer stehen am Ende nach Titel. Daten aus Marcos Bibliothek.
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1200}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { done: { 1: true, 2: true, 3: true }, pos: { 4: 35 }, playing: 0, merged: true };
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var V = [[1, 'Die Geisel', 671], [2, 'Das Lösegeld', 663], [3, 'Der Hinterhalt', 648], [4, 'Im Fadenkreuz', 708], [5, 'Der Anschlag', 636], [6, 'Die Entscheidung', 684]];
+    var hm = function (m) { return Math.floor(m / 60) + ' Std. ' + (m % 60) + ' Min.'; };
+    var next = 0; V.forEach(function (v) { if (!next && !st.done[v[0]]) next = v[0]; });
+    return {
+      playLabel: st.playing ? '❚❚ Band ' + st.playing + ' läuft' : '▶ Weiterhören: Band ' + next,
+      play: function () { self.setState({ playing: st.playing ? 0 : next }); },
+      showMerged: st.merged, hideMerged: function () { self.setState({ merged: false }); },
+      vols: V.map(function (v) {
+        var d = !!st.done[v[0]], p = st.pos[v[0]] || 0, on = st.playing === v[0];
+        return { no: v[0], title: v[1], sub: d ? 'Gehört' : p ? 'Noch ' + hm(Math.round(v[2] * (100 - p) / 100)) : 'Philipp Oehme', dur: hm(v[2]),
+          hasProgress: p > 0, progress: 'display: block; height: 4px; border-radius: 2px; background: #e8794a; width: ' + p + '%;',
+          playLabel: on ? '❚❚' : '▶', playAria: (on ? 'Anhalten: ' : 'Abspielen: ') + v[1], penAria: 'Metadaten bearbeiten: ' + v[1],
+          play: function () { self.setState({ playing: on ? 0 : v[0] }); },
+          cover: 'flex: 0 0 64px; width: 64px; height: 64px; border-radius: 8px; background: linear-gradient(150deg, hsl(' + (18 + v[0] * 9) + ' 70% 72%), hsl(' + (68 + v[0] * 9) + ' 55% 42%));' + (d ? ' opacity: .55;' : ''),
+          row: 'display: flex; flex-wrap: wrap; gap: 14px; align-items: center; padding: 10px 12px; border-radius: 12px; background: ' + (on ? '#2b1d17' : '#13151b') + '; border: 1px solid ' + (on ? '#e8794a' : '#ffffff14') + ';' };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

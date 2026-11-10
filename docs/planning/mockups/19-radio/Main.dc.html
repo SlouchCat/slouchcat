@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Radio-Verwaltung: Angebot als Pakete</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f3a27f}a:hover{color:#ffc4a8}
+.k-btn{font:inherit;cursor:pointer}
+.k-btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+</style>
+</helmet>
+<div style="box-sizing: border-box; min-height: 100vh; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 20px 16px 48px;">
+<div style="max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px;">
+
+  <div style="display: flex; flex-direction: column; gap: 4px;">
+    <h1 style="margin: 0; font-size: 26px; font-weight: 700;">Radio</h1>
+    <span style="font-size: 14px; color: #b6b9c4;">Welche Sender es in der App gibt, bestimmst du hier. Einordnen, Bilder und Aufräumen macht Slouchcat selbst.</span>
+  </div>
+
+  <nav aria-label="Bereiche" style="display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #ffffff24;">
+    <a href="Uebersicht.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #d0d2da; text-decoration: none; font-size: 15px;">Übersicht</a>
+    <a href="Main.dc.html" aria-current="page" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #f3f3f5; text-decoration: none; font-size: 15px; font-weight: 600; border-bottom: 3px solid #e8794a;">Angebot</a>
+    <a href="Sender.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #d0d2da; text-decoration: none; font-size: 15px;">Sender</a>
+    <span style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #9ea3b0; font-size: 15px;">Eigene Sender (bleibt)</span>
+    <span style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #9ea3b0; font-size: 15px;">Einstellungen (bleibt)</span>
+  </nav>
+
+  <nav aria-label="Mockup-Varianten" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: #b6b9c4; border: 1px dashed #ffffff3d; border-radius: 12px; padding: 8px 12px;">
+    <span>Mockup, Varianten für «Angebot»:</span>
+    <a href="Main.dc.html" aria-current="page" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #e8794a; background: #e8794a33; color: #f3f3f5; text-decoration: none;">A · Pakete</a>
+    <a href="AngebotB.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">B · Länder zuerst</a>
+    <a href="AngebotC.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">C · Regeln</a>
+  </nav>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start;">
+
+    <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 18px;">
+      <sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+        <section style="border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; overflow: hidden;">
+          <div style="background: #2b1d17; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline;">
+            <span style="font-size: 16px; font-weight: 600;">{{g.title}}</span>
+            <span style="font-size: 13px; color: #d0d2da;">{{g.note}}</span>
+          </div>
+          <sc-for list="{{g.packs}}" as="p" hint-placeholder-count="4">
+            <label style="{{p.row}}">
+              <input type="checkbox" role="switch" checked="{{p.on}}" onChange="{{p.toggle}}" style="width: 22px; height: 22px; flex: 0 0 22px; accent-color: #e8794a;">
+              <span style="flex: 999 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-size: 15px; font-weight: 600;">{{p.title}}</span>
+                <span style="font-size: 13px; color: #b6b9c4; line-height: 1.4;">{{p.hint}}</span>
+              </span>
+              <span style="flex: 0 0 auto; font-size: 14px; font-variant-numeric: tabular-nums; color: #f3f3f5;">{{p.count}} <span style="color: #b6b9c4;">Sender</span></span>
+            </label>
+          </sc-for>
+        </section>
+      </sc-for>
+    </div>
+
+    <aside aria-label="Zusammenfassung" style="flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 14px;">
+      <div style="border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; padding: 18px; display: flex; flex-direction: column; gap: 12px;">
+        <span style="font-size: 13px; color: #b6b9c4;">Im Angebot</span>
+        <span aria-live="polite" style="font-size: 34px; font-weight: 700; line-height: 1;">{{total}}</span>
+        <span style="font-size: 13px; color: #b6b9c4;">von 52.539 Sendern im Katalog</span>
+        <div aria-hidden="true" style="height: 8px; border-radius: 4px; background: #ffffff26;"><div style="{{bar}}"></div></div>
+        <sc-for list="{{parts}}" as="x" hint-placeholder-count="3">
+          <div style="display: flex; justify-content: space-between; gap: 10px; font-size: 13px;">
+            <span style="color: #d0d2da; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{x.k}}</span>
+            <span style="font-variant-numeric: tabular-nums;">{{x.v}}</span>
+          </div>
+        </sc-for>
+        <sc-if value="{{none}}" hint-placeholder-val="{{false}}">
+          <span style="font-size: 13px; color: #e8b84a; line-height: 1.45;">Kein Paket gewählt: die Radioseite zeigt nur eigene Sender und Favoriten.</span>
+        </sc-if>
+      </div>
+
+      <div style="border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+        <span style="font-size: 16px; font-weight: 600;">Immer weglassen</span>
+        <sc-for list="{{excludes}}" as="e" hint-placeholder-count="2">
+          <label style="display: flex; gap: 12px; align-items: flex-start; min-height: 44px; cursor: pointer;">
+            <input type="checkbox" role="switch" checked="{{e.on}}" onChange="{{e.toggle}}" style="width: 22px; height: 22px; flex: 0 0 22px; margin-top: 2px; accent-color: #e8794a;">
+            <span style="display: flex; flex-direction: column; gap: 2px;">
+              <span style="font-size: 14px; font-weight: 600;">{{e.title}}</span>
+              <span style="font-size: 13px; color: #b6b9c4; line-height: 1.4;">{{e.hint}}</span>
+            </span>
+          </label>
+        </sc-for>
+      </div>
+
+      <div style="border: 1px solid #ffffff14; border-radius: 14px; background: #16181f; padding: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #d0d2da; line-height: 1.5;">
+        <span style="font-size: 16px; font-weight: 600; color: #f3f3f5;">Gilt immer</span>
+        <span>• Favoriten und eigene Sender bleiben, auch wenn ihr Paket ausgeschaltet wird.</span>
+        <span>• Neue Sender im Katalog, die zu einem Paket passen, kommen von selbst dazu.</span>
+        <span>• Die Filter der Radioseite zeigen nur noch Länder und Genres aus dem Angebot.</span>
+      </div>
+
+      <sc-if value="{{dirty}}" hint-placeholder-val="{{false}}">
+        <div role="status" style="border: 1px solid #e8794a; background: #e8794a1a; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+          <span style="font-size: 14px; line-height: 1.45;">{{diffText}}</span>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <button class="k-btn" onClick="{{apply}}" style="min-height: 44px; padding: 0 18px; border-radius: 22px; background: #e8794a; color: #1c0d06; border: 0; font-size: 14px; font-weight: 600;">Übernehmen</button>
+            <button class="k-btn" onClick="{{reset}}" style="min-height: 44px; padding: 0 16px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">Verwerfen</button>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{saved}}" hint-placeholder-val="{{false}}">
+        <div role="status" style="border: 1px solid #8fd6b0; background: #8fd6b01f; border-radius: 10px; padding: 12px 14px; font-size: 14px;">Übernommen. Die Radioseite zeigt das neue Angebot sofort.</div>
+      </sc-if>
+    </aside>
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1380}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    var on = { ch: true, klassik: true, top: true };
+    this.state = { on: on, applied: Object.assign({}, on), ex: { broken: true }, exApplied: { broken: true }, saved: false };
+  }
+  packs() {
+    return [
+      ['Länder', 'je Land ein Paket, nach Grösse; alle 224 Länder sind wählbar', [
+        ['us', 'USA', 'Alle Sender mit Land USA.', 6995, 'c'],
+        ['de', 'Deutschland', 'Alle Sender mit Land Deutschland.', 5631, 'c'],
+        ['fr', 'Frankreich', 'Alle Sender mit Land Frankreich.', 2806, 'c'],
+        ['gb', 'Grossbritannien', 'Alle Sender mit Land Grossbritannien.', 1987, 'c'],
+        ['it', 'Italien', 'Alle Sender mit Land Italien.', 1600, 'c'],
+        ['ch', 'Schweiz', 'Alle Sender mit Land Schweiz.', 541, 'c'],
+        ['at', 'Österreich', 'Alle Sender mit Land Österreich.', 318, 'c']
+      ]],
+      ['Sprachen', 'je Sprache ein Paket, gleich aus welchem Land', [
+        ['l_en', 'Englisch', 'Alle Sender mit Sprache Englisch.', 11218, 'g'],
+        ['l_de', 'Deutsch', 'Alle Sender mit Sprache Deutsch.', 3995, 'g'],
+        ['l_es', 'Spanisch', 'Alle Sender mit Sprache Spanisch.', 3866, 'g'],
+        ['l_fr', 'Französisch', 'Alle Sender mit Sprache Französisch.', 2493, 'g'],
+        ['l_it', 'Italienisch', 'Alle Sender mit Sprache Italienisch.', 1213, 'g']
+      ]],
+      ['Genres', 'weltweit, gleich aus welchem Land und in welcher Sprache', [
+        ['klassik', 'Klassik', 'Alle Sender mit Genre Klassik.', 1170, 'g'],
+        ['jazz', 'Jazz', 'Alle Sender mit Genre Jazz.', 1071, 'g'],
+        ['news', 'News', 'Alle Sender der Sendeart News.', 2712, 'g']
+      ]],
+      ['Beliebtheit', 'ohne Land und Sprache', [
+        ['top', 'Die 500 beliebtesten weltweit', 'Nach Stimmen und Klicks im Katalog.', 500, 'g'],
+        ['all', 'Ganzer Katalog', 'Alle Sender. Macht jedes andere Paket überflüssig.', 52539, 'a']
+      ]]
+    ];
+  }
+  count(on, ex) {
+    var T = 52539, c = 0, miss = 1, all = false;
+    this.packs().forEach(function (g) { g[2].forEach(function (p) {
+      if (!on[p[0]]) return;
+      if (p[4] === 'a') all = true; else if (p[4] === 'c') c += p[3]; else miss *= 1 - p[3] / T;
+    }); });
+    var n = all ? T : Math.round(c + (T - c) * (1 - miss));
+    if (ex.broken) n = Math.round(n * (1 - 823 / T));
+    if (ex.low) n = Math.round(n * 0.94);
+    return n;
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var nf = function (n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); };
+    var total = this.count(st.on, st.ex), before = this.count(st.applied, st.exApplied);
+    var parts = [];
+    var groups = this.packs().map(function (g) {
+      return { title: g[0], note: g[1], packs: g[2].map(function (p) {
+        var on = !!st.on[p[0]];
+        if (on) parts.push({ k: p[1], v: nf(p[3]) });
+        return {
+          title: p[1], hint: p[2], count: nf(p[3]), on: on,
+          row: 'display: flex; flex-wrap: wrap; gap: 14px; align-items: center; padding: 12px 16px; min-height: 44px; border-top: 1px solid #ffffff14; cursor: pointer; background: ' + (on ? '#e8794a14' : 'transparent') + ';',
+          toggle: function () { var o = Object.assign({}, st.on); if (on) delete o[p[0]]; else o[p[0]] = true; self.setState({ on: o, saved: false }); }
+        };
+      }) };
+    });
+    var same = JSON.stringify([st.on, st.ex]) === JSON.stringify([st.applied, st.exApplied]);
+    var diff = total - before;
+    var ex = function (id, title, hint) {
+      var on = !!st.ex[id];
+      return { title: title, hint: hint, on: on, toggle: function () { var o = Object.assign({}, st.ex); if (on) delete o[id]; else o[id] = true; self.setState({ ex: o, saved: false }); } };
+    };
+    return {
+      groups: groups, total: nf(total), parts: parts.slice(0, 6), none: parts.length === 0,
+      bar: 'height: 8px; border-radius: 4px; background: #e8794a; width: ' + Math.max(1, Math.round(100 * total / 52539)) + '%;',
+      excludes: [
+        ex('broken', 'Nicht erreichbare Sender', 'Im Katalog zurzeit 823. Kommen zurück, sobald sie wieder antworten.'),
+        ex('low', 'Sender unter 64 kbit/s', 'Sehr einfache Tonqualität. Beispielwert: rund 6 %.')
+      ],
+      dirty: !same, saved: st.saved && same,
+      diffText: diff === 0 ? 'Die Auswahl ändert sich, die Zahl der Sender bleibt gleich.' : diff > 0 ? nf(diff) + ' Sender kommen dazu. Favoriten und eigene Sender bleiben.' : nf(-diff) + ' Sender fallen weg. Favoriten und eigene Sender bleiben.',
+      apply: function () { self.setState({ applied: Object.assign({}, st.on), exApplied: Object.assign({}, st.ex), saved: true }); },
+      reset: function () { self.setState({ on: Object.assign({}, st.applied), ex: Object.assign({}, st.exApplied) }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

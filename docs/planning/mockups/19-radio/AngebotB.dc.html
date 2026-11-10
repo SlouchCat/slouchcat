@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Radio-Verwaltung: Angebot, Länder zuerst</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f3a27f}a:hover{color:#ffc4a8}
+.k-btn{font:inherit;cursor:pointer}
+.k-btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,.k-scroll:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+</style>
+</helmet>
+<div style="box-sizing: border-box; min-height: 100vh; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 20px 16px 48px;">
+<div style="max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px;">
+
+  <div style="display: flex; flex-direction: column; gap: 4px;">
+    <h1 style="margin: 0; font-size: 26px; font-weight: 700;">Radio</h1>
+    <span style="font-size: 14px; color: #b6b9c4;">Zuerst Kontinent und Länder, dann je Land die Sender markieren. Logos und weitere Angaben lädt der Server erst für übernommene Sender. Keine Vorgabe für ein Land oder eine Sprache.</span>
+  </div>
+
+  <nav aria-label="Bereiche" style="display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #ffffff24;">
+    <a href="Uebersicht.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #d0d2da; text-decoration: none; font-size: 15px;">Übersicht</a>
+    <a href="AngebotB.dc.html" aria-current="page" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #f3f3f5; text-decoration: none; font-size: 15px; font-weight: 600; border-bottom: 3px solid #e8794a;">Angebot</a>
+    <a href="Sender.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #d0d2da; text-decoration: none; font-size: 15px;">Sender</a>
+    <span style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #9ea3b0; font-size: 15px;">Eigene Sender (bleibt)</span>
+    <span style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #9ea3b0; font-size: 15px;">Einstellungen (bleibt)</span>
+  </nav>
+
+  <nav aria-label="Mockup-Varianten" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: #b6b9c4; border: 1px dashed #ffffff3d; border-radius: 12px; padding: 8px 12px;">
+    <span>Mockup, Varianten für «Angebot»:</span>
+    <a href="Main.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">A · Pakete</a>
+    <a href="AngebotB.dc.html" aria-current="page" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #e8794a; background: #e8794a33; color: #f3f3f5; text-decoration: none;">B · Länder zuerst</a>
+    <a href="AngebotC.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">C · Regeln</a>
+  </nav>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start;">
+    <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 18px;">
+
+      <section style="border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; overflow: hidden;">
+        <div style="background: #2b1d17; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline;">
+          <span style="font-size: 16px; font-weight: 600;">1 · Länder</span>
+          <span style="font-size: 13px; color: #d0d2da;">{{countryNote}}</span>
+        </div>
+        <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 14px;">
+
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+            <label for="cq" style="font-size: 13px; color: #b6b9c4;">Land suchen</label>
+            <input id="cq" type="search" value="{{q}}" onChange="{{setQ}}" placeholder="zum Beispiel Kanada" style="flex: 1 1 220px; min-width: 0; height: 44px; border-radius: 10px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; padding: 0 12px; font: inherit; font-size: 14px;">
+          </div>
+
+          <sc-if value="{{searching}}" hint-placeholder-val="{{false}}">
+            <span style="font-size: 13px; color: #b6b9c4;">{{hitNote}}</span>
+            <div role="group" aria-label="Treffer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px;">
+              <sc-for list="{{hits}}" as="c" hint-placeholder-count="4">
+                <button class="k-btn" aria-pressed="{{c.pressed}}" onClick="{{c.toggle}}" style="{{c.style}}">
+                  <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+                    <span style="font-size: 14px; font-weight: 600;">{{c.name}}</span>
+                    <span style="font-size: 12px; color: #b6b9c4;">{{c.cont}}</span>
+                  </span>
+                  <span style="font-size: 13px; color: #b6b9c4; font-variant-numeric: tabular-nums;">{{c.count}}</span>
+                </button>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline;">
+            <span style="font-size: 14px; font-weight: 600;">Alle Länder nach Kontinent</span>
+            <span style="font-size: 13px; color: #b6b9c4;">Antippen öffnet die Liste, nochmals antippen schliesst sie.</span>
+          </div>
+          <div role="group" aria-label="Kontinente" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px;">
+            <sc-for list="{{continents}}" as="k" hint-placeholder-count="6">
+              <button class="k-btn" aria-expanded="{{k.expanded}}" onClick="{{k.toggle}}" style="{{k.style}}">
+                <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+                  <span style="font-size: 14px; font-weight: 600;">{{k.label}}</span>
+                  <span style="font-size: 12px; color: #b6b9c4; font-variant-numeric: tabular-nums;">{{k.sub}}</span>
+                </span>
+                <span style="display: inline-flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 12px; color: #f3a27f; font-variant-numeric: tabular-nums;">{{k.picked}}</span>
+                  <span aria-hidden="true" style="font-size: 14px; color: #b6b9c4;">{{k.mark}}</span>
+                </span>
+              </button>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{hasOpen}}" hint-placeholder-val="{{false}}">
+            <div style="border: 1px solid #e8794a; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between;">
+                <span style="font-size: 14px; font-weight: 600;">{{openTitle}}</span>
+                <span style="display: inline-flex; flex-wrap: wrap; gap: 8px;">
+                  <button class="k-btn" onClick="{{openAll}}" style="min-height: 36px; padding: 0 12px; border-radius: 18px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 13px;">Alle Länder wählen</button>
+                  <button class="k-btn" onClick="{{openNone}}" style="min-height: 36px; padding: 0 12px; border-radius: 18px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 13px;">Alle abwählen</button>
+                </span>
+              </div>
+              <div class="k-scroll" role="group" aria-label="{{openTitle}}" tabindex="0" style="max-height: 372px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; padding: 2px;">
+                <sc-for list="{{openRows}}" as="c" hint-placeholder-count="12">
+                  <button class="k-btn" aria-pressed="{{c.pressed}}" onClick="{{c.toggle}}" style="{{c.style}}">
+                    <span style="min-width: 0;">{{c.name}}</span>
+                    <span style="font-size: 12px; color: #b6b9c4; font-variant-numeric: tabular-nums;">{{c.count}}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <span style="font-size: 13px; color: #b6b9c4; line-height: 1.45;">{{noCountryNote}}</span>
+        </div>
+      </section>
+
+      <section style="border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; overflow: hidden;">
+        <div style="background: #2b1d17; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline;">
+          <span style="font-size: 16px; font-weight: 600;">2 · Sender der gewählten Länder</span>
+          <span style="font-size: 13px; color: #d0d2da;">{{stationNote}}</span>
+        </div>
+        <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; flex-direction: column; gap: 8px; border: 1px solid #ffffff24; border-radius: 12px; padding: 12px;">
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between;">
+              <span style="font-size: 14px; font-weight: 600;">Gewählte Länder</span>
+              <sc-if value="{{hasSel}}" hint-placeholder-val="{{true}}">
+                <button class="k-btn" onClick="{{clearAll}}" style="min-height: 36px; padding: 0 12px; border-radius: 18px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 13px;">Alle Länder abwählen</button>
+              </sc-if>
+            </div>
+            <sc-for list="{{chips}}" as="c" hint-placeholder-count="2">
+              <div style="{{c.style}}">
+                <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+                  <span style="font-size: 14px; font-weight: 600;">{{c.name}}</span>
+                  <span style="font-size: 13px; color: #d0d2da; font-variant-numeric: tabular-nums;">{{c.sub}}</span>
+                </span>
+                <span style="display: inline-flex; flex-wrap: wrap; gap: 8px;">
+                  <button class="k-btn" aria-expanded="{{c.expanded}}" aria-label="{{c.openAria}}" onClick="{{c.open}}" style="min-height: 40px; padding: 0 14px; border-radius: 20px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 13px;">{{c.openLabel}}</button>
+                  <button class="k-btn" aria-label="{{c.removeAria}}" onClick="{{c.remove}}" style="min-height: 40px; padding: 0 14px; border-radius: 20px; background: transparent; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 13px;">Land entfernen</button>
+                </span>
+              </div>
+            </sc-for>
+            <sc-if value="{{noSel}}" hint-placeholder-val="{{false}}">
+              <span style="font-size: 13px; color: #b6b9c4;">Noch kein Land gewählt. In Schritt 1 suchen oder einen Kontinent öffnen.</span>
+            </sc-if>
+          </div>
+
+          <sc-if value="{{hasStation}}" hint-placeholder-val="{{true}}">
+            <div style="border: 1px solid #e8794a; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; justify-content: space-between;">
+                <span style="font-size: 15px; font-weight: 600;">{{stTitle}}</span>
+                <span aria-live="polite" style="font-size: 13px; color: #f3a27f; font-variant-numeric: tabular-nums;">{{stCount}}</span>
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+                <input type="search" aria-label="Sender in diesem Land suchen" value="{{stQ}}" onChange="{{setStQ}}" placeholder="Sender suchen, zum Beispiel 1.fm" style="flex: 1 1 200px; min-width: 0; height: 40px; border-radius: 10px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; padding: 0 12px; font: inherit; font-size: 14px;">
+                <button class="k-btn" onClick="{{stAll}}" style="min-height: 40px; padding: 0 14px; border-radius: 20px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 13px;">{{stAllLabel}}</button>
+                <button class="k-btn" onClick="{{stNone}}" style="min-height: 40px; padding: 0 14px; border-radius: 20px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 13px;">{{stNoneLabel}}</button>
+              </div>
+              <span style="font-size: 13px; color: #b6b9c4; line-height: 1.45;">{{stHint}}</span>
+              <div class="k-scroll" role="group" aria-label="{{stTitle}}" tabindex="0" style="max-height: 400px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 6px; padding: 2px;">
+                <sc-for list="{{stRows}}" as="s" hint-placeholder-count="16">
+                  <button class="k-btn" role="checkbox" aria-checked="{{s.checked}}" onClick="{{s.toggle}}" style="{{s.style}}">
+                    <span aria-hidden="true" style="{{s.box}}">{{s.tick}}</span>
+                    <img src="{{s.logo}}" alt="" width="36" height="36" style="flex: 0 0 36px; width: 36px; height: 36px; border-radius: 8px; background: #f3f3f5; object-fit: contain;">
+                    <span style="display: flex; flex-direction: column; gap: 1px; min-width: 0;">
+                      <span style="font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{s.name}}</span>
+                      <span style="font-size: 12px; color: #b6b9c4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{s.sub}}</span>
+                    </span>
+                  </button>
+                </sc-for>
+              </div>
+              <span style="font-size: 12px; color: #9ea3b0;">{{stNote}}</span>
+            </div>
+          </sc-if>
+        </div>
+      </section>
+
+      <sc-if value="{{dirty}}" hint-placeholder-val="{{false}}">
+        <div role="status" style="border: 1px solid #e8794a; background: #e8794a1a; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+          <span style="font-size: 14px; line-height: 1.45;">{{diffText}}</span>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <button class="k-btn" onClick="{{apply}}" style="min-height: 44px; padding: 0 18px; border-radius: 22px; background: #e8794a; color: #1c0d06; border: 0; font-size: 14px; font-weight: 600;">Übernehmen</button>
+            <button class="k-btn" onClick="{{reset}}" style="min-height: 44px; padding: 0 16px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">Verwerfen</button>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{saved}}" hint-placeholder-val="{{false}}">
+        <div role="status" style="border: 1px solid #8fd6b0; background: #8fd6b01f; border-radius: 10px; padding: 12px 14px; font-size: 14px;">Übernommen. Die Radioseite zeigt das neue Angebot sofort. Logos und weitere Angaben lädt der Server jetzt im Hintergrund.</div>
+      </sc-if>
+    </div>
+
+    <aside aria-label="Zusammenfassung" style="flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 14px;">
+      <div style="border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; padding: 18px; display: flex; flex-direction: column; gap: 12px;">
+        <span style="font-size: 13px; color: #b6b9c4;">Im Angebot</span>
+        <span aria-live="polite" style="font-size: 34px; font-weight: 700; line-height: 1;">{{total}}</span>
+        <span style="font-size: 13px; color: #b6b9c4;">{{totalNote}}</span>
+        <div aria-hidden="true" style="height: 8px; border-radius: 4px; background: #ffffff26;"><div style="{{bar}}"></div></div>
+        <sc-for list="{{parts}}" as="x" hint-placeholder-count="2">
+          <div style="display: flex; justify-content: space-between; gap: 10px; font-size: 13px;">
+            <span style="color: #d0d2da;">{{x.k}}</span>
+            <span style="font-variant-numeric: tabular-nums;">{{x.v}}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+        <span style="font-size: 16px; font-weight: 600;">Immer weglassen</span>
+        <label style="display: flex; gap: 12px; align-items: flex-start; min-height: 44px; cursor: pointer;">
+          <input type="checkbox" role="switch" checked="{{exBroken}}" onChange="{{toggleBroken}}" style="width: 22px; height: 22px; flex: 0 0 22px; margin-top: 2px; accent-color: #e8794a;">
+          <span style="display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 14px; font-weight: 600;">Nicht erreichbare Sender</span>
+            <span style="font-size: 13px; color: #b6b9c4; line-height: 1.4;">Kommen zurück, sobald sie wieder antworten.</span>
+          </span>
+        </label>
+      </div>
+    </aside>
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1500}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    // Radio Browser, 10. November 2026. Doppelte Katalogeinträge je Land sind nach Name zusammengeführt.
+    // C: [Code, Name, Sender, Kontinent], nach Grösse. S: Sender je Land [Name, Schlagworte, 0 = nicht erreichbar];
+    // Schweiz und Liechtenstein vollständig, DE, AT, FR, IT, US, GB die 30 meistgehörten, sonst leer.
+    // Die Repo-Kopie führt keine Logos; die Leinwand (Konzept 19, Anhang B) zeigt sie.
+    this.rb = {"C":[["US","USA",6770,"na"],["DE","Deutschland",4947,"eu"],["FR","Frankreich",2531,"eu"],["RU","Russland",2419,"eu"],["CN","China",1864,"as"],["GB","Grossbritannien",1822,"eu"],["GR","Griechenland",1811,"eu"],["AU","Australien",1584,"oc"],["MX","Mexiko",1517,"na"],["IT","Italien",1460,"eu"],["BR","Brasilien",1398,"sa"],["CA","Kanada",1340,"na"],["ES","Spanien",1166,"eu"],["NL","Niederlande",1081,"eu"],["AR","Argentinien",1020,"sa"],["PL","Polen",819,"eu"],["RO","Rumänien",811,"eu"],["IN","Indien",721,"as"],["CO","Kolumbien",641,"sa"],["PH","Philippinen",633,"as"],["AE","Vereinigte Arabische Emirate",618,"as"],["TR","Türkei",615,"as"],["CL","Chile",494,"sa"],["ID","Indonesien",494,"as"],["CH","Schweiz",452,"eu"],["BE","Belgien",415,"eu"],["RS","Serbien",341,"eu"],["PT","Portugal",316,"eu"],["HU","Ungarn",314,"eu"],["AT","Österreich",300,"eu"],["BG","Bulgarien",298,"eu"],["UA","Ukraine",271,"eu"],["PE","Peru",248,"sa"],["CZ","Tschechien",243,"eu"],["HR","Kroatien",240,"eu"],["SE","Schweden",219,"eu"],["KW","Kuwait",202,"as"],["DK","Dänemark",196,"eu"],["NZ","Neuseeland",194,"oc"],["ZA","Südafrika",183,"af"],["IE","Irland",179,"eu"],["VE","Venezuela",168,"sa"],["TW","Taiwan",164,"as"],["EC","Ecuador",151,"sa"],["NP","Nepal",148,"as"],["LV","Lettland",148,"eu"],["UG","Uganda",147,"af"],["BA","Bosnien und Herzegowina",135,"eu"],["SK","Slowakei",134,"eu"],["UY","Uruguay",128,"sa"],["IL","Israel",123,"as"],["EE","Estland",122,"eu"],["FI","Finnland",122,"eu"],["NO","Norwegen",116,"eu"],["LB","Libanon",115,"as"],["SI","Slowenien",114,"eu"],["DO","Dominikanische Republik",109,"na"],["JP","Japan",109,"as"],["LT","Litauen",105,"eu"],["TH","Thailand",101,"as"],["AL","Albanien",99,"eu"],["DZ","Algerien",92,"af"],["GH","Ghana",87,"af"],["ZM","Sambia",82,"af"],["MD","Republik Moldau",82,"eu"],["KR","Südkorea",78,"as"],["AF","Afghanistan",77,"as"],["MY","Malaysia",75,"as"],["NG","Nigeria",72,"af"],["GT","Guatemala",70,"na"],["BO","Bolivien",67,"sa"],["PY","Paraguay",65,"sa"],["AO","Angola",64,"af"],["HK","Sonderverwaltungsregion Hongkong",63,"as"],["CI","Côte d’Ivoire",61,"af"],["LK","Sri Lanka",60,"as"],["SV","El Salvador",59,"na"],["PK","Pakistan",59,"as"],["MW","Malawi",59,"af"],["MA","Marokko",58,"af"],["CY","Zypern",58,"eu"],["BY","Belarus",56,"eu"],["EG","Ägypten",55,"af"],["CM","Kamerun",55,"af"],["KE","Kenia",55,"af"],["TN","Tunesien",54,"af"],["CR","Costa Rica",51,"na"],["SG","Singapur",51,"as"],["SA","Saudi-Arabien",48,"as"],["PR","Puerto Rico",47,"na"],["MK","Nordmazedonien",45,"eu"],["ME","Montenegro",43,"eu"],["KZ","Kasachstan",38,"as"],["HN","Honduras",37,"na"],["JM","Jamaika",37,"na"],["RE","Réunion",35,"af"],["AZ","Aserbaidschan",32,"as"],["SN","Senegal",31,"af"],["JO","Jordanien",31,"as"],["VN","Vietnam",30,"as"],["PA","Panama",30,"na"],["LU","Luxemburg",29,"eu"],["HT","Haiti",29,"na"],["GE","Georgien",28,"as"],["IS","Island",26,"eu"],["UM","Amerikanische Überseeinseln",26,"oc"],["ZW","Zimbabwe",25,"af"],["BD","Bangladesch",25,"as"],["NI","Nicaragua",25,"na"],["CU","Kuba",23,"na"],["ET","Äthiopien",22,"af"],["IR","Iran",22,"as"],["TT","Trinidad und Tobago",21,"na"],["CD","Kongo-Kinshasa",21,"af"],["IQ","Irak",20,"as"],["SY","Syrien",20,"as"],["CW","Curaçao",20,"na"],["MO","Sonderverwaltungsregion Macau",18,"as"],["QA","Katar",18,"as"],["CV","Kapverden",17,"af"],["TZ","Tansania",17,"af"],["MG","Madagaskar",16,"af"],["XK","Kosovo",15,"eu"],["MZ","Mosambik",14,"af"],["FJ","Fidschi",13,"oc"],["MT","Malta",13,"eu"],["NA","Namibia",13,"af"],["GP","Guadeloupe",13,"na"],["MU","Mauritius",13,"af"],["ML","Mali",13,"af"],["VA","Vatikanstadt",13,"eu"],["BB","Barbados",12,"na"],["YE","Jemen",12,"as"],["FO","Färöer",12,"eu"],["MQ","Martinique",12,"na"],["LC","St. Lucia",12,"na"],["UZ","Usbekistan",11,"as"],["AM","Armenien",11,"as"],["BJ","Benin",11,"af"],["VC","St. Vincent und die Grenadinen",11,"na"],["BH","Bahrain",10,"as"],["BQ","Karibische Niederlande",10,"na"],["AS","Amerikanisch-Samoa",10,"oc"],["GY","Guyana",9,"sa"],["MN","Mongolei",9,"as"],["KH","Kambodscha",9,"as"],["AQ","Antarktis",9,"oc"],["VI","Amerikanische Jungferninseln",8,"na"],["PS","Palästinensische Autonomiegebiete",8,"as"],["AW","Aruba",8,"na"],["BS","Bahamas",7,"na"],["IM","Isle of Man",7,"eu"],["OM","Oman",7,"as"],["RW","Ruanda",7,"af"],["KY","Kaimaninseln",7,"na"],["KG","Kirgisistan",7,"as"],["KP","Nordkorea",7,"as"],["NC","Neukaledonien",7,"oc"],["LY","Libyen",6,"af"],["GI","Gibraltar",6,"eu"],["PF","Französisch-Polynesien",6,"oc"],["TG","Togo",6,"af"],["GU","Guam",5,"oc"],["AG","Antigua und Barbuda",5,"na"],["GD","Grenada",5,"na"],["DM","Dominica",5,"na"],["BM","Bermuda",5,"na"],["AD","Andorra",5,"eu"],["SR","Suriname",5,"sa"],["MC","Monaco",5,"eu"],["MM","Myanmar",4,"as"],["KN","St. Kitts und Nevis",4,"na"],["TM","Turkmenistan",4,"as"],["BN","Brunei",4,"as"],["GN","Guinea",4,"af"],["GF","Französisch-Guayana",4,"sa"],["SD","Sudan",4,"af"],["GL","Grönland",4,"na"],["MV","Malediven",4,"as"],["BW","Botswana",4,"af"],["ER","Eritrea",4,"af"],["BF","Burkina Faso",4,"af"],["AI","Anguilla",4,"na"],["SM","San Marino",4,"eu"],["TO","Tonga",3,"oc"],["FK","Falklandinseln",3,"sa"],["IO","Britisches Territorium im Indischen Ozean",3,"as"],["VU","Vanuatu",3,"oc"],["SL","Sierra Leone",3,"af"],["LA","Laos",3,"as"],["CF","Zentralafrikanische Republik",3,"af"],["NE","Niger",3,"af"],["SC","Seychellen",3,"af"],["SS","Südsudan",2,"af"],["PM","St. Pierre und Miquelon",2,"na"],["VG","Britische Jungferninseln",2,"na"],["JE","Jersey",2,"eu"],["CX","Weihnachtsinsel",2,"oc"],["BI","Burundi",2,"af"],["SO","Somalia",2,"af"],["BZ","Belize",2,"na"],["YT","Mayotte",2,"af"],["PG","Papua-Neuguinea",2,"oc"],["TF","Französische Süd- und Antarktisgebiete",2,"af"],["LI","Liechtenstein",2,"eu"],["KM","Komoren",2,"af"],["SH","St. Helena",2,"af"],["LR","Liberia",2,"af"],["BT","Bhutan",1,"as"],["GA","Gabun",1,"af"],["CC","Kokosinseln",1,"oc"],["NU","Niue",1,"oc"],["MH","Marshallinseln",1,"oc"],["KI","Kiribati",1,"oc"],["CG","Kongo-Brazzaville",1,"af"],["LS","Lesotho",1,"af"],["TD","Tschad",1,"af"],["GW","Guinea-Bissau",1,"af"],["GG","Guernsey",1,"eu"],["SX","Sint Maarten",1,"na"],["PW","Palau",1,"oc"],["WF","Wallis und Futuna",1,"oc"],["MS","Montserrat",1,"na"]],"S":{"DE":[["MANGORADIO","music, variety",1],["SWR3","news, pop",1],["Deutschlandfunk | DLF | MP3 128k","culture, news",1],["80s80s Radio","80s, new wave",1],["Bayern 3","pop",1],["Radio Eins","alternative",1],["# TOP 100 DJ CHARTS - DJ REMIX & CHARTS RADI","#90s, #charts",1],["Deutschlandfunk | DLF | AAC 192k","culture, news",1],["Sunshine Live","electronic",1],["1LIVE","ard, pop",1],["90s90s Hits","90s, hits",1],["IBIZA CHILLOUT LOUNGE - Ambient, Deep House,","ambient, balearic",1],["Deutschlandfunk | DLF | OPUS 24k","culture, news",1],["BR24","news",1],["NDR 2","pop",1],["WDR4","oldies",1],["- DJ & CLUB CHARTS ---> Club Classics, Festi","#bewirbdich!, #mashup",1],["90s90s HipHop & Rap","rap",1],["NIUS","musik der 80er",1],["OLDIE ANTENNE","60's, 70's",1],["0R - 80s ROCK || Classic Rock, Hard Rock, Po","1980s, 80s",1],["Deutschlandfunk Kultur | DLF | MP3 128k","culture, news",1],["Absolut Relax","relax",1],["WDR 2 Rheinland","music, news",1],["# Aktuelle HITS - 24H NON-STOP MUSIC - DANCE","#, #charts",1],["Radio Bollerwagen","party, party hits",1],["Bayern 2","information",1],["Hit Radio FFH","pop, top 40",1],["0R - MUSIC FOR SLEEP || Sleep, Relax, Calm, ","ambient, background",1],["0R - PIANO JAZZ LOUNGE || Jazz, Piano, Loung","acoustic, ambient",1]],"US":[["Classic Vinyl HD","1930, 1940",1],["101 SMOOTH JAZZ","easy listening, jazz",1],["Radio Paradise Main Mix (EU) 320k AAC","california, eclectic",1],["WALM 2 HD","choral, christian",1],["Fox News Radio","news",1],["Your Classical - Relax","classical, relax",1],["SomaFM Groove Salad (128k MP3)","ambient, chillout",1],[".977 80s","80s",1],["NPR 24 Hour Program Stream","news, news talk",1],["Ambient Sleeping Pill","ambient, chillout",1],[".977 Country","country",1],["Classic Vinyl HD Opus","1930, 1940",1],["SomaFM Secret Agent (128k MP3)","ambient, downtempo",1],["MSNBC","news",1],["Hard Rock Radio FM","80's, 90's",1],["Big R Radio - 80s Metal FM","80s, aor",1],["Frisky","electronic, frisky",1],[".977 Hitz","hits, top 40",1],["SomaFM Indie Pop Rocks! (128k AAC)","indie, indie pop",1],["Hard Rock Heaven","80s, glam metal",1],["ROCK FM Classic Rock","hard rock, metal",1],["LOVE RADIO Only Love Songs 70s80s90s - www.l","70s, 80s",1],["NBC News Radio","news",1],["Radio Paradise Rock Mix 320k AAC","california, alternative",1],["100 Hip Hop and RNB FM (Official)","hip-hop, rap hiphop rnb",1],["Cleveland Browns Radio Network","football, local talk",1],["SomaFM Space Station Soma (128k AAC)","ambient, electronica",1],[".977 The Mix","80s, 90s",1],["Lofi 24/7","chillout, lofi",1],["SomaFM Underground 80s (128k MP3)","80s, new wave",1]],"IT":[["Rai Radio 1","news, public radio",1],["Radio 24 il sole 24 ore","news talk",1],["Radio Italia Solo Musica Italiana","italian pop",1],["Radio Kiss Kiss","pop",1],["Radio 105 Network","hits, mediaset",1],["Rai Radio 3","classical, culture",1],["50s 60s RETRO HITS","50s, 60s",1],["Virgin Radio Italy","classic rock",1],["Rai Radio 2","news, talk",1],["Virgin Radio Classic Rock","classic rock, rock",1],["RDS relax","easy listening, relax",1],["Radio Deejay","30song, top40",1],["Radio Ibiza","dance, electronica",1],["Radio 105","",1],["RTL 102.5 Disco","club, dance",1],["Radio Kiss Kiss Napoli","pop",1],["RDS 100% Grandi Successi","",1],["Radio Kiss Kiss Italia","pop",1],["70 80 90","70's, 70s",1],["R101 FM","mediaset",1],["Radio Piterpan","electronica, pop",1],["# 100 NU-DISCO CENTRAL RADIO","club dance, clubbing",1],["Radio Sportiva","",1],["Radio Freccia","classic rock, oldies",1],["Radio 80","80s",1],["Radio Popolare","independent, milano",1],["RTL 102.5","pop dance",1],["Lattemiele","",1],["m2o","commercial, dance",1],["NEU RADIO","afrobeats, alternative",1]],"GB":[["Heart 80s","80s",1],["CAPITAL - The UK's No.1 Hit Music Station","capital, capital fm",1],["LBC Radio","political talk",1],["BBC World Service","news",1],["BBC Radio 2 (128k)","",1],["BBC Radio 6 Music","alternative, indie music",1],["BBC Radio 5 Live (128k)","news, sports",1],["BBC Radio 4","comedy, drama",1],["Capital FM London","pop",1],["talkSPORT","news",1],["Gold","classic hits, national",1],["Radio Caroline","classic rock",1],["Heart 90s","90s, national",1],["BBC Radio 4 Extra (128k)","comedy, drama",1],["BBC News HD (720P)","england, english",1],["Heart Dance","dance, national",1],["Smooth Chill","chillout, national",1],["BBC Radio 2","pop",1],["LBC News","london, news",1],["NTS Radio 1","dj sets",1],["BBC Radio 3 (128k)","classical",1],["Classic FM Calm","classical, romantic",1],["Radio X","indie, pop",1],["BBC Radio One","",1],["Heart","oldies, pop",1],["Magic Radio UK","00s, 70s",1],["Classic FM HD","classical",1],["BBC Radio 6 Music (128k)","alternative",1],["Classic FM","classic fm, classical",1],["PLANET ROCK: Where Rock Lives","bauer radio, classic roc",1]],"FR":[["RTL","généraliste",1],["France Info","hls, information",1],["France Inter","classical",1],["RMC Info Talk Sport","sports news",1],["Nostalgie HQ","",1],["Europe 1","génaraliste",1],["Nrj Hits","hits",1],["FUN Radio","dance, electro",1],["France Culture","classical",1],["RFI Afrique","africa, news",1],["Chérie FM","",1],["EuroDance 90 radio","dancefloor",1],["RFM POP-ROCK","pop",1],["Europe 2","pop music",1],["Skyrock Klassics","",1],["RTL 2","",1],["100% Radio 80","80s",1],["France Musique","classical",1],["Skyrock","rap",1],["FIP","hls, m3u8",1],["BFM Business","economic news",1],["Chante France 80's","80s",1],["RFI-Chinese","",1],["FIP Jazz","jazz",1],["Sud Radio","news",1],["RFI-Afrique","information",1],["La Grosse Radio Reggae","music, reggae",1],["Radio Classique","classical",1],["Radio Meuh","electronic, funk",1],["RFM","",1]],"AT":[["ORF Hitradio Ö3 | HQ","orf, pop",1],["FM4 | ORF | HQ","orf",1],["ORF Hitradio Ö3","orf, pop",1],["FM4 | ORF","orf",1],["Ö1 | ORF | HQ","orf",1],["radio 88.6","rock",1],["Lounge.FM - 100% Austria","downtempo, easy listenin",1],["ORF Radio Wien","orf",1],["88.6 Hard Rock","hard rock",1],["Radino - Mein Kinderradio Wien 103,2","children, dab+",1],["88.6 Classic Rock","classic rock",1],["AUSTRIA FIRST – Österreichs Patriotenradio","news",1],["KroneHit Digital","",1],["Ö1 | ORF","orf",1],["Antenne Steiermark","",1],["ORF Radio Oberösterreich | HQ","orf",1],["ORF Radio Niederösterreich | HQ","orf",1],["KroneHit Radio","",1],["Antenne Kärnten","",1],["ORF Tirol HQ","orf, local radio",1],["Life Radio Tirol","pop, rock",1],["ORF Radio Kärnten","orf, orf",1],["ORF Radio Wien | HQ","orf",1],["Radio Xmas","",1],["Darksynth Radio","80s, darkwave",1],["ORF Radio Steiermark | HQ","orf",1],["Radio Klassik Stephansdom","",1],["Servus Radio","",0],["Antenne Vorarlberg","",1],["Arabella Austropop","austrian music, austropo",1]],"CH":[["Radio SRF 3","entertainment, pop",1],["1.FM - Amsterdam Trance Radio","trance",1],["1.FM - Deep House Radio","deep house, techno",1],["Radio Swiss Pop","pop, soft rock",1],["Energy Zürich (NRJ)","mainstream, news",1],["Radio Swiss Jazz (AAC 192)","jazz, srg ssr",1],["1.FM - Ambient Psychill","downtempo",1],["Radio Pilatus","",1],["1.FM - Blues Radio","blues",1],["Radio SRF 4 News","information, news",1],["1.FM - Deep Techno & Deep House","deep house, techno",1],["Radio Swiss Jazz","jazz",1],["1.FM - Bay Smooth Jazz Radio","smooth jazz",1],["80s Forever - We Keep The 80s Alive","80s, indie",1],["Radio Suisse Classique","classical",1],["UZIC.CH :: TECHNO - MINIMAL :: best of elect","electro, house",1],["Kontrafunk (AAC 64)","conservative, news",1],["1.FM - Otto's Baroque Music Radio","baroque, classical",1],["Couleur3","indie, pop",1],["Radio Zürisee","classic hits, classic ro",1],["Radio Swiss Classic DE (AAC 192)","classical, srg ssr",1],["SWISS GROOVE","funk, jazz",1],["1.FM - Classic Country Radio","",1],["Vintageradio.ch","",1],["1.FM - BOM Psytrance Radio","full-on",1],["1.FM - Alternative Rock X Hits Radio","",1],["Spoon Radio","rock",1],["Energy Bern","",1],["Pop | Radio Swiss","mp3, pop",1],["Radio Swiss Classic","classical",1],["RSR La Premiere","",1],["Ambi Nature Radio","nature",1],["GDS.FM","acid-house, experimental",1],["Radio Basilisk","",1],["VirginRadio","rock",1],["Radio 24","classic rock, easy liste",1],["Radio Argovia","pop",1],["1.FM - Bossa Nova Hits","latin",1],["1.fm Otto's Classical music","",1],["Radio SRF 1 Regionaljournal Ostschweiz","local news, news",1],["SRF Musikwelle","folklore, public radio",1],["1.FM - High Voltage Radio","metal",1],["1.FM - Love Classics Radio","love songs",1],["1.FM - Rock Classics Radio","classic rock",1],["Energy Basel (NRJ)","charts, local news",1],["Radio SRF 2 Kultur","classical, culture",1],["Radio SRF 3 (AAC 192)","pop, rock",1],["1.FM - Gorilla FM Radio","indie rock",1],["1.FM - Ibiza Chill Tropical","1.fm, chillout",1],["Adore Jazz","jazz",1],["SRF Virus","alternative",1],["1.FM - Cafe Radio","latin, pop",1],["1.FM - Dance One Radio","electronica",1],["Radio 32","local news, news",1],["Radio FM1","pop, rock",1],["Radio SRF 1 Regionaljournal Zürich, Schaffha","local news, news",1],["SRF 1","public radio, srg ssr",1],["1.fm Otto's Baroque music","baroque",1],["Music Radio Chillout","ambient, calm",1],["One FM","",1],["Traxx FM - Tech Minimal","electronic",1],["1.FM - Absolute 70's Pop Radio","70s",1],["1.FM - Absolute Trance (Euro) Radio","trance",1],["1.FM - Afterbeat Electronica Radio","chillout",1],["Kontrafunk (Mobil)","news, opinion",1],["Music Radio Zen","ambient, focus",1],["RADIO BERN1","",1],["Radio SRF 1","",1],["Radio SRF 1 Zentralschweiz","local news, news",1],["SRF 3","pop, public radio",1],["Sunshine Radio (Switzerland)","",1],["Traxx FM - Ambient","ambient",1],["Traxx FM - Golden Oldies","1970s, 1980's",1],["1.FM - Always-Christmas Radio","",1],["1.FM - Costa Del Mar","chillout",1],["Music Radio Deep House","deep house, electronic",1],["Radio 32 Goldies","",1],["RTS Espace 2","classic, jazz",1],["1.FM - Disco Ball 70's-80's Radio","70s, 80s",1],["Christmas Radio","",1],["Radio Central","local radio",1],["Radio SRF 4 News (AAC 192)","information, news",1],["Radio Swiss Pop (AAC 192)","pop, srg ssr",1],["1.FM - Bombay Beats India Radio","bollywood",1],["Brazilian Birds Radio","",1],["GOAT Radio","",1],["Lounge Radio","",1],["Radio BeO","",1],["Radio Grischa","infos, music",1],["Radio Melody","classic hits, hits",1],["Radio Melody Schweiz","",1],["1.FM - Absolute Country Hits Radio","",1],["1.FM - America's Best Ballads Radio","ballads",1],["1.FM - Back To The 50's & 60's Radio","50s, 60s",1],["1.FM - Chillout Lounge Radio","",1],["1.FM - Movie Soundtrack","",1],["A Fine Jazz Gumbo Radio","",1],["Alti Radio","christian, eclectic",1],["Country Radio Switzerland (CRS)","undefined",1],["Happy Radio","",1],["Music Radio Country","americana, country",1],["RaBe Radio Bern Switzerland","multikulti",1],["Radio Maxxima","",1],["Radio SRF 1 Bern Freibourg Wallis","",1],["Radio Swiss Classic FR","classical",1],["Radio Swiss Classic French","classical, french",1],["Radio Tell","folklore, volksmusik",1],["Rete Tre | 32k AAC+","alternative",1],["RSI Rete Uno","public radio, srg ssr",1],["SRF1 Regionaljournal Zürich-Schaffhausen","",1],["SwissGroove","",1],["Traxx FM - Jazz","classic jazz",1],["Traxx FM - Lounge","lounge",1],["1.FM - Country One Radio","country",1],["1.FM - Dubstep Forward Radio","dubstep",1],["1.FM - Full Throttle Phonk","brazilian, drift",1],["1.fm classic rock","classic rock",1],["Back2Noize Radio","club, club dance",1],["Bear Metal Radio","",1],["Electro Radio","",1],["electroradio.fm","electronic",1],["Energy Bern (NRJ)","news, pop",1],["LOUNGE-RADIO.COM - swiss made","",1],["my105 - Dance","electro, house",1],["Radio Argovia Hit Mix","top hits",1],["Radio Eviva","",1],["Radio SRF 1 Aargau Solothurn","",1],["RTS La Première","",1],["SRF1 Regionaljournal Aargau Solothurn","",1],["1.FM - Absolute 90s Party Zone Radio","90s, party",1],["1.FM - Absolute Pop Latino Radio","latin, pop",1],["1.FM - Adult Urban Hits Choice Radio","rnb, soul",1],["1.FM - Classic Rock Replay Radio","",1],["1.FM - Destination: SPA Radio","new age, relax",1],["1.FM - Eternal Praise & Worship Radio","",1],["1.FM - Magic 80 Radio","80s",1],["1.FM - Radio Gaia","world music",1],["1.FM - Sax4Love","jazz",1],["1.FM Beloved Ballads","",1],["1.FM Top 40 Hits","",1],["[1337 4M813N7] RADIO.MASCHINENGEIST.ORG Deep","ambient, downtempo",1],["lounge-radio.com","",1],["Option Musique","classical",1],["Planet Ambi HD","ambient, drone",1],["PsytranceRadio","",1],["Public Domain Classical","classical, public domain",1],["Radio 1 - FM 93.6","rock",1],["Radio 3FACH","",1],["Radio grenzenlos,Radio grenzenlos [SPCast]","charts, dance",1],["Radio Gugelhopf","punk",1],["Radio LAC","",1],["Radio SRF 1 (AAC 192)","information, news",1],["Radio SRF 1 Bern Freiburg Wallis | 96k AAC+","contemporary",1],["Radio SRF 1 Regionaljournal Bern, Freiburg, ","local news, news",1],["Radio SRF 1 Zürich Schaffhausen","",1],["Radio SRF Virus","srg ssr",1],["Radio SRF Virus - Indie Rock","indie rock, public radio",1],["Radio Swiss Classic German","classical, srg ssr",1],["Radio Top (Ostschweiz)","news, pop",1],["RSI Rete Tre","pop, public radio",1],["RTS Première","",1],["Spoon Radio - Rock Ballads","ballads",1],["SRF 4 News","news, public radio",1],["SRF1 Radio","",1],["Swiss Jazz Room","",1],["Swiss Pop","pop, public radio",1],["Ta Radio","dance, funk",1],["TRANSITION RADIO","experimental",1],["True House Radio","house",1],["Vertical Radio","",1],["Vinyl-Valley Rock Radio","blues rock, classic rock",1],["World Radio Switzerland","",1],["1.FM - Club 1 Radio","electronica",1],["1.FM - Funky Express","funk, groove",1],["1.FM - Jamz Radio","hiphop, rnb",1],["1.FM - Kids FM Radio","kids",1],["1.FM - Otto's Opera House Music Radio","opera",1],["1.FM - Slow Jamz Radio","rnb, soul",1],["Bachata Nation Radio","",1],["Geneva Latina Radio","",1],["GRRIF","",0],["Klassik Radio (Switzerland)","",1],["LFM","suisse",1],["One Dance Ticino","dance, electronic",1],["One FM 2000s","00s, 2000s",1],["Radio 2Go","pop",1],["Radio Jura bernois","",1],["Radio Munot","",1],["Radio Niesen","",1],["Radio SRF 1 Graubünden | 96k AAC+","contemporary",1],["Radio SRF 1 Zentralschweiz | 32k AAC+","contemporary",1],["Radio SRF 2 Kultur (AAC 192)","classical, culture",1],["RADIO SWISS CLASSICA ITALIA","",1],["RadioFr. Fribourg","",1],["Rete Due | 32k AAC+","classical",1],["RSI Rete Due","classical, public radio",1],["RSR Option Musique","",1],["RTN","regional",1],["Rundfunk FM","easy listening",1],["Spoon Radio - Hard Rock","hard rock",1],["Superyachtradio","",1],["Swiss Country Radio","",1],["Traxx FM - Deep","deep",1],["WRS \"Swiss Radio in English\"","",1],["1.FM - A List 80s","80s",1],["1.FM - All Euro 80's Radio","80s, european music",1],["1.FM Absolute 90's Radio","90s, pop",1],["1.FM Y2K Radio (2000s)","2000, 2000's",1],["Basspistol Radio","dance, electronic",1],["Country Radio Switzerland","country",1],["FLASHBACK FM","international",1],["Gnu Radio - Metal FM","classic metal, drgnu",1],["hifreaksradio","alternative, indie",1],["IP Music Slow","r&b/urban",1],["IP music slow (128 kbps AAC)","pop",1],["IP music slow (96 kbps AAC)","pop",1],["kanalk","",1],["Love Hardstyle","",1],["Music Radio Lo-Fi","chill, focus",1],["Music Radio Rock","classic rock, gaming",1],["my105 - All The Hits","hits",1],["my105 - Charts","top 40",1],["my105 - Deep","deep house",1],["my105 - Mashup","mashup",1],["my105 - Party","party",1],["Neo1","local news, pop",1],["One FM 90s","",1],["open broadcast","eclectic",1],["Public Domain Swiss Schlager","folk, public domain",1],["publicdomainproject classic","",1],["publicdomainproject swing jazz","",1],["Radio Freundes-Dienst Schweiz","news",1],["Radio Freundesdienst Schweiz","christian",1],["Radio Gaia","chillout",1],["Radio LoRa","feminist",1],["Radio R Louange","",1],["Radio SRF 1 Basel Baselland","",1],["Radio SRF 1 Ostschweiz | 32k AAC+","contemporary",1],["Radio SRF Musikwelle","folklore, public radio",1],["Radio Suisse Jazz","blues, jazz",1],["Radio Svizzera Classica","classical, public radio",1],["Radio Vostok","",1],["RadioSouvenir.com","",1],["Rockstar Radio","classic rock, rock",1],["RSR Espace 2","",1],["RTS Couleur 3","",1],["RTS Option Musique","chansons, pop",1],["Skuizz Hits 90s-00s","00s, 90s",1],["Symphoniya Wave","classical, symphonic",1],["toxic.fm","",1],["Traxx FM - House","deep house",1],["Traxx FM - RnB","",1],["Traxx FM - Rock","classic rock",1],["Traxx FM - Soul","no ads",1],["WRS","hits, pop",1],["1.FM - All Times & Urban Gospel Radio","gospel",1],["1.FM - Exitos del Ayer Radio","spanish",1],["1.FM - Millennial Nostalgia","2000s, electronic",1],["1.FM - MPB Hits Radio","",1],["1.FM - Rap Pregame","electronic, hip hop",1],["1.FM - Samba Hits Brazil Radio","samba",1],["1.FM - Samba Rock Radio","samba",1],["1.FM - Sunshine","",1],["1.FM - Top Fiesta Radio","latin music",1],["1.fm Back To The 50's","",1],["1.FM Essential Classical Polska FM","classical",1],["1.fm Movie Soundtrack Hits","",1],["1.FM Top 40 Ballads Radio","ballads, hits",1],["80ies dot radio","",1],["All time Urban Gospel","catholic radio",1],["Audioasyl","electronic",1],["Barix Radio","barix, barix radio",1],["Boost Radio","",1],["Break Radio","hip-hop",1],["BurningStation.com","charts, oldies",1],["Canal3 deutsch","local news, news",1],["Dream Sequence","",1],["GIN Radio 24","chillout, country",1],["Global FM","",1],["IP music SLOW - aacPlus@96 Kb/s","",1],["JAMES FM","",1],["Jazz Black Music","",1],["Jazz Radio","",1],["Kanal K","",1],["La Radio du bord de l’eau","chillout, house",1],["LeMixx Radio","disco",1],["LUX RADIO","",1],["Music Radio Classical","classical, concentration",1],["Music Radio Latin","bachata, dance",1],["Musikwälle","pop",1],["my105 - Chill","chillout, relax",1],["my105 - Dreist","rap",1],["my105 - Fresh","new music",1],["my105 - Original","dance, hits",1],["New Clear Radio","brit pop, classic rock",1],["OnFlow Hot","",1],["PureGlow Radio","",1],["R102","variety",1],["Radio Alta","christian, gospel",1],["Radio Barix AAC","pop",1],["Radio Bern RaBe (HD Stream)","",1],["Radio Chablais","",1],["Radio Chablais Rock´N Blues","",1],["Radio Freiburg","",1],["Radio Gwendalyn","",1],["Radio HOF—BAR","ambient",1],["Radio Litoral","",1],["Radio Maria Switzerland","catholic, christian",1],["Radio neue Hoffnung (RNH)","christian",1],["Radio Onyx","italian pop",1],["Radio Orbital ch","",1],["Radio Ouistiti","",1],["Radio Play","",0],["Radio Rasa Schaffhausen","alternative, independent",1],["Radio Rocher","suisse",1],["Radio Rocket","alternative, eclectic pr",1],["Radio RTR","",1],["Radio SRF 1 Graubünden | 32k AAC+","contemporary",1],["Radio SRF 1 Ostschweiz","",1],["Radio SRF 1 Regionaljournal Aargau, Solothur","local news, news",1],["Radio Sunrise Swiss","hits, rap fr",1],["Radio Swiss Classic Italian","classical",1],["Radio Südostschweiz","",1],["Radio Television Suisse 1","",1],["Radio Tell Bodeständig","",1],["RADIO VINTAGE","",1],["Radio Zuerich Nord: Musikbox","",1],["Radio-Swiss-Pop","",1],["Radio3i","",1],["RadioFr. Freiburg","",1],["Radioswiss","pop",1],["Rete Uno | 32k AAC+","blues, classical",1],["Rhône FM","",1],["Rock the Blues","",1],["Rouge","classic hits, top hits",1],["Rouge FM 90s","90s",1],["Rouge FM Suisse","pop",1],["RSR Couleur 3","",1],["RTR | 32k AAC+","",1],["Rundfunk.fm","funk",1],["soundz","dance, hip hop",1],["Spoon Radio - Acoustic Rock","acoustic, acoustic rock",1],["Spoon Radio - Alternative Rock","alternative",1],["Spoon Radio - Classic Rock","",1],["Spoon Radio Modern Rock","",1],["SRF1 Regionaljournal Basel Baselland","",1],["SWISSCLASSICA ITALIA","",1],["Traxx FM - France","french",1],["Traxx FM - Funk","funk",1],["Traxx FM - Latino Pop","latino",1],["True House Chill","chillout",1],["TVM3.TV","",1],["1.FM - Circuit Pride Radio","gay, lgbt",1],["1.FM - Italia On Air Radio","italian pop",1],["1.FM - Reggaeton Heat","caribbean, hip hop",1],["1.FM - Sertaneja Hits Radio","",1],["1.FM - Total Hits En Español Radio","spanish",1],["1.FM Reggae","",1],["1.fm top rap","rap hiphop rnb",1],["20minuten.radio DAB+ (GOAT Radio)","pop music",1],["Adonia-KidsRadio","children, christian",1],["Agaune Radio","general",1],["Ahuga laut.fm","liedermacher",1],["Arc Musique","classic hits",1],["Christmas Radio FM","",1],["DBC radio","",1],["DIKS ДИКС","#",1],["Electrons Libres","",1],["Energy Blick Trendz","",1],["FEEL GOOD Jura","90s, afro",1],["Global Sport - Genève","football, hockey",1],["Global Sport Canal Romand","",1],["Global Sport Suisse","",1],["Gorilla.fm","",1],["ip music","",1],["Jam On Radio","",1],["Jazz Radio Lounge","",1],["Jukebox - Nonstop Music","",1],["Kiss Collector Radio","",1],["KTfm Geneva - THE BEST OF 70'S AND 80'S","70s, 70s disco",1],["Loungemain Radio Jazz-Chill-Funk","",1],["MaXXima","club, dance",1],["My 105 The 80s Club","",1],["my105 - Deluxe","lounge",1],["my105 - DJ Mixes","dj sets",1],["my105 - Love","love songs",1],["my105 - Ritmo Latino","latin",1],["my105 - Rock","rock",1],["my105 - The Battle","hiphop, urban",1],["my105 X-MAS","weihnachten, x-mas",1],["my105 X-MAS Radio (AAC)","",1],["One FM New Hits","",1],["One FM Rock Oldies","",1],["openbroadcast.ch","",1],["Openbroadcast.ch | mp3","",1],["Pineapplejuice","rock",1],["Piratenradio","alternative, non-commerc",1],["Provoda.ch LEGACY MP3","",1],["QUEER RADIO","",1],["Radio 1","misc",1],["Radio 1 Zürich","",1],["Radio Bollwerk","",1],["Radio Drachenblut","",1],["Radio Gloria","christian, katholik",1],["Radio Morcote International","morcote, pop",1],["Radio R","",1],["RADIO ROTATION","pop",1],["Radio Rumantsch","public radio, srg ssr",1],["Radio S","eclectic, hospita",1],["Radio Schlagerpark","partyschlager, schlager",1],["Radio SRF 1 Regionaljournal Graubünden","local news, news",1],["Radio SRF1","",1],["Radio Stadtfilter (DAB+)","city, pop",1],["Radio Summernight","",1],["Radio Swiss Classic V2","classical, instrumental",1],["Radio X Basel (MP3 Stream)","drum and bass, electroni",1],["Radio X Basel (OGG Stream)","",1],["Radio Zuerisee","pop",1],["Radio-Drachenblut","metal, rock",1],["Radio4TNG","",1],["RadioFr. Fresh","pop",1],["Radiopolis","",1],["RadioPungis","",1],["radiox.ch","",1],["RCM La radio 13 étoiles","",1],["Redline Radio","variety",1],["RFJ","",1],["RJB","",1],["ROCKSTATION","",1],["ROCKSTATION's Broadcast","classic rock",1],["Rouge FM Latino","latin",1],["Rouge FM Lounge","lounge",1],["rro Radio Rottu Oberwallis","",0],["SRF3","",1],["SRF4","",1],["Symphoniya Wave — Symphoniya.com","ambient, classical",1],["Thaalam FM","",1],["Trasformatorio","",1],["Traxx FM - Classic","classic",1],["Traxx FM - Cool Jam","jazz",1],["Traxx FM - Deluxe","edm",1],["Traxx FM - Hits","",1],["Traxx FM - Italia","italian",1],["Traxx FM - Latino","latin",1],["Traxx FM - Pop","no ads",1],["Traxx FM - Rap","no ads",1],["TVM 3 TV","",1],["URBN Radio","",1],["Volnadavida Radio","",1],["WALTS WELT","",1],["Wildmountain Radio","",1],["ஊரி தமிழ் வானொலி URI TAMIL RADIO","classical",1]],"LI":[["Radio Vaterland","",1],["Radio 2Go","",1]]},"T":50073,"NOLAND":1049,"BROKEN":721};
+    var sel = { c: { CH: { m: 'all', x: {} }, LI: { m: 'all', x: {} } }, broken: true };
+    this.state = { sel: sel, applied: JSON.stringify(sel), q: '', saved: false, open: '', openC: 'CH', stQ: '' };
+  }
+  renderVals() {
+    var st = this.state, sel = st.sel, self = this, RB = this.rb, C = RB.C, T = RB.T;
+    var nf = function (n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); };
+    var K = [['eu', 'Europa'], ['na', 'Nord- und Mittelamerika'], ['sa', 'Südamerika'], ['as', 'Asien'], ['af', 'Afrika'], ['oc', 'Ozeanien']];
+    var KN = {}; K.forEach(function (k) { KN[k[0]] = k[1]; });
+    var BY = {}; C.forEach(function (x) { BY[x[0]] = x; });
+    var set = function (patch) { self.setState({ sel: Object.assign({}, sel, patch), saved: false }); };
+    // Je Land: m = 'all' (alle ausser x) oder 'none' (nur x); x = Ausnahmen nach Listenplatz.
+    var setC = function (code, v) { var o = Object.assign({}, sel.c); if (v) o[code] = v; else delete o[code]; set({ c: o }); };
+    var flipC = function (code) { setC(code, sel.c[code] ? null : { m: 'all', x: {} }); };
+    var cCount = function (s, x) { var v = s.c[x[0]]; if (!v) return 0; var e = Object.keys(v.x).length; return v.m === 'all' ? x[2] - e : e; };
+    var tile = function (on) { return 'text-align: left; color: #f3f3f5; display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 48px; padding: 6px 12px; border-radius: 10px; border: 1px solid ' + (on ? '#e8794a' : '#ffffff2e') + '; background: ' + (on ? '#e8794a33' : '#1d2029') + ';'; };
+    var row = function (on) { return 'text-align: left; color: #f3f3f5; display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 40px; padding: 4px 10px; border-radius: 8px; font-size: 13px; border: 1px solid ' + (on ? '#e8794a' : '#ffffff1f') + '; background: ' + (on ? '#e8794a33' : 'transparent') + ';'; };
+    var count = function (s) {
+      var n = 0; C.forEach(function (x) { if (s.c[x[0]]) n += cCount(s, x); });
+      if (s.broken) n = Math.round(n * (1 - RB.BROKEN / T));
+      return { n: n };
+    };
+    var now = count(sel), before = count(JSON.parse(st.applied));
+    var q = st.q.trim().toLowerCase();
+    var nc = Object.keys(sel.c).length;
+    var diff = now.n - before.n;
+    var item = function (x, style) {
+      var on = !!sel.c[x[0]];
+      return { name: x[1], count: nf(x[2]), cont: KN[x[3]], pressed: on ? 'true' : 'false', toggle: function () { flipC(x[0]); }, style: style(on) };
+    };
+    var found = q ? C.filter(function (x) { return x[1].toLowerCase().indexOf(q) >= 0 || x[0].toLowerCase() === q; }) : [];
+    var openList = C.filter(function (x) { return x[3] === st.open; }).sort(function (a, b) { return a[1].localeCompare(b[1], 'de'); });
+    var openSum = 0; openList.forEach(function (x) { openSum += x[2]; });
+    var setOpen = function (on) { var o = Object.assign({}, sel.c); openList.forEach(function (x) { if (!on) delete o[x[0]]; else if (!o[x[0]]) o[x[0]] = { m: 'all', x: {} }; }); set({ c: o }); };
+
+    // Senderliste des offenen Landes
+    var oc = sel.c[st.openC] ? st.openC : '', ox = oc ? BY[oc] : null, ov = oc ? sel.c[oc] : null;
+    var list = oc ? (RB.S[oc] || []) : [];
+    var ocApplied = !!(oc && JSON.parse(st.applied).c[oc]);
+    var sq = st.stQ.trim().toLowerCase();
+    var isOn = function (i) { return ov.m === 'all' ? !ov.x[i] : !!ov.x[i]; };
+    var shown = [];
+    list.forEach(function (s, i) { if (!sq || s[0].toLowerCase().indexOf(sq) >= 0 || s[1].toLowerCase().indexOf(sq) >= 0) shown.push(i); });
+    var mark = function (on) {
+      if (!sq) { setC(oc, { m: on ? 'all' : 'none', x: {} }); return; }
+      var x = Object.assign({}, ov.x);
+      shown.forEach(function (i) { if ((ov.m === 'all') === on) delete x[i]; else x[i] = true; });
+      setC(oc, { m: ov.m, x: x });
+    };
+    var ini = function (name) {
+      var w = name.replace(/[^0-9A-Za-z\u00C0-\u00FF ]/g, ' ').trim().split(/\s+/);
+      var t = ((w[0] || '?').charAt(0) + (w[1] ? w[1].charAt(0) : '')).toUpperCase();
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><rect width="36" height="36" fill="#2b2f3a"/><text x="18" y="23" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" font-weight="600" fill="#d0d2da">' + t + '</text></svg>');
+    };
+    var marked = 0; C.forEach(function (x) { marked += cCount(sel, x); });
+    var subOf = function (x) {
+      var n = cCount(sel, x);
+      return n === x[2] ? 'alle ' + nf(n) + ' Sender' : n === 0 ? 'kein Sender markiert' : nf(n) + ' von ' + nf(x[2]) + ' Sendern';
+    };
+    return {
+      q: st.q, setQ: function (e) { self.setState({ q: e.target.value }); },
+      countryNote: nc + (nc === 1 ? ' Land gewählt' : ' Länder gewählt') + ' von ' + C.length,
+      hasSel: nc > 0, noSel: nc === 0,
+      stationNote: nc ? nf(marked) + (marked === 1 ? ' Sender markiert' : ' Sender markiert') : '',
+      clearAll: function () { set({ c: {} }); },
+      chips: C.filter(function (x) { return sel.c[x[0]]; }).map(function (x) {
+        var on = oc === x[0];
+        return { name: x[1], sub: subOf(x), expanded: on ? 'true' : 'false',
+          openLabel: on ? 'Sender schliessen ▴' : 'Sender wählen ▾', openAria: 'Sender in ' + x[1] + (on ? ' schliessen' : ' wählen'), removeAria: x[1] + ' entfernen',
+          open: function () { self.setState({ openC: on ? '' : x[0], stQ: '' }); },
+          remove: function () { setC(x[0], null); },
+          style: 'display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; min-height: 56px; padding: 6px 12px; border-radius: 10px; border: 1px solid ' + (on ? '#e8794a' : '#ffffff2e') + '; background: ' + (on ? '#2b1d17' : '#1d2029') + ';' };
+      }),
+      searching: !!q,
+      hits: found.slice(0, 40).map(function (x) { return item(x, tile); }),
+      hitNote: found.length === 0 ? 'Kein Land gefunden.' : found.length > 40 ? found.length + ' Treffer, gezeigt sind die 40 grössten. Genauer tippen.' : found.length === 1 ? '1 Treffer' : found.length + ' Treffer',
+      hasStation: !!oc,
+      stTitle: oc ? 'Sender in ' + ox[1] : '',
+      stCount: oc ? nf(cCount(sel, ox)) + ' von ' + nf(ox[2]) + ' markiert' : '',
+      stQ: st.stQ, setStQ: function (e) { self.setState({ stQ: e.target.value }); },
+      stAllLabel: sq ? 'Gezeigte markieren (' + shown.length + ')' : 'Alle markieren',
+      stNoneLabel: sq ? 'Gezeigte demarkieren (' + shown.length + ')' : 'Alle demarkieren',
+      stAll: function () { mark(true); }, stNone: function () { mark(false); },
+      stHint: !oc ? '' : ov.m === 'all' ? 'Alle Sender dieses Landes sind im Angebot, ausser den demarkierten. Neue Sender aus diesem Land kommen von selbst dazu.' : 'Nur die markierten Sender sind im Angebot. Neue Sender aus diesem Land kommen nicht von selbst dazu.',
+      stRows: shown.map(function (i) {
+        var s = list[i], on = isOn(i), dead = s[2] === 0;
+        return { name: s[0], logo: (ocApplied && s[3]) || ini(s[0]), sub: (dead ? 'nicht erreichbar' + (s[1] ? ' · ' : '') : '') + s[1] || '–', checked: on ? 'true' : 'false', tick: on ? '✓' : '',
+          toggle: function () { var x = Object.assign({}, ov.x); if (x[i]) delete x[i]; else x[i] = true; setC(oc, { m: ov.m, x: x }); },
+          style: 'text-align: left; color: ' + (on ? '#f3f3f5' : '#9ea3b0') + '; display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 6px 10px; border-radius: 8px; border: 1px solid #ffffff1f; background: ' + (on ? '#1d2029' : 'transparent') + ';',
+          box: 'flex: 0 0 20px; width: 20px; height: 20px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #1c0d06; border: 1px solid ' + (on ? '#e8794a' : '#ffffff5c') + '; background: ' + (on ? '#e8794a' : 'transparent') + ';' };
+      }),
+      stNote: !oc ? '' : sq && shown.length === 0 ? 'Kein Sender gefunden.' : (ocApplied ? '' : 'Noch nicht übernommen: Logos und weitere Angaben lädt der Server erst danach. ') + (list.length === 0 ? 'Im Mockup ist für dieses Land keine Senderliste hinterlegt.' : list.length < ox[2] ? 'Im Mockup stehen hier die ' + list.length + ' meistgehörten von ' + nf(ox[2]) + ' Sendern. Echt ist die Liste vollständig.' : 'Vollständige Liste, nach Hörerzahl sortiert. Wo der Server kein Logo findet, stehen die Anfangsbuchstaben.'),
+      continents: K.map(function (k) {
+        var n = 0, s = 0, p = 0, on = st.open === k[0];
+        C.forEach(function (x) { if (x[3] === k[0]) { n++; s += x[2]; if (sel.c[x[0]]) p++; } });
+        return { label: k[1], sub: n + ' Länder · ' + nf(s) + ' Sender', picked: p ? p + ' gewählt' : '', mark: on ? '▴' : '▾', expanded: on ? 'true' : 'false',
+          toggle: function () { self.setState({ open: on ? '' : k[0] }); },
+          style: 'text-align: left; color: #f3f3f5; display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 56px; padding: 6px 12px; border-radius: 10px; border: 1px solid ' + (on ? '#e8794a' : '#ffffff2e') + '; background: ' + (on ? '#2b1d17' : '#1d2029') + ';' };
+      }),
+      hasOpen: !!st.open,
+      openTitle: st.open ? KN[st.open] + ' · ' + openList.length + ' Länder · ' + nf(openSum) + ' Sender' : '',
+      openRows: openList.map(function (x) { return item(x, row); }),
+      openAll: function () { setOpen(true); }, openNone: function () { setOpen(false); },
+      noCountryNote: nf(RB.NOLAND) + ' Sender im Katalog haben kein gültiges Land und lassen sich hier nicht wählen. Über «Eigene Sender» geht es immer.',
+      total: nf(now.n), totalNote: 'von ' + nf(T) + ' Sendern im Katalog',
+      bar: 'height: 8px; border-radius: 4px; background: #e8794a; width: ' + Math.max(1, Math.round(100 * now.n / T)) + '%;',
+      parts: [{ k: 'Gewählte Länder', v: String(nc) }, { k: 'Markierte Sender', v: nf(marked) }],
+      exBroken: sel.broken, toggleBroken: function () { set({ broken: !sel.broken }); },
+      dirty: JSON.stringify(sel) !== st.applied, saved: st.saved && JSON.stringify(sel) === st.applied,
+      diffText: diff === 0 ? 'Die Auswahl ändert sich, die Zahl der Sender bleibt gleich.' : diff > 0 ? nf(diff) + ' Sender kommen dazu. Favoriten und eigene Sender bleiben.' : nf(-diff) + ' Sender fallen weg. Favoriten und eigene Sender bleiben.',
+      apply: function () { self.setState({ applied: JSON.stringify(sel), saved: true }); },
+      reset: function () { self.setState({ sel: JSON.parse(st.applied) }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

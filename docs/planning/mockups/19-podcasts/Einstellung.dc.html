@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Bibliothek bearbeiten: Neue Folgen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f3a27f}a:hover{color:#ffc4a8}
+.k-btn{font:inherit;cursor:pointer}
+.k-opt{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:10px;cursor:pointer}
+.k-opt input{margin:3px 0 0;width:18px;height:18px;flex:0 0 18px;accent-color:#e8794a}
+.k-btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+</style>
+</helmet>
+<div style="box-sizing: border-box; min-height: 100vh; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 20px 16px 48px;">
+<div style="max-width: 840px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px;">
+
+  <nav aria-label="Mockup-Navigation" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: #b6b9c4; border: 1px dashed #ffffff3d; border-radius: 12px; padding: 8px 12px;">
+    <span>Mockup:</span>
+    <a href="Main.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Abos A · Liste</a>
+    <a href="AbosB.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Abos B · Raster</a>
+    <a href="AbosC.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Abos C · Tabelle</a>
+    <a href="Einstellung.dc.html" aria-current="page" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #e8794a; background: #e8794a33; color: #f3f3f5; text-decoration: none;">Einstellung A · Dialog</a>
+    <a href="EinstellungB.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Einstellung B · Band</a>
+    <a href="Podcast.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Einzelner Podcast</a>
+  </nav>
+
+  <div style="display: flex; flex-direction: column; gap: 4px;">
+    <span style="font-size: 13px; color: #b6b9c4;">Verwaltung › Bibliotheken › Podcasts</span>
+    <h1 style="margin: 0; font-size: 24px; font-weight: 700;">Neue Folgen</h1>
+    <span style="font-size: 14px; color: #b6b9c4; line-height: 1.45;">Vorgabe für alle Podcasts dieser Bibliothek. Einzelne Podcasts können auf der Seite «Podcasts» abweichen. Vorhandene Dateien werden wie bisher erkannt und nie gelöscht.</span>
+  </div>
+
+  <fieldset style="margin: 0; border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; padding: 16px; display: flex; flex-direction: column; gap: 6px;">
+    <legend style="padding: 0 6px; font-size: 16px; font-weight: 600;">Was geschieht mit einer neuen Folge?</legend>
+    <sc-for list="{{modeOpts}}" as="o" hint-placeholder-count="2">
+      <label class="k-opt" style="{{o.style}}">
+        <input type="radio" name="mode" checked="{{o.checked}}" onChange="{{o.pick}}">
+        <span style="display: flex; flex-direction: column; gap: 3px;">
+          <span style="font-size: 15px; font-weight: 600;">{{o.label}}</span>
+          <span style="font-size: 13px; color: #b6b9c4; line-height: 1.45;">{{o.hint}}</span>
+        </span>
+      </label>
+    </sc-for>
+  </fieldset>
+
+  <sc-if value="{{saves}}" hint-placeholder-val="{{true}}">
+    <fieldset style="margin: 0; border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; padding: 16px; display: flex; flex-direction: column; gap: 6px;">
+      <legend style="padding: 0 6px; font-size: 16px; font-weight: 600;">Umfang</legend>
+      <sc-for list="{{scopeOpts}}" as="o" hint-placeholder-count="4">
+        <label class="k-opt" style="{{o.style}}">
+          <input type="radio" name="scope" checked="{{o.checked}}" onChange="{{o.pick}}">
+          <span style="display: flex; flex-direction: column; gap: 3px;">
+            <span style="font-size: 15px; font-weight: 600;">{{o.label}}</span>
+            <span style="font-size: 13px; color: #b6b9c4; line-height: 1.45;">{{o.hint}}</span>
+          </span>
+        </label>
+      </sc-for>
+      <sc-if value="{{showN}}" hint-placeholder-val="{{false}}">
+        <div style="margin-left: 30px; padding: 10px 14px; border-radius: 10px; background: #1d2029; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+          <span style="font-size: 14px;">Letzte</span>
+          <button class="k-btn" aria-label="Weniger" onClick="{{lessN}}" style="width: 44px; height: 44px; border-radius: 22px; background: #262a35; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 20px;">−</button>
+          <span aria-live="polite" style="min-width: 36px; text-align: center; font-size: 18px; font-weight: 700;">{{n}}</span>
+          <button class="k-btn" aria-label="Mehr" onClick="{{moreN}}" style="width: 44px; height: 44px; border-radius: 22px; background: #262a35; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 20px;">+</button>
+          <span style="font-size: 14px;">Folgen je Podcast</span>
+        </div>
+      </sc-if>
+    </fieldset>
+
+    <div style="border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+      <span style="font-size: 16px; font-weight: 600;">Ablage</span>
+      <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #b6b9c4;">Ordner für neue Abos
+        <select style="height: 44px; border-radius: 10px; background: #262a35; color: #f3f3f5; border: 1px solid #ffffff2e; padding: 0 10px; font: inherit; font-size: 14px;">
+          <option>/media/Audiobookshelf/Podcast</option>
+        </select>
+      </label>
+      <div style="{{writeBox}}">
+        <span style="font-size: 14px; line-height: 1.45; flex: 999 1 300px;">{{writeText}}</span>
+        <button class="k-btn" onClick="{{checkWrite}}" style="min-height: 44px; padding: 0 14px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">{{checkLabel}}</button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #b6b9c4; line-height: 1.5;">
+        <span>Jeder Podcast hat einen Unterordner. Ein Podcast, der schon einen Ordner hat, behält ihn.</span>
+        <span>Dateiname wie bei Audiobookshelf: <span style="color: #f3f3f5;">Podcast-Titel/Folgentitel.mp3</span>, dazu <span style="color: #f3f3f5;">metadata.json</span> und <span style="color: #f3f3f5;">cover.jpg</span>.</span>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+        <span style="font-size: 14px;">Gleichzeitig laden</span>
+        <div role="group" aria-label="Gleichzeitig laden" style="display: flex; gap: 6px;">
+          <sc-for list="{{parOpts}}" as="o" hint-placeholder-count="3">
+            <button class="k-btn" aria-pressed="{{o.pressed}}" onClick="{{o.pick}}" style="{{o.style}}">{{o.label}}</button>
+          </sc-for>
+        </div>
+        <span style="font-size: 13px; color: #b6b9c4;">Folgen</span>
+      </div>
+    </div>
+  </sc-if>
+
+  <div style="border: 1px solid #ffffff14; border-radius: 14px; background: #16181f; padding: 18px; display: flex; flex-direction: column; gap: 8px;">
+    <span style="font-size: 16px; font-weight: 600;">So läuft es mit dieser Einstellung</span>
+    <sc-for list="{{facts}}" as="f" hint-placeholder-count="3">
+      <span style="font-size: 14px; line-height: 1.45;">• {{f}}</span>
+    </sc-for>
+    <sc-if value="{{saves}}" hint-placeholder-val="{{true}}">
+      <div style="display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 14px; padding: 10px 12px; border-radius: 8px; background: #e8794a1a; border: 1px solid #e8794a66; margin-top: 6px;">
+        <span style="color: #d0d2da;">Einmalig nachzuladen (Beispielwerte, 11 Podcasts ohne eigene Einstellung)</span>
+        <span style="font-weight: 600;">{{estimate}}</span>
+      </div>
+    </sc-if>
+  </div>
+
+  <sc-if value="{{saved}}" hint-placeholder-val="{{false}}">
+    <div role="status" style="border: 1px solid #8fd6b0; background: #8fd6b01f; border-radius: 10px; padding: 12px 14px; font-size: 14px;">Gespeichert. Gilt ab dem nächsten Feed-Abruf für 11 Podcasts; 3 Podcasts haben eine eigene Einstellung und bleiben, wie sie sind.</div>
+  </sc-if>
+
+  <div style="display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px;">
+    <a href="Main.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; text-decoration: none; font-size: 14px;">Zurück zu den Podcasts</a>
+    <button class="k-btn" onClick="{{save}}" disabled="{{blocked}}" style="{{saveStyle}}">Speichern</button>
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":880,"height":1420}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { mode: 'save', scope: 'new', n: 10, par: 2, writable: false, checking: false, saved: false };
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var opt = function (key, defs) {
+      return defs.map(function (d) {
+        var on = st[key] === d[0];
+        return { label: d[1], hint: d[2], checked: on, pick: function () { var s = { saved: false }; s[key] = d[0]; self.setState(s); },
+          style: 'border: 1px solid ' + (on ? '#e8794a' : '#ffffff14') + '; background: ' + (on ? '#e8794a1f' : 'transparent') + ';' };
+      });
+    };
+    var saves = st.mode === 'save';
+    var scopeFact = {
+      'new': 'Geladen wird nur, was ab jetzt im Feed erscheint. Ältere Folgen ohne Datei bleiben Link; je Podcast gibt es den Knopf «Fehlende nachladen».',
+      lastn: 'Zusätzlich lädt Slouchcat je Podcast die letzten ' + st.n + ' Folgen des Feeds, soweit sie noch fehlen.',
+      all: 'Slouchcat lädt alles, was der Feed aufführt (höchstens 2000 Folgen je Podcast), älteste zuletzt, und danach jede neue Folge.'
+    }[st.scope];
+    var facts = saves
+      ? ['Erscheint eine Folge, lädt Slouchcat die Datei in den Ordner des Podcasts. Bis sie da ist, spielt die Folge als Stream vom Anbieter.', scopeFact, 'Schlägt ein Download fehl, bleibt die Folge als Link abspielbar und wird später erneut versucht.']
+      : ['Neue Folgen bleiben ein Link zum Anbieter. Beim Abspielen streamt Slouchcat sie durch, auf dem NAS wird nichts gespeichert.', 'Dateien, die schon im Ordner liegen, bleiben und werden weiter erkannt.', 'Nimmt der Anbieter eine Folge aus dem Netz, ist sie nicht mehr abspielbar.'];
+    var estimate = { 'new': 'nichts', lastn: Math.min(st.n * 3, 219 + st.n) + ' Folgen · ≈ ' + Math.max(1, Math.round(st.n * 3 * 0.028)) + ' GB', all: '1.894 Folgen · ≈ 52 GB' }[st.scope];
+    var blocked = saves && !st.writable;
+    return {
+      saves: saves, showN: saves && st.scope === 'lastn', n: String(st.n), facts: facts, estimate: estimate, saved: st.saved, blocked: blocked,
+      modeOpts: opt('mode', [['save', 'Speichern', 'Die Datei wird in den Ordner des Podcasts geladen und gehört danach dir, auch wenn der Anbieter sie löscht.'], ['link', 'Nur Link', 'Die Folge erscheint in Slouchcat und wird beim Abspielen vom Anbieter gestreamt. Braucht keinen Platz.']]),
+      scopeOpts: opt('scope', [['new', 'Nur neue Folgen', 'Was ab jetzt erscheint.'], ['lastn', 'Neue + letzte N', 'Neue Folgen und die letzten N des Feeds.'], ['all', 'Alle Folgen', 'Der ganze Feed und jede neue Folge. Kann sehr viel Platz brauchen.']]),
+      lessN: function () { self.setState({ n: Math.max(1, st.n - (st.n > 10 ? 5 : 1)), saved: false }); },
+      moreN: function () { self.setState({ n: Math.min(100, st.n + (st.n >= 10 ? 5 : 1)), saved: false }); },
+      parOpts: [1, 2, 3, 4, 5].map(function (v) {
+        var on = st.par === v;
+        return { label: String(v), pressed: on ? 'true' : 'false', pick: function () { self.setState({ par: v, saved: false }); },
+          style: 'width: 44px; height: 44px; border-radius: 22px; font-size: 15px; font-weight: 600; color: #f3f3f5; border: 1px solid ' + (on ? '#e8794a' : '#ffffff2e') + '; background: ' + (on ? '#e8794a33' : '#1d2029') + ';' };
+      }),
+      writeBox: 'display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 10px; border: 1px solid ' + (st.writable ? '#8fd6b0' : '#e8b84a') + '; background: ' + (st.writable ? '#8fd6b01f' : '#e8b84a1f') + ';',
+      writeText: st.writable ? 'Schreibtest bestanden: Slouchcat darf in diesen Ordner schreiben. Frei: 2,1 TB.' : 'Der Ordner ist nur lesbar eingebunden. Speichern geht erst, wenn der Ordner im Container mit Schreibrecht eingebunden ist (Anleitung in der Installation).',
+      checkLabel: st.checking ? 'Prüft …' : 'Schreibrecht prüfen',
+      checkWrite: function () { self.setState({ checking: true }); setTimeout(function () { self.setState({ checking: false, writable: true }); }, 1200); },
+      save: function () { if (!blocked) self.setState({ saved: true }); },
+      saveStyle: 'min-height: 44px; padding: 0 22px; border-radius: 22px; border: 0; font-size: 14px; font-weight: 600; ' + (blocked ? 'background: #3a3d48; color: #d0d2da; cursor: not-allowed;' : 'background: #e8794a; color: #1c0d06; cursor: pointer;')
+    };
+  }
+}
+</script>
+</body>
+</html>
