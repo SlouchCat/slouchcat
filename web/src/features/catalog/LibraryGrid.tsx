@@ -47,6 +47,12 @@ interface LibraryGridProps {
   below?: (item: ItemRef) => ReactNode;
   /** Called once a title was taken off the watchlist from its cover (ItemGrid `onUnmarked`). */
   onUnmarked?: (item: ItemRef) => void;
+  /**
+   * `square`: every title the grid can show is an audiobook or a podcast, and the covers stand in
+   * square frames of their own (concept 19 C); the rows are lower. Else every card has the 2:3
+   * frame, a square cover too (concept 18 C-1).
+   */
+  cover?: 'poster' | 'square';
   /** The drawn places (for their pages) and the places of the top row in view below the header. */
   onRange: (range: DrawnRange, top: DrawnRange) => void;
   ref?: Ref<LibraryGridHandle>;
@@ -63,7 +69,14 @@ interface Metrics {
   header: number;
 }
 
-function measure(list: HTMLElement, probe: HTMLElement): Metrics {
+/** Height of a card's cover per width of its column. */
+const COVER_RATIO = { poster: 1.5, square: 1 } as const;
+
+export function measure(
+  list: HTMLElement,
+  probe: HTMLElement,
+  cover: keyof typeof COVER_RATIO = 'poster',
+): Metrics {
   const style = getComputedStyle(list);
   const tracks = style.gridTemplateColumns
     .split(' ')
@@ -73,8 +86,7 @@ function measure(list: HTMLElement, probe: HTMLElement): Metrics {
   const text = probe.getBoundingClientRect();
   return {
     columns: Math.max(1, tracks.length),
-    // Every card has the 2:3 frame, a square cover too (concept 18 C-1).
-    card: Math.ceil(width * 1.5 + text.height),
+    card: Math.ceil(width * COVER_RATIO[cover] + text.height),
     rowGap: parseFloat(style.rowGap) || 0,
     top: list.getBoundingClientRect().top + window.scrollY,
     header: text.width,
@@ -107,26 +119,37 @@ export function LibraryGrid({
   showWatched = true,
   below,
   onUnmarked,
+  cover = 'poster',
   onRange,
   ref,
 }: LibraryGridProps) {
   const root = useRef<HTMLDivElement>(null);
   const probe = useRef<HTMLSpanElement>(null);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
+  // The cover shape the metrics were last taken for.
+  const shaped = useRef(cover);
 
   useLayoutEffect(() => {
     const node = root.current?.querySelector('ul');
     const text = probe.current;
     if (!node || !text) return;
-    // Columns and gaps follow the width; the top follows what stands above (filters, chips).
+    // Columns and gaps follow the width; the top follows what stands above (filters, chips). A new
+    // cover shape (the content filter between mixed and audio) measures anew, like a new width,
+    // and before the paint: the cards of the new shape must not stand in rows of the old height.
+    // The first measure waits for the observer, once the page above has its layout.
+    if (shaped.current !== cover) {
+      const now = measure(node, text, cover);
+      setMetrics((previous) => (previous === null || same(previous, now) ? previous : now));
+    }
+    shaped.current = cover;
     const observer = new ResizeObserver(() => {
-      const next = measure(node, text);
+      const next = measure(node, text, cover);
       setMetrics((previous) => (same(previous, next) ? previous : next));
     });
     observer.observe(node);
     observer.observe(node.closest('main') ?? document.body);
     return () => observer.disconnect();
-  }, []);
+  }, [cover]);
 
   const total = slots.length;
   const columns = metrics?.columns ?? 1;
@@ -351,12 +374,19 @@ export function LibraryGrid({
                     tool={tool}
                     onUnmarked={onUnmarked}
                     clampCaption
+                    frame={cover === 'square' ? 'own' : undefined}
                     onArrowPress={(direction) => arrow(index, direction)}
                   />
                   {below?.(item)}
                 </>
               ) : (
-                <span className={styles.placeholder}>
+                <span
+                  className={
+                    cover === 'square'
+                      ? `${styles.placeholder} ${styles.square}`
+                      : styles.placeholder
+                  }
+                >
                   <Skeleton shape="poster" />
                 </span>
               )}

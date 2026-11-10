@@ -258,6 +258,46 @@ export const SquareWithMark: Story = {
 };
 
 /**
+ * The library overview of audiobooks and podcasts (concept 19 C): the square cover in a square
+ * frame of its own, without the blurred ground; with the pen and the check of a finished title.
+ */
+export const SquareOwn: Story = {
+  args: {
+    title: 'Die Stunde der Dämmerung',
+    caption: 'Mara Lindqvist',
+    shape: 'square',
+    frame: 'own',
+    accent: accents.dusk,
+    watchedLabel: 'Gehört',
+    tool: (
+      <Button
+        variant="secondary"
+        size="sm"
+        icon="pen"
+        iconOnly
+        aria-label="Die Stunde der Dämmerung: Metadaten bearbeiten"
+      />
+    ),
+  },
+};
+
+/** Focused: the glow and the scale follow the square frame. */
+export const SquareOwnFocused: Story = { ...SquareOwn, tags: ['press:Tab'] };
+
+/** With the watchlist button on the cover's bottom right corner and a listening progress. */
+export const SquareOwnWithMark: Story = {
+  args: {
+    title: 'Die Stunde der Dämmerung',
+    caption: 'Mara Lindqvist',
+    shape: 'square',
+    frame: 'own',
+    accent: accents.dusk,
+    progress: { percent: 52, label: '52 % gehört' },
+    mark: marked,
+  },
+};
+
+/**
  * Without `href` the card is a button (the spotlight row under the band, concept 08, F-5): the
  * chosen card carries a ring in the title's accent.
  */

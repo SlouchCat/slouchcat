@@ -63,6 +63,8 @@ interface ItemCellProps {
   onArrowPress?: (direction: string) => boolean;
   /** The caption on one line (the virtual library grid, whose rows have a fixed height). */
   clampCaption?: boolean;
+  /** A square cover in a square frame (PosterCard `frame`, the library overview of audio). */
+  frame?: 'poster' | 'own';
 }
 
 /** One title's poster card in a grid: watch state, pen and watchlist button (ItemGrid). */
@@ -75,6 +77,7 @@ export function ItemCell({
   onUnmarked,
   onArrowPress,
   clampCaption,
+  frame,
 }: ItemCellProps) {
   const { t } = useTranslation();
   const audio = isAudioKind(item.kind);
@@ -95,6 +98,7 @@ export function ItemCell({
       posterSmallUrl={imageUrl(item.images.posterSmall)}
       accent={item.accent}
       shape={audio ? 'square' : 'poster'}
+      frame={frame}
       watchedLabel={
         finished ? t(audio ? 'library.status.heard' : 'library.status.watched') : undefined
       }

@@ -46,4 +46,25 @@ describe('PosterCard', () => {
     const { container } = render(<PosterCard href="/items/1" title="Glut" />);
     expect(container.firstElementChild).toBe(screen.getByRole('link', { name: 'Glut' }));
   });
+
+  it('a square cover sits in the 2:3 frame on its blurred copy, or in a square frame of its own', () => {
+    const { rerender } = render(
+      <PosterCard href="/items/1" title="Glut" posterUrl="/p.jpg" shape="square" />,
+    );
+    const link = () => screen.getByRole('link', { name: 'Glut' });
+    expect(link().querySelectorAll('img')).toHaveLength(2);
+    expect(link()).not.toHaveClass('own');
+    // Concept 19 C: the library overview of audio.
+    rerender(
+      <PosterCard href="/items/1" title="Glut" posterUrl="/p.jpg" shape="square" frame="own" />,
+    );
+    const images = link().querySelectorAll('img');
+    expect(images).toHaveLength(1);
+    expect(images[0]).toHaveAttribute('height', '400');
+    expect(link()).toHaveClass('own');
+    // A poster ignores it.
+    rerender(<PosterCard href="/items/1" title="Glut" posterUrl="/p.jpg" frame="own" />);
+    expect(link()).not.toHaveClass('own');
+    expect(link().querySelector('img')).toHaveAttribute('height', '600');
+  });
 });

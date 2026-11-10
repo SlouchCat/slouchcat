@@ -1,5 +1,25 @@
 # Aktueller Stand
 
+## Release 1.23.3 (10. November 2026): Quadratische Cover in der Bibliotheksübersicht (Konzept 19 Teil C)
+
+Patch ohne Vertragsänderung und ohne Migration, Zweig `claude/k19-cover` ab `main` `afcdb2b8` (Release
+1.23.2). Nach `docs/planning/19-podcasts-und-radio.md` C1 bis C6 (OC-1 2:3 in gemischten Rastern, OC-2
+Offline-Bibliothek auch quadratisch).
+
+- **Bibliotheksübersicht:** `PosterCard` mit `frame="own"` zeigt das Cover quadratisch ohne Rahmen und
+  ohne unscharfen Grund; `LibraryGrid` mit `cover="square"` rechnet die Zeilenhöhe mit Breite × 1.
+  `LibraryPage` wählt quadratisch, wenn jeder Titel des Rasters ein Hörbuch oder Podcast ist
+  (`gridCover`: reine Audio-Bibliothek oder Filter «Inhalt» auf Audio); gemischt mit «Alle» bleibt 2:3.
+- **Unverändert:** Startseite, Suche, Merkliste, Sammlung, User-Empfehlungen, Personenseite und alle
+  Listen über `PagedItemGrid`.
+- **Offline-Bibliothek:** fertige Downloads in zwei Abschnitten «Filme und Serien» und «Hörbücher und
+  Podcasts», sobald beide Arten da sind; Audio quadratisch. Nur eine Art: ein Abschnitt ohne Überschrift.
+- **Tests:** PC-1 bis PC-6 (Vitest `measure`, `gridCover`, Bibliotheksseite, Merkliste, `PosterCard`,
+  Offline-Bibliothek; e2e `library.spec` mit 250 Hörbüchern, Tastatur und gemischter Bibliothek,
+  `audio-offline.spec`); Storybook `PosterCard` quadratisch ohne Rahmen mit Stift, Fokus und Merk-Knopf.
+- Versionsstellen auf 1.23.3.
+- **Offen:** Abnahme auf CT 190, Merge und Tag `v1.23.3` auf Marcos Wort.
+
 ## Release 1.23.2 (10. November 2026): Lautstärke für das Radio, Regler ohne Flackern (Konzept 19 Teil E)
 
 Patch ohne Vertragsänderung und ohne Migration, Zweig `claude/k19-lautstaerke-2be690` ab `main` `44dd34b4`

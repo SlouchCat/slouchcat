@@ -215,9 +215,13 @@ function OfflinePicker({ profiles }: { profiles: StoredProfile[] }) {
   );
 }
 
+const isAudio = (download: StoredDownload) =>
+  download.item !== undefined && isAudioKind(download.item.kind);
+
 function DownloadCard({ download, focusKey }: { download: StoredDownload; focusKey: string }) {
   const { t } = useTranslation();
   const poster = usePosterUrl(download);
+  const audio = isAudio(download);
   return (
     <PosterCard
       focusKey={focusKey}
@@ -226,7 +230,10 @@ function DownloadCard({ download, focusKey }: { download: StoredDownload; focusK
       caption={captionOf(t, download)}
       posterUrl={poster}
       accent={download.item?.accent}
-      shape={download.item && isAudioKind(download.item.kind) ? 'square' : 'poster'}
+      // Audio stands in a list of its own (DownloadSections): square, without the 2:3 frame
+      // (concept 19 C, OC-2).
+      shape={audio ? 'square' : 'poster'}
+      frame={audio ? 'own' : 'poster'}
       eager
     />
   );
@@ -243,7 +250,18 @@ function ProfileDownloads({
   useBackKeys(leaveOfflineProfile);
   const ready = downloads.filter((download) => download.complete);
   const pending = downloads.filter((download) => !download.complete);
-  const first = ready[0];
+  // Films and series, audiobooks and podcasts: one list each once both are there, so the titles of
+  // a row stay on one line (concept 19 C, OC-1 and OC-2).
+  const video = ready.filter((download) => !isAudio(download));
+  const audio = ready.filter(isAudio);
+  const sections =
+    video.length > 0 && audio.length > 0
+      ? [
+          { key: 'video', title: t('offline.library.video'), list: video },
+          { key: 'audio', title: t('offline.library.audio'), list: audio },
+        ]
+      : [{ key: 'all', title: undefined, list: ready }];
+  const first = sections[0]?.list[0];
   // The profile was just opened (its tile is gone): the focus moves to the first title.
   const [initialKey] = useState(() => (first ? cardKey(first) : 'offline-switch'));
   useEffect(() => setSpatialFocus(initialKey), [initialKey]);
@@ -269,18 +287,34 @@ function ProfileDownloads({
         {ready.length === 0 ? (
           <Notice>{t('offline.library.noneReady')}</Notice>
         ) : (
-          <SpatialGroup
-            as="ul"
-            focusKey="offline-downloads"
-            className={styles.grid}
-            aria-label={t('offline.library.list')}
-          >
-            {ready.map((download) => (
-              <li key={download.id}>
-                <DownloadCard download={download} focusKey={cardKey(download)} />
-              </li>
-            ))}
-          </SpatialGroup>
+          sections.map((section) => {
+            const heading = `offline-downloads-${section.key}-heading`;
+            const grid = (
+              <SpatialGroup
+                as="ul"
+                focusKey={`offline-downloads-${section.key}`}
+                className={styles.grid}
+                // Under a heading the list takes its name from it, so it is said once.
+                aria-label={section.title === undefined ? t('offline.library.list') : undefined}
+                aria-labelledby={section.title === undefined ? undefined : heading}
+              >
+                {section.list.map((download) => (
+                  <li key={download.id}>
+                    <DownloadCard download={download} focusKey={cardKey(download)} />
+                  </li>
+                ))}
+              </SpatialGroup>
+            );
+            if (section.title === undefined) return <div key={section.key}>{grid}</div>;
+            return (
+              <section key={section.key} className={styles.kindSection} aria-labelledby={heading}>
+                <h2 id={heading} className={styles.sectionTitle}>
+                  {section.title}
+                </h2>
+                {grid}
+              </section>
+            );
+          })
         )}
         {pending.length > 0 && (
           <section className={styles.section} aria-labelledby="offline-pending-heading">

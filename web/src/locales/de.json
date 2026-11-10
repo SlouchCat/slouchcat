@@ -4307,6 +4307,8 @@
       "downloadsOf": "Downloads von {{name}}",
       "switchProfile": "Profil wechseln",
       "list": "Heruntergeladene Titel",
+      "video": "Filme und Serien",
+      "audio": "Hörbücher und Podcasts",
       "noneReady": "Noch kein Titel ist ganz auf diesem Gerät.",
       "pending": "Noch nicht vollständig"
     },

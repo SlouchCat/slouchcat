@@ -3,6 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi, renderApp } from '@/test/api';
+import { audiobook } from '@/test/fixtures';
 import { resetOfflineFiles } from '@/test/offlineFiles';
 import {
   downloadIds,
@@ -149,6 +150,39 @@ describe('offline library', () => {
 
     await user.click(screen.getByRole('button', { name: 'Profil wechseln' }));
     expect(await screen.findByRole('list', { name: 'Profile' })).toBeVisible();
+  });
+
+  it('PC-6: a film and an audiobook stand in two lists, the audiobook square (concept 19 C)', async () => {
+    const bookId = '01JB8Z6Q4M7N9P2R3S5T7V9D05';
+    await putDownloads([storedDownload({ id: bookId, item: audiobook })]);
+    mockApi({});
+    renderApp('/offline');
+    await userEvent.setup().click(await screen.findByRole('button', { name: /Marco/ }));
+    const films = await screen.findByRole('region', { name: 'Filme und Serien' });
+    const books = screen.getByRole('region', { name: 'Hörbücher und Podcasts' });
+    const film = within(films).getByRole('link', { name: /Alien/ });
+    const book = within(books).getByRole('link', { name: new RegExp(audiobook.title) });
+    expect(film).not.toHaveClass('own');
+    expect(book).toHaveClass('own');
+    expect(screen.queryByRole('list', { name: 'Heruntergeladene Titel' })).toBeNull();
+    // The first title of the first list takes the focus.
+    await waitFor(() => expect(film).toHaveFocus());
+  });
+
+  it('PC-6: only audio is one list without a heading, square', async () => {
+    const bookId = '01JB8Z6Q4M7N9P2R3S5T7V9D05';
+    await putDownloads([
+      storedDownload({ allowedProfileIds: [2] }),
+      storedDownload({ id: bookId, item: audiobook }),
+    ]);
+    mockApi({});
+    renderApp('/offline');
+    await userEvent.setup().click(await screen.findByRole('button', { name: /Marco/ }));
+    const list = await screen.findByRole('list', { name: 'Heruntergeladene Titel' });
+    expect(within(list).getByRole('link', { name: new RegExp(audiobook.title) })).toHaveClass(
+      'own',
+    );
+    expect(screen.queryByRole('heading', { name: 'Hörbücher und Podcasts' })).toBeNull();
   });
 
   it('checks a PIN against the device’s verifier and brakes wrong ones', async () => {

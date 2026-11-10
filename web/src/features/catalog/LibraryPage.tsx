@@ -60,6 +60,21 @@ const sortsOf = (kind: LibraryNav['kind']): LibrarySort[] =>
     (sort) => (sort !== 'author' || kind === 'audiobooks') && (sort !== 'age' || kind === 'video'),
   );
 
+/**
+ * The cover shape of the grid (concept 19 C): square where every title it can show is an audiobook
+ * or a podcast (an audio library, or the content filter on audio), else the 2:3 frame, so the
+ * titles of a mixed row stay on one line (OC-1).
+ */
+export const gridCover = (
+  contents: readonly components['schemas']['RootContent'][],
+  content: components['schemas']['RootContent'] | undefined,
+): 'poster' | 'square' => {
+  const shown = content ? [content] : contents;
+  return shown.length > 0 && shown.every((kind) => kind === 'audiobook' || kind === 'podcast')
+    ? 'square'
+    : 'poster';
+};
+
 /** A library (concept 08): every title the active profile may see, sorted and filtered. */
 export function LibraryPage() {
   const { libraryId } = route.useParams();
@@ -96,6 +111,12 @@ function LibraryView({ id }: { id: number | null }) {
     setTop((previous) => (same(previous, row) ? previous : row));
   }, []);
   const { first: query, slots, failed: pageFailed, retry } = useLibraryPages(id, request, drawn);
+  // The content filter of the titles drawn: a new filter keeps the old titles until its first page
+  // is there, and the grid keeps their cover shape so long (square rows would cut 2:3 cards).
+  const [drawnContent, setDrawnContent] = useState(params.content);
+  if (query.isSuccess && !query.isPlaceholderData && drawnContent !== params.content) {
+    setDrawnContent(params.content);
+  }
   // The retry button goes with its notice once the page is there; the focus it held moves to the
   // first card in view, not to norigin's restore (the list's first card, far up).
   const retried = useRef(false);
@@ -459,6 +480,7 @@ function LibraryView({ id }: { id: number | null }) {
                   slots={slots}
                   focusKey={GRID_KEY}
                   label={library.name}
+                  cover={gridCover(library.contents, drawnContent)}
                   onRange={onRange}
                   tool={
                     canManage

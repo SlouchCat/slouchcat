@@ -4307,6 +4307,8 @@
       "downloadsOf": "Downloads of {{name}}",
       "switchProfile": "Switch profile",
       "list": "Downloaded titles",
+      "video": "Films and series",
+      "audio": "Audiobooks and podcasts",
       "noneReady": "No title is completely on this device yet.",
       "pending": "Not complete yet"
     },

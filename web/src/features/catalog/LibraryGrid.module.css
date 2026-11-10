@@ -49,6 +49,11 @@
   aspect-ratio: 2 / 3;
 }
 
+/* The overview of audiobooks and podcasts: a square place (concept 19 C). */
+.square {
+  aspect-ratio: 1 / 1;
+}
+
 /*
  * Measured, never shown: its height is a card's text under the cover (PosterCard .meta: the
  * padding, two lines of title, the gap and one line of caption), its width the header's height
