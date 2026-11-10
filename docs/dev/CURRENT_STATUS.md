@@ -1,5 +1,38 @@
 # Aktueller Stand
 
+## Release 1.24.0 (10. November 2026): Bleistift für Hörbücher (Konzept 19 Stufe D1)
+
+Vertrag **1.24.0** (additiv), Migration **00044**, Zweig `claude/k19-d1-bleistift-910b0f` ab `main` `8afbcb85`
+(Release 1.23.3 plus Trickplay-Fix #135). Nach `docs/planning/19-podcasts-und-radio.md` D5.1 bis D5.3; die Nummern
+der übrigen Teile von Konzept 19 rücken nach (Teil A 1.25.0/1.26.0, Teil B 1.27.0/1.28.0, Entscheid vom 10. November
+2026 im Protokoll).
+
+- **Bleistift:** Hörbücher haben ihn auf der Karte der Übersicht, auf der Detailseite und auf der Startseite, nur
+  für Admins (`EDITABLE_KINDS`); «Verwalten» entfällt für sie wie für Filme.
+- **Editor:** Reiter «Metadaten», «Cover», «Aktualisieren», quadratisches Kopfbild. Felder Titel, Untertitel,
+  Sortiertitel, Autor, Sprecher, Reihe, Band, Jahr, Verlag, Originalsprache, Genres, Beschreibung, ISBN, ASIN,
+  Altersfreigabe, je mit Herkunft und Schloss. Ein Text geht in jede Textzeile des Buches (Buchsprache und `en`)
+  und wird in jeder gesperrt; der Editor zeigt das Buch in der Sprache seiner Texte. Eine leere Reihe leert den
+  Band; ISBN ohne Trennzeichen, ASIN in Grossbuchstaben.
+- **Scan:** `writeBook`/`writeBookText` prüfen die Schlösser des Editors (`title:de` …) und die alten (`title` …);
+  neue Felder und Schlösser `author`, `narrator`, `series_name`, `series_index`, `publisher`, `isbn`, `asin`;
+  `absMeta`/`tagMeta` lesen Verlag, ISBN, ASIN; der Scan schreibt die Originalsprache und je Feld die Herkunft
+  `local`.
+- **Cover:** Kandidaten aus dem Ordner (wie der Scan ihn dem Buch zuordnet) und das eingebettete Bild (Anbieter
+  `embedded`, über `transcode` gezogen), dazu Hochladen; `image.fetch` holt eine gewählte Zeile auch für Hörbücher,
+  ein Scan behält sie.
+- **Behoben:** «Aktualisieren» eines Hörbuchs reihte `metadata.match` ein und liess es mit `unsupported_kind`
+  übersprungen, danach holte `image.fetch` kein Cover mehr. Jetzt nur die Prüfung der Teile; Migration 00044 setzt
+  betroffene Bücher auf `matched` und füllt die Originalsprache aus den Textzeilen.
+- **Nicht in D1** (gehört zu D3): Reiter «Zuordnen», «Vom Anbieter neu holen», Cover der Anbieter.
+- **Tests:** PD-1 Go (`TestAudiobookScanKeepsEditorLocks` mit deutschem und englischem Buch,
+  `TestBookEditWritesEveryTextRow`, `TestAudiobookMetadataOverHTTP`), PD-2 Go (`TestBookCoverChoice`: Kandidaten,
+  Wahl bleibt nach geändertem Ordnercover, Vorschau nur für gelistete Quellen), Migration und eingefrorener Stand
+  `hoerbuch-bleistift.sql`; Vitest Editor, Modell, Stift; e2e `audiobook-editor.spec.ts` (PD-1, PD-2, Tastatur
+  PD-14); Storybook `ImageCandidateGrid` quadratisch.
+- Versionsstellen auf 1.24.0.
+- **Offen:** Abnahme auf CT 190, Merge und Tag `v1.24.0` auf Marcos Wort.
+
 ## Release 1.23.3 (10. November 2026): Quadratische Cover in der Bibliotheksübersicht (Konzept 19 Teil C)
 
 Patch ohne Vertragsänderung und ohne Migration, Zweig `claude/k19-cover` ab `main` `afcdb2b8` (Release
