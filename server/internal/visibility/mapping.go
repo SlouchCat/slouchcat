@@ -223,6 +223,9 @@ func summarize(it scopedq.Item, ex extras, lang langPref) model.ItemSummary {
 	}
 	// Audio (M6).
 	s.Author = it.Author.String
+	if it.AuthorDisplay.Valid { // the unified name (concept 19 D6.4); items.author keeps the files'
+		s.Author = it.AuthorDisplay.String
+	}
 	s.Explicit = it.Explicit == 1
 	if it.PublishedAt.Valid {
 		t := time.UnixMilli(it.PublishedAt.Int64).UTC()

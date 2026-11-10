@@ -68,8 +68,11 @@ func TestRunSweepRaisesWaitingSweep(t *testing.T) {
 			t.Errorf("%s = %+v, want a schedule type that fires at the start", name, ty)
 		}
 	}
-	if len(r.Types()) != 14 {
-		t.Errorf("registered types = %d, want the 13 job types of the library (three of trickplay) plus jobs.prune", len(r.Types()))
+	if len(r.Types()) != 15 {
+		t.Errorf("registered types = %d, want the 14 job types of the library (three of trickplay, library.author_display) plus jobs.prune", len(r.Types()))
+	}
+	if ty, ok := r.Lookup(JobAuthorDisplay); !ok || ty.Trigger != jobs.TriggerEvent || ty.Pool != jobs.PoolGeneral || ty.Priority != prioAuthorDisplay {
+		t.Errorf("%s = %+v, want an event type of the pool general", JobAuthorDisplay, ty)
 	}
 	// Concept 13 stage 3: chapters.images is an event type. Concept 15 P-3: its backfill is a
 	// schedule type every 7 days, not at the start, with the schedule off by default.

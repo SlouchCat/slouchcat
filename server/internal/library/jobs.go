@@ -277,7 +277,7 @@ func enqueueTx(ctx context.Context, q *systemq.Queries, now time.Time, j newJob)
 // RegisterTypes registers the job types of the library on r (concept 09, ADR 0017): the full
 // scan and the sweep are schedule types (every 6 h and hourly, both at the start of the server),
 // the rest are event types queued by scans, watchers, webhooks, playbacks and matches
-// (library.relink). keyframes.backfill (concept 14, 6.6) and chapters.images_backfill (concept 13
+// (library.relink) and the unified names of audiobooks (library.author_display, concept 19 D6.4). keyframes.backfill (concept 14, 6.6) and chapters.images_backfill (concept 13
 // stage 3, schedulable since concept 15 P-3) are schedule types every 7 days with the schedule off
 // by default; probe.keyframes runs in the pool index. probe.keyframes, segments.detect and
 // chapters.images read whole files and may be held to a time window (concept 15, 4.3).
@@ -308,6 +308,7 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 		Every: chapterImagesBackfillEvery, Seed: jobs.SeedOff,
 	})
 	r.Register(s.keyframesBackfillType())
+	r.Register(jobs.Type{Name: JobAuthorDisplay, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioAuthorDisplay, Handler: s.handleAuthorDisplay})
 	s.trickplayTypes(r) // concept 18: trickplay.generate, trickplay.series, trickplay.backfill
 }
 
