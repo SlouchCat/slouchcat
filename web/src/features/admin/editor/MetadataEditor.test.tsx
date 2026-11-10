@@ -340,6 +340,7 @@ const book = {
   children: { seasons: 0, episodes: 0, extras: 0 },
   images: [{ kind: 'poster', provider: 'embedded', chosen: false, locked: false }],
   imageKinds: ['poster'],
+  durationMs: 60_000,
   metadata: {
     lang: 'de',
     title: 'Slouchcat Test Audiobook M4B',
@@ -619,12 +620,13 @@ const preview = {
 
 const matchedBook = {
   ...bookInFolder,
-  metadata: {
-    ...(book.metadata as object),
-    sources: [
-      { field: 'title', provider: 'local' },
-      { field: 'subtitle', provider: 'audible' },
-    ],
+  bookMatch: {
+    state: 'matched',
+    provider: 'audible',
+    providerId: 'B0TEST0001',
+    region: 'de',
+    matchedAt: '2026-11-10T21:00:00Z',
+    manual: true,
   },
 } as unknown as AdminItem;
 
@@ -747,7 +749,12 @@ describe('metadata editor: matching an audiobook (concept 19 D3)', () => {
   });
 
   it('says when the source rests', async () => {
-    matchRoutes({ 'GET /admin/metadata/search': () => problem(422, 'provider_paused') });
+    matchRoutes({
+      'GET /admin/metadata/search': () =>
+        problem(422, 'validation_failed', {
+          errors: [{ field: 'provider', code: 'provider_paused' }],
+        }),
+    });
     const user = userEvent.setup();
     const { panel } = await openMatchTab(user);
     await user.click(within(panel).getByRole('button', { name: 'Suchen' }));

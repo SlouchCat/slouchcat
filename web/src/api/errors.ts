@@ -28,9 +28,6 @@ const problemKeys = {
   tmdb_key_invalid: 'errors.code.tmdb_key_invalid',
   tmdb_unreachable: 'errors.code.tmdb_unreachable',
   provider_not_configured: 'errors.code.provider_not_configured',
-  // The book sources of audiobooks (concept 19 D6, contract 1.26.0).
-  provider_unreachable: 'errors.code.provider_unreachable',
-  provider_paused: 'errors.code.provider_paused',
   setup_done: 'errors.code.setup_done',
   not_found: 'errors.code.not_found',
   unauthenticated: 'errors.code.unauthenticated',
@@ -122,8 +119,9 @@ const fieldKeys = {
   providers_not_allowed: 'errors.field.providers_not_allowed',
   roots_required: 'errors.field.roots_required',
   provider_not_searchable: 'errors.field.provider_not_searchable',
-  // The book sources (concept 19 D6): a source that failed, an entry it does not know, a refetch
-  // of a book without a match.
+  // The book sources (concept 19 D6, 422 validation_failed): a source that failed (field
+  // `provider`), an entry it does not know (`providerId`), a refetch of a book without a match
+  // (`fromProvider`).
   provider_unreachable: 'errors.code.provider_unreachable',
   provider_paused: 'errors.code.provider_paused',
   provider_not_configured: 'errors.code.provider_not_configured',

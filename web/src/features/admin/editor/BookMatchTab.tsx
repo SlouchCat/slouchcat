@@ -9,7 +9,6 @@ import { formatBookLength } from '@/lib/format';
 import { formText } from '@/lib/form';
 import { CandidateCard, Chip, Notice, SelectField, Skeleton, Text } from '@/ui';
 import { AriaButton, DataTable, Form, SelectCheck, TextField, type DataColumn } from '@/ui/aria';
-import { itemQuery } from '@/features/catalog/queries';
 import { providerName } from '../item/facts';
 import {
   audiobookSourcesQuery,
@@ -81,13 +80,14 @@ function sourceLabel(t: TFunction, source: Source): string {
 }
 
 /**
- * The book source that wrote a field of the title, read from the field sources: the contract
- * gives `AdminItem` no match of its own (concept 19 D3), so «Zugeordnet» is the source that won
- * a field. Undefined while every field comes from the files.
+ * The book source of a matched audiobook (`AdminItem.bookMatch`, state `matched`); undefined while
+ * the book is not matched (never tried, `review`, `none`, `error`).
  */
 export function bookMatchSource(item: AdminItem): BookProvider | undefined {
-  const sources = [...(item.metadata?.sources ?? []), ...item.fieldSources];
-  return sources.map((source) => source.provider).find(isBookProvider);
+  const match = item.bookMatch;
+  return match?.state === 'matched' && match.provider && isBookProvider(match.provider)
+    ? match.provider
+    : undefined;
 }
 
 /** «Zugeordnet: Audible» or «Nicht zugeordnet: Angaben nur aus den Dateien». */
@@ -126,9 +126,7 @@ export function BookMatchTab({
   const { t } = useTranslation();
   const providers = useQuery(metadataProvidersQuery);
   const settings = useQuery({ ...audiobookSourcesQuery, retry: false });
-  // The length of the files: the administration view of a title has none, the catalog's has.
-  const detail = useQuery({ ...itemQuery(item.id), retry: false });
-  const filesLength = detail.data?.durationMs;
+  const filesLength = item.durationMs;
 
   const sources = useMemo((): Source[] => {
     const configured = (id: BookProvider) =>

@@ -3813,6 +3813,11 @@
           "description": "Sucht für einen neuen Titel den passenden Eintrag bei TMDB oder TVDB.",
           "trigger": "vom Scan, Zuordnung von Hand, Ordner ändern"
         },
+        "library_author_display": {
+          "name": "Autorennamen vereinheitlichen",
+          "description": "Fasst die Schreibweisen eines Autors aller Hörbücher zu einem Anzeigenamen zusammen.",
+          "trigger": "nach einem Scan, nach einer Zuordnung, Schalter «Autorennamen vereinheitlichen»"
+        },
         "metadata_fill": {
           "name": "Metadaten auffüllen",
           "description": "Holt Texte, Genres, Freigabe, Besetzung und Bilder eines Titels.",

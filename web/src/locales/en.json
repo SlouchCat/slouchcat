@@ -3813,6 +3813,11 @@
           "description": "Finds the matching TMDB or TVDB entry for a new title.",
           "trigger": "From the scan, manual match, folder change"
         },
+        "library_author_display": {
+          "name": "Unify author names",
+          "description": "Joins the spellings of an author across every audiobook into one display name.",
+          "trigger": "After a scan, after a match, the switch «Unify author names»"
+        },
         "metadata_fill": {
           "name": "Fill metadata",
           "description": "Fetches texts, genres, rating, cast and images of a title.",
