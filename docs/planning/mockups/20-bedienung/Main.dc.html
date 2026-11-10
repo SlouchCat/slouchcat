@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Serienseite: Staffeln und Folgen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f3a27f}a:hover{color:#ffc4a8}
+button{font:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+.pg{box-sizing:border-box;min-height:100vh;background:#0b0c10;color:#f3f3f5;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;padding:20px 16px 48px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.mock{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:#b6b9c4;border:1px dashed #ffffff3d;border-radius:12px;padding:8px 12px}
+.pill{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:18px;border:1px solid #ffffff2e;background:none;color:#f3f3f5;text-decoration:none;font-size:13px}
+.pill[aria-current="page"],.pill[aria-pressed="true"]{border-color:#e8794a;background:#e8794a33}
+.note{font-size:13px;color:#b6b9c4;border:1px dashed #ffffff3d;border-radius:12px;padding:10px 14px;line-height:1.5}
+.shelfrow{display:flex;align-items:center;gap:8px}
+.arrow{flex:0 0 44px;width:44px;height:44px;border-radius:22px;background:#1d2029;border:1px solid #ffffff2e;color:#f3f3f5;display:inline-flex;align-items:center;justify-content:center}
+.arrow:hover{background:#2b2f3a}
+.shelf{flex:1 1 0;min-width:0;display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x proximity;padding:6px 4px 10px;scrollbar-width:thin;scrollbar-color:#3a3f4d transparent}
+.grid{flex:1 1 0;min-width:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));gap:16px 14px;padding:6px 4px}
+.sc{position:relative;flex:0 0 132px;scroll-snap-align:start;border-radius:12px}
+.scb{display:flex;flex-direction:column;gap:6px;width:100%;padding:0;background:none;border:0;color:#f3f3f5;text-align:left}
+.cov{display:block;width:100%;aspect-ratio:2/3;border-radius:10px;border:2px solid transparent;box-sizing:border-box;opacity:.6}
+.sc[aria-current="true"] .cov{border-color:#e8794a;opacity:1}
+.scb:hover .cov{opacity:1}
+.bar{display:block;height:4px;border-radius:2px;background:#ffffff26;overflow:hidden}
+.bar>i{display:block;height:4px;background:#e8794a}
+.tool{position:absolute;width:36px;height:36px;border-radius:18px;background:#0b0c10d9;border:1px solid #ffffff4d;color:#f3f3f5;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.tool:hover{background:#2b2f3a}
+.ring{flex:0 0 44px;width:44px;height:44px;border-radius:22px;background:none;border:0;color:#f3f3f5;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.ring>span{width:26px;height:26px;border-radius:13px;border:2px solid #9ea3b0;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center}
+.ring svg{opacity:0}
+.ring:hover>span{border-color:#f3f3f5}.ring:hover svg{opacity:.5}
+.ring[aria-pressed="true"]>span{background:#e8794a;border-color:#e8794a;color:#1c0d06}
+.ring[aria-pressed="true"] svg{opacity:1}
+.chip{min-width:52px;min-height:48px;padding:4px 10px;border-radius:12px;background:#13151b;border:1px solid #ffffff2e;color:#f3f3f5;display:inline-flex;flex-direction:column;gap:4px;align-items:stretch;justify-content:center;font-size:15px;font-weight:700;text-align:center}
+.chip[aria-pressed="true"]{border-color:#e8794a;background:#e8794a33}
+.ep{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:8px;border-radius:14px;background:#13151b;border:1px solid #ffffff14}
+.ep:hover{border-color:#ffffff40}
+.epb{flex:999 1 420px;min-width:0;display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:0;background:none;border:0;color:#f3f3f5;text-align:left}
+.th{position:relative;flex:0 0 200px;width:200px;aspect-ratio:16/9;border-radius:10px;overflow:hidden;display:block}
+.pl{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:26px;background:#0b0c10b3;border:2px solid #f3f3f5;color:#f3f3f5;display:flex;align-items:center;justify-content:center;box-sizing:border-box}
+.epb:hover .pl,.epb:focus-visible .pl{background:#e8794a;border-color:#e8794a;color:#1c0d06}
+.th>.bar{position:absolute;left:0;right:0;bottom:0;border-radius:0}
+.tx{flex:1 1 260px;min-width:0;display:flex;flex-direction:column;gap:4px}
+.ib{min-height:44px;padding:0 14px;border-radius:22px;background:#1d2029;border:1px solid #ffffff2e;color:#f3f3f5;font-size:13px;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+.ib:hover{background:#2b2f3a;color:#f3f3f5}
+.ov{position:fixed;inset:0;background:#000000b3;display:flex;align-items:center;justify-content:center;padding:16px;z-index:5}
+.dlg{box-sizing:border-box;width:100%;max-width:440px;background:#1d2029;border:1px solid #ffffff2e;border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:12px}
+.big{min-height:52px;border-radius:26px;border:1px solid #ffffff2e;background:#13151b;color:#f3f3f5;font-size:15px;font-weight:600;padding:0 18px;text-align:left}
+.big.pri{background:#e8794a;border-color:#e8794a;color:#1c0d06}
+.toast{position:sticky;bottom:12px;align-self:center;background:#f3f3f5;color:#0b0c10;border-radius:22px;padding:10px 18px;font-size:14px;font-weight:600}
+</style>
+</helmet>
+<div class="pg">
+<div class="wrap">
+
+  <nav class="mock" aria-label="Mockup-Navigation">
+    <span>Mockup:</span>
+    <a class="pill" href="Main.dc.html" aria-current="page">Serienseite</a>
+    <a class="pill" href="Start.dc.html">Startseite</a>
+    <a class="pill" href="Liste.dc.html">Listenseite</a>
+    <a class="pill" href="Gesehen.dc.html">Gesehen</a>
+    <a class="pill" href="Schluessel.dc.html">Schlüssel</a>
+    <a class="pill" href="Verwaltung.dc.html">Jobs, Löschen, Duplikate</a>
+  </nav>
+
+  <div class="mock" role="group" aria-label="Variante der Staffeln">
+    <span>Staffeln:</span>
+    <sc-for list="{{variants}}" as="v" hint-placeholder-count="3">
+      <button class="pill" aria-pressed="{{v.on}}" onClick="{{v.pick}}">{{v.label}}</button>
+    </sc-for>
+    <span style="flex: 1 1 320px; line-height: 1.5;">{{variantText}}</span>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end;">
+    <div aria-hidden="true" style="flex: 0 0 150px; width: 150px; aspect-ratio: 2/3; border-radius: 14px; background: linear-gradient(160deg, hsl(205 55% 46%), hsl(265 45% 22%));"></div>
+    <div style="flex: 999 1 360px; min-width: 0; display: flex; flex-direction: column; gap: 8px;">
+      <h1 style="margin: 0; font-size: 36px; font-weight: 800;">Nordlicht</h1>
+      <span style="font-size: 15px; color: #d0d2da;">2015–2026 · 12 Staffeln · 96 Folgen · Krimi, Drama</span>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px;">
+        <button onClick="{{playNext}}" style="min-height: 48px; padding: 0 22px; border-radius: 24px; background: #e8794a; color: #1c0d06; border: 0; font-size: 15px; font-weight: 700;">Weiterschauen · S3 F4</button>
+        <span style="display: inline-flex; align-items: center; min-height: 48px; font-size: 13px; color: #b6b9c4;">Der Knopf «Favorit» (Herz) fehlt hier mit Absicht: Er entfällt, die Merkliste übernimmt.</span>
+      </div>
+    </div>
+  </div>
+
+  <section aria-label="Staffeln" style="display: flex; flex-direction: column; gap: 8px;">
+    <h2 style="margin: 6px 0 0; font-size: 20px; font-weight: 700;">Staffeln</h2>
+
+    <sc-if value="{{isB}}" hint-placeholder-val="{{false}}">
+      <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+        <sc-for list="{{seasons}}" as="s" hint-placeholder-count="12">
+          <button class="chip" aria-pressed="{{s.on}}" aria-label="{{s.aria}}" onClick="{{s.pick}}">{{s.no}}<span class="bar" aria-hidden="true"><i style="{{s.pct}}"></i></span></button>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{notB}}" hint-placeholder-val="{{true}}">
+      <div class="shelfrow">
+        <sc-if value="{{isA}}" hint-placeholder-val="{{true}}">
+          <button class="arrow" aria-label="Staffeln zurück" onClick="{{left}}"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
+        </sc-if>
+        <div id="k20shelf" class="{{shelfClass}}">
+          <sc-for list="{{seasons}}" as="s" hint-placeholder-count="12">
+            <div class="sc" aria-current="{{s.on}}">
+              <button class="scb" aria-label="{{s.aria}}" onClick="{{s.pick}}">
+                <span class="cov" aria-hidden="true" style="{{s.cover}}"></span>
+                <span style="font-size: 14px; font-weight: 600;">Staffel {{s.no}}</span>
+                <span style="font-size: 12px; color: #b6b9c4;">{{s.sub}}</span>
+                <span class="bar" aria-hidden="true"><i style="{{s.pct}}"></i></span>
+              </button>
+              <button class="tool" style="top: 6px; right: 6px;" aria-pressed="{{s.full}}" aria-label="{{s.markAria}}" title="Ganze Staffel als gesehen markieren" onClick="{{s.toggleAll}}"><span style="{{s.tick}}"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span></button>
+              <button class="tool" style="top: 6px; left: 6px;" aria-label="{{s.penAria}}" title="Cover der Staffel bearbeiten (nur Verwaltung)" onClick="{{s.pen}}"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"></path></svg></button>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{isA}}" hint-placeholder-val="{{true}}">
+          <button class="arrow" aria-label="Staffeln weiter" onClick="{{right}}"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"></path></svg></button>
+        </sc-if>
+      </div>
+    </sc-if>
+  </section>
+
+  <section aria-label="Folgen" style="display: flex; flex-direction: column; gap: 8px;">
+    <div style="display: flex; flex-wrap: wrap; gap: 14px; align-items: center;">
+      <sc-if value="{{isB}}" hint-placeholder-val="{{false}}">
+        <span style="position: relative; flex: 0 0 72px; width: 72px;">
+          <span aria-hidden="true" style="{{curCover}}"></span>
+          <button class="tool" style="bottom: 4px; right: 4px;" aria-label="Cover der Staffel bearbeiten" title="Cover der Staffel bearbeiten (nur Verwaltung)" onClick="{{curPen}}"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"></path></svg></button>
+        </span>
+      </sc-if>
+      <div style="flex: 1 1 260px; display: flex; flex-direction: column; gap: 4px;">
+        <h3 style="margin: 0; font-size: 18px; font-weight: 700;">{{curTitle}}</h3>
+        <span style="font-size: 13px; color: #b6b9c4;">{{curSub}}</span>
+      </div>
+      <button class="ib" onClick="{{curToggleAll}}">{{curMarkLabel}}</button>
+    </div>
+
+    <sc-for list="{{eps}}" as="e" hint-placeholder-count="8">
+      <div class="ep">
+        <button class="epb" aria-label="{{e.playAria}}" onClick="{{e.play}}">
+          <span class="th" style="{{e.thumb}}">
+            <span class="pl" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24"><path d="M8 5v14l11-7z" fill="currentColor"></path></svg></span>
+            <sc-if value="{{e.hasPos}}" hint-placeholder-val="{{false}}">
+              <span class="bar" aria-hidden="true"><i style="{{e.posStyle}}"></i></span>
+            </sc-if>
+          </span>
+          <span class="tx">
+            <span style="font-size: 16px; font-weight: 600;">{{e.no}}. {{e.title}}</span>
+            <span style="font-size: 13px; color: #b6b9c4;">{{e.meta}}</span>
+            <span style="font-size: 13px; color: #d0d2da; line-height: 1.45;">{{e.ov}}</span>
+          </span>
+        </button>
+        <button class="ib" aria-label="{{e.infoAria}}" onClick="{{e.info}}"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6M12 7.4v.2"></path></svg>Details</button>
+        <button class="ring" aria-pressed="{{e.seen}}" aria-label="{{e.ringAria}}" title="{{e.ringTitle}}" onClick="{{e.toggle}}"><span><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span></button>
+      </div>
+    </sc-for>
+  </section>
+
+  <sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+    <div class="toast" role="status">{{toast}}</div>
+  </sc-if>
+
+  <div class="note">
+    So ist es gemeint: Ein Klick auf Bild oder Text einer Folge startet sie (Play-Knopf auf dem Bild). «Details» öffnet die Folgenseite. Der Kreis rechts setzt oder löscht den Haken «gesehen». Probier Folge 4 (angefangen): Es kommt die Frage «Weiterschauen oder neu starten». Auf den Staffelcovern: links der Bleistift (nur für den Server-Administrator), rechts der Haken für die ganze Staffel. Graue Flächen stehen für echte Bilder.
+  </div>
+</div>
+
+<sc-if value="{{dlgOpen}}" hint-placeholder-val="{{false}}">
+  <div class="ov">
+    <div class="dlg" role="dialog" aria-modal="true" aria-label="Weiterschauen oder neu starten">
+      <h2 style="margin: 0; font-size: 20px; font-weight: 700;">{{dlgTitle}}</h2>
+      <span style="font-size: 14px; color: #b6b9c4;">Du hast diese Folge angefangen.</span>
+      <button class="big pri" onClick="{{dlgResume}}">{{dlgResumeLabel}}</button>
+      <button class="big" onClick="{{dlgRestart}}">Von vorn starten</button>
+      <button class="big" style="background: none; border-color: transparent; color: #b6b9c4; font-weight: 400;" onClick="{{dlgClose}}">Abbrechen</button>
+    </div>
+  </div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1820}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    var seen = {};
+    for (var s = 1; s <= 2; s++) for (var e = 1; e <= 8; e++) seen[s + '-' + e] = true;
+    seen['3-1'] = seen['3-2'] = seen['3-3'] = true;
+    this.state = { v: 'A', season: 3, seen: seen, pos: { '3-4': 45 }, dlg: 0, toast: '' };
+  }
+  renderVals() {
+    var st = this.state, self = this, N = 8;
+    var T = ['Ankunft', 'Das Eis bricht', 'Funkstille', 'Die Karte', 'Unter Tage', 'Gegenwind', 'Zwei Wahrheiten', 'Polarnacht'];
+    var say = function (t) { self.setState({ toast: t, dlg: 0 }); };
+    var count = function (s) { var k = 0; for (var e = 1; e <= N; e++) if (st.seen[s + '-' + e]) k++; return k; };
+    var setAll = function (s, on) {
+      var seen = Object.assign({}, st.seen), pos = Object.assign({}, st.pos);
+      for (var e = 1; e <= N; e++) { seen[s + '-' + e] = on; delete pos[s + '-' + e]; }
+      self.setState({ seen: seen, pos: pos, toast: 'Staffel ' + s + (on ? ': alle Folgen als gesehen markiert' : ': Haken bei allen Folgen entfernt') });
+    };
+    var hue = function (s) { return 190 + s * 23; };
+    var cover = function (s) { return 'background: linear-gradient(160deg, hsl(' + hue(s) + ' 50% 48%), hsl(' + (hue(s) + 60) + ' 45% 20%));'; };
+    var scroll = function (d) { var el = document.getElementById('k20shelf'); if (el) el.scrollBy({ left: d * el.clientWidth * 0.8, behavior: 'smooth' }); };
+    var texts = {
+      A: 'A: Reihe wie heute, aber mit festen Pfeilen links und rechts (auch am Handy sichtbar). Mit der Maus lässt sich die Reihe ziehen, Umschalt+Mausrad scrollt seitwärts, die gewählte Staffel rückt von selbst ins Bild.',
+      B: 'B: Keine Reihe mehr. Jede Staffel ist ein Zahlenknopf, die Knöpfe brechen um. Das Cover der gewählten Staffel steht neben dem Staffeltitel.',
+      C: 'C: Alle Staffelcover als Raster, das umbricht. Nichts scrollt seitwärts, dafür rutschen die Folgen bei vielen Staffeln nach unten.'
+    };
+    var cur = st.season, k = count(cur);
+    return {
+      variants: [['A', 'A · Reihe mit Pfeilen'], ['B', 'B · Zahlenknöpfe'], ['C', 'C · Raster']].map(function (x) {
+        return { label: x[1], on: st.v === x[0], pick: function () { self.setState({ v: x[0] }); } };
+      }),
+      variantText: texts[st.v], isA: st.v === 'A', isB: st.v === 'B', notB: st.v !== 'B',
+      shelfClass: st.v === 'C' ? 'grid' : 'shelf',
+      left: function () { scroll(-1); }, right: function () { scroll(1); },
+      playNext: function () { self.setState({ dlg: 4, season: 3 }); },
+      seasons: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(function (s) {
+        var c = count(s), full = c === N;
+        return { no: s, on: s === cur, full: full, sub: N + ' Folgen' + (c && !full ? ' · ' + c + ' gesehen' : full ? ' · gesehen' : ''),
+          aria: 'Staffel ' + s + ', ' + c + ' von ' + N + ' Folgen gesehen', cover: cover(s), pct: 'width: ' + Math.round(c / N * 100) + '%;',
+          tick: 'display: inline-flex; opacity: ' + (full ? 1 : 0.35) + '; color: ' + (full ? '#e8794a' : '#f3f3f5') + ';',
+          markAria: (full ? 'Haken entfernen: Staffel ' : 'Als gesehen markieren: Staffel ') + s, penAria: 'Cover bearbeiten: Staffel ' + s,
+          pick: function () { self.setState({ season: s, toast: '' }); },
+          toggleAll: function () { setAll(s, !full); },
+          pen: function () { say('Bleistift: Der Editor öffnet mit dem Reiter «Bilder» für Staffel ' + s + '.'); } };
+      }),
+      curTitle: 'Staffel ' + cur, curSub: (2014 + cur) + ' · ' + N + ' Folgen · ' + k + ' gesehen',
+      curCover: 'display: block; width: 72px; aspect-ratio: 2/3; border-radius: 8px; ' + cover(cur),
+      curPen: function () { say('Bleistift: Der Editor öffnet mit dem Reiter «Bilder» für Staffel ' + cur + '.'); },
+      curMarkLabel: k === N ? 'Haken der Staffel entfernen' : 'Ganze Staffel als gesehen markieren',
+      curToggleAll: function () { setAll(cur, k !== N); },
+      eps: T.map(function (t, i) {
+        var e = i + 1, key = cur + '-' + e, seen = !!st.seen[key], p = st.pos[key] || 0;
+        return { no: e, title: t, seen: seen, hasPos: p > 0 && !seen, posStyle: 'width: ' + p + '%;',
+          meta: (44 + (e * 7 + cur) % 9) + ' Min.' + (seen ? ' · gesehen' : p ? ' · noch ' + Math.round(48 * (100 - p) / 100) + ' Min.' : ''),
+          ov: 'Kurzer Inhalt der Folge aus den Metadaten, höchstens zwei Zeilen.',
+          thumb: 'background: linear-gradient(135deg, hsl(' + (hue(cur) + e * 11) + ' 40% 34%), hsl(' + (hue(cur) + 80) + ' 35% 16%));' + (seen ? ' opacity: .6;' : ''),
+          playAria: 'Abspielen: Folge ' + e + ', ' + t, infoAria: 'Details: Folge ' + e + ', ' + t,
+          ringAria: (seen ? 'Gesehen, Haken entfernen: Folge ' : 'Als gesehen markieren: Folge ') + e, ringTitle: seen ? 'Gesehen. Klick entfernt den Haken.' : 'Als gesehen markieren',
+          play: function () { if (p > 0 && !seen) self.setState({ dlg: e, toast: '' }); else say('Folge ' + e + ' «' + t + '» startet von vorn.'); },
+          info: function () { say('Die Folgenseite von Folge ' + e + ' öffnet (Inhalt, Besetzung, Version, Bleistift).'); },
+          toggle: function () {
+            var seenMap = Object.assign({}, st.seen), pos = Object.assign({}, st.pos);
+            seenMap[key] = !seen; delete pos[key];
+            self.setState({ seen: seenMap, pos: pos, toast: 'Folge ' + e + (seen ? ': Haken entfernt' : ': als gesehen markiert') });
+          } };
+      }),
+      hasToast: !!st.toast, toast: st.toast,
+      dlgOpen: st.dlg > 0, dlgTitle: 'Folge ' + st.dlg + ' · ' + (T[st.dlg - 1] || ''),
+      dlgResumeLabel: 'Weiterschauen ab 21:36',
+      dlgResume: function () { say('Folge ' + st.dlg + ' läuft ab 21:36 weiter.'); },
+      dlgRestart: function () { say('Folge ' + st.dlg + ' startet von vorn.'); },
+      dlgClose: function () { self.setState({ dlg: 0 }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

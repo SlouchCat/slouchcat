@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Neue Seite «Gesehen»</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f3a27f}a:hover{color:#ffc4a8}
+button{font:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+.pg{box-sizing:border-box;min-height:100vh;background:#0b0c10;color:#f3f3f5;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;padding:20px 16px 48px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.mock{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:#b6b9c4;border:1px dashed #ffffff3d;border-radius:12px;padding:8px 12px}
+.pill{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:18px;border:1px solid #ffffff2e;background:none;color:#f3f3f5;text-decoration:none;font-size:13px}
+.pill[aria-current="page"]{border-color:#e8794a;background:#e8794a33}
+.fl{min-height:44px;padding:0 16px;border-radius:22px;border:1px solid #ffffff2e;background:#13151b;color:#f3f3f5;font-size:14px}
+.fl[aria-pressed="true"]{border-color:#e8794a;background:#e8794a33}
+.note{font-size:13px;color:#b6b9c4;border:1px dashed #ffffff3d;border-radius:12px;padding:10px 14px;line-height:1.5}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:22px 16px}
+.card{position:relative;display:flex;flex-direction:column;gap:6px}
+.cb{display:flex;flex-direction:column;gap:6px;padding:0;background:none;border:0;color:#f3f3f5;text-align:left}
+.cov{display:block;width:100%;aspect-ratio:2/3;border-radius:10px}
+.bar{display:block;height:4px;border-radius:2px;background:#ffffff26;overflow:hidden}
+.bar>i{display:block;height:4px;background:#e8794a}
+.tool{position:absolute;top:6px;width:36px;height:36px;border-radius:18px;background:#0b0c10d9;border:1px solid #ffffff4d;color:#f3f3f5;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.tool:hover{background:#2b2f3a}
+.tool[aria-pressed="true"]{background:#e8794a;border-color:#e8794a;color:#1c0d06}
+.kind{position:absolute;left:6px;bottom:6px;font-size:11px;font-weight:700;background:#0b0c10d9;border-radius:8px;padding:3px 7px}
+.ov{position:fixed;inset:0;background:#000000b3;display:flex;align-items:center;justify-content:center;padding:16px;z-index:5}
+.dlg{box-sizing:border-box;width:100%;max-width:460px;background:#1d2029;border:1px solid #ffffff2e;border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:14px}
+.bt{min-height:48px;padding:0 20px;border-radius:24px;border:1px solid #ffffff2e;background:#13151b;color:#f3f3f5;font-size:15px;font-weight:600}
+.bt.pri{background:#e8794a;border-color:#e8794a;color:#1c0d06}
+.toast{position:sticky;bottom:12px;align-self:center;background:#f3f3f5;color:#0b0c10;border-radius:22px;padding:10px 18px;font-size:14px;font-weight:600}
+</style>
+</helmet>
+<div class="pg">
+<div class="wrap">
+
+  <nav class="mock" aria-label="Mockup-Navigation">
+    <span>Mockup:</span>
+    <a class="pill" href="Main.dc.html">Serienseite</a>
+    <a class="pill" href="Start.dc.html">Startseite</a>
+    <a class="pill" href="Liste.dc.html">Listenseite</a>
+    <a class="pill" href="Gesehen.dc.html" aria-current="page">Gesehen</a>
+    <a class="pill" href="Schluessel.dc.html">Schlüssel</a>
+    <a class="pill" href="Verwaltung.dc.html">Jobs, Löschen, Duplikate</a>
+  </nav>
+
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <h1 style="margin: 0; font-size: 32px; font-weight: 800;">Gesehen</h1>
+    <span style="font-size: 14px; color: #b6b9c4;">{{sub}}</span>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+    <div role="group" aria-label="Medienart" style="display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 420px;">
+      <sc-for list="{{filters}}" as="f" hint-placeholder-count="5">
+        <button class="fl" aria-pressed="{{f.on}}" onClick="{{f.pick}}">{{f.label}}</button>
+      </sc-for>
+    </div>
+    <button class="fl" aria-label="Sortierung wechseln" onClick="{{sortNext}}">Sortierung: {{sortLabel}}</button>
+  </div>
+
+  <div class="grid">
+    <sc-for list="{{cards}}" as="c" hint-placeholder-count="14">
+      <div class="card">
+        <button class="cb" aria-label="{{c.title}}" onClick="{{c.open}}">
+          <span style="position: relative; display: block;">
+            <span class="cov" aria-hidden="true" style="{{c.cover}}"></span>
+            <span class="kind">{{c.kind}}</span>
+          </span>
+          <span style="font-size: 14px; font-weight: 600;">{{c.title}}</span>
+          <span style="font-size: 12px; color: #b6b9c4;">{{c.sub}}</span>
+          <sc-if value="{{c.multi}}" hint-placeholder-val="{{false}}">
+            <span class="bar" aria-hidden="true"><i style="{{c.pct}}"></i></span>
+          </sc-if>
+        </button>
+        <button class="tool" style="left: 6px;" aria-label="{{c.penAria}}" title="Metadaten bearbeiten (nur Verwaltung)" onClick="{{c.pen}}"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"></path></svg></button>
+        <button class="tool" style="right: 6px;" aria-pressed="true" aria-label="{{c.seenAria}}" title="Gesehen. Klick entfernt den Haken." onClick="{{c.untick}}"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></button>
+      </div>
+    </sc-for>
+  </div>
+
+  <sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+    <div class="toast" role="status">{{toast}}</div>
+  </sc-if>
+
+  <div class="note">
+    «Gesehen» steht in der Seitenleiste unter «Radio» und gilt je Profil. Ein Film oder Hörbuch erscheint, sobald er einmal fertig ist (90 %) oder der Haken von Hand gesetzt wurde. Eine Serie oder ein Podcast erscheint als ein Eintrag, sobald eine Folge fertig ist, mit «12 von 96 Folgen»; ein Klick führt auf die Serienseite. Ein Titel bleibt in der Liste, auch wenn du ihn später nochmals anfängst. Der Haken oben rechts entfernt ihn wieder; bei Serien und Podcasts fragt Slouchcat nach, weil alle Haken der Folgen fallen. Radio kommt nicht vor.
+  </div>
+</div>
+
+<sc-if value="{{dlgOpen}}" hint-placeholder-val="{{false}}">
+  <div class="ov">
+    <div class="dlg" role="alertdialog" aria-modal="true" aria-label="Haken aller Folgen entfernen">
+      <h2 style="margin: 0; font-size: 20px; font-weight: 700;">{{dlgTitle}}</h2>
+      <span style="font-size: 14px; color: #d0d2da; line-height: 1.5;">{{dlgText}}</span>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end;">
+        <button class="bt" onClick="{{dlgClose}}">Abbrechen</button>
+        <button class="bt pri" onClick="{{dlgOk}}">Alle Haken entfernen</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1300}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { filter: 0, sort: 0, gone: {}, dlg: -1, toast: '' };
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var say = function (t) { self.setState({ toast: t, dlg: -1 }); };
+    var F = ['Alle', 'Filme', 'Serien', 'Hörbücher', 'Podcasts'], K = ['', 'Film', 'Serie', 'Hörbuch', 'Podcast'];
+    var S = ['zuletzt gesehen', 'Titel A–Z'];
+    var D = [
+      ['Nordlicht', 'Serie', 19, 96, '9. Nov.'], ['Morgen um neun', 'Film', 0, 0, '8. Nov.'], ['Echo der Woche', 'Podcast', 34, 210, '8. Nov.'],
+      ['Aschewinter', 'Hörbuch', 0, 0, '6. Nov.'], ['Glashaus', 'Film', 0, 0, '5. Nov.'], ['Kupferstadt', 'Serie', 8, 8, '3. Nov.'],
+      ['Das stille Tal', 'Film', 0, 0, '1. Nov.'], ['Lagune', 'Film', 0, 0, '28. Okt.'], ['Salz und Rauch', 'Serie', 31, 40, '27. Okt.'],
+      ['Werkstattgespräch', 'Podcast', 3, 58, '25. Okt.'], ['Fundbüro', 'Film', 0, 0, '19. Okt.'], ['Die Imkerin', 'Film', 0, 0, '12. Okt.'],
+      ['Bodyguard 1: Die Geisel', 'Hörbuch', 0, 0, '4. Okt.'], ['Tiefenrausch', 'Serie', 16, 16, '30. Sept.']
+    ];
+    var rows = D.map(function (d, i) { return { d: d, i: i }; }).filter(function (x) {
+      return !st.gone[x.i] && (!st.filter || x.d[1] === K[st.filter]);
+    });
+    if (st.sort === 1) rows.sort(function (a, b) { return a.d[0].localeCompare(b.d[0], 'de'); });
+    var remove = function (i) { var g = Object.assign({}, st.gone); g[i] = true; self.setState({ gone: g, dlg: -1, toast: '«' + D[i][0] + '»: Haken entfernt, nicht mehr unter «Gesehen».' }); };
+    var cur = st.dlg >= 0 ? D[st.dlg] : null;
+    return {
+      sub: rows.length + ' Titel · Profil Marco',
+      filters: F.map(function (f, i) { return { label: f, on: st.filter === i, pick: function () { self.setState({ filter: i, toast: '' }); } }; }),
+      sortLabel: S[st.sort], sortNext: function () { self.setState({ sort: (st.sort + 1) % S.length }); },
+      cards: rows.map(function (x) {
+        var d = x.d, i = x.i, multi = d[3] > 0, h = 30 + i * 37, word = d[1] === 'Hörbuch' || d[1] === 'Podcast' ? 'gehört' : 'gesehen';
+        return { title: d[0], kind: d[1], multi: multi, pct: 'width: ' + (multi ? Math.round(d[2] / d[3] * 100) : 0) + '%;',
+          sub: multi ? d[2] + ' von ' + d[3] + ' Folgen · zuletzt ' + d[4] : word + ' am ' + d[4],
+          cover: 'background: linear-gradient(160deg, hsl(' + h + ' 48% 46%), hsl(' + (h + 70) + ' 42% 18%));',
+          penAria: 'Metadaten bearbeiten: ' + d[0], seenAria: 'Gesehen, Haken entfernen: ' + d[0],
+          open: function () { say((multi ? 'Die Serienseite' : 'Die Detailseite') + ' von «' + d[0] + '» öffnet.'); },
+          pen: function () { say('Bleistift: Der Editor für «' + d[0] + '» öffnet.'); },
+          untick: function () { if (multi) self.setState({ dlg: i, toast: '' }); else remove(i); } };
+      }),
+      hasToast: !!st.toast, toast: st.toast,
+      dlgOpen: !!cur, dlgTitle: cur ? '«' + cur[0] + '» als ungesehen markieren?' : '',
+      dlgText: cur ? 'Bei ' + cur[2] + ' Folgen fällt der Haken. Angefangene Folgen behalten ihre Stelle nicht. Das lässt sich nicht rückgängig machen.' : '',
+      dlgClose: function () { self.setState({ dlg: -1 }); }, dlgOk: function () { remove(st.dlg); }
+    };
+  }
+}
+</script>
+</body>
+</html>
