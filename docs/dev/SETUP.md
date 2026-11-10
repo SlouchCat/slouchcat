@@ -72,9 +72,11 @@ task web:e2e:durations RUNS="<id> <id>"  # Dauertabelle der Shards aus CI-Läufe
   «Teststufen» weiter unten. Der Server-Teil heisst `task server:check:fast` (`server/Taskfile.yml`):
   `go vet` und `go test` ohne `-race` für die geänderten Pakete und ihre direkten Abnehmer.
 - `task ci:e2e:parallel` (auch in `task ci`) startet je Shard einen eigenen Server auf
-  `E2E_PORT`, `+10`, `+20` … (Standard 8097) samt den Mocks auf den neun Ports darunter, mit eigenem
-  Artefaktordner (`web/node_modules/.playwright-parallel/shard-<i>/`, Protokoll `run.log`) und einer
-  Kopie von `testdata/media` aus harten Links, weil Specs dort Dateien anlegen. Belegte Ports
+  `E2E_PORT`, `+20`, `+40` … (Standard 8097) samt den Mocks auf den zehn Ports darunter. Ab 8097
+  bleiben höchstens 5 Shards unter 8197; ein zweiter Lauf daneben beginnt auf 8297 oder höher. Jeder
+  Shard hat einen eigenen Artefaktordner (`web/node_modules/.playwright-parallel/shard-<i>/`,
+  Protokoll `run.log`) und eine Kopie von `testdata/media` aus harten Links, weil Specs dort Dateien
+  anlegen. Belegte Ports
   brechen den Lauf vor dem Start ab. Am Ende steht ein zusammengeführter HTML-Bericht in
   `web/playwright-report/` (`pnpm -C web exec playwright show-report`). Drei Shards sind der
   Standard: Jeder Shard ist ein Server, ein Browser und dessen Transcodes. `E2E_SHARDS=1` ist ein

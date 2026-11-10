@@ -7,18 +7,21 @@ interface SelectCheckProps {
   label: string;
   isSelected: boolean;
   onChange: (selected: boolean) => void;
+  /** While the choice is sent: the box keeps its state and cannot be toggled. */
+  isDisabled?: boolean;
 }
 
 /**
  * The checkbox of one row in a table of records (DataTable, the maintenance page): Space
  * toggles, Tab moves on, and the table's ↑/↓ move to the box of the next or previous row.
  */
-export function SelectCheck({ label, isSelected, onChange }: SelectCheckProps) {
+export function SelectCheck({ label, isSelected, onChange, isDisabled }: SelectCheckProps) {
   return (
     <Checkbox
       aria-label={label}
       isSelected={isSelected}
       onChange={onChange}
+      isDisabled={isDisabled}
       className={styles.check}
     >
       <span className={styles.box} aria-hidden="true">

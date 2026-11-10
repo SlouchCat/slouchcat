@@ -1425,7 +1425,7 @@
         "book": {
           "body": "Felder mit Schloss und ein gewähltes Cover bleiben, ausser du löst vorher die Schlösser.",
           "unlockAll": "Dabei alle Schlösser lösen",
-          "unlockAllHint": "Vorher alle Sperren dieses Buches aufheben: Danach gilt wieder, was die Dateien und der Anbieter sagen. Eine eigene Freigabe bleibt.",
+          "unlockAllHint": "Vorher alle Sperren dieses Buches aufheben, auch die Schlösser der Felder, die du unter «Zuordnen» von einer Quelle übernommen hast: Danach gilt wieder, was die Dateien und der Anbieter sagen. Die Zuordnung selbst und eine eigene Freigabe bleiben.",
           "run": "Neu lesen",
           "filesTitle": "Aus den Dateien neu lesen",
           "filesHint": "Liest metadata.json, die Tags und die Ordnernamen noch einmal.",
@@ -1438,6 +1438,7 @@
       },
       "bookMatch": {
         "intro": "Eine Quelle nach Titel und Autor oder nach ASIN oder ISBN durchsuchen und einen Treffer wählen. Was übernommen wird, entscheidest du Feld für Feld.",
+        "noSources": "Der Ordner dieses Buches nennt keine eingerichtete Buchquelle. Die Quellen eines Ordners legst du in seiner Bibliothek fest.",
         "matched": "Zugeordnet: {{source}}",
         "unmatched": "Nicht zugeordnet: Angaben nur aus den Dateien",
         "source": "Quelle",
@@ -1473,6 +1474,7 @@
           "take": "Übernehmen",
           "takeLabel": "{{field}} übernehmen",
           "locked": "gesperrt",
+          "noValue": "Die Quelle liefert keinen Wert",
           "empty": "–",
           "cover": "Cover der Quelle",
           "coverToday": "vorhanden",
@@ -1480,8 +1482,10 @@
           "same": "Die Quelle liefert nichts, was sich von heute unterscheidet.",
           "apply_one": "{{count}} Feld übernehmen",
           "apply_other": "{{count}} Felder übernehmen",
+          "assignOnly": "Nur zuordnen",
           "applied_one": "{{count}} Feld von {{source}} übernommen und gesperrt.",
-          "applied_other": "{{count}} Felder von {{source}} übernommen und gesperrt."
+          "applied_other": "{{count}} Felder von {{source}} übernommen und gesperrt.",
+          "assigned": "Mit {{source}} zugeordnet, kein Feld übernommen."
         }
       }
     },
@@ -4194,6 +4198,14 @@
         "state": {
           "review": "zu prüfen",
           "error": "gestört"
+        },
+        "reason": {
+          "paused": "{{source}} pausiert nach wiederholten Absagen.",
+          "blocked": "{{source}} hat die Anfragen abgewiesen.",
+          "notConfigured": "{{source}} ist nicht eingerichtet.",
+          "region": "{{source}} kennt den eingestellten Marktplatz nicht.",
+          "unreachable": "{{source}} war nicht erreichbar.",
+          "unknown": "{{source}} hat einen Fehler gemeldet."
         },
         "candidate": "{{source}}: {{title}} · {{length}}",
         "noCandidates": "keine",

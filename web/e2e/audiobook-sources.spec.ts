@@ -26,11 +26,17 @@ test.use({ serviceWorkers: 'block' });
 const heading = (page: Page) => page.getByRole('heading', { level: 1, name: 'Hörbücher: Quellen' });
 const saveBar = (page: Page) => page.getByRole('region', { name: 'Speichern', exact: true });
 
-/** Waits until the automatic match at start has put the MP3 book under «Prüfen». */
+/**
+ * Waits until no match of audiobooks runs and the MP3 book waits under «Prüfen»: after the
+ * automatic match at start, and after «Jetzt alle …», which takes it off the list for a moment.
+ */
 async function waitForReview(owner: APIRequestContext): Promise<void> {
   await expect
     .poll(
       async () => {
+        const state = await owner.get('/api/v1/admin/metadata/audiobooks');
+        if (state.status() !== 200 || ((await state.json()) as { running: boolean }).running)
+          return [];
         const response = await owner.get('/api/v1/admin/metadata/audiobooks/review');
         if (response.status() !== 200) return [];
         return ((await response.json()) as { title: string }[]).map((entry) => entry.title);
@@ -51,14 +57,20 @@ async function arrowAndBack(page: Page, from: Locator, to: Locator) {
   await expectFocusOn(page, from);
 }
 
-test('«Hörbücher: Quellen» by keyboard: folder dialog, settings, «Jetzt alle …», the pen of «Prüfen» @keyboard', async ({
+test('«Hörbücher: Quellen» by keyboard: folder dialog, settings, «Jetzt alle …», the pen of «Prüfen», Back @keyboard', async ({
   page,
   owner,
 }) => {
   // The automatic match of the MP3 book may still run after the server's start.
-  test.setTimeout(90_000);
+  test.setTimeout(120_000);
   await waitForReview(owner);
-  await page.goto('/admin/metadata/audiobooks');
+  // In from «Verwaltung › Metadaten» by its link, so the browser's Back has somewhere to go.
+  await page.goto('/admin/metadata');
+  const metadata = page.getByRole('heading', { level: 1, name: 'Metadaten' });
+  await expect(metadata).toBeVisible();
+  await resetFocus(page);
+  await tabTo(page, page.getByRole('link', { name: 'Quellen für Hörbücher' }), 120);
+  await page.keyboard.press('Enter');
   await expect(heading(page)).toBeVisible();
 
   // The folder's list is shown only; its button opens the folder's dialog, Escape returns.
@@ -72,6 +84,40 @@ test('«Hörbücher: Quellen» by keyboard: folder dialog, settings, «Jetzt all
   await expect(folders).toHaveCount(0);
   await expectFocusOn(page, folderButton);
 
+  // The region: the arrows pick another marketplace, back again leaves nothing to save.
+  const region = page.getByRole('combobox', { name: 'Region von Audible' });
+  await tabTo(page, region, 10);
+  const marketplace = await region.inputValue();
+  await page.keyboard.press('ArrowDown');
+  await expect(region).not.toHaveValue(marketplace);
+  await expect(saveBar(page)).toContainText('Ungespeicherte Änderungen');
+  await page.keyboard.press('ArrowUp');
+  await expect(region).toHaveValue(marketplace);
+  await expectFocusOn(page, region);
+  await expect(saveBar(page)).not.toContainText('Ungespeicherte Änderungen');
+
+  // Audnexus: typed over with its own value, Enter submits no form of the browser (no reload).
+  const audnexus = page.getByRole('textbox', { name: 'Adresse von Audnexus' });
+  await tabTo(page, audnexus, 4);
+  const address = await audnexus.inputValue();
+  await page.evaluate(() => {
+    (window as unknown as { e2eStay?: boolean }).e2eStay = true;
+  });
+  await page.keyboard.press('End');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.type(address.slice(-1));
+  await page.keyboard.press('Enter');
+  await expect(audnexus).toHaveValue(address);
+  await expectFocusOn(page, audnexus);
+  expect(
+    await page.evaluate(() => (window as unknown as { e2eStay?: boolean }).e2eStay),
+    'Enter kept the page (no reload)',
+  ).toBe(true);
+  await expect(page).toHaveURL(/\/admin\/metadata\/audiobooks$/);
+
+  // The key of Google Books is the next stop; nothing is typed.
+  await tabTo(page, page.locator('input[name="googleBooksKey"]'), 4);
+
   // «Automatisch zuordnen» and the tolerance: one Tab stop each, the arrows pick; nothing saved.
   const all = page.getByRole('radio', { name: 'Alle ohne Zuordnung' });
   await tabTo(page, all, 20);
@@ -84,6 +130,7 @@ test('«Hörbücher: Quellen» by keyboard: folder dialog, settings, «Jetzt all
   const three = page.getByRole('radio', { name: '3 %' });
   await tabTo(page, three, 4);
   await arrowAndBack(page, three, page.getByRole('radio', { name: '5 %' }));
+  await expectVisibleFocus(page);
   // A switch toggles with Space.
   const authors = page.getByRole('switch', { name: 'Autorennamen vereinheitlichen' });
   await tabTo(page, authors, 4);
@@ -99,8 +146,12 @@ test('«Hörbücher: Quellen» by keyboard: folder dialog, settings, «Jetzt all
   await page.keyboard.press('Enter');
   await expect(page.getByText(/^\d+ Hörb(uch|ücher) eingereiht\.$/)).toBeVisible();
 
-  // The pen of a book under «Prüfen» opens its editor; Escape returns to the pen.
+  // The run takes the MP3 book off «Prüfen» for a moment; the list is read again while it runs.
+  await waitForReview(owner);
   const pen = page.getByRole('button', { name: `${MP3_TITLE} bearbeiten` });
+  await expect(pen).toBeVisible({ timeout: 15_000 });
+
+  // The pen of a book under «Prüfen» opens its editor; Escape returns to the pen.
   await tabTo(page, pen, 40);
   await page.keyboard.press('Enter');
   const editor = page.getByRole('dialog', { name: MP3_TITLE });
@@ -110,6 +161,13 @@ test('«Hörbücher: Quellen» by keyboard: folder dialog, settings, «Jetzt all
   await expect(editor).toHaveCount(0);
   await expectFocusOn(page, pen);
   await expectNoFocusTrap(page, 120);
+
+  // The browser's Back returns to «Verwaltung › Metadaten»; Tab shows its ring there.
+  await page.goBack();
+  await expect(page).toHaveURL(/\/admin\/metadata$/);
+  await expect(metadata).toBeVisible();
+  await page.keyboard.press('Tab');
+  await expectVisibleFocus(page);
 });
 
 test('«Zuordnen» of an audiobook by keyboard: search, pick, untick a field, take @keyboard', async ({
@@ -144,6 +202,8 @@ test('«Zuordnen» of an audiobook by keyboard: search, pick, untick a field, ta
 
   // The source first, then the title: typed over by keyboard, «Suchen» by Enter.
   const panel = editor.getByRole('tabpanel');
+  // The select waits for the configured sources of the folder.
+  await expect(panel.getByLabel('Quelle', { exact: true })).toBeVisible();
   await tabTo(page, panel.getByLabel('Quelle', { exact: true }), 4);
   await expect(panel.getByLabel('Quelle', { exact: true })).toHaveValue('audible:de');
   const title = panel.getByRole('textbox', { name: 'Titel', exact: true });

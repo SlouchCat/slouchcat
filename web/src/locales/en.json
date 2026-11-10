@@ -1425,7 +1425,7 @@
         "book": {
           "body": "Locked fields and a chosen cover stay, unless you lift the locks first.",
           "unlockAll": "Lift every lock as well",
-          "unlockAllHint": "Lift every lock of this book first: afterwards what the files and the provider say applies again. An own rating stays.",
+          "unlockAllHint": "Lift every lock of this book first, also the locks of the fields you took from a source under «Match»: afterwards what the files and the provider say applies again. The match itself and an own rating stay.",
           "run": "Read again",
           "filesTitle": "Read the files again",
           "filesHint": "Reads metadata.json, the tags and the folder names once more.",
@@ -1438,6 +1438,7 @@
       },
       "bookMatch": {
         "intro": "Search a source by title and author or by ASIN or ISBN and pick a hit. You decide field by field what is taken.",
+        "noSources": "The folder of this book lists no book source that is set up. A folder’s sources are chosen in its library.",
         "matched": "Matched: {{source}}",
         "unmatched": "Not matched: details from the files only",
         "source": "Source",
@@ -1473,6 +1474,7 @@
           "take": "Take",
           "takeLabel": "Take {{field}}",
           "locked": "locked",
+          "noValue": "The source has no value",
           "empty": "–",
           "cover": "Cover of the source",
           "coverToday": "present",
@@ -1480,8 +1482,10 @@
           "same": "The source delivers nothing that differs from today.",
           "apply_one": "Take {{count}} field",
           "apply_other": "Take {{count}} fields",
+          "assignOnly": "Assign only",
           "applied_one": "{{count}} field taken from {{source}} and locked.",
-          "applied_other": "{{count}} fields taken from {{source}} and locked."
+          "applied_other": "{{count}} fields taken from {{source}} and locked.",
+          "assigned": "Matched with {{source}}, no field taken."
         }
       }
     },
@@ -4194,6 +4198,14 @@
         "state": {
           "review": "to review",
           "error": "failed"
+        },
+        "reason": {
+          "paused": "{{source}} rests after repeated refusals.",
+          "blocked": "{{source}} refused the requests.",
+          "notConfigured": "{{source}} is not set up.",
+          "region": "{{source}} does not know the chosen marketplace.",
+          "unreachable": "{{source}} could not be reached.",
+          "unknown": "{{source}} reported an error."
         },
         "candidate": "{{source}}: {{title}} · {{length}}",
         "noCandidates": "none",

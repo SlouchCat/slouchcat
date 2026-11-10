@@ -62,3 +62,6 @@ export const Book: Story = {
 
 /** The picked entry whose comparison is open. */
 export const BookSelected: Story = { args: { ...Book.args, isSelected: true } };
+
+/** The picked entry with the keyboard's focus: the focus ring, not the accent of the pick. */
+export const BookSelectedFocused: Story = { args: BookSelected.args, tags: ['press:Tab'] };

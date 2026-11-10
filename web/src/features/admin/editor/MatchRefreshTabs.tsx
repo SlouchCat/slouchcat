@@ -1,10 +1,9 @@
 import type { AdminItem } from '@slouchcat/api-client';
-import type { TFunction } from 'i18next';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
-import { formErrors, problemMessage } from '@/api/errors';
+import { firstErrorMessage, problemMessage } from '@/api/errors';
 import { Notice, Text } from '@/ui';
 import { AriaButton, CheckboxGroup, SettingRow } from '@/ui/aria';
 import { providerName } from '../item/facts';
@@ -40,12 +39,6 @@ export function MatchTab({
 }
 
 const UNLOCK_ALL = 'unlockAll';
-
-/** The message of a failed refresh: `fromProvider` `not_matched` names its field. */
-function refreshFailure(t: TFunction, error: unknown): string {
-  const errors = formErrors(t, error);
-  return Object.values(errors.fields)[0] ?? errors.form ?? '';
-}
 
 /**
  * The tab «Aktualisieren» (concept 15 7.5): «Jetzt aktualisieren» queues the refresh of every free
@@ -101,6 +94,8 @@ export function RefreshTab({
             <AriaButton
               icon="refresh"
               isPending={refresh.isPending && !refresh.variables?.fromProvider}
+              // One request at a time: the other way waits while this one runs.
+              isDisabled={refresh.isPending && refresh.variables?.fromProvider === true}
               onPress={() => refresh.mutate({ unlockAll })}
             >
               {t('admin.editor.refresh.book.run')}
@@ -118,7 +113,7 @@ export function RefreshTab({
           >
             <AriaButton
               icon="refresh"
-              isDisabled={!matched}
+              isDisabled={!matched || (refresh.isPending && !refresh.variables?.fromProvider)}
               isPending={refresh.isPending && refresh.variables?.fromProvider === true}
               onPress={() => refresh.mutate({ unlockAll, fromProvider: true })}
             >
@@ -141,7 +136,10 @@ export function RefreshTab({
         <Text tone="secondary" variant="caption">
           {t('admin.editor.refresh.hint')}
         </Text>
-        {refresh.isError && <Notice tone="danger">{refreshFailure(t, refresh.error)}</Notice>}
+        {refresh.isError && (
+          // `fromProvider` `not_matched` names its field.
+          <Notice tone="danger">{firstErrorMessage(t, refresh.error)}</Notice>
+        )}
       </div>
     );
   }

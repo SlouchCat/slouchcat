@@ -23,9 +23,13 @@
 }
 
 .card[aria-pressed='true'] {
+  background-color: var(--sc-color-surface-3);
+}
+
+/* The accent ring marks the pick only while the card has no focus ring of its own (global.css). */
+.card[aria-pressed='true']:not(:focus-visible) {
   outline: var(--sc-focus-ring-width) solid var(--sc-accent);
   outline-offset: calc(var(--sc-focus-ring-width) * -1);
-  background-color: var(--sc-color-surface-3);
 }
 
 .poster {

@@ -608,6 +608,8 @@ const preview = {
     },
     { field: 'publisher', current: '', proposed: 'Testverlag', locked: false, differs: true },
     { field: 'asin', current: '', proposed: 'B0TEST0001', locked: false, differs: true },
+    // The source has no series: shown, but not to take.
+    { field: 'seriesName', current: 'Alte Reihe', proposed: '', locked: false, differs: true },
     {
       field: 'cover',
       current: '',
@@ -656,10 +658,13 @@ const queriesOf = (fetchMock: ReturnType<typeof mockApi>['fetchMock'], path: str
     .filter((url) => url.pathname === `/api/v1${path}`)
     .map((url) => Object.fromEntries(url.searchParams));
 
-async function openMatchTab(user: ReturnType<typeof userEvent.setup>) {
+/** Opens «Zuordnen»; waits for the source select unless the folder offers none. */
+async function openMatchTab(user: ReturnType<typeof userEvent.setup>, { sources = true } = {}) {
   const dialog = await openBookEditor(user);
   await user.click(within(dialog).getByRole('tab', { name: 'Zuordnen' }));
-  return { dialog, panel: within(dialog).getByRole('tabpanel') };
+  const panel = within(dialog).getByRole('tabpanel');
+  if (sources) await within(panel).findByRole('combobox', { name: 'Quelle' });
+  return { dialog, panel };
 }
 
 describe('metadata editor: matching an audiobook (concept 19 D3)', () => {
@@ -789,11 +794,14 @@ describe('metadata editor: matching an audiobook (concept 19 D3)', () => {
       'Sprecher',
       'Verlag',
       'ASIN',
+      'Reihe',
       'Cover',
     ]);
-    // The locked narrator has no box, only its lock.
+    // The locked narrator has no box, only its lock; the series without value neither.
     expect(within(rows[1]!).queryByRole('checkbox')).not.toBeInTheDocument();
     expect(within(rows[1]!).getByText('gesperrt')).toBeVisible();
+    expect(within(rows[4]!).queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(within(rows[4]!).getByText('Die Quelle liefert keinen Wert')).toBeVisible();
     expect(within(table).getByRole('checkbox', { name: 'Untertitel übernehmen' })).toBeChecked();
     expect(within(panel).getByRole('button', { name: '4 Felder übernehmen' })).toBeEnabled();
 
@@ -812,6 +820,84 @@ describe('metadata editor: matching an audiobook (concept 19 D3)', () => {
     ).toBeInTheDocument();
     expect(within(dialog).getByText('Zugeordnet: Audible')).toBeVisible();
     expect(within(panel).queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('with no field ticked «Nur zuordnen» stores the match alone', async () => {
+    const { calls } = matchRoutes({
+      [`PUT /admin/items/${audioIds.book}/match`]: () => json(matchedBook, 202),
+    });
+    const user = userEvent.setup();
+    const { dialog, panel } = await openMatchTab(user);
+    await user.click(within(panel).getByRole('button', { name: 'Suchen' }));
+    await user.click(await within(panel).findByRole('button', { name: /Band 1 wählen/ }));
+    const table = await within(panel).findByRole('table', {
+      name: 'Felder von Audible, heute und neu',
+    });
+    for (const box of within(table).getAllByRole('checkbox')) await user.click(box);
+    await user.click(within(panel).getByRole('button', { name: 'Nur zuordnen' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
+        provider: 'audible',
+        providerId: 'B0TEST0001',
+        region: 'de',
+        fields: [],
+      }),
+    );
+    expect(
+      await within(dialog).findByText('Mit Audible zugeordnet, kein Feld übernommen.'),
+    ).toBeInTheDocument();
+  });
+
+  it('searches by ASIN alone', async () => {
+    const { fetchMock } = matchRoutes();
+    const user = userEvent.setup();
+    const { panel } = await openMatchTab(user);
+    await user.clear(within(panel).getByRole('textbox', { name: 'Titel' }));
+    await user.clear(within(panel).getByRole('textbox', { name: 'Autor' }));
+    await user.type(within(panel).getByRole('textbox', { name: 'ASIN' }), 'B0TEST0001');
+    await user.click(within(panel).getByRole('button', { name: 'Suchen' }));
+    await waitFor(() =>
+      expect(queriesOf(fetchMock, '/admin/metadata/search')).toEqual([
+        {
+          provider: 'audible',
+          kind: 'audiobook',
+          asin: 'B0TEST0001',
+          region: 'de',
+          itemId: audioIds.book,
+        },
+      ]),
+    );
+  });
+
+  it('offers only the configured sources of the folder, in its order', async () => {
+    matchRoutes({
+      [`GET /admin/items/${audioIds.book}`]: () =>
+        json({ ...bookInFolder, providers: ['local', 'applebooks', 'audible', 'googlebooks'] }),
+    });
+    const user = userEvent.setup();
+    const { panel } = await openMatchTab(user);
+    const select = within(panel).getByRole('combobox', { name: 'Quelle' });
+    await waitFor(() =>
+      expect(
+        within(select)
+          .getAllByRole('option')
+          .map((option) => option.textContent),
+      ).toEqual(['Apple Books', 'Audible Deutschland', 'Audible USA', 'Audible Grossbritannien']),
+    );
+  });
+
+  it('a folder without a book source offers no search', async () => {
+    matchRoutes({
+      [`GET /admin/items/${audioIds.book}`]: () => json({ ...bookInFolder, providers: ['local'] }),
+    });
+    const user = userEvent.setup();
+    const { panel } = await openMatchTab(user, { sources: false });
+    expect(
+      await within(panel).findByText(
+        'Der Ordner dieses Buches nennt keine eingerichtete Buchquelle. Die Quellen eines Ordners legst du in seiner Bibliothek fest.',
+      ),
+    ).toBeVisible();
+    expect(within(panel).queryByRole('button', { name: 'Suchen' })).not.toBeInTheDocument();
   });
 
   it('«Vom Anbieter neu holen» fetches the stored match again', async () => {

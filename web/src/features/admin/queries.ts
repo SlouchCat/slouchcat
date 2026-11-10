@@ -494,10 +494,14 @@ export type BookProvider = (typeof BOOK_PROVIDERS)[number];
 export const isBookProvider = (provider: string): provider is BookProvider =>
   (BOOK_PROVIDERS as readonly string[]).includes(provider);
 
+/** Poll interval of the page «Hörbücher: Quellen» while a match of audiobooks runs. */
+export const AUDIOBOOK_MATCH_POLL_MS = 5000;
+
 export const audiobookSourcesQuery = queryOptions({
   queryKey: ['admin', 'audiobook-sources'],
   queryFn: ({ signal }): Promise<AudiobookSources> =>
     request(api.GET('/admin/metadata/audiobooks', { signal })),
+  refetchInterval: (query) => (query.state.data?.running ? AUDIOBOOK_MATCH_POLL_MS : false),
 });
 
 export const updateAudiobookSources = (body: AudiobookSourcesUpdate): Promise<AudiobookSources> =>

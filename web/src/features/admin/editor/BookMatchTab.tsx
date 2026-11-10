@@ -4,7 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useMemo, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
-import { formErrors } from '@/api/errors';
+import { firstErrorMessage } from '@/api/errors';
 import { formatBookLength } from '@/lib/format';
 import { formText } from '@/lib/form';
 import { CandidateCard, Chip, Notice, SelectField, Skeleton, Text } from '@/ui';
@@ -29,9 +29,6 @@ const REGION_LABEL = {
   'co.uk': 'admin.editor.bookMatch.audible.couk',
 } as const satisfies Partial<Record<AudibleRegion, string>>;
 const NAMED_REGIONS = Object.keys(REGION_LABEL) as (keyof typeof REGION_LABEL)[];
-/** Sources that are always offered when the server can ask them; the others need the folder. */
-const ALWAYS = ['dnb', 'applebooks'] as const satisfies readonly BookProvider[];
-const FOLDER_ONLY = ['openlibrary', 'googlebooks'] as const satisfies readonly BookProvider[];
 
 const ASIN = /^[A-Za-z0-9]{10}$/;
 const ISBN = /^[0-9][0-9-]{8,15}[0-9Xx]$/;
@@ -103,18 +100,13 @@ export function BookMatchNote({ item }: { item: AdminItem }) {
   );
 }
 
-/** The first message of a failed request: the field's if the server named one. */
-function failure(t: TFunction, error: unknown): string {
-  const errors = formErrors(t, error);
-  return Object.values(errors.fields)[0] ?? errors.form ?? '';
-}
-
 /**
  * The tab «Zuordnen» of an audiobook (concept 19 D5.2, mockup `Editor`): search one book source by
  * title and author or by ASIN or ISBN; the hits show cover, people, facts and length, the length
  * within the tolerance marked by the server (`durationMatches`, rule 12). A picked hit opens the
  * comparison «Was übernommen wird»; «n Felder übernehmen» stores the match with the ticked
- * fields, which the server locks.
+ * fields, which the server locks, «Nur zuordnen» the match alone. Only the configured book sources
+ * of the book's folder list are offered (D6.2).
  */
 export function BookMatchTab({
   item,
@@ -128,26 +120,27 @@ export function BookMatchTab({
   const settings = useQuery({ ...audiobookSourcesQuery, retry: false });
   const filesLength = item.durationMs;
 
+  // The book sources of the folder's list (`AdminItem.providers`, copied from the folder) that
+  // are configured, in the folder's order, as the automatic match asks them; Audible with its
+  // marketplaces, the setting's first.
   const sources = useMemo((): Source[] => {
-    const configured = (id: BookProvider) =>
-      providers.data?.find((info) => info.id === id)?.configured ?? true;
+    if (!providers.data) return [];
+    const configured = new Set(
+      providers.data.filter((info) => info.configured).map((info) => info.id),
+    );
     const regions: AudibleRegion[] = [...NAMED_REGIONS];
     const setting = settings.data?.audibleRegion;
     if (setting && !regions.includes(setting)) regions.unshift(setting);
     else if (setting) regions.sort((a, b) => Number(b === setting) - Number(a === setting));
-    const list: Source[] = configured('audible')
-      ? regions.map((region) => ({ key: `audible:${region}`, provider: 'audible', region }))
-      : [];
-    for (const id of ALWAYS) if (configured(id)) list.push({ key: id, provider: id });
-    // Open Library and Google Books only where the folder of the book lists them.
-    for (const id of FOLDER_ONLY) {
-      if (item.providers.includes(id) && providers.data?.find((info) => info.id === id)?.configured)
-        list.push({ key: id, provider: id });
+    const list: Source[] = [];
+    for (const id of item.providers) {
+      if (!isBookProvider(id) || !configured.has(id)) continue;
+      if (id === 'audible') {
+        for (const region of regions)
+          list.push({ key: `audible:${region}`, provider: 'audible', region });
+      } else list.push({ key: id, provider: id });
     }
-    // The folder's order decides the first choice: its first book source.
-    const first = item.providers.find(isBookProvider);
-    const index = list.findIndex((source) => source.provider === first);
-    return index > 0 ? [list[index]!, ...list.filter((_, i) => i !== index)] : list;
+    return list;
   }, [providers.data, settings.data?.audibleRegion, item.providers]);
 
   const [picked, setSource] = useState<string | null>(null);
@@ -245,9 +238,19 @@ export function BookMatchTab({
       : lengthOf(candidate.durationMs);
 
   const metadata = item.metadata;
+  if (providers.isSuccess && sources.length === 0) {
+    // An administrator who took every book source off the folder (D6.2) gets no search.
+    return (
+      <div className={styles.stack}>
+        <Text tone="secondary">{t('admin.editor.bookMatch.intro')}</Text>
+        <Notice>{t('admin.editor.bookMatch.noSources')}</Notice>
+      </div>
+    );
+  }
   return (
     <div className={styles.stack}>
       <Text tone="secondary">{t('admin.editor.bookMatch.intro')}</Text>
+      {providers.isError && <Notice tone="danger">{firstErrorMessage(t, providers.error)}</Notice>}
       <Form
         className={styles.stack}
         onSubmit={onSubmit}
@@ -317,7 +320,7 @@ export function BookMatchTab({
         </div>
       </Form>
 
-      {results.isError && <Notice tone="danger">{failure(t, results.error)}</Notice>}
+      {results.isError && <Notice tone="danger">{firstErrorMessage(t, results.error)}</Notice>}
       {results.isSuccess && results.data.length === 0 && <Notice>{t('admin.match.none')}</Notice>}
       {results.isSuccess && results.data.length > 0 && (
         <section className={styles.stack} aria-labelledby="book-match-results">
@@ -361,12 +364,12 @@ export function BookMatchTab({
           region={chosen.region ?? search?.region}
           onApplied={(next, count) => {
             setChosen(null);
+            const source = providerName(t, chosen.provider);
             onChanged(
               next,
-              t('admin.editor.bookMatch.preview.applied', {
-                count,
-                source: providerName(t, chosen.provider),
-              }),
+              count === 0
+                ? t('admin.editor.bookMatch.preview.assigned', { source })
+                : t('admin.editor.bookMatch.preview.applied', { count, source }),
             );
           }}
         />
@@ -397,8 +400,10 @@ type PreviewRow = MatchPreview['fields'][number];
 
 /**
  * «Was übernommen wird»: every field the entry changes, today and new, with a tick; a locked field
- * is greyed and cannot be ticked. Every differing free field starts ticked. The button stores the
- * match with the ticked fields (`setItemMatch.fields`).
+ * is greyed and cannot be ticked, a field the source has no value for has no tick either. Every
+ * differing free field with a value starts ticked. The button stores the match with the ticked
+ * fields (`setItemMatch.fields`); with none ticked it reads «Nur zuordnen» and stores the match
+ * alone (`fields: []`, the server writes no field).
  */
 function MatchComparison({
   item,
@@ -420,12 +425,14 @@ function MatchComparison({
   const [untaken, setUntaken] = useState<ReadonlySet<BookMatchField>>(() => new Set());
   const display = useDisplayValue();
   const rows = (preview.data?.fields ?? []).filter((row) => row.differs);
+  // A row the source has no value for is shown, but cannot be taken.
+  const takeable = (row: PreviewRow) => !row.locked && row.proposed !== '';
   const taken = rows
-    .filter((row) => !row.locked && !untaken.has(row.field))
+    .filter((row) => takeable(row) && !untaken.has(row.field))
     .map((row) => row.field);
 
   const apply = useMutation({
-    mutationFn: (): Promise<AdminItem> =>
+    mutationFn: (fields: BookMatchField[]): Promise<AdminItem> =>
       request(
         api.PUT('/admin/items/{id}/match', {
           params: { path: { id: item.id } },
@@ -433,11 +440,11 @@ function MatchComparison({
             provider,
             providerId,
             ...(provider === 'audible' && region ? { region } : {}),
-            fields: taken,
+            fields,
           },
         }),
       ),
-    onSuccess: (next) => onApplied(next, taken.length),
+    onSuccess: (next, fields) => onApplied(next, fields.length),
   });
 
   const label = (field: BookMatchField) => t(FIELD_LABEL[field]);
@@ -486,10 +493,15 @@ function MatchComparison({
           <Chip tone="outline" icon="lock">
             {t('admin.editor.bookMatch.preview.locked')}
           </Chip>
+        ) : row.proposed === '' ? (
+          <Text tone="secondary" variant="caption">
+            {t('admin.editor.bookMatch.preview.noValue')}
+          </Text>
         ) : (
           <SelectCheck
             label={t('admin.editor.bookMatch.preview.takeLabel', { field: label(row.field) })}
             isSelected={!untaken.has(row.field)}
+            isDisabled={apply.isPending}
             onChange={(on) =>
               setUntaken((current) => {
                 const next = new Set(current);
@@ -509,7 +521,7 @@ function MatchComparison({
         {t('admin.editor.bookMatch.preview.title')}
       </h3>
       {preview.isPending && <Skeleton shape="block" />}
-      {preview.isError && <Notice tone="danger">{failure(t, preview.error)}</Notice>}
+      {preview.isError && <Notice tone="danger">{firstErrorMessage(t, preview.error)}</Notice>}
       {preview.data && (
         <>
           <Text tone="secondary">
@@ -533,17 +545,18 @@ function MatchComparison({
           <div className={styles.actions}>
             <AriaButton
               variant="primary"
-              isDisabled={taken.length === 0}
               isPending={apply.isPending}
-              onPress={() => apply.mutate()}
+              onPress={() => apply.mutate(taken)}
             >
-              {t('admin.editor.bookMatch.preview.apply', { count: taken.length })}
+              {taken.length === 0
+                ? t('admin.editor.bookMatch.preview.assignOnly')
+                : t('admin.editor.bookMatch.preview.apply', { count: taken.length })}
             </AriaButton>
             <Text tone="secondary" variant="caption">
               {t('admin.editor.bookMatch.preview.hint')}
             </Text>
           </div>
-          {apply.isError && <Notice tone="danger">{failure(t, apply.error)}</Notice>}
+          {apply.isError && <Notice tone="danger">{firstErrorMessage(t, apply.error)}</Notice>}
         </>
       )}
     </section>

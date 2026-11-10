@@ -1,6 +1,7 @@
 import type { KeyState, Library } from '@slouchcat/api-client';
+import type { TFunction } from 'i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useId, useRef, useState, type FormEvent, type RefObject } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formErrors, problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
@@ -38,8 +39,10 @@ import { LibraryFoldersDialog } from './libraries/LibraryFoldersDialog';
 import {
   audiobookReviewQuery,
   audiobookSourcesQuery,
+  AUDIOBOOK_MATCH_POLL_MS,
   librariesQuery,
   matchAllAudiobooks,
+  metadataProvidersQuery,
   updateAudiobookSources,
   type AudibleRegion,
   type AudiobookAutoMatch,
@@ -76,6 +79,26 @@ const GOOGLE_KEY_URL = 'https://console.cloud.google.com/apis/credentials';
 
 /** The tolerances the page offers by name (mockup `Quellen`); the server allows 1 to 10. */
 const TOLERANCES = [1, 3, 5] as const;
+
+/** The text of each reason of a failed run (`BookReviewEntry.error`, `<source>:<reason>`). */
+const REASONS = {
+  paused: 'admin.audiobookSources.review.reason.paused',
+  blocked: 'admin.audiobookSources.review.reason.blocked',
+  not_configured: 'admin.audiobookSources.review.reason.notConfigured',
+  region: 'admin.audiobookSources.review.reason.region',
+  unreachable: 'admin.audiobookSources.review.reason.unreachable',
+} as const;
+const isReason = (value: string): value is keyof typeof REASONS => value in REASONS;
+
+/** «Audible pausiert nach wiederholten Absagen.» from `audible:paused`; an unknown reason reads as a failure. */
+function failureText(t: TFunction, error: string): string {
+  const colon = error.indexOf(':');
+  const source = providerName(t, colon < 0 ? error : error.slice(0, colon));
+  const reason = colon < 0 ? '' : error.slice(colon + 1);
+  return isReason(reason)
+    ? t(REASONS[reason], { source })
+    : t('admin.audiobookSources.review.reason.unknown', { source });
+}
 
 /** The form's state: the server-wide settings of the book sources without the key. */
 interface Draft {
@@ -163,7 +186,7 @@ function SourcesContent({
       <Folders sources={sources} titleRef={titleRef} />
       <Settings sources={sources} titleRef={titleRef} />
       <State sources={sources} />
-      <Review />
+      <Review running={sources.running} titleRef={titleRef} />
     </div>
   );
 }
@@ -298,7 +321,14 @@ function Settings({
         label={t('admin.audiobookSources.audnexus.label')}
         help={t('admin.audiobookSources.audnexus.help')}
       >
-        <Form validationErrors={errors?.fields}>
+        <Form
+          validationErrors={errors?.fields}
+          // Enter in the field saves like the save bar, without a native submit (no reload).
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (dirty && !save.isPending) save.mutate();
+          }}
+        >
           <TextField
             name="audnexusUrl"
             label={t('admin.audiobookSources.audnexus.label')}
@@ -392,6 +422,8 @@ function GoogleBooksKey({ state }: { state: KeyState }) {
   const name = t('admin.audiobookSources.googleBooks.name');
   const save = useTransientMutation(updateAudiobookSources, (next, body) => {
     queryClient.setQueryData(audiobookSourcesQuery.queryKey, next);
+    // The editor offers Google Books only while it has a key.
+    void queryClient.invalidateQueries({ queryKey: metadataProvidersQuery.queryKey });
     if (body.clearGoogleBooksKey) setValue('');
     setMessage(
       t(body.clearGoogleBooksKey ? 'admin.integrations.cleared' : 'admin.integrations.saved', {
@@ -550,11 +582,29 @@ function State({ sources }: { sources: AudiobookSources }) {
   );
 }
 
-/** The list «Prüfen»: the stored candidates of each book and the pen of the editor. */
-function Review() {
+/**
+ * The list «Prüfen»: the stored candidates of each book and the pen of the editor. While a match
+ * runs it is read again every few seconds, and once more when the run ends.
+ */
+function Review({
+  running,
+  titleRef,
+}: {
+  running: boolean;
+  titleRef: RefObject<HTMLHeadingElement | null>;
+}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const review = useQuery(audiobookReviewQuery);
+  const review = useQuery({
+    ...audiobookReviewQuery,
+    refetchInterval: running ? AUDIOBOOK_MATCH_POLL_MS : false,
+  });
+  const { refetch } = review;
+  const wasRunning = useRef(running);
+  useEffect(() => {
+    if (wasRunning.current && !running) void refetch();
+    wasRunning.current = running;
+  }, [running, refetch]);
   const [editing, setEditing] = useState<string | null>(null);
   const pens = useRef(new Map<string, HTMLButtonElement>());
   const headingId = useId();
@@ -588,7 +638,7 @@ function Review() {
           </Chip>
           {entry.error && (
             <Text tone="secondary" variant="caption">
-              {entry.error}
+              {failureText(t, entry.error)}
             </Text>
           )}
         </span>
@@ -671,11 +721,26 @@ function Review() {
         <MetadataEditor
           itemId={editing}
           onClose={() => {
-            const pen = pens.current.get(editing);
+            const id = editing;
+            const index = review.data?.findIndex((entry) => entry.itemId === id) ?? -1;
             setEditing(null);
-            void queryClient.invalidateQueries({ queryKey: audiobookSourcesQuery.queryKey });
-            // The pen keeps the focus while its book is still to review.
-            void afterDialogsClosed().then(() => pen?.isConnected && pen.focus());
+            void (async () => {
+              // The list and the numbers anew (a match takes the book off the list), then the
+              // focus: the pen while its book is still to review, else the pen of the row that
+              // took its place, else the page's title.
+              await queryClient.invalidateQueries({ queryKey: audiobookSourcesQuery.queryKey });
+              await afterDialogsClosed();
+              const own = pens.current.get(id);
+              if (own?.isConnected) {
+                own.focus();
+                return;
+              }
+              const rows = queryClient.getQueryData(audiobookReviewQuery.queryKey) ?? [];
+              const next = rows[Math.min(Math.max(index, 0), rows.length - 1)];
+              const pen = next && pens.current.get(next.itemId);
+              if (pen?.isConnected) pen.focus();
+              else focusTitleIfLost(titleRef);
+            })();
           }}
         />
       )}

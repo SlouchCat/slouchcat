@@ -65,7 +65,8 @@ const review: BookReviewEntry[] = [
     author: 'Slouchcat Test Author',
     libraryId: 3,
     state: 'error',
-    error: 'audible: provider paused',
+    // `<source>:<reason>`, as the server stores it.
+    error: 'audible:paused',
     candidates: [],
   },
 ];
@@ -97,6 +98,21 @@ const routes = (extra: Routes = {}): Routes => ({
   'GET /admin/metadata/providers': () => json([]),
   ...extra,
 });
+
+const adminBook = {
+  id: audioIds.book,
+  kind: 'audiobook',
+  title: 'Slouchcat Test Audiobook M4B',
+  libraryId: 3,
+  metadataState: 'skipped',
+  providers: ['local', 'audible'],
+  fieldSources: [],
+  lockedFields: [],
+  trailerState: 'none',
+  trailers: [],
+  mediaFiles: [],
+  children: { seasons: 0, episodes: 0, extras: 0 },
+};
 
 async function openPage() {
   await renderAdminPage('/admin/metadata/audiobooks');
@@ -144,7 +160,7 @@ describe('AudiobookSourcesPage', () => {
       'Deutsche Nationalbibliothek: Slouchcat Test Audiobook M4B · Länge unbekannt',
     );
     expect(rows[1]).toHaveTextContent('gestört');
-    expect(rows[1]).toHaveTextContent('audible: provider paused');
+    expect(rows[1]).toHaveTextContent('Audible pausiert nach wiederholten Absagen.');
     expect(rows[1]).toHaveTextContent('keine');
   });
 
@@ -195,6 +211,38 @@ describe('AudiobookSourcesPage', () => {
     expect(await screen.findByText('Gib eine Adresse mit http:// oder https:// an.')).toBeVisible();
   });
 
+  it('Enter in the Audnexus address saves like the save bar', async () => {
+    const { calls } = mockApi(
+      routes({
+        'PATCH /admin/metadata/audiobooks': () =>
+          json(sources({ audnexusUrl: 'http://audnexus.local:3000' })),
+      }),
+    );
+    const user = userEvent.setup();
+    await openPage();
+    const field = await screen.findByRole('textbox', { name: 'Adresse von Audnexus' });
+    await user.clear(field);
+    await user.type(field, 'http://audnexus.local:3000{Enter}');
+    await waitFor(() =>
+      expect(calls.filter((call) => call.method === 'PATCH').map((call) => call.body)).toEqual([
+        { audnexusUrl: 'http://audnexus.local:3000' },
+      ]),
+    );
+    expect(await screen.findByText('Einstellungen für Hörbücher gespeichert.')).toBeInTheDocument();
+  });
+
+  it('names the source and the reason of an unknown failure', async () => {
+    mockApi(
+      routes({
+        'GET /admin/metadata/audiobooks/review': () =>
+          json([{ ...review[1], error: 'googlebooks:quota' }]),
+      }),
+    );
+    await openPage();
+    const table = await screen.findByRole('table', { name: 'Hörbücher zum Prüfen' });
+    expect(table).toHaveTextContent('Google Books hat einen Fehler gemeldet.');
+  });
+
   it('stores the Google Books key on its own', async () => {
     const { calls } = mockApi(
       routes({
@@ -233,21 +281,7 @@ describe('AudiobookSourcesPage', () => {
   it('the pen opens the editor of the book; «Quellen ändern» the dialog of its folder', async () => {
     mockApi(
       routes({
-        [`GET /admin/items/${audioIds.book}`]: () =>
-          json({
-            id: audioIds.book,
-            kind: 'audiobook',
-            title: 'Slouchcat Test Audiobook M4B',
-            libraryId: 3,
-            metadataState: 'skipped',
-            providers: ['local', 'audible'],
-            fieldSources: [],
-            lockedFields: [],
-            trailerState: 'none',
-            trailers: [],
-            mediaFiles: [],
-            children: { seasons: 0, episodes: 0, extras: 0 },
-          }),
+        [`GET /admin/items/${audioIds.book}`]: () => json(adminBook),
         'GET /libraries/visible': () => json([]),
       }),
     );
@@ -263,6 +297,32 @@ describe('AudiobookSourcesPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Quellen von /media/Hoerbuecher ändern' }));
     expect(await screen.findByRole('dialog', { name: 'Ordner von Hörbücher' })).toBeVisible();
+  });
+
+  it('a book that left «Prüfen» hands the focus to the pen of the next row', async () => {
+    let matched = false;
+    mockApi(
+      routes({
+        'GET /admin/metadata/audiobooks/review': () => json(matched ? [review[1]] : review),
+        [`GET /admin/items/${audioIds.book}`]: () => json(adminBook),
+        'GET /libraries/visible': () => json([]),
+      }),
+    );
+    const user = userEvent.setup();
+    await openPage();
+    await user.click(
+      await screen.findByRole('button', { name: 'Slouchcat Test Audiobook M4B bearbeiten' }),
+    );
+    const editor = await screen.findByRole('dialog', { name: 'Slouchcat Test Audiobook M4B' });
+    // Matched in the editor: the server takes it off the list.
+    matched = true;
+    await user.click(within(editor).getByRole('button', { name: 'Schliessen' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Ein gestörtes Buch bearbeiten' })).toHaveFocus(),
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Slouchcat Test Audiobook M4B bearbeiten' }),
+    ).not.toBeInTheDocument();
   });
 
   it('is linked from «Verwaltung › Metadaten»', async () => {

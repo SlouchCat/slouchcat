@@ -215,6 +215,15 @@ export function formErrors(
 }
 
 /**
+ * The one message of a failed request shown without a form: the first field's message if the
+ * server named a field (`provider_paused`, `not_matched`), else the form's.
+ */
+export function firstErrorMessage(t: TFunction, error: unknown): string {
+  const errors = formErrors(t, error);
+  return Object.values(errors.fields)[0] ?? errors.form ?? '';
+}
+
+/**
  * Whole seconds the server asked the client to wait: `retryAfterSeconds` of a `pin_locked`
  * problem, else the `Retry-After` header. Null when the server named none.
  */
