@@ -1588,12 +1588,18 @@ audiosilo-meta und MusicBrainz baut Teil D nicht; beide lassen sich später als 
 ### D6.3 Wie zugeordnet wird
 
 1. **Kennung zuerst:** Steht eine ASIN oder ISBN in den Dateien oder im Editor, sucht jede Quelle direkt
-   danach; ein Treffer über die Kennung **schlägt jeden Treffer über den Titel**, gleich aus welcher Quelle.
+   danach (gilt eine ASIN in der Region nicht, folgen `.com`, `.co.uk` und Audnexus ohne `region`); ein Treffer über die Kennung **schlägt jeden Treffer über den Titel**, gleich aus welcher Quelle.
 2. **Sonst Titel und Autor**, in der Reihenfolge der Liste des Ordners; Audible zuerst in der Region der
    Installation (Schweiz → `audible.de`), für englische Bücher dazu `audible.com` und `audible.co.uk`.
+   **Die Quellen laufen nacheinander und hören bei `matched` auf** (Audnexus folgt einem Audible-Treffer
+   sofort); DNB und Apple fragt der automatische Lauf nur für Bücher, die Audible nicht zugeordnet hat
+   (Messung D0, ADR 0031).
 3. **Bewertung wie bei Audiobookshelf:** Länge 70 %, Titel 20 %, Autor 10 %. **Automatisch** zugeordnet
    wird nur ein eindeutiger Treffer mit passendem Autor und einer Länge innerhalb der Toleranz (ab Werk
-   3 %).
+   3 %). **«Eindeutig» gilt nach der Länge:** Aus den Treffern mit passendem Titel und Autor bleiben die mit
+   Länge in der Toleranz; ist es genau einer, ist das Buch `matched` (gleicher Titel und gleiche Länge ±1
+   Minute zählen als einer). **Quellen ohne Länge (Apple, Open Library, DNB meist) ordnen nie automatisch
+   zu:** ihre Treffer sind `review`.
 4. **Felder:** Eine automatische Zuordnung **füllt nur leere Felder**; sie werden nicht gesperrt, und weil
    die Dateien leer sind, überschreibt ein Scan sie nicht. Eine Zuordnung im Editor übernimmt die
    angehakten Felder und sperrt sie (D5.2). Ein gesperrtes Feld ändert keine Quelle.
@@ -1680,7 +1686,7 @@ Vertragstest: `scoped` in `profileRegistry`, `admin` in `adminRegistry`.
 
 | Stufe | Inhalt | Release | Aufwand |
 |---|---|---|---|
-| **D0** | Messung an Marcos 107 Büchern: Treffer je Quelle, eindeutig und mit passender Länge; Abfragen je Buch; Laufzeit des ersten Laufs; Zeit der Abfrage der Zeile bei 5'000 Büchern (Ziel p95 unter 100 ms); ob Audible von CT 190 aus antwortet. Ergebnis nach `docs/perf/19-hoerbuecher.md`. ADR 0031 «Externe Quellen für Hörbücher». | – | ½ Tag |
+| **D0** (erledigt 10. November 2026, PR #137) | Messung an Marcos 107 Büchern: Treffer je Quelle, eindeutig und mit passender Länge; Abfragen je Buch; Laufzeit des ersten Laufs; Zeit der Abfrage der Zeile bei 5'000 Büchern (Ziel p95 unter 100 ms); ob Audible von CT 190 aus antwortet. Ergebnis nach `docs/perf/19-hoerbuecher.md`. ADR 0031 «Externe Quellen für Hörbücher». | – | ½ Tag |
 | **D1 «Bleistift»** | Editor für Hörbücher, Texte in beiden Zeilen, Schlösser vereinheitlicht, Originalsprache, gewählte Cover bleiben, Kandidaten aus Ordner und Datei, Hochladen, `absMeta` mit ASIN, ISBN, Verlag, Bleistift überall, Migration 00044. | 1.24.0 | 3 bis 4 Tage |
 | **D2 «Reihen»** | `audio_series`, `RelinkAudioSeries`, Zeile «Reihen und Sammlungen», Startseite ohne Hörbuch-Sammlungen, Seite der Reihe, Link von der Detailseite, «Reihe bearbeiten», Migration 00048. | vorläufig 1.29.0 | 3 bis 4 Tage |
 | **D3 «Quellen»** | `BookProvider` mit fünf Quellen, Füller je Ordner, Zuordnen im Editor, automatische Zuordnung mit Zuständen und Schutz, Liste «Prüfen», Vereinheitlichen, Seite «Quellen», Migration 00049. | vorläufig 1.30.0 | 7 bis 9 Tage |

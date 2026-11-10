@@ -1,0 +1,208 @@
+package store
+
+// D0 measurement of concept 19 part D (docs/perf/19-hoerbuecher.md): the query of the row
+// "Reihen und Sammlungen" on a synthetic database with 5'000 audiobooks. Kept as text so that it is
+// not compiled: copy it to server/internal/store/zz_d0_test.go and run
+//   D0=1 go test ./internal/store -run TestZZD0Row -v -count=1   (D0_BOOKS=20000 for the larger run)
+// The tables audio_series and items.audio_series_id follow D4.4 of the concept; once migration
+// 00048 (D2) exists, drop the CREATE TABLE lines here and use its names.
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"log/slog"
+	"math/rand"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+)
+
+func ulid(prefix string, n int) string { return fmt.Sprintf("%s%0*d", prefix, 26-len(prefix), n) }
+
+const rowSQL = `
+WITH vis AS (
+  SELECT i.id, i.audio_series_id AS sid, i.cover_path, i.author, i.series_index, i.duration_ms,
+         ROW_NUMBER() OVER (PARTITION BY i.audio_series_id ORDER BY i.series_index IS NULL, i.series_index, i.sort_title) AS rn,
+         COALESCE(p.completed, 0) AS done,
+         CASE WHEN %s THEN 1 ELSE 0 END AS matches
+  FROM items AS i
+  JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile
+  LEFT JOIN progress AS p ON p.item_id = i.id AND p.profile_id = @profile
+  WHERE i.library_id = @lib AND i.kind = 'audiobook' AND i.deleted_at IS NULL AND i.audio_series_id IS NOT NULL
+)
+SELECT s.id, 'series' AS kind, s.name, count(*) AS total, sum(vis.matches) AS matching, sum(vis.done) AS done,
+       sum(vis.duration_ms) AS dur, max(CASE WHEN vis.rn = 1 THEN vis.cover_path END) AS cover,
+       max(CASE WHEN vis.rn = 1 THEN vis.author END) AS author
+FROM vis JOIN audio_series AS s ON s.id = vis.sid
+GROUP BY s.id HAVING count(*) >= 2 AND sum(vis.matches) >= 1
+UNION ALL
+SELECT c.id, 'collection', COALESCE(c.name_de, c.name), count(*), count(*), 0, 0, NULL, NULL
+FROM collections AS c
+JOIN collection_items AS ci ON ci.collection_id = c.id
+JOIN items AS i ON i.id = ci.item_id
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile
+WHERE c.source = 'manual'
+GROUP BY c.id
+HAVING sum(i.kind <> 'audiobook') = 0 AND sum(i.library_id = @lib) >= 1
+ORDER BY 3`
+
+func TestZZD0Row(t *testing.T) {
+	if os.Getenv("D0") == "" {
+		t.Skip("measurement only")
+	}
+	nBooks, _ := strconv.Atoi(os.Getenv("D0_BOOKS"))
+	if nBooks == 0 {
+		nBooks = 5000
+	}
+	cfg := t.TempDir()
+	db, err := Open(context.Background(), Options{ConfigDir: cfg, Version: "d0", Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	rng := rand.New(rand.NewSource(19))
+	now := time.Now().UnixMilli()
+	tx, err := db.Write.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	must := func(q string, a ...any) {
+		if _, err := tx.Exec(q, a...); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+	}
+	// planned by D4.4 of the concept; the real migration (D2) is not written yet
+	must(`CREATE TABLE audio_series (id TEXT PRIMARY KEY CHECK (length(id) = 26), library_id INTEGER NOT NULL REFERENCES libraries(id) ON DELETE CASCADE,
+	  key TEXT NOT NULL, name TEXT NOT NULL, name_locked INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+	  UNIQUE (library_id, key)) STRICT`)
+	must(`ALTER TABLE items ADD COLUMN audio_series_id TEXT REFERENCES audio_series(id) ON DELETE SET NULL`)
+	must(`CREATE INDEX items_audio_series ON items (audio_series_id) WHERE audio_series_id IS NOT NULL`)
+	must(`INSERT INTO accounts (id,email,password_hash,role,is_owner,created_at,updated_at,max_rating) VALUES (1,'a@x','x','admin',1,?,?,18),(2,'b@x','x','user',0,?,?,18)`, now, now, now, now)
+	must(`INSERT INTO profiles (id,account_id,name,max_rating,created_at,updated_at) VALUES (1,1,'Admin',18,?,?),(2,2,'Teen',12,?,?),(3,2,'Kind',6,?,?)`, now, now, now, now, now, now)
+	must(`INSERT INTO libraries (id,name,kind,created_at,updated_at) VALUES (1,'Filme','video',?,?),(2,'Hoerbuecher','audiobooks',?,?)`, now, now, now, now)
+	ratings := []int{0, 0, 0, 6, 6, 12, 12, 12, 16, 18}
+	genres := []string{"Krimi", "Fantasy", "Sachbuch", "Biografie", "Thriller", "Humor", "Science-Fiction", "Ratgeber"}
+	id := 0
+	// video background so the items table is as big as a real one
+	for i := 0; i < 3000; i++ {
+		id++
+		r := ratings[rng.Intn(len(ratings))]
+		must(`INSERT INTO items (id,kind,library_id,title,sort_title,year,own_rating,effective_rating,available,added_at,created_at,updated_at) VALUES (?,'movie',1,?,?,?,?,?,1,?,?,?)`,
+			ulid("01V", id), "Film "+strconv.Itoa(i), "film "+strconv.Itoa(i), 1980+rng.Intn(45), r, r, now, now, now)
+	}
+	// audiobooks: ~40% in series of 2 to 12 books (Marco: 46 of 107), rest single
+	type book struct{ id string }
+	var books []string
+	author := func() string { return "Autor " + strconv.Itoa(rng.Intn(1200)) }
+	seriesN := 0
+	inSeries := nBooks * 40 / 100
+	for placed := 0; placed < inSeries; {
+		seriesN++
+		size := 2 + rng.Intn(11)
+		sid := ulid("01S", seriesN)
+		must(`INSERT INTO audio_series (id,library_id,key,name,created_at,updated_at) VALUES (?,2,?,?,?,?)`, sid, "serie "+strconv.Itoa(seriesN), "Reihe "+strconv.Itoa(seriesN), now, now)
+		a := author()
+		for k := 1; k <= size && placed < inSeries; k++ {
+			id++
+			r := ratings[rng.Intn(len(ratings))]
+			g := genres[rng.Intn(len(genres))]
+			must(`INSERT INTO items (id,kind,library_id,title,sort_title,year,own_rating,effective_rating,available,added_at,created_at,updated_at,author,series_name,series_index,duration_ms,cover_path,genres,audio_series_id)
+			  VALUES (?,'audiobook',2,?,?,?,?,?,1,?,?,?,?,?,?,?,?,?,?)`,
+				ulid("01B", id), fmt.Sprintf("Band %d der Reihe %d", k, seriesN), fmt.Sprintf("band %02d %d", k, seriesN), 1995+rng.Intn(30), r, r, now, now, now, a,
+				"Reihe "+strconv.Itoa(seriesN), float64(k), 3600000+rng.Intn(40000000), "/covers/"+strconv.Itoa(id)+".jpg", `["`+g+`"]`, sid)
+			books = append(books, ulid("01B", id))
+			placed++
+		}
+	}
+	for len(books) < nBooks {
+		id++
+		r := ratings[rng.Intn(len(ratings))]
+		g := genres[rng.Intn(len(genres))]
+		must(`INSERT INTO items (id,kind,library_id,title,sort_title,year,own_rating,effective_rating,available,added_at,created_at,updated_at,author,duration_ms,cover_path,genres)
+		  VALUES (?,'audiobook',2,?,?,?,?,?,1,?,?,?,?,?,?,?)`,
+			ulid("01B", id), "Einzelbuch "+strconv.Itoa(id), "einzelbuch "+strconv.Itoa(id), 1995+rng.Intn(30), r, r, now, now, now, author(), 3600000+rng.Intn(40000000), "/covers/"+strconv.Itoa(id)+".jpg", `["`+g+`"]`)
+		books = append(books, ulid("01B", id))
+	}
+	// 60 manual collections: 50 audiobooks only, 10 mixed with films
+	for c := 1; c <= 60; c++ {
+		cid := ulid("01C", c)
+		must(`INSERT INTO collections (id,source,name,created_at,updated_at) VALUES (?,'manual',?,?,?)`, cid, "Sammlung "+strconv.Itoa(c), now, now)
+		n := 3 + rng.Intn(18)
+		seen := map[string]bool{}
+		for k := 0; k < n; k++ {
+			it := books[rng.Intn(len(books))]
+			if c > 50 && k == 0 {
+				it = ulid("01V", 1+rng.Intn(3000))
+			}
+			if seen[it] {
+				continue
+			}
+			seen[it] = true
+			must(`INSERT INTO collection_items (collection_id,item_id,position,created_at) VALUES (?,?,?,?)`, cid, it, k, now)
+		}
+	}
+	// progress: 15% completed, 10% partial, for each profile
+	for p := 1; p <= 3; p++ {
+		for _, b := range books {
+			x := rng.Intn(100)
+			if x < 25 {
+				must(`INSERT INTO progress (profile_id,item_id,position_ms,duration_ms,completed,updated_at) VALUES (?,?,?,?,?,?)`, p, b, 1000, 5000000, map[bool]int{true: 1, false: 0}[x < 15], now)
+			}
+		}
+	}
+	must(`ANALYZE`)
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	var nser, ncol int
+	db.Read.QueryRow(`SELECT count(*) FROM audio_series`).Scan(&nser)
+	db.Read.QueryRow(`SELECT count(*) FROM collections`).Scan(&ncol)
+	fmt.Printf("D0 books=%d series=%d collections=%d items_total=%d\n", nBooks, nser, ncol, id)
+
+	for _, sc := range []struct{ name, cond string }{
+		{"ohne Filter", "1"},
+		{"Filter Genre Krimi", `EXISTS (SELECT 1 FROM json_each(i.genres) WHERE value = 'Krimi')`},
+		{"Filter Genre und Jahr", `EXISTS (SELECT 1 FROM json_each(i.genres) WHERE value = 'Fantasy') AND i.year BETWEEN 2005 AND 2015`},
+	} {
+		q := fmt.Sprintf(rowSQL, sc.cond)
+		for p := 1; p <= 3; p++ {
+			run := func() (time.Duration, int) {
+				t0 := time.Now()
+				rows, err := db.Read.Query(strings.ReplaceAll(strings.ReplaceAll(q, "@profile", strconv.Itoa(p)), "@lib", "2"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				n := 0
+				for rows.Next() {
+					var a, b, c string
+					var d, e, f, g *int64
+					var h, j *string
+					if err := rows.Scan(&a, &b, &c, &d, &e, &f, &g, &h, &j); err != nil {
+						t.Fatal(err)
+					}
+					n++
+				}
+				rows.Close()
+				return time.Since(t0), n
+			}
+			cold, _ := run()
+			for i := 0; i < 20; i++ {
+				run()
+			}
+			var ds []float64
+			rowsN := 0
+			for i := 0; i < 300; i++ {
+				d, n := run()
+				ds = append(ds, float64(d.Microseconds())/1000)
+				rowsN = n
+			}
+			sort.Float64s(ds)
+			fmt.Printf("D0 | %-22s | Profil %d | Zeilen %4d | kalt %6.1f ms | p50 %6.1f | p95 %6.1f | p99 %6.1f | max %6.1f ms\n",
+				sc.name, p, rowsN, float64(cold.Microseconds())/1000, ds[150], ds[285], ds[297], ds[299])
+		}
+	}
+}
