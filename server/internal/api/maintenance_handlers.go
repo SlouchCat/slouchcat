@@ -70,6 +70,9 @@ func (s *server) SetItemMatch(ctx context.Context, req gen.SetItemMatchRequestOb
 	if req.Body == nil {
 		return s.problem(ctx, (&model.ValidationError{}).Add("provider", "required")), nil
 	}
+	if isBookProvider(string(req.Body.Provider)) {
+		return s.problem(ctx, errBookSourcesNotBuilt), nil // the book match of contract 1.26.0
+	}
 	it, err := s.opts.Admin.SetItemMatch(ctx, req.Id, string(req.Body.Provider), req.Body.ProviderId)
 	if err != nil {
 		return s.problem(ctx, err), nil
@@ -80,6 +83,9 @@ func (s *server) SetItemMatch(ctx context.Context, req gen.SetItemMatchRequestOb
 func (s *server) RefreshItem(ctx context.Context, req gen.RefreshItemRequestObject) (gen.RefreshItemResponseObject, error) {
 	// Without a body as before; unlockAll lifts the locks first (contract 1.15.0).
 	unlockAll := req.Body != nil && req.Body.UnlockAll != nil && *req.Body.UnlockAll
+	if req.Body != nil && req.Body.FromProvider != nil && *req.Body.FromProvider {
+		return s.problem(ctx, errBookSourcesNotBuilt), nil // the refetch of contract 1.26.0
+	}
 	it, err := s.opts.Admin.RefreshItem(ctx, req.Id, unlockAll)
 	if err != nil {
 		return s.problem(ctx, err), nil
@@ -244,7 +250,16 @@ func (s *server) recheckAfter(ctx context.Context, err error) error {
 
 func (s *server) SearchMetadata(ctx context.Context, req gen.SearchMetadataRequestObject) (gen.SearchMetadataResponseObject, error) {
 	p := req.Params
-	list, err := s.opts.Admin.SearchMetadata(ctx, string(p.Provider), string(p.Kind), p.Query, p.Year)
+	if p.Kind == gen.SearchMetadataParamsKindAudiobook {
+		// The book sources of contract 1.26.0 search audiobooks; tmdb, tvdb, anilist and local do not.
+		if !isBookProvider(string(p.Provider)) {
+			return s.problem(ctx, (&model.ValidationError{}).Add("provider", "provider_not_searchable")), nil
+		}
+		return s.problem(ctx, errBookSourcesNotBuilt), nil
+	}
+	// query is optional in the contract since 1.26.0 (audiobooks search by ASIN or ISBN too); films
+	// and series still need it, which SearchMetadata reports as query required.
+	list, err := s.opts.Admin.SearchMetadata(ctx, string(p.Provider), string(p.Kind), deref(p.Query), p.Year)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}

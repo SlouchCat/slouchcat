@@ -23,6 +23,7 @@ const (
 type testKeys struct {
 	tmdb, tvdb, pin, youtube string
 	fanart, fanartClient     string
+	googleBooks              string
 }
 
 func (k testKeys) TMDBKey(context.Context) (string, error) { return k.tmdb, nil }
@@ -36,6 +37,8 @@ func (k testKeys) TraktClientID(context.Context) (string, error) { return "", ni
 func (k testKeys) FanartKeys(context.Context) (string, string, error) {
 	return k.fanart, k.fanartClient, nil
 }
+
+func (k testKeys) GoogleBooksKey(context.Context) (string, error) { return k.googleBooks, nil }
 
 // tid returns a 26 character item ID for tag and n.
 func tid(tag string, n int) string {

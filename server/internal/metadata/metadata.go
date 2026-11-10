@@ -127,6 +127,8 @@ type KeySource interface {
 	// FanartKeys returns the Fanart.tv project key and the optional personal client key
 	// (concept 10 step 6); "" when not configured.
 	FanartKeys(ctx context.Context) (key, client string, err error)
+	// GoogleBooksKey returns the Google Books API key (concept 19 D6); "" when not configured.
+	GoogleBooksKey(ctx context.Context) (string, error)
 }
 
 // Service runs the metadata jobs and checks TMDB keys.

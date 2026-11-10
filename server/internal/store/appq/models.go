@@ -77,6 +77,15 @@ type AudioSeries struct {
 	UpdatedAt  int64
 }
 
+type BookMatchCandidate struct {
+	ItemID     string
+	Rank       int64
+	Provider   string
+	ProviderID string
+	Score      float64
+	Candidate  string
+}
+
 type Chapter struct {
 	ItemID      string
 	Idx         int64
@@ -336,6 +345,15 @@ type Item struct {
 	Isbn              sql.NullString
 	Asin              sql.NullString
 	AudioSeriesID     sql.NullString
+	AuthorDisplay     sql.NullString
+	BookMatchState    sql.NullString
+	BookMatchProvider sql.NullString
+	BookMatchID       sql.NullString
+	BookMatchRegion   sql.NullString
+	BookMatchedAt     sql.NullInt64
+	BookMatchScore    sql.NullFloat64
+	BookMatchError    sql.NullString
+	BookMatchManual   int64
 }
 
 type ItemFieldSource struct {

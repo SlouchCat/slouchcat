@@ -43,10 +43,12 @@ func TestMigration00023OverM6(t *testing.T) {
 		t.Fatalf("migrate M6: %v", err)
 	}
 	defer db.Close()
+	// Migration 00046 (concept 19 D6.2) then gives the audiobook folder, still on ["local"], and
+	// its books the book sources after local.
 	checks := map[string]string{
 		`SELECT group_concat(kind, ',') FROM (SELECT kind FROM libraries ORDER BY id)`:                                          "video,video,audiobooks,podcasts",
-		`SELECT group_concat(content || '/' || providers, ';') FROM (SELECT content, providers FROM library_roots ORDER BY id)`: `movie/["tmdb"];series/["tmdb","tvdb"];audiobook/["local"]`,
-		`SELECT group_concat(DISTINCT providers) FROM items WHERE library_id = 3`:                                               `["local"]`,
+		`SELECT group_concat(content || '/' || providers, ';') FROM (SELECT content, providers FROM library_roots ORDER BY id)`: `movie/["tmdb"];series/["tmdb","tvdb"];audiobook/["local","audible","dnb","applebooks"]`,
+		`SELECT group_concat(DISTINCT providers) FROM items WHERE library_id = 3`:                                               `["local","audible","dnb","applebooks"]`,
 		`SELECT providers || '/' || feed_origin FROM items WHERE kind = 'podcast'`:                                              `["local"]/admin`,
 		`SELECT group_concat(DISTINCT providers) FROM items WHERE kind IN ('series', 'season', 'episode')`:                      `["tmdb","tvdb"]`,
 		`SELECT group_concat(DISTINCT providers) FROM items WHERE kind IN ('movie', 'extra')`:                                   `["tmdb"]`,

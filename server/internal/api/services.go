@@ -113,7 +113,7 @@ type AdminService interface {
 	// of a folder. Errors:
 	// model.ErrNotFound, *model.ValidationError, model.ErrConfirmMismatch, model.ErrScanRunning.
 	UpdateLibraryRoot(ctx context.Context, libraryID, rootID int64, upd model.LibraryRootUpdate) (model.Library, error)
-	// ListMetadataProviders describes the four providers (ADR 0015).
+	// ListMetadataProviders describes the providers (ADR 0015; the book sources since concept 19 D6).
 	ListMetadataProviders(ctx context.Context) ([]model.MetadataProviderInfo, error)
 	// Metadata settings of concept 10 (ADR 0018): server settings, a library's deviation, apply.
 	MetadataSettings(ctx context.Context) (model.MetadataSettings, error)

@@ -310,3 +310,14 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   der Server beim Start alle Bücher neu zuordnet). Stichtag 10. November 2026, 12:00 UTC. Dann `store.Dump`, keine neuen Pfade im Stand.
   `TestFrozenHoerbuchReihenStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist;
   `TestMigration00045AudioSeries` prüft den Schritt von `hoerbuch-bleistift.sql` aus.
+- `hoerbuch-quellen.sql`: Stand nach Stufe D3 des Konzepts 19 «Quellen» (Migration 00046 mit `items.author_display`,
+  den Spalten `items.book_match_*`, `book_match_candidates`, den Füllern der Hörbuch-Ordner und dem neu aufgebauten
+  Suchindex). Erzeugt am 10. November 2026 aus `hoerbuch-reihen.sql`: Stand eingespielt, dazu ein Hörbuch-Ordner der
+  Bibliothek «Hörbücher» mit der alten Liste `["local"]` und dem erfundenen Pfad `/media/frozen/Hoerbuecher`, mit
+  `store.Open` migriert (der Ordner bekommt `local`, `audible`, `dnb`, `applebooks`), dann per SQL: das deutsche Buch
+  aus D1 im Editor bei Audible zugeordnet (`matched`, Region `de`, `book_match_manual = 1`), das englische in `review`
+  mit zwei Kandidaten (Apple Books, DNB) und dem vereinheitlichten Autor «F. Author», Band 1 der Reihe «Bodyguard»
+  ohne Treffer (`none`), Band 2 gestört (`error` mit Grund und einem Kandidaten), Band 0,5 noch nicht versucht.
+  Stichtag 10. November 2026, 12:00 UTC. Dann `store.Dump`, kein Pfad aus dem Dateisystem dazu.
+  `TestFrozenHoerbuchQuellenStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist;
+  `TestMigration00046BookSources` prüft den Schritt von `hoerbuch-reihen.sql` aus.

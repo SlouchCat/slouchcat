@@ -29,7 +29,17 @@ const SOURCE_FIELDS = [
   'backdrop',
 ] as const;
 type SourceField = (typeof SOURCE_FIELDS)[number];
-const PROVIDERS: readonly MetadataProvider[] = ['tmdb', 'tvdb', 'anilist', 'local'];
+const PROVIDERS: readonly MetadataProvider[] = [
+  'tmdb',
+  'tvdb',
+  'anilist',
+  'local',
+  'audible',
+  'dnb',
+  'applebooks',
+  'openlibrary',
+  'googlebooks',
+];
 
 const isSourceField = (field: string): field is SourceField =>
   (SOURCE_FIELDS as readonly string[]).includes(field);

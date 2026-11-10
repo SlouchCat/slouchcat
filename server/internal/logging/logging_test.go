@@ -150,6 +150,7 @@ func TestIsSensitiveKey(t *testing.T) {
 		"vapid_private_key": true, "vapidPrivateKey": true, "p256dh": true, "auth_secret": true, "endpoint": true, "push_endpoint": true,
 		"chat_id": false, "smtp_host": false, "smtp_user": false,
 		"fanart_api_key": true, "fanart_client_key": true, "client-key": true, "api-key": true,
+		"googlebooks_api_key": true, "SLOUCHCAT_GOOGLEBOOKS_API_KEY": true, "googleBooksApiKey": true,
 		"list_url": true, "listUrl": true, "list_key": false,
 	} {
 		if got := isSensitiveKey(key); got != want {

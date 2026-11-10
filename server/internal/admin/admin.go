@@ -50,6 +50,12 @@ const (
 	EnvFanartKey        = "SLOUCHCAT_FANART_API_KEY"
 	EnvFanartClient     = "SLOUCHCAT_FANART_CLIENT_KEY"
 
+	// Google Books (concept 19 D6, Marco's decision of 10 November 2026): optional like the Fanart
+	// key; the environment wins, else the key stored on the page «Hörbücher: Quellen». Without a
+	// key the source is off and never asked.
+	SettingGoogleBooksKey = "googlebooks_api_key"
+	EnvGoogleBooksKey     = "SLOUCHCAT_GOOGLEBOOKS_API_KEY"
+
 	maxLibraryName = 80
 	maxLibraryPath = 4096
 	maxTMDBKeyLen  = 1024
@@ -456,6 +462,12 @@ func (s *Service) FanartKeys(ctx context.Context) (key, client string, err error
 	return key, client, nil
 }
 
+// GoogleBooksKey returns the Google Books API key from the environment or else from its encrypted
+// setting; "" when not configured (concept 19 D6).
+func (s *Service) GoogleBooksKey(ctx context.Context) (string, error) {
+	return s.secretKey(ctx, EnvGoogleBooksKey, SettingGoogleBooksKey)
+}
+
 // YouTubeKey returns the YouTube Data API key from the environment or else from its encrypted
 // setting; "" when not configured.
 func (s *Service) YouTubeKey(ctx context.Context) (string, error) {
@@ -640,7 +652,7 @@ func (s *Service) UpdateLibraryRoot(ctx context.Context, libraryID, rootID int64
 	return s.withKeyframeIndex(ctx)(s.libraries.UpdateRoot(ctx, libraryID, rootID, upd))
 }
 
-// ListMetadataProviders describes the four providers to the administration
+// ListMetadataProviders describes the providers to the administration
 // (listMetadataProviders, ADR 0015): whether each one is configured, which roles it plays and in
 // the lists of which root contents it may stand. The interface builds its checkbox list from
 // this and shows "no key" and "no German" from it, instead of a table of its own.
@@ -650,6 +662,10 @@ func (s *Service) ListMetadataProviders(ctx context.Context) ([]model.MetadataPr
 		return nil, err
 	}
 	tvdbKey, _, err := s.TVDBKey(ctx)
+	if err != nil {
+		return nil, err
+	}
+	googleKey, err := s.GoogleBooksKey(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -674,6 +690,11 @@ func (s *Service) ListMetadataProviders(ctx context.Context) ([]model.MetadataPr
 		{ID: model.ProviderTVDB, Configured: tvdbKey != "", Roles: []string{"identify", "fill"}, Languages: nonNil(langs[model.ProviderTVDB])},
 		{ID: model.ProviderAniList, Configured: s.anilist, Roles: []string{"fill"}, Languages: nonNil(langs[model.ProviderAniList])},
 		{ID: model.ProviderLocal, Configured: true, Roles: []string{"identify"}, Languages: []string{}},
+	}
+	// The book sources of concept 19 D6 fill audiobook folders; only Google Books needs a key.
+	for _, id := range []string{model.ProviderAudible, model.ProviderDNB, model.ProviderAppleBooks, model.ProviderOpenLibrary, model.ProviderGoogleBooks} {
+		configured := id != model.ProviderGoogleBooks || googleKey != ""
+		infos = append(infos, model.MetadataProviderInfo{ID: id, Configured: configured, Roles: []string{"fill"}, Languages: []string{}})
 	}
 	for i := range infos {
 		infos[i].Contents = []string{}

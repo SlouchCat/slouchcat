@@ -146,7 +146,7 @@ func TestListMetadataProvidersEndpoint(t *testing.T) {
 	for _, p := range infos {
 		byID[p.Id] = p
 	}
-	if len(infos) != 4 {
+	if len(infos) != 9 {
 		t.Fatalf("providers = %+v", infos)
 	}
 	// The wizard stored a TMDB key, no TVDB key exists: TVDB is listed but not configured.
@@ -162,5 +162,15 @@ func TestListMetadataProvidersEndpoint(t *testing.T) {
 	}
 	if local := byID[gen.MetadataProviderLocal]; !local.Configured || len(local.Contents) != 2 || local.Contents[0] != gen.RootContentAudiobook {
 		t.Fatalf("local = %+v", local)
+	}
+	// The book sources of concept 19 D6 fill audiobook folders; only Google Books needs a key,
+	// and the test server has none.
+	for _, id := range []gen.MetadataProvider{gen.MetadataProviderAudible, gen.MetadataProviderDnb, gen.MetadataProviderApplebooks,
+		gen.MetadataProviderOpenlibrary, gen.MetadataProviderGooglebooks} {
+		book, ok := byID[id]
+		if !ok || len(book.Roles) != 1 || book.Roles[0] != gen.Fill || len(book.Contents) != 1 || book.Contents[0] != gen.RootContentAudiobook ||
+			len(book.Languages) != 0 || book.Configured != (id != gen.MetadataProviderGooglebooks) {
+			t.Fatalf("%s = %+v", id, book)
+		}
 	}
 }

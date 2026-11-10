@@ -11,7 +11,17 @@ import fieldStyles from './Field.module.css';
 import styles from './ProviderList.module.css';
 
 /** The order in which the providers are offered when nothing is ticked yet. */
-const PROVIDER_ORDER: readonly MetadataProvider[] = ['tmdb', 'tvdb', 'anilist', 'local'];
+const PROVIDER_ORDER: readonly MetadataProvider[] = [
+  'tmdb',
+  'tvdb',
+  'anilist',
+  'local',
+  'audible',
+  'dnb',
+  'applebooks',
+  'openlibrary',
+  'googlebooks',
+];
 
 /** « › » between the names of a list: "TVDB › TMDB › AniList". */
 export function providerChain(t: TFunction, providers: readonly MetadataProvider[]): string {

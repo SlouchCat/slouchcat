@@ -1300,16 +1300,25 @@ func TitleKindOfContent(content string) string {
 }
 
 // Metadata providers (ADR 0015). tmdb and tvdb identify titles and fill fields, anilist only
-// fills, local is the file-based identifier of audiobooks and podcast folders.
+// fills, local is the file-based identifier of audiobooks and podcast folders. The book sources
+// (concept 19 D6) fill audiobook folders after local: audible (the Audible catalog with the
+// details of Audnexus), dnb (Deutsche Nationalbibliothek), applebooks, openlibrary and
+// googlebooks (with a key only).
 const (
-	ProviderTMDB    = "tmdb"
-	ProviderTVDB    = "tvdb"
-	ProviderAniList = "anilist"
-	ProviderLocal   = "local"
+	ProviderTMDB        = "tmdb"
+	ProviderTVDB        = "tvdb"
+	ProviderAniList     = "anilist"
+	ProviderLocal       = "local"
+	ProviderAudible     = "audible"
+	ProviderDNB         = "dnb"
+	ProviderAppleBooks  = "applebooks"
+	ProviderOpenLibrary = "openlibrary"
+	ProviderGoogleBooks = "googlebooks"
 )
 
 // Providers lists every provider in the order the interface shows them.
-var Providers = []string{ProviderTMDB, ProviderTVDB, ProviderAniList, ProviderLocal}
+var Providers = []string{ProviderTMDB, ProviderTVDB, ProviderAniList, ProviderLocal,
+	ProviderAudible, ProviderDNB, ProviderAppleBooks, ProviderOpenLibrary, ProviderGoogleBooks}
 
 // Error codes of ValidRootProviders (field errors of a 422 validation_failed).
 const (
@@ -1336,7 +1345,7 @@ var (
 	fillers = map[string][]string{
 		RootMovie:     {ProviderAniList},
 		RootSeries:    {ProviderTMDB, ProviderTVDB, ProviderAniList},
-		RootAudiobook: {},
+		RootAudiobook: {ProviderAudible, ProviderDNB, ProviderAppleBooks, ProviderOpenLibrary, ProviderGoogleBooks},
 		RootPodcast:   {},
 	}
 )
@@ -1378,12 +1387,16 @@ func ValidRootProviders(content string, providers []string) bool {
 }
 
 // DefaultProviders is the list a new root of this content starts with: the order the code used
-// before ADR 0015 (TMDB first, TVDB as the fallback of series).
+// before ADR 0015 (TMDB first, TVDB as the fallback of series). An audiobook folder starts with
+// the files and Audible, DNB and Apple Books (concept 19 D6.2; Open Library and Google Books are
+// left out).
 func DefaultProviders(content string) []string {
 	switch content {
 	case RootSeries:
 		return []string{ProviderTMDB, ProviderTVDB}
-	case RootAudiobook, RootPodcast:
+	case RootAudiobook:
+		return []string{ProviderLocal, ProviderAudible, ProviderDNB, ProviderAppleBooks}
+	case RootPodcast:
 		return []string{ProviderLocal}
 	}
 	return []string{ProviderTMDB}

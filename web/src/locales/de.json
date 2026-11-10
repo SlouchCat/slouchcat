@@ -335,7 +335,12 @@
       "tmdb": "TMDB",
       "tvdb": "TVDB",
       "anilist": "AniList",
-      "local": "Lokale Dateien"
+      "local": "Lokale Dateien",
+      "audible": "Audible",
+      "dnb": "Deutsche Nationalbibliothek",
+      "applebooks": "Apple Books",
+      "openlibrary": "Open Library",
+      "googlebooks": "Google Books"
     },
     "content": {
       "title": "Inhalt",
