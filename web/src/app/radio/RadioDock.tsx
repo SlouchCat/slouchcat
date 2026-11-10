@@ -3,9 +3,13 @@ import { lazy, Suspense, useState, type ComponentProps, type ComponentType } fro
 import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
 import { codeMessage } from '@/api/errors';
+import { volumeIsReadOnly } from '@/features/player/layout';
 import { formatPlayerTime } from '@/lib/format';
-import { MiniPlayer, SpatialGroup, type MiniPlayerState } from '@/ui';
-import type { NowPlayingDialog as NowPlayingDialogType } from '@/ui/aria';
+import { MiniPlayer, SpatialGroup, useSpatialItem, type MiniPlayerState } from '@/ui';
+import type {
+  NowPlayingDialog as NowPlayingDialogType,
+  VolumeControl as VolumeControlType,
+} from '@/ui/aria';
 import { RADIO_SEGMENT_SECONDS } from './engine';
 import { facetValueName, radioLanguageName, stationPlace } from './labels';
 import { wantsSound, type RadioNotice, type RadioStation } from './priority';
@@ -18,10 +22,11 @@ import {
 import { useRadio, useRadioOffset } from './useRadio';
 
 // The radio's controls in the app shell (AppLayout): the mini player while a station is chosen
-// and, opened from it, «Jetzt läuft». The dialog builds on react-aria and loads on first use, so
-// the start bundle stays without it (P-10).
+// and, opened from it, «Jetzt läuft». The dialog and the volume build on react-aria and load on
+// first use, so the start bundle stays without it (P-10).
 
 type DialogModule = { default: ComponentType<ComponentProps<typeof NowPlayingDialogType>> };
+type VolumeModule = { default: ComponentType<ComponentProps<typeof VolumeControlType>> };
 
 const NowPlayingDialog = lazy(() =>
   import('@/ui/aria').then(
@@ -29,6 +34,34 @@ const NowPlayingDialog = lazy(() =>
     (): DialogModule => ({ default: () => null }),
   ),
 );
+
+const VolumeControl = lazy(() =>
+  import('@/ui/aria').then(
+    (module): VolumeModule => ({ default: module.VolumeControl }),
+    (): VolumeModule => ({ default: () => null }),
+  ),
+);
+
+type VolumeProps = ComponentProps<typeof VolumeControlType>;
+
+/**
+ * The mini player's volume, an item of its arrow-key row like the bar's buttons: the mute button
+ * is the item, the slider keeps ←/→ for itself. Rendered inside a Suspense boundary, so it mounts
+ * (and norigin measures the button) only once the control has loaded.
+ */
+function RadioVolume(props: VolumeProps) {
+  const { ref, onFocus } = useSpatialItem<HTMLButtonElement>();
+  return (
+    // The focus event only tells norigin where the focus is; the button inside is the control.
+    <span
+      onFocus={(event) => {
+        if (event.target instanceof HTMLButtonElement) onFocus();
+      }}
+    >
+      <VolumeControl {...props} buttonRef={ref} />
+    </span>
+  );
+}
 
 /** Focus key of the mini player in the shell's arrow-key navigation (AppLayout). */
 export const RADIO_FOCUS_KEY = 'radio';
@@ -117,6 +150,8 @@ export function RadioDock() {
   const offset = useRadioOffset();
   const favorite = useRadioFavorite();
   const [open, setOpen] = useState(false);
+  // Safari on the iPhone does not let a page set the volume: only the mute (11.2).
+  const [muteOnly] = useState(() => volumeIsReadOnly());
   const { state, playing, entry, history, timeShiftSeconds } = radio;
   const station = state.station;
   if (!station) return null;
@@ -162,6 +197,14 @@ export function RadioDock() {
     onPress: () => favorite.mutate({ stationId: station.id, favorite: !station.favorite }),
   };
   const logo = imageUrl(station.logo);
+  // The shared volume of the device (concept 19 E3, OE-1), no boost: the radio has no gain node.
+  const volume = {
+    volume: radio.volume,
+    muted: radio.muted,
+    muteOnly,
+    onVolumeChange: radio.setVolume,
+    onToggleMute: radio.toggleMute,
+  };
 
   return (
     <>
@@ -183,6 +226,14 @@ export function RadioDock() {
           onOpen={() => setOpen(true)}
           toggle={toggle}
           favorite={notice ? undefined : favoriteToggle}
+          volume={{
+            control: (
+              <Suspense fallback={null}>
+                <RadioVolume {...volume} placement="above" />
+              </Suspense>
+            ),
+            onToggleMute: radio.toggleMute,
+          }}
           closeLabel={t('radio.player.stop')}
           onClose={() => {
             setOpen(false);
@@ -244,6 +295,7 @@ export function RadioDock() {
             favorite={notice ? undefined : favoriteToggle}
             facts={facts(t, i18n.language, station)}
             hint={t('radio.player.serverHint')}
+            volume={volume}
           />
         </Suspense>
       )}

@@ -154,6 +154,23 @@
   fill: currentcolor;
 }
 
+/* The volume beside play/pause; with a pointer its slider opens above the bar (concept 19 E3). */
+.volume {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+
+/* A phone without a pointer: the slider stays open, on a line of its own under the station, so it
+   covers nothing and the name keeps its room. */
+@media (width < 30rem) and (hover: none) {
+  .volume {
+    order: 1;
+    flex-basis: 100%;
+    justify-content: center;
+  }
+}
+
 /* A phone: the badge gives way to the station's name. */
 @media (width < 30rem) {
   .state {

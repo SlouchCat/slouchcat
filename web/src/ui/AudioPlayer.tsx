@@ -50,6 +50,8 @@ interface AudioPlayerProps extends Omit<HTMLAttributes<HTMLElement>, 'title' | '
   /** 0 … 1. */
   volume: number;
   muted: boolean;
+  /** Only the mute button: Safari on the iPhone does not let a page set the volume (11.2). */
+  muteOnly?: boolean;
   /** Menu key of the sleep timer (`off`, `15` … `60`, `chapter`) and the time it has left. */
   sleepChoice: string;
   sleepRemainingMs: number | null;
@@ -206,6 +208,7 @@ export function AudioPlayer({
   rate,
   volume,
   muted,
+  muteOnly = false,
   sleepChoice,
   sleepRemainingMs,
   openMenu,
@@ -452,6 +455,7 @@ export function AudioPlayer({
               muted={muted}
               onVolumeChange={onVolume}
               onToggleMute={onToggleMute}
+              muteOnly={muteOnly}
             />
           </div>
         </div>

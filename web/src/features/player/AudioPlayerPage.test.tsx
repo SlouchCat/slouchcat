@@ -2,6 +2,7 @@ import type { ProgressEvent } from '@slouchcat/api-client';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AUDIO_VOLUME_KEY, writeAudioVolume } from '@/lib/audioVolume';
 import { audioIds, audioPlayback, audiobookDetail, podcastEpisodeDetail } from '@/test/fixtures';
 import { json, mockApi, renderApp, signedIn, type Call } from '@/test/api';
 
@@ -467,5 +468,67 @@ describe('audio player (M6)', () => {
     expect(within(region).queryByRole('button', { name: 'Kapitel' })).not.toBeInTheDocument();
     fireEvent.keyDown(window, { key: 'Escape' });
     await waitFor(() => expect(router.state.location.pathname).toBe(`/items/${audioIds.ep2}`));
+  });
+
+  describe('volume (concept 19 E2, E3)', () => {
+    afterEach(() => {
+      writeAudioVolume(1);
+      localStorage.clear();
+    });
+
+    it('PE-3: starts at the shared volume of the device and stores a new one; the video player keeps its own', async () => {
+      stubMedia();
+      // The radio set 40 %, the video player its own 70 %.
+      writeAudioVolume(0.4);
+      localStorage.setItem('slouchcat.player', JSON.stringify({ volume: 0.7 }));
+      mockApi(routes());
+      const { region, audio } = await start();
+      expect(audio.volume).toBe(0.4);
+      const slider = within(region).getByRole('slider', { name: 'Lautstärke' });
+      expect(slider).toHaveAttribute('aria-valuenow', '40');
+      // ↑ in the page's key map: 10 % more, for the whole device.
+      fireEvent.keyDown(window, { key: 'ArrowUp' });
+      expect(audio.volume).toBe(0.5);
+      expect(localStorage.getItem(AUDIO_VOLUME_KEY)).toBe('0.5');
+      await waitFor(() => expect(slider).toHaveAttribute('aria-valuenow', '50'));
+      expect(JSON.parse(localStorage.getItem('slouchcat.player')!)).toEqual({ volume: 0.7 });
+      // A new source loads at the shared volume as well.
+      act(() => {
+        audio.volume = 1;
+        audio.dispatchEvent(new Event('loadedmetadata'));
+      });
+      expect(audio.volume).toBe(0.5);
+    });
+
+    it('M mutes and unmutes, like in the video player; the mute is not stored', async () => {
+      stubMedia();
+      mockApi(routes());
+      const { region, audio } = await start();
+      const mute = within(region).getByRole('button', { name: 'Ton aus' });
+      fireEvent.keyDown(window, { key: 'm' });
+      expect(audio.muted).toBe(true);
+      await waitFor(() => expect(mute).toHaveAttribute('aria-pressed', 'true'));
+      fireEvent.keyDown(window, { key: 'M' });
+      expect(audio.muted).toBe(false);
+      await waitFor(() => expect(mute).toHaveAttribute('aria-pressed', 'false'));
+      // A held key does not flicker the mute.
+      fireEvent.keyDown(window, { key: 'm', repeat: true });
+      expect(audio.muted).toBe(false);
+      expect(localStorage.getItem(AUDIO_VOLUME_KEY)).toBeNull();
+    });
+
+    it('PE-4: on the iPhone only the mute button', async () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 19_0 like Mac OS X) AppleWebKit/605.1.15',
+      );
+      stubMedia();
+      mockApi(routes());
+      const { region } = await start();
+      expect(within(region).getByRole('button', { name: 'Ton aus' })).toBeVisible();
+      expect(within(region).queryByRole('slider', { name: 'Lautstärke' })).toBeNull();
+      // ↑/↓ leave the shared volume alone: the iPhone would not apply it.
+      fireEvent.keyDown(window, { key: 'ArrowDown' });
+      expect(localStorage.getItem(AUDIO_VOLUME_KEY)).toBeNull();
+    });
   });
 });

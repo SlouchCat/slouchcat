@@ -2,11 +2,12 @@ import { useState, type ComponentProps } from 'react';
 import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { AriaButton } from './AriaButton';
 import { focusOnMount } from './focusOnMount';
-import { useSpaceToggle } from './MiniPlayer';
+import { useMuteKey, useSpaceToggle } from './MiniPlayer';
 import styles from './NowPlayingDialog.module.css';
 import { PlayedList, type PlayedEntry } from './PlayedList';
 import { StationLogo } from './StationLogo';
 import { TimeShiftSlider } from './TimeShiftSlider';
+import { VolumeControl } from './VolumeControl';
 
 // «Jetzt läuft» (concept 16, 10.3 and 8): the running station in a full view over the page,
 // opened from the mini player: the title's cover large and blurred behind the view, the time shift
@@ -53,6 +54,11 @@ interface NowPlayingDialogProps {
   facts: readonly { label: string; value: string }[];
   /** Where the sound comes from («Über Slouchcat, Standort des Servers»). */
   hint: string;
+  /** The volume under the controls (concept 19 E3, no boost); M mutes while the view has focus. */
+  volume?: Pick<
+    ComponentProps<typeof VolumeControl>,
+    'volume' | 'muted' | 'muteOnly' | 'onVolumeChange' | 'onToggleMute'
+  >;
 }
 
 export function NowPlayingDialog({
@@ -76,8 +82,10 @@ export function NowPlayingDialog({
   favorite,
   facts,
   hint,
+  volume,
 }: NowPlayingDialogProps) {
   const space = useSpaceToggle(toggle.onPress);
+  const mute = useMuteKey(volume?.onToggleMute);
   return (
     <ModalOverlay
       className={styles.overlay}
@@ -88,7 +96,7 @@ export function NowPlayingDialog({
       <Modal className={styles.modal}>
         {coverUrl && <Blurred key={coverUrl} src={coverUrl} />}
         <Dialog className={styles.dialog} data-testid="radio-now-playing">
-          <div className={styles.view} {...space}>
+          <div className={styles.view} {...space} {...mute}>
             <div className={styles.head}>
               <AriaButton
                 variant="ghost"
@@ -162,6 +170,11 @@ export function NowPlayingDialog({
                     {liveLabel}
                   </AriaButton>
                 </div>
+                {volume && (
+                  <div className={styles.volume} data-testid="radio-now-volume">
+                    <VolumeControl {...volume} />
+                  </div>
+                )}
                 {facts.length > 0 && (
                   <dl className={styles.facts}>
                     {facts.map((fact) => (

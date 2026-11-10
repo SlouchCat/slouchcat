@@ -1,5 +1,36 @@
 # Aktueller Stand
 
+## Release 1.23.2 (10. November 2026): Lautstärke für das Radio, Regler ohne Flackern (Konzept 19 Teil E)
+
+Patch ohne Vertragsänderung und ohne Migration, Zweig `claude/k19-lautstaerke-2be690` ab `main` `44dd34b4`
+(Konzept 19 gemergt). Behebt Marcos zwei Meldungen vom 10. November 2026 nach `docs/planning/19-podcasts-und-radio.md`
+E1 bis E6 (OE-1 gemeinsam, OE-2 über den Nachbarn, nur mit Zeiger).
+
+- **Regler ohne Flackern:** `VolumeControl` öffnet den Schieber mit Zeiger (`hover: hover`) als Popover im
+  Top Layer (Popover-API, bleibt im DOM: Tab-Reihenfolge und Bildschirmleser unverändert), seitlich nach
+  freiem Platz, im Mini-Player nach oben. Fokus bleibt auf dem Schieber, Escape schliesst nur das Popover
+  (und gibt den Fokus an den Knopf), nach dem Verlassen bleibt es 300 ms offen (`motion.duration.chrome`).
+  Ohne Zeiger (Touch) steht der Schieber wie bisher immer offen in der Zeile. Gilt auch im Video-Player und
+  im Offline-Player.
+- **Gemeinsame Lautstärke (OE-1):** ein Wert je Gerät für Radio, Audio-Player und Offline-Player für Audio,
+  `localStorage` `slouchcat.audio.volume` (`web/src/lib/audioVolume.ts`, `useSyncExternalStore` mit dem
+  Ereignis `storage`); Stumm wird nicht gespeichert, erster Wert 100 %, der Video-Player behält
+  `slouchcat.player`. Ohne Speicher gilt der Wert für den Besuch.
+- **Radio:** Regler im Mini-Player neben Abspielen/Anhalten und in «Jetzt läuft» unter den Knöpfen, ohne
+  Verstärkung; das neue `<audio>`-Element übernimmt den Wert beim Einhängen (Ref-Callback in
+  `RadioProvider`), Änderungen gelten sofort. M schaltet stumm, solange der Fokus im Mini-Player oder in
+  «Jetzt läuft» liegt. Der Regler lädt im Mini-Player mit react-aria nach (P-10). Auf schmalen
+  Touch-Geräten steht der Schieber auf einer eigenen Zeile im Dock.
+- **Audio-Player:** iPhone nur Stummschalter (`volumeIsReadOnly`, auch offline), M schaltet stumm.
+- **Tests:** `web/e2e/volume.spec.ts` (PE-1 Nachstellen bei 900 bis 1100 px, PE-2 Touch bei 375 px, PE-3
+  gemeinsame Lautstärke mit Neuladen und Video-Player, PE-5 Tastatur in Audio-Player, Mini-Player und
+  «Jetzt läuft»); PE-1 lief vor der Behebung rot. Vitest für Speicher, Radio-Element, Audio-Player, M und
+  iPhone (PE-3, PE-4); Storybook `VolumeControl` (Popover, oben, in der Zeile), `MiniPlayer` mit Regler,
+  «Jetzt läuft» mit Regler, Baselines neu. Radio-Helfer der e2e-Specs in `web/e2e/radio.ts`.
+- Versionsstellen auf 1.23.2.
+- **Offen:** echtes iPhone (Stummschalter) und Touch-Gerät nur emuliert geprüft; Merge und Tag `v1.23.2`
+  auf Marcos Wort.
+
 ## Release 1.23.1 (9. November 2026): Vorschau beim Spulen ab Werk «Aus»
 
 Patch nach der Abnahme von 1.23.0, Zweig `claude/k18-aus` ab `main` `f1fd8aad` (Release 1.23.0). Marcos

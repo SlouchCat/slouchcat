@@ -128,3 +128,10 @@ export const LongPause: Story = {
 export const WithoutTimeShift: Story = {
   args: { isLive: true, played },
 };
+
+/** The volume under the controls (concept 19 E3). */
+export const WithVolume: Story = {
+  args: {
+    volume: { volume: 0.6, muted: false, onVolumeChange: noop, onToggleMute: noop },
+  },
+};

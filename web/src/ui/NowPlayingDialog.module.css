@@ -158,6 +158,12 @@
   max-width: 40rem;
 }
 
+/* The volume under the controls (concept 19 E3). */
+.volume {
+  display: flex;
+  align-items: center;
+}
+
 /* «Live» at live: the live red. */
 .controls [aria-pressed='true'] {
   border-color: var(--sc-color-state-danger);

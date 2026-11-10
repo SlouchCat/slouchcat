@@ -351,13 +351,14 @@ test('audio player by keyboard: controls with a visible ring, menus, no focus tr
   await expect(
     player.getByRole('button', { name: /^Sleep-Timer: noch 1[45]:\d\d$/ }),
   ).toBeVisible();
-  // The volume (VolumeControl, concept 13 V-3): the slider is closed until the focus reaches the
-  // mute button. ←/→ move it 5 % and stay with it (no seek); ↑/↓ go on to the page's key map,
-  // which changes the volume by 10 % (in the video player they will change the zone, 11.2).
+  // The volume (VolumeControl, concept 13 V-3; a popover since concept 19 E2): the slider is
+  // closed (a hidden pixel) until the focus reaches the mute button. ←/→ move it 5 % and stay with
+  // it (no seek); ↑/↓ go on to the page's key map, which changes the volume by 10 % (in the video
+  // player they will change the zone, 11.2).
   const volume = player.getByRole('slider', { name: 'Lautstärke' });
   const drawerWidth = () =>
     volume.evaluate((slider) => slider.parentElement!.getBoundingClientRect().width);
-  expect(await drawerWidth()).toBe(0);
+  expect(await drawerWidth()).toBeLessThanOrEqual(1);
   const mute = player.getByRole('button', { name: 'Ton aus' });
   // The closed menu hands the focus back a frame later; start from the sleep timer, next to it.
   await player.getByRole('button', { name: /^Sleep-Timer: / }).focus();

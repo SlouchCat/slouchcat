@@ -34,6 +34,13 @@ export interface RadioPlayer {
   markFavorite: (stationId: number, favorite: boolean) => void;
   /** Closes the notice of a stopped station. */
   dismiss: () => void;
+  /** The shared volume of everything heard on this device, 0 … 1 (concept 19 E3, OE-1). */
+  volume: number;
+  /** Sets and stores the shared volume; it applies to the element at once. */
+  setVolume: (volume: number) => void;
+  /** The radio is muted (not stored: the next visit starts audible). */
+  muted: boolean;
+  toggleMute: () => void;
 }
 
 const idle: RadioPlayer = {
@@ -51,6 +58,10 @@ const idle: RadioPlayer = {
   hold: () => () => {},
   markFavorite: () => {},
   dismiss: () => {},
+  volume: 1,
+  setVolume: () => {},
+  muted: false,
+  toggleMute: () => {},
 };
 
 export const RadioContext = createContext<RadioPlayer>(idle);

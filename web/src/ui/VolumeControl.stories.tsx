@@ -15,8 +15,27 @@ type Story = StoryObj<typeof meta>;
 /** At rest only the mute button shows; the slider opens under the pointer or the focus. */
 export const Default: Story = {};
 
-/** Tab to the button opens the slider beside it, with the percentage. */
+/**
+ * Tab to the button opens the slider beside it as a popover over the neighbours (concept 19 E2),
+ * with the percentage.
+ */
 export const Focused: Story = { tags: ['press:Tab'] };
+
+/** In the mini player the popover opens above the button. */
+export const Above: Story = {
+  args: { placement: 'above' },
+  tags: ['press:Tab'],
+  decorators: [
+    (Story) => (
+      <div style={{ paddingTop: '5rem', paddingLeft: '5rem' }}>
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+/** On a touch screen (no hover) the slider stays open in the row and covers nothing. */
+export const Inline: Story = { args: { inline: true } };
 
 /** The focus on the slider itself. */
 export const SliderFocused: Story = { tags: ['press:Tab+Tab'] };

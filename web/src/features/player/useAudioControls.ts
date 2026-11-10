@@ -8,6 +8,7 @@ import {
   type RefObject,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { readAudioVolume, useAudioVolume, writeAudioVolume } from '@/lib/audioVolume';
 import type { AudioPlayer, AudioPlayerMenu } from '@/ui/aria';
 import {
   chapterPosition,
@@ -24,6 +25,7 @@ import {
   type SleepTimer,
 } from './audio';
 import { hasShortcutModifier } from './keymap';
+import { volumeIsReadOnly } from './layout';
 
 /** ←/→ jump this far; the −15 s button as well. */
 export const AUDIO_SEEK_S = 15;
@@ -51,6 +53,7 @@ export type AudioControlProps = Pick<
   | 'onSleep'
   | 'onVolume'
   | 'onToggleMute'
+  | 'muteOnly'
   | 'status'
 >;
 
@@ -93,6 +96,10 @@ function setElementVolume(element: HTMLMediaElement, volume: number, muted: bool
   element.muted = muted;
 }
 
+function setElementLevel(element: HTMLMediaElement, volume: number): void {
+  element.volume = volume;
+}
+
 const isActivatable = (target: EventTarget | null) =>
   target instanceof HTMLElement && target.closest('button, a, [role="button"]') !== null;
 
@@ -103,9 +110,10 @@ const inMenu = (target: EventTarget | null) =>
 
 /**
  * State and keys of the audio player (design 4), shared by the player and the offline player:
- * speed (0.5 … 3, presets and ±0.1, kept on the element across reloads of its source), volume,
+ * speed (0.5 … 3, presets and ±0.1, kept on the element across reloads of its source), the volume
+ * of everything heard on this device (lib/audioVolume, concept 19 E3; on the iPhone only a mute),
  * the sleep timer (pauses the element, which reports the progress), the menus and the key map:
- * Space/Enter/K play-pause, ←/→ 15 s, Shift+←/→ chapters, ↑/↓ volume, [ and ] speed,
+ * Space/Enter/K play-pause, ←/→ 15 s, Shift+←/→ chapters, ↑/↓ volume, M mute, [ and ] speed,
  * C chapters, T sleep timer, Escape/Backspace back.
  */
 export function useAudioControls({
@@ -130,8 +138,9 @@ export function useAudioControls({
     setStartRate(initialRate);
     if (!ratePicked) setRate(clampRate(initialRate));
   }
-  const [volume, setVolume] = useState(1);
+  const volume = useAudioVolume();
   const [muted, setMuted] = useState(false);
+  const [muteOnly] = useState(() => volumeIsReadOnly());
   const [sleep, setSleep] = useState<SleepTimer>(SLEEP_OFF);
   const [now, setNow] = useState(() => Date.now());
   const [openMenu, setOpenMenu] = useState<AudioPlayerMenu | null>(null);
@@ -180,13 +189,22 @@ export function useAudioControls({
     return () => element.removeEventListener('loadedmetadata', apply);
   }, [enabled, media, rate]);
 
+  // The shared volume lives on the element: applied when it changes (here, in another player of
+  // this tab or in another tab) and when a source loads. A mute is the element's own: the mute
+  // button, M, or a volume of 0.
   useEffect(() => {
     const element = media.current;
     if (!enabled || !element) return;
-    const onVolume = () => {
-      setVolume(element.volume);
-      setMuted(element.muted);
-    };
+    const apply = () => setElementLevel(element, readAudioVolume());
+    apply();
+    element.addEventListener('loadedmetadata', apply);
+    return () => element.removeEventListener('loadedmetadata', apply);
+  }, [enabled, media, volume]);
+
+  useEffect(() => {
+    const element = media.current;
+    if (!enabled || !element) return;
+    const onVolume = () => setMuted(element.muted);
     onVolume();
     element.addEventListener('volumechange', onVolume);
     return () => element.removeEventListener('volumechange', onVolume);
@@ -196,7 +214,7 @@ export function useAudioControls({
     (next: number) => {
       const element = elementOf(media);
       if (!element) return;
-      const value = Math.round(Math.min(1, Math.max(0, next)) * 100) / 100;
+      const value = writeAudioVolume(next);
       setElementVolume(element, value, value === 0);
       showOsd(t('player.volume', { percent: Math.round(value * 100) }));
     },
@@ -337,12 +355,15 @@ export function useAudioControls({
           else skip(AUDIO_SEEK_S);
           return;
         case 'ArrowUp':
-          event.preventDefault();
-          changeVolume((media.current?.volume ?? 1) + VOLUME_STEP);
-          return;
         case 'ArrowDown':
           event.preventDefault();
-          changeVolume((media.current?.volume ?? 1) - VOLUME_STEP);
+          // The iPhone does not let a page set the volume: only the mute.
+          if (muteOnly) return;
+          changeVolume(readAudioVolume() + (key === 'ArrowUp' ? VOLUME_STEP : -VOLUME_STEP));
+          return;
+        case 'm':
+          event.preventDefault();
+          if (!event.repeat) toggleMute();
           return;
         case '[':
           event.preventDefault();
@@ -378,8 +399,10 @@ export function useAudioControls({
     nextChapter,
     onBack,
     previousChapter,
+    muteOnly,
     rate,
     skip,
+    toggleMute,
     togglePlay,
   ]);
 
@@ -399,6 +422,7 @@ export function useAudioControls({
     onSleep: chooseSleep,
     onVolume: changeVolume,
     onToggleMute: toggleMute,
+    muteOnly,
     status: osd,
   };
 }

@@ -43,6 +43,11 @@ interface MiniPlayerProps {
   favorite?: MiniPlayerToggle;
   closeLabel: string;
   onClose: () => void;
+  /**
+   * The volume beside play/pause (concept 19 E3): the app's VolumeControl, which the bar does not
+   * import (react-aria, P-10), and the mute that M switches while the focus is in the bar.
+   */
+  volume?: { control: ReactNode; onToggleMute: () => void };
 }
 
 interface BarButtonProps {
@@ -95,6 +100,23 @@ export function useSpaceToggle(onToggle: () => void) {
   };
 }
 
+/**
+ * M mutes and unmutes wherever the focus is in the radio's controls (the mini player, «Jetzt
+ * läuft»), like M in the players (concept 19 E3). Not in a text field, not with a modifier.
+ */
+export function useMuteKey(onToggleMute: (() => void) | undefined) {
+  return {
+    onKeyDown: (event: KeyboardEvent) => {
+      if (!onToggleMute || event.key.toLowerCase() !== 'm' || event.repeat) return;
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      const target = event.target as HTMLElement;
+      if (target.closest('input, textarea, [contenteditable="true"]')) return;
+      event.preventDefault();
+      onToggleMute();
+    },
+  };
+}
+
 export function MiniPlayer({
   label,
   stationName,
@@ -110,8 +132,10 @@ export function MiniPlayer({
   favorite,
   closeLabel,
   onClose,
+  volume,
 }: MiniPlayerProps) {
   const space = useSpaceToggle(toggle.onPress);
+  const mute = useMuteKey(volume?.onToggleMute);
   return (
     <section
       className={styles.bar}
@@ -119,6 +143,7 @@ export function MiniPlayer({
       data-state={state}
       data-testid="radio-mini-player"
       {...space}
+      {...mute}
     >
       {hint && (
         <p className={styles.hint} data-testid="radio-mini-hint">
@@ -166,6 +191,11 @@ export function MiniPlayer({
       >
         <Icon name={toggle.pressed ? 'pause' : 'play'} />
       </BarButton>
+      {volume && (
+        <span className={styles.volume} data-testid="radio-mini-volume">
+          {volume.control}
+        </span>
+      )}
       {favorite && (
         <BarButton
           className={styles.icon}
