@@ -2,7 +2,7 @@ import type { Chapter, ItemDetail, ItemRef, MediaFileInfo } from '@slouchcat/api
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { imageUrl, isApiError } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -48,13 +48,13 @@ import {
 } from '@/ui';
 import { PageRetry } from '@/features/discover/ItemGrid';
 import { CoverWatchlist, WATCHLIST_KINDS } from '@/features/discover/CoverWatchlist';
-import { CollectionShelf } from './CollectionShelf';
+import { CollectionShelf, MemberShelf } from './CollectionShelf';
 import { DetailActions, PLAY_KEY, playTarget, TRAILER_KEY } from './DetailActions';
 import { BACK_KEY, DetailBody, DetailHeader, DetailPage } from './DetailHeader';
 import { EDITABLE_KINDS, EditMetadata } from './EditMetadata';
 import { ItemMeta } from './ItemMeta';
 import { creditCaption, episodeCode, extraKindLabel, isAudioKind } from './labels';
-import { itemQuery, podcastEpisodesSource } from './queries';
+import { audioSeriesQuery, itemQuery, podcastEpisodesSource } from './queries';
 import { EpisodeList, SeasonShelf, seasonFacts } from './SeasonShelf';
 import styles from './ItemPage.module.css';
 
@@ -434,6 +434,39 @@ function titleLines(t: TFunction, item: ItemDetail): string[] {
   ].filter((line): line is string => line !== undefined);
 }
 
+/**
+ * The volumes of the book's series as a shelf (concept 19 D4.3), like a collection's: only when
+ * the server names the series (two volumes or more visible); nothing while it loads or fails.
+ */
+function AudioSeriesShelf({
+  libraryId,
+  seriesId,
+  currentId,
+  coverMark,
+}: {
+  libraryId: number;
+  seriesId: string;
+  currentId: string;
+  coverMark: (item: ItemRef) => ReactNode;
+}) {
+  const { t } = useTranslation();
+  const query = useQuery(audioSeriesQuery(libraryId, seriesId));
+  const series = query.data;
+  if (!series) return null;
+  return (
+    <MemberShelf
+      keyPrefix={`series-${series.id}`}
+      name={series.name}
+      count={t('audioSeries.volumes', { count: series.volumes.length })}
+      href={paths.audioSeries(libraryId, series.id)}
+      showAllLabel={t('item.collection.showAllLabel', { name: series.name })}
+      members={series.volumes.map((volume) => volume.item)}
+      currentId={currentId}
+      coverMark={coverMark}
+    />
+  );
+}
+
 /** The watchlist button on a cover (concept 17 D-9), for the kinds that go on the watchlist. */
 const coverMark = (item: ItemRef) =>
   WATCHLIST_KINDS.has(item.kind) ? <CoverWatchlist item={item} /> : undefined;
@@ -505,14 +538,30 @@ function ItemView({ itemId }: { itemId: string }) {
   const audio = isAudioKind(item.kind);
   const series = item.seriesTitle ?? item.series?.title;
   const seriesId = item.series?.id ?? item.parentId;
-  const kickerLine =
-    item.kind === 'season' && series && seriesId ? (
+  // An audiobook of a series with two visible volumes or more links «Reihe · Band n» to the
+  // series page (concept 19 D4.3); otherwise its series line stays text.
+  const audioSeries =
+    item.kind === 'audiobook' && item.seriesId && item.libraryId !== undefined
+      ? { libraryId: item.libraryId, seriesId: item.seriesId }
+      : undefined;
+  let kickerLine: ReactNode = kicker(t, item);
+  if (item.kind === 'season' && series && seriesId) {
+    kickerLine = (
       <SpatialButtonLink href={paths.item(seriesId)} variant="ghost" icon="folder">
         {series}
       </SpatialButtonLink>
-    ) : (
-      kicker(t, item)
     );
+  } else if (audioSeries) {
+    kickerLine = (
+      <SpatialButtonLink
+        href={paths.audioSeries(audioSeries.libraryId, audioSeries.seriesId)}
+        variant="ghost"
+        icon="folder"
+      >
+        {kickerLine}
+      </SpatialButtonLink>
+    );
+  }
   const facts =
     item.kind === 'season' ? (
       <p className={styles.muted}>{seasonFacts(t, item).join(t('format.separator'))}</p>
@@ -560,6 +609,14 @@ function ItemView({ itemId }: { itemId: string }) {
               coverMark={coverMark}
             />
           ))}
+          {audioSeries && (
+            <AudioSeriesShelf
+              libraryId={audioSeries.libraryId}
+              seriesId={audioSeries.seriesId}
+              currentId={item.id}
+              coverMark={coverMark}
+            />
+          )}
           {item.kind === 'series' && (
             <SeasonShelf seasons={item.seasons ?? []} nextUp={item.nextUp} />
           )}

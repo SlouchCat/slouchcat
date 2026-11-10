@@ -575,6 +575,13 @@ const libraryRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/catalog/LibraryPage'), 'LibraryPage'),
 });
 
+// concept 19 D4.3: an audiobook series of a library with its volumes.
+const audioSeriesRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/libraries/$libraryId/series/$seriesId',
+  component: lazyRouteComponent(() => import('@/features/catalog/SeriesPage'), 'SeriesPage'),
+});
+
 // concept 16: webradio, the station catalog with filters, search and favourites.
 const radioRoute = createRoute({
   getParentRoute: () => chromeRoute,
@@ -668,6 +675,8 @@ export const routeTree = rootRoute.addChildren([
         // concept 08
         libraryRoute,
         picksPageRoute,
+        // concept 19
+        audioSeriesRoute,
         // concept 16
         radioRoute,
       ]),
