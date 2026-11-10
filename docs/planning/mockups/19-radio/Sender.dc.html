@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Radio-Verwaltung: Sender</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f3a27f}a:hover{color:#ffc4a8}
+.k-btn{font:inherit;cursor:pointer}
+.k-btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+</style>
+</helmet>
+<div style="box-sizing: border-box; min-height: 100vh; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 20px 16px 48px;">
+<div style="max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px;">
+
+  <div style="display: flex; flex-direction: column; gap: 4px;">
+    <h1 style="margin: 0; font-size: 26px; font-weight: 700;">Radio</h1>
+    <span style="font-size: 14px; color: #b6b9c4;">Alle Sender im Angebot. Ansehen, prüfen, entfernen; bearbeiten musst du nichts.</span>
+  </div>
+
+  <nav aria-label="Bereiche" style="display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #ffffff24;">
+    <a href="Uebersicht.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #d0d2da; text-decoration: none; font-size: 15px;">Übersicht</a>
+    <a href="Main.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #d0d2da; text-decoration: none; font-size: 15px;">Angebot</a>
+    <a href="Sender.dc.html" aria-current="page" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #f3f3f5; text-decoration: none; font-size: 15px; font-weight: 600; border-bottom: 3px solid #e8794a;">Sender</a>
+    <span style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #9ea3b0; font-size: 15px;">Eigene Sender (bleibt)</span>
+    <span style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #9ea3b0; font-size: 15px;">Einstellungen (bleibt)</span>
+  </nav>
+
+  <section style="border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; overflow: hidden;">
+    <div style="background: #2b1d17; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+      <span style="font-size: 16px; font-weight: 600; margin-right: 8px;">Sender im Angebot</span>
+      <div role="group" aria-label="Zustand" style="display: flex; flex-wrap: wrap; gap: 8px;">
+        <sc-for list="{{states}}" as="f" hint-placeholder-count="3">
+          <button class="k-btn" aria-pressed="{{f.pressed}}" onClick="{{f.pick}}" style="{{f.style}}">{{f.label}} <span style="{{f.countStyle}}">{{f.count}}</span></button>
+        </sc-for>
+      </div>
+    </div>
+    <div style="padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; border-bottom: 1px solid #ffffff14;">
+      <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #b6b9c4; flex: 2 1 220px; min-width: 0;">Suchen
+        <input type="search" value="{{q}}" onChange="{{setQ}}" placeholder="Name, Ort oder Anbieter" style="height: 44px; border-radius: 10px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; padding: 0 12px; font: inherit; font-size: 14px;">
+      </label>
+      <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #b6b9c4; flex: 1 1 170px;">Anbieter
+        <select value="{{provider}}" onChange="{{setProvider}}" style="height: 44px; border-radius: 10px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; padding: 0 10px; font: inherit; font-size: 14px;">
+          <option value="">Alle Anbieter</option>
+          <sc-for list="{{providers}}" as="p" hint-placeholder-count="5">
+            <option value="{{p}}">{{p}}</option>
+          </sc-for>
+        </select>
+      </label>
+      <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #b6b9c4; flex: 1 1 170px;">Genre
+        <select value="{{genre}}" onChange="{{setGenre}}" style="height: 44px; border-radius: 10px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; padding: 0 10px; font: inherit; font-size: 14px;">
+          <option value="">Alle Genres</option>
+          <sc-for list="{{genres}}" as="g" hint-placeholder-count="5">
+            <option value="{{g}}">{{g}}</option>
+          </sc-for>
+        </select>
+      </label>
+    </div>
+
+    <sc-if value="{{showCleanup}}" hint-placeholder-val="{{false}}">
+      <div style="padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; background: #e8b84a14; border-bottom: 1px solid #e8b84a;">
+        <span style="flex: 999 1 280px; font-size: 14px; line-height: 1.45;">{{cleanupText}}</span>
+        <button class="k-btn" onClick="{{removeAllBroken}}" style="min-height: 44px; padding: 0 18px; border-radius: 22px; background: #e8794a; color: #1c0d06; border: 0; font-size: 14px; font-weight: 600;">{{cleanupLabel}}</button>
+      </div>
+    </sc-if>
+    <sc-if value="{{hasUndo}}" hint-placeholder-val="{{false}}">
+      <div role="status" style="padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; background: #8fd6b01f; border-bottom: 1px solid #8fd6b0; font-size: 14px;">
+        <span style="flex: 999 1 260px;">{{undoText}}</span>
+        <button class="k-btn" onClick="{{undo}}" style="min-height: 44px; padding: 0 16px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">Rückgängig</button>
+      </div>
+    </sc-if>
+
+    <sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
+      <div style="border-bottom: 1px solid #ffffff14;">
+        <div style="display: flex; flex-wrap: wrap; gap: 14px; align-items: center; padding: 10px 16px;">
+          <div aria-hidden="true" style="{{r.logo}}">{{r.ini}}</div>
+          <div style="flex: 999 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 15px; font-weight: 600;">{{r.name}}</span>
+            <span style="font-size: 13px; color: #b6b9c4;">{{r.place}} · {{r.genres}}</span>
+          </div>
+          <div style="flex: 0 0 150px; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 12px; color: #9ea3b0;">Anbieter</span>
+            <span style="font-size: 14px;">{{r.provider}}</span>
+          </div>
+          <div style="flex: 0 0 110px; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 12px; color: #9ea3b0;">Format</span>
+            <span style="font-size: 14px;">{{r.format}}</span>
+          </div>
+          <div style="flex: 0 0 170px;"><span style="{{r.stateStyle}}">{{r.stateText}}</span></div>
+          <button class="k-btn" aria-label="{{r.removeLabel}}" onClick="{{r.remove}}" style="min-height: 44px; padding: 0 14px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">Entfernen</button>
+          <button class="k-btn" aria-expanded="{{r.expanded}}" aria-label="{{r.toggleLabel}}" onClick="{{r.toggle}}" style="width: 44px; height: 44px; border-radius: 22px; background: #1d2029; border: 1px solid #ffffff2e; color: #f3f3f5; display: inline-flex; align-items: center; justify-content: center;">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="{{r.chevron}}"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+        </div>
+
+        <sc-if value="{{r.open}}" hint-placeholder-val="{{false}}">
+          <div style="padding: 4px 16px 18px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
+              <sc-for list="{{r.sources}}" as="s" hint-placeholder-count="3">
+                <div style="background: #1a1c24; border: 1px solid #ffffff14; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+                  <div style="display: flex; justify-content: space-between; gap: 8px; align-items: baseline;">
+                    <span style="font-size: 14px; font-weight: 600;">{{s.title}}</span>
+                    <span style="font-size: 12px; color: #b6b9c4;">{{s.when}}</span>
+                  </div>
+                  <sc-for list="{{s.facts}}" as="x" hint-placeholder-count="6">
+                    <div style="display: flex; gap: 10px; font-size: 13px; line-height: 1.4;">
+                      <span style="flex: 0 0 104px; color: #9ea3b0;">{{x.k}}</span>
+                      <span style="min-width: 0; overflow-wrap: anywhere;">{{x.v}}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+            <div style="background: #16181f; border: 1px solid #ffffff14; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 6px;">
+              <span style="font-size: 14px; font-weight: 600;">So hat Slouchcat eingeordnet</span>
+              <sc-for list="{{r.why}}" as="w" hint-placeholder-count="3">
+                <span style="font-size: 13px; color: #d0d2da; line-height: 1.45;">• {{w}}</span>
+              </sc-for>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+              <button class="k-btn" onClick="{{r.check}}" style="min-height: 44px; padding: 0 16px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">{{r.checkLabel}}</button>
+              <span role="status" style="font-size: 13px; color: #8fd6b0;">{{r.checkResult}}</span>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-for>
+    <sc-if value="{{empty}}" hint-placeholder-val="{{false}}">
+      <div style="padding: 24px 16px; font-size: 14px; color: #b6b9c4;">Kein Sender passt zu Filter und Suche.</div>
+    </sc-if>
+    <div style="padding: 12px 16px; font-size: 13px; color: #b6b9c4;">{{footer}}</div>
+  </section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1560}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { state: 'all', q: '', provider: '', genre: '', open: { srf3: true }, gone: {}, lastGone: [], checking: '', checked: {} };
+  }
+  data() {
+    return [
+      { id: 'srf3', name: 'Radio SRF 3', ini: 'S3', hue: 350, place: 'Schweiz, Basel', genres: ['Pop', 'Rock'], provider: 'SRG SSR', host: 'stream.srg-ssr.ch', home: 'srf.ch/radio-srf-3', codec: 'AAC', br: 96, tech: 'rocketstreamingserver', ms: 943, votes: 326, wiki: ['SRG SSR', '1983', 'Deutschschweiz', 'Jugend- und Popsender'] },
+      { id: 'srf1', name: 'Radio SRF 1', ini: 'S1', hue: 0, place: 'Schweiz, Zürich', genres: ['Pop', 'News'], provider: 'SRG SSR', host: 'stream.srg-ssr.ch', home: 'srf.ch/radio-srf-1', codec: 'AAC', br: 96, tech: 'rocketstreamingserver', ms: 880, votes: 412, wiki: ['SRG SSR', '1931', 'Deutschschweiz', 'Vollprogramm'] },
+      { id: 'jazz', name: 'Radio Swiss Jazz', ini: 'SJ', hue: 30, place: 'Schweiz', genres: ['Jazz'], provider: 'SRG SSR', host: 'stream.srg-ssr.ch', home: 'radioswissjazz.ch', codec: 'AAC', br: 96, tech: 'rocketstreamingserver', ms: 910, votes: 1840, wiki: ['SRG SSR', '1998', 'Schweiz', 'Jazz ohne Moderation'] },
+      { id: 'c3', name: 'Couleur 3', ini: 'C3', hue: 280, place: 'Schweiz, Lausanne', genres: ['Alternative'], provider: 'SRG SSR', host: 'stream.srg-ssr.ch', home: 'rts.ch/couleur3', codec: 'AAC', br: 96, tech: 'rocketstreamingserver', ms: 905, votes: 290, wiki: ['SRG SSR', '1982', 'Romandie', 'Jugendsender'] },
+      { id: 'nrj', name: 'Energy Zürich', ini: 'EZ', hue: 12, place: 'Schweiz, Zürich', genres: ['Pop', 'Dance'], provider: 'Energy', host: 'energyzuerich.ice.infomaniak.ch', home: 'energy.ch', codec: 'MP3', br: 128, tech: 'Icecast (Infomaniak)', ms: 610, votes: 205, wiki: ['Ringier', '2003', 'Raum Zürich', 'Hitradio'] },
+      { id: 'sg', name: 'SwissGroove', ini: 'SG', hue: 190, place: 'Schweiz', genres: ['Jazz', 'Soul'], provider: 'Anbieter unbekannt', host: 'relay.swissgroove.ch', home: 'swissgroove.ch', codec: 'MP3', br: 128, tech: 'Icecast', ms: 540, votes: 960, wiki: null },
+      { id: 'fm90', name: '1.FM Absolute 90s', ini: '90', hue: 230, place: 'Schweiz, Zug', genres: ['Oldies'], provider: '1.FM', host: 'strm112.1.fm', home: '1.fm', codec: 'AAC', br: 64, tech: 'Icecast', ms: 720, votes: 310, wiki: null },
+      { id: 'b1', name: 'Beispielradio Thun', ini: 'BT', hue: 60, place: 'Schweiz, Bern', genres: ['Ohne Genre'], provider: 'Anbieter unbekannt', host: 'stream.example.org', home: '', codec: 'MP3', br: 128, tech: '', ms: 0, votes: 3, wiki: null, broken: 41, reason: 'Adresse antwortet nicht (Zeitüberschreitung)' },
+      { id: 'b2', name: 'Lokalradio Musterstadt', ini: 'LM', hue: 100, place: 'Deutschland, Bayern', genres: ['Schlager'], provider: 'laut.fm', host: 'stream.laut.fm', home: 'laut.fm', codec: 'MP3', br: 128, tech: '', ms: 0, votes: 12, wiki: null, broken: 16, reason: 'Sender gibt es beim Anbieter nicht mehr (HTTP 404)' },
+      { id: 'b3', name: 'Webradio Beispiel', ini: 'WB', hue: 150, place: 'Österreich, Wien', genres: ['Pop'], provider: 'Anbieter unbekannt', host: 'radio.example.net', home: 'example.net', codec: 'AAC', br: 64, tech: '', ms: 0, votes: 1, wiki: null, broken: 5, reason: 'Sicherheitszertifikat abgelaufen' }
+    ];
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var all = this.data().filter(function (s) { return !st.gone[s.id]; });
+    var isBroken = function (s) { return !!s.broken; };
+    var match = function (s, f) { return f === 'ok' ? !isBroken(s) : f === 'broken' ? isBroken(s) : true; };
+    var states = [['all', 'Alle'], ['ok', 'Erreichbar'], ['broken', 'Nicht erreichbar']].map(function (d) {
+      var on = st.state === d[0];
+      return {
+        label: d[1], count: String(all.filter(function (s) { return match(s, d[0]); }).length), pressed: on ? 'true' : 'false', pick: function () { self.setState({ state: d[0] }); },
+        style: 'min-height: 40px; padding: 0 14px; border-radius: 20px; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: #f3f3f5; border: 1px solid ' + (on ? '#e8794a' : '#ffffff2e') + '; background: ' + (on ? '#e8794a33' : '#1d2029') + ';',
+        countStyle: 'font-size: 12px; min-width: 20px; height: 20px; line-height: 20px; border-radius: 10px; text-align: center; background: ' + (on ? '#e8794a' : '#ffffff1f') + '; color: ' + (on ? '#1c0d06' : '#d0d2da') + ';'
+      };
+    });
+    var uniq = function (xs) { return xs.filter(function (x, i) { return xs.indexOf(x) === i; }).sort(); };
+    var q = st.q.trim().toLowerCase();
+    var shown = all.filter(function (s) {
+      return match(s, st.state) && (!st.provider || s.provider === st.provider) && (!st.genre || s.genres.indexOf(st.genre) >= 0) &&
+        (!q || (s.name + ' ' + s.place + ' ' + s.provider).toLowerCase().indexOf(q) >= 0);
+    });
+    var drop = function (ids, label) { var g = Object.assign({}, st.gone); ids.forEach(function (i) { g[i] = true; }); self.setState({ gone: g, lastGone: ids, lastLabel: label }); };
+    var rows = shown.map(function (s) {
+      var open = !!st.open[s.id], bad = isBroken(s);
+      var tone = bad ? ['#ff8f7a', '#ff8f7a24', 'Seit ' + s.broken + ' Tagen stumm'] : ['#8fd6b0', 'transparent', 'Erreichbar'];
+      var sources = [
+        { title: 'Katalog (Radio Browser)', when: 'heute, 04:30', facts: [['Name', s.name], ['Land, Region', s.place], ['Schlagworte', s.genres.join(', ').toLowerCase()], ['Webseite', s.home || 'keine Angabe'], ['Stimmen', String(s.votes)], ['Letzte Prüfung', bad ? 'fehlgeschlagen' : 'in Ordnung']] },
+        { title: 'Stream (eigene Prüfung)', when: bad ? 'vor ' + s.broken + ' Tagen zuletzt gut' : 'vor 2 Tagen', facts: bad ? [['Ergebnis', s.reason], ['Adresse', s.host], ['Versuche', 'täglich, zuletzt heute 04:41']] : [['Name im Stream', s.name.replace('Radio ', '')], ['Format', s.codec + ' ' + s.br + ' kbit/s, 48 kHz'], ['Technik', s.tech], ['Antwortzeit', s.ms + ' ms'], ['Zeigt Titel', 'ja'], ['Adresse', s.host]] },
+        { title: 'Wikidata', when: s.wiki ? 'über die Webseite gefunden' : 'kein Treffer', facts: s.wiki ? [['Eigentümer', s.wiki[0]], ['Gegründet', s.wiki[1]], ['Sendegebiet', s.wiki[2]], ['Ausrichtung', s.wiki[3]]] : [['Ergebnis', 'Wikidata kennt keinen Sender mit dieser Webseite. Es bleibt bei Katalog und Stream.']] }
+      ].map(function (c) { return { title: c.title, when: c.when, facts: c.facts.map(function (f) { return { k: f[0], v: f[1] }; }) }; });
+      return {
+        name: s.name, ini: s.ini, place: s.place, genres: s.genres.join(', '), provider: s.provider, format: s.codec + ' ' + s.br,
+        logo: 'flex: 0 0 48px; width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: #0b0c10; background: linear-gradient(135deg, hsl(' + s.hue + ' 70% 72%), hsl(' + ((s.hue + 40) % 360) + ' 60% 52%));',
+        stateText: tone[2], stateStyle: 'display: inline-flex; align-items: center; min-height: 26px; padding: 0 10px; border-radius: 13px; font-size: 13px; white-space: nowrap; color: ' + tone[0] + '; background: ' + tone[1] + '; border: 1px solid ' + tone[0] + ';',
+        removeLabel: 'Aus dem Angebot entfernen: ' + s.name, remove: function () { drop([s.id], s.name + ' ist aus dem Angebot entfernt.'); },
+        open: open, expanded: open ? 'true' : 'false', toggleLabel: (open ? 'Einklappen: ' : 'Aufklappen: ') + s.name,
+        toggle: function () { var o = Object.assign({}, st.open); if (open) delete o[s.id]; else o[s.id] = true; self.setState({ open: o }); },
+        chevron: 'transition: transform 0.15s; transform: rotate(' + (open ? 180 : 0) + 'deg);',
+        sources: sources,
+        why: [
+          'Genre ' + s.genres.join(', ') + ': aus den Schlagworten des Katalogs' + (bad ? '.' : ', bestätigt durch die Genre-Angabe im Stream.'),
+          s.provider === 'Anbieter unbekannt' ? 'Anbieter: weder Webseite noch Stream-Adresse gehören zu einem bekannten Anbieter.' : 'Anbieter ' + s.provider + ': Stream-Adresse ' + s.host + (s.home ? ' und Webseite ' + s.home.split('/')[0] : '') + '.',
+          'Senderbild: ' + (s.home ? 'von der Webseite, weil der Katalog keines nennt.' : 'gezeichnet, weil weder Katalog noch Webseite eines liefern.')
+        ],
+        checkLabel: st.checking === s.id ? 'Prüft …' : 'Stream jetzt prüfen',
+        checkResult: st.checked[s.id] ? (bad ? 'Geprüft: antwortet weiterhin nicht.' : 'Geprüft: erreichbar, ' + s.codec + ' ' + s.br + ' kbit/s.') : '',
+        check: function () { self.setState({ checking: s.id }); setTimeout(function () { var c = Object.assign({}, self.state.checked); c[s.id] = true; self.setState({ checking: '', checked: c }); }, 1400); }
+      };
+    });
+    var brokenShown = shown.filter(isBroken);
+    return {
+      states: states, rows: rows, empty: rows.length === 0,
+      q: st.q, setQ: function (e) { self.setState({ q: e.target.value }); },
+      provider: st.provider, setProvider: function (e) { self.setState({ provider: e.target.value }); }, providers: uniq(all.map(function (s) { return s.provider; })),
+      genre: st.genre, setGenre: function (e) { self.setState({ genre: e.target.value }); }, genres: uniq([].concat.apply([], all.map(function (s) { return s.genres; }))),
+      showCleanup: brokenShown.length > 0 && st.state === 'broken',
+      cleanupText: brokenShown.length + ' Sender in dieser Ansicht antworten nicht. In der App sind sie schon ausgeblendet; entfernt kommen sie nur zurück, wenn sie wieder antworten.',
+      cleanupLabel: 'Alle ' + brokenShown.length + ' entfernen',
+      removeAllBroken: function () { drop(brokenShown.map(function (s) { return s.id; }), brokenShown.length + ' nicht erreichbare Sender entfernt.'); },
+      hasUndo: st.lastGone.length > 0, undoText: st.lastLabel || '',
+      undo: function () { var g = Object.assign({}, st.gone); st.lastGone.forEach(function (i) { delete g[i]; }); self.setState({ gone: g, lastGone: [] }); },
+      footer: rows.length + ' von 6.957 Sendern im Angebot gezeigt (Mockup: 10 Beispiele).'
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Radio-Verwaltung: Angebot als Regeln</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f3a27f}a:hover{color:#ffc4a8}
+.k-btn{font:inherit;cursor:pointer}
+.k-btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+</style>
+</helmet>
+<div style="box-sizing: border-box; min-height: 100vh; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 20px 16px 48px;">
+<div style="max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px;">
+
+  <div style="display: flex; flex-direction: column; gap: 4px;">
+    <h1 style="margin: 0; font-size: 26px; font-weight: 700;">Radio</h1>
+    <span style="font-size: 14px; color: #b6b9c4;">Ein Sender ist im Angebot, wenn er zu mindestens einer Regel «Nimm» passt und zu keiner Regel «Lass weg».</span>
+  </div>
+
+  <nav aria-label="Bereiche" style="display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #ffffff24;">
+    <a href="Uebersicht.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #d0d2da; text-decoration: none; font-size: 15px;">Übersicht</a>
+    <a href="AngebotC.dc.html" aria-current="page" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #f3f3f5; text-decoration: none; font-size: 15px; font-weight: 600; border-bottom: 3px solid #e8794a;">Angebot</a>
+    <a href="Sender.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #d0d2da; text-decoration: none; font-size: 15px;">Sender</a>
+    <span style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #9ea3b0; font-size: 15px;">Eigene Sender (bleibt)</span>
+    <span style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #9ea3b0; font-size: 15px;">Einstellungen (bleibt)</span>
+  </nav>
+
+  <nav aria-label="Mockup-Varianten" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: #b6b9c4; border: 1px dashed #ffffff3d; border-radius: 12px; padding: 8px 12px;">
+    <span>Mockup, Varianten für «Angebot»:</span>
+    <a href="Main.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">A · Pakete</a>
+    <a href="AngebotB.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">B · Länder zuerst</a>
+    <a href="AngebotC.dc.html" aria-current="page" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #e8794a; background: #e8794a33; color: #f3f3f5; text-decoration: none;">C · Regeln</a>
+  </nav>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start;">
+    <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 18px;">
+
+      <sc-for list="{{blocks}}" as="b" hint-placeholder-count="2">
+        <section style="border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; overflow: hidden;">
+          <div style="background: #2b1d17; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline;">
+            <span style="font-size: 16px; font-weight: 600;">{{b.title}}</span>
+            <span style="font-size: 13px; color: #d0d2da;">{{b.note}}</span>
+          </div>
+          <sc-for list="{{b.rules}}" as="r" hint-placeholder-count="3">
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 10px 16px; border-top: 1px solid #ffffff14; min-height: 44px;">
+              <span style="font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 6px; background: #262a35; color: #d0d2da;">{{r.kind}}</span>
+              <span style="flex: 999 1 200px; font-size: 15px; font-weight: 600;">{{r.value}}</span>
+              <span style="font-size: 14px; font-variant-numeric: tabular-nums;">{{r.count}} <span style="color: #b6b9c4;">Sender</span></span>
+              <button class="k-btn" aria-label="{{r.removeLabel}}" onClick="{{r.remove}}" style="width: 44px; height: 44px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; display: inline-flex; align-items: center; justify-content: center;">
+                <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+              </button>
+            </div>
+          </sc-for>
+          <sc-if value="{{b.empty}}" hint-placeholder-val="{{false}}">
+            <div style="padding: 14px 16px; border-top: 1px solid #ffffff14; font-size: 14px; color: #b6b9c4;">{{b.emptyText}}</div>
+          </sc-if>
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; padding: 14px 16px; border-top: 1px solid #ffffff14; background: #16181f;">
+            <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #b6b9c4; flex: 1 1 160px;">Merkmal
+              <select value="{{b.kind}}" onChange="{{b.setKind}}" style="height: 44px; border-radius: 10px; background: #262a35; color: #f3f3f5; border: 1px solid #ffffff2e; padding: 0 10px; font: inherit; font-size: 14px;">
+                <sc-for list="{{b.kinds}}" as="k" hint-placeholder-count="4">
+                  <option value="{{k.id}}">{{k.label}}</option>
+                </sc-for>
+              </select>
+            </label>
+            <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #b6b9c4; flex: 2 1 220px;">Wert
+              <select value="{{b.value}}" onChange="{{b.setValue}}" style="height: 44px; border-radius: 10px; background: #262a35; color: #f3f3f5; border: 1px solid #ffffff2e; padding: 0 10px; font: inherit; font-size: 14px;">
+                <sc-for list="{{b.values}}" as="v" hint-placeholder-count="6">
+                  <option value="{{v.id}}">{{v.label}}</option>
+                </sc-for>
+              </select>
+            </label>
+            <button class="k-btn" onClick="{{b.add}}" style="min-height: 44px; padding: 0 18px; border-radius: 22px; background: #f3f3f5; color: #0b0c10; border: 0; font-size: 14px; font-weight: 600;">{{b.addLabel}}</button>
+          </div>
+        </section>
+      </sc-for>
+    </div>
+
+    <aside aria-label="Zusammenfassung" style="flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 14px;">
+      <div style="border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; padding: 18px; display: flex; flex-direction: column; gap: 12px;">
+        <span style="font-size: 13px; color: #b6b9c4;">Im Angebot</span>
+        <span aria-live="polite" style="font-size: 34px; font-weight: 700; line-height: 1;">{{total}}</span>
+        <span style="font-size: 13px; color: #b6b9c4;">von 52.539 Sendern im Katalog</span>
+        <div aria-hidden="true" style="height: 8px; border-radius: 4px; background: #ffffff26;"><div style="{{bar}}"></div></div>
+        <div style="display: flex; justify-content: space-between; gap: 10px; font-size: 13px;"><span style="color: #d0d2da;">passen zu «Nimm»</span><span style="font-variant-numeric: tabular-nums;">{{taken}}</span></div>
+        <div style="display: flex; justify-content: space-between; gap: 10px; font-size: 13px;"><span style="color: #d0d2da;">davon weggelassen</span><span style="font-variant-numeric: tabular-nums;">{{dropped}}</span></div>
+      </div>
+      <div style="border: 1px solid #ffffff14; border-radius: 14px; background: #16181f; padding: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #d0d2da; line-height: 1.5;">
+        <span style="font-size: 16px; font-weight: 600; color: #f3f3f5;">Gilt immer</span>
+        <span>• Favoriten und eigene Sender bleiben, auch ohne passende Regel.</span>
+        <span>• Neue Sender im Katalog, die zu einer Regel passen, kommen von selbst dazu.</span>
+        <span>• Die Regeln gelten sofort; ein Fehlgriff ist mit dem Kreuz wieder weg.</span>
+      </div>
+    </aside>
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1180}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      take: [['land', 'CH'], ['sprache', 'it'], ['genre', 'klassik'], ['anbieter', 'bbc']],
+      drop: [['zustand', 'broken']],
+      takeKind: 'sprache', takeValue: 'en', dropKind: 'genre', dropValue: 'religion'
+    };
+  }
+  renderVals() {
+    var st = this.state, self = this, T = 52539;
+    var nf = function (n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); };
+    var V = {
+      land: ['Land', [['US', 'USA', 6995], ['DE', 'Deutschland', 5631], ['FR', 'Frankreich', 2806], ['GB', 'Grossbritannien', 1987], ['IT', 'Italien', 1600], ['CA', 'Kanada', 1379], ['CH', 'Schweiz', 541], ['AT', 'Österreich', 318]]],
+      genre: ['Genre', [['pop', 'Pop', 5164], ['rock', 'Rock', 2639], ['oldies', 'Oldies', 1206], ['klassik', 'Klassik', 1170], ['jazz', 'Jazz', 1071], ['elektro', 'Elektronisch', 891], ['country', 'Country', 629], ['religion', 'Religion', 858]]],
+      art: ['Sendeart', [['news', 'News', 2712], ['talk', 'Talk', 1626]]],
+      sprache: ['Sprache', [['en', 'Englisch', 11218], ['de', 'Deutsch', 3995], ['es', 'Spanisch', 3866], ['fr', 'Französisch', 2493], ['zh', 'Chinesisch', 2032], ['ru', 'Russisch', 1432], ['it', 'Italienisch', 1213]]],
+      anbieter: ['Anbieter', [['iheart', 'iHeartRadio', 850], ['bbc', 'BBC', 90], ['ard', 'ARD', 280], ['rf', 'Radio France', 70], ['srg', 'SRG SSR', 60], ['laut', 'laut.fm', 420]]],
+      zustand: ['Zustand', [['broken', 'Nicht erreichbar', 823]]],
+      qualitaet: ['Qualität', [['low', 'Unter 64 kbit/s', 3150]]]
+    };
+    var find = function (r) { return V[r[0]][1].filter(function (v) { return v[0] === r[1]; })[0]; };
+    var c = 0, miss = 1;
+    st.take.forEach(function (r) { var v = find(r); if (r[0] === 'land') c += v[2]; else miss *= 1 - v[2] / T; });
+    var taken = Math.round(c + (T - c) * (1 - miss));
+    var keep = 1;
+    st.drop.forEach(function (r) { keep *= 1 - find(r)[2] / T; });
+    var total = Math.round(taken * keep);
+    var block = function (key, title, note, kinds, emptyText, addLabel) {
+      var list = st[key], kind = st[key + 'Kind'], value = st[key + 'Value'];
+      var values = V[kind][1].filter(function (v) { return !list.some(function (r) { return r[0] === kind && r[1] === v[0]; }); });
+      var chosen = values.some(function (v) { return v[0] === value; }) ? value : (values[0] ? values[0][0] : '');
+      var patch = function (o) { self.setState(o); };
+      return {
+        title: title, note: note, empty: list.length === 0, emptyText: emptyText, addLabel: addLabel,
+        rules: list.map(function (r, i) {
+          var v = find(r);
+          return { kind: V[r[0]][0], value: v[1], count: nf(v[2]), removeLabel: 'Regel entfernen: ' + V[r[0]][0] + ' ' + v[1],
+            remove: function () { var o = {}; o[key] = list.filter(function (_, j) { return j !== i; }); patch(o); } };
+        }),
+        kind: kind, kinds: kinds.map(function (k) { return { id: k, label: V[k][0] }; }),
+        setKind: function (e) { var o = {}; o[key + 'Kind'] = e.target.value; o[key + 'Value'] = ''; patch(o); },
+        value: chosen, values: values.map(function (v) { return { id: v[0], label: v[1] + ' (' + nf(v[2]) + ')' }; }),
+        setValue: function (e) { var o = {}; o[key + 'Value'] = e.target.value; patch(o); },
+        add: function () { if (!chosen) return; var o = {}; o[key] = list.concat([[kind, chosen]]); o[key + 'Value'] = ''; patch(o); }
+      };
+    };
+    return {
+      blocks: [
+        block('take', 'Nimm alle Sender mit', 'eine Regel genügt', ['land', 'genre', 'art', 'sprache', 'anbieter'], 'Noch keine Regel: die Radioseite zeigt nur eigene Sender und Favoriten.', 'Regel hinzufügen'),
+        block('drop', 'Lass weg', 'gilt für alles oben', ['zustand', 'genre', 'qualitaet', 'sprache'], 'Nichts wird weggelassen.', 'Ausnahme hinzufügen')
+      ],
+      total: nf(total), taken: nf(taken), dropped: nf(taken - total),
+      bar: 'height: 8px; border-radius: 4px; background: #e8794a; width: ' + Math.max(1, Math.round(100 * total / T)) + '%;'
+    };
+  }
+}
+</script>
+</body>
+</html>

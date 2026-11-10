@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>App: Radio, Meine Sender</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f3a27f}a:hover{color:#ffc4a8}
+.k-btn{font:inherit;cursor:pointer}
+.k-btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+</style>
+</helmet>
+<div style="box-sizing: border-box; min-height: 100vh; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 20px 16px 120px;">
+<div style="max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px;">
+
+  <nav aria-label="Mockup" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: #b6b9c4; border: 1px dashed #ffffff3d; border-radius: 12px; padding: 8px 12px;">
+    <span>Mockup:</span>
+    <a href="MeineSender.dc.html" aria-current="page" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #e8794a; background: #e8794a33; color: #f3f3f5; text-decoration: none;">App · Radio</a>
+    <a href="VerwaltungNeu.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">Verwaltung · Radio</a>
+    <span style="flex-grow: 1;"></span>
+    <button class="k-btn" onClick="{{restart}}" style="min-height: 36px; padding: 0 12px; border-radius: 18px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 13px;">{{restartLabel}}</button>
+  </nav>
+
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <h1 style="margin: 0; font-size: 30px; font-weight: 700;">Radio</h1>
+    <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+      <label for="rq" style="font-size: 14px; color: #b6b9c4;">Sender suchen und hinzufügen</label>
+      <input id="rq" type="search" value="{{q}}" onChange="{{setQ}}" placeholder="Name, Ort oder Musikrichtung" style="flex: 1 1 320px; min-width: 0; height: 52px; border-radius: 26px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; padding: 0 20px; font: inherit; font-size: 16px;">
+    </div>
+    <sc-if value="{{noQuery}}" hint-placeholder-val="{{true}}">
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+        <span style="font-size: 13px; color: #b6b9c4;">Zum Beispiel</span>
+        <sc-for list="{{examples}}" as="e" hint-placeholder-count="4">
+          <button class="k-btn" onClick="{{e.pick}}" style="min-height: 40px; padding: 0 14px; border-radius: 20px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">{{e.label}}</button>
+        </sc-for>
+      </div>
+    </sc-if>
+  </div>
+
+  <sc-if value="{{searching}}" hint-placeholder-val="{{false}}">
+    <section aria-label="Suchergebnisse" style="border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; overflow: hidden;">
+      <div style="padding: 12px 16px; font-size: 14px; color: #b6b9c4; border-bottom: 1px solid #ffffff14;">{{resultText}}</div>
+      <sc-for list="{{results}}" as="r" hint-placeholder-count="5">
+        <div style="display: flex; flex-wrap: wrap; gap: 14px; align-items: center; padding: 10px 16px; border-bottom: 1px solid #ffffff14;">
+          <div aria-hidden="true" style="{{r.logo}}">{{r.ini}}</div>
+          <div style="flex: 999 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+            <span style="font-size: 15px; font-weight: 600;">{{r.name}}</span>
+            <span style="font-size: 13px; color: #b6b9c4;">{{r.line}}</span>
+          </div>
+          <button class="k-btn" onClick="{{r.listen}}" style="min-height: 44px; padding: 0 16px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">Reinhören</button>
+          <button class="k-btn" aria-pressed="{{r.pressed}}" onClick="{{r.toggle}}" style="{{r.addStyle}}">{{r.addLabel}}</button>
+        </div>
+      </sc-for>
+      <sc-if value="{{noResults}}" hint-placeholder-val="{{false}}">
+        <div style="padding: 20px 16px; font-size: 14px; color: #b6b9c4; line-height: 1.5;">Kein Sender gefunden. Fehlt er im Katalog, kann die Verwaltung ihn mit seiner Adresse eintragen.</div>
+      </sc-if>
+    </section>
+  </sc-if>
+
+  <section aria-label="Meine Sender" style="display: flex; flex-direction: column; gap: 12px;">
+    <h2 style="margin: 0; font-size: 20px; font-weight: 700;">Meine Sender <span style="font-size: 14px; font-weight: 400; color: #b6b9c4;">{{mineCount}}</span></h2>
+    <sc-if value="{{mineEmpty}}" hint-placeholder-val="{{false}}">
+      <div style="border: 1px dashed #ffffff3d; border-radius: 14px; padding: 28px 20px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start;">
+        <span style="font-size: 17px; font-weight: 600;">Noch kein Sender</span>
+        <span style="font-size: 14px; color: #b6b9c4; line-height: 1.5;">Suche oben nach einem Sender und tippe auf «Hinzufügen». Er steht dann hier und bei allen im Haushalt unter «Im Haushalt».</span>
+      </div>
+    </sc-if>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px;">
+      <sc-for list="{{mine}}" as="s" hint-placeholder-count="6">
+        <div style="{{s.card}}">
+          <button class="k-btn" aria-label="{{s.playLabel}}" onClick="{{s.play}}" style="{{s.tile}}">{{s.ini}}</button>
+          <span style="font-size: 15px; font-weight: 600; line-height: 1.3;">{{s.name}}</span>
+          <span style="font-size: 12px; color: #b6b9c4; min-height: 32px; line-height: 1.35;">{{s.now}}</span>
+          <button class="k-btn" aria-label="{{s.removeLabel}}" onClick="{{s.remove}}" style="align-self: flex-start; min-height: 40px; padding: 0 12px; border-radius: 20px; background: transparent; color: #d0d2da; border: 1px solid #ffffff2e; font-size: 13px;">Entfernen</button>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <sc-if value="{{hasHouse}}" hint-placeholder-val="{{true}}">
+    <section aria-label="Im Haushalt" style="display: flex; flex-direction: column; gap: 12px;">
+      <h2 style="margin: 0; font-size: 20px; font-weight: 700;">Im Haushalt <span style="font-size: 14px; font-weight: 400; color: #b6b9c4;">von anderen hinzugefügt</span></h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px;">
+        <sc-for list="{{house}}" as="s" hint-placeholder-count="3">
+          <div style="background: #13151b; border: 1px solid #ffffff14; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+            <button class="k-btn" aria-label="{{s.playLabel}}" onClick="{{s.play}}" style="{{s.tile}}">{{s.ini}}</button>
+            <span style="font-size: 15px; font-weight: 600; line-height: 1.3;">{{s.name}}</span>
+            <span style="font-size: 12px; color: #b6b9c4;">{{s.by}}</span>
+            <button class="k-btn" onClick="{{s.add}}" style="align-self: flex-start; min-height: 40px; padding: 0 12px; border-radius: 20px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 13px;">Zu meinen Sendern</button>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+  </sc-if>
+
+  <section aria-label="Entdecken" style="display: flex; flex-direction: column; gap: 12px;">
+    <h2 style="margin: 0; font-size: 20px; font-weight: 700;">Beliebt in der Schweiz <span style="font-size: 14px; font-weight: 400; color: #b6b9c4;">höchstens 2 je Anbieter · in der Verwaltung abschaltbar</span></h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px;">
+      <sc-for list="{{popular}}" as="s" hint-placeholder-count="6">
+        <div style="background: #13151b; border: 1px solid #ffffff14; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+          <button class="k-btn" aria-label="{{s.playLabel}}" onClick="{{s.play}}" style="{{s.tile}}">{{s.ini}}</button>
+          <span style="font-size: 15px; font-weight: 600; line-height: 1.3;">{{s.name}}</span>
+          <span style="font-size: 12px; color: #b6b9c4;">{{s.line}}</span>
+          <button class="k-btn" aria-pressed="{{s.pressed}}" onClick="{{s.toggle}}" style="{{s.addStyle}}">{{s.addLabel}}</button>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+</div>
+
+<sc-if value="{{playing}}" hint-placeholder-val="{{false}}">
+  <div role="region" aria-label="Wiedergabe" style="position: fixed; left: 0; right: 0; bottom: 0; background: #1a1c24; border-top: 1px solid #ffffff24; padding: 12px 16px;">
+    <div style="max-width: 1240px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 14px; align-items: center;">
+      <div aria-hidden="true" style="{{nowLogo}}">{{nowIni}}</div>
+      <div style="flex: 999 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+        <span style="font-size: 15px; font-weight: 600;">{{nowName}}</span>
+        <span style="font-size: 13px; color: #b6b9c4;">{{nowLine}}</span>
+      </div>
+      <sc-if value="{{nowCanAdd}}" hint-placeholder-val="{{false}}">
+        <button class="k-btn" onClick="{{nowAdd}}" style="min-height: 44px; padding: 0 16px; border-radius: 22px; background: #e8794a; color: #1c0d06; border: 0; font-size: 14px; font-weight: 600;">Hinzufügen</button>
+      </sc-if>
+      <button class="k-btn" onClick="{{stop}}" style="min-height: 44px; padding: 0 16px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">Stopp</button>
+    </div>
+  </div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1500}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = this.filled();
+  }
+  filled() { return { q: '', mine: ['srf3', 'jazz', 'c3', 'bbc4', 'fip', 'kexp'], house: ['srf1', 'nrj', 'dlf'], playing: '', empty: false }; }
+  catalog() {
+    return [
+      ['srf1', 'Radio SRF 1', 'S1', 0, 'Schweiz', 'Pop, News', 'SRG SSR', 6], ['srf2', 'Radio SRF 2 Kultur', 'S2', 40, 'Schweiz', 'Klassik, Kultur', 'SRG SSR', 5],
+      ['srf3', 'Radio SRF 3', 'S3', 350, 'Schweiz', 'Pop, Rock', 'SRG SSR', 7], ['srf4', 'Radio SRF 4 News', 'S4', 20, 'Schweiz', 'News', 'SRG SSR', 4],
+      ['srfm', 'Radio SRF Musikwelle', 'SM', 60, 'Schweiz', 'Schlager, Volksmusik', 'SRG SSR', 4], ['srfv', 'Radio SRF Virus', 'SV', 300, 'Schweiz', 'Alternative', 'SRG SSR', 3],
+      ['jazz', 'Radio Swiss Jazz', 'SJ', 30, 'Schweiz', 'Jazz', 'SRG SSR', 5], ['clas', 'Radio Swiss Classic', 'SC', 210, 'Schweiz', 'Klassik', 'SRG SSR', 6],
+      ['spop', 'Radio Swiss Pop', 'SP', 330, 'Schweiz', 'Pop', 'SRG SSR', 5], ['c3', 'Couleur 3', 'C3', 280, 'Schweiz, Lausanne', 'Alternative', 'SRG SSR', 4],
+      ['nrj', 'Energy Zürich', 'EZ', 12, 'Schweiz, Zürich', 'Pop, Dance', 'Energy', 3], ['pil', 'Radio Pilatus', 'RP', 200, 'Schweiz, Luzern', 'Pop', 'CH Media', 2],
+      ['zsee', 'Radio Zürisee', 'RZ', 185, 'Schweiz, Rapperswil', 'Pop', '', 2], ['kf', 'Kontrafunk', 'KF', 50, 'Schweiz', 'Talk', '', 3],
+      ['bbc1', 'BBC Radio 1', 'B1', 340, 'Grossbritannien', 'Pop', 'BBC', 6], ['bbc4', 'BBC Radio 4', 'B4', 220, 'Grossbritannien', 'Talk, News', 'BBC', 8],
+      ['bbcw', 'BBC World Service', 'BW', 0, 'Grossbritannien', 'News', 'BBC', 9], ['fip', 'FIP', 'FI', 320, 'Frankreich', 'Jazz, Weltmusik', 'Radio France', 7],
+      ['inter', 'France Inter', 'IN', 355, 'Frankreich', 'Talk, News', 'Radio France', 5], ['dlf', 'Deutschlandfunk', 'DL', 215, 'Deutschland', 'News, Kultur', 'Deutschlandradio', 6],
+      ['wdr2', 'WDR 2', 'W2', 205, 'Deutschland', 'Pop', 'ARD', 9], ['soma', 'SomaFM Groove Salad', 'GS', 140, 'USA', 'Chillout, Elektronisch', 'SomaFM', 4],
+      ['j24', 'Jazz24', 'J2', 35, 'USA', 'Jazz', '', 2], ['kexp', 'KEXP', 'KX', 45, 'USA, Seattle', 'Alternative', '', 3], ['rp', 'Radio Paradise', 'PA', 160, 'USA', 'Rock, Mixed', '', 5]
+    ].map(function (r) { return { id: r[0], name: r[1], ini: r[2], hue: r[3], place: r[4], genres: r[5], provider: r[6], streams: r[7] }; });
+  }
+  renderVals() {
+    var st = this.state, self = this, cat = this.catalog();
+    var byId = {}; cat.forEach(function (s) { byId[s.id] = s; });
+    var grad = function (h) { return 'linear-gradient(135deg, hsl(' + h + ' 70% 72%), hsl(' + ((h + 40) % 360) + ' 60% 52%))'; };
+    var has = function (id) { return st.mine.indexOf(id) >= 0; };
+    var add = function (id) { if (!has(id)) self.setState({ mine: st.mine.concat([id]), house: st.house.filter(function (x) { return x !== id; }) }); };
+    var remove = function (id) { self.setState({ mine: st.mine.filter(function (x) { return x !== id; }), playing: st.playing === id ? '' : st.playing }); };
+    var tile = function (s, on) { return 'width: 100%; aspect-ratio: 1 / 1; border-radius: 12px; border: 3px solid ' + (on ? '#e8794a' : 'transparent') + '; display: flex; align-items: center; justify-content: center; font-size: 38px; font-weight: 800; color: #0b0c10; background: ' + grad(s.hue) + ';'; };
+    var addBtn = function (on) { return 'align-self: flex-start; min-height: 44px; padding: 0 16px; border-radius: 22px; font-size: 14px; font-weight: 600; ' + (on ? 'background: #8fd6b0; color: #06140c; border: 0;' : 'background: #e8794a; color: #1c0d06; border: 0;'); };
+    var play = function (id) { return function () { self.setState({ playing: st.playing === id ? '' : id }); }; };
+    var nowText = { srf3: 'Jetzt: Titel und Künstler vom Sender', jazz: 'Jetzt: Titel und Künstler vom Sender', fip: 'Jetzt: Titel und Künstler vom Sender' };
+    var q = st.q.trim().toLowerCase();
+    var found = q ? cat.filter(function (s) { return (s.name + ' ' + s.place + ' ' + s.genres + ' ' + s.provider).toLowerCase().indexOf(q) >= 0; }) : [];
+    var who = { srf1: 'von Lena', nrj: 'von Kids', dlf: 'von Lena' };
+    var pop = ['nrj', 'jazz', 'srf3', 'pil', 'kf', 'c3', 'clas', 'zsee'].filter(function (id, i, a) {
+      var p = byId[id].provider; if (!p) return true;
+      return a.slice(0, i).filter(function (x) { return byId[x].provider === p; }).length < 2;
+    });
+    var now = byId[st.playing];
+    return {
+      q: st.q, setQ: function (e) { self.setState({ q: e.target.value }); },
+      noQuery: !q, searching: !!q, noResults: !!q && found.length === 0,
+      examples: ['srf', 'jazz', 'bbc', 'news'].map(function (x) { return { label: x, pick: function () { self.setState({ q: x }); } }; }),
+      resultText: found.length + (found.length === 1 ? ' Sender' : ' Sender') + ' für «' + st.q.trim() + '». Gleiche Sender mit mehreren Streams stehen nur einmal da.',
+      results: found.slice(0, 8).map(function (s) {
+        var on = has(s.id);
+        return {
+          name: s.name, ini: s.ini, line: s.place + ' · ' + s.genres + (s.provider ? ' · ' + s.provider : '') + ' · ' + s.streams + ' Streams zusammengefasst',
+          logo: 'flex: 0 0 52px; width: 52px; height: 52px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: #0b0c10; background: ' + grad(s.hue) + ';',
+          listen: play(s.id), pressed: on ? 'true' : 'false', addLabel: on ? 'Hinzugefügt' : 'Hinzufügen', addStyle: addBtn(on).replace('align-self: flex-start; ', ''),
+          toggle: function () { if (on) remove(s.id); else add(s.id); }
+        };
+      }),
+      mineCount: st.mine.length ? String(st.mine.length) : '', mineEmpty: st.mine.length === 0,
+      mine: st.mine.map(function (id) {
+        var s = byId[id], on = st.playing === id;
+        return {
+          name: s.name, ini: s.ini, now: on ? (nowText[id] || 'Läuft') : s.genres, tile: tile(s, on),
+          card: 'background: #13151b; border: 1px solid ' + (on ? '#e8794a' : '#ffffff14') + '; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px;',
+          playLabel: (on ? 'Stopp: ' : 'Abspielen: ') + s.name, play: play(id), removeLabel: 'Aus meinen Sendern entfernen: ' + s.name, remove: function () { remove(id); }
+        };
+      }),
+      hasHouse: st.house.length > 0,
+      house: st.house.map(function (id) { var s = byId[id]; return { name: s.name, ini: s.ini, by: who[id] || 'von jemand anderem', tile: tile(s, st.playing === id), playLabel: 'Abspielen: ' + s.name, play: play(id), add: function () { add(id); } }; }),
+      popular: pop.slice(0, 6).map(function (id) {
+        var s = byId[id], on = has(id);
+        return { name: s.name, ini: s.ini, line: s.genres, tile: tile(s, st.playing === id), playLabel: 'Abspielen: ' + s.name, play: play(id), pressed: on ? 'true' : 'false', addLabel: on ? 'Hinzugefügt' : 'Hinzufügen', addStyle: addBtn(on), toggle: function () { if (on) remove(id); else add(id); } };
+      }),
+      playing: !!now, nowName: now ? now.name : '', nowIni: now ? now.ini : '', nowLine: now ? (nowText[now.id] || now.place + ' · ' + now.genres) : '',
+      nowLogo: 'flex: 0 0 52px; width: 52px; height: 52px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: #0b0c10; background: ' + (now ? grad(now.hue) : '#1d2029') + ';',
+      nowCanAdd: !!now && !has(now.id), nowAdd: function () { if (now) add(now.id); },
+      stop: function () { self.setState({ playing: '' }); },
+      restartLabel: st.empty ? 'Mit Beispielen füllen' : 'Von vorn (erster Tag)',
+      restart: function () { if (st.empty) self.setState(self.filled()); else self.setState({ q: '', mine: [], house: [], playing: '', empty: true }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

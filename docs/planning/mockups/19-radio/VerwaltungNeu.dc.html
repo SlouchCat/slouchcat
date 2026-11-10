@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Verwaltung: Radio, Sender im Haushalt</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f3a27f}a:hover{color:#ffc4a8}
+.k-btn{font:inherit;cursor:pointer}
+.k-btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+</style>
+</helmet>
+<div style="box-sizing: border-box; min-height: 100vh; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 20px 16px 48px;">
+<div style="max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px;">
+
+  <nav aria-label="Mockup" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: #b6b9c4; border: 1px dashed #ffffff3d; border-radius: 12px; padding: 8px 12px;">
+    <span>Mockup:</span>
+    <a href="MeineSender.dc.html" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none;">App · Radio</a>
+    <a href="VerwaltungNeu.dc.html" aria-current="page" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #e8794a; background: #e8794a33; color: #f3f3f5; text-decoration: none;">Verwaltung · Radio</a>
+  </nav>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+    <div style="flex: 999 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+      <h1 style="margin: 0; font-size: 26px; font-weight: 700;">Radio</h1>
+      <span style="font-size: 14px; color: #b6b9c4;">Die Sender, die im Haushalt jemand hinzugefügt hat. Der Katalog dient nur noch zum Suchen.</span>
+    </div>
+    <button class="k-btn" aria-expanded="{{addExpanded}}" onClick="{{toggleAdd}}" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 22px; background: #f3f3f5; color: #0b0c10; border: 0; font-size: 14px; font-weight: 600;">
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Sender hinzufügen
+    </button>
+  </div>
+
+  <nav aria-label="Bereiche" style="display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #ffffff24;">
+    <span aria-current="page" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #f3f3f5; font-size: 15px; font-weight: 600; border-bottom: 3px solid #e8794a;">Sender</span>
+    <span style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #9ea3b0; font-size: 15px;">Einstellungen (bleibt, drei Zeilen neu)</span>
+  </nav>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px;">
+    <sc-for list="{{tiles}}" as="k" hint-placeholder-count="4">
+      <div style="{{k.style}}">
+        <span style="font-size: 13px; color: #b6b9c4;">{{k.label}}</span>
+        <span style="font-size: 26px; font-weight: 700;">{{k.value}}</span>
+        <span style="font-size: 13px; color: #b6b9c4;">{{k.note}}</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <sc-if value="{{adding}}" hint-placeholder-val="{{false}}">
+    <section aria-label="Sender hinzufügen" style="border: 1px solid #e8794a; border-radius: 14px; background: #13151b; overflow: hidden;">
+      <div style="padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: #2b1d17;">
+        <span style="font-size: 16px; font-weight: 600; margin-right: 8px;">Sender hinzufügen</span>
+        <div role="group" aria-label="Weg" style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <sc-for list="{{ways}}" as="w" hint-placeholder-count="3">
+            <button class="k-btn" aria-pressed="{{w.pressed}}" onClick="{{w.pick}}" style="{{w.style}}">{{w.label}}</button>
+          </sc-for>
+        </div>
+      </div>
+      <sc-if value="{{waySearch}}" hint-placeholder-val="{{true}}">
+        <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #b6b9c4;">Im Katalog suchen (53.366 Einträge, täglich abgeglichen)
+            <input type="search" value="{{q}}" onChange="{{setQ}}" placeholder="Name, Ort oder Musikrichtung" style="height: 44px; border-radius: 10px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; padding: 0 12px; font: inherit; font-size: 14px;">
+          </label>
+          <sc-for list="{{found}}" as="r" hint-placeholder-count="3">
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 8px 0; border-top: 1px solid #ffffff14;">
+              <div style="flex: 999 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-size: 15px; font-weight: 600;">{{r.name}}</span>
+                <span style="font-size: 13px; color: #b6b9c4;">{{r.line}}</span>
+              </div>
+              <button class="k-btn" onClick="{{r.add}}" disabled="{{r.done}}" style="{{r.style}}">{{r.label}}</button>
+            </div>
+          </sc-for>
+          <span style="font-size: 13px; color: #b6b9c4;">{{searchHint}}</span>
+        </div>
+      </sc-if>
+      <sc-if value="{{wayUrl}}" hint-placeholder-val="{{false}}">
+        <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #b6b9c4;">Adresse des Streams oder der Senderseite
+            <input type="url" placeholder="https://…" style="height: 44px; border-radius: 10px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; padding: 0 12px; font: inherit; font-size: 14px;">
+          </label>
+          <span style="font-size: 13px; color: #b6b9c4; line-height: 1.45;">Slouchcat ruft die Adresse ab, liest Name, Format und Bild und schlägt den Sender vor. Das ist der heutige Reiter «Eigene Sender», nur an derselben Stelle.</span>
+          <button class="k-btn" style="align-self: flex-start; min-height: 44px; padding: 0 18px; border-radius: 22px; background: #e8794a; color: #1c0d06; border: 0; font-size: 14px; font-weight: 600;">Prüfen</button>
+        </div>
+      </sc-if>
+      <sc-if value="{{wayImport}}" hint-placeholder-val="{{false}}">
+        <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
+          <span style="font-size: 14px; line-height: 1.45;">Eine Senderliste aus einer anderen App übernehmen (M3U, PLS, OPML).</span>
+          <button class="k-btn" onClick="{{runImport}}" style="align-self: flex-start; min-height: 44px; padding: 0 18px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">{{importLabel}}</button>
+          <sc-if value="{{imported}}" hint-placeholder-val="{{false}}">
+            <div role="status" style="border: 1px solid #8fd6b0; background: #8fd6b01f; border-radius: 10px; padding: 12px 14px; font-size: 14px; line-height: 1.5;">23 Sender in der Datei. 19 im Katalog wiedererkannt (mit Bild, Genre und Anbieter), 3 als eigene Sender mit ihrer Adresse übernommen, 1 antwortet nicht und wurde ausgelassen.</div>
+          </sc-if>
+        </div>
+      </sc-if>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{hasSilent}}" hint-placeholder-val="{{true}}">
+    <section aria-label="Stumme Sender" style="border: 1px solid #e8b84a; background: #e8b84a14; border-radius: 14px; padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+      <span style="flex: 999 1 300px; font-size: 14px; line-height: 1.45;">{{silentText}}</span>
+      <button class="k-btn" onClick="{{replaceSilent}}" style="min-height: 44px; padding: 0 16px; border-radius: 22px; background: #e8794a; color: #1c0d06; border: 0; font-size: 14px; font-weight: 600;">Anderen Stream nehmen</button>
+      <button class="k-btn" onClick="{{removeSilent}}" style="min-height: 44px; padding: 0 16px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">Entfernen</button>
+    </section>
+  </sc-if>
+  <sc-if value="{{notice}}" hint-placeholder-val="{{false}}">
+    <div role="status" style="border: 1px solid #8fd6b0; background: #8fd6b01f; border-radius: 10px; padding: 12px 14px; font-size: 14px;">{{noticeText}}</div>
+  </sc-if>
+
+  <section style="border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; overflow: hidden;">
+    <div style="background: #2b1d17; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline;">
+      <span style="font-size: 16px; font-weight: 600;">Sender im Haushalt</span>
+      <span style="font-size: 13px; color: #d0d2da;">{{listNote}}</span>
+    </div>
+    <sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
+      <div style="border-top: 1px solid #ffffff14;">
+        <div style="display: flex; flex-wrap: wrap; gap: 14px; align-items: center; padding: 10px 16px;">
+          <div aria-hidden="true" style="{{r.logo}}">{{r.ini}}</div>
+          <div style="flex: 999 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+            <span style="font-size: 15px; font-weight: 600;">{{r.name}}</span>
+            <span style="font-size: 13px; color: #b6b9c4;">{{r.line}}</span>
+          </div>
+          <div style="flex: 0 0 150px; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 12px; color: #9ea3b0;">Hinzugefügt</span>
+            <span style="font-size: 14px;">{{r.by}}</span>
+          </div>
+          <div style="flex: 0 0 110px; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 12px; color: #9ea3b0;">Bei</span>
+            <span style="font-size: 14px;">{{r.fans}}</span>
+          </div>
+          <div style="flex: 0 0 150px;"><span style="{{r.stateStyle}}">{{r.stateText}}</span></div>
+          <button class="k-btn" aria-label="{{r.removeLabel}}" onClick="{{r.remove}}" style="min-height: 44px; padding: 0 14px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">Entfernen</button>
+          <button class="k-btn" aria-expanded="{{r.expanded}}" aria-label="{{r.toggleLabel}}" onClick="{{r.toggle}}" style="width: 44px; height: 44px; border-radius: 22px; background: #1d2029; border: 1px solid #ffffff2e; color: #f3f3f5; display: inline-flex; align-items: center; justify-content: center;">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="{{r.chevron}}"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+        </div>
+        <sc-if value="{{r.open}}" hint-placeholder-val="{{false}}">
+          <div style="padding: 2px 16px 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
+            <sc-for list="{{r.cards}}" as="c" hint-placeholder-count="3">
+              <div style="background: #1a1c24; border: 1px solid #ffffff14; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+                <span style="font-size: 14px; font-weight: 600;">{{c.title}}</span>
+                <sc-for list="{{c.facts}}" as="x" hint-placeholder-count="5">
+                  <div style="display: flex; gap: 10px; font-size: 13px; line-height: 1.4;">
+                    <span style="flex: 0 0 96px; color: #9ea3b0;">{{x.k}}</span>
+                    <span style="min-width: 0; overflow-wrap: anywhere;">{{x.v}}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </sc-for>
+    <sc-if value="{{empty}}" hint-placeholder-val="{{false}}">
+      <div style="padding: 24px 16px; border-top: 1px solid #ffffff14; font-size: 14px; color: #b6b9c4; line-height: 1.5;">Noch kein Sender. Jedes Profil kann auf der Radioseite Sender suchen und hinzufügen; hier geht es über «Sender hinzufügen».</div>
+    </sc-if>
+  </section>
+
+  <section style="border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+    <span style="font-size: 16px; font-weight: 600;">Neu in den Einstellungen</span>
+    <sc-for list="{{settings}}" as="s" hint-placeholder-count="3">
+      <div style="display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; border-top: 1px solid #ffffff14; padding-top: 12px;">
+        <div style="flex: 999 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 14px; font-weight: 600;">{{s.title}}</span>
+          <span style="font-size: 13px; color: #b6b9c4; line-height: 1.4;">{{s.hint}}</span>
+        </div>
+        <div role="group" aria-label="{{s.title}}" style="display: flex; flex-wrap: wrap; gap: 6px;">
+          <sc-for list="{{s.opts}}" as="o" hint-placeholder-count="3">
+            <button class="k-btn" aria-pressed="{{o.pressed}}" onClick="{{o.pick}}" style="{{o.style}}">{{o.label}}</button>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1560}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { list: ['srf3', 'srf1', 'jazz', 'c3', 'nrj', 'bbc4', 'fip', 'dlf', 'kexp', 'lokal'], open: { srf3: true }, adding: false, way: 'search', q: 'swiss', importing: false, imported: false, fixed: false, notice: '', who: 'all', discover: '20', silent: 'report' };
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var S = {
+      srf3: ['Radio SRF 3', 'S3', 350, 'Schweiz · Pop, Rock · SRG SSR', 'Marco, 2. Nov.', '3 Profilen', 7, 'AAC 96 kbit/s', 'Schweizer Radio und Fernsehen', '1983'],
+      srf1: ['Radio SRF 1', 'S1', 0, 'Schweiz · Pop, News · SRG SSR', 'Lena, 2. Nov.', '2 Profilen', 6, 'AAC 96 kbit/s', 'Schweizer Radio und Fernsehen', '1931'],
+      jazz: ['Radio Swiss Jazz', 'SJ', 30, 'Schweiz · Jazz · SRG SSR', 'Marco, 3. Nov.', '1 Profil', 5, 'AAC 192 kbit/s', 'SRG SSR', '1998'],
+      c3: ['Couleur 3', 'C3', 280, 'Schweiz, Lausanne · Alternative · SRG SSR', 'Marco, 3. Nov.', '1 Profil', 4, 'AAC 96 kbit/s', 'Radio Télévision Suisse', '1982'],
+      nrj: ['Energy Zürich', 'EZ', 12, 'Schweiz, Zürich · Pop, Dance · Energy', 'Kids, 5. Nov.', '1 Profil', 3, 'MP3 128 kbit/s', '', ''],
+      bbc4: ['BBC Radio 4', 'B4', 220, 'Grossbritannien · Talk, News · BBC', 'Marco, 6. Nov.', '1 Profil', 8, 'AAC 128 kbit/s', 'BBC', '1967'],
+      fip: ['FIP', 'FI', 320, 'Frankreich · Jazz, Weltmusik · Radio France', 'Marco, 6. Nov.', '2 Profilen', 7, 'AAC 192 kbit/s', 'Radio France', '1971'],
+      dlf: ['Deutschlandfunk', 'DL', 215, 'Deutschland · News, Kultur · Deutschlandradio', 'Lena, 7. Nov.', '1 Profil', 6, 'AAC 128 kbit/s', 'Deutschlandradio', '1962'],
+      kexp: ['KEXP', 'KX', 45, 'USA, Seattle · Alternative', 'Marco, 8. Nov.', '1 Profil', 3, 'AAC 128 kbit/s', '', ''],
+      lokal: ['Beispielradio Thun', 'BT', 60, 'Schweiz, Bern · Ohne Genre', 'Lena, 20. Okt.', '1 Profil', 2, 'MP3 128 kbit/s', '', ''],
+      clas: ['Radio Swiss Classic', 'SC', 210, 'Schweiz · Klassik · SRG SSR', 'Verwaltung, heute', 'noch niemandem', 6, 'AAC 192 kbit/s', 'SRG SSR', '1998'],
+      spop: ['Radio Swiss Pop', 'SP', 330, 'Schweiz · Pop · SRG SSR', 'Verwaltung, heute', 'noch niemandem', 5, 'AAC 192 kbit/s', 'SRG SSR', '1998']
+    };
+    var pill = function (on) { return 'min-height: 40px; padding: 0 14px; border-radius: 20px; font-size: 14px; color: #f3f3f5; border: 1px solid ' + (on ? '#e8794a' : '#ffffff2e') + '; background: ' + (on ? '#e8794a33' : '#1d2029') + ';'; };
+    var silentHere = st.list.indexOf('lokal') >= 0 && !st.fixed;
+    var tile = function (label, value, note, warn) { return { label: label, value: value, note: note, style: 'background: #13151b; border: 1px solid ' + (warn ? '#e8b84a' : '#ffffff14') + '; border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 2px;' }; };
+    var rows = st.list.map(function (id) {
+      var s = S[id], open = !!st.open[id], bad = id === 'lokal' && !st.fixed;
+      var tone = bad ? ['#ff8f7a', '#ff8f7a24', 'Seit 16 Tagen stumm'] : ['#8fd6b0', 'transparent', 'Erreichbar'];
+      var cards = [
+        ['Katalog', [['Einträge', s[6] + ' zusammengefasst, Angaben vereint'], ['Gespielt wird', bad ? 'kein Stream antwortet' : 'der beste erreichbare Stream'], ['Abgleich', 'täglich, nur für diese Sender']]],
+        ['Stream', bad ? [['Ergebnis', 'Adresse antwortet nicht'], ['Geprüft', 'täglich, zuletzt heute 04:41']] : [['Format', s[7]], ['Zeigt Titel', 'ja'], ['Geprüft', 'heute, 04:41']]],
+        ['Wikidata', s[8] ? [['Eigentümer', s[8]], ['Gegründet', s[9]]] : [['Ergebnis', 'kein Treffer über die Webseite']]]
+      ].map(function (c) { return { title: c[0], facts: c[1].map(function (f) { return { k: f[0], v: f[1] }; }) }; });
+      return {
+        name: s[0], ini: s[1], line: s[3], by: s[4], fans: s[5],
+        logo: 'flex: 0 0 48px; width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: #0b0c10; background: linear-gradient(135deg, hsl(' + s[2] + ' 70% 72%), hsl(' + ((s[2] + 40) % 360) + ' 60% 52%));',
+        stateText: tone[2], stateStyle: 'display: inline-flex; align-items: center; min-height: 26px; padding: 0 10px; border-radius: 13px; font-size: 13px; white-space: nowrap; color: ' + tone[0] + '; background: ' + tone[1] + '; border: 1px solid ' + tone[0] + ';',
+        removeLabel: 'Aus dem Haushalt entfernen: ' + s[0],
+        remove: function () { self.setState({ list: st.list.filter(function (x) { return x !== id; }), notice: s[0] + ' ist entfernt, auch bei ' + s[5] + '.' }); },
+        open: open, expanded: open ? 'true' : 'false', toggleLabel: (open ? 'Einklappen: ' : 'Aufklappen: ') + s[0],
+        toggle: function () { var o = Object.assign({}, st.open); if (open) delete o[id]; else o[id] = true; self.setState({ open: o }); },
+        chevron: 'transition: transform 0.15s; transform: rotate(' + (open ? 180 : 0) + 'deg);', cards: cards
+      };
+    });
+    var q = st.q.trim().toLowerCase();
+    var pool = ['clas', 'spop', 'jazz', 'srf3', 'srf1'];
+    var found = q ? pool.filter(function (id) { return S[id][0].toLowerCase().indexOf(q) >= 0 || S[id][3].toLowerCase().indexOf(q) >= 0; }) : [];
+    var opt = function (key, defs) { return defs.map(function (d) { var on = st[key] === d[0]; var c = {}; c[key] = d[0]; return { label: d[1], pressed: on ? 'true' : 'false', style: pill(on), pick: function () { self.setState(c); } }; }); };
+    return {
+      tiles: [
+        tile('Sender im Haushalt', String(st.list.length), 'aus 53.366 im Katalog'),
+        tile('Erreichbar', String(st.list.length - (silentHere ? 1 : 0)), 'täglich geprüft'),
+        tile('Stumm', silentHere ? '1' : '0', silentHere ? 'seit 16 Tagen' : 'alles in Ordnung', silentHere),
+        tile('Läuft gerade', '2 Sender', '3 Hörer')
+      ],
+      adding: st.adding, addExpanded: st.adding ? 'true' : 'false', toggleAdd: function () { self.setState({ adding: !st.adding }); },
+      ways: [['search', 'Im Katalog suchen'], ['url', 'Adresse eingeben'], ['import', 'Liste übernehmen']].map(function (d) { var on = st.way === d[0]; return { label: d[1], pressed: on ? 'true' : 'false', style: pill(on), pick: function () { self.setState({ way: d[0] }); } }; }),
+      waySearch: st.way === 'search', wayUrl: st.way === 'url', wayImport: st.way === 'import',
+      q: st.q, setQ: function (e) { self.setState({ q: e.target.value }); },
+      found: found.map(function (id) {
+        var done = st.list.indexOf(id) >= 0;
+        return { name: S[id][0], line: S[id][3] + ' · ' + S[id][6] + ' Streams zusammengefasst', done: done, label: done ? 'Im Haushalt' : 'Hinzufügen',
+          style: 'min-height: 44px; padding: 0 16px; border-radius: 22px; font-size: 14px; font-weight: 600; border: 0; ' + (done ? 'background: #3a3d48; color: #d0d2da; cursor: default;' : 'background: #e8794a; color: #1c0d06; cursor: pointer;'),
+          add: function () { if (!done) self.setState({ list: [id].concat(st.list), notice: S[id][0] + ' ist hinzugefügt und steht bei allen unter «Im Haushalt».' }); } };
+      }),
+      searchHint: q ? (found.length ? 'Mockup: gesucht wird in fünf Beispielen.' : 'Kein Treffer im Mockup. Versuch «swiss» oder «srf».') : 'Tippe einen Namen, zum Beispiel «swiss».',
+      importLabel: st.importing ? 'Liest Datei …' : 'Datei wählen', imported: st.imported,
+      runImport: function () { self.setState({ importing: true }); setTimeout(function () { self.setState({ importing: false, imported: true }); }, 1400); },
+      hasSilent: silentHere, silentText: 'Beispielradio Thun antwortet seit 16 Tagen nicht. Im Katalog gibt es einen zweiten Eintrag dieses Senders mit einer anderen Adresse.',
+      replaceSilent: function () { self.setState({ fixed: true, notice: 'Beispielradio Thun spielt jetzt über den anderen Stream. Favoriten bleiben.' }); },
+      removeSilent: function () { self.setState({ list: st.list.filter(function (x) { return x !== 'lokal'; }), notice: 'Beispielradio Thun ist entfernt.' }); },
+      notice: !!st.notice, noticeText: st.notice,
+      listNote: st.list.length + ' Sender · neueste zuerst', rows: rows, empty: rows.length === 0,
+      settings: [
+        { title: 'Wer darf Sender hinzufügen', hint: 'Hinzugefügte Sender stehen bei allen Profilen unter «Im Haushalt».', opts: opt('who', [['all', 'Alle Profile'], ['adults', 'Nur Erwachsene'], ['admin', 'Nur Verwaltung']]) },
+        { title: 'Reihe «Beliebt in deinem Land»', hint: 'Ein paar Vorschläge auf der Radioseite, nach dem Land des Profils, höchstens zwei je Anbieter.', opts: opt('discover', [['off', 'Aus'], ['20', '20 Sender'], ['50', '50 Sender']]) },
+        { title: 'Stumme Sender', hint: 'Antwortet ein Sender nicht mehr, sucht Slouchcat zuerst selbst einen anderen Stream desselben Senders.', opts: opt('silent', [['report', 'Nur melden'], ['30', 'Nach 30 Tagen entfernen']]) }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

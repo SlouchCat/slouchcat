@@ -1,0 +1,126 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-10T00:10:00Z"
+ },
+ "title": "Radio-Verwaltung",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1280,
+   "h": 1380,
+   "title": "Angebot A: Pakete",
+   "expand": "fill",
+   "is_interactive": true
+  },
+  "AngebotB.dc.html": {
+   "x": 1360,
+   "y": 0,
+   "w": 1280,
+   "h": 1500,
+   "title": "Angebot B: Länder zuerst",
+   "expand": "fill",
+   "is_interactive": true
+  },
+  "AngebotC.dc.html": {
+   "x": 2720,
+   "y": 0,
+   "w": 1280,
+   "h": 1180,
+   "title": "Angebot C: Regeln",
+   "expand": "fill",
+   "is_interactive": true
+  },
+  "Uebersicht.dc.html": {
+   "x": 0,
+   "y": 2440,
+   "w": 1280,
+   "h": 1240,
+   "title": "Übersicht: Zustand und Automatik",
+   "expand": "fill",
+   "is_interactive": true
+  },
+  "Sender.dc.html": {
+   "x": 1360,
+   "y": 2440,
+   "w": 1280,
+   "h": 1560,
+   "title": "Sender: Anbieter, Aufräumen, Herkunft der Angaben",
+   "expand": "fill",
+   "is_interactive": true
+  },
+  "MeineSender.dc.html": {
+   "x": 0,
+   "y": 4420,
+   "w": 1280,
+   "h": 1500,
+   "title": "App: Meine Sender, hinzufügen über die Suche",
+   "expand": "fill",
+   "is_interactive": true
+  },
+  "VerwaltungNeu.dc.html": {
+   "x": 1360,
+   "y": 4420,
+   "w": 1280,
+   "h": 1560,
+   "title": "Verwaltung: Sender im Haushalt",
+   "expand": "fill",
+   "is_interactive": true
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "AngebotB.dc.html",
+  "AngebotC.dc.html",
+  "Uebersicht.dc.html",
+  "Sender.dc.html",
+  "MeineSender.dc.html",
+  "VerwaltungNeu.dc.html"
+ ],
+ "notes": {
+  "head": {
+   "x": 0,
+   "y": -320,
+   "text": "Radio-Verwaltung · «Angebot»: welche Sender es gibt, drei Varianten",
+   "kind": "title1",
+   "maxW": 4000
+  },
+  "hint": {
+   "x": 0,
+   "y": -200,
+   "text": "Alles klickbar: Artboard öffnen und auf Play drücken. Die Reiter der Seite springen zwischen den Bildern. Echt (Radio Browser, 9./10. November 2026): Sender je Land, je Genre, je Sprache. Angebot B: erst Kontinent und Länder (alle 223), dann je Land die Senderliste zum Markieren. Der Server lädt Metadaten nur für übernommene Sender. Diese Repo-Kopie führt keine Logos (Markenbilder bleiben draussen) und Senderlisten nur für CH, LI, DE, AT, FR, IT, US, GB; die Leinwand aus Anhang A zeigt Logos. Doppelte Einträge sind zusammengeführt; die Schweiz ist vollständig, sonst stehen die 30 meistgehörten. Kombinationen, Pakete nach Anbieter und die Einzelsender der anderen Bilder sind Beispiele.",
+   "w": 1280,
+   "fill": "orange",
+   "size": "m"
+  },
+  "head2": {
+   "x": 0,
+   "y": 2140,
+   "text": "Übersicht und Sender: ohne Reiter «Einordnung», nichts von Hand",
+   "kind": "title1",
+   "maxW": 2640
+  },
+  "head3": {
+   "x": 0,
+   "y": 4120,
+   "text": "Ganz anders: «Meine Sender» statt Katalog",
+   "kind": "title1",
+   "maxW": 2640
+  },
+  "hint3": {
+   "x": 2720,
+   "y": 4420,
+   "text": "Der Katalog ist hier nur noch ein Suchindex. In der App gibt es, was jemand im Haushalt hinzugefügt hat. Im App-Bild oben «Von vorn» drücken, um den ersten Tag zu sehen. In der Suche zum Beispiel «srf», «jazz» oder «bbc» tippen.",
+   "w": 560,
+   "fill": "green",
+   "size": "m"
+  }
+ },
+ "designSystems": []
+}

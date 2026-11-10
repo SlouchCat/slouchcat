@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Radio-Verwaltung: Übersicht</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f3a27f}a:hover{color:#ffc4a8}
+.k-btn{font:inherit;cursor:pointer}
+.k-btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+</style>
+</helmet>
+<div style="box-sizing: border-box; min-height: 100vh; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 20px 16px 48px;">
+<div style="max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px;">
+
+  <div style="display: flex; flex-direction: column; gap: 4px;">
+    <h1 style="margin: 0; font-size: 26px; font-weight: 700;">Radio</h1>
+    <span style="font-size: 14px; color: #b6b9c4;">Zustand auf einen Blick. Hier gibt es nichts zuzuordnen.</span>
+  </div>
+
+  <nav aria-label="Bereiche" style="display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #ffffff24;">
+    <a href="Uebersicht.dc.html" aria-current="page" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #f3f3f5; text-decoration: none; font-size: 15px; font-weight: 600; border-bottom: 3px solid #e8794a;">Übersicht</a>
+    <a href="Main.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #d0d2da; text-decoration: none; font-size: 15px;">Angebot</a>
+    <a href="Sender.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #d0d2da; text-decoration: none; font-size: 15px;">Sender</a>
+    <span style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #9ea3b0; font-size: 15px;">Eigene Sender (bleibt)</span>
+    <span style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: #9ea3b0; font-size: 15px;">Einstellungen (bleibt)</span>
+  </nav>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+    <sc-for list="{{tiles}}" as="k" hint-placeholder-count="4">
+      <div style="{{k.style}}">
+        <span style="font-size: 13px; color: #b6b9c4;">{{k.label}}</span>
+        <span style="font-size: 26px; font-weight: 700;">{{k.value}}</span>
+        <span style="font-size: 13px; color: #b6b9c4;">{{k.note}}</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <sc-if value="{{hasBroken}}" hint-placeholder-val="{{true}}">
+    <section aria-label="Aufräumen" style="border: 1px solid #e8b84a; background: #e8b84a14; border-radius: 14px; padding: 16px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center;">
+      <div style="flex: 999 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+        <span style="font-size: 16px; font-weight: 600;">{{brokenTitle}}</span>
+        <span style="font-size: 13px; color: #d0d2da; line-height: 1.45;">In der App sind sie schon ausgeblendet. Entfernte Sender kommen nur zurück, wenn sie wieder antworten.</span>
+      </div>
+      <a href="Sender.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 22px; border: 1px solid #ffffff2e; color: #f3f3f5; text-decoration: none; font-size: 14px;">Ansehen</a>
+      <button class="k-btn" onClick="{{removeBroken}}" style="min-height: 44px; padding: 0 18px; border-radius: 22px; background: #e8794a; color: #1c0d06; border: 0; font-size: 14px; font-weight: 600;">Alle entfernen</button>
+    </section>
+  </sc-if>
+  <sc-if value="{{removed}}" hint-placeholder-val="{{false}}">
+    <div role="status" style="border: 1px solid #8fd6b0; background: #8fd6b01f; border-radius: 12px; padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; font-size: 14px;">
+      <span style="flex: 999 1 260px;">38 nicht erreichbare Sender entfernt. Favoriten darunter bleiben als «zurzeit nicht erreichbar» stehen.</span>
+      <button class="k-btn" onClick="{{undo}}" style="min-height: 44px; padding: 0 16px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">Rückgängig</button>
+    </div>
+  </sc-if>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start;">
+
+    <section style="flex: 1 1 520px; min-width: 0; border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; overflow: hidden;">
+      <div style="background: #2b1d17; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+        <span style="font-size: 16px; font-weight: 600; margin-right: 8px;">Was im Angebot ist</span>
+        <div role="group" aria-label="Aufteilen nach" style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <sc-for list="{{splits}}" as="s" hint-placeholder-count="4">
+            <button class="k-btn" aria-pressed="{{s.pressed}}" onClick="{{s.pick}}" style="{{s.style}}">{{s.label}}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
+        <sc-for list="{{bars}}" as="b" hint-placeholder-count="6">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; justify-content: space-between; gap: 10px; font-size: 14px;"><span>{{b.k}}</span><span style="font-variant-numeric: tabular-nums; color: #d0d2da;">{{b.v}}</span></div>
+            <div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #ffffff1f;"><div style="{{b.bar}}"></div></div>
+          </div>
+        </sc-for>
+        <a href="Main.dc.html" style="font-size: 14px; display: inline-flex; align-items: center; min-height: 44px; align-self: flex-start;">Angebot ändern</a>
+      </div>
+    </section>
+
+    <section style="flex: 1 1 420px; min-width: 0; border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; overflow: hidden;">
+      <div style="background: #2b1d17; padding: 12px 16px; font-size: 16px; font-weight: 600;">Das macht Slouchcat selbst</div>
+      <sc-for list="{{auto}}" as="a" hint-placeholder-count="5">
+        <div style="display: flex; gap: 12px; align-items: center; padding: 10px 16px; border-top: 1px solid #ffffff14;">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8fd6b0" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 18px;"><path d="M5 12l5 5 9-10"/></svg>
+          <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 14px; font-weight: 600;">{{a.t}}</span>
+            <span style="font-size: 13px; color: #b6b9c4; line-height: 1.4;">{{a.h}}</span>
+          </div>
+          <span style="flex: 0 0 auto; font-size: 14px; font-variant-numeric: tabular-nums;">{{a.v}}</span>
+        </div>
+      </sc-for>
+      <div style="padding: 12px 16px; border-top: 1px solid #ffffff14; font-size: 13px; color: #b6b9c4; line-height: 1.45;">Was sich nicht bestimmen lässt, steht in der App unter «Ohne Genre» oder «Anbieter unbekannt». Der Reiter «Einordnung» fällt weg.</div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start;">
+
+    <section style="flex: 1 1 420px; min-width: 0; border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+      <span style="font-size: 16px; font-weight: 600;">Aufräumen</span>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+        <span style="font-size: 14px;">Nicht erreichbare automatisch entfernen</span>
+        <div role="group" aria-label="Nicht erreichbare automatisch entfernen" style="display: flex; flex-wrap: wrap; gap: 6px;">
+          <sc-for list="{{cleanOpts}}" as="o" hint-placeholder-count="4">
+            <button class="k-btn" aria-pressed="{{o.pressed}}" onClick="{{o.pick}}" style="{{o.style}}">{{o.label}}</button>
+          </sc-for>
+        </div>
+      </div>
+      <span style="font-size: 13px; color: #b6b9c4; line-height: 1.45;">{{cleanHint}}</span>
+      <label style="display: flex; gap: 12px; align-items: flex-start; min-height: 44px; cursor: pointer;">
+        <input type="checkbox" role="switch" checked="{{ownCheck}}" onChange="{{toggleOwnCheck}}" style="width: 22px; height: 22px; flex: 0 0 22px; margin-top: 2px; accent-color: #e8794a;">
+        <span style="display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 14px; font-weight: 600;">Sender im Angebot selbst prüfen</span>
+          <span style="font-size: 13px; color: #b6b9c4; line-height: 1.4;">Einmal pro Woche ruft Slouchcat jeden Sender im Angebot kurz ab, statt sich nur auf den Katalog zu verlassen. Dabei liest es Name, Genre, Beschreibung und Format aus dem Stream.</span>
+        </span>
+      </label>
+    </section>
+
+    <section style="flex: 1 1 420px; min-width: 0; border: 1px solid #ffffff14; border-radius: 14px; background: #13151b; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+      <span style="font-size: 16px; font-weight: 600;">Katalog und Abgleich</span>
+      <div style="display: flex; flex-direction: column; gap: 6px; font-size: 14px;">
+        <div style="display: flex; justify-content: space-between; gap: 10px;"><span style="color: #b6b9c4;">Quelle</span><span>Radio Browser, 52.539 Einträge</span></div>
+        <div style="display: flex; justify-content: space-between; gap: 10px;"><span style="color: #b6b9c4;">Letzter Abgleich</span><span>{{syncText}}</span></div>
+        <div style="display: flex; justify-content: space-between; gap: 10px;"><span style="color: #b6b9c4;">Im Angebot geändert</span><span>12 neu, 3 entfernt</span></div>
+      </div>
+      <label style="display: flex; gap: 12px; align-items: flex-start; min-height: 44px; cursor: pointer;">
+        <input type="checkbox" role="switch" checked="{{wikidata}}" onChange="{{toggleWikidata}}" style="width: 22px; height: 22px; flex: 0 0 22px; margin-top: 2px; accent-color: #e8794a;">
+        <span style="display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 14px; font-weight: 600;">Mit Wikidata abgleichen</span>
+          <span style="font-size: 13px; color: #b6b9c4; line-height: 1.4;">Über die Webseite des Senders: Anbieter und Eigentümer, Sendegebiet, Gründungsjahr, Logo. Nur wo Wikidata den Sender kennt.</span>
+        </span>
+      </label>
+      <button class="k-btn" onClick="{{sync}}" style="align-self: flex-start; min-height: 44px; padding: 0 16px; border-radius: 22px; background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; font-size: 14px;">{{syncLabel}}</button>
+    </section>
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1240}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { broken: 38, removed: false, split: 'land', clean: '14', ownCheck: true, wikidata: true, syncing: false };
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var nf = function (n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); };
+    var offer = 6957 - (st.removed ? 38 : 0);
+    var pill = function (on) { return 'min-height: 40px; padding: 0 14px; border-radius: 20px; font-size: 14px; color: #f3f3f5; border: 1px solid ' + (on ? '#e8794a' : '#ffffff2e') + '; background: ' + (on ? '#e8794a33' : '#1d2029') + ';'; };
+    var tile = function (label, value, note, warn) {
+      return { label: label, value: value, note: note, style: 'background: #13151b; border: 1px solid ' + (warn ? '#e8b84a' : '#ffffff14') + '; border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 2px;' };
+    };
+    var data = {
+      land: [['Deutschland', 5631], ['Schweiz', 541], ['Österreich', 318], ['Grossbritannien (nur Klassik)', 74], ['USA (nur Klassik)', 112], ['übrige', 281]],
+      genre: [['Pop', 1420], ['Rock', 860], ['News und Talk', 790], ['Klassik', 1170], ['Oldies', 610], ['Ohne Genre', 1240]],
+      anbieter: [['ARD', 280], ['laut.fm', 190], ['SRG SSR', 60], ['Energy', 45], ['ORF', 20], ['Anbieter unbekannt', 2310]],
+      sprache: [['Deutsch', 4380], ['Englisch', 410], ['Französisch', 190], ['Italienisch', 95], ['Ohne Angabe', 1880]]
+    }[st.split];
+    var max = Math.max.apply(null, data.map(function (d) { return d[1]; }));
+    var cleanHint = st.clean === 'nie' ? 'Nicht erreichbare bleiben im Angebot stehen, in der App ausgeblendet, bis du sie von Hand entfernst.' : 'Antwortet ein Sender ' + st.clean + ' Tage am Stück nicht, verschwindet er aus dem Angebot. Meldet er sich wieder, kommt er von selbst zurück.';
+    return {
+      tiles: [
+        tile('Im Angebot', nf(offer), 'von 52.539 im Katalog'),
+        tile('Erreichbar', st.removed ? '100 %' : '99,5 %', 'nach Katalog und eigener Prüfung'),
+        tile('Nicht erreichbar', st.removed ? '0' : '38', st.removed ? 'aufgeräumt' : 'ältester seit 41 Tagen', !st.removed),
+        tile('Läuft gerade', '2 Sender', '3 Hörer · Puffer 112 von 512 MB')
+      ],
+      hasBroken: !st.removed, removed: st.removed, brokenTitle: '38 Sender im Angebot antworten nicht',
+      removeBroken: function () { self.setState({ removed: true }); }, undo: function () { self.setState({ removed: false }); },
+      splits: [['land', 'Land'], ['genre', 'Genre'], ['anbieter', 'Anbieter'], ['sprache', 'Sprache']].map(function (d) { var on = st.split === d[0]; return { label: d[1], pressed: on ? 'true' : 'false', style: pill(on), pick: function () { self.setState({ split: d[0] }); } }; }),
+      bars: data.map(function (d) { return { k: d[0], v: nf(d[1]), bar: 'height: 6px; border-radius: 3px; background: #e8794a; width: ' + Math.max(2, Math.round(100 * d[1] / max)) + '%;' }; }),
+      auto: [
+        { t: 'Genre, Sendeart, Stimmung', h: 'Aus den Schlagworten des Katalogs und den Angaben im Stream.', v: '82 %' },
+        { t: 'Anbieter', h: 'Aus Webseite und Stream-Adresse, zum Beispiel SRG SSR, ARD, laut.fm.', v: '67 %' },
+        { t: 'Senderbild', h: 'Aus dem Katalog, sonst von der Webseite, sonst ein gezeichnetes.', v: '100 %' },
+        { t: 'Doppelte zusammenführen', h: 'Ein Sender, mehrere Streams; gespielt wird der beste.', v: '1.184' },
+        { t: 'Erreichbarkeit', h: 'Täglich aus dem Katalog, wöchentlich selbst geprüft.', v: 'läuft' }
+      ],
+      cleanOpts: [['nie', 'Nie'], ['7', 'nach 7 Tagen'], ['14', 'nach 14 Tagen'], ['30', 'nach 30 Tagen']].map(function (d) { var on = st.clean === d[0]; return { label: d[1], pressed: on ? 'true' : 'false', style: pill(on), pick: function () { self.setState({ clean: d[0] }); } }; }),
+      cleanHint: cleanHint,
+      ownCheck: st.ownCheck, toggleOwnCheck: function () { self.setState({ ownCheck: !st.ownCheck }); },
+      wikidata: st.wikidata, toggleWikidata: function () { self.setState({ wikidata: !st.wikidata }); },
+      syncText: st.syncing ? 'läuft …' : 'heute, 04:30', syncLabel: st.syncing ? 'Abgleich läuft …' : 'Jetzt abgleichen',
+      sync: function () { self.setState({ syncing: true }); setTimeout(function () { self.setState({ syncing: false }); }, 2200); }
+    };
+  }
+}
+</script>
+</body>
+</html>
