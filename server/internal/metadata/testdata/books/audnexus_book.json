@@ -1,0 +1,18 @@
+{
+  "asin": "B0TEST0002",
+  "title": "The Test Return",
+  "subtitle": "Unabridged",
+  "authors": [{"asin": "B0AUTH0002", "name": "John Q. Sample"}],
+  "narrators": [{"name": "Rob Reader"}],
+  "publisherName": "Sample Audio",
+  "releaseDate": "2015-02-24T00:00:00.000Z",
+  "language": "english",
+  "runtimeLengthMin": 1342,
+  "seriesPrimary": {"asin": "B0SERIES02", "name": "The Test Trilogy", "position": "3"},
+  "image": "https://images.example.test/B0TEST0002.jpg",
+  "summary": "<p>An invented sentence for the test.</p><p>A <b>second</b> one &amp; more.</p>",
+  "genres": [{"asin": "1", "name": "Fantasy", "type": "genre"}, {"asin": "2", "name": "Epic", "type": "tag"}],
+  "isbn": "978-0-00-000000-2",
+  "region": "us",
+  "formatType": "unabridged"
+}

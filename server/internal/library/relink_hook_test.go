@@ -20,6 +20,7 @@ func (tmdbKey) TVDBKey(context.Context) (string, string, error)    { return "", 
 func (tmdbKey) YouTubeKey(context.Context) (string, error)         { return "", nil }
 func (tmdbKey) TraktClientID(context.Context) (string, error)      { return "", nil }
 func (tmdbKey) FanartKeys(context.Context) (string, string, error) { return "", "", nil }
+func (tmdbKey) GoogleBooksKey(context.Context) (string, error)     { return "", nil }
 
 // fakeTMDBHeat answers a title search with Heat (TMDB 949) and its details; anything else is
 // unknown.

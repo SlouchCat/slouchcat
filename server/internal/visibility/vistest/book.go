@@ -47,3 +47,20 @@ func (f *Fixture) SetBookChapters(t testing.TB, itemID string, chapters []model.
 		               VALUES (?, ?, ?, ?, ?, NULL, 0)`, itemID, i, c.Title, c.StartMs, c.EndMs)
 	}
 }
+
+// SetBookForMatch prepares an audiobook for the tests of the book sources (contract 1.26.0): the
+// length of its files, its narrator, no publisher, and its locked fields.
+func (f *Fixture) SetBookForMatch(t testing.TB, itemID string, durationMs int64, narrator, lockedFields string) {
+	t.Helper()
+	exec(t, f.DB, `UPDATE items SET duration_ms = ?, narrator = ?, publisher = NULL, locked_fields = ? WHERE id = ?`,
+		durationMs, narrator, lockedFields, itemID)
+}
+
+// SetBookReview puts an audiobook into the list «Prüfen» with one stored candidate (the JSON of a
+// MetadataCandidate) of provider and providerID.
+func (f *Fixture) SetBookReview(t testing.TB, itemID, provider, providerID, candidate string) {
+	t.Helper()
+	exec(t, f.DB, `UPDATE items SET book_match_state = 'review', book_matched_at = 1 WHERE id = ?`, itemID)
+	exec(t, f.DB, `INSERT INTO book_match_candidates (item_id, rank, provider, provider_id, score, candidate)
+	               VALUES (?, 1, ?, ?, 0.3, ?)`, itemID, provider, providerID, candidate)
+}

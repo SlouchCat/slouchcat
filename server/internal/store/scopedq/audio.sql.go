@@ -101,7 +101,7 @@ func (q *Queries) ListVisibleAudioCollections(ctx context.Context, arg ListVisib
 
 const listVisibleAudioSeriesVolumes = `-- name: ListVisibleAudioSeriesVolumes :many
 SELECT i.id, CAST(i.audio_series_id AS TEXT) AS series_id, s.name AS series_display, s.name_locked,
-       i.series_name, i.series_index, i.author, i.narrator, i.duration_ms,
+       i.series_name, i.series_index, COALESCE(i.author_display, i.author) AS author, i.narrator, i.duration_ms,
        CAST(COALESCE(NULLIF(tm.sort_key, ''), NULLIF(tu.sort_key, ''), i.sort_title, '') AS TEXT) AS sort_key,
        COALESCE(p.completed, 0) AS completed
 FROM items AS i
@@ -181,7 +181,7 @@ func (q *Queries) ListVisibleAudioSeriesVolumes(ctx context.Context, arg ListVis
 
 const listVisibleAudioSeriesVolumesOf = `-- name: ListVisibleAudioSeriesVolumesOf :many
 SELECT i.id, CAST(i.audio_series_id AS TEXT) AS series_id, s.name AS series_display, s.name_locked,
-       i.series_name, i.series_index, i.author, i.narrator, i.duration_ms,
+       i.series_name, i.series_index, COALESCE(i.author_display, i.author) AS author, i.narrator, i.duration_ms,
        CAST(COALESCE(NULLIF(tm.sort_key, ''), NULLIF(tu.sort_key, ''), i.sort_title, '') AS TEXT) AS sort_key,
        COALESCE(p.completed, 0) AS completed
 FROM items AS i

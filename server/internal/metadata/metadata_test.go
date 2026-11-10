@@ -373,6 +373,8 @@ func (k staticKey) TraktClientID(context.Context) (string, error) { return "", n
 
 func (k staticKey) FanartKeys(context.Context) (string, string, error) { return "", "", nil }
 
+func (k staticKey) GoogleBooksKey(context.Context) (string, error) { return "", nil }
+
 type env struct {
 	db    *store.DB
 	queue *jobs.Queue

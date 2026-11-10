@@ -413,17 +413,41 @@ type AdminItem struct {
 	// Metadata is the editable metadata in the server's metadata language (concept 15 7.4,
 	// contract 1.15.0).
 	Metadata *AdminItemMetadata
+	// DurationMs is the length of an audiobook's files; BookMatch its match against the book
+	// sources, nil for a book never tried (contract 1.26.0, concept 19 D6.3).
+	DurationMs *int64
+	BookMatch  *AdminBookMatch
+}
+
+// AdminBookMatch is the match of an audiobook (items.book_match_*).
+type AdminBookMatch struct {
+	State, Provider, ProviderID, Region, Error string
+	MatchedAt                                  *time.Time
+	Manual                                     bool
 }
 
 // MetadataCandidate is a search result of a metadata provider (manual match, B-6).
 type MetadataCandidate struct {
-	Provider      string // tmdb, tvdb
+	Provider      string // tmdb, tvdb, or a book source (concept 19 D6)
 	ProviderID    string
 	Title         string
 	OriginalTitle string
 	Year          *int
 	Overview      string
 	PosterURL     string // small poster at the provider's image host
+	// The fields of a book source (contract 1.26.0); empty for films and series.
+	Subtitle           string
+	Authors, Narrators []string
+	Publisher          string
+	SeriesName         string
+	SeriesIndex        *float64
+	Language           string
+	DurationMs         int64 // 0 = unknown
+	ASIN, ISBN         string
+	CoverURL           string
+	Region             string   // the Audible marketplace
+	DurationMatches    *bool    // with a book to compare: the length lies within the tolerance
+	Score              *float64 // with a book to compare: 0.7 length, 0.2 title, 0.1 author
 }
 
 // Issue is one entry of the maintenance lists (B-9).
@@ -1300,16 +1324,25 @@ func TitleKindOfContent(content string) string {
 }
 
 // Metadata providers (ADR 0015). tmdb and tvdb identify titles and fill fields, anilist only
-// fills, local is the file-based identifier of audiobooks and podcast folders.
+// fills, local is the file-based identifier of audiobooks and podcast folders. The book sources
+// (concept 19 D6) fill audiobook folders after local: audible (the Audible catalog with the
+// details of Audnexus), dnb (Deutsche Nationalbibliothek), applebooks, openlibrary and
+// googlebooks (with a key only).
 const (
-	ProviderTMDB    = "tmdb"
-	ProviderTVDB    = "tvdb"
-	ProviderAniList = "anilist"
-	ProviderLocal   = "local"
+	ProviderTMDB        = "tmdb"
+	ProviderTVDB        = "tvdb"
+	ProviderAniList     = "anilist"
+	ProviderLocal       = "local"
+	ProviderAudible     = "audible"
+	ProviderDNB         = "dnb"
+	ProviderAppleBooks  = "applebooks"
+	ProviderOpenLibrary = "openlibrary"
+	ProviderGoogleBooks = "googlebooks"
 )
 
 // Providers lists every provider in the order the interface shows them.
-var Providers = []string{ProviderTMDB, ProviderTVDB, ProviderAniList, ProviderLocal}
+var Providers = []string{ProviderTMDB, ProviderTVDB, ProviderAniList, ProviderLocal,
+	ProviderAudible, ProviderDNB, ProviderAppleBooks, ProviderOpenLibrary, ProviderGoogleBooks}
 
 // Error codes of ValidRootProviders (field errors of a 422 validation_failed).
 const (
@@ -1336,7 +1369,7 @@ var (
 	fillers = map[string][]string{
 		RootMovie:     {ProviderAniList},
 		RootSeries:    {ProviderTMDB, ProviderTVDB, ProviderAniList},
-		RootAudiobook: {},
+		RootAudiobook: {ProviderAudible, ProviderDNB, ProviderAppleBooks, ProviderOpenLibrary, ProviderGoogleBooks},
 		RootPodcast:   {},
 	}
 )
@@ -1378,12 +1411,16 @@ func ValidRootProviders(content string, providers []string) bool {
 }
 
 // DefaultProviders is the list a new root of this content starts with: the order the code used
-// before ADR 0015 (TMDB first, TVDB as the fallback of series).
+// before ADR 0015 (TMDB first, TVDB as the fallback of series). An audiobook folder starts with
+// the files and Audible, DNB and Apple Books (concept 19 D6.2; Open Library and Google Books are
+// left out).
 func DefaultProviders(content string) []string {
 	switch content {
 	case RootSeries:
 		return []string{ProviderTMDB, ProviderTVDB}
-	case RootAudiobook, RootPodcast:
+	case RootAudiobook:
+		return []string{ProviderLocal, ProviderAudible, ProviderDNB, ProviderAppleBooks}
+	case RootPodcast:
 		return []string{ProviderLocal}
 	}
 	return []string{ProviderTMDB}

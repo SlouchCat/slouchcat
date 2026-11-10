@@ -188,7 +188,9 @@
       "job_type_not_runnable": "This job has no manual run; its runs come from events.",
       "job_type_paused": "The job is paused; resume it first.",
       "job_type_not_scheduled": "This job has no schedule.",
-      "job_type_not_windowable": "This job has no time window."
+      "job_type_not_windowable": "This job has no time window.",
+      "provider_unreachable": "The source cannot be reached right now. Please try again later.",
+      "provider_paused": "The source rests after repeated refusals. Please try again later."
     },
     "field": {
       "required": "Required.",
@@ -214,9 +216,11 @@
       "content_not_allowed": "This content does not fit the kind of the library.",
       "providers_not_allowed": "This list of metadata sources is not allowed for this content.",
       "roots_required": "At least one folder is required.",
-      "provider_not_searchable": "Only TMDB and TVDB can be searched.",
+      "provider_not_searchable": "This source cannot be searched here.",
       "local_address": "This address is in the local network. Own stations must come from the internet as well.",
-      "not_own": "Only an own station can change this."
+      "not_own": "Only an own station can change this.",
+      "not_matched": "This audiobook is not matched to a source.",
+      "not_found": "The source has no such entry."
     }
   },
   "setup": {
@@ -335,7 +339,12 @@
       "tmdb": "TMDB",
       "tvdb": "TVDB",
       "anilist": "AniList",
-      "local": "Local files"
+      "local": "Local files",
+      "audible": "Audible",
+      "dnb": "German National Library",
+      "applebooks": "Apple Books",
+      "openlibrary": "Open Library",
+      "googlebooks": "Google Books"
     },
     "content": {
       "title": "Content",
@@ -678,7 +687,8 @@
     "separator": " · ",
     "seconds": "{{seconds}} s",
     "or": " or ",
-    "listSeparator": ", "
+    "listSeparator": ", ",
+    "bookLength": "{{hours}} h {{minutes}} min"
   },
   "player": {
     "region": "Video player",
@@ -1413,10 +1423,69 @@
         "run": "Refresh now",
         "hint": "Runs as a job with high priority; the new values appear once it is done.",
         "book": {
-          "body": "«Read the files again» reads metadata.json, the tags and the folder names once more. Locked fields and a chosen cover stay.",
-          "unlockAll": "Lift locks",
-          "unlockAllHint": "Lift every lock of this book first: afterwards what the files say applies again. An own rating stays.",
-          "run": "Read the files again"
+          "body": "Locked fields and a chosen cover stay, unless you lift the locks first.",
+          "unlockAll": "Lift every lock as well",
+          "unlockAllHint": "Lift every lock of this book first, also the locks of the fields you took from a source under «Match»: afterwards what the files and the provider say applies again. The match itself and an own rating stay.",
+          "run": "Read again",
+          "filesTitle": "Read the files again",
+          "filesHint": "Reads metadata.json, the tags and the folder names once more.",
+          "providerTitle": "Fetch from the provider again",
+          "providerHint": "Fetches the details from {{source}} once more.",
+          "providerNone": "Pick a hit under «Match» first.",
+          "providerRun": "Fetch again",
+          "refetched": "The details from {{source}} are fetched again."
+        }
+      },
+      "bookMatch": {
+        "intro": "Search a source by title and author or by ASIN or ISBN and pick a hit. You decide field by field what is taken.",
+        "noSources": "The folder of this book lists no book source that is set up. A folder’s sources are chosen in its library.",
+        "matched": "Matched: {{source}}",
+        "unmatched": "Not matched: details from the files only",
+        "source": "Source",
+        "audible": {
+          "de": "Audible Germany",
+          "com": "Audible USA",
+          "couk": "Audible United Kingdom",
+          "other": "Audible ({{domain}})"
+        },
+        "title": "Title",
+        "author": "Author",
+        "asin": "ASIN",
+        "isbn": "ISBN",
+        "idHint": "With an ASIN or ISBN the source searches for that id.",
+        "needQuery": "Enter a title, an ASIN or an ISBN.",
+        "asinInvalid": "An ASIN has ten letters or digits.",
+        "isbnInvalid": "An ISBN has 10 or 13 digits; hyphens are allowed.",
+        "sorted": "Sorted by rating: matching length first, then title, then author.",
+        "filesLength": "Length of the files: {{length}}",
+        "lengthUnknown": "Length unknown",
+        "lengthFits": "{{length}}, matches",
+        "people": "{{authors}} · read by {{narrators}}",
+        "asinId": "ASIN {{id}}",
+        "isbnId": "ISBN {{id}}",
+        "choose": "Pick {{title}} ({{length}})",
+        "preview": {
+          "title": "What is taken",
+          "entry": "{{title}} at {{source}}",
+          "caption": "Fields of {{source}}, today and new",
+          "field": "Field",
+          "today": "Today",
+          "new": "New",
+          "take": "Take",
+          "takeLabel": "Take {{field}}",
+          "locked": "locked",
+          "noValue": "The source has no value",
+          "empty": "–",
+          "cover": "Cover of the source",
+          "coverToday": "present",
+          "hint": "Taken fields get a lock. Locked fields stay. The match also applies to a later «Fetch from the provider again».",
+          "same": "The source delivers nothing that differs from today.",
+          "apply_one": "Take {{count}} field",
+          "apply_other": "Take {{count}} fields",
+          "assignOnly": "Assign only",
+          "applied_one": "{{count}} field taken from {{source}} and locked.",
+          "applied_other": "{{count}} fields taken from {{source}} and locked.",
+          "assigned": "Matched with {{source}}, no field taken."
         }
       }
     },
@@ -1559,7 +1628,8 @@
         "texts": "languages deviate",
         "images": "images deviate",
         "both": "languages and images deviate",
-        "link": "Metadata of the library"
+        "link": "Metadata of the library",
+        "audiobooksLink": "Sources for audiobooks"
       },
       "trickplay": {
         "action": "Seek preview",
@@ -3748,6 +3818,11 @@
           "description": "Finds the matching TMDB or TVDB entry for a new title.",
           "trigger": "From the scan, manual match, folder change"
         },
+        "library_author_display": {
+          "name": "Unify author names",
+          "description": "Joins the spellings of an author across every audiobook into one display name.",
+          "trigger": "After a scan, after a match, the switch «Unify author names»"
+        },
         "metadata_fill": {
           "name": "Fill metadata",
           "description": "Fetches texts, genres, rating, cast and images of a title.",
@@ -3862,6 +3937,11 @@
         "roots": "The order of the sources is set per folder under Libraries.",
         "jobs": "The schedules are under Background jobs.",
         "keys": "Keys under Integrations"
+      },
+      "audiobooks": {
+        "title": "Audiobooks: sources",
+        "body": "Where Slouchcat gets details, length and covers for audiobooks, automatic matching and the list «Review».",
+        "open": "Open sources"
       },
       "areas": {
         "label": "Areas",
@@ -4023,6 +4103,119 @@
       "serverRestart": "Server restarted",
       "serverRestartBy": "Restart by {{account}}",
       "unknown": "Event on the server"
+    },
+    "audiobookSources": {
+      "title": "Audiobooks: sources",
+      "intro": "Where Slouchcat gets details and covers for audiobooks. The files always come first; a provider fills only what is missing, and never a locked field.",
+      "folders": {
+        "title": "Order per folder",
+        "intro": "The upper source wins per field. You change the order and which sources take part in the dialog of the folder.",
+        "empty": "There is no audiobook folder yet.",
+        "edit": "Change sources",
+        "editLabel": "Change the sources of {{path}}",
+        "library": "Library {{name}}"
+      },
+      "settings": {
+        "title": "Settings",
+        "saved": "Audiobook settings saved."
+      },
+      "region": {
+        "label": "Audible region",
+        "help": "The Audible catalog searched first. English books are also searched in the USA and the United Kingdom.",
+        "de": "Germany (audible.de)",
+        "com": "USA (audible.com)",
+        "couk": "United Kingdom (audible.co.uk)",
+        "fr": "France (audible.fr)",
+        "it": "Italy (audible.it)",
+        "es": "Spain (audible.es)",
+        "ca": "Canada (audible.ca)",
+        "comau": "Australia (audible.com.au)",
+        "in": "India (audible.in)",
+        "cojp": "Japan (audible.co.jp)"
+      },
+      "audnexus": {
+        "label": "Audnexus address",
+        "help": "Audnexus delivers the details of an Audible hit: description, genres, series, ISBN and cover. An own instance in the local network is allowed.",
+        "invalid": "Enter an address with http:// or https://."
+      },
+      "googleBooks": {
+        "name": "Google Books key",
+        "description": "Without a key the server never asks Google Books; only with a key can the source join the list of a folder.",
+        "link": "Get an API key from Google"
+      },
+      "auto": {
+        "label": "Match automatically",
+        "off": "Off",
+        "offHint": "Only by hand with the pen.",
+        "new": "New audiobooks",
+        "newHint": "On a scan, for audiobooks without a match.",
+        "all": "All without a match",
+        "allHint": "Once for the whole library, afterwards like «New audiobooks»."
+      },
+      "tolerance": {
+        "label": "Length may differ by",
+        "option": "{{count}} %",
+        "help": "Only a unique hit is matched: same author, similar title, matching length. Otherwise the audiobook keeps the details of its files and appears under «Review». 1 to 10 % are allowed."
+      },
+      "normalize": {
+        "title": "Unify",
+        "authors": "Unify author names",
+        "authorsHint": "«J R R Tolkien», «J.R.R. Tolkien» and «J. R. R. Tolkien» become one person.",
+        "series": "Unify series names",
+        "seriesHint": "«Bodyguard - Band» becomes «Bodyguard», «Der Herr Der Ringe - Band» becomes «Der Herr der Ringe»."
+      },
+      "terms": "Audible's terms of use forbid reading the catalog automatically. Slouchcat asks at most once a second and rests the source after repeated refusals. Whoever does not want that takes Audible out of the folder's list.",
+      "sources": {
+        "title": "State of the sources",
+        "ready": "ready",
+        "notConfigured": "off without a key",
+        "paused": "rests until {{time}}"
+      },
+      "stats": {
+        "title": "State of the library",
+        "total": "Audiobooks",
+        "matched": "Matched",
+        "review": "To review",
+        "none": "No hit",
+        "error": "Failed",
+        "pending": "Pending",
+        "running": "A match runs or waits."
+      },
+      "matchAll": {
+        "run": "Match all without a match now",
+        "queued_one": "{{count}} audiobook queued.",
+        "queued_other": "{{count}} audiobooks queued.",
+        "jobs": "To the background jobs"
+      },
+      "review": {
+        "title": "Review",
+        "intro": "Audiobooks with several candidates, a length outside the tolerance or a failed source. The pen opens the editor.",
+        "empty": "Nothing to review.",
+        "caption": "Audiobooks to review",
+        "column": {
+          "title": "Title",
+          "author": "Author",
+          "length": "Length",
+          "state": "State",
+          "candidates": "Candidates",
+          "actions": "Edit"
+        },
+        "state": {
+          "review": "to review",
+          "error": "failed"
+        },
+        "reason": {
+          "paused": "{{source}} rests after repeated refusals.",
+          "blocked": "{{source}} refused the requests.",
+          "notConfigured": "{{source}} is not set up.",
+          "region": "{{source}} does not know the chosen marketplace.",
+          "unreachable": "{{source}} could not be reached.",
+          "unknown": "{{source}} reported an error."
+        },
+        "candidate": "{{source}}: {{title}} · {{length}}",
+        "noCandidates": "none",
+        "edit": "Edit {{title}}"
+      }
     }
   },
   "language": {

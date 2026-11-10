@@ -99,7 +99,7 @@ tasks:
       - pnpm exec playwright test --project=chromium --retries=0 --max-failures=1 {{.CLI_ARGS}}
 
   e2e:parallel:
-    desc: E2E_SHARDS (3) shards side by side from port E2E_PORT (8097) in steps of 10, one merged report
+    desc: E2E_SHARDS (3) shards side by side from port E2E_PORT (8097) in steps of 20, one merged report
     deps: [tokens]
     cmds:
       - >-

@@ -198,7 +198,8 @@ func orderContents(libraryKind string, set map[string]bool) []string {
 }
 
 // librarySortColumns are the columns of the CTE lib (see libraryStmt) the sort orders other than
-// title order by; NULLs (and an empty author) come last in either direction.
+// title order by; NULLs (and an empty author) come last in either direction. author is the unified
+// name when there is one (items.author_display, concept 19 D6.4), else the files' value.
 var librarySortColumns = map[string]string{
 	model.LibrarySortAdded:    "added_at",
 	model.LibrarySortReleased: "release_date",
@@ -406,7 +407,8 @@ func libraryStmt(s Scope, pid, libraryID int64, f libraryFilter, head string, wi
 		         (SELECT NULLIF(tr.sort_key, '') FROM item_texts AS tr WHERE tr.item_id = i.id AND tr.sort_key IS NOT NULL
 		          ORDER BY tr.rank, tr.lang LIMIT 1),
 		         i.sort_title, '') AS sort_key,
-		i.added_at, i.release_date, i.vote_average, i.runtime_minutes, i.effective_rating, i.author`)
+		i.added_at, i.release_date, i.vote_average, i.runtime_minutes, i.effective_rating,
+		COALESCE(i.author_display, i.author) AS author`)
 	if withEp {
 		b.add(`,
 		CASE WHEN i.kind IN ('series', 'podcast') THEN

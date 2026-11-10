@@ -305,10 +305,24 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	relink := func(ctx context.Context, itemID string) (bool, error) {
 		return libSvc.QueueRelink(ctx, itemID)
 	}
-	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, runner, log, metadata.WithTrailerAI(cfg.TrailerAI),
-		metadata.WithVisibilityRecheck(playbackSvc.RecheckVisibility), metadata.WithFeedUserAgent("Slouchcat/"+version),
+	// The unified author names after a book match and a change of the switches «Vereinheitlichen»
+	// (concept 19 D6.4); the closure reads libSvc when a match runs, like relink.
+	authorDisplay := func(ctx context.Context) error {
+		return libSvc.QueueAuthorDisplay(ctx)
+	}
+	// The audiobook sources (concept 19 D6): the e2e suite points them at a mock, in development
+	// mode only.
+	metaOpts := []metadata.Option{metadata.WithTrailerAI(cfg.TrailerAI),
+		metadata.WithVisibilityRecheck(playbackSvc.RecheckVisibility), metadata.WithFeedUserAgent("Slouchcat/" + version),
 		metadata.WithNewEpisodes(notifySvc.NewEpisodes), metadata.WithAniList(cfg.AniList), metadata.WithRelink(relink),
-		metadata.WithTrakt(cfg.TraktClientID, metadata.WithTraktBaseURL(traktBase)))
+		metadata.WithTrakt(cfg.TraktClientID, metadata.WithTraktBaseURL(traktBase)),
+		metadata.WithAudioSeriesRelink(library.RelinkAudioSeries), metadata.WithAuthorDisplay(authorDisplay)}
+	if cfg.Dev && cfg.TestBooksBaseURL != "" {
+		metaOpts = append(metaOpts, metadata.WithTestBookSources(cfg.TestBooksBaseURL))
+	} else if cfg.TestBooksBaseURL != "" {
+		log.Warn("SLOUCHCAT_TEST_BOOKS_BASE_URL is ignored without --dev")
+	}
+	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, runner, log, metaOpts...)
 	// Trickplay runs one ffmpeg instead of two while a transcode keeps the CPU busy (concept 18).
 	var load library.TrickplayLoad
 	if mgr != nil {
@@ -328,7 +342,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	adminSvc.WithLocation(zone)
 	log.Info("time zone of the statistics", "zone", zoneName)
 	adminSvc.WithTrickplay(libSvc)
-	adminSvc.WithAniList(cfg.AniList).WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc).
+	adminSvc.WithAniList(cfg.AniList).WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc).WithBooks(metaSvc).
 		WithTrakt(metaSvc).WithBackups(cfg.ConfigDir, version).WithRestart(requestRestart).
 		// The browsable roots are classified once, here: the wizard's root list answers before
 		// any account exists and must make no system call per request (idea 02, E5).
@@ -433,6 +447,11 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		// queued once at the first start after it, later only by hand.
 		if _, err := metaSvc.QueueOriginalLanguageBackfillOnce(ctx); err != nil && ctx.Err() == nil {
 			log.Warn("original language backfill not queued", "err", err)
+		}
+		// Every audiobook without match once, at the first start with the automatic match on all
+		// (concept 19 D6.3, OD-4).
+		if _, err := metaSvc.QueueFirstBookMatches(ctx); err != nil && ctx.Err() == nil {
+			log.Warn("first audiobook match not queued", "err", err)
 		}
 	})
 	defer func() {
@@ -598,6 +617,11 @@ func (k *lazyKeys) TraktClientID(ctx context.Context) (string, error) {
 // FanartKeys reads the Fanart.tv keys (environment first, then the encrypted settings).
 func (k *lazyKeys) FanartKeys(ctx context.Context) (string, string, error) {
 	return k.admin.FanartKeys(ctx)
+}
+
+// GoogleBooksKey reads the Google Books key (environment first, then the encrypted settings).
+func (k *lazyKeys) GoogleBooksKey(ctx context.Context) (string, error) {
+	return k.admin.GoogleBooksKey(ctx)
 }
 
 // newPlayback detects the transcode backend (SLOUCHCAT_HW), starts the transcode manager on

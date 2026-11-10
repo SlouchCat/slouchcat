@@ -43,8 +43,8 @@ INSERT INTO items (id, kind, library_id, title, sort_title, year, genres, author
                    rating_source, providers, metadata_state, matched_at, added_at, created_at, updated_at)
 VALUES (?1, 'audiobook', ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
         ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17,
-        ?18, '["local"]', 'matched', ?19, ?19, ?19, ?19)
-RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id
+        ?18, ?19, 'matched', ?20, ?20, ?20, ?20)
+RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual
 `
 
 type InsertAudiobookParams struct {
@@ -66,6 +66,7 @@ type InsertAudiobookParams struct {
 	CoverPath        sql.NullString
 	OwnRating        sql.NullInt64
 	RatingSource     sql.NullString
+	Providers        string
 	Now              sql.NullInt64
 }
 
@@ -74,7 +75,8 @@ type InsertAudiobookParams struct {
 // are Unix milliseconds.
 // A new book found by a scan: the metadata of metadata.json and the folder names (the tags follow
 // with the probe), the age rating of the library (rating_source 'library', or 18 from 'tags' for
-// an explicit book). Audiobooks need no provider match: metadata_state is 'matched' at once.
+// an explicit book). Audiobooks need no provider match: metadata_state is 'matched' at once. providers
+// is the ordered source list of the root the book lies in (concept 19 D6.2), like InsertItem.
 func (q *Queries) InsertAudiobook(ctx context.Context, arg InsertAudiobookParams) (Item, error) {
 	row := q.db.QueryRowContext(ctx, insertAudiobook,
 		arg.ID,
@@ -95,6 +97,7 @@ func (q *Queries) InsertAudiobook(ctx context.Context, arg InsertAudiobookParams
 		arg.CoverPath,
 		arg.OwnRating,
 		arg.RatingSource,
+		arg.Providers,
 		arg.Now,
 	)
 	var i Item
@@ -164,6 +167,15 @@ func (q *Queries) InsertAudiobook(ctx context.Context, arg InsertAudiobookParams
 		&i.Isbn,
 		&i.Asin,
 		&i.AudioSeriesID,
+		&i.AuthorDisplay,
+		&i.BookMatchState,
+		&i.BookMatchProvider,
+		&i.BookMatchID,
+		&i.BookMatchRegion,
+		&i.BookMatchedAt,
+		&i.BookMatchScore,
+		&i.BookMatchError,
+		&i.BookMatchManual,
 	)
 	return i, err
 }

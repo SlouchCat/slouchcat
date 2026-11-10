@@ -110,3 +110,38 @@
   gap: var(--sc-space-3);
   align-items: flex-end;
 }
+
+/* The hits of a book source (concept 19 D5.2), one card per line. */
+.candidates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A value of the comparison «Was übernommen wird»: a long description stays three lines. */
+.previewValue {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.previewCover {
+  display: block;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--sc-radius-sm);
+  background-color: var(--sc-color-surface-3);
+  object-fit: cover;
+}
+
+/* The two ways of «Aktualisieren» of a book, each with its button. */
+.refreshWays {
+  display: flex;
+  flex-direction: column;
+}

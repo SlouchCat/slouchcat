@@ -32,7 +32,7 @@ const relinkChunk = 500
 // book moves there; else, when every book of its old series that is not deleted moves to the same
 // new key, the old series keeps its id and takes the new key; else a new series with a new id
 // begins. The name of every series it touched follows the most common spelling of its books without
-// suffix, unless it is locked. An emptied series stays until the sweep (DeleteOrphanAudioSeries).
+// suffix (with it under the switch metadata.books.normalize_series off), unless it is locked. An emptied series stays until the sweep (DeleteOrphanAudioSeries).
 func RelinkAudioSeries(ctx context.Context, q *systemq.Queries, itemIDs []string, now time.Time) error {
 	return relinkAudioSeries(ctx, q, audioseries.Default(), itemIDs, "", now)
 }
@@ -68,6 +68,10 @@ func relinkAudioSeries(ctx context.Context, q *systemq.Queries, names audioserie
 	}
 	ms := now.UnixMilli()
 	touched := map[string]bool{}
+	shown, err := shownSeriesNames(ctx, q, names) // the name with or without suffix (D6.4)
+	if err != nil {
+		return err
+	}
 
 	// An old series whose live books all move to one new key takes that key along (keeps its id),
 	// as long as no other series of the library holds it.
@@ -124,7 +128,7 @@ func relinkAudioSeries(ctx context.Context, q *systemq.Queries, names audioserie
 			case errors.Is(err, sql.ErrNoRows):
 				id := ulid.MustNew(ulid.Timestamp(now), ulid.DefaultEntropy()).String()
 				if err := q.InsertAudioSeries(ctx, systemq.InsertAudioSeriesParams{
-					ID: id, LibraryID: r.LibraryID, SeriesKey: key, Name: names.Display(r.SeriesName.String), Now: ms,
+					ID: id, LibraryID: r.LibraryID, SeriesKey: key, Name: shown.Display(r.SeriesName.String), Now: ms,
 				}); err != nil {
 					return fmt.Errorf("insert series: %w", err)
 				}
@@ -146,7 +150,7 @@ func relinkAudioSeries(ctx context.Context, q *systemq.Queries, names audioserie
 	}
 
 	for _, id := range slices.Sorted(maps.Keys(touched)) {
-		if err := refreshAudioSeriesName(ctx, q, names, id, ms); err != nil {
+		if err := refreshAudioSeriesName(ctx, q, shown, id, ms); err != nil {
 			return err
 		}
 	}
@@ -154,7 +158,9 @@ func relinkAudioSeries(ctx context.Context, q *systemq.Queries, names audioserie
 }
 
 // refreshAudioSeriesName sets the name of a series that is not locked to the most common spelling
-// of its books without suffix (audioseries.Names.Display); a series without books keeps its name.
+// of its books under names (audioseries.Names.Display: without suffix, or with it when names come
+// from Shown(false) under the switch metadata.books.normalize_series); a series without books
+// keeps its name.
 func refreshAudioSeriesName(ctx context.Context, q *systemq.Queries, names audioseries.Names, id string, ms int64) error {
 	spellings, err := q.ListAudioSeriesSpellings(ctx, sql.NullString{String: id, Valid: true})
 	if err != nil {
@@ -185,9 +191,17 @@ const SettingAudioSeriesKeys = "library.audio_series_keys"
 // migration 00045 and after every change of the suffix list or the key rules (D4.4). All books
 // move in one call, so a series whose key changed keeps its id; book by book (the scan) a series
 // would split. The server runs it at the start before any scan writes. It reports whether it
-// relinked.
+// relinked. At the first start after migration 00046 it also queues library.author_display once
+// (concept 19 D6.4, SettingAuthorDisplayQueued); a failure of that is logged.
 func (s *Service) RelinkAudioSeriesOnNewKeys(ctx context.Context) (bool, error) {
-	return s.relinkOnNewKeys(ctx, audioseries.Default())
+	relinked, err := s.relinkOnNewKeys(ctx, audioseries.Default())
+	if err != nil {
+		return relinked, err
+	}
+	if err := s.queueAuthorDisplayOnce(ctx); err != nil {
+		s.log.WarnContext(ctx, "unified author names not queued at start", "err", err)
+	}
+	return relinked, nil
 }
 
 func (s *Service) relinkOnNewKeys(ctx context.Context, names audioseries.Names) (bool, error) {

@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
@@ -99,7 +101,7 @@ func (w *batchWriter) audiobookItem(ctx context.Context, info fileInfo) (string,
 		SeriesIndex: nullVolume(m.volume), Publisher: nullString(m.publisher), Isbn: nullString(m.isbn),
 		Asin: nullString(m.asin), OriginalLanguage: nullString(m.originalLanguage()),
 		Explicit: boolInt(m.explicit), CoverPath: nullString(m.cover),
-		OwnRating: rating, RatingSource: source, Now: sql.NullInt64{Int64: w.ms, Valid: true},
+		OwnRating: rating, RatingSource: source, Providers: w.root.Providers, Now: sql.NullInt64{Int64: w.ms, Valid: true},
 	}); err != nil {
 		return "", fmt.Errorf("insert audiobook: %w", err)
 	}
@@ -117,13 +119,25 @@ func (w *batchWriter) audiobookItem(ctx context.Context, info fileInfo) (string,
 	return id, nil
 }
 
-// finishAudiobooks completes the books a scan batch touched (new, moved or missing parts). A
-// failure is logged; the next probe or scan of the book completes it.
+// finishAudiobooks completes the books a scan batch touched (new, moved or missing parts) and
+// then queues library.author_display for their authors (concept 19 D6.4). A failure is logged;
+// the next probe or scan of the book completes it.
 func (s *Service) finishAudiobooks(ctx context.Context, ids map[string]bool) {
 	for id := range ids {
 		if err := s.finishAudiobook(ctx, id); err != nil {
 			s.log.WarnContext(ctx, "audiobook not completed", "item_id", id, "err", err)
 		}
+	}
+	if len(ids) > 0 {
+		s.queueAuthorDisplayLogged(ctx)
+	}
+}
+
+// queueAuthorDisplayLogged is QueueAuthorDisplay for the scan and the probe: a failure is logged,
+// the next scan queues the job again.
+func (s *Service) queueAuthorDisplayLogged(ctx context.Context) {
+	if err := s.QueueAuthorDisplay(ctx); err != nil {
+		s.log.WarnContext(ctx, "unified author names not queued", "err", err)
 	}
 }
 
@@ -132,8 +146,10 @@ func (s *Service) finishAudiobooks(ctx context.Context, ids map[string]bool) {
 // it also writes the book-wide chapters (parts that failed to probe are left out), the duration
 // (sum of the parts), the metadata (metadata.json > tags of the first part > folder names; locked
 // fields and manual ratings stay), the cover (folder image, else the picture embedded in the first
-// part that has one) and queues image.fetch for the cover. In the same transaction the book is
-// linked to its series (RelinkAudioSeries). Anything but an undeleted audiobook is left alone.
+// part that has one) and queues image.fetch for the cover, and metadata.match for the match against
+// the sources of its folder (queueBookMatch). In the same transaction the book is linked to its
+// series (RelinkAudioSeries). When the author changed, library.author_display follows the commit.
+// Anything but an undeleted audiobook is left alone.
 func (s *Service) finishAudiobook(ctx context.Context, itemID string) error {
 	sq := systemq.New(s.db.Read)
 	item, err := sq.GetItemSystem(ctx, itemID)
@@ -170,11 +186,13 @@ func (s *Service) finishAudiobook(ctx context.Context, itemID string) error {
 
 	var meta bookMeta
 	var lib appq.Library
+	var sources []string // the folder's list of sources
 	if done {
 		root, err := appq.New(s.db.Read).GetLibraryRoot(ctx, files[0].RootID)
 		if err != nil {
 			return fmt.Errorf("load library root: %w", err)
 		}
+		sources = model.ParseProviders(root.Providers)
 		if lib, err = appq.New(s.db.Read).GetLibrary(ctx, item.LibraryID); err != nil {
 			return fmt.Errorf("load library: %w", err)
 		}
@@ -218,16 +236,50 @@ func (s *Service) finishAudiobook(ctx context.Context, itemID string) error {
 			return fmt.Errorf("set part index: %w", err)
 		}
 	}
+	authorChanged := false
 	if done {
-		if err := s.writeBook(ctx, q, item, lib, parts, meta); err != nil {
+		author, err := s.writeBook(ctx, q, item, lib, parts, meta)
+		if err != nil {
 			return err
 		}
+		if err := queueBookMatch(ctx, q, item, sources, s.now()); err != nil {
+			return err
+		}
+		authorChanged = author != item.Author
 	}
 	// The series follows the series name and the author the book has now (concept 19 D4.4).
 	if err := RelinkAudioSeries(ctx, q, []string{item.ID}, s.now()); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	if authorChanged {
+		s.queueAuthorDisplayLogged(ctx)
+	}
+	return nil
+}
+
+// settingBookAutoMatch is the automatic match of audiobooks (metadata.SettingBookAutoMatch: off,
+// new, all; absent = all).
+const settingBookAutoMatch = "metadata.books.auto_match"
+
+// queueBookMatch queues metadata.match for a book whose parts are all probed, so its length is known
+// (concept 19 D6.3 point 6), unless its folder lists no source besides local, the automatic match
+// is off or the book was matched or reviewed already: only a book not tried yet or in state error
+// goes again.
+func queueBookMatch(ctx context.Context, q *systemq.Queries, item systemq.Item, sources []string, now time.Time) error {
+	if st := item.BookMatchState.String; (st != "" && st != "error") || !slices.ContainsFunc(sources, func(p string) bool { return p != model.ProviderLocal }) {
+		return nil
+	}
+	mode, err := q.GetSystemSetting(ctx, settingBookAutoMatch)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("read %s: %w", settingBookAutoMatch, err)
+	}
+	if strings.TrimSpace(mode) == "off" {
+		return nil
+	}
+	return enqueueTx(ctx, q, now, matchJob(item.ID))
 }
 
 // hasCover reports whether a probe has an attached picture.
@@ -243,8 +295,8 @@ func hasCover(p *transcode.Probe) bool {
 // writeBook writes chapters, duration, metadata, texts and cover of a book whose parts are all
 // probed, and queues image.fetch when it has a cover. A field the editor or an older writer locked
 // keeps its value (bookLocks); every value it takes from the files gets the provenance local
-// (concept 19 D5.3: «Datei» in the editor).
-func (s *Service) writeBook(ctx context.Context, q *systemq.Queries, item systemq.Item, lib appq.Library, parts []bookPart, meta bookMeta) error {
+// (concept 19 D5.3: «Datei» in the editor). It returns the author the book has now.
+func (s *Service) writeBook(ctx context.Context, q *systemq.Queries, item systemq.Item, lib appq.Library, parts []bookPart, meta bookMeta) (sql.NullString, error) {
 	locked := bookLocks(lockedSet(item.LockedFields))
 	title, sortTitle := item.Title, item.SortTitle
 	if !locked.anyText("title") && meta.title != "" {
@@ -262,14 +314,14 @@ func (s *Service) writeBook(ctx context.Context, q *systemq.Queries, item system
 		}
 	}
 	if err := q.DeleteChapters(ctx, item.ID); err != nil {
-		return fmt.Errorf("delete chapters: %w", err)
+		return sql.NullString{}, fmt.Errorf("delete chapters: %w", err)
 	}
 	for i, c := range bookChapters(probed, title) {
 		if err := q.InsertChapter(ctx, systemq.InsertChapterParams{
 			ItemID: item.ID, Idx: int64(i), Title: c.title, StartMs: c.startMs, EndMs: c.endMs,
 			MediaFileID: nullString(c.mediaFileID), FileStartMs: c.fileStartMs,
 		}); err != nil {
-			return fmt.Errorf("insert chapter: %w", err)
+			return sql.NullString{}, fmt.Errorf("insert chapter: %w", err)
 		}
 	}
 
@@ -305,7 +357,7 @@ func (s *Service) writeBook(ctx context.Context, q *systemq.Queries, item system
 	if !locked["genres"] && len(meta.genres) > 0 {
 		g, err := genresJSON(meta.genres)
 		if err != nil {
-			return err
+			return sql.NullString{}, err
 		}
 		p.Genres = g
 		fromFiles = append(fromFiles, "genres")
@@ -316,7 +368,7 @@ func (s *Service) writeBook(ctx context.Context, q *systemq.Queries, item system
 		p.OwnRating, p.RatingSource = bookRating(lib, meta.explicit)
 	}
 	if err := q.UpdateAudiobook(ctx, p); err != nil {
-		return fmt.Errorf("update audiobook: %w", err)
+		return sql.NullString{}, fmt.Errorf("update audiobook: %w", err)
 	}
 	// The language of the text rows: the original language the administrator locked, when it is
 	// one of them, else the one of the files (writeBookText adds en).
@@ -325,22 +377,22 @@ func (s *Service) writeBook(ctx context.Context, q *systemq.Queries, item system
 	}
 	texts, err := writeBookText(ctx, q, item.ID, title, meta, locked)
 	if err != nil {
-		return err
+		return sql.NullString{}, err
 	}
 	for _, field := range fromFiles {
 		if err := q.UpsertItemFieldSource(ctx, systemq.UpsertItemFieldSourceParams{ItemID: item.ID, Field: field, Provider: model.ProviderLocal}); err != nil {
-			return fmt.Errorf("store source of %s: %w", field, err)
+			return sql.NullString{}, fmt.Errorf("store source of %s: %w", field, err)
 		}
 	}
 	for _, t := range texts {
 		if err := q.UpsertItemFieldSource(ctx, systemq.UpsertItemFieldSourceParams{ItemID: item.ID, Field: t.field, Lang: t.lang, Provider: model.ProviderLocal}); err != nil {
-			return fmt.Errorf("store source of %s:%s: %w", t.field, t.lang, err)
+			return sql.NullString{}, fmt.Errorf("store source of %s:%s: %w", t.field, t.lang, err)
 		}
 	}
 	if meta.cover != "" {
-		return enqueueTx(ctx, q, s.now(), imageJob(item.ID))
+		return p.Author, enqueueTx(ctx, q, s.now(), imageJob(item.ID))
 	}
-	return nil
+	return p.Author, nil
 }
 
 // fieldOriginalLanguage is the column, lock and provenance field of the original language.

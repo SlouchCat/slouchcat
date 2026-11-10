@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"slices"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/netguard"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
@@ -74,6 +76,12 @@ func (s *Service) bookCoverCandidates(ctx context.Context, item systemq.Item) (m
 	if mf, w, h, ok := embeddedCoverOf(parts); ok {
 		out.Candidates = append(out.Candidates, model.ImageCandidate{Provider: ImageSourceEmbedded, Width: w, Height: h,
 			Source: coverEmbeddedPrefix + mf.ID + "?" + strconv.FormatInt(mf.Mtime, 10)})
+	}
+	// The cover of the book source the book is matched to (concept 19 D6.3; its size is unknown).
+	if r, ok, err := s.bookProviderCover(ctx, item.ID); err != nil {
+		return out, err
+	} else if ok {
+		out.Candidates = append(out.Candidates, model.ImageCandidate{Provider: r.Provider, Source: r.Source, PreviewURL: r.Source})
 	}
 	return out, nil
 }
@@ -239,12 +247,21 @@ type nopSeekCloser struct{ *bytes.Reader }
 
 func (nopSeekCloser) Close() error { return nil }
 
-// bookCurrentCover is the cover image.fetch takes for a book without choice (coverSource) as an
-// image of the title page: provider local or embedded and its source; ok false without one.
+// bookCurrentCover is the cover image.fetch takes for a book without choice as an image of the title
+// page: the cover of its files (coverSource, provider local or embedded), else the cover of its
+// book source; ok false without one.
 func (s *Service) bookCurrentCover(ctx context.Context, item systemq.Item) (model.AdminItemImage, bool, error) {
 	src, err := s.coverSource(ctx, item)
-	if err != nil || src == "" {
+	if err != nil {
 		return model.AdminItemImage{}, false, err
+	}
+	if src == "" {
+		// Without a cover of its own the book shows the cover of its book source (image.fetch).
+		r, ok, err := s.bookProviderCover(ctx, item.ID)
+		if err != nil || !ok {
+			return model.AdminItemImage{}, false, err
+		}
+		return model.AdminItemImage{Kind: "poster", Provider: r.Provider, Source: r.Source, PreviewURL: r.Source}, true, nil
 	}
 	provider := ImageSourceLocal
 	switch {
@@ -254,4 +271,61 @@ func (s *Service) bookCurrentCover(ctx context.Context, item systemq.Item) (mode
 		return model.AdminItemImage{}, false, nil
 	}
 	return model.AdminItemImage{Kind: "poster", Provider: provider, Source: src}, true, nil
+}
+
+// isBookCover reports whether an item_images row names the cover of a book source: one of the
+// five sources with an http or https address.
+func isBookCover(provider, source string) bool {
+	if !slices.Contains(BookProviderNames, provider) {
+		return false
+	}
+	u, err := url.Parse(source)
+	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != "" && u.User == nil
+}
+
+// bookCoverOrigin is the address on whose behalf the cover of a book source is fetched (feedOf):
+// the base address of the source of the book's poster row, so the guarded cover client allows the
+// local network only for a source that is itself there (a mock, a self-hosted Audnexus).
+func (s *Service) bookCoverOrigin(ctx context.Context, itemID string) (feedURL, origin string) {
+	rows, err := s.read.ListItemImagesByItem(ctx, itemID)
+	if err != nil {
+		return "", ""
+	}
+	for _, r := range rows {
+		if r.Kind != "poster" || !isBookCover(r.Provider, r.Source) {
+			continue
+		}
+		switch r.Provider {
+		case ProviderAudible:
+			a := s.books.audible
+			if netguard.Site(r.Source) == netguard.Site(a.audnexus(ctx)) {
+				return a.audnexus(ctx), ""
+			}
+			return a.base(a.region(ctx)), ""
+		case ProviderDNB:
+			return s.books.dnb.base, ""
+		case ProviderAppleBooks:
+			return s.books.apple.base, ""
+		case ProviderOpenLibrary:
+			return s.books.openLibrary.covers, ""
+		case ProviderGoogleBooks:
+			return s.books.google.base, ""
+		}
+	}
+	return "", ""
+}
+
+// bookProviderCover is the poster row of a book that names a source's cover and was not chosen
+// (the candidate a match stored); ok is false without one.
+func (s *Service) bookProviderCover(ctx context.Context, itemID string) (systemq.ItemImage, bool, error) {
+	rows, err := s.read.ListItemImagesByItem(ctx, itemID)
+	if err != nil {
+		return systemq.ItemImage{}, false, fmt.Errorf("images of %s: %w", itemID, err)
+	}
+	for _, r := range rows {
+		if r.Kind == "poster" && isBookCover(r.Provider, r.Source) {
+			return r, true, nil
+		}
+	}
+	return systemq.ItemImage{}, false, nil
 }

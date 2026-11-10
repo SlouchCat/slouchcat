@@ -1,0 +1,31 @@
+{
+  "products": [
+    {
+      "asin": "B0TEST0001",
+      "title": "Der Testband",
+      "subtitle": "Die Reihe, Teil 3",
+      "authors": [{"asin": "B0AUTH0001", "name": "Erika Muster"}],
+      "narrators": [{"name": "Max Sprecher"}],
+      "publisher_name": "Testverlag Hören",
+      "release_date": "2019-03-28",
+      "language": "german",
+      "runtime_length_min": 612,
+      "series": [{"asin": "B0SERIES01", "title": "Die Reihe", "sequence": "3"}],
+      "product_images": {"500": "https://images.example.test/B0TEST0001._SL500_.jpg", "1024": "https://images.example.test/B0TEST0001._SL1024_.jpg"},
+      "merchandising_summary": "<p>Ein erfundener Satz für den Test.</p>"
+    },
+    {
+      "asin": "B0TEST0003",
+      "title": "Der Testband",
+      "subtitle": "Gekürzte Fassung",
+      "authors": [{"name": "Erika Muster"}],
+      "narrators": [{"name": "Lisa Leserin"}],
+      "publisher_name": "Testverlag Hören",
+      "release_date": "2018-01-05",
+      "language": "german",
+      "runtime_length_min": 240
+    }
+  ],
+  "response_groups": ["always-returned", "product_desc", "product_attrs", "contributors", "series", "media"],
+  "total_results": 2
+}

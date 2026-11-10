@@ -1,0 +1,67 @@
+/* The page «Hörbücher: Quellen» (concept 19 D6.6): its sections one below the other. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-8);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  min-width: 0;
+}
+
+.inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  align-items: center;
+}
+
+/* The control column of the key: field, buttons and outcome one below the other. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  width: 100%;
+  min-width: 0;
+}
+
+.keyForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: flex-start;
+}
+
+.keyForm > :first-child {
+  flex: 1 1 14rem;
+}
+
+@media (width < 768px) {
+  .keyForm > :first-child {
+    flex-basis: 100%;
+  }
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
+  gap: var(--sc-space-3);
+}
+
+.sources,
+.candidates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.candidates {
+  gap: var(--sc-space-1);
+  font-size: var(--sc-font-size-sm);
+}

@@ -18,6 +18,7 @@ import { visibleLibrariesQuery } from '@/features/catalog/queries';
 import { adminItemQuery } from '../queries';
 import { ImagesEditorTab } from './ImagesEditorTab';
 import { emptyDraft, type EditorDraft } from './editorModel';
+import { BookMatchNote } from './BookMatchTab';
 import { MatchTab, RefreshTab } from './MatchRefreshTabs';
 import { MetadataEditorTab } from './MetadataEditorTab';
 import styles from './MetadataEditor.module.css';
@@ -104,7 +105,7 @@ export function MetadataEditor({ itemId, onClose }: MetadataEditorProps) {
 
   const library = libraries.data?.find((entry) => entry.id === data.libraryId)?.name;
   const image = headImage(data);
-  // A book (concept 19 D5.2): «Metadaten», «Cover», «Aktualisieren»; books have no «Zuordnen».
+  // A book (concept 19 D5.2): «Metadaten», «Cover», «Zuordnen» (a book source), «Aktualisieren».
   const book = data.kind === 'audiobook';
   const tab = picked ?? (book && data.metadata ? 'metadata' : 'images');
   const imagesTab = {
@@ -137,6 +138,11 @@ export function MetadataEditor({ itemId, onClose }: MetadataEditorProps) {
         },
       ]
     : [];
+  const matchTab = {
+    id: 'match',
+    label: t('admin.editor.tabs.match'),
+    content: <MatchTab item={data} onChanged={adopt} />,
+  };
   const refreshTab = {
     id: 'refresh',
     label: t('admin.editor.tabs.refresh'),
@@ -170,23 +176,15 @@ export function MetadataEditor({ itemId, onClose }: MetadataEditorProps) {
       />
       <div className={styles.body}>
         <StatusRegion message={message} />
+        {book && <BookMatchNote item={data} />}
         <Tabs
           label={t('admin.editor.tabs.label')}
           selectedKey={tab}
           onSelectionChange={setTab}
           tabs={
             book
-              ? [...metadataTab, imagesTab, refreshTab]
-              : [
-                  imagesTab,
-                  ...metadataTab,
-                  {
-                    id: 'match',
-                    label: t('admin.editor.tabs.match'),
-                    content: <MatchTab item={data} onChanged={adopt} />,
-                  },
-                  refreshTab,
-                ]
+              ? [...metadataTab, imagesTab, matchTab, refreshTab]
+              : [imagesTab, ...metadataTab, matchTab, refreshTab]
           }
         />
       </div>

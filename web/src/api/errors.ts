@@ -119,6 +119,14 @@ const fieldKeys = {
   providers_not_allowed: 'errors.field.providers_not_allowed',
   roots_required: 'errors.field.roots_required',
   provider_not_searchable: 'errors.field.provider_not_searchable',
+  // The book sources (concept 19 D6, 422 validation_failed): a source that failed (field
+  // `provider`), an entry it does not know (`providerId`), a refetch of a book without a match
+  // (`fromProvider`).
+  provider_unreachable: 'errors.code.provider_unreachable',
+  provider_paused: 'errors.code.provider_paused',
+  provider_not_configured: 'errors.code.provider_not_configured',
+  not_found: 'errors.field.not_found',
+  not_matched: 'errors.field.not_matched',
   // The folder browser of the library form (idea 02).
   path_not_browsable: 'errors.code.path_not_browsable',
   path_unreachable: 'errors.code.path_unreachable',
@@ -204,6 +212,15 @@ export function formErrors(
     fields[rename(fieldError.field)] ??= fieldMessage(t, fieldError.code);
   }
   return { fields, form: problemMessage(t, error) };
+}
+
+/**
+ * The one message of a failed request shown without a form: the first field's message if the
+ * server named a field (`provider_paused`, `not_matched`), else the form's.
+ */
+export function firstErrorMessage(t: TFunction, error: unknown): string {
+  const errors = formErrors(t, error);
+  return Object.values(errors.fields)[0] ?? errors.form ?? '';
 }
 
 /**

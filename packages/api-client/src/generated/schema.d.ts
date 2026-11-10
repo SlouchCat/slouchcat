@@ -1846,8 +1846,46 @@ export interface paths {
          *     refresh at high priority; images and trailers follow from it. The assignment survives every later scan
          *     and refresh: files are matched by path, inode and hash, never by title, and locked fields are never
          *     overwritten. Only films and series can be assigned; `tvdb` only series.
+         *
+         *     Since contract 1.26.0 (concept 19 D6) also an audiobook, with one of the five book sources
+         *     (`audible`, `dnb`, `applebooks`, `openlibrary`, `googlebooks`; `provider_not_searchable`
+         *     otherwise). The entry is fetched at once: the fields in `fields` (left out: every field that
+         *     differs and is not locked, as `getMatchPreview` lists them) are written, locked and credited to
+         *     the source; `cover` chooses the cover of the source. The book is `matched` by hand, which the
+         *     automatic match never changes. `region` names the Audible marketplace (left out: the setting
+         *     of the page «Hörbücher: Quellen»). An error of the source answers 422 `provider_unreachable`,
+         *     `provider_paused` or `provider_not_configured`, an unknown entry 422 `providerId`
+         *     `not_found`.
          */
         put: operations["setItemMatch"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/items/{id}/match/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Compare an entry of a book source with an audiobook field by field (concept 19 D5.2)
+         * @description Since contract 1.26.0 (concept 19 D6). Fetches the entry `providerId` of the book source
+         *     `provider` and lists every field of `BookMatchField` with its value today (`current`) and at
+         *     the source (`proposed`) as display texts (genres joined with «, », the volume as a number
+         *     without trailing zeros, the cover as its address), whether the field is locked (`locked`; a
+         *     locked field is never taken) and whether the values differ (`differs`). `durationMatches`
+         *     says whether the length of the entry lies within the tolerance of the files. Nothing is
+         *     written. Only audiobooks (`kind` `invalid_value` otherwise); 422 `providerId` `not_found`
+         *     for an unknown entry, `provider_unreachable`, `provider_paused` or `provider_not_configured`
+         *     when the source fails.
+         */
+        get: operations["getMatchPreview"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -1872,7 +1910,13 @@ export interface paths {
          *     field and text locks and the image choices go, so the refresh decides them again; the locks of a
          *     manual match (`setItemMatch`) and a rating set by hand stay. Without a body as before. For an
          *     audiobook (since contract 1.24.0) no match is queued: the probes read metadata.json, the tags and
-         *     the folder names of the book again, and `image.fetch` follows.
+         *     the folder names of the book again, and `image.fetch` follows. Since contract 1.26.0 (concept 19
+         *     D6) `{"fromProvider": true}` fetches the entry of the stored match of an audiobook again (job
+         *     `metadata.match` with the payload `refetch`): it writes the fields that are not locked and are
+         *     empty or come from that source, and the cover candidates of the source; with `unlockAll` the
+         *     locks go first. For an audiobook the match itself (state, source, entry, by hand) stays with
+         *     `unlockAll`, while the field locks that a match in the editor set go like every other lock.
+         *     A title that is no audiobook with a match answers 422 `fromProvider` `not_matched`.
          */
         post: operations["refreshItem"];
         delete?: never;
@@ -2234,14 +2278,94 @@ export interface paths {
         };
         /**
          * The metadata providers, for the source list of a folder (ADR 0015)
-         * @description The four providers with what the interface needs to build the checkbox list of a folder:
+         * @description The providers with what the interface needs to build the checkbox list of a folder:
          *     whether a key is present (`configured`; TVDB needs one, AniList and the local reader none,
-         *     `SLOUCHCAT_ANILIST=off` switches AniList off), the roles (`identify`: may stand first in a
+         *     `SLOUCHCAT_ANILIST=off` switches AniList off; since contract 1.26.0 the five book sources of
+         *     concept 19 D6, which fill audiobook folders and need no key except Google Books), the roles (`identify`: may stand first in a
          *     list, `fill`: may follow), the root contents the provider may stand in the list of, and the
          *     text languages it delivers (the hint "delivers no German" for AniList). The interface offers
          *     nothing this list does not allow; the server checks the same rules again on every write.
          */
         get: operations["listMetadataProviders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/metadata/audiobooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The page «Hörbücher: Quellen» (concept 19 D6.6)
+         * @description Since contract 1.26.0 (concept 19 D6). The server-wide settings of the book sources (Audible
+         *     region, Audnexus address, Google Books key, automatic match with tolerance, unifying of
+         *     author and series names), the ordered list of every audiobook folder (shown only; it is
+         *     changed in the dialog of the folder, `updateLibraryRoot`), the state of each source
+         *     (`configured`, `pausedUntil` while a source rests after repeated refusals), the numbers of the
+         *     books per match state and whether a match run is queued or running.
+         */
+        get: operations["getAudiobookSources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change the settings of the book sources
+         * @description Every field is optional; a field left out stays. `googleBooksKey` stores the key encrypted,
+         *     `clearGoogleBooksKey` removes it; both answer 422 `env_wins` (field `googleBooksKey`) while
+         *     `SLOUCHCAT_GOOGLEBOOKS_API_KEY` is set. Switching `autoMatch` to `all` queues the match of
+         *     every book without match state. 422 `validation_failed` with the field errors
+         *     `invalid_value` and `too_long`.
+         */
+        patch: operations["updateAudiobookSources"];
+        trace?: never;
+    };
+    "/admin/metadata/audiobooks/match-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Match every audiobook without match (concept 19 D6.6)
+         * @description Since contract 1.26.0 (concept 19 D6). Queues one `metadata.match` per audiobook that is not
+         *     deleted and not matched (no state yet, `review`, `none`, `error`) and whose folder lists at
+         *     least one book source; a book that is queued already is not queued twice. `queued` counts
+         *     the books.
+         */
+        post: operations["matchAllAudiobooks"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/metadata/audiobooks/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The list «Prüfen» of the page «Hörbücher: Quellen» (concept 19 D6.3)
+         * @description Since contract 1.26.0 (concept 19 D6). Every audiobook that is not deleted in the state
+         *     `review` (several candidates, or a length outside the tolerance) or `error` (a source
+         *     failed), by title, with the stored candidates (at most three, best first). An administration
+         *     view with ids, not `ItemRef`s.
+         */
+        get: operations["listAudiobookReview"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2257,7 +2381,17 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Search a metadata provider for the manual assignment (B-6) */
+        /**
+         * Search a metadata provider for the manual assignment (B-6)
+         * @description `query` is required for `movie` and `series` (422 `query` `required`). Since contract 1.26.0
+         *     (concept 19 D6) also `kind` `audiobook`, searched at one of the five book sources (`audible`,
+         *     `dnb`, `applebooks`, `openlibrary`, `googlebooks`; `provider` `provider_not_searchable`
+         *     otherwise) by title (`query`) and `author`, or by `asin` or `isbn`; at least one of `query`,
+         *     `asin` and `isbn` (422 `query` `required`). With `itemId` the server marks the candidates
+         *     whose length lies within the tolerance of the book's files (`durationMatches`) and sorts by
+         *     `score`. An error of the source answers 422 `provider_unreachable`, `provider_paused` or
+         *     `provider_not_configured`.
+         */
         get: operations["searchMetadata"];
         put?: never;
         post?: never;
@@ -6295,10 +6429,13 @@ export interface components {
          * @description A metadata source (ADR 0015). `tmdb` and `tvdb` identify titles and fill fields; `anilist`
          *     only fills (titles, descriptions, images, genres of anime; no German texts); `local` is the
          *     file-based reader of audiobook and podcast folders. Only `tmdb` and `tvdb` can be searched
-         *     or assigned by hand.
+         *     or assigned by hand for films and series. Since contract 1.26.0 (concept 19 D6) the book
+         *     sources `audible` (the Audible catalog with the details of Audnexus), `dnb` (Deutsche
+         *     Nationalbibliothek), `applebooks`, `openlibrary` and `googlebooks` (with a key only) fill
+         *     audiobook folders after `local` and can be searched and assigned by hand for audiobooks.
          * @enum {string}
          */
-        MetadataProvider: "tmdb" | "tvdb" | "anilist" | "local";
+        MetadataProvider: "tmdb" | "tvdb" | "anilist" | "local" | "audible" | "dnb" | "applebooks" | "openlibrary" | "googlebooks";
         /** @description The server's metadata settings (concept 10 4.1, ADR 0018), defaults filled in. */
         MetadataSettings: {
             /** @description Ordered list of the text languages every source delivers; the position is the rank. */
@@ -6420,10 +6557,26 @@ export interface components {
          */
         RootContent: "movie" | "series" | "audiobook" | "podcast";
         ItemMatchRequest: {
-            /** @description Only `tmdb` and `tvdb` (`provider_not_searchable` otherwise). */
+            /**
+             * @description `tmdb` and `tvdb` for films and series, the five book sources for audiobooks (since
+             *     contract 1.26.0; `provider_not_searchable` otherwise).
+             */
             provider: components["schemas"]["MetadataProvider"];
-            /** @description Id at the provider (TMDB and TVDB ids are numeric). */
+            /**
+             * @description Id at the provider: TMDB and TVDB ids are numeric; for books the ASIN, the DNB IDN, the
+             *     Apple id, the Open Library key or the Google volume id (since contract 1.26.0).
+             */
             providerId: string;
+            /**
+             * @description Only audiobooks (since contract 1.26.0): the fields to take from the entry. Left out:
+             *     every field that differs, is not locked and has a value at the source. An empty list
+             *     takes no field: the match is stored (state `matched`, by hand) and nothing else is
+             *     written, for a book whose files already say what the entry says. A locked field is never
+             *     taken.
+             */
+            fields?: components["schemas"]["BookMatchField"][];
+            /** @description Only `audible` (since contract 1.26.0); left out = the setting. */
+            region?: components["schemas"]["AudibleRegion"];
         };
         TrailerRequest: {
             lang: string;
@@ -6447,6 +6600,180 @@ export interface components {
              * @description Small poster at the provider's image host (administration only).
              */
             posterUrl?: string;
+            /** @description The fields from here on are those of a book source (since contract 1.26.0, concept 19 D6). */
+            subtitle?: string;
+            authors?: string[];
+            narrators?: string[];
+            publisher?: string;
+            seriesName?: string;
+            seriesIndex?: number;
+            /** @description ISO 639-1 code of the book's language. */
+            language?: string;
+            /**
+             * Format: int64
+             * @description Length of the audiobook; absent when the source does not know it.
+             */
+            durationMs?: number;
+            asin?: string;
+            isbn?: string;
+            /**
+             * Format: uri
+             * @description Cover at the source's image host (administration only).
+             */
+            coverUrl?: string;
+            /** @description The Audible marketplace of the entry. */
+            region?: components["schemas"]["AudibleRegion"];
+            /** @description With `itemId`, the length lies within the tolerance of the book's files. */
+            durationMatches?: boolean;
+            /** @description With `itemId`, the rating of the candidate (length 70 %, title 20 %, author 10 %). */
+            score?: number;
+        };
+        /**
+         * @description An Audible marketplace (since contract 1.26.0, concept 19 D6), named after its domain.
+         * @enum {string}
+         */
+        AudibleRegion: "de" | "com" | "co.uk" | "fr" | "it" | "es" | "ca" | "com.au" | "in" | "co.jp";
+        /**
+         * @description A field of an audiobook a book source can deliver (since contract 1.26.0, concept 19 D5.2).
+         * @enum {string}
+         */
+        BookMatchField: "title" | "subtitle" | "author" | "narrator" | "seriesName" | "seriesIndex" | "year" | "publisher" | "originalLanguage" | "genres" | "overview" | "isbn" | "asin" | "cover";
+        /** @description The comparison of `getMatchPreview` (since contract 1.26.0, concept 19 D5.2). */
+        MatchPreview: {
+            provider: components["schemas"]["MetadataProvider"];
+            providerId: string;
+            /** @description The title of the entry at the source. */
+            title: string;
+            /**
+             * Format: int64
+             * @description Length of the entry; absent when the source does not know it.
+             */
+            durationMs?: number;
+            /** @description The length lies within the tolerance of the book's files; absent without length. */
+            durationMatches?: boolean;
+            /**
+             * Format: uri
+             * @description Cover at the source's image host (administration only).
+             */
+            coverUrl?: string;
+            /** @description Every field of `BookMatchField`, in its order. */
+            fields: components["schemas"]["MatchPreviewField"][];
+        };
+        MatchPreviewField: {
+            field: components["schemas"]["BookMatchField"];
+            /** @description The value of the book today as display text; "" when empty. */
+            current: string;
+            /** @description The value of the entry as display text; "" when the source has none. */
+            proposed: string;
+            /** @description The field is locked and is never taken. */
+            locked: boolean;
+            differs: boolean;
+        };
+        /**
+         * @description Automatic match (concept 19 D6.3): never, every new book once all its parts are probed, or
+         *     additionally every book without match (the default).
+         * @enum {string}
+         */
+        AudiobookAutoMatch: "off" | "new" | "all";
+        /** @description The page «Hörbücher: Quellen» (since contract 1.26.0, concept 19 D6.6). */
+        AudiobookSources: {
+            audibleRegion: components["schemas"]["AudibleRegion"];
+            /**
+             * Format: uri
+             * @description Address of the Audnexus instance (default `https://api.audnex.us`); a local address is allowed.
+             */
+            audnexusUrl: string;
+            googleBooksKey: components["schemas"]["KeyState"];
+            autoMatch: components["schemas"]["AudiobookAutoMatch"];
+            /** @description Allowed difference between the length of an entry and of the files (default 3). */
+            tolerancePercent: number;
+            /** @description Unify the spellings of author names (D6.4). */
+            normalizeAuthors: boolean;
+            /** @description Show series names without their suffixes (D6.4). */
+            normalizeSeries: boolean;
+            /** @description Every audiobook folder with its ordered source list. */
+            folders: components["schemas"]["AudiobookFolder"][];
+            /** @description The five book sources in the order of `MetadataProvider`. */
+            sources: components["schemas"]["AudiobookSourceState"][];
+            stats: components["schemas"]["AudiobookMatchStats"];
+            /** @description A match job of a book is queued or running. */
+            running: boolean;
+        };
+        AudiobookFolder: {
+            /** Format: int64 */
+            libraryId: number;
+            libraryName: string;
+            /** Format: int64 */
+            rootId: number;
+            /** @description Path of the folder on the server (administration only). */
+            path: string;
+            providers: components["schemas"]["MetadataProvider"][];
+        };
+        AudiobookSourceState: {
+            id: components["schemas"]["MetadataProvider"];
+            /** @description The source can be asked (Google Books needs a key). */
+            configured: boolean;
+            /**
+             * Format: date-time
+             * @description The source rests until then after repeated refusals (403, 429 or HTML).
+             */
+            pausedUntil?: string;
+        };
+        /** @description The audiobooks that are not deleted, per match state. */
+        AudiobookMatchStats: {
+            total: number;
+            matched: number;
+            review: number;
+            none: number;
+            error: number;
+            /** @description Not tried yet. */
+            pending: number;
+        };
+        /** @description Changes of `updateAudiobookSources`; a field left out stays. */
+        AudiobookSourcesUpdate: {
+            audibleRegion?: components["schemas"]["AudibleRegion"];
+            /**
+             * Format: uri
+             * @description An empty string resets the default `https://api.audnex.us`.
+             */
+            audnexusUrl?: string;
+            /** @description Stores the key encrypted. */
+            googleBooksKey?: string;
+            /** @description Removes the stored key. */
+            clearGoogleBooksKey?: boolean;
+            autoMatch?: components["schemas"]["AudiobookAutoMatch"];
+            tolerancePercent?: number;
+            normalizeAuthors?: boolean;
+            normalizeSeries?: boolean;
+        };
+        AudiobookMatchAllResponse: {
+            /** @description The books queued. */
+            queued: number;
+        };
+        /** @description One book of the list «Prüfen» (since contract 1.26.0, concept 19 D6.3); not an `ItemRef`. */
+        BookReviewEntry: {
+            itemId: components["schemas"]["ItemID"];
+            title: string;
+            /** @description The displayed author (the unified name when there is one). */
+            author: string;
+            /** Format: int64 */
+            libraryId: number;
+            /**
+             * Format: int64
+             * @description Length of the files; absent while not probed.
+             */
+            durationMs?: number;
+            /** @enum {string} */
+            state: "review" | "error";
+            /** @description Why the last run failed (state `error`). */
+            error?: string;
+            /**
+             * Format: date-time
+             * @description Time of the last run.
+             */
+            matchedAt?: string;
+            /** @description The stored candidates, best first (at most three). */
+            candidates: components["schemas"]["MetadataCandidate"][];
         };
         AdminMediaFile: {
             id: string;
@@ -6524,6 +6851,35 @@ export interface components {
              */
             imageKinds?: components["schemas"]["ImageKind"][];
             metadata?: components["schemas"]["AdminItemMetadata"];
+            /**
+             * Format: int64
+             * @description Length of an audiobook's files (since contract 1.26.0); absent for other kinds and while not probed.
+             */
+            durationMs?: number;
+            bookMatch?: components["schemas"]["AdminBookMatch"];
+        };
+        /**
+         * @description The match of an audiobook against its book sources (since contract 1.26.0, concept 19 D6.3);
+         *     absent for other kinds and for a book never tried.
+         */
+        AdminBookMatch: {
+            /** @enum {string} */
+            state: "matched" | "review" | "none" | "error";
+            /** @description The source of a `matched` book. */
+            provider?: components["schemas"]["MetadataProvider"];
+            /** @description The entry at the source of a `matched` book. */
+            providerId?: string;
+            /** @description The Audible marketplace of the entry. */
+            region?: components["schemas"]["AudibleRegion"];
+            /**
+             * Format: date-time
+             * @description Time of the last run (or of the match in the editor).
+             */
+            matchedAt?: string;
+            /** @description Matched in the editor; the automatic match never changes it. */
+            manual: boolean;
+            /** @description Why the last run failed (state `error`), as `<source>:<reason>`. */
+            error?: string;
         };
         /**
          * @description A field of the metadata editor (since contract 1.15.0, concept 15 7.5). `author` to `asin` since contract
@@ -6612,8 +6968,20 @@ export interface components {
         };
         /** @description Options of `refreshItem` (since contract 1.15.0). */
         ItemRefreshRequest: {
-            /** @description Lift every lock of the title before the refresh (not those of a manual match). */
+            /**
+             * @description Lift every lock of the title before the refresh. A manual match of a film or series
+             *     (`setItemMatch` with tmdb, tvdb) keeps its id locks. For an audiobook the match itself
+             *     stays (state, source, entry, by hand), while the field locks that the editor's match set
+             *     go like every other lock.
+             */
             unlockAll?: boolean;
+            /**
+             * @description Only an audiobook with a match (since contract 1.26.0, concept 19 D6): fetch the entry of
+             *     the stored match again instead of reading the files (`fromProvider` `not_matched`
+             *     otherwise). With `unlockAll` the field locks go first (the match stays), so the entry
+             *     can write every field that is empty or comes from its source.
+             */
+            fromProvider?: boolean;
         };
         /** @description The genres of the server's metadata language (since contract 1.15.0). */
         AdminGenreList: {
@@ -13634,7 +14002,59 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Validation failed (`validation_failed`). */
+            /** @description Validation failed (`validation_failed`), or an error of a book source. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getMatchPreview: {
+        parameters: {
+            query: {
+                provider: components["schemas"]["MetadataProvider"];
+                providerId: string;
+                /** @description Only `audible`; left out = the setting of the page «Hörbücher: Quellen». */
+                region?: components["schemas"]["AudibleRegion"];
+            };
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The comparison. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchPreview"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description `validation_failed` (`kind` `invalid_value` for a title that is no audiobook, `provider`
+             *     `provider_not_searchable`, `providerId` `not_found`), or an error of the source
+             *     (`provider_unreachable`, `provider_paused`, `provider_not_configured`).
+             */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -13674,6 +14094,15 @@ export interface operations {
             403: components["responses"]["AdminOnly"];
             /** @description Unknown title (`not_found`). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `validation_failed` (`fromProvider` `not_matched`, since contract 1.26.0). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -14336,13 +14765,124 @@ export interface operations {
             403: components["responses"]["AdminOnly"];
         };
     };
+    getAudiobookSources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings, folders, sources and numbers. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudiobookSources"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    updateAudiobookSources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AudiobookSourcesUpdate"];
+            };
+        };
+        responses: {
+            /** @description The page after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudiobookSources"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description `validation_failed` (see `errors`) or `env_wins`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    matchAllAudiobooks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudiobookMatchAllResponse"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    listAudiobookReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The books to review. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookReviewEntry"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
     searchMetadata: {
         parameters: {
             query: {
                 provider: components["schemas"]["MetadataProvider"];
-                kind: "movie" | "series";
-                query: string;
+                kind: "movie" | "series" | "audiobook";
+                query?: string;
                 year?: number;
+                /** @description Only `audiobook`. */
+                author?: string;
+                /** @description Only `audiobook`; ten letters or digits. */
+                asin?: string;
+                /** @description Only `audiobook`; 10 or 13 digits (the last of 10 may be X), hyphens allowed. */
+                isbn?: string;
+                /** @description Only `audible`; left out = the setting of the page «Hörbücher: Quellen». */
+                region?: components["schemas"]["AudibleRegion"];
+                /** @description Only `audiobook`; the book whose length the candidates are compared with. */
+                itemId?: components["schemas"]["ItemID"];
             };
             header?: never;
             path?: never;
@@ -14365,7 +14905,8 @@ export interface operations {
              * @description Provider not configured or key rejected (`tmdb_key_invalid`, `tmdb_unreachable`,
              *     `provider_not_configured`), or validation failed; only `tmdb` and `tvdb` identify
              *     titles and can be searched (`provider` `provider_not_searchable` for `anilist` and
-             *     `local`).
+             *     `local`). For `audiobook` only the book sources (since contract 1.26.0), whose errors
+             *     are `provider_unreachable`, `provider_paused` and `provider_not_configured`.
              */
             422: {
                 headers: {

@@ -1,0 +1,15 @@
+{
+  "product": {
+    "asin": "B0TEST0002",
+    "title": "The Test Return",
+    "authors": [{"name": "John Q. Sample"}],
+    "narrators": [{"name": "Rob Reader"}],
+    "publisher_name": "Sample Audio",
+    "release_date": "2015-02-24",
+    "language": "english",
+    "runtime_length_min": 1342,
+    "series": [{"title": "The Test Trilogy", "sequence": "Book 3"}],
+    "product_images": {"500": "https://images.example.test/B0TEST0002._SL500_.jpg"}
+  },
+  "response_groups": ["always-returned", "product_desc"]
+}

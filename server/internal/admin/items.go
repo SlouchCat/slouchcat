@@ -50,6 +50,14 @@ func (s *Service) GetAdminItem(ctx context.Context, itemID string) (model.AdminI
 	if it.OriginalLanguage.Valid {
 		out.OriginalLanguage = &it.OriginalLanguage.String
 	}
+	if it.Kind == "audiobook" {
+		out.DurationMs = nullInt64(it.DurationMs)
+		if it.BookMatchState.Valid {
+			out.BookMatch = &model.AdminBookMatch{State: it.BookMatchState.String, Provider: it.BookMatchProvider.String,
+				ProviderID: it.BookMatchID.String, Region: it.BookMatchRegion.String, Error: it.BookMatchError.String,
+				MatchedAt: nullTime(it.BookMatchedAt), Manual: it.BookMatchManual == 1}
+		}
+	}
 	if err := json.Unmarshal([]byte(it.LockedFields), &out.LockedFields); err != nil || out.LockedFields == nil {
 		out.LockedFields = []string{}
 	}

@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -16,7 +17,9 @@ import (
 // Audiobook series and collections of a library (contract 1.25.0, concept 19 stage D2, D4.1). One
 // rule for every profile: everything comes from the volumes the profile may see. A series exists for
 // a profile only with at least two visible volumes (minSeriesVolumes); its name is the locked name,
-// else the most common spelling of the visible volumes without suffix (audioseries.Names.Display),
+// else the most common spelling of the visible volumes without suffix (audioseries.Names.Display;
+// with it under the switch metadata.books.normalize_series off, concept 19 D6.4), and its author
+// the most common unified name (items.author_display, else items.author),
 // so no cover, name or count of a book above the profile's ceiling reaches it. A collection counts
 // in the row of a library when its visible members are all audiobooks and one of them is in that
 // library (ListVisibleAudioCollections). The volumes are read with one query each and grouped in
@@ -51,8 +54,9 @@ type seriesFacts struct {
 	completed              int
 }
 
-func factsOf(volumes []seriesVolume) seriesFacts {
-	names := audioseries.Default()
+// factsOf computes the facts of the visible volumes; names give the shown spelling of the series
+// name (seriesNames).
+func factsOf(volumes []seriesVolume, names audioseries.Names) seriesFacts {
 	var f seriesFacts
 	shown := make([]string, 0, len(volumes))
 	authors := make([]string, 0, len(volumes))
@@ -76,6 +80,16 @@ func factsOf(volumes []seriesVolume) seriesFacts {
 		}
 	}
 	return f
+}
+
+// seriesNames returns the Names that give the shown spelling of a series name: without suffix,
+// or with it under the switch metadata.books.normalize_series off (concept 19 D6.4).
+func (r *Reader) seriesNames(ctx context.Context) (audioseries.Names, error) {
+	v, err := r.sys.GetSystemSetting(ctx, audioseries.SettingNormalizeSeries)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return audioseries.Names{}, fmt.Errorf("read %s: %w", audioseries.SettingNormalizeSeries, err)
+	}
+	return audioseries.Default().Shown(audioseries.SwitchOn(v, err == nil)), nil
 }
 
 // libraryFiltered reports whether q filters the titles of a library page (genre, years, rating,
@@ -107,6 +121,10 @@ func (r *Reader) AudioGroups(ctx context.Context, s Scope, libraryID int64, q mo
 	}
 	f.kinds = []string{"audiobook"}
 	out := model.AudioGroupList{Groups: []model.AudioGroup{}}
+	names, err := r.seriesNames(ctx)
+	if err != nil {
+		return model.AudioGroupList{}, err
+	}
 
 	tx, err := r.read.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
@@ -197,7 +215,7 @@ func (r *Reader) AudioGroups(ctx context.Context, s Scope, libraryID int64, q mo
 				continue
 			}
 		}
-		facts := factsOf(vs)
+		facts := factsOf(vs, names)
 		g.Name, g.Author, g.Completed = facts.name, facts.author, facts.completed
 		covers[len(out.Groups)] = vs[0].ID
 		coverIDs = append(coverIDs, vs[0].ID)
@@ -252,6 +270,10 @@ func (r *Reader) AudioSeries(ctx context.Context, s Scope, libraryID int64, seri
 	if err != nil {
 		return model.AudioSeries{}, err
 	}
+	names, err := r.seriesNames(ctx)
+	if err != nil {
+		return model.AudioSeries{}, err
+	}
 	// The volumes and their summaries in one read-only transaction: facts and list agree.
 	tx, err := r.read.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
@@ -277,7 +299,7 @@ func (r *Reader) AudioSeries(ctx context.Context, s Scope, libraryID int64, seri
 		}
 	}
 	slices.SortFunc(vs, compareVolumes)
-	facts := factsOf(vs)
+	facts := factsOf(vs, names)
 	out := model.AudioSeries{ID: seriesID, LibraryID: libraryID, Name: facts.name, NameLocked: vs[0].NameLocked == 1,
 		Author: facts.author, Narrator: facts.narrator, DurationMs: facts.duration,
 		Volumes: make([]model.AudioSeriesVolume, 0, len(vs)), Spellings: make([]model.AudioSeriesSpelling, 0, len(spelled))}

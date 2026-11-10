@@ -188,7 +188,9 @@
       "job_type_not_runnable": "Dieser Job hat keinen manuellen Lauf; seine Läufe kommen von Ereignissen.",
       "job_type_paused": "Der Job ist pausiert; setze ihn zuerst fort.",
       "job_type_not_scheduled": "Dieser Job hat keinen Zeitplan.",
-      "job_type_not_windowable": "Dieser Job hat kein Zeitfenster."
+      "job_type_not_windowable": "Dieser Job hat kein Zeitfenster.",
+      "provider_unreachable": "Die Quelle ist gerade nicht erreichbar. Versuche es später noch einmal.",
+      "provider_paused": "Die Quelle pausiert nach wiederholten Absagen. Versuche es später noch einmal."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -214,9 +216,11 @@
       "content_not_allowed": "Dieser Inhalt passt nicht zur Art der Bibliothek.",
       "providers_not_allowed": "Diese Liste von Metadatenquellen ist für diesen Inhalt nicht erlaubt.",
       "roots_required": "Mindestens ein Ordner ist nötig.",
-      "provider_not_searchable": "Nur TMDB und TVDB lassen sich durchsuchen.",
+      "provider_not_searchable": "Diese Quelle lässt sich hier nicht durchsuchen.",
       "local_address": "Diese Adresse liegt im lokalen Netz. Auch eigene Sender müssen aus dem Internet kommen.",
-      "not_own": "Das lässt sich nur bei eigenen Sendern ändern."
+      "not_own": "Das lässt sich nur bei eigenen Sendern ändern.",
+      "not_matched": "Dieses Hörbuch ist keiner Quelle zugeordnet.",
+      "not_found": "Diesen Eintrag gibt es bei der Quelle nicht."
     }
   },
   "setup": {
@@ -335,7 +339,12 @@
       "tmdb": "TMDB",
       "tvdb": "TVDB",
       "anilist": "AniList",
-      "local": "Lokale Dateien"
+      "local": "Lokale Dateien",
+      "audible": "Audible",
+      "dnb": "Deutsche Nationalbibliothek",
+      "applebooks": "Apple Books",
+      "openlibrary": "Open Library",
+      "googlebooks": "Google Books"
     },
     "content": {
       "title": "Inhalt",
@@ -678,7 +687,8 @@
     "separator": " · ",
     "seconds": "{{seconds}} s",
     "or": " oder ",
-    "listSeparator": ", "
+    "listSeparator": ", ",
+    "bookLength": "{{hours}} Std. {{minutes}} Min."
   },
   "player": {
     "region": "Videoplayer",
@@ -1413,10 +1423,69 @@
         "run": "Jetzt aktualisieren",
         "hint": "Läuft als Job mit hoher Priorität; die neuen Werte stehen, sobald er fertig ist.",
         "book": {
-          "body": "«Aus den Dateien neu lesen» liest metadata.json, die Tags und die Ordnernamen noch einmal. Felder mit Schloss und ein gewähltes Cover bleiben.",
-          "unlockAll": "Schlösser lösen",
-          "unlockAllHint": "Vorher alle Sperren dieses Buches aufheben: Danach gilt wieder, was die Dateien sagen. Eine eigene Freigabe bleibt.",
-          "run": "Aus den Dateien neu lesen"
+          "body": "Felder mit Schloss und ein gewähltes Cover bleiben, ausser du löst vorher die Schlösser.",
+          "unlockAll": "Dabei alle Schlösser lösen",
+          "unlockAllHint": "Vorher alle Sperren dieses Buches aufheben, auch die Schlösser der Felder, die du unter «Zuordnen» von einer Quelle übernommen hast: Danach gilt wieder, was die Dateien und der Anbieter sagen. Die Zuordnung selbst und eine eigene Freigabe bleiben.",
+          "run": "Neu lesen",
+          "filesTitle": "Aus den Dateien neu lesen",
+          "filesHint": "Liest metadata.json, die Tags und die Ordnernamen noch einmal.",
+          "providerTitle": "Vom Anbieter neu holen",
+          "providerHint": "Holt die Angaben von {{source}} noch einmal.",
+          "providerNone": "Erst unter «Zuordnen» einen Treffer wählen.",
+          "providerRun": "Neu holen",
+          "refetched": "Die Angaben von {{source}} werden neu geholt."
+        }
+      },
+      "bookMatch": {
+        "intro": "Eine Quelle nach Titel und Autor oder nach ASIN oder ISBN durchsuchen und einen Treffer wählen. Was übernommen wird, entscheidest du Feld für Feld.",
+        "noSources": "Der Ordner dieses Buches nennt keine eingerichtete Buchquelle. Die Quellen eines Ordners legst du in seiner Bibliothek fest.",
+        "matched": "Zugeordnet: {{source}}",
+        "unmatched": "Nicht zugeordnet: Angaben nur aus den Dateien",
+        "source": "Quelle",
+        "audible": {
+          "de": "Audible Deutschland",
+          "com": "Audible USA",
+          "couk": "Audible Grossbritannien",
+          "other": "Audible ({{domain}})"
+        },
+        "title": "Titel",
+        "author": "Autor",
+        "asin": "ASIN",
+        "isbn": "ISBN",
+        "idHint": "Mit ASIN oder ISBN sucht die Quelle nach dieser Kennung.",
+        "needQuery": "Gib einen Titel, eine ASIN oder eine ISBN an.",
+        "asinInvalid": "Eine ASIN hat zehn Buchstaben oder Ziffern.",
+        "isbnInvalid": "Eine ISBN hat 10 oder 13 Ziffern; Bindestriche sind erlaubt.",
+        "sorted": "Sortiert nach Bewertung: zuerst passende Länge, dann Titel, dann Autor.",
+        "filesLength": "Länge der Dateien: {{length}}",
+        "lengthUnknown": "Länge unbekannt",
+        "lengthFits": "{{length}}, passt",
+        "people": "{{authors}} · gelesen von {{narrators}}",
+        "asinId": "ASIN {{id}}",
+        "isbnId": "ISBN {{id}}",
+        "choose": "{{title}} wählen ({{length}})",
+        "preview": {
+          "title": "Was übernommen wird",
+          "entry": "{{title}} bei {{source}}",
+          "caption": "Felder von {{source}}, heute und neu",
+          "field": "Feld",
+          "today": "Heute",
+          "new": "Neu",
+          "take": "Übernehmen",
+          "takeLabel": "{{field}} übernehmen",
+          "locked": "gesperrt",
+          "noValue": "Die Quelle liefert keinen Wert",
+          "empty": "–",
+          "cover": "Cover der Quelle",
+          "coverToday": "vorhanden",
+          "hint": "Übernommene Felder bekommen ein Schloss. Felder mit Schloss bleiben. Die Zuordnung gilt auch für späteres «Vom Anbieter neu holen».",
+          "same": "Die Quelle liefert nichts, was sich von heute unterscheidet.",
+          "apply_one": "{{count}} Feld übernehmen",
+          "apply_other": "{{count}} Felder übernehmen",
+          "assignOnly": "Nur zuordnen",
+          "applied_one": "{{count}} Feld von {{source}} übernommen und gesperrt.",
+          "applied_other": "{{count}} Felder von {{source}} übernommen und gesperrt.",
+          "assigned": "Mit {{source}} zugeordnet, kein Feld übernommen."
         }
       }
     },
@@ -1559,7 +1628,8 @@
         "texts": "Sprachen abweichend",
         "images": "Bilder abweichend",
         "both": "Sprachen und Bilder abweichend",
-        "link": "Metadaten der Bibliothek"
+        "link": "Metadaten der Bibliothek",
+        "audiobooksLink": "Quellen für Hörbücher"
       },
       "trickplay": {
         "action": "Vorschau beim Spulen",
@@ -3748,6 +3818,11 @@
           "description": "Sucht für einen neuen Titel den passenden Eintrag bei TMDB oder TVDB.",
           "trigger": "vom Scan, Zuordnung von Hand, Ordner ändern"
         },
+        "library_author_display": {
+          "name": "Autorennamen vereinheitlichen",
+          "description": "Fasst die Schreibweisen eines Autors aller Hörbücher zu einem Anzeigenamen zusammen.",
+          "trigger": "nach einem Scan, nach einer Zuordnung, Schalter «Autorennamen vereinheitlichen»"
+        },
         "metadata_fill": {
           "name": "Metadaten auffüllen",
           "description": "Holt Texte, Genres, Freigabe, Besetzung und Bilder eines Titels.",
@@ -3862,6 +3937,11 @@
         "roots": "Die Reihenfolge der Quellen steht je Ordner unter Bibliotheken.",
         "jobs": "Die Zeitpläne stehen unter Hintergrundjobs.",
         "keys": "Schlüssel unter Integrationen"
+      },
+      "audiobooks": {
+        "title": "Hörbücher: Quellen",
+        "body": "Woher Slouchcat Angaben, Länge und Cover für Hörbücher holt, automatisches Zuordnen und die Liste «Prüfen».",
+        "open": "Quellen öffnen"
       },
       "areas": {
         "label": "Bereiche",
@@ -4023,6 +4103,119 @@
       "serverRestart": "Server neu gestartet",
       "serverRestartBy": "Neustart durch {{account}}",
       "unknown": "Ereignis auf dem Server"
+    },
+    "audiobookSources": {
+      "title": "Hörbücher: Quellen",
+      "intro": "Woher Slouchcat Angaben und Cover für Hörbücher holt. Die Dateien kommen immer zuerst; ein Anbieter füllt nur, was fehlt, und nie ein Feld mit Schloss.",
+      "folders": {
+        "title": "Reihenfolge je Ordner",
+        "intro": "Die obere Quelle gewinnt je Feld. Die Reihenfolge und welche Quellen mitmachen, änderst du im Dialog des Ordners.",
+        "empty": "Es gibt noch keinen Hörbuch-Ordner.",
+        "edit": "Quellen ändern",
+        "editLabel": "Quellen von {{path}} ändern",
+        "library": "Bibliothek {{name}}"
+      },
+      "settings": {
+        "title": "Einstellungen",
+        "saved": "Einstellungen für Hörbücher gespeichert."
+      },
+      "region": {
+        "label": "Region von Audible",
+        "help": "Der Audible-Katalog, in dem zuerst gesucht wird. Englische Bücher sucht der Server zusätzlich in den USA und in Grossbritannien.",
+        "de": "Deutschland (audible.de)",
+        "com": "USA (audible.com)",
+        "couk": "Grossbritannien (audible.co.uk)",
+        "fr": "Frankreich (audible.fr)",
+        "it": "Italien (audible.it)",
+        "es": "Spanien (audible.es)",
+        "ca": "Kanada (audible.ca)",
+        "comau": "Australien (audible.com.au)",
+        "in": "Indien (audible.in)",
+        "cojp": "Japan (audible.co.jp)"
+      },
+      "audnexus": {
+        "label": "Adresse von Audnexus",
+        "help": "Audnexus liefert die Details zu einem Audible-Treffer: Beschreibung, Genres, Reihe, ISBN und Cover. Eine eigene Instanz im lokalen Netz ist erlaubt.",
+        "invalid": "Gib eine Adresse mit http:// oder https:// an."
+      },
+      "googleBooks": {
+        "name": "Schlüssel für Google Books",
+        "description": "Ohne Schlüssel fragt der Server Google Books nie; erst mit Schlüssel lässt sich die Quelle in die Liste eines Ordners nehmen.",
+        "link": "API-Schlüssel bei Google holen"
+      },
+      "auto": {
+        "label": "Automatisch zuordnen",
+        "off": "Aus",
+        "offHint": "Nur von Hand über den Bleistift.",
+        "new": "Neue Hörbücher",
+        "newHint": "Beim Scan, für Hörbücher ohne Zuordnung.",
+        "all": "Alle ohne Zuordnung",
+        "allHint": "Einmal für die ganze Bibliothek, danach wie «Neue Hörbücher»."
+      },
+      "tolerance": {
+        "label": "Länge darf abweichen um",
+        "option": "{{count}} %",
+        "help": "Zugeordnet wird nur ein eindeutiger Treffer: gleicher Autor, ähnlicher Titel, passende Länge. Sonst bleibt das Hörbuch bei den Angaben der Dateien und erscheint unter «Prüfen». Erlaubt sind 1 bis 10 %."
+      },
+      "normalize": {
+        "title": "Vereinheitlichen",
+        "authors": "Autorennamen vereinheitlichen",
+        "authorsHint": "«J R R Tolkien», «J.R.R. Tolkien» und «J. R. R. Tolkien» werden eine Person.",
+        "series": "Reihennamen vereinheitlichen",
+        "seriesHint": "«Bodyguard - Band» wird «Bodyguard», «Der Herr Der Ringe - Band» wird «Der Herr der Ringe»."
+      },
+      "terms": "Audibles Nutzungsbedingungen verbieten das automatische Auslesen des Katalogs. Slouchcat fragt höchstens einmal je Sekunde und pausiert die Quelle nach wiederholten Absagen. Wer das nicht will, nimmt Audible aus der Liste des Ordners.",
+      "sources": {
+        "title": "Zustand der Quellen",
+        "ready": "bereit",
+        "notConfigured": "ohne Schlüssel aus",
+        "paused": "pausiert bis {{time}}"
+      },
+      "stats": {
+        "title": "Stand der Bibliothek",
+        "total": "Hörbücher",
+        "matched": "Zugeordnet",
+        "review": "Zu prüfen",
+        "none": "Ohne Treffer",
+        "error": "Gestört",
+        "pending": "Ausstehend",
+        "running": "Eine Zuordnung läuft oder wartet."
+      },
+      "matchAll": {
+        "run": "Jetzt alle ohne Zuordnung zuordnen",
+        "queued_one": "{{count}} Hörbuch eingereiht.",
+        "queued_other": "{{count}} Hörbücher eingereiht.",
+        "jobs": "Zu den Hintergrundjobs"
+      },
+      "review": {
+        "title": "Prüfen",
+        "intro": "Hörbücher mit mehreren Kandidaten, einer Länge ausserhalb der Toleranz oder einer gestörten Quelle. Der Bleistift öffnet den Editor.",
+        "empty": "Nichts zu prüfen.",
+        "caption": "Hörbücher zum Prüfen",
+        "column": {
+          "title": "Titel",
+          "author": "Autor",
+          "length": "Länge",
+          "state": "Zustand",
+          "candidates": "Kandidaten",
+          "actions": "Bearbeiten"
+        },
+        "state": {
+          "review": "zu prüfen",
+          "error": "gestört"
+        },
+        "reason": {
+          "paused": "{{source}} pausiert nach wiederholten Absagen.",
+          "blocked": "{{source}} hat die Anfragen abgewiesen.",
+          "notConfigured": "{{source}} ist nicht eingerichtet.",
+          "region": "{{source}} kennt den eingestellten Marktplatz nicht.",
+          "unreachable": "{{source}} war nicht erreichbar.",
+          "unknown": "{{source}} hat einen Fehler gemeldet."
+        },
+        "candidate": "{{source}}: {{title}} · {{length}}",
+        "noCandidates": "keine",
+        "edit": "{{title}} bearbeiten"
+      }
     }
   },
   "language": {

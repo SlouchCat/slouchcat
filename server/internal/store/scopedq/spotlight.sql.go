@@ -11,7 +11,7 @@ import (
 )
 
 const listSpotlightRow = `-- name: ListSpotlightRow :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, o.pinned_rank, o.note FROM spotlight_entries AS e
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, o.pinned_rank, o.note FROM spotlight_entries AS e
 JOIN items AS i ON i.tmdb_id = e.tmdb_id
                AND i.kind = CASE e.media WHEN 'movie' THEN 'movie' ELSE 'series' END
                AND i.deleted_at IS NULL
@@ -115,6 +115,15 @@ func (q *Queries) ListSpotlightRow(ctx context.Context, arg ListSpotlightRowPara
 			&i.Item.Isbn,
 			&i.Item.Asin,
 			&i.Item.AudioSeriesID,
+			&i.Item.AuthorDisplay,
+			&i.Item.BookMatchState,
+			&i.Item.BookMatchProvider,
+			&i.Item.BookMatchID,
+			&i.Item.BookMatchRegion,
+			&i.Item.BookMatchedAt,
+			&i.Item.BookMatchScore,
+			&i.Item.BookMatchError,
+			&i.Item.BookMatchManual,
 			&i.PinnedRank,
 			&i.Note,
 		); err != nil {

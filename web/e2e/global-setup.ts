@@ -42,6 +42,13 @@ async function createLibrary(api: APIRequestContext, data: Record<string, unknow
 }
 
 /**
+ * The sources of the audiobook folder: the factory list of a new audiobook folder (concept 19
+ * D6.2), so the automatic match at start runs as in an installation. The book sources answer
+ * from books-server.mjs.
+ */
+const AUDIOBOOK_PROVIDERS = ['local', 'audible', 'dnb', 'applebooks'];
+
+/**
  * The audio libraries of M6, once per run: "Hörbücher" on testdata/media/Audiobooks and
  * "Podcasts" without a folder, both with the default rating 0 (AN-2).
  */
@@ -54,7 +61,7 @@ async function ensureAudioLibraries(api: APIRequestContext): Promise<void> {
     await createLibrary(api, {
       name: 'Hörbücher',
       kind: 'audiobooks',
-      roots: [{ path: AUDIOBOOKS_DIR, content: 'audiobook', providers: ['local'] }],
+      roots: [{ path: AUDIOBOOKS_DIR, content: 'audiobook', providers: AUDIOBOOK_PROVIDERS }],
       defaultRating: 0,
     });
   }
@@ -266,7 +273,7 @@ export default async function globalSetup(): Promise<void> {
           library: {
             name: 'Hörbücher',
             kind: 'audiobooks',
-            roots: [{ path: AUDIOBOOKS_DIR, content: 'audiobook', providers: ['local'] }],
+            roots: [{ path: AUDIOBOOKS_DIR, content: 'audiobook', providers: AUDIOBOOK_PROVIDERS }],
             defaultRating: 0,
           },
         },

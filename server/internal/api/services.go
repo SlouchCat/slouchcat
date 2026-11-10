@@ -113,7 +113,7 @@ type AdminService interface {
 	// of a folder. Errors:
 	// model.ErrNotFound, *model.ValidationError, model.ErrConfirmMismatch, model.ErrScanRunning.
 	UpdateLibraryRoot(ctx context.Context, libraryID, rootID int64, upd model.LibraryRootUpdate) (model.Library, error)
-	// ListMetadataProviders describes the four providers (ADR 0015).
+	// ListMetadataProviders describes the providers (ADR 0015; the book sources since concept 19 D6).
 	ListMetadataProviders(ctx context.Context) ([]model.MetadataProviderInfo, error)
 	// Metadata settings of concept 10 (ADR 0018): server settings, a library's deviation, apply.
 	MetadataSettings(ctx context.Context) (model.MetadataSettings, error)
@@ -168,6 +168,19 @@ type AdminService interface {
 	// SearchMetadata asks a provider (model.ErrProviderNotConfigured, model.ErrTMDBKeyInvalid,
 	// model.ErrTMDBUnreachable).
 	SearchMetadata(ctx context.Context, provider, kind, query string, year *int) ([]model.MetadataCandidate, error)
+	// The book sources of audiobooks (contract 1.26.0, concept 19 D5.2, D6.6): the search, the
+	// comparison and the match in the editor, the refetch, and the page «Hörbücher: Quellen».
+	// Errors: model.ErrNotFound, *model.ValidationError (a failing source is the field error
+	// provider provider_unreachable, provider_paused or provider_not_configured; an unknown entry
+	// providerId not_found; a refetch without match fromProvider not_matched), *model.EnvWinsError.
+	SearchBooks(ctx context.Context, q model.BookSearch) ([]model.MetadataCandidate, error)
+	GetMatchPreview(ctx context.Context, itemID, provider, providerID, region string) (model.MatchPreview, error)
+	SetBookMatch(ctx context.Context, itemID, provider, providerID, region string, fields []string) (model.AdminItem, error)
+	RefreshItemFromProvider(ctx context.Context, itemID string, unlockAll bool) (model.AdminItem, error)
+	AudiobookSources(ctx context.Context) (model.AudiobookSources, error)
+	UpdateAudiobookSources(ctx context.Context, upd model.AudiobookSourcesUpdate) (model.AudiobookSources, error)
+	MatchAllAudiobooks(ctx context.Context) (int, error)
+	ListAudiobookReview(ctx context.Context) ([]model.BookReviewEntry, error)
 	// ListIssues returns one page of maintenance issues of a kind (limit 0 = 50).
 	ListIssues(ctx context.Context, kind string, libraryID *int64, limit, offset int) (model.IssuePage, error)
 	// ListDuplicates returns the duplicate groups.

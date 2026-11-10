@@ -101,18 +101,20 @@ func (s *Service) handleMatch(ctx context.Context, j *jobs.Job) error {
 	if err != nil {
 		return err
 	}
-	return s.matchItem(ctx, p.ItemID, !p.NoRelink)
+	return s.matchItem(ctx, p)
 }
 
 // match enriches one item. Transient provider errors are returned so the queue retries; an
 // invalid key, a missing key and a title the provider does not know end the job with a state on
 // the item.
 func (s *Service) match(ctx context.Context, itemID string) error {
-	return s.matchItem(ctx, itemID, true)
+	return s.matchItem(ctx, itemPayload{ItemID: itemID})
 }
 
-// matchItem is match; relink false skips the relink hook after the title (relinkQueued).
-func (s *Service) matchItem(ctx context.Context, itemID string, relink bool) error {
+// matchItem is match with the job's payload: NoRelink skips the relink hook after the title
+// (relinkQueued), Book and Refetch steer the match of an audiobook (matchAudiobook).
+func (s *Service) matchItem(ctx context.Context, p itemPayload) error {
+	itemID, relink := p.ItemID, !p.NoRelink
 	item, err := s.read.GetItemSystem(ctx, itemID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
@@ -136,9 +138,9 @@ func (s *Service) matchItem(ctx context.Context, itemID string, relink bool) err
 	case "episode":
 		return s.matchEpisode(ctx, item)
 	case "audiobook":
-		// A book needs no match: its files are its source (concept 19 D5.3), and the scan writes
-		// it. A match asked for after an image choice went decides the cover again.
-		return s.enqueueImages(ctx, item.ID, matchManualPriority)
+		// The files are a book's first source (concept 19 D5.3); the sources of its folder fill
+		// the gaps once all its parts are probed (D6.3). The cover is decided again either way.
+		return s.matchAudiobook(ctx, item, p)
 	default:
 		return s.setState(ctx, item, stateSkipped, errUnsupportedKind)
 	}
@@ -1303,7 +1305,8 @@ const maxUpgradeMatches = 200
 // (QueuePendingTrailers, for example after the YouTube quota ran out). It also starts
 // metadata.vote_backfill once while titles wait for a vote (QueueVoteBackfill, concept 08 4.2; not
 // counted, the job is not one of the library's) and people.images when a person or collection
-// image is open (QueuePeopleImages, ADR 0026; not counted either). The library scan calls it after every complete
+// image is open (QueuePeopleImages, ADR 0026; not counted either), and the match of audiobooks in
+// state error again unless every source of their folder pauses (concept 19 D6.3; counted). The library scan calls it after every complete
 // run, so enrichment converges after aborted scans, failed jobs and the upgrade. It returns the
 // number of jobs queued.
 func (s *Service) QueuePendingMetadata(ctx context.Context, libraryID int64) (int, error) {
@@ -1349,7 +1352,10 @@ func (s *Service) QueuePendingMetadata(ctx context.Context, libraryID int64) (in
 	if _, err := s.QueuePeopleImages(ctx); err != nil {
 		return n, err
 	}
-	return n, nil
+	// Audiobooks whose last match failed at a source try again (concept 19 D6.3 point 6).
+	b, err := s.queueErrorBooks(ctx, libraryID)
+	n += b
+	return n, err
 }
 
 func genreNames(gs []Genre) []string {

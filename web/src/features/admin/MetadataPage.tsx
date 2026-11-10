@@ -25,7 +25,17 @@ import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { Chip, Notice, Panel, SelectField, Skeleton, Text, TextLink, VisuallyHidden } from '@/ui';
+import {
+  ButtonLink,
+  Chip,
+  Notice,
+  Panel,
+  SelectField,
+  Skeleton,
+  Text,
+  TextLink,
+  VisuallyHidden,
+} from '@/ui';
 import {
   AdminPage,
   AriaButton,
@@ -990,6 +1000,21 @@ export function MetadataPage() {
         <Skeleton shape="block" />
       ) : (
         <>
+          {/* Audiobooks take their sources from a page of their own (concept 19 D6.6); a caption
+              link under the areas went unnoticed, so the entry stands above them. */}
+          {!inLibrary && libraries.data?.some((library) => library.kind === 'audiobooks') && (
+            <Notice
+              live={false}
+              title={t('admin.metadata.audiobooks.title')}
+              actions={
+                <ButtonLink href={paths.adminAudiobookSources} icon="book">
+                  {t('admin.metadata.audiobooks.open')}
+                </ButtonLink>
+              }
+            >
+              {t('admin.metadata.audiobooks.body')}
+            </Notice>
+          )}
           <MasterDetail
             label={t('admin.metadata.areas.label')}
             items={areaItems}

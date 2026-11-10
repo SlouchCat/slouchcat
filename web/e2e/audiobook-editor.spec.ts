@@ -11,7 +11,7 @@ import {
 } from './keyboard';
 
 // The pen and the metadata editor of an audiobook (concept 19 D5, stage D1; rule 8): the pen on a
-// book's card in the library «Hörbücher» opens the editor with the tabs Metadaten, Cover and
+// book's card in the library «Hörbücher» opens the editor with the tabs Metadaten, Cover, Zuordnen and
 // Aktualisieren. PD-1: author, narrator, series and volume change, save and show on the detail
 // page. PD-2: the cover candidates of the files (the MP3 book's cover.jpg, the M4B's embedded
 // picture) are square; a choice becomes the current cover. PD-14: the pen by Tab, every tab by the
@@ -81,7 +81,7 @@ test.beforeEach(async ({ owner }) => {
   mp3 ||= await audioItemId(owner, MP3_TITLE);
 });
 
-test('the pen on a book card by Tab; the three tabs by the arrow keys; Escape returns @keyboard', async ({
+test('the pen on a book card by Tab; the four tabs by the arrow keys; Escape returns @keyboard', async ({
   page,
   owner,
 }) => {
@@ -89,6 +89,7 @@ test('the pen on a book card by Tab; the three tabs by the arrow keys; Escape re
   await expect(tabs(page, M4B_TITLE).getByRole('tab')).toHaveText([
     /^Metadaten/,
     /^Cover/,
+    /^Zuordnen/,
     /^Aktualisieren/,
   ]);
   const selected = tabs(page, M4B_TITLE).getByRole('tab', { selected: true });
@@ -96,12 +97,13 @@ test('the pen on a book card by Tab; the three tabs by the arrow keys; Escape re
   // The head: the link, «Schliessen», then the selected tab; the arrow keys walk the tabs.
   await tabTo(page, selected, 10);
   await expectVisibleFocus(page);
-  for (const name of ['Cover', 'Aktualisieren']) {
+  for (const name of ['Cover', 'Zuordnen', 'Aktualisieren']) {
     await page.keyboard.press('ArrowRight');
     await expect(selected).toHaveText(new RegExp(`^${name}`));
     await expectFocusOn(page, selected);
     await expectVisibleFocus(page);
   }
+  await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('ArrowLeft');
   await expect(selected).toHaveText(/^Metadaten/);

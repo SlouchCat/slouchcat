@@ -6,6 +6,11 @@
   cursor: pointer;
 }
 
+.check[data-disabled] {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .check[data-focus-visible] {
   outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
   outline-offset: var(--sc-focus-ring-offset);
