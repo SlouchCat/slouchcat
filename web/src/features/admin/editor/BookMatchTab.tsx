@@ -1,7 +1,7 @@
 import type { AdminItem, MetadataCandidate } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { firstErrorMessage } from '@/api/errors';
@@ -148,6 +148,7 @@ export function BookMatchTab({
   const [search, setSearch] = useState<Search | null>(null);
   const [needQuery, setNeedQuery] = useState(false);
   const [chosen, setChosen] = useState<MetadataCandidate | null>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   const results = useQuery({
     queryKey: ['admin', 'metadata-search', 'audiobook', item.id, search],
@@ -330,9 +331,12 @@ export function BookMatchTab({
           <Text tone="secondary" variant="caption">
             {t('admin.editor.bookMatch.sorted')}
           </Text>
-          <ul className={styles.candidates}>
+          <ul ref={listRef} className={styles.candidates}>
             {results.data.map((candidate) => (
-              <li key={`${candidate.provider}-${candidate.providerId}`}>
+              <li
+                key={`${candidate.provider}-${candidate.providerId}`}
+                data-candidate={`${candidate.provider}-${candidate.providerId}`}
+              >
                 <CandidateCard
                   title={candidateTitle(candidate)}
                   details={candidateLines(candidate)}
@@ -363,7 +367,15 @@ export function BookMatchTab({
           providerId={chosen.providerId}
           region={chosen.region ?? search?.region}
           onApplied={(next, count) => {
+            // The comparison and its focused button go: the focus moves to the picked hit, so it
+            // stays in the dialog (Firefox would leave it on the body, where Escape goes back).
+            const picked = `${chosen.provider}-${chosen.providerId}`;
             setChosen(null);
+            requestAnimationFrame(() => {
+              const hits = listRef.current?.querySelectorAll<HTMLLIElement>('li[data-candidate]');
+              const hit = [...(hits ?? [])].find((li) => li.dataset.candidate === picked);
+              hit?.querySelector<HTMLElement>('button')?.focus();
+            });
             const source = providerName(t, chosen.provider);
             onChanged(
               next,

@@ -246,6 +246,8 @@ test('«Zuordnen» of an audiobook by keyboard: search, pick, untick a field, ta
   await expect(
     editor.getByText(`${before - 1} Felder von Audible übernommen und gesperrt.`),
   ).toBeAttached();
+  // The comparison goes; the focus stays in the dialog on the picked hit.
+  await expectFocusOn(page, hit);
 
   // Escape closes the editor, the focus goes back to the pen.
   await page.keyboard.press('Escape');
