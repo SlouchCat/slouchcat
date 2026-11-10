@@ -3,8 +3,8 @@
 // and stops it after the run; the temporary directories are removed on exit. The local podcast
 // feed (feed-server.mjs, M6), the Trakt mock (trakt-server.mjs, M7) and the mocks of the
 // notification channels and the update check (smtp-, push-, telegram- and update-server.mjs, M8)
-// and the Radio Browser with the test station (radio-server.mjs, concept 16) run in this process
-// and stop with the server.
+// the Radio Browser with the test station (radio-server.mjs, concept 16) and the book sources of
+// audiobooks (books-server.mjs, concept 19 D3) run in this process and stop with the server.
 //
 // The suite runs bin/slouchcat-e2e, the server built with the tag radiotest (`task build`): only
 // that build reads the catalog URL from the environment and lets the radio dial the loopback (plan
@@ -24,6 +24,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { startBooksServer } from './books-server.mjs';
 import { startFeedServer } from './feed-server.mjs';
 import { startPushServer } from './push-server.mjs';
 import { startRadioServer } from './radio-server.mjs';
@@ -67,6 +68,8 @@ const telegram = await startTelegramServer({ port: below('TELEGRAM', 6) });
 const update = await startUpdateServer({ port: below('UPDATE', 7) });
 // The Radio Browser and the test station nine below the app's port (radio-server.mjs).
 const radio = await startRadioServer({ port: below('RADIO', 9) });
+// The book sources ten below (books-server.mjs): the automatic match at start asks them.
+const books = await startBooksServer({ port: below('BOOKS', 10) });
 
 // The artefact folder of env.ts ARTEFACTS (SLOUCHCAT_E2E_ARTEFACTS moves it, e2e/parallel.mjs).
 const logFile = process.env.SLOUCHCAT_E2E_ARTEFACTS
@@ -133,6 +136,9 @@ const server = spawn(
       SLOUCHCAT_TEST_RADIO_CATALOG_URL: `http://127.0.0.1:${radio.port}`,
       SLOUCHCAT_RADIO_DIR: join(dirname(logFile), 'radio'),
       SLOUCHCAT_TEST_RADIO_DISK_BUFFER: '1',
+      // Every audiobook source (Audible, Audnexus, DNB, Apple Books, Open Library, Google Books)
+      // asks the mock instead of the internet; the server honours it with --dev only.
+      SLOUCHCAT_TEST_BOOKS_BASE_URL: `http://127.0.0.1:${books.port}`,
       // The spotlight stage starts at slide 0 in the suite instead of a random one (concept 08).
       SLOUCHCAT_HERO_START: '0',
       // One manual spotlight fetch every 2 s instead of every minute (discover.ts refreshSpotlight):
@@ -165,5 +171,6 @@ server.on('exit', (code) => {
     telegram.close(),
     update.close(),
     radio.close(),
+    books.close(),
   ]).finally(() => process.exit(code ?? 0));
 });

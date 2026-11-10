@@ -78,6 +78,9 @@ export const UPDATE_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_
 // The Radio Browser and the test station of the webradio (radio-server.mjs, concept 16) nine
 // below: GET /drop cuts every open stream of the test station.
 export const RADIO_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_RADIO_PORT ?? PORT - 9)}`;
+// The book sources of audiobooks (books-server.mjs, concept 19 D3) ten below: Audible, Audnexus,
+// DNB, Apple Books, Open Library and Google Books in one mock (SLOUCHCAT_TEST_BOOKS_BASE_URL).
+export const BOOKS_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_BOOKS_PORT ?? PORT - 10)}`;
 
 /** Copy of the server's log, written by start-server.mjs and scanned by global-teardown.ts (A-9). */
 export const SERVER_LOG = `${ARTEFACTS}server.log`;

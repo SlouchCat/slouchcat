@@ -183,10 +183,12 @@ test('Tab reaches header, the add dialog and its fields in order; no focus trap 
   // The folder browser of idea 02 sits right after the field, as the wizard's check does.
   await page.keyboard.press('Tab');
   await expectFocusOn(page, dialog.getByRole('button', { name: 'Durchsuchen …' }));
-  // An audiobook folder has one content and one source: nothing to choose, the next stop is the
-  // button for another card (F-13), then the default age rating.
+  // An audiobook folder has one content; its sources (concept 19 D6.2: the files first, then the
+  // book sources) start with the box of «Lokale Dateien». After the list the button for another
+  // card (F-13), then the default age rating.
   await page.keyboard.press('Tab');
-  await expectFocusOn(page, dialog.getByRole('button', { name: 'Weiteren Ordner hinzufügen' }));
+  await expectFocusOn(page, dialog.getByRole('checkbox', { name: 'Lokale Dateien' }));
+  await tabTo(page, dialog.getByRole('button', { name: 'Weiteren Ordner hinzufügen' }), 20);
   await page.keyboard.press('Tab');
   await expectFocusOn(
     page,
@@ -323,19 +325,22 @@ test('audio kinds by keyboard: default rating with arrows, no folder for podcast
   await page.keyboard.type('/does/not/exist/slouchcat-e2e-audio');
   await page.keyboard.press('Tab');
   await expectFocusOn(page, form.getByRole('button', { name: 'Durchsuchen …' }));
+  // The sources of the folder (concept 19 D6.2), then «Weiteren Ordner hinzufügen».
   await page.keyboard.press('Tab');
-  await expectFocusOn(page, form.getByRole('button', { name: 'Weiteren Ordner hinzufügen' }));
+  await expectFocusOn(page, form.getByRole('checkbox', { name: 'Lokale Dateien' }));
+  await tabTo(page, form.getByRole('button', { name: 'Weiteren Ordner hinzufügen' }), 20);
   await page.keyboard.press('Tab');
   await expectFocusOn(page, rating.getByRole('radio', { name: 'FSK 0' }));
   await page.keyboard.press('ArrowRight');
   await expectFocusOn(page, rating.getByRole('radio', { name: 'FSK 6' }));
   await expect(rating.getByRole('radio', { name: 'FSK 6' })).toBeChecked();
   await expectVisibleFocus(page);
-  // Back to the folder with Shift+Tab; Enter there sends kind and rating, and the missing
-  // folder is reported at the field.
-  await page.keyboard.press('Shift+Tab');
-  await page.keyboard.press('Shift+Tab');
-  await page.keyboard.press('Shift+Tab');
+  // Back to the folder with Shift+Tab, past the sources; Enter there sends kind and rating, and
+  // the missing folder is reported at the field.
+  for (let presses = 0; presses < 20; presses += 1) {
+    await page.keyboard.press('Shift+Tab');
+    if (await folder.evaluate((element) => element === document.activeElement)) break;
+  }
   await expectFocusOn(page, folder);
   const sent = page.waitForRequest(
     (request) => request.method() === 'POST' && request.url().endsWith('/admin/libraries'),
