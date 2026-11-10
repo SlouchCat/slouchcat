@@ -160,13 +160,15 @@ func (s *server) SetItemOriginalLanguage(ctx context.Context, req gen.SetItemOri
 	return gen.SetItemOriginalLanguage200JSONResponse(toAdminItem(it)), nil
 }
 
-// UpdateItemMetadata is the metadata editor (concept 15 7.5, contract 1.15.0); an empty body
-// changes nothing.
+// UpdateItemMetadata is the metadata editor (concept 15 7.5, contract 1.15.0; audiobooks since
+// 1.24.0); an empty body changes nothing.
 func (s *server) UpdateItemMetadata(ctx context.Context, req gen.UpdateItemMetadataRequestObject) (gen.UpdateItemMetadataResponseObject, error) {
 	var edit model.ItemMetadataEdit
 	if b := req.Body; b != nil {
 		edit = model.ItemMetadataEdit{Title: b.Title, OriginalTitle: b.OriginalTitle, SortTitle: b.SortTitle, Year: b.Year,
-			ReleaseDate: b.ReleaseDate, Tagline: b.Tagline, Overview: b.Overview, Genres: b.Genres}
+			ReleaseDate: b.ReleaseDate, Tagline: b.Tagline, Overview: b.Overview, Genres: b.Genres,
+			Author: b.Author, Narrator: b.Narrator, SeriesName: b.SeriesName, SeriesIndex: b.SeriesIndex,
+			Publisher: b.Publisher, ISBN: b.Isbn, ASIN: b.Asin}
 		if b.Unlock != nil {
 			for _, f := range *b.Unlock {
 				edit.Unlock = append(edit.Unlock, string(f))
@@ -198,6 +200,8 @@ func toAdminItemMetadata(m *model.AdminItemMetadata) *gen.AdminItemMetadata {
 	}
 	out := &gen.AdminItemMetadata{Lang: m.Lang, Title: m.Title, OriginalTitle: m.OriginalTitle, SortTitle: m.SortTitle, Year: m.Year,
 		ReleaseDate: m.ReleaseDate, Tagline: m.Tagline, Overview: m.Overview, Genres: m.Genres,
+		Author: m.Author, Narrator: m.Narrator, SeriesName: m.SeriesName, SeriesIndex: m.SeriesIndex,
+		Publisher: m.Publisher, Isbn: m.ISBN, Asin: m.ASIN,
 		Locked: make([]gen.AdminMetadataField, 0, len(m.Locked)), Sources: make([]gen.AdminMetadataSource, 0, len(m.Sources))}
 	if out.Genres == nil {
 		out.Genres = []string{}

@@ -143,7 +143,7 @@ func TestItemMetadataOverHTTP(t *testing.T) {
 		{fixtureFilm6, `{"title":"X","unlock":["title"]}`, "unlock:invalid_value"},
 		{fixtureFilm6, `{"unlock":["rating"]}`, "unlock:invalid_value"},
 		{pf.f.Show.E1.ID, `{"tagline":"Nein"}`, "tagline:invalid_value"},
-		{pf.f.Audio.Books[0].ID, `{"title":"Buch"}`, "kind:invalid_value"},
+		{pf.f.Audio.Podcast.ID, `{"title":"Podcast"}`, "kind:invalid_value"},
 	} {
 		rec := send(t, pf.h, http.MethodPatch, BasePath+"/admin/items/"+tc.id+"/metadata", "p18", tc.body, nil)
 		p := decodeProblem(t, rec)

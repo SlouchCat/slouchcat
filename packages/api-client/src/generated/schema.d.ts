@@ -1742,7 +1742,9 @@ export interface paths {
          * @description Sets the original language of a movie or series (since contract 1.11.0) and locks the field
          *     (`lockedFields` gets `original_language`), so `metadata.fill`, a match and
          *     `metadata.original_language_backfill` keep it. `""` stores "unknown". `null` lifts the lock and
-         *     clears the value; a manual match of the title looks the language up again.
+         *     clears the value; a manual match of the title looks the language up again. Since contract 1.24.0
+         *     also an audiobook, whose language it is (concept 19 D5.3): the scan keeps a locked value, and a
+         *     locked `de` or `en` is the text row the scan writes; `null` reads the files of the book again.
          */
         put: operations["setItemOriginalLanguage"];
         post?: never;
@@ -1811,7 +1813,9 @@ export interface paths {
          *     of every media file of the title. Locked fields and manual trailers are kept. Since contract 1.15.0
          *     an optional body `{"unlockAll": true}` first lifts every lock of the title (concept 15 7.5): the
          *     field and text locks and the image choices go, so the refresh decides them again; the locks of a
-         *     manual match (`setItemMatch`) and a rating set by hand stay. Without a body as before.
+         *     manual match (`setItemMatch`) and a rating set by hand stay. Without a body as before. For an
+         *     audiobook (since contract 1.24.0) no match is queued: the probes read metadata.json, the tags and
+         *     the folder names of the book again, and `image.fetch` follows.
          */
         post: operations["refreshItem"];
         delete?: never;
@@ -1840,9 +1844,15 @@ export interface paths {
          *     fields (their values stay until the next refresh). Texts (`title`, `sortTitle`, `tagline`,
          *     `overview`) always belong to the server's metadata language (`AdminItemMetadata.lang`, F-10); they
          *     are locked per language (`title:de`, `sort_title:de`, …), the other languages stay with the
-         *     providers. `sortTitle` is kept as typed and stored as the sort key of that language (lower-cased,
-         *     diacritics folded, no article stripped), which the library sorts by. `originalTitle`, `tagline` and `genres` exist
-         *     for movies and series only. A field the request sets loses its provenance (`fieldSources`). An
+         *     providers. Since contract 1.24.0 also an audiobook (concept 19 D5.3): its files are its only
+         *     source, so a text goes into every text row of the book (its language and `en`) and is locked in
+         *     each, and the scan keeps every locked field. `tagline` is a book's subtitle; `author`,
+         *     `narrator`, `seriesName`, `seriesIndex`, `publisher`, `isbn` and `asin` exist for audiobooks
+         *     only, `releaseDate` not for them. `""` clears a book field; an empty `seriesName` clears the
+         *     volume as well. `isbn` takes 10 or 13 digits (the last of 10 may be X) with hyphens or spaces,
+         *     stored without them; `asin` ten letters or digits, stored in capitals. `sortTitle` is kept as typed and stored as the sort key of that language (lower-cased,
+         *     diacritics folded, no article stripped), which the library sorts by. `originalTitle` exists for movies and series
+         *     only, `tagline` and `genres` for movies, series and audiobooks. A field the request sets loses its provenance (`fieldSources`). An
          *     empty body changes nothing. The answer is the administration view after the change.
          */
         patch: operations["updateItemMetadata"];
@@ -1951,7 +1961,10 @@ export interface paths {
          *     provider points to the provider's small size (the browser loads it directly, without referrer, 9.6);
          *     of a local file to `getItemImageCandidatePreview`. Kinds: poster, backdrop, logo for films and
          *     series, poster for seasons, backdrop (the TMDB stills) for episodes while the setting "episode
-         *     stills" is on (since contract 1.15.0, `AdminItem.imageKinds`); another kind is 422.
+         *     stills" is on (since contract 1.15.0, `AdminItem.imageKinds`); another kind is 422. Since contract
+         *     1.24.0 the square cover of an audiobook (kind `poster`, concept 19 D5.3): every image in the book's
+         *     folder (provider `local`, the folder of its parts when no other book's file lies there) and the
+         *     picture embedded in the first part that has one (provider `embedded`).
          */
         get: operations["listItemImageCandidates"];
         put?: never;
@@ -1973,7 +1986,9 @@ export interface paths {
          * A local image file of a title as preview (binary)
          * @description Implemented as an `http.Handler` (CLAUDE.md rule 6). Serves only a `source` the scanner listed for
          *     the title (`file:<rel>?<size>-<mtime>` from `listItemImageCandidates`), read through the library
-         *     root (rule 4), at most 20 MB; any other source is 404 (concept 10 9.2).
+         *     root (rule 4), at most 20 MB; any other source is 404 (concept 10 9.2). Since contract 1.24.0 also
+         *     an image in the folder of an audiobook and its embedded picture (`embedded:<fileId>?<mtime>`), which
+         *     ffmpeg extracts.
          */
         get: operations["getItemImageCandidatePreview"];
         put?: never;
@@ -1997,7 +2012,8 @@ export interface paths {
          * @description Stores the candidate as the title's image of the kind (`chosen`) and locks the kind
          *     (`lockedFields`); `image.fetch` fetches it at the manual priority. `source` must be a candidate of
          *     the title (`listItemImageCandidates`); an expired cache is asked again before a source is
-         *     `source_unknown`. A later `applyMetadata`, refresh or fill keeps the choice.
+         *     `source_unknown`. A later `applyMetadata`, refresh or fill keeps the choice; for an audiobook (since
+         *     contract 1.24.0) a scan of its folder keeps it too.
          */
         put: operations["setItemImage"];
         post?: never;
@@ -2033,7 +2049,8 @@ export interface paths {
          *     A later refresh, match or `applyMetadata` keeps it; `clearItemImage` lifts the lock and the
          *     provider's image replaces the upload. Kinds as in `AdminItem.imageKinds`: poster, backdrop and
          *     logo for films and series, poster for seasons, backdrop (the episode still) for episodes while
-         *     the setting "episode stills" (`episode_still`) is on.
+         *     the setting "episode stills" (`episode_still`) is on, poster (the cover) for audiobooks since
+         *     contract 1.24.0.
          */
         put: operations["uploadItemImage"];
         post?: never;
@@ -6407,10 +6424,11 @@ export interface components {
             metadata?: components["schemas"]["AdminItemMetadata"];
         };
         /**
-         * @description A field of the metadata editor (since contract 1.15.0, concept 15 7.5).
+         * @description A field of the metadata editor (since contract 1.15.0, concept 15 7.5). `author` to `asin` since contract
+         *     1.24.0, for audiobooks (concept 19 D5.3).
          * @enum {string}
          */
-        AdminMetadataField: "title" | "originalTitle" | "sortTitle" | "year" | "releaseDate" | "tagline" | "overview" | "genres";
+        AdminMetadataField: "title" | "originalTitle" | "sortTitle" | "year" | "releaseDate" | "tagline" | "overview" | "genres" | "author" | "narrator" | "seriesName" | "seriesIndex" | "publisher" | "isbn" | "asin";
         /**
          * @description The fields the administrator changes (since contract 1.15.0); a field left out stays as it is. Texts
          *     belong to the server's metadata language. `""` clears `originalTitle`, `releaseDate`, `tagline` and
@@ -6426,16 +6444,38 @@ export interface components {
             tagline?: string;
             overview?: string;
             genres?: string[];
-            /** @description Fields whose lock goes; for a text field its lock in the server language and an old lock without language, which the other languages with a stored text keep as their own lock (`title:<lang>`), so only the server language is freed. */
+            /** @description Audiobooks only (since 1.24.0); several names separated by commas, as the files give them. */
+            author?: string;
+            /** @description Audiobooks only (since 1.24.0). */
+            narrator?: string;
+            /** @description Audiobooks only (since 1.24.0); `""` clears the series and the volume. */
+            seriesName?: string;
+            /**
+             * Format: double
+             * @description Audiobooks only (since 1.24.0); the volume in the series, `0.5` before `1`.
+             */
+            seriesIndex?: number;
+            /** @description Audiobooks only (since 1.24.0). */
+            publisher?: string;
+            /** @description Audiobooks only (since 1.24.0); 10 or 13 digits, hyphens and spaces allowed, or `""`. */
+            isbn?: string;
+            /** @description Audiobooks only (since 1.24.0); ten letters or digits, or `""`. */
+            asin?: string;
+            /** @description Fields whose lock goes; for a text field its lock in the server language and an old lock without language, which the other languages with a stored text keep as their own lock (`title:<lang>`), so only the server language is freed. For an audiobook a text field is freed in every text row of the book. */
             unlock?: components["schemas"]["AdminMetadataField"][];
         };
         /**
          * @description The editable metadata of a title in the server's metadata language (since contract 1.15.0, concept 15
          *     7.4): the current values, which of them are locked and which provider wrote them. A field without a
-         *     value is left out.
+         *     value is left out. For an audiobook (since contract 1.24.0) in the language of its texts, with the
+         *     book fields `author` to `asin`; a value the scan took from the files has the provider `local`.
          */
         AdminItemMetadata: {
-            /** @description The server's metadata language (the first of its text languages), which the texts belong to. */
+            /**
+             * @description The server's metadata language (the first of its text languages), which the texts belong to. For an
+             *     audiobook the language of its text rows: `de` with a German row, else `en` with an English one, else
+             *     the server's language.
+             */
             lang: string;
             /** @description The title in that language; the parsed title while there is no text row. */
             title: string;
@@ -6450,6 +6490,14 @@ export interface components {
             tagline?: string;
             overview?: string;
             genres: string[];
+            author?: string;
+            narrator?: string;
+            seriesName?: string;
+            /** Format: double */
+            seriesIndex?: number;
+            publisher?: string;
+            isbn?: string;
+            asin?: string;
             /** @description The locked fields; a text field counts as locked by its lock in that language or by an old lock without language. */
             locked: components["schemas"]["AdminMetadataField"][];
             /** @description Which provider wrote which field (`year` follows `releaseDate`); a field the administrator wrote has none. */
@@ -6472,7 +6520,7 @@ export interface components {
         };
         /** @description One image a source offers for a kind of a title (concept 10 6.4). */
         ImageCandidate: {
-            /** @description `local`, `tmdb`, `tvdb` or `fanart`. */
+            /** @description `local`, `tmdb`, `tvdb` or `fanart`; `embedded` for the picture in an audiobook's file (since 1.24.0). */
             provider: string;
             /** @description Language of the text on the image (BCP-47 primary subtag); empty for an image without text or unknown. */
             lang: string;
@@ -6501,7 +6549,10 @@ export interface components {
             provider: string;
             source: string;
         };
-        /** @description The decided image source of a kind (concept 10 7.3); `locked` without `provider` is a lock without choice. */
+        /**
+         * @description The decided image source of a kind (concept 10 7.3); `locked` without `provider` is a lock without choice. An
+         *     audiobook without choice names the cover of its files (provider `local` or `embedded`, since 1.24.0).
+         */
         AdminItemImage: {
             kind: components["schemas"]["ImageKind"];
             provider?: string;

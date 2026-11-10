@@ -13,19 +13,29 @@ const (
 	MetaFieldTagline       = "tagline"
 	MetaFieldOverview      = "overview"
 	MetaFieldGenres        = "genres"
+	// The fields of an audiobook (contract 1.24.0, concept 19 D5.3).
+	MetaFieldAuthor      = "author"
+	MetaFieldNarrator    = "narrator"
+	MetaFieldSeriesName  = "seriesName"
+	MetaFieldSeriesIndex = "seriesIndex"
+	MetaFieldPublisher   = "publisher"
+	MetaFieldISBN        = "isbn"
+	MetaFieldASIN        = "asin"
 )
 
 // MetaFields are the fields of the editor in the order of the dialog.
 var MetaFields = []string{MetaFieldTitle, MetaFieldOriginalTitle, MetaFieldSortTitle, MetaFieldYear,
-	MetaFieldReleaseDate, MetaFieldTagline, MetaFieldOverview, MetaFieldGenres}
+	MetaFieldReleaseDate, MetaFieldTagline, MetaFieldOverview, MetaFieldGenres, MetaFieldAuthor, MetaFieldNarrator,
+	MetaFieldSeriesName, MetaFieldSeriesIndex, MetaFieldPublisher, MetaFieldISBN, MetaFieldASIN}
 
 // TextLockName is the lock of a text field (title, overview, tagline, sort_title) in one language
 // in items.locked_fields: title:de (concept 15 7.5). The older lock without language (title)
 // holds every language.
 func TextLockName(field, lang string) string { return field + ":" + lang }
 
-// AdminItemMetadata is the editable metadata of a title in the server's metadata language Lang:
-// the current values (nil when there is none), the locked fields and who wrote which field.
+// AdminItemMetadata is the editable metadata of a title in the server's metadata language Lang (an
+// audiobook: the language of its texts): the current values (nil when there is none), the locked
+// fields and who wrote which field.
 type AdminItemMetadata struct {
 	Lang          string
 	Title         string
@@ -36,8 +46,11 @@ type AdminItemMetadata struct {
 	Tagline       *string
 	Overview      *string
 	Genres        []string
-	Locked        []string // MetaField* names
-	Sources       []MetadataSource
+	// The fields of an audiobook.
+	Author, Narrator, SeriesName, Publisher, ISBN, ASIN *string
+	SeriesIndex                                         *float64
+	Locked                                              []string // MetaField* names
+	Sources                                             []MetadataSource
 }
 
 // MetadataSource names the provider that wrote a field of the editor.
@@ -52,5 +65,8 @@ type ItemMetadataEdit struct {
 	Title, OriginalTitle, SortTitle, ReleaseDate, Tagline, Overview *string
 	Year                                                            *int
 	Genres                                                          *[]string
-	Unlock                                                          []string
+	// The fields of an audiobook.
+	Author, Narrator, SeriesName, Publisher, ISBN, ASIN *string
+	SeriesIndex                                         *float64
+	Unlock                                              []string
 }

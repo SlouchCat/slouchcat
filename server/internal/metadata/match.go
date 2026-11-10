@@ -135,6 +135,10 @@ func (s *Service) matchItem(ctx context.Context, itemID string, relink bool) err
 		return s.setState(ctx, item, stateSkipped, errSeasonViaSeries)
 	case "episode":
 		return s.matchEpisode(ctx, item)
+	case "audiobook":
+		// A book needs no match: its files are its source (concept 19 D5.3), and the scan writes
+		// it. A match asked for after an image choice went decides the cover again.
+		return s.enqueueImages(ctx, item.ID, matchManualPriority)
 	default:
 		return s.setState(ctx, item, stateSkipped, errUnsupportedKind)
 	}
