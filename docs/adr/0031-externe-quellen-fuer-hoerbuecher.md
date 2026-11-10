@@ -4,7 +4,8 @@
   die Entscheide 3 bis 8 folgen aus der Messung D0, Marco hat sie am 10. November 2026 übernommen
 - Quelle: Konzept `docs/planning/19-podcasts-und-radio.md` Teil D (Abschnitte D6.1 bis D6.5, D9 Stufe D0,
   D11 OD-3 und OD-4, Kritiker-Review D12 Befunde 1, 11, 12, 20); Messung `docs/perf/19-hoerbuecher.md`
-- Vertrag 1.30.0 (Stufe D3, additiv), Migration 00049 (vorläufige Nummern des Papiers)
+- Vertrag 1.26.0 (Stufe D3, additiv), Migration 00046 (beim Baubeginn vergeben; das Papier nannte vorläufig
+  1.30.0 und 00049)
 - Harte Regeln: 10 (keine Secrets in Logs: Schlüssel für Google Books), 12 (Entscheid im Server);
   Entscheid 13 (Quellen je Ordner)
 
@@ -85,7 +86,7 @@ denen die übrigen Entscheide beruhen.
 
 - Stufe D3 baut `metadata.BookProvider` mit den fünf Umsetzungen (`audible` mit Audnexus, `dnb`,
   `applebooks`, `openlibrary`, `googlebooks`) und die Zuordnung nach den Punkten 3 bis 6; die Vorgabe der
-  Liste kommt in Migration 00049.
+  Liste kommt in Migration 00046.
 - **Risiko von Audible, das Marco trägt:** Das Projekt liefert unter einer freien Lizenz (AGPL) einen
   Client mit, der Audibles Katalog ohne deren Erlaubnis abfragt und dies ab Werk tut. Fällt die
   Schnittstelle weg oder sperrt Audible die Adresse einer Installation, bleibt Slouchcat voll benutzbar:
