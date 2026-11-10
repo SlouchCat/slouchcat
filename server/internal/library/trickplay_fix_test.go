@@ -89,8 +89,9 @@ func TestTrickplayHangingPointsStopEarly(t *testing.T) {
 	if !errors.Is(err, errTrickplayFailures) {
 		t.Fatalf("hanging points: %v", err)
 	}
-	if n := calls.Load(); n < trickplayMaxFailures || n > trickplayMaxFailures+trickplayProcs {
-		t.Errorf("%d points tried, want %d to %d", n, trickplayMaxFailures, trickplayMaxFailures+trickplayProcs)
+	// The point of the fifth failure ends the sheet; each other worker may have one point running.
+	if n, most := calls.Load(), int64(trickplayMaxFailures+trickplayProcs-1); n < trickplayMaxFailures || n > most {
+		t.Errorf("%d points tried, want %d to %d", n, trickplayMaxFailures, most)
 	}
 	if got, _ := e.queue.Get(e.ctx, j.ID); got.State != jobs.StateFailed || got.Attempts != 1 {
 		t.Errorf("job %s after %d attempts, want failed after 1", got.State, got.Attempts)
