@@ -1,5 +1,42 @@
 # Aktueller Stand
 
+## Release 1.25.0 (10. November 2026): Reihen und Sammlungen bei den Hörbüchern (Konzept 19 Stufe D2)
+
+Vertrag **1.25.0** (additiv), Migration **00045**, Zweig `claude/k19-d2-reihen-bcbe1d` ab `main` `01ec6924`
+(Release 1.24.0, PR #136). Nach `docs/planning/19-podcasts-und-radio.md` D4.1 bis D4.4 und D5.4; die Nummern der
+übrigen Teile rücken nach (Teil A 1.26.0/1.27.0/00046, Teil B 1.28.0/1.29.0/00047/00048, D3 bleibt 1.30.0/00049;
+Entscheid vom 10. November 2026 im Protokoll).
+
+- **Reihen:** Tabelle `audio_series` und `items.audio_series_id`; `library.RelinkAudioSeries` ordnet ein Buch über
+  den Schlüssel «vereinheitlichter Reihenname + erster Autor» je Bibliothek zu (Paket `library/audioseries` mit
+  eingebetteter Liste der Anhängsel), in derselben Transaktion wie Scan (`finishAudiobook`), Editor und «Reihe
+  bearbeiten». Die Kennung hängt nicht am Schlüssel. Der erste Start nach dem Update ordnet alle Bücher einmal zu,
+  ebenso jeder Start mit einer neuen Liste der Anhängsel (Fassung in `library.audio_series_keys`); `library.sweep`
+  löscht Reihen ohne Buch und ohne gesperrten Namen.
+- **Sichtbarkeit:** Eine Reihe gibt es je Profil nur ab zwei sichtbaren Bänden; Name, Autor, Sprecher, Dauer,
+  Cover und Zahlen kommen nur aus sichtbaren Bänden. Darunter fehlt sie in der Zeile, `ItemDetail.seriesId` ist
+  leer und die Seite antwortet mit 404.
+- **Zeile «Reihen und Sammlungen»** (`listAudioGroups`) über allen Hörbüchern der Übersicht: quadratische Kacheln
+  mit Stapel-Rand, «6 Bände» oder mit Filter «2 von 6 Bänden», Balken der gehörten Bände; dazu Sammlungen von Hand,
+  deren sichtbare Mitglieder alle Hörbücher sind. Diese fehlen in der Startseiten-Reihe «Sammlungen», bleiben aber
+  auf der Detailseite und in der Suche.
+- **Seite der Reihe** `/libraries/$libraryId/series/$seriesId` (`getAudioSeries`): Kopf mit «Weiterhören: Band n»,
+  Bände nach Nummer (0,5 vor 1, ohne Nummer am Ende), je Band Abspielen und Bleistift; für Admins «Reihe
+  bearbeiten» (`updateAudioSeries`, mit «In alle Bände schreiben», führt Reihen zusammen) und der Hinweis auf
+  mehrere Schreibweisen oder doppelte Bände. Die Detailseite eines Bandes verlinkt «Reihe · Band n» und zeigt die
+  Bände als Reihe. Neu `ItemDetail.libraryId`.
+- **Gemessen:** Zeile bei 5000 Büchern p95 71 ms (mit Filter 60 ms), Seite der Reihe 3 ms (`BenchmarkAudioGroups`).
+- **Nicht in D2** (gehört zu D3): Quellen, Zuordnung und automatisches Zuordnen.
+- **Tests:** PD-3 Go (`TestKey`, `TestDisplay`, `TestRelinkAudioSeriesMarcosSpellings` mit «Bodyguard» und
+  «Bodyguard - Band» von Chris Bradford, neue Liste der Anhängsel behält die Kennung), PD-4 `vistest`
+  (`TestAudioSeriesVisibility`), PD-6 (`TestAudioCollectionsAndFilters`), PD-8 (`TestUpdateAudioSeries`),
+  Reihenfolge (`TestAudioSeriesPageOrder`), Scan, erster Start, Aufräumen, Migration und eingefrorener Stand
+  `hoerbuch-reihen.sql`, Vertrag (`TestAudioSeriesOverHTTP`, Register); Vitest PD-5 und PD-7
+  (`AudioSeries.test.tsx`); e2e `audio-series.spec.ts` (Tastatur, PD-14); Storybook `CollectionCard` quadratisch
+  und `VolumeRow`.
+- Versionsstellen auf 1.25.0.
+- **Offen:** Abnahme, Merge und Tag `v1.25.0` auf Marcos Wort.
+
 ## Release 1.24.0 (10. November 2026): Bleistift für Hörbücher (Konzept 19 Stufe D1)
 
 Vertrag **1.24.0** (additiv), Migration **00044**, Zweig `claude/k19-d1-bleistift-910b0f` ab `main` `8afbcb85`
