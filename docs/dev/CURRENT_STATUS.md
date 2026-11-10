@@ -43,8 +43,8 @@ D0 (`docs/perf/19-hoerbuecher.md`); die Nummern der übrigen Teile rücken nach 
   Mock der Quellen (`web/e2e/books-server.mjs`, `SLOUCHCAT_TEST_BOOKS_BASE_URL` nur mit `--dev`); Storybook
   `CandidateCard` Buch. Parallele e2e-Shards liegen jetzt 20 Ports auseinander.
 - Versionsstellen auf 1.26.0.
-- **Offen:** Marco liest Audibles Nutzungsbedingungen vor dem Release (ADR 0031); Abnahme auf CT 190, Merge und Tag
-  `v1.26.0` auf Marcos Wort.
+- **Abgenommen** von Marco am 10. November 2026 auf CT 190 (Image `quellen-1cd8f01`, Migrationen 00045 und 00046 liefen; erster Lauf über 89 Hörbücher: 70 zugeordnet, 14 zu prüfen, 5 ohne Treffer, 0 gestört). Nach der Umstellung behoben: `library.author_display` läuft mit der Priorität des Abgleichs, der Einstieg «Hörbücher: Quellen» steht oben auf «Metadaten».
+- **Offen:** Marco liest Audibles Nutzungsbedingungen vor dem Release (ADR 0031); Merge und Tag `v1.26.0` auf Marcos Wort.
 
 ## Release 1.25.0 (10. November 2026): Reihen und Sammlungen bei den Hörbüchern (Konzept 19 Stufe D2)
 
