@@ -7,7 +7,7 @@ export interface ImageCandidateTile {
   id: string;
   /** Preview address; a provider's is loaded without a referrer. */
   previewUrl?: string;
-  /** First line under the image: the language ("Deutsch", "Ohne Text"). */
+  /** First line under the image: the language ("Deutsch", "Ohne Text"), a book's file name. */
   label: string;
   /** Second line: size, source and rating ("2000 × 3000 · TMDB · 5,4"). */
   detail?: string;
@@ -27,8 +27,8 @@ interface ImageCandidateGridProps {
   emptyText: string;
   /** The mark of the current tile ("aktuell"). */
   currentText: string;
-  /** Shape of the previews: posters stand, backdrops and logos lie. */
-  shape?: 'portrait' | 'landscape';
+  /** Shape of the previews: posters stand, backdrops and logos lie, audiobook covers are square. */
+  shape?: 'portrait' | 'landscape' | 'square';
   /** Focus the first tile once there is one (a dialog that opens on the grid). */
   autoFocus?: boolean;
 }

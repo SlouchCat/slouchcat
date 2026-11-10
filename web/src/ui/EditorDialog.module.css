@@ -50,6 +50,10 @@
   aspect-ratio: 16 / 9;
 }
 
+.thumb[data-shape='square'] {
+  aspect-ratio: 1 / 1;
+}
+
 .thumb img {
   display: block;
   width: 100%;

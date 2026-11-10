@@ -7,8 +7,11 @@ interface ImageTileProps {
   src?: string;
   /** The title the image belongs to: written on the fallback surface. */
   title: string;
-  /** `landscape` 16:9 for backdrops (streams, top titles), `portrait` 2:3 for posters. */
-  shape?: 'landscape' | 'portrait';
+  /**
+   * `landscape` 16:9 for backdrops (streams, top titles), `portrait` 2:3 for posters, `square` 1:1
+   * for the cover of an audiobook.
+   */
+  shape?: 'landscape' | 'portrait' | 'square';
   /** Content laid over the bottom of the image (mode pill, progress). */
   children?: ReactNode;
 }
