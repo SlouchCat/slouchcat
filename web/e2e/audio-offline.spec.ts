@@ -121,6 +121,8 @@ test('flight mode: the downloaded audiobook plays with its chapters; progress sy
   await expect.poll(async () => (await audioState(page)).paused).toBe(true);
   const position = Math.round((await time(page)) * 1000);
   await expectNoFocusTrap(page);
+  // The walk ends on the volume slider, whose popover Escape would close first (concept 19 E2).
+  await player.getByRole('button', { name: 'Abspielen' }).focus();
   await page.keyboard.press('Escape');
   await expect(page).toHaveURL(/\/downloads$/);
   await expect.poll(async () => (await queuedEvents(page)).at(-1)?.event.state).toBe('paused');
