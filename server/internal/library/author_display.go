@@ -26,8 +26,9 @@ import (
 // payload, key author_display.
 const JobAuthorDisplay = "library.author_display"
 
-// prioAuthorDisplay is low: the names are cosmetic and the job reads every audiobook.
-const prioAuthorDisplay = 1
+// prioAuthorDisplay is that of a match: the job is one short transaction over the audiobooks, and
+// at priority 1 it waited behind the image backlog of a large library for hours (CT 190, 10 Nov 2026).
+const prioAuthorDisplay = prioMatch
 
 // authorDisplayKey is the idempotency key of JobAuthorDisplay; a request while the job runs
 // queues one more under authorDisplayNextKey, so a change written after the running job read the
