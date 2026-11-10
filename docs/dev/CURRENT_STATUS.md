@@ -1,5 +1,51 @@
 # Aktueller Stand
 
+## Release 1.26.0 (10. November 2026): Quellen für Hörbücher (Konzept 19 Stufe D3)
+
+Vertrag **1.26.0** (additiv), Migration **00046**, Zweig `claude/k19-d3-quellen-1477b8` ab `main` `ee06058b`
+(Release 1.25.0, PR #138). Nach `docs/planning/19-podcasts-und-radio.md` D5.2, D5.3 und D6, ADR 0031 und der Messung
+D0 (`docs/perf/19-hoerbuecher.md`); die Nummern der übrigen Teile rücken nach (Teil A 1.27.0/1.28.0/00047, Teil B
+1.29.0/1.30.0/00048/00049). Entscheide beim Bau und nach dem Review im Protokoll (10. November 2026).
+
+- **Quellen:** `metadata.BookProvider` mit `audible` (Katalog `api.audible.<region>` und Audnexus), `dnb` (SRU,
+  MARC21), `applebooks` (iTunes, `ch`), `openlibrary`, `googlebooks` (nur mit Schlüssel aus
+  `SLOUCHCAT_GOOGLEBOOKS_API_KEY` oder von der Seite «Quellen», verschlüsselt gespeichert; Marcos Entscheid). Füller
+  je Ordner nach `local`; Vorgabe `local, audible, dnb, applebooks` für neue und bestehende Hörbuch-Ordner. Drossel
+  je Host (Audible und DNB 1/s, Audnexus 60/min, Apple 20/min, Open Library und Google 1/s), Antwort höchstens 5 MB,
+  Suchergebnisse 7 Tage im Speicher, Audnexus-Adresse über den Netzwächter (Heimnetz nur für ihren eigenen Host).
+  Schutz: drei Antworten 403, 429 oder HTML je Host pausieren die Quelle 6 Stunden.
+- **Automatisch zuordnen** (ab Werk «Alle ohne Zuordnung»): nach der Prüfung aller Teile, Quellen nacheinander bis
+  `matched`; Kennung zuerst (ASIN mit Regionswechsel `.com`, `.co.uk`, Audnexus ohne Region; ISBN); sonst Titel und
+  erster Autor mit bereinigtem Zweitversuch. «Eindeutig» erst nach der Länge (Toleranz ab Werk 3 %, gleiche Aufnahme
+  ±1 Minute zählt als eine); Quellen ohne Länge ordnen nie automatisch zu. Zustände `matched`, `review` (drei beste
+  Kandidaten), `none`, `error` (nichts geschrieben, neuer Versuch frühestens nach 6 Stunden). Füllt nur leere Felder
+  ohne Schloss, Herkunft = Quelle, Anbieter-Cover als Kandidat (Titelbild nur ohne Cover der Dateien), Reihe neu
+  zugeordnet. Erster Start nach dem Update reiht alle Bücher ohne Zustand ein.
+- **Editor:** Reiter «Zuordnen» (Quelle aus der Liste des Ordners, Audible mit Region; Titel und Autor oder ASIN oder
+  ISBN; Treffer mit Länge, passende Länge vom Server markiert; Vergleich «heute/neu» Feld für Feld, «n Felder
+  übernehmen» sperrt die übernommenen Felder, «Nur zuordnen»), «Aktualisieren» mit «Vom Anbieter neu holen».
+  Neu `searchMetadata` für `audiobook`, `getMatchPreview`, `setItemMatch.fields`, `refreshItem.fromProvider`,
+  `AdminItem.bookMatch` und `AdminItem.durationMs`.
+- **Seite «Hörbücher: Quellen»** (`/admin/metadata/audiobooks`, `getAudiobookSources`, `updateAudiobookSources`,
+  `matchAllAudiobooks`, `listAudiobookReview`): Listen der Hörbuch-Ordner mit Dialog, Region, Audnexus-Adresse,
+  Google-Books-Schlüssel, «Automatisch zuordnen», Toleranz, «Vereinheitlichen», pausierte Quellen, Stand, «Jetzt alle
+  ohne Zuordnung zuordnen», Liste «Prüfen» mit Kandidaten und Bleistift.
+- **Vereinheitlichen:** `items.author_display` («J R R Tolkien», «J.R.R. Tolkien» → «J. R. R. Tolkien»; Schreibweise
+  einer Quelle oder einer Sperre vor der häufigsten) speist Anzeige, Sortierung und Suche, `items.author` bleibt der
+  Wert der Dateien; Auftrag `library.author_display`. Schalter «Reihennamen» zeigt aus die Schreibweise mit Anhängsel.
+- **Tests:** Quellen mit `httptest` und erfundenen Fixtures (`metadata/testdata/books/`), nie echte Quellen: PD-9
+  (`TestApplyBookMatch`, `TestBookSourcesOverHTTP`), PD-10 (`TestBookMatchFillsEmptyFields`,
+  `TestBookMatchReviewAndSameRecording`, `TestBookMatchWithoutLengthIsReview`, `TestBookMatchWaitsForTheProbe`), PD-11
+  (`TestBookMatchBlockedSource`, `TestBookBreakerCountsPerHost`), PD-12 (`TestBookMatchFolderSources`,
+  `TestAudibleAudnexusNetguard`, Redaktionstest), PD-13 (`TestRecomputeAuthorDisplay…`,
+  `TestAuthorDisplayShownSortedSearched`), PD-15 (Vertragstests, Register); Migration und eingefrorener Stand
+  `hoerbuch-quellen.sql`; Vitest für Editor und Seite; e2e `audiobook-sources.spec.ts` (Tastatur, PD-14) mit einem
+  Mock der Quellen (`web/e2e/books-server.mjs`, `SLOUCHCAT_TEST_BOOKS_BASE_URL` nur mit `--dev`); Storybook
+  `CandidateCard` Buch. Parallele e2e-Shards liegen jetzt 20 Ports auseinander.
+- Versionsstellen auf 1.26.0.
+- **Offen:** Marco liest Audibles Nutzungsbedingungen vor dem Release (ADR 0031); Abnahme auf CT 190, Merge und Tag
+  `v1.26.0` auf Marcos Wort.
+
 ## Release 1.25.0 (10. November 2026): Reihen und Sammlungen bei den Hörbüchern (Konzept 19 Stufe D2)
 
 Vertrag **1.25.0** (additiv), Migration **00045**, Zweig `claude/k19-d2-reihen-bcbe1d` ab `main` `01ec6924`
