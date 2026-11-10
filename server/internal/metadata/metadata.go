@@ -212,6 +212,7 @@ type options struct {
 	trakt       traktOptions
 	// The audiobook sources (book_provider.go): addresses and the Google Books key.
 	bookURLs       *BookSourceURLs
+	bookUnlimited  bool // the limits of the sources lifted (WithTestBookSources)
 	googleBooksKey func(ctx context.Context) (string, error)
 	relinkSeries   func(ctx context.Context, q *systemq.Queries, itemIDs []string, now time.Time) error
 	authorDisplay  func(ctx context.Context) error

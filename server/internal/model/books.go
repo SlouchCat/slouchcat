@@ -47,6 +47,9 @@ type BookSettingsUpdate struct {
 	TolerancePercent *int
 	NormalizeAuthors *bool
 	NormalizeSeries  *bool
+	// Extra are further rows of the settings table that package metadata writes in the same
+	// transaction as the settings (the encrypted Google Books key); "" deletes the row.
+	Extra map[string]string
 }
 
 // AudiobookSourcesUpdate is updateAudiobookSources: the settings and the Google Books key.

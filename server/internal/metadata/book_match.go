@@ -58,6 +58,12 @@ const (
 	bookSameLengthMs   = 60_000
 	maxBookCandidates  = 3
 	matchKeyPrefix     = "match:"
+	// matchNextSuffix ends the key of the match job queued behind a running one (enqueueBookMatch).
+	matchNextSuffix = ":next"
+	// bookErrorRetry is how long a book in error waits before queueErrorBooks queues it again (the
+	// pause of a source): a lasting failure (a wrong Google key, an answer over 5 MB) would else
+	// ask the sources after every scan.
+	bookErrorRetry = bookBreakerPause
 )
 
 // bookCandidateJSON is a stored candidate (book_match_candidates.candidate): the fields of the
@@ -197,11 +203,19 @@ func (s *Service) bookPartsProbed(ctx context.Context, itemID string) (bool, err
 	return len(parts) > 0, nil
 }
 
-// matchAudiobook is the audiobook branch of metadata.match. A book whose parts are not all probed
-// only gets its cover decided (image.fetch), as before stage D3. Otherwise Refetch fetches the
-// stored match again; Book, or the setting auto_match (new or all) for a book not tried yet or in
-// error, runs the match. A matched book is never matched again here. image.fetch follows.
+// matchAudiobook is the audiobook branch of metadata.match. Refetch fetches the stored match again
+// whatever the probe of the parts says (a part may be probed again meanwhile; the refetch needs no
+// length). Otherwise a book whose parts are not all probed only gets its cover decided
+// (image.fetch), as before stage D3; Book, or the setting auto_match (new or all) for a book not
+// tried yet or in error, runs the match. A matched book is never matched again here. image.fetch
+// follows.
 func (s *Service) matchAudiobook(ctx context.Context, item systemq.Item, p itemPayload) error {
+	if p.Refetch {
+		if err := s.refetchBook(ctx, item); err != nil {
+			return err
+		}
+		return s.enqueueImages(ctx, item.ID, matchManualPriority)
+	}
 	probed, err := s.bookPartsProbed(ctx, item.ID)
 	if err != nil {
 		return err
@@ -209,10 +223,6 @@ func (s *Service) matchAudiobook(ctx context.Context, item systemq.Item, p itemP
 	if probed {
 		state := item.BookMatchState.String
 		switch {
-		case p.Refetch:
-			if err := s.refetchBook(ctx, item); err != nil {
-				return err
-			}
 		case state == BookStateMatched:
 		case p.Book:
 			if err := s.matchBook(ctx, item); err != nil {
@@ -233,12 +243,23 @@ func (s *Service) matchAudiobook(ctx context.Context, item systemq.Item, p itemP
 	return s.enqueueImages(ctx, item.ID, matchManualPriority)
 }
 
-// matchBook runs the chain of sources for one book and stores the outcome. A book without a
-// configured source keeps its state.
+// matchBook runs the chain of sources for one book and stores the outcome. A book whose length
+// finishAudiobook has not written yet is left alone (bookLengthPending). A book without a
+// configured source loses a state that is not matched (clearBookState): a state of sources no
+// longer listed would mislead, and an error would stay for good.
 func (s *Service) matchBook(ctx context.Context, item systemq.Item) error {
-	sources, err := s.bookSourcesOf(ctx, item)
-	if err != nil || len(sources) == 0 {
+	if pending, err := s.bookLengthPending(ctx, item); err != nil || pending {
 		return err
+	}
+	sources, err := s.bookSourcesOf(ctx, item)
+	if err != nil {
+		return err
+	}
+	if len(sources) == 0 {
+		if st := item.BookMatchState.String; st != "" && st != BookStateMatched {
+			return s.clearBookState(ctx, item.ID)
+		}
+		return nil
 	}
 	st, err := s.BookSettings(ctx)
 	if err != nil {
@@ -270,6 +291,53 @@ func (s *Service) matchBook(ctx context.Context, item systemq.Item) error {
 		state = BookStateReview
 	}
 	return s.storeBookState(ctx, item.ID, state, res)
+}
+
+// bookLengthPending reports whether a book's length is still to be written: every part is probed
+// and the probed parts have a length, but items.duration_ms is not set yet. A match job queued
+// from elsewhere (match-all, the first run, the retry of errors) can run between the commit of the
+// last probe and finishAudiobook; compared with length 0 the book would land in review or none for
+// good. finishAudiobook queues the match again once it wrote the length.
+func (s *Service) bookLengthPending(ctx context.Context, item systemq.Item) (bool, error) {
+	if item.DurationMs.Int64 > 0 {
+		return false, nil
+	}
+	parts, err := s.read.ListAudiobookParts(ctx, item.ID)
+	if err != nil {
+		return false, fmt.Errorf("parts of %s: %w", item.ID, err)
+	}
+	var length int64
+	for _, p := range parts {
+		if p.Probe.Valid {
+			length += p.DurationMs.Int64
+		}
+	}
+	return length > 0, nil
+}
+
+// clearBookState sets a book that is not matched back to "not tried yet" and drops its candidates.
+func (s *Service) clearBookState(ctx context.Context, itemID string) error {
+	err := s.inTx(ctx, func(q *systemq.Queries) error {
+		cur, err := q.GetItemSystem(ctx, itemID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if !cur.BookMatchState.Valid || cur.BookMatchState.String == BookStateMatched {
+			return nil // matched meanwhile (the editor), or nothing to clear
+		}
+		if err := q.ClearBookMatch(ctx, systemq.ClearBookMatchParams{Now: s.now().UnixMilli(), ID: itemID}); err != nil {
+			return err
+		}
+		return q.DeleteBookMatchCandidates(ctx, itemID)
+	})
+	if err != nil {
+		return fmt.Errorf("clear book match of %s: %w", itemID, err)
+	}
+	s.log.Info("audiobook match cleared, no source configured", "item_id", itemID)
+	return nil
 }
 
 // runBookChain asks the sources in order: the identifiers first, then title and author. It returns
@@ -658,29 +726,37 @@ func bookCleanTitle(title string) string {
 
 // enqueueBookMatch queues metadata.match for a book with the payload p. A queued match job of the
 // book at a lower priority or without the book's flags is replaced (a scan's plain match would
-// swallow a refetch); a running one is left alone.
+// swallow a refetch). A running one may have read the book before this request, so the request is
+// queued once more behind it under the key match:<id>:next (like library.author_display); when
+// that one runs as well, it started after the request.
 func (s *Service) enqueueBookMatch(ctx context.Context, p itemPayload, priority int) error {
 	payload, err := json.Marshal(p)
 	if err != nil {
 		return fmt.Errorf("%s payload: %w", JobMatch, err)
 	}
-	nj := jobs.NewJob{Type: JobMatch, Priority: priority, IdempotencyKey: matchKeyPrefix + p.ItemID, Payload: payload}
-	id, err := s.queue.Enqueue(ctx, nj)
-	if err != nil {
-		return fmt.Errorf("enqueue %s %s: %w", JobMatch, p.ItemID, err)
-	}
-	j, err := s.queue.Get(ctx, id)
-	if err != nil {
-		return fmt.Errorf("enqueue %s %s: %w", JobMatch, p.ItemID, err)
-	}
-	if j.State != jobs.StateQueued || (j.Priority >= priority && string(j.Payload) == string(payload)) {
+	for _, key := range []string{matchKeyPrefix + p.ItemID, matchKeyPrefix + p.ItemID + matchNextSuffix} {
+		nj := jobs.NewJob{Type: JobMatch, Priority: priority, IdempotencyKey: key, Payload: payload}
+		id, err := s.queue.Enqueue(ctx, nj)
+		if err != nil {
+			return fmt.Errorf("enqueue %s %s: %w", JobMatch, p.ItemID, err)
+		}
+		j, err := s.queue.Get(ctx, id)
+		if err != nil {
+			return fmt.Errorf("enqueue %s %s: %w", JobMatch, p.ItemID, err)
+		}
+		if j.State == jobs.StateRunning {
+			continue
+		}
+		if j.State != jobs.StateQueued || (j.Priority >= priority && string(j.Payload) == string(payload)) {
+			return nil
+		}
+		if _, err := s.queue.Cancel(ctx, id); err != nil {
+			return fmt.Errorf("enqueue %s %s: %w", JobMatch, p.ItemID, err)
+		}
+		if _, err := s.queue.Enqueue(ctx, nj); err != nil {
+			return fmt.Errorf("enqueue %s %s: %w", JobMatch, p.ItemID, err)
+		}
 		return nil
-	}
-	if _, err := s.queue.Cancel(ctx, id); err != nil {
-		return fmt.Errorf("enqueue %s %s: %w", JobMatch, p.ItemID, err)
-	}
-	if _, err := s.queue.Enqueue(ctx, nj); err != nil {
-		return fmt.Errorf("enqueue %s %s: %w", JobMatch, p.ItemID, err)
 	}
 	return nil
 }
@@ -739,13 +815,16 @@ func (s *Service) QueueFirstBookMatches(ctx context.Context) (int, error) {
 	return n, nil
 }
 
-// queueErrorBooks queues the match of the books of a library in state error again, unless every
-// source of their folder pauses (QueuePendingMetadata).
+// queueErrorBooks queues the match of the books of a library in state error again
+// (QueuePendingMetadata): only when their last run is at least bookErrorRetry old and not while
+// every source of their folder pauses. A book whose folder lists no configured source any more
+// loses the error (clearBookState); no run could end it.
 func (s *Service) queueErrorBooks(ctx context.Context, libraryID int64) (int, error) {
 	rows, err := s.read.ListAudiobooksInMatchState(ctx, systemq.ListAudiobooksInMatchStateParams{State: BookStateError, LibraryID: libraryID})
 	if err != nil {
 		return 0, fmt.Errorf("list books in error: %w", err)
 	}
+	retry := s.now().Add(-bookErrorRetry).UnixMilli()
 	var ids []string
 	for _, r := range rows {
 		paused, listed := true, false
@@ -759,7 +838,12 @@ func (s *Service) queueErrorBooks(ctx context.Context, libraryID int64) (int, er
 				paused = false
 			}
 		}
-		if listed && !paused {
+		switch {
+		case !listed:
+			if err := s.clearBookState(ctx, r.ID); err != nil {
+				return 0, err
+			}
+		case !paused && r.BookMatchedAt.Int64 <= retry:
 			ids = append(ids, r.ID)
 		}
 	}

@@ -31,12 +31,21 @@ func (q *Queries) ClearBookMatch(ctx context.Context, arg ClearBookMatchParams) 
 }
 
 const countActiveAudiobookMatches = `-- name: CountActiveAudiobookMatches :one
-SELECT count(*) FROM jobs AS j
-JOIN items AS i ON j.idempotency_key = 'match:' || i.id
-WHERE j.type = 'metadata.match' AND j.state IN ('queued', 'running') AND i.kind = 'audiobook'
+WITH active AS (
+    SELECT DISTINCT CASE WHEN j.idempotency_key LIKE 'match:%:next'
+                         THEN substr(j.idempotency_key, 7, length(j.idempotency_key) - 11)
+                         ELSE substr(j.idempotency_key, 7) END AS item_id
+    FROM jobs AS j
+    WHERE j.type = 'metadata.match' AND j.state IN ('queued', 'running') AND j.idempotency_key LIKE 'match:%'
+)
+SELECT count(*) FROM active AS a
+JOIN items AS i ON i.id = a.item_id
+WHERE i.kind = 'audiobook'
 `
 
-// The match jobs of audiobooks that are queued or running (the page "Hoerbuecher: Quellen").
+// The audiobooks with a match job that is queued or running (the page "Hoerbuecher: Quellen"). The
+// active match jobs come first; the id of their book (the key match:<id>, or match:<id>:next behind
+// a running one) then reaches items by its primary key.
 func (q *Queries) CountActiveAudiobookMatches(ctx context.Context) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countActiveAudiobookMatches)
 	var count int64
@@ -206,7 +215,7 @@ func (q *Queries) ListAudiobookReview(ctx context.Context) ([]ListAudiobookRevie
 }
 
 const listAudiobooksInMatchState = `-- name: ListAudiobooksInMatchState :many
-SELECT i.id,
+SELECT i.id, i.book_matched_at,
        CAST(coalesce((SELECT r.providers FROM media_files AS m JOIN library_roots AS r ON r.id = m.root_id
                       WHERE m.item_id = i.id AND m.missing_since IS NULL
                       ORDER BY m.rel_path, m.id LIMIT 1), '[]') AS TEXT) AS providers
@@ -214,7 +223,7 @@ FROM items AS i
 WHERE i.kind = 'audiobook' AND i.deleted_at IS NULL AND coalesce(i.book_match_state, '') = CAST(?1 AS TEXT)
   AND (CAST(?2 AS INTEGER) = 0 OR i.library_id = ?2)
   AND NOT EXISTS (SELECT 1 FROM jobs AS j
-                  WHERE j.idempotency_key = 'match:' || i.id AND j.state IN ('queued', 'running'))
+                  WHERE j.idempotency_key IN ('match:' || i.id, 'match:' || i.id || ':next') AND j.state IN ('queued', 'running'))
 ORDER BY i.id
 `
 
@@ -224,14 +233,16 @@ type ListAudiobooksInMatchStateParams struct {
 }
 
 type ListAudiobooksInMatchStateRow struct {
-	ID        string
-	Providers string
+	ID            string
+	BookMatchedAt sql.NullInt64
+	Providers     string
 }
 
-// The books of one match state (” = not tried yet) without an active match job, with the source
-// list of the folder of their first present part ('[]' without one): the first run after the
-// update, the switch to "all" and the retry of books in error (QueuePendingMetadata; library_id 0
-// = every library).
+// The books of one match state (” = not tried yet) without an active match job (also none queued
+// behind a running one, key match:<id>:next), with the time of their last run and the source list
+// of the folder of their first present part ('[]' without one): the first run after the update,
+// the switch to "all" and the retry of books in error (QueuePendingMetadata; library_id 0 = every
+// library).
 func (q *Queries) ListAudiobooksInMatchState(ctx context.Context, arg ListAudiobooksInMatchStateParams) ([]ListAudiobooksInMatchStateRow, error) {
 	rows, err := q.db.QueryContext(ctx, listAudiobooksInMatchState, arg.State, arg.LibraryID)
 	if err != nil {
@@ -241,7 +252,7 @@ func (q *Queries) ListAudiobooksInMatchState(ctx context.Context, arg ListAudiob
 	items := []ListAudiobooksInMatchStateRow{}
 	for rows.Next() {
 		var i ListAudiobooksInMatchStateRow
-		if err := rows.Scan(&i.ID, &i.Providers); err != nil {
+		if err := rows.Scan(&i.ID, &i.BookMatchedAt, &i.Providers); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

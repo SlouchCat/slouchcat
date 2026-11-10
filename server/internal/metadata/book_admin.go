@@ -227,6 +227,8 @@ func (s *Service) BookMatchPreview(ctx context.Context, itemID, provider, provid
 // chooses the source's cover. The book is matched by hand (book_match_manual 1) and image.fetch
 // follows. Errors: model.ErrNotFound, *model.ValidationError (kind invalid_value, provider
 // provider_not_searchable, providerId not_found, fields invalid_value), the errors of the source.
+// An empty list (not nil) confirms the match without taking a field: a book whose files already
+// say what the entry says.
 func (s *Service) ApplyBookMatch(ctx context.Context, itemID, provider, providerID, region string, fields []string) error {
 	for _, f := range fields {
 		if !slices.Contains(BookMatchFields, f) {
@@ -327,13 +329,14 @@ func (s *Service) BookSources(ctx context.Context) (model.AudiobookSources, erro
 	return out, nil
 }
 
-// UpdateBookSources stores the changed settings of the page «Hörbücher: Quellen»
-// (*model.ValidationError). A changed switch «Vereinheitlichen» queues the unified names again; the
-// switch of auto_match to all queues the match of every book without state.
+// UpdateBookSources stores the changed settings of the page «Hörbücher: Quellen» and the extra rows
+// of the caller in one transaction (*model.ValidationError). After the commit, a changed switch
+// «Vereinheitlichen» queues the unified names again and the switch of auto_match to all queues the
+// match of every book without state.
 func (s *Service) UpdateBookSources(ctx context.Context, upd model.BookSettingsUpdate) error {
 	before, after, err := s.UpdateBookSettings(ctx, BookSettingsUpdate{AudibleRegion: upd.AudibleRegion,
 		AudnexusURL: upd.AudnexusURL, AutoMatch: upd.AutoMatch, Tolerance: upd.TolerancePercent,
-		NormalizeAuthors: upd.NormalizeAuthors, NormalizeSeries: upd.NormalizeSeries})
+		NormalizeAuthors: upd.NormalizeAuthors, NormalizeSeries: upd.NormalizeSeries, Extra: upd.Extra})
 	if err != nil {
 		return err
 	}

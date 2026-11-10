@@ -12,6 +12,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/library/audioseries"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
@@ -122,10 +123,14 @@ type BookSettingsUpdate struct {
 	Tolerance        *int
 	NormalizeAuthors *bool
 	NormalizeSeries  *bool
+	// Extra are further rows of the settings table written in the same transaction (the encrypted
+	// Google Books key of package admin); "" deletes the row.
+	Extra map[string]string
 }
 
 // UpdateBookSettings validates and stores the changed book settings (*model.ValidationError with
-// the contract's field names). It returns the settings before and after the change.
+// the contract's field names) in one transaction; an empty audnexusUrl deletes the row, so the
+// default holds again. It returns the settings before and after the change.
 func (s *Service) UpdateBookSettings(ctx context.Context, upd BookSettingsUpdate) (before, after BookSettings, err error) {
 	var verr *model.ValidationError
 	rows := map[string]string{}
@@ -138,6 +143,8 @@ func (s *Service) UpdateBookSettings(ctx context.Context, upd BookSettingsUpdate
 	if a := upd.AudnexusURL; a != nil {
 		u, ok := normalAudnexusURL(*a)
 		switch {
+		case strings.TrimSpace(*a) == "":
+			u = "" // back to the default: the row goes
 		case len(strings.TrimSpace(*a)) > maxAudnexusURL:
 			verr = verr.Add("audnexusUrl", "too_long")
 		case !ok:
@@ -175,9 +182,18 @@ func (s *Service) UpdateBookSettings(ctx context.Context, upd BookSettingsUpdate
 	if before, err = s.BookSettings(ctx); err != nil {
 		return BookSettings{}, BookSettings{}, err
 	}
+	for key, value := range upd.Extra {
+		rows[key] = value
+	}
 	now := s.now().UnixMilli()
-	err = s.inTx(ctx, func(q *systemq.Queries) error {
+	err = s.inTxApp(ctx, func(q *systemq.Queries, app *appq.Queries) error {
 		for key, value := range rows {
+			if value == "" {
+				if err := app.DeleteSetting(ctx, key); err != nil {
+					return fmt.Errorf("delete setting %s: %w", key, err)
+				}
+				continue
+			}
 			if err := q.UpsertSystemSetting(ctx, systemq.UpsertSystemSettingParams{Key: key, Value: value, Now: now}); err != nil {
 				return fmt.Errorf("write setting %s: %w", key, err)
 			}

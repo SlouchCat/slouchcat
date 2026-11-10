@@ -610,3 +610,292 @@ func TestApplyBookMatch(t *testing.T) {
 		t.Errorf("failing source: %v", err)
 	}
 }
+
+// A match job that runs after the probe of the last part but before finishAudiobook wrote the
+// length leaves the book alone; finishAudiobook queues the match again.
+func TestBookMatchWaitsForTheLength(t *testing.T) {
+	t.Parallel()
+	e := newBookEnv(t)
+	e.addBookLibrary(t, "local", "audible")
+	e.srv.fixture(audibleSearchPath, "audible_search.json")
+	e.audnexus("B0TEST0001", fmt.Sprintf(audnexusTestBook, e.srv.srv.URL))
+	const id = "01JBOOKLENGTH0000000000000"
+	e.addBook(t, bookSeed{id: id, title: "Der Testband", author: "Erika Muster", minutes: 612})
+	mustExec(t, e.db.Write, `UPDATE items SET duration_ms = NULL WHERE id = ?`, id)
+	e.match(t, itemPayload{ItemID: id, Book: true})
+	if n := e.srv.total(); n != 0 {
+		t.Errorf("%d requests before the length is written", n)
+	}
+	if b := e.book(t, id); b.BookMatchState.Valid || b.BookMatchedAt.Valid {
+		t.Errorf("state %q before the length is written", b.BookMatchState.String)
+	}
+	mustExec(t, e.db.Write, `UPDATE items SET duration_ms = ? WHERE id = ?`, 612*60_000, id)
+	e.match(t, itemPayload{ItemID: id, Book: true})
+	if b := e.book(t, id); b.BookMatchState.String != BookStateMatched {
+		t.Errorf("state %q with the length", b.BookMatchState.String)
+	}
+	// A book whose probed parts have no length is matched without one (it never gets one).
+	const short = "01JBOOKLENGTH0000000000001"
+	e.addBook(t, bookSeed{id: short, title: "Der Testband", author: "Erika Muster"})
+	e.match(t, itemPayload{ItemID: short, Book: true})
+	if b := e.book(t, short); b.BookMatchState.String != BookStateReview {
+		t.Errorf("book without length: state %q", b.BookMatchState.String)
+	}
+}
+
+// «Vom Anbieter neu holen» is not lost: behind a running match job of the book it is queued once
+// more, and a part probed again meanwhile does not stop it.
+func TestBookRefetchNotDropped(t *testing.T) {
+	t.Parallel()
+	e := newBookEnv(t)
+	e.addBookLibrary(t, "local", "audible")
+	e.srv.fixture(audibleSearchPath, "audible_search.json")
+	e.audnexus("B0TEST0001", fmt.Sprintf(audnexusTestBook, e.srv.srv.URL))
+	const id = "01JBOOKREFETCHNEXT00000000"
+	e.addBook(t, bookSeed{id: id, title: "Der Testband", author: "Erika Muster", minutes: 612})
+	e.match(t, itemPayload{ItemID: id})
+	ctx := context.Background()
+
+	// A match job of the book runs (a scan's): the refetch waits behind it.
+	if err := e.svc.enqueueBookMatch(ctx, itemPayload{ItemID: id}, matchPriority); err != nil {
+		t.Fatal(err)
+	}
+	mustExec(t, e.db.Write, `UPDATE jobs SET state = 'running' WHERE idempotency_key = ?`, "match:"+id)
+	if err := e.svc.RefetchBook(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	var payload string
+	if err := e.db.Read.QueryRow(`SELECT payload FROM jobs WHERE idempotency_key = ? AND state = 'queued'`, "match:"+id+matchNextSuffix).Scan(&payload); err != nil {
+		t.Fatalf("no refetch queued behind the running job: %v", err)
+	}
+	if !strings.Contains(payload, `"refetch":true`) {
+		t.Errorf("payload %s", payload)
+	}
+	// A second request while both are active keeps the one behind.
+	if err := e.svc.RefetchBook(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	if err := e.db.Read.QueryRow(`SELECT count(*) FROM jobs WHERE idempotency_key LIKE 'match:' || ? || '%' AND state IN ('queued', 'running')`, id).Scan(&n); err != nil || n != 2 {
+		t.Errorf("%d active match jobs (%v), want 2", n, err)
+	}
+	if got, err := e.svc.read.CountActiveAudiobookMatches(ctx); err != nil || got != 1 {
+		t.Errorf("active audiobook matches %d (%v), want 1 (the running job and the one behind it)", got, err)
+	}
+
+	// The part is probed again: the refetch writes all the same.
+	mustExec(t, e.db.Write, `UPDATE media_files SET probe = NULL WHERE item_id = ?`, id)
+	e.audnexus("B0TEST0001", strings.ReplaceAll(fmt.Sprintf(audnexusTestBook, e.srv.srv.URL), "Testverlag Hören", "Neuer Verlag"))
+	e.match(t, itemPayload{ItemID: id, Refetch: true})
+	if b := e.book(t, id); b.Publisher.String != "Neuer Verlag" {
+		t.Errorf("refetch during the probe wrote publisher %+v", b.Publisher)
+	}
+}
+
+// The automatic match takes the volume of the source only with its series: a book of another
+// series keeps its series without volume, a book of the same series (by key) gets the volume.
+func TestBookMatchSeriesIndexOfTheSameSeries(t *testing.T) {
+	t.Parallel()
+	e := newBookEnv(t)
+	e.addBookLibrary(t, "local", "audible")
+	e.srv.fixture(audibleSearchPath, "audible_search.json")
+	e.audnexus("B0TEST0001", fmt.Sprintf(audnexusTestBook, e.srv.srv.URL)) // «Die Reihe», volume 3
+	other, same := "01JBOOKSERIES0000000000001", "01JBOOKSERIES0000000000002"
+	for id, series := range map[string]string{other: "Andere Reihe", same: "die Reihe - Band"} {
+		e.addBook(t, bookSeed{id: id, title: "Der Testband", author: "Erika Muster", minutes: 612})
+		mustExec(t, e.db.Write, `UPDATE items SET series_name = ? WHERE id = ?`, series, id)
+		e.match(t, itemPayload{ItemID: id})
+	}
+	if b := e.book(t, other); b.BookMatchState.String != BookStateMatched || b.SeriesName.String != "Andere Reihe" || b.SeriesIndex.Valid {
+		t.Errorf("other series: %+v %+v %+v", b.BookMatchState, b.SeriesName, b.SeriesIndex)
+	}
+	if b := e.book(t, same); b.SeriesName.String != "die Reihe - Band" || !b.SeriesIndex.Valid || b.SeriesIndex.Float64 != 3 {
+		t.Errorf("same series: %+v %+v", b.SeriesName, b.SeriesIndex)
+	}
+	// A refetch follows the same rule.
+	mustExec(t, e.db.Write, `UPDATE items SET series_index = NULL WHERE id = ?`, other)
+	e.match(t, itemPayload{ItemID: other, Refetch: true})
+	if b := e.book(t, other); b.SeriesIndex.Valid {
+		t.Errorf("refetch took the volume of another series: %+v", b.SeriesIndex)
+	}
+}
+
+// A book whose folder lists no configured source any more loses a state that is not matched: an
+// error would else stay for good.
+func TestBookMatchWithoutSourceClearsTheState(t *testing.T) {
+	t.Parallel()
+	e := newBookEnv(t)
+	e.addBookLibrary(t, "local", "audible")
+	ctx := context.Background()
+	failed, review := "01JBOOKNOSOURCE00000000001", "01JBOOKNOSOURCE00000000002"
+	for _, id := range []string{failed, review} {
+		e.addBook(t, bookSeed{id: id, title: "Der Testband", author: "Erika Muster", minutes: 612})
+		mustExec(t, e.db.Write, `INSERT INTO book_match_candidates (item_id, rank, provider, provider_id, score, candidate)
+		                         VALUES (?, 1, 'audible', 'B0TEST0001', 0.5, '{}')`, id)
+	}
+	mustExec(t, e.db.Write, `UPDATE items SET book_match_state = 'error', book_match_error = 'audible:blocked', book_matched_at = 0 WHERE id = ?`, failed)
+	mustExec(t, e.db.Write, `UPDATE items SET book_match_state = 'review', book_matched_at = 0 WHERE id = ?`, review)
+
+	// Only the files: the retry of errors clears the error instead of queueing it.
+	e.setFolderSources(t, "local")
+	if n, err := e.svc.queueErrorBooks(ctx, bookLibrary); err != nil || n != 0 {
+		t.Fatalf("queued %d (%v)", n, err)
+	}
+	if b := e.book(t, failed); b.BookMatchState.Valid || b.BookMatchError.Valid || len(e.bookCandidates(t, failed)) != 0 {
+		t.Errorf("error not cleared: %+v %+v", b.BookMatchState, b.BookMatchError)
+	}
+	// Google Books without key is no source either: a match run clears the review.
+	e.setFolderSources(t, "local", "googlebooks")
+	e.match(t, itemPayload{ItemID: review, Book: true})
+	if b := e.book(t, review); b.BookMatchState.Valid || e.srv.total() != 0 {
+		t.Errorf("review not cleared: %+v, %d requests", b.BookMatchState, e.srv.total())
+	}
+}
+
+// A book in error is queued again only six hours after its last run: a lasting failure (a wrong
+// Google key, an answer over 5 MB) does not ask the sources after every scan.
+func TestBookErrorRetryBackoff(t *testing.T) {
+	t.Parallel()
+	e := newBookEnv(t)
+	e.addBookLibrary(t, "local", "audible")
+	e.srv.route(audibleSearchPath, func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "down", http.StatusBadGateway) })
+	const id = "01JBOOKBACKOFF000000000000"
+	e.addBook(t, bookSeed{id: id, title: "Der Testband", author: "Erika Muster", minutes: 612})
+	e.match(t, itemPayload{ItemID: id})
+	if b := e.book(t, id); b.BookMatchState.String != BookStateError || b.BookMatchError.String != "audible:unreachable" {
+		t.Fatalf("state %+v %+v", b.BookMatchState, b.BookMatchError)
+	}
+	ctx := context.Background()
+	for _, step := range []struct {
+		after time.Duration
+		want  int
+	}{{0, 0}, {bookErrorRetry - time.Minute, 0}, {bookErrorRetry, 1}} {
+		e.clock.set(testNow.Add(step.after))
+		if n, err := e.svc.queueErrorBooks(ctx, bookLibrary); err != nil || n != step.want {
+			t.Errorf("after %v: queued %d (%v), want %d", step.after, n, err, step.want)
+		}
+	}
+}
+
+// The page counts a book with a match job once, also with a job queued behind the running one, and
+// no film.
+func TestCountActiveAudiobookMatches(t *testing.T) {
+	t.Parallel()
+	e := newBookEnv(t)
+	e.addBookLibrary(t, "local", "audible")
+	a, b := "01JBOOKCOUNT00000000000001", "01JBOOKCOUNT00000000000002"
+	for _, id := range []string{a, b} {
+		e.addBook(t, bookSeed{id: id, title: "Buch", minutes: 10})
+	}
+	mustExec(t, e.db.Write, `INSERT INTO items (id, kind, library_id, title, sort_title, genres, providers, metadata_state, added_at, created_at, updated_at)
+	                         VALUES ('01JFILMCOUNT00000000000001', 'movie', ?, 'Film', 'film', '[]', '["tmdb"]', 'pending', 0, 0, 0)`, bookLibrary)
+	for _, j := range []struct{ key, state string }{
+		{"match:" + a, "running"}, {"match:" + a + ":next", "queued"}, {"match:" + b + ":next", "queued"},
+		{"match:01JFILMCOUNT00000000000001", "queued"}, {"image:" + a, "queued"},
+	} {
+		mustExec(t, e.db.Write, `INSERT INTO jobs (type, priority, idempotency_key, payload, state, run_after, max_attempts, created_at, updated_at)
+		                         VALUES (CASE WHEN ? LIKE 'match:%' THEN 'metadata.match' ELSE 'image.fetch' END, 5, ?, '{}', ?, 0, 3, 0, 0)`, j.key, j.key, j.state)
+	}
+	if n, err := e.svc.read.CountActiveAudiobookMatches(context.Background()); err != nil || n != 2 {
+		t.Errorf("active audiobook matches %d (%v), want 2", n, err)
+	}
+}
+
+// The settings of the page are written in one transaction with the caller's extra rows (the
+// Google Books key of package admin), and the jobs follow only a commit; an empty Audnexus address
+// is the default again.
+func TestUpdateBookSourcesAtomic(t *testing.T) {
+	t.Parallel()
+	e := newBookEnv(t)
+	e.addBookLibrary(t, "local", "audible")
+	const id = "01JBOOKSETTINGS00000000000"
+	e.addBook(t, bookSeed{id: id, title: "Buch", minutes: 10})
+	mustExec(t, e.db.Write, `INSERT INTO settings (key, value, updated_at) VALUES (?, 'off', 0)`, SettingBookAutoMatch)
+	ctx := context.Background()
+	stored := func(key string) (string, bool) {
+		var v string
+		err := e.db.Read.QueryRow(`SELECT value FROM settings WHERE key = ?`, key).Scan(&v)
+		return v, err == nil
+	}
+	all, bad, url := BookAutoAll, 99, "http://192.168.1.50:3000/"
+	// A refused value writes nothing: neither the settings nor the extra row, and queues nothing.
+	var verr *model.ValidationError
+	if err := e.svc.UpdateBookSources(ctx, model.BookSettingsUpdate{AutoMatch: &all, TolerancePercent: &bad,
+		Extra: map[string]string{"googlebooks_api_key": "v1:sealed"}}); !errors.As(err, &verr) {
+		t.Fatalf("invalid tolerance: %v", err)
+	}
+	if _, ok := stored("googlebooks_api_key"); ok {
+		t.Error("extra row written although the update was refused")
+	}
+	if v, _ := stored(SettingBookAutoMatch); v != BookAutoOff || e.queued(t, "match:"+id) {
+		t.Errorf("auto_match %q or a job after a refused update", v)
+	}
+	if err := e.svc.UpdateBookSources(ctx, model.BookSettingsUpdate{AutoMatch: &all, AudnexusURL: &url,
+		Extra: map[string]string{"googlebooks_api_key": "v1:sealed"}}); err != nil {
+		t.Fatal(err)
+	}
+	if v, _ := stored("googlebooks_api_key"); v != "v1:sealed" || !e.queued(t, "match:"+id) {
+		t.Errorf("extra row %q or no job after the switch to all", v)
+	}
+	if st, err := e.svc.BookSettings(ctx); err != nil || st.AudnexusURL != "http://192.168.1.50:3000" {
+		t.Fatalf("audnexus %q (%v)", st.AudnexusURL, err)
+	}
+	// "" resets the Audnexus address and deletes an extra row.
+	empty := ""
+	if err := e.svc.UpdateBookSources(ctx, model.BookSettingsUpdate{AudnexusURL: &empty, Extra: map[string]string{"googlebooks_api_key": ""}}); err != nil {
+		t.Fatal(err)
+	}
+	if st, err := e.svc.BookSettings(ctx); err != nil || st.AudnexusURL != DefaultAudnexusURL {
+		t.Errorf("audnexus after the reset %q (%v)", st.AudnexusURL, err)
+	}
+	if _, ok := stored(SettingBookAudnexusURL); ok {
+		t.Error("audnexus row kept after the reset")
+	}
+	if _, ok := stored("googlebooks_api_key"); ok {
+		t.Error("extra row kept after \"\"")
+	}
+}
+
+// The editor's fields: an empty list confirms the match by hand and writes no field, no lock and no
+// source; without a list every field that differs, is not locked and has a value is taken.
+func TestApplyBookMatchFieldList(t *testing.T) {
+	t.Parallel()
+	e := newBookEnv(t)
+	e.addBookLibrary(t, "local")
+	e.audnexus("B0TEST0001", fmt.Sprintf(audnexusTestBook, e.srv.srv.URL))
+	confirm, all := "01JBOOKFIELDS0000000000001", "01JBOOKFIELDS0000000000002"
+	for _, id := range []string{confirm, all} {
+		e.addBook(t, bookSeed{id: id, title: "Der Testband", author: "Erika Muster", narrator: "Datei Sprecherin", minutes: 612})
+		mustExec(t, e.db.Write, `UPDATE items SET locked_fields = '["narrator"]', book_match_state = 'review' WHERE id = ?`, id)
+	}
+	ctx := context.Background()
+	if err := e.svc.ApplyBookMatch(ctx, confirm, ProviderAudible, "B0TEST0001", "", []string{}); err != nil {
+		t.Fatal(err)
+	}
+	b := e.book(t, confirm)
+	if b.BookMatchState.String != BookStateMatched || b.BookMatchManual != 1 || b.BookMatchID.String != "B0TEST0001" {
+		t.Errorf("confirmed match %+v %d %+v", b.BookMatchState, b.BookMatchManual, b.BookMatchID)
+	}
+	if b.Publisher.Valid || b.Isbn.Valid || b.SeriesName.Valid || b.LockedFields != `["narrator"]` || e.fieldSource(t, confirm, "publisher", "") != "" {
+		t.Errorf("empty list wrote %+v %+v %+v locks %s", b.Publisher, b.Isbn, b.SeriesName, b.LockedFields)
+	}
+	if err := e.svc.ApplyBookMatch(ctx, all, ProviderAudible, "B0TEST0001", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	b = e.book(t, all)
+	if b.Publisher.String != "Testverlag Hören" || b.Isbn.String != "9783000000001" || b.Narrator.String != "Datei Sprecherin" || b.BookMatchManual != 1 {
+		t.Errorf("default set wrote %+v %+v %+v", b.Publisher, b.Isbn, b.Narrator)
+	}
+	if locks := lockedFields(b.LockedFields); !locks["publisher"] || !locks["isbn"] || locks["title:de"] {
+		t.Errorf("default set locks %s (the title does not differ)", b.LockedFields)
+	}
+
+	// unlockAll before a refetch lifts the field locks of the editor's match too; the match itself
+	// (state, entry, by hand) stays.
+	if err := e.svc.UnlockAll(ctx, all); err != nil {
+		t.Fatal(err)
+	}
+	if b = e.book(t, all); b.LockedFields != "[]" || b.BookMatchState.String != BookStateMatched || b.BookMatchManual != 1 || b.BookMatchID.String != "B0TEST0001" {
+		t.Errorf("after unlockAll: locks %s, match %+v %d %+v", b.LockedFields, b.BookMatchState, b.BookMatchManual, b.BookMatchID)
+	}
+}

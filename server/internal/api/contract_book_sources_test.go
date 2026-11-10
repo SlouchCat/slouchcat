@@ -161,8 +161,17 @@ func TestBookSourcesOverHTTP(t *testing.T) {
 		t.Errorf("refetch without match: %s", got)
 	}
 
-	// PD-9: the match writes only the ticked fields that are not locked, and locks them.
+	// PD-9: the match writes only the ticked fields that are not locked, and locks them; an empty
+	// list confirms the match by hand without taking a field.
 	match := BasePath + "/admin/items/" + book + "/match"
+	rec = send(t, h, http.MethodPut, match, "p18", `{"provider":"audible","providerId":"B0TEST0001","fields":[]}`, nil)
+	wantStatus(t, rec, http.StatusAccepted)
+	var confirmed gen.AdminItem
+	decode(t, rec, &confirmed)
+	if bm := confirmed.BookMatch; bm == nil || bm.State != gen.AdminBookMatchStateMatched || !bm.Manual || confirmed.Metadata == nil ||
+		deref(confirmed.Metadata.Publisher) != "" || slices.Contains(confirmed.LockedFields, "publisher") {
+		t.Errorf("empty fields: %s", rec.Body.String())
+	}
 	rec = send(t, h, http.MethodPut, match, "p18", `{"provider":"audible","providerId":"B0TEST0001","fields":["publisher","narrator","cover"]}`, nil)
 	wantStatus(t, rec, http.StatusAccepted)
 	var it gen.AdminItem
@@ -225,6 +234,13 @@ func TestBookSourcesOverHTTP(t *testing.T) {
 	}
 	if strings.Contains(rec.Body.String(), "test-google-books-key") {
 		t.Error("the Google Books key in an answer")
+	}
+	// An empty Audnexus address is the default again.
+	rec = send(t, h, http.MethodPatch, page, "p18", `{"audnexusUrl":""}`, nil)
+	wantStatus(t, rec, http.StatusOK)
+	decode(t, rec, &src)
+	if src.AudnexusUrl != "https://api.audnex.us" {
+		t.Errorf("audnexusUrl after the reset %q", src.AudnexusUrl)
 	}
 	rec = send(t, h, http.MethodPatch, page, "p18", `{"clearGoogleBooksKey":true}`, nil)
 	wantStatus(t, rec, http.StatusOK)

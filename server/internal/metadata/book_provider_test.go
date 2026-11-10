@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -876,5 +877,111 @@ func TestBookSourceURLsFromBase(t *testing.T) {
 	}
 	if got := (url.Values{"a": {"1"}}); queryURL("https://x", "/p", got) != "https://x/p?a=1" {
 		t.Error("queryURL")
+	}
+}
+
+// The catalog and Audnexus share the pause of audible but count their blocked answers each on its
+// own (PD-11 for Audnexus): a good answer of one host does not reset the count of the other.
+func TestBookBreakerCountsPerHost(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	for _, tc := range []struct {
+		name            string
+		catalog, detail int // status of the catalog search and of Audnexus
+	}{
+		{"audnexus blocked", http.StatusOK, http.StatusForbidden},
+		{"catalog blocked", http.StatusTooManyRequests, http.StatusOK},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := newBookEnv(t)
+			found := bookFixture(t, "audible_search.json")
+			e.srv.route("/audible/de/1.0/catalog/products", func(w http.ResponseWriter, _ *http.Request) {
+				if tc.catalog != http.StatusOK {
+					w.WriteHeader(tc.catalog)
+					return
+				}
+				_, _ = w.Write(found)
+			})
+			detail := fmt.Sprintf(audnexusTestBook, e.srv.srv.URL)
+			e.srv.route("/audnexus/books/B0TEST0001", func(w http.ResponseWriter, _ *http.Request) {
+				if tc.detail != http.StatusOK {
+					w.WriteHeader(tc.detail)
+					return
+				}
+				_, _ = w.Write([]byte(detail))
+			})
+			p := e.provider(t, ProviderAudible)
+			search := func(i int) error {
+				_, err := p.SearchBooks(ctx, BookQuery{Title: "Der Testband " + strconv.Itoa(i)})
+				return err
+			}
+			book := func(int) error {
+				_, err := p.Book(ctx, "B0TEST0001", "de")
+				return err
+			}
+			good, bad := search, book
+			if tc.catalog != http.StatusOK {
+				good, bad = book, search
+			}
+			// Each round: a good answer of one host, then a blocked one of the other.
+			for i := range 3 {
+				if err := good(i); err != nil {
+					t.Fatalf("round %d: good host %v", i, err)
+				}
+				if err := bad(i); !errors.Is(err, errSourceBlocked) {
+					t.Fatalf("round %d: blocked host %v", i, err)
+				}
+			}
+			if _, ok := e.svc.bookSourcePausedUntil(ctx, ProviderAudible); !ok {
+				t.Fatal("audible not paused after three blocked answers of one host")
+			}
+			if _, err := p.Book(ctx, "B0TEST0001", "de"); !errors.Is(err, errSourcePaused) {
+				t.Errorf("Audnexus during the pause: %v", err)
+			}
+			if _, err := p.SearchBooks(ctx, BookQuery{Title: "Der Testband 9"}); !errors.Is(err, errSourcePaused) {
+				t.Errorf("catalog during the pause: %v", err)
+			}
+		})
+	}
+}
+
+// The e2e mock (WithTestBookSources) is asked without the limits of the public hosts; without a
+// test base the sources keep their addresses and their limits.
+func TestTestBookSourcesLiftTheLimits(t *testing.T) {
+	t.Parallel()
+	db, err := storetest.Open(context.Background(), store.Options{ConfigDir: t.TempDir(), Version: "test", Logger: slog.New(slog.DiscardHandler)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	newSvc := func(opts ...Option) *Service {
+		return New(db, jobs.NewQueue(db.Write, nil), staticKey(""), t.TempDir(), transcode.Runner{}, slog.New(slog.DiscardHandler), opts...)
+	}
+	limiters := func(s *Service) map[string]*ratelimit.Limiter {
+		return map[string]*ratelimit.Limiter{"audible": s.books.audible.limiter, "audnexus": s.books.audible.audnexusLimiter,
+			"dnb": s.books.dnb.limiter, "apple": s.books.apple.limiter, "openlibrary": s.books.openLibrary.limiter, "google": s.books.google.limiter}
+	}
+	mock := newSvc(WithTestBookSources("http://127.0.0.1:9/"))
+	for name, l := range limiters(mock) {
+		for i := range 10 {
+			if !l.Allow() {
+				t.Errorf("%s at the mock: request %d throttled", name, i+1)
+				break
+			}
+		}
+	}
+	if got := mock.books.apple.base; got != "http://127.0.0.1:9/apple" {
+		t.Errorf("apple at %q", got)
+	}
+	for _, s := range []*Service{newSvc(WithTestBookSources("  ")), newSvc()} {
+		for name, l := range limiters(s) {
+			if !l.Allow() || l.Allow() {
+				t.Errorf("%s without the test base: not one request per period", name)
+			}
+		}
+		if got := s.books.apple.base; got != DefaultAppleBooksURL {
+			t.Errorf("apple at %q without the test base", got)
+		}
 	}
 }

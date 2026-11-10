@@ -8,14 +8,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/ratelimit"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
 // The breaker of an audiobook source (concept 19 D6.3 point 7, ADR 0031): three blocked answers in
 // a row (403, 429, HTML instead of JSON or XML) pause the source for six hours. The end of the
 // pause is stored as unix milliseconds in the setting metadata.books.paused.<source>, read at the
-// first use after a start, so a restart does not ask a blocking source again. A good answer resets
-// the count; a 404 and an empty result neither count nor reset.
+// first use after a start, so a restart does not ask a blocking source again. The count runs per
+// host of the source (Audible asks its catalog and Audnexus, each through its own limiter), the
+// pause holds for the whole source: three blocked answers in a row from either host pause it, and a
+// good answer resets only the count of the host that gave it. A 404 and an empty result neither
+// count nor reset.
 const (
 	bookBreakerStrikes = 3
 	bookBreakerPause   = 6 * time.Hour
@@ -23,7 +27,8 @@ const (
 	SettingBookPausedPrefix = "metadata.books.paused."
 )
 
-// bookBreaker counts the blocked answers of one source. It is safe for concurrent use.
+// bookBreaker counts the blocked answers of one source per host; a host is named by its limiter,
+// which every host of a source has of its own. It is safe for concurrent use.
 type bookBreaker struct {
 	name  string
 	read  *systemq.Queries
@@ -32,7 +37,7 @@ type bookBreaker struct {
 
 	mu      sync.Mutex
 	loaded  bool
-	strikes int
+	strikes map[*ratelimit.Limiter]int
 	until   time.Time
 }
 
@@ -68,15 +73,19 @@ func (b *bookBreaker) allow(ctx context.Context) error {
 	return nil
 }
 
-// blocked counts one blocked answer; the third in a row starts the pause and stores its end.
-func (b *bookBreaker) blocked(ctx context.Context) {
+// blocked counts one blocked answer of host; the third in a row starts the pause of the source and
+// stores its end.
+func (b *bookBreaker) blocked(ctx context.Context, host *ratelimit.Limiter) {
 	b.mu.Lock()
-	b.strikes++
-	if b.strikes < bookBreakerStrikes {
+	if b.strikes == nil {
+		b.strikes = map[*ratelimit.Limiter]int{}
+	}
+	b.strikes[host]++
+	if b.strikes[host] < bookBreakerStrikes {
 		b.mu.Unlock()
 		return
 	}
-	b.strikes = 0
+	clear(b.strikes)
 	now := b.now()
 	b.until = now.Add(bookBreakerPause)
 	b.loaded = true
@@ -88,10 +97,10 @@ func (b *bookBreaker) blocked(ctx context.Context) {
 	})
 }
 
-// ok resets the count after a good answer.
-func (b *bookBreaker) ok() {
+// ok resets the count of host after a good answer of it.
+func (b *bookBreaker) ok(host *ratelimit.Limiter) {
 	b.mu.Lock()
-	b.strikes = 0
+	delete(b.strikes, host)
 	b.mu.Unlock()
 }
 

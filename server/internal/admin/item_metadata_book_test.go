@@ -1,6 +1,8 @@
 package admin
 
 import (
+	"context"
+	"errors"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -64,5 +66,57 @@ func TestBookEditWritesEveryTextRow(t *testing.T) {
 	m.exec(t, `UPDATE items SET original_language = 'de', locked_fields = '["original_language"]' WHERE id = ?`, english)
 	if it, err := m.svc.GetAdminItem(m.ctx, english); err != nil || it.Metadata == nil || it.Metadata.Lang != "de" {
 		t.Errorf("language with a locked original language de: %+v (%v)", it.Metadata, err)
+	}
+}
+
+// failingBookSources is package metadata's side of the page «Hörbücher: Quellen» whose write of the
+// settings fails; it keeps the update it got.
+type failingBookSources struct {
+	bookSourcesBase // the methods the test does not call
+	got             model.BookSettingsUpdate
+}
+
+// bookSourcesBase names the embedded interface, whose own name would clash with its method
+// BookSources.
+type bookSourcesBase = BookSources
+
+func (f *failingBookSources) UpdateBookSources(_ context.Context, upd model.BookSettingsUpdate) error {
+	f.got = upd
+	return errors.New("disk full")
+}
+
+// Saving the page is one transaction: the Google Books key travels encrypted with the settings to
+// package metadata, so a failing write leaves no key behind (and no settings and jobs, which
+// metadata writes and queues only after its commit, TestUpdateBookSourcesAtomic).
+func TestUpdateAudiobookSourcesKeyWithTheSettings(t *testing.T) {
+	t.Parallel()
+	m := newMaintFixture(t)
+	books := &failingBookSources{}
+	m.svc.WithBooks(books)
+	key, tolerance := "test-google-books-key-0001", 5
+	if _, err := m.svc.UpdateAudiobookSources(m.ctx, model.AudiobookSourcesUpdate{GoogleBooksKey: &key,
+		BookSettingsUpdate: model.BookSettingsUpdate{TolerancePercent: &tolerance}}); err == nil {
+		t.Fatal("failing write accepted")
+	}
+	var n int
+	if err := m.f.DB.Read.QueryRowContext(m.ctx, `SELECT count(*) FROM settings WHERE key = ?`, SettingGoogleBooksKey).Scan(&n); err != nil || n != 0 {
+		t.Errorf("key rows %d (%v) after the failed save", n, err)
+	}
+	enc, ok := books.got.Extra[SettingGoogleBooksKey]
+	if !ok || enc == key {
+		t.Fatalf("key not handed over encrypted: %v", books.got.Extra)
+	}
+	if plain, err := m.svc.keyring.Decrypt(enc); err != nil || plain != key {
+		t.Errorf("handed over %q (%v)", plain, err)
+	}
+	if books.got.TolerancePercent == nil || *books.got.TolerancePercent != tolerance {
+		t.Errorf("settings %+v", books.got)
+	}
+	// Clearing hands over the delete ("").
+	if _, err := m.svc.UpdateAudiobookSources(m.ctx, model.AudiobookSourcesUpdate{ClearGoogleBooksKey: true}); err == nil {
+		t.Fatal("failing write accepted")
+	}
+	if v, ok := books.got.Extra[SettingGoogleBooksKey]; !ok || v != "" {
+		t.Errorf("clear handed over %v", books.got.Extra)
 	}
 }

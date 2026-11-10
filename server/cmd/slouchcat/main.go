@@ -318,7 +318,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		metadata.WithTrakt(cfg.TraktClientID, metadata.WithTraktBaseURL(traktBase)),
 		metadata.WithAudioSeriesRelink(library.RelinkAudioSeries), metadata.WithAuthorDisplay(authorDisplay)}
 	if cfg.Dev && cfg.TestBooksBaseURL != "" {
-		metaOpts = append(metaOpts, metadata.WithBookSourceURLs(metadata.BookSourceURLsFromBase(cfg.TestBooksBaseURL)))
+		metaOpts = append(metaOpts, metadata.WithTestBookSources(cfg.TestBooksBaseURL))
 	} else if cfg.TestBooksBaseURL != "" {
 		log.Warn("SLOUCHCAT_TEST_BOOKS_BASE_URL is ignored without --dev")
 	}

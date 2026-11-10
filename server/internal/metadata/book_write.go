@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/slouchcat/slouchcat/server/internal/library/audioseries"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
@@ -350,7 +351,13 @@ func (s *Service) applyBookRecord(ctx context.Context, q *systemq.Queries, v boo
 	column("author", func(x string) { p.Author = nullString(x) })
 	column("narrator", func(x string) { p.Narrator = nullString(x) })
 	column("seriesName", func(x string) { p.SeriesName = nullString(x) })
-	column("seriesIndex", func(string) { p.SeriesIndex = sql.NullFloat64{Float64: *rec.SeriesIndex, Valid: true} })
+	// The volume belongs to the source's series: automatically and in a refetch it is taken only
+	// with that series name, or when the book's series is the same series (its key), so a book of
+	// series X without volume does not become volume 5 of X because it is volume 5 of Y.
+	if w.mode == bookWriteManual || slices.Contains(written, "seriesName") ||
+		audioseries.Default().Name(it.SeriesName.String) == audioseries.Default().Name(rec.SeriesName) {
+		column("seriesIndex", func(string) { p.SeriesIndex = sql.NullFloat64{Float64: *rec.SeriesIndex, Valid: true} })
+	}
 	column("year", func(string) { p.Year = sql.NullInt64{Int64: int64(*rec.Year), Valid: true} })
 	column("publisher", func(x string) { p.Publisher = nullString(x) })
 	column("originalLanguage", func(x string) { p.OriginalLanguage = nullString(x) })

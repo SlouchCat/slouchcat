@@ -9,7 +9,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
-	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 )
 
 // The book sources of audiobooks (contract 1.26.0, concept 19 D5.2 and D6.6): the search, the
@@ -151,8 +150,8 @@ func (s *Service) SetBookMatch(ctx context.Context, itemID, provider, providerID
 }
 
 // RefreshItemFromProvider fetches the entry of the stored match of an audiobook again (refreshItem
-// with fromProvider); with unlockAll every lock but those of a manual match goes first. A title
-// that is no matched audiobook is fromProvider not_matched.
+// with fromProvider); with unlockAll every field lock goes first, also those of the editor's match
+// (the match itself stays). A title that is no matched audiobook is fromProvider not_matched.
 func (s *Service) RefreshItemFromProvider(ctx context.Context, itemID string, unlockAll bool) (model.AdminItem, error) {
 	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	if s.books == nil || s.meta == nil {
@@ -237,19 +236,23 @@ func (s *Service) UpdateAudiobookSources(ctx context.Context, upd model.Audioboo
 	if (upd.GoogleBooksKey != nil || upd.ClearGoogleBooksKey) && s.envSet(EnvGoogleBooksKey) {
 		return model.AudiobookSources{}, &model.EnvWinsError{Field: "googleBooksKey"}
 	}
-	if err := s.books.UpdateBookSources(ctx, upd.BookSettingsUpdate); err != nil {
+	// The key goes into the transaction of the settings (package metadata), which queues its jobs
+	// only after the commit: a failure leaves neither settings nor key nor jobs behind.
+	settings := upd.BookSettingsUpdate
+	if upd.GoogleBooksKey != nil || upd.ClearGoogleBooksKey {
+		enc := ""
+		if !upd.ClearGoogleBooksKey {
+			var err error
+			if enc, err = s.keyring.Encrypt(key); err != nil {
+				return model.AudiobookSources{}, fmt.Errorf("encrypt setting %s: %w", SettingGoogleBooksKey, err)
+			}
+		}
+		settings.Extra = map[string]string{SettingGoogleBooksKey: enc}
+	}
+	if err := s.books.UpdateBookSources(ctx, settings); err != nil {
 		return model.AudiobookSources{}, err
 	}
-	if upd.GoogleBooksKey != nil || upd.ClearGoogleBooksKey {
-		w := settingsWriter{s: s, ctx: ctx, q: appq.New(s.db), now: s.now().UnixMilli()}
-		if upd.ClearGoogleBooksKey {
-			w.del(SettingGoogleBooksKey)
-		} else {
-			w.setSecret(SettingGoogleBooksKey, key)
-		}
-		if w.err != nil {
-			return model.AudiobookSources{}, w.err
-		}
+	if settings.Extra != nil {
 		s.log.InfoContext(ctx, "google books key changed", "cleared", upd.ClearGoogleBooksKey)
 	}
 	return s.AudiobookSources(ctx)

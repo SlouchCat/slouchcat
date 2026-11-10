@@ -1914,8 +1914,9 @@ export interface paths {
          *     D6) `{"fromProvider": true}` fetches the entry of the stored match of an audiobook again (job
          *     `metadata.match` with the payload `refetch`): it writes the fields that are not locked and are
          *     empty or come from that source, and the cover candidates of the source; with `unlockAll` the
-         *     locks go first. A title that is no audiobook with a match answers 422 `fromProvider`
-         *     `not_matched`.
+         *     locks go first. For an audiobook the match itself (state, source, entry, by hand) stays with
+         *     `unlockAll`, while the field locks that a match in the editor set go like every other lock.
+         *     A title that is no audiobook with a match answers 422 `fromProvider` `not_matched`.
          */
         post: operations["refreshItem"];
         delete?: never;
@@ -6568,7 +6569,10 @@ export interface components {
             providerId: string;
             /**
              * @description Only audiobooks (since contract 1.26.0): the fields to take from the entry. Left out:
-             *     every field that differs and is not locked. A locked field is never taken.
+             *     every field that differs, is not locked and has a value at the source. An empty list
+             *     takes no field: the match is stored (state `matched`, by hand) and nothing else is
+             *     written, for a book whose files already say what the entry says. A locked field is never
+             *     taken.
              */
             fields?: components["schemas"]["BookMatchField"][];
             /** @description Only `audible` (since contract 1.26.0); left out = the setting. */
@@ -6728,7 +6732,10 @@ export interface components {
         /** @description Changes of `updateAudiobookSources`; a field left out stays. */
         AudiobookSourcesUpdate: {
             audibleRegion?: components["schemas"]["AudibleRegion"];
-            /** Format: uri */
+            /**
+             * Format: uri
+             * @description An empty string resets the default `https://api.audnex.us`.
+             */
             audnexusUrl?: string;
             /** @description Stores the key encrypted. */
             googleBooksKey?: string;
@@ -6961,12 +6968,18 @@ export interface components {
         };
         /** @description Options of `refreshItem` (since contract 1.15.0). */
         ItemRefreshRequest: {
-            /** @description Lift every lock of the title before the refresh (not those of a manual match). */
+            /**
+             * @description Lift every lock of the title before the refresh. A manual match of a film or series
+             *     (`setItemMatch` with tmdb, tvdb) keeps its id locks. For an audiobook the match itself
+             *     stays (state, source, entry, by hand), while the field locks that the editor's match set
+             *     go like every other lock.
+             */
             unlockAll?: boolean;
             /**
              * @description Only an audiobook with a match (since contract 1.26.0, concept 19 D6): fetch the entry of
              *     the stored match again instead of reading the files (`fromProvider` `not_matched`
-             *     otherwise).
+             *     otherwise). With `unlockAll` the field locks go first (the match stays), so the entry
+             *     can write every field that is empty or comes from its source.
              */
             fromProvider?: boolean;
         };

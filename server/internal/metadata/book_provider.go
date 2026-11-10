@@ -160,6 +160,19 @@ func WithBookSourceURLs(u BookSourceURLs) Option {
 	return func(o *options) { o.bookURLs = &u }
 }
 
+// WithTestBookSources points every audiobook source at the mock at base (BookSourceURLsFromBase)
+// and lifts their limits, so a mock is not asked at Apple's one request per three seconds: the
+// dev-only SLOUCHCAT_TEST_BOOKS_BASE_URL of the e2e suite. An empty base changes nothing; the
+// public hosts always keep their limits.
+func WithTestBookSources(base string) Option {
+	return func(o *options) {
+		if base = strings.TrimSpace(base); base != "" {
+			u := BookSourceURLsFromBase(base)
+			o.bookURLs, o.bookUnlimited = &u, true
+		}
+	}
+}
+
 // WithGoogleBooksKey sets the function that returns the Google Books key per call
 // (SLOUCHCAT_GOOGLEBOOKS_API_KEY or the encrypted setting googlebooks_api_key); "" without error
 // means no key: the source is then not configured and never asked.
@@ -176,6 +189,8 @@ const (
 	bookResults      = 10
 	bookUserAgentURL = " (+https://github.com/SlouchCat/slouchcat)"
 	maxBookRedirects = 5
+	// testBookRate is the rate (and burst) of every source at the mock of WithTestBookSources.
+	testBookRate = 1000
 )
 
 // bookFormat is what a source answers: JSON or XML. HTML instead of it counts as blocked.
@@ -200,8 +215,8 @@ type bookSource struct {
 
 // fetch asks rawURL with hc after the breaker and the limiter allowed it. It returns the body of
 // a 2xx answer (after checking it is no HTML page) and of a 404 (status 404, err nil, for
-// Audnexus' REGION_UNAVAILABLE); 403, 429 and HTML count for the breaker (errSourceBlocked), any
-// other status is an error. Errors carry scheme and host of the address only (netguard.Clean),
+// Audnexus' REGION_UNAVAILABLE); 403, 429 and HTML count for the breaker (errSourceBlocked) as
+// answers of the host of lim, any other status is an error. Errors carry scheme and host of the address only (netguard.Clean),
 // because the Google Books key travels in the query.
 func (b *bookSource) fetch(ctx context.Context, hc *http.Client, lim *ratelimit.Limiter, rawURL string, format bookFormat) ([]byte, int, error) {
 	if err := b.breaker.allow(ctx); err != nil {
@@ -238,7 +253,7 @@ func (b *bookSource) fetch(ctx context.Context, hc *http.Client, lim *ratelimit.
 	}
 	switch {
 	case resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests:
-		b.breaker.blocked(ctx)
+		b.breaker.blocked(ctx, lim)
 		return nil, resp.StatusCode, fmt.Errorf("%w: %s: status %d", errSourceBlocked, b.name, resp.StatusCode)
 	case resp.StatusCode == http.StatusNotFound:
 		return body, resp.StatusCode, nil
@@ -246,10 +261,10 @@ func (b *bookSource) fetch(ctx context.Context, hc *http.Client, lim *ratelimit.
 		return nil, resp.StatusCode, fmt.Errorf("%w: %s: status %d", model.ErrTMDBUnreachable, b.name, resp.StatusCode)
 	}
 	if htmlAnswer(resp.Header.Get("Content-Type"), body, format) {
-		b.breaker.blocked(ctx)
+		b.breaker.blocked(ctx, lim)
 		return nil, resp.StatusCode, fmt.Errorf("%w: %s: HTML instead of the answer", errSourceBlocked, b.name)
 	}
-	b.breaker.ok()
+	b.breaker.ok(lim)
 	return body, resp.StatusCode, nil
 }
 
@@ -293,7 +308,8 @@ type bookSources struct {
 }
 
 // newBookSources builds the sources of s from the options: the clients, one limiter and one
-// breaker per source (Audible and Audnexus share the breaker of "audible"), one search cache.
+// breaker per source (Audible and Audnexus share the breaker of "audible", which counts each host
+// on its own), one search cache.
 func newBookSources(s *Service, o options) bookSources {
 	urls := DefaultBookSourceURLs()
 	if u := o.bookURLs; u != nil {
@@ -313,14 +329,20 @@ func newBookSources(s *Service, o options) bookSources {
 	}
 	agent := cmp.Or(o.feedAgent, "Slouchcat") + bookUserAgentURL
 	cache := newBookCache(s.now)
+	limiter := func(name string, rate float64) *ratelimit.Limiter {
+		if o.bookUnlimited {
+			return ratelimit.New(name, testBookRate, testBookRate)
+		}
+		return ratelimit.New(name, rate, 1)
+	}
 	source := func(name string, rate float64) bookSource {
-		return bookSource{name: name, http: hc, limiter: ratelimit.New(name, rate, 1), breaker: newBookBreaker(s, name),
+		return bookSource{name: name, http: hc, limiter: limiter(name, rate), breaker: newBookBreaker(s, name),
 			cache: cache, agent: agent, log: s.log}
 	}
 	audnexus := strings.TrimRight(urls.Audnexus, "/")
 	bs := bookSources{
 		audible: &audibleProvider{bookSource: source(ProviderAudible, bookRate), base: urls.Audible,
-			audnexusLimiter: ratelimit.New("audnexus", bookRate, 1), audnexusClients: newAudnexusClients(),
+			audnexusLimiter: limiter("audnexus", bookRate), audnexusClients: newAudnexusClients(),
 			region:   func(context.Context) string { return DefaultAudibleRegion },
 			audnexus: func(context.Context) string { return audnexus }},
 		dnb:   &dnbProvider{bookSource: source(ProviderDNB, bookRate), base: strings.TrimRight(urls.DNB, "/")},
