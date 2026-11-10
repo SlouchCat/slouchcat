@@ -288,12 +288,15 @@ function ProfileDownloads({
           <Notice>{t('offline.library.noneReady')}</Notice>
         ) : (
           sections.map((section) => {
+            const heading = `offline-downloads-${section.key}-heading`;
             const grid = (
               <SpatialGroup
                 as="ul"
                 focusKey={`offline-downloads-${section.key}`}
                 className={styles.grid}
-                aria-label={section.title ?? t('offline.library.list')}
+                // Under a heading the list takes its name from it, so it is said once.
+                aria-label={section.title === undefined ? t('offline.library.list') : undefined}
+                aria-labelledby={section.title === undefined ? undefined : heading}
               >
                 {section.list.map((download) => (
                   <li key={download.id}>
@@ -303,7 +306,6 @@ function ProfileDownloads({
               </SpatialGroup>
             );
             if (section.title === undefined) return <div key={section.key}>{grid}</div>;
-            const heading = `offline-downloads-${section.key}-heading`;
             return (
               <section key={section.key} className={styles.kindSection} aria-labelledby={heading}>
                 <h2 id={heading} className={styles.sectionTitle}>

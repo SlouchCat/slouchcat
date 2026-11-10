@@ -649,6 +649,8 @@ test.describe('square covers in the overview of audio', () => {
       }
       const offset = Number(url.searchParams.get('offset') ?? 0);
       const limit = Number(url.searchParams.get('limit') ?? 50);
+      // A slow first page: the films stay drawn meanwhile.
+      if (offset === 0) await new Promise((resolve) => setTimeout(resolve, 1500));
       await route.fulfill({
         json: {
           items: Array.from({ length: Math.max(0, Math.min(limit, 40 - offset)) }, (_, n) =>
@@ -667,6 +669,11 @@ test.describe('square covers in the overview of audio', () => {
     expect(new Set(await frameRatios(list))).toEqual(new Set([1.5]));
     const chips = page.getByRole('group', { name: 'Inhalt' });
     await chips.getByRole('button', { name: 'Hörbücher' }).click();
+    // While the audiobooks load, the films keep their 2:3 rows: nothing overlaps.
+    await page.waitForTimeout(500);
+    await expect(list.getByRole('link', { name: /Hörbuch 0/ })).toHaveCount(0);
+    expect(new Set(await frameRatios(list))).toEqual(new Set([1.5]));
+    expect(await crowded(list)).toEqual([]);
     await expect(list.getByRole('link', { name: /Hörbuch 0/ })).toBeVisible();
     await expect.poll(async () => [...new Set(await frameRatios(list))]).toEqual([1]);
     await expect.poll(() => crowded(list)).toEqual([]);

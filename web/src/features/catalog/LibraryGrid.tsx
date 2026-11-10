@@ -126,13 +126,22 @@ export function LibraryGrid({
   const root = useRef<HTMLDivElement>(null);
   const probe = useRef<HTMLSpanElement>(null);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
+  // The cover shape the metrics were last taken for.
+  const shaped = useRef(cover);
 
   useLayoutEffect(() => {
     const node = root.current?.querySelector('ul');
     const text = probe.current;
     if (!node || !text) return;
     // Columns and gaps follow the width; the top follows what stands above (filters, chips). A new
-    // cover shape (the content filter between mixed and audio) measures anew, like a new width.
+    // cover shape (the content filter between mixed and audio) measures anew, like a new width,
+    // and before the paint: the cards of the new shape must not stand in rows of the old height.
+    // The first measure waits for the observer, once the page above has its layout.
+    if (shaped.current !== cover) {
+      const now = measure(node, text, cover);
+      setMetrics((previous) => (previous === null || same(previous, now) ? previous : now));
+    }
+    shaped.current = cover;
     const observer = new ResizeObserver(() => {
       const next = measure(node, text, cover);
       setMetrics((previous) => (same(previous, next) ? previous : next));

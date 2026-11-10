@@ -111,6 +111,12 @@ function LibraryView({ id }: { id: number | null }) {
     setTop((previous) => (same(previous, row) ? previous : row));
   }, []);
   const { first: query, slots, failed: pageFailed, retry } = useLibraryPages(id, request, drawn);
+  // The content filter of the titles drawn: a new filter keeps the old titles until its first page
+  // is there, and the grid keeps their cover shape so long (square rows would cut 2:3 cards).
+  const [drawnContent, setDrawnContent] = useState(params.content);
+  if (query.isSuccess && !query.isPlaceholderData && drawnContent !== params.content) {
+    setDrawnContent(params.content);
+  }
   // The retry button goes with its notice once the page is there; the focus it held moves to the
   // first card in view, not to norigin's restore (the list's first card, far up).
   const retried = useRef(false);
@@ -474,7 +480,7 @@ function LibraryView({ id }: { id: number | null }) {
                   slots={slots}
                   focusKey={GRID_KEY}
                   label={library.name}
-                  cover={gridCover(library.contents, params.content)}
+                  cover={gridCover(library.contents, drawnContent)}
                   onRange={onRange}
                   tool={
                     canManage
