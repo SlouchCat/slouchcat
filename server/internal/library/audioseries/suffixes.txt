@@ -1,0 +1,17 @@
+# Suffixes of audiobook series names (concept 19 D4.1). The series key leaves them out, and the
+# displayed name of a series is the most common spelling without them, so «Bodyguard - Band» and
+# «Bodyguard» are one series called «Bodyguard». One suffix per line, compared as whole words
+# without case; hyphens, dashes and brackets count as spaces («- Band», «-Reihe» and «[German
+# Edition]» are covered by «band», «reihe» and «german edition»). A line ending in «…» cuts the
+# name at the first occurrence of its words («gesprochen von …»: everything from «gesprochen von»
+# on). Lines starting with # and empty lines are ignored. Changing this list changes keys, never
+# the id of a series (D4.4).
+band
+teil
+reihe
+serie
+german edition
+ungekürzt
+gekürzt
+gesprochen von …
+gelesen von …

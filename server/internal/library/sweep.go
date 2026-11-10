@@ -42,7 +42,7 @@ func (s *Service) handleSweep(ctx context.Context, _ *jobs.Job) error {
 // movies, episodes, extras, audiobooks and file-only podcast episodes whose files are all missing
 // for longer than the grace period, then seasons without undeleted children (episodes, extras),
 // then series without undeleted children (seasons, extras), then folder podcasts without feed and
-// without undeleted episodes.
+// without undeleted episodes; it also deletes the audiobook series no row of items holds.
 func (s *Service) Sweep(ctx context.Context) (int64, error) {
 	now := s.now()
 	ms := sql.NullInt64{Int64: now.UnixMilli(), Valid: true}
@@ -71,6 +71,11 @@ func (s *Service) Sweep(ctx context.Context) (int64, error) {
 	podcasts, err := q.PodcastSoftDeleteEmptyFolderPodcasts(ctx, ms)
 	if err != nil {
 		return 0, fmt.Errorf("soft delete empty folder podcasts: %w", err)
+	}
+	// An audiobook series without any row in items and without a locked name goes (concept 19
+	// D4.4); soft-deleted books keep theirs, so a series survives an NAS outage.
+	if _, err := q.DeleteOrphanAudioSeries(ctx); err != nil {
+		return 0, fmt.Errorf("delete orphan audio series: %w", err)
 	}
 	if err := QueueRelinksTx(ctx, q, now); err != nil {
 		return 0, err

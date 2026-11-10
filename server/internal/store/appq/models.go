@@ -67,6 +67,16 @@ type AnnouncementAck struct {
 	AckedAt        int64
 }
 
+type AudioSeries struct {
+	ID         string
+	LibraryID  int64
+	SeriesKey  string
+	Name       string
+	NameLocked int64
+	CreatedAt  int64
+	UpdatedAt  int64
+}
+
 type Chapter struct {
 	ItemID      string
 	Idx         int64
@@ -325,6 +335,7 @@ type Item struct {
 	Publisher         sql.NullString
 	Isbn              sql.NullString
 	Asin              sql.NullString
+	AudioSeriesID     sql.NullString
 }
 
 type ItemFieldSource struct {

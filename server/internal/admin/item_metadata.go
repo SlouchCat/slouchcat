@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
@@ -354,8 +355,9 @@ func normalISBN(v string) (string, bool) {
 	return v, v == "" || isbnPattern.MatchString(v)
 }
 
-// writeMetadataEdit writes a validated edit in lang inside one transaction, on the item as it
-// stands in that transaction. A book's texts go into each of its text rows (editLangs).
+// writeMetadataEdit writes a validated edit in lang inside one transaction (writeMetadataEditTx).
+// A book whose series name or author changed moves to the series of its new key in the same
+// transaction (library.RelinkAudioSeries, concept 19 D4.4).
 func (s *Service) writeMetadataEdit(ctx context.Context, itemID, lang string, edit model.ItemMetadataEdit, set []string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -363,6 +365,23 @@ func (s *Service) writeMetadataEdit(ctx context.Context, itemID, lang string, ed
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := systemq.New(tx)
+	if err := s.writeMetadataEditTx(ctx, q, itemID, lang, edit, set); err != nil {
+		return err
+	}
+	if slices.Contains(set, model.MetaFieldSeriesName) || slices.Contains(set, model.MetaFieldAuthor) {
+		if err := library.RelinkAudioSeries(ctx, q, []string{itemID}, s.now()); err != nil {
+			return err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+	return nil
+}
+
+// writeMetadataEditTx writes a validated edit in lang inside the transaction of q, on the item as
+// it stands in that transaction. A book's texts go into each of its text rows (editLangs).
+func (s *Service) writeMetadataEditTx(ctx context.Context, q *systemq.Queries, itemID, lang string, edit model.ItemMetadataEdit, set []string) error {
 	it, err := s.liveItem(ctx, q, itemID)
 	if err != nil {
 		return err
@@ -473,9 +492,6 @@ func (s *Service) writeMetadataEdit(ctx context.Context, itemID, lang string, ed
 				return fmt.Errorf("delete source of %s: %w", src, err)
 			}
 		}
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit: %w", err)
 	}
 	return nil
 }

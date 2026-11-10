@@ -302,3 +302,11 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   englisches aus den Dateien mit eingebettetem Cover; Herkunft `local` je Feld. Stichtag 10. November 2026, 12:00 UTC.
   Dann `store.Dump`, keine neuen Pfade im Stand. `TestFrozenHoerbuchBleistiftStateCoversTheStage` prüft, dass jede
   dieser Datenarten vorhanden ist; `TestMigration00044AudiobookFields` prüft den Schritt von `trickplay-aus.sql` aus.
+- `hoerbuch-reihen.sql`: Stand nach Stufe D2 des Konzepts 19 «Reihen» (Migration 00045 mit `audio_series` und
+  `items.audio_series_id`). Erzeugt am 10. November 2026 aus `hoerbuch-bleistift.sql`: Stand eingespielt, mit `store.Open`
+  migriert, dann per SQL in der Bibliothek «Hörbücher» die Reihe «Bodyguard» von Chris Bradford mit drei Bänden (0,5, 1
+  und 2; Schreibweisen «Bodyguard» und «Bodyguard - Band»; Band 0,5 weich gelöscht) und die beiden Hörbücher aus D1 in
+  einer Reihe mit gesperrtem Namen, dazu das Merkmal `library.audio_series_linked` des ersten Durchgangs. Stichtag
+  11. November 2026, 12:00 UTC. Dann `store.Dump`, keine neuen Pfade im Stand.
+  `TestFrozenHoerbuchReihenStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist;
+  `TestMigration00045AudioSeries` prüft den Schritt von `hoerbuch-bleistift.sql` aus.
