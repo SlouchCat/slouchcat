@@ -12,8 +12,9 @@ import (
 // Contract 1.24.0 (concept 19 D5.3, PD-1, PD-15): the editor takes audiobooks. A text goes into
 // every text row of the book (de and en in the fixture) and is locked in each; the book fields are
 // columns with their own locks; an empty series takes the volume along; ISBN and ASIN are checked
-// and stored in one form. The book's language, cover and refresh are package metadata's
-// (TestBookLanguageAndRefresh, TestBookCoverChoice).
+// and stored in one form. The stored text rows are package admin's (TestBookEditWritesEveryTextRow),
+// the book's language, cover and refresh package metadata's (TestBookLanguageAndRefresh,
+// TestBookCoverChoice).
 func TestAudiobookMetadataOverHTTP(t *testing.T) {
 	t.Parallel()
 	pf := newProfileFixture(t)
@@ -47,30 +48,6 @@ func TestAudiobookMetadataOverHTTP(t *testing.T) {
 			t.Errorf("lockedFields %v without %s", it.LockedFields, lock)
 		}
 	}
-	rows, err := pf.f.DB.Read.Query(`SELECT lang || '=' || title || '/' || overview || '/' || tagline FROM item_texts WHERE item_id = ? ORDER BY lang`, book)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer rows.Close()
-	var texts []string
-	for rows.Next() {
-		var s string
-		if err := rows.Scan(&s); err != nil {
-			t.Fatal(err)
-		}
-		texts = append(texts, s)
-	}
-	if err := rows.Err(); err != nil {
-		t.Fatal(err)
-	}
-	if want := []string{"de=Neuer Titel/Neu/Teil eins", "en=Neuer Titel/Neu/Teil eins"}; !slices.Equal(texts, want) {
-		t.Errorf("text rows %v, want %v", texts, want)
-	}
-	var genres string
-	if err := pf.f.DB.Read.QueryRow(`SELECT genres FROM items WHERE id = ?`, book).Scan(&genres); err != nil || genres != `{"de":["Fantasy"],"en":["Fantasy"]}` {
-		t.Errorf("genres %s (%v)", genres, err)
-	}
-
 	// Unlocking a text frees it in every row; an empty series takes the volume along.
 	it = patch(`{"seriesName":"","unlock":["title"]}`)
 	if slices.Contains(it.LockedFields, "title:de") || slices.Contains(it.LockedFields, "title:en") ||
