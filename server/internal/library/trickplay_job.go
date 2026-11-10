@@ -808,6 +808,11 @@ func (r *trickplayRun) sheet(ctx context.Context, n int) error {
 	for range min(r.procs(ctx), to-from) {
 		wg.Go(func() {
 			for k := range next {
+				if sctx.Err() != nil {
+					// The feed may still hand out points after a stop (select picks either ready
+					// case); none of them is grabbed.
+					continue
+				}
 				if k > from && r.m.SeekMs[k] == r.m.SeekMs[k-1] {
 					continue // the point repeats the one before it; filled below
 				}
