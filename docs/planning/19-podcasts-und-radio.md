@@ -20,10 +20,14 @@
   **Fassung 8 (10. November 2026):** Marcos Antworten auf alle offenen Fragen der Teile A bis D
   eingetragen (17, B14, C6, D11). **Teil E dazu:** zwei Fehler der Lautstärke (Radio ohne Regler,
   Regler im Podcast-Player flackert); OE-1 und OE-2 beantwortet.
+  **Fassung 9 (10. November 2026):** Kritiker-Review der Teile D und E eingearbeitet (REVISE, 1 Blocker,
+  15 Major, 7 Minor; D12). Wichtigste Folgen: Hörbuch-Quellen sind Füller **je Ordner** (Entscheid 13),
+  Sichtbarkeit der Reihen über sichtbare Bände, gewählte Cover bleiben nach einem Scan, drei Migrationen,
+  Reihenfolge C → D1 → D2 → D3; Flackern = Umbruch der Zeile, Popover nur mit Zeiger.
   **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Aufbau:** **Teil A Podcasts** (Abschnitte 1 bis 18, Anhang A), **Teil B Radio** (Abschnitte
   B1 bis B15, Anhang B), **Teil C Quadratische Cover** (Abschnitte C1 bis C6) und **Teil D Hörbücher**
-  (Abschnitte D1 bis D11, Mockups in Anhang A) und **Teil E Lautstärke** (Abschnitte E1 bis E6). Die
+  (Abschnitte D1 bis D12, Mockups in Anhang A) und **Teil E Lautstärke** (Abschnitte E1 bis E6). Die
   Teile sind unabhängig; jeder hat eigene Stufen und Releases.
 - **Auslöser:** Marco will, dass Slouchcat neue Podcast-Folgen als Datei in den Ordner des Podcasts
   speichert, statt nur den Link zum Anbieter zu halten. Vorhandene Dateien sollen wie heute erkannt
@@ -1310,8 +1314,9 @@ Beantwortet am 10. November 2026.
 
 # Teil D: Hörbücher – Reihen, Bleistift und Quellen
 
-Teil D gehört zu Konzept 19, weil Marco ihn am 10. November 2026 dazu genommen hat. Er hängt nur an
-einer Stelle an Teil C (quadratische Kacheln, D4.2) und ist sonst von Teil A und Teil B unabhängig.
+Teil D gehört zu Konzept 19, weil Marco ihn am 10. November 2026 dazu genommen hat. **Fassung 2 des
+Teils**, mit Marcos Antworten (D11) und dem Kritiker-Review (D12). Er baut auf Teil C auf
+(quadratische Kacheln) und ist sonst von Teil A, B und E unabhängig.
 
 ## D1. Was Marco will
 
@@ -1321,19 +1326,19 @@ einer Stelle an Teil C (quadratische Kacheln, D4.2) und ist sonst von Teil A und
 | H-2 | «Auch bei den Hörbüchern möchte ich den Bleistift, um die Metadaten anzupassen.» Dazu ein Mockup. | D5, Anhang A |
 | H-3 | «Auch benötigen wir da wohl ein paar Scraper.» Ins Konzept nehmen und das Ganze planen. | D6 |
 
-Marcos Antworten vom 10. November 2026 (D11): Hörbuch-Sammlungen sind **beides**, die Reihen aus den
-Metadaten **und** von Hand angelegte Sammlungen mit Hörbüchern (OD-1); gezeigt als **Zeile «Reihen und
-Sammlungen» über allen Hörbüchern** (OD-2). Alle Quellen samt Audible sind ab Werk an (OD-3), und
-Slouchcat ordnet **alle Hörbücher ohne Zuordnung** automatisch zu (OD-4).
+Marcos Antworten (D11): Hörbuch-Sammlungen sind **beides**, Reihen aus den Metadaten und von Hand
+angelegte Sammlungen nur mit Hörbüchern (OD-1); gezeigt als **Zeile «Reihen und Sammlungen» über
+allen Hörbüchern** (OD-2); **alle Quellen samt Audible ab Werk an** (OD-3); **automatisch alle
+Hörbücher ohne Zuordnung zuordnen** (OD-4).
 
 ## D2. Was sich gegenüber früheren Entscheiden ändert
 
 | Bisher | Neu | Grund |
 |---|---|---|
-| Konzept 07 und ADR 0015: «Der «Hörbuch Scraper» ist der heutige lokale Erkenner. Ein externer Hörbuch-Anbieter kommt im Scraper-Konzept» (`07-bibliotheken.md`, Entscheid vom 28. Oktober 2026); ADR 0007: «Metadaten ohne externen Dienst». | **Externe Quellen für Hörbücher**, je Quelle ein Schalter; die Dateien bleiben die erste Quelle (D6). | H-3 |
+| Konzept 07 und ADR 0015: «Der «Hörbuch Scraper» ist der heutige lokale Erkenner. Ein externer Hörbuch-Anbieter kommt im Scraper-Konzept» (Entscheid vom 28. Oktober 2026); ADR 0007: «Metadaten ohne externen Dienst». | **Externe Quellen für Hörbücher.** Sie folgen Entscheid 13 («geordnete Metadatenquellen je Ordner»): `local` bleibt die erste Quelle jedes Hörbuch-Ordners, die externen Quellen werden **Füller** dahinter (D6.2). | H-3, OD-3 |
 | Konzept 15, 7.1 bis 7.5: Bleistift und Editor für Film, Serie, Staffel und Folge. | Dazu **Hörbuch** (D5). | H-2 |
-| Konzept 10: «Für Hörbücher und Podcasts bleibt `coverSource`, wie es ist.» | Für **Hörbücher** gibt es Cover-Kandidaten und Hochladen (D5.3); Podcasts bleiben, wie sie sind. | H-2 |
-| Konzept 17, «Reihe», und Konzept 08 E-6: Sammlungen aller Arten stehen in der Startseiten-Reihe «Sammlungen» und als Abschnitt auf der Detailseite. | Hörbuch-Reihen sind **keine Sammlungen** (keine Zeile in `collections`); sie haben eine eigene Seite in der Bibliothek (D4). **Von Hand angelegte Sammlungen, die nur Hörbücher enthalten, stehen im Bereich Hörbücher statt in der Startseiten-Reihe «Sammlungen».** | H-1, OD-1 |
+| Konzept 10: «Für Hörbücher und Podcasts bleibt `coverSource`, wie es ist.» | Für **Hörbücher** gibt es Cover-Kandidaten, Hochladen und Anbieter-Cover; ein gewähltes Cover gilt auch nach einem Scan (D5.3). Podcasts bleiben, wie sie sind. | H-2 |
+| Konzept 08 E-6 und Konzept 17 «Reihe»: Sammlungen aller Arten stehen in der Startseiten-Reihe «Sammlungen». | Hörbuch-Reihen sind **keine Sammlungen** (keine Zeile in `collections`). **Von Hand angelegte Sammlungen, deren sichtbare Mitglieder alle Hörbücher sind, stehen im Bereich Hörbücher statt in der Startseiten-Reihe «Sammlungen».** Abschnitt auf der Detailseite und Suche bleiben. | H-1, OD-1 |
 
 ## D3. Befund (Stand `e90109a6`)
 
@@ -1341,136 +1346,149 @@ Slouchcat ordnet **alle Hörbücher ohne Zuordnung** automatisch zu (OD-4).
 
 - Bleistift und Editor kennen nur `movie`, `series`, `season`, `episode`: `EDITABLE_KINDS`
   (`web/src/features/catalog/EditMetadata.tsx`) und `editableKinds`
-  (`server/internal/admin/item_metadata.go`). Ein Hörbuch bekommt `kind:invalid_value`; ein Test hält
-  das fest (`api/contract_item_metadata_test.go`). Die Detailseite zeigt für Hörbücher statt des
-  Bleistifts «Verwalten» (`DetailActions.tsx`); die Verwaltungsseite des Titels erlaubt dort nur die
-  Altersfreigabe.
-- Das Feld-Enum `AdminMetadataField` kennt Titel, Originaltitel, Sortiertitel, Jahr, Datum, Tagline,
-  Beschreibung und Genres; **Autor, Sprecher, Reihe und Band fehlen** in Editor und `AdminItem`.
-- **Schlösser passen nicht zusammen:** Der Editor schreibt Textschlösser je Sprache (`title:de`,
-  `overview:de`, `tagline:de`, `sort_title:de`; `model/item_metadata.go`), der Hörbuch-Scan prüft aber
-  die alten Namen `title`, `overview`, `tagline` (`library/audiobook_write.go`, `writeBook`,
-  `writeBookText`). Ein Feld, das der Editor sperrt, würde der nächste Scan überschreiben.
-- **Bilder:** `choosableKinds` hat keine Art für Audio; Kandidaten, Wahl und Hochladen antworten mit
-  422 (`metadata/image_candidates.go`). Das Cover liegt als Art `poster`. `ImageCandidateGrid` kennt nur
-  hoch und quer, nicht quadratisch.
+  (`server/internal/admin/item_metadata.go`). Ein Hörbuch bekommt `kind:invalid_value`
+  (`api/contract_item_metadata_test.go`). Die Detailseite zeigt dafür «Verwalten» (`DetailActions.tsx`).
+- `AdminMetadataField` kennt Titel, Originaltitel, Sortiertitel, Jahr, Datum, Tagline, Beschreibung,
+  Genres; **Autor, Sprecher, Reihe und Band fehlen**. `language` ist im Editor schon belegt: es ist die
+  **Originalsprache** mit eigener Operation `setItemOriginalLanguage` und Schloss `original_language`
+  (`editorModel.ts`), heute nur für Filme und Serien.
+- **Texte je Sprache:** Der Editor schreibt Texte nur in der Sprache des Servers und sperrt
+  `title:<Sprache>` usw. (`admin/item_metadata.go`); der Hörbuch-Scan schreibt die Sprache des Buches
+  **und** `en` (`library/audiobook_write.go`) und prüft die alten Schlossnamen `title`, `overview`,
+  `tagline`. Ein gesperrtes Feld des Editors überschriebe der nächste Scan.
+- **Cover:** `choosableKinds` hat keine Art für Audio; Kandidaten, Wahl und Hochladen antworten mit 422
+  (`metadata/image_candidates.go`). `image.fetch` nimmt für Audio immer `coverSource` (Ordner oder
+  eingebettet) und übergeht eine gewählte Zeile (`metadata/images.go`); `writeBook` reiht `image.fetch`
+  bei jedem Durchgang neu ein und schreibt `cover_path` aus den Dateien. `ImageCandidateGrid` kennt nur
+  hoch und quer.
 
 **Daten und Anbieter**
 
 - Ein Hörbuch hat `author`, `narrator`, `series_name`, `series_index`, `duration_ms`, `cover_path`
-  (Migration 00014), Untertitel als `tagline`, Beschreibung als `overview`. **Es fehlen Verlag, ISBN
-  und ASIN.** Die Sprache ist nur `de` oder `en`.
-- Gelesen wird `metadata.json`, dann die Tags der ersten Datei, dann der Ordnername
-  `Autor/[Reihe/][NN - ]Titel` (`library/audiobook.go`, `mergeBook`). `refreshItem` liest die Dateien
-  neu und reiht für Hörbücher `metadata.match` ein, das mit `unsupported_kind` endet.
-- Die Schnittstelle `metadata.Provider` kennt nur Filme und Serien; Anbieter sind fest verdrahtet
-  (`tmdb`, `tvdb`, `anilist`, Fanart). Für Hörbuch-Ordner ist `local` die einzige Quelle
-  (`model/model.go`).
+  (Migration 00014), Untertitel als `tagline`, Beschreibung als `overview`. **Es fehlen Verlag, ISBN,
+  ASIN**; `absMeta` liest sie auch nicht aus `metadata.json` (`library/audiobook.go`). Textzeilen gibt es
+  nur für `de` und `en`.
+- `refreshItem` liest die Dateien neu und reiht `metadata.match` ein, das mit `unsupported_kind` endet.
+- Anbieter sind fest verdrahtete Felder (`metadata/metadata.go`); je Ordner gilt eine geordnete Liste
+  (`library_roots.providers`, Entscheid 13), für Hörbuch-Ordner nur `local` (`model/model.go`,
+  `identifiers`, `fillers`). `searchMetadata` kennt nur `query` und `year` für Film und Serie,
+  `MetadataCandidate` hat keine Hörbuch-Felder; `setItemMatch` speichert nur die Kennung.
+- Kein TMDB- oder TVDB-Client geht über den Netzwächter; Feeds und Cover schon (`podcast.go`,
+  `images.go`).
 
 **Reihen und Sammlungen**
 
-- `series_name` und `series_index` stehen nur auf der Detailseite («Reihe · Band n»). `ItemRef` hat
-  keine Reihe; `listLibraryItems` liefert nur `ItemRef[]`, ohne Gruppen.
-- Sammlungen (`collections`, Quelle `tmdb` oder `manual`) entstehen nur über den Film-Abgleich oder von
-  Hand. Hörbücher kommen nur in Sammlungen, die der Admin von Hand anlegt. Für Zuschauer gibt es die
-  Startseiten-Reihe «Sammlungen» und die Seite einer Sammlung, keine Übersichtsseite.
+- `series_name` und `series_index` stehen nur auf der Detailseite. `ItemRef` hat keine Reihe;
+  `listLibraryItems` liefert nur `ItemRef[]`. Die Suche liest `items.author` und `series_name` über einen
+  Trigger (Migration 00015).
+- Sammlungen entstehen nur über den Film-Abgleich oder von Hand. `ListVisibleCollections`
+  (`queries/scoped/discover.sql`) dient nur der Startseiten-Reihe «Sammlungen».
+
+**Lautstärke und anderes:** siehe Teil E.
 
 **Marcos Ordner** (`/mnt/nerdnas/medien/Audiobookshelf/Hörbücher`, gelesen am 10. November 2026)
 
-- 107 Bücher mit `metadata.json` (die Bibliothek zeigt 89 Hörbücher); 86 mit Beschreibung, 85 mit
-  Sprecher, 46 mit Reihe, **1 mit ASIN, 2 mit ISBN**, 9 mit Untertitel, 1 mit Verlag.
+- 107 Bücher mit `metadata.json` (die Bibliothek zeigt 89); 86 mit Beschreibung, 85 mit Sprecher, 46 mit
+  Reihe, **1 mit ASIN, 2 mit ISBN**, 9 mit Untertitel, 1 mit Verlag.
 - **Reihen in mehreren Schreibweisen:** «Bodyguard» (6) und «Bodyguard - Band» (5); «Harry Potter» (11)
   und «Harry Potter - Gesprochen von Rufus Beck» (3); «Herr der Ringe» (3) und «Der Herr Der Ringe -
   Band» (2).
 - **Autoren in mehreren Schreibweisen:** «J R R Tolkien», «J.R.R. Tolkien», «J. R. R. Tolkien»;
   «J K Rowling», «J.K. Rowling»; «Marc Uwe Kling», «Marc-Uwe Kling».
-- **Doppelte Bücher:** Bodyguard 1 bis 6 liegt in zwei Ordnern; «Die Gefährten» und «Die zwei Türme»
-  ebenso; «Harry Potter 1 und 3» je als Lesung und als Hörspiel mit voller Besetzung.
+- **Doppelte Bücher:** Bodyguard 1 bis 6 in zwei Ordnern; «Die Gefährten» und «Die zwei Türme» ebenso;
+  «Harry Potter 1 und 3» je als Lesung und als Hörspiel mit voller Besetzung.
 
-## D4. Reihen im Bereich Hörbücher (H-1)
+## D4. Reihen und Sammlungen im Bereich Hörbücher (H-1)
 
-### D4.1 Was im Bereich Hörbücher erscheint
-
-Zwei Arten von Hörbuch-Sammlungen (Marcos Antwort OD-1, «beides»):
+### D4.1 Was erscheint
 
 **Reihen aus den Metadaten**
 
-- **Quelle:** die Reihe jedes Hörbuchs (`series_name`, Band `series_index`) aus Dateien, Editor oder
-  Anbieter. Nichts von Hand anzulegen.
-- **Zusammenfassen:** Bücher gehören zur selben Reihe, wenn sie in derselben Bibliothek liegen und der
-  **Schlüssel ihrer Reihe** gleich ist: Name vereinheitlicht (Gross- und Kleinschreibung, Leerzeichen,
-  Bindestriche, Artikel am Anfang) und um bekannte Anhängsel gekürzt («- Band», «-Reihe», «- Gesprochen
-  von …», «[German Edition]»). So werden «Bodyguard» und «Bodyguard - Band» eine Reihe. Die Liste der
-  Anhängsel liegt als eingebettete Datei im Paket `library`, gepflegt wie die Regeldatei des Radios.
-- **Name der Reihe:** der Name eines Anbieters, wenn ein Band zugeordnet ist; sonst die häufigste
-  Schreibweise ohne Anhängsel; von Hand änderbar (D5.4).
-- **Eine Reihe braucht mindestens zwei Bände.** Ein Buch mit einer Reihe, aber ohne zweiten Band, steht
-  nur als einzelnes Buch da.
+- **Quelle:** `series_name` und `series_index` jedes Hörbuchs (aus Dateien, Editor oder Anbieter).
+- **Schlüssel:** Name der Reihe vereinheitlicht (Gross- und Kleinschreibung, Leerzeichen, Bindestriche,
+  Artikel am Anfang, Anhängsel «- Band», «-Reihe», «- Gesprochen von …», «[German Edition]») **plus
+  erster Autor vereinheitlicht** (D6.4), je Bibliothek. So werden «Bodyguard» und «Bodyguard - Band»
+  von Chris Bradford eine Reihe, eine gleichnamige Reihe eines anderen Autors bleibt getrennt. Die Liste
+  der Anhängsel liegt als eingebettete Datei im Paket `library`.
+- **Name:** der Name eines Anbieters, wenn ein Band zugeordnet ist; sonst die häufigste Schreibweise
+  ohne Anhängsel unter den sichtbaren Bänden; von Hand änderbar (D5.4).
 - **Kein Eintrag in `collections`.**
 
-**Von Hand angelegte Sammlungen mit Hörbüchern**
+**Von Hand angelegte Hörbuch-Sammlungen**
 
-- Eine Sammlung (`collections`, Quelle `manual`), deren Mitglieder **alle Hörbücher** sind, gilt als
-  Hörbuch-Sammlung. Sie erscheint im Bereich Hörbücher jeder Bibliothek, die mindestens ein Mitglied
-  enthält, mit den Mitgliedern dieser Bibliothek, und öffnet die vorhandene Seite einer Sammlung
-  (`/collections/$collectionId`).
-- Sie erscheint **nicht** mehr in der Startseiten-Reihe «Sammlungen». Angelegt und gepflegt wird sie
-  weiter unter «Verwaltung › Sammlungen».
-- Eine gemischte Sammlung (Filme und Hörbücher) bleibt eine gewöhnliche Sammlung.
+- Eine Sammlung (`collections`, Quelle `manual`), deren **sichtbare** Mitglieder alle Hörbücher sind,
+  gilt für dieses Profil als Hörbuch-Sammlung. Sie erscheint in der Zeile jeder Bibliothek, die
+  mindestens ein sichtbares Mitglied enthält, und öffnet die vorhandene Seite
+  `/collections/$collectionId` (alle sichtbaren Mitglieder). Das Abzeichen zählt alle sichtbaren
+  Mitglieder, wie die Seite.
+- Sie fehlt dann in der **Startseiten-Reihe «Sammlungen»**. Der Abschnitt auf der Detailseite
+  (`CollectionShelf`) und die Suche zeigen sie weiter.
+- Gepflegt wird sie weiter unter «Verwaltung › Sammlungen». Eine Sammlung mit sichtbaren Filmen bleibt
+  eine gewöhnliche Sammlung.
 
-**Für beide gilt:** sichtbar, wenn mindestens ein Mitglied für das Profil sichtbar ist (wie Sammlungen,
-Konzept 08 E-6); gezählt und gezeigt werden nur sichtbare Mitglieder.
+**Eine Regel für die Sichtbarkeit** (Kinderprofile, Altersfreigaben): Alles wird über die **für das
+Profil sichtbaren Mitglieder** berechnet, wie `ListVisibleCollections` heute das Cover wählt:
+
+- Eine Reihe gibt es für ein Profil nur mit **mindestens zwei sichtbaren Bänden**. Sonst fehlt sie in der
+  Zeile, `ItemDetail.seriesId` ist leer, und die Seite der Reihe antwortet mit **404**.
+- Cover, Name (häufigste Schreibweise), Autor, Sprecher, Gesamtdauer und Zahl der Bände kommen nur aus
+  sichtbaren Bänden. So erreicht kein Cover eines Bandes ab 18 ein Profil ab 6, und nichts verrät, dass
+  es weitere Bände gibt.
 
 ### D4.2 Die Übersicht der Bibliothek (Mockup `Hoerbuecher`, Variante B)
 
-**Marcos Wahl (OD-2): Variante B, Zeile «Reihen und Sammlungen» oben.** Über dem Raster steht eine
-waagrechte Zeile mit einer quadratischen Kachel je Reihe und je Hörbuch-Sammlung, mit Stapel-Rand und
-dem Abzeichen «6 Bände»; darunter alle Hörbücher einzeln wie heute (quadratisch nach Teil C).
+**Marcos Wahl (OD-2): Zeile «Reihen und Sammlungen» oben**, darunter alle Hörbücher einzeln wie heute
+(quadratisch nach Teil C).
 
-- Die Kachel trägt das Cover von Band 1 (oder des kleinsten Bandes; bei einer Sammlung das Bild der
-  Sammlung oder das Cover des ersten Mitglieds), den Namen und darunter Autor und Zahl der Bände. Ein
-  Balken zeigt, wie viele Bände das Profil gehört hat. Antippen öffnet die Seite der Reihe (D4.3) oder
-  der Sammlung.
-- Die Zeile ist nach Name sortiert, unabhängig von der Sortierung des Rasters, und scrollt waagrecht wie
-  eine Reihe der Startseite (Pfeiltasten, Tab).
-- Filter (Genre, Jahr) gelten auch für die Zeile: eine Reihe erscheint, wenn mindestens ein Band passt.
-  Die Buchstabenleiste gilt nur für das Raster.
-- Die Zeile erscheint nur in Bibliotheken mit Hörbüchern und nur, wenn es mindestens eine Reihe oder
-  Sammlung gibt. Die Kopfzeile sagt «89 Hörbücher · 17 Reihen».
-- Variante A (eine Kachel je Reihe im Raster) ist nicht gewählt; das Mockup zeigt beide.
+- Je Reihe und je Hörbuch-Sammlung eine quadratische Kachel mit Stapel-Rand, Abzeichen «6 Bände», darunter
+  Name, Autor und Zahl der Bände; ein Balken zeigt, wie viele Bände das Profil gehört hat.
+- Nach Name sortiert, unabhängig von der Sortierung des Rasters; waagrecht scrollbar wie eine Reihe der
+  Startseite.
+- **Filter** (Genre, Jahr) gelten auch für die Zeile: eine Kachel erscheint, wenn mindestens ein Band
+  passt, und das Abzeichen sagt dann «2 von 6 Bänden». Die Buchstabenleiste gilt nur für das Raster.
+- Die Zeile erscheint nur in Bibliotheken mit Hörbüchern und nur mit mindestens einer Kachel. Kopfzeile
+  «89 Hörbücher · 17 Reihen · 1 Sammlung».
+- Variante A (Kachel je Reihe im Raster) ist nicht gewählt; das Mockup zeigt sie zum Vergleich.
 
 ### D4.3 Die Seite einer Reihe (Mockup `Reihe`)
 
 - Adresse `/libraries/$libraryId/series/$seriesId`; Zurück führt in die Übersicht an dieselbe Stelle.
-- Kopf: Cover mit Stapel, Name, Autor, Sprecher (wenn bei allen gleich), Zahl der Bände, Gesamtdauer;
-  Knopf **«Weiterhören: Band n»** (erster nicht fertig gehörter Band des Profils, sonst Band 1).
-- **Bände** nach Bandnummer (0,5 vor 1), Bände ohne Nummer am Ende nach Titel. Zwei Bücher mit
-  derselben Nummer (Lesung und Hörspiel) stehen beide da, unterschieden durch den Sprecher.
+- Kopf: Cover mit Stapel, Name, Autor, Sprecher (wenn bei allen sichtbaren Bänden gleich), Zahl der Bände,
+  Gesamtdauer; **«Weiterhören: Band n»** (erster nicht fertig gehörter sichtbarer Band, sonst der erste).
+- **Bände** nach Bandnummer (0,5 vor 1), ohne Nummer am Ende nach Titel. Zwei Bücher mit derselben Nummer
+  (Lesung und Hörspiel) stehen beide da, unterschieden durch den Sprecher.
 - Je Band: Nummer, Cover, Titel, Fortschritt, Dauer, Abspielen, Bleistift (Admin).
-- **Nur für Admins** ein Hinweis, wenn die Reihe aus mehreren Schreibweisen zusammengefasst ist oder ein
-  Band doppelt vorkommt (D3), mit «Verstanden».
+- **Nur für Admins:** Hinweis, wenn die Reihe aus mehreren Schreibweisen zusammengefasst ist oder ein Band
+  doppelt vorkommt (OD-5), mit «Verstanden».
 - Die Detailseite eines Bandes verlinkt «Reihe · Band n» auf diese Seite und zeigt die Bände als Reihe
   (Bauteil von `CollectionShelf`, Konzept 17).
 
 ### D4.4 Server
 
 - Neue Tabelle `audio_series` (Kennung, Bibliothek, Schlüssel, Name, Name gesperrt, Zeitstempel;
-  eindeutig je Bibliothek und Schlüssel) und Spalte `items.audio_series_id`. Gepflegt von
-  `finishAudiobook` im Paket `library` bei jedem Schreiben eines Buches; eine Reihe ohne Band
-  verschwindet beim Sweep.
-- Hörbuch-Sammlungen brauchen keine Tabelle: «nur Hörbücher» wird beim Lesen geprüft. Die Abfrage der
-  Startseiten-Reihe «Sammlungen» (`ListVisibleCollections`) lässt Sammlungen weg, deren sichtbare
-  Mitglieder alle Hörbücher sind.
-- Die Abfragen der Übersicht und der Reihe laufen im Paket `visibility` über `visible_items` (Regel 2).
-- Die Kennung ist stabil, solange der Schlüssel gleich bleibt; ändert der Admin den Namen, bleibt sie.
+  eindeutig je Bibliothek und Schlüssel) und Spalte `items.audio_series_id`
+  (`ON DELETE SET NULL`).
+- **Ein Ort für die Zuordnung:** `library.RelinkAudioSeries(itemIDs)` berechnet den Schlüssel und setzt
+  `audio_series_id`, in derselben Transaktion wie das Schreiben. Aufgerufen von `finishAudiobook`, vom
+  Editor (Paket `admin`), von «Reihe bearbeiten» und von einer Zuordnung (Paket `metadata`).
+- **Kennung unabhängig vom Schlüssel:** Ändert sich der Schlüssel eines Bandes und gibt es zum neuen
+  Schlüssel schon eine Reihe, zieht der Band dorthin; sonst wandert die Zeile mit (ihr Schlüssel wird
+  ersetzt), wenn alle ihre Bände mitziehen. Eine neue Liste der Anhängsel ändert so keine Kennung, und
+  Adressen bleiben gültig.
+- **Aufräumen:** eine Reihe ohne **jede** Zeile in `items` (auch keine weich gelöschte) und ohne
+  gesperrten Namen fällt beim nächsten `library.sweep` weg. Fällt das NAS aus, bleiben Reihen erhalten.
+- Die Abfragen der Zeile und der Seite laufen im Paket `visibility` über `visible_items` (Regel 2). Die
+  Abfrage der Startseiten-Reihe lässt Sammlungen weg, deren sichtbare Mitglieder alle Hörbücher sind.
+- **Erster Start nach dem Update:** ein Durchgang ordnet alle vorhandenen Bücher zu (Merkmal in den
+  Einstellungen wie `SettingOriginalLanguageQueued`).
 
 ## D5. Bleistift und Editor (H-2)
 
 ### D5.1 Wo der Bleistift erscheint
 
-Überall, wo er bei Filmen erscheint: auf der Karte in der Übersicht (beim Zeigen oder mit dem Fokus),
-auf der Detailseite und auf der Startseite; dazu je Band auf der Seite der Reihe und als «Reihe
-bearbeiten» im Kopf der Reihe. Nur für Admins (`canManage`), wie heute.
+Überall, wo er bei Filmen erscheint: Karte in der Übersicht (beim Zeigen oder mit dem Fokus),
+Detailseite, Startseite (OD-6); dazu je Band auf der Seite der Reihe und «Reihe bearbeiten» im Kopf der
+Reihe. Nur für Admins (`canManage`).
 
 ### D5.2 Der Editor (Mockup `Editor`)
 
@@ -1479,36 +1497,48 @@ Reitern:
 
 | Reiter | Inhalt |
 |---|---|
-| **Metadaten** | Titel, Untertitel, Sortiertitel, Autor, Sprecher, Reihe, Band, Jahr, Verlag, Sprache, Genres, Beschreibung, ISBN, ASIN. Je Feld Herkunft («Datei», Name des Anbieters, «Von Hand») und Schloss. Ein geändertes Feld bekommt das Schloss. |
-| **Cover** | Kandidaten quadratisch: Bild im Ordner, eingebettetes Bild, Cover der Anbieter (D6), Hochladen. Je Kandidat Quelle und Grösse. |
-| **Zuordnen** | Suche nach Titel und Autor in einer Quelle (D6); Treffer mit Cover, Autor, Sprecher, Verlag, Jahr, Kennung und **Länge**, die passende Länge markiert. Ein Treffer zeigt Feld für Feld «heute» und «neu» mit Haken; «n Felder übernehmen». Gesperrte Felder sind ausgegraut. |
+| **Metadaten** | Titel, Untertitel, Sortiertitel, Autor, Sprecher, Reihe, Band, Jahr, Verlag, Originalsprache, Genres, Beschreibung, ISBN, ASIN. Je Feld Herkunft («Datei», Name des Anbieters, «Von Hand») und Schloss. Ein geändertes Feld bekommt das Schloss. |
+| **Cover** | Kandidaten quadratisch: Bild im Ordner, eingebettetes Bild, Cover der Anbieter, Hochladen; je Kandidat Quelle und Grösse. |
+| **Zuordnen** | Suche nach Titel und Autor oder nach ASIN oder ISBN in einer Quelle; Treffer mit Cover, Autor, Sprecher, Verlag, Jahr, Kennung und **Länge**, die passende Länge markiert. Ein Treffer zeigt Feld für Feld «heute» und «neu» mit Haken; «n Felder übernehmen». Gesperrte Felder sind ausgegraut. |
 | **Aktualisieren** | «Aus den Dateien neu lesen» und «Vom Anbieter neu holen» (nur mit Zuordnung), je mit «Schlösser lösen». |
 
-**Übernommene Felder bekommen das Schloss**, wie von Hand geänderte: sonst würde der nächste Scan die
-Werte aus den Dateien zurückschreiben (die Dateien sind die erste Quelle, D6.3).
+**Übernommene Felder bekommen das Schloss**, wie von Hand geänderte: Die Dateien sind die erste Quelle,
+ein Scan schriebe sonst die Werte der Dateien zurück.
 
 ### D5.3 Server und Vertrag
 
 - `editableKinds` und `EDITABLE_KINDS` um `audiobook`; Felder `titleOnly` werden je Art geprüft.
-- `AdminMetadataField` um `author`, `narrator`, `seriesName`, `seriesIndex`, `publisher`, `isbn`,
-  `asin`, `language`; `AdminItem.metadata` liefert sie für Hörbücher. Additiv: der Client nutzt das Enum
-  nur als `Partial<Record>`.
-- **Schlösser vereinheitlichen:** `writeBook` und `writeBookText` prüfen dieselben Namen, die der Editor
-  schreibt (`title:<Sprache>`, `overview:<Sprache>`, `tagline:<Sprache>`, `sort_title:<Sprache>`, dazu
-  `author`, `narrator`, `series_name`, `series_index`, `publisher`, `isbn`, `asin`, `language`); die alten
-  Namen gelten weiter. Test mit beiden Formen.
-- **Cover:** `choosableKinds` bekommt für Audio die Art `poster` mit quadratischen Kandidaten (Ordner,
-  eingebettet, Anbieter); Hochladen wie bei Filmen. `ImageCandidateGrid` bekommt die Form `square`.
-- **Zuordnen:** `searchMetadata` und `setItemMatch` nehmen `audiobook` und die Hörbuch-Quellen an;
-  `refreshItem` holt bei einem zugeordneten Hörbuch die Angaben des Anbieters neu, statt
-  `unsupported_kind` zu melden.
-- Die Verwaltungsseite des Titels (`/admin/items/$itemId`) zeigt für Hörbücher dieselben Felder.
+- `AdminMetadataField` um `author`, `narrator`, `seriesName`, `seriesIndex`, `publisher`, `isbn`, `asin`
+  (additiv; der Client nutzt das Enum nur als `Partial<Record>`). Die Sprache des Buches ist die
+  **Originalsprache**: `setItemOriginalLanguage` und `hasOriginalLanguage` gelten auch für `audiobook`,
+  mit Schloss `original_language`. Die Textzeilen bleiben `de` und `en`.
+- **Texte in beiden Zeilen:** Bei einem Hörbuch schreibt eine Änderung von Titel, Untertitel,
+  Sortiertitel oder Beschreibung **jede Textzeile, die der Scan schreibt** (Sprache des Buches und `en`),
+  und sperrt jede (`title:de`, `title:en` …). Genres ebenso in beiden Sprachen.
+- **Schlösser vereinheitlichen:** `writeBook` und `writeBookText` prüfen die Namen des Editors
+  (`title:<Sprache>`, `overview:<Sprache>`, `tagline:<Sprache>`, `sort_title:<Sprache>`) und die alten
+  (`title`, `overview`, `tagline`); `items.title` und `items.sort_title` bleiben, wenn irgendein Schloss
+  `title:*` oder `title` besteht. Neue Schlösser `author`, `narrator`, `series_name`, `series_index`,
+  `publisher`, `isbn`, `asin`. Test mit einem deutschen und einem englischen Buch.
+- **Dateien lesen mehr:** `absMeta` und `tagMeta` lesen `asin`, `isbn` und `publisher`.
+- **Cover:** `choosableKinds` bekommt für Audio die Art `poster` mit quadratischen Kandidaten.
+  `image.fetch` **berücksichtigt eine gewählte Zeile** (`item_images.chosen = 1`) auch für Audio und fällt
+  nur ohne Wahl auf `coverSource` zurück; Anbieter-Cover sind Kandidatenzeilen wie bei Filmen. Das
+  eingebettete Bild für die Vorschau zieht `transcode` heraus (Regel 3). `ImageCandidateGrid` bekommt die
+  Form `square`. Test: Anbieter-Cover wählen, neu scannen, das Cover bleibt.
+- **Zuordnen:** `searchMetadata` bekommt `kind` `audiobook` und die Parameter `author`, `asin`, `isbn`;
+  `MetadataCandidate` die optionalen Felder `authors`, `narrators`, `publisher`, `durationMs`, `asin`,
+  `isbn`, `coverUrl`. Neue Operation `getMatchPreview` (Felder heute und neu) und
+  `ItemMatchRequest.fields[]` für die angehakten Felder. `refreshItem` holt bei einem zugeordneten
+  Hörbuch die Angaben neu, statt `unsupported_kind` zu melden.
+- Die Verwaltungsseite des Titels zeigt für Hörbücher dieselben Felder; `SOURCE_FIELDS`
+  (`features/admin/item/facts.tsx`) bekommt Autor, Sprecher, Reihe, Band, Verlag, ISBN, ASIN.
 
 ### D5.4 Reihe bearbeiten
 
-«Reihe bearbeiten» ändert den **Namen der Reihe** (sperrt ihn in `audio_series`) und, auf Wunsch,
-schreibt ihn in alle Bände (sperrt dort `series_name`). Zwei Reihen werden eins, wenn der Admin der
-einen den Namen der anderen gibt. Die Reihenfolge entsteht aus den Bandnummern; eine falsche Nummer ändert
+«Reihe bearbeiten» ändert den **angezeigten Namen** (sperrt ihn in `audio_series`); die Bände bleiben
+unverändert. Mit «In alle Bände schreiben» setzt es `series_name` jedes sichtbaren Bandes und sperrt
+ihn; erst das kann zwei Reihen zusammenführen (gleicher Schlüssel, D4.4). Eine falsche Bandnummer ändert
 der Admin am Band.
 
 ## D6. Quellen für Hörbücher (H-3)
@@ -1517,157 +1547,164 @@ der Admin am Band.
 
 | Quelle | Schlüssel | Liefert | Cover | Deutsch | Lizenz und Risiko |
 |---|---|---|---|---|---|
-| **Audible-Katalog** (`api.audible.de/1.0/catalog/products`) | keiner | Titel, Untertitel, Autor, Sprecher, Reihe und Band, Verlag, Datum, Sprache, Beschreibung, Kategorien, Länge, ASIN | 2400 px, quadratisch | sehr gut | **Audibles Nutzungsbedingungen verbieten das automatische Auslesen**; inoffiziell, kann jederzeit brechen |
+| **Audible-Katalog** (`api.audible.de/1.0/catalog/products`) | keiner | Titel, Untertitel, Autor, Sprecher, Reihe und Band, Verlag, Datum, Sprache, Beschreibung, Kategorien, Länge, ASIN | 2400 px | sehr gut | **Audibles Nutzungsbedingungen verbieten das automatische Auslesen**; inoffiziell, kann jederzeit brechen |
 | **Audnexus** (`api.audnex.us`) | keiner | wie Audible je ASIN, dazu ISBN, Genres, Autorenbild und -text, Kapitel; **keine Buchsuche** | 2400 px | sehr gut | Daten von Audible, ein Betreiber; Grenze rund 100 je Minute; selbst betreibbar |
 | **Deutsche Nationalbibliothek** (SRU) | keiner | Titel, Autor, Sprecher, Verlag, Jahr, Sprache, Genre, ISBN, «Ungekürzte Lesung» | keines | massgeblich | **CC0**, amtlich |
-| **Apple Books** (iTunes Search, `country=ch`) | keiner | Titel, ein Autor, Beschreibung, Genre, Datum, Verlag | bis 3000 px | gut | Bedingungen zielen auf Werbung für den Store; rund 20 Abfragen je Minute |
+| **Apple Books** (iTunes Search, `country=ch`) | keiner | Titel, ein Autor, Beschreibung, Genre, Datum, Verlag | bis 3000 px | gut | Bedingungen zielen auf Werbung für den Store; rund 20 je Minute |
 | **Open Library** | keiner | Titel, Autor, ISBN, selten Hörbuch-Angaben | selten quadratisch | schwach | offen, 1 bis 3 je Sekunde |
 | **Google Books** | **Schlüssel** | Titel, Verlag, ISBN, Beschreibung | nicht quadratisch | schwach | offiziell |
 | audiosilo-meta | keiner | Suche und Nachschlagen per ASIN oder ISBN, 22'570 deutsche Werke | Amazon-Adressen | gut | CC0, jung; selbst betreibbar |
 | MusicBrainz | keiner | Hörspiel- und Hörbuch-CDs mit Sprecher | Cover Art Archive | nur CDs | CC0, 1 je Sekunde |
 
-Nur Audible zusammen mit Audnexus deckt alle Felder für deutsche Hörbücher ab, und genau dort liegt das
-rechtliche Risiko. Die DNB ist die saubere Quelle, hat aber weder Cover noch Länge noch Beschreibung.
-Cover jeder Quelle bleiben Werke der Verlage: Slouchcat speichert sie nur verkleinert im eigenen Cache
-für die eigene Anzeige und gibt sie nie weiter. Das ist keine Rechtsberatung für die Schweiz.
+Cover jeder Quelle bleiben Werke der Verlage: Slouchcat speichert sie verkleinert im eigenen Cache und
+zeigt sie nur den Konten dieser Installation (Profile, Gäste, Geräte-Downloads). Das ist keine
+Rechtsberatung für die Schweiz.
 
-### D6.2 Quellen ab Werk (Marcos Antwort OD-3)
+### D6.2 Quellen je Ordner (Entscheid 13, Marcos Antwort OD-3)
 
-| Quelle | Ab Werk | Rolle |
-|---|---|---|
-| Dateien | immer an, zuerst | `metadata.json`, Tags, Ordner, Cover im Ordner oder eingebettet |
-| Audible (Suche) und Audnexus (Details) | **an** (Marcos Entscheid, gegen die Empfehlung «aus») | alle Felder, Reihe und Band, Länge für den Abgleich, Cover 2400 px |
-| Deutsche Nationalbibliothek | an | ISBN, Sprecher, Verlag, deutsche Titel prüfen |
-| Apple Books | an | Cover in hoher Auflösung, Beschreibung |
-| Open Library | aus | ISBN-Suche als Rückfall |
-| Google Books | aus, nur mit Schlüssel | Rückfall |
+Die Quellen folgen der geordneten Liste **je Ordner** (`library_roots.providers`, Dialog des Ordners,
+`ProviderList`):
 
-Marco hat Audible im Wissen um dessen Nutzungsbedingungen ab Werk eingeschaltet. Die Seite «Quellen»
-nennt den Hinweis weiter, und jeder Admin kann die Quelle ausschalten. ADR 0031 hält den Entscheid und
-das Risiko fest (inoffizielle Schnittstelle, kann brechen; dann fällt die Zuordnung auf die übrigen
-Quellen zurück, ohne Fehler für die Zuschauer).
+- `identifiers[RootAudiobook]` bleibt `local`: **die Dateien stehen immer zuerst.**
+- `fillers[RootAudiobook]` wird `audible`, `dnb`, `applebooks`, `openlibrary`, `googlebooks`.
+  «Audible» umfasst die Suche im Audible-Katalog und die Details aus Audnexus.
+- **Vorgabe für Hörbuch-Ordner** (neue und, beim ersten Start nach dem Update, bestehende):
+  `local`, `audible`, `dnb`, `applebooks` (Marcos Entscheid «alle samt Audible an»); Open Library und
+  Google Books stehen nicht in der Liste.
 
-audiosilo-meta und MusicBrainz baut Teil D nicht; beide lassen sich später als weitere Quelle anhängen.
-Audnexus bekommt eine einstellbare Adresse, damit Marco eine eigene Instanz nutzen kann.
+Marco hat Audible im Wissen um dessen Nutzungsbedingungen ab Werk eingeschaltet. ADR 0031 hält Entscheid
+und Risiko fest; jeder Admin kann Audible aus der Liste eines Ordners nehmen.
+
+Die **Seite «Hörbücher: Quellen»** (D6.6) bearbeitet, was für den ganzen Server gilt: Region von Audible,
+Adresse von Audnexus, Schlüssel für Google Books, automatisch zuordnen, Toleranz, Vereinheitlichen; sie
+**zeigt** die Liste jedes Hörbuch-Ordners mit Link in dessen Dialog. (Das Mockup `Quellen` zeigt die
+Reihenfolge noch auf der Seite selbst; gebaut wird sie im Dialog des Ordners.)
+
+audiosilo-meta und MusicBrainz baut Teil D nicht; beide lassen sich später als weitere Füller anhängen.
 
 ### D6.3 Wie zugeordnet wird
 
-1. **Kennung zuerst:** Steht eine ASIN oder ISBN in den Dateien oder im Editor, sucht die Quelle direkt
-   danach.
-2. **Sonst Titel und Autor:** Suche in der Reihenfolge der eingeschalteten Quellen; Audible zuerst in
-   der Region der Installation (Schweiz → `audible.de`), für englische Bücher dazu `audible.com` und
-   `audible.co.uk`.
+1. **Kennung zuerst:** Steht eine ASIN oder ISBN in den Dateien oder im Editor, sucht jede Quelle direkt
+   danach; ein Treffer über die Kennung **schlägt jeden Treffer über den Titel**, gleich aus welcher Quelle.
+2. **Sonst Titel und Autor**, in der Reihenfolge der Liste des Ordners; Audible zuerst in der Region der
+   Installation (Schweiz → `audible.de`), für englische Bücher dazu `audible.com` und `audible.co.uk`.
 3. **Bewertung wie bei Audiobookshelf:** Länge 70 %, Titel 20 %, Autor 10 %. **Automatisch** zugeordnet
    wird nur ein eindeutiger Treffer mit passendem Autor und einer Länge innerhalb der Toleranz (ab Werk
-   3 %). Sonst bleibt das Buch bei den Angaben der Dateien und erscheint in der Liste **«Prüfen»** der
-   Verwaltungsseite.
-4. **Felder:** Eine automatische Zuordnung **füllt nur leere Felder**; die Dateien bleiben vorn. Eine
-   Zuordnung im Editor übernimmt die angehakten Felder und sperrt sie (D5.2). Ein gesperrtes Feld ändert
-   keine Quelle.
-5. **Mehrere Quellen je Feld:** die obere Quelle in der Reihenfolge gewinnt; die Reihenfolge stellt der
-   Admin auf der Seite «Quellen» um.
-6. **Automatisch zuordnen** (Einstellung): «Aus», «Neue Hörbücher» (beim Scan) oder «Alle ohne
-   Zuordnung» (einmal für die Bibliothek, danach wie «Neue Hörbücher»). Ab Werk **«Alle ohne
-   Zuordnung»** (Marcos Antwort OD-4): Nach dem Update auf Stufe D3 läuft die Zuordnung einmal für alle
-   Hörbücher im Hintergrund (Pool `general`, Priorität wie der Abgleich von Filmen, gedrosselt nach
-   D6.5). Weil eine automatische Zuordnung nur leere Felder füllt und nur eindeutige Treffer mit
-   passender Länge nimmt, ändert sie an Marcos gepflegten `metadata.json` nichts, was schon steht. Die
-   Messung D0 zeigt vorher, wie viele Treffer eindeutig sind.
+   3 %).
+4. **Felder:** Eine automatische Zuordnung **füllt nur leere Felder**; sie werden nicht gesperrt, und weil
+   die Dateien leer sind, überschreibt ein Scan sie nicht. Eine Zuordnung im Editor übernimmt die
+   angehakten Felder und sperrt sie (D5.2). Ein gesperrtes Feld ändert keine Quelle.
+5. **Zustand je Buch** (`items.book_match_state`): `matched`, `review` (mehrere Kandidaten oder Länge
+   ausserhalb der Toleranz; die drei besten bleiben gespeichert), `none` (kein Treffer), `error` (Quelle
+   gestört). Die Liste **«Prüfen»** zeigt `review` und `error`.
+6. **Automatisch zuordnen** (Einstellung): «Aus», «Neue Hörbücher» oder «Alle ohne Zuordnung». **Ab Werk
+   «Alle ohne Zuordnung»** (OD-4): Nach dem Update auf Stufe D3 läuft die Zuordnung einmal für alle
+   Hörbücher im Hintergrund, danach für jedes neue Buch, **sobald alle Teile geprüft sind** (aus
+   `finishAudiobook`, wenn die Länge feststeht). Bücher im Zustand `error` versucht der nächste Lauf
+   wieder.
+7. **Schutz bei Störung:** Antwortet eine Quelle mehrmals hintereinander mit 403, 429 oder mit HTML
+   statt JSON, pausiert sie für 6 Stunden (je Quelle, ein Zähler im Speicher und in den Einstellungen);
+   betroffene Bücher kommen in `error`, nicht in `none`, und es wird nichts geschrieben. Fällt Audible
+   aus, ordnen die übrigen Quellen zu.
 
 ### D6.4 Vereinheitlichen
 
 Zwei Schalter auf der Seite «Quellen» (ab Werk an):
 
 - **Autorennamen:** Initialen mit Punkt und Leerzeichen («J R R Tolkien», «J.R.R. Tolkien» →
-  «J. R. R. Tolkien»), Bindestrich-Vornamen nach dem häufigsten oder dem Namen des Anbieters
-  («Marc Uwe Kling» → «Marc-Uwe Kling»). Gilt für Anzeige, Sortierung und Suche; die Dateien bleiben
-  unverändert.
-- **Reihennamen:** die Anhängsel aus D4.1; wirkt auf den Schlüssel immer, auf den angezeigten Namen nur
-  mit diesem Schalter.
+  «J. R. R. Tolkien»), Bindestrich-Vornamen nach dem Namen des Anbieters oder dem häufigsten («Marc Uwe
+  Kling» → «Marc-Uwe Kling»). Gespeichert in der neuen Spalte `items.author_display`, die Anzeige,
+  Sortierung nach Autor und Suche (Trigger der Suche) speist; `items.author` bleibt der Wert der Dateien.
+- **Reihennamen:** die Anhängsel aus D4.1; wirken auf den Schlüssel immer, auf den angezeigten Namen
+  (`audio_series.name`) nur mit diesem Schalter.
 
 ### D6.5 Server
 
-- Neue Schnittstelle `metadata.BookProvider` (`Name`, `Configured`, `SearchBooks`, `Book`, `Covers`)
-  neben `Provider`; eine Umsetzung je Quelle im Paket `metadata`: `audible`, `audnexus`, `dnb` (SRU mit
-  MARC21), `applebooks`, `openlibrary`, `googlebooks`.
-- Jede Quelle über den Netzwächter, mit eigener Drossel (Audible und DNB 1 je Sekunde, Audnexus 60 je
-  Minute, Apple 20 je Minute, Open Library 1 je Sekunde), User-Agent `Slouchcat/<Version>
-  (+https://github.com/SlouchCat/slouchcat)`, Antwort höchstens 5 MB, Ergebnisse 7 Tage im Cache.
-- Der Schlüssel für Google Books liegt verschlüsselt in den Einstellungen wie die anderen Schlüssel und
-  kommt in die Redaction-Liste (`internal/logging`, Regel 10).
-- `metadata.match` bekommt einen Zweig für `audiobook`; Auftrag je Buch, Pool `general`, Priorität wie der
-  Abgleich von Filmen.
-- Einstellungen `metadata.audiobook.*` (Quellen an oder aus, Reihenfolge, Region, Adresse von Audnexus,
-  Toleranz, automatisch zuordnen, Vereinheitlichen), für den ganzen Server.
+- Neue Schnittstelle `metadata.BookProvider` (`Name`, `Configured`, `SearchBooks`, `Book`, `Covers`) neben
+  `Provider`; je Quelle eine Umsetzung im Paket `metadata`: `audible` (Katalog plus Audnexus), `dnb` (SRU
+  mit MARC21), `applebooks`, `openlibrary`, `googlebooks`.
+- **Netz:** Quellen mit festen öffentlichen Hosts laufen wie TMDB über einen eigenen Client mit Drossel;
+  die vom Admin eingetragene Adresse von Audnexus geht über den Netzwächter mit der Ausnahme für das
+  lokale Netz (wie Feeds, `netguard.LocalHost`), damit eine eigene Instanz im Heimnetz geht; Cover-Adressen
+  aus Antworten über `coverClients`. Antwort höchstens 5 MB; User-Agent
+  `Slouchcat/<Version> (+https://github.com/SlouchCat/slouchcat)`.
+- **Drosseln:** Audible und DNB 1 je Sekunde, Audnexus 60 je Minute, Apple 20 je Minute, Open Library 1
+  je Sekunde. Suchergebnisse 7 Tage im Speicher (nach einem Neustart neu).
+- Der Schlüssel für Google Books heisst `googlebooks_api_key` (Endung `api_key` steht in der
+  Redaction-Liste, `internal/logging`) und liegt verschlüsselt in den Einstellungen wie die anderen.
+- `metadata.match` bekommt einen Zweig für `audiobook`; Auftrag je Buch, Pool `general`, Priorität wie
+  der Abgleich von Filmen.
+- Oberfläche: `PROVIDER_ORDER`/`PROVIDERS` (`ProviderList.tsx`, `facts.tsx`) und die Texte
+  `library.provider.*` bekommen die neuen Quellen.
 
-### D6.6 Verwaltung: Seite «Quellen» (Mockup `Quellen`)
+### D6.6 Verwaltung: Seite «Hörbücher: Quellen» (Mockup `Quellen`)
 
-Unter «Verwaltung › Metadaten» ein Abschnitt **«Hörbücher: Quellen»**: Liste der Quellen mit Reihenfolge
-(nach oben, nach unten), Schalter, was sie liefern, Region oder Schlüssel; daneben «Automatisch
-zuordnen» mit Toleranz, «Vereinheitlichen» und der Stand der Bibliothek (zugeordnet, zu prüfen, ohne
-Treffer) mit «Jetzt alle ohne Zuordnung zuordnen».
+Unter «Verwaltung › Metadaten»: die Listen der Hörbuch-Ordner (nur Anzeige, Link in den Dialog), Region,
+Adresse von Audnexus, Schlüssel für Google Books, «Automatisch zuordnen» mit Toleranz, «Vereinheitlichen»,
+Stand der Bibliothek (zugeordnet, zu prüfen, ohne Treffer, gestört), «Jetzt alle ohne Zuordnung
+zuordnen» und die Liste **«Prüfen»** mit den gespeicherten Kandidaten und dem Bleistift je Buch.
 
-## D7. Datenmodell (Migration 00047, vorläufig)
+## D7. Datenmodell (je Stufe eine Migration, vorläufig)
 
-| Tabelle oder Spalte | Inhalt |
-|---|---|
-| `items.publisher`, `items.isbn`, `items.asin` | neue Angaben für Hörbücher |
-| `items.original_language` | Sprache des Hörbuchs als ISO 639-1 statt nur `de`/`en` (Spalte gibt es seit 00032) |
-| `items.book_match` | Zuordnung: Quelle und Kennung, Zeitpunkt, Bewertung; leer = nicht zugeordnet |
-| `audio_series` | Reihe je Bibliothek (D4.4) |
-| `items.audio_series_id` | Verweis, `ON DELETE SET NULL` |
-| Einstellungen `metadata.audiobook.*` | D6.5 |
-
-Nach Vorlage, nur vorwärts, eingefrorener Stand in `testdata/db/`. Die Reihen entstehen beim ersten
-Start nach dem Update aus den vorhandenen Büchern (ein Durchgang wie das Neuableiten in Teil B).
-
-## D8. Vertrag (vorläufig 1.28.0, additiv)
-
-| Operation oder Schema | `x-visibility` | Änderung |
+| Stufe | Migration | Inhalt |
 |---|---|---|
-| `GET /libraries/{id}/audio-groups` (`listAudioGroups`) | `scoped` | Zeile «Reihen und Sammlungen»: Reihen und Hörbuch-Sammlungen der Bibliothek mit Name, Bild, Autor, Zahl der sichtbaren Bände, gehörte Bände; Filter wie `listLibraryItems` |
-| `GET /libraries/{id}/series/{seriesId}` (`getAudioSeries`) | `scoped` | Reihe mit sichtbaren Bänden, Bandnummern, «Weiterhören»; 404, wenn kein Band sichtbar |
-| Startseiten-Reihe «Sammlungen» (`getHome`) | `scoped` | ohne Sammlungen, deren sichtbare Mitglieder alle Hörbücher sind (Verhalten, kein neues Feld) |
-| `ItemDetail` | `scoped` | neu `seriesId` |
-| `PATCH /admin/audio-series/{seriesId}` | `admin` | Name ändern, auf Wunsch in alle Bände schreiben |
-| `AdminMetadataField`, `AdminItem.metadata` | `admin` | Felder aus D5.3 |
-| `updateItemMetadata`, `listItemImageCandidates`, `setItemImage`, `uploadItemImage`, `searchMetadata`, `setItemMatch`, `refreshItem` | `admin` | nehmen `audiobook` an |
-| `MetadataProvider` | – | neue Werte `audible`, `audnexus`, `dnb`, `applebooks`, `openlibrary`, `googlebooks` |
-| `GET`/`PATCH /admin/metadata/audiobooks` | `admin` | Einstellungen der Seite «Quellen», Stand der Bibliothek |
-| `POST /admin/metadata/audiobooks/match-all` | `admin` | «Jetzt alle ohne Zuordnung zuordnen» |
+| D1 | 00047 | `items.publisher`, `items.isbn`, `items.asin`; Schlösser bleiben in `items.locked_fields` |
+| D2 | 00048 | `audio_series`, `items.audio_series_id` (`ON DELETE SET NULL`); Merkmal für den ersten Durchgang |
+| D3 | 00049 | `items.author_display`, `items.book_match_state`, `items.book_match` (Quelle, Kennung, Zeitpunkt, Bewertung), `book_match_candidates` (je Buch höchstens drei), Füller in `library_roots.providers` der Hörbuch-Ordner nach D6.2, Neuaufbau des Suchindexes |
 
-Neue Werte in `MetadataProvider` prüft der Bau gegen geschlossene `Record`-Typen im Client; ist einer
-geschlossen, wird die Fassung brechend für die Verwaltung. Jede Operation im Vertragstest, `scoped` mit
-Eintrag in `profileRegistry`.
+Nach Vorlage, nur vorwärts, je Stufe ein eingefrorener Stand in `testdata/db/`.
+
+## D8. Vertrag
+
+| Version | Operation oder Schema | `x-visibility` | Änderung |
+|---|---|---|---|
+| 1.28.0 (D1) | `AdminMetadataField`, `AdminItem.metadata` | `admin` | Felder aus D5.3 |
+| 1.28.0 | `updateItemMetadata`, `setItemOriginalLanguage`, `listItemImageCandidates`, `setItemImage`, `uploadItemImage`, `refreshItem` | `admin` | nehmen `audiobook` an |
+| 1.29.0 (D2) | `GET /libraries/{id}/audio-groups` (`listAudioGroups`) | `scoped` | Zeile «Reihen und Sammlungen»: Kennung, Art (Reihe oder Sammlung), Name, Bild, Autor, sichtbare und passende Bände, gehörte Bände; Filter wie `listLibraryItems` |
+| 1.29.0 | `GET /libraries/{id}/series/{seriesId}` (`getAudioSeries`) | `scoped` | Reihe mit sichtbaren Bänden, Bandnummern, «Weiterhören»; 404 unter zwei sichtbaren Bänden |
+| 1.29.0 | `ItemDetail.seriesId` | `scoped` | neu, leer unter zwei sichtbaren Bänden |
+| 1.29.0 | `PATCH /admin/audio-series/{seriesId}` | `admin` | Name ändern, auf Wunsch in alle Bände schreiben |
+| 1.29.0 | `getHome` | `scoped` | Reihe «Sammlungen» ohne Hörbuch-Sammlungen (Verhalten) |
+| 1.30.0 (D3) | `MetadataProvider` | – | neue Werte `audible`, `dnb`, `applebooks`, `openlibrary`, `googlebooks` |
+| 1.30.0 | `searchMetadata` | `admin` | `kind` `audiobook`, Parameter `author`, `asin`, `isbn`; `MetadataCandidate` mit Hörbuch-Feldern |
+| 1.30.0 | `getMatchPreview` (neu), `setItemMatch` mit `fields[]` | `admin` | Vergleich und Übernahme Feld für Feld |
+| 1.30.0 | `GET`/`PATCH /admin/metadata/audiobooks`, `POST …/match-all`, `GET …/review` | `admin` | Seite «Quellen», Stand, Liste «Prüfen» |
+
+Alle additiv; kein geschlossenes `Record<MetadataProvider, …>` im Client. Jede Operation im
+Vertragstest: `scoped` in `profileRegistry`, `admin` in `adminRegistry`.
 
 ## D9. Bauplan
 
 | Stufe | Inhalt | Release | Aufwand |
 |---|---|---|---|
-| **D0** | Messung an Marcos 107 Büchern: wie viele trifft jede Quelle eindeutig, wie viele haben eine passende Länge; prüfen, ob der Audible-Katalog von CT 190 aus antwortet. Ergebnis nach `docs/perf/19-hoerbuecher.md`. ADR 0031 «Externe Quellen für Hörbücher» (ersetzt den Satz aus ADR 0007 und ADR 0015). | – | ½ Tag |
-| **D1 «Bleistift»** | Editor für Hörbücher mit allen Feldern, Schlösser vereinheitlicht, Cover-Kandidaten aus Ordner und Datei, Hochladen, Bleistift überall, Migration für Verlag, ISBN, ASIN, Sprache. | vorläufig 1.28.0 | 3 bis 4 Tage |
-| **D2 «Reihen»** | `audio_series`, Schlüssel und Anhängsel, Zeile «Reihen und Sammlungen» mit Hörbuch-Sammlungen, Startseiten-Reihe «Sammlungen» ohne diese, Seite der Reihe, Link von der Detailseite, «Reihe bearbeiten». | vorläufig 1.29.0 | 3 bis 4 Tage |
-| **D3 «Quellen»** | `BookProvider` mit sechs Quellen, Zuordnen im Editor, automatische Zuordnung, Liste «Prüfen», Vereinheitlichen, Seite «Quellen». | vorläufig 1.30.0 | 6 bis 8 Tage |
+| **D0** | Messung an Marcos 107 Büchern: Treffer je Quelle, eindeutig und mit passender Länge; Abfragen je Buch; Laufzeit des ersten Laufs; Zeit der Abfrage der Zeile bei 5'000 Büchern (Ziel p95 unter 100 ms); ob Audible von CT 190 aus antwortet. Ergebnis nach `docs/perf/19-hoerbuecher.md`. ADR 0031 «Externe Quellen für Hörbücher». | – | ½ Tag |
+| **D1 «Bleistift»** | Editor für Hörbücher, Texte in beiden Zeilen, Schlösser vereinheitlicht, Originalsprache, gewählte Cover bleiben, Kandidaten aus Ordner und Datei, Hochladen, `absMeta` mit ASIN, ISBN, Verlag, Bleistift überall, Migration 00047. | vorläufig 1.28.0 | 3 bis 4 Tage |
+| **D2 «Reihen»** | `audio_series`, `RelinkAudioSeries`, Zeile «Reihen und Sammlungen», Startseite ohne Hörbuch-Sammlungen, Seite der Reihe, Link von der Detailseite, «Reihe bearbeiten», Migration 00048. | vorläufig 1.29.0 | 3 bis 4 Tage |
+| **D3 «Quellen»** | `BookProvider` mit fünf Quellen, Füller je Ordner, Zuordnen im Editor, automatische Zuordnung mit Zuständen und Schutz, Liste «Prüfen», Vereinheitlichen, Seite «Quellen», Migration 00049. | vorläufig 1.30.0 | 7 bis 9 Tage |
 
-D1 vor D3, weil D3 den Reiter «Zuordnen» des Editors braucht; D2 ist unabhängig. Die Nummern folgen
-der Bau-Reihenfolge aller Teile. **Gebaut wird erst auf Marcos ausdrückliches Wort.**
+**Reihenfolge:** Teil C → D1 → D2 → D3. D2 braucht die quadratischen Kacheln aus Teil C und den
+Bleistift je Band aus D1; D3 braucht den Reiter «Zuordnen» aus D1. Die Nummern folgen der
+Bau-Reihenfolge aller Teile. **Gebaut wird erst auf Marcos ausdrückliches Wort.**
 
 ## D10. Abnahme und Tests
 
 | Nr. | Prüfung | Stufe der Prüfung |
 |---|---|---|
-| PD-1 | Bleistift auf einer Hörbuch-Karte öffnet den Editor; Autor, Sprecher, Reihe und Band ändern, speichern; ein Scan danach überschreibt nichts. | Go (Schlösser, beide Namensformen), e2e |
-| PD-2 | Cover: Kandidaten aus Ordner und eingebettetem Bild erscheinen quadratisch; Wahl und Hochladen wirken in Übersicht, Detailseite und Startseite. | Go, Vitest, e2e |
-| PD-3 | Reihen: «Bodyguard» und «Bodyguard - Band» ergeben eine Reihe mit Bänden 1 bis 6; ein Buch ohne zweiten Band steht einzeln. | Go (Schlüssel, Fixture mit Marcos Schreibweisen) |
-| PD-4 | Zeile «Reihen und Sammlungen»: Reihen-Kachel mit Zahl der Bände; ein Kinderprofil, das nur zwei Bände sehen darf, sieht «2 Bände»; keine Reihe ohne sichtbaren Band; darunter alle Hörbücher einzeln. | Go (`vistest`), e2e |
-| PD-5 | Seite der Reihe: Reihenfolge 0,5 vor 1, Bände ohne Nummer am Ende; «Weiterhören» nimmt den ersten nicht fertigen Band. | Vitest, e2e |
-| PD-6 | Reihen und eine von Hand angelegte Sammlung nur mit Hörbüchern erscheinen in der Zeile der Hörbücher und nicht in der Startseiten-Reihe «Sammlungen»; eine gemischte Sammlung erscheint dort weiter. | Go |
-| PD-7 | Zuordnen im Editor: Treffer mit passender Länge oben; Übernehmen schreibt nur angehakte, nicht gesperrte Felder und sperrt sie. | Go (Quellen mit `httptest`), Vitest |
-| PD-8 | Automatisch zuordnen («Alle ohne Zuordnung» ab Werk): ein eindeutiger Treffer innerhalb 3 % wird zugeordnet und füllt nur leere Felder; zwei Treffer oder eine falsche Länge kommen in «Prüfen»; ein zweiter Lauf ändert nichts. | Go |
-| PD-9 | Quelle aus: kein Abruf; ab Werk sind Dateien, Audible mit Audnexus, DNB und Apple Books an; fällt Audible aus, ordnet der Lauf mit den übrigen Quellen zu; der Schlüssel für Google Books erscheint in keinem Log. | Go (Redaktionstest) |
-| PD-10 | Vereinheitlichen: «J R R Tolkien» und «J.R.R. Tolkien» sortieren und suchen als «J. R. R. Tolkien»; die Dateien bleiben unverändert. | Go |
-| PD-11 | Tastatur: Bleistift per Tab erreichbar, Editor mit allen Reitern ohne Maus, Seite der Reihe und Seite «Quellen» mit Pfeiltasten, Tab, Enter, Zurück. | Playwright |
-| PD-12 | Vertrag: jede neue Operation im Vertragstest; `updateItemMetadata` für Hörbücher statt `kind:invalid_value`. | Go (Vertragstest) |
+| PD-1 | Bleistift auf einer Hörbuch-Karte öffnet den Editor; Autor, Sprecher, Reihe und Band ändern, speichern; ein Scan danach überschreibt nichts; beim deutschen und beim englischen Buch sind beide Textzeilen geändert und gesperrt. | Go, e2e |
+| PD-2 | Cover: Kandidaten aus Ordner, eingebettetem Bild und Anbieter erscheinen quadratisch; ein gewähltes Anbieter-Cover bleibt nach einem Scan. | Go, Vitest, e2e |
+| PD-3 | Reihen: «Bodyguard» und «Bodyguard - Band» von Chris Bradford ergeben eine Reihe mit Bänden 1 bis 6; eine gleichnamige Reihe eines anderen Autors bleibt getrennt; eine neue Liste der Anhängsel ändert keine Kennung. | Go (Fixture mit Marcos Schreibweisen) |
+| PD-4 | Sichtbarkeit: eine Reihe mit Bänden ab 0, 12 und 18 Jahren; ein Profil ab 12 sieht zwei Bände und das Cover eines sichtbaren Bandes; ein Profil ab 6 sieht keine Reihe, die Seite antwortet mit 404, `seriesId` ist leer. | Go (`vistest`) |
+| PD-5 | Zeile «Reihen und Sammlungen»: Kacheln mit Zahl der Bände, mit Filter «2 von 6 Bänden»; darunter alle Hörbücher einzeln. | Vitest, e2e |
+| PD-6 | Eine Sammlung nur mit Hörbüchern erscheint in der Zeile und nicht in der Startseiten-Reihe «Sammlungen», aber weiter auf der Detailseite; eine gemischte Sammlung bleibt auf der Startseite. | Go |
+| PD-7 | Seite der Reihe: 0,5 vor 1, ohne Nummer am Ende; «Weiterhören» nimmt den ersten nicht fertigen Band. | Vitest, e2e |
+| PD-8 | «Reihe bearbeiten» mit «In alle Bände schreiben» führt zwei Reihen zusammen und behält eine Kennung. | Go |
+| PD-9 | Zuordnen im Editor: Suche nach ASIN; Treffer mit passender Länge oben; Übernehmen schreibt nur angehakte, nicht gesperrte Felder und sperrt sie. | Go (Quellen mit `httptest`), Vitest |
+| PD-10 | Automatisch: ein eindeutiger Treffer innerhalb 3 % wird `matched` und füllt nur leere Felder; zwei Treffer → `review` mit Kandidaten; ein zweiter Lauf ändert nichts; die Zuordnung eines neuen Buches läuft erst nach der Prüfung aller Teile. | Go |
+| PD-11 | Störung: drei Antworten 429 → Quelle pausiert, Bücher `error`, nichts geschrieben; der nächste Lauf versucht sie wieder; die übrigen Quellen ordnen weiter zu. | Go |
+| PD-12 | Füller je Ordner: Vorgabe `local, audible, dnb, applebooks`; Audible aus der Liste genommen → kein Abruf; Audnexus-Adresse im Heimnetz erlaubt, andere lokale Adressen nicht; der Schlüssel für Google Books erscheint in keinem Log. | Go (Redaktionstest) |
+| PD-13 | Vereinheitlichen: «J R R Tolkien» und «J.R.R. Tolkien» sortieren und suchen als «J. R. R. Tolkien»; `items.author` bleibt der Wert der Dateien. | Go |
+| PD-14 | Tastatur: Bleistift per Tab, Editor mit allen Reitern ohne Maus, Zeile, Seite der Reihe und Seite «Quellen» mit Pfeiltasten, Tab, Enter, Zurück. | Playwright |
+| PD-15 | Vertrag: jede neue Operation im Vertragstest; `updateItemMetadata` für Hörbücher statt `kind:invalid_value`. | Go (Vertragstest) |
 
 ## D11. Offene Punkte zum Teil D
 
@@ -1683,87 +1720,119 @@ Beantwortet am 10. November 2026.
 | OD-6 | Bleistift auf der Startseite | ja (Empfehlung) |
 | OD-7 | Seite eines Autors mit Bild und Text | nicht jetzt; als Idee festhalten (Empfehlung) |
 
+## D12. Kritiker-Review vom 10. November 2026 (Teile D und E)
+
+Geprüft wurde Fassung 8 (`43a2e827`) gegen den Code. Urteil **REVISE**: 1 Blocker, 15 Major, 7 Minor.
+Alle Befunde sind eingearbeitet; Marcos Antworten blieben unangetastet.
+
+| Nr. | Schwere | Befund | Wo eingearbeitet |
+|---|---|---|---|
+| 1 | Blocker | Quellen für den ganzen Server widersprachen Entscheid 13 (Quellen je Ordner). | Füller je Ordner (D2, D6.2), Seite «Quellen» nur für Globales |
+| 2 | Major | Texte gingen nur in eine Sprachzeile; der Scan schreibt Buchsprache und `en`. | beide Zeilen schreiben und sperren (D5.3), PD-1 |
+| 3 | Major | `language` ist im Editor die Originalsprache. | `setItemOriginalLanguage` für Hörbücher (D5.3) |
+| 4 | Major | Gewählte Cover übergeht `image.fetch` für Audio. | gewählte Zeile gilt (D5.3), PD-2 |
+| 5 | Major | Reihen nur über `finishAudiobook` gepflegt; ein Sweep gibt es nicht. | `RelinkAudioSeries` aus allen Schreibern, Aufräumen (D4.4) |
+| 6 | Major | Kennung hing am Schlüssel; Zusammenführen unklar. | Kennung unabhängig (D4.4), D5.4, PD-8 |
+| 7 | Major | Schlüssel ohne Autor fasste fremde Reihen zusammen. | Schlüssel mit erstem Autor (D4.1), PD-3 |
+| 8 | Major | Sichtbarkeitsregeln widersprachen sich. | eine Regel über sichtbare Mitglieder (D4.1), PD-4 |
+| 9 | Major | Vertrag für «Zuordnen» fehlte. | `searchMetadata`, `MetadataCandidate`, `getMatchPreview`, `fields[]` (D5.3, D8) |
+| 10 | Major | «Prüfen» liess sich nicht speichern. | Zustand je Buch, Kandidaten, Liste (D6.3, D6.6, D7) |
+| 11 | Major | Automatisch bei Sperre oder 429 und Zeitpunkt beim Scan. | Schutz je Quelle, `error`, nach der Prüfung der Teile (D6.3), PD-10, PD-11 |
+| 12 | Major | Netzwächter sperrte eine eigene Audnexus-Instanz im Heimnetz. | Ausnahme wie bei Feeds (D6.5) |
+| 13 | Major | Vereinheitlichte Autoren fehlten im Datenmodell. | `items.author_display` (D6.4, D7) |
+| 14 | Major | Stufen hingen voneinander ab, eine Migration für drei Releases. | Reihenfolge C → D1 → D2 → D3, drei Migrationen, Versionen je Zeile (D7, D8, D9) |
+| 15 | Major | Schublade über den Nachbarn verdeckt auf Touch-Geräten und wird abgeschnitten. | Teil E2 |
+| 16 | Major | Gemeinsame Lautstärke ohne Speicher; Radio-Element nur zeitweise da. | Teil E2, E3 |
+| 17 | Minor | Ursache des Flackerns falsch beschrieben (Umbruch in der Spalte, nicht Zentrieren). | Teil E1 |
+| 18 | Minor | Audio-Player zeigt den Schieber auch auf dem iPhone. | Teil E2 |
+| 19 | Minor | M schaltet im Audio-Player nicht stumm. | Teil E2 |
+| 20 | Minor | Listen und Texte der Quellen im Client, Name des Schlüssels für die Redaction. | D6.5, D5.3 |
+| 21 | Minor | `absMeta` liest ASIN, ISBN, Verlag nicht. | D5.3, D9 |
+| 22 | Minor | Keine Zahlen für die Zeile und den ersten Lauf. | D0 (D9) |
+| 23 | Minor | «Gibt sie nie weiter» stimmte nicht; nur eine Registry genannt. | D6.1, D8 |
+
 # Teil E: Lautstärke (zwei Fehler)
 
 Marco am 10. November 2026: «Radio benötigt noch einen Lautstärke Regler und der Lautstärke Regler bei
 Podcast flackert. Nimm diese Fehler auch noch ins Konzept.» Teil E ist von den anderen Teilen
-unabhängig und kann als erster gebaut werden.
+unabhängig und kann als erster gebaut werden. Kritiker-Review in D12 (Befunde 15 bis 19).
 
 ## E1. Befund (Stand `e90109a6`)
 
 **Radio hat keinen Regler.**
 
-- Das Radio spielt über ein eigenes `<audio>`-Element der App (`app/radio/RadioProvider.tsx`,
-  `engine.ts`). Weder der Mini-Player (`RadioDock`, `ui/MiniPlayer.tsx`) noch «Jetzt läuft»
-  (`ui/NowPlayingDialog.tsx`) noch die Engine setzen eine Lautstärke; das Element läuft immer mit 100 %.
-- Konzept 16 und ADR 0025 erwähnen die Lautstärke nicht. Es ist eine Lücke, kein Entscheid.
+- Das Radio spielt über ein eigenes `<audio>`-Element der App (`app/radio/RadioProvider.tsx`), das es nur
+  gibt, solange ein Sender gewählt ist, und das bei jedem Einhängen neu entsteht. Weder Mini-Player
+  (`RadioDock`, `ui/MiniPlayer.tsx`) noch «Jetzt läuft» (`ui/NowPlayingDialog.tsx`) noch `engine.ts`
+  setzen eine Lautstärke; das Element läuft immer mit 100 %.
+- Konzept 16 und ADR 0025 erwähnen die Lautstärke nicht. Eine Lücke, kein Entscheid.
 
-**Der Regler im Podcast- und Hörbuch-Player flackert.** Nicht nachgestellt; drei Ursachen kommen aus
-dem Code in Frage, die erste ist die wahrscheinlichste:
+**Der Regler im Podcast- und Hörbuch-Player flackert.** Nicht nachgestellt; Ursache aus dem Code:
 
-1. **Die Schublade verschiebt die Zeile.** `VolumeControl` (`ui/VolumeControl.tsx`) öffnet den Schieber
-   und die Prozentzahl beim Zeigen: die Schublade wächst von `max-width: 0` auf `12rem`
-   (`VolumeControl.module.css`). Im Player steht der Regler in der Zeile `.extras` mit
-   `justify-content: center` und `flex-wrap: wrap` (`ui/AudioPlayer.module.css`). Wächst ein Element in
-   einer zentrierten Zeile, rückt der Knopf unter dem Zeiger um die halbe Breite weg, oder der Regler
-   bricht in die nächste Zeile um. Der Zeiger liegt dann nicht mehr über dem Regler, die Schublade
-   schliesst, der Knopf rückt zurück unter den Zeiger, die Schublade öffnet wieder: ein Kreis, der als
-   Flackern erscheint.
-2. **Zwei Ereignisse je Schritt.** `changeVolume` (`features/player/useAudioControls.ts`) setzt
-   `volume` und `muted` getrennt; jedes löst `volumechange` aus, und jeder Wert beim Ziehen zeigt
-   zusätzlich die Einblendung (`showOsd`). Der Daumen kann so zwischen altem und neuem Wert springen.
-3. Die Lautstärke des Audio-Players wird nicht gespeichert (`useState(1)`); jeder Start beginnt bei
-   100 %. Das flackert nicht, fällt aber beim Prüfen auf.
+- `VolumeControl` (`ui/VolumeControl.tsx`) öffnet Schieber und Prozentzahl beim Zeigen: die Schublade
+  wächst von `max-width: 0` auf `12rem` (`VolumeControl.module.css`).
+- Im Player steht der Regler in der Zeile `.extras` mit `flex-wrap: wrap` (`ui/AudioPlayer.module.css`),
+  in einer Spalte von höchstens 36 rem. Die Knöpfe der Zeile brauchen rund 29 rem, die offene Schublade
+  rund 11,5 rem mehr. **Die Zeile bricht um**, der Regler springt in die nächste Zeile, der Zeiger liegt
+  nicht mehr über ihm, die Schublade schliesst, der Regler springt zurück unter den Zeiger, die Schublade
+  öffnet wieder: ein Kreis, der als Flackern erscheint.
+- Die Lautstärke des Audio-Players wird nicht gespeichert (`useState(1)` in `useAudioControls.ts`); jeder
+  Start beginnt bei 100 %. Auf dem iPhone zeigt der Audio-Player den Schieber, obwohl Safari die
+  Lautstärke nicht setzen lässt (`volumeIsReadOnly()` gibt es in `features/player/layout.ts`). M schaltet
+  im Audio-Player nicht stumm (im Video-Player schon, `keymap.ts`).
 
 ## E2. Behebung im Player (Podcasts und Hörbücher)
 
-1. **Zuerst nachstellen:** ein Playwright-Test fährt mit dem Zeiger auf den Lautstärkeknopf des
-   Audio-Players in Desktop-Breite und prüft, dass die Schublade offen bleibt und die Nachbarn der Zeile
-   sich nicht bewegen. Er muss vor der Behebung fehlschlagen; schlägt er nicht fehl, wird zuerst
-   Ursache 2 geprüft.
-2. **Schublade ohne Verschieben:** `VolumeControl` öffnet den Schieber **über** den Nachbarn (absolut
-   neben dem Knopf, mit Hintergrund und Rand aus den Tokens) statt die Zeile breiter zu machen. Beim
-   Verlassen bleibt sie 300 ms offen (`--sc-motion-duration-*`), damit ein kurzes Abrutschen sie nicht
-   schliesst. Ohne Zeiger (Touch) bleibt sie wie heute offen. Der Fokus öffnet sie wie heute.
-3. **Ein Ereignis je Schritt:** `muted` wird nur gesetzt, wenn es sich ändert; die Einblendung kommt
-   nur bei Tasten und Mausrad, nicht beim Ziehen am Schieber (wie im Video-Player).
-4. **Merken:** der Audio-Player merkt sich die Lautstärke auf dem Gerät, wie der Video-Player
-   (`usePlayerPrefs`, `localStorage`), **gemeinsam mit dem Radio** (OE-1): ein Wert je Gerät für alles
-   Hörbare; der Video-Player behält seinen eigenen.
+1. **Zuerst nachstellen:** Playwright fährt in Breiten von 900 bis 1100 px mit dem Zeiger auf den
+   Lautstärkeknopf des Audio-Players und prüft, dass die Zeile nicht umbricht und die Schublade offen
+   bleibt. Der Test muss vor der Behebung fehlschlagen.
+2. **Schublade über den Nachbarn (OE-2), nur mit Zeiger:** Auf Geräten mit Zeiger (`hover: hover`)
+   öffnet sich der Schieber als **Popover** über den Nachbarn, in einer Ebene über dem Player (Portal),
+   damit kein `overflow` ihn abschneidet und keine Zeile umbricht; die Richtung folgt dem freien Platz
+   (zur Seite, im Mini-Player nach oben). Der Fokus bleibt auf dem Schieber, Escape schliesst, beim
+   Verlassen bleibt er 300 ms offen. **Ohne Zeiger** (Touch, `hover: none`) bleibt der Schieber wie heute
+   **in der Zeile**, immer offen, und verdeckt nichts.
+3. Weil `VolumeControl` ein Baustein aus `web/src/ui` ist, gilt das auch im Video-Player (Bedienleiste mit
+   wanderndem Tab-Index, `PlayerChrome.tsx`) und im Offline-Player; deren Tastaturtests laufen mit.
+4. **iPhone:** `muteOnly={volumeIsReadOnly()}` auch im Audio-Player und im Offline-Player.
+5. **M** schaltet auch im Audio-Player stumm (`useAudioControls`), wie im Video-Player.
+6. **Gemeinsame Lautstärke** (OE-1): siehe E3, «Speicher».
 
-Weil `VolumeControl` ein Baustein aus `web/src/ui` ist, wirkt Punkt 2 auch im Video-Player und im
-Offline-Player; ihre Tests und Storybook-Baselines laufen mit.
+## E3. Regler für das Radio und gemeinsame Lautstärke
 
-## E3. Regler für das Radio
-
-- **Wo:** im Mini-Player rechts neben Abspielen/Anhalten und in «Jetzt läuft» unter den Knöpfen; der
-  gleiche Baustein `VolumeControl`, ohne Verstärkung über 100 % (das Radio hat keinen Web-Audio-Graphen).
-- **iPhone:** nur der Stummschalter (`muteOnly`); Safari auf dem iPhone lässt eine Seite die Lautstärke
-  nicht setzen (Konzept 13, 11.2).
-- **Wirkung:** setzt `volume` und `muted` des Radio-Elements; gilt sofort, auch beim Wechsel des Senders
-  und nach einem Wiederaufbau der Verbindung (`engine.ts` setzt die Werte nach jedem neuen Start).
-- **Merken:** auf dem Gerät (`localStorage`), nicht auf dem Server, **derselbe Wert wie im Podcast- und
-  Hörbuch-Player** (OE-1); ohne Speicher (privates Fenster) beginnt alles bei 100 %.
+- **Wo:** im Mini-Player neben Abspielen/Anhalten und in «Jetzt läuft» unter den Knöpfen; der Baustein
+  `VolumeControl`, ohne Verstärkung über 100 % (das Radio hat keinen Web-Audio-Graphen). Im Mini-Player
+  öffnet das Popover nach oben; bei 375 px Breite ohne Zeiger steht der Schieber in der Zeile des Docks.
+- **iPhone:** nur der Stummschalter.
+- **Speicher (OE-1):** ein Wert je Gerät für alles Hörbare, unter dem Schlüssel `slouchcat.audio.volume`
+  in `localStorage`, gelesen über einen kleinen gemeinsamen Speicher (`useSyncExternalStore` mit dem
+  Ereignis `storage`, nach dem Muster von `useVolume`). Nutzer: Audio-Player, Offline-Player für Audio und
+  Radio. Der Video-Player behält seinen eigenen Wert (`slouchcat.player`).
+- **Anwenden:** beim Einhängen des Radio-Elements (Ref-Callback in `RadioProvider`) und bei jedem
+  `loadedmetadata` des Audio-Players; Änderungen gelten sofort auf dem gerade spielenden Element.
+- **Stumm** wird nicht gespeichert (wie V-3). Erster Wert nach dem Update: 100 %; der Wert des
+  Video-Players wird nicht übernommen. Ohne Speicher (privates Fenster) beginnt alles bei 100 %.
 - **Tastatur:** Tab erreicht Knopf und Schieber; ←/→ 5 %, Bild auf/ab 10 %, Pos1/Ende; M schaltet stumm,
-  solange der Fokus im Mini-Player oder in «Jetzt läuft» liegt.
-- Texte aus `de.json`/`en.json` (die vorhandenen `player.volumeControl.*`), Farben aus Tokens.
+  solange der Fokus im Mini-Player oder in «Jetzt läuft» liegt (keine Überschneidung mit anderen Tasten,
+  global ist nur `/`).
+- Texte aus `de.json`/`en.json` (`player.volumeControl.*`), Farben aus Tokens.
 
 ## E4. Abnahme und Tests
 
 | Nr. | Prüfung | Stufe der Prüfung |
 |---|---|---|
-| PE-1 | Podcast-Player in Desktop-Breite: Zeiger auf den Lautstärkeknopf, die Schublade öffnet einmal und bleibt offen; Lage der Nachbarknöpfe unverändert; Zeiger weg, nach 300 ms zu. | Playwright (zuerst rot, nach der Behebung grün) |
-| PE-2 | Ziehen am Schieber: je Schritt ein `volumechange`, keine Einblendung; Tasten zeigen die Einblendung weiter. | Vitest |
-| PE-3 | Radio: Mini-Player hat den Regler; 40 % gesetzt → das Element spielt mit 0,4; nach Senderwechsel und Neuladen der Seite weiter 40 %. | Vitest, Playwright |
-| PE-4 | Radio auf dem iPhone (Emulation): nur der Stummschalter. | Vitest |
-| PE-5 | Tastatur: Regler im Mini-Player und in «Jetzt läuft» mit Tab, Pfeiltasten und M bedienbar, sichtbarer Fokus, keine Fokusfalle. | Playwright |
-| PE-6 | Storybook: `VolumeControl` offen über Nachbarn, `MiniPlayer` mit Regler; Baselines neu. | `task storybook:test` |
+| PE-1 | Audio-Player bei 900 bis 1100 px: Zeiger auf den Lautstärkeknopf, die Zeile bricht nicht um, das Popover öffnet einmal und bleibt offen; Zeiger weg, nach 300 ms zu. | Playwright (zuerst rot) |
+| PE-2 | Touch-Emulation bei 375 px: Schieber in der Zeile, nichts verdeckt, kein waagrechtes Scrollen; im Mini-Player ebenso. | Playwright |
+| PE-3 | Gemeinsame Lautstärke: 40 % im Radio gesetzt → ein Hörbuch startet mit 0,4; nach Neuladen weiter 40 %; der Video-Player bleibt bei seinem Wert. | Vitest, Playwright |
+| PE-4 | iPhone (Emulation): Radio, Audio-Player und Offline-Player zeigen nur den Stummschalter. | Vitest |
+| PE-5 | Tastatur: Regler im Mini-Player, in «Jetzt läuft» und im Audio-Player mit Tab, Pfeiltasten und M; Escape schliesst das Popover; Video-Player unverändert. | Playwright |
+| PE-6 | Storybook: `VolumeControl` als Popover und in der Zeile, `MiniPlayer` mit Regler; Baselines neu. | `task storybook:test` |
 
 ## E5. Bauplan
 
 | Stufe | Inhalt | Release | Aufwand |
 |---|---|---|---|
-| **E1 «Lautstärke»** | E2 und E3 mit den Tests aus E4 | Patch ohne Vertragsänderung | ½ bis 1 Tag |
+| **E1 «Lautstärke»** | E2 und E3 mit den Tests aus E4 | Patch ohne Vertragsänderung | 1 bis 1½ Tage |
 
 **Gebaut wird erst auf Marcos ausdrückliches Wort.**
 
@@ -1774,7 +1843,7 @@ Beantwortet am 10. November 2026.
 | Nr. | Punkt | Marcos Antwort |
 |---|---|---|
 | OE-1 | Eine Lautstärke für alles Hörbare oder getrennt? | **gemeinsam** für Radio, Podcasts und Hörbücher auf dem Gerät (Empfehlung) |
-| OE-2 | Schublade über den Nachbarn oder fester Platz? | **über den Nachbarn** (Empfehlung) |
+| OE-2 | Schublade über den Nachbarn oder fester Platz? | **über den Nachbarn** (Empfehlung); auf Touch-Geräten bleibt der Schieber in der Zeile (D12, Befund 15) |
 
 ## Anhang A: Mockups
 
