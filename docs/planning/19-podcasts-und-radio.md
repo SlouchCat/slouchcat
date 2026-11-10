@@ -1,4 +1,4 @@
-# Konzept: Podcasts und Radio
+# Konzept: Podcasts, Radio und quadratische Cover
 
 - **Status: Fassung 3 (10. November 2026), Kritiker-Review eingearbeitet (REVISE, 0 Blocker,
   13 Major, 6 Minor; Abschnitt 18), mit klickbaren Mockups.** Marco hat am 9. November 2026 die
@@ -12,9 +12,12 @@
   die der Server erst nach dem Hinzufügen holt; entschieden über klickbare Mockups (B2, Anhang B),
   Kritiker-Review eingearbeitet (REVISE, 0 Blocker, 17 Major, 10 Minor; B15). Offen sind die Punkte
   in B14.
+  **Fassung 6 (10. November 2026): Teil C dazu.** Hörbücher und Podcasts zeigen in der Übersicht ihrer
+  Bibliothek quadratische Cover ohne Rahmen; die Startseite bleibt, wie sie ist. Offen: C6.
   **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
-- **Aufbau:** **Teil A Podcasts** (Abschnitte 1 bis 18, Anhang A) und **Teil B Radio** (Abschnitte
-  B1 bis B14, Anhang B). Die Teile sind unabhängig; jeder hat eigene Stufen und Releases.
+- **Aufbau:** **Teil A Podcasts** (Abschnitte 1 bis 18, Anhang A), **Teil B Radio** (Abschnitte
+  B1 bis B15, Anhang B) und **Teil C Quadratische Cover** (Abschnitte C1 bis C6). Die Teile sind
+  unabhängig; jeder hat eigene Stufen und Releases.
 - **Auslöser:** Marco will, dass Slouchcat neue Podcast-Folgen als Datei in den Ordner des Podcasts
   speichert, statt nur den Link zum Anbieter zu halten. Vorhandene Dateien sollen wie heute erkannt
   und ausgelesen werden. In der Verwaltung soll wählbar sein, ob neue Folgen gespeichert oder nur
@@ -38,7 +41,8 @@
 > **Dieses Papier ändert keine Zeile Code.** Teil A beschreibt, wie der Server Folgen in den
 > Podcast-Ordner lädt, wie die Einstellung dazu aussieht und wie die Seite «Podcasts» neu gebaut
 > wird; Abschnitt 15 teilt den Bau in zwei Stufen. Teil B beschreibt, wie der Admin das Radio-Angebot
-> wählt und woher der Server Logos und weitere Angaben holt; B12 teilt den Bau in zwei Stufen.
+> wählt und woher der Server Logos und weitere Angaben holt; B12 teilt den Bau in zwei Stufen. Teil C
+> beschreibt quadratische Cover in der Übersicht von Hörbuch- und Podcast-Bibliotheken (eine Stufe).
 
 # Teil A: Podcasts
 
@@ -1171,6 +1175,89 @@ Geprüft wurde Fassung 1 des Teils (`72b71f5a`) gegen den Code. Urteil **REVISE*
 | 25 | Minor | Der Sprachenfilter aus RF-1 war nicht erklärt. | RF-1, B3, B4.5 |
 | 26 | Minor | Wikidata ohne Schalter, Kontaktadresse, Sprache und Lizenz der Logos offen. | B7.3, keine Logos (B7.1) |
 | 27 | Minor | Kontinente, Sortierung, Messort, Zitat aus Frage 23, «Bau auf Marcos Wort», vistest. | B9.2, B7.2, B7.4, B7.5, B3, B12, B10 |
+
+# Teil C: Quadratische Cover in der Bibliotheksübersicht
+
+Marco am 10. November 2026, mit Bildern der Bibliotheken «Podcast» (94 Podcasts) und «Hörbücher»
+(89 Hörbücher): «Bei Podcast und Hörbücher sollen die Cover quadratisch sein. Nur in der
+Bibliotheksübersicht. Auf der Startseite bleibt es so wie es ist.» Teil C ist von Teil A und Teil B
+unabhängig.
+
+## C1. Heute
+
+- Konzept 18, Teil C, **C-1 Variante B** (Marcos Entscheid vom 9. November 2026, Frage 25): Jede
+  Karte hat den Posterrahmen 2:3; ein quadratisches Cover sitzt in der Mitte, darüber und darunter
+  dasselbe Bild unscharf und abgedunkelt. Das gilt für jede Reihe und jedes Raster, auch für die
+  Bibliotheksraster. Grund war, dass der Titel in einer **gemischten** Reihe überall auf derselben
+  Linie beginnt.
+- `PosterCard` (`web/src/ui/PosterCard.tsx`) hat die Formen `poster` und `square`; `square` zeichnet
+  das Cover im 2:3-Rahmen auf dem unscharfen Grund (`.ground`, `.cover`).
+- Das Raster der Bibliotheksseite ist `LibraryGrid` (`web/src/features/catalog/LibraryGrid.tsx`),
+  virtuell mit fester Kartenhöhe: `measure` rechnet `Breite × 1,5 + Texthöhe` für jede Karte, die
+  Platzhalter haben `aspect-ratio: 2 / 3` (`LibraryGrid.module.css`). Die Karten zeichnet `ItemCell`
+  (`features/discover/ItemGrid.tsx`) mit `shape={audio ? 'square' : 'poster'}`.
+- `LibraryGrid` dient auch `PagedItemGrid` (lange Listen der Suche und anderer Seiten).
+
+## C2. Neu
+
+In der **Übersicht einer Bibliothek** (`/libraries/$libraryId`, `LibraryPage`) zeigen Hörbücher und Podcasts
+ihr Cover **quadratisch ohne Rahmen**: Bild 1:1 über die ganze Kartenbreite, kein unscharfer Grund,
+der Titel direkt darunter. Die Zeilen werden entsprechend niedriger (Kartenhöhe `Breite × 1 +
+Texthöhe`).
+
+**Wann ein Raster quadratisch ist:** wenn jeder Titel, den das Raster zeigen kann, ein Hörbuch oder
+ein Podcast ist. Entscheidet `LibraryPage` aus den Inhalten der Bibliothek (`library.contents`) und
+dem Filter «Inhalt» (`params.content`):
+
+| Bibliothek | Raster |
+|---|---|
+| nur Hörbücher, nur Podcasts oder beides | quadratisch |
+| gemischt mit Filmen oder Serien, Filter «Alle» | 2:3-Rahmen wie heute (C-1 gilt, der Titel bleibt bündig) |
+| gemischt, Filter «Inhalt» auf Hörbücher oder Podcasts | quadratisch |
+
+**Unverändert (2:3-Rahmen mit unscharfem Grund, C-1):** die Startseite mit allen Reihen und ihren
+Vorab-Karten (`preload.go`, `#poster-prepaint`), Suche, Merkliste, Sammlung, User-Empfehlungen,
+Personenseite, Offline-Bibliothek und jede Liste über `PagedItemGrid`.
+
+## C3. Umsetzung
+
+- `PosterCard`: neue Eigenschaft `frame` (`'poster'` ab Werk, `'own'`); mit `shape="square"` und
+  `frame="own"` hat das Bild 1:1, ohne zweites `<img>` für den Grund, mit Bildmassen 400 × 400.
+  Fokus- und Glanzrahmen (`.card::before`) folgen dem Bild. Stifte (`tool`, `CoverPen`) und
+  Abzeichen bleiben an ihrem Platz relativ zum Bild.
+- `ItemCell` reicht `frame` durch.
+- `LibraryGrid`: neue Eigenschaft `cover` (`'poster'` ab Werk, `'square'`); `measure` rechnet mit dem
+  Faktor 1 statt 1,5, der Platzhalter bekommt `aspect-ratio: 1 / 1`. Wechselt der Filter «Inhalt»
+  zwischen gemischt und Audio, misst das Raster neu (wie bei einer anderen Spaltenbreite).
+- `LibraryPage` setzt `cover="square"` nach der Tabelle in C2. `PagedItemGrid` setzt nichts und
+  bleibt beim 2:3-Rahmen.
+- Kein Vertrag, keine Migration, keine Änderung am Server. Farben und Masse nur aus Tokens.
+
+## C4. Abnahme und Tests
+
+| Nr. | Prüfung | Stufe der Prüfung |
+|---|---|---|
+| PC-1 | Bibliothek nur mit Podcasts und eine nur mit Hörbüchern: Karten quadratisch, kein unscharfer Grund, Titel aller Karten einer Zeile auf derselben Linie, keine Überlappung beim Scrollen durch über 200 Titel. | Vitest (`LibraryGrid` `measure`), e2e |
+| PC-2 | Gemischte Bibliothek: Filter «Alle» zeigt den 2:3-Rahmen, Filter «Hörbücher» quadratisch; der Wechsel lässt keine Lücke und keine Überlappung. | Vitest (`LibraryPage`), e2e |
+| PC-3 | Startseite, Suche und Merkliste zeigen Hörbücher und Podcasts unverändert im 2:3-Rahmen. | Vitest |
+| PC-4 | Tastatur in der quadratischen Übersicht: Pfeiltasten, Tab, Enter, Zurück zur selben Karte, sichtbarer Fokus. | Playwright (bestehender Test der Bibliotheksseite um eine Audio-Bibliothek ergänzt) |
+| PC-5 | Storybook: `PosterCard` quadratisch ohne Rahmen, mit Stift und mit «Gesehen»-Haken; Baselines neu. | `task storybook:test` |
+
+## C5. Bauplan
+
+| Stufe | Inhalt | Release | Aufwand |
+|---|---|---|---|
+| **C1 «Quadratische Übersicht»** | C3 und C4 | Patch ohne Vertragsänderung (Nummer beim Bau) | ½ Tag |
+
+Teil C kann vor oder nach Teil A und Teil B gebaut werden. **Gebaut wird erst auf Marcos
+ausdrückliches Wort.**
+
+## C6. Offene Punkte zum Teil C
+
+| Nr. | Punkt | Empfehlung |
+|---|---|---|
+| OC-1 | Gemischte Bibliothek mit Filter «Alle»: 2:3-Rahmen wie heute (C2), damit die Titel bündig bleiben? | ja |
+| OC-2 | Die neue Podcasts-Seite der Verwaltung (Teil A, Stufe 2) zeigt ihre Cover ohnehin quadratisch; die Offline-Bibliothek bleibt beim Rahmen. Einverstanden? | ja; «Nur in der Bibliotheksübersicht» |
 
 ## Anhang A: Mockups
 
