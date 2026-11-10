@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<searchRetrieveResponse xmlns="http://www.loc.gov/zing/srw/">
+  <version>1.1</version>
+  <numberOfRecords>2</numberOfRecords>
+  <records>
+    <record>
+      <recordSchema>MARC21-xml</recordSchema>
+      <recordPacking>xml</recordPacking>
+      <recordData>
+        <record xmlns="http://www.loc.gov/MARC21/slim" type="Bibliographic">
+          <leader>00000njm a2200000 c 4500</leader>
+          <controlfield tag="001">1000000001</controlfield>
+          <datafield tag="020" ind1=" " ind2=" ">
+            <subfield code="a">9783000000001</subfield>
+            <subfield code="9">978-3-00-000000-1</subfield>
+          </datafield>
+          <datafield tag="041" ind1=" " ind2=" ">
+            <subfield code="a">ger</subfield>
+          </datafield>
+          <datafield tag="100" ind1="1" ind2=" ">
+            <subfield code="a">Muster, Erika</subfield>
+            <subfield code="4">aut</subfield>
+            <subfield code="e">Verfasser</subfield>
+          </datafield>
+          <datafield tag="245" ind1="1" ind2="0">
+            <subfield code="a">&#152;Der&#156; Testband /</subfield>
+            <subfield code="b">ungekürzte Lesung</subfield>
+          </datafield>
+          <datafield tag="264" ind1=" " ind2="4">
+            <subfield code="c">℗ 2018</subfield>
+          </datafield>
+          <datafield tag="264" ind1=" " ind2="1">
+            <subfield code="a">Berlin</subfield>
+            <subfield code="b">Testverlag Hören</subfield>
+            <subfield code="c">[2019]</subfield>
+          </datafield>
+          <datafield tag="306" ind1=" " ind2=" ">
+            <subfield code="a">011200</subfield>
+          </datafield>
+          <datafield tag="490" ind1="1" ind2=" ">
+            <subfield code="a">Die Reihe</subfield>
+            <subfield code="v">Band 3</subfield>
+          </datafield>
+          <datafield tag="700" ind1="1" ind2=" ">
+            <subfield code="a">Sprecher, Max</subfield>
+            <subfield code="4">nrt</subfield>
+            <subfield code="e">Sprecher</subfield>
+          </datafield>
+          <datafield tag="700" ind1="1" ind2=" ">
+            <subfield code="a">Übersetzer, Ute</subfield>
+            <subfield code="4">trl</subfield>
+          </datafield>
+        </record>
+      </recordData>
+      <recordPosition>1</recordPosition>
+    </record>
+    <record>
+      <recordSchema>MARC21-xml</recordSchema>
+      <recordPacking>xml</recordPacking>
+      <recordData>
+        <record xmlns="http://www.loc.gov/MARC21/slim" type="Bibliographic">
+          <leader>00000nam a2200000 c 4500</leader>
+          <controlfield tag="001">100000000X</controlfield>
+          <datafield tag="020" ind1=" " ind2=" ">
+            <subfield code="a">3000000002</subfield>
+          </datafield>
+          <datafield tag="100" ind1="1" ind2=" ">
+            <subfield code="a">Muster, Erika</subfield>
+          </datafield>
+          <datafield tag="245" ind1="1" ind2="0">
+            <subfield code="a">Der Testband</subfield>
+          </datafield>
+          <datafield tag="260" ind1=" " ind2=" ">
+            <subfield code="b">Testverlag Druck,</subfield>
+            <subfield code="c">2017</subfield>
+          </datafield>
+        </record>
+      </recordData>
+      <recordPosition>2</recordPosition>
+    </record>
+  </records>
+</searchRetrieveResponse>

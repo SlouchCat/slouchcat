@@ -1,0 +1,17 @@
+{
+  "numFound": 1,
+  "start": 0,
+  "docs": [
+    {
+      "key": "/works/OL1000001W",
+      "title": "Der Testband",
+      "subtitle": "Roman",
+      "author_name": ["Erika Muster"],
+      "isbn": ["3000000002", "9783000000001"],
+      "publisher": ["Testverlag Druck"],
+      "first_publish_year": 2017,
+      "language": ["ger", "eng"],
+      "cover_i": 4242
+    }
+  ]
+}

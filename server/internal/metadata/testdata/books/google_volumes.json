@@ -1,0 +1,22 @@
+{
+  "kind": "books#volumes",
+  "totalItems": 1,
+  "items": [
+    {
+      "kind": "books#volume",
+      "id": "TESTvol001",
+      "volumeInfo": {
+        "title": "Der Testband",
+        "subtitle": "Roman",
+        "authors": ["Erika Muster"],
+        "publisher": "Testverlag Druck",
+        "publishedDate": "2017-09",
+        "description": "<p>Ein erfundener Satz.</p>",
+        "industryIdentifiers": [{"type": "ISBN_10", "identifier": "3000000002"}, {"type": "ISBN_13", "identifier": "9783000000001"}],
+        "categories": ["Fiction"],
+        "language": "de",
+        "imageLinks": {"smallThumbnail": "http://books.example.test/c?id=TESTvol001&zoom=5&edge=curl", "thumbnail": "http://books.example.test/c?id=TESTvol001&zoom=1&edge=curl"}
+      }
+    }
+  ]
+}

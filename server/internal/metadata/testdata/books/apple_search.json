@@ -1,0 +1,21 @@
+{
+  "resultCount": 1,
+  "results": [
+    {
+      "wrapperType": "audiobook",
+      "artistId": 1000000001,
+      "collectionId": 1000000101,
+      "artistName": "Erika Muster & Hans Beispiel",
+      "collectionName": "Der Testband: Die Reihe 3",
+      "artworkUrl60": "https://is1.example.test/image/thumb/Test/60x60bb.jpg",
+      "artworkUrl100": "https://is1.example.test/image/thumb/Test/100x100bb.jpg",
+      "collectionPrice": 19.0,
+      "country": "CHE",
+      "currency": "CHF",
+      "releaseDate": "2019-03-28T07:00:00Z",
+      "primaryGenreName": "Krimis & Thriller",
+      "copyright": "℗ 2019 Testverlag Hören",
+      "description": "Ein <b>erfundener</b> Satz.<br />Noch einer &amp; Schluss."
+    }
+  ]
+}

@@ -174,6 +174,8 @@ type Service struct {
 	imageLocks map[string]*imageLock // the image writers per title at work (lockItemImages)
 
 	feeds feedFetcher // podcast feeds (podcast.go)
+
+	books bookSources // the audiobook sources (book_provider.go, concept 19 D6)
 }
 
 type options struct {
@@ -201,6 +203,9 @@ type options struct {
 	relink      func(ctx context.Context, itemID string) (bool, error)
 	traktID     string
 	trakt       traktOptions
+	// The audiobook sources (book_provider.go): addresses and the Google Books key.
+	bookURLs       *BookSourceURLs
+	googleBooksKey func(ctx context.Context) (string, error)
 }
 
 // Option configures New.
@@ -358,6 +363,7 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		st, err := svc.Settings(ctx)
 		return err == nil && st.FanartEnabled
 	}
+	svc.books = newBookSources(svc, o)
 	return svc
 }
 
