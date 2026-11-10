@@ -64,3 +64,28 @@ export const Landscape: Story = {
 
 /** No candidate at all. */
 export const Empty: Story = { args: { items: [] } };
+
+/** The covers of an audiobook are square: a folder image, the embedded picture (concept 19 D5.2). */
+export const Square: Story = {
+  args: {
+    label: 'Kandidaten für Cover',
+    shape: 'square',
+    items: [
+      {
+        id: 'cover',
+        previewUrl: art.posterDusk,
+        label: 'cover.jpg',
+        detail: '600 × 600 · Lokale Datei',
+        current: true,
+        actionLabel: 'cover.jpg wählen',
+      },
+      {
+        id: 'embedded',
+        previewUrl: art.posterEmber,
+        label: 'Eingebettetes Bild',
+        detail: '500 × 500 · Eingebettet',
+        actionLabel: 'Eingebettetes Bild wählen',
+      },
+    ],
+  },
+};

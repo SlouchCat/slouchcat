@@ -1295,6 +1295,7 @@
       "tabs": {
         "label": "Bereiche des Editors",
         "images": "Bilder",
+        "cover": "Cover",
         "metadata": "Metadaten",
         "match": "Zuordnen",
         "refresh": "Aktualisieren"
@@ -1302,7 +1303,8 @@
       "images": {
         "kinds": "Bildart",
         "kindName": {
-          "still": "Folgenbild"
+          "still": "Folgenbild",
+          "cover": "Cover"
         },
         "state": {
           "auto": "automatisch · {{provider}}",
@@ -1313,6 +1315,7 @@
         "current": "Aktuell: {{source}}",
         "currentNone": "Aktuell: kein Bild",
         "own": "eigenes Bild",
+        "embedded": "Eingebettetes Bild",
         "upload": {
           "action": "Eigenes Bild hochladen",
           "hint": "JPEG, PNG oder WebP bis 20 MB. Der Server rechnet die Grössen selbst; ein hochgeladenes Bild holt er nie neu.",
@@ -1328,6 +1331,7 @@
         },
         "automatic": "Zurück auf automatisch",
         "candidates": "Vorschläge der Anbieter",
+        "candidatesBook": "Bilder im Ordner und in den Dateien",
         "filter": {
           "provider": "Anbieter",
           "lang": "Sprache",
@@ -1343,6 +1347,7 @@
       "metadata": {
         "intro": "Was du hier änderst, sperrt das Feld: «Aktualisieren» überschreibt es nicht mehr. Das Schloss hebt die Sperre wieder auf.",
         "lang": "Texte gelten für die Sprache {{language}}; die anderen Sprachen holt der Server weiter von den Anbietern.",
+        "langBook": "Texte gelten für jede Sprachzeile des Buches.",
         "field": {
           "title": "Titel",
           "originalTitle": "Originaltitel",
@@ -1350,12 +1355,21 @@
           "year": "Jahr",
           "releaseDate": "Erscheinungsdatum",
           "tagline": "Slogan",
+          "subtitle": "Untertitel",
           "overview": "Beschreibung",
           "genres": "Genres",
           "rating": "Altersfreigabe",
-          "language": "Originalsprache"
+          "language": "Originalsprache",
+          "author": "Autor",
+          "narrator": "Sprecher",
+          "seriesName": "Reihe",
+          "seriesIndex": "Band",
+          "publisher": "Verlag",
+          "isbn": "ISBN",
+          "asin": "ASIN"
         },
         "source": "aus {{provider}}",
+        "fromFiles": "aus den Dateien",
         "manual": "von Hand",
         "lock": {
           "label": "Sperre {{field}}",
@@ -1380,7 +1394,13 @@
         "unlockAll": "Vorher alle Sperren dieses Titels aufheben",
         "unlockAllHint": "Danach gilt wieder, was die Anbieter liefern. Eine Zuordnung von Hand und eine eigene Freigabe bleiben.",
         "run": "Jetzt aktualisieren",
-        "hint": "Läuft als Job mit hoher Priorität; die neuen Werte stehen, sobald er fertig ist."
+        "hint": "Läuft als Job mit hoher Priorität; die neuen Werte stehen, sobald er fertig ist.",
+        "book": {
+          "body": "«Aus den Dateien neu lesen» liest metadata.json, die Tags und die Ordnernamen noch einmal. Felder mit Schloss und ein gewähltes Cover bleiben.",
+          "unlockAll": "Schlösser lösen",
+          "unlockAllHint": "Vorher alle Sperren dieses Buches aufheben: Danach gilt wieder, was die Dateien sagen. Eine eigene Freigabe bleibt.",
+          "run": "Aus den Dateien neu lesen"
+        }
       }
     },
     "libraries": {
@@ -1803,9 +1823,17 @@
           "overview": "Beschreibung",
           "tagline": "Tagline",
           "original_title": "Originaltitel",
+          "author": "Autor",
+          "narrator": "Sprecher",
+          "series_name": "Reihe",
+          "series_index": "Band",
+          "publisher": "Verlag",
+          "isbn": "ISBN",
+          "asin": "ASIN",
           "genres": "Genres",
           "runtime_minutes": "Laufzeit",
           "release_date": "Erscheinungsdatum",
+          "year": "Jahr",
           "own_rating": "Freigabe",
           "poster": "Poster",
           "backdrop": "Hintergrundbild",
@@ -1926,6 +1954,7 @@
         "unlocked": "Sperre für {{kind}} aufgehoben; die automatische Wahl läuft.",
         "provider": {
           "local": "Lokale Datei",
+          "embedded": "Eingebettet",
           "tmdb": "TMDB",
           "tvdb": "TVDB",
           "anilist": "AniList",

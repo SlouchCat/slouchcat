@@ -3,11 +3,12 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
-import { alienVersions, ids } from '@/test/fixtures';
+import { alienVersions, audioIds, audiobookDetail, ids } from '@/test/fixtures';
 
 // The metadata editor over the detail page (concept 15 7.4): the pen, the candidates with their
-// filter and the choice, «Speichern» with every change at once and the field errors. The upload
-// and the keyboard paths are in e2e/metadata-editor.spec.ts.
+// filter and the choice, «Speichern» with every change at once and the field errors; the editor
+// of an audiobook (concept 19 D5.2). The upload and the keyboard paths are in
+// e2e/metadata-editor.spec.ts and e2e/audiobook-editor.spec.ts.
 
 const item = {
   id: ids.alien,
@@ -321,5 +322,212 @@ describe('metadata editor', () => {
       await within(dialog).findByText('Poster gewählt und gesperrt; das Bild wird geholt.'),
     ).toBeInTheDocument();
     expect(within(dialog).queryByText(failed)).not.toBeInTheDocument();
+  });
+});
+
+const book = {
+  id: audioIds.book,
+  kind: 'audiobook',
+  title: 'Slouchcat Test Audiobook M4B',
+  libraryId: 2,
+  metadataState: 'matched',
+  providers: ['local'],
+  fieldSources: [],
+  lockedFields: ['narrator'],
+  trailerState: 'none',
+  trailers: [],
+  mediaFiles: [],
+  children: { seasons: 0, episodes: 0, extras: 0 },
+  images: [{ kind: 'poster', provider: 'embedded', chosen: false, locked: false }],
+  imageKinds: ['poster'],
+  metadata: {
+    lang: 'de',
+    title: 'Slouchcat Test Audiobook M4B',
+    year: 2024,
+    genres: ['Test'],
+    author: 'Slouchcat Test Author',
+    narrator: 'Slouchcat Test Narrator',
+    seriesName: 'Slouchcat Test Audio Series',
+    seriesIndex: 1,
+    locked: ['narrator'],
+    sources: [
+      { field: 'title', provider: 'local' },
+      { field: 'author', provider: 'local' },
+    ],
+  },
+} as unknown as AdminItem;
+
+function bookRoutes(overrides: Record<string, Parameters<typeof mockApi>[0][string]> = {}) {
+  return mockApi({
+    ...signedIn,
+    [`GET /items/${audioIds.book}`]: () => json(audiobookDetail),
+    [`GET /admin/items/${audioIds.book}`]: () => json(book),
+    'GET /libraries/visible': () =>
+      json([
+        { id: 2, name: 'Hörbücher', kind: 'audiobooks', contents: ['audiobook'], itemCount: 2 },
+      ]),
+    'GET /admin/genres': () => json({ lang: 'de', genres: ['Test'] }),
+    'GET /admin/settings/metadata': () => json({ knownLanguages: ['de', 'en'] }),
+    [`GET /admin/items/${audioIds.book}/image-candidates`]: () =>
+      json({
+        candidates: [
+          {
+            ...candidate('local', '', 'file:Slouchcat Test Audiobook M4B/cover.jpg?1234-5678'),
+            width: 600,
+            height: 600,
+          },
+          {
+            ...candidate('embedded', '', 'embedded:mf-a1?5678'),
+            width: 500,
+            height: 500,
+            chosen: true,
+          },
+        ],
+        unavailable: [],
+      }),
+    ...overrides,
+  });
+}
+
+async function openBookEditor(user: ReturnType<typeof userEvent.setup>) {
+  renderApp(`/items/${audioIds.book}`);
+  await user.click(await screen.findByRole('button', { name: 'Metadaten bearbeiten' }));
+  return screen.findByRole('dialog', { name: 'Slouchcat Test Audiobook M4B' });
+}
+
+describe('metadata editor: an audiobook (concept 19 D5.2)', () => {
+  it('opens on «Metadaten» with the tabs of a book and its fields in order', async () => {
+    bookRoutes();
+    const user = userEvent.setup();
+    const dialog = await openBookEditor(user);
+    expect(within(dialog).getByText('Hörbuch · Hörbücher')).toBeVisible();
+    expect(
+      within(dialog)
+        .getAllByRole('tab')
+        .map((tab) => tab.textContent),
+    ).toEqual(['Metadaten', 'Cover', 'Aktualisieren']);
+    expect(within(dialog).getByRole('tab', { selected: true })).toHaveTextContent('Metadaten');
+    const panel = within(dialog).getByRole('tabpanel');
+    expect(within(panel).getByText(/Texte gelten für jede Sprachzeile des Buches/)).toBeVisible();
+    const labels = within(panel)
+      .getAllByRole('textbox')
+      .map((field) => field.getAttribute('name'));
+    expect(labels).toEqual([
+      'title',
+      'tagline',
+      'sortTitle',
+      'author',
+      'narrator',
+      'seriesName',
+      'seriesIndex',
+      'year',
+      'publisher',
+      'overview',
+      'isbn',
+      'asin',
+    ]);
+    expect(within(panel).getByRole('textbox', { name: 'Untertitel' })).toBeVisible();
+    expect(within(panel).getByRole('combobox', { name: 'Originalsprache' })).toBeVisible();
+    expect(within(panel).getByRole('group', { name: 'Genres' })).toBeVisible();
+    expect(within(panel).queryByRole('textbox', { name: 'Originaltitel' })).not.toBeInTheDocument();
+    expect(within(panel).queryByLabelText('Erscheinungsdatum')).not.toBeInTheDocument();
+    // The files' values read «aus den Dateien», a locked one «von Hand».
+    expect(within(panel).getAllByText('aus den Dateien')).toHaveLength(2);
+    expect(within(panel).getByText('von Hand')).toBeVisible();
+    expect(within(panel).getByRole('button', { name: 'Sperre Sprecher' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  it('«Speichern» sends the book fields with the volume as a number', async () => {
+    const { calls } = bookRoutes({
+      [`PATCH /admin/items/${audioIds.book}/metadata`]: () => json(book),
+    });
+    const user = userEvent.setup();
+    const dialog = await openBookEditor(user);
+    const panel = within(dialog).getByRole('tabpanel');
+    const field = (name: string) => within(panel).getByRole('textbox', { name });
+    await user.clear(field('Autor'));
+    await user.type(field('Autor'), 'Neuer Autor');
+    expect(within(panel).getByRole('button', { name: 'Sperre Autor' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await user.clear(field('Sprecher'));
+    await user.type(field('Sprecher'), 'Neue Sprecherin');
+    await user.clear(field('Reihe'));
+    await user.type(field('Reihe'), 'Neue Reihe');
+    await user.clear(field('Band'));
+    await user.click(within(panel).getByRole('button', { name: 'Speichern' }));
+    // An emptied volume of a series that stays is refused before sending.
+    expect(await within(panel).findByText('Pflichtfeld.')).toBeVisible();
+    expect(calls.some((call) => call.method === 'PATCH')).toBe(false);
+
+    await user.type(field('Band'), '2,5');
+    await user.click(within(panel).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({
+        author: 'Neuer Autor',
+        narrator: 'Neue Sprecherin',
+        seriesName: 'Neue Reihe',
+        seriesIndex: 2.5,
+      }),
+    );
+    expect(await within(dialog).findByText('Metadaten gespeichert.')).toBeInTheDocument();
+  });
+
+  it('«Cover»: square candidates named by file, the embedded picture current', async () => {
+    const chosen = {
+      ...book,
+      images: [{ kind: 'poster', provider: 'local', chosen: true, locked: true }],
+    } as unknown as AdminItem;
+    const { calls } = bookRoutes({
+      [`PUT /admin/items/${audioIds.book}/images/poster`]: () => json(chosen),
+    });
+    const user = userEvent.setup();
+    const dialog = await openBookEditor(user);
+    await user.click(within(dialog).getByRole('tab', { name: 'Cover' }));
+    expect(
+      within(dialog).getByRole('button', { name: 'Cover, automatisch · Eingebettet' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(within(dialog).getByText('Bilder im Ordner und in den Dateien')).toBeVisible();
+    expect(within(dialog).queryByRole('combobox', { name: 'Sprache' })).not.toBeInTheDocument();
+    const grid = await within(dialog).findByRole('listbox', { name: 'Kandidaten für Cover' });
+    expect(grid).toHaveAttribute('data-shape', 'square');
+    expect(
+      within(grid)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual([
+      'cover.jpg600 × 600 · Lokale Datei',
+      'Eingebettetes Bildaktuell500 × 500 · Eingebettet',
+    ]);
+    await user.click(within(grid).getByRole('option', { name: /^cover\.jpg/ }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
+        provider: 'local',
+        source: 'file:Slouchcat Test Audiobook M4B/cover.jpg?1234-5678',
+      }),
+    );
+    expect(
+      await within(dialog).findByRole('button', { name: 'Cover, gewählt · gesperrt' }),
+    ).toBeVisible();
+  });
+
+  it('«Aktualisieren» reads the files again, with «Schlösser lösen»', async () => {
+    const { calls } = bookRoutes({
+      [`POST /admin/items/${audioIds.book}/refresh`]: () => json(book),
+    });
+    const user = userEvent.setup();
+    const dialog = await openBookEditor(user);
+    await user.click(within(dialog).getByRole('tab', { name: 'Aktualisieren' }));
+    const panel = within(dialog).getByRole('tabpanel');
+    expect(within(panel).getByText(/metadata\.json, die Tags und die Ordnernamen/)).toBeVisible();
+    await user.click(within(panel).getByRole('checkbox', { name: /^Schlösser lösen/ }));
+    await user.click(within(panel).getByRole('button', { name: 'Aus den Dateien neu lesen' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'POST')?.body).toEqual({ unlockAll: true }),
+    );
   });
 });

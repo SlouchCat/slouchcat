@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -18,6 +19,11 @@ import (
 // in the server's metadata language and the title columns, and every field he writes is locked so
 // metadata.match and metadata.fill keep it. Text fields are locked per language (title:de,
 // overview:de, tagline:de, sort_title:de), the other fields by their column name as before.
+//
+// Audiobooks (contract 1.24.0, concept 19 D5.3) have no provider: their files are the only source.
+// The editor shows the texts of the book's language (bookTextLang) and writes a text into every text
+// row the scan writes (the book's language and en, and any other stored row), locked in each; the
+// scan (library.writeBook) keeps every lock. The book fields author to asin are columns.
 
 const (
 	maxMetaText     = 500   // title, original title, sort title, tagline (runes)
@@ -26,29 +32,92 @@ const (
 	maxMetaGenre    = 64
 	minMetaYear     = 1800
 	maxMetaYear     = 2200
+	maxMetaVolume   = 9999
 )
 
-// editableKinds are the kinds the editor writes; titleOnly fields exist for movies and series.
-var editableKinds = []string{"movie", "series", "season", "episode"}
+// editableKinds are the kinds the editor writes; metaFieldInfo.kinds narrows a field further.
+var editableKinds = []string{"movie", "series", "season", "episode", "audiobook"}
 
 // metaFieldInfo maps an editor field onto its lock and its provenance row.
 type metaFieldInfo struct {
-	lock      string // the lock name; for a text field the field part of field:lang
-	text      bool   // locked per language (and by the old lock without language)
-	legacy    bool   // the old lock without language counts too
-	source    string // item_field_sources.field; "" for none
-	titleOnly bool   // movies and series only
+	lock   string   // the lock name; for a text field the field part of field:lang
+	text   bool     // locked per language (and by the old lock without language)
+	legacy bool     // the old lock without language counts too
+	source string   // item_field_sources.field; "" for none
+	kinds  []string // the item kinds that have the field; nil for every editable kind
 }
+
+var (
+	titleKinds   = []string{"movie", "series"}
+	taglineKinds = []string{"movie", "series", "audiobook"}
+	videoKinds   = []string{"movie", "series", "season", "episode"}
+	bookKinds    = []string{"audiobook"}
+)
 
 var metaFields = map[string]metaFieldInfo{
 	model.MetaFieldTitle:         {lock: "title", text: true, legacy: true, source: "title"},
-	model.MetaFieldOriginalTitle: {lock: "original_title", source: "original_title", titleOnly: true},
+	model.MetaFieldOriginalTitle: {lock: "original_title", source: "original_title", kinds: titleKinds},
 	model.MetaFieldSortTitle:     {lock: "sort_title", text: true},
 	model.MetaFieldYear:          {lock: "year"},
-	model.MetaFieldReleaseDate:   {lock: "release_date", source: "release_date"},
-	model.MetaFieldTagline:       {lock: "tagline", text: true, legacy: true, source: "tagline", titleOnly: true},
+	model.MetaFieldReleaseDate:   {lock: "release_date", source: "release_date", kinds: videoKinds},
+	model.MetaFieldTagline:       {lock: "tagline", text: true, legacy: true, source: "tagline", kinds: taglineKinds},
 	model.MetaFieldOverview:      {lock: "overview", text: true, legacy: true, source: "overview"},
-	model.MetaFieldGenres:        {lock: "genres", source: "genres", titleOnly: true},
+	model.MetaFieldGenres:        {lock: "genres", source: "genres", kinds: taglineKinds},
+	model.MetaFieldAuthor:        {lock: "author", source: "author", kinds: bookKinds},
+	model.MetaFieldNarrator:      {lock: "narrator", source: "narrator", kinds: bookKinds},
+	model.MetaFieldSeriesName:    {lock: "series_name", source: "series_name", kinds: bookKinds},
+	model.MetaFieldSeriesIndex:   {lock: "series_index", source: "series_index", kinds: bookKinds},
+	model.MetaFieldPublisher:     {lock: "publisher", source: "publisher", kinds: bookKinds},
+	model.MetaFieldISBN:          {lock: "isbn", source: "isbn", kinds: bookKinds},
+	model.MetaFieldASIN:          {lock: "asin", source: "asin", kinds: bookKinds},
+}
+
+// of reports whether an item of kind has the field.
+func (f metaFieldInfo) of(kind string) bool { return f.kinds == nil || slices.Contains(f.kinds, kind) }
+
+// sourceFor is the provenance field of the editor field for an item of kind: the scan of a book
+// writes the year as year, the providers of a video title write it with the release date.
+func (f metaFieldInfo) sourceFor(kind string) string {
+	if f.lock == "year" && kind == "audiobook" {
+		return "year"
+	}
+	return f.source
+}
+
+// bookTextLang is the language of a book's texts the editor shows (D5.3): a locked original
+// language de or en (the row the scan writes, library.writeBook), else de with a German text row,
+// else en with an English one, else the server's language.
+func bookTextLang(it systemq.Item, texts []systemq.ItemText, serverLang string) string {
+	if l := it.OriginalLanguage.String; (l == "de" || l == "en") && slices.Contains(parseLocks(it.LockedFields), "original_language") {
+		return l
+	}
+	has := func(lang string) bool {
+		return slices.ContainsFunc(texts, func(t systemq.ItemText) bool { return t.Lang == lang })
+	}
+	switch {
+	case has("de"):
+		return "de"
+	case has("en"):
+		return "en"
+	}
+	return serverLang
+}
+
+// editLangs are the text rows an edit writes: lang, and for a book also en and every row it has.
+func editLangs(kind, lang string, texts []systemq.ItemText) []string {
+	langs := []string{lang}
+	if kind != "audiobook" {
+		return langs
+	}
+	if lang != "en" {
+		langs = append(langs, "en")
+	}
+	for _, t := range texts {
+		if !slices.Contains(langs, t.Lang) {
+			langs = append(langs, t.Lang)
+		}
+	}
+	return langs
 }
 
 // lockName is the lock of an editor field in lang.
@@ -83,10 +152,20 @@ func (s *Service) itemMetadata(ctx context.Context, it systemq.Item, lang string
 	if err != nil {
 		return nil, fmt.Errorf("list item texts: %w", err)
 	}
+	if it.Kind == "audiobook" {
+		lang = bookTextLang(it, texts, lang)
+	}
 	locks := parseLocks(it.LockedFields)
 	out := &model.AdminItemMetadata{Lang: lang, Title: it.Title, Year: nullInt(it.Year),
 		OriginalTitle: optText(it.OriginalTitle), ReleaseDate: optText(it.ReleaseDate),
 		Genres: genresIn(it.Genres, lang), Locked: []string{}, Sources: []model.MetadataSource{}}
+	if it.Kind == "audiobook" {
+		out.Author, out.Narrator, out.SeriesName = optText(it.Author), optText(it.Narrator), optText(it.SeriesName)
+		out.Publisher, out.ISBN, out.ASIN = optText(it.Publisher), optText(it.Isbn), optText(it.Asin)
+		if it.SeriesIndex.Valid {
+			out.SeriesIndex = &it.SeriesIndex.Float64
+		}
+	}
 	for _, t := range texts {
 		if t.Lang != lang {
 			continue
@@ -97,7 +176,7 @@ func (s *Service) itemMetadata(ctx context.Context, it systemq.Item, lang string
 		}
 	}
 	for _, name := range model.MetaFields {
-		if metaFields[name].lockedIn(locks, lang) {
+		if f := metaFields[name]; f.of(it.Kind) && f.lockedIn(locks, lang) {
 			out.Locked = append(out.Locked, name)
 		}
 	}
@@ -107,8 +186,11 @@ func (s *Service) itemMetadata(ctx context.Context, it systemq.Item, lang string
 	}
 	for _, name := range model.MetaFields {
 		f := metaFields[name]
-		src := f.source
-		if name == model.MetaFieldYear && !slices.Contains(out.Locked, name) {
+		if !f.of(it.Kind) {
+			continue
+		}
+		src := f.sourceFor(it.Kind)
+		if name == model.MetaFieldYear && it.Kind != "audiobook" && !slices.Contains(out.Locked, name) {
 			src = "release_date" // the fill writes the year with the release date
 		}
 		if src == "" {
@@ -147,7 +229,7 @@ func (s *Service) UpdateItemMetadata(ctx context.Context, itemID string, edit mo
 		if err := s.writeMetadataEdit(ctx, itemID, lang, edit, set); err != nil {
 			return model.AdminItem{}, err
 		}
-		s.log.InfoContext(ctx, "item metadata edited", "item_id", itemID, "lang", lang, "fields", strings.Join(set, ","),
+		s.log.InfoContext(ctx, "item metadata edited", "item_id", itemID, "kind", it.Kind, "fields", strings.Join(set, ","),
 			"unlocked", strings.Join(edit.Unlock, ","))
 	}
 	return s.GetAdminItem(ctx, itemID)
@@ -212,15 +294,44 @@ func validateMetadataEdit(kind string, edit *model.ItemMetadataEdit) ([]string, 
 		}
 		*edit.Genres = names
 	}
-	if kind != "movie" && kind != "series" {
-		for _, name := range set {
-			if metaFields[name].titleOnly {
-				verr = verr.Add(name, "invalid_value")
-			}
+	text(model.MetaFieldAuthor, edit.Author, maxMetaText, false)
+	text(model.MetaFieldNarrator, edit.Narrator, maxMetaText, false)
+	text(model.MetaFieldSeriesName, edit.SeriesName, maxMetaText, false)
+	if edit.SeriesIndex != nil {
+		set = append(set, model.MetaFieldSeriesIndex)
+		if v := *edit.SeriesIndex; v < 0 || v > maxMetaVolume || edit.SeriesName != nil && *edit.SeriesName == "" {
+			verr = verr.Add(model.MetaFieldSeriesIndex, "invalid_value")
+		}
+	} else if edit.SeriesName != nil && *edit.SeriesName == "" {
+		// No volume without a series: the empty series clears and locks it, which a lifted lock of
+		// the volume in the same request gives way to.
+		set = append(set, model.MetaFieldSeriesIndex)
+		edit.Unlock = slices.DeleteFunc(slices.Clone(edit.Unlock), func(n string) bool { return n == model.MetaFieldSeriesIndex })
+	}
+	text(model.MetaFieldPublisher, edit.Publisher, maxMetaText, false)
+	if edit.ISBN != nil {
+		set = append(set, model.MetaFieldISBN)
+		v, ok := normalISBN(*edit.ISBN)
+		if !ok {
+			verr = verr.Add(model.MetaFieldISBN, "invalid_value")
+		}
+		*edit.ISBN = v
+	}
+	if edit.ASIN != nil {
+		set = append(set, model.MetaFieldASIN)
+		v := strings.ToUpper(strings.TrimSpace(*edit.ASIN))
+		if v != "" && !asinPattern.MatchString(v) {
+			verr = verr.Add(model.MetaFieldASIN, "invalid_value")
+		}
+		*edit.ASIN = v
+	}
+	for _, name := range set {
+		if !metaFields[name].of(kind) {
+			verr = verr.Add(name, "invalid_value")
 		}
 	}
 	for _, name := range edit.Unlock {
-		if _, ok := metaFields[name]; !ok || slices.Contains(set, name) {
+		if f, ok := metaFields[name]; !ok || !f.of(kind) || slices.Contains(set, name) {
 			verr = verr.Add("unlock", "invalid_value")
 			break
 		}
@@ -231,8 +342,20 @@ func validateMetadataEdit(kind string, edit *model.ItemMetadataEdit) ([]string, 
 	return set, nil
 }
 
+var (
+	isbnPattern = regexp.MustCompile(`^(\d{9}[\dX]|\d{13})$`)
+	asinPattern = regexp.MustCompile(`^[A-Z0-9]{10}$`)
+)
+
+// normalISBN drops hyphens and spaces of an ISBN and checks that 10 or 13 digits remain (the last
+// of 10 may be X); "" stays "" (clears the field).
+func normalISBN(v string) (string, bool) {
+	v = strings.ToUpper(strings.NewReplacer("-", "", " ", "").Replace(strings.TrimSpace(v)))
+	return v, v == "" || isbnPattern.MatchString(v)
+}
+
 // writeMetadataEdit writes a validated edit in lang inside one transaction, on the item as it
-// stands in that transaction.
+// stands in that transaction. A book's texts go into each of its text rows (editLangs).
 func (s *Service) writeMetadataEdit(ctx context.Context, itemID, lang string, edit model.ItemMetadataEdit, set []string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -244,75 +367,53 @@ func (s *Service) writeMetadataEdit(ctx context.Context, itemID, lang string, ed
 	if err != nil {
 		return err
 	}
+	texts, err := q.ListItemTextsByItem(ctx, it.ID)
+	if err != nil {
+		return fmt.Errorf("list item texts: %w", err)
+	}
+	if it.Kind == "audiobook" {
+		lang = bookTextLang(it, texts, lang)
+	}
+	langs := editLangs(it.Kind, lang, texts)
 	locks := parseLocks(it.LockedFields)
 	for _, name := range set {
-		if l := metaFields[name].lockName(lang); !slices.Contains(locks, l) {
-			locks = append(locks, l)
+		f := metaFields[name]
+		for _, l := range langs {
+			if n := f.lockName(l); !slices.Contains(locks, n) {
+				locks = append(locks, n)
+			}
 		}
 	}
 	for _, name := range edit.Unlock {
 		f := metaFields[name]
 		if f.legacy && slices.Contains(locks, f.lock) {
-			// The old lock without language held every language: only lang is freed, the other
-			// languages with a stored text keep the field locked in their own name.
-			texts, err := q.ListItemTextsByItem(ctx, it.ID)
-			if err != nil {
-				return fmt.Errorf("list item texts: %w", err)
-			}
+			// The old lock without language held every language: only the edited languages are
+			// freed, the other languages with a stored text keep the field locked in their own name.
 			for _, t := range texts {
-				if l := f.lockName(t.Lang); t.Lang != lang && !slices.Contains(locks, l) {
+				if l := f.lockName(t.Lang); !slices.Contains(langs, t.Lang) && !slices.Contains(locks, l) {
 					locks = append(locks, l)
 				}
 			}
 		}
-		locks = slices.DeleteFunc(locks, func(l string) bool { return l == f.lockName(lang) || (f.legacy && l == f.lock) })
+		locks = slices.DeleteFunc(locks, func(l string) bool {
+			return (f.legacy && l == f.lock) || slices.ContainsFunc(langs, func(lang string) bool { return l == f.lockName(lang) })
+		})
 	}
-	sortLocked := metaFields[model.MetaFieldSortTitle].lockedIn(locks, lang)
 
-	// The text row of lang.
+	// The text rows of the edited languages.
 	if edit.Title != nil || edit.SortTitle != nil || edit.Tagline != nil || edit.Overview != nil ||
 		slices.Contains(edit.Unlock, model.MetaFieldSortTitle) {
-		texts, err := q.ListItemTextsByItem(ctx, it.ID)
-		if err != nil {
-			return fmt.Errorf("list item texts: %w", err)
-		}
-		row := systemq.EditItemTextParams{ItemID: it.ID, Lang: lang, Title: it.Title}
-		had := false
-		for _, t := range texts {
-			if t.Lang == lang {
-				row.Title, row.Overview, row.Tagline, row.SortKey, row.SortTitle, row.Rank, had = t.Title, t.Overview, t.Tagline, t.SortKey, t.SortTitle, t.Rank, true
+		for _, l := range langs {
+			if err := writeEditText(ctx, q, it, l, texts, edit, metaFields[model.MetaFieldSortTitle].lockedIn(locks, l)); err != nil {
+				return err
 			}
-		}
-		if !had {
-			row.Rank = int64(len(texts)) // the next match puts the row at its place in the list
-		}
-		if edit.Title != nil {
-			row.Title = *edit.Title
-		}
-		if edit.Tagline != nil {
-			row.Tagline = nullText(*edit.Tagline)
-		}
-		if edit.Overview != nil {
-			row.Overview = nullText(*edit.Overview)
-		}
-		switch {
-		case edit.SortTitle != nil:
-			// The administrator's order: folded and lower-cased like every key, no article stripped;
-			// the text stays as typed for the editor.
-			row.SortKey = sql.NullString{String: model.SortKey("", *edit.SortTitle), Valid: true}
-			row.SortTitle = sql.NullString{String: *edit.SortTitle, Valid: true}
-		case !sortLocked || !had:
-			row.SortKey = sql.NullString{String: model.SortKey(lang, row.Title), Valid: true}
-			row.SortTitle = sql.NullString{}
-		}
-		if err := q.EditItemText(ctx, row); err != nil {
-			return fmt.Errorf("write %s text: %w", lang, err)
 		}
 	}
 
 	// The columns and the locks.
 	p := systemq.EditItemColumnsParams{ID: it.ID, OriginalTitle: it.OriginalTitle, Year: it.Year, ReleaseDate: it.ReleaseDate,
-		Genres: it.Genres, Now: s.now().UnixMilli()}
+		Genres: it.Genres, Author: it.Author, Narrator: it.Narrator, SeriesName: it.SeriesName, SeriesIndex: it.SeriesIndex,
+		Publisher: it.Publisher, Isbn: it.Isbn, Asin: it.Asin, Now: s.now().UnixMilli()}
 	if edit.OriginalTitle != nil {
 		p.OriginalTitle = nullText(*edit.OriginalTitle)
 	}
@@ -323,9 +424,29 @@ func (s *Service) writeMetadataEdit(ctx context.Context, itemID, lang string, ed
 		p.ReleaseDate = nullText(*edit.ReleaseDate)
 	}
 	if edit.Genres != nil {
-		if p.Genres, err = withGenres(it.Genres, lang, *edit.Genres); err != nil {
-			return err
+		p.Genres = it.Genres
+		for _, l := range langs {
+			if p.Genres, err = withGenres(p.Genres, l, *edit.Genres); err != nil {
+				return err
+			}
 		}
+	}
+	book := func(v *string, dst *sql.NullString) {
+		if v != nil {
+			*dst = nullText(*v)
+		}
+	}
+	book(edit.Author, &p.Author)
+	book(edit.Narrator, &p.Narrator)
+	book(edit.SeriesName, &p.SeriesName)
+	book(edit.Publisher, &p.Publisher)
+	book(edit.ISBN, &p.Isbn)
+	book(edit.ASIN, &p.Asin)
+	switch {
+	case edit.SeriesIndex != nil:
+		p.SeriesIndex = sql.NullFloat64{Float64: *edit.SeriesIndex, Valid: true}
+	case slices.Contains(set, model.MetaFieldSeriesIndex):
+		p.SeriesIndex = sql.NullFloat64{} // an empty series takes its volume along
 	}
 	raw, err := json.Marshal(locks)
 	if err != nil {
@@ -339,19 +460,61 @@ func (s *Service) writeMetadataEdit(ctx context.Context, itemID, lang string, ed
 	// The provenance of what the administrator wrote goes.
 	for _, name := range set {
 		f := metaFields[name]
-		if f.source == "" {
+		src := f.sourceFor(it.Kind)
+		if src == "" {
 			continue
 		}
-		srcLang := ""
+		srcLangs := []string{""}
 		if f.text {
-			srcLang = lang
+			srcLangs = langs
 		}
-		if err := q.DeleteItemFieldSourceLang(ctx, systemq.DeleteItemFieldSourceLangParams{ItemID: it.ID, Field: f.source, Lang: srcLang}); err != nil {
-			return fmt.Errorf("delete source of %s: %w", f.source, err)
+		for _, l := range srcLangs {
+			if err := q.DeleteItemFieldSourceLang(ctx, systemq.DeleteItemFieldSourceLangParams{ItemID: it.ID, Field: src, Lang: l}); err != nil {
+				return fmt.Errorf("delete source of %s: %w", src, err)
+			}
 		}
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit: %w", err)
+	}
+	return nil
+}
+
+// writeEditText writes the edited texts into the text row of lang; sortLocked is whether the sort
+// title of lang stays locked after the edit.
+func writeEditText(ctx context.Context, q *systemq.Queries, it systemq.Item, lang string, texts []systemq.ItemText,
+	edit model.ItemMetadataEdit, sortLocked bool) error {
+	row := systemq.EditItemTextParams{ItemID: it.ID, Lang: lang, Title: it.Title}
+	had := false
+	for _, t := range texts {
+		if t.Lang == lang {
+			row.Title, row.Overview, row.Tagline, row.SortKey, row.SortTitle, row.Rank, had = t.Title, t.Overview, t.Tagline, t.SortKey, t.SortTitle, t.Rank, true
+		}
+	}
+	if !had {
+		row.Rank = int64(len(texts)) // the next match puts the row at its place in the list
+	}
+	if edit.Title != nil {
+		row.Title = *edit.Title
+	}
+	if edit.Tagline != nil {
+		row.Tagline = nullText(*edit.Tagline)
+	}
+	if edit.Overview != nil {
+		row.Overview = nullText(*edit.Overview)
+	}
+	switch {
+	case edit.SortTitle != nil:
+		// The administrator's order: folded and lower-cased like every key, no article stripped;
+		// the text stays as typed for the editor.
+		row.SortKey = sql.NullString{String: model.SortKey("", *edit.SortTitle), Valid: true}
+		row.SortTitle = sql.NullString{String: *edit.SortTitle, Valid: true}
+	case !sortLocked || !had:
+		row.SortKey = sql.NullString{String: model.SortKey(lang, row.Title), Valid: true}
+		row.SortTitle = sql.NullString{}
+	}
+	if err := q.EditItemText(ctx, row); err != nil {
+		return fmt.Errorf("write %s text: %w", lang, err)
 	}
 	return nil
 }

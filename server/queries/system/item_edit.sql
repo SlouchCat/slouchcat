@@ -13,11 +13,20 @@ SET title = excluded.title, overview = excluded.overview, tagline = excluded.tag
     sort_title = excluded.sort_title;
 
 -- name: EditItemColumns :exec
+-- The columns the editor writes; the caller passes the stored value of every field it leaves. The
+-- book fields (author to asin) are written for audiobooks only (concept 19 D5.3).
 UPDATE items
 SET original_title = @original_title,
     year           = @year,
     release_date   = @release_date,
     genres         = @genres,
+    author         = @author,
+    narrator       = @narrator,
+    series_name    = @series_name,
+    series_index   = @series_index,
+    publisher      = @publisher,
+    isbn           = @isbn,
+    asin           = @asin,
     locked_fields  = @locked_fields,
     updated_at     = @now
 WHERE id = @id;

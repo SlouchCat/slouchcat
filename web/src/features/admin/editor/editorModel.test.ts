@@ -90,11 +90,11 @@ describe('metadata editor: the draft', () => {
     const same = editField(server, emptyDraft, 'sortTitle', 'Alien');
     expect(same.changed).toEqual({ sortTitle: 'Alien' });
     expect(shownLocked(item, meta, server, same, 'sortTitle')).toBe(true);
-    expect(saveOf(same).metadata).toEqual({ sortTitle: 'Alien' });
+    expect(saveOf(same, server).metadata).toEqual({ sortTitle: 'Alien' });
     const cleared = editField(server, same, 'sortTitle', '');
     expect(cleared).toEqual(emptyDraft);
     expect(shownLocked(item, meta, server, cleared, 'sortTitle')).toBe(false);
-    expect(saveOf(cleared).metadata).toBeUndefined();
+    expect(saveOf(cleared, server).metadata).toBeUndefined();
   });
 
   it('a locked sort title shows its text; its lock lifts it', () => {
@@ -103,7 +103,7 @@ describe('metadata editor: the draft', () => {
     expect(lockedServer.sortTitle).toBe('Alien 1');
     expect(shownLocked(item, lockedMeta, lockedServer, emptyDraft, 'sortTitle')).toBe(true);
     const lifted = toggleLock(item, lockedMeta, lockedServer, emptyDraft, 'sortTitle');
-    expect(saveOf(lifted).metadata).toEqual({ unlock: ['sortTitle'] });
+    expect(saveOf(lifted, server).metadata).toEqual({ unlock: ['sortTitle'] });
   });
 
   it('the rating and the language unlock by going back to «Aus Metadaten»', () => {
@@ -123,7 +123,7 @@ describe('metadata editor: «Speichern»', () => {
     draft = editField(server, draft, 'genres', ['Horror', 'Action']);
     draft = editField(server, draft, 'rating', '16');
     draft = toggleLock(item, meta, server, draft, 'overview');
-    expect(saveOf(draft)).toEqual({
+    expect(saveOf(draft, server)).toEqual({
       metadata: {
         title: 'Alien 2',
         year: 1986,
@@ -137,10 +137,10 @@ describe('metadata editor: «Speichern»', () => {
   });
 
   it('sends "" to clear a text; nothing changed is no request', () => {
-    expect(saveOf(editField(server, emptyDraft, 'overview', '')).metadata).toEqual({
+    expect(saveOf(editField(server, emptyDraft, 'overview', ''), server).metadata).toEqual({
       overview: '',
     });
-    expect(saveOf(emptyDraft)).toEqual({
+    expect(saveOf(emptyDraft, server)).toEqual({
       metadata: undefined,
       rating: undefined,
       language: undefined,
@@ -149,13 +149,13 @@ describe('metadata editor: «Speichern»', () => {
   });
 
   it('refuses a year outside 1800 to 2200 or an empty one before sending', () => {
-    expect(saveOf(editField(server, emptyDraft, 'year', '79')).invalid).toEqual({
+    expect(saveOf(editField(server, emptyDraft, 'year', '79'), server).invalid).toEqual({
       year: 'invalid_value',
     });
-    expect(saveOf(editField(server, emptyDraft, 'year', '2300')).invalid).toEqual({
+    expect(saveOf(editField(server, emptyDraft, 'year', '2300'), server).invalid).toEqual({
       year: 'invalid_value',
     });
-    const empty = saveOf(editField(server, emptyDraft, 'year', ' '));
+    const empty = saveOf(editField(server, emptyDraft, 'year', ' '), server);
     expect(empty.invalid).toEqual({ year: 'required' });
     expect(empty.metadata).toBeUndefined();
   });
@@ -164,6 +164,116 @@ describe('metadata editor: «Speichern»', () => {
     expect(withGenre(['Horror'], ' Drama ')).toEqual(['Horror', 'Drama']);
     expect(withGenre(['Horror'], 'horror')).toEqual(['Horror']);
     expect(withGenre(['Horror'], '  ')).toEqual(['Horror']);
+  });
+});
+
+const bookMeta: AdminItemMetadata = {
+  lang: 'de',
+  title: 'Die Gefährten',
+  genres: ['Fantasy'],
+  author: 'J. R. R. Tolkien',
+  narrator: 'Achim Höppner',
+  seriesName: 'Der Herr der Ringe',
+  seriesIndex: 1,
+  isbn: '9783000000000',
+  locked: ['narrator'],
+  sources: [{ field: 'author', provider: 'local' }],
+};
+const book = {
+  id: 'book',
+  kind: 'audiobook',
+  title: 'Die Gefährten',
+  lockedFields: ['narrator'],
+  fieldSources: [],
+  metadata: bookMeta,
+} as unknown as AdminItem;
+const bookServer = serverValues(book, bookMeta);
+/** «Speichern» of a book after `changes`, one field after the other. */
+const bookSave = (changes: [keyof typeof bookServer, string][]) =>
+  saveOf(
+    changes.reduce(
+      (draft, [field, value]) => editField(bookServer, draft, field, value),
+      emptyDraft,
+    ),
+    bookServer,
+  );
+
+describe('metadata editor: an audiobook (concept 19 D5.2)', () => {
+  it('reads the book fields; a missing one is empty, the volume as text', () => {
+    expect(bookServer).toMatchObject({
+      author: 'J. R. R. Tolkien',
+      narrator: 'Achim Höppner',
+      seriesName: 'Der Herr der Ringe',
+      seriesIndex: '1',
+      publisher: '',
+      isbn: '9783000000000',
+      asin: '',
+    });
+    expect(shownLocked(book, bookMeta, bookServer, emptyDraft, 'narrator')).toBe(true);
+    expect(shownLocked(book, bookMeta, bookServer, emptyDraft, 'author')).toBe(false);
+    const changed = editField(bookServer, emptyDraft, 'author', 'Tolkien');
+    expect(shownLocked(book, bookMeta, bookServer, changed, 'author')).toBe(true);
+  });
+
+  it('sends the book fields trimmed; the volume with a point or a comma as a number', () => {
+    expect(
+      bookSave([
+        ['author', ' J.R.R. Tolkien '],
+        ['narrator', 'Gert Heidenreich'],
+        ['seriesName', 'Herr der Ringe'],
+        ['seriesIndex', '2,5'],
+        ['asin', 'b0example1'],
+      ]),
+    ).toEqual({
+      metadata: {
+        author: 'J.R.R. Tolkien',
+        narrator: 'Gert Heidenreich',
+        seriesName: 'Herr der Ringe',
+        seriesIndex: 2.5,
+        asin: 'b0example1',
+      },
+      rating: undefined,
+      language: undefined,
+      invalid: {},
+    });
+    expect(bookSave([['seriesIndex', '2']]).metadata).toEqual({ seriesIndex: 2 });
+    expect(bookSave([['seriesIndex', '0.5']]).metadata).toEqual({ seriesIndex: 0.5 });
+  });
+
+  it('refuses a volume that is no number before sending', () => {
+    for (const typed of ['zwei', '2.5.1', '-1', '10000', '2,']) {
+      const plan = bookSave([['seriesIndex', typed]]);
+      expect(plan.invalid, typed).toEqual({ seriesIndex: 'invalid_value' });
+      expect(plan.metadata, typed).toBeUndefined();
+    }
+  });
+
+  it('an emptied volume needs an emptied series; then only the series goes', () => {
+    expect(bookSave([['seriesIndex', ' ']]).invalid).toEqual({ seriesIndex: 'required' });
+    expect(
+      bookSave([
+        ['seriesName', 'Neue Reihe'],
+        ['seriesIndex', ''],
+      ]).invalid,
+    ).toEqual({ seriesIndex: 'required' });
+    expect(
+      bookSave([
+        ['seriesName', ''],
+        ['seriesIndex', ''],
+      ]),
+    ).toEqual({
+      metadata: { seriesName: '' },
+      rating: undefined,
+      language: undefined,
+      invalid: {},
+    });
+    // A volume without a series is refused, as the server would.
+    expect(
+      bookSave([
+        ['seriesName', ' '],
+        ['seriesIndex', '3'],
+      ]).invalid,
+    ).toEqual({ seriesIndex: 'invalid_value' });
   });
 });
 

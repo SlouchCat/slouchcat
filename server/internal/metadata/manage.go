@@ -159,7 +159,8 @@ func (s *Service) AssignMatch(ctx context.Context, itemID, provider, providerID 
 // Refresh re-runs the enrichment of a title: metadata.match at priority 7 (images and trailers
 // follow from the match) and probe.file (key probe:<fileId>, priority 3) for every media file of
 // the item. A matched episode is set pending first, because its match job skips matched
-// episodes; a season refreshes its series. Locked fields stay. Errors: model.ErrNotFound.
+// episodes; a season refreshes its series; an audiobook gets the probes only, which read its files
+// again (library.finishAudiobook, then image.fetch). Locked fields stay. Errors: model.ErrNotFound.
 func (s *Service) Refresh(ctx context.Context, itemID string) error {
 	item, err := s.liveItem(ctx, itemID)
 	if err != nil {
@@ -176,8 +177,10 @@ func (s *Service) Refresh(ctx context.Context, itemID string) error {
 	case item.Kind == "season" && item.ParentID.Valid:
 		target = item.ParentID.String
 	}
-	if err := s.enqueueManualMatch(ctx, target); err != nil {
-		return fmt.Errorf("refresh %s: %w", item.ID, err)
+	if item.Kind != "audiobook" {
+		if err := s.enqueueManualMatch(ctx, target); err != nil {
+			return fmt.Errorf("refresh %s: %w", item.ID, err)
+		}
 	}
 	files, err := s.read.ListMediaFileIDsByItem(ctx, item.ID)
 	if err != nil {

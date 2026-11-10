@@ -13,8 +13,8 @@ interface EditorDialogProps {
   subtitle?: ReactNode;
   /** The small picture before the heading (a poster or a still), decorative. */
   imageUrl?: string;
-  /** Shape of that picture. */
-  imageShape?: 'portrait' | 'landscape';
+  /** Shape of that picture; `square` for the cover of an audiobook. */
+  imageShape?: 'portrait' | 'landscape' | 'square';
   /** A link next to the heading («In der Verwaltung öffnen»). */
   link?: ReactNode;
   closeLabel: string;

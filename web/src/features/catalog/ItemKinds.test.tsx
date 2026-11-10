@@ -493,6 +493,13 @@ describe('detail page: audiobook, podcast, podcast episode (M6)', () => {
     ).toHaveAttribute('href', `/play/${audioIds.book}?at=55000`);
   });
 
+  it('audiobook: the pen on the cover instead of the link «Verwalten» (concept 19 D5.1)', async () => {
+    mockApi({ ...signedIn, [`GET /items/${audioIds.book}`]: () => json(audiobookDetail) });
+    renderApp(`/items/${audioIds.book}`);
+    expect(await screen.findByRole('button', { name: 'Metadaten bearbeiten' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Verwalten' })).not.toBeInTheDocument();
+  });
+
   it('audiobook: the volume is a number of the UI language', async () => {
     mockApi({
       ...signedIn,

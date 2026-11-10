@@ -43,11 +43,26 @@ const PAGE = 40;
 /** Every provider or language in the filters. */
 const ALL = '*';
 
-/** The name of a kind; the backdrop of an episode is its still. */
+/** The name of a kind; the backdrop of an episode is its still, the poster of a book its cover. */
 const kindName = (t: TFunction, item: AdminItem, kind: ImageKind) =>
   item.kind === 'episode' && kind === 'backdrop'
     ? t('admin.editor.images.kindName.still')
-    : t(`admin.metadata.images.kind.${kind}`);
+    : item.kind === 'audiobook' && kind === 'poster'
+      ? t('admin.editor.images.kindName.cover')
+      : t(`admin.metadata.images.kind.${kind}`);
+
+/**
+ * The first line of a book's candidate: the file name of a folder image (`file:<path>?<version>`),
+ * «Eingebettetes Bild» for the picture in the file; undefined for a provider's.
+ */
+function bookLabel(t: TFunction, c: ImageCandidate): string | undefined {
+  if (c.provider === 'embedded') return t('admin.editor.images.embedded');
+  if (c.provider !== 'local' || !c.source.startsWith('file:')) return undefined;
+  const path = c.source.slice('file:'.length);
+  const version = path.lastIndexOf('?');
+  const file = version < 0 ? path : path.slice(0, version);
+  return file.slice(file.lastIndexOf('/') + 1);
+}
 
 /** «gewählt · gesperrt», «automatisch · TMDB» or «fehlt». */
 function stateOf(t: TFunction, image: AdminItemImage | undefined): string {
@@ -211,8 +226,9 @@ function KindPanel({
   const list = candidates.data?.candidates ?? [];
   const facets = candidateFacets(list);
   const filtered = filterCandidates(list, filter);
+  const book = item.kind === 'audiobook';
   const tiles: ImageCandidateTile[] = filtered.slice(0, shown).map((c) => {
-    const lang = languageLabel(t, i18n.language, c.lang);
+    const lang = (book ? bookLabel(t, c) : undefined) ?? languageLabel(t, i18n.language, c.lang);
     const detail = candidateDetail(t, i18n.language, c);
     return {
       id: `${c.provider}|${c.source}`,
@@ -234,7 +250,7 @@ function KindPanel({
       ? t('admin.editor.images.own')
       : undefined;
   const busy = choose.isPending || clear.isPending || upload.isPending;
-  const shape = kind === 'poster' ? 'portrait' : 'landscape';
+  const shape = book ? 'square' : kind === 'poster' ? 'portrait' : 'landscape';
 
   return (
     <>
@@ -306,7 +322,7 @@ function KindPanel({
 
       <section className={styles.stack} aria-labelledby={candidatesId}>
         <h3 id={candidatesId} className={styles.sectionTitle}>
-          {t('admin.editor.images.candidates')}
+          {book ? t('admin.editor.images.candidatesBook') : t('admin.editor.images.candidates')}
         </h3>
         {candidates.isPending && <Skeleton shape="block" />}
         {candidates.isError && <Notice tone="danger">{problemMessage(t, candidates.error)}</Notice>}
@@ -334,21 +350,24 @@ function KindPanel({
                   ...facets.providers.map((p) => ({ value: p, label: providerLabel(t, p) })),
                 ]}
               />
-              <SelectField
-                label={t('admin.editor.images.filter.lang')}
-                value={filter.lang ?? ALL}
-                onChange={(value) => {
-                  setFilter({ ...filter, lang: value === ALL ? null : value });
-                  setShown(PAGE);
-                }}
-                options={[
-                  { value: ALL, label: t('admin.editor.images.filter.all') },
-                  ...facets.langs.map((l) => ({
-                    value: l,
-                    label: languageLabel(t, i18n.language, l),
-                  })),
-                ]}
-              />
+              {/* A book's covers carry no language. */}
+              {!book && (
+                <SelectField
+                  label={t('admin.editor.images.filter.lang')}
+                  value={filter.lang ?? ALL}
+                  onChange={(value) => {
+                    setFilter({ ...filter, lang: value === ALL ? null : value });
+                    setShown(PAGE);
+                  }}
+                  options={[
+                    { value: ALL, label: t('admin.editor.images.filter.all') },
+                    ...facets.langs.map((l) => ({
+                      value: l,
+                      label: languageLabel(t, i18n.language, l),
+                    })),
+                  ]}
+                />
+              )}
               <Text tone="secondary" variant="caption">
                 {t('admin.editor.images.count', { count: filtered.length })}
               </Text>

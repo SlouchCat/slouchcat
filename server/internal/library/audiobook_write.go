@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
@@ -95,7 +96,9 @@ func (w *batchWriter) audiobookItem(ctx context.Context, info fileInfo) (string,
 	if _, err := w.q.InsertAudiobook(ctx, systemq.InsertAudiobookParams{
 		ID: id, LibraryID: w.lib.ID, Title: title, SortTitle: SortTitle(title), Year: nullYear(m.year), Genres: genres,
 		Author: nullString(m.author), Narrator: nullString(m.narrator), SeriesName: nullString(m.series),
-		SeriesIndex: nullVolume(m.volume), Explicit: boolInt(m.explicit), CoverPath: nullString(m.cover),
+		SeriesIndex: nullVolume(m.volume), Publisher: nullString(m.publisher), Isbn: nullString(m.isbn),
+		Asin: nullString(m.asin), OriginalLanguage: nullString(m.originalLanguage()),
+		Explicit: boolInt(m.explicit), CoverPath: nullString(m.cover),
 		OwnRating: rating, RatingSource: source, Now: sql.NullInt64{Int64: w.ms, Valid: true},
 	}); err != nil {
 		return "", fmt.Errorf("insert audiobook: %w", err)
@@ -234,12 +237,17 @@ func hasCover(p *transcode.Probe) bool {
 }
 
 // writeBook writes chapters, duration, metadata, texts and cover of a book whose parts are all
-// probed, and queues image.fetch when it has a cover.
+// probed, and queues image.fetch when it has a cover. A field the editor or an older writer locked
+// keeps its value (bookLocks); every value it takes from the files gets the provenance local
+// (concept 19 D5.3: «Datei» in the editor).
 func (s *Service) writeBook(ctx context.Context, q *systemq.Queries, item systemq.Item, lib appq.Library, parts []bookPart, meta bookMeta) error {
-	locked := lockedSet(item.LockedFields)
+	locked := bookLocks(lockedSet(item.LockedFields))
 	title, sortTitle := item.Title, item.SortTitle
-	if !locked["title"] && meta.title != "" {
+	if !locked.anyText("title") && meta.title != "" {
 		title, sortTitle = meta.title, SortTitle(meta.title)
+	}
+	if locked.anyText("sort_title") {
+		sortTitle = item.SortTitle
 	}
 	probed := make([]bookPart, 0, len(parts))
 	var duration int64
@@ -263,23 +271,32 @@ func (s *Service) writeBook(ctx context.Context, q *systemq.Queries, item system
 
 	p := systemq.UpdateAudiobookParams{
 		ID: item.ID, Title: title, SortTitle: sortTitle, Year: item.Year, Genres: item.Genres, Author: item.Author,
-		Narrator: item.Narrator, SeriesName: item.SeriesName, SeriesIndex: item.SeriesIndex, Explicit: boolInt(meta.explicit),
+		Narrator: item.Narrator, SeriesName: item.SeriesName, SeriesIndex: item.SeriesIndex, Publisher: item.Publisher,
+		Isbn: item.Isbn, Asin: item.Asin, OriginalLanguage: item.OriginalLanguage, Explicit: boolInt(meta.explicit),
 		CoverPath: nullString(meta.cover), OwnRating: item.OwnRating, RatingSource: item.RatingSource,
 		DurationMs: sql.NullInt64{Int64: duration, Valid: len(probed) > 0}, Now: s.now().UnixMilli(),
 	}
+	var fromFiles []string // the fields (without language) the files wrote
 	set := func(field string, value string, dst *sql.NullString) {
 		if !locked[field] && value != "" {
 			*dst = nullString(value)
+			fromFiles = append(fromFiles, field)
 		}
 	}
 	set("author", meta.author, &p.Author)
 	set("narrator", meta.narrator, &p.Narrator)
 	set("series_name", meta.series, &p.SeriesName)
+	set("publisher", meta.publisher, &p.Publisher)
+	set("isbn", meta.isbn, &p.Isbn)
+	set("asin", meta.asin, &p.Asin)
+	set(fieldOriginalLanguage, meta.originalLanguage(), &p.OriginalLanguage)
 	if !locked["series_index"] && meta.volume != nil {
 		p.SeriesIndex = nullVolume(meta.volume)
+		fromFiles = append(fromFiles, "series_index")
 	}
 	if !locked["year"] && meta.year > 0 {
 		p.Year = nullYear(meta.year)
+		fromFiles = append(fromFiles, "year")
 	}
 	if !locked["genres"] && len(meta.genres) > 0 {
 		g, err := genresJSON(meta.genres)
@@ -287,6 +304,7 @@ func (s *Service) writeBook(ctx context.Context, q *systemq.Queries, item system
 			return err
 		}
 		p.Genres = g
+		fromFiles = append(fromFiles, "genres")
 	}
 	switch src := item.RatingSource.String; {
 	case locked["own_rating"] || (src != "" && src != "library" && src != "tags"):
@@ -296,8 +314,24 @@ func (s *Service) writeBook(ctx context.Context, q *systemq.Queries, item system
 	if err := q.UpdateAudiobook(ctx, p); err != nil {
 		return fmt.Errorf("update audiobook: %w", err)
 	}
-	if err := writeBookText(ctx, q, item.ID, title, meta, locked); err != nil {
+	// The language of the text rows: the original language the administrator locked, when it is
+	// one of them, else the one of the files (writeBookText adds en).
+	if l := p.OriginalLanguage.String; locked[fieldOriginalLanguage] && (l == "de" || l == "en") {
+		meta.lang = l
+	}
+	texts, err := writeBookText(ctx, q, item.ID, title, meta, locked)
+	if err != nil {
 		return err
+	}
+	for _, field := range fromFiles {
+		if err := q.UpsertItemFieldSource(ctx, systemq.UpsertItemFieldSourceParams{ItemID: item.ID, Field: field, Provider: model.ProviderLocal}); err != nil {
+			return fmt.Errorf("store source of %s: %w", field, err)
+		}
+	}
+	for _, t := range texts {
+		if err := q.UpsertItemFieldSource(ctx, systemq.UpsertItemFieldSourceParams{ItemID: item.ID, Field: t.field, Lang: t.lang, Provider: model.ProviderLocal}); err != nil {
+			return fmt.Errorf("store source of %s:%s: %w", t.field, t.lang, err)
+		}
 	}
 	if meta.cover != "" {
 		return enqueueTx(ctx, q, s.now(), imageJob(item.ID))
@@ -305,42 +339,92 @@ func (s *Service) writeBook(ctx context.Context, q *systemq.Queries, item system
 	return nil
 }
 
+// fieldOriginalLanguage is the column, lock and provenance field of the original language.
+const fieldOriginalLanguage = "original_language"
+
+// originalLanguage is the original language of a book: the one metadata.json names, else the
+// language of its texts (de when nothing names one).
+func (m bookMeta) originalLanguage() string {
+	if m.origLang != "" {
+		return m.origLang
+	}
+	return m.lang
+}
+
+// bookLocks are the locks of a book (items.locked_fields). The editor locks a text field per
+// language (title:de, overview:en, tagline:de, sort_title:de; concept 15 7.5), older writers
+// without language (title, overview, tagline); both keep the scan away (concept 19 D5.3).
+type bookLocks map[string]bool
+
+// text reports whether a text field is locked in lang.
+func (l bookLocks) text(field, lang string) bool {
+	return l[field] || l[model.TextLockName(field, lang)]
+}
+
+// anyText reports whether a text field is locked in any language.
+func (l bookLocks) anyText(field string) bool {
+	if l[field] {
+		return true
+	}
+	for name := range l {
+		if strings.HasPrefix(name, field+":") {
+			return true
+		}
+	}
+	return false
+}
+
+// textSource is a text field of one language whose value came from the files.
+type textSource struct{ field, lang string }
+
 // writeBookText stores the title, description and subtitle of a book in its language and, for a
 // book in another language, in English as well: English is the fallback of every profile language
 // (visibility.pickTexts), so an English profile sees a German book's description. Locked texts
-// keep the stored value.
-func writeBookText(ctx context.Context, q *systemq.Queries, itemID, title string, meta bookMeta, locked map[string]bool) error {
+// keep the stored value. It returns the texts it took from the files.
+func writeBookText(ctx context.Context, q *systemq.Queries, itemID, title string, meta bookMeta, locked bookLocks) ([]textSource, error) {
 	texts, err := q.ListItemTextsByItem(ctx, itemID)
 	if err != nil {
-		return fmt.Errorf("list audiobook texts: %w", err)
+		return nil, fmt.Errorf("list audiobook texts: %w", err)
 	}
 	langs := []string{meta.lang}
 	if meta.lang != "en" {
 		langs = append(langs, "en")
 	}
+	var out []textSource
 	for _, lang := range langs {
 		p := systemq.UpsertItemTextParams{ItemID: itemID, Lang: lang, Title: title,
 			Overview: nullString(meta.description), Tagline: nullString(meta.subtitle)}
+		titleKept, overviewKept, taglineKept := locked.text("title", lang), locked.text("overview", lang) || meta.description == "",
+			locked.text("tagline", lang) || meta.subtitle == ""
 		for _, t := range texts {
 			if t.Lang != lang {
 				continue
 			}
-			if locked["title"] {
+			if titleKept {
 				p.Title = t.Title
 			}
-			if locked["overview"] || meta.description == "" {
+			if overviewKept {
 				p.Overview = t.Overview
 			}
-			if locked["tagline"] || meta.subtitle == "" {
+			if taglineKept {
 				p.Tagline = t.Tagline
 			}
 		}
 		p.SortKey = sortKey(lang, p.Title)
 		if err := q.UpsertItemText(ctx, p); err != nil {
-			return fmt.Errorf("store audiobook text: %w", err)
+			return nil, fmt.Errorf("store audiobook text: %w", err)
+		}
+		if !titleKept && meta.title != "" {
+			out = append(out, textSource{"title", lang})
+		}
+		if !overviewKept {
+			out = append(out, textSource{"overview", lang})
+		}
+		if !taglineKept {
+			out = append(out, textSource{"tagline", lang})
 		}
 	}
-	return nil
+	return out, nil
 }
 
 // lockedSet parses items.locked_fields (a JSON array of column names).

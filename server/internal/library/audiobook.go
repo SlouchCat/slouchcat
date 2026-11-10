@@ -14,6 +14,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/slouchcat/slouchcat/server/internal/trackpick"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
 
@@ -50,6 +51,9 @@ type bookMeta struct {
 	year             int
 	description      string
 	lang             string // de or en (metadata.json), empty when unknown
+	origLang         string // ISO 639-1 code of the book's language (metadata.json), empty when unknown
+	publisher        string
+	isbn, asin       string
 	genres           []string
 	explicit         bool
 	cover            string // rel path of the folder image below the root
@@ -73,6 +77,10 @@ func mergeBook(layers ...bookMeta) bookMeta {
 	m.series = first(func(l bookMeta) string { return l.series })
 	m.description = first(func(l bookMeta) string { return l.description })
 	m.lang = first(func(l bookMeta) string { return l.lang })
+	m.origLang = first(func(l bookMeta) string { return l.origLang })
+	m.publisher = first(func(l bookMeta) string { return l.publisher })
+	m.isbn = first(func(l bookMeta) string { return l.isbn })
+	m.asin = first(func(l bookMeta) string { return l.asin })
 	m.cover = first(func(l bookMeta) string { return l.cover })
 	for _, l := range layers {
 		if m.volume == nil && l.volume != nil {
@@ -138,6 +146,9 @@ func tagMeta(tags map[string]string, multi bool) bookMeta {
 		narrator:    firstTag("composer"),
 		series:      firstTag("show", "series", "mvnm"),
 		description: firstTag("description", "comment"),
+		publisher:   firstTag("publisher", "PUBLISHER", "label"),
+		isbn:        firstTag("isbn", "ISBN"),
+		asin:        firstTag("asin", "ASIN", "AUDIBLE_ASIN"),
 	}
 	if multi {
 		m.title = firstTag("album")
@@ -181,6 +192,9 @@ type absMeta struct {
 	PublishedYear json.RawMessage   `json:"publishedYear"`
 	Genres        []json.RawMessage `json:"genres"`
 	Language      string            `json:"language"`
+	Publisher     string            `json:"publisher"`
+	ISBN          string            `json:"isbn"`
+	ASIN          string            `json:"asin"`
 	Explicit      json.RawMessage   `json:"explicit"`
 	Metadata      *absMeta          `json:"metadata"`
 }
@@ -200,6 +214,8 @@ func jsonMeta(data []byte) (bookMeta, bool) {
 	m := bookMeta{
 		title: strings.TrimSpace(raw.Title), subtitle: strings.TrimSpace(raw.Subtitle),
 		description: strings.TrimSpace(raw.Description), lang: language(raw.Language),
+		origLang: originalLanguage(raw.Language), publisher: strings.TrimSpace(raw.Publisher),
+		isbn: strings.TrimSpace(raw.ISBN), asin: strings.TrimSpace(raw.ASIN),
 		author: joinNames(raw.Authors), narrator: joinNames(raw.Narrators),
 	}
 	for _, g := range raw.Genres {
@@ -272,6 +288,15 @@ func language(s string) string {
 		return "de"
 	case "en", "eng", "english", "englisch":
 		return "en"
+	}
+	return ""
+}
+
+// originalLanguage maps the language of metadata.json onto an ISO 639-1 code ("German" and "ger"
+// → "de", "fr" → "fr"): the original language of the book (concept 19 D5.3); "" for none.
+func originalLanguage(s string) string {
+	if code := trackpick.Normalize(s); trackpick.Valid(code) {
+		return code
 	}
 	return ""
 }

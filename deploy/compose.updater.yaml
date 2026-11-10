@@ -15,7 +15,7 @@
 # updater replaces the official ones and keeps a copy as <file>.bak-vor-<version>.
 services:
   updater:
-    image: ghcr.io/slouchcat/slouchcat-updater:${SLOUCHCAT_UPDATER_VERSION:-1.23.3}
+    image: ghcr.io/slouchcat/slouchcat-updater:${SLOUCHCAT_UPDATER_VERSION:-1.24.0}
     build:
       context: ..
       dockerfile: deploy/Dockerfile.updater

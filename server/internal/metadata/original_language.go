@@ -374,10 +374,11 @@ func (s *Service) originalLanguageItem(ctx context.Context, item systemq.Item, c
 	return out, nil
 }
 
-// SetItemOriginalLanguage is the administrator's original language of a movie or series
-// (setItemOriginalLanguage): a code or "" (unknown) is stored and locked, its provenance row goes
-// (the value is the administrator's); nil lifts the lock, clears the value to NULL and queues a
-// manual match, which looks the language up again. Errors: model.ErrNotFound,
+// SetItemOriginalLanguage is the administrator's original language of a movie, series or
+// audiobook (setItemOriginalLanguage; audiobooks since contract 1.24.0): a code or "" (unknown) is
+// stored and locked, its provenance row goes (the value is the administrator's); nil lifts the
+// lock, clears the value to NULL and queues a manual match, which looks the language up again (a
+// book: the probes of its parts, which read its files again). Errors: model.ErrNotFound,
 // *model.ValidationError (language invalid_value, kind invalid_value).
 func (s *Service) SetItemOriginalLanguage(ctx context.Context, itemID string, lang *string) error {
 	if lang != nil && !ValidOriginalLanguage(*lang) {
@@ -388,7 +389,7 @@ func (s *Service) SetItemOriginalLanguage(ctx context.Context, itemID string, la
 	if err != nil {
 		return err
 	}
-	if item.Kind != "movie" && item.Kind != "series" {
+	if item.Kind != "movie" && item.Kind != "series" && item.Kind != "audiobook" {
 		var v *model.ValidationError
 		return v.Add("kind", "invalid_value")
 	}
@@ -409,8 +410,11 @@ func (s *Service) SetItemOriginalLanguage(ctx context.Context, itemID string, la
 		return fmt.Errorf("set original language of %s: %w", item.ID, err)
 	}
 	s.log.Info("original language set by the admin", "item_id", item.ID, "locked", lang != nil)
-	if lang != nil {
+	switch {
+	case lang != nil:
 		return nil
+	case item.Kind == "audiobook":
+		return s.Refresh(ctx, item.ID)
 	}
 	return s.enqueueManualMatch(ctx, item.ID)
 }

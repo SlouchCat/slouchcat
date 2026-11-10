@@ -28,12 +28,17 @@ interface MetadataEditorProps {
   onClose: () => void;
 }
 
-/** The small picture of the head: the poster, the still of an episode. */
+/** The small picture of the head: the poster, the still of an episode, the square cover of a book. */
 function headImage(item: AdminItem) {
   const kind = item.kind === 'episode' ? 'backdrop' : 'poster';
   return {
     url: item.images?.find((image) => image.kind === kind)?.previewUrl,
-    shape: item.kind === 'episode' ? ('landscape' as const) : ('portrait' as const),
+    shape:
+      item.kind === 'episode'
+        ? ('landscape' as const)
+        : item.kind === 'audiobook'
+          ? ('square' as const)
+          : ('portrait' as const),
   };
 }
 
@@ -52,7 +57,8 @@ export function MetadataEditor({ itemId, onClose }: MetadataEditorProps) {
   const item = useQuery(adminItemQuery(itemId));
   // The pen sits on browsing pages, which hold this list already.
   const libraries = useQuery(visibleLibrariesQuery);
-  const [tab, setTab] = useState('images');
+  // Unset until the reader picks a tab: a book starts on «Metadaten», every other title on «Bilder».
+  const [picked, setTab] = useState<string | null>(null);
   const [message, setMessage] = useStatusMessage();
   const [draft, setDraft] = useState<EditorDraft>(emptyDraft);
   const [discarding, setDiscarding] = useState(false);
@@ -98,6 +104,44 @@ export function MetadataEditor({ itemId, onClose }: MetadataEditorProps) {
 
   const library = libraries.data?.find((entry) => entry.id === data.libraryId)?.name;
   const image = headImage(data);
+  // A book (concept 19 D5.2): «Metadaten», «Cover», «Aktualisieren»; books have no «Zuordnen».
+  const book = data.kind === 'audiobook';
+  const tab = picked ?? (book && data.metadata ? 'metadata' : 'images');
+  const imagesTab = {
+    id: 'images',
+    label: book ? t('admin.editor.tabs.cover') : t('admin.editor.tabs.images'),
+    content: <ImagesEditorTab item={data} onChanged={adopt} />,
+  };
+  const metadataTab = data.metadata
+    ? [
+        {
+          id: 'metadata',
+          label: t('admin.editor.tabs.metadata'),
+          // A dot while there are unsaved changes, so they show from every tab.
+          ...(dirty
+            ? {
+                count: t('admin.item.tabs.unsavedMark'),
+                countLabel: t('admin.item.rating.unsaved'),
+                tone: 'warning' as const,
+              }
+            : {}),
+          content: (
+            <MetadataEditorTab
+              item={data}
+              meta={data.metadata}
+              draft={draft}
+              onDraftChange={setDraft}
+              onChanged={adopt}
+            />
+          ),
+        },
+      ]
+    : [];
+  const refreshTab = {
+    id: 'refresh',
+    label: t('admin.editor.tabs.refresh'),
+    content: <RefreshTab item={data} onChanged={adopt} />,
+  };
   return (
     <EditorDialog
       // `title` is the item row; an edited title lives in the server language's text.
@@ -130,48 +174,20 @@ export function MetadataEditor({ itemId, onClose }: MetadataEditorProps) {
           label={t('admin.editor.tabs.label')}
           selectedKey={tab}
           onSelectionChange={setTab}
-          tabs={[
-            {
-              id: 'images',
-              label: t('admin.editor.tabs.images'),
-              content: <ImagesEditorTab item={data} onChanged={adopt} />,
-            },
-            ...(data.metadata
-              ? [
+          tabs={
+            book
+              ? [...metadataTab, imagesTab, refreshTab]
+              : [
+                  imagesTab,
+                  ...metadataTab,
                   {
-                    id: 'metadata',
-                    label: t('admin.editor.tabs.metadata'),
-                    // A dot while there are unsaved changes, so they show from every tab.
-                    ...(dirty
-                      ? {
-                          count: t('admin.item.tabs.unsavedMark'),
-                          countLabel: t('admin.item.rating.unsaved'),
-                          tone: 'warning' as const,
-                        }
-                      : {}),
-                    content: (
-                      <MetadataEditorTab
-                        item={data}
-                        meta={data.metadata}
-                        draft={draft}
-                        onDraftChange={setDraft}
-                        onChanged={adopt}
-                      />
-                    ),
+                    id: 'match',
+                    label: t('admin.editor.tabs.match'),
+                    content: <MatchTab item={data} onChanged={adopt} />,
                   },
+                  refreshTab,
                 ]
-              : []),
-            {
-              id: 'match',
-              label: t('admin.editor.tabs.match'),
-              content: <MatchTab item={data} onChanged={adopt} />,
-            },
-            {
-              id: 'refresh',
-              label: t('admin.editor.tabs.refresh'),
-              content: <RefreshTab item={data} onChanged={adopt} />,
-            },
-          ]}
+          }
         />
       </div>
     </EditorDialog>

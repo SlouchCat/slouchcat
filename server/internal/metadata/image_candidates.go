@@ -39,12 +39,14 @@ const (
 
 // choosableKinds are the kinds the administrator can choose or upload per item kind (7.3): the
 // episode still (kind backdrop, concept 15 7.5) only while the setting "episode stills" is on for
-// the title's library (switchedOn); lifting a lock works either way.
+// the title's library (switchedOn); lifting a lock works either way. The poster of an audiobook is
+// its square cover (concept 19 D5.3, book_covers.go).
 var choosableKinds = map[string][]string{
-	"movie":   {"poster", "backdrop", "logo"},
-	"series":  {"poster", "backdrop", "logo"},
-	"season":  {"poster"},
-	"episode": {"backdrop"},
+	"movie":     {"poster", "backdrop", "logo"},
+	"series":    {"poster", "backdrop", "logo"},
+	"season":    {"poster"},
+	"episode":   {"backdrop"},
+	"audiobook": {"poster"},
 }
 
 type candidateEntry struct {
@@ -183,13 +185,31 @@ func (s *Service) markChosen(ctx context.Context, itemID, kind string, list mode
 		return model.ImageCandidateList{}, fmt.Errorf("image candidates of %s: %w", itemID, err)
 	}
 	out := model.ImageCandidateList{Candidates: slices.Clone(list.Candidates), Unavailable: list.Unavailable}
+	decided := false
 	for _, r := range rows {
 		if r.Kind != kind {
 			continue
 		}
+		decided = true
 		for i := range out.Candidates {
 			c := &out.Candidates[i]
 			c.Chosen = c.Provider == r.Provider && c.Source == r.Source
+		}
+	}
+	if !decided {
+		// A book without choice shows the cover of its files as the current one.
+		item, err := s.read.GetItemSystem(ctx, itemID)
+		if err != nil {
+			return model.ImageCandidateList{}, fmt.Errorf("image candidates of %s: %w", itemID, err)
+		}
+		if item.Kind == "audiobook" && !lockedFields(item.LockedFields)[kind] {
+			cur, ok, err := s.bookCurrentCover(ctx, item)
+			if err != nil {
+				return model.ImageCandidateList{}, err
+			}
+			for i := range out.Candidates {
+				out.Candidates[i].Chosen = ok && out.Candidates[i].Source == cur.Source
+			}
 		}
 	}
 	return out, nil
@@ -197,6 +217,9 @@ func (s *Service) markChosen(ctx context.Context, itemID, kind string, list mode
 
 // collectCandidates asks every source of the title for the kind.
 func (s *Service) collectCandidates(ctx context.Context, item systemq.Item, kind string) (model.ImageCandidateList, error) {
+	if item.Kind == "audiobook" {
+		return s.bookCoverCandidates(ctx, item)
+	}
 	out := model.ImageCandidateList{Candidates: []model.ImageCandidate{}, Unavailable: []string{}}
 	settings, err := s.Effective(ctx, item.LibraryID)
 	if err != nil {
@@ -555,6 +578,16 @@ func (s *Service) ItemImages(ctx context.Context, itemID string) ([]model.AdminI
 	for _, kind := range choosableKinds[item.Kind] {
 		r, ok := byKind[kind]
 		if !ok && !locked[kind] {
+			if item.Kind == "audiobook" {
+				// No choice: the cover of the book's files.
+				cur, found, err := s.bookCurrentCover(ctx, item)
+				if err != nil {
+					return nil, err
+				}
+				if found {
+					out = append(out, cur)
+				}
+			}
 			continue
 		}
 		img := model.AdminItemImage{Kind: kind, Locked: locked[kind]}
@@ -595,7 +628,8 @@ func (s *Service) storedPreviews(ctx context.Context, itemID string) (map[string
 // address of the preview handler).
 func (s *Service) previewOf(provider, source string) string {
 	switch {
-	case provider == ImageSourceLocal || strings.HasPrefix(source, coverFilePrefix):
+	case provider == ImageSourceLocal || provider == ImageSourceEmbedded || strings.HasPrefix(source, coverFilePrefix) ||
+		strings.HasPrefix(source, coverEmbeddedPrefix):
 		return ""
 	case strings.HasPrefix(source, "/"):
 		if strings.HasSuffix(strings.ToLower(source), ".svg") {
@@ -616,6 +650,9 @@ func (s *Service) LocalImagePreview(ctx context.Context, itemID, source string) 
 	item, err := s.liveItem(ctx, itemID)
 	if err != nil {
 		return model.StreamSource{}, err
+	}
+	if item.Kind == "audiobook" {
+		return s.bookCoverPreview(ctx, item, source)
 	}
 	rows, err := s.read.ListItemLocalImages(ctx, item.ID)
 	if err != nil {

@@ -1295,6 +1295,7 @@
       "tabs": {
         "label": "Parts of the editor",
         "images": "Images",
+        "cover": "Cover",
         "metadata": "Metadata",
         "match": "Match",
         "refresh": "Refresh"
@@ -1302,7 +1303,8 @@
       "images": {
         "kinds": "Image kind",
         "kindName": {
-          "still": "Episode still"
+          "still": "Episode still",
+          "cover": "Cover"
         },
         "state": {
           "auto": "automatic · {{provider}}",
@@ -1313,6 +1315,7 @@
         "current": "Current: {{source}}",
         "currentNone": "Current: no image",
         "own": "own image",
+        "embedded": "Embedded picture",
         "upload": {
           "action": "Upload own image",
           "hint": "JPEG, PNG or WebP up to 20 MB. The server derives the sizes itself and never fetches an uploaded image again.",
@@ -1328,6 +1331,7 @@
         },
         "automatic": "Back to automatic",
         "candidates": "Suggestions of the providers",
+        "candidatesBook": "Images in the folder and in the files",
         "filter": {
           "provider": "Provider",
           "lang": "Language",
@@ -1343,6 +1347,7 @@
       "metadata": {
         "intro": "What you change here locks the field: «Refresh» no longer overwrites it. The lock lifts the lock again.",
         "lang": "Texts apply to the language {{language}}; the server keeps fetching the other languages from the providers.",
+        "langBook": "Texts apply to every language row of the book.",
         "field": {
           "title": "Title",
           "originalTitle": "Original title",
@@ -1350,12 +1355,21 @@
           "year": "Year",
           "releaseDate": "Release date",
           "tagline": "Tagline",
+          "subtitle": "Subtitle",
           "overview": "Overview",
           "genres": "Genres",
           "rating": "Age rating",
-          "language": "Original language"
+          "language": "Original language",
+          "author": "Author",
+          "narrator": "Narrator",
+          "seriesName": "Series",
+          "seriesIndex": "Volume",
+          "publisher": "Publisher",
+          "isbn": "ISBN",
+          "asin": "ASIN"
         },
         "source": "from {{provider}}",
+        "fromFiles": "from the files",
         "manual": "by hand",
         "lock": {
           "label": "Lock {{field}}",
@@ -1380,7 +1394,13 @@
         "unlockAll": "Lift every lock of this title first",
         "unlockAllHint": "Afterwards what the providers deliver applies again. A manual match and an own rating stay.",
         "run": "Refresh now",
-        "hint": "Runs as a job with high priority; the new values appear once it is done."
+        "hint": "Runs as a job with high priority; the new values appear once it is done.",
+        "book": {
+          "body": "«Read the files again» reads metadata.json, the tags and the folder names once more. Locked fields and a chosen cover stay.",
+          "unlockAll": "Lift locks",
+          "unlockAllHint": "Lift every lock of this book first: afterwards what the files say applies again. An own rating stays.",
+          "run": "Read the files again"
+        }
       }
     },
     "libraries": {
@@ -1803,9 +1823,17 @@
           "overview": "Overview",
           "tagline": "Tagline",
           "original_title": "Original title",
+          "author": "Author",
+          "narrator": "Narrator",
+          "series_name": "Series",
+          "series_index": "Volume",
+          "publisher": "Publisher",
+          "isbn": "ISBN",
+          "asin": "ASIN",
           "genres": "Genres",
           "runtime_minutes": "Runtime",
           "release_date": "Release date",
+          "year": "Year",
           "own_rating": "Rating",
           "poster": "Poster",
           "backdrop": "Backdrop",
@@ -1926,6 +1954,7 @@
         "unlocked": "Lock of {{kind}} lifted; the automatic choice runs.",
         "provider": {
           "local": "Local file",
+          "embedded": "Embedded",
           "tmdb": "TMDB",
           "tvdb": "TVDB",
           "anilist": "AniList",

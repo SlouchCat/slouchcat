@@ -32,9 +32,16 @@ SET original_title = ?1,
     year           = ?2,
     release_date   = ?3,
     genres         = ?4,
-    locked_fields  = ?5,
-    updated_at     = ?6
-WHERE id = ?7
+    author         = ?5,
+    narrator       = ?6,
+    series_name    = ?7,
+    series_index   = ?8,
+    publisher      = ?9,
+    isbn           = ?10,
+    asin           = ?11,
+    locked_fields  = ?12,
+    updated_at     = ?13
+WHERE id = ?14
 `
 
 type EditItemColumnsParams struct {
@@ -42,17 +49,33 @@ type EditItemColumnsParams struct {
 	Year          sql.NullInt64
 	ReleaseDate   sql.NullString
 	Genres        string
+	Author        sql.NullString
+	Narrator      sql.NullString
+	SeriesName    sql.NullString
+	SeriesIndex   sql.NullFloat64
+	Publisher     sql.NullString
+	Isbn          sql.NullString
+	Asin          sql.NullString
 	LockedFields  string
 	Now           int64
 	ID            string
 }
 
+// The columns the editor writes; the caller passes the stored value of every field it leaves. The
+// book fields (author to asin) are written for audiobooks only (concept 19 D5.3).
 func (q *Queries) EditItemColumns(ctx context.Context, arg EditItemColumnsParams) error {
 	_, err := q.db.ExecContext(ctx, editItemColumns,
 		arg.OriginalTitle,
 		arg.Year,
 		arg.ReleaseDate,
 		arg.Genres,
+		arg.Author,
+		arg.Narrator,
+		arg.SeriesName,
+		arg.SeriesIndex,
+		arg.Publisher,
+		arg.Isbn,
+		arg.Asin,
 		arg.LockedFields,
 		arg.Now,
 		arg.ID,

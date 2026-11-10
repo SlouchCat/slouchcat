@@ -27,9 +27,9 @@ const LANGUAGE_LOCK = 'original_language';
 export const languageChoiceOf = (item: AdminItem): string =>
   item.lockedFields.includes(LANGUAGE_LOCK) ? (item.originalLanguage ?? '') : FROM_METADATA;
 
-/** The original language can be set for films and series only. */
+/** The original language can be set for films, series and audiobooks (the book's language). */
 export const hasOriginalLanguage = (item: AdminItem): boolean =>
-  item.kind === 'movie' || item.kind === 'series';
+  item.kind === 'movie' || item.kind === 'series' || item.kind === 'audiobook';
 
 /** Withdrawn ISO 639-1 codes the server refuses (trackpick.Valid); iw is in LANGUAGE_CODES. */
 const WITHDRAWN = new Set(['in', 'ji', 'jw', 'mo', 'sh']);

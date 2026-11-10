@@ -294,3 +294,11 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   (Stichtag 9. November 2026, 12:00 UTC). Dann `store.Dump`, keine neuen Pfade im Stand.
   `TestFrozenTrickplayAusStateCoversThePatch` prüft, dass jede dieser Datenarten vorhanden ist;
   `TestMigration00043TrickplayOff` prüft den Schritt von `trickplay.sql` aus.
+- `hoerbuch-bleistift.sql`: Stand nach Stufe D1 des Konzepts 19 «Bleistift für Hörbücher» (Migration 00044 mit
+  `items.publisher`, `items.isbn`, `items.asin`; Hörbücher mit `unsupported_kind` wieder `matched`, Originalsprache aus
+  den Textzeilen). Erzeugt am 10. November 2026 aus `trickplay-aus.sql`: Stand eingespielt, mit `store.Open` migriert,
+  dann per SQL zwei Hörbücher der Bibliothek «Hörbücher»: ein deutsches mit dem Bleistift bearbeitet (beide Textzeilen
+  mit Schloss je Sprache, Autor und Band gesperrt, Verlag, ISBN, ASIN, gewähltes Ordnerbild als Cover) und ein
+  englisches aus den Dateien mit eingebettetem Cover; Herkunft `local` je Feld. Stichtag 10. November 2026, 12:00 UTC.
+  Dann `store.Dump`, keine neuen Pfade im Stand. `TestFrozenHoerbuchBleistiftStateCoversTheStage` prüft, dass jede
+  dieser Datenarten vorhanden ist; `TestMigration00044AudiobookFields` prüft den Schritt von `trickplay-aus.sql` aus.

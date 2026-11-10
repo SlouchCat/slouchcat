@@ -46,6 +46,10 @@
   aspect-ratio: 16 / 9;
 }
 
+.grid[data-shape='square'] .frame {
+  aspect-ratio: 1 / 1;
+}
+
 .image {
   width: 100%;
   height: 100%;
@@ -53,6 +57,7 @@
 }
 
 .label {
+  overflow-wrap: anywhere;
   display: flex;
   flex-wrap: wrap;
   gap: var(--sc-space-1);

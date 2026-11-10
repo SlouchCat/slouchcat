@@ -322,6 +322,9 @@ type Item struct {
 	FilledProviders   sql.NullString
 	VoteAverage       sql.NullFloat64
 	OriginalLanguage  sql.NullString
+	Publisher         sql.NullString
+	Isbn              sql.NullString
+	Asin              sql.NullString
 }
 
 type ItemFieldSource struct {
