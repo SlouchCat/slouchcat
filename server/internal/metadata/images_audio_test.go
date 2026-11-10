@@ -286,17 +286,17 @@ func TestImageConfigWebP(t *testing.T) {
 	}
 }
 
-// An audiobook or a podcast has no kind to choose or upload: AdminItem.imageKinds is an empty
-// list, not missing (contract 1.15.0).
+// A podcast has no kind to choose or upload: AdminItem.imageKinds is an empty list, not missing
+// (contract 1.15.0; an audiobook has its cover since 1.24.0, TestBookCoverChoice).
 func TestChoosableImageKindsAudio(t *testing.T) {
 	t.Parallel()
 	e := audioEnv(t, t.TempDir())
-	e.addAudio(t, idBookFolder, "audiobook", 3, nil, nil, nil)
-	kinds, err := e.svc.ChoosableImageKinds(context.Background(), idBookFolder)
+	e.addAudio(t, idPodcast, "podcast", 4, nil, nil, nil)
+	kinds, err := e.svc.ChoosableImageKinds(context.Background(), idPodcast)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if b, err := json.Marshal(kinds); err != nil || string(b) != "[]" {
-		t.Fatalf("image kinds of an audiobook %s (%v), want []", b, err)
+		t.Fatalf("image kinds of a podcast %s (%v), want []", b, err)
 	}
 }

@@ -398,3 +398,12 @@ SELECT id FROM libraries ORDER BY id;
 -- name: SetItemLockedFields :exec
 -- The administrator's lock of a kind (setItemImage, clearItemImage; concept 10 6.3).
 UPDATE items SET locked_fields = @locked_fields, updated_at = @now WHERE id = @id;
+
+-- name: CountForeignMediaFilesInDir :one
+-- The present media files of other titles directly in the folder @dir of a root: an audiobook's
+-- folder images are its cover candidates only while no other title's file lies beside its parts
+-- (concept 19 D5.3).
+SELECT count(*) FROM media_files
+WHERE root_id = @root_id AND item_id <> @item_id AND missing_since IS NULL
+  AND substr(rel_path, 1, length(CAST(@dir AS TEXT)) + 1) = CAST(@dir AS TEXT) || '/'
+  AND instr(substr(rel_path, length(CAST(@dir AS TEXT)) + 2), '/') = 0;

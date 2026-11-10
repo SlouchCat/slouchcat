@@ -229,11 +229,13 @@ func (s *Service) fetchImages(ctx context.Context, itemID string) error {
 			continue
 		}
 		src := imageRequest{provider: ImageSourceCover}
-		if audioKinds[item.Kind] {
+		switch {
+		case audioKinds[item.Kind] && (!hasRow || row.Chosen != 1):
+			// The cover of the files; a book's chosen cover (concept 19 D5.3) is fetched below.
 			if src.url, err = s.coverSource(ctx, item); err != nil {
 				return fmt.Errorf("image.fetch %s cover: %w", item.ID, err)
 			}
-		} else if hasRow {
+		case hasRow:
 			src = s.imageSource(item, row)
 		}
 		if src.url == "" {
@@ -284,7 +286,7 @@ func (s *Service) imageSource(item systemq.Item, row systemq.ItemImage) imageReq
 			src = src[:len(src)-4] + ".png"
 		}
 		out.url = s.client.imageURL(originalSize, src)
-	case strings.HasPrefix(src, coverFilePrefix):
+	case strings.HasPrefix(src, coverFilePrefix), strings.HasPrefix(src, coverEmbeddedPrefix):
 		out.url = src
 	case strings.HasPrefix(src, s.tvdb.artBase+"/"), s.anilist.imageURL(src), s.fanart.assetURL(src):
 		out.url = src

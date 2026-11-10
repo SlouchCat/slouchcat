@@ -49,6 +49,29 @@ func (q *Queries) AssignItemMatch(ctx context.Context, arg AssignItemMatchParams
 	return err
 }
 
+const countForeignMediaFilesInDir = `-- name: CountForeignMediaFilesInDir :one
+SELECT count(*) FROM media_files
+WHERE root_id = ?1 AND item_id <> ?2 AND missing_since IS NULL
+  AND substr(rel_path, 1, length(CAST(?3 AS TEXT)) + 1) = CAST(?3 AS TEXT) || '/'
+  AND instr(substr(rel_path, length(CAST(?3 AS TEXT)) + 2), '/') = 0
+`
+
+type CountForeignMediaFilesInDirParams struct {
+	RootID int64
+	ItemID string
+	Dir    string
+}
+
+// The present media files of other titles directly in the folder @dir of a root: an audiobook's
+// folder images are its cover candidates only while no other title's file lies beside its parts
+// (concept 19 D5.3).
+func (q *Queries) CountForeignMediaFilesInDir(ctx context.Context, arg CountForeignMediaFilesInDirParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countForeignMediaFilesInDir, arg.RootID, arg.ItemID, arg.Dir)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countItemsForMetadataApply = `-- name: CountItemsForMetadataApply :one
 SELECT count(*) FROM items
 WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
