@@ -7,11 +7,11 @@
 -- with the probe), the age rating of the library (rating_source 'library', or 18 from 'tags' for
 -- an explicit book). Audiobooks need no provider match: metadata_state is 'matched' at once.
 INSERT INTO items (id, kind, library_id, title, sort_title, year, genres, author, narrator, series_name,
-                   series_index, explicit, cover_path, own_rating, rating_source, providers, metadata_state,
-                   matched_at, added_at, created_at, updated_at)
+                   series_index, publisher, isbn, asin, original_language, explicit, cover_path, own_rating,
+                   rating_source, providers, metadata_state, matched_at, added_at, created_at, updated_at)
 VALUES (@id, 'audiobook', @library_id, @title, @sort_title, @year, @genres, @author, @narrator, @series_name,
-        @series_index, @explicit, @cover_path, @own_rating, @rating_source, '["local"]', 'matched', @now,
-        @now, @now, @now)
+        @series_index, @publisher, @isbn, @asin, @original_language, @explicit, @cover_path, @own_rating,
+        @rating_source, '["local"]', 'matched', @now, @now, @now, @now)
 RETURNING *;
 
 -- name: UpdateAudiobook :exec
@@ -19,7 +19,8 @@ RETURNING *;
 -- names). The caller keeps locked fields and manual ratings by passing the stored values.
 UPDATE items
 SET title = @title, sort_title = @sort_title, year = @year, genres = @genres, author = @author,
-    narrator = @narrator, series_name = @series_name, series_index = @series_index, explicit = @explicit,
+    narrator = @narrator, series_name = @series_name, series_index = @series_index, publisher = @publisher,
+    isbn = @isbn, asin = @asin, original_language = @original_language, explicit = @explicit,
     cover_path = @cover_path, own_rating = @own_rating, rating_source = @rating_source,
     duration_ms = @duration_ms, updated_at = @now
 WHERE id = @id;

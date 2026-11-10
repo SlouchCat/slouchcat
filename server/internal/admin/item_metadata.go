@@ -312,7 +312,8 @@ func (s *Service) writeMetadataEdit(ctx context.Context, itemID, lang string, ed
 
 	// The columns and the locks.
 	p := systemq.EditItemColumnsParams{ID: it.ID, OriginalTitle: it.OriginalTitle, Year: it.Year, ReleaseDate: it.ReleaseDate,
-		Genres: it.Genres, Now: s.now().UnixMilli()}
+		Genres: it.Genres, Author: it.Author, Narrator: it.Narrator, SeriesName: it.SeriesName, SeriesIndex: it.SeriesIndex,
+		Publisher: it.Publisher, Isbn: it.Isbn, Asin: it.Asin, Now: s.now().UnixMilli()}
 	if edit.OriginalTitle != nil {
 		p.OriginalTitle = nullText(*edit.OriginalTitle)
 	}

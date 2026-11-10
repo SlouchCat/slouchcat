@@ -39,30 +39,34 @@ func (q *Queries) GetItemCoverRoot(ctx context.Context, itemID string) (string, 
 const insertAudiobook = `-- name: InsertAudiobook :one
 
 INSERT INTO items (id, kind, library_id, title, sort_title, year, genres, author, narrator, series_name,
-                   series_index, explicit, cover_path, own_rating, rating_source, providers, metadata_state,
-                   matched_at, added_at, created_at, updated_at)
+                   series_index, publisher, isbn, asin, original_language, explicit, cover_path, own_rating,
+                   rating_source, providers, metadata_state, matched_at, added_at, created_at, updated_at)
 VALUES (?1, 'audiobook', ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
-        ?10, ?11, ?12, ?13, ?14, '["local"]', 'matched', ?15,
-        ?15, ?15, ?15)
-RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language
+        ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17,
+        ?18, '["local"]', 'matched', ?19, ?19, ?19, ?19)
+RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin
 `
 
 type InsertAudiobookParams struct {
-	ID           string
-	LibraryID    int64
-	Title        string
-	SortTitle    string
-	Year         sql.NullInt64
-	Genres       string
-	Author       sql.NullString
-	Narrator     sql.NullString
-	SeriesName   sql.NullString
-	SeriesIndex  sql.NullFloat64
-	Explicit     int64
-	CoverPath    sql.NullString
-	OwnRating    sql.NullInt64
-	RatingSource sql.NullString
-	Now          sql.NullInt64
+	ID               string
+	LibraryID        int64
+	Title            string
+	SortTitle        string
+	Year             sql.NullInt64
+	Genres           string
+	Author           sql.NullString
+	Narrator         sql.NullString
+	SeriesName       sql.NullString
+	SeriesIndex      sql.NullFloat64
+	Publisher        sql.NullString
+	Isbn             sql.NullString
+	Asin             sql.NullString
+	OriginalLanguage sql.NullString
+	Explicit         int64
+	CoverPath        sql.NullString
+	OwnRating        sql.NullInt64
+	RatingSource     sql.NullString
+	Now              sql.NullInt64
 }
 
 // Unfiltered audiobook queries of the scanner and the probe job (package store/systemq, M6 design
@@ -83,6 +87,10 @@ func (q *Queries) InsertAudiobook(ctx context.Context, arg InsertAudiobookParams
 		arg.Narrator,
 		arg.SeriesName,
 		arg.SeriesIndex,
+		arg.Publisher,
+		arg.Isbn,
+		arg.Asin,
+		arg.OriginalLanguage,
 		arg.Explicit,
 		arg.CoverPath,
 		arg.OwnRating,
@@ -152,6 +160,9 @@ func (q *Queries) InsertAudiobook(ctx context.Context, arg InsertAudiobookParams
 		&i.FilledProviders,
 		&i.VoteAverage,
 		&i.OriginalLanguage,
+		&i.Publisher,
+		&i.Isbn,
+		&i.Asin,
 	)
 	return i, err
 }
@@ -259,28 +270,33 @@ func (q *Queries) SetMediaFilePartIndex(ctx context.Context, arg SetMediaFilePar
 const updateAudiobook = `-- name: UpdateAudiobook :exec
 UPDATE items
 SET title = ?1, sort_title = ?2, year = ?3, genres = ?4, author = ?5,
-    narrator = ?6, series_name = ?7, series_index = ?8, explicit = ?9,
-    cover_path = ?10, own_rating = ?11, rating_source = ?12,
-    duration_ms = ?13, updated_at = ?14
-WHERE id = ?15
+    narrator = ?6, series_name = ?7, series_index = ?8, publisher = ?9,
+    isbn = ?10, asin = ?11, original_language = ?12, explicit = ?13,
+    cover_path = ?14, own_rating = ?15, rating_source = ?16,
+    duration_ms = ?17, updated_at = ?18
+WHERE id = ?19
 `
 
 type UpdateAudiobookParams struct {
-	Title        string
-	SortTitle    string
-	Year         sql.NullInt64
-	Genres       string
-	Author       sql.NullString
-	Narrator     sql.NullString
-	SeriesName   sql.NullString
-	SeriesIndex  sql.NullFloat64
-	Explicit     int64
-	CoverPath    sql.NullString
-	OwnRating    sql.NullInt64
-	RatingSource sql.NullString
-	DurationMs   sql.NullInt64
-	Now          int64
-	ID           string
+	Title            string
+	SortTitle        string
+	Year             sql.NullInt64
+	Genres           string
+	Author           sql.NullString
+	Narrator         sql.NullString
+	SeriesName       sql.NullString
+	SeriesIndex      sql.NullFloat64
+	Publisher        sql.NullString
+	Isbn             sql.NullString
+	Asin             sql.NullString
+	OriginalLanguage sql.NullString
+	Explicit         int64
+	CoverPath        sql.NullString
+	OwnRating        sql.NullInt64
+	RatingSource     sql.NullString
+	DurationMs       sql.NullInt64
+	Now              int64
+	ID               string
 }
 
 // The metadata of a book recomputed after its parts were probed (metadata.json > tags > folder
@@ -295,6 +311,10 @@ func (q *Queries) UpdateAudiobook(ctx context.Context, arg UpdateAudiobookParams
 		arg.Narrator,
 		arg.SeriesName,
 		arg.SeriesIndex,
+		arg.Publisher,
+		arg.Isbn,
+		arg.Asin,
+		arg.OriginalLanguage,
 		arg.Explicit,
 		arg.CoverPath,
 		arg.OwnRating,
