@@ -3881,7 +3881,8 @@ paths:
         series, poster for seasons, backdrop (the TMDB stills) for episodes while the setting "episode
         stills" is on (since contract 1.15.0, `AdminItem.imageKinds`); another kind is 422. Since contract
         1.24.0 the square cover of an audiobook (kind `poster`, concept 19 D5.3): every image in the book's
-        folder (provider `local`, the folder of its parts when no other book's file lies there) and the
+        folder (provider `local`; the folder of its parts as the scan counts it: parts of other formats own it,
+        an .m4b only without another title's file beside it) and the
         picture embedded in the first part that has one (provider `embedded`).
       tags: [admin]
       x-visibility: admin

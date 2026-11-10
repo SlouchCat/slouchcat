@@ -84,9 +84,13 @@ func (f metaFieldInfo) sourceFor(kind string) string {
 	return f.source
 }
 
-// bookTextLang is the language of a book's texts the editor shows (D5.3): de with a German text
-// row, else en with an English one, else the server's language.
-func bookTextLang(texts []systemq.ItemText, serverLang string) string {
+// bookTextLang is the language of a book's texts the editor shows (D5.3): a locked original
+// language de or en (the row the scan writes, library.writeBook), else de with a German text row,
+// else en with an English one, else the server's language.
+func bookTextLang(it systemq.Item, texts []systemq.ItemText, serverLang string) string {
+	if l := it.OriginalLanguage.String; (l == "de" || l == "en") && slices.Contains(parseLocks(it.LockedFields), "original_language") {
+		return l
+	}
 	has := func(lang string) bool {
 		return slices.ContainsFunc(texts, func(t systemq.ItemText) bool { return t.Lang == lang })
 	}
@@ -149,7 +153,7 @@ func (s *Service) itemMetadata(ctx context.Context, it systemq.Item, lang string
 		return nil, fmt.Errorf("list item texts: %w", err)
 	}
 	if it.Kind == "audiobook" {
-		lang = bookTextLang(texts, lang)
+		lang = bookTextLang(it, texts, lang)
 	}
 	locks := parseLocks(it.LockedFields)
 	out := &model.AdminItemMetadata{Lang: lang, Title: it.Title, Year: nullInt(it.Year),
@@ -299,7 +303,10 @@ func validateMetadataEdit(kind string, edit *model.ItemMetadataEdit) ([]string, 
 			verr = verr.Add(model.MetaFieldSeriesIndex, "invalid_value")
 		}
 	} else if edit.SeriesName != nil && *edit.SeriesName == "" {
-		set = append(set, model.MetaFieldSeriesIndex) // no volume without a series
+		// No volume without a series: the empty series clears and locks it, which a lifted lock of
+		// the volume in the same request gives way to.
+		set = append(set, model.MetaFieldSeriesIndex)
+		edit.Unlock = slices.DeleteFunc(slices.Clone(edit.Unlock), func(n string) bool { return n == model.MetaFieldSeriesIndex })
 	}
 	text(model.MetaFieldPublisher, edit.Publisher, maxMetaText, false)
 	if edit.ISBN != nil {
@@ -365,7 +372,7 @@ func (s *Service) writeMetadataEdit(ctx context.Context, itemID, lang string, ed
 		return fmt.Errorf("list item texts: %w", err)
 	}
 	if it.Kind == "audiobook" {
-		lang = bookTextLang(texts, lang)
+		lang = bookTextLang(it, texts, lang)
 	}
 	langs := editLangs(it.Kind, lang, texts)
 	locks := parseLocks(it.LockedFields)

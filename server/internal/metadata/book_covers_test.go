@@ -149,7 +149,8 @@ func TestBookCoverChoice(t *testing.T) {
 		t.Fatalf("item images %+v (%v), want the cover of the files", imgs, err)
 	}
 
-	// Another title's file in the folder: the folder images are no longer the book's.
+	// Another title's file beside the .m4b: the folder images are no longer the book's (the scan's
+	// rule; parts of other formats own their folder).
 	e.addAudio(t, idBookEmbedded, "audiobook", 3, nil, nil, nil)
 	e.addMediaFile(t, "01JTESTFILE0000000000000CW", idBookEmbedded, "Autorin/Buch/zweites.m4b")
 	list, err = e.svc.ImageCandidates(ctx, idBookFolder, "poster", true)

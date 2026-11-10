@@ -75,6 +75,10 @@ func TestAudiobookMetadataOverHTTP(t *testing.T) {
 			t.Errorf("%.12s %.60s: %d %s, want 422 %s", tc.id, tc.body, rec.Code, rec.Body.String(), tc.want)
 		}
 	}
+	// A lifted lock of the volume gives way to an empty series, which clears and locks it.
+	if it := patch(`{"seriesName":"","unlock":["seriesIndex"]}`); !slices.Contains(it.LockedFields, "series_index") || it.Metadata.SeriesIndex != nil {
+		t.Errorf("empty series with the volume unlocked: locks %v, metadata %+v", it.LockedFields, it.Metadata)
+	}
 	if it := patch(`{"isbn":"3-00-000000-x","asin":""}`); deref(it.Metadata.Isbn) != "300000000X" || it.Metadata.Asin != nil {
 		t.Errorf("ISBN-10 and an empty ASIN: %+v", it.Metadata)
 	}

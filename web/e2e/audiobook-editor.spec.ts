@@ -125,6 +125,8 @@ test('PD-1: author, narrator, series and volume change, save, lock and show on t
   owner,
 }) => {
   const before = await bookMetadata(owner, m4b);
+  // The generated M4B carries all four fields, so the restore below writes each of them back.
+  for (const name of BOOK_FIELDS) expect(before[name], name).toBeDefined();
   try {
     await openFromLibrary(page, owner, M4B_TITLE);
     const panel = dialog(page, M4B_TITLE).getByRole('tabpanel');
@@ -193,7 +195,8 @@ test('PD-1: author, narrator, series and volume change, save, lock and show on t
       data: Object.fromEntries(BOOK_FIELDS.map((name) => [name, before[name]])),
     });
     expect(restore.status(), await restore.text()).toBe(200);
-    await owner.patch(path, { headers: CSRF, data: { unlock: [...BOOK_FIELDS] } });
+    const unlock = await owner.patch(path, { headers: CSRF, data: { unlock: [...BOOK_FIELDS] } });
+    expect(unlock.status(), await unlock.text()).toBe(200);
   }
 });
 

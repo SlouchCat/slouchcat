@@ -48,4 +48,21 @@ func TestBookEditWritesEveryTextRow(t *testing.T) {
 	if err != nil || it.Metadata == nil || it.Metadata.Lang != "de" || it.Metadata.Title != title {
 		t.Fatalf("metadata %+v (%v)", it.Metadata, err)
 	}
+
+	// An English book has only its en row: the editor shows it in en and writes only that row; a
+	// locked original language de decides the row it shows.
+	english := m.f.Audio.Books[1].ID
+	m.exec(t, `DELETE FROM item_texts WHERE item_id = ? AND lang = 'de'`, english)
+	if _, err := m.svc.UpdateItemMetadata(m.ctx, english, model.ItemMetadataEdit{Title: &title}); err != nil {
+		t.Fatal(err)
+	}
+	var langs string
+	if err := m.f.DB.Read.QueryRowContext(m.ctx, `SELECT group_concat(lang || '=' || title, ',') FROM item_texts WHERE item_id = ?`, english).Scan(&langs); err != nil ||
+		langs != "en=Neuer Titel" {
+		t.Errorf("text rows of the English book %q (%v)", langs, err)
+	}
+	m.exec(t, `UPDATE items SET original_language = 'de', locked_fields = '["original_language"]' WHERE id = ?`, english)
+	if it, err := m.svc.GetAdminItem(m.ctx, english); err != nil || it.Metadata == nil || it.Metadata.Lang != "de" {
+		t.Errorf("language with a locked original language de: %+v (%v)", it.Metadata, err)
+	}
 }

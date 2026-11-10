@@ -60,7 +60,7 @@ func (s *Service) bookCoverCandidates(ctx context.Context, item systemq.Item) (m
 	if err != nil {
 		return out, fmt.Errorf("cover candidates of %s: parts: %w", item.ID, err)
 	}
-	images, root, err := s.bookFolderImages(ctx, item, parts)
+	images, root, err := s.bookFolderImages(ctx, item, parts, true)
 	if err != nil {
 		return out, err
 	}
@@ -79,9 +79,10 @@ func (s *Service) bookCoverCandidates(ctx context.Context, item systemq.Item) (m
 }
 
 // bookFolderImages reads the images in the folder of a book's parts through its library root (rule
-// 4) and returns them with the open root (the caller closes it); none for a book directly in the
-// root or in a folder shared with another title.
-func (s *Service) bookFolderImages(ctx context.Context, item systemq.Item, parts []systemq.MediaFile) ([]bookImage, *os.Root, error) {
+// 4) and returns them with the open root (the caller closes it); dims reads the dimensions from the
+// head of each file. None for a book directly in the root, or for an .m4b book in a folder with
+// another title's file (the scan's rule, library.bookFiles: parts of other formats own their folder).
+func (s *Service) bookFolderImages(ctx context.Context, item systemq.Item, parts []systemq.MediaFile, dims bool) ([]bookImage, *os.Root, error) {
 	if len(parts) == 0 {
 		return nil, nil, nil
 	}
@@ -89,13 +90,15 @@ func (s *Service) bookFolderImages(ctx context.Context, item systemq.Item, parts
 	if dir == "." {
 		return nil, nil, nil
 	}
-	foreign, err := s.read.CountForeignMediaFilesInDir(ctx, systemq.CountForeignMediaFilesInDirParams{
-		RootID: parts[0].RootID, ItemID: item.ID, Dir: dir})
-	if err != nil {
-		return nil, nil, fmt.Errorf("cover candidates of %s: folder: %w", item.ID, err)
-	}
-	if foreign > 0 {
-		return nil, nil, nil
+	if strings.EqualFold(path.Ext(parts[0].RelPath), ".m4b") {
+		foreign, err := s.read.CountForeignMediaFilesInDir(ctx, systemq.CountForeignMediaFilesInDirParams{
+			RootID: parts[0].RootID, ItemID: item.ID, Dir: dir})
+		if err != nil {
+			return nil, nil, fmt.Errorf("cover candidates of %s: folder: %w", item.ID, err)
+		}
+		if foreign > 0 {
+			return nil, nil, nil
+		}
 	}
 	rootPath, err := s.read.GetLibraryRootPath(ctx, parts[0].RootID)
 	if err != nil {
@@ -126,11 +129,13 @@ func (s *Service) bookFolderImages(ctx context.Context, item systemq.Item, parts
 			continue
 		}
 		img := bookImage{rel: rel, size: fi.Size(), mtime: fi.ModTime().UnixMilli()}
-		if f, err := root.Open(rel); err == nil {
-			head, _ := io.ReadAll(io.LimitReader(f, maxCoverHeader))
-			_ = f.Close()
-			if cfg, err := imageConfig(head, mediaType); err == nil {
-				img.width, img.height = cfg.Width, cfg.Height
+		if dims {
+			if f, err := root.Open(rel); err == nil {
+				head, _ := io.ReadAll(io.LimitReader(f, maxCoverHeader))
+				_ = f.Close()
+				if cfg, err := imageConfig(head, mediaType); err == nil {
+					img.width, img.height = cfg.Width, cfg.Height
+				}
 			}
 		}
 		out = append(out, img)
@@ -198,7 +203,7 @@ func (s *Service) bookCoverPreview(ctx context.Context, item systemq.Item, sourc
 		return model.StreamSource{File: nopSeekCloser{bytes.NewReader(data)}, MediaType: mediaType, Size: int64(len(data)),
 			ModTime: time.UnixMilli(mf.Mtime), Name: "embedded cover preview"}, nil
 	case strings.HasPrefix(source, coverFilePrefix):
-		images, root, err := s.bookFolderImages(ctx, item, parts)
+		images, root, err := s.bookFolderImages(ctx, item, parts, false)
 		if err != nil {
 			return model.StreamSource{}, err
 		}
