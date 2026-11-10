@@ -286,6 +286,23 @@
     "submitting": "Signing in …"
   },
   "library": {
+    "groups": {
+      "title": "Series and collections",
+      "series_one": "{{count}} series",
+      "series_other": "{{count}} series",
+      "collections_one": "{{count}} collection",
+      "collections_other": "{{count}} collections",
+      "volumes_one": "{{count}} book",
+      "volumes_other": "{{count}} books",
+      "matchingVolumes_one": "{{matching}} of {{count}} book",
+      "matchingVolumes_other": "{{matching}} of {{count}} books",
+      "books_one": "{{count}} audiobook",
+      "books_other": "{{count}} audiobooks",
+      "matchingBooks_one": "{{matching}} of {{count}} audiobook",
+      "matchingBooks_other": "{{matching}} of {{count}} audiobooks",
+      "collection": "Collection",
+      "heard": "{{completed}} of {{count}} heard"
+    },
     "editMetadata": "{{title}}: edit metadata",
     "kind": {
       "video": "Video",
@@ -4783,6 +4800,41 @@
         "kind": "Programme",
         "language": "Language"
       }
+    }
+  },
+  "audioSeries": {
+    "kicker": "Series",
+    "narratedBy": "read by {{narrator}}",
+    "volumes_one": "{{count}} book",
+    "volumes_other": "{{count}} books",
+    "continue": "Continue: book {{volume, number}}",
+    "continueTitle": "Continue: {{title}}",
+    "edit": "Edit series",
+    "list": "Books",
+    "number": "{{value, number}}",
+    "volumeLabel": "Book {{volume, number}}: {{title}}",
+    "play": "Play: {{title}}",
+    "left": "{{left}} left",
+    "hint": {
+      "title": "Admins only",
+      "spellings": "The files name this series in several ways: {{names}}. Slouchcat shows it as one series.",
+      "spelling_one": "“{{name}}” ({{count}} book)",
+      "spelling_other": "“{{name}}” ({{count}} books)",
+      "duplicates": "These numbers appear more than once: {{volumes}}. The books differ by narrator; change a wrong number on the book.",
+      "dismiss": "Got it"
+    },
+    "notFound": {
+      "title": "Series not found",
+      "body": "This series does not exist, or it has fewer than two books for this profile.",
+      "action": "To the library"
+    },
+    "dialog": {
+      "title": "Edit series",
+      "name": "Series name",
+      "nameHint": "Changes the displayed name and locks it; the books stay as they are.",
+      "options": "Books",
+      "writeToVolumes": "Write to all books",
+      "writeToVolumesHint": "Sets the name as the series of every book and locks it. Series with the same name become one."
     }
   }
 }

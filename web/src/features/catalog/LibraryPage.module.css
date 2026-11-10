@@ -113,3 +113,9 @@
     max-height: calc(100dvh - var(--sc-size-header-height) - var(--sc-space-8));
   }
 }
+
+/* The row «Reihen und Sammlungen» (concept 19 D4.2): a start page row, which brings its own
+   gutters, so it reaches the edges of the page as there. */
+.groups {
+  margin-inline: calc(-1 * var(--page-gutter));
+}

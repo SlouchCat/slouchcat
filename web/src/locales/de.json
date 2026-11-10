@@ -286,6 +286,23 @@
     "submitting": "Wird angemeldet …"
   },
   "library": {
+    "groups": {
+      "title": "Reihen und Sammlungen",
+      "series_one": "{{count}} Reihe",
+      "series_other": "{{count}} Reihen",
+      "collections_one": "{{count}} Sammlung",
+      "collections_other": "{{count}} Sammlungen",
+      "volumes_one": "{{count}} Band",
+      "volumes_other": "{{count}} Bände",
+      "matchingVolumes_one": "{{matching}} von {{count}} Band",
+      "matchingVolumes_other": "{{matching}} von {{count}} Bänden",
+      "books_one": "{{count}} Hörbuch",
+      "books_other": "{{count}} Hörbücher",
+      "matchingBooks_one": "{{matching}} von {{count}} Hörbuch",
+      "matchingBooks_other": "{{matching}} von {{count}} Hörbüchern",
+      "collection": "Sammlung",
+      "heard": "{{completed}} von {{count}} gehört"
+    },
     "editMetadata": "{{title}}: Metadaten bearbeiten",
     "kind": {
       "video": "Video",
@@ -4783,6 +4800,41 @@
         "kind": "Sendeart",
         "language": "Sprache"
       }
+    }
+  },
+  "audioSeries": {
+    "kicker": "Reihe",
+    "narratedBy": "gelesen von {{narrator}}",
+    "volumes_one": "{{count}} Band",
+    "volumes_other": "{{count}} Bände",
+    "continue": "Weiterhören: Band {{volume, number}}",
+    "continueTitle": "Weiterhören: {{title}}",
+    "edit": "Reihe bearbeiten",
+    "list": "Bände",
+    "number": "{{value, number}}",
+    "volumeLabel": "Band {{volume, number}}: {{title}}",
+    "play": "Abspielen: {{title}}",
+    "left": "noch {{left}}",
+    "hint": {
+      "title": "Nur für Admins",
+      "spellings": "Diese Reihe steht in den Dateien unter mehreren Namen: {{names}}. Slouchcat zeigt sie als eine Reihe.",
+      "spelling_one": "«{{name}}» ({{count}} Band)",
+      "spelling_other": "«{{name}}» ({{count}} Bände)",
+      "duplicates": "Diese Nummern kommen mehrfach vor: {{volumes}}. Die Bände unterscheiden sich durch den Sprecher; eine falsche Nummer änderst du am Band.",
+      "dismiss": "Verstanden"
+    },
+    "notFound": {
+      "title": "Reihe nicht gefunden",
+      "body": "Diese Reihe gibt es nicht, oder sie hat für dieses Profil weniger als zwei Bände.",
+      "action": "Zur Bibliothek"
+    },
+    "dialog": {
+      "title": "Reihe bearbeiten",
+      "name": "Name der Reihe",
+      "nameHint": "Ändert den angezeigten Namen und sperrt ihn; die Bände bleiben, wie sie sind.",
+      "options": "Bände",
+      "writeToVolumes": "In alle Bände schreiben",
+      "writeToVolumesHint": "Setzt den Namen als Reihe jedes Bandes und sperrt ihn. Reihen mit demselben Namen werden so zu einer."
     }
   }
 }
