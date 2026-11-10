@@ -2,6 +2,7 @@ package library
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 )
 
@@ -73,5 +74,26 @@ func TestFinishAudiobookQueuesBookMatch(t *testing.T) {
 	finish(local)
 	if queued(local) {
 		t.Error("match queued for a folder without a book source")
+	}
+}
+
+// A book a scan finds carries the source list of its folder (concept 19 D6.2), like the titles of
+// video folders, so the editor offers the folder's sources for it.
+func TestNewAudiobookTakesTheFolderSources(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	dir := t.TempDir()
+	src := filepath.Join(audiobookMedia(t), filepath.FromSlash(m4bFolder), m4bTitle+".m4b")
+	if err := copyFile(src, filepath.Join(dir, "Autorin", "Buch", "buch.m4b")); err != nil {
+		t.Fatal(err)
+	}
+	lib := e.createAudiobooks(dir)
+	e.scan(lib.ID)
+	want := e.str(`SELECT providers FROM library_roots WHERE library_id = ?`, lib.ID)
+	if want != `["local","audible","dnb","applebooks"]` {
+		t.Fatalf("folder list = %s, want the default of audiobook folders", want)
+	}
+	if got := e.str(`SELECT providers FROM items WHERE kind = 'audiobook' AND library_id = ?`, lib.ID); got != want {
+		t.Errorf("book providers = %s, want %s", got, want)
 	}
 }

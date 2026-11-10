@@ -101,7 +101,7 @@ func (w *batchWriter) audiobookItem(ctx context.Context, info fileInfo) (string,
 		SeriesIndex: nullVolume(m.volume), Publisher: nullString(m.publisher), Isbn: nullString(m.isbn),
 		Asin: nullString(m.asin), OriginalLanguage: nullString(m.originalLanguage()),
 		Explicit: boolInt(m.explicit), CoverPath: nullString(m.cover),
-		OwnRating: rating, RatingSource: source, Now: sql.NullInt64{Int64: w.ms, Valid: true},
+		OwnRating: rating, RatingSource: source, Providers: w.root.Providers, Now: sql.NullInt64{Int64: w.ms, Valid: true},
 	}); err != nil {
 		return "", fmt.Errorf("insert audiobook: %w", err)
 	}
