@@ -1,7 +1,7 @@
 # ADR 0031: Externe Quellen für Hörbücher
 
-- Status: vorgeschlagen (10. November 2026); die Entscheide 1 und 2 sind Marcos Antworten OD-3 und OD-4,
-  die Entscheide 3 bis 8 folgen aus der Messung D0 und warten auf Marcos Wort im Pull Request
+- Status: angenommen (10. November 2026); die Entscheide 1 und 2 sind Marcos Antworten OD-3 und OD-4,
+  die Entscheide 3 bis 8 folgen aus der Messung D0, Marco hat sie am 10. November 2026 übernommen
 - Quelle: Konzept `docs/planning/19-podcasts-und-radio.md` Teil D (Abschnitte D6.1 bis D6.5, D9 Stufe D0,
   D11 OD-3 und OD-4, Kritiker-Review D12 Befunde 1, 11, 12, 20); Messung `docs/perf/19-hoerbuecher.md`
 - Vertrag 1.30.0 (Stufe D3, additiv), Migration 00049 (vorläufige Nummern des Papiers)
