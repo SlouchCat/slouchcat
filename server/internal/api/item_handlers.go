@@ -131,6 +131,7 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 		Explicit:       ref.Explicit,
 		Narrator:       optString(d.Narrator),
 		SeriesName:     optString(d.SeriesName),
+		SeriesId:       optString(d.SeriesID),
 		EpisodeCount:   d.EpisodeCount,
 		Podcast:        optItemRef(pid, d.Podcast),
 		OriginalTitle:  optString(d.OriginalTitle),
@@ -169,6 +170,10 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 	if d.SeriesIndex != nil {
 		idx := float32(*d.SeriesIndex)
 		out.SeriesIndex = &idx
+	}
+	if d.LibraryID != 0 { // the address of the series page (contract 1.25.0)
+		lib := d.LibraryID
+		out.LibraryId = &lib
 	}
 	if d.Kind == "audiobook" {
 		chapters := toChapters(d.Chapters)

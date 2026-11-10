@@ -155,6 +155,10 @@ type AdminService interface {
 	// UpdateItemMetadata writes, locks and unlocks the editor's fields of a title in the server's
 	// metadata language (concept 15 7.5): model.ErrNotFound, *model.ValidationError.
 	UpdateItemMetadata(ctx context.Context, itemID string, edit model.ItemMetadataEdit) (model.AdminItem, error)
+	// UpdateAudioSeries is «Reihe bearbeiten» (contract 1.25.0, concept 19 D5.4): name set and
+	// locked; with writeToVolumes also written and locked into every volume the profile may see.
+	// Errors: model.ErrNotFound, *model.ValidationError.
+	UpdateAudioSeries(ctx context.Context, profileID int64, seriesID, name string, writeToVolumes bool) (model.AdminAudioSeries, error)
 	// ListAdminGenres returns the server's metadata language and every genre of the live films and
 	// series in it (concept 15 7.5).
 	ListAdminGenres(ctx context.Context) (string, []string, error)
@@ -392,6 +396,12 @@ type CatalogService interface {
 	VisibleLibraries(ctx context.Context, profile model.Profile) ([]model.LibraryNav, error)
 	LibraryItems(ctx context.Context, profile model.Profile, libraryID int64, q model.LibraryQuery) (model.LibraryPage, error)
 	PicksPage(ctx context.Context, profile model.Profile, offset, limit int) ([]model.ItemSummary, int, error)
+	// Audiobook series (contract 1.25.0, concept 19 stage D2). AudioGroups answers the row «Reihen
+	// und Sammlungen» of a library with the filters of LibraryItems (genre, years, maxRating,
+	// status); AudioSeries the page of a series. model.ErrNotFound for a library the profile does
+	// not see and for a series with fewer than two visible volumes.
+	AudioGroups(ctx context.Context, profile model.Profile, libraryID int64, q model.LibraryQuery) (model.AudioGroupList, error)
+	AudioSeries(ctx context.Context, profile model.Profile, libraryID int64, seriesID string) (model.AudioSeries, error)
 }
 
 // NotifyService is the in-app inbox of a profile (package notify, M7 E-8, plan 5.5), the

@@ -387,7 +387,9 @@ SELECT c.id, c.name, c.name_de, count(*) AS member_count,
 FROM collections AS c
 JOIN collection_items AS ci ON ci.collection_id = c.id
 JOIN visible_items AS v ON v.item_id = ci.item_id AND v.profile_id = ?1
+JOIN items AS i ON i.id = ci.item_id
 GROUP BY c.id
+HAVING sum(i.kind <> 'audiobook') > 0
 ORDER BY c.name, c.id
 LIMIT ?2
 `
@@ -406,7 +408,9 @@ type ListVisibleCollectionsRow struct {
 }
 
 // Collections with at least one visible member (E-6), by name: the number of visible members and
-// the cover, the visible member first in collection order (position, then release date).
+// the cover, the visible member first in collection order (position, then release date). Since
+// 1.25.0 without the audiobook collections, whose visible members are all audiobooks (concept 19
+// D4.1): they stand in the row "Reihen und Sammlungen" of their library (ListVisibleAudioCollections).
 func (q *Queries) ListVisibleCollections(ctx context.Context, arg ListVisibleCollectionsParams) ([]ListVisibleCollectionsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listVisibleCollections, arg.ProfileID, arg.LimitCount)
 	if err != nil {

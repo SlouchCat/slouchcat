@@ -69,20 +69,7 @@ func (s *server) ListLibraryItems(ctx context.Context, req gen.ListLibraryItemsR
 	for _, st := range deref(p.Status) {
 		q.Status = append(q.Status, string(st))
 	}
-	var verr *model.ValidationError
-	if utf8.RuneCountInString(q.Genre) > maxSearchGenre {
-		verr = verr.Add("genre", "too_long")
-	}
-	if y := p.YearFrom; y != nil && (*y < minSearchYear || *y > maxSearchYear) {
-		verr = verr.Add("yearFrom", "invalid_value")
-	}
-	if y := p.YearTo; y != nil && (*y < minSearchYear || *y > maxSearchYear) {
-		verr = verr.Add("yearTo", "invalid_value")
-	}
-	if p.MaxRating != nil && !p.MaxRating.Valid() {
-		verr = verr.Add("maxRating", "invalid_value")
-	}
-	if verr != nil {
+	if verr := libraryFilterProblems(p.Genre, p.YearFrom, p.YearTo, p.MaxRating); verr != nil {
 		return s.problem(ctx, verr), nil
 	}
 	if q.Limit <= 0 {
@@ -113,6 +100,26 @@ func (s *server) ListLibraryItems(ctx context.Context, req gen.ListLibraryItemsR
 		Items: toItemRefList(session.Profile.ID, page.Items), Total: page.Total, Offset: q.Offset, Limit: q.Limit,
 		Facets: facets,
 	}), nil
+}
+
+// libraryFilterProblems checks the filter bounds of a library page that the strict server leaves
+// to the handler (years, genre length, rating, like Search); listLibraryItems and listAudioGroups
+// share them.
+func libraryFilterProblems(genre *string, yearFrom, yearTo *int, maxRating *gen.Rating) *model.ValidationError {
+	var verr *model.ValidationError
+	if utf8.RuneCountInString(deref(genre)) > maxSearchGenre {
+		verr = verr.Add("genre", "too_long")
+	}
+	if y := yearFrom; y != nil && (*y < minSearchYear || *y > maxSearchYear) {
+		verr = verr.Add("yearFrom", "invalid_value")
+	}
+	if y := yearTo; y != nil && (*y < minSearchYear || *y > maxSearchYear) {
+		verr = verr.Add("yearTo", "invalid_value")
+	}
+	if maxRating != nil && !maxRating.Valid() {
+		verr = verr.Add("maxRating", "invalid_value")
+	}
+	return verr
 }
 
 func (s *server) ListPicks(ctx context.Context, req gen.ListPicksRequestObject) (gen.ListPicksResponseObject, error) {

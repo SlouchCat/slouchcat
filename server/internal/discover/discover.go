@@ -498,6 +498,17 @@ func (s *Service) LibraryItems(ctx context.Context, profile model.Profile, libra
 	return s.vis.LibraryItems(ctx, visibility.Profile(profile), libraryID, q)
 }
 
+// AudioGroups returns the row «Reihen und Sammlungen» of an audiobook library (listAudioGroups,
+// concept 19 D4.2).
+func (s *Service) AudioGroups(ctx context.Context, profile model.Profile, libraryID int64, q model.LibraryQuery) (model.AudioGroupList, error) {
+	return s.vis.AudioGroups(ctx, visibility.Profile(profile), libraryID, q)
+}
+
+// AudioSeries returns the page of an audiobook series (getAudioSeries, concept 19 D4.3).
+func (s *Service) AudioSeries(ctx context.Context, profile model.Profile, libraryID int64, seriesID string) (model.AudioSeries, error) {
+	return s.vis.AudioSeries(ctx, visibility.Profile(profile), libraryID, seriesID)
+}
+
 // PicksPage returns one page of the user picks the profile may see and their number (listPicks,
 // concept 18 part B), the row picks without its cut; without HasTrailer.
 func (s *Service) PicksPage(ctx context.Context, profile model.Profile, offset, limit int) ([]model.ItemSummary, int, error) {

@@ -809,9 +809,13 @@ type ItemDetail struct {
 
 	// Audio (M6): narrator, series and volume of an audiobook and its book-wide chapters; the newest
 	// visible episodes of a podcast (Episodes, at most 50) with their total; the podcast of an episode.
-	Narrator     string
-	SeriesName   string
-	SeriesIndex  *float64
+	Narrator    string
+	SeriesName  string
+	SeriesIndex *float64
+	// SeriesID is the audiobook series of a book with at least two volumes the profile may see
+	// (contract 1.25.0, concept 19 D4.3), else empty; LibraryID the library of every title.
+	SeriesID     string
+	LibraryID    int64
 	Chapters     []Chapter
 	EpisodeCount *int
 	Podcast      *ItemSummary

@@ -19,7 +19,8 @@ func (r *Reader) audiobookDetail(ctx context.Context, _ Scope, pid int64, it sco
 		return err
 	}
 	d.Chapters = chapters
-	return nil
+	d.SeriesID, err = r.visibleSeriesID(ctx, pid, it)
+	return err
 }
 
 // Chapters returns the book-wide chapters of a visible audiobook in order; empty for a visible
