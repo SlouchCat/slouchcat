@@ -5,7 +5,7 @@ import { imageUrl } from '@/api/client';
 import { codeMessage } from '@/api/errors';
 import { volumeIsReadOnly } from '@/features/player/layout';
 import { formatPlayerTime } from '@/lib/format';
-import { MiniPlayer, SpatialGroup, type MiniPlayerState } from '@/ui';
+import { MiniPlayer, SpatialGroup, useSpatialItem, type MiniPlayerState } from '@/ui';
 import type {
   NowPlayingDialog as NowPlayingDialogType,
   VolumeControl as VolumeControlType,
@@ -41,6 +41,27 @@ const VolumeControl = lazy(() =>
     (): VolumeModule => ({ default: () => null }),
   ),
 );
+
+type VolumeProps = ComponentProps<typeof VolumeControlType>;
+
+/**
+ * The mini player's volume, an item of its arrow-key row like the bar's buttons: the mute button
+ * is the item, the slider keeps ←/→ for itself. Rendered inside a Suspense boundary, so it mounts
+ * (and norigin measures the button) only once the control has loaded.
+ */
+function RadioVolume(props: VolumeProps) {
+  const { ref, onFocus } = useSpatialItem<HTMLButtonElement>();
+  return (
+    // The focus event only tells norigin where the focus is; the button inside is the control.
+    <span
+      onFocus={(event) => {
+        if (event.target instanceof HTMLButtonElement) onFocus();
+      }}
+    >
+      <VolumeControl {...props} buttonRef={ref} />
+    </span>
+  );
+}
 
 /** Focus key of the mini player in the shell's arrow-key navigation (AppLayout). */
 export const RADIO_FOCUS_KEY = 'radio';
@@ -208,7 +229,7 @@ export function RadioDock() {
           volume={{
             control: (
               <Suspense fallback={null}>
-                <VolumeControl {...volume} placement="above" />
+                <RadioVolume {...volume} placement="above" />
               </Suspense>
             ),
             onToggleMute: radio.toggleMute,

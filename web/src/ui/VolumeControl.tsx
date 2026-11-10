@@ -153,6 +153,7 @@ export function VolumeControl({
   const [dismissed, setDismissed] = useState(false);
   const closeTimer = useRef<number | undefined>(undefined);
   const open = popover && !dismissed && (hovered || focused || dragging);
+  const openRef = useRef(open);
   const max = boost ? BOOST_MAX : 1;
   const shown = muted ? 0 : clampVolume(volume, max);
   const percent = Math.round(shown * 100);
@@ -226,9 +227,14 @@ export function VolumeControl({
   useLayoutEffect(() => {
     const element = drawer.current;
     const anchor = button.current;
+    openRef.current = open;
     if (!popover || !element || !anchor) return;
     if (!open) {
       if (element.matches(':popover-open')) element.hidePopover();
+      // Closed it is a hidden pixel by the button: window coordinates would put it far off and
+      // widen a scrolling ancestor.
+      element.style.removeProperty('left');
+      element.style.removeProperty('top');
       return;
     }
     if (!element.matches(':popover-open')) element.showPopover();
@@ -256,6 +262,20 @@ export function VolumeControl({
     return () => cancelAnimationFrame(frame);
   }, [open, placement, popover]);
   useEffect(() => () => window.clearTimeout(closeTimer.current), []);
+  // The browser may close the popover itself (full screen): the state follows until the next
+  // hover or focus.
+  useEffect(() => {
+    const element = drawer.current;
+    if (!popover || !element) return;
+    const onToggle = (event: Event) => {
+      if ((event as ToggleEvent).newState !== 'closed' || !openRef.current) return;
+      window.clearTimeout(closeTimer.current);
+      setHovered(false);
+      setDismissed(true);
+    };
+    element.addEventListener('toggle', onToggle);
+    return () => element.removeEventListener('toggle', onToggle);
+  }, [popover]);
 
   const enter = () => {
     window.clearTimeout(closeTimer.current);
@@ -266,7 +286,10 @@ export function VolumeControl({
     window.clearTimeout(closeTimer.current);
     closeTimer.current = window.setTimeout(() => setHovered(false), CLOSE_DELAY_MS);
   };
+  // Only a focus the viewer sees opens it (Tab, the arrows of a row): a click focuses the button
+  // too, and the popover would then stay open after the pointer left.
   const onFocus = (event: FocusEvent) => {
+    if (!event.target.matches(':focus-visible')) return;
     setFocused(true);
     if (event.target === slider.current) setDismissed(false);
   };

@@ -355,16 +355,15 @@ export function useAudioControls({
           else skip(AUDIO_SEEK_S);
           return;
         case 'ArrowUp':
-          event.preventDefault();
-          changeVolume(readAudioVolume() + VOLUME_STEP);
-          return;
         case 'ArrowDown':
           event.preventDefault();
-          changeVolume(readAudioVolume() - VOLUME_STEP);
+          // The iPhone does not let a page set the volume: only the mute.
+          if (muteOnly) return;
+          changeVolume(readAudioVolume() + (key === 'ArrowUp' ? VOLUME_STEP : -VOLUME_STEP));
           return;
         case 'm':
           event.preventDefault();
-          toggleMute();
+          if (!event.repeat) toggleMute();
           return;
         case '[':
           event.preventDefault();
@@ -400,6 +399,7 @@ export function useAudioControls({
     nextChapter,
     onBack,
     previousChapter,
+    muteOnly,
     rate,
     skip,
     toggleMute,

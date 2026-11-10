@@ -220,6 +220,11 @@ describe('RadioProvider', () => {
       expect(player().muted).toBe(true);
       act(() => player().setVolume(0.6));
       expect(audio().muted).toBe(false);
+      // A volume of 0 is a mute, as in the audio player.
+      act(() => player().setVolume(0));
+      expect(player().muted).toBe(true);
+      act(() => player().setVolume(0.6));
+      expect(player().muted).toBe(false);
       // Another player (or tab) changes the shared volume: the radio follows.
       act(() => {
         writeAudioVolume(0.2);

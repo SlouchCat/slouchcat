@@ -126,6 +126,19 @@ test('PE-1: the volume opens over its neighbours at 900 to 1100 px and closes 30
     expect(await sliderOpen(slider), `${width} px: open 150 ms after`).toBe(true);
     await expect.poll(() => sliderOpen(slider), { timeout: 2000 }).toBe(false);
     expect(Date.now() - left).toBeGreaterThanOrEqual(300);
+    // Closed it sits by the button again: the player does not scroll sideways.
+    expect(
+      await player.evaluate((element) => element.scrollWidth <= element.clientWidth),
+      `${width} px: no sideways scrolling after closing`,
+    ).toBe(true);
+    // A click focuses the button but does not hold the popover open once the pointer leaves.
+    await muteButton(player).click();
+    await expect(muteButton(player)).toHaveAttribute('aria-pressed', 'true');
+    await page.mouse.move(5, 5);
+    await expect.poll(() => sliderOpen(slider), { timeout: 2000 }).toBe(false);
+    await muteButton(player).click();
+    await expect(muteButton(player)).toHaveAttribute('aria-pressed', 'false');
+    await page.mouse.move(5, 5);
   }
   await setAudioProgress(page.request, m4b, 0, 60_000, 1);
 });
@@ -231,9 +244,18 @@ test('PE-5: the radio’s volume by keyboard in the mini player and «Jetzt läu
   const slider = volumeSlider(mini);
   const radioAudio = () =>
     audio(page).evaluate((node: HTMLAudioElement) => ({ volume: node.volume, muted: node.muted }));
-  // Tab: play/pause, then the mute button, which opens the slider above the bar.
+  // The arrows walk the bar: play/pause, the mute button, the favourite and back.
   await resetFocus(page);
   await tabTo(page, page.getByTestId('radio-mini-toggle'), 80);
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, muteButton(mini));
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, page.getByTestId('radio-mini-favorite'));
+  await page.keyboard.press('ArrowLeft');
+  await expectFocusOn(page, muteButton(mini));
+  await page.keyboard.press('ArrowLeft');
+  await expectFocusOn(page, page.getByTestId('radio-mini-toggle'));
+  // Tab: play/pause, then the mute button, which opens the slider above the bar.
   await page.keyboard.press('Tab');
   await expectFocusOn(page, muteButton(mini));
   await expect.poll(() => sliderOpen(slider)).toBe(true);

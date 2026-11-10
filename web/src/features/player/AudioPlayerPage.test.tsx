@@ -511,6 +511,9 @@ describe('audio player (M6)', () => {
       fireEvent.keyDown(window, { key: 'M' });
       expect(audio.muted).toBe(false);
       await waitFor(() => expect(mute).toHaveAttribute('aria-pressed', 'false'));
+      // A held key does not flicker the mute.
+      fireEvent.keyDown(window, { key: 'm', repeat: true });
+      expect(audio.muted).toBe(false);
       expect(localStorage.getItem(AUDIO_VOLUME_KEY)).toBeNull();
     });
 
@@ -523,6 +526,9 @@ describe('audio player (M6)', () => {
       const { region } = await start();
       expect(within(region).getByRole('button', { name: 'Ton aus' })).toBeVisible();
       expect(within(region).queryByRole('slider', { name: 'Lautstärke' })).toBeNull();
+      // ↑/↓ leave the shared volume alone: the iPhone would not apply it.
+      fireEvent.keyDown(window, { key: 'ArrowDown' });
+      expect(localStorage.getItem(AUDIO_VOLUME_KEY)).toBeNull();
     });
   });
 });

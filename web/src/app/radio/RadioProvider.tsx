@@ -243,9 +243,9 @@ export function RadioProvider({ children, engine = createRadioEngine }: RadioPro
     [],
   );
   const dismiss = useCallback(() => dispatch({ type: 'dismiss' }), []);
+  // As in the audio player: a volume of 0 is a mute, any other unmutes.
   const setVolume = useCallback((next: number) => {
-    writeAudioVolume(next);
-    setMuted(false);
+    setMuted(writeAudioVolume(next) === 0);
   }, []);
   const toggleMute = useCallback(() => setMuted((before) => !before), []);
 

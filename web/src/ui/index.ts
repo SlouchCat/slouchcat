@@ -61,6 +61,7 @@ export {
   SpatialPage,
   spatialFocusKey,
   useSpatialHold,
+  useSpatialItem,
 } from './spatial';
 export { Stack } from './Stack';
 export { StationLogo } from './StationLogo';
