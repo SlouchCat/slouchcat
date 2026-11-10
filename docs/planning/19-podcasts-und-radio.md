@@ -41,10 +41,11 @@
   («Podcast-Folgen als Datei: schreibbare Podcast-Ordner») und **ADR 0030** («Radio-Angebot statt
   ganzer Katalog»). Die Nummern folgen der Bau-Reihenfolge: Teil E kam als Patch 1.23.2, Teil C als
   Patch 1.23.3, beide ohne Vertrag und Migration. **Stufe D1 ist als erste gebaut (10. November 2026)
-  und belegt Vertrag 1.24.0 und Migration 00044.** Vorläufig gelten danach für Teil A **Vertrag 1.25.0
-  (additiv)** und **1.26.0 (additiv)** sowie **Migration 00045**, für Teil B **1.27.0 (brechend für die
-  Verwaltung)** und **1.28.0 (additiv)** sowie **Migrationen 00046 und 00047**, für D2 **1.29.0** und
-  **00048**, für D3 **1.30.0** und **00049**. Die echten Nummern werden beim Baubeginn vergeben.
+  und belegt Vertrag 1.24.0 und Migration 00044, Stufe D2 als zweite (10. November 2026) Vertrag 1.25.0
+  und Migration 00045.** Vorläufig gelten danach für Teil A **Vertrag 1.26.0 (additiv)** und **1.27.0
+  (additiv)** sowie **Migration 00046**, für Teil B **1.28.0 (brechend für die Verwaltung)** und
+  **1.29.0 (additiv)** sowie **Migrationen 00047 und 00048**, für D3 **1.30.0** und **00049**.
+  Die echten Nummern werden beim Baubeginn vergeben.
 - `:Zeile`-Angaben beziehen sich auf `e90109a6`; **nach Namen suchen, nicht nach Zeile.** Pfade ohne
   Präfix liegen unter `server/` (Go) oder `web/src/` (Web-App), wo es eindeutig ist.
 - Massgeblich bleiben `docs/spec/01-anforderungen-v1.md`, `docs/planning/04-entscheidungen.md` und
@@ -421,7 +422,7 @@ steht damit sein Schlüssel in einer Datei auf dem NAS (Abschnitt 14).
 | Folge wird explizit oder die Freigabe ändert sich | Kein Einfluss auf den Download; die Sichtbarkeit regelt wie heute, wer sie hört. |
 | Zwei Podcast-Bibliotheken, je «Gleichzeitig laden» 3 | Zusammen höchstens fünf (Pool). |
 
-## 10. Datenmodell (Migration 00045, vorläufig)
+## 10. Datenmodell (Migration 00046, vorläufig)
 
 Nach Vorlage (`server/migrations/TEMPLATE.sql.txt`), nur vorwärts.
 
@@ -439,7 +440,7 @@ nichts auseinander, wenn Marco einen Ordner umbenennt oder das Jobsystem alte Au
 Die wirksame Einstellung liefert eine gemeinsame Abfrage (5.1). Ein eingefrorener Stand kommt nach
 `testdata/db/` (Regel 5).
 
-## 11. Vertrag (1.25.0 und 1.26.0, additiv)
+## 11. Vertrag (1.26.0 und 1.27.0, additiv)
 
 Jede Operation trägt `x-visibility: admin` und bekommt ihren Eintrag im Vertragstest (Regel 7).
 
@@ -575,8 +576,8 @@ Containers darf im Ordner Dateien anlegen (6.4). Die Ordnerprüfung (5.4) sagt s
 | Stufe | Inhalt | Release | Aufwand |
 |---|---|---|---|
 | **0** | Audiobookshelfs Namensregel nachlesen, Messauftrag M-1 (Abschnitt 8) auf CT 190, Ergebnis nach `docs/perf/19-podcasts.md`. ADR 0029. | – | 1 Tag |
-| **1 «Speichern»** | Paket `internal/fetch` (aus `offline` herausgelöst), Migration, gemeinsame Abfrage der wirksamen Einstellung, Haken `WithPodcastFetched`, Planer, `podcast.sync_all`, Download mit Pool `podcast` und den zwei Zählern, Ordnerprüfung, die drei Riegel, Vertrag 1.25.0. Oberfläche: Band «Neue Folgen» mit Schätzung und Bestätigung auf der heutigen Podcasts-Seite, im Ausklapp (`PodcastDetail`) die Wahl je Podcast und «Fehlende nachladen», Spalte «gespeichert». `compose.podcasts.yaml` und Installationsanleitung. | 1.25.0 | 8 bis 9 Tage |
-| **2 «Neue Podcasts-Seite»** | Liste mit Covern (Variante A), Seite «Podcast» mit Folgenliste, Abschnitt «Downloads», quadratisches Cover in `web/src/ui`, Vertrag 1.26.0. | 1.26.0 | 4 bis 5 Tage |
+| **1 «Speichern»** | Paket `internal/fetch` (aus `offline` herausgelöst), Migration, gemeinsame Abfrage der wirksamen Einstellung, Haken `WithPodcastFetched`, Planer, `podcast.sync_all`, Download mit Pool `podcast` und den zwei Zählern, Ordnerprüfung, die drei Riegel, Vertrag 1.26.0. Oberfläche: Band «Neue Folgen» mit Schätzung und Bestätigung auf der heutigen Podcasts-Seite, im Ausklapp (`PodcastDetail`) die Wahl je Podcast und «Fehlende nachladen», Spalte «gespeichert». `compose.podcasts.yaml` und Installationsanleitung. | 1.26.0 | 8 bis 9 Tage |
+| **2 «Neue Podcasts-Seite»** | Liste mit Covern (Variante A), Seite «Podcast» mit Folgenliste, Abschnitt «Downloads», quadratisches Cover in `web/src/ui`, Vertrag 1.27.0. | 1.27.0 | 4 bis 5 Tage |
 
 Stufe 1 ist für sich nützlich: nach ihr speichert Slouchcat Folgen, und Audiobookshelf kann die
 Downloads abgeben. Jeder Schritt ist ein eigener Commit; geprüft wird nach den Teststufen in
@@ -1075,7 +1076,7 @@ Spalte **Anbieter**. Über der Liste «Nicht erreichbare entfernen (n)» (B6). J
 - Tastatur: Pfeiltasten in den Länder- und Senderlisten, Leertaste für den Haken, Enter öffnet,
   Escape schliesst den Kontinent oder die Senderliste; Playwright-Test (Regel 8).
 
-## B10. Datenmodell (Migration 00046, vorläufig)
+## B10. Datenmodell (Migration 00047, vorläufig)
 
 | Tabelle oder Spalte | Inhalt |
 |---|---|
@@ -1088,7 +1089,7 @@ Spalte **Anbieter**. Über der Liste «Nicht erreichbare entfernen (n)» (B6). J
 | `radio_config.countries`, `radio_stations.hidden` | bleiben, werden nicht mehr gelesen |
 | `radio_tag_rules`, `radio_station_facets` mit `manual = 1`, `radio_station_locks` für `genre`/`kind`/`mood` | Zeilen gelöscht (B5) |
 
-**Stufe B2, Migration 00047 (vorläufig):** `radio_station_wikidata` (`station_id` Primärschlüssel,
+**Stufe B2, Migration 00048 (vorläufig):** `radio_station_wikidata` (`station_id` Primärschlüssel,
 `qid`, `owner`, `founded`, `fetched_at`), `radio_config.wikidata_enabled`,
 `radio_config.wikidata_synced_at`.
 
@@ -1105,7 +1106,7 @@ Sender aus 63'562 Einträgen (`docs/perf/radio.md`). Die Verwaltung zeigt die Za
 Im Repository heisst eine brechende Änderung eine neue Nebenversion mit dem Vermerk «brechend» (wie
 1.2.0 und 1.18.0).
 
-**Stufe B1, vorläufig 1.27.0 (brechend für die Verwaltung, additiv für die App):**
+**Stufe B1, vorläufig 1.28.0 (brechend für die Verwaltung, additiv für die App):**
 
 | Operation oder Schema | `x-visibility` | Änderung |
 |---|---|---|
@@ -1132,7 +1133,7 @@ Betroffene Stellen im Client: `SettingsTab`, `StationEditor`, `StationsTab`, `Cr
 `adminRegistry` (`contract_access_test.go`, auch der heutige Körper `{"countries":null}`),
 `vistest.AddRadio` mit dem demarkierten Sender.
 
-**Stufe B2, vorläufig 1.28.0 (additiv):** `AdminRadioStation.sources` (Herkunft je Angabe),
+**Stufe B2, vorläufig 1.29.0 (additiv):** `AdminRadioStation.sources` (Herkunft je Angabe),
 `AdminRadioStation.wikidata` (Eigentümer, Gründung, Kennung), `RadioConfig.wikidataEnabled`, Jobart
 `radio.wikidata.sync` mit Text in `admin.jobs.types`.
 
@@ -1141,8 +1142,8 @@ Betroffene Stellen im Client: `SettingsTab`, `StationEditor`, `StationsTab`, `Cr
 | Stufe | Inhalt | Release | Aufwand |
 |---|---|---|---|
 | **B0** | Messung auf CT 190 mit der echten Logo-Kette (96 Pixel, Drossel 2 und 4 je Sekunde, Sperre je Host) für die Schweiz und Deutschland, Speicher je Logo, Zeit einer Vorschau über den ganzen Index, Zahlen je Land aus dem echten Index. Ergebnis nach `docs/perf/19-radio.md`. ADR 0030 «Radio-Angebot statt ganzer Katalog» (ergänzt ADR 0025). | – | ½ Tag |
-| **B1 «Angebot»** | Migration 00046, Vorbereitung beim ersten Start (B4.4, Angebot leer), Momentaufnahme im Speicher, Regel in `reachable`, `closeUnreachable` nach dem Tausch, Vorschau und Übernehmen mit Version, neue Logo-Auslöser, Sperre je Host, Drossel, Aufräumen gelöschter Sender, Anbieter aus dem Stream-Host, Neuableitung der Filterwerte, Vertrag 1.27.0. Oberfläche: Reiter «Angebot», «Sender» neu, «Einordnung» weg, Editor und Anlegen ohne Filterfelder, Einstellungen ohne Länder, Zustandsleiste, Radioseite mit `effectiveCountry` und leerem Angebot. | 1.27.0 | 6 bis 7 Tage |
-| **B2 «Mehr Angaben»** | Migration 00047, `radio.wikidata.sync`, Eigentümer als Anbieter, Gründung, Herkunft je Angabe im Aufklapp, Einstellung «Wikidata verwenden», Vertrag 1.28.0. | 1.28.0 | 2 bis 3 Tage |
+| **B1 «Angebot»** | Migration 00047, Vorbereitung beim ersten Start (B4.4, Angebot leer), Momentaufnahme im Speicher, Regel in `reachable`, `closeUnreachable` nach dem Tausch, Vorschau und Übernehmen mit Version, neue Logo-Auslöser, Sperre je Host, Drossel, Aufräumen gelöschter Sender, Anbieter aus dem Stream-Host, Neuableitung der Filterwerte, Vertrag 1.28.0. Oberfläche: Reiter «Angebot», «Sender» neu, «Einordnung» weg, Editor und Anlegen ohne Filterfelder, Einstellungen ohne Länder, Zustandsleiste, Radioseite mit `effectiveCountry` und leerem Angebot. | 1.28.0 | 6 bis 7 Tage |
+| **B2 «Mehr Angaben»** | Migration 00048, `radio.wikidata.sync`, Eigentümer als Anbieter, Gründung, Herkunft je Angabe im Aufklapp, Einstellung «Wikidata verwenden», Vertrag 1.29.0. | 1.29.0 | 2 bis 3 Tage |
 
 Die Nummern sind vorläufig. Teil A und Teil B sind unabhängig; baut Marco Teil B zuerst, bekommt er
 die nächste freie Migration und Vertragsfassung, und alle Verweise in B4.4, B10, B11 und PB-6 folgen
@@ -1653,12 +1654,12 @@ Adresse von Audnexus, Schlüssel für Google Books, «Automatisch zuordnen» mit
 Stand der Bibliothek (zugeordnet, zu prüfen, ohne Treffer, gestört), «Jetzt alle ohne Zuordnung
 zuordnen» und die Liste **«Prüfen»** mit den gespeicherten Kandidaten und dem Bleistift je Buch.
 
-## D7. Datenmodell (je Stufe eine Migration; D1 gebaut, D2 und D3 vorläufig)
+## D7. Datenmodell (je Stufe eine Migration; D1 und D2 gebaut, D3 vorläufig)
 
 | Stufe | Migration | Inhalt |
 |---|---|---|
 | D1 | 00044 | `items.publisher`, `items.isbn`, `items.asin`; Schlösser bleiben in `items.locked_fields` |
-| D2 | 00048 | `audio_series`, `items.audio_series_id` (`ON DELETE SET NULL`); Merkmal für den ersten Durchgang |
+| D2 | 00045 | `audio_series`, `items.audio_series_id` (`ON DELETE SET NULL`); Merkmal für den ersten Durchgang |
 | D3 | 00049 | `items.author_display`, `items.book_match_state`, `items.book_match` (Quelle, Kennung, Zeitpunkt, Bewertung), `book_match_candidates` (je Buch höchstens drei), Füller in `library_roots.providers` der Hörbuch-Ordner nach D6.2, Neuaufbau des Suchindexes |
 
 Nach Vorlage, nur vorwärts, je Stufe ein eingefrorener Stand in `testdata/db/`.
@@ -1669,11 +1670,11 @@ Nach Vorlage, nur vorwärts, je Stufe ein eingefrorener Stand in `testdata/db/`.
 |---|---|---|---|
 | 1.24.0 (D1) | `AdminMetadataField`, `AdminItem.metadata` | `admin` | Felder aus D5.3 |
 | 1.24.0 | `updateItemMetadata`, `setItemOriginalLanguage`, `listItemImageCandidates`, `setItemImage`, `uploadItemImage`, `refreshItem` | `admin` | nehmen `audiobook` an |
-| 1.29.0 (D2) | `GET /libraries/{id}/audio-groups` (`listAudioGroups`) | `scoped` | Zeile «Reihen und Sammlungen»: Kennung, Art (Reihe oder Sammlung), Name, Bild, Autor, sichtbare und passende Bände, gehörte Bände; Filter wie `listLibraryItems` |
-| 1.29.0 | `GET /libraries/{id}/series/{seriesId}` (`getAudioSeries`) | `scoped` | Reihe mit sichtbaren Bänden, Bandnummern, «Weiterhören»; 404 unter zwei sichtbaren Bänden |
-| 1.29.0 | `ItemDetail.seriesId` | `scoped` | neu, leer unter zwei sichtbaren Bänden |
-| 1.29.0 | `PATCH /admin/audio-series/{seriesId}` | `admin` | Name ändern, auf Wunsch in alle Bände schreiben |
-| 1.29.0 | `getHome` | `scoped` | Reihe «Sammlungen» ohne Hörbuch-Sammlungen (Verhalten) |
+| 1.25.0 (D2) | `GET /libraries/{id}/audio-groups` (`listAudioGroups`) | `scoped` | Zeile «Reihen und Sammlungen»: Kennung, Art (Reihe oder Sammlung), Name, Bild, Autor, sichtbare und passende Bände, gehörte Bände; Filter wie `listLibraryItems` |
+| 1.25.0 | `GET /libraries/{id}/series/{seriesId}` (`getAudioSeries`) | `scoped` | Reihe mit sichtbaren Bänden, Bandnummern, «Weiterhören»; 404 unter zwei sichtbaren Bänden |
+| 1.25.0 | `ItemDetail.seriesId` | `scoped` | neu, leer unter zwei sichtbaren Bänden |
+| 1.25.0 | `PATCH /admin/audio-series/{seriesId}` (`updateAudioSeries`) | `admin` | Name ändern, auf Wunsch in alle Bände schreiben |
+| 1.25.0 | `getHome` | `scoped` | Reihe «Sammlungen» ohne Hörbuch-Sammlungen (Verhalten) |
 | 1.30.0 (D3) | `MetadataProvider` | – | neue Werte `audible`, `dnb`, `applebooks`, `openlibrary`, `googlebooks` |
 | 1.30.0 | `searchMetadata` | `admin` | `kind` `audiobook`, Parameter `author`, `asin`, `isbn`; `MetadataCandidate` mit Hörbuch-Feldern |
 | 1.30.0 | `getMatchPreview` (neu), `setItemMatch` mit `fields[]` | `admin` | Vergleich und Übernahme Feld für Feld |
@@ -1688,7 +1689,7 @@ Vertragstest: `scoped` in `profileRegistry`, `admin` in `adminRegistry`.
 |---|---|---|---|
 | **D0** (erledigt 10. November 2026, PR #137) | Messung an Marcos 107 Büchern: Treffer je Quelle, eindeutig und mit passender Länge; Abfragen je Buch; Laufzeit des ersten Laufs; Zeit der Abfrage der Zeile bei 5'000 Büchern (Ziel p95 unter 100 ms); ob Audible von CT 190 aus antwortet. Ergebnis nach `docs/perf/19-hoerbuecher.md`. ADR 0031 «Externe Quellen für Hörbücher». | – | ½ Tag |
 | **D1 «Bleistift»** | Editor für Hörbücher, Texte in beiden Zeilen, Schlösser vereinheitlicht, Originalsprache, gewählte Cover bleiben, Kandidaten aus Ordner und Datei, Hochladen, `absMeta` mit ASIN, ISBN, Verlag, Bleistift überall, Migration 00044. | 1.24.0 | 3 bis 4 Tage |
-| **D2 «Reihen»** | `audio_series`, `RelinkAudioSeries`, Zeile «Reihen und Sammlungen», Startseite ohne Hörbuch-Sammlungen, Seite der Reihe, Link von der Detailseite, «Reihe bearbeiten», Migration 00048. | vorläufig 1.29.0 | 3 bis 4 Tage |
+| **D2 «Reihen»** | `audio_series`, `RelinkAudioSeries`, Zeile «Reihen und Sammlungen», Startseite ohne Hörbuch-Sammlungen, Seite der Reihe, Link von der Detailseite, «Reihe bearbeiten», Migration 00045. | 1.25.0 | 3 bis 4 Tage |
 | **D3 «Quellen»** | `BookProvider` mit fünf Quellen, Füller je Ordner, Zuordnen im Editor, automatische Zuordnung mit Zuständen und Schutz, Liste «Prüfen», Vereinheitlichen, Seite «Quellen», Migration 00049. | vorläufig 1.30.0 | 7 bis 9 Tage |
 
 **Reihenfolge:** Teil C → D1 → D2 → D3. D2 braucht die quadratischen Kacheln aus Teil C und den
