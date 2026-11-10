@@ -42,8 +42,9 @@ const (
 // 00046 (the first start after the update).
 const SettingAuthorDisplayQueued = "library.author_display_queued"
 
-// QueueAuthorDisplay queues library.author_display. A job that waits already covers the request;
-// one that runs may have read the books before the change, so one more is queued behind it.
+// QueueAuthorDisplay queues library.author_display. A job that waits already covers the request
+// (raised to prioAuthorDisplay, should it wait at a lower one from an older release); one that runs
+// may have read the books before the change, so one more is queued behind it.
 func (s *Service) QueueAuthorDisplay(ctx context.Context) error {
 	for _, key := range []string{authorDisplayKey, authorDisplayNextKey} {
 		id, err := s.queue.Enqueue(ctx, jobs.NewJob{Type: JobAuthorDisplay, Priority: prioAuthorDisplay, IdempotencyKey: key})
@@ -55,6 +56,9 @@ func (s *Service) QueueAuthorDisplay(ctx context.Context) error {
 			return fmt.Errorf("load %s job: %w", JobAuthorDisplay, err)
 		}
 		if j.State != jobs.StateRunning {
+			if _, err := s.queue.RaiseQueuedPriority(ctx, id, prioAuthorDisplay); err != nil {
+				return fmt.Errorf("raise %s job: %w", JobAuthorDisplay, err)
+			}
 			return nil
 		}
 	}
@@ -62,7 +66,8 @@ func (s *Service) QueueAuthorDisplay(ctx context.Context) error {
 }
 
 // queueAuthorDisplayOnce queues library.author_display at the first start after migration 00046
-// (SettingAuthorDisplayQueued), in one transaction with the flag.
+// (SettingAuthorDisplayQueued), in one transaction with the flag. Every start raises a job that
+// still waits at a lower priority of an older build to prioAuthorDisplay.
 func (s *Service) queueAuthorDisplayOnce(ctx context.Context) error {
 	tx, err := s.db.Write.BeginTx(ctx, nil)
 	if err != nil {
@@ -70,12 +75,19 @@ func (s *Service) queueAuthorDisplayOnce(ctx context.Context) error {
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := systemq.New(tx)
+	now := s.now()
+	for _, key := range []string{authorDisplayKey, authorDisplayNextKey} {
+		if _, err := q.RaiseQueuedJobPriorityByKey(ctx, systemq.RaiseQueuedJobPriorityByKeyParams{
+			Priority: prioAuthorDisplay, Now: now.UnixMilli(), IdempotencyKey: sql.NullString{String: key, Valid: true},
+		}); err != nil {
+			return fmt.Errorf("raise %s job: %w", JobAuthorDisplay, err)
+		}
+	}
 	if _, err := q.GetSystemSetting(ctx, SettingAuthorDisplayQueued); err == nil {
-		return nil
+		return tx.Commit()
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("read %s: %w", SettingAuthorDisplayQueued, err)
 	}
-	now := s.now()
 	if err := enqueueTx(ctx, q, now, newJob{JobAuthorDisplay, prioAuthorDisplay, authorDisplayKey, struct{}{}}); err != nil {
 		return err
 	}

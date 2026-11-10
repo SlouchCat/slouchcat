@@ -219,3 +219,29 @@ func TestQueueAuthorDisplay(t *testing.T) {
 		t.Errorf("handler: author_display %q", got)
 	}
 }
+
+// A job queued at priority 1 by an older build is raised to prioAuthorDisplay, at the next start
+// and at the next request (CT 190, 10 Nov 2026: it waited behind the image backlog).
+func TestAuthorDisplayJobRaisedFromOlderBuild(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	prio := func() int {
+		return e.count(`SELECT priority FROM jobs WHERE type = ? AND idempotency_key = ? AND state = 'queued'`, JobAuthorDisplay, authorDisplayKey)
+	}
+	e.exec(`INSERT INTO settings (key, value, updated_at) VALUES (?, '1', 1)`, SettingAuthorDisplayQueued)
+	e.exec(`INSERT INTO jobs (type, priority, idempotency_key, payload, state, run_after, max_attempts, created_at, updated_at)
+	        VALUES (?, 1, ?, '{}', 'queued', 1, 3, 1, 1)`, JobAuthorDisplay, authorDisplayKey)
+	if err := e.svc.queueAuthorDisplayOnce(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got := prio(); got != prioAuthorDisplay {
+		t.Errorf("after the start the job waits at %d, want %d", got, prioAuthorDisplay)
+	}
+	e.exec(`UPDATE jobs SET priority = 1 WHERE type = ?`, JobAuthorDisplay)
+	if err := e.svc.QueueAuthorDisplay(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got := prio(); got != prioAuthorDisplay {
+		t.Errorf("after a request the job waits at %d, want %d", got, prioAuthorDisplay)
+	}
+}
