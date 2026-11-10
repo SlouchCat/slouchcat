@@ -18,6 +18,7 @@ export const EDITABLE_KINDS: ReadonlySet<string> = new Set([
   'series',
   'season',
   'episode',
+  'audiobook',
 ]);
 
 /**

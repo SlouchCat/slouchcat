@@ -39,7 +39,8 @@ const UNLOCK_ALL = 'unlockAll';
 
 /**
  * The tab «Aktualisieren» (concept 15 7.5): «Jetzt aktualisieren» queues the refresh of every free
- * field and automatically chosen image; the box lifts every lock of the title first.
+ * field and automatically chosen image; the box lifts every lock of the title first. A book reads
+ * its files again instead (concept 19 D5.2, «Aus den Dateien neu lesen»).
  */
 export function RefreshTab({
   item,
@@ -50,6 +51,7 @@ export function RefreshTab({
 }) {
   const { t } = useTranslation();
   const [options, setOptions] = useState<string[]>([]);
+  const book = item.kind === 'audiobook';
   const refresh = useMutation({
     mutationFn: (unlockAll: boolean): Promise<AdminItem> =>
       request(
@@ -65,7 +67,9 @@ export function RefreshTab({
   });
   return (
     <div className={styles.stack}>
-      <Text tone="secondary">{t('admin.editor.refresh.body')}</Text>
+      <Text tone="secondary">
+        {book ? t('admin.editor.refresh.book.body') : t('admin.editor.refresh.body')}
+      </Text>
       <CheckboxGroup
         label={t('admin.editor.refresh.options')}
         value={options}
@@ -73,8 +77,12 @@ export function RefreshTab({
         options={[
           {
             value: UNLOCK_ALL,
-            label: t('admin.editor.refresh.unlockAll'),
-            description: t('admin.editor.refresh.unlockAllHint'),
+            label: book
+              ? t('admin.editor.refresh.book.unlockAll')
+              : t('admin.editor.refresh.unlockAll'),
+            description: book
+              ? t('admin.editor.refresh.book.unlockAllHint')
+              : t('admin.editor.refresh.unlockAllHint'),
           },
         ]}
       />
@@ -85,7 +93,7 @@ export function RefreshTab({
           isPending={refresh.isPending}
           onPress={() => refresh.mutate(options.includes(UNLOCK_ALL))}
         >
-          {t('admin.editor.refresh.run')}
+          {book ? t('admin.editor.refresh.book.run') : t('admin.editor.refresh.run')}
         </AriaButton>
         <Text tone="secondary" variant="caption">
           {t('admin.editor.refresh.hint')}

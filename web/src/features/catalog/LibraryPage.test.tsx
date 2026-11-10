@@ -269,6 +269,18 @@ describe('library page', () => {
     expect(link).toHaveClass('own');
   });
 
+  it('the pen sits beside an audiobook cover, as beside a film (concept 19 D5.1)', async () => {
+    mockLibrary(() =>
+      json(page([audiobook], { facets: { letters: [], genres: [], ratings: [] } })),
+    );
+    renderApp('/libraries/5');
+    const grid = await screen.findByRole('list', { name: 'Hörbücher' });
+    const pen = await within(grid).findByRole('button', {
+      name: `${audiobook.title}: Metadaten bearbeiten`,
+    });
+    expect(pen.closest('a')).toBeNull();
+  });
+
   it('PC-1: a film library keeps the 2:3 frame', async () => {
     mockLibrary();
     renderApp('/libraries/3');

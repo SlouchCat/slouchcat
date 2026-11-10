@@ -23,6 +23,14 @@ export interface EditorValues {
   tagline: string;
   overview: string;
   genres: readonly string[];
+  /** The fields of an audiobook; the volume as typed («2», «2.5», «2,5»). */
+  author: string;
+  narrator: string;
+  seriesName: string;
+  seriesIndex: string;
+  publisher: string;
+  isbn: string;
+  asin: string;
   /** ratingChoiceOf: the age or FROM_METADATA. */
   rating: string;
   /** languageChoiceOf: the code, "" for «Unbekannt», or FROM_METADATA. */
@@ -54,6 +62,13 @@ export function serverValues(item: AdminItem, meta: AdminItemMetadata): EditorVa
     tagline: meta.tagline ?? '',
     overview: meta.overview ?? '',
     genres: meta.genres,
+    author: meta.author ?? '',
+    narrator: meta.narrator ?? '',
+    seriesName: meta.seriesName ?? '',
+    seriesIndex: meta.seriesIndex !== undefined ? String(meta.seriesIndex) : '',
+    publisher: meta.publisher ?? '',
+    isbn: meta.isbn ?? '',
+    asin: meta.asin ?? '',
     rating: ratingChoiceOf(item),
     language: languageChoiceOf(item),
   };
@@ -143,6 +158,8 @@ export const canToggleLock = (
   (isChoice(field) ? isChanged(draft, field) : draft.unlock.includes(field));
 
 const YEAR = /^\d{4}$/;
+/** A volume: up to four digits, a fraction with a point or a comma (0.5 before 1). */
+const VOLUME = /^\d{1,4}([.,]\d+)?$/;
 
 /** What «Speichern» sends: the body of updateItemMetadata and the changed choices. */
 export interface EditorSave {
@@ -154,9 +171,13 @@ export interface EditorSave {
   invalid: Partial<Record<AdminMetadataField, string>>;
 }
 
-/** Turns the draft into the requests of «Speichern» (all changed fields at once). */
-export function saveOf(draft: EditorDraft): EditorSave {
-  const { rating, language, year, genres, ...texts } = draft.changed;
+/**
+ * Turns the draft into the requests of «Speichern» (all changed fields at once). An empty series
+ * clears the volume with it on the server, so an emptied volume goes along unsent; a series that
+ * stays needs its volume.
+ */
+export function saveOf(draft: EditorDraft, server: EditorValues): EditorSave {
+  const { rating, language, year, genres, seriesName, seriesIndex, ...texts } = draft.changed;
   const body: ItemMetadataUpdate = {};
   const invalid: EditorSave['invalid'] = {};
   for (const [field, value] of Object.entries(texts) as [keyof typeof texts, string][]) {
@@ -170,6 +191,17 @@ export function saveOf(draft: EditorDraft): EditorSave {
     else body.year = number;
   }
   if (genres !== undefined) body.genres = [...genres];
+  if (seriesName !== undefined) body.seriesName = seriesName.trim();
+  if (seriesIndex !== undefined) {
+    const typed = seriesIndex.trim();
+    const series = (seriesName ?? server.seriesName).trim();
+    const number = Number(typed.replace(',', '.'));
+    if (!typed) {
+      if (series) invalid.seriesIndex = 'required';
+    } else if (!series || !VOLUME.test(typed) || number > 9999)
+      invalid.seriesIndex = 'invalid_value';
+    else body.seriesIndex = number;
+  }
   if (draft.unlock.length > 0) body.unlock = [...draft.unlock];
   return {
     metadata: Object.keys(body).length > 0 ? body : undefined,

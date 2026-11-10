@@ -35,7 +35,7 @@ const genresQuery = {
   queryFn: ({ signal }: { signal: AbortSignal }) => request(api.GET('/admin/genres', { signal })),
 };
 
-/** Where a field's value came from: «aus TMDB», «von Hand» or nothing. */
+/** Where a field's value came from: «aus TMDB», «aus den Dateien» of a book, «von Hand» or nothing. */
 function sourceOf(
   t: TFunction,
   item: AdminItem,
@@ -48,6 +48,8 @@ function sourceOf(
     provider = item.fieldSources.find((s) => s.field === 'original_language')?.provider;
   else provider = meta.sources.find((s) => s.field === field)?.provider;
   if (lockedOnServer(item, meta, field)) return t('admin.editor.metadata.manual');
+  if (provider === 'local' && item.kind === 'audiobook')
+    return t('admin.editor.metadata.fromFiles');
   return provider
     ? t('admin.editor.metadata.source', { provider: providerName(t, provider) })
     : undefined;
@@ -66,7 +68,8 @@ interface MetadataEditorTabProps {
  * The tab «Metadaten» of the editor (concept 15 7.4): every field with its origin and its lock.
  * A change locks the field; the lock lifts it again. «Speichern» sends all changes at once
  * (updateItemMetadata, then the rating and the original language with their own endpoints).
- * Texts belong to the server's metadata language (F-10).
+ * Texts belong to the server's metadata language (F-10); those of an audiobook go into every text
+ * row of the book (concept 19 D5.3).
  */
 export function MetadataEditorTab({
   item,
@@ -131,7 +134,12 @@ export function MetadataEditorTab({
     onDraftChange(editField(server, draft, field, value));
   };
   const value = <F extends EditorField>(field: F) => valueOf(server, draft, field);
-  const fieldLabel = (field: EditorField) => t(`admin.editor.metadata.field.${field}`);
+  const book = item.kind === 'audiobook';
+  // A book's tagline is its subtitle (concept 19 D5.2).
+  const fieldLabel = (field: EditorField) =>
+    book && field === 'tagline'
+      ? t('admin.editor.metadata.field.subtitle')
+      : t(`admin.editor.metadata.field.${field}`);
 
   /** The line under a field: where its value came from, and its lock. */
   const meta_ = (field: EditorField): ReactNode => {
@@ -154,12 +162,27 @@ export function MetadataEditorTab({
     );
   };
 
-  const text = (field: 'title' | 'originalTitle' | 'sortTitle' | 'tagline', full = false) => (
+  const text = (
+    field:
+      | 'title'
+      | 'originalTitle'
+      | 'sortTitle'
+      | 'tagline'
+      | 'author'
+      | 'narrator'
+      | 'seriesName'
+      | 'seriesIndex'
+      | 'publisher'
+      | 'isbn'
+      | 'asin',
+    full = false,
+  ) => (
     <div className={full ? styles.full : undefined}>
       <TextField
         name={field}
         label={fieldLabel(field)}
         value={value(field)}
+        inputMode={field === 'seriesIndex' ? 'decimal' : undefined}
         // A free sort title follows the title: the field stays empty and shows it.
         placeholder={field === 'sortTitle' ? value('title') : undefined}
         onChange={(next) => set(field, next)}
@@ -170,7 +193,7 @@ export function MetadataEditorTab({
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const plan = saveOf(draft);
+    const plan = saveOf(draft, server);
     const local: Record<string, string> = {};
     for (const [field, code] of Object.entries(plan.invalid)) local[field] = fieldMessage(t, code);
     // A half-typed date reads as empty; sending it would clear the date.
@@ -195,6 +218,128 @@ export function MetadataEditorTab({
   };
   const dirty = Object.keys(draft.changed).length > 0 || draft.unlock.length > 0;
 
+  // The blocks a film and a book share; a book orders them as the mockup (concept 19 D5.2).
+  const yearField = (
+    <div>
+      <TextField
+        name="year"
+        label={fieldLabel('year')}
+        inputMode="numeric"
+        value={value('year')}
+        onChange={(next) => set('year', next)}
+      />
+      {meta_('year')}
+    </div>
+  );
+  const overviewField = (
+    <div className={styles.full}>
+      <TextField
+        name="overview"
+        label={fieldLabel('overview')}
+        rows={5}
+        value={value('overview')}
+        onChange={(next) => set('overview', next)}
+      />
+      {meta_('overview')}
+    </div>
+  );
+  const genresField = (
+    <div className={styles.full}>
+      <div
+        role="group"
+        aria-labelledby={genresId}
+        aria-describedby={genresError ? genresErrorId : undefined}
+        className={styles.stack}
+      >
+        <span id={genresId} className={styles.label}>
+          {fieldLabel('genres')}
+        </span>
+        <ul className={styles.genres}>
+          {chosen.length === 0 && (
+            <li className={styles.muted}>{t('admin.editor.metadata.genresNone')}</li>
+          )}
+          {chosen.map((name) => (
+            <li key={name} className={styles.genre}>
+              <Chip>{name}</Chip>
+              <AriaButton
+                variant="ghost"
+                icon="close"
+                iconOnly
+                aria-label={t('admin.editor.metadata.genreRemove', { genre: name })}
+                onPress={() =>
+                  set(
+                    'genres',
+                    chosen.filter((g) => g !== name),
+                  )
+                }
+              />
+            </li>
+          ))}
+        </ul>
+        <div className={styles.inline}>
+          <TextField
+            name="genre"
+            label={t('admin.editor.metadata.genreAdd')}
+            value={genre}
+            suggestions={suggestions}
+            inputRef={genreInput}
+            onChange={setGenre}
+            onKeyDown={(event) => {
+              // Enter adds the genre instead of saving the form. The field is read after
+              // the key: a browser that takes a highlighted suggestion with this Enter
+              // (Firefox) writes the suggestion in only after the page's handlers ran, so
+              // the typed part never becomes the chip.
+              if (event.key !== 'Enter') return;
+              event.preventDefault();
+              window.setTimeout(() => addGenre(genreInput.current?.value ?? genre));
+            }}
+          />
+          <AriaButton icon="plus" isDisabled={!genre.trim()} onPress={() => addGenre()}>
+            {t('admin.editor.metadata.genreAddAction')}
+          </AriaButton>
+        </div>
+        {genresError && (
+          <p id={genresErrorId} className={styles.fieldError}>
+            {genresError}
+          </p>
+        )}
+      </div>
+      {meta_('genres')}
+    </div>
+  );
+  const ratingField = (
+    <div>
+      <SelectField
+        label={fieldLabel('rating')}
+        value={value('rating')}
+        onChange={(next) => set('rating', next)}
+        options={[
+          { value: FROM_METADATA, label: t('admin.item.rating.fromMetadata') },
+          ...ratingOptions(t).map(({ value: age, label }) => ({ value: age, label })),
+        ]}
+      />
+      {ratingError && <p className={styles.fieldError}>{ratingError}</p>}
+      {meta_('rating')}
+    </div>
+  );
+  const languageField = (
+    <div>
+      <SelectField
+        label={fieldLabel('language')}
+        value={value('language')}
+        onChange={(next) => set('language', next)}
+        options={originalLanguageOptions(
+          t,
+          names,
+          i18n.language,
+          languages.data?.knownLanguages ?? [],
+          value('language'),
+        )}
+      />
+      {meta_('language')}
+    </div>
+  );
+
   return (
     <Form
       className={styles.stack}
@@ -203,137 +348,52 @@ export function MetadataEditorTab({
     >
       <Text tone="secondary" variant="caption">
         {t('admin.editor.metadata.intro')}{' '}
-        {t('admin.editor.metadata.lang', { language: names.of(meta.lang) ?? meta.lang })}
+        {book
+          ? t('admin.editor.metadata.langBook')
+          : t('admin.editor.metadata.lang', { language: names.of(meta.lang) ?? meta.lang })}
       </Text>
       <div className={styles.fields}>
-        {text('title', true)}
-        {titleKind && text('originalTitle')}
-        {text('sortTitle')}
-        <div>
-          <TextField
-            name="year"
-            label={fieldLabel('year')}
-            inputMode="numeric"
-            value={value('year')}
-            onChange={(next) => set('year', next)}
-          />
-          {meta_('year')}
-        </div>
-        <div>
-          <TextField
-            name="releaseDate"
-            label={fieldLabel('releaseDate')}
-            type="date"
-            inputRef={dateInput}
-            value={value('releaseDate')}
-            onChange={(next) => set('releaseDate', next)}
-          />
-          {meta_('releaseDate')}
-        </div>
-        {item.kind === 'movie' && text('tagline', true)}
-        <div className={styles.full}>
-          <TextField
-            name="overview"
-            label={fieldLabel('overview')}
-            rows={5}
-            value={value('overview')}
-            onChange={(next) => set('overview', next)}
-          />
-          {meta_('overview')}
-        </div>
-        {titleKind && (
-          <div className={styles.full}>
-            <div
-              role="group"
-              aria-labelledby={genresId}
-              aria-describedby={genresError ? genresErrorId : undefined}
-              className={styles.stack}
-            >
-              <span id={genresId} className={styles.label}>
-                {fieldLabel('genres')}
-              </span>
-              <ul className={styles.genres}>
-                {chosen.length === 0 && (
-                  <li className={styles.muted}>{t('admin.editor.metadata.genresNone')}</li>
-                )}
-                {chosen.map((name) => (
-                  <li key={name} className={styles.genre}>
-                    <Chip>{name}</Chip>
-                    <AriaButton
-                      variant="ghost"
-                      icon="close"
-                      iconOnly
-                      aria-label={t('admin.editor.metadata.genreRemove', { genre: name })}
-                      onPress={() =>
-                        set(
-                          'genres',
-                          chosen.filter((g) => g !== name),
-                        )
-                      }
-                    />
-                  </li>
-                ))}
-              </ul>
-              <div className={styles.inline}>
-                <TextField
-                  name="genre"
-                  label={t('admin.editor.metadata.genreAdd')}
-                  value={genre}
-                  suggestions={suggestions}
-                  inputRef={genreInput}
-                  onChange={setGenre}
-                  onKeyDown={(event) => {
-                    // Enter adds the genre instead of saving the form. The field is read after
-                    // the key: a browser that takes a highlighted suggestion with this Enter
-                    // (Firefox) writes the suggestion in only after the page's handlers ran, so
-                    // the typed part never becomes the chip.
-                    if (event.key !== 'Enter') return;
-                    event.preventDefault();
-                    window.setTimeout(() => addGenre(genreInput.current?.value ?? genre));
-                  }}
-                />
-                <AriaButton icon="plus" isDisabled={!genre.trim()} onPress={() => addGenre()}>
-                  {t('admin.editor.metadata.genreAddAction')}
-                </AriaButton>
-              </div>
-              {genresError && (
-                <p id={genresErrorId} className={styles.fieldError}>
-                  {genresError}
-                </p>
-              )}
+        {book ? (
+          <>
+            {text('title', true)}
+            {text('tagline', true)}
+            {text('sortTitle')}
+            {text('author')}
+            {text('narrator')}
+            {text('seriesName')}
+            {text('seriesIndex')}
+            {yearField}
+            {text('publisher')}
+            {languageField}
+            {genresField}
+            {overviewField}
+            {text('isbn')}
+            {text('asin')}
+            {ratingField}
+          </>
+        ) : (
+          <>
+            {text('title', true)}
+            {titleKind && text('originalTitle')}
+            {text('sortTitle')}
+            {yearField}
+            <div>
+              <TextField
+                name="releaseDate"
+                label={fieldLabel('releaseDate')}
+                type="date"
+                inputRef={dateInput}
+                value={value('releaseDate')}
+                onChange={(next) => set('releaseDate', next)}
+              />
+              {meta_('releaseDate')}
             </div>
-            {meta_('genres')}
-          </div>
-        )}
-        <div>
-          <SelectField
-            label={fieldLabel('rating')}
-            value={value('rating')}
-            onChange={(next) => set('rating', next)}
-            options={[
-              { value: FROM_METADATA, label: t('admin.item.rating.fromMetadata') },
-              ...ratingOptions(t).map(({ value: age, label }) => ({ value: age, label })),
-            ]}
-          />
-          {ratingError && <p className={styles.fieldError}>{ratingError}</p>}
-          {meta_('rating')}
-        </div>
-        {hasOriginalLanguage(item) && (
-          <div>
-            <SelectField
-              label={fieldLabel('language')}
-              value={value('language')}
-              onChange={(next) => set('language', next)}
-              options={originalLanguageOptions(
-                t,
-                names,
-                i18n.language,
-                languages.data?.knownLanguages ?? [],
-                value('language'),
-              )}
-            />
-            {meta_('language')}
-          </div>
+            {item.kind === 'movie' && text('tagline', true)}
+            {overviewField}
+            {titleKind && genresField}
+            {ratingField}
+            {hasOriginalLanguage(item) && languageField}
+          </>
         )}
       </div>
       {errors.form && <Notice tone="danger">{errors.form}</Notice>}
