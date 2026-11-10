@@ -281,6 +281,7 @@ func detail(it scopedq.Item, ex extras, lang langPref) model.ItemDetail {
 		id := it.TvdbID.Int64
 		d.TVDBID = &id
 	}
+	d.LibraryID = it.LibraryID
 	d.Narrator = it.Narrator.String
 	d.SeriesName = it.SeriesName.String
 	if it.SeriesIndex.Valid {

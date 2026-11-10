@@ -8,7 +8,254 @@ package scopedq
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
+
+const countVisibleAudioSeriesVolumes = `-- name: CountVisibleAudioSeriesVolumes :one
+SELECT count(*)
+FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+JOIN audio_series AS s ON s.id = i.audio_series_id AND s.library_id = i.library_id
+WHERE i.audio_series_id = ?2 AND i.kind = 'audiobook'
+`
+
+type CountVisibleAudioSeriesVolumesParams struct {
+	ProfileID int64
+	SeriesID  sql.NullString
+}
+
+// The number of visible books of a series (ItemDetail.seriesId needs two), counted like the page.
+func (q *Queries) CountVisibleAudioSeriesVolumes(ctx context.Context, arg CountVisibleAudioSeriesVolumesParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countVisibleAudioSeriesVolumes, arg.ProfileID, arg.SeriesID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const listVisibleAudioCollections = `-- name: ListVisibleAudioCollections :many
+SELECT c.id, c.name, c.name_de, count(*) AS member_count,
+       CAST(sum(COALESCE(p.completed, 0)) AS INTEGER) AS completed,
+       CAST((SELECT ci2.item_id FROM collection_items AS ci2
+             JOIN items AS i2 ON i2.id = ci2.item_id
+             JOIN visible_items AS v2 ON v2.item_id = ci2.item_id AND v2.profile_id = ?1
+             WHERE ci2.collection_id = c.id
+             ORDER BY ci2.position, i2.release_date IS NULL, i2.release_date, i2.id
+             LIMIT 1) AS TEXT) AS cover_id
+FROM collections AS c
+JOIN collection_items AS ci ON ci.collection_id = c.id
+JOIN visible_items AS v ON v.item_id = ci.item_id AND v.profile_id = ?1
+JOIN items AS i ON i.id = ci.item_id
+LEFT JOIN progress AS p ON p.profile_id = ?1 AND p.item_id = ci.item_id
+WHERE c.source = 'manual'
+GROUP BY c.id
+HAVING sum(i.kind <> 'audiobook') = 0 AND sum(i.library_id = ?2) > 0
+ORDER BY c.name, c.id
+`
+
+type ListVisibleAudioCollectionsParams struct {
+	ProfileID int64
+	LibraryID int64
+}
+
+type ListVisibleAudioCollectionsRow struct {
+	ID          string
+	Name        string
+	NameDe      sql.NullString
+	MemberCount int64
+	Completed   int64
+	CoverID     string
+}
+
+// The audiobook collections of a library (D4.1): manual collections whose visible members are all
+// audiobooks, with at least one visible member in this library. Count, completed members and
+// cover over every visible member, as the collection page and ListVisibleCollections count them.
+func (q *Queries) ListVisibleAudioCollections(ctx context.Context, arg ListVisibleAudioCollectionsParams) ([]ListVisibleAudioCollectionsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listVisibleAudioCollections, arg.ProfileID, arg.LibraryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVisibleAudioCollectionsRow{}
+	for rows.Next() {
+		var i ListVisibleAudioCollectionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.NameDe,
+			&i.MemberCount,
+			&i.Completed,
+			&i.CoverID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleAudioSeriesVolumes = `-- name: ListVisibleAudioSeriesVolumes :many
+SELECT i.id, CAST(i.audio_series_id AS TEXT) AS series_id, s.name AS series_display, s.name_locked,
+       i.series_name, i.series_index, i.author, i.narrator, i.duration_ms,
+       CAST(COALESCE(NULLIF(tm.sort_key, ''), NULLIF(tu.sort_key, ''), i.sort_title, '') AS TEXT) AS sort_key,
+       COALESCE(p.completed, 0) AS completed
+FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+JOIN audio_series AS s ON s.id = i.audio_series_id AND s.library_id = i.library_id
+LEFT JOIN item_texts AS tm ON tm.item_id = i.id AND tm.lang = ?2
+LEFT JOIN item_texts AS tu ON tu.item_id = i.id AND tu.lang = ?3
+LEFT JOIN progress AS p ON p.profile_id = ?1 AND p.item_id = i.id
+WHERE i.library_id = ?4 AND i.kind = 'audiobook'
+`
+
+type ListVisibleAudioSeriesVolumesParams struct {
+	ProfileID int64
+	MetaLang  string
+	UiLang    string
+	LibraryID int64
+}
+
+type ListVisibleAudioSeriesVolumesRow struct {
+	ID            string
+	SeriesID      string
+	SeriesDisplay string
+	NameLocked    int64
+	SeriesName    sql.NullString
+	SeriesIndex   sql.NullFloat64
+	Author        sql.NullString
+	Narrator      sql.NullString
+	DurationMs    sql.NullInt64
+	SortKey       string
+	Completed     int64
+}
+
+// Audiobook series (concept 19 stage D2, D4.1): the visible books of a library that belong to a
+// series, with what the row "Reihen und Sammlungen" and the page of a series compute from them
+// (count, spellings, author, narrator, duration, order, completed). sort_key is the title sort key
+// in the metadata language, then the interface language, then the file name's; the visibility
+// package groups and orders in Go.
+func (q *Queries) ListVisibleAudioSeriesVolumes(ctx context.Context, arg ListVisibleAudioSeriesVolumesParams) ([]ListVisibleAudioSeriesVolumesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listVisibleAudioSeriesVolumes,
+		arg.ProfileID,
+		arg.MetaLang,
+		arg.UiLang,
+		arg.LibraryID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVisibleAudioSeriesVolumesRow{}
+	for rows.Next() {
+		var i ListVisibleAudioSeriesVolumesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.SeriesID,
+			&i.SeriesDisplay,
+			&i.NameLocked,
+			&i.SeriesName,
+			&i.SeriesIndex,
+			&i.Author,
+			&i.Narrator,
+			&i.DurationMs,
+			&i.SortKey,
+			&i.Completed,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleAudioSeriesVolumesOf = `-- name: ListVisibleAudioSeriesVolumesOf :many
+SELECT i.id, CAST(i.audio_series_id AS TEXT) AS series_id, s.name AS series_display, s.name_locked,
+       i.series_name, i.series_index, i.author, i.narrator, i.duration_ms,
+       CAST(COALESCE(NULLIF(tm.sort_key, ''), NULLIF(tu.sort_key, ''), i.sort_title, '') AS TEXT) AS sort_key,
+       COALESCE(p.completed, 0) AS completed
+FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+JOIN audio_series AS s ON s.id = i.audio_series_id AND s.library_id = i.library_id
+LEFT JOIN item_texts AS tm ON tm.item_id = i.id AND tm.lang = ?2
+LEFT JOIN item_texts AS tu ON tu.item_id = i.id AND tu.lang = ?3
+LEFT JOIN progress AS p ON p.profile_id = ?1 AND p.item_id = i.id
+WHERE i.audio_series_id = ?4 AND i.library_id = ?5 AND i.kind = 'audiobook'
+`
+
+type ListVisibleAudioSeriesVolumesOfParams struct {
+	ProfileID int64
+	MetaLang  string
+	UiLang    string
+	SeriesID  sql.NullString
+	LibraryID int64
+}
+
+type ListVisibleAudioSeriesVolumesOfRow struct {
+	ID            string
+	SeriesID      string
+	SeriesDisplay string
+	NameLocked    int64
+	SeriesName    sql.NullString
+	SeriesIndex   sql.NullFloat64
+	Author        sql.NullString
+	Narrator      sql.NullString
+	DurationMs    sql.NullInt64
+	SortKey       string
+	Completed     int64
+}
+
+// The same rows for one series of a library (the page of a series).
+func (q *Queries) ListVisibleAudioSeriesVolumesOf(ctx context.Context, arg ListVisibleAudioSeriesVolumesOfParams) ([]ListVisibleAudioSeriesVolumesOfRow, error) {
+	rows, err := q.db.QueryContext(ctx, listVisibleAudioSeriesVolumesOf,
+		arg.ProfileID,
+		arg.MetaLang,
+		arg.UiLang,
+		arg.SeriesID,
+		arg.LibraryID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVisibleAudioSeriesVolumesOfRow{}
+	for rows.Next() {
+		var i ListVisibleAudioSeriesVolumesOfRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.SeriesID,
+			&i.SeriesDisplay,
+			&i.NameLocked,
+			&i.SeriesName,
+			&i.SeriesIndex,
+			&i.Author,
+			&i.Narrator,
+			&i.DurationMs,
+			&i.SortKey,
+			&i.Completed,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
 
 const listVisibleAudiobookParts = `-- name: ListVisibleAudiobookParts :many
 SELECT m.id, m.item_id, m.rel_path, m.size, m.mtime, m.container, m.video_codec, m.audio_codec,
@@ -131,6 +378,61 @@ func (q *Queries) ListVisibleChapters(ctx context.Context, arg ListVisibleChapte
 			&i.MediaFileID,
 			&i.FileStartMs,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleCollectionMembers = `-- name: ListVisibleCollectionMembers :many
+SELECT ci.collection_id, ci.item_id, i.library_id
+FROM collection_items AS ci
+JOIN visible_items AS v ON v.item_id = ci.item_id AND v.profile_id = ?1
+JOIN items AS i ON i.id = ci.item_id
+WHERE ci.collection_id IN (/*SLICE:collection_ids*/?)
+`
+
+type ListVisibleCollectionMembersParams struct {
+	ProfileID     int64
+	CollectionIds []string
+}
+
+type ListVisibleCollectionMembersRow struct {
+	CollectionID string
+	ItemID       string
+	LibraryID    int64
+}
+
+// The visible members of the given collections with their library, in every library (the filter
+// count "2 von 6" counts the members like the badge).
+func (q *Queries) ListVisibleCollectionMembers(ctx context.Context, arg ListVisibleCollectionMembersParams) ([]ListVisibleCollectionMembersRow, error) {
+	query := listVisibleCollectionMembers
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.ProfileID)
+	if len(arg.CollectionIds) > 0 {
+		for _, v := range arg.CollectionIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:collection_ids*/?", strings.Repeat(",?", len(arg.CollectionIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:collection_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVisibleCollectionMembersRow{}
+	for rows.Next() {
+		var i ListVisibleCollectionMembersRow
+		if err := rows.Scan(&i.CollectionID, &i.ItemID, &i.LibraryID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

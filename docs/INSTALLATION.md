@@ -28,8 +28,8 @@ Fassung nicht geprüft worden, weil im Projekt keine solchen Geräte vorhanden w
 
 ```bash
 mkdir -p ~/slouchcat && cd ~/slouchcat
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.24.0/deploy/compose.yaml
-curl -fsSL -o .env https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.24.0/deploy/.env.example
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.25.0/deploy/compose.yaml
+curl -fsSL -o .env https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.25.0/deploy/.env.example
 mkdir -p config cache
 ```
 
@@ -49,7 +49,7 @@ Du hast jetzt vier Dinge nebeneinander:
 
 ```bash
 # Die Fassung, die laufen soll.
-SLOUCHCAT_VERSION=1.24.0
+SLOUCHCAT_VERSION=1.25.0
 
 # Der Ordner auf deinem Rechner, in dem die Medien liegen.
 MEDIA_DIR=/srv/media
@@ -121,7 +121,7 @@ Zeit: Der Start eines 4K-HDR-Films dauert dann bis zu zehn Sekunden statt unter 
 ist höchstens 1080p ohne HDR. Mit Grafikchip nimmst du eine zweite Datei dazu:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.24.0/deploy/compose.nvidia.yaml
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.25.0/deploy/compose.nvidia.yaml
 echo 'COMPOSE_FILE=compose.yaml:compose.nvidia.yaml' >> .env
 docker compose up -d
 ```
@@ -166,8 +166,8 @@ auf deinen Anschluss zeigt, und im Router die Weiterleitung der Ports 80/tcp, 44
 den Rechner.
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.24.0/deploy/Caddyfile
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.24.0/deploy/compose.https-only.yaml
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.25.0/deploy/Caddyfile
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.25.0/deploy/compose.https-only.yaml
 ```
 
 In `.env`:
@@ -270,7 +270,7 @@ Wer das nicht will, lässt den Begleiter weg; alles andere bleibt gleich.
 
 ```bash
 cd ~/slouchcat
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.24.0/deploy/compose.updater.yaml
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.25.0/deploy/compose.updater.yaml
 mkdir -p updater
 echo "SLOUCHCAT_DEPLOY_DIR=$(pwd)" >> .env
 ```

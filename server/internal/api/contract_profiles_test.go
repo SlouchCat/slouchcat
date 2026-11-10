@@ -311,6 +311,21 @@ var profileRegistry = map[string]profileCall{
 		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
 			checkLibraryPage(t, f, fixtureProfile(f, token), rec)
 		}},
+	// Audiobook series (contract 1.25.0, concept 19 D2): the leak check runs over every answer;
+	// checkAudioGroups and checkAudioSeries say what each profile must see
+	// (contract_audio_series_test.go).
+	"listAudioGroups": {contract: "GET /libraries/{id}/audio-groups", path: fmt.Sprintf("/libraries/%d/audio-groups", fixtureAudiobookLibrary),
+		want:  audioLibraryStatus,
+		check: checkAudioGroups},
+	"getAudioSeries": {contract: "GET /libraries/{id}/series/{seriesId}",
+		path: fmt.Sprintf("/libraries/%d/series/%s", fixtureAudiobookLibrary, vistest.AudioSeriesID),
+		want: func(f *vistest.Fixture, p model.Profile) int {
+			if len(seriesVolumesFor(f, p)) < 2 {
+				return http.StatusNotFound // a series needs two visible volumes (PD-4)
+			}
+			return http.StatusOK
+		},
+		check: checkAudioSeries},
 	"listPicks": {contract: "GET /picks", path: "/picks?limit=100",
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
 	"getItem": {contract: "GET /items/{id}", path: "/items/{id}", perItem: true, okStatus: http.StatusOK,
@@ -1205,6 +1220,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	tracks := f.AddTracks(t)
 	f.AddSegments(t, f.Show.E1.ID)
 	f.AddAudio(t)
+	f.AddAudioSeries(t)
 	f.AddDiscover(t)
 	log := vistest.Logger()
 	a := auth.New(f.DB, log)

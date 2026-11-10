@@ -38,6 +38,8 @@ interface DetailHeaderProps {
   accent?: string;
   /** `poster` 2:3, `square` for audiobooks and podcasts (M6), `still` 16:9 for an episode. */
   cover: 'poster' | 'square' | 'still';
+  /** Two sheets behind the cover: the page stands for several titles (an audiobook series). */
+  stack?: boolean;
   onBack: () => void;
   /**
    * Where ↓ from the back arrow goes (the big button). By geometry it would pass the head and land
@@ -78,6 +80,7 @@ export function DetailHeader({
   ownPoster,
   accent,
   cover,
+  stack = false,
   onBack,
   belowBack,
   coverTool,
@@ -186,7 +189,7 @@ export function DetailHeader({
 
       <div className={hasArt ? styles.layout : `${styles.layout} ${styles.noArt}`}>
         <div className={styles.poster} style={itemAccentStyle(accent)}>
-          {coverImage}
+          {stack ? <span className={styles.stack}>{coverImage}</span> : coverImage}
           {coverTool && <div className={styles.posterTool}>{coverTool}</div>}
           {coverMark && <div className={styles.posterMark}>{coverMark}</div>}
         </div>

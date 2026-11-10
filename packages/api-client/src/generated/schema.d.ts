@@ -447,6 +447,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/libraries/{id}/audio-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The row «Reihen und Sammlungen» of an audiobook library (concept 19 D4.2)
+         * @description The audiobook series and the audiobook collections of a library for the active profile (since
+         *     contract 1.25.0, concept 19 stage D2), by name. A series (`kind` `series`) groups the
+         *     audiobooks of one library with the same series key (normalised series name plus first
+         *     author, D4.1); it exists for a profile only with at least two visible volumes. A collection
+         *     (`kind` `collection`) is a manual collection whose visible members are all audiobooks; it
+         *     appears in every library that holds at least one of its visible members. Everything is
+         *     computed from the visible volumes only: `count`, `completed`, `author`, `name` and `cover`.
+         *     The filters `genre`, `yearFrom`, `yearTo`, `maxRating` and `status` work as on
+         *     `listLibraryItems`: a group appears when at least one of its volumes in this library passes
+         *     them, and `matching` says how many of its visible volumes do («2 von 6 Bänden»). Without a
+         *     filter `matching` equals `count`. A library without audiobooks answers an empty list; a
+         *     library the profile may not see answers 404 (never 403).
+         */
+        get: operations["listAudioGroups"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/libraries/{id}/series/{seriesId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The page of an audiobook series (concept 19 D4.3)
+         * @description An audiobook series of the library with its visible volumes (since contract 1.25.0, concept 19
+         *     stage D2). Volumes are ordered by their number (0.5 before 1), volumes without a number last
+         *     by title; two books with the same number (a reading and a radio play) both appear. `next` is
+         *     the first visible volume in that order the profile has not completed, else the first one
+         *     («Weiterhören»). Name, author, narrator, duration and cover come from the visible volumes
+         *     only. A series with fewer than two visible volumes, of another library or unknown answers
+         *     404 (never 403).
+         */
+        get: operations["getAudioSeries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/invitations/{token}": {
         parameters: {
             query?: never;
@@ -2805,6 +2862,33 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/admin/audio-series/{seriesId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Rename an audiobook series (concept 19 D5.4)
+         * @description Sets the displayed name of an audiobook series and locks it, so the most common spelling of
+         *     the volumes no longer replaces it (since contract 1.25.0). The volumes stay as they are.
+         *     With `writeToVolumes` the server also writes the name into `seriesName` of every volume
+         *     that is visible to the active profile and locks that field; the volumes are then grouped
+         *     again by their key, so two series with the same new key become one (the series that already
+         *     held the key keeps its id; a series left without books is deleted at once). The answer is
+         *     the series the volumes belong to afterwards, which may have another id. A book's number is
+         *     changed on the book (`updateItemMetadata`).
+         */
+        patch: operations["updateAudioSeries"];
         trace?: never;
     };
     "/admin/collections/{id}": {
@@ -5464,6 +5548,18 @@ export interface components {
             seriesName?: string;
             /** @description Volume inside `seriesName` (0.5 for a prequel is possible). */
             seriesIndex?: number;
+            /**
+             * @description The audiobook series of the book (since contract 1.25.0, concept 19 D4.3): set only when
+             *     the series has at least two volumes the active profile may see; the detail page then
+             *     links «Reihe · Band n» to `getAudioSeries`.
+             */
+            seriesId?: components["schemas"]["AudioSeriesID"];
+            /**
+             * Format: int64
+             * @description The library of the title (since contract 1.25.0); with `seriesId` it forms the address of
+             *     the series page (`getAudioSeries`).
+             */
+            libraryId?: number;
             /** @description Book-wide chapters of an audiobook (from chapter marks or one per file), in order. */
             chapters?: components["schemas"]["Chapter"][];
             /** @description Visible extras of a film, series or season (B-7). */
@@ -5620,7 +5716,12 @@ export interface components {
             libraries?: components["schemas"]["LibraryTile"][];
             /** @description The titles of the row; empty for `collections` and `genres`. */
             items: components["schemas"]["ItemRef"][];
-            /** @description Only in the row `collections` (E-6). */
+            /**
+             * @description Only in the row `collections` (E-6). Since contract 1.25.0 without the audiobook
+             *     collections, whose visible members are all audiobooks (concept 19 D4.1); they appear in
+             *     the row «Reihen und Sammlungen» of their library (`listAudioGroups`), on the detail page
+             *     and in the search.
+             */
             collections?: components["schemas"]["CollectionRef"][];
             /** @description Only in the row `genres`; each links to the search filtered by that genre. */
             genres?: components["schemas"]["GenreRef"][];
@@ -7336,6 +7437,110 @@ export interface components {
             name: string;
             /** @description Visible titles with this genre. */
             count: number;
+        };
+        /** @description ULID of an audiobook series (since contract 1.25.0, concept 19 D4.4). */
+        AudioSeriesID: string;
+        /**
+         * @description A series from the metadata of the books or a manual collection of audiobooks (concept 19 D4.1).
+         * @enum {string}
+         */
+        AudioGroupKind: "series" | "collection";
+        /**
+         * @description One tile of the row «Reihen und Sammlungen» (since contract 1.25.0): a series opens
+         *     `getAudioSeries`, a collection the collection page (`getCollection`).
+         */
+        AudioGroup: {
+            /** @description The `AudioSeriesID` of a series or the `CollectionID` of a collection. */
+            id: string;
+            kind: components["schemas"]["AudioGroupKind"];
+            /**
+             * @description A series: its locked name, else the most common spelling among the visible volumes. A
+             *     collection: its name in the profile language.
+             */
+            name: string;
+            /** @description Series only, the author of the visible volumes (the most common one). */
+            author?: string;
+            /** @description Visible volumes of a series, visible members of a collection (as the collection page counts them). */
+            count: number;
+            /** @description Of `count`, the volumes that pass the filters; equals `count` without a filter. */
+            matching: number;
+            /** @description Of `count`, the volumes the active profile has completed (the bar of the tile). */
+            completed: number;
+            /** @description The first visible volume in series or collection order; its cover represents the group. */
+            cover?: components["schemas"]["ItemRef"];
+        };
+        AudioGroupList: {
+            /** @description Series and collections together, by name. */
+            groups: components["schemas"]["AudioGroup"][];
+            /** @description Number of groups of kind `series` (the head line «17 Reihen»). */
+            seriesCount: number;
+            /** @description Number of groups of kind `collection` («1 Sammlung»). */
+            collectionCount: number;
+        };
+        AudioSeriesSpelling: {
+            /** @description A series name as the files (or the editor) of the visible volumes write it. */
+            name: string;
+            /** @description Visible volumes with exactly this spelling. */
+            count: number;
+        };
+        /** @description An audiobook series with its visible volumes (since contract 1.25.0, concept 19 D4.3). */
+        AudioSeries: {
+            id: components["schemas"]["AudioSeriesID"];
+            /** Format: int64 */
+            libraryId: number;
+            /** @description The locked name, else the most common spelling among the visible volumes. */
+            name: string;
+            /** @description The name was set by «Reihe bearbeiten» and no longer follows the volumes. */
+            nameLocked?: boolean;
+            /** @description The most common author of the visible volumes. */
+            author?: string;
+            /** @description Set only when every visible volume has the same narrator. */
+            narrator?: string;
+            /**
+             * Format: int64
+             * @description Duration of all visible volumes.
+             */
+            durationMs: number;
+            /** @description The first visible volume; its cover is the cover of the series. */
+            cover?: components["schemas"]["ItemRef"];
+            /** @description «Weiterhören», the first visible volume the profile has not completed, else the first one. */
+            next?: components["schemas"]["ItemRef"];
+            /**
+             * @description The visible volumes in series order: by number (`seriesIndex`, 0.5 before 1), without a
+             *     number last by title; each with its progress, `author`, `durationMs` and `seriesIndex`.
+             */
+            volumes: components["schemas"]["AudioSeriesVolume"][];
+            /**
+             * @description The spellings of the series name among the visible volumes, the most common first. More
+             *     than one means the series was put together from several spellings; the page shows that
+             *     to admins only (OD-5).
+             */
+            spellings: components["schemas"]["AudioSeriesSpelling"][];
+        };
+        AudioSeriesVolume: {
+            item: components["schemas"]["ItemRef"];
+            /** @description The number of the volume; absent without a number. */
+            seriesIndex?: number;
+            /** @description The narrator of the volume (tells a reading from a radio play with the same number). */
+            narrator?: string;
+        };
+        AudioSeriesRequest: {
+            /** @description The displayed name; trimmed, must not be empty. */
+            name: string;
+            /**
+             * @description «In alle Bände schreiben»: also set and lock `seriesName` of every visible volume.
+             * @default false
+             */
+            writeToVolumes: boolean;
+        };
+        AdminAudioSeries: {
+            id: components["schemas"]["AudioSeriesID"];
+            /** Format: int64 */
+            libraryId: number;
+            name: string;
+            nameLocked: boolean;
+            /** @description Books of the series (all, not only the visible ones). */
+            volumeCount: number;
         };
         CollectionID: string;
         /** @description A collection as it appears in rows and on the detail page; counts only visible members. */
@@ -9654,6 +9859,8 @@ export interface components {
         InvitationToken: string;
         /** @description Item ID (ULID). */
         ItemID: components["schemas"]["ItemID"];
+        /** @description Audiobook series ID (ULID). */
+        AudioSeriesID: components["schemas"]["AudioSeriesID"];
         /** @description Collection ID (ULID). */
         CollectionID: components["schemas"]["CollectionID"];
         /** @description Playback session ID (ULID) from `PlaybackInfo.playbackSessionId`. */
@@ -10718,6 +10925,93 @@ export interface operations {
              *     `yearFrom`/`yearTo` `invalid_value` outside 1870..2100; `genre` `too_long` over 80 characters).
              */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listAudioGroups: {
+        parameters: {
+            query?: {
+                /** @description A genre name in the profile language, as `facets.genres` of `listLibraryItems` lists it. */
+                genre?: string;
+                yearFrom?: number;
+                yearTo?: number;
+                /** @description Lowers the ceiling; the server takes `min(profile ceiling, maxRating)`. */
+                maxRating?: components["schemas"]["Rating"];
+                /** @description Several values are combined with OR. */
+                status?: components["schemas"]["LibraryItemStatus"][];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["LibraryID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The series and audiobook collections of the library, by name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudioGroupList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown library or not visible for the active profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Validation failed (`validation_failed`; `yearFrom`/`yearTo` `invalid_value` outside
+             *     1870..2100; `genre` `too_long` over 80 characters; `maxRating` or `status` `invalid_value`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getAudioSeries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["LibraryID"];
+                /** @description Audiobook series ID (ULID). */
+                seriesId: components["parameters"]["AudioSeriesID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The series with its visible volumes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudioSeries"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown, of another library or with fewer than two visible volumes (`not_found`). */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -15055,6 +15349,53 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
             /** @description Validation failed (`validation_failed`; `name` `required` or `too_long`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateAudioSeries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Audiobook series ID (ULID). */
+                seriesId: components["parameters"]["AudioSeriesID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AudioSeriesRequest"];
+            };
+        };
+        responses: {
+            /** @description The series after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAudioSeries"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown series (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; `name` `required` when empty after trimming, `too_long` over 200 characters). */
             422: {
                 headers: {
                     [name: string]: unknown;

@@ -39,10 +39,11 @@ import {
   type LibraryParams,
   type LibrarySort,
 } from './libraryParams';
+import { AudioGroupsRow } from './AudioGroupsRow';
 import { CoverPen, EDITABLE_KINDS, EditMetadata } from './EditMetadata';
 import { LibraryGrid, type LibraryGridHandle } from './LibraryGrid';
 import { useLibraryPages, type DrawnRange } from './libraryPages';
-import { visibleLibrariesQuery } from './queries';
+import { audioGroupsQuery, visibleLibrariesQuery, type AudioGroupsRequest } from './queries';
 import styles from './LibraryPage.module.css';
 
 type LibraryNav = components['schemas']['LibraryNav'];
@@ -111,6 +112,24 @@ function LibraryView({ id }: { id: number | null }) {
     setTop((previous) => (same(previous, row) ? previous : row));
   }, []);
   const { first: query, slots, failed: pageFailed, retry } = useLibraryPages(id, request, drawn);
+  // The row «Reihen und Sammlungen» (concept 19 D4.2): where the library holds audiobooks and the
+  // content filter does not leave them out, with the grid's filters; the letter bar is the grid's.
+  const groupsShown =
+    library !== undefined &&
+    library.contents.includes('audiobook') &&
+    (params.content === undefined || params.content === 'audiobook');
+  // Undefined filters stay out of the query string and the query key.
+  const groupsRequest = useMemo((): AudioGroupsRequest => {
+    const { genre, yearFrom, yearTo, maxRating, status } = request;
+    return { genre, yearFrom, yearTo, maxRating, status };
+  }, [request]);
+  const groupsQuery = useQuery({
+    ...audioGroupsQuery(id ?? 0, groupsRequest),
+    enabled: id !== null && groupsShown,
+    // A new filter keeps the old row until its answer is there, like the grid.
+    placeholderData: (previous) => previous,
+  });
+  const groups = groupsShown ? groupsQuery.data : undefined;
   // The content filter of the titles drawn: a new filter keeps the old titles until its first page
   // is there, and the grid keeps their cover shape so long (square rows would cut 2:3 cards).
   const [drawnContent, setDrawnContent] = useState(params.content);
@@ -227,7 +246,16 @@ function LibraryView({ id }: { id: number | null }) {
   const statuses = statusesOf(params);
 
   const noun = t(`library.page.noun.${library.kind}`, { count: total });
-  const counted = t('library.page.count', { count: total, noun });
+  // «89 Hörbücher · 17 Reihen · 1 Sammlung»: the groups only where there are any.
+  const counted = [
+    t('library.page.count', { count: total, noun }),
+    groups?.seriesCount ? t('library.groups.series', { count: groups.seriesCount }) : undefined,
+    groups?.collectionCount
+      ? t('library.groups.collections', { count: groups.collectionCount })
+      : undefined,
+  ]
+    .filter(Boolean)
+    .join(t('format.separator'));
 
   const genreOptions = [
     { value: '', label: t('library.filters.allGenres') },
@@ -414,6 +442,10 @@ function LibraryView({ id }: { id: number | null }) {
               </SpatialButton>
             </SpatialGroup>
           </div>
+        )}
+
+        {groups && groups.groups.length > 0 && (
+          <AudioGroupsRow libraryId={library.id} groups={groups.groups} />
         )}
 
         <div className={styles.body}>

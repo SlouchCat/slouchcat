@@ -103,3 +103,23 @@
 .card:focus-visible .title {
   color: var(--sc-color-text-primary);
 }
+
+/* An audiobook series or collection (concept 19 D4.2): the cover and its sheets are square. */
+.square .stack::before,
+.square .stack::after,
+.square .frame {
+  aspect-ratio: 1 / 1;
+}
+
+.badge {
+  position: absolute;
+  top: var(--sc-space-2);
+  left: var(--sc-space-2);
+}
+
+.progress {
+  position: absolute;
+  right: var(--sc-space-3);
+  bottom: var(--sc-space-3);
+  left: var(--sc-space-3);
+}

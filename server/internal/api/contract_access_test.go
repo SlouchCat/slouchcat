@@ -260,6 +260,10 @@ var adminRegistry = map[string]adminCall{
 	"updateItemMetadata": {contract: "PATCH /admin/items/{id}/metadata", path: "/admin/items/" + unknownItemID + "/metadata",
 		body: `{"title":"Neu"}`, ownerStatus: http.StatusNotFound},
 	"listAdminGenres": {contract: "GET /admin/genres", path: "/admin/genres", ownerStatus: http.StatusOK},
+	// Concept 19 D5.4: «Reihe bearbeiten» writes the database, so the registry asks for an unknown
+	// series (TestAudioSeriesOverHTTP covers 200, 404 and 422).
+	"updateAudioSeries": {contract: "PATCH /admin/audio-series/{seriesId}", path: "/admin/audio-series/" + unknownItemID,
+		body: `{"name":"Neu"}`, ownerStatus: http.StatusNotFound},
 	"setItemsRating": {contract: "POST /admin/items/rating", path: "/admin/items/rating",
 		body: `{"itemIds":["` + unknownItemID + `"],"rating":12}`, ownerStatus: http.StatusOK},
 	"searchMetadata": {contract: "GET /admin/metadata/search", path: "/admin/metadata/search?provider=tvdb&kind=series&query=Show",

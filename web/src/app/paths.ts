@@ -43,6 +43,9 @@ export const paths = {
   radio: '/radio',
   /** A library with every title the active profile may see (concept 08). */
   library: (id: number) => `/libraries/${id}`,
+  /** An audiobook series of a library with its volumes (concept 19 D4.3). */
+  audioSeries: (libraryId: number, seriesId: string) =>
+    `/libraries/${libraryId}/series/${encodeURIComponent(seriesId)}`,
   /** All of Cat's recommendations for the active profile (concept 08). */
   picks: '/picks',
   notifications: '/notifications',

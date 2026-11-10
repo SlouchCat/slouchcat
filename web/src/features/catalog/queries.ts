@@ -5,6 +5,7 @@ import type {
   ItemRef,
   Person,
   PodcastEpisodes,
+  paths,
   Trailer,
 } from '@slouchcat/api-client';
 import { queryOptions } from '@tanstack/react-query';
@@ -13,6 +14,12 @@ import type { PagedSource } from '@/lib/pagedList';
 
 type LibraryNav = components['schemas']['LibraryNav'];
 type PicksPage = components['schemas']['PicksPage'];
+type AudioGroupList = components['schemas']['AudioGroupList'];
+type AudioSeries = components['schemas']['AudioSeries'];
+/** The filters of listAudioGroups: the grid's genre, years, age ceiling and status. */
+export type AudioGroupsRequest = NonNullable<
+  paths['/libraries/{id}/audio-groups']['get']['parameters']['query']
+>;
 
 /**
  * The stage's start the app shell drew for this page view (concept 08, 6; api/preload.go):
@@ -106,3 +113,27 @@ export const picksSource: PagedSource<PicksPage, ItemRef> = {
   total: (page) => page.total,
   id: (item) => item.id,
 };
+
+/**
+ * The row «Reihen und Sammlungen» of an audiobook library with the grid's filters (concept 19
+ * D4.2). Below `['library']`, so closing the editor reads it again.
+ */
+export const audioGroupsQuery = (id: number, query: AudioGroupsRequest) =>
+  queryOptions({
+    queryKey: ['library', id, 'audio-groups', query],
+    queryFn: ({ signal }): Promise<AudioGroupList> =>
+      request(api.GET('/libraries/{id}/audio-groups', { params: { path: { id }, query }, signal })),
+  });
+
+/** An audiobook series with its visible volumes in series order (concept 19 D4.3). */
+export const audioSeriesQuery = (libraryId: number, seriesId: string) =>
+  queryOptions({
+    queryKey: ['library', libraryId, 'series', seriesId],
+    queryFn: ({ signal }): Promise<AudioSeries> =>
+      request(
+        api.GET('/libraries/{id}/series/{seriesId}', {
+          params: { path: { id: libraryId, seriesId } },
+          signal,
+        }),
+      ),
+  });

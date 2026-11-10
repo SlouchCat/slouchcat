@@ -132,8 +132,8 @@ func (s *Service) finishAudiobooks(ctx context.Context, ids map[string]bool) {
 // it also writes the book-wide chapters (parts that failed to probe are left out), the duration
 // (sum of the parts), the metadata (metadata.json > tags of the first part > folder names; locked
 // fields and manual ratings stay), the cover (folder image, else the picture embedded in the first
-// part that has one) and queues image.fetch for the cover. Anything but an undeleted audiobook is
-// left alone.
+// part that has one) and queues image.fetch for the cover. In the same transaction the book is
+// linked to its series (RelinkAudioSeries). Anything but an undeleted audiobook is left alone.
 func (s *Service) finishAudiobook(ctx context.Context, itemID string) error {
 	sq := systemq.New(s.db.Read)
 	item, err := sq.GetItemSystem(ctx, itemID)
@@ -222,6 +222,10 @@ func (s *Service) finishAudiobook(ctx context.Context, itemID string) error {
 		if err := s.writeBook(ctx, q, item, lib, parts, meta); err != nil {
 			return err
 		}
+	}
+	// The series follows the series name and the author the book has now (concept 19 D4.4).
+	if err := RelinkAudioSeries(ctx, q, []string{item.ID}, s.now()); err != nil {
+		return err
 	}
 	return tx.Commit()
 }

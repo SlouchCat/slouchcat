@@ -63,9 +63,11 @@ test('the M4B book: 12 chapters every 5 s, author, narrator, series and cover (H
   await expect(page.getByRole('heading', { level: 1, name: M4B_TITLE })).toBeVisible();
   await expect(page.getByText(`von ${AUDIO_AUTHOR}`)).toBeVisible();
   await expect(page.getByText(`Gelesen von ${AUDIO_NARRATOR}`)).toBeVisible();
-  await expect(page.getByText(new RegExp(`^${AUDIO_SERIES}`))).toBeVisible();
-  // The cover (embedded picture of the M4B) loads and is square.
-  const cover = page.locator(`img[src*="/items/${m4b}/images/poster"][height="400"]`);
+  // The series line links to the page of the series (concept 19 stage D2).
+  await expect(page.getByRole('link', { name: `${AUDIO_SERIES} · Band 1` })).toBeVisible();
+  // The cover (embedded picture of the M4B) loads and is square; the head comes before the shelf
+  // of the series, which shows the book again.
+  const cover = page.locator(`img[src*="/items/${m4b}/images/poster"][height="400"]`).first();
   await expect(cover).toBeVisible();
   await expect
     .poll(() => cover.evaluate((image: HTMLImageElement) => image.naturalWidth))
@@ -90,7 +92,10 @@ test('the MP3 folder is one book with a chapter per file (H-1)', async ({ page, 
   await page.goto(`/items/${mp3}`);
   await expect(page.getByRole('heading', { level: 1, name: MP3_TITLE })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Kapitel' }).getByRole('link')).toHaveCount(10);
-  await expect(page.locator(`img[src*="/items/${mp3}/images/poster"][height="400"]`)).toBeVisible();
+  // The head's cover, before the shelf of the series that shows the book again.
+  await expect(
+    page.locator(`img[src*="/items/${mp3}/images/poster"][height="400"]`).first(),
+  ).toBeVisible();
 });
 
 test('a chapter link on the detail page starts the player at that chapter (±1 s)', async ({
@@ -128,9 +133,13 @@ test('the book’s detail page by keyboard: arrows into the chapters, Tab, Enter
   const chapter = (n: number) =>
     chapters.getByRole('link', { name: new RegExp(`^Kapitel ${n} ab 0:\\d\\d abspielen$`) });
 
-  // ↓ lands on play, ↑ reaches the back arrow, ↓ returns; ↓ goes down into the chapter list.
+  // ↓ lands on play, ↑ reaches the link of the series above the title (concept 19 stage D2), ↑
+  // the back arrow, ↓ returns to play (the content remembers it); ↓ goes down into the chapters.
+  const seriesLink = page.getByRole('link', { name: `${AUDIO_SERIES} · Band 1` });
   await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, play);
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, seriesLink);
   await page.keyboard.press('ArrowUp');
   await expectFocusOn(page, page.getByRole('button', { name: 'Zurück' }));
   await page.keyboard.press('ArrowDown');
@@ -138,6 +147,13 @@ test('the book’s detail page by keyboard: arrows into the chapters, Tab, Enter
   // The round actions under the big button (watchlist, M7) come first.
   await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, page.getByRole('button', { name: /^(Merken|Gemerkt)$/ }));
+  // The shelf of the series comes right after the head, like a collection's (concept 19 D4.3):
+  // «Alle zeigen» in its head, then the volume's card.
+  const shelf = page.getByRole('region', { name: AUDIO_SERIES });
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, shelf.getByRole('link', { name: `Alle zeigen: ${AUDIO_SERIES}` }));
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, shelf.getByRole('link', { name: new RegExp(M4B_TITLE) }));
   await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, chapter(1));
   await page.keyboard.press('ArrowDown');
@@ -147,16 +163,17 @@ test('the book’s detail page by keyboard: arrows into the chapters, Tab, Enter
   await expectFocusOn(page, chapter(2));
 
   // Tab from the top: the header, the back arrow, then (after the pen and the watchlist button on
-  // the cover) play and the round actions; the chapters follow; no focus trap. A fresh
-  // load starts the Tab sequence at the top in every browser (Firefox continues from the last
+  // the cover and the link of the series) play and the round actions; the chapters follow; no
+  // focus trap. A fresh load starts the Tab sequence at the top in every browser (Firefox continues from the last
   // focused element after a blur).
   await page.goto(`/items/${m4b}`);
   await expect(page.getByRole('heading', { level: 1, name: M4B_TITLE })).toBeVisible();
   await resetFocus(page);
   await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
   await tabTo(page, page.getByRole('button', { name: 'Zurück' }), 2);
-  await tabTo(page, play, 3);
-  await tabTo(page, chapter(1), 6);
+  await tabTo(page, play, 4);
+  // Between them the shelf of the series: «Alle anzeigen» and the two volumes.
+  await tabTo(page, chapter(1), 10);
   await expectNoFocusTrap(page);
 
   // Enter on a chapter starts the player there; Backspace returns to the book, Escape home.

@@ -35,3 +35,26 @@ export const WithOwnPoster: Story = { args: { imageUrl: art.posterEmber } };
 
 /** No visible member has a poster yet: the lettered fallback tile on the stack. */
 export const WithoutPoster: Story = { args: { posterUrl: undefined, name: 'Meine Sammlung' } };
+
+/** An audiobook series (concept 19 D4.2): square, the number of volumes, the share heard. */
+export const SquareSeries: Story = {
+  args: {
+    shape: 'square',
+    posterUrl: undefined,
+    name: 'Die Dämmerungs-Reihe',
+    caption: 'Mara Lindqvist · 6 Bände',
+    badge: '6 Bände',
+    progress: { percent: 50, label: '3 von 6 Bänden gehört' },
+  },
+};
+
+/** A filter is on: only some volumes pass it. */
+export const SquareFiltered: Story = {
+  args: {
+    shape: 'square',
+    posterUrl: undefined,
+    name: 'Die Dämmerungs-Reihe',
+    caption: 'Mara Lindqvist · 6 Bände',
+    badge: '2 von 6 Bänden',
+  },
+};

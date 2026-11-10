@@ -47,7 +47,9 @@ JOIN visible_items AS v ON v.item_id = f.item_id AND v.profile_id = f.profile_id
 WHERE f.profile_id = @profile_id AND f.item_id = @item_id;
 
 -- Collections with at least one visible member (E-6), by name: the number of visible members and
--- the cover, the visible member first in collection order (position, then release date).
+-- the cover, the visible member first in collection order (position, then release date). Since
+-- 1.25.0 without the audiobook collections, whose visible members are all audiobooks (concept 19
+-- D4.1): they stand in the row "Reihen und Sammlungen" of their library (ListVisibleAudioCollections).
 -- name: ListVisibleCollections :many
 SELECT c.id, c.name, c.name_de, count(*) AS member_count,
        CAST((SELECT ci2.item_id FROM collection_items AS ci2
@@ -59,7 +61,9 @@ SELECT c.id, c.name, c.name_de, count(*) AS member_count,
 FROM collections AS c
 JOIN collection_items AS ci ON ci.collection_id = c.id
 JOIN visible_items AS v ON v.item_id = ci.item_id AND v.profile_id = @profile_id
+JOIN items AS i ON i.id = ci.item_id
 GROUP BY c.id
+HAVING sum(i.kind <> 'audiobook') > 0
 ORDER BY c.name, c.id
 LIMIT @limit_count;
 

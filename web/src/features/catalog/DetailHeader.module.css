@@ -202,3 +202,38 @@
     display: block;
   }
 }
+
+/* Two sheets behind the cover of an audiobook series (concept 19 D4.3), as on its tile. */
+.stack {
+  position: relative;
+  display: block;
+  padding-top: var(--sc-space-4);
+}
+
+.stack::before,
+.stack::after {
+  position: absolute;
+  z-index: -1;
+  border-radius: var(--sc-radius-lg);
+  aspect-ratio: 1 / 1;
+  content: '';
+}
+
+.stack::before {
+  top: 0;
+  right: var(--sc-space-6);
+  left: var(--sc-space-6);
+  background-color: var(--sc-color-surface-3);
+}
+
+.stack::after {
+  top: var(--sc-space-2);
+  right: var(--sc-space-3);
+  left: var(--sc-space-3);
+  background-color: var(--sc-color-surface-2);
+}
+
+.stack > img,
+.stack > span {
+  position: relative;
+}

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.24.0
+  version: 1.25.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -1075,6 +1075,121 @@ paths:
             `sort=title` or `invalid_value` outside `[A-Z#]`; `sort` `invalid_value` for `author` outside
             an audiobook library; `content` `invalid_value` for a kind the library's folders do not hold;
             `yearFrom`/`yearTo` `invalid_value` outside 1870..2100; `genre` `too_long` over 80 characters).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /libraries/{id}/audio-groups:
+    get:
+      operationId: listAudioGroups
+      summary: The row «Reihen und Sammlungen» of an audiobook library (concept 19 D4.2)
+      description: |
+        The audiobook series and the audiobook collections of a library for the active profile (since
+        contract 1.25.0, concept 19 stage D2), by name. A series (`kind` `series`) groups the
+        audiobooks of one library with the same series key (normalised series name plus first
+        author, D4.1); it exists for a profile only with at least two visible volumes. A collection
+        (`kind` `collection`) is a manual collection whose visible members are all audiobooks; it
+        appears in every library that holds at least one of its visible members. Everything is
+        computed from the visible volumes only: `count`, `completed`, `author`, `name` and `cover`.
+        The filters `genre`, `yearFrom`, `yearTo`, `maxRating` and `status` work as on
+        `listLibraryItems`: a group appears when at least one of its volumes in this library passes
+        them, and `matching` says how many of its visible volumes do («2 von 6 Bänden»). Without a
+        filter `matching` equals `count`. A library without audiobooks answers an empty list; a
+        library the profile may not see answers 404 (never 403).
+      tags: [items]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/LibraryID"
+        - name: genre
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 80
+          description: A genre name in the profile language, as `facets.genres` of `listLibraryItems` lists it.
+        - name: yearFrom
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1870
+            maximum: 2100
+        - name: yearTo
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1870
+            maximum: 2100
+        - name: maxRating
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/Rating"
+          description: Lowers the ceiling; the server takes `min(profile ceiling, maxRating)`.
+        - name: status
+          in: query
+          required: false
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/LibraryItemStatus"
+          description: Several values are combined with OR.
+      responses:
+        "200":
+          description: The series and audiobook collections of the library, by name.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AudioGroupList"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Unknown library or not visible for the active profile (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            Validation failed (`validation_failed`; `yearFrom`/`yearTo` `invalid_value` outside
+            1870..2100; `genre` `too_long` over 80 characters; `maxRating` or `status` `invalid_value`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /libraries/{id}/series/{seriesId}:
+    get:
+      operationId: getAudioSeries
+      summary: The page of an audiobook series (concept 19 D4.3)
+      description: |
+        An audiobook series of the library with its visible volumes (since contract 1.25.0, concept 19
+        stage D2). Volumes are ordered by their number (0.5 before 1), volumes without a number last
+        by title; two books with the same number (a reading and a radio play) both appear. `next` is
+        the first visible volume in that order the profile has not completed, else the first one
+        («Weiterhören»). Name, author, narrator, duration and cover come from the visible volumes
+        only. A series with fewer than two visible volumes, of another library or unknown answers
+        404 (never 403).
+      tags: [items]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/LibraryID"
+        - $ref: "#/components/parameters/AudioSeriesID"
+      responses:
+        "200":
+          description: The series with its visible volumes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AudioSeries"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Unknown, of another library or with fewer than two visible volumes (`not_found`).
           content:
             application/problem+json:
               schema:
@@ -5387,6 +5502,53 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /admin/audio-series/{seriesId}:
+    patch:
+      operationId: updateAudioSeries
+      summary: Rename an audiobook series (concept 19 D5.4)
+      description: |
+        Sets the displayed name of an audiobook series and locks it, so the most common spelling of
+        the volumes no longer replaces it (since contract 1.25.0). The volumes stay as they are.
+        With `writeToVolumes` the server also writes the name into `seriesName` of every volume
+        that is visible to the active profile and locks that field; the volumes are then grouped
+        again by their key, so two series with the same new key become one (the series that already
+        held the key keeps its id; a series left without books is deleted at once). The answer is
+        the series the volumes belong to afterwards, which may have another id. A book's number is
+        changed on the book (`updateItemMetadata`).
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/AudioSeriesID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AudioSeriesRequest"
+      responses:
+        "200":
+          description: The series after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAudioSeries"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown series (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; `name` `required` when empty after trimming, `too_long` over 200 characters).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /admin/collections/{id}:
     get:
       operationId: getAdminCollection
@@ -9102,6 +9264,13 @@ components:
       description: Item ID (ULID).
       schema:
         $ref: "#/components/schemas/ItemID"
+    AudioSeriesID:
+      name: seriesId
+      in: path
+      required: true
+      description: Audiobook series ID (ULID).
+      schema:
+        $ref: "#/components/schemas/AudioSeriesID"
     CollectionID:
       name: id
       in: path
@@ -10425,6 +10594,18 @@ components:
             seriesIndex:
               type: number
               description: Volume inside `seriesName` (0.5 for a prequel is possible).
+            seriesId:
+              $ref: "#/components/schemas/AudioSeriesID"
+              description: |
+                The audiobook series of the book (since contract 1.25.0, concept 19 D4.3): set only when
+                the series has at least two volumes the active profile may see; the detail page then
+                links «Reihe · Band n» to `getAudioSeries`.
+            libraryId:
+              type: integer
+              format: int64
+              description: |
+                The library of the title (since contract 1.25.0); with `seriesId` it forms the address of
+                the series page (`getAudioSeries`).
             chapters:
               type: array
               description: Book-wide chapters of an audiobook (from chapter marks or one per file), in order.
@@ -10667,7 +10848,11 @@ components:
             $ref: "#/components/schemas/ItemRef"
         collections:
           type: array
-          description: Only in the row `collections` (E-6).
+          description: |
+            Only in the row `collections` (E-6). Since contract 1.25.0 without the audiobook
+            collections, whose visible members are all audiobooks (concept 19 D4.1); they appear in
+            the row «Reihen und Sammlungen» of their library (`listAudioGroups`), on the detail page
+            and in the search.
           items:
             $ref: "#/components/schemas/CollectionRef"
         genres:
@@ -13504,6 +13689,176 @@ components:
           type: integer
           minimum: 0
           description: Visible titles with this genre.
+
+    AudioSeriesID:
+      type: string
+      description: ULID of an audiobook series (since contract 1.25.0, concept 19 D4.4).
+      pattern: "^[0-9A-HJKMNP-TV-Z]{26}$"
+
+    AudioGroupKind:
+      type: string
+      enum: [series, collection]
+      description: A series from the metadata of the books or a manual collection of audiobooks (concept 19 D4.1).
+
+    AudioGroup:
+      type: object
+      description: |
+        One tile of the row «Reihen und Sammlungen» (since contract 1.25.0): a series opens
+        `getAudioSeries`, a collection the collection page (`getCollection`).
+      required: [id, kind, name, count, matching, completed]
+      properties:
+        id:
+          type: string
+          pattern: "^[0-9A-HJKMNP-TV-Z]{26}$"
+          description: The `AudioSeriesID` of a series or the `CollectionID` of a collection.
+        kind:
+          $ref: "#/components/schemas/AudioGroupKind"
+        name:
+          type: string
+          description: |
+            A series: its locked name, else the most common spelling among the visible volumes. A
+            collection: its name in the profile language.
+        author:
+          type: string
+          description: Series only, the author of the visible volumes (the most common one).
+        count:
+          type: integer
+          minimum: 0
+          description: Visible volumes of a series, visible members of a collection (as the collection page counts them).
+        matching:
+          type: integer
+          minimum: 0
+          description: Of `count`, the volumes that pass the filters; equals `count` without a filter.
+        completed:
+          type: integer
+          minimum: 0
+          description: Of `count`, the volumes the active profile has completed (the bar of the tile).
+        cover:
+          $ref: "#/components/schemas/ItemRef"
+          description: The first visible volume in series or collection order; its cover represents the group.
+
+    AudioGroupList:
+      type: object
+      required: [groups, seriesCount, collectionCount]
+      properties:
+        groups:
+          type: array
+          description: Series and collections together, by name.
+          items:
+            $ref: "#/components/schemas/AudioGroup"
+        seriesCount:
+          type: integer
+          minimum: 0
+          description: Number of groups of kind `series` (the head line «17 Reihen»).
+        collectionCount:
+          type: integer
+          minimum: 0
+          description: Number of groups of kind `collection` («1 Sammlung»).
+
+    AudioSeriesSpelling:
+      type: object
+      required: [name, count]
+      properties:
+        name:
+          type: string
+          description: A series name as the files (or the editor) of the visible volumes write it.
+        count:
+          type: integer
+          minimum: 1
+          description: Visible volumes with exactly this spelling.
+
+    AudioSeries:
+      type: object
+      description: An audiobook series with its visible volumes (since contract 1.25.0, concept 19 D4.3).
+      required: [id, libraryId, name, volumes, spellings, durationMs]
+      properties:
+        id:
+          $ref: "#/components/schemas/AudioSeriesID"
+        libraryId:
+          type: integer
+          format: int64
+        name:
+          type: string
+          description: The locked name, else the most common spelling among the visible volumes.
+        nameLocked:
+          type: boolean
+          description: The name was set by «Reihe bearbeiten» and no longer follows the volumes.
+        author:
+          type: string
+          description: The most common author of the visible volumes.
+        narrator:
+          type: string
+          description: Set only when every visible volume has the same narrator.
+        durationMs:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Duration of all visible volumes.
+        cover:
+          $ref: "#/components/schemas/ItemRef"
+          description: The first visible volume; its cover is the cover of the series.
+        next:
+          $ref: "#/components/schemas/ItemRef"
+          description: «Weiterhören», the first visible volume the profile has not completed, else the first one.
+        volumes:
+          type: array
+          description: |
+            The visible volumes in series order: by number (`seriesIndex`, 0.5 before 1), without a
+            number last by title; each with its progress, `author`, `durationMs` and `seriesIndex`.
+          items:
+            $ref: "#/components/schemas/AudioSeriesVolume"
+        spellings:
+          type: array
+          description: |
+            The spellings of the series name among the visible volumes, the most common first. More
+            than one means the series was put together from several spellings; the page shows that
+            to admins only (OD-5).
+          items:
+            $ref: "#/components/schemas/AudioSeriesSpelling"
+
+    AudioSeriesVolume:
+      type: object
+      required: [item]
+      properties:
+        item:
+          $ref: "#/components/schemas/ItemRef"
+        seriesIndex:
+          type: number
+          description: The number of the volume; absent without a number.
+        narrator:
+          type: string
+          description: The narrator of the volume (tells a reading from a radio play with the same number).
+
+    AudioSeriesRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 200
+          description: The displayed name; trimmed, must not be empty.
+        writeToVolumes:
+          type: boolean
+          default: false
+          description: "«In alle Bände schreiben»: also set and lock `seriesName` of every visible volume."
+
+    AdminAudioSeries:
+      type: object
+      required: [id, libraryId, name, nameLocked, volumeCount]
+      properties:
+        id:
+          $ref: "#/components/schemas/AudioSeriesID"
+        libraryId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        nameLocked:
+          type: boolean
+        volumeCount:
+          type: integer
+          minimum: 0
+          description: Books of the series (all, not only the visible ones).
 
     CollectionID:
       type: string

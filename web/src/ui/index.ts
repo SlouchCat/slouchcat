@@ -74,4 +74,5 @@ export { VirtualList } from './VirtualList';
 export { useNearEnd } from './useNearEnd';
 export { useVirtualPlaces, type PlaceSpan } from './useVirtualPlaces';
 export { VisuallyHidden } from './VisuallyHidden';
+export { VolumeRow } from './VolumeRow';
 export { ImageCandidateGrid, type ImageCandidateTile } from './ImageCandidateGrid';
