@@ -401,6 +401,14 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	poolCounts := poolWorkers(cfg.Workers)
 	adminSvc.WithJobControl(registry, scheduler, poolCounts)
 
+	// Every audiobook is linked to its series in one transaction when the key version changed
+	// (the first start after migration 00045, a new suffix list; concept 19 D4.4), before the
+	// workers and the watchers run: a scan relinks book by book, which would split a series whose
+	// key changed into new ids.
+	if _, err := libSvc.RelinkAudioSeriesOnNewKeys(ctx); err != nil {
+		log.Warn("audiobooks not linked to their series", "err", err)
+	}
+
 	var workers sync.WaitGroup
 	startWorkers(ctx, &workers, queue, registry, poolCounts, log, notifySvc.JobFailed, adminSvc.RecordJobFailure)
 	// Run polls Telegram while link codes are open and prunes old deliveries.
@@ -425,11 +433,6 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		// queued once at the first start after it, later only by hand.
 		if _, err := metaSvc.QueueOriginalLanguageBackfillOnce(ctx); err != nil && ctx.Err() == nil {
 			log.Warn("original language backfill not queued", "err", err)
-		}
-		// The audiobooks of the time before migration 00045 are linked to their series once
-		// (concept 19 D4.4); every later writer links its books itself.
-		if _, err := libSvc.RelinkAudioSeriesOnce(ctx); err != nil && ctx.Err() == nil {
-			log.Warn("audiobooks not linked to their series", "err", err)
 		}
 	})
 	defer func() {

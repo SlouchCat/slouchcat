@@ -54,11 +54,12 @@ LEFT JOIN item_texts AS tu ON tu.item_id = i.id AND tu.lang = @ui_lang
 LEFT JOIN progress AS p ON p.profile_id = @profile_id AND p.item_id = i.id
 WHERE i.audio_series_id = @series_id AND i.library_id = @library_id AND i.kind = 'audiobook';
 
--- The number of visible books of a series (ItemDetail.seriesId needs two).
+-- The number of visible books of a series (ItemDetail.seriesId needs two), counted like the page.
 -- name: CountVisibleAudioSeriesVolumes :one
 SELECT count(*)
 FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
+JOIN audio_series AS s ON s.id = i.audio_series_id AND s.library_id = i.library_id
 WHERE i.audio_series_id = @series_id AND i.kind = 'audiobook';
 
 -- The audiobook collections of a library (D4.1): manual collections whose visible members are all
@@ -83,10 +84,11 @@ GROUP BY c.id
 HAVING sum(i.kind <> 'audiobook') = 0 AND sum(i.library_id = @library_id) > 0
 ORDER BY c.name, c.id;
 
--- The visible members of the given collections in one library (the filter count "2 von 6").
--- name: ListVisibleCollectionMembersIn :many
-SELECT ci.collection_id, ci.item_id
+-- The visible members of the given collections with their library, in every library (the filter
+-- count "2 von 6" counts the members like the badge).
+-- name: ListVisibleCollectionMembers :many
+SELECT ci.collection_id, ci.item_id, i.library_id
 FROM collection_items AS ci
 JOIN visible_items AS v ON v.item_id = ci.item_id AND v.profile_id = @profile_id
 JOIN items AS i ON i.id = ci.item_id
-WHERE i.library_id = @library_id AND ci.collection_id IN (sqlc.slice('collection_ids'));
+WHERE ci.collection_id IN (sqlc.slice('collection_ids'));

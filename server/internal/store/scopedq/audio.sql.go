@@ -15,6 +15,7 @@ const countVisibleAudioSeriesVolumes = `-- name: CountVisibleAudioSeriesVolumes 
 SELECT count(*)
 FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+JOIN audio_series AS s ON s.id = i.audio_series_id AND s.library_id = i.library_id
 WHERE i.audio_series_id = ?2 AND i.kind = 'audiobook'
 `
 
@@ -23,7 +24,7 @@ type CountVisibleAudioSeriesVolumesParams struct {
 	SeriesID  sql.NullString
 }
 
-// The number of visible books of a series (ItemDetail.seriesId needs two).
+// The number of visible books of a series (ItemDetail.seriesId needs two), counted like the page.
 func (q *Queries) CountVisibleAudioSeriesVolumes(ctx context.Context, arg CountVisibleAudioSeriesVolumesParams) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countVisibleAudioSeriesVolumes, arg.ProfileID, arg.SeriesID)
 	var count int64
@@ -390,31 +391,31 @@ func (q *Queries) ListVisibleChapters(ctx context.Context, arg ListVisibleChapte
 	return items, nil
 }
 
-const listVisibleCollectionMembersIn = `-- name: ListVisibleCollectionMembersIn :many
-SELECT ci.collection_id, ci.item_id
+const listVisibleCollectionMembers = `-- name: ListVisibleCollectionMembers :many
+SELECT ci.collection_id, ci.item_id, i.library_id
 FROM collection_items AS ci
 JOIN visible_items AS v ON v.item_id = ci.item_id AND v.profile_id = ?1
 JOIN items AS i ON i.id = ci.item_id
-WHERE i.library_id = ?2 AND ci.collection_id IN (/*SLICE:collection_ids*/?)
+WHERE ci.collection_id IN (/*SLICE:collection_ids*/?)
 `
 
-type ListVisibleCollectionMembersInParams struct {
+type ListVisibleCollectionMembersParams struct {
 	ProfileID     int64
-	LibraryID     int64
 	CollectionIds []string
 }
 
-type ListVisibleCollectionMembersInRow struct {
+type ListVisibleCollectionMembersRow struct {
 	CollectionID string
 	ItemID       string
+	LibraryID    int64
 }
 
-// The visible members of the given collections in one library (the filter count "2 von 6").
-func (q *Queries) ListVisibleCollectionMembersIn(ctx context.Context, arg ListVisibleCollectionMembersInParams) ([]ListVisibleCollectionMembersInRow, error) {
-	query := listVisibleCollectionMembersIn
+// The visible members of the given collections with their library, in every library (the filter
+// count "2 von 6" counts the members like the badge).
+func (q *Queries) ListVisibleCollectionMembers(ctx context.Context, arg ListVisibleCollectionMembersParams) ([]ListVisibleCollectionMembersRow, error) {
+	query := listVisibleCollectionMembers
 	var queryParams []interface{}
 	queryParams = append(queryParams, arg.ProfileID)
-	queryParams = append(queryParams, arg.LibraryID)
 	if len(arg.CollectionIds) > 0 {
 		for _, v := range arg.CollectionIds {
 			queryParams = append(queryParams, v)
@@ -428,10 +429,10 @@ func (q *Queries) ListVisibleCollectionMembersIn(ctx context.Context, arg ListVi
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListVisibleCollectionMembersInRow{}
+	items := []ListVisibleCollectionMembersRow{}
 	for rows.Next() {
-		var i ListVisibleCollectionMembersInRow
-		if err := rows.Scan(&i.CollectionID, &i.ItemID); err != nil {
+		var i ListVisibleCollectionMembersRow
+		if err := rows.Scan(&i.CollectionID, &i.ItemID, &i.LibraryID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

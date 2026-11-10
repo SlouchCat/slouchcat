@@ -7,11 +7,15 @@
 package audioseries
 
 import (
+	"crypto/sha256"
 	_ "embed"
+	"encoding/hex"
 	"slices"
 	"strings"
 	"sync"
 	"unicode"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 //go:embed suffixes.txt
@@ -21,15 +25,25 @@ var suffixList string
 type Names struct {
 	trailing [][]string // whole words at the end of a name
 	cutFrom  [][]string // words from whose first occurrence on the name is cut («gesprochen von …»)
+	version  string
 }
+
+// keyAlgorithm names the rules of Key besides the suffix list; raise it with every change of
+// those rules, so the server relinks every book once (library.RelinkAudioSeriesOnNewKeys).
+const keyAlgorithm = "k2"
+
+// Version identifies the keys these Names compute: the key algorithm and a hash of the list. A
+// stored version that differs means the keys of the stored books may have changed.
+func (n Names) Version() string { return n.version }
 
 // Default returns the Names of the embedded list.
 var Default = sync.OnceValue(func() Names { return Parse(suffixList) })
 
 // Parse reads a list in the format of suffixes.txt.
 func Parse(list string) Names {
-	var n Names
-	for line := range strings.Lines(list) {
+	sum := sha256.Sum256([]byte(list))
+	n := Names{version: keyAlgorithm + "-" + hex.EncodeToString(sum[:8])}
+	for line := range strings.Lines(norm.NFC.String(list)) {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
@@ -124,11 +138,11 @@ func foldsEqual(words []word, p []string) bool {
 // articles are the leading articles the key leaves out, only as a whole first word.
 var articles = []string{"der", "die", "das", "ein", "eine", "the", "a", "an", "le", "la", "les"}
 
-// Name returns the key part of a series name: case-folded, white space collapsed, hyphens,
+// Name returns the key part of a series name: composed (NFC), case-folded, white space collapsed, hyphens,
 // dashes and brackets as spaces, the suffixes and a leading article left out (a name that is
 // nothing but an article keeps it). "" for a name without a word.
 func (n Names) Name(series string) string {
-	words := n.strip(splitWords(series))
+	words := n.strip(splitWords(norm.NFC.String(series)))
 	if len(words) > 1 && slices.Contains(articles, words[0].fold) {
 		words = words[1:]
 	}
@@ -143,6 +157,7 @@ func (n Names) Name(series string) string {
 // capitalisation and with its white space collapsed: «Bodyguard - Band» is «Bodyguard». A name
 // that is nothing but a suffix stays as it is.
 func (n Names) Display(series string) string {
+	series = norm.NFC.String(series)
 	all := splitWords(series)
 	words := n.strip(all)
 	if len(words) == 0 {
@@ -161,7 +176,7 @@ func (n Names) Display(series string) string {
 // collapsed. So «J.R.R. Tolkien», «J R R Tolkien» and «J. R. R. Tolkien» are one author, and so
 // are «Marc-Uwe Kling» and «Marc Uwe Kling».
 func Author(author string) string {
-	a := strings.ToLower(author)
+	a := strings.ToLower(norm.NFC.String(author))
 	for _, sep := range []string{",", ";", "&", " und ", " and ", " / "} {
 		if i := strings.Index(a, sep); i >= 0 {
 			a = a[:i]

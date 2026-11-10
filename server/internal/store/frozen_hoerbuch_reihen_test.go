@@ -9,9 +9,9 @@ import (
 
 // The frozen state after concept 19 stage D2 (migration 00045; testdata/db/hoerbuch-reihen.sql)
 // carries a series of three books with two spellings («Bodyguard», «Bodyguard - Band»), numbers 0.5,
-// 1 and 2 and a soft-deleted volume, a series with a locked name, and the settings flag of the first
-// link. TestFrozenStatesMigrate replays it like every state; this test checks that each of those is
-// really in it.
+// 1 and 2 and a soft-deleted volume, a series with a locked name, and an older key version of the
+// links (the server relinks every book at its start). TestFrozenStatesMigrate replays it like every
+// state; this test checks that each of those is really in it.
 func TestFrozenHoerbuchReihenStateCoversTheStage(t *testing.T) {
 	t.Parallel()
 	cfg := t.TempDir()
@@ -27,7 +27,7 @@ func TestFrozenHoerbuchReihenStateCoversTheStage(t *testing.T) {
 		"a volume 0.5":                          `SELECT count(*) FROM items WHERE audio_series_id IS NOT NULL AND series_index = 0.5`,
 		"a soft-deleted volume":                 `SELECT count(*) FROM items WHERE audio_series_id IS NOT NULL AND deleted_at IS NOT NULL`,
 		"a locked series name":                  `SELECT count(*) FROM audio_series WHERE name_locked = 1`,
-		"the flag of the first link":            `SELECT count(*) FROM settings WHERE key = 'library.audio_series_linked'`,
+		"the key version of the links":          `SELECT count(*) FROM settings WHERE key = 'library.audio_series_keys'`,
 		"migration 00045 recorded as applied":   `SELECT count(*) FROM goose_db_version WHERE version_id = 45 AND is_applied = 1`,
 		"foreign keys of the frozen state hold": `SELECT count(*) = 0 FROM pragma_foreign_key_check`,
 	} {

@@ -306,7 +306,7 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   `items.audio_series_id`). Erzeugt am 10. November 2026 aus `hoerbuch-bleistift.sql`: Stand eingespielt, mit `store.Open`
   migriert, dann per SQL in der Bibliothek «Hörbücher» die Reihe «Bodyguard» von Chris Bradford mit drei Bänden (0,5, 1
   und 2; Schreibweisen «Bodyguard» und «Bodyguard - Band»; Band 0,5 weich gelöscht) und die beiden Hörbücher aus D1 in
-  einer Reihe mit gesperrtem Namen, dazu das Merkmal `library.audio_series_linked` des ersten Durchgangs. Stichtag
-  11. November 2026, 12:00 UTC. Dann `store.Dump`, keine neuen Pfade im Stand.
+  einer Reihe mit gesperrtem Namen, dazu die Version der Schlüssel `library.audio_series_keys` (eine ältere, so dass
+  der Server beim Start alle Bücher neu zuordnet). Stichtag 10. November 2026, 12:00 UTC. Dann `store.Dump`, keine neuen Pfade im Stand.
   `TestFrozenHoerbuchReihenStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist;
   `TestMigration00045AudioSeries` prüft den Schritt von `hoerbuch-bleistift.sql` aus.

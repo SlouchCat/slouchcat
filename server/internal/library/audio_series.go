@@ -34,11 +34,20 @@ const relinkChunk = 500
 // begins. The name of every series it touched follows the most common spelling of its books without
 // suffix, unless it is locked. An emptied series stays until the sweep (DeleteOrphanAudioSeries).
 func RelinkAudioSeries(ctx context.Context, q *systemq.Queries, itemIDs []string, now time.Time) error {
-	return relinkAudioSeries(ctx, q, audioseries.Default(), itemIDs, now)
+	return relinkAudioSeries(ctx, q, audioseries.Default(), itemIDs, "", now)
 }
 
-// relinkAudioSeries is RelinkAudioSeries with the suffix list of names (the test of D4.4 swaps it).
-func relinkAudioSeries(ctx context.Context, q *systemq.Queries, names audioseries.Names, itemIDs []string, now time.Time) error {
+// RelinkAudioSeriesKeeping is RelinkAudioSeries for «Reihe bearbeiten» (D5.4): the books of
+// seriesID among itemIDs carry its id to their new key when they all share it and no other series
+// holds it, also while books of the series outside itemIDs (hidden from the profile, unavailable)
+// keep the old name; those leave the series with their own next relink.
+func RelinkAudioSeriesKeeping(ctx context.Context, q *systemq.Queries, seriesID string, itemIDs []string, now time.Time) error {
+	return relinkAudioSeries(ctx, q, audioseries.Default(), itemIDs, seriesID, now)
+}
+
+// relinkAudioSeries is RelinkAudioSeries with the suffix list of names (the test of D4.4 swaps it)
+// and the series whose id moves along without the check of its other books (carry, or "").
+func relinkAudioSeries(ctx context.Context, q *systemq.Queries, names audioseries.Names, itemIDs []string, carry string, now time.Time) error {
 	var rows []systemq.ListAudioSeriesLinkItemsRow
 	for chunk := range slices.Chunk(itemIDs, relinkChunk) {
 		got, err := q.ListAudioSeriesLinkItems(ctx, chunk)
@@ -84,12 +93,14 @@ func relinkAudioSeries(ctx context.Context, q *systemq.Queries, names audioserie
 		if cur.SeriesKey == key {
 			continue
 		}
-		total, err := q.CountAudioSeriesLiveItems(ctx, sql.NullString{String: old, Valid: true})
-		if err != nil {
-			return fmt.Errorf("count books of series %s: %w", old, err)
-		}
-		if int(total) != live {
-			continue // books outside this call stay: the moving ones go to another series
+		if old != carry {
+			total, err := q.CountAudioSeriesLiveItems(ctx, sql.NullString{String: old, Valid: true})
+			if err != nil {
+				return fmt.Errorf("count books of series %s: %w", old, err)
+			}
+			if int(total) != live {
+				continue // books outside this call stay: the moving ones go to another series
+			}
 		}
 		if _, err := q.GetAudioSeriesByKey(ctx, systemq.GetAudioSeriesByKeyParams{LibraryID: cur.LibraryID, SeriesKey: key}); err == nil {
 			continue
@@ -165,39 +176,46 @@ func refreshAudioSeriesName(ctx context.Context, q *systemq.Queries, names audio
 	return nil
 }
 
-// SettingAudioSeriesLinked marks that the books that existed before migration 00045 were linked
-// to their series once.
-const SettingAudioSeriesLinked = "library.audio_series_linked"
+// SettingAudioSeriesKeys holds the version of the keys the stored links were computed with
+// (audioseries.Names.Version: key algorithm and suffix list).
+const SettingAudioSeriesKeys = "library.audio_series_keys"
 
-// RelinkAudioSeriesOnce links every audiobook (soft-deleted ones too) to its series at the first
-// start after migration 00045, in one transaction, and remembers in the settings that it did;
-// later starts do nothing (D4.4). It reports whether it linked.
-func (s *Service) RelinkAudioSeriesOnce(ctx context.Context) (bool, error) {
+// RelinkAudioSeriesOnNewKeys links every audiobook (soft-deleted ones too) to its series in one
+// transaction when the stored key version differs from the server's: at the first start after
+// migration 00045 and after every change of the suffix list or the key rules (D4.4). All books
+// move in one call, so a series whose key changed keeps its id; book by book (the scan) a series
+// would split. The server runs it at the start before any scan writes. It reports whether it
+// relinked.
+func (s *Service) RelinkAudioSeriesOnNewKeys(ctx context.Context) (bool, error) {
+	return s.relinkOnNewKeys(ctx, audioseries.Default())
+}
+
+func (s *Service) relinkOnNewKeys(ctx context.Context, names audioseries.Names) (bool, error) {
 	tx, err := s.db.Write.BeginTx(ctx, nil)
 	if err != nil {
 		return false, err
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := systemq.New(tx)
-	if _, err := q.GetSystemSetting(ctx, SettingAudioSeriesLinked); err == nil {
+	if v, err := q.GetSystemSetting(ctx, SettingAudioSeriesKeys); err == nil && v == names.Version() {
 		return false, nil
-	} else if !errors.Is(err, sql.ErrNoRows) {
-		return false, fmt.Errorf("read %s: %w", SettingAudioSeriesLinked, err)
+	} else if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return false, fmt.Errorf("read %s: %w", SettingAudioSeriesKeys, err)
 	}
 	ids, err := q.ListAudiobookIDs(ctx)
 	if err != nil {
 		return false, fmt.Errorf("list audiobooks: %w", err)
 	}
 	now := s.now()
-	if err := RelinkAudioSeries(ctx, q, ids, now); err != nil {
+	if err := relinkAudioSeries(ctx, q, names, ids, "", now); err != nil {
 		return false, err
 	}
-	if err := q.UpsertSystemSetting(ctx, systemq.UpsertSystemSettingParams{Key: SettingAudioSeriesLinked, Value: "1", Now: now.UnixMilli()}); err != nil {
-		return false, fmt.Errorf("write %s: %w", SettingAudioSeriesLinked, err)
+	if err := q.UpsertSystemSetting(ctx, systemq.UpsertSystemSettingParams{Key: SettingAudioSeriesKeys, Value: names.Version(), Now: now.UnixMilli()}); err != nil {
+		return false, fmt.Errorf("write %s: %w", SettingAudioSeriesKeys, err)
 	}
 	if err := tx.Commit(); err != nil {
 		return false, fmt.Errorf("commit audio series link: %w", err)
 	}
-	s.log.InfoContext(ctx, "audiobooks linked to their series", "books", len(ids))
+	s.log.InfoContext(ctx, "audiobooks linked to their series", "books", len(ids), "keys", names.Version())
 	return true, nil
 }

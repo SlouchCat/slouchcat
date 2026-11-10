@@ -17,6 +17,8 @@ func TestKey(t *testing.T) {
 		{{"Känguru", "Marc-Uwe Kling"}, {"Känguru [German Edition]", "Marc Uwe Kling"}},
 		{{"Känguru", "Marc-Uwe Kling"}, {"Känguru", "Marc–Uwe Kling & Jochen Malmsheimer"}},
 		{{"The Expanse", "James S. A. Corey"}, {"Expanse", "James S.A. Corey"}},
+		// A decomposed umlaut (u + U+0308, as macOS writes file names) is the composed one.
+		{{"Känguru gekürzt", "Jörg"}, {"Ka\u0308nguru Geku\u0308rzt", "Jo\u0308rg"}},
 	}
 	for _, c := range same {
 		a, b := n.Key(c[0][0], c[0][1]), n.Key(c[1][0], c[1][1])
@@ -68,6 +70,12 @@ func TestDisplay(t *testing.T) {
 		if got := n.Display(in); got != want {
 			t.Errorf("Display(%q) = %q, want %q", in, got, want)
 		}
+	}
+	if got := n.Display("Ka\u0308nguru - Geku\u0308rzt"); got != "Känguru" {
+		t.Errorf("Display of a decomposed name = %q, want the composed Känguru", got)
+	}
+	if a, b := Parse("band\n"), Parse("band\nteil\n"); a.Version() == b.Version() || a.Version() != Parse("band\n").Version() || n.Version() == "" {
+		t.Errorf("versions %q %q %q", a.Version(), b.Version(), n.Version())
 	}
 	if got := (Names{}).Display("Bodyguard - Band"); got != "Bodyguard - Band" {
 		t.Errorf("without suffixes Display = %q", got)

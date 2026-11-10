@@ -2,11 +2,13 @@ package visibility
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"slices"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
 
@@ -231,5 +233,30 @@ func TestAudioCollectionsAndFilters(t *testing.T) {
 	var verr *model.ValidationError
 	if _, err := r.AudioGroups(ctx, Profile(f.P18), lib, model.LibraryQuery{MaxRating: -1, Status: []string{"x"}}); !errors.As(err, &verr) {
 		t.Errorf("invalid status: %v", err)
+	}
+
+	// A collection with books in two libraries: with a filter Matching counts the passing members
+	// of both, like Count, and the tile appears only where a passing member is.
+	other, err := appq.New(f.DB.Write).InsertLibrary(ctx, appq.InsertLibraryParams{Name: "Hörbücher 2", Kind: model.LibraryAudiobooks,
+		DefaultRating: sql.NullInt64{Valid: true}, Now: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(t, f, `UPDATE items SET library_id = ? WHERE id = ?`, other.ID, f.Audio.Parts.ID)
+	run(t, f, `UPDATE items SET year = 1888 WHERE id IN (?, ?)`, b[0].ID, f.Audio.Parts.ID)
+	year := model.LibraryQuery{YearFrom: 1888, YearTo: 1888, MaxRating: -1}
+	for _, l := range []int64{lib, other.ID} {
+		groups, err := r.AudioGroups(ctx, Profile(f.P18), l, year)
+		if c := groupByID(groups, vistest.AudioCollectionID); err != nil || c == nil || c.Matching != 2 || c.Count != 2 {
+			t.Errorf("library %d: collection %+v (%v), want 2 of 2", l, c, err)
+		}
+	}
+	run(t, f, `UPDATE items SET year = 1999 WHERE id = ?`, b[0].ID)
+	if groups, err := r.AudioGroups(ctx, Profile(f.P18), lib, year); err != nil || groupByID(groups, vistest.AudioCollectionID) != nil {
+		t.Errorf("collection without a passing member here: %+v (%v)", groups, err)
+	}
+	groups, err := r.AudioGroups(ctx, Profile(f.P18), other.ID, year)
+	if c := groupByID(groups, vistest.AudioCollectionID); err != nil || c == nil || c.Matching != 1 || c.Count != 2 {
+		t.Errorf("other library: collection %+v (%v), want 1 of 2", c, err)
 	}
 }

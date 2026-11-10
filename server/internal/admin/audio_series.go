@@ -17,10 +17,12 @@ import (
 // name of a series and locks it. With writeToVolumes it also writes the name into the series name
 // of every book of the series the profile may see, exactly as the editor does (writeMetadataEditTx:
 // the field gets its lock, its provenance goes), and relinks those books in the same transaction
-// (library.RelinkAudioSeries): the books keep the id of their series, or move into the series that
-// already holds their new key, which then gets the locked name; the series they left is deleted at
-// once when no row of items holds it any more. It answers with the series the books belong to
-// afterwards. Errors: model.ErrNotFound, *model.ValidationError (name required, too_long).
+// (library.RelinkAudioSeriesKeeping): the books keep the id of their series, also when a book the
+// profile does not see or that is unavailable keeps the old name (it leaves with its own next
+// relink), or move into the series that already holds their new key. The name is locked on the
+// series the books belong to afterwards, which the answer describes; the series they left is
+// deleted at once when no row of items holds it any more. Errors: model.ErrNotFound,
+// *model.ValidationError (name required, too_long).
 func (s *Service) UpdateAudioSeries(ctx context.Context, profileID int64, seriesID, name string, writeToVolumes bool) (model.AdminAudioSeries, error) {
 	name = strings.TrimSpace(name)
 	var verr *model.ValidationError
@@ -54,15 +56,6 @@ func (s *Service) UpdateAudioSeries(ctx context.Context, profileID int64, series
 		return model.AdminAudioSeries{}, fmt.Errorf("load series: %w", err)
 	}
 	now := s.now()
-	lock := func(id string) error {
-		if err := q.LockAudioSeriesName(ctx, systemq.LockAudioSeriesNameParams{Name: name, Now: now.UnixMilli(), ID: id}); err != nil {
-			return fmt.Errorf("lock series name: %w", err)
-		}
-		return nil
-	}
-	if err := lock(series.ID); err != nil {
-		return model.AdminAudioSeries{}, err
-	}
 	target := series.ID
 	if writeToVolumes {
 		ids, err := q.ListVisibleAudioSeriesVolumeIDs(ctx, systemq.ListVisibleAudioSeriesVolumeIDsParams{
@@ -77,7 +70,7 @@ func (s *Service) UpdateAudioSeries(ctx context.Context, profileID int64, series
 				return model.AdminAudioSeries{}, err
 			}
 		}
-		if err := library.RelinkAudioSeries(ctx, q, ids, now); err != nil {
+		if err := library.RelinkAudioSeriesKeeping(ctx, q, series.ID, ids, now); err != nil {
 			return model.AdminAudioSeries{}, err
 		}
 		// One series name and one series give one key: the books are in one series now.
@@ -91,9 +84,6 @@ func (s *Service) UpdateAudioSeries(ctx context.Context, profileID int64, series
 			}
 		}
 		if target != series.ID {
-			if err := lock(target); err != nil {
-				return model.AdminAudioSeries{}, err
-			}
 			left, err := q.CountAudioSeriesRows(ctx, sql.NullString{String: series.ID, Valid: true})
 			if err != nil {
 				return model.AdminAudioSeries{}, fmt.Errorf("count books of the old series: %w", err)
@@ -104,6 +94,10 @@ func (s *Service) UpdateAudioSeries(ctx context.Context, profileID int64, series
 				}
 			}
 		}
+	}
+	// Only the series the books are in gets the name: a series they left keeps following its books.
+	if err := q.LockAudioSeriesName(ctx, systemq.LockAudioSeriesNameParams{Name: name, Now: now.UnixMilli(), ID: target}); err != nil {
+		return model.AdminAudioSeries{}, fmt.Errorf("lock series name: %w", err)
 	}
 	out, err := q.GetAudioSeries(ctx, target)
 	if err != nil {

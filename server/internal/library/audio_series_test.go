@@ -26,7 +26,7 @@ func (e *env) relink(names audioseries.Names, ids ...string) {
 		e.t.Fatal(err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	if err := relinkAudioSeries(e.ctx, systemq.New(tx), names, ids, e.clock.Now()); err != nil {
+	if err := relinkAudioSeries(e.ctx, systemq.New(tx), names, ids, "", e.clock.Now()); err != nil {
 		e.t.Fatal(err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -156,27 +156,55 @@ func TestSweepDeletesOrphanAudioSeries(t *testing.T) {
 	}
 }
 
-// The first start after migration 00045 links every audiobook once (soft-deleted ones too) and
-// remembers it; a second start changes nothing.
-func TestRelinkAudioSeriesOnce(t *testing.T) {
+// The start links every audiobook (soft-deleted ones too) in one call when the stored key version
+// differs (the first start after migration 00045, a new suffix list) and does nothing while it is
+// the same. After a list change that changes the key of a whole series the series keeps its id,
+// and the scan relinking book by book afterwards (one call per book) keeps it as well.
+func TestRelinkAudioSeriesOnNewKeys(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	lib := e.createAudiobooks(t.TempDir()).ID
 	a, b := e.book(lib, 1, "Bodyguard", "Chris Bradford", 1), e.book(lib, 2, "Bodyguard - Band", "Chris Bradford", 2)
 	e.exec(`UPDATE items SET deleted_at = 1 WHERE id = ?`, b)
-	done, err := e.svc.RelinkAudioSeriesOnce(e.ctx)
+	ringe := []string{e.book(lib, 3, "Herr der Ringe", "J.R.R. Tolkien", 1), e.book(lib, 4, "Der Herr Der Ringe - Band", "J R R Tolkien", 2)}
+	done, err := e.svc.RelinkAudioSeriesOnNewKeys(e.ctx)
 	if err != nil || !done {
 		t.Fatalf("first start: %v %v", done, err)
 	}
 	if s := e.seriesOf(a); s == "" || s != e.seriesOf(b) {
 		t.Errorf("books in %q and %q, want one series", s, e.seriesOf(b))
 	}
-	e.exec(`UPDATE items SET audio_series_id = NULL`)
-	if done, err := e.svc.RelinkAudioSeriesOnce(e.ctx); err != nil || done {
+	if v := e.str(`SELECT value FROM settings WHERE key = ?`, SettingAudioSeriesKeys); v != audioseries.Default().Version() {
+		t.Errorf("stored key version %q, want %q", v, audioseries.Default().Version())
+	}
+	e.exec(`UPDATE items SET audio_series_id = NULL WHERE id = ?`, a)
+	if done, err := e.svc.RelinkAudioSeriesOnNewKeys(e.ctx); err != nil || done {
 		t.Fatalf("second start: %v %v, want nothing to do", done, err)
 	}
 	if s := e.seriesOf(a); s != "" {
 		t.Errorf("second start linked again: %q", s)
+	}
+
+	series := e.seriesOf(ringe[0])
+	newList := audioseries.Parse("band\nringe\n")
+	if done, err := e.svc.relinkOnNewKeys(e.ctx, newList); err != nil || !done {
+		t.Fatalf("start with a new list: %v %v", done, err)
+	}
+	for range 2 {
+		for _, id := range ringe {
+			e.relink(newList, id) // the scan: one book per call
+		}
+	}
+	for _, id := range ringe {
+		if got := e.seriesOf(id); got != series {
+			t.Errorf("book %s in %q after the new list, want the id %q", id, got, series)
+		}
+	}
+	if key := e.str(`SELECT series_key FROM audio_series WHERE id = ?`, series); key != "herr der"+"\x1f"+"j r r tolkien" {
+		t.Errorf("key after the new list %q", key)
+	}
+	if done, err := e.svc.relinkOnNewKeys(e.ctx, newList); err != nil || done {
+		t.Errorf("same list again: %v %v, want nothing to do", done, err)
 	}
 }
 

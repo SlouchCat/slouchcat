@@ -106,17 +106,42 @@ func TestUpdateAudioSeries(t *testing.T) {
 		t.Errorf("rename of every volume = %+v (%v), want id %s", got, err, one)
 	}
 
-	// P6 sees the volumes rated 0 and 6 only: those two move into a new series, the others stay.
-	got, err = m.svc.UpdateAudioSeries(m.ctx, m.f.P6.ID, one, "Saga Kind", true)
+	// P6 sees the volumes rated 0 and 6 only: those two move into the series that holds the new
+	// key (the book rated 18 alone), the others stay; the series they left keeps its own name.
+	if _, err := m.svc.UpdateItemMetadata(m.ctx, b[4].ID, model.ItemMetadataEdit{SeriesName: name("Saga X"), Author: name("Autorin")}); err != nil {
+		t.Fatal(err)
+	}
+	x := m.seriesOf(t, b[4].ID)
+	got, err = m.svc.UpdateAudioSeries(m.ctx, m.f.P6.ID, one, "Saga X", true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.ID == one || got.VolumeCount != 2 {
-		t.Errorf("P6 rename = %+v, want a new series of 2", got)
+	if got.ID != x || got.VolumeCount != 3 || got.Name != "Saga X" {
+		t.Errorf("P6 merge = %+v, want series %s with 3 volumes", got, x)
 	}
 	moved := []string{m.seriesOf(t, b[0].ID), m.seriesOf(t, b[1].ID)}
 	stayed := []string{m.seriesOf(t, b[2].ID), m.seriesOf(t, b[3].ID)}
-	if !slices.Equal(moved, []string{got.ID, got.ID}) || !slices.Equal(stayed, []string{one, one}) {
-		t.Errorf("after the P6 rename: moved %v, stayed %v", moved, stayed)
+	if !slices.Equal(moved, []string{x, x}) || !slices.Equal(stayed, []string{one, one}) {
+		t.Errorf("after the P6 merge: moved %v, stayed %v", moved, stayed)
+	}
+	var left string
+	if err := m.f.DB.Read.QueryRowContext(m.ctx, `SELECT name FROM audio_series WHERE id = ?`, one).Scan(&left); err != nil || left != "Saga Neu" {
+		t.Errorf("name of the series left behind %q (%v), want Saga Neu", left, err)
+	}
+
+	// A volume that is unavailable is not written, yet the written one keeps the id (PD-8); the
+	// other leaves with its own next relink.
+	m.exec(t, `UPDATE items SET available = 0 WHERE id = ?`, b[3].ID)
+	if got, err = m.svc.UpdateAudioSeries(m.ctx, m.f.P18.ID, one, "Saga Anders", true); err != nil || got.ID != one || got.VolumeCount != 2 {
+		t.Errorf("rename with an unavailable volume = %+v (%v), want id %s", got, err, one)
+	}
+	if s := m.seriesOf(t, b[2].ID); s != one {
+		t.Errorf("written volume in %q, want %q", s, one)
+	}
+	if _, err := m.svc.UpdateItemMetadata(m.ctx, b[3].ID, model.ItemMetadataEdit{Author: name("Autorin")}); err != nil {
+		t.Fatal(err)
+	}
+	if s := m.seriesOf(t, b[3].ID); s == one || s == "" {
+		t.Errorf("unwritten volume after its relink in %q, want a series of its own", s)
 	}
 }

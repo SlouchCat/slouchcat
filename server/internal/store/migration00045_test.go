@@ -9,7 +9,7 @@ import (
 
 // Migration 00045 (1.25.0, concept 19 stage D2) adds audio_series and items.audio_series_id on the
 // frozen state of migration 00044 (hoerbuch-bleistift.sql): the books keep their rows without a
-// series (the first start links them, library.RelinkAudioSeriesOnce), a series is unique per
+// series (the first start links them, library.RelinkAudioSeriesOnNewKeys), a series is unique per
 // library and key, and deleting a series sets the link of its books NULL.
 func TestMigration00045AudioSeries(t *testing.T) {
 	t.Parallel()

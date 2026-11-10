@@ -89,9 +89,10 @@ func libraryFiltered(q model.LibraryQuery) bool {
 // sort: model.SortKey in the profile's metadata language), then id. The filters genre, years,
 // maxRating and status of q are those of LibraryItems over the audiobooks of the library
 // (libraryStmt): a group appears when at least one of its volumes in this library passes them, and
-// Matching counts the visible volumes that pass. A library the profile does not see is
-// model.ErrNotFound; one without series and collections answers an empty list. A status outside its
-// values is a *model.ValidationError (validateLibraryQuery).
+// Matching counts its visible volumes that pass, for a collection in every library (as Count). A
+// library the profile does not see is model.ErrNotFound; one without series and collections
+// answers an empty list. A status outside its values is a *model.ValidationError
+// (validateLibraryQuery). Everything is read in one read-only transaction.
 func (r *Reader) AudioGroups(ctx context.Context, s Scope, libraryID int64, q model.LibraryQuery) (model.AudioGroupList, error) {
 	pid, err := r.profile(ctx, s)
 	if err != nil {
@@ -112,16 +113,31 @@ func (r *Reader) AudioGroups(ctx context.Context, s Scope, libraryID int64, q mo
 		return model.AudioGroupList{}, fmt.Errorf("begin audio groups: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	qtx := r.q.WithTx(tx)
-	var passing map[string]bool // nil: no filter, every visible volume passes
-	if libraryFiltered(f.LibraryQuery) {
-		ids, _, err := libraryIDs(ctx, tx, libraryStmt(s, pid, libraryID, f, "SELECT id, kind FROM lib WHERE 1", false))
-		if err != nil {
-			return model.AudioGroupList{}, err
+	tr := r.inTx(tx)
+	qtx := tr.q
+	// The books of a library that pass the filters, read once per library (a collection can hold
+	// books of other audiobook libraries).
+	filtered := libraryFiltered(f.LibraryQuery)
+	passingIn := map[int64]map[string]bool{}
+	passes := func(lib int64) (map[string]bool, error) {
+		if set, ok := passingIn[lib]; ok {
+			return set, nil
 		}
-		passing = make(map[string]bool, len(ids))
+		ids, _, err := libraryIDs(ctx, tx, libraryStmt(s, pid, lib, f, "SELECT id, kind FROM lib WHERE 1", false))
+		if err != nil {
+			return nil, err
+		}
+		set := make(map[string]bool, len(ids))
 		for _, id := range ids {
-			passing[id] = true
+			set[id] = true
+		}
+		passingIn[lib] = set
+		return set, nil
+	}
+	var passing map[string]bool // nil: no filter, every visible volume passes
+	if filtered {
+		if passing, err = passes(libraryID); err != nil {
+			return model.AudioGroupList{}, err
 		}
 	}
 	volumes, err := qtx.ListVisibleAudioSeriesVolumes(ctx, scopedq.ListVisibleAudioSeriesVolumesParams{
@@ -134,26 +150,28 @@ func (r *Reader) AudioGroups(ctx context.Context, s Scope, libraryID int64, q mo
 	if err != nil {
 		return model.AudioGroupList{}, fmt.Errorf("list audio collections: %w", err)
 	}
-	matchingIn := map[string]int{}
-	if passing != nil && len(collections) > 0 {
+	// With a filter a collection counts its passing visible members in every library, like its
+	// badge counts all of them, and appears only with a passing member in this library.
+	matching, passesHere := map[string]int{}, map[string]bool{}
+	if filtered && len(collections) > 0 {
 		ids := make([]string, 0, len(collections))
 		for _, c := range collections {
 			ids = append(ids, c.ID)
 		}
-		members, err := qtx.ListVisibleCollectionMembersIn(ctx, scopedq.ListVisibleCollectionMembersInParams{
-			ProfileID: pid, LibraryID: libraryID, CollectionIds: ids,
-		})
+		members, err := qtx.ListVisibleCollectionMembers(ctx, scopedq.ListVisibleCollectionMembersParams{ProfileID: pid, CollectionIds: ids})
 		if err != nil {
 			return model.AudioGroupList{}, fmt.Errorf("list audio collection members: %w", err)
 		}
 		for _, m := range members {
-			if passing[m.ItemID] {
-				matchingIn[m.CollectionID]++
+			set, err := passes(m.LibraryID)
+			if err != nil {
+				return model.AudioGroupList{}, err
+			}
+			if set[m.ItemID] {
+				matching[m.CollectionID]++
+				passesHere[m.CollectionID] = passesHere[m.CollectionID] || m.LibraryID == libraryID
 			}
 		}
-	}
-	if err := tx.Commit(); err != nil {
-		return model.AudioGroupList{}, fmt.Errorf("commit audio groups: %w", err)
 	}
 
 	bySeries := map[string][]seriesVolume{}
@@ -189,10 +207,11 @@ func (r *Reader) AudioGroups(ctx context.Context, s Scope, libraryID int64, q mo
 	for _, c := range collections {
 		g := model.AudioGroup{ID: c.ID, Kind: model.AudioGroupCollection, Name: localized(s.language, c.Name, c.NameDe),
 			Count: int(c.MemberCount), Matching: int(c.MemberCount), Completed: int(c.Completed)}
-		if passing != nil {
-			if g.Matching = matchingIn[c.ID]; g.Matching == 0 {
+		if filtered {
+			if !passesHere[c.ID] {
 				continue
 			}
+			g.Matching = matching[c.ID]
 		}
 		if c.CoverID != "" {
 			covers[len(out.Groups)] = c.CoverID
@@ -201,16 +220,19 @@ func (r *Reader) AudioGroups(ctx context.Context, s Scope, libraryID int64, q mo
 		out.Groups = append(out.Groups, g)
 		out.CollectionCount++
 	}
-	summaries, err := r.ordered(ctx, s, pid, coverIDs)
+	summaries, err := tr.ordered(ctx, s, pid, coverIDs)
 	if err != nil {
 		return model.AudioGroupList{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return model.AudioGroupList{}, fmt.Errorf("commit audio groups: %w", err)
 	}
 	byID := make(map[string]model.ItemSummary, len(summaries))
 	for _, it := range summaries {
 		byID[it.ID] = it
 	}
 	for i, id := range covers {
-		if it, ok := byID[id]; ok { // a title hidden since the transaction has no cover
+		if it, ok := byID[id]; ok {
 			out.Groups[i].Cover = &it
 		}
 	}
@@ -230,7 +252,14 @@ func (r *Reader) AudioSeries(ctx context.Context, s Scope, libraryID int64, seri
 	if err != nil {
 		return model.AudioSeries{}, err
 	}
-	rows, err := r.q.ListVisibleAudioSeriesVolumesOf(ctx, scopedq.ListVisibleAudioSeriesVolumesOfParams{
+	// The volumes and their summaries in one read-only transaction: facts and list agree.
+	tx, err := r.read.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return model.AudioSeries{}, fmt.Errorf("begin audio series: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	tr := r.inTx(tx)
+	rows, err := tr.q.ListVisibleAudioSeriesVolumesOf(ctx, scopedq.ListVisibleAudioSeriesVolumesOfParams{
 		ProfileID: pid, MetaLang: s.metaLang, UiLang: s.language, SeriesID: sql.NullString{String: seriesID, Valid: true}, LibraryID: libraryID,
 	})
 	if err != nil {
@@ -262,9 +291,12 @@ func (r *Reader) AudioSeries(ctx context.Context, s Scope, libraryID int64, seri
 	for _, v := range vs {
 		ids = append(ids, v.ID)
 	}
-	items, err := r.ordered(ctx, s, pid, ids)
+	items, err := tr.ordered(ctx, s, pid, ids)
 	if err != nil {
 		return model.AudioSeries{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return model.AudioSeries{}, fmt.Errorf("commit audio series: %w", err)
 	}
 	byID := make(map[string]model.ItemSummary, len(items))
 	for _, it := range items {
@@ -274,7 +306,7 @@ func (r *Reader) AudioSeries(ctx context.Context, s Scope, libraryID int64, seri
 	for _, v := range vs {
 		it, ok := byID[v.ID]
 		if !ok {
-			continue // hidden since the first read
+			continue // ordered returns what the same transaction read; kept as a guard
 		}
 		vol := model.AudioSeriesVolume{Item: it, Narrator: v.Narrator.String}
 		if v.SeriesIndex.Valid {
@@ -298,6 +330,14 @@ func (r *Reader) AudioSeries(ctx context.Context, s Scope, libraryID int64, seri
 		}
 	}
 	return out, nil
+}
+
+// inTx returns a Reader whose generated queries run in tx (a read-only transaction), so several
+// reads see one state of the database.
+func (r *Reader) inTx(tx *sql.Tx) *Reader {
+	c := *r
+	c.q = r.q.WithTx(tx)
+	return &c
 }
 
 // visibleSeriesID returns the series of a visible book when it has at least two visible volumes
