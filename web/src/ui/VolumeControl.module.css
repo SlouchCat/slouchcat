@@ -1,34 +1,59 @@
 .control {
+  position: relative;
   display: inline-flex;
   align-items: center;
 }
 
-/* The slider and the percentage: closed beside the button until the pointer is over the control
-   or the focus is in it. Closed, the slider keeps its place in the Tab order (no display: none),
-   so the focus can reach it and open the drawer. */
-.drawer {
+/* The slider and the percentage in the row: on touch screens (no hover) and with `inline`, always
+   open beside the button. */
+.drawer,
+.popover {
   display: inline-flex;
   gap: var(--sc-space-2);
   align-items: center;
-  max-width: 0;
+}
+
+/* With a pointer: a popover in the top layer over the neighbours (concept 19 E2), placed by the
+   component (fixed to the window). Closed it stays rendered but hidden, so the focus can reach the
+   slider in the Tab order and open it, and screen readers find it. */
+.popover {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: var(--sc-space-1) var(--sc-space-3) var(--sc-space-1) 0;
+  overflow: visible;
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-bg-elevated);
+  color: inherit;
+}
+
+.popover:not(:popover-open) {
+  position: absolute;
+  inset: 0 auto auto 0;
+  display: inline-flex;
   overflow: hidden;
-  opacity: 0;
-  transition:
-    max-width var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
-    opacity var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
-.control:hover .drawer,
-.control:focus-within .drawer {
-  max-width: 12rem;
-  opacity: 1;
+.popover:popover-open {
+  animation: open var(--sc-motion-duration-fast) var(--sc-motion-easing-enter);
 }
 
-/* Without hover (touch screens) there is nothing to open it: it stays open. */
-@media (hover: none) {
-  .drawer {
-    max-width: 12rem;
-    opacity: 1;
+@keyframes open {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popover:popover-open {
+    animation: none;
   }
 }
 
@@ -45,7 +70,7 @@
   touch-action: none;
 }
 
-/* The drawer clips what lies outside it, so the ring lies inside the slider's hit area. */
+/* The ring lies inside the slider's hit area: the popover's edge is close around it. */
 .slider:focus-visible {
   outline-offset: calc(-1 * var(--sc-focus-ring-width));
 }
