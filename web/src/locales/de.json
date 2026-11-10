@@ -4834,7 +4834,7 @@
       "nameHint": "Ändert den angezeigten Namen und sperrt ihn; die Bände bleiben, wie sie sind.",
       "options": "Bände",
       "writeToVolumes": "In alle Bände schreiben",
-      "writeToVolumesHint": "Setzt den Namen als Reihe jedes Bandes und sperrt ihn. Reihen mit demselben Namen werden so zu einer."
+      "writeToVolumesHint": "Setzt den Namen als Reihe jedes Bandes und sperrt ihn. Reihen mit demselben Namen und demselben Autor werden so zu einer."
     }
   }
 }

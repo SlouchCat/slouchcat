@@ -4834,7 +4834,7 @@
       "nameHint": "Changes the displayed name and locks it; the books stay as they are.",
       "options": "Books",
       "writeToVolumes": "Write to all books",
-      "writeToVolumesHint": "Sets the name as the series of every book and locks it. Series with the same name become one."
+      "writeToVolumesHint": "Sets the name as the series of every book and locks it. Series with the same name and the same author become one."
     }
   }
 }
