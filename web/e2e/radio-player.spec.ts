@@ -1,5 +1,5 @@
-import type { APIRequestContext, Locator, Page } from '@playwright/test';
-import { CSRF, H264_TITLE } from './catalog';
+import type { Locator, Page } from '@playwright/test';
+import { H264_TITLE } from './catalog';
 import { expect, test } from './fixtures';
 import {
   expectFocusOn,
@@ -9,6 +9,15 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
+import {
+  audio,
+  LIVE_TIMEOUT_MS,
+  miniOpen,
+  miniPlayer,
+  playStation,
+  resetRadioPreferences,
+  stopRadio,
+} from './radio';
 
 // The app-level radio player (concept 16, 10.3; plan W4) against the test station of
 // radio-server.mjs: «Testradio Drei» is the Icecast AAC mount, which the relay repackages (copy
@@ -37,46 +46,6 @@ const ICY_LINE = /^Slouchcat Testton – Titel \d+$/;
 const ICY_TITLE = /^Titel \d+$/;
 /** The title inside a longer text (a row of «Zuvor gespielt» with its time). */
 const ICY_TITLE_PART = /Titel \d+/;
-/** Relay start (ffmpeg, the first segments) plus the first title poll (10 s). */
-const LIVE_TIMEOUT_MS = 30_000;
-
-/** Ends every listen session the administration sees (the fixture knows only playback sessions). */
-async function stopRadio(owner: APIRequestContext): Promise<void> {
-  const response = await owner.get('/api/v1/admin/radio/relays');
-  if (!response.ok()) return;
-  const { relays } = (await response.json()) as { relays: { listeners: { listenId: string }[] }[] };
-  for (const listener of relays.flatMap((relay) => relay.listeners)) {
-    await owner.delete(`/api/v1/admin/radio/listeners/${listener.listenId}`, { headers: CSRF });
-  }
-}
-
-/** No stored filter: /radio opens as it does for a new profile. */
-async function resetRadioPreferences(owner: APIRequestContext): Promise<void> {
-  const response = await owner.put('/api/v1/radio/preferences', {
-    headers: CSRF,
-    data: { defaultCountry: 'CH', lastFilter: {}, lastSort: 'popular' },
-  });
-  expect(response.status(), await response.text()).toBe(200);
-}
-
-const miniPlayer = (page: Page) => page.getByTestId('radio-mini-player');
-const miniOpen = (page: Page) => page.getByTestId('radio-mini-open');
-const audio = (page: Page) => page.getByTestId('radio-audio');
-
-/** Opens /radio on `station` and plays it from its tile. */
-async function playStation(page: Page, station: string): Promise<void> {
-  await page.goto(`/radio?q=${encodeURIComponent(station)}`);
-  const tile = page
-    .getByRole('list', { name: 'Treffer' })
-    .getByRole('button', { name: `${station} abspielen` });
-  await tile.click();
-  await expect(miniPlayer(page)).toBeVisible();
-  await expect(miniOpen(page)).toHaveAccessibleName(`Jetzt läuft öffnen: ${station}`);
-  await expect(miniPlayer(page)).toHaveAttribute('data-state', 'live', {
-    timeout: LIVE_TIMEOUT_MS,
-  });
-}
-
 /** Presses `key` until the focus is inside `region`; fails after `max` presses. */
 async function arrowInto(page: Page, region: Locator, key: string, max = 10): Promise<void> {
   for (let presses = 0; presses < max; presses += 1) {

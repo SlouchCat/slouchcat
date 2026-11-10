@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { ComponentProps } from 'react';
 import { MiniPlayer } from './MiniPlayer';
 import { art } from './stories/fixtures';
+import { VolumeControl } from './VolumeControl';
 
 const noop = () => undefined;
 
@@ -92,6 +93,52 @@ export const LongPause: Story = {
       text: 'Die Pause war länger als 30 Minuten. Weiter ab dem ältesten Stand.',
       actionLabel: 'Live',
       onAction: noop,
+    },
+  },
+};
+
+/** The volume beside play/pause (concept 19 E3): at rest only the mute button. */
+export const WithVolume: Story = {
+  args: {
+    volume: {
+      control: (
+        <VolumeControl
+          volume={0.8}
+          muted={false}
+          onVolumeChange={noop}
+          onToggleMute={noop}
+          placement="above"
+        />
+      ),
+      onToggleMute: noop,
+    },
+  },
+  decorators: [
+    (Story) => (
+      <div style={{ paddingTop: '4rem' }}>
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+/** Tab to the mute button (open, play, mute): the slider opens above the bar. */
+export const VolumeOpen: Story = { ...WithVolume, tags: ['press:Tab+Tab+Tab'] };
+
+/** A phone without a pointer: the slider open on a line of its own under the station. */
+export const VolumeInline: Story = {
+  args: {
+    volume: {
+      control: (
+        <VolumeControl
+          volume={0.8}
+          muted={false}
+          onVolumeChange={noop}
+          onToggleMute={noop}
+          inline
+        />
+      ),
+      onToggleMute: noop,
     },
   },
 };

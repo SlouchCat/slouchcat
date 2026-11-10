@@ -10,6 +10,7 @@ import {
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { useEffect } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
+import { AUDIO_VOLUME_KEY, writeAudioVolume } from '@/lib/audioVolume';
 import { json, mockApi, problem, session, type Call, type Routes } from '@/test/api';
 import { sessionQuery } from '../session';
 import type { RadioEngine, RadioEngineEvents, RadioEngineFactory } from './engine';
@@ -200,6 +201,42 @@ describe('RadioProvider', () => {
     expect(context.calls.some((call) => call.path === '/radio/stations/7/listen')).toBe(true);
     expect(context.engine.mock.calls[0]?.[1]).toBe('/api/v1/radio/live/L1/index.m3u8?rt=token');
     await waitFor(() => expect(playSpy).toHaveBeenCalled());
+  });
+
+  it('plays at the shared volume of the device: on the new element, at once on a change (E3)', async () => {
+    writeAudioVolume(0.4);
+    try {
+      const context = setup();
+      await startLive(context);
+      const audio = () => screen.getByTestId<HTMLAudioElement>('radio-audio');
+      expect(audio().volume).toBe(0.4);
+      expect(player().volume).toBe(0.4);
+      act(() => player().setVolume(0.55));
+      expect(audio().volume).toBe(0.55);
+      expect(localStorage.getItem(AUDIO_VOLUME_KEY)).toBe('0.55');
+      // Muting is the radio's own and not stored; a new volume unmutes.
+      act(() => player().toggleMute());
+      expect(audio().muted).toBe(true);
+      expect(player().muted).toBe(true);
+      act(() => player().setVolume(0.6));
+      expect(audio().muted).toBe(false);
+      // Another player (or tab) changes the shared volume: the radio follows.
+      act(() => {
+        writeAudioVolume(0.2);
+      });
+      expect(audio().volume).toBe(0.2);
+      // The next station gets a new element, at the same volume and still muted.
+      act(() => player().toggleMute());
+      act(() => player().stop());
+      await waitFor(() => expect(screen.queryByTestId('radio-audio')).toBeNull());
+      act(() => player().play(station));
+      await waitFor(() => expect(screen.getByTestId('radio-audio')).toBeInTheDocument());
+      expect(audio().volume).toBe(0.2);
+      expect(audio().muted).toBe(true);
+    } finally {
+      writeAudioVolume(1);
+      localStorage.removeItem(AUDIO_VOLUME_KEY);
+    }
   });
 
   it('sends a heartbeat every 30 s, also paused, and one when the listener pauses', async () => {

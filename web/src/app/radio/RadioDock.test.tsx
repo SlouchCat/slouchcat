@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initialRadioState, type RadioListen, type RadioStation } from './priority';
 import { RadioDock } from './RadioDock';
 import type { RadioNowEntry } from './queries';
@@ -60,6 +60,10 @@ function renderDock({ offset = 0, ...overrides }: Partial<RadioPlayer> & { offse
     hold: () => () => undefined,
     markFavorite: vi.fn(),
     dismiss: vi.fn(),
+    volume: 0.8,
+    setVolume: vi.fn(),
+    muted: false,
+    toggleMute: vi.fn(),
     ...overrides,
   };
   const queryClient = new QueryClient();
@@ -139,7 +143,69 @@ describe('RadioDock', () => {
     renderDock({ timeShiftSeconds: 0 });
     await userEvent.click(screen.getByTestId('radio-mini-open'));
     const dialog = await screen.findByTestId('radio-now-playing');
-    expect(within(dialog).queryByRole('slider')).toBeNull();
+    expect(within(dialog).queryByRole('slider', { name: /^Zeitversatz/ })).toBeNull();
     expect(within(dialog).getByTestId('radio-now-live')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  describe('volume (concept 19 E3)', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('sits beside play/pause in the mini player and under the controls in «Jetzt läuft»', async () => {
+      const player = renderDock({ volume: 0.4 });
+      const mini = screen.getByTestId('radio-mini-player');
+      const slider = await within(mini).findByRole('slider', { name: 'Lautstärke' });
+      expect(slider).toHaveAttribute('aria-valuenow', '40');
+      // No boost: the radio has no gain node.
+      expect(slider).toHaveAttribute('aria-valuemax', '100');
+      // ←/→ on the slider set the shared volume.
+      act(() => slider.focus());
+      fireEvent.keyDown(slider, { key: 'ArrowRight' });
+      expect(player.setVolume).toHaveBeenLastCalledWith(0.45);
+      await userEvent.click(within(mini).getByRole('button', { name: 'Ton aus' }));
+      expect(player.toggleMute).toHaveBeenCalledTimes(1);
+
+      await userEvent.click(screen.getByTestId('radio-mini-open'));
+      const dialog = await screen.findByTestId('radio-now-playing');
+      const volume = within(dialog).getByTestId('radio-now-volume');
+      expect(within(volume).getByRole('slider', { name: 'Lautstärke' })).toHaveAttribute(
+        'aria-valuenow',
+        '40',
+      );
+    });
+
+    it('M mutes while the focus is in the mini player or in «Jetzt läuft»', async () => {
+      const player = renderDock();
+      const toggle = screen.getByTestId('radio-mini-toggle');
+      act(() => toggle.focus());
+      await userEvent.keyboard('m');
+      expect(player.toggleMute).toHaveBeenCalledTimes(1);
+      // Not with a modifier (a shortcut of the browser).
+      await userEvent.keyboard('{Control>}m{/Control}');
+      expect(player.toggleMute).toHaveBeenCalledTimes(1);
+
+      await userEvent.click(screen.getByTestId('radio-mini-open'));
+      const dialog = await screen.findByTestId('radio-now-playing');
+      act(() => within(dialog).getByTestId('radio-now-live').focus());
+      await userEvent.keyboard('M');
+      expect(player.toggleMute).toHaveBeenCalledTimes(2);
+    });
+
+    it('PE-4: on the iPhone only the mute button, in the mini player and «Jetzt läuft»', async () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 19_0 like Mac OS X) AppleWebKit/605.1.15',
+      );
+      renderDock();
+      const mini = screen.getByTestId('radio-mini-player');
+      expect(await within(mini).findByRole('button', { name: 'Ton aus' })).toBeVisible();
+      expect(within(mini).queryByRole('slider', { name: 'Lautstärke' })).toBeNull();
+      await userEvent.click(screen.getByTestId('radio-mini-open'));
+      const volume = within(await screen.findByTestId('radio-now-playing')).getByTestId(
+        'radio-now-volume',
+      );
+      expect(within(volume).getByRole('button', { name: 'Ton aus' })).toBeVisible();
+      expect(within(volume).queryByRole('slider')).toBeNull();
+    });
   });
 });

@@ -12,6 +12,7 @@ import {
 import { flushSync } from 'react-dom';
 import { apiUrl, isApiError } from '@/api/client';
 import { problemExtension } from '@/api/errors';
+import { readAudioVolume, useAudioVolume, writeAudioVolume } from '@/lib/audioVolume';
 import { sessionQuery } from '../session';
 import { openRadioChannel, type RadioChannel } from './channel';
 import { createRadioEngine, type RadioEngine, type RadioEngineFactory } from './engine';
@@ -52,6 +53,12 @@ const TAB_ID =
     : `${Date.now()}-${Math.random()}`;
 
 type ProviderAction = RadioAction | { type: 'event'; event: RadioEvent; notice?: RadioNotice };
+
+// A module function: the React compiler does not let a hook write to an element it holds.
+function applyVolume(audio: HTMLAudioElement, volume: number, muted: boolean): void {
+  audio.volume = volume;
+  audio.muted = muted;
+}
 
 function reducer(state: RadioState, action: ProviderAction): RadioState {
   return action.type === 'event'
@@ -97,7 +104,11 @@ interface RadioProviderProps {
 export function RadioProvider({ children, engine = createRadioEngine }: RadioProviderProps) {
   const [state, dispatch] = useReducer(reducer, initialRadioState);
   const playing = isPlaying(state);
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // The shared volume of the device (concept 19 E3) and the radio's own mute, not stored.
+  const volume = useAudioVolume();
+  const [muted, setMuted] = useState(false);
+  const mutedRef = useRef(muted);
   const engineRef = useRef<RadioEngine | null>(null);
   const channelRef = useRef<RadioChannel | null>(null);
   // Bumped when an engine is attached, so the element starts playing then.
@@ -116,6 +127,7 @@ export function RadioProvider({ children, engine = createRadioEngine }: RadioPro
   useEffect(() => {
     stateRef.current = state;
     playingRef.current = playing;
+    mutedRef.current = muted;
   });
   useEffect(() => {
     mounted.current = true;
@@ -231,6 +243,21 @@ export function RadioProvider({ children, engine = createRadioEngine }: RadioPro
     [],
   );
   const dismiss = useCallback(() => dispatch({ type: 'dismiss' }), []);
+  const setVolume = useCallback((next: number) => {
+    writeAudioVolume(next);
+    setMuted(false);
+  }, []);
+  const toggleMute = useCallback(() => setMuted((before) => !before), []);
+
+  // The element exists only while a station is chosen and is new each time: it takes the volume
+  // when it mounts, and every change at once.
+  const audioElement = useCallback((audio: HTMLAudioElement | null) => {
+    audioRef.current = audio;
+    if (audio) applyVolume(audio, readAudioVolume(), mutedRef.current);
+  }, []);
+  useEffect(() => {
+    if (audioRef.current) applyVolume(audioRef.current, volume, muted);
+  }, [volume, muted]);
 
   // The stream of the session: attached to the element, detached when the session ends.
   useEffect(() => {
@@ -435,6 +462,10 @@ export function RadioProvider({ children, engine = createRadioEngine }: RadioPro
       hold,
       markFavorite,
       dismiss,
+      volume,
+      setVolume,
+      muted,
+      toggleMute,
     }),
     [
       state,
@@ -451,6 +482,10 @@ export function RadioProvider({ children, engine = createRadioEngine }: RadioPro
       hold,
       markFavorite,
       dismiss,
+      volume,
+      setVolume,
+      muted,
+      toggleMute,
     ],
   );
 
@@ -461,7 +496,7 @@ export function RadioProvider({ children, engine = createRadioEngine }: RadioPro
           no caption track. */}
         {hasAudio && (
           // eslint-disable-next-line jsx-a11y/media-has-caption
-          <audio ref={audioRef} preload="none" data-testid="radio-audio" hidden />
+          <audio ref={audioElement} preload="none" data-testid="radio-audio" hidden />
         )}
         {children}
       </RadioOffsetContext.Provider>
