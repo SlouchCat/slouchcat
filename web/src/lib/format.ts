@@ -88,3 +88,9 @@ export function formatDuration(t: TFunction, ms: number): string {
   if (ms < 60_000) return t('format.seconds', { seconds: Math.max(0, Math.round(ms / 1000)) });
   return formatRuntime(t, Math.round(ms / 60_000));
 }
+
+/** Length of an audiobook entry as the book sources compare it (concept 19 D5.2): "22 Std. 54 Min.". */
+export function formatBookLength(t: TFunction, ms: number): string {
+  const minutes = Math.round(ms / 60_000);
+  return t('format.bookLength', { hours: Math.floor(minutes / 60), minutes: minutes % 60 });
+}

@@ -1,15 +1,18 @@
 import type { AdminItem } from '@slouchcat/api-client';
+import type { TFunction } from 'i18next';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
-import { problemMessage } from '@/api/errors';
+import { formErrors, problemMessage } from '@/api/errors';
 import { Notice, Text } from '@/ui';
-import { AriaButton, CheckboxGroup } from '@/ui/aria';
+import { AriaButton, CheckboxGroup, SettingRow } from '@/ui/aria';
+import { providerName } from '../item/facts';
 import { MatchSearch } from '../MatchDialog';
+import { BookMatchTab, bookMatchSource } from './BookMatchTab';
 import styles from './MetadataEditor.module.css';
 
-/** The tab «Zuordnen»: the search of MatchDialog for films and series. */
+/** The tab «Zuordnen»: the search of MatchDialog for films and series, a book source for a book. */
 export function MatchTab({
   item,
   onChanged,
@@ -18,6 +21,7 @@ export function MatchTab({
   onChanged: (next: AdminItem, message: string) => void;
 }) {
   const { t } = useTranslation();
+  if (item.kind === 'audiobook') return <BookMatchTab item={item} onChanged={onChanged} />;
   if (item.kind !== 'movie' && item.kind !== 'series') {
     return <Notice>{t('admin.editor.match.notMatchable')}</Notice>;
   }
@@ -37,10 +41,17 @@ export function MatchTab({
 
 const UNLOCK_ALL = 'unlockAll';
 
+/** The message of a failed refresh: `fromProvider` `not_matched` names its field. */
+function refreshFailure(t: TFunction, error: unknown): string {
+  const errors = formErrors(t, error);
+  return Object.values(errors.fields)[0] ?? errors.form ?? '';
+}
+
 /**
  * The tab «Aktualisieren» (concept 15 7.5): «Jetzt aktualisieren» queues the refresh of every free
  * field and automatically chosen image; the box lifts every lock of the title first. A book reads
- * its files again instead (concept 19 D5.2, «Aus den Dateien neu lesen»).
+ * its files again («Aus den Dateien neu lesen») or, with a match, fetches the entry of its source
+ * again («Vom Anbieter neu holen», concept 19 D5.2); the box applies to both.
  */
 export function RefreshTab({
   item,
@@ -52,24 +63,91 @@ export function RefreshTab({
   const { t } = useTranslation();
   const [options, setOptions] = useState<string[]>([]);
   const book = item.kind === 'audiobook';
+  const matched = book ? bookMatchSource(item) : undefined;
   const refresh = useMutation({
-    mutationFn: (unlockAll: boolean): Promise<AdminItem> =>
+    mutationFn: ({
+      unlockAll,
+      fromProvider,
+    }: {
+      unlockAll: boolean;
+      fromProvider?: boolean;
+    }): Promise<AdminItem> =>
       request(
         api.POST('/admin/items/{id}/refresh', {
           params: { path: { id: item.id } },
-          body: { unlockAll },
+          body: fromProvider ? { unlockAll, fromProvider } : { unlockAll },
         }),
       ),
-    onSuccess: (next) => {
+    onSuccess: (next, { fromProvider }) => {
       setOptions([]);
-      onChanged(next, t('admin.item.refreshed'));
+      onChanged(
+        next,
+        fromProvider && matched
+          ? t('admin.editor.refresh.book.refetched', { source: providerName(t, matched) })
+          : t('admin.item.refreshed'),
+      );
     },
   });
+  const unlockAll = options.includes(UNLOCK_ALL);
+  if (book) {
+    return (
+      <div className={styles.stack}>
+        <Text tone="secondary">{t('admin.editor.refresh.book.body')}</Text>
+        <div className={styles.refreshWays}>
+          <SettingRow
+            label={t('admin.editor.refresh.book.filesTitle')}
+            help={t('admin.editor.refresh.book.filesHint')}
+          >
+            <AriaButton
+              icon="refresh"
+              isPending={refresh.isPending && !refresh.variables?.fromProvider}
+              onPress={() => refresh.mutate({ unlockAll })}
+            >
+              {t('admin.editor.refresh.book.run')}
+            </AriaButton>
+          </SettingRow>
+          <SettingRow
+            label={t('admin.editor.refresh.book.providerTitle')}
+            help={
+              matched
+                ? t('admin.editor.refresh.book.providerHint', {
+                    source: providerName(t, matched),
+                  })
+                : t('admin.editor.refresh.book.providerNone')
+            }
+          >
+            <AriaButton
+              icon="refresh"
+              isDisabled={!matched}
+              isPending={refresh.isPending && refresh.variables?.fromProvider === true}
+              onPress={() => refresh.mutate({ unlockAll, fromProvider: true })}
+            >
+              {t('admin.editor.refresh.book.providerRun')}
+            </AriaButton>
+          </SettingRow>
+        </div>
+        <CheckboxGroup
+          label={t('admin.editor.refresh.options')}
+          value={options}
+          onChange={setOptions}
+          options={[
+            {
+              value: UNLOCK_ALL,
+              label: t('admin.editor.refresh.book.unlockAll'),
+              description: t('admin.editor.refresh.book.unlockAllHint'),
+            },
+          ]}
+        />
+        <Text tone="secondary" variant="caption">
+          {t('admin.editor.refresh.hint')}
+        </Text>
+        {refresh.isError && <Notice tone="danger">{refreshFailure(t, refresh.error)}</Notice>}
+      </div>
+    );
+  }
   return (
     <div className={styles.stack}>
-      <Text tone="secondary">
-        {book ? t('admin.editor.refresh.book.body') : t('admin.editor.refresh.body')}
-      </Text>
+      <Text tone="secondary">{t('admin.editor.refresh.body')}</Text>
       <CheckboxGroup
         label={t('admin.editor.refresh.options')}
         value={options}
@@ -77,12 +155,8 @@ export function RefreshTab({
         options={[
           {
             value: UNLOCK_ALL,
-            label: book
-              ? t('admin.editor.refresh.book.unlockAll')
-              : t('admin.editor.refresh.unlockAll'),
-            description: book
-              ? t('admin.editor.refresh.book.unlockAllHint')
-              : t('admin.editor.refresh.unlockAllHint'),
+            label: t('admin.editor.refresh.unlockAll'),
+            description: t('admin.editor.refresh.unlockAllHint'),
           },
         ]}
       />
@@ -91,9 +165,9 @@ export function RefreshTab({
           variant="primary"
           icon="refresh"
           isPending={refresh.isPending}
-          onPress={() => refresh.mutate(options.includes(UNLOCK_ALL))}
+          onPress={() => refresh.mutate({ unlockAll })}
         >
-          {book ? t('admin.editor.refresh.book.run') : t('admin.editor.refresh.run')}
+          {t('admin.editor.refresh.run')}
         </AriaButton>
         <Text tone="secondary" variant="caption">
           {t('admin.editor.refresh.hint')}

@@ -188,7 +188,9 @@
       "job_type_not_runnable": "This job has no manual run; its runs come from events.",
       "job_type_paused": "The job is paused; resume it first.",
       "job_type_not_scheduled": "This job has no schedule.",
-      "job_type_not_windowable": "This job has no time window."
+      "job_type_not_windowable": "This job has no time window.",
+      "provider_unreachable": "The source cannot be reached right now. Please try again later.",
+      "provider_paused": "The source rests after repeated refusals. Please try again later."
     },
     "field": {
       "required": "Required.",
@@ -214,9 +216,11 @@
       "content_not_allowed": "This content does not fit the kind of the library.",
       "providers_not_allowed": "This list of metadata sources is not allowed for this content.",
       "roots_required": "At least one folder is required.",
-      "provider_not_searchable": "Only TMDB and TVDB can be searched.",
+      "provider_not_searchable": "This source cannot be searched here.",
       "local_address": "This address is in the local network. Own stations must come from the internet as well.",
-      "not_own": "Only an own station can change this."
+      "not_own": "Only an own station can change this.",
+      "not_matched": "This audiobook is not matched to a source.",
+      "not_found": "The source has no such entry."
     }
   },
   "setup": {
@@ -683,7 +687,8 @@
     "separator": " · ",
     "seconds": "{{seconds}} s",
     "or": " or ",
-    "listSeparator": ", "
+    "listSeparator": ", ",
+    "bookLength": "{{hours}} h {{minutes}} min"
   },
   "player": {
     "region": "Video player",
@@ -1418,10 +1423,65 @@
         "run": "Refresh now",
         "hint": "Runs as a job with high priority; the new values appear once it is done.",
         "book": {
-          "body": "«Read the files again» reads metadata.json, the tags and the folder names once more. Locked fields and a chosen cover stay.",
-          "unlockAll": "Lift locks",
-          "unlockAllHint": "Lift every lock of this book first: afterwards what the files say applies again. An own rating stays.",
-          "run": "Read the files again"
+          "body": "Locked fields and a chosen cover stay, unless you lift the locks first.",
+          "unlockAll": "Lift every lock as well",
+          "unlockAllHint": "Lift every lock of this book first: afterwards what the files and the provider say applies again. An own rating stays.",
+          "run": "Read again",
+          "filesTitle": "Read the files again",
+          "filesHint": "Reads metadata.json, the tags and the folder names once more.",
+          "providerTitle": "Fetch from the provider again",
+          "providerHint": "Fetches the details from {{source}} once more.",
+          "providerNone": "Pick a hit under «Match» first.",
+          "providerRun": "Fetch again",
+          "refetched": "The details from {{source}} are fetched again."
+        }
+      },
+      "bookMatch": {
+        "intro": "Search a source by title and author or by ASIN or ISBN and pick a hit. You decide field by field what is taken.",
+        "matched": "Matched: {{source}}",
+        "unmatched": "Not matched: details from the files only",
+        "source": "Source",
+        "audible": {
+          "de": "Audible Germany",
+          "com": "Audible USA",
+          "couk": "Audible United Kingdom",
+          "other": "Audible ({{domain}})"
+        },
+        "title": "Title",
+        "author": "Author",
+        "asin": "ASIN",
+        "isbn": "ISBN",
+        "idHint": "With an ASIN or ISBN the source searches for that id.",
+        "needQuery": "Enter a title, an ASIN or an ISBN.",
+        "asinInvalid": "An ASIN has ten letters or digits.",
+        "isbnInvalid": "An ISBN has 10 or 13 digits; hyphens are allowed.",
+        "sorted": "Sorted by rating: matching length first, then title, then author.",
+        "filesLength": "Length of the files: {{length}}",
+        "lengthUnknown": "Length unknown",
+        "lengthFits": "{{length}}, matches",
+        "people": "{{authors}} · read by {{narrators}}",
+        "asinId": "ASIN {{id}}",
+        "isbnId": "ISBN {{id}}",
+        "choose": "Pick {{title}} ({{length}})",
+        "preview": {
+          "title": "What is taken",
+          "entry": "{{title}} at {{source}}",
+          "caption": "Fields of {{source}}, today and new",
+          "field": "Field",
+          "today": "Today",
+          "new": "New",
+          "take": "Take",
+          "takeLabel": "Take {{field}}",
+          "locked": "locked",
+          "empty": "–",
+          "cover": "Cover of the source",
+          "coverToday": "present",
+          "hint": "Taken fields get a lock. Locked fields stay. The match also applies to a later «Fetch from the provider again».",
+          "same": "The source delivers nothing that differs from today.",
+          "apply_one": "Take {{count}} field",
+          "apply_other": "Take {{count}} fields",
+          "applied_one": "{{count}} field taken from {{source}} and locked.",
+          "applied_other": "{{count}} fields taken from {{source}} and locked."
         }
       }
     },

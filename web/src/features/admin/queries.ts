@@ -473,6 +473,64 @@ export const updateLibraryMetadata = (
 export const applyMetadata = (body: ApplyMetadataRequest): Promise<ApplyMetadataResponse> =>
   request(api.POST('/admin/metadata/apply', { body }));
 
+// Concept 19 D3: the book sources, the comparison of the editor and the page «Hörbücher: Quellen».
+export type AudibleRegion = components['schemas']['AudibleRegion'];
+export type BookMatchField = components['schemas']['BookMatchField'];
+export type MatchPreview = components['schemas']['MatchPreview'];
+export type AudiobookSources = components['schemas']['AudiobookSources'];
+export type AudiobookSourcesUpdate = components['schemas']['AudiobookSourcesUpdate'];
+export type AudiobookAutoMatch = components['schemas']['AudiobookAutoMatch'];
+export type BookReviewEntry = components['schemas']['BookReviewEntry'];
+
+/** The book sources in the order of the contract (`MetadataProvider`). */
+export const BOOK_PROVIDERS = [
+  'audible',
+  'dnb',
+  'applebooks',
+  'openlibrary',
+  'googlebooks',
+] as const;
+export type BookProvider = (typeof BOOK_PROVIDERS)[number];
+export const isBookProvider = (provider: string): provider is BookProvider =>
+  (BOOK_PROVIDERS as readonly string[]).includes(provider);
+
+export const audiobookSourcesQuery = queryOptions({
+  queryKey: ['admin', 'audiobook-sources'],
+  queryFn: ({ signal }): Promise<AudiobookSources> =>
+    request(api.GET('/admin/metadata/audiobooks', { signal })),
+});
+
+export const updateAudiobookSources = (body: AudiobookSourcesUpdate): Promise<AudiobookSources> =>
+  request(api.PATCH('/admin/metadata/audiobooks', { body }));
+
+export const matchAllAudiobooks = (): Promise<{ queued: number }> =>
+  request(api.POST('/admin/metadata/audiobooks/match-all'));
+
+export const audiobookReviewQuery = queryOptions({
+  queryKey: ['admin', 'audiobook-sources', 'review'],
+  queryFn: ({ signal }): Promise<BookReviewEntry[]> =>
+    request(api.GET('/admin/metadata/audiobooks/review', { signal })),
+});
+
+/** The comparison of an entry of a book source with an audiobook (`getMatchPreview`). */
+export const matchPreviewQuery = (
+  id: string,
+  provider: BookProvider,
+  providerId: string,
+  region?: AudibleRegion,
+) =>
+  queryOptions({
+    queryKey: ['admin', 'item', id, 'match-preview', provider, providerId, region ?? null],
+    queryFn: ({ signal }): Promise<MatchPreview> =>
+      request(
+        api.GET('/admin/items/{id}/match/preview', {
+          params: { path: { id }, query: { provider, providerId, region } },
+          signal,
+        }),
+      ),
+    retry: false,
+  });
+
 // Webradio (concept 16, stage 1): the administration's radio page. Its queries share the key
 // `['admin', 'radio']`, so a change invalidates them together.
 export type AdminRadioStation = components['schemas']['AdminRadioStation'];

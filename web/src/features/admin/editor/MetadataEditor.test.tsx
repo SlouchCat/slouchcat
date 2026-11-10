@@ -405,7 +405,9 @@ describe('metadata editor: an audiobook (concept 19 D5.2)', () => {
       within(dialog)
         .getAllByRole('tab')
         .map((tab) => tab.textContent),
-    ).toEqual(['Metadaten', 'Cover', 'Aktualisieren']);
+    ).toEqual(['Metadaten', 'Cover', 'Zuordnen', 'Aktualisieren']);
+    // Every field comes from the files: no source matched the book.
+    expect(within(dialog).getByText('Nicht zugeordnet: Angaben nur aus den Dateien')).toBeVisible();
     expect(within(dialog).getByRole('tab', { selected: true })).toHaveTextContent('Metadaten');
     const panel = within(dialog).getByRole('tabpanel');
     expect(within(panel).getByText(/Texte gelten für jede Sprachzeile des Buches/)).toBeVisible();
@@ -515,7 +517,7 @@ describe('metadata editor: an audiobook (concept 19 D5.2)', () => {
     ).toBeVisible();
   });
 
-  it('«Aktualisieren» reads the files again, with «Schlösser lösen»', async () => {
+  it('«Aktualisieren» reads the files again, with «Dabei alle Schlösser lösen»', async () => {
     const { calls } = bookRoutes({
       [`POST /admin/items/${audioIds.book}/refresh`]: () => json(book),
     });
@@ -524,10 +526,307 @@ describe('metadata editor: an audiobook (concept 19 D5.2)', () => {
     await user.click(within(dialog).getByRole('tab', { name: 'Aktualisieren' }));
     const panel = within(dialog).getByRole('tabpanel');
     expect(within(panel).getByText(/metadata\.json, die Tags und die Ordnernamen/)).toBeVisible();
-    await user.click(within(panel).getByRole('checkbox', { name: /^Schlösser lösen/ }));
-    await user.click(within(panel).getByRole('button', { name: 'Aus den Dateien neu lesen' }));
+    // Without a match there is nothing to fetch from a provider.
+    expect(within(panel).getByText('Erst unter «Zuordnen» einen Treffer wählen.')).toBeVisible();
+    expect(within(panel).getByRole('button', { name: 'Neu holen' })).toBeDisabled();
+    await user.click(within(panel).getByRole('checkbox', { name: /^Dabei alle Schlösser lösen/ }));
+    await user.click(within(panel).getByRole('button', { name: 'Neu lesen' }));
     await waitFor(() =>
       expect(calls.find((call) => call.method === 'POST')?.body).toEqual({ unlockAll: true }),
     );
+  });
+});
+
+// The tab «Zuordnen» of an audiobook (concept 19 D3, D5.2): the source choice, the search with
+// the server's length mark, the comparison «Was übernommen wird» and «Vom Anbieter neu holen».
+const bookInFolder = {
+  ...book,
+  providers: ['local', 'audible', 'dnb', 'applebooks', 'openlibrary', 'googlebooks'],
+} as unknown as AdminItem;
+
+const bookProvider = (id: string, configured = true) => ({
+  id,
+  configured,
+  roles: id === 'local' ? ['identify'] : ['fill'],
+  contents: ['audiobook'],
+  languages: [],
+});
+
+const hits = [
+  {
+    provider: 'audible',
+    providerId: 'B0TEST0001',
+    title: 'Slouchcat Test Audiobook M4B',
+    subtitle: 'Band 1',
+    authors: ['Slouchcat Test Author'],
+    narrators: ['Slouchcat Test Narrator'],
+    publisher: 'Testverlag',
+    year: 2024,
+    durationMs: 60_000,
+    asin: 'B0TEST0001',
+    coverUrl: 'https://books.example.test/b0test0001.jpg',
+    region: 'de',
+    durationMatches: true,
+    score: 0.9,
+  },
+  {
+    provider: 'audible',
+    providerId: 'B0TEST0002',
+    title: 'Slouchcat Test Audiobook M4B',
+    subtitle: 'Hörspiel',
+    authors: ['Slouchcat Test Author'],
+    durationMs: 7_260_000,
+    asin: 'B0TEST0002',
+    region: 'de',
+    durationMatches: false,
+    score: 0.3,
+  },
+];
+
+const preview = {
+  provider: 'audible',
+  providerId: 'B0TEST0001',
+  title: 'Slouchcat Test Audiobook M4B',
+  durationMs: 60_000,
+  durationMatches: true,
+  fields: [
+    {
+      field: 'title',
+      current: 'Slouchcat Test Audiobook M4B',
+      proposed: 'Slouchcat Test Audiobook M4B',
+      locked: false,
+      differs: false,
+    },
+    { field: 'subtitle', current: '', proposed: 'Band 1', locked: false, differs: true },
+    {
+      field: 'narrator',
+      current: 'Slouchcat Test Narrator',
+      proposed: 'Neue Sprecherin',
+      locked: true,
+      differs: true,
+    },
+    { field: 'publisher', current: '', proposed: 'Testverlag', locked: false, differs: true },
+    { field: 'asin', current: '', proposed: 'B0TEST0001', locked: false, differs: true },
+    {
+      field: 'cover',
+      current: '',
+      proposed: 'https://books.example.test/b0test0001.jpg',
+      locked: false,
+      differs: true,
+    },
+  ],
+};
+
+const matchedBook = {
+  ...bookInFolder,
+  metadata: {
+    ...(book.metadata as object),
+    sources: [
+      { field: 'title', provider: 'local' },
+      { field: 'subtitle', provider: 'audible' },
+    ],
+  },
+} as unknown as AdminItem;
+
+function matchRoutes(overrides: Record<string, Parameters<typeof mockApi>[0][string]> = {}) {
+  return bookRoutes({
+    [`GET /admin/items/${audioIds.book}`]: () => json(bookInFolder),
+    'GET /admin/metadata/providers': () =>
+      json([
+        bookProvider('local'),
+        bookProvider('audible'),
+        bookProvider('dnb'),
+        bookProvider('applebooks'),
+        bookProvider('openlibrary'),
+        bookProvider('googlebooks', false),
+      ]),
+    'GET /admin/metadata/audiobooks': () => json({ audibleRegion: 'de' }),
+    'GET /admin/metadata/search': () => json(hits),
+    [`GET /admin/items/${audioIds.book}/match/preview`]: () => json(preview),
+    ...overrides,
+  });
+}
+
+/** The query of every request to `path`, in order. */
+const queriesOf = (fetchMock: ReturnType<typeof mockApi>['fetchMock'], path: string) =>
+  fetchMock.mock.calls
+    .map(([request]) => new URL(request.url))
+    .filter((url) => url.pathname === `/api/v1${path}`)
+    .map((url) => Object.fromEntries(url.searchParams));
+
+async function openMatchTab(user: ReturnType<typeof userEvent.setup>) {
+  const dialog = await openBookEditor(user);
+  await user.click(within(dialog).getByRole('tab', { name: 'Zuordnen' }));
+  return { dialog, panel: within(dialog).getByRole('tabpanel') };
+}
+
+describe('metadata editor: matching an audiobook (concept 19 D3)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('offers the sources of the folder and searches with title, author, region and book', async () => {
+    const { fetchMock } = matchRoutes();
+    const user = userEvent.setup();
+    const { panel } = await openMatchTab(user);
+    const select = within(panel).getByRole('combobox', { name: 'Quelle' });
+    await waitFor(() =>
+      expect(
+        within(select)
+          .getAllByRole('option')
+          .map((option) => option.textContent),
+      ).toEqual([
+        'Audible Deutschland',
+        'Audible USA',
+        'Audible Grossbritannien',
+        'Deutsche Nationalbibliothek',
+        'Apple Books',
+        // Google Books has no key: not offered.
+        'Open Library',
+      ]),
+    );
+    expect(within(panel).getByRole('textbox', { name: 'Titel' })).toHaveValue(
+      'Slouchcat Test Audiobook M4B',
+    );
+    expect(within(panel).getByRole('textbox', { name: 'Autor' })).toHaveValue(
+      'Slouchcat Test Author',
+    );
+    expect(await within(panel).findByText('Länge der Dateien: 0 Std. 1 Min.')).toBeVisible();
+
+    await user.click(within(panel).getByRole('button', { name: 'Suchen' }));
+    const first = await within(panel).findByRole('button', {
+      name: 'Slouchcat Test Audiobook M4B – Band 1 wählen (0 Std. 1 Min., passt)',
+    });
+    expect(first).toHaveTextContent('Slouchcat Test Author · gelesen von Slouchcat Test Narrator');
+    expect(first).toHaveTextContent('Testverlag · 2024 · ASIN B0TEST0001');
+    expect(
+      within(panel).getByRole('button', {
+        name: 'Slouchcat Test Audiobook M4B – Hörspiel wählen (2 Std. 1 Min.)',
+      }),
+    ).toBeVisible();
+    expect(queriesOf(fetchMock, '/admin/metadata/search')).toEqual([
+      {
+        provider: 'audible',
+        kind: 'audiobook',
+        query: 'Slouchcat Test Audiobook M4B',
+        author: 'Slouchcat Test Author',
+        region: 'de',
+        itemId: audioIds.book,
+      },
+    ]);
+
+    // Another source without region, an ISBN instead of the title.
+    await user.selectOptions(select, 'dnb');
+    await user.clear(within(panel).getByRole('textbox', { name: 'Titel' }));
+    await user.clear(within(panel).getByRole('textbox', { name: 'Autor' }));
+    await user.type(within(panel).getByRole('textbox', { name: 'ISBN' }), '978-3-00-000000-0');
+    await user.click(within(panel).getByRole('button', { name: 'Suchen' }));
+    await waitFor(() =>
+      expect(queriesOf(fetchMock, '/admin/metadata/search')[1]).toEqual({
+        provider: 'dnb',
+        kind: 'audiobook',
+        isbn: '978-3-00-000000-0',
+        itemId: audioIds.book,
+      }),
+    );
+  });
+
+  it('asks for a title, an ASIN or an ISBN before searching', async () => {
+    const { fetchMock } = matchRoutes();
+    const user = userEvent.setup();
+    const { panel } = await openMatchTab(user);
+    await user.clear(within(panel).getByRole('textbox', { name: 'Titel' }));
+    await user.click(within(panel).getByRole('button', { name: 'Suchen' }));
+    expect(
+      await within(panel).findByText('Gib einen Titel, eine ASIN oder eine ISBN an.'),
+    ).toBeVisible();
+    await user.type(within(panel).getByRole('textbox', { name: 'ASIN' }), 'B0TEST');
+    await user.click(within(panel).getByRole('button', { name: 'Suchen' }));
+    expect(
+      await within(panel).findByText('Eine ASIN hat zehn Buchstaben oder Ziffern.'),
+    ).toBeVisible();
+    expect(queriesOf(fetchMock, '/admin/metadata/search')).toEqual([]);
+  });
+
+  it('says when the source rests', async () => {
+    matchRoutes({ 'GET /admin/metadata/search': () => problem(422, 'provider_paused') });
+    const user = userEvent.setup();
+    const { panel } = await openMatchTab(user);
+    await user.click(within(panel).getByRole('button', { name: 'Suchen' }));
+    expect(
+      await within(panel).findByText(
+        'Die Quelle pausiert nach wiederholten Absagen. Versuche es später noch einmal.',
+      ),
+    ).toBeVisible();
+  });
+
+  it('compares a hit field by field; locked fields stay; the ticked fields are taken', async () => {
+    const { calls, fetchMock } = matchRoutes({
+      [`PUT /admin/items/${audioIds.book}/match`]: () => json(matchedBook, 202),
+    });
+    const user = userEvent.setup();
+    const { dialog, panel } = await openMatchTab(user);
+    await user.click(within(panel).getByRole('button', { name: 'Suchen' }));
+    const first = await within(panel).findByRole('button', { name: /Band 1 wählen/ });
+    await user.click(first);
+    expect(first).toHaveAttribute('aria-pressed', 'true');
+
+    const table = await within(panel).findByRole('table', {
+      name: 'Felder von Audible, heute und neu',
+    });
+    expect(queriesOf(fetchMock, `/admin/items/${audioIds.book}/match/preview`)).toEqual([
+      { provider: 'audible', providerId: 'B0TEST0001', region: 'de' },
+    ]);
+    // Only the fields that differ; the title is the same today.
+    const rows = within(table).getAllByRole('row').slice(1);
+    expect(rows.map((row) => within(row).getByRole('rowheader').textContent)).toEqual([
+      'Untertitel',
+      'Sprecher',
+      'Verlag',
+      'ASIN',
+      'Cover',
+    ]);
+    // The locked narrator has no box, only its lock.
+    expect(within(rows[1]!).queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(within(rows[1]!).getByText('gesperrt')).toBeVisible();
+    expect(within(table).getByRole('checkbox', { name: 'Untertitel übernehmen' })).toBeChecked();
+    expect(within(panel).getByRole('button', { name: '4 Felder übernehmen' })).toBeEnabled();
+
+    await user.click(within(table).getByRole('checkbox', { name: 'Verlag übernehmen' }));
+    await user.click(within(panel).getByRole('button', { name: '3 Felder übernehmen' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
+        provider: 'audible',
+        providerId: 'B0TEST0001',
+        region: 'de',
+        fields: ['subtitle', 'asin', 'cover'],
+      }),
+    );
+    expect(
+      await within(dialog).findByText('3 Felder von Audible übernommen und gesperrt.'),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText('Zugeordnet: Audible')).toBeVisible();
+    expect(within(panel).queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('«Vom Anbieter neu holen» fetches the stored match again', async () => {
+    const { calls } = matchRoutes({
+      [`GET /admin/items/${audioIds.book}`]: () => json(matchedBook),
+      [`POST /admin/items/${audioIds.book}/refresh`]: () => json(matchedBook, 202),
+    });
+    const user = userEvent.setup();
+    const dialog = await openBookEditor(user);
+    expect(within(dialog).getByText('Zugeordnet: Audible')).toBeVisible();
+    await user.click(within(dialog).getByRole('tab', { name: 'Aktualisieren' }));
+    const panel = within(dialog).getByRole('tabpanel');
+    expect(within(panel).getByText('Holt die Angaben von Audible noch einmal.')).toBeVisible();
+    await user.click(within(panel).getByRole('button', { name: 'Neu holen' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
+        unlockAll: false,
+        fromProvider: true,
+      }),
+    );
+    expect(
+      await within(dialog).findByText('Die Angaben von Audible werden neu geholt.'),
+    ).toBeInTheDocument();
   });
 });

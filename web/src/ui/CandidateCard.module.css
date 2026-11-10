@@ -22,6 +22,12 @@
   background-color: var(--sc-color-surface-2);
 }
 
+.card[aria-pressed='true'] {
+  outline: var(--sc-focus-ring-width) solid var(--sc-accent);
+  outline-offset: calc(var(--sc-focus-ring-width) * -1);
+  background-color: var(--sc-color-surface-3);
+}
+
 .poster {
   flex: none;
   width: 3.5rem;
@@ -31,11 +37,21 @@
   object-fit: cover;
 }
 
+.poster[data-shape='square'] {
+  height: 3.5rem;
+}
+
 .text {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: var(--sc-space-1);
   min-width: 0;
+}
+
+.badge {
+  flex: none;
+  align-self: center;
 }
 
 .title {

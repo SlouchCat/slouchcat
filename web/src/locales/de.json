@@ -188,7 +188,9 @@
       "job_type_not_runnable": "Dieser Job hat keinen manuellen Lauf; seine Läufe kommen von Ereignissen.",
       "job_type_paused": "Der Job ist pausiert; setze ihn zuerst fort.",
       "job_type_not_scheduled": "Dieser Job hat keinen Zeitplan.",
-      "job_type_not_windowable": "Dieser Job hat kein Zeitfenster."
+      "job_type_not_windowable": "Dieser Job hat kein Zeitfenster.",
+      "provider_unreachable": "Die Quelle ist gerade nicht erreichbar. Versuche es später noch einmal.",
+      "provider_paused": "Die Quelle pausiert nach wiederholten Absagen. Versuche es später noch einmal."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -214,9 +216,11 @@
       "content_not_allowed": "Dieser Inhalt passt nicht zur Art der Bibliothek.",
       "providers_not_allowed": "Diese Liste von Metadatenquellen ist für diesen Inhalt nicht erlaubt.",
       "roots_required": "Mindestens ein Ordner ist nötig.",
-      "provider_not_searchable": "Nur TMDB und TVDB lassen sich durchsuchen.",
+      "provider_not_searchable": "Diese Quelle lässt sich hier nicht durchsuchen.",
       "local_address": "Diese Adresse liegt im lokalen Netz. Auch eigene Sender müssen aus dem Internet kommen.",
-      "not_own": "Das lässt sich nur bei eigenen Sendern ändern."
+      "not_own": "Das lässt sich nur bei eigenen Sendern ändern.",
+      "not_matched": "Dieses Hörbuch ist keiner Quelle zugeordnet.",
+      "not_found": "Diesen Eintrag gibt es bei der Quelle nicht."
     }
   },
   "setup": {
@@ -683,7 +687,8 @@
     "separator": " · ",
     "seconds": "{{seconds}} s",
     "or": " oder ",
-    "listSeparator": ", "
+    "listSeparator": ", ",
+    "bookLength": "{{hours}} Std. {{minutes}} Min."
   },
   "player": {
     "region": "Videoplayer",
@@ -1418,10 +1423,65 @@
         "run": "Jetzt aktualisieren",
         "hint": "Läuft als Job mit hoher Priorität; die neuen Werte stehen, sobald er fertig ist.",
         "book": {
-          "body": "«Aus den Dateien neu lesen» liest metadata.json, die Tags und die Ordnernamen noch einmal. Felder mit Schloss und ein gewähltes Cover bleiben.",
-          "unlockAll": "Schlösser lösen",
-          "unlockAllHint": "Vorher alle Sperren dieses Buches aufheben: Danach gilt wieder, was die Dateien sagen. Eine eigene Freigabe bleibt.",
-          "run": "Aus den Dateien neu lesen"
+          "body": "Felder mit Schloss und ein gewähltes Cover bleiben, ausser du löst vorher die Schlösser.",
+          "unlockAll": "Dabei alle Schlösser lösen",
+          "unlockAllHint": "Vorher alle Sperren dieses Buches aufheben: Danach gilt wieder, was die Dateien und der Anbieter sagen. Eine eigene Freigabe bleibt.",
+          "run": "Neu lesen",
+          "filesTitle": "Aus den Dateien neu lesen",
+          "filesHint": "Liest metadata.json, die Tags und die Ordnernamen noch einmal.",
+          "providerTitle": "Vom Anbieter neu holen",
+          "providerHint": "Holt die Angaben von {{source}} noch einmal.",
+          "providerNone": "Erst unter «Zuordnen» einen Treffer wählen.",
+          "providerRun": "Neu holen",
+          "refetched": "Die Angaben von {{source}} werden neu geholt."
+        }
+      },
+      "bookMatch": {
+        "intro": "Eine Quelle nach Titel und Autor oder nach ASIN oder ISBN durchsuchen und einen Treffer wählen. Was übernommen wird, entscheidest du Feld für Feld.",
+        "matched": "Zugeordnet: {{source}}",
+        "unmatched": "Nicht zugeordnet: Angaben nur aus den Dateien",
+        "source": "Quelle",
+        "audible": {
+          "de": "Audible Deutschland",
+          "com": "Audible USA",
+          "couk": "Audible Grossbritannien",
+          "other": "Audible ({{domain}})"
+        },
+        "title": "Titel",
+        "author": "Autor",
+        "asin": "ASIN",
+        "isbn": "ISBN",
+        "idHint": "Mit ASIN oder ISBN sucht die Quelle nach dieser Kennung.",
+        "needQuery": "Gib einen Titel, eine ASIN oder eine ISBN an.",
+        "asinInvalid": "Eine ASIN hat zehn Buchstaben oder Ziffern.",
+        "isbnInvalid": "Eine ISBN hat 10 oder 13 Ziffern; Bindestriche sind erlaubt.",
+        "sorted": "Sortiert nach Bewertung: zuerst passende Länge, dann Titel, dann Autor.",
+        "filesLength": "Länge der Dateien: {{length}}",
+        "lengthUnknown": "Länge unbekannt",
+        "lengthFits": "{{length}}, passt",
+        "people": "{{authors}} · gelesen von {{narrators}}",
+        "asinId": "ASIN {{id}}",
+        "isbnId": "ISBN {{id}}",
+        "choose": "{{title}} wählen ({{length}})",
+        "preview": {
+          "title": "Was übernommen wird",
+          "entry": "{{title}} bei {{source}}",
+          "caption": "Felder von {{source}}, heute und neu",
+          "field": "Feld",
+          "today": "Heute",
+          "new": "Neu",
+          "take": "Übernehmen",
+          "takeLabel": "{{field}} übernehmen",
+          "locked": "gesperrt",
+          "empty": "–",
+          "cover": "Cover der Quelle",
+          "coverToday": "vorhanden",
+          "hint": "Übernommene Felder bekommen ein Schloss. Felder mit Schloss bleiben. Die Zuordnung gilt auch für späteres «Vom Anbieter neu holen».",
+          "same": "Die Quelle liefert nichts, was sich von heute unterscheidet.",
+          "apply_one": "{{count}} Feld übernehmen",
+          "apply_other": "{{count}} Felder übernehmen",
+          "applied_one": "{{count}} Feld von {{source}} übernommen und gesperrt.",
+          "applied_other": "{{count}} Felder von {{source}} übernommen und gesperrt."
         }
       }
     },
