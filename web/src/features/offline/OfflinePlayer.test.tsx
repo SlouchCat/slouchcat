@@ -544,6 +544,18 @@ describe('offline player', () => {
     });
   });
 
+  it('PE-4: an audio download on the iPhone shows only the mute button (concept 19 E2)', async () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 19_0 like Mac OS X) AppleWebKit/605.1.15',
+    );
+    stubMedia(60);
+    await putAudiobook({});
+    mockApi({});
+    const { region } = await startAudio();
+    expect(within(region).getByRole('button', { name: 'Ton aus' })).toBeVisible();
+    expect(within(region).queryByRole('slider', { name: 'Lautstärke' })).toBeNull();
+  });
+
   it('another profile starts at its own speed: the server’s when it is newer (H-3, M6)', async () => {
     stubMedia(60);
     await putAudiobook({
