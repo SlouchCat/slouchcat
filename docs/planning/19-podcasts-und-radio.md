@@ -19,7 +19,7 @@
   Mockups (Anhang A). Offen: D11.
   **Fassung 8 (10. November 2026):** Marcos Antworten auf alle offenen Fragen der Teile A bis D
   eingetragen (17, B14, C6, D11). **Teil E dazu:** zwei Fehler der Lautstärke (Radio ohne Regler,
-  Regler im Podcast-Player flackert). Offen: E6.
+  Regler im Podcast-Player flackert); OE-1 und OE-2 beantwortet.
   **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Aufbau:** **Teil A Podcasts** (Abschnitte 1 bis 18, Anhang A), **Teil B Radio** (Abschnitte
   B1 bis B15, Anhang B), **Teil C Quadratische Cover** (Abschnitte C1 bis C6) und **Teil D Hörbücher**
@@ -1728,7 +1728,8 @@ dem Code in Frage, die erste ist die wahrscheinlichste:
 3. **Ein Ereignis je Schritt:** `muted` wird nur gesetzt, wenn es sich ändert; die Einblendung kommt
    nur bei Tasten und Mausrad, nicht beim Ziehen am Schieber (wie im Video-Player).
 4. **Merken:** der Audio-Player merkt sich die Lautstärke auf dem Gerät, wie der Video-Player
-   (`usePlayerPrefs`, `localStorage`), getrennt oder gemeinsam mit dem Radio nach OE-1.
+   (`usePlayerPrefs`, `localStorage`), **gemeinsam mit dem Radio** (OE-1): ein Wert je Gerät für alles
+   Hörbare; der Video-Player behält seinen eigenen.
 
 Weil `VolumeControl` ein Baustein aus `web/src/ui` ist, wirkt Punkt 2 auch im Video-Player und im
 Offline-Player; ihre Tests und Storybook-Baselines laufen mit.
@@ -1741,8 +1742,8 @@ Offline-Player; ihre Tests und Storybook-Baselines laufen mit.
   nicht setzen (Konzept 13, 11.2).
 - **Wirkung:** setzt `volume` und `muted` des Radio-Elements; gilt sofort, auch beim Wechsel des Senders
   und nach einem Wiederaufbau der Verbindung (`engine.ts` setzt die Werte nach jedem neuen Start).
-- **Merken:** auf dem Gerät (`localStorage`), nicht auf dem Server; ohne Speicher (privates Fenster)
-  beginnt das Radio bei 100 %.
+- **Merken:** auf dem Gerät (`localStorage`), nicht auf dem Server, **derselbe Wert wie im Podcast- und
+  Hörbuch-Player** (OE-1); ohne Speicher (privates Fenster) beginnt alles bei 100 %.
 - **Tastatur:** Tab erreicht Knopf und Schieber; ←/→ 5 %, Bild auf/ab 10 %, Pos1/Ende; M schaltet stumm,
   solange der Fokus im Mini-Player oder in «Jetzt läuft» liegt.
 - Texte aus `de.json`/`en.json` (die vorhandenen `player.volumeControl.*`), Farben aus Tokens.
@@ -1768,10 +1769,12 @@ Offline-Player; ihre Tests und Storybook-Baselines laufen mit.
 
 ## E6. Offene Punkte zum Teil E
 
-| Nr. | Punkt | Empfehlung |
+Beantwortet am 10. November 2026.
+
+| Nr. | Punkt | Marcos Antwort |
 |---|---|---|
-| OE-1 | Eine Lautstärke für alles Hörbare auf dem Gerät (Radio, Podcasts, Hörbücher) oder je eine für Radio und für den Audio-Player? | eine gemeinsame; wer leiser hört, hört meist alles leiser |
-| OE-2 | Schublade über den Nachbarn (E2, Punkt 2) oder fester Platz für den Schieber (die Zeile wird immer so breit, als wäre er offen)? | über den Nachbarn; die Zeile bleibt schmal |
+| OE-1 | Eine Lautstärke für alles Hörbare oder getrennt? | **gemeinsam** für Radio, Podcasts und Hörbücher auf dem Gerät (Empfehlung) |
+| OE-2 | Schublade über den Nachbarn oder fester Platz? | **über den Nachbarn** (Empfehlung) |
 
 ## Anhang A: Mockups
 
