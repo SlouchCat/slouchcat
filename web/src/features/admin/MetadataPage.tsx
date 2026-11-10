@@ -1000,7 +1000,10 @@ export function MetadataPage() {
           </MasterDetail>
           <Text tone="secondary" variant="caption">
             <TextLink href={paths.adminLibraries}>{t('admin.metadata.links.roots')}</TextLink>{' '}
-            <TextLink href={paths.adminJobs}>{t('admin.metadata.links.jobs')}</TextLink>
+            <TextLink href={paths.adminJobs}>{t('admin.metadata.links.jobs')}</TextLink>{' '}
+            <TextLink href={paths.adminAudiobookSources}>
+              {t('admin.metadata.links.audiobooks')}
+            </TextLink>
           </Text>
           {/* A direct child of the page's column, so it sticks to the bottom while the areas
               scroll (a wrapper only as tall as the bar would hold it in place). */}

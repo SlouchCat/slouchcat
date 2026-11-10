@@ -3926,7 +3926,8 @@
       "links": {
         "roots": "The order of the sources is set per folder under Libraries.",
         "jobs": "The schedules are under Background jobs.",
-        "keys": "Keys under Integrations"
+        "keys": "Keys under Integrations",
+        "audiobooks": "Sources for audiobooks"
       },
       "areas": {
         "label": "Areas",
@@ -4088,6 +4089,111 @@
       "serverRestart": "Server restarted",
       "serverRestartBy": "Restart by {{account}}",
       "unknown": "Event on the server"
+    },
+    "audiobookSources": {
+      "title": "Audiobooks: sources",
+      "intro": "Where Slouchcat gets details and covers for audiobooks. The files always come first; a provider fills only what is missing, and never a locked field.",
+      "folders": {
+        "title": "Order per folder",
+        "intro": "The upper source wins per field. You change the order and which sources take part in the dialog of the folder.",
+        "empty": "There is no audiobook folder yet.",
+        "edit": "Change sources",
+        "editLabel": "Change the sources of {{path}}",
+        "library": "Library {{name}}"
+      },
+      "settings": {
+        "title": "Settings",
+        "saved": "Audiobook settings saved."
+      },
+      "region": {
+        "label": "Audible region",
+        "help": "The Audible catalog searched first. English books are also searched in the USA and the United Kingdom.",
+        "de": "Germany (audible.de)",
+        "com": "USA (audible.com)",
+        "couk": "United Kingdom (audible.co.uk)",
+        "fr": "France (audible.fr)",
+        "it": "Italy (audible.it)",
+        "es": "Spain (audible.es)",
+        "ca": "Canada (audible.ca)",
+        "comau": "Australia (audible.com.au)",
+        "in": "India (audible.in)",
+        "cojp": "Japan (audible.co.jp)"
+      },
+      "audnexus": {
+        "label": "Audnexus address",
+        "help": "Audnexus delivers the details of an Audible hit: description, genres, series, ISBN and cover. An own instance in the local network is allowed.",
+        "invalid": "Enter an address with http:// or https://."
+      },
+      "googleBooks": {
+        "name": "Google Books key",
+        "description": "Without a key the server never asks Google Books; only with a key can the source join the list of a folder.",
+        "link": "Get an API key from Google"
+      },
+      "auto": {
+        "label": "Match automatically",
+        "off": "Off",
+        "offHint": "Only by hand with the pen.",
+        "new": "New audiobooks",
+        "newHint": "On a scan, for audiobooks without a match.",
+        "all": "All without a match",
+        "allHint": "Once for the whole library, afterwards like «New audiobooks»."
+      },
+      "tolerance": {
+        "label": "Length may differ by",
+        "option": "{{count}} %",
+        "help": "Only a unique hit is matched: same author, similar title, matching length. Otherwise the audiobook keeps the details of its files and appears under «Review». 1 to 10 % are allowed."
+      },
+      "normalize": {
+        "title": "Unify",
+        "authors": "Unify author names",
+        "authorsHint": "«J R R Tolkien», «J.R.R. Tolkien» and «J. R. R. Tolkien» become one person.",
+        "series": "Unify series names",
+        "seriesHint": "«Bodyguard - Band» becomes «Bodyguard», «Der Herr Der Ringe - Band» becomes «Der Herr der Ringe»."
+      },
+      "terms": "Audible's terms of use forbid reading the catalog automatically. Slouchcat asks at most once a second and rests the source after repeated refusals. Whoever does not want that takes Audible out of the folder's list.",
+      "sources": {
+        "title": "State of the sources",
+        "ready": "ready",
+        "notConfigured": "off without a key",
+        "paused": "rests until {{time}}"
+      },
+      "stats": {
+        "title": "State of the library",
+        "total": "Audiobooks",
+        "matched": "Matched",
+        "review": "To review",
+        "none": "No hit",
+        "error": "Failed",
+        "pending": "Pending",
+        "running": "A match runs or waits."
+      },
+      "matchAll": {
+        "run": "Match all without a match now",
+        "queued_one": "{{count}} audiobook queued.",
+        "queued_other": "{{count}} audiobooks queued.",
+        "jobs": "To the background jobs"
+      },
+      "review": {
+        "title": "Review",
+        "intro": "Audiobooks with several candidates, a length outside the tolerance or a failed source. The pen opens the editor.",
+        "empty": "Nothing to review.",
+        "caption": "Audiobooks to review",
+        "column": {
+          "title": "Title",
+          "author": "Author",
+          "length": "Length",
+          "state": "State",
+          "candidates": "Candidates",
+          "actions": "Edit"
+        },
+        "state": {
+          "review": "to review",
+          "error": "failed"
+        },
+        "candidate": "{{source}}: {{title}} · {{length}}",
+        "noCandidates": "none",
+        "edit": "Edit {{title}}"
+      }
     }
   },
   "language": {

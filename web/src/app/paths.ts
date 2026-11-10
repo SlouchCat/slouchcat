@@ -60,6 +60,8 @@ export const paths = {
   admin: '/admin',
   adminIntegrations: '/admin/integrations',
   adminMetadata: '/admin/metadata',
+  /** «Hörbücher: Quellen» (concept 19 D6.6): the book sources, under «Verwaltung › Metadaten». */
+  adminAudiobookSources: '/admin/metadata/audiobooks',
   /** Background jobs (concept 09): job types, their runs, schedules, pause and cancel. */
   adminJobs: '/admin/jobs',
   adminAccounts: '/admin/accounts',

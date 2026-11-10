@@ -459,6 +459,16 @@ const metadataRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/admin/MetadataPage'), 'MetadataPage'),
 });
 
+// admin concept 19 D6.6: the book sources of audiobooks, below «Metadaten».
+const audiobookSourcesRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/metadata/audiobooks',
+  component: lazyRouteComponent(
+    () => import('@/features/admin/AudiobookSourcesPage'),
+    'AudiobookSourcesPage',
+  ),
+});
+
 // admin M8: accounts, backup, statistics and announcements.
 const accountsRoute = createRoute({
   getParentRoute: () => adminRoute,
@@ -651,6 +661,7 @@ export const routeTree = rootRoute.addChildren([
           spotlightRoute,
           jobsRoute,
           metadataRoute,
+          audiobookSourcesRoute,
           maintenanceRoute,
           devicesRoute,
           streamsRoute,
