@@ -133,9 +133,11 @@ test('podcast page and downloads by keyboard: views, «Laden», «Abbrechen», b
     await expect(first.getByText('Nur Link', { exact: true })).toBeVisible();
     await expectFocusOn(page, load);
 
-    // Episode 2 waits for the section «Downloads» of the list.
+    // Episode 2 waits for the section «Downloads» of the list. Its row is above (newest first):
+    // Tab from the top, since Firefox leaves the document after the last control.
     const second = table.getByRole('button', { name: `Laden: ${episodeTitle(2)}` });
-    await tabTo(page, second);
+    await resetFocus(page);
+    await tabTo(page, second, 80);
     await page.keyboard.press('Enter');
     await expect(
       table.getByRole('button', { name: `Abbrechen: ${episodeTitle(2)}` }),
