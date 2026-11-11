@@ -1,5 +1,37 @@
 # Aktueller Stand
 
+## Stufe B2 (11. November 2026): Mehr Angaben aus Wikidata (Konzept 19 Teil B)
+
+Vertrag **1.30.0** (additiv), Migration **00051**, Zweig `claude/k19-b2-wikidata-3e9d2e` ab `main` `8c4fe29a`
+(B1 PR #140 und Podcast-Episoden ohne Cover PR #143 gemergt), danach `main` `542cd863` mit dem Bildspeicher 1.28.1
+(PR #146, ohne Migration: 00050 bleibt frei) hineingemergt. Nach `docs/planning/19-podcasts-und-radio.md` B7.1,
+B7.3, B7.4 Punkt 2, B9.3 und PB-14. Messung auf dem echten Katalog von CT 190 in `docs/perf/19-radio.md` Abschnitt 5,
+Entscheide beim Bau im Protokoll (11. November 2026).
+
+- **Auftrag `radio.wikidata.sync`:** wöchentlich (Fenster 06:30 bis 08:30), nach «Übernehmen» mit neuen Sendern,
+  wenn der letzte Lauf über 24 Stunden her ist, und beim Einschalten der Einstellung; Priorität 4, Pool `general`.
+  Eine SPARQL-Abfrage (CSV, rund 2 MB, 19'229 Sender) plus eine kleine für die Bezeichnungen der Eigentümer, über
+  den Netzwächter des Radios, Drossel ein Abruf je Sekunde, 2 Minuten je Abruf, Antwort höchstens 20 MB, User-Agent
+  ohne Kontaktdaten, bis 75 s Wartezeit auf den Kopf der Antwort. Gespeichert wird nur, was zu einem Sender im
+  Angebot passt. Eine Antwort mit weniger als 5'000 Sendern gilt als Störung und lässt die Treffer stehen.
+- **Abgleich** über die Webseite: zuerst die ganze Adresse, sonst der Host, ausser Plattformen mit über 100
+  Senderadressen (`zeno.fm`, `laut.fm`, …); mehrdeutig zählt nicht. Schweiz auf CT 190: 106 von 502 Sendern, 47 mit
+  einem Eigentümer, 78 mit Gründung.
+- **Eigentümer als Anbieter** (B7.4 Punkt 2): bei einem eindeutigen Treffer mit einem Eigentümer zeigt `provider`
+  in Verwaltung und App den Eigentümer in der ersten Metadatensprache des Servers, sonst Englisch («Schweiz ·
+  Schweizer Radio und Fernsehen»); ohne Treffer bleibt die Domain des Streams. Der Filter «Anbieter» nimmt den Namen.
+- **Verwaltung:** Im Reiter «Sender» heisst der Knopf «Angaben»: jede Angabe mit Herkunft (Katalog, eigener Sender,
+  von Hand, Stream, Webseite, Wikidata), Eigentümer, Gründung und Wikidata-Kennung, darunter die Streams. In den
+  Einstellungen «Wikidata verwenden» (ab Werk an); aus vergisst alle Treffer sofort.
+- **Aufräumen:** Verlässt ein Sender das Angebot, geht sein Treffer mit (wie das Logo).
+- **Tests:** PB-14 in Go (`TestWikidataMatchesTheOffer`, `TestWikidataSettingOff`, `TestWikidataQueue`,
+  `TestWikidataLeavesWithTheOffer`, `TestWikidataNetworkRules`, `TestWikidataMatchRules`) gegen die Fixture
+  `testdata/radio/wikidata.csv`, Migration und eingefrorener Stand `radio-wikidata.sql`, Vitest für «Angaben» und den
+  Schalter, e2e-Tastaturtest «Angaben» (der e2e-Radioserver beantwortet `/sparql`).
+- Versionsstellen auf 1.30.0.
+- **Offen:** Abnahme auf CT 190, Merge und Tag `v1.30.0` auf Marcos Wort. `main` `75820890` mit Stufe A2 (1.29.0,
+  PR #147) ist hineingemergt, der generierte Code neu erzeugt.
+
 ## Stufe A2 (11. November 2026): Neue Podcasts-Seite (Konzept 19 Teil A): Pull Request
 
 Vertrag **1.29.0** (additiv), keine Migration, Zweig `claude/k19-a2-podcasts-seite-f22ede` ab `main` `8c4fe29a`. Nach

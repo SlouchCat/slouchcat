@@ -18,12 +18,13 @@
 //     5 scan.library, download.prepare, chapters.images of a new file, a re-probe or after a playback
 //     (library, concept 13)
 //     4 metadata.match of movies and series, podcast.fetch, the match after a cleared override,
-//     library.relink, the daily radio.catalog.sync (radio)
+//     library.relink, the daily radio.catalog.sync and the weekly radio.wikidata.sync (radio)
 //     3 probe.file, metadata.match of episodes, notify.deliver
 //     2 metadata.fill, metadata.vote_backfill, image.fetch of posters, segments.detect,
 //     library.sweep, nightly trakt.refresh, podcast.download of the planner (pool podcast)
 //     1 probe.keyframes of a scan, image.fetch of episode stills, trailer.find, chapters.images of
 //     the backfill (chapters.images_backfill)
+//     0 radio.logo.fetch (radio): one logo of a station in the offer, sent back while its host is busy
 //     A job that runs once a day and finishes in seconds belongs above the bulk rungs (6 and
 //     below): a library import queues tens of thousands of jobs at 1 and 2, and a daily job at
 //     the same rung waits behind all of them.

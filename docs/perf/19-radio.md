@@ -142,3 +142,43 @@ statt 600 MB. Ein PNG aus dem WebP kostet einen Aufruf von ffmpeg je Anfrage; da
 die Adresse trägt den Logo-Hash, so dass der Client es zwischenspeichert. Höchstens zwei Umrechnungen laufen
 gleichzeitig. Das PNG in 256 und 512 Pixeln entsteht aus dem WebP (Qualität 82), nicht mehr aus dem Original; es
 trägt damit die Spuren der WebP-Kompression.
+
+## 5. Wikidata (Stufe B2, 11. November 2026)
+
+Gemessen auf dem Arbeitsrechner gegen `query.wikidata.org`, abgeglichen mit dem echten Katalog von CT 190
+(55'953 Sender, nur gelesen über `?mode=ro`, nichts auf CT 190 geschrieben).
+
+**Abfrage.** Radiosender (`Q14350` und Unterklassen) mit Webseite (P856), Eigentümer (P127) und Gründung (P571)
+samt Genauigkeit, nur Aussagen des besten Rangs:
+
+| Form | Dauer | Grösse | Zeilen |
+|---|---|---|---|
+| CSV, ohne Bezeichnungen (gewählt) | 2,5 s | 2,0 MB | 20'072 Zeilen, 19'229 Sender |
+| JSON, ohne Bezeichnungen | 1,7 s | 7,3 MB | gleich |
+| CSV mit Bezeichnungsdienst für die Eigentümer | 17,2 s | 2,2 MB | gleich |
+| JSON mit `rdfs:label` de/en für die Eigentümer | 12,3 s | 8,8 MB | gleich |
+
+Die Bezeichnungen der Eigentümer holt darum eine zweite, kleine Abfrage nur für die Eigentümer der Treffer im
+Angebot (`VALUES`, je 500, als POST). Die Genauigkeit der Gründung: 11'453 Jahr, 94 Monat, 1'561 Tag.
+
+**Treffer** nach der gebauten Regel (Adresse ohne `www.`, Pfad ohne Schrägstrich am Ende; sonst Host, ausser einem
+Host mit mehr als 100 Senderadressen im Katalog; zwei Einträge für Adresse oder Host zählen nicht):
+
+| Land | Sender | mit Webseite | Treffer | davon ein Eigentümer | mehrere Eigentümer | mit Gründung |
+|---|---|---|---|---|---|---|
+| Schweiz | 502 | 480 | 106 (21 %) | 47 | 0 | 78 |
+| Deutschland | 5'226 | 4'942 | 1'647 (32 %) | 374 | 88 | 939 |
+| Österreich | 298 | 291 | 123 (41 %) | 43 | 0 | 79 |
+| USA | 7'325 | 7'163 | 2'043 (28 %) | 888 | 10 | 1'572 |
+| ganzer Katalog | 55'953 | 53'391 | 9'879 (18 %) | 4'015 | 183 | 6'543 |
+
+Nur über den Host allein wären es in der Schweiz 78 Treffer, nur über die ganze Adresse 89; beides zusammen 106.
+Ein Wikidata-Eintrag trifft oft mehrere Katalogsender: «Radio SRF 1» elf, «Radio Swiss Classic» 13 (Varianten
+und Sprachen desselben Senders), richtig zugeordnet. **Plattformen:** `zeno.fm` hat einen eigenen Eintrag und
+514 verschiedene Senderadressen im Katalog; ohne Sperre hätten alle 576 Sender von `zeno.fm` dessen Eigentümer und
+Gründung bekommen. Über 100 Adressen haben elf Hosts (`laut.fm` 538, `zeno.fm` 514, `facebook.com` 357, …); der
+grösste echte Sender darunter ist `somafm.com` mit 54. Für diese elf gilt nur die ganze Adresse.
+
+**Last im Betrieb:** zwei bis drei Abrufe je Lauf (ein Abruf der Sender, ein Abruf der Bezeichnungen je 500
+Eigentümer), höchstens einer je Sekunde, wöchentlich und nach «Übernehmen» mit neuen Sendern höchstens einmal am
+Tag. Antwort höchstens 20 MB, Zeitgrenze 2 Minuten je Abruf.

@@ -5,13 +5,11 @@ import { imageUrl } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { countryName, stationPlace } from '@/app/radio/labels';
 import { radioKeys } from '@/app/radio/queries';
-import { formatBitrate } from '@/lib/format';
 import { usePagedList, type PlaceRange } from '@/lib/pagedList';
 import { Notice, SelectField, Skeleton, StationLogo, StatusDot, Text } from '@/ui';
 import {
   AriaButton,
   DataTable,
-  FormDialog,
   StatusRegion,
   Switch,
   TextField,
@@ -30,6 +28,7 @@ import {
   type AdminRadioStationFilter,
 } from '../queries';
 import styles from './Radio.module.css';
+import { StationDetailsDialog } from './StationDetailsDialog';
 
 /** Typing waits this long before the list follows. */
 const DEBOUNCE_MS = 300;
@@ -60,7 +59,8 @@ const OFFER_SCOPE = { id: 'admin-radio-offer-now' };
  * «Sender» (concept 19 part B, B9.3): the stations of the offer, or of the whole catalog with the
  * switch, searched and narrowed by country, provider (a provider in a row filters by it) and state,
  * by popularity or name. Above the list «Nicht erreichbare entfernen (n)» (B6) with «Rückgängig»
- * while its message stands; per row the streams, «Bearbeiten» and «Aus dem Angebot nehmen» or
+ * while its message stands; per row «Angaben» (every value with its origin and the streams, stage
+ * B2), «Bearbeiten» and «Aus dem Angebot nehmen» or
  * «Ins Angebot nehmen». Each of these is one step stored at once on the current offer (B4.3).
  */
 export function StationsTab({ onEdit, titleRef }: StationsTabProps) {
@@ -152,7 +152,7 @@ export function StationsTab({ onEdit, titleRef }: StationsTabProps) {
   });
   const failure = removeUnreachable.error ?? undo.error ?? toggle.error;
 
-  const [streamsOf, setStreamsOf] = useState<AdminRadioStation | null>(null);
+  const [detailsOf, setDetailsOf] = useState<AdminRadioStation | null>(null);
 
   const columns: DataColumn<AdminRadioStation>[] = [
     {
@@ -242,10 +242,10 @@ export function StationsTab({ onEdit, titleRef }: StationsTabProps) {
           <AriaButton
             variant="ghost"
             size="sm"
-            aria-label={t('admin.radio.stations.streamsLabel', { name: station.name })}
-            onPress={() => setStreamsOf(station)}
+            aria-label={t('admin.radio.stations.details.label', { name: station.name })}
+            onPress={() => setDetailsOf(station)}
           >
-            {t('admin.radio.stations.streams')}
+            {t('admin.radio.stations.details.action')}
           </AriaButton>
           <AriaButton
             variant={station.offered ? 'dangerQuiet' : 'ghost'}
@@ -374,47 +374,7 @@ export function StationsTab({ onEdit, titleRef }: StationsTabProps) {
         </>
       )}
 
-      {streamsOf && (
-        <FormDialog
-          isOpen
-          onOpenChange={(open) => {
-            if (!open) setStreamsOf(null);
-          }}
-          title={t('admin.radio.stations.streamsTitle', { name: streamsOf.name })}
-          initialFocus="[data-streams-close]"
-        >
-          <div className={styles.form}>
-            {streamsOf.streams.length === 0 ? (
-              <Text tone="secondary">{t('admin.radio.stations.streamsEmpty')}</Text>
-            ) : (
-              <ul className={styles.listeners}>
-                {streamsOf.streams.map((stream) => (
-                  <li key={stream.id} className={styles.offerStation}>
-                    <span className={styles.url}>{stream.urlResolved ?? stream.url}</span>
-                    <span className={styles.muted}>
-                      {[
-                        stream.codec,
-                        stream.bitrateKbps !== undefined &&
-                          formatBitrate(stream.bitrateKbps * 1000, language),
-                        stream.hls && t('admin.radio.stations.streamHls'),
-                        stream.preferred && t('admin.radio.stations.streamPreferred'),
-                        !stream.reachable && t('admin.radio.stations.streamUnreachable'),
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className={styles.dialogActions}>
-              <AriaButton data-streams-close="" onPress={() => setStreamsOf(null)}>
-                {t('admin.radio.stations.streamsClose')}
-              </AriaButton>
-            </div>
-          </div>
-        </FormDialog>
-      )}
+      {detailsOf && <StationDetailsDialog station={detailsOf} onClose={() => setDetailsOf(null)} />}
     </div>
   );
 }

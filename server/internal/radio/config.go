@@ -22,6 +22,7 @@ func configFromRow(r appq.RadioConfig) model.RadioConfig {
 		GraceSeconds:      int(r.GraceSeconds),
 		MaxRelaysByBudget: maxRelaysByBudget(int(r.BudgetMb), int(r.BufferMinutes)),
 		CoverMusicBrainz:  r.CoverMusicbrainz == 1, CoverITunes: r.CoverItunes == 1,
+		WikidataEnabled: r.WikidataEnabled == 1,
 	}
 }
 
@@ -44,7 +45,8 @@ func (s *Service) UpdateConfig(ctx context.Context, upd model.RadioConfigUpdate)
 		return model.RadioConfig{}, fmt.Errorf("get radio config: %w", err)
 	}
 	p := appq.UpdateRadioConfigParams{BufferMinutes: cur.BufferMinutes, BudgetMb: cur.BudgetMb, MaxRelays: cur.MaxRelays,
-		GraceSeconds: cur.GraceSeconds, CoverMusicbrainz: cur.CoverMusicbrainz, CoverItunes: cur.CoverItunes, Now: s.now().UnixMilli()}
+		GraceSeconds: cur.GraceSeconds, CoverMusicbrainz: cur.CoverMusicbrainz, CoverItunes: cur.CoverItunes,
+		WikidataEnabled: cur.WikidataEnabled, Now: s.now().UnixMilli()}
 	var verr *model.ValidationError
 	setInt := func(dst *int64, v *int, field string, ok func(int) bool) {
 		if v == nil {
@@ -66,11 +68,26 @@ func (s *Service) UpdateConfig(ctx context.Context, upd model.RadioConfigUpdate)
 	if upd.CoverITunes != nil {
 		p.CoverItunes = flag01(*upd.CoverITunes)
 	}
+	if upd.WikidataEnabled != nil {
+		p.WikidataEnabled = flag01(*upd.WikidataEnabled)
+	}
 	if verr != nil {
 		return model.RadioConfig{}, verr
 	}
 	if err := appq.New(s.db.Write).UpdateRadioConfig(ctx, p); err != nil {
 		return model.RadioConfig{}, fmt.Errorf("update radio config: %w", err)
+	}
+	// «Wikidata verwenden» (B7.3): off forgets every match at once, so the providers are the
+	// streams' domains again; on runs the match now.
+	switch {
+	case p.WikidataEnabled == 0 && cur.WikidataEnabled == 1:
+		if err := s.clearWikidata(ctx); err != nil {
+			return model.RadioConfig{}, err
+		}
+	case p.WikidataEnabled == 1 && cur.WikidataEnabled == 0 && s.o.queue != nil:
+		if _, err := enqueueWikidataSync(ctx, s.o.queue, wikidataPriority); err != nil {
+			return model.RadioConfig{}, err
+		}
 	}
 	return s.Config(ctx)
 }

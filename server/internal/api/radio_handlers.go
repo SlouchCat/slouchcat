@@ -267,13 +267,27 @@ func toAdminRadioStation(a model.AdminRadioStation) gen.AdminRadioStation {
 			Codec: optString(s.Codec), BitrateKbps: optPositive(s.BitrateKbps), Hls: s.HLS, Reachable: s.Reachable,
 			Preferred: s.Preferred, Rank: s.Rank})
 	}
+	src := func(v string) *gen.RadioValueSource {
+		if v == "" {
+			return nil
+		}
+		x := gen.RadioValueSource(v)
+		return &x
+	}
+	out.Sources = gen.AdminRadioStationSources{Name: src(a.Sources.Name), Country: src(a.Sources.Country),
+		Region: src(a.Sources.Region), Languages: src(a.Sources.Languages), Homepage: src(a.Sources.Homepage),
+		Logo: src(a.Sources.Logo), Provider: src(a.Sources.Provider)}
+	if w := a.Wikidata; w != nil {
+		out.Wikidata = &gen.AdminRadioWikidata{Id: w.QID, OwnerId: optString(w.OwnerQID), Owner: optString(w.Owner),
+			Founded: optString(w.Founded), FetchedAt: w.FetchedAt.UnixMilli()}
+	}
 	return out
 }
 
 func toRadioConfig(c model.RadioConfig) gen.RadioConfig {
 	return gen.RadioConfig{BufferMinutes: gen.RadioConfigBufferMinutes(c.BufferMinutes), BudgetMb: c.BudgetMB,
 		MaxRelays: c.MaxRelays, GraceSeconds: c.GraceSeconds, BufferMode: gen.RadioBufferMode(c.BufferMode), MaxRelaysByBudget: c.MaxRelaysByBudget,
-		CoverMusicbrainz: c.CoverMusicBrainz, CoverItunes: c.CoverITunes}
+		CoverMusicbrainz: c.CoverMusicBrainz, CoverItunes: c.CoverITunes, WikidataEnabled: c.WikidataEnabled}
 }
 
 // radioCoverURL is the URL of getRadioCover (w256) for a title's cover, nil without one.
@@ -563,7 +577,7 @@ func (s *server) UpdateRadioConfig(ctx context.Context, req gen.UpdateRadioConfi
 	}
 	b := req.Body
 	upd := model.RadioConfigUpdate{BudgetMB: b.BudgetMb, MaxRelays: b.MaxRelays, GraceSeconds: b.GraceSeconds,
-		CoverMusicBrainz: b.CoverMusicbrainz, CoverITunes: b.CoverItunes}
+		CoverMusicBrainz: b.CoverMusicbrainz, CoverITunes: b.CoverItunes, WikidataEnabled: b.WikidataEnabled}
 	if b.BufferMinutes != nil {
 		m := int(*b.BufferMinutes)
 		upd.BufferMinutes = &m

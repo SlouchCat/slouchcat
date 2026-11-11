@@ -345,3 +345,15 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   der Wurzeln bleiben die von `podcasts-speichern.sql`). `TestFrozenRadioAngebotStateCoversTheStage` prüft, dass jede
   dieser Datenarten vorhanden ist; `TestMigration00048RadioOffer` prüft den Schritt von `podcasts-speichern.sql` aus,
   `TestFirstStartPreparesTheOffer` (Paket `radio`) die Vorbereitung beim ersten Start.
+- `radio-wikidata.sql`: Stand nach Stufe B2 des Konzepts 19 «Mehr Angaben» (Teil B; Migration 00051 mit
+  `radio_station_wikidata`, `radio_config.wikidata_enabled` und `radio_config.wikidata_synced_at`). Erzeugt am
+  11. November 2026 aus `radio-angebot.sql`: Stand eingespielt, mit `store.Open` migriert (00049 und 00051; 00050 gab
+  es noch nicht), dann den echten Dienst `radio.Service` mit Deutsch als Sprache einen Lauf von `radio.wikidata.sync`
+  gegen die Antwort `testdata/radio/wikidata.csv` und die Bezeichnungen aus `testdata/radio/wikidata-labels.csv`
+  machen lassen (Testserver, nichts aus dem Netz): sieben Treffer, darunter ein Eigentümer mit Bezeichnung («Schweizer
+  Radio und Fernsehen» für SRF 3 und Radio SRF 1), ein Eigentümer ohne Bezeichnung, ein Eintrag mit zwei Eigentümern
+  (ohne Eigentümer), Gründungen als Jahr, Monat und Tag und der markierte deutsche Sender «Bayern 3» ausserhalb der
+  gewählten Länder; mehrdeutige Adressen und Sender ausserhalb des Angebots ohne Zeile. Stichtag 11. November 2026,
+  12:00 UTC. Dann `store.Dump`, kein Pfad aus dem Dateisystem dazu. `TestFrozenRadioWikidataStateCoversTheStage`
+  prüft, dass jede dieser Datenarten vorhanden ist; `TestMigration00051RadioWikidata` prüft den Schritt von
+  `radio-angebot.sql` aus.

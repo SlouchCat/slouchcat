@@ -11,7 +11,7 @@ SELECT * FROM radio_config WHERE id = 1;
 UPDATE radio_config
 SET buffer_minutes = @buffer_minutes, budget_mb = @budget_mb, max_relays = @max_relays,
     grace_seconds = @grace_seconds, cover_musicbrainz = @cover_musicbrainz, cover_itunes = @cover_itunes,
-    updated_at = @now
+    wikidata_enabled = @wikidata_enabled, updated_at = @now
 WHERE id = 1;
 
 -- name: UpdateRadioSyncState :exec
@@ -25,7 +25,8 @@ WHERE id = 1;
 
 -- name: ListRadioStationsForIndex :many
 -- Every station with the codec, bitrate and HLS flag of its best stream (the first row of
--- ListRadioStreamsRanked, same order), for the in-memory index. GetRadioStationForIndex is the
+-- ListRadioStreamsRanked, same order), for the in-memory index. The provider is the owner from
+-- Wikidata when the station has one (B7.4 point 2, stage B2), else the stream's domain. GetRadioStationForIndex is the
 -- same row for one station.
 WITH ranked AS (
     SELECT st.station_id, st.codec, st.bitrate, st.hls,
@@ -40,12 +41,14 @@ WITH ranked AS (
     FROM radio_streams AS st
 )
 SELECT s.id, s.source, s.name, s.sort_key, s.search_text, s.country, s.region, s.languages,
-       s.homepage, s.votes, s.clicks, s.quality, s.reachable, s.failures, s.broken_at, s.provider,
+       s.homepage, s.votes, s.clicks, s.quality, s.reachable, s.failures, s.broken_at,
+       COALESCE(w.owner, s.provider) AS provider,
        s.recommended, s.shows_titles, s.missing_since, s.logo_state, s.logo_hash, s.created_at,
        s.updated_at, r.codec AS best_codec, r.bitrate AS best_bitrate,
        CAST(COALESCE(r.hls, 0) AS INTEGER) AS best_hls
 FROM radio_stations AS s
 LEFT JOIN ranked AS r ON r.station_id = s.id AND r.rn = 1
+LEFT JOIN radio_station_wikidata AS w ON w.station_id = s.id
 ORDER BY s.id;
 
 -- name: GetRadioStationForIndex :many
@@ -66,12 +69,14 @@ WITH ranked AS (
     WHERE st.station_id = @station_id
 )
 SELECT s.id, s.source, s.name, s.sort_key, s.search_text, s.country, s.region, s.languages,
-       s.homepage, s.votes, s.clicks, s.quality, s.reachable, s.failures, s.broken_at, s.provider,
+       s.homepage, s.votes, s.clicks, s.quality, s.reachable, s.failures, s.broken_at,
+       COALESCE(w.owner, s.provider) AS provider,
        s.recommended, s.shows_titles, s.missing_since, s.logo_state, s.logo_hash, s.created_at,
        s.updated_at, r.codec AS best_codec, r.bitrate AS best_bitrate,
        CAST(COALESCE(r.hls, 0) AS INTEGER) AS best_hls
 FROM radio_stations AS s
 LEFT JOIN ranked AS r ON r.station_id = s.id AND r.rn = 1
+LEFT JOIN radio_station_wikidata AS w ON w.station_id = s.id
 WHERE s.id = @station_id;
 
 -- name: ListRadioStationFacets :many

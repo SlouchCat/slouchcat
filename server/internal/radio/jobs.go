@@ -37,6 +37,7 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 		Seed: s.catalogSeed,
 	})
 	r.Register(s.logoJobType())
+	r.Register(s.wikidataJobType())
 }
 
 // catalogSeed is the first schedule row: daily, on, in the window 04:30 to 06:30. No start delay:
@@ -109,6 +110,7 @@ func (s *Service) Start(ctx context.Context) error {
 	s.cat.bg.goFn(func(ctx context.Context) {
 		s.removeStoredLargePNGs(ctx) // the PNGs of 256 and 512 px of earlier versions
 		s.dropLogosOutsideOffer(ctx) // after the update the offer is empty: every fetched logo goes
+		s.dropWikidataOutsideOffer(ctx)
 	})
 	cfg, err := appq.New(s.db.Read).GetRadioConfig(ctx)
 	if err != nil {

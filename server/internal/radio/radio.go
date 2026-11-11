@@ -38,6 +38,9 @@ type options struct {
 	tokenKey  []byte           // HMAC key of the listen tokens
 	watch     WatchClock       // K-5 watch time; nil = no daily limit is checked
 	userAgent string           // User-Agent of every outgoing request
+	// language returns the server's language (the first metadata language) for the labels from
+	// Wikidata; nil = English.
+	language  func(ctx context.Context) string
 	queue     *jobs.Queue
 	scheduler *jobs.Scheduler
 }
@@ -63,6 +66,11 @@ func WithWatchClock(w WatchClock) Option { return func(s *Service) { s.o.watch =
 // WithUserAgent sets the User-Agent of the catalog, stream and logo requests.
 func WithUserAgent(agent string) Option { return func(s *Service) { s.o.userAgent = agent } }
 
+// WithLanguage sets the source of the server's language for the labels from Wikidata (B7.3).
+func WithLanguage(fn func(ctx context.Context) string) Option {
+	return func(s *Service) { s.o.language = fn }
+}
+
 // WithQueue sets the job queue of the catalog sync and the logo jobs.
 func WithQueue(q *jobs.Queue) Option { return func(s *Service) { s.o.queue = q } }
 
@@ -79,10 +87,11 @@ type Service struct {
 	now func() time.Time
 	o   options
 
-	cat  *catalogState // catalog, sync, index, offer, favourites, preferences, admin (lane B)
-	rel  *relayState   // relays, listen sessions, live HLS, listen time (lane A)
-	logo *logoState    // logo chain (lane A)
-	cov  *coverState   // cover chain (lane A, cover.go)
+	cat  *catalogState  // catalog, sync, index, offer, favourites, preferences, admin (lane B)
+	rel  *relayState    // relays, listen sessions, live HLS, listen time (lane A)
+	logo *logoState     // logo chain (lane A)
+	cov  *coverState    // cover chain (lane A, cover.go)
+	wd   *wikidataState // owner and founding date from Wikidata (wikidata.go, stage B2)
 
 	// onListed hears the station ids a list or the favourites handed out, so the logo part
 	// queues their logos (queueLogos, set in New).
@@ -110,6 +119,7 @@ func New(db *store.DB, log *slog.Logger, opts ...Option) *Service {
 	s.rel = newRelayState()
 	s.logo = newLogoState()
 	s.cov = newCoverState()
+	s.wd = newWikidataState()
 	// The catalog goes through the guarded client of the relay part (the radiotest build allows
 	// the loopback there), created at the first request so a test can still swap the control.
 	s.cat.fetch.lazy = func() *http.Client { return s.netClient().http }

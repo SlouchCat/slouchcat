@@ -129,11 +129,13 @@ const server = spawn(
       SLOUCHCAT_TELEGRAM_BOT_TOKEN: TELEGRAM_BOT_TOKEN,
       SLOUCHCAT_TELEGRAM_BASE_URL: `http://127.0.0.1:${telegram.port}`,
       SLOUCHCAT_UPDATE_MANIFEST_URL: `http://127.0.0.1:${update.port}/manifest.json`,
-      // The radio catalog of the mock (read by the radiotest build only) and the relay buffers in
-      // the artefact folder. It is no tmpfs; the radiotest build takes it as one with
-      // SLOUCHCAT_TEST_RADIO_DISK_BUFFER (plan D-14), so the relays keep a time shift window and
-      // the player can play behind live (concept 16 stage 2). Never set in production.
+      // The radio catalog and the Wikidata endpoint of the mock (read by the radiotest build
+      // only) and the relay buffers in the artefact folder. It is no tmpfs; the radiotest build
+      // takes it as one with SLOUCHCAT_TEST_RADIO_DISK_BUFFER (plan D-14), so the relays keep a
+      // time shift window and the player can play behind live (concept 16 stage 2). Never set in
+      // production.
       SLOUCHCAT_TEST_RADIO_CATALOG_URL: `http://127.0.0.1:${radio.port}`,
+      SLOUCHCAT_TEST_RADIO_WIKIDATA_URL: `http://127.0.0.1:${radio.port}/sparql`,
       SLOUCHCAT_RADIO_DIR: join(dirname(logFile), 'radio'),
       SLOUCHCAT_TEST_RADIO_DISK_BUFFER: '1',
       // Every audiobook source (Audible, Audnexus, DNB, Apple Books, Open Library, Google Books)
