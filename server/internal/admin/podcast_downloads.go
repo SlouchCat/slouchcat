@@ -17,6 +17,9 @@ type PodcastStorage interface {
 	// PodcastFolderOf runs the folder check of the folder for new subscriptions of a podcast
 	// library (model.ErrNotFound, model.ErrRootRequired).
 	PodcastFolderOf(ctx context.Context, libraryID int64) (model.PodcastFolder, error)
+	// CheckPodcastDownloads answers whether SetPodcastDownloads would take the setting, with its
+	// errors, and stores nothing.
+	CheckPodcastDownloads(ctx context.Context, libraryID int64, d model.PodcastDownloads) error
 	// SetPodcastDownloads stores the setting of a podcast library and runs the planner
 	// (model.ErrNotFound, *model.ValidationError, model.ErrRootRequired, model.ErrRootNotWritable).
 	SetPodcastDownloads(ctx context.Context, libraryID int64, d model.PodcastDownloads) (model.PodcastDownloads, error)
@@ -123,13 +126,26 @@ func (s *Service) withPodcastFolder(ctx context.Context, lib model.Library) (mod
 	return lib, nil
 }
 
-// setPodcastDownloads stores the setting of stored episodes of a podcast library (updateLibrary);
-// the field errors of package library carry the prefix podcastDownloads.
+// checkPodcastDownloads asks whether package library takes the setting of stored episodes of a
+// podcast library (updateLibrary, before its transaction), setPodcastDownloads stores it (after
+// the commit); the field errors of package library carry the prefix podcastDownloads.
+func (s *Service) checkPodcastDownloads(ctx context.Context, libraryID int64, d model.PodcastDownloads) error {
+	if s.podcastStorage == nil {
+		return ErrNotConfigured
+	}
+	return prefixPodcastFields(s.podcastStorage.CheckPodcastDownloads(ctx, libraryID, d))
+}
+
 func (s *Service) setPodcastDownloads(ctx context.Context, libraryID int64, d model.PodcastDownloads) error {
 	if s.podcastStorage == nil {
 		return ErrNotConfigured
 	}
 	_, err := s.podcastStorage.SetPodcastDownloads(ctx, libraryID, d)
+	return prefixPodcastFields(err)
+}
+
+// prefixPodcastFields puts the prefix podcastDownloads. on the field errors of package library.
+func prefixPodcastFields(err error) error {
 	var verr *model.ValidationError
 	if errors.As(err, &verr) {
 		out := &model.ValidationError{}

@@ -512,51 +512,9 @@ func podcastDownloadsOf(lib appq.Library) model.PodcastDownloads {
 // another folder while it stores, on a folder that fails the folder check, 5.4; while «Speichern»
 // holds, the other values change whatever the check says).
 func (s *Service) SetPodcastDownloads(ctx context.Context, libraryID int64, d model.PodcastDownloads) (model.PodcastDownloads, error) {
-	lib, err := appq.New(s.db.Read).GetLibrary(ctx, libraryID)
-	if errors.Is(err, sql.ErrNoRows) || (err == nil && lib.Kind != model.LibraryPodcasts) {
-		return model.PodcastDownloads{}, model.ErrNotFound
-	}
+	lib, err := s.checkPodcastDownloads(ctx, libraryID, d)
 	if err != nil {
-		return model.PodcastDownloads{}, fmt.Errorf("get library: %w", err)
-	}
-	var verr *model.ValidationError
-	if d.Mode != model.PodcastSave && d.Mode != model.PodcastLink {
-		verr = verr.Add("mode", "invalid")
-	}
-	if d.Scope != model.PodcastScopeNew && d.Scope != model.PodcastScopeLastN && d.Scope != model.PodcastScopeAll {
-		verr = verr.Add("scope", "invalid")
-	}
-	if d.LastN < 1 || d.LastN > model.PodcastLastNMax {
-		verr = verr.Add("lastN", "out_of_range")
-	}
-	if d.Parallel < 1 || d.Parallel > model.PodcastParallelMax {
-		verr = verr.Add("parallel", "out_of_range")
-	}
-	if d.RootID != nil {
-		root, err := appq.New(s.db.Read).GetLibraryRoot(ctx, *d.RootID)
-		if err != nil || root.LibraryID != libraryID || root.Content != model.RootPodcast {
-			verr = verr.Add("rootId", "unknown_root")
-		}
-	}
-	if verr != nil {
-		return model.PodcastDownloads{}, verr
-	}
-	was := lib
-	lib.PodcastRootID = sql.NullInt64{}
-	if d.RootID != nil {
-		lib.PodcastRootID = sql.NullInt64{Int64: *d.RootID, Valid: true}
-	}
-	if d.Mode == model.PodcastSave {
-		root, err := s.podcastTargetRoot(ctx, lib)
-		if err != nil {
-			return model.PodcastDownloads{}, err
-		}
-		before, err := s.podcastTargetRoot(ctx, was)
-		if was.PodcastMode != model.PodcastSave || err != nil || before.ID != root.ID {
-			if check := s.CheckPodcastFolder(ctx, root); !check.Writable {
-				return model.PodcastDownloads{}, fmt.Errorf("%w: %s", model.ErrRootNotWritable, check.Problem)
-			}
-		}
+		return model.PodcastDownloads{}, err
 	}
 	read := systemq.New(s.db.Read)
 	old, err := read.PodcastEffectiveSettings(ctx, systemq.PodcastEffectiveSettingsParams{LibraryID: libraryID})
@@ -583,6 +541,66 @@ func (s *Service) SetPodcastDownloads(ctx context.Context, libraryID int64, d mo
 		}
 	}
 	return s.PodcastDownloads(ctx, libraryID)
+}
+
+// CheckPodcastDownloads answers whether SetPodcastDownloads would take d, with its errors, and
+// stores nothing: package admin asks it before the transaction of updateLibrary and stores the
+// setting only after that transaction is committed.
+func (s *Service) CheckPodcastDownloads(ctx context.Context, libraryID int64, d model.PodcastDownloads) error {
+	_, err := s.checkPodcastDownloads(ctx, libraryID, d)
+	return err
+}
+
+// checkPodcastDownloads validates d for the library and runs the folder check where
+// SetPodcastDownloads asks it; it returns the library with the new folder for new subscriptions.
+func (s *Service) checkPodcastDownloads(ctx context.Context, libraryID int64, d model.PodcastDownloads) (appq.Library, error) {
+	lib, err := appq.New(s.db.Read).GetLibrary(ctx, libraryID)
+	if errors.Is(err, sql.ErrNoRows) || (err == nil && lib.Kind != model.LibraryPodcasts) {
+		return appq.Library{}, model.ErrNotFound
+	}
+	if err != nil {
+		return appq.Library{}, fmt.Errorf("get library: %w", err)
+	}
+	var verr *model.ValidationError
+	if d.Mode != model.PodcastSave && d.Mode != model.PodcastLink {
+		verr = verr.Add("mode", "invalid")
+	}
+	if d.Scope != model.PodcastScopeNew && d.Scope != model.PodcastScopeLastN && d.Scope != model.PodcastScopeAll {
+		verr = verr.Add("scope", "invalid")
+	}
+	if d.LastN < 1 || d.LastN > model.PodcastLastNMax {
+		verr = verr.Add("lastN", "out_of_range")
+	}
+	if d.Parallel < 1 || d.Parallel > model.PodcastParallelMax {
+		verr = verr.Add("parallel", "out_of_range")
+	}
+	if d.RootID != nil {
+		root, err := appq.New(s.db.Read).GetLibraryRoot(ctx, *d.RootID)
+		if err != nil || root.LibraryID != libraryID || root.Content != model.RootPodcast {
+			verr = verr.Add("rootId", "unknown_root")
+		}
+	}
+	if verr != nil {
+		return appq.Library{}, verr
+	}
+	was := lib
+	lib.PodcastRootID = sql.NullInt64{}
+	if d.RootID != nil {
+		lib.PodcastRootID = sql.NullInt64{Int64: *d.RootID, Valid: true}
+	}
+	if d.Mode == model.PodcastSave {
+		root, err := s.podcastTargetRoot(ctx, lib)
+		if err != nil {
+			return appq.Library{}, err
+		}
+		before, err := s.podcastTargetRoot(ctx, was)
+		if was.PodcastMode != model.PodcastSave || err != nil || before.ID != root.ID {
+			if check := s.CheckPodcastFolder(ctx, root); !check.Writable {
+				return appq.Library{}, fmt.Errorf("%w: %s", model.ErrRootNotWritable, check.Problem)
+			}
+		}
+	}
+	return lib, nil
 }
 
 // PodcastSavable reports whether «Speichern» may apply to a podcast (metadata.WithPodcastSavable,

@@ -188,3 +188,66 @@ func TestScanPodcastLibrary(t *testing.T) {
 		t.Errorf("scan = %+v %v, refreshed %v", lib, err, a.pods.refreshed)
 	}
 }
+
+// orderStorage is a PodcastStorage that records, for SetPodcastDownloads, the name the library has
+// in the database at that moment; check is the answer of CheckPodcastDownloads.
+type orderStorage struct {
+	q         *appq.Queries
+	check     error
+	nameAtSet []string
+}
+
+func (o *orderStorage) PodcastFolderOf(context.Context, int64) (model.PodcastFolder, error) {
+	return model.PodcastFolder{}, model.ErrRootRequired
+}
+
+func (o *orderStorage) CheckPodcastDownloads(context.Context, int64, model.PodcastDownloads) error {
+	return o.check
+}
+
+func (o *orderStorage) SetPodcastDownloads(ctx context.Context, id int64, d model.PodcastDownloads) (model.PodcastDownloads, error) {
+	l, err := o.q.GetLibrary(ctx, id)
+	if err != nil {
+		return model.PodcastDownloads{}, err
+	}
+	o.nameAtSet = append(o.nameAtSet, l.Name)
+	return d, o.check
+}
+
+func (o *orderStorage) EstimatePodcastDownloads(context.Context, int64, model.PodcastDownloadEstimateRequest) (model.PodcastDownloadEstimate, error) {
+	return model.PodcastDownloadEstimate{}, nil
+}
+
+func (o *orderStorage) DownloadPodcastEpisodes(context.Context, string, []string) (int, error) {
+	return 0, nil
+}
+
+// Concept 19 part A, 5.3: updateLibrary with a new name and a setting of stored episodes checks the
+// setting first and stores it only after the name is committed, so a refused setting leaves the
+// name as it was and the planner never runs for a change that did not happen.
+func TestUpdateLibraryStoresThePodcastSettingLast(t *testing.T) {
+	t.Parallel()
+	a := newAudioFixture(t)
+	audio := a.f.Audio
+	store := &orderStorage{q: appq.New(a.f.DB.Read)}
+	a.svc.WithPodcastStorage(store)
+	name := "Neue Podcasts"
+	d := model.PodcastDownloads{Mode: model.PodcastLink, Scope: model.PodcastScopeNew, LastN: 10, Parallel: 2}
+	if _, err := a.svc.UpdateLibrary(a.ctx, audio.PodcastLibraryID, model.LibraryUpdate{Name: &name, PodcastDownloads: &d}); err != nil {
+		t.Fatal(err)
+	}
+	if len(store.nameAtSet) != 1 || store.nameAtSet[0] != name {
+		t.Errorf("name when the setting was stored = %v, want the new name committed first", store.nameAtSet)
+	}
+	store.check, store.nameAtSet = model.ErrRootNotWritable, nil
+	other := "Andere"
+	if _, err := a.svc.UpdateLibrary(a.ctx, audio.PodcastLibraryID, model.LibraryUpdate{Name: &other, PodcastDownloads: &d}); !errors.Is(err, model.ErrRootNotWritable) {
+		t.Errorf("refused setting: %v", err)
+	}
+	if l, err := appq.New(a.f.DB.Read).GetLibrary(a.ctx, audio.PodcastLibraryID); err != nil || l.Name != name {
+		t.Errorf("name after a refused setting = %q %v, want %q", l.Name, err, name)
+	}
+	if len(store.nameAtSet) != 0 {
+		t.Errorf("a refused setting was stored")
+	}
+}

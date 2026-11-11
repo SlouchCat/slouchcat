@@ -56,8 +56,9 @@ func (s *Service) WithPodcasts(p Podcasts) *Service {
 // prefix podcastDownloads.) and those of the folder check (model.ErrRootNotWritable,
 // model.ErrRootRequired). A new trickplay setting is stored as it is; the trickplay jobs read it
 // before every sheet and the maintenance removes the stored sets of a kind that no longer stores
-// (concept 18, 6.6). A new setting of stored podcast episodes is stored first by package library,
-// which runs the planner for the podcasts of the library (concept 19 part A, 5.3).
+// (concept 18, 6.6). A new setting of stored podcast episodes is checked by package library before
+// the transaction and stored after its commit; package library then runs the planner for the
+// podcasts of the library (concept 19 part A, 5.3).
 func (s *Service) UpdateLibrary(ctx context.Context, id int64, upd model.LibraryUpdate) (model.Library, error) {
 	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	lib, err := s.read.GetLibrary(ctx, id)
@@ -103,7 +104,7 @@ func (s *Service) UpdateLibrary(ctx context.Context, id int64, upd model.Library
 		return model.Library{}, verr
 	}
 	if upd.PodcastDownloads != nil {
-		if err := s.setPodcastDownloads(ctx, id, *upd.PodcastDownloads); err != nil {
+		if err := s.checkPodcastDownloads(ctx, id, *upd.PodcastDownloads); err != nil {
 			return model.Library{}, err
 		}
 	}
@@ -131,6 +132,13 @@ func (s *Service) UpdateLibrary(ctx context.Context, id int64, upd model.Library
 	}
 	if err := tx.Commit(); err != nil {
 		return model.Library{}, fmt.Errorf("commit: %w", err)
+	}
+	if upd.PodcastDownloads != nil {
+		// Stored only now, so a refused setting or a failed transaction leaves nothing half done;
+		// package library runs the planner after it.
+		if err := s.setPodcastDownloads(ctx, id, *upd.PodcastDownloads); err != nil {
+			return model.Library{}, err
+		}
 	}
 	s.log.InfoContext(ctx, "library updated", "library_id", id, "default_rating_changed", rating != lib.DefaultRating, "titles_rerated", titles,
 		"trickplay_changed", upd.Trickplay != nil, "podcast_downloads_changed", upd.PodcastDownloads != nil)
