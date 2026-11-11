@@ -138,39 +138,27 @@ func TestMaxBodyImageUploadPattern(t *testing.T) {
 	}
 }
 
-// The full list of radio tag rules (setRadioTagRules, up to 5000 rules) takes
-// MaxTagRulesBodyBytes: 2000 rules, about 100 KB, pass end to end; the GET stays at the default.
-func TestRadioTagRulesBodyLimit(t *testing.T) {
+// A draft of the radio offer (applyRadioOffer, steps with up to 5000 station ids) takes
+// MaxRadioOfferBodyBytes: three steps of 5000 ids, about 110 KB, pass end to end.
+func TestRadioOfferBodyLimit(t *testing.T) {
 	t.Parallel()
-	if got := bodyLimit(http.MethodPut + " " + BasePath + "/admin/radio/tag-rules"); got != MaxTagRulesBodyBytes {
-		t.Fatalf("limit of PUT tag-rules = %d, want %d", got, MaxTagRulesBodyBytes)
+	for _, path := range []string{"/admin/radio/offer/preview", "/admin/radio/offer/apply"} {
+		if got := bodyLimit(http.MethodPost + " " + BasePath + path); got != MaxRadioOfferBodyBytes {
+			t.Fatalf("limit of POST %s = %d, want %d", path, got, MaxRadioOfferBodyBytes)
+		}
 	}
-	rules := make([]string, 0, 2000)
-	for i := range 2000 {
-		rules = append(rules, fmt.Sprintf(`{"tag":"zz limit tag %04d","facet":"genre","value":"rock"}`, i))
+	ids := make([]string, 0, 5000)
+	for i := range 5000 {
+		ids = append(ids, fmt.Sprint(100000+i))
 	}
-	body := `{"rules":[` + strings.Join(rules, ",") + `]}`
+	step := `{"op":"mark","stationIds":[` + strings.Join(ids, ",") + `]}`
+	body := `{"version":0,"steps":[` + step + "," + step + "," + step + `]}`
 	if len(body) <= MaxBodyBytes {
 		t.Fatalf("body of %d bytes does not exceed the default limit", len(body))
 	}
 	pf := newProfileFixture(t)
-	rec := send(t, pf.h, http.MethodPut, BasePath+"/admin/radio/tag-rules", "p18", body, nil)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("PUT 2000 rules: status %d (%s)", rec.Code, rec.Body.String()[:min(rec.Body.Len(), 300)])
-	}
-	var out struct {
-		Rules []struct {
-			Source string `json:"source"`
-		} `json:"rules"`
-	}
-	decode(t, rec, &out)
-	admin := 0
-	for _, r := range out.Rules {
-		if r.Source == "admin" {
-			admin++
-		}
-	}
-	if admin != 2000 {
-		t.Errorf("%d admin rules in the answer, want 2000", admin)
+	rec := send(t, pf.h, http.MethodPost, BasePath+"/admin/radio/offer/apply", "p18", body, nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"version":1`) {
+		t.Fatalf("apply of 15,000 ids: status %d (%s)", rec.Code, rec.Body.String()[:min(rec.Body.Len(), 300)])
 	}
 }

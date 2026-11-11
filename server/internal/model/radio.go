@@ -25,6 +25,9 @@ var (
 	// ErrRadioCatalogLoading: the catalog has not been synced yet (503 radio_catalog_loading,
 	// Retry-After 30).
 	ErrRadioCatalogLoading = errors.New("radio catalog loading")
+	// ErrRadioOfferConflict: the offer changed since the version a draft is based on (409
+	// offer_conflict, contract 1.28.0).
+	ErrRadioOfferConflict = errors.New("radio offer changed")
 )
 
 // RadioCapacityError is ErrRadioCapacity with the numbers of the problem extensions (running, max).
@@ -122,6 +125,8 @@ type RadioStation struct {
 	// The API builds the image URL from it.
 	LogoHash string
 	Homepage string
+	// Provider is the registrable domain of the best stream's host (contract 1.28.0); "" = unknown.
+	Provider string
 }
 
 // RadioStationPage is one page of listRadioStations.
@@ -138,16 +143,18 @@ type RadioFacetCount struct {
 }
 
 // RadioFacets are the counts per value of every filter (contract RadioFacets); the counts of a facet
-// ignore the facet's own selection. Titles counts the stations that show titles.
+// ignore the facet's own selection. Titles counts the stations that show titles; OfferEmpty says
+// that the offer holds no station at all (contract 1.28.0).
 type RadioFacets struct {
-	Countries []RadioFacetCount
-	Regions   []RadioFacetCount
-	Languages []RadioFacetCount
-	Genres    []RadioFacetCount
-	Kinds     []RadioFacetCount
-	Moods     []RadioFacetCount
-	Qualities []RadioFacetCount
-	Titles    int
+	Countries  []RadioFacetCount
+	Regions    []RadioFacetCount
+	Languages  []RadioFacetCount
+	Genres     []RadioFacetCount
+	Kinds      []RadioFacetCount
+	Moods      []RadioFacetCount
+	Qualities  []RadioFacetCount
+	Titles     int
+	OfferEmpty bool
 }
 
 // RadioListen is a new listen session (contract RadioListen). Token is the listen token of the live
@@ -198,10 +205,13 @@ type RadioNow struct {
 
 // RadioPreferences are the radio preferences of a profile (F-12). DefaultCountry is filled by the
 // service when the profile has none (server time zone, else the metadata rating country).
+// EffectiveCountry is DefaultCountry while the offer lists stations of it, else "" (contract
+// 1.28.0, OB-10); the service ignores it in SetPreferences.
 type RadioPreferences struct {
-	DefaultCountry string
-	LastFilter     *RadioFilter // nil = none
-	LastSort       string       // RadioSort*; "" = none
+	DefaultCountry   string
+	EffectiveCountry string
+	LastFilter       *RadioFilter // nil = none
+	LastSort         string       // RadioSort*; "" = none
 }
 
 // RadioGrant is what radioAuth resolved for a live request: the listen session, its station and the
@@ -210,13 +220,6 @@ type RadioGrant struct {
 	ListenID  string
 	StationID int64
 	Profile   Profile
-}
-
-// RadioStationFacet is one derived or manual filter value of a station (admin view).
-type RadioStationFacet struct {
-	Facet  string // genre, kind, mood
-	Value  string
-	Manual bool
 }
 
 // RadioStream is one stream of a station (admin view); Rank 0 is the stream the relay plays.
@@ -237,11 +240,10 @@ type RadioStream struct {
 type AdminRadioStation struct {
 	RadioStation
 	Source     string // catalog, own
-	Hidden     bool
+	Offered    bool   // in the stored offer (contract 1.28.0)
 	Failures   int
 	BrokenAt   time.Time // zero = not marked by the server's own relay
 	Tags       []string
-	Facets     []RadioStationFacet
 	Locks      []string // RadioLockField values
 	LogoState  string   // none, queued, catalog, website, own, failed
 	AliasCount int
@@ -250,16 +252,17 @@ type AdminRadioStation struct {
 	UpdatedAt  time.Time
 }
 
-// AdminRadioQuery is one request of listAdminRadioStations.
+// AdminRadioQuery is one request of listAdminRadioStations (contract 1.28.0).
 type AdminRadioQuery struct {
-	Q          string
-	Country    string
-	Genre      string
-	State      string // reachable, broken, hidden; "" = any
-	Source     string // catalog, own; "" = any (contract 1.19.0)
-	Exceptions bool   // only changed, hidden, broken, recommended and own stations
-	Offset     int
-	Limit      int
+	Q        string
+	Country  string
+	Provider string // exact; "" = any
+	State    string // reachable, broken, noLogo; "" = any
+	Source   string // catalog, own; "" = any (contract 1.19.0)
+	Offered  bool   // only the stations of the stored offer; false = the whole catalog
+	Sort     string // popularity (""), name
+	Offset   int
+	Limit    int
 }
 
 // AdminRadioStationPage is one page of listAdminRadioStations.
@@ -276,12 +279,8 @@ type AdminRadioStationPatch struct {
 	Name                 *string
 	Region               *string
 	ClearRegion          bool
-	Genres               *[]string
-	Kinds                *[]string
-	Moods                *[]string
 	PreferredStreamID    *int64
 	ClearPreferredStream bool
-	Hidden               *bool
 	Recommended          *bool
 	Locks                *[]string
 	// Own stations only (contract 1.19.0): the stream address, the homepage and the country;
@@ -303,57 +302,6 @@ type AdminRadioStationCreate struct {
 	Country   string
 	Region    string
 	Languages []string // ISO 639-1
-	Genres    []string
-	Kinds     []string
-	Moods     []string
-}
-
-// Radio tag rule facets (contract RadioTagRuleFacet): the three facets of the rules and ignore,
-// which takes a tag off the worklist.
-const RadioRuleIgnore = "ignore"
-
-// Sources of a tag rule (contract RadioTagRuleView.source).
-const (
-	RadioRuleDefault = "default"
-	RadioRuleAdmin   = "admin"
-)
-
-// RadioTagRule is one rule «tag → facet value» of the administration (table radio_tag_rules). Value
-// "" maps the tag to no value of the facet (JSON null); with Facet ignore it is always "".
-type RadioTagRule struct {
-	Tag   string
-	Facet string // genre, kind, mood, ignore
-	Value string
-}
-
-// RadioTagRuleView is an effective rule with where it comes from and the stations with its tag.
-type RadioTagRuleView struct {
-	RadioTagRule
-	Source   string // RadioRuleDefault, RadioRuleAdmin
-	Stations int
-}
-
-// RadioTagCount is a raw tag with the number of stations that carry it.
-type RadioTagCount struct {
-	Tag      string
-	Stations int
-}
-
-// RadioCoverage counts the reachable, shown stations with a value of a facet (genre, kind, mood,
-// region, language); Total is the same for every facet.
-type RadioCoverage struct {
-	Facet    string
-	Assigned int
-	Total    int
-}
-
-// RadioTagRules is the tab «Einordnung» (contract RadioTagRules).
-type RadioTagRules struct {
-	Rules               []RadioTagRuleView
-	Worklist            []RadioTagCount
-	WorklistMinStations int
-	OpenTags            int
-	Coverage            []RadioCoverage
 }
 
 // RadioProbe is the result of probing a stream (contract RadioProbe).
@@ -368,31 +316,24 @@ type RadioProbe struct {
 	Response    time.Duration
 }
 
-// RadioConfig are the radio settings (contract RadioConfig, table radio_config). Countries nil
-// admits every country.
+// RadioConfig are the radio settings (contract RadioConfig, table radio_config).
 type RadioConfig struct {
 	BufferMinutes     int
 	BudgetMB          int
 	MaxRelays         int
 	GraceSeconds      int
-	HideBroken        bool
-	Countries         []string
 	BufferMode        string // RadioBuffer*
 	MaxRelaysByBudget int
 	CoverMusicBrainz  bool // contract 1.19.0
 	CoverITunes       bool
 }
 
-// RadioConfigUpdate changes radio settings (contract RadioConfigUpdate): nil keeps a field,
-// ClearCountries (a JSON null) admits every country again.
+// RadioConfigUpdate changes radio settings (contract RadioConfigUpdate): nil keeps a field.
 type RadioConfigUpdate struct {
 	BufferMinutes    *int
 	BudgetMB         *int
 	MaxRelays        *int
 	GraceSeconds     *int
-	HideBroken       *bool
-	Countries        *[]string
-	ClearCountries   bool
 	CoverMusicBrainz *bool
 	CoverITunes      *bool
 }
@@ -453,4 +394,109 @@ type RadioLoad struct {
 type RadioRelays struct {
 	Relays []RadioRelayInfo
 	Load   RadioLoad
+}
+
+// Radio offer of concept 19 part B (contract 1.28.0): the chosen countries with their mode and the
+// exceptions per station decide which stations the app shows (B4.1).
+
+// Values of RadioOfferCountry.Mode (contract RadioOfferMode).
+const (
+	RadioOfferAll    = "all"
+	RadioOfferMarked = "marked"
+)
+
+// Values of RadioOfferStep.Op (contract RadioOfferStepOp).
+const (
+	RadioOfferChooseCountry     = "chooseCountry"
+	RadioOfferRemoveCountry     = "removeCountry"
+	RadioOfferMarkAll           = "markAll"
+	RadioOfferDemarkAll         = "demarkAll"
+	RadioOfferMark              = "mark"
+	RadioOfferDemark            = "demark"
+	RadioOfferMarkMatching      = "markMatching"
+	RadioOfferDemarkMatching    = "demarkMatching"
+	RadioOfferDemarkUnreachable = "demarkUnreachable"
+	RadioOfferSetHideBroken     = "setHideBroken"
+)
+
+// RadioOfferStep is one step of a draft (contract RadioOfferStep); the fields an op does not use
+// are ignored.
+type RadioOfferStep struct {
+	Op         string
+	Country    string
+	Q          string
+	StationIDs []int64
+	Value      bool
+}
+
+// RadioOfferListQuery asks a preview for one page of the catalog stations of a country.
+type RadioOfferListQuery struct {
+	Country string
+	Q       string
+	Offset  int
+	Limit   int // 1..100 (the handler applies the default 100)
+}
+
+// RadioOfferTotals are the sums of an offer (contract RadioOfferTotals).
+type RadioOfferTotals struct {
+	Offered              int
+	OfferedUnreachable   int
+	Countries            int
+	Marked               int
+	Demarked             int
+	Own                  int
+	WithLogo             int
+	RemovableUnreachable int
+}
+
+// RadioOfferCountry is one country of an offer; Mode "" = not chosen.
+type RadioOfferCountry struct {
+	Code        string
+	Continent   string
+	Mode        string
+	Offered     int
+	Total       int
+	Unreachable int
+}
+
+// RadioOffer is the stored offer or the offer of a draft (contract RadioOffer).
+type RadioOffer struct {
+	Version    int64
+	HideBroken bool
+	Totals     RadioOfferTotals
+	Countries  []RadioOfferCountry
+}
+
+// RadioOfferStation is one station of the list of a preview; LogoHash "" = no logo in the cache.
+type RadioOfferStation struct {
+	ID       int64
+	Name     string
+	LogoHash string
+	Tags     []string // at most five
+	Broken   bool
+	Offered  bool
+	Own      bool
+}
+
+// RadioOfferStationPage is the list of a preview.
+type RadioOfferStationPage struct {
+	Total  int
+	Offset int
+	Items  []RadioOfferStation
+}
+
+// RadioOfferPreview is the result of previewRadioOffer: the draft's offer with the stored version,
+// the difference to the stored offer and, when asked, a page of the list.
+type RadioOfferPreview struct {
+	RadioOffer
+	Added   int
+	Removed int
+	List    *RadioOfferStationPage
+}
+
+// RadioOfferApplied is the result of applyRadioOffer.
+type RadioOfferApplied struct {
+	Offer              RadioOffer
+	QueuedLogos        int
+	DemarkedStationIDs []int64
 }

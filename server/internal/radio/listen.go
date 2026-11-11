@@ -91,8 +91,8 @@ func (s *Service) removeStaleBuffers() {
 	}
 }
 
-// listenStation reads a station a profile may reach (S2 visibility table): hidden stations and
-// those of a country the setting excludes are model.ErrNotFound; broken and missing ones are not.
+// listenStation reads a station a profile may reach (S2 visibility table): stations outside the
+// offer are model.ErrNotFound; broken and missing ones are not.
 func (s *Service) listenStation(ctx context.Context, stationID int64) (appq.RadioStation, appq.RadioConfig, error) {
 	q := appq.New(s.db.Read)
 	st, err := q.GetRadioStation(ctx, stationID)
@@ -106,7 +106,7 @@ func (s *Service) listenStation(ctx context.Context, stationID int64) (appq.Radi
 	if err != nil {
 		return st, cfg, fmt.Errorf("get radio config: %w", err)
 	}
-	// The one visibility rule of the catalog (index.go): hidden and excluded-country stations are
+	// The one visibility rule of the catalog (index.go, offer.go): stations outside the offer are
 	// 404; broken ones stay reachable.
 	if _, err := s.reachableEntry(ctx, stationID); err != nil {
 		return st, cfg, err
@@ -794,7 +794,6 @@ func (s *Service) sweep(ctx context.Context) {
 	s.flushListenTime(ctx)
 	s.stopIdleRelays(ctx, now)
 	s.sweepCovers(ctx, now)
-	s.retryTagRulesLater()
 	s.rel.mu.Lock()
 	prune := now.Sub(s.rel.pruned) >= time.Hour
 	if prune {
@@ -844,8 +843,8 @@ func (s *Service) stopIdleRelays(ctx context.Context, now time.Time) {
 }
 
 // closeUnreachable ends the listen sessions and stops the relay of every station of ids (none:
-// every station with a relay or a listen session) that profiles may no longer reach, because the
-// administration hid it or excluded its country: invisible means 404, also for a running listen.
+// every station with a relay or a listen session) that profiles may no longer reach, because it
+// left the offer (ApplyOffer): invisible means 404, also for a running listen.
 func (s *Service) closeUnreachable(ctx context.Context, ids ...int64) {
 	if len(ids) == 0 {
 		s.rel.mu.Lock()

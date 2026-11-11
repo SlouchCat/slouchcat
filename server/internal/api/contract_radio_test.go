@@ -63,8 +63,8 @@ func TestRadioContractHasNoItemRef(t *testing.T) {
 			}
 		}
 	}
-	if radioOps != 35 {
-		t.Errorf("%d radio operations, want the 30 of contract 1.17.0 and the 5 of 1.19.0", radioOps)
+	if radioOps != 36 {
+		t.Errorf("%d radio operations, want the 30 of contract 1.17.0, the 5 of 1.19.0 and 1.28.0 without the 2 tag rules and with the 3 of the offer", radioOps)
 	}
 }
 
@@ -89,6 +89,11 @@ func TestRadioErrorExtensions(t *testing.T) {
 	p.mapError(rec, httptest.NewRequest(http.MethodGet, "/api/v1/radio/stations", nil), model.ErrRadioCatalogLoading)
 	if rec.Code != http.StatusServiceUnavailable || rec.Header().Get("Retry-After") != "30" {
 		t.Errorf("catalog loading: status %d, Retry-After %q", rec.Code, rec.Header().Get("Retry-After"))
+	}
+	rec = httptest.NewRecorder()
+	p.mapError(rec, httptest.NewRequest(http.MethodPost, "/api/v1/admin/radio/offer/apply", nil), model.ErrRadioOfferConflict)
+	if rec.Code != http.StatusConflict || problemCode(t, rec) != "offer_conflict" {
+		t.Errorf("offer conflict: status %d, body %s", rec.Code, rec.Body.String())
 	}
 }
 
@@ -119,9 +124,9 @@ func sendLive(h http.Handler, path string, header map[string]string) *httptest.R
 	return rec
 }
 
-// The S2 visibility table through the API: the hidden and the excluded-country station answer
-// 404 not_found on station, favourite, listen, now and image for every profile; the broken one is
-// reachable (state broken) but not listed while hide_broken is on.
+// The S2 visibility table through the API: the demarked station and the one of a country outside
+// the offer answer 404 not_found on station, favourite, listen, now and image for every profile;
+// the broken one is reachable (state broken) but not listed while hide_broken is on.
 func TestRadioHiddenStations404(t *testing.T) {
 	t.Parallel()
 	pf := newProfileFixture(t)
@@ -155,10 +160,10 @@ func TestRadioHiddenStations404(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), `"favorite":false`) {
 		t.Errorf("P12 sees P6's favourite flag: %s", rec.Body.String())
 	}
-	// The administration sees the hidden station.
+	// The administration sees the demarked station, outside the offer.
 	rec = send(t, h, http.MethodGet, BasePath+"/admin/radio/stations/"+radioHidden, "p18", "", nil)
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"hidden":true`) {
-		t.Errorf("admin hidden station: %d %s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"offered":false`) {
+		t.Errorf("admin demarked station: %d %s", rec.Code, rec.Body.String())
 	}
 }
 

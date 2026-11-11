@@ -539,13 +539,13 @@ type IntegrationService interface {
 // reach (hidden, or of a country the setting excludes) answers model.ErrNotFound, never a 403.
 // Methods that read the catalog answer model.ErrRadioCatalogLoading before the first sync.
 type RadioService interface {
-	// ListStations and Facets read the in-memory index: never hidden or excluded stations, broken
-	// ones only while the setting hide_broken is off. *model.ValidationError for a bad value.
+	// ListStations and Facets read the in-memory index: only stations of the offer, broken ones
+	// only while its switch hide_broken is off. *model.ValidationError for a bad value.
 	ListStations(ctx context.Context, session model.Session, q model.RadioQuery) (model.RadioStationPage, error)
 	Facets(ctx context.Context, session model.Session, q model.RadioQuery) (model.RadioFacets, error)
 	// Station returns one station, broken and missing ones included.
 	Station(ctx context.Context, session model.Session, stationID int64) (model.RadioStation, error)
-	// Favorites returns the profile's favourites in its order, without hidden and excluded ones.
+	// Favorites returns the profile's favourites in its order, without those outside the offer.
 	Favorites(ctx context.Context, session model.Session) ([]model.RadioStation, error)
 	// SetFavoriteOrder stores the complete new order; another set of ids is a
 	// *model.ValidationError on field stationIds.
@@ -582,7 +582,7 @@ type RadioService interface {
 	// closes when the listen session is revoked, so the handler cuts a running write.
 	Segment(ctx context.Context, g model.RadioGrant, n int64) ([]byte, <-chan struct{}, error)
 	// Image opens a station image (kind logo; size w96, w256 or w512) as WebP or PNG. admin
-	// false applies the viewer rules (hidden or excluded → model.ErrNotFound); no logo is
+	// false applies the viewer rules (outside the offer → model.ErrNotFound); no logo is
 	// model.ErrNotFound as well.
 	Image(ctx context.Context, stationID int64, kind, size string, webp, admin bool) (model.StreamSource, error)
 	// Cover opens the cover of a title (contract 1.19.0, radio_tracks; size w96, w256 or w512) as
@@ -618,11 +618,15 @@ type RadioService interface {
 	// DeleteStation deletes an own station; a catalog station is a *model.ValidationError
 	// (stationId not_own), an unknown one model.ErrNotFound.
 	DeleteStation(ctx context.Context, stationID int64) error
-	// TagRules returns the effective tag rules, the worklist and the coverage (tab «Einordnung»).
-	TagRules(ctx context.Context) (model.RadioTagRules, error)
-	// SetTagRules replaces the administration's rules and applies them to every station
-	// (*model.ValidationError on field rules).
-	SetTagRules(ctx context.Context, rules []model.RadioTagRule) (model.RadioTagRules, error)
+	// Offer returns the stored offer (contract 1.28.0, concept 19 part B).
+	Offer(ctx context.Context) (model.RadioOffer, error)
+	// PreviewOffer applies steps to a copy of the stored offer without storing or queueing
+	// anything; list (nil: none) asks for a page of a country's stations (*model.ValidationError
+	// on steps or list).
+	PreviewOffer(ctx context.Context, steps []model.RadioOfferStep, list *model.RadioOfferListQuery) (model.RadioOfferPreview, error)
+	// ApplyOffer stores steps on the offer of version; another stored version is
+	// model.ErrRadioOfferConflict, a bad step a *model.ValidationError.
+	ApplyOffer(ctx context.Context, version int64, steps []model.RadioOfferStep) (model.RadioOfferApplied, error)
 	Relays(ctx context.Context) (model.RadioRelays, error)
 	// StopListener ends a listen session (ended_by admin); model.ErrNotFound for an unknown or
 	// ended one.

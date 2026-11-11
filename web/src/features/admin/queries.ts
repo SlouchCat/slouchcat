@@ -48,7 +48,7 @@ import type {
   TraktStatus,
   components,
 } from '@slouchcat/api-client';
-import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
+import { queryOptions } from '@tanstack/react-query';
 import { api, request } from '@/api/client';
 import type { PagedSource } from '@/lib/pagedList';
 
@@ -546,10 +546,6 @@ export type RadioCatalogState = components['schemas']['RadioCatalogState'];
 export type RadioRelays = components['schemas']['RadioRelays'];
 export type RadioProbe = components['schemas']['RadioProbe'];
 export type AdminRadioStationCreate = components['schemas']['AdminRadioStationCreate'];
-export type RadioTagRules = components['schemas']['RadioTagRules'];
-export type RadioTagRule = components['schemas']['RadioTagRule'];
-export type RadioTagRuleView = components['schemas']['RadioTagRuleView'];
-export type RadioTagRuleFacet = components['schemas']['RadioTagRuleFacet'];
 
 /** The relays and their listeners are asked again every 5 s while «Übersicht» is open. */
 export const RADIO_RELAYS_POLL_MS = 5000;
@@ -582,15 +578,19 @@ export const radioRelaysQuery = queryOptions({
 export const stopRadioListener = (listenId: string) =>
   request(api.DELETE('/admin/radio/listeners/{listenId}', { params: { path: { listenId } } }));
 
-/** The station filters of the tab «Sender»; `exceptions` lists only what the administration changed. */
+/**
+ * The station filters of the tab «Sender» (contract 1.28.0): `offered` lists the stations of the
+ * offer (the server's default), `false` the whole catalog.
+ */
 export interface AdminRadioStationFilter {
   q?: string;
   country?: string;
-  genre?: string;
-  state?: 'reachable' | 'broken' | 'hidden';
+  provider?: string;
+  state?: 'reachable' | 'broken' | 'noLogo';
   /** Catalog or own stations (contract 1.19.0, tab «Eigene Sender»). */
   source?: 'catalog' | 'own';
-  exceptions: boolean;
+  offered: boolean;
+  sort?: 'popularity' | 'name';
 }
 
 /** The stations of a filter, read page by page as the table scrolls (concept 18 C-3). */
@@ -610,25 +610,8 @@ export const adminRadioStationsSource = (
   id: (station) => station.id,
 });
 
-/** One page of the counter of «Nur Ausnahmen». */
+/** One page of a station list of the administration. */
 export const ADMIN_RADIO_PAGE_SIZE = 50;
-
-export const adminRadioStationsQuery = (filter: AdminRadioStationFilter) =>
-  infiniteQueryOptions({
-    queryKey: [...radioAdminKeys.all, 'stations', filter],
-    queryFn: ({ pageParam, signal }) =>
-      request(
-        api.GET('/admin/radio/stations', {
-          params: { query: { ...filter, offset: pageParam, limit: ADMIN_RADIO_PAGE_SIZE } },
-          signal,
-        }),
-      ),
-    initialPageParam: 0,
-    getNextPageParam: (last) => {
-      const next = last.offset + last.items.length;
-      return last.items.length > 0 && next < last.total ? next : undefined;
-    },
-  });
 
 export const adminRadioStationQuery = (stationId: number) =>
   queryOptions({
@@ -677,17 +660,6 @@ export const deleteRadioLogo = (stationId: number) =>
 export const createRadioStation = (body: AdminRadioStationCreate): Promise<AdminRadioStation> =>
   request(api.POST('/admin/radio/stations', { body }));
 
-/** Deletes an own station; a catalog station can only be hidden. */
+/** Deletes an own station; a catalog station can only leave the offer. */
 export const deleteRadioStation = (stationId: number) =>
   request(api.DELETE('/admin/radio/stations/{stationId}', { params: { path: { stationId } } }));
-
-/** The tag rules, the worklist and the coverage of the tab «Einordnung» (contract 1.19.0). */
-export const radioTagRulesQuery = queryOptions({
-  queryKey: [...radioAdminKeys.all, 'tagRules'],
-  queryFn: ({ signal }): Promise<RadioTagRules> =>
-    request(api.GET('/admin/radio/tag-rules', { signal })),
-});
-
-/** Replaces the administration's rules with `rules` (the whole list); answers the new state. */
-export const setRadioTagRules = (rules: readonly RadioTagRule[]): Promise<RadioTagRules> =>
-  request(api.PUT('/admin/radio/tag-rules', { body: { rules: [...rules] } }));

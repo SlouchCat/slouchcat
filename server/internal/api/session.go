@@ -404,6 +404,8 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusBadGateway, "radio_unreachable", "No stream of the station answered.")
 	case errors.Is(err, model.ErrRadioNotAudio):
 		p.write(w, r, http.StatusUnprocessableEntity, "radio_not_audio", "The stream does not deliver audio.")
+	case errors.Is(err, model.ErrRadioOfferConflict):
+		p.write(w, r, http.StatusConflict, "offer_conflict", "The radio offer changed meanwhile; compute the draft again on the new version.")
 	case errors.Is(err, model.ErrRadioCatalogLoading):
 		w.Header().Set("Retry-After", "30")
 		p.write(w, r, http.StatusServiceUnavailable, "radio_catalog_loading", "The radio catalog is being loaded; try again shortly.")

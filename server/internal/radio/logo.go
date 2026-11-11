@@ -77,11 +77,13 @@ type logoPayload struct {
 	StationID int64 `json:"stationId"`
 }
 
-// queueLogos queues the logo job of the stations without a logo (and of those whose chain failed
-// more than 30 days ago); it is the onListed hook of lists, favourites and the sync.
-func (s *Service) queueLogos(ctx context.Context, stationIDs []int64) {
+// queueLogos queues, in the order given, the logo job of the stations without a logo (and of those
+// whose chain failed more than 30 days ago) and returns how many it queued; it serves the onListed
+// hook of lists, favourites and the start page, the sync, the apply of an offer and the own
+// stations. The administration's list and image route never call it (B7.2).
+func (s *Service) queueLogos(ctx context.Context, stationIDs []int64) int {
 	if s.o.queue == nil {
-		return
+		return 0
 	}
 	retry := sql.NullInt64{Int64: s.now().Add(-logoRetryAfter).UnixMilli(), Valid: true}
 	q := appq.New(s.db.Write)
@@ -104,11 +106,14 @@ func (s *Service) queueLogos(ctx context.Context, stationIDs []int64) {
 		}
 		queued = append(queued, id)
 	}
+	return len(queued)
 }
 
-// queueSyncLogos queues the logos the catalog sync prefetches: the favourites of every profile
-// and the recommended stations.
-func (s *Service) queueSyncLogos(ctx context.Context) {
+// queueSyncLogos queues the logos the catalog sync prefetches (B7.2): of the stations this run
+// founded (created) that are in the offer (new stations of a country with «all»), of the
+// favourites of every profile and of the recommended stations, as far as they are in the offer;
+// favourites first, then by popularity. Nothing outside the offer is fetched (RF-8).
+func (s *Service) queueSyncLogos(ctx context.Context, created []int64) {
 	q := appq.New(s.db.Read)
 	favs, err := q.ListFavoriteStationIDsOfAllProfiles(ctx)
 	if err != nil {
@@ -118,9 +123,56 @@ func (s *Service) queueSyncLogos(ctx context.Context) {
 	if err != nil {
 		s.log.WarnContext(ctx, "list recommended radio stations", "err", err)
 	}
-	ids := append(favs, rec...)
-	slices.Sort(ids)
-	s.queueLogos(ctx, slices.Compact(ids))
+	idx, err := s.index(ctx)
+	if err != nil {
+		s.log.WarnContext(ctx, "radio index for the logo prefetch", "err", err)
+		return
+	}
+	o, err := s.offer(ctx)
+	if err != nil {
+		s.log.WarnContext(ctx, "radio offer for the logo prefetch", "err", err)
+		return
+	}
+	var list []*indexEntry
+	seen := map[int64]bool{}
+	for _, id := range slices.Concat(created, favs, rec) {
+		if e := idx.byID[id]; e != nil && !seen[id] && o.offered(e) {
+			seen[id] = true
+			list = append(list, e)
+		}
+	}
+	logoOrder(list, idSet(favs))
+	ids := make([]int64, 0, len(list))
+	for _, e := range list {
+		ids = append(ids, e.st.ID)
+	}
+	s.queueLogos(ctx, ids)
+}
+
+// removeLogoFiles removes the logo files of stations that are gone (the sync's deletes, a deleted
+// own station; B8), through the cache root (rule 4).
+func (s *Service) removeLogoFiles(ctx context.Context, stationIDs []int64) {
+	if len(stationIDs) == 0 || s.o.cacheDir == "" {
+		return
+	}
+	root, err := paths.NewRoot(s.o.cacheDir)
+	if err != nil {
+		s.log.WarnContext(ctx, "radio logo cache root", "err", err)
+		return
+	}
+	dir, err := paths.Open(root)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			s.log.WarnContext(ctx, "open the radio logo cache", "err", err)
+		}
+		return
+	}
+	defer dir.Close()
+	for _, id := range stationIDs {
+		if err := dir.RemoveAll(logoDir(id)); err != nil {
+			s.log.WarnContext(ctx, "remove radio logo files", "station_id", id, "err", err)
+		}
+	}
 }
 
 // handleLogo runs the logo chain of one station.
@@ -139,6 +191,12 @@ func (s *Service) handleLogo(ctx context.Context, j *jobs.Job) error {
 	if st.LogoState == logoStateOwn {
 		return nil
 	}
+	// One job per host at a time (B7.2): a taken host sends the job back without an attempt.
+	hosts := logoHosts(st.FaviconUrl.String, st.Homepage.String)
+	if !s.logo.lockHosts(hosts) {
+		return jobs.RetryLater(s.logo.hostRetry, "another radio logo job fetches from the same host")
+	}
+	defer s.logo.unlockHosts(hosts)
 	src, state := s.fetchLogo(ctx, st)
 	hash := sql.NullString{}
 	if src != nil {
@@ -182,7 +240,7 @@ func (s *Service) fetchLogo(ctx context.Context, st appq.RadioStation) ([]byte, 
 	return nil, logoStateFailed
 }
 
-// logoGet fetches one URL of the chain through the guarded client, at most two requests a
+// logoGet fetches one URL of the chain through the guarded client, at most four requests a
 // second for all logo jobs together.
 func (s *Service) logoGet(ctx context.Context, rawURL string, limit int64) ([]byte, error) {
 	if u, err := url.Parse(rawURL); err != nil || u.Scheme != "http" && u.Scheme != "https" {
@@ -489,8 +547,9 @@ func (s *Service) writeOwnLogo(ctx context.Context, stationID int64, state strin
 }
 
 // Image opens a station logo (kind logo; size w96, w256 or w512) as WebP or PNG. Without admin the
-// viewer rules apply (hidden or excluded stations are model.ErrNotFound); no logo is
-// model.ErrNotFound as well. The caller closes the file.
+// viewer rules apply (stations outside the offer are model.ErrNotFound); no logo is
+// model.ErrNotFound as well. It only reads the cache and queues nothing. The caller closes the
+// file.
 func (s *Service) Image(ctx context.Context, stationID int64, kind, size string, webp, admin bool) (model.StreamSource, error) {
 	width, err := strconv.Atoi(strings.TrimPrefix(size, "w"))
 	if kind != "logo" || err != nil || !strings.HasPrefix(size, "w") || !slices.Contains(logoWidths, width) {

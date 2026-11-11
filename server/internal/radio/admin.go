@@ -16,56 +16,77 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 )
 
-// The station administration (concept 16 section 5.6, «Ausnahmen» of stage 1): every station,
-// hidden ones included, with its streams, tags, facets and locks; a patch locks the fields it sets,
-// so the next sync keeps them, and a lock the admin lifts lets the next sync overwrite the field.
+// The station administration (concept 16 section 5.6; concept 19 part B, B9.3): every station of
+// the catalog, those outside the offer included, with its streams, tags and locks; a patch locks
+// the fields it sets, so the next sync keeps them, and a lock the admin lifts lets the next sync
+// overwrite the field. Since contract 1.28.0 nothing is assigned by hand (B5): the filter values
+// derive from the rules file, and a station leaves the offer through an exception (offer.go).
 
 // lockFields are the fields a lock may hold (radio_station_locks.field).
-var lockFields = []string{"name", "logo", "genre", "kind", "mood", "region", "stream"}
+var lockFields = []string{"name", "logo", "region", "stream"}
 
-// Values of AdminRadioQuery.State.
+// Values of AdminRadioQuery.State and Sort.
 const (
 	adminStateReachable = "reachable"
 	adminStateBroken    = "broken"
-	adminStateHidden    = "hidden"
+	adminStateNoLogo    = "noLogo"
+	adminSortPopularity = "popularity"
+	adminSortName       = "name"
 )
 
-// AdminStations lists the stations for the administration; Exceptions keeps the changed (a lock),
-// hidden, broken, recommended and own ones; Source keeps the catalog or the own stations.
+// AdminStations lists the stations for the administration: with Offered those of the stored
+// offer, else the whole catalog; Provider, State and Source narrow, Sort orders by popularity (the
+// default) or name. The list never queues a logo (B7.2).
 func (s *Service) AdminStations(ctx context.Context, q model.AdminRadioQuery) (model.AdminRadioStationPage, error) {
+	var verr *model.ValidationError
 	switch q.State {
-	case "", adminStateReachable, adminStateBroken, adminStateHidden:
+	case "", adminStateReachable, adminStateBroken, adminStateNoLogo:
 	default:
-		return model.AdminRadioStationPage{}, (*model.ValidationError)(nil).Add("state", "invalid_value")
+		verr = verr.Add("state", "invalid_value")
 	}
 	switch q.Source {
 	case "", sourceCatalog, sourceOwn:
 	default:
-		return model.AdminRadioStationPage{}, (*model.ValidationError)(nil).Add("source", "invalid_value")
+		verr = verr.Add("source", "invalid_value")
+	}
+	switch q.Sort {
+	case "", adminSortPopularity, adminSortName:
+	default:
+		verr = verr.Add("sort", "invalid_value")
+	}
+	if verr != nil {
+		return model.AdminRadioStationPage{}, verr
 	}
 	idx, err := s.index(ctx)
 	if err != nil {
 		return model.AdminRadioStationPage{}, err
 	}
+	o, err := s.offer(ctx)
+	if err != nil {
+		return model.AdminRadioStationPage{}, err
+	}
 	search := rules.Fold(q.Q)
-	genre := facetBits(rules.FacetGenre, []string{q.Genre})
 	var hits []*indexEntry
 	for _, e := range idx.entries {
 		switch {
-		case search != "" && !strings.Contains(e.search, search),
+		case q.Offered && !o.offered(e),
+			search != "" && !strings.Contains(e.search, search),
 			q.Country != "" && e.st.Country != q.Country,
-			q.Genre != "" && e.genres&genre == 0,
-			q.State == adminStateReachable && (e.broken || e.hidden),
+			q.Provider != "" && e.st.Provider != q.Provider,
+			q.State == adminStateReachable && e.broken,
 			q.State == adminStateBroken && !e.broken,
-			q.State == adminStateHidden && !e.hidden,
+			q.State == adminStateNoLogo && e.st.LogoHash != "",
 			q.Source == sourceOwn && !e.own,
-			q.Source == sourceCatalog && e.own,
-			q.Exceptions && !e.locked && !e.hidden && !e.broken && !e.st.Recommended && !e.own:
+			q.Source == sourceCatalog && e.own:
 			continue
 		}
 		hits = append(hits, e)
 	}
-	sortEntries(hits, model.RadioSortName, nil)
+	sortBy := model.RadioSortPopular
+	if q.Sort == adminSortName {
+		sortBy = model.RadioSortName
+	}
+	sortEntries(hits, sortBy, nil)
 	page := model.AdminRadioStationPage{Total: len(hits), Offset: q.Offset, Items: []model.AdminRadioStation{}}
 	limit := q.Limit
 	if limit <= 0 {
@@ -87,12 +108,17 @@ func (s *Service) AdminStations(ctx context.Context, q model.AdminRadioQuery) (m
 	return page, nil
 }
 
-// AdminStation returns one station with its streams (best first), tags, facets and locks.
+// AdminStation returns one station with its streams (best first), tags, locks and whether it is
+// in the stored offer.
 func (s *Service) AdminStation(ctx context.Context, stationID int64) (model.AdminRadioStation, error) {
-	return adminStation(ctx, appq.New(s.db.Read), stationID)
+	o, err := s.offer(ctx)
+	if err != nil {
+		return model.AdminRadioStation{}, err
+	}
+	return adminStation(ctx, appq.New(s.db.Read), o, stationID)
 }
 
-func adminStation(ctx context.Context, q *appq.Queries, id int64) (model.AdminRadioStation, error) {
+func adminStation(ctx context.Context, q *appq.Queries, o *offerState, id int64) (model.AdminRadioStation, error) {
 	entries, err := loadEntries(ctx, q, sql.NullInt64{Int64: id, Valid: true})
 	if err != nil {
 		return model.AdminRadioStation{}, err
@@ -107,8 +133,8 @@ func adminStation(ctx context.Context, q *appq.Queries, id int64) (model.AdminRa
 	if err != nil {
 		return model.AdminRadioStation{}, fmt.Errorf("get radio station: %w", err)
 	}
-	a := model.AdminRadioStation{RadioStation: entries[0].st, Source: row.Source, Hidden: row.Hidden == 1,
-		Failures: int(row.Failures), LogoState: row.LogoState, Tags: []string{}, Facets: []model.RadioStationFacet{},
+	a := model.AdminRadioStation{RadioStation: entries[0].st, Source: row.Source, Offered: o.offered(entries[0]),
+		Failures: int(row.Failures), LogoState: row.LogoState, Tags: []string{},
 		Locks: []string{}, Streams: []model.RadioStream{},
 		CreatedAt: time.UnixMilli(row.CreatedAt).UTC(), UpdatedAt: time.UnixMilli(row.UpdatedAt).UTC()}
 	if row.BrokenAt.Valid {
@@ -119,13 +145,6 @@ func adminStation(ctx context.Context, q *appq.Queries, id int64) (model.AdminRa
 		return model.AdminRadioStation{}, fmt.Errorf("list radio tags: %w", err)
 	}
 	a.Tags = append(a.Tags, tags...)
-	facets, err := q.ListRadioStationFacetsByStation(ctx, id)
-	if err != nil {
-		return model.AdminRadioStation{}, fmt.Errorf("list radio facets: %w", err)
-	}
-	for _, f := range facets {
-		a.Facets = append(a.Facets, model.RadioStationFacet{Facet: f.Facet, Value: f.Value, Manual: f.Manual == 1})
-	}
 	if a.Locks, err = q.ListRadioStationLocks(ctx, id); err != nil {
 		return model.AdminRadioStation{}, fmt.Errorf("list radio locks: %w", err)
 	}
@@ -155,10 +174,6 @@ func adminStation(ctx context.Context, q *appq.Queries, id int64) (model.AdminRa
 // relay of the station.
 func (s *Service) UpdateStation(ctx context.Context, stationID int64, p model.AdminRadioStationPatch) (model.AdminRadioStation, error) {
 	own, verr, err := s.checkOwnPatch(ctx, stationID, p)
-	if err != nil {
-		return model.AdminRadioStation{}, err
-	}
-	rs, err := s.tagRules(ctx)
 	if err != nil {
 		return model.AdminRadioStation{}, err
 	}
@@ -193,7 +208,7 @@ func (s *Service) UpdateStation(ctx context.Context, stationID int64, p model.Ad
 			locks[l] = true
 		}
 	}
-	upd := appq.UpdateRadioStationAdminParams{Name: row.Name, Region: row.Region, Hidden: row.Hidden,
+	upd := appq.UpdateRadioStationAdminParams{Name: row.Name, Region: row.Region,
 		Recommended: row.Recommended, Now: s.now().UnixMilli(), ID: stationID}
 	if p.Name != nil {
 		name := strings.TrimSpace(*p.Name)
@@ -211,20 +226,6 @@ func (s *Service) UpdateStation(ctx context.Context, stationID int64, p model.Ad
 		}
 		upd.Region, locks["region"] = sql.NullString{String: *p.Region, Valid: true}, true
 	}
-	facetPatch := map[string]*[]string{rules.FacetGenre: p.Genres, rules.FacetKind: p.Kinds, rules.FacetMood: p.Moods}
-	for _, facet := range facetNames {
-		vals := facetPatch[facet]
-		if vals == nil {
-			continue
-		}
-		for _, v := range *vals {
-			if !knownFacetValue(facet, v) {
-				verr = verr.Add(facet+"s", "invalid_value")
-				break
-			}
-		}
-		locks[facet] = true
-	}
 	if p.PreferredStreamID != nil {
 		streams, err := q.ListRadioStreamsRanked(ctx, stationID)
 		if err != nil {
@@ -237,9 +238,6 @@ func (s *Service) UpdateStation(ctx context.Context, stationID int64, p model.Ad
 	}
 	if p.ClearPreferredStream {
 		delete(locks, "stream")
-	}
-	if p.Hidden != nil {
-		upd.Hidden = flag01(*p.Hidden)
 	}
 	if p.Recommended != nil {
 		upd.Recommended = flag01(*p.Recommended)
@@ -255,27 +253,11 @@ func (s *Service) UpdateStation(ctx context.Context, stationID int64, p model.Ad
 	if err := q.UpdateRadioStationAdmin(ctx, upd); err != nil {
 		return model.AdminRadioStation{}, fmt.Errorf("update radio station: %w", err)
 	}
-	var patched []string
-	values := map[string][]string{}
-	for _, facet := range facetNames {
-		if vals := facetPatch[facet]; vals != nil {
-			patched, values[facet] = append(patched, facet), *vals
-		}
-	}
-	if err := writeFacets(ctx, q, stationID, values, patched, true, true); err != nil {
-		return model.AdminRadioStation{}, err
-	}
-	// No sync derives an own station again: a new name or a lifted facet lock derives its open
-	// facets here (catalog stations get them from the next sync).
-	if row.Source == sourceOwn {
-		var open []string
-		for _, facet := range facetNames {
-			if !locks[facet] {
-				open = append(open, facet)
-			}
-		}
-		derived, _ := deriveFacets(rs.tags, upd.Name, tags)
-		if err := writeFacets(ctx, q, stationID, derived, open, false, true); err != nil {
+	// No sync derives an own station again: its facets follow its name here, through the rules file
+	// (catalog stations get theirs from the next sync).
+	if row.Source == sourceOwn && upd.Name != row.Name {
+		derived, _ := deriveFacets(rules.Default(), upd.Name, tags)
+		if err := writeFacets(ctx, q, stationID, derived, facetNames, false, true); err != nil {
 			return model.AdminRadioStation{}, err
 		}
 	}
@@ -309,7 +291,6 @@ func (s *Service) UpdateStation(ctx context.Context, stationID int64, p model.Ad
 		return model.AdminRadioStation{}, fmt.Errorf("update radio station: commit: %w", err)
 	}
 	s.reloadStation(ctx, stationID)
-	s.closeUnreachable(ctx, stationID)
 	if urlChanged {
 		s.closeStation(ctx, stationID) // the relay plays the old address
 		s.probeOwnLater(stationID, own.streamURL)
@@ -341,8 +322,8 @@ const (
 )
 
 // Probe opens a stream of the station (streamID 0: the best ranked) through the guarded client
-// and reports format, codec, bitrate and the first title within probeTimeout. Hidden stations
-// may be probed (administration).
+// and reports format, codec, bitrate and the first title within probeTimeout. Stations outside the
+// offer may be probed (administration).
 func (s *Service) Probe(ctx context.Context, stationID, streamID int64) (model.RadioProbe, error) {
 	q := appq.New(s.db.Read)
 	if _, err := q.GetRadioStation(ctx, stationID); errors.Is(err, sql.ErrNoRows) {

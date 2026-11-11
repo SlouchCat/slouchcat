@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
@@ -8,19 +8,9 @@ import { radioQueryParams } from '@/features/radio/filters';
 import { usePagedList, type PlaceRange } from '@/lib/pagedList';
 import { radioFacetsQuery } from '@/features/radio/queries';
 import { Notice, SelectField, Skeleton, StationLogo, StatusDot, Text } from '@/ui';
-import {
-  AriaButton,
-  DataTable,
-  StatusRegion,
-  Switch,
-  TextField,
-  useStatusMessage,
-  type DataColumn,
-} from '@/ui/aria';
+import { AriaButton, DataTable, TextField, type DataColumn } from '@/ui/aria';
 import {
   adminRadioStationsSource,
-  radioAdminKeys,
-  updateAdminRadioStation,
   type AdminRadioStation,
   type AdminRadioStationFilter,
 } from '../queries';
@@ -29,12 +19,11 @@ import styles from './Radio.module.css';
 /** Typing waits this long before the list follows. */
 const DEBOUNCE_MS = 300;
 
-const STATES = ['reachable', 'broken', 'hidden'] as const;
+const STATES = ['reachable', 'broken'] as const;
 type StateFilter = (typeof STATES)[number];
 
 /** The state of a station as one word and its dot. */
 function stationState(station: AdminRadioStation) {
-  if (station.hidden) return { key: 'hidden', dot: 'pending' } as const;
   if (station.state === 'missing') return { key: 'missing', dot: 'warning' } as const;
   if (station.state === 'broken') return { key: 'broken', dot: 'danger' } as const;
   return { key: 'ok', dot: 'success' } as const;
@@ -46,15 +35,13 @@ interface StationsTabProps {
 }
 
 /**
- * «Sender» (concept 16, 5.5 and 11): opens with «Nur Ausnahmen» (changed by hand, hidden,
- * recommended, broken); a search always covers every station. Two row actions: «Bearbeiten» and
- * «Ausblenden»/«Einblenden».
+ * «Sender» (concept 16, 5.5 and 11): every station of the catalog, in the offer or not (contract
+ * 1.28.0), searched and narrowed by country and state; the row action «Bearbeiten». A station
+ * leaves the offer through the offer, no longer by hiding it (concept 19 part B, B4).
  */
 export function StationsTab({ onEdit }: StationsTabProps) {
   const { t, i18n } = useTranslation();
   const language = i18n.language;
-  const queryClient = useQueryClient();
-  const [message, setMessage] = useStatusMessage();
 
   const [text, setText] = useState('');
   const [q, setQ] = useState('');
@@ -63,41 +50,24 @@ export function StationsTab({ onEdit }: StationsTabProps) {
     return () => window.clearTimeout(timer);
   }, [text]);
   const [country, setCountry] = useState('');
-  const [genre, setGenre] = useState('');
   const [state, setState] = useState<StateFilter | ''>('');
-  const [onlyExceptions, setOnlyExceptions] = useState(true);
 
   const filter: AdminRadioStationFilter = useMemo(
     () => ({
       ...(q ? { q } : {}),
       ...(country ? { country } : {}),
-      ...(genre ? { genre } : {}),
       ...(state ? { state } : {}),
-      // The search goes over every station (5.5).
-      exceptions: onlyExceptions && !q,
+      offered: false,
     }),
-    [country, genre, onlyExceptions, q, state],
+    [country, q, state],
   );
   // Every station of the filter, read page by page as the table scrolls; the table is always
   // virtual, the catalog has some 40'000 stations (concept 18 C-3).
   const [span, setSpan] = useState<PlaceRange>({ start: 0, end: 0 });
   const paged = usePagedList(adminRadioStationsSource(filter), span);
   const stations = paged.first;
-  // The values to filter by: the catalog's countries and genres as the app counts them.
+  // The values to filter by: the countries as the app counts them.
   const facets = useQuery(radioFacetsQuery(radioQueryParams({})));
-
-  const hide = useMutation({
-    mutationFn: (station: AdminRadioStation) =>
-      updateAdminRadioStation(station.id, { hidden: !station.hidden }),
-    onSuccess: async (next) => {
-      setMessage(
-        t(next.hidden ? 'admin.radio.stations.hiddenDone' : 'admin.radio.stations.shownDone', {
-          name: next.name,
-        }),
-      );
-      await queryClient.invalidateQueries({ queryKey: radioAdminKeys.all });
-    },
-  });
 
   const total = paged.total;
 
@@ -169,18 +139,6 @@ export function StationsTab({ onEdit }: StationsTabProps) {
           >
             {t('admin.radio.stations.edit')}
           </AriaButton>
-          <AriaButton
-            variant="ghost"
-            size="sm"
-            aria-label={t(
-              station.hidden ? 'admin.radio.stations.showLabel' : 'admin.radio.stations.hideLabel',
-              { name: station.name },
-            )}
-            isPending={hide.isPending && hide.variables.id === station.id}
-            onPress={() => hide.mutate(station)}
-          >
-            {station.hidden ? t('admin.radio.stations.show') : t('admin.radio.stations.hide')}
-          </AriaButton>
         </span>
       ),
     },
@@ -188,8 +146,6 @@ export function StationsTab({ onEdit }: StationsTabProps) {
 
   return (
     <div className={styles.tab}>
-      <StatusRegion message={message} />
-      {hide.error && <Notice tone="danger">{problemMessage(t, hide.error)}</Notice>}
       <div className={styles.filters}>
         <TextField label={t('admin.radio.stations.search')} value={text} onChange={setText} />
         <SelectField
@@ -203,18 +159,6 @@ export function StationsTab({ onEdit }: StationsTabProps) {
           ]}
           onChange={setCountry}
         />
-        <SelectField
-          label={t('admin.radio.stations.genre')}
-          value={genre}
-          options={[
-            { value: '', label: t('admin.radio.stations.allGenres') },
-            ...(facets.data?.genre ?? []).map((entry) => ({
-              value: entry.value,
-              label: facetValueName(t, 'genre', entry.value),
-            })),
-          ]}
-          onChange={setGenre}
-        />
         <SelectField<StateFilter | ''>
           label={t('admin.radio.stations.state')}
           value={state}
@@ -227,11 +171,7 @@ export function StationsTab({ onEdit }: StationsTabProps) {
           ]}
           onChange={setState}
         />
-        <Switch isSelected={onlyExceptions} onChange={setOnlyExceptions}>
-          {t('admin.radio.stations.exceptions')}
-        </Switch>
       </div>
-      <Text tone="secondary">{t('admin.radio.stations.exceptionsHelp')}</Text>
 
       {stations.isError && <Notice tone="danger" title={problemMessage(t, stations.error)} />}
       {stations.isPending ? (

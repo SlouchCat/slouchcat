@@ -25,11 +25,12 @@ const (
 	maxAdminRadioPage     = 200
 )
 
-// Nullable fields of the radio PATCH bodies, by their contract names (pickUpdateNulls).
-var (
-	radioConfigNullFields  = []string{"countries"}
-	radioStationNullFields = []string{"region", "preferredStreamId", "homepage", "country"}
-)
+// Nullable fields of the station PATCH body, by their contract names (pickUpdateNulls).
+var radioStationNullFields = []string{"region", "preferredStreamId", "homepage", "country"}
+
+// defaultOfferListPage is the page of the preview list without a limit (contract
+// RadioOfferListRequest.limit).
+const defaultOfferListPage = 100
 
 func (e serviceProblem) VisitListRadioStationsResponse(w http.ResponseWriter) error {
 	return e.visit(w)
@@ -93,12 +94,11 @@ func (e serviceProblem) VisitCreateRadioStationResponse(w http.ResponseWriter) e
 func (e serviceProblem) VisitDeleteRadioStationResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
-func (e serviceProblem) VisitGetRadioTagRulesResponse(w http.ResponseWriter) error {
+func (e serviceProblem) VisitGetRadioOfferResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitPreviewRadioOfferResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
-func (e serviceProblem) VisitSetRadioTagRulesResponse(w http.ResponseWriter) error {
-	return e.visit(w)
-}
+func (e serviceProblem) VisitApplyRadioOfferResponse(w http.ResponseWriter) error { return e.visit(w) }
 
 // radioListenEnded answers a heartbeat whose relay ended: 410 radio_unreachable (the contract's
 // heartbeat code; elsewhere model.ErrRadioUnreachable is 502).
@@ -222,7 +222,8 @@ func toRadioStation(st model.RadioStation) gen.RadioStation {
 		Codec: optString(st.Codec), BitrateKbps: optPositive(st.BitrateKbps), Hls: st.HLS, ShowsTitles: st.ShowsTitles,
 		Favorite: st.Favorite, Recommended: st.Recommended, State: gen.RadioStationState(st.State),
 		MissingSince: optMs(st.MissingSince), RemovalAt: optMs(st.RemovalAt),
-		Logo: radioLogoURL("/radio/images", st.ID, st.LogoHash), Homepage: optString(st.Homepage)}
+		Logo: radioLogoURL("/radio/images", st.ID, st.LogoHash), Homepage: optString(st.Homepage),
+		Provider: optString(st.Provider)}
 	if st.Quality != "" {
 		q := gen.RadioQuality(st.Quality)
 		out.Quality = &q
@@ -253,14 +254,11 @@ func toAdminRadioStation(a model.AdminRadioStation) gen.AdminRadioStation {
 		Hls: st.Hls, ShowsTitles: st.ShowsTitles, Recommended: st.Recommended, State: st.State,
 		MissingSince: st.MissingSince, RemovalAt: st.RemovalAt, Homepage: st.Homepage,
 		Logo:   radioLogoURL("/admin/radio/images", a.ID, a.LogoHash),
-		Source: gen.RadioStationSource(a.Source), Hidden: a.Hidden, Failures: a.Failures, BrokenAt: optMs(a.BrokenAt),
-		Tags: strings0(a.Tags), Facets: make([]gen.RadioStationFacet, 0, len(a.Facets)),
+		Source: gen.RadioStationSource(a.Source), Offered: a.Offered, Provider: optString(a.Provider),
+		Failures: a.Failures, BrokenAt: optMs(a.BrokenAt), Tags: strings0(a.Tags),
 		Locks: make([]gen.RadioLockField, 0, len(a.Locks)), LogoState: gen.RadioLogoState(a.LogoState),
 		AliasCount: a.AliasCount, Streams: make([]gen.RadioStream, 0, len(a.Streams)),
 		CreatedAt: a.CreatedAt.UnixMilli(), UpdatedAt: a.UpdatedAt.UnixMilli()}
-	for _, f := range a.Facets {
-		out.Facets = append(out.Facets, gen.RadioStationFacet{Facet: gen.RadioStationFacetFacet(f.Facet), Value: f.Value, Manual: f.Manual})
-	}
 	for _, l := range a.Locks {
 		out.Locks = append(out.Locks, gen.RadioLockField(l))
 	}
@@ -274,8 +272,7 @@ func toAdminRadioStation(a model.AdminRadioStation) gen.AdminRadioStation {
 
 func toRadioConfig(c model.RadioConfig) gen.RadioConfig {
 	return gen.RadioConfig{BufferMinutes: gen.RadioConfigBufferMinutes(c.BufferMinutes), BudgetMb: c.BudgetMB,
-		MaxRelays: c.MaxRelays, GraceSeconds: c.GraceSeconds, HideBroken: c.HideBroken, Countries: c.Countries,
-		BufferMode: gen.RadioBufferMode(c.BufferMode), MaxRelaysByBudget: c.MaxRelaysByBudget,
+		MaxRelays: c.MaxRelays, GraceSeconds: c.GraceSeconds, BufferMode: gen.RadioBufferMode(c.BufferMode), MaxRelaysByBudget: c.MaxRelaysByBudget,
 		CoverMusicbrainz: c.CoverMusicBrainz, CoverItunes: c.CoverITunes}
 }
 
@@ -306,25 +303,9 @@ func toRadioHomeStations(list []model.RadioHomeStation) []gen.RadioHomeStation {
 	return out
 }
 
-func toRadioTagRules(r model.RadioTagRules) gen.RadioTagRules {
-	out := gen.RadioTagRules{Rules: make([]gen.RadioTagRuleView, 0, len(r.Rules)),
-		Worklist: make([]gen.RadioTagCount, 0, len(r.Worklist)), WorklistMinStations: r.WorklistMinStations,
-		OpenTags: r.OpenTags, Coverage: make([]gen.RadioCoverage, 0, len(r.Coverage))}
-	for _, v := range r.Rules {
-		out.Rules = append(out.Rules, gen.RadioTagRuleView{Tag: v.Tag, Facet: gen.RadioTagRuleFacet(v.Facet),
-			Value: optString(v.Value), Source: gen.RadioTagRuleViewSource(v.Source), Stations: v.Stations})
-	}
-	for _, c := range r.Worklist {
-		out.Worklist = append(out.Worklist, gen.RadioTagCount{Tag: c.Tag, Stations: c.Stations})
-	}
-	for _, c := range r.Coverage {
-		out.Coverage = append(out.Coverage, gen.RadioCoverage{Facet: gen.RadioCoverageFacet(c.Facet), Assigned: c.Assigned, Total: c.Total})
-	}
-	return out
-}
-
 func toRadioPreferences(p model.RadioPreferences) gen.RadioPreferences {
-	out := gen.RadioPreferences{DefaultCountry: p.DefaultCountry, LastFilter: toRadioFilter(p.LastFilter)}
+	out := gen.RadioPreferences{DefaultCountry: p.DefaultCountry, EffectiveCountry: optString(p.EffectiveCountry),
+		LastFilter: toRadioFilter(p.LastFilter)}
 	if p.LastSort != "" {
 		sort := gen.RadioSort(p.LastSort)
 		out.LastSort = &sort
@@ -370,7 +351,8 @@ func (s *server) GetRadioFacets(ctx context.Context, req gen.GetRadioFacetsReque
 	}
 	return gen.GetRadioFacets200JSONResponse{Country: toRadioFacetCounts(f.Countries), Region: toRadioFacetCounts(f.Regions),
 		Language: toRadioFacetCounts(f.Languages), Genre: toRadioFacetCounts(f.Genres), Kind: toRadioFacetCounts(f.Kinds),
-		Mood: toRadioFacetCounts(f.Moods), Quality: toRadioFacetCounts(f.Qualities), Titles: f.Titles}, nil
+		Mood: toRadioFacetCounts(f.Moods), Quality: toRadioFacetCounts(f.Qualities), Titles: f.Titles,
+		OfferEmpty: f.OfferEmpty}, nil
 }
 
 func (s *server) GetRadioStation(ctx context.Context, req gen.GetRadioStationRequestObject) (gen.GetRadioStationResponseObject, error) {
@@ -580,9 +562,7 @@ func (s *server) UpdateRadioConfig(ctx context.Context, req gen.UpdateRadioConfi
 		return s.problem(ctx, (&model.ValidationError{}).Add("body", "required")), nil
 	}
 	b := req.Body
-	nulls, _ := ctx.Value(pickNullsKey{}).(map[string]bool)
 	upd := model.RadioConfigUpdate{BudgetMB: b.BudgetMb, MaxRelays: b.MaxRelays, GraceSeconds: b.GraceSeconds,
-		HideBroken: b.HideBroken, Countries: b.Countries, ClearCountries: nulls["countries"],
 		CoverMusicBrainz: b.CoverMusicbrainz, CoverITunes: b.CoverItunes}
 	if b.BufferMinutes != nil {
 		m := int(*b.BufferMinutes)
@@ -633,12 +613,13 @@ func (s *server) ListAdminRadioStations(ctx context.Context, req gen.ListAdminRa
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	exceptions := true
-	if p.Exceptions != nil {
-		exceptions = *p.Exceptions
+	offered := true
+	if p.Offered != nil {
+		offered = *p.Offered
 	}
-	q := model.AdminRadioQuery{Q: deref(p.Q), Country: deref(p.Country), Genre: deref(p.Genre), State: string(deref(p.State)),
-		Source: string(deref(p.Source)), Exceptions: exceptions, Offset: offset, Limit: limit}
+	q := model.AdminRadioQuery{Q: deref(p.Q), Country: deref(p.Country), Provider: deref(p.Provider),
+		State: string(deref(p.State)), Source: string(deref(p.Source)), Offered: offered, Sort: string(deref(p.Sort)),
+		Offset: offset, Limit: limit}
 	page, err := s.opts.Radio.AdminStations(ctx, q)
 	if err != nil {
 		return s.problem(ctx, err), nil
@@ -671,9 +652,9 @@ func (s *server) UpdateAdminRadioStation(ctx context.Context, req gen.UpdateAdmi
 	}
 	b := req.Body
 	nulls, _ := ctx.Value(pickNullsKey{}).(map[string]bool)
-	patch := model.AdminRadioStationPatch{Name: b.Name, Region: b.Region, ClearRegion: nulls["region"], Genres: b.Genres,
-		Kinds: b.Kinds, Moods: b.Moods, PreferredStreamID: b.PreferredStreamId, ClearPreferredStream: nulls["preferredStreamId"],
-		Hidden: b.Hidden, Recommended: b.Recommended, StreamURL: b.StreamUrl, Homepage: b.Homepage,
+	patch := model.AdminRadioStationPatch{Name: b.Name, Region: b.Region, ClearRegion: nulls["region"],
+		PreferredStreamID: b.PreferredStreamId, ClearPreferredStream: nulls["preferredStreamId"],
+		Recommended: b.Recommended, StreamURL: b.StreamUrl, Homepage: b.Homepage,
 		ClearHomepage: nulls["homepage"], Country: b.Country, ClearCountry: nulls["country"], Languages: b.Languages}
 	if b.Locks != nil {
 		locks := make([]string, 0, len(*b.Locks))
@@ -727,7 +708,7 @@ func (s *server) CreateRadioStation(ctx context.Context, req gen.CreateRadioStat
 	}
 	b := req.Body
 	c := model.AdminRadioStationCreate{Name: b.Name, StreamURL: b.StreamUrl, Homepage: deref(b.Homepage), Country: deref(b.Country),
-		Region: deref(b.Region), Languages: deref(b.Languages), Genres: deref(b.Genres), Kinds: deref(b.Kinds), Moods: deref(b.Moods)}
+		Region: deref(b.Region), Languages: deref(b.Languages)}
 	a, err := s.opts.Radio.CreateStation(ctx, c)
 	if err != nil {
 		return s.problem(ctx, err), nil
@@ -746,35 +727,106 @@ func (s *server) DeleteRadioStation(ctx context.Context, req gen.DeleteRadioStat
 	return gen.DeleteRadioStation204Response{}, nil
 }
 
-// GetRadioTagRules answers the tab «Einordnung» (contract 1.19.0).
-func (s *server) GetRadioTagRules(ctx context.Context, _ gen.GetRadioTagRulesRequestObject) (gen.GetRadioTagRulesResponseObject, error) {
+// fromRadioOfferSteps maps the steps of a draft (contract RadioOfferStep).
+func fromRadioOfferSteps(list []gen.RadioOfferStep) []model.RadioOfferStep {
+	out := make([]model.RadioOfferStep, 0, len(list))
+	for _, st := range list {
+		out = append(out, model.RadioOfferStep{Op: string(st.Op), Country: deref(st.Country), Q: deref(st.Q),
+			StationIDs: deref(st.StationIds), Value: deref(st.Value)})
+	}
+	return out
+}
+
+func toRadioOfferTotals(t model.RadioOfferTotals) gen.RadioOfferTotals {
+	return gen.RadioOfferTotals{Offered: t.Offered, OfferedUnreachable: t.OfferedUnreachable, Countries: t.Countries,
+		Marked: t.Marked, Demarked: t.Demarked, Own: t.Own, WithLogo: t.WithLogo, RemovableUnreachable: t.RemovableUnreachable}
+}
+
+func toRadioOfferCountries(list []model.RadioOfferCountry) []gen.RadioOfferCountry {
+	out := make([]gen.RadioOfferCountry, 0, len(list))
+	for _, c := range list {
+		rc := gen.RadioOfferCountry{Code: c.Code, Continent: gen.RadioContinent(c.Continent), Offered: c.Offered,
+			Total: c.Total, Unreachable: c.Unreachable}
+		if c.Mode != "" {
+			mode := gen.RadioOfferMode(c.Mode)
+			rc.Mode = &mode
+		}
+		out = append(out, rc)
+	}
+	return out
+}
+
+func toRadioOffer(o model.RadioOffer) gen.RadioOffer {
+	return gen.RadioOffer{Version: o.Version, HideBroken: o.HideBroken, Totals: toRadioOfferTotals(o.Totals),
+		Countries: toRadioOfferCountries(o.Countries)}
+}
+
+// GetRadioOffer answers the stored offer (contract 1.28.0, concept 19 part B).
+func (s *server) GetRadioOffer(ctx context.Context, _ gen.GetRadioOfferRequestObject) (gen.GetRadioOfferResponseObject, error) {
 	if s.opts.Radio == nil {
 		return s.problem(ctx, model.ErrNotImplemented), nil
 	}
-	r, err := s.opts.Radio.TagRules(ctx)
+	o, err := s.opts.Radio.Offer(ctx)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	return gen.GetRadioTagRules200JSONResponse(toRadioTagRules(r)), nil
+	return gen.GetRadioOffer200JSONResponse(toRadioOffer(o)), nil
 }
 
-// SetRadioTagRules replaces the administration's tag rules (contract 1.19.0).
-func (s *server) SetRadioTagRules(ctx context.Context, req gen.SetRadioTagRulesRequestObject) (gen.SetRadioTagRulesResponseObject, error) {
+// PreviewRadioOffer computes a draft without storing it (contract 1.28.0).
+func (s *server) PreviewRadioOffer(ctx context.Context, req gen.PreviewRadioOfferRequestObject) (gen.PreviewRadioOfferResponseObject, error) {
 	if s.opts.Radio == nil {
 		return s.problem(ctx, model.ErrNotImplemented), nil
 	}
 	if req.Body == nil {
 		return s.problem(ctx, (&model.ValidationError{}).Add("body", "required")), nil
 	}
-	rules := make([]model.RadioTagRule, 0, len(req.Body.Rules))
-	for _, r := range req.Body.Rules {
-		rules = append(rules, model.RadioTagRule{Tag: r.Tag, Facet: string(r.Facet), Value: deref(r.Value)})
+	var list *model.RadioOfferListQuery
+	if l := req.Body.List; l != nil {
+		list = &model.RadioOfferListQuery{Country: l.Country, Q: deref(l.Q), Offset: deref(l.Offset), Limit: defaultOfferListPage}
+		if l.Limit != nil {
+			list.Limit = *l.Limit
+		}
 	}
-	out, err := s.opts.Radio.SetTagRules(ctx, rules)
+	p, err := s.opts.Radio.PreviewOffer(ctx, fromRadioOfferSteps(req.Body.Steps), list)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	return gen.SetRadioTagRules200JSONResponse(toRadioTagRules(out)), nil
+	out := gen.PreviewRadioOffer200JSONResponse{Version: p.Version, HideBroken: p.HideBroken,
+		Totals: toRadioOfferTotals(p.Totals), Diff: gen.RadioOfferDiff{Added: p.Added, Removed: p.Removed},
+		Countries: toRadioOfferCountries(p.Countries)}
+	if p.List != nil {
+		page := &gen.RadioOfferStationPage{Total: p.List.Total, Offset: p.List.Offset,
+			Items: make([]gen.RadioOfferStation, 0, len(p.List.Items))}
+		for _, it := range p.List.Items {
+			page.Items = append(page.Items, gen.RadioOfferStation{Id: it.ID, Name: it.Name,
+				Logo: radioLogoURL("/admin/radio/images", it.ID, it.LogoHash), Tags: strings0(it.Tags), Broken: it.Broken,
+				Offered: it.Offered, Own: it.Own})
+		}
+		out.List = page
+	}
+	return out, nil
+}
+
+// ApplyRadioOffer stores a draft on the version it is based on (contract 1.28.0; 409
+// offer_conflict when the offer changed meanwhile).
+func (s *server) ApplyRadioOffer(ctx context.Context, req gen.ApplyRadioOfferRequestObject) (gen.ApplyRadioOfferResponseObject, error) {
+	if s.opts.Radio == nil {
+		return s.problem(ctx, model.ErrNotImplemented), nil
+	}
+	if req.Body == nil {
+		return s.problem(ctx, (&model.ValidationError{}).Add("body", "required")), nil
+	}
+	a, err := s.opts.Radio.ApplyOffer(ctx, req.Body.Version, fromRadioOfferSteps(req.Body.Steps))
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	ids := a.DemarkedStationIDs
+	if ids == nil {
+		ids = []int64{}
+	}
+	return gen.ApplyRadioOffer200JSONResponse{Offer: toRadioOffer(a.Offer), QueuedLogos: a.QueuedLogos,
+		DemarkedStationIds: ids}, nil
 }
 
 func (s *server) ListRadioRelays(ctx context.Context, _ gen.ListRadioRelaysRequestObject) (gen.ListRadioRelaysResponseObject, error) {

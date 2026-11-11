@@ -964,7 +964,7 @@ var profileRegistry = map[string]profileCall{
 		}},
 	// Webradio (concept 16 stage 1, contract 1.17.0): the real radio service on the stations of
 	// vistest.AddRadio (contractRadio, live part fake). Every profile reaches the visible CH
-	// station; the hidden and the excluded-country station answer 404 in TestRadioHiddenStations404.
+	// station; the demarked and the not chosen country's station answer 404 in TestRadioHiddenStations404.
 	// The operations run in name order, so addRadioFavorite and removeRadioFavorite leave only the
 	// fixture favourite of P6 (RadioDE) for setRadioFavoriteOrder.
 	"listRadioStations": {contract: "GET /radio/stations", path: "/radio/stations?country=CH&country=DE&country=FR&sort=popular",
@@ -1025,7 +1025,7 @@ func radioStatus(code int) func(*vistest.Fixture, model.Profile) int {
 }
 
 // radioListedOnly checks that a list or facet answer names none of the stations the S2 table keeps
-// out of lists: hidden, excluded country, broken (hide_broken is on).
+// out of lists: demarked, a country outside the offer, broken (hide_broken is on).
 func radioListedOnly(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
 	t.Helper()
 	body := rec.Body.String()

@@ -120,7 +120,34 @@ func newCatEnv(t testing.TB, opts ...Option) *catEnv {
 	e.s.cat.zone = func() string { return "Europe/Zurich" }
 	e.exec(`INSERT INTO accounts (id, email, password_hash, created_at, updated_at) VALUES (1, 'a@b.c', 'x', 0, 0)`)
 	e.exec(`INSERT INTO profiles (id, account_id, name, created_at, updated_at) VALUES (1, 1, 'P1', 0, 0), (2, 1, 'P2', 0, 0)`)
+	// The catalog tests list the catalog: every country is in the offer with «all» (B4.1), so a
+	// station with a country is offered; the offer tests start from an empty offer (emptyOffer).
+	for _, c := range []string{"AT", "BE", "CH", "DE", "ES", "FR", "GB", "IT", "NL", "US"} {
+		e.exec(`INSERT INTO radio_offer_countries (country, mode, updated_at) VALUES (?, 'all', 0)`, c)
+	}
 	return e
+}
+
+// emptyOffer clears the offer of the environment (tables and snapshot).
+func (e *catEnv) emptyOffer() {
+	e.t.Helper()
+	e.exec(`DELETE FROM radio_offer_countries`)
+	e.exec(`DELETE FROM radio_offer_exceptions`)
+	e.s.cat.offer.Store(nil)
+}
+
+// apply stores steps on the current offer and returns the result.
+func (e *catEnv) apply(steps ...model.RadioOfferStep) model.RadioOfferApplied {
+	e.t.Helper()
+	o, err := e.s.offer(e.ctx)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	a, err := e.s.ApplyOffer(e.ctx, o.version, steps)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return a
 }
 
 // answer makes srv answer every request with h.
@@ -305,13 +332,14 @@ func TestSyncBestStream(t *testing.T) {
 	}
 }
 
-// A locked field keeps the admin's value through a sync; an unlocked one follows the catalog.
+// A locked field keeps the admin's value through a sync; an unlocked one and the facets follow
+// the catalog (no facet is set by hand since concept 19 part B, B5).
 func TestSyncRespectsLocks(t *testing.T) {
 	e := newCatEnv(t)
 	e.sync()
 	id := e.stationID("Radio 24")
-	name, genres := "Radio 24 (Admin)", []string{"jazz"}
-	if _, err := e.s.UpdateStation(e.ctx, id, model.AdminRadioStationPatch{Name: &name, Genres: &genres}); err != nil {
+	name := "Radio 24 (Admin)"
+	if _, err := e.s.UpdateStation(e.ctx, id, model.AdminRadioStationPatch{Name: &name}); err != nil {
 		t.Fatal(err)
 	}
 	list := catEntries(t)
@@ -323,14 +351,8 @@ func TestSyncRespectsLocks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if st.Name != name || fmt.Sprint(st.Genres) != "[jazz]" {
-		t.Errorf("locked name and genre after the sync: %q %v", st.Name, st.Genres)
-	}
-	if fmt.Sprint(st.Kinds) != "[sport]" {
-		t.Errorf("unlocked kind = %v, want [sport] from the new tags", st.Kinds)
-	}
-	if n := e.count(`SELECT count(*) FROM radio_station_facets WHERE station_id = ? AND facet = 'genre' AND manual = 1`, id); n != 1 {
-		t.Errorf("manual genre rows = %d, want 1", n)
+	if st.Name != name || fmt.Sprint(st.Genres) != "[rock]" || fmt.Sprint(st.Kinds) != "[sport]" {
+		t.Errorf("locked name and facets after the sync: %q %v %v, want the name and rock, sport from the tags", st.Name, st.Genres, st.Kinds)
 	}
 	// Lifting the locks lets the next sync overwrite the fields.
 	none := []string{}
@@ -698,8 +720,9 @@ func TestCatalogMirrorFallback(t *testing.T) {
 	}
 }
 
-// The visibility rules of contract 1.17.0 (S2 table): hidden and excluded-country stations are
-// 404 everywhere; a broken one is listed only while hide_broken is off, and stays reachable.
+// The visibility rules (S2 table, B4.2): a demarked station and one of a country outside the
+// offer are 404 everywhere; a broken one is listed only while hide_broken is off, and stays
+// reachable.
 func TestVisibilityRules(t *testing.T) {
 	e := newCatEnv(t)
 	e.sync()
@@ -710,14 +733,9 @@ func TestVisibilityRules(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	yes := true
-	if _, err := e.s.UpdateStation(e.ctx, hidden, model.AdminRadioStationPatch{Hidden: &yes}); err != nil {
-		t.Fatal(err)
-	}
-	countries := []string{"CH"}
-	if _, err := e.s.UpdateConfig(e.ctx, model.RadioConfigUpdate{Countries: &countries}); err != nil {
-		t.Fatal(err)
-	}
+	e.emptyOffer()
+	e.apply(model.RadioOfferStep{Op: model.RadioOfferChooseCountry, Country: "CH"},
+		model.RadioOfferStep{Op: model.RadioOfferDemark, StationIDs: []int64{hidden}})
 	for _, id := range []int64{hidden, de} {
 		if _, err := e.s.Station(e.ctx, p, id); !errors.Is(err, model.ErrNotFound) {
 			t.Errorf("station %d: %v, want not found", id, err)
@@ -745,19 +763,17 @@ func TestVisibilityRules(t *testing.T) {
 	if err := e.s.AddFavorite(e.ctx, p, broken); err != nil {
 		t.Errorf("add a broken favourite again: %v", err)
 	}
-	no := false
-	if _, err := e.s.UpdateConfig(e.ctx, model.RadioConfigUpdate{HideBroken: &no}); err != nil {
-		t.Fatal(err)
-	}
+	e.apply(model.RadioOfferStep{Op: model.RadioOfferSetHideBroken, Value: false})
 	if !strings.Contains(fmt.Sprint(e.list(model.RadioQuery{})), "Radio Stille") {
 		t.Error("broken station not listed with hide_broken off")
 	}
-	// The setting is reversible: all countries again.
-	if _, err := e.s.UpdateConfig(e.ctx, model.RadioConfigUpdate{ClearCountries: true}); err != nil {
-		t.Fatal(err)
-	}
+	// The offer is reversible: Germany chosen, the favourite is back.
+	e.apply(model.RadioOfferStep{Op: model.RadioOfferChooseCountry, Country: "DE"})
 	if _, err := e.s.Station(e.ctx, p, de); err != nil {
-		t.Errorf("Bayern 3 with every country admitted: %v", err)
+		t.Errorf("Bayern 3 with Germany chosen: %v", err)
+	}
+	if favs, _ := e.s.Favorites(e.ctx, p); len(favs) != 2 {
+		t.Errorf("favourites with Germany chosen = %+v, want Bayern 3 and the broken one", favs)
 	}
 }
 
@@ -829,21 +845,17 @@ func TestConfigUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.BufferMinutes != 30 || c.BudgetMB != 512 || c.MaxRelays != 10 || c.Countries != nil || c.BufferMode != model.RadioBufferMemory ||
+	if c.BufferMinutes != 30 || c.BudgetMB != 512 || c.MaxRelays != 10 || c.BufferMode != model.RadioBufferMemory ||
 		c.MaxRelaysByBudget != 12 {
 		t.Errorf("defaults = %+v", c)
 	}
-	ten, bad := 10, 20
+	ten, bad, many := 10, 20, 99
 	if c, err := e.s.UpdateConfig(e.ctx, model.RadioConfigUpdate{BufferMinutes: &ten}); err != nil || c.MaxRelaysByBudget != 36 {
 		t.Errorf("10 minutes: %+v %v", c, err)
 	}
 	var verr *model.ValidationError
-	if _, err := e.s.UpdateConfig(e.ctx, model.RadioConfigUpdate{BufferMinutes: &bad, Countries: &[]string{"ch"}}); !errors.As(err, &verr) || len(verr.Fields) != 2 {
+	if _, err := e.s.UpdateConfig(e.ctx, model.RadioConfigUpdate{BufferMinutes: &bad, MaxRelays: &many}); !errors.As(err, &verr) || len(verr.Fields) != 2 {
 		t.Errorf("bad settings: %v", err)
-	}
-	empty := []string{}
-	if c, err := e.s.UpdateConfig(e.ctx, model.RadioConfigUpdate{Countries: &empty}); err != nil || c.Countries != nil {
-		t.Errorf("an empty country list = %+v %v, want every country", c.Countries, err)
 	}
 }
 

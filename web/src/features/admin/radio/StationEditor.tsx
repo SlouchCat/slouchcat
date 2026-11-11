@@ -4,14 +4,11 @@ import { useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
-import { facetValueName, stationPlace } from '@/app/radio/labels';
-import { radioQueryParams } from '@/features/radio/filters';
-import { radioFacetsQuery } from '@/features/radio/queries';
+import { stationPlace } from '@/app/radio/labels';
 import { formatBitrate } from '@/lib/format';
 import { Notice, Skeleton, StationLogo, Text } from '@/ui';
 import {
   AriaButton,
-  CheckboxGroup,
   EditorDialog,
   Form,
   LockToggle,
@@ -32,7 +29,6 @@ import {
   type AdminRadioStation,
   type AdminRadioStationPatch,
 } from '../queries';
-import { KINDS, MOODS } from './facets';
 import { languageCodes } from './languages';
 import styles from './Radio.module.css';
 
@@ -43,12 +39,8 @@ const AUTO_STREAM = 'auto';
 interface Draft {
   name: string;
   region: string;
-  genres: string[];
-  kinds: string[];
-  moods: string[];
   /** A stream's id, or AUTO_STREAM for the ranking. */
   stream: string;
-  hidden: boolean;
   recommended: boolean;
   locks: LockField[];
   /** Own stations only (contract 1.19.0): the stream address, homepage, country, languages. */
@@ -68,11 +60,7 @@ const ownStreamUrl = (station: AdminRadioStation) =>
 const draftOf = (station: AdminRadioStation): Draft => ({
   name: station.name,
   region: station.region ?? '',
-  genres: station.genres,
-  kinds: station.kinds,
-  moods: station.moods,
   stream: preferredOf(station),
-  hidden: station.hidden,
   recommended: station.recommended,
   locks: station.locks,
   streamUrl: ownStreamUrl(station),
@@ -101,18 +89,6 @@ function patchOf(station: AdminRadioStation, draft: Draft): AdminRadioStationPat
     patch.region = region === '' ? null : region;
     locks.add('region');
   }
-  if (!sameSet(draft.genres, station.genres)) {
-    patch.genres = draft.genres;
-    locks.add('genre');
-  }
-  if (!sameSet(draft.kinds, station.kinds)) {
-    patch.kinds = draft.kinds;
-    locks.add('kind');
-  }
-  if (!sameSet(draft.moods, station.moods)) {
-    patch.moods = draft.moods;
-    locks.add('mood');
-  }
   if (draft.stream !== preferredOf(station)) {
     patch.preferredStreamId = draft.stream === AUTO_STREAM ? null : Number(draft.stream);
     if (draft.stream !== AUTO_STREAM) locks.add('stream');
@@ -129,7 +105,6 @@ function patchOf(station: AdminRadioStation, draft: Draft): AdminRadioStationPat
     const languages = languageCodes(draft.languages);
     if (!sameSet(languages, station.languages)) patch.languages = languages;
   }
-  if (draft.hidden !== station.hidden) patch.hidden = draft.hidden;
   if (draft.recommended !== station.recommended) patch.recommended = draft.recommended;
   if (!sameSet([...locks], station.locks)) patch.locks = [...locks];
   return patch;
@@ -141,9 +116,9 @@ interface StationEditorProps {
 }
 
 /**
- * The editor of one station (concept 16, 5.5; `?item=<id>`): name, logo, genre, kind, mood,
- * region and stream, each with its lock as in the metadata editor (concept 15), the stream check,
- * «Empfohlen» and «Ausgeblendet».
+ * The editor of one station (concept 16, 5.5; `?item=<id>`): name, logo, region and stream, each
+ * with its lock as in the metadata editor (concept 15), the stream check and «Empfohlen». Genre,
+ * kind and mood come from the rules file only since contract 1.28.0 (concept 19 part B, B5).
  */
 export function StationEditor({ stationId, onClose }: StationEditorProps) {
   const { t, i18n } = useTranslation();
@@ -179,7 +154,6 @@ function EditorForm({ station }: { station: AdminRadioStation }) {
     setDraft((previous) => ({ ...previous, [key]: value }));
   const patch = patchOf(station, draft);
   const dirty = Object.keys(patch).length > 0;
-  const facets = useQuery(radioFacetsQuery(radioQueryParams({})));
   const file = useRef<HTMLInputElement>(null);
   const [tooLarge, setTooLarge] = useState(false);
 
@@ -237,11 +211,6 @@ function EditorForm({ station }: { station: AdminRadioStation }) {
       {lock(lockField, label)}
     </div>
   );
-  const options = (facet: 'genre' | 'kind' | 'mood', known: readonly string[], chosen: string[]) =>
-    [...new Set([...known, ...chosen])].map((value) => ({
-      value,
-      label: facetValueName(t, facet, value),
-    }));
 
   const result = probe.data;
   return (
@@ -350,40 +319,6 @@ function EditorForm({ station }: { station: AdminRadioStation }) {
       </div>
 
       {field(
-        <CheckboxGroup
-          label={t('admin.radio.editor.genre')}
-          options={options(
-            'genre',
-            (facets.data?.genre ?? []).map((entry) => entry.value),
-            draft.genres,
-          )}
-          value={draft.genres}
-          onChange={(value) => set('genres', value)}
-        />,
-        'genre',
-        t('admin.radio.editor.genre'),
-      )}
-      {field(
-        <CheckboxGroup
-          label={t('admin.radio.editor.kind')}
-          options={options('kind', KINDS, draft.kinds)}
-          value={draft.kinds}
-          onChange={(value) => set('kinds', value)}
-        />,
-        'kind',
-        t('admin.radio.editor.kind'),
-      )}
-      {field(
-        <CheckboxGroup
-          label={t('admin.radio.editor.mood')}
-          options={options('mood', MOODS, draft.moods)}
-          value={draft.moods}
-          onChange={(value) => set('moods', value)}
-        />,
-        'mood',
-        t('admin.radio.editor.mood'),
-      )}
-      {field(
         <TextField
           label={t('admin.radio.editor.region')}
           description={t('admin.radio.editor.regionHelp')}
@@ -448,10 +383,6 @@ function EditorForm({ station }: { station: AdminRadioStation }) {
         {t('admin.radio.editor.recommended')}
       </Switch>
       <Text tone="secondary">{t('admin.radio.editor.recommendedHelp')}</Text>
-      <Switch isSelected={draft.hidden} onChange={(value) => set('hidden', value)}>
-        {t('admin.radio.editor.hidden')}
-      </Switch>
-      <Text tone="secondary">{t('admin.radio.editor.hiddenHelp')}</Text>
 
       {station.tags.length > 0 && (
         <p className={styles.muted}>

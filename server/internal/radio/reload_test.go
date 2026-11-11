@@ -13,7 +13,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 )
 
-// The entry of one station equals its entry in the full load, locks and facets included, and both
+// The entry of one station equals its entry in the full load, facets included, and both
 // carry the best stream of ListRadioStreamsRanked: a worse preferred stream wins only under the lock
 // "stream", and a station without streams has no codec.
 func TestLoadEntryMatchesFullLoad(t *testing.T) {
@@ -35,7 +35,6 @@ func TestLoadEntryMatchesFullLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	locked := 0
 	for _, want := range all {
 		got, err := loadEntries(e.ctx, q, sql.NullInt64{Int64: want.st.ID, Valid: true})
 		if err != nil {
@@ -43,9 +42,6 @@ func TestLoadEntryMatchesFullLoad(t *testing.T) {
 		}
 		if len(got) != 1 || !reflect.DeepEqual(got[0], want) {
 			t.Errorf("station %d: entry %+v, want %+v", want.st.ID, got, want)
-		}
-		if want.locked {
-			locked++
 		}
 		streams, err := q.ListRadioStreamsRanked(e.ctx, want.st.ID)
 		if err != nil {
@@ -62,8 +58,8 @@ func TestLoadEntryMatchesFullLoad(t *testing.T) {
 				streams[0].Codec.String, streams[0].Bitrate.Int64)
 		}
 	}
-	if len(all) == 0 || locked != 2 {
-		t.Errorf("%d stations, %d locked; want some and two", len(all), locked)
+	if len(all) == 0 {
+		t.Error("no station loaded")
 	}
 	if got := codecOf(t, all, lockedPref); got != "OGG" {
 		t.Errorf("preferred stream under the lock: best codec %q, want OGG", got)
@@ -184,22 +180,16 @@ var namedParam = regexp.MustCompile(`@(\w+)`)
 // sqlcArg is a sqlc.arg or sqlc.narg macro, which SQLite reads as the named parameter.
 var sqlcArg = regexp.MustCompile(`sqlc\.n?arg\('(\w+)'\)`)
 
-// BenchmarkAdminStationsLarge measures one page of the admin list (exceptions) over the synthetic
-// catalog of 40,000 stations, every station recommended so the page is full.
+// BenchmarkAdminStationsLarge measures one page of the admin list (the whole catalog) over the
+// synthetic catalog of 50,000 stations.
 // go test ./internal/radio -run '^$' -bench BenchmarkAdminStationsLarge -benchtime 5x
 func BenchmarkAdminStationsLarge(b *testing.B) {
 	e := newCatEnv(b)
 	raw := synthCatalog(50000)
 	e.body.Store(&raw)
 	e.sync()
-	if _, err := e.db.Write.ExecContext(e.ctx, `UPDATE radio_stations SET recommended = 1`); err != nil {
-		b.Fatal(err)
-	}
-	if _, err := e.s.rebuildIndex(e.ctx); err != nil {
-		b.Fatal(err)
-	}
 	for b.Loop() {
-		page, err := e.s.AdminStations(e.ctx, model.AdminRadioQuery{Exceptions: true, Limit: 50})
+		page, err := e.s.AdminStations(e.ctx, model.AdminRadioQuery{Limit: 50})
 		if err != nil || len(page.Items) != 50 {
 			b.Fatalf("page %d items, %v", len(page.Items), err)
 		}

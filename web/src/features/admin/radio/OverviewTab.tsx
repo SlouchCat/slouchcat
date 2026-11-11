@@ -9,7 +9,6 @@ import {
   AriaButton,
   BandPanel,
   ConfirmDialog,
-  CoverageBars,
   StatusRegion,
   StatusStrip,
   afterDialogsClosed,
@@ -23,9 +22,7 @@ import {
   syncRadioCatalog,
   type RadioCatalogState,
   type RadioRelays,
-  type RadioTagRules,
 } from '../queries';
-import { coverageRows } from './TagRulesTab';
 import styles from './Radio.module.css';
 
 type Relay = RadioRelays['relays'][number];
@@ -34,9 +31,6 @@ type Listener = Relay['listeners'][number];
 interface OverviewTabProps {
   catalog: UseQueryResult<RadioCatalogState>;
   relays: UseQueryResult<RadioRelays>;
-  tagRules: UseQueryResult<RadioTagRules>;
-  /** Opens the tab «Einordnung». */
-  onOpenRules: () => void;
   titleRef: RefObject<HTMLHeadingElement | null>;
   /** Told when the stop confirmation opens and closes (the page holds its poll meanwhile). */
   onConfirmOpenChange: (open: boolean) => void;
@@ -53,18 +47,11 @@ const relayTone = {
 } as const;
 
 /**
- * «Übersicht» (concept 16, 11): the catalog and its sync, the coverage per facet with the tags
- * that wait for a rule, the running relays with their listeners (each one can be stopped) and the
- * server load.
+ * «Übersicht» (concept 16, 11): the catalog and its sync, the running relays with their listeners
+ * (each one can be stopped) and the server load. The coverage of the tag rules is gone with them
+ * (contract 1.28.0, concept 19 part B, B5).
  */
-export function OverviewTab({
-  catalog,
-  relays,
-  tagRules,
-  onOpenRules,
-  titleRef,
-  onConfirmOpenChange,
-}: OverviewTabProps) {
+export function OverviewTab({ catalog, relays, titleRef, onConfirmOpenChange }: OverviewTabProps) {
   const { t, i18n } = useTranslation();
   const language = i18n.language;
   const number = useMemo(() => new Intl.NumberFormat(language), [language]);
@@ -158,30 +145,6 @@ export function OverviewTab({
               <Text tone="secondary">{t('admin.radio.catalog.running')}</Text>
             )}
             <TextLink href={paths.adminJobs}>{t('admin.radio.catalog.jobs')}</TextLink>
-          </>
-        ) : null}
-      </BandPanel>
-
-      <BandPanel
-        title={t('admin.radio.rules.title')}
-        icon="list"
-        meta={<AriaButton onPress={onOpenRules}>{t('admin.radio.rules.open')}</AriaButton>}
-      >
-        {tagRules.isPending ? (
-          <Skeleton shape="block" />
-        ) : tagRules.isError ? (
-          <Notice tone="danger" title={problemMessage(t, tagRules.error)} />
-        ) : tagRules.data ? (
-          <>
-            <CoverageBars
-              label={t('admin.radio.rules.coverage')}
-              rows={coverageRows(t, language, tagRules.data.coverage)}
-            />
-            <p className={styles.muted} data-testid="radio-open-tags">
-              {tagRules.data.worklist.length > 0
-                ? t('admin.radio.rules.unassigned', { count: tagRules.data.worklist.length })
-                : t('admin.radio.rules.worklistEmpty')}
-            </p>
           </>
         ) : null}
       </BandPanel>

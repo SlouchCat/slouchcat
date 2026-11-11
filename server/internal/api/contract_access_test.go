@@ -380,19 +380,20 @@ var adminRegistry = map[string]adminCall{
 	"deleteAnnouncement":     {contract: "DELETE /admin/announcements/{id}", path: "/admin/announcements/9999", ownerStatus: http.StatusNotFound},
 	"publishAnnouncement":    {contract: "POST /admin/announcements/{id}/publish", path: "/admin/announcements/9999/publish", ownerStatus: http.StatusNotFound},
 	// Webradio (concept 16 stage 1, contract 1.17.0): the real radio service of the fixture on the
-	// stations of vistest.AddRadio. The administration sees the hidden station; ids it does not
-	// have answer 404; the fixture stations have no logo.
+	// stations of vistest.AddRadio. The administration sees the demarked station; ids it does not
+	// have answer 404; the fixture stations have no logo. The body of an administration of 1.26 with
+	// countries is TestRadioConfigIgnoresTheOldCountries.
 	"getRadioConfig": {contract: "GET /admin/radio/config", path: "/admin/radio/config", ownerStatus: http.StatusOK},
-	"updateRadioConfig": {contract: "PATCH /admin/radio/config", path: "/admin/radio/config", body: `{"countries":null}`,
+	"updateRadioConfig": {contract: "PATCH /admin/radio/config", path: "/admin/radio/config", body: `{"graceSeconds":120}`,
 		ownerStatus: http.StatusOK},
 	"getRadioCatalog":  {contract: "GET /admin/radio/catalog", path: "/admin/radio/catalog", ownerStatus: http.StatusOK},
 	"syncRadioCatalog": {contract: "POST /admin/radio/catalog/sync", path: "/admin/radio/catalog/sync", ownerStatus: http.StatusAccepted},
-	"listAdminRadioStations": {contract: "GET /admin/radio/stations", path: "/admin/radio/stations?exceptions=false",
+	"listAdminRadioStations": {contract: "GET /admin/radio/stations", path: "/admin/radio/stations?offered=false&state=noLogo&sort=name",
 		ownerStatus: http.StatusOK},
 	"getAdminRadioStation": {contract: "GET /admin/radio/stations/{stationId}", path: "/admin/radio/stations/" + radioHidden,
 		ownerStatus: http.StatusOK},
 	"updateAdminRadioStation": {contract: "PATCH /admin/radio/stations/{stationId}", path: "/admin/radio/stations/9999",
-		body: `{"hidden":true,"region":null}`, ownerStatus: http.StatusNotFound},
+		body: `{"recommended":true,"region":null}`, ownerStatus: http.StatusNotFound},
 	"probeRadioStation": {contract: "POST /admin/radio/stations/{stationId}/probe", path: "/admin/radio/stations/9999/probe",
 		body: `{}`, ownerStatus: http.StatusNotFound},
 	"uploadRadioStationLogo": {contract: "PUT /admin/radio/stations/{stationId}/logo", path: "/admin/radio/stations/9999/logo",
@@ -411,9 +412,16 @@ var adminRegistry = map[string]adminCall{
 		body: `{"name":"Lokal","streamUrl":"http://192.168.1.10:8000/stream"}`, ownerStatus: http.StatusUnprocessableEntity},
 	"deleteRadioStation": {contract: "DELETE /admin/radio/stations/{stationId}", path: "/admin/radio/stations/9999",
 		ownerStatus: http.StatusNotFound},
-	"getRadioTagRules": {contract: "GET /admin/radio/tag-rules", path: "/admin/radio/tag-rules", ownerStatus: http.StatusOK},
-	"setRadioTagRules": {contract: "PUT /admin/radio/tag-rules", path: "/admin/radio/tag-rules",
-		body: `{"rules":[{"tag":"80s","facet":"genre","value":"no-such-genre"}]}`, ownerStatus: http.StatusUnprocessableEntity},
+	// Concept 19 part B (contract 1.28.0): the offer. The preview stores nothing; the apply of version
+	// 0 (the fixture's) runs on a fresh fixture because it stores the offer.
+	"getRadioOffer": {contract: "GET /admin/radio/offer", path: "/admin/radio/offer", ownerStatus: http.StatusOK},
+	"previewRadioOffer": {contract: "POST /admin/radio/offer/preview", path: "/admin/radio/offer/preview",
+		body: `{"steps":[{"op":"chooseCountry","country":"FR"},{"op":"demarkMatching","country":"CH","q":"broken"},` +
+			`{"op":"mark","stationIds":[9003]},{"op":"setHideBroken","value":false}],"list":{"country":"CH","q":"fixture","limit":10}}`,
+		ownerStatus: http.StatusOK},
+	"applyRadioOffer": {contract: "POST /admin/radio/offer/apply", path: "/admin/radio/offer/apply",
+		body:        `{"version":0,"steps":[{"op":"chooseCountry","country":"FR"},{"op":"demarkUnreachable"}]}`,
+		ownerStatus: http.StatusOK, fresh: true},
 }
 
 // Fixed ids of the vistest fixture (vistest.addMovie: "01J9000000000000000000R0" + label).

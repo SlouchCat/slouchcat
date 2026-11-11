@@ -57,28 +57,30 @@ func TestIndexFacetCountsIgnoreOwnSelection(t *testing.T) {
 	}
 }
 
-// A hidden station is never listed, counted or found, and its page answers 404.
-func TestIndexHiddenNeverListed(t *testing.T) {
+// A station outside the offer (demarked) is never listed, counted or found, and its page answers
+// 404; the administration lists it with offered false.
+func TestIndexDemarkedNeverListed(t *testing.T) {
 	e := newCatEnv(t)
 	e.sync()
 	id := e.stationID("FIP")
-	yes := true
-	if _, err := e.s.UpdateStation(e.ctx, id, model.AdminRadioStationPatch{Hidden: &yes}); err != nil {
-		t.Fatal(err)
-	}
+	e.apply(model.RadioOfferStep{Op: model.RadioOfferDemark, StationIDs: []int64{id}})
 	if got := e.list(model.RadioQuery{RadioFilter: model.RadioFilter{Q: "fip"}}); len(got) != 0 {
-		t.Errorf("search finds the hidden station: %v", got)
+		t.Errorf("search finds the demarked station: %v", got)
 	}
 	f, err := e.s.Facets(e.ctx, catSession(1), model.RadioQuery{RadioFilter: model.RadioFilter{Q: "fip"}})
 	if err != nil || len(f.Countries) != 0 {
-		t.Errorf("facets of the hidden station: %+v %v", f.Countries, err)
+		t.Errorf("facets of the demarked station: %+v %v", f.Countries, err)
 	}
 	if _, err := e.s.Station(e.ctx, catSession(1), id); !errors.Is(err, model.ErrNotFound) {
-		t.Errorf("hidden station: %v", err)
+		t.Errorf("demarked station: %v", err)
 	}
-	page, err := e.s.AdminStations(e.ctx, model.AdminRadioQuery{State: "hidden", Exceptions: true, Limit: 50})
-	if err != nil || page.Total != 1 || page.Items[0].ID != id || !page.Items[0].Hidden {
-		t.Errorf("admin hidden list = %+v %v", page, err)
+	page, err := e.s.AdminStations(e.ctx, model.AdminRadioQuery{Q: "fip", Offered: true, Limit: 50})
+	if err != nil || page.Total != 0 {
+		t.Errorf("admin list of the offer = %+v %v", page, err)
+	}
+	page, err = e.s.AdminStations(e.ctx, model.AdminRadioQuery{Q: "fip", Offered: false, Limit: 50})
+	if err != nil || page.Total != 1 || page.Items[0].ID != id || page.Items[0].Offered {
+		t.Errorf("admin list of the catalog = %+v %v", page, err)
 	}
 }
 

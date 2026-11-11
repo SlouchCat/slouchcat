@@ -136,7 +136,8 @@ func (e *relayEnv) exec(query string, args ...any) {
 	}
 }
 
-// addStation inserts a station with one stream per URL (codec and bitrate as the catalog says).
+// addStation inserts a station with one stream per URL (codec and bitrate as the catalog says),
+// marked into the offer (B4.1), so a profile reaches it whatever its country.
 func (e *relayEnv) addStation(name, country, codec string, bitrate int, urls ...string) int64 {
 	e.t.Helper()
 	res, err := e.f.DB.Write.Exec(`INSERT INTO radio_stations (group_key, name, sort_key, search_text, country, created_at, updated_at)
@@ -148,7 +149,17 @@ func (e *relayEnv) addStation(name, country, codec string, bitrate int, urls ...
 	for _, u := range urls {
 		e.exec(`INSERT INTO radio_streams (station_id, url, codec, bitrate, updated_at) VALUES (?, ?, ?, ?, 1)`, id, u, codec, bitrate)
 	}
+	e.setOffered(id, true)
 	return id
+}
+
+// setOffered gives a station the exception offered and drops the snapshot, so the next request
+// reads the offer again.
+func (e *relayEnv) setOffered(id int64, offered bool) {
+	e.t.Helper()
+	e.exec(`INSERT INTO radio_offer_exceptions (station_id, offered, updated_at) VALUES (?, ?, 1)
+	        ON CONFLICT (station_id) DO UPDATE SET offered = excluded.offered`, id, offered)
+	e.s.cat.offer.Store(nil)
 }
 
 func (e *relayEnv) listen(p model.Profile, stationID int64) (model.Session, model.RadioListen) {

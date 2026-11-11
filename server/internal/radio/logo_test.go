@@ -6,19 +6,27 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/netguard"
 	"github.com/slouchcat/slouchcat/server/internal/radio/radiotest"
+	"github.com/slouchcat/slouchcat/server/internal/ratelimit"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 )
 
@@ -121,13 +129,12 @@ func TestLogoChainFavicon(t *testing.T) {
 	if _, err := e.s.Image(context.Background(), id, "logo", "w128", false, false); !errors.Is(err, model.ErrNotFound) {
 		t.Fatalf("unknown size: %v", err)
 	}
-	e.exec(`UPDATE radio_stations SET hidden = 1 WHERE id = ?`, id)
-	e.s.reloadStation(context.Background(), id) // the index view decides visibility (M-5)
+	e.setOffered(id, false) // the offer decides visibility (B4.2)
 	if _, err := e.s.Image(context.Background(), id, "logo", "w96", true, false); !errors.Is(err, model.ErrNotFound) {
-		t.Fatalf("logo of a hidden station for a viewer: %v", err)
+		t.Fatalf("logo of a station outside the offer for a viewer: %v", err)
 	}
 	if src, err := e.s.Image(context.Background(), id, "logo", "w96", true, true); err != nil {
-		t.Fatalf("logo of a hidden station for the administration: %v", err)
+		t.Fatalf("logo of a station outside the offer for the administration: %v", err)
 	} else {
 		_ = src.File.Close()
 	}
@@ -284,6 +291,8 @@ func TestOwnLogoWins(t *testing.T) {
 	}
 }
 
+// The sync prefetches the logos of the stations it founded in the offer, of the favourites and of
+// the recommended ones in the offer, favourites first (B7.2); nothing outside the offer.
 func TestLogoJobTypeAndSyncPrefetch(t *testing.T) {
 	e := newLogoEnv(t)
 	jt := e.s.logoJobType()
@@ -295,16 +304,153 @@ func TestLogoJobTypeAndSyncPrefetch(t *testing.T) {
 	fav := e.addStation("Fav FM", "CH", "MP3", 128)
 	rec := e.addStation("Rec FM", "CH", "MP3", 128)
 	other := e.addStation("Other FM", "CH", "MP3", 128)
-	e.exec(`INSERT INTO radio_favorites (profile_id, station_id, position, created_at) VALUES (?, ?, 1, 1)`, e.f.P6.ID, fav)
-	e.exec(`UPDATE radio_stations SET recommended = 1 WHERE id = ?`, rec)
-	e.s.queueSyncLogos(context.Background())
-	for id, want := range map[int64]string{fav: "queued", rec: "queued", other: logoStateNone} {
+	created := e.addStation("New FM", "CH", "MP3", 128)
+	createdOut := e.addStation("New Out FM", "CH", "MP3", 128)
+	favOut := e.addStation("Fav Out FM", "CH", "MP3", 128)
+	recOut := e.addStation("Rec Out FM", "CH", "MP3", 128)
+	for _, id := range []int64{createdOut, favOut, recOut} {
+		e.setOffered(id, false)
+	}
+	e.exec(`INSERT INTO radio_favorites (profile_id, station_id, position, created_at) VALUES (?, ?, 1, 1), (?, ?, 2, 1)`,
+		e.f.P6.ID, fav, e.f.P6.ID, favOut)
+	e.exec(`UPDATE radio_stations SET recommended = 1 WHERE id IN (?, ?)`, rec, recOut)
+	e.exec(`UPDATE radio_stations SET votes = 100 WHERE id = ?`, created) // popular, still after the favourite
+	e.s.queueSyncLogos(context.Background(), []int64{created, createdOut})
+	for id, want := range map[int64]string{fav: "queued", rec: "queued", created: "queued", other: logoStateNone,
+		createdOut: logoStateNone, favOut: logoStateNone, recOut: logoStateNone} {
 		if st := e.stationRow(id); st.LogoState != want {
 			t.Errorf("station %d: logo state %q, want %q", id, st.LogoState, want)
 		}
 	}
-	var n int
-	if err := e.f.DB.Read.QueryRow(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key LIKE 'radio.logo:%'`, JobLogoFetch).Scan(&n); err != nil || n != 2 {
-		t.Fatalf("%d logo jobs queued (%v), want 2", n, err)
+	rows, err := e.f.DB.Read.Query(`SELECT idempotency_key FROM jobs WHERE type = ? ORDER BY id`, JobLogoFetch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var keys []string
+	for rows.Next() {
+		var k string
+		if err := rows.Scan(&k); err != nil {
+			t.Fatal(err)
+		}
+		keys = append(keys, k)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{fmt.Sprintf("radio.logo:%d", fav), fmt.Sprintf("radio.logo:%d", created), fmt.Sprintf("radio.logo:%d", rec)}
+	if !slices.Equal(keys, want) {
+		t.Fatalf("logo jobs %v, want %v (favourite, then by popularity)", keys, want)
+	}
+}
+
+// PB-5: 77 logo jobs of one host never fetch at the same time, whatever the workers: a job whose
+// host is taken goes back to the queue (jobs.RetryLater) instead of waiting, so a scan job is
+// taken at once while a logo job holds the host. The drossel of all logo jobs is lifted here; the
+// test is about the lock.
+func TestLogoJobsOneAtATimePerHost(t *testing.T) {
+	e := newLogoEnv(t)
+	e.s.logo.limiter = ratelimit.New("radio-logo-test", 1000, 1000)
+	e.s.logo.hostRetry = time.Millisecond
+	var cur, peak, fetched atomic.Int32
+	holding := make(chan struct{})
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := cur.Add(1)
+		defer cur.Add(-1)
+		for p := peak.Load(); n > p && !peak.CompareAndSwap(p, n); p = peak.Load() {
+		}
+		fetched.Add(1)
+		if r.URL.Path == "/first.png" {
+			close(holding)
+			<-release
+		}
+		time.Sleep(time.Millisecond)
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	ids := make([]int64, 0, 77)
+	for i := range 77 {
+		id := e.addStation(fmt.Sprintf("Kanal %02d", i), "CH", "MP3", 128)
+		path := fmt.Sprintf("/logo-%02d.png", i)
+		if i == 0 {
+			path = "/first.png"
+		}
+		e.exec(`UPDATE radio_stations SET favicon_url = ? WHERE id = ?`, srv.URL+path, id)
+		ids = append(ids, id)
+	}
+	q := e.s.o.queue
+	if n := e.s.queueLogos(context.Background(), ids); n != 77 {
+		t.Fatalf("queued %d logo jobs, want 77", n)
+	}
+	scanned := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	for _, name := range []string{"w1", "w2"} {
+		w := jobs.NewWorker(q, name, testLogger())
+		w.Handle(JobLogoFetch, e.s.handleLogo)
+		w.Handle("test.scan", func(context.Context, *jobs.Job) error { close(scanned); return nil })
+		wg.Go(func() { w.Run(ctx) })
+	}
+	t.Cleanup(func() { cancel(); wg.Wait() })
+	select {
+	case <-holding:
+	case <-time.After(10 * time.Second):
+		t.Fatal("no logo job fetched the first logo")
+	}
+	if _, err := q.Enqueue(context.Background(), jobs.NewJob{Type: "test.scan", Priority: 9, Payload: []byte(`{}`)}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-scanned:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the scan job waited behind the logo jobs of one host")
+	}
+	if n := fetched.Load(); n != 1 {
+		t.Errorf("%d fetches while the first job held the host, want 1", n)
+	}
+	close(release)
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		var open int
+		if err := e.f.DB.Read.QueryRow(`SELECT count(*) FROM jobs WHERE type = ? AND state <> 'done'`, JobLogoFetch).Scan(&open); err != nil {
+			t.Fatal(err)
+		}
+		if open == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("%d logo jobs still open", open)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if fetched.Load() != 77 || peak.Load() != 1 {
+		t.Errorf("%d fetches, at most %d at a time; want 77, one at a time", fetched.Load(), peak.Load())
+	}
+	for _, id := range ids {
+		if st := e.stationRow(id); st.LogoState != logoStateFailed {
+			t.Fatalf("station %d: logo state %q, want failed (404)", id, st.LogoState)
+		}
+	}
+}
+
+// The logo job takes the hosts of the catalog's logo address and of the homepage before a
+// redirect; a host taken by one job sends the next job back (B7.2).
+func TestLogoHostLock(t *testing.T) {
+	t.Parallel()
+	if got := logoHosts("https://Radio.Example/a.png", "https://radio.example/", "http://other.example/", "", "%zz"); !slices.Equal(got,
+		[]string{"radio.example", "other.example"}) {
+		t.Errorf("hosts %v", got)
+	}
+	l := newLogoState()
+	if !l.lockHosts([]string{"a.example", "b.example"}) || l.lockHosts([]string{"b.example"}) || !l.lockHosts([]string{"c.example"}) {
+		t.Fatal("locks of a taken and a free host")
+	}
+	l.unlockHosts([]string{"a.example", "b.example"})
+	if !l.lockHosts([]string{"b.example"}) {
+		t.Error("a host given back is still taken")
+	}
+	if l.limiter == nil || l.hostRetry != 15*time.Second {
+		t.Errorf("limiter %v, retry %v", l.limiter, l.hostRetry)
 	}
 }

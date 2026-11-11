@@ -26,8 +26,8 @@ import {
 import { CreateStationDialog } from './CreateStationDialog';
 import styles from './Radio.module.css';
 
-/** Every own station: they are exceptions by nature (contract 1.19.0, `source=own`). */
-const OWN = { source: 'own', exceptions: false } as const;
+/** Every own station, in the offer or not (contract 1.19.0, `source=own`). */
+const OWN = { source: 'own', offered: false } as const;
 
 interface OwnStationsTabProps {
   /** Opens the editor of a station (`?item=`). */

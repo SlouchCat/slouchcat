@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.26.0
+  version: 1.28.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -77,6 +77,15 @@ info:
     Quellen» reads and changes the server-wide settings (`getAudiobookSources`,
     `updateAudiobookSources`), matches every book without match (`matchAllAudiobooks`) and lists
     the books to review (`listAudiobookReview`).
+
+    Radio offer (concept 19 part B stage B1, contract 1.28.0; breaking for the administration,
+    additive for the app): the app shows only the stations of the offer, the chosen countries with
+    the mode «all» or «marked» and the exceptions per station (`getRadioOffer`, `previewRadioOffer`,
+    `applyRadioOffer`); the administration still sees the whole catalog. The tag rules
+    (`getRadioTagRules`, `setRadioTagRules`), the filter values set by hand, the hidden flag and the
+    settings `countries` and `hideBroken` of `updateRadioConfig` are gone; `hideBroken` belongs to the
+    offer. The app gets `RadioPreferences.effectiveCountry`, `RadioStation.provider` and
+    `RadioFacets.offerEmpty`.
 
     Offline (M5): a profile downloads movies, episodes and seasons to its device (`createDownloads`). The
     server prepares a fragmented MP4 per title in the background; the device fetches it through
@@ -8115,7 +8124,7 @@ paths:
                 $ref: "#/components/schemas/Problem"
 
   # Webradio, concept 16 stage 1 (contract 1.17.0, ADR 0025). No radio response carries an ItemRef;
-  # a station the profile may not reach (hidden, country excluded by the setting) answers 404.
+  # a station the profile may not reach (outside the offer since contract 1.28.0) answers 404.
   /radio/stations:
     get:
       operationId: listRadioStations
@@ -8127,9 +8136,8 @@ paths:
         OR. `q` searches the folded name, region and tags. `titles` keeps the stations whose stream
         shows titles, `favorites` the favourites of the active profile. `sort`: `popular` (votes and
         clicks of the catalog, the default), `name` (sort key of the name), `quality` (`high` first,
-        then bitrate), `new` (newest station first). Hidden stations, stations of a country the
-        administration excludes (`RadioConfig.countries`) and, while `RadioConfig.hideBroken` is on,
-        broken stations are never listed. Stations missing from the catalog are listed with
+        then bitrate), `new` (newest station first). Since contract 1.28.0 only the stations of the
+        offer are listed (`getRadioOffer`), and while its switch `hideBroken` is on, broken ones are not. Stations missing from the catalog are listed with
         `state: missing` until they are removed. Before the first sync the list answers 503
         `radio_catalog_loading`.
       tags: [radio]
@@ -8191,8 +8199,8 @@ paths:
         Since contract 1.17.0. The values of every filter with the number of stations each would give
         under the other filters of the request: the counts of one facet ignore the selection of that
         same facet, so the client can offer every value that still has hits. `titles` is the number of
-        stations that show titles. Same rules as `listRadioStations` for hidden, excluded and broken
-        stations. Before the first sync 503 `radio_catalog_loading`.
+        stations that show titles. Same rules as `listRadioStations` for the offer and broken stations.
+        Before the first sync 503 `radio_catalog_loading`.
       tags: [radio]
       x-visibility: scoped
       parameters:
@@ -8229,8 +8237,9 @@ paths:
       operationId: getRadioStation
       summary: One radio station (contract 1.17.0)
       description: |
-        Since contract 1.17.0. A broken station answers 200 with `state: broken` also while
-        `RadioConfig.hideBroken` hides it from the lists, so a favourite still opens.
+        Since contract 1.17.0. A broken station answers 200 with `state: broken` also while the switch
+        `hideBroken` of the offer hides it from the lists, so a favourite still opens. A station outside
+        the offer answers 404.
       tags: [radio]
       x-visibility: scoped
       parameters:
@@ -8252,8 +8261,8 @@ paths:
       operationId: listRadioFavorites
       summary: The favourite stations of the active profile in its order (contract 1.17.0)
       description: |
-        Since contract 1.17.0. Broken and missing favourites are listed with their `state`; a hidden
-        station and one of an excluded country are left out. A station removed from the catalog takes
+        Since contract 1.17.0. Broken and missing favourites are listed with their `state`; a station
+        outside the offer is left out and comes back when it is offered again. A station removed from the catalog takes
         its favourite marks with it (F-18).
       tags: [radio]
       x-visibility: scoped
@@ -8650,7 +8659,7 @@ paths:
         (section 6 of concept 16), scaled to a square. WebP when `Accept` lists `image/webp`, PNG otherwise
         (`Vary: Accept`); `Cache-Control: private, max-age=31536000, immutable`, `v` is the content hash
         (`RadioStation.logo.url` carries it). A station without a logo answers 404; the client shows
-        the initials. A hidden station or one of an excluded country answers 404.
+        the initials. A station outside the offer answers 404.
       tags: [radio]
       x-visibility: scoped
       parameters:
@@ -8678,7 +8687,7 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "404":
-          description: Unknown, hidden or excluded station, or no image of this kind (`not_found`).
+          description: Unknown station, one outside the offer, or no image of this kind (`not_found`).
           content:
             application/problem+json:
               schema:
@@ -8760,12 +8769,13 @@ paths:
       operationId: updateRadioConfig
       summary: Change radio settings (contract 1.17.0)
       description: |
-        Since contract 1.17.0. Absent fields keep their value; `countries: null` admits every country
-        again. `bufferMinutes`, `budgetMb` and `maxRelays` apply to new relays only: running relays keep
-        their window and reservation until they stop, and a lower budget or maximum never stops a running
-        relay, it only refuses new ones until the running total fits. `graceSeconds`, `hideBroken` and
-        `countries` apply at once; open listen sessions of a station that a new `countries` excludes play
-        on until they end.
+        Since contract 1.17.0. Absent fields keep their value. `bufferMinutes`, `budgetMb` and `maxRelays`
+        apply to new relays only: running relays keep their window and reservation until they stop, and a
+        lower budget or maximum never stops a running relay, it only refuses new ones until the running
+        total fits. `graceSeconds` applies at once. Since contract 1.28.0 (breaking) the fields
+        `countries` and `hideBroken` are gone: the offer replaces them (`applyRadioOffer`). A body of an
+        older administration that still names them is answered 200 and changes nothing of the offer,
+        because the server ignores fields the schema does not name.
       tags: [admin]
       x-visibility: admin
       requestBody:
@@ -8837,11 +8847,13 @@ paths:
       operationId: listAdminRadioStations
       summary: Radio stations for the administration (contract 1.17.0)
       description: |
-        Since contract 1.17.0. Unfiltered by the viewer rules: hidden, broken and excluded stations are
-        listed. `exceptions` (default true) keeps the stations the administration changed (a lock),
-        hid, recommended and the broken ones; `exceptions=false` lists every station. `state` narrows to
-        `reachable`, `broken` or `hidden`. `source` (since contract 1.19.0) narrows to catalog or own
-        stations (tab «Eigene Sender»); own stations count as exceptions.
+        Since contract 1.17.0. Unfiltered by the viewer rules. Since contract 1.28.0 (breaking):
+        `offered` (default true) lists the stations of the stored offer, `offered=false` the whole
+        catalog; `provider` narrows to one provider (exact), `state` to `reachable`, `broken` or
+        `noLogo` (no logo in the cache); `sort` orders by `popularity` (votes and clicks of the catalog,
+        the default) or `name`. The parameters `genre` and `exceptions` and the state `hidden` are gone.
+        `source` (since contract 1.19.0) narrows to catalog or own stations (tab «Eigene Sender»). The
+        list never queues a logo.
       tags: [admin]
       x-visibility: admin
       parameters:
@@ -8862,24 +8874,31 @@ paths:
           schema:
             type: string
             pattern: "^[A-Z]{2}$"
-        - name: genre
+        - name: provider
           in: query
           required: false
           schema:
             type: string
-            maxLength: 40
+            maxLength: 253
         - name: state
           in: query
           required: false
           schema:
             type: string
-            enum: [reachable, broken, hidden]
-        - name: exceptions
+            enum: [reachable, broken, noLogo]
+        - name: offered
           in: query
           required: false
           schema:
             type: boolean
             default: true
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [popularity, name]
+            default: popularity
         - name: offset
           in: query
           required: false
@@ -8918,10 +8937,12 @@ paths:
       description: |
         Since contract 1.19.0 (concept 16 section 5.6). A station the catalog lacks: name and stream
         address (a direct stream or a `.pls`/`.m3u`/HLS list, resolved when it plays), optionally
-        homepage, country, region and facets. The sync never touches it. The stream address and the
+        homepage, country, region and languages. The sync never touches it. The stream address and the
         homepage must be `http` or `https` and must not resolve to an address of the local network
-        (F-15): `streamUrl` or `homepage` `local_address`. The facets given lock themselves like a
-        `PATCH`; the logo follows the chain of section 6 (upload with `uploadRadioStationLogo`).
+        (F-15): `streamUrl` or `homepage` `local_address`. Since contract 1.28.0 the filter values
+        derive from the name through the rules file (no `genres`, `kinds`, `moods`); an own station is
+        in the offer unless the administration demarks it. The logo follows the chain of section 6
+        (upload with `uploadRadioStationLogo`).
       tags: [admin]
       x-visibility: admin
       requestBody:
@@ -8945,7 +8966,7 @@ paths:
           description: |
             A value is invalid (`validation_failed`): `name` outside 1..200 characters, `streamUrl` or
             `homepage` not `http`/`https` (`invalid_value`) or local (`local_address`), an unknown
-            country, region or facet value.
+            country or region.
           content:
             application/problem+json:
               schema:
@@ -8954,8 +8975,8 @@ paths:
   /admin/radio/stations/{stationId}:
     get:
       operationId: getAdminRadioStation
-      summary: One radio station with streams, tags, facets and locks (contract 1.17.0)
-      description: Since contract 1.17.0. Also for hidden and excluded stations.
+      summary: One radio station with streams, tags and locks (contract 1.17.0)
+      description: Since contract 1.17.0. Also for stations outside the offer (`offered` false).
       tags: [admin]
       x-visibility: admin
       parameters:
@@ -8982,10 +9003,12 @@ paths:
       summary: Change a radio station (contract 1.17.0)
       description: |
         Since contract 1.17.0 (concept 16 section 5.5). Absent fields keep their value. A field that is
-        set locks itself (`locks` gains `name`, `region`, `genre`, `kind`, `mood` or `stream`), so the
-        daily sync never overwrites it; `locks` replaces the set of locks, so removing a name gives the
-        field back to the catalog at the next sync. `region: null` clears the region,
-        `preferredStreamId: null` returns to the ranking. `hidden` and `recommended` are marks, not locks.
+        set locks itself (`locks` gains `name`, `region` or `stream`), so the daily sync never overwrites
+        it; `locks` replaces the set of locks, so removing a name gives the field back to the catalog at
+        the next sync. `region: null` clears the region, `preferredStreamId: null` returns to the
+        ranking. `recommended` is a mark, not a lock. Since contract 1.28.0 (breaking) `genres`, `kinds`,
+        `moods` and `hidden` are gone: the filter values derive from the rules file, and a station
+        leaves the offer through `applyRadioOffer` (step `demark`).
       tags: [admin]
       x-visibility: admin
       parameters:
@@ -9015,8 +9038,7 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "422":
           description: |
-            A value is invalid (`validation_failed`): an unknown facet value, a stream of another station,
-            an unknown lock name, a name outside 1..200 characters or a region that is no ISO 3166-2 code;
+            A value is invalid (`validation_failed`): a stream of another station, an unknown lock name, a name outside 1..200 characters or a region that is no ISO 3166-2 code;
             since contract 1.19.0 `streamUrl`, `homepage` or `country` on a catalog station (`not_own`)
             and a local stream address or homepage (`local_address`).
           content:
@@ -9028,7 +9050,8 @@ paths:
       summary: Delete an own radio station (contract 1.19.0)
       description: |
         Since contract 1.19.0. Only own stations (`source` `own`); its favourites, listen sessions and
-        logo go with it, a running relay ends. A catalog station can only be hidden (`hidden`).
+        logo go with it, a running relay ends. A catalog station can only leave the offer
+        (`applyRadioOffer`, step `demark`).
       tags: [admin]
       x-visibility: admin
       parameters:
@@ -9179,8 +9202,9 @@ paths:
       operationId: getAdminRadioImage
       summary: Logo of any radio station for the administration (binary, contract 1.17.0)
       description: |
-        Since contract 1.17.0. Implemented as an `http.Handler`; like `getRadioImage`, but also for hidden
-        stations and those of an excluded country. `id` is the station id.
+        Since contract 1.17.0. Implemented as an `http.Handler`; like `getRadioImage`, but also for
+        stations outside the offer. `id` is the station id. It only reads the cache: it never queues a
+        logo (contract 1.28.0).
       tags: [admin]
       x-visibility: admin
       parameters:
@@ -9216,39 +9240,43 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
-  /admin/radio/tag-rules:
+  /admin/radio/offer:
     get:
-      operationId: getRadioTagRules
-      summary: Tag rules, worklist and coverage of the radio facets (contract 1.19.0)
+      operationId: getRadioOffer
+      summary: The stored radio offer (contract 1.28.0)
       description: |
-        Since contract 1.19.0 (concept 16 sections 5.4 and 11, tab «Einordnung»). `rules` lists the
-        effective rules «tag → facet value»: the embedded defaults and the administration's rules,
-        which override a default per tag and facet (`value` null: the tag gives that facet nothing) or
-        take a tag off the worklist (`facet` `ignore`). `worklist` lists the tags of at least
-        `worklistMinStations` stations that no rule maps, neither as a whole nor by one of their
-        words, most stations first; `openTags` counts those with more than 50 stations (the status
-        strip). `coverage` counts the reachable, shown stations with a value per facet; a kind counts
-        only when a tag, the name or the administration set it, not the default «music».
+        Since contract 1.28.0 (concept 19 part B, B4). The offer is the set of stations the app shows:
+        the chosen countries with their mode (`all`: every station of the country, new ones included;
+        `marked`: only marked ones) and the exceptions per station (marked or demarked, whatever the
+        country). A station is offered when, in this order: it is demarked (no), marked (yes), an own
+        station (yes), of a country with `all` (yes); else no. `countries` lists every country with
+        stations in the catalog and a continent, and every chosen one; `total` counts the catalog
+        stations of the country (unreachable ones included, own ones not), `offered` those of them in
+        the offer, `unreachable` those in the offer and unreachable. `version` is the number of the
+        stored offer, which `applyRadioOffer` expects.
       tags: [admin]
       x-visibility: admin
       responses:
         "200":
-          description: The rules.
+          description: The offer.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RadioTagRules"
+                $ref: "#/components/schemas/RadioOffer"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/AdminOnly"
-    put:
-      operationId: setRadioTagRules
-      summary: Replace the administration's tag rules (contract 1.19.0)
+
+  /admin/radio/offer/preview:
+    post:
+      operationId: previewRadioOffer
+      summary: Compute steps on the stored offer without storing them (contract 1.28.0)
       description: |
-        Since contract 1.19.0. The complete list of the administration's rules; a rule left out goes, so
-        its tag falls back to the default. The rules apply at once to every station with the tag (facets
-        the administration set by hand keep their values); the answer is the state after that.
+        Since contract 1.28.0 (B4.3). Applies `steps` in their order to a copy of the stored offer and
+        answers the result: the totals, the difference to the stored offer (`diff`), every country and,
+        with `list`, one page of the catalog stations of a country as the draft has them (by popularity,
+        then name; `q` filters like the search of the list). Nothing is stored, nothing is queued.
       tags: [admin]
       x-visibility: admin
       requestBody:
@@ -9256,22 +9284,64 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/RadioTagRulesUpdate"
+              $ref: "#/components/schemas/RadioOfferPreviewRequest"
       responses:
         "200":
-          description: The rules after the change.
+          description: The draft.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RadioTagRules"
+                $ref: "#/components/schemas/RadioOfferPreview"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/AdminOnly"
         "422":
-          description: |
-            A rule is invalid (`validation_failed`, field `rules`): an empty tag, a tag twice for one
-            facet, an unknown value of its facet, a value with `ignore` (`invalid_value`).
+          description: A step or the list is invalid (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/radio/offer/apply:
+    post:
+      operationId: applyRadioOffer
+      summary: Store steps on the offer (contract 1.28.0)
+      description: |
+        Since contract 1.28.0 (B4.3). Applies `steps` like `previewRadioOffer` and stores the result in
+        one transaction, when `version` is still the version of the stored offer; else 409
+        `offer_conflict` (another tab or the tab «Sender» stored meanwhile: fetch the offer, preview the
+        same steps again and apply them on the new version). The app sees the new offer at once;
+        listen sessions on stations that left it end. The logos of the stations that came in without
+        one are queued (favourites first, then by popularity; `queuedLogos`). `demarkedStationIds` are
+        the stations the steps `demarkUnreachable` took out, for an undo with `mark`.
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RadioOfferApplyRequest"
+      responses:
+        "200":
+          description: The stored offer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadioOfferApplied"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "409":
+          description: The offer changed since `version` (`offer_conflict`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: A step is invalid (`validation_failed`).
           content:
             application/problem+json:
               schema:
@@ -17285,6 +17355,11 @@ components:
           $ref: "#/components/schemas/RadioLogo"
         homepage:
           type: string
+        provider:
+          type: string
+          description: |
+            Since contract 1.28.0 (B7.4). The registrable domain of the host of the station's best stream
+            (`srg-ssr.ch`, `zeno.fm`); absent when it is an IP address or unknown.
 
     RadioStationPage:
       type: object
@@ -17315,8 +17390,10 @@ components:
       type: object
       description: |
         Counts per value under the other filters of the request; the counts of a facet ignore its own
-        selection. `titles` is the number of stations that show titles.
-      required: [country, region, language, genre, kind, mood, quality, titles]
+        selection. `titles` is the number of stations that show titles. `offerEmpty` (since contract
+        1.28.0) says that the offer holds no station at all: the radio page says «no stations chosen yet»
+        instead of «no station matches the filter».
+      required: [country, region, language, genre, kind, mood, quality, titles, offerEmpty]
       properties:
         country:
           type: array
@@ -17349,6 +17426,8 @@ components:
         titles:
           type: integer
           minimum: 0
+        offerEmpty:
+          type: boolean
 
     RadioFavoriteOrder:
       type: object
@@ -17519,6 +17598,14 @@ components:
           type: string
           pattern: "^[A-Z]{2}$"
           description: ISO 3166-1 alpha-2 country the radio page starts with.
+        effectiveCountry:
+          type: string
+          pattern: "^[A-Z]{2}$"
+          description: |
+            Since contract 1.28.0 (B4.5, OB-10). `defaultCountry` when stations of it are listed in the
+            offer; absent otherwise, and the radio page opens without a country filter. Ignored in a
+            request: the page writes back only `defaultCountry`. `lastFilter` of an answer drops the
+            countries outside the offer.
         lastFilter:
           $ref: "#/components/schemas/RadioFilter"
         lastSort:
@@ -17533,8 +17620,9 @@ components:
 
     RadioConfig:
       type: object
-      required: [bufferMinutes, budgetMb, maxRelays, graceSeconds, hideBroken, countries, bufferMode, maxRelaysByBudget,
-                 coverMusicbrainz, coverItunes]
+      description: Since contract 1.28.0 without `hideBroken` and `countries` (they belong to the offer).
+      required: [bufferMinutes, budgetMb, maxRelays, graceSeconds, bufferMode, maxRelaysByBudget, coverMusicbrainz,
+                 coverItunes]
       properties:
         bufferMinutes:
           type: integer
@@ -17551,15 +17639,6 @@ components:
           type: integer
           minimum: 0
           maximum: 1800
-        hideBroken:
-          type: boolean
-        countries:
-          type: array
-          nullable: true
-          description: ISO 3166-1 alpha-2 codes the viewers see; null = every country.
-          items:
-            type: string
-            pattern: "^[A-Z]{2}$"
         bufferMode:
           $ref: "#/components/schemas/RadioBufferMode"
         maxRelaysByBudget:
@@ -17575,6 +17654,7 @@ components:
 
     RadioConfigUpdate:
       type: object
+      description: Since contract 1.28.0 without `hideBroken` and `countries`; the server ignores them.
       properties:
         bufferMinutes:
           type: integer
@@ -17591,15 +17671,6 @@ components:
           type: integer
           minimum: 0
           maximum: 1800
-        hideBroken:
-          type: boolean
-        countries:
-          type: array
-          nullable: true
-          maxItems: 300
-          items:
-            type: string
-            pattern: "^[A-Z]{2}$"
         coverMusicbrainz:
           type: boolean
         coverItunes:
@@ -17672,20 +17743,8 @@ components:
 
     RadioLockField:
       type: string
-      enum: [name, logo, genre, kind, mood, region, stream]
-
-    RadioStationFacet:
-      type: object
-      required: [facet, value, manual]
-      properties:
-        facet:
-          type: string
-          enum: [genre, kind, mood]
-        value:
-          type: string
-        manual:
-          type: boolean
-          description: Set by the administration, not derived from the tags.
+      description: Since contract 1.28.0 without `genre`, `kind` and `mood`.
+      enum: [name, logo, region, stream]
 
     RadioStream:
       type: object
@@ -17718,9 +17777,12 @@ components:
 
     AdminRadioStation:
       type: object
-      description: The administration view of a station (contract 1.17.0). Not an `ItemRef`.
-      required: [id, name, languages, genres, kinds, moods, hls, showsTitles, recommended, state, source, hidden,
-        failures, tags, facets, locks, logoState, aliasCount, streams, createdAt, updatedAt]
+      description: |
+        The administration view of a station (contract 1.17.0). Not an `ItemRef`. Since contract 1.28.0
+        (breaking) `offered` and `provider` are new, `hidden` and `facets` are gone: `genres`, `kinds`
+        and `moods` are the values the rules file derives.
+      required: [id, name, languages, genres, kinds, moods, hls, showsTitles, recommended, state, source, offered,
+        failures, tags, locks, logoState, aliasCount, streams, createdAt, updatedAt]
       properties:
         id:
           type: integer
@@ -17774,8 +17836,12 @@ components:
           type: string
         source:
           $ref: "#/components/schemas/RadioStationSource"
-        hidden:
+        offered:
           type: boolean
+          description: In the stored offer (B4.1).
+        provider:
+          type: string
+          description: The registrable domain of the best stream's host (B7.4).
         failures:
           type: integer
           minimum: 0
@@ -17789,10 +17855,6 @@ components:
           description: Raw catalog tags.
           items:
             type: string
-        facets:
-          type: array
-          items:
-            $ref: "#/components/schemas/RadioStationFacet"
         locks:
           type: array
           items:
@@ -17832,6 +17894,7 @@ components:
 
     AdminRadioStationPatch:
       type: object
+      description: Since contract 1.28.0 without `genres`, `kinds`, `moods` and `hidden`.
       properties:
         name:
           type: string
@@ -17841,35 +17904,15 @@ components:
           type: string
           nullable: true
           pattern: "^[A-Z]{2}-[A-Z0-9]{1,3}$"
-        genres:
-          type: array
-          maxItems: 20
-          items:
-            type: string
-            maxLength: 40
-        kinds:
-          type: array
-          maxItems: 20
-          items:
-            type: string
-            maxLength: 40
-        moods:
-          type: array
-          maxItems: 20
-          items:
-            type: string
-            maxLength: 40
         preferredStreamId:
           type: integer
           format: int64
           nullable: true
-        hidden:
-          type: boolean
         recommended:
           type: boolean
         locks:
           type: array
-          maxItems: 7
+          maxItems: 4
           items:
             $ref: "#/components/schemas/RadioLockField"
         streamUrl:
@@ -17897,7 +17940,7 @@ components:
 
     AdminRadioStationCreate:
       type: object
-      description: An own station (contract 1.19.0, concept 16 section 5.6).
+      description: An own station (contract 1.19.0, concept 16 section 5.6); since contract 1.28.0 without facets.
       required: [name, streamUrl]
       properties:
         name:
@@ -17924,24 +17967,6 @@ components:
           items:
             type: string
             pattern: "^[a-z]{2}$"
-        genres:
-          type: array
-          maxItems: 20
-          items:
-            type: string
-            maxLength: 40
-        kinds:
-          type: array
-          maxItems: 20
-          items:
-            type: string
-            maxLength: 40
-        moods:
-          type: array
-          maxItems: 20
-          items:
-            type: string
-            maxLength: 40
 
     RadioProbeRequest:
       type: object
@@ -17980,107 +18005,277 @@ components:
           minimum: 0
           description: Time to the first byte of audio.
 
-    RadioTagRuleFacet:
+    RadioContinent:
       type: string
-      description: The facet a tag rule sets (contract 1.19.0); `ignore` takes the tag off the worklist.
-      enum: [genre, kind, mood, ignore]
+      description: |
+        Continent of a country (B9.2): the subregions of UN M49 in six groups; the Caribbean and Central
+        America count to `northAmerica`, the Antarctic to `oceania`, Kosovo to `europe`.
+      enum: [europe, northAmerica, southAmerica, asia, africa, oceania]
 
-    RadioTagRule:
-      type: object
-      required: [tag, facet]
-      properties:
-        tag:
-          type: string
-          minLength: 1
-          maxLength: 100
-          description: A raw catalog tag; compared folded (case and accents).
-        facet:
-          $ref: "#/components/schemas/RadioTagRuleFacet"
-        value:
-          type: string
-          nullable: true
-          maxLength: 40
-          description: A value of the facet (`rules` of `RadioStation.genres`, `kinds`, `moods`); null = none.
+    RadioOfferMode:
+      type: string
+      description: "`all`: every station of the country, new ones included; `marked`: only marked stations."
+      enum: [all, marked]
 
-    RadioTagRulesUpdate:
+    RadioOfferTotals:
       type: object
-      required: [rules]
+      required: [offered, offeredUnreachable, countries, marked, demarked, own, withLogo, removableUnreachable]
       properties:
-        rules:
-          type: array
-          maxItems: 5000
-          items:
-            $ref: "#/components/schemas/RadioTagRule"
-
-    RadioTagRuleView:
-      type: object
-      required: [tag, facet, source, stations]
-      properties:
-        tag:
-          type: string
-        facet:
-          $ref: "#/components/schemas/RadioTagRuleFacet"
-        value:
-          type: string
-          nullable: true
-        source:
-          type: string
-          enum: [default, admin]
-        stations:
+        offered:
           type: integer
           minimum: 0
-          description: Stations with exactly this tag.
-
-    RadioTagCount:
-      type: object
-      required: [tag, stations]
-      properties:
-        tag:
-          type: string
-        stations:
-          type: integer
-          minimum: 1
-
-    RadioCoverage:
-      type: object
-      required: [facet, assigned, total]
-      properties:
-        facet:
-          type: string
-          enum: [genre, kind, mood, region, language]
-        assigned:
+          description: Stations in the offer.
+        offeredUnreachable:
           type: integer
           minimum: 0
+          description: Stations in the offer that are unreachable.
+        countries:
+          type: integer
+          minimum: 0
+          description: Chosen countries.
+        marked:
+          type: integer
+          minimum: 0
+          description: Stations with the exception «marked».
+        demarked:
+          type: integer
+          minimum: 0
+          description: Stations with the exception «demarked».
+        own:
+          type: integer
+          minimum: 0
+          description: Own stations in the offer.
+        withLogo:
+          type: integer
+          minimum: 0
+          description: Stations in the offer with a logo in the cache.
+        removableUnreachable:
+          type: integer
+          minimum: 0
+          description: The stations the step `demarkUnreachable` would take out now.
+
+    RadioOfferCountry:
+      type: object
+      required: [code, continent, offered, total, unreachable]
+      properties:
+        code:
+          type: string
+          pattern: "^[A-Z]{2}$"
+        continent:
+          $ref: "#/components/schemas/RadioContinent"
+        mode:
+          $ref: "#/components/schemas/RadioOfferMode"
+        offered:
+          type: integer
+          minimum: 0
+          description: Catalog stations of the country in the offer (n of «n of m»).
         total:
           type: integer
           minimum: 0
-          description: Reachable stations the app shows (the base of every facet).
-
-    RadioTagRules:
-      type: object
-      required: [rules, worklist, worklistMinStations, openTags, coverage]
-      properties:
-        rules:
-          type: array
-          items:
-            $ref: "#/components/schemas/RadioTagRuleView"
-        worklist:
-          type: array
-          maxItems: 500
-          items:
-            $ref: "#/components/schemas/RadioTagCount"
-        worklistMinStations:
-          type: integer
-          minimum: 1
-          description: Tags of fewer stations stay off the worklist (20).
-        openTags:
+          description: Catalog stations of the country, unreachable ones included, own ones not (m).
+        unreachable:
           type: integer
           minimum: 0
-          description: Worklist tags with more than 50 stations.
-        coverage:
+          description: Catalog stations of the country in the offer that are unreachable.
+
+    RadioOffer:
+      type: object
+      description: The stored offer (contract 1.28.0). `mode` absent = the country is not chosen.
+      required: [version, hideBroken, totals, countries]
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 0
+        hideBroken:
+          type: boolean
+          description: Unreachable stations of the offer stay out of the lists and counts of the app.
+        totals:
+          $ref: "#/components/schemas/RadioOfferTotals"
+        countries:
+          type: array
+          description: Every country with catalog stations and a continent, and every chosen one, by code.
+          items:
+            $ref: "#/components/schemas/RadioOfferCountry"
+
+    RadioOfferStepOp:
+      type: string
+      description: |
+        `chooseCountry`: the country with `all` unless it is chosen. `removeCountry`: the country goes,
+        with the exceptions of its catalog stations. `markAll`/`demarkAll`: the country gets `all` or
+        `marked`, the exceptions of its catalog stations go. `mark`/`demark`: an exception per station
+        of `stationIds`; one that equals the default (own or a country with `all`: offered) goes.
+        `markMatching`/`demarkMatching`: the same for every catalog station of `country` whose search text
+        holds `q`. `demarkUnreachable`: every unreachable station in the offer but own stations and the
+        favourites of any profile. `setHideBroken`: the switch to `value`. Own stations are never
+        touched by the steps on a country.
+      enum: [chooseCountry, removeCountry, markAll, demarkAll, mark, demark, markMatching, demarkMatching,
+             demarkUnreachable, setHideBroken]
+
+    RadioOfferStep:
+      type: object
+      required: [op]
+      properties:
+        op:
+          $ref: "#/components/schemas/RadioOfferStepOp"
+        country:
+          type: string
+          pattern: "^[A-Z]{2}$"
+          description: For the steps on a country and `markMatching`/`demarkMatching`.
+        q:
+          type: string
+          maxLength: 100
+          description: For `markMatching`/`demarkMatching`; empty matches every station of the country.
+        stationIds:
+          type: array
+          maxItems: 5000
+          description: For `mark`/`demark`; unknown ids change nothing.
+          items:
+            type: integer
+            format: int64
+        value:
+          type: boolean
+          description: For `setHideBroken`.
+
+    RadioOfferListRequest:
+      type: object
+      required: [country]
+      properties:
+        country:
+          type: string
+          pattern: "^[A-Z]{2}$"
+        q:
+          type: string
+          maxLength: 100
+        offset:
+          type: integer
+          minimum: 0
+          default: 0
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 100
+
+    RadioOfferPreviewRequest:
+      type: object
+      required: [steps]
+      properties:
+        steps:
+          type: array
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/RadioOfferStep"
+        list:
+          $ref: "#/components/schemas/RadioOfferListRequest"
+
+    RadioOfferApplyRequest:
+      type: object
+      required: [version, steps]
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 0
+          description: The version of the stored offer the draft is based on.
+        steps:
+          type: array
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/RadioOfferStep"
+
+    RadioOfferStation:
+      type: object
+      required: [id, name, tags, broken, offered, own]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        logo:
+          $ref: "#/components/schemas/RadioLogo"
+        tags:
+          type: array
+          maxItems: 5
+          description: Raw catalog tags, at most five.
+          items:
+            type: string
+        broken:
+          type: boolean
+          description: Unreachable.
+        offered:
+          type: boolean
+          description: In the offer of the draft.
+        own:
+          type: boolean
+
+    RadioOfferStationPage:
+      type: object
+      required: [total, offset, items]
+      properties:
+        total:
+          type: integer
+          minimum: 0
+        offset:
+          type: integer
+          minimum: 0
+        items:
           type: array
           items:
-            $ref: "#/components/schemas/RadioCoverage"
+            $ref: "#/components/schemas/RadioOfferStation"
+
+    RadioOfferDiff:
+      type: object
+      required: [added, removed]
+      properties:
+        added:
+          type: integer
+          minimum: 0
+          description: Stations the draft takes into the stored offer.
+        removed:
+          type: integer
+          minimum: 0
+          description: Stations the draft takes out of the stored offer.
+
+    RadioOfferPreview:
+      type: object
+      description: The offer of the draft; `version` is the stored one it is based on.
+      required: [version, hideBroken, totals, diff, countries]
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 0
+        hideBroken:
+          type: boolean
+        totals:
+          $ref: "#/components/schemas/RadioOfferTotals"
+        diff:
+          $ref: "#/components/schemas/RadioOfferDiff"
+        countries:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadioOfferCountry"
+        list:
+          $ref: "#/components/schemas/RadioOfferStationPage"
+
+    RadioOfferApplied:
+      type: object
+      required: [offer, queuedLogos, demarkedStationIds]
+      properties:
+        offer:
+          $ref: "#/components/schemas/RadioOffer"
+        queuedLogos:
+          type: integer
+          minimum: 0
+          description: Logo jobs queued for the stations that came in without a logo.
+        demarkedStationIds:
+          type: array
+          description: The stations the steps `demarkUnreachable` took out (undo with `mark`).
+          items:
+            type: integer
+            format: int64
 
     RadioRelayState:
       type: string

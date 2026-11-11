@@ -23,8 +23,8 @@ import (
 // no FTS5 in stage 1). It is loaded at the first use, rebuilt after every sync and reloaded per
 // station through reloadStations (the hooks onStationChanged and onStationsChanged and the admin
 // writes). The visibility
-// rules of contract 1.17.0 apply per request with the current settings: hidden stations and those
-// of an excluded country never appear, broken ones only while hide_broken is off.
+// rules apply per request with the stored offer (offer.go, contract 1.28.0): a station outside the
+// offer never appears, a broken one only while the offer's hide_broken is off.
 
 // removalDelay is how long a station stays after its last alias left the catalog (F-18).
 const removalDelay = 7 * 24 * time.Hour
@@ -34,9 +34,7 @@ type indexEntry struct {
 	st         model.RadioStation
 	sortKey    string
 	search     string
-	hidden     bool
 	broken     bool // reachable = 0 or broken_at set
-	locked     bool // the admin changed a field (exceptions view)
 	own        bool // an own station (source own, concept 16 section 5.6)
 	popularity int64
 	createdAt  int64
@@ -67,8 +65,8 @@ func facetBits(facet string, values []string) uint32 {
 	return b
 }
 
-// newIndexEntry builds an entry from its index row, facets and lock flag.
-func newIndexEntry(r appq.ListRadioStationsForIndexRow, facets map[string][]string, locked bool) *indexEntry {
+// newIndexEntry builds an entry from its index row and facets.
+func newIndexEntry(r appq.ListRadioStationsForIndexRow, facets map[string][]string) *indexEntry {
 	var langs []string
 	_ = json.Unmarshal([]byte(r.Languages), &langs) // written by the sync; a bad value lists none
 	st := model.RadioStation{
@@ -77,6 +75,7 @@ func newIndexEntry(r appq.ListRadioStationsForIndexRow, facets map[string][]stri
 		Quality: r.Quality.String, Codec: r.BestCodec.String, BitrateKbps: int(r.BestBitrate.Int64),
 		HLS: r.BestHls == 1, ShowsTitles: r.ShowsTitles == 1, Recommended: r.Recommended == 1,
 		State: model.RadioStateOK, LogoHash: r.LogoHash.String, Homepage: r.Homepage.String,
+		Provider: r.Provider.String,
 	}
 	broken := r.Reachable == 0 || r.BrokenAt.Valid
 	switch {
@@ -88,8 +87,7 @@ func newIndexEntry(r appq.ListRadioStationsForIndexRow, facets map[string][]stri
 		st.State = model.RadioStateBroken
 	}
 	return &indexEntry{
-		st: st, sortKey: r.SortKey, search: r.SearchText, hidden: r.Hidden == 1, broken: broken, locked: locked,
-		own:        r.Source == sourceOwn,
+		st: st, sortKey: r.SortKey, search: r.SearchText, broken: broken, own: r.Source == sourceOwn,
 		popularity: r.Votes + r.Clicks, createdAt: r.CreatedAt,
 		genres: facetBits(rules.FacetGenre, st.Genres), kinds: facetBits(rules.FacetKind, st.Kinds),
 		moods: facetBits(rules.FacetMood, st.Moods),
@@ -113,10 +111,6 @@ func loadEntries(ctx context.Context, q *appq.Queries, id sql.NullInt64) ([]*ind
 	if err != nil {
 		return nil, fmt.Errorf("list station facets: %w", err)
 	}
-	lockRows, err := q.ListRadioStationLockFields(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list station locks: %w", err)
-	}
 	facets := make(map[int64]map[string][]string)
 	for _, f := range facetRows {
 		m := facets[f.StationID]
@@ -129,13 +123,9 @@ func loadEntries(ctx context.Context, q *appq.Queries, id sql.NullInt64) ([]*ind
 	for _, m := range facets {
 		sortFacetValues(m)
 	}
-	locked := make(map[int64]bool)
-	for _, l := range lockRows {
-		locked[l.StationID] = true
-	}
 	out := make([]*indexEntry, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, newIndexEntry(r, facets[r.ID], locked[r.ID]))
+		out = append(out, newIndexEntry(r, facets[r.ID]))
 	}
 	return out, nil
 }
@@ -161,11 +151,7 @@ func loadEntry(ctx context.Context, q *appq.Queries, id int64) (*indexEntry, err
 		facets[f.Facet] = append(facets[f.Facet], f.Value)
 	}
 	sortFacetValues(facets)
-	locks, err := q.ListRadioStationLocks(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("list station locks: %w", err)
-	}
-	return newIndexEntry(appq.ListRadioStationsForIndexRow(rows[0]), facets, len(locks) > 0), nil
+	return newIndexEntry(appq.ListRadioStationsForIndexRow(rows[0]), facets), nil
 }
 
 // sortFacetValues puts the values of each facet in the order of the rules.
@@ -202,7 +188,6 @@ func (s *Service) rebuildIndex(ctx context.Context) (*stationIndex, error) {
 	s.cat.mu.Lock()
 	s.cat.idx = idx
 	s.cat.mu.Unlock()
-	s.cat.stationsChanged()
 	return idx, nil
 }
 
@@ -263,23 +248,21 @@ func (s *Service) reloadStations(ctx context.Context, ids []int64) {
 	s.cat.mu.Lock()
 	s.cat.idx = idx
 	s.cat.mu.Unlock()
-	s.cat.stationsChanged()
 }
 
-// catalogView is the visibility of the stations under the current settings.
+// catalogView is the visibility of the stations under the stored offer (view, offer.go).
 type catalogView struct {
-	countries  map[string]bool // nil = every country
-	hideBroken bool
+	offer *offerState
 }
 
-// reachable reports whether a profile may reach the station at all (else 404).
+// reachable reports whether a profile may reach the station at all (else 404): it is in the offer.
 func (v catalogView) reachable(e *indexEntry) bool {
-	return !e.hidden && (v.countries == nil || v.countries[e.st.Country])
+	return v.offer.offered(e)
 }
 
 // listed reports whether the station appears in lists, facets and search.
 func (v catalogView) listed(e *indexEntry) bool {
-	return v.reachable(e) && (!e.broken || !v.hideBroken)
+	return v.reachable(e) && (!e.broken || !v.offer.hideBroken)
 }
 
 // Filters of a query, as bits of a fail mask.
