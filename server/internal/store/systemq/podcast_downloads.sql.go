@@ -678,13 +678,17 @@ func (q *Queries) PodcastFoldersOf(ctx context.Context, arg PodcastFoldersOfPara
 }
 
 const podcastKnownFolders = `-- name: PodcastKnownFolders :many
-SELECT DISTINCT CAST(substr(rel_path, 1, instr(rel_path, '/') - 1) AS TEXT) AS folder
+SELECT CAST(substr(rel_path, 1, instr(rel_path, '/') - 1) AS TEXT) AS folder
 FROM media_files WHERE root_id = ?1 AND instr(rel_path, '/') > 1
+GROUP BY substr(rel_path, 1, instr(rel_path, '/') - 1)
+ORDER BY min(missing_since IS NOT NULL), max(mtime) DESC
 LIMIT 50
 `
 
 // Folders of a root that the database knows (the first level of its media files): the folder
-// check (5.4) wants at least one of them on disk before the server writes there.
+// check (5.4) wants at least one of them on disk before the server writes there. Folders with a
+// file that is there come first, the newest first, so folders whose files are all missing do not
+// crowd out one that is mounted; they still count when no other is known.
 func (q *Queries) PodcastKnownFolders(ctx context.Context, rootID int64) ([]string, error) {
 	rows, err := q.db.QueryContext(ctx, podcastKnownFolders, rootID)
 	if err != nil {
@@ -784,7 +788,14 @@ SELECT p.id AS podcast_id,
                       WHERE e.parent_id = p.id AND e.kind = 'podcast_episode' AND m.missing_since IS NULL
                         AND instr(m.rel_path, '/') > 1 AND r.content = 'podcast'
                       ORDER BY m.mtime DESC, m.id DESC
-                      LIMIT 1), 0) AS INTEGER) AS root_id
+                      LIMIT 1), 0) AS INTEGER) AS root_id,
+       CAST(COALESCE((SELECT substr(m.rel_path, 1, instr(m.rel_path, '/') - 1) FROM media_files AS m
+                      JOIN items AS e ON e.id = m.item_id
+                      JOIN library_roots AS r ON r.id = m.root_id
+                      WHERE e.parent_id = p.id AND e.kind = 'podcast_episode' AND m.missing_since IS NULL
+                        AND instr(m.rel_path, '/') > 1 AND r.content = 'podcast'
+                      ORDER BY m.mtime DESC, m.id DESC
+                      LIMIT 1), '') AS TEXT) AS folder
 FROM items AS p
 WHERE p.kind = 'podcast' AND p.deleted_at IS NULL AND p.feed_url IS NOT NULL
 `
@@ -792,11 +803,13 @@ WHERE p.kind = 'podcast' AND p.deleted_at IS NULL AND p.feed_url IS NOT NULL
 type PodcastNewestRootsRow struct {
 	PodcastID string
 	RootID    int64
+	Folder    string
 }
 
-// Per live podcast with a feed the root of its newest file that is there on a podcast folder, as
-// PodcastNewestFolder picks it for a download (6.2, step 2); 0 without one. For the list of the
-// administration (AdminPodcast.savable), which checks each root once.
+// Per live podcast with a feed the root and the folder of its newest file that is there on a
+// podcast folder, as PodcastNewestFolder picks them for a download (6.2, step 2); 0 and ” without
+// one. For the list of the administration (AdminPodcast.savable), which checks each root once and
+// the rights of each folder.
 func (q *Queries) PodcastNewestRoots(ctx context.Context) ([]PodcastNewestRootsRow, error) {
 	rows, err := q.db.QueryContext(ctx, podcastNewestRoots)
 	if err != nil {
@@ -806,7 +819,7 @@ func (q *Queries) PodcastNewestRoots(ctx context.Context) ([]PodcastNewestRootsR
 	items := []PodcastNewestRootsRow{}
 	for rows.Next() {
 		var i PodcastNewestRootsRow
-		if err := rows.Scan(&i.PodcastID, &i.RootID); err != nil {
+		if err := rows.Scan(&i.PodcastID, &i.RootID, &i.Folder); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -5,11 +5,15 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
@@ -330,5 +334,68 @@ func TestPodcastStates(t *testing.T) {
 	one, err := f.e.svc.PodcastStates(f.e.ctx, f.podcast)
 	if err != nil || all[f.podcast].Savable || all[other].Savable || one[f.podcast].Savable {
 		t.Errorf("states on an unmounted folder = %+v, %+v %v", all, one, err)
+	}
+}
+
+// Concept 19, 5.4: folder checks that run at once (the list, a setting and five downloads) do not
+// disturb each other: each writes its own test file, and none removes a test file of another.
+func TestPodcastFolderCheckInParallel(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	dir := t.TempDir()
+	writeFile(t, dir, "Bekannt/Folge 1.mp3", "audio")
+	lib := e.createPodcasts(dir)
+	e.scan(lib.ID)
+	root := e.podcastRoot(lib.ID)
+	writeFile(t, dir, podcastOwnPrefix+"schreibtest-other", "x") // a check of another process
+	var wg sync.WaitGroup
+	problems := make(chan string, 40)
+	for range 40 {
+		wg.Go(func() {
+			if got := e.svc.CheckPodcastFolder(e.ctx, root); !got.Writable {
+				problems <- got.Problem
+			}
+		})
+	}
+	wg.Wait()
+	close(problems)
+	for p := range problems {
+		t.Errorf("a parallel check failed: %s", p)
+	}
+	if got := strings.Join(dirNames(t, dir), ","); got != podcastOwnPrefix+"schreibtest-other,Bekannt" {
+		t.Errorf("folder after the checks = %s", got)
+	}
+}
+
+// Concept 19, 5.4 (not_mounted): the known folders the check looks for are those with a file that
+// is there first; folders whose files are all missing do not make a mounted folder look unmounted.
+// A root on a file system of unknown type proves nothing by its type: without a known folder it
+// counts as not mounted, with one the folder must be there.
+func TestPodcastFolderCheckKnownFolders(t *testing.T) {
+	t.Parallel()
+	f := newPodcastFixture(t)
+	ep := f.feedEpisode("Folge", time.Date(2026, 11, 1, 6, 0, 0, 0, time.UTC), 0)
+	for i := range 60 {
+		id := f.file(ep, "A"+strconv.Itoa(100+i)+"/gone.mp3")
+		f.exec(`UPDATE media_files SET missing_since = 1 WHERE id = ?`, id)
+	}
+	f.file(ep, "Z/here.mp3")
+	writeFile(t, f.dir, "Z/here.mp3", "audio")
+	if got := f.e.svc.CheckPodcastFolder(f.e.ctx, f.root); !got.Writable {
+		t.Errorf("check with 60 missing folders and one there = %+v", got)
+	}
+
+	g := newPodcastFixture(t)
+	g.e.svc.podcastFSType = func(paths.Root) (paths.FSType, error) { return paths.FSUnknown, nil }
+	unknown := g.root
+	unknown.FsType = string(paths.FSUnknown)
+	if got := g.e.svc.CheckPodcastFolder(g.e.ctx, unknown); got.Writable || got.Problem != model.PodcastFolderNotMounted {
+		t.Errorf("unknown file system without a known folder = %+v, want not_mounted", got)
+	}
+	gep := g.feedEpisode("Folge", time.Date(2026, 11, 1, 6, 0, 0, 0, time.UTC), 0)
+	g.file(gep, "Bekannt/Folge.mp3")
+	writeFile(t, g.dir, "Bekannt/Folge.mp3", "audio")
+	if got := g.e.svc.CheckPodcastFolder(g.e.ctx, unknown); !got.Writable {
+		t.Errorf("unknown file system with its known folder there = %+v", got)
 	}
 }

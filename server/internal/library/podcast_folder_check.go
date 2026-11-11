@@ -21,13 +21,17 @@ import (
 //
 //  1. compares the file system with the one the folder had when it was added (library_roots.fs_type)
 //     and wants at least one folder the database knows on disk: an NAS that is not mounted leaves
-//     an empty local directory, and the server would write onto the drive of its database;
-//  2. creates .slouchcat-schreibtest, sets a hard link on it (the download enters its file with
-//     one, 6.2 step 6) and removes both;
+//     an empty local directory, and the server would write onto the drive of its database. A file
+//     system of unknown type proves nothing by its type, so such a root needs a known folder;
+//  2. creates .slouchcat-schreibtest-<ulid> (a name of its own, so checks that run at once do not
+//     disturb each other), sets a hard link on it (the download enters its file with one, 6.2
+//     step 6) and removes both;
 //  3. wants the test file readable for everyone after the mode of 6.4 (0664).
 //
 // The check writes only its own dot files, which the scanner, the watcher and the poller pass over
-// (Ignored).
+// (Ignored), and removes no other; the sweep removes test files a crash left after seven days. The
+// folder of a podcast below the root is judged by its rights (podcastFolderProblem), and the
+// download probes it before it loads.
 
 // Names and modes of what the server writes into a podcast folder (6.4).
 const (
@@ -93,7 +97,8 @@ func (s *Service) CheckPodcastFolder(ctx context.Context, root appq.LibraryRoot)
 		out.Problem = model.PodcastFolderNotMounted
 		return out
 	}
-	if fsType, err := paths.FSTypeAt(pr, "."); err != nil || string(fsType) != root.FsType {
+	fsType, err := s.fsTypeAt(pr)
+	if err != nil || string(fsType) != root.FsType {
 		out.Problem = model.PodcastFolderNotMounted
 		return out
 	}
@@ -103,7 +108,7 @@ func (s *Service) CheckPodcastFolder(ctx context.Context, root appq.LibraryRoot)
 		return out
 	}
 	defer r.Close()
-	if mounted, err := s.knownPodcastFolderThere(ctx, r, root.ID); err != nil || !mounted {
+	if mounted, err := s.knownPodcastFolderThere(ctx, r, root.ID, fsType == paths.FSUnknown); err != nil || !mounted {
 		if err != nil {
 			s.log.WarnContext(ctx, "known podcast folders", "root_id", root.ID, "err", err)
 		}
@@ -119,15 +124,24 @@ func (s *Service) CheckPodcastFolder(ctx context.Context, root appq.LibraryRoot)
 	return out
 }
 
+// fsTypeAt is paths.FSTypeAt of the root itself (the test seam podcastFSType replaces it).
+func (s *Service) fsTypeAt(pr paths.Root) (paths.FSType, error) {
+	if s.podcastFSType != nil {
+		return s.podcastFSType(pr)
+	}
+	return paths.FSTypeAt(pr, ".")
+}
+
 // knownPodcastFolderThere reports whether at least one folder the database knows in the root is
-// on disk; a root without any known folder (a new, empty podcast folder) passes.
-func (s *Service) knownPodcastFolderThere(ctx context.Context, r *os.Root, rootID int64) (bool, error) {
+// on disk; a root without any known folder (a new, empty podcast folder) passes, unless its file
+// system is of unknown type (then nothing shows that it is mounted).
+func (s *Service) knownPodcastFolderThere(ctx context.Context, r *os.Root, rootID int64, unknownFS bool) (bool, error) {
 	known, err := systemq.New(s.db.Read).PodcastKnownFolders(ctx, rootID)
 	if err != nil {
 		return false, err
 	}
 	if len(known) == 0 {
-		return true, nil
+		return !unknownFS, nil
 	}
 	for _, f := range known {
 		if fi, err := r.Lstat(f); err == nil && fi.IsDir() {
@@ -137,33 +151,57 @@ func (s *Service) knownPodcastFolderThere(ctx context.Context, r *os.Root, rootI
 	return false, nil
 }
 
-// podcastWriteTest writes the test file with a hard link in the root of r and removes both; it
-// returns the problem found, "" when the folder takes stored episodes.
+// podcastWriteTest writes a test file of its own name with a hard link in the root of r and
+// removes both; it returns the problem found, "" when the folder takes stored episodes.
 func (s *Service) podcastWriteTest(r *os.Root) string {
-	link := podcastWriteTest + ".link"
-	// Leftovers of a check that was cut short.
-	for _, name := range []string{link, podcastWriteTest} {
-		if err := r.Remove(name); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return model.PodcastFolderReadOnly
-		}
-	}
-	f, err := r.OpenFile(podcastWriteTest, os.O_WRONLY|os.O_CREATE|os.O_EXCL, podcastFileMode)
+	name := podcastWriteTest + "-" + s.newID()
+	link := name + ".link"
+	f, err := r.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, podcastFileMode)
 	if err != nil {
 		return model.PodcastFolderReadOnly
 	}
 	_ = f.Close()
-	defer func() { _ = r.Remove(podcastWriteTest) }()
-	if err := r.Chmod(podcastWriteTest, podcastFileMode); err != nil {
+	defer func() { _ = r.Remove(name) }()
+	if err := r.Chmod(name, podcastFileMode); err != nil {
 		return model.PodcastFolderPermissions
 	}
-	if err := s.linkFile(r, podcastWriteTest, link); err != nil {
+	if err := s.linkFile(r, name, link); err != nil {
 		return model.PodcastFolderNoHardLinks
 	}
 	_ = r.Remove(link)
-	if fi, err := r.Stat(podcastWriteTest); err != nil || fi.Mode().Perm()&0o444 != 0o444 {
+	if fi, err := r.Stat(name); err != nil || fi.Mode().Perm()&0o444 != 0o444 {
 		return model.PodcastFolderPermissions
 	}
 	return ""
+}
+
+// podcastFolderProblem judges the folder of a podcast below a root that passed the check, without
+// writing: not_mounted when it is not there as a directory, permissions when its owner, group and
+// mode do not let this process create files (mayWriteDir); "" otherwise.
+func podcastFolderProblem(r *os.Root, folder string) string {
+	fi, err := r.Lstat(folder)
+	switch {
+	case err != nil || !fi.IsDir():
+		return model.PodcastFolderNotMounted
+	case !mayWriteDir(fi):
+		return model.PodcastFolderPermissions
+	}
+	return ""
+}
+
+// podcastWriteProbe creates and removes the own file name in a podcast folder (O_EXCL through the
+// root; an own leftover of that name goes first): the download's test that it may write there
+// before it loads (5.4), where the folder check only tried the root.
+func podcastWriteProbe(r *os.Root, name string) bool {
+	if err := r.Remove(name); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return false
+	}
+	f, err := r.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, podcastFileMode)
+	if err != nil {
+		return false
+	}
+	_ = f.Close()
+	return r.Remove(name) == nil
 }
 
 // linkFile sets a hard link newname on oldname inside r (the test seam podcastLink replaces it).

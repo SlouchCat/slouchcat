@@ -131,16 +131,17 @@ func podcastSpaceOK(total, free int64) bool {
 }
 
 // podcastOwnNames are the files of one download in its folder.
-type podcastOwnNames struct{ part, validator, loaded, tagged string }
+type podcastOwnNames struct{ part, validator, loaded, tagged, probe string }
 
 func podcastOwn(folder, episodeID string) podcastOwnNames {
 	base := folder + "/" + podcastOwnPrefix + episodeID
-	return podcastOwnNames{part: base + ".part", validator: base + ".validator", loaded: base + ".loaded", tagged: base + ".tagged"}
+	return podcastOwnNames{part: base + ".part", validator: base + ".validator", loaded: base + ".loaded", tagged: base + ".tagged",
+		probe: base + ".probe"}
 }
 
 // remove deletes the own files of a download (those that are there).
 func (n podcastOwnNames) remove(r *os.Root, keepPart bool) {
-	for _, name := range []string{n.loaded, n.tagged, n.validator, n.part} {
+	for _, name := range []string{n.loaded, n.tagged, n.probe, n.validator, n.part} {
 		if keepPart && (name == n.part || name == n.validator) {
 			continue
 		}
@@ -280,6 +281,10 @@ func (s *Service) podcastDownload(ctx context.Context, j *jobs.Job, p *podcastDo
 	}
 
 	own := podcastOwn(target.folder, ep.ID)
+	if !podcastWriteProbe(r, own.probe) {
+		// The root passed, the podcast's own folder does not take files (made by another user).
+		return s.podcastWait(ctx, j, p, PodcastErrRootNotWritable)
+	}
 	contentType, err := s.loadPodcastEpisode(ctx, r, own, ep, set)
 	if err != nil {
 		return err

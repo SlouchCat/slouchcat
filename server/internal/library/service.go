@@ -103,6 +103,9 @@ type Service struct {
 	// podcastLink replaces os.Root.Link for the folder check and the download of stored podcast
 	// episodes (a test seam for a file system without hard links; nil outside tests).
 	podcastLink func(r *os.Root, oldname, newname string) error
+	// podcastFSType replaces paths.FSTypeAt in the folder check (a test seam for a file system of
+	// unknown type; nil outside tests).
+	podcastFSType func(root paths.Root) (paths.FSType, error)
 	// podcastTag replaces transcode.Runner.TagAudio for stored podcast episodes (a test seam; nil
 	// outside tests); podcastSlots are the two counters of their downloads (podcast_download.go).
 	podcastTag   func(ctx context.Context, in, out, ext string, tags transcode.AudioTags) error

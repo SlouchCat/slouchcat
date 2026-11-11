@@ -12,6 +12,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
@@ -586,8 +587,9 @@ func (s *Service) SetPodcastDownloads(ctx context.Context, libraryID int64, d mo
 
 // PodcastSavable reports whether «Speichern» may apply to a podcast (metadata.WithPodcastSavable,
 // before updatePodcast stores an own «Speichern»): nil when the folder its downloads would write
-// into passes the folder check, model.ErrRootNotWritable or model.ErrRootRequired otherwise,
-// model.ErrNotFound for an unknown podcast or one without feed.
+// into passes the folder check and, for a podcast that has a folder, that folder is there and its
+// rights let the server create files (podcastFolderProblem), model.ErrRootNotWritable or
+// model.ErrRootRequired otherwise, model.ErrNotFound for an unknown podcast or one without feed.
 func (s *Service) PodcastSavable(ctx context.Context, podcastID string) error {
 	set, ok, err := s.podcastSetting(ctx, podcastID)
 	if err != nil {
@@ -605,6 +607,21 @@ func (s *Service) PodcastSavable(ctx context.Context, podcastID string) error {
 	}
 	if check := s.CheckPodcastFolder(ctx, target.root); !check.Writable {
 		return fmt.Errorf("%w: %s", model.ErrRootNotWritable, check.Problem)
+	}
+	if target.create {
+		return nil
+	}
+	pr, err := paths.NewRoot(target.root.Path)
+	if err != nil {
+		return fmt.Errorf("%w: %s", model.ErrRootNotWritable, model.PodcastFolderNotMounted)
+	}
+	r, err := paths.Open(pr)
+	if err != nil {
+		return fmt.Errorf("%w: %s", model.ErrRootNotWritable, model.PodcastFolderNotMounted)
+	}
+	defer r.Close()
+	if problem := podcastFolderProblem(r, target.folder); problem != "" {
+		return fmt.Errorf("%w: %s", model.ErrRootNotWritable, problem)
 	}
 	return nil
 }

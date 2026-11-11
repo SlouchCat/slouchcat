@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
@@ -79,18 +81,39 @@ func (s *Service) podcastState(ctx context.Context, podcastID string) (map[strin
 }
 
 // podcastsSavable reports per podcast of sets whether the folder its downloads would write into
-// (podcastDownloadTarget: the root of its newest file, its pending folder, else the folder for new
-// subscriptions of its library) passes the folder check; every root is checked once.
+// (podcastDownloadTarget: the root and folder of its newest file, its pending folder, else the
+// folder for new subscriptions of its library) passes the folder check, and whether the podcast's
+// own folder is there with rights that let the server create files (podcastFolderProblem, by
+// Lstat only: the list writes nothing per podcast). Every root is checked once.
 func (s *Service) podcastsSavable(ctx context.Context, sets []systemq.PodcastEffectiveSettingsRow) (map[string]bool, error) {
 	newest, err := systemq.New(s.db.Read).PodcastNewestRoots(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("roots of podcasts: %w", err)
 	}
 	rootOf := make(map[string]int64, len(newest))
+	folderOf := make(map[string]string, len(newest))
 	for _, r := range newest {
-		rootOf[r.PodcastID] = r.RootID
+		rootOf[r.PodcastID], folderOf[r.PodcastID] = r.RootID, r.Folder
 	}
 	app := appq.New(s.db.Read)
+	opened := map[int64]*os.Root{}
+	defer func() {
+		for _, r := range opened {
+			_ = r.Close()
+		}
+	}()
+	folderOK := func(root appq.LibraryRoot, folder string) bool {
+		r, ok := opened[root.ID]
+		if !ok {
+			if pr, err := paths.NewRoot(root.Path); err == nil {
+				if r, err = paths.Open(pr); err != nil {
+					r = nil
+				}
+			}
+			opened[root.ID] = r
+		}
+		return r != nil && podcastFolderProblem(r, folder) == ""
+	}
 	writable := map[int64]bool{}
 	targetOf := map[int64]int64{} // library → its folder for new subscriptions, 0 without one
 	check := func(root appq.LibraryRoot) bool {
@@ -103,9 +126,9 @@ func (s *Service) podcastsSavable(ctx context.Context, sets []systemq.PodcastEff
 	}
 	out := make(map[string]bool, len(sets))
 	for _, set := range sets {
-		rootID := rootOf[set.PodcastID]
+		rootID, folder := rootOf[set.PodcastID], folderOf[set.PodcastID]
 		if rootID == 0 && set.PendingRootID.Valid && set.PendingFolder.Valid {
-			rootID = set.PendingRootID.Int64
+			rootID, folder = set.PendingRootID.Int64, set.PendingFolder.String
 		}
 		if rootID == 0 {
 			target, ok := targetOf[set.LibraryID]
@@ -127,19 +150,14 @@ func (s *Service) podcastsSavable(ctx context.Context, sets []systemq.PodcastEff
 		if rootID == 0 {
 			continue
 		}
-		if w, ok := writable[rootID]; ok {
-			out[set.PodcastID] = w
-			continue
-		}
 		root, err := app.GetLibraryRoot(ctx, rootID)
 		if errors.Is(err, sql.ErrNoRows) {
-			writable[rootID] = false
 			continue
 		}
 		if err != nil {
 			return nil, fmt.Errorf("get root %d: %w", rootID, err)
 		}
-		out[set.PodcastID] = check(root)
+		out[set.PodcastID] = check(root) && (folder == "" || folderOK(root, folder))
 	}
 	return out, nil
 }

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
 
@@ -539,8 +540,8 @@ func TestPodcastDownloadWaitsForTheFolder(t *testing.T) {
 	}
 }
 
-// The sweep removes own files older than a week that no active download holds, and keeps the
-// others.
+// The sweep removes own files older than a week that no active download holds (a test file of a
+// folder check that was cut short as well), and keeps the others.
 func TestPodcastLeftoverSweep(t *testing.T) {
 	t.Parallel()
 	f := newDownloadFixture(t)
@@ -549,7 +550,8 @@ func TestPodcastLeftoverSweep(t *testing.T) {
 	if _, err := f.e.queue.Enqueue(f.e.ctx, jobs.NewJob{Type: JobPodcastDownload, IdempotencyKey: podcastDownloadKey(active)}); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{".slouchcat-" + active + ".part", ".slouchcat-01J9ZZZZZZZZZZZZZZZZZZZZZZ.part", ".slouchcat-recent.part", ".hidden"} {
+	for _, name := range []string{".slouchcat-" + active + ".part", ".slouchcat-01J9ZZZZZZZZZZZZZZZZZZZZZZ.part", ".slouchcat-recent.part", ".hidden",
+		".slouchcat-schreibtest-01J9ZZZZZZZZZZZZZZZZZZZZZZ.link"} {
 		writeFile(t, f.dir, "Testpodcast/"+name, "x")
 		if name != ".slouchcat-recent.part" {
 			if err := os.Chtimes(filepath.Join(f.dir, "Testpodcast", name), old, old); err != nil {
@@ -563,5 +565,45 @@ func TestPodcastLeftoverSweep(t *testing.T) {
 	got := strings.Join(dirNames(t, filepath.Join(f.dir, "Testpodcast")), ",")
 	if want := ".hidden,.slouchcat-" + active + ".part,.slouchcat-recent.part,Alte Folge.mp3"; got != want {
 		t.Errorf("folder after the sweep = %s, want %s", got, want)
+	}
+}
+
+// Concept 19, 5.4 and 6.2: a podcast folder below a writable root that the server may not write
+// (Audiobookshelf made it with 0755 for another user) is no failure of the enclosure: the download
+// waits for it (root_not_writable) without using an attempt, and the podcast is not savable, in
+// the list as for one podcast. The list judges it by the rights of the folder, without writing.
+func TestPodcastDownloadWaitsForAFolderItMayNotWrite(t *testing.T) {
+	t.Parallel()
+	f := newDownloadFixture(t)
+	folder := filepath.Join(f.dir, "Testpodcast")
+	if err := os.Chmod(folder, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(folder, 0o755) })
+	ep := f.episode("Gesperrt", "gesperrt.mp3", time.Date(2026, 11, 8, 6, 0, 0, 0, time.UTC), podcastEpisodeMedia(t, 1))
+	id, err := f.e.queue.Enqueue(f.e.ctx, jobs.NewJob{Type: JobPodcastDownload, IdempotencyKey: podcastDownloadKey(ep), Payload: json.RawMessage(`{"episodeId":"` + ep + `"}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	j, err := f.e.queue.Claim(f.e.ctx, "w", []string{JobPodcastDownload})
+	if err != nil || j == nil || j.ID != id {
+		t.Fatalf("claim: %v %v", j, err)
+	}
+	var later *jobs.RetryLaterError
+	if err := f.e.svc.handlePodcastDownload(f.e.ctx, j); !errors.As(err, &later) || later.Reason != PodcastErrRootNotWritable {
+		t.Errorf("download into a folder it may not write = %v, want RetryLater root_not_writable", err)
+	}
+	if err := f.e.svc.PodcastSavable(f.e.ctx, f.podcast); !errors.Is(err, model.ErrRootNotWritable) {
+		t.Errorf("savable = %v, want root_not_writable", err)
+	}
+	all, err := f.e.svc.PodcastStates(f.e.ctx, "")
+	if err != nil || all[f.podcast].Savable {
+		t.Errorf("state in the list = %+v %v, want not savable", all[f.podcast], err)
+	}
+	if err := os.Chmod(folder, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if all, err := f.e.svc.PodcastStates(f.e.ctx, ""); err != nil || !all[f.podcast].Savable {
+		t.Errorf("state after the fix = %+v %v", all[f.podcast], err)
 	}
 }
