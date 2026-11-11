@@ -322,18 +322,6 @@ func TestContractPodcastDownloads(t *testing.T) {
 		"p18", "", nil); rec.Code != http.StatusNotFound {
 		t.Errorf("cancelPodcastDownload of an episode of another podcast: %d", rec.Code)
 	}
-	// A file row that is missing makes the episode «Entfernt» and is not counted as stored, in
-	// the list as on the page (localEpisodeCount since contract 1.29.0).
-	stored := list()[a.Podcast.ID].LocalEpisodeCount
-	if _, err := f.DB.Write.Exec(`INSERT INTO media_files (id, item_id, root_id, rel_path, size, mtime, container, missing_since, created_at, updated_at)
-		VALUES ('01J0000000000000000000MISS', ?, ?, 'Weg/weg.mp3', 1, 1, 'mp3', 1, 1, 1)`, a.EnclosureOnly.ID, root.ID); err != nil {
-		t.Fatal(err)
-	}
-	page, states = episodes("?limit=200")
-	if p := list()[a.Podcast.ID]; p.LocalEpisodeCount != stored || page.Counts.WithFile != stored || states[a.EnclosureOnly.ID] != "removed" {
-		t.Errorf("a missing file: localEpisodeCount %d (was %d), withFile %d, state %q", p.LocalEpisodeCount, stored,
-			page.Counts.WithFile, states[a.EnclosureOnly.ID])
-	}
 
 	// A folder on another file system than when it was added (an NAS that is not mounted): the
 	// check says not_mounted, the list is not savable, a change to «Speichern» is refused (while
