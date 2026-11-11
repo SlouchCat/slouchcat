@@ -1104,8 +1104,9 @@ Spalte **Anbieter**. Über der Liste «Nicht erreichbare entfernen (n)» (B6). J
 | `radio_config.countries`, `radio_stations.hidden` | bleiben, werden nicht mehr gelesen |
 | `radio_tag_rules`, `radio_station_facets` mit `manual = 1`, `radio_station_locks` für `genre`/`kind`/`mood` | Zeilen gelöscht (B5) |
 
-**Stufe B2, nächste freie Migration (vorläufig 00049):** `radio_station_wikidata` (`station_id` Primärschlüssel,
-`qid`, `owner`, `founded`, `fetched_at`), `radio_config.wikidata_enabled`,
+**Stufe B2, Migration 00051** (gebaut am 11. November 2026; 00049 und 00050 gingen an die Podcast-Episoden ohne
+Cover und den Bildspeicher-Patch): `radio_station_wikidata` (`station_id` Primärschlüssel, `qid`, `owner_qid`,
+`owner`, `founded` als `YYYY`, `YYYY-MM` oder `YYYY-MM-DD`, `fetched_at`), `radio_config.wikidata_enabled`,
 `radio_config.wikidata_synced_at`.
 
 Nach Vorlage (`TEMPLATE.sql.txt`), nur vorwärts. Eingefrorene Stände in `testdata/db/`; die
@@ -1148,9 +1149,10 @@ Betroffene Stellen im Client: `SettingsTab`, `StationEditor`, `StationsTab`, `Cr
 `adminRegistry` (`contract_access_test.go`, auch der heutige Körper `{"countries":null}`),
 `vistest.AddRadio` mit dem demarkierten Sender.
 
-**Stufe B2, vorläufig 1.30.0 (additiv):** `AdminRadioStation.sources` (Herkunft je Angabe),
-`AdminRadioStation.wikidata` (Eigentümer, Gründung, Kennung), `RadioConfig.wikidataEnabled`, Jobart
-`radio.wikidata.sync` mit Text in `admin.jobs.types`.
+**Stufe B2, 1.30.0 (additiv, gebaut am 11. November 2026):** `AdminRadioStation.sources` (Herkunft je Angabe,
+`RadioValueSource`), `AdminRadioStation.wikidata` (`AdminRadioWikidata`: Kennung, Eigentümer mit Kennung, Gründung),
+`RadioConfig.wikidataEnabled`, Jobart `radio.wikidata.sync` mit Text in `admin.jobs.types`; `provider` ist bei einem
+eindeutigen Treffer mit einem Eigentümer dieser Eigentümer.
 
 ## B12. Bauplan
 
@@ -1158,7 +1160,7 @@ Betroffene Stellen im Client: `SettingsTab`, `StationEditor`, `StationsTab`, `Cr
 |---|---|---|---|
 | **B0** | Messung auf CT 190 mit der echten Logo-Kette (96 Pixel, Drossel 2 und 4 je Sekunde, Sperre je Host) für die Schweiz und Deutschland, Speicher je Logo, Zeit einer Vorschau über den ganzen Index, Zahlen je Land aus dem echten Index. Ergebnis nach `docs/perf/19-radio.md`. ADR 0030 «Radio-Angebot statt ganzer Katalog» (ergänzt ADR 0025). | – | ½ Tag |
 | **B1 «Angebot»** | Migration 00048, Vorbereitung beim ersten Start (B4.4, Angebot leer), Momentaufnahme im Speicher, Regel in `reachable`, `closeUnreachable` nach dem Tausch, Vorschau und Übernehmen mit Version, neue Logo-Auslöser, Sperre je Host, Drossel, Aufräumen gelöschter Sender, Anbieter aus dem Stream-Host, Neuableitung der Filterwerte, Vertrag 1.28.0. Oberfläche: Reiter «Angebot», «Sender» neu, «Einordnung» weg, Editor und Anlegen ohne Filterfelder, Einstellungen ohne Länder, Zustandsleiste, Radioseite mit `effectiveCountry` und leerem Angebot. | 1.28.0 | 6 bis 7 Tage |
-| **B2 «Mehr Angaben»** | Migration 00049, `radio.wikidata.sync`, Eigentümer als Anbieter, Gründung, Herkunft je Angabe im Aufklapp, Einstellung «Wikidata verwenden», Vertrag 1.30.0. | 1.30.0 | 2 bis 3 Tage |
+| **B2 «Mehr Angaben»** | Migration 00051, `radio.wikidata.sync`, Eigentümer als Anbieter, Gründung, Herkunft je Angabe im Aufklapp, Einstellung «Wikidata verwenden», Vertrag 1.30.0. | 1.30.0 | 2 bis 3 Tage |
 
 Die Nummern sind vorläufig. Teil A und Teil B sind unabhängig; baut Marco Teil B zuerst, bekommt er
 die nächste freie Migration und Vertragsfassung, und alle Verweise in B4.4, B10, B11 und PB-6 folgen
