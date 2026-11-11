@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"os"
 	"reflect"
@@ -636,5 +637,91 @@ func TestPodcastPlannerLeavesActiveDownloads(t *testing.T) {
 	}
 	if want := (podcastDownloadPayload{EpisodeID: eps[0], Manual: true, New: true, WaitingSince: 1234}); got != want {
 		t.Errorf("payload after «Laden» = %+v, want %+v", got, want)
+	}
+}
+
+// Concept 19, 6.1: an event in the gap between the planner's last look at its payload and the end
+// of its job is not lost: the run gave up its key before, so the event queues a new run.
+func TestPodcastSyncEventAfterTheLastLookIsNotLost(t *testing.T) {
+	t.Parallel()
+	f := newPodcastFixture(t)
+	f.exec(`UPDATE libraries SET podcast_mode = 'save' WHERE id = ?`, f.lib.ID)
+	eps := f.episodes(2)
+	if err := f.e.svc.QueuePodcastSync(f.e.ctx, f.podcast, eps[:1]); err != nil {
+		t.Fatal(err)
+	}
+	j, err := f.e.queue.Claim(f.e.ctx, "w", []string{JobPodcastSync})
+	if err != nil || j == nil {
+		t.Fatalf("claim: %v %v", j, err)
+	}
+	if err := f.e.svc.handlePodcastSync(f.e.ctx, j); err != nil {
+		t.Fatal(err)
+	}
+	// The handler is through, its job not yet done: a fetch with a new episode now.
+	if err := f.e.svc.QueuePodcastSync(f.e.ctx, f.podcast, eps[1:]); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.e.queue.Complete(f.e.ctx, "w", j.ID); err != nil {
+		t.Fatal(err)
+	}
+	f.syncQueued()
+	if got := f.queuedDownloads(); !slices.Equal(got, sorted(eps...)) {
+		t.Errorf("downloads = %v, want both new episodes %v", got, sorted(eps...))
+	}
+}
+
+// onLog is a slog.Handler that calls fn for every record (a seam to act in the middle of a run).
+type onLog struct {
+	slog.Handler
+	fn func(ctx context.Context, r slog.Record)
+}
+
+func (h onLog) Handle(ctx context.Context, r slog.Record) error {
+	h.fn(ctx, r)
+	return nil
+}
+
+// Concept 19, 5.3: the stop of «Speichern» → «Nur Link» ends the downloads queued before it, not a
+// «Laden» pressed while its run runs: an event that joins the run then (a late fetch) runs the
+// planner again without the stop.
+func TestPodcastStopIsNotInheritedByALaterRun(t *testing.T) {
+	t.Parallel()
+	f := newPodcastFixture(t)
+	save := model.PodcastDownloads{Mode: model.PodcastSave, Scope: model.PodcastScopeNew, LastN: 10, Parallel: 2}
+	if _, err := f.e.svc.SetPodcastDownloads(f.e.ctx, f.lib.ID, save); err != nil {
+		t.Fatal(err)
+	}
+	f.syncQueued()
+	eps := f.episodes(2)
+	if err := f.e.svc.QueuePodcastSync(f.e.ctx, f.podcast, eps[:1]); err != nil {
+		t.Fatal(err)
+	}
+	f.syncQueued()
+	if got := f.queuedDownloads(); !slices.Equal(got, eps[:1]) {
+		t.Fatalf("downloads on «Speichern» = %v, want %v", got, eps[:1])
+	}
+	link := save
+	link.Mode = model.PodcastLink
+	if _, err := f.e.svc.SetPodcastDownloads(f.e.ctx, f.lib.ID, link); err != nil {
+		t.Fatal(err)
+	}
+	var once sync.Once
+	f.e.svc.log = slog.New(onLog{Handler: discard.Handler(), fn: func(ctx context.Context, r slog.Record) {
+		if r.Message != "podcast downloads cancelled" {
+			return
+		}
+		once.Do(func() {
+			if n, err := f.e.svc.DownloadPodcastEpisodes(ctx, f.podcast, eps[1:]); err != nil || n != 1 {
+				t.Errorf("«Laden» = %d %v", n, err)
+			}
+			// A fetch that saw «Speichern» before the change reports its new episode now.
+			if _, err := f.e.svc.enqueuePodcastSync(ctx, f.e.queue, podcastSyncPayload{PodcastID: f.podcast, NewIDs: eps[:1]}, prioPodcastSync); err != nil {
+				t.Error(err)
+			}
+		})
+	}})
+	f.syncQueued()
+	if got := f.queuedDownloads(); !slices.Equal(got, eps[1:]) {
+		t.Errorf("downloads after the stop = %v, want only «Laden» %v", got, eps[1:])
 	}
 }

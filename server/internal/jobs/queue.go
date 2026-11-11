@@ -532,6 +532,34 @@ func (q *Queue) SetQueuedPayload(ctx context.Context, id int64, payload json.Raw
 	return n == 1, nil
 }
 
+// SwapKeyedPayload replaces the payload of a queued or running job that still holds its
+// idempotency key from old to payload and reports whether it did: false when the payload is no
+// longer old, the job gave up its key (ReleaseRunningKey) or neither waits nor runs (any more).
+// old is the payload as Get returned it.
+func (q *Queue) SwapKeyedPayload(ctx context.Context, id int64, old, payload json.RawMessage) (bool, error) {
+	if !json.Valid(payload) {
+		return false, errors.New("payload is not valid JSON")
+	}
+	n, err := q.q.SwapKeyedJobPayload(ctx, systemq.SwapKeyedJobPayloadParams{
+		NewPayload: string(payload), Now: q.now().UnixMilli(), ID: id, OldPayload: string(old),
+	})
+	if err != nil {
+		return false, fmt.Errorf("swap payload of job %d: %w", id, err)
+	}
+	return n == 1, nil
+}
+
+// ReleaseRunningKey gives up the idempotency key of a running job while its payload is still
+// payload (as Get returned it) and reports whether it did: from then on an Enqueue under the key
+// queues a new job, so an event after the handler's last look at its payload is not lost.
+func (q *Queue) ReleaseRunningKey(ctx context.Context, id int64, payload json.RawMessage) (bool, error) {
+	n, err := q.q.ReleaseRunningJobKey(ctx, systemq.ReleaseRunningJobKeyParams{Now: q.now().UnixMilli(), ID: id, Payload: string(payload)})
+	if err != nil {
+		return false, fmt.Errorf("release key of job %d: %w", id, err)
+	}
+	return n == 1, nil
+}
+
 // RaiseQueuedPriority raises the priority of a job that no worker has claimed yet to at least
 // priority (0..9) and reports whether the job was still queued. It never lowers a priority: a
 // manual request overtakes a scheduled job that holds the same idempotency key, instead of being

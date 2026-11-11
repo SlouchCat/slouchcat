@@ -33,7 +33,8 @@ import (
 // It cancels the waiting downloads that are no longer wanted (a smaller scope, a smaller N); after
 // a change of the setting from «Speichern» to «Nur Link» it cancels the running ones and those of
 // the buttons as well. Stored files stay (F-4). The runs of one podcast share the key
-// podcast-sync:<podcastId>; a later event joins a waiting or running one.
+// podcast-sync:<podcastId>; a later event joins a waiting or running one, and a running one takes
+// the events that joined it as they come, so each is run once (a stop never reaches a later run).
 
 // Job types of the planner.
 const (
@@ -84,11 +85,14 @@ const (
 // new, whether a setting changed (the waiting downloads it no longer wants are cancelled), and
 // whether that change ended «Speichern» (Stop: the running downloads and those of the buttons end
 // too, 5.3). A change of another value while «Nur Link» holds leaves the buttons' downloads alone.
+// Again says that an event joined the job while it ran: its handler runs the planner once more,
+// also for an event that carries nothing else (podcast.sync_all).
 type podcastSyncPayload struct {
 	PodcastID string   `json:"podcastId"`
 	NewIDs    []string `json:"newIds,omitempty"`
 	Changed   bool     `json:"changed,omitempty"`
 	Stop      bool     `json:"stop,omitempty"`
+	Again     bool     `json:"again,omitempty"`
 }
 
 func podcastSyncKey(podcastID string) string { return "podcast-sync:" + podcastID }
@@ -100,12 +104,16 @@ func (p podcastSyncPayload) merge(o podcastSyncPayload) podcastSyncPayload {
 	if len(ids) == 0 {
 		ids = nil
 	}
-	return podcastSyncPayload{PodcastID: p.PodcastID, NewIDs: ids, Changed: p.Changed || o.Changed, Stop: p.Stop || o.Stop}
+	return podcastSyncPayload{PodcastID: p.PodcastID, NewIDs: ids, Changed: p.Changed || o.Changed, Stop: p.Stop || o.Stop, Again: p.Again || o.Again}
 }
 
 func (p podcastSyncPayload) equal(o podcastSyncPayload) bool {
-	return p.PodcastID == o.PodcastID && slices.Equal(p.NewIDs, o.NewIDs) && p.Changed == o.Changed && p.Stop == o.Stop
+	return p.PodcastID == o.PodcastID && slices.Equal(p.NewIDs, o.NewIDs) && p.Changed == o.Changed && p.Stop == o.Stop && p.Again == o.Again
 }
+
+// podcastSyncAttempts bounds the lookups of enqueuePodcastSync: each one after the first follows
+// a write of another event or of the handler.
+const podcastSyncAttempts = 8
 
 // podcastSyncTypes registers the planner and its schedule (RegisterTypes).
 func (s *Service) podcastSyncTypes(r *jobs.Registry) {
@@ -139,44 +147,49 @@ func (s *Service) QueuePodcastSettingChanged(ctx context.Context, podcastID stri
 
 // enqueuePodcastSync queues the planner run of a podcast at prio under the key
 // podcast-sync:<podcastId> and returns its job id. A run that holds the key already takes p over
-// (podcastSyncPayload.merge): a waiting one through SetQueuedPayload and is raised to prio, a
-// running one through SetRunningPayload, and handlePodcastSync runs again for it.
+// (podcastSyncPayload.merge) through a compare-and-swap of its payload: a waiting one is raised to
+// prio, a running one gets Again as well, and handlePodcastSync runs again for it. When the swap
+// fails (another event or the handler wrote, the run ended or gave up its key after its last look
+// at the payload), the lookup is repeated; a free key then queues a new run.
 func (s *Service) enqueuePodcastSync(ctx context.Context, q *jobs.Queue, p podcastSyncPayload, prio int) (int64, error) {
 	p = p.merge(podcastSyncPayload{})
 	raw, err := json.Marshal(p)
 	if err != nil {
 		return 0, err
 	}
-	id, err := q.Enqueue(ctx, jobs.NewJob{Type: JobPodcastSync, Priority: prio, IdempotencyKey: podcastSyncKey(p.PodcastID), Payload: raw})
-	if err != nil {
-		return 0, fmt.Errorf("queue %s of %s: %w", JobPodcastSync, p.PodcastID, err)
-	}
-	if _, err := q.RaiseQueuedPriority(ctx, id, prio); err != nil {
-		return 0, err
-	}
-	j, err := q.Get(ctx, id)
-	if err != nil {
-		return 0, err
-	}
-	var cur podcastSyncPayload
-	if json.Unmarshal(j.Payload, &cur) != nil {
-		cur = podcastSyncPayload{PodcastID: p.PodcastID}
-	}
-	merged := cur.merge(p)
-	if merged.equal(cur) {
-		return id, nil
-	}
-	if raw, err = json.Marshal(merged); err != nil {
-		return 0, err
-	}
-	if j.State == jobs.StateQueued {
-		if ok, err := q.SetQueuedPayload(ctx, id, raw); err != nil || ok {
+	for range podcastSyncAttempts {
+		id, err := q.Enqueue(ctx, jobs.NewJob{Type: JobPodcastSync, Priority: prio, IdempotencyKey: podcastSyncKey(p.PodcastID), Payload: raw})
+		if err != nil {
+			return 0, fmt.Errorf("queue %s of %s: %w", JobPodcastSync, p.PodcastID, err)
+		}
+		if _, err := q.RaiseQueuedPriority(ctx, id, prio); err != nil {
+			return 0, err
+		}
+		j, err := q.Get(ctx, id)
+		if err != nil {
+			return 0, err
+		}
+		if j.State != jobs.StateQueued && j.State != jobs.StateRunning {
+			continue // ended meanwhile: the key is free
+		}
+		var cur podcastSyncPayload
+		if json.Unmarshal(j.Payload, &cur) != nil {
+			cur = podcastSyncPayload{PodcastID: p.PodcastID}
+		}
+		merged := cur.merge(p)
+		merged.Again = merged.Again || j.State == jobs.StateRunning
+		if merged.equal(cur) {
+			return id, nil
+		}
+		next, err := json.Marshal(merged)
+		if err != nil {
+			return 0, err
+		}
+		if ok, err := q.SwapKeyedPayload(ctx, id, j.Payload, next); err != nil || ok {
 			return id, err
 		}
 	}
-	// Running (or claimed meanwhile): the handler reads the payload again when it is through.
-	_, err = q.SetRunningPayload(ctx, id, raw)
-	return id, err
+	return 0, fmt.Errorf("queue %s of %s: the run kept changing", JobPodcastSync, p.PodcastID)
 }
 
 // runPodcastSyncAll is the Run of podcast.sync_all: the planner for every podcast on «Speichern»
@@ -209,29 +222,61 @@ func (s *Service) runPodcastSyncAll(ctx context.Context, q *jobs.Queue, prio int
 	return ids, nil
 }
 
-// handlePodcastSync is the handler of podcast.sync. When an event joined the run while it ran
-// (enqueuePodcastSync), it runs again with the joined payload.
+// handlePodcastSync is the handler of podcast.sync. It takes the payload of its job as a mailbox:
+// it swaps it for an empty one before each planner run, so an event that joins while the planner
+// runs (enqueuePodcastSync) is run next and once, and a stop is never inherited by a later run.
+// When nothing joined since its last run, it gives up its key while the payload is still empty;
+// an event after that queues a new run instead of joining one that is through. A failed run puts
+// what it took back into the mailbox for the retry.
 func (s *Service) handlePodcastSync(ctx context.Context, j *jobs.Job) error {
 	var p podcastSyncPayload
 	if err := decodePayload(j, &p); err != nil {
 		return jobs.Final(err)
 	}
-	queued := 0
+	idle := podcastSyncPayload{PodcastID: p.PodcastID}
+	empty, err := json.Marshal(idle)
+	if err != nil {
+		return err
+	}
+	raw, queued, first := j.Payload, 0, true
 	for {
-		n, err := s.syncPodcast(ctx, p)
-		if err != nil {
-			return err
+		if !first && p.equal(idle) {
+			released, err := s.queue.ReleaseRunningKey(ctx, j.ID, raw)
+			if err != nil {
+				return err
+			}
+			if released {
+				break
+			}
+		} else {
+			took, err := s.queue.SwapKeyedPayload(ctx, j.ID, raw, empty)
+			if err != nil {
+				return err
+			}
+			if took {
+				first = false
+				n, err := s.syncPodcast(ctx, p)
+				if err != nil {
+					if _, rerr := s.enqueuePodcastSync(context.WithoutCancel(ctx), s.queue, p, j.Priority); rerr != nil {
+						err = errors.Join(err, rerr)
+					}
+					return err
+				}
+				queued += n
+			}
 		}
-		queued += n
 		cur, err := s.queue.Get(ctx, j.ID)
 		if err != nil {
 			return err
 		}
-		var next podcastSyncPayload
-		if json.Unmarshal(cur.Payload, &next) != nil || next.equal(p) {
-			break
+		if cur.State != jobs.StateRunning {
+			// Cancelled: neither swap nor release can succeed any more.
+			return errors.Join(fmt.Errorf("%s %d no longer runs", JobPodcastSync, j.ID), context.Cause(ctx))
 		}
-		p = next
+		raw, p = cur.Payload, idle
+		if json.Unmarshal(raw, &p) != nil {
+			p = idle
+		}
 	}
 	if queued == 0 {
 		jobs.Skip(ctx)
