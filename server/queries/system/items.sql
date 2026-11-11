@@ -50,9 +50,18 @@ RETURNING *;
 SELECT * FROM media_files WHERE root_id = @root_id ORDER BY rel_path;
 
 -- name: CountLibraryMediaFiles :one
-SELECT count(*) FROM media_files AS m
-JOIN library_roots AS r ON r.id = m.root_id
-WHERE r.library_id = @library_id AND m.missing_since IS NULL;
+-- All files of the library's roots minus the missing ones. The direct form, a join with
+-- missing_since IS NULL, lets SQLite pick media_files_missing for the IS NULL and read the table
+-- row of every present file of the whole server: 170-225 ms per library and 1.35 s of the 1.8 s
+-- of GET /admin/libraries on CT 190 (35 000 files, 11 November 2026). Here the first count runs
+-- on a covering index of root_id and the second on the few missing rows; 23 ms for all seven
+-- libraries. INDEXED BY is required: without it SQLite scans the table for IS NOT NULL.
+SELECT CAST((SELECT count(*) FROM media_files AS m
+             WHERE m.root_id IN (SELECT r.id FROM library_roots AS r WHERE r.library_id = @library_id))
+          - (SELECT count(*) FROM media_files AS m INDEXED BY media_files_missing
+             WHERE m.missing_since IS NOT NULL
+               AND m.root_id IN (SELECT r.id FROM library_roots AS r WHERE r.library_id = @library_id))
+       AS INTEGER) AS n;
 
 -- name: SetMediaFilePath :exec
 UPDATE media_files SET rel_path = @rel_path, mtime = @mtime, missing_since = NULL, updated_at = @now WHERE id = @id;

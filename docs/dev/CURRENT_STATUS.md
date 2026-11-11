@@ -21,12 +21,31 @@ Vertrag **1.29.0** (additiv), keine Migration, Zweig `claude/k19-a2-podcasts-sei
 - **Tests:** Go `TestPodcastEpisodeList`, `TestPodcastDownloadQueueAndCancel`, Vertrag in `TestContractPodcastDownloads`
   und im Register; Vitest Liste (`listView.test.ts`, `PodcastsPage.test.tsx`) und Initialen; e2e-Tastaturtest
   `admin-podcast-page.spec.ts` (P-12), angepasst `admin-podcasts.spec.ts` und `podcast.spec.ts`.
-- **Schritt 0** (eigener PR #145, ohne Versionen): Die Episoden-Flut auf CT 190 war der erste Scan nach dem
+- **Schritt 0** (eigener PR #145, in `main`): Die Episoden-Flut auf CT 190 war der erste Scan nach dem
   Wiedereintragen der Podcast-Wurzel samt Verheiraten, kein Fehler aus A1; behoben ist ein Wettlauf paralleler Sonden
   (zwei Dateien an einer Feed-Episode). Messwerte in `docs/perf/19-podcasts.md` Abschnitt 8.
 - **Offen:** Weich gelöschte Datei-Episoden nach dem Verheiraten bleiben als Zeilen stehen (CT 190: 32'265); der
   Ordnerpfad eines Podcasts steht nicht auf seiner Seite (Vertrag kennt nur `rootId`).
 - Versionsstellen auf 1.29.0.
+
+## Ordner-Browser unter NAS-Last (11. November 2026, Zweig `claude/browse-unter-last`)
+
+Kein Vertragswechsel, keine Migration. Auf CT 190 brauchte `POST /admin/fs/browse` je Ebene 1,4 bis 2,4 s und gab
+beim Podcast-Ordner (102 Unterordner) nach 4,45 s mit 503 `path_unreachable` auf; `GET /admin/libraries` brauchte
+1,8 s. Gemessen nur lesend auf CT 190 (Python nach dem Muster von `os.Root`, DB mit `?mode=ro`):
+
+- **`paths.LstatAll`** öffnete über `os.Root` für jeden Namen alle Ordner von `rel` neu; auf NFS ist jedes Öffnen ein
+  GETATTR. Podcast-Ordner: 424 GETATTR, 0,65 bis 0,82 s bei 16 % IO-Druck, über dem Watchdog von 3 s bei 70 %. Jetzt
+  ein Deskriptor für `rel` und ein `fstatat` je Name: 4 GETATTR, 6 bis 16 ms. Watchdog bleibt 3 s.
+- **`admin.BrowseRoots`** lief vor jeder Ordnerliste über `library.Service.List` mit allen Zählungen (die 1,4 bis
+  2,4 s je Klick). Jetzt `library.Service.ListRoots`: Bibliotheken und Wurzeln ohne Zählungen, zwei Abfragen.
+- **`CountLibraryMediaFiles`** nahm für `missing_since IS NULL` den Index `media_files_missing` und las die Zeile
+  jeder vorhandenen Datei des Servers: 170 bis 225 ms je Bibliothek, 1,35 s für sieben. Jetzt alle Dateien über den
+  Index auf `root_id` minus die fehlenden: 23 ms für sieben, gleiche Zahlen.
+- Die Abfrage alle 7 s ist `SCAN_POLL_MS` (5 s) plus Antwortzeit, solange eine Bibliothek scannt (Podcast stand seit
+  12:12 auf `running`); sie bleibt.
+- **CT 190:** als `browse-e026722` (PR #142 auf PR #141) gemessen: Podcast-Ordner 186 ms beim ersten Aufruf,
+  34 ms danach (vorher 503 nach 4,45 s); `/media/nas` 23 ms; `GET /admin/libraries` 0,7 bis 0,8 s (vorher 1,8 bis 2,2 s).
 
 ## Podcast-Episoden ohne eigenes Cover (11. November 2026): Pull Request
 

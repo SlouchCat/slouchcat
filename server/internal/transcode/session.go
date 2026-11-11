@@ -534,6 +534,14 @@ func (s *Session) idleCheck(now time.Time, idle, removeAfter time.Duration) {
 	s.broadcastLocked()
 }
 
+// starting reports whether ffmpeg runs and has not finished a segment of this run yet: after a
+// start or a jump the viewer waits for exactly that segment.
+func (s *Session) starting() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.run != nil && !s.run.killed && s.run.next == s.run.start
+}
+
 // state reports whether ffmpeg runs and whether the session is cold.
 func (s *Session) state() (running, cold bool) {
 	s.mu.Lock()

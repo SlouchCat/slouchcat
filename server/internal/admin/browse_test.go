@@ -126,6 +126,11 @@ func TestBrowseRoots(t *testing.T) {
 	if _, err := f.svc.BrowsePaths(ctx, model.BrowseRequest{RootID: byPath[media].ID}); err != nil {
 		t.Errorf("entering the configured root = %v", err)
 	}
+	// The roots come from ListRoots: List counts the items and files of every library, 1.8 s on
+	// CT 190, and the browser asks for the roots on every click.
+	if f.libs.listed != 0 {
+		t.Errorf("the folder browser called List %d times, want ListRoots only", f.libs.listed)
+	}
 }
 
 // Without the browser wired nothing is browsable, and the dashboard says nothing is wrong.

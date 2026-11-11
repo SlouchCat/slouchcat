@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"path"
 )
 
 // Open opens the root directory for file access that cannot escape it: every Open, Stat or
@@ -78,7 +77,15 @@ func ReadDirNames(root Root, rel string, max int) ([]string, error) {
 // LstatAll returns one entry per name below rel, read with an lstat through the root's own
 // descriptor: no symlink is followed and no name can leave the root. A name that vanished between
 // the listing and this call, or that cannot be read on its own, is left out -- a directory listing
-// is a snapshot, and one entry must not cost the whole page.
+// is a snapshot, and one entry must not cost the whole page. A rel that cannot be opened leaves
+// every name out, as an lstat of each name through it would.
+//
+// rel is opened once, and every name is an fstatat on that one descriptor. An lstat of "rel/name"
+// through the *os.Root instead opens every directory of rel again for each name (os, doInRoot),
+// and on NFS every open is a GETATTR round trip to the server (close-to-open consistency): 102
+// names four levels down were 424 round trips and 0.7 s on a calm NAS, more than the 3 s watchdog
+// of the folder browser on a busy one. Through the one descriptor they are 4 and 6 ms (CT 190,
+// 11 November 2026). The names are entries of rel; one that climbs out of it is refused.
 func LstatAll(root Root, rel string, names []string) ([]fs.DirEntry, error) {
 	if len(names) == 0 {
 		return nil, nil
@@ -91,13 +98,18 @@ func LstatAll(root Root, rel string, names []string) ([]fs.DirEntry, error) {
 		return nil, err
 	}
 	defer r.Close()
+	dir := r
+	if rel != "." {
+		sub, err := r.OpenRoot(rel)
+		if err != nil {
+			return []fs.DirEntry{}, nil
+		}
+		defer sub.Close()
+		dir = sub
+	}
 	out := make([]fs.DirEntry, 0, len(names))
 	for _, name := range names {
-		child := name
-		if rel != "." {
-			child = path.Join(rel, name)
-		}
-		info, err := r.Lstat(child)
+		info, err := dir.Lstat(name)
 		if err != nil {
 			continue
 		}
