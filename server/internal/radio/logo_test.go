@@ -352,7 +352,7 @@ func TestLogoJobTypeAndSyncPrefetch(t *testing.T) {
 func TestLogoJobsOneAtATimePerHost(t *testing.T) {
 	e := newLogoEnv(t)
 	e.s.logo.limiter = ratelimit.New("radio-logo-test", 1000, 1000)
-	e.s.logo.hostRetry = time.Millisecond
+	e.s.logo.hostRetry, e.s.logo.jobSpread = time.Millisecond, time.Millisecond
 	var cur, peak, fetched, atFirst atomic.Int32
 	holding := make(chan struct{})
 	release := make(chan struct{})
@@ -447,27 +447,43 @@ func TestLogoHostLock(t *testing.T) {
 		t.Errorf("hosts %v", got)
 	}
 	l := newLogoState()
-	if !l.lockHosts([]string{"a.example", "b.example"}) || l.lockHosts([]string{"b.example"}) || !l.lockHosts([]string{"c.example"}) {
+	if !l.lockHosts(1, []string{"a.example", "b.example"}) || l.lockHosts(2, []string{"b.example"}) || !l.lockHosts(3, []string{"c.example"}) {
 		t.Fatal("locks of a taken and a free host")
 	}
 	l.unlockHosts([]string{"a.example", "b.example"})
-	if !l.lockHosts([]string{"b.example"}) {
+	if !l.lockHosts(2, []string{"b.example"}) {
 		t.Error("a host given back is still taken")
 	}
 	if l.limiter == nil || l.hostRetry != 15*time.Second {
 		t.Errorf("limiter %v, retry %v", l.limiter, l.hostRetry)
 	}
-	// The waits of the jobs of a busy host spread over 15 to 30 s, so they do not all wake at once.
+	// The waits of the jobs of a busy host spread over 15 s plus 15 s and 2 s per waiting job, so
+	// they do not all wake at once and a long queue does not come back every few seconds.
+	now := time.Date(2026, 11, 11, 12, 0, 0, 0, time.UTC)
+	busy := []string{"busy.example"}
 	seen := map[time.Duration]bool{}
-	for range 50 {
-		d := l.retryDelay()
-		if d < 15*time.Second || d >= 30*time.Second {
-			t.Fatalf("retry delay %v outside 15 s to 30 s", d)
+	var longest time.Duration
+	for i := range 100 {
+		d := l.retryDelay(int64(100+i), busy, now)
+		if d < 15*time.Second || d >= 15*time.Second+15*time.Second+time.Duration(i+1)*2*time.Second {
+			t.Fatalf("retry delay %v of waiter %d outside its window", d, i+1)
 		}
-		seen[d] = true
+		seen[d], longest = true, max(longest, d)
 	}
-	if len(seen) < 10 {
-		t.Errorf("only %d different retry delays in 50", len(seen))
+	if len(seen) < 50 || longest < 60*time.Second {
+		t.Errorf("%d different delays, longest %v: the waits of 100 jobs do not spread", len(seen), longest)
+	}
+	if d := l.retryDelay(999, []string{"quiet.example"}, now); d >= 32*time.Second {
+		t.Errorf("first waiter of another host waits %v, want under 32 s", d)
+	}
+	// A job that takes its host no longer counts; a waiter older than an hour neither.
+	l.lockHosts(100, busy)
+	if _, ok := l.waiting[100]; ok {
+		t.Error("the job that took the host still waits")
+	}
+	l.retryDelay(5000, busy, now.Add(2*time.Hour))
+	if len(l.waiting) != 1 {
+		t.Errorf("%d waiters after an hour, want only the new one", len(l.waiting))
 	}
 	// Four requests a second (OB-11): a fresh limiter lets four through at once, not a fifth.
 	for i := range 5 {
@@ -513,7 +529,7 @@ func TestLogoChainEndlessHomepage(t *testing.T) {
 	if st := e.stationRow(id); st.LogoState != logoStateFailed {
 		t.Errorf("state %q, want failed", st.LogoState)
 	}
-	if !e.s.logo.lockHosts(logoHosts(srv.URL)) {
+	if !e.s.logo.lockHosts(1, logoHosts(srv.URL)) {
 		t.Error("the host is still held after the job")
 	}
 }

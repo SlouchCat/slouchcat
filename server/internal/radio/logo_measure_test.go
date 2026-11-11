@@ -193,7 +193,7 @@ func TestMeasureLogoChain(t *testing.T) {
 				}
 				payload, _ := json.Marshal(logoPayload{StationID: p.id})
 				t0 := time.Now()
-				err := s.handleLogo(ctx, &jobs.Job{Type: JobLogoFetch, Payload: payload})
+				err := s.handleLogo(ctx, &jobs.Job{ID: p.id, Type: JobLogoFetch, Payload: payload})
 				d := time.Since(t0)
 				s.logo.mu.Lock()
 				maxHosts = max(maxHosts, len(s.logo.hosts))

@@ -213,8 +213,8 @@ func (s *Service) handleLogo(ctx context.Context, j *jobs.Job) error {
 	}
 	// One job per host at a time (B7.2): a taken host sends the job back without an attempt.
 	hosts := logoHosts(st.FaviconUrl.String, st.Homepage.String)
-	if !s.logo.lockHosts(hosts) {
-		return jobs.RetryLater(s.logo.retryDelay(), "another radio logo job fetches from the same host")
+	if !s.logo.lockHosts(j.ID, hosts) {
+		return jobs.RetryLater(s.logo.retryDelay(j.ID, hosts, s.now()), "another radio logo job fetches from the same host")
 	}
 	defer s.logo.unlockHosts(hosts)
 	src, state := s.fetchLogo(ctx, st)
