@@ -67,6 +67,9 @@ type Request struct {
 	Final     string      // the complete file: Part is renamed to it; reused when it is there
 	FileMode  fs.FileMode // of Part and Validator when they are created (before the umask)
 	DirMode   fs.FileMode // of the directory of Part when it is created (before the umask)
+	// NoMkdir: the directory of Part must be there; it is never made (the fetch fails with
+	// fs.ErrNotExist before any request). A stored podcast episode never makes a known folder anew.
+	NoMkdir bool
 	// Progress hears the bytes of Part while the body is read (optional); total is the size the
 	// answer announced (-1 when unknown).
 	Progress func(have, total int64)
@@ -99,7 +102,11 @@ func Fetch(ctx context.Context, r Request) (Result, error) {
 		return Result{Bytes: info.Size(), Reused: true}, nil
 	}
 	if dir := path.Dir(r.Part); dir != "." {
-		if err := r.Root.MkdirAll(dir, r.DirMode); err != nil {
+		if r.NoMkdir {
+			if info, err := r.Root.Stat(dir); err != nil || !info.IsDir() {
+				return Result{}, fmt.Errorf("directory of the partial file: %w", fs.ErrNotExist)
+			}
+		} else if err := r.Root.MkdirAll(dir, r.DirMode); err != nil {
 			return Result{}, err
 		}
 	}

@@ -236,6 +236,9 @@ type podcastTarget struct {
 // errPodcastFolderMissing: the folder of the podcast that the database knows is not there.
 var errPodcastFolderMissing = errors.New("podcast folder missing")
 
+// errPodcastEpisodeHasFile: the episode got a media file row meanwhile (the pairing of the planner).
+var errPodcastEpisodeHasFile = errors.New("the episode has a file meanwhile")
+
 // podcastDownload runs one attempt of a download.
 func (s *Service) podcastDownload(ctx context.Context, j *jobs.Job, p *podcastDownloadPayload) error {
 	ep, set, _, ok, err := s.podcastDownloadWanted(ctx, p.EpisodeID, p.Manual)
@@ -287,7 +290,16 @@ func (s *Service) podcastDownload(ctx context.Context, j *jobs.Job, p *podcastDo
 		// The root passed, the podcast's own folder does not take files (made by another user).
 		return s.podcastWait(ctx, j, p, PodcastErrRootNotWritable)
 	}
+	// A cancel by the administration removes the own files at once, also after the load (5.3).
+	defer func() {
+		if errors.Is(context.Cause(ctx), jobs.ErrCancelled) {
+			own.remove(r, false)
+		}
+	}()
 	contentType, err := s.loadPodcastEpisode(ctx, r, own, ep, set)
+	if errors.Is(err, errPodcastFolderMissing) {
+		return s.podcastWait(ctx, j, p, PodcastErrRootMissing)
+	}
 	if err != nil {
 		return err
 	}
@@ -577,7 +589,7 @@ func (s *Service) fetchPodcastCover(ctx context.Context, r *os.Root, folder stri
 	defer own.remove(r, false)
 	res, err := fetch.Fetch(ctx, fetch.Request{
 		Client: fetch.Clients().For(ctx, set.FeedUrl.String, set.FeedOrigin.String), URL: set.CoverUrl.String, Root: r,
-		Part: own.part, Validator: own.validator, Final: own.loaded, FileMode: podcastFileMode, DirMode: podcastDirMode, Log: s.log,
+		Part: own.part, Validator: own.validator, Final: own.loaded, FileMode: podcastFileMode, NoMkdir: true, Log: s.log,
 	})
 	if err != nil {
 		s.log.WarnContext(ctx, "load the cover of a new podcast folder", "item_id", set.PodcastID, "err", err)
@@ -593,8 +605,10 @@ func (s *Service) fetchPodcastCover(ctx context.Context, r *os.Root, folder stri
 }
 
 // loadPodcastEpisode loads the enclosure into the own files of the download (step 3) under the two
-// counters and returns the media type of the answer. A body over 2 GiB fails at once (too_large);
-// a cancel by the administration removes the partial file, a pause keeps it for the resume.
+// counters and returns the media type of the answer. The folder is never made (fetch.NoMkdir): one
+// that vanished while the download waited for its counters is errPodcastFolderMissing. A body over
+// 2 GiB fails at once (too_large); a cancel by the administration removes the partial file, a
+// pause keeps it for the resume.
 func (s *Service) loadPodcastEpisode(ctx context.Context, r *os.Root, own podcastOwnNames, ep systemq.Item, set systemq.PodcastEffectiveSettingsRow) (string, error) {
 	host := ""
 	if u, err := url.Parse(ep.EnclosureUrl.String); err == nil {
@@ -607,7 +621,7 @@ func (s *Service) loadPodcastEpisode(ctx context.Context, r *os.Root, own podcas
 	defer release()
 	res, err := fetch.Fetch(ctx, fetch.Request{
 		Client: fetch.Clients().For(ctx, set.FeedUrl.String, set.FeedOrigin.String), URL: ep.EnclosureUrl.String, Root: r,
-		Part: own.part, Validator: own.validator, Final: own.loaded, FileMode: podcastFileMode, DirMode: podcastDirMode, Log: s.log,
+		Part: own.part, Validator: own.validator, Final: own.loaded, FileMode: podcastFileMode, NoMkdir: true, Log: s.log,
 		Progress: func(have, total int64) { jobs.Progress(ctx, have, max(total, 0), ep.Title) },
 	})
 	switch {
@@ -619,6 +633,8 @@ func (s *Service) loadPodcastEpisode(ctx context.Context, r *os.Root, own podcas
 		return "", err
 	case ctx.Err() != nil:
 		return "", err
+	case errors.Is(err, fs.ErrNotExist):
+		return "", errPodcastFolderMissing
 	case errors.Is(err, fetch.ErrTooLarge):
 		own.remove(r, false)
 		return "", downloadFailedFinal(PodcastErrTooLarge, err)
@@ -753,6 +769,9 @@ func (s *Service) enterPodcastFile(ctx context.Context, r *os.Root, target podca
 		if rerr := r.Remove(linked); rerr != nil {
 			s.log.WarnContext(ctx, "remove the link of a stored episode that was not entered", "item_id", ep.ID, "err", rerr)
 		}
+		if errors.Is(err, errPodcastEpisodeHasFile) {
+			return false, nil
+		}
 		return false, err
 	}
 	s.log.InfoContext(ctx, "podcast episode stored", "item_id", ep.ID, "root_id", target.root.ID)
@@ -760,7 +779,10 @@ func (s *Service) enterPodcastFile(ctx context.Context, r *os.Root, target podca
 }
 
 // insertPodcastFile writes the media file row of a stored episode with its probe and its audio
-// tracks, clears the episode's failure and the podcast's pending folder, in one transaction.
+// tracks, clears the episode's failure and the podcast's pending folder, in one transaction. The
+// transaction looks once more that the episode has no file that is there (and, without a row to
+// revive, no row at all): the pairing of the planner runs without the scan lock and may have
+// given it one meanwhile (errPodcastEpisodeHasFile).
 func (s *Service) insertPodcastFile(ctx context.Context, r *os.Root, root appq.LibraryRoot, podcastID, episodeID, rel, ext string,
 	probe transcode.Probe, revive string,
 ) error {
@@ -785,6 +807,15 @@ func (s *Service) insertPodcastFile(ctx context.Context, r *os.Root, root appq.L
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := systemq.New(tx)
+	rows, err := q.PodcastEpisodeFiles(ctx, episodeID)
+	if err != nil {
+		return fmt.Errorf("files of episode %s: %w", episodeID, err)
+	}
+	for _, f := range rows {
+		if !f.MissingSince.Valid || revive == "" {
+			return errPodcastEpisodeHasFile
+		}
+	}
 	fileID := revive
 	if revive != "" {
 		n, err := q.PodcastReviveMediaFile(ctx, systemq.PodcastReviveMediaFileParams{

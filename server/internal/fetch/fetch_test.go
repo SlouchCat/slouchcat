@@ -131,3 +131,30 @@ func TestContentRangeAndExt(t *testing.T) {
 		}
 	}
 }
+
+// With NoMkdir a fetch never makes the directory of its partial file: a folder that vanished
+// meanwhile stays gone and the fetch fails with fs.ErrNotExist before any request.
+func TestFetchNoMkdir(t *testing.T) {
+	t.Parallel()
+	var requests atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { requests.Add(1) }))
+	t.Cleanup(srv.Close)
+	dir := t.TempDir()
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	_, err = Fetch(context.Background(), Request{Client: netguard.NewClients(http.Client{}, HeaderTimeout).For(context.Background(), srv.URL, ""),
+		URL: srv.URL + "/a.mp3", Root: root, Part: "gone/a.part", Validator: "gone/a.validator", Final: "gone/a.mp3",
+		FileMode: 0o664, DirMode: 0o775, NoMkdir: true})
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("fetch into a missing folder = %v, want not exist", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "gone")); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("the folder was made: %v", err)
+	}
+	if n := requests.Load(); n != 0 {
+		t.Errorf("requests = %d", n)
+	}
+}

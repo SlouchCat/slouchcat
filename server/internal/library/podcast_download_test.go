@@ -782,3 +782,77 @@ func TestPodcastDownloadFolderOfAnotherFeed(t *testing.T) {
 		t.Errorf("stored as %q", got)
 	}
 }
+
+// Concept 19, 6.2 step 2: a known folder that vanishes while the download waits for its counters
+// is never made anew by the load; the download waits for it (root_missing).
+func TestPodcastLoadIntoAVanishedFolder(t *testing.T) {
+	t.Parallel()
+	f := newDownloadFixture(t)
+	ep := f.episode("Weg", "weg.mp3", time.Date(2026, 11, 5, 6, 0, 0, 0, time.UTC), podcastEpisodeMedia(t, 1))
+	pr, err := paths.NewRoot(f.dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := paths.Open(pr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	item, set, _, ok, err := f.e.svc.podcastDownloadWanted(f.e.ctx, ep, false)
+	if err != nil || !ok {
+		t.Fatalf("wanted = %v %v", ok, err)
+	}
+	if _, err := f.e.svc.loadPodcastEpisode(f.e.ctx, r, podcastOwn("Verschwunden", ep), item, set); !errors.Is(err, errPodcastFolderMissing) {
+		t.Errorf("load into a vanished folder = %v, want the folder missing", err)
+	}
+	if _, err := os.Stat(filepath.Join(f.dir, "Verschwunden")); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("the vanished folder was made anew: %v", err)
+	}
+}
+
+// Concept 19, 5.3: a download cancelled after its body was loaded (here while the tags are
+// written) removes its own files at once, not only the sweep a week later.
+func TestPodcastDownloadCancelledAfterLoading(t *testing.T) {
+	t.Parallel()
+	f := newDownloadFixture(t)
+	ep := f.episode("Abbruch", "abbruch.mp3", time.Date(2026, 11, 5, 6, 0, 0, 0, time.UTC), podcastEpisodeMedia(t, 1))
+	ctx, cancel := context.WithCancelCause(f.e.ctx)
+	defer cancel(nil)
+	f.e.svc.podcastTag = func(ctx context.Context, _ string, out io.Writer, _ string, _ transcode.AudioTags) error {
+		_, _ = out.Write([]byte("halb"))
+		cancel(jobs.ErrCancelled)
+		return context.Cause(ctx)
+	}
+	if err := f.download(ctx, ep, 1); err == nil {
+		t.Fatal("a cancelled download ended without error")
+	}
+	if names := dirNames(t, filepath.Join(f.dir, "Testpodcast")); strings.Join(names, ",") != "Alte Folge.mp3" {
+		t.Errorf("folder after the cancel = %v", names)
+	}
+}
+
+// The pairing of the planner runs without the scan lock: when it gave the episode a file after
+// the download looked, the download's insert refuses a second media file row of the episode.
+func TestPodcastInsertRefusesASecondFile(t *testing.T) {
+	t.Parallel()
+	f := newDownloadFixture(t)
+	ep := f.episode("Gepaart", "gepaart.mp3", time.Date(2026, 11, 5, 6, 0, 0, 0, time.UTC), nil)
+	writeFile(t, f.dir, "Testpodcast/Gepaart.mp3", "audio")
+	f.file(ep, "Testpodcast/Gepaart (paired).mp3")
+	pr, err := paths.NewRoot(f.dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := paths.Open(pr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	err = f.e.svc.insertPodcastFile(f.e.ctx, r, f.root, f.podcast, ep, "Testpodcast/Gepaart.mp3", "mp3", transcode.Probe{}, "")
+	if !errors.Is(err, errPodcastEpisodeHasFile) {
+		t.Errorf("insert = %v, want the episode has a file", err)
+	}
+	if n := f.e.count(`SELECT count(*) FROM media_files WHERE item_id = ?`, ep); n != 1 {
+		t.Errorf("media files of the episode = %d, want 1", n)
+	}
+}
