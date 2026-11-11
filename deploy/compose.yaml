@@ -6,6 +6,8 @@
 #   SLOUCHCAT_TRUSTED_PROXIES=private, any device in the home network can set X-Forwarded-For
 #   itself and so empty the limit on login attempts.
 # GPU: add -f compose.nvidia.yaml, -f compose.intel.yaml or -f compose.amd.yaml.
+# Stored podcast episodes (optional, ADR 0029): add -f compose.podcasts.yaml with PODCAST_DIR and
+#   PODCAST_TARGET in .env; it makes the podcast folder writable, everything else stays read-only.
 # Updater companion (optional, ADR 0024): add -f compose.updater.yaml last, after all other files.
 # The updater replaces this file on an update (a copy stays as compose.yaml.bak-vor-<version>).
 # Put your own changes into .env or into an own override file, not into this file.
@@ -18,7 +20,7 @@ services:
     # update check only says that there is one. The optional updater companion
     # (compose.updater.yaml, ADR 0024) takes that step on a click in the administration.
     # `docker compose up --build` builds locally instead.
-    image: ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION:-1.26.0}
+    image: ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION:-1.27.0}
     build:
       context: ..
       dockerfile: deploy/Dockerfile
