@@ -62,7 +62,6 @@ export { NowPlayingDialog } from './NowPlayingDialog';
 export { FacetOptions, FacetSelect, type FacetOption } from './FacetSelect';
 export { FilterSheet } from './FilterSheet';
 // The radio administration's coverage per facet (concept 16 stage 2, tab «Einordnung»).
-export { CoverageBars, type CoverageRow } from './CoverageBars';
 export { AudioPlayer, type AudioPlayerMenu } from './AudioPlayer';
 // Building blocks of the player (concept 13, 11.10).
 export { ChapterCard } from './ChapterCard';
