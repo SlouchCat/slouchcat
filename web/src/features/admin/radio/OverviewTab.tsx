@@ -21,6 +21,7 @@ import {
   stopRadioListener,
   syncRadioCatalog,
   type RadioCatalogState,
+  type RadioOffer,
   type RadioRelays,
 } from '../queries';
 import styles from './Radio.module.css';
@@ -30,6 +31,8 @@ type Listener = Relay['listeners'][number];
 
 interface OverviewTabProps {
   catalog: UseQueryResult<RadioCatalogState>;
+  /** The stored offer (contract 1.28.0): its numbers. */
+  offer: UseQueryResult<RadioOffer>;
   relays: UseQueryResult<RadioRelays>;
   titleRef: RefObject<HTMLHeadingElement | null>;
   /** Told when the stop confirmation opens and closes (the page holds its poll meanwhile). */
@@ -47,11 +50,17 @@ const relayTone = {
 } as const;
 
 /**
- * «Übersicht» (concept 16, 11): the catalog and its sync, the running relays with their listeners
- * (each one can be stopped) and the server load. The coverage of the tag rules is gone with them
- * (contract 1.28.0, concept 19 part B, B5).
+ * «Übersicht» (concept 16, 11): the catalog and its sync, the offer in numbers (concept 19 part B,
+ * B9.1), the running relays with their listeners (each one can be stopped) and the server load.
+ * The coverage of the tag rules is gone with them (contract 1.28.0, B5).
  */
-export function OverviewTab({ catalog, relays, titleRef, onConfirmOpenChange }: OverviewTabProps) {
+export function OverviewTab({
+  catalog,
+  offer,
+  relays,
+  titleRef,
+  onConfirmOpenChange,
+}: OverviewTabProps) {
   const { t, i18n } = useTranslation();
   const language = i18n.language;
   const number = useMemo(() => new Intl.NumberFormat(language), [language]);
@@ -146,6 +155,34 @@ export function OverviewTab({ catalog, relays, titleRef, onConfirmOpenChange }: 
             )}
             <TextLink href={paths.adminJobs}>{t('admin.radio.catalog.jobs')}</TextLink>
           </>
+        ) : null}
+      </BandPanel>
+
+      <BandPanel
+        title={t('admin.radio.offerFacts.title')}
+        icon="list"
+        meta={
+          <TextLink href={`${paths.adminRadio}?tab=angebot`}>
+            {t('admin.radio.offerFacts.open')}
+          </TextLink>
+        }
+      >
+        {offer.isPending ? (
+          <Skeleton shape="block" />
+        ) : offer.isError ? (
+          <Notice tone="danger" title={problemMessage(t, offer.error)} />
+        ) : offer.data ? (
+          <FactList
+            facts={[
+              [t('admin.radio.offerFacts.countries'), number.format(offer.data.totals.countries)],
+              [t('admin.radio.offerFacts.stations'), number.format(offer.data.totals.offered)],
+              [
+                t('admin.radio.offerFacts.unreachable'),
+                number.format(offer.data.totals.offeredUnreachable),
+              ],
+              [t('admin.radio.offerFacts.withLogo'), number.format(offer.data.totals.withLogo)],
+            ]}
+          />
         ) : null}
       </BandPanel>
 

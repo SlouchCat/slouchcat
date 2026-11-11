@@ -49,7 +49,7 @@ import type {
   components,
 } from '@slouchcat/api-client';
 import { queryOptions } from '@tanstack/react-query';
-import { api, request } from '@/api/client';
+import { api, isApiError, request } from '@/api/client';
 import type { PagedSource } from '@/lib/pagedList';
 
 /** Poll interval while a scan is queued or running. */
@@ -663,3 +663,71 @@ export const createRadioStation = (body: AdminRadioStationCreate): Promise<Admin
 /** Deletes an own station; a catalog station can only leave the offer. */
 export const deleteRadioStation = (stationId: number) =>
   request(api.DELETE('/admin/radio/stations/{stationId}', { params: { path: { stationId } } }));
+
+// The radio offer (contract 1.28.0, concept 19 part B, B4): the stored offer, the preview of a
+// draft of steps and the apply with the version the draft is based on. The server computes every
+// number and every tick; the client keeps only the list of steps (rule 12).
+export type RadioOffer = components['schemas']['RadioOffer'];
+export type RadioOfferCountry = components['schemas']['RadioOfferCountry'];
+export type RadioOfferStep = components['schemas']['RadioOfferStep'];
+export type RadioOfferPreview = components['schemas']['RadioOfferPreview'];
+type RadioOfferPreviewRequest = components['schemas']['RadioOfferPreviewRequest'];
+export type RadioOfferApplied = components['schemas']['RadioOfferApplied'];
+export type RadioOfferStation = components['schemas']['RadioOfferStation'];
+export type RadioContinent = components['schemas']['RadioContinent'];
+
+/** The continents in the order of the tab «Angebot» (B9.2). */
+export const RADIO_CONTINENTS: readonly RadioContinent[] = [
+  'europe',
+  'northAmerica',
+  'southAmerica',
+  'asia',
+  'africa',
+  'oceania',
+];
+
+export const radioOfferQuery = queryOptions({
+  queryKey: [...radioAdminKeys.all, 'offer'],
+  queryFn: ({ signal }): Promise<RadioOffer> => request(api.GET('/admin/radio/offer', { signal })),
+});
+
+/** The steps on the stored offer, computed and not stored; with `list` a page of a country. */
+export const previewRadioOffer = (
+  body: RadioOfferPreviewRequest,
+  signal?: AbortSignal,
+): Promise<RadioOfferPreview> => request(api.POST('/admin/radio/offer/preview', { body, signal }));
+
+/** Stores the steps on the offer of `version`; 409 `offer_conflict` when it changed since. */
+export const applyRadioOffer = (
+  version: number,
+  steps: RadioOfferStep[],
+): Promise<RadioOfferApplied> =>
+  request(api.POST('/admin/radio/offer/apply', { body: { version, steps } }));
+
+/** The most ids one step `mark` or `demark` takes (`RadioOfferStep.stationIds`). */
+export const OFFER_STEP_IDS_MAX = 5000;
+
+/** The steps `mark` for `ids`, at most OFFER_STEP_IDS_MAX ids each (the undo of B6). */
+export function markSteps(ids: readonly number[]): RadioOfferStep[] {
+  const steps: RadioOfferStep[] = [];
+  for (let start = 0; start < ids.length; start += OFFER_STEP_IDS_MAX) {
+    steps.push({ op: 'mark', stationIds: ids.slice(start, start + OFFER_STEP_IDS_MAX) });
+  }
+  return steps;
+}
+
+/**
+ * Stores steps at once on the current offer (the tab «Sender»: one station in or out, «Nicht
+ * erreichbare entfernen», its undo): reads the version, applies, and on 409 reads it once more
+ * and applies again; the steps are relative, so nothing of the other change is lost (B4.3).
+ */
+export async function applyRadioOfferNow(steps: RadioOfferStep[]): Promise<RadioOfferApplied> {
+  const offer = await request(api.GET('/admin/radio/offer'));
+  try {
+    return await applyRadioOffer(offer.version, steps);
+  } catch (error) {
+    if (!isApiError(error, 409)) throw error;
+    const again = await request(api.GET('/admin/radio/offer'));
+    return applyRadioOffer(again.version, steps);
+  }
+}

@@ -190,7 +190,8 @@
       "job_type_not_scheduled": "This job has no schedule.",
       "job_type_not_windowable": "This job has no time window.",
       "provider_unreachable": "The source cannot be reached right now. Please try again later.",
-      "provider_paused": "The source rests after repeated refusals. Please try again later."
+      "provider_paused": "The source rests after repeated refusals. Please try again later.",
+      "offer_conflict": "The radio offer changed meanwhile. Please apply once more."
     },
     "field": {
       "required": "Required.",
@@ -1035,10 +1036,9 @@
         "live": "Live now",
         "liveValue": "{{relays}} · {{listeners}}",
         "liveNote": "stations · listeners",
-        "changed": "Changed by hand",
-        "changedNote": "exceptions",
-        "tags": "Tags without a rule",
-        "tagsNote": "of more than 50 stations"
+        "offer": "In the offer",
+        "offerValue": "{{stations}} · {{countries}}",
+        "offerNote": "stations · countries"
       },
       "memory": {
         "title": "No RAM buffer",
@@ -1049,8 +1049,8 @@
         "overview": "Overview",
         "stations": "Stations",
         "settings": "Settings",
-        "rules": "Tagging",
-        "own": "Own stations"
+        "own": "Own stations",
+        "offer": "Offer"
       },
       "catalog": {
         "title": "Catalog",
@@ -1109,46 +1109,67 @@
         "caption": "Stations",
         "search": "Search stations",
         "country": "Country",
-        "genre": "Genre",
         "state": "State",
         "allCountries": "All countries",
-        "allGenres": "All genres",
         "anyState": "All",
         "states": {
           "reachable": "Reachable",
-          "broken": "Broken",
-          "hidden": "Hidden"
+          "broken": "Unreachable",
+          "noLogo": "Without a logo"
         },
-        "exceptions": "Exceptions only",
-        "exceptionsHelp": "Changed by hand, hidden, recommended or broken. A search always covers every station.",
         "columns": {
           "station": "Station",
           "place": "Country",
           "genres": "Genre",
           "state": "State",
           "marks": "Exceptions",
-          "actions": "Actions"
+          "actions": "Actions",
+          "provider": "Provider"
         },
         "stateText": {
           "ok": "Reachable",
-          "broken": "Broken",
-          "missing": "No longer in the catalog",
-          "hidden": "Hidden"
+          "broken": "Unreachable",
+          "missing": "No longer in the catalog"
         },
         "locked_one": "{{count}} field by hand",
         "locked_other": "{{count}} fields by hand",
         "recommended": "Recommended",
         "edit": "Edit",
         "editLabel": "Edit {{name}}",
-        "hide": "Hide",
-        "show": "Show",
-        "hideLabel": "Hide {{name}}",
-        "showLabel": "Show {{name}}",
-        "hiddenDone": "{{name}} is hidden.",
-        "shownDone": "{{name}} is shown.",
         "empty": "No stations found.",
         "count_one": "{{count}} station",
-        "count_other": "{{count}} stations"
+        "count_other": "{{count}} stations",
+        "provider": "Provider",
+        "providerFilter": "Filter by the provider {{provider}}",
+        "sort": "Sort",
+        "sorts": {
+          "popularity": "Popularity",
+          "name": "Name A–Z"
+        },
+        "wholeCatalog": "Show the whole catalog",
+        "offeredYes": "In the offer",
+        "offeredNo": "Not in the offer",
+        "removeUnreachable_one": "Remove unreachable ({{n}})",
+        "removeUnreachable_other": "Remove unreachable ({{n}})",
+        "removeUnreachableHelp": "Takes every station of the offer that is unreachable now out of it, except favourites and own stations. They do not come back by themselves.",
+        "removedUnreachable_one": "{{count}} unreachable station left the offer.",
+        "removedUnreachable_other": "{{count}} unreachable stations left the offer.",
+        "undo": "Undo",
+        "undone": "The stations are back in the offer.",
+        "takeOut": "Take out of the offer",
+        "takeOutLabel": "Take {{name}} out of the offer",
+        "takeIn": "Take into the offer",
+        "takeInLabel": "Take {{name}} into the offer",
+        "takenOut": "{{name}} is no longer in the offer.",
+        "takenIn": "{{name}} is in the offer.",
+        "streams": "Streams",
+        "streamsLabel": "Streams of {{name}}",
+        "streamsTitle": "Streams of {{name}}",
+        "streamsEmpty": "No streams.",
+        "streamPreferred": "preferred",
+        "streamUnreachable": "unreachable",
+        "streamHls": "HLS",
+        "streamsClose": "Close"
       },
       "settings": {
         "title": "Settings",
@@ -1164,13 +1185,6 @@
         "maxRelaysHelp_other": "At the current time shift the budget allows {{count}} stations.",
         "grace": "Run-on without listeners (seconds)",
         "graceHelp": "How long a relay runs on after its last listener left.",
-        "hideBroken": "Hide broken stations",
-        "hideBrokenHelp": "Stations that do not answer are left out of the app's lists. As favourites they stay.",
-        "countries": "Countries in the catalog",
-        "countriesHelp": "Profiles see stations of these countries only. The sync still fetches all of them.",
-        "countriesAll": "All countries",
-        "countriesChosen": "Chosen countries only",
-        "countriesField": "Countries (ISO codes, separated by commas)",
         "rights": "Stations see the Slouchcat server, not the device, so the server's location counts. Slouchcat passes the sound only to signed-in profiles of this installation; whether that is allowed for a station is up to the operator of the installation.",
         "saved": "The settings are saved.",
         "coverMusicbrainz": "Cover lookup MusicBrainz",
@@ -1193,9 +1207,6 @@
           "own": "Own logo",
           "failed": "No logo found, initials"
         },
-        "genre": "Genre",
-        "kind": "Programme",
-        "mood": "Mood",
         "region": "Region",
         "regionHelp": "ISO code, for example CH-ZH. Empty: no region.",
         "stream": "Stream",
@@ -1208,8 +1219,6 @@
         "probeTitle": "Current title: {{title}}",
         "recommended": "Recommended",
         "recommendedHelp": "Comes first in its country (sort «Popular»).",
-        "hidden": "Hidden",
-        "hiddenHelp": "Shows nowhere in the app and does not come back with the sync.",
         "tags": "Tags from the catalog",
         "lock": "Lock {{field}}",
         "locked": "locked",
@@ -1217,61 +1226,6 @@
         "lockHelp": "The daily sync never overwrites a locked field.",
         "save": "Save",
         "saved": "{{name}} is saved."
-      },
-      "rules": {
-        "title": "Tagging",
-        "open": "Go to tagging",
-        "coverage": "Coverage per filter",
-        "coverageHelp": "Share of the reachable, shown stations with a value. A kind counts only when a tag, the name or the administration sets it.",
-        "coverageCount": "{{assigned}} of {{total}} stations",
-        "unassigned_one": "{{count}} tag without a rule",
-        "unassigned_other": "{{count}} tags without a rule",
-        "worklist": "Tags without a rule",
-        "worklistHelp_one": "By number of stations. Tags of fewer than {{count}} station are not listed. A rule applies at once to every station with the tag.",
-        "worklistHelp_other": "By number of stations. Tags of fewer than {{count}} stations are not listed. A rule applies at once to every station with the tag.",
-        "worklistEmpty": "Every common tag has a rule.",
-        "rules": "Rules",
-        "rulesHelp": "Tag → facet. An own rule replaces the default for its facet; what was set by hand on a station stays.",
-        "rulesEmpty": "No rule matches the search.",
-        "search": "Search rules",
-        "count_one": "{{count}} rule",
-        "count_other": "{{count}} rules",
-        "more_one": "Show {{count}} more",
-        "more_other": "Show {{count}} more",
-        "columns": {
-          "tag": "Tag",
-          "stations": "Stations",
-          "assign": "Assign to",
-          "actions": "Actions",
-          "facet": "Facet",
-          "target": "Becomes",
-          "source": "Source"
-        },
-        "choose": "Choose a facet …",
-        "chooseLabel": "Facet for the tag {{tag}}",
-        "ignore": "Ignore (no facet)",
-        "assign": "Assign",
-        "assignLabel": "Assign the tag {{tag}}",
-        "target": "{{facet}}: {{value}}",
-        "none": "None",
-        "ignored": "Ignored",
-        "ignoreFacet": "Ignore",
-        "ruleLabel": "{{facet}} for the tag {{tag}}",
-        "source": {
-          "default": "Default",
-          "admin": "Own rule"
-        },
-        "remove": "Remove",
-        "apply": "Apply",
-        "applyLabel": "Apply the rule {{facet}} for {{tag}}",
-        "removeLabel": "Remove the rule {{facet}} for {{tag}}",
-        "removeTitle": "Remove the rule for “{{tag}}”?",
-        "removeBody": "“{{tag}}” falls back to the default for this facet. The stations are sorted again at once.",
-        "removeIgnoreBody": "“{{tag}}” goes back on the list of tags without a rule.",
-        "assignedDone": "“{{tag}}” is now {{target}}. The stations are sorted again.",
-        "ignoredDone": "“{{tag}}” is ignored.",
-        "changedDone": "The rule for “{{tag}}” is saved. The stations are sorted again.",
-        "removedDone": "The rule for “{{tag}}” is removed."
       },
       "own": {
         "title": "Own stations",
@@ -1298,13 +1252,117 @@
           "countryHelp": "ISO code, for example CH. Empty: no country.",
           "languages": "Languages",
           "languagesHelp": "ISO codes, separated by commas, for example de, fr.",
-          "none": "None",
-          "kindAuto": "Automatic"
+          "none": "None"
         },
         "create": {
           "title": "Add an own station",
           "description": "A station the catalog lacks. It can be filtered like any other.",
           "submit": "Add"
+        }
+      },
+      "empty": {
+        "title": "No stations in the offer yet",
+        "body": "The radio page shows no station until countries are chosen and applied in the tab «Offer».",
+        "action": "To the offer"
+      },
+      "offerFacts": {
+        "title": "Offer",
+        "open": "Edit the offer",
+        "countries": "Chosen countries",
+        "stations": "Stations in the offer",
+        "unreachable": "Of them unreachable",
+        "withLogo": "With a logo"
+      },
+      "offer": {
+        "countries": {
+          "title": "Countries",
+          "note_one": "{{chosen}} of {{total}} country chosen",
+          "note_other": "{{chosen}} of {{total}} countries chosen"
+        },
+        "search": "Search a country",
+        "searchHelp": "Name or country code, for example Switzerland or CH.",
+        "noHits": "No country found.",
+        "hits_one": "{{count}} match",
+        "hits_other": "{{count}} matches",
+        "hitsCaption": "Countries found",
+        "continents": {
+          "label": "Every country by continent. A continent opens its countries; pressing it again or Escape closes them."
+        },
+        "continent": {
+          "europe": "Europe",
+          "northAmerica": "North and Central America",
+          "southAmerica": "South America",
+          "asia": "Asia",
+          "africa": "Africa",
+          "oceania": "Oceania"
+        },
+        "continentCountries_one": "{{count}} country",
+        "continentCountries_other": "{{count}} countries",
+        "continentStations_one": "{{n}} station",
+        "continentStations_other": "{{n}} stations",
+        "continentChosen_one": "{{count}} chosen",
+        "continentChosen_other": "{{count}} chosen",
+        "countryCaption": "Countries in {{continent}}",
+        "chooseAll": "Choose every country",
+        "removeAll": "Remove all",
+        "chooseCountry": "Choose {{country}}",
+        "columns": {
+          "choose": "Chosen",
+          "tick": "In the offer",
+          "country": "Country",
+          "stations": "Stations",
+          "actions": "Actions"
+        },
+        "chosen": {
+          "title": "Chosen countries",
+          "empty": "No country chosen yet. Search a country above or open a continent.",
+          "count": "{{offered}} of {{total}} stations",
+          "open": "Choose stations",
+          "close": "Close stations",
+          "openLabel": "Choose stations in {{country}}",
+          "closeLabel": "Close stations in {{country}}",
+          "remove": "Remove country",
+          "removeLabel": "Remove {{country}}"
+        },
+        "stations": {
+          "title": "Stations in {{country}}",
+          "count": "{{offered}} of {{total}} marked",
+          "modeAll": "Every station of this country is in the offer except the unmarked ones. New stations of this country join by themselves.",
+          "modeMarked": "Only the marked stations are in the offer. New stations of this country do not join by themselves.",
+          "search": "Search stations",
+          "markAll": "Mark all",
+          "demarkAll": "Unmark all",
+          "markShown_one": "Mark the one shown ({{count}})",
+          "markShown_other": "Mark those shown ({{count}})",
+          "demarkShown_one": "Unmark the one shown ({{count}})",
+          "demarkShown_other": "Unmark those shown ({{count}})",
+          "mark": "{{name}} in the offer",
+          "broken": "unreachable",
+          "empty": "No station found."
+        },
+        "summary": {
+          "title": "In the offer",
+          "offered": "Stations in the offer",
+          "unreachable": "Of them unreachable",
+          "countries": "Chosen countries",
+          "marked": "Marked stations",
+          "hideBroken": "Leave out unreachable stations",
+          "hideBrokenHelp": "Unreachable stations do not appear in the lists of the app. They come back as soon as they answer again; as a favourite they stay."
+        },
+        "bar": {
+          "label": "Apply the offer",
+          "clean": "No changes to the offer.",
+          "same": "The choice changes, the number of stations stays the same.",
+          "added_one": "{{n}} station joins.",
+          "added_other": "{{n}} stations join.",
+          "removed_one": "{{n}} station leaves.",
+          "removed_other": "{{n}} stations leave.",
+          "both": "{{added}} stations join, {{removed}} leave.",
+          "conflict": "The offer changed meanwhile. The preview is computed again; check it and apply once more.",
+          "applied": "Applied. The radio page shows the new offer at once. The server now loads logos and further details in the background.",
+          "discard": "Discard",
+          "apply": "Apply",
+          "applying": "Applying …"
         }
       }
     },
@@ -4852,7 +4910,8 @@
         "byMood": "By mood",
         "stations_one": "{{count}} station",
         "stations_other": "{{count}} stations",
-        "noFavorites": "No stations saved yet. Tap the heart of a station and it shows here, for your profile only."
+        "noFavorites": "No stations saved yet. Tap the heart of a station and it shows here, for your profile only.",
+        "popular": "Popular"
       },
       "results": "Results",
       "allStations": "All stations",
@@ -4875,6 +4934,12 @@
         "toggle": "Change order",
         "done": "Done",
         "label": "Order of My stations"
+      },
+      "offerEmpty": {
+        "title": "No stations chosen yet",
+        "body": "The administration has not chosen any stations for the radio yet.",
+        "bodyAdmin": "Choose the countries and stations the radio offers in the administration.",
+        "action": "Choose stations"
       }
     },
     "genre": {

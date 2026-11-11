@@ -11,6 +11,10 @@ import { json, mockApi, problem, renderApp, signedIn, type Routes } from '@/test
 
 type RadioConfig = components['schemas']['RadioConfig'];
 type AdminRadioStation = components['schemas']['AdminRadioStation'];
+type RadioOffer = components['schemas']['RadioOffer'];
+type RadioOfferStep = components['schemas']['RadioOfferStep'];
+type RadioOfferCountry = components['schemas']['RadioOfferCountry'];
+type RadioOfferStation = components['schemas']['RadioOfferStation'];
 
 const config = (overrides: Partial<RadioConfig> = {}): RadioConfig => ({
   bufferMinutes: 30,
@@ -78,11 +82,108 @@ const own: AdminRadioStation = {
   ],
 };
 
+const totals = (overrides: Partial<RadioOffer['totals']> = {}): RadioOffer['totals'] => ({
+  offered: 3,
+  offeredUnreachable: 1,
+  countries: 1,
+  marked: 0,
+  demarked: 0,
+  own: 0,
+  withLogo: 2,
+  removableUnreachable: 1,
+  ...overrides,
+});
+
+const switzerland: RadioOfferCountry = {
+  code: 'CH',
+  continent: 'europe',
+  mode: 'all',
+  offered: 3,
+  total: 3,
+  unreachable: 1,
+};
+const liechtenstein: RadioOfferCountry = {
+  code: 'LI',
+  continent: 'europe',
+  offered: 0,
+  total: 2,
+  unreachable: 0,
+};
+const usa: RadioOfferCountry = {
+  code: 'US',
+  continent: 'northAmerica',
+  offered: 0,
+  total: 5,
+  unreachable: 0,
+};
+
+/** The stored offer: Switzerland with «Alle», version 4. */
+const offer = (overrides: Partial<RadioOffer> = {}): RadioOffer => ({
+  version: 4,
+  hideBroken: true,
+  totals: totals(),
+  countries: [switzerland, liechtenstein, usa],
+  ...overrides,
+});
+
+const vaduz: RadioOfferStation = {
+  id: 21,
+  name: 'Radio Vaduz',
+  tags: ['pop'],
+  broken: false,
+  offered: true,
+};
+const schaan: RadioOfferStation = {
+  id: 22,
+  name: 'Radio Schaan',
+  tags: [],
+  broken: true,
+  offered: true,
+};
+
+/**
+ * A stand-in for the server's preview (the test does not know the rule either): choosing
+ * Liechtenstein brings its two stations in, a `demark` of Radio Vaduz takes it out again.
+ */
+function previewOf(body: unknown, version = 4) {
+  const request = body as {
+    steps: RadioOfferStep[];
+    list?: { country: string; offset?: number };
+  };
+  const chosen = request.steps.some((step) => step.op === 'chooseCountry' && step.country === 'LI');
+  const vaduzOut = request.steps.some(
+    (step) => step.op === 'demark' && step.stationIds?.includes(21),
+  );
+  const liOffered = chosen ? (vaduzOut ? 1 : 2) : 0;
+  return {
+    version,
+    hideBroken: true,
+    totals: totals({ offered: 3 + liOffered, countries: chosen ? 2 : 1 }),
+    diff: { added: liOffered, removed: 0 },
+    countries: [
+      switzerland,
+      chosen ? { ...liechtenstein, mode: 'all', offered: liOffered } : liechtenstein,
+      usa,
+    ],
+    ...(request.list
+      ? {
+          list: {
+            total: request.list.country === 'LI' ? 2 : 0,
+            offset: request.list.offset ?? 0,
+            items: request.list.country === 'LI' ? [{ ...vaduz, offered: !vaduzOut }, schaan] : [],
+          },
+        }
+      : {}),
+  };
+}
+
 function radioRoutes(overrides: Routes = {}): Routes {
   return {
     ...signedIn,
     ...adminShell,
     'GET /admin/radio/config': () => json(config()),
+    'GET /admin/radio/offer': () => json(offer()),
+    'POST /admin/radio/offer/preview': (call) => json(previewOf(call.body)),
     'GET /admin/radio/catalog': () =>
       json({
         source: 'radio-browser',
@@ -140,6 +241,7 @@ function radioRoutes(overrides: Routes = {}): Routes {
         mood: [],
         quality: [],
         titles: 1,
+        offerEmpty: false,
       }),
     ...overrides,
   };
@@ -357,5 +459,203 @@ describe('radio administration', () => {
       expect(patch?.body).toEqual({ coverItunes: false });
     });
     expect(screen.getByRole('switch', { name: 'Cover-Suche MusicBrainz' })).toBeChecked();
+  });
+
+  it('shows the offer in the strip and points to «Angebot» while it is empty', async () => {
+    mockApi(
+      radioRoutes({
+        'GET /admin/radio/offer': () =>
+          json(
+            offer({
+              totals: totals({ offered: 0, offeredUnreachable: 0, countries: 0, withLogo: 0 }),
+              countries: [{ ...switzerland, mode: undefined, offered: 0, unreachable: 0 }],
+            }),
+          ),
+      }),
+    );
+    await renderAdminPage('/admin/radio');
+    const strip = screen.getByRole('group', { name: 'Zusammenfassung' });
+    expect(await within(strip).findByText('0 · 0')).toBeVisible();
+    expect(await screen.findByText('Noch keine Sender im Angebot')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Zum Angebot' })).toHaveAttribute(
+      'href',
+      '/admin/radio?tab=angebot',
+    );
+  });
+
+  it('sends the steps of «Angebot» to the preview and applies them with the version', async () => {
+    const { calls } = mockApi(
+      radioRoutes({
+        'POST /admin/radio/offer/apply': () =>
+          json({ offer: offer({ version: 5 }), queuedLogos: 1, demarkedStationIds: [] }),
+      }),
+    );
+    await renderAdminPage('/admin/radio?tab=angebot');
+    const user = userEvent.setup();
+    await user.type(await screen.findByRole('textbox', { name: 'Land suchen' }), 'liech');
+    const hits = await screen.findByRole('table', { name: 'Gefundene Länder' });
+    await user.click(within(hits).getByRole('checkbox', { name: 'Liechtenstein wählen' }));
+    const previews = () =>
+      calls
+        .filter((call) => call.method === 'POST' && call.path === '/admin/radio/offer/preview')
+        .map((call) => call.body as { steps: RadioOfferStep[]; list?: { country: string } });
+    await waitFor(() =>
+      expect(previews()).toContainEqual({ steps: [{ op: 'chooseCountry', country: 'LI' }] }),
+    );
+    // The bar shows the difference the server computed.
+    expect(await screen.findByText('2 Sender kommen dazu.')).toBeVisible();
+
+    // The chosen country opens its station list, read from the preview with the draft.
+    const chosen = await screen.findByRole('table', { name: 'Gewählte Länder' });
+    await user.click(
+      await within(chosen).findByRole('button', { name: 'Sender in Liechtenstein wählen' }),
+    );
+    const list = await screen.findByRole('table', { name: 'Sender in Liechtenstein' });
+    expect(previews().some((body) => body.list?.country === 'LI')).toBe(true);
+    expect(within(list).getByText('nicht erreichbar')).toBeVisible();
+    const tick = within(list).getByRole('checkbox', { name: 'Radio Vaduz im Angebot' });
+    expect(tick).toBeChecked();
+    await user.click(tick);
+    // The tick follows the input at once and the server's list after the preview.
+    expect(tick).not.toBeChecked();
+    await waitFor(() =>
+      expect(previews()).toContainEqual({
+        steps: [
+          { op: 'chooseCountry', country: 'LI' },
+          { op: 'demark', stationIds: [21] },
+        ],
+      }),
+    );
+    expect(await screen.findByText('1 Sender kommt dazu.')).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: 'Übernehmen' }));
+    await waitFor(() => {
+      const apply = calls.find((call) => call.path === '/admin/radio/offer/apply');
+      expect(apply?.body).toEqual({
+        version: 4,
+        steps: [
+          { op: 'chooseCountry', country: 'LI' },
+          { op: 'demark', stationIds: [21] },
+        ],
+      });
+    });
+    expect(
+      await screen.findByText(
+        'Übernommen. Die Radioseite zeigt das neue Angebot sofort. Logos und weitere Angaben lädt der Server jetzt im Hintergrund.',
+      ),
+    ).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Verwerfen' })).not.toBeInTheDocument();
+  });
+
+  it('computes the draft anew on 409 and applies it on the new version (PB-11)', async () => {
+    // Another tab stored meanwhile: the offer is at version 5 now.
+    let stored = 4;
+    let applies = 0;
+    const { calls } = mockApi(
+      radioRoutes({
+        'GET /admin/radio/offer': () => json(offer({ version: stored })),
+        'POST /admin/radio/offer/preview': (call) => json(previewOf(call.body, stored)),
+        'POST /admin/radio/offer/apply': (call) => {
+          applies += 1;
+          if (applies === 1) {
+            stored = 5;
+            return problem(409, 'offer_conflict');
+          }
+          const body = call.body as { version: number };
+          return body.version === stored
+            ? json({ offer: offer({ version: 6 }), queuedLogos: 0, demarkedStationIds: [] })
+            : problem(409, 'offer_conflict');
+        },
+      }),
+    );
+    await renderAdminPage('/admin/radio?tab=angebot');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /^Europa/ }));
+    const countries = await screen.findByRole('table', { name: 'Länder in Europa' });
+    await user.click(within(countries).getByRole('checkbox', { name: 'Liechtenstein wählen' }));
+    expect(await screen.findByText('2 Sender kommen dazu.')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Übernehmen' }));
+    expect(await screen.findByText(/Inzwischen hat sich das Angebot geändert\./)).toBeVisible();
+    // The same steps, computed on the new offer, wait for a second «Übernehmen».
+    const steps = [{ op: 'chooseCountry', country: 'LI' }];
+    await waitFor(() => {
+      const last = calls.filter((call) => call.path === '/admin/radio/offer/preview').at(-1);
+      expect(last?.body).toEqual({ steps });
+    });
+    await user.click(screen.getByRole('button', { name: 'Übernehmen' }));
+    await waitFor(() => {
+      const bodies = calls
+        .filter((call) => call.path === '/admin/radio/offer/apply')
+        .map((call) => call.body);
+      expect(bodies).toEqual([
+        { version: 4, steps },
+        { version: 5, steps },
+      ]);
+    });
+    expect(await screen.findByText(/^Übernommen\./)).toBeVisible();
+  });
+
+  it('takes the unreachable stations out from «Sender» and undoes it in steps of 5000 (PB-8)', async () => {
+    const removed = Array.from({ length: 6001 }, (_, index) => index + 1000);
+    const { calls } = mockApi(
+      radioRoutes({
+        'GET /admin/radio/offer': () =>
+          json(offer({ totals: totals({ removableUnreachable: 6001 }) })),
+        'POST /admin/radio/offer/apply': (call) => {
+          const body = call.body as { steps: RadioOfferStep[] };
+          return json({
+            offer: offer({ version: 5 }),
+            queuedLogos: 0,
+            demarkedStationIds: body.steps[0]?.op === 'demarkUnreachable' ? removed : [],
+          });
+        },
+      }),
+    );
+    await renderAdminPage('/admin/radio?tab=sender');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /Nicht erreichbare entfernen/ }));
+    expect(
+      await screen.findByText(/6.?001 nicht erreichbare Sender sind aus dem Angebot genommen\./),
+    ).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Rückgängig' }));
+    expect(await screen.findByText('Die Sender sind wieder im Angebot.')).toBeVisible();
+    const bodies = calls
+      .filter((call) => call.path === '/admin/radio/offer/apply')
+      .map((call) => call.body as { version: number; steps: RadioOfferStep[] });
+    expect(bodies[0]).toEqual({ version: 4, steps: [{ op: 'demarkUnreachable' }] });
+    expect(bodies[1]?.steps).toEqual([
+      { op: 'mark', stationIds: removed.slice(0, 5000) },
+      { op: 'mark', stationIds: removed.slice(5000) },
+    ]);
+  });
+
+  it('takes one station out of the offer from «Sender» and filters by its provider', async () => {
+    const { calls, fetchMock } = mockApi(
+      radioRoutes({
+        'GET /admin/radio/stations': () =>
+          json({ items: [{ ...station, provider: 'srg-ssr.ch' }], total: 1, offset: 0 }),
+        'POST /admin/radio/offer/apply': () =>
+          json({ offer: offer({ version: 5 }), queuedLogos: 0, demarkedStationIds: [] }),
+      }),
+    );
+    await renderAdminPage('/admin/radio?tab=sender');
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: 'Radio Swiss Pop aus dem Angebot nehmen' }),
+    );
+    await waitFor(() => {
+      const apply = calls.find((call) => call.path === '/admin/radio/offer/apply');
+      expect(apply?.body).toEqual({ version: 4, steps: [{ op: 'demark', stationIds: [7] }] });
+    });
+    expect(await screen.findByText('Radio Swiss Pop ist nicht mehr im Angebot.')).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: 'Nach Anbieter srg-ssr.ch filtern' }));
+    expect(screen.getByRole('textbox', { name: 'Anbieter' })).toHaveValue('srg-ssr.ch');
+    await waitFor(() => {
+      const asked = fetchMock.mock.calls
+        .map(([request]) => new URL(request.url))
+        .filter((url) => url.pathname.endsWith('/admin/radio/stations'));
+      expect(asked.some((url) => url.searchParams.get('provider') === 'srg-ssr.ch')).toBe(true);
+    });
   });
 });

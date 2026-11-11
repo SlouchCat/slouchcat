@@ -88,6 +88,8 @@ const problemKeys = {
   radio_unreachable: 'errors.code.radio_unreachable',
   radio_not_audio: 'errors.code.radio_not_audio',
   radio_catalog_loading: 'errors.code.radio_catalog_loading',
+  // The radio offer (contract 1.28.0): it changed since the version the draft is based on.
+  offer_conflict: 'errors.code.offer_conflict',
 } as const;
 
 // Field error codes (`Problem.errors[].code`); unknown codes read as "invalid value".
