@@ -735,6 +735,8 @@ type RadioConfig struct {
 	CoverItunes      int64
 	OfferVersion     int64
 	OfferSeeded      int64
+	WikidataEnabled  int64
+	WikidataSyncedAt sql.NullInt64
 }
 
 type RadioFavorite struct {
@@ -837,6 +839,15 @@ type RadioStationLock struct {
 type RadioStationTag struct {
 	StationID int64
 	Tag       string
+}
+
+type RadioStationWikidatum struct {
+	StationID int64
+	Qid       string
+	OwnerQid  sql.NullString
+	Owner     sql.NullString
+	Founded   sql.NullString
+	FetchedAt int64
 }
 
 type RadioStream struct {

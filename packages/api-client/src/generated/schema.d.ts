@@ -9905,7 +9905,9 @@ export interface components {
             homepage?: string;
             /**
              * @description Since contract 1.28.0 (B7.4). The registrable domain of the host of the station's best stream
-             *     (`srg-ssr.ch`, `zeno.fm`); absent when it is an IP address or unknown.
+             *     (`srg-ssr.ch`, `zeno.fm`); absent when it is an IP address or unknown. Since contract 1.30.0
+             *     the owner from Wikidata when the station has a unique match with one owner («Schweizer Radio
+             *     und Fernsehen»), in the server's language, else English.
              */
             provider?: string;
         };
@@ -10045,6 +10047,12 @@ export interface components {
             coverMusicbrainz: boolean;
             /** @description Since contract 1.19.0. Look covers up through the iTunes search (after MusicBrainz). */
             coverItunes: boolean;
+            /**
+             * @description Since contract 1.30.0 («Wikidata verwenden», B7.3, on by default). Match the stations of the offer
+             *     with Wikidata for owner and founding date. Off forgets every match at once (the providers are the
+             *     streams' domains again) and `radio.wikidata.sync` fetches nothing; on queues a run.
+             */
+            wikidataEnabled: boolean;
         };
         /** @description Since contract 1.28.0 without `hideBroken` and `countries`; the server ignores them. */
         RadioConfigUpdate: {
@@ -10055,6 +10063,8 @@ export interface components {
             graceSeconds?: number;
             coverMusicbrainz?: boolean;
             coverItunes?: boolean;
+            /** @description Since contract 1.30.0. */
+            wikidataEnabled?: boolean;
         };
         RadioCatalogState: {
             /**
@@ -10155,7 +10165,10 @@ export interface components {
             source: components["schemas"]["RadioStationSource"];
             /** @description In the stored offer (B4.1). */
             offered: boolean;
-            /** @description The registrable domain of the best stream's host (B7.4). */
+            /**
+             * @description The registrable domain of the best stream's host (B7.4); since contract 1.30.0 the owner from
+             *     Wikidata when there is one (`sources.provider` says which).
+             */
             provider?: string;
             /** @description Relay aborts of the server in a row (three mark the station broken). */
             failures: number;
@@ -10176,6 +10189,49 @@ export interface components {
             createdAt: number;
             /** Format: int64 */
             updatedAt: number;
+            sources: components["schemas"]["AdminRadioStationSources"];
+            wikidata?: components["schemas"]["AdminRadioWikidata"];
+        };
+        /**
+         * @description Since contract 1.30.0 (B9.3). Where a value of a station comes from: `catalog` (Radio Browser),
+         *     `own` (entered with an own station), `admin` (changed by the administration and locked, or an
+         *     uploaded logo), `stream` (the host of the best stream), `website` (the station's homepage),
+         *     `wikidata` (Wikidata).
+         * @enum {string}
+         */
+        RadioValueSource: "catalog" | "own" | "admin" | "stream" | "website" | "wikidata";
+        /**
+         * @description Since contract 1.30.0 (B9.3, stage B2). The origin of each value of the station; a field is absent
+         *     when the station has no such value. Owner and founding date come from Wikidata
+         *     (`AdminRadioStation.wikidata`).
+         */
+        AdminRadioStationSources: {
+            name?: components["schemas"]["RadioValueSource"];
+            country?: components["schemas"]["RadioValueSource"];
+            region?: components["schemas"]["RadioValueSource"];
+            languages?: components["schemas"]["RadioValueSource"];
+            homepage?: components["schemas"]["RadioValueSource"];
+            logo?: components["schemas"]["RadioValueSource"];
+            provider?: components["schemas"]["RadioValueSource"];
+        };
+        /**
+         * @description Since contract 1.30.0 (B7.3). The unique Wikidata match of a station in the offer, found through its
+         *     homepage by `radio.wikidata.sync`; absent without one. Wikidata's data are CC0.
+         */
+        AdminRadioWikidata: {
+            /** @description The Wikidata item (`Q1157782`). */
+            id: string;
+            /** @description The owner's item (P127); absent when the item names none or several. */
+            ownerId?: string;
+            /** @description The owner's label in the server's language, else English; absent without one. */
+            owner?: string;
+            /** @description The founding date (P571) as precise as Wikidata knows it, `YYYY`, `YYYY-MM` or `YYYY-MM-DD`. */
+            founded?: string;
+            /**
+             * Format: int64
+             * @description Unix ms of the run that stored the match.
+             */
+            fetchedAt: number;
         };
         AdminRadioStationPage: {
             items: components["schemas"]["AdminRadioStation"][];

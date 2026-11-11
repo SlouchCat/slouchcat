@@ -484,9 +484,14 @@ func (s *Service) ApplyOffer(ctx context.Context, version int64, steps []model.R
 	logos := offerLogoIDs(idx, cur, draft, favs)
 	// Thousands of logo jobs (a large country) are queued in the background, not in the request;
 	// the logos of the stations that left the offer go first.
+	gained := offerGained(idx, cur, draft)
 	if !s.cat.bg.goFn(func(bg context.Context) {
 		s.dropLogosOutsideOffer(bg)
+		s.dropWikidataOutsideOffer(bg)
 		s.queueLogos(bg, logos)
+		if gained {
+			s.queueWikidataAfterApply(bg) // owner and founding date of the new stations (B7.3)
+		}
 	}) {
 		logos = nil
 	}
@@ -581,6 +586,11 @@ func offerLogoIDs(idx *stationIndex, before, after *offerState, favs map[int64]b
 		ids = append(ids, e.st.ID)
 	}
 	return ids
+}
+
+// offerGained reports whether a station came into the offer.
+func offerGained(idx *stationIndex, before, after *offerState) bool {
+	return slices.ContainsFunc(idx.entries, func(e *indexEntry) bool { return after.offered(e) && !before.offered(e) })
 }
 
 // errOfferSeed wraps a failure of the first-start preparation.

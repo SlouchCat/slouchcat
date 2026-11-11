@@ -250,6 +250,37 @@ type AdminRadioStation struct {
 	Streams    []RadioStream // best first
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
+	// Sources names where each value comes from (contract 1.30.0, B9.3).
+	Sources RadioSources
+	// Wikidata is the unique Wikidata match of a station in the offer; nil = none (B7.3).
+	Wikidata *RadioWikidata
+}
+
+// The origins of a station's values (contract RadioValueSource, 1.30.0).
+const (
+	RadioSourceCatalog  = "catalog"  // the Radio Browser catalog
+	RadioSourceOwn      = "own"      // entered with an own station
+	RadioSourceAdmin    = "admin"    // changed by the administration (locked) or an uploaded logo
+	RadioSourceStream   = "stream"   // the host of the best stream
+	RadioSourceWebsite  = "website"  // the station's homepage
+	RadioSourceWikidata = "wikidata" // Wikidata
+)
+
+// RadioSources names the origin of each value of a station (contract AdminRadioStationSources); ""
+// = the station has no such value.
+type RadioSources struct {
+	Name, Country, Region, Languages, Homepage, Logo, Provider string
+}
+
+// RadioWikidata is what Wikidata knows about a station (contract AdminRadioWikidata, B7.3): the
+// matched item, its owner (P127) when it names exactly one, and its founding date (P571) as
+// YYYY, YYYY-MM or YYYY-MM-DD.
+type RadioWikidata struct {
+	QID       string
+	OwnerQID  string // "" = no unique owner
+	Owner     string // label in the server's language, else English; "" = none
+	Founded   string // "" = unknown
+	FetchedAt time.Time
 }
 
 // AdminRadioQuery is one request of listAdminRadioStations (contract 1.28.0).
@@ -326,6 +357,7 @@ type RadioConfig struct {
 	MaxRelaysByBudget int
 	CoverMusicBrainz  bool // contract 1.19.0
 	CoverITunes       bool
+	WikidataEnabled   bool // contract 1.30.0: «Wikidata verwenden» (B7.3)
 }
 
 // RadioConfigUpdate changes radio settings (contract RadioConfigUpdate): nil keeps a field.
@@ -336,6 +368,7 @@ type RadioConfigUpdate struct {
 	GraceSeconds     *int
 	CoverMusicBrainz *bool
 	CoverITunes      *bool
+	WikidataEnabled  *bool
 }
 
 // RadioCatalogState is the state of the catalog and its sync (contract RadioCatalogState).

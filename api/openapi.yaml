@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.28.0
+  version: 1.30.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -94,6 +94,12 @@ info:
     settings `countries` and `hideBroken` of `updateRadioConfig` are gone; `hideBroken` belongs to the
     offer. The app gets `RadioPreferences.effectiveCountry`, `RadioStation.provider` and
     `RadioFacets.offerEmpty`.
+
+    Radio details (concept 19 part B stage B2, contract 1.30.0; additive): the weekly job
+    `radio.wikidata.sync` matches the stations of the offer with Wikidata through their homepage. A
+    unique match gives the owner, which becomes the station's `provider`, and the founding date
+    (`AdminRadioStation.wikidata`); `AdminRadioStation.sources` names where each value comes from. The
+    setting `RadioConfig.wikidataEnabled` («Wikidata verwenden», on by default) turns it off.
 
     Offline (M5): a profile downloads movies, episodes and seasons to its device (`createDownloads`). The
     server prepares a fragmented MP4 per title in the background; the device fetches it through
@@ -17728,7 +17734,9 @@ components:
           type: string
           description: |
             Since contract 1.28.0 (B7.4). The registrable domain of the host of the station's best stream
-            (`srg-ssr.ch`, `zeno.fm`); absent when it is an IP address or unknown.
+            (`srg-ssr.ch`, `zeno.fm`); absent when it is an IP address or unknown. Since contract 1.30.0
+            the owner from Wikidata when the station has a unique match with one owner («Schweizer Radio
+            und Fernsehen»), in the server's language, else English.
 
     RadioStationPage:
       type: object
@@ -17991,7 +17999,7 @@ components:
       type: object
       description: Since contract 1.28.0 without `hideBroken` and `countries` (they belong to the offer).
       required: [bufferMinutes, budgetMb, maxRelays, graceSeconds, bufferMode, maxRelaysByBudget, coverMusicbrainz,
-                 coverItunes]
+                 coverItunes, wikidataEnabled]
       properties:
         bufferMinutes:
           type: integer
@@ -18020,6 +18028,12 @@ components:
         coverItunes:
           type: boolean
           description: Since contract 1.19.0. Look covers up through the iTunes search (after MusicBrainz).
+        wikidataEnabled:
+          type: boolean
+          description: |
+            Since contract 1.30.0 («Wikidata verwenden», B7.3, on by default). Match the stations of the offer
+            with Wikidata for owner and founding date. Off forgets every match at once (the providers are the
+            streams' domains again) and `radio.wikidata.sync` fetches nothing; on queues a run.
 
     RadioConfigUpdate:
       type: object
@@ -18044,6 +18058,9 @@ components:
           type: boolean
         coverItunes:
           type: boolean
+        wikidataEnabled:
+          type: boolean
+          description: Since contract 1.30.0.
 
     RadioCatalogState:
       type: object
@@ -18151,7 +18168,7 @@ components:
         (breaking) `offered` and `provider` are new, `hidden` and `facets` are gone: `genres`, `kinds`
         and `moods` are the values the rules file derives.
       required: [id, name, languages, genres, kinds, moods, hls, showsTitles, recommended, state, source, offered,
-        failures, tags, locks, logoState, aliasCount, streams, createdAt, updatedAt]
+        failures, tags, locks, logoState, aliasCount, streams, createdAt, updatedAt, sources]
       properties:
         id:
           type: integer
@@ -18210,7 +18227,9 @@ components:
           description: In the stored offer (B4.1).
         provider:
           type: string
-          description: The registrable domain of the best stream's host (B7.4).
+          description: |
+            The registrable domain of the best stream's host (B7.4); since contract 1.30.0 the owner from
+            Wikidata when there is one (`sources.provider` says which).
         failures:
           type: integer
           minimum: 0
@@ -18245,6 +18264,68 @@ components:
         updatedAt:
           type: integer
           format: int64
+        sources:
+          $ref: "#/components/schemas/AdminRadioStationSources"
+        wikidata:
+          $ref: "#/components/schemas/AdminRadioWikidata"
+
+    RadioValueSource:
+      type: string
+      description: |
+        Since contract 1.30.0 (B9.3). Where a value of a station comes from: `catalog` (Radio Browser),
+        `own` (entered with an own station), `admin` (changed by the administration and locked, or an
+        uploaded logo), `stream` (the host of the best stream), `website` (the station's homepage),
+        `wikidata` (Wikidata).
+      enum: [catalog, own, admin, stream, website, wikidata]
+
+    AdminRadioStationSources:
+      type: object
+      description: |
+        Since contract 1.30.0 (B9.3, stage B2). The origin of each value of the station; a field is absent
+        when the station has no such value. Owner and founding date come from Wikidata
+        (`AdminRadioStation.wikidata`).
+      properties:
+        name:
+          $ref: "#/components/schemas/RadioValueSource"
+        country:
+          $ref: "#/components/schemas/RadioValueSource"
+        region:
+          $ref: "#/components/schemas/RadioValueSource"
+        languages:
+          $ref: "#/components/schemas/RadioValueSource"
+        homepage:
+          $ref: "#/components/schemas/RadioValueSource"
+        logo:
+          $ref: "#/components/schemas/RadioValueSource"
+        provider:
+          $ref: "#/components/schemas/RadioValueSource"
+
+    AdminRadioWikidata:
+      type: object
+      description: |
+        Since contract 1.30.0 (B7.3). The unique Wikidata match of a station in the offer, found through its
+        homepage by `radio.wikidata.sync`; absent without one. Wikidata's data are CC0.
+      required: [id, fetchedAt]
+      properties:
+        id:
+          type: string
+          pattern: "^Q[1-9][0-9]*$"
+          description: The Wikidata item (`Q1157782`).
+        ownerId:
+          type: string
+          pattern: "^Q[1-9][0-9]*$"
+          description: The owner's item (P127); absent when the item names none or several.
+        owner:
+          type: string
+          description: The owner's label in the server's language, else English; absent without one.
+        founded:
+          type: string
+          pattern: "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$"
+          description: The founding date (P571) as precise as Wikidata knows it, `YYYY`, `YYYY-MM` or `YYYY-MM-DD`.
+        fetchedAt:
+          type: integer
+          format: int64
+          description: Unix ms of the run that stored the match.
 
     AdminRadioStationPage:
       type: object

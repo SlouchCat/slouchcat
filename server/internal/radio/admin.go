@@ -165,7 +165,51 @@ func adminStation(ctx context.Context, q *appq.Queries, o *offerState, id int64)
 			Codec: st.Codec.String, BitrateKbps: int(st.Bitrate.Int64), HLS: st.Hls == 1, Reachable: st.Lastcheckok == 1,
 			Preferred: st.Preferred == 1, Rank: i})
 	}
+	if a.Wikidata, err = stationWikidata(ctx, q, id); err != nil {
+		return model.AdminRadioStation{}, err
+	}
+	a.Sources = stationSources(a)
 	return a, nil
+}
+
+// stationSources names where each value of a station comes from (B9.3, stage B2): the catalog,
+// the own station's entry, the administration (a locked field, an uploaded logo), the best
+// stream's host, the homepage or Wikidata.
+func stationSources(a model.AdminRadioStation) model.RadioSources {
+	locked := func(f string) bool { return slices.Contains(a.Locks, f) }
+	base := model.RadioSourceCatalog
+	if a.Source == sourceOwn {
+		base = model.RadioSourceOwn
+	}
+	of := func(value bool, lock string) string {
+		switch {
+		case !value:
+			return ""
+		case lock != "" && locked(lock):
+			return model.RadioSourceAdmin
+		}
+		return base
+	}
+	src := model.RadioSources{
+		Name: of(a.Name != "", "name"), Country: of(a.Country != "", ""), Region: of(a.Region != "", "region"),
+		Languages: of(len(a.Languages) > 0, ""), Homepage: of(a.Homepage != "", ""),
+	}
+	switch a.LogoState {
+	case logoStateCatalog:
+		src.Logo = model.RadioSourceCatalog
+	case logoStateWebsite:
+		src.Logo = model.RadioSourceWebsite
+	case logoStateOwn:
+		src.Logo = model.RadioSourceAdmin
+	}
+	switch {
+	case a.Provider == "":
+	case a.Wikidata != nil && a.Wikidata.Owner != "" && a.Wikidata.Owner == a.Provider:
+		src.Provider = model.RadioSourceWikidata
+	default:
+		src.Provider = model.RadioSourceStream
+	}
+	return src
 }
 
 // UpdateStation applies a patch: a set field locks itself; Locks, when set, replaces the locks

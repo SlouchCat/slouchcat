@@ -1,0 +1,13 @@
+s,site,owner,founded,precision
+http://www.wikidata.org/entity/Q1157782,https://www.srf3.example/,http://www.wikidata.org/entity/Q1441462,1983-11-01T00:00:00Z,11
+http://www.wikidata.org/entity/Q577689,http://srf1.example,http://www.wikidata.org/entity/Q1441462,1946-01-01T00:00:00Z,9
+http://www.wikidata.org/entity/Q900001,https://www.radio24.example/,,1979-11-28T00:00:00Z,11
+http://www.wikidata.org/entity/Q900002,https://radio24.example,,,
+http://www.wikidata.org/entity/Q900010,https://energy.example/,http://www.wikidata.org/entity/Q900011,2003-01-01T00:00:00Z,9
+http://www.wikidata.org/entity/Q900020,https://www.pilatus.example/,http://www.wikidata.org/entity/Q900021,1983-08-01T00:00:00Z,10
+http://www.wikidata.org/entity/Q900020,https://www.pilatus.example/,http://www.wikidata.org/entity/Q900022,1983-08-01T00:00:00Z,10
+http://www.wikidata.org/entity/Q900030,https://www.couleur3.example/,http://www.wikidata.org/entity/Q900031,1982-03-26T00:00:00Z,11
+http://www.wikidata.org/entity/Q900030,https://www.couleur3.example/,http://www.wikidata.org/entity/Q900031,1980-01-01T00:00:00Z,9
+http://www.wikidata.org/entity/Q900040,https://www.swissjazz.example/de,http://www.wikidata.org/entity/Q900041,2006-01-01T00:00:00Z,7
+http://www.wikidata.org/entity/Q900050,https://www.bayern3.example/,http://www.wikidata.org/entity/Q900051,1971-04-01T00:00:00Z,10
+http://www.wikidata.org/entity/Q900060,https://www.oe3.example/,http://www.wikidata.org/entity/Q900061,1967-10-01T00:00:00Z,11

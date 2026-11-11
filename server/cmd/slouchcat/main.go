@@ -412,7 +412,15 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	radioSvc := radio.New(db, log, radio.WithRunner(runner), radio.WithCacheDir(cfg.CacheDir),
 		radio.WithDir(cfg.RadioDir), radio.WithTokenKey(keyring.Derive("radio-token")),
 		radio.WithWatchClock(playbackSvc), radio.WithUserAgent("Slouchcat/"+version),
-		radio.WithQueue(queue), radio.WithScheduler(scheduler))
+		radio.WithQueue(queue), radio.WithScheduler(scheduler),
+		// The labels from Wikidata (owners) in the server's first metadata language (B7.3).
+		radio.WithLanguage(func(ctx context.Context) string {
+			langs, err := metaSvc.AvailableMetadataLanguages(ctx)
+			if err != nil || len(langs) == 0 {
+				return ""
+			}
+			return langs[0]
+		}))
 	playbackSvc.OnProfileEnd(radioSvc.EndProfile)
 	libSvc.RegisterTypes(registry)
 	metaSvc.RegisterTypes(registry)

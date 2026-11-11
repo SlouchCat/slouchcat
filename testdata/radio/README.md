@@ -19,3 +19,13 @@ FFMPEG=/usr/lib/jellyfin-ffmpeg/ffmpeg testdata/radio/generate.sh
 | `hls/seg0.ts` … `seg5.ts` | sechs MPEG-TS-Segmente zu 4 s, AAC 64 kbit/s | HLS-Quelle |
 
 Voraussetzung: ffmpeg mit `libmp3lame`, `aac`, `libvorbis` und `libopus`.
+
+## Wikidata (Konzept 19 Teil B, Stufe B2)
+
+Von Hand geschrieben, nicht aus `generate.sh`: die Antwort der SPARQL-Abfrage von `radio.wikidata.sync`
+(`wikidata.csv`, Spalten `s, site, owner, founded, precision` wie bei `query.wikidata.org`) und die Bezeichnungen der
+Eigentümer (`wikidata-labels.csv`, je Eintrag und Sprache). Die Adressen gehören zu Sendern aus `catalog.json`: ein
+eindeutiger Treffer (SRF 3), ein Treffer ohne `www.` (Radio SRF 1), eine mehrdeutige Adresse (Radio 24), ein Treffer
+nur über den Host (Energy), zwei Eigentümer (Radio Pilatus), zwei Gründungen (Couleur 3), eine zu ungenaue Gründung
+(Radio Swiss Jazz), Sender in Deutschland und Österreich. Die Kennungen ab `Q900000` sind erfunden. Sie dienen den
+Go-Tests (`wikidata_test.go`) und dem e2e-Radioserver (`web/e2e/radio-server.mjs`, `POST /sparql`).
