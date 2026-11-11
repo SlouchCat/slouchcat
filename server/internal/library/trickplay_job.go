@@ -73,6 +73,11 @@ const (
 	// trickplayProcs is the number of ffmpeg processes of a set (F-7); one while a transcode keeps
 	// the CPU busy, and for a throttled look-ahead job while any playback is open.
 	trickplayProcs = 2
+	// trickplayStartWait bounds how long a sheet waits while a transcode on the CPU has not written
+	// the first segment of a start or a jump yet (the viewer waits for it; W-3); trickplayStartPoll
+	// is how often it looks again.
+	trickplayStartWait = 10 * time.Second
+	trickplayStartPoll = 100 * time.Millisecond
 	// trickplayPointTimeout bounds one point (a hanging share must not hold the one worker).
 	trickplayPointTimeout = 15 * time.Second
 	// trickplayMaxFailures consecutive broken points end the job as failed.
@@ -137,8 +142,13 @@ type trickplaySeriesPayload struct {
 	EpisodeID string `json:"episodeId"`
 }
 
-// TrickplayLoad tells whether a transcode keeps the CPU busy (transcode.Manager.CPUHeavy).
-type TrickplayLoad interface{ CPUHeavy() bool }
+// TrickplayLoad tells whether a transcode keeps the CPU busy (transcode.Manager.CPUHeavy) and
+// whether a transcode on the CPU waits for the first segment of a start or a jump
+// (transcode.Manager.CPUStarting).
+type TrickplayLoad interface {
+	CPUHeavy() bool
+	CPUStarting() bool
+}
 
 // WithTrickplayLoad sets the CPU load of the transcoder; without it a set always runs two ffmpeg
 // processes (except a throttled look-ahead while a playback is open).
@@ -778,6 +788,25 @@ func (r *trickplayRun) sheets(ctx context.Context) error {
 	return nil
 }
 
+// yieldToStart waits, at most trickplayStartWait, while a transcode on the CPU has not written the
+// first segment of a start or a jump: the frames of a sheet decode the same file on the same CPU,
+// and the viewer waits for that segment. On the playback start of a file without set
+// (QueueTrickplayForPlayback) the set would otherwise be made while the first segment is encoded.
+func (r *trickplayRun) yieldToStart(ctx context.Context) error {
+	if r.s.trickplayLoad == nil {
+		return nil
+	}
+	deadline := time.Now().Add(trickplayStartWait)
+	for r.s.trickplayLoad.CPUStarting() && time.Now().Before(deadline) {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(trickplayStartPoll):
+		}
+	}
+	return nil
+}
+
 // procs returns the ffmpeg processes of the next sheet (5.3).
 func (r *trickplayRun) procs(ctx context.Context) int {
 	if r.s.trickplayLoad != nil && r.s.trickplayLoad.CPUHeavy() {
@@ -798,6 +827,9 @@ func (r *trickplayRun) procs(ctx context.Context) int {
 // a sheet that is no frame failure (a timeout, the share went away) checks the file: when it cannot
 // be read any more, the job ends at once; else it counts like a broken point.
 func (r *trickplayRun) sheet(ctx context.Context, n int) error {
+	if err := r.yieldToStart(ctx); err != nil {
+		return err
+	}
 	from, to := r.m.SheetPoints(n)
 	tiles := make([][]byte, to-from)
 	sctx, stop := context.WithCancelCause(ctx)
