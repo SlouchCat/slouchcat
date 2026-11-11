@@ -22,8 +22,10 @@ import {
   type TabItem,
 } from '@/ui/aria';
 import { podcastColumns } from './podcasts/columns';
+import { PodcastDownloadsBand } from './podcasts/PodcastDownloadsBand';
 import { PodcastDetail } from './podcasts/PodcastDetail';
 import { SubscribeDialog } from './podcasts/SubscribeDialog';
+import styles from './podcasts/Podcasts.module.css';
 import { librariesQuery, podcastsQuery } from './queries';
 
 /** After "Jetzt abrufen" the list asks again this often for a while, until the fetch shows. */
@@ -233,6 +235,13 @@ function PodcastsContent() {
       ),
   });
   const noLibrary = libraries.data !== undefined && podcastLibraries.length === 0;
+  // The band «Neue Folgen» belongs to the chosen tab (12.3): its library, or every podcast
+  // library in «Alle», each band then named after its library.
+  const bandLibraries = podcastLibraries.flatMap((library) =>
+    library.podcastDownloads && (tab === ALL || tab === libraryTab(library.id))
+      ? [{ ...library, podcastDownloads: library.podcastDownloads }]
+      : [],
+  );
 
   return (
     <AdminPage
@@ -289,6 +298,17 @@ function PodcastsContent() {
             </AriaButton>
           }
         />
+      )}
+      {podcasts.data && bandLibraries.length > 0 && (
+        <div className={styles.bands}>
+          {bandLibraries.map((library) => (
+            <PodcastDownloadsBand
+              key={library.id}
+              library={library}
+              titled={podcastLibraries.length > 1}
+            />
+          ))}
+        </div>
       )}
       {/* The tabs come from both lists: without the libraries a linked tab would flicker. */}
       {podcasts.data && libraries.data && (

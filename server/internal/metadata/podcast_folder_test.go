@@ -13,7 +13,7 @@ func TestFetchAdoptsAFileEpisode(t *testing.T) {
 	t.Parallel()
 	e := newPodcastEnv(t, 2)
 	ctx := context.Background()
-	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml")
+	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestFetchOfAFeedFromAFileIsGuarded(t *testing.T) {
 	e := newPodcastEnv(t, 2)
 	ctx := context.Background()
 	// The same loopback feed twice: subscribed by hand it is fetched, read from a file it is refused.
-	byHand, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml")
+	byHand, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml", true)
 	if err != nil {
 		t.Fatal(err)
 	}

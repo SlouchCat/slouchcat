@@ -20,9 +20,10 @@ import (
 
 // Podcasts is implemented by package metadata: the podcast subscriptions (H-2).
 type Podcasts interface {
-	// Subscribe fetches the feed once and stores the podcast (*model.ValidationError,
-	// model.ErrFeedExists, model.ErrFeedUnreachable, model.ErrFeedInvalid).
-	Subscribe(ctx context.Context, libraryID int64, feedURL string) (model.AdminPodcast, error)
+	// Subscribe fetches the feed once and stores the podcast; loadEpisodes false is «Nur
+	// abonnieren» (concept 19 part A, 12.3) (*model.ValidationError, model.ErrFeedExists,
+	// model.ErrFeedUnreachable, model.ErrFeedInvalid).
+	Subscribe(ctx context.Context, libraryID int64, feedURL string, loadEpisodes bool) (model.AdminPodcast, error)
 	// Unsubscribe soft-deletes a subscription with its episodes (model.ErrNotFound).
 	Unsubscribe(ctx context.Context, id string) error
 	// ListPodcasts returns every live subscription, newest first.
@@ -34,6 +35,10 @@ type Podcasts interface {
 	RefreshPodcast(ctx context.Context, id string) (model.AdminPodcast, error)
 	// RefreshLibrary queues the fetch of every subscription of a library.
 	RefreshLibrary(ctx context.Context, libraryID int64) (int, error)
+	// UpdatePodcastDownloads stores the own setting of stored episodes of a podcast and runs the
+	// planner (concept 19 part A; model.ErrNotFound, *model.ValidationError,
+	// model.ErrRootNotWritable, model.ErrRootRequired).
+	UpdatePodcastDownloads(ctx context.Context, id string, upd model.PodcastDownloadsUpdate) (model.AdminPodcast, error)
 }
 
 // WithPodcasts sets the podcast subscriptions of package metadata and returns the receiver.
@@ -48,9 +53,13 @@ func (s *Service) WithPodcasts(p Podcasts) *Service {
 // (AN-2: a manual rating may only be stricter); feed and tag ratings stay. Errors:
 // model.ErrNotFound, *model.ValidationError (name required or too_long, defaultRating
 // invalid_value, not_allowed for video libraries; trickplay invalid_value, not_allowed for audio
-// libraries). A new trickplay setting is stored as it is; the trickplay jobs read it before every
-// sheet and the maintenance removes the stored sets of a kind that no longer stores (concept 18,
-// 6.6).
+// libraries; podcastDownloads not_allowed for other kinds than podcasts, its fields with the
+// prefix podcastDownloads.) and those of the folder check (model.ErrRootNotWritable,
+// model.ErrRootRequired). A new trickplay setting is stored as it is; the trickplay jobs read it
+// before every sheet and the maintenance removes the stored sets of a kind that no longer stores
+// (concept 18, 6.6). A new setting of stored podcast episodes is checked by package library before
+// the transaction and stored after its commit; package library then runs the planner for the
+// podcasts of the library (concept 19 part A, 5.3).
 func (s *Service) UpdateLibrary(ctx context.Context, id int64, upd model.LibraryUpdate) (model.Library, error) {
 	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	lib, err := s.read.GetLibrary(ctx, id)
@@ -89,8 +98,16 @@ func (s *Service) UpdateLibrary(ctx context.Context, id int64, upd model.Library
 			verr = upd.Trickplay.Validate(verr, "trickplay")
 		}
 	}
+	if upd.PodcastDownloads != nil && lib.Kind != model.LibraryPodcasts {
+		verr = verr.Add("podcastDownloads", "not_allowed")
+	}
 	if verr != nil {
 		return model.Library{}, verr
+	}
+	if upd.PodcastDownloads != nil {
+		if err := s.checkPodcastDownloads(ctx, id, *upd.PodcastDownloads); err != nil {
+			return model.Library{}, err
+		}
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -117,8 +134,15 @@ func (s *Service) UpdateLibrary(ctx context.Context, id int64, upd model.Library
 	if err := tx.Commit(); err != nil {
 		return model.Library{}, fmt.Errorf("commit: %w", err)
 	}
+	if upd.PodcastDownloads != nil {
+		// Stored only now, so a refused setting or a failed transaction leaves nothing half done;
+		// package library runs the planner after it.
+		if err := s.setPodcastDownloads(ctx, id, *upd.PodcastDownloads); err != nil {
+			return model.Library{}, err
+		}
+	}
 	s.log.InfoContext(ctx, "library updated", "library_id", id, "default_rating_changed", rating != lib.DefaultRating, "titles_rerated", titles,
-		"trickplay_changed", upd.Trickplay != nil)
+		"trickplay_changed", upd.Trickplay != nil, "podcast_downloads_changed", upd.PodcastDownloads != nil)
 	return s.withKeyframeIndex(ctx)(s.libraries.Get(ctx, id))
 }
 
@@ -151,7 +175,7 @@ func (s *Service) CreatePodcast(ctx context.Context, req model.PodcastCreate) (m
 	if s.podcasts == nil {
 		return model.AdminPodcast{}, ErrNotConfigured
 	}
-	return s.podcasts.Subscribe(ctx, req.LibraryID, req.FeedURL)
+	return s.podcasts.Subscribe(ctx, req.LibraryID, req.FeedURL, !req.SubscribeOnly)
 }
 
 // DeletePodcast removes a subscription with its episodes (deletePodcast).

@@ -186,6 +186,48 @@ func TestSetRunningPayload(t *testing.T) {
 	}
 }
 
+// SwapKeyedPayload swaps only the payload it was given, of a waiting or running job with its key;
+// ReleaseRunningKey frees the key of a running job only while the payload is unchanged, and the
+// key queues a new job after it.
+func TestSwapKeyedPayloadAndReleaseRunningKey(t *testing.T) {
+	ctx := context.Background()
+	q, _ := newTestQueue(t)
+	id := mustEnqueue(t, q, NewJob{Type: "a", IdempotencyKey: "k", Payload: []byte(`{"n":1}`)})
+	if ok, err := q.SwapKeyedPayload(ctx, id, []byte(`{"n":0}`), []byte(`{"n":2}`)); err != nil || ok {
+		t.Fatalf("swap from a stale payload = %v %v, want false", ok, err)
+	}
+	if ok, err := q.SwapKeyedPayload(ctx, id, []byte(`{"n":1}`), []byte(`{`)); err == nil || ok {
+		t.Fatalf("invalid JSON accepted: %v %v", ok, err)
+	}
+	if ok, err := q.SwapKeyedPayload(ctx, id, []byte(`{"n":1}`), []byte(`{"n":2}`)); err != nil || !ok {
+		t.Fatalf("swap of a queued job = %v %v", ok, err)
+	}
+	if ok, err := q.ReleaseRunningKey(ctx, id, []byte(`{"n":2}`)); err != nil || ok {
+		t.Fatalf("release of a queued job = %v %v, want false", ok, err)
+	}
+	if j := mustClaim(t, q, "w1"); j == nil || j.ID != id {
+		t.Fatalf("claimed %+v", j)
+	}
+	if ok, err := q.SwapKeyedPayload(ctx, id, []byte(`{"n":2}`), []byte(`{"n":3}`)); err != nil || !ok {
+		t.Fatalf("swap of a running job = %v %v", ok, err)
+	}
+	if ok, err := q.ReleaseRunningKey(ctx, id, []byte(`{"n":2}`)); err != nil || ok {
+		t.Fatalf("release with a stale payload = %v %v, want false", ok, err)
+	}
+	if again := mustEnqueue(t, q, NewJob{Type: "a", IdempotencyKey: "k"}); again != id {
+		t.Fatalf("enqueue under the held key = %d, want %d", again, id)
+	}
+	if ok, err := q.ReleaseRunningKey(ctx, id, []byte(`{"n":3}`)); err != nil || !ok {
+		t.Fatalf("release = %v %v", ok, err)
+	}
+	if ok, err := q.SwapKeyedPayload(ctx, id, []byte(`{"n":3}`), []byte(`{"n":4}`)); err != nil || ok {
+		t.Fatalf("swap after the release = %v %v, want false", ok, err)
+	}
+	if next := mustEnqueue(t, q, NewJob{Type: "a", IdempotencyKey: "k"}); next == id {
+		t.Fatalf("enqueue after the release joined the running job %d", id)
+	}
+}
+
 func TestEnqueueValidates(t *testing.T) {
 	q, _ := newTestQueue(t)
 	for name, j := range map[string]NewJob{

@@ -50,6 +50,18 @@ LIMIT 1;
 -- first time chapters.images found its file unreadable); a retry keeps the payload.
 UPDATE jobs SET payload = @payload, updated_at = @now WHERE id = @id AND state = 'running';
 
+-- name: SwapKeyedJobPayload :execrows
+-- Replaces the payload of a queued or running job that still holds its idempotency key, only while
+-- it is still @old_payload: a compare-and-swap for events that join a keyed job and for a handler
+-- that takes those events as they come (podcast.sync).
+UPDATE jobs SET payload = @new_payload, updated_at = @now
+WHERE id = @id AND state IN ('queued', 'running') AND idempotency_key IS NOT NULL AND payload = @old_payload;
+
+-- name: ReleaseRunningJobKey :execrows
+-- Gives up the idempotency key of a running job while its payload is still @payload: an event
+-- after that queues a new job instead of joining one whose handler is through.
+UPDATE jobs SET idempotency_key = NULL, updated_at = @now WHERE id = @id AND state = 'running' AND payload = @payload;
+
 -- name: SetQueuedJobPayload :execrows
 -- Replaces the payload of a job that no worker has claimed yet (coalescing of scan.path).
 UPDATE jobs SET payload = @payload, updated_at = @now WHERE id = @id AND state = 'queued';

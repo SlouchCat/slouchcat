@@ -447,6 +447,10 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusUnprocessableEntity, "feed_unreachable", "The feed could not be fetched.")
 	case errors.Is(err, model.ErrFeedInvalid):
 		p.write(w, r, http.StatusUnprocessableEntity, "feed_invalid", "The URL does not deliver an RSS podcast feed.")
+	case errors.Is(err, model.ErrRootNotWritable):
+		p.write(w, r, http.StatusUnprocessableEntity, "root_not_writable", "The podcast folder fails the folder check; episodes cannot be stored there.")
+	case errors.Is(err, model.ErrRootRequired):
+		p.write(w, r, http.StatusUnprocessableEntity, "root_required", "The podcast library has no podcast folder to store episodes in.")
 	case errors.Is(err, model.ErrRatingBelowDefault):
 		p.write(w, r, http.StatusUnprocessableEntity, "rating_below_library_default", "A title of an audio library may only be rated stricter than the library default.")
 	case errors.Is(err, model.ErrEnclosureUnavailable):

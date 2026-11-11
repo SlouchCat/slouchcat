@@ -1,0 +1,15 @@
+# Stored podcast episodes (optional; concept 19 part A, section 13, ADR 0029).
+# compose.yaml mounts every medium read-only. This file lays the podcast folder writable over that
+# read-only tree, so the server can store new episodes as files. Switch it on in .env:
+#   COMPOSE_FILE=compose.yaml:compose.podcasts.yaml
+#   PODCAST_DIR=/srv/media/Audiobookshelf/Podcast       (the folder on the host)
+#   PODCAST_TARGET=/media/Audiobookshelf/Podcast         (the path the library already uses)
+# PODCAST_TARGET must be exactly the path under which the folder is registered in Slouchcat
+# (another path is a root change, ADR 0023), and it must exist in the read-only tree: Docker
+# cannot create a mount point there, and the container would not start. Without this file
+# everything stays read-only and «Speichern» is locked in the administration.
+services:
+  slouchcat:
+    volumes:
+      # Podcast folder only: writable, so new episodes can be stored (concept 19, ADR 0029).
+      - ${PODCAST_DIR:?}:${PODCAST_TARGET:?}

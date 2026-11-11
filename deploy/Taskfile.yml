@@ -111,7 +111,7 @@ tasks:
       - "{{.COMPOSE}} down"
 
   config:
-    desc: Validate compose.yaml, all GPU overrides and the updater override
+    desc: Validate compose.yaml, all GPU overrides, the podcast and the updater override
     env:
       RENDER_GID: '{{.RENDER_GID | default "992"}}'
     cmds:
@@ -122,6 +122,9 @@ tasks:
       - docker compose -f compose.yaml -f compose.intel.yaml config --quiet
       - docker compose -f compose.yaml -f compose.amd.yaml config --quiet
       - SLOUCHCAT_DEPLOY_DIR="$PWD" docker compose -f compose.yaml -f compose.updater.yaml config --quiet
+      - >-
+        PODCAST_DIR=/srv/media/Podcast PODCAST_TARGET=/media/Podcast
+        docker compose -f compose.yaml -f compose.podcasts.yaml config --quiet
       - >-
         SLOUCHCAT_DEPLOY_DIR="$PWD" docker compose -f compose.yaml -f compose.https-only.yaml
         -f compose.intel.yaml -f compose.updater.yaml --profile https config --quiet

@@ -1,7 +1,7 @@
 import type { AdminPodcast } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
 import { codeMessage } from '@/api/errors';
-import { formatDateTime } from '@/lib/format';
+import { formatBytes, formatDateTime } from '@/lib/format';
 import { Chip, Icon } from '@/ui';
 import type { DataColumn } from '@/ui/aria';
 import styles from './Podcasts.module.css';
@@ -18,9 +18,10 @@ export function feedError(t: TFunction, lastError: string): { message: string; d
 
 /**
  * The columns of the podcast table (POD-2, mockup Pod-C): the title with «aus Ordner» and
- * «Explizit» folds the row out; episodes with the local ones, the last fetch (or «wird
- * abgerufen» after «Jetzt abrufen») and the error, one line long; the whole error, the author,
- * the feed address and the library are in the fold-out.
+ * «Explizit» folds the row out; episodes with the local ones, «gespeichert» (concept 19 part A,
+ * stage 1: what applies, marked when the podcast has an own setting, the stored bytes and the
+ * downloads), the last fetch (or «wird abgerufen» after «Jetzt abrufen») and the error, one line
+ * long; the whole error, the author, the feed address and the library are in the fold-out.
  */
 export function podcastColumns(
   t: TFunction,
@@ -62,6 +63,43 @@ export function podcastColumns(
           )}
         </span>
       ),
+    },
+    {
+      key: 'stored',
+      header: t('admin.podcasts.columns.stored'),
+      cell: (podcast) => {
+        if (!podcast.effectiveMode) return t('admin.podcasts.noError');
+        const loading = podcast.downloads.queued + podcast.downloads.running;
+        return (
+          <span className={styles.stack}>
+            <span className={styles.title}>
+              <Chip tone={podcast.effectiveMode === 'save' ? 'success' : 'outline'}>
+                {t(`admin.podcasts.stored.${podcast.effectiveMode}`)}
+              </Chip>
+              {podcast.mode !== undefined && podcast.mode !== 'inherit' && (
+                <span className={styles.muted}>{t('admin.podcasts.stored.own')}</span>
+              )}
+            </span>
+            {podcast.storedBytes > 0 && (
+              <span className={`${styles.muted} ${styles.numbers}`}>
+                {formatBytes(podcast.storedBytes, language)}
+              </span>
+            )}
+            {loading > 0 && (
+              <span className={styles.muted}>
+                {t('admin.podcasts.stored.loading', { number: number.format(loading) })}
+              </span>
+            )}
+            {podcast.downloads.failed > 0 && (
+              <span className={styles.problem}>
+                {t('admin.podcasts.stored.failed', {
+                  number: number.format(podcast.downloads.failed),
+                })}
+              </span>
+            )}
+          </span>
+        );
+      },
     },
     {
       key: 'lastFetch',

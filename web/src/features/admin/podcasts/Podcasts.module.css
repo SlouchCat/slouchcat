@@ -101,6 +101,48 @@
   align-items: center;
 }
 
+/* The band «Neue Folgen» and the setting in a fold-out (concept 19 part A, 12.3). */
+.band,
+.setting {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  min-width: 0;
+}
+
+.bands {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
+
+.summary {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}
+
+/* The folder with the result of its check, wrapped where it has to. */
+.folder {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-3);
+  align-items: baseline;
+  font-size: var(--sc-font-size-sm);
+}
+
+.problem {
+  color: var(--sc-color-state-danger);
+  font-size: var(--sc-font-size-sm);
+}
+
+/* N of «Neue + letzte N» with its button on one line. */
+.lastN {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: flex-end;
+}
+
 .form {
   display: flex;
   flex-direction: column;
