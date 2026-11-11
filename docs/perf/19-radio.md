@@ -109,11 +109,18 @@ Antworten im Lauf mit 4 je Sekunde: 931 × 200, 447 Weiterleitungen (301, 302, 3
 
 Antworten: 933 × 200, 445 Weiterleitungen, 62 × 404, 6 × 400, 1 × 403, 19 Verbindungsfehler, keine 429.
 
-**Deutschland, 4 je Sekunde** (Zwischenstand nach 52 Minuten): 4'875 von 5'226 Sendern, 11'755 Abrufe. Der Rest
-hängt an `laut.fm`: 509 deutsche Sender haben dort Logo-Adresse oder Webseite (dazu 91 auf `assets.laut.fm`). Die
-Sperre je Host lässt sie nacheinander laufen, und ein Auftrag bei `laut.fm` dauert dort rund 15 s; nach 52 Minuten
-standen noch 338 Sender von `laut.fm` aus. Ein Land mit einem grossen Hoster braucht damit Stunden, bis alle Logos
-da sind; die übrigen Sender des Landes sind nach rund 40 Minuten fertig. Die App zeigt bis dahin Initialen.
+**Deutschland, 4 je Sekunde** (abgebrochen nach 85 Minuten, weil CT 190 um 11:32 für die Abnahme von Teil A neu
+startete): 5'012 von 5'226 Sendern fertig, 12'161 Abrufe, **38'369 Wartefälle**. Nach rund 40 Minuten waren alle
+Sender ausser denen von `laut.fm` fertig: 509 deutsche Sender haben dort Logo-Adresse oder Webseite (dazu 91 auf
+`assets.laut.fm`). Die Sperre je Host lässt sie nacheinander laufen; ein Auftrag dauert dort rund 15 s, so kam der
+Rest mit rund 4 Sendern je Minute voran.
+
+**Befund 3, zu viele Rückstellungen.** Die Streuung von 15 bis 30 s kannte die Zahl der Wartenden nicht: die rund
+300 wartenden Aufträge von `laut.fm` kamen etwa siebenmal je Sekunde zurück. Im Server ist jede Rückstellung ein
+Schreiben der Warteschlange und eine Zeile im Log. Behoben (`91096131`): die Wartezeit ist 15 s plus ein Zufall bis
+15 s und 2 s je Auftrag, der auf denselben Host wartet; bei 300 Wartenden verteilen sich die Rückkehrer über rund
+10 Minuten, statt alle 22 s wiederzukommen. Ein Lauf für Deutschland mit dieser Streuung folgt nach der Abnahme von
+Teil A auf CT 190.
 
 ## 4. Speicher nach Marcos Entscheid: PNG nur in 96 Pixeln (11. November 2026)
 
