@@ -1729,6 +1729,18 @@ type AdminPodcast struct {
 	FeedOrigin        string
 	RootID            *int64
 	LocalEpisodeCount int
+	// The stored episodes (concept 19 part A, section 11): the own setting (Mode and Scope
+	// PodcastInherit or a value, LastN nil without an own one), the effective one, the bytes of
+	// the files that are there, the downloads that wait, run or failed, and the publication of the
+	// newest episode. Empty for a folder podcast without feed.
+	Mode, Scope                       string
+	LastN                             *int
+	EffectiveMode, EffectiveScope     string
+	EffectiveLastN                    int
+	StoredBytes                       int64
+	DownloadsQueued, DownloadsRunning int
+	DownloadsFailed                   int
+	LatestEpisodeAt                   *time.Time
 }
 
 // PodcastCreate subscribes a podcast library to a feed.
@@ -1748,6 +1760,47 @@ const (
 	PodcastLastNMax    = 100
 	PodcastParallelMax = 5
 )
+
+// PodcastInherit is the own setting of a podcast that follows its library (podcast_settings NULL).
+const PodcastInherit = "inherit"
+
+// PodcastDownloads is the setting of stored episodes of a podcast library (LibraryPodcastDownloads,
+// concept 19 part A, 5.1): Mode save or link, Scope new, last_n (with LastN 1..100) or all,
+// Parallel 1..5 downloads at once, and the folder for new subscriptions (RootID nil: the first
+// podcast folder of the library).
+type PodcastDownloads struct {
+	Mode     string
+	Scope    string
+	LastN    int
+	Parallel int
+	RootID   *int64
+}
+
+// PodcastDownloadsUpdate is the own setting of a podcast (updatePodcast): a nil field stays,
+// PodcastInherit returns Mode or Scope to the library's value, LastN counts with an own Scope.
+type PodcastDownloadsUpdate struct {
+	Mode  *string
+	Scope *string
+	LastN *int
+}
+
+// PodcastDownloadEstimateRequest names an imagined setting (estimatePodcastDownloads): of the
+// library when PodcastID is empty, else of that podcast (Mode and Scope may be PodcastInherit).
+type PodcastDownloadEstimateRequest struct {
+	PodcastID string
+	Mode      string
+	Scope     string
+	LastN     int
+}
+
+// PodcastDownloadEstimate is what an imagined setting would load once (12.3): the episodes and
+// their bytes (enclosure_length, else the mean of the podcast's files), and the free space of the
+// folder for new subscriptions.
+type PodcastDownloadEstimate struct {
+	Episodes  int
+	Bytes     int64
+	FreeBytes int64
+}
 
 // Problems of the folder check of a podcast folder (concept 19 part A, 5.4; ADR 0029).
 const (

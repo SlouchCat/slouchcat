@@ -10,6 +10,50 @@ import (
 	"database/sql"
 )
 
+const podcastActiveDownloads = `-- name: PodcastActiveDownloads :many
+SELECT j.id, j.state, j.payload, e.id AS episode_id
+FROM jobs AS j JOIN items AS e ON j.idempotency_key = 'podcast-dl:' || e.id
+WHERE j.type = 'podcast.download' AND j.state IN ('queued', 'running') AND e.parent_id = ?1
+ORDER BY j.id
+`
+
+type PodcastActiveDownloadsRow struct {
+	ID        int64
+	State     string
+	Payload   string
+	EpisodeID string
+}
+
+// The queued and running downloads of the episodes of a podcast (the planner cancels those that are
+// no longer wanted, 5.3).
+func (q *Queries) PodcastActiveDownloads(ctx context.Context, podcastID sql.NullString) ([]PodcastActiveDownloadsRow, error) {
+	rows, err := q.db.QueryContext(ctx, podcastActiveDownloads, podcastID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PodcastActiveDownloadsRow{}
+	for rows.Next() {
+		var i PodcastActiveDownloadsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.State,
+			&i.Payload,
+			&i.EpisodeID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const podcastClearDownloadFailure = `-- name: PodcastClearDownloadFailure :exec
 DELETE FROM podcast_download_failures WHERE item_id = ?1
 `
@@ -33,6 +77,99 @@ type PodcastClearPendingFolderParams struct {
 func (q *Queries) PodcastClearPendingFolder(ctx context.Context, arg PodcastClearPendingFolderParams) error {
 	_, err := q.db.ExecContext(ctx, podcastClearPendingFolder, arg.Now, arg.ItemID)
 	return err
+}
+
+const podcastDownloadFailuresOf = `-- name: PodcastDownloadFailuresOf :many
+SELECT f.item_id, f.error, f.attempts, f.first_failed_at, f.last_failed_at
+FROM podcast_download_failures AS f JOIN items AS e ON e.id = f.item_id
+WHERE e.parent_id = ?1
+`
+
+// The failed downloads of the episodes of a podcast.
+func (q *Queries) PodcastDownloadFailuresOf(ctx context.Context, podcastID sql.NullString) ([]PodcastDownloadFailure, error) {
+	rows, err := q.db.QueryContext(ctx, podcastDownloadFailuresOf, podcastID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PodcastDownloadFailure{}
+	for rows.Next() {
+		var i PodcastDownloadFailure
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.Error,
+			&i.Attempts,
+			&i.FirstFailedAt,
+			&i.LastFailedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const podcastDownloadStats = `-- name: PodcastDownloadStats :many
+SELECT p.id AS podcast_id,
+       CAST(COALESCE((SELECT sum(m.size) FROM media_files AS m JOIN items AS e ON e.id = m.item_id
+                      WHERE e.parent_id = p.id AND e.kind = 'podcast_episode' AND e.deleted_at IS NULL AND m.missing_since IS NULL), 0) AS INTEGER) AS stored_bytes,
+       CAST((SELECT count(*) FROM jobs AS j JOIN items AS e ON j.idempotency_key = 'podcast-dl:' || e.id
+             WHERE e.parent_id = p.id AND j.type = 'podcast.download' AND j.state = 'queued') AS INTEGER) AS queued,
+       CAST((SELECT count(*) FROM jobs AS j JOIN items AS e ON j.idempotency_key = 'podcast-dl:' || e.id
+             WHERE e.parent_id = p.id AND j.type = 'podcast.download' AND j.state = 'running') AS INTEGER) AS running,
+       CAST((SELECT count(*) FROM podcast_download_failures AS f JOIN items AS e ON e.id = f.item_id
+             WHERE e.parent_id = p.id AND e.deleted_at IS NULL) AS INTEGER) AS failed,
+       CAST(COALESCE((SELECT max(e.published_at) FROM items AS e
+                      WHERE e.parent_id = p.id AND e.kind = 'podcast_episode' AND e.deleted_at IS NULL), 0) AS INTEGER) AS latest_episode_at
+FROM items AS p
+WHERE p.kind = 'podcast' AND p.deleted_at IS NULL
+`
+
+type PodcastDownloadStatsRow struct {
+	PodcastID       string
+	StoredBytes     int64
+	Queued          int64
+	Running         int64
+	Failed          int64
+	LatestEpisodeAt int64
+}
+
+// Per live podcast: the bytes of its files that are there, its queued, running and failed downloads
+// and the publication of its newest episode (0 without one; AdminPodcast, section 11).
+func (q *Queries) PodcastDownloadStats(ctx context.Context) ([]PodcastDownloadStatsRow, error) {
+	rows, err := q.db.QueryContext(ctx, podcastDownloadStats)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PodcastDownloadStatsRow{}
+	for rows.Next() {
+		var i PodcastDownloadStatsRow
+		if err := rows.Scan(
+			&i.PodcastID,
+			&i.StoredBytes,
+			&i.Queued,
+			&i.Running,
+			&i.Failed,
+			&i.LatestEpisodeAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const podcastEffectiveSettings = `-- name: PodcastEffectiveSettings :many
@@ -363,6 +500,33 @@ func (q *Queries) PodcastKnownFolders(ctx context.Context, rootID int64) ([]stri
 	return items, nil
 }
 
+const podcastLibraryMode = `-- name: PodcastLibraryMode :one
+SELECT podcast_mode FROM libraries WHERE id = ?1
+`
+
+// The mode of stored episodes of a podcast library (the effective mode of a podcast that follows it).
+func (q *Queries) PodcastLibraryMode(ctx context.Context, id int64) (string, error) {
+	row := q.db.QueryRowContext(ctx, podcastLibraryMode, id)
+	var podcast_mode string
+	err := row.Scan(&podcast_mode)
+	return podcast_mode, err
+}
+
+const podcastMeanFileSize = `-- name: PodcastMeanFileSize :one
+SELECT CAST(COALESCE(avg(m.size), 0) AS INTEGER) AS mean
+FROM media_files AS m JOIN items AS e ON e.id = m.item_id
+WHERE e.parent_id = ?1 AND e.kind = 'podcast_episode' AND m.missing_since IS NULL
+`
+
+// The mean size of the files of a podcast's episodes that are there (the estimate of an episode
+// without enclosure_length); 0 without one.
+func (q *Queries) PodcastMeanFileSize(ctx context.Context, podcastID sql.NullString) (int64, error) {
+	row := q.db.QueryRowContext(ctx, podcastMeanFileSize, podcastID)
+	var mean int64
+	err := row.Scan(&mean)
+	return mean, err
+}
+
 const podcastNewestFolder = `-- name: PodcastNewestFolder :many
 SELECT m.root_id, CAST(substr(m.rel_path, 1, instr(m.rel_path, '/') - 1) AS TEXT) AS folder
 FROM media_files AS m
@@ -593,4 +757,40 @@ func (q *Queries) PodcastUpsertSettings(ctx context.Context, arg PodcastUpsertSe
 		arg.Now,
 	)
 	return err
+}
+
+const podcastsWithRetryableFailures = `-- name: PodcastsWithRetryableFailures :many
+SELECT DISTINCT e.parent_id AS podcast_id
+FROM podcast_download_failures AS f JOIN items AS e ON e.id = f.item_id
+WHERE e.deleted_at IS NULL AND f.last_failed_at <= ?1 AND f.first_failed_at >= ?2
+`
+
+type PodcastsWithRetryableFailuresParams struct {
+	RetryBefore  int64
+	GiveUpBefore int64
+}
+
+// The podcasts with a failed download that podcast.sync_all tries again (6.2): the last failure
+// older than six hours, the first one within seven days.
+func (q *Queries) PodcastsWithRetryableFailures(ctx context.Context, arg PodcastsWithRetryableFailuresParams) ([]sql.NullString, error) {
+	rows, err := q.db.QueryContext(ctx, podcastsWithRetryableFailures, arg.RetryBefore, arg.GiveUpBefore)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []sql.NullString{}
+	for rows.Next() {
+		var podcast_id sql.NullString
+		if err := rows.Scan(&podcast_id); err != nil {
+			return nil, err
+		}
+		items = append(items, podcast_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

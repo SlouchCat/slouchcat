@@ -164,6 +164,9 @@ type Service struct {
 	newEpisodes func(ctx context.Context, ids []string) error
 	// podcastFetched hears of a fetch with new episodes and of a new subscription (WithPodcastFetched).
 	podcastFetched func(ctx context.Context, podcastID string, newIDs []string) error
+	// podcastChanged and podcastSavable serve the own setting of a podcast (WithPodcastSettingHooks).
+	podcastChanged func(ctx context.Context, podcastID string) error
+	podcastSavable func(ctx context.Context, podcastID string) error
 	// relink queues the merge of a matched film or series into its soft-deleted twin (WithRelink).
 	relink func(ctx context.Context, itemID string) (bool, error)
 
@@ -210,8 +213,10 @@ type options struct {
 	feedAgent   string
 	newEpisodes func(ctx context.Context, ids []string) error
 	relink      func(ctx context.Context, itemID string) (bool, error)
-	// podcastFetched: see WithPodcastFetched.
+	// podcastFetched: see WithPodcastFetched; podcastChanged, podcastSavable: WithPodcastSettingHooks.
 	podcastFetched func(ctx context.Context, podcastID string, newIDs []string) error
+	podcastChanged func(ctx context.Context, podcastID string) error
+	podcastSavable func(ctx context.Context, podcastID string) error
 	traktID        string
 	trakt          traktOptions
 	// The audiobook sources (book_provider.go): addresses and the Google Books key.
@@ -299,6 +304,15 @@ func WithPodcastFetched(fn func(ctx context.Context, podcastID string, newIDs []
 	return func(o *options) { o.podcastFetched = fn }
 }
 
+// WithPodcastSettingHooks sets the functions UpdatePodcastDownloads calls (concept 19 part A, 5.3):
+// savable before an own setting turns a podcast to «Speichern» (library.Service.PodcastSavable; its
+// error refuses the setting), changed after the setting was stored (library.Service
+// .QueuePodcastSettingChanged, the planner; an error is logged). Without them nothing is checked
+// or planned.
+func WithPodcastSettingHooks(savable, changed func(ctx context.Context, podcastID string) error) Option {
+	return func(o *options) { o.podcastSavable, o.podcastChanged = savable, changed }
+}
+
 // WithRelink sets the function a match calls after it wrote the provider ids of a film or series
 // (library.Service.QueueRelink, ADR 0023): it reports whether the title has a soft-deleted twin
 // with the same ids and then queues the job that merges the title into it. A title with a twin is
@@ -378,6 +392,8 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		recheck:         o.recheck,
 		newEpisodes:     o.newEpisodes,
 		podcastFetched:  o.podcastFetched,
+		podcastChanged:  o.podcastChanged,
+		podcastSavable:  o.podcastSavable,
 		relink:          o.relink,
 		relinkSeries:    o.relinkSeries,
 		authorDisplay:   o.authorDisplay,

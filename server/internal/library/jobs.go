@@ -314,6 +314,9 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 	// podcast, held to a time window like every bulk download.
 	r.Register(jobs.Type{Name: JobPodcastDownload, Group: jobs.GroupLibrary, Pool: jobs.PoolPodcast, Trigger: jobs.TriggerEvent,
 		Priority: prioPodcastDownload, Handler: s.handlePodcastDownload, Windowable: true})
+	s.podcastSyncTypes(r) // podcast.sync and its schedule podcast.sync_all
+	// The planner cancels downloads through the registry, so a running one stops at once (5.3).
+	s.registry = r
 }
 
 // cancelScanJob is the cancel hook of scan.library and scan.path (jobs.Type.Cancel, concept 09

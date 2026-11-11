@@ -2,12 +2,14 @@ package metadata
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"slices"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
 
@@ -64,5 +66,63 @@ func TestPodcastFetchedHook(t *testing.T) {
 	}
 	if got := take(); len(got) != 0 {
 		t.Errorf("a fetch without new episodes told the planner %+v", got)
+	}
+}
+
+// Concept 19 part A, 5.1 and 5.3: updatePodcast stores the own setting of a podcast (inherit
+// returns it to the library), asks the folder check before a setting that stores and runs the
+// planner after; the list shows own and effective setting.
+func TestUpdatePodcastDownloads(t *testing.T) {
+	t.Parallel()
+	e := newPodcastEnv(t, 2)
+	var mu sync.Mutex
+	var changed []string
+	savable := errors.New("root not writable")
+	e.svc = New(e.db, e.queue, staticKey(""), t.TempDir(), transcode.Runner{}, slog.New(slog.DiscardHandler),
+		WithFeedClock(e.clock.now), WithFeedUserAgent("Slouchcat/test"), WithPodcastSettingHooks(
+			func(context.Context, string) error { return savable },
+			func(_ context.Context, id string) error {
+				mu.Lock()
+				defer mu.Unlock()
+				changed = append(changed, id)
+				return nil
+			}))
+	ctx := context.Background()
+	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Mode != model.PodcastInherit || p.Scope != model.PodcastInherit || p.EffectiveMode != model.PodcastLink ||
+		p.EffectiveScope != model.PodcastScopeNew || p.EffectiveLastN != 10 || p.LastN != nil || p.LatestEpisodeAt == nil {
+		t.Errorf("a new subscription = %+v, want the library's setting", p)
+	}
+	str := func(v string) *string { return &v }
+	n := 3
+	if _, err := e.svc.UpdatePodcastDownloads(ctx, p.ID, model.PodcastDownloadsUpdate{Mode: str(model.PodcastSave)}); !errors.Is(err, savable) {
+		t.Errorf("«Speichern» on a folder that fails the check: %v", err)
+	}
+	var verr *model.ValidationError
+	if _, err := e.svc.UpdatePodcastDownloads(ctx, p.ID, model.PodcastDownloadsUpdate{Mode: str("keep"), Scope: str("some"), LastN: new(0)}); !errors.As(err, &verr) || len(verr.Fields) != 3 {
+		t.Errorf("invalid setting: %v", err)
+	}
+	got, err := e.svc.UpdatePodcastDownloads(ctx, p.ID, model.PodcastDownloadsUpdate{Mode: str(model.PodcastLink), Scope: str(model.PodcastScopeLastN), LastN: &n})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Mode != model.PodcastLink || got.Scope != model.PodcastScopeLastN || got.LastN == nil || *got.LastN != 3 ||
+		got.EffectiveScope != model.PodcastScopeLastN || got.EffectiveLastN != 3 {
+		t.Errorf("own setting = %+v", got)
+	}
+	got, err = e.svc.UpdatePodcastDownloads(ctx, p.ID, model.PodcastDownloadsUpdate{Scope: str(model.PodcastInherit)})
+	if err != nil || got.Scope != model.PodcastInherit || got.LastN != nil || got.EffectiveLastN != 10 || got.Mode != model.PodcastLink {
+		t.Errorf("scope back to the library = %+v %v", got, err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(changed) != 2 || changed[0] != p.ID {
+		t.Errorf("planner hook heard %v, want the podcast twice", changed)
+	}
+	if _, err := e.svc.UpdatePodcastDownloads(ctx, "01J9ZZZZZZZZZZZZZZZZZZZZZZ", model.PodcastDownloadsUpdate{}); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("unknown podcast: %v", err)
 	}
 }

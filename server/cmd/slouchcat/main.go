@@ -310,13 +310,24 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	authorDisplay := func(ctx context.Context) error {
 		return libSvc.QueueAuthorDisplay(ctx)
 	}
+	// Stored podcast episodes (concept 19 part A, ADR 0029): a feed fetch and a new subscription tell
+	// the planner of the library, an own setting of a podcast asks its folder check and runs the
+	// planner; the closures read libSvc when they run, like relink.
+	podcastFetched := func(ctx context.Context, podcastID string, newIDs []string) error {
+		return libSvc.QueuePodcastSync(ctx, podcastID, newIDs)
+	}
+	podcastSavable := func(ctx context.Context, podcastID string) error { return libSvc.PodcastSavable(ctx, podcastID) }
+	podcastChanged := func(ctx context.Context, podcastID string) error {
+		return libSvc.QueuePodcastSettingChanged(ctx, podcastID)
+	}
 	// The audiobook sources (concept 19 D6): the e2e suite points them at a mock, in development
 	// mode only.
 	metaOpts := []metadata.Option{metadata.WithTrailerAI(cfg.TrailerAI),
 		metadata.WithVisibilityRecheck(playbackSvc.RecheckVisibility), metadata.WithFeedUserAgent("Slouchcat/" + version),
 		metadata.WithNewEpisodes(notifySvc.NewEpisodes), metadata.WithAniList(cfg.AniList), metadata.WithRelink(relink),
 		metadata.WithTrakt(cfg.TraktClientID, metadata.WithTraktBaseURL(traktBase)),
-		metadata.WithAudioSeriesRelink(library.RelinkAudioSeries), metadata.WithAuthorDisplay(authorDisplay)}
+		metadata.WithAudioSeriesRelink(library.RelinkAudioSeries), metadata.WithAuthorDisplay(authorDisplay),
+		metadata.WithPodcastFetched(podcastFetched), metadata.WithPodcastSettingHooks(podcastSavable, podcastChanged)}
 	if cfg.Dev && cfg.TestBooksBaseURL != "" {
 		metaOpts = append(metaOpts, metadata.WithTestBookSources(cfg.TestBooksBaseURL))
 	} else if cfg.TestBooksBaseURL != "" {

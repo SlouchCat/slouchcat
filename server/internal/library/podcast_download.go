@@ -92,11 +92,13 @@ const (
 )
 
 // podcastDownloadPayload is the payload of podcast.download: the episode, whether a button asked
-// for it (it is loaded whatever the setting and the riegel say), and since when it waits for its
-// folder or for space (Unix ms; 0 while it does not wait).
+// for it (it is loaded whatever the setting and the riegel say), whether a fetch reported it as new
+// (a smaller scope does not cancel it), and since when it waits for its folder or for space (Unix
+// ms; 0 while it does not wait). Never an address.
 type podcastDownloadPayload struct {
 	EpisodeID    string `json:"episodeId"`
 	Manual       bool   `json:"manual,omitempty"`
+	New          bool   `json:"new,omitempty"`
 	WaitingSince int64  `json:"waitingSince,omitempty"`
 }
 

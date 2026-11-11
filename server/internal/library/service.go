@@ -107,6 +107,9 @@ type Service struct {
 	// outside tests); podcastSlots are the two counters of their downloads (podcast_download.go).
 	podcastTag   func(ctx context.Context, in, out, ext string, tags transcode.AudioTags) error
 	podcastSlots *podcastSlots
+	// registry is the job registry of RegisterTypes: the podcast planner cancels downloads through
+	// it (a running one stops at once); nil before RegisterTypes, then the queue cancels.
+	registry *jobs.Registry
 	// trickplayMu guards trickplayBytes: the bytes of the stored trickplay sets per library and
 	// kind (0 movies, 1 series), counted by the hourly sweep (TrickplayUsage).
 	trickplayMu    sync.Mutex

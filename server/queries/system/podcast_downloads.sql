@@ -133,3 +133,52 @@ ON CONFLICT (item_id) DO UPDATE SET pending_root_id = excluded.pending_root_id, 
 -- The first file of a podcast is entered: its folder follows from its files from now on.
 UPDATE podcast_settings SET pending_root_id = NULL, pending_folder = NULL, updated_at = @now
 WHERE item_id = @item_id AND (pending_root_id IS NOT NULL OR pending_folder IS NOT NULL);
+
+-- name: PodcastActiveDownloads :many
+-- The queued and running downloads of the episodes of a podcast (the planner cancels those that are
+-- no longer wanted, 5.3).
+SELECT j.id, j.state, j.payload, e.id AS episode_id
+FROM jobs AS j JOIN items AS e ON j.idempotency_key = 'podcast-dl:' || e.id
+WHERE j.type = 'podcast.download' AND j.state IN ('queued', 'running') AND e.parent_id = @podcast_id
+ORDER BY j.id;
+
+-- name: PodcastDownloadFailuresOf :many
+-- The failed downloads of the episodes of a podcast.
+SELECT f.item_id, f.error, f.attempts, f.first_failed_at, f.last_failed_at
+FROM podcast_download_failures AS f JOIN items AS e ON e.id = f.item_id
+WHERE e.parent_id = @podcast_id;
+
+-- name: PodcastsWithRetryableFailures :many
+-- The podcasts with a failed download that podcast.sync_all tries again (6.2): the last failure
+-- older than six hours, the first one within seven days.
+SELECT DISTINCT e.parent_id AS podcast_id
+FROM podcast_download_failures AS f JOIN items AS e ON e.id = f.item_id
+WHERE e.deleted_at IS NULL AND f.last_failed_at <= @retry_before AND f.first_failed_at >= @give_up_before;
+
+-- name: PodcastMeanFileSize :one
+-- The mean size of the files of a podcast's episodes that are there (the estimate of an episode
+-- without enclosure_length); 0 without one.
+SELECT CAST(COALESCE(avg(m.size), 0) AS INTEGER) AS mean
+FROM media_files AS m JOIN items AS e ON e.id = m.item_id
+WHERE e.parent_id = @podcast_id AND e.kind = 'podcast_episode' AND m.missing_since IS NULL;
+
+-- name: PodcastDownloadStats :many
+-- Per live podcast: the bytes of its files that are there, its queued, running and failed downloads
+-- and the publication of its newest episode (0 without one; AdminPodcast, section 11).
+SELECT p.id AS podcast_id,
+       CAST(COALESCE((SELECT sum(m.size) FROM media_files AS m JOIN items AS e ON e.id = m.item_id
+                      WHERE e.parent_id = p.id AND e.kind = 'podcast_episode' AND e.deleted_at IS NULL AND m.missing_since IS NULL), 0) AS INTEGER) AS stored_bytes,
+       CAST((SELECT count(*) FROM jobs AS j JOIN items AS e ON j.idempotency_key = 'podcast-dl:' || e.id
+             WHERE e.parent_id = p.id AND j.type = 'podcast.download' AND j.state = 'queued') AS INTEGER) AS queued,
+       CAST((SELECT count(*) FROM jobs AS j JOIN items AS e ON j.idempotency_key = 'podcast-dl:' || e.id
+             WHERE e.parent_id = p.id AND j.type = 'podcast.download' AND j.state = 'running') AS INTEGER) AS running,
+       CAST((SELECT count(*) FROM podcast_download_failures AS f JOIN items AS e ON e.id = f.item_id
+             WHERE e.parent_id = p.id AND e.deleted_at IS NULL) AS INTEGER) AS failed,
+       CAST(COALESCE((SELECT max(e.published_at) FROM items AS e
+                      WHERE e.parent_id = p.id AND e.kind = 'podcast_episode' AND e.deleted_at IS NULL), 0) AS INTEGER) AS latest_episode_at
+FROM items AS p
+WHERE p.kind = 'podcast' AND p.deleted_at IS NULL;
+
+-- name: PodcastLibraryMode :one
+-- The mode of stored episodes of a podcast library (the effective mode of a podcast that follows it).
+SELECT podcast_mode FROM libraries WHERE id = @id;

@@ -319,7 +319,7 @@ func (s *Service) ListPodcasts(ctx context.Context) ([]model.AdminPodcast, error
 	for _, r := range rows {
 		out = append(out, toAdminPodcast(r))
 	}
-	return out, nil
+	return s.withDownloads(ctx, out)
 }
 
 // RefreshPodcast queues the fetch of a subscription now (refreshPodcast); model.ErrNotFound for an
@@ -782,7 +782,11 @@ func (s *Service) adminPodcast(ctx context.Context, id string) (model.AdminPodca
 	if len(rows) != 1 {
 		return model.AdminPodcast{}, model.ErrNotFound
 	}
-	return toAdminPodcast(rows[0]), nil
+	out, err := s.withDownloads(ctx, []model.AdminPodcast{toAdminPodcast(rows[0])})
+	if err != nil {
+		return model.AdminPodcast{}, err
+	}
+	return out[0], nil
 }
 
 func toAdminPodcast(r systemq.PodcastListRow) model.AdminPodcast {
