@@ -411,3 +411,70 @@ func TestPodcastPoolLeavesDeviceDownloadsAlone(t *testing.T) {
 		t.Errorf("queued podcast downloads = %d, want the rest of the 200 still waiting", n)
 	}
 }
+
+// syncQueued runs every queued podcast.sync job through its handler, the way a worker would.
+func (f *podcastFixture) syncQueued() {
+	f.e.t.Helper()
+	for {
+		j, err := f.e.queue.Claim(f.e.ctx, "w", []string{JobPodcastSync})
+		if err != nil {
+			f.e.t.Fatal(err)
+		}
+		if j == nil {
+			return
+		}
+		if err := f.e.svc.handlePodcastSync(f.e.ctx, j); err != nil {
+			f.e.t.Fatal(err)
+		}
+		if err := f.e.queue.Complete(f.e.ctx, "w", j.ID); err != nil {
+			f.e.t.Fatal(err)
+		}
+	}
+}
+
+// Concept 19, 6.2 («Fehler»): podcast.sync_all tries a failed episode of a podcast on «Speichern /
+// Nur neue Folgen» again six hours after its last failure, for seven days: the planner run it
+// queues loads the episode although it is no new episode of a fetch.
+func TestPodcastSyncAllRetriesAFailureOnScopeNew(t *testing.T) {
+	t.Parallel()
+	f := newPodcastFixture(t)
+	f.exec(`UPDATE libraries SET podcast_mode = 'save' WHERE id = ?`, f.lib.ID)
+	eps := f.episodes(2)
+	now := f.e.clock.Now()
+	f.exec(`INSERT INTO podcast_download_failures (item_id, error, first_failed_at, last_failed_at) VALUES (?, 'enclosure_unavailable', ?, ?)`,
+		eps[1], now.Add(-24*time.Hour).UnixMilli(), now.Add(-7*time.Hour).UnixMilli())
+	if ids, err := f.e.svc.runPodcastSyncAll(f.e.ctx, f.e.queue, 2); err != nil || len(ids) != 1 {
+		t.Fatalf("sync_all planned %v %v", ids, err)
+	}
+	f.syncQueued()
+	if got := f.queuedDownloads(); !slices.Equal(got, eps[1:]) {
+		t.Errorf("downloads after sync_all = %v, want the failed episode %v", got, eps[1:])
+	}
+}
+
+// Concept 19, 6.2: a final failure (too_large, not_audio, unsupported_format) is never tried again
+// by the planner or the schedule, only by a button; «Fehlende nachladen» also takes an episode that
+// failed within six hours (the button passes over the lock of the failures).
+func TestPodcastFinalFailuresOnlyByButton(t *testing.T) {
+	t.Parallel()
+	f := newPodcastFixture(t)
+	f.exec(`UPDATE libraries SET podcast_mode = 'save', podcast_scope = 'all' WHERE id = ?`, f.lib.ID)
+	eps := f.episodes(4)
+	now := f.e.clock.Now()
+	for i, code := range []string{PodcastErrTooLarge, PodcastErrNotAudio, PodcastErrUnsupportedFormat} {
+		f.exec(`INSERT INTO podcast_download_failures (item_id, error, first_failed_at, last_failed_at) VALUES (?, ?, ?, ?)`,
+			eps[i], code, now.Add(-24*time.Hour).UnixMilli(), now.Add(-7*time.Hour).UnixMilli())
+	}
+	f.exec(`INSERT INTO podcast_download_failures (item_id, error, first_failed_at, last_failed_at) VALUES (?, 'enclosure_unavailable', ?, ?)`,
+		eps[3], now.Add(-time.Hour).UnixMilli(), now.Add(-time.Hour).UnixMilli())
+	if n := f.sync(podcastSyncPayload{PodcastID: f.podcast}); n != 0 {
+		t.Errorf("the planner queued %d downloads of final or recent failures: %v", n, f.queuedDownloads())
+	}
+	f.exec(`UPDATE libraries SET podcast_scope = 'new' WHERE id = ?`, f.lib.ID)
+	if ids, err := f.e.svc.runPodcastSyncAll(f.e.ctx, f.e.queue, 2); err != nil || len(ids) != 0 {
+		t.Errorf("sync_all planned %v %v for final failures", ids, err)
+	}
+	if n, err := f.e.svc.DownloadPodcastEpisodes(f.e.ctx, f.podcast, nil); err != nil || n != 4 || !slices.Equal(f.queuedDownloads(), sorted(eps...)) {
+		t.Errorf("«Fehlende nachladen» = %d %v, queued %v, want all four", n, err, f.queuedDownloads())
+	}
+}

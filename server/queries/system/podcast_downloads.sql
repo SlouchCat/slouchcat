@@ -150,10 +150,12 @@ WHERE e.parent_id = @podcast_id;
 
 -- name: PodcastsWithRetryableFailures :many
 -- The podcasts with a failed download that podcast.sync_all tries again (6.2): the last failure
--- older than six hours, the first one within seven days.
+-- older than six hours, the first one within seven days, and not final (the codes of
+-- library.podcastFinalFailure: only a button loads such an episode again).
 SELECT DISTINCT e.parent_id AS podcast_id
 FROM podcast_download_failures AS f JOIN items AS e ON e.id = f.item_id
-WHERE e.deleted_at IS NULL AND f.last_failed_at <= @retry_before AND f.first_failed_at >= @give_up_before;
+WHERE e.deleted_at IS NULL AND f.last_failed_at <= @retry_before AND f.first_failed_at >= @give_up_before
+  AND f.error NOT IN ('too_large', 'not_audio', 'unsupported_format');
 
 -- name: PodcastMeanFileSize :one
 -- The mean size of the files of a podcast's episodes that are there (the estimate of an episode

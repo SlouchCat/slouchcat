@@ -25,9 +25,10 @@ import (
 // download to try again.
 //
 // It leaves out episodes that have a media file row (also a missing one: «entfernt», loaded only
-// on «Laden»), whose download waits or runs, that failed within six hours or for the first time
-// more than seven days ago, whose format the scanner does not read (O-3), and those the riegel find
-// a file for (paired instead) or call unclear (section 8). It cancels the waiting downloads that
+// on «Laden»), whose download waits or runs, that failed within six hours, for the first time more
+// than seven days ago or for good (too_large, not_audio, unsupported_format), whose format the
+// scanner does not read (O-3), and those the riegel find a file for (paired instead) or call
+// unclear (section 8). An episode whose failure may be tried again is loaded whatever the scope. It cancels the waiting downloads that
 // are no longer wanted (a smaller scope, a smaller N); after a change of the setting to «Nur
 // Link» it cancels the running ones and those of the buttons as well. Stored files stay (F-4).
 
@@ -48,6 +49,32 @@ const (
 	// hours after its last failure, for seven days after its first one (6.2, «Fehler»).
 	podcastRetryAfter  = 6 * time.Hour
 	podcastGiveUpAfter = 7 * 24 * time.Hour
+)
+
+// podcastFinalFailure reports whether a failure code is final: the enclosure itself is not to be
+// stored (too_large, not_audio, unsupported_format), so neither the planner nor podcast.sync_all
+// tries it again; only a button does («Erneut», «Laden», «Fehlende nachladen»). The query
+// PodcastsWithRetryableFailures leaves out the same codes.
+func podcastFinalFailure(code string) bool {
+	switch code {
+	case PodcastErrTooLarge, PodcastErrNotAudio, PodcastErrUnsupportedFormat:
+		return true
+	}
+	return false
+}
+
+// planUse names who asks plannedPodcastEpisodes for the episodes to load.
+type planUse int
+
+const (
+	// planSync is the planner: an episode whose failure may be tried again counts as in the scope
+	// whatever the scope says (podcast.sync_all, 6.2), and a pair of the riegel is paired.
+	planSync planUse = iota
+	// planEstimate is estimatePodcastDownloads: nothing is paired, failures hold back as for the
+	// planner, but only the scope counts.
+	planEstimate
+	// planButton is «Fehlende nachladen»: failures hold nothing back (5.3).
+	planButton
 )
 
 // podcastSyncPayload is the payload of podcast.sync: the podcast, the episodes a fetch reported as
@@ -169,7 +196,7 @@ func (s *Service) syncPodcast(ctx context.Context, p podcastSyncPayload) (int, e
 	wanted := map[string]bool{}
 	var load []systemq.PodcastFeedEpisodesRow
 	if ok && set.EffectiveMode == model.PodcastSave {
-		load, err = s.plannedPodcastEpisodes(ctx, set, set.EffectiveScope, int(set.EffectiveLastN), p.NewIDs, true)
+		load, err = s.plannedPodcastEpisodes(ctx, set, set.EffectiveScope, int(set.EffectiveLastN), p.NewIDs, planSync)
 		if err != nil {
 			return 0, err
 		}
@@ -200,11 +227,13 @@ func (s *Service) syncPodcast(ctx context.Context, p podcastSyncPayload) (int, e
 
 // plannedPodcastEpisodes chooses the episodes the setting (scope with lastN, the new episodes of
 // the fetch) asks for and the planner may load (5.2, 6.1): live feed episodes without any media
-// file row, without a recent or abandoned failure, of a format the scanner reads, and not unclear
-// by the riegel. With pair, an episode the riegel pair with a file episode is paired here and left
-// out; without (the estimate) it is only left out.
+// file row, without a recent, abandoned or final failure (none of these for planButton), of a
+// format the scanner reads, and not unclear by the riegel. For planSync an episode whose failure
+// may be tried again (the last one six hours ago, the first one within seven days) is in the scope
+// whatever the scope says (6.2). An episode the riegel pair with a file episode is paired here and
+// left out; for planEstimate it is only left out.
 func (s *Service) plannedPodcastEpisodes(ctx context.Context, set systemq.PodcastEffectiveSettingsRow, scope string, lastN int,
-	newIDs []string, pair bool,
+	newIDs []string, use planUse,
 ) ([]systemq.PodcastFeedEpisodesRow, error) {
 	read := systemq.New(s.db.Read)
 	eps, err := read.PodcastFeedEpisodes(ctx, sql.NullString{String: set.PodcastID, Valid: true})
@@ -216,10 +245,15 @@ func (s *Service) plannedPodcastEpisodes(ctx context.Context, set systemq.Podcas
 		return nil, fmt.Errorf("failed downloads of podcast %s: %w", set.PodcastID, err)
 	}
 	now := s.now()
-	skip := map[string]bool{}
+	skip, retry := map[string]bool{}, map[string]bool{}
 	for _, f := range failures {
-		if f.LastFailedAt > now.Add(-podcastRetryAfter).UnixMilli() || f.FirstFailedAt < now.Add(-podcastGiveUpAfter).UnixMilli() {
+		switch {
+		case use == planButton:
+		case podcastFinalFailure(f.Error) || f.LastFailedAt > now.Add(-podcastRetryAfter).UnixMilli() ||
+			f.FirstFailedAt < now.Add(-podcastGiveUpAfter).UnixMilli():
 			skip[f.ItemID] = true
+		default:
+			retry[f.ItemID] = true
 		}
 	}
 	isNew := map[string]bool{}
@@ -228,7 +262,8 @@ func (s *Service) plannedPodcastEpisodes(ctx context.Context, set systemq.Podcas
 	}
 	var candidates []systemq.PodcastFeedEpisodesRow
 	for i, e := range eps {
-		inScope := isNew[e.ID] || scope == model.PodcastScopeAll || (scope == model.PodcastScopeLastN && i < lastN)
+		inScope := isNew[e.ID] || (use == planSync && retry[e.ID]) || scope == model.PodcastScopeAll ||
+			(scope == model.PodcastScopeLastN && i < lastN)
 		if inScope && e.Files == 0 && !skip[e.ID] && podcastFormatKnown(e.EnclosureUrl.String, e.EnclosureType.String) {
 			candidates = append(candidates, e)
 		}
@@ -246,7 +281,7 @@ func (s *Service) plannedPodcastEpisodes(ctx context.Context, set systemq.Podcas
 		case verdictLoad:
 			out = append(out, e)
 		case verdictPair:
-			if pair {
+			if use != planEstimate {
 				if _, err := s.pairPodcastFile(ctx, e.ID, v.pairWith); err != nil {
 					return nil, err
 				}
@@ -327,7 +362,7 @@ func (s *Service) DownloadPodcastEpisodes(ctx context.Context, podcastID string,
 	var ids []string
 	if len(episodeIDs) == 0 {
 		prio = prioPodcastDownloadButton
-		load, err := s.plannedPodcastEpisodes(ctx, set, model.PodcastScopeAll, 0, nil, true)
+		load, err := s.plannedPodcastEpisodes(ctx, set, model.PodcastScopeAll, 0, nil, planButton)
 		if err != nil {
 			return 0, err
 		}
@@ -515,7 +550,7 @@ func (s *Service) EstimatePodcastDownloads(ctx context.Context, libraryID int64,
 		if mode != model.PodcastSave || scope == model.PodcastScopeNew {
 			continue
 		}
-		load, err := s.plannedPodcastEpisodes(ctx, set, scope, lastN, nil, false)
+		load, err := s.plannedPodcastEpisodes(ctx, set, scope, lastN, nil, planEstimate)
 		if err != nil {
 			return model.PodcastDownloadEstimate{}, err
 		}

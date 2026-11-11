@@ -1015,6 +1015,7 @@ const podcastsWithRetryableFailures = `-- name: PodcastsWithRetryableFailures :m
 SELECT DISTINCT e.parent_id AS podcast_id
 FROM podcast_download_failures AS f JOIN items AS e ON e.id = f.item_id
 WHERE e.deleted_at IS NULL AND f.last_failed_at <= ?1 AND f.first_failed_at >= ?2
+  AND f.error NOT IN ('too_large', 'not_audio', 'unsupported_format')
 `
 
 type PodcastsWithRetryableFailuresParams struct {
@@ -1023,7 +1024,8 @@ type PodcastsWithRetryableFailuresParams struct {
 }
 
 // The podcasts with a failed download that podcast.sync_all tries again (6.2): the last failure
-// older than six hours, the first one within seven days.
+// older than six hours, the first one within seven days, and not final (the codes of
+// library.podcastFinalFailure: only a button loads such an episode again).
 func (q *Queries) PodcastsWithRetryableFailures(ctx context.Context, arg PodcastsWithRetryableFailuresParams) ([]sql.NullString, error) {
 	rows, err := q.db.QueryContext(ctx, podcastsWithRetryableFailures, arg.RetryBefore, arg.GiveUpBefore)
 	if err != nil {
