@@ -3,6 +3,11 @@ import { swatchStyle } from './accent';
 import { stationAccent, stationInitials } from './StationLogo';
 import styles from './SquareCover.module.css';
 
+/** The initials of a title without its signs: «{ungeskriptet} - Der …» gives «UDM», not «{DM». */
+export function coverInitials(title: string): string {
+  return stationInitials(title.replace(/[^\p{L}\p{N}\s]+/gu, ' '));
+}
+
 interface SquareCoverProps {
   /** The title the cover belongs to; gives the initials and their colour without a picture. */
   title: string;
@@ -41,7 +46,7 @@ export function SquareCover({ title, src, size = 'sm' }: SquareCoverProps) {
       ) : (
         // Drawn by CSS from the attribute, so the initials stay out of the text of a row or a
         // button the cover sits in (its name and textContent are the title's).
-        <span className={styles.initials} data-text={stationInitials(title)} />
+        <span className={styles.initials} data-text={coverInitials(title)} />
       )}
     </span>
   );
