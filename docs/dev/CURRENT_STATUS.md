@@ -18,6 +18,25 @@ war die Platte voll, `cache/images` belegte 55 GB, davon 25,6 GB die Folgenbilde
 - **Erwartete Ersparnis auf CT 190:** rund 18 GB bei den Folgenbildern (Schätzung über die Pixelfläche), dazu die
   Originale der übrigen Titel (nicht gemessen). `image.fetch` kann nach dem Update wieder laufen.
 
+## Ordner-Browser unter NAS-Last (11. November 2026, Zweig `claude/browse-unter-last`)
+
+Kein Vertragswechsel, keine Migration. Auf CT 190 brauchte `POST /admin/fs/browse` je Ebene 1,4 bis 2,4 s und gab
+beim Podcast-Ordner (102 Unterordner) nach 4,45 s mit 503 `path_unreachable` auf; `GET /admin/libraries` brauchte
+1,8 s. Gemessen nur lesend auf CT 190 (Python nach dem Muster von `os.Root`, DB mit `?mode=ro`):
+
+- **`paths.LstatAll`** öffnete über `os.Root` für jeden Namen alle Ordner von `rel` neu; auf NFS ist jedes Öffnen ein
+  GETATTR. Podcast-Ordner: 424 GETATTR, 0,65 bis 0,82 s bei 16 % IO-Druck, über dem Watchdog von 3 s bei 70 %. Jetzt
+  ein Deskriptor für `rel` und ein `fstatat` je Name: 4 GETATTR, 6 bis 16 ms. Watchdog bleibt 3 s.
+- **`admin.BrowseRoots`** lief vor jeder Ordnerliste über `library.Service.List` mit allen Zählungen (die 1,4 bis
+  2,4 s je Klick). Jetzt `library.Service.ListRoots`: Bibliotheken und Wurzeln ohne Zählungen, zwei Abfragen.
+- **`CountLibraryMediaFiles`** nahm für `missing_since IS NULL` den Index `media_files_missing` und las die Zeile
+  jeder vorhandenen Datei des Servers: 170 bis 225 ms je Bibliothek, 1,35 s für sieben. Jetzt alle Dateien über den
+  Index auf `root_id` minus die fehlenden: 23 ms für sieben, gleiche Zahlen.
+- Die Abfrage alle 7 s ist `SCAN_POLL_MS` (5 s) plus Antwortzeit, solange eine Bibliothek scannt (Podcast stand seit
+  12:12 auf `running`); sie bleibt.
+- **CT 190:** als `browse-e026722` (PR #142 auf PR #141) gemessen: Podcast-Ordner 186 ms beim ersten Aufruf,
+  34 ms danach (vorher 503 nach 4,45 s); `/media/nas` 23 ms; `GET /admin/libraries` 0,7 bis 0,8 s (vorher 1,8 bis 2,2 s).
+
 ## Podcast-Episoden ohne eigenes Cover (11. November 2026): Pull Request
 
 Migration **00049**, Vertrag bleibt (nur eine Beschreibung in `api/openapi.yaml`), Zweig

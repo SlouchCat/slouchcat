@@ -365,6 +365,26 @@ func (m *Manager) Stats() Stats {
 	return st
 }
 
+// CPUStarting reports whether a session that encodes on the CPU waits for the first segment of its
+// run (a start or a jump): a viewer waits for that segment, so the trickplay job holds its next
+// sheet until it is out (the start budget of 5 s, W-3).
+func (m *Manager) CPUStarting() bool {
+	m.mu.Lock()
+	sessions := make([]*Session, 0, len(m.sessions))
+	for _, s := range m.sessions {
+		if m.cpuPlan(s.plan) {
+			sessions = append(sessions, s)
+		}
+	}
+	m.mu.Unlock()
+	for _, s := range sessions {
+		if s.starting() {
+			return true
+		}
+	}
+	return false
+}
+
 // CPUHeavy reports whether a transcode keeps the CPU busy right now (concept 18, 5.3): a session
 // with a running ffmpeg that encodes video in software or tonemaps on the CPU, or a download encode
 // holding budget. The trickplay job then runs one ffmpeg instead of two.

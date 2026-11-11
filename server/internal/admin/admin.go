@@ -93,6 +93,9 @@ type Libraries interface {
 	ValidateNewRoot(ctx context.Context, path string) error
 	Create(ctx context.Context, req model.LibraryRequest) (model.Library, error) // validates, detects the file system, inserts library + root, queues the first scan
 	List(ctx context.Context) ([]model.Library, error)
+	// ListRoots returns the libraries with their roots only (ID, Path, FSType, Warning), without
+	// the counts of List; the folder browser asks it on every click.
+	ListRoots(ctx context.Context) ([]model.Library, error)
 	Get(ctx context.Context, id int64) (model.Library, error) // model.ErrNotFound
 	QueueScan(ctx context.Context, id int64) (model.Library, error)
 	AcceptLoss(ctx context.Context, id int64) (model.Library, error)
