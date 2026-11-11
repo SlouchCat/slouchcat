@@ -352,7 +352,7 @@ func TestLogoJobsOneAtATimePerHost(t *testing.T) {
 	e := newLogoEnv(t)
 	e.s.logo.limiter = ratelimit.New("radio-logo-test", 1000, 1000)
 	e.s.logo.hostRetry = time.Millisecond
-	var cur, peak, fetched atomic.Int32
+	var cur, peak, fetched, atFirst atomic.Int32
 	holding := make(chan struct{})
 	release := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -362,6 +362,9 @@ func TestLogoJobsOneAtATimePerHost(t *testing.T) {
 		}
 		fetched.Add(1)
 		if r.URL.Path == "/first.png" {
+			// Another job of the host may have run before this one (two workers claim in any
+			// order); what counts is that none runs while this one holds the host.
+			atFirst.Store(fetched.Load())
 			close(holding)
 			<-release
 		}
@@ -406,8 +409,8 @@ func TestLogoJobsOneAtATimePerHost(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("the scan job waited behind the logo jobs of one host")
 	}
-	if n := fetched.Load(); n != 1 {
-		t.Errorf("%d fetches while the first job held the host, want 1", n)
+	if n, k := fetched.Load(), atFirst.Load(); n != k {
+		t.Errorf("%d fetches while the first job held the host, want none (%d before it)", n-k, k-1)
 	}
 	close(release)
 	deadline := time.Now().Add(30 * time.Second)
