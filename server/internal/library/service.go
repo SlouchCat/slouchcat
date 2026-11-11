@@ -108,7 +108,7 @@ type Service struct {
 	podcastFSType func(root paths.Root) (paths.FSType, error)
 	// podcastTag replaces transcode.Runner.TagAudio for stored podcast episodes (a test seam; nil
 	// outside tests); podcastSlots are the two counters of their downloads (podcast_download.go).
-	podcastTag   func(ctx context.Context, in, out, ext string, tags transcode.AudioTags) error
+	podcastTag   func(ctx context.Context, in string, out io.Writer, ext string, tags transcode.AudioTags) error
 	podcastSlots *podcastSlots
 	// registry is the job registry of RegisterTypes: the podcast planner cancels downloads through
 	// it (a running one stops at once); nil before RegisterTypes, then the queue cancels.

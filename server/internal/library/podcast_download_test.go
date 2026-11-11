@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -205,8 +206,9 @@ func TestPodcastDownloadFallsBackToTheUntaggedFile(t *testing.T) {
 	t.Parallel()
 	f := newDownloadFixture(t)
 	content := podcastEpisodeMedia(t, 2)
-	f.e.svc.podcastTag = func(_ context.Context, _, out, _ string, _ transcode.AudioTags) error {
-		return os.WriteFile(out, []byte("not audio"), 0o600)
+	f.e.svc.podcastTag = func(_ context.Context, _ string, out io.Writer, _ string, _ transcode.AudioTags) error {
+		_, err := out.Write([]byte("not audio"))
+		return err
 	}
 	ep := f.episode("Ohne Tags", "ohne.mp3", time.Date(2026, 11, 2, 6, 0, 0, 0, time.UTC), content)
 	if err := f.download(f.e.ctx, ep, 1); err != nil {
@@ -605,5 +607,31 @@ func TestPodcastDownloadWaitsForAFolderItMayNotWrite(t *testing.T) {
 	}
 	if all, err := f.e.svc.PodcastStates(f.e.ctx, ""); err != nil || !all[f.podcast].Savable {
 		t.Errorf("state after the fix = %+v %v", all[f.podcast], err)
+	}
+}
+
+// Concept 19, 6.5 (CLAUDE.md rule 4): the tagged copy is written through the root of the folder,
+// never by a path ffmpeg opens: a symlink in place of the own .tagged file is removed, not
+// followed, and the file it points at stays as it is.
+func TestPodcastDownloadTagsThroughTheRoot(t *testing.T) {
+	t.Parallel()
+	f := newDownloadFixture(t)
+	ep := f.episode("Getaggt", "getaggt.mp3", time.Date(2026, 11, 9, 18, 0, 0, 0, time.UTC), podcastEpisodeMedia(t, 1))
+	outside := filepath.Join(t.TempDir(), "fremd.txt")
+	if err := os.WriteFile(outside, []byte("fremd"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(f.dir, "Testpodcast", podcastOwnPrefix+ep+".tagged")); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.download(f.e.ctx, ep, 1); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(outside); err != nil || string(got) != "fremd" {
+		t.Errorf("the file behind the symlink changed: %d bytes, %v", len(got), err)
+	}
+	p, err := f.e.svc.probe.Probe(f.e.ctx, filepath.Join(f.dir, "Testpodcast", "Getaggt.mp3"))
+	if err != nil || p.Format.Tags["title"] != "Getaggt" {
+		t.Errorf("stored file tags = %v %v", p.Format.Tags, err)
 	}
 }

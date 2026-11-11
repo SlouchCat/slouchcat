@@ -23,7 +23,8 @@ func tagRunner(t *testing.T) Runner {
 
 // Concept 19 P-19 (6.5, O-7): an mp3 and an m4a with a cover and a tag of the provider get title,
 // album, artist and date without re-encoding; the cover, the audio codec and the provider's other
-// tags stay. An ogg is not tagged and nothing is written.
+// tags stay. The copy goes to the writer the caller gives, the temporary directory goes. An ogg is
+// not tagged and nothing is written.
 func TestTagAudio(t *testing.T) {
 	t.Parallel()
 	r := tagRunner(t)
@@ -42,8 +43,16 @@ func TestTagAudio(t *testing.T) {
 			t.Fatal(err)
 		}
 		out := filepath.Join(dir, ".slouchcat-x."+tc.ext+".tagged")
-		if err := r.TagAudio(ctx, in, out, tc.ext, tags); err != nil {
+		f, err := os.Create(out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tmp := t.TempDir()
+		if err := errors.Join(r.TagAudio(ctx, in, f, tc.ext, tags, tmp), f.Close()); err != nil {
 			t.Fatalf("%s: %v", tc.ext, err)
+		}
+		if left, err := os.ReadDir(tmp); err != nil || len(left) != 0 {
+			t.Errorf("%s: temporary files left: %v %v", tc.ext, left, err)
 		}
 		p, err := r.Probe(ctx, out)
 		if err != nil {
@@ -69,12 +78,12 @@ func TestTagAudio(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out := filepath.Join(dir, "out.ogg.tagged")
-	if err := r.TagAudio(ctx, in, out, "ogg", tags); !errors.Is(err, ErrNotTaggable) {
+	var out bytes.Buffer
+	if err := r.TagAudio(ctx, in, &out, "ogg", tags, t.TempDir()); !errors.Is(err, ErrNotTaggable) {
 		t.Errorf("ogg: %v, want ErrNotTaggable", err)
 	}
-	if _, err := os.Stat(out); !errors.Is(err, os.ErrNotExist) {
-		t.Errorf("ogg: output written: %v", err)
+	if out.Len() != 0 {
+		t.Errorf("ogg: %d bytes written", out.Len())
 	}
 	if now, err := os.ReadFile(in); err != nil || !bytes.Equal(now, orig) {
 		t.Errorf("ogg changed: %v", err)

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/url"
 	"os"
@@ -608,8 +609,9 @@ func (s *Service) checkPodcastEpisode(ctx context.Context, pr paths.Root, r *os.
 	if ep.PublishedAt.Valid {
 		tags.Date = time.UnixMilli(ep.PublishedAt.Int64).UTC().Format(time.RFC3339)
 	}
-	switch err := s.tagPodcastAudio(ctx, abs, tagged, ext, tags); {
+	switch err := s.tagPodcastAudio(ctx, r, abs, own.tagged, ext, tags); {
 	case errors.Is(err, transcode.ErrNotTaggable):
+		_ = r.Remove(own.tagged)
 	case err != nil:
 		s.log.WarnContext(ctx, "tags of a stored episode not written, the untagged file is entered", "item_id", ep.ID, "err",
 			strings.ReplaceAll(err.Error(), pr.Dir(), ""))
@@ -629,12 +631,25 @@ func (s *Service) checkPodcastEpisode(ctx context.Context, pr paths.Root, r *os.
 	return src, ext, probe, nil
 }
 
-// tagPodcastAudio is transcode.Runner.TagAudio (the test seam podcastTag replaces it).
-func (s *Service) tagPodcastAudio(ctx context.Context, in, out, ext string, tags transcode.AudioTags) error {
-	if s.podcastTag != nil {
-		return s.podcastTag(ctx, in, out, ext, tags)
+// tagPodcastAudio writes the tagged copy of in (absolute) into the own file name below r: an own
+// old copy goes first (a symlink of that name is removed, not followed), the new one is created
+// with O_EXCL through the root, and ffmpeg writes into it through transcode.Runner.TagAudio (the
+// test seam podcastTag replaces it), with the server's cache for formats that need to seek.
+func (s *Service) tagPodcastAudio(ctx context.Context, r *os.Root, in, name, ext string, tags transcode.AudioTags) error {
+	if err := r.Remove(name); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
 	}
-	return s.probe.TagAudio(ctx, in, out, ext, tags)
+	f, err := r.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, podcastFileMode)
+	if err != nil {
+		return err
+	}
+	tag := s.probe.TagAudio
+	if s.podcastTag != nil {
+		tag = func(ctx context.Context, in string, out io.Writer, ext string, tags transcode.AudioTags, _ string) error {
+			return s.podcastTag(ctx, in, out, ext, tags)
+		}
+	}
+	return errors.Join(tag(ctx, in, f, ext, tags, s.cacheDir), f.Close())
 }
 
 // enterPodcastFile enters an own file as the media file of a feed episode (steps 5 and 6), under
