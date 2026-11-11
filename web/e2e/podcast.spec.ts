@@ -57,7 +57,8 @@ test('H-2: the new episode appears after "Jetzt abrufen"; explicit stays hidden 
     // The row folds out (Enter on its title) into the feed address and «Jetzt abrufen».
     const detail = await openPodcastRow(page, podcast.id);
     await expect(detail.getByText(feedUrl(key), { exact: true })).toBeVisible();
-    await page.keyboard.press('Tab');
+    // Past the row's link to the page of the podcast (concept 19 part A, 12.2).
+    await tabTo(page, detail.getByRole('button', { name: `${PODCAST_TITLE} jetzt abrufen` }));
     await expectFocusOn(
       page,
       detail.getByRole('button', { name: `${PODCAST_TITLE} jetzt abrufen` }),
@@ -70,7 +71,7 @@ test('H-2: the new episode appears after "Jetzt abrufen"; explicit stays hidden 
       episodeTitle(2),
       episodeTitle(1),
     ]);
-    await expect(row.getByRole('cell').filter({ hasText: /^3$/ })).toBeVisible({
+    await expect(row.getByText('3', { exact: true })).toBeVisible({
       timeout: 15_000,
     });
 

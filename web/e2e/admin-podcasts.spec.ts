@@ -26,8 +26,9 @@ import {
 } from './keyboard';
 import { arrowTo } from './playback';
 
-// /admin/podcasts (M6, H-2; concept 12, variant C) by keyboard (rule 8): tabs «Alle» and one per
-// podcast library, each podcast a row that folds out (Enter) into its feed address and actions;
+// /admin/podcasts (M6, H-2; concept 12, variant C; concept 19 part A, 12.2 variant A) by keyboard
+// (rule 8): tabs «Alle» and one per podcast library, each podcast a row with its cover that folds
+// out (Enter) into its feed address and actions and links to its page;
 // subscribe through the dialog (a feed the server cannot fetch is reported at the URL field, an
 // address without http(s) already in the browser), "Jetzt abrufen" and "Abo löschen" with its
 // confirmation; visible focus throughout, no focus trap.
@@ -105,15 +106,22 @@ test('podcasts page by keyboard: subscribe, fetch now, unsubscribe; errors at th
     await expect(page.getByText(`${PODCAST_TITLE} ist abonniert.`)).toBeVisible();
     await expectFocusOn(page, subscribe);
     const row = podcastRow(page, created);
-    await expect(row.getByRole('rowheader')).toHaveText(PODCAST_TITLE);
-    await expect(row.getByRole('cell').filter({ hasText: /^2$/ })).toBeVisible();
+    // The row of the list with covers (concept 19 part A, 12.2): title first, two episodes.
+    await expect(row.getByRole('rowheader')).toContainText(PODCAST_TITLE);
+    await expect(row.getByText('2', { exact: true })).toBeVisible();
 
     // The row folds out by keyboard: the whole feed address, the library, the actions.
     const detail = await openPodcastRow(page, created);
     await expect(detail.getByText(feedUrl(key), { exact: true })).toBeVisible();
     await expect(detail.getByText('Podcasts', { exact: true })).toBeVisible();
 
-    // "Jetzt abrufen" by keyboard: the page polls every 2 s for a while.
+    // "Jetzt abrufen" by keyboard: the page polls every 2 s for a while. The row's link to the
+    // page of the podcast comes first.
+    await page.keyboard.press('Tab');
+    await expectFocusOn(
+      page,
+      row.getByRole('link', { name: `Folgen von ${PODCAST_TITLE} ansehen` }),
+    );
     await page.keyboard.press('Tab');
     await expectFocusOn(
       page,
