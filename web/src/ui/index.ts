@@ -64,6 +64,7 @@ export {
   useSpatialItem,
 } from './spatial';
 export { Stack } from './Stack';
+export { SquareCover } from './SquareCover';
 export { StationLogo } from './StationLogo';
 export { StationTile } from './StationTile';
 export { StatusDot, type StatusDotState } from './StatusDot';
