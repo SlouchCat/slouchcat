@@ -10084,7 +10084,7 @@ export interface components {
             q?: string;
             /** @description For `mark`/`demark`; unknown ids change nothing. */
             stationIds?: number[];
-            /** @description For `setHideBroken`. */
+            /** @description For `setHideBroken`; absent counts as false. */
             value?: boolean;
         };
         RadioOfferListRequest: {

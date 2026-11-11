@@ -363,11 +363,7 @@ func (s *Service) PreviewOffer(ctx context.Context, steps []model.RadioOfferStep
 	if err != nil {
 		return model.RadioOfferPreview{}, err
 	}
-	out, err := s.previewOn(ctx, idx, cur, favs, steps, list)
-	if err != nil {
-		return model.RadioOfferPreview{}, err
-	}
-	return out, nil
+	return s.previewOn(ctx, idx, cur, favs, steps, list)
 }
 
 // previewOn is the computation of PreviewOffer on a given index, offer and favourite set; the

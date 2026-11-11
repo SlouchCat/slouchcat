@@ -18135,7 +18135,7 @@ components:
             format: int64
         value:
           type: boolean
-          description: For `setHideBroken`.
+          description: For `setHideBroken`; absent counts as false.
 
     RadioOfferListRequest:
       type: object
