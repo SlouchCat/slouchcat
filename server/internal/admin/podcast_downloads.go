@@ -17,12 +17,14 @@ type PodcastStorage interface {
 	// PodcastFolderOf runs the folder check of the folder for new subscriptions of a podcast
 	// library (model.ErrNotFound, model.ErrRootRequired).
 	PodcastFolderOf(ctx context.Context, libraryID int64) (model.PodcastFolder, error)
-	// CheckPodcastDownloads answers whether SetPodcastDownloads would take the setting, with its
-	// errors, and stores nothing.
+	// CheckPodcastDownloads answers whether the setting of a podcast library is taken, with its
+	// errors (model.ErrNotFound, *model.ValidationError, model.ErrRootRequired,
+	// model.ErrRootNotWritable), folder check included, and stores nothing.
 	CheckPodcastDownloads(ctx context.Context, libraryID int64, d model.PodcastDownloads) error
-	// SetPodcastDownloads stores the setting of a podcast library and runs the planner
-	// (model.ErrNotFound, *model.ValidationError, model.ErrRootRequired, model.ErrRootNotWritable).
-	SetPodcastDownloads(ctx context.Context, libraryID int64, d model.PodcastDownloads) (model.PodcastDownloads, error)
+	// StorePodcastDownloads stores a setting CheckPodcastDownloads took and runs the planner; it
+	// runs no second folder check, so it fails only on an error of the database or a change of the
+	// library in between.
+	StorePodcastDownloads(ctx context.Context, libraryID int64, d model.PodcastDownloads) (model.PodcastDownloads, error)
 	// EstimatePodcastDownloads answers what an imagined setting would load once (model.ErrNotFound).
 	EstimatePodcastDownloads(ctx context.Context, libraryID int64, req model.PodcastDownloadEstimateRequest) (model.PodcastDownloadEstimate, error)
 	// DownloadPodcastEpisodes queues the episodes without file of a podcast, or the given ones,
@@ -140,7 +142,7 @@ func (s *Service) setPodcastDownloads(ctx context.Context, libraryID int64, d mo
 	if s.podcastStorage == nil {
 		return ErrNotConfigured
 	}
-	_, err := s.podcastStorage.SetPodcastDownloads(ctx, libraryID, d)
+	_, err := s.podcastStorage.StorePodcastDownloads(ctx, libraryID, d)
 	return prefixPodcastFields(err)
 }
 

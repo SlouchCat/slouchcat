@@ -725,3 +725,23 @@ func TestPodcastStopIsNotInheritedByALaterRun(t *testing.T) {
 		t.Errorf("downloads after the stop = %v, want only «Laden» %v", got, eps[1:])
 	}
 }
+
+// Concept 19 part A, 5.3 and 5.4: updateLibrary checks the setting before its transaction and
+// stores it after the commit; the store runs no second folder check, so a setting the check took
+// is stored although the folder check would fail by then (the name of the library is committed
+// already and the request must not report an error for it).
+func TestPodcastStoreAfterTheCheckRunsNoSecondCheck(t *testing.T) {
+	t.Parallel()
+	f := newPodcastFixture(t)
+	save := model.PodcastDownloads{Mode: model.PodcastSave, Scope: model.PodcastScopeNew, LastN: 10, Parallel: 2}
+	if err := f.e.svc.CheckPodcastDownloads(f.e.ctx, f.lib.ID, save); err != nil {
+		t.Fatal(err)
+	}
+	f.e.svc.podcastLink = func(*os.Root, string, string) error { return errors.ErrUnsupported }
+	if _, err := f.e.svc.StorePodcastDownloads(f.e.ctx, f.lib.ID, save); err != nil {
+		t.Fatalf("store after a passed check: %v", err)
+	}
+	if got, err := f.e.svc.PodcastDownloads(f.e.ctx, f.lib.ID); err != nil || got.Mode != model.PodcastSave {
+		t.Errorf("stored setting = %+v %v, want «Speichern»", got, err)
+	}
+}

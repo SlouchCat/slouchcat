@@ -557,7 +557,19 @@ func podcastDownloadsOf(lib appq.Library) model.PodcastDownloads {
 // another folder while it stores, on a folder that fails the folder check, 5.4; while «Speichern»
 // holds, the other values change whatever the check says).
 func (s *Service) SetPodcastDownloads(ctx context.Context, libraryID int64, d model.PodcastDownloads) (model.PodcastDownloads, error) {
-	lib, err := s.checkPodcastDownloads(ctx, libraryID, d)
+	return s.storePodcastDownloads(ctx, libraryID, d, true)
+}
+
+// StorePodcastDownloads is SetPodcastDownloads without the folder check, for a setting
+// CheckPodcastDownloads took: package admin stores it after the commit of updateLibrary, where a
+// second folder check could refuse it with the name of the library already stored. The other
+// errors of SetPodcastDownloads come only from a change of the library in between.
+func (s *Service) StorePodcastDownloads(ctx context.Context, libraryID int64, d model.PodcastDownloads) (model.PodcastDownloads, error) {
+	return s.storePodcastDownloads(ctx, libraryID, d, false)
+}
+
+func (s *Service) storePodcastDownloads(ctx context.Context, libraryID int64, d model.PodcastDownloads, folderCheck bool) (model.PodcastDownloads, error) {
+	lib, err := s.checkPodcastDownloads(ctx, libraryID, d, folderCheck)
 	if err != nil {
 		return model.PodcastDownloads{}, err
 	}
@@ -590,15 +602,16 @@ func (s *Service) SetPodcastDownloads(ctx context.Context, libraryID int64, d mo
 
 // CheckPodcastDownloads answers whether SetPodcastDownloads would take d, with its errors, and
 // stores nothing: package admin asks it before the transaction of updateLibrary and stores the
-// setting only after that transaction is committed.
+// setting only after that transaction is committed (StorePodcastDownloads).
 func (s *Service) CheckPodcastDownloads(ctx context.Context, libraryID int64, d model.PodcastDownloads) error {
-	_, err := s.checkPodcastDownloads(ctx, libraryID, d)
+	_, err := s.checkPodcastDownloads(ctx, libraryID, d, true)
 	return err
 }
 
-// checkPodcastDownloads validates d for the library and runs the folder check where
-// SetPodcastDownloads asks it; it returns the library with the new folder for new subscriptions.
-func (s *Service) checkPodcastDownloads(ctx context.Context, libraryID int64, d model.PodcastDownloads) (appq.Library, error) {
+// checkPodcastDownloads validates d for the library and, with folderCheck, runs the folder check
+// where SetPodcastDownloads asks it; it returns the library with the new folder for new
+// subscriptions.
+func (s *Service) checkPodcastDownloads(ctx context.Context, libraryID int64, d model.PodcastDownloads, folderCheck bool) (appq.Library, error) {
 	lib, err := appq.New(s.db.Read).GetLibrary(ctx, libraryID)
 	if errors.Is(err, sql.ErrNoRows) || (err == nil && lib.Kind != model.LibraryPodcasts) {
 		return appq.Library{}, model.ErrNotFound
@@ -639,7 +652,7 @@ func (s *Service) checkPodcastDownloads(ctx context.Context, libraryID int64, d 
 			return appq.Library{}, err
 		}
 		before, err := s.podcastTargetRoot(ctx, was)
-		if was.PodcastMode != model.PodcastSave || err != nil || before.ID != root.ID {
+		if folderCheck && (was.PodcastMode != model.PodcastSave || err != nil || before.ID != root.ID) {
 			if check := s.CheckPodcastFolder(ctx, root); !check.Writable {
 				return appq.Library{}, fmt.Errorf("%w: %s", model.ErrRootNotWritable, check.Problem)
 			}

@@ -189,8 +189,8 @@ func TestScanPodcastLibrary(t *testing.T) {
 	}
 }
 
-// orderStorage is a PodcastStorage that records, for SetPodcastDownloads, the name the library has
-// in the database at that moment; check is the answer of CheckPodcastDownloads.
+// orderStorage is a PodcastStorage that records, for StorePodcastDownloads, the name the library
+// has in the database at that moment; check is the answer of CheckPodcastDownloads.
 type orderStorage struct {
 	q         *appq.Queries
 	check     error
@@ -205,13 +205,13 @@ func (o *orderStorage) CheckPodcastDownloads(context.Context, int64, model.Podca
 	return o.check
 }
 
-func (o *orderStorage) SetPodcastDownloads(ctx context.Context, id int64, d model.PodcastDownloads) (model.PodcastDownloads, error) {
+func (o *orderStorage) StorePodcastDownloads(ctx context.Context, id int64, d model.PodcastDownloads) (model.PodcastDownloads, error) {
 	l, err := o.q.GetLibrary(ctx, id)
 	if err != nil {
 		return model.PodcastDownloads{}, err
 	}
 	o.nameAtSet = append(o.nameAtSet, l.Name)
-	return d, o.check
+	return d, nil
 }
 
 func (o *orderStorage) EstimatePodcastDownloads(context.Context, int64, model.PodcastDownloadEstimateRequest) (model.PodcastDownloadEstimate, error) {
