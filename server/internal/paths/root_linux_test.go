@@ -2,12 +2,12 @@ package paths
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"os"
 	"path/filepath"
 	"syscall"
 	"testing"
-	"unsafe"
 )
 
 // LstatAll opens the directories of rel once per call, not once per name. On NFS every open is a
@@ -65,13 +65,16 @@ func countOpens(t *testing.T, fd int, name string) int {
 		if err != nil {
 			t.Fatal(err)
 		}
+		// struct inotify_event: wd int32, mask uint32, cookie uint32, len uint32, then len bytes of
+		// name padded with NUL.
 		for off := 0; off+syscall.SizeofInotifyEvent <= n; {
-			ev := (*syscall.InotifyEvent)(unsafe.Pointer(&buf[off]))
-			raw := buf[off+syscall.SizeofInotifyEvent : off+syscall.SizeofInotifyEvent+int(ev.Len)]
-			if ev.Mask&syscall.IN_OPEN != 0 && string(bytes.TrimRight(raw, "\x00")) == name {
+			mask := binary.NativeEndian.Uint32(buf[off+4:])
+			size := int(binary.NativeEndian.Uint32(buf[off+12:]))
+			raw := buf[off+syscall.SizeofInotifyEvent : off+syscall.SizeofInotifyEvent+size]
+			if mask&syscall.IN_OPEN != 0 && string(bytes.TrimRight(raw, "\x00")) == name {
 				count++
 			}
-			off += syscall.SizeofInotifyEvent + int(ev.Len)
+			off += syscall.SizeofInotifyEvent + size
 		}
 	}
 }
