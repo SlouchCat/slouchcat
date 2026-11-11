@@ -81,5 +81,5 @@ func logoHosts(addrs ...string) []string {
 // same time, one took the host and the others waited again, so the host ran one job each
 // hostRetry (measurement B0, docs/perf/19-radio.md).
 func (l *logoState) retryDelay() time.Duration {
-	return l.hostRetry + rand.N(l.hostRetry)
+	return l.hostRetry + rand.N(l.hostRetry) //nolint:gosec // G404: a spread of waits, nothing secret
 }

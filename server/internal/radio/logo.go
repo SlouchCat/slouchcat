@@ -648,14 +648,20 @@ func (s *Service) pngFromWebP(ctx context.Context, dir *os.Root, stationID int64
 		return model.StreamSource{}, err
 	}
 	defer os.RemoveAll(tmp)
-	in, out := filepath.Join(tmp, "in.webp"), filepath.Join(tmp, "out.png")
-	if err := os.WriteFile(in, src, 0o600); err != nil {
+	work, err := os.OpenRoot(tmp) // the two files of the conversion stay inside the temporary directory
+	if err != nil {
 		return model.StreamSource{}, err
 	}
-	if err := s.o.runner.SquareImage(ctx, in, "webp_pipe", []transcode.ImageOutput{{Path: out, Width: width, Format: transcode.ImagePNG}}); err != nil {
+	defer work.Close()
+	if err := work.WriteFile("in.webp", src, 0o600); err != nil {
+		return model.StreamSource{}, err
+	}
+	err = s.o.runner.SquareImage(ctx, filepath.Join(tmp, "in.webp"), "webp_pipe",
+		[]transcode.ImageOutput{{Path: filepath.Join(tmp, "out.png"), Width: width, Format: transcode.ImagePNG}})
+	if err != nil {
 		return model.StreamSource{}, fmt.Errorf("radio logo png from webp: %w", err)
 	}
-	b, err := os.ReadFile(out)
+	b, err := work.ReadFile("out.png")
 	if err != nil {
 		return model.StreamSource{}, err
 	}
