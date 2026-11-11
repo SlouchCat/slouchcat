@@ -142,7 +142,7 @@ func (q *Queries) DeleteRadioStationTags(ctx context.Context, stationID int64) e
 
 const getRadioConfig = `-- name: GetRadioConfig :one
 
-SELECT id, buffer_minutes, budget_mb, max_relays, grace_seconds, hide_broken, countries, last_sync_at, last_sync_error, sync_failures, entries_total, entries_reachable, stations_total, last_added, last_removed, updated_at, cover_musicbrainz, cover_itunes FROM radio_config WHERE id = 1
+SELECT id, buffer_minutes, budget_mb, max_relays, grace_seconds, hide_broken, countries, last_sync_at, last_sync_error, sync_failures, entries_total, entries_reachable, stations_total, last_added, last_removed, updated_at, cover_musicbrainz, cover_itunes, offer_version, offer_seeded FROM radio_config WHERE id = 1
 `
 
 // Webradio catalog and settings (package store/appq, concept 16 sections 5 and 7.3; owner: radio,
@@ -171,12 +171,14 @@ func (q *Queries) GetRadioConfig(ctx context.Context) (RadioConfig, error) {
 		&i.UpdatedAt,
 		&i.CoverMusicbrainz,
 		&i.CoverItunes,
+		&i.OfferVersion,
+		&i.OfferSeeded,
 	)
 	return i, err
 }
 
 const getRadioStation = `-- name: GetRadioStation :one
-SELECT id, source, group_key, name, sort_key, search_text, country, region, languages, homepage, favicon_url, votes, clicks, quality, reachable, failures, broken_at, hidden, recommended, shows_titles, missing_since, logo_state, logo_hash, logo_tried_at, created_at, updated_at FROM radio_stations WHERE id = ?1
+SELECT id, source, group_key, name, sort_key, search_text, country, region, languages, homepage, favicon_url, votes, clicks, quality, reachable, failures, broken_at, hidden, recommended, shows_titles, missing_since, logo_state, logo_hash, logo_tried_at, created_at, updated_at, provider FROM radio_stations WHERE id = ?1
 `
 
 func (q *Queries) GetRadioStation(ctx context.Context, id int64) (RadioStation, error) {
@@ -209,6 +211,7 @@ func (q *Queries) GetRadioStation(ctx context.Context, id int64) (RadioStation, 
 		&i.LogoTriedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Provider,
 	)
 	return i, err
 }
