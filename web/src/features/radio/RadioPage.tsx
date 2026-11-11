@@ -12,11 +12,12 @@ import {
   facetValueName,
   radioLanguageName,
   regionName,
-  stationPlace,
+  stationCaption,
 } from '@/app/radio/labels';
 import { wantsSound } from '@/app/radio/priority';
 import { useRadioFavorite } from '@/app/radio/queries';
 import { useRadio } from '@/app/radio/useRadio';
+import { useActiveSession } from '@/app/session';
 import { formatDate } from '@/lib/format';
 import { usePagedList, type PlaceRange } from '@/lib/pagedList';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
@@ -30,6 +31,7 @@ import {
   SearchField,
   SelectField,
   SpatialButton,
+  SpatialButtonLink,
   SpatialGroup,
   SpatialPage,
   Skeleton,
@@ -215,11 +217,22 @@ export function RadioPage() {
   const paged = usePagedList(radioStationsSource(params, search.top === true), span, catalogRetry);
   const stations = paged.first;
   const defaultCountry = prefs?.defaultCountry;
+  // The stored country while the offer has stations of it, else none: the page then opens
+  // without a country and «Beliebt» spans the whole offer (concept 19 part B, B4.5, OB-10). Only
+  // `defaultCountry` is written back.
+  const effectiveCountry = prefs?.effectiveCountry;
   const favorites = useQuery({ ...radioFavoritesQuery, enabled: !filtered });
   const popularIn = useInfiniteQuery({
-    ...radioStationsQuery(radioQueryParams({ country: defaultCountry }), ROW_SIZE),
-    enabled: !filtered && defaultCountry !== undefined,
+    ...radioStationsQuery(
+      radioQueryParams(effectiveCountry ? { country: effectiveCountry } : {}),
+      ROW_SIZE,
+    ),
+    enabled: !filtered && prefs !== undefined,
   });
+  // No station in the offer yet (B4.5): the administration has to choose them first.
+  const offerEmpty = allFacets.data?.offerEmpty === true;
+  const session = useActiveSession();
+  const isAdmin = session.account.role === 'admin' && session.profile.isPrimary;
 
   const loading = [stations, facets].some((query) =>
     isCatalogLoading(query.failureReason ?? query.error),
@@ -245,7 +258,7 @@ export function RadioPage() {
         key={station.id}
         name={station.name}
         logoUrl={imageUrl(station.logo)}
-        caption={stationPlace(t, language, station)}
+        caption={stationCaption(t, language, station)}
         note={note(station)}
         state={state}
         stateLabel={state && t(`radio.page.${state}`)}
@@ -267,22 +280,23 @@ export function RadioPage() {
     );
   };
 
-  // Quick filters: the profile's country, its favourites, the most popular stations.
+  // Quick filters: the profile's country (while the offer has it), its favourites, the most
+  // popular stations.
   const countries = valuesOf(search, 'country');
   const myCountryOn =
-    defaultCountry !== undefined && countries.length === 1 && countries[0] === defaultCountry;
+    effectiveCountry !== undefined && countries.length === 1 && countries[0] === effectiveCountry;
   const quickValues = [
     ...(myCountryOn ? ['country'] : []),
     ...(search.fav ? ['fav'] : []),
     ...(search.top ? ['top'] : []),
   ];
   const quickOptions = [
-    ...(defaultCountry
+    ...(effectiveCountry
       ? [
           {
             value: 'country',
             label: t('radio.page.quick.myCountry', {
-              country: countryName(language, defaultCountry),
+              country: countryName(language, effectiveCountry),
             }),
           },
         ]
@@ -292,8 +306,8 @@ export function RadioPage() {
   ];
   const onQuick = (values: string[]) => {
     let next: RadioSearch = { ...search };
-    if (defaultCountry && values.includes('country') !== myCountryOn) {
-      next = withValues(next, 'country', values.includes('country') ? [defaultCountry] : []);
+    if (effectiveCountry && values.includes('country') !== myCountryOn) {
+      next = withValues(next, 'country', values.includes('country') ? [effectiveCountry] : []);
     }
     if (values.includes('fav')) next.fav = true;
     else delete next.fav;
@@ -514,16 +528,24 @@ export function RadioPage() {
               )}
             </section>
 
-            {defaultCountry && popular.length > 0 && (
+            {popular.length > 0 && (
               <Row
-                title={t('radio.page.rows.popularIn', {
-                  country: countryName(language, defaultCountry),
-                })}
+                title={
+                  effectiveCountry
+                    ? t('radio.page.rows.popularIn', {
+                        country: countryName(language, effectiveCountry),
+                      })
+                    : t('radio.page.rows.popular')
+                }
                 focusKey="radio-row-popular"
-                moreHref={`${paths.radio}?country=${defaultCountry}`}
-                moreLabel={t('radio.page.rows.all', {
-                  country: countryName(language, defaultCountry),
-                })}
+                moreHref={
+                  effectiveCountry ? `${paths.radio}?country=${effectiveCountry}` : undefined
+                }
+                moreLabel={
+                  effectiveCountry
+                    ? t('radio.page.rows.all', { country: countryName(language, effectiveCountry) })
+                    : undefined
+                }
               >
                 {popular.map((station) => tile(station, TILE_KEYS.popular))}
               </Row>
@@ -595,7 +617,24 @@ export function RadioPage() {
             <Notice tone="danger" title={problemMessage(t, stations.error)} />
           )}
 
-          {stations.isSuccess && total === 0 && (
+          {stations.isSuccess && total === 0 && offerEmpty && (
+            <Notice
+              title={t('radio.page.offerEmpty.title')}
+              actions={
+                isAdmin && (
+                  <SpatialGroup>
+                    <SpatialButtonLink variant="secondary" href={`${paths.adminRadio}?tab=angebot`}>
+                      {t('radio.page.offerEmpty.action')}
+                    </SpatialButtonLink>
+                  </SpatialGroup>
+                )
+              }
+            >
+              {isAdmin ? t('radio.page.offerEmpty.bodyAdmin') : t('radio.page.offerEmpty.body')}
+            </Notice>
+          )}
+
+          {stations.isSuccess && total === 0 && !offerEmpty && (
             <Notice
               title={t('radio.page.empty.title')}
               actions={

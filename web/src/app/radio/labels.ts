@@ -43,3 +43,18 @@ export function stationPlace(
   ].filter((part): part is string => Boolean(part));
   return parts.length > 0 ? parts.join(' · ') : undefined;
 }
+
+/**
+ * «Schweiz · Zürich · srg-ssr.ch»: the place and the provider of a station under its name in the
+ * app (the station list, «Jetzt läuft»; concept 19 part B, B7.4, OB-8).
+ */
+export function stationCaption(
+  t: TFunction,
+  language: string,
+  station: { country?: string; region?: string; provider?: string },
+): string | undefined {
+  const parts = [stationPlace(t, language, station), station.provider].filter(
+    (part): part is string => Boolean(part),
+  );
+  return parts.length > 0 ? parts.join(' · ') : undefined;
+}
