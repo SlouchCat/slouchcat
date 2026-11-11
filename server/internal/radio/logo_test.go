@@ -552,6 +552,16 @@ func TestLogoStoresOnlyTheSmallPNG(t *testing.T) {
 	if names, _ := os.ReadDir(dir); len(names) != len(want) {
 		t.Errorf("serving the PNG stored a file: %d files", len(names))
 	}
+	if left, _ := filepath.Glob(filepath.Join(e.s.o.cacheDir, ".radio-logo-png-*")); len(left) != 0 {
+		t.Errorf("temporary files left: %v", left)
+	}
+	// Without the WebP of a width there is no PNG of it either.
+	if err := os.Remove(filepath.Join(dir, "logo-w256.webp")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.s.Image(context.Background(), id, "logo", "w256", false, false); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("w256 png without its webp: %v, want not found", err)
+	}
 }
 
 // The start removes the 256 and 512 px PNGs earlier versions stored, only in the directories of
@@ -575,7 +585,21 @@ func TestStartRemovesTheStoredLargePNGs(t *testing.T) {
 	for _, rel := range append(slices.Clone(keep), gone...) {
 		write(rel)
 	}
+	// A link to a file or a directory outside the cache stays, and so does its target.
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "logo-w512.png"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(outside, "logo-w512.png"), filepath.Join(cache, "images/radio/8/logo-w256.png")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(cache, "images/radio/9")); err != nil {
+		t.Fatal(err)
+	}
 	e.s.removeStoredLargePNGs(context.Background())
+	if _, err := os.Stat(filepath.Join(outside, "logo-w512.png")); err != nil {
+		t.Errorf("target outside the cache: %v, want kept", err)
+	}
 	for _, rel := range keep {
 		if _, err := os.Stat(filepath.Join(cache, rel)); err != nil {
 			t.Errorf("%s: %v, want kept", rel, err)

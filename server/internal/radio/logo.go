@@ -630,8 +630,7 @@ func (s *Service) Image(ctx context.Context, stationID int64, kind, size string,
 // client without WebP; logoPNGStored). The square WebP is re-encoded, not scaled; the result is
 // not stored, the image URL carries the logo hash, so a client caches it.
 func (s *Service) pngFromWebP(ctx context.Context, dir *os.Root, stationID int64, width int, size, hash string) (model.StreamSource, error) {
-	webp := filepath.Join(logoDir(stationID), logoFile(width, transcode.ImageWebP))
-	src, err := dir.ReadFile(webp)
+	f, err := dir.Open(filepath.Join(logoDir(stationID), logoFile(width, transcode.ImageWebP)))
 	if errors.Is(err, fs.ErrNotExist) {
 		s.log.WarnContext(ctx, "radio logo without file", "station_id", stationID, "size", size)
 		return model.StreamSource{}, model.ErrNotFound
@@ -639,11 +638,24 @@ func (s *Service) pngFromWebP(ctx context.Context, dir *os.Root, stationID int64
 	if err != nil {
 		return model.StreamSource{}, err
 	}
-	info, err := dir.Stat(webp)
+	info, err := f.Stat()
 	if err != nil {
+		return model.StreamSource{}, errors.Join(err, f.Close())
+	}
+	src, err := io.ReadAll(io.LimitReader(f, maxLogoBytes))
+	if err := errors.Join(err, f.Close()); err != nil {
 		return model.StreamSource{}, err
 	}
-	tmp, err := os.MkdirTemp("", "slouchcat-radio-logo-")
+	// At most logoPNGSlots conversions run at once: a list of logos for a client without WebP
+	// would otherwise start one ffmpeg per logo.
+	select {
+	case s.logo.pngSlots <- struct{}{}:
+		defer func() { <-s.logo.pngSlots }()
+	case <-ctx.Done():
+		return model.StreamSource{}, ctx.Err()
+	}
+	// The temporary files live in the cache directory, which is writable in every set-up.
+	tmp, err := os.MkdirTemp(s.o.cacheDir, ".radio-logo-png-")
 	if err != nil {
 		return model.StreamSource{}, err
 	}

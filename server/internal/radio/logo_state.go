@@ -14,6 +14,9 @@ import (
 // logoHostRetry is how long a logo job waits whose host another logo job holds (B7.2).
 const logoHostRetry = 15 * time.Second
 
+// logoPNGSlots is how many PNGs pngFromWebP makes at once.
+const logoPNGSlots = 2
+
 // logoFetchTimeout bounds one request of the logo chain, body included (measurement B0,
 // docs/perf/19-radio.md: a homepage that streams events never ends).
 const logoFetchTimeout = 20 * time.Second
@@ -28,13 +31,15 @@ type logoState struct {
 	hostRetry time.Duration      // logoHostRetry; tests shorten it
 	// fetchTimeout is logoFetchTimeout; tests shorten it.
 	fetchTimeout time.Duration
+	// pngSlots bounds the PNGs made from a WebP on request (pngFromWebP) to logoPNGSlots at once.
+	pngSlots chan struct{}
 
 	mu    sync.Mutex
 	hosts map[string]bool // the hosts a running logo job holds
 }
 
 func newLogoState() *logoState {
-	return &logoState{limiter: ratelimit.New("radio-logo", 4, 4), hostRetry: logoHostRetry, fetchTimeout: logoFetchTimeout,
+	return &logoState{limiter: ratelimit.New("radio-logo", 4, 4), hostRetry: logoHostRetry, fetchTimeout: logoFetchTimeout, pngSlots: make(chan struct{}, logoPNGSlots),
 		hosts: map[string]bool{}}
 }
 
