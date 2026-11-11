@@ -35,7 +35,6 @@ JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 JOIN visible_items AS vp ON vp.item_id = i.parent_id AND vp.profile_id = ?1
 JOIN images AS im ON im.item_id = i.parent_id
 WHERE i.id = ?2 AND i.kind = 'podcast_episode'
-  AND NOT EXISTS (SELECT 1 FROM images AS own WHERE own.item_id = i.id AND own.size <> 'original')
   AND im.kind = ?3 AND im.size = ?4 AND im.size <> 'original' AND im.format IN (?5, 'jpeg')
 ORDER BY im.format = 'jpeg'
 LIMIT 1
@@ -49,8 +48,8 @@ type GetPodcastFallbackImageParams struct {
 	Format    string
 }
 
-// One image of the visible podcast of a visible episode without images of its own, like
-// GetItemImage (WebP when asked and stored, else JPEG).
+// One image of the visible podcast of a visible episode, like GetItemImage (WebP when asked and
+// stored, else JPEG).
 func (q *Queries) GetPodcastFallbackImage(ctx context.Context, arg GetPodcastFallbackImageParams) (Image, error) {
 	row := q.db.QueryRowContext(ctx, getPodcastFallbackImage,
 		arg.ProfileID,
@@ -246,7 +245,6 @@ JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 JOIN visible_items AS vp ON vp.item_id = i.parent_id AND vp.profile_id = ?1
 JOIN images AS im ON im.item_id = i.parent_id AND im.size <> 'original'
 WHERE i.id IN (/*SLICE:item_ids*/?) AND i.kind = 'podcast_episode'
-  AND NOT EXISTS (SELECT 1 FROM images AS own WHERE own.item_id = i.id AND own.size <> 'original')
 ORDER BY i.id, im.kind, im.size, im.format
 `
 
@@ -260,8 +258,8 @@ type ListPodcastFallbackImagesRow struct {
 	Image     Image
 }
 
-// Images of the visible podcast of visible episodes that have no image of their own (the episode
-// shows the cover of its podcast).
+// Images of the visible podcast of visible episodes: an episode has no image of its own and shows
+// the cover of its podcast (decision of 11 November 2026).
 func (q *Queries) ListPodcastFallbackImages(ctx context.Context, arg ListPodcastFallbackImagesParams) ([]ListPodcastFallbackImagesRow, error) {
 	query := listPodcastFallbackImages
 	var queryParams []interface{}

@@ -176,6 +176,10 @@ func TestImageFetchRemoteCover(t *testing.T) {
 		_, _ = w.Write(cover[:64])
 		_, _ = w.Write(make([]byte, maxCoverBytes))
 	})
+	mux.HandleFunc("/episode.png", func(w http.ResponseWriter, _ *http.Request) {
+		t.Errorf("the cover of a podcast episode was fetched")
+		_, _ = w.Write(cover)
+	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 	e := audioEnv(t, t.TempDir())
@@ -191,32 +195,36 @@ func TestImageFetchRemoteCover(t *testing.T) {
 		t.Errorf("original media type %q", got)
 	}
 
-	// An episode with its own image; a broken one fails (and is retried by the job), a page is no
-	// image, a body over 10 MiB is refused.
+	// A broken cover fails (and is retried by the job), a page is no image, a body over 10 MiB is
+	// refused.
+	const idBroken = "01JTESTPODCAST00000000000B"
 	for _, c := range []string{"/page.html", "/huge.png", "/missing.png"} {
-		mustExec(t, e.db.Write, `DELETE FROM items WHERE id = ?`, idEpisode)
-		e.addAudio(t, idEpisode, "podcast_episode", 4, idPodcast, nil, srv.URL+c)
-		if err := e.svc.fetchImages(ctx, idEpisode); err == nil {
+		mustExec(t, e.db.Write, `DELETE FROM items WHERE id = ?`, idBroken)
+		e.addAudio(t, idBroken, "podcast", 4, nil, nil, srv.URL+c)
+		mustExec(t, e.db.Write, `UPDATE items SET feed_url = ? WHERE id = ?`, srv.URL+"/broken.xml", idBroken)
+		if err := e.svc.fetchImages(ctx, idBroken); err == nil {
 			t.Errorf("%s: no error", c)
 		}
-		if n := len(e.images(t, idEpisode)); n != 0 {
+		if n := len(e.images(t, idBroken)); n != 0 {
 			t.Errorf("%s: %d image rows", c, n)
 		}
 	}
-	// M6 review OQ-1: the image of a public feed that points into the local network is refused,
-	// for the episode (through its podcast) and the podcast.
-	mustExec(t, e.db.Write, `UPDATE items SET feed_url = 'https://203.0.113.5/feed.xml?token=x' WHERE id = ?`, idPodcast)
-	mustExec(t, e.db.Write, `UPDATE items SET cover_url = ? WHERE id = ?`, srv.URL+"/feed/cover.png", idEpisode)
-	if err := e.svc.fetchImages(ctx, idEpisode); !errors.Is(err, netguard.ErrRefused) || len(e.images(t, idEpisode)) != 0 {
-		t.Errorf("local image of a public feed: %v", err)
+	// A podcast episode has no cover of its own (decision of 11 November 2026): a cover_url left
+	// from before migration 00049 is neither fetched nor stored.
+	e.addAudio(t, idEpisode, "podcast_episode", 4, idPodcast, nil, srv.URL+"/episode.png")
+	if err := e.svc.fetchImages(ctx, idEpisode); err != nil || len(e.images(t, idEpisode)) != 0 {
+		t.Errorf("episode cover: %v, %d image rows", err, len(e.images(t, idEpisode)))
 	}
+	// M6 review OQ-1: the image of a public feed that points into the local network is refused.
+	mustExec(t, e.db.Write, `UPDATE items SET feed_url = 'https://203.0.113.5/feed.xml?token=x' WHERE id = ?`, idPodcast)
 	mustExec(t, e.db.Write, `UPDATE items SET cover_url = ? WHERE id = ?`, srv.URL+"/feed/other.png", idPodcast)
 	if err := e.svc.fetchImages(ctx, idPodcast); !errors.Is(err, netguard.ErrRefused) {
 		t.Errorf("local image of a public podcast: %v", err)
 	}
 	// Not http(s): nothing to fetch.
-	mustExec(t, e.db.Write, `UPDATE items SET cover_url = 'ftp://example.test/c.jpg' WHERE id = ?`, idEpisode)
-	if err := e.svc.fetchImages(ctx, idEpisode); err != nil || len(e.images(t, idEpisode)) != 0 {
+	mustExec(t, e.db.Write, `DELETE FROM items WHERE id = ?`, idBroken)
+	e.addAudio(t, idBroken, "podcast", 4, nil, nil, "ftp://example.test/c.jpg")
+	if err := e.svc.fetchImages(ctx, idBroken); err != nil || len(e.images(t, idBroken)) != 0 {
 		t.Errorf("ftp cover: %v", err)
 	}
 }

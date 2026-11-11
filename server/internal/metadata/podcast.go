@@ -58,7 +58,6 @@ const (
 	maxFeedEpisodes  = 2000 // the newest episodes of a feed that are stored
 	maxFeedError     = 200  // characters of items.feed_error
 	feedBatch        = 150  // episodes per transaction (each also writes two texts and fires triggers)
-	maxEpisodeCovers = 50   // new episodes with an image of their own queued for image.fetch per fetch
 )
 
 // Errors of a fetch.
@@ -502,9 +501,10 @@ func (s *Service) FetchPodcast(ctx context.Context, id string) error {
 
 // storeEpisodes writes the channel texts (locked ones stay) and the newest episodes of a feed below
 // a podcast, in transactions of feedBatch episodes: new guids are inserted, known ones updated
-// (titles, texts, enclosure, date, duration, cover, the explicit rating unless manual or locked).
-// An episode keeps an image only when it differs from the channel's; image.fetch is queued for the
-// newest maxEpisodeCovers new episodes with one. rerated reports a changed rating of a known episode.
+// (titles, texts, enclosure, date, duration, the explicit rating unless manual or locked). An
+// episode never stores an image of its own (an itunes:image of the item is ignored): it shows the
+// cover of its podcast (decision of 11 November 2026). rerated reports a changed rating of a known
+// episode.
 // The ids of the inserted episodes go to the new-episode hook (WithNewEpisodes) after their
 // transactions, also when a later batch fails, but only those published after the newest episode
 // the podcast already had (or undated ones while it has no dated episode): a feed that renews its
@@ -539,9 +539,9 @@ func (s *Service) storeEpisodes(ctx context.Context, podcastID string, libraryID
 	if err != nil {
 		return false, fmt.Errorf("list file episodes of %s: %w", podcastID, err)
 	}
-	w := episodeWrite{parent: parent, libraryID: libraryID, channelImage: httpURL(f.ImageURL), byGUID: byGUID, langs: langs,
+	w := episodeWrite{parent: parent, libraryID: libraryID, byGUID: byGUID, langs: langs,
 		files: fileEpisodes, ms: now.UnixMilli(), now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}}
-	var covers, added []string
+	var added []string
 	defer func() { s.announceEpisodes(ctx, added) }()
 	for chunk := range slices.Chunk(eps, feedBatch) {
 		var batch []string
@@ -552,9 +552,6 @@ func (s *Service) storeEpisodes(ctx context.Context, podcastID string, libraryID
 					return err
 				}
 				rerated = rerated || c.rerated
-				if c.newCover != "" && len(covers) < maxEpisodeCovers {
-					covers = append(covers, c.newCover)
-				}
 				if c.newID != "" && (!newest.Valid || (c.published.Valid && c.published.Int64 > newest.Int64)) {
 					batch = append(batch, c.newID)
 				}
@@ -565,11 +562,6 @@ func (s *Service) storeEpisodes(ctx context.Context, podcastID string, libraryID
 			return false, fmt.Errorf("store episodes of %s: %w", podcastID, err)
 		}
 		added = append(added, batch...)
-	}
-	for _, id := range covers {
-		if err := s.enqueueImages(ctx, id, stillPriority); err != nil {
-			s.log.WarnContext(ctx, "queue episode cover", "item_id", id, "err", err)
-		}
 	}
 	return rerated, nil
 }
@@ -583,27 +575,25 @@ func newestEpisodes(eps []feed.Episode, limit int) []feed.Episode {
 
 // episodeWrite is what storing the episodes of one fetch shares.
 type episodeWrite struct {
-	parent       sql.NullString
-	libraryID    int64
-	channelImage string // the channel's image URL; an episode with the same image has none of its own
-	byGUID       map[string]systemq.PodcastListEpisodesRow
-	files        []systemq.PodcastListFileEpisodesWithoutGUIDRow // file episodes without guid, pairing candidates
-	ms           int64
-	now          sql.NullInt64
-	langs        []string // the effective text languages of the library (ADR 0018)
+	parent    sql.NullString
+	libraryID int64
+	byGUID    map[string]systemq.PodcastListEpisodesRow
+	files     []systemq.PodcastListFileEpisodesWithoutGUIDRow // file episodes without guid, pairing candidates
+	ms        int64
+	now       sql.NullInt64
+	langs     []string // the effective text languages of the library (ADR 0018)
 }
 
 // episodeChange is what storing one episode changed: the rating of a known episode, or a new
-// episode (newID, its publication date) with an image of its own (newCover, its id).
+// episode (newID, its publication date).
 type episodeChange struct {
 	rerated   bool
 	newID     string
-	newCover  string
 	published sql.NullInt64
 }
 
 // store inserts or updates one episode inside the caller's transaction; locked fields (title,
-// poster, overview, own_rating) keep their stored values.
+// overview, own_rating) keep their stored values.
 func (w *episodeWrite) store(ctx context.Context, q *systemq.Queries, e feed.Episode) (episodeChange, error) {
 	enclosure := httpURL(e.Enclosure.URL)
 	if enclosure == "" {
@@ -617,10 +607,6 @@ func (w *episodeWrite) store(ctx context.Context, q *systemq.Queries, e feed.Epi
 	}
 	explicit := e.Explicit != nil && *e.Explicit
 	rating, source := episodeRating(explicit)
-	cover := nullStr(httpURL(e.ImageURL))
-	if cover.String == w.channelImage {
-		cover = sql.NullString{}
-	}
 	known, ok := w.byGUID[e.GUID]
 	if ok {
 		if known.DeletedAt.Valid {
@@ -633,13 +619,10 @@ func (w *episodeWrite) store(ctx context.Context, q *systemq.Queries, e feed.Epi
 		if locked["title"] {
 			title, sort = known.Title, known.SortTitle
 		}
-		if locked["poster"] {
-			cover = known.CoverUrl
-		}
 		if err := q.PodcastUpdateEpisode(ctx, systemq.PodcastUpdateEpisodeParams{
 			Title: title, SortTitle: sort, PublishedAt: published, DurationMs: positive(e.Duration.Milliseconds()),
 			EnclosureUrl: nullStr(enclosure), EnclosureType: nullStr(e.Enclosure.Type), EnclosureLength: positive(e.Enclosure.Length),
-			Explicit: boolInt(explicit), CoverUrl: cover, SeasonNumber: positive(int64(e.Season)), EpisodeNumber: positive(int64(e.Number)),
+			Explicit: boolInt(explicit), SeasonNumber: positive(int64(e.Season)), EpisodeNumber: positive(int64(e.Number)),
 			OwnRating: rating, RatingSource: source, Now: w.ms, ID: known.ID,
 		}); err != nil {
 			return episodeChange{}, fmt.Errorf("update episode: %w", err)
@@ -650,14 +633,14 @@ func (w *episodeWrite) store(ctx context.Context, q *systemq.Queries, e feed.Epi
 		if err := q.PodcastAdoptFileEpisode(ctx, systemq.PodcastAdoptFileEpisodeParams{
 			Title: title, SortTitle: sort, Guid: nullStr(e.GUID), PublishedAt: published, DurationMs: positive(e.Duration.Milliseconds()),
 			EnclosureUrl: nullStr(enclosure), EnclosureType: nullStr(e.Enclosure.Type), EnclosureLength: positive(e.Enclosure.Length),
-			Explicit: boolInt(explicit), CoverUrl: cover, SeasonNumber: positive(int64(e.Season)), EpisodeNumber: positive(int64(e.Number)),
+			Explicit: boolInt(explicit), SeasonNumber: positive(int64(e.Season)), EpisodeNumber: positive(int64(e.Number)),
 			OwnRating: rating, RatingSource: source, Now: w.ms, ID: adopted.ID,
 		}); err != nil {
 			return episodeChange{}, fmt.Errorf("adopt file episode: %w", err)
 		}
 		w.byGUID[e.GUID] = systemq.PodcastListEpisodesRow{ID: adopted.ID, Guid: nullStr(e.GUID), Title: title, SortTitle: sort, LockedFields: "[]",
 			PublishedAt: published}
-		// Not a new episode: the household has the file already, so no announcement and no cover job.
+		// Not a new episode: the household has the file already, so no announcement.
 		return episodeChange{}, upsertTexts(ctx, q, adopted.ID, title, e.Description, nil, w.langs)
 	}
 	id := ulid.Make().String()
@@ -665,18 +648,14 @@ func (w *episodeWrite) store(ctx context.Context, q *systemq.Queries, e feed.Epi
 		ID: id, ParentID: w.parent, LibraryID: w.libraryID, Title: title, SortTitle: sort,
 		Guid: nullStr(e.GUID), PublishedAt: published, DurationMs: positive(e.Duration.Milliseconds()),
 		EnclosureUrl: nullStr(enclosure), EnclosureType: nullStr(e.Enclosure.Type), EnclosureLength: positive(e.Enclosure.Length),
-		Explicit: boolInt(explicit), CoverUrl: cover, SeasonNumber: positive(int64(e.Season)), EpisodeNumber: positive(int64(e.Number)),
+		Explicit: boolInt(explicit), SeasonNumber: positive(int64(e.Season)), EpisodeNumber: positive(int64(e.Number)),
 		OwnRating: rating, RatingSource: source, Now: w.now,
 	}); err != nil {
 		return episodeChange{}, fmt.Errorf("insert episode: %w", err)
 	}
 	w.byGUID[e.GUID] = systemq.PodcastListEpisodesRow{ID: id, Guid: nullStr(e.GUID), Title: title, SortTitle: sort, LockedFields: "[]",
 		PublishedAt: published}
-	c := episodeChange{newID: id, published: published}
-	if cover.Valid {
-		c.newCover = id
-	}
-	return c, upsertTexts(ctx, q, id, title, e.Description, nil, w.langs)
+	return episodeChange{newID: id, published: published}, upsertTexts(ctx, q, id, title, e.Description, nil, w.langs)
 }
 
 // adopt finds the one file episode a new feed episode stands for (concept 4.5): the same

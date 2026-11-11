@@ -69,15 +69,16 @@ LIMIT 500;
 -- name: PodcastListEpisodes :many
 -- The stored episodes of a podcast with what an update compares and keeps (locked fields),
 -- soft-deleted ones included: their guid stays taken, so the fetch neither inserts nor restores them.
-SELECT id, guid, title, sort_title, cover_url, own_rating, rating_source, locked_fields, deleted_at, published_at FROM items
+SELECT id, guid, title, sort_title, own_rating, rating_source, locked_fields, deleted_at, published_at FROM items
 WHERE parent_id = @podcast_id AND kind = 'podcast_episode' AND guid IS NOT NULL;
 
 -- name: PodcastInsertEpisode :exec
+-- An episode has no cover of its own: it shows its podcast's (decision of 11 November 2026).
 INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, guid, published_at, duration_ms,
-                   enclosure_url, enclosure_type, enclosure_length, explicit, cover_url, season_number, episode_number,
+                   enclosure_url, enclosure_type, enclosure_length, explicit, season_number, episode_number,
                    own_rating, rating_source, providers, metadata_state, matched_at, added_at, created_at, updated_at)
 VALUES (@id, 'podcast_episode', @parent_id, @library_id, @title, @sort_title, @guid, @published_at, @duration_ms,
-        @enclosure_url, @enclosure_type, @enclosure_length, @explicit, @cover_url, @season_number, @episode_number,
+        @enclosure_url, @enclosure_type, @enclosure_length, @explicit, @season_number, @episode_number,
         @own_rating, @rating_source, '["local"]', 'matched', @now, @now, @now, @now);
 
 -- name: PodcastUpdateEpisode :exec
@@ -85,7 +86,7 @@ VALUES (@id, 'podcast_episode', @parent_id, @library_id, @title, @sort_title, @g
 UPDATE items
 SET title = @title, sort_title = @sort_title, published_at = @published_at, duration_ms = @duration_ms,
     enclosure_url = @enclosure_url, enclosure_type = @enclosure_type, enclosure_length = @enclosure_length,
-    explicit = @explicit, cover_url = @cover_url, season_number = @season_number, episode_number = @episode_number,
+    explicit = @explicit, season_number = @season_number, episode_number = @episode_number,
     own_rating = @own_rating, rating_source = @rating_source, updated_at = @now
 WHERE id = @id AND kind = 'podcast_episode' AND deleted_at IS NULL;
 
@@ -158,11 +159,11 @@ UPDATE items SET deleted_at = @now, updated_at = @now WHERE id = @id AND kind = 
 
 -- name: PodcastAdoptFileEpisode :exec
 -- A new feed episode takes over a file episode instead of being inserted: guid, enclosure, date,
--- duration, explicit and cover of the feed on the row that already holds the file.
+-- duration and explicit of the feed on the row that already holds the file.
 UPDATE items
 SET title = @title, sort_title = @sort_title, guid = @guid, published_at = @published_at, duration_ms = @duration_ms,
     enclosure_url = @enclosure_url, enclosure_type = @enclosure_type, enclosure_length = @enclosure_length,
-    explicit = @explicit, cover_url = @cover_url, season_number = @season_number, episode_number = @episode_number,
+    explicit = @explicit, season_number = @season_number, episode_number = @episode_number,
     own_rating = @own_rating, rating_source = @rating_source, updated_at = @now
 WHERE id = @id AND kind = 'podcast_episode' AND deleted_at IS NULL AND guid IS NULL;
 

@@ -141,20 +141,20 @@ func (s *Service) handleImageFetch(ctx context.Context, j *jobs.Job) error {
 }
 
 // itemImageKinds lists the image kinds per item kind: posters for movies, series and seasons,
-// backdrops for movies and series and the still of an episode; the (square) cover of audiobooks,
-// podcasts and podcast episodes is their poster (M6).
+// backdrops for movies and series and the still of an episode; the (square) cover of audiobooks
+// and podcasts is their poster (M6). A podcast episode has no image of its own: it shows the cover
+// of its podcast (decision of 11 November 2026), so image.fetch has nothing to do for it.
 var itemImageKinds = map[string][]string{
-	"movie":           {"poster", "backdrop", "logo"},
-	"series":          {"poster", "backdrop", "logo"},
-	"season":          {"poster"},
-	"episode":         {"backdrop"},
-	"audiobook":       {"poster"},
-	"podcast":         {"poster"},
-	"podcast_episode": {"poster"},
+	"movie":     {"poster", "backdrop", "logo"},
+	"series":    {"poster", "backdrop", "logo"},
+	"season":    {"poster"},
+	"episode":   {"backdrop"},
+	"audiobook": {"poster"},
+	"podcast":   {"poster"},
 }
 
 // audioKinds are the item kinds whose poster is a cover (coverSource) instead of a provider image.
-var audioKinds = map[string]bool{"audiobook": true, "podcast": true, "podcast_episode": true}
+var audioKinds = map[string]bool{"audiobook": true, "podcast": true}
 
 // fetchImages runs the image pipeline for a matched item. It reads the image paths the match
 // stored on the item (no provider request) and, per kind, skips the work when every derived row
@@ -917,7 +917,7 @@ func writeFile(root *os.Root, dir, rel string, data []byte) error {
 	return nil
 }
 
-// Covers of audiobooks, podcasts and episodes (M6 design 3.1). The source of a cover is a string
+// Covers of audiobooks and podcasts (M6 design 3.1). The source of a cover is a string
 // stored as source_url, so a changed cover is fetched again:
 //
 //	coverFilePrefix + cover_path + "?" + size + "-" + mtime  a folder image below the library root
@@ -1065,8 +1065,8 @@ func unversioned(source string) string {
 	return source
 }
 
-// feedOf returns the feed URL of the podcast of an item (a podcast's own, an episode's parent's),
-// for an audiobook the address of the source of its cover (bookCoverOrigin); "" for any other item.
+// feedOf returns the feed URL of a podcast, for an audiobook the address of the source of its
+// cover (bookCoverOrigin); "" for any other item.
 func (s *Service) feedOf(ctx context.Context, itemID string) (feedURL, origin string) {
 	item, err := s.read.GetItemSystem(ctx, itemID)
 	if err != nil {
@@ -1074,12 +1074,6 @@ func (s *Service) feedOf(ctx context.Context, itemID string) (feedURL, origin st
 	}
 	if item.Kind == "audiobook" {
 		return s.bookCoverOrigin(ctx, item.ID)
-	}
-	if item.Kind == "podcast_episode" && item.ParentID.Valid {
-		if p, err := s.read.PodcastGet(ctx, item.ParentID.String); err == nil {
-			return p.FeedUrl.String, p.FeedOrigin.String
-		}
-		return "", ""
 	}
 	return item.FeedUrl.String, item.FeedOrigin.String
 }

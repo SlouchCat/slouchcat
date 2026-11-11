@@ -14,9 +14,9 @@ const podcastAdoptFileEpisode = `-- name: PodcastAdoptFileEpisode :exec
 UPDATE items
 SET title = ?1, sort_title = ?2, guid = ?3, published_at = ?4, duration_ms = ?5,
     enclosure_url = ?6, enclosure_type = ?7, enclosure_length = ?8,
-    explicit = ?9, cover_url = ?10, season_number = ?11, episode_number = ?12,
-    own_rating = ?13, rating_source = ?14, updated_at = ?15
-WHERE id = ?16 AND kind = 'podcast_episode' AND deleted_at IS NULL AND guid IS NULL
+    explicit = ?9, season_number = ?10, episode_number = ?11,
+    own_rating = ?12, rating_source = ?13, updated_at = ?14
+WHERE id = ?15 AND kind = 'podcast_episode' AND deleted_at IS NULL AND guid IS NULL
 `
 
 type PodcastAdoptFileEpisodeParams struct {
@@ -29,7 +29,6 @@ type PodcastAdoptFileEpisodeParams struct {
 	EnclosureType   sql.NullString
 	EnclosureLength sql.NullInt64
 	Explicit        int64
-	CoverUrl        sql.NullString
 	SeasonNumber    sql.NullInt64
 	EpisodeNumber   sql.NullInt64
 	OwnRating       sql.NullInt64
@@ -39,7 +38,7 @@ type PodcastAdoptFileEpisodeParams struct {
 }
 
 // A new feed episode takes over a file episode instead of being inserted: guid, enclosure, date,
-// duration, explicit and cover of the feed on the row that already holds the file.
+// duration and explicit of the feed on the row that already holds the file.
 func (q *Queries) PodcastAdoptFileEpisode(ctx context.Context, arg PodcastAdoptFileEpisodeParams) error {
 	_, err := q.db.ExecContext(ctx, podcastAdoptFileEpisode,
 		arg.Title,
@@ -51,7 +50,6 @@ func (q *Queries) PodcastAdoptFileEpisode(ctx context.Context, arg PodcastAdoptF
 		arg.EnclosureType,
 		arg.EnclosureLength,
 		arg.Explicit,
-		arg.CoverUrl,
 		arg.SeasonNumber,
 		arg.EpisodeNumber,
 		arg.OwnRating,
@@ -395,11 +393,11 @@ func (q *Queries) PodcastInsert(ctx context.Context, arg PodcastInsertParams) (I
 
 const podcastInsertEpisode = `-- name: PodcastInsertEpisode :exec
 INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, guid, published_at, duration_ms,
-                   enclosure_url, enclosure_type, enclosure_length, explicit, cover_url, season_number, episode_number,
+                   enclosure_url, enclosure_type, enclosure_length, explicit, season_number, episode_number,
                    own_rating, rating_source, providers, metadata_state, matched_at, added_at, created_at, updated_at)
 VALUES (?1, 'podcast_episode', ?2, ?3, ?4, ?5, ?6, ?7, ?8,
-        ?9, ?10, ?11, ?12, ?13, ?14, ?15,
-        ?16, ?17, '["local"]', 'matched', ?18, ?18, ?18, ?18)
+        ?9, ?10, ?11, ?12, ?13, ?14,
+        ?15, ?16, '["local"]', 'matched', ?17, ?17, ?17, ?17)
 `
 
 type PodcastInsertEpisodeParams struct {
@@ -415,7 +413,6 @@ type PodcastInsertEpisodeParams struct {
 	EnclosureType   sql.NullString
 	EnclosureLength sql.NullInt64
 	Explicit        int64
-	CoverUrl        sql.NullString
 	SeasonNumber    sql.NullInt64
 	EpisodeNumber   sql.NullInt64
 	OwnRating       sql.NullInt64
@@ -423,6 +420,7 @@ type PodcastInsertEpisodeParams struct {
 	Now             sql.NullInt64
 }
 
+// An episode has no cover of its own: it shows its podcast's (decision of 11 November 2026).
 func (q *Queries) PodcastInsertEpisode(ctx context.Context, arg PodcastInsertEpisodeParams) error {
 	_, err := q.db.ExecContext(ctx, podcastInsertEpisode,
 		arg.ID,
@@ -437,7 +435,6 @@ func (q *Queries) PodcastInsertEpisode(ctx context.Context, arg PodcastInsertEpi
 		arg.EnclosureType,
 		arg.EnclosureLength,
 		arg.Explicit,
-		arg.CoverUrl,
 		arg.SeasonNumber,
 		arg.EpisodeNumber,
 		arg.OwnRating,
@@ -712,7 +709,7 @@ func (q *Queries) PodcastListDue(ctx context.Context, checkedBefore sql.NullInt6
 }
 
 const podcastListEpisodes = `-- name: PodcastListEpisodes :many
-SELECT id, guid, title, sort_title, cover_url, own_rating, rating_source, locked_fields, deleted_at, published_at FROM items
+SELECT id, guid, title, sort_title, own_rating, rating_source, locked_fields, deleted_at, published_at FROM items
 WHERE parent_id = ?1 AND kind = 'podcast_episode' AND guid IS NOT NULL
 `
 
@@ -721,7 +718,6 @@ type PodcastListEpisodesRow struct {
 	Guid         sql.NullString
 	Title        string
 	SortTitle    string
-	CoverUrl     sql.NullString
 	OwnRating    sql.NullInt64
 	RatingSource sql.NullString
 	LockedFields string
@@ -745,7 +741,6 @@ func (q *Queries) PodcastListEpisodes(ctx context.Context, podcastID sql.NullStr
 			&i.Guid,
 			&i.Title,
 			&i.SortTitle,
-			&i.CoverUrl,
 			&i.OwnRating,
 			&i.RatingSource,
 			&i.LockedFields,
@@ -1078,9 +1073,9 @@ const podcastUpdateEpisode = `-- name: PodcastUpdateEpisode :exec
 UPDATE items
 SET title = ?1, sort_title = ?2, published_at = ?3, duration_ms = ?4,
     enclosure_url = ?5, enclosure_type = ?6, enclosure_length = ?7,
-    explicit = ?8, cover_url = ?9, season_number = ?10, episode_number = ?11,
-    own_rating = ?12, rating_source = ?13, updated_at = ?14
-WHERE id = ?15 AND kind = 'podcast_episode' AND deleted_at IS NULL
+    explicit = ?8, season_number = ?9, episode_number = ?10,
+    own_rating = ?11, rating_source = ?12, updated_at = ?13
+WHERE id = ?14 AND kind = 'podcast_episode' AND deleted_at IS NULL
 `
 
 type PodcastUpdateEpisodeParams struct {
@@ -1092,7 +1087,6 @@ type PodcastUpdateEpisodeParams struct {
 	EnclosureType   sql.NullString
 	EnclosureLength sql.NullInt64
 	Explicit        int64
-	CoverUrl        sql.NullString
 	SeasonNumber    sql.NullInt64
 	EpisodeNumber   sql.NullInt64
 	OwnRating       sql.NullInt64
@@ -1112,7 +1106,6 @@ func (q *Queries) PodcastUpdateEpisode(ctx context.Context, arg PodcastUpdateEpi
 		arg.EnclosureType,
 		arg.EnclosureLength,
 		arg.Explicit,
-		arg.CoverUrl,
 		arg.SeasonNumber,
 		arg.EpisodeNumber,
 		arg.OwnRating,
