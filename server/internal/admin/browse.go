@@ -77,7 +77,9 @@ func (s *Service) SetupRoots(ctx context.Context) ([]model.BrowseRoot, error) {
 // entered. Without a configured root the rule is off and every library root may be entered.
 func (s *Service) BrowseRoots(ctx context.Context) ([]model.BrowseRoot, error) {
 	out := slices.Clone(s.browse.configured)
-	libs, err := s.libraries.List(ctx)
+	// ListRoots, not List: List counts the items and files of every library, and this runs on
+	// every click in the folder browser before the directory is even read.
+	libs, err := s.libraries.ListRoots(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list libraries: %w", err)
 	}

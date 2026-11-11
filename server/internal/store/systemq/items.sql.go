@@ -51,16 +51,25 @@ func (q *Queries) CountLibraryItems(ctx context.Context, libraryID int64) (int64
 }
 
 const countLibraryMediaFiles = `-- name: CountLibraryMediaFiles :one
-SELECT count(*) FROM media_files AS m
-JOIN library_roots AS r ON r.id = m.root_id
-WHERE r.library_id = ?1 AND m.missing_since IS NULL
+SELECT CAST((SELECT count(*) FROM media_files AS m
+             WHERE m.root_id IN (SELECT r.id FROM library_roots AS r WHERE r.library_id = ?1))
+          - (SELECT count(*) FROM media_files AS m INDEXED BY media_files_missing
+             WHERE m.missing_since IS NOT NULL
+               AND m.root_id IN (SELECT r.id FROM library_roots AS r WHERE r.library_id = ?1))
+       AS INTEGER) AS n
 `
 
+// All files of the library's roots minus the missing ones. The direct form, a join with
+// missing_since IS NULL, lets SQLite pick media_files_missing for the IS NULL and read the table
+// row of every present file of the whole server: 170-225 ms per library and 1.35 s of the 1.8 s
+// of GET /admin/libraries on CT 190 (35 000 files, 11 November 2026). Here the first count runs
+// on a covering index of root_id and the second on the few missing rows; 23 ms for all seven
+// libraries. INDEXED BY is required: without it SQLite scans the table for IS NOT NULL.
 func (q *Queries) CountLibraryMediaFiles(ctx context.Context, libraryID int64) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countLibraryMediaFiles, libraryID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+	var n int64
+	err := row.Scan(&n)
+	return n, err
 }
 
 const deleteMediaFileTracks = `-- name: DeleteMediaFileTracks :exec
