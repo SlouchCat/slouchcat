@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -414,27 +415,74 @@ func (s *Service) podcastDownloadTarget(ctx context.Context, set systemq.Podcast
 	return podcastTarget{root: root, folder: folder}, nil
 }
 
-// createPodcastFolder makes the folder of a podcast without any file (6.2, step 2): its title by
-// Audiobookshelf's rule below the root, with metadata.json (Audiobookshelf's podcast schema with
-// feedURL, so a later scan finds the subscription) and the cover. A folder of that name that the
-// database knows, or that holds the metadata.json of another feed, is not taken: the name gets
-// " (2)", " (3)" and so on. An existing metadata.json is never overwritten. The folder is recorded
-// as pending until its first file is entered.
+// createPodcastFolder gives a podcast without any file its folder (6.2, step 2) and returns it.
+// Creations are serialized (podcastFolderMu), and under the lock the setting is read again: a
+// download that waited there takes the folder another one made meanwhile. Otherwise the folder is
+// the podcast's title by Audiobookshelf's rule below the root (within 255 bytes UTF-16 and 250
+// bytes UTF-8), with metadata.json (Audiobookshelf's podcast schema with feedURL, so a later scan
+// finds the subscription) and the cover. A folder of that name is taken when it is there and the
+// database knows it for the podcast's feed (an earlier subscription, its episodes deleted), or when
+// it is no folder the database knows and holds no metadata.json of another feed; a known folder of
+// another podcast, a known folder that is gone (never made anew) or the metadata.json of another
+// feed makes the name " (2)", " (3)" and so on. An existing metadata.json is never overwritten.
+// The folder is recorded as pending until its first file is entered.
 func (s *Service) createPodcastFolder(ctx context.Context, r *os.Root, root appq.LibraryRoot, set systemq.PodcastEffectiveSettingsRow) (string, error) {
+	s.podcastFolderMu.Lock()
+	folder, made, err := s.makePodcastFolder(ctx, r, root, set)
+	s.podcastFolderMu.Unlock()
+	if err != nil {
+		return "", err
+	}
+	if made {
+		s.fetchPodcastCover(ctx, r, folder, set)
+		s.log.InfoContext(ctx, "podcast folder created", "item_id", set.PodcastID, "root_id", root.ID)
+	}
+	return folder, nil
+}
+
+// makePodcastFolder is createPodcastFolder under the lock, without the cover; made says that the
+// folder was chosen here (not by a download meanwhile).
+func (s *Service) makePodcastFolder(ctx context.Context, r *os.Root, root appq.LibraryRoot, set systemq.PodcastEffectiveSettingsRow) (string, bool, error) {
+	if fresh, ok, err := s.podcastSetting(ctx, set.PodcastID); err != nil {
+		return "", false, err
+	} else if ok {
+		set = fresh
+		again, err := s.podcastDownloadTarget(ctx, set)
+		if err != nil {
+			return "", false, err
+		}
+		if !again.create {
+			if again.root.ID != root.ID {
+				return "", false, jobs.RetryLater(podcastLockRetry, "the folder of the podcast changed")
+			}
+			return again.folder, false, nil
+		}
+	}
 	base := strings.TrimLeftFunc(absSanitize(set.Title), func(c rune) bool { return c == '.' || jsSpace(c) })
 	if podcastKey(base) == "" {
 		base = "Podcast " + set.PodcastID
 	}
 	read := systemq.New(s.db.Read)
+	ofFeed, err := read.PodcastFoldersOf(ctx, systemq.PodcastFoldersOfParams{PodcastID: set.PodcastID, LibraryID: set.LibraryID, FeedUrl: set.FeedUrl})
+	if err != nil {
+		return "", false, fmt.Errorf("folders of the feed: %w", err)
+	}
 	folder := ""
 	for n := 1; n <= maxPodcastNames && folder == ""; n++ {
-		name := base
+		tail := ""
 		if n > 1 {
-			name = fitName(base, " ("+strconv.Itoa(n)+")")
+			tail = " (" + strconv.Itoa(n) + ")"
+		}
+		name := fitName(base, tail)
+		if slices.Contains(ofFeed, systemq.PodcastFoldersOfRow{RootID: root.ID, Folder: name}) {
+			if fi, err := r.Lstat(name); err == nil && fi.IsDir() {
+				folder = name
+			}
+			continue
 		}
 		known, err := read.PodcastFilesInFolder(ctx, systemq.PodcastFilesInFolderParams{RootID: root.ID, Prefix: name + "/", Upper: name + "0"})
 		if err != nil {
-			return "", fmt.Errorf("files of folder: %w", err)
+			return "", false, fmt.Errorf("files of folder: %w", err)
 		}
 		if len(known) > 0 {
 			continue
@@ -442,6 +490,9 @@ func (s *Service) createPodcastFolder(ctx context.Context, r *os.Root, root appq
 		switch err := r.Mkdir(name, podcastDirMode); {
 		case err == nil:
 			folder = name
+			if err := r.Chmod(folder, podcastDirMode); err != nil {
+				s.log.WarnContext(ctx, "set the mode of a new podcast folder", "item_id", set.PodcastID, "err", err)
+			}
 		case errors.Is(err, fs.ErrExist):
 			if data, err := r.ReadFile(name + "/metadata.json"); err == nil {
 				if m, ok := podcastJSON(data); !ok || m.feedURL != set.FeedUrl.String {
@@ -450,28 +501,25 @@ func (s *Service) createPodcastFolder(ctx context.Context, r *os.Root, root appq
 			}
 			folder = name
 		default:
-			return "", err
+			return "", false, err
 		}
 	}
 	if folder == "" {
-		return "", errors.New("no free folder name for the podcast")
-	}
-	if err := r.Chmod(folder, podcastDirMode); err != nil {
-		s.log.WarnContext(ctx, "set the mode of a new podcast folder", "item_id", set.PodcastID, "err", err)
+		return "", false, errors.New("no free folder name for the podcast")
 	}
 	if err := systemq.New(s.db.Write).PodcastSetPendingFolder(ctx, systemq.PodcastSetPendingFolderParams{
 		ItemID: set.PodcastID, RootID: sql.NullInt64{Int64: root.ID, Valid: true}, Folder: sql.NullString{String: folder, Valid: true},
 		Now: s.now().UnixMilli(),
 	}); err != nil {
-		return "", fmt.Errorf("record the new podcast folder: %w", err)
+		return "", false, fmt.Errorf("record the new podcast folder: %w", err)
 	}
 	s.writePodcastMetadata(ctx, r, folder, set)
-	s.fetchPodcastCover(ctx, r, folder, set)
-	s.log.InfoContext(ctx, "podcast folder created", "item_id", set.PodcastID, "root_id", root.ID)
-	return folder, nil
+	return folder, true, nil
 }
 
-// writePodcastMetadata writes metadata.json into a new podcast folder unless one is there.
+// writePodcastMetadata writes metadata.json into a new podcast folder unless one is there: first
+// under an own name, then a hard link puts it in place (it fails when the name is taken), so
+// nobody reads half a file and an existing one is never replaced.
 func (s *Service) writePodcastMetadata(ctx context.Context, r *os.Root, folder string, set systemq.PodcastEffectiveSettingsRow) {
 	meta := map[string]any{
 		"tags": []string{}, "title": set.Title, "author": set.Author.String, "description": "", "releaseDate": nil,
@@ -482,15 +530,24 @@ func (s *Service) writePodcastMetadata(ctx context.Context, r *os.Root, folder s
 	if err != nil {
 		return
 	}
-	f, err := r.OpenFile(folder+"/metadata.json", os.O_WRONLY|os.O_CREATE|os.O_EXCL, podcastFileMode)
-	if err != nil {
-		if !errors.Is(err, fs.ErrExist) {
-			s.log.WarnContext(ctx, "write metadata.json of a new podcast folder", "item_id", set.PodcastID, "err", err)
-		}
+	final := folder + "/metadata.json"
+	if _, err := r.Lstat(final); err == nil {
 		return
 	}
+	tmp := folder + "/" + podcastOwnPrefix + set.PodcastID + "-metadata.json"
+	_ = r.Remove(tmp)
+	f, err := r.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, podcastFileMode)
+	if err != nil {
+		s.log.WarnContext(ctx, "write metadata.json of a new podcast folder", "item_id", set.PodcastID, "err", err)
+		return
+	}
+	defer func() { _ = r.Remove(tmp) }()
 	_, werr := f.Write(data)
-	if err := errors.Join(werr, f.Close(), r.Chmod(folder+"/metadata.json", podcastFileMode)); err != nil {
+	if err := errors.Join(werr, f.Close(), r.Chmod(tmp, podcastFileMode)); err != nil {
+		s.log.WarnContext(ctx, "write metadata.json of a new podcast folder", "item_id", set.PodcastID, "err", err)
+		return
+	}
+	if err := s.linkFile(r, tmp, final); err != nil && !errors.Is(err, fs.ErrExist) {
 		s.log.WarnContext(ctx, "write metadata.json of a new podcast folder", "item_id", set.PodcastID, "err", err)
 	}
 }

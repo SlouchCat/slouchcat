@@ -19,6 +19,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
 
@@ -633,5 +634,151 @@ func TestPodcastDownloadTagsThroughTheRoot(t *testing.T) {
 	p, err := f.e.svc.probe.Probe(f.e.ctx, filepath.Join(f.dir, "Testpodcast", "Getaggt.mp3"))
 	if err != nil || p.Format.Tags["title"] != "Getaggt" {
 		t.Errorf("stored file tags = %v %v", p.Format.Tags, err)
+	}
+}
+
+// newSubscription adds a live subscription without any file whose feed lives on the enclosure
+// server and returns its id; episode adds episodes to it while f.podcast names it.
+func (f *downloadFixture) newSubscription(title string) string {
+	id := f.e.svc.newID()
+	f.exec(`INSERT INTO items (id, kind, library_id, title, sort_title, feed_url, feed_origin, providers, metadata_state, added_at, created_at, updated_at)
+		VALUES (?, 'podcast', ?, ?, ?, ?, 'admin', '["local"]', 'matched', 1, 1, 1)`, id, f.lib.ID, title, SortTitle(title), f.srv.URL+"/neu.xml")
+	return id
+}
+
+// Concept 19, 6.2 step 2 and 9 («Dasselbe Abo wird neu abonniert»): a new subscription of a feed
+// whose old files hang on deleted episodes of an earlier subscription takes the folder of those
+// files, which the database knows for the feed, instead of making «Titel (2)».
+func TestPodcastDownloadTakesTheFolderOfAnEarlierSubscription(t *testing.T) {
+	t.Parallel()
+	f := newDownloadFixture(t)
+	earlier := f.newSubscription("Neues Abo")
+	f.exec(`UPDATE items SET deleted_at = 2 WHERE id = ?`, earlier)
+	old := f.e.svc.newID()
+	f.exec(`INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, guid, providers, metadata_state, added_at, created_at, updated_at, deleted_at)
+		VALUES (?, 'podcast_episode', ?, ?, 'Alt', 'alt', 'old-1', '["local"]', 'matched', 1, 1, 1, 2)`, old, earlier, f.lib.ID)
+	f.file(old, "Neues Abo/Alt.mp3")
+	writeFile(t, f.dir, "Neues Abo/Alt.mp3", "audio")
+	neu := f.newSubscription("Neues Abo")
+	podcast := f.podcast
+	f.podcast = neu
+	ep := f.episode("Neue Folge", "neue.mp3", time.Date(2026, 11, 5, 6, 0, 0, 0, time.UTC), podcastEpisodeMedia(t, 2))
+	f.podcast = podcast
+	if err := f.download(f.e.ctx, ep, 1); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.e.str(`SELECT rel_path FROM media_files WHERE item_id = ?`, ep); got != "Neues Abo/Neue Folge.mp3" {
+		t.Errorf("stored as %q, want in the folder of the earlier subscription", got)
+	}
+	if names := visible(t, f.dir); strings.Join(names, ",") != "Neues Abo,Testpodcast" {
+		t.Errorf("folders = %v", names)
+	}
+}
+
+// Concept 19, 6.2 step 2: downloads of a subscription without any file that start at once make one
+// folder with one whole metadata.json, and every episode lands in it.
+func TestPodcastDownloadsMakeOneFolder(t *testing.T) {
+	t.Parallel()
+	f := newDownloadFixture(t)
+	f.exec(`UPDATE libraries SET podcast_parallel = 5 WHERE id = ?`, f.lib.ID)
+	neu := f.newSubscription("Parallel")
+	podcast := f.podcast
+	f.podcast = neu
+	var eps []string
+	for i := range 5 {
+		eps = append(eps, f.episode("Folge "+strconv.Itoa(i), "p"+strconv.Itoa(i)+".mp3", time.Date(2026, 11, 5, i, 0, 0, 0, time.UTC), podcastEpisodeMedia(t, 1+i%3)))
+	}
+	f.podcast = podcast
+	var wg sync.WaitGroup
+	errs := make(chan error, len(eps))
+	for _, ep := range eps {
+		wg.Go(func() { errs <- f.download(f.e.ctx, ep, 1) })
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	if names := visible(t, f.dir); strings.Join(names, ",") != "Parallel,Testpodcast" {
+		t.Errorf("folders = %v, want one for the subscription", names)
+	}
+	if n := f.e.count(`SELECT count(*) FROM media_files WHERE rel_path LIKE 'Parallel/%'`); n != len(eps) {
+		t.Errorf("files in the folder = %d, want %d", n, len(eps))
+	}
+	raw, err := os.ReadFile(filepath.Join(f.dir, "Parallel", "metadata.json"))
+	if m, ok := podcastJSON(raw); err != nil || !ok || m.feedURL != f.srv.URL+"/neu.xml" {
+		t.Errorf("metadata.json = %s %v", raw, err)
+	}
+}
+
+// ADR 0029, decision 5: the folder of a podcast with a long title in a script of three bytes per
+// character fits 250 bytes in UTF-8 as well.
+func TestPodcastDownloadFolderOfALongTitle(t *testing.T) {
+	t.Parallel()
+	f := newDownloadFixture(t)
+	title := strings.Repeat("播客節目", 50)
+	neu := f.newSubscription(title)
+	podcast := f.podcast
+	f.podcast = neu
+	ep := f.episode("Folge", "lang.mp3", time.Date(2026, 11, 5, 6, 0, 0, 0, time.UTC), podcastEpisodeMedia(t, 1))
+	f.podcast = podcast
+	if err := f.download(f.e.ctx, ep, 1); err != nil {
+		t.Fatal(err)
+	}
+	folder, _, _ := strings.Cut(f.e.str(`SELECT rel_path FROM media_files WHERE item_id = ?`, ep), "/")
+	if len(folder) > maxNameUTF8 || !strings.HasPrefix(title, folder) {
+		t.Errorf("folder %q has %d bytes, want a prefix of the title within %d", folder, len(folder), maxNameUTF8)
+	}
+}
+
+// The race of TestPodcastDownloadsMakeOneFolder, made certain: a download that read the target of
+// a subscription without folder before another made it (and is still writing its metadata.json)
+// takes that folder instead of a second one.
+func TestPodcastFolderMadeMeanwhile(t *testing.T) {
+	t.Parallel()
+	f := newDownloadFixture(t)
+	neu := f.newSubscription("Parallel")
+	stale := f.podcast
+	f.podcast = neu
+	set := f.settings()
+	f.podcast = stale
+	writeFile(t, f.dir, "Parallel/metadata.json", `{"title": "Par`)
+	f.exec(`INSERT INTO podcast_settings (item_id, pending_root_id, pending_folder, updated_at) VALUES (?, ?, 'Parallel', 1)`, neu, f.root.ID)
+	pr, err := paths.NewRoot(f.dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := paths.Open(pr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	folder, err := f.e.svc.createPodcastFolder(f.e.ctx, r, f.root, set)
+	if err != nil || folder != "Parallel" {
+		t.Errorf("folder = %q %v, want the one made meanwhile", folder, err)
+	}
+	if names := visible(t, f.dir); strings.Join(names, ",") != "Parallel,Testpodcast" {
+		t.Errorf("folders = %v", names)
+	}
+}
+
+// A folder of the title that holds the metadata.json of another feed is not taken: the new folder
+// is «Titel (2)».
+func TestPodcastDownloadFolderOfAnotherFeed(t *testing.T) {
+	t.Parallel()
+	f := newDownloadFixture(t)
+	writeFile(t, f.dir, "Fremd/metadata.json", `{"title": "Fremd", "feedURL": "https://feeds.example.test/other.xml"}`)
+	neu := f.newSubscription("Fremd")
+	podcast := f.podcast
+	f.podcast = neu
+	ep := f.episode("Folge", "fremd.mp3", time.Date(2026, 11, 5, 6, 0, 0, 0, time.UTC), podcastEpisodeMedia(t, 1))
+	f.podcast = podcast
+	if err := f.download(f.e.ctx, ep, 1); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.e.str(`SELECT rel_path FROM media_files WHERE item_id = ?`, ep); got != "Fremd (2)/Folge.mp3" {
+		t.Errorf("stored as %q", got)
 	}
 }
