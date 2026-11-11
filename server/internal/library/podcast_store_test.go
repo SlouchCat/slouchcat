@@ -274,3 +274,61 @@ func TestPodcastRiegelOneFileTwoEpisodes(t *testing.T) {
 		t.Errorf("verdicts = %+v %+v, want both unclear", got[a], got[b])
 	}
 }
+
+// The state of the list of the administration (section 11): the unclear episodes of the riegel
+// and «Speichern» possible, the same from the queries over every podcast as from those of one
+// podcast; a podcast without feed is missing, a folder that fails the check is not savable.
+func TestPodcastStates(t *testing.T) {
+	t.Parallel()
+	f := newPodcastFixture(t)
+	day := time.Date(2026, 11, 1, 6, 0, 0, 0, time.UTC)
+	f.feedEpisode("Folge 1: Der Anfang", day, 0) // paired by key: not unclear
+	f.fileEpisode(f.podcast, "Testpodcast/Folge 1 - Der Anfang.mp3", day.Add(-30*24*time.Hour))
+	f.feedEpisode("Folge 2", day.Add(24*time.Hour), 0) // two hits
+	f.fileEpisode(f.podcast, "Testpodcast/Folge 2.mp3", day.Add(-40*24*time.Hour))
+	f.fileEpisode(f.podcast, "Testpodcast/Folge 2.m4a", day.Add(-41*24*time.Hour))
+	f.feedEpisode("Ganz anders", day.Add(20*24*time.Hour), 0) // a file within 24 hours
+	f.fileEpisode(f.podcast, "Testpodcast/xyz.mp3", day.Add(20*24*time.Hour+23*time.Hour))
+	f.feedEpisode("Folge 99", day.Add(60*24*time.Hour), 0) // nothing there
+	withFile := f.feedEpisode("Folge 100", day.Add(70*24*time.Hour), 0)
+	f.file(withFile, "Testpodcast/Folge 100.mp3")
+	// A second subscription without files and a folder podcast without feed.
+	other := f.e.svc.newID()
+	f.exec(`INSERT INTO items (id, kind, library_id, title, sort_title, feed_url, feed_origin, providers, metadata_state, added_at, created_at, updated_at)
+		VALUES (?, 'podcast', ?, 'Zweiter', 'zweiter', 'https://feeds.example.test/other.xml', 'admin', '["local"]', 'matched', 1, 1, 1)`, other, f.lib.ID)
+	folderOnly := f.e.svc.newID()
+	f.exec(`INSERT INTO items (id, kind, library_id, title, sort_title, providers, metadata_state, added_at, created_at, updated_at)
+		VALUES (?, 'podcast', ?, 'Ordner', 'ordner', '["local"]', 'matched', 1, 1, 1)`, folderOnly, f.lib.ID)
+
+	if err := os.Mkdir(filepath.Join(f.dir, "Testpodcast"), 0o755); err != nil { // a known folder is there
+		t.Fatal(err)
+	}
+	want := map[string]model.PodcastState{f.podcast: {Savable: true, UnclearEpisodes: 2}, other: {Savable: true}}
+	all, err := f.e.svc.PodcastStates(f.e.ctx, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) != len(want) || all[f.podcast] != want[f.podcast] || all[other] != want[other] {
+		t.Errorf("states of all = %+v, want %+v", all, want)
+	}
+	for _, id := range []string{f.podcast, other} {
+		one, err := f.e.svc.PodcastStates(f.e.ctx, id)
+		if err != nil || len(one) != 1 || one[id] != want[id] {
+			t.Errorf("state of %s = %+v %v, want %+v", id, one, err, want[id])
+		}
+	}
+	if one, err := f.e.svc.PodcastStates(f.e.ctx, folderOnly); err != nil || len(one) != 0 {
+		t.Errorf("state of a podcast without feed = %+v %v", one, err)
+	}
+
+	// Another file system than when the folder was added: nothing is savable any more.
+	f.exec(`UPDATE library_roots SET fs_type = 'nfs4' WHERE id = ?`, f.root.ID)
+	all, err = f.e.svc.PodcastStates(f.e.ctx, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	one, err := f.e.svc.PodcastStates(f.e.ctx, f.podcast)
+	if err != nil || all[f.podcast].Savable || all[other].Savable || one[f.podcast].Savable {
+		t.Errorf("states on an unmounted folder = %+v, %+v %v", all, one, err)
+	}
+}

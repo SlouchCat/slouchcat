@@ -1547,6 +1547,9 @@ type LibraryUpdate struct {
 	Name          *string
 	DefaultRating *int
 	Trickplay     *LibraryTrickplay // video libraries only (concept 18, 6.1)
+	// PodcastDownloads is the setting of stored episodes, podcast libraries only (concept 19 part
+	// A, 5.1).
+	PodcastDownloads *PodcastDownloads
 }
 
 // SetupRequest is the input of the first-start wizard.
@@ -1600,7 +1603,11 @@ type Library struct {
 	// TrickplayEstimate is the storage estimate of the previews (concept 18, 9); getLibrary of a
 	// video library only.
 	TrickplayEstimate *LibraryTrickplayEstimate
-	CreatedAt         time.Time
+	// PodcastDownloads is the setting of stored episodes of a podcast library (concept 19 part A,
+	// 5.1); PodcastFolder the folder check of its folder for new subscriptions, getLibrary only.
+	PodcastDownloads *PodcastDownloads
+	PodcastFolder    *PodcastFolder
+	CreatedAt        time.Time
 }
 
 // Trickplay modes of a library (concept 18, 6.1; libraries.trickplay_movies and
@@ -1741,6 +1748,20 @@ type AdminPodcast struct {
 	DownloadsQueued, DownloadsRunning int
 	DownloadsFailed                   int
 	LatestEpisodeAt                   *time.Time
+	// Savable and UnclearEpisodeCount come from package library (PodcastState): whether
+	// «Speichern» may apply and how many episodes without file the riegel leave to the
+	// administrator.
+	Savable             bool
+	UnclearEpisodeCount int
+}
+
+// PodcastState is what package library knows of a podcast for the list of the administration
+// (concept 19 part A, section 11): Savable when the folder its downloads would write into passes
+// the folder check (false without feed), UnclearEpisodes the episodes without file the riegel
+// judge unclear (section 8).
+type PodcastState struct {
+	Savable         bool
+	UnclearEpisodes int
 }
 
 // PodcastCreate subscribes a podcast library to a feed.

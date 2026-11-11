@@ -320,6 +320,9 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	podcastChanged := func(ctx context.Context, podcastID string) error {
 		return libSvc.QueuePodcastSettingChanged(ctx, podcastID)
 	}
+	podcastStates := func(ctx context.Context, podcastID string) (map[string]model.PodcastState, error) {
+		return libSvc.PodcastStates(ctx, podcastID)
+	}
 	// The audiobook sources (concept 19 D6): the e2e suite points them at a mock, in development
 	// mode only.
 	metaOpts := []metadata.Option{metadata.WithTrailerAI(cfg.TrailerAI),
@@ -327,7 +330,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		metadata.WithNewEpisodes(notifySvc.NewEpisodes), metadata.WithAniList(cfg.AniList), metadata.WithRelink(relink),
 		metadata.WithTrakt(cfg.TraktClientID, metadata.WithTraktBaseURL(traktBase)),
 		metadata.WithAudioSeriesRelink(library.RelinkAudioSeries), metadata.WithAuthorDisplay(authorDisplay),
-		metadata.WithPodcastFetched(podcastFetched), metadata.WithPodcastSettingHooks(podcastSavable, podcastChanged)}
+		metadata.WithPodcastFetched(podcastFetched), metadata.WithPodcastSettingHooks(podcastSavable, podcastChanged),
+		metadata.WithPodcastStates(podcastStates)}
 	if cfg.Dev && cfg.TestBooksBaseURL != "" {
 		metaOpts = append(metaOpts, metadata.WithTestBookSources(cfg.TestBooksBaseURL))
 	} else if cfg.TestBooksBaseURL != "" {
@@ -352,7 +356,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	zone, zoneName := admin.ResolveZone(os.Getenv)
 	adminSvc.WithLocation(zone)
 	log.Info("time zone of the statistics", "zone", zoneName)
-	adminSvc.WithTrickplay(libSvc)
+	adminSvc.WithTrickplay(libSvc).WithPodcastStorage(libSvc)
 	adminSvc.WithAniList(cfg.AniList).WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc).WithBooks(metaSvc).
 		WithTrakt(metaSvc).WithBackups(cfg.ConfigDir, version).WithRestart(requestRestart).
 		// The browsable roots are classified once, here: the wizard's root list answers before

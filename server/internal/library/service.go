@@ -836,6 +836,10 @@ func (s *Service) toModel(ctx context.Context, l appq.Library) (model.Library, e
 		t := LibraryTrickplay(l)
 		m.Trickplay = &t
 	}
+	if l.Kind == model.LibraryPodcasts {
+		d := podcastDownloadsOf(l)
+		m.PodcastDownloads = &d
+	}
 	for _, r := range roots {
 		_, warning := WatchMode(r.FsType)
 		content, err := sq.CountLibraryRootContent(ctx, r.ID)

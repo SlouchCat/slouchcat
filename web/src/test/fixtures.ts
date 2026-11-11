@@ -735,4 +735,13 @@ export const adminPodcast: AdminPodcast = {
   explicit: false,
   lastCheckedAt: '2026-10-20T18:00:00Z',
   createdAt: '2026-10-20T17:00:00Z',
+  mode: 'inherit',
+  scope: 'inherit',
+  effectiveMode: 'link',
+  effectiveScope: 'new',
+  effectiveLastN: 10,
+  storedBytes: 0,
+  downloads: { queued: 0, running: 0, failed: 0 },
+  unclearEpisodeCount: 0,
+  savable: true,
 };

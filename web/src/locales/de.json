@@ -190,7 +190,9 @@
       "job_type_not_scheduled": "Dieser Job hat keinen Zeitplan.",
       "job_type_not_windowable": "Dieser Job hat kein Zeitfenster.",
       "provider_unreachable": "Die Quelle ist gerade nicht erreichbar. Versuche es später noch einmal.",
-      "provider_paused": "Die Quelle pausiert nach wiederholten Absagen. Versuche es später noch einmal."
+      "provider_paused": "Die Quelle pausiert nach wiederholten Absagen. Versuche es später noch einmal.",
+      "root_not_writable": "Der Podcast-Ordner besteht die Ordnerprüfung nicht; Slouchcat kann dort keine Folgen speichern.",
+      "root_required": "Die Bibliothek hat keinen Podcast-Ordner, in dem Slouchcat Folgen speichern könnte."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -3542,6 +3544,7 @@
         "notify": "Benachrichtigungen",
         "index": "Keyframe-Index",
         "trickplay": "Vorschau beim Spulen",
+        "podcast": "Podcast-Folgen",
         "workers": "{{count}} Arbeiter",
         "backlog": "Stau ca. {{duration}}",
         "free": "frei",
@@ -3874,6 +3877,22 @@
           "name": "Podcast-Feeds prüfen",
           "description": "Prüft alle Podcast-Feeds auf neue Folgen.",
           "trigger": "Zeitplan alle 5 min: fällige Abos werden abgerufen"
+        },
+        "podcast_sync": {
+          "name": "Podcast-Folgen planen",
+          "description": "Wählt die Folgen eines Podcasts, die seine Einstellung als Datei lädt, und bricht nicht mehr gewünschte Downloads ab.",
+          "trigger": "nach einem Feed-Abruf mit neuen Folgen, einem neuen Abo und einer geänderten Einstellung"
+        },
+        "podcast_sync_all": {
+          "name": "Podcast-Folgen nachholen",
+          "description": "Plant alle Podcasts auf «Speichern» neu und versucht fehlgeschlagene Downloads erneut.",
+          "trigger": "Zeitplan alle 6 h"
+        },
+        "podcast_download": {
+          "name": "Podcast-Folge speichern",
+          "description": "Lädt eine Folge vom Anbieter und legt sie als Datei in den Ordner ihres Podcasts.",
+          "trigger": "vom Planer bei «Speichern», «Fehlende nachladen» und «Laden» je Folge; je Anbieter eine zur Zeit",
+          "progress": "Bytes: {{done}} von {{total}}"
         },
         "trakt_refresh": {
           "name": "Spotlight-Liste abrufen",

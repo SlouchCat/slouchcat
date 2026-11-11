@@ -21,12 +21,23 @@ func (e serviceProblem) VisitRefreshPodcastResponse(w http.ResponseWriter) error
 func (e serviceProblem) VisitListPodcastEpisodesResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
+func (e serviceProblem) VisitUpdatePodcastResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitDownloadPodcastEpisodesResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+func (e serviceProblem) VisitEstimatePodcastDownloadsResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
 
 // UpdateLibrary renames a library or sets the default rating of an audio library; the open streams
 // are re-checked, because titles rated by the library may have changed their rating.
 func (s *server) UpdateLibrary(ctx context.Context, req gen.UpdateLibraryRequestObject) (gen.UpdateLibraryResponseObject, error) {
 	body := deref(req.Body)
 	upd := model.LibraryUpdate{Name: body.Name, Trickplay: libraryTrickplay(body.Trickplay)}
+	if d := body.PodcastDownloads; d != nil {
+		upd.PodcastDownloads = &model.PodcastDownloads{Mode: string(d.Mode), Scope: string(d.Scope), LastN: d.LastN,
+			Parallel: d.Parallel, RootID: d.RootId}
+	}
 	if body.DefaultRating != nil {
 		r := int(*body.DefaultRating)
 		upd.DefaultRating = &r
@@ -81,6 +92,44 @@ func (s *server) RefreshPodcast(ctx context.Context, req gen.RefreshPodcastReque
 	return gen.RefreshPodcast202JSONResponse(toAdminPodcast(p)), nil
 }
 
+// UpdatePodcast stores the own setting of stored episodes of a podcast (concept 19 part A, 5.1).
+func (s *server) UpdatePodcast(ctx context.Context, req gen.UpdatePodcastRequestObject) (gen.UpdatePodcastResponseObject, error) {
+	body := deref(req.Body)
+	upd := model.PodcastDownloadsUpdate{Mode: (*string)(body.Mode), Scope: (*string)(body.Scope), LastN: body.LastN}
+	p, err := s.opts.Admin.UpdatePodcast(ctx, req.Id, upd)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.UpdatePodcast200JSONResponse(toAdminPodcast(p)), nil
+}
+
+// DownloadPodcastEpisodes queues the episodes without file of a podcast, or the given ones (5.3).
+func (s *server) DownloadPodcastEpisodes(ctx context.Context, req gen.DownloadPodcastEpisodesRequestObject) (gen.DownloadPodcastEpisodesResponseObject, error) {
+	var ids []string
+	if req.Body != nil && req.Body.EpisodeIds != nil {
+		ids = *req.Body.EpisodeIds
+	}
+	n, err := s.opts.Admin.DownloadPodcastEpisodes(ctx, req.Id, ids)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.DownloadPodcastEpisodes202JSONResponse(gen.PodcastDownloadQueued{Queued: n}), nil
+}
+
+// EstimatePodcastDownloads answers what an imagined setting would load once (12.3).
+func (s *server) EstimatePodcastDownloads(ctx context.Context, req gen.EstimatePodcastDownloadsRequestObject) (gen.EstimatePodcastDownloadsResponseObject, error) {
+	body := deref(req.Body)
+	est, err := s.opts.Admin.EstimatePodcastDownloads(ctx, req.Id, model.PodcastDownloadEstimateRequest{
+		PodcastID: deref(body.PodcastId), Mode: string(body.Mode), Scope: string(body.Scope), LastN: deref(body.LastN),
+	})
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.EstimatePodcastDownloads200JSONResponse(gen.PodcastDownloadEstimate{
+		Episodes: est.Episodes, Bytes: max(est.Bytes, 0), FreeBytes: max(est.FreeBytes, 0),
+	}), nil
+}
+
 func (s *server) ListPodcastEpisodes(ctx context.Context, req gen.ListPodcastEpisodesRequestObject) (gen.ListPodcastEpisodesResponseObject, error) {
 	session, err := s.itemSession(ctx)
 	if err != nil {
@@ -114,6 +163,16 @@ func toAdminPodcast(p model.AdminPodcast) gen.AdminPodcast {
 	if p.FeedOrigin != "" {
 		origin := gen.AdminPodcastFeedOrigin(p.FeedOrigin)
 		out.FeedOrigin = &origin
+	}
+	// The stored episodes (contract 1.27.0); the setting is absent for a podcast without feed.
+	out.StoredBytes, out.Savable, out.UnclearEpisodeCount = p.StoredBytes, p.Savable, p.UnclearEpisodeCount
+	out.Downloads = gen.PodcastDownloadCounts{Queued: p.DownloadsQueued, Running: p.DownloadsRunning, Failed: p.DownloadsFailed}
+	out.LatestEpisodeAt = utc(p.LatestEpisodeAt)
+	if p.EffectiveMode != "" {
+		mode, scope := gen.AdminPodcastMode(p.Mode), gen.AdminPodcastScope(p.Scope)
+		effMode, effScope, effN := gen.PodcastMode(p.EffectiveMode), gen.PodcastScope(p.EffectiveScope), p.EffectiveLastN
+		out.Mode, out.Scope, out.LastN = &mode, &scope, p.LastN
+		out.EffectiveMode, out.EffectiveScope, out.EffectiveLastN = &effMode, &effScope, &effN
 	}
 	return out
 }

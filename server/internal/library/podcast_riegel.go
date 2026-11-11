@@ -73,6 +73,14 @@ func (s *Service) judgePodcastEpisodes(ctx context.Context, p systemq.PodcastEff
 	if err != nil {
 		return nil, fmt.Errorf("file episodes of podcast %s: %w", p.PodcastID, err)
 	}
+	return judgeEpisodes(p.PodcastID, eps, byKey, unpaired), nil
+}
+
+// judgeEpisodes is the decision of the three riegel on the feed episodes eps of a podcast, given
+// the files of its folders by key and its file episodes without guid.
+func judgeEpisodes(podcastID string, eps []systemq.PodcastFeedEpisodesRow, byKey map[string][]podcastFolderFile,
+	unpaired []systemq.PodcastListFileEpisodesWithoutGUIDRow,
+) map[string]episodeVerdict {
 	out := make(map[string]episodeVerdict, len(eps))
 	claims := map[string][]string{} // file episode → feed episodes that would pair with it
 	for _, e := range eps {
@@ -88,7 +96,7 @@ func (s *Service) judgePodcastEpisodes(ctx context.Context, p systemq.PodcastEff
 			for _, h := range hits {
 				f = h
 			}
-			if f.Kind == "podcast_episode" && f.ParentID.String == p.PodcastID && !f.Guid.Valid && !f.DeletedAt.Valid {
+			if f.Kind == "podcast_episode" && f.ParentID.String == podcastID && !f.Guid.Valid && !f.DeletedAt.Valid {
 				out[e.ID] = episodeVerdict{verdict: verdictPair, pairWith: f.ItemID}
 				claims[f.ItemID] = append(claims[f.ItemID], e.ID)
 				continue
@@ -115,7 +123,7 @@ func (s *Service) judgePodcastEpisodes(ctx context.Context, p systemq.PodcastEff
 			}
 		}
 	}
-	return out, nil
+	return out
 }
 
 // absDuration is the length of a span of Unix milliseconds.

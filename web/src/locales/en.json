@@ -190,7 +190,9 @@
       "job_type_not_scheduled": "This job has no schedule.",
       "job_type_not_windowable": "This job has no time window.",
       "provider_unreachable": "The source cannot be reached right now. Please try again later.",
-      "provider_paused": "The source rests after repeated refusals. Please try again later."
+      "provider_paused": "The source rests after repeated refusals. Please try again later.",
+      "root_not_writable": "The podcast folder fails the folder check; Slouchcat cannot store episodes there.",
+      "root_required": "The library has no podcast folder Slouchcat could store episodes in."
     },
     "field": {
       "required": "Required.",
@@ -3542,6 +3544,7 @@
         "notify": "Notifications",
         "index": "Keyframe index",
         "trickplay": "Seek previews",
+        "podcast": "Podcast episodes",
         "workers": "{{count}} workers",
         "backlog": "backlog about {{duration}}",
         "free": "free",
@@ -3874,6 +3877,22 @@
           "name": "Check podcast feeds",
           "description": "Checks every podcast feed for new episodes.",
           "trigger": "Schedule every 5 min: due subscriptions are fetched"
+        },
+        "podcast_sync": {
+          "name": "Plan podcast episodes",
+          "description": "Chooses the episodes of a podcast that its setting loads as files and cancels downloads no longer wanted.",
+          "trigger": "After a feed fetch with new episodes, a new subscription and a changed setting"
+        },
+        "podcast_sync_all": {
+          "name": "Catch up podcast episodes",
+          "description": "Plans every podcast set to “Store” again and retries failed downloads.",
+          "trigger": "Schedule every 6 h"
+        },
+        "podcast_download": {
+          "name": "Store podcast episode",
+          "description": "Loads an episode from its host and puts it as a file into the folder of its podcast.",
+          "trigger": "From the planner with “Store”, “Load missing” and “Load” per episode; one per host at a time",
+          "progress": "Bytes: {{done}} of {{total}}"
         },
         "trakt_refresh": {
           "name": "Fetch spotlight list",

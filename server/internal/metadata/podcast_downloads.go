@@ -100,7 +100,8 @@ func (s *Service) UpdatePodcastDownloads(ctx context.Context, id string, upd mod
 
 // withDownloads adds the setting and the state of the stored episodes to podcasts (AdminPodcast,
 // section 11): own and effective setting from PodcastEffectiveSettings, stored bytes, downloads
-// and the newest episode from PodcastDownloadStats. A folder podcast without feed keeps them empty.
+// and the newest episode from PodcastDownloadStats, savable and unclear episodes from the hook of
+// WithPodcastStates. A folder podcast without feed keeps them empty.
 func (s *Service) withDownloads(ctx context.Context, podcasts []model.AdminPodcast) ([]model.AdminPodcast, error) {
 	sets, err := s.read.PodcastEffectiveSettings(ctx, systemq.PodcastEffectiveSettingsParams{})
 	if err != nil {
@@ -113,6 +114,16 @@ func (s *Service) withDownloads(ctx context.Context, podcasts []model.AdminPodca
 	bySet := make(map[string]systemq.PodcastEffectiveSettingsRow, len(sets))
 	for _, set := range sets {
 		bySet[set.PodcastID] = set
+	}
+	var states map[string]model.PodcastState
+	if s.podcastStates != nil {
+		id := ""
+		if len(podcasts) == 1 {
+			id = podcasts[0].ID
+		}
+		if states, err = s.podcastStates(ctx, id); err != nil {
+			return nil, fmt.Errorf("podcast states: %w", err)
+		}
 	}
 	byStat := make(map[string]systemq.PodcastDownloadStatsRow, len(stats))
 	for _, st := range stats {
@@ -128,6 +139,8 @@ func (s *Service) withDownloads(ctx context.Context, podcasts []model.AdminPodca
 				p.LatestEpisodeAt = &t
 			}
 		}
+		st := states[p.ID]
+		p.Savable, p.UnclearEpisodeCount = st.Savable, st.UnclearEpisodes
 		set, ok := bySet[p.ID]
 		if !ok {
 			continue

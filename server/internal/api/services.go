@@ -222,6 +222,13 @@ type AdminService interface {
 	DeletePodcast(ctx context.Context, id string) error
 	// RefreshPodcast queues the fetch of a subscription now (model.ErrNotFound).
 	RefreshPodcast(ctx context.Context, id string) (model.AdminPodcast, error)
+	// Stored podcast episodes (concept 19 part A, contract 1.27.0): the own setting of a podcast
+	// (model.ErrNotFound, *model.ValidationError, model.ErrRootNotWritable, model.ErrRootRequired),
+	// the downloads of its episodes without file or of the given ones (model.ErrNotFound), and the
+	// estimate of an imagined setting (model.ErrNotFound, *model.ValidationError).
+	UpdatePodcast(ctx context.Context, id string, upd model.PodcastDownloadsUpdate) (model.AdminPodcast, error)
+	DownloadPodcastEpisodes(ctx context.Context, podcastID string, episodeIDs []string) (int, error)
+	EstimatePodcastDownloads(ctx context.Context, libraryID int64, req model.PodcastDownloadEstimateRequest) (model.PodcastDownloadEstimate, error)
 
 	// User picks (concept 18 part B, ADR 0028): the current picks, anonymous, newest first;
 	// RemoveUserPick removes every pick of a title (model.ErrNotFound without one); the retention

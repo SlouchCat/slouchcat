@@ -54,6 +54,214 @@ func (q *Queries) PodcastActiveDownloads(ctx context.Context, podcastID sql.Null
 	return items, nil
 }
 
+const podcastAllEpisodesWithoutFile = `-- name: PodcastAllEpisodesWithoutFile :many
+SELECT CAST(i.parent_id AS TEXT) AS podcast_id, i.id, i.title, i.sort_title, i.published_at, i.duration_ms, i.enclosure_url
+FROM items AS i JOIN items AS p ON p.id = i.parent_id
+WHERE i.kind = 'podcast_episode' AND i.deleted_at IS NULL AND i.enclosure_url IS NOT NULL
+  AND p.kind = 'podcast' AND p.deleted_at IS NULL AND p.feed_url IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = i.id)
+ORDER BY i.parent_id, i.published_at IS NULL, i.published_at DESC, i.id
+`
+
+type PodcastAllEpisodesWithoutFileRow struct {
+	PodcastID    string
+	ID           string
+	Title        string
+	SortTitle    string
+	PublishedAt  sql.NullInt64
+	DurationMs   sql.NullInt64
+	EnclosureUrl sql.NullString
+}
+
+// The live feed episodes of every live podcast with a feed that have no media file row at all (a
+// removed episode keeps its rows): the episodes the riegel judge for AdminPodcast.unclearEpisodeCount.
+func (q *Queries) PodcastAllEpisodesWithoutFile(ctx context.Context) ([]PodcastAllEpisodesWithoutFileRow, error) {
+	rows, err := q.db.QueryContext(ctx, podcastAllEpisodesWithoutFile)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PodcastAllEpisodesWithoutFileRow{}
+	for rows.Next() {
+		var i PodcastAllEpisodesWithoutFileRow
+		if err := rows.Scan(
+			&i.PodcastID,
+			&i.ID,
+			&i.Title,
+			&i.SortTitle,
+			&i.PublishedAt,
+			&i.DurationMs,
+			&i.EnclosureUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const podcastAllFileEpisodesWithoutGUID = `-- name: PodcastAllFileEpisodesWithoutGUID :many
+SELECT CAST(i.parent_id AS TEXT) AS podcast_id, i.id, i.title, i.sort_title, i.published_at, i.duration_ms
+FROM items AS i
+WHERE i.kind = 'podcast_episode' AND i.deleted_at IS NULL AND i.guid IS NULL AND i.parent_id IS NOT NULL
+`
+
+type PodcastAllFileEpisodesWithoutGUIDRow struct {
+	PodcastID   string
+	ID          string
+	Title       string
+	SortTitle   string
+	PublishedAt sql.NullInt64
+	DurationMs  sql.NullInt64
+}
+
+// The live file episodes (no guid) of every podcast: PodcastListFileEpisodesWithoutGUID for all.
+func (q *Queries) PodcastAllFileEpisodesWithoutGUID(ctx context.Context) ([]PodcastAllFileEpisodesWithoutGUIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, podcastAllFileEpisodesWithoutGUID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PodcastAllFileEpisodesWithoutGUIDRow{}
+	for rows.Next() {
+		var i PodcastAllFileEpisodesWithoutGUIDRow
+		if err := rows.Scan(
+			&i.PodcastID,
+			&i.ID,
+			&i.Title,
+			&i.SortTitle,
+			&i.PublishedAt,
+			&i.DurationMs,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const podcastAllFolderFiles = `-- name: PodcastAllFolderFiles :many
+SELECT m.id, m.item_id, m.root_id, m.rel_path, m.missing_since, i.kind, i.parent_id, i.guid, i.deleted_at,
+       CAST(substr(m.rel_path, 1, instr(m.rel_path, '/') - 1) AS TEXT) AS folder
+FROM media_files AS m
+JOIN items AS i ON i.id = m.item_id
+JOIN library_roots AS r ON r.id = m.root_id
+WHERE r.content = 'podcast' AND instr(m.rel_path, '/') > 1
+ORDER BY m.root_id, m.rel_path
+`
+
+type PodcastAllFolderFilesRow struct {
+	ID           string
+	ItemID       string
+	RootID       int64
+	RelPath      string
+	MissingSince sql.NullInt64
+	Kind         string
+	ParentID     sql.NullString
+	Guid         sql.NullString
+	DeletedAt    sql.NullInt64
+	Folder       string
+}
+
+// Every media file in a folder of a podcast folder, whichever item it hangs on (riegel 1):
+// PodcastFilesInFolder for all folders at once, with the folder (the first level of rel_path).
+func (q *Queries) PodcastAllFolderFiles(ctx context.Context) ([]PodcastAllFolderFilesRow, error) {
+	rows, err := q.db.QueryContext(ctx, podcastAllFolderFiles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PodcastAllFolderFilesRow{}
+	for rows.Next() {
+		var i PodcastAllFolderFilesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ItemID,
+			&i.RootID,
+			&i.RelPath,
+			&i.MissingSince,
+			&i.Kind,
+			&i.ParentID,
+			&i.Guid,
+			&i.DeletedAt,
+			&i.Folder,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const podcastAllFolders = `-- name: PodcastAllFolders :many
+SELECT DISTINCT p.id AS podcast_id, p.library_id, p.feed_url, m.root_id,
+       CAST(substr(m.rel_path, 1, instr(m.rel_path, '/') - 1) AS TEXT) AS folder
+FROM media_files AS m
+JOIN items AS e ON e.id = m.item_id
+JOIN items AS p ON p.id = e.parent_id
+JOIN library_roots AS r ON r.id = m.root_id
+WHERE e.kind = 'podcast_episode' AND p.kind = 'podcast' AND instr(m.rel_path, '/') > 1 AND r.content = 'podcast'
+ORDER BY p.id, m.root_id, folder
+`
+
+type PodcastAllFoldersRow struct {
+	PodcastID string
+	LibraryID int64
+	FeedUrl   sql.NullString
+	RootID    int64
+	Folder    string
+}
+
+// The folders of every podcast, live or deleted (the first level of the media files of its
+// episodes on a podcast folder), with its library and feed: PodcastFoldersOf for all podcasts at
+// once (riegel 1 counts the folders of earlier subscriptions of the same feed).
+func (q *Queries) PodcastAllFolders(ctx context.Context) ([]PodcastAllFoldersRow, error) {
+	rows, err := q.db.QueryContext(ctx, podcastAllFolders)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PodcastAllFoldersRow{}
+	for rows.Next() {
+		var i PodcastAllFoldersRow
+		if err := rows.Scan(
+			&i.PodcastID,
+			&i.LibraryID,
+			&i.FeedUrl,
+			&i.RootID,
+			&i.Folder,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const podcastClearDownloadFailure = `-- name: PodcastClearDownloadFailure :exec
 DELETE FROM podcast_download_failures WHERE item_id = ?1
 `
@@ -555,6 +763,50 @@ func (q *Queries) PodcastNewestFolder(ctx context.Context, podcastID sql.NullStr
 	for rows.Next() {
 		var i PodcastNewestFolderRow
 		if err := rows.Scan(&i.RootID, &i.Folder); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const podcastNewestRoots = `-- name: PodcastNewestRoots :many
+SELECT p.id AS podcast_id,
+       CAST(COALESCE((SELECT m.root_id FROM media_files AS m
+                      JOIN items AS e ON e.id = m.item_id
+                      JOIN library_roots AS r ON r.id = m.root_id
+                      WHERE e.parent_id = p.id AND e.kind = 'podcast_episode' AND m.missing_since IS NULL
+                        AND instr(m.rel_path, '/') > 1 AND r.content = 'podcast'
+                      ORDER BY m.mtime DESC, m.id DESC
+                      LIMIT 1), 0) AS INTEGER) AS root_id
+FROM items AS p
+WHERE p.kind = 'podcast' AND p.deleted_at IS NULL AND p.feed_url IS NOT NULL
+`
+
+type PodcastNewestRootsRow struct {
+	PodcastID string
+	RootID    int64
+}
+
+// Per live podcast with a feed the root of its newest file that is there on a podcast folder, as
+// PodcastNewestFolder picks it for a download (6.2, step 2); 0 without one. For the list of the
+// administration (AdminPodcast.savable), which checks each root once.
+func (q *Queries) PodcastNewestRoots(ctx context.Context) ([]PodcastNewestRootsRow, error) {
+	rows, err := q.db.QueryContext(ctx, podcastNewestRoots)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PodcastNewestRootsRow{}
+	for rows.Next() {
+		var i PodcastNewestRootsRow
+		if err := rows.Scan(&i.PodcastID, &i.RootID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

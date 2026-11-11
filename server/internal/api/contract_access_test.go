@@ -300,6 +300,12 @@ var adminRegistry = map[string]adminCall{
 	"createPodcast":  {contract: "POST /admin/podcasts", path: "/admin/podcasts", body: `{"libraryId":777,"feedUrl":"http://127.0.0.1:9/feed.xml"}`, ownerStatus: http.StatusUnprocessableEntity},
 	"deletePodcast":  {contract: "DELETE /admin/podcasts/{id}", path: "/admin/podcasts/" + unknownItemID, ownerStatus: http.StatusNotFound},
 	"refreshPodcast": {contract: "POST /admin/podcasts/{id}/refresh", path: "/admin/podcasts/" + unknownItemID + "/refresh", ownerStatus: http.StatusNotFound},
+	// Stored podcast episodes (concept 19 part A, contract 1.27.0): unknown podcasts and libraries.
+	"updatePodcast": {contract: "PATCH /admin/podcasts/{id}", path: "/admin/podcasts/" + unknownItemID, body: `{"mode":"link"}`, ownerStatus: http.StatusNotFound},
+	"downloadPodcastEpisodes": {contract: "POST /admin/podcasts/{id}/download", path: "/admin/podcasts/" + unknownItemID + "/download",
+		ownerStatus: http.StatusNotFound},
+	"estimatePodcastDownloads": {contract: "POST /admin/libraries/{id}/podcast-downloads/estimate", path: "/admin/libraries/777/podcast-downloads/estimate",
+		body: `{"mode":"save","scope":"all"}`, ownerStatus: http.StatusNotFound},
 	// M7 curation (stream B1; the Trakt entries belong to stream B2). Unknown ids answer 404,
 	// refused input 422.
 	// User picks of concept 18 part B (ADR 0028): the list, removing all picks of a title, and the

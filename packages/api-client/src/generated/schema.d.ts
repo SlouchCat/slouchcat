@@ -1454,6 +1454,31 @@ export interface paths {
         patch: operations["updateLibrary"];
         trace?: never;
     };
+    "/admin/libraries/{id}/podcast-downloads/estimate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * What a setting of stored podcast episodes would load once
+         * @description Since contract 1.27.0 (concept 19 part A, 12.3). Takes an imagined setting of the podcast library
+         *     (without `podcastId`: every podcast that follows the library counts with it) or of one of its podcasts
+         *     and answers how many episodes and bytes it would load once (from `enclosure_length`, else the mean
+         *     size of the podcast's files), without the new episodes of later fetches, and the free space of the
+         *     folder for new subscriptions. Changes nothing. `mode` `save` with `scope` `all` and a `podcastId` is
+         *     what «Fehlende nachladen» loads.
+         */
+        post: operations["estimatePodcastDownloads"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/libraries/{id}/scan": {
         parameters: {
             query?: never;
@@ -1740,6 +1765,37 @@ export interface paths {
          * @description Soft-deletes the podcast and its episodes; downloads of the episodes are revoked at the next sync.
          */
         delete: operations["deletePodcast"];
+        options?: never;
+        head?: never;
+        /**
+         * The own setting of stored episodes of a podcast
+         * @description Since contract 1.27.0 (concept 19 part A, 5.1 and 5.3). `inherit` follows the library; an absent field
+         *     stays. A setting that makes the podcast store asks the folder check first. A change to «Nur Link»
+         *     cancels the waiting and running downloads of the podcast, a smaller scope those that no longer
+         *     belong to it; stored files stay. A larger scope queues the episodes it adds.
+         */
+        patch: operations["updatePodcast"];
+        trace?: never;
+    };
+    "/admin/podcasts/{id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Load episodes of a podcast as files
+         * @description Since contract 1.27.0 (concept 19 part A, 5.3). Without `episodeIds` «Fehlende nachladen»: once every
+         *     feed episode of the podcast without a file, whatever scope applies (an episode whose file the server
+         *     finds in the folder by name is paired instead, one that may have a file there is left out). With
+         *     `episodeIds` «Laden» on those episodes, a removed one included. A change of the scope does not cancel
+         *     these downloads.
+         */
+        post: operations["downloadPodcastEpisodes"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -6275,6 +6331,144 @@ export interface components {
             lastError?: string;
             /** Format: date-time */
             createdAt: string;
+            /**
+             * @description The own setting «Neue Folgen» (since contract 1.27.0): `inherit` «Wie Bibliothek»; absent for a
+             *     podcast without feed.
+             * @enum {string}
+             */
+            mode?: "inherit" | "save" | "link";
+            /**
+             * @description The own scope (since contract 1.27.0); `inherit` «Wie Bibliothek»; absent without feed.
+             * @enum {string}
+             */
+            scope?: "inherit" | "new" | "last_n" | "all";
+            /** @description The N of an own scope (since contract 1.27.0); absent with `scope` `inherit`. */
+            lastN?: number;
+            /** @description The setting that applies, the podcast's own before the library's (since contract 1.27.0); absent without feed. */
+            effectiveMode?: components["schemas"]["PodcastMode"];
+            /** @description The scope that applies (since contract 1.27.0); absent without feed. */
+            effectiveScope?: components["schemas"]["PodcastScope"];
+            /** @description The N that applies (since contract 1.27.0); absent without feed. */
+            effectiveLastN?: number;
+            /**
+             * Format: int64
+             * @description Bytes of the episode files that are there (since contract 1.27.0).
+             */
+            storedBytes: number;
+            downloads: components["schemas"]["PodcastDownloadCounts"];
+            /**
+             * @description Episodes without file that the server does not load by itself because a file of the folder may hold
+             *     them (same name, two candidates, a file within 24 hours; since contract 1.27.0).
+             */
+            unclearEpisodeCount: number;
+            /**
+             * Format: date-time
+             * @description Publication of the newest episode (since contract 1.27.0); absent without a dated one.
+             */
+            latestEpisodeAt?: string;
+            /**
+             * @description «Speichern» may apply (since contract 1.27.0): false for a podcast without feed and when the folder its
+             *     downloads would write into fails the folder check.
+             */
+            savable: boolean;
+        };
+        /** @description The downloads of the episodes of a podcast (since contract 1.27.0). */
+        PodcastDownloadCounts: {
+            queued: number;
+            running: number;
+            /** @description Episodes whose last download failed. */
+            failed: number;
+        };
+        /**
+         * @description «Neue Folgen» (concept 19 part A, 5.1): `save` «Speichern» as a file, `link` «Nur Link».
+         * @enum {string}
+         */
+        PodcastMode: "save" | "link";
+        /**
+         * @description What «Speichern» loads (5.2): `new` the episodes a fetch reports as new, `last_n` also the N newest of the
+         *     feed without file, `all` also every episode of the feed without file.
+         * @enum {string}
+         */
+        PodcastScope: "new" | "last_n" | "all";
+        /**
+         * @description The setting of stored episodes of a podcast library (concept 19 part A, 5.1; since contract 1.27.0). The
+         *     default is `link`: nothing is stored until it changes.
+         */
+        LibraryPodcastDownloads: {
+            mode: components["schemas"]["PodcastMode"];
+            scope: components["schemas"]["PodcastScope"];
+            /** @description The N of `last_n`; kept with the other scopes. */
+            lastN: number;
+            /** @description «Gleichzeitig laden»; downloads of one host run one at a time. */
+            parallel: number;
+            /**
+             * Format: int64
+             * @description The podcast folder of the library for new subscriptions; absent for its first one.
+             */
+            rootId?: number;
+        };
+        /**
+         * @description The folder check of the folder for new subscriptions of a podcast library (5.4; since contract 1.27.0):
+         *     the same file system as when the folder was added with a known folder there, a test file with a hard
+         *     link, the rights of 6.4. «Speichern» needs `writable`.
+         */
+        PodcastFolder: {
+            /** Format: int64 */
+            rootId: number;
+            path: string;
+            writable: boolean;
+            /**
+             * @description Why the check failed; absent with `writable`. `read_only` mounted read-only or without write right,
+             *     `not_mounted` another file system than at the start or no known folder there, `no_hard_links` the
+             *     file system refuses a hard link, `permissions` a new file does not get the expected rights.
+             * @enum {string}
+             */
+            problem?: "read_only" | "not_mounted" | "no_hard_links" | "permissions";
+            /**
+             * Format: int64
+             * @description Free space on the folder's drive; 0 when unknown.
+             */
+            freeBytes: number;
+        };
+        /** @description The own setting of a podcast (since contract 1.27.0); an absent field stays. */
+        PodcastUpdate: {
+            /** @enum {string} */
+            mode?: "inherit" | "save" | "link";
+            /** @enum {string} */
+            scope?: "inherit" | "new" | "last_n" | "all";
+            /** @description The N of an own scope `last_n`. */
+            lastN?: number;
+        };
+        /** @description The episodes to load (since contract 1.27.0); without `episodeIds` every episode without file. */
+        PodcastDownloadRequest: {
+            episodeIds?: components["schemas"]["ItemID"][];
+        };
+        PodcastDownloadQueued: {
+            /** @description Downloads queued; 0 when every episode has a file or is left out. */
+            queued: number;
+        };
+        /**
+         * @description An imagined setting (since contract 1.27.0): of the library without `podcastId`, else of that podcast
+         *     (`inherit` takes the library's value).
+         */
+        PodcastDownloadEstimateRequest: {
+            podcastId?: components["schemas"]["ItemID"];
+            /** @enum {string} */
+            mode: "inherit" | "save" | "link";
+            /** @enum {string} */
+            scope: "inherit" | "new" | "last_n" | "all";
+            /** @description The N of `last_n`; absent takes the library's. */
+            lastN?: number;
+        };
+        PodcastDownloadEstimate: {
+            episodes: number;
+            /** Format: int64 */
+            bytes: number;
+            /**
+             * Format: int64
+             * @description Free space of the folder for new subscriptions; 0 when unknown.
+             */
+            freeBytes: number;
         };
         PodcastCreate: {
             /**
@@ -7269,6 +7463,13 @@ export interface components {
              *     playback of the file is open; waiting import, backfill and look-ahead jobs end without work.
              */
             trickplay?: components["schemas"]["LibraryTrickplay"];
+            /**
+             * @description New setting of stored episodes of a podcast library (since contract 1.27.0); `not_allowed` for other
+             *     kinds. «Speichern» asks the folder check first. The planner runs for every podcast of the library:
+             *     «Nur Link» cancels their downloads, a larger scope queues the episodes it adds, a smaller one cancels
+             *     the waiting downloads that no longer belong to it. Stored files stay.
+             */
+            podcastDownloads?: components["schemas"]["LibraryPodcastDownloads"];
         };
         /**
          * @description `aborted` means the loss protection stopped the scan (root missing or empty, or more than 20 % of
@@ -7292,6 +7493,13 @@ export interface components {
             trickplay?: components["schemas"]["LibraryTrickplay"];
             /** @description Storage estimate of the previews of a video library; only in `getLibrary`, absent for audio libraries (since contract 1.23.0). */
             trickplayEstimate?: components["schemas"]["LibraryTrickplayEstimate"];
+            /** @description The setting of stored episodes of a podcast library; absent for other kinds (since contract 1.27.0). */
+            podcastDownloads?: components["schemas"]["LibraryPodcastDownloads"];
+            /**
+             * @description The folder check of the folder for new subscriptions; only in `getLibrary` of a podcast library with a
+             *     podcast folder (since contract 1.27.0).
+             */
+            podcastFolder?: components["schemas"]["PodcastFolder"];
             /** Format: date-time */
             createdAt: string;
         };
@@ -8814,10 +9022,11 @@ export interface components {
         JobPool: {
             /**
              * @description `index` has one worker: the full keyframe reads (concept 14; since contract 1.13.0). `trickplay` has
-             *     one worker: the preview tiles of the seek bar (concept 18; since contract 1.23.0).
+             *     one worker: the preview tiles of the seek bar (concept 18; since contract 1.23.0). `podcast` has five
+             *     workers: the stored podcast episodes (concept 19 part A; since contract 1.27.0).
              * @enum {string}
              */
-            pool: "general" | "download" | "notify" | "index" | "trickplay";
+            pool: "general" | "download" | "notify" | "index" | "trickplay" | "podcast";
             workers: number;
             /** @description Estimated work waiting in the pool, divided by its workers; absent without any median. */
             backlogSeconds?: number;
@@ -13213,7 +13422,62 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Validation failed (`validation_failed`; `defaultRating` `not_allowed` for video libraries, `trickplay` `not_allowed` for audio libraries). */
+            /**
+             * @description Validation failed (`validation_failed`; `defaultRating` `not_allowed` for video libraries, `trickplay`
+             *     `not_allowed` for audio libraries, `podcastDownloads` `not_allowed` for other kinds than `podcasts`,
+             *     `podcastDownloads.mode`, `.scope` `invalid`, `.lastN`, `.parallel` `out_of_range`, `.rootId`
+             *     `unknown_root`); «Speichern» on a folder that fails the folder check (`root_not_writable`) or in a
+             *     library without a podcast folder (`root_required`; since contract 1.27.0).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    estimatePodcastDownloads: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["LibraryID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PodcastDownloadEstimateRequest"];
+            };
+        };
+        responses: {
+            /** @description The estimate. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PodcastDownloadEstimate"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown library, another kind than `podcasts`, or a podcast of another library (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Validation failed (`validation_failed`; `mode`, `scope` `invalid`, `inherit` only with `podcastId`;
+             *     `lastN` `out_of_range`).
+             */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -13794,6 +14058,95 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
             /** @description Unknown podcast (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updatePodcast: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PodcastUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPodcast"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown podcast (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Validation failed (`validation_failed`; `mode`, `scope` `invalid`, `lastN` `out_of_range`, `mode`
+             *     `not_allowed` for a podcast without feed); «Speichern» on a folder that fails the folder check
+             *     (`root_not_writable`) or without a podcast folder (`root_required`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    downloadPodcastEpisodes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PodcastDownloadRequest"];
+            };
+        };
+        responses: {
+            /** @description Downloads queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PodcastDownloadQueued"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown podcast or one without feed (`not_found`). */
             404: {
                 headers: {
                     [name: string]: unknown;

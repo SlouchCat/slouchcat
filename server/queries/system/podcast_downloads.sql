@@ -182,3 +182,58 @@ WHERE p.kind = 'podcast' AND p.deleted_at IS NULL;
 -- name: PodcastLibraryMode :one
 -- The mode of stored episodes of a podcast library (the effective mode of a podcast that follows it).
 SELECT podcast_mode FROM libraries WHERE id = @id;
+
+-- name: PodcastNewestRoots :many
+-- Per live podcast with a feed the root of its newest file that is there on a podcast folder, as
+-- PodcastNewestFolder picks it for a download (6.2, step 2); 0 without one. For the list of the
+-- administration (AdminPodcast.savable), which checks each root once.
+SELECT p.id AS podcast_id,
+       CAST(COALESCE((SELECT m.root_id FROM media_files AS m
+                      JOIN items AS e ON e.id = m.item_id
+                      JOIN library_roots AS r ON r.id = m.root_id
+                      WHERE e.parent_id = p.id AND e.kind = 'podcast_episode' AND m.missing_since IS NULL
+                        AND instr(m.rel_path, '/') > 1 AND r.content = 'podcast'
+                      ORDER BY m.mtime DESC, m.id DESC
+                      LIMIT 1), 0) AS INTEGER) AS root_id
+FROM items AS p
+WHERE p.kind = 'podcast' AND p.deleted_at IS NULL AND p.feed_url IS NOT NULL;
+
+-- name: PodcastAllEpisodesWithoutFile :many
+-- The live feed episodes of every live podcast with a feed that have no media file row at all (a
+-- removed episode keeps its rows): the episodes the riegel judge for AdminPodcast.unclearEpisodeCount.
+SELECT CAST(i.parent_id AS TEXT) AS podcast_id, i.id, i.title, i.sort_title, i.published_at, i.duration_ms, i.enclosure_url
+FROM items AS i JOIN items AS p ON p.id = i.parent_id
+WHERE i.kind = 'podcast_episode' AND i.deleted_at IS NULL AND i.enclosure_url IS NOT NULL
+  AND p.kind = 'podcast' AND p.deleted_at IS NULL AND p.feed_url IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = i.id)
+ORDER BY i.parent_id, i.published_at IS NULL, i.published_at DESC, i.id;
+
+-- name: PodcastAllFolders :many
+-- The folders of every podcast, live or deleted (the first level of the media files of its
+-- episodes on a podcast folder), with its library and feed: PodcastFoldersOf for all podcasts at
+-- once (riegel 1 counts the folders of earlier subscriptions of the same feed).
+SELECT DISTINCT p.id AS podcast_id, p.library_id, p.feed_url, m.root_id,
+       CAST(substr(m.rel_path, 1, instr(m.rel_path, '/') - 1) AS TEXT) AS folder
+FROM media_files AS m
+JOIN items AS e ON e.id = m.item_id
+JOIN items AS p ON p.id = e.parent_id
+JOIN library_roots AS r ON r.id = m.root_id
+WHERE e.kind = 'podcast_episode' AND p.kind = 'podcast' AND instr(m.rel_path, '/') > 1 AND r.content = 'podcast'
+ORDER BY p.id, m.root_id, folder;
+
+-- name: PodcastAllFolderFiles :many
+-- Every media file in a folder of a podcast folder, whichever item it hangs on (riegel 1):
+-- PodcastFilesInFolder for all folders at once, with the folder (the first level of rel_path).
+SELECT m.id, m.item_id, m.root_id, m.rel_path, m.missing_since, i.kind, i.parent_id, i.guid, i.deleted_at,
+       CAST(substr(m.rel_path, 1, instr(m.rel_path, '/') - 1) AS TEXT) AS folder
+FROM media_files AS m
+JOIN items AS i ON i.id = m.item_id
+JOIN library_roots AS r ON r.id = m.root_id
+WHERE r.content = 'podcast' AND instr(m.rel_path, '/') > 1
+ORDER BY m.root_id, m.rel_path;
+
+-- name: PodcastAllFileEpisodesWithoutGUID :many
+-- The live file episodes (no guid) of every podcast: PodcastListFileEpisodesWithoutGUID for all.
+SELECT CAST(i.parent_id AS TEXT) AS podcast_id, i.id, i.title, i.sort_title, i.published_at, i.duration_ms
+FROM items AS i
+WHERE i.kind = 'podcast_episode' AND i.deleted_at IS NULL AND i.guid IS NULL AND i.parent_id IS NOT NULL;

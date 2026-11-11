@@ -167,6 +167,8 @@ type Service struct {
 	// podcastChanged and podcastSavable serve the own setting of a podcast (WithPodcastSettingHooks).
 	podcastChanged func(ctx context.Context, podcastID string) error
 	podcastSavable func(ctx context.Context, podcastID string) error
+	// podcastStates adds savable and unclear episodes to the podcasts (WithPodcastStates).
+	podcastStates func(ctx context.Context, podcastID string) (map[string]model.PodcastState, error)
 	// relink queues the merge of a matched film or series into its soft-deleted twin (WithRelink).
 	relink func(ctx context.Context, itemID string) (bool, error)
 
@@ -217,6 +219,7 @@ type options struct {
 	podcastFetched func(ctx context.Context, podcastID string, newIDs []string) error
 	podcastChanged func(ctx context.Context, podcastID string) error
 	podcastSavable func(ctx context.Context, podcastID string) error
+	podcastStates  func(ctx context.Context, podcastID string) (map[string]model.PodcastState, error)
 	traktID        string
 	trakt          traktOptions
 	// The audiobook sources (book_provider.go): addresses and the Google Books key.
@@ -313,6 +316,14 @@ func WithPodcastSettingHooks(savable, changed func(ctx context.Context, podcastI
 	return func(o *options) { o.podcastSavable, o.podcastChanged = savable, changed }
 }
 
+// WithPodcastStates sets the function the list of the administration asks for the state of the
+// stored episodes of a podcast (library.Service.PodcastStates; concept 19 part A, section 11):
+// whether «Speichern» may apply and how many episodes the riegel leave unclear, for one podcast or
+// with an empty id for all. Without it every podcast is not savable and has nothing unclear.
+func WithPodcastStates(fn func(ctx context.Context, podcastID string) (map[string]model.PodcastState, error)) Option {
+	return func(o *options) { o.podcastStates = fn }
+}
+
 // WithRelink sets the function a match calls after it wrote the provider ids of a film or series
 // (library.Service.QueueRelink, ADR 0023): it reports whether the title has a soft-deleted twin
 // with the same ids and then queues the job that merges the title into it. A title with a twin is
@@ -394,6 +405,7 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		podcastFetched:  o.podcastFetched,
 		podcastChanged:  o.podcastChanged,
 		podcastSavable:  o.podcastSavable,
+		podcastStates:   o.podcastStates,
 		relink:          o.relink,
 		relinkSeries:    o.relinkSeries,
 		authorDisplay:   o.authorDisplay,

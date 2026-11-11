@@ -50,6 +50,9 @@ func (p *fakePodcasts) RefreshPodcast(context.Context, string) (model.AdminPodca
 	return model.AdminPodcast{}, model.ErrNotFound
 }
 func (p *fakePodcasts) QueueAllPodcasts(context.Context, int) ([]int64, error) { return nil, nil }
+func (p *fakePodcasts) UpdatePodcastDownloads(context.Context, string, model.PodcastDownloadsUpdate) (model.AdminPodcast, error) {
+	return model.AdminPodcast{}, model.ErrNotFound
+}
 func (p *fakePodcasts) RefreshLibrary(_ context.Context, id int64) (int, error) {
 	p.refreshed = append(p.refreshed, id)
 	return 1, nil
