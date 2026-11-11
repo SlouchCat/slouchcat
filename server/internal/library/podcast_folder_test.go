@@ -162,6 +162,50 @@ func TestPodcastFolderScanReadsPodcastsAndEpisodes(t *testing.T) {
 	}
 }
 
+// A podcast episode has no cover of its own (decision of 11 November 2026): neither the picture
+// embedded in an episode file nor an image named like the episode becomes the episode's cover;
+// only the folder image is the podcast's and queued for image.fetch. The scanner never gave an
+// episode a cover; the test guards that it stays so.
+func TestPodcastFolderEpisodesHaveNoCover(t *testing.T) {
+	t.Parallel()
+	if ffprobePath() == "" {
+		t.Fatal("ffprobe is required (install ffmpeg)")
+	}
+	media := filepath.Dir(testMedia(t))
+	withArt := filepath.Join(media, "Audiobooks", "Slouchcat Test Author", "Slouchcat Test Audio Series",
+		"01 - Slouchcat Test Audiobook M4B", "Slouchcat Test Audiobook M4B.m4b") // an attached picture
+	folder := filepath.Join(podcastFolderMedia(t), "Slouchcat Test Folder Podcast")
+	root := t.TempDir()
+	podcastDir(t, root, "Bildpodcast", map[string]any{"title": "Bildpodcast"}, map[string]string{
+		"cover.jpg":           filepath.Join(folder, "cover.jpg"),
+		"Folge mit Bild.m4b":  withArt,
+		"Folge mit Bild.jpg":  filepath.Join(folder, "cover.jpg"),
+		"Folge ohne Bild.mp3": filepath.Join(folder, "Ordnerfolge Eins.mp3"),
+	})
+	e := newEnv(t)
+	lib := e.createPodcasts(root)
+	if got := e.scan(lib.ID); got.Scan.State != "done" || got.Scan.FileCount != 2 {
+		t.Fatalf("scan = %+v, want done with 2 files", got.Scan)
+	}
+	e.probeAll(t)
+	podcast := e.str(`SELECT id FROM items WHERE kind = 'podcast'`)
+	if cover := e.str(`SELECT cover_path FROM items WHERE id = ?`, podcast); cover != "Bildpodcast/cover.jpg" {
+		t.Errorf("podcast cover_path = %q, want the folder image", cover)
+	}
+	if n := e.count(`SELECT count(*) FROM items WHERE kind = 'podcast_episode' AND deleted_at IS NULL`); n != 2 {
+		t.Fatalf("episodes = %d, want 2", n)
+	}
+	if n := e.count(`SELECT count(*) FROM items WHERE kind = 'podcast_episode' AND (cover_path IS NOT NULL OR cover_url IS NOT NULL)`); n != 0 {
+		t.Errorf("episodes with a cover of their own = %d, want 0", n)
+	}
+	if n := e.count(`SELECT count(*) FROM item_local_images WHERE item_id IN (SELECT id FROM items WHERE kind = 'podcast_episode')`); n != 0 {
+		t.Errorf("local images of episodes = %d, want 0", n)
+	}
+	if keys := e.str(`SELECT group_concat(idempotency_key) FROM jobs WHERE type = ?`, JobImageFetch); keys != "image:"+podcast {
+		t.Errorf("image jobs = %q, want only the podcast's", keys)
+	}
+}
+
 func TestPodcastFolderAdoptsAndRefusesFeeds(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)

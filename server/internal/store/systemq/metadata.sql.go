@@ -664,7 +664,7 @@ func (q *Queries) ListItemTextsByItem(ctx context.Context, itemID string) ([]Ite
 const listItemsMissingImages = `-- name: ListItemsMissingImages :many
 SELECT i.id, i.kind, i.locked_fields,
        CAST((EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'poster')
-             OR ((i.cover_path IS NOT NULL OR i.cover_url IS NOT NULL) AND i.kind IN ('audiobook', 'podcast', 'podcast_episode')))
+             OR ((i.cover_path IS NOT NULL OR i.cover_url IS NOT NULL) AND i.kind IN ('audiobook', 'podcast')))
             AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'poster') AS INTEGER) AS poster_missing,
        CAST(EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'backdrop')
             AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop') AS INTEGER) AS backdrop_missing,
@@ -675,7 +675,7 @@ WHERE i.library_id = ?1
   AND i.deleted_at IS NULL
   AND i.metadata_state = 'matched'
   AND (((EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'poster')
-          OR ((i.cover_path IS NOT NULL OR i.cover_url IS NOT NULL) AND i.kind IN ('audiobook', 'podcast', 'podcast_episode')))
+          OR ((i.cover_path IS NOT NULL OR i.cover_url IS NOT NULL) AND i.kind IN ('audiobook', 'podcast')))
         AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'poster'))
     OR (EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'backdrop')
         AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop'))
@@ -694,8 +694,8 @@ type ListItemsMissingImagesRow struct {
 }
 
 // Matched titles of a library with a decided image source (item_images, ADR 0018) but no row of
-// that kind yet (their image.fetch failed or never ran); the cover (poster) of audiobooks,
-// podcasts and episodes with a cover_path or cover_url (M6).
+// that kind yet (their image.fetch failed or never ran); the cover (poster) of audiobooks and
+// podcasts with a cover_path or cover_url (M6). A podcast episode has no cover of its own.
 func (q *Queries) ListItemsMissingImages(ctx context.Context, libraryID int64) ([]ListItemsMissingImagesRow, error) {
 	rows, err := q.db.QueryContext(ctx, listItemsMissingImages, libraryID)
 	if err != nil {
@@ -1055,6 +1055,35 @@ func (q *Queries) ListPendingMatchItems(ctx context.Context, libraryID int64) ([
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPodcastEpisodeIDs = `-- name: ListPodcastEpisodeIDs :many
+SELECT id FROM items WHERE kind = 'podcast_episode' ORDER BY id
+`
+
+// Every podcast episode, soft-deleted ones included: the folders of their image files go once
+// after migration 00049 (PurgeEpisodeImagesOnce).
+func (q *Queries) ListPodcastEpisodeIDs(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listPodcastEpisodeIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

@@ -111,8 +111,18 @@ func TestPodcastsAndAudioVisibility(t *testing.T) {
 	if err != nil || im.RelPath != a.Podcast.PosterRel {
 		t.Errorf("episode image = %+v %v, want %s", im, err, a.Podcast.PosterRel)
 	}
-	if im, err := r.Image(ctx, s, a.Episodes[0].ID, "poster", "w400", false); err != nil || im.RelPath != a.Episodes[0].PosterRel {
-		t.Errorf("own episode image = %+v %v", im, err)
+	// An episode has no cover of its own (decision of 11 November 2026): a row left from before
+	// migration 00049 is never served, in lists or as a file.
+	if _, err := f.DB.Write.Exec(`INSERT INTO images (item_id, kind, size, format, provider, source_url, rel_path, content_hash, media_type,
+	    width, height, bytes, created_at) VALUES (?, 'poster', 'w400', 'jpeg', 'cover', 'https://img.test/own.jpg', ?, 'ownHash', 'image/jpeg', 400, 400, 1, 1)`,
+		a.Episodes[0].ID, "images/"+a.Episodes[0].ID+"/poster-w400.jpg"); err != nil {
+		t.Fatal(err)
+	}
+	if im, err := r.Image(ctx, s, a.Episodes[0].ID, "poster", "w400", false); err != nil || im.RelPath != a.Podcast.PosterRel {
+		t.Errorf("episode image with a leftover row = %+v %v, want %s", im, err, a.Podcast.PosterRel)
+	}
+	if sum, err := r.Summary(ctx, s, a.Episodes[0].ID); err != nil || sum.Poster == nil || sum.Poster.ContentHash != pod.Poster.ContentHash {
+		t.Errorf("episode poster with a leftover row = %+v %v, want the podcast's", sum.Poster, err)
 	}
 	if _, err := r.Image(ctx, s, a.Books[0].ID, "poster", "w9999", false); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("unknown size: %v", err)

@@ -142,7 +142,7 @@ func (s *Service) ListStreams(ctx context.Context) ([]model.AdminStream, error) 
 		case it.Kind == "episode" && it.SeriesID.Valid:
 			pid = it.SeriesID.String // an episode shows the images of its series (concepts 11 and 12)
 		case (it.Kind == "extra" || it.Kind == "podcast_episode") && it.OwnerID.Valid:
-			pid = it.OwnerID.String // an extra its movie's or series', an episode without cover its podcast's
+			pid = it.OwnerID.String // an extra its movie's or series', a podcast episode its podcast's
 		}
 		posterOf[it.ID] = pid
 		imageIDs = append(imageIDs, it.ID, pid)
@@ -193,10 +193,7 @@ func (s *Service) ListStreams(ctx context.Context) ([]model.AdminStream, error) 
 			st.ParentTitle = it.OwnerTitle
 		}
 		pid := posterOf[st.ItemID]
-		switch {
-		case it.Kind == "podcast_episode" && posters[st.ItemID] != "":
-			st.PosterItemID, st.PosterHash = st.ItemID, posters[st.ItemID] // the episode's own cover
-		case posters[pid] != "":
+		if posters[pid] != "" {
 			st.PosterItemID, st.PosterHash = pid, posters[pid]
 		}
 		if !audio && backdrops[pid] != "" { // audio shows its square cover, never a backdrop

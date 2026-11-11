@@ -154,8 +154,11 @@ WHERE t.item_id IN (sqlc.slice('item_ids'));
 
 -- Delivered image rows (all sizes and formats, without the kept TMDB originals).
 -- name: ListItemImages :many
+-- A podcast episode has no image of its own (decision of 11 November 2026): it gets its podcast's
+-- through ListPodcastFallbackImages, a row of its own is never served.
 SELECT im.* FROM images AS im
 JOIN visible_items AS v ON v.item_id = im.item_id AND v.profile_id = @profile_id
+JOIN items AS i ON i.id = im.item_id AND i.kind <> 'podcast_episode'
 WHERE im.item_id IN (sqlc.slice('item_ids')) AND im.size <> 'original'
 ORDER BY im.item_id, im.kind, im.size, im.format;
 
@@ -183,9 +186,11 @@ ORDER BY m.missing_since IS NOT NULL, COALESCE(m.height, 0) DESC, m.created_at, 
 -- One delivered image in the wanted format with JPEG as the fallback: format 'webp' returns the
 -- WebP row when it exists, else the JPEG row; format 'jpeg' only the JPEG row.
 -- name: GetItemImage :one
--- The wanted format (webp) when stored, else the fallback of the kind (jpeg; png for a logo).
+-- The wanted format (webp) when stored, else the fallback of the kind (jpeg; png for a logo). A
+-- podcast episode has none of its own (GetPodcastFallbackImage).
 SELECT im.* FROM images AS im
 JOIN visible_items AS v ON v.item_id = im.item_id AND v.profile_id = @profile_id
+JOIN items AS i ON i.id = im.item_id AND i.kind <> 'podcast_episode'
 WHERE im.item_id = @item_id AND im.kind = @kind AND im.size = @size AND im.size <> 'original'
   AND im.format IN (@format, @fallback)
 ORDER BY im.format = 'webp' DESC

@@ -52,6 +52,7 @@ func (q *Queries) CountVisibleTrailers(ctx context.Context, arg CountVisibleTrai
 const getItemImage = `-- name: GetItemImage :one
 SELECT im.id, im.item_id, im.kind, im.size, im.format, im.lang, im.provider, im.source_url, im.rel_path, im.content_hash, im.media_type, im.width, im.height, im.bytes, im.accent, im.created_at FROM images AS im
 JOIN visible_items AS v ON v.item_id = im.item_id AND v.profile_id = ?1
+JOIN items AS i ON i.id = im.item_id AND i.kind <> 'podcast_episode'
 WHERE im.item_id = ?2 AND im.kind = ?3 AND im.size = ?4 AND im.size <> 'original'
   AND im.format IN (?5, ?6)
 ORDER BY im.format = 'webp' DESC
@@ -69,7 +70,8 @@ type GetItemImageParams struct {
 
 // One delivered image in the wanted format with JPEG as the fallback: format 'webp' returns the
 // WebP row when it exists, else the JPEG row; format 'jpeg' only the JPEG row.
-// The wanted format (webp) when stored, else the fallback of the kind (jpeg; png for a logo).
+// The wanted format (webp) when stored, else the fallback of the kind (jpeg; png for a logo). A
+// podcast episode has none of its own (GetPodcastFallbackImage).
 func (q *Queries) GetItemImage(ctx context.Context, arg GetItemImageParams) (Image, error) {
 	row := q.db.QueryRowContext(ctx, getItemImage,
 		arg.ProfileID,
@@ -514,6 +516,7 @@ func (q *Queries) ListContinueWatching(ctx context.Context, arg ListContinueWatc
 const listItemImages = `-- name: ListItemImages :many
 SELECT im.id, im.item_id, im.kind, im.size, im.format, im.lang, im.provider, im.source_url, im.rel_path, im.content_hash, im.media_type, im.width, im.height, im.bytes, im.accent, im.created_at FROM images AS im
 JOIN visible_items AS v ON v.item_id = im.item_id AND v.profile_id = ?1
+JOIN items AS i ON i.id = im.item_id AND i.kind <> 'podcast_episode'
 WHERE im.item_id IN (/*SLICE:item_ids*/?) AND im.size <> 'original'
 ORDER BY im.item_id, im.kind, im.size, im.format
 `
@@ -524,6 +527,8 @@ type ListItemImagesParams struct {
 }
 
 // Delivered image rows (all sizes and formats, without the kept TMDB originals).
+// A podcast episode has no image of its own (decision of 11 November 2026): it gets its podcast's
+// through ListPodcastFallbackImages, a row of its own is never served.
 func (q *Queries) ListItemImages(ctx context.Context, arg ListItemImagesParams) ([]Image, error) {
 	query := listItemImages
 	var queryParams []interface{}

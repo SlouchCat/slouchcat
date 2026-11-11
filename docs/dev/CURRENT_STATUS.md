@@ -1,5 +1,24 @@
 # Aktueller Stand
 
+## Podcast-Episoden ohne eigenes Cover (11. November 2026): Pull Request
+
+Migration **00049**, Vertrag bleibt (nur eine Beschreibung in `api/openapi.yaml`), Zweig
+`claude/podcast-ohne-episodencover` ab `main` `f2314dda`, nachgezogen auf `main` `b8e485a0`. Marcos Entscheid vom 11. November 2026 (Protokoll): Podcast-
+Episoden haben kein eigenes Cover, nur der Podcast hat eins. Anlass: Auf CT 190 war die Platte voll, und 12 842
+Episoden hatten je 7 Bilddateien, allein die Originale belegten 7,7 GB.
+
+- **Keine Episodenbilder mehr:** Der Feed-Abruf ignoriert `itunes:image` eines Eintrags. `image.fetch` kennt für
+  `podcast_episode` keine Bildart. Der Ordner-Scanner gab Episoden nie ein Cover, das prüft jetzt ein Test.
+- **Anzeige:** Jede Episode zeigt in Listen, Detail, Bildroute, Streamübersicht und Statistik das Cover ihres Podcasts.
+  Eine Bildzeile der Episode selbst wird nie ausgeliefert. Schon offline geladene Episoden behalten ihr gespeichertes Bild.
+- **Aufräumen:** Die Migration leert `cover_url` und `cover_path`, löscht `images`, `item_images` und
+  `item_local_images` der Episoden, das Schloss `poster` und die wartenden `image.fetch`-Aufträge. Die Dateien unter
+  `cache/images/<Episoden-ID>/` löscht der Server einmal beim ersten Start danach (`metadata.episode_images_purged`).
+- **Reihenfolge:** 00049 folgt auf 00047 (PR #141) und 00048 (PR #140), beide seit dem 11. November 2026 in `main`;
+  Teil B Stufe 2 rückt auf 00050.
+- **Offen:** Bildordner hart gelöschter Titel (auch Episoden, die nicht mehr in `items` stehen) räumt der Server
+  weiterhin nicht ab.
+
 ## Stufe B1 (11. November 2026): Radio-Angebot statt ganzer Katalog (Konzept 19 Teil B)
 
 Vertrag **1.28.0** (brechend für die Verwaltung, additiv für die App), Migration **00048**, Zweig

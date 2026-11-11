@@ -231,11 +231,11 @@ ORDER BY i.id, im.kind, im.size, im.format;
 
 -- name: ListItemsMissingImages :many
 -- Matched titles of a library with a decided image source (item_images, ADR 0018) but no row of
--- that kind yet (their image.fetch failed or never ran); the cover (poster) of audiobooks,
--- podcasts and episodes with a cover_path or cover_url (M6).
+-- that kind yet (their image.fetch failed or never ran); the cover (poster) of audiobooks and
+-- podcasts with a cover_path or cover_url (M6). A podcast episode has no cover of its own.
 SELECT i.id, i.kind, i.locked_fields,
        CAST((EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'poster')
-             OR ((i.cover_path IS NOT NULL OR i.cover_url IS NOT NULL) AND i.kind IN ('audiobook', 'podcast', 'podcast_episode')))
+             OR ((i.cover_path IS NOT NULL OR i.cover_url IS NOT NULL) AND i.kind IN ('audiobook', 'podcast')))
             AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'poster') AS INTEGER) AS poster_missing,
        CAST(EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'backdrop')
             AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop') AS INTEGER) AS backdrop_missing,
@@ -246,7 +246,7 @@ WHERE i.library_id = @library_id
   AND i.deleted_at IS NULL
   AND i.metadata_state = 'matched'
   AND (((EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'poster')
-          OR ((i.cover_path IS NOT NULL OR i.cover_url IS NOT NULL) AND i.kind IN ('audiobook', 'podcast', 'podcast_episode')))
+          OR ((i.cover_path IS NOT NULL OR i.cover_url IS NOT NULL) AND i.kind IN ('audiobook', 'podcast')))
         AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'poster'))
     OR (EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'backdrop')
         AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop'))
@@ -407,3 +407,8 @@ SELECT count(*) FROM media_files
 WHERE root_id = @root_id AND item_id <> @item_id AND missing_since IS NULL
   AND substr(rel_path, 1, length(CAST(@dir AS TEXT)) + 1) = CAST(@dir AS TEXT) || '/'
   AND instr(substr(rel_path, length(CAST(@dir AS TEXT)) + 2), '/') = 0;
+
+-- name: ListPodcastEpisodeIDs :many
+-- Every podcast episode, soft-deleted ones included: the folders of their image files go once
+-- after migration 00049 (PurgeEpisodeImagesOnce).
+SELECT id FROM items WHERE kind = 'podcast_episode' ORDER BY id;
