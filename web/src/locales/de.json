@@ -2300,6 +2300,13 @@
           "new": "Diese Bibliothek speichert neue Folgen. Aus dem ersten Abruf lädt Slouchcat nichts, erst was danach erscheint.",
           "last_n": "Diese Bibliothek speichert: nach dem Abonnieren lädt Slouchcat die {{n}} neuesten Folgen als Datei.",
           "all": "Diese Bibliothek speichert alle Folgen: nach dem Abonnieren lädt Slouchcat den ganzen Feed als Datei (höchstens 2000 Folgen)."
+        },
+        "load": {
+          "label": "Folgen laden",
+          "hint": "«Nur abonnieren» lädt nichts aus dem Feed; der Podcast speichert dann nur Folgen, die danach erscheinen.",
+          "yes": "Abonnieren und laden",
+          "no": "Nur abonnieren",
+          "required": "Bitte wählen, ob Slouchcat die Folgen laden soll."
         }
       },
       "refresh": {

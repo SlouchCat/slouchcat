@@ -1764,10 +1764,12 @@ type PodcastState struct {
 	UnclearEpisodes int
 }
 
-// PodcastCreate subscribes a podcast library to a feed.
+// PodcastCreate subscribes a podcast library to a feed. SubscribeOnly is «Nur abonnieren» in a
+// library that stores the N newest or all episodes (concept 19 part A, 12.3; loadEpisodes false).
 type PodcastCreate struct {
-	LibraryID int64
-	FeedURL   string
+	LibraryID     int64
+	FeedURL       string
+	SubscribeOnly bool
 }
 
 // The setting of stored podcast episodes (concept 19 part A, 5.1; libraries.podcast_mode and

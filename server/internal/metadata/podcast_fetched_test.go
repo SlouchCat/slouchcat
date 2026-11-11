@@ -45,7 +45,7 @@ func TestPodcastFetchedHook(t *testing.T) {
 		return out
 	}
 	ctx := context.Background()
-	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml")
+	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +88,7 @@ func TestUpdatePodcastDownloads(t *testing.T) {
 				return nil
 			}))
 	ctx := context.Background()
-	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml")
+	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +155,7 @@ func TestUpdatePodcastDownloadsChecksOnlyOnSave(t *testing.T) {
 				return nil
 			}))
 	ctx := context.Background()
-	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml")
+	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,5 +180,32 @@ func TestUpdatePodcastDownloadsChecksOnlyOnSave(t *testing.T) {
 	}
 	if want := []call{{p.ID, false}, {p.ID, true}, {p.ID, false}}; !slices.Equal(calls, want) {
 		t.Errorf("planner hook heard %+v, want %+v", calls, want)
+	}
+}
+
+// Concept 19 part A, 12.3: «Nur abonnieren» in a library that loads the N newest or all episodes
+// gives the new podcast the own scope «Nur neue Folgen», so nothing of the feed is loaded, neither
+// after the subscription nor by podcast.sync_all; «Abonnieren und laden» keeps the library's.
+func TestSubscribeWithoutLoading(t *testing.T) {
+	t.Parallel()
+	e := newPodcastEnv(t, 2)
+	mustExec(t, e.db.Write, `UPDATE libraries SET podcast_mode = 'save', podcast_scope = 'all' WHERE id = 3`)
+	ctx := context.Background()
+	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Scope != model.PodcastScopeNew || p.EffectiveScope != model.PodcastScopeNew || p.Mode != model.PodcastInherit {
+		t.Errorf("«Nur abonnieren» = scope %s (effective %s), mode %s; want the own scope new", p.Scope, p.EffectiveScope, p.Mode)
+	}
+	if err := e.svc.Unsubscribe(ctx, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	p, err = e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Scope != model.PodcastInherit || p.EffectiveScope != model.PodcastScopeAll {
+		t.Errorf("«Abonnieren und laden» = scope %s (effective %s), want the library's", p.Scope, p.EffectiveScope)
 	}
 }

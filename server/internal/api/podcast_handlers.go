@@ -66,7 +66,8 @@ func (s *server) ListPodcasts(ctx context.Context, _ gen.ListPodcastsRequestObje
 
 func (s *server) CreatePodcast(ctx context.Context, req gen.CreatePodcastRequestObject) (gen.CreatePodcastResponseObject, error) {
 	body := deref(req.Body)
-	p, err := s.opts.Admin.CreatePodcast(ctx, model.PodcastCreate{LibraryID: body.LibraryId, FeedURL: body.FeedUrl})
+	p, err := s.opts.Admin.CreatePodcast(ctx, model.PodcastCreate{LibraryID: body.LibraryId, FeedURL: body.FeedUrl,
+		SubscribeOnly: body.LoadEpisodes != nil && !*body.LoadEpisodes})
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}

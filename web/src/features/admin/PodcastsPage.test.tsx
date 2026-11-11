@@ -695,4 +695,32 @@ describe('admin podcasts page: stored episodes (concept 19 part A)', () => {
       ),
     ).toBeVisible();
   });
+  it('«Feed abonnieren» in a library that loads asks first: «Abonnieren und laden» or «Nur abonnieren»', async () => {
+    const { calls } = mockApi({
+      ...bandRoutes(savingLibrary({ mode: 'save', scope: 'all' }), folder(true)),
+      'POST /admin/podcasts': () => json(adminPodcast, 201),
+    });
+    await renderAdminPage('/admin/podcasts');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Feed abonnieren' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Feed abonnieren' });
+    await user.type(
+      within(dialog).getByRole('textbox', { name: 'Feed-Adresse' }),
+      'http://127.0.0.1:8095/feed.xml',
+    );
+    const choice = within(dialog).getByRole('radiogroup', { name: 'Folgen laden' });
+    expect(within(choice).getByRole('radio', { name: 'Abonnieren und laden' })).not.toBeChecked();
+    expect(within(choice).getByRole('radio', { name: 'Nur abonnieren' })).not.toBeChecked();
+    // Without a choice nothing is subscribed.
+    await user.click(within(dialog).getByRole('button', { name: 'Abonnieren' }));
+    expect(calls.some((call) => call.method === 'POST')).toBe(false);
+    await user.click(within(choice).getByRole('radio', { name: 'Nur abonnieren' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Abonnieren' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
+      libraryId: 3,
+      feedUrl: 'http://127.0.0.1:8095/feed.xml',
+      loadEpisodes: false,
+    });
+  });
 });

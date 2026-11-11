@@ -39,7 +39,7 @@ func (d *dbLibraries) Get(ctx context.Context, id int64) (model.Library, error) 
 // fakePodcasts records the refreshed libraries.
 type fakePodcasts struct{ refreshed []int64 }
 
-func (p *fakePodcasts) Subscribe(context.Context, int64, string) (model.AdminPodcast, error) {
+func (p *fakePodcasts) Subscribe(context.Context, int64, string, bool) (model.AdminPodcast, error) {
 	return model.AdminPodcast{}, model.ErrFeedUnreachable
 }
 func (p *fakePodcasts) Unsubscribe(context.Context, string) error { return model.ErrNotFound }

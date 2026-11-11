@@ -20,9 +20,10 @@ import (
 
 // Podcasts is implemented by package metadata: the podcast subscriptions (H-2).
 type Podcasts interface {
-	// Subscribe fetches the feed once and stores the podcast (*model.ValidationError,
-	// model.ErrFeedExists, model.ErrFeedUnreachable, model.ErrFeedInvalid).
-	Subscribe(ctx context.Context, libraryID int64, feedURL string) (model.AdminPodcast, error)
+	// Subscribe fetches the feed once and stores the podcast; loadEpisodes false is «Nur
+	// abonnieren» (concept 19 part A, 12.3) (*model.ValidationError, model.ErrFeedExists,
+	// model.ErrFeedUnreachable, model.ErrFeedInvalid).
+	Subscribe(ctx context.Context, libraryID int64, feedURL string, loadEpisodes bool) (model.AdminPodcast, error)
 	// Unsubscribe soft-deletes a subscription with its episodes (model.ErrNotFound).
 	Unsubscribe(ctx context.Context, id string) error
 	// ListPodcasts returns every live subscription, newest first.
@@ -174,7 +175,7 @@ func (s *Service) CreatePodcast(ctx context.Context, req model.PodcastCreate) (m
 	if s.podcasts == nil {
 		return model.AdminPodcast{}, ErrNotConfigured
 	}
-	return s.podcasts.Subscribe(ctx, req.LibraryID, req.FeedURL)
+	return s.podcasts.Subscribe(ctx, req.LibraryID, req.FeedURL, !req.SubscribeOnly)
 }
 
 // DeletePodcast removes a subscription with its episodes (deletePodcast).

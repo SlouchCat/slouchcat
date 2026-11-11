@@ -2300,6 +2300,13 @@
           "new": "This library stores new episodes. Slouchcat loads nothing from the first fetch, only what appears after it.",
           "last_n": "This library stores: after subscribing, Slouchcat loads the {{n}} newest episodes as files.",
           "all": "This library stores all episodes: after subscribing, Slouchcat loads the whole feed as files (at most 2000 episodes)."
+        },
+        "load": {
+          "label": "Load episodes",
+          "hint": "«Subscribe only» loads nothing from the feed; the podcast then stores only episodes that appear later.",
+          "yes": "Subscribe and load",
+          "no": "Subscribe only",
+          "required": "Please choose whether Slouchcat should load the episodes."
         }
       },
       "refresh": {

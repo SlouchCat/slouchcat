@@ -6481,6 +6481,13 @@ export interface components {
              * @description RSS feed (http or https, no credentials).
              */
             feedUrl: string;
+            /**
+             * @description Since contract 1.27.0 (concept 19 part A, 12.3). `false` is «Nur abonnieren» in a library that stores
+             *     the N newest or all episodes: the new podcast gets the own scope `new`, so nothing of the feed is
+             *     loaded, only what appears later. Absent or `true`: the library's setting applies («Abonnieren und
+             *     laden»). Without effect in a library on «Nur Link» or «Nur neue Folgen».
+             */
+            loadEpisodes?: boolean;
         };
         PodcastEpisodes: {
             episodes: components["schemas"]["ItemRef"][];
