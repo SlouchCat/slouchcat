@@ -33,6 +33,7 @@ button:focus-visible,a:focus-visible{outline:2px solid #f3f3f5;outline-offset:2p
 .bar>i{display:block;height:4px;background:#e8794a}
 .tool{position:absolute;width:36px;height:36px;border-radius:18px;background:#0b0c10d9;border:1px solid #ffffff4d;color:#f3f3f5;display:inline-flex;align-items:center;justify-content:center;padding:0}
 .tool:hover{background:#2b2f3a}
+.tool[aria-pressed="mixed"]{background:linear-gradient(90deg,#e8794a 50%,#0b0c10 50%);border-color:#e8794a}
 .ring{flex:0 0 44px;width:44px;height:44px;border-radius:22px;background:none;border:0;color:#f3f3f5;display:inline-flex;align-items:center;justify-content:center;padding:0}
 .ring>span{width:26px;height:26px;border-radius:13px;border:2px solid #9ea3b0;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center}
 .ring svg{opacity:0}
@@ -116,7 +117,7 @@ button:focus-visible,a:focus-visible{outline:2px solid #f3f3f5;outline-offset:2p
                 <span style="font-size: 12px; color: #b6b9c4;">{{s.sub}}</span>
                 <span class="bar" aria-hidden="true"><i style="{{s.pct}}"></i></span>
               </button>
-              <button class="tool" style="top: 6px; right: 6px;" aria-pressed="{{s.full}}" aria-label="{{s.markAria}}" title="Ganze Staffel als gesehen markieren" onClick="{{s.toggleAll}}"><span style="{{s.tick}}"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span></button>
+              <button class="tool" style="top: 6px; right: 6px;" aria-pressed="{{s.state}}" aria-label="{{s.markAria}}" title="{{s.markTitle}}" onClick="{{s.toggleAll}}"><span style="{{s.tick}}"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span></button>
               <button class="tool" style="top: 6px; left: 6px;" aria-label="{{s.penAria}}" title="Cover der Staffel bearbeiten (nur Verwaltung)" onClick="{{s.pen}}"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"></path></svg></button>
             </div>
           </sc-for>
@@ -226,8 +227,10 @@ class Component extends DCLogic {
         var c = count(s), full = c === N;
         return { no: s, on: s === cur, full: full, sub: N + ' Folgen' + (c && !full ? ' · ' + c + ' gesehen' : full ? ' · gesehen' : ''),
           aria: 'Staffel ' + s + ', ' + c + ' von ' + N + ' Folgen gesehen', cover: cover(s), pct: 'width: ' + Math.round(c / N * 100) + '%;',
-          tick: 'display: inline-flex; opacity: ' + (full ? 1 : 0.35) + '; color: ' + (full ? '#e8794a' : '#f3f3f5') + ';',
-          markAria: (full ? 'Haken entfernen: Staffel ' : 'Als gesehen markieren: Staffel ') + s, penAria: 'Cover bearbeiten: Staffel ' + s,
+          state: full ? 'true' : c ? 'mixed' : 'false',
+          tick: 'display: inline-flex; opacity: ' + (c ? 1 : 0.35) + '; color: ' + (full ? '#e8794a' : '#f3f3f5') + ';',
+          markTitle: full ? 'Gesehen. Klick entfernt die Haken der Staffel.' : c ? 'Teilweise gesehen. In der App fragt der Klick: alle markieren oder alle Haken entfernen.' : 'Ganze Staffel als gesehen markieren',
+          markAria: (full ? 'Haken entfernen: Staffel ' : c ? 'Teilweise gesehen: Staffel ' : 'Als gesehen markieren: Staffel ') + s, penAria: 'Cover bearbeiten: Staffel ' + s,
           pick: function () { self.setState({ season: s, toast: '' }); },
           toggleAll: function () { setAll(s, !full); },
           pen: function () { say('Bleistift: Der Editor öffnet mit dem Reiter «Bilder» für Staffel ' + s + '.'); } };

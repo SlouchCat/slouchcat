@@ -30,6 +30,7 @@ button:focus-visible,a:focus-visible{outline:2px solid #f3f3f5;outline-offset:2p
 .tool{position:absolute;top:6px;width:36px;height:36px;border-radius:18px;background:#0b0c10d9;border:1px solid #ffffff4d;color:#f3f3f5;display:inline-flex;align-items:center;justify-content:center;padding:0}
 .tool:hover{background:#2b2f3a}
 .tool[aria-pressed="true"]{background:#e8794a;border-color:#e8794a;color:#1c0d06}
+.tool[aria-pressed="mixed"]{background:linear-gradient(90deg,#e8794a 50%,#0b0c10 50%);border-color:#e8794a;color:#f3f3f5}
 .kind{position:absolute;left:6px;bottom:6px;font-size:11px;font-weight:700;background:#0b0c10d9;border-radius:8px;padding:3px 7px}
 .ov{position:fixed;inset:0;background:#000000b3;display:flex;align-items:center;justify-content:center;padding:16px;z-index:5}
 .dlg{box-sizing:border-box;width:100%;max-width:460px;background:#1d2029;border:1px solid #ffffff2e;border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:14px}
@@ -80,7 +81,7 @@ button:focus-visible,a:focus-visible{outline:2px solid #f3f3f5;outline-offset:2p
           </sc-if>
         </button>
         <button class="tool" style="left: 6px;" aria-label="{{c.penAria}}" title="Metadaten bearbeiten (nur Verwaltung)" onClick="{{c.pen}}"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"></path></svg></button>
-        <button class="tool" style="right: 6px;" aria-pressed="true" aria-label="{{c.seenAria}}" title="Gesehen. Klick entfernt den Haken." onClick="{{c.untick}}"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></button>
+        <button class="tool" style="right: 6px;" aria-pressed="{{c.state}}" aria-label="{{c.seenAria}}" title="{{c.seenTitle}}" onClick="{{c.untick}}"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></button>
       </div>
     </sc-for>
   </div>
@@ -90,7 +91,7 @@ button:focus-visible,a:focus-visible{outline:2px solid #f3f3f5;outline-offset:2p
   </sc-if>
 
   <div class="note">
-    «Gesehen» steht in der Seitenleiste unter «Radio» und gilt je Profil. Ein Film oder Hörbuch erscheint, sobald er einmal fertig ist (90 %) oder der Haken von Hand gesetzt wurde. Eine Serie oder ein Podcast erscheint als ein Eintrag, sobald eine Folge fertig ist, mit «12 von 96 Folgen»; ein Klick führt auf die Serienseite. Ein Titel bleibt in der Liste, auch wenn du ihn später nochmals anfängst. Der Haken oben rechts entfernt ihn wieder; bei Serien und Podcasts fragt Slouchcat nach, weil alle Haken der Folgen fallen. Radio kommt nicht vor.
+    «Gesehen» steht in der Seitenleiste unter «Radio» und gilt je Profil. Ein Film oder Hörbuch erscheint, sobald er einmal fertig ist (90 %) oder der Haken von Hand gesetzt wurde. Eine Serie oder ein Podcast erscheint als ein Eintrag, sobald eine Folge fertig ist, mit «12 von 96 Folgen»; ein Klick führt auf die Serienseite. Ein Titel bleibt in der Liste, auch wenn du ihn später nochmals anfängst. Der volle Haken oben rechts entfernt ihn wieder; bei Serien und Podcasts fragt Slouchcat nach, weil alle Haken der Folgen fallen. Ein halber Haken heisst «teilweise gesehen»; ein Klick fragt «alle Folgen markieren» oder «alle Haken entfernen». Radio kommt nicht vor.
   </div>
 </div>
 
@@ -101,6 +102,9 @@ button:focus-visible,a:focus-visible{outline:2px solid #f3f3f5;outline-offset:2p
       <span style="font-size: 14px; color: #d0d2da; line-height: 1.5;">{{dlgText}}</span>
       <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end;">
         <button class="bt" onClick="{{dlgClose}}">Abbrechen</button>
+        <sc-if value="{{dlgMixed}}" hint-placeholder-val="{{false}}">
+          <button class="bt" onClick="{{dlgAll}}">Alle Folgen als gesehen markieren</button>
+        </sc-if>
         <button class="bt pri" onClick="{{dlgOk}}">Alle Haken entfernen</button>
       </div>
     </div>
@@ -112,7 +116,7 @@ button:focus-visible,a:focus-visible{outline:2px solid #f3f3f5;outline-offset:2p
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { filter: 0, sort: 0, gone: {}, dlg: -1, toast: '' };
+    this.state = { filter: 0, sort: 0, gone: {}, full: {}, dlg: -1, toast: '' };
   }
   renderVals() {
     var st = this.state, self = this;
@@ -138,17 +142,22 @@ class Component extends DCLogic {
       sortLabel: S[st.sort], sortNext: function () { self.setState({ sort: (st.sort + 1) % S.length }); },
       cards: rows.map(function (x) {
         var d = x.d, i = x.i, multi = d[3] > 0, h = 30 + i * 37, word = d[1] === 'Hörbuch' || d[1] === 'Podcast' ? 'gehört' : 'gesehen';
-        return { title: d[0], kind: d[1], multi: multi, pct: 'width: ' + (multi ? Math.round(d[2] / d[3] * 100) : 0) + '%;',
-          sub: multi ? d[2] + ' von ' + d[3] + ' Folgen · zuletzt ' + d[4] : word + ' am ' + d[4],
+        var n = st.full[i] ? d[3] : d[2], mixed = multi && n < d[3];
+        return { title: d[0], kind: d[1], multi: multi, pct: 'width: ' + (multi ? Math.round(n / d[3] * 100) : 0) + '%;',
+          sub: multi ? n + ' von ' + d[3] + ' Folgen · zuletzt ' + d[4] : word + ' am ' + d[4],
           cover: 'background: linear-gradient(160deg, hsl(' + h + ' 48% 46%), hsl(' + (h + 70) + ' 42% 18%));',
-          penAria: 'Metadaten bearbeiten: ' + d[0], seenAria: 'Gesehen, Haken entfernen: ' + d[0],
+          state: mixed ? 'mixed' : 'true',
+          seenTitle: mixed ? 'Teilweise gesehen. Klick fragt: alle markieren oder alle Haken entfernen.' : 'Gesehen. Klick entfernt den Haken.',
+          penAria: 'Metadaten bearbeiten: ' + d[0], seenAria: (mixed ? 'Teilweise gesehen: ' : 'Gesehen, Haken entfernen: ') + d[0],
           open: function () { say((multi ? 'Die Serienseite' : 'Die Detailseite') + ' von «' + d[0] + '» öffnet.'); },
           pen: function () { say('Bleistift: Der Editor für «' + d[0] + '» öffnet.'); },
           untick: function () { if (multi) self.setState({ dlg: i, toast: '' }); else remove(i); } };
       }),
       hasToast: !!st.toast, toast: st.toast,
-      dlgOpen: !!cur, dlgTitle: cur ? '«' + cur[0] + '» als ungesehen markieren?' : '',
-      dlgText: cur ? 'Bei ' + cur[2] + ' Folgen fällt der Haken. Angefangene Folgen behalten ihre Stelle nicht. Das lässt sich nicht rückgängig machen.' : '',
+      dlgOpen: !!cur, dlgMixed: !!cur && !st.full[st.dlg] && cur[2] < cur[3],
+      dlgTitle: cur ? (!st.full[st.dlg] && cur[2] < cur[3] ? '«' + cur[0] + '» ist teilweise gesehen' : '«' + cur[0] + '» als ungesehen markieren?') : '',
+      dlgText: cur ? (!st.full[st.dlg] && cur[2] < cur[3] ? cur[2] + ' von ' + cur[3] + ' Folgen tragen den Haken. Alle Folgen markieren oder alle Haken entfernen? Das Entfernen lässt sich nicht rückgängig machen.' : 'Bei allen ' + cur[3] + ' Folgen fällt der Haken. Das lässt sich nicht rückgängig machen.') : '',
+      dlgAll: function () { var f = Object.assign({}, st.full); f[st.dlg] = true; self.setState({ full: f, dlg: -1, toast: '«' + cur[0] + '»: alle ' + cur[3] + ' Folgen als gesehen markiert.' }); },
       dlgClose: function () { self.setState({ dlg: -1 }); }, dlgOk: function () { remove(st.dlg); }
     };
   }

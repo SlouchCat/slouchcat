@@ -101,7 +101,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #f3f3
       <div role="radiogroup" aria-label="Was soll gelöscht werden" style="display: flex; flex-direction: column; gap: 8px;">
         <button class="opt" role="radio" aria-checked="{{modeDb}}" onClick="{{pickDb}}">
           <span class="dot" aria-hidden="true"></span>
-          <span style="display: flex; flex-direction: column; gap: 4px;"><b>Nur aus Slouchcat entfernen</b><span style="font-size: 13px; color: #b6b9c4; line-height: 1.45;">Die Datei bleibt auf der Platte. Slouchcat übergeht sie künftig beim Scan; unter «Wartung › Ignorierte Dateien» lässt sie sich wieder aufnehmen.</span></span>
+          <span style="display: flex; flex-direction: column; gap: 4px;"><b>Nur aus Slouchcat entfernen</b><span style="font-size: 13px; color: #b6b9c4; line-height: 1.45;">Die Datei bleibt auf der Platte. Der Titel bleibt entfernt, auch wenn neue Dateien dazukommen; unter «Wartung › Entfernte Titel» lässt er sich mit Fortschritt und Haken wieder aufnehmen.</span></span>
         </button>
         <button class="opt" role="radio" aria-checked="{{modeFiles}}" disabled="{{ro}}" onClick="{{pickFiles}}">
           <span class="dot" aria-hidden="true"></span>
@@ -168,14 +168,14 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #f3f3
       <h1 style="margin: 0; font-size: 22px; font-weight: 800;">Verwaltung › Bibliotheken</h1>
       <sc-if value="{{draft}}" hint-placeholder-val="{{true}}">
         <div role="status" style="border: 1px solid #e8794a; background: #e8794a14; border-radius: 12px; padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-          <span style="flex: 1 1 320px; font-size: 14px; line-height: 1.5;">Entwurf «test2» ist noch nicht gespeichert (1 Ordner).</span>
+          <span style="flex: 1 1 320px; font-size: 14px; line-height: 1.5;">Der Entwurf einer neuen Bibliothek ist noch nicht gespeichert (1 Ordner).</span>
           <button class="sb pri" onClick="{{draftOpen}}">Weiter bearbeiten</button>
           <button class="sb" onClick="{{draftDrop}}">Entwurf verwerfen</button>
         </div>
       </sc-if>
       <span style="font-size: 14px; color: #b6b9c4;">Filme · Serien · Hörbücher · Podcasts · …</span>
     </section>
-    <div class="note">Das war dein Fall mit «test2»: Im Dialog «Bibliothek hinzufügen» lag ein angefangener Entwurf. Nach dem Schliessen des Dialogs merkt sich die Seite den Entwurf, zeigt ihn aber nirgends; beim Verlassen kommt die Frage «bleiben oder verwerfen», ohne Knopf zum Speichern. Neu zeigt die Seite den Entwurf als Band mit «Weiter bearbeiten» und «Entwurf verwerfen». Das Entfernen einer Ordnerkarte allein gilt nicht mehr als Änderung.</div>
+    <div class="note">Vermutung zu deinem Fall mit «test2» (aus dem Code gelesen, noch nicht nachgestellt): Im Dialog «Bibliothek hinzufügen» lag ein angefangener, nicht gespeicherter Entwurf. Nach dem Schliessen des Dialogs merkt sich die Seite den Entwurf, zeigt ihn aber nirgends; beim Verlassen kommt die Frage «bleiben oder verwerfen», ohne Knopf zum Speichern. Neu zeigt die Seite den Entwurf als Band mit «Weiter bearbeiten» und «Entwurf verwerfen». Vor dem Bau wird deine Klickfolge nachgestellt.</div>
   </sc-if>
 
   <sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
@@ -193,7 +193,7 @@ class Component extends DCLogic {
   renderVals() {
     var st = this.state, self = this;
     var say = function (t) { self.setState({ toast: t }); };
-    var TABS = ['Jobs: Fehlgeschlagen', 'Titel löschen', 'Bibliothek löschen', 'Duplikate mit Pfad', 'Entwurf «test2»'];
+    var TABS = ['Jobs: Fehlgeschlagen', 'Titel löschen', 'Bibliothek löschen', 'Duplikate mit Pfad', 'Entwurf-Band'];
     var J = [
       ['Trickplay erzeugen · Glashaus (2023)', 'heute 02:14 · 3 Versuche', 'ffmpeg: exit status 1: moov atom not found'],
       ['Metadaten holen · Kupferstadt S1', 'heute 01:50 · 3 Versuche', 'tvdb: 401 Unauthorized'],
@@ -242,7 +242,7 @@ class Component extends DCLogic {
         { title: 'Nordlicht (2015)', meta: 'Serie · Bibliothek «test2» · 8 Dateien · 14,1 GB', path: '/media/test2/Nordlicht/' }
       ],
       draft: st.draft,
-      draftOpen: function () { say('Der Dialog «Bibliothek hinzufügen» öffnet mit dem Entwurf «test2».'); },
+      draftOpen: function () { say('Der Dialog «Bibliothek hinzufügen» öffnet mit dem Entwurf.'); },
       draftDrop: function () { self.setState({ draft: false, toast: 'Entwurf verworfen. Die Seite fragt beim Verlassen nicht mehr.' }); },
       hasToast: !!st.toast, toast: st.toast
     };

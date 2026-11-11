@@ -1,10 +1,11 @@
 # Konzept: Bedienung, Löschen und die neue Seite «Gesehen»
 
-- **Status: Fassung 1 (11. November 2026).** Marco hat am 10. und 11. November 2026 im Interview
-  elf Fragen beantwortet (**F-1 bis F-11**, Abschnitt 17), drei davon an klickbaren Mockups
-  (Anhang A). Offen sind die Punkte **O-1 bis O-12** (Abschnitt 18), jeder mit Empfehlung; bis zu
-  Marcos Antwort gilt die Empfehlung. Ein Kritiker-Review steht noch aus. **Die Umsetzung beginnt
-  erst auf Marcos ausdrückliches Wort.**
+- **Status: Fassung 2 (11. November 2026), Kritiker-Review eingearbeitet (REVISE, 1 Blocker,
+  13 Major, 13 Minor; Abschnitt 21).** Marco hat am 10. und 11. November 2026 im Interview
+  dreizehn Fragen beantwortet (**F-1 bis F-13**, Abschnitt 17), drei davon an klickbaren Mockups
+  (Anhang A), zwei nach dem Review. Offen sind die Punkte **O-1 bis O-14** (Abschnitt 18), jeder
+  mit Empfehlung; bis zu Marcos Antwort gilt die Empfehlung. **Die Umsetzung beginnt erst auf
+  Marcos ausdrückliches Wort.**
 - **Auslöser:** Marco hat am 10. November 2026 nach der Abnahme von Konzept 19 Stufe D3 auf CT 190
   vierzehn Wünsche geschickt (Abschnitt 1) und dazu ein Konzept mit Interview verlangt, für die
   Staffeln ausdrücklich einen Mockup-Vorschlag.
@@ -64,7 +65,8 @@
   (`Row.module.css:45-60`). `Row` nutzen die Startseite und auf der Detailseite Extras und
   Besetzung. **Die Staffeln nutzen `RowList` ohne Pfeile**, ebenso die Bände einer Sammlung
   (`CollectionShelf.tsx:67`), «Meine Sender» (`RadioPage.tsx:511`) und die Personen der Suche
-  (`SearchPage.tsx:304`).
+  (`SearchPage.tsx:304`). Die Posterleiste des Spotlights ist ebenfalls eine `RowList`
+  (`ui/HeroCarousel.tsx:598`), hat aber eigene Pfeile und bleibt, wie sie ist.
 - Mit der Maus bleibt also nur Umschalt+Mausrad oder die Tastatur. Ziehen geht nicht, eine
   Scrollleiste ist nicht zu sehen. Das ist Marcos Befund.
 
@@ -130,12 +132,20 @@ Serien und Podcasts.
 
 ### 3.3 Bau
 
-- **Migration** (nur vorwärts, nach Vorlage): bestehende Favoriten in die Merkliste übernehmen
-  (`INSERT OR IGNORE INTO watchlist SELECT profile_id, item_id, created_at FROM favorites`), dann
-  `DROP TABLE favorites`. Niemand verliert eine Benachrichtigung.
+- **Migration** (nur vorwärts, nach Vorlage): bestehende Favoriten in die Merkliste übernehmen,
+  dann `DROP TABLE favorites`. Niemand verliert eine Benachrichtigung.
+- **Neue Spalte `watchlist.follow_since`** (Unix-Millisekunden). Die Regel «neue Podcast-Folgen
+  automatisch laden» rechnet «neu» ab dem Datum des Eintrags (`ListFavoritePodcasts`,
+  `queries/system/offline.sql:180-196`). Übernähme sie einfach `watchlist.created_at`, gälten bei
+  einem Podcast, der seit einem Jahr auf der Merkliste steht, alle Folgen eines Jahres als neu,
+  und jedes Gerät mit dieser Regel lüde beim ersten Abgleich alte Folgen. Darum:
+  - übernommener Favorit: `follow_since` = Datum des Favoriten (auch wenn der Titel schon auf der
+    Merkliste stand; `created_at` der Merkliste bleibt, es bestimmt ihre Reihenfolge),
+  - bestehender Merklisten-Eintrag ohne Favorit: `follow_since` = Zeitpunkt der Migration,
+  - neuer Eintrag: `follow_since` = `created_at`.
 - **Server:** `NotifyHasFavorites` und `NotifyFavoriteTargets` (`queries/system/notify.sql`) lesen
   neu `watchlist`, eingeschränkt auf Einträge der Art Serie und Podcast; ebenso die Abfrage der
-  Offline-Regel (`queries/system/offline.sql:180-194`). Es entfallen `discover.Favorites`,
+  Offline-Regel, sie rechnet mit `follow_since`. Es entfallen `discover.Favorites`,
   `AddFavorite`, `RemoveFavorite` (`internal/discover/m7.go:67-94`), `visibility.Favorites` und
   `IsFavorite`, `model.ErrNotFavoritable`, der Favoriten-Zweig beim Zusammenführen und Umhängen
   (`internal/library/relink.go`, `queries/system/relink.sql:107`, `:125`, `admin.sql:264-268`).
@@ -147,9 +157,17 @@ Serien und Podcasts.
   `notifications.empty.body`, `settings.notifications.intro`, `offline.rules.intro` und
   `offline.rules.newPodcastEpisodes` nennen neu die Merkliste. `e2e/favorites.spec.ts` entfällt;
   seine zwei Abläufe (Benachrichtigung, Auto-Download) wandern in die Tests der Merkliste.
-- **Doku:** Spec E-8 und ADR 0008 bekommen einen Nachtrag («Favorit durch Merkliste abgelöst»).
-  Ältere Konzepte, Reviews, Mockups und die eingefrorenen DB-Stände in `testdata/db/` bleiben, wie
-  sie sind: Sie beschreiben den damaligen Stand.
+- **Tests, die mitziehen müssen:** die Vertragstest-Einträge der drei entfallenen Operationen
+  (Regel 7); `frozen_m7_test.go:48-49`, `frozen_m8_test.go:42` und `migration00015_test.go:80`
+  (sie fragen `favorites` nach dem Hochziehen auf die neueste Fassung ab); der Prüfer für fremde
+  Clients `cmd/apicheck` (`checks.go:34`, `:224-247`, `fixtures.go:355-357`);
+  `contract_notify_test.go`; `e2e/discover.ts`, `maintenance.spec.ts`, `notifications.spec.ts`,
+  `podcast-auto-download.spec.ts`, `durations.json`; ein Migrationstest für die Übernahme samt
+  `follow_since` (kein Nachladen alter Folgen).
+- **Doku:** Spec E-8 (`01-anforderungen-v1.md:31`, `:124`, `:180`, `:330`) und ADR 0008 bekommen
+  einen Nachtrag («Favorit durch Merkliste abgelöst»). Ältere Konzepte, Reviews, Mockups und die
+  eingefrorenen DB-Stände in `testdata/db/` bleiben, wie sie sind: Sie beschreiben den damaligen
+  Stand.
 - Der freie Platz in der Knopfreihe der Detailseite geht an den Haken «Gesehen» (Abschnitt 6).
 
 ### 3.4 Folge, die man kennen muss
@@ -217,7 +235,11 @@ Klick ohne Detailseite abspielt** (F-7):
 - Folgenliste von Serien und Staffeln (`EpisodeListItem`),
 - Folgenliste von Podcasts (`ui/EpisodeRow.tsx`, Knopf `playHref`),
 - Bände einer Hörbuch-Reihe (`VolumeRow`, `SeriesPage.tsx:342`; Text «Weiterhören ab …»),
-- «Abspielen» im Spotlight (`ui/HeroCarousel.tsx:515-526`).
+- «Abspielen» im Spotlight (`ui/HeroCarousel.tsx:515-526`), **nur bei Filmen**. Eine Serie im
+  Spotlight hat keinen eigenen Fortschritt (`ItemRef.progress` kommt nur aus der Zeile des Titels
+  selbst, `internal/visibility/mapping.go:212-222`); ob ihre nächste Folge angefangen ist, weiss
+  die Karte nicht. Für Serien bleibt «Abspielen» im Spotlight, wie es heute ist. Ein Feld
+  «nächste Folge» am Spotlight-Eintrag wäre eine Vertragsänderung und gehört nicht in Stufe 1.
 
 **Nicht** gefragt wird bei Karten der Reihe «Weiterschauen» (dort ist Weiterschauen gemeint) und
 auf der Detailseite (dort stehen die zwei Knöpfe schon).
@@ -262,7 +284,12 @@ Karten**. Der Haken wird ein Knopf:
 
 Regeln:
 
-- **Setzen** geht ohne Rückfrage, auch für eine ganze Serie.
+- **Drei Zustände bei Staffel, Serie und Podcast (F-12):** leer (keine Folge gesehen), **halb
+  gefüllt** («teilweise gesehen»), voll (alle sichtbaren Folgen gesehen). Überall gleich, auch
+  unter «Gesehen». Einzelne Titel kennen nur leer und voll.
+- **Setzen** (Klick auf den leeren Kreis) geht ohne Rückfrage, auch für eine ganze Serie.
+- **Klick auf den halben Haken** fragt: «Alle Folgen als gesehen markieren» oder «Alle Haken
+  entfernen».
 - **Entfernen** geht bei einem einzelnen Titel ohne Rückfrage. Bei Staffel, Serie und Podcast
   fragt ein Dialog nach («Bei 19 Folgen fällt der Haken …»), weil sich das nicht zurückholen lässt.
 - Auf Touch-Geräten ist der Haken wie der Bleistift immer sichtbar; mit Maus erscheint der
@@ -277,37 +304,77 @@ eigenes Merkmal neben `completed`:
 
 - **Neue Spalte `progress.watched_at`** (Unix-Millisekunden, `NULL` = nie fertig gesehen), dazu ein
   Teilindex `(profile_id, watched_at DESC) WHERE watched_at IS NOT NULL`.
-- Gesetzt wird sie, **wenn `completed` von 0 auf 1 wechselt** (derselbe Übergang, der heute das
-  Aktivitätsereignis `playback_completed` auslöst, `playback.go`), und beim Haken von Hand. Jedes
-  weitere Fertigsehen schreibt das neue Datum.
+- **Gesetzt wird sie von jedem angenommenen Ereignis, das die 90-%-Regel erfüllt:**
+  `watched_at = max(watched_at, Zeit des Ereignisses)`. Das gilt ausdrücklich auch für die zwei
+  Wege, die `completed` heute **nicht** anfassen: das verspätete Online-Ereignis
+  (`playback.go:419-425`, der Zweig `isLate` schreibt vor dem Upsert fest) und das
+  Offline-Ereignis, das älter ist als der gespeicherte Fortschritt
+  (`internal/playback/offline.go:62-66`, «zählt nur für die Schauzeit»). Sonst erschiene ein
+  Film, der offline fertig gesehen und vor dem Hochladen online nochmals gestartet wurde, nie
+  unter «Gesehen». Je Weg ein Test.
+- Dazu setzt sie der Haken von Hand (6.4).
 - Sie **bleibt stehen**, wenn ein späteres Ereignis den Titel wieder öffnet. `completed` und
   `position_ms` verhalten sich wie heute (AN-10 bleibt für «Weiterschauen»).
-- **Der Haken in der Oberfläche zeigt `watched_at`**, nicht mehr `completed`. Ein gesehener Film,
-  den man nochmals anfängt, trägt also Haken **und** Fortschrittsbalken und steht in
-  «Weiterschauen» **und** unter «Gesehen». Der Filter «Gesehen» der Bibliothek
-  (`status=watched`) und der abgeleitete Zustand von Serie, Staffel und Podcast rechnen ebenfalls
-  mit `watched_at`.
+- **Zusammenführen und Umhängen:** `AdminMergeProgress` (`queries/system/admin.sql:228-239`,
+  benutzt von `admin/maintenance.go:503` und `library/relink.go:562`) übernimmt heute die Zeile,
+  die «weiter» ist. `watched_at` bekommt dort eine eigene Regel ausserhalb dieses Vergleichs:
+  das spätere der beiden Daten gewinnt. Sonst verlöre ein Titel mitten im zweiten Durchgang
+  sein Datum. Test.
 - **Migration:** `watched_at = updated_at` für alle Zeilen mit `completed = 1`. Titel, die vor dem
   Update fertig gesehen und danach wieder angefangen wurden, lassen sich nicht nachtragen; das
   Wissen fehlt in der Datenbank.
-- Offline gesehene Titel bekommen `watched_at` beim Hochladen der Ereignisse, mit der Zeit des
-  Ereignisses (`internal/playback/offline.go:65-67` wendet die 90-%-Regel schon an).
+
+**Wer liest künftig was.** Die Faustregel: Alles, was **weiterführt**, liest `completed` wie
+heute; alles, was **anzeigt oder filtert**, liest `watched_at`.
+
+| Leser | Liest | Bemerkung |
+|---|---|---|
+| «Weiterschauen» (`ListContinueWatching`, `queries/scoped/items.sql:46-99`) | `completed`, `position_ms`, `updated_at` | unverändert |
+| Nächste Folge (`ListSeriesNextUpEpisodes`, `GetNextVisibleEpisode`, `visibility/nextup.go`) | `completed` | unverändert |
+| Nächster Band einer Hörbuch-Reihe (`visibility/audio_series.go:51-68`) | `completed` | unverändert |
+| Offline-Regeln (`ListRecentEpisodeProgress`, `CountOpenAutoDownloads`, `queries/system/offline.sql`) | `completed`, `updated_at` | unverändert |
+| Laufende Sitzungen (`internal/playback/sessions.go:237`) | `completed` | unverändert |
+| Haken auf Karten und Zeilen, `ItemRef.watched`, `watchedCount` (`items.sql:204-246`, `visibility/tree.go`) | **`watched_at`** | geändert |
+| Filter und Zustand der Bibliothek (`visibility/library.go:266-269`, `:412-418`, `:506-540`) | **`watched_at`**, dann `position_ms` | geändert, siehe unten |
+| «Gesehen» (`listWatched`) | **`watched_at`** | neu |
+
+- **Zustand in der Bibliothek bleibt eindeutig:** `watched`, sobald `watched_at` gesetzt ist;
+  `started` nur ohne `watched_at` und mit Stelle grösser als null; sonst `unwatched`. Ein
+  gesehener Film im zweiten Durchgang zählt also als «gesehen», nicht als «angefangen»; in
+  «Weiterschauen» steht er trotzdem.
+- **Schritt 0 des Baus:** jede Fundstelle von `completed` in `server/` und `web/` einer der zwei
+  Spalten zuordnen und die Tabelle oben vervollständigen.
 
 ### 6.4 Vertrag und Server
 
 - **Neue Operation `setItemWatched`**: `PUT /items/{id}/watched`, Körper `{ "watched": true|false }`,
   `x-visibility: scoped`; ein nicht sichtbarer Titel gibt 404.
-  - Einzelner Titel (Film, Folge, Extra, Hörbuch, Podcast-Folge): `true` setzt `completed = 1`,
-    `position_ms = duration_ms`, `watched_at = jetzt`, `updated_at = jetzt`; `false` setzt
-    `completed = 0`, `position_ms = 0`, `watched_at = NULL` (die Zeile bleibt wegen der gemerkten
-    Hörgeschwindigkeit).
-  - Serie, Staffel, Podcast: dasselbe für **alle sichtbaren Folgen** darunter, in einer
+  - **Einzelner Titel, `true`** (Film, Folge, Extra, Hörbuch, Podcast-Folge): `completed = 1`,
+    `position_ms = duration_ms`, `watched_at = jetzt`, `updated_at = jetzt`. Gibt es noch keine
+    Zeile, kommt `duration_ms` aus der Dauer der Hauptdatei (Probe), sonst aus der Laufzeit der
+    Metadaten oder des Feeds; ist keine Dauer bekannt, stehen Dauer und Stelle auf 0.
+  - **Einzelner Titel, `false`:** `watched_at = NULL`. War der Titel fertig (`completed = 1`),
+    zusätzlich `completed = 0` und `position_ms = 0`. **Eine laufende Stelle bleibt** (zweiter
+    Durchgang, `completed = 0`), und **`updated_at` bleibt unverändert**: Das Entfernen eines
+    Hakens darf weder «Weiterschauen» umsortieren noch die Offline-Regel «nächste Folge laden»
+    auslösen (`ListRecentEpisodeProgress` hat keinen Filter auf die Stelle,
+    `offline.sql:170-178`). Die Zeile bleibt wegen der gemerkten Hörgeschwindigkeit.
+  - **Serie, Staffel, Podcast:** dasselbe für **alle sichtbaren Folgen** darunter, in einer
     Transaktion. Folgen, die das Profil nicht sehen darf, bleiben unberührt.
-  - `updated_at = jetzt` ist Absicht: Setzt man Staffel 1 von Hand auf gesehen, erscheint die
-    Serie in «Weiterschauen» mit der ersten Folge von Staffel 2 (Regel aus Konzept 15, P-1).
-- **Additive Felder:** `watchedAt` am Fortschritt eines Titels; die Karten (`ItemSummary`) tragen
-  schon, was sie für Balken und Abzeichen brauchen, und bekommen `watched` (für abgeleitete Arten:
-  alle sichtbaren Folgen gesehen).
+  - **`updated_at` beim Setzen vieler Folgen gestaffelt:** in Folgenreihenfolge aufsteigend
+    (`jetzt − n` … `jetzt`, eine Millisekunde Abstand), die letzte Folge ist die jüngste. Bekämen
+    alle dieselbe Zeit, griffe die Offline-Regel «nächste Folge» eine beliebige Folge heraus
+    (`internal/offline/sync.go:281-299` nimmt die erste Zeile je Serie) und lüde womöglich eine
+    eben markierte Folge; «Weiterschauen» entschiede den Gleichstand nach der grössten Kennung
+    (`items.sql:59-61`). Mit der Staffelung erscheint nach «Staffel 1 gesehen» die Serie in
+    «Weiterschauen» mit der ersten Folge von Staffel 2 (Regel aus Konzept 15, P-1). Test für
+    beide Leser.
+- **`ItemRef.watched` gibt es schon** (seit Vertrag 1.22.0: «alle sichtbaren Folgen fertig»,
+  `queries/scoped/items.sql:204-246`, `visibility/tree.go:20-21`). Das Feld bleibt, seine
+  **Bedeutung ändert sich** von `completed` auf `watched_at`; die Beschreibung im Vertrag wird
+  angepasst. `watchedCount` zählt ebenfalls neu nach `watched_at`. Aus `watchedCount` und der
+  Zahl der Folgen ergibt sich der halbe Haken (F-12).
+- **Additiv:** `watchedAt` am Fortschritt eines Titels.
 - Das Schreiben liegt im Paket `playback` (wie `reportProgress`), das Lesen in `visibility`
   (Regel 2). Ein Aktivitätsereignis schreibt der Haken von Hand nicht (O-2).
 - Tests: Vertragstest je neue Operation (Regel 7), Sichtbarkeitstest (Kinderprofil darf über die
@@ -337,21 +404,29 @@ Mockup «Jobs, Löschen, Duplikate», Thema «Jobs: Fehlgeschlagen».
 - **Die Liste zeigt alle fehlgeschlagenen Läufe**, seitenweise, nicht nur zehn.
 - Der Knopf je Zeile heisst **«Löschen»** statt «Abbrechen»; auch unter «Läufe» bekommt ein
   fehlgeschlagener Lauf ihn (dort fehlt er heute, `JobsPage.tsx:1780-1790`).
-- «Löschen» heisst wie heute: Der Lauf wird `cancelled`, verschwindet aus «Fehlgeschlagen» und
-  wird nach der 30-Tage-Regel ganz entfernt. Unter «Läufe» ist er bis dahin als abgebrochen zu
-  sehen.
+- «Löschen» heisst wie heute beim Papierkorb: Der Lauf wird `cancelled` und verschwindet aus
+  «Fehlgeschlagen». Unter «Läufe» steht er danach als «abgebrochen», nicht mehr als
+  «fehlgeschlagen», bis `jobs.prune` ihn wegräumt (älter als 30 Tage und nicht unter den jüngsten
+  50 Läufen seiner Art, `queries/system/jobs.sql:199-212`). Die Rückfrage sagt das.
 
 ### 7.3 Vertrag und Server
 
 - `retryFailedJobs`: `POST /admin/jobs/failed/retry`, optional `type`; antwortet mit
-  `{ retried, skipped }`. Ein Lauf wird übersprungen, wenn schon ein wartender oder laufender
-  Zwilling mit demselben Idempotenzschlüssel besteht (dieselbe Regel wie `RetryFailedJob`,
-  `queries/system/admin_dashboard.sql:20-28`).
+  `{ retried, skipped, merged }`.
+  - Übersprungen wird ein Lauf, wenn schon ein wartender oder laufender Zwilling mit demselben
+    Idempotenzschlüssel besteht (dieselbe Regel wie `RetryFailedJob`,
+    `queries/system/admin_dashboard.sql:20-28`).
+  - Haben **mehrere fehlgeschlagene Läufe denselben Schlüssel**, wird nur der jüngste neu
+    eingereiht; die älteren werden verworfen (`merged`). Eine einzige `UPDATE`-Anweisung über
+    alle würde sonst am eindeutigen Teilindex `jobs_active_idempotency_key`
+    (`migrations/00001_jobs.sql:27-28`) scheitern und ganz abbrechen. Test mit doppeltem
+    Schlüssel.
 - `dismissFailedJobs`: `DELETE /admin/jobs/failed`, optional `type`; antwortet mit `{ dismissed }`.
-- `listJobRuns`: `type` wird freiwillig, wenn `state=failed` gesetzt ist (heute Pflicht,
-  `api/openapi.yaml:6095-6150`).
-- Alle drei `x-visibility: admin`, additiv. Beide Sammelaktionen sind je eine SQL-Anweisung, keine
-  Schleife im Browser.
+- `listJobRuns`: bekommt `offset` (fehlt heute, `api/openapi.yaml:6095-6125`), und `type` wird
+  freiwillig. «Ohne `type` nur mit `state=failed`» lässt sich in OpenAPI nicht ausdrücken; der
+  Handler prüft es und antwortet sonst mit 422. Der generierte Parameter wird ein Zeiger.
+- Alle drei `x-visibility: admin`, additiv. Die Sammelaktionen laufen im Server in einer
+  Transaktion, nicht als Schleife im Browser.
 
 ## 8. P-7 Startseite: Reihentitel führen zur Liste
 
@@ -411,12 +486,28 @@ Mockups «Startseite» und «Listenseite».
   `released`, `spotlight`; Parameter `content` (Medienart), `offset`, `limit` (höchstens 100).
   `x-visibility: scoped`; Antwort wie die anderen Listen (`items`, `total`), die Karten in
   derselben Form wie in `getHome`.
-- Server: Die vier Leser in `visibility` (`ContinueWatching`, `Recent`, `Released`,
-  `SpotlightRow`) bekommen Versatz und Grenze; die Abfragen bleiben in `queries/scoped/` und
-  enthalten `visible_items` (Regel 2).
+- Die vier Leser in `visibility` begrenzen heute hart auf 20 (`clamp`, `MaxRowItems`,
+  `visibility.go:194-260`) und lassen sich **nicht alle gleich** blättern. Je Reihe:
+
+  | Reihe | Wie die Liste entsteht |
+  |---|---|
+  | `recent`, `released` | Eigene Abfragen mit `OFFSET`/`LIMIT` und eine Zählabfrage in `queries/scoped/`. Der Filter `content` darf den Teilindex `items_top_added` nicht aushebeln; der Bau prüft den Abfrageplan. |
+  | `continue` | Die Abfrage rechnet immer die ganze Liste (ein Eintrag je Serie, `items.sql:46-99`); ein SQL-Versatz spart nichts. Der Server rechnet sie einmal je Aufruf **bis höchstens 200 Einträge** und schneidet die Seite in Go; `total` ist die Länge. Die Reihenfolge kann sich zwischen zwei Seiten verschieben, wenn gerade jemand schaut; das ist hingenommen. |
+  | `spotlight` | Die Reihenfolge entsteht in Go (`placeSpotlight`, `visibility/discover.go:298-330`), die Abfrage hat mit Absicht kein `LIMIT` (`queries/scoped/spotlight.sql:1-7`, höchstens 200 Zeilen). Geblättert wird in Go nach dem Einsetzen der angehefteten Titel, ohne den Schnitt auf `item_count`. |
+
+- **Filter `content`:** zählt die Art des **Titels der obersten Ebene**. «Serien» trifft in
+  «Weiterschauen» also die Karten mit der nächsten Folge einer Serie.
+- **Spotlight ohne Reihe:** Ist das Spotlight abgeschaltet oder liegt die Trefferzahl unter
+  `min_hits`, fehlt die Reihe auf der Startseite, und `listHomeRow` gibt für `spotlight` 404
+  (dieselbe Bedingung wie die Reihe, `discover.go:387-389`).
+- **Messauftrag M-3:** Antwortzeit von `listHomeRow` für `continue` mit 200 angefangenen Titeln
+  und für `recent` mit Filter auf CT 190; Ziel unter 150 ms.
+- Alle Abfragen bleiben in `queries/scoped/` und enthalten `visible_items` (Regel 2).
 - **Neue Operation `listCollections`** für `/collections` (O-3), falls sie gebaut wird.
-- Additiv. Tastaturtest für die neue Seite und für den Reihentitel als Fokus-Halt (Pfeil nach oben
-  aus der Reihe führt auf den Titel, Enter öffnet die Liste) in `e2e/home.spec.ts`.
+- Additiv. Tastaturtest für die neue Seite. **Der Reihentitel wird ein Fokus-Halt:** Pfeil nach
+  oben aus einer Reihe führt neu auf ihren Titel statt in die Reihe darüber, Enter öffnet die
+  Liste. Das ändert die Pfeilwege **aller** Reihen der Startseite; die Tastaturtests der
+  Startseite (`e2e/home*.spec.ts`, `home-radio.spec.ts`) werden entsprechend nachgeführt.
 
 ## 9. P-8 Bibliothek löschen
 
@@ -424,10 +515,12 @@ Mockups «Startseite» und «Listenseite».
 
 Eine Bibliothek lässt sich nicht löschen: Der Vertrag hat kein `deleteLibrary`
 (`/admin/libraries/{id}` kennt nur `get` und `patch`), die Oberfläche keinen Knopf. Konzept 15
-hält das fest (`15-feinschliff.md:538-540`), das Protokoll führt es unter «Nicht gebaut»
-(`04-entscheidungen.md:22`). Man kann nur einzelne Ordner entfernen (`removeLibraryRoot`). Die
-Fremdschlüssel sind vorbereitet: Mit der Bibliothekszeile fallen Ordner, Titel und alles, was an
-Titeln hängt (`migrations/00003_libraries_items.sql:37`, `:51`).
+hält das fest (`15-feinschliff.md:538-540`). Man kann nur einzelne Ordner entfernen
+(`removeLibraryRoot`). Die Fremdschlüssel sind grösstenteils vorbereitet: Mit der Bibliothekszeile
+fallen Ordner, Titel und alles, was an Titeln hängt (`migrations/00003_libraries_items.sql:37`,
+`:51`). **Eine Lücke gibt es:** `profile_libraries.library_id` hat keinen Fremdschlüssel
+(`migrations/00002_accounts_sessions.sql:43-47`), und `libraries.id` wird ohne `AUTOINCREMENT`
+vergeben (`00023_library_roots_providers.sql:88-89`), SQLite vergibt die höchste Nummer also neu.
 
 ### 9.2 Vorschlag
 
@@ -443,22 +536,47 @@ Mockup «Jobs, Löschen, Duplikate», Thema «Bibliothek löschen».
   Fortschritt, Merkliste, Empfehlungen, eigene Bilder und Texte, die Startseitenreihe «Neu in …»,
   die Freigaben der Profile, Downloads dieser Titel. Ein späterer Scan derselben Ordner in einer
   neuen Bibliothek legt die Titel ohne Benutzerdaten neu an.
-- **Sicherheitsnetz:** Vor dem Löschen sichert der Server die Datenbank mit `VACUUM INTO`, wie vor
-  jeder Migration (`internal/store/migrate.go`); die Sicherung lässt sich mit der vorhandenen
-  Wiederherstellung zurückspielen.
+- **Sicherheitsnetz:** Vor dem Löschen sichert der Server die Datenbank mit `VACUUM INTO`. Die
+  Sicherung bekommt einen **eigenen Namen und eine eigene Aufbewahrung** (die letzten zwei), damit
+  sie keine der fünf Sicherungen vor Migrationen verdrängt (`internal/store/migrate.go:19`,
+  `:72`). Der Dialog sagt dazu: Wer diese Sicherung zurückspielt, setzt **alles** auf den Stand
+  vor dem Löschen zurück, auch den Fortschritt aller Profile seither.
+- **Sammlungen:** TMDB-Sammlungen, die danach kein Mitglied mehr haben, werden mitgelöscht;
+  von Hand angelegte Sammlungen bleiben leer stehen.
 
 ### 9.3 Vertrag und Server
 
-- `deleteLibrary`: `DELETE /admin/libraries/{id}?confirmName=…`, `x-visibility: admin`; 409, wenn
-  der Name nicht passt.
-- Ablauf im Paket `library` unter der Scan-Sperre (`lockScan`): laufenden Scan und wartende Jobs
-  der Bibliothek abbrechen, Datenbank sichern, Bibliothekszeile löschen (die Fremdschlüssel räumen
-  den Rest), danach die Dateien im eigenen Cache aufräumen (Bilder, Trickplay, Transkodierungen,
-  Downloads) über die vorhandenen Aufräumläufe.
+- `deleteLibrary`: `POST /admin/libraries/{id}/deletion`, Körper `{ "confirmName": "…" }`,
+  `x-visibility: admin`; 422, wenn der Name nicht passt. Das folgt dem vorhandenen Muster
+  (`POST …/roots/{rootId}/removal` mit `confirmPath`) und hält den Namen aus der Adresszeile und
+  damit aus den Logs.
+- **Die Freigaben der Profile müssen ausdrücklich mit (Blocker aus dem Review).** Bliebe eine
+  Zeile in `profile_libraries` stehen und bekäme die nächste neue Bibliothek dieselbe Nummer,
+  sähe ein eingeschränktes Profil die neue Bibliothek, ohne dass jemand sie freigegeben hat
+  (`visible_items` prüft nicht, ob die Bibliothek noch besteht, `00022_account_roles.sql:89-94`).
+  Darum beides:
+  1. `deleteLibrary` löscht `profile_libraries WHERE library_id = ?` in derselben Transaktion.
+  2. Eine **Migration** baut `profile_libraries` mit Fremdschlüssel auf `libraries` neu
+     (`ON DELETE CASCADE`, nach Vorlage; verwaiste Zeilen fallen dabei weg).
+  3. Test: die Bibliothek mit der höchsten Nummer löschen, eine neue anlegen; das eingeschränkte
+     Profil sieht sie nicht.
+  `activity_events.library_id` (`00031:27`) wird für die gelöschte Bibliothek auf `NULL` gesetzt;
+  der Name steht im Text des Ereignisses.
+- Ablauf im Paket `library` unter der Scan-Sperre (`lockScan`):
+  1. Laufenden Scan abbrechen. **Wartende und laufende Jobs zu Titeln der Bibliothek abbrechen**
+     (Abgleich, Trickplay, Keyframes, Bilder hängen am Titel, nicht an der Bibliothek; sie
+     scheiterten sonst nach dem Löschen und füllten «Fehlgeschlagen»).
+  2. **Laufende Wiedergaben und Transkodierungen** auf Dateien der Bibliothek beenden.
+  3. Datenbank sichern.
+  4. Bibliothekszeile und Freigaben löschen; die Fremdschlüssel räumen den Rest.
+  5. Dateien im eigenen Cache aufräumen. Für Trickplay und Kapitelbilder gibt es Aufräumläufe
+     (`internal/library/sweep.go:22-37`); **für die Bilddateien endgültig gelöschter Titel wurde
+     keiner gefunden**, der Bau ergänzt ihn.
 - **Messauftrag M-1 vor dem Bau:** Wie lange dauert das Löschen einer Bibliothek mit 10 000 Titeln
   auf CT 190 (die Suchtabellen hängen an Triggern)? Unter fünf Sekunden läuft es direkt in der
-  Anfrage; darüber als Hintergrundjob `library.delete`, die Bibliothek verschwindet sofort aus den
-  Ansichten.
+  Anfrage. Darüber läuft es als Hintergrundjob `library.delete`; dann braucht die Bibliothek ein
+  Merkmal «wird gelöscht», damit sie sofort aus allen Ansichten verschwindet, und die Jobart
+  einen Eintrag in `job_types`. Das wäre eine zweite Migration.
 - Podcast-Bibliotheken: Auch Abos ohne Datei gehen mit (O-4).
 
 ## 10. P-9 Titel löschen: nur aus Slouchcat
@@ -474,9 +592,18 @@ Abschnitt 11 die zweite.
   Titel **ohne** Datei weg und merkt entfernte Dateien in `ignored_files`,
   `api/openapi.yaml:4653-4690`), `mergeItems` (Duplikate) und `deletePodcast` (Abo beenden).
 - Alle diese Wege löschen nur in der Datenbank, und zwar weich: Der Titel bekommt `deleted_at`,
-  Fortschritt und Merkliste bleiben an ihm hängen und kommen zurück, wenn derselbe Titel wieder
-  auftaucht (Umhängen über die Anbieter-Nummer, ohne Frist).
-- Eine Ansicht der ignorierten Dateien gibt es nicht; was einmal ignoriert ist, bleibt es.
+  Fortschritt und Merkliste bleiben an ihm hängen.
+- **Die Ignorierliste taugt nicht für «Titel entfernen».** `IgnoreFiles` merkt sich **genaue
+  Pfade** und löscht die Zeile in `media_files` (`internal/library/service.go:503-545`). Daraus
+  folgt zweierlei:
+  - Der Titel **kommt zurück**, sobald eine Datei unter anderem Pfad auftaucht: eine neue Folge im
+    Serienordner, ein Upgrade oder eine Umbenennung durch Radarr oder Sonarr.
+  - Nimmt man eine ignorierte Datei wieder auf, entsteht ein **neuer** Titel. Das automatische
+    Umhängen der Benutzerdaten gilt nur für Filme und Serien derselben Bibliothek
+    (`queries/system/relink.sql:24`, `:36`) und nur innert der Frist `relinkGrace`; bei Folgen,
+    Staffeln, Hörbüchern und Podcast-Folgen bliebe der Fortschritt am toten Titel hängen.
+- Eine Ansicht der ignorierten Dateien gibt es nicht. Die Liste eines Ordners wird geleert, wenn
+  sich sein Inhalt ändert (`library/update_root.go:378`) oder der Ordner entfernt wird.
 
 ### 10.2 Vorschlag
 
@@ -491,24 +618,41 @@ Mockup «Jobs, Löschen, Duplikate», Thema «Titel löschen».
   Pfad und Grösse, bei Serie, Staffel und Podcast den Ordner, die Zahl der Dateien und die
   Gesamtgrösse.
 - **Bestätigung:** bei einer einzelnen Datei der rote Knopf; bei mehreren Dateien muss der Titel
-  eingetippt werden.
-- **«Nur aus Slouchcat entfernen»:** Die Dateien kommen auf die Ignorierliste (`ignored_files`,
-  dieselbe Mechanik wie B-9), ihre Zeilen in `media_files` fallen weg, der Titel wird weich
-  gelöscht und verschwindet für alle Profile aus allen Listen. Downloads auf den Geräten werden
-  entfernt. Fortschritt, Haken und Merkliste bleiben gespeichert.
-- **Neu «Wartung › Ignorierte Dateien»:** Liste aller ignorierten Dateien mit Pfad und Datum,
-  je Zeile «Wieder aufnehmen». Der nächste Scan bringt die Datei zurück, der Titel lebt mit seinen
-  Benutzerdaten wieder auf. Ohne diese Ansicht wäre «nur entfernen» eine Einbahnstrasse.
+  eingetippt werden, so wie der Dialog ihn zeigt (Vergleich ohne Gross- und Kleinschreibung, ohne
+  Leerzeichen am Rand).
+- **Läuft der Titel gerade bei jemandem,** nennt der Dialog das Profil; das Löschen beendet die
+  Wiedergabe (O-13).
+- **«Nur aus Slouchcat entfernen»** arbeitet am **Titel**, nicht an Pfaden (F-13):
+  - Der Titel bekommt neben `deleted_at` das neue Merkmal **`items.removed_at`** («vom
+    Administrator entfernt»). Seine Zeilen in `media_files` **bleiben**.
+  - Er verschwindet für alle Profile aus allen Listen (`visible_items` verlangt schon
+    `deleted_at IS NULL`); Downloads auf den Geräten werden entfernt. Fortschritt, Haken und
+    Merkliste bleiben am Titel.
+  - **Er bleibt entfernt, was immer im Ordner geschieht.** Der Scanner belebt einen Titel mit
+    `removed_at` nicht wieder (`RestoreItem`, `queries/system/items.sql:86-97`, und die Belebung
+    der Eltern), und er hängt **nichts Neues darunter**: Eine neue Folge im Ordner einer
+    entfernten Serie, eine neue Staffel, eine neue Version eines entfernten Films werden dem
+    entfernten Titel zugeordnet und bleiben mit ihm unsichtbar.
+  - Bei Serie, Staffel und Podcast tragen alle Titel darunter dasselbe Merkmal.
+- **Neu «Wartung › Entfernte Titel»:** Liste der entfernten Titel (Titel, Art, Bibliothek, Ordner,
+  Datum), je Zeile **«Wieder aufnehmen»**. Das löscht `removed_at` und `deleted_at`; es ist
+  **derselbe Titel** mit allen Folgen, Fortschritt, Haken und Merkliste, für jede Art. Dateien,
+  die inzwischen fehlen, behandelt der nächste Scan wie immer.
+- **Schritt 0 des Baus:** nachstellen, wie der Scanner heute eine neue Datei unter einer weich
+  gelöschten Serie behandelt (im Review nicht geklärt), und die Regel oben mit Tests festnageln:
+  neue Folge, umbenannte Datei, Upgrade auf andere Auflösung, je für Film und Serie.
 - Jedes Löschen schreibt ein Aktivitätsereignis (wer, welcher Titel, welche Wahl, wie viele
   Dateien, wie viele Bytes).
 
 ### 10.3 Vertrag und Server
 
-- `getItemDeletion`: `GET /admin/items/{id}/deletion` → Vorschau (`files[]` mit `rootPath`, `path`,
-  `sizeBytes`; `fileCount`, `totalBytes`, `filesDeletable`, `reason`).
+- `getItemDeletion`: `GET /admin/items/{id}/deletion` → Vorschau: `files[]` mit `rootPath`, `path`,
+  `sizeBytes`, `deletable`, `reason` **je Datei**; dazu `fileCount`, `totalBytes`,
+  `confirmTitle`, `playingProfiles[]`.
 - `deleteItem`: `POST /admin/items/{id}/deletion`, Körper `{ "mode": "library" | "files",
   "confirmTitle": "…" }` → Ergebnis (`removedItems`, `deletedFiles`, `deletedBytes`, `leftover[]`).
-- `listIgnoredFiles`, `restoreIgnoredFile` für die neue Wartungsansicht.
+- `listRemovedItems`, `restoreRemovedItem` für die neue Wartungsansicht.
+- **Migration:** Spalte `items.removed_at`.
 - Alle `x-visibility: admin`, additiv. Die Logik liegt im Paket `library` (Regel 2 erlaubt dort den
   Zugriff auf `items` und `media_files`) und läuft unter der Scan-Sperre, damit ein gleichzeitiger
   Scan die Dateien nicht wieder einträgt. Läuft der Titel gerade, bricht der Server die Wiedergabe
@@ -523,8 +667,10 @@ Mockup «Jobs, Löschen, Duplikate», Thema «Titel löschen».
   (B-1, `03-plan-v1.md:19`, `:214`), ein Abnahmetest prüft, dass Schreiben nach `/media` scheitert
   (`:539`), und das Protokoll bekräftigt es («Medienwurzeln bleiben read-only (B-1)»,
   `04-entscheidungen.md:49`).
-- Das Paket `paths` bietet nur lesende Helfer (`internal/paths/root.go:16-124`). Alle
-  `Remove`-Aufrufe des Servers treffen `/config` oder `/cache`.
+- Das Paket `paths` bietet keine Funktion zum Löschen (`internal/paths/root.go:16-124`), gibt mit
+  `paths.Open` aber ein volles `*os.Root` heraus, das `Remove` könnte. Benutzt wird das nirgends:
+  Alle `Remove`-Aufrufe des Servers treffen `/config` oder `/cache`. Geschützt ist das heute nur
+  durch den `:ro`-Schalter, nicht durch den Linter.
 - Konzept 19 Teil A (noch nicht gebaut) öffnet erstmals einen Ordner zum Schreiben, den
   Podcast-Ordner, und hält fest: «Slouchcat löscht nie eine Datei im Podcast-Ordner» (F-4).
 
@@ -534,27 +680,49 @@ Mockup «Jobs, Löschen, Duplikate», Thema «Titel löschen».
   `:ro` ein. Wer Dateien aus Slouchcat löschen will, stellt den Ordner **selbst und bewusst** auf
   schreibbar um; die Installationsanleitung beschreibt es. Der `:ro`-Schalter bleibt damit die
   harte Sicherung: Ohne ihn umzulegen, kann kein Fehler in Slouchcat eine Datei löschen.
-- **Der Server prüft je Ordner, ob er schreiben darf** (Schreibprobe beim Start und beim Öffnen
-  des Dialogs, ohne eine Datei liegen zu lassen). Der Dialog «Ordner von …» zeigt den Stand
-  («schreibbar» / «nur lesbar»). Ist der Ordner des Titels nur lesbar, ist die Wahl «Auch die
-  Dateien löschen» grau, mit Hinweis.
-- **Was gelöscht wird:** nur, was Slouchcat sicher zuordnen kann:
-  1. die Mediendateien des Titels aus `media_files` (alle Versionen und Teile, bei Serie und
-     Staffel die aller Folgen),
-  2. Begleitdateien **mit demselben Dateistamm** daneben (Untertitel, `.nfo`, Bilder wie
-     `Film (2024)-poster.jpg`),
-  3. danach den Ordner, **wenn er leer ist**, und leere Elternordner bis unter den
+- **Der Server prüft, ohne zu schreiben, ob er löschen darf.** Eine Schreibprobe (Datei anlegen
+  und wieder löschen) wäre die falsche Sicherung: Sie prüfte den Bibliotheksordner statt des
+  Ordners der Datei, und jede Probe weckte die Ordner-Überwachung von Slouchcat, Radarr und
+  Sonarr. Stattdessen:
+  - **Je Ordner der Bibliothek:** Ist das Dateisystem nur lesbar eingehängt (`statfs`, Merkmal
+    `ST_RDONLY`)? Der Dialog «Ordner von …» zeigt «schreibbar» oder «nur lesbar».
+  - **Je Datei in der Vorschau:** Darf der Server im **Elternordner dieser Datei** schreiben
+    (`unix.Faccessat` mit `W_OK`)? Ordner von Radarr und Sonarr haben oft eigene Besitzer und
+    Rechte. Die Vorschau meldet `deletable` und `reason` je Datei.
+  - Ist auch nur eine Datei nicht löschbar, ist die Wahl «Auch die Dateien löschen» grau, mit dem
+    Grund.
+- **Was gelöscht wird,** genau und in dieser Reihenfolge:
+  1. die Mediendateien aus `media_files` des Titels, **aller Titel darunter und seiner Extras**
+     (alle Versionen und Teile; bei Serie und Staffel die aller Folgen),
+  2. die **Bild- und `.nfo`-Dateien, die Slouchcat für diesen Titel selbst eingelesen und
+     verzeichnet hat** (`internal/library/local_images.go`, `nfo.go`: `poster.jpg`, `fanart.jpg`,
+     `movie.nfo`, `tvshow.nfo` und so weiter),
+  3. Begleitdateien neben einer gelöschten Mediendatei, deren Name mit dem **ganzen Dateistamm**
+     beginnt, gefolgt von `.` oder `-` (`Film (2024).de.srt`, `Film (2024)-poster.jpg`),
+  4. danach den Ordner, **wenn er leer ist**, und leere Elternordner bis unter den
      Bibliotheksordner.
+- **Eine Datei, die in `media_files` einem anderen Titel gehört, wird nie gelöscht,** auch wenn
+  ihr Name nach Regel 3 passte (flacher Filmordner: `Alien.mkv` und `Alien-Resurrection.mkv`).
+  Hängt eine Mediendatei an **zwei** Titeln, bleibt sie liegen, und das Ergebnis nennt sie.
 - **Kein rekursives Löschen von Ordnern.** Liegt in einem Film- oder Serienordner etwas, das
   Slouchcat nicht kennt, bleibt es liegen; das Ergebnis nennt die Zahl («3 Dateien bleiben im
   Ordner»).
 - **Kein Papierkorb** (O-6): Gelöscht ist gelöscht. Der Dialog sagt es.
-- **Reihenfolge:** erst die Dateien, dann die Datenbank. Scheitert eine Datei (Rechte, Datei in
-  Gebrauch), bleibt der Titel mit den verbliebenen Dateien bestehen und das Ergebnis nennt sie.
-  Eine schon fehlende Datei gilt als gelöscht.
+- **Reihenfolge:** Wiedergabe und Transkodierung beenden, dann die Dateien, dann die Datenbank.
+  Scheitert eine Datei (Rechte, Datei in Gebrauch), bleibt der Titel mit den verbliebenen Dateien
+  bestehen und das Ergebnis nennt sie. Eine schon fehlende Datei gilt als gelöscht.
+- **Datenbank danach:** Die Zeilen in `media_files` der gelöschten Dateien fallen **sofort** weg,
+  damit kein Player eine gelöschte Version anbietet. Hat der Titel keine Datei mehr, wird er
+  **weich** gelöscht, genau so, als wäre die Datei von Hand vom NAS verschwunden, nur ohne die
+  Wartefrist von 24 Stunden. Er bekommt **kein** `removed_at`: Lädt Radarr denselben Film später
+  wieder, erscheint er normal, und wo das Umhängen heute greift (Film und Serie über die
+  Anbieter-Nummer), kommen Fortschritt und Haken zurück (O-14).
 - **Technik:** `paths` bekommt `Remove(root, rel)` und `RemoveEmptyDir(root, rel)` auf `os.Root`
   (Go 1.27, `server/go.mod`); der Zugriff bleibt damit innerhalb der registrierten Wurzel, `..`
   und Symlinks nach aussen sind ausgeschlossen (Regel 4). Kein `os/exec` (Regel 3).
+- **Neue Lint-Regel:** `Remove` und `RemoveAll` auf `*os.Root` sind ausserhalb von `paths`
+  verboten (`forbidigo`); die bestehenden `os.Remove` auf `/config` und `/cache` bleiben erlaubt.
+  Damit setzt der Linter durch, was bisher nur der `:ro`-Schalter verhinderte.
 - **Nur der Server-Administrator** darf löschen; die Operation ist `admin`, die Web-App zeigt den
   Knopf nur dem Hauptprofil des Administrators (`canManage`).
 - **Radarr und Sonarr wissen von nichts.** Löscht man in Slouchcat einen Film, den Radarr noch
@@ -565,9 +733,10 @@ Mockup «Jobs, Löschen, Duplikate», Thema «Titel löschen».
 
 Der Schritt hebt B-1 in einem Punkt auf: Slouchcat **darf** in Medienordner schreiben, wenn der
 Betreiber es erlaubt, und zwar ausschliesslich, um auf ausdrücklichen Befehl des Administrators
-Dateien zu löschen. **ADR 0032** hält fest: Vorgabe nur lesbar, Schreibprobe statt Einstellung,
-keine rekursiven Löschungen, kein automatisches Löschen (kein Aufräumjob, keine Regel «nach dem
-Sehen löschen»). Der Abnahmetest «Schreiben nach `/media` scheitert» bleibt für die Vorgabe
+Dateien zu löschen. **ADR 0032** hält fest: Vorgabe nur lesbar, Prüfung ohne Schreiben statt
+einer Einstellung, die genaue Liste dessen, was gelöscht wird, keine rekursiven Löschungen, kein
+automatisches Löschen (kein Aufräumjob, keine Regel «nach dem Sehen löschen»), Lint-Regel für
+`Remove`. Der Abnahmetest «Schreiben nach `/media` scheitert» bleibt für die Vorgabe
 gültig und bekommt ein Gegenstück für den schreibbaren Fall.
 
 ## 12. P-10 Duplikate: ganzer Pfad
@@ -592,6 +761,8 @@ Mockup «Jobs, Löschen, Duplikate», Thema «Duplikate mit Pfad».
   «96 Dateien · 212 GB» und den Ordner.
 - Derselbe ganze Pfad erscheint im Lösch-Dialog (Abschnitt 10) und auf der Verwaltungsseite eines
   Titels, die `AdminMediaFile` ebenfalls nutzt.
+- **Der Pfad ist der im Container** (`/media/…`), nicht der auf dem NAS; Slouchcat kennt nur
+  jenen. Darum steht immer der Name der Bibliothek daneben, und ein Satz auf der Seite sagt es.
 
 ## 13. P-11 Die Frage «bleiben oder verwerfen» ohne Speichern-Knopf
 
@@ -600,8 +771,9 @@ Mockup «Jobs, Löschen, Duplikate», Thema «Duplikate mit Pfad».
 - Der Dialog «Ordner von …» speichert **jede Aktion sofort** (Entfernen, Pfad ändern, Hinzufügen);
   er setzt kein «ungespeichert» (`features/admin/libraries/LibraryFoldersDialog.tsx:102-140`).
 - Die Rückfrage beim Verlassen kommt auf der Seite «Bibliotheken» aus einer einzigen Quelle:
-  `useUnsavedChanges(draft.dirty)` (`features/admin/LibrariesPage.tsx:88-89`), und `draft` ist der
-  **Entwurf von «Bibliothek hinzufügen»** (`AddLibraryDialog.tsx:61-100`).
+  `useUnsavedChanges(draft.dirty)` (`features/admin/libraries/LibrariesPage.tsx:89`), und `draft`
+  ist der **Entwurf von «Bibliothek hinzufügen»**
+  (`features/admin/libraries/AddLibraryDialog.tsx:61-100`).
 - Dieser Entwurf **überlebt das Schliessen des Dialogs** mit Absicht (S-13; «Abbrechen» und ✕
   rufen nur `create.reset()`), **die Seite zeigt ihn aber nirgends**. Speichern oder verwerfen
   kann man ihn nur, indem man «Bibliothek hinzufügen» nochmals öffnet.
@@ -609,18 +781,24 @@ Mockup «Jobs, Löschen, Duplikate», Thema «Duplikate mit Pfad».
   eine Ordnerkarte hinzufügt und eine andere entfernt (`untouchedFolders`,
   `AddLibraryDialog.tsx:47-58`: die verbleibende Karte hat dann die Art `series` statt `movie`).
 
-**Wahrscheinlicher Ablauf:** Beim Anlegen von «test2» blieb ein angefangener Entwurf zurück;
-später, nach dem Entfernen eines Ordners, fragte die Seite beim Verlassen nach, ohne dass ein
-Speichern-Knopf zu sehen war. **Das ist aus dem Code gelesen, nicht nachgestellt** (Sicherheit
-mittel bis hoch). Schritt 0 des Baus stellt Marcos Klickfolge in einem e2e-Test nach; passt die
-Erklärung nicht, wird die tatsächliche Ursache behoben und dieses Papier nachgeführt.
+**Möglicher Ablauf, nicht gesichert:** Ein erfolgreiches Anlegen setzt den Entwurf zurück
+(`AddLibraryDialog.tsx:133-134`); vom Anlegen von «test2» selbst kann er also nicht stammen. Es
+braucht einen **zweiten, abgebrochenen** Besuch im Dialog «Bibliothek hinzufügen» in derselben
+Sitzung der Seite (etwas getippt oder eine Ordnerkarte verändert, dann geschlossen). Danach
+fragt die Seite beim Verlassen nach, ohne dass ein Speichern-Knopf zu sehen ist, gleich was man
+dazwischen in «Ordner von test2» getan hat. **Das ist aus dem Code gelesen, nicht nachgestellt**
+(Sicherheit mittel). Eine andere Quelle für «ungespeichert» gibt es auf dieser Seite nicht.
+**Schritt 0 des Baus** stellt Marcos Klickfolge auf CT 190 und in einem e2e-Test nach. Passt die
+Erklärung nicht, wird die tatsächliche Ursache gesucht und behoben und dieses Papier
+nachgeführt; der Vorschlag unten ist dann nur noch eine Verbesserung am Rand.
 
 ### 13.2 Vorschlag
 
-Mockup «Jobs, Löschen, Duplikate», Thema «Entwurf "test2"».
+Mockup «Jobs, Löschen, Duplikate», Thema «Entwurf-Band».
 
-- Liegt ein Entwurf vor und ist der Dialog zu, zeigt die Seite ein **Band**: «Entwurf "test2" ist
-  noch nicht gespeichert», mit **«Weiter bearbeiten»** und **«Entwurf verwerfen»**.
+- Liegt ein Entwurf vor und ist der Dialog zu, zeigt die Seite ein **Band**: «Der Entwurf einer
+  neuen Bibliothek ist noch nicht gespeichert», mit **«Weiter bearbeiten»** und **«Entwurf
+  verwerfen»**.
 - «Abbrechen» im Hinzufügen-Dialog fragt neu «Entwurf behalten oder verwerfen?», wenn etwas
   eingetragen ist; ✕ und Escape behalten ihn wie heute.
 - Eine einzelne Ordnerkarte **ohne Pfad** gilt als unberührt, gleich welche Art sie trägt.
@@ -721,8 +899,11 @@ Mockup «Gesehen».
   beziehungsweise «gehört am …»; bei Serie und Podcast «19 von 96 Folgen · zuletzt 9. Nov.» mit
   Balken.
 - Ein Klick öffnet die Detailseite, bei Serien die Serienseite.
-- Auf jeder Karte der Bleistift (nur Server-Administrator) und der **gesetzte Haken**; ein Klick
-  entfernt ihn (bei Serie und Podcast mit Rückfrage), der Titel verlässt die Liste.
+- Auf jeder Karte der Bleistift (nur Server-Administrator) und der Haken in seinem Zustand
+  (F-12): **voll** bei Film, Hörbuch und ganz gesehener Serie, **halb** bei einer Serie oder einem
+  Podcast mit «19 von 96 Folgen». Ein Klick auf den vollen Haken entfernt ihn (bei Serie und
+  Podcast mit Rückfrage), der Titel verlässt die Liste. Ein Klick auf den halben Haken fragt
+  «Alle Folgen als gesehen markieren» oder «Alle Haken entfernen».
 - Leere Liste: «Noch nichts gesehen. Was du zu Ende schaust oder hörst, erscheint hier.»
 - Offline zeigt die Seite den üblichen Hinweis; die Liste kommt nur vom Server.
 
@@ -751,6 +932,8 @@ Mockup «Gesehen».
 | **Konzept 08, O-3:** Nur User-Empfehlungen und Merkliste haben eine eigene Seite. | Jede Reihe mit sinnvoller Liste hat eine; der Reihentitel ist der Link. | 8 |
 | **AN-10:** Neuerer Fortschritt gewinnt; ein Ereignis unter 90 % macht einen Titel wieder ungesehen. | Gilt weiter für Stelle und «Weiterschauen». Der **Haken** bleibt neu stehen (`watched_at`), bis man ihn entfernt. | 6 |
 | **Konzept 17:** Ein Klick auf eine Folge öffnet die Folgenseite; der Kreis ist eine Anzeige. | Der Klick startet die Folge, «Details» öffnet die Seite, der Kreis ist ein Knopf. | 5, 6 |
+| **Vertrag 1.22.0:** `ItemRef.watched` und `watchedCount` rechnen mit `completed`. | Beide rechnen mit `watched_at`; der Zustand der Bibliothek ebenso («gesehen» schlägt «angefangen»). | 6 |
+| **B-9:** Entfernte Dateien kommen auf die Ignorierliste. | Bleibt für das Aufräumen. «Titel entfernen» nutzt neu ein Merkmal am Titel (`removed_at`). | 10 |
 | **Konzept 15, «Nicht gebaut»:** Bibliothek löschen. | Wird gebaut. | 9 |
 | **Konzept 13:** Seite «Meine Wiedergabe». | Heisst «Einstellungen». | 14.4 |
 
@@ -769,6 +952,8 @@ Mockup «Gesehen».
 | F-9 | Staffeln: A, B oder C? | A | **A · Reihe mit Pfeilen** |
 | F-10 | Wo steht der Haken? | Überall auf Karten | **Überall auf Karten** |
 | F-11 | Schlüssel der Anbieter wie im Mockup? | Ja | **Ja, wie im Mockup (zugeklappt, mit «Prüfen»)** |
+| F-12 | Haken bei teilweise gesehenen Serien und Podcasts? (nach dem Review) | Halber Haken, Klick fragt | **Halber Haken, Klick fragt** |
+| F-13 | Entfernte Serie, Sonarr legt eine neue Folge ab? (nach dem Review) | Bleibt entfernt | **Bleibt entfernt, bis man sie wieder aufnimmt** |
 
 ## 18. Offene Punkte
 
@@ -786,27 +971,43 @@ Bis zu Marcos Antwort gilt die Empfehlung.
 | O-8 | Bekommt die Seite «Einstellungen» einen Verweis auf «Benachrichtigungskanäle»? | Ja, als drittes Feld mit Link. |
 | O-9 | Gilt die Nachfrage «weiter oder von vorn» auch für Bände einer Hörbuch-Reihe? | Ja (Text «Weiterhören ab …»); es ist derselbe Direktstart. |
 | O-10 | Fragt «Alle erneut versuchen» nach? | Nein, es ist gefahrlos. Nur «Alle löschen» fragt. |
-| O-11 | Löscht «Auch die Dateien löschen» Begleitdateien mit gleichem Dateistamm mit? | Ja, sonst bleiben Untertitel und Bilder verwaist und der Ordner wird nie leer. |
+| O-11 | Löscht «Auch die Dateien löschen» Begleitdateien mit? | Ja, aber nur nach der genauen Regel aus 11.2: von Slouchcat verzeichnete Bild- und `.nfo`-Dateien und Dateien mit dem ganzen Dateistamm; nie eine Datei eines anderen Titels. |
 | O-12 | Soll die Serie auf der Merkliste bleiben, wenn man alle Folgen gesehen hat? | Ja. Sie meldet weiter neue Folgen, bis man sie von Hand entfernt. |
+| O-13 | Löschen, während der Titel bei einem anderen Profil läuft: ablehnen oder Wiedergabe beenden? | Beenden. Der Dialog nennt das Profil vorher; der Administrator entscheidet. |
+| O-14 | «Auch die Dateien löschen»: Benutzerdaten behalten für den Fall, dass der Titel wiederkommt? | Ja, weich löschen wie bei einer verschwundenen Datei. Kostet nichts und rettet Fortschritt, wenn Radarr den Film neu lädt. |
 
 ## 19. Bauplan in Stufen
 
 | Stufe | Inhalt | Vertrag / Migration | Aufwand (grob) |
 |---|---|---|---|
 | **1 · Serienseite und Kleines** | P-1 Pfeile, P-3 Bleistift der Staffel, P-4 Folgenklick mit Nachfrage, P-11 Entwurf, P-13 Umbenennung | keiner / keine (Patch-Release) | ≈ 4 Tage |
-| **2 · Haken und «Gesehen»** | P-5 Haken zum Anklicken, `watched_at`, P-14 Seite «Gesehen» | additiv (`setItemWatched`, `listWatched`, Felder) / eine (`progress.watched_at`) | ≈ 6 Tage |
-| **3 · Startseite und Favorit** | P-7 Reihentitel, Listenseite, Spotlight-Titel, Bleistifte auf allen Listen; P-2 Favorit entfernen | **brechend** (Favoriten-Operationen fallen), additiv (`listHomeRow`, `listCollections`) / eine (Favoriten in die Merkliste, Tabelle weg) | ≈ 6 Tage |
+| **2 · Haken und «Gesehen»** | P-5 Haken zum Anklicken in drei Zuständen, `watched_at`, P-14 Seite «Gesehen» | additiv (`setItemWatched`, `listWatched`, `watchedAt`), **geänderte Bedeutung** von `ItemRef.watched` und `watchedCount` / eine (`progress.watched_at`) | ≈ 8 Tage |
+| **3 · Startseite und Favorit** | P-7 Reihentitel, Listenseite, Spotlight-Titel, Bleistifte auf allen Listen; P-2 Favorit entfernen | **brechend** (Favoriten-Operationen fallen), additiv (`listHomeRow`, `listCollections`) / eine (Favoriten in die Merkliste, `watchlist.follow_since`, Tabelle weg) | ≈ 7 Tage |
 | **4 · Verwaltung** | P-6 Jobs, P-10 Duplikate mit Pfad, P-12 Schlüssel mit «Prüfen» | additiv / keine | ≈ 4 Tage |
-| **5 · Löschen** | P-8 Bibliothek löschen, P-9 Titel löschen in beiden Arten, Ignorierte Dateien, ADR 0032, Doku | additiv / keine erwartet | ≈ 8 Tage |
+| **5 · Löschen** | P-8 Bibliothek löschen, P-9 Titel löschen in beiden Arten, «Entfernte Titel», ADR 0032, Lint-Regel, Doku | additiv / eine bis zwei (`profile_libraries` mit Fremdschlüssel, `items.removed_at`; bei M-1 über fünf Sekunden dazu Merkmal «wird gelöscht» und Jobart) | ≈ 10 Tage |
 
-- Die Stufen sind voneinander unabhängig, ausser: Stufe 3 nutzt den Haken aus Stufe 2 auf der
-  Listenseite, und der Knopf «Gesehen» der Detailseite (Stufe 2) rückt auf den Platz des Favoriten,
-  der erst in Stufe 3 fällt; bis dahin stehen beide nebeneinander.
+- **Abhängigkeiten:**
+  - Stufe 1 baut die Folgenzeile mit dem Kreis **als Anzeige** an seinem neuen Platz ausserhalb
+    des Links; zum Knopf wird er in Stufe 2. Die Tab-Reihenfolge von Stufe 1 ist Zeile, «Details».
+  - Stufe 3 nutzt den Haken aus Stufe 2 auf der Listenseite. Der Knopf «Gesehen» der Detailseite
+    (Stufe 2) rückt auf den Platz des Favoriten, der erst in Stufe 3 fällt; bis dahin stehen
+    beide nebeneinander.
+  - Stufe 5 braucht `rootPath` aus Stufe 4 (ganzer Pfad im Lösch-Dialog) und den Bleistift der
+    Staffel aus Stufe 1 (Weg zum Löschen einer Staffel).
 - Jeder Planschritt ist ein eigener Commit mit DoD-Belegen der Teststufe 1; vor jedem Pull Request
   `task ci` grün (`CLAUDE.md`, «Arbeitsweise»). Jede neue Seite hat ihren Tastaturtest (Regel 8):
-  Listenseite, «Gesehen», «Sammlungen», «Ignorierte Dateien»; dazu die umgebaute Folgenzeile und
-  die Dialoge.
-- Vor Stufe 5 die Messung M-1, in Stufe 2 die Messung M-2.
+  Listenseite, «Gesehen», «Sammlungen», «Entfernte Titel»; dazu die umgebaute Folgenzeile und
+  die Dialoge. Jede neue Operation hat `x-visibility` und einen Eintrag im Vertragstest (Regel 7);
+  die Einträge der entfallenen Favoriten-Operationen verschwinden.
+- **Storybook und Bildvergleiche** für jedes geänderte Bauteil in `web/src/ui`: `RowList` mit
+  festen Pfeilen, `EpisodeListItem`, `EpisodeRow`, `PosterCard` mit Haken in drei Zuständen,
+  `HeroCarousel` mit Überschrift, das neue `ResumeChoice`; dazu `VolumeRow` und die
+  Anbieter-Karten, soweit sie Stories haben.
+- Alle neuen Texte in `web/src/locales/{de,en}.json` (Regel 9); Migrationen nach Vorlage mit
+  eingefrorenem DB-Stand und Migrationstest (Regel 5).
+- Schritt 0 je Stufe, wo das Papier ihn nennt: Stufe 1 (Marcos Klickfolge zu P-11), Stufe 2
+  (Fundstellen von `completed`), Stufe 5 (Scanner unter einem entfernten Titel).
+- Messungen: M-1 vor Stufe 5, M-2 in Stufe 2, M-3 in Stufe 3.
 - Abnahme je Stufe auf CT 190; jede Stufe erscheint als eigenes Release. Für die Abnahme von
   Stufe 5 bindet Marco einen **Test**ordner schreibbar ein, nicht die echten Medien.
 - Reihenfolge gegenüber Konzept 19 (Teil A Podcasts, Teil B Radio noch offen): Marcos Wahl.
@@ -825,6 +1026,35 @@ Bis zu Marcos Antwort gilt die Empfehlung.
 - Favoriten beim Radio abschaffen.
 - Alles aus den Non-Goals der Spec (Regel 11).
 
+## 21. Kritiker-Review von Fassung 1 (11. November 2026)
+
+Urteil **REVISE**: 1 Blocker, 13 Major, 13 Minor. Geprüft wurde gegen den Code, nichts wurde
+ausgeführt. Alle Befunde sind in Fassung 2 eingearbeitet; keiner widerspricht F-1 bis F-11. Zwei
+Befunde brauchten Marcos Entscheid (F-12, F-13).
+
+| Befund | Kern | Eingearbeitet in |
+|---|---|---|
+| **B1** | Bibliothek löschen liess `profile_libraries` stehen (kein Fremdschlüssel); die nächste Bibliothek mit derselben Nummer wäre für ein eingeschränktes Profil sichtbar geworden. | 9.1, 9.3 |
+| M1 | Verspätete und ältere Offline-Ereignisse hätten `watched_at` nie gesetzt. | 6.3 |
+| M2 | Zusammenführen und Umhängen hätten `watched_at` verloren. | 6.3 |
+| M3 | Viele Folgen auf einmal markiert: gleiche `updated_at`, falsche «nächste Folge» und falscher Auto-Download. | 6.4 |
+| M4 | `ItemRef.watched` gibt es schon; der Haken einer teilweise gesehenen Serie hatte zwei Bedeutungen. | 6.2, 6.4, 15.3, F-12 |
+| M5 | Liste der Leser von `completed` unvollständig; Zustand der Bibliothek nicht mehr eindeutig. | 6.3 (Tabelle) |
+| M6 | «Nur entfernen» über die Ignorierliste: Titel kommt bei neuem Pfad zurück, «Wieder aufnehmen» verliert Benutzerdaten. | 10.1, 10.2, F-13 |
+| M7 | Was «auch die Dateien» löscht, war ungenau und konnte Dateien anderer Titel treffen; Extras fehlten. | 11.2 |
+| M8 | Schreibprobe am falschen Ort und mit Nebenwirkung; `paths.Open` gibt ein löschfähiges `*os.Root` heraus. | 11.1, 11.2 |
+| M9 | Bibliothek löschen: Jobs je Titel, laufende Wiedergaben, Rotation der Sicherung, Kosten der Wiederherstellung. | 9.2, 9.3 |
+| M10 | Favoriten in die Merkliste: alte Podcast-Folgen wären als «neu» nachgeladen worden. | 3.3 (`follow_since`) |
+| M11 | Die vier Reihen lassen sich nicht gleich blättern. | 8.3 |
+| M12 | Sammel-«Erneut» scheitert an doppelten Idempotenzschlüsseln; `listJobRuns` ohne Versatz. | 7.3 |
+| M13 | Nachfrage im Spotlight geht für Serien nicht ohne Vertragsänderung. | 5.2 |
+| m1–m13 | Falsche Pfade und Zeilen, Hypothese zu P-11 abgeschwächt, `watched:false` und fehlende Dauer, Adresse von `deleteLibrary`, Wortlaut «Löschen» bei Jobs, vergessene Tests und Stories, Abhängigkeiten der Stufen, Pfeilwege der Startseite, Container-Pfad, Vergleich des Titels, leere Sammlungen. | 2.1, 6.4, 7, 8.3, 9, 10, 12, 13, 19 |
+
+**Nicht geklärt, darum als Schritt 0 oder Bauauftrag im Papier:** wie der Scanner eine neue Datei
+unter einem weich gelöschten Titel behandelt (10.2); ob ein Aufräumlauf die Bilddateien endgültig
+gelöschter Titel entfernt (9.3); was `/play/{seriesId}` im Player tut (5.2, darum keine Nachfrage
+für Serien im Spotlight).
+
 ---
 
 ## Anhang A. Mockups
@@ -839,6 +1069,9 @@ Bilder; alle Titel sind erfunden.
 | Serienseite | `Main.dc.html` | Staffeln in den Varianten A, B, C (oben umschaltbar); Bleistift und Haken auf den Staffelcovern; Folgenzeile mit Play-Knopf, «Details» und Kreis; Nachfrage bei Folge 4 |
 | Startseite | `Start.dc.html` | Reihentitel als Link, Überschrift «Spotlight», klickbarer Filmtitel; Seitenleiste mit «Gesehen» und «Einstellungen»; Bleistift und Haken auf den Karten |
 | Listenseite | `Liste.dc.html` | Die eine Seite hinter «Weiterschauen», «Neu hinzugefügt», «Kürzlich veröffentlicht», «Spotlight» |
-| Gesehen | `Gesehen.dc.html` | Die neue Seite mit Filter, Sortierung, Serien als ein Eintrag, Rückfrage beim Entfernen |
+| Gesehen | `Gesehen.dc.html` | Die neue Seite mit Filter, Sortierung, Serien als ein Eintrag, halber Haken mit Auswahl, Rückfrage beim Entfernen |
 | Schlüssel | `Schluessel.dc.html` | Fünf Anbieter-Karten, auf- und zuklappbar, «Prüfen» |
-| Jobs, Löschen, Duplikate | `Verwaltung.dc.html` | Fünf Themen: Sammelaktionen der Jobs, Titel löschen (Ordner schreibbar oder nur lesbar), Bibliothek löschen, Duplikate mit ganzem Pfad, Band für den Entwurf «test2» |
+| Jobs, Löschen, Duplikate | `Verwaltung.dc.html` | Fünf Themen: Sammelaktionen der Jobs, Titel löschen (Ordner schreibbar oder nur lesbar), Bibliothek löschen, Duplikate mit ganzem Pfad, Band für den Entwurf einer Bibliothek |
+
+Die Mockups zeigen den Stand der Fragen F-1 bis F-13. Wo der Text dieses Papiers genauer ist als
+ein Mockup (Regeln zum Löschen von Dateien, Blättern der Listen), gilt das Papier.
