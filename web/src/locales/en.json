@@ -1147,8 +1147,6 @@
           "name": "Name A–Z"
         },
         "wholeCatalog": "Show the whole catalog",
-        "offeredYes": "In the offer",
-        "offeredNo": "Not in the offer",
         "removeUnreachable_one": "Remove unreachable ({{n}})",
         "removeUnreachable_other": "Remove unreachable ({{n}})",
         "removeUnreachableHelp": "Takes every station of the offer that is unreachable now out of it, except favourites and own stations. They do not come back by themselves.",

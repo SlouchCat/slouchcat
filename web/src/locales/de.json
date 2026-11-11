@@ -1147,8 +1147,6 @@
           "name": "Name A–Z"
         },
         "wholeCatalog": "Ganzen Katalog zeigen",
-        "offeredYes": "Im Angebot",
-        "offeredNo": "Nicht im Angebot",
         "removeUnreachable_one": "Nicht erreichbare entfernen ({{n}})",
         "removeUnreachable_other": "Nicht erreichbare entfernen ({{n}})",
         "removeUnreachableHelp": "Nimmt alle zurzeit nicht erreichbaren Sender aus dem Angebot, ausser Favoriten und eigenen Sendern. Sie kommen nicht von selbst zurück.",

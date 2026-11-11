@@ -181,21 +181,16 @@ export function StationsTab({ onEdit }: StationsTabProps) {
     },
     {
       key: 'state',
-      width: '10rem',
+      width: '9rem',
       header: t('admin.radio.stations.columns.state'),
       cell: (station) => {
         const shown = stationState(station);
+        // One line, as every row of the virtual table (its rows are measured); whether the
+        // station is in the offer says its button «Aus dem Angebot nehmen» / «Ins Angebot nehmen».
         return (
-          <span className={styles.offerStation}>
-            <span className={styles.stateCell}>
-              <StatusDot state={shown.dot} />
-              {t(`admin.radio.stations.stateText.${shown.key}`)}
-            </span>
-            <span className={styles.muted}>
-              {station.offered
-                ? t('admin.radio.stations.offeredYes')
-                : t('admin.radio.stations.offeredNo')}
-            </span>
+          <span className={styles.stateCell}>
+            <StatusDot state={shown.dot} />
+            {t(`admin.radio.stations.stateText.${shown.key}`)}
           </span>
         );
       },
@@ -221,14 +216,7 @@ export function StationsTab({ onEdit }: StationsTabProps) {
       align: 'end',
       cell: (station) => (
         <span className={styles.actions}>
-          <AriaButton
-            variant="ghost"
-            size="sm"
-            aria-label={t('admin.radio.stations.streamsLabel', { name: station.name })}
-            onPress={() => setStreamsOf(station)}
-          >
-            {t('admin.radio.stations.streams')}
-          </AriaButton>
+          {/* «Bearbeiten» first: ↑/↓ go to the first control of the same column (DataTable). */}
           <AriaButton
             variant="ghost"
             size="sm"
@@ -238,16 +226,27 @@ export function StationsTab({ onEdit }: StationsTabProps) {
             {t('admin.radio.stations.edit')}
           </AriaButton>
           <AriaButton
+            variant="ghost"
+            size="sm"
+            aria-label={t('admin.radio.stations.streamsLabel', { name: station.name })}
+            onPress={() => setStreamsOf(station)}
+          >
+            {t('admin.radio.stations.streams')}
+          </AriaButton>
+          <AriaButton
             variant={station.offered ? 'dangerQuiet' : 'ghost'}
             size="sm"
-            isDisabled={toggle.isPending}
             aria-label={t(
               station.offered
                 ? 'admin.radio.stations.takeOutLabel'
                 : 'admin.radio.stations.takeInLabel',
               { name: station.name },
             )}
-            onPress={() => toggle.mutate(station)}
+            // The button keeps the focus while the step is stored (no disabling); a press
+            // meanwhile waits for the first.
+            onPress={() => {
+              if (!toggle.isPending) toggle.mutate(station);
+            }}
           >
             {t(station.offered ? 'admin.radio.stations.takeOut' : 'admin.radio.stations.takeIn')}
           </AriaButton>
