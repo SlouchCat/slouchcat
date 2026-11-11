@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/slouchcat/slouchcat/server/internal/paths"
@@ -165,7 +166,8 @@ const SettingImageSizesTrimmed = "metadata.image_sizes_trimmed"
 // needs loses the sizes the pipeline no longer makes (the w1920 and w3840 stills of episodes, the
 // sizes scaled up from a narrow original) and, unless the administrator locked it, its original
 // (keepOriginal). A kind that misses a size stays as it is for image.fetch. The setting
-// SettingImageSizesTrimmed remembers a complete run; a failed or stopped run starts again at the
+// An uploaded original (provider manual) stays as well, even when its lock is gone: it is the only
+// copy. SettingImageSizesTrimmed remembers a complete run; a failed or stopped run starts again at the
 // next start. It returns the number of rows removed.
 func (s *Service) TrimImageSizesOnce(ctx context.Context) (int, error) {
 	if _, err := s.read.GetSystemSetting(ctx, SettingImageSizesTrimmed); err == nil {
@@ -238,7 +240,8 @@ func (s *Service) trimItemImages(ctx context.Context, root *os.Root, id string) 
 		if covered, _ := kindCovered(item.Kind, kind, storedImages(prev), "", exists); !covered {
 			continue
 		}
-		kept, err := s.trimKind(ctx, root, id, item.Kind, kind, prev, !keepOriginal && !locked[kind])
+		uploaded := slices.ContainsFunc(prev, func(r systemq.Image) bool { return r.Size == originalSize && r.Provider == ImageSourceManual })
+		kept, err := s.trimKind(ctx, root, id, item.Kind, kind, prev, !keepOriginal && !locked[kind] && !uploaded)
 		if err != nil {
 			return removed, err
 		}

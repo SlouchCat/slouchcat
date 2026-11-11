@@ -2,6 +2,8 @@ package metadata
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -111,6 +113,9 @@ func TestTrimImageSizesOnce(t *testing.T) {
 	narrow := e.storeOldKind(t, idByTMDB, "backdrop", 1000, old)
 	locked := e.storeOldKind(t, idByTMDB, "poster", 2000, []int{200, 400, 800})
 	broken := e.storeOldKind(t, idBySearch, "backdrop", 1920, old)
+	// An upload whose lock is gone keeps its original, the only copy.
+	upload := e.storeOldKind(t, idBySearch, "poster", 2000, []int{200, 400, 800})
+	mustExec(t, e.db.Write, `UPDATE images SET provider = 'manual' WHERE item_id = ? AND kind = 'poster' AND size = 'original'`, idBySearch)
 	if err := os.Remove(broken["w1280/webp"]); err != nil {
 		t.Fatal(err)
 	}
@@ -131,11 +136,12 @@ func TestTrimImageSizesOnce(t *testing.T) {
 	}
 	gone(still, "original/jpeg", "w1920/jpeg", "w1920/webp")
 	gone(still4K, "original/jpeg", "w1920/jpeg", "w1920/webp", "w3840/jpeg", "w3840/webp")
-	gone(narrow, "original/jpeg", "w1920/jpeg", "w1920/webp")
+	gone(narrow) // w1280 was scaled up from 1000 px: image.fetch derives it again before the original goes
 	gone(locked)
 	gone(broken, "w1280/webp")
-	if n != 3+5+3 {
-		t.Errorf("trimmed %d rows, want 11", n)
+	gone(upload)
+	if n != 3+5 {
+		t.Errorf("trimmed %d rows, want 8", n)
 	}
 	rows := func(id, kind string) int {
 		c := 0
@@ -149,20 +155,19 @@ func TestTrimImageSizesOnce(t *testing.T) {
 	for _, tc := range []struct {
 		id, kind string
 		want     int
-	}{{idE0101, "backdrop", 4}, {idE0102, "backdrop", 4}, {idByTMDB, "backdrop", 4}, {idByTMDB, "poster", 7}, {idBySearch, "backdrop", 7}} {
+	}{{idE0101, "backdrop", 4}, {idE0102, "backdrop", 4}, {idByTMDB, "backdrop", 7}, {idByTMDB, "poster", 7}, {idBySearch, "backdrop", 7}} {
 		if got := rows(tc.id, tc.kind); got != tc.want {
 			t.Errorf("%s %s: %d rows, want %d", tc.id, tc.kind, got, tc.want)
 		}
 	}
-	// The trimmed kinds are complete for the check after a scan.
+	// The trimmed kinds are complete for the check after a scan; the scaled-up one is queued.
 	mustExec(t, e.db.Write, `DELETE FROM jobs`)
 	if _, err := e.svc.QueueIncompleteImages(ctx, 1); err != nil {
 		t.Fatal(err)
 	}
-	for _, job := range e.imageJobs(t) {
-		if strings.Contains(job, idE0101) || strings.Contains(job, idE0102) || strings.Contains(job, idByTMDB) {
-			t.Errorf("trimmed title queued: %s", job)
-		}
+	jobs := strings.Join(e.imageJobs(t), " ")
+	if strings.Contains(jobs, idE0101) || strings.Contains(jobs, idE0102) || !strings.Contains(jobs, idByTMDB) {
+		t.Errorf("image jobs %s, want only the scaled-up %s", jobs, idByTMDB)
 	}
 
 	// Once: a second start leaves new extra rows alone.
@@ -236,5 +241,26 @@ func TestSweepOrphanImages(t *testing.T) {
 	mustExec(t, e.db.Write, `DELETE FROM images WHERE item_id = ?`, idByTMDB)
 	if n, err := e.svc.SweepOrphanImages(ctx); err != nil || n != 1 || there(moved) {
 		t.Errorf("second sweep = %d, %v, moved folder there %v", n, err, there(moved))
+	}
+}
+
+// A cover narrower than 200 px is w200 at its own width (never scaled up) and still carries the
+// accent from the first run, so the check after a scan does not queue it again.
+func TestNarrowCoverKeepsItsAccent(t *testing.T) {
+	t.Parallel()
+	requireFFmpeg(t)
+	cover := jpegBytes(t, 150, 150)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(cover) }))
+	t.Cleanup(srv.Close)
+	e := audioEnv(t, t.TempDir())
+	ctx := context.Background()
+	e.addAudio(t, idPodcast, "podcast", 4, nil, nil, srv.URL+"/cover.jpg")
+	mustExec(t, e.db.Write, `UPDATE items SET feed_url = ? WHERE id = ?`, srv.URL+"/feed.xml", idPodcast)
+	if err := e.svc.fetchImages(ctx, idPodcast); err != nil {
+		t.Fatal(err)
+	}
+	imgs := e.images(t, idPodcast)
+	if len(imgs) != 2 || imgs["poster/w200/jpeg"].Width != 150 || !imgs["poster/w200/jpeg"].Accent.Valid || !imgs["poster/w200/webp"].Accent.Valid {
+		t.Fatalf("rows %+v, want w200 at 150 px with an accent", imgs)
 	}
 }

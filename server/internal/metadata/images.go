@@ -144,9 +144,18 @@ func effectiveWidth(rows []storedImage) int {
 // with the stored rows.
 func wantedKeys(itemKind, kind string, rows []storedImage) map[string]bool {
 	want := map[string]bool{}
+	for key := range wantedWidths(itemKind, kind, rows) {
+		want[key] = true
+	}
+	return want
+}
+
+// wantedWidths returns the width of every wanted "<size>/<format>" key (wantedKeys).
+func wantedWidths(itemKind, kind string, rows []storedImage) map[string]int {
+	want := map[string]int{}
 	for _, sz := range sizesFor(itemKind, kind, effectiveWidth(rows)) {
 		for _, f := range formatsOf(kind) {
-			want[sz.name+"/"+string(f.format)] = true
+			want[sz.name+"/"+string(f.format)] = sz.width
 		}
 	}
 	return want
@@ -388,19 +397,23 @@ func kindComplete(itemKind, kind string, rows []storedImage, sourceURL string, e
 // existing file from sourceURL (when not empty), and whether they hold more derived rows than
 // that: sizes the pipeline no longer makes (M1a's w500 poster, the w1920 still of an episode, a
 // size scaled up from a narrow original before 1.28.1). A covered kind needs no ffmpeg run, only
-// the extra rows go (trimKind).
+// the extra rows go (trimKind). While the original is stored, a wanted size wider than it should
+// be (scaled up before 1.28.1: w1280 at 1280 px from a 1000 px original) is not covered, so it is
+// derived again before the original goes.
 func kindCovered(itemKind, kind string, rows []storedImage, sourceURL string, exists func(rel string) bool) (covered, extra bool) {
-	want := wantedKeys(itemKind, kind, rows)
+	want := wantedWidths(itemKind, kind, rows)
+	hasOrig := slices.ContainsFunc(rows, func(r storedImage) bool { return r.size == originalSize && r.width > 0 })
 	have := 0
 	for _, r := range rows {
 		if r.size == originalSize {
 			continue
 		}
-		if !want[r.size+"/"+r.format] {
+		width, ok := want[r.size+"/"+r.format]
+		if !ok {
 			extra = true
 			continue
 		}
-		if (sourceURL != "" && r.sourceURL != sourceURL) || !exists(r.relPath) {
+		if (sourceURL != "" && r.sourceURL != sourceURL) || !exists(r.relPath) || (hasOrig && r.width > width) {
 			return false, extra
 		}
 		have++
@@ -616,7 +629,7 @@ func (s *Service) fillAccent(ctx context.Context, itemID, kind string, prev []sy
 		if err := s.write.UpsertImage(ctx, systemq.UpsertImageParams{
 			ItemID: r.ItemID, Kind: r.Kind, Size: r.Size, Format: r.Format, Lang: r.Lang, SourceUrl: r.SourceUrl,
 			RelPath: r.RelPath, ContentHash: r.ContentHash, MediaType: r.MediaType, Width: r.Width, Height: r.Height,
-			Bytes: r.Bytes, Accent: accent, Now: r.CreatedAt,
+			Bytes: r.Bytes, Accent: accent, Provider: r.Provider, Now: r.CreatedAt,
 		}); err != nil {
 			return fmt.Errorf("store accent: %w", err)
 		}
@@ -749,7 +762,7 @@ func (s *Service) scaleDerived(ctx context.Context, root *os.Root, dir, itemID, 
 	}
 	if kind == "poster" {
 		for i, o := range sc.outs {
-			if o.width == accentSourceWidth && o.format == transcode.ImageJPEG {
+			if o.size == sizeName(accentSourceWidth) && o.format == transcode.ImageJPEG { // w200 may be narrower
 				sc.accent = s.accent(ctx, itemID, args[i].Path)
 			}
 		}
