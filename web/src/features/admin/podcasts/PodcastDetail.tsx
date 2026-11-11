@@ -3,12 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { Text } from '@/ui';
 import { AriaButton } from '@/ui/aria';
 import { feedError } from './columns';
+import { PodcastSetting } from './PodcastSetting';
 import styles from './Podcasts.module.css';
 
 /**
  * The fold-out of a podcast (POD-2, POD-3): author, the whole feed address, library and the
- * whole last error; «Jetzt abrufen» for a podcast with a feed and «Abo löschen» for one no folder
- * owns. A podcast a folder still owns comes back with the next scan, so the folder decides and
+ * whole last error; for a podcast with a feed its setting of stored episodes and «Fehlende
+ * nachladen» (concept 19 part A, stage 1); «Jetzt abrufen» for a podcast with a feed and «Abo
+ * löschen» for one no folder owns. A podcast a folder still owns comes back with the next scan, so the folder decides and
  * the fold-out says so instead.
  */
 export function PodcastDetail({
@@ -87,6 +89,9 @@ export function PodcastDetail({
         </div>
       )}
       {ownedByFolder && <Text tone="secondary">{t('admin.podcasts.detail.folderNote')}</Text>}
+      {/* After the actions, so the buttons stay first; a folder podcast without feed has nothing
+          to load (5.1). */}
+      {podcast.effectiveMode && <PodcastSetting podcast={podcast} />}
     </div>
   );
 }

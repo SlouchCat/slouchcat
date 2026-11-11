@@ -64,6 +64,10 @@ const problemKeys = {
   feed_unreachable: 'errors.code.feed_unreachable',
   feed_invalid: 'errors.code.feed_invalid',
   feed_exists: 'errors.code.feed_exists',
+  // Stored podcast episodes (concept 19 part A, contract 1.27.0): «Speichern» needs a folder that
+  // passes the folder check, and a podcast folder at all.
+  root_not_writable: 'errors.code.root_not_writable',
+  root_required: 'errors.code.root_required',
   rating_below_library_default: 'errors.code.rating_below_library_default',
   not_listable: 'errors.code.not_listable',
   not_favoritable: 'errors.code.not_favoritable',

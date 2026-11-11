@@ -5,20 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"mime"
-	"net/http"
 	"net/url"
-	"os"
-	"path"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/fetch"
 	"github.com/slouchcat/slouchcat/server/internal/model"
-	"github.com/slouchcat/slouchcat/server/internal/netguard"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
@@ -34,21 +28,16 @@ import (
 // audioKbps is the AAC rate of each download quality for audio titles.
 var audioKbps = map[string]int{model.DownloadHigh: 128, model.DownloadMedium: 96, model.DownloadLow: 64}
 
-// Limits of the enclosure fetch of a download.
-const (
-	maxSourceBytes      = 2 << 30
-	sourceHeaderTimeout = 30 * time.Second
-	maxSourceRedirects  = 5
-	sourceName          = "source"
-)
+// sourceName is the stem of the fetched enclosure of a download.
+const sourceName = "source"
 
 // downloadErrSourceUnavailable is the error code of a download whose enclosure could not be
 // fetched in the last attempt.
 const downloadErrSourceUnavailable = "source_unavailable"
 
-// errSourceUnavailable marks a failed enclosure fetch; the last attempt fails the download with
-// source_unavailable.
-var errSourceUnavailable = errors.New("offline: enclosure not available")
+// errSourceUnavailable marks a failed enclosure fetch (package fetch); the last attempt fails the
+// download with source_unavailable.
+var errSourceUnavailable = fetch.ErrUnavailable
 
 // errSourceBroken marks a source file whose probe failed: it will not become usable by waiting, so
 // the download fails with encode_failed at once.
@@ -60,18 +49,6 @@ type audioReader interface {
 	Parts(ctx context.Context, s visibility.Scope, itemID string) ([]visibility.MediaFileLocation, error)
 	Chapters(ctx context.Context, s visibility.Scope, itemID string) ([]model.Chapter, error)
 }
-
-// sourceClients fetch enclosures: the response headers within 30 s, at most 5 redirects, http and
-// https only, no overall limit (the body is capped at 2 GiB), no address in the local network
-// unless the podcast's feed is there itself (package netguard).
-var sourceClients = netguard.NewClients(http.Client{
-	CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if len(via) > maxSourceRedirects || (req.URL.Scheme != "http" && req.URL.Scheme != "https") {
-			return fmt.Errorf("%w: too many redirects or another scheme", errSourceUnavailable)
-		}
-		return nil
-	},
-}, sourceHeaderTimeout)
 
 // isAudio reports whether a title kind downloads as audio.
 func isAudio(kind string) bool { return kind == "audiobook" || kind == "podcast_episode" }
@@ -277,12 +254,11 @@ func (s *Service) planAudio(ctx context.Context, row systemq.Download, item syst
 }
 
 // fetchSource fetches the enclosure of a download into <dir>/<id>/source.<ext> and returns the file
-// name. A complete file is reused; a partial one (source.<ext>.part) continues with a Range
-// request guarded by If-Range with the validator (strong ETag, else Last-Modified) stored next to
-// it, and only when the answer resumes at the byte the partial file ends with; anything else
-// starts over. Failures are errSourceUnavailable; they name the enclosure's host only. feedURL is
-// the podcast's feed: an enclosure in the local network is fetched only when the feed is there too
-// and was subscribed by hand (feedOrigin, package netguard).
+// name (package fetch): a complete file is reused, a partial one (source.<ext>.part) continues with
+// a Range request guarded by If-Range with the validator stored next to it. Failures are
+// errSourceUnavailable; they name the enclosure's host only. feedURL is the podcast's feed: an
+// enclosure in the local network is fetched only when the feed is there too and was subscribed by
+// hand (feedOrigin, package netguard).
 func (s *Service) fetchSource(ctx context.Context, id, feedURL, feedOrigin, rawURL string) (string, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
@@ -293,142 +269,19 @@ func (s *Service) fetchSource(ctx context.Context, id, feedURL, feedOrigin, rawU
 		return "", err
 	}
 	defer root.Close()
-	if err := root.MkdirAll(id, 0o750); err != nil {
-		return "", err
-	}
-	name := sourceName + "." + sourceExt(u.Path)
-	if info, err := root.Stat(id + "/" + name); err == nil && !info.IsDir() {
-		return name, nil
-	}
+	name := sourceName + "." + fetch.Ext(u.Path)
 	part := id + "/" + name + ".part"
-	validator := part + ".validator"
-	f, err := root.OpenFile(part, os.O_RDWR|os.O_CREATE, 0o640)
+	res, err := fetch.Fetch(ctx, fetch.Request{
+		Client: fetch.Clients().For(ctx, feedURL, feedOrigin), URL: rawURL, Root: root,
+		Part: part, Validator: part + ".validator", Final: id + "/" + name, FileMode: 0o640, DirMode: 0o750, Log: s.log,
+	})
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
-	have, err := f.Seek(0, io.SeekEnd)
-	if err != nil {
-		return "", err
+	if !res.Reused {
+		s.log.InfoContext(ctx, "download source fetched", "download_id", id, "bytes", res.Bytes)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
-	if err != nil {
-		return "", fmt.Errorf("%w: %w", errSourceUnavailable, netguard.Clean(err))
-	}
-	req.Header.Set("User-Agent", "Slouchcat")
-	// The bytes of a resume must count the same representation: no transparent gzip.
-	req.Header.Set("Accept-Encoding", "identity")
-	if have > 0 {
-		req.Header.Set("Range", "bytes="+strconv.FormatInt(have, 10)+"-")
-		if v, err := root.ReadFile(validator); err == nil && len(v) > 0 {
-			req.Header.Set("If-Range", string(v))
-		}
-	}
-	resp, err := sourceClients.For(ctx, feedURL, feedOrigin).Do(req)
-	if err != nil {
-		return "", fmt.Errorf("%w: %w", errSourceUnavailable, netguard.Clean(err))
-	}
-	defer resp.Body.Close()
-	first, total, rangeOK := contentRange(resp.Header.Get("Content-Range"))
-	switch {
-	case resp.StatusCode == http.StatusPartialContent && have > 0 && rangeOK && first == have:
-	case resp.StatusCode == http.StatusRequestedRangeNotSatisfiable && have > 0 && rangeOK && total == have:
-		// The partial file already holds everything.
-		return name, s.completeSource(root, part, validator, id+"/"+name)
-	case resp.StatusCode == http.StatusPartialContent || resp.StatusCode == http.StatusRequestedRangeNotSatisfiable:
-		// The host resumed elsewhere or the file changed size: start over with the next attempt.
-		if err := f.Truncate(0); err != nil {
-			return "", err
-		}
-		return "", fmt.Errorf("%w: resume at byte %d answered HTTP %d with range %q", errSourceUnavailable, have,
-			resp.StatusCode, resp.Header.Get("Content-Range"))
-	case resp.StatusCode == http.StatusOK:
-		if err := f.Truncate(0); err != nil {
-			return "", err
-		}
-		if have, err = f.Seek(0, io.SeekStart); err != nil {
-			return "", err
-		}
-		v := resp.Header.Get("ETag")
-		if v == "" || strings.HasPrefix(v, "W/") {
-			v = resp.Header.Get("Last-Modified")
-		}
-		if err := root.WriteFile(validator, []byte(v), 0o640); err != nil {
-			return "", err
-		}
-	default:
-		return "", fmt.Errorf("%w: enclosure host answered HTTP %d", errSourceUnavailable, resp.StatusCode)
-	}
-	n, err := io.Copy(f, io.LimitReader(resp.Body, maxSourceBytes-have+1))
-	switch {
-	case err != nil:
-		return "", fmt.Errorf("%w: %w", errSourceUnavailable, netguard.Clean(err))
-	case have+n > maxSourceBytes:
-		return "", fmt.Errorf("%w: enclosure larger than 2 GiB", errSourceUnavailable)
-	}
-	if err := f.Sync(); err != nil {
-		return "", err
-	}
-	if err := s.completeSource(root, part, validator, id+"/"+name); err != nil {
-		return "", err
-	}
-	s.log.InfoContext(ctx, "download source fetched", "download_id", id, "bytes", have+n)
 	return name, nil
-}
-
-// completeSource renames the partial enclosure to its final name and drops its validator.
-func (s *Service) completeSource(root *os.Root, part, validator, final string) error {
-	if err := root.Rename(part, final); err != nil {
-		return err
-	}
-	if err := root.Remove(validator); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		s.log.Warn("remove download source validator", "path", validator, "err", err)
-	}
-	return nil
-}
-
-// contentRange parses a Content-Range header, "bytes first-last/total" or "bytes */total"; first
-// is -1 in the second form, total -1 when it is "*".
-func contentRange(v string) (first, total int64, ok bool) {
-	spec, found := strings.CutPrefix(strings.TrimSpace(v), "bytes ")
-	rng, size, found2 := strings.Cut(spec, "/")
-	if !found || !found2 {
-		return 0, 0, false
-	}
-	total = -1
-	if size != "*" {
-		if total, ok = parseBytes(size); !ok {
-			return 0, 0, false
-		}
-	}
-	if rng == "*" {
-		return -1, total, true
-	}
-	lo, hi, found := strings.Cut(rng, "-")
-	if !found {
-		return 0, 0, false
-	}
-	first, ok = parseBytes(lo)
-	last, ok2 := parseBytes(hi)
-	if !ok || !ok2 || last < first {
-		return 0, 0, false
-	}
-	return first, total, true
-}
-
-func parseBytes(v string) (int64, bool) {
-	n, err := strconv.ParseInt(v, 10, 64)
-	return n, err == nil && n >= 0
-}
-
-// sourceExt is the file extension of an enclosure from its URL path ("audio" when it has none of
-// the known audio extensions).
-func sourceExt(p string) string {
-	switch ext := strings.ToLower(strings.TrimPrefix(path.Ext(p), ".")); ext {
-	case "mp3", "m4a", "m4b", "mp4", "aac", "ogg", "opus", "flac", "wav":
-		return ext
-	}
-	return "audio"
 }
 
 // removeSource deletes the fetched enclosure of a ready download (rel below the downloads root).

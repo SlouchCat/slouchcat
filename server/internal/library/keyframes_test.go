@@ -290,9 +290,10 @@ func TestKeyframeTypesRegistered(t *testing.T) {
 			t.Errorf("%s OverridesPauseForPlayback = %v, want %v", typ.Name, typ.OverridesPauseForPlayback, want)
 		}
 		// The three event types that read whole files may be held to a time window (concept 15, 4.3),
-		// and trickplay.generate (concept 18, 5.3: import jobs wait for the window).
+		// and trickplay.generate (concept 18, 5.3: import jobs wait for the window) and the downloads
+		// of stored podcast episodes (concept 19 part A, 6.2).
 		if want := typ.Name == JobProbeKeyframes || typ.Name == JobSegmentsDetect || typ.Name == JobChapterImages ||
-			typ.Name == JobTrickplay; typ.Windowable != want {
+			typ.Name == JobTrickplay || typ.Name == JobPodcastDownload; typ.Windowable != want {
 			t.Errorf("%s Windowable = %v, want %v", typ.Name, typ.Windowable, want)
 		}
 	}
