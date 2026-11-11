@@ -130,8 +130,25 @@ func (s *Service) withDownloads(ctx context.Context, podcasts []model.AdminPodca
 	for _, st := range stats {
 		byStat[st.PodcastID] = st
 	}
+	// The square cover of the list and of the page «Podcast» (12.2, contract 1.29.0): the
+	// model.AdminPosterSize poster, in one query for the whole list.
+	ids := make([]string, 0, len(podcasts))
+	for _, p := range podcasts {
+		ids = append(ids, p.ID)
+	}
+	covers := map[string]string{}
+	if len(ids) > 0 {
+		rows, err := s.read.AdminListImages(ctx, systemq.AdminListImagesParams{ItemIds: ids, Kind: "poster", Size: model.AdminPosterSize})
+		if err != nil {
+			return nil, fmt.Errorf("podcast covers: %w", err)
+		}
+		for _, r := range rows {
+			covers[r.ItemID] = r.ContentHash
+		}
+	}
 	for i := range podcasts {
 		p := &podcasts[i]
+		p.CoverHash = covers[p.ID]
 		if st, ok := byStat[p.ID]; ok {
 			p.StoredBytes = st.StoredBytes
 			p.DownloadsQueued, p.DownloadsRunning, p.DownloadsFailed = int(st.Queued), int(st.Running), int(st.Failed)

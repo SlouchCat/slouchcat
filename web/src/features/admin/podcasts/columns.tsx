@@ -1,8 +1,10 @@
 import type { AdminPodcast } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
+import { apiUrl } from '@/api/client';
 import { codeMessage } from '@/api/errors';
-import { formatBytes, formatDateTime } from '@/lib/format';
-import { Chip, Icon } from '@/ui';
+import { paths } from '@/app/paths';
+import { formatBytes, formatDate } from '@/lib/format';
+import { ButtonLink, Chip, ProgressBar, SquareCover } from '@/ui';
 import type { DataColumn } from '@/ui/aria';
 import styles from './Podcasts.module.css';
 
@@ -16,12 +18,36 @@ export function feedError(t: TFunction, lastError: string): { message: string; d
   return message ? { message, detail: rest.join(':').trim() } : { message: lastError, detail: '' };
 }
 
+/** The state of a podcast in its row and in the filter «Lädt» / «Fehler» (12.1). */
+export type PodcastRowState = 'fetching' | 'loading' | 'feedError' | 'notSavable' | 'current';
+
 /**
- * The columns of the podcast table (POD-2, mockup Pod-C): the title with «aus Ordner» and
- * «Explizit» folds the row out; episodes with the local ones, «gespeichert» (concept 19 part A,
- * stage 1: what applies, marked when the podcast has an own setting, the stored bytes and the
- * downloads), the last fetch (or «wird abgerufen» after «Jetzt abrufen») and the error, one line
- * long; the whole error, the author, the feed address and the library are in the fold-out.
+ * What the row of a podcast says about it, from what the server sent: a fetch the page asked for,
+ * downloads that wait or run, a feed error, «Speichern» that applies to a folder that fails the
+ * check, else «Aktuell».
+ */
+export function podcastRowState(podcast: AdminPodcast, fetching: boolean): PodcastRowState {
+  if (fetching) return 'fetching';
+  if (podcast.downloads.queued + podcast.downloads.running > 0) return 'loading';
+  if (podcast.lastError) return 'feedError';
+  if (podcast.effectiveMode === 'save' && !podcast.savable) return 'notSavable';
+  return 'current';
+}
+
+const STATE_TONE = {
+  fetching: 'info',
+  loading: 'info',
+  feedError: 'danger',
+  notSavable: 'warning',
+  current: 'outline',
+} as const;
+
+/**
+ * The columns of the list of podcasts (concept 19 part A, 12.2, variant A «Liste mit Covern»):
+ * cover and title with author, «Speichert» or «Nur Link» (marked when the podcast has an own
+ * setting), «Explizit» and «aus Ordner» -- the title folds the row out; the episodes with the
+ * stored share as a bar, the stored bytes, the newest episode, the state, and the link to the
+ * page of the podcast. The whole error, the feed address and the setting are in the fold-out.
  */
 export function podcastColumns(
   t: TFunction,
@@ -35,61 +61,116 @@ export function podcastColumns(
       header: t('admin.podcasts.columns.title'),
       rowHeader: true,
       cell: (podcast) => (
-        <span className={styles.title}>
-          <span>{podcast.title}</span>
-          {podcast.feedOrigin === 'file' && (
-            <Chip tone="outline" icon="folder">
-              {t('admin.podcasts.fromFolder')}
-            </Chip>
-          )}
-          {podcast.explicit && <Chip tone="warning">{t('admin.podcasts.explicit')}</Chip>}
+        <span className={styles.podcast}>
+          <SquareCover
+            title={podcast.title}
+            src={podcast.coverUrl ? apiUrl(podcast.coverUrl) : undefined}
+          />
+          <span className={styles.stack}>
+            {/* The spaces between the parts keep the button's name readable («Titel Autor …»). */}
+            <span className={styles.name}>{podcast.title}</span>{' '}
+            <span className={styles.title}>
+              {podcast.author && <span className={styles.muted}>{podcast.author} </span>}
+              {podcast.effectiveMode && (
+                <Chip tone={podcast.effectiveMode === 'save' ? 'success' : 'outline'}>
+                  {t(`admin.podcasts.stored.${podcast.effectiveMode}`)}
+                </Chip>
+              )}
+              {podcast.mode !== undefined && podcast.mode !== 'inherit' && (
+                <span className={styles.muted}> {t('admin.podcasts.stored.own')}</span>
+              )}
+              {podcast.feedOrigin === 'file' && (
+                <>
+                  {' '}
+                  <Chip tone="outline" icon="folder">
+                    {t('admin.podcasts.fromFolder')}
+                  </Chip>
+                </>
+              )}
+              {podcast.explicit && (
+                <>
+                  {' '}
+                  <Chip tone="warning">{t('admin.podcasts.explicit')}</Chip>
+                </>
+              )}
+            </span>
+          </span>
         </span>
       ),
     },
     {
       key: 'episodes',
       header: t('admin.podcasts.columns.episodes'),
-      align: 'end',
-      cell: (podcast) => (
-        <span className={styles.stack}>
-          <span className={styles.numbers}>{number.format(podcast.episodeCount)}</span>
-          {podcast.localEpisodeCount > 0 && (
-            <span className={`${styles.muted} ${styles.numbers}`}>
-              {t('admin.podcasts.localEpisodes', {
-                count: podcast.localEpisodeCount,
-                number: number.format(podcast.localEpisodeCount),
-              })}
-            </span>
-          )}
-        </span>
-      ),
+      cell: (podcast) => {
+        const missing = Math.max(0, podcast.episodeCount - podcast.localEpisodeCount);
+        const share =
+          podcast.episodeCount > 0 ? (100 * podcast.localEpisodeCount) / podcast.episodeCount : 0;
+        const stored =
+          podcast.localEpisodeCount === 0
+            ? t('admin.podcasts.share.none')
+            : missing === 0
+              ? t('admin.podcasts.share.all')
+              : t(
+                  podcast.feedUrl ? 'admin.podcasts.share.some' : 'admin.podcasts.share.someNoFeed',
+                  {
+                    stored: number.format(podcast.localEpisodeCount),
+                    missing: number.format(missing),
+                  },
+                );
+        return (
+          <span className={`${styles.stack} ${styles.episodes}`}>
+            <span className={styles.numbers}>{number.format(podcast.episodeCount)}</span>
+            {podcast.episodeCount > 0 && (
+              <ProgressBar
+                value={share}
+                label={t('admin.podcasts.share.label', {
+                  stored: number.format(podcast.localEpisodeCount),
+                  total: number.format(podcast.episodeCount),
+                })}
+              />
+            )}
+            <span className={`${styles.muted} ${styles.small}`}>{stored}</span>
+          </span>
+        );
+      },
     },
     {
       key: 'stored',
       header: t('admin.podcasts.columns.stored'),
+      align: 'end',
+      cell: (podcast) => (
+        <span className={styles.numbers}>
+          {podcast.storedBytes > 0
+            ? formatBytes(podcast.storedBytes, language)
+            : t('admin.podcasts.noError')}
+        </span>
+      ),
+    },
+    {
+      key: 'newest',
+      header: t('admin.podcasts.columns.newest'),
+      cell: (podcast) =>
+        podcast.latestEpisodeAt ? (
+          <time className={styles.nowrap} dateTime={podcast.latestEpisodeAt}>
+            {formatDate(podcast.latestEpisodeAt, language)}
+          </time>
+        ) : (
+          t('admin.podcasts.noError')
+        ),
+    },
+    {
+      key: 'state',
+      header: t('admin.podcasts.columns.state'),
       cell: (podcast) => {
-        if (!podcast.effectiveMode) return t('admin.podcasts.noError');
+        const state = podcastRowState(podcast, isFetching(podcast));
         const loading = podcast.downloads.queued + podcast.downloads.running;
         return (
           <span className={styles.stack}>
-            <span className={styles.title}>
-              <Chip tone={podcast.effectiveMode === 'save' ? 'success' : 'outline'}>
-                {t(`admin.podcasts.stored.${podcast.effectiveMode}`)}
-              </Chip>
-              {podcast.mode !== undefined && podcast.mode !== 'inherit' && (
-                <span className={styles.muted}>{t('admin.podcasts.stored.own')}</span>
-              )}
-            </span>
-            {podcast.storedBytes > 0 && (
-              <span className={`${styles.muted} ${styles.numbers}`}>
-                {formatBytes(podcast.storedBytes, language)}
-              </span>
-            )}
-            {loading > 0 && (
-              <span className={styles.muted}>
-                {t('admin.podcasts.stored.loading', { number: number.format(loading) })}
-              </span>
-            )}
+            <Chip tone={STATE_TONE[state]}>
+              {state === 'loading'
+                ? t('admin.podcasts.state.loading', { number: number.format(loading) })
+                : t(`admin.podcasts.state.${state}`)}
+            </Chip>
             {podcast.downloads.failed > 0 && (
               <span className={styles.problem}>
                 {t('admin.podcasts.stored.failed', {
@@ -102,35 +183,21 @@ export function podcastColumns(
       },
     },
     {
-      key: 'lastFetch',
-      header: t('admin.podcasts.columns.lastFetch'),
-      cell: (podcast) => {
-        if (isFetching(podcast)) {
-          return <Chip tone="info">{t('admin.podcasts.refresh.running')}</Chip>;
-        }
-        return podcast.lastCheckedAt ? (
-          <time className={styles.nowrap} dateTime={podcast.lastCheckedAt}>
-            {formatDateTime(podcast.lastCheckedAt, language)}
-          </time>
-        ) : (
-          t('admin.podcasts.never')
-        );
-      },
-    },
-    {
-      key: 'error',
-      header: t('admin.podcasts.columns.error'),
-      cell: (podcast) => {
-        if (!podcast.lastError) return t('admin.podcasts.noError');
-        const { message } = feedError(t, podcast.lastError);
-        // One line here (S-5); the whole text and the server's detail are in the fold-out.
-        return (
-          <span className={styles.errorCell} title={message}>
-            <Icon name="warning" size="sm" />
-            <span className={styles.clip}>{message}</span>
-          </span>
-        );
-      },
+      key: 'open',
+      header: t('admin.podcasts.columns.open'),
+      hideHeader: true,
+      align: 'end',
+      cell: (podcast) => (
+        <ButtonLink
+          href={paths.adminPodcast(podcast.id)}
+          variant="ghost"
+          size="sm"
+          icon="chevronRight"
+          aria-label={t('admin.podcasts.openPage.label', { title: podcast.title })}
+        >
+          {t('admin.podcasts.openPage.action')}
+        </ButtonLink>
+      ),
     },
   ];
 }

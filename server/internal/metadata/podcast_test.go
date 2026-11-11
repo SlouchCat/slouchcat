@@ -585,3 +585,39 @@ func TestFeedFetchLimits(t *testing.T) {
 		}
 	}
 }
+
+// AdminPodcast.localEpisodeCount (contract 1.29.0) counts each episode with a file that is there
+// once: a second file of the same episode and a file that is missing do not count, so the list
+// agrees with the state «Gespeichert» of the page «Podcast».
+func TestListPodcastsCountsStoredEpisodesOnce(t *testing.T) {
+	t.Parallel()
+	e := newPodcastEnv(t, 2)
+	ctx := context.Background()
+	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	eps := e.episodes(t, p.ID)
+	exec := func(query string, args ...any) {
+		t.Helper()
+		if _, err := e.db.Write.Exec(query, args...); err != nil {
+			t.Fatalf("%s: %v", query, err)
+		}
+	}
+	exec(`INSERT INTO library_roots (id, library_id, path, fs_type, watch, created_at, content, providers)
+		VALUES (77, 3, '/media/podcasts-count', 'ext4', 'poll', 1, 'podcast', '["local"]')`)
+	for i, f := range []struct {
+		episode string
+		missing any
+	}{{eps["ep-1"].ID, nil}, {eps["ep-1"].ID, nil}, {eps["ep-2"].ID, 5}} {
+		exec(`INSERT INTO media_files (id, item_id, root_id, rel_path, size, mtime, container, missing_since, created_at, updated_at)
+			VALUES (?, ?, 77, ?, 1, 1, 'mp3', ?, 1, 1)`, fmt.Sprintf("01J00000000000000000000F%02d", i), f.episode, fmt.Sprintf("Test/%d.mp3", i), f.missing)
+	}
+	got, err := e.svc.GetPodcast(ctx, p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.EpisodeCount != 2 || got.LocalEpisodeCount != 1 {
+		t.Errorf("episodes %d, stored %d, want 2 and 1", got.EpisodeCount, got.LocalEpisodeCount)
+	}
+}

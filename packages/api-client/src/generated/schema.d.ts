@@ -1750,6 +1750,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/podcasts/downloads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The queue of stored podcast episodes
+         * @description Since contract 1.29.0 (concept 19 part A, 12.3, section «Downloads»): the downloads of episodes that run
+         *     or wait, of every podcast library, the running ones first, then in the order a worker takes them.
+         *     `paused` tells whether the job type `podcast.download` is paused (`pauseJobType`, `resumeJobType`):
+         *     then nothing runs and every download waits.
+         */
+        get: operations["listPodcastDownloads"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/podcasts/{id}": {
         parameters: {
             query?: never;
@@ -1757,7 +1780,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One podcast subscription with its feed state
+         * @description Since contract 1.29.0 (concept 19 part A, 12.2, the page «Podcast»); the same object as in `listPodcasts`.
+         */
+        get: operations["getPodcast"];
         put?: never;
         post?: never;
         /**
@@ -1796,6 +1823,54 @@ export interface paths {
          */
         post: operations["downloadPodcastEpisodes"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/podcasts/{id}/episodes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The episodes of a podcast with the state of their file (paged)
+         * @description Since contract 1.29.0 (concept 19 part A, 12.2, the page «Podcast»): every live episode of the podcast,
+         *     from the feed and from the folder, newest first (undated ones last), unfiltered by any profile. Not an
+         *     `ItemRef`. `filter=with_file` keeps the episodes with a file, `filter=without_file` those without one;
+         *     `counts` counts all three views. The state is decided by the server: a file that is there, a download that
+         *     waits or runs, a failed one, every file row missing (`removed`), an episode the riegel leave to the
+         *     administrator (`unclear`), else `link`.
+         */
+        get: operations["listAdminPodcastEpisodes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/podcasts/{id}/episodes/{episodeId}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Cancel the download of an episode
+         * @description Since contract 1.29.0 (concept 19 part A, 12.2 and 12.3, «Abbrechen»): a waiting download leaves the
+         *     queue, a running one ends at once and removes its partial file. Stored files stay. While the setting
+         *     still wants the episode, the planner may queue it again on its next run (a fetch with new episodes, a
+         *     change of the setting, `podcast.sync_all`). Without a download that waits or runs nothing happens.
+         */
+        delete: operations["cancelPodcastDownload"];
         options?: never;
         head?: never;
         patch?: never;
@@ -6371,7 +6446,10 @@ export interface components {
             rootId?: number;
             /** @description Stored episodes (all, unfiltered). */
             episodeCount: number;
-            /** @description Episodes with a file in the folder. */
+            /**
+             * @description Episodes with a file in the folder that is there, each once (since contract 1.29.0 a missing file and a
+             *     second file no longer count; the state `file` of `listAdminPodcastEpisodes`).
+             */
             localEpisodeCount: number;
             /** @description The channel is flagged `itunes:explicit`; the podcast counts as FSK 18 (AN-2). */
             explicit: boolean;
@@ -6424,6 +6502,11 @@ export interface components {
              *     downloads would write into fails the folder check.
              */
             savable: boolean;
+            /**
+             * @description The square cover in `w200` through `getAdminItemImage`, with `?v=<content hash>` (since contract
+             *     1.29.0); absent when none is stored.
+             */
+            coverUrl?: string;
         };
         /** @description The downloads of the episodes of a podcast (since contract 1.27.0). */
         PodcastDownloadCounts: {
@@ -6522,6 +6605,110 @@ export interface components {
              * @description Free space of the folder for new subscriptions; 0 when unknown.
              */
             freeBytes: number;
+        };
+        /**
+         * @description An episode of a podcast as the administration sees it (since contract 1.29.0, concept 19 part A, 12.2); not
+         *     an `ItemRef`.
+         */
+        AdminPodcastEpisode: {
+            id: components["schemas"]["ItemID"];
+            title: string;
+            /**
+             * Format: date-time
+             * @description Absent for an undated episode.
+             */
+            publishedAt?: string;
+            /** Format: int64 */
+            durationMs?: number;
+            /**
+             * Format: int64
+             * @description The size of the file that is there, else the length the feed names; absent when unknown.
+             */
+            sizeBytes?: number;
+            /** @description An episode of the feed (with enclosure); only those can be loaded. False for a file of the folder. */
+            feed: boolean;
+            /**
+             * @description `file` a file is there, `link` streamed from the provider, `queued` a download waits, `running` it
+             *     loads, `failed` the last download failed, `removed` every file row of the episode is missing (it is
+             *     not loaded again by itself), `unclear` the riegel do not load it because a file of the folder may hold
+             *     it (section 8).
+             * @enum {string}
+             */
+            state: "file" | "link" | "queued" | "running" | "failed" | "removed" | "unclear";
+            /** @description The name of the file (with `file`, and the missing one with `removed`). */
+            fileName?: string;
+            /**
+             * Format: int64
+             * @description Bytes loaded so far, with `running`.
+             */
+            progressBytes?: number;
+            /**
+             * Format: int64
+             * @description Bytes of the whole download when the provider named them, with `running`.
+             */
+            totalBytes?: number;
+            /**
+             * @description Why the last download failed, with `failed`.
+             * @enum {string}
+             */
+            errorCode?: "enclosure_unavailable" | "too_large" | "not_audio" | "no_space" | "root_not_writable" | "root_missing" | "unsupported_format";
+            /**
+             * Format: date-time
+             * @description From when `podcast.sync_all` (every six hours) tries a failed download again: six hours after the
+             *     last attempt, for seven days after the first; absent for a final code (`too_large`, `not_audio`,
+             *     `unsupported_format`), after seven days and in every other state.
+             */
+            retryAt?: string;
+        };
+        /** @description The episodes of the three views of the page «Podcast» (since contract 1.29.0). */
+        AdminPodcastEpisodeCounts: {
+            all: number;
+            /** @description With state `file`. */
+            withFile: number;
+            /** @description Every other state. */
+            withoutFile: number;
+        };
+        AdminPodcastEpisodePage: {
+            /** @description The episodes of the chosen view. */
+            total: number;
+            offset: number;
+            limit: number;
+            counts: components["schemas"]["AdminPodcastEpisodeCounts"];
+            episodes: components["schemas"]["AdminPodcastEpisode"][];
+        };
+        /** @description A download of an episode in the queue (since contract 1.29.0, concept 19 part A, 12.3). */
+        PodcastDownload: {
+            episodeId: components["schemas"]["ItemID"];
+            episodeTitle: string;
+            podcastId: components["schemas"]["ItemID"];
+            podcastTitle: string;
+            /** Format: int64 */
+            libraryId: number;
+            /** @enum {string} */
+            state: "queued" | "running";
+            /**
+             * Format: int64
+             * @description The length the feed names; absent when unknown.
+             */
+            sizeBytes?: number;
+            /**
+             * Format: int64
+             * @description Bytes loaded so far, with `running`.
+             */
+            progressBytes?: number;
+            /**
+             * Format: int64
+             * @description Bytes of the whole download when the provider named them, with `running`.
+             */
+            totalBytes?: number;
+        };
+        PodcastDownloadPage: {
+            /** @description Downloads that wait or run. */
+            total: number;
+            running: number;
+            /** @description The job type `podcast.download` is paused. */
+            paused: boolean;
+            downloads: components["schemas"]["PodcastDownload"][];
         };
         PodcastCreate: {
             /**
@@ -14193,6 +14380,64 @@ export interface operations {
             };
         };
     };
+    listPodcastDownloads: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The queue. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PodcastDownloadPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    getPodcast: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The podcast. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPodcast"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown or deleted podcast (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     deletePodcast: {
         parameters: {
             query?: never;
@@ -14304,6 +14549,77 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
             /** @description Unknown podcast or one without feed (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listAdminPodcastEpisodes: {
+        parameters: {
+            query?: {
+                filter?: "all" | "with_file" | "without_file";
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of episodes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPodcastEpisodePage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown or deleted podcast (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    cancelPodcastDownload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+                episodeId: components["schemas"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No download of the episode waits or runs any more. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown podcast, or an episode that is not one of its live episodes (`not_found`). */
             404: {
                 headers: {
                     [name: string]: unknown;

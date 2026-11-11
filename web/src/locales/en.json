@@ -2327,9 +2327,12 @@
       "columns": {
         "title": "Title",
         "episodes": "Episodes",
-        "stored": "Stored",
+        "stored": "Storage",
         "lastFetch": "Last fetch",
-        "error": "Error"
+        "error": "Error",
+        "newest": "Newest episode",
+        "state": "State",
+        "open": "Page"
       },
       "tabs": {
         "label": "Podcasts by library",
@@ -2475,6 +2478,153 @@
           "none": "No episode is missing that Slouchcat would load.",
           "queued_one": "{{number}} episode is being loaded.",
           "queued_other": "{{number}} episodes are being loaded."
+        }
+      },
+      "share": {
+        "none": "none stored",
+        "all": "all stored",
+        "some": "{{stored}} stored · {{missing}} link only",
+        "someNoFeed": "{{stored}} stored · {{missing}} without file",
+        "label": "{{stored}} of {{total}} episodes stored"
+      },
+      "state": {
+        "fetching": "Fetching",
+        "loading": "Loading {{number}}",
+        "feedError": "Feed error",
+        "notSavable": "Cannot store",
+        "current": "Up to date"
+      },
+      "openPage": {
+        "action": "Episodes",
+        "label": "Show the episodes of {{title}}"
+      },
+      "filter": {
+        "label": "Filter podcasts",
+        "all": "All",
+        "save": "Stores",
+        "link": "Link only",
+        "loading": "Loading",
+        "error": "Errors"
+      },
+      "search": {
+        "label": "Search podcasts",
+        "placeholder": "Title or author"
+      },
+      "sort": {
+        "label": "Sort",
+        "title": "Title",
+        "newest": "Newest episode",
+        "size": "Storage",
+        "episodes": "Number of episodes"
+      },
+      "noMatch": "No podcast matches the filter and the search.",
+      "kpi": {
+        "label": "Summary",
+        "podcasts": "Podcasts",
+        "mode": "New episodes",
+        "saving": "{{number}} store",
+        "linking": "{{number}} link only",
+        "stored": "Used",
+        "queue": "Downloads",
+        "queueEmpty": "None",
+        "queueRunning": "{{number}} running",
+        "queueWaiting": "{{number}} waiting",
+        "queuePaused": "paused"
+      },
+      "queue": {
+        "title": "Downloads",
+        "empty": "Queue empty",
+        "summary_one": "{{number}} in the queue · {{running}} running",
+        "summary_other": "{{number}} in the queue · {{running}} running",
+        "none": "Every episode is loaded. The queue is empty.",
+        "pause": "Pause",
+        "resume": "Resume",
+        "paused": "The downloads are paused.",
+        "resumed": "The downloads go on.",
+        "pausedHint": "Paused: nothing loads until you resume. Started downloads continue afterwards.",
+        "cancelled": "The download of {{title}} is cancelled.",
+        "cancel": "Cancel: {{title}}",
+        "ofPodcastSize": "{{podcast}} · {{size}}",
+        "more": "{{shown}} of {{total}} shown.",
+        "columns": {
+          "episode": "Episode",
+          "progress": "Progress",
+          "cancel": "Cancel"
+        },
+        "state": {
+          "queued": "waiting",
+          "paused": "paused",
+          "running": "loading",
+          "runningShare": "loading · {{share}} %",
+          "runningBytes": "loading · {{size}}"
+        }
+      },
+      "page": {
+        "missing": "Podcast not found",
+        "missingBody": "This podcast does not exist or no longer exists.",
+        "back": "All podcasts",
+        "counters": "Figures of this podcast",
+        "episodes": "Episodes",
+        "stored": "Stored",
+        "missingCount": "{{number}} without file",
+        "bytes": "Used",
+        "newest": "Newest episode",
+        "library": "Library «{{library}}»",
+        "setting": "Setting"
+      },
+      "episodes": {
+        "title": "Episodes",
+        "caption": "Episodes of {{title}}",
+        "empty": "No episode in this view.",
+        "shown": "{{shown}} of {{total}} episodes shown.",
+        "more": "Show more",
+        "loadQueued": "{{title}} is being loaded.",
+        "loadNone": "{{title}} is not loaded: the episode has a file already.",
+        "filter": {
+          "label": "Filter episodes",
+          "all": "All",
+          "with_file": "Stored",
+          "without_file": "Without file"
+        },
+        "columns": {
+          "date": "Date",
+          "title": "Episode",
+          "state": "State",
+          "action": "Action"
+        },
+        "state": {
+          "file": "Stored",
+          "link": "Link only",
+          "queued": "Waiting",
+          "running": "Loading",
+          "failed": "Failed",
+          "removed": "Removed",
+          "unclear": "Unclear"
+        },
+        "action": {
+          "load": "Load",
+          "loadLabel": "Load: {{title}}",
+          "retry": "Retry",
+          "retryLabel": "Load again: {{title}}",
+          "cancel": "Cancel",
+          "cancelLabel": "Cancel: {{title}}"
+        },
+        "meta": {
+          "link": "streamed from the provider",
+          "retryAt": "next attempt from {{at}}",
+          "noRetry": "no new attempt by itself",
+          "removedFile": "file {{file}} is missing, Slouchcat does not load it by itself",
+          "removed": "the file is missing, Slouchcat does not load it by itself",
+          "unclear": "a file in the folder may hold this episode"
+        },
+        "error": {
+          "enclosure_unavailable": "provider did not answer",
+          "too_large": "file larger than 2 GiB",
+          "not_audio": "not audio",
+          "no_space": "not enough space",
+          "root_not_writable": "folder not writable",
+          "root_missing": "folder missing",
+          "unsupported_format": "format is not stored"
         }
       }
     },

@@ -40,12 +40,14 @@ FROM items AS i JOIN libraries AS l ON l.id = i.library_id
 WHERE i.id = @id AND i.kind = 'podcast';
 
 -- name: PodcastList :many
--- Every live subscription with the number of its live episodes, newest first (listPodcasts).
+-- Every live subscription with the number of its live episodes and of those with a file that is
+-- there (each episode once, the state "file" of the page "Podcast"), newest first (listPodcasts).
 SELECT i.id, i.library_id, i.title, i.author, i.feed_url, i.feed_origin, i.explicit, i.feed_checked_at, i.feed_error, i.created_at,
        (SELECT count(*) FROM items AS e
         WHERE e.parent_id = i.id AND e.kind = 'podcast_episode' AND e.deleted_at IS NULL) AS episode_count,
-       (SELECT count(*) FROM items AS e JOIN media_files AS m ON m.item_id = e.id
-        WHERE e.parent_id = i.id AND e.kind = 'podcast_episode' AND e.deleted_at IS NULL) AS local_episode_count,
+       (SELECT count(DISTINCT e.id) FROM items AS e JOIN media_files AS m ON m.item_id = e.id
+        WHERE e.parent_id = i.id AND e.kind = 'podcast_episode' AND e.deleted_at IS NULL
+          AND m.missing_since IS NULL) AS local_episode_count,
        CAST(COALESCE((SELECT m.root_id FROM items AS e JOIN media_files AS m ON m.item_id = e.id
                       WHERE e.parent_id = i.id AND e.kind = 'podcast_episode' ORDER BY m.id LIMIT 1), 0) AS INTEGER) AS root_id
 FROM items AS i

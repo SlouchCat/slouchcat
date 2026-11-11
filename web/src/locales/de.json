@@ -2327,9 +2327,12 @@
       "columns": {
         "title": "Titel",
         "episodes": "Episoden",
-        "stored": "Gespeichert",
+        "stored": "Speicher",
         "lastFetch": "Letzter Abruf",
-        "error": "Fehler"
+        "error": "Fehler",
+        "newest": "Neueste Folge",
+        "state": "Zustand",
+        "open": "Seite"
       },
       "tabs": {
         "label": "Podcasts nach Bibliothek",
@@ -2475,6 +2478,153 @@
           "none": "Es fehlt keine Folge, die Slouchcat laden würde.",
           "queued_one": "{{number}} Folge wird geladen.",
           "queued_other": "{{number}} Folgen werden geladen."
+        }
+      },
+      "share": {
+        "none": "keine gespeichert",
+        "all": "alle gespeichert",
+        "some": "{{stored}} gespeichert · {{missing}} nur Link",
+        "someNoFeed": "{{stored}} gespeichert · {{missing}} ohne Datei",
+        "label": "{{stored}} von {{total}} Folgen gespeichert"
+      },
+      "state": {
+        "fetching": "Wird abgerufen",
+        "loading": "Lädt {{number}}",
+        "feedError": "Feed-Fehler",
+        "notSavable": "Nicht speicherbar",
+        "current": "Aktuell"
+      },
+      "openPage": {
+        "action": "Folgen",
+        "label": "Folgen von {{title}} ansehen"
+      },
+      "filter": {
+        "label": "Podcasts filtern",
+        "all": "Alle",
+        "save": "Speichert",
+        "link": "Nur Link",
+        "loading": "Lädt",
+        "error": "Fehler"
+      },
+      "search": {
+        "label": "Podcasts suchen",
+        "placeholder": "Titel oder Autor"
+      },
+      "sort": {
+        "label": "Sortieren",
+        "title": "Titel",
+        "newest": "Neueste Folge",
+        "size": "Speicher",
+        "episodes": "Anzahl Folgen"
+      },
+      "noMatch": "Kein Podcast passt zu Filter und Suche.",
+      "kpi": {
+        "label": "Zusammenfassung",
+        "podcasts": "Podcasts",
+        "mode": "Neue Folgen",
+        "saving": "{{number}} speichern",
+        "linking": "{{number}} nur Link",
+        "stored": "Belegt",
+        "queue": "Downloads",
+        "queueEmpty": "Keine",
+        "queueRunning": "{{number}} laufen",
+        "queueWaiting": "{{number}} warten",
+        "queuePaused": "angehalten"
+      },
+      "queue": {
+        "title": "Downloads",
+        "empty": "Warteschlange leer",
+        "summary_one": "{{number}} in der Warteschlange · {{running}} läuft",
+        "summary_other": "{{number}} in der Warteschlange · {{running}} laufen",
+        "none": "Alle Folgen sind geladen. Die Warteschlange ist leer.",
+        "pause": "Anhalten",
+        "resume": "Fortsetzen",
+        "paused": "Die Downloads sind angehalten.",
+        "resumed": "Die Downloads laufen weiter.",
+        "pausedHint": "Angehalten: nichts lädt, bis du fortsetzt. Angefangene Downloads setzen danach fort.",
+        "cancelled": "Der Download von {{title}} ist abgebrochen.",
+        "cancel": "Abbrechen: {{title}}",
+        "ofPodcastSize": "{{podcast}} · {{size}}",
+        "more": "{{shown}} von {{total}} gezeigt.",
+        "columns": {
+          "episode": "Folge",
+          "progress": "Fortschritt",
+          "cancel": "Abbrechen"
+        },
+        "state": {
+          "queued": "wartet",
+          "paused": "angehalten",
+          "running": "lädt",
+          "runningShare": "lädt · {{share}} %",
+          "runningBytes": "lädt · {{size}}"
+        }
+      },
+      "page": {
+        "missing": "Podcast nicht gefunden",
+        "missingBody": "Diesen Podcast gibt es nicht oder nicht mehr.",
+        "back": "Alle Podcasts",
+        "counters": "Zahlen dieses Podcasts",
+        "episodes": "Folgen",
+        "stored": "Gespeichert",
+        "missingCount": "{{number}} ohne Datei",
+        "bytes": "Belegt",
+        "newest": "Neueste Folge",
+        "library": "Bibliothek «{{library}}»",
+        "setting": "Einstellung"
+      },
+      "episodes": {
+        "title": "Folgen",
+        "caption": "Folgen von {{title}}",
+        "empty": "Keine Folge in dieser Ansicht.",
+        "shown": "{{shown}} von {{total}} Folgen gezeigt.",
+        "more": "Mehr zeigen",
+        "loadQueued": "{{title}} wird geladen.",
+        "loadNone": "{{title}} wird nicht geladen: die Folge hat schon eine Datei.",
+        "filter": {
+          "label": "Folgen filtern",
+          "all": "Alle",
+          "with_file": "Gespeichert",
+          "without_file": "Ohne Datei"
+        },
+        "columns": {
+          "date": "Datum",
+          "title": "Folge",
+          "state": "Zustand",
+          "action": "Aktion"
+        },
+        "state": {
+          "file": "Gespeichert",
+          "link": "Nur Link",
+          "queued": "Wartet",
+          "running": "Lädt",
+          "failed": "Fehlgeschlagen",
+          "removed": "Entfernt",
+          "unclear": "Unklar"
+        },
+        "action": {
+          "load": "Laden",
+          "loadLabel": "Laden: {{title}}",
+          "retry": "Erneut",
+          "retryLabel": "Erneut laden: {{title}}",
+          "cancel": "Abbrechen",
+          "cancelLabel": "Abbrechen: {{title}}"
+        },
+        "meta": {
+          "link": "wird vom Anbieter gestreamt",
+          "retryAt": "nächster Versuch ab {{at}}",
+          "noRetry": "kein neuer Versuch von selbst",
+          "removedFile": "Datei {{file}} fehlt, Slouchcat lädt sie nicht von selbst",
+          "removed": "Die Datei fehlt, Slouchcat lädt sie nicht von selbst",
+          "unclear": "eine Datei im Ordner könnte diese Folge enthalten"
+        },
+        "error": {
+          "enclosure_unavailable": "Anbieter antwortete nicht",
+          "too_large": "Datei grösser als 2 GiB",
+          "not_audio": "kein Audio",
+          "no_space": "zu wenig Platz",
+          "root_not_writable": "Ordner nicht beschreibbar",
+          "root_missing": "Ordner fehlt",
+          "unsupported_format": "Format wird nicht gespeichert"
         }
       }
     },

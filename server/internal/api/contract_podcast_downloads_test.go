@@ -21,9 +21,10 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
 
-// Stored podcast episodes (concept 19 part A, contract 1.27.0): the setting of a podcast library
-// with its folder check, the own setting of a podcast, the estimate and the buttons, against the
-// services of packages library and metadata as the server wires them.
+// Stored podcast episodes (concept 19 part A, contracts 1.27.0 and 1.29.0): the setting of a podcast
+// library with its folder check, the own setting of a podcast, the estimate, the buttons, the page
+// «Podcast» and the section «Downloads», against the services of packages library and metadata as
+// the server wires them.
 func TestContractPodcastDownloads(t *testing.T) {
 	t.Parallel()
 	pf := newProfileFixture(t)
@@ -221,6 +222,105 @@ func TestContractPodcastDownloads(t *testing.T) {
 	}
 	if rec := send(t, h, http.MethodPost, BasePath+"/admin/podcasts/"+unknownItemID+"/download", "p18", "", nil); rec.Code != http.StatusNotFound {
 		t.Errorf("downloadPodcastEpisodes of an unknown podcast: %d", rec.Code)
+	}
+
+	// The page «Podcast» and the section «Downloads» (contract 1.29.0): the podcast itself, its
+	// episodes with the state of their file, the queue and «Abbrechen».
+	var one struct {
+		podcast
+		CoverURL string `json:"coverUrl"`
+	}
+	rec = send(t, h, http.MethodGet, podPath, "p18", "", nil)
+	decode(t, rec, &one)
+	if rec.Code != http.StatusOK || one.ID != a.Podcast.ID || one.Downloads == nil || one.Downloads.Queued != list()[a.Podcast.ID].Downloads.Queued ||
+		!strings.HasPrefix(one.CoverURL, BasePath+"/admin/items/"+a.Podcast.ID+"/images/poster/w200?v=") {
+		t.Errorf("getPodcast: %d %s", rec.Code, rec.Body.String())
+	}
+	type episodePage struct {
+		Total  int `json:"total"`
+		Counts struct {
+			All         int `json:"all"`
+			WithFile    int `json:"withFile"`
+			WithoutFile int `json:"withoutFile"`
+		} `json:"counts"`
+		Episodes []struct {
+			ID    string `json:"id"`
+			State string `json:"state"`
+			Feed  bool   `json:"feed"`
+		} `json:"episodes"`
+	}
+	episodes := func(query string) (episodePage, map[string]string) {
+		t.Helper()
+		var page episodePage
+		rec := send(t, h, http.MethodGet, podPath+"/episodes"+query, "p18", "", nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("listAdminPodcastEpisodes%s: %d %s", query, rec.Code, rec.Body.String())
+		}
+		decode(t, rec, &page)
+		states := map[string]string{}
+		for _, e := range page.Episodes {
+			states[e.ID] = e.State
+		}
+		return page, states
+	}
+	page, states := episodes("?filter=without_file&limit=200")
+	p = list()[a.Podcast.ID]
+	if page.Counts.WithFile != p.LocalEpisodeCount || page.Counts.All != page.Counts.WithFile+page.Counts.WithoutFile ||
+		page.Total != page.Counts.WithoutFile || len(page.Episodes) != page.Total {
+		t.Errorf("listAdminPodcastEpisodes counts = %+v, podcast %+v", page.Counts, p)
+	}
+	if states[a.EnclosureOnly.ID] != "queued" {
+		t.Errorf("state of the loaded episode = %q", states[a.EnclosureOnly.ID])
+	}
+	if page, _ := episodes("?offset=1&limit=1"); len(page.Episodes) != min(1, max(page.Total-1, 0)) {
+		t.Errorf("listAdminPodcastEpisodes offset 1 limit 1: %d episodes", len(page.Episodes))
+	}
+	if rec := send(t, h, http.MethodGet, podPath+"/episodes?filter=open", "p18", "", nil); rec.Code == http.StatusOK {
+		t.Errorf("listAdminPodcastEpisodes with an unknown filter: %d", rec.Code)
+	}
+	type queuePage struct {
+		Total     int  `json:"total"`
+		Paused    bool `json:"paused"`
+		Downloads []struct {
+			EpisodeID string `json:"episodeId"`
+			PodcastID string `json:"podcastId"`
+			State     string `json:"state"`
+		} `json:"downloads"`
+	}
+	queue := func() queuePage {
+		t.Helper()
+		var q queuePage
+		rec := send(t, h, http.MethodGet, BasePath+"/admin/podcasts/downloads", "p18", "", nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("listPodcastDownloads: %d %s", rec.Code, rec.Body.String())
+		}
+		decode(t, rec, &q)
+		return q
+	}
+	before := queue()
+	found := false
+	for _, d := range before.Downloads {
+		found = found || (d.EpisodeID == a.EnclosureOnly.ID && d.PodcastID == a.Podcast.ID && d.State == "queued")
+	}
+	if !found || before.Total != len(before.Downloads) || before.Paused {
+		t.Errorf("listPodcastDownloads = %+v", before)
+	}
+	cancelPath := podPath + "/episodes/" + a.EnclosureOnly.ID + "/download"
+	if rec := send(t, h, http.MethodDelete, cancelPath, "p18", "", nil); rec.Code != http.StatusNoContent {
+		t.Errorf("cancelPodcastDownload: %d %s", rec.Code, rec.Body.String())
+	}
+	if after := queue(); after.Total != before.Total-1 {
+		t.Errorf("queue after «Abbrechen»: %d, want %d", after.Total, before.Total-1)
+	}
+	if _, states := episodes("?limit=200"); states[a.EnclosureOnly.ID] != "link" {
+		t.Errorf("state after «Abbrechen» = %q", states[a.EnclosureOnly.ID])
+	}
+	if rec := send(t, h, http.MethodDelete, cancelPath, "p18", "", nil); rec.Code != http.StatusNoContent {
+		t.Errorf("cancelPodcastDownload without a download: %d", rec.Code)
+	}
+	if rec := send(t, h, http.MethodDelete, BasePath+"/admin/podcasts/"+a.ExplicitPodcast.ID+"/episodes/"+a.EnclosureOnly.ID+"/download",
+		"p18", "", nil); rec.Code != http.StatusNotFound {
+		t.Errorf("cancelPodcastDownload of an episode of another podcast: %d", rec.Code)
 	}
 
 	// A folder on another file system than when it was added (an NAS that is not mounted): the

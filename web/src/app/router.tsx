@@ -381,6 +381,15 @@ const podcastsRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/admin/PodcastsPage'), 'PodcastsPage'),
 });
 
+// The page of one podcast (concept 19 part A, 12.2): its setting and its episodes; `?tab=` is the
+// view of the episode list (all by default).
+const podcastRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/podcasts/$podcastId',
+  validateSearch: adminSearch,
+  component: lazyRouteComponent(() => import('@/features/admin/PodcastPage'), 'PodcastPage'),
+});
+
 // admin concept 16: webradio, `?tab=` (uebersicht, sender, einstellungen) and `?item=` (the
 // station open in the editor).
 const adminRadioRoute = createRoute({
@@ -652,6 +661,7 @@ export const routeTree = rootRoute.addChildren([
           integrationsRoute,
           librariesRoute,
           podcastsRoute,
+          podcastRoute,
           adminRadioRoute,
           // admin M7
           picksRoute,

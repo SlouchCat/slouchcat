@@ -28,6 +28,8 @@ type Podcasts interface {
 	Unsubscribe(ctx context.Context, id string) error
 	// ListPodcasts returns every live subscription, newest first.
 	ListPodcasts(ctx context.Context) ([]model.AdminPodcast, error)
+	// GetPodcast returns one live subscription (model.ErrNotFound).
+	GetPodcast(ctx context.Context, id string) (model.AdminPodcast, error)
 	// RefreshPodcast queues the fetch of a subscription (model.ErrNotFound).
 	// QueueAllPodcasts queues the fetch of every subscription with prio and returns the job ids
 	// (the manual run of podcast.poll, concept 09).
@@ -168,6 +170,14 @@ func (s *Service) ListPodcasts(ctx context.Context) ([]model.AdminPodcast, error
 		return nil, ErrNotConfigured
 	}
 	return s.podcasts.ListPodcasts(ctx)
+}
+
+// GetPodcast returns one podcast subscription (getPodcast).
+func (s *Service) GetPodcast(ctx context.Context, id string) (model.AdminPodcast, error) {
+	if s.podcasts == nil {
+		return model.AdminPodcast{}, ErrNotConfigured
+	}
+	return s.podcasts.GetPodcast(ctx, id)
 }
 
 // CreatePodcast subscribes a podcast library to a feed (createPodcast).

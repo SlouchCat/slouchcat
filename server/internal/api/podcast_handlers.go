@@ -159,7 +159,7 @@ func toAdminPodcast(p model.AdminPodcast) gen.AdminPodcast {
 		Id: p.ID, LibraryId: p.LibraryID, Title: p.Title, Author: optString(p.Author), FeedUrl: optString(p.FeedURL),
 		EpisodeCount: p.EpisodeCount, LocalEpisodeCount: p.LocalEpisodeCount, Explicit: p.Explicit,
 		LastCheckedAt: utc(p.LastCheckedAt), LastError: optString(p.LastError), CreatedAt: p.CreatedAt.UTC(),
-		RootId: p.RootID,
+		RootId: p.RootID, CoverUrl: adminPosterURL(p.ID, p.CoverHash),
 	}
 	if p.FeedOrigin != "" {
 		origin := gen.AdminPodcastFeedOrigin(p.FeedOrigin)

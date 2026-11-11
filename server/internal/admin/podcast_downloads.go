@@ -30,6 +30,13 @@ type PodcastStorage interface {
 	// DownloadPodcastEpisodes queues the episodes without file of a podcast, or the given ones,
 	// and returns how many (model.ErrNotFound).
 	DownloadPodcastEpisodes(ctx context.Context, podcastID string, episodeIDs []string) (int, error)
+	// PodcastEpisodeList returns one page of the episodes of a podcast with their state (the page
+	// «Podcast»; model.ErrNotFound, *model.ValidationError).
+	PodcastEpisodeList(ctx context.Context, podcastID, filter string, offset, limit int) (model.AdminPodcastEpisodePage, error)
+	// CancelPodcastDownload cancels the download of an episode (model.ErrNotFound).
+	CancelPodcastDownload(ctx context.Context, podcastID, episodeID string) error
+	// PodcastDownloadQueue returns the downloads that run or wait (the section «Downloads»).
+	PodcastDownloadQueue(ctx context.Context, limit int) (model.PodcastDownloadPage, error)
 }
 
 // WithPodcastStorage sets the stored podcast episodes of package library and returns the receiver.
@@ -53,6 +60,32 @@ func (s *Service) DownloadPodcastEpisodes(ctx context.Context, podcastID string,
 		return 0, ErrNotConfigured
 	}
 	return s.podcastStorage.DownloadPodcastEpisodes(ctx, podcastID, episodeIDs)
+}
+
+// PodcastEpisodes returns one page of the episodes of a podcast with the state of their file
+// (listAdminPodcastEpisodes).
+func (s *Service) PodcastEpisodes(ctx context.Context, podcastID, filter string, offset, limit int) (model.AdminPodcastEpisodePage, error) {
+	if s.podcastStorage == nil {
+		return model.AdminPodcastEpisodePage{}, ErrNotConfigured
+	}
+	return s.podcastStorage.PodcastEpisodeList(ctx, podcastID, filter, offset, limit)
+}
+
+// CancelPodcastDownload cancels the download of an episode (cancelPodcastDownload).
+func (s *Service) CancelPodcastDownload(ctx context.Context, podcastID, episodeID string) error {
+	if s.podcastStorage == nil {
+		return ErrNotConfigured
+	}
+	return s.podcastStorage.CancelPodcastDownload(ctx, podcastID, episodeID)
+}
+
+// PodcastDownloadQueue returns the downloads of podcast episodes that run or wait
+// (listPodcastDownloads).
+func (s *Service) PodcastDownloadQueue(ctx context.Context, limit int) (model.PodcastDownloadPage, error) {
+	if s.podcastStorage == nil {
+		return model.PodcastDownloadPage{}, ErrNotConfigured
+	}
+	return s.podcastStorage.PodcastDownloadQueue(ctx, limit)
 }
 
 // EstimatePodcastDownloads answers what an imagined setting of a podcast library or of one of its
