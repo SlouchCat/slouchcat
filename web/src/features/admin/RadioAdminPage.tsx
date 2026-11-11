@@ -202,7 +202,7 @@ function RadioAdminContent() {
           {
             id: 'sender',
             label: t('admin.radio.tabs.stations'),
-            content: <StationsTab onEdit={openEditor} />,
+            content: <StationsTab onEdit={openEditor} titleRef={titleRef} />,
           },
           {
             id: 'eigene',

@@ -1167,7 +1167,8 @@
         "streamPreferred": "bevorzugt",
         "streamUnreachable": "nicht erreichbar",
         "streamHls": "HLS",
-        "streamsClose": "Schliessen"
+        "streamsClose": "Schliessen",
+        "providerHelp": "Genaue Domain, zum Beispiel srg-ssr.ch."
       },
       "settings": {
         "title": "Einstellungen",
@@ -1324,7 +1325,7 @@
         },
         "stations": {
           "title": "Sender in {{country}}",
-          "count": "{{offered}} von {{total}} markiert",
+          "count": "{{offered}} von {{total}} im Angebot",
           "modeAll": "Alle Sender dieses Landes sind im Angebot, ausser den demarkierten. Neue Sender aus diesem Land kommen von selbst dazu.",
           "modeMarked": "Nur die markierten Sender sind im Angebot. Neue Sender aus diesem Land kommen nicht von selbst dazu.",
           "search": "Sender suchen",
@@ -1355,13 +1356,15 @@
           "added_other": "{{n}} Sender kommen dazu.",
           "removed_one": "{{n}} Sender fällt weg.",
           "removed_other": "{{n}} Sender fallen weg.",
-          "both": "{{added}} Sender kommen dazu, {{removed}} fallen weg.",
           "conflict": "Inzwischen hat sich das Angebot geändert. Die Vorschau ist neu gerechnet; prüfe sie und übernimm noch einmal.",
           "applied": "Übernommen. Die Radioseite zeigt das neue Angebot sofort. Logos und weitere Angaben lädt der Server jetzt im Hintergrund.",
           "discard": "Verwerfen",
           "apply": "Übernehmen",
-          "applying": "Wird übernommen …"
-        }
+          "applying": "Wird übernommen …",
+          "computing": "Die Vorschau wird gerechnet …",
+          "previewFailed": "Die Vorschau liess sich nicht rechnen."
+        },
+        "limit": "Der Entwurf hat die Höchstzahl von {{max}} Schritten erreicht. Übernimm oder verwirf ihn, bevor du weiter änderst."
       }
     },
     "editor": {

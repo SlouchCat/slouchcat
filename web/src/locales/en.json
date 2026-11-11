@@ -1167,7 +1167,8 @@
         "streamPreferred": "preferred",
         "streamUnreachable": "unreachable",
         "streamHls": "HLS",
-        "streamsClose": "Close"
+        "streamsClose": "Close",
+        "providerHelp": "The exact domain, for example srg-ssr.ch."
       },
       "settings": {
         "title": "Settings",
@@ -1324,7 +1325,7 @@
         },
         "stations": {
           "title": "Stations in {{country}}",
-          "count": "{{offered}} of {{total}} marked",
+          "count": "{{offered}} of {{total}} in the offer",
           "modeAll": "Every station of this country is in the offer except the unmarked ones. New stations of this country join by themselves.",
           "modeMarked": "Only the marked stations are in the offer. New stations of this country do not join by themselves.",
           "search": "Search stations",
@@ -1355,13 +1356,15 @@
           "added_other": "{{n}} stations join.",
           "removed_one": "{{n}} station leaves.",
           "removed_other": "{{n}} stations leave.",
-          "both": "{{added}} stations join, {{removed}} leave.",
           "conflict": "The offer changed meanwhile. The preview is computed again; check it and apply once more.",
           "applied": "Applied. The radio page shows the new offer at once. The server now loads logos and further details in the background.",
           "discard": "Discard",
           "apply": "Apply",
-          "applying": "Applying …"
-        }
+          "applying": "Applying …",
+          "computing": "Computing the preview …",
+          "previewFailed": "The preview could not be computed."
+        },
+        "limit": "The draft reached the most of {{max}} steps. Apply or discard it before changing more."
       }
     },
     "editor": {

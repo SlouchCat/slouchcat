@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -15,6 +15,8 @@ import {
   StatusRegion,
   Switch,
   TextField,
+  afterRender,
+  focusTitleIfLost,
   useStatusMessage,
   type DataColumn,
 } from '@/ui/aria';
@@ -47,7 +49,12 @@ function stationState(station: AdminRadioStation) {
 interface StationsTabProps {
   /** Opens the editor of a station (`?item=`). */
   onEdit: (stationId: number) => void;
+  /** The page's h1: it takes the focus when its control went (a row left the list, ALL-2). */
+  titleRef: RefObject<HTMLHeadingElement | null>;
 }
+
+/** The steps of this tab are stored one after the other, in the order they were pressed. */
+const OFFER_SCOPE = { id: 'admin-radio-offer-now' };
 
 /**
  * «Sender» (concept 19 part B, B9.3): the stations of the offer, or of the whole catalog with the
@@ -56,7 +63,7 @@ interface StationsTabProps {
  * while its message stands; per row the streams, «Bearbeiten» and «Aus dem Angebot nehmen» or
  * «Ins Angebot nehmen». Each of these is one step stored at once on the current offer (B4.3).
  */
-export function StationsTab({ onEdit }: StationsTabProps) {
+export function StationsTab({ onEdit, titleRef }: StationsTabProps) {
   const { t, i18n } = useTranslation();
   const language = i18n.language;
   const queryClient = useQueryClient();
@@ -99,14 +106,19 @@ export function StationsTab({ onEdit }: StationsTabProps) {
   const offer = useQuery(radioOfferQuery);
   const removable = offer.data?.totals.removableUnreachable ?? 0;
 
+  // After a step: the lists anew, and the focus on the h1 when its control went with them (a
+  // row out of the offer view, the undo with its message, the button that turned disabled).
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: radioAdminKeys.all });
     await queryClient.invalidateQueries({ queryKey: radioKeys.all });
+    await afterRender();
+    focusTitleIfLost(titleRef);
   };
 
   // «Nicht erreichbare entfernen» and its undo, while the message stands.
   const [removed, setRemoved] = useState<number[] | null>(null);
   const removeUnreachable = useMutation({
+    scope: OFFER_SCOPE,
     mutationFn: () => applyRadioOfferNow([{ op: 'demarkUnreachable' }]),
     onSuccess: async (applied) => {
       setRemoved(applied.demarkedStationIds);
@@ -115,6 +127,7 @@ export function StationsTab({ onEdit }: StationsTabProps) {
     },
   });
   const undo = useMutation({
+    scope: OFFER_SCOPE,
     mutationFn: (ids: number[]) => applyRadioOfferNow(markSteps(ids)),
     onSuccess: async () => {
       setRemoved(null);
@@ -124,6 +137,7 @@ export function StationsTab({ onEdit }: StationsTabProps) {
   });
   // One station in or out of the offer.
   const toggle = useMutation({
+    scope: OFFER_SCOPE,
     mutationFn: (station: AdminRadioStation) =>
       applyRadioOfferNow([{ op: station.offered ? 'demark' : 'mark', stationIds: [station.id] }]),
     onSuccess: async (_applied, station) => {
@@ -243,10 +257,8 @@ export function StationsTab({ onEdit }: StationsTabProps) {
               { name: station.name },
             )}
             // The button keeps the focus while the step is stored (no disabling); a press
-            // meanwhile waits for the first.
-            onPress={() => {
-              if (!toggle.isPending) toggle.mutate(station);
-            }}
+            // meanwhile is stored after the one before it (the mutations share a scope).
+            onPress={() => toggle.mutate(station)}
           >
             {t(station.offered ? 'admin.radio.stations.takeOut' : 'admin.radio.stations.takeIn')}
           </AriaButton>
@@ -273,6 +285,7 @@ export function StationsTab({ onEdit }: StationsTabProps) {
         />
         <TextField
           label={t('admin.radio.stations.provider')}
+          description={t('admin.radio.stations.providerHelp')}
           value={providerText}
           onChange={setProviderText}
         />

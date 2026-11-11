@@ -5,7 +5,16 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
-import { useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react';
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { imageUrl, isApiError } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -25,6 +34,7 @@ import {
   type DataColumn,
 } from '@/ui/aria';
 import {
+  OFFER_STEP_IDS_MAX,
   RADIO_CONTINENTS,
   applyRadioOffer,
   previewRadioOffer,
@@ -39,6 +49,9 @@ import styles from './Radio.module.css';
 
 /** Changes wait this long before the preview follows; typing in a search as well. */
 const DEBOUNCE_MS = 300;
+
+/** The most steps a draft may hold (contract 1.28.0, `steps` maxItems). */
+const OFFER_STEPS_MAX = 1000;
 
 /** The pages of the station list of a country (the preview's `list`). */
 const LIST_KEY = [...radioAdminKeys.all, 'offer', 'list'] as const;
@@ -58,30 +71,59 @@ interface Override {
   gen: number;
 }
 
-const isStationStep = (step: RadioOfferStep | undefined, id: number) =>
-  (step?.op === 'mark' || step?.op === 'demark') &&
-  step.stationIds?.length === 1 &&
-  step.stationIds[0] === id;
+const isTick = (step: RadioOfferStep | undefined) => step?.op === 'mark' || step?.op === 'demark';
+
+interface StepContext {
+  /** The steps before this place are on their way to the server («Übernehmen»): untouched. */
+  floor: number;
+  /** The stored switch «Nicht erreichbare weglassen» (a value of the server, no rule). */
+  storedHideBroken: boolean | undefined;
+}
 
 /**
- * The steps with one more. A tick undone at once takes its step back (the station is as it was),
- * and the switch keeps one step: the list stays as short as the admin's intent.
+ * The steps with one more, as short as the admin's intent: the last step takes in what only
+ * repeats or undoes it, and nothing before `floor` changes.
+ *
+ * - A tick undone at once leaves the last tick step (the station is as it was before it); more
+ *   ticks of the same kind join it (up to OFFER_STEP_IDS_MAX ids).
+ * - «Land entfernen» right after «Land wählen» of the same country takes the choice back: a
+ *   `removeCountry` would also drop the stored exceptions of its stations.
+ * - The switch keeps one step, none when it is back at the stored value.
  */
-function withStep(steps: readonly RadioOfferStep[], step: RadioOfferStep): RadioOfferStep[] {
-  const last = steps.at(-1);
-  const id = step.stationIds?.[0];
+function withStep(
+  steps: readonly RadioOfferStep[],
+  step: RadioOfferStep,
+  { floor, storedHideBroken }: StepContext,
+): RadioOfferStep[] {
+  const frozen = steps.slice(0, floor);
+  const open = steps.slice(floor);
+  const last = open.at(-1);
+  const rest = open.slice(0, -1);
+  if (isTick(step) && isTick(last) && last && step.stationIds) {
+    const ids = step.stationIds;
+    const lastIds = last.stationIds ?? [];
+    if (last.op !== step.op && ids.length === 1 && lastIds.includes(ids[0]!)) {
+      const left = lastIds.filter((id) => id !== ids[0]);
+      return [...frozen, ...rest, ...(left.length > 0 ? [{ ...last, stationIds: left }] : [])];
+    }
+    const joined = [...new Set([...lastIds, ...ids])];
+    if (last.op === step.op && joined.length <= OFFER_STEP_IDS_MAX) {
+      return [...frozen, ...rest, { ...last, stationIds: joined }];
+    }
+  }
   if (
-    id !== undefined &&
-    isStationStep(step, id) &&
-    isStationStep(last, id) &&
-    last?.op !== step.op
+    step.op === 'removeCountry' &&
+    last?.op === 'chooseCountry' &&
+    last.country === step.country
   ) {
-    return steps.slice(0, -1);
+    return [...frozen, ...rest];
   }
-  if (step.op === 'setHideBroken' && last?.op === 'setHideBroken') {
-    return [...steps.slice(0, -1), step];
+  if (step.op === 'setHideBroken') {
+    const before = last?.op === 'setHideBroken' ? [...frozen, ...rest] : [...frozen, ...open];
+    const switched = before.some((entry) => entry.op === 'setHideBroken');
+    return (step.value ?? false) === storedHideBroken && !switched ? before : [...before, step];
   }
-  return [...steps, step];
+  return [...frozen, ...open, step];
 }
 
 /**
@@ -117,7 +159,7 @@ const fold = (text: string) =>
 interface OfferTabProps {
   /** The draft: the steps on the stored offer, kept by the page across its tabs (S-17). */
   steps: RadioOfferStep[];
-  onStepsChange: (steps: RadioOfferStep[]) => void;
+  onStepsChange: Dispatch<SetStateAction<RadioOfferStep[]>>;
   /** The page's h1: it takes the focus when «Verwerfen» went with the changes (ALL-2). */
   titleRef: RefObject<HTMLHeadingElement | null>;
 }
@@ -136,10 +178,22 @@ export function OfferTab({ steps, onStepsChange, titleRef }: OfferTabProps) {
   const queryClient = useQueryClient();
   const id = useId();
 
+  const offer = useQuery(radioOfferQuery);
+  // The steps an «Übernehmen» on its way sent: they stay as they are until it answered.
+  const [sending, setSending] = useState(0);
+  const context: StepContext = { floor: sending, storedHideBroken: offer.data?.hideBroken };
+  // A change that would pass OFFER_STEPS_MAX is refused with a notice.
+  const [full, setFull] = useState(false);
+
   // Every change counts; the preview of a change replaces what the controls showed meanwhile.
   const [generation, setGeneration] = useState(0);
   const [overrides, setOverrides] = useState<ReadonlyMap<string, Override>>(() => new Map());
   const change = (next: RadioOfferStep[], shown: [string, boolean][] = [], drop?: string) => {
+    if (next.length > OFFER_STEPS_MAX) {
+      setFull(true);
+      return;
+    }
+    setFull(false);
     const gen = generation + 1;
     setGeneration(gen);
     setOverrides((previous) => {
@@ -151,7 +205,7 @@ export function OfferTab({ steps, onStepsChange, titleRef }: OfferTabProps) {
     onStepsChange(next);
   };
   const add = (step: RadioOfferStep, shown: [string, boolean][] = [], drop?: string) =>
-    change(withStep(steps, step), shown, drop);
+    change(withStep(steps, step, context), shown, drop);
 
   // The steps the previews are computed for: the draft once it rested.
   const [settled, setSettled] = useState({ steps, gen: 0 });
@@ -172,8 +226,9 @@ export function OfferTab({ steps, onStepsChange, titleRef }: OfferTabProps) {
     let live = true;
     const work: Promise<unknown>[] = [queryClient.invalidateQueries({ queryKey: LIST_KEY })];
     if (settled.steps.length > 0) work.push(queryClient.fetchQuery(previewQuery(settled.steps)));
-    void Promise.allSettled(work).then(() => {
-      if (!live) return;
+    void Promise.allSettled(work).then((results) => {
+      // A preview that failed leaves the controls on the admin's input (and says so).
+      if (!live || results.some((result) => result.status === 'rejected')) return;
       setOverrides((previous) => {
         const map = new Map([...previous].filter(([, entry]) => entry.gen > settled.gen));
         return map.size === previous.size ? previous : map;
@@ -184,7 +239,6 @@ export function OfferTab({ steps, onStepsChange, titleRef }: OfferTabProps) {
     };
   }, [queryClient, settled]);
 
-  const offer = useQuery(radioOfferQuery);
   const preview = useQuery({
     ...previewQuery(settled.steps),
     enabled: settled.steps.length > 0,
@@ -192,24 +246,36 @@ export function OfferTab({ steps, onStepsChange, titleRef }: OfferTabProps) {
   });
   const dirty = steps.length > 0;
   const view = dirty && preview.data ? preview.data : offer.data;
-  const version = (dirty ? preview.data?.version : undefined) ?? offer.data?.version;
+  // The preview belongs to the draft as it is now: only then its numbers and its version count.
+  const previewOfDraft = dirty && settled.steps === steps;
+  const previewFailed = previewOfDraft && preview.isError && !preview.isFetching;
+  const previewReady =
+    previewOfDraft && preview.isSuccess && !preview.isPlaceholderData && !preview.isFetching;
+  const version = previewReady ? preview.data.version : undefined;
 
   const [note, setNote] = useState<'applied' | 'conflict' | null>(null);
   const apply = useMutation({
-    mutationFn: () => applyRadioOffer(version ?? 0, steps),
-    onSuccess: async (applied) => {
+    mutationFn: (sent: { version: number; steps: RadioOfferStep[] }) =>
+      applyRadioOffer(sent.version, sent.steps),
+    onMutate: (sent) => setSending(sent.steps.length),
+    onSuccess: async (applied, sent) => {
       queryClient.setQueryData(radioOfferQuery.queryKey, applied.offer);
       setNote('applied');
-      change([]);
+      setSending(0);
+      // What came while the apply was on its way stays: the steps are relative.
+      onStepsChange((current) => current.slice(sent.steps.length));
+      void afterRender().then(() => focusTitleIfLost(titleRef));
       await queryClient.invalidateQueries({ queryKey: radioAdminKeys.all });
       // The radio page shows the new offer at once.
       await queryClient.invalidateQueries({ queryKey: radioKeys.all });
     },
     onError: async (error) => {
+      setSending(0);
       if (!isApiError(error, 409)) return;
-      // Another tab stored meanwhile: the same steps on the new offer, for a second «Übernehmen».
-      setNote('conflict');
+      // Another tab stored meanwhile: the same steps on the new offer, for a second «Übernehmen»
+      // once the preview of the new offer is there.
       await queryClient.invalidateQueries({ queryKey: radioAdminKeys.all });
+      setNote('conflict');
     },
   });
 
@@ -223,12 +289,17 @@ export function OfferTab({ steps, onStepsChange, titleRef }: OfferTabProps) {
   type Country = (typeof countries)[number];
   const isChosen = (country: RadioOfferCountry) =>
     overrides.get(`c:${country.code}`)?.value ?? country.mode !== undefined;
-  const choose = (country: Country, on: boolean) =>
+  const choose = (country: Country, on: boolean) => {
+    if (!on && open === country.code) setOpen(null);
     add(
       { op: on ? 'chooseCountry' : 'removeCountry', country: country.code },
       [[`c:${country.code}`, on]],
       on ? undefined : 's:',
     );
+  };
+
+  // The chosen country whose station list is open.
+  const [open, setOpen] = useState<string | null>(null);
 
   // Search: the name in the app's language or the code.
   const [search, setSearch] = useState('');
@@ -250,8 +321,13 @@ export function OfferTab({ steps, onStepsChange, titleRef }: OfferTabProps) {
     if (todo.length === 0) return;
     let next = steps;
     for (const country of todo) {
-      next = withStep(next, { op: on ? 'chooseCountry' : 'removeCountry', country: country.code });
+      next = withStep(
+        next,
+        { op: on ? 'chooseCountry' : 'removeCountry', country: country.code },
+        context,
+      );
     }
+    if (!on && todo.some((country) => country.code === open)) setOpen(null);
     change(
       next,
       todo.map((country): [string, boolean] => [`c:${country.code}`, on]),
@@ -268,11 +344,22 @@ export function OfferTab({ steps, onStepsChange, titleRef }: OfferTabProps) {
   });
 
   // The station list of one chosen country.
-  const [open, setOpen] = useState<string | null>(null);
   const openButton = (code: string) => `${id}-open-${code}`;
   const chosen = countries.filter(isChosen);
   const opened = open ? countries.find((country) => country.code === open) : undefined;
   const openedChosen = opened !== undefined && isChosen(opened);
+  const removeButton = (code: string) => `${id}-remove-${code}`;
+  // «Land entfernen»: its row goes, the focus to the same button of the next row (else the h1).
+  const removeChosen = (country: Country) => {
+    const at = chosen.findIndex((entry) => entry.code === country.code);
+    const next = chosen[at + 1] ?? chosen[at - 1];
+    choose(country, false);
+    void afterRender().then(() => {
+      const button = next ? document.getElementById(removeButton(next.code)) : null;
+      if (button) button.focus();
+      else focusTitleIfLost(titleRef);
+    });
+  };
   const closeStations = () => {
     if (!open) return;
     const code = open;
@@ -352,13 +439,11 @@ export function OfferTab({ steps, onStepsChange, titleRef }: OfferTabProps) {
               {t(isOpen ? 'admin.radio.offer.chosen.close' : 'admin.radio.offer.chosen.open')}
             </AriaButton>
             <AriaButton
+              id={removeButton(country.code)}
               variant="dangerQuiet"
               size="sm"
               aria-label={t('admin.radio.offer.chosen.removeLabel', { country: country.name })}
-              onPress={() => {
-                if (isOpen) setOpen(null);
-                choose(country, false);
-              }}
+              onPress={() => removeChosen(country)}
             >
               {t('admin.radio.offer.chosen.remove')}
             </AriaButton>
@@ -373,22 +458,24 @@ export function OfferTab({ steps, onStepsChange, titleRef }: OfferTabProps) {
 
   const totals = view?.totals;
   const hideBroken = overrides.get('h')?.value ?? view?.hideBroken ?? true;
-  const diff = dirty ? preview.data?.diff : undefined;
+  const diff = previewReady ? preview.data.diff : undefined;
   const diffText = !diff
-    ? t('admin.radio.offer.bar.same')
-    : diff.added > 0 && diff.removed > 0
-      ? t('admin.radio.offer.bar.both', {
-          added: number.format(diff.added),
-          removed: number.format(diff.removed),
-        })
-      : diff.added > 0
-        ? t('admin.radio.offer.bar.added', { count: diff.added, n: number.format(diff.added) })
-        : diff.removed > 0
-          ? t('admin.radio.offer.bar.removed', {
+    ? previewFailed
+      ? t('admin.radio.offer.bar.previewFailed')
+      : t('admin.radio.offer.bar.computing')
+    : diff.added === 0 && diff.removed === 0
+      ? t('admin.radio.offer.bar.same')
+      : [
+          diff.added > 0 &&
+            t('admin.radio.offer.bar.added', { count: diff.added, n: number.format(diff.added) }),
+          diff.removed > 0 &&
+            t('admin.radio.offer.bar.removed', {
               count: diff.removed,
               n: number.format(diff.removed),
-            })
-          : t('admin.radio.offer.bar.same');
+            }),
+        ]
+          .filter(Boolean)
+          .join(' ');
   const barText = dirty
     ? note === 'conflict'
       ? `${t('admin.radio.offer.bar.conflict')} ${diffText}`
@@ -396,6 +483,7 @@ export function OfferTab({ steps, onStepsChange, titleRef }: OfferTabProps) {
     : note === 'applied'
       ? t('admin.radio.offer.bar.applied')
       : t('admin.radio.offer.bar.clean');
+  const atLimit = full || steps.length >= OFFER_STEPS_MAX;
 
   return (
     <div className={styles.tab}>
@@ -569,6 +657,10 @@ export function OfferTab({ steps, onStepsChange, titleRef }: OfferTabProps) {
         </div>
       </div>
 
+      {previewFailed && <Notice tone="danger" title={problemMessage(t, preview.error)} />}
+      {atLimit && (
+        <Notice tone="warning" title={t('admin.radio.offer.limit', { max: OFFER_STEPS_MAX })} />
+      )}
       {apply.error && !isApiError(apply.error, 409) && (
         <Notice tone="danger" title={problemMessage(t, apply.error)} />
       )}
@@ -584,17 +676,20 @@ export function OfferTab({ steps, onStepsChange, titleRef }: OfferTabProps) {
               onPress={() => {
                 setNote(null);
                 change([]);
+                setFull(false);
                 void afterRender().then(() => focusTitleIfLost(titleRef));
               }}
             >
               {t('admin.radio.offer.bar.discard')}
             </AriaButton>
           )}
+          {/* Only with a draft whose preview is there: its version is the one to send. */}
           <AriaButton
             variant="primary"
             isPending={apply.isPending}
+            isDisabled={!apply.isPending && version === undefined}
             onPress={() => {
-              if (dirty && version !== undefined) apply.mutate();
+              if (version !== undefined && !apply.isPending) apply.mutate({ version, steps });
             }}
           >
             {apply.isPending
