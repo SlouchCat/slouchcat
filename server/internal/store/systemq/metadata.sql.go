@@ -1065,6 +1065,35 @@ func (q *Queries) ListPendingMatchItems(ctx context.Context, libraryID int64) ([
 	return items, nil
 }
 
+const listPodcastEpisodeIDs = `-- name: ListPodcastEpisodeIDs :many
+SELECT id FROM items WHERE kind = 'podcast_episode' ORDER BY id
+`
+
+// Every podcast episode, soft-deleted ones included: the folders of their image files go once
+// after migration 00049 (PurgeEpisodeImagesOnce).
+func (q *Queries) ListPodcastEpisodeIDs(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listPodcastEpisodeIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSystemSettingsByPrefix = `-- name: ListSystemSettingsByPrefix :many
 SELECT key, value FROM settings WHERE key LIKE ?1 ORDER BY key
 `

@@ -407,3 +407,8 @@ SELECT count(*) FROM media_files
 WHERE root_id = @root_id AND item_id <> @item_id AND missing_since IS NULL
   AND substr(rel_path, 1, length(CAST(@dir AS TEXT)) + 1) = CAST(@dir AS TEXT) || '/'
   AND instr(substr(rel_path, length(CAST(@dir AS TEXT)) + 2), '/') = 0;
+
+-- name: ListPodcastEpisodeIDs :many
+-- Every podcast episode, soft-deleted ones included: the folders of their image files go once
+-- after migration 00049 (PurgeEpisodeImagesOnce).
+SELECT id FROM items WHERE kind = 'podcast_episode' ORDER BY id;
