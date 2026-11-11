@@ -321,3 +321,16 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   Stichtag 10. November 2026, 12:00 UTC. Dann `store.Dump`, kein Pfad aus dem Dateisystem dazu.
   `TestFrozenHoerbuchQuellenStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist;
   `TestMigration00046BookSources` prüft den Schritt von `hoerbuch-reihen.sql` aus.
+- `radio-angebot.sql`: Stand nach Stufe B1 des Konzepts 19 «Radio-Angebot» (Teil B; Migration 00048 mit
+  `radio_offer_countries`, `radio_offer_exceptions`, `radio_config.offer_version`, `radio_config.offer_seeded` und
+  `radio_stations.provider`; die Schlagwort-Regeln, die Filterwerte von Hand und ihre Schlösser gelöscht). Erzeugt am
+  11. November 2026 aus `hoerbuch-quellen.sql`: Stand eingespielt, mit `store.Open` migriert, dann den echten Dienst
+  `radio.Service` getrieben: `Start` (die Vorbereitung beim ersten Start demarkiert den ausgeblendeten Sender
+  «Kaputtradio», leitet die Filterwerte aller Sender aus der Regeldatei neu ab und trägt den Anbieter nach;
+  `countries` übernimmt das Angebot nicht), dann zweimal `ApplyOffer`: die Schweiz mit «Alle» und «Testradio Zwei»
+  demarkiert, Österreich mit «Nur markierte» und einem markierten Sender, zwei deutsche Sender markiert, ohne
+  Deutschland zu wählen (Version 1), danach ein amerikanischer Sender markiert und «Nicht erreichbare weglassen»
+  aus (Version 2). Stichtag 11. November 2026, 12:00 UTC. Dann `store.Dump`, kein neuer Pfad im Stand (die Pfade
+  der Wurzeln bleiben die von `hoerbuch-quellen.sql`). `TestFrozenRadioAngebotStateCoversTheStage` prüft, dass jede
+  dieser Datenarten vorhanden ist; `TestMigration00048RadioOffer` prüft den Schritt von `hoerbuch-quellen.sql` aus,
+  `TestFirstStartPreparesTheOffer` (Paket `radio`) die Vorbereitung beim ersten Start.
