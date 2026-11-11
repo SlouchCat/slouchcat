@@ -229,6 +229,41 @@ async function ensureRadioCatalog(api: APIRequestContext): Promise<void> {
   }
 }
 
+/**
+ * Chooses every country of the catalog for the radio offer (contract 1.28.0, concept 19 part B),
+ * which starts empty: the suite lists the whole test catalog as before. An offer left over by an
+ * earlier run (a country left out, a station demarked by a test that stopped half way) is set
+ * right again: every country with «Alle» and no exceptions.
+ */
+async function ensureRadioOffer(api: APIRequestContext): Promise<void> {
+  type Offer = {
+    version: number;
+    totals: { demarked: number; marked: number };
+    countries: { code: string; mode?: 'all' | 'marked'; offered: number; total: number }[];
+  };
+  const response = await api.get('/api/v1/admin/radio/offer');
+  if (!response.ok()) throw new Error(`GET /admin/radio/offer answered ${response.status()}`);
+  const offer = (await response.json()) as Offer;
+  const countries = offer.countries.filter((country) => country.total > 0);
+  const whole =
+    offer.totals.demarked === 0 &&
+    offer.totals.marked === 0 &&
+    countries.every((country) => country.mode === 'all' && country.offered === country.total);
+  if (whole) return;
+  const steps = countries.flatMap((country) => [
+    { op: 'chooseCountry', country: country.code },
+    { op: 'markAll', country: country.code },
+  ]);
+  const apply = await api.post('/api/v1/admin/radio/offer/apply', {
+    data: { version: offer.version, steps },
+  });
+  if (!apply.ok()) {
+    throw new Error(
+      `POST /admin/radio/offer/apply answered ${apply.status()}: ${await apply.text()}`,
+    );
+  }
+}
+
 /** The time shift window of the suite: 10 minutes keep the relay buffers on disk small (D-14). */
 const RADIO_BUFFER_MINUTES = 10;
 
@@ -252,7 +287,8 @@ async function ensureRadioBuffer(api: APIRequestContext): Promise<void> {
  * API (main account, the audiobook library on testdata/media/Audiobooks, no TMDB key), adds the
  * podcast library, subscribes to the local feed and notes the ids of the test books, then adds
  * the video libraries on testdata/media/Movies and testdata/media/TV and waits for their scans.
- * Then the webradio's first catalog sync and its time shift window of 10 minutes (concept 16).
+ * Then the webradio's first catalog sync, an offer of every country of its catalog (concept 19
+ * part B) and its time shift window of 10 minutes (concept 16).
  * Last, one global pick of the H264 film gives the start page its carousel (M7).
  * The order matters: the start page's "Neu hinzugefügt" holds the 20 newest titles, and the test
  * media have exactly 20 films and series; scanned last, they fill the row in every run (titles of
@@ -294,6 +330,7 @@ export default async function globalSetup(): Promise<void> {
     await ensureVideoLibraries(api);
     await waitForScan(api);
     await ensureRadioCatalog(api);
+    await ensureRadioOffer(api);
     await ensureRadioBuffer(api);
     // The start page has a row of user picks only with a pick: the owner recommends the H264 film.
     await ensureBaselinePick(api);

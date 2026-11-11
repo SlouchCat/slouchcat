@@ -30,6 +30,21 @@ func (q *Queries) AddRadioListenTime(ctx context.Context, arg AddRadioListenTime
 	return err
 }
 
+const clearRadioLogo = `-- name: ClearRadioLogo :execrows
+UPDATE radio_stations SET logo_state = 'none', logo_hash = NULL
+WHERE id = ?1 AND logo_state IN ('catalog', 'website', 'queued', 'failed') AND logo_hash IS NOT NULL
+`
+
+// Forgets the fetched logo of a station that left the offer (Marco's decision of 11 November
+// 2026); an own upload stays.
+func (q *Queries) ClearRadioLogo(ctx context.Context, id int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, clearRadioLogo, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const clearRadioStationBroken = `-- name: ClearRadioStationBroken :execrows
 UPDATE radio_stations SET broken_at = NULL WHERE id = ?1 AND broken_at IS NOT NULL
 `
@@ -524,6 +539,16 @@ func (q *Queries) RecordRadioRelayAbort(ctx context.Context, arg RecordRadioRela
 	var i RecordRadioRelayAbortRow
 	err := row.Scan(&i.Failures, &i.BrokenAt)
 	return i, err
+}
+
+const resetRadioLogoQueued = `-- name: ResetRadioLogoQueued :exec
+UPDATE radio_stations SET logo_state = 'none' WHERE id = ?1 AND logo_state = 'queued'
+`
+
+// Undoes MarkRadioLogoQueued when the job could not be queued, so the next trigger queues it again.
+func (q *Queries) ResetRadioLogoQueued(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, resetRadioLogoQueued, id)
+	return err
 }
 
 const resetRadioRelayFailures = `-- name: ResetRadioRelayFailures :execrows

@@ -2,7 +2,7 @@ import type { components } from '@slouchcat/api-client';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
+import { json, mockApi, problem, renderApp, session, signedIn } from '@/test/api';
 
 type RadioStation = components['schemas']['RadioStation'];
 
@@ -42,6 +42,13 @@ const facets = {
   mood: [{ value: 'chill', count: 1 }],
   quality: [{ value: 'good', count: 3 }],
   titles: 2,
+  offerEmpty: false,
+};
+
+/** The server's answer to a PUT: the stored country is the effective one, as in the offer. */
+const withEffective = (body: unknown) => {
+  const prefs = body as { defaultCountry: string };
+  return { ...prefs, effectiveCountry: prefs.defaultCountry };
 };
 
 const page = (items: RadioStation[]) => ({ items, total: items.length, offset: 0 });
@@ -49,8 +56,9 @@ const page = (items: RadioStation[]) => ({ items, total: items.length, offset: 0
 function radioApi(overrides: Parameters<typeof mockApi>[0] = {}) {
   return mockApi({
     ...signedIn,
-    'GET /radio/preferences': () => json({ defaultCountry: 'CH' }),
-    'PUT /radio/preferences': (call) => json(call.body),
+    // The stored country has stations in the offer: it is the effective one (contract 1.28.0).
+    'GET /radio/preferences': () => json({ defaultCountry: 'CH', effectiveCountry: 'CH' }),
+    'PUT /radio/preferences': (call) => json(withEffective(call.body)),
     'GET /radio/facets': () => json(facets),
     'GET /radio/stations': () => json(page([swissPop, kanalK, gone])),
     'GET /radio/favorites': () => json([kanalK]),
@@ -87,6 +95,86 @@ describe('radio page', () => {
     expect(screen.queryByRole('heading', { name: 'Nach Genre' })).not.toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'Meine Sender' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Filter Jazz entfernen' })).toBeVisible();
+  });
+
+  it('opens without a country when the stored one is outside the offer (PB-9)', async () => {
+    const { calls, fetchMock } = radioApi({
+      // CH is stored, but the offer has no station of it: no effective country.
+      'GET /radio/preferences': () => json({ defaultCountry: 'CH', lastFilter: {} }),
+      'GET /radio/facets': () => json({ ...facets, country: [{ value: 'DE', count: 3 }] }),
+    });
+    const { router } = renderApp('/radio');
+    // «Beliebt» spans the whole offer; no row and no quick filter of the stored country.
+    expect(await screen.findByRole('heading', { name: 'Beliebt' })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'Beliebt in Schweiz' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Mein Land: Schweiz' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Mein Land: Schweiz' })).not.toBeInTheDocument();
+    expect(router.state.location.search).toEqual({});
+    const asked = fetchMock.mock.calls
+      .map(([request]) => new URL(request.url))
+      .filter((url) => url.pathname.endsWith('/radio/stations'));
+    expect(asked.length).toBeGreaterThan(0);
+    expect(asked.every((url) => url.searchParams.getAll('country').length === 0)).toBe(true);
+    // The stored choice stays: «Mein Land» still shows it, and nothing writes it over.
+    expect(await screen.findByRole('combobox', { name: 'Mein Land' })).toHaveValue('CH');
+    expect(
+      calls
+        .filter((call) => call.method === 'PUT')
+        .every((call) => (call.body as { defaultCountry: string }).defaultCountry === 'CH'),
+    ).toBe(true);
+  });
+
+  it('says no station is chosen yet while the offer is empty, with the way there for an admin', async () => {
+    radioApi({
+      'GET /radio/preferences': () => json({ defaultCountry: 'CH' }),
+      'GET /radio/facets': () =>
+        json({
+          ...facets,
+          country: [],
+          language: [],
+          genre: [],
+          kind: [],
+          mood: [],
+          quality: [],
+          titles: 0,
+          offerEmpty: true,
+        }),
+      'GET /radio/stations': () => json(page([])),
+      'GET /radio/favorites': () => json([]),
+    });
+    renderApp('/radio');
+    expect(await screen.findByText('Noch keine Sender ausgewählt')).toBeVisible();
+    expect(screen.queryByText('Keine Sender gefunden')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Sender auswählen' })).toHaveAttribute(
+      'href',
+      '/admin/radio?tab=angebot',
+    );
+  });
+
+  it('shows no way to the administration to a viewer while the offer is empty', async () => {
+    radioApi({
+      'GET /auth/session': () =>
+        json({ ...session, account: { ...session.account, role: 'user', isOwner: false } }),
+      'GET /radio/facets': () => json({ ...facets, offerEmpty: true }),
+      'GET /radio/stations': () => json(page([])),
+      'GET /radio/favorites': () => json([]),
+    });
+    renderApp('/radio');
+    expect(await screen.findByText('Noch keine Sender ausgewählt')).toBeVisible();
+    expect(
+      screen.getByText('Die Verwaltung hat noch keine Sender für das Radio ausgewählt.'),
+    ).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Sender auswählen' })).not.toBeInTheDocument();
+  });
+
+  it('names the provider after the place of a station', async () => {
+    radioApi({
+      'GET /radio/stations': () =>
+        json(page([station(5, 'Radio SRF 3', { region: 'CH-ZH', provider: 'srg-ssr.ch' })])),
+    });
+    renderApp('/radio');
+    const grid = await screen.findByRole('list', { name: 'Alle Sender' });
+    expect(within(grid).getByText('Schweiz · Zürich · srg-ssr.ch')).toBeVisible();
   });
 
   it('sends the filter of the URL to the server', async () => {
@@ -182,8 +270,10 @@ describe('radio page', () => {
         const body = call.body as { defaultCountry: string; lastFilter: object };
         const slow = body.defaultCountry === 'DE' && Object.keys(body.lastFilter).length === 0;
         return slow
-          ? new Promise<Response>((resolve) => setTimeout(() => resolve(json(body)), 1500))
-          : json(body);
+          ? new Promise<Response>((resolve) =>
+              setTimeout(() => resolve(json(withEffective(body))), 1500),
+            )
+          : json(withEffective(body));
       },
     });
     // «Mein Land» is on: choosing another country moves the filter along.

@@ -81,9 +81,10 @@ func TestListenVisibility(t *testing.T) {
 	e := newRelayEnv(t)
 	e.st.Set("/live", mp3Mount(t, true))
 	hidden := e.addStation("Hidden FM", "CH", "MP3", 128, e.st.URL("/live"))
-	e.exec(`UPDATE radio_stations SET hidden = 1 WHERE id = ?`, hidden)
+	e.setOffered(hidden, false)
 	de := e.addStation("DE FM", "DE", "MP3", 128, e.st.URL("/live"))
-	e.exec(`UPDATE radio_config SET countries = '["CH"]'`)
+	e.exec(`DELETE FROM radio_offer_exceptions WHERE station_id = ?`, de) // DE is not chosen
+	e.s.cat.offer.Store(nil)
 	sess := e.f.Session(t, e.f.P18)
 	for _, id := range []int64{hidden, de, 9999} {
 		if _, err := e.s.Listen(context.Background(), sess, id); !errors.Is(err, model.ErrNotFound) {
@@ -94,7 +95,7 @@ func TestListenVisibility(t *testing.T) {
 		}
 	}
 	if e.st.Connections("/live") != 0 {
-		t.Fatal("a hidden or excluded station started a relay")
+		t.Fatal("a station outside the offer started a relay")
 	}
 }
 

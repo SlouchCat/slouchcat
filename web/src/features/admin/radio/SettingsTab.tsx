@@ -26,15 +26,12 @@ import styles from './Radio.module.css';
 const BUFFERS = [10, 30, 60] as const;
 type BufferMinutes = (typeof BUFFERS)[number];
 
-/** The form's state: numbers as typed, the countries as one line of codes. */
+/** The form's state: numbers as typed. */
 interface Draft {
   bufferMinutes: BufferMinutes;
   budgetMb: string;
   maxRelays: string;
   graceSeconds: string;
-  hideBroken: boolean;
-  allCountries: boolean;
-  countries: string;
   coverMusicbrainz: boolean;
   coverItunes: boolean;
 }
@@ -44,22 +41,9 @@ const draftOf = (config: RadioConfig): Draft => ({
   budgetMb: String(config.budgetMb),
   maxRelays: String(config.maxRelays),
   graceSeconds: String(config.graceSeconds),
-  hideBroken: config.hideBroken,
-  allCountries: config.countries === null,
-  countries: (config.countries ?? []).join(', '),
   coverMusicbrainz: config.coverMusicbrainz,
   coverItunes: config.coverItunes,
 });
-
-/** ISO 3166-1 codes from the field, each once, in upper case; anything else is dropped. */
-const countryCodes = (text: string) => [
-  ...new Set(
-    text
-      .split(/[\s,;]+/)
-      .map((code) => code.trim().toUpperCase())
-      .filter((code) => /^[A-Z]{2}$/.test(code)),
-  ),
-];
 
 /** What differs from the stored settings (PATCH: absent fields keep their value). */
 function changes(config: RadioConfig, draft: Draft): RadioConfigUpdate {
@@ -71,9 +55,6 @@ function changes(config: RadioConfig, draft: Draft): RadioConfigUpdate {
   if (Number.isInteger(relays) && relays !== config.maxRelays) update.maxRelays = relays;
   const grace = Number(draft.graceSeconds);
   if (Number.isInteger(grace) && grace !== config.graceSeconds) update.graceSeconds = grace;
-  if (draft.hideBroken !== config.hideBroken) update.hideBroken = draft.hideBroken;
-  const countries = draft.allCountries ? null : countryCodes(draft.countries);
-  if (JSON.stringify(countries) !== JSON.stringify(config.countries)) update.countries = countries;
   if (draft.coverMusicbrainz !== config.coverMusicbrainz) {
     update.coverMusicbrainz = draft.coverMusicbrainz;
   }
@@ -89,8 +70,9 @@ interface SettingsTabProps {
 
 /**
  * «Einstellungen» (concept 16, 7.3, 8 and 11) as rows: time shift, budget, maximum stations,
- * run-on, broken stations, countries and the two cover lookups (D-10). Time shift, budget and maximum apply to relays that start from now
- * on (the running ones keep theirs, S2), the others at once.
+ * run-on and the two cover lookups (D-10). Time shift, budget and maximum apply to relays that
+ * start from now on (the running ones keep theirs, S2), the others at once. The countries and the
+ * switch for broken stations belong to the offer since contract 1.28.0 (concept 19 part B).
  */
 export function SettingsTab({ config, titleRef }: SettingsTabProps) {
   if (config.isPending) return <Skeleton shape="block" />;
@@ -178,38 +160,6 @@ function SettingsForm({
           value={draft.graceSeconds}
           onChange={(value) => set('graceSeconds', value)}
         />
-      </SettingRow>
-      <SettingRow
-        label={t('admin.radio.settings.hideBroken')}
-        help={t('admin.radio.settings.hideBrokenHelp')}
-      >
-        <Switch isSelected={draft.hideBroken} onChange={(value) => set('hideBroken', value)}>
-          {t('admin.radio.settings.hideBroken')}
-        </Switch>
-      </SettingRow>
-      <SettingRow
-        label={t('admin.radio.settings.countries')}
-        help={t('admin.radio.settings.countriesHelp')}
-      >
-        <div className={styles.countries}>
-          <RadioGroup
-            label={t('admin.radio.settings.countries')}
-            hideLabel
-            options={[
-              { value: 'all', label: t('admin.radio.settings.countriesAll') },
-              { value: 'chosen', label: t('admin.radio.settings.countriesChosen') },
-            ]}
-            value={draft.allCountries ? 'all' : 'chosen'}
-            onChange={(value) => set('allCountries', value === 'all')}
-          />
-          {!draft.allCountries && (
-            <TextField
-              label={t('admin.radio.settings.countriesField')}
-              value={draft.countries}
-              onChange={(value) => set('countries', value)}
-            />
-          )}
-        </div>
       </SettingRow>
       <SettingRow
         label={t('admin.radio.settings.coverMusicbrainz')}

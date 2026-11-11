@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 )
 
@@ -12,11 +13,13 @@ import (
 // and facets), favourites of two profiles with their positions, locks (a renamed station, a manual
 // mood), a hidden and a recommended station, the profile state, an ended listen session, listen
 // time per quarter hour and the radio config with the state of the sync. TestFrozenStatesMigrate
-// replays it like every state; this test checks that each of those is really in it.
+// replays it like every state; this test checks that each of those is really in it. Migration 00048
+// (concept 19 part B) discards the manual mood and its lock, so those are checked in the script.
 func TestFrozenWebradioStateCoversTheConcept(t *testing.T) {
 	t.Parallel()
 	cfg := t.TempDir()
-	replay(t, cfg+"/"+FileName, frozenState(t, "webradio.sql"))
+	script := frozenState(t, "webradio.sql")
+	replay(t, cfg+"/"+FileName, script)
 	db, err := Open(context.Background(), Options{ConfigDir: cfg, Version: "frozen-test", Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 	if err != nil {
 		t.Fatal(err)
@@ -32,7 +35,7 @@ func TestFrozenWebradioStateCoversTheConcept(t *testing.T) {
 		"derived genres":                        `SELECT count(*) FROM radio_station_facets WHERE facet = 'genre' AND manual = 0`,
 		"derived kinds":                         `SELECT count(*) FROM radio_station_facets WHERE facet = 'kind' AND manual = 0`,
 		"derived moods":                         `SELECT count(*) FROM radio_station_facets WHERE facet = 'mood' AND manual = 0`,
-		"a manual facet with its lock":          `SELECT count(*) FROM radio_station_facets f JOIN radio_station_locks l ON l.station_id = f.station_id AND l.field = f.facet WHERE f.manual = 1`,
+		"no manual facet after 00048":           `SELECT count(*) = 0 FROM radio_station_facets WHERE manual = 1`,
 		"a renamed station with its lock":       `SELECT count(*) FROM radio_stations s JOIN radio_station_locks l ON l.station_id = s.id AND l.field = 'name' WHERE s.name = 'Radio Swiss Jazz (Marco)'`,
 		"a hidden station":                      `SELECT count(*) FROM radio_stations WHERE hidden = 1`,
 		"a recommended station":                 `SELECT count(*) FROM radio_stations WHERE recommended = 1`,
@@ -57,6 +60,12 @@ func TestFrozenWebradioStateCoversTheConcept(t *testing.T) {
 		}
 		if n == 0 {
 			t.Errorf("frozen webradio state has no %s", what)
+		}
+	}
+	for _, row := range []string{`INSERT INTO "radio_station_facets" VALUES (49, 'mood', 'focus', 1);`,
+		`INSERT INTO "radio_station_locks" VALUES (49, 'mood');`} {
+		if !strings.Contains(script, row) {
+			t.Errorf("frozen webradio script has no manual facet with its lock: %s", row)
 		}
 	}
 }

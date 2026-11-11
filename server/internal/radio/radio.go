@@ -79,7 +79,7 @@ type Service struct {
 	now func() time.Time
 	o   options
 
-	cat  *catalogState // catalog, sync, index, favourites, preferences, admin (lane B)
+	cat  *catalogState // catalog, sync, index, offer, favourites, preferences, admin (lane B)
 	rel  *relayState   // relays, listen sessions, live HLS, listen time (lane A)
 	logo *logoState    // logo chain (lane A)
 	cov  *coverState   // cover chain (lane A, cover.go)
@@ -115,6 +115,6 @@ func New(db *store.DB, log *slog.Logger, opts ...Option) *Service {
 	s.cat.fetch.lazy = func() *http.Client { return s.netClient().http }
 	s.onStationChanged = s.reloadStation
 	s.onStationsChanged = s.reloadStations
-	s.onListed = s.queueLogos
+	s.onListed = func(ctx context.Context, ids []int64) { s.queueLogos(ctx, ids) }
 	return s
 }

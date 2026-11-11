@@ -79,18 +79,34 @@ func (q *Queries) DeleteMissingRadioAliases(ctx context.Context, before sql.Null
 	return items, nil
 }
 
-const deleteMissingRadioStations = `-- name: DeleteMissingRadioStations :execrows
+const deleteMissingRadioStations = `-- name: DeleteMissingRadioStations :many
 DELETE FROM radio_stations WHERE source = 'catalog' AND missing_since IS NOT NULL AND missing_since < ?1
+RETURNING id
 `
 
-// Catalog stations missing since before; favourites, locks and the rest go by cascade (F-18).
-// Own stations are never removed by the sync.
-func (q *Queries) DeleteMissingRadioStations(ctx context.Context, before sql.NullInt64) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteMissingRadioStations, before)
+// Catalog stations missing since before; favourites, locks, the offer exception and the rest go by
+// cascade (F-18). Own stations are never removed by the sync. The ids name the logo files to remove.
+func (q *Queries) DeleteMissingRadioStations(ctx context.Context, before sql.NullInt64) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, deleteMissingRadioStations, before)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return result.RowsAffected()
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const deleteRadioOwnStation = `-- name: DeleteRadioOwnStation :execrows
@@ -142,7 +158,7 @@ func (q *Queries) DeleteRadioStationTags(ctx context.Context, stationID int64) e
 
 const getRadioConfig = `-- name: GetRadioConfig :one
 
-SELECT id, buffer_minutes, budget_mb, max_relays, grace_seconds, hide_broken, countries, last_sync_at, last_sync_error, sync_failures, entries_total, entries_reachable, stations_total, last_added, last_removed, updated_at, cover_musicbrainz, cover_itunes FROM radio_config WHERE id = 1
+SELECT id, buffer_minutes, budget_mb, max_relays, grace_seconds, hide_broken, countries, last_sync_at, last_sync_error, sync_failures, entries_total, entries_reachable, stations_total, last_added, last_removed, updated_at, cover_musicbrainz, cover_itunes, offer_version, offer_seeded FROM radio_config WHERE id = 1
 `
 
 // Webradio catalog and settings (package store/appq, concept 16 sections 5 and 7.3; owner: radio,
@@ -171,12 +187,14 @@ func (q *Queries) GetRadioConfig(ctx context.Context) (RadioConfig, error) {
 		&i.UpdatedAt,
 		&i.CoverMusicbrainz,
 		&i.CoverItunes,
+		&i.OfferVersion,
+		&i.OfferSeeded,
 	)
 	return i, err
 }
 
 const getRadioStation = `-- name: GetRadioStation :one
-SELECT id, source, group_key, name, sort_key, search_text, country, region, languages, homepage, favicon_url, votes, clicks, quality, reachable, failures, broken_at, hidden, recommended, shows_titles, missing_since, logo_state, logo_hash, logo_tried_at, created_at, updated_at FROM radio_stations WHERE id = ?1
+SELECT id, source, group_key, name, sort_key, search_text, country, region, languages, homepage, favicon_url, votes, clicks, quality, reachable, failures, broken_at, hidden, recommended, shows_titles, missing_since, logo_state, logo_hash, logo_tried_at, created_at, updated_at, provider FROM radio_stations WHERE id = ?1
 `
 
 func (q *Queries) GetRadioStation(ctx context.Context, id int64) (RadioStation, error) {
@@ -209,6 +227,7 @@ func (q *Queries) GetRadioStation(ctx context.Context, id int64) (RadioStation, 
 		&i.LogoTriedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Provider,
 	)
 	return i, err
 }
@@ -227,7 +246,7 @@ WITH ranked AS (
     WHERE st.station_id = ?1
 )
 SELECT s.id, s.source, s.name, s.sort_key, s.search_text, s.country, s.region, s.languages,
-       s.homepage, s.votes, s.clicks, s.quality, s.reachable, s.failures, s.broken_at, s.hidden,
+       s.homepage, s.votes, s.clicks, s.quality, s.reachable, s.failures, s.broken_at, s.provider,
        s.recommended, s.shows_titles, s.missing_since, s.logo_state, s.logo_hash, s.created_at,
        s.updated_at, r.codec AS best_codec, r.bitrate AS best_bitrate,
        CAST(COALESCE(r.hls, 0) AS INTEGER) AS best_hls
@@ -252,7 +271,7 @@ type GetRadioStationForIndexRow struct {
 	Reachable    int64
 	Failures     int64
 	BrokenAt     sql.NullInt64
-	Hidden       int64
+	Provider     sql.NullString
 	Recommended  int64
 	ShowsTitles  int64
 	MissingSince sql.NullInt64
@@ -294,7 +313,7 @@ func (q *Queries) GetRadioStationForIndex(ctx context.Context, stationID int64) 
 			&i.Reachable,
 			&i.Failures,
 			&i.BrokenAt,
-			&i.Hidden,
+			&i.Provider,
 			&i.Recommended,
 			&i.ShowsTitles,
 			&i.MissingSince,
@@ -352,9 +371,9 @@ func (q *Queries) InsertRadioCatalogStation(ctx context.Context, arg InsertRadio
 const insertRadioOwnStation = `-- name: InsertRadioOwnStation :one
 
 INSERT INTO radio_stations (source, group_key, name, sort_key, search_text, country, region, languages,
-                            homepage, quality, created_at, updated_at)
+                            homepage, quality, provider, created_at, updated_at)
 VALUES ('own', ?1, ?2, ?3, ?4, ?5, ?6, ?7,
-        ?8, ?9, ?10, ?10)
+        ?8, ?9, ?10, ?11, ?11)
 RETURNING id
 `
 
@@ -368,6 +387,7 @@ type InsertRadioOwnStationParams struct {
 	Languages  string
 	Homepage   sql.NullString
 	Quality    sql.NullString
+	Provider   sql.NullString
 	Now        int64
 }
 
@@ -385,6 +405,7 @@ func (q *Queries) InsertRadioOwnStation(ctx context.Context, arg InsertRadioOwnS
 		arg.Languages,
 		arg.Homepage,
 		arg.Quality,
+		arg.Provider,
 		arg.Now,
 	)
 	var id int64
@@ -684,7 +705,7 @@ WITH ranked AS (
     FROM radio_streams AS st
 )
 SELECT s.id, s.source, s.name, s.sort_key, s.search_text, s.country, s.region, s.languages,
-       s.homepage, s.votes, s.clicks, s.quality, s.reachable, s.failures, s.broken_at, s.hidden,
+       s.homepage, s.votes, s.clicks, s.quality, s.reachable, s.failures, s.broken_at, s.provider,
        s.recommended, s.shows_titles, s.missing_since, s.logo_state, s.logo_hash, s.created_at,
        s.updated_at, r.codec AS best_codec, r.bitrate AS best_bitrate,
        CAST(COALESCE(r.hls, 0) AS INTEGER) AS best_hls
@@ -709,7 +730,7 @@ type ListRadioStationsForIndexRow struct {
 	Reachable    int64
 	Failures     int64
 	BrokenAt     sql.NullInt64
-	Hidden       int64
+	Provider     sql.NullString
 	Recommended  int64
 	ShowsTitles  int64
 	MissingSince sql.NullInt64
@@ -750,7 +771,7 @@ func (q *Queries) ListRadioStationsForIndex(ctx context.Context) ([]ListRadioSta
 			&i.Reachable,
 			&i.Failures,
 			&i.BrokenAt,
-			&i.Hidden,
+			&i.Provider,
 			&i.Recommended,
 			&i.ShowsTitles,
 			&i.MissingSince,
@@ -962,6 +983,21 @@ func (q *Queries) SetRadioOwnStreamProbe(ctx context.Context, arg SetRadioOwnStr
 	return result.RowsAffected()
 }
 
+const setRadioStationProvider = `-- name: SetRadioStationProvider :exec
+UPDATE radio_stations SET provider = ?1 WHERE id = ?2
+`
+
+type SetRadioStationProviderParams struct {
+	Provider sql.NullString
+	ID       int64
+}
+
+// The provider of a station (B7.4): the own station's new stream address, the first start.
+func (q *Queries) SetRadioStationProvider(ctx context.Context, arg SetRadioStationProviderParams) error {
+	_, err := q.db.ExecContext(ctx, setRadioStationProvider, arg.Provider, arg.ID)
+	return err
+}
+
 const setRadioStationQuality = `-- name: SetRadioStationQuality :exec
 UPDATE radio_stations SET quality = ?1, updated_at = ?2 WHERE id = ?3
 `
@@ -1028,8 +1064,8 @@ func (q *Queries) TouchRadioAlias(ctx context.Context, arg TouchRadioAliasParams
 const updateRadioConfig = `-- name: UpdateRadioConfig :exec
 UPDATE radio_config
 SET buffer_minutes = ?1, budget_mb = ?2, max_relays = ?3,
-    grace_seconds = ?4, hide_broken = ?5, countries = ?6,
-    cover_musicbrainz = ?7, cover_itunes = ?8, updated_at = ?9
+    grace_seconds = ?4, cover_musicbrainz = ?5, cover_itunes = ?6,
+    updated_at = ?7
 WHERE id = 1
 `
 
@@ -1038,22 +1074,18 @@ type UpdateRadioConfigParams struct {
 	BudgetMb         int64
 	MaxRelays        int64
 	GraceSeconds     int64
-	HideBroken       int64
-	Countries        sql.NullString
 	CoverMusicbrainz int64
 	CoverItunes      int64
 	Now              int64
 }
 
-// countries is a JSON array of ISO 3166-1 codes, NULL = every country.
+// hide_broken belongs to the offer (radio_offer.sql); countries is no longer read (00048).
 func (q *Queries) UpdateRadioConfig(ctx context.Context, arg UpdateRadioConfigParams) error {
 	_, err := q.db.ExecContext(ctx, updateRadioConfig,
 		arg.BufferMinutes,
 		arg.BudgetMb,
 		arg.MaxRelays,
 		arg.GraceSeconds,
-		arg.HideBroken,
-		arg.Countries,
 		arg.CoverMusicbrainz,
 		arg.CoverItunes,
 		arg.Now,
@@ -1108,8 +1140,8 @@ func (q *Queries) UpdateRadioOwnStreamURL(ctx context.Context, arg UpdateRadioOw
 const updateRadioStationAdmin = `-- name: UpdateRadioStationAdmin :exec
 UPDATE radio_stations
 SET name = ?1, sort_key = ?2, search_text = ?3, region = ?4,
-    hidden = ?5, recommended = ?6, updated_at = ?7
-WHERE id = ?8
+    recommended = ?5, updated_at = ?6
+WHERE id = ?7
 `
 
 type UpdateRadioStationAdminParams struct {
@@ -1117,7 +1149,6 @@ type UpdateRadioStationAdminParams struct {
 	SortKey     string
 	SearchText  string
 	Region      sql.NullString
-	Hidden      int64
 	Recommended int64
 	Now         int64
 	ID          int64
@@ -1129,7 +1160,6 @@ func (q *Queries) UpdateRadioStationAdmin(ctx context.Context, arg UpdateRadioSt
 		arg.SortKey,
 		arg.SearchText,
 		arg.Region,
-		arg.Hidden,
 		arg.Recommended,
 		arg.Now,
 		arg.ID,
@@ -1167,8 +1197,9 @@ UPDATE radio_stations
 SET name = ?1, sort_key = ?2, search_text = ?3, country = ?4,
     region = ?5, languages = ?6, homepage = ?7,
     favicon_url = ?8, votes = ?9, clicks = ?10,
-    quality = ?11, reachable = ?12, missing_since = NULL, updated_at = ?13
-WHERE id = ?14
+    quality = ?11, reachable = ?12, provider = ?13,
+    missing_since = NULL, updated_at = ?14
+WHERE id = ?15
 `
 
 type UpdateRadioStationFromSyncParams struct {
@@ -1184,6 +1215,7 @@ type UpdateRadioStationFromSyncParams struct {
 	Clicks     int64
 	Quality    sql.NullString
 	Reachable  int64
+	Provider   sql.NullString
 	Now        int64
 	ID         int64
 }
@@ -1203,6 +1235,7 @@ func (q *Queries) UpdateRadioStationFromSync(ctx context.Context, arg UpdateRadi
 		arg.Clicks,
 		arg.Quality,
 		arg.Reachable,
+		arg.Provider,
 		arg.Now,
 		arg.ID,
 	)

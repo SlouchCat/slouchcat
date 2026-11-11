@@ -9,7 +9,7 @@ import (
 )
 
 // The row radio lists the reachable favourites in their order; a station with a running relay
-// carries the title at its live edge, one without none, and a hidden favourite is left out (D-7).
+// carries the title at its live edge, one without none, and a favourite outside the offer is left out (D-7).
 func TestHomeStations(t *testing.T) {
 	e := newRelayEnv(t)
 	m := mp3Mount(t, false)
@@ -20,7 +20,7 @@ func TestHomeStations(t *testing.T) {
 	live := e.addStation("Live FM", "CH", "MP3", 128, e.st.URL("/live"))
 	quiet := e.addStation("Quiet FM", "CH", "MP3", 128, e.st.URL("/quiet"))
 	hidden := e.addStation("Hidden FM", "CH", "MP3", 128, e.st.URL("/hidden"))
-	e.exec(`UPDATE radio_stations SET hidden = 1 WHERE id = ?`, hidden)
+	e.setOffered(hidden, false)
 	for pos, id := range []int64{quiet, hidden, live} {
 		e.exec(`INSERT INTO radio_favorites (profile_id, station_id, position, created_at) VALUES (?, ?, ?, 1)`, e.f.P18.ID, id, pos)
 	}

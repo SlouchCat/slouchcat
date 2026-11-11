@@ -11,17 +11,18 @@ import { json, mockApi, problem, renderApp, signedIn, type Routes } from '@/test
 
 type RadioConfig = components['schemas']['RadioConfig'];
 type AdminRadioStation = components['schemas']['AdminRadioStation'];
-type RadioTagRules = components['schemas']['RadioTagRules'];
+type RadioOffer = components['schemas']['RadioOffer'];
+type RadioOfferStep = components['schemas']['RadioOfferStep'];
+type RadioOfferCountry = components['schemas']['RadioOfferCountry'];
+type RadioOfferStation = components['schemas']['RadioOfferStation'];
 
 const config = (overrides: Partial<RadioConfig> = {}): RadioConfig => ({
   bufferMinutes: 30,
   budgetMb: 512,
   maxRelays: 10,
   graceSeconds: 120,
-  hideBroken: true,
   coverMusicbrainz: true,
   coverItunes: true,
-  countries: null,
   bufferMode: 'tmpfs',
   maxRelaysByBudget: 11,
   ...overrides,
@@ -41,10 +42,9 @@ const station: AdminRadioStation = {
   recommended: true,
   state: 'ok',
   source: 'catalog',
-  hidden: false,
+  offered: true,
   failures: 0,
   tags: ['pop', 'swiss'],
-  facets: [{ facet: 'genre', value: 'pop', manual: false }],
   locks: ['name'],
   logoState: 'catalog',
   aliasCount: 2,
@@ -64,30 +64,6 @@ const station: AdminRadioStation = {
   updatedAt: Date.UTC(2026, 10, 6),
 };
 
-/** The rules of «Einordnung»: a default, an own rule, an ignored tag; two tags wait. */
-const tagRules = (overrides: Partial<RadioTagRules> = {}): RadioTagRules => ({
-  rules: [
-    { tag: 'pop', facet: 'genre', value: 'pop', source: 'default', stations: 5200 },
-    { tag: 'classic hits', facet: 'genre', value: 'oldies', source: 'default', stations: 300 },
-    { tag: 'news', facet: 'kind', value: 'news', source: 'admin', stations: 900 },
-    { tag: 'fm', facet: 'ignore', value: null, source: 'admin', stations: 4100 },
-  ],
-  worklist: [
-    { tag: '80s', stations: 2105 },
-    { tag: 'local', stations: 40 },
-  ],
-  worklistMinStations: 20,
-  openTags: 1,
-  coverage: [
-    { facet: 'genre', assigned: 35410, total: 38912 },
-    { facet: 'kind', assigned: 26000, total: 38912 },
-    { facet: 'mood', assigned: 9840, total: 38912 },
-    { facet: 'region', assigned: 26100, total: 38912 },
-    { facet: 'language', assigned: 37200, total: 38912 },
-  ],
-  ...overrides,
-});
-
 /** An own station (contract 1.19.0): one stream, no catalog tags. */
 const own: AdminRadioStation = {
   ...station,
@@ -98,7 +74,6 @@ const own: AdminRadioStation = {
   recommended: false,
   homepage: 'https://lorraine.example.test',
   tags: [],
-  facets: [],
   locks: [],
   logoState: 'none',
   aliasCount: 0,
@@ -107,11 +82,108 @@ const own: AdminRadioStation = {
   ],
 };
 
+const totals = (overrides: Partial<RadioOffer['totals']> = {}): RadioOffer['totals'] => ({
+  offered: 3,
+  offeredUnreachable: 1,
+  countries: 1,
+  marked: 0,
+  demarked: 0,
+  own: 0,
+  withLogo: 2,
+  removableUnreachable: 1,
+  ...overrides,
+});
+
+const switzerland: RadioOfferCountry = {
+  code: 'CH',
+  continent: 'europe',
+  mode: 'all',
+  offered: 3,
+  total: 3,
+  unreachable: 1,
+};
+const liechtenstein: RadioOfferCountry = {
+  code: 'LI',
+  continent: 'europe',
+  offered: 0,
+  total: 2,
+  unreachable: 0,
+};
+const usa: RadioOfferCountry = {
+  code: 'US',
+  continent: 'northAmerica',
+  offered: 0,
+  total: 5,
+  unreachable: 0,
+};
+
+/** The stored offer: Switzerland with «Alle», version 4. */
+const offer = (overrides: Partial<RadioOffer> = {}): RadioOffer => ({
+  version: 4,
+  hideBroken: true,
+  totals: totals(),
+  countries: [switzerland, liechtenstein, usa],
+  ...overrides,
+});
+
+const vaduz: RadioOfferStation = {
+  id: 21,
+  name: 'Radio Vaduz',
+  tags: ['pop'],
+  broken: false,
+  offered: true,
+};
+const schaan: RadioOfferStation = {
+  id: 22,
+  name: 'Radio Schaan',
+  tags: [],
+  broken: true,
+  offered: true,
+};
+
+/**
+ * A stand-in for the server's preview (the test does not know the rule either): choosing
+ * Liechtenstein brings its two stations in, a `demark` of Radio Vaduz takes it out again.
+ */
+function previewOf(body: unknown, version = 4) {
+  const request = body as {
+    steps: RadioOfferStep[];
+    list?: { country: string; offset?: number };
+  };
+  const chosen = request.steps.some((step) => step.op === 'chooseCountry' && step.country === 'LI');
+  const vaduzOut = request.steps.some(
+    (step) => step.op === 'demark' && step.stationIds?.includes(21),
+  );
+  const liOffered = chosen ? (vaduzOut ? 1 : 2) : 0;
+  return {
+    version,
+    hideBroken: true,
+    totals: totals({ offered: 3 + liOffered, countries: chosen ? 2 : 1 }),
+    diff: { added: liOffered, removed: 0 },
+    countries: [
+      switzerland,
+      chosen ? { ...liechtenstein, mode: 'all', offered: liOffered } : liechtenstein,
+      usa,
+    ],
+    ...(request.list
+      ? {
+          list: {
+            total: request.list.country === 'LI' ? 2 : 0,
+            offset: request.list.offset ?? 0,
+            items: request.list.country === 'LI' ? [{ ...vaduz, offered: !vaduzOut }, schaan] : [],
+          },
+        }
+      : {}),
+  };
+}
+
 function radioRoutes(overrides: Routes = {}): Routes {
   return {
     ...signedIn,
     ...adminShell,
     'GET /admin/radio/config': () => json(config()),
+    'GET /admin/radio/offer': () => json(offer()),
+    'POST /admin/radio/offer/preview': (call) => json(previewOf(call.body)),
     'GET /admin/radio/catalog': () =>
       json({
         source: 'radio-browser',
@@ -159,7 +231,6 @@ function radioRoutes(overrides: Routes = {}): Routes {
     'GET /admin/radio/stations': () => json({ items: [station], total: 1, offset: 0 }),
     'GET /admin/radio/stations/7': () => json(station),
     'GET /admin/radio/stations/9': () => json(own),
-    'GET /admin/radio/tag-rules': () => json(tagRules()),
     'GET /radio/facets': () =>
       json({
         country: [{ value: 'CH', count: 1 }],
@@ -170,6 +241,7 @@ function radioRoutes(overrides: Routes = {}): Routes {
         mood: [],
         quality: [],
         titles: 1,
+        offerEmpty: false,
       }),
     ...overrides,
   };
@@ -253,145 +325,6 @@ describe('radio administration', () => {
       const patch = calls.find((call) => call.method === 'PATCH');
       expect(patch?.body).toEqual({ region: 'CH-BE', locks: ['name', 'region'] });
     });
-  });
-
-  it('shows the coverage and the open tags on «Übersicht» and names them in the strip', async () => {
-    mockApi(radioRoutes());
-    const { router } = await renderAdminPage('/admin/radio');
-    const coverage = await screen.findByRole('list', { name: 'Abdeckung je Filter' });
-    expect(within(coverage).getAllByRole('listitem')).toHaveLength(5);
-    expect(within(coverage).getAllByRole('listitem')[0]).toHaveTextContent(/Genre.*91\s%/);
-    expect(screen.getByTestId('radio-open-tags')).toHaveTextContent('2 Schlagworte ohne Zuordnung');
-    const strip = screen.getByRole('group', { name: 'Zusammenfassung' });
-    expect(within(strip).getByText('Schlagworte ohne Zuordnung')).toBeVisible();
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Zur Einordnung' }));
-    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'einordnung' }));
-    await waitFor(() =>
-      expect(screen.getByRole('tab', { name: /Einordnung/, selected: true })).toHaveFocus(),
-    );
-  });
-
-  it('leaves the strip without open tags when none wait', async () => {
-    mockApi(radioRoutes({ 'GET /admin/radio/tag-rules': () => json(tagRules({ openTags: 0 })) }));
-    await renderAdminPage('/admin/radio');
-    await screen.findByTestId('radio-open-tags');
-    const strip = screen.getByRole('group', { name: 'Zusammenfassung' });
-    expect(within(strip).queryByText('Schlagworte ohne Zuordnung')).toBeNull();
-  });
-
-  it('assigns a tag of the worklist and sends the whole list of own rules', async () => {
-    const { calls } = mockApi(
-      radioRoutes({
-        'PUT /admin/radio/tag-rules': () =>
-          json(tagRules({ worklist: [{ tag: 'local', stations: 40 }], openTags: 0 })),
-      }),
-    );
-    await renderAdminPage('/admin/radio?tab=einordnung');
-    const worklist = await screen.findByTestId('radio-worklist');
-    const user = userEvent.setup();
-    const assign = within(worklist).getByRole('button', { name: 'Schlagwort 80s zuordnen' });
-    expect(assign).toBeDisabled();
-    await user.selectOptions(
-      within(worklist).getByRole('combobox', { name: 'Merkmal für das Schlagwort 80s' }),
-      'genre:oldies',
-    );
-    await user.click(assign);
-    await waitFor(() => {
-      const put = calls.find((call) => call.method === 'PUT');
-      expect(put?.body).toEqual({
-        rules: [
-          { tag: 'news', facet: 'kind', value: 'news' },
-          { tag: 'fm', facet: 'ignore', value: null },
-          { tag: '80s', facet: 'genre', value: 'oldies' },
-        ],
-      });
-    });
-    expect(await screen.findByText(/«80s» ist jetzt Genre: Oldies/)).toBeVisible();
-    await waitFor(() =>
-      expect(within(worklist).queryByRole('rowheader', { name: '80s' })).toBeNull(),
-    );
-  });
-
-  it('ignores a tag that means nothing (D-1)', async () => {
-    const { calls } = mockApi(
-      radioRoutes({ 'PUT /admin/radio/tag-rules': () => json(tagRules()) }),
-    );
-    await renderAdminPage('/admin/radio?tab=einordnung');
-    const worklist = await screen.findByTestId('radio-worklist');
-    const user = userEvent.setup();
-    await user.selectOptions(
-      within(worklist).getByRole('combobox', { name: 'Merkmal für das Schlagwort local' }),
-      'ignore',
-    );
-    await user.click(within(worklist).getByRole('button', { name: 'Schlagwort local zuordnen' }));
-    await waitFor(() => {
-      const put = calls.find((call) => call.method === 'PUT');
-      expect((put?.body as { rules: unknown[] }).rules).toContainEqual({
-        tag: 'local',
-        facet: 'ignore',
-        value: null,
-      });
-    });
-  });
-
-  it('overrides a default per facet, «Keins» included, and removes an own rule after asking', async () => {
-    const { calls } = mockApi(
-      radioRoutes({ 'PUT /admin/radio/tag-rules': () => json(tagRules()) }),
-    );
-    await renderAdminPage('/admin/radio?tab=einordnung');
-    const rules = await screen.findByTestId('radio-rules');
-    const user = userEvent.setup();
-    // The default rule has no «Entfernen»; changing its value makes it an own rule.
-    expect(within(rules).queryByRole('button', { name: /für pop entfernen/ })).toBeNull();
-    const apply = within(rules).getByRole('button', {
-      name: 'Regel Genre für pop übernehmen',
-    });
-    expect(apply).toBeDisabled();
-    // A choice alone saves nothing (the arrow keys of a closed select pass every value).
-    await user.selectOptions(
-      within(rules).getByRole('combobox', { name: 'Genre für das Schlagwort pop' }),
-      'genre:rock',
-    );
-    await user.selectOptions(
-      within(rules).getByRole('combobox', { name: 'Genre für das Schlagwort pop' }),
-      'genre:',
-    );
-    expect(calls.filter((call) => call.method === 'PUT')).toHaveLength(0);
-    await user.click(apply);
-    await waitFor(() => {
-      const put = calls.findLast((call) => call.method === 'PUT');
-      expect((put?.body as { rules: unknown[] }).rules).toContainEqual({
-        tag: 'pop',
-        facet: 'genre',
-        value: null,
-      });
-    });
-    const remove = within(rules).getByRole('button', { name: 'Regel Sendeart für news entfernen' });
-    // Every save waits for the one before it.
-    await waitFor(() => expect(remove).toBeEnabled());
-    await user.click(remove);
-    const dialog = await screen.findByRole('alertdialog', { name: 'Regel für «news» entfernen?' });
-    await user.click(within(dialog).getByRole('button', { name: 'Entfernen' }));
-    await waitFor(() => {
-      const put = calls.findLast((call) => call.method === 'PUT');
-      expect(put?.body).toEqual({ rules: [{ tag: 'fm', facet: 'ignore', value: null }] });
-    });
-  });
-
-  it('finds rules by tag or by the name of their value', async () => {
-    mockApi(radioRoutes());
-    await renderAdminPage('/admin/radio?tab=einordnung');
-    const rules = await screen.findByTestId('radio-rules');
-    const user = userEvent.setup();
-    const search = within(rules).getByRole('textbox', { name: 'Regeln durchsuchen' });
-    await user.type(search, 'fm');
-    await waitFor(() => expect(within(rules).queryByRole('rowheader', { name: 'pop' })).toBeNull());
-    expect(within(rules).getByRole('rowheader', { name: 'fm' })).toBeVisible();
-    await user.clear(search);
-    // The value as the page names it: genre «oldies» reads «Oldies».
-    await user.type(search, 'Oldie');
-    await waitFor(() => expect(within(rules).queryByRole('rowheader', { name: 'fm' })).toBeNull());
-    expect(within(rules).getByRole('rowheader', { name: 'classic hits' })).toBeVisible();
   });
 
   it('lists the own stations and refuses a stream address in the local network at its field', async () => {
@@ -528,60 +461,394 @@ describe('radio administration', () => {
     expect(screen.getByRole('switch', { name: 'Cover-Suche MusicBrainz' })).toBeChecked();
   });
 
-  it('saves one rule at a time: the next assign waits and builds on the answer before it', async () => {
-    let answerFirst: (response: Response) => void = () => undefined;
-    let puts = 0;
-    const afterFirst = tagRules({
-      rules: [
-        ...tagRules().rules,
-        { tag: '80s', facet: 'genre', value: 'oldies', source: 'admin', stations: 2105 },
-      ],
-      worklist: [{ tag: 'local', stations: 40 }],
-    });
+  it('shows the offer in the strip and points to «Angebot» while it is empty', async () => {
+    mockApi(
+      radioRoutes({
+        'GET /admin/radio/offer': () =>
+          json(
+            offer({
+              totals: totals({ offered: 0, offeredUnreachable: 0, countries: 0, withLogo: 0 }),
+              countries: [{ ...switzerland, mode: undefined, offered: 0, unreachable: 0 }],
+            }),
+          ),
+      }),
+    );
+    await renderAdminPage('/admin/radio');
+    const strip = screen.getByRole('group', { name: 'Zusammenfassung' });
+    expect(await within(strip).findByText('0 · 0')).toBeVisible();
+    expect(await screen.findByText('Noch keine Sender im Angebot')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Zum Angebot' })).toHaveAttribute(
+      'href',
+      '/admin/radio?tab=angebot',
+    );
+  });
+
+  it('sends the steps of «Angebot» to the preview and applies them with the version', async () => {
     const { calls } = mockApi(
       radioRoutes({
-        'PUT /admin/radio/tag-rules': () => {
-          puts += 1;
-          if (puts > 1) return json(afterFirst);
-          return new Promise<Response>((resolve) => {
-            answerFirst = resolve;
+        'POST /admin/radio/offer/apply': () =>
+          json({ offer: offer({ version: 5 }), queuedLogos: 1, demarkedStationIds: [] }),
+      }),
+    );
+    await renderAdminPage('/admin/radio?tab=angebot');
+    const user = userEvent.setup();
+    await user.type(await screen.findByRole('textbox', { name: 'Land suchen' }), 'liech');
+    const hits = await screen.findByRole('table', { name: 'Gefundene Länder' });
+    await user.click(within(hits).getByRole('checkbox', { name: 'Liechtenstein wählen' }));
+    const previews = () =>
+      calls
+        .filter((call) => call.method === 'POST' && call.path === '/admin/radio/offer/preview')
+        .map((call) => call.body as { steps: RadioOfferStep[]; list?: { country: string } });
+    await waitFor(() =>
+      expect(previews()).toContainEqual({ steps: [{ op: 'chooseCountry', country: 'LI' }] }),
+    );
+    // The bar shows the difference the server computed.
+    expect(await screen.findByText('2 Sender kommen dazu.')).toBeVisible();
+
+    // The chosen country opens its station list, read from the preview with the draft.
+    const chosen = await screen.findByRole('table', { name: 'Gewählte Länder' });
+    await user.click(
+      await within(chosen).findByRole('button', { name: 'Sender in Liechtenstein wählen' }),
+    );
+    const list = await screen.findByRole('table', { name: 'Sender in Liechtenstein' });
+    expect(previews().some((body) => body.list?.country === 'LI')).toBe(true);
+    expect(within(list).getByText('nicht erreichbar')).toBeVisible();
+    const tick = within(list).getByRole('checkbox', { name: 'Radio Vaduz im Angebot' });
+    expect(tick).toBeChecked();
+    await user.click(tick);
+    // The tick follows the input at once and the server's list after the preview.
+    expect(tick).not.toBeChecked();
+    await waitFor(() =>
+      expect(previews()).toContainEqual({
+        steps: [
+          { op: 'chooseCountry', country: 'LI' },
+          { op: 'demark', stationIds: [21] },
+        ],
+      }),
+    );
+    expect(await screen.findByText('1 Sender kommt dazu.')).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: 'Übernehmen' }));
+    await waitFor(() => {
+      const apply = calls.find((call) => call.path === '/admin/radio/offer/apply');
+      expect(apply?.body).toEqual({
+        version: 4,
+        steps: [
+          { op: 'chooseCountry', country: 'LI' },
+          { op: 'demark', stationIds: [21] },
+        ],
+      });
+    });
+    expect(
+      await screen.findByText(
+        'Übernommen. Die Radioseite zeigt das neue Angebot sofort. Logos und weitere Angaben lädt der Server jetzt im Hintergrund.',
+      ),
+    ).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Verwerfen' })).not.toBeInTheDocument();
+  });
+
+  it('computes the draft anew on 409 and applies it on the new version (PB-11)', async () => {
+    // Another tab stored meanwhile: the offer is at version 5 now.
+    let stored = 4;
+    let applies = 0;
+    const { calls } = mockApi(
+      radioRoutes({
+        'GET /admin/radio/offer': () => json(offer({ version: stored })),
+        'POST /admin/radio/offer/preview': (call) => json(previewOf(call.body, stored)),
+        'POST /admin/radio/offer/apply': (call) => {
+          applies += 1;
+          if (applies === 1) {
+            stored = 5;
+            return problem(409, 'offer_conflict');
+          }
+          const body = call.body as { version: number };
+          return body.version === stored
+            ? json({ offer: offer({ version: 6 }), queuedLogos: 0, demarkedStationIds: [] })
+            : problem(409, 'offer_conflict');
+        },
+      }),
+    );
+    await renderAdminPage('/admin/radio?tab=angebot');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /^Europa/ }));
+    const countries = await screen.findByRole('table', { name: 'Länder in Europa' });
+    await user.click(within(countries).getByRole('checkbox', { name: 'Liechtenstein wählen' }));
+    expect(await screen.findByText('2 Sender kommen dazu.')).toBeVisible();
+    const steps = [{ op: 'chooseCountry', country: 'LI' }];
+    const summaries = () =>
+      calls.filter(
+        (call) =>
+          call.path === '/admin/radio/offer/preview' &&
+          JSON.stringify(call.body) === JSON.stringify({ steps }),
+      ).length;
+    const before = summaries();
+    await user.click(screen.getByRole('button', { name: 'Übernehmen' }));
+    expect(await screen.findByText(/Inzwischen hat sich das Angebot geändert\./)).toBeVisible();
+    // The same steps were computed again on the new offer before the note came.
+    expect(summaries()).toBeGreaterThanOrEqual(before + 1);
+    await user.click(screen.getByRole('button', { name: 'Übernehmen' }));
+    await waitFor(() => {
+      const bodies = calls
+        .filter((call) => call.path === '/admin/radio/offer/apply')
+        .map((call) => call.body);
+      expect(bodies).toEqual([
+        { version: 4, steps },
+        { version: 5, steps },
+      ]);
+    });
+    expect(await screen.findByText(/^Übernommen\./)).toBeVisible();
+  });
+
+  it('takes the unreachable stations out from «Sender» and undoes it in steps of 5000 (PB-8)', async () => {
+    const removed = Array.from({ length: 6001 }, (_, index) => index + 1000);
+    const { calls } = mockApi(
+      radioRoutes({
+        'GET /admin/radio/offer': () =>
+          json(offer({ totals: totals({ removableUnreachable: 6001 }) })),
+        'POST /admin/radio/offer/apply': (call) => {
+          const body = call.body as { steps: RadioOfferStep[] };
+          return json({
+            offer: offer({ version: 5 }),
+            queuedLogos: 0,
+            demarkedStationIds: body.steps[0]?.op === 'demarkUnreachable' ? removed : [],
           });
         },
       }),
     );
-    await renderAdminPage('/admin/radio?tab=einordnung');
-    const worklist = await screen.findByTestId('radio-worklist');
+    await renderAdminPage('/admin/radio?tab=sender');
     const user = userEvent.setup();
-    await user.selectOptions(
-      within(worklist).getByRole('combobox', { name: 'Merkmal für das Schlagwort 80s' }),
-      'genre:oldies',
+    await user.click(await screen.findByRole('button', { name: /Nicht erreichbare entfernen/ }));
+    expect(
+      await screen.findByText(/6.?001 nicht erreichbare Sender sind aus dem Angebot genommen\./),
+    ).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Rückgängig' }));
+    expect(await screen.findByText('Die Sender sind wieder im Angebot.')).toBeVisible();
+    const bodies = calls
+      .filter((call) => call.path === '/admin/radio/offer/apply')
+      .map((call) => call.body as { version: number; steps: RadioOfferStep[] });
+    expect(bodies[0]).toEqual({ version: 4, steps: [{ op: 'demarkUnreachable' }] });
+    expect(bodies[1]?.steps).toEqual([
+      { op: 'mark', stationIds: removed.slice(0, 5000) },
+      { op: 'mark', stationIds: removed.slice(5000) },
+    ]);
+  });
+
+  it('takes one station out of the offer from «Sender» and filters by its provider', async () => {
+    const { calls, fetchMock } = mockApi(
+      radioRoutes({
+        'GET /admin/radio/stations': () =>
+          json({ items: [{ ...station, provider: 'srg-ssr.ch' }], total: 1, offset: 0 }),
+        'POST /admin/radio/offer/apply': () =>
+          json({ offer: offer({ version: 5 }), queuedLogos: 0, demarkedStationIds: [] }),
+      }),
     );
-    await user.selectOptions(
-      within(worklist).getByRole('combobox', { name: 'Merkmal für das Schlagwort local' }),
-      'ignore',
+    await renderAdminPage('/admin/radio?tab=sender');
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: 'Radio Swiss Pop aus dem Angebot nehmen' }),
     );
-    const second = () =>
-      within(worklist).getByRole('button', { name: 'Schlagwort local zuordnen' });
-    await user.click(within(worklist).getByRole('button', { name: 'Schlagwort 80s zuordnen' }));
-    // While the first is on its way the other saves wait.
-    await waitFor(() => expect(second()).toBeDisabled());
-    expect(calls.filter((call) => call.method === 'PUT')).toHaveLength(1);
-    answerFirst(json(afterFirst));
-    // The answer took «80s» off the list; «local» may be saved now.
-    await waitFor(() =>
-      expect(within(worklist).queryByRole('rowheader', { name: '80s' })).toBeNull(),
-    );
-    await waitFor(() => expect(second()).toBeEnabled());
-    await user.click(second());
-    await waitFor(() => expect(calls.filter((call) => call.method === 'PUT')).toHaveLength(2));
-    // The second list holds the first's rule: built from the answer, nothing lost.
-    expect(calls.filter((call) => call.method === 'PUT')[1]?.body).toEqual({
-      rules: [
-        { tag: 'news', facet: 'kind', value: 'news' },
-        { tag: 'fm', facet: 'ignore', value: null },
-        { tag: '80s', facet: 'genre', value: 'oldies' },
-        { tag: 'local', facet: 'ignore', value: null },
-      ],
+    await waitFor(() => {
+      const apply = calls.find((call) => call.path === '/admin/radio/offer/apply');
+      expect(apply?.body).toEqual({ version: 4, steps: [{ op: 'demark', stationIds: [7] }] });
     });
+    expect(await screen.findByText('Radio Swiss Pop ist nicht mehr im Angebot.')).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: 'Nach Anbieter srg-ssr.ch filtern' }));
+    expect(screen.getByRole('textbox', { name: 'Anbieter' })).toHaveValue('srg-ssr.ch');
+    await waitFor(() => {
+      const asked = fetchMock.mock.calls
+        .map(([request]) => new URL(request.url))
+        .filter((url) => url.pathname.endsWith('/admin/radio/stations'));
+      expect(asked.some((url) => url.searchParams.get('provider') === 'srg-ssr.ch')).toBe(true);
+    });
+  });
+
+  it('keeps a change made while «Übernehmen» is on its way', async () => {
+    let answer: (response: Response) => void = () => {};
+    const { calls } = mockApi(
+      radioRoutes({
+        'POST /admin/radio/offer/apply': () =>
+          new Promise<Response>((resolve) => {
+            answer = resolve;
+          }),
+      }),
+    );
+    await renderAdminPage('/admin/radio?tab=angebot');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /^Europa/ }));
+    const europe = await screen.findByRole('table', { name: 'Länder in Europa' });
+    await user.click(within(europe).getByRole('checkbox', { name: 'Liechtenstein wählen' }));
+    expect(await screen.findByText('2 Sender kommen dazu.')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Übernehmen' }));
+    await waitFor(() =>
+      expect(calls.some((call) => call.path === '/admin/radio/offer/apply')).toBe(true),
+    );
+    // A tick while the apply is on its way: a step of its own after the sent one.
+    await user.click(screen.getByRole('button', { name: /^Nord- und Mittelamerika/ }));
+    const america = await screen.findByRole('table', { name: 'Länder in Nord- und Mittelamerika' });
+    await user.click(within(america).getByRole('checkbox', { name: 'Vereinigte Staaten wählen' }));
+    answer(json({ offer: offer({ version: 5 }), queuedLogos: 0, demarkedStationIds: [] }));
+    await waitFor(() => {
+      const last = calls.filter((call) => call.path === '/admin/radio/offer/preview').at(-1);
+      expect(last?.body).toEqual({ steps: [{ op: 'chooseCountry', country: 'US' }] });
+    });
+    // The draft holds the later change (the stand-in preview knows no United States).
+    expect(screen.getByRole('button', { name: 'Verwerfen' })).toBeVisible();
+    const applies = calls.filter((call) => call.path === '/admin/radio/offer/apply');
+    expect(applies.map((call) => call.body)).toEqual([
+      { version: 4, steps: [{ op: 'chooseCountry', country: 'LI' }] },
+    ]);
+  });
+
+  it('takes back a country ticked and unticked again, and the switch back at its value', async () => {
+    const { calls } = mockApi(radioRoutes());
+    await renderAdminPage('/admin/radio?tab=angebot');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /^Europa/ }));
+    const europe = await screen.findByRole('table', { name: 'Länder in Europa' });
+    const liechtenstein = within(europe).getByRole('checkbox', { name: 'Liechtenstein wählen' });
+    await user.click(liechtenstein);
+    await user.click(liechtenstein);
+    const hide = screen.getByRole('switch', { name: 'Nicht erreichbare weglassen' });
+    await user.click(hide);
+    await user.click(hide);
+    // Nothing left: no removeCountry that would drop the stored exceptions, no switch step.
+    expect(await screen.findByText('Keine Änderungen am Angebot.')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Verwerfen' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Übernehmen' })).toBeDisabled();
+    const bodies = calls
+      .filter((call) => call.path === '/admin/radio/offer/preview')
+      .map((call) => JSON.stringify(call.body));
+    expect(bodies.some((body) => body.includes('removeCountry'))).toBe(false);
+    expect(bodies.some((body) => body.includes('setHideBroken'))).toBe(false);
+
+    // The switch off is one step with its value.
+    await user.click(hide);
+    await waitFor(() =>
+      expect(calls.at(-1)?.body).toEqual({ steps: [{ op: 'setHideBroken', value: false }] }),
+    );
+  });
+
+  it('sends «Alle markieren» and «Gezeigte demarkieren» as steps of the country', async () => {
+    // Liechtenstein is stored with «Alle»; the stand-in preview keeps it so.
+    const chosenLi: RadioOfferCountry = { ...liechtenstein, mode: 'all', offered: 2 };
+    const { calls } = mockApi(
+      radioRoutes({
+        'GET /admin/radio/offer': () => json(offer({ countries: [switzerland, chosenLi] })),
+        'POST /admin/radio/offer/preview': (call) =>
+          json({ ...previewOf(call.body), countries: [switzerland, chosenLi] }),
+      }),
+    );
+    await renderAdminPage('/admin/radio?tab=angebot');
+    const user = userEvent.setup();
+    const chosen = await screen.findByRole('table', { name: 'Gewählte Länder' });
+    await user.click(
+      within(chosen).getByRole('button', { name: 'Sender in Liechtenstein wählen' }),
+    );
+    await user.click(await screen.findByRole('button', { name: 'Alle markieren' }));
+    await user.type(screen.getByRole('textbox', { name: 'Sender suchen' }), 'vaduz');
+    await user.click(await screen.findByRole('button', { name: /^Gezeigte demarkieren/ }));
+    await waitFor(() =>
+      expect(
+        calls.filter((call) => call.path === '/admin/radio/offer/preview').at(-1)?.body,
+      ).toMatchObject({
+        steps: [
+          { op: 'markAll', country: 'LI' },
+          { op: 'demarkMatching', country: 'LI', q: 'vaduz' },
+        ],
+      }),
+    );
+  });
+
+  it('discards the draft with «Verwerfen» and asks before leaving with one', async () => {
+    mockApi(radioRoutes());
+    const { router } = await renderAdminPage('/admin/radio?tab=angebot');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /^Europa/ }));
+    const europe = await screen.findByRole('table', { name: 'Länder in Europa' });
+    await user.click(within(europe).getByRole('checkbox', { name: 'Liechtenstein wählen' }));
+    expect(await screen.findByText('2 Sender kommen dazu.')).toBeVisible();
+
+    void router.navigate({ to: '/admin' });
+    const ask = await screen.findByRole('alertdialog', {
+      name: 'Seite mit ungespeicherten Änderungen verlassen?',
+    });
+    await user.click(within(ask).getByRole('button', { name: 'Auf der Seite bleiben' }));
+    expect(router.state.location.pathname).toBe('/admin/radio');
+    // The question went and gave the focus back to the tick it came from.
+    await waitFor(() =>
+      expect(within(europe).getByRole('checkbox', { name: 'Liechtenstein wählen' })).toHaveFocus(),
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Verwerfen' }));
+    expect(await screen.findByText('Keine Änderungen am Angebot.')).toBeVisible();
+    expect(
+      within(screen.getByRole('table', { name: 'Länder in Europa' })).getByRole('checkbox', {
+        name: 'Liechtenstein wählen',
+      }),
+    ).not.toBeChecked();
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Radio' })).toHaveFocus(),
+    );
+    void router.navigate({ to: '/admin' });
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin'));
+  });
+
+  it('applies a step of «Sender» once more on the new version after a 409', async () => {
+    let stored = 4;
+    const { calls } = mockApi(
+      radioRoutes({
+        'GET /admin/radio/offer': () => json(offer({ version: stored })),
+        'POST /admin/radio/offer/apply': (call) => {
+          const body = call.body as { version: number };
+          if (body.version !== 5) {
+            // Another tab stored right before.
+            stored = 5;
+            return problem(409, 'offer_conflict');
+          }
+          return json({ offer: offer({ version: 6 }), queuedLogos: 0, demarkedStationIds: [] });
+        },
+      }),
+    );
+    await renderAdminPage('/admin/radio?tab=sender');
+    await userEvent
+      .setup()
+      .click(await screen.findByRole('button', { name: 'Radio Swiss Pop aus dem Angebot nehmen' }));
+    expect(await screen.findByText('Radio Swiss Pop ist nicht mehr im Angebot.')).toBeVisible();
+    const steps = [{ op: 'demark', stationIds: [7] }];
+    expect(
+      calls.filter((call) => call.path === '/admin/radio/offer/apply').map((call) => call.body),
+    ).toEqual([
+      { version: 4, steps },
+      { version: 5, steps },
+    ]);
+  });
+
+  it('stores two presses of «Sender» one after the other', async () => {
+    const answers: ((response: Response) => void)[] = [];
+    const { calls } = mockApi(
+      radioRoutes({
+        'POST /admin/radio/offer/apply': () =>
+          new Promise<Response>((resolve) => {
+            answers.push(resolve);
+          }),
+      }),
+    );
+    await renderAdminPage('/admin/radio?tab=sender');
+    const user = userEvent.setup();
+    const out = await screen.findByRole('button', {
+      name: 'Radio Swiss Pop aus dem Angebot nehmen',
+    });
+    await user.click(out);
+    await user.click(out);
+    const applied = () => calls.filter((call) => call.path === '/admin/radio/offer/apply');
+    await waitFor(() => expect(applied()).toHaveLength(1));
+    answers[0]?.(json({ offer: offer({ version: 5 }), queuedLogos: 0, demarkedStationIds: [] }));
+    await waitFor(() => expect(applied()).toHaveLength(2));
+    answers[1]?.(json({ offer: offer({ version: 6 }), queuedLogos: 0, demarkedStationIds: [] }));
+    // Each answer says it anew (the message of the second replaces the first).
+    await waitFor(() =>
+      expect(screen.getByText('Radio Swiss Pop ist nicht mehr im Angebot.')).toBeVisible(),
+    );
   });
 });

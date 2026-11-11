@@ -191,6 +191,7 @@
       "job_type_not_windowable": "Dieser Job hat kein Zeitfenster.",
       "provider_unreachable": "Die Quelle ist gerade nicht erreichbar. Versuche es später noch einmal.",
       "provider_paused": "Die Quelle pausiert nach wiederholten Absagen. Versuche es später noch einmal.",
+      "offer_conflict": "Das Radio-Angebot hat sich inzwischen geändert. Bitte noch einmal übernehmen.",
       "root_not_writable": "Der Podcast-Ordner besteht die Ordnerprüfung nicht; Slouchcat kann dort keine Folgen speichern.",
       "root_required": "Die Bibliothek hat keinen Podcast-Ordner, in dem Slouchcat Folgen speichern könnte."
     },
@@ -1037,10 +1038,9 @@
         "live": "Live jetzt",
         "liveValue": "{{relays}} · {{listeners}}",
         "liveNote": "Sender · Hörer",
-        "changed": "Von Hand geändert",
-        "changedNote": "Ausnahmen",
-        "tags": "Schlagworte ohne Zuordnung",
-        "tagsNote": "mit mehr als 50 Sendern"
+        "offer": "Im Angebot",
+        "offerValue": "{{stations}} · {{countries}}",
+        "offerNote": "Sender · Länder"
       },
       "memory": {
         "title": "Kein RAM-Puffer",
@@ -1051,8 +1051,8 @@
         "overview": "Übersicht",
         "stations": "Sender",
         "settings": "Einstellungen",
-        "rules": "Einordnung",
-        "own": "Eigene Sender"
+        "own": "Eigene Sender",
+        "offer": "Angebot"
       },
       "catalog": {
         "title": "Katalog",
@@ -1111,46 +1111,66 @@
         "caption": "Sender",
         "search": "Sender suchen",
         "country": "Land",
-        "genre": "Genre",
         "state": "Zustand",
         "allCountries": "Alle Länder",
-        "allGenres": "Alle Genres",
         "anyState": "Alle",
         "states": {
           "reachable": "Erreichbar",
-          "broken": "Gestört",
-          "hidden": "Ausgeblendet"
+          "broken": "Nicht erreichbar",
+          "noLogo": "Ohne Logo"
         },
-        "exceptions": "Nur Ausnahmen",
-        "exceptionsHelp": "Von Hand geändert, ausgeblendet, empfohlen oder gestört. Eine Suche geht immer über alle Sender.",
         "columns": {
           "station": "Sender",
           "place": "Land",
           "genres": "Genre",
           "state": "Zustand",
           "marks": "Ausnahmen",
-          "actions": "Aktionen"
+          "actions": "Aktionen",
+          "provider": "Anbieter"
         },
         "stateText": {
           "ok": "Erreichbar",
-          "broken": "Gestört",
-          "missing": "Nicht mehr im Katalog",
-          "hidden": "Ausgeblendet"
+          "broken": "Nicht erreichbar",
+          "missing": "Nicht mehr im Katalog"
         },
         "locked_one": "{{count}} Feld von Hand",
         "locked_other": "{{count}} Felder von Hand",
         "recommended": "Empfohlen",
         "edit": "Bearbeiten",
         "editLabel": "{{name}} bearbeiten",
-        "hide": "Ausblenden",
-        "show": "Einblenden",
-        "hideLabel": "{{name}} ausblenden",
-        "showLabel": "{{name}} einblenden",
-        "hiddenDone": "{{name}} ist ausgeblendet.",
-        "shownDone": "{{name}} ist eingeblendet.",
         "empty": "Keine Sender gefunden.",
         "count_one": "{{count}} Sender",
-        "count_other": "{{count}} Sender"
+        "count_other": "{{count}} Sender",
+        "provider": "Anbieter",
+        "providerFilter": "Nach Anbieter {{provider}} filtern",
+        "sort": "Sortieren",
+        "sorts": {
+          "popularity": "Beliebtheit",
+          "name": "Name A–Z"
+        },
+        "wholeCatalog": "Ganzen Katalog zeigen",
+        "removeUnreachable_one": "Nicht erreichbare entfernen ({{n}})",
+        "removeUnreachable_other": "Nicht erreichbare entfernen ({{n}})",
+        "removeUnreachableHelp": "Nimmt alle zurzeit nicht erreichbaren Sender aus dem Angebot, ausser Favoriten und eigenen Sendern. Sie kommen nicht von selbst zurück.",
+        "removedUnreachable_one": "{{count}} nicht erreichbarer Sender ist aus dem Angebot genommen.",
+        "removedUnreachable_other": "{{count}} nicht erreichbare Sender sind aus dem Angebot genommen.",
+        "undo": "Rückgängig",
+        "undone": "Die Sender sind wieder im Angebot.",
+        "takeOut": "Aus dem Angebot nehmen",
+        "takeOutLabel": "{{name}} aus dem Angebot nehmen",
+        "takeIn": "Ins Angebot nehmen",
+        "takeInLabel": "{{name}} ins Angebot nehmen",
+        "takenOut": "{{name}} ist nicht mehr im Angebot.",
+        "takenIn": "{{name}} ist im Angebot.",
+        "streams": "Streams",
+        "streamsLabel": "Streams von {{name}}",
+        "streamsTitle": "Streams von {{name}}",
+        "streamsEmpty": "Keine Streams.",
+        "streamPreferred": "bevorzugt",
+        "streamUnreachable": "nicht erreichbar",
+        "streamHls": "HLS",
+        "streamsClose": "Schliessen",
+        "providerHelp": "Genaue Domain, zum Beispiel srg-ssr.ch."
       },
       "settings": {
         "title": "Einstellungen",
@@ -1166,13 +1186,6 @@
         "maxRelaysHelp_other": "Das Budget erlaubt beim jetzigen Zeitversatz {{count}} Sender.",
         "grace": "Nachlauf ohne Hörer (Sekunden)",
         "graceHelp": "So lange läuft eine Weiterleitung weiter, wenn der letzte Hörer geht.",
-        "hideBroken": "Gestörte Sender ausblenden",
-        "hideBrokenHelp": "Sender, die nicht antworten, erscheinen nicht in den Listen der App. Als Favorit bleiben sie.",
-        "countries": "Länder im Katalog",
-        "countriesHelp": "Die Profile sehen nur Sender dieser Länder. Der Abgleich holt trotzdem alle.",
-        "countriesAll": "Alle Länder",
-        "countriesChosen": "Nur gewählte Länder",
-        "countriesField": "Länder (ISO-Codes, mit Komma getrennt)",
         "rights": "Die Sender sehen den Slouchcat-Server und nicht das Gerät, darum gilt der Standort des Servers. Slouchcat gibt den Ton nur an angemeldete Profile dieser Installation weiter; ob das für einen Sender zulässig ist, verantwortet der Betreiber der Installation.",
         "saved": "Die Einstellungen sind gespeichert.",
         "coverMusicbrainz": "Cover-Suche MusicBrainz",
@@ -1195,9 +1208,6 @@
           "own": "Eigenes Logo",
           "failed": "Kein Logo gefunden, Initialen"
         },
-        "genre": "Genre",
-        "kind": "Sendeart",
-        "mood": "Stimmung",
         "region": "Region",
         "regionHelp": "ISO-Code, zum Beispiel CH-ZH. Leer: keine Region.",
         "stream": "Stream",
@@ -1210,8 +1220,6 @@
         "probeTitle": "Aktueller Titel: {{title}}",
         "recommended": "Empfohlen",
         "recommendedHelp": "Steht in seinem Land oben (Sortierung «Beliebt»).",
-        "hidden": "Ausgeblendet",
-        "hiddenHelp": "Erscheint nirgends in der App und kommt beim Abgleich nicht zurück.",
         "tags": "Schlagworte aus dem Katalog",
         "lock": "Sperre {{field}}",
         "locked": "gesperrt",
@@ -1219,61 +1227,6 @@
         "lockHelp": "Ein gesperrtes Feld überschreibt der tägliche Abgleich nicht.",
         "save": "Speichern",
         "saved": "{{name}} ist gespeichert."
-      },
-      "rules": {
-        "title": "Einordnung",
-        "open": "Zur Einordnung",
-        "coverage": "Abdeckung je Filter",
-        "coverageHelp": "Anteil der erreichbaren, sichtbaren Sender mit einem Wert. Eine Sendeart zählt nur, wenn ein Schlagwort, der Name oder die Verwaltung sie setzt.",
-        "coverageCount": "{{assigned}} von {{total}} Sendern",
-        "unassigned_one": "{{count}} Schlagwort ohne Zuordnung",
-        "unassigned_other": "{{count}} Schlagworte ohne Zuordnung",
-        "worklist": "Nicht zugeordnete Schlagworte",
-        "worklistHelp_one": "Nach Zahl der Sender. Schlagworte mit weniger als {{count}} Sender stehen nicht auf der Liste. Eine Zuordnung wirkt sofort auf alle Sender mit diesem Schlagwort.",
-        "worklistHelp_other": "Nach Zahl der Sender. Schlagworte mit weniger als {{count}} Sendern stehen nicht auf der Liste. Eine Zuordnung wirkt sofort auf alle Sender mit diesem Schlagwort.",
-        "worklistEmpty": "Alle häufigen Schlagworte sind zugeordnet.",
-        "rules": "Regeln",
-        "rulesHelp": "Schlagwort → Merkmal. Eine eigene Regel ersetzt die Vorgabe für ihr Merkmal; was bei einem Sender von Hand gesetzt ist, bleibt.",
-        "rulesEmpty": "Keine Regel passt zur Suche.",
-        "search": "Regeln durchsuchen",
-        "count_one": "{{count}} Regel",
-        "count_other": "{{count}} Regeln",
-        "more_one": "{{count}} weitere anzeigen",
-        "more_other": "{{count}} weitere anzeigen",
-        "columns": {
-          "tag": "Schlagwort",
-          "stations": "Sender",
-          "assign": "Zuordnen zu",
-          "actions": "Aktionen",
-          "facet": "Merkmal",
-          "target": "Wird zu",
-          "source": "Quelle"
-        },
-        "choose": "Merkmal wählen …",
-        "chooseLabel": "Merkmal für das Schlagwort {{tag}}",
-        "ignore": "Ignorieren (kein Merkmal)",
-        "assign": "Zuordnen",
-        "assignLabel": "Schlagwort {{tag}} zuordnen",
-        "target": "{{facet}}: {{value}}",
-        "none": "Keins",
-        "ignored": "Ignoriert",
-        "ignoreFacet": "Ignorieren",
-        "ruleLabel": "{{facet}} für das Schlagwort {{tag}}",
-        "source": {
-          "default": "Vorgabe",
-          "admin": "Eigene Regel"
-        },
-        "remove": "Entfernen",
-        "apply": "Übernehmen",
-        "applyLabel": "Regel {{facet}} für {{tag}} übernehmen",
-        "removeLabel": "Regel {{facet}} für {{tag}} entfernen",
-        "removeTitle": "Regel für «{{tag}}» entfernen?",
-        "removeBody": "«{{tag}}» fällt für dieses Merkmal auf die Vorgabe zurück. Die Sender werden sofort neu eingeordnet.",
-        "removeIgnoreBody": "«{{tag}}» kommt wieder auf die Liste der nicht zugeordneten Schlagworte.",
-        "assignedDone": "«{{tag}}» ist jetzt {{target}}. Die Sender sind neu eingeordnet.",
-        "ignoredDone": "«{{tag}}» wird ignoriert.",
-        "changedDone": "Die Regel für «{{tag}}» ist gespeichert. Die Sender sind neu eingeordnet.",
-        "removedDone": "Die Regel für «{{tag}}» ist entfernt."
       },
       "own": {
         "title": "Eigene Sender",
@@ -1300,14 +1253,120 @@
           "countryHelp": "ISO-Code, zum Beispiel CH. Leer: kein Land.",
           "languages": "Sprachen",
           "languagesHelp": "ISO-Codes, mit Komma getrennt, zum Beispiel de, fr.",
-          "none": "Ohne",
-          "kindAuto": "Automatisch"
+          "none": "Ohne"
         },
         "create": {
           "title": "Eigenen Sender hinzufügen",
           "description": "Ein Sender, der im Katalog fehlt. Er lässt sich filtern wie jeder andere.",
           "submit": "Hinzufügen"
         }
+      },
+      "empty": {
+        "title": "Noch keine Sender im Angebot",
+        "body": "Die Radioseite zeigt keinen Sender, bis im Reiter «Angebot» Länder gewählt und übernommen sind.",
+        "action": "Zum Angebot"
+      },
+      "offerFacts": {
+        "title": "Angebot",
+        "open": "Angebot bearbeiten",
+        "countries": "Gewählte Länder",
+        "stations": "Sender im Angebot",
+        "unreachable": "Davon nicht erreichbar",
+        "withLogo": "Mit Logo"
+      },
+      "offer": {
+        "countries": {
+          "title": "Länder",
+          "note_one": "{{chosen}} von {{total}} Land gewählt",
+          "note_other": "{{chosen}} von {{total}} Ländern gewählt"
+        },
+        "search": "Land suchen",
+        "searchHelp": "Name oder Ländercode, zum Beispiel Schweiz oder CH.",
+        "noHits": "Kein Land gefunden.",
+        "hits_one": "{{count}} Treffer",
+        "hits_other": "{{count}} Treffer",
+        "hitsCaption": "Gefundene Länder",
+        "continents": {
+          "label": "Alle Länder nach Kontinent. Ein Kontinent öffnet seine Länder; nochmals drücken oder Escape schliesst sie."
+        },
+        "continent": {
+          "europe": "Europa",
+          "northAmerica": "Nord- und Mittelamerika",
+          "southAmerica": "Südamerika",
+          "asia": "Asien",
+          "africa": "Afrika",
+          "oceania": "Ozeanien"
+        },
+        "continentCountries_one": "{{count}} Land",
+        "continentCountries_other": "{{count}} Länder",
+        "continentStations_one": "{{n}} Sender",
+        "continentStations_other": "{{n}} Sender",
+        "continentChosen_one": "{{count}} gewählt",
+        "continentChosen_other": "{{count}} gewählt",
+        "countryCaption": "Länder in {{continent}}",
+        "chooseAll": "Alle Länder wählen",
+        "removeAll": "Alle abwählen",
+        "chooseCountry": "{{country}} wählen",
+        "columns": {
+          "choose": "Gewählt",
+          "tick": "Im Angebot",
+          "country": "Land",
+          "stations": "Sender",
+          "actions": "Aktionen"
+        },
+        "chosen": {
+          "title": "Gewählte Länder",
+          "empty": "Noch kein Land gewählt. Oben ein Land suchen oder einen Kontinent öffnen.",
+          "count": "{{offered}} von {{total}} Sendern",
+          "open": "Sender wählen",
+          "close": "Sender schliessen",
+          "openLabel": "Sender in {{country}} wählen",
+          "closeLabel": "Sender in {{country}} schliessen",
+          "remove": "Land entfernen",
+          "removeLabel": "{{country}} entfernen"
+        },
+        "stations": {
+          "title": "Sender in {{country}}",
+          "count": "{{offered}} von {{total}} im Angebot",
+          "modeAll": "Alle Sender dieses Landes sind im Angebot, ausser den demarkierten. Neue Sender aus diesem Land kommen von selbst dazu.",
+          "modeMarked": "Nur die markierten Sender sind im Angebot. Neue Sender aus diesem Land kommen nicht von selbst dazu.",
+          "search": "Sender suchen",
+          "markAll": "Alle markieren",
+          "demarkAll": "Alle demarkieren",
+          "markShown_one": "Gezeigten markieren ({{count}})",
+          "markShown_other": "Gezeigte markieren ({{count}})",
+          "demarkShown_one": "Gezeigten demarkieren ({{count}})",
+          "demarkShown_other": "Gezeigte demarkieren ({{count}})",
+          "mark": "{{name}} im Angebot",
+          "broken": "nicht erreichbar",
+          "empty": "Kein Sender gefunden."
+        },
+        "summary": {
+          "title": "Im Angebot",
+          "offered": "Sender im Angebot",
+          "unreachable": "Davon nicht erreichbar",
+          "countries": "Gewählte Länder",
+          "marked": "Markierte Sender",
+          "hideBroken": "Nicht erreichbare weglassen",
+          "hideBrokenHelp": "Nicht erreichbare Sender erscheinen nicht in den Listen der App. Sie kommen zurück, sobald sie wieder antworten; als Favorit bleiben sie."
+        },
+        "bar": {
+          "label": "Angebot übernehmen",
+          "clean": "Keine Änderungen am Angebot.",
+          "same": "Die Auswahl ändert sich, die Zahl der Sender bleibt gleich.",
+          "added_one": "{{n}} Sender kommt dazu.",
+          "added_other": "{{n}} Sender kommen dazu.",
+          "removed_one": "{{n}} Sender fällt weg.",
+          "removed_other": "{{n}} Sender fallen weg.",
+          "conflict": "Inzwischen hat sich das Angebot geändert. Die Vorschau ist neu gerechnet; prüfe sie und übernimm noch einmal.",
+          "applied": "Übernommen. Die Radioseite zeigt das neue Angebot sofort. Logos und weitere Angaben lädt der Server jetzt im Hintergrund.",
+          "discard": "Verwerfen",
+          "apply": "Übernehmen",
+          "applying": "Wird übernommen …",
+          "computing": "Die Vorschau wird gerechnet …",
+          "previewFailed": "Die Vorschau liess sich nicht rechnen."
+        },
+        "limit": "Der Entwurf hat die Höchstzahl von {{max}} Schritten erreicht. Übernimm oder verwirf ihn, bevor du weiter änderst."
       }
     },
     "editor": {
@@ -4979,7 +5038,8 @@
         "byMood": "Nach Stimmung",
         "stations_one": "{{count}} Sender",
         "stations_other": "{{count}} Sender",
-        "noFavorites": "Noch keine Sender gemerkt. Tippe bei einem Sender auf das Herz, dann erscheint er hier, nur für dein Profil."
+        "noFavorites": "Noch keine Sender gemerkt. Tippe bei einem Sender auf das Herz, dann erscheint er hier, nur für dein Profil.",
+        "popular": "Beliebt"
       },
       "results": "Treffer",
       "allStations": "Alle Sender",
@@ -5002,6 +5062,12 @@
         "toggle": "Reihenfolge ändern",
         "done": "Fertig",
         "label": "Reihenfolge von Meine Sender"
+      },
+      "offerEmpty": {
+        "title": "Noch keine Sender ausgewählt",
+        "body": "Die Verwaltung hat noch keine Sender für das Radio ausgewählt.",
+        "bodyAdmin": "Wähle in der Verwaltung die Länder und Sender, die das Radio anbietet.",
+        "action": "Sender auswählen"
       }
     },
     "genre": {

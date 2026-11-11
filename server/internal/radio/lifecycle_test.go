@@ -52,29 +52,35 @@ func TestLiveEndsWithRevokedLoginSession(t *testing.T) {
 	}
 }
 
-// Hiding a station or excluding its country ends its listen sessions and stops its relay:
-// invisible means 404, also for a listener already playing.
-func TestHiddenOrExcludedStationEndsListening(t *testing.T) {
+// A station that leaves the offer while a profile listens (PB-12): a demarked one and one whose
+// country goes; the apply ends their listen sessions and stops their relays, the next heartbeat
+// answers 404 and a live request 401: invisible means 404, also for a listener already playing.
+func TestStationLeavingTheOfferEndsListening(t *testing.T) {
 	e := newRelayEnv(t)
 	ctx := context.Background()
 	e.st.Set("/a", mp3Mount(t, true))
 	e.st.Set("/b", mp3Mount(t, true))
 	a := e.addStation("A FM", "CH", "MP3", 128, e.st.URL("/a"))
 	b := e.addStation("B FM", "DE", "MP3", 128, e.st.URL("/b"))
-	_, la := e.listen(e.f.P18, a)
+	sess, la := e.listen(e.f.P18, a)
 	_, lb := e.listen(e.f.P18, b)
-	hidden := true
-	if _, err := e.s.UpdateStation(ctx, a, model.AdminRadioStationPatch{Hidden: &hidden}); err != nil {
+	o, err := e.s.offer(ctx)
+	if err != nil {
 		t.Fatal(err)
 	}
-	countries := []string{"CH"}
-	if _, err := e.s.UpdateConfig(ctx, model.RadioConfigUpdate{Countries: &countries}); err != nil {
+	// b is in the offer through its mark; removing its country takes the exceptions of its
+	// stations with it.
+	if _, err := e.s.ApplyOffer(ctx, o.version, []model.RadioOfferStep{{Op: model.RadioOfferDemark, StationIDs: []int64{a}},
+		{Op: model.RadioOfferRemoveCountry, Country: "DE"}}); err != nil {
 		t.Fatal(err)
+	}
+	if _, err := e.s.Heartbeat(ctx, sess, la.ListenID, true); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("heartbeat after the station left the offer: %v, want ErrNotFound", err)
 	}
 	for name, tc := range map[string]struct {
 		id int64
 		l  model.RadioListen
-	}{"hidden": {a, la}, "excluded country": {b, lb}} {
+	}{"demarked": {a, la}, "country removed": {b, lb}} {
 		e.s.rel.mu.Lock()
 		r := e.s.rel.relays[tc.id]
 		e.s.rel.mu.Unlock()

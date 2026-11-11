@@ -1,5 +1,47 @@
 # Aktueller Stand
 
+## Stufe B1 (11. November 2026): Radio-Angebot statt ganzer Katalog (Konzept 19 Teil B)
+
+Vertrag **1.28.0** (brechend für die Verwaltung, additiv für die App), Migration **00048**, Zweig
+`claude/k19-b-radio-691fb4` ab `main` `f2314dda` (Release 1.26.0), danach `main` mit Teil A Stufe 1 (PR #141, 1.27.0,
+00047) hineingemergt. Nach `docs/planning/19-podcasts-und-radio.md` B4 bis B13, ADR 0030 und der Messung B0
+(`docs/perf/19-radio.md`). Entscheide beim Bau im Protokoll (11. November 2026).
+
+- **Angebot:** Die App zeigt nur gewählte Länder («Alle» oder «Nur markierte»), Ausnahmen je Sender und eigene Sender.
+  Ausserhalb des Angebots antworten Station, Hören, Titelangaben, Bild und «Favorit setzen» mit 404; Favoriten bleiben
+  gespeichert. Das Angebot liegt als Momentaufnahme im Speicher (`radio/offer.go`), ohne Lesen von `radio_config` je
+  Anfrage. Neu `getRadioOffer`, `previewRadioOffer`, `applyRadioOffer` (Schritte mit Version, 409 `offer_conflict`);
+  Vorschau über 55'000 Sender rund 4 ms (`BenchmarkOfferPreview`).
+- **Nach dem Update leer** (OB-2): Der erste Start demarkiert ausgeblendete Sender, leitet die Filterwerte aller Sender
+  aus der Regeldatei neu ab und setzt den Anbieter; die frühere Ländereinstellung wird nicht übernommen.
+- **Keine Zuordnung von Hand:** Reiter «Einordnung», `getRadioTagRules`/`setRadioTagRules`, Filterfelder im Editor
+  und beim Anlegen, `hidden`, `countries` und `hideBroken` in den Einstellungen sind weg; Migration 00048 löscht
+  Regeln, Handwerte und Filterschlösser.
+- **Logos** nur für Sender im Angebot: nach «Übernehmen» (im Hintergrund), nach dem Abgleich für neu ins Angebot
+  gekommene Sender, Favoriten und Empfohlene; Drossel 4 je Sekunde, ein Auftrag je Host, Zeitgrenze 20 s je Abruf
+  (Befund B0: eine Webseite als endloser Ereignis-Stream hielt den Auftrag fest), gestreute Wartezeit bei belegtem
+  Host. Gespeichert werden WebP in 96, 256 und 512 Pixeln und PNG nur in 96 Pixeln (grössere PNG bei Bedarf aus dem
+  WebP; Schweiz 25 statt 158 KB je Logo). Ein Sender hat ein Logo nur, solange er im Angebot ist: verlässt er es,
+  gehen Dateien und Zustand (eigene Uploads bleiben); der erste Start nach dem Update räumt alle früher geholten Logos
+  weg. Der Abgleich räumt Bilder gelöschter Sender weg.
+- **Anbieter** (`provider`) aus der Domain des besten Streams, in der Verwaltung und in der App («Schweiz ·
+  srg-ssr.ch»).
+- **Verwaltung:** Reiter Übersicht, **Angebot** (Länder über Suche und sechs Kontinente, Senderliste je Land mit
+  Haken, «Alle markieren», «Gezeigte …», Zusammenfassung, Übernehmen und Verwerfen unten), **Sender** (Angebot oder
+  ganzer Katalog, Filter Land, Anbieter, Zustand, «Nicht erreichbare entfernen» mit «Rückgängig», «Aus dem Angebot
+  nehmen»), Eigene Sender, Einstellungen; Kachel «Im Angebot».
+- **Radioseite:** `effectiveCountry` (Standardland ausserhalb des Angebots: ohne Landfilter, Reihe «Beliebt»),
+  `offerEmpty` («Noch keine Sender ausgewählt»).
+- **Tests:** PB-1 bis PB-13 in Go (`TestRadioOfferKeepsOnlyTheChosenCountry`, `TestOfferSyncFollowsTheModes`,
+  `TestOfferMatchingSteps`, `TestOfferApplyQueuesLogosOfNewStations`, `TestLogoJobsOneAtATimePerHost`,
+  `TestFirstStartPreparesTheOffer`, `TestOfferDemarkUnreachable`, `TestPreferencesOutsideTheOffer`,
+  `TestOfferConflictKeepsBothDrafts`, `TestStationLeavingTheOfferEndsListening`, `TestRadioContractDropsTheTagRules`,
+  `TestLogoChainEndlessHomepage`), Migration und eingefrorener Stand `radio-angebot.sql`, Vitest für «Angebot»,
+  «Sender» und die Radioseite, e2e-Tastaturtests für «Angebot» (PB-10) und «Sender».
+- Versionsstellen auf 1.28.0.
+- **Offen:** Abnahme auf CT 190, Merge und Tag `v1.28.0` auf Marcos Wort. Nach dem
+  Update wählt Marco auf CT 190 die Länder im Reiter «Angebot»; bis dahin zeigt die Radioseite keinen Sender.
+
 ## Release 1.27.0 (in Arbeit, 11. November 2026): Podcast-Folgen als Datei speichern (Konzept 19 Teil A Stufen A0 und A1)
 
 Vertrag **1.27.0** (additiv), Migration **00047**, Zweig `claude/k19-a-podcasts-2dabf0` ab `main` `f2314dda`
