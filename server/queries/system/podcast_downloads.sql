@@ -251,3 +251,54 @@ ORDER BY m.root_id, m.rel_path;
 SELECT CAST(i.parent_id AS TEXT) AS podcast_id, i.id, i.title, i.sort_title, i.published_at, i.duration_ms
 FROM items AS i
 WHERE i.kind = 'podcast_episode' AND i.deleted_at IS NULL AND i.guid IS NULL AND i.parent_id IS NOT NULL;
+
+-- name: PodcastEpisodeList :many
+-- The page "Podcast" (concept 19 part A, 12.2, contract 1.29.0).
+-- Every live episode of a podcast, from the feed and from the folder, newest first (undated ones
+-- last), as listAdminPodcastEpisodes pages through them.
+SELECT i.id, i.title, i.published_at, i.duration_ms, i.enclosure_length,
+       CAST(i.enclosure_url IS NOT NULL AS INTEGER) AS feed
+FROM items AS i
+WHERE i.parent_id = @podcast_id AND i.kind = 'podcast_episode' AND i.deleted_at IS NULL
+ORDER BY i.published_at IS NULL, i.published_at DESC, i.id;
+
+-- name: PodcastEpisodeFileRows :many
+-- The media file rows of the live episodes of a podcast, per episode the ones that are there first
+-- and the newest of them first.
+SELECT m.item_id, m.rel_path, m.size, m.missing_since
+FROM media_files AS m JOIN items AS i ON i.id = m.item_id
+WHERE i.parent_id = @podcast_id AND i.kind = 'podcast_episode' AND i.deleted_at IS NULL
+ORDER BY m.item_id, m.missing_since IS NOT NULL, m.mtime DESC, m.id;
+
+-- name: PodcastActiveDownloadProgress :many
+-- The queued and running downloads of the episodes of a podcast with their progress in bytes.
+SELECT e.id AS episode_id, j.state, j.progress_done, j.progress_total
+FROM jobs AS j JOIN items AS e ON j.idempotency_key = 'podcast-dl:' || e.id
+WHERE j.type = 'podcast.download' AND j.state IN ('queued', 'running') AND e.parent_id = @podcast_id;
+
+-- name: PodcastActiveDownloadOf :many
+-- The queued or running download of one episode (cancelPodcastDownload).
+SELECT j.id FROM jobs AS j
+WHERE j.type = 'podcast.download' AND j.state IN ('queued', 'running') AND j.idempotency_key = @idempotency_key;
+
+-- name: PodcastDownloadQueue :many
+-- The section "Downloads": the downloads that run or wait, of every podcast library, the running
+-- ones first, then in claim order (ClaimJob). The episode is found by the key, through its primary key.
+SELECT j.id, j.state, j.progress_done, j.progress_total, e.id AS episode_id, e.title AS episode_title,
+       e.enclosure_length, p.id AS podcast_id, p.title AS podcast_title, p.library_id
+FROM jobs AS j
+JOIN items AS e ON e.id = substr(j.idempotency_key, 12)
+JOIN items AS p ON p.id = e.parent_id
+WHERE j.type = 'podcast.download' AND j.state IN ('queued', 'running') AND j.idempotency_key LIKE 'podcast-dl:%'
+  AND e.deleted_at IS NULL AND p.deleted_at IS NULL
+ORDER BY j.state = 'running' DESC, j.priority DESC, j.created_at, j.id
+LIMIT @lim;
+
+-- name: PodcastDownloadQueueCounts :one
+-- How many downloads of PodcastDownloadQueue wait or run, and how many of them run.
+SELECT CAST(count(*) AS INTEGER) AS total, CAST(coalesce(sum(j.state = 'running'), 0) AS INTEGER) AS running
+FROM jobs AS j
+JOIN items AS e ON e.id = substr(j.idempotency_key, 12)
+JOIN items AS p ON p.id = e.parent_id
+WHERE j.type = 'podcast.download' AND j.state IN ('queued', 'running') AND j.idempotency_key LIKE 'podcast-dl:%'
+  AND e.deleted_at IS NULL AND p.deleted_at IS NULL;

@@ -64,6 +64,10 @@ export type LibrarySummary = components['schemas']['LibrarySummary'];
 export type LibraryRequest = components['schemas']['LibraryRequest'];
 export type LibraryUpdate = components['schemas']['LibraryUpdate'];
 export type AdminPodcast = components['schemas']['AdminPodcast'];
+export type AdminPodcastEpisode = components['schemas']['AdminPodcastEpisode'];
+export type AdminPodcastEpisodePage = components['schemas']['AdminPodcastEpisodePage'];
+export type PodcastDownload = components['schemas']['PodcastDownload'];
+export type PodcastDownloadPage = components['schemas']['PodcastDownloadPage'];
 export type PodcastCreate = components['schemas']['PodcastCreate'];
 export type PodcastEpisodes = components['schemas']['PodcastEpisodes'];
 // Stored podcast episodes (concept 19 part A, contract 1.27.0).

@@ -7,6 +7,7 @@ import type {
   AdminItemHit,
   AdminUserPick,
   AdminPodcast,
+  AdminPodcastEpisodePage,
   AdminItem,
   AdminStream,
   Announcement,
@@ -42,13 +43,14 @@ import type {
   ApplyMetadataResponse,
   PathMapping,
   PicksSettings,
+  PodcastDownloadPage,
   SystemInfo,
   Stats,
   StatsDays,
   TraktStatus,
   components,
 } from '@slouchcat/api-client';
-import { queryOptions } from '@tanstack/react-query';
+import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { api, isApiError, request } from '@/api/client';
 import type { PagedSource } from '@/lib/pagedList';
 
@@ -172,6 +174,59 @@ export const streamsQuery = queryOptions({
 export const podcastsQuery = queryOptions({
   queryKey: ['admin', 'podcasts'],
   queryFn: ({ signal }): Promise<AdminPodcast[]> => request(api.GET('/admin/podcasts', { signal })),
+});
+
+/**
+ * One podcast for the page «Podcast» (concept 19 part A, 12.2; contract 1.29.0). Below the key of
+ * the list, so every invalidation of the list reaches it too.
+ */
+export const podcastQuery = (id: string) =>
+  queryOptions({
+    queryKey: ['admin', 'podcasts', id],
+    queryFn: ({ signal }): Promise<AdminPodcast> =>
+      request(api.GET('/admin/podcasts/{id}', { params: { path: { id } }, signal })),
+  });
+
+/** The view of the episode list of the page «Podcast»: all, with a file, without one. */
+export type PodcastEpisodeFilter = 'all' | 'with_file' | 'without_file';
+
+/** Episodes asked for per page of the page «Podcast». */
+export const PODCAST_EPISODE_PAGE = 50;
+
+/** One page of the episodes of a podcast in a view, from `offset`. */
+export const podcastEpisodePage = (
+  id: string,
+  filter: PodcastEpisodeFilter,
+  offset: number,
+  signal?: AbortSignal,
+): Promise<AdminPodcastEpisodePage> =>
+  request(
+    api.GET('/admin/podcasts/{id}/episodes', {
+      params: { path: { id }, query: { filter, offset, limit: PODCAST_EPISODE_PAGE } },
+      signal,
+    }),
+  );
+
+/** The episodes of a podcast with the state of their file, page by page (12.2). */
+export const podcastEpisodesQuery = (id: string, filter: PodcastEpisodeFilter) =>
+  infiniteQueryOptions({
+    queryKey: ['admin', 'podcasts', id, 'episodes', filter],
+    initialPageParam: 0,
+    queryFn: ({ pageParam, signal }) => podcastEpisodePage(id, filter, pageParam, signal),
+    getNextPageParam: (last) =>
+      last.offset + last.episodes.length < last.total
+        ? last.offset + last.episodes.length
+        : undefined,
+  });
+
+/** The job type of a download of a podcast episode (the pause of the section «Downloads»). */
+export const PODCAST_DOWNLOAD_JOB = 'podcast.download';
+
+/** The queue of the section «Downloads» (12.3): what runs and waits in every podcast library. */
+export const podcastDownloadsQuery = queryOptions({
+  queryKey: ['admin', 'podcasts', 'downloads'],
+  queryFn: ({ signal }): Promise<PodcastDownloadPage> =>
+    request(api.GET('/admin/podcasts/downloads', { params: { query: { limit: 100 } }, signal })),
 });
 
 // Curation (M7): the user picks, collections, start page rows and the Trakt lists.

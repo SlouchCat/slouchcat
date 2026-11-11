@@ -43,6 +43,9 @@ func (p *fakePodcasts) Subscribe(context.Context, int64, string, bool) (model.Ad
 	return model.AdminPodcast{}, model.ErrFeedUnreachable
 }
 func (p *fakePodcasts) Unsubscribe(context.Context, string) error { return model.ErrNotFound }
+func (p *fakePodcasts) GetPodcast(context.Context, string) (model.AdminPodcast, error) {
+	return model.AdminPodcast{}, model.ErrNotFound
+}
 func (p *fakePodcasts) ListPodcasts(context.Context) ([]model.AdminPodcast, error) {
 	return []model.AdminPodcast{}, nil
 }
@@ -197,6 +200,15 @@ type orderStorage struct {
 	nameAtSet []string
 }
 
+func (o *orderStorage) PodcastEpisodeList(context.Context, string, string, int, int) (model.AdminPodcastEpisodePage, error) {
+	return model.AdminPodcastEpisodePage{}, model.ErrNotFound
+}
+func (o *orderStorage) CancelPodcastDownload(context.Context, string, string) error {
+	return model.ErrNotFound
+}
+func (o *orderStorage) PodcastDownloadQueue(context.Context, int) (model.PodcastDownloadPage, error) {
+	return model.PodcastDownloadPage{}, nil
+}
 func (o *orderStorage) PodcastFolderOf(context.Context, int64) (model.PodcastFolder, error) {
 	return model.PodcastFolder{}, model.ErrRootRequired
 }

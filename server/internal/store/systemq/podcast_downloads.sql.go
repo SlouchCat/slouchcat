@@ -10,6 +10,77 @@ import (
 	"database/sql"
 )
 
+const podcastActiveDownloadOf = `-- name: PodcastActiveDownloadOf :many
+SELECT j.id FROM jobs AS j
+WHERE j.type = 'podcast.download' AND j.state IN ('queued', 'running') AND j.idempotency_key = ?1
+`
+
+// The queued or running download of one episode (cancelPodcastDownload).
+func (q *Queries) PodcastActiveDownloadOf(ctx context.Context, idempotencyKey sql.NullString) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, podcastActiveDownloadOf, idempotencyKey)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const podcastActiveDownloadProgress = `-- name: PodcastActiveDownloadProgress :many
+SELECT e.id AS episode_id, j.state, j.progress_done, j.progress_total
+FROM jobs AS j JOIN items AS e ON j.idempotency_key = 'podcast-dl:' || e.id
+WHERE j.type = 'podcast.download' AND j.state IN ('queued', 'running') AND e.parent_id = ?1
+`
+
+type PodcastActiveDownloadProgressRow struct {
+	EpisodeID     string
+	State         string
+	ProgressDone  sql.NullInt64
+	ProgressTotal sql.NullInt64
+}
+
+// The queued and running downloads of the episodes of a podcast with their progress in bytes.
+func (q *Queries) PodcastActiveDownloadProgress(ctx context.Context, podcastID sql.NullString) ([]PodcastActiveDownloadProgressRow, error) {
+	rows, err := q.db.QueryContext(ctx, podcastActiveDownloadProgress, podcastID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PodcastActiveDownloadProgressRow{}
+	for rows.Next() {
+		var i PodcastActiveDownloadProgressRow
+		if err := rows.Scan(
+			&i.EpisodeID,
+			&i.State,
+			&i.ProgressDone,
+			&i.ProgressTotal,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const podcastActiveDownloads = `-- name: PodcastActiveDownloads :many
 SELECT j.id, j.state, j.payload, e.id AS episode_id
 FROM jobs AS j JOIN items AS e ON j.idempotency_key = 'podcast-dl:' || e.id
@@ -323,6 +394,89 @@ func (q *Queries) PodcastDownloadFailuresOf(ctx context.Context, podcastID sql.N
 	return items, nil
 }
 
+const podcastDownloadQueue = `-- name: PodcastDownloadQueue :many
+SELECT j.id, j.state, j.progress_done, j.progress_total, e.id AS episode_id, e.title AS episode_title,
+       e.enclosure_length, p.id AS podcast_id, p.title AS podcast_title, p.library_id
+FROM jobs AS j
+JOIN items AS e ON e.id = substr(j.idempotency_key, 12)
+JOIN items AS p ON p.id = e.parent_id
+WHERE j.type = 'podcast.download' AND j.state IN ('queued', 'running') AND j.idempotency_key LIKE 'podcast-dl:%'
+  AND e.deleted_at IS NULL AND p.deleted_at IS NULL
+ORDER BY j.state = 'running' DESC, j.priority DESC, j.created_at, j.id
+LIMIT ?1
+`
+
+type PodcastDownloadQueueRow struct {
+	ID              int64
+	State           string
+	ProgressDone    sql.NullInt64
+	ProgressTotal   sql.NullInt64
+	EpisodeID       string
+	EpisodeTitle    string
+	EnclosureLength sql.NullInt64
+	PodcastID       string
+	PodcastTitle    string
+	LibraryID       int64
+}
+
+// The section "Downloads": the downloads that run or wait, of every podcast library, the running
+// ones first, then in claim order (ClaimJob). The episode is found by the key, through its primary key.
+func (q *Queries) PodcastDownloadQueue(ctx context.Context, lim int64) ([]PodcastDownloadQueueRow, error) {
+	rows, err := q.db.QueryContext(ctx, podcastDownloadQueue, lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PodcastDownloadQueueRow{}
+	for rows.Next() {
+		var i PodcastDownloadQueueRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.State,
+			&i.ProgressDone,
+			&i.ProgressTotal,
+			&i.EpisodeID,
+			&i.EpisodeTitle,
+			&i.EnclosureLength,
+			&i.PodcastID,
+			&i.PodcastTitle,
+			&i.LibraryID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const podcastDownloadQueueCounts = `-- name: PodcastDownloadQueueCounts :one
+SELECT CAST(count(*) AS INTEGER) AS total, CAST(coalesce(sum(j.state = 'running'), 0) AS INTEGER) AS running
+FROM jobs AS j
+JOIN items AS e ON e.id = substr(j.idempotency_key, 12)
+JOIN items AS p ON p.id = e.parent_id
+WHERE j.type = 'podcast.download' AND j.state IN ('queued', 'running') AND j.idempotency_key LIKE 'podcast-dl:%'
+  AND e.deleted_at IS NULL AND p.deleted_at IS NULL
+`
+
+type PodcastDownloadQueueCountsRow struct {
+	Total   int64
+	Running int64
+}
+
+// How many downloads of PodcastDownloadQueue wait or run, and how many of them run.
+func (q *Queries) PodcastDownloadQueueCounts(ctx context.Context) (PodcastDownloadQueueCountsRow, error) {
+	row := q.db.QueryRowContext(ctx, podcastDownloadQueueCounts)
+	var i PodcastDownloadQueueCountsRow
+	err := row.Scan(&i.Total, &i.Running)
+	return i, err
+}
+
 const podcastDownloadStats = `-- name: PodcastDownloadStats :many
 SELECT p.id AS podcast_id,
        CAST(COALESCE((SELECT sum(m.size) FROM media_files AS m JOIN items AS e ON e.id = m.item_id
@@ -474,6 +628,50 @@ func (q *Queries) PodcastEffectiveSettings(ctx context.Context, arg PodcastEffec
 	return items, nil
 }
 
+const podcastEpisodeFileRows = `-- name: PodcastEpisodeFileRows :many
+SELECT m.item_id, m.rel_path, m.size, m.missing_since
+FROM media_files AS m JOIN items AS i ON i.id = m.item_id
+WHERE i.parent_id = ?1 AND i.kind = 'podcast_episode' AND i.deleted_at IS NULL
+ORDER BY m.item_id, m.missing_since IS NOT NULL, m.mtime DESC, m.id
+`
+
+type PodcastEpisodeFileRowsRow struct {
+	ItemID       string
+	RelPath      string
+	Size         int64
+	MissingSince sql.NullInt64
+}
+
+// The media file rows of the live episodes of a podcast, per episode the ones that are there first
+// and the newest of them first.
+func (q *Queries) PodcastEpisodeFileRows(ctx context.Context, podcastID sql.NullString) ([]PodcastEpisodeFileRowsRow, error) {
+	rows, err := q.db.QueryContext(ctx, podcastEpisodeFileRows, podcastID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PodcastEpisodeFileRowsRow{}
+	for rows.Next() {
+		var i PodcastEpisodeFileRowsRow
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.RelPath,
+			&i.Size,
+			&i.MissingSince,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const podcastEpisodeFiles = `-- name: PodcastEpisodeFiles :many
 SELECT id, root_id, rel_path, missing_since FROM media_files WHERE item_id = ?1 ORDER BY id
 `
@@ -500,6 +698,56 @@ func (q *Queries) PodcastEpisodeFiles(ctx context.Context, itemID string) ([]Pod
 			&i.RootID,
 			&i.RelPath,
 			&i.MissingSince,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const podcastEpisodeList = `-- name: PodcastEpisodeList :many
+SELECT i.id, i.title, i.published_at, i.duration_ms, i.enclosure_length,
+       CAST(i.enclosure_url IS NOT NULL AS INTEGER) AS feed
+FROM items AS i
+WHERE i.parent_id = ?1 AND i.kind = 'podcast_episode' AND i.deleted_at IS NULL
+ORDER BY i.published_at IS NULL, i.published_at DESC, i.id
+`
+
+type PodcastEpisodeListRow struct {
+	ID              string
+	Title           string
+	PublishedAt     sql.NullInt64
+	DurationMs      sql.NullInt64
+	EnclosureLength sql.NullInt64
+	Feed            int64
+}
+
+// The page "Podcast" (concept 19 part A, 12.2, contract 1.29.0).
+// Every live episode of a podcast, from the feed and from the folder, newest first (undated ones
+// last), as listAdminPodcastEpisodes pages through them.
+func (q *Queries) PodcastEpisodeList(ctx context.Context, podcastID sql.NullString) ([]PodcastEpisodeListRow, error) {
+	rows, err := q.db.QueryContext(ctx, podcastEpisodeList, podcastID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PodcastEpisodeListRow{}
+	for rows.Next() {
+		var i PodcastEpisodeListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.PublishedAt,
+			&i.DurationMs,
+			&i.EnclosureLength,
+			&i.Feed,
 		); err != nil {
 			return nil, err
 		}

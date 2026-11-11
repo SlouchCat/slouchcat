@@ -1753,6 +1753,8 @@ type AdminPodcast struct {
 	// administrator.
 	Savable             bool
 	UnclearEpisodeCount int
+	// CoverHash is the content hash of the AdminPosterSize cover (contract 1.29.0); "" = none.
+	CoverHash string
 }
 
 // PodcastState is what package library knows of a podcast for the list of the administration
@@ -1823,6 +1825,74 @@ type PodcastDownloadEstimate struct {
 	Episodes  int
 	Bytes     int64
 	FreeBytes int64
+}
+
+// The states of an episode on the page «Podcast» (concept 19 part A, 12.2; AdminPodcastEpisode,
+// contract 1.29.0), decided by package library.
+const (
+	PodcastEpisodeFile    = "file"    // a file is there
+	PodcastEpisodeLink    = "link"    // streamed from the provider
+	PodcastEpisodeQueued  = "queued"  // a download waits
+	PodcastEpisodeRunning = "running" // a download loads
+	PodcastEpisodeFailed  = "failed"  // the last download failed
+	PodcastEpisodeRemoved = "removed" // every file row is missing (section 8)
+	PodcastEpisodeUnclear = "unclear" // the riegel leave it to the administrator (section 8)
+)
+
+// The views of the page «Podcast»: every episode, those with a file, those without one.
+const (
+	PodcastEpisodesAll         = "all"
+	PodcastEpisodesWithFile    = "with_file"
+	PodcastEpisodesWithoutFile = "without_file"
+)
+
+// AdminPodcastEpisode is an episode of a podcast as the administration sees it (12.2). Feed is
+// true for an episode of the feed (only those can be loaded); FileName names the file that is
+// there (or the missing one of a removed episode); Progress and Total are the bytes of a running
+// download; ErrorCode and RetryAt belong to a failed one (RetryAt nil when it is not tried again).
+type AdminPodcastEpisode struct {
+	ID          string
+	Title       string
+	PublishedAt *time.Time
+	DurationMs  *int64
+	SizeBytes   *int64
+	Feed        bool
+	State       string
+	FileName    string
+	Progress    *int64
+	Total       *int64
+	ErrorCode   string
+	RetryAt     *time.Time
+}
+
+// AdminPodcastEpisodePage is one page of the episodes of a podcast in one view, with the counts of
+// the three views.
+type AdminPodcastEpisodePage struct {
+	Total, Offset, Limit int
+	All, WithFile, Open  int
+	Episodes             []AdminPodcastEpisode
+}
+
+// PodcastDownload is a download in the queue of the section «Downloads» (12.3): State queued or
+// running, SizeBytes the length the feed names, Progress and Total the bytes of a running one.
+type PodcastDownload struct {
+	EpisodeID    string
+	EpisodeTitle string
+	PodcastID    string
+	PodcastTitle string
+	LibraryID    int64
+	State        string
+	SizeBytes    *int64
+	Progress     *int64
+	Total        *int64
+}
+
+// PodcastDownloadPage is the queue: the downloads that wait or run (at most the limit asked for),
+// how many there are, how many run, and whether the job type is paused.
+type PodcastDownloadPage struct {
+	Total, Running int
+	Paused         bool
+	Downloads      []PodcastDownload
 }
 
 // Problems of the folder check of a podcast folder (concept 19 part A, 5.4; ADR 0029).

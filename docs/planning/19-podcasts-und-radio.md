@@ -589,7 +589,7 @@ Containers darf im Ordner Dateien anlegen (6.4). Die Ordnerprüfung (5.4) sagt s
 |---|---|---|---|
 | **0** | Audiobookshelfs Namensregel nachlesen, Messauftrag M-1 (Abschnitt 8) auf CT 190, Ergebnis nach `docs/perf/19-podcasts.md`. ADR 0029. | – | 1 Tag |
 | **1 «Speichern»** | Paket `internal/fetch` (aus `offline` herausgelöst), Migration, gemeinsame Abfrage der wirksamen Einstellung, Haken `WithPodcastFetched`, Planer, `podcast.sync_all`, Download mit Pool `podcast` und den zwei Zählern, Ordnerprüfung, die drei Riegel, Vertrag 1.27.0. Oberfläche: Band «Neue Folgen» mit Schätzung und Bestätigung auf der heutigen Podcasts-Seite, im Ausklapp (`PodcastDetail`) die Wahl je Podcast und «Fehlende nachladen», Spalte «gespeichert». `compose.podcasts.yaml` und Installationsanleitung. | 1.27.0 | 8 bis 9 Tage |
-| **2 «Neue Podcasts-Seite»** | Liste mit Covern (Variante A), Seite «Podcast» mit Folgenliste, Abschnitt «Downloads», quadratisches Cover in `web/src/ui`, Vertrag 1.28.0. | 1.28.0 | 4 bis 5 Tage |
+| **2 «Neue Podcasts-Seite»** | Liste mit Covern (Variante A), Seite «Podcast» mit Folgenliste, Abschnitt «Downloads», quadratisches Cover in `web/src/ui`, Vertrag 1.29.0 (1.28.0 hat Teil B Stufe 1 genommen). | 1.29.0 | 4 bis 5 Tage |
 
 Stufe 1 ist für sich nützlich: nach ihr speichert Slouchcat Folgen, und Audiobookshelf kann die
 Downloads abgeben. Jeder Schritt ist ein eigener Commit; geprüft wird nach den Teststufen in

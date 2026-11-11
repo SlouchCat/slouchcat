@@ -29,8 +29,36 @@ Entscheide beim Bau im Protokoll (11. November 2026).
   `testdata/radio/wikidata.csv`, Migration und eingefrorener Stand `radio-wikidata.sql`, Vitest für «Angaben» und den
   Schalter, e2e-Tastaturtest «Angaben» (der e2e-Radioserver beantwortet `/sparql`).
 - Versionsstellen auf 1.30.0.
-- **Offen:** Abnahme auf CT 190, Merge und Tag `v1.30.0` auf Marcos Wort. 1.29.0 (Podcast-Seite) ist noch nicht in
-  `main`; wer als zweiter merged, zieht `main` nach und erzeugt den Code neu.
+- **Offen:** Abnahme auf CT 190, Merge und Tag `v1.30.0` auf Marcos Wort. `main` `75820890` mit Stufe A2 (1.29.0,
+  PR #147) ist hineingemergt, der generierte Code neu erzeugt.
+
+## Stufe A2 (11. November 2026): Neue Podcasts-Seite (Konzept 19 Teil A): Pull Request
+
+Vertrag **1.29.0** (additiv), keine Migration, Zweig `claude/k19-a2-podcasts-seite-f22ede` ab `main` `8c4fe29a`. Nach
+`docs/planning/19-podcasts-und-radio.md` Abschnitte 11, 12 und 16; Entscheide beim Bau im Protokoll (11. November 2026).
+
+- **Liste mit Covern** (Variante A): je Podcast Cover, Titel, Autor, «Speichert» oder «Nur Link» (mit «eigene
+  Einstellung»), Folgen mit Balken des gespeicherten Anteils, Speicher, neueste Folge, Zustand (Wird abgerufen, Lädt n,
+  Feed-Fehler, Nicht speicherbar, Aktuell) und der Link zur Seite des Podcasts; darüber Filter (Alle, Speichert, Nur
+  Link, Lädt, Fehler) mit Zahlen, Suche über Titel und Autor, Sortierung; Zahlenleiste unter dem Titel. Ausklapp und
+  Bänder aus Stufe 1 bleiben.
+- **Abschnitt «Downloads»:** Warteschlange aller Podcast-Bibliotheken (`listPodcastDownloads`), alle 3 Sekunden
+  nachgefragt, solange sie etwas hält; «Anhalten»/«Fortsetzen» pausiert die Jobart `podcast.download`, «Abbrechen» je
+  Folge (`cancelPodcastDownload`).
+- **Seite «Podcast»** (`/admin/podcasts/<id>`, `getPodcast`): Cover, Zahlen, eigene Einstellung mit «Fehlende
+  nachladen», Feed und letzter Abruf, «Jetzt abrufen»; Folgenliste (`listAdminPodcastEpisodes`) in den Ansichten Alle,
+  Gespeichert, Ohne Datei (`?tab=`), je Folge der Zustand des Servers (Gespeichert, Nur Link, Wartet, Lädt,
+  Fehlgeschlagen mit nächstem Versuch, Entfernt, Unklar) und «Laden», «Erneut» oder «Abbrechen».
+- **Cover:** `SquareCover` in `web/src/ui` mit Storybook-Aufnahmen; `AdminPodcast.coverUrl` über `getAdminItemImage`.
+- **Tests:** Go `TestPodcastEpisodeList`, `TestPodcastDownloadQueueAndCancel`, Vertrag in `TestContractPodcastDownloads`
+  und im Register; Vitest Liste (`listView.test.ts`, `PodcastsPage.test.tsx`) und Initialen; e2e-Tastaturtest
+  `admin-podcast-page.spec.ts` (P-12), angepasst `admin-podcasts.spec.ts` und `podcast.spec.ts`.
+- **Schritt 0** (eigener PR #145, in `main`): Die Episoden-Flut auf CT 190 war der erste Scan nach dem
+  Wiedereintragen der Podcast-Wurzel samt Verheiraten, kein Fehler aus A1; behoben ist ein Wettlauf paralleler Sonden
+  (zwei Dateien an einer Feed-Episode). Messwerte in `docs/perf/19-podcasts.md` Abschnitt 8.
+- **Offen:** Weich gelöschte Datei-Episoden nach dem Verheiraten bleiben als Zeilen stehen (CT 190: 32'265); der
+  Ordnerpfad eines Podcasts steht nicht auf seiner Seite (Vertrag kennt nur `rootId`).
+- Versionsstellen auf 1.29.0.
 
 ## Bildspeicher verkleinert (11. November 2026): Pull Request, Patch 1.28.1
 

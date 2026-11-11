@@ -29,6 +29,8 @@ const kidsLibrary = library({
 const routes = {
   ...signedIn,
   'GET /admin/libraries': () => json([library(), podcastLibrary]),
+  'GET /admin/podcasts/downloads': () =>
+    json({ total: 0, running: 0, paused: false, downloads: [] }),
 };
 
 /** Folds out the row whose title button is named `name` and returns its fold-out. */
@@ -47,7 +49,7 @@ describe('admin podcasts page (M6, H-2; concept 12)', () => {
     vi.unstubAllGlobals();
   });
 
-  it('lists the subscriptions with episodes, last fetch and error; the fold-out has the rest', async () => {
+  it('lists the subscriptions with cover, author, episodes and state; the fold-out has the rest', async () => {
     mockApi({
       ...routes,
       ...adminShell,
@@ -70,23 +72,24 @@ describe('admin podcasts page (M6, H-2; concept 12)', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Podcasts' })).toBeVisible();
     const table = await screen.findByRole('table', { name: 'Abonnierte Podcasts' });
+    // Concept 19 part A, 12.2 (variant A): title with author and «Nur Link», the episodes with
+    // the stored share, the state, and the link to the page of the podcast. Sorted by title.
     const rows = within(table).getAllByRole('row');
-    // Header, then each podcast with its (closed) fold-out row.
-    expect(within(rows[1]!).getByRole('rowheader')).toHaveTextContent('Slouchcat Test Podcast');
-    expect(within(rows[1]!).getByText('2')).toBeVisible();
-    expect(within(rows[1]!).getByRole('cell', { name: '–' })).toBeVisible();
+    expect(rows[1]).toHaveAccessibleName(/^Kaputter Feed/);
+    const first = within(within(table).getByRole('row', { name: /^Slouchcat Test Podcast/ }));
+    expect(first.getByRole('rowheader')).toHaveTextContent('Slouchcat Test Podcast');
+    expect(first.getByRole('rowheader')).toHaveTextContent('Slouchcat Test Author');
+    expect(first.getByText('Nur Link')).toBeVisible();
+    expect(first.getByText('2')).toBeVisible();
+    expect(first.getByText('keine gespeichert')).toBeVisible();
+    expect(first.getByText('Aktuell')).toBeVisible();
+    expect(
+      first.getByRole('link', { name: 'Folgen von Slouchcat Test Podcast ansehen' }),
+    ).toHaveAttribute('href', `/admin/podcasts/${audioIds.podcast}`);
     const broken = within(table).getByRole('row', { name: /^Kaputter Feed/ });
-    expect(within(broken).getByText('Noch nie')).toBeVisible();
     expect(within(broken).getByText('Explizit')).toBeVisible();
-    // The error in one line, the whole text as its tooltip.
-    const error = within(broken).getByText(
-      'Der Feed ist nicht erreichbar. Prüfe die Adresse und versuche es erneut.',
-    );
-    expect(error).toBeVisible();
-    expect(error.closest('[title]')).toHaveAttribute(
-      'title',
-      'Der Feed ist nicht erreichbar. Prüfe die Adresse und versuche es erneut.',
-    );
+    // The row says «Feed-Fehler»; the whole text is in the fold-out.
+    expect(within(broken).getByText('Feed-Fehler')).toBeVisible();
     expect(within(broken).queryByText('HTTP 404')).not.toBeInTheDocument();
 
     const detail = await openRow(user, /^Slouchcat Test Podcast/);
@@ -102,6 +105,7 @@ describe('admin podcasts page (M6, H-2; concept 12)', () => {
       ),
     ).toBeVisible();
     expect(within(brokenDetail).getByText('HTTP 404')).toBeVisible();
+    expect(within(brokenDetail).getByText('Noch nie')).toBeVisible();
     expect(within(brokenDetail).queryByText('Autor')).not.toBeInTheDocument();
     expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Podcasts');
   });
@@ -135,7 +139,7 @@ describe('admin podcasts page (M6, H-2; concept 12)', () => {
     const table = await screen.findByRole('table', { name: 'Abonnierte Podcasts' });
     const subscribed = within(table).getByRole('row', { name: /^Slouchcat Test Podcast/ });
     expect(within(subscribed).queryByText('aus Ordner')).not.toBeInTheDocument();
-    expect(within(subscribed).queryByText(/lokal$/)).not.toBeInTheDocument();
+    expect(within(subscribed).getByText('keine gespeichert')).toBeVisible();
     const subscribedDetail = await openRow(user, /^Slouchcat Test Podcast/);
     expect(
       within(subscribedDetail).getByRole('button', { name: 'Abo Slouchcat Test Podcast löschen' }),
@@ -143,7 +147,7 @@ describe('admin podcasts page (M6, H-2; concept 12)', () => {
 
     const folder = within(table).getByRole('row', { name: /^Ordner-Podcast/ });
     expect(within(folder).getByText('aus Ordner')).toBeVisible();
-    expect(within(folder).getByText('3 lokal')).toBeVisible();
+    expect(within(folder).getByText('alle gespeichert')).toBeVisible();
     const folderDetail = await openRow(user, /^Ordner-Podcast/);
     expect(within(folderDetail).getByText('http://127.0.0.1:8095/feed.xml')).toBeVisible();
     expect(
@@ -155,7 +159,7 @@ describe('admin podcasts page (M6, H-2; concept 12)', () => {
     // Without a feed there is no address and nothing to fetch; without a folder that owns the
     // podcast (no rootId) it may be removed.
     const noFeed = within(table).getByRole('row', { name: /^Ohne Feed/ });
-    expect(within(noFeed).getByText('1 lokal')).toBeVisible();
+    expect(within(noFeed).getByText('1 gespeichert · 1 ohne Datei')).toBeVisible();
     const noFeedDetail = await openRow(user, /^Ohne Feed/);
     expect(within(noFeedDetail).queryByText(/^http/)).not.toBeInTheDocument();
     expect(within(noFeedDetail).getByText('Kein Feed.')).toBeVisible();
@@ -193,8 +197,8 @@ describe('admin podcasts page (M6, H-2; concept 12)', () => {
       within(kids)
         .getAllByRole('rowheader')
         .map((cell) => cell.textContent),
-    ).toEqual(['Gutenacht-Geschichten']);
-    const detail = await openRow(user, 'Gutenacht-Geschichten');
+    ).toEqual([expect.stringMatching(/^Gutenacht-Geschichten/)]);
+    const detail = await openRow(user, /^Gutenacht-Geschichten/);
     expect(within(detail).getByText('Podcasts Kinder')).toBeVisible();
 
     // «Alle» drops the parameter; the row opened in the other tab is open here too.
@@ -202,10 +206,9 @@ describe('admin podcasts page (M6, H-2; concept 12)', () => {
     await waitFor(() => expect(router.state.location.search).toEqual({}));
     const all = screen.getByRole('table', { name: 'Abonnierte Podcasts' });
     expect(within(all).getAllByRole('rowheader')).toHaveLength(3);
-    expect(within(all).getByRole('button', { name: 'Gutenacht-Geschichten' })).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    );
+    expect(
+      within(all).getByRole('button', { name: /^Gutenacht-Geschichten Slouchcat/ }),
+    ).toHaveAttribute('aria-expanded', 'true');
     await user.click(within(tabs).getByRole('tab', { name: /^Podcasts 2/ }));
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'library-3' }));
     // Not quoted, as a bare number would be.
@@ -250,7 +253,7 @@ describe('admin podcasts page (M6, H-2; concept 12)', () => {
       within(films)
         .getAllByRole('rowheader')
         .map((cell) => cell.textContent),
-    ).toEqual(['Verirrt']);
+    ).toEqual([expect.stringMatching(/^Verirrt/)]);
   });
 
   it('the libraries fail to load: the error offers «Erneut versuchen»', async () => {
@@ -286,7 +289,7 @@ describe('admin podcasts page (M6, H-2; concept 12)', () => {
     await user.click(
       within(detail).getByRole('button', { name: 'Slouchcat Test Podcast jetzt abrufen' }),
     );
-    expect(await screen.findByText('wird abgerufen')).toBeVisible();
+    expect(await screen.findByText('Wird abgerufen')).toBeVisible();
     await waitFor(() => expect(lists()).toBe(2));
     await act(() => vi.advanceTimersByTimeAsync(2000));
     await waitFor(() => expect(lists()).toBe(3));
@@ -421,7 +424,7 @@ describe('admin podcasts page (M6, H-2; concept 12)', () => {
     renderApp('/admin/podcasts');
     const user = userEvent.setup();
 
-    expect(await screen.findByText(/^20\.10\.2026/)).toBeVisible();
+    expect(await screen.findByText('Aktuell')).toBeVisible();
     expect(screen.queryByText(/^Live/)).not.toBeInTheDocument();
     const detail = await openRow(user, /^Slouchcat Test Podcast/);
     await user.click(
@@ -430,7 +433,7 @@ describe('admin podcasts page (M6, H-2; concept 12)', () => {
     expect(await screen.findByText('Slouchcat Test Podcast wird abgerufen.')).toBeVisible();
     expect(calls.some((call) => call.path.endsWith('/refresh'))).toBe(true);
     // Until the last fetch changes, the row says so; the page polls every 2 s meanwhile.
-    expect(await screen.findByText('wird abgerufen')).toBeVisible();
+    expect(await screen.findByText('Wird abgerufen')).toBeVisible();
     expect(screen.getByText('Live, alle 2 Sekunden')).toBeVisible();
 
     const removeButton = within(detail).getByRole('button', {
