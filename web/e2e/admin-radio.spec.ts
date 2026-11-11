@@ -338,19 +338,30 @@ test('«Angebot» by keyboard: search a country, a continent, the station list, 
   }
 });
 
-test('«Sender» by keyboard: whole catalog, streams, out of and back into the offer, unreachable ones removed and back @keyboard', async ({
+test('«Sender» by keyboard: unreachable ones removed and back, out of the offer, whole catalog, streams, back in @keyboard', async ({
   page,
   owner,
 }) => {
   test.setTimeout(120_000);
   const name = 'Testradio Drei';
   const id = await stationId(owner, name);
+  // Every station a «Nicht erreichbare entfernen» took out comes back after the test.
+  const demarked: number[] = [];
+  page.on('response', async (response) => {
+    if (!response.url().endsWith('/admin/radio/offer/apply') || !response.ok()) return;
+    const body = (await response.json().catch(() => null)) as {
+      demarkedStationIds?: number[];
+    } | null;
+    demarked.push(...(body?.demarkedStationIds ?? []));
+  });
+  const title = page.getByRole('heading', { level: 1, name: 'Radio' });
   try {
     await page.goto('/admin/radio?tab=sender');
     const table = page.getByRole('table', { name: 'Sender', exact: true });
     await expect(table).toBeVisible();
 
-    // «Nicht erreichbare entfernen» takes the unreachable ones out; «Rückgängig» brings them back.
+    // «Nicht erreichbare entfernen» takes the unreachable ones out and turns disabled: the focus
+    // waits on the h1. «Rückgängig» brings them back and goes with its message: the h1 again.
     const remove = page.getByRole('button', { name: /^Nicht erreichbare entfernen \(\d+\)$/ });
     await resetFocus(page);
     await tabTo(page, remove, 80);
@@ -358,22 +369,35 @@ test('«Sender» by keyboard: whole catalog, streams, out of and back into the o
     await expect(page.getByText(/aus dem Angebot genommen\.$/)).toBeVisible();
     await expect(
       page.getByRole('button', { name: 'Nicht erreichbare entfernen (0)' }),
-    ).toBeVisible();
+    ).toBeDisabled();
+    await expect(title).toBeFocused();
     const undo = page.getByRole('button', { name: 'Rückgängig' });
-    await tabTo(page, undo, 10);
+    await tabTo(page, undo, 40);
     await page.keyboard.press('Enter');
     await expect(page.getByText('Die Sender sind wieder im Angebot.')).toBeVisible();
+    await expect(undo).toHaveCount(0);
     await expect(remove).toBeEnabled();
+    await expect(title).toBeFocused();
 
-    // The whole catalog by the switch, then the search.
+    // In the list of the offer a station taken out leaves the list: the focus waits on the h1.
+    const search = page.getByRole('textbox', { name: 'Sender suchen' });
+    await tabTo(page, search, 40);
+    await page.keyboard.type(name);
+    await expect(table.getByRole('rowheader', { name: new RegExp(name) })).toBeVisible();
+    const out = table.getByRole('button', { name: `${name} aus dem Angebot nehmen` });
+    await tabTo(page, out, 30);
+    await page.keyboard.press('Enter');
+    await expect(
+      page.getByRole('status').filter({ hasText: `${name} ist nicht mehr im Angebot.` }),
+    ).toHaveCount(1);
+    await expect(table.getByRole('rowheader', { name: new RegExp(name) })).toHaveCount(0);
+    await expect(title).toBeFocused();
+
+    // The whole catalog by the switch shows it again.
     const whole = page.getByRole('switch', { name: 'Ganzen Katalog zeigen' });
-    await resetFocus(page);
-    await tabTo(page, whole, 80);
+    await tabTo(page, whole, 40);
     await page.keyboard.press('Space');
     await expect(whole).toBeChecked();
-    const search = page.getByRole('textbox', { name: 'Sender suchen' });
-    await search.focus();
-    await page.keyboard.type(name);
     await expect(table.getByRole('rowheader', { name: new RegExp(name) })).toBeVisible();
 
     // The streams of the row in a dialog; Escape closes it, the focus goes back.
@@ -386,24 +410,23 @@ test('«Sender» by keyboard: whole catalog, streams, out of and back into the o
     await expect(dialog).toHaveCount(0);
     await expectFocusOn(page, streams);
 
-    // Out of the offer and back in, the focus stays on the row's button.
-    const out = table.getByRole('button', { name: `${name} aus dem Angebot nehmen` });
-    await tabTo(page, out, 5);
-    await page.keyboard.press('Enter');
-    await expect(
-      page.getByRole('status').filter({ hasText: `${name} ist nicht mehr im Angebot.` }),
-    ).toHaveCount(1);
+    // Back into the offer and out again here: the row stays, the focus on its button.
     const back = table.getByRole('button', { name: `${name} ins Angebot nehmen` });
-    await expectFocusOn(page, back);
+    await tabTo(page, back, 5);
     await page.keyboard.press('Enter');
     await expect(
       page.getByRole('status').filter({ hasText: `${name} ist im Angebot.` }),
     ).toHaveCount(1);
     await expectFocusOn(page, out);
+    await page.keyboard.press('Enter');
+    await expect(
+      page.getByRole('status').filter({ hasText: `${name} ist nicht mehr im Angebot.` }),
+    ).toHaveCount(1);
+    await expectFocusOn(page, back);
 
     await resetFocus(page);
     await expectNoFocusTrap(page, 120);
   } finally {
-    await applyOffer(owner, [{ op: 'mark', stationIds: [id] }]);
+    await applyOffer(owner, [{ op: 'mark', stationIds: [id, ...demarked] }]);
   }
 });

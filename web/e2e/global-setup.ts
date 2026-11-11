@@ -231,21 +231,29 @@ async function ensureRadioCatalog(api: APIRequestContext): Promise<void> {
 
 /**
  * Chooses every country of the catalog for the radio offer (contract 1.28.0, concept 19 part B),
- * which starts empty: the suite lists the whole test catalog as before. A chosen offer stays.
+ * which starts empty: the suite lists the whole test catalog as before. An offer left over by an
+ * earlier run (a country left out, a station demarked by a test that stopped half way) is set
+ * right again: every country with «Alle» and no exceptions.
  */
 async function ensureRadioOffer(api: APIRequestContext): Promise<void> {
   type Offer = {
     version: number;
-    totals: { countries: number };
-    countries: { code: string; total: number }[];
+    totals: { demarked: number; marked: number };
+    countries: { code: string; mode?: 'all' | 'marked'; offered: number; total: number }[];
   };
   const response = await api.get('/api/v1/admin/radio/offer');
   if (!response.ok()) throw new Error(`GET /admin/radio/offer answered ${response.status()}`);
   const offer = (await response.json()) as Offer;
-  if (offer.totals.countries > 0) return;
-  const steps = offer.countries
-    .filter((country) => country.total > 0)
-    .map((country) => ({ op: 'chooseCountry', country: country.code }));
+  const countries = offer.countries.filter((country) => country.total > 0);
+  const whole =
+    offer.totals.demarked === 0 &&
+    offer.totals.marked === 0 &&
+    countries.every((country) => country.mode === 'all' && country.offered === country.total);
+  if (whole) return;
+  const steps = countries.flatMap((country) => [
+    { op: 'chooseCountry', country: country.code },
+    { op: 'markAll', country: country.code },
+  ]);
   const apply = await api.post('/api/v1/admin/radio/offer/apply', {
     data: { version: offer.version, steps },
   });
