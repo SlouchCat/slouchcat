@@ -164,7 +164,8 @@ func TestPodcastFolderScanReadsPodcastsAndEpisodes(t *testing.T) {
 
 // A podcast episode has no cover of its own (decision of 11 November 2026): neither the picture
 // embedded in an episode file nor an image named like the episode becomes the episode's cover;
-// only the folder image is the podcast's and queued for image.fetch.
+// only the folder image is the podcast's and queued for image.fetch. The scanner never gave an
+// episode a cover; the test guards that it stays so.
 func TestPodcastFolderEpisodesHaveNoCover(t *testing.T) {
 	t.Parallel()
 	if ffprobePath() == "" {
@@ -188,6 +189,9 @@ func TestPodcastFolderEpisodesHaveNoCover(t *testing.T) {
 	}
 	e.probeAll(t)
 	podcast := e.str(`SELECT id FROM items WHERE kind = 'podcast'`)
+	if cover := e.str(`SELECT cover_path FROM items WHERE id = ?`, podcast); cover != "Bildpodcast/cover.jpg" {
+		t.Errorf("podcast cover_path = %q, want the folder image", cover)
+	}
 	if n := e.count(`SELECT count(*) FROM items WHERE kind = 'podcast_episode' AND deleted_at IS NULL`); n != 2 {
 		t.Fatalf("episodes = %d, want 2", n)
 	}

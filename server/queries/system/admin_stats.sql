@@ -17,7 +17,8 @@
 -- else the parsed title). The events are aggregated first, so only the listed titles are joined;
 -- the plays are the distinct playback sessions plus the events without one. For an episode the id
 -- of its series (episode -> season -> series over parent_id, or a series without seasons) names
--- the images (concept 12, 11.4). The watch history keeps deleted titles, but a deleted title has no
+-- the images (concept 12, 11.4), for a podcast episode the id of its podcast (an episode has no
+-- cover of its own, decision of 11 November 2026). The watch history keeps deleted titles, but a deleted title has no
 -- image; when that title (the series of an episode, else the title itself) is deleted, the live
 -- title of the same kind with a shared TMDB, TVDB or IMDb id names the images instead (the newest
 -- id first). A library moved to a new path imports its titles anew with new ids, and the history of
@@ -57,7 +58,8 @@ LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
 LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'
 LEFT JOIN items AS p ON i.kind = 'episode' AND p.id = i.parent_id
 LEFT JOIN items AS s ON s.kind = 'series' AND (s.id = p.parent_id OR s.id = p.id)
-JOIN items AS b ON b.id = COALESCE(s.id, i.id)
+LEFT JOIN items AS pp ON i.kind = 'podcast_episode' AND pp.kind = 'podcast' AND pp.id = i.parent_id
+JOIN items AS b ON b.id = COALESCE(s.id, pp.id, i.id)
 ORDER BY w.watched_ms DESC, w.item_id;
 
 -- name: StatsWatchTimeByProfile :many

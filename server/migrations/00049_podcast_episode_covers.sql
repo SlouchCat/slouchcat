@@ -10,6 +10,8 @@
 --                                      its first start after this migration (metadata
 --                                      PurgeEpisodeImagesOnce), not here
 --   items.locked_fields                the lock "poster" leaves the episodes (nothing to lock)
+--   jobs                               queued image.fetch jobs of episodes go (they have nothing
+--                                      to do any more); a running one ends without work
 --
 -- The number follows 00047 of concept 19 part A (PR #141) and 00048 of part B (PR #140), which
 -- must be merged first.
@@ -30,6 +32,10 @@ WHERE kind = 'podcast_episode' AND json_valid(locked_fields)
 DELETE FROM images WHERE item_id IN (SELECT id FROM items WHERE kind = 'podcast_episode');
 DELETE FROM item_images WHERE item_id IN (SELECT id FROM items WHERE kind = 'podcast_episode');
 DELETE FROM item_local_images WHERE item_id IN (SELECT id FROM items WHERE kind = 'podcast_episode');
+
+DELETE FROM jobs
+WHERE type = 'image.fetch' AND state = 'queued'
+  AND idempotency_key IN (SELECT 'image:' || id FROM items WHERE kind = 'podcast_episode');
 
 COMMIT;
 PRAGMA foreign_key_check;

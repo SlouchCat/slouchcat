@@ -31,12 +31,15 @@ INSERT INTO item_images (item_id, kind, provider, source, updated_at) VALUES
   ('01M6585TZB00P0DCASTEP0001B', 'poster', 'cover', 'https://img.example.test/folge-1.jpg', 1);
 INSERT INTO item_local_images (item_id, kind, rel_path, root_id, width, height, size, mtime) VALUES
   ('01M6585TZB00P0DCASTEP0002B', 'poster', 'Frozen Podcast/Folge 2.jpg', 4, 400, 400, 1, 1);
+INSERT INTO jobs (type, priority, idempotency_key, payload, state, run_after, created_at, updated_at) VALUES
+  ('image.fetch', 1, 'image:01M6585TZB00P0DCASTEP0001B', '{"itemId":"01M6585TZB00P0DCASTEP0001B"}', 'queued', 1, 1, 1),
+  ('image.fetch', 5, 'image:01M6585TZB00P0DCAST000000B', '{"itemId":"01M6585TZB00P0DCAST000000B"}', 'queued', 1, 1, 1);
 `
 
 // Migration 00049 (decision of 11 November 2026) on the frozen state of migration 00046
 // (hoerbuch-quellen.sql) with a podcast library: no podcast episode keeps a cover of its own (its
 // cover_url and cover_path are empty, its image rows, decided source and local images are gone,
-// the poster lock leaves), the podcast keeps its cover and its rows.
+// the poster lock leaves, its queued image job goes), the podcast keeps its cover, rows and job.
 func TestMigration00049PodcastEpisodeCovers(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -48,17 +51,18 @@ func TestMigration00049PodcastEpisodeCovers(t *testing.T) {
 	}
 	defer db.Close()
 	for query, want := range map[string]string{
-		`SELECT count(*) FROM items WHERE kind = 'podcast_episode' AND (cover_url IS NOT NULL OR cover_path IS NOT NULL)`: "0",
-		`SELECT count(*) FROM items WHERE kind = 'podcast_episode'`:                                                       "2",
-		`SELECT locked_fields FROM items WHERE id = '01M6585TZB00P0DCASTEP0001B'`:                                         `["title"]`,
-		`SELECT locked_fields FROM items WHERE id = '01M6585TZB00P0DCASTEP0002B'`:                                         `[]`,
-		`SELECT count(*) FROM images WHERE item_id IN (SELECT id FROM items WHERE kind = 'podcast_episode')`:              "0",
-		`SELECT count(*) FROM item_images WHERE item_id IN (SELECT id FROM items WHERE kind = 'podcast_episode')`:         "0",
-		`SELECT count(*) FROM item_local_images WHERE item_id IN (SELECT id FROM items WHERE kind = 'podcast_episode')`:   "0",
-		`SELECT cover_url FROM items WHERE id = '01M6585TZB00P0DCAST000000B'`:                                             "https://img.example.test/podcast.jpg",
-		`SELECT count(*) FROM images WHERE item_id = '01M6585TZB00P0DCAST000000B'`:                                        "2",
-		`SELECT count(*) FROM goose_db_version WHERE version_id = 49 AND is_applied = 1`:                                  "1",
-		`SELECT count(*) FROM pragma_foreign_key_check`:                                                                   "0",
+		`SELECT count(*) FROM items WHERE kind = 'podcast_episode' AND (cover_url IS NOT NULL OR cover_path IS NOT NULL)`:                 "0",
+		`SELECT count(*) FROM items WHERE kind = 'podcast_episode'`:                                                                       "2",
+		`SELECT locked_fields FROM items WHERE id = '01M6585TZB00P0DCASTEP0001B'`:                                                         `["title"]`,
+		`SELECT locked_fields FROM items WHERE id = '01M6585TZB00P0DCASTEP0002B'`:                                                         `[]`,
+		`SELECT count(*) FROM images WHERE item_id IN (SELECT id FROM items WHERE kind = 'podcast_episode')`:                              "0",
+		`SELECT count(*) FROM item_images WHERE item_id IN (SELECT id FROM items WHERE kind = 'podcast_episode')`:                         "0",
+		`SELECT count(*) FROM item_local_images WHERE item_id IN (SELECT id FROM items WHERE kind = 'podcast_episode')`:                   "0",
+		`SELECT cover_url FROM items WHERE id = '01M6585TZB00P0DCAST000000B'`:                                                             "https://img.example.test/podcast.jpg",
+		`SELECT count(*) FROM images WHERE item_id = '01M6585TZB00P0DCAST000000B'`:                                                        "2",
+		`SELECT group_concat(idempotency_key) FROM jobs WHERE type = 'image.fetch' AND idempotency_key LIKE 'image:01M6585TZB00P0DCAST%'`: "image:01M6585TZB00P0DCAST000000B",
+		`SELECT count(*) FROM goose_db_version WHERE version_id = 49 AND is_applied = 1`:                                                  "1",
+		`SELECT count(*) FROM pragma_foreign_key_check`:                                                                                   "0",
 	} {
 		var got string
 		if err := db.Read.QueryRowContext(ctx, query).Scan(&got); err != nil {

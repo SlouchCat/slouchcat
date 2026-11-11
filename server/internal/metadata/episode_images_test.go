@@ -36,6 +36,20 @@ func TestPurgeEpisodeImagesOnce(t *testing.T) {
 	for _, id := range []string{idPodcast, idEpisode, idDeleted, idBookFolder} {
 		write(id)
 	}
+	setting := func() bool {
+		var n int
+		if err := e.db.Read.QueryRow(`SELECT count(*) FROM settings WHERE key = ?`, SettingEpisodeImagesPurged).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n == 1
+	}
+
+	// A stopped start removes nothing and leaves the purge for the next one.
+	stopped, cancel := context.WithCancel(ctx)
+	cancel()
+	if n, err := e.svc.PurgeEpisodeImagesOnce(stopped); err == nil || n != 0 || setting() || !exists(idEpisode) {
+		t.Fatalf("stopped purge = %d, %v, setting %v", n, err, setting())
+	}
 
 	n, err := e.svc.PurgeEpisodeImagesOnce(ctx)
 	if err != nil || n != 2 {
