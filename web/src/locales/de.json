@@ -1162,15 +1162,42 @@
         "takeInLabel": "{{name}} ins Angebot nehmen",
         "takenOut": "{{name}} ist nicht mehr im Angebot.",
         "takenIn": "{{name}} ist im Angebot.",
-        "streams": "Streams",
-        "streamsLabel": "Streams von {{name}}",
-        "streamsTitle": "Streams von {{name}}",
         "streamsEmpty": "Keine Streams.",
         "streamPreferred": "bevorzugt",
         "streamUnreachable": "nicht erreichbar",
         "streamHls": "HLS",
-        "streamsClose": "Schliessen",
-        "providerHelp": "Genaue Domain, zum Beispiel srg-ssr.ch."
+        "providerHelp": "Genaue Domain, zum Beispiel srg-ssr.ch.",
+        "details": {
+          "action": "Angaben",
+          "label": "Angaben zu {{name}}",
+          "title": "Angaben zu {{name}}",
+          "source": "Herkunft: {{source}}",
+          "fields": {
+            "name": "Name",
+            "country": "Land",
+            "region": "Region",
+            "languages": "Sprachen",
+            "homepage": "Webseite",
+            "logo": "Logo",
+            "provider": "Anbieter",
+            "owner": "Eigentümer",
+            "founded": "Gründung",
+            "wikidataId": "Wikidata-Kennung"
+          },
+          "sources": {
+            "catalog": "Katalog (Radio Browser)",
+            "own": "eigener Sender",
+            "admin": "von Hand",
+            "stream": "Stream",
+            "website": "Webseite des Senders",
+            "wikidata": "Wikidata"
+          },
+          "logoPresent": "vorhanden",
+          "noWikidata": "Wikidata kennt diesen Sender nicht eindeutig: kein Eigentümer, keine Gründung.",
+          "wikidataOfferOnly": "Wikidata ergänzt nur Sender im Angebot.",
+          "streams": "Streams",
+          "close": "Schliessen"
+        }
       },
       "settings": {
         "title": "Einstellungen",
@@ -1191,7 +1218,9 @@
         "coverMusicbrainz": "Cover-Suche MusicBrainz",
         "coverMusicbrainzHelp": "Sucht zum laufenden Titel das Cover bei MusicBrainz und im Cover Art Archive, nur beim Titelwechsel eines laufenden Senders und höchstens einmal je Sekunde.",
         "coverItunes": "Cover-Suche iTunes",
-        "coverItunesHelp": "Fragt die iTunes-Suche, wenn MusicBrainz nichts findet; höchstens 20 Anfragen je Minute. Ein Bild, das der Sender selbst mitschickt, gilt immer."
+        "coverItunesHelp": "Fragt die iTunes-Suche, wenn MusicBrainz nichts findet; höchstens 20 Anfragen je Minute. Ein Bild, das der Sender selbst mitschickt, gilt immer.",
+        "wikidata": "Wikidata verwenden",
+        "wikidataHelp": "Ergänzt die Sender im Angebot einmal pro Woche um Eigentümer und Gründung aus Wikidata; der Eigentümer wird zum Anbieter. Ausgeschaltet vergisst der Server diese Angaben sofort."
       },
       "editor": {
         "close": "Schliessen",
@@ -3915,6 +3944,11 @@
           "name": "Senderlogo holen",
           "description": "Holt das Logo eines Senders aus dem Katalog oder von seiner Website und legt es quadratisch ab.",
           "trigger": "Sender in einer Liste der App ohne Logo, ein zurückgesetztes Logo"
+        },
+        "radio_wikidata_sync": {
+          "name": "Senderangaben aus Wikidata",
+          "description": "Gleicht die Sender im Angebot über ihre Webseite mit Wikidata ab und übernimmt bei eindeutigem Treffer Eigentümer und Gründung.",
+          "trigger": "wöchentlich ab 06:30, nach «Übernehmen» mit neuen Sendern (höchstens einmal am Tag), beim Einschalten von «Wikidata verwenden»"
         },
         "scan_library": {
           "name": "Bibliotheksscan",

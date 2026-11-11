@@ -23,6 +23,7 @@ const config = (overrides: Partial<RadioConfig> = {}): RadioConfig => ({
   graceSeconds: 120,
   coverMusicbrainz: true,
   coverItunes: true,
+  wikidataEnabled: true,
   bufferMode: 'tmpfs',
   maxRelaysByBudget: 11,
   ...overrides,
@@ -62,6 +63,13 @@ const station: AdminRadioStation = {
   ],
   createdAt: Date.UTC(2026, 10, 1),
   updatedAt: Date.UTC(2026, 10, 6),
+  sources: {
+    name: 'admin',
+    country: 'catalog',
+    region: 'catalog',
+    languages: 'catalog',
+    logo: 'catalog',
+  },
 };
 
 /** An own station (contract 1.19.0): one stream, no catalog tags. */
@@ -459,6 +467,76 @@ describe('radio administration', () => {
       expect(patch?.body).toEqual({ coverItunes: false });
     });
     expect(screen.getByRole('switch', { name: 'Cover-Suche MusicBrainz' })).toBeChecked();
+  });
+
+  it('switches «Wikidata verwenden» in «Einstellungen»', async () => {
+    const { calls } = mockApi(
+      radioRoutes({
+        'PATCH /admin/radio/config': (call) => json({ ...config(), ...(call.body as object) }),
+      }),
+    );
+    await renderAdminPage('/admin/radio?tab=einstellungen');
+    const user = userEvent.setup();
+    const wikidata = await screen.findByRole('switch', { name: 'Wikidata verwenden' });
+    expect(wikidata).toBeChecked();
+    await user.click(wikidata);
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => {
+      const patch = calls.find((call) => call.method === 'PATCH');
+      expect(patch?.body).toEqual({ wikidataEnabled: false });
+    });
+  });
+
+  it('shows the details of a station with the origin of each value and Wikidata (stage B2)', async () => {
+    mockApi(
+      radioRoutes({
+        'GET /admin/radio/stations': () =>
+          json({
+            items: [
+              {
+                ...station,
+                provider: 'Schweizer Radio und Fernsehen',
+                sources: { ...station.sources, provider: 'wikidata' },
+                wikidata: {
+                  id: 'Q689725',
+                  ownerId: 'Q651410',
+                  owner: 'Schweizer Radio und Fernsehen',
+                  founded: '1983-08',
+                  fetchedAt: Date.UTC(2026, 10, 11),
+                },
+              },
+              { ...own, offered: true, sources: { name: 'own', homepage: 'own' } },
+            ],
+            total: 2,
+            offset: 0,
+          }),
+      }),
+    );
+    await renderAdminPage('/admin/radio?tab=sender');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Angaben zu Radio Swiss Pop' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Angaben zu Radio Swiss Pop' });
+    const fact = (term: string) => within(dialog).getByText(term).nextElementSibling;
+    expect(fact('Name')).toHaveTextContent('Radio Swiss PopHerkunft: von Hand');
+    expect(fact('Land')).toHaveTextContent('Herkunft: Katalog (Radio Browser)');
+    expect(fact('Anbieter')).toHaveTextContent('Schweizer Radio und FernsehenHerkunft: Wikidata');
+    expect(fact('Gründung')).toHaveTextContent('August 1983Herkunft: Wikidata');
+    expect(fact('Wikidata-Kennung')).toHaveTextContent('Q689725');
+    expect(within(dialog).getByText('https://stream.example.test/pop.aac')).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Schliessen' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    await user.click(screen.getByRole('button', { name: 'Angaben zu Quartierradio Lorraine' }));
+    const second = await screen.findByRole('dialog', { name: 'Angaben zu Quartierradio Lorraine' });
+    expect(within(second).getByText('Webseite').nextElementSibling).toHaveTextContent(
+      'Herkunft: eigener Sender',
+    );
+    expect(within(second).queryByText('Gründung')).toBeNull();
+    expect(
+      within(second).getByText(
+        'Wikidata kennt diesen Sender nicht eindeutig: kein Eigentümer, keine Gründung.',
+      ),
+    ).toBeVisible();
   });
 
   it('shows the offer in the strip and points to «Angebot» while it is empty', async () => {

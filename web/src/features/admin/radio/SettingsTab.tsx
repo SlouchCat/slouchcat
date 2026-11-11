@@ -34,6 +34,7 @@ interface Draft {
   graceSeconds: string;
   coverMusicbrainz: boolean;
   coverItunes: boolean;
+  wikidataEnabled: boolean;
 }
 
 const draftOf = (config: RadioConfig): Draft => ({
@@ -43,6 +44,7 @@ const draftOf = (config: RadioConfig): Draft => ({
   graceSeconds: String(config.graceSeconds),
   coverMusicbrainz: config.coverMusicbrainz,
   coverItunes: config.coverItunes,
+  wikidataEnabled: config.wikidataEnabled,
 });
 
 /** What differs from the stored settings (PATCH: absent fields keep their value). */
@@ -59,6 +61,9 @@ function changes(config: RadioConfig, draft: Draft): RadioConfigUpdate {
     update.coverMusicbrainz = draft.coverMusicbrainz;
   }
   if (draft.coverItunes !== config.coverItunes) update.coverItunes = draft.coverItunes;
+  if (draft.wikidataEnabled !== config.wikidataEnabled) {
+    update.wikidataEnabled = draft.wikidataEnabled;
+  }
   return update;
 }
 
@@ -70,7 +75,7 @@ interface SettingsTabProps {
 
 /**
  * «Einstellungen» (concept 16, 7.3, 8 and 11) as rows: time shift, budget, maximum stations,
- * run-on and the two cover lookups (D-10). Time shift, budget and maximum apply to relays that
+ * run-on, the two cover lookups (D-10) and «Wikidata verwenden» (concept 19 B7.3, stage B2). Time shift, budget and maximum apply to relays that
  * start from now on (the running ones keep theirs, S2), the others at once. The countries and the
  * switch for broken stations belong to the offer since contract 1.28.0 (concept 19 part B).
  */
@@ -178,6 +183,17 @@ function SettingsForm({
       >
         <Switch isSelected={draft.coverItunes} onChange={(value) => set('coverItunes', value)}>
           {t('admin.radio.settings.coverItunes')}
+        </Switch>
+      </SettingRow>
+      <SettingRow
+        label={t('admin.radio.settings.wikidata')}
+        help={t('admin.radio.settings.wikidataHelp')}
+      >
+        <Switch
+          isSelected={draft.wikidataEnabled}
+          onChange={(value) => set('wikidataEnabled', value)}
+        >
+          {t('admin.radio.settings.wikidata')}
         </Switch>
       </SettingRow>
       <Text tone="secondary">{t('admin.radio.settings.rights')}</Text>

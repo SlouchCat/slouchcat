@@ -1162,15 +1162,42 @@
         "takeInLabel": "Take {{name}} into the offer",
         "takenOut": "{{name}} is no longer in the offer.",
         "takenIn": "{{name}} is in the offer.",
-        "streams": "Streams",
-        "streamsLabel": "Streams of {{name}}",
-        "streamsTitle": "Streams of {{name}}",
         "streamsEmpty": "No streams.",
         "streamPreferred": "preferred",
         "streamUnreachable": "unreachable",
         "streamHls": "HLS",
-        "streamsClose": "Close",
-        "providerHelp": "The exact domain, for example srg-ssr.ch."
+        "providerHelp": "The exact domain, for example srg-ssr.ch.",
+        "details": {
+          "action": "Details",
+          "label": "Details of {{name}}",
+          "title": "Details of {{name}}",
+          "source": "Source: {{source}}",
+          "fields": {
+            "name": "Name",
+            "country": "Country",
+            "region": "Region",
+            "languages": "Languages",
+            "homepage": "Website",
+            "logo": "Logo",
+            "provider": "Provider",
+            "owner": "Owner",
+            "founded": "Founded",
+            "wikidataId": "Wikidata ID"
+          },
+          "sources": {
+            "catalog": "catalog (Radio Browser)",
+            "own": "own station",
+            "admin": "set by hand",
+            "stream": "stream",
+            "website": "the station's website",
+            "wikidata": "Wikidata"
+          },
+          "logoPresent": "present",
+          "noWikidata": "Wikidata knows no unique match for this station: no owner, no founding date.",
+          "wikidataOfferOnly": "Wikidata adds details to stations in the offer only.",
+          "streams": "Streams",
+          "close": "Close"
+        }
       },
       "settings": {
         "title": "Settings",
@@ -1191,7 +1218,9 @@
         "coverMusicbrainz": "Cover lookup MusicBrainz",
         "coverMusicbrainzHelp": "Looks up the cover of the playing title at MusicBrainz and the Cover Art Archive, only when the title of a running station changes and at most once a second.",
         "coverItunes": "Cover lookup iTunes",
-        "coverItunesHelp": "Asks the iTunes search when MusicBrainz finds nothing; at most 20 requests a minute. A picture the station sends itself always counts."
+        "coverItunesHelp": "Asks the iTunes search when MusicBrainz finds nothing; at most 20 requests a minute. A picture the station sends itself always counts.",
+        "wikidata": "Use Wikidata",
+        "wikidataHelp": "Once a week adds the owner and the founding date from Wikidata to the stations in the offer; the owner becomes the provider. Switched off, the server forgets these details at once."
       },
       "editor": {
         "close": "Close",
@@ -3915,6 +3944,11 @@
           "name": "Fetch station logo",
           "description": "Fetches a station's logo from the catalog or its website and stores it square.",
           "trigger": "a station without logo in a list of the app, a reset logo"
+        },
+        "radio_wikidata_sync": {
+          "name": "Station details from Wikidata",
+          "description": "Matches the stations in the offer with Wikidata through their website and takes owner and founding date from a unique match.",
+          "trigger": "weekly from 06:30, after «Apply» with new stations (at most once a day), when «Use Wikidata» is switched on"
         },
         "scan_library": {
           "name": "Library scan",

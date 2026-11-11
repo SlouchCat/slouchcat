@@ -338,7 +338,7 @@ test('«Angebot» by keyboard: search a country, a continent, the station list, 
   }
 });
 
-test('«Sender» by keyboard: unreachable ones removed and back, out of the offer, whole catalog, streams, back in @keyboard', async ({
+test('«Sender» by keyboard: unreachable ones removed and back, out of the offer, whole catalog, details, back in @keyboard', async ({
   page,
   owner,
 }) => {
@@ -400,15 +400,17 @@ test('«Sender» by keyboard: unreachable ones removed and back, out of the offe
     await expect(whole).toBeChecked();
     await expect(table.getByRole('rowheader', { name: new RegExp(name) })).toBeVisible();
 
-    // The streams of the row in a dialog; Escape closes it, the focus goes back.
-    const streams = table.getByRole('button', { name: `Streams von ${name}` });
-    await tabTo(page, streams, 30);
+    // The details of the row in a dialog (stage B2): a station outside the offer has no Wikidata
+    // details; Escape closes it, the focus goes back.
+    const details = table.getByRole('button', { name: `Angaben zu ${name}` });
+    await tabTo(page, details, 30);
     await page.keyboard.press('Enter');
-    const dialog = page.getByRole('dialog', { name: `Streams von ${name}` });
+    const dialog = page.getByRole('dialog', { name: `Angaben zu ${name}` });
     await expectFocusOn(page, dialog.getByRole('button', { name: 'Schliessen' }));
+    await expect(dialog.getByText('Wikidata ergänzt nur Sender im Angebot.')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
-    await expectFocusOn(page, streams);
+    await expectFocusOn(page, details);
 
     // Back into the offer and out again here: the row stays, the focus on its button.
     const back = table.getByRole('button', { name: `${name} ins Angebot nehmen` });
@@ -429,4 +431,60 @@ test('«Sender» by keyboard: unreachable ones removed and back, out of the offe
   } finally {
     await applyOffer(owner, [{ op: 'mark', stationIds: [id, ...demarked] }]);
   }
+});
+
+test('«Angaben» by keyboard: the origin of each value, owner and founding date from Wikidata (concept 19 B2) @keyboard', async ({
+  page,
+  owner,
+}) => {
+  // The e2e radio server answers the SPARQL queries (testdata/radio/wikidata.csv); the setup's
+  // apply queued a run already, this one makes sure it ran with the mock.
+  const run = await owner.post('/api/v1/admin/job-types/radio.wikidata.sync/run', {
+    headers: CSRF,
+  });
+  expect(run.status(), await run.text()).toBe(202);
+  const id = await stationId(owner, 'SRF 3');
+  await expect
+    .poll(
+      async () => {
+        const response = await owner.get(`/api/v1/admin/radio/stations/${id}`);
+        const body = (await response.json()) as { wikidata?: { owner?: string } };
+        return body.wikidata?.owner;
+      },
+      { timeout: 30_000 },
+    )
+    .toBe('Schweizer Radio und Fernsehen');
+
+  await page.goto('/admin/radio?tab=sender');
+  const table = page.getByRole('table', { name: 'Sender', exact: true });
+  await expect(table).toBeVisible();
+  const search = page.getByRole('textbox', { name: 'Sender suchen' });
+  await resetFocus(page);
+  await tabTo(page, search, 40);
+  await page.keyboard.type('SRF 3');
+  // The list follows the search (Radio SRF 1 has the same owner); the owner is the provider.
+  await expect(table.getByRole('button', { name: 'Angaben zu Radio SRF 1' })).toHaveCount(0);
+  await expect(
+    table.getByRole('button', { name: 'Nach Anbieter Schweizer Radio und Fernsehen filtern' }),
+  ).toBeVisible();
+  const details = table.getByRole('button', { name: 'Angaben zu SRF 3' });
+  await tabTo(page, details, 30);
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: 'Angaben zu SRF 3' });
+  await expectFocusOn(page, dialog.getByRole('button', { name: 'Schliessen' }));
+  const fact = (term: string) => dialog.locator('dt', { hasText: term }).locator('+ dd');
+  await expect(fact('Name')).toContainText('Herkunft: Katalog (Radio Browser)');
+  await expect(fact('Anbieter')).toContainText('Schweizer Radio und Fernsehen');
+  await expect(fact('Anbieter')).toContainText('Herkunft: Wikidata');
+  await expect(fact('Gründung')).toContainText('1. November 1983');
+  await expect(fact('Wikidata-Kennung')).toContainText('Q1157782');
+  // Tab stays in the dialog, Enter on «Schliessen» closes it and the focus goes back.
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, dialog.getByRole('button', { name: 'Schliessen' }));
+  await page.keyboard.press('Enter');
+  await expect(dialog).toHaveCount(0);
+  await expectFocusOn(page, details);
+
+  await resetFocus(page);
+  await expectNoFocusTrap(page, 120);
 });

@@ -12,6 +12,10 @@
 //   GET /aac             Icecast ADTS AAC (HTTP/1.0 200, audio/aac; the relay copies it, B-1)
 //   GET /drop            cuts every open stream (the relay reconnects) and answers 404, so a
 //                        station whose stream is /drop is unreachable
+//   POST /sparql         the Wikidata endpoint of radio.wikidata.sync (SLOUCHCAT_TEST_RADIO_WIKIDATA_URL,
+//                        concept 19 part B stage B2): the station query answers
+//                        testdata/radio/wikidata.csv, a label query (rdfs:label) the labels of
+//                        testdata/radio/wikidata-labels.csv for the items it names, in its language chain
 //
 // The mounts loop testdata/radio/tone-mp3-128.mp3 and tone-aac-64.aac at their bitrate and, when
 // the request sends `Icy-MetaData: 1`, put a StreamTitle into the stream every 10 s (icy-metaint
@@ -72,6 +76,30 @@ export function startRadioServer({
     'utf8',
   );
   const streams = new Set();
+  const wikidata = readFileSync(`${RADIO}wikidata.csv`);
+  /** item → language → label */
+  const labels = new Map();
+  for (const row of readFileSync(`${RADIO}wikidata-labels.csv`, 'utf8')
+    .trim()
+    .split('\n')
+    .slice(1)) {
+    const [uri, lang, ...rest] = row.split(',');
+    const item = uri.slice(uri.lastIndexOf('/') + 1);
+    if (!labels.has(item)) labels.set(item, new Map());
+    labels.get(item).set(lang, rest.join(','));
+  }
+  /** The CSV answer of a SPARQL query. */
+  const sparql = (query) => {
+    if (!query.includes('rdfs:label')) return wikidata;
+    const chain = (/wikibase:language "([^"]+)"/.exec(query)?.[1] ?? 'en').split(',');
+    let out = 'o,label\r\n';
+    for (const [, item] of query.matchAll(/wd:(Q[0-9]+)/g)) {
+      const known = labels.get(item);
+      const label = chain.map((lang) => known?.get(lang)).find(Boolean) ?? item;
+      out += `http://www.wikidata.org/entity/${item},${label}\r\n`;
+    }
+    return Buffer.from(out, 'utf8');
+  };
 
   const answer = (socket, status, type, body) => {
     socket.end(
@@ -150,11 +178,27 @@ export function startRadioServer({
         if (request.length > 16384) socket.destroy();
         return;
       }
-      socket.off('data', onData);
       const [line, ...headers] = request.slice(0, end).split('\r\n');
       const [method, target = '/'] = line.split(' ');
       const path = new URL(target, base).pathname;
       const metadata = headers.some((h) => /^icy-metadata:\s*1\s*$/i.test(h));
+      if (method === 'POST' && path === '/sparql') {
+        // The form body follows the head; latin1 keeps one character per byte.
+        const length = Number(
+          /^content-length:\s*(\d+)/im.exec(headers.join('\n'))?.[1] ?? Number.NaN,
+        );
+        const body = request.slice(end + 4);
+        if (!Number.isFinite(length) || length > 65536) {
+          socket.off('data', onData);
+          answer(socket, '400 Bad Request', 'text/plain', Buffer.from('length'));
+        } else if (body.length >= length) {
+          socket.off('data', onData);
+          const form = new URLSearchParams(Buffer.from(body, 'latin1').toString('utf8'));
+          answer(socket, '200 OK', 'text/csv; charset=utf-8', sparql(form.get('query') ?? ''));
+        }
+        return;
+      }
+      socket.off('data', onData);
       if (method !== 'GET') {
         answer(socket, '405 Method Not Allowed', 'text/plain', Buffer.from('GET only'));
       } else if (path === '/json/stations') {
