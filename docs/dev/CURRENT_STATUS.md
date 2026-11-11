@@ -1,5 +1,32 @@
 # Aktueller Stand
 
+## Konzept 19 abgeschlossen (12. November 2026)
+
+Alle Teile von `docs/planning/19-podcasts-und-radio.md` sind gebaut und veröffentlicht:
+
+| Release | Inhalt | Migration |
+|---|---|---|
+| 1.23.2 | Teil E: Lautstärke | – |
+| 1.23.3 | Teil C: quadratische Cover | – |
+| 1.24.0 | D1: Bleistift für Hörbücher | 00044 |
+| 1.25.0 | D2: Reihen | 00045 |
+| 1.26.0 | D3: Quellen für Hörbücher | 00046 |
+| 1.28.0 | A1 (nie einzeln veröffentlichte Fassung 1.27.0), B1, Episoden ohne eigenes Cover (PR #143), Ordner-Browser (PR #142), Trickplay-Start (PR #144), Podcast-Paarung (PR #145) | 00047, 00048, 00049 |
+| 1.28.1 | Bildspeicher verkleinert (PR #146) | – |
+| 1.29.0 | A2: neue Podcasts-Seite (PR #147) | – |
+| 1.30.0 | B2: Mehr Angaben aus Wikidata (PR #148) | 00051 (00050 bleibt frei) |
+
+- **CT 190:** läuft auf 1.28.1 (Platte nach dem Aufräumen 22 von 64 GB). 1.29.0 und 1.30.0 hebt Marco
+  per Updater.
+- **Offen, ausserhalb des Konzepts:**
+  - Der e2e-Test `web/e2e/hdr.spec.ts` liegt auf den CI-Runnern weiter knapp an der 5-s-Grenze (zuletzt
+    5321 und 5111 ms auf `d461b4c4`, Wiederholung grün). PR #144 spart rund 5 %; mehr bräuchte einen
+    Entscheid zum ersten Segment.
+  - Bilder weich gelöschter Titel bleiben liegen (CT 190: rund 5 GB, vor allem die frühere Bibliothek
+    «Serien»), bis die Titel endgültig gelöscht werden.
+  - Verheiratete Datei-Episoden bleiben als weich gelöschte Zeilen stehen (CT 190: 32'265); drei
+    doppelte Dateien an einer Feed-Episode bleiben, bis jemand sie trennt (PR #145).
+
 ## Stufe B2 (11. November 2026): Mehr Angaben aus Wikidata (Konzept 19 Teil B)
 
 Vertrag **1.30.0** (additiv), Migration **00051**, Zweig `claude/k19-b2-wikidata-3e9d2e` ab `main` `8c4fe29a`
@@ -157,7 +184,7 @@ Vertrag **1.28.0** (brechend für die Verwaltung, additiv für die App), Migrati
 - **Offen:** Abnahme auf CT 190, Merge und Tag `v1.28.0` auf Marcos Wort. Nach dem
   Update wählt Marco auf CT 190 die Länder im Reiter «Angebot»; bis dahin zeigt die Radioseite keinen Sender.
 
-## Release 1.27.0 (in Arbeit, 11. November 2026): Podcast-Folgen als Datei speichern (Konzept 19 Teil A Stufen A0 und A1)
+## Release 1.27.0 (11. November 2026, nie einzeln veröffentlicht, Teil von 1.28.0): Podcast-Folgen als Datei speichern (Konzept 19 Teil A Stufen A0 und A1)
 
 Vertrag **1.27.0** (additiv), Migration **00047**, Zweig `claude/k19-a-podcasts-2dabf0` ab `main` `f2314dda`
 (Release 1.26.0, PR #139). Nach `docs/planning/19-podcasts-und-radio.md` Teil A (Abschnitte 5 bis 16), ADR 0029 und
