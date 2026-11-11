@@ -424,6 +424,40 @@ func (s *Service) List(ctx context.Context) ([]model.Library, error) {
 	return out, nil
 }
 
+// ListRoots returns every library with its roots and nothing else: no scan state, no counts and
+// no trickplay settings. It is what the folder browser needs to name the library a directory
+// belongs to, and it costs two indexed queries where List counts the items and files of every
+// library and root -- 1.8 s on CT 190 with 35 000 files under a busy writer (11 November 2026),
+// once per folder click. Of each root it fills ID, Path, FSType, Watch, Warning and Content.
+func (s *Service) ListRoots(ctx context.Context) ([]model.Library, error) {
+	q := appq.New(s.db.Read)
+	libs, err := q.ListLibraries(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list libraries: %w", err)
+	}
+	roots, err := q.ListAllLibraryRoots(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list library roots: %w", err)
+	}
+	out := make([]model.Library, 0, len(libs))
+	byID := make(map[int64]int, len(libs))
+	for _, l := range libs {
+		byID[l.ID] = len(out)
+		out = append(out, model.Library{ID: l.ID, Name: l.Name, Kind: l.Kind, Roots: []model.LibraryRoot{}})
+	}
+	for _, r := range roots {
+		i, ok := byID[r.LibraryID]
+		if !ok {
+			continue
+		}
+		_, warning := WatchMode(r.FsType)
+		out[i].Roots = append(out[i].Roots, model.LibraryRoot{
+			ID: r.ID, Path: r.Path, FSType: r.FsType, Watch: r.Watch, Warning: warning, Content: r.Content,
+		})
+	}
+	return out, nil
+}
+
 // Get returns one library or model.ErrNotFound.
 func (s *Service) Get(ctx context.Context, id int64) (model.Library, error) {
 	l, err := appq.New(s.db.Read).GetLibrary(ctx, id)
