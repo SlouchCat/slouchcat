@@ -193,21 +193,26 @@ export type PodcastEpisodeFilter = 'all' | 'with_file' | 'without_file';
 /** Episodes asked for per page of the page «Podcast». */
 export const PODCAST_EPISODE_PAGE = 50;
 
+/** One page of the episodes of a podcast in a view, from `offset`. */
+export const podcastEpisodePage = (
+  id: string,
+  filter: PodcastEpisodeFilter,
+  offset: number,
+  signal?: AbortSignal,
+): Promise<AdminPodcastEpisodePage> =>
+  request(
+    api.GET('/admin/podcasts/{id}/episodes', {
+      params: { path: { id }, query: { filter, offset, limit: PODCAST_EPISODE_PAGE } },
+      signal,
+    }),
+  );
+
 /** The episodes of a podcast with the state of their file, page by page (12.2). */
 export const podcastEpisodesQuery = (id: string, filter: PodcastEpisodeFilter) =>
   infiniteQueryOptions({
     queryKey: ['admin', 'podcasts', id, 'episodes', filter],
     initialPageParam: 0,
-    queryFn: ({ pageParam, signal }): Promise<AdminPodcastEpisodePage> =>
-      request(
-        api.GET('/admin/podcasts/{id}/episodes', {
-          params: {
-            path: { id },
-            query: { filter, offset: pageParam, limit: PODCAST_EPISODE_PAGE },
-          },
-          signal,
-        }),
-      ),
+    queryFn: ({ pageParam, signal }) => podcastEpisodePage(id, filter, pageParam, signal),
     getNextPageParam: (last) =>
       last.offset + last.episodes.length < last.total
         ? last.offset + last.episodes.length

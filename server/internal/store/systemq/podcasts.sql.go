@@ -612,8 +612,9 @@ const podcastList = `-- name: PodcastList :many
 SELECT i.id, i.library_id, i.title, i.author, i.feed_url, i.feed_origin, i.explicit, i.feed_checked_at, i.feed_error, i.created_at,
        (SELECT count(*) FROM items AS e
         WHERE e.parent_id = i.id AND e.kind = 'podcast_episode' AND e.deleted_at IS NULL) AS episode_count,
-       (SELECT count(*) FROM items AS e JOIN media_files AS m ON m.item_id = e.id
-        WHERE e.parent_id = i.id AND e.kind = 'podcast_episode' AND e.deleted_at IS NULL) AS local_episode_count,
+       (SELECT count(DISTINCT e.id) FROM items AS e JOIN media_files AS m ON m.item_id = e.id
+        WHERE e.parent_id = i.id AND e.kind = 'podcast_episode' AND e.deleted_at IS NULL
+          AND m.missing_since IS NULL) AS local_episode_count,
        CAST(COALESCE((SELECT m.root_id FROM items AS e JOIN media_files AS m ON m.item_id = e.id
                       WHERE e.parent_id = i.id AND e.kind = 'podcast_episode' ORDER BY m.id LIMIT 1), 0) AS INTEGER) AS root_id
 FROM items AS i
@@ -637,7 +638,8 @@ type PodcastListRow struct {
 	RootID            int64
 }
 
-// Every live subscription with the number of its live episodes, newest first (listPodcasts).
+// Every live subscription with the number of its live episodes and of those with a file that is
+// there (each episode once, the state "file" of the page "Podcast"), newest first (listPodcasts).
 func (q *Queries) PodcastList(ctx context.Context, onlyID interface{}) ([]PodcastListRow, error) {
 	rows, err := q.db.QueryContext(ctx, podcastList, onlyID)
 	if err != nil {

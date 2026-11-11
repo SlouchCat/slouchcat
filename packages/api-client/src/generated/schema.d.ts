@@ -6446,7 +6446,10 @@ export interface components {
             rootId?: number;
             /** @description Stored episodes (all, unfiltered). */
             episodeCount: number;
-            /** @description Episodes with a file in the folder. */
+            /**
+             * @description Episodes with a file in the folder that is there, each once (since contract 1.29.0 a missing file and a
+             *     second file no longer count; the state `file` of `listAdminPodcastEpisodes`).
+             */
             localEpisodeCount: number;
             /** @description The channel is flagged `itunes:explicit`; the podcast counts as FSK 18 (AN-2). */
             explicit: boolean;

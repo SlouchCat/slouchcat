@@ -29,6 +29,8 @@ import { PodcastSetting } from './podcasts/PodcastSetting';
 import styles from './podcasts/Podcasts.module.css';
 import {
   librariesQuery,
+  podcastDownloadsQuery,
+  podcastEpisodePage,
   podcastEpisodesQuery,
   podcastQuery,
   type PodcastEpisodeFilter,
@@ -174,10 +176,31 @@ function PodcastView({ podcastId }: { podcastId: string }) {
   const interval = pollUntil > 0 ? REFRESH_POLL_MS : active ? ACTIVE_POLL_MS : false;
   const podcast = useQuery({ ...podcastQuery(podcastId), refetchInterval: interval });
   const libraries = useQuery(librariesQuery);
-  const episodes = useInfiniteQuery({
-    ...podcastEpisodesQuery(podcastId, filter as PodcastEpisodeFilter),
-    refetchInterval: interval,
-  });
+  // Whether the downloads are paused: a waiting episode says «angehalten», like the queue.
+  const queue = useQuery({ ...podcastDownloadsQuery, refetchInterval: interval });
+  const paused = queue.data?.paused ?? false;
+  const view = filter as PodcastEpisodeFilter;
+  const episodesOptions = podcastEpisodesQuery(podcastId, view);
+  const episodes = useInfiniteQuery(episodesOptions);
+  // While the page polls, only the first page is asked again and replaces its old copy: every
+  // page costs the server the states of all episodes of the podcast, so the pages loaded by
+  // «Mehr zeigen» are not fetched every few seconds. A change by a button asks for all of them.
+  const episodesKey = episodesOptions.queryKey;
+  useEffect(() => {
+    if (interval === false) return;
+    const timer = window.setInterval(() => {
+      podcastEpisodePage(podcastId, view, 0)
+        .then((fresh) =>
+          queryClient.setQueryData(episodesKey, (old) =>
+            old ? { ...old, pages: [fresh, ...old.pages.slice(1)] } : old,
+          ),
+        )
+        .catch(() => undefined); // the next tick or a button tries again
+    }, interval);
+    return () => window.clearInterval(timer);
+    // episodesKey follows podcastId and view.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [interval, podcastId, view, queryClient]);
   const title = podcast.data?.title ?? t('admin.podcasts.title');
   useDocumentTitle(title);
 
@@ -248,7 +271,11 @@ function PodcastView({ podcastId }: { podcastId: string }) {
     p &&
     (libraries.data?.find((library) => library.id === p.libraryId)?.name ?? String(p.libraryId));
   const pages = episodes.data?.pages ?? [];
-  const rows = pages.flatMap((page) => page.episodes);
+  // A page fetched again may hold an episode the next page holds too (the list moved meanwhile).
+  const seen = new Set<string>();
+  const rows = pages
+    .flatMap((page) => page.episodes)
+    .filter((e) => !seen.has(e.id) && Boolean(seen.add(e.id)));
   const first = pages[0];
   const total = pages.at(-1)?.total ?? 0;
   const busy = (e: AdminPodcastEpisode) =>
@@ -273,7 +300,7 @@ function PodcastView({ podcastId }: { podcastId: string }) {
       rowHeader: true,
       cell: (e) => {
         const share = downloadShare(e.progressBytes, e.totalBytes);
-        const meta = episodeMeta(t, i18n.language, e);
+        const meta = episodeMeta(t, i18n.language, e, paused);
         return (
           <span className={styles.stack}>
             <span>{e.title}</span>
