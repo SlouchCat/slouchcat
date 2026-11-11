@@ -229,6 +229,12 @@ type AdminService interface {
 	UpdatePodcast(ctx context.Context, id string, upd model.PodcastDownloadsUpdate) (model.AdminPodcast, error)
 	DownloadPodcastEpisodes(ctx context.Context, podcastID string, episodeIDs []string) (int, error)
 	EstimatePodcastDownloads(ctx context.Context, libraryID int64, req model.PodcastDownloadEstimateRequest) (model.PodcastDownloadEstimate, error)
+	// The page «Podcast» and the section «Downloads» (concept 19 part A, 12.2 and 12.3; contract
+	// 1.29.0): one podcast, the episodes with the state of their file, the queue, «Abbrechen».
+	GetPodcast(ctx context.Context, id string) (model.AdminPodcast, error)
+	PodcastEpisodes(ctx context.Context, podcastID, filter string, offset, limit int) (model.AdminPodcastEpisodePage, error)
+	CancelPodcastDownload(ctx context.Context, podcastID, episodeID string) error
+	PodcastDownloadQueue(ctx context.Context, limit int) (model.PodcastDownloadPage, error)
 
 	// User picks (concept 18 part B, ADR 0028): the current picks, anonymous, newest first;
 	// RemoveUserPick removes every pick of a title (model.ErrNotFound without one); the retention

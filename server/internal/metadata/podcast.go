@@ -337,6 +337,23 @@ func (s *Service) ListPodcasts(ctx context.Context) ([]model.AdminPodcast, error
 	return s.withDownloads(ctx, out)
 }
 
+// GetPodcast returns one live subscription as listPodcasts shows it (getPodcast, the page
+// «Podcast»); model.ErrNotFound for an unknown or deleted one.
+func (s *Service) GetPodcast(ctx context.Context, id string) (model.AdminPodcast, error) {
+	rows, err := s.read.PodcastList(ctx, id)
+	if err != nil {
+		return model.AdminPodcast{}, fmt.Errorf("get podcast: %w", err)
+	}
+	if len(rows) != 1 {
+		return model.AdminPodcast{}, model.ErrNotFound
+	}
+	out, err := s.withDownloads(ctx, []model.AdminPodcast{toAdminPodcast(rows[0])})
+	if err != nil {
+		return model.AdminPodcast{}, err
+	}
+	return out[0], nil
+}
+
 // RefreshPodcast queues the fetch of a subscription now (refreshPodcast); model.ErrNotFound for an
 // unknown or deleted one.
 func (s *Service) RefreshPodcast(ctx context.Context, id string) (model.AdminPodcast, error) {
