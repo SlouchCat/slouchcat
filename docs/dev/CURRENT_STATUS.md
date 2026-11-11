@@ -30,7 +30,8 @@ Entscheide beim Bau im Protokoll (11. November 2026).
   wenn der letzte Lauf über 24 Stunden her ist, und beim Einschalten der Einstellung; Priorität 4, Pool `general`.
   Eine SPARQL-Abfrage (CSV, rund 2 MB, 19'229 Sender) plus eine kleine für die Bezeichnungen der Eigentümer, über
   den Netzwächter des Radios, Drossel ein Abruf je Sekunde, 2 Minuten je Abruf, Antwort höchstens 20 MB, User-Agent
-  ohne Kontaktdaten. Gespeichert wird nur, was zu einem Sender im Angebot passt.
+  ohne Kontaktdaten, bis 75 s Wartezeit auf den Kopf der Antwort. Gespeichert wird nur, was zu einem Sender im
+  Angebot passt. Eine Antwort mit weniger als 5'000 Sendern gilt als Störung und lässt die Treffer stehen.
 - **Abgleich** über die Webseite: zuerst die ganze Adresse, sonst der Host, ausser Plattformen mit über 100
   Senderadressen (`zeno.fm`, `laut.fm`, …); mehrdeutig zählt nicht. Schweiz auf CT 190: 106 von 502 Sendern, 47 mit
   einem Eigentümer, 78 mit Gründung.

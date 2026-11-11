@@ -11,3 +11,6 @@ func catalogBase() (string, bool) { return os.Getenv("SLOUCHCAT_TEST_RADIO_CATAL
 // wikidataEndpoint returns the SPARQL answer of the e2e radio server (web/e2e/radio-server.mjs,
 // /sparql); "" without one, and the job fails instead of asking Wikidata.
 func wikidataEndpoint() string { return os.Getenv("SLOUCHCAT_TEST_RADIO_WIKIDATA_URL") }
+
+// wikidataMinItems is 0: the answer of the e2e radio server lists a dozen stations.
+func wikidataMinItems() int { return 0 }

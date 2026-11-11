@@ -123,6 +123,7 @@ func wdEnv(t *testing.T) (*catEnv, *wdFake) {
 	f := newWDFake(t)
 	e.s.wd.endpoint = f.srv.URL + "/sparql"
 	e.s.wd.limiter = ratelimit.New("radio-wikidata-test", 1000, 1000)
+	e.s.wd.minItems = 5 // the fixture lists eleven stations
 	e.emptyOffer()
 	e.sync()
 	return e, f
@@ -270,6 +271,7 @@ func TestWikidataQueue(t *testing.T) {
 	withDialControl(e.s, loopbackOnly)
 	f := newWDFake(t)
 	e.s.wd.endpoint = f.srv.URL + "/sparql"
+	e.s.wd.minItems = 5
 	e.emptyOffer()
 	e.sync()
 	queued := func() int {
@@ -332,8 +334,12 @@ func TestWikidataLeavesWithTheOffer(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM radio_station_wikidata`); n != 0 {
 		t.Errorf("%d matches kept after CH left the offer", n)
 	}
-	// An empty offer asks nothing.
+	// An empty offer asks nothing and records no run: the next apply still queues one (B7.3).
+	e.exec(`UPDATE radio_config SET wikidata_synced_at = NULL`)
 	e.wdRun()
+	if n := e.count(`SELECT count(*) FROM radio_config WHERE wikidata_synced_at IS NULL`); n != 1 {
+		t.Error("a run without a station to ask for recorded itself as the last run")
+	}
 }
 
 // The guarded client refuses a local endpoint (the production control, the test build is not
@@ -366,6 +372,27 @@ func TestWikidataNetworkRules(t *testing.T) {
 		t.Errorf("%d matches stored by failed runs", n)
 	}
 	e.s.wd.endpoint = f.srv.URL + "/sparql"
+	// A run that stored matches, then an answer with status 200 but only its head (a hiccup of the
+	// service): the attempt fails, the matches and the time of the last run stay.
+	e.wdRun()
+	stored, synced := e.count(`SELECT count(*) FROM radio_station_wikidata`), e.count(`SELECT wikidata_synced_at FROM radio_config`)
+	head := []byte("s,site,owner,founded,precision\r\n")
+	f.body.Store(&head)
+	e.clock.Advance(time.Hour)
+	if err := e.s.handleWikidataSync(e.ctx, nil); !errors.Is(err, errWikidataShort) {
+		t.Errorf("an answer without stations: %v", err)
+	}
+	if n, at := e.count(`SELECT count(*) FROM radio_station_wikidata`), e.count(`SELECT wikidata_synced_at FROM radio_config`); n != stored || n == 0 || at != synced {
+		t.Errorf("after a short answer: %d matches (were %d), synced %d (was %d)", n, stored, at, synced)
+	}
+	f.body.Store(nil)
+	// The client waits longer for the answer's head than the relay client; dial control and
+	// redirect checks stay the guarded ones.
+	c := e.s.wikidataClient()
+	if tr, ok := c.Transport.(*http.Transport); !ok || tr.ResponseHeaderTimeout != wikidataHeaderTimeout ||
+		c.CheckRedirect == nil || e.s.netClient().http.Transport.(*http.Transport).ResponseHeaderTimeout == wikidataHeaderTimeout {
+		t.Errorf("wikidata client: %+v", c)
+	}
 	e.s.wd.timeout = time.Nanosecond
 	if err := e.s.handleWikidataSync(e.ctx, nil); err == nil {
 		t.Error("a request past its deadline succeeded")

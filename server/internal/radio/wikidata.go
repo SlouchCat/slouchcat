@@ -1,6 +1,7 @@
 package radio
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/csv"
@@ -61,6 +62,9 @@ const (
 	// wikidataTimeout bounds one request, body included; the query service itself stops a query
 	// after 60 s.
 	wikidataTimeout = 2 * time.Minute
+	// wikidataHeaderTimeout is how long the answer's head may take: the query runs before the
+	// service sends it, up to its own 60 s (the relay client of the radio waits 15 s only).
+	wikidataHeaderTimeout = 75 * time.Second
 	// wikidataLabelBatch is how many owners one label query asks for (a POST body of some 6 KB).
 	wikidataLabelBatch = 500
 	// wikidataPlatformURLs is how many different station addresses a host may carry in the catalog
@@ -93,10 +97,14 @@ type wikidataState struct {
 	endpoint string
 	// timeout is wikidataTimeout; tests shorten it.
 	timeout time.Duration
+	// minItems is the fewest stations an answer must list to count (wikidataMinItems): an empty or
+	// cut answer with status 200 would otherwise forget every stored match. Tests lower it.
+	minItems int
 }
 
 func newWikidataState() *wikidataState {
-	return &wikidataState{limiter: ratelimit.New("radio-wikidata", 1, 1), endpoint: wikidataEndpoint(), timeout: wikidataTimeout}
+	return &wikidataState{limiter: ratelimit.New("radio-wikidata", 1, 1), endpoint: wikidataEndpoint(), timeout: wikidataTimeout,
+		minItems: wikidataMinItems()}
 }
 
 // wikidataJobType is the job type the wiring registers (RegisterTypes).
@@ -151,6 +159,9 @@ func (s *Service) queueWikidataAfterApply(ctx context.Context) {
 		s.log.WarnContext(ctx, "queue the wikidata run", "err", err)
 	}
 }
+
+// errWikidataShort is the error of a station answer with fewer than minItems stations.
+var errWikidataShort = errors.New("wikidata answer lists too few stations")
 
 // wdItem is what the station query says about one item.
 type wdItem struct {
@@ -383,7 +394,7 @@ func (s *Service) wikidataPost(ctx context.Context, query string, limit int64) (
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "text/csv")
 	req.Header.Set("User-Agent", s.coverAgent())
-	resp, err := s.wd.limiter.Do(ctx, s.netClient().http, req)
+	resp, err := s.wd.limiter.Do(ctx, s.wikidataClient(), req)
 	if err != nil {
 		if ctx.Err() != nil && errors.Is(err, ctx.Err()) {
 			return nil, fmt.Errorf("wikidata %s: %w", netguard.Site(endpoint), ctx.Err())
@@ -402,6 +413,19 @@ func (s *Service) wikidataPost(ctx context.Context, query string, limit int64) (
 		return nil, fmt.Errorf("wikidata %s sent more than %d bytes", netguard.Site(endpoint), limit)
 	}
 	return b, nil
+}
+
+// wikidataClient returns the guarded client of the radio with a longer wait for the answer's head
+// (wikidataHeaderTimeout): the same dial control, TLS settings and redirect checks.
+func (s *Service) wikidataClient() *http.Client {
+	base := s.netClient().http
+	t, ok := base.Transport.(*http.Transport)
+	if !ok {
+		return base
+	}
+	t = t.Clone()
+	t.ResponseHeaderTimeout = wikidataHeaderTimeout
+	return &http.Client{Transport: t, CheckRedirect: base.CheckRedirect}
 }
 
 // wikidataLabels returns the labels of items in lang, else English; an item without one is left
@@ -423,7 +447,7 @@ func (s *Service) wikidataLabels(ctx context.Context, qids []string, lang string
 		if err != nil {
 			return nil, err
 		}
-		cr := csv.NewReader(strings.NewReader(string(b)))
+		cr := csv.NewReader(bytes.NewReader(b))
 		if _, err := cr.Read(); err != nil {
 			return nil, fmt.Errorf("wikidata labels: %w", err)
 		}
@@ -477,16 +501,23 @@ func (s *Service) handleWikidataSync(ctx context.Context, _ *jobs.Job) error {
 		return err
 	}
 	matches := map[int64]wdMatch{}
+	fetched := false
 	if slices.ContainsFunc(idx.entries, func(e *indexEntry) bool { return e.st.Homepage != "" && o.offered(e) }) {
 		b, err := s.wikidataPost(ctx, wikidataStationQuery, wikidataBodyLimit)
 		if err != nil {
 			return err
 		}
 		jobs.Progress(ctx, 1, 3, "")
-		cat, err := parseWikidataStations(strings.NewReader(string(b)))
+		cat, err := parseWikidataStations(bytes.NewReader(b))
 		if err != nil {
 			return err
 		}
+		// An answer with status 200 but (almost) no stations is a hiccup of the service, not a
+		// Wikidata without radio stations: it fails the attempt and keeps the stored matches.
+		if len(cat.items) < s.wd.minItems {
+			return fmt.Errorf("%w: %d, at least %d expected", errWikidataShort, len(cat.items), s.wd.minItems)
+		}
+		fetched = true
 		matches = matchOffer(idx, o, cat)
 		var owners []string
 		for _, m := range matches {
@@ -507,7 +538,7 @@ func (s *Service) handleWikidataSync(ctx context.Context, _ *jobs.Job) error {
 		s.log.InfoContext(ctx, "radio wikidata answer read", "items", len(cat.items), "matched", len(matches),
 			"owners", len(owners), "bytes", len(b))
 	}
-	changed, err := s.storeWikidata(ctx, matches)
+	changed, err := s.storeWikidata(ctx, matches, fetched)
 	if err != nil {
 		return err
 	}
@@ -519,8 +550,8 @@ func (s *Service) handleWikidataSync(ctx context.Context, _ *jobs.Job) error {
 
 // storeWikidata replaces the stored matches with matches in one transaction and returns the
 // stations whose row came, changed or went; an unchanged row keeps its fetched_at (the time it
-// was found). Nothing is written when the setting went off meanwhile.
-func (s *Service) storeWikidata(ctx context.Context, matches map[int64]wdMatch) ([]int64, error) {
+// was found). fetched says that the run read Wikidata; only then is wikidata_synced_at set. Nothing is written when the setting went off meanwhile.
+func (s *Service) storeWikidata(ctx context.Context, matches map[int64]wdMatch, fetched bool) ([]int64, error) {
 	tx, err := s.db.Write.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("store radio wikidata: begin: %w", err)
@@ -571,8 +602,12 @@ func (s *Service) storeWikidata(ctx context.Context, matches map[int64]wdMatch) 
 		}
 		changed = append(changed, id)
 	}
-	if err := q.SetRadioWikidataSynced(ctx, sql.NullInt64{Int64: now, Valid: true}); err != nil {
-		return nil, fmt.Errorf("set radio wikidata synced: %w", err)
+	// Only a run that read Wikidata counts as the last run: one without a station to ask for
+	// (empty offer) must not hold back the run after the next apply (B7.3).
+	if fetched {
+		if err := q.SetRadioWikidataSynced(ctx, sql.NullInt64{Int64: now, Valid: true}); err != nil {
+			return nil, fmt.Errorf("set radio wikidata synced: %w", err)
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("store radio wikidata: commit: %w", err)

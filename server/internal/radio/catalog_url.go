@@ -8,3 +8,7 @@ func catalogBase() (string, bool) { return "https://all.api.radio-browser.info",
 
 // wikidataEndpoint returns the SPARQL endpoint of Wikidata (B7.3).
 func wikidataEndpoint() string { return "https://query.wikidata.org/sparql" }
+
+// wikidataMinItems is the fewest stations a Wikidata answer must list (measured 11 November 2026:
+// 19 229).
+func wikidataMinItems() int { return 5000 }
