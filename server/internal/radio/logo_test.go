@@ -456,6 +456,18 @@ func TestLogoHostLock(t *testing.T) {
 	if l.limiter == nil || l.hostRetry != 15*time.Second {
 		t.Errorf("limiter %v, retry %v", l.limiter, l.hostRetry)
 	}
+	// The waits of the jobs of a busy host spread over 15 to 30 s, so they do not all wake at once.
+	seen := map[time.Duration]bool{}
+	for range 50 {
+		d := l.retryDelay()
+		if d < 15*time.Second || d >= 30*time.Second {
+			t.Fatalf("retry delay %v outside 15 s to 30 s", d)
+		}
+		seen[d] = true
+	}
+	if len(seen) < 10 {
+		t.Errorf("only %d different retry delays in 50", len(seen))
+	}
 	// Four requests a second (OB-11): a fresh limiter lets four through at once, not a fifth.
 	for i := range 5 {
 		if got := l.limiter.Allow(); got != (i < 4) {

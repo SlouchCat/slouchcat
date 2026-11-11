@@ -1,6 +1,7 @@
 package radio
 
 import (
+	"math/rand/v2"
 	"net/url"
 	"slices"
 	"strings"
@@ -73,4 +74,12 @@ func logoHosts(addrs ...string) []string {
 		}
 	}
 	return out
+}
+
+// retryDelay is the wait of a job whose host is taken: hostRetry plus up to hostRetry at random.
+// Without the spread all jobs of a busy host (85 stations of 1.FM in Switzerland) woke at the
+// same time, one took the host and the others waited again, so the host ran one job each
+// hostRetry (measurement B0, docs/perf/19-radio.md).
+func (l *logoState) retryDelay() time.Duration {
+	return l.hostRetry + rand.N(l.hostRetry)
 }
