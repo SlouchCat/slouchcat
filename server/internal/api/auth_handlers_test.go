@@ -66,6 +66,9 @@ func (f *authTestLibraries) Create(_ context.Context, req model.LibraryRequest) 
 }
 
 func (f *authTestLibraries) List(context.Context) ([]model.Library, error) { return f.libs, nil }
+func (f *authTestLibraries) ListRoots(context.Context) ([]model.Library, error) {
+	return f.libs, nil
+}
 
 func (f *authTestLibraries) Get(_ context.Context, id int64) (model.Library, error) {
 	if id < 1 || id > int64(len(f.libs)) {

@@ -280,3 +280,42 @@ func TestManagerCPUHeavy(t *testing.T) {
 		t.Error("a CPU tonemapping transcode is not CPU heavy")
 	}
 }
+
+// CPUStarting (W-3): a transcode on the CPU counts until its run has finished a segment, again
+// after a jump starts a new run; a remux and a stopped session never count.
+func TestManagerCPUStarting(t *testing.T) {
+	ctx := context.Background()
+	src := videoSource("hevc", 1920, 1080, "", sec(20))
+	m := newTestManager(t, "exec sleep 30\n", 20, time.Minute)
+	remux := testPlan(t, src)
+	remux.Target.VideoCopy = true
+	if _, err := m.Start(ctx, "R", src, remux, 0); err != nil {
+		t.Fatal(err)
+	}
+	if m.CPUStarting() {
+		t.Error("a remux counts as a starting CPU transcode")
+	}
+	s, err := m.Start(ctx, "T", src, testPlan(t, src), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !m.CPUStarting() {
+		t.Error("a software transcode without its first segment does not count")
+	}
+	s.mu.Lock()
+	s.run.next = s.run.start + 1 // the run finished its first segment
+	s.mu.Unlock()
+	if m.CPUStarting() {
+		t.Error("a transcode after its first segment still counts")
+	}
+	s.mu.Lock()
+	s.run.start = s.run.next // a jump: a new run that has finished nothing yet
+	s.mu.Unlock()
+	if !m.CPUStarting() {
+		t.Error("a transcode after a jump does not count")
+	}
+	m.Stop("T")
+	if m.CPUStarting() {
+		t.Error("a stopped transcode counts")
+	}
+}

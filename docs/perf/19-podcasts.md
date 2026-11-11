@@ -123,3 +123,32 @@ ist gewollt (O-10). Für den Alltag (ein bis zwei neue Folgen je Podcast und Tag
   Wiedereintragen des Ordners.
 - Bandbreite der Anbieter, Zeit je Download.
 - Video-Podcasts (O-3: bleiben Link).
+
+## 8. Erster Scan nach dem Wiedereintragen (11. November 2026)
+
+Auf CT 190 fiel auf, dass die Bibliothek «Podcast» in vier Stunden 26'381 Episoden-Titel anlegte und
+17'157 davon wieder löschte. Nachgelesen in der Datenbank (nur lesend, `?mode=ro`):
+
+| Zeit (UTC) | Was geschah |
+|---|---|
+| 12:11:53 | Ordner `/media/nas/Audiobookshelf/Podcast` als Wurzel 9 eingetragen (er fehlte seit dem 3. November, 19:39). |
+| 12:12–12:34 | `scan.library` (manuell) legt je Audiodatei eine Datei-Episode an: 26'379. |
+| 12:32–16:01 | `probe.file` sondiert jede Datei; `finishPodcastEpisode` verheiratet 17'157 Datei-Episoden mit ihrer Feed-Episode: die Datei zieht um, die Datei-Episode wird weich gelöscht (ADR 0015). |
+
+Das ist das vorgesehene Verheiraten, **kein Fehler aus A1**: Die Bibliothek steht auf «Nur Link»,
+`podcast.sync` und `podcast.download` liefen nicht, und am 3. November (vor A1) geschah dasselbe beim
+ersten Scan (15'104 Datei-Episoden, 8'459 verheiratet, 6'644 beim Entfernen der Wurzel um 19:39
+gelöscht). Danach: 26'391 Dateien, 17'160 Feed-Episoden mit Datei, 9'228 Datei-Episoden ohne Paar,
+6'455 Feed-Episoden ohne Datei. Das passt zu M-1 (Abschnitt 5): 89,9 % mit genau
+einer Datei nach Schlüssel, verheiratet hat die Sonde 72 % der Feed-Episoden.
+
+**Nebenbefund, behoben:** Drei Feed-Episoden trugen zwei Dateien, je eine Folge, die Audiobookshelf
+zweimal geladen hatte (einmal mit uuid im Namen). Die Sonden beider Kopien liefen gleichzeitig und
+lasen die Feed-Episode beide als «ohne Datei», bevor eine verheiratete. `finishPodcastEpisode` prüft
+das Paar jetzt in der Schreibtransaktion (`PodcastPairable`, wie `pairPodcastFile`); die zweite Kopie
+bleibt Datei-Episode und erscheint in den Pflegewerkzeugen als `file_and_feed`. Test
+`TestPodcastPairInParallelPairsOneFile`. Die drei vorhandenen Doppel bleiben, bis jemand sie in den
+Pflegewerkzeugen trennt.
+
+Offen, nicht behoben: Jede verheiratete Datei-Episode bleibt als weich gelöschte Zeile ohne Datei
+stehen (auf CT 190 32'265 Zeilen); kein Job räumt sie weg.

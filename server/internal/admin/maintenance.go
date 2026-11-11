@@ -466,6 +466,13 @@ func (s *Service) MergeItems(ctx context.Context, targetID string, sourceIDs []s
 			return model.AdminItem{}, err
 		}
 	}
+	// The sources are deleted for good, their image rows with them: their image folders go too (a
+	// failure is logged, the hourly sweep tries again).
+	if s.imageRemove != nil {
+		if err := s.imageRemove(ctx, sources); err != nil {
+			s.log.WarnContext(ctx, "image folders of merged titles not removed", "sources", len(sources), "err", err)
+		}
+	}
 	s.log.InfoContext(ctx, "items merged", "target_id", targetID, "sources", len(sources))
 	return s.GetAdminItem(ctx, targetID)
 }

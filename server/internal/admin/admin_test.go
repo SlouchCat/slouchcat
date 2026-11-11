@@ -30,6 +30,9 @@ const (
 
 type fakeLibraries struct {
 	created []model.LibraryRequest
+	// listed counts the calls of List, which counts items and files; the folder browser must not
+	// call it on every click.
+	listed  int
 	scanned []int64
 	lost    []int64
 	// notBrowsable answers library.ErrNotBrowsable for these paths (E14), and counts how often
@@ -83,7 +86,12 @@ func (f *fakeLibraries) lib(id int64) model.Library {
 		Scan:  model.LibraryScan{State: "queued"}}
 }
 
-func (f *fakeLibraries) List(context.Context) ([]model.Library, error) {
+func (f *fakeLibraries) List(ctx context.Context) ([]model.Library, error) {
+	f.listed++
+	return f.ListRoots(ctx)
+}
+
+func (f *fakeLibraries) ListRoots(context.Context) ([]model.Library, error) {
 	out := []model.Library{}
 	for i := range f.created {
 		out = append(out, f.lib(int64(i+1)))

@@ -403,6 +403,7 @@ func (s *Service) relink(ctx context.Context, deletedID, liveID string, grace sq
 	if err := tx.Commit(); err != nil {
 		return RelinkResult{}, fmt.Errorf("commit relink: %w", err)
 	}
+	s.removeItemImages(ctx, r.deleted)
 	res := RelinkResult{KeptID: deletedID, RemovedID: liveID, Merged: r.merged, Moved: r.moved, Folded: folded}
 	s.log.InfoContext(ctx, "deleted title relinked", "library_id", live.LibraryID, "kind", live.Kind,
 		"kept_id", deletedID, "removed_id", liveID, "merged", res.Merged, "moved", res.Moved, "folded", res.Folded)
@@ -431,6 +432,8 @@ type relinker struct {
 	// (carry). An older twin that folds in brings its user data only.
 	copy          bool
 	merged, moved int
+	// deleted are the nodes deleted for good, whose image folders go after the commit.
+	deleted []string
 }
 
 // foldOlderTwins merges every other soft-deleted twin of the survivor dead (restored by now) into
@@ -460,6 +463,7 @@ func (r *relinker) foldOlderTwins(ctx context.Context, dead, live systemq.Item) 
 			return 0, err
 		}
 	}
+	r.deleted = append(r.deleted, fold.deleted...)
 	return len(ids), nil
 }
 
@@ -489,6 +493,7 @@ func (r *relinker) merge(ctx context.Context, target, source, kind string) error
 	if err := r.q.AdminDeleteItem(ctx, source); err != nil {
 		return fmt.Errorf("relink: delete %s: %w", source, err)
 	}
+	r.deleted = append(r.deleted, source)
 	r.merged++
 	return nil
 }

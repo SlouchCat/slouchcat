@@ -1,28 +1,10 @@
 # Aktueller Stand
 
-## Podcast-Episoden ohne eigenes Cover (11. November 2026): Pull Request
-
-Migration **00049**, Vertrag bleibt (nur eine Beschreibung in `api/openapi.yaml`), Zweig
-`claude/podcast-ohne-episodencover` ab `main` `f2314dda`, nachgezogen auf `main` `b8e485a0`. Marcos Entscheid vom 11. November 2026 (Protokoll): Podcast-
-Episoden haben kein eigenes Cover, nur der Podcast hat eins. Anlass: Auf CT 190 war die Platte voll, und 12 842
-Episoden hatten je 7 Bilddateien, allein die Originale belegten 7,7 GB.
-
-- **Keine Episodenbilder mehr:** Der Feed-Abruf ignoriert `itunes:image` eines Eintrags. `image.fetch` kennt für
-  `podcast_episode` keine Bildart. Der Ordner-Scanner gab Episoden nie ein Cover, das prüft jetzt ein Test.
-- **Anzeige:** Jede Episode zeigt in Listen, Detail, Bildroute, Streamübersicht und Statistik das Cover ihres Podcasts.
-  Eine Bildzeile der Episode selbst wird nie ausgeliefert. Schon offline geladene Episoden behalten ihr gespeichertes Bild.
-- **Aufräumen:** Die Migration leert `cover_url` und `cover_path`, löscht `images`, `item_images` und
-  `item_local_images` der Episoden, das Schloss `poster` und die wartenden `image.fetch`-Aufträge. Die Dateien unter
-  `cache/images/<Episoden-ID>/` löscht der Server einmal beim ersten Start danach (`metadata.episode_images_purged`).
-- **Reihenfolge:** 00049 folgt auf 00047 (PR #141) und 00048 (PR #140), beide seit dem 11. November 2026 in `main`;
-  Teil B Stufe 2 rückt auf 00050.
-- **Offen:** Bildordner hart gelöschter Titel (auch Episoden, die nicht mehr in `items` stehen) räumt der Server
-  weiterhin nicht ab.
-
 ## Stufe B2 (11. November 2026): Mehr Angaben aus Wikidata (Konzept 19 Teil B)
 
 Vertrag **1.30.0** (additiv), Migration **00051**, Zweig `claude/k19-b2-wikidata-3e9d2e` ab `main` `8c4fe29a`
-(B1 PR #140 und Podcast-Episoden ohne Cover PR #143 gemergt). Nach `docs/planning/19-podcasts-und-radio.md` B7.1,
+(B1 PR #140 und Podcast-Episoden ohne Cover PR #143 gemergt), danach `main` `542cd863` mit dem Bildspeicher 1.28.1
+(PR #146, ohne Migration: 00050 bleibt frei) hineingemergt. Nach `docs/planning/19-podcasts-und-radio.md` B7.1,
 B7.3, B7.4 Punkt 2, B9.3 und PB-14. Messung auf dem echten Katalog von CT 190 in `docs/perf/19-radio.md` Abschnitt 5,
 Entscheide beim Bau im Protokoll (11. November 2026).
 
@@ -47,8 +29,63 @@ Entscheide beim Bau im Protokoll (11. November 2026).
   `testdata/radio/wikidata.csv`, Migration und eingefrorener Stand `radio-wikidata.sql`, Vitest für «Angaben» und den
   Schalter, e2e-Tastaturtest «Angaben» (der e2e-Radioserver beantwortet `/sparql`).
 - Versionsstellen auf 1.30.0.
-- **Offen:** Abnahme auf CT 190, Merge und Tag `v1.30.0` auf Marcos Wort. Reihenfolge: 00050 (Bildspeicher) und
-  1.29.0 (Podcast-Seite) zuerst; wer als zweiter merged, zieht `main` nach und erzeugt den Code neu.
+- **Offen:** Abnahme auf CT 190, Merge und Tag `v1.30.0` auf Marcos Wort. 1.29.0 (Podcast-Seite) ist noch nicht in
+  `main`; wer als zweiter merged, zieht `main` nach und erzeugt den Code neu.
+
+## Bildspeicher verkleinert (11. November 2026): Pull Request, Patch 1.28.1
+
+Vertrag bleibt **1.28.0**, keine Migration, Zweig `claude/bildspeicher-be1b39` ab `main` `8c4fe29a`. Anlass: Auf CT 190
+war die Platte voll, `cache/images` belegte 55 GB, davon 25,6 GB die Folgenbilder von «Serien2» (18 552 Episoden, je
+7 Dateien). Entscheid im Protokoll (11. November 2026).
+
+- **Folgenbild:** nur noch w780 und w1280 (JPEG und WebP), kein w1920, kein w3840. Die App fragt nichts Breiteres an
+  (Folgenkarten, Player, Standbild der Folgenseite: w780; Hintergrund der Folgenseite: `srcset` mit 780w und 1280w).
+- **Nie hochskaliert:** Für jede Bildart entstehen nur Grössen bis zur Breite des Originals; die nächstgrössere behält
+  die Breite des Originals. Die Bildroute beantwortet eine fehlende bekannte Grösse mit der breitesten gespeicherten.
+- **Original:** wird nach dem Ableiten gelöscht, ausser beim hochgeladenen Bild und bei gesperrten Bildarten.
+- **Bestand:** Ein einmaliger Lauf beim ersten Start (`metadata.image_sizes_trimmed`) löscht die überzähligen Grössen und
+  Originale samt Zeilen, ohne Download und ohne ffmpeg.
+- **Hart gelöschte Titel:** Zusammenführen und Relink löschen den Bildordner sofort, der stündliche `library.sweep`
+  räumt jeden Ordner ohne Titel ab. Ordner, auf die verschobene Bildzeilen zeigen, und `images/radio/` bleiben.
+- **Erwartete Ersparnis auf CT 190:** rund 18 GB bei den Folgenbildern (Schätzung über die Pixelfläche), dazu die
+  Originale der übrigen Titel (nicht gemessen). `image.fetch` kann nach dem Update wieder laufen.
+
+## Ordner-Browser unter NAS-Last (11. November 2026, Zweig `claude/browse-unter-last`)
+
+Kein Vertragswechsel, keine Migration. Auf CT 190 brauchte `POST /admin/fs/browse` je Ebene 1,4 bis 2,4 s und gab
+beim Podcast-Ordner (102 Unterordner) nach 4,45 s mit 503 `path_unreachable` auf; `GET /admin/libraries` brauchte
+1,8 s. Gemessen nur lesend auf CT 190 (Python nach dem Muster von `os.Root`, DB mit `?mode=ro`):
+
+- **`paths.LstatAll`** öffnete über `os.Root` für jeden Namen alle Ordner von `rel` neu; auf NFS ist jedes Öffnen ein
+  GETATTR. Podcast-Ordner: 424 GETATTR, 0,65 bis 0,82 s bei 16 % IO-Druck, über dem Watchdog von 3 s bei 70 %. Jetzt
+  ein Deskriptor für `rel` und ein `fstatat` je Name: 4 GETATTR, 6 bis 16 ms. Watchdog bleibt 3 s.
+- **`admin.BrowseRoots`** lief vor jeder Ordnerliste über `library.Service.List` mit allen Zählungen (die 1,4 bis
+  2,4 s je Klick). Jetzt `library.Service.ListRoots`: Bibliotheken und Wurzeln ohne Zählungen, zwei Abfragen.
+- **`CountLibraryMediaFiles`** nahm für `missing_since IS NULL` den Index `media_files_missing` und las die Zeile
+  jeder vorhandenen Datei des Servers: 170 bis 225 ms je Bibliothek, 1,35 s für sieben. Jetzt alle Dateien über den
+  Index auf `root_id` minus die fehlenden: 23 ms für sieben, gleiche Zahlen.
+- Die Abfrage alle 7 s ist `SCAN_POLL_MS` (5 s) plus Antwortzeit, solange eine Bibliothek scannt (Podcast stand seit
+  12:12 auf `running`); sie bleibt.
+- **CT 190:** als `browse-e026722` (PR #142 auf PR #141) gemessen: Podcast-Ordner 186 ms beim ersten Aufruf,
+  34 ms danach (vorher 503 nach 4,45 s); `/media/nas` 23 ms; `GET /admin/libraries` 0,7 bis 0,8 s (vorher 1,8 bis 2,2 s).
+
+## Podcast-Episoden ohne eigenes Cover (11. November 2026): Pull Request
+
+Migration **00049**, Vertrag bleibt (nur eine Beschreibung in `api/openapi.yaml`), Zweig
+`claude/podcast-ohne-episodencover` ab `main` `f2314dda`, nachgezogen auf `main` `b8e485a0`. Marcos Entscheid vom 11. November 2026 (Protokoll): Podcast-
+Episoden haben kein eigenes Cover, nur der Podcast hat eins. Anlass: Auf CT 190 war die Platte voll, und 12 842
+Episoden hatten je 7 Bilddateien, allein die Originale belegten 7,7 GB.
+
+- **Keine Episodenbilder mehr:** Der Feed-Abruf ignoriert `itunes:image` eines Eintrags. `image.fetch` kennt für
+  `podcast_episode` keine Bildart. Der Ordner-Scanner gab Episoden nie ein Cover, das prüft jetzt ein Test.
+- **Anzeige:** Jede Episode zeigt in Listen, Detail, Bildroute, Streamübersicht und Statistik das Cover ihres Podcasts.
+  Eine Bildzeile der Episode selbst wird nie ausgeliefert. Schon offline geladene Episoden behalten ihr gespeichertes Bild.
+- **Aufräumen:** Die Migration leert `cover_url` und `cover_path`, löscht `images`, `item_images` und
+  `item_local_images` der Episoden, das Schloss `poster` und die wartenden `image.fetch`-Aufträge. Die Dateien unter
+  `cache/images/<Episoden-ID>/` löscht der Server einmal beim ersten Start danach (`metadata.episode_images_purged`).
+- **Reihenfolge:** 00049 folgt auf 00047 (PR #141) und 00048 (PR #140), beide seit dem 11. November 2026 in `main`;
+  Teil B Stufe 2 rückt auf 00050.
+- **Erledigt mit 1.28.1:** Bildordner hart gelöschter Titel räumt der Server ab (Abschnitt «Bildspeicher verkleinert»).
 
 ## Stufe B1 (11. November 2026): Radio-Angebot statt ganzer Katalog (Konzept 19 Teil B)
 

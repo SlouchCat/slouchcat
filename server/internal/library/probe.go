@@ -659,6 +659,18 @@ func (s *Service) finishPodcastEpisode(ctx context.Context, item systemq.Item, f
 	defer func() { _ = tx.Rollback() }()
 	q := systemq.New(tx)
 	if len(hits) == 1 {
+		// The candidates were read before the transaction: a second copy of the same episode,
+		// probed at the same time, may have paired with the feed episode meanwhile. Only a pair
+		// that still holds in the transaction takes the file; otherwise this file episode stays.
+		ok, err := q.PodcastPairable(ctx, systemq.PodcastPairableParams{FeedEpisodeID: hits[0].ID, FileEpisodeID: item.ID})
+		if err != nil {
+			return fmt.Errorf("check pair: %w", err)
+		}
+		if ok == 0 {
+			hits = nil
+		}
+	}
+	if len(hits) == 1 {
 		// The feed episode takes the file and keeps everything the feed said; the file episode
 		// leaves. Its texts stay with it -- the feed's description is the better one.
 		feedEpisode := hits[0]

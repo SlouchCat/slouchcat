@@ -51,6 +51,11 @@ type Service struct {
 	now   func() time.Time
 	// imageCheck queues image.fetch for titles with incomplete images after a scan (optional).
 	imageCheck func(ctx context.Context, libraryID int64) (int, error)
+	// imageSweep removes the image folders of titles deleted for good (hourly sweep), imageRemove
+	// those of the titles a relink deleted (optional; metadata's SweepOrphanImages and
+	// RemoveItemImages).
+	imageSweep  func(ctx context.Context) (int, error)
+	imageRemove func(ctx context.Context, ids []string) error
 	// metadataCheck queues metadata.match for titles still pending after a scan (optional).
 	metadataCheck func(ctx context.Context, libraryID int64) (int, error)
 	// newEpisodes is told the ids of new series episodes after their batch commits (optional).
@@ -162,6 +167,23 @@ func WithClock(now func() time.Time) Option {
 // QueueIncompleteImages queues image.fetch for titles whose stored images miss a size or a file.
 func WithImageCheck(check func(ctx context.Context, libraryID int64) (int, error)) Option {
 	return func(s *Service) { s.imageCheck = check }
+}
+
+// WithImageFolders sets the cleanup of the image cache: sweep runs in the hourly library.sweep,
+// remove after a relink with the IDs of the titles it deleted for good.
+func WithImageFolders(sweep func(ctx context.Context) (int, error), remove func(ctx context.Context, ids []string) error) Option {
+	return func(s *Service) { s.imageSweep, s.imageRemove = sweep, remove }
+}
+
+// removeItemImages removes the image folders of titles deleted for good; a failure is logged, the
+// hourly sweep tries again.
+func (s *Service) removeItemImages(ctx context.Context, ids []string) {
+	if s.imageRemove == nil || len(ids) == 0 {
+		return
+	}
+	if err := s.imageRemove(ctx, ids); err != nil {
+		s.log.WarnContext(ctx, "image folders of deleted titles not removed", "err", err)
+	}
 }
 
 // WithMetadataCheck runs check after every successful full scan of a library; metadata's
@@ -436,6 +458,40 @@ func (s *Service) List(ctx context.Context) ([]model.Library, error) {
 			return nil, err
 		}
 		out = append(out, m)
+	}
+	return out, nil
+}
+
+// ListRoots returns every library with its roots and nothing else: no scan state, no counts and
+// no trickplay settings. It is what the folder browser needs to name the library a directory
+// belongs to, and it costs two indexed queries where List counts the items and files of every
+// library and root -- 1.8 s on CT 190 with 35 000 files under a busy writer (11 November 2026),
+// once per folder click. Of each root it fills ID, Path, FSType, Watch, Warning and Content.
+func (s *Service) ListRoots(ctx context.Context) ([]model.Library, error) {
+	q := appq.New(s.db.Read)
+	libs, err := q.ListLibraries(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list libraries: %w", err)
+	}
+	roots, err := q.ListAllLibraryRoots(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list library roots: %w", err)
+	}
+	out := make([]model.Library, 0, len(libs))
+	byID := make(map[int64]int, len(libs))
+	for _, l := range libs {
+		byID[l.ID] = len(out)
+		out = append(out, model.Library{ID: l.ID, Name: l.Name, Kind: l.Kind, Roots: []model.LibraryRoot{}})
+	}
+	for _, r := range roots {
+		i, ok := byID[r.LibraryID]
+		if !ok {
+			continue
+		}
+		_, warning := WatchMode(r.FsType)
+		out[i].Roots = append(out[i].Roots, model.LibraryRoot{
+			ID: r.ID, Path: r.Path, FSType: r.FsType, Watch: r.Watch, Warning: warning, Content: r.Content,
+		})
 	}
 	return out, nil
 }

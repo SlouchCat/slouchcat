@@ -116,7 +116,7 @@ func (s *Service) UploadItemImage(ctx context.Context, itemID, kind string, data
 		return fmt.Errorf("upload %s image of %s: %w", kind, item.ID, err)
 	}
 	defer s.removeFile(root, item.ID, kind, tmp) // gone after the rename
-	sc, err := s.scaleDerived(ctx, root, dir, item.ID, kind, tmp, storedAccent(prev))
+	sc, err := s.scaleDerived(ctx, root, dir, item.ID, item.Kind, kind, tmp, storedAccent(prev))
 	if errors.Is(err, transcode.ErrImageExit) {
 		s.log.Info("uploaded image not decodable", "item_id", item.ID, "kind", kind, "media_type", mediaType, "err", err)
 		return v.Add("file", codeImageUnsupported)

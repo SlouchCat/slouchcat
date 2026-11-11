@@ -196,6 +196,18 @@ WHERE im.item_id = @item_id AND im.kind = @kind AND im.size = @size AND im.size 
 ORDER BY im.format = 'webp' DESC
 LIMIT 1;
 
+-- name: GetWidestItemImage :one
+-- The widest stored size of a kind, for a size the pipeline did not derive because the original is
+-- narrower (or an episode still, which has no w1920; decision of 11 November 2026), with the same
+-- format rule as GetItemImage.
+SELECT im.* FROM images AS im
+JOIN visible_items AS v ON v.item_id = im.item_id AND v.profile_id = @profile_id
+JOIN items AS i ON i.id = im.item_id AND i.kind <> 'podcast_episode'
+WHERE im.item_id = @item_id AND im.kind = @kind AND im.size <> 'original'
+  AND im.format IN (@format, @fallback)
+ORDER BY im.width DESC, im.format = 'webp' DESC
+LIMIT 1;
+
 -- Series tree, extras, cast and trailers (M3, design 4.1).
 
 -- Visible titles by id, in no particular order (parent chain of seasons and episodes).

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
@@ -188,7 +189,7 @@ func TestMatchAndFetchWithLogoAndLanguageChain(t *testing.T) {
 	if e.tmdb.count("/t/p/original/logo550.png") != 1 || e.tmdb.count("/t/p/original/logo550.svg") != 0 {
 		t.Errorf("the SVG logo should be fetched as its PNG twin (png %d, svg %d)", e.tmdb.count("/t/p/original/logo550.png"), e.tmdb.count("/t/p/original/logo550.svg"))
 	}
-	for _, key := range []string{"logo/original/jpeg", "logo/w400/png", "logo/w400/webp", "logo/w800/png", "logo/w800/webp"} {
+	for _, key := range []string{"logo/w400/png", "logo/w400/webp", "logo/w800/png", "logo/w800/webp"} {
 		if _, ok := imgs[key]; !ok {
 			t.Errorf("logo row %s missing (have %d rows)", key, len(imgs))
 		}
@@ -196,8 +197,8 @@ func TestMatchAndFetchWithLogoAndLanguageChain(t *testing.T) {
 	if _, ok := imgs["logo/w400/jpeg"]; ok {
 		t.Error("a logo must not be derived as JPEG")
 	}
-	if imgs["logo/original/jpeg"].MediaType != "image/png" || imgs["logo/w400/png"].MediaType != "image/png" {
-		t.Errorf("logo media types %q %q", imgs["logo/original/jpeg"].MediaType, imgs["logo/w400/png"].MediaType)
+	if _, ok := imgs["logo/original/jpeg"]; ok || imgs["logo/w400/png"].MediaType != "image/png" {
+		t.Errorf("logo original kept %v, w400 media type %q", ok, imgs["logo/w400/png"].MediaType)
 	}
 	// Transparency survives: the derived PNG has an alpha channel (colour type 6).
 	data, err := os.ReadFile(filepath.Join(e.cache, imgs["logo/w400/png"].RelPath))
@@ -207,8 +208,8 @@ func TestMatchAndFetchWithLogoAndLanguageChain(t *testing.T) {
 	if len(data) < 26 || data[25] != 6 {
 		t.Errorf("derived logo PNG colour type %d, want 6 (RGBA)", data[25])
 	}
-	if imgs["poster/original/jpeg"].Source != e.tmdb.srv.URL+"/t/p/original/poster550-de.jpg" {
-		t.Errorf("poster original source %q", imgs["poster/original/jpeg"].Source)
+	if imgs["poster/w400/jpeg"].Source != e.tmdb.srv.URL+"/t/p/original/poster550-de.jpg" {
+		t.Errorf("poster source %q", imgs["poster/w400/jpeg"].Source)
 	}
 	var lang, provider string
 	if err := e.db.Read.QueryRow(`SELECT lang, provider FROM images WHERE item_id = ? AND kind = 'poster' AND size = 'w400' AND format = 'webp'`, idByTMDB).Scan(&lang, &provider); err != nil || lang != "de" || provider != "tmdb" {
@@ -261,8 +262,8 @@ func TestLocalImageBeatsTheProviders(t *testing.T) {
 		t.Fatal(err)
 	}
 	imgs := e.images(t, idByTMDB)
-	if imgs["poster/original/jpeg"].Hash != sha(poster) || e.tmdb.count("/t/p/original/poster550.jpg") != 0 {
-		t.Fatalf("the poster original should be the local file (hash %s, tmdb downloads %d)", imgs["poster/original/jpeg"].Hash, e.tmdb.count("/t/p/original/poster550.jpg"))
+	if src := imgs["poster/w400/jpeg"].Source; !strings.HasPrefix(src, coverFilePrefix) || e.tmdb.count("/t/p/original/poster550.jpg") != 0 {
+		t.Fatalf("the poster should come from the local file (source %q, tmdb downloads %d)", src, e.tmdb.count("/t/p/original/poster550.jpg"))
 	}
 	e.checkPipelineKind(t, idByTMDB, "poster")
 

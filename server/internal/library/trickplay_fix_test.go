@@ -227,9 +227,10 @@ func TestTrickplayStartKeepsTemporarySet(t *testing.T) {
 	}
 }
 
-type fakeLoad struct{ heavy atomic.Bool }
+type fakeLoad struct{ heavy, starting atomic.Bool }
 
-func (f *fakeLoad) CPUHeavy() bool { return f.heavy.Load() }
+func (f *fakeLoad) CPUHeavy() bool    { return f.heavy.Load() }
+func (f *fakeLoad) CPUStarting() bool { return f.starting.Load() }
 
 // The ffmpeg processes of a sheet (5.3): two; one while a transcode keeps the CPU busy, and for a
 // throttled look-ahead while any playback is open.
@@ -259,6 +260,36 @@ func TestTrickplayProcs(t *testing.T) {
 	        VALUES ('01JPLAYBACKSESSION00000001', 1, 1, 1, (SELECT item_id FROM media_files WHERE id = ?), ?, 'direct', ?, ?, ?)`, item, item, now, now, now+3_600_000)
 	if a, b, c := run(start), run(throttled), run(trickplayPayload{Origin: TrickplayOriginSeries}); a != 2 || b != 1 || c != 2 {
 		t.Errorf("a playback open: start %d, throttled %d, next episodes %d; want 2 1 2", a, b, c)
+	}
+}
+
+// W-3: a sheet waits while a transcode on the CPU has not written the first segment of a start or
+// a jump, and goes on as soon as that segment is out; a stopped job stops waiting.
+func TestTrickplayYieldsToAStartingTranscode(t *testing.T) {
+	t.Parallel()
+	e := newTPEnv(t)
+	load := &fakeLoad{}
+	e.svc.trickplayLoad = load
+	r := &trickplayRun{s: e.svc, p: trickplayPayload{Origin: TrickplayOriginStart}}
+	begin := time.Now()
+	if err := r.yieldToStart(e.ctx); err != nil || time.Since(begin) > trickplayStartPoll {
+		t.Fatalf("no starting transcode: %v after %v", err, time.Since(begin))
+	}
+	load.starting.Store(true)
+	const segment = 400 * time.Millisecond
+	time.AfterFunc(segment, func() { load.starting.Store(false) })
+	begin = time.Now()
+	if err := r.yieldToStart(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if waited := time.Since(begin); waited < segment || waited > segment+5*trickplayStartPoll {
+		t.Errorf("waited %v for a first segment out after %v", waited, segment)
+	}
+	load.starting.Store(true)
+	ctx, cancel := context.WithTimeout(e.ctx, segment)
+	defer cancel()
+	if err := r.yieldToStart(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("stopped job: %v, want the context's error", err)
 	}
 }
 

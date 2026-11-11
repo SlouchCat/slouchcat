@@ -2,35 +2,49 @@ package metadata
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"slices"
 	"testing"
 )
 
 // The backdrop size for 4K and high-density screens: only from an original of at least 2560 px,
-// never scaled up.
+// never scaled up; no size is wider than the original, and an episode still stops at w1280
+// (decision of 11 November 2026).
 func TestSizesFor(t *testing.T) {
 	t.Parallel()
-	names := func(specs []sizeSpec) []string {
-		var out []string
-		for _, s := range specs {
-			out = append(out, s.name)
+	for _, tc := range []struct {
+		itemKind, kind string
+		width          int
+		want           []sizeSpec
+	}{
+		{"movie", "backdrop", 1920, []sizeSpec{{"w780", 780}, {"w1280", 1280}, {"w1920", 1920}}},
+		{"movie", "backdrop", 3000, []sizeSpec{{"w780", 780}, {"w1280", 1280}, {"w1920", 1920}, {"w3840", 3000}}},
+		{"movie", "backdrop", 5120, []sizeSpec{{"w780", 780}, {"w1280", 1280}, {"w1920", 1920}, {"w3840", 3840}}},
+		{"movie", "backdrop", 2200, []sizeSpec{{"w780", 780}, {"w1280", 1280}, {"w1920", 1920}}},
+		{"movie", "backdrop", 1000, []sizeSpec{{"w780", 780}, {"w1280", 1000}}},
+		{"movie", "backdrop", 1280, []sizeSpec{{"w780", 780}, {"w1280", 1280}}},
+		{"movie", "backdrop", 640, []sizeSpec{{"w780", 640}}},
+		{"movie", "poster", 6000, []sizeSpec{{"w200", 200}, {"w400", 400}, {"w800", 800}}},
+		{"podcast", "poster", 300, []sizeSpec{{"w200", 200}, {"w400", 300}}},
+		{"movie", "logo", 300, []sizeSpec{{"w400", 300}}},
+		{"episode", "backdrop", 3840, []sizeSpec{{"w780", 780}, {"w1280", 1280}}},
+		{"episode", "backdrop", 1920, []sizeSpec{{"w780", 780}, {"w1280", 1280}}},
+		{"episode", "backdrop", 1000, []sizeSpec{{"w780", 780}, {"w1280", 1000}}},
+		{"episode", "backdrop", 300, []sizeSpec{{"w780", 300}}},
+		{"movie", "backdrop", 0, []sizeSpec{{"w780", 780}, {"w1280", 1280}, {"w1920", 1920}}},
+		{"episode", "backdrop", 0, []sizeSpec{{"w780", 780}, {"w1280", 1280}}},
+	} {
+		if got := sizesFor(tc.itemKind, tc.kind, tc.width); !slices.Equal(got, tc.want) {
+			t.Errorf("%s %s of a %d px original: %v, want %v", tc.itemKind, tc.kind, tc.width, got, tc.want)
 		}
-		return out
-	}
-	if got := names(sizesFor("backdrop", 1920)); !slices.Equal(got, []string{"w780", "w1280", "w1920"}) {
-		t.Errorf("1920 px original: %v", got)
-	}
-	if got := sizesFor("backdrop", 3000); got[3] != (sizeSpec{name: "w3840", width: 3000}) {
-		t.Errorf("3000 px original: %v, want w3840 at 3000 px", got)
-	}
-	if got := sizesFor("backdrop", 5120); got[3] != (sizeSpec{name: "w3840", width: 3840}) {
-		t.Errorf("5120 px original: %v, want w3840 at 3840 px", got)
-	}
-	if got := names(sizesFor("poster", 6000)); !slices.Equal(got, []string{"w200", "w400", "w800"}) {
-		t.Errorf("poster: %v, the 4K size is for backdrops only", got)
-	}
-	if got := names(sizesFor("backdrop", 0)); len(got) != 3 {
-		t.Errorf("unknown width: %v, want no 4K size", got)
+		// The widest derived size gives the same sizes once the original is gone (effectiveWidth).
+		if tc.width > 0 {
+			widest := tc.want[len(tc.want)-1].width
+			if got := sizesFor(tc.itemKind, tc.kind, widest); !slices.Equal(got, tc.want) {
+				t.Errorf("%s %s from the widest size %d: %v, want %v", tc.itemKind, tc.kind, widest, got, tc.want)
+			}
+		}
 	}
 }
 
@@ -81,9 +95,16 @@ func TestBackdropUhdFromWideOriginal(t *testing.T) {
 			if after := e.tmdb.count("/t/p/original/wide.jpg"); after != before {
 				t.Errorf("second run downloaded again (%d → %d)", before, after)
 			}
-			// A title stored before the 4K size (rows without w3840) is incomplete for the check
-			// after a scan once its original is wide enough, so the next scan queues image.fetch.
-			mustExec(t, e.db.Write, `DELETE FROM images WHERE item_id = ? AND size = 'w3840'`, idByTMDB)
+			// The original is gone once the sizes are stored (keepOriginal); a lost 4K file makes
+			// the kind incomplete for the check after a scan, so the next scan queues image.fetch.
+			if o := imgs["backdrop/original/jpeg"]; o.RelPath != "" {
+				t.Errorf("original kept: %+v", o)
+			}
+			if tc.want > 0 {
+				if err := os.Remove(filepath.Join(e.cache, filepath.FromSlash(jpg.RelPath))); err != nil {
+					t.Fatal(err)
+				}
+			}
 			mustExec(t, e.db.Write, `DELETE FROM jobs`)
 			n, err := e.svc.QueueIncompleteImages(ctx, 1)
 			if err != nil {

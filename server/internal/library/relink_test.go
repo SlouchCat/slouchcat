@@ -1,9 +1,11 @@
 package library
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -153,11 +155,28 @@ func TestRelinkSeriesMergesTreeAndUserData(t *testing.T) {
 
 	// The scans queued a match of every title; only the relink may queue one for the kept series.
 	e.exec(`DELETE FROM jobs WHERE type = ?`, JobMetadataMatch)
+	// The image folders of the nodes deleted for good go after the commit (RemoveItemImages).
+	var removed []string
+	e.svc.imageRemove = func(_ context.Context, ids []string) error {
+		if n := e.count(`SELECT count(*) FROM items WHERE id = ?`, live); n != 0 {
+			t.Error("image folders removed before the commit")
+		}
+		removed = append(removed, ids...)
+		return nil
+	}
 	if twin, err := e.relinkJob(live); err != nil || !twin {
 		t.Fatalf("relink = %v, %v", twin, err)
 	}
 	if n := e.count(`SELECT count(*) FROM items WHERE id = ?`, live); n != 0 {
 		t.Error("copy still exists")
+	}
+	if !slices.Contains(removed, live) || !slices.Contains(removed, liveE12) || slices.Contains(removed, dead) || slices.Contains(removed, liveE22) {
+		t.Errorf("image folders removed for %v, want the copy and its merged nodes (%s, %s), not the kept or moved ones", removed, live, liveE12)
+	}
+	for _, id := range removed {
+		if n := e.count(`SELECT count(*) FROM items WHERE id = ?`, id); n != 0 {
+			t.Errorf("image folder of %s removed, but the title exists", id)
+		}
 	}
 	if n := e.count(`SELECT count(*) FROM items WHERE kind = 'series'`); n != 1 {
 		t.Errorf("series = %d, want 1", n)
