@@ -20,7 +20,7 @@ const LIVE_TIMEOUT_MS = 30_000;
 
 async function stationId(owner: APIRequestContext, name: string): Promise<number> {
   const response = await owner.get(
-    `/api/v1/admin/radio/stations?exceptions=false&limit=50&q=${encodeURIComponent(name)}`,
+    `/api/v1/admin/radio/stations?offered=false&limit=50&q=${encodeURIComponent(name)}`,
   );
   expect(response.status(), await response.text()).toBe(200);
   const { items } = (await response.json()) as { items: { id: number; name: string }[] };
