@@ -460,3 +460,44 @@ func TestLogoHostLock(t *testing.T) {
 		}
 	}
 }
+
+// Measurement B0: a homepage that never ends (an event stream that sends a line now and then)
+// stops at the deadline of the request; the job ends as failed and gives the host back, so the
+// next job of that host runs.
+func TestLogoChainEndlessHomepage(t *testing.T) {
+	e := newLogoEnv(t)
+	e.s.logo.fetchTimeout = 300 * time.Millisecond
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		for {
+			if _, err := io.WriteString(w, "data: {}\n\n"); err != nil {
+				return
+			}
+			w.(http.Flusher).Flush()
+			select {
+			case <-r.Context().Done():
+				return
+			case <-time.After(50 * time.Millisecond):
+			}
+		}
+	}))
+	t.Cleanup(srv.Close)
+	id := e.addStation("Endless FM", "CH", "MP3", 128)
+	e.exec(`UPDATE radio_stations SET homepage = ? WHERE id = ?`, srv.URL+"/mounts/metadata/subscribe/x", id)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		e.runLogoJob(id)
+	}()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the logo job still reads the endless homepage")
+	}
+	if st := e.stationRow(id); st.LogoState != logoStateFailed {
+		t.Errorf("state %q, want failed", st.LogoState)
+	}
+	if !e.s.logo.lockHosts(logoHosts(srv.URL)) {
+		t.Error("the host is still held after the job")
+	}
+}

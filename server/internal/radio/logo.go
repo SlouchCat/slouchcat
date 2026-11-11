@@ -259,6 +259,11 @@ func (s *Service) logoGet(ctx context.Context, rawURL string, limit int64) ([]by
 	if err := s.logo.limiter.Wait(ctx); err != nil {
 		return nil, err
 	}
+	// A whole request has a deadline: a homepage that never ends (an event stream such as
+	// api.zeno.fm/mounts/metadata/subscribe/…) would otherwise hold the worker and the host lock
+	// of the job for good, and every other job of that host would wait behind it.
+	ctx, cancel := context.WithTimeout(ctx, s.logo.fetchTimeout)
+	defer cancel()
 	b, _, err := s.netClient().get(ctx, rawURL, limit)
 	return b, err
 }

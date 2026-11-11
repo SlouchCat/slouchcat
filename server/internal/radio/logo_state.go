@@ -13,6 +13,10 @@ import (
 // logoHostRetry is how long a logo job waits whose host another logo job holds (B7.2).
 const logoHostRetry = 15 * time.Second
 
+// logoFetchTimeout bounds one request of the logo chain, body included (measurement B0,
+// docs/perf/19-radio.md: a homepage that streams events never ends).
+const logoFetchTimeout = 20 * time.Second
+
 // logoState is the logo part of the service (lane A): the logo chain of concept 16 section 6
 // (catalog favicon, website, own upload) run through the job queue, scaled to squares. Since
 // concept 19 part B (B7.2, OB-11) all logo jobs together fetch at most four addresses a second, and
@@ -21,13 +25,16 @@ const logoHostRetry = 15 * time.Second
 type logoState struct {
 	limiter   *ratelimit.Limiter // four requests a second for all logo jobs together
 	hostRetry time.Duration      // logoHostRetry; tests shorten it
+	// fetchTimeout is logoFetchTimeout; tests shorten it.
+	fetchTimeout time.Duration
 
 	mu    sync.Mutex
 	hosts map[string]bool // the hosts a running logo job holds
 }
 
 func newLogoState() *logoState {
-	return &logoState{limiter: ratelimit.New("radio-logo", 4, 4), hostRetry: logoHostRetry, hosts: map[string]bool{}}
+	return &logoState{limiter: ratelimit.New("radio-logo", 4, 4), hostRetry: logoHostRetry, fetchTimeout: logoFetchTimeout,
+		hosts: map[string]bool{}}
 }
 
 // lockHosts takes every host of hosts for one job, or none when one of them is taken.
