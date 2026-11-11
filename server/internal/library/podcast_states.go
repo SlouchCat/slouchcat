@@ -84,7 +84,7 @@ func (s *Service) podcastState(ctx context.Context, podcastID string) (map[strin
 // (podcastDownloadTarget: the root and folder of its newest file, its pending folder, else the
 // folder for new subscriptions of its library) passes the folder check, and whether the podcast's
 // own folder is there with rights that let the server create files (podcastFolderProblem, by
-// Lstat only: the list writes nothing per podcast). Every root is checked once.
+// Lstat only: the list writes nothing per podcast). Every root is read and checked once.
 func (s *Service) podcastsSavable(ctx context.Context, sets []systemq.PodcastEffectiveSettingsRow) (map[string]bool, error) {
 	newest, err := systemq.New(s.db.Read).PodcastNewestRoots(ctx)
 	if err != nil {
@@ -115,7 +115,8 @@ func (s *Service) podcastsSavable(ctx context.Context, sets []systemq.PodcastEff
 		return r != nil && podcastFolderProblem(r, folder) == ""
 	}
 	writable := map[int64]bool{}
-	targetOf := map[int64]int64{} // library → its folder for new subscriptions, 0 without one
+	targetOf := map[int64]int64{}          // library → its folder for new subscriptions, 0 without one
+	roots := map[int64]*appq.LibraryRoot{} // read once per root, nil for a root that is gone
 	check := func(root appq.LibraryRoot) bool {
 		w, ok := writable[root.ID]
 		if !ok {
@@ -150,14 +151,21 @@ func (s *Service) podcastsSavable(ctx context.Context, sets []systemq.PodcastEff
 		if rootID == 0 {
 			continue
 		}
-		root, err := app.GetLibraryRoot(ctx, rootID)
-		if errors.Is(err, sql.ErrNoRows) {
+		root, ok := roots[rootID]
+		if !ok {
+			r, err := app.GetLibraryRoot(ctx, rootID)
+			switch {
+			case err == nil:
+				root = &r
+			case !errors.Is(err, sql.ErrNoRows):
+				return nil, fmt.Errorf("get root %d: %w", rootID, err)
+			}
+			roots[rootID] = root
+		}
+		if root == nil {
 			continue
 		}
-		if err != nil {
-			return nil, fmt.Errorf("get root %d: %w", rootID, err)
-		}
-		out[set.PodcastID] = check(root) && (folder == "" || folderOK(root, folder))
+		out[set.PodcastID] = check(*root) && (folder == "" || folderOK(*root, folder))
 	}
 	return out, nil
 }
