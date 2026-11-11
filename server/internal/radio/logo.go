@@ -58,6 +58,12 @@ const (
 // logoWidths are the delivered widths; the size names of getRadioImage are w96, w256, w512.
 var logoWidths = []int{96, 256, 512}
 
+// logoPNGStored is the one width whose PNG is stored beside the WebP files. A larger PNG (for a
+// client without WebP) is made from the WebP of its width on request: the stored 256 and 512 px
+// PNGs took two thirds of the logo cache (measurement B0, docs/perf/19-radio.md; Marco's decision
+// of 11 November 2026).
+const logoPNGStored = 96
+
 // logoDir is the cache directory of a station's logo files, relative to the cache directory.
 func logoDir(stationID int64) string {
 	return filepath.Join("images", "radio", strconv.FormatInt(stationID, 10))
@@ -463,8 +469,11 @@ func (s *Service) renderLogo(ctx context.Context, stationID int64, src []byte) (
 	defer os.Remove(in)
 	var outs []transcode.ImageOutput
 	for _, w := range logoWidths {
-		for _, f := range []transcode.ImageFormat{transcode.ImageWebP, transcode.ImagePNG} {
-			outs = append(outs, transcode.ImageOutput{Path: filepath.Join(dir, logoFile(w, f)+".tmp"), Width: w, Format: f})
+		outs = append(outs, transcode.ImageOutput{Path: filepath.Join(dir, logoFile(w, transcode.ImageWebP)+".tmp"),
+			Width: w, Format: transcode.ImageWebP})
+		if w == logoPNGStored {
+			outs = append(outs, transcode.ImageOutput{Path: filepath.Join(dir, logoFile(w, transcode.ImagePNG)+".tmp"),
+				Width: w, Format: transcode.ImagePNG})
 		}
 	}
 	if err := s.o.runner.SquareImage(ctx, in, format, outs); err != nil {
@@ -598,6 +607,9 @@ func (s *Service) Image(ctx context.Context, stationID int64, kind, size string,
 		return model.StreamSource{}, err
 	}
 	defer dir.Close() // files opened through the root stay usable after it is closed
+	if format == transcode.ImagePNG && width != logoPNGStored {
+		return s.pngFromWebP(ctx, dir, stationID, width, size, st.LogoHash.String)
+	}
 	f, err := dir.Open(filepath.Join(logoDir(stationID), logoFile(width, format)))
 	if errors.Is(err, fs.ErrNotExist) {
 		s.log.WarnContext(ctx, "radio logo without file", "station_id", stationID, "size", size)
@@ -612,4 +624,102 @@ func (s *Service) Image(ctx context.Context, stationID int64, kind, size string,
 	}
 	return model.StreamSource{File: f, MediaType: mediaType, Size: info.Size(), ModTime: info.ModTime().UTC(),
 		Name: "radio/" + strconv.FormatInt(stationID, 10) + "/logo/" + size, ETag: `"` + st.LogoHash.String + "-" + size + "-" + string(format) + `"`}, nil
+}
+
+// pngFromWebP makes the PNG of a width that is not stored from the WebP file of that width (a
+// client without WebP; logoPNGStored). The square WebP is re-encoded, not scaled; the result is
+// not stored, the image URL carries the logo hash, so a client caches it.
+func (s *Service) pngFromWebP(ctx context.Context, dir *os.Root, stationID int64, width int, size, hash string) (model.StreamSource, error) {
+	webp := filepath.Join(logoDir(stationID), logoFile(width, transcode.ImageWebP))
+	src, err := dir.ReadFile(webp)
+	if errors.Is(err, fs.ErrNotExist) {
+		s.log.WarnContext(ctx, "radio logo without file", "station_id", stationID, "size", size)
+		return model.StreamSource{}, model.ErrNotFound
+	}
+	if err != nil {
+		return model.StreamSource{}, err
+	}
+	info, err := dir.Stat(webp)
+	if err != nil {
+		return model.StreamSource{}, err
+	}
+	tmp, err := os.MkdirTemp("", "slouchcat-radio-logo-")
+	if err != nil {
+		return model.StreamSource{}, err
+	}
+	defer os.RemoveAll(tmp)
+	in, out := filepath.Join(tmp, "in.webp"), filepath.Join(tmp, "out.png")
+	if err := os.WriteFile(in, src, 0o600); err != nil {
+		return model.StreamSource{}, err
+	}
+	if err := s.o.runner.SquareImage(ctx, in, "webp_pipe", []transcode.ImageOutput{{Path: out, Width: width, Format: transcode.ImagePNG}}); err != nil {
+		return model.StreamSource{}, fmt.Errorf("radio logo png from webp: %w", err)
+	}
+	b, err := os.ReadFile(out)
+	if err != nil {
+		return model.StreamSource{}, err
+	}
+	return model.StreamSource{File: nopReadSeekCloser{bytes.NewReader(b)}, MediaType: "image/png", Size: int64(len(b)),
+		ModTime: info.ModTime().UTC(), Name: "radio/" + strconv.FormatInt(stationID, 10) + "/logo/" + size,
+		ETag: `"` + hash + "-" + size + "-" + string(transcode.ImagePNG) + `"`}, nil
+}
+
+// nopReadSeekCloser is a ReadSeeker with a Close that does nothing (an image made in memory).
+type nopReadSeekCloser struct{ io.ReadSeeker }
+
+func (nopReadSeekCloser) Close() error { return nil }
+
+// removeStoredLargePNGs deletes the 256 and 512 px PNG files earlier versions stored for every
+// logo (logoPNGStored), below <cacheDir>/images/radio only. It runs once at every start in the
+// background; after the first run there is nothing left to remove.
+func (s *Service) removeStoredLargePNGs(ctx context.Context) {
+	if s.o.cacheDir == "" {
+		return
+	}
+	root, err := paths.NewRoot(s.o.cacheDir)
+	if err != nil {
+		s.log.WarnContext(ctx, "radio logo cache root", "err", err)
+		return
+	}
+	dir, err := paths.Open(root)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			s.log.WarnContext(ctx, "open the radio logo cache", "err", err)
+		}
+		return
+	}
+	defer dir.Close()
+	base := filepath.Join("images", "radio")
+	entries, err := fs.ReadDir(dir.FS(), filepath.ToSlash(base))
+	if errors.Is(err, fs.ErrNotExist) {
+		return
+	}
+	if err != nil {
+		s.log.WarnContext(ctx, "list the radio logo cache", "err", err)
+		return
+	}
+	removed := 0
+	for _, e := range entries {
+		if ctx.Err() != nil {
+			return
+		}
+		if _, err := strconv.ParseInt(e.Name(), 10, 64); err != nil || !e.IsDir() {
+			continue // only the directories of stations
+		}
+		for _, w := range logoWidths {
+			if w == logoPNGStored {
+				continue
+			}
+			err := dir.Remove(filepath.Join(base, e.Name(), logoFile(w, transcode.ImagePNG)))
+			switch {
+			case err == nil:
+				removed++
+			case !errors.Is(err, fs.ErrNotExist):
+				s.log.WarnContext(ctx, "remove a stored radio logo png", "station", e.Name(), "err", err)
+			}
+		}
+	}
+	if removed > 0 {
+		s.log.InfoContext(ctx, "radio logo pngs of 256 and 512 px removed", "files", removed)
+	}
 }

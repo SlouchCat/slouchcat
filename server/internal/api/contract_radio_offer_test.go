@@ -32,12 +32,13 @@ func TestRadioOfferKeepsOnlyTheChosenCountry(t *testing.T) {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(dir, "logo-w256.png"), []byte("\x89PNG fixture"), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, "logo-w256.webp"), []byte("RIFF fixture WEBP"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
+	webp := map[string]string{"Accept": "image/webp"} // the stored format; a PNG of 256 px is made on request
 	for _, id := range []string{de, radioCH} {
-		if rec := send(t, h, http.MethodGet, BasePath+"/radio/images/"+id+"/logo/w256", "p6", "", nil); rec.Code != http.StatusOK {
+		if rec := send(t, h, http.MethodGet, BasePath+"/radio/images/"+id+"/logo/w256", "p6", "", webp); rec.Code != http.StatusOK {
 			t.Fatalf("logo of %s in the offer: %d %s", id, rec.Code, rec.Body.String())
 		}
 	}
@@ -92,7 +93,7 @@ func TestRadioOfferKeepsOnlyTheChosenCountry(t *testing.T) {
 		for _, c := range []struct{ method, path string }{
 			{http.MethodGet, "/radio/stations/" + de},
 			{http.MethodPost, "/radio/stations/" + de + "/listen"},
-			{http.MethodGet, "/radio/images/" + de + "/logo/w256"},
+			{http.MethodGet, "/radio/images/" + de + "/logo/w256"}, // 404 before the format matters
 			{http.MethodPut, "/radio/favorites/" + de},
 		} {
 			rec := send(t, h, c.method, BasePath+c.path, token, "", nil)
@@ -103,7 +104,7 @@ func TestRadioOfferKeepsOnlyTheChosenCountry(t *testing.T) {
 		if rec := send(t, h, http.MethodGet, BasePath+"/radio/stations/"+radioCH, token, "", nil); rec.Code != http.StatusOK {
 			t.Errorf("%s CH station: %d", token, rec.Code)
 		}
-		if rec := send(t, h, http.MethodGet, BasePath+"/radio/images/"+radioCH+"/logo/w256", token, "", nil); rec.Code != http.StatusOK {
+		if rec := send(t, h, http.MethodGet, BasePath+"/radio/images/"+radioCH+"/logo/w256", token, "", webp); rec.Code != http.StatusOK {
 			t.Errorf("%s CH logo: %d", token, rec.Code)
 		}
 	}

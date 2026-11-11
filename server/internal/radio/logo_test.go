@@ -11,6 +11,7 @@ import (
 	"image/color"
 	"image/png"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -514,5 +515,75 @@ func TestLogoChainEndlessHomepage(t *testing.T) {
 	}
 	if !e.s.logo.lockHosts(logoHosts(srv.URL)) {
 		t.Error("the host is still held after the job")
+	}
+}
+
+// Marco's decision of 11 November 2026 (measurement B0): a logo stores WebP in 96, 256 and 512 px
+// and PNG in 96 px only; a client without WebP gets the 256 and 512 px PNG made from the WebP of
+// that width, a square of that width, with the same validator as before.
+func TestLogoStoresOnlyTheSmallPNG(t *testing.T) {
+	e := newLogoEnv(t)
+	id := e.addStation("Logo FM", "CH", "MP3", 128)
+	e.exec(`UPDATE radio_stations SET favicon_url = ? WHERE id = ?`, serve(e.st, "/fav.png", "image/png", pngOf(t, 300, 200)), id)
+	e.runLogoJob(id)
+	dir := filepath.Join(e.s.o.cacheDir, logoDir(id))
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, en := range entries {
+		names = append(names, en.Name())
+	}
+	want := []string{"logo-w256.webp", "logo-w512.webp", "logo-w96.png", "logo-w96.webp"}
+	if !slices.Equal(names, want) {
+		t.Fatalf("stored files %v, want %v", names, want)
+	}
+	e.checkLogoFiles(id) // every width in both formats, PNG as a square of its width
+	st := e.stationRow(id)
+	src, err := e.s.Image(context.Background(), id, "logo", "w512", false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer src.File.Close()
+	if src.MediaType != "image/png" || src.ETag != `"`+st.LogoHash.String+`-w512-png"` || src.Size == 0 {
+		t.Errorf("w512 png source = %q %q %d", src.MediaType, src.ETag, src.Size)
+	}
+	if names, _ := os.ReadDir(dir); len(names) != len(want) {
+		t.Errorf("serving the PNG stored a file: %d files", len(names))
+	}
+}
+
+// The start removes the 256 and 512 px PNGs earlier versions stored, only in the directories of
+// stations below images/radio; every other file stays.
+func TestStartRemovesTheStoredLargePNGs(t *testing.T) {
+	e := newLogoEnv(t)
+	cache := e.s.o.cacheDir
+	write := func(rel string) {
+		t.Helper()
+		p := filepath.Join(cache, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	keep := []string{"images/radio/7/logo-w96.png", "images/radio/7/logo-w96.webp", "images/radio/7/logo-w256.webp",
+		"images/radio/7/logo-w512.webp", "images/radio/notastation/logo-w512.png", "images/items/1/logo-w512.png"}
+	gone := []string{"images/radio/7/logo-w256.png", "images/radio/7/logo-w512.png", "images/radio/8/logo-w512.png"}
+	for _, rel := range append(slices.Clone(keep), gone...) {
+		write(rel)
+	}
+	e.s.removeStoredLargePNGs(context.Background())
+	for _, rel := range keep {
+		if _, err := os.Stat(filepath.Join(cache, rel)); err != nil {
+			t.Errorf("%s: %v, want kept", rel, err)
+		}
+	}
+	for _, rel := range gone {
+		if _, err := os.Stat(filepath.Join(cache, rel)); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("%s: %v, want removed", rel, err)
+		}
 	}
 }
