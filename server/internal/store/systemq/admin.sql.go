@@ -317,6 +317,49 @@ func (q *Queries) AdminGetPicksConfig(ctx context.Context) (AdminGetPicksConfigR
 	return i, err
 }
 
+const adminGetWidestItemImage = `-- name: AdminGetWidestItemImage :one
+SELECT im.rel_path, im.media_type, im.content_hash, im.created_at
+FROM images AS im
+JOIN items AS i ON i.id = im.item_id AND i.deleted_at IS NULL
+WHERE im.item_id = ?1 AND im.kind = ?2 AND im.size <> 'original'
+  AND im.format IN (?3, ?4)
+ORDER BY im.width DESC, im.format = 'webp' DESC
+LIMIT 1
+`
+
+type AdminGetWidestItemImageParams struct {
+	ItemID   string
+	Kind     string
+	Format   string
+	Fallback string
+}
+
+type AdminGetWidestItemImageRow struct {
+	RelPath     string
+	MediaType   string
+	ContentHash string
+	CreatedAt   int64
+}
+
+// The widest stored size of a kind, for a size the pipeline did not derive because the original is
+// narrower (decision of 11 November 2026), with the format rule of AdminGetItemImage.
+func (q *Queries) AdminGetWidestItemImage(ctx context.Context, arg AdminGetWidestItemImageParams) (AdminGetWidestItemImageRow, error) {
+	row := q.db.QueryRowContext(ctx, adminGetWidestItemImage,
+		arg.ItemID,
+		arg.Kind,
+		arg.Format,
+		arg.Fallback,
+	)
+	var i AdminGetWidestItemImageRow
+	err := row.Scan(
+		&i.RelPath,
+		&i.MediaType,
+		&i.ContentHash,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const adminListFileAndFeedEpisodes = `-- name: AdminListFileAndFeedEpisodes :many
 SELECT fe.id AS file_id, fe.title AS file_title, fe.year AS file_year,
        ne.id AS feed_id, ne.title AS feed_title, ne.year AS feed_year, fe.library_id, fe.parent_id

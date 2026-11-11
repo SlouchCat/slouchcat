@@ -118,6 +118,16 @@ func TestItemImage(t *testing.T) {
 		}
 	}
 
+	// A size the pipeline did not derive (never wider than the original) is answered with the
+	// widest stored one of the kind (decision of 11 November 2026).
+	if _, err := f.DB.Write.ExecContext(context.Background(),
+		`DELETE FROM images WHERE item_id = ? AND kind = 'backdrop' AND size = 'w1920'`, hidden.ID); err != nil {
+		t.Fatal(err)
+	}
+	if typ, data, err := readImage(t, svc, hidden.ID, "backdrop", "w1920", false); err != nil || typ != "image/jpeg" || !bytes.Equal(data, cacheFile(t, f, hidden.BackdropRel)) {
+		t.Errorf("missing w1920 backdrop: type %q, err %v; want the w1280 one", typ, err)
+	}
+
 	// A row whose file is gone is 404 with a warning, like the scoped image route.
 	if err := os.Remove(filepath.Join(f.CacheDir, filepath.FromSlash(posterJPEG))); err != nil {
 		t.Fatal(err)

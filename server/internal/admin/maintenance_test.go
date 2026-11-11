@@ -420,9 +420,18 @@ func TestAdminMaintenanceMerge(t *testing.T) {
 		t.Errorf("target among the sources: %v", err)
 	}
 
+	// The source's image folder goes once it is deleted (metadata's RemoveItemImages).
+	var removed []string
+	m.svc.WithImageRemoval(func(_ context.Context, ids []string) error {
+		removed = append(removed, ids...)
+		return nil
+	})
 	it, err := m.svc.MergeItems(m.ctx, target.ID, []string{source.ID})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if !slices.Equal(removed, []string{source.ID}) {
+		t.Errorf("image folders removed for %v, want the source %s", removed, source.ID)
 	}
 	var files []string
 	for _, mf := range it.MediaFiles {

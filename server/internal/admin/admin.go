@@ -212,6 +212,7 @@ type Service struct {
 	trickplay      TrickplayUsage     // nil: no stored bytes and no free space in the estimate
 	maint          LibraryMaintenance // nil until WithLibraryMaintenance
 	meta           Metadata           // nil until WithMetadata
+	imageRemove    ImageRemover       // nil until WithImageRemoval
 	streams        Streams            // nil until WithStreams
 	podcasts       Podcasts           // nil until WithPodcasts
 	podcastStorage PodcastStorage     // nil until WithPodcastStorage (concept 19 part A)
@@ -283,6 +284,16 @@ func (s *Service) syncSchedule(ctx context.Context, typ string, u jobs.ScheduleU
 	if _, err := s.schedules.UpdateSchedule(ctx, typ, u); err != nil && !errors.Is(err, model.ErrNotFound) {
 		s.log.WarnContext(ctx, "sync schedule with the setting", "job_type", typ, "err", err)
 	}
+}
+
+// ImageRemover removes the image folders of titles deleted for good (metadata's RemoveItemImages).
+type ImageRemover func(ctx context.Context, ids []string) error
+
+// WithImageRemoval sets the removal of the image folders of titles a merge deleted for good
+// (without it the hourly sweep takes them), and returns the receiver.
+func (s *Service) WithImageRemoval(remove ImageRemover) *Service {
+	s.imageRemove = remove
+	return s
 }
 
 // WithLibraryMaintenance sets the scan cancellation and file removal of package library, and

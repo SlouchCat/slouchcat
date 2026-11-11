@@ -553,7 +553,8 @@ func removeLocked(raw string, names ...string) string {
 }
 
 // storedPreviewSizes is the stored size per kind that previews a lock without choice: the smallest
-// derived width of at least previewSize.
+// derived width of at least previewSize. A kind without it (an original narrower than that) is
+// previewed with its widest stored size, which the image route serves under this name.
 var storedPreviewSizes = map[string]string{"poster": "w400", "backdrop": "w780", "logo": "w400"}
 
 // ItemImages returns the decided image source per choosable kind of a title for the title page
@@ -620,9 +621,18 @@ func (s *Service) storedPreviews(ctx context.Context, itemID string) (map[string
 		return nil, fmt.Errorf("item images of %s: list stored images: %w", itemID, err)
 	}
 	out := map[string]string{}
+	widest := map[string]systemq.Image{}
 	for _, r := range rows {
 		if r.Size == storedPreviewSizes[r.Kind] && out[r.Kind] == "" {
 			out[r.Kind] = r.ContentHash
+		}
+		if w, ok := widest[r.Kind]; r.Size != originalSize && (!ok || r.Width > w.Width) {
+			widest[r.Kind] = r
+		}
+	}
+	for kind, r := range widest {
+		if out[kind] == "" {
+			out[kind] = r.ContentHash
 		}
 	}
 	return out, nil

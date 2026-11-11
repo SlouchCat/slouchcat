@@ -28,6 +28,15 @@ const (
 	portraitSize = "w185"
 )
 
+// derivedSizes are the sizes of the pipeline per kind. One the pipeline left out for a title (no
+// size is wider than the original, an episode still stops at w1280) is answered with the widest
+// stored size of the kind (Reader.Image); any other size stays unknown.
+var derivedSizes = map[string]map[string]bool{
+	"poster":   {posterSmallSize: true, posterSize: true, posterLargeSize: true},
+	"backdrop": {backdropSmallSize: true, backdropSize: true, backdropLargeSize: true, backdropUhdSize: true},
+	"logo":     {logoSize: true, "w800": true},
+}
+
 // fallbackLang is the last language the trailer order and the genre chain try after the
 // profile's languages (B-3; the text chain itself reads the rank of the rows, ADR 0018).
 const fallbackLang = "en"

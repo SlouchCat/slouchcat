@@ -334,6 +334,57 @@ func (q *Queries) GetVisibleItem(ctx context.Context, arg GetVisibleItemParams) 
 	return i, err
 }
 
+const getWidestItemImage = `-- name: GetWidestItemImage :one
+SELECT im.id, im.item_id, im.kind, im.size, im.format, im.lang, im.provider, im.source_url, im.rel_path, im.content_hash, im.media_type, im.width, im.height, im.bytes, im.accent, im.created_at FROM images AS im
+JOIN visible_items AS v ON v.item_id = im.item_id AND v.profile_id = ?1
+JOIN items AS i ON i.id = im.item_id AND i.kind <> 'podcast_episode'
+WHERE im.item_id = ?2 AND im.kind = ?3 AND im.size <> 'original'
+  AND im.format IN (?4, ?5)
+ORDER BY im.width DESC, im.format = 'webp' DESC
+LIMIT 1
+`
+
+type GetWidestItemImageParams struct {
+	ProfileID int64
+	ItemID    string
+	Kind      string
+	Format    string
+	Fallback  string
+}
+
+// The widest stored size of a kind, for a size the pipeline did not derive because the original is
+// narrower (or an episode still, which has no w1920; decision of 11 November 2026), with the same
+// format rule as GetItemImage.
+func (q *Queries) GetWidestItemImage(ctx context.Context, arg GetWidestItemImageParams) (Image, error) {
+	row := q.db.QueryRowContext(ctx, getWidestItemImage,
+		arg.ProfileID,
+		arg.ItemID,
+		arg.Kind,
+		arg.Format,
+		arg.Fallback,
+	)
+	var i Image
+	err := row.Scan(
+		&i.ID,
+		&i.ItemID,
+		&i.Kind,
+		&i.Size,
+		&i.Format,
+		&i.Lang,
+		&i.Provider,
+		&i.SourceUrl,
+		&i.RelPath,
+		&i.ContentHash,
+		&i.MediaType,
+		&i.Width,
+		&i.Height,
+		&i.Bytes,
+		&i.Accent,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const listContinueWatching = `-- name: ListContinueWatching :many
 WITH watched AS (
     SELECT p.item_id, p.updated_at, p.completed, p.updated_at >= ?3 AS in_window,

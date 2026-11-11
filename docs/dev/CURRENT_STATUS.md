@@ -1,5 +1,23 @@
 # Aktueller Stand
 
+## Bildspeicher verkleinert (11. November 2026): Pull Request, Patch 1.28.1
+
+Vertrag bleibt **1.28.0**, keine Migration, Zweig `claude/bildspeicher-be1b39` ab `main` `8c4fe29a`. Anlass: Auf CT 190
+war die Platte voll, `cache/images` belegte 55 GB, davon 25,6 GB die Folgenbilder von «Serien2» (18 552 Episoden, je
+7 Dateien). Entscheid im Protokoll (11. November 2026).
+
+- **Folgenbild:** nur noch w780 und w1280 (JPEG und WebP), kein w1920, kein w3840. Die App fragt nichts Breiteres an
+  (Folgenkarten, Player, Standbild der Folgenseite: w780; Hintergrund der Folgenseite: `srcset` mit 780w und 1280w).
+- **Nie hochskaliert:** Für jede Bildart entstehen nur Grössen bis zur Breite des Originals; die nächstgrössere behält
+  die Breite des Originals. Die Bildroute beantwortet eine fehlende bekannte Grösse mit der breitesten gespeicherten.
+- **Original:** wird nach dem Ableiten gelöscht, ausser beim hochgeladenen Bild und bei gesperrten Bildarten.
+- **Bestand:** Ein einmaliger Lauf beim ersten Start (`metadata.image_sizes_trimmed`) löscht die überzähligen Grössen und
+  Originale samt Zeilen, ohne Download und ohne ffmpeg.
+- **Hart gelöschte Titel:** Zusammenführen und Relink löschen den Bildordner sofort, der stündliche `library.sweep`
+  räumt jeden Ordner ohne Titel ab. Ordner, auf die verschobene Bildzeilen zeigen, und `images/radio/` bleiben.
+- **Erwartete Ersparnis auf CT 190:** rund 18 GB bei den Folgenbildern (Schätzung über die Pixelfläche), dazu die
+  Originale der übrigen Titel (nicht gemessen). `image.fetch` kann nach dem Update wieder laufen.
+
 ## Ordner-Browser unter NAS-Last (11. November 2026, Zweig `claude/browse-unter-last`)
 
 Kein Vertragswechsel, keine Migration. Auf CT 190 brauchte `POST /admin/fs/browse` je Ebene 1,4 bis 2,4 s und gab
@@ -35,8 +53,7 @@ Episoden hatten je 7 Bilddateien, allein die Originale belegten 7,7 GB.
   `cache/images/<Episoden-ID>/` löscht der Server einmal beim ersten Start danach (`metadata.episode_images_purged`).
 - **Reihenfolge:** 00049 folgt auf 00047 (PR #141) und 00048 (PR #140), beide seit dem 11. November 2026 in `main`;
   Teil B Stufe 2 rückt auf 00050.
-- **Offen:** Bildordner hart gelöschter Titel (auch Episoden, die nicht mehr in `items` stehen) räumt der Server
-  weiterhin nicht ab.
+- **Erledigt mit 1.28.1:** Bildordner hart gelöschter Titel räumt der Server ab (Abschnitt «Bildspeicher verkleinert»).
 
 ## Stufe B1 (11. November 2026): Radio-Angebot statt ganzer Katalog (Konzept 19 Teil B)
 
