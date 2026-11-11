@@ -23,10 +23,11 @@ import (
 // lastchangetime equals the one of its last import only refreshes seen_at and its counters (m-8),
 // so a daily run does not rewrite ~40 000 rows. A new entry joins the station of its group key or
 // founds one; an alias never moves and two stations never merge (R-2). After the entries, every
-// station whose entries changed is derived again (name, country, region, languages, quality, tags,
-// facets; a locked field keeps the admin's value). Entries that stayed away are marked missing;
-// a catalog station missing for seven days is deleted with its favourites (F-18). A cancelled run
-// stops between two batches and marks nothing missing.
+// station whose entries changed is derived again (name, country, region, languages, quality,
+// provider, tags, facets through the rules file; a locked field keeps the admin's value). Entries
+// that stayed away are marked missing; a catalog station missing for seven days is deleted with its
+// favourites, its offer exception and its logo files (F-18, B8). A cancelled run stops between two
+// batches and marks nothing missing.
 
 const (
 	syncBatch = 1000
@@ -53,7 +54,7 @@ type syncStation struct {
 // entryMeta is what the recompute of a station reads of one of its entries.
 type entryMeta struct {
 	uuid, name, homepage, favicon, country, iso, state, language, langCodes, tags string
-	codec                                                                         string
+	codec, url, urlResolved                                                       string
 	bitrate, votes, clicks                                                        int64
 	ok                                                                            bool
 }
@@ -69,16 +70,17 @@ type syncRun struct {
 	metas    map[int64][]entryMeta
 	full     map[int64]bool // stations whose entries changed
 	created  map[int64]bool // stations this run founded (no tags, facets or locks yet)
-	added    int
-	known    int // aliases at the start of the run
+	known    int            // aliases at the start of the run
 	entries  int
 	okCount  int
 	batch    []*rbStation
 }
 
-// syncStats is the outcome of a successful run.
+// syncStats is the outcome of a successful run; created and removed name the stations this run
+// founded and deleted.
 type syncStats struct {
-	entries, reachable, stations, added, removed int
+	entries, reachable, stations int
+	created, removed             []int64
 }
 
 // syncCatalog runs one sync.
@@ -102,19 +104,7 @@ func (s *Service) syncCatalog(ctx context.Context) (syncStats, error) {
 			"entries", run.entries, "known", run.known)
 		return syncStats{}, fmt.Errorf("%w: %d entries, %d known", errCatalogShrunk, run.entries, run.known)
 	}
-	stats, err := run.finish(ctx)
-	if err != nil {
-		return syncStats{}, err
-	}
-	// Rules the administration stored while this run held syncMu apply to every station before it
-	// lets go (D-2, critic M-3); the job handler rebuilds the index afterwards. A failed apply
-	// keeps them pending for the sweep and does not fail the sync.
-	if s.cat.rulesDirty.Load() {
-		if err := s.applyTagRules(ctx, false); err != nil {
-			s.log.WarnContext(ctx, "apply radio tag rules after the sync", "err", err)
-		}
-	}
-	return stats, nil
+	return run.finish(ctx)
 }
 
 // errCatalogShrunk is the sync error of a station list with less than half of the known entries.
@@ -122,10 +112,6 @@ var errCatalogShrunk = errors.New("radio browser station list shorter than half 
 
 // newSyncRun loads the alias, group, counter and lock maps once.
 func (s *Service) newSyncRun(ctx context.Context) (*syncRun, error) {
-	// The recompute derives with the effective rules (catalogState.rules, loaded here).
-	if _, err := s.tagRules(ctx); err != nil {
-		return nil, err
-	}
 	q := appq.New(s.db.Read)
 	run := &syncRun{s: s, now: s.now().UnixMilli(), aliases: map[string]syncAlias{}, groups: map[string]int64{},
 		stations: map[int64]syncStation{}, locks: map[int64]map[string]bool{}, metas: map[int64][]entryMeta{},
@@ -247,7 +233,6 @@ func (r *syncRun) write(ctx context.Context, q *appq.Queries, e *rbStation) erro
 			}
 			r.groups[key] = id
 			r.created[id] = true
-			r.added++
 		}
 		if err := r.upsert(ctx, q, id, e); err != nil {
 			return err
@@ -260,7 +245,8 @@ func (r *syncRun) write(ctx context.Context, q *appq.Queries, e *rbStation) erro
 	r.metas[a.station] = append(r.metas[a.station], entryMeta{
 		uuid: e.StationUUID, name: e.Name, homepage: strings.TrimSpace(e.Homepage), favicon: strings.TrimSpace(e.Favicon),
 		country: e.CountryCode, iso: e.ISO31662, state: e.State, language: e.Language, langCodes: e.LanguageCodes,
-		tags: e.Tags, codec: strings.ToLower(strings.TrimSpace(e.Codec)), bitrate: e.Bitrate, votes: e.Votes,
+		tags: e.Tags, codec: strings.ToLower(strings.TrimSpace(e.Codec)), url: strings.TrimSpace(e.URL),
+		urlResolved: strings.TrimSpace(e.URLResolved), bitrate: e.Bitrate, votes: e.Votes,
 		clicks: e.ClickCount, ok: ok,
 	})
 	return nil
@@ -326,7 +312,14 @@ func (r *syncRun) finish(ctx context.Context) (syncStats, error) {
 	if err != nil {
 		return syncStats{}, fmt.Errorf("count radio stations: %w", err)
 	}
-	return syncStats{entries: r.entries, reachable: r.okCount, stations: int(total), added: r.added, removed: int(removed)}, nil
+	created := make([]int64, 0, len(r.created))
+	for id := range r.created {
+		if !slices.Contains(removed, id) {
+			created = append(created, id)
+		}
+	}
+	slices.Sort(created)
+	return syncStats{entries: r.entries, reachable: r.okCount, stations: int(total), created: created, removed: removed}, nil
 }
 
 // recomputeAll derives every changed station again, syncBatch stations per transaction.
@@ -390,8 +383,8 @@ func (r *syncRun) recompute(ctx context.Context, q *appq.Queries, id int64) erro
 	if r.created[id] && len(metas) == 1 {
 		// A new station with one entry has one stream, which is its best.
 		m := metas[0]
-		streams = []appq.RadioStream{{Stationuuid: sql.NullString{String: m.uuid, Valid: true},
-			Codec: nullText(m.codec), Bitrate: sql.NullInt64{Int64: m.bitrate, Valid: m.bitrate > 0}}}
+		streams = []appq.RadioStream{{Stationuuid: sql.NullString{String: m.uuid, Valid: true}, Url: m.url,
+			UrlResolved: nullText(m.urlResolved), Codec: nullText(m.codec), Bitrate: sql.NullInt64{Int64: m.bitrate, Valid: m.bitrate > 0}}}
 	} else {
 		var err error
 		if streams, err = q.ListRadioStreamsRanked(ctx, id); err != nil {
@@ -420,14 +413,16 @@ func (r *syncRun) recompute(ctx context.Context, q *appq.Queries, id int64) erro
 	if locks["region"] {
 		d.region = cur.Region.String
 	}
+	var provider string
 	if len(streams) > 0 {
 		d.quality = qualityOf(streams[0].Codec.String, streams[0].Bitrate.Int64)
+		provider = providerOf(bestURL(streams[0].Url, streams[0].UrlResolved.String))
 	}
 	if err := q.UpdateRadioStationFromSync(ctx, appq.UpdateRadioStationFromSyncParams{
 		Name: d.name, SortKey: rules.Fold(d.name), SearchText: searchText(d.name, d.region, d.tags),
 		Country: nullText(d.country), Region: nullText(d.region), Languages: jsonList(d.languages), Homepage: nullText(d.homepage),
 		FaviconUrl: nullText(d.favicon), Votes: d.votes, Clicks: d.clicks, Quality: nullText(d.quality),
-		Reachable: flag01(d.reachable), Now: r.now, ID: id,
+		Reachable: flag01(d.reachable), Provider: nullText(provider), Now: r.now, ID: id,
 	}); err != nil {
 		return fmt.Errorf("update radio station: %w", err)
 	}
@@ -442,14 +437,8 @@ func (r *syncRun) recompute(ctx context.Context, q *appq.Queries, id int64) erro
 			return fmt.Errorf("insert radio tags: %w", err)
 		}
 	}
-	var open []string
-	for _, facet := range facetNames {
-		if !locks[facet] {
-			open = append(open, facet)
-		}
-	}
-	values, _ := deriveFacets(r.s.cat.rules.Load().tags, d.name, d.tags)
-	if err := writeFacets(ctx, q, id, values, open, false, !fresh); err != nil {
+	values, _ := deriveFacets(rules.Default(), d.name, d.tags)
+	if err := writeFacets(ctx, q, id, values, facetNames, false, !fresh); err != nil {
 		return err
 	}
 	r.stations[id] = syncStation{votes: d.votes, clicks: d.clicks, reachable: d.reachable}
@@ -696,7 +685,8 @@ func (t *stmtTx) QueryRowContext(ctx context.Context, query string, args ...any)
 func nullText(s string) sql.NullString { return sql.NullString{String: s, Valid: s != ""} }
 
 // handleCatalogSync is the handler of radio.catalog.sync: one sync, then the stats, the index and
-// the logo prefetch. A failure is stored (last_sync_error, sync_failures) and asks for a retry
+// the logo work: the files of the deleted stations go, the logos of the stations that came into
+// the offer, of the favourites and the recommended ones in the offer are queued. A failure is stored (last_sync_error, sync_failures) and asks for a retry
 // through the one-off date of the schedule: 15 min, 1 h, 6 h, then the daily run.
 func (s *Service) handleCatalogSync(ctx context.Context, _ *jobs.Job) error {
 	stats, err := s.syncCatalog(ctx)
@@ -706,19 +696,23 @@ func (s *Service) handleCatalogSync(ctx context.Context, _ *jobs.Job) error {
 		}
 		return err
 	}
+	// The stations are gone from the database: their logo files go before anything else can fail
+	// and lose the ids (B8).
+	s.removeLogoFiles(ctx, stats.removed)
 	if err := appq.New(s.db.Write).UpdateRadioSyncState(ctx, appq.UpdateRadioSyncStateParams{
 		LastSyncAt: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}, EntriesTotal: int64(stats.entries),
-		EntriesReachable: int64(stats.reachable), StationsTotal: int64(stats.stations), LastAdded: int64(stats.added),
-		LastRemoved: int64(stats.removed), Now: s.now().UnixMilli(),
+		EntriesReachable: int64(stats.reachable), StationsTotal: int64(stats.stations), LastAdded: int64(len(stats.created)),
+		LastRemoved: int64(len(stats.removed)), Now: s.now().UnixMilli(),
 	}); err != nil {
 		return fmt.Errorf("update radio sync state: %w", err)
 	}
 	s.log.InfoContext(ctx, "radio catalog synced", "entries", stats.entries, "stations", stats.stations,
-		"added", stats.added, "removed", stats.removed)
+		"added", len(stats.created), "removed", len(stats.removed))
 	if _, err := s.rebuildIndex(ctx); err != nil {
 		return err
 	}
-	s.queueSyncLogos(ctx)
+	s.dropLogosOutsideOffer(ctx) // a station that changed its country may have left the offer
+	s.queueSyncLogos(ctx, stats.created)
 	return nil
 }
 

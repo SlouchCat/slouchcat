@@ -733,6 +733,8 @@ type RadioConfig struct {
 	UpdatedAt        int64
 	CoverMusicbrainz int64
 	CoverItunes      int64
+	OfferVersion     int64
+	OfferSeeded      int64
 }
 
 type RadioFavorite struct {
@@ -760,6 +762,18 @@ type RadioListenTime struct {
 	ProfileID int64
 	Quarter   int64
 	PlayedMs  int64
+}
+
+type RadioOfferCountry struct {
+	Country   string
+	Mode      string
+	UpdatedAt int64
+}
+
+type RadioOfferException struct {
+	StationID int64
+	Offered   int64
+	UpdatedAt int64
 }
 
 type RadioProfileState struct {
@@ -797,6 +811,7 @@ type RadioStation struct {
 	LogoTriedAt  sql.NullInt64
 	CreatedAt    int64
 	UpdatedAt    int64
+	Provider     sql.NullString
 }
 
 type RadioStationAlias struct {

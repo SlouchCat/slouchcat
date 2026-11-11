@@ -11,7 +11,7 @@ import type {
   VolumeControl as VolumeControlType,
 } from '@/ui/aria';
 import { RADIO_SEGMENT_SECONDS } from './engine';
-import { facetValueName, radioLanguageName, stationPlace } from './labels';
+import { facetValueName, radioLanguageName, stationCaption } from './labels';
 import { wantsSound, type RadioNotice, type RadioStation } from './priority';
 import {
   radioImageSize,
@@ -252,7 +252,7 @@ export function RadioDock() {
             stationName={station.name}
             logoUrl={logo}
             coverUrl={coverOf(entry, 'w512')}
-            place={stationPlace(t, i18n.language, station)}
+            place={stationCaption(t, i18n.language, station)}
             title={entry ? (entry.title ?? entry.text) : t('radio.player.programme')}
             subtitle={entry ? (entry.title ? entry.artist : undefined) : t('radio.player.noTitles')}
             toggle={toggle}

@@ -1,37 +1,50 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { Notice } from '@/ui';
-import { AdminPage, StatusStrip, Tabs, afterRender, useSearchSelection } from '@/ui/aria';
+import { paths } from '@/app/paths';
+import { Notice, TextLink } from '@/ui';
 import {
-  adminRadioStationsQuery,
+  AdminPage,
+  ConfirmDialog,
+  StatusStrip,
+  Tabs,
+  useSearchSelection,
+  useUnsavedChanges,
+} from '@/ui/aria';
+import {
   RADIO_RELAYS_POLL_MS,
   radioCatalogQuery,
   radioConfigQuery,
+  radioOfferQuery,
   radioRelaysQuery,
-  radioTagRulesQuery,
+  type RadioOfferStep,
 } from './queries';
+import { OfferTab } from './radio/OfferTab';
 import { OverviewTab } from './radio/OverviewTab';
 import { OwnStationsTab } from './radio/OwnStationsTab';
 import { SettingsTab } from './radio/SettingsTab';
 import { StationEditor } from './radio/StationEditor';
 import { StationsTab } from './radio/StationsTab';
-import { TagRulesTab } from './radio/TagRulesTab';
 
 const route = getRouteApi('/_authed/_active/_chrome/admin/radio');
 
-/** The tabs (R-16, concept 16 stage 2); the ids are part of links and stay stable. */
-const TABS = ['uebersicht', 'sender', 'einordnung', 'eigene', 'einstellungen'] as const;
+/**
+ * The tabs (R-16, concept 16 stage 2); the ids are part of links and stay stable. «Einordnung» is
+ * gone with the tag rules, «Angebot» is new (contract 1.28.0, concept 19 part B, B9.1).
+ */
+const TABS = ['uebersicht', 'angebot', 'sender', 'eigene', 'einstellungen'] as const;
 
 /**
  * Webradio in the administration (concept 16, 11; variant A «Reiter»): the counters, a warning
- * without RAM buffer, the tabs «Übersicht» (catalog, coverage, live relays, server load),
- * «Sender» (the exceptions first, the editor in `?item=`), «Einordnung» (tag rules, D-1 to D-4),
- * «Eigene Sender» and «Einstellungen». The tab is `?tab=` (S-14).
+ * without RAM buffer, the tabs «Übersicht» (catalog, offer, live relays, server load), «Angebot»
+ * (the stations the app shows, concept 19 part B), «Sender» (the offer or the whole catalog, the
+ * editor in `?item=`), «Eigene Sender» and «Einstellungen». The tab is `?tab=` (S-14). The draft
+ * of «Angebot» lives in the page, so it stays across the tabs (S-17), and leaving the page with
+ * it asks first (S-13).
  */
 export function RadioAdminPage() {
   const { t } = useTranslation();
@@ -69,30 +82,24 @@ function RadioAdminContent() {
   // The poll of the relays waits while a confirmation is open.
   const [holdPoll, setHoldPoll] = useState(false);
 
+  const [steps, setSteps] = useState<RadioOfferStep[]>([]);
+  const unsaved = useUnsavedChanges(steps.length > 0);
+
   const config = useQuery(radioConfigQuery);
   const catalog = useQuery(radioCatalogQuery);
+  const offer = useQuery(radioOfferQuery);
   const relays = useQuery({
     ...radioRelaysQuery,
     refetchInterval: tab === 'uebersicht' && !holdPoll ? RADIO_RELAYS_POLL_MS : false,
   });
-  // The number of exceptions for the counter: the first page of «Nur Ausnahmen» says the total.
-  const exceptions = useInfiniteQuery(adminRadioStationsQuery({ exceptions: true }));
-  // Coverage and open tags for «Übersicht» and the status strip (the server caches the answer).
-  const tagRules = useQuery(radioTagRulesQuery);
-  const openTags = tagRules.data?.openTags ?? 0;
-  const openRules = () => {
-    selectTab('einordnung');
-    // The button that asked for it goes with «Übersicht»: the chosen tab takes the focus.
-    void afterRender().then(() =>
-      document.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus(),
-    );
-  };
 
   const listeners = (relays.data?.relays ?? []).reduce(
     (sum, relay) => sum + relay.listeners.length,
     0,
   );
   const state = catalog.data;
+  const totals = offer.data?.totals;
+  const offerEmpty = totals !== undefined && totals.offered === 0;
   const status = (
     <StatusStrip
       label={t('admin.radio.strip.label')}
@@ -104,6 +111,18 @@ function RadioAdminContent() {
           note: state
             ? t('admin.radio.strip.catalogNote', { count: state.entriesTotal })
             : undefined,
+        },
+        {
+          key: 'offer',
+          label: t('admin.radio.strip.offer'),
+          value: totals
+            ? t('admin.radio.strip.offerValue', {
+                stations: number.format(totals.offered),
+                countries: number.format(totals.countries),
+              })
+            : '–',
+          note: t('admin.radio.strip.offerNote'),
+          tone: offerEmpty ? 'warning' : 'neutral',
         },
         {
           key: 'reachable',
@@ -126,24 +145,6 @@ function RadioAdminContent() {
           note: t('admin.radio.strip.liveNote'),
           tone: relays.data && relays.data.relays.length > 0 ? 'success' : 'neutral',
         },
-        {
-          key: 'changed',
-          label: t('admin.radio.strip.changed'),
-          value: number.format(exceptions.data?.pages[0]?.total ?? 0),
-          note: t('admin.radio.strip.changedNote'),
-        },
-        // Named while tags of more than 50 stations wait for a rule (paper 11).
-        ...(openTags > 0
-          ? [
-              {
-                key: 'tags',
-                label: t('admin.radio.strip.tags'),
-                value: number.format(openTags),
-                note: t('admin.radio.strip.tagsNote'),
-                tone: 'warning' as const,
-              },
-            ]
-          : []),
       ]}
     />
   );
@@ -162,6 +163,19 @@ function RadioAdminContent() {
         </Notice>
       )}
       {config.isError && <Notice tone="danger" title={problemMessage(t, config.error)} />}
+      {offerEmpty && tab !== 'angebot' && (
+        <Notice
+          tone="warning"
+          title={t('admin.radio.empty.title')}
+          actions={
+            <TextLink href={`${paths.adminRadio}?tab=angebot`}>
+              {t('admin.radio.empty.action')}
+            </TextLink>
+          }
+        >
+          {t('admin.radio.empty.body')}
+        </Notice>
+      )}
       <Tabs
         label={t('admin.radio.tabs.label')}
         selectedKey={tab}
@@ -173,23 +187,22 @@ function RadioAdminContent() {
             content: (
               <OverviewTab
                 catalog={catalog}
+                offer={offer}
                 relays={relays}
-                tagRules={tagRules}
-                onOpenRules={openRules}
                 titleRef={titleRef}
                 onConfirmOpenChange={setHoldPoll}
               />
             ),
           },
           {
-            id: 'sender',
-            label: t('admin.radio.tabs.stations'),
-            content: <StationsTab onEdit={openEditor} />,
+            id: 'angebot',
+            label: t('admin.radio.tabs.offer'),
+            content: <OfferTab steps={steps} onStepsChange={setSteps} titleRef={titleRef} />,
           },
           {
-            id: 'einordnung',
-            label: t('admin.radio.tabs.rules'),
-            content: <TagRulesTab titleRef={titleRef} />,
+            id: 'sender',
+            label: t('admin.radio.tabs.stations'),
+            content: <StationsTab onEdit={openEditor} titleRef={titleRef} />,
           },
           {
             id: 'eigene',
@@ -206,6 +219,7 @@ function RadioAdminContent() {
       {editing !== undefined && Number.isInteger(editing) && (
         <StationEditor stationId={editing} onClose={() => openEditor(undefined)} />
       )}
+      <ConfirmDialog {...unsaved.dialog} />
     </AdminPage>
   );
 }

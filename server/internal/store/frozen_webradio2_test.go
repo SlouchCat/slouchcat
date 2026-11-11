@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 )
 
@@ -12,11 +13,13 @@ import (
 // away and an ignored tag), an own station with its stream, languages, manual facets and locks and a
 // favourite, the cover cache with a hit and a miss, the cover switches (iTunes off) and the start
 // page row «Meine Sender» shown. TestFrozenStatesMigrate replays it like every state; this test
-// checks that each of those is really in it.
+// checks that each of those is really in it. Migration 00048 (concept 19 part B) discards the tag
+// rules, the manual facets and the facet locks, so those are checked in the script of the state.
 func TestFrozenWebradio2StateCoversTheConcept(t *testing.T) {
 	t.Parallel()
 	cfg := t.TempDir()
-	replay(t, cfg+"/"+FileName, frozenState(t, "webradio2.sql"))
+	script := frozenState(t, "webradio2.sql")
+	replay(t, cfg+"/"+FileName, script)
 	db, err := Open(context.Background(), Options{ConfigDir: cfg, Version: "frozen-test", Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 	if err != nil {
 		t.Fatal(err)
@@ -24,13 +27,10 @@ func TestFrozenWebradio2StateCoversTheConcept(t *testing.T) {
 	defer db.Close()
 	own := `(SELECT id FROM radio_stations WHERE source = 'own')`
 	for what, query := range map[string]string{
-		"a tag rule with a value":               `SELECT count(*) FROM radio_tag_rules WHERE facet = 'genre' AND value = 'pop'`,
-		"a tag rule without a value":            `SELECT count(*) FROM radio_tag_rules WHERE facet = 'kind' AND value IS NULL`,
-		"an ignored tag":                        `SELECT count(*) FROM radio_tag_rules WHERE facet = 'ignore'`,
 		"one own station":                       `SELECT count(*) = 1 FROM radio_stations WHERE source = 'own' AND group_key LIKE 'own:%' AND languages = '["de"]'`,
 		"the stream of the own station":         `SELECT count(*) FROM radio_streams WHERE station_id = ` + own + ` AND stationuuid IS NULL AND preferred = 1`,
-		"manual facets of the own station":      `SELECT count(*) FROM radio_station_facets WHERE station_id = ` + own + ` AND manual = 1`,
-		"locks of the own station":              `SELECT count(*) FROM radio_station_locks WHERE station_id = ` + own + ` AND field = 'genre'`,
+		"the region lock of the own station":    `SELECT count(*) FROM radio_station_locks WHERE station_id = ` + own + ` AND field = 'region'`,
+		"rules and manual facets gone by 00048": `SELECT (SELECT count(*) FROM radio_tag_rules) + (SELECT count(*) FROM radio_station_facets WHERE manual = 1) = 0`,
 		"the own station as a favourite":        `SELECT count(*) FROM radio_favorites WHERE station_id = ` + own,
 		"a found cover":                         `SELECT count(*) FROM radio_tracks WHERE state = 'found' AND source = 'musicbrainz' AND image_hash IS NOT NULL`,
 		"a missing cover":                       `SELECT count(*) FROM radio_tracks WHERE state = 'none' AND image_hash IS NULL`,
@@ -46,6 +46,17 @@ func TestFrozenWebradio2StateCoversTheConcept(t *testing.T) {
 		}
 		if n == 0 {
 			t.Errorf("frozen webradio2 state has no %s", what)
+		}
+	}
+	for what, row := range map[string]string{
+		"a tag rule with a value":          `INSERT INTO "radio_tag_rules" VALUES ('80s', 'genre', 'pop', `,
+		"a tag rule without a value":       `INSERT INTO "radio_tag_rules" VALUES ('news', 'kind', NULL, `,
+		"an ignored tag":                   `INSERT INTO "radio_tag_rules" VALUES ('fm', 'ignore', NULL, `,
+		"manual facets of the own station": `INSERT INTO "radio_station_facets" VALUES (59, 'genre', 'pop', 1);`,
+		"locks of the own station":         `INSERT INTO "radio_station_locks" VALUES (59, 'genre');`,
+	} {
+		if !strings.Contains(script, row) {
+			t.Errorf("frozen webradio2 script has no %s", what)
 		}
 	}
 }

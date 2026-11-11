@@ -217,8 +217,8 @@ type pickNullsKey struct{}
 
 // pickUpdateNulls records which top-level fields of a PATCH body are JSON null: the generated
 // request types cannot tell null (clear the field) from absent (keep it). It serves PATCH
-// /admin/spotlight/entries/{media}/{tmdbId} (SpotlightEntryOverride, M11), PATCH
-// /admin/radio/config and PATCH /admin/radio/stations/{stationId} (contract 1.17.0); it was made
+// /admin/spotlight/entries/{media}/{tmdbId} (SpotlightEntryOverride, M11) and PATCH
+// /admin/radio/stations/{stationId} (contract 1.17.0); it was made
 // for the PATCH of the former curated picks (gone with contract 1.23.0, ADR 0028), hence the
 // name. Field names match without regard to case, like encoding/json matches them when it decodes
 // the body ({"Note": null} clears the note as {"note": null} does). The body is handed on
@@ -230,8 +230,6 @@ func pickUpdateNulls(next http.Handler) http.Handler {
 		switch {
 		case strings.HasPrefix(r.URL.Path, BasePath+"/admin/spotlight/entries/"):
 			names = spotlightOverrideFields
-		case r.URL.Path == BasePath+"/admin/radio/config":
-			names = radioConfigNullFields
 		case strings.HasPrefix(r.URL.Path, BasePath+"/admin/radio/stations/"):
 			names = radioStationNullFields
 		}

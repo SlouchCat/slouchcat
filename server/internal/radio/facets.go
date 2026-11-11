@@ -1,7 +1,6 @@
 package radio
 
 import (
-	"slices"
 	"strings"
 	"unicode"
 
@@ -11,8 +10,8 @@ import (
 // Facets of a station (concept 16 section 5.4): genre, kind and mood derived from its raw tags
 // through the embedded tag rules (rules/default.json). A tag matches as a whole; a tag without a
 // whole match in a facet matches by its words («80s hits» → oldies and pop). A station without a
-// kind hit is music, unless its name says news, info or sport; mood is only set on a hit. A facet
-// the admin locked keeps its manual values (sync.go).
+// kind hit is music, unless its name says news, info or sport; mood is only set on a hit. Since
+// concept 19 part B (B5) nothing is assigned by hand: the rules file alone gives the values.
 
 // facetNames are the facets in their stored order.
 var facetNames = []string{rules.FacetGenre, rules.FacetKind, rules.FacetMood}
@@ -29,7 +28,7 @@ func tagWords(t string) []string {
 
 // deriveFacets returns the facet values of a station with name and (lower-cased) tags, each list
 // in the order of rules.Values, and whether the kind is only the default (no tag and no name word
-// gave one; the coverage of the tab «Einordnung» does not count it, D-4).
+// gave one).
 func deriveFacets(r rules.TagRules, name string, tags []string) (map[string][]string, bool) {
 	out := make(map[string][]string, len(facetNames))
 	kindDefault := false
@@ -67,6 +66,3 @@ func deriveFacets(r rules.TagRules, name string, tags []string) (map[string][]st
 	}
 	return out, kindDefault
 }
-
-// knownFacetValue reports whether v is a value of facet.
-func knownFacetValue(facet, v string) bool { return slices.Contains(rules.Values(facet), v) }

@@ -60,7 +60,7 @@ const ruleOptions = [
 ];
 
 /**
- * A select in a table row (the worklist of «Einordnung», concept 16 stage 2): the label for
+ * A select in a table row (as in an administration list): the label for
  * screen readers only, the options in groups.
  */
 export const GroupedHiddenLabel: Story = {

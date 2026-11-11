@@ -58,6 +58,12 @@ const (
 // logoWidths are the delivered widths; the size names of getRadioImage are w96, w256, w512.
 var logoWidths = []int{96, 256, 512}
 
+// logoPNGStored is the one width whose PNG is stored beside the WebP files. A larger PNG (for a
+// client without WebP) is made from the WebP of its width on request: the stored 256 and 512 px
+// PNGs took two thirds of the logo cache (measurement B0, docs/perf/19-radio.md; Marco's decision
+// of 11 November 2026).
+const logoPNGStored = 96
+
 // logoDir is the cache directory of a station's logo files, relative to the cache directory.
 func logoDir(stationID int64) string {
 	return filepath.Join("images", "radio", strconv.FormatInt(stationID, 10))
@@ -77,11 +83,13 @@ type logoPayload struct {
 	StationID int64 `json:"stationId"`
 }
 
-// queueLogos queues the logo job of the stations without a logo (and of those whose chain failed
-// more than 30 days ago); it is the onListed hook of lists, favourites and the sync.
-func (s *Service) queueLogos(ctx context.Context, stationIDs []int64) {
+// queueLogos queues, in the order given, the logo job of the stations without a logo (and of those
+// whose chain failed more than 30 days ago) and returns how many it queued; it serves the onListed
+// hook of lists, favourites and the start page, the sync, the apply of an offer and the own
+// stations. The administration's list and image route never call it (B7.2).
+func (s *Service) queueLogos(ctx context.Context, stationIDs []int64) int {
 	if s.o.queue == nil {
-		return
+		return 0
 	}
 	retry := sql.NullInt64{Int64: s.now().Add(-logoRetryAfter).UnixMilli(), Valid: true}
 	q := appq.New(s.db.Write)
@@ -100,15 +108,22 @@ func (s *Service) queueLogos(ctx context.Context, stationIDs []int64) {
 		if _, err := s.o.queue.Enqueue(ctx, jobs.NewJob{Type: JobLogoFetch, Priority: logoPriority,
 			IdempotencyKey: "radio.logo:" + strconv.FormatInt(id, 10), Payload: payload}); err != nil {
 			s.log.WarnContext(ctx, "enqueue radio logo", "station_id", id, "err", err)
+			// Without the job the station would stay «queued» for good: the next trigger queues it again.
+			if err := q.ResetRadioLogoQueued(context.WithoutCancel(ctx), id); err != nil {
+				s.log.WarnContext(ctx, "reset radio logo state", "station_id", id, "err", err)
+			}
 			continue
 		}
 		queued = append(queued, id)
 	}
+	return len(queued)
 }
 
-// queueSyncLogos queues the logos the catalog sync prefetches: the favourites of every profile
-// and the recommended stations.
-func (s *Service) queueSyncLogos(ctx context.Context) {
+// queueSyncLogos queues the logos the catalog sync prefetches (B7.2): of the stations this run
+// founded (created) that are in the offer (new stations of a country with «all»), of the
+// favourites of every profile and of the recommended stations, as far as they are in the offer;
+// favourites first, then by popularity. Nothing outside the offer is fetched (RF-8).
+func (s *Service) queueSyncLogos(ctx context.Context, created []int64) {
 	q := appq.New(s.db.Read)
 	favs, err := q.ListFavoriteStationIDsOfAllProfiles(ctx)
 	if err != nil {
@@ -118,9 +133,56 @@ func (s *Service) queueSyncLogos(ctx context.Context) {
 	if err != nil {
 		s.log.WarnContext(ctx, "list recommended radio stations", "err", err)
 	}
-	ids := append(favs, rec...)
-	slices.Sort(ids)
-	s.queueLogos(ctx, slices.Compact(ids))
+	idx, err := s.index(ctx)
+	if err != nil {
+		s.log.WarnContext(ctx, "radio index for the logo prefetch", "err", err)
+		return
+	}
+	o, err := s.offer(ctx)
+	if err != nil {
+		s.log.WarnContext(ctx, "radio offer for the logo prefetch", "err", err)
+		return
+	}
+	var list []*indexEntry
+	seen := map[int64]bool{}
+	for _, id := range slices.Concat(created, favs, rec) {
+		if e := idx.byID[id]; e != nil && !seen[id] && o.offered(e) {
+			seen[id] = true
+			list = append(list, e)
+		}
+	}
+	logoOrder(list, idSet(favs))
+	ids := make([]int64, 0, len(list))
+	for _, e := range list {
+		ids = append(ids, e.st.ID)
+	}
+	s.queueLogos(ctx, ids)
+}
+
+// removeLogoFiles removes the logo files of stations that are gone (the sync's deletes, a deleted
+// own station; B8), through the cache root (rule 4).
+func (s *Service) removeLogoFiles(ctx context.Context, stationIDs []int64) {
+	if len(stationIDs) == 0 || s.o.cacheDir == "" {
+		return
+	}
+	root, err := paths.NewRoot(s.o.cacheDir)
+	if err != nil {
+		s.log.WarnContext(ctx, "radio logo cache root", "err", err)
+		return
+	}
+	dir, err := paths.Open(root)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			s.log.WarnContext(ctx, "open the radio logo cache", "err", err)
+		}
+		return
+	}
+	defer dir.Close()
+	for _, id := range stationIDs {
+		if err := dir.RemoveAll(logoDir(id)); err != nil {
+			s.log.WarnContext(ctx, "remove radio logo files", "station_id", id, "err", err)
+		}
+	}
 }
 
 // handleLogo runs the logo chain of one station.
@@ -139,6 +201,22 @@ func (s *Service) handleLogo(ctx context.Context, j *jobs.Job) error {
 	if st.LogoState == logoStateOwn {
 		return nil
 	}
+	// Only a station in the offer gets a logo (RF-8): one that left it since the job was queued
+	// is fetched not at all; the next trigger queues it again when it comes back.
+	if offered, err := s.stationOffered(ctx, st.ID); err != nil {
+		return err
+	} else if !offered {
+		if err := appq.New(s.db.Write).ResetRadioLogoQueued(ctx, st.ID); err != nil {
+			return fmt.Errorf("reset radio logo state: %w", err)
+		}
+		return nil
+	}
+	// One job per host at a time (B7.2): a taken host sends the job back without an attempt.
+	hosts := logoHosts(st.FaviconUrl.String, st.Homepage.String)
+	if !s.logo.lockHosts(j.ID, hosts) {
+		return jobs.RetryLater(s.logo.retryDelay(j.ID, hosts, s.now()), "another radio logo job fetches from the same host")
+	}
+	defer s.logo.unlockHosts(hosts)
 	src, state := s.fetchLogo(ctx, st)
 	hash := sql.NullString{}
 	if src != nil {
@@ -160,6 +238,16 @@ func (s *Service) handleLogo(ctx context.Context, j *jobs.Job) error {
 	}
 	if n > 0 {
 		s.onStationChanged(ctx, st.ID)
+		// The station may have left the offer while the chain ran.
+		if offered, err := s.stationOffered(ctx, st.ID); err == nil && !offered {
+			s.dropLogos(ctx, []int64{st.ID})
+		}
+		return nil
+	}
+	// The sync may have deleted the station while the chain ran: the files just written would
+	// stay behind for good (B8).
+	if _, err := appq.New(s.db.Read).GetRadioStation(ctx, st.ID); errors.Is(err, sql.ErrNoRows) {
+		s.removeLogoFiles(ctx, []int64{st.ID})
 	}
 	return nil
 }
@@ -182,7 +270,7 @@ func (s *Service) fetchLogo(ctx context.Context, st appq.RadioStation) ([]byte, 
 	return nil, logoStateFailed
 }
 
-// logoGet fetches one URL of the chain through the guarded client, at most two requests a
+// logoGet fetches one URL of the chain through the guarded client, at most four requests a
 // second for all logo jobs together.
 func (s *Service) logoGet(ctx context.Context, rawURL string, limit int64) ([]byte, error) {
 	if u, err := url.Parse(rawURL); err != nil || u.Scheme != "http" && u.Scheme != "https" {
@@ -191,6 +279,11 @@ func (s *Service) logoGet(ctx context.Context, rawURL string, limit int64) ([]by
 	if err := s.logo.limiter.Wait(ctx); err != nil {
 		return nil, err
 	}
+	// A whole request has a deadline: a homepage that never ends (an event stream such as
+	// api.zeno.fm/mounts/metadata/subscribe/…) would otherwise hold the worker and the host lock
+	// of the job for good, and every other job of that host would wait behind it.
+	ctx, cancel := context.WithTimeout(ctx, s.logo.fetchTimeout)
+	defer cancel()
 	b, _, err := s.netClient().get(ctx, rawURL, limit)
 	return b, err
 }
@@ -390,8 +483,11 @@ func (s *Service) renderLogo(ctx context.Context, stationID int64, src []byte) (
 	defer os.Remove(in)
 	var outs []transcode.ImageOutput
 	for _, w := range logoWidths {
-		for _, f := range []transcode.ImageFormat{transcode.ImageWebP, transcode.ImagePNG} {
-			outs = append(outs, transcode.ImageOutput{Path: filepath.Join(dir, logoFile(w, f)+".tmp"), Width: w, Format: f})
+		outs = append(outs, transcode.ImageOutput{Path: filepath.Join(dir, logoFile(w, transcode.ImageWebP)+".tmp"),
+			Width: w, Format: transcode.ImageWebP})
+		if w == logoPNGStored {
+			outs = append(outs, transcode.ImageOutput{Path: filepath.Join(dir, logoFile(w, transcode.ImagePNG)+".tmp"),
+				Width: w, Format: transcode.ImagePNG})
 		}
 	}
 	if err := s.o.runner.SquareImage(ctx, in, format, outs); err != nil {
@@ -489,8 +585,9 @@ func (s *Service) writeOwnLogo(ctx context.Context, stationID int64, state strin
 }
 
 // Image opens a station logo (kind logo; size w96, w256 or w512) as WebP or PNG. Without admin the
-// viewer rules apply (hidden or excluded stations are model.ErrNotFound); no logo is
-// model.ErrNotFound as well. The caller closes the file.
+// viewer rules apply (stations outside the offer are model.ErrNotFound); no logo is
+// model.ErrNotFound as well. It only reads the cache and queues nothing. The caller closes the
+// file.
 func (s *Service) Image(ctx context.Context, stationID int64, kind, size string, webp, admin bool) (model.StreamSource, error) {
 	width, err := strconv.Atoi(strings.TrimPrefix(size, "w"))
 	if kind != "logo" || err != nil || !strings.HasPrefix(size, "w") || !slices.Contains(logoWidths, width) {
@@ -524,6 +621,9 @@ func (s *Service) Image(ctx context.Context, stationID int64, kind, size string,
 		return model.StreamSource{}, err
 	}
 	defer dir.Close() // files opened through the root stay usable after it is closed
+	if format == transcode.ImagePNG && width != logoPNGStored {
+		return s.pngFromWebP(ctx, dir, stationID, width, size, st.LogoHash.String)
+	}
 	f, err := dir.Open(filepath.Join(logoDir(stationID), logoFile(width, format)))
 	if errors.Is(err, fs.ErrNotExist) {
 		s.log.WarnContext(ctx, "radio logo without file", "station_id", stationID, "size", size)
@@ -538,4 +638,193 @@ func (s *Service) Image(ctx context.Context, stationID int64, kind, size string,
 	}
 	return model.StreamSource{File: f, MediaType: mediaType, Size: info.Size(), ModTime: info.ModTime().UTC(),
 		Name: "radio/" + strconv.FormatInt(stationID, 10) + "/logo/" + size, ETag: `"` + st.LogoHash.String + "-" + size + "-" + string(format) + `"`}, nil
+}
+
+// pngFromWebP makes the PNG of a width that is not stored from the WebP file of that width (a
+// client without WebP; logoPNGStored). The square WebP is re-encoded, not scaled; the result is
+// not stored, the image URL carries the logo hash, so a client caches it.
+func (s *Service) pngFromWebP(ctx context.Context, dir *os.Root, stationID int64, width int, size, hash string) (model.StreamSource, error) {
+	f, err := dir.Open(filepath.Join(logoDir(stationID), logoFile(width, transcode.ImageWebP)))
+	if errors.Is(err, fs.ErrNotExist) {
+		s.log.WarnContext(ctx, "radio logo without file", "station_id", stationID, "size", size)
+		return model.StreamSource{}, model.ErrNotFound
+	}
+	if err != nil {
+		return model.StreamSource{}, err
+	}
+	info, err := f.Stat()
+	if err != nil {
+		return model.StreamSource{}, errors.Join(err, f.Close())
+	}
+	src, err := io.ReadAll(io.LimitReader(f, maxLogoBytes))
+	if err := errors.Join(err, f.Close()); err != nil {
+		return model.StreamSource{}, err
+	}
+	// At most logoPNGSlots conversions run at once: a list of logos for a client without WebP
+	// would otherwise start one ffmpeg per logo.
+	select {
+	case s.logo.pngSlots <- struct{}{}:
+		defer func() { <-s.logo.pngSlots }()
+	case <-ctx.Done():
+		return model.StreamSource{}, ctx.Err()
+	}
+	// The temporary files live in the cache directory, which is writable in every set-up.
+	tmp, err := os.MkdirTemp(s.o.cacheDir, ".radio-logo-png-")
+	if err != nil {
+		return model.StreamSource{}, err
+	}
+	defer os.RemoveAll(tmp)
+	work, err := os.OpenRoot(tmp) // the two files of the conversion stay inside the temporary directory
+	if err != nil {
+		return model.StreamSource{}, err
+	}
+	defer work.Close()
+	if err := work.WriteFile("in.webp", src, 0o600); err != nil {
+		return model.StreamSource{}, err
+	}
+	err = s.o.runner.SquareImage(ctx, filepath.Join(tmp, "in.webp"), "webp_pipe",
+		[]transcode.ImageOutput{{Path: filepath.Join(tmp, "out.png"), Width: width, Format: transcode.ImagePNG}})
+	if err != nil {
+		return model.StreamSource{}, fmt.Errorf("radio logo png from webp: %w", err)
+	}
+	b, err := work.ReadFile("out.png")
+	if err != nil {
+		return model.StreamSource{}, err
+	}
+	return model.StreamSource{File: nopReadSeekCloser{bytes.NewReader(b)}, MediaType: "image/png", Size: int64(len(b)),
+		ModTime: info.ModTime().UTC(), Name: "radio/" + strconv.FormatInt(stationID, 10) + "/logo/" + size,
+		ETag: `"` + hash + "-" + size + "-" + string(transcode.ImagePNG) + `"`}, nil
+}
+
+// nopReadSeekCloser is a ReadSeeker with a Close that does nothing (an image made in memory).
+type nopReadSeekCloser struct{ io.ReadSeeker }
+
+func (nopReadSeekCloser) Close() error { return nil }
+
+// removeStoredLargePNGs deletes the 256 and 512 px PNG files earlier versions stored for every
+// logo (logoPNGStored), below <cacheDir>/images/radio only. It runs once at every start in the
+// background; after the first run there is nothing left to remove.
+func (s *Service) removeStoredLargePNGs(ctx context.Context) {
+	if s.o.cacheDir == "" {
+		return
+	}
+	root, err := paths.NewRoot(s.o.cacheDir)
+	if err != nil {
+		s.log.WarnContext(ctx, "radio logo cache root", "err", err)
+		return
+	}
+	dir, err := paths.Open(root)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			s.log.WarnContext(ctx, "open the radio logo cache", "err", err)
+		}
+		return
+	}
+	defer dir.Close()
+	base := filepath.Join("images", "radio")
+	entries, err := fs.ReadDir(dir.FS(), filepath.ToSlash(base))
+	if errors.Is(err, fs.ErrNotExist) {
+		return
+	}
+	if err != nil {
+		s.log.WarnContext(ctx, "list the radio logo cache", "err", err)
+		return
+	}
+	removed := 0
+	for _, e := range entries {
+		if ctx.Err() != nil {
+			return
+		}
+		if _, err := strconv.ParseInt(e.Name(), 10, 64); err != nil || !e.IsDir() {
+			continue // only the directories of stations
+		}
+		for _, w := range logoWidths {
+			if w == logoPNGStored {
+				continue
+			}
+			err := dir.Remove(filepath.Join(base, e.Name(), logoFile(w, transcode.ImagePNG)))
+			switch {
+			case err == nil:
+				removed++
+			case !errors.Is(err, fs.ErrNotExist):
+				s.log.WarnContext(ctx, "remove a stored radio logo png", "station", e.Name(), "err", err)
+			}
+		}
+	}
+	if removed > 0 {
+		s.log.InfoContext(ctx, "radio logo pngs of 256 and 512 px removed", "files", removed)
+	}
+}
+
+// stationOffered reports whether a station is in the offer now.
+func (s *Service) stationOffered(ctx context.Context, id int64) (bool, error) {
+	idx, err := s.index(ctx)
+	if err != nil {
+		return false, err
+	}
+	o, err := s.offer(ctx)
+	if err != nil {
+		return false, err
+	}
+	e := idx.byID[id]
+	if e == nil { // a station the index does not know yet (written since its last load)
+		s.reloadStation(ctx, id)
+		if idx, err = s.index(ctx); err != nil {
+			return false, err
+		}
+		e = idx.byID[id]
+	}
+	return e != nil && o.offered(e), nil
+}
+
+// dropLogosOutsideOffer removes the fetched logos of every station outside the offer: the files
+// below images/radio/<id>/ and the logo state, so the chain runs again when the station comes
+// back. An own upload stays. Marco's decision of 11 November 2026: a station has a logo only while
+// it is in the offer. It runs at the start, after an apply and after a sync; holding offerMu keeps
+// an apply from adding a station while its logo goes.
+func (s *Service) dropLogosOutsideOffer(ctx context.Context) {
+	s.cat.offerMu.Lock()
+	defer s.cat.offerMu.Unlock()
+	idx, err := s.index(ctx)
+	if err != nil {
+		s.log.WarnContext(ctx, "drop radio logos outside the offer", "err", err)
+		return
+	}
+	o, err := s.offerLocked(ctx)
+	if err != nil {
+		s.log.WarnContext(ctx, "drop radio logos outside the offer", "err", err)
+		return
+	}
+	var ids []int64
+	for _, e := range idx.entries {
+		if e.st.LogoHash != "" && !o.offered(e) {
+			ids = append(ids, e.st.ID)
+		}
+	}
+	if n := s.dropLogos(ctx, ids); n > 0 {
+		s.log.InfoContext(ctx, "radio logos of stations outside the offer removed", "stations", n)
+	}
+}
+
+// dropLogos forgets the fetched logos of the stations (own uploads stay) and removes their files;
+// it returns how many it dropped.
+func (s *Service) dropLogos(ctx context.Context, ids []int64) int {
+	if len(ids) == 0 {
+		return 0
+	}
+	q := appq.New(s.db.Write)
+	var dropped []int64
+	for _, id := range ids {
+		n, err := q.ClearRadioLogo(ctx, id)
+		if err != nil {
+			s.log.WarnContext(ctx, "clear radio logo", "station_id", id, "err", err)
+			continue
+		}
+		if n > 0 {
+			dropped = append(dropped, id)
+		}
+	}
+	s.removeLogoFiles(ctx, dropped)
+	s.onStationsChanged(ctx, dropped)
+	return len(dropped)
 }

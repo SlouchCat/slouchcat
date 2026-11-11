@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formErrors } from '@/api/errors';
-import { countryName, facetValueName } from '@/app/radio/labels';
+import { countryName } from '@/app/radio/labels';
 import { radioQueryParams } from '@/features/radio/filters';
 import { radioFacetsQuery } from '@/features/radio/queries';
 import { Notice, SelectField } from '@/ui';
@@ -12,7 +12,6 @@ import {
   type AdminRadioStation,
   type AdminRadioStationCreate,
 } from '../queries';
-import { facetValues, KINDS } from './facets';
 import { languageCodes } from './languages';
 import styles from './Radio.module.css';
 
@@ -26,8 +25,6 @@ interface Draft {
   country: string;
   region: string;
   languages: string;
-  genre: string;
-  kind: string;
 }
 
 const empty: Draft = {
@@ -37,8 +34,6 @@ const empty: Draft = {
   country: '',
   region: '',
   languages: '',
-  genre: '',
-  kind: '',
 };
 
 /** The body of `createRadioStation`: the fields given, the codes as the contract wants them. */
@@ -53,8 +48,6 @@ function bodyOf(draft: Draft): AdminRadioStationCreate {
     ...(draft.country ? { country: draft.country } : {}),
     ...(region ? { region } : {}),
     ...(languages.length > 0 ? { languages } : {}),
-    ...(draft.genre ? { genres: [draft.genre] } : {}),
-    ...(draft.kind ? { kinds: [draft.kind] } : {}),
   };
 }
 
@@ -66,8 +59,9 @@ interface CreateStationDialogProps {
 
 /**
  * «Eigenen Sender hinzufügen» (concept 16, 5.6; D-8): name and stream address, optionally
- * homepage, country, region, languages, genre and kind. The server refuses an address in the
- * local network (`local_address`, F-15); the message stands at the field.
+ * homepage, country, region and languages; genre and kind follow from the name through the
+ * server's rules file (contract 1.28.0). The server refuses an address in the local network
+ * (`local_address`, F-15); the message stands at the field.
  */
 export function CreateStationDialog({ onClose, onCreated }: CreateStationDialogProps) {
   const { t, i18n } = useTranslation();
@@ -166,29 +160,6 @@ export function CreateStationDialog({ onClose, onCreated }: CreateStationDialogP
           value={draft.languages}
           onChange={(value) => set('languages', value)}
         />
-        <div className={styles.formRow}>
-          <SelectField
-            label={t('admin.radio.editor.genre')}
-            value={draft.genre}
-            options={[
-              { value: '', label: t('admin.radio.own.fields.none') },
-              ...facetValues(
-                'genre',
-                (facets.data?.genre ?? []).map((entry) => entry.value),
-              ).map((value) => ({ value, label: facetValueName(t, 'genre', value) })),
-            ]}
-            onChange={(value) => set('genre', value)}
-          />
-          <SelectField
-            label={t('admin.radio.editor.kind')}
-            value={draft.kind}
-            options={[
-              { value: '', label: t('admin.radio.own.fields.kindAuto') },
-              ...KINDS.map((value) => ({ value, label: facetValueName(t, 'kind', value) })),
-            ]}
-            onChange={(value) => set('kind', value)}
-          />
-        </div>
         <div className={styles.dialogActions}>
           <AriaButton variant="ghost" onPress={onClose}>
             {t('common.cancel')}

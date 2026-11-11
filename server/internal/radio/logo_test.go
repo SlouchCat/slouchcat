@@ -6,19 +6,28 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
 	"io"
+	"io/fs"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/netguard"
 	"github.com/slouchcat/slouchcat/server/internal/radio/radiotest"
+	"github.com/slouchcat/slouchcat/server/internal/ratelimit"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 )
 
@@ -121,13 +130,12 @@ func TestLogoChainFavicon(t *testing.T) {
 	if _, err := e.s.Image(context.Background(), id, "logo", "w128", false, false); !errors.Is(err, model.ErrNotFound) {
 		t.Fatalf("unknown size: %v", err)
 	}
-	e.exec(`UPDATE radio_stations SET hidden = 1 WHERE id = ?`, id)
-	e.s.reloadStation(context.Background(), id) // the index view decides visibility (M-5)
+	e.setOffered(id, false) // the offer decides visibility (B4.2)
 	if _, err := e.s.Image(context.Background(), id, "logo", "w96", true, false); !errors.Is(err, model.ErrNotFound) {
-		t.Fatalf("logo of a hidden station for a viewer: %v", err)
+		t.Fatalf("logo of a station outside the offer for a viewer: %v", err)
 	}
 	if src, err := e.s.Image(context.Background(), id, "logo", "w96", true, true); err != nil {
-		t.Fatalf("logo of a hidden station for the administration: %v", err)
+		t.Fatalf("logo of a station outside the offer for the administration: %v", err)
 	} else {
 		_ = src.File.Close()
 	}
@@ -284,6 +292,8 @@ func TestOwnLogoWins(t *testing.T) {
 	}
 }
 
+// The sync prefetches the logos of the stations it founded in the offer, of the favourites and of
+// the recommended ones in the offer, favourites first (B7.2); nothing outside the offer.
 func TestLogoJobTypeAndSyncPrefetch(t *testing.T) {
 	e := newLogoEnv(t)
 	jt := e.s.logoJobType()
@@ -295,16 +305,347 @@ func TestLogoJobTypeAndSyncPrefetch(t *testing.T) {
 	fav := e.addStation("Fav FM", "CH", "MP3", 128)
 	rec := e.addStation("Rec FM", "CH", "MP3", 128)
 	other := e.addStation("Other FM", "CH", "MP3", 128)
-	e.exec(`INSERT INTO radio_favorites (profile_id, station_id, position, created_at) VALUES (?, ?, 1, 1)`, e.f.P6.ID, fav)
-	e.exec(`UPDATE radio_stations SET recommended = 1 WHERE id = ?`, rec)
-	e.s.queueSyncLogos(context.Background())
-	for id, want := range map[int64]string{fav: "queued", rec: "queued", other: logoStateNone} {
+	created := e.addStation("New FM", "CH", "MP3", 128)
+	createdOut := e.addStation("New Out FM", "CH", "MP3", 128)
+	favOut := e.addStation("Fav Out FM", "CH", "MP3", 128)
+	recOut := e.addStation("Rec Out FM", "CH", "MP3", 128)
+	for _, id := range []int64{createdOut, favOut, recOut} {
+		e.setOffered(id, false)
+	}
+	e.exec(`INSERT INTO radio_favorites (profile_id, station_id, position, created_at) VALUES (?, ?, 1, 1), (?, ?, 2, 1)`,
+		e.f.P6.ID, fav, e.f.P6.ID, favOut)
+	e.exec(`UPDATE radio_stations SET recommended = 1 WHERE id IN (?, ?)`, rec, recOut)
+	e.exec(`UPDATE radio_stations SET votes = 100 WHERE id = ?`, created) // popular, still after the favourite
+	e.s.queueSyncLogos(context.Background(), []int64{created, createdOut})
+	for id, want := range map[int64]string{fav: "queued", rec: "queued", created: "queued", other: logoStateNone,
+		createdOut: logoStateNone, favOut: logoStateNone, recOut: logoStateNone} {
 		if st := e.stationRow(id); st.LogoState != want {
 			t.Errorf("station %d: logo state %q, want %q", id, st.LogoState, want)
 		}
 	}
-	var n int
-	if err := e.f.DB.Read.QueryRow(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key LIKE 'radio.logo:%'`, JobLogoFetch).Scan(&n); err != nil || n != 2 {
-		t.Fatalf("%d logo jobs queued (%v), want 2", n, err)
+	rows, err := e.f.DB.Read.Query(`SELECT idempotency_key FROM jobs WHERE type = ? ORDER BY id`, JobLogoFetch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var keys []string
+	for rows.Next() {
+		var k string
+		if err := rows.Scan(&k); err != nil {
+			t.Fatal(err)
+		}
+		keys = append(keys, k)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{fmt.Sprintf("radio.logo:%d", fav), fmt.Sprintf("radio.logo:%d", created), fmt.Sprintf("radio.logo:%d", rec)}
+	if !slices.Equal(keys, want) {
+		t.Fatalf("logo jobs %v, want %v (favourite, then by popularity)", keys, want)
+	}
+}
+
+// PB-5: 77 logo jobs of one host never fetch at the same time, whatever the workers: a job whose
+// host is taken goes back to the queue (jobs.RetryLater) instead of waiting, so a scan job is
+// taken at once while a logo job holds the host. The drossel of all logo jobs is lifted here; the
+// test is about the lock.
+func TestLogoJobsOneAtATimePerHost(t *testing.T) {
+	e := newLogoEnv(t)
+	e.s.logo.limiter = ratelimit.New("radio-logo-test", 1000, 1000)
+	e.s.logo.hostRetry, e.s.logo.jobSpread = time.Millisecond, time.Millisecond
+	var cur, peak, fetched, atFirst atomic.Int32
+	holding := make(chan struct{})
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := cur.Add(1)
+		defer cur.Add(-1)
+		for p := peak.Load(); n > p && !peak.CompareAndSwap(p, n); p = peak.Load() {
+		}
+		fetched.Add(1)
+		if r.URL.Path == "/first.png" {
+			// Another job of the host may have run before this one (two workers claim in any
+			// order); what counts is that none runs while this one holds the host.
+			atFirst.Store(fetched.Load())
+			close(holding)
+			<-release
+		}
+		time.Sleep(time.Millisecond)
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	ids := make([]int64, 0, 77)
+	for i := range 77 {
+		id := e.addStation(fmt.Sprintf("Kanal %02d", i), "CH", "MP3", 128)
+		path := fmt.Sprintf("/logo-%02d.png", i)
+		if i == 0 {
+			path = "/first.png"
+		}
+		e.exec(`UPDATE radio_stations SET favicon_url = ? WHERE id = ?`, srv.URL+path, id)
+		ids = append(ids, id)
+	}
+	q := e.s.o.queue
+	if n := e.s.queueLogos(context.Background(), ids); n != 77 {
+		t.Fatalf("queued %d logo jobs, want 77", n)
+	}
+	scanned := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	for _, name := range []string{"w1", "w2"} {
+		w := jobs.NewWorker(q, name, testLogger())
+		w.Handle(JobLogoFetch, e.s.handleLogo)
+		w.Handle("test.scan", func(context.Context, *jobs.Job) error { close(scanned); return nil })
+		wg.Go(func() { w.Run(ctx) })
+	}
+	t.Cleanup(func() { cancel(); wg.Wait() })
+	select {
+	case <-holding:
+	case <-time.After(10 * time.Second):
+		t.Fatal("no logo job fetched the first logo")
+	}
+	if _, err := q.Enqueue(context.Background(), jobs.NewJob{Type: "test.scan", Priority: 9, Payload: []byte(`{}`)}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-scanned:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the scan job waited behind the logo jobs of one host")
+	}
+	if n, k := fetched.Load(), atFirst.Load(); n != k {
+		t.Errorf("%d fetches while the first job held the host, want none (%d before it)", n-k, k-1)
+	}
+	close(release)
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		var open int
+		if err := e.f.DB.Read.QueryRow(`SELECT count(*) FROM jobs WHERE type = ? AND state <> 'done'`, JobLogoFetch).Scan(&open); err != nil {
+			t.Fatal(err)
+		}
+		if open == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("%d logo jobs still open", open)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if fetched.Load() != 77 || peak.Load() != 1 {
+		t.Errorf("%d fetches, at most %d at a time; want 77, one at a time", fetched.Load(), peak.Load())
+	}
+	for _, id := range ids {
+		if st := e.stationRow(id); st.LogoState != logoStateFailed {
+			t.Fatalf("station %d: logo state %q, want failed (404)", id, st.LogoState)
+		}
+	}
+}
+
+// The logo job takes the hosts of the catalog's logo address and of the homepage before a
+// redirect; a host taken by one job sends the next job back (B7.2).
+func TestLogoHostLock(t *testing.T) {
+	t.Parallel()
+	if got := logoHosts("https://Radio.Example/a.png", "https://radio.example/", "http://other.example/", "", "%zz"); !slices.Equal(got,
+		[]string{"radio.example", "other.example"}) {
+		t.Errorf("hosts %v", got)
+	}
+	l := newLogoState()
+	if !l.lockHosts(1, []string{"a.example", "b.example"}) || l.lockHosts(2, []string{"b.example"}) || !l.lockHosts(3, []string{"c.example"}) {
+		t.Fatal("locks of a taken and a free host")
+	}
+	l.unlockHosts([]string{"a.example", "b.example"})
+	if !l.lockHosts(2, []string{"b.example"}) {
+		t.Error("a host given back is still taken")
+	}
+	if l.limiter == nil || l.hostRetry != 15*time.Second {
+		t.Errorf("limiter %v, retry %v", l.limiter, l.hostRetry)
+	}
+	// The waits of the jobs of a busy host spread over 15 s plus 15 s and 2 s per waiting job, so
+	// they do not all wake at once and a long queue does not come back every few seconds.
+	now := time.Date(2026, 11, 11, 12, 0, 0, 0, time.UTC)
+	busy := []string{"busy.example"}
+	seen := map[time.Duration]bool{}
+	var longest time.Duration
+	for i := range 100 {
+		d := l.retryDelay(int64(100+i), busy, now)
+		if d < 15*time.Second || d >= 15*time.Second+15*time.Second+time.Duration(i+1)*2*time.Second {
+			t.Fatalf("retry delay %v of waiter %d outside its window", d, i+1)
+		}
+		seen[d], longest = true, max(longest, d)
+	}
+	if len(seen) < 50 || longest < 60*time.Second {
+		t.Errorf("%d different delays, longest %v: the waits of 100 jobs do not spread", len(seen), longest)
+	}
+	if d := l.retryDelay(999, []string{"quiet.example"}, now); d >= 32*time.Second {
+		t.Errorf("first waiter of another host waits %v, want under 32 s", d)
+	}
+	// A job that takes its host no longer counts; a waiter older than an hour neither.
+	l.lockHosts(100, busy)
+	if _, ok := l.waiting[100]; ok {
+		t.Error("the job that took the host still waits")
+	}
+	l.retryDelay(5000, busy, now.Add(2*time.Hour))
+	if len(l.waiting) != 1 {
+		t.Errorf("%d waiters after an hour, want only the new one", len(l.waiting))
+	}
+	// Four requests a second (OB-11): a fresh limiter lets four through at once, not a fifth.
+	for i := range 5 {
+		if got := l.limiter.Allow(); got != (i < 4) {
+			t.Errorf("request %d allowed = %v, want %v", i+1, got, i < 4)
+		}
+	}
+}
+
+// Measurement B0: a homepage that never ends (an event stream that sends a line now and then)
+// stops at the deadline of the request; the job ends as failed and gives the host back, so the
+// next job of that host runs.
+func TestLogoChainEndlessHomepage(t *testing.T) {
+	e := newLogoEnv(t)
+	e.s.logo.fetchTimeout = 300 * time.Millisecond
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		for {
+			if _, err := io.WriteString(w, "data: {}\n\n"); err != nil {
+				return
+			}
+			w.(http.Flusher).Flush()
+			select {
+			case <-r.Context().Done():
+				return
+			case <-time.After(50 * time.Millisecond):
+			}
+		}
+	}))
+	t.Cleanup(srv.Close)
+	id := e.addStation("Endless FM", "CH", "MP3", 128)
+	e.exec(`UPDATE radio_stations SET homepage = ? WHERE id = ?`, srv.URL+"/mounts/metadata/subscribe/x", id)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		e.runLogoJob(id)
+	}()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the logo job still reads the endless homepage")
+	}
+	if st := e.stationRow(id); st.LogoState != logoStateFailed {
+		t.Errorf("state %q, want failed", st.LogoState)
+	}
+	if !e.s.logo.lockHosts(1, logoHosts(srv.URL)) {
+		t.Error("the host is still held after the job")
+	}
+}
+
+// Marco's decision of 11 November 2026 (measurement B0): a logo stores WebP in 96, 256 and 512 px
+// and PNG in 96 px only; a client without WebP gets the 256 and 512 px PNG made from the WebP of
+// that width, a square of that width, with the same validator as before.
+func TestLogoStoresOnlyTheSmallPNG(t *testing.T) {
+	e := newLogoEnv(t)
+	id := e.addStation("Logo FM", "CH", "MP3", 128)
+	e.exec(`UPDATE radio_stations SET favicon_url = ? WHERE id = ?`, serve(e.st, "/fav.png", "image/png", pngOf(t, 300, 200)), id)
+	e.runLogoJob(id)
+	dir := filepath.Join(e.s.o.cacheDir, logoDir(id))
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, en := range entries {
+		names = append(names, en.Name())
+	}
+	want := []string{"logo-w256.webp", "logo-w512.webp", "logo-w96.png", "logo-w96.webp"}
+	if !slices.Equal(names, want) {
+		t.Fatalf("stored files %v, want %v", names, want)
+	}
+	e.checkLogoFiles(id) // every width in both formats, PNG as a square of its width
+	st := e.stationRow(id)
+	src, err := e.s.Image(context.Background(), id, "logo", "w512", false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer src.File.Close()
+	if src.MediaType != "image/png" || src.ETag != `"`+st.LogoHash.String+`-w512-png"` || src.Size == 0 {
+		t.Errorf("w512 png source = %q %q %d", src.MediaType, src.ETag, src.Size)
+	}
+	if names, _ := os.ReadDir(dir); len(names) != len(want) {
+		t.Errorf("serving the PNG stored a file: %d files", len(names))
+	}
+	if left, _ := filepath.Glob(filepath.Join(e.s.o.cacheDir, ".radio-logo-png-*")); len(left) != 0 {
+		t.Errorf("temporary files left: %v", left)
+	}
+	// Without the WebP of a width there is no PNG of it either.
+	if err := os.Remove(filepath.Join(dir, "logo-w256.webp")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.s.Image(context.Background(), id, "logo", "w256", false, false); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("w256 png without its webp: %v, want not found", err)
+	}
+}
+
+// The start removes the 256 and 512 px PNGs earlier versions stored, only in the directories of
+// stations below images/radio; every other file stays.
+func TestStartRemovesTheStoredLargePNGs(t *testing.T) {
+	e := newLogoEnv(t)
+	cache := e.s.o.cacheDir
+	write := func(rel string) {
+		t.Helper()
+		p := filepath.Join(cache, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	keep := []string{"images/radio/7/logo-w96.png", "images/radio/7/logo-w96.webp", "images/radio/7/logo-w256.webp",
+		"images/radio/7/logo-w512.webp", "images/radio/notastation/logo-w512.png", "images/items/1/logo-w512.png"}
+	gone := []string{"images/radio/7/logo-w256.png", "images/radio/7/logo-w512.png", "images/radio/8/logo-w512.png"}
+	for _, rel := range append(slices.Clone(keep), gone...) {
+		write(rel)
+	}
+	// A link to a file or a directory outside the cache stays, and so does its target.
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "logo-w512.png"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(outside, "logo-w512.png"), filepath.Join(cache, "images/radio/8/logo-w256.png")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(cache, "images/radio/9")); err != nil {
+		t.Fatal(err)
+	}
+	e.s.removeStoredLargePNGs(context.Background())
+	if _, err := os.Stat(filepath.Join(outside, "logo-w512.png")); err != nil {
+		t.Errorf("target outside the cache: %v, want kept", err)
+	}
+	for _, rel := range keep {
+		if _, err := os.Stat(filepath.Join(cache, rel)); err != nil {
+			t.Errorf("%s: %v, want kept", rel, err)
+		}
+	}
+	for _, rel := range gone {
+		if _, err := os.Stat(filepath.Join(cache, rel)); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("%s: %v, want removed", rel, err)
+		}
+	}
+}
+
+// A logo job of a station that left the offer since it was queued fetches nothing and gives the
+// station back to «none», so it is queued again when it comes back (RF-8).
+func TestLogoJobOutsideTheOfferFetchesNothing(t *testing.T) {
+	e := newLogoEnv(t)
+	var hits atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	id := e.addStation("Gone FM", "CH", "MP3", 128)
+	e.exec(`UPDATE radio_stations SET favicon_url = ?, logo_state = 'queued' WHERE id = ?`, srv.URL+"/fav.png", id)
+	e.setOffered(id, false)
+	e.runLogoJob(id)
+	if n := hits.Load(); n != 0 {
+		t.Errorf("%d requests for a station outside the offer", n)
+	}
+	if st := e.stationRow(id); st.LogoState != logoStateNone {
+		t.Errorf("state %q, want none", st.LogoState)
 	}
 }
