@@ -28,13 +28,15 @@ import (
 // on «Laden»), whose download waits or runs, that failed within six hours, for the first time more
 // than seven days ago or for good (too_large, not_audio, unsupported_format), whose format the
 // scanner does not read (O-3), and those the riegel find a file for (paired instead) or call
-// unclear (section 8). An episode whose failure may be tried again is loaded whatever the scope. It cancels the waiting downloads that
-// are no longer wanted (a smaller scope, a smaller N); after a change of the setting to «Nur
-// Link» it cancels the running ones and those of the buttons as well. Stored files stay (F-4).
+// unclear (section 8). An episode whose failure may be tried again is loaded whatever the scope.
+// It cancels the waiting downloads that are no longer wanted (a smaller scope, a smaller N); after
+// a change of the setting from «Speichern» to «Nur Link» it cancels the running ones and those of
+// the buttons as well. Stored files stay (F-4). The runs of one podcast share the key
+// podcast-sync:<podcastId>; a later event joins a waiting or running one.
 
 // Job types of the planner.
 const (
-	JobPodcastSync    = "podcast.sync"     // payload podcastSyncPayload, key podcast-sync:<id> for the schedule's runs
+	JobPodcastSync    = "podcast.sync"     // payload podcastSyncPayload, key podcast-sync:<podcastId>
 	JobPodcastSyncAll = "podcast.sync_all" // schedule, every 6 hours
 )
 
@@ -88,6 +90,22 @@ type podcastSyncPayload struct {
 	Stop      bool     `json:"stop,omitempty"`
 }
 
+func podcastSyncKey(podcastID string) string { return "podcast-sync:" + podcastID }
+
+// merge joins two planner runs of one podcast: the new episodes of both (sorted, once) and either's
+// flags. A merge with the zero payload sorts the new episodes.
+func (p podcastSyncPayload) merge(o podcastSyncPayload) podcastSyncPayload {
+	ids := slices.Compact(slices.Sorted(slices.Values(slices.Concat(p.NewIDs, o.NewIDs))))
+	if len(ids) == 0 {
+		ids = nil
+	}
+	return podcastSyncPayload{PodcastID: p.PodcastID, NewIDs: ids, Changed: p.Changed || o.Changed, Stop: p.Stop || o.Stop}
+}
+
+func (p podcastSyncPayload) equal(o podcastSyncPayload) bool {
+	return p.PodcastID == o.PodcastID && slices.Equal(p.NewIDs, o.NewIDs) && p.Changed == o.Changed && p.Stop == o.Stop
+}
+
 // podcastSyncTypes registers the planner and its schedule (RegisterTypes).
 func (s *Service) podcastSyncTypes(r *jobs.Registry) {
 	r.Register(jobs.Type{Name: JobPodcastSync, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent,
@@ -105,7 +123,8 @@ func (s *Service) QueuePodcastSync(ctx context.Context, podcastID string, newIDs
 	if err != nil || !ok || set.EffectiveMode != model.PodcastSave || (len(newIDs) == 0 && set.EffectiveScope == model.PodcastScopeNew) {
 		return err
 	}
-	return s.enqueuePodcastSync(ctx, podcastSyncPayload{PodcastID: podcastID, NewIDs: newIDs}, "")
+	_, err = s.enqueuePodcastSync(ctx, s.queue, podcastSyncPayload{PodcastID: podcastID, NewIDs: newIDs}, prioPodcastSync)
+	return err
 }
 
 // QueuePodcastSettingChanged queues the planner after the own setting of a podcast changed
@@ -113,20 +132,50 @@ func (s *Service) QueuePodcastSync(ctx context.Context, podcastID string, newIDs
 // cancels what it no longer wants. stop says that the change ended «Speichern» for the podcast:
 // then the running downloads and those of the buttons end as well.
 func (s *Service) QueuePodcastSettingChanged(ctx context.Context, podcastID string, stop bool) error {
-	return s.enqueuePodcastSync(ctx, podcastSyncPayload{PodcastID: podcastID, Changed: true, Stop: stop}, "")
+	_, err := s.enqueuePodcastSync(ctx, s.queue, podcastSyncPayload{PodcastID: podcastID, Changed: true, Stop: stop}, prioPodcastSync)
+	return err
 }
 
-// enqueuePodcastSync queues one planner run; key is empty for the runs of an event (each one
-// carries its own new episodes), podcast-sync:<id> for the schedule's.
-func (s *Service) enqueuePodcastSync(ctx context.Context, p podcastSyncPayload, key string) error {
+// enqueuePodcastSync queues the planner run of a podcast at prio under the key
+// podcast-sync:<podcastId> and returns its job id. A run that holds the key already takes p over
+// (podcastSyncPayload.merge): a waiting one through SetQueuedPayload and is raised to prio, a
+// running one through SetRunningPayload, and handlePodcastSync runs again for it.
+func (s *Service) enqueuePodcastSync(ctx context.Context, q *jobs.Queue, p podcastSyncPayload, prio int) (int64, error) {
+	p = p.merge(podcastSyncPayload{})
 	raw, err := json.Marshal(p)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	if _, err := s.queue.Enqueue(ctx, jobs.NewJob{Type: JobPodcastSync, Priority: prioPodcastSync, IdempotencyKey: key, Payload: raw}); err != nil {
-		return fmt.Errorf("queue %s of %s: %w", JobPodcastSync, p.PodcastID, err)
+	id, err := q.Enqueue(ctx, jobs.NewJob{Type: JobPodcastSync, Priority: prio, IdempotencyKey: podcastSyncKey(p.PodcastID), Payload: raw})
+	if err != nil {
+		return 0, fmt.Errorf("queue %s of %s: %w", JobPodcastSync, p.PodcastID, err)
 	}
-	return nil
+	if _, err := q.RaiseQueuedPriority(ctx, id, prio); err != nil {
+		return 0, err
+	}
+	j, err := q.Get(ctx, id)
+	if err != nil {
+		return 0, err
+	}
+	var cur podcastSyncPayload
+	if json.Unmarshal(j.Payload, &cur) != nil {
+		cur = podcastSyncPayload{PodcastID: p.PodcastID}
+	}
+	merged := cur.merge(p)
+	if merged.equal(cur) {
+		return id, nil
+	}
+	if raw, err = json.Marshal(merged); err != nil {
+		return 0, err
+	}
+	if j.State == jobs.StateQueued {
+		if ok, err := q.SetQueuedPayload(ctx, id, raw); err != nil || ok {
+			return id, err
+		}
+	}
+	// Running (or claimed meanwhile): the handler reads the payload again when it is through.
+	_, err = q.SetRunningPayload(ctx, id, raw)
+	return id, err
 }
 
 // runPodcastSyncAll is the Run of podcast.sync_all: the planner for every podcast on «Speichern»
@@ -150,15 +199,8 @@ func (s *Service) runPodcastSyncAll(ctx context.Context, q *jobs.Queue, prio int
 			!slices.Contains(failed, sql.NullString{String: set.PodcastID, Valid: true})) {
 			continue
 		}
-		raw, err := json.Marshal(podcastSyncPayload{PodcastID: set.PodcastID})
+		id, err := s.enqueuePodcastSync(ctx, q, podcastSyncPayload{PodcastID: set.PodcastID}, prio)
 		if err != nil {
-			return ids, err
-		}
-		id, err := q.Enqueue(ctx, jobs.NewJob{Type: JobPodcastSync, Priority: prio, IdempotencyKey: "podcast-sync:" + set.PodcastID, Payload: raw})
-		if err != nil {
-			return ids, fmt.Errorf("queue %s: %w", JobPodcastSync, err)
-		}
-		if _, err := q.RaiseQueuedPriority(ctx, id, prio); err != nil {
 			return ids, err
 		}
 		ids = append(ids, id)
@@ -166,17 +208,34 @@ func (s *Service) runPodcastSyncAll(ctx context.Context, q *jobs.Queue, prio int
 	return ids, nil
 }
 
-// handlePodcastSync is the handler of podcast.sync.
+// handlePodcastSync is the handler of podcast.sync. When an event joined the run while it ran
+// (enqueuePodcastSync), it runs again with the joined payload.
 func (s *Service) handlePodcastSync(ctx context.Context, j *jobs.Job) error {
 	var p podcastSyncPayload
 	if err := decodePayload(j, &p); err != nil {
 		return jobs.Final(err)
 	}
-	queued, err := s.syncPodcast(ctx, p)
-	if err == nil && queued == 0 {
+	queued := 0
+	for {
+		n, err := s.syncPodcast(ctx, p)
+		if err != nil {
+			return err
+		}
+		queued += n
+		cur, err := s.queue.Get(ctx, j.ID)
+		if err != nil {
+			return err
+		}
+		var next podcastSyncPayload
+		if json.Unmarshal(cur.Payload, &next) != nil || next.equal(p) {
+			break
+		}
+		p = next
+	}
+	if queued == 0 {
 		jobs.Skip(ctx)
 	}
-	return err
+	return nil
 }
 
 // podcastSetting reads the effective setting of a live podcast with a feed; ok is false otherwise.
@@ -191,11 +250,16 @@ func (s *Service) podcastSetting(ctx context.Context, podcastID string) (systemq
 	return sets[0], true, nil
 }
 
-// syncPodcast runs the planner for one podcast and returns how many downloads it queued.
+// syncPodcast runs the planner for one podcast and returns how many downloads it queued; an
+// episode whose download waits or runs already is left out.
 func (s *Service) syncPodcast(ctx context.Context, p podcastSyncPayload) (int, error) {
 	set, ok, err := s.podcastSetting(ctx, p.PodcastID)
 	if err != nil {
 		return 0, err
+	}
+	active, err := systemq.New(s.db.Read).PodcastActiveDownloads(ctx, sql.NullString{String: p.PodcastID, Valid: true})
+	if err != nil {
+		return 0, fmt.Errorf("downloads of podcast %s: %w", p.PodcastID, err)
 	}
 	wanted := map[string]bool{}
 	var load []systemq.PodcastFeedEpisodesRow
@@ -210,23 +274,31 @@ func (s *Service) syncPodcast(ctx context.Context, p podcastSyncPayload) (int, e
 	}
 	saving := ok && set.EffectiveMode == model.PodcastSave
 	if !saving || p.Changed {
-		if err := s.cancelPodcastDownloads(ctx, p.PodcastID, wanted, saving, !saving && p.Stop); err != nil {
+		if err := s.cancelPodcastDownloads(ctx, p.PodcastID, active, wanted, saving, !saving && p.Stop); err != nil {
 			return 0, err
 		}
 	}
-	isNew := map[string]bool{}
+	isNew, busy := map[string]bool{}, map[string]bool{}
 	for _, id := range p.NewIDs {
 		isNew[id] = true
 	}
+	for _, a := range active {
+		busy[a.EpisodeID] = true
+	}
+	queued := 0
 	for _, e := range load {
+		if busy[e.ID] {
+			continue
+		}
 		if _, err := s.enqueuePodcastDownload(ctx, podcastDownloadPayload{EpisodeID: e.ID, New: isNew[e.ID]}, prioPodcastDownload); err != nil {
 			return 0, err
 		}
+		queued++
 	}
-	if len(load) > 0 {
-		s.log.InfoContext(ctx, "podcast episodes queued for storing", "item_id", p.PodcastID, "episodes", len(load))
+	if queued > 0 {
+		s.log.InfoContext(ctx, "podcast episodes queued for storing", "item_id", p.PodcastID, "episodes", queued)
 	}
-	return len(load), nil
+	return queued, nil
 }
 
 // plannedPodcastEpisodes chooses the episodes the setting (scope with lastN, the new episodes of
@@ -295,15 +367,13 @@ func (s *Service) plannedPodcastEpisodes(ctx context.Context, set systemq.Podcas
 	return out, nil
 }
 
-// cancelPodcastDownloads cancels the waiting downloads of a podcast's episodes that are not wanted,
-// were not asked for by a button and do not load a new episode of a fetch (a smaller scope keeps
-// those; «Nur Link» does not); with all (the change «Speichern» → «Nur Link») also the running ones
+// cancelPodcastDownloads cancels those of the active downloads of a podcast's episodes that wait,
+// are not wanted, were not asked for by a button and do not load a new episode of a fetch (a
+// smaller scope keeps those; «Nur Link» does not); with all (the change «Speichern» → «Nur Link») also the running ones
 // and those of the buttons. A running download ends at once and removes its partial file.
-func (s *Service) cancelPodcastDownloads(ctx context.Context, podcastID string, wanted map[string]bool, saving, all bool) error {
-	active, err := systemq.New(s.db.Read).PodcastActiveDownloads(ctx, sql.NullString{String: podcastID, Valid: true})
-	if err != nil {
-		return fmt.Errorf("downloads of podcast %s: %w", podcastID, err)
-	}
+func (s *Service) cancelPodcastDownloads(ctx context.Context, podcastID string, active []systemq.PodcastActiveDownloadsRow,
+	wanted map[string]bool, saving, all bool,
+) error {
 	n := 0
 	for _, a := range active {
 		var p podcastDownloadPayload
@@ -327,7 +397,8 @@ func (s *Service) cancelPodcastDownloads(ctx context.Context, podcastID string, 
 }
 
 // enqueuePodcastDownload queues the download of an episode with prio; a waiting one under the key
-// is raised to prio and, for a button, marked manual.
+// is raised to prio and, for a button, marked manual (what else its payload knew stays: new, the
+// start of its wait).
 func (s *Service) enqueuePodcastDownload(ctx context.Context, p podcastDownloadPayload, prio int) (int64, error) {
 	raw, err := json.Marshal(p)
 	if err != nil {
@@ -340,10 +411,23 @@ func (s *Service) enqueuePodcastDownload(ctx context.Context, p podcastDownloadP
 	if _, err := s.queue.RaiseQueuedPriority(ctx, id, prio); err != nil {
 		return 0, err
 	}
-	if p.Manual {
-		if _, err := s.queue.SetQueuedPayload(ctx, id, raw); err != nil {
-			return 0, err
-		}
+	if !p.Manual {
+		return id, nil
+	}
+	j, err := s.queue.Get(ctx, id)
+	if err != nil {
+		return 0, err
+	}
+	var cur podcastDownloadPayload
+	if j.State != jobs.StateQueued || json.Unmarshal(j.Payload, &cur) != nil || cur.Manual {
+		return id, nil
+	}
+	cur.EpisodeID, cur.Manual = p.EpisodeID, true
+	if raw, err = json.Marshal(cur); err != nil {
+		return 0, err
+	}
+	if _, err := s.queue.SetQueuedPayload(ctx, id, raw); err != nil {
+		return 0, err
 	}
 	return id, nil
 }

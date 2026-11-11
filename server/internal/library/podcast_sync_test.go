@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"reflect"
 	"slices"
 	"strconv"
 	"sync"
@@ -538,5 +539,102 @@ func TestPodcastSettingChecksTheFolderOnlyOnSave(t *testing.T) {
 	}
 	if _, err := f.e.svc.SetPodcastDownloads(f.e.ctx, f.lib.ID, save); !errors.Is(err, model.ErrRootNotWritable) {
 		t.Errorf("«Nur Link» → «Speichern» with a failing folder: %v", err)
+	}
+}
+
+// syncPayloads returns the payloads of the queued and running podcast.sync jobs.
+func (f *podcastFixture) syncPayloads() []podcastSyncPayload {
+	f.e.t.Helper()
+	jobsOf, err := f.e.queue.ListActive(f.e.ctx, JobPodcastSync)
+	if err != nil {
+		f.e.t.Fatal(err)
+	}
+	var out []podcastSyncPayload
+	for _, j := range jobsOf {
+		var p podcastSyncPayload
+		if err := json.Unmarshal(j.Payload, &p); err != nil {
+			f.e.t.Fatal(err)
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
+// Concept 19, 6.1: the planner runs of one podcast share the key podcast-sync:<id>; a second event
+// while one waits joins it (new episodes and flags together), and an event while one runs makes it
+// run again with the joined payload, so no fetch is lost.
+func TestPodcastSyncRunsJoin(t *testing.T) {
+	t.Parallel()
+	f := newPodcastFixture(t)
+	f.exec(`UPDATE libraries SET podcast_mode = 'save' WHERE id = ?`, f.lib.ID)
+	eps := f.episodes(3)
+	if err := f.e.svc.QueuePodcastSync(f.e.ctx, f.podcast, eps[:1]); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.e.svc.QueuePodcastSync(f.e.ctx, f.podcast, eps[1:2]); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.e.svc.QueuePodcastSettingChanged(f.e.ctx, f.podcast, false); err != nil {
+		t.Fatal(err)
+	}
+	want := podcastSyncPayload{PodcastID: f.podcast, NewIDs: sorted(eps[:2]...), Changed: true}
+	if got := f.syncPayloads(); len(got) != 1 || !reflect.DeepEqual(got[0], want) {
+		t.Fatalf("planner runs = %+v, want one %+v", got, want)
+	}
+	j, err := f.e.queue.Claim(f.e.ctx, "w", []string{JobPodcastSync})
+	if err != nil || j == nil {
+		t.Fatalf("claim: %v %v", j, err)
+	}
+	// A fetch while the planner runs: the running job takes the episode and runs again for it.
+	if err := f.e.svc.QueuePodcastSync(f.e.ctx, f.podcast, eps[2:]); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.e.svc.handlePodcastSync(f.e.ctx, j); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.queuedDownloads(); !slices.Equal(got, sorted(eps...)) {
+		t.Errorf("downloads = %v, want the three new episodes %v", got, sorted(eps...))
+	}
+}
+
+// Concept 19, 6.1: the planner leaves out the episodes whose download waits or runs (it reports no
+// work for them); «Laden» on a waiting download marks it manual and keeps what it knew (new, the
+// start of its wait).
+func TestPodcastPlannerLeavesActiveDownloads(t *testing.T) {
+	t.Parallel()
+	f := newPodcastFixture(t)
+	f.exec(`UPDATE libraries SET podcast_mode = 'save' WHERE id = ?`, f.lib.ID)
+	eps := f.episodes(1)
+	if n := f.sync(podcastSyncPayload{PodcastID: f.podcast, NewIDs: eps}); n != 1 {
+		t.Fatalf("first run queued %d", n)
+	}
+	if n := f.sync(podcastSyncPayload{PodcastID: f.podcast, NewIDs: eps}); n != 0 {
+		t.Errorf("second run queued %d, want 0 for the waiting download", n)
+	}
+	id, err := f.e.queue.Enqueue(f.e.ctx, jobs.NewJob{Type: JobPodcastDownload, IdempotencyKey: podcastDownloadKey(eps[0])})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waiting := podcastDownloadPayload{EpisodeID: eps[0], New: true, WaitingSince: 1234}
+	raw, err := json.Marshal(waiting)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.e.queue.SetQueuedPayload(f.e.ctx, id, raw); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := f.e.svc.DownloadPodcastEpisodes(f.e.ctx, f.podcast, eps); err != nil || n != 1 {
+		t.Fatalf("«Laden» = %d %v", n, err)
+	}
+	j, err := f.e.queue.Get(f.e.ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got podcastDownloadPayload
+	if err := json.Unmarshal(j.Payload, &got); err != nil {
+		t.Fatal(err)
+	}
+	if want := (podcastDownloadPayload{EpisodeID: eps[0], Manual: true, New: true, WaitingSince: 1234}); got != want {
+		t.Errorf("payload after «Laden» = %+v, want %+v", got, want)
 	}
 }
