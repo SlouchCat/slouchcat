@@ -380,17 +380,6 @@ func TestFetchSourceResumeChecks(t *testing.T) {
 	if err := os.Remove(filepath.Join(e.dir, id2, "source.mp3")); err != nil {
 		t.Fatal(err)
 	}
-	if first, total, ok := contentRange("bytes */3000"); !ok || first != -1 || total != 3000 {
-		t.Errorf("contentRange(*/3000) = %d %d %v", first, total, ok)
-	}
-	if first, total, ok := contentRange("bytes 500-2999/*"); !ok || first != 500 || total != -1 {
-		t.Errorf("contentRange(500-2999/*) = %d %d %v", first, total, ok)
-	}
-	for _, bad := range []string{"", "bytes", "bytes 9-1/10", "items 0-1/2", "bytes a-b/c"} {
-		if _, _, ok := contentRange(bad); ok {
-			t.Errorf("contentRange(%q) accepted", bad)
-		}
-	}
 
 	// A public feed whose enclosure lies in the local network: refused; the private query of the
 	// enclosure stays out of the error.

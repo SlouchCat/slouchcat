@@ -45,6 +45,10 @@ const (
 	// PoolTrickplay has exactly one worker (concept 18 O-1, ADR 0027): one preview set at a time,
 	// with at most two ffmpeg processes of its own.
 	PoolTrickplay Pool = "trickplay"
+	// PoolPodcast has five workers (concept 19 part A, 6.2, ADR 0029): the downloads of stored
+	// podcast episodes, so that loading a thousand episodes never holds up the one download worker
+	// of the devices; two counters in package library bound what loads at once.
+	PoolPodcast Pool = "podcast"
 )
 
 // Trigger says what starts a run of the type: the scheduler, an event in the server (a scan, a

@@ -57,7 +57,7 @@ func TestPodcastNewEpisodesHook(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml")
+	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml", true)
 	if err != nil {
 		t.Fatal(err)
 	}

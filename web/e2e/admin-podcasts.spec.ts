@@ -1,3 +1,6 @@
+import { mkdirSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import type { APIRequestContext } from '@playwright/test';
 import {
   feedEpisodes,
   feedKey,
@@ -5,12 +8,14 @@ import {
   openPodcastRow,
   PODCAST_TITLE,
   podcastIdByFeed,
+  podcastLibraryId,
   podcastRow,
   podcastToggle,
   subscribeFeed,
   unsubscribe,
 } from './audio';
-import { FEED_BASE } from './env';
+import { CSRF } from './catalog';
+import { FEED_BASE, MEDIA_DIR } from './env';
 import { expect, test } from './fixtures';
 import {
   expectFocusOn,
@@ -181,5 +186,177 @@ test('podcasts page: library tabs and rows by arrow keys; browser back leaves th
     await expect(page).toHaveURL(/\/$/);
   } finally {
     await unsubscribe(owner, second.id);
+  }
+});
+
+/** The setting of stored episodes the library «Podcasts» has ab Werk (O-2). */
+const LINK_ONLY = { mode: 'link', scope: 'new', lastN: 10, parallel: 2 } as const;
+
+/** Removes a folder of a library; a scan that still runs refuses it for a moment (409). */
+async function removeRoot(
+  owner: APIRequestContext,
+  libraryId: number,
+  rootId: number,
+  path: string,
+) {
+  await expect
+    .poll(
+      async () =>
+        (
+          await owner.post(`/api/v1/admin/libraries/${libraryId}/roots/${rootId}/removal`, {
+            headers: CSRF,
+            data: { confirmPath: path },
+          })
+        ).status(),
+      { timeout: 30_000 },
+    )
+    .toBe(200);
+}
+
+/** The downloads of a podcast as the list of the administration counts them. */
+async function podcastDownloads(owner: APIRequestContext, podcastId: string) {
+  const response = await owner.get('/api/v1/admin/podcasts');
+  expect(response.status(), await response.text()).toBe(200);
+  const podcast = (
+    (await response.json()) as {
+      id: string;
+      storedBytes: number;
+      downloads: { queued: number; running: number; failed: number };
+    }[]
+  ).find((entry) => entry.id === podcastId);
+  return podcast
+    ? { active: podcast.downloads.queued + podcast.downloads.running, ...podcast }
+    : { active: 0, storedBytes: 0, downloads: { queued: 0, running: 0, failed: 0 } };
+}
+
+// Stored podcast episodes (concept 19 part A, P-12 and P-13) by keyboard: the band «Neue Folgen»
+// folds out by Enter, its groups take the arrow keys and a small change applies at once; the
+// setting of one podcast asks first when it loads once, «Abbrechen» keeps the old scope and
+// «Laden» saves the new one. The library «Podcasts» gets a writable podcast folder for the time
+// of the test, and only the test's own podcast stores, so the feed of the global setup stays a link.
+test('podcasts page: band «Neue Folgen» and the confirmation by keyboard @keyboard', async ({
+  page,
+  owner,
+}, testInfo) => {
+  test.setTimeout(90_000);
+  const key = feedKey(testInfo);
+  const dir = join(MEDIA_DIR, '.e2e', `podcast-store-${key}`);
+  mkdirSync(dir, { recursive: true });
+  const libraryId = await podcastLibraryId(owner);
+  const podcast = await subscribeFeed(owner, key);
+  const added = await owner.post(`/api/v1/admin/libraries/${libraryId}/roots`, {
+    headers: CSRF,
+    data: { roots: [{ path: dir, content: 'podcast', providers: ['local'] }] },
+  });
+  expect(added.status(), await added.text()).toBe(201);
+  const root = ((await added.json()) as { roots: { id: number; path: string }[] }).roots.find(
+    (entry) => entry.path === dir,
+  );
+  try {
+    await page.goto('/admin/podcasts');
+    await expect(podcastRow(page, podcast.id)).toBeVisible();
+    // Folded: the band is one line with the summary.
+    const toggle = page.getByRole('button', { name: /^Neue Folgen(: Podcasts)?$/ });
+    await expect(page.getByText('Nur Link · nichts wird gespeichert').first()).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await resetFocus(page);
+    await tabTo(page, toggle);
+    await page.keyboard.press('Enter');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const band = page.locator(`[id="${await toggle.getAttribute('aria-controls')}"]`);
+    // The folder check of the new folder passes: «Speichern» could be chosen.
+    await expect(band.getByText(dir, { exact: true })).toBeVisible();
+    await expect(band.getByText(/^beschreibbar/)).toBeVisible();
+    const modes = band.getByRole('radiogroup', { name: 'Neue Folgen' });
+    await expect(modes.getByRole('radio', { name: 'Speichern' })).toBeEnabled();
+
+    // «Gleichzeitig laden» by arrow key: it applies at once («Gespeichert»).
+    const parallel = band.getByRole('radiogroup', { name: 'Gleichzeitig laden' });
+    await tabTo(page, parallel.getByRole('radio', { name: '2' }));
+    await expectVisibleFocus(page);
+    const saved = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'PATCH' && /\/admin\/libraries\/\d+$/.test(response.url()),
+    );
+    await page.keyboard.press('ArrowRight');
+    expect((await saved).status()).toBe(200);
+    await expect(parallel.getByRole('radio', { name: '3' })).toBeChecked();
+    await expect(band.getByText('Gespeichert.')).toBeVisible();
+    await expect(page.getByText('Nur Link · nichts wird gespeichert').first()).toBeVisible();
+
+    // The podcast's own setting: «Speichern» with the library's «Nur neue Folgen» loads nothing
+    // once and applies at once.
+    const detail = await openPodcastRow(page, podcast.id);
+    const mode = detail.getByRole('radiogroup', { name: 'Neue Folgen dieses Podcasts' });
+    await tabTo(page, mode.getByRole('radio', { name: 'Wie Bibliothek' }));
+    const ownSaved = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'PATCH' &&
+        response.url().endsWith(`/admin/podcasts/${podcast.id}`),
+    );
+    await page.keyboard.press('ArrowRight');
+    expect((await ownSaved).status()).toBe(200);
+    await expect(detail.getByText('Gilt: Speichern · Nur neue Folgen')).toBeVisible();
+
+    // «Alle Folgen» loads the two episodes once: the estimate comes first.
+    const scope = detail.getByRole('radiogroup', { name: 'Umfang dieses Podcasts' });
+    await tabTo(page, scope.getByRole('radio', { name: 'Wie Bibliothek' }));
+    await page.keyboard.press('ArrowLeft'); // wraps to «Alle Folgen»
+    await expect(scope.getByRole('radio', { name: 'Alle Folgen' })).toBeChecked();
+    await expect(detail.getByText(/^Das lädt einmalig rund 2 Folgen/)).toBeVisible();
+    await expectFocusOn(page, scope.getByRole('radio', { name: 'Alle Folgen' }));
+    // «Abbrechen»: the old scope stays, the focus goes back to the group.
+    await tabTo(page, detail.getByRole('button', { name: 'Abbrechen', exact: true }));
+    await expectVisibleFocus(page);
+    await page.keyboard.press('Enter');
+    await expect(detail.getByText(/^Das lädt einmalig/)).toHaveCount(0);
+    await expect(scope.getByRole('radio', { name: 'Wie Bibliothek' })).toBeChecked();
+    await expectFocusOn(page, scope.getByRole('radio', { name: 'Alle Folgen' }));
+
+    // Again, and «Laden»: the scope is saved and the downloads are queued.
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowRight'); // back to «Alle Folgen»
+    // Checked again means the earlier question has gone; the estimate is the new one.
+    await expect(scope.getByRole('radio', { name: 'Alle Folgen' })).toBeChecked();
+    await expect(detail.getByText(/^Das lädt einmalig rund 2 Folgen/)).toBeVisible();
+    await tabTo(page, detail.getByRole('button', { name: 'Laden', exact: true }));
+    const loaded = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'PATCH' &&
+        response.url().endsWith(`/admin/podcasts/${podcast.id}`),
+    );
+    await page.keyboard.press('Enter');
+    const answer = await loaded;
+    expect(answer.status()).toBe(200);
+    expect(((await answer.json()) as { effectiveScope: string }).effectiveScope).toBe('all');
+    await expect(detail.getByText('Gilt: Speichern · Alle Folgen')).toBeVisible();
+    await expectFocusOn(page, scope.getByRole('radio', { name: 'Alle Folgen' }));
+    await expectNoFocusTrap(page);
+    // The loading begins: the planner queues the two episodes (they wait, run, fail or are there).
+    await expect
+      .poll(
+        async () => {
+          const state = await podcastDownloads(owner, podcast.id);
+          return state.active + state.downloads.failed + (state.storedBytes > 0 ? 1 : 0);
+        },
+        { timeout: 30_000 },
+      )
+      .toBeGreaterThan(0);
+  } finally {
+    // «Nur Link» cancels what still loads, so nothing writes into the folder that goes next.
+    await owner.patch(`/api/v1/admin/podcasts/${podcast.id}`, {
+      headers: CSRF,
+      data: { mode: 'link' },
+    });
+    await expect
+      .poll(async () => (await podcastDownloads(owner, podcast.id)).active, { timeout: 30_000 })
+      .toBe(0);
+    await unsubscribe(owner, podcast.id);
+    if (root) await removeRoot(owner, libraryId, root.id, dir);
+    await owner.patch(`/api/v1/admin/libraries/${libraryId}`, {
+      headers: CSRF,
+      data: { podcastDownloads: LINK_ONLY },
+    });
+    rmSync(dir, { recursive: true, force: true });
   }
 });

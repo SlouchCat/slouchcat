@@ -199,32 +199,33 @@ type TMDBChecker interface {
 
 // Service implements api.AdminService and is the KeySource of package metadata.
 type Service struct {
-	db        *sql.DB // writer, for the rating override transaction
-	write     *appq.Queries
-	read      *appq.Queries
-	sys       *systemq.Queries // unfiltered reads of the administration views (reader pool)
-	auth      *auth.Service
-	vis       *visibility.Reader // system-scope read of the rating override
-	queue     Enqueuer           // metadata refresh after a cleared override; nil = none
-	schedules Schedules          // nil until WithSchedules or WithJobControl
-	jobctl    *jobControl        // nil until WithJobControl (concept 09, step 3)
-	libraries Libraries
-	trickplay TrickplayUsage     // nil: no stored bytes and no free space in the estimate
-	maint     LibraryMaintenance // nil until WithLibraryMaintenance
-	meta      Metadata           // nil until WithMetadata
-	streams   Streams            // nil until WithStreams
-	podcasts  Podcasts           // nil until WithPodcasts
-	books     BookSources        // nil until WithBooks (concept 19 D6)
-	trakt     Trakt              // nil until WithTrakt
-	ops       opsState           // M8: system state, jobs, errors, notification settings, update check (dashboard.go)
-	backups   backupState        // directory and version from WithBackups, restart from WithRestart
-	keyring   *secrets.Keyring
-	tmdb      TMDBChecker
-	getenv    func(string) string
-	log       *slog.Logger
-	now       func() time.Time
-	zone      *time.Location // time zone of the watch-time grid (stats.go); UTC until WithLocation
-	anilist   bool           // AniList switched on (SLOUCHCAT_ANILIST, WithAniList); true until set
+	db             *sql.DB // writer, for the rating override transaction
+	write          *appq.Queries
+	read           *appq.Queries
+	sys            *systemq.Queries // unfiltered reads of the administration views (reader pool)
+	auth           *auth.Service
+	vis            *visibility.Reader // system-scope read of the rating override
+	queue          Enqueuer           // metadata refresh after a cleared override; nil = none
+	schedules      Schedules          // nil until WithSchedules or WithJobControl
+	jobctl         *jobControl        // nil until WithJobControl (concept 09, step 3)
+	libraries      Libraries
+	trickplay      TrickplayUsage     // nil: no stored bytes and no free space in the estimate
+	maint          LibraryMaintenance // nil until WithLibraryMaintenance
+	meta           Metadata           // nil until WithMetadata
+	streams        Streams            // nil until WithStreams
+	podcasts       Podcasts           // nil until WithPodcasts
+	podcastStorage PodcastStorage     // nil until WithPodcastStorage (concept 19 part A)
+	books          BookSources        // nil until WithBooks (concept 19 D6)
+	trakt          Trakt              // nil until WithTrakt
+	ops            opsState           // M8: system state, jobs, errors, notification settings, update check (dashboard.go)
+	backups        backupState        // directory and version from WithBackups, restart from WithRestart
+	keyring        *secrets.Keyring
+	tmdb           TMDBChecker
+	getenv         func(string) string
+	log            *slog.Logger
+	now            func() time.Time
+	zone           *time.Location // time zone of the watch-time grid (stats.go); UTC until WithLocation
+	anilist        bool           // AniList switched on (SLOUCHCAT_ANILIST, WithAniList); true until set
 	// spotlightGap replaces the minute between two manual spotlight fetches; 0 = the minute
 	// (WithSpotlightRefreshGap, e2e suite only).
 	spotlightGap time.Duration
@@ -511,9 +512,13 @@ func (s *Service) ListLibraries(ctx context.Context) ([]model.Library, error) {
 }
 
 // GetLibrary returns one library or model.ErrNotFound; a video library carries its trickplay
-// estimate (concept 18, 9; only here, not in ListLibraries).
+// estimate (concept 18, 9), a podcast library the folder check of its folder for new
+// subscriptions (concept 19 part A, 5.4); both only here, not in ListLibraries.
 func (s *Service) GetLibrary(ctx context.Context, id int64) (model.Library, error) {
 	lib, err := s.withKeyframeIndex(ctx)(s.libraries.Get(ctx, id))
+	if err == nil && lib.Kind == model.LibraryPodcasts {
+		return s.withPodcastFolder(ctx, lib)
+	}
 	if err != nil || lib.Kind != model.LibraryVideo {
 		return lib, err
 	}

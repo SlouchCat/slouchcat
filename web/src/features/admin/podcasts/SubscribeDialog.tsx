@@ -24,6 +24,16 @@ export function SubscribeDialog({
 }) {
   const { t } = useTranslation();
   const [libraryId, setLibraryId] = useState(String(libraries[0]?.id ?? ''));
+  // What the chosen library loads after the first fetch (concept 19 part A, 5.2): nothing for
+  // «Nur Link» and «Nur neue Folgen», the N newest or the whole feed otherwise.
+  const downloads = libraries.find((library) => String(library.id) === libraryId)?.podcastDownloads;
+  const loads =
+    downloads?.mode === 'save'
+      ? t(`admin.podcasts.subscribe.loads.${downloads.scope}`, { n: downloads.lastN })
+      : null;
+  // What loads once asks first (12.3): «Abonnieren und laden» or «Nur abonnieren», no default.
+  const asks = downloads?.mode === 'save' && downloads.scope !== 'new';
+  const [load, setLoad] = useState<string | null>(null);
   const create = useMutation({
     mutationFn: (body: PodcastCreate): Promise<AdminPodcast> =>
       request(api.POST('/admin/podcasts', { body })),
@@ -34,7 +44,11 @@ export function SubscribeDialog({
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    create.mutate({ libraryId: Number(libraryId), feedUrl: formText(data, 'feedUrl') });
+    create.mutate({
+      libraryId: Number(libraryId),
+      feedUrl: formText(data, 'feedUrl'),
+      ...(asks ? { loadEpisodes: load === 'load' } : {}),
+    });
   };
   return (
     <FormDialog
@@ -76,6 +90,27 @@ export function SubscribeDialog({
             label: library.name,
           }))}
         />
+        {loads && (
+          <Notice tone="info" live={false}>
+            {loads}
+          </Notice>
+        )}
+        {asks && (
+          <RadioGroup
+            name="loadEpisodes"
+            label={t('admin.podcasts.subscribe.load.label')}
+            description={t('admin.podcasts.subscribe.load.hint')}
+            orientation="vertical"
+            value={load}
+            onChange={setLoad}
+            isRequired
+            validate={(value) => (value ? null : t('admin.podcasts.subscribe.load.required'))}
+            options={[
+              { value: 'load', label: t('admin.podcasts.subscribe.load.yes') },
+              { value: 'only', label: t('admin.podcasts.subscribe.load.no') },
+            ]}
+          />
+        )}
         <div className={styles.dialogActions}>
           <AriaButton variant="ghost" onPress={onClose}>
             {t('common.cancel')}

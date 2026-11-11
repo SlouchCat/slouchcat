@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"maps"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -99,6 +100,21 @@ type Service struct {
 	// without one (test seam; nil outside tests).
 	trickplayProbeFn func(ctx context.Context, in string) (transcode.Probe, error)
 	diskSpace        func(dir string) (total, free int64, err error)
+	// podcastLink replaces os.Root.Link for the folder check and the download of stored podcast
+	// episodes (a test seam for a file system without hard links; nil outside tests).
+	podcastLink func(r *os.Root, oldname, newname string) error
+	// podcastFSType replaces paths.FSTypeAt in the folder check (a test seam for a file system of
+	// unknown type; nil outside tests).
+	podcastFSType func(root paths.Root) (paths.FSType, error)
+	// podcastTag replaces transcode.Runner.TagAudio for stored podcast episodes (a test seam; nil
+	// outside tests); podcastSlots are the two counters of their downloads (podcast_download.go).
+	podcastTag   func(ctx context.Context, in string, out io.Writer, ext string, tags transcode.AudioTags) error
+	podcastSlots *podcastSlots
+	// podcastFolderMu serializes the creation of podcast folders (createPodcastFolder).
+	podcastFolderMu sync.Mutex
+	// registry is the job registry of RegisterTypes: the podcast planner cancels downloads through
+	// it (a running one stops at once); nil before RegisterTypes, then the queue cancels.
+	registry *jobs.Registry
 	// trickplayMu guards trickplayBytes: the bytes of the stored trickplay sets per library and
 	// kind (0 movies, 1 series), counted by the hourly sweep (TrickplayUsage).
 	trickplayMu    sync.Mutex
@@ -216,7 +232,7 @@ func New(db *store.DB, queue *jobs.Queue, probe transcode.Runner, log *slog.Logg
 		retrying: map[int64]bool{}, scanLocks: map[int64]chan struct{}{},
 		runs:        map[int64]map[*scanRun]bool{},
 		pathPending: map[int64]map[int64]map[string]bool{}, pathRetrying: map[int64]bool{},
-		orphans: map[int64]map[string]fileStamp{},
+		orphans: map[int64]map[string]fileStamp{}, podcastSlots: newPodcastSlots(),
 	}
 	for _, o := range opts {
 		o(s)
@@ -858,6 +874,10 @@ func (s *Service) toModel(ctx context.Context, l appq.Library) (model.Library, e
 	if l.Kind == model.LibraryVideo {
 		t := LibraryTrickplay(l)
 		m.Trickplay = &t
+	}
+	if l.Kind == model.LibraryPodcasts {
+		d := podcastDownloadsOf(l)
+		m.PodcastDownloads = &d
 	}
 	for _, r := range roots {
 		_, warning := WatchMode(r.FsType)

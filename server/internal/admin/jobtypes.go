@@ -144,7 +144,7 @@ func (s *Service) jobOverview(ctx context.Context) (model.JobOverview, error) {
 		stats[t.Name] = st
 	}
 	out := model.JobOverview{Paused: len(paused), Types: make([]model.JobTypeInfo, 0, len(types))}
-	for _, pool := range []jobs.Pool{jobs.PoolGeneral, jobs.PoolDownload, jobs.PoolNotify, jobs.PoolIndex, jobs.PoolTrickplay} {
+	for _, pool := range []jobs.Pool{jobs.PoolGeneral, jobs.PoolDownload, jobs.PoolNotify, jobs.PoolIndex, jobs.PoolTrickplay, jobs.PoolPodcast} {
 		p := model.JobPool{Pool: string(pool), Workers: s.jobctl.workers[pool]}
 		if backlog, ok := s.poolBacklog(stats, pool, -1); ok {
 			p.BacklogSeconds = &backlog

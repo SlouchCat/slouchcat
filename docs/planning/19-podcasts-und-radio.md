@@ -310,6 +310,11 @@ Audiobookshelf bereinigt anders (soweit bekannt: unerlaubte Zeichen fallen weg, 
 Doppelpunkt wird zu ` - `). Zum **Vergleichen** mit vorhandenen Dateien dient darum nicht der Name,
 sondern ein Schlüssel (Abschnitt 8). Vor M-1 wird Audiobookshelfs `sanitizeFilename` nachgelesen.
 
+**Nachtrag Stufe 0 (11. November 2026):** Nachgelesen und gemessen (`docs/perf/19-podcasts.md`). Die Regel
+oben ergäbe für 40 % der Titel einen anderen Namen als Audiobookshelf. **ADR 0029, Entscheid 5, ersetzt sie:**
+Slouchcat benennt nach Audiobookshelfs `sanitizeFilename` (erster Doppelpunkt zu ` - `, unerlaubte Zeichen fallen
+weg, 255 Bytes UTF-16 und zusätzlich 250 Bytes UTF-8), Endung zuerst aus der Adresse.
+
 ### 6.4 Rechte
 
 Dateien entstehen mit 0664, Ordner mit 0775 (nicht mit den engeren Rechten des Geräte-Downloads),
@@ -384,6 +389,11 @@ trotzdem.
 Datei-Episoden ohne GUID, Paare nach Schlüssel, Paare nach Audiobookshelfs Namensregel, Folgen ohne
 jeden Kandidaten, und wie viele verschiedene Enclosure-Hosts es gibt. Das Ergebnis kommt nach
 `docs/perf/19-podcasts.md` und entscheidet, ob die Riegel reichen.
+
+**Ergebnis M-1 (11. November 2026):** Die Riegel reichen, wenn der Schlüssel zusätzlich aus dem gekürzten Namen
+nach Audiobookshelfs Regel gebildet wird (ADR 0029, Entscheid 6). 89,9 % der Feed-Episoden haben genau eine
+Datei nach Schlüssel, 1,9 % mehrere, 7,3 % keine (1'470 davon in einem Podcast). CT 190 hat zur Zeit keinen
+Podcast-Ordner eingetragen; er muss vor der Abnahme wieder hinein.
 
 **Von Hand gelöschte Dateien.** Löscht Marco eine Podcast-Datei, markiert der nächste Scan ihre
 Zeile als fehlend; die Zeile bleibt an der Episode. Eine Folge, deren Zeilen alle fehlen, heisst
