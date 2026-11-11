@@ -34,6 +34,7 @@ export const paths = {
       file ? `&file=${encodeURIComponent(file)}` : ''
     }`,
   adminPodcasts: '/admin/podcasts',
+  adminPodcast: (id: string) => `/admin/podcasts/${encodeURIComponent(id)}`,
   /** Webradio in the administration (concept 16, 11): catalog, relays, stations, settings. */
   adminRadio: '/admin/radio',
   /** Discover and curation (M7). */

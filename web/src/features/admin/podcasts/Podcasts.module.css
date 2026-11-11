@@ -155,3 +155,87 @@
   gap: var(--sc-space-2);
   justify-content: flex-end;
 }
+
+/* The list with covers (concept 19 part A, 12.2, variant A): the cover beside title and facts. */
+.podcast {
+  display: inline-flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+  min-width: 0;
+  text-align: start;
+}
+
+.name {
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+/* The episodes with the bar of the stored share. */
+.episodes {
+  min-width: 8rem;
+}
+
+.small {
+  font-size: var(--sc-font-size-xs);
+}
+
+/* Filter, search and order above the list. */
+.listBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  min-width: 0;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3) var(--sc-space-5);
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.toolbarFields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  align-items: flex-end;
+}
+
+/* The page «Podcast» (12.2): the head with the large cover, then setting and episodes side by side. */
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-5);
+  align-items: center;
+}
+
+.headText {
+  display: flex;
+  flex: 999 1 18rem;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  min-width: 0;
+}
+
+.columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-5);
+  align-items: flex-start;
+}
+
+.side {
+  display: flex;
+  flex: 1 1 20rem;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  min-width: 0;
+}
+
+.main {
+  display: flex;
+  flex: 3 1 30rem;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  min-width: 0;
+}

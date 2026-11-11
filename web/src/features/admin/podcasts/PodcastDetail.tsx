@@ -1,5 +1,6 @@
 import type { AdminPodcast } from '@slouchcat/api-client';
 import { useTranslation } from 'react-i18next';
+import { formatDateTime } from '@/lib/format';
 import { Text } from '@/ui';
 import { AriaButton } from '@/ui/aria';
 import { feedError } from './columns';
@@ -7,8 +8,8 @@ import { PodcastSetting } from './PodcastSetting';
 import styles from './Podcasts.module.css';
 
 /**
- * The fold-out of a podcast (POD-2, POD-3): author, the whole feed address, library and the
- * whole last error; for a podcast with a feed its setting of stored episodes and «Fehlende
+ * The fold-out of a podcast (POD-2, POD-3): author, the whole feed address, library, the last
+ * fetch and the whole last error; for a podcast with a feed its setting of stored episodes and «Fehlende
  * nachladen» (concept 19 part A, stage 1); «Jetzt abrufen» for a podcast with a feed and «Abo
  * löschen» for one no folder owns. A podcast a folder still owns comes back with the next scan, so the folder decides and
  * the fold-out says so instead.
@@ -26,7 +27,7 @@ export function PodcastDetail({
   onRefresh: (podcast: AdminPodcast) => void;
   onRemove: (podcast: AdminPodcast) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const error = podcast.lastError ? feedError(t, podcast.lastError) : null;
   const ownedByFolder = podcast.rootId !== undefined;
   return (
@@ -54,6 +55,16 @@ export function PodcastDetail({
           <dt>{t('admin.podcasts.detail.library')}</dt>
           <dd>{libraryName}</dd>
         </div>
+        {podcast.feedUrl && (
+          <div>
+            <dt>{t('admin.podcasts.columns.lastFetch')}</dt>
+            <dd>
+              {podcast.lastCheckedAt
+                ? formatDateTime(podcast.lastCheckedAt, i18n.language)
+                : t('admin.podcasts.never')}
+            </dd>
+          </div>
+        )}
       </dl>
       {error && (
         <div className={styles.error}>
