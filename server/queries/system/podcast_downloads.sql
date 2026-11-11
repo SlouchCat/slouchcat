@@ -44,3 +44,50 @@ ON CONFLICT (item_id) DO UPDATE SET error = excluded.error, attempts = podcast_d
 
 -- name: PodcastClearDownloadFailure :exec
 DELETE FROM podcast_download_failures WHERE item_id = @item_id;
+
+-- name: PodcastKnownFolders :many
+-- Folders of a root that the database knows (the first level of its media files): the folder
+-- check (5.4) wants at least one of them on disk before the server writes there.
+SELECT DISTINCT CAST(substr(rel_path, 1, instr(rel_path, '/') - 1) AS TEXT) AS folder
+FROM media_files WHERE root_id = @root_id AND instr(rel_path, '/') > 1
+LIMIT 50;
+
+-- name: PodcastFoldersOf :many
+-- The folders of a podcast: the first level of the media files of its episodes, live or deleted,
+-- and of those of earlier subscriptions of the same feed in the library (section 8, riegel 1).
+SELECT DISTINCT m.root_id, CAST(substr(m.rel_path, 1, instr(m.rel_path, '/') - 1) AS TEXT) AS folder
+FROM media_files AS m
+JOIN items AS e ON e.id = m.item_id
+JOIN items AS p ON p.id = e.parent_id
+JOIN library_roots AS r ON r.id = m.root_id
+WHERE e.kind = 'podcast_episode' AND instr(m.rel_path, '/') > 1 AND r.content = 'podcast'
+  AND (p.id = @podcast_id OR (p.kind = 'podcast' AND p.library_id = @library_id AND p.feed_url = @feed_url))
+ORDER BY m.root_id, folder;
+
+-- name: PodcastFilesInFolder :many
+-- Every media file below a folder of a root, whichever item it hangs on (riegel 1): prefix is the
+-- folder with a trailing slash, upper the same folder followed by '0' (the byte after '/').
+SELECT m.id, m.item_id, m.rel_path, m.missing_since, i.kind, i.parent_id, i.guid, i.deleted_at
+FROM media_files AS m JOIN items AS i ON i.id = m.item_id
+WHERE m.root_id = @root_id AND m.rel_path >= @prefix AND m.rel_path < @upper
+ORDER BY m.rel_path;
+
+-- name: PodcastFeedEpisodes :many
+-- The live feed episodes of a podcast, newest first (undated ones last), with how many media file
+-- rows each has and how many of them are missing.
+SELECT i.id, i.title, i.sort_title, i.published_at, i.duration_ms, i.enclosure_url, i.enclosure_type, i.enclosure_length,
+       CAST((SELECT count(*) FROM media_files AS m WHERE m.item_id = i.id) AS INTEGER) AS files,
+       CAST((SELECT count(*) FROM media_files AS m WHERE m.item_id = i.id AND m.missing_since IS NOT NULL) AS INTEGER) AS missing_files
+FROM items AS i
+WHERE i.parent_id = @podcast_id AND i.kind = 'podcast_episode' AND i.deleted_at IS NULL AND i.enclosure_url IS NOT NULL
+ORDER BY i.published_at IS NULL, i.published_at DESC, i.id;
+
+-- name: PodcastPairable :one
+-- Whether a feed episode without a file and a live file episode without guid of the same podcast
+-- may still be paired (riegel 1, checked in the pairing transaction).
+SELECT CAST(EXISTS (SELECT 1 FROM items AS f
+                    WHERE f.id = @feed_episode_id AND f.kind = 'podcast_episode' AND f.deleted_at IS NULL
+                      AND f.enclosure_url IS NOT NULL AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = f.id))
+        AND EXISTS (SELECT 1 FROM items AS e
+                    WHERE e.id = @file_episode_id AND e.kind = 'podcast_episode' AND e.deleted_at IS NULL AND e.guid IS NULL
+                      AND e.parent_id = (SELECT parent_id FROM items WHERE id = @feed_episode_id)) AS INTEGER) AS pairable;

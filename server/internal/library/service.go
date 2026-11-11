@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"maps"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -99,6 +100,9 @@ type Service struct {
 	// without one (test seam; nil outside tests).
 	trickplayProbeFn func(ctx context.Context, in string) (transcode.Probe, error)
 	diskSpace        func(dir string) (total, free int64, err error)
+	// podcastLink replaces os.Root.Link for the folder check and the download of stored podcast
+	// episodes (a test seam for a file system without hard links; nil outside tests).
+	podcastLink func(r *os.Root, oldname, newname string) error
 	// trickplayMu guards trickplayBytes: the bytes of the stored trickplay sets per library and
 	// kind (0 movies, 1 series), counted by the hourly sweep (TrickplayUsage).
 	trickplayMu    sync.Mutex

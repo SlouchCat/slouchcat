@@ -111,6 +111,223 @@ func (q *Queries) PodcastEffectiveSettings(ctx context.Context, arg PodcastEffec
 	return items, nil
 }
 
+const podcastFeedEpisodes = `-- name: PodcastFeedEpisodes :many
+SELECT i.id, i.title, i.sort_title, i.published_at, i.duration_ms, i.enclosure_url, i.enclosure_type, i.enclosure_length,
+       CAST((SELECT count(*) FROM media_files AS m WHERE m.item_id = i.id) AS INTEGER) AS files,
+       CAST((SELECT count(*) FROM media_files AS m WHERE m.item_id = i.id AND m.missing_since IS NOT NULL) AS INTEGER) AS missing_files
+FROM items AS i
+WHERE i.parent_id = ?1 AND i.kind = 'podcast_episode' AND i.deleted_at IS NULL AND i.enclosure_url IS NOT NULL
+ORDER BY i.published_at IS NULL, i.published_at DESC, i.id
+`
+
+type PodcastFeedEpisodesRow struct {
+	ID              string
+	Title           string
+	SortTitle       string
+	PublishedAt     sql.NullInt64
+	DurationMs      sql.NullInt64
+	EnclosureUrl    sql.NullString
+	EnclosureType   sql.NullString
+	EnclosureLength sql.NullInt64
+	Files           int64
+	MissingFiles    int64
+}
+
+// The live feed episodes of a podcast, newest first (undated ones last), with how many media file
+// rows each has and how many of them are missing.
+func (q *Queries) PodcastFeedEpisodes(ctx context.Context, podcastID sql.NullString) ([]PodcastFeedEpisodesRow, error) {
+	rows, err := q.db.QueryContext(ctx, podcastFeedEpisodes, podcastID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PodcastFeedEpisodesRow{}
+	for rows.Next() {
+		var i PodcastFeedEpisodesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.SortTitle,
+			&i.PublishedAt,
+			&i.DurationMs,
+			&i.EnclosureUrl,
+			&i.EnclosureType,
+			&i.EnclosureLength,
+			&i.Files,
+			&i.MissingFiles,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const podcastFilesInFolder = `-- name: PodcastFilesInFolder :many
+SELECT m.id, m.item_id, m.rel_path, m.missing_since, i.kind, i.parent_id, i.guid, i.deleted_at
+FROM media_files AS m JOIN items AS i ON i.id = m.item_id
+WHERE m.root_id = ?1 AND m.rel_path >= ?2 AND m.rel_path < ?3
+ORDER BY m.rel_path
+`
+
+type PodcastFilesInFolderParams struct {
+	RootID int64
+	Prefix string
+	Upper  string
+}
+
+type PodcastFilesInFolderRow struct {
+	ID           string
+	ItemID       string
+	RelPath      string
+	MissingSince sql.NullInt64
+	Kind         string
+	ParentID     sql.NullString
+	Guid         sql.NullString
+	DeletedAt    sql.NullInt64
+}
+
+// Every media file below a folder of a root, whichever item it hangs on (riegel 1): prefix is the
+// folder with a trailing slash, upper the same folder followed by '0' (the byte after '/').
+func (q *Queries) PodcastFilesInFolder(ctx context.Context, arg PodcastFilesInFolderParams) ([]PodcastFilesInFolderRow, error) {
+	rows, err := q.db.QueryContext(ctx, podcastFilesInFolder, arg.RootID, arg.Prefix, arg.Upper)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PodcastFilesInFolderRow{}
+	for rows.Next() {
+		var i PodcastFilesInFolderRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ItemID,
+			&i.RelPath,
+			&i.MissingSince,
+			&i.Kind,
+			&i.ParentID,
+			&i.Guid,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const podcastFoldersOf = `-- name: PodcastFoldersOf :many
+SELECT DISTINCT m.root_id, CAST(substr(m.rel_path, 1, instr(m.rel_path, '/') - 1) AS TEXT) AS folder
+FROM media_files AS m
+JOIN items AS e ON e.id = m.item_id
+JOIN items AS p ON p.id = e.parent_id
+JOIN library_roots AS r ON r.id = m.root_id
+WHERE e.kind = 'podcast_episode' AND instr(m.rel_path, '/') > 1 AND r.content = 'podcast'
+  AND (p.id = ?1 OR (p.kind = 'podcast' AND p.library_id = ?2 AND p.feed_url = ?3))
+ORDER BY m.root_id, folder
+`
+
+type PodcastFoldersOfParams struct {
+	PodcastID string
+	LibraryID int64
+	FeedUrl   sql.NullString
+}
+
+type PodcastFoldersOfRow struct {
+	RootID int64
+	Folder string
+}
+
+// The folders of a podcast: the first level of the media files of its episodes, live or deleted,
+// and of those of earlier subscriptions of the same feed in the library (section 8, riegel 1).
+func (q *Queries) PodcastFoldersOf(ctx context.Context, arg PodcastFoldersOfParams) ([]PodcastFoldersOfRow, error) {
+	rows, err := q.db.QueryContext(ctx, podcastFoldersOf, arg.PodcastID, arg.LibraryID, arg.FeedUrl)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PodcastFoldersOfRow{}
+	for rows.Next() {
+		var i PodcastFoldersOfRow
+		if err := rows.Scan(&i.RootID, &i.Folder); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const podcastKnownFolders = `-- name: PodcastKnownFolders :many
+SELECT DISTINCT CAST(substr(rel_path, 1, instr(rel_path, '/') - 1) AS TEXT) AS folder
+FROM media_files WHERE root_id = ?1 AND instr(rel_path, '/') > 1
+LIMIT 50
+`
+
+// Folders of a root that the database knows (the first level of its media files): the folder
+// check (5.4) wants at least one of them on disk before the server writes there.
+func (q *Queries) PodcastKnownFolders(ctx context.Context, rootID int64) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, podcastKnownFolders, rootID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var folder string
+		if err := rows.Scan(&folder); err != nil {
+			return nil, err
+		}
+		items = append(items, folder)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const podcastPairable = `-- name: PodcastPairable :one
+SELECT CAST(EXISTS (SELECT 1 FROM items AS f
+                    WHERE f.id = ?1 AND f.kind = 'podcast_episode' AND f.deleted_at IS NULL
+                      AND f.enclosure_url IS NOT NULL AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = f.id))
+        AND EXISTS (SELECT 1 FROM items AS e
+                    WHERE e.id = ?2 AND e.kind = 'podcast_episode' AND e.deleted_at IS NULL AND e.guid IS NULL
+                      AND e.parent_id = (SELECT parent_id FROM items WHERE id = ?1)) AS INTEGER) AS pairable
+`
+
+type PodcastPairableParams struct {
+	FeedEpisodeID string
+	FileEpisodeID string
+}
+
+// Whether a feed episode without a file and a live file episode without guid of the same podcast
+// may still be paired (riegel 1, checked in the pairing transaction).
+func (q *Queries) PodcastPairable(ctx context.Context, arg PodcastPairableParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, podcastPairable, arg.FeedEpisodeID, arg.FileEpisodeID)
+	var pairable int64
+	err := row.Scan(&pairable)
+	return pairable, err
+}
+
 const podcastRecordDownloadFailure = `-- name: PodcastRecordDownloadFailure :exec
 INSERT INTO podcast_download_failures (item_id, error, attempts, first_failed_at, last_failed_at)
 VALUES (?1, ?2, 1, ?3, ?3)

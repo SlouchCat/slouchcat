@@ -41,6 +41,12 @@ var (
 	ErrFeedInvalid          = errors.New("feed invalid")                 // 422 feed_invalid
 	ErrRatingBelowDefault   = errors.New("rating below library default") // 422 rating_below_library_default
 	ErrEnclosureUnavailable = errors.New("enclosure unavailable")        // 502 enclosure_unavailable
+	// ErrRootNotWritable: «Speichern» needs a podcast folder that passes the folder check (422
+	// root_not_writable, concept 19 part A, 5.4).
+	ErrRootNotWritable = errors.New("podcast folder not writable")
+	// ErrRootRequired: a podcast library without a podcast folder cannot store episodes (422
+	// root_required, concept 19 part A, section 11).
+	ErrRootRequired = errors.New("podcast folder required")
 )
 
 // Discover and curation errors (M7).
@@ -1729,6 +1735,25 @@ type AdminPodcast struct {
 type PodcastCreate struct {
 	LibraryID int64
 	FeedURL   string
+}
+
+// Problems of the folder check of a podcast folder (concept 19 part A, 5.4; ADR 0029).
+const (
+	PodcastFolderReadOnly    = "read_only"     // the folder cannot be written (mounted read-only, no write right)
+	PodcastFolderNotMounted  = "not_mounted"   // another file system than at the start, or no known folder there
+	PodcastFolderNoHardLinks = "no_hard_links" // the file system refuses a hard link (O-12: «Speichern» locked)
+	PodcastFolderPermissions = "permissions"   // a new file does not get the expected rights (6.4)
+)
+
+// PodcastFolder is the result of the folder check of a podcast folder (5.4): Writable with an
+// empty Problem when the server may store episodes there, else the first problem found.
+// FreeBytes is the space the server may use on its drive (0 when unknown).
+type PodcastFolder struct {
+	RootID    int64
+	Path      string
+	Writable  bool
+	Problem   string
+	FreeBytes int64
 }
 
 // Playback sessions and stream tokens (M1b, plan 5.4).
