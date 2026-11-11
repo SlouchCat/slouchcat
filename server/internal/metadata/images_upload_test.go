@@ -122,11 +122,12 @@ func TestUploadItemImage(t *testing.T) {
 		if p, _ := e.imageProvider(t, idByTMDB, kind, originalSize, originalFormat); p != ImageSourceManual {
 			t.Fatalf("%s original provider %q, want manual", kind, p)
 		}
-		for _, sz := range imageWidths[kind] {
+		// The sizes of the upload's width: none wider than the upload (sizesFor).
+		for _, sz := range sizesFor("movie", kind, w) {
 			for _, f := range formats {
-				r, ok := imgs[kind+"/"+sizeName(sz)+"/"+string(f.format)]
-				if !ok || r.Source != src || r.Width != int64(sz) || r.MediaType != f.mediaType {
-					t.Fatalf("%s %s %s row %+v (found %v)", kind, sizeName(sz), f.format, r, ok)
+				r, ok := imgs[kind+"/"+sz.name+"/"+string(f.format)]
+				if !ok || r.Source != src || r.Width != int64(sz.width) || r.MediaType != f.mediaType {
+					t.Fatalf("%s %s %s row %+v (found %v)", kind, sz.name, f.format, r, ok)
 				}
 				if _, err := os.Stat(filepath.Join(e.cache, filepath.FromSlash(r.RelPath))); err != nil {
 					t.Fatalf("%s file: %v", r.RelPath, err)
@@ -237,7 +238,11 @@ func TestUploadItemImage(t *testing.T) {
 	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"original/jpeg", "w400/jpeg", "w800/webp"} {
+	// The uploaded original goes with the lock: the TMDB source can be fetched again (keepOriginal).
+	if _, ok := e.images(t, idByTMDB)["poster/original/jpeg"]; ok {
+		t.Error("the poster keeps an original after lifting the lock")
+	}
+	for _, key := range []string{"w200/jpeg", "w400/jpeg", "w800/webp"} {
 		size, format, _ := strings.Cut(key, "/")
 		if p, src := e.imageProvider(t, idByTMDB, "poster", size, format); src != tmdbPoster || p != model.ProviderTMDB {
 			t.Errorf("poster %s after lifting the lock: %s %s, want tmdb %s", key, p, src, tmdbPoster)
@@ -441,8 +446,8 @@ func TestUploadItemImageUndecodable(t *testing.T) {
 	if _, ok := e.itemImages(t, idByTMDB)["poster"]; !ok {
 		t.Error("the poster lost its item_images row")
 	}
-	if p, src := e.imageProvider(t, idByTMDB, "poster", originalSize, originalFormat); p != "tmdb" || strings.HasPrefix(src, "upload:") {
-		t.Errorf("poster original %s %s, want the TMDB one", p, src)
+	if p, src := e.imageProvider(t, idByTMDB, "poster", "w400", "jpeg"); p != "tmdb" || strings.HasPrefix(src, "upload:") {
+		t.Errorf("poster %s %s, want the TMDB one", p, src)
 	}
 }
 

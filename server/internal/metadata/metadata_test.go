@@ -150,7 +150,7 @@ func countryJSON(code, cert string) map[string]any {
 
 func newFakeTMDB(t *testing.T) *fakeTMDB {
 	t.Helper()
-	f := &fakeTMDB{hits: map[string]int{}, poster: jpegBytes(t, 300, 450), backdr: jpegBytes(t, 640, 360)}
+	f := &fakeTMDB{hits: map[string]int{}, poster: jpegBytes(t, 800, 1200), backdr: jpegBytes(t, 1920, 1080)}
 	f.movies = map[string]fixture{
 		// DE FSK 12 next to US R: DE wins.
 		"550": movieFixture(550, "tt0000550", "First Film", "Erster Film", "Deutsche Beschreibung",
@@ -965,9 +965,10 @@ func scaledHeight(width, w, h int) int64 {
 	return int64((width*h+w)/(2*w)) * 2
 }
 
-// checkPipeline verifies the rows and files of one title after image.fetch: the original and six
-// derived rows per kind in kinds, with matching hashes, sizes, dimensions and formats, the accent
-// on every poster row, and no temporary files.
+// checkPipeline verifies the rows and files of one title after image.fetch: six derived rows per
+// kind in kinds (the fixture images are as wide as the widest size), with matching hashes, sizes,
+// dimensions, formats and the original's URL as source, the accent on every poster row, no
+// original left (keepOriginal) and no temporary files.
 func (e *env) checkPipeline(t *testing.T, id string, kinds ...string) map[string]imageRow {
 	t.Helper()
 	imgs := e.images(t, id)
@@ -990,15 +991,13 @@ func (e *env) checkPipeline(t *testing.T, id string, kinds ...string) map[string
 			t.Fatal(err)
 		}
 		source := e.tmdb.srv.URL + "/t/p/original" + o.path
-		orig := imgs[kind+"/original/jpeg"]
-		if orig.RelPath != "images/"+id+"/"+kind+"-original.jpg" || orig.Hash != sha(o.data) || orig.Source != source ||
-			orig.MediaType != "image/jpeg" || orig.Width != int64(cfg.Width) || orig.Height != int64(cfg.Height) || orig.Accent.Valid {
-			t.Fatalf("%s original row %+v", kind, orig)
+		if orig, ok := imgs[kind+"/original/jpeg"]; ok {
+			t.Fatalf("%s original kept: %+v", kind, orig)
 		}
-		want++
-		for _, w := range imageWidths[kind] {
+		for _, sz := range sizesFor("movie", kind, cfg.Width) {
+			w := sz.width
 			for _, f := range imageFormats {
-				key := kind + "/" + sizeName(w) + "/" + string(f.format)
+				key := kind + "/" + sz.name + "/" + string(f.format)
 				r, ok := imgs[key]
 				if !ok {
 					t.Fatalf("no row %s in %v", key, imgs)
@@ -1008,7 +1007,7 @@ func (e *env) checkPipeline(t *testing.T, id string, kinds ...string) map[string
 				if err != nil {
 					t.Fatalf("%s file: %v", key, err)
 				}
-				if r.RelPath != "images/"+id+"/"+kind+"-"+sizeName(w)+"."+f.ext || r.MediaType != f.mediaType ||
+				if r.RelPath != "images/"+id+"/"+kind+"-"+sz.name+"."+f.ext || r.MediaType != f.mediaType ||
 					r.Hash != sha(data) || r.Bytes != int64(len(data)) || r.Source != source ||
 					r.Width != int64(w) || r.Height != scaledHeight(w, cfg.Width, cfg.Height) {
 					t.Fatalf("%s row %+v (%d bytes on disk)", key, r, len(data))
@@ -1081,23 +1080,10 @@ func TestImageFetchStoresFilesAndIsIdempotent(t *testing.T) {
 		t.Fatalf("originals downloaded %d/%d times, want 1", e.tmdb.count(poster), e.tmdb.count(backdrop))
 	}
 
-	// A missing derived file is rebuilt from the kept original, without a download.
+	// A missing derived file is rebuilt from a new download: the original is not kept
+	// (keepOriginal), the other kind is left alone.
 	if err := os.Remove(filepath.Join(e.cache, "images", idByTMDB, "poster-w800.webp")); err != nil {
 		t.Fatal(err)
-	}
-	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
-		t.Fatal(err)
-	}
-	e.checkPipeline(t, idByTMDB, "poster", "backdrop")
-	if e.tmdb.count(poster) != 1 {
-		t.Fatalf("poster downloaded %d times, want 1 (the original is kept)", e.tmdb.count(poster))
-	}
-
-	// A missing original is downloaded again.
-	for _, name := range []string{"poster-original.jpg", "poster-w200.jpg"} {
-		if err := os.Remove(filepath.Join(e.cache, "images", idByTMDB, name)); err != nil {
-			t.Fatal(err)
-		}
 	}
 	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
 		t.Fatal(err)
@@ -1206,19 +1192,20 @@ func TestQueueIncompleteImages(t *testing.T) {
 	}
 	check("w780 webp rebuilt", 0)
 
-	// The original alone may go missing: the delivered images are complete.
-	if err := os.Remove(filepath.Join(e.cache, "images", idByTMDB, "backdrop-original.jpg")); err != nil {
-		t.Fatal(err)
+	// No original is kept (keepOriginal): the delivered images are complete without it.
+	if _, err := os.Stat(filepath.Join(e.cache, "images", idByTMDB, "backdrop-original.jpg")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("backdrop original kept: %v", err)
 	}
-	check("original file deleted", 0)
+	check("without originals", 0)
 
 	// A derived file deleted from the cache.
 	if err := os.Remove(filepath.Join(e.cache, "images", idByTMDB, "poster-w400.jpg")); err != nil {
 		t.Fatal(err)
 	}
 	check("poster file deleted", 1, job)
-	// A locked kind is not fetched from TMDB but scaled from the stored original, so it is checked
-	// as well; image.fetch rebuilds the file without a download.
+	// A locked kind is not fetched from TMDB but scaled from its widest stored JPEG (which becomes
+	// its kept original), so it is checked as well; image.fetch rebuilds the file without a
+	// download.
 	mustExec(t, e.db.Write, `UPDATE items SET locked_fields = '["poster"]' WHERE id = ?`, idByTMDB)
 	check("poster locked", 1, job)
 	posterDownloads := e.tmdb.count("/t/p/original/poster550.jpg")
@@ -1467,7 +1454,7 @@ func TestJobChainWithWorker(t *testing.T) {
 		t.Fatal(err)
 	}
 	deadline := time.Now().Add(10 * time.Second)
-	for len(e.images(t, idByIMDB)) < 14 {
+	for len(e.images(t, idByIMDB)) < 12 {
 		if time.Now().After(deadline) {
 			t.Fatalf("images not stored; item %+v, image jobs %q", e.item(t, idByIMDB), e.imageJobs(t))
 		}

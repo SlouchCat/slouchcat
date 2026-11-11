@@ -349,14 +349,14 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		library.WithNewEpisodes(notifySvc.NewEpisodes), library.WithScanAborted(notifySvc.ScanAborted),
 		library.WithRootRemoved(notifySvc.RootRemoved), library.WithRootContentChanged(notifySvc.RootContentChanged),
 		library.WithBrowseRoots(cfg.BrowseRoots), library.WithVisibilityRecheck(playbackSvc.RecheckVisibility),
-		library.WithCacheDir(cfg.CacheDir))
+		library.WithCacheDir(cfg.CacheDir), library.WithImageFolders(metaSvc.SweepOrphanImages, metaSvc.RemoveItemImages))
 	authSvc.WithMetadataLanguages(metaSvc.AvailableMetadataLanguages)
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
 	// The zone of the watch-time grid, resolved once by name (concept 12).
 	zone, zoneName := admin.ResolveZone(os.Getenv)
 	adminSvc.WithLocation(zone)
 	log.Info("time zone of the statistics", "zone", zoneName)
-	adminSvc.WithTrickplay(libSvc).WithPodcastStorage(libSvc)
+	adminSvc.WithTrickplay(libSvc).WithPodcastStorage(libSvc).WithImageRemoval(metaSvc.RemoveItemImages)
 	adminSvc.WithAniList(cfg.AniList).WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc).WithBooks(metaSvc).
 		WithTrakt(metaSvc).WithBackups(cfg.ConfigDir, version).WithRestart(requestRestart).
 		// The browsable roots are classified once, here: the wizard's root list answers before
@@ -472,6 +472,12 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		// shows its podcast's cover): once, again at the next start when a folder stayed.
 		if _, err := metaSvc.PurgeEpisodeImagesOnce(ctx); err != nil && ctx.Err() == nil {
 			log.Warn("image folders of podcast episodes not removed", "err", err)
+		}
+		// The stored images down to the sizes of 1.28.1 (no w1920 or 4K still of an episode, no
+		// size wider than its original, no kept original): once, again at the next start when a
+		// title failed.
+		if _, err := metaSvc.TrimImageSizesOnce(ctx); err != nil && ctx.Err() == nil {
+			log.Warn("stored images not trimmed", "err", err)
 		}
 	})
 	defer func() {

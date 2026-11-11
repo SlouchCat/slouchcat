@@ -177,6 +177,11 @@ SET lang         = excluded.lang,
 -- Removes a row the pipeline no longer produces (for example the M1a poster in w500).
 DELETE FROM images WHERE id = @id;
 
+-- name: DeleteOriginalImage :exec
+-- Removes the original row of a kind once its sizes are derived and its source can be read again
+-- (decision of 11 November 2026, keepOriginal).
+DELETE FROM images WHERE item_id = @item_id AND kind = @kind AND size = 'original';
+
 -- The decided image source per title and kind (ADR 0018, concept 10 4.4): the single input of
 -- image.fetch. chosen = 1 is the administrator's choice (the kind is in locked_fields too).
 
@@ -221,7 +226,8 @@ SELECT path FROM library_roots WHERE id = @id;
 -- Stored images of the matched titles of a library, for the image check after a scan
 -- (QueueIncompleteImages). Titles without any image row are not listed here (ListItemsMissingImages
 -- covers those with a stored path).
-SELECT i.id AS item_id, i.locked_fields, im.kind, im.size, im.format, im.source_url, im.rel_path, im.accent, im.width
+SELECT i.id AS item_id, i.kind AS item_kind, i.locked_fields, im.kind, im.size, im.format, im.source_url, im.rel_path,
+       im.accent, im.width
 FROM items AS i
 JOIN images AS im ON im.item_id = i.id
 WHERE i.library_id = @library_id
@@ -412,3 +418,20 @@ WHERE root_id = @root_id AND item_id <> @item_id AND missing_since IS NULL
 -- Every podcast episode, soft-deleted ones included: the folders of their image files go once
 -- after migration 00049 (PurgeEpisodeImagesOnce).
 SELECT id FROM items WHERE kind = 'podcast_episode' ORDER BY id;
+
+-- name: ListImageItemIDs :many
+-- Every title with a stored image row, soft-deleted ones included: the one-time trim of the image
+-- sizes after 1.28.1 walks them (TrimImageSizesOnce).
+SELECT DISTINCT item_id FROM images ORDER BY item_id;
+
+-- name: ListAllItemIDs :many
+-- Every title, soft-deleted ones included: an image folder whose title is in none of these rows
+-- belongs to a hard-deleted title (SweepOrphanImages).
+SELECT id FROM items;
+
+-- name: ListForeignImagePaths :many
+-- Image rows whose file lies in the folder of another title: a relink moves the cached images of
+-- the copy to the survivor with their files (RelinkMoveCachedImages), so the copy's folder stays
+-- while a row names it (SweepOrphanImages, RemoveItemImages).
+SELECT DISTINCT rel_path FROM images
+WHERE substr(rel_path, 1, length('images/' || item_id || '/')) <> 'images/' || item_id || '/';

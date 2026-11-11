@@ -357,7 +357,8 @@ type ImageLocation struct {
 
 // Image returns the stored image of a visible title by kind (poster, backdrop) and size (w200 …
 // w3840). With preferWebP it returns the WebP row when one exists, else (and without preferWebP)
-// the JPEG row. A missing w400 poster falls back to M1a's w500 JPEG (legacyPosterSize).
+// the JPEG row. A missing w400 poster falls back to M1a's w500 JPEG (legacyPosterSize), any other
+// missing size to the widest stored size of the kind.
 func (r *Reader) Image(ctx context.Context, s Scope, itemID, kind, size string, preferWebP bool) (ImageLocation, error) {
 	pid, err := r.profile(ctx, s)
 	if err != nil {
@@ -375,6 +376,11 @@ func (r *Reader) Image(ctx context.Context, s Scope, itemID, kind, size string, 
 	im, err := r.q.GetItemImage(ctx, scopedq.GetItemImageParams{ProfileID: pid, ItemID: itemID, Kind: kind, Size: size, Format: format, Fallback: fallback})
 	if errors.Is(err, sql.ErrNoRows) && kind == "poster" && size == posterSize {
 		im, err = r.q.GetItemImage(ctx, scopedq.GetItemImageParams{ProfileID: pid, ItemID: itemID, Kind: kind, Size: legacyPosterSize, Format: format, Fallback: fallback})
+	}
+	if errors.Is(err, sql.ErrNoRows) && derivedSizes[kind][size] {
+		// A size the pipeline did not derive (no size is wider than the original, an episode still
+		// has no w1920; decision of 11 November 2026): the widest stored one of the kind.
+		im, err = r.q.GetWidestItemImage(ctx, scopedq.GetWidestItemImageParams{ProfileID: pid, ItemID: itemID, Kind: kind, Format: format, Fallback: fallback})
 	}
 	if errors.Is(err, sql.ErrNoRows) {
 		im, err = r.podcastImage(ctx, pid, itemID, kind, size, format) // an episode shows its podcast's cover (M6)

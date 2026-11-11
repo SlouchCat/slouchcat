@@ -49,9 +49,10 @@
 //   - image.fetch, payload {"itemId": "<ULID>"}, key image:<itemId>, priority 2 (episode stills 1):
 //     downloads the original of the stored image paths (items.tmdb_poster_path for movies, series
 //     and seasons; items.tmdb_backdrop_path for movies, series and episode stills) once, scales it
-//     with ffmpeg (poster w200, w400, w800; backdrop w780, w1280, w1920) into WebP and JPEG,
-//     computes the accent colour from the w200 poster and upserts one images row per kind, size
-//     and format (images.go). A kind whose derived rows stem from the current original and whose
+//     with ffmpeg (poster w200, w400, w800; backdrop w780, w1280, w1920; an episode still w780,
+//     w1280; never wider than the original) into WebP and JPEG, computes the accent colour from
+//     the w200 poster, upserts one images row per kind, size and format and drops the original
+//     again (images.go). A kind whose derived rows stem from the current original and whose
 //     files exist is skipped, so the job also fills in a size added later and regenerates deleted
 //     files; the library scan enqueues it for such titles. A locked kind is not fetched, but its
 //     sizes are scaled from the stored image. A palette failure keeps the previous accent; a

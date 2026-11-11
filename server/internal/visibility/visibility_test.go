@@ -261,6 +261,23 @@ func TestReaderMediaFileAndImage(t *testing.T) {
 	if _, err := r.Image(ctx, Profile(f.P6), m6.ID, "poster", "w200", false); err != nil {
 		t.Errorf("w200 still served: %v", err)
 	}
+
+	// A size the pipeline left out (an episode still has no w1920, no size is wider than the
+	// original; decision of 11 November 2026) is answered with the widest stored one of the kind.
+	if _, err := f.DB.Write.Exec(`DELETE FROM images WHERE item_id = ? AND kind = 'backdrop' AND size IN ('w1920', 'w3840')`, m6.ID); err != nil {
+		t.Fatal(err)
+	}
+	for _, size := range []string{"w1920", "w3840"} {
+		if wide, err := r.Image(ctx, Profile(f.P6), m6.ID, "backdrop", size, false); err != nil || wide.RelPath != m6.BackdropRel {
+			t.Errorf("backdrop %s = %+v, %v; want the w1280 %s", size, wide, err, m6.BackdropRel)
+		}
+	}
+	if _, err := r.Image(ctx, Profile(f.P12), m6.ID, "backdrop", "w1920", false); err != nil {
+		t.Errorf("backdrop of a visible title for another profile: %v", err)
+	}
+	if _, err := r.Image(ctx, Profile(f.P6), m12.ID, "backdrop", "w1920", false); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("widest backdrop of an invisible title: err = %v, want ErrNotFound", err)
+	}
 }
 
 // B-5: the versions of a title are ordered by height, then age; MediaFile("") picks the same
