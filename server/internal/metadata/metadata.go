@@ -165,7 +165,7 @@ type Service struct {
 	// podcastFetched hears of a fetch with new episodes and of a new subscription (WithPodcastFetched).
 	podcastFetched func(ctx context.Context, podcastID string, newIDs []string) error
 	// podcastChanged and podcastSavable serve the own setting of a podcast (WithPodcastSettingHooks).
-	podcastChanged func(ctx context.Context, podcastID string) error
+	podcastChanged func(ctx context.Context, podcastID string, stop bool) error
 	podcastSavable func(ctx context.Context, podcastID string) error
 	// podcastStates adds savable and unclear episodes to the podcasts (WithPodcastStates).
 	podcastStates func(ctx context.Context, podcastID string) (map[string]model.PodcastState, error)
@@ -217,7 +217,7 @@ type options struct {
 	relink      func(ctx context.Context, itemID string) (bool, error)
 	// podcastFetched: see WithPodcastFetched; podcastChanged, podcastSavable: WithPodcastSettingHooks.
 	podcastFetched func(ctx context.Context, podcastID string, newIDs []string) error
-	podcastChanged func(ctx context.Context, podcastID string) error
+	podcastChanged func(ctx context.Context, podcastID string, stop bool) error
 	podcastSavable func(ctx context.Context, podcastID string) error
 	podcastStates  func(ctx context.Context, podcastID string) (map[string]model.PodcastState, error)
 	traktID        string
@@ -309,10 +309,12 @@ func WithPodcastFetched(fn func(ctx context.Context, podcastID string, newIDs []
 
 // WithPodcastSettingHooks sets the functions UpdatePodcastDownloads calls (concept 19 part A, 5.3):
 // savable before an own setting turns a podcast to «Speichern» (library.Service.PodcastSavable; its
-// error refuses the setting), changed after the setting was stored (library.Service
-// .QueuePodcastSettingChanged, the planner; an error is logged). Without them nothing is checked
+// error refuses the setting), changed after the setting was stored with whether it ended
+// «Speichern» (library.Service.QueuePodcastSettingChanged, the planner; an error is logged). Without them nothing is checked
 // or planned.
-func WithPodcastSettingHooks(savable, changed func(ctx context.Context, podcastID string) error) Option {
+func WithPodcastSettingHooks(savable func(ctx context.Context, podcastID string) error,
+	changed func(ctx context.Context, podcastID string, stop bool) error,
+) Option {
 	return func(o *options) { o.podcastSavable, o.podcastChanged = savable, changed }
 }
 

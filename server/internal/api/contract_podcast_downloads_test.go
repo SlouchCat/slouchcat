@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/admin"
@@ -223,7 +224,11 @@ func TestContractPodcastDownloads(t *testing.T) {
 	}
 
 	// A folder on another file system than when it was added (an NAS that is not mounted): the
-	// check says not_mounted, the list is not savable, «Speichern» is refused.
+	// check says not_mounted, the list is not savable, a change to «Speichern» is refused (while
+	// the library stores already, its other values still change).
+	if rec := send(t, h, http.MethodPatch, libPath, "p18", strings.Replace(save, `"save"`, `"link"`, 1), nil); rec.Code != http.StatusOK {
+		t.Fatalf("updateLibrary «Nur Link»: %d %s", rec.Code, rec.Body.String())
+	}
 	if _, err := f.DB.Write.Exec(`UPDATE library_roots SET fs_type = 'nfs4' WHERE id = ?`, root.ID); err != nil {
 		t.Fatal(err)
 	}

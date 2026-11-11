@@ -317,8 +317,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		return libSvc.QueuePodcastSync(ctx, podcastID, newIDs)
 	}
 	podcastSavable := func(ctx context.Context, podcastID string) error { return libSvc.PodcastSavable(ctx, podcastID) }
-	podcastChanged := func(ctx context.Context, podcastID string) error {
-		return libSvc.QueuePodcastSettingChanged(ctx, podcastID)
+	podcastChanged := func(ctx context.Context, podcastID string, stop bool) error {
+		return libSvc.QueuePodcastSettingChanged(ctx, podcastID, stop)
 	}
 	podcastStates := func(ctx context.Context, podcastID string) (map[string]model.PodcastState, error) {
 		return libSvc.PodcastStates(ctx, podcastID)

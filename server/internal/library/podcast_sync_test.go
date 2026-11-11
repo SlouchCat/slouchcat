@@ -256,7 +256,7 @@ func TestPodcastPlannerCancels(t *testing.T) {
 	}
 	// «Nur Link»: every waiting download goes, the button's too; the stored file stays.
 	f.exec(`UPDATE libraries SET podcast_mode = 'link' WHERE id = ?`, f.lib.ID)
-	f.sync(podcastSyncPayload{PodcastID: f.podcast, Changed: true})
+	f.sync(podcastSyncPayload{PodcastID: f.podcast, Changed: true, Stop: true})
 	if got := f.queuedDownloads(); len(got) != 0 {
 		t.Errorf("downloads after «Nur Link»: %v", got)
 	}
@@ -476,5 +476,67 @@ func TestPodcastFinalFailuresOnlyByButton(t *testing.T) {
 	}
 	if n, err := f.e.svc.DownloadPodcastEpisodes(f.e.ctx, f.podcast, nil); err != nil || n != 4 || !slices.Equal(f.queuedDownloads(), sorted(eps...)) {
 		t.Errorf("«Fehlende nachladen» = %d %v, queued %v, want all four", n, err, f.queuedDownloads())
+	}
+}
+
+// Concept 19, 5.3: a change of the setting while «Nur Link» holds («Gleichzeitig laden») leaves the
+// downloads of the buttons alone, waiting and running ones; only the change «Speichern» → «Nur
+// Link» cancels them.
+func TestPodcastSettingChangeKeepsButtonDownloads(t *testing.T) {
+	t.Parallel()
+	f := newPodcastFixture(t)
+	eps := f.episodes(3)
+	link := model.PodcastDownloads{Mode: model.PodcastLink, Scope: model.PodcastScopeNew, LastN: 10, Parallel: 2}
+	if n, err := f.e.svc.DownloadPodcastEpisodes(f.e.ctx, f.podcast, eps[:2]); err != nil || n != 2 {
+		t.Fatalf("«Laden» = %d %v", n, err)
+	}
+	running, err := f.e.queue.Claim(f.e.ctx, "w", []string{JobPodcastDownload})
+	if err != nil || running == nil {
+		t.Fatalf("claim: %v %v", running, err)
+	}
+	link.Parallel = 3
+	if _, err := f.e.svc.SetPodcastDownloads(f.e.ctx, f.lib.ID, link); err != nil {
+		t.Fatal(err)
+	}
+	f.syncQueued()
+	if got := f.queuedDownloads(); !slices.Equal(got, sorted(eps[:2]...)) {
+		t.Errorf("downloads after «Gleichzeitig laden» on «Nur Link» = %v, want both of «Laden»", got)
+	}
+	save := link
+	save.Mode = model.PodcastSave
+	if _, err := f.e.svc.SetPodcastDownloads(f.e.ctx, f.lib.ID, save); err != nil {
+		t.Fatal(err)
+	}
+	f.syncQueued()
+	if _, err := f.e.svc.SetPodcastDownloads(f.e.ctx, f.lib.ID, link); err != nil {
+		t.Fatal(err)
+	}
+	f.syncQueued()
+	if got := f.queuedDownloads(); len(got) != 0 {
+		t.Errorf("downloads after «Speichern» → «Nur Link» = %v, want none", got)
+	}
+}
+
+// Concept 19, 5.4: the folder check is asked when a library changes to «Speichern» (or to another
+// folder); while «Speichern» holds, the other values still change when the check fails.
+func TestPodcastSettingChecksTheFolderOnlyOnSave(t *testing.T) {
+	t.Parallel()
+	f := newPodcastFixture(t)
+	save := model.PodcastDownloads{Mode: model.PodcastSave, Scope: model.PodcastScopeNew, LastN: 10, Parallel: 2}
+	if _, err := f.e.svc.SetPodcastDownloads(f.e.ctx, f.lib.ID, save); err != nil {
+		t.Fatal(err)
+	}
+	f.e.svc.podcastLink = func(*os.Root, string, string) error { return errors.ErrUnsupported }
+	save.Parallel, save.LastN = 4, 20
+	if got, err := f.e.svc.SetPodcastDownloads(f.e.ctx, f.lib.ID, save); err != nil || got.Parallel != 4 || got.LastN != 20 {
+		t.Errorf("«Gleichzeitig laden» on «Speichern» with a failing folder = %+v %v", got, err)
+	}
+	link := save
+	link.Mode = model.PodcastLink
+	if _, err := f.e.svc.SetPodcastDownloads(f.e.ctx, f.lib.ID, link); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.e.svc.SetPodcastDownloads(f.e.ctx, f.lib.ID, save); !errors.Is(err, model.ErrRootNotWritable) {
+		t.Errorf("«Nur Link» → «Speichern» with a failing folder: %v", err)
 	}
 }

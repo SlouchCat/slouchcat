@@ -81,7 +81,7 @@ func TestUpdatePodcastDownloads(t *testing.T) {
 	e.svc = New(e.db, e.queue, staticKey(""), t.TempDir(), transcode.Runner{}, slog.New(slog.DiscardHandler),
 		WithFeedClock(e.clock.now), WithFeedUserAgent("Slouchcat/test"), WithPodcastSettingHooks(
 			func(context.Context, string) error { return savable },
-			func(_ context.Context, id string) error {
+			func(_ context.Context, id string, _ bool) error {
 				mu.Lock()
 				defer mu.Unlock()
 				changed = append(changed, id)
@@ -124,5 +124,61 @@ func TestUpdatePodcastDownloads(t *testing.T) {
 	}
 	if _, err := e.svc.UpdatePodcastDownloads(ctx, "01J9ZZZZZZZZZZZZZZZZZZZZZZ", model.PodcastDownloadsUpdate{}); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("unknown podcast: %v", err)
+	}
+}
+
+// Concept 19 part A, 5.3 and 5.4: the folder check is asked only when a podcast changes to
+// «Speichern»; while it stores, a change of the scope passes though the check fails. The planner
+// hook hears whether the change ends «Speichern» (then it cancels the downloads of the buttons too).
+func TestUpdatePodcastDownloadsChecksOnlyOnSave(t *testing.T) {
+	t.Parallel()
+	e := newPodcastEnv(t, 2)
+	type call struct {
+		id   string
+		stop bool
+	}
+	var mu sync.Mutex
+	var calls []call
+	checks := 0
+	e.svc = New(e.db, e.queue, staticKey(""), t.TempDir(), transcode.Runner{}, slog.New(slog.DiscardHandler),
+		WithFeedClock(e.clock.now), WithFeedUserAgent("Slouchcat/test"), WithPodcastSettingHooks(
+			func(context.Context, string) error {
+				mu.Lock()
+				defer mu.Unlock()
+				checks++
+				return errors.New("root not writable")
+			},
+			func(_ context.Context, id string, stop bool) error {
+				mu.Lock()
+				defer mu.Unlock()
+				calls = append(calls, call{id, stop})
+				return nil
+			}))
+	ctx := context.Background()
+	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustExec(t, e.db.Write, `UPDATE libraries SET podcast_mode = 'save' WHERE id = 3`)
+	str := func(v string) *string { return &v }
+	if _, err := e.svc.UpdatePodcastDownloads(ctx, p.ID, model.PodcastDownloadsUpdate{Scope: str(model.PodcastScopeAll)}); err != nil {
+		t.Errorf("a scope while the podcast stores: %v", err)
+	}
+	if _, err := e.svc.UpdatePodcastDownloads(ctx, p.ID, model.PodcastDownloadsUpdate{Mode: str(model.PodcastLink)}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.UpdatePodcastDownloads(ctx, p.ID, model.PodcastDownloadsUpdate{Scope: str(model.PodcastScopeNew)}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.UpdatePodcastDownloads(ctx, p.ID, model.PodcastDownloadsUpdate{Mode: str(model.PodcastInherit)}); err == nil {
+		t.Errorf("«Nur Link» → «Wie Bibliothek» (Speichern) passed a failing folder check")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if checks != 1 {
+		t.Errorf("folder checks = %d, want only the one of the change to «Speichern»", checks)
+	}
+	if want := []call{{p.ID, false}, {p.ID, true}, {p.ID, false}}; !slices.Equal(calls, want) {
+		t.Errorf("planner hook heard %+v, want %+v", calls, want)
 	}
 }

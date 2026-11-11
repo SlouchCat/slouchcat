@@ -16,8 +16,9 @@ import (
 // from the one shared query PodcastEffectiveSettings (podcast before library).
 
 // UpdatePodcastDownloads is updatePodcast: it stores the own setting of a podcast (a nil field
-// stays, model.PodcastInherit follows the library) and runs the planner. A setting that makes the
-// podcast store asks the folder check first (WithPodcastSettingHooks). Errors: model.ErrNotFound
+// stays, model.PodcastInherit follows the library) and runs the planner, telling it whether the
+// change ended «Speichern». A change that makes the podcast store asks the folder check first
+// (WithPodcastSettingHooks); while it stores already, the other values change without the check. Errors: model.ErrNotFound
 // (unknown or deleted podcast), *model.ValidationError (mode, scope, lastN; mode not_allowed for a
 // folder podcast without feed), the error of the folder check (model.ErrRootNotWritable,
 // model.ErrRootRequired).
@@ -80,7 +81,7 @@ func (s *Service) UpdatePodcastDownloads(ctx context.Context, id string, upd mod
 	if mode.Valid {
 		effective = mode.String
 	}
-	if effective == model.PodcastSave && s.podcastSavable != nil {
+	if effective == model.PodcastSave && cur.EffectiveMode != model.PodcastSave && s.podcastSavable != nil {
 		if err := s.podcastSavable(ctx, id); err != nil {
 			return model.AdminPodcast{}, err
 		}
@@ -91,7 +92,7 @@ func (s *Service) UpdatePodcastDownloads(ctx context.Context, id string, upd mod
 		return model.AdminPodcast{}, fmt.Errorf("store setting of podcast %s: %w", id, err)
 	}
 	if s.podcastChanged != nil {
-		if err := s.podcastChanged(ctx, id); err != nil {
+		if err := s.podcastChanged(ctx, id, cur.EffectiveMode == model.PodcastSave && effective != model.PodcastSave); err != nil {
 			s.log.WarnContext(ctx, "queue the podcast planner after a setting", "item_id", id, "err", err)
 		}
 	}

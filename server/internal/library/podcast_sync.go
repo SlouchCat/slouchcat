@@ -78,11 +78,14 @@ const (
 )
 
 // podcastSyncPayload is the payload of podcast.sync: the podcast, the episodes a fetch reported as
-// new, and whether a setting changed (then a change to «Nur Link» cancels every download).
+// new, whether a setting changed (the waiting downloads it no longer wants are cancelled), and
+// whether that change ended «Speichern» (Stop: the running downloads and those of the buttons end
+// too, 5.3). A change of another value while «Nur Link» holds leaves the buttons' downloads alone.
 type podcastSyncPayload struct {
 	PodcastID string   `json:"podcastId"`
 	NewIDs    []string `json:"newIds,omitempty"`
 	Changed   bool     `json:"changed,omitempty"`
+	Stop      bool     `json:"stop,omitempty"`
 }
 
 // podcastSyncTypes registers the planner and its schedule (RegisterTypes).
@@ -106,10 +109,11 @@ func (s *Service) QueuePodcastSync(ctx context.Context, podcastID string, newIDs
 }
 
 // QueuePodcastSettingChanged queues the planner after the own setting of a podcast changed
-// (metadata.WithPodcastSettingChanged, wired in main.go): it loads what the new setting adds and
-// cancels what it no longer wants.
-func (s *Service) QueuePodcastSettingChanged(ctx context.Context, podcastID string) error {
-	return s.enqueuePodcastSync(ctx, podcastSyncPayload{PodcastID: podcastID, Changed: true}, "")
+// (metadata.WithPodcastSettingHooks, wired in main.go): it loads what the new setting adds and
+// cancels what it no longer wants. stop says that the change ended «Speichern» for the podcast:
+// then the running downloads and those of the buttons end as well.
+func (s *Service) QueuePodcastSettingChanged(ctx context.Context, podcastID string, stop bool) error {
+	return s.enqueuePodcastSync(ctx, podcastSyncPayload{PodcastID: podcastID, Changed: true, Stop: stop}, "")
 }
 
 // enqueuePodcastSync queues one planner run; key is empty for the runs of an event (each one
@@ -206,7 +210,7 @@ func (s *Service) syncPodcast(ctx context.Context, p podcastSyncPayload) (int, e
 	}
 	saving := ok && set.EffectiveMode == model.PodcastSave
 	if !saving || p.Changed {
-		if err := s.cancelPodcastDownloads(ctx, p.PodcastID, wanted, saving, !saving && p.Changed); err != nil {
+		if err := s.cancelPodcastDownloads(ctx, p.PodcastID, wanted, saving, !saving && p.Stop); err != nil {
 			return 0, err
 		}
 	}
@@ -293,8 +297,8 @@ func (s *Service) plannedPodcastEpisodes(ctx context.Context, set systemq.Podcas
 
 // cancelPodcastDownloads cancels the waiting downloads of a podcast's episodes that are not wanted,
 // were not asked for by a button and do not load a new episode of a fetch (a smaller scope keeps
-// those; «Nur Link» does not); with all (a change to «Nur Link») also the running ones and those of
-// the buttons. A running download ends at once and removes its partial file.
+// those; «Nur Link» does not); with all (the change «Speichern» → «Nur Link») also the running ones
+// and those of the buttons. A running download ends at once and removes its partial file.
 func (s *Service) cancelPodcastDownloads(ctx context.Context, podcastID string, wanted map[string]bool, saving, all bool) error {
 	active, err := systemq.New(s.db.Read).PodcastActiveDownloads(ctx, sql.NullString{String: podcastID, Valid: true})
 	if err != nil {
@@ -415,11 +419,13 @@ func podcastDownloadsOf(lib appq.Library) model.PodcastDownloads {
 }
 
 // SetPodcastDownloads stores the setting of stored episodes of a podcast library
-// (LibraryUpdate.podcastDownloads) and runs the planner for each of its podcasts. Errors:
-// model.ErrNotFound (unknown library or another kind), *model.ValidationError (mode, scope,
-// lastN, parallel, rootId: a podcast folder of the library), model.ErrRootRequired («Speichern»
-// without a podcast folder), model.ErrRootNotWritable («Speichern» on a folder that fails the
-// folder check, 5.4).
+// (LibraryUpdate.podcastDownloads) and runs the planner for each of its podcasts; for a podcast
+// whose effective setting changes from «Speichern» to «Nur Link» it ends every download (5.3).
+// Errors: model.ErrNotFound (unknown library or another kind), *model.ValidationError (mode,
+// scope, lastN, parallel, rootId: a podcast folder of the library), model.ErrRootRequired
+// («Speichern» without a podcast folder), model.ErrRootNotWritable (a change to «Speichern», or to
+// another folder while it stores, on a folder that fails the folder check, 5.4; while «Speichern»
+// holds, the other values change whatever the check says).
 func (s *Service) SetPodcastDownloads(ctx context.Context, libraryID int64, d model.PodcastDownloads) (model.PodcastDownloads, error) {
 	lib, err := appq.New(s.db.Read).GetLibrary(ctx, libraryID)
 	if errors.Is(err, sql.ErrNoRows) || (err == nil && lib.Kind != model.LibraryPodcasts) {
@@ -450,6 +456,7 @@ func (s *Service) SetPodcastDownloads(ctx context.Context, libraryID int64, d mo
 	if verr != nil {
 		return model.PodcastDownloads{}, verr
 	}
+	was := lib
 	lib.PodcastRootID = sql.NullInt64{}
 	if d.RootID != nil {
 		lib.PodcastRootID = sql.NullInt64{Int64: *d.RootID, Valid: true}
@@ -459,9 +466,21 @@ func (s *Service) SetPodcastDownloads(ctx context.Context, libraryID int64, d mo
 		if err != nil {
 			return model.PodcastDownloads{}, err
 		}
-		if check := s.CheckPodcastFolder(ctx, root); !check.Writable {
-			return model.PodcastDownloads{}, fmt.Errorf("%w: %s", model.ErrRootNotWritable, check.Problem)
+		before, err := s.podcastTargetRoot(ctx, was)
+		if was.PodcastMode != model.PodcastSave || err != nil || before.ID != root.ID {
+			if check := s.CheckPodcastFolder(ctx, root); !check.Writable {
+				return model.PodcastDownloads{}, fmt.Errorf("%w: %s", model.ErrRootNotWritable, check.Problem)
+			}
 		}
+	}
+	read := systemq.New(s.db.Read)
+	old, err := read.PodcastEffectiveSettings(ctx, systemq.PodcastEffectiveSettingsParams{LibraryID: libraryID})
+	if err != nil {
+		return model.PodcastDownloads{}, err
+	}
+	saved := map[string]bool{}
+	for _, set := range old {
+		saved[set.PodcastID] = set.EffectiveMode == model.PodcastSave
 	}
 	if _, err := systemq.New(s.db.Write).PodcastSetLibraryDownloads(ctx, systemq.PodcastSetLibraryDownloadsParams{
 		Mode: d.Mode, Scope: d.Scope, LastN: int64(d.LastN), Parallel: int64(d.Parallel), RootID: lib.PodcastRootID,
@@ -469,12 +488,12 @@ func (s *Service) SetPodcastDownloads(ctx context.Context, libraryID int64, d mo
 	}); err != nil {
 		return model.PodcastDownloads{}, fmt.Errorf("store podcast downloads of library %d: %w", libraryID, err)
 	}
-	sets, err := systemq.New(s.db.Read).PodcastEffectiveSettings(ctx, systemq.PodcastEffectiveSettingsParams{LibraryID: libraryID})
+	sets, err := read.PodcastEffectiveSettings(ctx, systemq.PodcastEffectiveSettingsParams{LibraryID: libraryID})
 	if err != nil {
 		return model.PodcastDownloads{}, err
 	}
 	for _, set := range sets {
-		if err := s.QueuePodcastSettingChanged(ctx, set.PodcastID); err != nil {
+		if err := s.QueuePodcastSettingChanged(ctx, set.PodcastID, saved[set.PodcastID] && set.EffectiveMode != model.PodcastSave); err != nil {
 			return model.PodcastDownloads{}, err
 		}
 	}
