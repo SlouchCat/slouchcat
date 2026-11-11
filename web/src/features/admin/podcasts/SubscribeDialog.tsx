@@ -24,6 +24,13 @@ export function SubscribeDialog({
 }) {
   const { t } = useTranslation();
   const [libraryId, setLibraryId] = useState(String(libraries[0]?.id ?? ''));
+  // What the chosen library loads after the first fetch (concept 19 part A, 5.2): nothing for
+  // «Nur Link» and «Nur neue Folgen», the N newest or the whole feed otherwise.
+  const downloads = libraries.find((library) => String(library.id) === libraryId)?.podcastDownloads;
+  const loads =
+    downloads?.mode === 'save'
+      ? t(`admin.podcasts.subscribe.loads.${downloads.scope}`, { n: downloads.lastN })
+      : null;
   const create = useMutation({
     mutationFn: (body: PodcastCreate): Promise<AdminPodcast> =>
       request(api.POST('/admin/podcasts', { body })),
@@ -76,6 +83,11 @@ export function SubscribeDialog({
             label: library.name,
           }))}
         />
+        {loads && (
+          <Notice tone="info" live={false}>
+            {loads}
+          </Notice>
+        )}
         <div className={styles.dialogActions}>
           <AriaButton variant="ghost" onPress={onClose}>
             {t('common.cancel')}

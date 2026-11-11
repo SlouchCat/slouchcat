@@ -66,6 +66,13 @@ export type LibraryUpdate = components['schemas']['LibraryUpdate'];
 export type AdminPodcast = components['schemas']['AdminPodcast'];
 export type PodcastCreate = components['schemas']['PodcastCreate'];
 export type PodcastEpisodes = components['schemas']['PodcastEpisodes'];
+// Stored podcast episodes (concept 19 part A, contract 1.27.0).
+export type LibraryPodcastDownloads = components['schemas']['LibraryPodcastDownloads'];
+export type PodcastFolder = components['schemas']['PodcastFolder'];
+export type PodcastUpdate = components['schemas']['PodcastUpdate'];
+export type PodcastDownloadEstimate = components['schemas']['PodcastDownloadEstimate'];
+export type PodcastDownloadEstimateRequest =
+  components['schemas']['PodcastDownloadEstimateRequest'];
 export type PlaybackPart = components['schemas']['PlaybackPart'];
 export type FieldError = components['schemas']['FieldError'];
 export type ExtraKind = components['schemas']['ExtraKind'];

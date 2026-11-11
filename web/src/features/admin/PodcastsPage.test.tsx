@@ -1,3 +1,4 @@
+import type { Library, PodcastFolder } from '@slouchcat/api-client';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -466,5 +467,232 @@ describe('admin podcasts page (M6, H-2; concept 12)', () => {
       '/admin/libraries',
     );
     expect(screen.queryByRole('button', { name: 'Feed abonnieren' })).not.toBeInTheDocument();
+  });
+});
+
+// Stored podcast episodes (concept 19 part A, stage 1, 12.3): the band «Neue Folgen» of a podcast
+// library with the folder check and the confirmation of a change that loads once, the own
+// setting of a podcast and «Fehlende nachladen» in its fold-out.
+describe('admin podcasts page: stored episodes (concept 19 part A)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  const savingLibrary = (
+    downloads: Partial<NonNullable<Library['podcastDownloads']>> = {},
+  ): Library => ({
+    ...podcastLibrary,
+    roots: [
+      {
+        id: 7,
+        path: '/media/Audiobookshelf/Podcast',
+        content: 'podcast',
+        providers: ['local'],
+        fsType: 'nfs4',
+        watch: 'poll',
+        itemCount: 1,
+        fileCount: 3,
+      },
+    ],
+    podcastDownloads: { mode: 'link', scope: 'new', lastN: 10, parallel: 2, ...downloads },
+  });
+  const folder = (writable: boolean, problem?: PodcastFolder['problem']): PodcastFolder => ({
+    rootId: 7,
+    path: '/media/Audiobookshelf/Podcast',
+    writable,
+    freeBytes: 2_100_000_000_000,
+    ...(problem ? { problem } : {}),
+  });
+  const bandRoutes = (lib: Library, check: PodcastFolder) => ({
+    ...routes,
+    ...adminShell,
+    'GET /admin/libraries': () => json([library(), lib]),
+    'GET /admin/libraries/3': () => json({ ...lib, podcastFolder: check }),
+    'GET /admin/podcasts': () => json([adminPodcast]),
+  });
+  /** Opens the band «Neue Folgen» and returns its body. */
+  async function openBand(user: ReturnType<typeof userEvent.setup>) {
+    const toggle = await screen.findByRole('button', { name: 'Neue Folgen' });
+    await user.click(toggle);
+    const body = document.getElementById(toggle.getAttribute('aria-controls') ?? '');
+    if (!body) throw new Error('no body of the band');
+    return body;
+  }
+
+  it('P-6: a folder that fails the check locks «Speichern» and says why', async () => {
+    mockApi(bandRoutes(savingLibrary(), folder(false, 'read_only')));
+    await renderAdminPage('/admin/podcasts');
+    const user = userEvent.setup();
+    // Folded: one line that sums the setting up.
+    expect(await screen.findByText('Nur Link · nichts wird gespeichert')).toBeVisible();
+    const band = await openBand(user);
+    expect(await within(band).findByText('nur lesbar eingebunden')).toBeVisible();
+    expect(within(band).getByText('/media/Audiobookshelf/Podcast')).toBeVisible();
+    expect(
+      within(band).getByText(/«Speichern» ist gesperrt, bis der Ordner die Prüfung besteht/),
+    ).toBeVisible();
+    expect(
+      within(band).getByRole('link', { name: /Installationsanleitung: Podcast-Folgen speichern/ }),
+    ).toHaveAttribute('href', expect.stringContaining('INSTALLATION.md#podcast-folgen-speichern'));
+    const group = within(band).getByRole('radiogroup', { name: 'Neue Folgen' });
+    expect(within(group).getByRole('radio', { name: 'Speichern' })).toBeDisabled();
+    expect(within(group).getByRole('radio', { name: 'Nur Link' })).toBeChecked();
+  });
+
+  it('P-6: a folder that passes the check takes «Speichern» at once without asking', async () => {
+    const { calls } = mockApi({
+      ...bandRoutes(savingLibrary(), folder(true)),
+      'PATCH /admin/libraries/3': (call) =>
+        json({ ...savingLibrary(), ...(call.body as Partial<Library>) }),
+    });
+    await renderAdminPage('/admin/podcasts');
+    const user = userEvent.setup();
+    const band = await openBand(user);
+    expect(await within(band).findByText('beschreibbar · 2,1 TB frei')).toBeVisible();
+    const save = within(within(band).getByRole('radiogroup', { name: 'Neue Folgen' })).getByRole(
+      'radio',
+      { name: 'Speichern' },
+    );
+    expect(save).toBeEnabled();
+    await user.click(save);
+    expect(await within(band).findByText('Gespeichert.')).toBeVisible();
+    expect(calls.filter((call) => call.method === 'PATCH').map((call) => call.body)).toEqual([
+      { podcastDownloads: { mode: 'save', scope: 'new', lastN: 10, parallel: 2 } },
+    ]);
+    // «Nur neue Folgen» loads nothing once: no estimate.
+    expect(calls.some((call) => call.path.endsWith('/estimate'))).toBe(false);
+  });
+
+  it('P-13: «Alle Folgen» shows the estimate first; «Abbrechen» keeps the scope, «Laden» saves it', async () => {
+    const lib = savingLibrary({ mode: 'save' });
+    const { calls } = mockApi({
+      ...bandRoutes(lib, folder(true)),
+      'POST /admin/libraries/3/podcast-downloads/estimate': (call) =>
+        json(
+          (call.body as { scope: string }).scope === 'all'
+            ? { episodes: 1894, bytes: 52_000_000_000, freeBytes: 2_100_000_000_000 }
+            : { episodes: 0, bytes: 0, freeBytes: 2_100_000_000_000 },
+        ),
+      'PATCH /admin/libraries/3': () =>
+        json({ ...lib, podcastDownloads: { ...lib.podcastDownloads, scope: 'all' } }),
+    });
+    await renderAdminPage('/admin/podcasts');
+    const user = userEvent.setup();
+    expect(await screen.findByText('Speichern · Nur neue Folgen · 2 gleichzeitig')).toBeVisible();
+    const band = await openBand(user);
+    const scope = within(band).getByRole('radiogroup', { name: 'Umfang' });
+    await user.click(within(scope).getByRole('radio', { name: 'Alle Folgen' }));
+    const estimate = await within(band).findByText(
+      /^Das lädt einmalig rund 1’?\.?894 Folgen, etwa 52 GB\. Frei: 2,1 TB\.$/,
+    );
+    expect(estimate).toBeVisible();
+    expect(
+      calls.filter((call) => call.path.endsWith('/estimate')).map((call) => call.body),
+    ).toEqual([{ mode: 'save', scope: 'all', lastN: 10 }]);
+    expect(calls.some((call) => call.method === 'PATCH')).toBe(false);
+
+    // «Abbrechen»: the old scope applies, nothing was sent.
+    await user.click(within(band).getByRole('button', { name: 'Abbrechen' }));
+    expect(within(scope).getByRole('radio', { name: 'Nur neue Folgen' })).toBeChecked();
+    expect(within(band).queryByText(/Das lädt einmalig/)).not.toBeInTheDocument();
+    expect(calls.some((call) => call.method === 'PATCH')).toBe(false);
+
+    // «Laden»: the new scope is saved and the loading begins.
+    await user.click(within(scope).getByRole('radio', { name: 'Alle Folgen' }));
+    await user.click(await within(band).findByRole('button', { name: 'Laden' }));
+    expect(await within(band).findByText('Gespeichert.')).toBeVisible();
+    expect(calls.filter((call) => call.method === 'PATCH').map((call) => call.body)).toEqual([
+      { podcastDownloads: { mode: 'save', scope: 'all', lastN: 10, parallel: 2 } },
+    ]);
+  });
+
+  it('a podcast differs from its library after the estimate; «Fehlende nachladen» asks too', async () => {
+    const { calls } = mockApi({
+      ...bandRoutes(savingLibrary(), folder(true)),
+      'POST /admin/libraries/3/podcast-downloads/estimate': (call) => {
+        const body = call.body as { mode: string; scope: string };
+        return json(
+          body.mode === 'save'
+            ? {
+                episodes: body.scope === 'all' ? 3 : 2,
+                bytes: 50_000_000,
+                freeBytes: 10_000_000_000,
+              }
+            : { episodes: 0, bytes: 0, freeBytes: 10_000_000_000 },
+        );
+      },
+      [`PATCH /admin/podcasts/${audioIds.podcast}`]: () =>
+        json({ ...adminPodcast, mode: 'save', effectiveMode: 'save' }),
+      [`POST /admin/podcasts/${audioIds.podcast}/download`]: () => json({ queued: 3 }, 202),
+    });
+    await renderAdminPage('/admin/podcasts');
+    const user = userEvent.setup();
+    const detail = await openRow(user, /^Slouchcat Test Podcast/);
+    expect(within(detail).getByText('Gilt: Nur Link')).toBeVisible();
+    const mode = within(detail).getByRole('radiogroup', { name: 'Neue Folgen dieses Podcasts' });
+    expect(within(mode).getByRole('radio', { name: 'Wie Bibliothek' })).toBeChecked();
+    await user.click(within(mode).getByRole('radio', { name: 'Speichern' }));
+    expect(
+      await within(detail).findByText(/^Das lädt einmalig rund 2 Folgen, etwa 50 MB\./),
+    ).toBeVisible();
+    expect(calls.some((call) => call.method === 'PATCH')).toBe(false);
+    await user.click(within(detail).getByRole('button', { name: 'Laden' }));
+    expect(await within(detail).findByText('Gespeichert.')).toBeVisible();
+    expect(calls.filter((call) => call.method === 'PATCH').map((call) => call.body)).toEqual([
+      { mode: 'save', scope: 'inherit' },
+    ]);
+
+    await user.click(
+      within(detail).getByRole('button', {
+        name: 'Fehlende Folgen von Slouchcat Test Podcast nachladen',
+      }),
+    );
+    expect(await within(detail).findByText(/^Das lädt einmalig rund 3 Folgen/)).toBeVisible();
+    expect(calls.some((call) => call.path.endsWith('/download'))).toBe(false);
+    await user.click(within(detail).getByRole('button', { name: 'Laden' }));
+    expect(await within(detail).findByText('3 Folgen werden geladen.')).toBeVisible();
+    expect(
+      calls.filter((call) => call.path.endsWith('/estimate')).map((call) => call.body),
+    ).toEqual([
+      { podcastId: audioIds.podcast, mode: 'save', scope: 'inherit' },
+      { podcastId: audioIds.podcast, mode: 'inherit', scope: 'inherit' },
+      { podcastId: audioIds.podcast, mode: 'save', scope: 'all' },
+    ]);
+  });
+
+  it('a podcast the server cannot store has «Speichern» locked', async () => {
+    mockApi({
+      ...bandRoutes(savingLibrary(), folder(false, 'not_mounted')),
+      'GET /admin/podcasts': () => json([{ ...adminPodcast, savable: false }]),
+    });
+    await renderAdminPage('/admin/podcasts');
+    const user = userEvent.setup();
+    const detail = await openRow(user, /^Slouchcat Test Podcast/);
+    expect(
+      within(detail).getByText(
+        'Der Ordner dieses Podcasts besteht die Ordnerprüfung nicht; «Speichern» ist gesperrt.',
+      ),
+    ).toBeVisible();
+    const mode = within(detail).getByRole('radiogroup', { name: 'Neue Folgen dieses Podcasts' });
+    expect(within(mode).getByRole('radio', { name: 'Speichern' })).toBeDisabled();
+    expect(
+      within(detail).getByRole('button', {
+        name: 'Fehlende Folgen von Slouchcat Test Podcast nachladen',
+      }),
+    ).toBeDisabled();
+  });
+
+  it('«Feed abonnieren» says what a storing library loads after the first fetch', async () => {
+    mockApi(bandRoutes(savingLibrary({ mode: 'save', scope: 'last_n', lastN: 5 }), folder(true)));
+    await renderAdminPage('/admin/podcasts');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Feed abonnieren' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Feed abonnieren' });
+    expect(
+      within(dialog).getByText(
+        'Diese Bibliothek speichert: nach dem Abonnieren lädt Slouchcat die 5 neuesten Folgen als Datei.',
+      ),
+    ).toBeVisible();
   });
 });

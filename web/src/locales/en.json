@@ -2268,6 +2268,7 @@
       "columns": {
         "title": "Title",
         "episodes": "Episodes",
+        "stored": "Stored",
         "lastFetch": "Last fetch",
         "error": "Error"
       },
@@ -2294,7 +2295,12 @@
         "urlHint": "RSS feed of the podcast, for example https://example.org/feed.xml.",
         "submit": "Subscribe",
         "submitting": "Fetching the feed …",
-        "done": "{{title}} is subscribed."
+        "done": "{{title}} is subscribed.",
+        "loads": {
+          "new": "This library stores new episodes. Slouchcat loads nothing from the first fetch, only what appears after it.",
+          "last_n": "This library stores: after subscribing, Slouchcat loads the {{n}} newest episodes as files.",
+          "all": "This library stores all episodes: after subscribing, Slouchcat loads the whole feed as files (at most 2000 episodes)."
+        }
       },
       "refresh": {
         "action": "Fetch now",
@@ -2309,6 +2315,101 @@
         "body": "The podcast and its episodes disappear from the library. Downloads of the episodes are removed at the next sync.",
         "confirm": "Unsubscribe",
         "done": "Unsubscribed from {{title}}."
+      },
+      "stored": {
+        "save": "Stores",
+        "link": "Link only",
+        "own": "own setting",
+        "loading": "loading {{number}}",
+        "failed": "{{number}} failed"
+      },
+      "downloads": {
+        "title": "New episodes",
+        "titleOf": "New episodes: {{library}}",
+        "summary": {
+          "save": "Store · {{scope}} · {{parallel}} at once",
+          "link": "Link only · nothing is stored"
+        },
+        "saved": "Saved.",
+        "mode": {
+          "label": "New episodes",
+          "save": "Store",
+          "link": "Link only"
+        },
+        "scope": {
+          "label": "Scope",
+          "new": "New episodes only",
+          "last_n": "New + last N",
+          "all": "All episodes",
+          "lastNOf": "New + last {{n}}"
+        },
+        "hint": {
+          "link": "New episodes stay a link and stream from the host when played. Existing files stay.",
+          "new": "Only what appears from now on is loaded. Older episodes without a file stay links.",
+          "last_n": "New episodes and, per podcast, the last {{n}} episodes of the feed that are missing.",
+          "all": "The whole feed (at most 2000 episodes per podcast) and every new episode. Can take a lot of space."
+        },
+        "lastN": {
+          "label": "Number of episodes (N)",
+          "hint": "1 to {{max}}",
+          "apply": "Apply"
+        },
+        "estimating": "Calculating the estimate …",
+        "confirm": {
+          "text_one": "This loads about {{number}} episode once, roughly {{size}}. Free: {{free}}.",
+          "text_other": "This loads about {{number}} episodes once, roughly {{size}}. Free: {{free}}.",
+          "load": "Load"
+        },
+        "folder": {
+          "label": "Folder",
+          "target": "Folder for new subscriptions",
+          "writable": "writable · {{free}} free",
+          "writableUnknown": "writable",
+          "checking": "Checking the folder …",
+          "none": "The library has no podcast folder. Add one under Libraries so Slouchcat can store episodes.",
+          "locked": "“Store” is locked until the folder passes the check.",
+          "guide": "Installation guide: storing podcast episodes",
+          "problem": {
+            "read_only": "mounted read-only",
+            "not_mounted": "folder is not mounted",
+            "no_hard_links": "file system cannot make hard links",
+            "permissions": "new files do not get the rights they need"
+          }
+        },
+        "parallel": {
+          "label": "Load at once",
+          "hint": "Slouchcat loads only one episode at a time from the same host."
+        }
+      },
+      "setting": {
+        "saved": "Saved.",
+        "effective": {
+          "save": "Applies: Store · {{scope}}",
+          "link": "Applies: Link only"
+        },
+        "notSavable": "The folder of this podcast fails the folder check; “Store” is locked.",
+        "mode": {
+          "label": "New episodes of this podcast",
+          "inherit": "Like the library",
+          "save": "Store",
+          "link": "Link only"
+        },
+        "scope": {
+          "label": "Scope of this podcast",
+          "inherit": "Like the library",
+          "new": "New episodes only",
+          "last_n": "New + last N",
+          "all": "All episodes"
+        },
+        "unclear_one": "{{number}} episode is unclear: a file in the folder may hold it already. Slouchcat does not load it by itself.",
+        "unclear_other": "{{number}} episodes are unclear: a file in the folder may hold them already. Slouchcat does not load them by itself.",
+        "missing": {
+          "action": "Load missing",
+          "label": "Load the missing episodes of {{title}}",
+          "none": "No episode is missing that Slouchcat would load.",
+          "queued_one": "{{number}} episode is being loaded.",
+          "queued_other": "{{number}} episodes are being loaded."
+        }
       }
     },
     "picks": {
