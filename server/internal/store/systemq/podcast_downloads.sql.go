@@ -19,9 +19,25 @@ func (q *Queries) PodcastClearDownloadFailure(ctx context.Context, itemID string
 	return err
 }
 
+const podcastClearPendingFolder = `-- name: PodcastClearPendingFolder :exec
+UPDATE podcast_settings SET pending_root_id = NULL, pending_folder = NULL, updated_at = ?1
+WHERE item_id = ?2 AND (pending_root_id IS NOT NULL OR pending_folder IS NOT NULL)
+`
+
+type PodcastClearPendingFolderParams struct {
+	Now    int64
+	ItemID string
+}
+
+// The first file of a podcast is entered: its folder follows from its files from now on.
+func (q *Queries) PodcastClearPendingFolder(ctx context.Context, arg PodcastClearPendingFolderParams) error {
+	_, err := q.db.ExecContext(ctx, podcastClearPendingFolder, arg.Now, arg.ItemID)
+	return err
+}
+
 const podcastEffectiveSettings = `-- name: PodcastEffectiveSettings :many
 
-SELECT p.id AS podcast_id, p.library_id, p.title, p.author, p.feed_url, p.feed_origin, p.cover_url, p.cover_path,
+SELECT p.id AS podcast_id, p.library_id, p.title, p.author, p.explicit, p.feed_url, p.feed_origin, p.cover_url, p.cover_path,
        s.mode AS own_mode, s.scope AS own_scope, s.last_n AS own_last_n,
        CAST(COALESCE(s.mode, l.podcast_mode) AS TEXT) AS effective_mode,
        CAST(COALESCE(s.scope, l.podcast_scope) AS TEXT) AS effective_scope,
@@ -46,6 +62,7 @@ type PodcastEffectiveSettingsRow struct {
 	LibraryID       int64
 	Title           string
 	Author          sql.NullString
+	Explicit        int64
 	FeedUrl         sql.NullString
 	FeedOrigin      sql.NullString
 	CoverUrl        sql.NullString
@@ -83,6 +100,7 @@ func (q *Queries) PodcastEffectiveSettings(ctx context.Context, arg PodcastEffec
 			&i.LibraryID,
 			&i.Title,
 			&i.Author,
+			&i.Explicit,
 			&i.FeedUrl,
 			&i.FeedOrigin,
 			&i.CoverUrl,
@@ -97,6 +115,46 @@ func (q *Queries) PodcastEffectiveSettings(ctx context.Context, arg PodcastEffec
 			&i.PodcastRootID,
 			&i.PendingRootID,
 			&i.PendingFolder,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const podcastEpisodeFiles = `-- name: PodcastEpisodeFiles :many
+SELECT id, root_id, rel_path, missing_since FROM media_files WHERE item_id = ?1 ORDER BY id
+`
+
+type PodcastEpisodeFilesRow struct {
+	ID           string
+	RootID       int64
+	RelPath      string
+	MissingSince sql.NullInt64
+}
+
+// The media file rows of an episode, missing ones included (a removed episode keeps its rows).
+func (q *Queries) PodcastEpisodeFiles(ctx context.Context, itemID string) ([]PodcastEpisodeFilesRow, error) {
+	rows, err := q.db.QueryContext(ctx, podcastEpisodeFiles, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PodcastEpisodeFilesRow{}
+	for rows.Next() {
+		var i PodcastEpisodeFilesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.RootID,
+			&i.RelPath,
+			&i.MissingSince,
 		); err != nil {
 			return nil, err
 		}
@@ -305,6 +363,47 @@ func (q *Queries) PodcastKnownFolders(ctx context.Context, rootID int64) ([]stri
 	return items, nil
 }
 
+const podcastNewestFolder = `-- name: PodcastNewestFolder :many
+SELECT m.root_id, CAST(substr(m.rel_path, 1, instr(m.rel_path, '/') - 1) AS TEXT) AS folder
+FROM media_files AS m
+JOIN items AS e ON e.id = m.item_id
+JOIN library_roots AS r ON r.id = m.root_id
+WHERE e.parent_id = ?1 AND e.kind = 'podcast_episode' AND m.missing_since IS NULL
+  AND instr(m.rel_path, '/') > 1 AND r.content = 'podcast'
+ORDER BY m.mtime DESC, m.id DESC
+LIMIT 1
+`
+
+type PodcastNewestFolderRow struct {
+	RootID int64
+	Folder string
+}
+
+// The folder of a podcast for a download (6.2, step 2): the one of its newest file that is there
+// (by mtime), on a podcast folder; none for a podcast without such a file.
+func (q *Queries) PodcastNewestFolder(ctx context.Context, podcastID sql.NullString) ([]PodcastNewestFolderRow, error) {
+	rows, err := q.db.QueryContext(ctx, podcastNewestFolder, podcastID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PodcastNewestFolderRow{}
+	for rows.Next() {
+		var i PodcastNewestFolderRow
+		if err := rows.Scan(&i.RootID, &i.Folder); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const podcastPairable = `-- name: PodcastPairable :one
 SELECT CAST(EXISTS (SELECT 1 FROM items AS f
                     WHERE f.id = ?1 AND f.kind = 'podcast_episode' AND f.deleted_at IS NULL
@@ -347,6 +446,69 @@ func (q *Queries) PodcastRecordDownloadFailure(ctx context.Context, arg PodcastR
 	return err
 }
 
+const podcastRelPathTaken = `-- name: PodcastRelPathTaken :one
+SELECT CAST(EXISTS (SELECT 1 FROM media_files WHERE root_id = ?1 AND rel_path = ?2 AND id <> ?3) AS INTEGER) AS taken
+`
+
+type PodcastRelPathTakenParams struct {
+	RootID  int64
+	RelPath string
+	OwnID   string
+}
+
+// Whether a name in a folder is held by a media file row, missing or not (UNIQUE (root_id,
+// rel_path)); the row given as own_id (a removed row of the episode itself) does not count.
+func (q *Queries) PodcastRelPathTaken(ctx context.Context, arg PodcastRelPathTakenParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, podcastRelPathTaken, arg.RootID, arg.RelPath, arg.OwnID)
+	var taken int64
+	err := row.Scan(&taken)
+	return taken, err
+}
+
+const podcastReviveMediaFile = `-- name: PodcastReviveMediaFile :execrows
+UPDATE media_files
+SET root_id = ?1, rel_path = ?2, dev = ?3, inode = ?4, size = ?5, mtime = ?6,
+    partial_hash = ?7, container = ?8, missing_since = NULL, probe = NULL, probed_at = NULL,
+    probe_error = NULL, keyframes = NULL, keyframes_at = NULL, keyframes_source = NULL, updated_at = ?9
+WHERE id = ?10 AND item_id = ?11 AND missing_since IS NOT NULL
+`
+
+type PodcastReviveMediaFileParams struct {
+	RootID      int64
+	RelPath     string
+	Dev         int64
+	Inode       int64
+	Size        int64
+	Mtime       int64
+	PartialHash sql.NullString
+	Container   string
+	Now         int64
+	ID          string
+	ItemID      string
+}
+
+// A removed row of an episode gets the file a download entered (6.2): new place and identity,
+// missing_since empty, no probe and no keyframe index of the old file.
+func (q *Queries) PodcastReviveMediaFile(ctx context.Context, arg PodcastReviveMediaFileParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, podcastReviveMediaFile,
+		arg.RootID,
+		arg.RelPath,
+		arg.Dev,
+		arg.Inode,
+		arg.Size,
+		arg.Mtime,
+		arg.PartialHash,
+		arg.Container,
+		arg.Now,
+		arg.ID,
+		arg.ItemID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const podcastSetLibraryDownloads = `-- name: PodcastSetLibraryDownloads :execrows
 UPDATE libraries
 SET podcast_mode = ?1, podcast_scope = ?2, podcast_last_n = ?3, podcast_parallel = ?4,
@@ -379,6 +541,31 @@ func (q *Queries) PodcastSetLibraryDownloads(ctx context.Context, arg PodcastSet
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const podcastSetPendingFolder = `-- name: PodcastSetPendingFolder :exec
+INSERT INTO podcast_settings (item_id, pending_root_id, pending_folder, updated_at)
+VALUES (?1, ?2, ?3, ?4)
+ON CONFLICT (item_id) DO UPDATE SET pending_root_id = excluded.pending_root_id, pending_folder = excluded.pending_folder,
+    updated_at = excluded.updated_at
+`
+
+type PodcastSetPendingFolderParams struct {
+	ItemID string
+	RootID sql.NullInt64
+	Folder sql.NullString
+	Now    int64
+}
+
+// The folder a download created for a podcast without any file (6.2, step 2).
+func (q *Queries) PodcastSetPendingFolder(ctx context.Context, arg PodcastSetPendingFolderParams) error {
+	_, err := q.db.ExecContext(ctx, podcastSetPendingFolder,
+		arg.ItemID,
+		arg.RootID,
+		arg.Folder,
+		arg.Now,
+	)
+	return err
 }
 
 const podcastUpsertSettings = `-- name: PodcastUpsertSettings :exec

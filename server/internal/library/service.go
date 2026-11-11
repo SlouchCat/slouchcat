@@ -103,6 +103,10 @@ type Service struct {
 	// podcastLink replaces os.Root.Link for the folder check and the download of stored podcast
 	// episodes (a test seam for a file system without hard links; nil outside tests).
 	podcastLink func(r *os.Root, oldname, newname string) error
+	// podcastTag replaces transcode.Runner.TagAudio for stored podcast episodes (a test seam; nil
+	// outside tests); podcastSlots are the two counters of their downloads (podcast_download.go).
+	podcastTag   func(ctx context.Context, in, out, ext string, tags transcode.AudioTags) error
+	podcastSlots *podcastSlots
 	// trickplayMu guards trickplayBytes: the bytes of the stored trickplay sets per library and
 	// kind (0 movies, 1 series), counted by the hourly sweep (TrickplayUsage).
 	trickplayMu    sync.Mutex
@@ -220,7 +224,7 @@ func New(db *store.DB, queue *jobs.Queue, probe transcode.Runner, log *slog.Logg
 		retrying: map[int64]bool{}, scanLocks: map[int64]chan struct{}{},
 		runs:        map[int64]map[*scanRun]bool{},
 		pathPending: map[int64]map[int64]map[string]bool{}, pathRetrying: map[int64]bool{},
-		orphans: map[int64]map[string]fileStamp{},
+		orphans: map[int64]map[string]fileStamp{}, podcastSlots: newPodcastSlots(),
 	}
 	for _, o := range opts {
 		o(s)

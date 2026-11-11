@@ -7,7 +7,7 @@
 -- The one rule of the effective setting (5.1): a podcast's own value, else its library's. last_n
 -- counts only with an own scope (the N belongs to the scope). Live subscriptions with a feed only:
 -- a folder podcast without feed has nothing to load. Optionally for one podcast or one library.
-SELECT p.id AS podcast_id, p.library_id, p.title, p.author, p.feed_url, p.feed_origin, p.cover_url, p.cover_path,
+SELECT p.id AS podcast_id, p.library_id, p.title, p.author, p.explicit, p.feed_url, p.feed_origin, p.cover_url, p.cover_path,
        s.mode AS own_mode, s.scope AS own_scope, s.last_n AS own_last_n,
        CAST(COALESCE(s.mode, l.podcast_mode) AS TEXT) AS effective_mode,
        CAST(COALESCE(s.scope, l.podcast_scope) AS TEXT) AS effective_scope,
@@ -91,3 +91,45 @@ SELECT CAST(EXISTS (SELECT 1 FROM items AS f
         AND EXISTS (SELECT 1 FROM items AS e
                     WHERE e.id = @file_episode_id AND e.kind = 'podcast_episode' AND e.deleted_at IS NULL AND e.guid IS NULL
                       AND e.parent_id = (SELECT parent_id FROM items WHERE id = @feed_episode_id)) AS INTEGER) AS pairable;
+
+-- name: PodcastNewestFolder :many
+-- The folder of a podcast for a download (6.2, step 2): the one of its newest file that is there
+-- (by mtime), on a podcast folder; none for a podcast without such a file.
+SELECT m.root_id, CAST(substr(m.rel_path, 1, instr(m.rel_path, '/') - 1) AS TEXT) AS folder
+FROM media_files AS m
+JOIN items AS e ON e.id = m.item_id
+JOIN library_roots AS r ON r.id = m.root_id
+WHERE e.parent_id = @podcast_id AND e.kind = 'podcast_episode' AND m.missing_since IS NULL
+  AND instr(m.rel_path, '/') > 1 AND r.content = 'podcast'
+ORDER BY m.mtime DESC, m.id DESC
+LIMIT 1;
+
+-- name: PodcastEpisodeFiles :many
+-- The media file rows of an episode, missing ones included (a removed episode keeps its rows).
+SELECT id, root_id, rel_path, missing_since FROM media_files WHERE item_id = @item_id ORDER BY id;
+
+-- name: PodcastRelPathTaken :one
+-- Whether a name in a folder is held by a media file row, missing or not (UNIQUE (root_id,
+-- rel_path)); the row given as own_id (a removed row of the episode itself) does not count.
+SELECT CAST(EXISTS (SELECT 1 FROM media_files WHERE root_id = @root_id AND rel_path = @rel_path AND id <> @own_id) AS INTEGER) AS taken;
+
+-- name: PodcastReviveMediaFile :execrows
+-- A removed row of an episode gets the file a download entered (6.2): new place and identity,
+-- missing_since empty, no probe and no keyframe index of the old file.
+UPDATE media_files
+SET root_id = @root_id, rel_path = @rel_path, dev = @dev, inode = @inode, size = @size, mtime = @mtime,
+    partial_hash = @partial_hash, container = @container, missing_since = NULL, probe = NULL, probed_at = NULL,
+    probe_error = NULL, keyframes = NULL, keyframes_at = NULL, keyframes_source = NULL, updated_at = @now
+WHERE id = @id AND item_id = @item_id AND missing_since IS NOT NULL;
+
+-- name: PodcastSetPendingFolder :exec
+-- The folder a download created for a podcast without any file (6.2, step 2).
+INSERT INTO podcast_settings (item_id, pending_root_id, pending_folder, updated_at)
+VALUES (@item_id, @root_id, @folder, @now)
+ON CONFLICT (item_id) DO UPDATE SET pending_root_id = excluded.pending_root_id, pending_folder = excluded.pending_folder,
+    updated_at = excluded.updated_at;
+
+-- name: PodcastClearPendingFolder :exec
+-- The first file of a podcast is entered: its folder follows from its files from now on.
+UPDATE podcast_settings SET pending_root_id = NULL, pending_folder = NULL, updated_at = @now
+WHERE item_id = @item_id AND (pending_root_id IS NOT NULL OR pending_folder IS NOT NULL);

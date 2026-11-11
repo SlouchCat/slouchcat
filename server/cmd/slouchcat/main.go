@@ -509,9 +509,10 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 
 // poolWorkers returns the workers per pool: general workers from SLOUCHCAT_WORKERS, one each for
 // downloads, notifications, the keyframe index and trickplay (concept 09 F-9, concept 14 F-2,
-// concept 18 O-1; not adjustable).
+// concept 18 O-1; not adjustable), five for the stored podcast episodes (concept 19 part A, 6.2).
 func poolWorkers(general int) map[jobs.Pool]int {
-	return map[jobs.Pool]int{jobs.PoolGeneral: general, jobs.PoolDownload: 1, jobs.PoolNotify: 1, jobs.PoolIndex: 1, jobs.PoolTrickplay: 1}
+	return map[jobs.Pool]int{jobs.PoolGeneral: general, jobs.PoolDownload: 1, jobs.PoolNotify: 1, jobs.PoolIndex: 1, jobs.PoolTrickplay: 1,
+		jobs.PoolPodcast: 5}
 }
 
 // startWorkers starts the workers of counts (poolWorkers) on wg, each claiming only the job types
@@ -524,7 +525,7 @@ func startWorkers(ctx context.Context, wg *sync.WaitGroup, queue *jobs.Queue, re
 	// hold up scans and probes), for notification deliveries (M8: a slow mail server never holds
 	// up scans) and for the full keyframe reads (concept 14, 6.3: a read of minutes never holds
 	// up a general worker, and two never run at once) and for the preview tiles (concept 18).
-	for _, pool := range []jobs.Pool{jobs.PoolGeneral, jobs.PoolDownload, jobs.PoolNotify, jobs.PoolIndex, jobs.PoolTrickplay} {
+	for _, pool := range []jobs.Pool{jobs.PoolGeneral, jobs.PoolDownload, jobs.PoolNotify, jobs.PoolIndex, jobs.PoolTrickplay, jobs.PoolPodcast} {
 		prefix := string(pool)
 		if pool == jobs.PoolGeneral {
 			prefix = "worker"

@@ -21,7 +21,7 @@
 //     library.relink, the daily radio.catalog.sync (radio)
 //     3 probe.file, metadata.match of episodes, notify.deliver
 //     2 metadata.fill, metadata.vote_backfill, image.fetch of posters, segments.detect,
-//     library.sweep, nightly trakt.refresh
+//     library.sweep, nightly trakt.refresh, podcast.download of the planner (pool podcast)
 //     1 probe.keyframes of a scan, image.fetch of episode stills, trailer.find, chapters.images of
 //     the backfill (chapters.images_backfill)
 //     A job that runs once a day and finishes in seconds belongs above the bulk rungs (6 and

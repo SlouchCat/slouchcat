@@ -1737,6 +1737,18 @@ type PodcastCreate struct {
 	FeedURL   string
 }
 
+// The setting of stored podcast episodes (concept 19 part A, 5.1; libraries.podcast_mode and
+// podcast_scope, podcast_settings): «Speichern» or «Nur Link», and what «Speichern» loads.
+const (
+	PodcastSave        = "save"
+	PodcastLink        = "link"
+	PodcastScopeNew    = "new"
+	PodcastScopeLastN  = "last_n"
+	PodcastScopeAll    = "all"
+	PodcastLastNMax    = 100
+	PodcastParallelMax = 5
+)
+
 // Problems of the folder check of a podcast folder (concept 19 part A, 5.4; ADR 0029).
 const (
 	PodcastFolderReadOnly    = "read_only"     // the folder cannot be written (mounted read-only, no write right)
