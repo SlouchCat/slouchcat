@@ -211,6 +211,22 @@ func (q *Queries) DeleteLibraryMetadata(ctx context.Context, libraryID int64) er
 	return err
 }
 
+const deleteOriginalImage = `-- name: DeleteOriginalImage :exec
+DELETE FROM images WHERE item_id = ?1 AND kind = ?2 AND size = 'original'
+`
+
+type DeleteOriginalImageParams struct {
+	ItemID string
+	Kind   string
+}
+
+// Removes the original row of a kind once its sizes are derived and its source can be read again
+// (decision of 11 November 2026, keepOriginal).
+func (q *Queries) DeleteOriginalImage(ctx context.Context, arg DeleteOriginalImageParams) error {
+	_, err := q.db.ExecContext(ctx, deleteOriginalImage, arg.ItemID, arg.Kind)
+	return err
+}
+
 const getLibraryMetadata = `-- name: GetLibraryMetadata :one
 SELECT library_id, text_langs, images, updated_at FROM library_metadata WHERE library_id = ?1
 `
@@ -248,6 +264,35 @@ func (q *Queries) GetSystemSetting(ctx context.Context, key string) (string, err
 	var value string
 	err := row.Scan(&value)
 	return value, err
+}
+
+const listAllItemIDs = `-- name: ListAllItemIDs :many
+SELECT id FROM items
+`
+
+// Every title, soft-deleted ones included: an image folder whose title is in none of these rows
+// belongs to a hard-deleted title (SweepOrphanImages).
+func (q *Queries) ListAllItemIDs(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listAllItemIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listApplyItems = `-- name: ListApplyItems :many
@@ -458,6 +503,66 @@ func (q *Queries) ListFillItems(ctx context.Context, libraryID int64) ([]ListFil
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listForeignImagePaths = `-- name: ListForeignImagePaths :many
+SELECT DISTINCT rel_path FROM images
+WHERE substr(rel_path, 1, length('images/' || item_id || '/')) <> 'images/' || item_id || '/'
+`
+
+// Image rows whose file lies in the folder of another title: a relink moves the cached images of
+// the copy to the survivor with their files (RelinkMoveCachedImages), so the copy's folder stays
+// while a row names it (SweepOrphanImages, RemoveItemImages).
+func (q *Queries) ListForeignImagePaths(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listForeignImagePaths)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var rel_path string
+		if err := rows.Scan(&rel_path); err != nil {
+			return nil, err
+		}
+		items = append(items, rel_path)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listImageItemIDs = `-- name: ListImageItemIDs :many
+SELECT DISTINCT item_id FROM images ORDER BY item_id
+`
+
+// Every title with a stored image row, soft-deleted ones included: the one-time trim of the image
+// sizes after 1.28.1 walks them (TrimImageSizesOnce).
+func (q *Queries) ListImageItemIDs(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listImageItemIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var item_id string
+		if err := rows.Scan(&item_id); err != nil {
+			return nil, err
+		}
+		items = append(items, item_id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -822,7 +927,8 @@ func (q *Queries) ListLocalImagesByRoot(ctx context.Context, rootID int64) ([]It
 }
 
 const listMatchedItemImages = `-- name: ListMatchedItemImages :many
-SELECT i.id AS item_id, i.locked_fields, im.kind, im.size, im.format, im.source_url, im.rel_path, im.accent, im.width
+SELECT i.id AS item_id, i.kind AS item_kind, i.locked_fields, im.kind, im.size, im.format, im.source_url, im.rel_path,
+       im.accent, im.width
 FROM items AS i
 JOIN images AS im ON im.item_id = i.id
 WHERE i.library_id = ?1
@@ -833,6 +939,7 @@ ORDER BY i.id, im.kind, im.size, im.format
 
 type ListMatchedItemImagesRow struct {
 	ItemID       string
+	ItemKind     string
 	LockedFields string
 	Kind         string
 	Size         string
@@ -857,6 +964,7 @@ func (q *Queries) ListMatchedItemImages(ctx context.Context, libraryID int64) ([
 		var i ListMatchedItemImagesRow
 		if err := rows.Scan(
 			&i.ItemID,
+			&i.ItemKind,
 			&i.LockedFields,
 			&i.Kind,
 			&i.Size,

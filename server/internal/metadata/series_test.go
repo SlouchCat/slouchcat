@@ -912,7 +912,9 @@ func TestImageFetchSeriesTree(t *testing.T) {
 		}
 		return poster, backdrop
 	}
-	for id, want := range map[string][2]int{idSeries: {7, 7}, idSeason1: {7, 0}, idE0101: {0, 7}} {
+	// No original stays (keepOriginal); an episode still is w780 and w1280 only (decision of 11
+	// November 2026).
+	for id, want := range map[string][2]int{idSeries: {6, 6}, idSeason1: {6, 0}, idE0101: {0, 4}} {
 		if p, b := kinds(id); p != want[0] || b != want[1] {
 			t.Errorf("%s: %d poster and %d backdrop rows, want %v", id, p, b, want)
 		}
@@ -928,8 +930,12 @@ func TestImageFetchSeriesTree(t *testing.T) {
 	if err := e.svc.fetchImages(ctx, tvdbSeries); err != nil {
 		t.Fatal(err)
 	}
-	if p, b := kinds(tvdbSeries); p != 7 || b != 0 {
-		t.Fatalf("TVDB series: %d poster and %d backdrop rows, want 7 and 0", p, b)
+	// The 300 px artwork is never scaled up: w200, and w400 at 300 px.
+	if p, b := kinds(tvdbSeries); p != 4 || b != 0 {
+		t.Fatalf("TVDB series: %d poster and %d backdrop rows, want 4 and 0", p, b)
+	}
+	if r := e.images(t, tvdbSeries)["poster/w400/jpeg"]; r.Width != 300 {
+		t.Errorf("TVDB w400 poster %d px wide, want the artwork's 300", r.Width)
 	}
 }
 

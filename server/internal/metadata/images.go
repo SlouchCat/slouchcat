@@ -34,12 +34,13 @@ import (
 // imagesDir is the directory below the cache root that holds one folder per item.
 const imagesDir = "images"
 
-// Image pipeline (plan 3.1, M1b). image.fetch downloads the TMDB original of a kind once, keeps
-// it as images/<item>/<kind>-original.<ext> (row size 'original', format 'jpeg' as its single
-// slot) and derives every delivered width as WebP and JPEG with ffmpeg:
+// Image pipeline (plan 3.1, M1b). image.fetch downloads the TMDB original of a kind, stores it as
+// images/<item>/<kind>-original.<ext> (row size 'original', format 'jpeg' as its single slot)
+// and derives every delivered width as WebP and JPEG with ffmpeg:
 // images/<item>/<kind>-w<width>.webp and .jpg. Derived rows carry the original's URL as
-// source_url, so a changed TMDB image is detected. The accent colour comes from palettegen on the
-// w200 poster JPEG and is stored on every derived poster row.
+// source_url, so a changed TMDB image is detected. Once the sizes are stored, the original goes
+// again (keepOriginal). The accent colour comes from palettegen on the w200 poster JPEG and is
+// stored on every derived poster row.
 const (
 	originalSize      = "original"
 	originalFormat    = "jpeg"
@@ -54,6 +55,23 @@ var imageWidths = map[string][]int{
 	"logo":     {400, 800},
 }
 
+// itemKindWidths overrides imageWidths for one kind of title. The still of an episode is shown in
+// w780 (episode cards and rows, the player's lists and its next-episode card, the still on the
+// episode page) and as the backdrop of the episode page, whose srcset also takes w1280; nothing
+// asks for a wider still, so w1920 and the 4K size are not made (decision of 11 November 2026:
+// 18 552 episodes of one library held 25.6 GB in seven files each).
+var itemKindWidths = map[string]map[string][]int{
+	"episode": {"backdrop": {780, 1280}},
+}
+
+// widthsOf returns the delivered widths of kind for a title of itemKind.
+func widthsOf(itemKind, kind string) []int {
+	if w, ok := itemKindWidths[itemKind][kind]; ok {
+		return w
+	}
+	return imageWidths[kind]
+}
+
 // The backdrop size for 4K and high-density screens (contract 1.6.0): made only from an original of
 // at least uhdMinOriginal pixels and never scaled up, so an original between 2560 and 3839 px keeps
 // its width under the name w3840 (the row and ImageRef carry the real width).
@@ -63,7 +81,7 @@ const (
 	uhdMinOriginal = 2560
 )
 
-// uhdKinds are the kinds with the extra size.
+// uhdKinds are the kinds with the extra size; an episode still never gets it (itemKindWidths).
 var uhdKinds = map[string]bool{"backdrop": true}
 
 // sizeSpec is one derived size: its name (w780 …) and the width it is scaled to.
@@ -72,17 +90,66 @@ type sizeSpec struct {
 	width int
 }
 
-// sizesFor returns the derived sizes of a kind for an original of origWidth pixels (0 = unknown,
-// then without the 4K size).
-func sizesFor(kind string, origWidth int) []sizeSpec {
-	out := make([]sizeSpec, 0, len(imageWidths[kind])+1)
-	for _, w := range imageWidths[kind] {
-		out = append(out, sizeSpec{name: sizeName(w), width: w})
+// sizesFor returns the derived sizes of kind for a title of itemKind and an original of origWidth
+// pixels. No size is wider than the original (decision of 11 November 2026): the sizes up to the
+// original's width are scaled down, the next wider one keeps the original's width under its name
+// (as w3840 does for an original of 2560 to 3839 px), and the sizes above it are not made. The
+// smallest size always exists, so a 300 px poster is w200 and w400 at 300 px, a 640 px still is
+// w780 at 640 px; the summaries list the missing sizes as absent and the image endpoint answers
+// them with the widest stored one. origWidth 0 (unknown) gives every width of the kind without the
+// 4K size.
+func sizesFor(itemKind, kind string, origWidth int) []sizeSpec {
+	widths := widthsOf(itemKind, kind)
+	out := make([]sizeSpec, 0, len(widths)+1)
+	for _, w := range widths {
+		switch {
+		case origWidth <= 0 || w <= origWidth:
+			out = append(out, sizeSpec{name: sizeName(w), width: w})
+		case len(out) == 0 || out[len(out)-1].width < origWidth:
+			return append(out, sizeSpec{name: sizeName(w), width: origWidth})
+		default:
+			return out
+		}
 	}
-	if uhdKinds[kind] && origWidth >= uhdMinOriginal {
+	_, own := itemKindWidths[itemKind][kind]
+	if uhdKinds[kind] && !own && origWidth >= uhdMinOriginal {
 		out = append(out, sizeSpec{name: uhdSize, width: min(origWidth, uhdWidth)})
 	}
 	return out
+}
+
+// keepOriginal reports whether image.fetch keeps the original of a kind after deriving its sizes.
+// It does not (decision of 11 November 2026): no endpoint serves the original, every delivered
+// size is derived and none is wider than the original, and the source (a provider URL, a file of
+// the library, an embedded picture, a feed image) can be read again when a size has to be made
+// anew. The original stays only where it is the only copy: an uploaded image and a locked kind
+// (scaleLocked, the upload), whose source cannot be fetched again.
+const keepOriginal = false
+
+// effectiveWidth is the width the sizes of a stored kind were derived for: the original's when
+// its row is kept, else the widest derived row's (sizesFor gives the same sizes for both, since
+// the widest size is the original's width capped at the widest size of the kind).
+func effectiveWidth(rows []storedImage) int {
+	widest := 0
+	for _, r := range rows {
+		if r.size == originalSize {
+			return r.width
+		}
+		widest = max(widest, r.width)
+	}
+	return widest
+}
+
+// wantedKeys returns the "<size>/<format>" keys the pipeline stores for kind of a title of itemKind
+// with the stored rows.
+func wantedKeys(itemKind, kind string, rows []storedImage) map[string]bool {
+	want := map[string]bool{}
+	for _, sz := range sizesFor(itemKind, kind, effectiveWidth(rows)) {
+		for _, f := range formatsOf(kind) {
+			want[sz.name+"/"+string(f.format)] = true
+		}
+	}
+	return want
 }
 
 // imageFormat is a delivered format with its file extension and media type.
@@ -223,7 +290,7 @@ func (s *Service) fetchImages(ctx context.Context, itemID string) error {
 		row, hasRow := decided[kind]
 		if locked[kind] && (!hasRow || row.Chosen != 1) {
 			// Locked without a choice (an upload, the old lock): keep the image, scale the sizes.
-			if err := s.scaleLocked(ctx, root, item.ID, kind, byKind[kind]); err != nil {
+			if err := s.scaleLocked(ctx, root, item.ID, item.Kind, kind, byKind[kind]); err != nil {
 				return fmt.Errorf("image.fetch %s %s: %w", item.ID, kind, err)
 			}
 			continue
@@ -245,7 +312,7 @@ func (s *Service) fetchImages(ctx context.Context, itemID string) error {
 		if src.url == "" {
 			continue
 		}
-		err := s.processKind(ctx, root, item.ID, kind, src, byKind[kind])
+		err := s.processKind(ctx, root, item.ID, item.Kind, kind, src, byKind[kind])
 		if errors.Is(err, errImageSkipped) {
 			s.log.Warn("image source skipped", "item_id", item.ID, "kind", kind, "provider", src.provider, "err", err)
 			continue
@@ -312,37 +379,38 @@ type storedImage struct {
 // an existing file and nothing else apart from the original. A non-empty sourceURL must match the
 // source_url of every derived row (image.fetch knows the current TMDB original; the check after a
 // scan does not).
-func kindComplete(kind string, rows []storedImage, sourceURL string, exists func(rel string) bool) bool {
-	origWidth := 0
-	for _, r := range rows {
-		if r.size == originalSize {
-			origWidth = r.width
-		}
-	}
-	want := map[string]bool{}
-	for _, sz := range sizesFor(kind, origWidth) {
-		for _, f := range formatsOf(kind) {
-			want[sz.name+"/"+string(f.format)] = true
-		}
-	}
+func kindComplete(itemKind, kind string, rows []storedImage, sourceURL string, exists func(rel string) bool) bool {
+	covered, extra := kindCovered(itemKind, kind, rows, sourceURL, exists)
+	return covered && !extra
+}
+
+// kindCovered reports whether the rows of one kind hold every wanted size and format with an
+// existing file from sourceURL (when not empty), and whether they hold more derived rows than
+// that: sizes the pipeline no longer makes (M1a's w500 poster, the w1920 still of an episode, a
+// size scaled up from a narrow original before 1.28.1). A covered kind needs no ffmpeg run, only
+// the extra rows go (trimKind).
+func kindCovered(itemKind, kind string, rows []storedImage, sourceURL string, exists func(rel string) bool) (covered, extra bool) {
+	want := wantedKeys(itemKind, kind, rows)
 	have := 0
 	for _, r := range rows {
 		if r.size == originalSize {
 			continue
 		}
 		if !want[r.size+"/"+r.format] {
-			return false // a size the pipeline no longer produces (M1a's w500 poster)
+			extra = true
+			continue
 		}
 		if (sourceURL != "" && r.sourceURL != sourceURL) || !exists(r.relPath) {
-			return false
+			return false, extra
 		}
 		have++
 	}
-	return have == len(want)
+	return have == len(want), extra
 }
 
-// processKind brings the rows and files of one kind up to date with the original of src.
-func (s *Service) processKind(ctx context.Context, root *os.Root, itemID, kind string, src imageRequest, prev []systemq.Image) error {
+// processKind brings the rows and files of one kind up to date with the original of src. A kind
+// that holds every wanted size already only loses its extra sizes and its original (trimKind).
+func (s *Service) processKind(ctx context.Context, root *os.Root, itemID, itemKind, kind string, src imageRequest, prev []systemq.Image) error {
 	exists := rootExists(root)
 	var orig *systemq.Image
 	for i, r := range prev {
@@ -350,8 +418,12 @@ func (s *Service) processKind(ctx context.Context, root *os.Root, itemID, kind s
 			orig = &prev[i]
 		}
 	}
-	if kindComplete(kind, storedImages(prev), src.url, exists) {
-		return s.fillAccent(ctx, itemID, kind, prev)
+	if covered, _ := kindCovered(itemKind, kind, storedImages(prev), src.url, exists); covered {
+		kept, err := s.trimKind(ctx, root, itemID, itemKind, kind, prev, !keepOriginal)
+		if err != nil {
+			return err
+		}
+		return s.fillAccent(ctx, itemID, kind, kept)
 	}
 
 	dir := imagesDir + "/" + itemID
@@ -368,14 +440,50 @@ func (s *Service) processKind(ctx context.Context, root *os.Root, itemID, kind s
 		}
 		origRel = rel
 	}
-	return s.deriveAndPrune(ctx, root, dir, itemID, kind, origRel, src, prev)
+	if err := s.deriveAndPrune(ctx, root, dir, itemID, itemKind, kind, origRel, src, prev); err != nil {
+		return err // the original stays, so the retry scales without a download
+	}
+	if keepOriginal {
+		return nil
+	}
+	return s.dropOriginal(ctx, root, itemID, kind, origRel)
+}
+
+// dropOriginal removes the original row and file of a kind whose sizes are stored (keepOriginal).
+func (s *Service) dropOriginal(ctx context.Context, root *os.Root, itemID, kind, rel string) error {
+	if err := s.write.DeleteOriginalImage(ctx, systemq.DeleteOriginalImageParams{ItemID: itemID, Kind: kind}); err != nil {
+		return fmt.Errorf("delete original row: %w", err)
+	}
+	s.removeFile(root, itemID, kind, rel)
+	return nil
+}
+
+// trimKind removes the derived rows (and files) of a covered kind that the pipeline does not make
+// for it (kindCovered), and with dropOrig its original, and returns the rows that stay.
+func (s *Service) trimKind(ctx context.Context, root *os.Root, itemID, itemKind, kind string, prev []systemq.Image, dropOrig bool) ([]systemq.Image, error) {
+	want := wantedKeys(itemKind, kind, storedImages(prev))
+	if err := s.pruneSizes(ctx, root, itemID, kind, prev, want); err != nil {
+		return nil, err
+	}
+	kept := make([]systemq.Image, 0, len(prev))
+	for _, r := range prev {
+		switch {
+		case r.Size == originalSize && dropOrig:
+			if err := s.dropOriginal(ctx, root, itemID, kind, r.RelPath); err != nil {
+				return nil, err
+			}
+		case r.Size == originalSize || want[r.Size+"/"+r.Format]:
+			kept = append(kept, r)
+		}
+	}
+	return kept, nil
 }
 
 // deriveAndPrune derives every size of kind from the original at origRel and removes the rows
 // (and files) of sizes the pipeline no longer produces (M1a's w500 poster). A palette failure
 // keeps the accent the poster rows had.
-func (s *Service) deriveAndPrune(ctx context.Context, root *os.Root, dir, itemID, kind, origRel string, src imageRequest, prev []systemq.Image) error {
-	sc, err := s.scaleDerived(ctx, root, dir, itemID, kind, origRel, storedAccent(prev))
+func (s *Service) deriveAndPrune(ctx context.Context, root *os.Root, dir, itemID, itemKind, kind, origRel string, src imageRequest, prev []systemq.Image) error {
+	sc, err := s.scaleDerived(ctx, root, dir, itemID, itemKind, kind, origRel, storedAccent(prev))
 	if err != nil {
 		return err
 	}
@@ -404,16 +512,21 @@ func (s *Service) pruneSizes(ctx context.Context, root *os.Root, itemID, kind st
 
 // scaleLocked brings a kind the admin locked up to the current sizes without asking TMDB: locked
 // means "keep this image", not "keep these sizes". The derived sizes are scaled from the stored
-// original; without one (M1a stored no original) the widest stored JPEG becomes the original, so
-// the M1a w500 poster turns into w200, w400 and w800 (w800 slightly upscaled). A kind without any
-// usable file is left alone.
-func (s *Service) scaleLocked(ctx context.Context, root *os.Root, itemID, kind string, prev []systemq.Image) error {
+// original, which a locked kind keeps (keepOriginal); without one (M1a stored none, image.fetch
+// drops it since 1.28.1) the widest stored JPEG becomes the original, so the M1a w500 poster
+// turns into w200, w400 and w800 at 500 px (never scaled up). A covered kind only loses its extra
+// sizes. A kind without any usable file is left alone.
+func (s *Service) scaleLocked(ctx context.Context, root *os.Root, itemID, itemKind, kind string, prev []systemq.Image) error {
 	exists := rootExists(root)
 	if len(prev) == 0 {
 		return nil
 	}
-	if kindComplete(kind, storedImages(prev), "", exists) {
-		return s.fillAccent(ctx, itemID, kind, prev)
+	if covered, _ := kindCovered(itemKind, kind, storedImages(prev), "", exists); covered {
+		kept, err := s.trimKind(ctx, root, itemID, itemKind, kind, prev, false)
+		if err != nil {
+			return err
+		}
+		return s.fillAccent(ctx, itemID, kind, kept)
 	}
 	src := lockedSource(prev, exists)
 	if src == nil {
@@ -422,7 +535,7 @@ func (s *Service) scaleLocked(ctx context.Context, root *os.Root, itemID, kind s
 	dir := imagesDir + "/" + itemID
 	req := imageRequest{url: src.SourceUrl, provider: src.Provider, lang: src.Lang.String}
 	if src.Size == originalSize {
-		return s.deriveAndPrune(ctx, root, dir, itemID, kind, src.RelPath, req, prev)
+		return s.deriveAndPrune(ctx, root, dir, itemID, itemKind, kind, src.RelPath, req, prev)
 	}
 	data, err := root.ReadFile(src.RelPath)
 	if err != nil {
@@ -450,7 +563,7 @@ func (s *Service) scaleLocked(ctx context.Context, root *os.Root, itemID, kind s
 	}); err != nil {
 		return fmt.Errorf("upsert original row: %w", err)
 	}
-	return s.deriveAndPrune(ctx, root, dir, itemID, kind, rel, req, prev)
+	return s.deriveAndPrune(ctx, root, dir, itemID, itemKind, kind, rel, req, prev)
 }
 
 // lockedSource returns the stored image a locked kind is scaled from: the original when its file
@@ -604,7 +717,7 @@ type scaled struct {
 // run, to temporary files, and computes the accent colour for posters (prevAccent stays when the
 // palette fails). Nothing of the kind's rows or final files changes; on an error the temporary
 // files are gone already.
-func (s *Service) scaleDerived(ctx context.Context, root *os.Root, dir, itemID, kind, origRel string, prevAccent sql.NullString) (*scaled, error) {
+func (s *Service) scaleDerived(ctx context.Context, root *os.Root, dir, itemID, itemKind, kind, origRel string, prevAccent sql.NullString) (*scaled, error) {
 	in, err := paths.Resolve(s.cache, origRel)
 	if err != nil {
 		return nil, fmt.Errorf("resolve original: %w", err)
@@ -617,7 +730,7 @@ func (s *Service) scaleDerived(ctx context.Context, root *os.Root, dir, itemID, 
 		}
 	}()
 	var args []transcode.ImageOutput
-	for _, sz := range sizesFor(kind, s.originalWidth(root, origRel)) {
+	for _, sz := range sizesFor(itemKind, kind, s.originalWidth(root, origRel)) {
 		for _, f := range formatsOf(kind) {
 			tmp, err := tempName(dir)
 			if err != nil {
@@ -712,7 +825,7 @@ func (s *Service) storeDerived(ctx context.Context, root *os.Root, dir, itemID, 
 }
 
 // originalWidth reads the width of the original at rel from its header; 0 when it cannot be read
-// (then the 4K size is left out, the other sizes do not need it).
+// (then every size of the kind is made, without the 4K size).
 func (s *Service) originalWidth(root *os.Root, rel string) int {
 	f, err := root.Open(rel)
 	if err != nil {
@@ -781,6 +894,7 @@ func (s *Service) QueueIncompleteImages(ctx context.Context, libraryID int64) (i
 	exists := rootExists(root)
 
 	type title struct {
+		kind   string
 		locked map[string]bool
 		kinds  map[string][]storedImage // stored kinds
 		accent bool                     // a derived poster row carries an accent
@@ -790,7 +904,7 @@ func (s *Service) QueueIncompleteImages(ctx context.Context, libraryID int64) (i
 	for _, r := range rows {
 		t := titles[r.ItemID]
 		if t == nil {
-			t = &title{locked: lockedFields(r.LockedFields), kinds: map[string][]storedImage{}}
+			t = &title{kind: r.ItemKind, locked: lockedFields(r.LockedFields), kinds: map[string][]storedImage{}}
 			titles[r.ItemID] = t
 			order = append(order, r.ItemID)
 		}
@@ -809,7 +923,7 @@ func (s *Service) QueueIncompleteImages(ctx context.Context, libraryID int64) (i
 		t := titles[id]
 		complete := true
 		for kind, stored := range t.kinds {
-			if kindComplete(kind, stored, "", exists) {
+			if kindComplete(t.kind, kind, stored, "", exists) {
 				continue
 			}
 			if t.locked[kind] && !slices.ContainsFunc(stored, func(si storedImage) bool { return exists(si.relPath) }) {

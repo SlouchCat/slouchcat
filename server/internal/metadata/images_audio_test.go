@@ -66,23 +66,28 @@ func (e *env) addMediaFile(t *testing.T, id, itemID, rel string) {
 func (e *env) checkCover(t *testing.T, id, sourcePrefix string, w, h int) {
 	t.Helper()
 	imgs := e.images(t, id)
-	orig, ok := imgs["poster/original/jpeg"]
-	if !ok || !strings.HasPrefix(orig.Source, sourcePrefix) || orig.Width != int64(w) || orig.Height != int64(h) {
-		t.Fatalf("original %+v ok %v, want %dx%d from %q", orig, ok, w, h, sourcePrefix)
+	// The source of a cover is read again when needed: its original is not kept (keepOriginal).
+	if orig, ok := imgs["poster/original/jpeg"]; ok {
+		t.Errorf("original kept: %+v", orig)
 	}
-	for _, size := range []string{"w200", "w400", "w800"} {
+	source := imgs["poster/w200/jpeg"].Source
+	if !strings.HasPrefix(source, sourcePrefix) {
+		t.Fatalf("cover from %q, want %q", source, sourcePrefix)
+	}
+	sizes := sizesFor("audiobook", "poster", w)
+	for _, sz := range sizes {
 		for _, f := range []string{"jpeg", "webp"} {
-			r, ok := imgs["poster/"+size+"/"+f]
-			if !ok || r.Source != orig.Source || !r.Accent.Valid {
-				t.Errorf("%s %s: %+v ok %v", size, f, r, ok)
+			r, ok := imgs["poster/"+sz.name+"/"+f]
+			if !ok || r.Source != source || !r.Accent.Valid || r.Width != int64(sz.width) || r.Height != int64(sz.width*h/w) {
+				t.Errorf("%s %s: %+v ok %v, want %d px wide", sz.name, f, r, ok, sz.width)
 			}
 			if _, err := os.Stat(filepath.Join(e.cache, filepath.FromSlash(r.RelPath))); err != nil {
-				t.Errorf("%s %s file: %v", size, f, err)
+				t.Errorf("%s %s file: %v", sz.name, f, err)
 			}
 		}
 	}
-	if len(imgs) != 7 {
-		t.Errorf("%d image rows, want 7", len(imgs))
+	if len(imgs) != 2*len(sizes) {
+		t.Errorf("%d image rows, want %d", len(imgs), 2*len(sizes))
 	}
 }
 
@@ -191,9 +196,6 @@ func TestImageFetchRemoteCover(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.checkCover(t, idPodcast, srv.URL+"/feed/cover.png", 400, 400)
-	if got := e.images(t, idPodcast)["poster/original/jpeg"].MediaType; got != "image/png" {
-		t.Errorf("original media type %q", got)
-	}
 
 	// A broken cover fails (and is retried by the job), a page is no image, a body over 10 MiB is
 	// refused.

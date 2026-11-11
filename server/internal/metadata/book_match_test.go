@@ -463,7 +463,7 @@ func TestBookCoverFallback(t *testing.T) {
 		t.Fatal(err)
 	}
 	var src string
-	if err := e.db.Read.QueryRow(`SELECT source_url FROM images WHERE item_id = ? AND kind = 'poster' AND size = 'original'`, id).Scan(&src); err != nil {
+	if err := e.db.Read.QueryRow(`SELECT source_url FROM images WHERE item_id = ? AND kind = 'poster' AND size = 'w200' AND format = 'jpeg'`, id).Scan(&src); err != nil {
 		t.Fatal(err)
 	}
 	if src != e.srv.srv.URL+"/covers/B0TEST0001.jpg" {
