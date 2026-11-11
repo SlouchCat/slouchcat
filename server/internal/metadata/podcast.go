@@ -220,9 +220,12 @@ func validateFeedURL(raw string) (string, bool) {
 
 // Subscribe subscribes a podcast library to a feed (createPodcast): it validates the URL and the
 // library, fetches the feed (at most 20 s) and stores the podcast with its episodes, then queues
-// the cover. Errors: *model.ValidationError (feedUrl invalid_url, libraryId unknown_library or
-// library_kind), model.ErrFeedExists, model.ErrFeedUnreachable, model.ErrFeedInvalid.
-func (s *Service) Subscribe(ctx context.Context, libraryID int64, feedURL string) (model.AdminPodcast, error) {
+// the cover. With loadEpisodes false («Nur abonnieren», concept 19 part A, 12.3) in a library
+// that stores the N newest or all episodes, the podcast gets the own scope «Nur neue Folgen»
+// before its episodes are stored, so nothing of the feed is loaded. Errors: *model.ValidationError
+// (feedUrl invalid_url, libraryId unknown_library or library_kind), model.ErrFeedExists,
+// model.ErrFeedUnreachable, model.ErrFeedInvalid.
+func (s *Service) Subscribe(ctx context.Context, libraryID int64, feedURL string, loadEpisodes bool) (model.AdminPodcast, error) {
 	var verr *model.ValidationError
 	clean, ok := validateFeedURL(feedURL)
 	if !ok {
@@ -275,7 +278,20 @@ func (s *Service) Subscribe(ctx context.Context, libraryID int64, feedURL string
 		}
 		return model.AdminPodcast{}, fmt.Errorf("insert podcast: %w", err)
 	}
-	if _, err := s.storeEpisodes(ctx, p.ID, libraryID, title, res.feed, nil, now); err != nil {
+	// The own scope comes before the episodes: a podcast.sync_all or a change of the library in
+	// between finds nothing to load under the library's scope.
+	if !loadEpisodes && lib.PodcastMode == model.PodcastSave && lib.PodcastScope != model.PodcastScopeNew {
+		err = s.write.PodcastUpsertSettings(ctx, systemq.PodcastUpsertSettingsParams{
+			ItemID: p.ID, Scope: nullStr(model.PodcastScopeNew), Now: now.UnixMilli(),
+		})
+		if err != nil {
+			err = fmt.Errorf("store the scope of podcast %s: %w", p.ID, err)
+		}
+	}
+	if err == nil {
+		_, _, err = s.storeEpisodes(ctx, p.ID, libraryID, title, res.feed, nil, now)
+	}
+	if err != nil {
 		// Without its episodes the subscription is of no use; it goes again, so a retry is possible.
 		if _, derr := s.write.PodcastSoftDelete(context.WithoutCancel(ctx), systemq.PodcastSoftDeleteParams{
 			Now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}, ID: p.ID}); derr != nil {
@@ -289,6 +305,8 @@ func (s *Service) Subscribe(ctx context.Context, libraryID int64, feedURL string
 		}
 	}
 	s.log.InfoContext(ctx, "podcast subscribed", "item_id", p.ID, "library_id", libraryID, "episodes", len(res.feed.Episodes))
+	// The first fetch reports no new episodes to the planner (concept 19, 5.2).
+	s.notePodcastFetched(ctx, p.ID, nil)
 	return s.adminPodcast(ctx, p.ID)
 }
 
@@ -317,7 +335,7 @@ func (s *Service) ListPodcasts(ctx context.Context) ([]model.AdminPodcast, error
 	for _, r := range rows {
 		out = append(out, toAdminPodcast(r))
 	}
-	return out, nil
+	return s.withDownloads(ctx, out)
 }
 
 // RefreshPodcast queues the fetch of a subscription now (refreshPodcast); model.ErrNotFound for an
@@ -484,7 +502,10 @@ func (s *Service) FetchPodcast(ctx context.Context, id string) error {
 	}); err != nil {
 		return fmt.Errorf("update podcast %s: %w", id, err)
 	}
-	rerated, err := s.storeEpisodes(ctx, id, p.LibraryID, title, res.feed, locked, now)
+	rerated, added, err := s.storeEpisodes(ctx, id, p.LibraryID, title, res.feed, locked, now)
+	if len(added) > 0 {
+		s.notePodcastFetched(ctx, id, added)
+	}
 	if err != nil {
 		return err
 	}
@@ -508,15 +529,16 @@ func (s *Service) FetchPodcast(ctx context.Context, id string) error {
 // The ids of the inserted episodes go to the new-episode hook (WithNewEpisodes) after their
 // transactions, also when a later batch fails, but only those published after the newest episode
 // the podcast already had (or undated ones while it has no dated episode): a feed that renews its
-// guids or adds old episodes does not announce them as new.
+// guids or adds old episodes does not announce them as new. added returns the same ids, also next
+// to an error.
 func (s *Service) storeEpisodes(ctx context.Context, podcastID string, libraryID int64, title string, f feed.Feed,
 	locked map[string]bool, now time.Time,
-) (rerated bool, err error) {
+) (rerated bool, added []string, err error) {
 	eps := newestEpisodes(f.Episodes, maxFeedEpisodes)
 	parent := sql.NullString{String: podcastID, Valid: true}
 	known, err := s.write.PodcastListEpisodes(ctx, parent)
 	if err != nil {
-		return false, fmt.Errorf("list episodes of %s: %w", podcastID, err)
+		return false, nil, fmt.Errorf("list episodes of %s: %w", podcastID, err)
 	}
 	byGUID := make(map[string]systemq.PodcastListEpisodesRow, len(known))
 	var newest sql.NullInt64 // the newest publication date the podcast had before this fetch
@@ -528,20 +550,20 @@ func (s *Service) storeEpisodes(ctx context.Context, podcastID string, libraryID
 	}
 	langs, err := s.textLangsOf(ctx, systemq.Item{LibraryID: libraryID})
 	if err != nil {
-		return false, fmt.Errorf("podcast %s: %w", podcastID, err)
+		return false, nil, fmt.Errorf("podcast %s: %w", podcastID, err)
 	}
 	if err := upsertTexts(ctx, s.write, podcastID, title, f.Description, locked, langs); err != nil {
-		return false, err
+		return false, nil, err
 	}
 	// File episodes of a podcast folder (ADR 0015): a new feed episode that matches exactly one
 	// of them takes it over instead of becoming a second row.
 	fileEpisodes, err := s.write.PodcastListFileEpisodesWithoutGUID(ctx, parent)
 	if err != nil {
-		return false, fmt.Errorf("list file episodes of %s: %w", podcastID, err)
+		return false, nil, fmt.Errorf("list file episodes of %s: %w", podcastID, err)
 	}
 	w := episodeWrite{parent: parent, libraryID: libraryID, channelImage: httpURL(f.ImageURL), byGUID: byGUID, langs: langs,
 		files: fileEpisodes, ms: now.UnixMilli(), now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}}
-	var covers, added []string
+	var covers []string
 	defer func() { s.announceEpisodes(ctx, added) }()
 	for chunk := range slices.Chunk(eps, feedBatch) {
 		var batch []string
@@ -562,7 +584,7 @@ func (s *Service) storeEpisodes(ctx context.Context, podcastID string, libraryID
 			return nil
 		})
 		if err != nil {
-			return false, fmt.Errorf("store episodes of %s: %w", podcastID, err)
+			return false, added, fmt.Errorf("store episodes of %s: %w", podcastID, err)
 		}
 		added = append(added, batch...)
 	}
@@ -571,7 +593,7 @@ func (s *Service) storeEpisodes(ctx context.Context, podcastID string, libraryID
 			s.log.WarnContext(ctx, "queue episode cover", "item_id", id, "err", err)
 		}
 	}
-	return rerated, nil
+	return rerated, added, nil
 }
 
 // newestEpisodes returns at most limit episodes, newest first (undated ones last, in feed order).
@@ -776,7 +798,11 @@ func (s *Service) adminPodcast(ctx context.Context, id string) (model.AdminPodca
 	if len(rows) != 1 {
 		return model.AdminPodcast{}, model.ErrNotFound
 	}
-	return toAdminPodcast(rows[0]), nil
+	out, err := s.withDownloads(ctx, []model.AdminPodcast{toAdminPodcast(rows[0])})
+	if err != nil {
+		return model.AdminPodcast{}, err
+	}
+	return out[0], nil
 }
 
 func toAdminPodcast(r systemq.PodcastListRow) model.AdminPodcast {
@@ -839,6 +865,20 @@ func (s *Service) announceEpisodes(ctx context.Context, ids []string) {
 	defer cancel()
 	if err := s.newEpisodes(hookCtx, ids); err != nil {
 		s.log.WarnContext(ctx, "notify new podcast episodes", "episodes", len(ids), "err", err)
+	}
+}
+
+// notePodcastFetched tells the planner hook about a fetch with new episodes or a new subscription
+// (WithPodcastFetched); a failure is logged, the episodes stay stored. Like the new-episode hook it
+// runs detached from the fetch's context, with its own timeout.
+func (s *Service) notePodcastFetched(ctx context.Context, podcastID string, newIDs []string) {
+	if s.podcastFetched == nil {
+		return
+	}
+	hookCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), newEpisodesTimeout)
+	defer cancel()
+	if err := s.podcastFetched(hookCtx, podcastID, newIDs); err != nil {
+		s.log.WarnContext(ctx, "queue the podcast planner", "item_id", podcastID, "episodes", len(newIDs), "err", err)
 	}
 }
 

@@ -21,7 +21,7 @@
 //     library.relink, the daily radio.catalog.sync (radio)
 //     3 probe.file, metadata.match of episodes, notify.deliver
 //     2 metadata.fill, metadata.vote_backfill, image.fetch of posters, segments.detect,
-//     library.sweep, nightly trakt.refresh
+//     library.sweep, nightly trakt.refresh, podcast.download of the planner (pool podcast)
 //     1 probe.keyframes of a scan, image.fetch of episode stills, trailer.find, chapters.images of
 //     the backfill (chapters.images_backfill)
 //     A job that runs once a day and finishes in seconds belongs above the bulk rungs (6 and
@@ -528,6 +528,34 @@ func (q *Queue) SetQueuedPayload(ctx context.Context, id int64, payload json.Raw
 	n, err := q.q.SetQueuedJobPayload(ctx, systemq.SetQueuedJobPayloadParams{Payload: string(payload), Now: q.now().UnixMilli(), ID: id})
 	if err != nil {
 		return false, fmt.Errorf("set payload of job %d: %w", id, err)
+	}
+	return n == 1, nil
+}
+
+// SwapKeyedPayload replaces the payload of a queued or running job that still holds its
+// idempotency key from old to payload and reports whether it did: false when the payload is no
+// longer old, the job gave up its key (ReleaseRunningKey) or neither waits nor runs (any more).
+// old is the payload as Get returned it.
+func (q *Queue) SwapKeyedPayload(ctx context.Context, id int64, old, payload json.RawMessage) (bool, error) {
+	if !json.Valid(payload) {
+		return false, errors.New("payload is not valid JSON")
+	}
+	n, err := q.q.SwapKeyedJobPayload(ctx, systemq.SwapKeyedJobPayloadParams{
+		NewPayload: string(payload), Now: q.now().UnixMilli(), ID: id, OldPayload: string(old),
+	})
+	if err != nil {
+		return false, fmt.Errorf("swap payload of job %d: %w", id, err)
+	}
+	return n == 1, nil
+}
+
+// ReleaseRunningKey gives up the idempotency key of a running job while its payload is still
+// payload (as Get returned it) and reports whether it did: from then on an Enqueue under the key
+// queues a new job, so an event after the handler's last look at its payload is not lost.
+func (q *Queue) ReleaseRunningKey(ctx context.Context, id int64, payload json.RawMessage) (bool, error) {
+	n, err := q.q.ReleaseRunningJobKey(ctx, systemq.ReleaseRunningJobKeyParams{Now: q.now().UnixMilli(), ID: id, Payload: string(payload)})
+	if err != nil {
+		return false, fmt.Errorf("release key of job %d: %w", id, err)
 	}
 	return n == 1, nil
 }

@@ -8,10 +8,11 @@ Slouchcat läuft als ein Container (Plan 3.7, ADR 0001 "Auslieferung"). Dieser O
 | `Dockerfile.dockerignore` | Ausschlüsse für den Build-Kontext (Repository-Wurzel); BuildKit liest die Datei neben dem Dockerfile |
 | `compose.yaml` | Standardbetrieb ohne GPU |
 | `compose.nvidia.yaml`, `compose.intel.yaml`, `compose.amd.yaml` | GPU-Overrides |
+| `compose.podcasts.yaml` | Freiwillig: legt nur den Podcast-Ordner schreibbar über `/media` (`PODCAST_DIR`, `PODCAST_TARGET`), damit der Server neue Folgen speichern kann (Konzept 19 Teil A, ADR 0029) |
 | `.env.example` | Vorlage für `.env` (Medienordner, Benutzer, Render-Gruppe, Zeitzone) |
 | `licenses/FFMPEG-NOTICE.md` | GPL-Hinweis und schriftliches Quellcode-Angebot für ffmpeg, landet in `/licenses` |
 | `scripts/measure-healthy.sh` | Misst Zeit bis `healthy` und Leerlauf-RSS (DoD M0) |
-| `Taskfile.yml` | `task deploy:build`, `deploy:build:arm64`, `deploy:build:multi`, `deploy:binfmt`, `deploy:up`, `deploy:down`, `deploy:config`, `deploy:healthy-time`, `deploy:healthy-time:arm64` |
+| `Taskfile.yml` | `task deploy:build`, `deploy:build:arm64`, `deploy:build:multi`, `deploy:binfmt`, `deploy:up`, `deploy:down`, `deploy:config` (prüft auch `compose.podcasts.yaml`), `deploy:healthy-time`, `deploy:healthy-time:arm64` |
 
 ## Image bauen
 
@@ -135,6 +136,7 @@ nur, wenn ein Release neuer ist als die eingebaute Version.
 | `/config` | `./config` | SQLite-Datenbank, Einstellungen, Sicherungen, `secret.key`. **Nur lokale Platte**, nie NFS/SMB: der Server prüft das beim Start per `statfs` und bricht sonst ab |
 | `/cache` | `./cache` | Regenerierbar (Transcodes, Bilder) |
 | `/media` | `${MEDIA_DIR:-/srv/media}` | Medien, nur lesend (`:ro`); darf auf SMB/NFS liegen |
+| `${PODCAST_TARGET}` | `${PODCAST_DIR}` | Nur mit `compose.podcasts.yaml`: der Podcast-Ordner schreibbar, genau unter dem Pfad, unter dem er in Slouchcat eingetragen ist; er muss unter `/media` schon bestehen (`docs/INSTALLATION.md`, «Podcast-Folgen speichern») |
 | `/run/slouchcat/radio` | tmpfs (RAM, 564 MB) | Puffer des Webradios (Konzept 16); ohne tmpfs spielt Radio nur live, und die Verwaltung warnt |
 
 Der Container läuft als `${PUID:-1000}:${PGID:-1000}`; `./config` und `./cache` müssen diesem Benutzer

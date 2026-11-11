@@ -162,6 +162,13 @@ type Service struct {
 	recheck func(ctx context.Context) error
 	// newEpisodes is told the ids of new podcast episodes after their transaction (WithNewEpisodes).
 	newEpisodes func(ctx context.Context, ids []string) error
+	// podcastFetched hears of a fetch with new episodes and of a new subscription (WithPodcastFetched).
+	podcastFetched func(ctx context.Context, podcastID string, newIDs []string) error
+	// podcastChanged and podcastSavable serve the own setting of a podcast (WithPodcastSettingHooks).
+	podcastChanged func(ctx context.Context, podcastID string, stop bool) error
+	podcastSavable func(ctx context.Context, podcastID string) error
+	// podcastStates adds savable and unclear episodes to the podcasts (WithPodcastStates).
+	podcastStates func(ctx context.Context, podcastID string) (map[string]model.PodcastState, error)
 	// relink queues the merge of a matched film or series into its soft-deleted twin (WithRelink).
 	relink func(ctx context.Context, itemID string) (bool, error)
 
@@ -208,8 +215,13 @@ type options struct {
 	feedAgent   string
 	newEpisodes func(ctx context.Context, ids []string) error
 	relink      func(ctx context.Context, itemID string) (bool, error)
-	traktID     string
-	trakt       traktOptions
+	// podcastFetched: see WithPodcastFetched; podcastChanged, podcastSavable: WithPodcastSettingHooks.
+	podcastFetched func(ctx context.Context, podcastID string, newIDs []string) error
+	podcastChanged func(ctx context.Context, podcastID string, stop bool) error
+	podcastSavable func(ctx context.Context, podcastID string) error
+	podcastStates  func(ctx context.Context, podcastID string) (map[string]model.PodcastState, error)
+	traktID        string
+	trakt          traktOptions
 	// The audiobook sources (book_provider.go): addresses and the Google Books key.
 	bookURLs       *BookSourceURLs
 	bookUnlimited  bool // the limits of the sources lifted (WithTestBookSources)
@@ -283,6 +295,35 @@ func WithVisibilityRecheck(recheck func(ctx context.Context) error) Option {
 // after their transaction (notify.Service.NewEpisodes, M7 E-8). An error is logged.
 func WithNewEpisodes(fn func(ctx context.Context, ids []string) error) Option {
 	return func(o *options) { o.newEpisodes = fn }
+}
+
+// WithPodcastFetched sets the function that hears what a podcast should store (concept 19 part
+// A, 5.2; library.Service.QueuePodcastSync): a feed fetch calls it with the ids of the episodes it
+// reports as new (the same ones as WithNewEpisodes, after their transactions, also when a later
+// batch failed), and only when there are some; Subscribe calls it with none, so a new subscription
+// never counts its first fetch as new episodes (P-14) but the planner can still load the N newest
+// or all of them. An error is logged.
+func WithPodcastFetched(fn func(ctx context.Context, podcastID string, newIDs []string) error) Option {
+	return func(o *options) { o.podcastFetched = fn }
+}
+
+// WithPodcastSettingHooks sets the functions UpdatePodcastDownloads calls (concept 19 part A, 5.3):
+// savable before an own setting turns a podcast to «Speichern» (library.Service.PodcastSavable; its
+// error refuses the setting), changed after the setting was stored with whether it ended
+// «Speichern» (library.Service.QueuePodcastSettingChanged, the planner; an error is logged). Without them nothing is checked
+// or planned.
+func WithPodcastSettingHooks(savable func(ctx context.Context, podcastID string) error,
+	changed func(ctx context.Context, podcastID string, stop bool) error,
+) Option {
+	return func(o *options) { o.podcastSavable, o.podcastChanged = savable, changed }
+}
+
+// WithPodcastStates sets the function the list of the administration asks for the state of the
+// stored episodes of a podcast (library.Service.PodcastStates; concept 19 part A, section 11):
+// whether «Speichern» may apply and how many episodes the riegel leave unclear, for one podcast or
+// with an empty id for all. Without it every podcast is not savable and has nothing unclear.
+func WithPodcastStates(fn func(ctx context.Context, podcastID string) (map[string]model.PodcastState, error)) Option {
+	return func(o *options) { o.podcastStates = fn }
 }
 
 // WithRelink sets the function a match calls after it wrote the provider ids of a film or series
@@ -363,6 +404,10 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		trailersAI:      newAITrailers(o.trailerAI, log),
 		recheck:         o.recheck,
 		newEpisodes:     o.newEpisodes,
+		podcastFetched:  o.podcastFetched,
+		podcastChanged:  o.podcastChanged,
+		podcastSavable:  o.podcastSavable,
+		podcastStates:   o.podcastStates,
 		relink:          o.relink,
 		relinkSeries:    o.relinkSeries,
 		authorDisplay:   o.authorDisplay,

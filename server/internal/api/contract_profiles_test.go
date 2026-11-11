@@ -28,6 +28,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/discover"
 	"github.com/slouchcat/slouchcat/server/internal/integrations"
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/metadata"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/notify"
@@ -1239,7 +1240,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	a.WithMetadataLanguages(pods.AvailableMetadataLanguages)
 	adm := admin.New(f.DB, a, &authTestLibraries{}, ring, &authTestTMDB{}, func(string) string { return "" }, log).
 		WithMetadata(contractMetadata{}).WithLibraryMaintenance(contractLibraryMaintenance{}).WithPodcasts(pods).WithTrakt(pods).
-		WithBooks(pods).
+		WithBooks(pods).WithPodcastStorage(library.New(f.DB, jobs.NewQueue(f.DB.Write, nil), transcode.Runner{}, log)).
 		WithBackups(t.TempDir(), "test")
 	googleKey = adm.GoogleBooksKey
 	restarts := &atomic.Int32{}

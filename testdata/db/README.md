@@ -321,6 +321,17 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   Stichtag 10. November 2026, 12:00 UTC. Dann `store.Dump`, kein Pfad aus dem Dateisystem dazu.
   `TestFrozenHoerbuchQuellenStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist;
   `TestMigration00046BookSources` prüft den Schritt von `hoerbuch-reihen.sql` aus.
+- `podcasts-speichern.sql`: Stand nach Stufe 1 von Teil A des Konzepts 19 «Podcasts speichern» (Migration 00047 mit den
+  Spalten `libraries.podcast_*`, `podcast_settings` und `podcast_download_failures`; ADR 0029). Erzeugt am 11. November
+  2026 aus `hoerbuch-quellen.sql`: Stand eingespielt, dazu per SQL die Podcast-Bibliothek «Podcasts» mit dem Ordner
+  `/media/frozen/Podcasts` (Inhalt `podcast`, erfundener Pfad), das Abo «Frozen Podcast» mit zwei Feed-Folgen, deren erste
+  eine Datei im Ordner hat, mit `store.Open` migriert (jede Bibliothek auf «Nur Link», «Nur neue Folgen», N 10, zwei
+  gleichzeitig), dann per SQL: «Podcasts» auf «Speichern» mit «Neue + letzte 5», drei gleichzeitig und dem Ordner als
+  Ziel neuer Abos, «Frozen Podcast» mit eigenem Umfang «Alle Folgen» und einem Fehlschlag `enclosure_unavailable` (zwei
+  Versuche) an der zweiten Folge, ein neues Abo «Frozen Neues Abo» ohne Datei auf «Nur Link» mit eigenem N 2 und einem
+  angelegten Ordner (`pending_folder`). Stichtag 11. November 2026, 12:00 UTC. Dann `store.Dump`, kein Pfad aus dem
+  Dateisystem dazu. `TestFrozenPodcastsSpeichernStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist;
+  `TestMigration00047PodcastDownloads` prüft den Schritt von `hoerbuch-quellen.sql` aus.
 - `radio-angebot.sql`: Stand nach Stufe B1 des Konzepts 19 «Radio-Angebot» (Teil B; Migration 00048 mit
   `radio_offer_countries`, `radio_offer_exceptions`, `radio_config.offer_version`, `radio_config.offer_seeded` und
   `radio_stations.provider`; die Schlagwort-Regeln, die Filterwerte von Hand und ihre Schlösser gelöscht). Erzeugt am
@@ -333,4 +344,7 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   aus (Version 2). Stichtag 11. November 2026, 12:00 UTC. Dann `store.Dump`, kein neuer Pfad im Stand (die Pfade
   der Wurzeln bleiben die von `hoerbuch-quellen.sql`). `TestFrozenRadioAngebotStateCoversTheStage` prüft, dass jede
   dieser Datenarten vorhanden ist; `TestMigration00048RadioOffer` prüft den Schritt von `hoerbuch-quellen.sql` aus,
-  `TestFirstStartPreparesTheOffer` (Paket `radio`) die Vorbereitung beim ersten Start.
+  `TestFirstStartPreparesTheOffer` (Paket `radio`) die Vorbereitung beim ersten Start. Am 11. November 2026 nach dem Merge
+  von Teil A (Migration 00047) ergänzt: Stand eingespielt, das Skript von 00047 darauf ausgeführt, Version 47 in
+  `goose_db_version` nachgetragen und mit `store.Dump` neu geschrieben, sonst bricht die Migration wegen einer
+  fehlenden älteren Version ab (goose ohne `AllowOutOfOrder`).

@@ -41,6 +41,12 @@ var (
 	ErrFeedInvalid          = errors.New("feed invalid")                 // 422 feed_invalid
 	ErrRatingBelowDefault   = errors.New("rating below library default") // 422 rating_below_library_default
 	ErrEnclosureUnavailable = errors.New("enclosure unavailable")        // 502 enclosure_unavailable
+	// ErrRootNotWritable: «Speichern» needs a podcast folder that passes the folder check (422
+	// root_not_writable, concept 19 part A, 5.4).
+	ErrRootNotWritable = errors.New("podcast folder not writable")
+	// ErrRootRequired: a podcast library without a podcast folder cannot store episodes (422
+	// root_required, concept 19 part A, section 11).
+	ErrRootRequired = errors.New("podcast folder required")
 )
 
 // Discover and curation errors (M7).
@@ -1541,6 +1547,9 @@ type LibraryUpdate struct {
 	Name          *string
 	DefaultRating *int
 	Trickplay     *LibraryTrickplay // video libraries only (concept 18, 6.1)
+	// PodcastDownloads is the setting of stored episodes, podcast libraries only (concept 19 part
+	// A, 5.1).
+	PodcastDownloads *PodcastDownloads
 }
 
 // SetupRequest is the input of the first-start wizard.
@@ -1594,7 +1603,11 @@ type Library struct {
 	// TrickplayEstimate is the storage estimate of the previews (concept 18, 9); getLibrary of a
 	// video library only.
 	TrickplayEstimate *LibraryTrickplayEstimate
-	CreatedAt         time.Time
+	// PodcastDownloads is the setting of stored episodes of a podcast library (concept 19 part A,
+	// 5.1); PodcastFolder the folder check of its folder for new subscriptions, getLibrary only.
+	PodcastDownloads *PodcastDownloads
+	PodcastFolder    *PodcastFolder
+	CreatedAt        time.Time
 }
 
 // Trickplay modes of a library (concept 18, 6.1; libraries.trickplay_movies and
@@ -1723,12 +1736,112 @@ type AdminPodcast struct {
 	FeedOrigin        string
 	RootID            *int64
 	LocalEpisodeCount int
+	// The stored episodes (concept 19 part A, section 11): the own setting (Mode and Scope
+	// PodcastInherit or a value, LastN nil without an own one), the effective one, the bytes of
+	// the files that are there, the downloads that wait, run or failed, and the publication of the
+	// newest episode. Empty for a folder podcast without feed.
+	Mode, Scope                       string
+	LastN                             *int
+	EffectiveMode, EffectiveScope     string
+	EffectiveLastN                    int
+	StoredBytes                       int64
+	DownloadsQueued, DownloadsRunning int
+	DownloadsFailed                   int
+	LatestEpisodeAt                   *time.Time
+	// Savable and UnclearEpisodeCount come from package library (PodcastState): whether
+	// «Speichern» may apply and how many episodes without file the riegel leave to the
+	// administrator.
+	Savable             bool
+	UnclearEpisodeCount int
 }
 
-// PodcastCreate subscribes a podcast library to a feed.
+// PodcastState is what package library knows of a podcast for the list of the administration
+// (concept 19 part A, section 11): Savable when the folder its downloads would write into passes
+// the folder check (false without feed), UnclearEpisodes the episodes without file the riegel
+// judge unclear (section 8).
+type PodcastState struct {
+	Savable         bool
+	UnclearEpisodes int
+}
+
+// PodcastCreate subscribes a podcast library to a feed. SubscribeOnly is «Nur abonnieren» in a
+// library that stores the N newest or all episodes (concept 19 part A, 12.3; loadEpisodes false).
 type PodcastCreate struct {
-	LibraryID int64
-	FeedURL   string
+	LibraryID     int64
+	FeedURL       string
+	SubscribeOnly bool
+}
+
+// The setting of stored podcast episodes (concept 19 part A, 5.1; libraries.podcast_mode and
+// podcast_scope, podcast_settings): «Speichern» or «Nur Link», and what «Speichern» loads.
+const (
+	PodcastSave        = "save"
+	PodcastLink        = "link"
+	PodcastScopeNew    = "new"
+	PodcastScopeLastN  = "last_n"
+	PodcastScopeAll    = "all"
+	PodcastLastNMax    = 100
+	PodcastParallelMax = 5
+)
+
+// PodcastInherit is the own setting of a podcast that follows its library (podcast_settings NULL).
+const PodcastInherit = "inherit"
+
+// PodcastDownloads is the setting of stored episodes of a podcast library (LibraryPodcastDownloads,
+// concept 19 part A, 5.1): Mode save or link, Scope new, last_n (with LastN 1..100) or all,
+// Parallel 1..5 downloads at once, and the folder for new subscriptions (RootID nil: the first
+// podcast folder of the library).
+type PodcastDownloads struct {
+	Mode     string
+	Scope    string
+	LastN    int
+	Parallel int
+	RootID   *int64
+}
+
+// PodcastDownloadsUpdate is the own setting of a podcast (updatePodcast): a nil field stays,
+// PodcastInherit returns Mode or Scope to the library's value, LastN counts with an own Scope.
+type PodcastDownloadsUpdate struct {
+	Mode  *string
+	Scope *string
+	LastN *int
+}
+
+// PodcastDownloadEstimateRequest names an imagined setting (estimatePodcastDownloads): of the
+// library when PodcastID is empty, else of that podcast (Mode and Scope may be PodcastInherit).
+type PodcastDownloadEstimateRequest struct {
+	PodcastID string
+	Mode      string
+	Scope     string
+	LastN     int
+}
+
+// PodcastDownloadEstimate is what an imagined setting would load once (12.3): the episodes and
+// their bytes (enclosure_length, else the mean of the podcast's files), and the free space of the
+// folder for new subscriptions.
+type PodcastDownloadEstimate struct {
+	Episodes  int
+	Bytes     int64
+	FreeBytes int64
+}
+
+// Problems of the folder check of a podcast folder (concept 19 part A, 5.4; ADR 0029).
+const (
+	PodcastFolderReadOnly    = "read_only"     // the folder cannot be written (mounted read-only, no write right)
+	PodcastFolderNotMounted  = "not_mounted"   // another file system than at the start, or no known folder there
+	PodcastFolderNoHardLinks = "no_hard_links" // the file system refuses a hard link (O-12: «Speichern» locked)
+	PodcastFolderPermissions = "permissions"   // a new file does not get the expected rights (6.4)
+)
+
+// PodcastFolder is the result of the folder check of a podcast folder (5.4): Writable with an
+// empty Problem when the server may store episodes there, else the first problem found.
+// FreeBytes is the space the server may use on its drive (0 when unknown).
+type PodcastFolder struct {
+	RootID    int64
+	Path      string
+	Writable  bool
+	Problem   string
+	FreeBytes int64
 }
 
 // Playback sessions and stream tokens (M1b, plan 5.4).

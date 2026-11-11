@@ -52,6 +52,7 @@ INSERT INTO "goose_db_version" VALUES (45, 44, 1, '2026-11-10 14:11:54 +0000 UTC
 INSERT INTO "goose_db_version" VALUES (46, 45, 1, '2026-11-10 15:33:23 +0000 UTC');
 INSERT INTO "goose_db_version" VALUES (47, 46, 1, '2026-11-10 20:13:33 +0000 UTC');
 INSERT INTO "goose_db_version" VALUES (48, 48, 1, '2026-11-11 08:38:16 +0000 UTC');
+INSERT INTO "goose_db_version" VALUES (49, 47, 1, '2026-11-11 08:38:16 +0000 UTC');
 CREATE TABLE jobs (
     id              INTEGER PRIMARY KEY,
     type            TEXT    NOT NULL,
@@ -1195,10 +1196,14 @@ CREATE TABLE "libraries" (
     CHECK (trickplay_movies_keep IN (0, 1)), trickplay_series TEXT NOT NULL DEFAULT 'ahead'
     CHECK (trickplay_series IN ('ahead', 'on_start', 'series_start', 'off')), trickplay_series_keep INTEGER NOT NULL DEFAULT 1
     CHECK (trickplay_series_keep IN (0, 1)), trickplay_series_scope TEXT NOT NULL DEFAULT 'series'
-    CHECK (trickplay_series_scope IN ('series', 'season_rest', 'next_episode'))) STRICT;
-INSERT INTO "libraries" VALUES (1, 'Filme', 'video', NULL, 1793325197707, 1794225600000, 'done', 1793575648668, 1793575648709, NULL, 23, 23, NULL, 'ahead', 0, 'series_start', 1, 'season_rest');
-INSERT INTO "libraries" VALUES (2, 'Serien', 'video', NULL, 1793325197763, 1793575648723, 'done', 1793575648710, 1793575648723, NULL, 15, 15, NULL, 'off', 1, 'on_start', 0, 'next_episode');
-INSERT INTO "libraries" VALUES (3, 'Hörbücher', 'audiobooks', 0, 1794470400000, 1794470400000, 'never', NULL, NULL, NULL, 0, 0, NULL, 'off', 1, 'off', 1, 'series');
+    CHECK (trickplay_series_scope IN ('series', 'season_rest', 'next_episode')), podcast_mode TEXT NOT NULL DEFAULT 'link'
+    CHECK (podcast_mode IN ('save', 'link')), podcast_scope TEXT NOT NULL DEFAULT 'new'
+    CHECK (podcast_scope IN ('new', 'last_n', 'all')), podcast_last_n INTEGER NOT NULL DEFAULT 10
+    CHECK (podcast_last_n BETWEEN 1 AND 100), podcast_parallel INTEGER NOT NULL DEFAULT 2
+    CHECK (podcast_parallel BETWEEN 1 AND 5), podcast_root_id INTEGER REFERENCES library_roots(id) ON DELETE SET NULL) STRICT;
+INSERT INTO "libraries" VALUES (1, 'Filme', 'video', NULL, 1793325197707, 1794225600000, 'done', 1793575648668, 1793575648709, NULL, 23, 23, NULL, 'ahead', 0, 'series_start', 1, 'season_rest', 'link', 'new', 10, 2, NULL);
+INSERT INTO "libraries" VALUES (2, 'Serien', 'video', NULL, 1793325197763, 1793575648723, 'done', 1793575648710, 1793575648723, NULL, 15, 15, NULL, 'off', 1, 'on_start', 0, 'next_episode', 'link', 'new', 10, 2, NULL);
+INSERT INTO "libraries" VALUES (3, 'Hörbücher', 'audiobooks', 0, 1794470400000, 1794470400000, 'never', NULL, NULL, NULL, 0, 0, NULL, 'off', 1, 'off', 1, 'series', 'link', 'new', 10, 2, NULL);
 CREATE TABLE job_types (
     type       TEXT    PRIMARY KEY,
     paused_at  INTEGER,
@@ -2221,6 +2226,22 @@ INSERT INTO "radio_offer_exceptions" VALUES (27, 1, 1794398400000);
 INSERT INTO "radio_offer_exceptions" VALUES (28, 1, 1794398400000);
 INSERT INTO "radio_offer_exceptions" VALUES (29, 1, 1794398400000);
 INSERT INTO "radio_offer_exceptions" VALUES (47, 1, 1794398400000);
+CREATE TABLE podcast_settings (
+    item_id         TEXT    PRIMARY KEY REFERENCES items(id) ON DELETE CASCADE,
+    mode            TEXT    CHECK (mode IS NULL OR mode IN ('save', 'link')),
+    scope           TEXT    CHECK (scope IS NULL OR scope IN ('new', 'last_n', 'all')),
+    last_n          INTEGER CHECK (last_n IS NULL OR last_n BETWEEN 1 AND 100),
+    pending_root_id INTEGER REFERENCES library_roots(id) ON DELETE SET NULL,
+    pending_folder  TEXT,
+    updated_at      INTEGER NOT NULL
+) STRICT;
+CREATE TABLE podcast_download_failures (
+    item_id         TEXT    PRIMARY KEY REFERENCES items(id) ON DELETE CASCADE,
+    error           TEXT    NOT NULL,
+    attempts        INTEGER NOT NULL DEFAULT 1 CHECK (attempts >= 1),
+    first_failed_at INTEGER NOT NULL,
+    last_failed_at  INTEGER NOT NULL
+) STRICT;
 INSERT INTO "search_index"("search_index") VALUES ('rebuild');
 CREATE UNIQUE INDEX jobs_active_idempotency_key ON jobs (idempotency_key)
     WHERE state IN ('queued', 'running');
@@ -2617,4 +2638,10 @@ BEGIN
                  || CASE WHEN NEW.author_display IS NOT NULL AND NEW.author_display IS NOT NEW.author
                          THEN ' / ' || NEW.author_display ELSE '' END))
     ON CONFLICT (kind, ref_id, item_id) DO UPDATE SET text = excluded.text;
+END;
+CREATE TRIGGER library_roots_podcast_target AFTER UPDATE OF content ON library_roots
+WHEN OLD.content = 'podcast' AND NEW.content <> 'podcast'
+BEGIN
+    UPDATE libraries SET podcast_root_id = NULL WHERE podcast_root_id = NEW.id;
+    UPDATE podcast_settings SET pending_root_id = NULL, pending_folder = NULL WHERE pending_root_id = NEW.id;
 END;
