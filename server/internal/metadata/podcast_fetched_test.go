@@ -209,3 +209,46 @@ func TestSubscribeWithoutLoading(t *testing.T) {
 		t.Errorf("«Abonnieren und laden» = scope %s (effective %s), want the library's", p.Scope, p.EffectiveScope)
 	}
 }
+
+// subscribeProbe is a slog.Handler that calls fn at the log line of a new subscription, the first
+// moment its episodes are in the database for every reader.
+type subscribeProbe struct {
+	slog.Handler
+	fn func()
+}
+
+func (subscribeProbe) Enabled(context.Context, slog.Level) bool { return true }
+
+func (h subscribeProbe) Handle(_ context.Context, r slog.Record) error {
+	if r.Message == "podcast subscribed" {
+		h.fn()
+	}
+	return nil
+}
+
+// Concept 19 part A, 12.3: «Nur abonnieren» stores the own scope «Nur neue Folgen» before the
+// episodes, so a podcast.sync_all or a change of the library while the subscription runs never
+// sees its episodes under the library's «Alle».
+func TestSubscribeWithoutLoadingStoresTheScopeFirst(t *testing.T) {
+	t.Parallel()
+	e := newPodcastEnv(t, 2)
+	mustExec(t, e.db.Write, `UPDATE libraries SET podcast_mode = 'save', podcast_scope = 'all' WHERE id = 3`)
+	ctx := context.Background()
+	var episodes, scoped int
+	probe := subscribeProbe{Handler: slog.DiscardHandler, fn: func() {
+		if err := e.db.Read.QueryRowContext(ctx, `SELECT count(*) FROM items WHERE kind = 'podcast_episode'`).Scan(&episodes); err != nil {
+			t.Error(err)
+		}
+		if err := e.db.Read.QueryRowContext(ctx, `SELECT count(*) FROM podcast_settings WHERE scope = 'new'`).Scan(&scoped); err != nil {
+			t.Error(err)
+		}
+	}}
+	e.svc = New(e.db, e.queue, staticKey(""), t.TempDir(), transcode.Runner{}, slog.New(probe),
+		WithFeedClock(e.clock.now), WithFeedUserAgent("Slouchcat/test"))
+	if _, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml", false); err != nil {
+		t.Fatal(err)
+	}
+	if episodes != 2 || scoped != 1 {
+		t.Errorf("with the episodes stored (%d) the own scope «Nur neue Folgen» was stored %d times, want before them", episodes, scoped)
+	}
+}

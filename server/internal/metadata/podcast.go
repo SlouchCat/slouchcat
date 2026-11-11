@@ -222,7 +222,7 @@ func validateFeedURL(raw string) (string, bool) {
 // library, fetches the feed (at most 20 s) and stores the podcast with its episodes, then queues
 // the cover. With loadEpisodes false («Nur abonnieren», concept 19 part A, 12.3) in a library
 // that stores the N newest or all episodes, the podcast gets the own scope «Nur neue Folgen»
-// before the planner hears of it, so nothing of the feed is loaded. Errors: *model.ValidationError
+// before its episodes are stored, so nothing of the feed is loaded. Errors: *model.ValidationError
 // (feedUrl invalid_url, libraryId unknown_library or library_kind), model.ErrFeedExists,
 // model.ErrFeedUnreachable, model.ErrFeedInvalid.
 func (s *Service) Subscribe(ctx context.Context, libraryID int64, feedURL string, loadEpisodes bool) (model.AdminPodcast, error) {
@@ -278,7 +278,20 @@ func (s *Service) Subscribe(ctx context.Context, libraryID int64, feedURL string
 		}
 		return model.AdminPodcast{}, fmt.Errorf("insert podcast: %w", err)
 	}
-	if _, _, err := s.storeEpisodes(ctx, p.ID, libraryID, title, res.feed, nil, now); err != nil {
+	// The own scope comes before the episodes: a podcast.sync_all or a change of the library in
+	// between finds nothing to load under the library's scope.
+	if !loadEpisodes && lib.PodcastMode == model.PodcastSave && lib.PodcastScope != model.PodcastScopeNew {
+		err = s.write.PodcastUpsertSettings(ctx, systemq.PodcastUpsertSettingsParams{
+			ItemID: p.ID, Scope: nullStr(model.PodcastScopeNew), Now: now.UnixMilli(),
+		})
+		if err != nil {
+			err = fmt.Errorf("store the scope of podcast %s: %w", p.ID, err)
+		}
+	}
+	if err == nil {
+		_, _, err = s.storeEpisodes(ctx, p.ID, libraryID, title, res.feed, nil, now)
+	}
+	if err != nil {
 		// Without its episodes the subscription is of no use; it goes again, so a retry is possible.
 		if _, derr := s.write.PodcastSoftDelete(context.WithoutCancel(ctx), systemq.PodcastSoftDeleteParams{
 			Now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}, ID: p.ID}); derr != nil {
@@ -292,13 +305,6 @@ func (s *Service) Subscribe(ctx context.Context, libraryID int64, feedURL string
 		}
 	}
 	s.log.InfoContext(ctx, "podcast subscribed", "item_id", p.ID, "library_id", libraryID, "episodes", len(res.feed.Episodes))
-	if !loadEpisodes && lib.PodcastMode == model.PodcastSave && lib.PodcastScope != model.PodcastScopeNew {
-		if err := s.write.PodcastUpsertSettings(ctx, systemq.PodcastUpsertSettingsParams{
-			ItemID: p.ID, Scope: nullStr(model.PodcastScopeNew), Now: now.UnixMilli(),
-		}); err != nil {
-			return model.AdminPodcast{}, fmt.Errorf("store the scope of podcast %s: %w", p.ID, err)
-		}
-	}
 	// The first fetch reports no new episodes to the planner (concept 19, 5.2).
 	s.notePodcastFetched(ctx, p.ID, nil)
 	return s.adminPodcast(ctx, p.ID)
