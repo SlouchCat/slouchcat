@@ -40,6 +40,13 @@ func (s *Service) handleSweep(ctx context.Context, _ *jobs.Job) error {
 	if err := s.sweepPodcastLeftovers(ctx); err != nil {
 		s.log.WarnContext(ctx, "podcast leftover sweep failed", "err", err)
 	}
+	// The image folders of titles deleted for good (a merge, a relink, a cascaded child); a
+	// failure is logged as well.
+	if s.imageSweep != nil {
+		if _, err := s.imageSweep(ctx); err != nil {
+			s.log.WarnContext(ctx, "image folder sweep failed", "err", err)
+		}
+	}
 	return nil
 }
 
