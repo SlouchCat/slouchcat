@@ -111,7 +111,7 @@ func TestAdminStreamsTitleGone(t *testing.T) {
 
 // Concept 18, 17.4: the overview names what each stream plays. A film, an episode and an extra show
 // the backdrop of themselves, their series and their film; a podcast episode names its podcast and
-// shows its own cover, from the feed the podcast's and the feed's duration; an audiobook of several
+// shows its podcast's cover (it has none of its own), from the feed the feed's duration; an audiobook of several
 // parts shows its cover, the chapter at the position, the number of parts and the whole book's
 // length, and audio names its codec and bit rate.
 func TestAdminStreamsKinds(t *testing.T) {
@@ -150,7 +150,7 @@ func TestAdminStreamsKinds(t *testing.T) {
 		{kind: "movie", title: "Film 06", poster: film.ID, backdrop: film.ID, source: "file", duration: vistest.DurationMs},
 		{kind: "episode", title: "Film SS · S01E01 · Film E1", poster: f.Show.Series.ID, backdrop: f.Show.Series.ID, source: "file", duration: vistest.DurationMs},
 		{kind: "extra", title: "Film XT", parent: "Film 06", poster: film.ID, backdrop: film.ID, source: "file", duration: vistest.DurationMs},
-		{kind: "podcast_episode", title: "Film " + episode.Label, parent: "Film PC", poster: episode.ID, codec: "mp3", bitrate: 256000,
+		{kind: "podcast_episode", title: "Film " + episode.Label, parent: "Film PC", poster: a.Podcast.ID, codec: "mp3", bitrate: 256000,
 			source: "file", duration: vistest.DurationMs},
 		{kind: "podcast_episode", title: "Film QE", parent: "Film PC", poster: a.Podcast.ID, codec: "mp3", source: "feed", duration: 1234567},
 		{kind: "audiobook", title: "Film AP", chapter: "Kapitel 2", poster: a.Parts.ID, codec: "aac", bitrate: 64_000, parts: 3,

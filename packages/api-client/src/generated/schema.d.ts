@@ -6610,8 +6610,8 @@ export interface components {
             durationMs?: number;
             /**
              * @description The poster (`w200`) through `getAdminItemImage`, for an episode the poster of its series, for
-             *     an extra that of its movie or series, for a podcast episode without cover of its own that of
-             *     its podcast; absent when no poster is stored.
+             *     an extra that of its movie or series, for a podcast episode (which has no cover of its own)
+             *     that of its podcast; absent when no poster is stored.
              */
             posterUrl?: string;
             /**

@@ -468,6 +468,11 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		if _, err := metaSvc.QueueFirstBookMatches(ctx); err != nil && ctx.Err() == nil {
 			log.Warn("first audiobook match not queued", "err", err)
 		}
+		// The image files of the podcast episodes, whose rows migration 00049 deleted (an episode
+		// shows its podcast's cover): once, again at the next start when a folder stayed.
+		if _, err := metaSvc.PurgeEpisodeImagesOnce(ctx); err != nil && ctx.Err() == nil {
+			log.Warn("image folders of podcast episodes not removed", "err", err)
+		}
 	})
 	defer func() {
 		stop() // also on error paths, so the workers return before the database closes

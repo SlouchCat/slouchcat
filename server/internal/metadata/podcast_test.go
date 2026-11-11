@@ -443,10 +443,10 @@ func TestQueueDuePodcasts(t *testing.T) {
 	}
 }
 
-// M6 review m-1, m-6, m-11: locked fields of the channel and of an episode stay; an episode that
-// turns explicit ends open streams; an episode keeps an image only when it differs from the
-// channel's, and a new episode with its own image is queued for image.fetch.
-func TestFetchPodcastLocksAndEpisodeCovers(t *testing.T) {
+// M6 review m-1, m-6: locked fields of the channel and of an episode stay; an episode that turns
+// explicit ends open streams. An episode never has a cover of its own (decision of 11 November
+// 2026): the itunes:image of an item, the channel's or another, is neither stored nor fetched.
+func TestFetchPodcastLocksAndNoEpisodeCovers(t *testing.T) {
 	t.Parallel()
 	e := newPodcastEnv(t, 2)
 	rechecks := 0
@@ -458,7 +458,7 @@ func TestFetchPodcastLocksAndEpisodeCovers(t *testing.T) {
 	}
 	ep1 := e.episodes(t, p.ID)["ep-1"].ID
 	mustExec(t, e.db.Write, `UPDATE items SET locked_fields = '["author","overview"]' WHERE id = ?`, p.ID)
-	mustExec(t, e.db.Write, `UPDATE items SET locked_fields = '["title","poster","overview"]', cover_url = 'https://img.test/kept.jpg' WHERE id = ?`, ep1)
+	mustExec(t, e.db.Write, `UPDATE items SET locked_fields = '["title","overview"]' WHERE id = ?`, ep1)
 	mustExec(t, e.db.Write, `DELETE FROM jobs`)
 	e.feed.set(func(f *fakeFeed) {
 		f.n, f.title[1], f.explicit[2] = 3, "Episode 1 (neu)", true
@@ -489,18 +489,18 @@ func TestFetchPodcastLocksAndEpisodeCovers(t *testing.T) {
 		}
 		return r
 	}
-	if r := get(ep1); r != (row{"Episode 1", "Episode 1", "Folge 1", "https://img.test/kept.jpg"}) {
-		t.Errorf("locked episode = %+v", r)
+	if r := get(ep1); r != (row{"Episode 1", "Episode 1", "Folge 1", ""}) {
+		t.Errorf("locked episode with an image of its own in the feed = %+v", r)
 	}
 	eps := e.episodes(t, p.ID)
 	if r := get(eps["ep-2"].ID); r.cover != "" || eps["ep-2"].Rating.Int64 != 18 {
 		t.Errorf("episode with the channel's image = %+v, rating %v", r, eps["ep-2"].Rating)
 	}
-	if r := get(eps["ep-3"].ID); r.cover != "https://img.test/ep3.jpg" {
-		t.Errorf("new episode with its own image = %+v", r)
+	if r := get(eps["ep-3"].ID); r.cover != "" {
+		t.Errorf("new episode with an image of its own in the feed = %+v", r)
 	}
-	if got := e.jobs(t, JobImageFetch); len(got) != 1 || got[0] != "image:"+eps["ep-3"].ID {
-		t.Errorf("image jobs = %v", got)
+	if got := e.jobs(t, JobImageFetch); len(got) != 0 {
+		t.Errorf("image jobs = %v, want none", got)
 	}
 	if rechecks != 1 {
 		t.Errorf("open streams rechecked %d times after an episode turned explicit, want 1", rechecks)

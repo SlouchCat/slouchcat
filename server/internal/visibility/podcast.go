@@ -12,8 +12,8 @@ import (
 )
 
 // Podcasts (M6, design 3.4): the newest visible episodes of a podcast with their total, the podcast
-// of an episode, the enclosure of an episode and the cover of the podcast for episodes without an
-// image of their own (queries/scoped/podcasts.sql). An explicit episode (FSK 18) is hidden from
+// of an episode, the enclosure of an episode and the cover of the podcast for its episodes, which
+// have no image of their own (queries/scoped/podcasts.sql, decision of 11 November 2026). An explicit episode (FSK 18) is hidden from
 // profiles under 18 like any other title above their ceiling.
 
 // Episode lists of a podcast: the detail carries the newest DetailEpisodes, listPodcastEpisodes
@@ -132,8 +132,7 @@ func (r *Reader) Enclosure(ctx context.Context, s Scope, itemID string) (Enclosu
 		Length: row.EnclosureLength.Int64, DurationMs: row.DurationMs.Int64, FeedURL: row.FeedUrl.String, FeedOrigin: row.FeedOrigin.String}, nil
 }
 
-// podcastImages gives the visible episodes among ids that have no image of their own the images of
-// their visible podcast.
+// podcastImages gives the visible episodes among ids the images of their visible podcast.
 func (r *Reader) podcastImages(ctx context.Context, pid int64, ids []string, out *extras) error {
 	rows, err := r.q.ListPodcastFallbackImages(ctx, scopedq.ListPodcastFallbackImagesParams{ProfileID: pid, ItemIds: ids})
 	if err != nil {
@@ -145,8 +144,8 @@ func (r *Reader) podcastImages(ctx context.Context, pid int64, ids []string, out
 	return nil
 }
 
-// podcastImage is the image lookup of Image for an episode without images of its own: the image
-// of its podcast, or sql.ErrNoRows.
+// podcastImage is the image lookup of Image for an episode: the image of its podcast, or
+// sql.ErrNoRows.
 func (r *Reader) podcastImage(ctx context.Context, pid int64, itemID, kind, size, format string) (scopedq.Image, error) {
 	im, err := r.q.GetPodcastFallbackImage(ctx, scopedq.GetPodcastFallbackImageParams{ProfileID: pid, ItemID: itemID, Kind: kind, Size: size, Format: format})
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {

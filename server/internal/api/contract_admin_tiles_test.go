@@ -157,6 +157,16 @@ func TestStatsTopTitleImages(t *testing.T) {
 		}
 	}
 	setAdminImage(t, f, orphan, "poster", model.AdminPosterSize, "orphanPoster")
+	// A podcast episode shows its podcast's cover (it has none of its own, decision of 11 November 2026).
+	if f.Audio.Podcast.ID == "" {
+		f.AddAudio(t)
+	}
+	podcastEpisode := f.Audio.Episodes[0]
+	setAdminImage(t, f, f.Audio.Podcast.ID, "poster", model.AdminPosterSize, "podcastPoster")
+	if _, err := f.DB.Write.Exec(`INSERT INTO progress_events (profile_id, item_id, position_ms, duration_ms, played_ms, seq, state,
+	    client_time, server_time) VALUES (?, ?, 0, 7200000, 10000, 1, 'playing', ?, ?)`, f.P18.ID, podcastEpisode.ID, time.Now().UnixMilli(), time.Now().UnixMilli()); err != nil {
+		t.Fatal(err)
+	}
 	rec := send(t, h, http.MethodGet, BasePath+"/admin/stats?days=30", "p18", "", nil)
 	wantStatus(t, rec, http.StatusOK)
 	t.Logf("GET /admin/stats?days=30: %s", rec.Body.String())
@@ -176,6 +186,9 @@ func TestStatsTopTitleImages(t *testing.T) {
 	if got, want := deref(ep.BackdropUrl), wantAdminImage(f.Show.Series.ID, "backdrop", "w780", "seriesBackdrop"); got != want {
 		t.Errorf("episode backdropUrl %q, want the series' %q", got, want)
 	}
+	if got, want := deref(byItem[podcastEpisode.ID].PosterUrl), wantAdminImage(f.Audio.Podcast.ID, "poster", "w200", "podcastPoster"); got != want {
+		t.Errorf("podcast episode posterUrl %q, want the podcast's %q", got, want)
+	}
 	if got, want := deref(mv.PosterUrl), wantAdminImage(film.ID, "poster", "w200", "filmPoster"); got != want || mv.BackdropUrl != nil {
 		t.Errorf("film posterUrl %q backdropUrl %v, want %q and none", got, mv.BackdropUrl, want)
 	}
@@ -190,14 +203,14 @@ func TestStatsTopTitleImages(t *testing.T) {
 	if o := byItem[orphan]; deref(o.PosterUrl) != wantAdminImage(orphan, "poster", "w200", "orphanPoster") || o.BackdropUrl != nil {
 		t.Errorf("orphan: posterUrl %q backdropUrl %v, want its own poster and no backdrop", deref(o.PosterUrl), o.BackdropUrl)
 	}
-	// The grid of the week: 672 quarter hours holding the five events, 28 days (whole weeks), the
+	// The grid of the week: 672 quarter hours holding the six events, 28 days (whole weeks), the
 	// zone of the server.
 	var sum int64
 	for _, v := range st.WatchTimeByQuarterHour {
 		sum += v
 	}
-	if len(st.WatchTimeByQuarterHour) != model.StatsQuarterHours || sum != 50000 || st.TimeWindowDays != 28 || st.TimeZone == "" || st.TimeZone == "Local" {
-		t.Errorf("grid of %d values summing to %d, window %d, zone %q; want 672, 50000, 28 and an IANA name",
+	if len(st.WatchTimeByQuarterHour) != model.StatsQuarterHours || sum != 60000 || st.TimeWindowDays != 28 || st.TimeZone == "" || st.TimeZone == "Local" {
+		t.Errorf("grid of %d values summing to %d, window %d, zone %q; want 672, 60000, 28 and an IANA name",
 			len(st.WatchTimeByQuarterHour), sum, st.TimeWindowDays, st.TimeZone)
 	}
 	rec = send(t, h, http.MethodGet, BasePath+"/admin/stats?days=365", "p18", "", nil)

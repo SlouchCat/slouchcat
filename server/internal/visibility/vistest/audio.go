@@ -34,8 +34,7 @@ type Audio struct {
 	Episodes []Movie
 	// Explicit is the itunes:explicit episode (FSK 18, rating_source feed) with file and enclosure.
 	Explicit Movie
-	// EnclosureOnly is an episode without file and without images of its own (it shows the podcast's
-	// cover); its rating comes from the podcast (0).
+	// EnclosureOnly is an episode without file; its rating comes from the podcast (0).
 	EnclosureOnly Movie
 	// FileOnlyExplicit is an episode read from a podcast folder (ADR 0015): a file, no guid and
 	// no enclosure, explicit by its tags (FSK 18, rating_source tags).
@@ -68,9 +67,9 @@ const EnclosureType = "audio/mpeg"
 // AddAudio adds an audiobook library and a podcast library with default rating 0 (AN-2) and the
 // titles of Audio: audiobooks with one file rated 0, 6, 12, 16, 18 and unrated, a book of three
 // parts, a podcast with episodes rated 0, 6, 12, 16, an explicit episode and an episode with only an
-// enclosure, and a podcast without episodes. Every title has texts and images like the movies
-// (except the enclosure-only episode, which shows its podcast's images). An httptest server serves
-// the enclosures; it stops with the test.
+// enclosure, and a podcast without episodes. Every title has texts and images like the movies,
+// except the podcast episodes: they have no image of their own and show their podcast's (decision
+// of 11 November 2026). An httptest server serves the enclosures; it stops with the test.
 func (f *Fixture) AddAudio(t testing.TB) {
 	t.Helper()
 	ctx := context.Background()
@@ -205,10 +204,6 @@ func (f *Fixture) AddAudio(t testing.TB) {
 	exec(t, f.DB, `UPDATE items SET guid = NULL, enclosure_url = NULL, enclosure_type = NULL, explicit = 1, rating_source = 'tags',
 	               published_at = ? WHERE id = ?`, time.Date(2026, 10, 1, 6, 0, 0, 0, time.UTC).UnixMilli(), a.FileOnlyExplicit.ID)
 	a.FileOnlyExplicit.Enclosure = ""
-	// The enclosure-only episode has no images of its own: it shows the podcast's.
-	exec(t, f.DB, `DELETE FROM images WHERE item_id = ?`, a.EnclosureOnly.ID)
-	a.EnclosureOnly.PosterRel, a.EnclosureOnly.PosterWebPRel = a.Podcast.PosterRel, a.Podcast.PosterWebPRel
-	a.EnclosureOnly.BackdropRel, a.EnclosureOnly.BackdropSmallRel = a.Podcast.BackdropRel, a.Podcast.BackdropSmallRel
 
 	a.Empty = add(Movie{Kind: "podcast", Label: "PE", Rating: zero, Effective: zero, MinChild: zero, Container: true, Unavailable: true}, pods.ID)
 	exec(t, f.DB, `UPDATE items SET rating_source = 'library', feed_url = ?, feed_checked_at = 1 WHERE id = ?`,
@@ -220,6 +215,19 @@ func (f *Fixture) AddAudio(t testing.TB) {
 		a.EnclosureServer.URL+"/explicit.xml", a.ExplicitPodcast.ID)
 	parent = a.ExplicitPodcast.ID
 	a.ExplicitPodcastEpisode = episode("QY", nil, eighteen, true, false)
+	// An episode has no images of its own: it shows its podcast's.
+	podcastCover := func(m *Movie, podcast Movie) {
+		exec(t, f.DB, `DELETE FROM images WHERE item_id = ?`, m.ID)
+		m.PosterRel, m.PosterWebPRel = podcast.PosterRel, podcast.PosterWebPRel
+		m.BackdropRel, m.BackdropSmallRel = podcast.BackdropRel, podcast.BackdropSmallRel
+	}
+	for i := range a.Episodes {
+		podcastCover(&a.Episodes[i], a.Podcast)
+	}
+	for _, m := range []*Movie{&a.Explicit, &a.EnclosureOnly, &a.FileOnlyExplicit} {
+		podcastCover(m, a.Podcast)
+	}
+	podcastCover(&a.ExplicitPodcastEpisode, a.ExplicitPodcast)
 	f.Audio = a
 }
 
