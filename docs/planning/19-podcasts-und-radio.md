@@ -1005,7 +1005,7 @@ Kette (96 Pixel, Drossel, Sperre je Host) für die Schweiz und Deutschland (**OB
 | Übernehmen | Schreiben der Schritte in einer Transaktion, Momentaufnahme tauschen | kein Neubau des Index |
 | Logos | einmalig je Sender im Angebot, gedrosselt | B7.5 |
 | Wikidata | ein Abruf von rund 4 MB, höchstens täglich | B7.3 |
-| Speicher | heutige Logogrössen (96, 256, 512 Pixel, WebP und PNG) je Sender mit Logo | B0 misst für die Schweiz |
+| Speicher | je Sender mit Logo WebP in 96, 256 und 512 Pixeln und PNG nur in 96 Pixeln, rund 26 KB (Schweiz); PNG in 256 und 512 Pixeln entsteht bei Bedarf aus dem WebP | B0 hat für die Schweiz 158 KB je Logo mit sechs Dateien gemessen, zwei Drittel davon PNG 512 (Marcos Entscheid vom 11. November 2026) |
 
 Die Wiedergabe merkt davon nichts: Relays laufen nicht über die Job-Queue, und Logo-Aufträge mit
 Priorität 0 blockieren keinen Worker (B7.2).
