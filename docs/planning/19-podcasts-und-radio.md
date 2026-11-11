@@ -45,7 +45,9 @@
   und Migration 00045, Stufe D3 als dritte (Baubeginn 10. November 2026) Vertrag 1.26.0 und Migration
   00046.** Vorläufig gelten danach für Teil A **Vertrag 1.27.0 (additiv)** und **1.28.0 (additiv)** sowie
   **Migration 00047**, für Teil B **1.29.0 (brechend für die Verwaltung)** und **1.30.0 (additiv)** sowie
-  **Migrationen 00048 und 00049**. Die echten Nummern werden beim Baubeginn vergeben.
+  **Migrationen 00048 und 00049**. Die echten Nummern werden beim Baubeginn vergeben. **Stufe B1 (Baubeginn
+  11. November 2026, gleichzeitig mit Teil A) nimmt Vertrag 1.28.0 und Migration 00048**; Teil A Stufe 1 hält
+  1.27.0 und 00047, B2 nimmt die nächste freie Nummer.
 - `:Zeile`-Angaben beziehen sich auf `e90109a6`; **nach Namen suchen, nicht nach Zeile.** Pfade ohne
   Präfix liegen unter `server/` (Go) oder `web/src/` (Web-App), wo es eindeutig ist.
 - Massgeblich bleiben `docs/spec/01-anforderungen-v1.md`, `docs/planning/04-entscheidungen.md` und
@@ -1076,7 +1078,7 @@ Spalte **Anbieter**. Über der Liste «Nicht erreichbare entfernen (n)» (B6). J
 - Tastatur: Pfeiltasten in den Länder- und Senderlisten, Leertaste für den Haken, Enter öffnet,
   Escape schliesst den Kontinent oder die Senderliste; Playwright-Test (Regel 8).
 
-## B10. Datenmodell (Migration 00048, vorläufig)
+## B10. Datenmodell (Migration 00048)
 
 | Tabelle oder Spalte | Inhalt |
 |---|---|
@@ -1089,7 +1091,7 @@ Spalte **Anbieter**. Über der Liste «Nicht erreichbare entfernen (n)» (B6). J
 | `radio_config.countries`, `radio_stations.hidden` | bleiben, werden nicht mehr gelesen |
 | `radio_tag_rules`, `radio_station_facets` mit `manual = 1`, `radio_station_locks` für `genre`/`kind`/`mood` | Zeilen gelöscht (B5) |
 
-**Stufe B2, Migration 00049 (vorläufig):** `radio_station_wikidata` (`station_id` Primärschlüssel,
+**Stufe B2, nächste freie Migration (vorläufig 00049):** `radio_station_wikidata` (`station_id` Primärschlüssel,
 `qid`, `owner`, `founded`, `fetched_at`), `radio_config.wikidata_enabled`,
 `radio_config.wikidata_synced_at`.
 
@@ -1106,7 +1108,7 @@ Sender aus 63'562 Einträgen (`docs/perf/radio.md`). Die Verwaltung zeigt die Za
 Im Repository heisst eine brechende Änderung eine neue Nebenversion mit dem Vermerk «brechend» (wie
 1.2.0 und 1.18.0).
 
-**Stufe B1, vorläufig 1.29.0 (brechend für die Verwaltung, additiv für die App):**
+**Stufe B1, 1.28.0 (brechend für die Verwaltung, additiv für die App):**
 
 | Operation oder Schema | `x-visibility` | Änderung |
 |---|---|---|
@@ -1142,7 +1144,7 @@ Betroffene Stellen im Client: `SettingsTab`, `StationEditor`, `StationsTab`, `Cr
 | Stufe | Inhalt | Release | Aufwand |
 |---|---|---|---|
 | **B0** | Messung auf CT 190 mit der echten Logo-Kette (96 Pixel, Drossel 2 und 4 je Sekunde, Sperre je Host) für die Schweiz und Deutschland, Speicher je Logo, Zeit einer Vorschau über den ganzen Index, Zahlen je Land aus dem echten Index. Ergebnis nach `docs/perf/19-radio.md`. ADR 0030 «Radio-Angebot statt ganzer Katalog» (ergänzt ADR 0025). | – | ½ Tag |
-| **B1 «Angebot»** | Migration 00048, Vorbereitung beim ersten Start (B4.4, Angebot leer), Momentaufnahme im Speicher, Regel in `reachable`, `closeUnreachable` nach dem Tausch, Vorschau und Übernehmen mit Version, neue Logo-Auslöser, Sperre je Host, Drossel, Aufräumen gelöschter Sender, Anbieter aus dem Stream-Host, Neuableitung der Filterwerte, Vertrag 1.29.0. Oberfläche: Reiter «Angebot», «Sender» neu, «Einordnung» weg, Editor und Anlegen ohne Filterfelder, Einstellungen ohne Länder, Zustandsleiste, Radioseite mit `effectiveCountry` und leerem Angebot. | 1.29.0 | 6 bis 7 Tage |
+| **B1 «Angebot»** | Migration 00048, Vorbereitung beim ersten Start (B4.4, Angebot leer), Momentaufnahme im Speicher, Regel in `reachable`, `closeUnreachable` nach dem Tausch, Vorschau und Übernehmen mit Version, neue Logo-Auslöser, Sperre je Host, Drossel, Aufräumen gelöschter Sender, Anbieter aus dem Stream-Host, Neuableitung der Filterwerte, Vertrag 1.28.0. Oberfläche: Reiter «Angebot», «Sender» neu, «Einordnung» weg, Editor und Anlegen ohne Filterfelder, Einstellungen ohne Länder, Zustandsleiste, Radioseite mit `effectiveCountry` und leerem Angebot. | 1.28.0 | 6 bis 7 Tage |
 | **B2 «Mehr Angaben»** | Migration 00049, `radio.wikidata.sync`, Eigentümer als Anbieter, Gründung, Herkunft je Angabe im Aufklapp, Einstellung «Wikidata verwenden», Vertrag 1.30.0. | 1.30.0 | 2 bis 3 Tage |
 
 Die Nummern sind vorläufig. Teil A und Teil B sind unabhängig; baut Marco Teil B zuerst, bekommt er
