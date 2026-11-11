@@ -1,5 +1,8 @@
 # Konzept: Podcasts, Radio, Hörbücher, quadratische Cover und Lautstärke
 
+- **Abgeschlossen am 12. November 2026:** Alle Teile und Stufen sind gebaut und veröffentlicht (E 1.23.2,
+  C 1.23.3, D1 bis D3 1.24.0 bis 1.26.0, A1 und B1 1.28.0, A2 1.29.0, B2 1.30.0); Übersicht in
+  `docs/dev/CURRENT_STATUS.md`.
 - **Status: Fassung 3 (10. November 2026), Kritiker-Review eingearbeitet (REVISE, 0 Blocker,
   13 Major, 6 Minor; Abschnitt 18), mit klickbaren Mockups.** Marco hat am 9. November 2026 die
   Grundsatzfragen **F-1 bis F-4** beantwortet (Abschnitt 2) und nach dem ersten Blick auf die Mockups
