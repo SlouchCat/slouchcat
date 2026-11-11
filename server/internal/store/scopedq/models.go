@@ -466,6 +466,11 @@ type Library struct {
 	TrickplaySeries      string
 	TrickplaySeriesKeep  int64
 	TrickplaySeriesScope string
+	PodcastMode          string
+	PodcastScope         string
+	PodcastLastN         int64
+	PodcastParallel      int64
+	PodcastRootID        sql.NullInt64
 }
 
 type LibraryMetadatum struct {
@@ -598,6 +603,24 @@ type PlaybackSession struct {
 	Capabilities     sql.NullString
 	PositionMs       sql.NullInt64
 	StoppedBy        sql.NullString
+}
+
+type PodcastDownloadFailure struct {
+	ItemID        string
+	Error         string
+	Attempts      int64
+	FirstFailedAt int64
+	LastFailedAt  int64
+}
+
+type PodcastSetting struct {
+	ItemID        string
+	Mode          sql.NullString
+	Scope         sql.NullString
+	LastN         sql.NullInt64
+	PendingRootID sql.NullInt64
+	PendingFolder sql.NullString
+	UpdatedAt     int64
 }
 
 type Profile struct {

@@ -35,6 +35,11 @@ func (s *Service) handleSweep(ctx context.Context, _ *jobs.Job) error {
 	if err := s.sweepTrickplay(ctx); err != nil {
 		s.log.WarnContext(ctx, "trickplay sweep failed", "err", err)
 	}
+	// The leftovers of podcast downloads older than a week (concept 19 part A, 6.2); a failure is
+	// logged as well.
+	if err := s.sweepPodcastLeftovers(ctx); err != nil {
+		s.log.WarnContext(ctx, "podcast leftover sweep failed", "err", err)
+	}
 	return nil
 }
 

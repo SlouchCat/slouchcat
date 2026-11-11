@@ -1344,6 +1344,26 @@ func (q *Queries) ReleaseJob(ctx context.Context, arg ReleaseJobParams) (int64, 
 	return result.RowsAffected()
 }
 
+const releaseRunningJobKey = `-- name: ReleaseRunningJobKey :execrows
+UPDATE jobs SET idempotency_key = NULL, updated_at = ?1 WHERE id = ?2 AND state = 'running' AND payload = ?3
+`
+
+type ReleaseRunningJobKeyParams struct {
+	Now     int64
+	ID      int64
+	Payload string
+}
+
+// Gives up the idempotency key of a running job while its payload is still @payload: an event
+// after that queues a new job instead of joining one whose handler is through.
+func (q *Queries) ReleaseRunningJobKey(ctx context.Context, arg ReleaseRunningJobKeyParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, releaseRunningJobKey, arg.Now, arg.ID, arg.Payload)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const replaceJobScheduleOnce = `-- name: ReplaceJobScheduleOnce :execrows
 UPDATE job_schedules SET once_at = ?1, updated_at = ?2
 WHERE type = ?3 AND once_at = ?4
@@ -1521,6 +1541,34 @@ type SetRunningJobPayloadParams struct {
 // first time chapters.images found its file unreadable); a retry keeps the payload.
 func (q *Queries) SetRunningJobPayload(ctx context.Context, arg SetRunningJobPayloadParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, setRunningJobPayload, arg.Payload, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const swapKeyedJobPayload = `-- name: SwapKeyedJobPayload :execrows
+UPDATE jobs SET payload = ?1, updated_at = ?2
+WHERE id = ?3 AND state IN ('queued', 'running') AND idempotency_key IS NOT NULL AND payload = ?4
+`
+
+type SwapKeyedJobPayloadParams struct {
+	NewPayload string
+	Now        int64
+	ID         int64
+	OldPayload string
+}
+
+// Replaces the payload of a queued or running job that still holds its idempotency key, only while
+// it is still @old_payload: a compare-and-swap for events that join a keyed job and for a handler
+// that takes those events as they come (podcast.sync).
+func (q *Queries) SwapKeyedJobPayload(ctx context.Context, arg SwapKeyedJobPayloadParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, swapKeyedJobPayload,
+		arg.NewPayload,
+		arg.Now,
+		arg.ID,
+		arg.OldPayload,
+	)
 	if err != nil {
 		return 0, err
 	}

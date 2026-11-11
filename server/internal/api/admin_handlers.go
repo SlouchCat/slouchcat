@@ -213,6 +213,18 @@ func toLibrary(l model.Library) gen.Library {
 		}
 		out.TrickplayEstimate = &est
 	}
+	if d := l.PodcastDownloads; d != nil {
+		out.PodcastDownloads = &gen.LibraryPodcastDownloads{Mode: gen.PodcastMode(d.Mode), Scope: gen.PodcastScope(d.Scope),
+			LastN: d.LastN, Parallel: d.Parallel, RootId: d.RootID}
+	}
+	if f := l.PodcastFolder; f != nil {
+		folder := gen.PodcastFolder{RootId: f.RootID, Path: f.Path, Writable: f.Writable, FreeBytes: max(f.FreeBytes, 0)}
+		if f.Problem != "" {
+			problem := gen.PodcastFolderProblem(f.Problem)
+			folder.Problem = &problem
+		}
+		out.PodcastFolder = &folder
+	}
 	return out
 }
 

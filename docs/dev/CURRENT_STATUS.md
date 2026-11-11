@@ -3,10 +3,9 @@
 ## Stufe B1 (11. November 2026): Radio-Angebot statt ganzer Katalog (Konzept 19 Teil B)
 
 Vertrag **1.28.0** (brechend für die Verwaltung, additiv für die App), Migration **00048**, Zweig
-`claude/k19-b-radio-691fb4` ab `main` `f2314dda` (Release 1.26.0). Nach `docs/planning/19-podcasts-und-radio.md`
-B4 bis B13, ADR 0030 und der Messung B0 (`docs/perf/19-radio.md`). Teil A (Podcasts) baut gleichzeitig mit 1.27.0 und
-00047; ein Image mit 00048 läuft auf CT 190 erst, wenn 00047 in `main` ist. Entscheide beim Bau im Protokoll
-(11. November 2026).
+`claude/k19-b-radio-691fb4` ab `main` `f2314dda` (Release 1.26.0), danach `main` mit Teil A Stufe 1 (PR #141, 1.27.0,
+00047) hineingemergt. Nach `docs/planning/19-podcasts-und-radio.md` B4 bis B13, ADR 0030 und der Messung B0
+(`docs/perf/19-radio.md`). Entscheide beim Bau im Protokoll (11. November 2026).
 
 - **Angebot:** Die App zeigt nur gewählte Länder («Alle» oder «Nur markierte»), Ausnahmen je Sender und eigene Sender.
   Ausserhalb des Angebots antworten Station, Hören, Titelangaben, Bild und «Favorit setzen» mit 404; Favoriten bleiben
@@ -40,8 +39,48 @@ B4 bis B13, ADR 0030 und der Messung B0 (`docs/perf/19-radio.md`). Teil A (Podca
   `TestLogoChainEndlessHomepage`), Migration und eingefrorener Stand `radio-angebot.sql`, Vitest für «Angebot»,
   «Sender» und die Radioseite, e2e-Tastaturtests für «Angebot» (PB-10) und «Sender».
 - Versionsstellen auf 1.28.0.
-- **Offen:** Abnahme auf CT 190 (nach Teil A Stufe 1 in `main`), Merge und Tag `v1.28.0` auf Marcos Wort. Nach dem
+- **Offen:** Abnahme auf CT 190, Merge und Tag `v1.28.0` auf Marcos Wort. Nach dem
   Update wählt Marco auf CT 190 die Länder im Reiter «Angebot»; bis dahin zeigt die Radioseite keinen Sender.
+
+## Release 1.27.0 (in Arbeit, 11. November 2026): Podcast-Folgen als Datei speichern (Konzept 19 Teil A Stufen A0 und A1)
+
+Vertrag **1.27.0** (additiv), Migration **00047**, Zweig `claude/k19-a-podcasts-2dabf0` ab `main` `f2314dda`
+(Release 1.26.0, PR #139). Nach `docs/planning/19-podcasts-und-radio.md` Teil A (Abschnitte 5 bis 16), ADR 0029 und
+der Messung M-1 (`docs/perf/19-podcasts.md`). Teil B Stufe 1 (Radio-Angebot) baut parallel mit 1.28.0 und 00048.
+Entscheide beim Bau im Protokoll (Nachtrag zu Frage 26, 11. November 2026).
+
+- **Stufe A0:** Audiobookshelfs `sanitizeFilename` nachgelesen, M-1 auf CT 190 nur lesend: 89,9 % der Feed-Episoden
+  haben genau eine Datei nach Schlüssel, 1,9 % mehrere, 7,3 % keine (1'731 Folgen, rund 69 GB); 21 Enclosure-Hosts,
+  die Hälfte der Folgen hinter einem. **CT 190 hat zur Zeit keinen Podcast-Ordner eingetragen.** ADR 0029:
+  Dateinamen nach Audiobookshelfs Regel, Schlüssel der Riegel auch aus dem gekürzten Namen.
+- **Speichern:** Einstellung «Neue Folgen» je Podcast-Bibliothek (`save`/`link`, ab Werk `link`; Umfang `new`,
+  `last_n` mit N 1 bis 100, `all`; Ordner für neue Abos; Gleichzeitig laden 1 bis 5), je Podcast abweichend
+  (`podcast_settings`); die wirksame Einstellung rechnet eine gemeinsame SQL-Abfrage. Haken
+  `metadata.WithPodcastFetched` meldet die neuen Folgen eines Abrufs; Planer `podcast.sync` und Zeitplan
+  `podcast.sync_all` (6 h) reihen `podcast.download` ein (Pool `podcast` mit fünf Arbeitern, Zähler je Bibliothek und
+  je Host vor Weiterleitungen). Laden mit Wiederaufnahme über das neue Paket `internal/fetch` (aus `offline`
+  herausgelöst), Sonde vor dem Eintragen, Tags mit ffmpeg ohne Umkodieren (Titel, Album, Interpret, Datum; über
+  einen eigenen Ordner im Cache und `os.Root`), Eintragen per hartem Link unter der Scan-Sperre an der
+  Feed-Episode. Ordnerprüfung (Dateisystemtyp, bekannter Ordner, Schreibtest mit hartem Link, Rechte), drei Riegel
+  gegen doppelte Dateien, Fehlschläge in `podcast_download_failures` (Code ohne Adresse), Aufräumen alter
+  `.slouchcat-*` im Sweep. Slouchcat löscht und überschreibt im Podcast-Ordner nichts.
+- **Vertrag:** `Library.podcastDownloads`, `Library.podcastFolder`, `AdminPodcast` erweitert (Einstellung,
+  `effective*`, `storedBytes`, `downloads`, `unclearEpisodeCount`, `savable`, `latestEpisodeAt`), `updatePodcast`,
+  `downloadPodcastEpisodes`, `estimatePodcastDownloads`, `createPodcast.loadEpisodes`, Pool `podcast`; Fehlercodes
+  `root_not_writable`, `root_required`.
+- **Oberfläche:** Band «Neue Folgen» zuoberst auf «Podcasts» mit Ordnerprüfung, Schätzung und Bestätigung vor allem,
+  was nachlädt; im Ausklapp die Wahl je Podcast und «Fehlende nachladen»; Spalte «Gespeichert»; «Feed abonnieren»
+  fragt in einer nachladenden Bibliothek «Abonnieren und laden» oder «Nur abonnieren».
+- **Betrieb:** freiwillige Zusatzdatei `deploy/compose.podcasts.yaml` (`PODCAST_DIR`, `PODCAST_TARGET`), Abschnitt
+  «Podcast-Folgen speichern» in `docs/INSTALLATION.md`. Versionsstellen auf 1.27.0.
+- **Tests:** P-1 bis P-11 und P-14 bis P-19 in Go (`library`, `metadata`, `transcode`, `fetch`, `admin`, `api`),
+  P-6 und P-13 in Vitest, P-12 und P-13 in `web/e2e/admin-podcasts.spec.ts`; Migration und eingefrorener Stand
+  `testdata/db/podcasts-speichern.sql`; Vertragstests und Register. Nach dem Code-Review (REVISE, 6 Major, alle
+  behoben mit Tests, die vorher rot waren) und der Verifikation (APPROVE, Lücken behoben). `task ci` grün auf
+  `85fdb517`; auf `84887b02` ein Ausreisser in `library.spec.ts` PC-1 (Teil C, einzeln 16 von 16 grün).
+- **Nicht in A1** (Stufe A2): Liste mit Covern, Seite «Podcast» mit Folgenliste, Abschnitt «Downloads».
+- **Offen:** P-1 im echten Betrieb bei der Abnahme auf CT 190 (schreibbarer Mount, Podcast-Ordner wieder
+  eintragen); Merge und Tag `v1.27.0` auf Marcos Wort.
 
 ## Release 1.26.0 (10. November 2026): Quellen für Hörbücher (Konzept 19 Stufe D3)
 

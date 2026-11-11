@@ -51,7 +51,8 @@ INSERT INTO "goose_db_version" VALUES (44, 43, 1, '2026-11-09 21:46:42 +0000 UTC
 INSERT INTO "goose_db_version" VALUES (45, 44, 1, '2026-11-10 14:11:54 +0000 UTC');
 INSERT INTO "goose_db_version" VALUES (46, 45, 1, '2026-11-10 15:33:23 +0000 UTC');
 INSERT INTO "goose_db_version" VALUES (47, 46, 1, '2026-11-10 20:13:33 +0000 UTC');
-INSERT INTO "goose_db_version" VALUES (48, 48, 1, '2026-11-11 08:38:16 +0000 UTC');
+INSERT INTO "goose_db_version" VALUES (48, 47, 1, '2026-11-11 08:15:50 +0000 UTC');
+INSERT INTO "goose_db_version" VALUES (49, 48, 1, '2026-11-11 15:22:15 +0000 UTC');
 CREATE TABLE jobs (
     id              INTEGER PRIMARY KEY,
     type            TEXT    NOT NULL,
@@ -403,6 +404,7 @@ CREATE TABLE library_roots (
 INSERT INTO "library_roots" VALUES (1, 1, '/mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slouchcat/testdata/media/Movies', 'ext4', 'inotify', 1793325197707, 'movie', '["tmdb"]');
 INSERT INTO "library_roots" VALUES (2, 2, '/mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slouchcat/testdata/media/TV', 'ext4', 'inotify', 1793325197763, 'series', '["tmdb","tvdb"]');
 INSERT INTO "library_roots" VALUES (3, 3, '/media/frozen/Hoerbuecher', 'ext4', 'inotify', 1794830400000, 'audiobook', '["local","audible","dnb","applebooks"]');
+INSERT INTO "library_roots" VALUES (4, 4, '/media/frozen/Podcasts', 'nfs', 'poll', 1, 'podcast', '["local"]');
 CREATE TABLE items (
     id               TEXT    PRIMARY KEY CHECK (length(id) = 26),
     kind             TEXT    NOT NULL CHECK (kind IN ('movie', 'series', 'season', 'episode', 'extra',
@@ -488,6 +490,11 @@ INSERT INTO "items" VALUES ('01M6585TZB00KEN0BLE1ST1FT2', 'audiobook', NULL, 3, 
 INSERT INTO "items" VALUES ('01M6585TZB00B0DYGRD0BAND01', 'audiobook', NULL, 3, 'Der Bodyguard 1', 'bodyguard 1', NULL, NULL, NULL, NULL, '[]', NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, '[]', 'matched', NULL, NULL, 1794830400000, 1794830400000, 1794830400000, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'pending', NULL, 'pending', NULL, 'Chris Bradford', 'Sprecher A', 'Bodyguard', 1, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '["tmdb"]', NULL, NULL, NULL, NULL, 'de', NULL, NULL, NULL, '01M6585TZB00SER1E5B0DYGRD1', NULL, 'none', NULL, NULL, NULL, 1794830400000, NULL, NULL, 0);
 INSERT INTO "items" VALUES ('01M6585TZB00B0DYGRD0BAND02', 'audiobook', NULL, 3, 'Der Bodyguard 2', 'bodyguard 2', NULL, NULL, NULL, NULL, '[]', NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, '[]', 'matched', NULL, NULL, 1794830400000, 1794830400000, 1794830400000, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'pending', NULL, 'pending', NULL, 'Chris Bradford', 'Sprecher A', 'Bodyguard - Band', 2, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '["tmdb"]', NULL, NULL, NULL, NULL, 'de', NULL, NULL, NULL, '01M6585TZB00SER1E5B0DYGRD1', NULL, 'error', NULL, NULL, NULL, 1794830400000, NULL, 'audible: source blocked (429)', 0);
 INSERT INTO "items" VALUES ('01M6585TZB00B0DYGRD0BAND05', 'audiobook', NULL, 3, 'Der Bodyguard 0.5', 'bodyguard 0.5', NULL, NULL, NULL, NULL, '[]', NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, '[]', 'matched', NULL, NULL, 1794830400000, 1794830400000, 1794830400000, 1794830400000, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'pending', NULL, 'pending', NULL, 'Chris Bradford', 'Sprecher B', 'Bodyguard', 0.5, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '["tmdb"]', NULL, NULL, NULL, NULL, 'de', NULL, NULL, NULL, '01M6585TZB00SER1E5B0DYGRD1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+INSERT INTO "items" VALUES ('01M6585TZB00P0DCAST000000A', 'podcast', NULL, 4, 'Frozen Podcast', 'frozen podcast', NULL, NULL, NULL, NULL, '[]', NULL, NULL, NULL, NULL, 18, 1, NULL, NULL, '[]', 'pending', NULL, NULL, 1, 1, 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'pending', NULL, 'pending', NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, 'https://feeds.example.test/frozen.xml', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '["tmdb"]', NULL, 'admin', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+INSERT INTO "items" VALUES ('01M6585TZB00P0DCASTEP0001A', 'podcast_episode', '01M6585TZB00P0DCAST000000A', 4, 'Folge 1', 'folge 1', NULL, NULL, NULL, NULL, '[]', NULL, NULL, NULL, NULL, NULL, 1, NULL, 'https://cdn.example.test/1.mp3', '[]', 'pending', NULL, NULL, 1, 1, 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'pending', NULL, 'pending', NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'g1', 1794830400000, NULL, 1000, '["tmdb"]', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+INSERT INTO "items" VALUES ('01M6585TZB00P0DCASTEP0002A', 'podcast_episode', '01M6585TZB00P0DCAST000000A', 4, 'Folge 2', 'folge 2', NULL, NULL, NULL, NULL, '[]', NULL, NULL, NULL, NULL, NULL, 1, NULL, 'https://cdn.example.test/2.mp3', '[]', 'pending', NULL, NULL, 1, 1, 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'pending', NULL, 'pending', NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'g2', 1794916800000, NULL, 2000, '["tmdb"]', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+INSERT INTO "items" VALUES ('01M6585TZB00P0DCAST000000B', 'podcast', NULL, 4, 'Frozen Neues Abo', 'frozen neues abo', NULL, NULL, NULL, NULL, '[]', NULL, NULL, NULL, NULL, 18, 1, NULL, NULL, '[]', 'pending', NULL, NULL, 1794916800000, 1794916800000, 1794916800000, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'pending', NULL, 'pending', NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, 'https://feeds.example.test/neu.xml', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '["tmdb"]', NULL, 'admin', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+INSERT INTO "items" VALUES ('01M6585TZB00P0DCASTEP0003B', 'podcast_episode', '01M6585TZB00P0DCAST000000B', 4, 'Neue Folge', 'neue folge', NULL, NULL, NULL, NULL, '[]', NULL, NULL, NULL, NULL, NULL, 1, NULL, 'https://cdn.example.test/n1.mp3', '[]', 'pending', NULL, NULL, 1794916800000, 1794916800000, 1794916800000, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'pending', NULL, 'pending', NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'n1', 1794916800000, NULL, 3000, '["tmdb"]', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
 CREATE TABLE media_files (
     id            TEXT    PRIMARY KEY CHECK (length(id) = 26),
     item_id       TEXT    NOT NULL REFERENCES items(id) ON DELETE CASCADE,
@@ -554,6 +561,7 @@ INSERT INTO "media_files" VALUES ('01M6585TYG50HT3BSC3K6GPE80', '01M6585TYF4HEW4
 INSERT INTO "media_files" VALUES ('01M6585TYHS7QMZSG7AS0VRQAK', '01M6585TYG50HT3BSC3N918J8G', 1, 'Slouchcat Test Extras (2024)/Featurettes/Making Of.mp4', 66310, 11160603, 98174, 1792447201131, '4d22df8b4b0150f430bcdcffa84101300a26dec5d108f9714d1bf7d779b6ab71', NULL, 'mp4', 'h264', 'aac', 1920, 1080, 5000, '{"format":{"name":"mov,mp4,m4a,3gp,3g2,mj2","duration":5000000000,"size":98174,"bitRate":157078,"tags":{"compatible_brands":"isomiso2avc1mp41","encoder":"Lavf60.16.100","major_brand":"isom","minor_version":"512","title":"Making Of"}},"streams":[{"index":0,"type":"video","codec":"h264","profile":"High","level":40,"width":1920,"height":1080,"pixFmt":"yuv420p","colorTransfer":"bt709","colorPrimaries":"bt709","language":"und","default":true},{"index":1,"type":"audio","codec":"aac","profile":"LC","channels":2,"channelLayout":"stereo","sampleRate":48000,"language":"und","default":true}],"chapters":[]}', X'0100d00fd00f', 1793575648979, 1793575652645, NULL, 1793325198232, 1793575652645, NULL, NULL, 'scan');
 INSERT INTO "media_files" VALUES ('01M6585TYHS7QMZSG7AVR7ZZ5F', '01M6585TYHS7QMZSG7AV4RMH2Q', 1, 'Slouchcat Test Extras (2024)/Slouchcat Test Extras (2024)-trailer.mp4', 66310, 11160610, 98201, 1792447202030, 'b5d9ae88034b726cf9e84ac537f185f76ea8baac390744ac752990784a124e8b', NULL, 'mp4', 'h264', 'aac', 1920, 1080, 5000, '{"format":{"name":"mov,mp4,m4a,3gp,3g2,mj2","duration":5000000000,"size":98201,"bitRate":157121,"tags":{"compatible_brands":"isomiso2avc1mp41","encoder":"Lavf60.16.100","major_brand":"isom","minor_version":"512","title":"Slouchcat Test Extras (2024)-trailer"}},"streams":[{"index":0,"type":"video","codec":"h264","profile":"High","level":40,"width":1920,"height":1080,"pixFmt":"yuv420p","colorTransfer":"bt709","colorPrimaries":"bt709","language":"und","default":true},{"index":1,"type":"audio","codec":"aac","profile":"LC","channels":2,"channelLayout":"stereo","sampleRate":48000,"language":"und","default":true}],"chapters":[]}', X'0100d00fd00f', 1793575649012, 1793575652687, NULL, 1793325198232, 1793575652687, NULL, NULL, 'scan');
 INSERT INTO "media_files" VALUES ('01M6585TYJ68J0E2CS58PM7T3N', '01M6585TYJ68J0E2CS58DN0GGF', 1, 'Slouchcat Test Extras (2024)/Trailers/Slouchcat Test Extras Trailer.mp4', 66310, 11160601, 98194, 1792447200840, '254ced3455cc586e45a5f98fcb8547cfc93da14d64c7a58c7b7f1e911361ef2b', NULL, 'mp4', 'h264', 'aac', 1920, 1080, 5000, '{"format":{"name":"mov,mp4,m4a,3gp,3g2,mj2","duration":5000000000,"size":98194,"bitRate":157110,"tags":{"compatible_brands":"isomiso2avc1mp41","encoder":"Lavf60.16.100","major_brand":"isom","minor_version":"512","title":"Slouchcat Test Extras Trailer"}},"streams":[{"index":0,"type":"video","codec":"h264","profile":"High","level":40,"width":1920,"height":1080,"pixFmt":"yuv420p","colorTransfer":"bt709","colorPrimaries":"bt709","language":"und","default":true},{"index":1,"type":"audio","codec":"aac","profile":"LC","channels":2,"channelLayout":"stereo","sampleRate":48000,"language":"und","default":true}],"chapters":[]}', X'0100d00fd00f', 1793575649070, 1793575652770, NULL, 1793325198232, 1793575652770, NULL, NULL, 'scan');
+INSERT INTO "media_files" VALUES ('01M6585TZB00P0DCASTF1LE01A', '01M6585TZB00P0DCASTEP0001A', 4, 'Frozen Podcast/Folge 1.mp3', 0, 0, 1000, 1, NULL, NULL, 'mp3', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 1, NULL, NULL, NULL);
 CREATE TABLE tracks (
     id            INTEGER PRIMARY KEY,
     media_file_id TEXT    NOT NULL REFERENCES media_files(id) ON DELETE CASCADE,
@@ -975,6 +983,11 @@ INSERT INTO "search_docs" VALUES (75, 'text', '01M6585TZB00KEN0BLE1ST1FT2', '01M
 INSERT INTO "search_docs" VALUES (76, 'item', '01M6585TZB00B0DYGRD0BAND01', '01M6585TZB00B0DYGRD0BAND01', 'Der Bodyguard 1 /  / Chris Bradford / Sprecher A / Bodyguard');
 INSERT INTO "search_docs" VALUES (77, 'item', '01M6585TZB00B0DYGRD0BAND02', '01M6585TZB00B0DYGRD0BAND02', 'Der Bodyguard 2 /  / Chris Bradford / Sprecher A / Bodyguard - Band');
 INSERT INTO "search_docs" VALUES (78, 'item', '01M6585TZB00B0DYGRD0BAND05', '01M6585TZB00B0DYGRD0BAND05', 'Der Bodyguard 0.5 /  / Chris Bradford / Sprecher B / Bodyguard');
+INSERT INTO "search_docs" VALUES (79, 'item', '01M6585TZB00P0DCAST000000A', '01M6585TZB00P0DCAST000000A', 'Frozen Podcast /  /  /  /');
+INSERT INTO "search_docs" VALUES (80, 'item', '01M6585TZB00P0DCASTEP0001A', '01M6585TZB00P0DCASTEP0001A', 'Folge 1 /  /  /  /');
+INSERT INTO "search_docs" VALUES (81, 'item', '01M6585TZB00P0DCASTEP0002A', '01M6585TZB00P0DCASTEP0002A', 'Folge 2 /  /  /  /');
+INSERT INTO "search_docs" VALUES (82, 'item', '01M6585TZB00P0DCAST000000B', '01M6585TZB00P0DCAST000000B', 'Frozen Neues Abo /  /  /  /');
+INSERT INTO "search_docs" VALUES (83, 'item', '01M6585TZB00P0DCASTEP0003B', '01M6585TZB00P0DCASTEP0003B', 'Neue Folge /  /  /  /');
 CREATE VIRTUAL TABLE search_index USING fts5(
     text,
     kind UNINDEXED,
@@ -1195,10 +1208,15 @@ CREATE TABLE "libraries" (
     CHECK (trickplay_movies_keep IN (0, 1)), trickplay_series TEXT NOT NULL DEFAULT 'ahead'
     CHECK (trickplay_series IN ('ahead', 'on_start', 'series_start', 'off')), trickplay_series_keep INTEGER NOT NULL DEFAULT 1
     CHECK (trickplay_series_keep IN (0, 1)), trickplay_series_scope TEXT NOT NULL DEFAULT 'series'
-    CHECK (trickplay_series_scope IN ('series', 'season_rest', 'next_episode'))) STRICT;
-INSERT INTO "libraries" VALUES (1, 'Filme', 'video', NULL, 1793325197707, 1794225600000, 'done', 1793575648668, 1793575648709, NULL, 23, 23, NULL, 'ahead', 0, 'series_start', 1, 'season_rest');
-INSERT INTO "libraries" VALUES (2, 'Serien', 'video', NULL, 1793325197763, 1793575648723, 'done', 1793575648710, 1793575648723, NULL, 15, 15, NULL, 'off', 1, 'on_start', 0, 'next_episode');
-INSERT INTO "libraries" VALUES (3, 'Hörbücher', 'audiobooks', 0, 1794470400000, 1794470400000, 'never', NULL, NULL, NULL, 0, 0, NULL, 'off', 1, 'off', 1, 'series');
+    CHECK (trickplay_series_scope IN ('series', 'season_rest', 'next_episode')), podcast_mode TEXT NOT NULL DEFAULT 'link'
+    CHECK (podcast_mode IN ('save', 'link')), podcast_scope TEXT NOT NULL DEFAULT 'new'
+    CHECK (podcast_scope IN ('new', 'last_n', 'all')), podcast_last_n INTEGER NOT NULL DEFAULT 10
+    CHECK (podcast_last_n BETWEEN 1 AND 100), podcast_parallel INTEGER NOT NULL DEFAULT 2
+    CHECK (podcast_parallel BETWEEN 1 AND 5), podcast_root_id INTEGER REFERENCES library_roots(id) ON DELETE SET NULL) STRICT;
+INSERT INTO "libraries" VALUES (1, 'Filme', 'video', NULL, 1793325197707, 1794225600000, 'done', 1793575648668, 1793575648709, NULL, 23, 23, NULL, 'ahead', 0, 'series_start', 1, 'season_rest', 'link', 'new', 10, 2, NULL);
+INSERT INTO "libraries" VALUES (2, 'Serien', 'video', NULL, 1793325197763, 1793575648723, 'done', 1793575648710, 1793575648723, NULL, 15, 15, NULL, 'off', 1, 'on_start', 0, 'next_episode', 'link', 'new', 10, 2, NULL);
+INSERT INTO "libraries" VALUES (3, 'Hörbücher', 'audiobooks', 0, 1794470400000, 1794470400000, 'never', NULL, NULL, NULL, 0, 0, NULL, 'off', 1, 'off', 1, 'series', 'link', 'new', 10, 2, NULL);
+INSERT INTO "libraries" VALUES (4, 'Podcasts', 'podcasts', 0, 1, 1794916800000, 'never', NULL, NULL, NULL, 0, 0, NULL, 'ahead', 1, 'ahead', 1, 'series', 'save', 'last_n', 5, 3, 4);
 CREATE TABLE job_types (
     type       TEXT    PRIMARY KEY,
     paused_at  INTEGER,
@@ -2117,6 +2135,7 @@ INSERT INTO "home_rows" VALUES ('library:1', 'library', 1, 10, 1, 1794470500000)
 INSERT INTO "home_rows" VALUES ('library:2', 'library', 2, 9, 0, 1794470500000);
 INSERT INTO "home_rows" VALUES ('library:3', 'library', 3, 11, 1, 1794470400000);
 INSERT INTO "home_rows" VALUES ('radio', 'radio', NULL, 12, 0, 0);
+INSERT INTO "home_rows" VALUES ('library:4', 'library', 4, 13, 1, 1);
 CREATE TABLE person_images (
     person_id    INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE,
     format       TEXT    NOT NULL CHECK (format IN ('jpeg', 'webp')),
@@ -2203,13 +2222,32 @@ CREATE TABLE book_match_candidates (
 INSERT INTO "book_match_candidates" VALUES ('01M6585TZB00KEN0BLE1ST1FT2', 1, 'applebooks', '1000000001', 0.3, '{"provider":"applebooks","providerId":"1000000001","title":"Frozen Audiobook","authors":["File Author"],"score":0.3}');
 INSERT INTO "book_match_candidates" VALUES ('01M6585TZB00KEN0BLE1ST1FT2', 2, 'dnb', '1200000002', 0.25, '{"provider":"dnb","providerId":"1200000002","title":"Frozen Audiobook (ungekürzt)","authors":["Author, File"],"score":0.25}');
 INSERT INTO "book_match_candidates" VALUES ('01M6585TZB00B0DYGRD0BAND02', 1, 'dnb', '1200000003', 0.2, '{"provider":"dnb","providerId":"1200000003","title":"Bodyguard 2","authors":["Chris Bradford"],"score":0.2}');
+CREATE TABLE podcast_settings (
+    item_id         TEXT    PRIMARY KEY REFERENCES items(id) ON DELETE CASCADE,
+    mode            TEXT    CHECK (mode IS NULL OR mode IN ('save', 'link')),
+    scope           TEXT    CHECK (scope IS NULL OR scope IN ('new', 'last_n', 'all')),
+    last_n          INTEGER CHECK (last_n IS NULL OR last_n BETWEEN 1 AND 100),
+    pending_root_id INTEGER REFERENCES library_roots(id) ON DELETE SET NULL,
+    pending_folder  TEXT,
+    updated_at      INTEGER NOT NULL
+) STRICT;
+INSERT INTO "podcast_settings" VALUES ('01M6585TZB00P0DCAST000000A', NULL, 'all', NULL, NULL, NULL, 1794916800000);
+INSERT INTO "podcast_settings" VALUES ('01M6585TZB00P0DCAST000000B', 'link', 'last_n', 2, 4, 'Frozen Neues Abo', 1794916800000);
+CREATE TABLE podcast_download_failures (
+    item_id         TEXT    PRIMARY KEY REFERENCES items(id) ON DELETE CASCADE,
+    error           TEXT    NOT NULL,
+    attempts        INTEGER NOT NULL DEFAULT 1 CHECK (attempts >= 1),
+    first_failed_at INTEGER NOT NULL,
+    last_failed_at  INTEGER NOT NULL
+) STRICT;
+INSERT INTO "podcast_download_failures" VALUES ('01M6585TZB00P0DCASTEP0002A', 'enclosure_unavailable', 2, 1794916800000, 1794938400000);
 CREATE TABLE radio_offer_countries (
     country    TEXT    PRIMARY KEY CHECK (country GLOB '[A-Z][A-Z]'),
     mode       TEXT    NOT NULL CHECK (mode IN ('all', 'marked')),
     updated_at INTEGER NOT NULL
 ) STRICT;
-INSERT INTO "radio_offer_countries" VALUES ('AT', 'marked', 1794398400000);
 INSERT INTO "radio_offer_countries" VALUES ('CH', 'all', 1794398400000);
+INSERT INTO "radio_offer_countries" VALUES ('AT', 'marked', 1794398400000);
 CREATE TABLE radio_offer_exceptions (
     station_id INTEGER PRIMARY KEY REFERENCES radio_stations (id) ON DELETE CASCADE,
     offered    INTEGER NOT NULL CHECK (offered IN (0, 1)),
@@ -2617,4 +2655,10 @@ BEGIN
                  || CASE WHEN NEW.author_display IS NOT NULL AND NEW.author_display IS NOT NEW.author
                          THEN ' / ' || NEW.author_display ELSE '' END))
     ON CONFLICT (kind, ref_id, item_id) DO UPDATE SET text = excluded.text;
+END;
+CREATE TRIGGER library_roots_podcast_target AFTER UPDATE OF content ON library_roots
+WHEN OLD.content = 'podcast' AND NEW.content <> 'podcast'
+BEGIN
+    UPDATE libraries SET podcast_root_id = NULL WHERE podcast_root_id = NEW.id;
+    UPDATE podcast_settings SET pending_root_id = NULL, pending_folder = NULL WHERE pending_root_id = NEW.id;
 END;

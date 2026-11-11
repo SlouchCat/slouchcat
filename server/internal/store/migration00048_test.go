@@ -8,7 +8,7 @@ import (
 )
 
 // Migration 00048 (1.28.0, concept 19 part B stage B1) on the newest frozen state with radio data
-// (hoerbuch-quellen.sql, which carries the tag rules, manual facets and facet locks of
+// (podcasts-speichern.sql, which carries the tag rules, manual facets and facet locks of
 // webradio2.sql): the offer tables start empty with version 0 and not prepared, the rules, the
 // manual facet values and the locks genre, kind and mood are gone, the other locks, the countries
 // setting and the hidden flag stay. The checks of the new tables hold and an exception goes with
@@ -17,7 +17,7 @@ func TestMigration00048RadioOffer(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	cfg := t.TempDir()
-	replay(t, cfg+"/"+FileName, frozenState(t, "hoerbuch-quellen.sql"))
+	replay(t, cfg+"/"+FileName, frozenState(t, "podcasts-speichern.sql"))
 	db, err := Open(ctx, Options{ConfigDir: cfg, Version: "migration-test", Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 	if err != nil {
 		t.Fatal(err)

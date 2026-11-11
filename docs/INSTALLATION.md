@@ -17,7 +17,7 @@ kurze Weg.
 | Rechner | Ein Linux-Rechner oder NAS, das durchläuft. Zwei Kerne und 4 GB Arbeitsspeicher reichen; mit Grafikchip läuft die Umwandlung von Videos deutlich schneller |
 | Docker | Docker Engine 25 oder neuer mit dem Compose-Plugin (`docker compose version`) |
 | Speicher | Rund 1 GB für das Programm, dazu Platz für Vorschaubilder und zwischengespeicherte Umwandlungen (plane 10 GB) |
-| Medien | Deine Filme, Serien, Hörbücher und Podcasts in Ordnern. Slouchcat liest sie **nur**; es verschiebt, benennt und löscht nichts |
+| Medien | Deine Filme, Serien, Hörbücher und Podcasts in Ordnern. Slouchcat liest sie **nur**; es verschiebt, benennt und löscht nichts. Einzige Ausnahme, wenn du es willst: neue Podcast-Folgen als Datei speichern (siehe «Podcast-Folgen speichern») |
 | Zugangsschlüssel | Ein kostenloser Lesetoken von [themoviedb.org](https://www.themoviedb.org) (TMDB). Er ist nicht zwingend, aber ohne ihn bleiben deine Titel ohne Beschreibung, Poster und Altersfreigabe — und ohne bekannte Freigabe sind sie für alle Profile unter 18 gesperrt |
 
 Slouchcat läuft auf Linux. Für Apple-Geräte als **Zuschauer** gilt: iPhone, iPad und Mac sind in dieser
@@ -134,6 +134,72 @@ docker compose up -d
 
 Ob der Chip erkannt wurde, siehst du in der Verwaltung unter «Übersicht» und im Protokoll
 (`transcode backend detected`).
+
+### Podcast-Folgen speichern (freiwillig)
+
+Ab Werk spielt Slouchcat Podcast-Folgen aus dem Feed als Link: es holt sie beim Abspielen vom
+Anbieter und speichert nichts. Soll es neue Folgen als Datei in den Ordner ihres Podcasts legen
+(Verwaltung → Podcasts → «Neue Folgen» → «Speichern»), muss **genau dieser eine Ordner** schreibbar
+sein. Alle anderen Medien bleiben nur lesbar. Dafür gibt es eine Zusatzdatei, die du wie die Dateien
+für den Grafikchip dazunimmst:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.28.0/deploy/compose.podcasts.yaml
+```
+
+In `.env` trägst du drei Zeilen ein (mit Grafikchip kommt `compose.podcasts.yaml` hinten an deine
+bisherige `COMPOSE_FILE`-Zeile, zum Beispiel `compose.yaml:compose.nvidia.yaml:compose.podcasts.yaml`):
+
+```bash
+COMPOSE_FILE=compose.yaml:compose.podcasts.yaml
+# Der Podcast-Ordner auf deinem Rechner …
+PODCAST_DIR=/srv/media/Audiobookshelf/Podcast
+# … und der Pfad, unter dem er in Slouchcat schon eingetragen ist.
+PODCAST_TARGET=/media/Audiobookshelf/Podcast
+```
+
+Danach `docker compose up -d`. Zwei Bedingungen musst du einhalten:
+
+- **`PODCAST_TARGET` ist genau der Pfad, unter dem der Ordner in Slouchcat eingetragen ist**
+  (Verwaltung → Bibliotheken). Ein anderer Pfad wäre für Slouchcat ein neuer Ordner, und alle Dateien
+  müssten neu verknüpft werden.
+- **Der Ordner liegt schon unter `MEDIA_DIR`.** Docker kann im nur lesbaren Baum keinen neuen
+  Einhängepunkt anlegen; fehlt der Ordner dort, startet der Container nicht.
+
+Die Zusatzdatei und `.env` bleiben bei einem Update erhalten. Ohne sie bleibt alles nur lesbar, und
+«Speichern» ist in der Verwaltung gesperrt.
+
+**Rechte.** Slouchcat legt neue Dateien mit `0664` und neue Ordner mit `0775` an, Besitzer ist der
+Benutzer aus `PUID`/`PGID`. Damit können Audiobookshelf und die Freigaben deines NAS die Folgen lesen.
+Der Benutzer braucht Schreibrecht im Podcast-Ordner; liegt der Ordner auf einem NAS, muss auch die
+Freigabe (NFS-Export oder SMB) Schreiben für diesen Pfad erlauben und die Einhängung auf dem Rechner
+darf nicht `ro` sein. In einem unprivilegierten LXC-Container gilt die verschobene Benutzernummer.
+
+**Die Ordnerprüfung.** Bevor Slouchcat schreibt, prüft es den Ordner: derselbe Dateisystemtyp wie beim
+Eintragen und mindestens ein bekannter Unterordner vorhanden (sonst ist das NAS wohl nicht
+eingebunden, und Slouchcat würde auf die lokale Platte schreiben), eine Testdatei mit hartem Link
+und die Rechte. Das Band «Neue Folgen» zeigt das Ergebnis: «beschreibbar» mit dem freien Platz oder
+den Grund («nur lesbar eingebunden», «Ordner ist nicht eingebunden», «Dateisystem kann keine harten
+Links», «neue Dateien bekommen nicht die nötigen Rechte»). Ohne harte Links bleibt «Speichern»
+gesperrt.
+
+**Private Feeds.** Für einen Podcast, der noch keinen Ordner hat, legt Slouchcat beim ersten Download
+einen an, mit einer `metadata.json` im Format von Audiobookshelf. Darin steht die Feed-Adresse, damit
+ein späterer Scan das Abo wiedererkennt. Bei einem privaten Feed steckt in dieser Adresse oft dein
+Zugangsschlüssel: Wer den Ordner lesen darf, sieht ihn. Audiobookshelf macht es genauso.
+
+**Wechsel von Audiobookshelf.** Lädt bisher Audiobookshelf die Folgen, wechselst du in dieser
+Reihenfolge, damit keine Folge doppelt ankommt:
+
+1. Podcast-Ordner wie oben schreibbar einbinden und das Update einspielen. Die Einstellung steht auf
+   «Nur Link»; es ändert sich nichts.
+2. In Audiobookshelf je Podcast den automatischen Download abschalten.
+3. In Slouchcat die Bibliothek auf «Speichern» stellen, mit dem Umfang deiner Wahl.
+
+Folgen, die zwischen Schritt 2 und 3 erscheinen, holt «Neue + letzte N» oder der Knopf «Fehlende
+nachladen» am Podcast. Laufen beide eine Weile parallel, überschreibt Slouchcat keine Datei und trägt
+keine zweimal ein, kann aber eine Folge ein zweites Mal unter leicht anderem Namen speichern; darum
+die Reihenfolge.
 
 ## 5. Einrichten
 

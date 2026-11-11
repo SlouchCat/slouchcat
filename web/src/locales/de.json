@@ -191,7 +191,9 @@
       "job_type_not_windowable": "Dieser Job hat kein Zeitfenster.",
       "provider_unreachable": "Die Quelle ist gerade nicht erreichbar. Versuche es später noch einmal.",
       "provider_paused": "Die Quelle pausiert nach wiederholten Absagen. Versuche es später noch einmal.",
-      "offer_conflict": "Das Radio-Angebot hat sich inzwischen geändert. Bitte noch einmal übernehmen."
+      "offer_conflict": "Das Radio-Angebot hat sich inzwischen geändert. Bitte noch einmal übernehmen.",
+      "root_not_writable": "Der Podcast-Ordner besteht die Ordnerprüfung nicht; Slouchcat kann dort keine Folgen speichern.",
+      "root_required": "Die Bibliothek hat keinen Podcast-Ordner, in dem Slouchcat Folgen speichern könnte."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -2325,6 +2327,7 @@
       "columns": {
         "title": "Titel",
         "episodes": "Episoden",
+        "stored": "Gespeichert",
         "lastFetch": "Letzter Abruf",
         "error": "Fehler"
       },
@@ -2351,7 +2354,19 @@
         "urlHint": "RSS-Feed des Podcasts, zum Beispiel https://example.org/feed.xml.",
         "submit": "Abonnieren",
         "submitting": "Feed wird abgerufen …",
-        "done": "{{title}} ist abonniert."
+        "done": "{{title}} ist abonniert.",
+        "loads": {
+          "new": "Diese Bibliothek speichert neue Folgen. Aus dem ersten Abruf lädt Slouchcat nichts, erst was danach erscheint.",
+          "last_n": "Diese Bibliothek speichert: nach dem Abonnieren lädt Slouchcat die {{n}} neuesten Folgen als Datei.",
+          "all": "Diese Bibliothek speichert alle Folgen: nach dem Abonnieren lädt Slouchcat den ganzen Feed als Datei (höchstens 2000 Folgen)."
+        },
+        "load": {
+          "label": "Folgen laden",
+          "hint": "«Nur abonnieren» lädt nichts aus dem Feed; der Podcast speichert dann nur Folgen, die danach erscheinen.",
+          "yes": "Abonnieren und laden",
+          "no": "Nur abonnieren",
+          "required": "Bitte wählen, ob Slouchcat die Folgen laden soll."
+        }
       },
       "refresh": {
         "action": "Jetzt abrufen",
@@ -2366,6 +2381,101 @@
         "body": "Der Podcast und seine Episoden verschwinden aus der Bibliothek. Downloads der Episoden werden beim nächsten Abgleich entfernt.",
         "confirm": "Abo löschen",
         "done": "Das Abo {{title}} ist gelöscht."
+      },
+      "stored": {
+        "save": "Speichert",
+        "link": "Nur Link",
+        "own": "eigene Einstellung",
+        "loading": "lädt {{number}}",
+        "failed": "{{number}} fehlgeschlagen"
+      },
+      "downloads": {
+        "title": "Neue Folgen",
+        "titleOf": "Neue Folgen: {{library}}",
+        "summary": {
+          "save": "Speichern · {{scope}} · {{parallel}} gleichzeitig",
+          "link": "Nur Link · nichts wird gespeichert"
+        },
+        "saved": "Gespeichert.",
+        "mode": {
+          "label": "Neue Folgen",
+          "save": "Speichern",
+          "link": "Nur Link"
+        },
+        "scope": {
+          "label": "Umfang",
+          "new": "Nur neue Folgen",
+          "last_n": "Neue + letzte N",
+          "all": "Alle Folgen",
+          "lastNOf": "Neue + letzte {{n}}"
+        },
+        "hint": {
+          "link": "Neue Folgen bleiben ein Link und werden beim Abspielen vom Anbieter gestreamt. Vorhandene Dateien bleiben.",
+          "new": "Geladen wird nur, was ab jetzt erscheint. Ältere Folgen ohne Datei bleiben Link.",
+          "last_n": "Neue Folgen und je Podcast die letzten {{n}} Folgen des Feeds, soweit sie fehlen.",
+          "all": "Der ganze Feed (höchstens 2000 Folgen je Podcast) und jede neue Folge. Kann sehr viel Platz brauchen."
+        },
+        "lastN": {
+          "label": "Anzahl Folgen (N)",
+          "hint": "1 bis {{max}}",
+          "apply": "Übernehmen"
+        },
+        "estimating": "Die Schätzung wird berechnet …",
+        "confirm": {
+          "text_one": "Das lädt einmalig rund {{number}} Folge, etwa {{size}}. Frei: {{free}}.",
+          "text_other": "Das lädt einmalig rund {{number}} Folgen, etwa {{size}}. Frei: {{free}}.",
+          "load": "Laden"
+        },
+        "folder": {
+          "label": "Ordner",
+          "target": "Ordner für neue Abos",
+          "writable": "beschreibbar · {{free}} frei",
+          "writableUnknown": "beschreibbar",
+          "checking": "Der Ordner wird geprüft …",
+          "none": "Die Bibliothek hat keinen Podcast-Ordner. Füge unter Bibliotheken einen hinzu, damit Slouchcat Folgen speichern kann.",
+          "locked": "«Speichern» ist gesperrt, bis der Ordner die Prüfung besteht.",
+          "guide": "Installationsanleitung: Podcast-Folgen speichern",
+          "problem": {
+            "read_only": "nur lesbar eingebunden",
+            "not_mounted": "Ordner ist nicht eingebunden",
+            "no_hard_links": "Dateisystem kann keine harten Links",
+            "permissions": "neue Dateien bekommen nicht die nötigen Rechte"
+          }
+        },
+        "parallel": {
+          "label": "Gleichzeitig laden",
+          "hint": "Vom selben Anbieter lädt Slouchcat immer nur eine Folge zur Zeit."
+        }
+      },
+      "setting": {
+        "saved": "Gespeichert.",
+        "effective": {
+          "save": "Gilt: Speichern · {{scope}}",
+          "link": "Gilt: Nur Link"
+        },
+        "notSavable": "Der Ordner dieses Podcasts besteht die Ordnerprüfung nicht; «Speichern» ist gesperrt.",
+        "mode": {
+          "label": "Neue Folgen dieses Podcasts",
+          "inherit": "Wie Bibliothek",
+          "save": "Speichern",
+          "link": "Nur Link"
+        },
+        "scope": {
+          "label": "Umfang dieses Podcasts",
+          "inherit": "Wie Bibliothek",
+          "new": "Nur neue Folgen",
+          "last_n": "Neue + letzte N",
+          "all": "Alle Folgen"
+        },
+        "unclear_one": "{{number}} Folge ist unklar: eine Datei im Ordner könnte sie schon enthalten. Slouchcat lädt sie nicht von selbst.",
+        "unclear_other": "{{number}} Folgen sind unklar: eine Datei im Ordner könnte sie schon enthalten. Slouchcat lädt sie nicht von selbst.",
+        "missing": {
+          "action": "Fehlende nachladen",
+          "label": "Fehlende Folgen von {{title}} nachladen",
+          "none": "Es fehlt keine Folge, die Slouchcat laden würde.",
+          "queued_one": "{{number}} Folge wird geladen.",
+          "queued_other": "{{number}} Folgen werden geladen."
+        }
       }
     },
     "picks": {
@@ -3601,6 +3711,7 @@
         "notify": "Benachrichtigungen",
         "index": "Keyframe-Index",
         "trickplay": "Vorschau beim Spulen",
+        "podcast": "Podcast-Folgen",
         "workers": "{{count}} Arbeiter",
         "backlog": "Stau ca. {{duration}}",
         "free": "frei",
@@ -3933,6 +4044,22 @@
           "name": "Podcast-Feeds prüfen",
           "description": "Prüft alle Podcast-Feeds auf neue Folgen.",
           "trigger": "Zeitplan alle 5 min: fällige Abos werden abgerufen"
+        },
+        "podcast_sync": {
+          "name": "Podcast-Folgen planen",
+          "description": "Wählt die Folgen eines Podcasts, die seine Einstellung als Datei lädt, und bricht nicht mehr gewünschte Downloads ab.",
+          "trigger": "nach einem Feed-Abruf mit neuen Folgen, einem neuen Abo und einer geänderten Einstellung"
+        },
+        "podcast_sync_all": {
+          "name": "Podcast-Folgen nachholen",
+          "description": "Plant alle Podcasts auf «Speichern» neu und versucht fehlgeschlagene Downloads erneut.",
+          "trigger": "Zeitplan alle 6 h"
+        },
+        "podcast_download": {
+          "name": "Podcast-Folge speichern",
+          "description": "Lädt eine Folge vom Anbieter und legt sie als Datei in den Ordner ihres Podcasts.",
+          "trigger": "vom Planer bei «Speichern», «Fehlende nachladen» und «Laden» je Folge; je Anbieter eine zur Zeit",
+          "progress": "Bytes: {{done}} von {{total}}"
         },
         "trakt_refresh": {
           "name": "Spotlight-Liste abrufen",

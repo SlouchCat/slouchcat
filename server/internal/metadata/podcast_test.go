@@ -193,7 +193,7 @@ func TestSubscribePodcast(t *testing.T) {
 	t.Parallel()
 	e := newPodcastEnv(t, 2)
 	ctx := context.Background()
-	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml")
+	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +220,7 @@ func TestSubscribePodcast(t *testing.T) {
 		t.Errorf("image jobs = %v", got)
 	}
 	// The same feed again in the library: feed_exists.
-	if _, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml"); !errors.Is(err, model.ErrFeedExists) {
+	if _, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml", true); !errors.Is(err, model.ErrFeedExists) {
 		t.Errorf("second subscription: %v", err)
 	}
 	list, err := e.svc.ListPodcasts(ctx)
@@ -246,29 +246,29 @@ func TestSubscribePodcastErrors(t *testing.T) {
 		{99, e.feed.srv.URL + "/feed.xml", "libraryId", "unknown_library"},
 		{1, e.feed.srv.URL + "/feed.xml", "libraryId", "library_kind"},
 	} {
-		_, err := e.svc.Subscribe(ctx, tc.library, tc.url)
+		_, err := e.svc.Subscribe(ctx, tc.library, tc.url, true)
 		var verr *model.ValidationError
 		if !errors.As(err, &verr) || len(verr.Fields) != 1 || verr.Fields[0].Field != tc.field || verr.Fields[0].Code != tc.code {
 			t.Errorf("%d %q: %v, want %s %s", tc.library, tc.url, err, tc.field, tc.code)
 		}
 	}
 	e.feed.set(func(f *fakeFeed) { f.status = http.StatusNotFound })
-	if _, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml"); !errors.Is(err, model.ErrFeedUnreachable) {
+	if _, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml", true); !errors.Is(err, model.ErrFeedUnreachable) {
 		t.Errorf("404: %v", err)
 	}
 	e.feed.set(func(f *fakeFeed) {
 		f.status, f.body = 0, `<feed xmlns="http://www.w3.org/2005/Atom"><title>A</title></feed>`
 	})
-	if _, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml"); !errors.Is(err, model.ErrFeedInvalid) {
+	if _, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml", true); !errors.Is(err, model.ErrFeedInvalid) {
 		t.Errorf("atom: %v", err)
 	}
 	e.feed.set(func(f *fakeFeed) { f.body = `<rss><channel><title>broken` })
-	if _, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml"); !errors.Is(err, model.ErrFeedInvalid) {
+	if _, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml", true); !errors.Is(err, model.ErrFeedInvalid) {
 		t.Errorf("broken XML: %v", err)
 	}
 	closed := httptest.NewServer(http.NotFoundHandler())
 	closed.Close()
-	if _, err := e.svc.Subscribe(ctx, 3, closed.URL+"/feed.xml"); !errors.Is(err, model.ErrFeedUnreachable) {
+	if _, err := e.svc.Subscribe(ctx, 3, closed.URL+"/feed.xml", true); !errors.Is(err, model.ErrFeedUnreachable) {
 		t.Errorf("closed server: %v", err)
 	}
 	if list, _ := e.svc.ListPodcasts(ctx); len(list) != 0 {
@@ -282,7 +282,7 @@ func TestFetchPodcast(t *testing.T) {
 	t.Parallel()
 	e := newPodcastEnv(t, 2)
 	ctx := context.Background()
-	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml")
+	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -375,7 +375,7 @@ func TestQueueDuePodcasts(t *testing.T) {
 	}
 	e := newPodcastEnv(t, 1)
 	ctx := context.Background()
-	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml")
+	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -452,7 +452,7 @@ func TestFetchPodcastLocksAndEpisodeCovers(t *testing.T) {
 	rechecks := 0
 	e.svc.recheck = func(context.Context) error { rechecks++; return nil }
 	ctx := context.Background()
-	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml")
+	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -535,7 +535,7 @@ func TestSubscribeConcurrently(t *testing.T) {
 	errs := make(chan error, 2)
 	for range 2 {
 		go func() {
-			_, err := e.svc.Subscribe(context.Background(), 3, srv.URL+"/feed.xml")
+			_, err := e.svc.Subscribe(context.Background(), 3, srv.URL+"/feed.xml", true)
 			errs <- err
 		}()
 	}
@@ -576,11 +576,11 @@ func TestFeedFetchLimits(t *testing.T) {
 	}))
 	defer srv.Close()
 	ctx := context.Background()
-	if _, err := e.svc.Subscribe(ctx, 3, srv.URL+"/r/5"); err != nil {
+	if _, err := e.svc.Subscribe(ctx, 3, srv.URL+"/r/5", true); err != nil {
 		t.Errorf("5 redirects: %v", err)
 	}
 	for path, want := range map[string]error{"/r/6": model.ErrFeedUnreachable, "/ftp": model.ErrFeedUnreachable, "/big": model.ErrFeedInvalid} {
-		if _, err := e.svc.Subscribe(ctx, 3, srv.URL+path); !errors.Is(err, want) {
+		if _, err := e.svc.Subscribe(ctx, 3, srv.URL+path, true); !errors.Is(err, want) {
 			t.Errorf("%s: %v, want %v", path, err, want)
 		}
 	}
