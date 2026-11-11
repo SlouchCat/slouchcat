@@ -92,23 +92,24 @@ func (s *Service) activeSyncJob(ctx context.Context) (int64, error) {
 	return list[0].ID, nil
 }
 
-// Start loads the index and the tag rules and, while the catalog never synced, sets the one-off
-// date of the first sync ten minutes ahead (R-3) unless a sync is queued or a date is set. Call it
-// after the scheduler started (its row must exist). No read of the app triggers a sync.
+// Start loads the index and the offer, prepares the offer at the first start after migration
+// 00048 (seedOffer) and, while the catalog never synced, sets the one-off date of the first sync
+// ten minutes ahead (R-3) unless a sync is queued or a date is set. Call it after the scheduler
+// started (its row must exist). No read of the app triggers a sync.
 func (s *Service) Start(ctx context.Context) error {
 	if _, err := s.index(ctx); err != nil {
 		return err
 	}
-	if _, err := s.tagRules(ctx); err != nil {
+	if err := s.seedOffer(ctx); err != nil {
 		return err
 	}
-	// A restart may have cut off an apply of the admin's rules: the first sweep applies them once
-	// more, writing only the stations whose facets differ.
-	if admin, err := appq.New(s.db.Read).ListRadioTagRules(ctx); err != nil {
-		return fmt.Errorf("list radio tag rules: %w", err)
-	} else if len(admin) > 0 {
-		s.cat.rulesDirty.Store(true)
+	if _, err := s.offer(ctx); err != nil {
+		return err
 	}
+	s.cat.bg.goFn(func(ctx context.Context) {
+		s.removeStoredLargePNGs(ctx) // the PNGs of 256 and 512 px of earlier versions
+		s.dropLogosOutsideOffer(ctx) // after the update the offer is empty: every fetched logo goes
+	})
 	cfg, err := appq.New(s.db.Read).GetRadioConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("get radio config: %w", err)

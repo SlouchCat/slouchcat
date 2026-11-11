@@ -7,11 +7,11 @@
 SELECT * FROM radio_config WHERE id = 1;
 
 -- name: UpdateRadioConfig :exec
--- countries is a JSON array of ISO 3166-1 codes, NULL = every country.
+-- hide_broken belongs to the offer (radio_offer.sql); countries is no longer read (00048).
 UPDATE radio_config
 SET buffer_minutes = @buffer_minutes, budget_mb = @budget_mb, max_relays = @max_relays,
-    grace_seconds = @grace_seconds, hide_broken = @hide_broken, countries = sqlc.narg('countries'),
-    cover_musicbrainz = @cover_musicbrainz, cover_itunes = @cover_itunes, updated_at = @now
+    grace_seconds = @grace_seconds, cover_musicbrainz = @cover_musicbrainz, cover_itunes = @cover_itunes,
+    updated_at = @now
 WHERE id = 1;
 
 -- name: UpdateRadioSyncState :exec
@@ -40,7 +40,7 @@ WITH ranked AS (
     FROM radio_streams AS st
 )
 SELECT s.id, s.source, s.name, s.sort_key, s.search_text, s.country, s.region, s.languages,
-       s.homepage, s.votes, s.clicks, s.quality, s.reachable, s.failures, s.broken_at, s.hidden,
+       s.homepage, s.votes, s.clicks, s.quality, s.reachable, s.failures, s.broken_at, s.provider,
        s.recommended, s.shows_titles, s.missing_since, s.logo_state, s.logo_hash, s.created_at,
        s.updated_at, r.codec AS best_codec, r.bitrate AS best_bitrate,
        CAST(COALESCE(r.hls, 0) AS INTEGER) AS best_hls
@@ -66,7 +66,7 @@ WITH ranked AS (
     WHERE st.station_id = @station_id
 )
 SELECT s.id, s.source, s.name, s.sort_key, s.search_text, s.country, s.region, s.languages,
-       s.homepage, s.votes, s.clicks, s.quality, s.reachable, s.failures, s.broken_at, s.hidden,
+       s.homepage, s.votes, s.clicks, s.quality, s.reachable, s.failures, s.broken_at, s.provider,
        s.recommended, s.shows_titles, s.missing_since, s.logo_state, s.logo_hash, s.created_at,
        s.updated_at, r.codec AS best_codec, r.bitrate AS best_bitrate,
        CAST(COALESCE(r.hls, 0) AS INTEGER) AS best_hls
@@ -168,7 +168,8 @@ UPDATE radio_stations
 SET name = @name, sort_key = @sort_key, search_text = @search_text, country = sqlc.narg('country'),
     region = sqlc.narg('region'), languages = @languages, homepage = sqlc.narg('homepage'),
     favicon_url = sqlc.narg('favicon_url'), votes = @votes, clicks = @clicks,
-    quality = sqlc.narg('quality'), reachable = @reachable, missing_since = NULL, updated_at = @now
+    quality = sqlc.narg('quality'), reachable = @reachable, provider = sqlc.narg('provider'),
+    missing_since = NULL, updated_at = @now
 WHERE id = @id;
 
 -- name: UpdateRadioStationCounters :exec
@@ -215,10 +216,11 @@ WHERE missing_since IS NOT NULL
   AND EXISTS (SELECT 1 FROM radio_station_aliases AS a
               WHERE a.station_id = radio_stations.id AND a.missing_since IS NULL);
 
--- name: DeleteMissingRadioStations :execrows
--- Catalog stations missing since before; favourites, locks and the rest go by cascade (F-18).
--- Own stations are never removed by the sync.
-DELETE FROM radio_stations WHERE source = 'catalog' AND missing_since IS NOT NULL AND missing_since < @before;
+-- name: DeleteMissingRadioStations :many
+-- Catalog stations missing since before; favourites, locks, the offer exception and the rest go by
+-- cascade (F-18). Own stations are never removed by the sync. The ids name the logo files to remove.
+DELETE FROM radio_stations WHERE source = 'catalog' AND missing_since IS NOT NULL AND missing_since < @before
+RETURNING id;
 
 -- name: DeleteMissingRadioAliases :many
 -- Aliases missing since before on surviving stations (their streams go by cascade).
@@ -240,7 +242,7 @@ SELECT count(*) FROM radio_station_aliases WHERE station_id = @station_id;
 -- name: UpdateRadioStationAdmin :exec
 UPDATE radio_stations
 SET name = @name, sort_key = @sort_key, search_text = @search_text, region = sqlc.narg('region'),
-    hidden = @hidden, recommended = @recommended, updated_at = @now
+    recommended = @recommended, updated_at = @now
 WHERE id = @id;
 
 -- name: DeleteRadioStationLocks :exec
@@ -261,9 +263,9 @@ WHERE station_id = @station_id;
 
 -- name: InsertRadioOwnStation :one
 INSERT INTO radio_stations (source, group_key, name, sort_key, search_text, country, region, languages,
-                            homepage, quality, created_at, updated_at)
+                            homepage, quality, provider, created_at, updated_at)
 VALUES ('own', @group_key, @name, @sort_key, @search_text, sqlc.narg('country'), sqlc.narg('region'), @languages,
-        sqlc.narg('homepage'), sqlc.narg('quality'), @now, @now)
+        sqlc.narg('homepage'), sqlc.narg('quality'), sqlc.narg('provider'), @now, @now)
 RETURNING id;
 
 -- name: InsertRadioOwnStream :exec
@@ -288,6 +290,10 @@ WHERE station_id = @station_id AND stationuuid IS NULL;
 UPDATE radio_streams
 SET codec = sqlc.narg('codec'), bitrate = sqlc.narg('bitrate'), hls = @hls, updated_at = @now
 WHERE station_id = @station_id AND url = @url AND stationuuid IS NULL;
+
+-- name: SetRadioStationProvider :exec
+-- The provider of a station (B7.4): the own station's new stream address, the first start.
+UPDATE radio_stations SET provider = sqlc.narg('provider') WHERE id = @id;
 
 -- name: SetRadioStationQuality :exec
 UPDATE radio_stations SET quality = sqlc.narg('quality'), updated_at = @now WHERE id = @id;

@@ -109,7 +109,7 @@ func (q *Queries) ListRadioFavoriteStationIDs(ctx context.Context, profileID int
 }
 
 const listRadioFavorites = `-- name: ListRadioFavorites :many
-SELECT s.id, s.source, s.group_key, s.name, s.sort_key, s.search_text, s.country, s.region, s.languages, s.homepage, s.favicon_url, s.votes, s.clicks, s.quality, s.reachable, s.failures, s.broken_at, s.hidden, s.recommended, s.shows_titles, s.missing_since, s.logo_state, s.logo_hash, s.logo_tried_at, s.created_at, s.updated_at, f.position, f.created_at AS favorite_created_at
+SELECT s.id, s.source, s.group_key, s.name, s.sort_key, s.search_text, s.country, s.region, s.languages, s.homepage, s.favicon_url, s.votes, s.clicks, s.quality, s.reachable, s.failures, s.broken_at, s.hidden, s.recommended, s.shows_titles, s.missing_since, s.logo_state, s.logo_hash, s.logo_tried_at, s.created_at, s.updated_at, s.provider, f.position, f.created_at AS favorite_created_at
 FROM radio_favorites AS f
 JOIN radio_stations AS s ON s.id = f.station_id
 WHERE f.profile_id = ?1
@@ -160,6 +160,7 @@ func (q *Queries) ListRadioFavorites(ctx context.Context, profileID int64) ([]Li
 			&i.RadioStation.LogoTriedAt,
 			&i.RadioStation.CreatedAt,
 			&i.RadioStation.UpdatedAt,
+			&i.RadioStation.Provider,
 			&i.Position,
 			&i.FavoriteCreatedAt,
 		); err != nil {

@@ -10,9 +10,10 @@ import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard'
 // keyboard, «Verwerfen» with the focus on the h1 after it, Back to the page before (the tabs and
 // the editor replace their history entry); a running listener stopped through the confirmation;
 // the suite keeps the relay buffers on disk as a tmpfs (D-14), so no RAM-buffer warning (the warning
-// itself is covered by RadioAdminPage.test.tsx); visible focus, no focus trap. Stage 2: the tabs
-// «Einordnung» (tag rules, coverage) and «Eigene Sender» (a local address refused, a public one
-// added and deleted) by keyboard.
+// itself is covered by RadioAdminPage.test.tsx); visible focus, no focus trap. Stage 2: the tab
+// «Eigene Sender» (a local address refused, a public one added and deleted) by keyboard. The tab
+// «Einordnung» is gone with the tag rules (contract 1.28.0, concept 19 part B); the tabs «Angebot»
+// (PB-10) and the new «Sender» (B9.3) by keyboard.
 
 async function stopRadio(owner: APIRequestContext): Promise<void> {
   const response = await owner.get('/api/v1/admin/radio/relays');
@@ -25,7 +26,7 @@ async function stopRadio(owner: APIRequestContext): Promise<void> {
 
 async function stationId(owner: APIRequestContext, name: string): Promise<number> {
   const response = await owner.get(
-    `/api/v1/admin/radio/stations?exceptions=false&limit=50&q=${encodeURIComponent(name)}`,
+    `/api/v1/admin/radio/stations?offered=false&limit=50&q=${encodeURIComponent(name)}`,
   );
   expect(response.status(), await response.text()).toBe(200);
   const { items } = (await response.json()) as { items: { id: number; name: string }[] };
@@ -68,6 +69,9 @@ test('radio administration by keyboard: tabs in the URL, stations table, editor,
   await resetFocus(page);
   await tabTo(page, overview, 60);
   await page.keyboard.press('ArrowRight');
+  await expect(tabs.getByRole('tab', { name: 'Angebot' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page).toHaveURL(/[?&]tab=angebot/);
+  await page.keyboard.press('ArrowRight');
   const stationsTab = tabs.getByRole('tab', { name: 'Sender', exact: true });
   await expectFocusOn(page, stationsTab);
   await expect(stationsTab).toHaveAttribute('aria-selected', 'true');
@@ -97,9 +101,7 @@ test('radio administration by keyboard: tabs in the URL, stations table, editor,
   // From the top: headless Firefox does not wrap around at the end of the page.
   await resetFocus(page);
   await tabTo(page, stationsTab, 80);
-  // Stage 2 put «Einordnung» and «Eigene Sender» between them.
-  await page.keyboard.press('ArrowRight');
-  await expect(page).toHaveURL(/[?&]tab=einordnung/);
+  // Stage 2 put «Eigene Sender» between them.
   await page.keyboard.press('ArrowRight');
   await expect(page).toHaveURL(/[?&]tab=eigene/);
   await page.keyboard.press('ArrowRight');
@@ -153,93 +155,10 @@ test('a running listener is stopped through the confirmation', async ({ page, ow
   await expect(page.getByRole('status').filter({ hasText: 'ist gestoppt' })).toHaveCount(1);
 });
 
-type TagRule = { tag: string; facet: string; value?: string | null; source: string };
-
-/** The administration's own tag rules, as the PUT takes them back. */
-async function adminRules(owner: APIRequestContext) {
-  const response = await owner.get('/api/v1/admin/radio/tag-rules');
-  expect(response.status(), await response.text()).toBe(200);
-  const { rules } = (await response.json()) as { rules: TagRule[] };
-  return rules
-    .filter((rule) => rule.source === 'admin')
-    .map(({ tag, facet, value }) => ({ tag, facet, value: value ?? null }));
-}
-
-test('«Einordnung» by keyboard: a rule set to «Keins» changes the coverage, removing it restores it @keyboard', async ({
-  page,
-  owner,
-}) => {
-  test.setTimeout(90_000);
-  const stored = await adminRules(owner);
-  try {
-    await page.goto('/admin/radio?tab=einordnung');
-    const panel = page.getByRole('tabpanel');
-    const genre = panel.getByTestId('radio-coverage').getByRole('listitem').first();
-    await expect(genre).toContainText('Genre');
-    // As toHaveText reads it: the text content, without the line breaks of innerText.
-    const before = (await genre.textContent()) ?? '';
-    expect(before).toMatch(/^Genre\d+\s%\d+ von \d+ Sendern$/);
-    // The 68 stations of the test catalog have no tag of 20 stations without a rule (D-3).
-    await expect(panel.getByTestId('radio-worklist')).toContainText(
-      'Alle häufigen Schlagworte sind zugeordnet.',
-    );
-
-    // The default rule «pop → Genre: Pop» to «Keins» (D-2), by keyboard in the rules table.
-    const rules = panel.getByTestId('radio-rules');
-    const search = rules.getByRole('textbox', { name: 'Regeln durchsuchen' });
-    await resetFocus(page);
-    await tabTo(page, search, 80);
-    await page.keyboard.type('pop');
-    const row = rules
-      .getByRole('row')
-      .filter({ has: page.getByRole('rowheader', { name: 'pop', exact: true }) });
-    await expect(row).toContainText('Vorgabe');
-    const select = row.getByRole('combobox', { name: 'Genre für das Schlagwort pop' });
-    await tabTo(page, select, 20);
-    // «Keins» is the last choice; the arrow keys and End only pick it, «Übernehmen» saves.
-    await page.keyboard.press('End');
-    const apply = row.getByRole('button', { name: 'Regel Genre für pop übernehmen' });
-    await tabTo(page, apply, 5);
-    const saved = page.waitForResponse(
-      (response) =>
-        response.request().method() === 'PUT' && response.url().endsWith('/admin/radio/tag-rules'),
-    );
-    await page.keyboard.press('Enter');
-    expect((await saved).status()).toBe(200);
-    await expect(
-      page.getByText('Die Regel für «pop» ist gespeichert.', { exact: false }),
-    ).toBeVisible();
-    await expect(row).toContainText('Eigene Regel');
-    await expect(genre).not.toHaveText(before);
-
-    // Removing the own rule asks first; the default applies again and the coverage is back.
-    const remove = row.getByRole('button', { name: 'Regel Genre für pop entfernen' });
-    // Saves wait for each other: enabled once the last one settled.
-    await expect(remove).toBeEnabled();
-    await tabTo(page, remove, 20);
-    await page.keyboard.press('Enter');
-    const confirm = page.getByRole('alertdialog', { name: 'Regel für «pop» entfernen?' });
-    await expect(confirm).toBeVisible();
-    await expectFocusOn(page, confirm.getByRole('button', { name: 'Entfernen' }));
-    await page.keyboard.press('Enter');
-    await expect(page.getByText('Die Regel für «pop» ist entfernt.')).toBeVisible();
-    await expect(row).toContainText('Vorgabe');
-    await expect(genre).toHaveText(before);
-    await resetFocus(page);
-    await expectNoFocusTrap(page);
-  } finally {
-    const restore = await owner.put('/api/v1/admin/radio/tag-rules', {
-      headers: CSRF,
-      data: { rules: stored },
-    });
-    expect(restore.status(), await restore.text()).toBe(200);
-  }
-});
-
 /** Deletes the own stations a test of this file added. */
 async function removeOwnStations(owner: APIRequestContext, prefix: string): Promise<void> {
   const response = await owner.get(
-    '/api/v1/admin/radio/stations?source=own&exceptions=false&limit=200',
+    '/api/v1/admin/radio/stations?source=own&offered=false&limit=200',
   );
   if (!response.ok()) return;
   const { items } = (await response.json()) as { items: { id: number; name: string }[] };
@@ -305,5 +224,209 @@ test('«Eigene Sender» by keyboard: a local address is refused, a public one ad
     await expectNoFocusTrap(page);
   } finally {
     await removeOwnStations(owner, 'E2E ');
+  }
+});
+
+interface Offer {
+  version: number;
+  countries: { code: string; mode?: 'all' | 'marked'; offered: number; total: number }[];
+}
+
+async function readOffer(owner: APIRequestContext): Promise<Offer> {
+  const response = await owner.get('/api/v1/admin/radio/offer');
+  expect(response.status(), await response.text()).toBe(200);
+  return (await response.json()) as Offer;
+}
+
+/** Applies steps on the current offer, as the tab «Sender» does. */
+async function applyOffer(owner: APIRequestContext, steps: object[]): Promise<void> {
+  const { version } = await readOffer(owner);
+  const response = await owner.post('/api/v1/admin/radio/offer/apply', {
+    headers: CSRF,
+    data: { version, steps },
+  });
+  expect(response.status(), await response.text()).toBe(200);
+}
+
+test('«Angebot» by keyboard: search a country, a continent, the station list, apply (PB-10) @keyboard', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(120_000);
+  // Spain leaves the offer for the test (its two stations are used nowhere else) and comes back
+  // whole after it: «Alle», no exceptions.
+  await applyOffer(owner, [{ op: 'removeCountry', country: 'ES' }]);
+  try {
+    await page.goto('/admin/radio?tab=angebot');
+    await expect(page.getByRole('tab', { name: 'Angebot' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    // The search finds the country by name; Space chooses it.
+    const search = page.getByRole('textbox', { name: 'Land suchen' });
+    await resetFocus(page);
+    await tabTo(page, search, 80);
+    await page.keyboard.type('Spanien');
+    const hits = page.getByRole('table', { name: 'Gefundene Länder' });
+    const spain = hits.getByRole('checkbox', { name: 'Spanien wählen' });
+    await tabTo(page, spain);
+    await page.keyboard.press('Space');
+    await expect(spain).toBeChecked();
+    await expect(page.getByText('2 Sender kommen dazu.')).toBeVisible();
+
+    // A continent opens with Enter, arrows go through its countries, Escape closes it.
+    const europe = page.getByRole('button', { name: /^Europa/ });
+    await tabTo(page, europe);
+    await page.keyboard.press('Enter');
+    await expect(europe).toHaveAttribute('aria-expanded', 'true');
+    const countries = page.getByRole('table', { name: 'Länder in Europa' });
+    const germany = countries.getByRole('checkbox', { name: 'Deutschland wählen' });
+    await tabTo(page, germany, 10);
+    await expect(germany).toBeChecked();
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, countries.getByRole('checkbox', { name: 'Frankreich wählen' }));
+    await page.keyboard.press('Escape');
+    await expect(countries).toHaveCount(0);
+    await expectFocusOn(page, europe);
+    await expect(europe).toHaveAttribute('aria-expanded', 'false');
+
+    // The chosen country opens its station list; Space takes a station out of the draft.
+    const chosen = page.getByRole('table', { name: 'Gewählte Länder' });
+    const open = chosen.getByRole('button', { name: 'Sender in Spanien wählen' });
+    await tabTo(page, open, 40);
+    await page.keyboard.press('Enter');
+    const list = page.getByRole('table', { name: 'Sender in Spanien' });
+    await expect(list).toBeVisible();
+    await expect(
+      page.getByText('Alle Sender dieses Landes sind im Angebot, ausser den demarkierten.', {
+        exact: false,
+      }),
+    ).toBeVisible();
+    const los40 = list.getByRole('checkbox', { name: 'LOS40 im Angebot' });
+    await tabTo(page, los40, 10);
+    await page.keyboard.press('ArrowDown');
+    const ser = list.getByRole('checkbox', { name: 'Cadena SER im Angebot' });
+    await expectFocusOn(page, ser);
+    await expect(ser).toBeChecked();
+    await page.keyboard.press('Space');
+    await expect(ser).not.toBeChecked();
+    await expect(page.getByText('1 Sender kommt dazu.')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(list).toHaveCount(0);
+    await expectFocusOn(page, chosen.getByRole('button', { name: 'Sender in Spanien wählen' }));
+
+    // «Übernehmen» at the bottom; the message stands in its place.
+    const apply = page.getByRole('button', { name: 'Übernehmen' });
+    await tabTo(page, apply, 40);
+    await page.keyboard.press('Enter');
+    await expect(
+      page.getByText(
+        'Übernommen. Die Radioseite zeigt das neue Angebot sofort. Logos und weitere Angaben lädt der Server jetzt im Hintergrund.',
+      ),
+    ).toBeVisible();
+    const stored = (await readOffer(owner)).countries.find((country) => country.code === 'ES');
+    expect(stored).toMatchObject({ mode: 'all', offered: 1, total: 2 });
+
+    await resetFocus(page);
+    await expectNoFocusTrap(page, 120);
+  } finally {
+    await applyOffer(owner, [
+      { op: 'chooseCountry', country: 'ES' },
+      { op: 'markAll', country: 'ES' },
+    ]);
+  }
+});
+
+test('«Sender» by keyboard: unreachable ones removed and back, out of the offer, whole catalog, streams, back in @keyboard', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(120_000);
+  const name = 'Testradio Drei';
+  const id = await stationId(owner, name);
+  // Every station a «Nicht erreichbare entfernen» took out comes back after the test.
+  const demarked: number[] = [];
+  page.on('response', async (response) => {
+    if (!response.url().endsWith('/admin/radio/offer/apply') || !response.ok()) return;
+    const body = (await response.json().catch(() => null)) as {
+      demarkedStationIds?: number[];
+    } | null;
+    demarked.push(...(body?.demarkedStationIds ?? []));
+  });
+  const title = page.getByRole('heading', { level: 1, name: 'Radio' });
+  try {
+    await page.goto('/admin/radio?tab=sender');
+    const table = page.getByRole('table', { name: 'Sender', exact: true });
+    await expect(table).toBeVisible();
+
+    // «Nicht erreichbare entfernen» takes the unreachable ones out and turns disabled: the focus
+    // waits on the h1. «Rückgängig» brings them back and goes with its message: the h1 again.
+    const remove = page.getByRole('button', { name: /^Nicht erreichbare entfernen \(\d+\)$/ });
+    await resetFocus(page);
+    await tabTo(page, remove, 80);
+    await page.keyboard.press('Enter');
+    await expect(page.getByText(/aus dem Angebot genommen\.$/)).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Nicht erreichbare entfernen (0)' }),
+    ).toBeDisabled();
+    await expect(title).toBeFocused();
+    const undo = page.getByRole('button', { name: 'Rückgängig' });
+    await tabTo(page, undo, 40);
+    await page.keyboard.press('Enter');
+    await expect(page.getByText('Die Sender sind wieder im Angebot.')).toBeVisible();
+    await expect(undo).toHaveCount(0);
+    await expect(remove).toBeEnabled();
+    await expect(title).toBeFocused();
+
+    // In the list of the offer a station taken out leaves the list: the focus waits on the h1.
+    const search = page.getByRole('textbox', { name: 'Sender suchen' });
+    await tabTo(page, search, 40);
+    await page.keyboard.type(name);
+    await expect(table.getByRole('rowheader', { name: new RegExp(name) })).toBeVisible();
+    const out = table.getByRole('button', { name: `${name} aus dem Angebot nehmen` });
+    await tabTo(page, out, 30);
+    await page.keyboard.press('Enter');
+    await expect(
+      page.getByRole('status').filter({ hasText: `${name} ist nicht mehr im Angebot.` }),
+    ).toHaveCount(1);
+    await expect(table.getByRole('rowheader', { name: new RegExp(name) })).toHaveCount(0);
+    await expect(title).toBeFocused();
+
+    // The whole catalog by the switch shows it again.
+    const whole = page.getByRole('switch', { name: 'Ganzen Katalog zeigen' });
+    await tabTo(page, whole, 40);
+    await page.keyboard.press('Space');
+    await expect(whole).toBeChecked();
+    await expect(table.getByRole('rowheader', { name: new RegExp(name) })).toBeVisible();
+
+    // The streams of the row in a dialog; Escape closes it, the focus goes back.
+    const streams = table.getByRole('button', { name: `Streams von ${name}` });
+    await tabTo(page, streams, 30);
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('dialog', { name: `Streams von ${name}` });
+    await expectFocusOn(page, dialog.getByRole('button', { name: 'Schliessen' }));
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expectFocusOn(page, streams);
+
+    // Back into the offer and out again here: the row stays, the focus on its button.
+    const back = table.getByRole('button', { name: `${name} ins Angebot nehmen` });
+    await tabTo(page, back, 5);
+    await page.keyboard.press('Enter');
+    await expect(
+      page.getByRole('status').filter({ hasText: `${name} ist im Angebot.` }),
+    ).toHaveCount(1);
+    await expectFocusOn(page, out);
+    await page.keyboard.press('Enter');
+    await expect(
+      page.getByRole('status').filter({ hasText: `${name} ist nicht mehr im Angebot.` }),
+    ).toHaveCount(1);
+    await expectFocusOn(page, back);
+
+    await resetFocus(page);
+    await expectNoFocusTrap(page, 120);
+  } finally {
+    await applyOffer(owner, [{ op: 'mark', stationIds: [id, ...demarked] }]);
   }
 });

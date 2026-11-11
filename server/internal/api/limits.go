@@ -20,9 +20,10 @@ const MaxBatchBodyBytes = 1 << 20
 // archive streams to the administration, which unpacks at most as much.
 const MaxRestoreBodyBytes = model.MaxBackupBytes + 1<<20 // the archive plus the multipart framing and the passphrase
 
-// MaxTagRulesBodyBytes caps the administration's full list of radio tag rules (setRadioTagRules,
-// contract 1.19.0): up to 5000 rules of about 60 bytes.
-const MaxTagRulesBodyBytes = 1 << 20
+// MaxRadioOfferBodyBytes caps a draft of the radio offer (previewRadioOffer, applyRadioOffer,
+// contract 1.28.0): steps with lists of up to 5000 station ids, such as the undo of «Nicht
+// erreichbare entfernen».
+const MaxRadioOfferBodyBytes = 1 << 20
 
 // MaxImageUploadBodyBytes caps the upload of an image for a title (uploadItemImage, concept 15
 // 7.5): the image plus the multipart framing; the handler refuses an image above
@@ -32,13 +33,14 @@ const MaxImageUploadBodyBytes = model.MaxImageUploadBytes + 1<<20
 // largeBodies are the routes ("METHOD path") with a larger limit than MaxBodyBytes. A path
 // segment in braces ("{id}") is a parameter and matches any one non-empty segment.
 var largeBodies = map[string]int64{
-	http.MethodPost + " " + BasePath + "/offline/events":        MaxBatchBodyBytes,
-	http.MethodPost + " " + BasePath + "/offline/sync":          MaxBatchBodyBytes,
-	http.MethodPost + " " + BasePath + "/offline/revocations":   MaxBatchBodyBytes,
-	http.MethodPost + " " + BasePath + "/admin/backups/restore": MaxRestoreBodyBytes,
-	http.MethodPut + " " + BasePath + itemImageUploadPath:       MaxImageUploadBodyBytes,
-	http.MethodPut + " " + BasePath + radioLogoUploadPath:       MaxImageUploadBodyBytes,
-	http.MethodPut + " " + BasePath + "/admin/radio/tag-rules":  MaxTagRulesBodyBytes,
+	http.MethodPost + " " + BasePath + "/offline/events":            MaxBatchBodyBytes,
+	http.MethodPost + " " + BasePath + "/offline/sync":              MaxBatchBodyBytes,
+	http.MethodPost + " " + BasePath + "/offline/revocations":       MaxBatchBodyBytes,
+	http.MethodPost + " " + BasePath + "/admin/backups/restore":     MaxRestoreBodyBytes,
+	http.MethodPut + " " + BasePath + itemImageUploadPath:           MaxImageUploadBodyBytes,
+	http.MethodPut + " " + BasePath + radioLogoUploadPath:           MaxImageUploadBodyBytes,
+	http.MethodPost + " " + BasePath + "/admin/radio/offer/preview": MaxRadioOfferBodyBytes,
+	http.MethodPost + " " + BasePath + "/admin/radio/offer/apply":   MaxRadioOfferBodyBytes,
 }
 
 // bodyLimit returns the larger limit of the route ("METHOD path") from largeBodies, 0 when it has

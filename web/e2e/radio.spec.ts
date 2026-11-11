@@ -26,7 +26,7 @@ interface Station {
 /** The station with exactly this name from the administration's list (also hidden ones). */
 async function adminStation(owner: APIRequestContext, name: string): Promise<Station> {
   const response = await owner.get(
-    `/api/v1/admin/radio/stations?exceptions=false&limit=50&q=${encodeURIComponent(name)}`,
+    `/api/v1/admin/radio/stations?offered=false&limit=50&q=${encodeURIComponent(name)}`,
   );
   expect(response.status(), await response.text()).toBe(200);
   const { items } = (await response.json()) as { items: Station[] };
@@ -147,7 +147,22 @@ test('radio page by keyboard: search and filters in the URL, Back restores them,
   await expectNoFocusTrap(page);
 });
 
-test('a favourite survives a reload; a hidden station is never listed', async ({ page, owner }) => {
+/** Stores steps on the radio offer of the administration (contract 1.28.0). */
+async function applyOffer(owner: APIRequestContext, steps: object[]): Promise<void> {
+  const offer = await owner.get('/api/v1/admin/radio/offer');
+  expect(offer.status(), await offer.text()).toBe(200);
+  const { version } = (await offer.json()) as { version: number };
+  const apply = await owner.post('/api/v1/admin/radio/offer/apply', {
+    headers: CSRF,
+    data: { version, steps },
+  });
+  expect(apply.status(), await apply.text()).toBe(200);
+}
+
+test('a favourite survives a reload; a station outside the offer is never listed', async ({
+  page,
+  owner,
+}) => {
   const favourite = await adminStation(owner, 'Testradio Zwei');
   const hidden = await adminStation(owner, 'Radio Swiss Pop');
   try {
@@ -161,21 +176,14 @@ test('a favourite survives a reload; a hidden station is never listed', async ({
     await page.goto('/radio?fav=true');
     await expect(tileOf(page, 'Testradio Zwei')).toBeVisible();
 
-    // Hidden by the administration: in no list, and its id answers 404.
-    const patch = await owner.patch(`/api/v1/admin/radio/stations/${hidden.id}`, {
-      headers: CSRF,
-      data: { hidden: true },
-    });
-    expect(patch.status(), await patch.text()).toBe(200);
+    // Taken out of the offer by the administration: in no list, and its id answers 404.
+    await applyOffer(owner, [{ op: 'demark', stationIds: [hidden.id] }]);
     await page.goto(`/radio?q=${encodeURIComponent('Swiss Pop')}`);
     await expect(page.getByText('Keine Sender gefunden')).toBeVisible();
     await expect(tileOf(page, 'Radio Swiss Pop')).toHaveCount(0);
     expect((await page.request.get(`/api/v1/radio/stations/${hidden.id}`)).status()).toBe(404);
   } finally {
-    await owner.patch(`/api/v1/admin/radio/stations/${hidden.id}`, {
-      headers: CSRF,
-      data: { hidden: false },
-    });
+    await applyOffer(owner, [{ op: 'mark', stationIds: [hidden.id] }]);
     await owner.delete(`/api/v1/radio/favorites/${favourite.id}`, { headers: CSRF });
   }
 });

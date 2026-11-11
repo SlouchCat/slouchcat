@@ -143,7 +143,6 @@ func TestOwnStationAddressChecks(t *testing.T) {
 		"country":   {Name: "X", StreamURL: "http://radio.example/s", Country: "che"},
 		"region":    {Name: "X", StreamURL: "http://radio.example/s", Region: "Zurich"},
 		"languages": {Name: "X", StreamURL: "http://radio.example/s", Languages: []string{"deu"}},
-		"genres":    {Name: "X", StreamURL: "http://radio.example/s", Genres: []string{"polka-techno"}},
 	} {
 		if _, err := e.s.CreateStation(e.ctx, c); fieldCode(err, field) != codeInvalidValue {
 			t.Errorf("%s: %v, want invalid_value", field, err)
@@ -151,29 +150,28 @@ func TestOwnStationAddressChecks(t *testing.T) {
 	}
 }
 
-// A created own station has source own, its group key own:<ULID>, one preferred stream, the given
-// facets manual and locked with the region, the others derived from its name; the probe fills
-// codec, bitrate and quality. It is an exception of the admin list, found by source own only,
-// and the app lists it with its languages.
+// A created own station has source own, its group key own:<ULID>, one preferred stream, the
+// region locked, the facets derived from its name through the rules file and the provider of its
+// stream; the probe fills codec, bitrate and quality. It is in the offer whatever its country
+// (B4.1), found by source own only, and the app lists it with its languages.
 func TestOwnStationCreate(t *testing.T) {
 	e, _ := ownEnv(t)
 	e.sync()
 	a, err := e.s.CreateStation(e.ctx, model.AdminRadioStationCreate{Name: " Mein Sender ", StreamURL: "http://radio.example/live",
-		Homepage: "https://radio.example/", Country: "CH", Region: "CH-ZH", Languages: []string{"de", "fr", "de"},
-		Genres: []string{"jazz"}})
+		Homepage: "https://radio.example/", Country: "CH", Region: "CH-ZH", Languages: []string{"de", "fr", "de"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a.Source != sourceOwn || a.Name != "Mein Sender" || !slices.Equal(a.Locks, []string{"genre", "region"}) ||
+	if a.Source != sourceOwn || a.Name != "Mein Sender" || !slices.Equal(a.Locks, []string{"region"}) || !a.Offered ||
+		a.Provider != "radio.example" ||
 		len(a.Streams) != 1 || a.Streams[0].URL != "http://radio.example/live" || !a.Streams[0].Preferred || a.AliasCount != 0 {
 		t.Fatalf("created %+v", a)
 	}
 	if !slices.Equal(a.Languages, []string{"de", "fr"}) || a.Region != "CH-ZH" || a.Homepage != "https://radio.example/" {
 		t.Errorf("languages %v region %q homepage %q", a.Languages, a.Region, a.Homepage)
 	}
-	wantFacets := []model.RadioStationFacet{{Facet: "genre", Value: "jazz", Manual: true}, {Facet: "kind", Value: "music"}}
-	if !slices.Equal(a.Facets, wantFacets) {
-		t.Errorf("facets %+v, want %+v", a.Facets, wantFacets)
+	if len(a.Genres) != 0 || !slices.Equal(a.Kinds, []string{"music"}) || len(a.Moods) != 0 {
+		t.Errorf("facets %v %v %v, want the kind music of the rules file only", a.Genres, a.Kinds, a.Moods)
 	}
 	var key string
 	if err := e.db.Read.QueryRowContext(e.ctx, `SELECT group_key FROM radio_stations WHERE id = ?`, a.ID).Scan(&key); err != nil || !strings.HasPrefix(key, "own:") || len(key) != 30 {
@@ -206,8 +204,12 @@ func TestOwnStationCreate(t *testing.T) {
 	if got := names(model.AdminRadioQuery{Source: sourceCatalog}); slices.Contains(got, "Mein Sender") || len(got) == 0 {
 		t.Errorf("source catalog lists %v", got)
 	}
-	if got := names(model.AdminRadioQuery{Exceptions: true}); !slices.Contains(got, "Mein Sender") {
-		t.Errorf("exceptions %v lack the own station", got)
+	if got := names(model.AdminRadioQuery{Offered: true}); !slices.Contains(got, "Mein Sender") {
+		t.Errorf("the offer %v lacks the own station", got)
+	}
+	e.emptyOffer()
+	if got := names(model.AdminRadioQuery{Offered: true}); !slices.Equal(got, []string{"Mein Sender"}) {
+		t.Errorf("an empty offer of countries lists %v, want the own station", got)
 	}
 	if _, err := e.s.AdminStations(e.ctx, model.AdminRadioQuery{Source: "other"}); fieldCode(err, "source") != codeInvalidValue {
 		t.Errorf("source other: %v", err)
@@ -271,6 +273,7 @@ func TestOwnStationDelete(t *testing.T) {
 	if err := e.s.AddFavorite(e.ctx, catSession(1), a.ID); err != nil {
 		t.Fatal(err)
 	}
+	e.apply(model.RadioOfferStep{Op: model.RadioOfferDemark, StationIDs: []int64{a.ID}})
 	dir := filepath.Join(e.s.o.cacheDir, logoDir(a.ID))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
@@ -289,6 +292,9 @@ func TestOwnStationDelete(t *testing.T) {
 	}
 	if n := e.count(`SELECT count(*) FROM radio_favorites WHERE station_id = ?`, a.ID); n != 0 {
 		t.Errorf("%d favourites left", n)
+	}
+	if n := e.count(`SELECT count(*) FROM radio_offer_exceptions WHERE station_id = ?`, a.ID); n != 0 {
+		t.Errorf("%d offer exceptions left", n)
 	}
 	if _, err := os.Stat(dir); !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("logo directory: %v", err)
@@ -361,13 +367,12 @@ func TestOwnStationDeleteThenListen(t *testing.T) {
 	}
 }
 
-// No sync derives an own station again, so a new name or a lifted facet lock derives its open
-// facets at once; a locked facet keeps the admin's values.
-func TestOwnStationRederivesOpenFacets(t *testing.T) {
+// No sync derives an own station again, so its facets follow a new name at once, through the
+// rules file (B5); a facet lock no longer exists.
+func TestOwnStationFacetsFollowTheName(t *testing.T) {
 	e, _ := ownEnv(t)
 	e.sync()
-	a, err := e.s.CreateStation(e.ctx, model.AdminRadioStationCreate{Name: "Mein Sender", StreamURL: "http://radio.example/live",
-		Kinds: []string{"talk"}, Genres: []string{"jazz"}})
+	a, err := e.s.CreateStation(e.ctx, model.AdminRadioStationCreate{Name: "Mein Sender", StreamURL: "http://radio.example/live"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -375,18 +380,12 @@ func TestOwnStationRederivesOpenFacets(t *testing.T) {
 	if _, err := e.s.UpdateStation(e.ctx, a.ID, model.AdminRadioStationPatch{Name: &name}); err != nil {
 		t.Fatal(err)
 	}
-	if v := e.facetValues("Sport Eins", "kind"); !slices.Equal(v, []string{"talk"}) {
-		t.Errorf("locked kind after the rename = %v, want [talk]", v)
-	}
-	keep := []string{"name", "genre"}
-	if _, err := e.s.UpdateStation(e.ctx, a.ID, model.AdminRadioStationPatch{Locks: &keep}); err != nil {
-		t.Fatal(err)
-	}
 	if v := e.facetValues("Sport Eins", "kind"); !slices.Equal(v, []string{"sport"}) {
-		t.Errorf("kind after lifting its lock = %v, want [sport] from the name", v)
+		t.Errorf("kind after the rename = %v, want [sport] from the name", v)
 	}
-	if v := e.facetValues("Sport Eins", "genre"); !slices.Equal(v, []string{"jazz"}) {
-		t.Errorf("locked genre = %v, want [jazz]", v)
+	genre := []string{"name", "genre"}
+	if _, err := e.s.UpdateStation(e.ctx, a.ID, model.AdminRadioStationPatch{Locks: &genre}); fieldCode(err, "locks") != codeInvalidValue {
+		t.Errorf("a facet lock: %v, want invalid_value", err)
 	}
 	news := "Info Eins"
 	if _, err := e.s.UpdateStation(e.ctx, a.ID, model.AdminRadioStationPatch{Name: &news}); err != nil {

@@ -12,32 +12,21 @@ import (
 
 // catalogState is the catalog part of the service (lane B): the Radio Browser sync, the merge of
 // the entries into stations, the facets, the in-memory index behind lists, facets and search, the
-// favourites and preferences of a profile and the station administration.
+// offer, the favourites and preferences of a profile and the station administration.
 type catalogState struct {
 	fetch *catalogClient
-	// rules are the effective tag rules (tagrules.go): nil until the first load, swapped by
-	// SetTagRules under rulesMu, which also orders the loads with the swaps.
-	rules   atomic.Pointer[ruleSet]
-	rulesMu sync.Mutex
-	// rulesDirty is set while stored rules wait to be applied to the stations: an apply that met
-	// a running sync (the sync applies them at its end) or failed (the sweep retries it; Start sets it while
-	// admin rules exist, so an apply a restart cut off still reaches every station).
-	rulesDirty atomic.Bool
-	// gen counts the changes the tab «Einordnung» depends on (index swaps, rule and config
-	// changes); tagRulesCache holds its answer for one generation.
-	gen           atomic.Uint64
-	tagRulesMu    sync.Mutex
-	tagRulesCache *tagRulesAnswer
+	// offer is the stored offer (offer.go): nil until the first load, replaced as a whole by an
+	// apply under offerMu, which also orders the loads with the applies.
+	offer   atomic.Pointer[offerState]
+	offerMu sync.Mutex
 	// resolve looks up the host of an own station's address (own.go); nil is the system
 	// resolver. probe reads an own station's stream after a create (nil: probeStream). Tests
 	// set both.
 	resolve func(ctx context.Context, host string) ([]netip.Addr, error)
 	probe   ownProbeFunc
-	// bg runs the background work of the catalog part (own-station probes, the sweep's apply of
-	// pending tag rules) on a context Run cancels at shutdown, and Run waits for it; applying keeps
-	// a second background apply from starting while one runs.
-	bg       background
-	applying atomic.Bool
+	// bg runs the background work of the catalog part (own-station probes) on a context Run
+	// cancels at shutdown, and Run waits for it.
+	bg background
 	// zone names the server's IANA time zone (R-9: the default country of a profile).
 	zone func() string
 
@@ -105,6 +94,3 @@ func serverZone() string {
 	}
 	return ""
 }
-
-// stationsChanged marks a change of the catalog the cached answers depend on.
-func (c *catalogState) stationsChanged() { c.gen.Add(1) }

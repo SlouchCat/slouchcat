@@ -2,6 +2,7 @@ package radio
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/radio/rules"
@@ -48,7 +49,7 @@ func TestDefaultRulesFileValid(t *testing.T) {
 			t.Errorf("facet %s has no rules", facet)
 		}
 		for tag, v := range m {
-			if !knownFacetValue(facet, v) {
+			if !slices.Contains(rules.Values(facet), v) {
 				t.Errorf("%s: tag %q maps to unknown value %q", facet, tag, v)
 			}
 			f := rules.Fold(tag)

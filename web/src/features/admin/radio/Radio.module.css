@@ -76,13 +76,6 @@
   gap: var(--sc-space-2);
 }
 
-/* «Einstellungen» */
-.countries {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-2);
-}
-
 /* The editor: each field with its lock beside it. */
 .editor {
   display: flex;
@@ -111,7 +104,7 @@
   gap: var(--sc-space-4);
 }
 
-/* «Einordnung» and «Eigene Sender»: a section with its title line and its table. */
+/* «Angebot» and «Eigene Sender»: a section with its title line and its table. */
 .section {
   display: flex;
   flex-direction: column;
@@ -153,4 +146,113 @@
   font-family: var(--sc-font-family-mono);
   font-size: var(--sc-font-size-xs);
   overflow-wrap: anywhere;
+}
+
+/* «Angebot» (concept 19 part B, B9.2): the countries, beside them the summary, below them the
+   chosen countries with a station list; on a narrow screen the summary follows the countries. */
+.offer {
+  display: grid;
+  grid-template-areas:
+    'countries'
+    'summary'
+    'stations';
+  gap: var(--sc-section-gap);
+}
+
+@media (width >= 1024px) {
+  .offer {
+    grid-template-columns: minmax(0, 1fr) 18rem;
+    grid-template-areas:
+      'countries summary'
+      'stations summary';
+    align-items: start;
+  }
+}
+
+.offerCountries {
+  grid-area: countries;
+  min-width: 0;
+}
+
+.offerSummary {
+  grid-area: summary;
+  min-width: 0;
+}
+
+.offerStations {
+  grid-area: stations;
+  min-width: 0;
+}
+
+.summaryPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  padding: var(--sc-panel-padding);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-panel-radius);
+  background-color: var(--sc-color-surface-1);
+}
+
+.summaryTitle {
+  margin: 0;
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.continents {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--sc-space-2);
+}
+
+.continent {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: start;
+}
+
+.continentSub {
+  font-size: var(--sc-font-size-sm);
+}
+
+/* A list of countries scrolls in itself; the page around it stays. */
+.scrollList {
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+.offerStationsHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sc-space-2);
+}
+
+.offerStation {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* The bar at the bottom: the difference, «Verwerfen» and «Übernehmen», after it the message. */
+.offerBar {
+  position: sticky;
+  bottom: var(--sc-space-3);
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sc-space-2) var(--sc-space-4);
+  padding: var(--sc-space-3) var(--sc-space-4);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-bg-elevated);
+}
+
+.offerBarText {
+  margin: 0;
 }

@@ -12,9 +12,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
-	"os"
 	"path"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -35,10 +33,11 @@ import (
 // must be http or https and resolve to public addresses only: the host is looked up (resolver of
 // the service) and every address checked with netguard.Local, and the entries of a .pls or .m3u
 // address are checked the same way at create. A local address is the field code local_address,
-// also for own stations (F-15); playing stays guarded by the dialer. The facets given are manual
-// and locked like a PATCH, the others derive from the name. A probe after the create (and after
-// a new address) fills codec, bitrate and quality, best effort. The sync never touches an own
-// station: it has no alias and its group key is own:<ULID>.
+// also for own stations (F-15); playing stays guarded by the dialer. The facets derive from the
+// name through the rules file (concept 19 part B, B5), the provider from the stream address (B7.4).
+// An own station is in the offer unless the administration demarks it (B4.1). A probe after the
+// create (and after a new address) fills codec, bitrate and quality, best effort. The sync never
+// touches an own station: it has no alias and its group key is own:<ULID>.
 
 const (
 	// sourceOwn and sourceCatalog are the values of radio_stations.source.
@@ -206,29 +205,10 @@ func (s *Service) CreateStation(ctx context.Context, c model.AdminRadioStationCr
 	if !ok {
 		verr = verr.Add("languages", codeInvalidValue)
 	}
-	given := map[string][]string{rules.FacetGenre: c.Genres, rules.FacetKind: c.Kinds, rules.FacetMood: c.Moods}
-	var manual, open []string
-	for _, facet := range facetNames {
-		if len(given[facet]) == 0 {
-			open = append(open, facet)
-			continue
-		}
-		manual = append(manual, facet)
-		for _, v := range given[facet] {
-			if !knownFacetValue(facet, v) {
-				verr = verr.Add(facet+"s", codeInvalidValue)
-				break
-			}
-		}
-	}
 	if verr != nil {
 		return model.AdminRadioStation{}, verr
 	}
-	rs, err := s.tagRules(ctx)
-	if err != nil {
-		return model.AdminRadioStation{}, err
-	}
-	derived, _ := deriveFacets(rs.tags, name, nil)
+	derived, _ := deriveFacets(rules.Default(), name, nil)
 
 	tx, err := s.db.Write.BeginTx(ctx, nil)
 	if err != nil {
@@ -239,25 +219,19 @@ func (s *Service) CreateStation(ctx context.Context, c model.AdminRadioStationCr
 	now := s.now().UnixMilli()
 	id, err := q.InsertRadioOwnStation(ctx, appq.InsertRadioOwnStationParams{GroupKey: "own:" + ulid.Make().String(),
 		Name: name, SortKey: rules.Fold(name), SearchText: searchText(name, c.Region, nil), Country: nullText(c.Country),
-		Region: nullText(c.Region), Languages: jsonList(langs), Homepage: nullText(homepage), Now: now})
+		Region: nullText(c.Region), Languages: jsonList(langs), Homepage: nullText(homepage),
+		Provider: nullText(providerOf(streamURL)), Now: now})
 	if err != nil {
 		return model.AdminRadioStation{}, fmt.Errorf("insert radio station: %w", err)
 	}
 	if err := q.InsertRadioOwnStream(ctx, appq.InsertRadioOwnStreamParams{StationID: id, Url: streamURL, Now: now}); err != nil {
 		return model.AdminRadioStation{}, fmt.Errorf("insert radio stream: %w", err)
 	}
-	if err := writeFacets(ctx, q, id, derived, open, false, false); err != nil {
+	if err := writeFacets(ctx, q, id, derived, facetNames, false, false); err != nil {
 		return model.AdminRadioStation{}, err
 	}
-	if err := writeFacets(ctx, q, id, given, manual, true, false); err != nil {
-		return model.AdminRadioStation{}, err
-	}
-	locks := manual
 	if c.Region != "" {
-		locks = append(locks, "region")
-	}
-	for _, l := range locks {
-		if err := q.InsertRadioStationLock(ctx, appq.InsertRadioStationLockParams{StationID: id, Field: l}); err != nil {
+		if err := q.InsertRadioStationLock(ctx, appq.InsertRadioStationLockParams{StationID: id, Field: "region"}); err != nil {
 			return model.AdminRadioStation{}, fmt.Errorf("insert radio lock: %w", err)
 		}
 	}
@@ -365,13 +339,16 @@ func writeOwnPatch(ctx context.Context, q *appq.Queries, stationID int64, op own
 	if err := q.UpdateRadioOwnStreamURL(ctx, appq.UpdateRadioOwnStreamURLParams{Url: op.streamURL, Now: now, StationID: stationID}); err != nil {
 		return false, fmt.Errorf("update own radio stream: %w", err)
 	}
+	if err := q.SetRadioStationProvider(ctx, appq.SetRadioStationProviderParams{Provider: nullText(providerOf(op.streamURL)), ID: stationID}); err != nil {
+		return false, fmt.Errorf("set radio provider: %w", err)
+	}
 	return true, nil
 }
 
 // DeleteStation deletes an own station (contract deleteRadioStation): the row goes with its
-// streams, facets, locks, favourites and listen sessions (cascade), the index drops it, and only
-// then its relay and open listen sessions end, so a Listen in between finds no station to start
-// a relay for (404); its logo files go.
+// streams, facets, locks, favourites, offer exception and listen sessions (cascade), the index
+// drops it, and only then its relay and open listen sessions end, so a Listen in between finds no
+// station to start a relay for (404); its logo files go.
 func (s *Service) DeleteStation(ctx context.Context, stationID int64) error {
 	row, err := appq.New(s.db.Read).GetRadioStation(ctx, stationID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -403,11 +380,7 @@ func (s *Service) DeleteStation(ctx context.Context, stationID int64) error {
 	s.rel.mu.Unlock()
 	s.closeStation(ctx, stationID)
 	s.endLocal(ctx, open)
-	if s.o.cacheDir != "" {
-		if err := os.RemoveAll(filepath.Join(s.o.cacheDir, logoDir(stationID))); err != nil {
-			s.log.WarnContext(ctx, "remove radio logo files", "station_id", stationID, "err", err)
-		}
-	}
+	s.removeLogoFiles(ctx, []int64{stationID})
 	s.log.InfoContext(ctx, "radio own station deleted", "station_id", stationID)
 	return nil
 }

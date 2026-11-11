@@ -35,9 +35,17 @@ func idSet(ids []int64) map[int64]bool {
 }
 
 // catalogLoading reports whether the catalog never synced (model.ErrRadioCatalogLoading): no
-// station in the index and no entry counted by a successful sync.
-func catalogLoading(idx *stationIndex, cfg appq.RadioConfig) bool {
-	return len(idx.entries) == 0 && cfg.EntriesTotal == 0
+// station in the index and no entry counted by a successful sync. Only an empty index reads the
+// settings.
+func (s *Service) catalogLoading(ctx context.Context, idx *stationIndex) (bool, error) {
+	if len(idx.entries) > 0 {
+		return false, nil
+	}
+	cfg, err := appq.New(s.db.Read).GetRadioConfig(ctx)
+	if err != nil {
+		return false, fmt.Errorf("get radio config: %w", err)
+	}
+	return cfg.EntriesTotal == 0, nil
 }
 
 // prepareQuery returns the index, the view, the parsed filter and the favourite set of the
@@ -47,11 +55,13 @@ func (s *Service) prepareQuery(ctx context.Context, session model.Session, f mod
 	if err != nil {
 		return nil, catalogView{}, stationFilter{}, nil, err
 	}
-	v, cfg, err := s.view(ctx)
+	v, err := s.view(ctx)
 	if err != nil {
 		return nil, catalogView{}, stationFilter{}, nil, err
 	}
-	if catalogLoading(idx, cfg) {
+	if loading, err := s.catalogLoading(ctx, idx); err != nil {
+		return nil, catalogView{}, stationFilter{}, nil, err
+	} else if loading {
 		return nil, catalogView{}, stationFilter{}, nil, model.ErrRadioCatalogLoading
 	}
 	ids, err := s.favoriteIDs(ctx, session.Profile.ID)
@@ -108,29 +118,35 @@ func (s *Service) ListStations(ctx context.Context, session model.Session, q mod
 }
 
 // Facets counts the values of every filter over the listed stations; a facet's counts ignore its
-// own selection.
+// own selection. OfferEmpty says that no station at all is in the offer (B4.5).
 func (s *Service) Facets(ctx context.Context, session model.Session, q model.RadioQuery) (model.RadioFacets, error) {
 	idx, v, sf, _, err := s.prepareQuery(ctx, session, q.RadioFilter)
 	if err != nil {
 		return model.RadioFacets{}, err
 	}
 	c := newFacetCounter()
+	empty := true
 	for _, e := range idx.entries {
+		if v.reachable(e) {
+			empty = false
+		}
 		if v.listed(e) {
 			c.add(e, sf.fails(e))
 		}
 	}
-	return c.result(), nil
+	out := c.result()
+	out.OfferEmpty = empty
+	return out, nil
 }
 
 // reachableEntry returns the index entry of a station the profile may reach (model.ErrNotFound
-// for an unknown, hidden or excluded one).
+// for an unknown one or one outside the offer).
 func (s *Service) reachableEntry(ctx context.Context, stationID int64) (*indexEntry, error) {
 	idx, err := s.index(ctx)
 	if err != nil {
 		return nil, err
 	}
-	v, _, err := s.view(ctx)
+	v, err := s.view(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +173,7 @@ func (s *Service) Station(ctx context.Context, session model.Session, stationID 
 }
 
 // reachableFavorites returns the favourites of the profile the profile may reach, in its order,
-// and all favourite ids (the hidden and excluded ones keep their rows).
+// and all favourite ids (those outside the offer keep their rows).
 func (s *Service) reachableFavorites(ctx context.Context, profileID int64) ([]model.RadioStation, []int64, error) {
 	ids, err := s.favoriteIDs(ctx, profileID)
 	if err != nil {
@@ -167,7 +183,7 @@ func (s *Service) reachableFavorites(ctx context.Context, profileID int64) ([]mo
 	if err != nil {
 		return nil, nil, err
 	}
-	v, _, err := s.view(ctx)
+	v, err := s.view(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -184,7 +200,7 @@ func (s *Service) reachableFavorites(ctx context.Context, profileID int64) ([]mo
 	return out, ids, nil
 }
 
-// Favorites returns the profile's favourites in its order, without hidden and excluded ones.
+// Favorites returns the profile's favourites in its order, without those outside the offer.
 func (s *Service) Favorites(ctx context.Context, session model.Session) ([]model.RadioStation, error) {
 	out, _, err := s.reachableFavorites(ctx, session.Profile.ID)
 	if err != nil {
@@ -201,8 +217,8 @@ func (s *Service) Favorites(ctx context.Context, session model.Session) ([]model
 }
 
 // SetFavoriteOrder stores the complete new order of the favourites the profile sees; another set
-// of ids is a *model.ValidationError on stationIds. Hidden and excluded favourites keep their
-// rows behind the visible ones.
+// of ids is a *model.ValidationError on stationIds. Favourites outside the offer keep their rows
+// behind the visible ones.
 func (s *Service) SetFavoriteOrder(ctx context.Context, session model.Session, stationIDs []int64) error {
 	visible, all, err := s.reachableFavorites(ctx, session.Profile.ID)
 	if err != nil {
@@ -284,7 +300,9 @@ func (s *Service) defaultCountry(ctx context.Context) (string, error) {
 }
 
 // Preferences returns the radio preferences of the profile (F-12); DefaultCountry is filled when
-// the profile has none.
+// the profile has none. EffectiveCountry is DefaultCountry while the offer lists stations of it,
+// else empty, and the countries of LastFilter outside the offer are left out (B4.5, OB-10); the
+// stored values stay.
 func (s *Service) Preferences(ctx context.Context, session model.Session) (model.RadioPreferences, error) {
 	row, err := appq.New(s.db.Read).GetRadioProfileState(ctx, session.Profile.ID)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -302,7 +320,36 @@ func (s *Service) Preferences(ctx context.Context, session model.Session) (model
 			return model.RadioPreferences{}, err
 		}
 	}
+	offered, err := s.listedCountries(ctx)
+	if err != nil {
+		return model.RadioPreferences{}, err
+	}
+	if offered[p.DefaultCountry] {
+		p.EffectiveCountry = p.DefaultCountry
+	}
+	if p.LastFilter != nil && len(p.LastFilter.Countries) > 0 {
+		p.LastFilter.Countries = slices.DeleteFunc(p.LastFilter.Countries, func(c string) bool { return !offered[c] })
+	}
 	return p, nil
+}
+
+// listedCountries returns the countries of the stations the lists show under the offer.
+func (s *Service) listedCountries(ctx context.Context) (map[string]bool, error) {
+	idx, err := s.index(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := s.view(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]bool{}
+	for _, e := range idx.entries {
+		if e.st.Country != "" && !out[e.st.Country] && v.listed(e) {
+			out[e.st.Country] = true
+		}
+	}
+	return out, nil
 }
 
 // SetPreferences replaces the preferences; a bad country or sort is a *model.ValidationError.
