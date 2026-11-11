@@ -74,8 +74,10 @@ Server Logos und weitere Angaben erst holt, wenn der Admin einen Sender ins Ange
   Sender an (OB-7).
 - Logos fremder Sender werden nur noch für das Angebot geholt; die Last auf fremde Server sinkt und ist
   planbar. Ein Land mit 500 Sendern braucht bei 4 Abrufen je Sekunde einige Minuten, bis die Logos da sind.
-- Bilder gelöschter Sender räumt der Abgleich weg; Bilder von Sendern ausserhalb des Angebots bleiben, damit
-  ein zurückkehrender Sender sein Logo sofort hat.
+- Bilder gelöschter Sender räumt der Abgleich weg. Ein Sender hat ein geholtes Logo nur, solange er im Angebot
+  ist (Marcos Entscheid vom 11. November 2026): verlässt er es, gehen Dateien und Logo-Zustand, ein eigenes
+  Hochladen bleibt; kommt er zurück, wird das Logo neu geholt. Gespeichert werden WebP in 96, 256 und 512 Pixeln
+  und PNG nur in 96 Pixeln; grössere PNG entstehen bei Bedarf aus dem WebP (Messung B0).
 - Der Vertrag der Verwaltung bricht (1.28.0): entfallen sind Regeln, Filterfelder, `hidden`, `countries` und
   `hideBroken` in den Einstellungen. Die App bleibt verträglich.
 

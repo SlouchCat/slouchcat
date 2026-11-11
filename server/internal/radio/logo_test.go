@@ -611,3 +611,25 @@ func TestStartRemovesTheStoredLargePNGs(t *testing.T) {
 		}
 	}
 }
+
+// A logo job of a station that left the offer since it was queued fetches nothing and gives the
+// station back to «none», so it is queued again when it comes back (RF-8).
+func TestLogoJobOutsideTheOfferFetchesNothing(t *testing.T) {
+	e := newLogoEnv(t)
+	var hits atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	id := e.addStation("Gone FM", "CH", "MP3", 128)
+	e.exec(`UPDATE radio_stations SET favicon_url = ?, logo_state = 'queued' WHERE id = ?`, srv.URL+"/fav.png", id)
+	e.setOffered(id, false)
+	e.runLogoJob(id)
+	if n := hits.Load(); n != 0 {
+		t.Errorf("%d requests for a station outside the offer", n)
+	}
+	if st := e.stationRow(id); st.LogoState != logoStateNone {
+		t.Errorf("state %q, want none", st.LogoState)
+	}
+}

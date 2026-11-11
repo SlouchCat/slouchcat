@@ -3,6 +3,8 @@ package radio
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -548,5 +550,43 @@ func TestOfferStepsNeedACountryWithAContinent(t *testing.T) {
 	e.sync()
 	if _, err := e.s.PreviewOffer(e.ctx, nil, &model.RadioOfferListQuery{Country: "ZZ", Limit: 100}); err == nil {
 		t.Error("preview list of ZZ accepted")
+	}
+}
+
+// Marco's decision of 11 November 2026: a station has a fetched logo only while it is in the
+// offer. When Germany leaves the offer, the logo files and the logo state of its stations go, an
+// own upload stays; a Swiss station in the offer keeps its logo.
+func TestLogosLeaveWithTheOffer(t *testing.T) {
+	cache := t.TempDir()
+	e := newCatEnv(t, WithCacheDir(cache))
+	e.sync()
+	srf, live, bayern := e.stationID("SRF 3"), e.stationID("1LIVE"), e.stationID("Bayern 3")
+	for _, c := range []struct {
+		id    int64
+		state string
+	}{{srf, "catalog"}, {live, "website"}, {bayern, "own"}} {
+		e.exec(`UPDATE radio_stations SET logo_state = ?, logo_hash = 'h' WHERE id = ?`, c.state, c.id)
+		e.s.reloadStation(e.ctx, c.id)
+		dir := filepath.Join(cache, logoDir(c.id))
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "logo-w96.webp"), []byte("webp"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	e.apply(model.RadioOfferStep{Op: model.RadioOfferRemoveCountry, Country: "DE"})
+	has := func(id int64) bool {
+		_, err := os.Stat(filepath.Join(cache, logoDir(id), "logo-w96.webp"))
+		return err == nil
+	}
+	if has(live) || e.count(`SELECT count(*) FROM radio_stations WHERE id = ? AND logo_state = 'none' AND logo_hash IS NULL`, live) != 1 {
+		t.Error("the fetched logo of a station outside the offer stayed")
+	}
+	if !has(bayern) || e.count(`SELECT count(*) FROM radio_stations WHERE id = ? AND logo_state = 'own'`, bayern) != 1 {
+		t.Error("an own upload of a station outside the offer was removed")
+	}
+	if !has(srf) {
+		t.Error("the logo of a station in the offer was removed")
 	}
 }

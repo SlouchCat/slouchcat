@@ -106,7 +106,10 @@ func (s *Service) Start(ctx context.Context) error {
 	if _, err := s.offer(ctx); err != nil {
 		return err
 	}
-	s.cat.bg.goFn(s.removeStoredLargePNGs) // the PNGs of 256 and 512 px of earlier versions
+	s.cat.bg.goFn(func(ctx context.Context) {
+		s.removeStoredLargePNGs(ctx) // the PNGs of 256 and 512 px of earlier versions
+		s.dropLogosOutsideOffer(ctx) // after the update the offer is empty: every fetched logo goes
+	})
 	cfg, err := appq.New(s.db.Read).GetRadioConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("get radio config: %w", err)

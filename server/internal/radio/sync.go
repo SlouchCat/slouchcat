@@ -711,6 +711,7 @@ func (s *Service) handleCatalogSync(ctx context.Context, _ *jobs.Job) error {
 	if _, err := s.rebuildIndex(ctx); err != nil {
 		return err
 	}
+	s.dropLogosOutsideOffer(ctx) // a station that changed its country may have left the offer
 	s.queueSyncLogos(ctx, stats.created)
 	return nil
 }

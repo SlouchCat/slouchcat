@@ -482,8 +482,12 @@ func (s *Service) ApplyOffer(ctx context.Context, version int64, steps []model.R
 		"exceptions", len(draft.exceptions))
 	s.closeUnreachable(ctx)
 	logos := offerLogoIDs(idx, cur, draft, favs)
-	// Thousands of logo jobs (a large country) are queued in the background, not in the request.
-	if len(logos) > 0 && !s.cat.bg.goFn(func(bg context.Context) { s.queueLogos(bg, logos) }) {
+	// Thousands of logo jobs (a large country) are queued in the background, not in the request;
+	// the logos of the stations that left the offer go first.
+	if !s.cat.bg.goFn(func(bg context.Context) {
+		s.dropLogosOutsideOffer(bg)
+		s.queueLogos(bg, logos)
+	}) {
 		logos = nil
 	}
 	queued := len(logos)

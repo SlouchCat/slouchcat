@@ -898,8 +898,8 @@ Wikidata liefert **keine Logos**: Die Dateien auf Wikimedia Commons haben je eig
 verlangen eine Namensnennung, und der Gewinn ist klein (in der Schweiz 53 Logos bei 81 Treffern, fast
 alle schon über Katalog oder Webseite abgedeckt; B7.5).
 
-**Senderliste der Verwaltung:** Sie zeigt ein Logo, wenn der Server schon eines im Cache hat (auch von
-früher), sonst Initialen wie `StationLogo`. Sie löst nie einen Abruf aus.
+**Senderliste der Verwaltung:** Sie zeigt ein Logo, wenn der Server eines im Cache hat (also nur für Sender im
+Angebot, siehe B8), sonst Initialen wie `StationLogo`. Sie löst nie einen Abruf aus.
 
 ### B7.2 Wann der Server Logos holt
 
@@ -1011,9 +1011,12 @@ Die Wiedergabe merkt davon nichts: Relays laufen nicht über die Job-Queue, und 
 Priorität 0 blockieren keinen Worker (B7.2).
 
 **Aufräumen (neu):** Heute löscht nichts die Bilder unter `images/radio/<id>`, auch nicht nach dem
-Löschen eines Senders. Neu entfernt der Abgleich nach dem Löschen eines Senders dessen Ordner. Bilder
-von Sendern ausserhalb des Angebots bleiben (wenige KB je Sender); kommt der Sender zurück, ist das
-Logo sofort da.
+Löschen eines Senders. Neu entfernt der Abgleich nach dem Löschen eines Senders dessen Ordner. **Ein Sender
+hat ein geholtes Logo nur, solange er im Angebot ist** (Marcos Entscheid vom 11. November 2026): Verlässt er das
+Angebot (Übernehmen, Landwechsel beim Abgleich), entfernt der Server Dateien und Logo-Zustand; der erste Start nach
+dem Update räumt so alle früher geholten Logos weg, weil das Angebot leer ist. Ein eigenes hochgeladenes Logo bleibt.
+Kommt der Sender zurück, holt die Kette das Logo neu. Ein schon eingereihter Logo-Auftrag eines Senders, der das
+Angebot inzwischen verlassen hat, holt nichts.
 
 ## B9. Die Verwaltung
 

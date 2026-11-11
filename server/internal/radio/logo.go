@@ -201,6 +201,16 @@ func (s *Service) handleLogo(ctx context.Context, j *jobs.Job) error {
 	if st.LogoState == logoStateOwn {
 		return nil
 	}
+	// Only a station in the offer gets a logo (RF-8): one that left it since the job was queued
+	// is fetched not at all; the next trigger queues it again when it comes back.
+	if offered, err := s.stationOffered(ctx, st.ID); err != nil {
+		return err
+	} else if !offered {
+		if err := appq.New(s.db.Write).ResetRadioLogoQueued(ctx, st.ID); err != nil {
+			return fmt.Errorf("reset radio logo state: %w", err)
+		}
+		return nil
+	}
 	// One job per host at a time (B7.2): a taken host sends the job back without an attempt.
 	hosts := logoHosts(st.FaviconUrl.String, st.Homepage.String)
 	if !s.logo.lockHosts(hosts) {
@@ -228,6 +238,10 @@ func (s *Service) handleLogo(ctx context.Context, j *jobs.Job) error {
 	}
 	if n > 0 {
 		s.onStationChanged(ctx, st.ID)
+		// The station may have left the offer while the chain ran.
+		if offered, err := s.stationOffered(ctx, st.ID); err == nil && !offered {
+			s.dropLogos(ctx, []int64{st.ID})
+		}
 		return nil
 	}
 	// The sync may have deleted the station while the chain ran: the files just written would
@@ -740,4 +754,77 @@ func (s *Service) removeStoredLargePNGs(ctx context.Context) {
 	if removed > 0 {
 		s.log.InfoContext(ctx, "radio logo pngs of 256 and 512 px removed", "files", removed)
 	}
+}
+
+// stationOffered reports whether a station is in the offer now.
+func (s *Service) stationOffered(ctx context.Context, id int64) (bool, error) {
+	idx, err := s.index(ctx)
+	if err != nil {
+		return false, err
+	}
+	o, err := s.offer(ctx)
+	if err != nil {
+		return false, err
+	}
+	e := idx.byID[id]
+	if e == nil { // a station the index does not know yet (written since its last load)
+		s.reloadStation(ctx, id)
+		if idx, err = s.index(ctx); err != nil {
+			return false, err
+		}
+		e = idx.byID[id]
+	}
+	return e != nil && o.offered(e), nil
+}
+
+// dropLogosOutsideOffer removes the fetched logos of every station outside the offer: the files
+// below images/radio/<id>/ and the logo state, so the chain runs again when the station comes
+// back. An own upload stays. Marco's decision of 11 November 2026: a station has a logo only while
+// it is in the offer. It runs at the start, after an apply and after a sync; holding offerMu keeps
+// an apply from adding a station while its logo goes.
+func (s *Service) dropLogosOutsideOffer(ctx context.Context) {
+	s.cat.offerMu.Lock()
+	defer s.cat.offerMu.Unlock()
+	idx, err := s.index(ctx)
+	if err != nil {
+		s.log.WarnContext(ctx, "drop radio logos outside the offer", "err", err)
+		return
+	}
+	o, err := s.offerLocked(ctx)
+	if err != nil {
+		s.log.WarnContext(ctx, "drop radio logos outside the offer", "err", err)
+		return
+	}
+	var ids []int64
+	for _, e := range idx.entries {
+		if e.st.LogoHash != "" && !o.offered(e) {
+			ids = append(ids, e.st.ID)
+		}
+	}
+	if n := s.dropLogos(ctx, ids); n > 0 {
+		s.log.InfoContext(ctx, "radio logos of stations outside the offer removed", "stations", n)
+	}
+}
+
+// dropLogos forgets the fetched logos of the stations (own uploads stay) and removes their files;
+// it returns how many it dropped.
+func (s *Service) dropLogos(ctx context.Context, ids []int64) int {
+	if len(ids) == 0 {
+		return 0
+	}
+	q := appq.New(s.db.Write)
+	var dropped []int64
+	for _, id := range ids {
+		n, err := q.ClearRadioLogo(ctx, id)
+		if err != nil {
+			s.log.WarnContext(ctx, "clear radio logo", "station_id", id, "err", err)
+			continue
+		}
+		if n > 0 {
+			dropped = append(dropped, id)
+		}
+	}
+	s.removeLogoFiles(ctx, dropped)
+	s.onStationsChanged(ctx, dropped)
+	return len(dropped)
 }

@@ -20,8 +20,11 @@ B4 bis B13, ADR 0030 und der Messung B0 (`docs/perf/19-radio.md`). Teil A (Podca
   Regeln, Handwerte und Filterschlösser.
 - **Logos** nur für Sender im Angebot: nach «Übernehmen» (im Hintergrund), nach dem Abgleich für neu ins Angebot
   gekommene Sender, Favoriten und Empfohlene; Drossel 4 je Sekunde, ein Auftrag je Host, Zeitgrenze 20 s je Abruf
-  (Befund B0: eine Webseite als endloser Ereignis-Stream hielt den Auftrag fest). Der Abgleich räumt Bilder gelöschter
-  Sender weg.
+  (Befund B0: eine Webseite als endloser Ereignis-Stream hielt den Auftrag fest), gestreute Wartezeit bei belegtem
+  Host. Gespeichert werden WebP in 96, 256 und 512 Pixeln und PNG nur in 96 Pixeln (grössere PNG bei Bedarf aus dem
+  WebP; Schweiz 25 statt 158 KB je Logo). Ein Sender hat ein Logo nur, solange er im Angebot ist: verlässt er es,
+  gehen Dateien und Zustand (eigene Uploads bleiben); der erste Start nach dem Update räumt alle früher geholten Logos
+  weg. Der Abgleich räumt Bilder gelöschter Sender weg.
 - **Anbieter** (`provider`) aus der Domain des besten Streams, in der Verwaltung und in der App («Schweiz ·
   srg-ssr.ch»).
 - **Verwaltung:** Reiter Übersicht, **Angebot** (Länder über Suche und sechs Kontinente, Senderliste je Land mit
