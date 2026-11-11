@@ -16,10 +16,19 @@ import (
 // Images of the administration tables (M11 step 5b): system-wide, without a profile check, so a
 // pick for a child profile shows its poster although the main profile may not watch the title.
 
+// derivedImageSizes are the sizes of the image pipeline per kind; a missing one is answered with
+// the widest stored size of the kind (decision of 11 November 2026), any other size is 404.
+var derivedImageSizes = map[string]map[string]bool{
+	"poster":   {"w200": true, "w400": true, "w800": true},
+	"backdrop": {"w780": true, "w1280": true, "w1920": true, "w3840": true},
+	"logo":     {"w400": true, "w800": true},
+}
+
 // ItemImage opens a stored image of a title that is not deleted: the WebP row when preferWebP and
 // stored, else the JPEG row. The file is opened through package paths below the cache directory of
-// WithSystem (CLAUDE.md rule 4). model.ErrNotFound for an unknown title, a missing row or a row
-// whose file is gone; ErrNotConfigured without a cache directory.
+// WithSystem (CLAUDE.md rule 4). A missing size of the pipeline is answered with the widest stored
+// one. model.ErrNotFound for an unknown title, a missing row or a row whose file is gone;
+// ErrNotConfigured without a cache directory.
 func (s *Service) ItemImage(ctx context.Context, itemID, kind, size string, preferWebP bool) (model.StreamSource, error) {
 	if s.ops.system.CacheDir == "" {
 		return model.StreamSource{}, ErrNotConfigured
@@ -33,6 +42,12 @@ func (s *Service) ItemImage(ctx context.Context, itemID, kind, size string, pref
 		format = "webp"
 	}
 	im, err := s.sys.AdminGetItemImage(ctx, systemq.AdminGetItemImageParams{ItemID: itemID, Kind: kind, Size: size, Format: format, Fallback: fallback})
+	if errors.Is(err, sql.ErrNoRows) && derivedImageSizes[kind][size] {
+		// A size the pipeline did not derive (never wider than the original): the widest stored one.
+		var w systemq.AdminGetWidestItemImageRow
+		w, err = s.sys.AdminGetWidestItemImage(ctx, systemq.AdminGetWidestItemImageParams{ItemID: itemID, Kind: kind, Format: format, Fallback: fallback})
+		im = systemq.AdminGetItemImageRow(w)
+	}
 	if errors.Is(err, sql.ErrNoRows) {
 		return model.StreamSource{}, model.ErrNotFound
 	}

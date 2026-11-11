@@ -264,3 +264,31 @@ func TestNarrowCoverKeepsItsAccent(t *testing.T) {
 		t.Fatalf("rows %+v, want w200 at 150 px with an accent", imgs)
 	}
 }
+
+// An upload narrower than w400 has no w400 poster: the editor previews it with the widest stored
+// size under the name w400, which the administration's image route answers the same way.
+func TestNarrowUploadPreview(t *testing.T) {
+	t.Parallel()
+	requireFFmpeg(t)
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
+	if err := e.svc.match(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.UploadItemImage(ctx, idByTMDB, "poster", jpegBytes(t, 150, 225)); err != nil {
+		t.Fatal(err)
+	}
+	imgs := e.images(t, idByTMDB)
+	if _, ok := imgs["poster/w400/jpeg"]; ok || imgs["poster/w200/jpeg"].Width != 150 {
+		t.Fatalf("rows %v, want only w200 at 150 px", keys(imgs))
+	}
+	admin, err := e.svc.ItemImages(ctx, idByTMDB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(admin) == 0 || admin[0].Kind != "poster" || admin[0].StoredSize != "w400" ||
+		(admin[0].StoredHash != imgs["poster/w200/jpeg"].Hash && admin[0].StoredHash != imgs["poster/w200/webp"].Hash) {
+		t.Fatalf("item images %+v, want the w200 poster as preview", admin)
+	}
+}

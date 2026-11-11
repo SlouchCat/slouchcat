@@ -395,6 +395,17 @@ WHERE im.item_id = @item_id AND im.kind = @kind AND im.size = @size AND im.size 
 ORDER BY im.format = 'webp' DESC
 LIMIT 1;
 
+-- name: AdminGetWidestItemImage :one
+-- The widest stored size of a kind, for a size the pipeline did not derive because the original is
+-- narrower (decision of 11 November 2026), with the format rule of AdminGetItemImage.
+SELECT im.rel_path, im.media_type, im.content_hash, im.created_at
+FROM images AS im
+JOIN items AS i ON i.id = im.item_id AND i.deleted_at IS NULL
+WHERE im.item_id = @item_id AND im.kind = @kind AND im.size <> 'original'
+  AND im.format IN (@format, @fallback)
+ORDER BY im.width DESC, im.format = 'webp' DESC
+LIMIT 1;
+
 -- name: AdminListImages :many
 -- The image of one kind (poster, backdrop) in one size of each title (one row per title, the JPEG
 -- row: the URL only needs the content hash, the handler picks the format by Accept); titles without
