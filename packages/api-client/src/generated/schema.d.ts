@@ -10118,7 +10118,6 @@ export interface components {
             broken: boolean;
             /** @description In the offer of the draft. */
             offered: boolean;
-            own: boolean;
         };
         RadioOfferStationPage: {
             total: number;

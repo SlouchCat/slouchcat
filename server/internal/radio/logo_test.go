@@ -453,4 +453,10 @@ func TestLogoHostLock(t *testing.T) {
 	if l.limiter == nil || l.hostRetry != 15*time.Second {
 		t.Errorf("limiter %v, retry %v", l.limiter, l.hostRetry)
 	}
+	// Four requests a second (OB-11): a fresh limiter lets four through at once, not a fifth.
+	for i := range 5 {
+		if got := l.limiter.Allow(); got != (i < 4) {
+			t.Errorf("request %d allowed = %v, want %v", i+1, got, i < 4)
+		}
+	}
 }

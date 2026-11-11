@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -21,6 +22,25 @@ func TestRadioOfferKeepsOnlyTheChosenCountry(t *testing.T) {
 	pf := newProfileFixture(t)
 	h := pf.h
 	de := fmt.Sprint(vistest.RadioDE)
+	// Both stations get a logo in the cache, so the image route answers 200 while a station is in
+	// the offer and the 404 of the German one below comes from the offer alone.
+	for _, id := range []int64{vistest.RadioCH, vistest.RadioDE} {
+		if _, err := pf.f.DB.Write.Exec(`UPDATE radio_stations SET logo_hash = 'fixture', logo_state = 'catalog' WHERE id = ?`, id); err != nil {
+			t.Fatal(err)
+		}
+		dir := filepath.Join(pf.f.CacheDir, "images", "radio", fmt.Sprint(id))
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "logo-w256.png"), []byte("\x89PNG fixture"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, id := range []string{de, radioCH} {
+		if rec := send(t, h, http.MethodGet, BasePath+"/radio/images/"+id+"/logo/w256", "p6", "", nil); rec.Code != http.StatusOK {
+			t.Fatalf("logo of %s in the offer: %d %s", id, rec.Code, rec.Body.String())
+		}
+	}
 	rec := send(t, h, http.MethodPost, BasePath+"/admin/radio/offer/preview", "p18",
 		`{"steps":[{"op":"removeCountry","country":"DE"},{"op":"mark","stationIds":[`+radioHidden+`]}],"list":{"country":"CH"}}`, nil)
 	if rec.Code != http.StatusOK {
@@ -82,6 +102,9 @@ func TestRadioOfferKeepsOnlyTheChosenCountry(t *testing.T) {
 		}
 		if rec := send(t, h, http.MethodGet, BasePath+"/radio/stations/"+radioCH, token, "", nil); rec.Code != http.StatusOK {
 			t.Errorf("%s CH station: %d", token, rec.Code)
+		}
+		if rec := send(t, h, http.MethodGet, BasePath+"/radio/images/"+radioCH+"/logo/w256", token, "", nil); rec.Code != http.StatusOK {
+			t.Errorf("%s CH logo: %d", token, rec.Code)
 		}
 	}
 	if rec := send(t, h, http.MethodGet, BasePath+"/radio/favorites", "p6", "", nil); strings.Contains(rec.Body.String(), `"id":`+de) {

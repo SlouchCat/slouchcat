@@ -103,6 +103,10 @@ UPDATE radio_stations SET logo_state = 'queued'
 WHERE id = @id AND (logo_state = 'none'
     OR (logo_state = 'failed' AND (logo_tried_at IS NULL OR logo_tried_at < @retry_before)));
 
+-- name: ResetRadioLogoQueued :exec
+-- Undoes MarkRadioLogoQueued when the job could not be queued, so the next trigger queues it again.
+UPDATE radio_stations SET logo_state = 'none' WHERE id = @id AND logo_state = 'queued';
+
 -- name: SetRadioLogoFetched :execrows
 -- The logo job's result (catalog, website or failed); an own upload is never replaced.
 UPDATE radio_stations SET logo_state = @logo_state, logo_hash = @logo_hash, logo_tried_at = @now

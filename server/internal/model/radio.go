@@ -475,7 +475,6 @@ type RadioOfferStation struct {
 	Tags     []string // at most five
 	Broken   bool
 	Offered  bool
-	Own      bool
 }
 
 // RadioOfferStationPage is the list of a preview.

@@ -102,6 +102,10 @@ func (s *Service) queueLogos(ctx context.Context, stationIDs []int64) int {
 		if _, err := s.o.queue.Enqueue(ctx, jobs.NewJob{Type: JobLogoFetch, Priority: logoPriority,
 			IdempotencyKey: "radio.logo:" + strconv.FormatInt(id, 10), Payload: payload}); err != nil {
 			s.log.WarnContext(ctx, "enqueue radio logo", "station_id", id, "err", err)
+			// Without the job the station would stay «queued» for good: the next trigger queues it again.
+			if err := q.ResetRadioLogoQueued(context.WithoutCancel(ctx), id); err != nil {
+				s.log.WarnContext(ctx, "reset radio logo state", "station_id", id, "err", err)
+			}
 			continue
 		}
 		queued = append(queued, id)
@@ -218,6 +222,12 @@ func (s *Service) handleLogo(ctx context.Context, j *jobs.Job) error {
 	}
 	if n > 0 {
 		s.onStationChanged(ctx, st.ID)
+		return nil
+	}
+	// The sync may have deleted the station while the chain ran: the files just written would
+	// stay behind for good (B8).
+	if _, err := appq.New(s.db.Read).GetRadioStation(ctx, st.ID); errors.Is(err, sql.ErrNoRows) {
+		s.removeLogoFiles(ctx, []int64{st.ID})
 	}
 	return nil
 }

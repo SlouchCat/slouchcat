@@ -801,7 +801,7 @@ func (s *server) PreviewRadioOffer(ctx context.Context, req gen.PreviewRadioOffe
 		for _, it := range p.List.Items {
 			page.Items = append(page.Items, gen.RadioOfferStation{Id: it.ID, Name: it.Name,
 				Logo: radioLogoURL("/admin/radio/images", it.ID, it.LogoHash), Tags: strings0(it.Tags), Broken: it.Broken,
-				Offered: it.Offered, Own: it.Own})
+				Offered: it.Offered})
 		}
 		out.List = page
 	}

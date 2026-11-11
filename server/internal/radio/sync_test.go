@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -24,6 +25,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/ratelimit"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/store/storetest"
+	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
 
 // The catalog tests (lane B) run the sync against an httptest server that serves the frozen
@@ -147,6 +149,7 @@ func (e *catEnv) apply(steps ...model.RadioOfferStep) model.RadioOfferApplied {
 	if err != nil {
 		e.t.Fatal(err)
 	}
+	e.s.cat.bg.wait() // the logo jobs are queued in the background
 	return a
 }
 
@@ -407,6 +410,81 @@ func TestSyncMarksMissingAndDeletesAfterSevenDays(t *testing.T) {
 	}
 	if cs, _ := e.s.CatalogState(e.ctx); cs.LastRemoved != 1 {
 		t.Errorf("last removed = %d, want 1", cs.LastRemoved)
+	}
+}
+
+// B8: the sync that deletes a station removes its logo files; the files of a station that stays
+// (in the offer or not) are kept.
+func TestSyncRemovesTheLogoFilesOfDeletedStations(t *testing.T) {
+	cache := t.TempDir()
+	e := newCatEnv(t, WithCacheDir(cache))
+	e.sync()
+	gone, kept := e.stationID("Radio 24"), e.stationID("SRF 3")
+	for _, id := range []int64{gone, kept} {
+		dir := filepath.Join(cache, logoDir(id))
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, logoFile(96, transcode.ImagePNG)), []byte("png"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	list := catEntries(t)
+	i := entryNamed(list, "Radio 24")
+	e.setEntries(append(list[:i:i], list[i+1:]...))
+	e.clock.Advance(24 * time.Hour)
+	e.sync()
+	e.clock.Advance(7*24*time.Hour + time.Minute)
+	e.sync()
+	if n := e.count(`SELECT count(*) FROM radio_stations WHERE id = ?`, gone); n != 0 {
+		t.Fatalf("station not deleted (%d)", n)
+	}
+	if _, err := os.Stat(filepath.Join(cache, logoDir(gone))); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("logo directory of the deleted station: %v, want gone", err)
+	}
+	if _, err := os.Stat(filepath.Join(cache, logoDir(kept), logoFile(96, transcode.ImagePNG))); err != nil {
+		t.Errorf("logo of a kept station: %v", err)
+	}
+}
+
+// B7.4: the sync sets the provider from the host of the best stream when the entry changes, and
+// the administration filters and sorts by it (listAdminRadioStations provider, state noLogo,
+// sort name).
+func TestSyncSetsTheProviderAndTheAdminFiltersByIt(t *testing.T) {
+	e := newCatEnv(t)
+	e.sync()
+	list := catEntries(t)
+	for _, name := range []string{"SRF 3", "Radio Swiss Jazz"} {
+		i := entryNamed(list, name)
+		list[i].URL = "https://stream.srg-ssr.ch/m/" + strconv.Itoa(i) + "/mp3_128"
+		list[i].URLResolved = ""
+		list[i].LastChangeTime = "2026-11-08 10:00:00"
+	}
+	e.setEntries(list)
+	e.clock.Advance(time.Hour)
+	e.sync()
+	srf, jazz := e.stationID("SRF 3"), e.stationID("Radio Swiss Jazz")
+	for _, id := range []int64{srf, jazz} {
+		a, err := e.s.AdminStation(e.ctx, id)
+		if err != nil || a.Provider != "srg-ssr.ch" {
+			t.Fatalf("provider of station %d = %q (%v), want srg-ssr.ch", id, a.Provider, err)
+		}
+	}
+	page, err := e.s.AdminStations(e.ctx, model.AdminRadioQuery{Provider: "srg-ssr.ch", Sort: model.RadioSortName, Limit: 50})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.Total != 2 || page.Items[0].ID != jazz || page.Items[1].ID != srf {
+		t.Errorf("provider srg-ssr.ch by name = %d items %+v, want Radio Swiss Jazz, SRF 3", page.Total, page.Items)
+	}
+	e.exec(`UPDATE radio_stations SET logo_hash = 'abc', logo_state = 'catalog' WHERE id = ?`, srf)
+	e.s.reloadStation(e.ctx, srf)
+	page, err = e.s.AdminStations(e.ctx, model.AdminRadioQuery{Provider: "srg-ssr.ch", State: "noLogo", Limit: 50})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.Total != 1 || page.Items[0].ID != jazz {
+		t.Errorf("provider srg-ssr.ch without logo = %+v, want only Radio Swiss Jazz", page.Items)
 	}
 }
 

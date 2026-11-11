@@ -696,6 +696,9 @@ func (s *Service) handleCatalogSync(ctx context.Context, _ *jobs.Job) error {
 		}
 		return err
 	}
+	// The stations are gone from the database: their logo files go before anything else can fail
+	// and lose the ids (B8).
+	s.removeLogoFiles(ctx, stats.removed)
 	if err := appq.New(s.db.Write).UpdateRadioSyncState(ctx, appq.UpdateRadioSyncStateParams{
 		LastSyncAt: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}, EntriesTotal: int64(stats.entries),
 		EntriesReachable: int64(stats.reachable), StationsTotal: int64(stats.stations), LastAdded: int64(len(stats.created)),
@@ -708,7 +711,6 @@ func (s *Service) handleCatalogSync(ctx context.Context, _ *jobs.Job) error {
 	if _, err := s.rebuildIndex(ctx); err != nil {
 		return err
 	}
-	s.removeLogoFiles(ctx, stats.removed)
 	s.queueSyncLogos(ctx, stats.created)
 	return nil
 }

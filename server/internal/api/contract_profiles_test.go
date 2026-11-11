@@ -1280,7 +1280,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	// through the playback hook only (m-3).
 	f.AddRadio(t)
 	pf.radio = newContractRadio(radio.New(f.DB, log, radio.WithTokenKey(testRadioKey), radio.WithQueue(pf.queue),
-		radio.WithCacheDir(t.TempDir())))
+		radio.WithCacheDir(f.CacheDir)))
 	pf.radio.RegisterTypes(registry)
 	pf.pb.OnProfileEnd(pf.radio.EndProfile)
 	scheduler := jobs.NewScheduler(pf.queue, registry, log)

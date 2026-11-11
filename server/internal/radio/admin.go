@@ -287,6 +287,21 @@ func (s *Service) UpdateStation(ctx context.Context, stationID int64, p model.Ad
 			return model.AdminRadioStation{}, fmt.Errorf("insert radio lock: %w", err)
 		}
 	}
+	// The best stream follows the preferred one while the lock holds, so its host (B7.4) may
+	// have changed: the provider is derived again from the first stream of the ranking.
+	if p.PreferredStreamID != nil || p.ClearPreferredStream {
+		streams, err := q.ListRadioStreamsRanked(ctx, stationID)
+		if err != nil {
+			return model.AdminRadioStation{}, fmt.Errorf("list radio streams: %w", err)
+		}
+		provider := ""
+		if len(streams) > 0 {
+			provider = providerOf(bestURL(streams[0].Url, streams[0].UrlResolved.String))
+		}
+		if err := q.SetRadioStationProvider(ctx, appq.SetRadioStationProviderParams{Provider: nullText(provider), ID: stationID}); err != nil {
+			return model.AdminRadioStation{}, fmt.Errorf("set radio provider: %w", err)
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return model.AdminRadioStation{}, fmt.Errorf("update radio station: commit: %w", err)
 	}

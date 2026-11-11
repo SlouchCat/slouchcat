@@ -137,6 +137,10 @@ func (s *Service) view(ctx context.Context) (catalogView, error) {
 	return catalogView{offer: o}, nil
 }
 
+// offerCountry reports whether a country can be chosen: an ISO code with a continent (B9.2). A
+// code without one never appears in the country list, so no step may store it (OB-7).
+func offerCountry(c string) bool { return countryCode.MatchString(c) && rules.Continent(c) != "" }
+
 // validateOfferSteps checks the steps of a draft against the contract; every fault is
 // invalid_value on the field steps.
 func validateOfferSteps(steps []model.RadioOfferStep) error {
@@ -147,11 +151,11 @@ func validateOfferSteps(steps []model.RadioOfferStep) error {
 	for _, st := range steps {
 		switch st.Op {
 		case model.RadioOfferChooseCountry, model.RadioOfferRemoveCountry, model.RadioOfferMarkAll, model.RadioOfferDemarkAll:
-			if !countryCode.MatchString(st.Country) {
+			if !offerCountry(st.Country) {
 				return bad
 			}
 		case model.RadioOfferMarkMatching, model.RadioOfferDemarkMatching:
-			if !countryCode.MatchString(st.Country) || utf8.RuneCountInString(st.Q) > offerQueryMax {
+			if !offerCountry(st.Country) || utf8.RuneCountInString(st.Q) > offerQueryMax {
 				return bad
 			}
 		case model.RadioOfferMark, model.RadioOfferDemark:
@@ -347,7 +351,7 @@ func (s *Service) PreviewOffer(ctx context.Context, steps []model.RadioOfferStep
 	if err := validateOfferSteps(steps); err != nil {
 		return model.RadioOfferPreview{}, err
 	}
-	if list != nil && (!countryCode.MatchString(list.Country) || utf8.RuneCountInString(list.Q) > offerQueryMax ||
+	if list != nil && (!offerCountry(list.Country) || utf8.RuneCountInString(list.Q) > offerQueryMax ||
 		list.Offset < 0 || list.Limit < 1 || list.Limit > offerListMax) {
 		return model.RadioOfferPreview{}, (*model.ValidationError)(nil).Add("list", "invalid_value")
 	}
@@ -403,7 +407,7 @@ func (c *offerCalc) page(o *offerState, l model.RadioOfferListQuery) *model.Radi
 	}
 	for _, e := range hits[l.Offset:min(len(hits), l.Offset+l.Limit)] {
 		page.Items = append(page.Items, model.RadioOfferStation{ID: e.st.ID, Name: e.st.Name, LogoHash: e.st.LogoHash,
-			Tags: []string{}, Broken: e.broken, Offered: o.offered(e), Own: e.own})
+			Tags: []string{}, Broken: e.broken, Offered: o.offered(e)})
 	}
 	return page
 }
@@ -440,15 +444,19 @@ func (s *Service) ApplyOffer(ctx context.Context, version int64, steps []model.R
 	if err := validateOfferSteps(steps); err != nil {
 		return model.RadioOfferApplied{}, err
 	}
+	s.cat.offerMu.Lock()
+	// The index and the favourites are read under the lock, so a sync that swapped the index
+	// meanwhile cannot leave a country step on the stations of the old one.
 	idx, err := s.index(ctx)
 	if err != nil {
+		s.cat.offerMu.Unlock()
 		return model.RadioOfferApplied{}, err
 	}
 	favs, err := s.favoriteSet(ctx)
 	if err != nil {
+		s.cat.offerMu.Unlock()
 		return model.RadioOfferApplied{}, err
 	}
-	s.cat.offerMu.Lock()
 	cur, err := s.offerLocked(ctx)
 	if err != nil {
 		s.cat.offerMu.Unlock()
@@ -468,10 +476,17 @@ func (s *Service) ApplyOffer(ctx context.Context, version int64, steps []model.R
 	}
 	s.cat.offer.Store(draft)
 	s.cat.offerMu.Unlock()
+	// The offer is stored: what follows must not stop when the admin closes the page.
+	ctx = context.WithoutCancel(ctx)
 	s.log.InfoContext(ctx, "radio offer stored", "version", draft.version, "countries", len(draft.countries),
 		"exceptions", len(draft.exceptions))
 	s.closeUnreachable(ctx)
-	queued := s.queueOfferLogos(ctx, idx, cur, draft, favs)
+	logos := offerLogoIDs(idx, cur, draft, favs)
+	// Thousands of logo jobs (a large country) are queued in the background, not in the request.
+	if len(logos) > 0 && !s.cat.bg.goFn(func(bg context.Context) { s.queueLogos(bg, logos) }) {
+		logos = nil
+	}
+	queued := len(logos)
 	offer, _, _ := calc.summary(draft, nil)
 	if demarked == nil {
 		demarked = []int64{}
@@ -547,9 +562,9 @@ func logoOrder(list []*indexEntry, favs map[int64]bool) {
 	})
 }
 
-// queueOfferLogos queues the logos of the stations the apply took into the offer that have none
-// (B7.2) and returns how many it queued.
-func (s *Service) queueOfferLogos(ctx context.Context, idx *stationIndex, before, after *offerState, favs map[int64]bool) int {
+// offerLogoIDs returns the stations the apply took into the offer that have no logo (B7.2),
+// favourites first, then by popularity.
+func offerLogoIDs(idx *stationIndex, before, after *offerState, favs map[int64]bool) []int64 {
 	var added []*indexEntry
 	for _, e := range idx.entries {
 		if e.st.LogoHash == "" && after.offered(e) && !before.offered(e) {
@@ -561,7 +576,7 @@ func (s *Service) queueOfferLogos(ctx context.Context, idx *stationIndex, before
 	for _, e := range added {
 		ids = append(ids, e.st.ID)
 	}
-	return s.queueLogos(ctx, ids)
+	return ids
 }
 
 // errOfferSeed wraps a failure of the first-start preparation.

@@ -528,3 +528,25 @@ func BenchmarkOfferPreview(b *testing.B) {
 		}
 	}
 }
+
+// A country step names a country of the country list: an ISO code with a continent (OB-7). A code
+// without one (ZZ) or in lower case is invalid_value on steps, in the steps and in the list.
+func TestOfferStepsNeedACountryWithAContinent(t *testing.T) {
+	for _, c := range []struct {
+		country string
+		ok      bool
+	}{{"CH", true}, {"XK", true}, {"ZZ", false}, {"ch", false}, {"", false}} {
+		for _, op := range []string{model.RadioOfferChooseCountry, model.RadioOfferRemoveCountry, model.RadioOfferMarkAll,
+			model.RadioOfferDemarkAll, model.RadioOfferMarkMatching, model.RadioOfferDemarkMatching} {
+			err := validateOfferSteps([]model.RadioOfferStep{{Op: op, Country: c.country}})
+			if (err == nil) != c.ok {
+				t.Errorf("%s %q: %v, want ok %v", op, c.country, err, c.ok)
+			}
+		}
+	}
+	e := newCatEnv(t)
+	e.sync()
+	if _, err := e.s.PreviewOffer(e.ctx, nil, &model.RadioOfferListQuery{Country: "ZZ", Limit: 100}); err == nil {
+		t.Error("preview list of ZZ accepted")
+	}
+}

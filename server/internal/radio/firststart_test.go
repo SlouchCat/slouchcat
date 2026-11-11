@@ -153,8 +153,24 @@ DELETE FROM radio_station_tags WHERE station_id = 7;`)
 	if _, err := s.Station(ctx, catSession(1), 3); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("the hidden Swiss station with CH chosen: %v, want not found", err)
 	}
-	// A second start finds the flag and changes nothing.
+	// A run the restart cut off repeats as a whole (the flag is still 0): it writes the same
+	// exceptions, facets and providers again and touches the chosen countries not.
 	before := count(`SELECT count(*) FROM radio_offer_exceptions`)
+	facetRows := count(`SELECT count(*) FROM radio_station_facets`)
+	providers := count(`SELECT count(*) FROM radio_stations WHERE provider IS NOT NULL`)
+	if _, err := db.Write.ExecContext(ctx, `UPDATE radio_config SET offer_seeded = 0`); err != nil {
+		t.Fatal(err)
+	}
+	if err := New(db, catDiscard).Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if count(`SELECT offer_seeded FROM radio_config`) != 1 || count(`SELECT count(*) FROM radio_offer_exceptions`) != before ||
+		count(`SELECT count(*) FROM radio_station_facets`) != facetRows ||
+		count(`SELECT count(*) FROM radio_stations WHERE provider IS NOT NULL`) != providers ||
+		count(`SELECT count(*) FROM radio_offer_countries WHERE country = 'CH'`) != 1 {
+		t.Errorf("a repeated preparation changed the state")
+	}
+	// A second start finds the flag and changes nothing.
 	if err := New(db, catDiscard).Start(ctx); err != nil {
 		t.Fatal(err)
 	}

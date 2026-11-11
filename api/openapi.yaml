@@ -18186,7 +18186,7 @@ components:
 
     RadioOfferStation:
       type: object
-      required: [id, name, tags, broken, offered, own]
+      required: [id, name, tags, broken, offered]
       properties:
         id:
           type: integer
@@ -18207,8 +18207,6 @@ components:
         offered:
           type: boolean
           description: In the offer of the draft.
-        own:
-          type: boolean
 
     RadioOfferStationPage:
       type: object

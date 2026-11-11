@@ -526,6 +526,16 @@ func (q *Queries) RecordRadioRelayAbort(ctx context.Context, arg RecordRadioRela
 	return i, err
 }
 
+const resetRadioLogoQueued = `-- name: ResetRadioLogoQueued :exec
+UPDATE radio_stations SET logo_state = 'none' WHERE id = ?1 AND logo_state = 'queued'
+`
+
+// Undoes MarkRadioLogoQueued when the job could not be queued, so the next trigger queues it again.
+func (q *Queries) ResetRadioLogoQueued(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, resetRadioLogoQueued, id)
+	return err
+}
+
 const resetRadioRelayFailures = `-- name: ResetRadioRelayFailures :execrows
 UPDATE radio_stations SET failures = 0 WHERE id = ?1 AND failures > 0
 `
