@@ -96,7 +96,7 @@ func (s *Service) removeImageFolder(ctx context.Context, root *os.Root, id strin
 		return false, err
 	}
 	defer unlock()
-	if err := root.RemoveAll(dir); err != nil {
+	if err := root.RemoveAll(dir); err != nil { //nolint:forbidigo // the cache root (images), never a library root (ADR 0032)
 		return false, fmt.Errorf("remove image folder of %s: %w", id, err)
 	}
 	return true, nil

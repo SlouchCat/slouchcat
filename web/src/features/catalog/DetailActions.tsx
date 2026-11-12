@@ -223,6 +223,7 @@ export function DetailActions({ item, file, target, onTrailer }: DetailActionsPr
     (DELETABLE_KINDS.has(item.kind) ||
       (item.kind === 'podcast_episode' && item.mediaFiles.length > 0));
   const [deleting, setDeleting] = useState(false);
+  const [deletedNote, setDeletedNote] = useState<string | null>(null);
   const navigate = useNavigate();
 
   return (
@@ -358,8 +359,13 @@ export function DetailActions({ item, file, target, onTrailer }: DetailActionsPr
             itemId={item.id}
             isOpen
             onOpenChange={setDeleting}
-            onDeleted={() => {
+            onDeleted={(result, _preview, message) => {
               setDeleting(false);
+              // Files that could not go keep the title: the page stays and says what is left.
+              if (result.titleDeleted === false && result.leftover.length > 0) {
+                setDeletedNote(message);
+                return;
+              }
               const href = item.parentId
                 ? paths.item(item.parentId)
                 : item.libraryId !== undefined
@@ -373,6 +379,7 @@ export function DetailActions({ item, file, target, onTrailer }: DetailActionsPr
       {pickHint && !failed && <Notice title={pickHint} />}
       {failed && <Notice tone="danger" title={problemMessage(t, failed)} />}
       {watched.error && <Notice tone="danger" title={watched.error} />}
+      {deletedNote && <Notice tone="warning" title={deletedNote} />}
       {watched.dialog}
     </>
   );

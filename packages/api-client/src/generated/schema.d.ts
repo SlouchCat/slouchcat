@@ -2025,7 +2025,25 @@ export interface paths {
          *     and watchlist entries stay, the downloads on the devices go. The scanner never brings them
          *     back, whatever happens in their folders: a new file there (another version, a new episode
          *     or season) joins the title and stays out with it. `listRemovedItems` lists them,
-         *     `restoreRemovedItem` brings them back. With more than one file `confirmTitle` must repeat
+         *     `restoreRemovedItem` brings them back.
+         *
+         *     `mode` `files` («Auch die Dateien löschen», ADR 0032) deletes, in this order and nothing
+         *     else: the media files of the title, of every title below it and of its extras; the image
+         *     and metadata files Slouchcat read for them (recorded local images, the folder cover of a
+         *     book or podcast, `movie.nfo`, `tvshow.nfo`, `season.nfo` and `metadata.json` of a folder
+         *     once no media file of any title is left in it); companions next to a deleted media file
+         *     whose name starts with its whole stem followed by `.` or `-`; then the folders left empty,
+         *     up to below the library root. A file that is a media file of another title is never
+         *     deleted; a hard link of another title's file stays and is named. Nothing is deleted
+         *     recursively; `leftInFolder` counts what stays. A missing file counts as deleted. The rows of
+         *     the deleted files go at once; when no file of the title is left, the title is deleted for
+         *     good with all its user data (`titleDeleted`, O-14), otherwise it stays with the files that
+         *     are left (`leftover`). A podcast episode that has an enclosure stays as a reference from its
+         *     feed. Refused when a file cannot be deleted (`files_not_deletable`, see `filesReason` of the
+         *     preview). The media folders are read-only by default; deleting needs a folder the operator
+         *     mounted writable on purpose.
+         *
+         *     With more than one file `confirmTitle` must repeat
          *     `confirmTitle` of the preview (without case and surrounding spaces, `confirm_mismatch`).
          *     Refused while a profile plays one of the titles (`playing`, the problem names the profiles)
          *     and while a scan of its library runs (`scan_running`). Every delete writes an activity
@@ -8068,6 +8086,17 @@ export interface components {
             totalBytes: number;
             /** @description Profiles that play one of the titles right now (O-13); empty when none. */
             playingProfiles: string[];
+            /**
+             * @description Whether `mode` `files` is possible: every file is deletable (or a hard link of another
+             *     title's file, which stays), and at least one is. Checked without writing anything (ADR
+             *     0032).
+             */
+            filesDeletable: boolean;
+            /**
+             * @description Why `mode` `files` is not possible: the reason of the first file that cannot be deleted
+             *     (see `DeletionFile.reason`), or `no_files`. Absent when it is possible.
+             */
+            filesReason?: string;
         };
         DeletionFile: {
             /** @description The folder of the library root in the container. */
@@ -8076,6 +8105,20 @@ export interface components {
             path: string;
             /** Format: int64 */
             sizeBytes: number;
+            /**
+             * @description Whether the server may delete the file, checked without writing (ADR 0032): the file
+             *     system of its folder is not mounted read-only (statfs) and the server may write in the
+             *     folder of the file (faccessat). A missing file counts as deletable.
+             */
+            deletable: boolean;
+            /**
+             * @description Fixed code: `read_only` (the folder's file system is mounted read-only), `no_permission`
+             *     (the server may not write in the folder), `shared` (a hard link of another title's file;
+             *     it stays), `not_regular` (a symlink or no regular file), `unreachable` (the root or the
+             *     folder cannot be opened), `missing` (already gone, counts as deleted). Absent for a file
+             *     that can be deleted.
+             */
+            reason?: string;
         };
         /** @description The folder the files share below their library root (`path` empty for the root itself). */
         DeletionFolder: {
@@ -8084,10 +8127,11 @@ export interface components {
         };
         ItemDeletionRequest: {
             /**
-             * @description `library`: only out of Slouchcat, the files stay.
+             * @description `library`: only out of Slouchcat, the files stay. `files`: the files are deleted as well,
+             *     and the title for good when none of its files is left (ADR 0032).
              * @enum {string}
              */
-            mode: "library";
+            mode: "library" | "files";
             /** @description The title, typed; required when the preview says `typeTitle`. */
             confirmTitle?: string;
         };
@@ -8099,11 +8143,24 @@ export interface components {
             deletedBytes: number;
             /** @description Files that stayed, with why. */
             leftover: components["schemas"]["DeletionLeftover"][];
+            /**
+             * @description Entries Slouchcat does not know that stay in the folders of the title (`files`; nothing
+             *     is deleted recursively).
+             */
+            leftInFolder?: number;
+            /**
+             * @description The title went for good with everything on it, progress, check marks and watchlist
+             *     included (`files`, no file of it left, O-14).
+             */
+            titleDeleted?: boolean;
         };
         DeletionLeftover: {
             rootPath: string;
             path: string;
-            /** @description Fixed code of why the file stayed. */
+            /**
+             * @description Fixed code of why the file stayed: `shared`, `no_permission`, `not_regular`, `unreachable`
+             *     or `failed` (the delete itself failed).
+             */
             reason: string;
         };
         RemovedItemPage: {
@@ -8353,6 +8410,12 @@ export interface components {
             itemCount: number;
             /** @description Media files registered in this folder; they all go with the folder. */
             fileCount: number;
+            /**
+             * @description The folder's file system is mounted read-only (statfs, checked without writing; ADR
+             *     0032), so Slouchcat cannot delete a file in it. Absent when the check did not answer in
+             *     time (a hanging network share).
+             */
+            readOnly?: boolean;
         };
         LibraryScan: {
             state: components["schemas"]["ScanState"];
@@ -15477,8 +15540,9 @@ export interface operations {
                 };
             };
             /**
-             * @description The title has no delete (`not_deletable`), the typed title does not match
-             *     (`confirm_mismatch`), or the mode is unknown (`validation_failed`).
+             * @description The title has no delete (`not_deletable`), a file cannot be deleted with `mode` `files`
+             *     (`files_not_deletable`), the typed title does not match (`confirm_mismatch`), or the mode
+             *     is unknown (`validation_failed`).
              */
             422: {
                 headers: {

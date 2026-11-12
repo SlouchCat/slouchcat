@@ -26,9 +26,12 @@ func (s *server) GetItemDeletion(ctx context.Context, req gen.GetItemDeletionReq
 		ItemId: p.ItemID, Kind: gen.ItemKind(p.Kind), ConfirmTitle: p.ConfirmTitle, TypeTitle: p.TypeTitle,
 		Files: make([]gen.DeletionFile, 0, len(p.Files)), Folder: toDeletionFolder(p.Folder),
 		FileCount: p.FileCount, TotalBytes: p.TotalBytes, PlayingProfiles: append([]string{}, p.PlayingProfiles...),
+		FilesDeletable: p.FilesDeletable, FilesReason: optString(p.FilesReason),
 	}
 	for _, f := range p.Files {
-		out.Files = append(out.Files, gen.DeletionFile{RootPath: f.RootPath, Path: f.Path, SizeBytes: f.SizeBytes})
+		out.Files = append(out.Files, gen.DeletionFile{
+			RootPath: f.RootPath, Path: f.Path, SizeBytes: f.SizeBytes, Deletable: f.Deletable, Reason: optString(f.Reason),
+		})
 	}
 	return out, nil
 }
@@ -42,7 +45,7 @@ func (s *server) DeleteItem(ctx context.Context, req gen.DeleteItemRequestObject
 	}
 	out := gen.DeleteItem200JSONResponse{
 		RemovedItems: r.RemovedItems, DeletedFiles: r.DeletedFiles, DeletedBytes: r.DeletedBytes,
-		Leftover: make([]gen.DeletionLeftover, 0, len(r.Leftover)),
+		Leftover: make([]gen.DeletionLeftover, 0, len(r.Leftover)), LeftInFolder: &r.LeftInFolder, TitleDeleted: &r.TitleDeleted,
 	}
 	for _, l := range r.Leftover {
 		out.Leftover = append(out.Leftover, gen.DeletionLeftover{RootPath: l.RootPath, Path: l.Path, Reason: l.Reason})

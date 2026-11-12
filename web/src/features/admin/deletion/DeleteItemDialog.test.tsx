@@ -20,6 +20,8 @@ const filmPreview = {
   fileCount: 1,
   totalBytes: 4_000_000_000,
   playingProfiles: [],
+  filesDeletable: false,
+  filesReason: 'read_only',
 };
 
 describe('deleting a title', () => {
@@ -110,5 +112,73 @@ describe('deleting a title', () => {
       mode: 'library',
       confirmTitle: 'the show',
     });
+  });
+
+  it('«Auch die Dateien löschen» is grey with the reason on a read-only folder', async () => {
+    mockApi({
+      ...signedIn,
+      [`GET /items/${ids.alien}`]: () => json(alienDetail),
+      [`GET /admin/items/${ids.alien}/deletion`]: () => json(filmPreview),
+    });
+    renderApp(`/items/${ids.alien}`);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Löschen' }));
+    const dialog = await screen.findByRole('dialog', { name: '«Alien» löschen?' });
+    expect(within(dialog).getByRole('radio', { name: 'Auch die Dateien löschen' })).toBeDisabled();
+    expect(
+      within(dialog).getByText(/Geht nicht: der Ordner ist nur lesbar eingebunden/),
+    ).toBeVisible();
+  });
+
+  it('with the files: «endgültig», the red button; a file that stayed keeps the page', async () => {
+    let answer: 'kept' | 'gone' = 'kept';
+    const { calls } = mockApi({
+      ...signedIn,
+      [`GET /items/${ids.alien}`]: () => json({ ...alienDetail, libraryId: 1 }),
+      [`GET /admin/items/${ids.alien}/deletion`]: () =>
+        json({ ...filmPreview, filesDeletable: true, filesReason: undefined }),
+      [`POST /admin/items/${ids.alien}/deletion`]: () =>
+        answer === 'kept'
+          ? json({
+              removedItems: 0,
+              deletedFiles: 1,
+              deletedBytes: 2e9,
+              leftover: [
+                { rootPath: '/media/filme', path: 'Alien (1979)/b.mkv', reason: 'failed' },
+              ],
+              leftInFolder: 3,
+              titleDeleted: false,
+            })
+          : json({
+              removedItems: 1,
+              deletedFiles: 1,
+              deletedBytes: 4e9,
+              leftover: [],
+              leftInFolder: 0,
+              titleDeleted: true,
+            }),
+    });
+    const { router } = renderApp(`/items/${ids.alien}`);
+    const user = userEvent.setup();
+    const open = async () => {
+      await user.click(await screen.findByRole('button', { name: 'Löschen' }));
+      return screen.findByRole('dialog', { name: '«Alien» löschen?' });
+    };
+    let dialog = await open();
+    await user.click(within(dialog).getByText('Auch die Dateien löschen'));
+    expect(within(dialog).getByText(/endgültig gelöscht, es gibt keinen Papierkorb/)).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Endgültig löschen' }));
+    expect(await screen.findByText(/der Titel bleibt mit den Dateien/)).toBeVisible();
+    expect(
+      screen.getByText(/3 Dateien, die Slouchcat nicht kennt, bleiben im Ordner/),
+    ).toBeVisible();
+    expect(router.state.location.pathname).toBe(`/items/${ids.alien}`);
+    expect(calls.find((call) => call.method === 'POST')?.body).toEqual({ mode: 'files' });
+
+    answer = 'gone';
+    dialog = await open();
+    await user.click(within(dialog).getByText('Auch die Dateien löschen'));
+    await user.click(within(dialog).getByRole('button', { name: 'Endgültig löschen' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/libraries/1'));
   });
 });

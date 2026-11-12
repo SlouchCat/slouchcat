@@ -361,7 +361,7 @@ func removeTrickplaySet(cache paths.Root, rel string) error {
 		return err
 	}
 	defer root.Close()
-	return root.RemoveAll(rel)
+	return root.RemoveAll(rel) //nolint:forbidigo // the cache root (trickplay), never a library root (ADR 0032)
 }
 
 // parseTrickplaySet splits a set folder name (also of a set made again, <name>.next) into media
@@ -485,7 +485,7 @@ func (s *Service) sweepTrickplayTemp(ctx context.Context, cache paths.Root, rel 
 			continue
 		}
 		if strings.HasPrefix(e.Name(), trickplayTempPrefix) && now.Sub(info.ModTime()) >= chapterTempMaxAge {
-			if err := root.Remove(rel + "/" + e.Name()); err != nil {
+			if err := root.Remove(rel + "/" + e.Name()); err != nil { //nolint:forbidigo // the cache root (trickplay), never a library root (ADR 0032)
 				s.log.WarnContext(ctx, "remove temporary trickplay file", "file", e.Name(), "err", err)
 			}
 			continue

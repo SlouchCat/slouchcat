@@ -58,6 +58,10 @@ func TestContractItemDeletion(t *testing.T) {
 		preview.ConfirmTitle == "" || preview.Kind != gen.ItemKindMovie || len(preview.PlayingProfiles) != 0 {
 		t.Fatalf("preview = %+v", preview)
 	}
+	// The fixture's files lie in a temporary folder of the test: deletable (ADR 0032).
+	if !preview.FilesDeletable || preview.FilesReason != nil || !preview.Files[0].Deletable {
+		t.Errorf("files verdict = %v %v, file %+v", preview.FilesDeletable, preview.FilesReason, preview.Files[0])
+	}
 	confirm := `{"mode":"library","confirmTitle":` + strconv.Quote(strings.ToUpper(preview.ConfirmTitle)) + `}`
 	rec = send(t, pf.h, http.MethodPost, path, "p18", confirm, nil)
 	wantStatus(t, rec, http.StatusOK)
@@ -78,6 +82,20 @@ func TestContractItemDeletion(t *testing.T) {
 	rec = send(t, pf.h, http.MethodPost, BasePath+"/admin/maintenance/removed/"+fixtureFilm6+"/restore", "p18", "", nil)
 	wantStatus(t, rec, http.StatusOK)
 	wantStatus(t, send(t, pf.h, http.MethodGet, BasePath+"/admin/items/"+fixtureFilm6, "p18", "", nil), http.StatusOK)
+	// «Auch die Dateien löschen»: the files go, and the title for good (O-14); it is not listed
+	// among the removed titles.
+	rec = send(t, pf.h, http.MethodPost, path, "p18", confirm[:len(`{"mode":"`)]+`files"`+confirm[len(`{"mode":"library"`):], nil)
+	wantStatus(t, rec, http.StatusOK)
+	decode(t, rec, &result)
+	if result.DeletedFiles != preview.FileCount || result.TitleDeleted == nil || !*result.TitleDeleted || len(result.Leftover) != 0 {
+		t.Errorf("files result = %+v", result)
+	}
+	wantStatus(t, send(t, pf.h, http.MethodGet, BasePath+"/admin/items/"+fixtureFilm6, "p18", "", nil), http.StatusNotFound)
+	rec = send(t, pf.h, http.MethodGet, BasePath+"/admin/maintenance/removed", "p18", "", nil)
+	decode(t, rec, &page)
+	if page.Total != 0 {
+		t.Errorf("removed after the delete with files = %+v", page)
+	}
 	// An unknown mode is refused (validation_failed).
 	wantStatus(t, send(t, pf.h, http.MethodPost, path, "p18", `{"mode":"trash"}`, nil), http.StatusUnprocessableEntity)
 }

@@ -23,6 +23,9 @@ const TITLE = 'E2E Entfernfilm';
 const base = join(MEDIA_DIR, '.e2e', NAME);
 const film = join(base, `${TITLE} (2003)`, `${TITLE} (2003).mp4`);
 
+// The second test deletes the film the first one took out and back in.
+test.describe.configure({ mode: 'serial' });
+
 let libraryId = 0;
 let itemId = '';
 
@@ -125,4 +128,35 @@ test('a title is taken out of Slouchcat and back in, by keyboard @keyboard', asy
   await expect(page.getByRole('heading', { level: 1, name: 'Pflege' })).toBeFocused();
   await expectNoFocusTrap(page);
   expect((await page.request.get(`/api/v1/items/${itemId}`)).status()).toBe(200);
+});
+
+test('the title is deleted with its file, by keyboard, in a writable folder @keyboard', async ({
+  page,
+}) => {
+  itemId = await prepare(page.request);
+  await page.goto(`/items/${itemId}`);
+  await expect(page.getByRole('heading', { level: 1, name: TITLE })).toBeVisible();
+  await resetFocus(page);
+  await tabTo(page, page.getByRole('button', { name: 'Löschen', exact: true }), 40);
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: `«${TITLE}» löschen?` });
+  await expect(dialog).toBeVisible();
+  // The run's media folder is writable, so the second choice is open; ↓ picks it.
+  const files = dialog.getByRole('radio', { name: 'Auch die Dateien löschen' });
+  await expect(files).toBeEnabled();
+  await page.keyboard.press('ArrowDown');
+  await expect(files).toBeChecked();
+  await expectVisibleFocus(page);
+  await expect(dialog.getByText(/endgültig gelöscht, es gibt keinen Papierkorb/)).toBeVisible();
+  const confirm = dialog.getByRole('button', { name: 'Endgültig löschen' });
+  await tabTo(page, confirm, 10);
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(new RegExp(`/libraries/${libraryId}$`));
+  expect(existsSync(film)).toBe(false);
+  expect((await page.request.get(`/api/v1/items/${itemId}`)).status()).toBe(404);
+  // Gone for good: not among the removed titles.
+  const removed = (await (await page.request.get('/api/v1/admin/maintenance/removed')).json()) as {
+    items: { id: string }[];
+  };
+  expect(removed.items.some((item) => item.id === itemId)).toBe(false);
 });

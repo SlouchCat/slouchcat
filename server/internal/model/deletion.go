@@ -49,6 +49,30 @@ const (
 // is only a reference from the feed, O-5; 422 not_deletable).
 var ErrNotDeletable = errors.New("not deletable")
 
+// ErrFilesNotDeletable: «Auch die Dateien löschen» while a file cannot be deleted (a folder
+// mounted read-only, missing rights; 422 files_not_deletable, ADR 0032). Nothing was deleted.
+var ErrFilesNotDeletable = errors.New("files not deletable")
+
+// FilesNotDeletableError is ErrFilesNotDeletable with the fixed code of the first file's reason.
+type FilesNotDeletableError struct {
+	Reason string
+}
+
+func (e *FilesNotDeletableError) Error() string { return "files not deletable: " + e.Reason }
+
+func (e *FilesNotDeletableError) Unwrap() error { return ErrFilesNotDeletable }
+
+// Reasons of a file that cannot be deleted or stayed (DeletionFile.Reason, DeletionLeftover.Reason).
+const (
+	DeleteReasonReadOnly     = "read_only"     // the folder's file system is mounted read-only
+	DeleteReasonNoPermission = "no_permission" // the server may not write in the file's folder
+	DeleteReasonShared       = "shared"        // the file (a hard link) is also the file of another title
+	DeleteReasonNotRegular   = "not_regular"   // a symlink or something else that is no regular file
+	DeleteReasonUnreachable  = "unreachable"   // the root or the folder cannot be opened
+	DeleteReasonMissing      = "missing"       // already gone; counts as deleted
+	DeleteReasonFailed       = "failed"        // the delete itself failed
+)
+
 // ItemDeletionPreview is what a delete of a title would touch: its media files and those of every
 // title below it with the folder of their library root, how many and how big, the title the
 // administrator types when there is more than one file (TypeTitle), the folder of the title when
@@ -63,6 +87,11 @@ type ItemDeletionPreview struct {
 	FileCount       int
 	TotalBytes      int64
 	PlayingProfiles []string
+	// FilesDeletable: «Auch die Dateien löschen» is possible (every file deletable, or shared and
+	// staying, and one at least deletable); FilesReason is why not (the first file's reason, or
+	// no_files).
+	FilesDeletable bool
+	FilesReason    string
 }
 
 // DeletionFile is one media file of a preview.
@@ -70,6 +99,8 @@ type DeletionFile struct {
 	RootPath  string
 	Path      string // relative to RootPath
 	SizeBytes int64
+	Deletable bool
+	Reason    string // DeleteReason*; empty for a deletable file
 }
 
 // DeletionFolder is the folder the files of a title share, below its library root.
@@ -85,6 +116,10 @@ type ItemDeletionResult struct {
 	DeletedFiles int
 	DeletedBytes int64
 	Leftover     []DeletionLeftover
+	// LeftInFolder counts the entries Slouchcat did not know that stay in the folders of the
+	// title (no recursive delete); TitleDeleted says whether the title went for good (O-14).
+	LeftInFolder int
+	TitleDeleted bool
 }
 
 // DeletionLeftover is a file that stayed, with the fixed code of why.

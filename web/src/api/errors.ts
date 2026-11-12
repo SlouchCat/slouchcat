@@ -96,6 +96,8 @@ const problemKeys = {
   offer_conflict: 'errors.code.offer_conflict',
   // Deleting a library or a title (concept 20 stage 5, O-13): a profile plays one of its titles.
   playing: 'errors.code.playing',
+  not_deletable: 'errors.code.not_deletable',
+  files_not_deletable: 'errors.code.files_not_deletable',
 } as const;
 
 // Field error codes (`Problem.errors[].code`); unknown codes read as "invalid value".

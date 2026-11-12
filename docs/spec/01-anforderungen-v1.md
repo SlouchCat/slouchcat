@@ -85,7 +85,7 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 - [ ] K-8 Zugriff von ausserhalb des Heimnetzes funktioniert über HTTPS mit denselben Konten; alle Rechte werden serverseitig durchgesetzt.
 
 ### Video-Bibliothek und Metadaten (B)
-- [ ] B-1 Der Admin legt Bibliotheken auf Ordner an (Typ Filme oder Serien) und bindet Medien read-only ein.
+- [ ] B-1 Der Admin legt Bibliotheken auf Ordner an (Typ Filme oder Serien) und bindet Medien read-only ein. *(Nachtrag 12. November 2026, ADR 0029 und ADR 0032: Die Vorgabe bleibt read-only. Einen Ordner, den der Betreiber selbst schreibbar einbindet, nutzt Slouchcat für neue Podcast-Folgen und, nur auf Befehl des Administrators, zum Löschen der Dateien eines Titels; nichts löscht automatisch.)*
 - [ ] B-2 Dateien in üblicher Benennung (Plex/Jellyfin-Konvention) sowie NFO-Dateien werden korrekt als Film, Serie, Staffel, Folge erkannt.
 - [ ] B-3 Metadaten und Bilder kommen von TMDB und TVDB in Deutsch und Englisch; Sprache ist je Profil wählbar.
 - [ ] B-4 Änderungen im Ordner (neu, umbenannt, gelöscht) erscheinen ohne manuellen Scan innerhalb einer Minute.

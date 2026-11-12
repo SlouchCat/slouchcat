@@ -1637,6 +1637,9 @@ type LibraryRoot struct {
 	// (idea 02, E12).
 	ItemCount int
 	FileCount int
+	// ReadOnly: the folder's file system is mounted read-only (ADR 0032); nil when the check did
+	// not answer in time.
+	ReadOnly *bool
 }
 
 // LibraryScan is the state of the running or last scan.

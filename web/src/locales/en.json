@@ -196,7 +196,9 @@
       "root_not_writable": "The podcast folder fails the folder check; Slouchcat cannot store episodes there.",
       "root_required": "The library has no podcast folder Slouchcat could store episodes in.",
       "playing": "Someone is playing one of these titles right now. It can be deleted once the playback has ended.",
-      "playing_named": "One of these titles is playing for {{names}} right now. It can be deleted once the playback has ended; nothing was deleted."
+      "playing_named": "One of these titles is playing for {{names}} right now. It can be deleted once the playback has ended; nothing was deleted.",
+      "files_not_deletable": "A file of the title cannot be deleted. Nothing was deleted.",
+      "not_deletable": "This title cannot be deleted."
     },
     "field": {
       "required": "Required.",
@@ -1730,7 +1732,9 @@
           "body": "Old path: {{old}} · New path: {{new}}. Titles and user data stay when the files lie there under the same names. The folder is read anew afterwards.",
           "confirm": "Change",
           "saved": "The folder now lies at {{path}} and is read anew."
-        }
+        },
+        "readOnly": "read-only",
+        "writable": "writable"
       },
       "openFolders": "Folders",
       "openFoldersLabel": "Edit the folders of {{name}}",
@@ -4717,7 +4721,8 @@
       "loading": "Delete title",
       "choice": "What should happen?",
       "mode": {
-        "library": "Only take it out of Slouchcat"
+        "library": "Only take it out of Slouchcat",
+        "files": "Delete the files as well"
       },
       "libraryHint": "The files stay on the disk. The title stays out even when new files arrive; under “Maintenance › Removed titles” it can be taken back with progress, check marks and watchlist.",
       "everywhere": "The title leaves every list of every profile; downloads on the devices are removed.",
@@ -4731,10 +4736,30 @@
       "typeLabel": "Type the title to confirm",
       "typeHint": "Type {{title}} (any case) to enable the button.",
       "confirm": {
-        "library": "Take out of Slouchcat"
+        "library": "Take out of Slouchcat",
+        "files": "Delete for good"
       },
       "done": {
-        "library": "“{{title}}” is taken out of Slouchcat. The files are still there."
+        "library": "“{{title}}” is taken out of Slouchcat. The files are still there.",
+        "files_one": "“{{title}}” is deleted, {{count}} file ({{size}}).",
+        "files_other": "“{{title}}” is deleted, {{count}} files ({{size}}).",
+        "kept_one": "“{{title}}”: {{count}} file deleted ({{size}}); the title stays with the files that could not be deleted.",
+        "kept_other": "“{{title}}”: {{count}} files deleted ({{size}}); the title stays with the files that could not be deleted.",
+        "left_one": "{{count}} file Slouchcat does not know stays in the folder.",
+        "left_other": "{{count}} files Slouchcat does not know stay in the folder."
+      },
+      "filesHint": "The files are deleted for good; there is no trash. When no file is left, the title is gone for good with progress, check marks and watchlist. If Radarr or Sonarr loads it again later, it shows up as a new title.",
+      "notDeletable": "Not possible: {{reason}}",
+      "leftover": "Stayed: {{path}} ({{reason}})",
+      "reason": {
+        "read_only": "the folder is mounted read-only",
+        "no_permission": "Slouchcat may not write in the folder",
+        "shared": "the file belongs to another title as well",
+        "not_regular": "not a regular file",
+        "unreachable": "the folder cannot be reached",
+        "missing": "already gone (counts as deleted)",
+        "failed": "delete failed",
+        "no_files": "no file recorded"
       }
     }
   },

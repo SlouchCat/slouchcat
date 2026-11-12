@@ -215,8 +215,8 @@ func (a *animeLists) ensure(ctx context.Context) error {
 			// AniList for a week: it goes, the list is fetched again.
 			a.log.Warn("cached anime list unreadable, fetching it again", "err", err)
 		}
-		_ = root.Remove(rel)
-		_ = root.Remove(animeListsDir + "/" + animeListsETagFile)
+		_ = root.Remove(rel)                                      //nolint:forbidigo // the cache root (anime lists), never a library root (ADR 0032)
+		_ = root.Remove(animeListsDir + "/" + animeListsETagFile) //nolint:forbidigo // the cache root (anime lists), never a library root (ADR 0032)
 		cached = false
 	}
 	etag := ""
@@ -295,17 +295,17 @@ func (a *animeLists) download(ctx context.Context, root *os.Root, rel, etag stri
 	closeErr := f.Close()
 	switch {
 	case err != nil:
-		_ = root.Remove(tmp)
+		_ = root.Remove(tmp) //nolint:forbidigo // the cache root (anime lists), never a library root (ADR 0032)
 		return fmt.Errorf("%w: anime lists: read: %w", model.ErrTMDBUnreachable, err)
 	case closeErr != nil:
-		_ = root.Remove(tmp)
+		_ = root.Remove(tmp) //nolint:forbidigo // the cache root (anime lists), never a library root (ADR 0032)
 		return fmt.Errorf("anime lists: %w", closeErr)
 	case n > maxAnimeListBytes:
-		_ = root.Remove(tmp)
+		_ = root.Remove(tmp) //nolint:forbidigo // the cache root (anime lists), never a library root (ADR 0032)
 		return errAnimeListTooLarge
 	}
 	if err := root.Rename(tmp, rel); err != nil {
-		_ = root.Remove(tmp)
+		_ = root.Remove(tmp) //nolint:forbidigo // the cache root (anime lists), never a library root (ADR 0032)
 		return fmt.Errorf("anime lists: %w", err)
 	}
 	etagRel := animeListsDir + "/" + animeListsETagFile
@@ -313,7 +313,7 @@ func (a *animeLists) download(ctx context.Context, root *os.Root, rel, etag stri
 		if err := root.WriteFile(etagRel, []byte(tag), 0o644); err != nil {
 			return fmt.Errorf("anime lists: %w", err)
 		}
-	} else if err := root.Remove(etagRel); err != nil && !errors.Is(err, os.ErrNotExist) {
+	} else if err := root.Remove(etagRel); err != nil && !errors.Is(err, os.ErrNotExist) { //nolint:forbidigo // the cache root (anime lists), never a library root (ADR 0032)
 		// An old tag beside a new body would ask the host about the wrong version.
 		return fmt.Errorf("anime lists: %w", err)
 	}

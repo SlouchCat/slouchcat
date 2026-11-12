@@ -77,6 +77,14 @@ type Service struct {
 	// browseRoots are the directories a new library root must lie below (WithBrowseRoots, E14);
 	// empty switches the rule off.
 	browseRoots []string
+	// deleteCheckFn replaces the check before «Auch die Dateien löschen» (a test seam for a
+	// read-only mount; nil outside tests, then paths.ReadOnlyAt and paths.MayDeleteIn decide).
+	deleteCheckFn func(root paths.Root, dir string) error
+	// removeFileFn replaces paths.Remove in deleteWithFiles (a test seam for a file that fails to
+	// go; nil outside tests).
+	removeFileFn func(root paths.Root, rel string) error
+	// mountChecks holds the library folders whose read-only check runs (rootReadOnly).
+	mountChecks sync.Map
 	// backupConfigDir and version name the backup before a library delete (WithBackups); empty
 	// writes none.
 	backupConfigDir, version string
@@ -913,7 +921,7 @@ func (s *Service) toModel(ctx context.Context, l appq.Library) (model.Library, e
 		m.Roots = append(m.Roots, model.LibraryRoot{
 			ID: r.ID, Path: r.Path, FSType: r.FsType, Watch: r.Watch, Warning: warning,
 			Content: r.Content, Providers: model.ParseProviders(r.Providers),
-			ItemCount: int(content.Items), FileCount: int(content.Files),
+			ItemCount: int(content.Items), FileCount: int(content.Files), ReadOnly: s.rootReadOnly(r.Path),
 		})
 	}
 	return m, nil

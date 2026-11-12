@@ -777,7 +777,7 @@ func (s *Service) scaleDerived(ctx context.Context, root *os.Root, dir, itemID, 
 // dropScaled removes the temporary files of sc that were not renamed into place.
 func (s *Service) dropScaled(root *os.Root, itemID, kind string, sc *scaled) {
 	for _, o := range sc.outs {
-		if err := root.Remove(o.tmp); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := root.Remove(o.tmp); err != nil && !errors.Is(err, os.ErrNotExist) { //nolint:forbidigo // the cache root (images), never a library root (ADR 0032)
 			s.log.Warn("remove temporary image", "item_id", itemID, "kind", kind, "err", err)
 		}
 	}
@@ -869,7 +869,7 @@ func (s *Service) accent(ctx context.Context, itemID, path string) sql.NullStrin
 
 // removeFile deletes a replaced image file; a missing file is fine.
 func (s *Service) removeFile(root *os.Root, itemID, kind, rel string) {
-	if err := root.Remove(rel); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err := root.Remove(rel); err != nil && !errors.Is(err, os.ErrNotExist) { //nolint:forbidigo // the cache root (images), never a library root (ADR 0032)
 		s.log.Warn("remove replaced image", "item_id", itemID, "kind", kind, "err", err)
 	}
 }
@@ -1038,7 +1038,7 @@ func writeFile(root *os.Root, dir, rel string, data []byte) error {
 		werr = root.Rename(tmp, rel)
 	}
 	if werr != nil {
-		_ = root.Remove(tmp)
+		_ = root.Remove(tmp) //nolint:forbidigo // the cache root (images), never a library root (ADR 0032)
 		return fmt.Errorf("write image file: %w", werr)
 	}
 	return nil

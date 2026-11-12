@@ -165,3 +165,69 @@ WHERE i.removed_at IS NOT NULL AND (p.id IS NULL OR p.removed_at IS NULL);
 -- and stays out.
 UPDATE items SET removed_at = NULL, deleted_at = NULL, updated_at = @now
 WHERE removed_at = @removed_at AND id IN (sqlc.slice('item_ids'));
+
+-- "Auch die Dateien loeschen" (concept 20 section 11, ADR 0032).
+
+-- name: ListSharedMediaFiles :many
+-- The media files of the titles whose file (device and inode, a hard link) is also the file of a
+-- title outside them: such a file stays and the result names it.
+WITH tree AS (SELECT i.id FROM items AS i WHERE i.id IN (sqlc.slice('item_ids')))
+SELECT DISTINCT m.id FROM media_files AS m
+JOIN media_files AS o ON o.dev = m.dev AND o.inode = m.inode AND o.id <> m.id
+WHERE m.item_id IN (SELECT id FROM tree) AND m.dev <> 0 AND m.inode <> 0
+  AND o.item_id NOT IN (SELECT id FROM tree);
+
+-- name: ListLocalImagesOfItems :many
+-- The image files of the folder that Slouchcat read and recorded for the titles.
+SELECT DISTINCT root_id, rel_path FROM item_local_images WHERE item_id IN (sqlc.slice('item_ids'))
+ORDER BY root_id, rel_path;
+
+-- name: ListCoverPathsOfItems :many
+-- The folder covers Slouchcat read for audiobooks and podcasts (relative to the root of their
+-- files; an embedded picture is no file of its own).
+SELECT id, CAST(cover_path AS TEXT) AS cover_path FROM items
+WHERE cover_path IS NOT NULL AND cover_path <> '' AND id IN (sqlc.slice('item_ids'))
+ORDER BY id;
+
+-- name: CountTitleFilesAtPath :one
+-- Whether the path is a media file of any title, or a recorded image of a title outside the
+-- given ones: such a file is never deleted as a companion or a recorded file.
+SELECT (SELECT count(*) FROM media_files AS m WHERE m.root_id = @root_id AND m.rel_path = @rel_path)
+     + (SELECT count(*) FROM item_local_images AS l
+        WHERE l.root_id = @root_id AND l.rel_path = @rel_path AND l.item_id NOT IN (sqlc.slice('item_ids'))) AS n;
+
+-- name: CountMediaFilesBelow :one
+-- Media files of the root at or below the folder prefix (ending with "/", or "" for the whole
+-- root), other than the given ones: a fixed-name metadata file goes only with the last of them.
+SELECT count(*) FROM media_files
+WHERE root_id = @root_id AND substr(rel_path, 1, length(CAST(@prefix AS TEXT))) = CAST(@prefix AS TEXT)
+  AND id NOT IN (sqlc.slice('file_ids'));
+
+-- name: DeleteMediaFilesByID :execrows
+-- The rows of the files that are gone: no player offers a deleted version.
+DELETE FROM media_files WHERE id IN (sqlc.slice('ids'));
+
+-- name: DeleteLocalImageRows :exec
+DELETE FROM item_local_images WHERE root_id = @root_id AND rel_path = @rel_path;
+
+-- name: CountMediaFilesOfItems :one
+SELECT count(*) FROM media_files WHERE item_id IN (sqlc.slice('item_ids'));
+
+-- name: ListItemsWithoutFiles :many
+-- Of the given titles, the playable ones that no media file holds any more (their files went);
+-- a podcast episode with an enclosure stays as a reference from its feed.
+SELECT i.id FROM items AS i
+WHERE i.id IN (sqlc.slice('item_ids'))
+  AND (i.kind IN ('movie', 'episode', 'extra', 'audiobook') OR (i.kind = 'podcast_episode' AND i.enclosure_url IS NULL))
+  AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = i.id);
+
+-- name: ListEmptyContainers :many
+-- Of the given titles, the seasons without a child left.
+SELECT i.id FROM items AS i
+WHERE i.id IN (sqlc.slice('item_ids')) AND i.kind = 'season'
+  AND NOT EXISTS (SELECT 1 FROM items AS c WHERE c.parent_id = i.id);
+
+-- name: HardDeleteItems :execrows
+-- Deleted for good (O-14): the foreign keys take everything on the titles and below them,
+-- progress, check marks and watchlist entries included.
+DELETE FROM items WHERE id IN (sqlc.slice('ids'));

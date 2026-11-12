@@ -456,7 +456,7 @@ func (s *Service) removeSubjectDir(root *os.Root, sub imageSubject) {
 	if sub.dir == "" {
 		return
 	}
-	if err := root.RemoveAll(sub.dir); err != nil {
+	if err := root.RemoveAll(sub.dir); err != nil { //nolint:forbidigo // the cache root (people images), never a library root (ADR 0032)
 		s.log.Warn("remove person or collection images", "subject", sub.key, "err", err)
 	}
 }
@@ -487,7 +487,7 @@ func (s *Service) storeSubjectFiles(ctx context.Context, root *os.Root, sub imag
 	tmps := []string{src}
 	defer func() {
 		for _, t := range tmps {
-			if rmErr := root.Remove(t); rmErr != nil && !errors.Is(rmErr, os.ErrNotExist) {
+			if rmErr := root.Remove(t); rmErr != nil && !errors.Is(rmErr, os.ErrNotExist) { //nolint:forbidigo // the cache root (people images), never a library root (ADR 0032)
 				s.log.Warn("remove temporary image", "subject", sub.key, "err", rmErr)
 			}
 		}

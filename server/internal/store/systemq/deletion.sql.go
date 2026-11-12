@@ -33,6 +33,60 @@ func (q *Queries) CountLibraryItemsAll(ctx context.Context, libraryID int64) (in
 	return count, err
 }
 
+const countMediaFilesBelow = `-- name: CountMediaFilesBelow :one
+SELECT count(*) FROM media_files
+WHERE root_id = ?1 AND substr(rel_path, 1, length(CAST(?2 AS TEXT))) = CAST(?2 AS TEXT)
+  AND id NOT IN (/*SLICE:file_ids*/?)
+`
+
+type CountMediaFilesBelowParams struct {
+	RootID  int64
+	Prefix  string
+	FileIds []string
+}
+
+// Media files of the root at or below the folder prefix (ending with "/", or "" for the whole
+// root), other than the given ones: a fixed-name metadata file goes only with the last of them.
+func (q *Queries) CountMediaFilesBelow(ctx context.Context, arg CountMediaFilesBelowParams) (int64, error) {
+	query := countMediaFilesBelow
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.RootID)
+	queryParams = append(queryParams, arg.Prefix)
+	if len(arg.FileIds) > 0 {
+		for _, v := range arg.FileIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:file_ids*/?", strings.Repeat(",?", len(arg.FileIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:file_ids*/?", "NULL", 1)
+	}
+	row := q.db.QueryRowContext(ctx, query, queryParams...)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countMediaFilesOfItems = `-- name: CountMediaFilesOfItems :one
+SELECT count(*) FROM media_files WHERE item_id IN (/*SLICE:item_ids*/?)
+`
+
+func (q *Queries) CountMediaFilesOfItems(ctx context.Context, itemIds []string) (int64, error) {
+	query := countMediaFilesOfItems
+	var queryParams []interface{}
+	if len(itemIds) > 0 {
+		for _, v := range itemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(itemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	row := q.db.QueryRowContext(ctx, query, queryParams...)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countRemovedItems = `-- name: CountRemovedItems :one
 SELECT count(*) FROM items AS i INDEXED BY items_removed
 LEFT JOIN items AS p ON p.id = i.parent_id
@@ -44,6 +98,39 @@ func (q *Queries) CountRemovedItems(ctx context.Context) (int64, error) {
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const countTitleFilesAtPath = `-- name: CountTitleFilesAtPath :one
+SELECT (SELECT count(*) FROM media_files AS m WHERE m.root_id = ?1 AND m.rel_path = ?2)
+     + (SELECT count(*) FROM item_local_images AS l
+        WHERE l.root_id = ?1 AND l.rel_path = ?2 AND l.item_id NOT IN (/*SLICE:item_ids*/?)) AS n
+`
+
+type CountTitleFilesAtPathParams struct {
+	RootID  int64
+	RelPath string
+	ItemIds []string
+}
+
+// Whether the path is a media file of any title, or a recorded image of a title outside the
+// given ones: such a file is never deleted as a companion or a recorded file.
+func (q *Queries) CountTitleFilesAtPath(ctx context.Context, arg CountTitleFilesAtPathParams) (int64, error) {
+	query := countTitleFilesAtPath
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.RootID)
+	queryParams = append(queryParams, arg.RelPath)
+	if len(arg.ItemIds) > 0 {
+		for _, v := range arg.ItemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(arg.ItemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	row := q.db.QueryRowContext(ctx, query, queryParams...)
+	var n int64
+	err := row.Scan(&n)
+	return n, err
 }
 
 const deleteDownloadsOfItems = `-- name: DeleteDownloadsOfItems :execrows
@@ -120,6 +207,43 @@ func (q *Queries) DeleteLibraryRow(ctx context.Context, id int64) (int64, error)
 	return result.RowsAffected()
 }
 
+const deleteLocalImageRows = `-- name: DeleteLocalImageRows :exec
+DELETE FROM item_local_images WHERE root_id = ?1 AND rel_path = ?2
+`
+
+type DeleteLocalImageRowsParams struct {
+	RootID  int64
+	RelPath string
+}
+
+func (q *Queries) DeleteLocalImageRows(ctx context.Context, arg DeleteLocalImageRowsParams) error {
+	_, err := q.db.ExecContext(ctx, deleteLocalImageRows, arg.RootID, arg.RelPath)
+	return err
+}
+
+const deleteMediaFilesByID = `-- name: DeleteMediaFilesByID :execrows
+DELETE FROM media_files WHERE id IN (/*SLICE:ids*/?)
+`
+
+// The rows of the files that are gone: no player offers a deleted version.
+func (q *Queries) DeleteMediaFilesByID(ctx context.Context, ids []string) (int64, error) {
+	query := deleteMediaFilesByID
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	result, err := q.db.ExecContext(ctx, query, queryParams...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getDeletionItem = `-- name: GetDeletionItem :one
 
 SELECT i.id, i.kind, i.parent_id, i.library_id, i.deleted_at, i.removed_at, i.enclosure_url,
@@ -160,6 +284,30 @@ func (q *Queries) GetDeletionItem(ctx context.Context, arg GetDeletionItemParams
 		&i.DisplayTitle,
 	)
 	return i, err
+}
+
+const hardDeleteItems = `-- name: HardDeleteItems :execrows
+DELETE FROM items WHERE id IN (/*SLICE:ids*/?)
+`
+
+// Deleted for good (O-14): the foreign keys take everything on the titles and below them,
+// progress, check marks and watchlist entries included.
+func (q *Queries) HardDeleteItems(ctx context.Context, ids []string) (int64, error) {
+	query := hardDeleteItems
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	result, err := q.db.ExecContext(ctx, query, queryParams...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const listActiveJobsOfItems = `-- name: ListActiveJobsOfItems :many
@@ -256,6 +404,92 @@ func (q *Queries) ListActiveJobsOfLibrary(ctx context.Context, libraryID int64) 
 	return items, nil
 }
 
+const listCoverPathsOfItems = `-- name: ListCoverPathsOfItems :many
+SELECT id, CAST(cover_path AS TEXT) AS cover_path FROM items
+WHERE cover_path IS NOT NULL AND cover_path <> '' AND id IN (/*SLICE:item_ids*/?)
+ORDER BY id
+`
+
+type ListCoverPathsOfItemsRow struct {
+	ID        string
+	CoverPath string
+}
+
+// The folder covers Slouchcat read for audiobooks and podcasts (relative to the root of their
+// files; an embedded picture is no file of its own).
+func (q *Queries) ListCoverPathsOfItems(ctx context.Context, itemIds []string) ([]ListCoverPathsOfItemsRow, error) {
+	query := listCoverPathsOfItems
+	var queryParams []interface{}
+	if len(itemIds) > 0 {
+		for _, v := range itemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(itemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCoverPathsOfItemsRow{}
+	for rows.Next() {
+		var i ListCoverPathsOfItemsRow
+		if err := rows.Scan(&i.ID, &i.CoverPath); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listEmptyContainers = `-- name: ListEmptyContainers :many
+SELECT i.id FROM items AS i
+WHERE i.id IN (/*SLICE:item_ids*/?) AND i.kind = 'season'
+  AND NOT EXISTS (SELECT 1 FROM items AS c WHERE c.parent_id = i.id)
+`
+
+// Of the given titles, the seasons without a child left.
+func (q *Queries) ListEmptyContainers(ctx context.Context, itemIds []string) ([]string, error) {
+	query := listEmptyContainers
+	var queryParams []interface{}
+	if len(itemIds) > 0 {
+		for _, v := range itemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(itemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listItemTree = `-- name: ListItemTree :many
 WITH RECURSIVE tree(id, depth) AS (
     SELECT i.id, 0 FROM items AS i WHERE i.id = ?1
@@ -309,6 +543,48 @@ func (q *Queries) ListItemTree(ctx context.Context, id string) ([]ListItemTreeRo
 	return items, nil
 }
 
+const listItemsWithoutFiles = `-- name: ListItemsWithoutFiles :many
+SELECT i.id FROM items AS i
+WHERE i.id IN (/*SLICE:item_ids*/?)
+  AND (i.kind IN ('movie', 'episode', 'extra', 'audiobook') OR (i.kind = 'podcast_episode' AND i.enclosure_url IS NULL))
+  AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = i.id)
+`
+
+// Of the given titles, the playable ones that no media file holds any more (their files went);
+// a podcast episode with an enclosure stays as a reference from its feed.
+func (q *Queries) ListItemsWithoutFiles(ctx context.Context, itemIds []string) ([]string, error) {
+	query := listItemsWithoutFiles
+	var queryParams []interface{}
+	if len(itemIds) > 0 {
+		for _, v := range itemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(itemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listLibraryItemIDs = `-- name: ListLibraryItemIDs :many
 SELECT id FROM items WHERE library_id = ?1 ORDER BY id
 `
@@ -327,6 +603,50 @@ func (q *Queries) ListLibraryItemIDs(ctx context.Context, libraryID int64) ([]st
 			return nil, err
 		}
 		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLocalImagesOfItems = `-- name: ListLocalImagesOfItems :many
+SELECT DISTINCT root_id, rel_path FROM item_local_images WHERE item_id IN (/*SLICE:item_ids*/?)
+ORDER BY root_id, rel_path
+`
+
+type ListLocalImagesOfItemsRow struct {
+	RootID  int64
+	RelPath string
+}
+
+// The image files of the folder that Slouchcat read and recorded for the titles.
+func (q *Queries) ListLocalImagesOfItems(ctx context.Context, itemIds []string) ([]ListLocalImagesOfItemsRow, error) {
+	query := listLocalImagesOfItems
+	var queryParams []interface{}
+	if len(itemIds) > 0 {
+		for _, v := range itemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(itemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListLocalImagesOfItemsRow{}
+	for rows.Next() {
+		var i ListLocalImagesOfItemsRow
+		if err := rows.Scan(&i.RootID, &i.RelPath); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -554,6 +874,51 @@ func (q *Queries) ListRemovedItems(ctx context.Context, arg ListRemovedItemsPara
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSharedMediaFiles = `-- name: ListSharedMediaFiles :many
+
+WITH tree AS (SELECT i.id FROM items AS i WHERE i.id IN (/*SLICE:item_ids*/?))
+SELECT DISTINCT m.id FROM media_files AS m
+JOIN media_files AS o ON o.dev = m.dev AND o.inode = m.inode AND o.id <> m.id
+WHERE m.item_id IN (SELECT id FROM tree) AND m.dev <> 0 AND m.inode <> 0
+  AND o.item_id NOT IN (SELECT id FROM tree)
+`
+
+// "Auch die Dateien loeschen" (concept 20 section 11, ADR 0032).
+// The media files of the titles whose file (device and inode, a hard link) is also the file of a
+// title outside them: such a file stays and the result names it.
+func (q *Queries) ListSharedMediaFiles(ctx context.Context, itemIds []string) ([]string, error) {
+	query := listSharedMediaFiles
+	var queryParams []interface{}
+	if len(itemIds) > 0 {
+		for _, v := range itemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(itemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

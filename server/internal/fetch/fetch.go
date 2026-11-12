@@ -196,7 +196,7 @@ func complete(r Request) error {
 	if err := r.Root.Rename(r.Part, r.Final); err != nil {
 		return err
 	}
-	if err := r.Root.Remove(r.Validator); err != nil && !errors.Is(err, fs.ErrNotExist) && r.Log != nil {
+	if err := r.Root.Remove(r.Validator); err != nil && !errors.Is(err, fs.ErrNotExist) && r.Log != nil { //nolint:forbidigo // its own validator next to the download, never a file of a title (ADR 0032)
 		r.Log.Warn("remove fetch validator", "path", r.Validator, "err", err)
 	}
 	return nil

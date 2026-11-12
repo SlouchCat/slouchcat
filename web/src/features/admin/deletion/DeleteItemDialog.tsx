@@ -14,7 +14,7 @@ import styles from './DeleteItemDialog.module.css';
 /** The kinds whose files the dialog names by folder (series, season, podcast, section 10.2). */
 const FOLDER_KINDS = new Set(['series', 'season', 'podcast']);
 
-type Mode = 'library';
+type Mode = 'library' | 'files';
 
 interface DeleteItemDialogProps {
   itemId: string;
@@ -51,9 +51,23 @@ export function DeleteItemDialog({
       if (!data) return;
       setTyped('');
       await queryClient.invalidateQueries();
-      onDeleted(result, data, t(`admin.itemDelete.done.${mode}`, { title: data.confirmTitle }));
+      onDeleted(result, data, doneMessage(result));
     },
   });
+  // What the holder announces: with files how many went, whether the title stayed and what is left
+  // in its folders.
+  const doneMessage = (result: ItemDeletionResult) => {
+    const title = data?.confirmTitle ?? '';
+    if (mode === 'library') return t('admin.itemDelete.done.library', { title });
+    const size = formatBytes(result.deletedBytes, i18n.language);
+    const main = result.titleDeleted
+      ? t('admin.itemDelete.done.files', { title, count: result.deletedFiles, size })
+      : t('admin.itemDelete.done.kept', { title, count: result.deletedFiles, size });
+    const left = result.leftInFolder ?? 0;
+    return left > 0 ? `${main} ${t('admin.itemDelete.done.left', { count: left })}` : main;
+  };
+  const reason = (code: string | undefined) =>
+    code ? t(`admin.itemDelete.reason.${code}`, { defaultValue: code }) : '';
   const close = (open: boolean) => {
     if (!open) {
       setTyped('');
@@ -104,8 +118,22 @@ export function DeleteItemDialog({
             orientation="vertical"
             value={mode}
             onChange={(value) => setMode(value as Mode)}
-            options={[{ value: 'library', label: t('admin.itemDelete.mode.library') }]}
-            description={t('admin.itemDelete.libraryHint')}
+            options={[
+              { value: 'library', label: t('admin.itemDelete.mode.library') },
+              // Grey with the reason when a file cannot go (ADR 0032; the server checks again).
+              {
+                value: 'files',
+                label: t('admin.itemDelete.mode.files'),
+                isDisabled: !data.filesDeletable,
+              },
+            ]}
+            description={
+              mode === 'files'
+                ? t('admin.itemDelete.filesHint')
+                : data.filesDeletable
+                  ? t('admin.itemDelete.libraryHint')
+                  : `${t('admin.itemDelete.libraryHint')} ${t('admin.itemDelete.mode.files')}: ${t('admin.itemDelete.notDeletable', { reason: reason(data.filesReason) })}`
+            }
           />
           <section className={styles.files} aria-label={t('admin.itemDelete.files')}>
             <p className={styles.affected}>
@@ -126,6 +154,7 @@ export function DeleteItemDialog({
                       <span className={styles.path}>{fullPath(file.rootPath, file.path)}</span>
                       <span className={styles.muted}>
                         {formatBytes(file.sizeBytes, i18n.language)}
+                        {file.reason && ` · ${reason(file.reason)}`}
                       </span>
                     </li>
                   ))}

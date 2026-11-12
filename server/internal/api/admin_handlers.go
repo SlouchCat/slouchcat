@@ -193,6 +193,7 @@ func toLibrary(l model.Library) gen.Library {
 		if r.Warning != "" {
 			root.Warning = &r.Warning
 		}
+		root.ReadOnly = r.ReadOnly
 		roots = append(roots, root)
 	}
 	scan := gen.LibraryScan{

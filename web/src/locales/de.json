@@ -196,7 +196,9 @@
       "root_not_writable": "Der Podcast-Ordner besteht die Ordnerprüfung nicht; Slouchcat kann dort keine Folgen speichern.",
       "root_required": "Die Bibliothek hat keinen Podcast-Ordner, in dem Slouchcat Folgen speichern könnte.",
       "playing": "Gerade spielt jemand einen dieser Titel ab. Gelöscht wird erst, wenn die Wiedergabe zu Ende ist.",
-      "playing_named": "Gerade läuft einer dieser Titel bei {{names}}. Gelöscht wird erst, wenn die Wiedergabe zu Ende ist; nichts wurde gelöscht."
+      "playing_named": "Gerade läuft einer dieser Titel bei {{names}}. Gelöscht wird erst, wenn die Wiedergabe zu Ende ist; nichts wurde gelöscht.",
+      "files_not_deletable": "Eine Datei des Titels lässt sich nicht löschen. Nichts wurde gelöscht.",
+      "not_deletable": "Dieser Titel lässt sich nicht löschen."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -1730,7 +1732,9 @@
           "body": "Alter Pfad: {{old}} · Neuer Pfad: {{new}}. Titel und Benutzerdaten bleiben erhalten, wenn die Dateien dort unter denselben Namen liegen. Danach wird der Ordner neu eingelesen.",
           "confirm": "Ändern",
           "saved": "Der Ordner liegt jetzt unter {{path}} und wird neu eingelesen."
-        }
+        },
+        "readOnly": "nur lesbar",
+        "writable": "schreibbar"
       },
       "openFolders": "Ordner",
       "openFoldersLabel": "Ordner von {{name}} bearbeiten",
@@ -4717,7 +4721,8 @@
       "loading": "Titel löschen",
       "choice": "Was soll geschehen?",
       "mode": {
-        "library": "Nur aus Slouchcat entfernen"
+        "library": "Nur aus Slouchcat entfernen",
+        "files": "Auch die Dateien löschen"
       },
       "libraryHint": "Die Dateien bleiben auf der Platte. Der Titel bleibt entfernt, auch wenn neue Dateien dazukommen; unter «Wartung › Entfernte Titel» lässt er sich mit Fortschritt, Haken und Merkliste wieder aufnehmen.",
       "everywhere": "Der Titel verschwindet für alle Profile aus allen Listen, Downloads auf den Geräten werden entfernt.",
@@ -4731,10 +4736,30 @@
       "typeLabel": "Zur Bestätigung den Titel eintippen",
       "typeHint": "Tippe {{title}} ab (Gross- und Kleinschreibung egal), dann wird der Knopf aktiv.",
       "confirm": {
-        "library": "Aus Slouchcat entfernen"
+        "library": "Aus Slouchcat entfernen",
+        "files": "Endgültig löschen"
       },
       "done": {
-        "library": "«{{title}}» ist aus Slouchcat entfernt. Die Dateien liegen noch da."
+        "library": "«{{title}}» ist aus Slouchcat entfernt. Die Dateien liegen noch da.",
+        "files_one": "«{{title}}» ist gelöscht, {{count}} Datei ({{size}}).",
+        "files_other": "«{{title}}» ist gelöscht, {{count}} Dateien ({{size}}).",
+        "kept_one": "«{{title}}»: {{count}} Datei gelöscht ({{size}}); der Titel bleibt mit den Dateien, die nicht gelöscht werden konnten.",
+        "kept_other": "«{{title}}»: {{count}} Dateien gelöscht ({{size}}); der Titel bleibt mit den Dateien, die nicht gelöscht werden konnten.",
+        "left_one": "{{count}} Datei, die Slouchcat nicht kennt, bleibt im Ordner.",
+        "left_other": "{{count}} Dateien, die Slouchcat nicht kennt, bleiben im Ordner."
+      },
+      "filesHint": "Die Dateien werden endgültig gelöscht, es gibt keinen Papierkorb. Ist danach keine Datei mehr da, ist der Titel samt Fortschritt, Haken und Merkliste endgültig weg. Lädt Radarr oder Sonarr den Titel später neu, erscheint er als neuer Titel.",
+      "notDeletable": "Geht nicht: {{reason}}",
+      "leftover": "Geblieben: {{path}} ({{reason}})",
+      "reason": {
+        "read_only": "der Ordner ist nur lesbar eingebunden",
+        "no_permission": "Slouchcat darf im Ordner nicht schreiben",
+        "shared": "die Datei gehört auch zu einem anderen Titel",
+        "not_regular": "keine gewöhnliche Datei",
+        "unreachable": "der Ordner ist nicht erreichbar",
+        "missing": "fehlt schon (zählt als gelöscht)",
+        "failed": "Löschen fehlgeschlagen",
+        "no_files": "keine Datei verzeichnet"
       }
     }
   },

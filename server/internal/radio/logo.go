@@ -179,7 +179,7 @@ func (s *Service) removeLogoFiles(ctx context.Context, stationIDs []int64) {
 	}
 	defer dir.Close()
 	for _, id := range stationIDs {
-		if err := dir.RemoveAll(logoDir(id)); err != nil {
+		if err := dir.RemoveAll(logoDir(id)); err != nil { //nolint:forbidigo // the cache root (radio logos), never a library root (ADR 0032)
 			s.log.WarnContext(ctx, "remove radio logo files", "station_id", id, "err", err)
 		}
 	}
@@ -742,7 +742,7 @@ func (s *Service) removeStoredLargePNGs(ctx context.Context) {
 			if w == logoPNGStored {
 				continue
 			}
-			err := dir.Remove(filepath.Join(base, e.Name(), logoFile(w, transcode.ImagePNG)))
+			err := dir.Remove(filepath.Join(base, e.Name(), logoFile(w, transcode.ImagePNG))) //nolint:forbidigo // the cache root (radio logos), never a library root (ADR 0032)
 			switch {
 			case err == nil:
 				removed++

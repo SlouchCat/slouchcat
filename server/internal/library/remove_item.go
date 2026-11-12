@@ -85,19 +85,25 @@ func (s *Service) ItemDeletion(ctx context.Context, itemID, lang string) (model.
 	if err != nil {
 		return model.ItemDeletionPreview{}, err
 	}
+	files, err := s.checkFiles(ctx, q, t)
+	if err != nil {
+		return model.ItemDeletionPreview{}, err
+	}
 	out := model.ItemDeletionPreview{
 		ItemID: t.item.ID, Kind: t.item.Kind, ConfirmTitle: t.item.DisplayTitle, TypeTitle: len(t.files) > 1,
-		Files: make([]model.DeletionFile, 0, len(t.files)), Folder: commonFolder(t.files), FileCount: len(t.files),
-		PlayingProfiles: playing,
+		Files: files, Folder: commonFolder(t.files), FileCount: len(t.files), PlayingProfiles: playing,
 	}
+	out.FilesDeletable, out.FilesReason = filesVerdict(files)
 	for _, f := range t.files {
-		out.Files = append(out.Files, model.DeletionFile{RootPath: f.RootPath, Path: f.RelPath, SizeBytes: f.Size})
 		out.TotalBytes += f.Size
 	}
 	return out, nil
 }
 
-// DeleteItem deletes a title (P-9). Mode library («Nur aus Slouchcat entfernen», section 10.2):
+// DeleteItem deletes a title (P-9). Mode files («Auch die Dateien löschen», section 11, ADR 0032)
+// deletes the files first and then the title for good (deleteWithFiles); it is refused while a
+// file cannot be deleted (*model.FilesNotDeletableError). Mode library («Nur aus Slouchcat
+// entfernen», section 10.2):
 // the title and every title below it get removed_at and deleted_at, so they leave every list of
 // every profile; their media_files rows, progress, check marks and watchlist stay; the downloads
 // on the devices go (their tombstones tell the devices). The scanner never brings them back and
@@ -107,9 +113,10 @@ func (s *Service) ItemDeletion(ctx context.Context, itemID, lang string) (model.
 // like the removal of a folder); refused while a profile plays one of the titles (O-13).
 //
 // Errors: model.ErrNotFound, model.ErrNotDeletable, model.ErrConfirmMismatch,
-// *model.PlayingError, *model.ScanRunningError, *model.ValidationError (mode).
+// *model.PlayingError, *model.ScanRunningError, *model.FilesNotDeletableError,
+// *model.ValidationError (mode).
 func (s *Service) DeleteItem(ctx context.Context, itemID, lang, mode, confirmTitle string, by model.Actor) (model.ItemDeletionResult, error) {
-	if mode != model.DeleteModeLibrary {
+	if mode != model.DeleteModeLibrary && mode != model.DeleteModeFiles {
 		return model.ItemDeletionResult{}, (&model.ValidationError{}).Add("mode", "invalid")
 	}
 	q := systemq.New(s.db.Read)
@@ -134,6 +141,9 @@ func (s *Service) DeleteItem(ctx context.Context, itemID, lang, mode, confirmTit
 	}
 	if err := s.refuseIfPlays(ctx, q, t.ids); err != nil {
 		return model.ItemDeletionResult{}, err
+	}
+	if mode == model.DeleteModeFiles {
+		return s.deleteWithFiles(ctx, q, t, by)
 	}
 	s.cancelJobsOfTree(ctx, t.ids)
 	removed, err := s.removeTree(ctx, t.ids)

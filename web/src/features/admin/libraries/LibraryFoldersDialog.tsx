@@ -208,6 +208,14 @@ export function LibraryFoldersDialog({
                         {providerChain(t, root.providers)}
                       </Text>
                       <Chip tone="info">{t('admin.libraries.fsType', { type: root.fsType })}</Chip>
+                      {/* ADR 0032: whether Slouchcat could delete files here (checked without writing). */}
+                      {root.readOnly !== undefined && (
+                        <Chip tone={root.readOnly ? 'outline' : 'warning'}>
+                          {root.readOnly
+                            ? t('admin.libraries.folders.readOnly')
+                            : t('admin.libraries.folders.writable')}
+                        </Chip>
+                      )}
                       {root.warning === 'network_share' && (
                         <Chip tone="warning" icon="warning">
                           {t('admin.libraries.warning.network_share')}
