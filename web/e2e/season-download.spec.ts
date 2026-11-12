@@ -30,8 +30,9 @@ test('a season of six episodes downloads in one action (O-2)', async ({ page, ow
     page.getByRole('list', { name: 'Folgen' }).getByRole('link', { name: /^Details: / }),
   ).toHaveCount(6);
   const button = page.getByRole('button', { name: 'Staffel herunterladen' });
-  // Past the six episodes, each with its row and «Details» (concept 20 P-4).
-  await tabTo(page, button, 50);
+  // Past the six episodes, each with three stops: its row, «Details» (concept 20 P-4) and the
+  // check mark (concept 20 section 6); «Gesehen» in the side navigation adds one more.
+  await tabTo(page, button, 60);
   await page.keyboard.press('Enter');
   const dialog = page.getByRole('dialog', { name: `${season.title} herunterladen` });
   await expect(dialog).toBeVisible();
