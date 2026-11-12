@@ -1,5 +1,34 @@
 # Aktueller Stand
 
+## Konzept 20 gebaut: Bedienung, Löschen und «Gesehen» (12. November 2026)
+
+Alle fünf Stufen von `docs/planning/20-bedienung-und-gesehen.md` sind auf dem Zweig `claude/k20-bau` gebaut,
+auf Marcos Wunsch als **ein** Pull Request und **ein** Release. Vertrag **1.31.0** (brechend: die
+Favoriten-Operationen fallen weg), Migrationen **00053** bis **00055**, ADR **0032**. Marcos Antworten zu O-1
+bis O-14 und zwei Nachfragen aus dem Review stehen im Entscheidungsprotokoll (Frage 27, Zeilen vom
+12. November 2026).
+
+| Stufe | Inhalt | Vertrag / Migration |
+|---|---|---|
+| 1 | Staffelreihe mit festen Pfeilen und Ziehen, Bleistift auf Staffelcovern, Klick auf die Folge spielt (Nachfrage «weiter oder von vorn»), Band für den Bibliotheks-Entwurf (Ursache P-11 nachgestellt), «Einstellungen» statt «Meine Wiedergabe» | – |
+| 2 | Haken «gesehen» als Knopf in drei Zuständen, `progress.watched_at`, `setItemWatched`, Seite «Gesehen» (`listWatched`), «Gehört» bei Hörbüchern und Podcasts | additiv / 00053 |
+| 3 | Favorit weg, die Merkliste meldet neue Folgen und lädt Podcasts (`watchlist.follow_since`); Reihentitel führen zur Liste (`listHomeRow`), Seite «Sammlungen» (`listVisibleCollections`), Bleistift auf allen Listen | brechend / 00054 |
+| 4 | Jobs: alle erneut versuchen, alle löschen, alle Fehlschläge seitenweise; Duplikate mit ganzem Pfad; Schlüssel der Anbieter als sechs Karten mit «Prüfen» (`checkProviderKey`, Google Books dabei); Kontinent-Kacheln (`DisclosureTile`) | additiv / – |
+| 5 | Bibliothek löschen (nie eine Datei, Sicherung vorher), Titel löschen «nur aus Slouchcat» (`items.removed_at`, «Wartung › Entfernte Titel») oder «auch die Dateien» (nur in schreibbar eingebundenen Ordnern, ADR 0032) | additiv / 00055 |
+
+- **Reviews:** je Stufe ein Code-Review, für Stufe 5 zusätzlich zwei Sicherheits-Reviews; alle Befunde
+  behoben, letzte Prüfung APPROVE.
+- **Messungen** (`docs/perf/20-bedienung.md`, lokal): M-1 Bibliothek mit 10 000 Titeln löschen 2,8 s (Filme)
+  und 3,3 s (Serien) dank neuer Indizes in 00055, darum direkt in der Anfrage; M-2 `listWatched` mit 5000
+  gesehenen Folgen p95 51 ms; M-3 `listHomeRow` p95 höchstens 44 ms. **Auf CT 190 nicht gemessen.**
+- **CT 190:** läuft auf `k20s5-5d5b2ea` (Migrationen 00053 bis 00055 gelaufen). Der Testordner
+  `/srv/media/k20-loeschtest` ist über `compose.k20test.yaml` als `/media/k20-loeschtest` schreibbar
+  eingebunden; alle anderen Medien bleiben nur lesbar. 
+- **Bleistift-Editor:** «Löschen …» steht im Kopf des Editors (neben «In der Verwaltung öffnen»), nicht unten links wie in 10.2, weil der Dialog keinen Fussbereich hat.
+- **Offen:** Abnahme auf CT 190 durch Marco (Bibliothek auf dem Testordner anlegen, Dateien löschen);
+  danach `compose.k20test.yaml` wieder aus `COMPOSE_FILE` nehmen. Messungen M-1 bis M-3 auf CT 190.
+  Versionsstellen und Tag für das Release.
+
 ## Release 1.30.1: Podcasts-Liste der Verwaltung schneller (12. November 2026)
 
 Nach dem Update auf 1.30.0 blieb die Feedliste der Seite «Podcasts» (`/admin` › Bibliothek › Podcasts) minutenlang
