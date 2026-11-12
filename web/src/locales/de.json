@@ -5009,6 +5009,12 @@
     }
   },
   "collection": {
+    "all": {
+      "title": "Sammlungen",
+      "count_one": "{{count}} Sammlung",
+      "count_other": "{{count}} Sammlungen",
+      "empty": "Für dieses Profil gibt es noch keine Sammlung."
+    },
     "count_one": "{{count}} Titel",
     "count_other": "{{count}} Titel",
     "members": "Titel",

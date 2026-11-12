@@ -101,14 +101,27 @@ func (r *Reader) Genres(ctx context.Context, s Scope, limit int) ([]model.GenreR
 	return out, nil
 }
 
+// MaxCollections caps the page «Sammlungen» (listVisibleCollections, concept 20 O-3).
+const MaxCollections = 500
+
 // Collections returns the collections with at least one visible member, by name, at most limit
 // (clamped to 1..MaxRowItems), each with the number of visible members and its cover (E-6).
 func (r *Reader) Collections(ctx context.Context, s Scope, limit int) ([]model.CollectionRef, error) {
+	return r.collections(ctx, s, clamp(limit))
+}
+
+// AllCollections returns the same collections as Collections without the cut to MaxRowItems, at
+// most MaxCollections (the page «Sammlungen», concept 20 O-3).
+func (r *Reader) AllCollections(ctx context.Context, s Scope) ([]model.CollectionRef, error) {
+	return r.collections(ctx, s, MaxCollections)
+}
+
+func (r *Reader) collections(ctx context.Context, s Scope, limit int64) ([]model.CollectionRef, error) {
 	pid, err := r.profile(ctx, s)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := r.q.ListVisibleCollections(ctx, scopedq.ListVisibleCollectionsParams{ProfileID: pid, LimitCount: clamp(limit)})
+	rows, err := r.q.ListVisibleCollections(ctx, scopedq.ListVisibleCollectionsParams{ProfileID: pid, LimitCount: limit})
 	if err != nil {
 		return nil, fmt.Errorf("list collections: %w", err)
 	}

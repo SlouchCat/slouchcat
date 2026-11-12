@@ -1,5 +1,6 @@
 import type {
   Collection,
+  CollectionRef,
   GenreRef,
   ItemPage,
   ItemRef,
@@ -48,6 +49,12 @@ export const collectionSource = (id: string): PagedSource<Collection, ItemRef> =
   items: (page) => page.items,
   total: (page) => page.total,
   id: (item) => item.id,
+});
+
+/** Every collection with a visible member, by name (the page «Sammlungen», concept 20 O-3). */
+export const collectionsQuery = queryOptions({
+  queryKey: ['collections'],
+  queryFn: ({ signal }): Promise<CollectionRef[]> => request(api.GET('/collections', { signal })),
 });
 
 /** The watchlist of the active profile, newest first (E-5, concept 18 C-3). */

@@ -5009,6 +5009,12 @@
     }
   },
   "collection": {
+    "all": {
+      "title": "Collections",
+      "count_one": "{{count}} collection",
+      "count_other": "{{count}} collections",
+      "empty": "There is no collection for this profile yet."
+    },
     "count_one": "{{count}} title",
     "count_other": "{{count}} titles",
     "members": "Titles",

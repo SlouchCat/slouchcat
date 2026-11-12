@@ -2831,6 +2831,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/collections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every collection with a visible member (E-6, concept 20 O-3)
+         * @description Since contract 1.31.0. The page «Sammlungen» behind the title of the start page row
+         *     `collections`: the same collections in the same order as the row (by name, each with the
+         *     number of its visible members and its cover), only without the row's cut to 20, at most 500.
+         *     Audiobook collections stand in the row «Reihen und Sammlungen» of their library and are not
+         *     listed (like the row).
+         */
+        get: operations["listVisibleCollections"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/collections/{id}": {
         parameters: {
             query?: never;
@@ -16216,6 +16240,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GenreRef"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    listVisibleCollections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The collections, by name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionRef"][];
                 };
             };
             401: components["responses"]["Unauthenticated"];

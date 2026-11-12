@@ -17,9 +17,12 @@ import (
 // genres, collections and watchlist. The catalog service reads through the visibility
 // layer; an invisible title or a collection without a visible member answers 404 not_found.
 
-func (e serviceProblem) VisitSearchResponse(w http.ResponseWriter) error         { return e.visit(w) }
-func (e serviceProblem) VisitListGenresResponse(w http.ResponseWriter) error     { return e.visit(w) }
-func (e serviceProblem) VisitGetCollectionResponse(w http.ResponseWriter) error  { return e.visit(w) }
+func (e serviceProblem) VisitSearchResponse(w http.ResponseWriter) error        { return e.visit(w) }
+func (e serviceProblem) VisitListGenresResponse(w http.ResponseWriter) error    { return e.visit(w) }
+func (e serviceProblem) VisitGetCollectionResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitListVisibleCollectionsResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
 func (e serviceProblem) VisitListWatchlistResponse(w http.ResponseWriter) error  { return e.visit(w) }
 func (e serviceProblem) VisitAddToWatchlistResponse(w http.ResponseWriter) error { return e.visit(w) }
 func (e serviceProblem) VisitRecommendItemResponse(w http.ResponseWriter) error  { return e.visit(w) }
@@ -116,6 +119,19 @@ func (s *server) ListGenres(ctx context.Context, _ gen.ListGenresRequestObject) 
 		return s.problem(ctx, err), nil
 	}
 	return gen.ListGenres200JSONResponse(toGenreRefs(genres)), nil
+}
+
+// ListVisibleCollections answers every collection the active profile sees (concept 20 O-3).
+func (s *server) ListVisibleCollections(ctx context.Context, _ gen.ListVisibleCollectionsRequestObject) (gen.ListVisibleCollectionsResponseObject, error) {
+	session, err := s.itemSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	cs, err := s.opts.Catalog.Collections(ctx, session.Profile)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.ListVisibleCollections200JSONResponse(toCollectionRefs(session.Profile.ID, cs)), nil
 }
 
 func (s *server) GetCollection(ctx context.Context, req gen.GetCollectionRequestObject) (gen.GetCollectionResponseObject, error) {

@@ -109,7 +109,8 @@ info:
 
     Lists behind the row titles (concept 20 stage 3, contract 1.31.0; additive): `listHomeRow`
     pages the whole list behind the rows `continue`, `recent`, `released` and `spotlight` with a
-    filter by the kind of the top level.
+    filter by the kind of the top level. `listVisibleCollections` lists every collection of the row
+    `collections` for the page «Sammlungen».
 
     Offline (M5): a profile downloads movies, episodes and seasons to its device (`createDownloads`). The
     server prepares a fragmented MP4 per title in the background; the device fetches it through
@@ -5559,6 +5560,31 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/GenreRef"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+
+  /collections:
+    get:
+      operationId: listVisibleCollections
+      summary: Every collection with a visible member (E-6, concept 20 O-3)
+      description: |
+        Since contract 1.31.0. The page «Sammlungen» behind the title of the start page row
+        `collections`: the same collections in the same order as the row (by name, each with the
+        number of its visible members and its cover), only without the row's cut to 20, at most 500.
+        Audiobook collections stand in the row «Reihen und Sammlungen» of their library and are not
+        listed (like the row).
+      tags: [discover]
+      x-visibility: scoped
+      responses:
+        "200":
+          description: The collections, by name.
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 500
+                items:
+                  $ref: "#/components/schemas/CollectionRef"
         "401":
           $ref: "#/components/responses/Unauthenticated"
 

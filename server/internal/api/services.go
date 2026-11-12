@@ -402,6 +402,8 @@ type CatalogService interface {
 	Search(ctx context.Context, profile model.Profile, q model.SearchQuery) (model.SearchResult, error)
 	Genres(ctx context.Context, profile model.Profile) ([]model.GenreRef, error)
 	Collection(ctx context.Context, profile model.Profile, id string, offset, limit int) (model.Collection, error)
+	// Collections lists every collection with a visible member (the page «Sammlungen», concept 20 O-3).
+	Collections(ctx context.Context, profile model.Profile) ([]model.CollectionRef, error)
 	Watchlist(ctx context.Context, profile model.Profile, offset, limit int) ([]model.ItemSummary, int, error)
 	AddToWatchlist(ctx context.Context, profile model.Profile, itemID string) error
 	RemoveFromWatchlist(ctx context.Context, profile model.Profile, itemID string) error

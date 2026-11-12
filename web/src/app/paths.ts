@@ -53,6 +53,8 @@ export const paths = {
   /** All of Cat's recommendations for the active profile (concept 08). */
   picks: '/picks',
   notifications: '/notifications',
+  /** Every collection the active profile sees (concept 20 O-3). */
+  collections: '/collections',
   collection: (id: string) => `/collections/${encodeURIComponent(id)}`,
   adminPicks: '/admin/picks',
   adminCollections: '/admin/collections',

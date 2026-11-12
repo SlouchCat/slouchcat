@@ -26,6 +26,12 @@ func (s *Service) Genres(ctx context.Context, profile model.Profile) ([]model.Ge
 	return s.vis.Genres(ctx, visibility.Profile(profile), visibility.MaxRowItems)
 }
 
+// Collections returns every collection with a visible member, by name, without the cut of the row
+// (the page «Sammlungen», concept 20 O-3).
+func (s *Service) Collections(ctx context.Context, profile model.Profile) ([]model.CollectionRef, error) {
+	return s.vis.AllCollections(ctx, visibility.Profile(profile))
+}
+
 // Collection returns a collection with one page of its visible members, or model.ErrNotFound when
 // it has none (E-6).
 func (s *Service) Collection(ctx context.Context, profile model.Profile, id string, offset, limit int) (model.Collection, error) {

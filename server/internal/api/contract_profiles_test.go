@@ -594,6 +594,27 @@ var profileRegistry = map[string]profileCall{
 				t.Errorf("listGenres for %s = %s, want %s with %d titles", token, rec.Body.String(), fixtureGenre(p), want)
 			}
 		}},
+	// Concept 20 O-3: the page «Sammlungen» lists the mixed collection with the number of the
+	// profile's visible members, and only while it has one.
+	"listVisibleCollections": {contract: "GET /collections", path: "/collections",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK },
+		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+			var list []struct {
+				ID    string `json:"id"`
+				Count int    `json:"count"`
+			}
+			decode(t, rec, &list)
+			members := mixedMembers(f, fixtureProfile(f, token))
+			i := slices.IndexFunc(list, func(c struct {
+				ID    string `json:"id"`
+				Count int    `json:"count"`
+			}) bool {
+				return c.ID == vistest.MixedCollectionID
+			})
+			if (i >= 0) != (len(members) > 0) || (i >= 0 && list[i].Count != len(members)) {
+				t.Errorf("listVisibleCollections for %s = %+v, want the mixed collection with %d members", token, list, len(members))
+			}
+		}},
 	"getCollection": {contract: "GET /collections/{id}", path: "/collections/" + vistest.MixedCollectionID,
 		want: func(f *vistest.Fixture, p model.Profile) int {
 			if len(mixedMembers(f, p)) == 0 {

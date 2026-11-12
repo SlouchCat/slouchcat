@@ -726,3 +726,34 @@ func TestSpotlightRowDisabled(t *testing.T) {
 		t.Errorf("disabled spotlight = %v, %d hits, %v; want nil, 0, nil", ids(got), hits, err)
 	}
 }
+
+// Concept 20 O-3: the page «Sammlungen» lists the collections of the row in its order (by name)
+// without the cut to MaxRowItems.
+func TestAllCollectionsWithoutTheCut(t *testing.T) {
+	t.Parallel()
+	f := discoverFixture(t)
+	ctx := context.Background()
+	r := New(f.DB, vistest.Logger())
+	for k := range 25 {
+		id := fmt.Sprintf("01J9COLLECTION00000000%04d", k)
+		exec(t, f, `INSERT INTO collections (id, source, name, created_at, updated_at) VALUES (?, 'manual', ?, 1, 1)`, id, fmt.Sprintf("Sammlung %02d", k))
+		exec(t, f, `INSERT INTO collection_items (collection_id, item_id, position, created_at) VALUES (?, ?, 0, 1)`, id, f.Rated(0).ID)
+	}
+	row, err := r.Collections(ctx, Profile(f.P6), MaxRowItems)
+	if err != nil {
+		t.Fatal(err)
+	}
+	all, err := r.AllCollections(ctx, Profile(f.P6))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 25 own collections and the mixed one (P6 sees its film rated 6), not the manual one (rated 18).
+	if len(row) != MaxRowItems || len(all) != 26 {
+		t.Fatalf("row %d, all %d collections, want %d and 26", len(row), len(all), MaxRowItems)
+	}
+	for i := range row {
+		if row[i].ID != all[i].ID {
+			t.Errorf("place %d: row %s, all %s", i, row[i].ID, all[i].ID)
+		}
+	}
+}

@@ -576,6 +576,16 @@ const watchlistRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/discover/WatchlistPage'), 'WatchlistPage'),
 });
 
+// concept 20 O-3: every collection, the target of the start page row's title.
+const collectionsRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/collections',
+  component: lazyRouteComponent(
+    () => import('@/features/discover/CollectionsPage'),
+    'CollectionsPage',
+  ),
+});
+
 const collectionRoute = createRoute({
   getParentRoute: () => chromeRoute,
   path: '/collections/$collectionId',
@@ -691,6 +701,7 @@ export const routeTree = rootRoute.addChildren([
         // discover M7
         searchRoute,
         watchlistRoute,
+        collectionsRoute,
         collectionRoute,
         notificationsRoute,
         // concept 08
