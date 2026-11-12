@@ -154,3 +154,26 @@ test('a series marked whole stands with a full check and opens the series page',
   await expect(page).toHaveURL(new RegExp(`/items/${show}$`));
   await expect(page.getByRole('heading', { level: 1, name: SHOW_TITLE })).toBeVisible();
 });
+
+test('kind and order stay on the way back from a title', async ({ page, owner }) => {
+  await useFreshProfile(page, owner, 'E2E Gesehen Zurück');
+  await setWatched(page, await itemIdByTitle(owner, H264_TITLE), true);
+  await page.goto('/watched');
+  const kinds = page.getByRole('group', { name: 'Medienart' });
+  const sorts = page.getByRole('group', { name: 'Sortierung' });
+  await kinds.getByRole('button', { name: 'Filme' }).click();
+  await sorts.getByRole('button', { name: 'Titel A–Z' }).click();
+  await expect(page).toHaveURL(/\/watched\?(content=movie&sort=title|sort=title&content=movie)$/);
+  await cards(page).first().click();
+  await expect(page).toHaveURL(/\/items\//);
+  await page.goBack();
+  await expect(kinds.getByRole('button', { name: 'Filme' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(sorts.getByRole('button', { name: 'Titel A–Z' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(cards(page)).toHaveCount(1);
+});

@@ -5520,6 +5520,7 @@
       "heardOn": "gehört am {{date}}",
       "episodes_one": "{{count}} von {{total}} Folgen · zuletzt {{date}}",
       "episodes_other": "{{count}} von {{total}} Folgen · zuletzt {{date}}",
+      "emptyKind": "Unter «{{kind}}» ist noch nichts gesehen.",
       "empty": {
         "title": "Noch nichts gesehen.",
         "body": "Was du zu Ende schaust oder hörst, erscheint hier."

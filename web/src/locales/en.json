@@ -5520,6 +5520,7 @@
       "heardOn": "heard on {{date}}",
       "episodes_one": "{{count}} of {{total}} episodes · last {{date}}",
       "episodes_other": "{{count}} of {{total}} episodes · last {{date}}",
+      "emptyKind": "Nothing watched under «{{kind}}» yet.",
       "empty": {
         "title": "Nothing watched yet.",
         "body": "What you watch or listen to the end shows up here."
