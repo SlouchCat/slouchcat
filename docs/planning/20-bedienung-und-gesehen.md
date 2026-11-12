@@ -353,7 +353,44 @@ heute; alles, was **anzeigt oder filtert**, liest `watched_at`.
   gesehener Film im zweiten Durchgang zählt also als «gesehen», nicht als «angefangen»; in
   «Weiterschauen» steht er trotzdem.
 - **Schritt 0 des Baus:** jede Fundstelle von `completed` in `server/` und `web/` einer der zwei
-  Spalten zuordnen und die Tabelle oben vervollständigen.
+  Spalten zuordnen und die Tabelle oben vervollständigen. Erledigt am 12. November 2026, siehe
+  die folgende Tabelle.
+
+**Fundstellen von `completed` (Schritt 0, Stand Vertrag 1.30.0, Migration 00052).** Gesucht
+wurde nach `completed` und `Completed` in `server/` (ohne generierten Code) und `web/src` (ohne
+Tests, Stories und Texte). Nicht aufgeführt sind die gleichnamigen Begriffe ohne Bezug zum
+Fortschritt: der Jobzustand `completed`, das Aktivitätsereignis `playback_completed` (das schreibt
+weiter nur die 90-%-Regel einer echten Wiedergabe, O-2) und Kommentare.
+
+| Fundstelle | Zweck | Liest künftig |
+|---|---|---|
+| `queries/app/progress.sql` `UpsertProgress` | schreibt den Fortschritt eines Ereignisses | schreibt beides: `completed` wie heute, `watched_at` nur dazu (Schritt 2) |
+| `internal/playback/playback.go` `report` (auch der Zweig `isLate`) | 90-%-Regel online, Aktivitätsereignis beim Übergang | schreibt beides; das Aktivitätsereignis bleibt am Übergang von `completed` |
+| `internal/playback/offline.go` `storeOfflineEvent` (auch das ältere Ereignis) | 90-%-Regel offline | schreibt beides |
+| `queries/system/admin.sql` `AdminMergeProgress` (`admin/maintenance.go`, `library/relink.go`) | Zusammenführen, Umhängen | `completed` entscheidet «weiter» wie heute; `watched_at` eigene Regel (das spätere Datum) |
+| `queries/scoped/items.sql` `ListContinueWatching` | «Weiterschauen», nächste Folge im Fenster | `completed` |
+| `queries/scoped/items.sql` `ListSeriesNextUpEpisodes`, `GetNextVisibleEpisode`; `visibility/nextup.go` | «Als Nächstes» der Serien- und Staffelseite | `completed` |
+| `queries/scoped/audio.sql` `ListVisibleAudioSeriesVolumes(Of)` → `visibility/audio_series.go` `Next` | nächster Band einer Hörbuch-Reihe | `completed` |
+| dieselben Abfragen → `seriesFacts.completed`, `AudioGroup.completed` (`api/audio_series_handlers.go`, Web `AudioGroupsRow`) | Anzeige «3 von 6 gehört» an der Reihe | **`watched_at`** (eigene Spalte `watched` neben `completed`) |
+| `queries/scoped/audio.sql` `ListVisibleAudioCollections` | Anzeige «gehört» an Hörbuch-Sammlungen | **`watched_at`** |
+| `queries/system/offline.sql` `CountOpenAutoDownloads` | Plätze der Auto-Downloads (O-3) | `completed` |
+| `queries/system/offline.sql` `ListRecentEpisodeProgress` → `internal/offline/sync.go` | Offline-Regel «nächste Folge laden» | `updated_at` (kein `completed`); darum die Staffelung in 6.4 |
+| `internal/playback/sessions.go` (Startstelle), `internal/playback/enclosure.go` (Podcast-Verweis) | Wiedergabe setzt an der Stelle fort | `completed` |
+| `queries/scoped/items.sql` `ListVisibleChildCounts` → `ItemRef.watched`, `watchedCount` (`visibility/tree.go`) | Haken auf Karten, Staffelzähler | **`watched_at`** |
+| `visibility/library.go` Status und Filter (`lib`-Ausdruck, `episodeStatsBody`, `episodeStat`) | Bibliothek: Filter `status`, Zustand, Fortschritt der Serien | **`watched_at`**, dann `position_ms` |
+| `visibility/mapping.go` `Progress.Completed`, `api/item_handlers.go` `toProgress`, `cmd/apicheck/model.go` | `Progress.completed` im Vertrag | bleibt `completed`; neu daneben `watchedAt` |
+| Web `features/catalog/labels.ts` `isFinished` (Karten in `ItemGrid`, `CollectionShelf`, `SeriesPage`) | Haken eines einzelnen Titels | **`watchedAt`** (Serie und Podcast über `watched`) |
+| Web `features/catalog/SeasonShelf.tsx` `watchedLabel` | Haken einer Folgenzeile | **`watchedAt`** |
+| Web `SeasonShelf.tsx` Balken, `ItemPage.tsx` und `DetailActions.tsx` «Fortsetzen», `CollectionShelf.tsx` Balken | laufende Stelle | `completed`, `positionMs` |
+| Web `DetailActions.tsx` «Nochmals ansehen» | Neustart bei fertigem Titel | `completed` (das Datum daneben darf `watchedAt` zeigen) |
+| Web `SeriesPage.tsx` `playTarget` | Startknopf der Hörbuch-Reihe | `completed` |
+| Web `features/offline/playback.ts`, `features/offline/sync.ts` | Startstelle offline | `completed` |
+
+Zwei Ergänzungen gegenüber Abschnitt 6.4, beide additiv: `ItemRef.watchedCount` steht neu auch an
+Serien und Podcasts (die sichtbaren Folgen mit `watched_at`), damit jede Karte den halben Haken
+(F-12) ohne weitere Abfrage zeigen kann: voll bei `watched`, halb bei `watched = false` und
+`watchedCount > 0`, sonst leer. Und die Anzeige «gehört» an Hörbuch-Reihen und -Sammlungen zählt
+nach `watched_at`, wie die Faustregel es verlangt.
 
 ### 6.4 Vertrag und Server
 
