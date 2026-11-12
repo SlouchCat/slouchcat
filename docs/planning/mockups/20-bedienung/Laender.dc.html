@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Verwaltung Radio: Länder nach Kontinent</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f3a27f}a:hover{color:#ffc4a8}
+button{font:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+.pg{box-sizing:border-box;min-height:100vh;background:#0b0c10;color:#f3f3f5;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;padding:20px 16px 48px}
+.wrap{max-width:1140px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.mock{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:#b6b9c4;border:1px dashed #ffffff3d;border-radius:12px;padding:8px 12px}
+.pill{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:18px;border:1px solid #ffffff2e;background:none;color:#f3f3f5;text-decoration:none;font-size:13px}
+.pill[aria-current="page"],.pill[aria-pressed="true"]{border-color:#e8794a;background:#e8794a33}
+.note{font-size:13px;color:#b6b9c4;border:1px dashed #ffffff3d;border-radius:12px;padding:10px 14px;line-height:1.5}
+.band{background:#13151b;border:1px solid #ffffff14;border-radius:14px;overflow:hidden}
+.bh{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 16px;background:#2b1d17;border-bottom:1px solid #ffffff14}
+.bb{padding:16px;display:flex;flex-direction:column;gap:14px}
+.inp{min-height:44px;box-sizing:border-box;border-radius:10px;border:1px solid #ffffff4d;background:#0b0c10;color:#f3f3f5;padding:0 12px;font:inherit;font-size:14px;width:100%}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.tile{display:flex;align-items:center;gap:10px;min-height:68px;padding:10px 14px;border-radius:12px;border:1px solid #ffffff2e;background:#1d2029;color:#f3f3f5;text-align:left;width:100%;box-sizing:border-box}
+.tile:hover{background:#262a35}
+.tile[aria-expanded="true"]{border-color:#e8794a;background:#e8794a1f}
+.tn{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:3px}
+.chip{flex:none;font-size:12px;font-weight:700;border-radius:10px;padding:4px 9px;background:#e8794a;color:#1c0d06;white-space:nowrap}
+.chev{flex:none;color:#b6b9c4;display:inline-flex}
+.tile[aria-expanded="true"] .chev{transform:rotate(180deg);color:#f3f3f5}
+.old{display:grid;grid-template-columns:repeat(auto-fill,minmax(224px,1fr));gap:8px}
+.oldb{height:32px;border-radius:16px;border:0;background:#262a35;color:#f3f3f5;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:0 14px;font-size:13px;font-weight:700;line-height:1.05;overflow:visible}
+.panel{border:1px solid #e8794a;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.sb{min-height:40px;padding:0 14px;border-radius:20px;border:1px solid #ffffff2e;background:#1d2029;color:#f3f3f5;font-size:13px}
+.sb:hover{background:#2b2f3a}
+.cr{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 6px;border:0;border-top:1px solid #ffffff14;background:none;color:#f3f3f5;text-align:left;width:100%}
+.cr:hover{background:#1d2029}
+.box{flex:none;width:20px;height:20px;border-radius:5px;border:2px solid #9ea3b0;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;color:#1c0d06}
+.cr[aria-checked="true"] .box{background:#e8794a;border-color:#e8794a}
+.cr[aria-checked="false"] .box svg{opacity:0}
+</style>
+</helmet>
+<div class="pg">
+<div class="wrap">
+
+  <nav class="mock" aria-label="Mockup-Navigation">
+    <span>Mockup:</span>
+    <a class="pill" href="Main.dc.html">Serienseite</a>
+    <a class="pill" href="Start.dc.html">Startseite</a>
+    <a class="pill" href="Liste.dc.html">Listenseite</a>
+    <a class="pill" href="Gesehen.dc.html">Gesehen</a>
+    <a class="pill" href="Schluessel.dc.html">Schlüssel</a>
+    <a class="pill" href="Verwaltung.dc.html">Jobs, Löschen, Duplikate</a>
+    <a class="pill" href="Laender.dc.html" aria-current="page">Radio: Länder</a>
+  </nav>
+
+  <div class="mock" role="group" aria-label="Vergleich">
+    <span>Ansicht:</span>
+    <button class="pill" aria-pressed="{{isNew}}" onClick="{{showNew}}">Neu · Kacheln</button>
+    <button class="pill" aria-pressed="{{isOld}}" onClick="{{showOld}}">Heute (zum Vergleich)</button>
+  </div>
+
+  <span style="font-size: 13px; color: #b6b9c4;">Verwaltung › Radio › Angebot</span>
+
+  <section class="band" aria-label="Länder">
+    <div class="bh">
+      <h1 style="margin: 0; font-size: 18px; font-weight: 700; flex: 1 1 200px;">Länder</h1>
+      <span style="font-size: 13px; color: #d0d2da;">{{chosenNote}}</span>
+    </div>
+    <div class="bb">
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <label for="k20-land" style="font-size: 14px;">Land suchen</label>
+        <input id="k20-land" class="inp" type="search" autocomplete="off" placeholder="Name oder Ländercode, zum Beispiel Schweiz oder CH">
+      </div>
+
+      <h2 style="margin: 4px 0 0; font-size: 15px; font-weight: 700;">Nach Kontinent</h2>
+
+      <sc-if value="{{isOld}}" hint-placeholder-val="{{false}}">
+        <div class="old" aria-hidden="true">
+          <sc-for list="{{tiles}}" as="c" hint-placeholder-count="6">
+            <span class="oldb"><span>{{c.name}}</span><span>{{c.oldSub}}</span></span>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{isNew}}" hint-placeholder-val="{{true}}">
+        <div class="tiles">
+          <sc-for list="{{tiles}}" as="c" hint-placeholder-count="6">
+            <button class="tile" aria-expanded="{{c.open}}" onClick="{{c.toggle}}">
+              <span class="tn">
+                <span style="font-size: 16px; font-weight: 700;">{{c.name}}</span>
+                <span style="font-size: 13px; color: #b6b9c4;">{{c.sub}}</span>
+              </span>
+              <sc-if value="{{c.hasPicked}}" hint-placeholder-val="{{false}}">
+                <span class="chip">{{c.picked}} gewählt</span>
+              </sc-if>
+              <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></span>
+            </button>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{hasOpen}}" hint-placeholder-val="{{true}}">
+          <div class="panel" role="group" aria-label="{{panelTitle}}">
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+              <h3 style="margin: 0; font-size: 15px; font-weight: 700; flex: 1 1 200px;">{{panelTitle}}</h3>
+              <button class="sb" onClick="{{pickAll}}">Alle wählen</button>
+              <button class="sb" onClick="{{pickNone}}">Alle abwählen</button>
+            </div>
+            <div role="group" aria-label="Länder">
+              <sc-for list="{{countries}}" as="l" hint-placeholder-count="6">
+                <button class="cr" role="checkbox" aria-checked="{{l.on}}" onClick="{{l.toggle}}">
+                  <span class="box" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span>
+                  <span style="flex: 1 1 0; min-width: 0; font-size: 14px;">{{l.name}}</span>
+                  <span style="font-size: 12.5px; color: #9ea3b0; width: 34px;">{{l.code}}</span>
+                  <span style="font-size: 13px; color: #b6b9c4; width: 110px; text-align: right; font-variant-numeric: tabular-nums;">{{l.stations}} Sender</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+      </sc-if>
+    </div>
+  </section>
+
+  <div class="note">
+    Heute sind die sechs Kontinente runde Knöpfe mit fester Höhe; der zweizeilige Text passt nicht hinein, ragt oben und unten heraus und steht in jedem Knopf an einer anderen Stelle. Neu: rechteckige Kacheln, die mit ihrem Inhalt wachsen. Name gross, darunter «51 Länder · 26.395 Sender», beides linksbündig. Die Zahl der gewählten Länder steht als Abzeichen rechts, nur wenn sie grösser als null ist. Ein Pfeil zeigt, dass die Kachel aufklappt; die offene Kachel ist umrandet, ihre Länder stehen direkt darunter im selben Rahmen. Der lange Erklärsatz über den Kacheln entfällt, die Überschrift «Nach Kontinent» und der Pfeil genügen.
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1040}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { view: 'new', open: 'eu', on: { CH: true } };
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var C = [
+      ['eu', 'Europa', 51, '26.395', [['Schweiz', 'CH', '386'], ['Deutschland', 'DE', '5.212'], ['Österreich', 'AT', '812'], ['Frankreich', 'FR', '2.710'], ['Italien', 'IT', '2.130'], ['Liechtenstein', 'LI', '9']]],
+      ['na', 'Nord- und Mittelamerika', 39, '12.375', [['USA', 'US', '8.940'], ['Kanada', 'CA', '1.420'], ['Mexiko', 'MX', '1.105']]],
+      ['sa', 'Südamerika', 14, '4.830', [['Brasilien', 'BR', '2.240'], ['Argentinien', 'AR', '910'], ['Chile', 'CL', '480']]],
+      ['as', 'Asien', 49, '7.844', [['Indien', 'IN', '1.310'], ['Japan', 'JP', '640'], ['Türkei', 'TR', '1.020']]],
+      ['af', 'Afrika', 53, '1.653', [['Südafrika', 'ZA', '310'], ['Marokko', 'MA', '120'], ['Kenia', 'KE', '95']]],
+      ['oc', 'Ozeanien', 19, '1.849', [['Australien', 'AU', '1.390'], ['Neuseeland', 'NZ', '402']]]
+    ];
+    var count = function (c) { var n = 0; c[4].forEach(function (l) { if (st.on[l[1]]) n++; }); return n; };
+    var total = 0; C.forEach(function (c) { total += count(c); });
+    var cur = null; C.forEach(function (c) { if (c[0] === st.open) cur = c; });
+    var setMany = function (v) { var m = Object.assign({}, st.on); cur[4].forEach(function (l) { m[l[1]] = v; }); self.setState({ on: m }); };
+    return {
+      isNew: st.view === 'new', isOld: st.view === 'old',
+      showNew: function () { self.setState({ view: 'new' }); }, showOld: function () { self.setState({ view: 'old' }); },
+      chosenNote: total + ' von 225 Ländern gewählt',
+      tiles: C.map(function (c) {
+        var p = count(c), open = st.open === c[0];
+        return { name: c[1], open: open, picked: p, hasPicked: p > 0,
+          sub: c[2] + ' Länder · ' + c[3] + ' Sender',
+          oldSub: c[2] + ' Länder · ' + c[3] + ' Sender' + (p ? ' · ' + p + ' gewählt' : ''),
+          toggle: function () { self.setState({ open: open ? '' : c[0] }); } };
+      }),
+      hasOpen: !!cur, panelTitle: cur ? 'Länder in ' + cur[1] : '',
+      pickAll: function () { setMany(true); }, pickNone: function () { setMany(false); },
+      countries: cur ? cur[4].map(function (l) {
+        var on = !!st.on[l[1]];
+        return { name: l[0], code: l[1], stations: l[2], on: on, toggle: function () { var m = Object.assign({}, st.on); m[l[1]] = !on; self.setState({ on: m }); } };
+      }) : []
+    };
+  }
+}
+</script>
+</body>
+</html>

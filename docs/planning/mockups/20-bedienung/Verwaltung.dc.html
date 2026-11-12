@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Verwaltung: Jobs, Löschen, Duplikate</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f3a27f}a:hover{color:#ffc4a8}
+button{font:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+.pg{box-sizing:border-box;min-height:100vh;background:#0b0c10;color:#f3f3f5;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;padding:20px 16px 48px}
+.wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.mock{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:#b6b9c4;border:1px dashed #ffffff3d;border-radius:12px;padding:8px 12px}
+.pill{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:18px;border:1px solid #ffffff2e;background:none;color:#f3f3f5;text-decoration:none;font-size:13px}
+.pill[aria-current="page"],.pill[aria-pressed="true"]{border-color:#e8794a;background:#e8794a33}
+.note{font-size:13px;color:#b6b9c4;border:1px dashed #ffffff3d;border-radius:12px;padding:10px 14px;line-height:1.5}
+.box{background:#13151b;border:1px solid #ffffff14;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.dlg{background:#1d2029;border:1px solid #ffffff2e;border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:14px;max-width:620px;box-sizing:border-box;width:100%;align-self:center}
+.sb{min-height:44px;padding:0 16px;border-radius:22px;border:1px solid #ffffff2e;background:#1d2029;color:#f3f3f5;font-size:14px}
+.sb:hover{background:#2b2f3a}
+.sb.pri{background:#e8794a;border-color:#e8794a;color:#1c0d06;font-weight:700}
+.sb.red{background:#b3362b;border-color:#b3362b;color:#fff;font-weight:700}
+.sb:disabled{opacity:.4;cursor:not-allowed}
+.jr{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;padding:10px 0;border-top:1px solid #ffffff14}
+.err{font-size:12px;color:#ffb4a8;font-family:ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.opt{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:12px;border:1px solid #ffffff2e;background:#13151b;color:#f3f3f5;text-align:left;width:100%}
+.opt[aria-checked="true"]{border-color:#e8794a;background:#e8794a1f}
+.opt:disabled{opacity:.5;cursor:not-allowed}
+.dot{flex:0 0 20px;width:20px;height:20px;border-radius:10px;border:2px solid #9ea3b0;box-sizing:border-box;margin-top:2px}
+.opt[aria-checked="true"] .dot{border:6px solid #e8794a}
+.path{font-size:12.5px;color:#d0d2da;font-family:ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere;line-height:1.5}
+.inp{min-height:44px;box-sizing:border-box;border-radius:10px;border:1px solid #ffffff4d;background:#0b0c10;color:#f3f3f5;padding:0 12px;font:inherit;font-size:14px;width:100%}
+.toast{position:sticky;bottom:12px;align-self:center;background:#f3f3f5;color:#0b0c10;border-radius:22px;padding:10px 18px;font-size:14px;font-weight:600}
+</style>
+</helmet>
+<div class="pg">
+<div class="wrap">
+
+  <nav class="mock" aria-label="Mockup-Navigation">
+    <span>Mockup:</span>
+    <a class="pill" href="Main.dc.html">Serienseite</a>
+    <a class="pill" href="Start.dc.html">Startseite</a>
+    <a class="pill" href="Liste.dc.html">Listenseite</a>
+    <a class="pill" href="Gesehen.dc.html">Gesehen</a>
+    <a class="pill" href="Schluessel.dc.html">Schlüssel</a>
+    <a class="pill" href="Verwaltung.dc.html" aria-current="page">Jobs, Löschen, Duplikate</a>
+  </nav>
+
+  <div class="mock" role="group" aria-label="Thema">
+    <span>Thema:</span>
+    <sc-for list="{{tabs}}" as="t" hint-placeholder-count="5">
+      <button class="pill" aria-pressed="{{t.on}}" onClick="{{t.pick}}">{{t.label}}</button>
+    </sc-for>
+  </div>
+
+  <sc-if value="{{isJobs}}" hint-placeholder-val="{{true}}">
+    <section class="box" aria-label="Fehlgeschlagene Jobs">
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+        <h1 style="margin: 0; font-size: 22px; font-weight: 800; flex: 1 1 240px;">Hintergrundjobs › Fehlgeschlagen ({{jobCount}})</h1>
+        <button class="sb" disabled="{{noJobs}}" onClick="{{retryAll}}">Alle erneut versuchen</button>
+        <button class="sb" disabled="{{noJobs}}" onClick="{{askDeleteAll}}">Alle löschen …</button>
+      </div>
+      <sc-if value="{{confirmAll}}" hint-placeholder-val="{{false}}">
+        <div role="alertdialog" aria-label="Alle fehlgeschlagenen Läufe löschen" style="border: 1px solid #e8794a; background: #e8794a14; border-radius: 12px; padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+          <span style="flex: 1 1 320px; font-size: 14px; line-height: 1.5;">{{jobCount}} fehlgeschlagene Läufe aus der Liste entfernen? Slouchcat versucht sie nicht mehr. Geplante Jobs laufen zur nächsten Zeit normal wieder.</span>
+          <button class="sb" onClick="{{cancelAll}}">Abbrechen</button>
+          <button class="sb red" onClick="{{deleteAll}}">Alle löschen</button>
+        </div>
+      </sc-if>
+      <sc-if value="{{noJobs}}" hint-placeholder-val="{{false}}">
+        <span style="font-size: 14px; color: #b6b9c4;">Keine fehlgeschlagenen Läufe.</span>
+      </sc-if>
+      <sc-for list="{{jobs}}" as="j" hint-placeholder-count="6">
+        <div class="jr">
+          <div style="flex: 1 1 360px; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+            <span style="font-size: 15px; font-weight: 600;">{{j.name}}</span>
+            <span style="font-size: 12.5px; color: #b6b9c4;">{{j.when}}</span>
+            <span class="err">{{j.err}}</span>
+          </div>
+          <button class="sb" aria-label="{{j.retryAria}}" onClick="{{j.retry}}">Erneut</button>
+          <button class="sb" aria-label="{{j.delAria}}" onClick="{{j.del}}">Löschen</button>
+        </div>
+      </sc-for>
+    </section>
+    <div class="note">Neu: «Alle erneut versuchen» und «Alle löschen» über der Liste, dieselben zwei Knöpfe je Jobart unter «Läufe». Die Liste zeigt alle fehlgeschlagenen Läufe, nicht nur zehn. Der Knopf je Zeile heisst «Löschen» statt «Abbrechen».</div>
+  </sc-if>
+
+  <sc-if value="{{isTitle}}" hint-placeholder-val="{{false}}">
+    <div class="mock" role="group" aria-label="Zustand des Ordners">
+      <span>Ordner «Filme 4K» ist</span>
+      <button class="pill" aria-pressed="{{rw}}" onClick="{{setRw}}">schreibbar eingebunden</button>
+      <button class="pill" aria-pressed="{{ro}}" onClick="{{setRo}}">nur lesbar (wie heute)</button>
+    </div>
+    <div class="dlg" role="dialog" aria-label="Titel löschen">
+      <h1 style="margin: 0; font-size: 20px; font-weight: 700;">«Der letzte Fährmann» löschen?</h1>
+      <div role="radiogroup" aria-label="Was soll gelöscht werden" style="display: flex; flex-direction: column; gap: 8px;">
+        <button class="opt" role="radio" aria-checked="{{modeDb}}" onClick="{{pickDb}}">
+          <span class="dot" aria-hidden="true"></span>
+          <span style="display: flex; flex-direction: column; gap: 4px;"><b>Nur aus Slouchcat entfernen</b><span style="font-size: 13px; color: #b6b9c4; line-height: 1.45;">Die Datei bleibt auf der Platte. Der Titel bleibt entfernt, auch wenn neue Dateien dazukommen; unter «Wartung › Entfernte Titel» lässt er sich mit Fortschritt und Haken wieder aufnehmen.</span></span>
+        </button>
+        <button class="opt" role="radio" aria-checked="{{modeFiles}}" disabled="{{ro}}" onClick="{{pickFiles}}">
+          <span class="dot" aria-hidden="true"></span>
+          <span style="display: flex; flex-direction: column; gap: 4px;"><b>Auch die Dateien löschen</b><span style="font-size: 13px; color: #b6b9c4; line-height: 1.45;">{{filesHint}}</span></span>
+        </button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <span style="font-size: 13px; color: #b6b9c4;">Betroffen: 1 Datei · 41,2 GB</span>
+        <span class="path">/media/filme-4k/Der letzte Fährmann (2024)/Der letzte Fährmann (2024) 2160p HDR.mkv</span>
+      </div>
+      <span style="font-size: 13px; color: #d0d2da; line-height: 1.5;">In beiden Fällen verschwindet der Titel für alle Profile aus allen Listen, Downloads auf den Geräten werden entfernt. Fortschritt, Haken und Merkliste bleiben gespeichert und kommen zurück, falls derselbe Titel später wieder aufgenommen wird. Radarr und Sonarr erfahren davon nichts.</span>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end;">
+        <button class="sb" onClick="{{cancelTitle}}">Abbrechen</button>
+        <button class="sb red" onClick="{{doTitle}}">{{titleBtn}}</button>
+      </div>
+    </div>
+    <div class="note">Der Knopf «Löschen» steht auf der Detailseite (nur Server-Administrator) für Film, Serie, Staffel, Folge, Hörbuch, Podcast und Podcast-Folge. Bei Serie, Staffel und Podcast listet der Dialog den Ordner und die Zahl der Dateien und verlangt, dass du den Titel eintippst. «Auch die Dateien löschen» gibt es nur, wenn der Ordner schreibbar eingebunden ist; sonst ist die Wahl grau.</div>
+  </sc-if>
+
+  <sc-if value="{{isLib}}" hint-placeholder-val="{{false}}">
+    <div class="dlg" role="dialog" aria-label="Bibliothek löschen">
+      <h1 style="margin: 0; font-size: 20px; font-weight: 700;">Bibliothek «test2» löschen?</h1>
+      <span style="font-size: 14px; color: #d0d2da; line-height: 1.5;">2 Ordner und 318 Titel verschwinden aus Slouchcat, samt Fortschritt, Merkliste, Startseitenreihe «Neu in test2» und Downloads. <b>Die Dateien auf der Platte bleiben unberührt.</b> Das lässt sich nicht rückgängig machen; ein neuer Scan legt die Titel ohne Fortschritt wieder an.</span>
+      <label for="k20-libname" style="font-size: 14px;">Zur Bestätigung den Namen eintippen: <b>test2</b></label>
+      <input id="k20-libname" class="inp" type="text" autocomplete="off" value="{{libName}}" onChange="{{setLibName}}">
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end;">
+        <button class="sb" onClick="{{cancelLib}}">Abbrechen</button>
+        <button class="sb red" disabled="{{libBlocked}}" onClick="{{doLib}}">Bibliothek löschen</button>
+      </div>
+    </div>
+    <div class="note">Neuer Eintrag «Bibliothek löschen …» im Menü der Bibliothek (Verwaltung › Bibliotheken). Eine Bibliothek löschen entfernt nie eine Datei. Läuft gerade ein Scan dieser Bibliothek, bricht Slouchcat ihn zuerst ab.</div>
+  </sc-if>
+
+  <sc-if value="{{isDup}}" hint-placeholder-val="{{false}}">
+    <section class="box" aria-label="Duplikate">
+      <h1 style="margin: 0; font-size: 22px; font-weight: 800;">Wartung › Duplikate</h1>
+      <span style="font-size: 14px; font-weight: 700;">Gruppe 1 · gleiche TMDB-Nummer · 2 Titel</span>
+      <sc-for list="{{dups}}" as="d" hint-placeholder-count="2">
+        <div class="jr">
+          <div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 15px; font-weight: 600;">{{d.title}}</span>
+            <span style="font-size: 12.5px; color: #b6b9c4;">{{d.meta}}</span>
+            <span class="path">{{d.path}}</span>
+          </div>
+          <button class="sb" aria-pressed="{{d.keep}}" onClick="{{d.pick}}">{{d.keepLabel}}</button>
+        </div>
+      </sc-for>
+      <span style="font-size: 14px; font-weight: 700; margin-top: 8px;">Gruppe 2 · gleicher Titel und Jahr · 2 Serien</span>
+      <sc-for list="{{dupSeries}}" as="d" hint-placeholder-count="2">
+        <div class="jr">
+          <div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 15px; font-weight: 600;">{{d.title}}</span>
+            <span style="font-size: 12.5px; color: #b6b9c4;">{{d.meta}}</span>
+            <span class="path">{{d.path}}</span>
+          </div>
+        </div>
+      </sc-for>
+    </section>
+    <div class="note">Neu: der ganze Pfad jeder Datei, mit Ordner der Bibliothek davor (heute nur der Teil ab dem Bibliotheksordner). Bei Serien und Podcasts steht heute «Keine Datei»; neu der Serienordner mit Zahl und Grösse der Dateien.</div>
+  </sc-if>
+
+  <sc-if value="{{isDraft}}" hint-placeholder-val="{{false}}">
+    <section class="box" aria-label="Bibliotheken">
+      <h1 style="margin: 0; font-size: 22px; font-weight: 800;">Verwaltung › Bibliotheken</h1>
+      <sc-if value="{{draft}}" hint-placeholder-val="{{true}}">
+        <div role="status" style="border: 1px solid #e8794a; background: #e8794a14; border-radius: 12px; padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+          <span style="flex: 1 1 320px; font-size: 14px; line-height: 1.5;">Der Entwurf einer neuen Bibliothek ist noch nicht gespeichert (1 Ordner).</span>
+          <button class="sb pri" onClick="{{draftOpen}}">Weiter bearbeiten</button>
+          <button class="sb" onClick="{{draftDrop}}">Entwurf verwerfen</button>
+        </div>
+      </sc-if>
+      <span style="font-size: 14px; color: #b6b9c4;">Filme · Serien · Hörbücher · Podcasts · …</span>
+    </section>
+    <div class="note">Vermutung zu deinem Fall mit «test2» (aus dem Code gelesen, noch nicht nachgestellt): Im Dialog «Bibliothek hinzufügen» lag ein angefangener, nicht gespeicherter Entwurf. Nach dem Schliessen des Dialogs merkt sich die Seite den Entwurf, zeigt ihn aber nirgends; beim Verlassen kommt die Frage «bleiben oder verwerfen», ohne Knopf zum Speichern. Neu zeigt die Seite den Entwurf als Band mit «Weiter bearbeiten» und «Entwurf verwerfen». Vor dem Bau wird deine Klickfolge nachgestellt.</div>
+  </sc-if>
+
+  <sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+    <div class="toast" role="status">{{toast}}</div>
+  </sc-if>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 0, gone: {}, confirmAll: false, rw: true, mode: 'db', lib: '', keep: 0, draft: true, toast: '' };
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var say = function (t) { self.setState({ toast: t }); };
+    var TABS = ['Jobs: Fehlgeschlagen', 'Titel löschen', 'Bibliothek löschen', 'Duplikate mit Pfad', 'Entwurf-Band'];
+    var J = [
+      ['Trickplay erzeugen · Glashaus (2023)', 'heute 02:14 · 3 Versuche', 'ffmpeg: exit status 1: moov atom not found'],
+      ['Metadaten holen · Kupferstadt S1', 'heute 01:50 · 3 Versuche', 'tvdb: 401 Unauthorized'],
+      ['Metadaten holen · Zwölf Türen', 'heute 01:50 · 3 Versuche', 'tvdb: 401 Unauthorized'],
+      ['Bilder laden · Sturmglas (2026)', 'gestern 23:31 · 3 Versuche', 'fanart: context deadline exceeded'],
+      ['Podcast-Feed lesen · Echo der Woche', 'gestern 18:00 · 3 Versuche', 'feed: 503 Service Unavailable'],
+      ['Kapitelbilder · Der letzte Fährmann (2024)', '8. Nov. 04:02 · 3 Versuche', 'ffmpeg: exit status 1: Invalid data found']
+    ];
+    var jobs = [];
+    J.forEach(function (j, i) {
+      if (st.gone[i]) return;
+      var drop = function (t) { var g = Object.assign({}, st.gone); g[i] = true; self.setState({ gone: g, toast: t }); };
+      jobs.push({ name: j[0], when: j[1], err: j[2], retryAria: 'Erneut versuchen: ' + j[0], delAria: 'Löschen: ' + j[0],
+        retry: function () { drop('«' + j[0] + '» ist wieder eingereiht.'); }, del: function () { drop('«' + j[0] + '» gelöscht.'); } });
+    });
+    var all = function (t) { var g = {}; J.forEach(function (_, i) { g[i] = true; }); self.setState({ gone: g, confirmAll: false, toast: t }); };
+    var files = st.mode === 'files' && st.rw;
+    return {
+      tabs: TABS.map(function (t, i) { return { label: t, on: st.tab === i, pick: function () { self.setState({ tab: i, toast: '' }); } }; }),
+      isJobs: st.tab === 0, isTitle: st.tab === 1, isLib: st.tab === 2, isDup: st.tab === 3, isDraft: st.tab === 4,
+      jobs: jobs, jobCount: jobs.length, noJobs: jobs.length === 0, confirmAll: st.confirmAll && jobs.length > 0,
+      retryAll: function () { all(jobs.length + ' Läufe sind wieder eingereiht.'); },
+      askDeleteAll: function () { self.setState({ confirmAll: true, toast: '' }); },
+      cancelAll: function () { self.setState({ confirmAll: false }); },
+      deleteAll: function () { all(jobs.length + ' fehlgeschlagene Läufe gelöscht.'); },
+      rw: st.rw, ro: !st.rw,
+      setRw: function () { self.setState({ rw: true }); }, setRo: function () { self.setState({ rw: false, mode: 'db' }); },
+      modeDb: !files, modeFiles: files,
+      pickDb: function () { self.setState({ mode: 'db' }); }, pickFiles: function () { self.setState({ mode: 'files' }); },
+      filesHint: st.rw ? 'Die Datei wird von der Platte gelöscht. Unwiderruflich, kein Papierkorb.' : 'Nicht möglich: Der Ordner ist nur lesbar eingebunden. Die Anleitung zum Umstellen steht in der Installationsanleitung.',
+      titleBtn: files ? 'Titel und 1 Datei löschen' : 'Aus Slouchcat entfernen',
+      cancelTitle: function () { say('Abgebrochen, nichts gelöscht.'); },
+      doTitle: function () { say(files ? 'Titel entfernt, 1 Datei (41,2 GB) von der Platte gelöscht.' : 'Titel entfernt. Die Datei bleibt und wird künftig übergangen.'); },
+      libName: st.lib, setLibName: function (ev) { self.setState({ lib: ev.target.value }); },
+      libBlocked: st.lib.trim() !== 'test2',
+      cancelLib: function () { self.setState({ lib: '', toast: 'Abgebrochen, nichts gelöscht.' }); },
+      doLib: function () { self.setState({ lib: '', toast: 'Bibliothek «test2» gelöscht. Die Dateien liegen unverändert auf der Platte.' }); },
+      dups: [
+        ['Der letzte Fährmann (2024)', 'Film · Bibliothek «Filme 4K» · 41,2 GB', '/media/filme-4k/Der letzte Fährmann (2024)/Der letzte Fährmann (2024) 2160p HDR.mkv'],
+        ['Der letzte Fährmann (2024)', 'Film · Bibliothek «Filme» · 8,7 GB', '/media/filme/Der letzte Faehrmann 2024/Der.letzte.Faehrmann.2024.1080p.mkv']
+      ].map(function (d, i) {
+        return { title: d[0], meta: d[1], path: d[2], keep: st.keep === i, keepLabel: st.keep === i ? 'bleibt' : 'Diesen behalten', pick: function () { self.setState({ keep: i }); } };
+      }),
+      dupSeries: [
+        { title: 'Nordlicht (2015)', meta: 'Serie · Bibliothek «Serien» · 96 Dateien · 212 GB', path: '/media/serien/Nordlicht (2015)/' },
+        { title: 'Nordlicht (2015)', meta: 'Serie · Bibliothek «test2» · 8 Dateien · 14,1 GB', path: '/media/test2/Nordlicht/' }
+      ],
+      draft: st.draft,
+      draftOpen: function () { say('Der Dialog «Bibliothek hinzufügen» öffnet mit dem Entwurf.'); },
+      draftDrop: function () { self.setState({ draft: false, toast: 'Entwurf verworfen. Die Seite fragt beim Verlassen nicht mehr.' }); },
+      hasToast: !!st.toast, toast: st.toast
+    };
+  }
+}
+</script>
+</body>
+</html>

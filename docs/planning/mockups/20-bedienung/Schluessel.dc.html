@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Verwaltung: Schlüssel der Anbieter</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f3a27f}a:hover{color:#ffc4a8}
+button{font:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+.pg{box-sizing:border-box;min-height:100vh;background:#0b0c10;color:#f3f3f5;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;padding:20px 16px 48px}
+.wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.mock{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:#b6b9c4;border:1px dashed #ffffff3d;border-radius:12px;padding:8px 12px}
+.pill{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:18px;border:1px solid #ffffff2e;background:none;color:#f3f3f5;text-decoration:none;font-size:13px}
+.pill[aria-current="page"]{border-color:#e8794a;background:#e8794a33}
+.note{font-size:13px;color:#b6b9c4;border:1px dashed #ffffff3d;border-radius:12px;padding:10px 14px;line-height:1.5}
+.pv{background:#13151b;border:1px solid #ffffff14;border-radius:14px;display:flex;flex-direction:column}
+.hd{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:12px 14px}
+.nm{flex:0 0 120px;font-size:17px;font-weight:700}
+.use{flex:1 1 260px;min-width:0;font-size:13px;color:#b6b9c4;line-height:1.45}
+.chip{font-size:12px;font-weight:700;border-radius:10px;padding:5px 10px;white-space:nowrap}
+.chip.ok{background:#1f4d3a;color:#b9f0d3}
+.chip.env{background:#1d3a5c;color:#bcdcff}
+.chip.no{background:none;border:1px solid #ffffff4d;color:#d0d2da}
+.sb{min-height:44px;padding:0 16px;border-radius:22px;border:1px solid #ffffff2e;background:#1d2029;color:#f3f3f5;font-size:14px}
+.sb:hover{background:#2b2f3a}
+.sb.pri{background:#e8794a;border-color:#e8794a;color:#1c0d06;font-weight:700}
+.sb.red{background:none;border-color:transparent;color:#ff9d8f}
+.bd{border-top:1px solid #ffffff14;padding:14px;display:flex;flex-direction:column;gap:12px}
+.fr{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.fr label{flex:0 0 200px;font-size:14px}
+.fr input{flex:1 1 280px;min-width:0;min-height:44px;box-sizing:border-box;border-radius:10px;border:1px solid #ffffff4d;background:#0b0c10;color:#f3f3f5;padding:0 12px;font:inherit;font-size:14px}
+.fr input:disabled{opacity:.55}
+.hint{font-size:13px;color:#b6b9c4;line-height:1.5}
+.toast{position:sticky;bottom:12px;align-self:center;background:#f3f3f5;color:#0b0c10;border-radius:22px;padding:10px 18px;font-size:14px;font-weight:600}
+</style>
+</helmet>
+<div class="pg">
+<div class="wrap">
+
+  <nav class="mock" aria-label="Mockup-Navigation">
+    <span>Mockup:</span>
+    <a class="pill" href="Main.dc.html">Serienseite</a>
+    <a class="pill" href="Start.dc.html">Startseite</a>
+    <a class="pill" href="Liste.dc.html">Listenseite</a>
+    <a class="pill" href="Gesehen.dc.html">Gesehen</a>
+    <a class="pill" href="Schluessel.dc.html" aria-current="page">Schlüssel</a>
+    <a class="pill" href="Verwaltung.dc.html">Jobs, Löschen, Duplikate</a>
+  </nav>
+
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <span style="font-size: 13px; color: #b6b9c4;">Verwaltung › Integrationen</span>
+    <h1 style="margin: 0; font-size: 28px; font-weight: 800;">Schlüssel der Anbieter</h1>
+    <span style="font-size: 14px; color: #b6b9c4; line-height: 1.5;">{{summary}} Slouchcat holt damit Texte, Bilder und Trailer. Ohne Schlüssel bleibt der Anbieter aus.</span>
+  </div>
+
+  <sc-for list="{{providers}}" as="p" hint-placeholder-count="5">
+    <section class="pv" aria-label="{{p.name}}">
+      <div class="hd">
+        <span class="nm">{{p.name}}</span>
+        <span class="use">{{p.use}}</span>
+        <span class="{{p.chipClass}}">{{p.chip}}</span>
+        <button class="sb" aria-expanded="{{p.open}}" aria-label="{{p.editAria}}" onClick="{{p.toggle}}">{{p.editLabel}}</button>
+      </div>
+      <sc-if value="{{p.open}}" hint-placeholder-val="{{false}}">
+        <div class="bd">
+          <sc-for list="{{p.fields}}" as="f" hint-placeholder-count="2">
+            <div class="fr">
+              <label for="{{f.id}}">{{f.label}}</label>
+              <input id="{{f.id}}" type="password" autocomplete="off" placeholder="{{f.ph}}" disabled="{{p.env}}">
+            </div>
+          </sc-for>
+          <span class="hint">{{p.hint}} <a href="{{p.url}}" target="_blank" rel="noreferrer">{{p.linkLabel}}</a></span>
+          <sc-if value="{{p.editable}}" hint-placeholder-val="{{true}}">
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+              <button class="sb pri" onClick="{{p.save}}">Speichern</button>
+              <button class="sb" onClick="{{p.test}}">Prüfen</button>
+              <span style="flex: 1 1 20px;"></span>
+              <sc-if value="{{p.stored}}" hint-placeholder-val="{{false}}">
+                <button class="sb red" onClick="{{p.clear}}">Löschen …</button>
+              </sc-if>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+    </section>
+  </sc-for>
+
+  <sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+    <div class="toast" role="status">{{toast}}</div>
+  </sc-if>
+
+  <div class="note">
+    Aufgeräumt heisst: fünf Anbieter statt sieben Einzelzeilen. Zusammengehörige Werte stehen beisammen (TVDB: Schlüssel und PIN; Fanart.tv: Projekt-Schlüssel und persönlicher Schlüssel) und haben einen gemeinsamen Knopf «Speichern». Zugeklappt siehst du auf einen Blick Zweck und Stand; «Bearbeiten» klappt die Felder auf. Die Reihenfolge ist die der Wichtigkeit. Neu ist «Prüfen»: Slouchcat fragt den Anbieter und sagt, ob der Schlüssel gilt. Der Hinweis auf deploy/.env steht nur noch einmal. Alle Texte deutsch.
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1360}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { open: 'tvdb', st: { tmdb: 'env', tvdb: 'ok', fanart: 'ok', youtube: 'no', trakt: 'ok' }, toast: '' };
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var say = function (t) { self.setState({ toast: t }); };
+    var P = [
+      ['tmdb', 'TMDB', 'Texte, Poster und Trailer für Filme und Serien. Pflicht für Video-Bibliotheken.', [['Zugriffstoken (v4)', '']], 'Kostenlos, im TMDB-Konto unter «API».', 'https://www.themoviedb.org/settings/api'],
+      ['tvdb', 'TVDB', 'Zweite Quelle für Serien und Anime (Staffeln, Folgentitel).', [['Schlüssel', '7f3c'], ['Abo-PIN (nur bei Abo-Schlüssel)', '']], 'Schlüssel und PIN stehen im TVDB-Konto. Ohne Abo bleibt die PIN leer.', 'https://thetvdb.com/dashboard/account/apikey'],
+      ['fanart', 'Fanart.tv', 'Logos, Hintergründe und Disc-Bilder.', [['Projekt-Schlüssel', 'a91e'], ['Persönlicher Schlüssel (freiwillig)', '']], 'Mit persönlichem Schlüssel kommen neue Bilder sofort, sonst nach sieben Tagen.', 'https://fanart.tv/get-an-api-key/'],
+      ['youtube', 'YouTube', 'Trailer suchen, wenn TMDB keinen kennt.', [['Schlüssel', '']], 'Schlüssel der «YouTube Data API v3» aus der Google Cloud Console.', 'https://console.cloud.google.com/apis/credentials'],
+      ['trakt', 'Trakt', 'Listen für Spotlight und Startseitenreihen.', [['Client-ID', 'c2d0']], 'Client-ID einer eigenen Trakt-App. Den Stand der Listen zeigt die Seite «Spotlight».', 'https://trakt.tv/oauth/applications']
+    ];
+    var set = 0; P.forEach(function (p) { if (st.st[p[0]] !== 'no') set++; });
+    return {
+      summary: set + ' von ' + P.length + ' Anbietern eingerichtet.',
+      providers: P.map(function (p) {
+        var id = p[0], s = st.st[id], open = st.open === id, env = s === 'env';
+        var upd = function (v, t) { var m = Object.assign({}, st.st); m[id] = v; self.setState({ st: m, toast: t }); };
+        return { name: p[1], use: p[2], open: open, env: env, editable: !env, stored: s === 'ok', url: p[5],
+          chip: env ? 'In deploy/.env gesetzt' : s === 'ok' ? 'Gespeichert' : 'Nicht gesetzt',
+          chipClass: 'chip ' + (env ? 'env' : s === 'ok' ? 'ok' : 'no'),
+          editLabel: open ? 'Zuklappen' : env ? 'Ansehen' : s === 'ok' ? 'Bearbeiten' : 'Einrichten',
+          editAria: (open ? 'Zuklappen: ' : 'Bearbeiten: ') + p[1],
+          hint: env ? 'Der Wert kommt aus deploy/.env und lässt sich nur dort ändern.' : p[4],
+          linkLabel: 'Schlüssel bei ' + p[1] + ' holen',
+          fields: p[3].map(function (f, i) {
+            return { id: 'k20-' + id + '-' + i, label: f[0], ph: env ? 'in deploy/.env gesetzt' : f[1] ? 'gesetzt, endet auf ' + f[1] + ' · leer lassen = behalten' : 'nicht gesetzt' };
+          }),
+          toggle: function () { self.setState({ open: open ? '' : id, toast: '' }); },
+          save: function () { upd('ok', p[1] + ': gespeichert.'); },
+          test: function () { say(p[1] + ': Der Anbieter hat geantwortet, der Schlüssel gilt.'); },
+          clear: function () { upd('no', p[1] + ': Schlüssel gelöscht (nach Rückfrage).'); } };
+      }),
+      hasToast: !!st.toast, toast: st.toast
+    };
+  }
+}
+</script>
+</body>
+</html>
