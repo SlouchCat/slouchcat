@@ -280,31 +280,44 @@ func (q *Queries) OldestCondensableDay(ctx context.Context, before int64) (int64
 const setProgressWatched = `-- name: SetProgressWatched :exec
 
 INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, watched_at)
-VALUES (?1, ?2, ?3, ?3, 1, ?4, ?4)
+VALUES (?1, ?2, ?3, ?3, 1, ?4, ?5)
 ON CONFLICT (profile_id, item_id) DO UPDATE SET
     position_ms = CASE WHEN progress.duration_ms > 0 THEN progress.duration_ms ELSE excluded.duration_ms END,
     duration_ms = CASE WHEN progress.duration_ms > 0 THEN progress.duration_ms ELSE excluded.duration_ms END,
-    completed = 1, updated_at = excluded.updated_at, watched_at = excluded.watched_at
+    completed = 1,
+    updated_at = CASE WHEN excluded.updated_at < excluded.watched_at THEN min(progress.updated_at, excluded.updated_at)
+                      ELSE excluded.updated_at END,
+    watched_at = excluded.watched_at
+WHERE progress.watched_at IS NULL
 `
 
 type SetProgressWatchedParams struct {
 	ProfileID  int64
 	ItemID     string
 	DurationMs int64
-	At         int64
+	UpdatedAt  int64
+	At         sql.NullInt64
 }
 
 // The check mark set by hand (setItemWatched, concept 20 section 6.4). The caller checks the
-// visibility and gives the time of each title (staggered over the episodes of a series, so the
-// last one is the newest) and the duration a new row starts with.
-// Finished: completed, the position at the end, watched_at and updated_at at the given time. A
-// stored row keeps its duration unless it has none; a new row takes the given one (0 when none is
-// known). The playback rate stays.
+// visibility and gives the time of each title (watched_at, staggered over the episodes of a
+// series, so the last one is the newest), its updated_at and the duration a new row starts with.
+// Finished: completed, the position at the end, watched_at at the given time. A stored row keeps
+// its duration unless it has none, a new row takes the given one (0 when none is known). The
+// playback rate stays. A row that is already watched stays as it is (the WHERE of the upsert):
+// its watched_at, the same as COALESCE(progress.watched_at, excluded.watched_at), and its
+// updated_at, so marking a whole series keeps the dates of the episodes seen before. updated_at
+// is the given one, equal to watched_at for a title that may become the newest of its series. A
+// given updated_at below watched_at marks an episode behind the newest row of its series (the
+// caller passes below both): a stored row then keeps the older of its own and the given one, so
+// it never becomes newer than that row. sqlc does not bind a parameter inside DO UPDATE, hence
+// the comparison of the two inserted values instead of a flag.
 func (q *Queries) SetProgressWatched(ctx context.Context, arg SetProgressWatchedParams) error {
 	_, err := q.db.ExecContext(ctx, setProgressWatched,
 		arg.ProfileID,
 		arg.ItemID,
 		arg.DurationMs,
+		arg.UpdatedAt,
 		arg.At,
 	)
 	return err

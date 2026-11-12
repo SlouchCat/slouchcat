@@ -16,7 +16,9 @@ import (
 // section 6.4), in episode order: the title itself for a film, episode, extra, audiobook or
 // podcast episode; the visible episodes of a season, of every season of a series (specials first)
 // or of a podcast (oldest first). Episodes the profile may not see are never among them. Each
-// carries the duration a missing progress row starts with. An invisible or unknown title is
+// carries the duration a missing progress row starts with, and an episode of a series whether it
+// comes before the newest started or finished visible episode of that series (Behind, with that
+// row's updated_at in NewestAt). An invisible or unknown title is
 // model.ErrNotFound; a series without a visible episode returns none.
 func (r *Reader) WatchTargets(ctx context.Context, s Scope, itemID string) ([]model.WatchTarget, error) {
 	pid, err := r.profile(ctx, s)
@@ -32,7 +34,7 @@ func (r *Reader) WatchTargets(ctx context.Context, s Scope, itemID string) ([]mo
 	}
 	out := make([]model.WatchTarget, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, model.WatchTarget{ItemID: row.ID, DurationMs: row.DurationMs})
+		out = append(out, model.WatchTarget{ItemID: row.ID, DurationMs: row.DurationMs, Behind: row.Behind == 1, NewestAt: row.NewestAt})
 	}
 	return out, nil
 }

@@ -10,9 +10,15 @@
 -- of the primary file (available files first, then the largest height, the oldest, as
 -- ListMediaFilesForItem orders them), then the duration from the feed and the runtime of the
 -- metadata, 0 when none is known.
+-- newest_at and behind keep continue watching and the offline rule "next episode" in place
+-- (section 6.4, decision of 12 November 2026): newest_at is the updated_at of the newest started
+-- or finished progress row (completed or a position above 0, what ListContinueWatching and
+-- nextUp read) among the visible episodes of the series the title belongs to, behind is 1 for an
+-- episode that comes before that row in episode order (season, then episode number, season 0
+-- first). Both are 0 without such a row and for every title outside a series.
 -- name: ListVisibleWatchTargets :many
 WITH title AS (
-    SELECT i.id, i.kind FROM items AS i
+    SELECT i.id, i.kind, i.parent_id FROM items AS i
     JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
     WHERE i.id = @item_id
 ),
@@ -26,13 +32,37 @@ wanted AS (
     JOIN items AS s ON s.parent_id = t.id AND s.kind = 'season'
     JOIN items AS e ON e.parent_id = s.id AND e.kind = 'episode'
     WHERE t.kind = 'series'
+),
+series AS (
+    SELECT CASE t.kind WHEN 'series' THEN t.id WHEN 'season' THEN t.parent_id
+                ELSE (SELECT s.parent_id FROM items AS s WHERE s.id = t.parent_id AND s.kind = 'season') END AS id
+    FROM title AS t WHERE t.kind IN ('series', 'season', 'episode')
+),
+newest AS (
+    SELECT p.updated_at, COALESCE(e.season_number, se.season_number, 0) AS season_number,
+           COALESCE(e.episode_number, 0) AS episode_number
+    FROM series AS sr
+    CROSS JOIN items AS se ON se.parent_id = sr.id AND se.kind = 'season'
+    CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind = 'episode'
+    CROSS JOIN progress AS p ON p.profile_id = @profile_id AND p.item_id = e.id
+    JOIN visible_items AS vn ON vn.item_id = e.id AND vn.profile_id = @profile_id
+    WHERE p.completed = 1 OR p.position_ms > 0
+    ORDER BY p.updated_at DESC, e.id DESC
+    LIMIT 1
 )
 SELECT e.id,
        CAST(CASE WHEN e.kind = 'audiobook' THEN COALESCE(e.duration_ms, f.duration_ms, e.runtime_minutes * 60000, 0)
-                 ELSE COALESCE(f.duration_ms, e.duration_ms, e.runtime_minutes * 60000, 0) END AS INTEGER) AS duration_ms
+                 ELSE COALESCE(f.duration_ms, e.duration_ms, e.runtime_minutes * 60000, 0) END AS INTEGER) AS duration_ms,
+       CAST(COALESCE(n.updated_at, 0) AS INTEGER) AS newest_at,
+       CAST(CASE WHEN n.updated_at IS NOT NULL
+                  AND (COALESCE(e.season_number, te.season_number, 0) < n.season_number
+                       OR (COALESCE(e.season_number, te.season_number, 0) = n.season_number
+                           AND COALESCE(e.episode_number, 0) < n.episode_number)) THEN 1 ELSE 0 END AS INTEGER) AS behind
 FROM wanted AS x
 JOIN items AS e ON e.id = x.id
 JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = @profile_id
+LEFT JOIN items AS te ON te.id = e.parent_id AND te.kind = 'season'
+LEFT JOIN newest AS n ON e.kind = 'episode'
 LEFT JOIN media_files AS f ON f.id = (
     SELECT m.id FROM media_files AS m
     WHERE m.item_id = e.id AND m.duration_ms > 0

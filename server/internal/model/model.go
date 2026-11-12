@@ -569,10 +569,14 @@ type Progress struct {
 
 // WatchTarget is a title the check mark «gesehen» writes (setItemWatched, concept 20 section 6.4):
 // the title itself or one visible episode below it, with the duration a new progress row starts
-// with (0 when none is known).
+// with (0 when none is known). Behind is set on an episode that comes before the newest started or
+// finished episode of its series in episode order; NewestAt is that episode's updated_at (Unix
+// milliseconds), so the check mark can stay older than it.
 type WatchTarget struct {
 	ItemID     string
 	DurationMs int64
+	Behind     bool
+	NewestAt   int64
 }
 
 // The page «Gesehen» (listWatched, concept 20 section 15.4).
