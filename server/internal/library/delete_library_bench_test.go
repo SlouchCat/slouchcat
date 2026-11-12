@@ -139,7 +139,7 @@ func seedDeleteBench(b *testing.B, shape string) *store.DB {
 				}
 			}
 			if k%10 == 0 {
-				exec(`INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (1, ?, ?)`, it, now)
+				exec(`INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (1, ?, ?, ?)`, it, now, now)
 			}
 		}
 		decorate := func(it string, k int) {

@@ -359,9 +359,10 @@ func TestRecommendAndUnrecommend(t *testing.T) {
 	}
 }
 
-// E-5, E-8: watchlist and favourites belong to the profile; invisible titles answer not found,
-// seasons and extras are not listable, only series and podcasts are favourites.
-func TestWatchlistAndFavoriteWrites(t *testing.T) {
+// E-5: the watchlist belongs to the profile; invisible titles answer not found, seasons and extras
+// are not listable. A new entry follows its title from the moment it was added (follow_since,
+// concept 20 P-2), and adding again keeps both times.
+func TestWatchlistWrites(t *testing.T) {
 	t.Parallel()
 	f := discoverFixture(t)
 	now := time.UnixMilli(50_000)
@@ -418,44 +419,21 @@ func TestWatchlistAndFavoriteWrites(t *testing.T) {
 		t.Errorf("P6 watchlist after remove = %v, %v", itemIDs(items), err)
 	}
 
-	for _, tc := range []struct {
-		name string
-		p    model.Profile
-		id   string
-		want error
-	}{
-		{"movie", f.P18, f.Rated(6).ID, model.ErrNotFavoritable},
-		{"episode", f.P18, f.Show.E1.ID, model.ErrNotFavoritable},
-		{"audiobook", f.P18, f.Audio.Books[0].ID, model.ErrNotFavoritable},
-		{"invisible series", f.P6, f.Show.Series.ID, model.ErrNotFound},
-		{"invisible podcast", f.P12, f.Audio.ExplicitPodcast.ID, model.ErrNotFound},
-		{"series", f.P12, f.Show.Series.ID, nil},
-		{"podcast", f.P6, f.Audio.Podcast.ID, nil},
-	} {
-		if err := s.AddFavorite(ctx, tc.p, tc.id); !errors.Is(err, tc.want) {
-			t.Errorf("favourite %s: err = %v, want %v", tc.name, err, tc.want)
-		}
-	}
-	for _, tc := range []struct {
-		p    model.Profile
-		want []string
-	}{{f.P12, []string{f.Show.Series.ID}}, {f.P6, []string{f.Audio.Podcast.ID}}, {f.P18, []string{f.Show.Series.ID}}} {
-		favs, err := s.Favorites(ctx, tc.p)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !slices.Equal(itemIDs(favs), tc.want) {
-			t.Errorf("%s favourites = %v, want %v", tc.p.Name, itemIDs(favs), tc.want)
-		}
-	}
-	if err := s.RemoveFavorite(ctx, f.P12, f.Show.Series.ID); err != nil {
+	var created, since int64
+	if err := f.DB.Read.QueryRow(`SELECT created_at, follow_since FROM watchlist WHERE profile_id = ? AND item_id = ?`,
+		f.P18.ID, f.Audio.Podcast.ID).Scan(&created, &since); err != nil {
 		t.Fatal(err)
 	}
-	if favs, err := s.Favorites(ctx, f.P12); err != nil || len(favs) != 0 {
-		t.Errorf("P12 favourites after remove = %v, %v", itemIDs(favs), err)
+	if created != now.UnixMilli() || since != now.UnixMilli() {
+		t.Errorf("new podcast entry: created_at %d, follow_since %d, want both %d", created, since, now.UnixMilli())
 	}
-	if err := s.RemoveFavorite(ctx, f.P6, f.Show.Series.ID); !errors.Is(err, model.ErrNotFound) {
-		t.Errorf("remove invisible favourite: err = %v", err)
+	now = now.Add(time.Hour)
+	if err := s.AddToWatchlist(ctx, f.P18, f.Audio.Podcast.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.DB.Read.QueryRow(`SELECT follow_since FROM watchlist WHERE profile_id = ? AND item_id = ?`,
+		f.P18.ID, f.Audio.Podcast.ID).Scan(&since); err != nil || since != created {
+		t.Errorf("follow_since after adding again = %d (%v), want %d", since, err, created)
 	}
 }
 
@@ -1225,5 +1203,57 @@ func TestHomeStopsLoadingBehindThePage(t *testing.T) {
 	page, err = s.page(ctx, model.Profile{}, true)
 	if err != nil || len(page.Rows) != 0 || page.HeroRow != "" || loaded.Load() != 0 {
 		t.Errorf("until the stage without spotlight: page %+v, err %v, %d rows loaded, want an empty page and no row loaded", page, err, loaded.Load())
+	}
+}
+
+// Concept 20 P-7 (8.3): the list behind a row title exists for continue, recent, released and
+// spotlight; the spotlight list only while its row does (enabled, at least min_hits hits), without
+// the cut to item_count and with HasTrailer like the row; no list of a hidden row. Any other key is
+// not found.
+func TestHomeListKeysAndSpotlightCondition(t *testing.T) {
+	t.Parallel()
+	f := discoverFixture(t)
+	now := time.Date(2026, 10, 21, 4, 0, 0, 0, time.UTC)
+	s := New(f.DB, f.CacheDir, vistest.Logger(), WithClock(func() time.Time { return now }))
+	ctx := context.Background()
+	f.AddSpotlightFilms(t, 12)
+	exec(t, f, `UPDATE spotlight_config SET min_hits = 10, item_count = 5`)
+	for k := 1; k <= 12; k++ {
+		exec(t, f, `INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', ?, ?, ?)`, k, 8000+k, now.Add(-time.Hour).UnixMilli())
+	}
+	items, total, err := s.HomeList(ctx, f.P18, RowSpotlight, "", 0, 50)
+	if err != nil || len(items) != 12 || total != 12 {
+		t.Fatalf("spotlight list = %v (%d, %v), want all 12 titles without the cut to 5", itemIDs(items), total, err)
+	}
+	for _, it := range items {
+		if it.HasTrailer == nil {
+			t.Errorf("spotlight list: %s without HasTrailer", it.ID)
+		}
+	}
+	exec(t, f, `DELETE FROM spotlight_entries WHERE position > 9`)
+	if _, _, err := s.HomeList(ctx, f.P18, RowSpotlight, "", 0, 50); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("spotlight list below min_hits: err = %v, want not found", err)
+	}
+	exec(t, f, `UPDATE spotlight_config SET min_hits = 0, enabled = 0`)
+	if _, _, err := s.HomeList(ctx, f.P18, RowSpotlight, "", 0, 50); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("disabled spotlight list: err = %v, want not found", err)
+	}
+	for _, key := range []string{RowRecent, RowReleased, RowContinue} {
+		if _, _, err := s.HomeList(ctx, f.P18, key, "", 0, 50); err != nil {
+			t.Errorf("list %s: %v", key, err)
+		}
+	}
+	for _, key := range []string{RowPicks, RowWatchlist, RowCollections, RowGenres, RowLibrary, "nope"} {
+		if _, _, err := s.HomeList(ctx, f.P18, key, "", 0, 50); !errors.Is(err, model.ErrNotFound) {
+			t.Errorf("list %s: err = %v, want not found", key, err)
+		}
+	}
+	// A row hidden in the row settings has no list either (its title has no link then).
+	exec(t, f, `UPDATE home_rows SET hidden = 1 WHERE key = 'recent'`)
+	if _, _, err := s.HomeList(ctx, f.P18, RowRecent, "", 0, 50); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("list of the hidden row recent: err = %v, want not found", err)
+	}
+	if _, _, err := s.HomeList(ctx, f.P18, RowReleased, "", 0, 50); err != nil {
+		t.Errorf("list released beside the hidden row: %v", err)
 	}
 }

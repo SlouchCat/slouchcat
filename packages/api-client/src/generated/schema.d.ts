@@ -600,6 +600,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/home/rows/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The whole list behind a row of the start page (concept 20 P-7)
+         * @description Since contract 1.31.0. The list behind the row title of `getHome` for the rows `continue`,
+         *     `recent`, `released` and `spotlight` (the page `/lists/{key}`): the same titles in the same
+         *     order and with the same rules as the row, the cards like the row's, only without the row's
+         *     cut to 20 titles. `continue` (one entry per series) is computed once per call and holds at
+         *     most 200 entries, so the order may shift between two pages while somebody watches.
+         *     `spotlight` holds every title of the chosen list in the visible library after the pinned
+         *     ones took their place, without the cut to the configured number of titles; while the
+         *     spotlight is switched off or has fewer hits than its minimum the row is missing on the start
+         *     page and this list answers 404. A row hidden in the row settings (`setHomeRows`) has no list
+         *     either (404). The key is checked before `content`. `content` keeps the titles whose title of the top level has
+         *     that kind: `series` keeps the next episodes of a series in `continue`, `podcast` the podcast
+         *     episodes. Every title passed the visibility layer of the active profile.
+         */
+        get: operations["listHomeRow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/picks": {
         parameters: {
             query?: never;
@@ -2942,6 +2973,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/collections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every collection with a visible member (E-6, concept 20 O-3)
+         * @description Since contract 1.31.0. The page «Sammlungen» behind the title of the start page row
+         *     `collections`: the same collections in the same order as the row (by name, each with the
+         *     number of its visible members and its cover), only without the row's cut to 20, at most 500.
+         *     Audiobook collections stand in the row «Reihen und Sammlungen» of their library and are not
+         *     listed (like the row).
+         */
+        get: operations["listVisibleCollections"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/collections/{id}": {
         parameters: {
             query?: never;
@@ -3079,7 +3134,10 @@ export interface paths {
         get?: never;
         /**
          * Put a title on the watchlist of the active profile (E-5)
-         * @description Idempotent. Every kind except seasons and extras; an invisible title answers 404.
+         * @description Idempotent. Every kind except seasons and extras; an invisible title answers 404. Since
+         *     contract 1.31.0 (concept 20 P-2) a series or podcast on the watchlist takes the place of the
+         *     favourite: a new episode creates an in-app notification for the profile when the profile may
+         *     see the episode (5.5), and its new podcast episodes feed the auto-download rule (O-3).
          */
         put: operations["addToWatchlist"];
         post?: never;
@@ -3116,51 +3174,6 @@ export interface paths {
          *     picks unless another profile recommended it. 404 as for `recommendItem`.
          */
         delete: operations["unrecommendItem"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/favorites": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The favourite series and podcasts of the active profile (E-8)
-         * @description Newest first; favourites whose title became invisible are omitted.
-         */
-        get: operations["listFavorites"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/items/{id}/favorite": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Mark a series or podcast as favourite of the active profile (E-8)
-         * @description Idempotent. A new episode of a favourite creates an in-app notification for the profile when the
-         *     profile may see the episode (5.5); favourite podcasts also feed the auto-download rule (O-3).
-         */
-        put: operations["addFavorite"];
-        post?: never;
-        /**
-         * Remove the favourite mark
-         * @description Idempotent; an invisible or unknown title answers 404.
-         */
-        delete: operations["removeFavorite"];
         options?: never;
         head?: never;
         patch?: never;
@@ -6155,8 +6168,6 @@ export interface components {
             images: components["schemas"]["ItemImages"];
         };
         ItemDetail: components["schemas"]["ItemRef"] & {
-            /** @description A favourite of the active profile (E-8; series and podcasts only). */
-            favorite: boolean;
             /**
              * @description The active profile holds a recommendation of this title that has not expired (the star
              *     shows «Empfohlen ✓», contract 1.23.0, ADR 0028). Never who else or how many recommended it.
@@ -6336,6 +6347,12 @@ export interface components {
          * @enum {string}
          */
         HomeRowKey: "spotlight" | "picks" | "continue" | "recent" | "released" | "watchlist" | "collections" | "genres" | "libraries" | "library" | "radio";
+        /**
+         * @description The rows of the start page whose title leads to a list of its own (`listHomeRow`, contract
+         *     1.31.0, concept 20 P-7).
+         * @enum {string}
+         */
+        HomeListKey: "continue" | "recent" | "released" | "spotlight";
         /**
          * @description The identity of a start page row (since contract 1.15.0): its key for every row but
          *     `library`, `library:<libraryId>` for a library row.
@@ -7887,8 +7904,6 @@ export interface components {
             /** Format: int64 */
             watchlist: number;
             /** Format: int64 */
-            favorites: number;
-            /** Format: int64 */
             collectionItems: number;
             /** Format: int64 */
             notifications: number;
@@ -8639,7 +8654,10 @@ export interface components {
             enabled: boolean;
             /** @description Download the next episode of every started series. */
             nextEpisodes: boolean;
-            /** @description New episodes of the profile's favourite podcasts (O-3; favourites replaced the listening history in M7). */
+            /**
+             * @description New episodes of the podcasts on the profile's watchlist, published after the profile put the
+             *     podcast there (O-3; since contract 1.31.0 the watchlist replaces the favourites of M7).
+             */
             newPodcastEpisodes: boolean;
             wifiOnly: boolean;
             /** @description Most auto-downloads on this device the profile has not finished watching. */
@@ -8989,7 +9007,7 @@ export interface components {
             readAt?: string;
             /** @description The new episode. */
             item: components["schemas"]["ItemRef"];
-            /** @description The favourite series or podcast, when still visible. */
+            /** @description The series or podcast on the watchlist, when still visible. */
             parent?: components["schemas"]["ItemRef"];
         };
         NotificationPage: {
@@ -10226,7 +10244,8 @@ export interface components {
          */
         Channel: "email" | "push" | "telegram";
         /**
-         * @description `new_content`: a new episode of a favourite (per profile, prefixed with the profile name);
+         * @description `new_content`: a new episode of a series or podcast on a profile's watchlist (per profile,
+         *     prefixed with the profile name);
          *     `errors`: failures the main user should see (main account only); `invitations`: an
          *     invitation was accepted; `announcements`: the main user published an announcement.
          * @enum {string}
@@ -12687,6 +12706,52 @@ export interface operations {
             };
             /** @description No valid session (`unauthenticated`). */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listHomeRow: {
+        parameters: {
+            query?: {
+                /** @description Only titles of this kind at the top level; absent = all. */
+                content?: components["schemas"]["RootContent"];
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                key: components["schemas"]["HomeListKey"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of the list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description An unknown key, a hidden row, or the spotlight while it has no row (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `content` is no kind of the top level (`validation_failed`). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -16967,6 +17032,27 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
         };
     };
+    listVisibleCollections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The collections, by name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionRef"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
     getCollection: {
         parameters: {
             query?: {
@@ -17262,98 +17348,6 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             /** @description Unknown, not visible, not recommendable or not the owner's account (`not_found`). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    listFavorites: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The favourites. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ItemRef"][];
-                };
-            };
-            401: components["responses"]["Unauthenticated"];
-        };
-    };
-    addFavorite: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Item ID (ULID). */
-                id: components["parameters"]["ItemID"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Marked. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthenticated"];
-            /** @description Unknown or not visible for the active profile (`not_found`). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Only series and podcasts can be favourites (`not_favoritable`). */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    removeFavorite: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Item ID (ULID). */
-                id: components["parameters"]["ItemID"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Not a favourite (any more). */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthenticated"];
-            /** @description Unknown or not visible for the active profile (`not_found`). */
             404: {
                 headers: {
                     [name: string]: unknown;

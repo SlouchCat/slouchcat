@@ -1,5 +1,6 @@
 import type {
   Collection,
+  CollectionRef,
   GenreRef,
   ItemPage,
   ItemRef,
@@ -52,6 +53,12 @@ export const collectionSource = (id: string): PagedSource<Collection, ItemRef> =
   items: (page) => page.items,
   total: (page) => page.total,
   id: (item) => item.id,
+});
+
+/** Every collection with a visible member, by name (the page «Sammlungen», concept 20 O-3). */
+export const collectionsQuery = queryOptions({
+  queryKey: ['collections'],
+  queryFn: ({ signal }): Promise<CollectionRef[]> => request(api.GET('/collections', { signal })),
 });
 
 /** The watchlist of the active profile, newest first (E-5, concept 18 C-3). */
@@ -220,21 +227,6 @@ export function useWatchlistMutation() {
           queryClient.invalidateQueries({ queryKey, exact: true }),
         ),
       ]),
-  });
-}
-
-/** Marks a series or podcast as favourite or not (E-8: new episodes notify). */
-export function useFavoriteMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, on }: { id: string; on: boolean }) =>
-      request(
-        on
-          ? api.PUT('/items/{id}/favorite', { params: { path: { id } } })
-          : api.DELETE('/items/{id}/favorite', { params: { path: { id } } }),
-      ),
-    onSettled: (_data, _error, { id }) =>
-      queryClient.invalidateQueries({ queryKey: ['item', id], exact: true }),
   });
 }
 

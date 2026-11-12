@@ -1,8 +1,8 @@
 // Package notify keeps the in-app inbox of the profiles (plan 3.1 notify, 5.5, M7 E-8) and sends
 // notifications on the channels of the accounts (M8, A-6, A-7): e-mail, Web Push and Telegram.
 //
-// A new episode of a series or podcast that a profile marked as favourite becomes one entry in that
-// profile's inbox, but only when the profile may see the episode: the decision runs through
+// A new episode of a series or podcast that a profile has on its watchlist (concept 20 P-2; before
+// 1.31.0 its favourite) becomes one entry in that profile's inbox, but only when the profile may see the episode: the decision runs through
 // package visibility before anything is stored or sent. The Dispatcher hands the entry on to the
 // channels; the default dispatcher is the service itself (event new_content, prefixed with the
 // profile name).
@@ -128,19 +128,20 @@ const MaxPerParent = 50
 // targetBatch is the number of episode ids read in one query (well below SQLite's variable limit).
 const targetBatch = 500
 
-// NewEpisodes records new series and podcast episodes: for every profile with a favourite on the
-// episode's series or podcast that may see the episode, one inbox entry (a second call for the
+// NewEpisodes records new series and podcast episodes: for every profile with the episode's series
+// or podcast on its watchlist (concept 20 P-2: the watchlist took over from the favourite) that may
+// see the episode, one inbox entry (a second call for the
 // same episode adds nothing) and one call of the dispatcher. Unknown ids and other kinds are
 // skipped; per series or podcast at most MaxPerParent episodes of one call notify, in the order of
-// episodeIDs. Without any favourite it reads nothing else. A dispatcher error is logged; the entry
+// episodeIDs. Without any followed series or podcast it reads nothing else. A dispatcher error is logged; the entry
 // stays. Library scans and podcast fetches call it concurrently.
 func (s *Service) NewEpisodes(ctx context.Context, episodeIDs []string) error {
 	if len(episodeIDs) == 0 {
 		return nil
 	}
-	has, err := s.read.NotifyHasFavorites(ctx)
+	has, err := s.read.NotifyHasFollowed(ctx)
 	if err != nil {
-		return fmt.Errorf("any favourite: %w", err)
+		return fmt.Errorf("any followed title: %w", err)
 	}
 	if !has {
 		return nil
@@ -148,11 +149,11 @@ func (s *Service) NewEpisodes(ctx context.Context, episodeIDs []string) error {
 	perParent := map[string]int{}
 	var errs []error
 	for chunk := range slices.Chunk(episodeIDs, targetBatch) {
-		rows, err := s.read.NotifyFavoriteTargets(ctx, chunk)
+		rows, err := s.read.NotifyFollowerTargets(ctx, chunk)
 		if err != nil {
-			return errors.Join(append(errs, fmt.Errorf("favourites of new episodes: %w", err))...)
+			return errors.Join(append(errs, fmt.Errorf("followers of new episodes: %w", err))...)
 		}
-		targets := make(map[string][]systemq.NotifyFavoriteTargetsRow, len(rows))
+		targets := make(map[string][]systemq.NotifyFollowerTargetsRow, len(rows))
 		for _, r := range rows {
 			targets[r.EpisodeID] = append(targets[r.EpisodeID], r)
 		}

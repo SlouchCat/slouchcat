@@ -43,7 +43,7 @@ export { PosterFallback } from './PosterFallback';
 export { ProfileAvatar, ProfileTile } from './ProfileTile';
 export { ProgressBar } from './ProgressBar';
 export { RoundAction } from './RoundAction';
-export { Row, RowList } from './Row';
+export { Row, RowList, RowTitle } from './Row';
 export { SearchField } from './SearchField';
 export { SelectField, type SelectGroup, type SelectOption } from './SelectField';
 export {

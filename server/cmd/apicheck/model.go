@@ -87,7 +87,6 @@ type itemDetail struct {
 	Overview     string          `json:"overview"`
 	Genres       []string        `json:"genres"`
 	InWatchlist  bool            `json:"inWatchlist"`
-	Favorite     bool            `json:"favorite"`
 	MediaFiles   []mediaFileInfo `json:"mediaFiles"`
 	Chapters     []chapter       `json:"chapters"`
 	Episodes     []itemRef       `json:"episodes"`

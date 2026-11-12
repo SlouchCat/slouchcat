@@ -32,12 +32,12 @@ func TestAdminRelinkItems(t *testing.T) {
 	m.exec(t, `UPDATE items SET deleted_at = ? WHERE id = ?`, deletedAt.UnixMilli(), dead.ID)
 	m.exec(t, `UPDATE items SET created_at = ? WHERE id = ?`, deletedAt.Add(24*time.Hour).UnixMilli(), live.ID)
 	m.exec(t, `UPDATE items SET created_at = ? WHERE id = ?`, deletedAt.Add(-30*24*time.Hour).UnixMilli(), old.ID)
-	for _, table := range []string{"progress", "watchlist", "favorites", "progress_events"} {
+	for _, table := range []string{"progress", "watchlist", "progress_events"} {
 		m.exec(t, fmt.Sprintf(`DELETE FROM %s WHERE item_id IN (?, ?, ?)`, table), dead.ID, live.ID, old.ID)
 	}
 	m.exec(t, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at) VALUES
 	           (?, ?, 1000, 7200000, 1, 10), (?, ?, 2000, 7200000, 0, 10)`, f.P18.ID, dead.ID, f.P16.ID, dead.ID)
-	m.exec(t, `INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (?, ?, 1)`, f.P18.ID, dead.ID)
+	m.exec(t, `INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (?, ?, 1, 1)`, f.P18.ID, dead.ID)
 
 	listed := func() map[string]model.RelinkPair {
 		t.Helper()

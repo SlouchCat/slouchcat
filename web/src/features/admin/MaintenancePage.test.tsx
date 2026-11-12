@@ -115,7 +115,6 @@ const noUserData: RelinkUserData = {
   progressDays: 0,
   playbackSessions: 0,
   watchlist: 0,
-  favorites: 0,
   collectionItems: 0,
   notifications: 0,
   userPicks: 0,

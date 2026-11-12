@@ -33,7 +33,6 @@ func checks() []check {
 		{"Detail", checkDetail},
 		{"Merkliste", checkWatchlist},
 		{"Haken «gesehen» und Seite «Gesehen»", checkWatched},
-		{"Favoriten", checkFavorites},
 		{"Abspielstart mit Fähigkeitsprofil", checkPlaybackStart},
 		{"Abruf Direct Play/HLS mit Stream-Token", checkStreams},
 		{"Spur- und Untertitelwahl", checkTracks},
@@ -267,32 +266,6 @@ func checkWatched(ctx context.Context, s *state) (string, error) {
 	}
 	return fmt.Sprintf("%q als gesehen markiert («Gesehen» %d Filme, watchedAt gesetzt), Haken wieder entfernt",
 		s.movie.Title, total), nil
-}
-
-// checkFavorites reads the favourites, removes one and marks it again. The fixtures already made
-// the podcast a favourite, which is what gave the inbox its entry.
-func checkFavorites(ctx context.Context, s *state) (string, error) {
-	path := "/items/" + s.podcast.ID + "/favorite"
-	var favorites []itemRef
-	if err := s.c.get(ctx, "/favorites", nil, &favorites); err != nil {
-		return "", err
-	}
-	if !contains(favorites, s.podcast.ID) {
-		return "", errors.New("the podcast is not among the favourites")
-	}
-	if err := s.c.call(ctx, http.MethodDelete, path, nil, nil, nil, http.StatusNoContent, http.StatusOK); err != nil {
-		return "", err
-	}
-	if err := s.c.get(ctx, "/favorites", nil, &favorites); err != nil {
-		return "", err
-	}
-	if contains(favorites, s.podcast.ID) {
-		return "", errors.New("the podcast stayed among the favourites")
-	}
-	if err := s.c.call(ctx, http.MethodPut, path, nil, nil, nil, http.StatusNoContent, http.StatusOK); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%q als Favorit gelesen, entfernt und wieder gesetzt", s.podcast.Title), nil
 }
 
 // directCapabilities is the capability profile of a browser that plays H.264 and AAC in MP4.
@@ -640,7 +613,7 @@ func checkOfflineEvents(ctx context.Context, s *state) (string, error) {
 }
 
 // checkNotifications reads the inbox and marks it read. The fixtures created the entry through a
-// favourite podcast that got a new episode (E-8).
+// podcast on the watchlist that got a new episode (E-8, concept 20 P-2).
 func checkNotifications(ctx context.Context, s *state) (string, error) {
 	var page notificationPage
 	if err := s.c.get(ctx, "/notifications", query("limit", "50"), &page); err != nil {

@@ -7,7 +7,6 @@ import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import {
-  useFavoriteMutation,
   useRecommendMutation,
   useWatchlistMutation,
   useWatchlistPending,
@@ -44,7 +43,6 @@ export const TRAILER_KEY = 'detail-trailer';
 const RESTART_KEY = 'detail-restart';
 const DOWNLOAD_KEY = 'detail-download';
 const WATCHLIST_KEY = 'detail-watchlist';
-const FAVORITE_KEY = 'detail-favorite';
 const WATCHED_KEY = 'detail-watched';
 const DELETE_KEY = 'detail-delete';
 /** The round button's state per check mark: half filled for a partly watched series (F-12). */
@@ -189,10 +187,10 @@ interface DetailActionsProps {
 /**
  * The actions of a detail page (concept 17 D-2, variant A; E-10, E-11): the big button with its
  * second line and progress stroke, under it the round actions in this order: Trailer, Von vorne,
- * Merken, Favorit, Gesehen, Empfehlen, Download, Verwalten. Offline Merken, Favorit and Empfehlen are
- * disabled (they live on the server), like the cover's watchlist button. «Empfehlen» (concept 18
- * part B) stands only where the server says it applies (`canRecommend`: the owner's account, no
- * season or extra); a press puts the title into the user picks or takes the own pick back, and a
+ * Merken, Gesehen, Empfehlen, Download, Verwalten. Offline Merken and Empfehlen are disabled (they
+ * live on the server), like the cover's watchlist button. «Empfehlen» (concept 18 part B) stands
+ * only where the server says it applies (`canRecommend`: the owner's account, no season or extra);
+ * a press puts the title into the user picks or takes the own pick back, and a
  * hint under the row says so.
  */
 export function DetailActions({ item, file, target, onTrailer }: DetailActionsProps) {
@@ -204,16 +202,14 @@ export function DetailActions({ item, file, target, onTrailer }: DetailActionsPr
   // A shortcut for the one who manages the library, not a visibility rule: the server answers the
   // administration page only for that account and profile anyway.
   const canManage = session.account.role === 'admin' && session.profile.isPrimary;
-  // Every kind but seasons and extras goes on the watchlist (E-5); series and podcasts can be
-  // favourites, which notify about new episodes (E-8).
+  // Every kind but seasons and extras goes on the watchlist (E-5); a series or podcast there
+  // notifies about new episodes (concept 20 P-2, in place of the favourite of E-8).
   const listable = item.kind !== 'season' && item.kind !== 'extra';
-  const favoritable = item.kind === 'series' || item.kind === 'podcast';
   const watchlist = useWatchlistMutation();
   const watchlistPending = useWatchlistPending(item.id);
-  const favorite = useFavoriteMutation();
   const recommend = useRecommendMutation();
   const [pickHint, setPickHint] = useState<string | null>(null);
-  const failed = watchlist.error ?? favorite.error ?? recommend.error;
+  const failed = watchlist.error ?? recommend.error;
   // The check mark «gesehen» (concept 20 P-5): every title but extras; offline a display only.
   const watched = useWatchedToggle(item);
   // «Löschen» (concept 20 P-9): after the delete the page of the title is gone, so the reader
@@ -277,24 +273,12 @@ export function DetailActions({ item, file, target, onTrailer }: DetailActionsPr
             onPress={() => watchlist.mutate({ id: item.id, on: !item.inWatchlist })}
           />
         )}
-        {favoritable && (
-          <RoundAction
-            focusKey={FAVORITE_KEY}
-            icon="heart"
-            label={t('item.favorite.label')}
-            pressed={item.favorite}
-            description={t('item.favorite.hint')}
-            isDisabled={!online}
-            busy={favorite.isPending}
-            onPress={() => favorite.mutate({ id: item.id, on: !item.favorite })}
-          />
-        )}
-        {/* «Gesehen» beside the favourite; it takes the favourite's place in stage 3. */}
+        {/* «Gesehen» in the favourite's place (concept 20 P-2, P-5). */}
         {WATCHED_KINDS.has(item.kind) && (
           <RoundAction
             focusKey={WATCHED_KEY}
             icon="check"
-            label={t('watched.button')}
+            label={watched.buttonLabel}
             pressed={WATCHED_PRESSED[watched.state]}
             description={watched.hint}
             isDisabled={watched.readOnly}

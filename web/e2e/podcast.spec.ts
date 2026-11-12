@@ -154,7 +154,8 @@ test('podcast page by keyboard: episodes, play, "Mehr laden" absent, no focus tr
     await page.goto(`/items/${podcast.id}`);
     const list = page.getByRole('list', { name: 'Episoden' });
     const firstPlay = list.getByRole('link', { name: `${episodeTitle(2)} abspielen` });
-    await tabTo(page, firstPlay, 30);
+    // Past the side navigation (with «Gesehen») and the round actions (with «Gehört», concept 20).
+    await tabTo(page, firstPlay, 34);
     // ↓ moves to the next episode's play button (arrow navigation of the detail page).
     await page.keyboard.press('ArrowDown');
     await expectFocusOn(page, list.getByRole('link', { name: `${episodeTitle(1)} abspielen` }));
@@ -202,7 +203,8 @@ test('episode page by keyboard: play, download, "Zum Podcast", back; no focus tr
     await expect(download).toBeVisible();
 
     // Arrows: ↓ lands on play, ↑ on the back arrow, ↓ returns; ↓ to the round actions ("Merken",
-    // "Empfehlen", the download, concept 17 E-11 and concept 18 part B), ↓ to "Zum Podcast".
+    // "Gehört" of concept 20 P-5, "Empfehlen", the download, concept 17 E-11 and concept 18 part
+    // B), ↓ to "Zum Podcast".
     await page.keyboard.press('ArrowDown');
     await expectFocusOn(page, play);
     await page.keyboard.press('ArrowUp');
@@ -211,6 +213,8 @@ test('episode page by keyboard: play, download, "Zum Podcast", back; no focus tr
     await expectFocusOn(page, play);
     await page.keyboard.press('ArrowDown');
     await expectFocusOn(page, page.getByRole('button', { name: /^(Merken|Gemerkt)$/ }));
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, page.getByRole('button', { name: 'Gehört', exact: true }));
     await page.keyboard.press('ArrowRight');
     await page.keyboard.press('ArrowRight');
     await expectFocusOn(page, download);
@@ -223,7 +227,7 @@ test('episode page by keyboard: play, download, "Zum Podcast", back; no focus tr
     await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
     await tabTo(page, back, 3);
     await tabTo(page, play, 2);
-    await tabTo(page, download, 3);
+    await tabTo(page, download, 4);
     await tabTo(page, toPodcast, 3);
     await expectNoFocusTrap(page);
 

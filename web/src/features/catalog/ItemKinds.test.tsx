@@ -196,27 +196,25 @@ describe('detail page: film with versions, extras, cast and trailers', () => {
     expect(screen.getByRole('button', { name: 'Trailer' })).toBeVisible();
   });
 
-  it('disables Merken and Favorit while offline (both live on the server)', async () => {
+  it('disables Merken while offline (it lives on the server)', async () => {
     const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
     mockApi({ ...signedIn, [`GET /items/${seriesIds.show}`]: () => json(showDetail) });
     renderApp(`/items/${seriesIds.show}`);
     const watchlist = await screen.findByRole('button', { name: 'Merken' });
-    const favorite = screen.getByRole('button', { name: 'Favorit' });
     expect(watchlist).toBeEnabled();
-    expect(favorite).toBeEnabled();
+    // The favourite is gone (concept 20 P-2): the watchlist notifies about new episodes.
+    expect(screen.queryByRole('button', { name: 'Favorit' })).not.toBeInTheDocument();
 
     online.mockReturnValue(false);
     act(() => {
       window.dispatchEvent(new Event('offline'));
     });
     expect(watchlist).toBeDisabled();
-    expect(favorite).toBeDisabled();
     online.mockReturnValue(true);
     act(() => {
       window.dispatchEvent(new Event('online'));
     });
     expect(watchlist).toBeEnabled();
-    expect(favorite).toBeEnabled();
   });
 
   it('shows the pen only for the main account with its primary profile', async () => {
@@ -262,7 +260,7 @@ describe('detail page: series, season, episode, extra', () => {
       'href',
       `/play/${seriesIds.e1}?at=0`,
     );
-    expect(screen.getByRole('button', { name: 'Favorit' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Merken' })).toBeVisible();
 
     // The shelf (E-13): the season of the nextUp episode is chosen, with its watched episodes.
     const shelf = screen.getByRole('region', { name: 'Staffeln' });
@@ -471,9 +469,8 @@ describe('detail page: series, season, episode, extra', () => {
     expect(
       screen.getByRole('link', { name: 'Weiterschauen S01E01 · Pilot · noch 35 min' }),
     ).toHaveAttribute('href', `/play/${seriesIds.e1}`);
-    // No watchlist and no favourite for a season (E-15).
+    // No watchlist for a season (E-15).
     expect(screen.queryByRole('button', { name: 'Merken' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Favorit' })).not.toBeInTheDocument();
     const list = screen.getByRole('list', { name: 'Folgen' });
     expect(within(list).getByRole('link', { name: /^Abspielen.*S01E02/ })).toHaveAttribute(
       'href',

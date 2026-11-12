@@ -385,7 +385,7 @@ func (s *server) ListRelinkPairs(ctx context.Context, req gen.ListRelinkPairsReq
 			DeletedYear: p.DeletedYear, DeletedAt: p.DeletedAt.UTC(),
 			UserData: gen.RelinkUserData{
 				Progress: u.Progress, ProgressEvents: u.ProgressEvents, ProgressDays: u.ProgressDays,
-				PlaybackSessions: u.PlaybackSessions, Watchlist: u.Watchlist, Favorites: u.Favorites,
+				PlaybackSessions: u.PlaybackSessions, Watchlist: u.Watchlist,
 				CollectionItems: u.CollectionItems, Notifications: u.Notifications, UserPicks: u.UserPicks,
 				Downloads: u.Downloads, ActivityEvents: u.ActivityEvents,
 			},

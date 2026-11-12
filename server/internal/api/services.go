@@ -415,21 +415,19 @@ type CatalogService interface {
 
 	// Discover (M7). Search over the FTS index through the visibility layer (E-4); genres of the
 	// visible titles; a collection with one page of its visible members (model.ErrNotFound without
-	// a visible member); the watchlist (E-5) and the favourites (E-8) of the profile. Add/Remove
-	// answer model.ErrNotFound for an invisible title, model.ErrNotListable for seasons and extras,
-	// model.ErrNotFavoritable for anything but series and podcasts.
+	// a visible member); the watchlist (E-5) of the profile. Add/Remove answer model.ErrNotFound
+	// for an invisible title, model.ErrNotListable for seasons and extras.
 	Search(ctx context.Context, profile model.Profile, q model.SearchQuery) (model.SearchResult, error)
 	Genres(ctx context.Context, profile model.Profile) ([]model.GenreRef, error)
 	Collection(ctx context.Context, profile model.Profile, id string, offset, limit int) (model.Collection, error)
+	// Collections lists every collection with a visible member (the page «Sammlungen», concept 20 O-3).
+	Collections(ctx context.Context, profile model.Profile) ([]model.CollectionRef, error)
 	Watchlist(ctx context.Context, profile model.Profile, offset, limit int) ([]model.ItemSummary, int, error)
 	// Watched returns one page of the page «Gesehen» (listWatched, concept 20 section 15.4); a
 	// content or sort outside its values is a *model.ValidationError.
 	Watched(ctx context.Context, profile model.Profile, q model.WatchedQuery) (model.WatchedPage, error)
 	AddToWatchlist(ctx context.Context, profile model.Profile, itemID string) error
 	RemoveFromWatchlist(ctx context.Context, profile model.Profile, itemID string) error
-	Favorites(ctx context.Context, profile model.Profile) ([]model.ItemSummary, error)
-	AddFavorite(ctx context.Context, profile model.Profile, itemID string) error
-	RemoveFavorite(ctx context.Context, profile model.Profile, itemID string) error
 	// User picks (concept 18 part B, ADR 0028): Recommend stores or renews the profile's pick,
 	// Unrecommend takes it back; model.ErrNotFound for an invisible title, a season, an extra and
 	// a profile outside the owner's account (owner false).
@@ -443,6 +441,10 @@ type CatalogService interface {
 	VisibleLibraries(ctx context.Context, profile model.Profile) ([]model.LibraryNav, error)
 	LibraryItems(ctx context.Context, profile model.Profile, libraryID int64, q model.LibraryQuery) (model.LibraryPage, error)
 	PicksPage(ctx context.Context, profile model.Profile, offset, limit int) ([]model.ItemSummary, int, error)
+	// HomeList pages the list behind a row title of the start page (listHomeRow, concept 20 P-7):
+	// key continue, recent, released or spotlight, content one kind of the top level ("" = all);
+	// model.ErrNotFound for another key and for the spotlight while it has no row.
+	HomeList(ctx context.Context, profile model.Profile, key, content string, offset, limit int) ([]model.ItemSummary, int, error)
 	// Audiobook series (contract 1.25.0, concept 19 stage D2). AudioGroups answers the row «Reihen
 	// und Sammlungen» of a library with the filters of LibraryItems (genre, years, maxRating,
 	// status); AudioSeries the page of a series. model.ErrNotFound for a library the profile does

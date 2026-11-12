@@ -108,6 +108,17 @@ info:
     visible episode of a season, series or podcast. `ItemRef.watchedCount` is also set on series and
     podcasts (the half check mark). `listWatched` is the page «Gesehen».
 
+    Watchlist instead of favourite (concept 20 stage 3, contract 1.31.0; breaking): the favourite of
+    series and podcasts is gone (`listFavorites`, `addFavorite`, `removeFavorite`,
+    `ItemDetail.favorite`, `RelinkUserData.favorites` and the error `not_favoritable`). A series or
+    podcast on the watchlist of a profile now triggers the notification of a new episode and the
+    offline rule `newPodcastEpisodes`; the server moved every favourite onto the watchlist.
+
+    Lists behind the row titles (concept 20 stage 3, contract 1.31.0; additive): `listHomeRow`
+    pages the whole list behind the rows `continue`, `recent`, `released` and `spotlight` with a
+    filter by the kind of the top level. `listVisibleCollections` lists every collection of the row
+    `collections` for the page «Sammlungen».
+
     Offline (M5): a profile downloads movies, episodes and seasons to its device (`createDownloads`). The
     server prepares a fragmented MP4 per title in the background; the device fetches it through
     `getDownloadManifest` and the download token `dt`, stores it in the browser (OPFS) and plays it
@@ -149,7 +160,7 @@ tags:
   - name: podcasts
     description: Podcast subscriptions by feed URL, administered by the main account (M6, H-2).
   - name: discover
-    description: Search, watchlist, favourites, collections and the in-app inbox of the active profile (M7).
+    description: Search, watchlist, collections and the in-app inbox of the active profile (M7).
   - name: account
     description: The signed-in account itself (e-mail and password, M8).
   - name: notify
@@ -1401,6 +1412,74 @@ paths:
                 $ref: "#/components/schemas/HomePage"
         "401":
           description: No valid session (`unauthenticated`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /home/rows/{key}:
+    get:
+      operationId: listHomeRow
+      summary: The whole list behind a row of the start page (concept 20 P-7)
+      description: |
+        Since contract 1.31.0. The list behind the row title of `getHome` for the rows `continue`,
+        `recent`, `released` and `spotlight` (the page `/lists/{key}`): the same titles in the same
+        order and with the same rules as the row, the cards like the row's, only without the row's
+        cut to 20 titles. `continue` (one entry per series) is computed once per call and holds at
+        most 200 entries, so the order may shift between two pages while somebody watches.
+        `spotlight` holds every title of the chosen list in the visible library after the pinned
+        ones took their place, without the cut to the configured number of titles; while the
+        spotlight is switched off or has fewer hits than its minimum the row is missing on the start
+        page and this list answers 404. A row hidden in the row settings (`setHomeRows`) has no list
+        either (404). The key is checked before `content`. `content` keeps the titles whose title of the top level has
+        that kind: `series` keeps the next episodes of a series in `continue`, `podcast` the podcast
+        episodes. Every title passed the visibility layer of the active profile.
+      tags: [items]
+      x-visibility: scoped
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/HomeListKey"
+        - name: content
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/RootContent"
+          description: Only titles of this kind at the top level; absent = all.
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: One page of the list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: An unknown key, a hidden row, or the spotlight while it has no row (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: "`content` is no kind of the top level (`validation_failed`)."
           content:
             application/problem+json:
               schema:
@@ -5697,8 +5776,8 @@ paths:
                 $ref: "#/components/schemas/Problem"
 
   # ---------------------------------------------------------------------------------------------
-  # Discover and curation (M7, E-1 to E-9, I-7): search, genres, collections, watchlist, favourites
-  # and the in-app inbox of the active profile.
+  # Discover and curation (M7, E-1 to E-9, I-7): search, genres, collections, watchlist and the in-app
+  # inbox of the active profile.
   # ---------------------------------------------------------------------------------------------
   /search:
     post:
@@ -5757,6 +5836,31 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/GenreRef"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+
+  /collections:
+    get:
+      operationId: listVisibleCollections
+      summary: Every collection with a visible member (E-6, concept 20 O-3)
+      description: |
+        Since contract 1.31.0. The page «Sammlungen» behind the title of the start page row
+        `collections`: the same collections in the same order as the row (by name, each with the
+        number of its visible members and its cover), only without the row's cut to 20, at most 500.
+        Audiobook collections stand in the row «Reihen und Sammlungen» of their library and are not
+        listed (like the row).
+      tags: [discover]
+      x-visibility: scoped
+      responses:
+        "200":
+          description: The collections, by name.
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 500
+                items:
+                  $ref: "#/components/schemas/CollectionRef"
         "401":
           $ref: "#/components/responses/Unauthenticated"
 
@@ -5987,7 +6091,11 @@ paths:
     put:
       operationId: addToWatchlist
       summary: Put a title on the watchlist of the active profile (E-5)
-      description: Idempotent. Every kind except seasons and extras; an invisible title answers 404.
+      description: |
+        Idempotent. Every kind except seasons and extras; an invisible title answers 404. Since
+        contract 1.31.0 (concept 20 P-2) a series or podcast on the watchlist takes the place of the
+        favourite: a new episode creates an in-app notification for the profile when the profile may
+        see the episode (5.5), and its new podcast episodes feed the auto-download rule (O-3).
       tags: [discover]
       x-visibility: scoped
       parameters:
@@ -6074,73 +6182,6 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "404":
           description: Unknown, not visible, not recommendable or not the owner's account (`not_found`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-
-  /favorites:
-    get:
-      operationId: listFavorites
-      summary: The favourite series and podcasts of the active profile (E-8)
-      description: Newest first; favourites whose title became invisible are omitted.
-      tags: [discover]
-      x-visibility: scoped
-      responses:
-        "200":
-          description: The favourites.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/ItemRef"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-
-  /items/{id}/favorite:
-    put:
-      operationId: addFavorite
-      summary: Mark a series or podcast as favourite of the active profile (E-8)
-      description: |
-        Idempotent. A new episode of a favourite creates an in-app notification for the profile when the
-        profile may see the episode (5.5); favourite podcasts also feed the auto-download rule (O-3).
-      tags: [discover]
-      x-visibility: scoped
-      parameters:
-        - $ref: "#/components/parameters/ItemID"
-      responses:
-        "204":
-          description: Marked.
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "404":
-          description: Unknown or not visible for the active profile (`not_found`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-        "422":
-          description: Only series and podcasts can be favourites (`not_favoritable`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-    delete:
-      operationId: removeFavorite
-      summary: Remove the favourite mark
-      description: Idempotent; an invisible or unknown title answers 404.
-      tags: [discover]
-      x-visibility: scoped
-      parameters:
-        - $ref: "#/components/parameters/ItemID"
-      responses:
-        "204":
-          description: Not a favourite (any more).
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "404":
-          description: Unknown or not visible for the active profile (`not_found`).
           content:
             application/problem+json:
               schema:
@@ -11700,11 +11741,8 @@ components:
       allOf:
         - $ref: "#/components/schemas/ItemRef"
         - type: object
-          required: [mediaFiles, genres, favorite, collections, recommendedByMe, canRecommend]
+          required: [mediaFiles, genres, collections, recommendedByMe, canRecommend]
           properties:
-            favorite:
-              type: boolean
-              description: A favourite of the active profile (E-8; series and podcasts only).
             recommendedByMe:
               type: boolean
               description: |
@@ -11969,6 +12007,13 @@ components:
         15 P-7); a row is named by `HomeRowId`, the key alone no longer. Contract 1.19.0 added `radio`
         («Meine Sender», concept 16 stage 2).
       enum: [spotlight, picks, continue, recent, released, watchlist, collections, genres, libraries, library, radio]
+
+    HomeListKey:
+      type: string
+      description: |
+        The rows of the start page whose title leads to a list of its own (`listHomeRow`, contract
+        1.31.0, concept 20 P-7).
+      enum: [continue, recent, released, spotlight]
 
     HomeRowId:
       type: string
@@ -14396,7 +14441,7 @@ components:
     RelinkUserData:
       type: object
       description: User data rows on a title and its descendants, per table.
-      required: [progress, progressEvents, progressDays, playbackSessions, watchlist, favorites, collectionItems,
+      required: [progress, progressEvents, progressDays, playbackSessions, watchlist, collectionItems,
         notifications, userPicks, downloads, activityEvents]
       properties:
         progress:
@@ -14412,9 +14457,6 @@ components:
           type: integer
           format: int64
         watchlist:
-          type: integer
-          format: int64
-        favorites:
           type: integer
           format: int64
         collectionItems:
@@ -15628,7 +15670,9 @@ components:
           description: Download the next episode of every started series.
         newPodcastEpisodes:
           type: boolean
-          description: New episodes of the profile's favourite podcasts (O-3; favourites replaced the listening history in M7).
+          description: |
+            New episodes of the podcasts on the profile's watchlist, published after the profile put the
+            podcast there (O-3; since contract 1.31.0 the watchlist replaces the favourites of M7).
         wifiOnly:
           type: boolean
         maxCount:
@@ -16275,7 +16319,7 @@ components:
           description: The new episode.
         parent:
           $ref: "#/components/schemas/ItemRef"
-          description: The favourite series or podcast, when still visible.
+          description: The series or podcast on the watchlist, when still visible.
 
     NotificationPage:
       type: object
@@ -18288,7 +18332,8 @@ components:
       type: string
       enum: [new_content, errors, invitations, announcements]
       description: |
-        `new_content`: a new episode of a favourite (per profile, prefixed with the profile name);
+        `new_content`: a new episode of a series or podcast on a profile's watchlist (per profile,
+        prefixed with the profile name);
         `errors`: failures the main user should see (main account only); `invitations`: an
         invitation was accepted; `announcements`: the main user published an announcement.
 

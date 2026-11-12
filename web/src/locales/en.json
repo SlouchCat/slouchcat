@@ -156,7 +156,6 @@
       "feed_exists": "This library already subscribes to the feed.",
       "rating_below_library_default": "The age rating must not be below the library's default.",
       "not_listable": "Seasons and extras cannot be put on the watchlist.",
-      "not_favoritable": "Only series and podcasts can be favourites.",
       "not_editable": "Collections from TMDB cannot be changed.",
       "env_wins": "This value is set in deploy/.env and can only be changed there.",
       "telegram_token_invalid": "Telegram rejected the token. Check the token from @BotFather.",
@@ -460,6 +459,15 @@
     }
   },
   "home": {
+    "list": {
+      "count_one": "{{count}} title",
+      "count_other": "{{count}} titles",
+      "empty": "No title in this selection.",
+      "notFound": {
+        "title": "List not found",
+        "body": "This list does not exist right now, for example because the spotlight is switched off."
+      }
+    },
     "title": "Home",
     "picks": "User picks",
     "rows": {
@@ -470,7 +478,6 @@
       "genres": "Genres",
       "spotlight": "Spotlight",
       "released": "Recently released",
-      "all": "Show all ›",
       "libraries": "My media",
       "library": "New in {{library}}",
       "radio": "My stations"
@@ -642,10 +649,6 @@
     "watchlist": {
       "add": "Add to watchlist",
       "added": "On watchlist"
-    },
-    "favorite": {
-      "label": "Favourite",
-      "hint": "Notify me about new episodes"
     },
     "recommend": {
       "add": "Recommend",
@@ -1987,8 +1990,6 @@
           "playbackSessions_other": "{{count}} playbacks",
           "watchlist_one": "{{count}} watchlist entry",
           "watchlist_other": "{{count}} watchlist entries",
-          "favorites_one": "{{count}} favourite",
-          "favorites_other": "{{count}} favourites",
           "collectionItems_one": "{{count}} collection entry",
           "collectionItems_other": "{{count}} collection entries",
           "notifications_one": "{{count}} notification",
@@ -5036,7 +5037,7 @@
     },
     "rules": {
       "title": "Automatic downloads",
-      "intro": "Downloads the next episode of every series {{name}} watched in the last 60 days to this device, and new episodes of the podcasts {{name}} marked as favourites.",
+      "intro": "Downloads the next episode of every series {{name}} watched in the last 60 days to this device, and new episodes of the podcasts on the watchlist of {{name}}.",
       "options": "Settings",
       "enabled": "Automatic downloads on this device",
       "nextEpisodes": "Next episode of started series",
@@ -5048,7 +5049,7 @@
       "quality": "Quality",
       "save": "Save rule",
       "saved": "Saved. The rule applies from the next sync.",
-      "newPodcastEpisodes": "New episodes of favourite podcasts"
+      "newPodcastEpisodes": "New episodes of the podcasts on the watchlist"
     },
     "dialog": {
       "button": "Download",
@@ -5169,6 +5170,12 @@
     }
   },
   "collection": {
+    "all": {
+      "title": "Collections",
+      "count_one": "{{count}} collection",
+      "count_other": "{{count}} collections",
+      "empty": "There is no collection for this profile yet."
+    },
     "count_one": "{{count}} title",
     "count_other": "{{count}} titles",
     "members": "Titles",
@@ -5191,7 +5198,7 @@
     "summary_other": "{{count}} unread",
     "empty": {
       "title": "No notifications",
-      "body": "Mark series or podcasts as favourites to hear about new episodes here."
+      "body": "Put series or podcasts on your watchlist to hear about new episodes here."
     }
   },
   "settings": {
@@ -5243,7 +5250,7 @@
     },
     "notifications": {
       "title": "Notification channels",
-      "intro": "New episodes of your favourites, invitations and announcements arrive here in addition to the app’s inbox. The settings apply to the whole account with all its profiles; a message about a profile starts with its name.",
+      "intro": "New episodes of the series and podcasts on your watchlist, invitations and announcements arrive here in addition to the app’s inbox. The settings apply to the whole account with all its profiles; a message about a profile starts with its name.",
       "link": "Set up channels",
       "serverChannels": "Set up the server’s channels → Integrations",
       "list": "Channels",
@@ -5588,6 +5595,23 @@
     }
   },
   "watched": {
+    "heard": {
+      "label": "Listened: {{title}}",
+      "button": "Listened",
+      "hint": {
+        "set": "Mark as listened",
+        "half": "Partly listened: mark all or remove all check marks"
+      },
+      "state": {
+        "full": "Listened",
+        "half": "Partly listened"
+      },
+      "ask": {
+        "removeTitle": "Mark «{{title}}» as not listened?",
+        "halfTitle": "«{{title}}» is partly listened",
+        "markAll": "Mark every episode as listened"
+      }
+    },
     "page": {
       "title": "Watched",
       "count_one": "{{count}} title",
@@ -5610,6 +5634,7 @@
       "heardOn": "heard on {{date}}",
       "episodes_one": "{{count}} of {{total}} episodes · last {{date}}",
       "episodes_other": "{{count}} of {{total}} episodes · last {{date}}",
+      "emptyKind": "Nothing watched under «{{kind}}» yet.",
       "empty": {
         "title": "Nothing watched yet.",
         "body": "What you watch or listen to the end shows up here."

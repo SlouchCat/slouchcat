@@ -3,11 +3,15 @@
   display: inline-flex;
 }
 
-/* Why a change failed: a small note above the check mark, inside the cover or the row. */
+/*
+ * Why a change failed: a small note below the check mark. The check sits at the top of a cover,
+ * so a note above it would leave the cover and be cut off by a row's scroll box.
+ */
 .error {
   position: absolute;
+  z-index: 1;
+  top: calc(100% + var(--sc-space-1));
   right: 0;
-  bottom: calc(100% + var(--sc-space-1));
   width: max-content;
   max-width: var(--sc-size-poster-sm);
   padding: var(--sc-space-1) var(--sc-space-2);

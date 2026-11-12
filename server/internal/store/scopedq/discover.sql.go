@@ -24,25 +24,6 @@ func (q *Queries) CountWatchlist(ctx context.Context, profileID int64) (int64, e
 	return count, err
 }
 
-const getFavorite = `-- name: GetFavorite :one
-SELECT count(*) FROM favorites AS f
-JOIN visible_items AS v ON v.item_id = f.item_id AND v.profile_id = f.profile_id
-WHERE f.profile_id = ?1 AND f.item_id = ?2
-`
-
-type GetFavoriteParams struct {
-	ProfileID int64
-	ItemID    string
-}
-
-// 1 when the visible title is a favourite of the profile, else 0.
-func (q *Queries) GetFavorite(ctx context.Context, arg GetFavoriteParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getFavorite, arg.ProfileID, arg.ItemID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
 const getVisibleCollection = `-- name: GetVisibleCollection :one
 SELECT c.id, c.name, c.name_de, c.overview, c.overview_de, count(*) AS member_count
 FROM collections AS c
@@ -147,120 +128,6 @@ func (q *Queries) ListCollectionsOfItem(ctx context.Context, arg ListCollections
 			&i.NameDe,
 			&i.MemberCount,
 			&i.CoverID,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listFavorites = `-- name: ListFavorites :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at FROM favorites AS f
-JOIN items AS i ON i.id = f.item_id
-JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
-WHERE f.profile_id = ?1
-ORDER BY f.created_at DESC, i.id
-LIMIT ?2
-`
-
-type ListFavoritesParams struct {
-	ProfileID  int64
-	LimitCount int64
-}
-
-// Favourite series and podcasts of the profile (E-8), newest first.
-func (q *Queries) ListFavorites(ctx context.Context, arg ListFavoritesParams) ([]Item, error) {
-	rows, err := q.db.QueryContext(ctx, listFavorites, arg.ProfileID, arg.LimitCount)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Item{}
-	for rows.Next() {
-		var i Item
-		if err := rows.Scan(
-			&i.ID,
-			&i.Kind,
-			&i.ParentID,
-			&i.LibraryID,
-			&i.Title,
-			&i.SortTitle,
-			&i.OriginalTitle,
-			&i.Year,
-			&i.ReleaseDate,
-			&i.RuntimeMinutes,
-			&i.Genres,
-			&i.TmdbID,
-			&i.ImdbID,
-			&i.OwnRating,
-			&i.EffectiveRating,
-			&i.MinChildRating,
-			&i.Available,
-			&i.RatingSource,
-			&i.EnclosureUrl,
-			&i.LockedFields,
-			&i.MetadataState,
-			&i.MetadataError,
-			&i.MatchedAt,
-			&i.AddedAt,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.DeletedAt,
-			&i.SeasonNumber,
-			&i.EpisodeNumber,
-			&i.EpisodeEnd,
-			&i.TvdbID,
-			&i.ExtraKind,
-			&i.TmdbPosterPath,
-			&i.TmdbBackdropPath,
-			&i.TrailerState,
-			&i.TrailerCheckedAt,
-			&i.SegmentsState,
-			&i.SegmentsCheckedAt,
-			&i.Author,
-			&i.Narrator,
-			&i.SeriesName,
-			&i.SeriesIndex,
-			&i.Explicit,
-			&i.DurationMs,
-			&i.CoverUrl,
-			&i.CoverPath,
-			&i.FeedUrl,
-			&i.FeedEtag,
-			&i.FeedModified,
-			&i.FeedCheckedAt,
-			&i.FeedError,
-			&i.Guid,
-			&i.PublishedAt,
-			&i.EnclosureType,
-			&i.EnclosureLength,
-			&i.Providers,
-			&i.AnilistID,
-			&i.FeedOrigin,
-			&i.FilledProviders,
-			&i.VoteAverage,
-			&i.OriginalLanguage,
-			&i.Publisher,
-			&i.Isbn,
-			&i.Asin,
-			&i.AudioSeriesID,
-			&i.AuthorDisplay,
-			&i.BookMatchState,
-			&i.BookMatchProvider,
-			&i.BookMatchID,
-			&i.BookMatchRegion,
-			&i.BookMatchedAt,
-			&i.BookMatchScore,
-			&i.BookMatchError,
-			&i.BookMatchManual,
-			&i.RemovedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -595,7 +462,7 @@ type ListWatchlistParams struct {
 	LimitCount  int64
 }
 
-// Discover reads of M7 (design 3.1): watchlist, favourites, collections and genres (the spotlight row: spotlight.sql).
+// Discover reads of M7 (design 3.1): watchlist, collections and genres (the spotlight row: spotlight.sql).
 // Every query joins visible_items for the given profile, so an entry whose title became invisible
 // is absent and a collection exists for the profile only through a visible member. Times are Unix
 // milliseconds.

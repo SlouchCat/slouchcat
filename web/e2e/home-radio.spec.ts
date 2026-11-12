@@ -53,10 +53,8 @@ test('«Meine Sender» on the start page: reached by keyboard, plays, names the 
     await page.goto('/');
     const row = page.getByRole('region', { name: 'Meine Sender' });
     await expect(row).toBeVisible();
-    await expect(row.getByRole('link', { name: 'Alle anzeigen ›' })).toHaveAttribute(
-      'href',
-      '/radio',
-    );
+    // The row title leads to the radio page (concept 20 P-7).
+    await expect(row.getByRole('link', { name: 'Meine Sender' })).toHaveAttribute('href', '/radio');
     const tile = row.getByRole('button', { name: `${STATION} abspielen` });
 
     await resetFocus(page);

@@ -2,22 +2,16 @@
 -- a title is checked through the visibility package before any of these writes run. Times are Unix
 -- milliseconds.
 
--- Watchlist and favourites (stream A). Owner: discover package. Both writes are idempotent; adding
--- again keeps the first created_at.
+-- Watchlist (stream A). Owner: discover package. Both writes are idempotent; adding again keeps the
+-- first created_at. A new entry follows the title from the moment it was added (follow_since, concept
+-- 20 P-2: new podcast episodes after it are fetched by the offline rule).
 
 -- name: AddWatchlist :exec
-INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (@profile_id, @item_id, @now)
+INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (@profile_id, @item_id, @now, @now)
 ON CONFLICT (profile_id, item_id) DO NOTHING;
 
 -- name: RemoveWatchlist :exec
 DELETE FROM watchlist WHERE profile_id = @profile_id AND item_id = @item_id;
-
--- name: AddFavorite :exec
-INSERT INTO favorites (profile_id, item_id, created_at) VALUES (@profile_id, @item_id, @now)
-ON CONFLICT (profile_id, item_id) DO NOTHING;
-
--- name: RemoveFavorite :exec
-DELETE FROM favorites WHERE profile_id = @profile_id AND item_id = @item_id;
 
 -- User picks (concept 18 part B, ADR 0028). Owner: discover package; it checks the visibility of the
 -- title and that the profile belongs to the owner's account first. Recommending again renews the

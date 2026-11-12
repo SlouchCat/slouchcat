@@ -26,6 +26,7 @@ import {
 import { BACK_KEY, DetailBody, DetailHeader, DetailPage } from './DetailHeader';
 import { CoverPen, EDITABLE_KINDS, EditMetadata } from './EditMetadata';
 import { isFinished } from './labels';
+import { CoverWatched } from './watched';
 import { audioSeriesQuery } from './queries';
 import { useBackFocus } from './useBackFocus';
 import itemStyles from './ItemPage.module.css';
@@ -351,6 +352,9 @@ function SeriesView({ libraryId, seriesId }: { libraryId: number | null; seriesI
                           <CoverPen item={item} onEdit={setEditing} />
                         ) : undefined
                       }
+                      // The check mark of the volume (concept 20 P-5); the volume itself never
+                      // asks whether to resume (O-9).
+                      watchedControl={<CoverWatched item={item} appearance="row" />}
                     />
                   </li>
                 );

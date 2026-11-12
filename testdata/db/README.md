@@ -368,12 +368,21 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   darum nicht sichtbar). Dann `store.Dump`, kein neuer Pfad im Stand. `TestFrozenGesehenStateCoversTheStage`
   prüft, dass jede dieser Datenarten vorhanden ist; `TestMigration00053ProgressWatchedAt` prüft den Schritt von
   `radio-wikidata.sql` aus.
+- `merkliste.sql`: Stand nach Stufe 3 des Konzepts 20 «Startseite und Favorit» (Migration 00054: die Favoriten in
+  der Merkliste, `watchlist.follow_since`, Tabelle `favorites` weg). Erzeugt am 12. November 2026 aus `gesehen.sql`:
+  Stand eingespielt, per SQL für das Hauptprofil «Slouchcat Test Show» auf der Merkliste (1. November 2026) und als
+  Favorit (5. November), «Frozen Podcast» nur als Favorit (6. November), für das zweite Profil «Slouchcat Test H264»
+  auf der Merkliste ohne Favorit (7. November); mit `store.Open` migriert (00054; `follow_since` des Films = Zeitpunkt
+  der Migration), dann mit dem echten Dienst `discover.Service` (Uhr 12. November 2026, 12:00 UTC) «Slouchcat Test
+  AC3 51» für das zweite Profil gemerkt (`follow_since` = `created_at`). Dann `store.Dump`, kein neuer Pfad im
+  Stand. `TestFrozenMerklisteStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist;
+  `TestMigration00054WatchlistTakesOverFavorites` prüft den Schritt von `radio-wikidata.sql` aus.
 - `loeschen.sql`: Stand nach Stufe 5 des Konzepts 20 «Löschen» (Migration 00055 mit `profile_libraries` samt
   Fremdschlüssel auf `libraries`, `items.removed_at`, dem Teilindex `items_removed` und den Indizes auf den
-  Kindspalten der Fremdschlüssel aus der Messung M-1). Erzeugt am 12. November 2026 aus `gesehen.sql`: Stand
-  eingespielt, mit `store.Open` migriert, dann per SQL: das zweite Profil auf zwei Bibliotheken beschränkt
+  Kindspalten der Fremdschlüssel aus der Messung M-1). Erzeugt am 12. November 2026 aus `merkliste.sql` (Stand
+  nach 00053 und 00054): Stand eingespielt, mit `store.Open` migriert (00055), dann per SQL: das zweite Profil auf zwei Bibliotheken beschränkt
   («Filme» und «Podcasts» in `profile_libraries`), der Film «Slouchcat Test HEVC 10bit» und die Serie
   «Slouchcat Test Intro Show» mit Staffel und Folgen aus Slouchcat entfernt (`removed_at` und `deleted_at`,
   Stichtag 12. November 2026, 12:00 UTC; die Dateien bleiben verzeichnet). Dann `store.Dump`, kein neuer Pfad
   im Stand. `TestFrozenLoeschenStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist;
-  `TestMigration00055LibraryAndTitleDeletion` prüft den Schritt von `gesehen.sql` aus.
+  `TestMigration00055LibraryAndTitleDeletion` prüft den Schritt von `merkliste.sql` aus.

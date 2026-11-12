@@ -14,12 +14,15 @@ import (
 )
 
 // M7 discover operations of the active profile (plan M7, design sections 2 and 3.1): search,
-// genres, collections, watchlist and favourites. The catalog service reads through the visibility
+// genres, collections and watchlist. The catalog service reads through the visibility
 // layer; an invisible title or a collection without a visible member answers 404 not_found.
 
-func (e serviceProblem) VisitSearchResponse(w http.ResponseWriter) error         { return e.visit(w) }
-func (e serviceProblem) VisitListGenresResponse(w http.ResponseWriter) error     { return e.visit(w) }
-func (e serviceProblem) VisitGetCollectionResponse(w http.ResponseWriter) error  { return e.visit(w) }
+func (e serviceProblem) VisitSearchResponse(w http.ResponseWriter) error        { return e.visit(w) }
+func (e serviceProblem) VisitListGenresResponse(w http.ResponseWriter) error    { return e.visit(w) }
+func (e serviceProblem) VisitGetCollectionResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitListVisibleCollectionsResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
 func (e serviceProblem) VisitListWatchlistResponse(w http.ResponseWriter) error  { return e.visit(w) }
 func (e serviceProblem) VisitAddToWatchlistResponse(w http.ResponseWriter) error { return e.visit(w) }
 func (e serviceProblem) VisitListWatchedResponse(w http.ResponseWriter) error    { return e.visit(w) }
@@ -30,9 +33,6 @@ func (e serviceProblem) VisitUnrecommendItemResponse(w http.ResponseWriter) erro
 func (e serviceProblem) VisitRemoveFromWatchlistResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
-func (e serviceProblem) VisitListFavoritesResponse(w http.ResponseWriter) error  { return e.visit(w) }
-func (e serviceProblem) VisitAddFavoriteResponse(w http.ResponseWriter) error    { return e.visit(w) }
-func (e serviceProblem) VisitRemoveFavoriteResponse(w http.ResponseWriter) error { return e.visit(w) }
 
 // Search bounds: the longest text and genre of the contract (SearchRequest.query and genre
 // maxLength) and the years a filter may name. The strict server does not check schema bounds, so
@@ -120,6 +120,19 @@ func (s *server) ListGenres(ctx context.Context, _ gen.ListGenresRequestObject) 
 		return s.problem(ctx, err), nil
 	}
 	return gen.ListGenres200JSONResponse(toGenreRefs(genres)), nil
+}
+
+// ListVisibleCollections answers every collection the active profile sees (concept 20 O-3).
+func (s *server) ListVisibleCollections(ctx context.Context, _ gen.ListVisibleCollectionsRequestObject) (gen.ListVisibleCollectionsResponseObject, error) {
+	session, err := s.itemSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	cs, err := s.opts.Catalog.Collections(ctx, session.Profile)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.ListVisibleCollections200JSONResponse(toCollectionRefs(session.Profile.ID, cs)), nil
 }
 
 func (s *server) GetCollection(ctx context.Context, req gen.GetCollectionRequestObject) (gen.GetCollectionResponseObject, error) {
@@ -233,40 +246,6 @@ func (s *server) UnrecommendItem(ctx context.Context, req gen.UnrecommendItemReq
 		return s.problem(ctx, err), nil
 	}
 	return gen.UnrecommendItem204Response{}, nil
-}
-
-func (s *server) ListFavorites(ctx context.Context, _ gen.ListFavoritesRequestObject) (gen.ListFavoritesResponseObject, error) {
-	session, err := s.itemSession(ctx)
-	if err != nil {
-		return nil, err
-	}
-	items, err := s.opts.Catalog.Favorites(ctx, session.Profile)
-	if err != nil {
-		return s.problem(ctx, err), nil
-	}
-	return gen.ListFavorites200JSONResponse(toItemRefList(session.Profile.ID, items)), nil
-}
-
-func (s *server) AddFavorite(ctx context.Context, req gen.AddFavoriteRequestObject) (gen.AddFavoriteResponseObject, error) {
-	session, err := s.itemSession(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.opts.Catalog.AddFavorite(ctx, session.Profile, req.Id); err != nil {
-		return s.problem(ctx, err), nil
-	}
-	return gen.AddFavorite204Response{}, nil
-}
-
-func (s *server) RemoveFavorite(ctx context.Context, req gen.RemoveFavoriteRequestObject) (gen.RemoveFavoriteResponseObject, error) {
-	session, err := s.itemSession(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.opts.Catalog.RemoveFavorite(ctx, session.Profile, req.Id); err != nil {
-		return s.problem(ctx, err), nil
-	}
-	return gen.RemoveFavorite204Response{}, nil
 }
 
 // pageParams applies the contract bounds of the paged lists: offset from 0, limit 1..200 (50 when

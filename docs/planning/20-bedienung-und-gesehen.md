@@ -186,6 +186,15 @@ Jede Serie auf der Merkliste meldet künftig neue Folgen, auch wenn man sie nur 
 gemerkt hat. Die Obergrenze von 50 Meldungen je Serie und Lauf bleibt (`notify.MaxPerParent`).
 Wer keine Meldung will, nimmt die Serie von der Merkliste.
 
+Nachtrag nach dem Bau (12. November 2026) zur Regel «neue Podcast-Folgen automatisch laden»:
+
+- **Wieder aufnehmen setzt neu an.** Nimmt man einen Podcast von der Merkliste und setzt ihn später
+  wieder darauf, ist das ein neuer Eintrag: `follow_since` ist der neue Zeitpunkt. Folgen, die in der
+  Lücke erschienen sind, lädt die Regel nicht nach.
+- **Ohne Bezugspunkt zählt alles als neu.** Kannte Slouchcat beim Merken noch keine Folge des
+  Podcasts und hat das Profil keine angefangen, ist der Stichtag 0: Die Regel lädt die neuesten
+  sichtbaren Folgen, höchstens so viele, wie die Regel erlaubt (`max_count`).
+
 ## 4. P-3 Bleistift auf den Staffelcovern
 
 ### 4.1 Heute
@@ -580,7 +589,8 @@ Mockups «Startseite» und «Listenseite».
 - **Messauftrag M-3:** Antwortzeit von `listHomeRow` für `continue` mit 200 angefangenen Titeln
   und für `recent` mit Filter auf CT 190; Ziel unter 150 ms.
 - Alle Abfragen bleiben in `queries/scoped/` und enthalten `visible_items` (Regel 2).
-- **Neue Operation `listCollections`** für `/collections` (O-3), falls sie gebaut wird.
+- **Neue Operation `listVisibleCollections`** (`GET /collections`) für `/collections` (O-3); gebaut.
+  Der Name `listCollections` war schon vergeben (`GET /admin/collections`).
 - Additiv. Tastaturtest für die neue Seite. **Der Reihentitel wird ein Fokus-Halt:** Pfeil nach
   oben aus einer Reihe führt neu auf ihren Titel statt in die Reihe darüber, Enter öffnet die
   Liste. Das ändert die Pfeilwege **aller** Reihen der Startseite; die Tastaturtests der

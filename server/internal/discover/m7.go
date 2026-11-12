@@ -10,10 +10,10 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 )
 
-// Discover operations of M7 (design 3.1): search, genres, collections, the watchlist (E-5) and the
-// favourites (E-8) of a profile. Reads go through the visibility layer; the watchlist and favourite
-// writes run only after it found the title visible, so an invisible title answers
-// model.ErrNotFound and is never stored.
+// Discover operations of M7 (design 3.1): search, genres, collections, the watchlist (E-5) of a
+// profile (since 1.31.0 also in place of the favourites of E-8, concept 20 P-2). Reads go through the
+// visibility layer; the watchlist writes run only after it found the title visible, so an invisible
+// title answers model.ErrNotFound and is never stored.
 
 // Search searches titles, people and collections the profile may see, or browses the titles by the
 // filters without a text (E-4).
@@ -24,6 +24,12 @@ func (s *Service) Search(ctx context.Context, profile model.Profile, q model.Sea
 // Genres returns the genres of the visible titles in the profile language, most frequent first.
 func (s *Service) Genres(ctx context.Context, profile model.Profile) ([]model.GenreRef, error) {
 	return s.vis.Genres(ctx, visibility.Profile(profile), visibility.MaxRowItems)
+}
+
+// Collections returns every collection with a visible member, by name, without the cut of the row
+// (the page «Sammlungen», concept 20 O-3).
+func (s *Service) Collections(ctx context.Context, profile model.Profile) ([]model.CollectionRef, error) {
+	return s.vis.AllCollections(ctx, visibility.Profile(profile))
 }
 
 // Collection returns a collection with one page of its visible members, or model.ErrNotFound when
@@ -65,38 +71,6 @@ func (s *Service) RemoveFromWatchlist(ctx context.Context, profile model.Profile
 	}
 	if err := s.write.RemoveWatchlist(ctx, appq.RemoveWatchlistParams{ProfileID: profile.ID, ItemID: itemID}); err != nil {
 		return fmt.Errorf("remove from watchlist: %w", err)
-	}
-	return nil
-}
-
-// Favorites returns the profile's visible favourite series and podcasts, newest first.
-func (s *Service) Favorites(ctx context.Context, profile model.Profile) ([]model.ItemSummary, error) {
-	return s.vis.Favorites(ctx, visibility.Profile(profile))
-}
-
-// AddFavorite marks a visible series or podcast as favourite of the profile (idempotent); any other
-// kind is model.ErrNotFavoritable.
-func (s *Service) AddFavorite(ctx context.Context, profile model.Profile, itemID string) error {
-	it, err := s.vis.Summary(ctx, visibility.Profile(profile), itemID)
-	if err != nil {
-		return err
-	}
-	if it.Kind != "series" && it.Kind != "podcast" {
-		return model.ErrNotFavoritable
-	}
-	if err := s.write.AddFavorite(ctx, appq.AddFavoriteParams{ProfileID: profile.ID, ItemID: it.ID, Now: s.now().UnixMilli()}); err != nil {
-		return fmt.Errorf("add favorite: %w", err)
-	}
-	return nil
-}
-
-// RemoveFavorite removes the favourite mark of a visible title (idempotent).
-func (s *Service) RemoveFavorite(ctx context.Context, profile model.Profile, itemID string) error {
-	if err := s.vis.Visible(ctx, visibility.Profile(profile), itemID); err != nil {
-		return err
-	}
-	if err := s.write.RemoveFavorite(ctx, appq.RemoveFavoriteParams{ProfileID: profile.ID, ItemID: itemID}); err != nil {
-		return fmt.Errorf("remove favorite: %w", err)
 	}
 	return nil
 }

@@ -196,6 +196,7 @@ export type CollectionRequest = components['schemas']['CollectionRequest'];
 export type CollectionItemsRequest = components['schemas']['CollectionItemsRequest'];
 export type HomeRowSetting = components['schemas']['HomeRowSetting'];
 export type HomeRowKey = components['schemas']['HomeRowKey'];
+export type HomeListKey = components['schemas']['HomeListKey'];
 export type TraktStatus = components['schemas']['TraktStatus'];
 // Administration and notifications (M8).
 export type SetupStatus = components['schemas']['SetupStatus'];

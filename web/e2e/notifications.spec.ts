@@ -9,12 +9,13 @@ import {
   subscribeFeed,
   waitForEpisodes,
 } from './audio';
-import { introSeason, setFavorite, unreadNotifications } from './discover';
+import { introSeason, setWatchlist, unreadNotifications } from './discover';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus, resetFocus } from './keyboard';
 import { INTRO_SHOW_TITLE, itemIdByTitle } from './playback';
 
-// E-8: a profile marks a series as favourite; a new episode in the library notifies it in the app.
+// E-8: a profile puts a series on its watchlist (concept 20 P-2: the watchlist took over from the
+// favourite); a new episode in the library notifies it in the app.
 // The episode is a copy of an existing file under a new episode number, written into the series
 // folder of testdata/media/TV (the library watcher picks it up) and removed after the test.
 
@@ -39,13 +40,16 @@ function episodes(testInfo: TestInfo): { source: string; target: string } {
   };
 }
 
-test('a new episode of a favourite series shows in the badge and the inbox (E-8)', async ({
+test('a series put on the watchlist notifies its new episode in the badge and the inbox (E-8)', async ({
   page,
   owner,
 }, testInfo) => {
   test.setTimeout(BADGE_TIMEOUT_MS + 60_000);
   const series = await itemIdByTitle(owner, INTRO_SHOW_TITLE);
-  await setFavorite(owner, series, true);
+  // «Merken» on the detail page, the round action (not the button on the cover).
+  await page.goto(`/items/${series}`);
+  await page.getByRole('button', { name: 'Merken', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Gemerkt', exact: true })).toBeVisible();
   await page.goto('/');
   await expect(page.getByRole('link', { name: 'Benachrichtigungen', exact: true })).toBeVisible();
 
@@ -86,11 +90,11 @@ test('inbox by keyboard: arrows, Enter, "Alle als gelesen markieren"; no focus t
   owner,
 }, testInfo) => {
   test.setTimeout(120_000);
-  // A favourite podcast with a new episode: the feed of its own gets episode 3 (H-2).
+  // A podcast on the watchlist with a new episode: the feed of its own gets episode 3 (H-2).
   const key = feedKey(testInfo);
   const podcast = await subscribeFeed(owner, key, 2);
   await waitForEpisodes(owner, podcast.id, 2);
-  await setFavorite(owner, podcast.id, true);
+  await setWatchlist(owner, podcast.id, true);
   await feedEpisodes(key, 3);
   await fetchNow(owner, podcast.id);
   await expect.poll(() => unreadNotifications(owner), { timeout: 60_000 }).toBe(1);

@@ -63,10 +63,12 @@ func (e *env) exec(t *testing.T, query string, args ...any) {
 	}
 }
 
-func (e *env) favorite(t *testing.T, itemID string, profiles ...model.Profile) {
+// follow puts the title on the watchlist of the profiles (concept 20 P-2: the watchlist took over
+// from the favourite).
+func (e *env) follow(t *testing.T, itemID string, profiles ...model.Profile) {
 	t.Helper()
 	for _, p := range profiles {
-		e.exec(t, `INSERT INTO favorites (profile_id, item_id, created_at) VALUES (?, ?, 1)`, p.ID, itemID)
+		e.exec(t, `INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (?, ?, 1, 1)`, p.ID, itemID)
 	}
 }
 
@@ -103,14 +105,14 @@ func (e *env) inbox(t *testing.T, p model.Profile) ([]string, int, int) {
 
 func ptr(v int) *int { return &v }
 
-// 5.5, E-8: a new episode reaches the inbox of a profile with the series as favourite only when the
+// 5.5, E-8: a new episode reaches the inbox of a profile with the series on its watchlist only when the
 // profile may see the episode; the dispatcher is never called for the others.
 func TestNewEpisodesVisibility(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f
-	e.favorite(t, f.Show.Series.ID, f.P6, f.P12, f.P18)
+	e.follow(t, f.Show.Series.ID, f.P6, f.P12, f.P18)
 
 	e16 := e.addEpisode(t, "16", ptr(16))
 	if err := e.svc.NewEpisodes(ctx, []string{e16}); err != nil {
@@ -164,7 +166,7 @@ func TestPodcastEpisodes(t *testing.T) {
 	e := newEnv(t)
 	ctx := context.Background()
 	a := e.f.Audio
-	e.favorite(t, a.Podcast.ID, e.f.P16, e.f.P18)
+	e.follow(t, a.Podcast.ID, e.f.P16, e.f.P18)
 	if err := e.svc.NewEpisodes(ctx, []string{a.Episodes[3].ID, a.Explicit.ID}); err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +183,7 @@ func TestMarkRead(t *testing.T) {
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f
-	e.favorite(t, f.Show.Series.ID, f.P12, f.P18)
+	e.follow(t, f.Show.Series.ID, f.P12, f.P18)
 	ep := e.addEpisode(t, "12", nil)
 	if err := e.svc.NewEpisodes(ctx, []string{ep}); err != nil {
 		t.Fatal(err)
@@ -230,13 +232,15 @@ func TestMarkRead(t *testing.T) {
 	}
 }
 
-// k3, k4 (M7 review): without any favourite a batch stores nothing; one call notifies at most
+// k3, k4 (M7 review): without any series or podcast on a watchlist (a film there counts not) a
+// batch stores nothing; one call notifies at most
 // MaxPerParent episodes of one series, in the order of the ids, and a later call notifies the rest.
 func TestNewEpisodesBatchAndCap(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f
+	e.follow(t, f.Rated(0).ID, f.P18)
 	var ids []string
 	for i := range MaxPerParent + 5 {
 		ids = append(ids, e.addEpisode(t, fmt.Sprintf("%02d", i), nil))
@@ -246,11 +250,11 @@ func TestNewEpisodesBatchAndCap(t *testing.T) {
 	}
 	var stored int
 	if err := f.DB.Read.QueryRow(`SELECT count(*) FROM notifications`).Scan(&stored); err != nil || stored != 0 {
-		t.Fatalf("notifications without a favourite = %d, %v", stored, err)
+		t.Fatalf("notifications without a followed series = %d, %v", stored, err)
 	}
 
-	e.favorite(t, f.Show.Series.ID, f.P12, f.P18)
-	e.favorite(t, f.Audio.Podcast.ID, f.P18)
+	e.follow(t, f.Show.Series.ID, f.P12, f.P18)
+	e.follow(t, f.Audio.Podcast.ID, f.P18)
 	// The podcast episode counts for its own parent, not for the series.
 	batch := append(slices.Clone(ids), f.Audio.Episodes[0].ID)
 	if err := e.svc.NewEpisodes(ctx, batch); err != nil {
@@ -276,7 +280,7 @@ func TestMarkAllReadOnlyVisible(t *testing.T) {
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f
-	e.favorite(t, f.Show.Series.ID, f.P12)
+	e.follow(t, f.Show.Series.ID, f.P12)
 	a := e.addEpisode(t, "0A", nil)
 	b := e.addEpisode(t, "0B", nil)
 	if err := e.svc.NewEpisodes(ctx, []string{a, b}); err != nil {

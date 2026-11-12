@@ -89,22 +89,27 @@
   padding: var(--sc-space-6);
 }
 
-.eyebrow {
-  display: inline-flex;
-  gap: var(--sc-space-2);
+/*
+ * The heading «Spotlight» over the stage (concept 20 P-7), as high as a row's title block
+ * (--row-header-height); #hero-prepaint in global.css counts with it.
+ */
+.header {
+  display: flex;
   align-items: center;
-  color: var(--sc-color-text-secondary);
-  font-size: var(--sc-font-size-xs);
-  font-weight: var(--sc-font-weight-semibold);
-  letter-spacing: var(--sc-font-letter-spacing-caps);
-  text-transform: uppercase;
+  min-height: var(--row-header-height);
+  padding: 0 var(--page-gutter);
 }
 
-.mark {
-  width: var(--sc-space-2);
-  height: var(--sc-space-2);
-  border-radius: var(--sc-radius-full);
-  background-color: var(--sc-accent);
+/* The film title as the link to its detail page. */
+.titleLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .titleLink:hover {
+    text-decoration: underline;
+  }
 }
 
 .slide {

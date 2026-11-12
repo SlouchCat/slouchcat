@@ -57,7 +57,8 @@ INSERT INTO "goose_db_version" VALUES (50, 49, 1, '2026-11-11 20:53:06 +0000 UTC
 INSERT INTO "goose_db_version" VALUES (51, 51, 1, '2026-11-11 20:53:06 +0000 UTC');
 INSERT INTO "goose_db_version" VALUES (52, 52, 1, '2026-11-12 10:23:44 +0000 UTC');
 INSERT INTO "goose_db_version" VALUES (53, 53, 1, '2026-11-12 10:23:44 +0000 UTC');
-INSERT INTO "goose_db_version" VALUES (54, 55, 1, '2026-11-12 12:11:58 +0000 UTC');
+INSERT INTO "goose_db_version" VALUES (54, 54, 1, '2026-11-12 12:09:45 +0000 UTC');
+INSERT INTO "goose_db_version" VALUES (55, 55, 1, '2026-11-12 13:19:18 +0000 UTC');
 CREATE TABLE jobs (
     id              INTEGER PRIMARY KEY,
     type            TEXT    NOT NULL,
@@ -873,18 +874,6 @@ CREATE TABLE "downloads" (
     CHECK (media_file_id IS NOT NULL OR source_url IS NOT NULL),
     UNIQUE (device_id, item_id)
 ) STRICT;
-CREATE TABLE watchlist (
-    profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    item_id    TEXT    NOT NULL REFERENCES items(id) ON DELETE CASCADE,
-    created_at INTEGER NOT NULL,
-    PRIMARY KEY (profile_id, item_id)
-) STRICT, WITHOUT ROWID;
-CREATE TABLE favorites (
-    profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    item_id    TEXT    NOT NULL REFERENCES items(id) ON DELETE CASCADE,
-    created_at INTEGER NOT NULL,
-    PRIMARY KEY (profile_id, item_id)
-) STRICT, WITHOUT ROWID;
 CREATE TABLE collections (
     id          TEXT    PRIMARY KEY CHECK (length(id) = 26),
     source      TEXT    NOT NULL CHECK (source IN ('tmdb', 'manual')),
@@ -2290,6 +2279,17 @@ INSERT INTO "radio_station_wikidata" VALUES (10, 'Q900020', NULL, NULL, '1983-08
 INSERT INTO "radio_station_wikidata" VALUES (11, 'Q900030', 'Q900031', NULL, '1980', 1794398400000);
 INSERT INTO "radio_station_wikidata" VALUES (23, 'Q577689', 'Q1441462', 'Schweizer Radio und Fernsehen', '1946', 1794398400000);
 INSERT INTO "radio_station_wikidata" VALUES (28, 'Q900050', 'Q900051', 'Bayerischer Rundfunk', '1971-04', 1794398400000);
+CREATE TABLE "watchlist" (
+    profile_id   INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    item_id      TEXT    NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    created_at   INTEGER NOT NULL,
+    follow_since INTEGER NOT NULL,
+    PRIMARY KEY (profile_id, item_id)
+) STRICT, WITHOUT ROWID;
+INSERT INTO "watchlist" VALUES (1, '01M6585TXFV7FMJPYSCG96AQRK', 1793534400000, 1793880000000);
+INSERT INTO "watchlist" VALUES (1, '01M6585TZB00P0DCAST000000A', 1793966400000, 1793966400000);
+INSERT INTO "watchlist" VALUES (2, '01M6585TXK7NNK68XFTPTBESVF', 1794484800000, 1794484800000);
+INSERT INTO "watchlist" VALUES (2, '01M6585TXSN46TF04KKM2FK30H', 1794052800000, 1794485385949);
 CREATE TABLE "profile_libraries" (
     profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     library_id INTEGER NOT NULL REFERENCES libraries(id) ON DELETE CASCADE,
@@ -2465,8 +2465,6 @@ BEGIN
     INSERT OR REPLACE INTO download_tombstones (id, device_id, removed_at)
     VALUES (OLD.id, OLD.device_id, CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER));
 END;
-CREATE INDEX watchlist_item ON watchlist (item_id);
-CREATE INDEX favorites_item ON favorites (item_id);
 CREATE INDEX collection_items_item ON collection_items (item_id);
 CREATE INDEX search_docs_item ON search_docs (item_id);
 CREATE TRIGGER search_docs_insert AFTER INSERT ON search_docs
@@ -2681,6 +2679,7 @@ BEGIN
 END;
 CREATE INDEX media_files_missing ON media_files (missing_since) WHERE missing_since IS NOT NULL;
 CREATE INDEX progress_watched ON progress (profile_id, watched_at DESC) WHERE watched_at IS NOT NULL;
+CREATE INDEX watchlist_item ON watchlist (item_id);
 CREATE INDEX profile_libraries_library ON profile_libraries (library_id);
 CREATE INDEX items_removed ON items (removed_at DESC) WHERE removed_at IS NOT NULL;
 CREATE INDEX progress_item ON progress (item_id);

@@ -116,7 +116,7 @@ func (r *Reader) treeExtras(ctx context.Context, pid int64, lang langPref, ids [
 // completeDetail adds what the detail page of each kind shows: seasons, extras and next up of a
 // series, episodes, extras, next up and the series of a season, the season, series and next
 // episode of an episode, the extras of a film, and for every kind the cast, the number of
-// trailers, the favourite mark of the profile and the visible collections of the title (the
+// trailers, the own recommendation and the visible collections of the title (the
 // watchlist mark is on the summary).
 func (r *Reader) completeDetail(ctx context.Context, s Scope, pid int64, it scopedq.Item, d *model.ItemDetail) error {
 	self := sql.NullString{String: it.ID, Valid: true}
@@ -182,7 +182,7 @@ func (r *Reader) completeDetail(ctx context.Context, s Scope, pid int64, it scop
 		return fmt.Errorf("count trailers: %w", err)
 	}
 	d.TrailerCount = int(n)
-	return r.discoverDetail(ctx, s, pid, it.ID, d) // favourite mark, collections (M7)
+	return r.discoverDetail(ctx, s, pid, it.ID, d) // own recommendation, collections (M7)
 }
 
 // list returns a function that summarizes the result of one of the tree queries; what names the

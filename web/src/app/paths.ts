@@ -1,3 +1,5 @@
+import type { HomeListKey } from '@slouchcat/api-client';
+
 // Route paths as plain strings for links (AppLink hands them to the router).
 export const paths = {
   home: '/',
@@ -55,6 +57,13 @@ export const paths = {
   /** All of Cat's recommendations for the active profile (concept 08). */
   picks: '/picks',
   notifications: '/notifications',
+  /**
+   * The whole list behind a row title of the start page (concept 20 P-7): spotlight, continue,
+   * recent or released.
+   */
+  homeList: (key: HomeListKey) => `/lists/${key}`,
+  /** Every collection the active profile sees (concept 20 O-3). */
+  collections: '/collections',
   collection: (id: string) => `/collections/${encodeURIComponent(id)}`,
   adminPicks: '/admin/picks',
   adminCollections: '/admin/collections',

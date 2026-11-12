@@ -46,7 +46,7 @@ func newDeleteFixture(t *testing.T) *deleteFixture {
 	keep := e.str(`SELECT id FROM items WHERE library_id = ? AND kind = 'movie'`, other.ID)
 	e.progress(1, film, 5000, false)
 	e.progressEvent(film)
-	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (2, ?, 1)`, film)
+	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (2, ?, 1, 1)`, film)
 	e.exec(`INSERT INTO activity_events (at, kind, library_id, subject) VALUES (1, 'scan_done', ?, 'Filme')`, films.ID)
 	e.exec(`INSERT INTO collections (id, source, tmdb_id, name, created_at, updated_at) VALUES
 	        ('01COLLECTIONONLYFILMS00001', 'tmdb', 1, 'Only', 1, 1),

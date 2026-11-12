@@ -177,24 +177,25 @@ JOIN items AS s ON s.id = e.parent_id AND s.kind = 'season'
 WHERE p.profile_id = @profile_id AND p.updated_at >= @since AND s.parent_id IS NOT NULL
 ORDER BY p.updated_at DESC, p.item_id;
 
--- name: ListFavoritePodcasts :many
--- The favourite podcasts of the profile (new podcast episodes, O-3, M7 E-8), newest favourite
--- first, with the moment after which episodes are new: the later of the publication date of the
--- newest episode Slouchcat knew when the favourite was set (added_at) and that of the newest episode
--- the profile started there; 0 when neither exists. Visibility is applied by the caller through the
--- profile scope of package visibility.
-SELECT f.item_id AS podcast_id,
+-- name: ListFollowedPodcasts :many
+-- The podcasts on the watchlist of the profile (new podcast episodes, O-3; concept 20 P-2: the
+-- watchlist took over from the favourite), newest entry first, with the moment after which episodes
+-- are new: the later of the publication date of the newest episode Slouchcat knew when the profile
+-- began to follow the podcast (follow_since) and that of the newest episode the profile started
+-- there; 0 when neither exists. Visibility is applied by the caller through the profile scope of
+-- package visibility.
+SELECT w.item_id AS podcast_id,
        CAST(MAX(
            COALESCE((SELECT MAX(e.published_at) FROM items AS e
-                     WHERE e.parent_id = f.item_id AND e.kind = 'podcast_episode' AND e.added_at <= f.created_at), 0),
+                     WHERE e.parent_id = w.item_id AND e.kind = 'podcast_episode' AND e.added_at <= w.follow_since), 0),
            COALESCE((SELECT MAX(e.published_at) FROM progress AS p
                      JOIN items AS e ON e.id = p.item_id AND e.kind = 'podcast_episode'
-                     WHERE p.profile_id = f.profile_id AND e.parent_id = f.item_id), 0)
+                     WHERE p.profile_id = w.profile_id AND e.parent_id = w.item_id), 0)
        ) AS INTEGER) AS since
-FROM favorites AS f
-JOIN items AS i ON i.id = f.item_id AND i.kind = 'podcast' AND i.deleted_at IS NULL
-WHERE f.profile_id = @profile_id
-ORDER BY f.created_at DESC, f.item_id;
+FROM watchlist AS w
+JOIN items AS i ON i.id = w.item_id AND i.kind = 'podcast' AND i.deleted_at IS NULL
+WHERE w.profile_id = @profile_id
+ORDER BY w.created_at DESC, w.item_id;
 
 -- name: ListDownloadParts :many
 -- The parts of a multi-file audiobook in their order (part_index) with their roots and stored

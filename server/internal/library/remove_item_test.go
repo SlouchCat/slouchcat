@@ -24,7 +24,7 @@ func TestRemoveFilmKeepsFileAndUserData(t *testing.T) {
 	e.profiles(1)
 	film := e.str(`SELECT item_id FROM media_files WHERE rel_path = ?`, takenFilm)
 	e.progress(1, film, 5000, false)
-	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (1, ?, 1)`, film)
+	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (1, ?, 1, 1)`, film)
 	e.exec(`INSERT INTO devices (id, created_at, last_seen_at) VALUES ('dddddddddddddddddddddddddddddddd', 1, 1)`)
 	e.exec(`INSERT INTO downloads (id, account_id, device_id, item_id, media_file_id, quality, audio_stream, estimated_bytes, created_at, updated_at)
 	        VALUES ('01DOWNLOAD0000000000000001', 1, 'dddddddddddddddddddddddddddddddd', ?, (SELECT id FROM media_files WHERE item_id = ?), 'high', 0, 1, 1, 1)`, film, film)

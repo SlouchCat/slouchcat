@@ -62,7 +62,6 @@ type RelinkUserData struct {
 	ProgressDays     int64
 	PlaybackSessions int64
 	Watchlist        int64
-	Favorites        int64
 	CollectionItems  int64
 	Notifications    int64
 	UserPicks        int64
@@ -120,7 +119,7 @@ func (s *Service) CountRelinkUserData(ctx context.Context, itemIDs []string) (ma
 	for _, r := range rows {
 		out[r.ID] = RelinkUserData{
 			Progress: r.Progress, ProgressEvents: r.ProgressEvents, ProgressDays: r.ProgressDays,
-			PlaybackSessions: r.PlaybackSessions, Watchlist: r.Watchlist, Favorites: r.Favorites,
+			PlaybackSessions: r.PlaybackSessions, Watchlist: r.Watchlist,
 			CollectionItems: r.CollectionItems, Notifications: r.Notifications, UserPicks: r.UserPicks,
 			Downloads: r.Downloads, ActivityEvents: r.ActivityEvents,
 		}
@@ -348,7 +347,7 @@ func (s *Service) relinkTwin(ctx context.Context, liveID string) (string, bool, 
 // copy's node is live). A child without counterpart (and every extra) moves below the twin. The
 // user data of every merged node follows with the rules of the duplicate merge (B-9): progress per
 // profile (completed wins, then the larger position), events, days, user picks, watchlist,
-// favourites, collections, notifications and downloads, plus playback sessions and activity
+// collections, notifications and downloads, plus playback sessions and activity
 // events. The copy's curated state comes along (relinker.carry): locked provider ids, an age
 // rating never milder than the copy's (its locked one wins), the administrator's images, local
 // images, chapters and segments. The emptied nodes of the copy are deleted for good, the copy last;
@@ -583,9 +582,6 @@ func (r *relinker) moveRows(ctx context.Context, target, source string) error {
 		}},
 		{"watchlist", func() error {
 			return q.AdminMoveWatchlist(ctx, systemq.AdminMoveWatchlistParams{TargetID: target, SourceID: source})
-		}},
-		{"favorites", func() error {
-			return q.AdminMoveFavorites(ctx, systemq.AdminMoveFavoritesParams{TargetID: target, SourceID: source})
 		}},
 		{"collection items", func() error {
 			return q.AdminMoveCollectionItems(ctx, systemq.AdminMoveCollectionItemsParams{TargetID: target, SourceID: source})

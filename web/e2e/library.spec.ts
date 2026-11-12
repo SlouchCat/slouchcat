@@ -80,7 +80,7 @@ test('library by keyboard: Tab order, arrows into the letter bar and back, Enter
   await page.keyboard.press('Tab');
   await expectFocusOn(page, firstCell.getByRole('button', { name: /: Metadaten bearbeiten$/ }));
   await page.keyboard.press('Tab');
-  await expectFocusOn(page, firstCell.getByRole('button', { name: /^Gesehen: / }));
+  await expectFocusOn(page, firstCell.getByRole('button', { name: /^(Gesehen|Gehört): / }));
   await page.keyboard.press('Tab');
   await expectFocusOn(page, firstCell.getByRole('button', { name: / merken$/ }));
   await page.keyboard.press('ArrowRight');

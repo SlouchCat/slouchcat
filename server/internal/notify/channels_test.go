@@ -155,14 +155,14 @@ func TestEnsureDefaultsIdempotent(t *testing.T) {
 	}
 }
 
-// E-8 (M8 part), plan 5.5: a new episode of a favourite becomes an e-mail with the profile's name
+// E-8 (M8 part), plan 5.5: a new episode of a series on the watchlist becomes an e-mail with the profile's name
 // in front of the subject, only when the account switched e-mail on for new content, and never for
 // a profile that may not see the episode.
 func TestNewContentByEmail(t *testing.T) {
 	t.Parallel()
 	e := newChanEnv(t)
 	ctx := context.Background()
-	e.favorite(t, e.f.Show.Series.ID, e.f.P12, e.f.P6)
+	e.follow(t, e.f.Show.Series.ID, e.f.P12, e.f.P6)
 	// E-mail off (default): the inbox gets the entry, no channel.
 	ep1 := e.addEpisode(t, "A1", nil)
 	if err := e.svc.NewEpisodes(ctx, []string{ep1}); err != nil {
@@ -203,9 +203,9 @@ func TestNewContentByEmail(t *testing.T) {
 		t.Errorf("P6 inbox = %v", ids)
 	}
 	// An English profile gets the English subject.
-	e.favorite(t, e.f.Show.Series.ID, e.f.P16)
+	e.follow(t, e.f.Show.Series.ID, e.f.P16)
 	e.exec(t, `UPDATE profiles SET language = 'en' WHERE id = ?`, e.f.P16.ID)
-	e.exec(t, `DELETE FROM favorites WHERE profile_id = ?`, e.f.P12.ID)
+	e.exec(t, `DELETE FROM watchlist WHERE profile_id = ?`, e.f.P12.ID)
 	ep3 := e.addEpisode(t, "A3", nil)
 	if err := e.svc.NewEpisodes(ctx, []string{ep3}); err != nil {
 		t.Fatal(err)

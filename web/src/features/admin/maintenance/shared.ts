@@ -47,7 +47,6 @@ const userDataKeys = [
   'progressDays',
   'playbackSessions',
   'watchlist',
-  'favorites',
   'collectionItems',
   'notifications',
   'userPicks',

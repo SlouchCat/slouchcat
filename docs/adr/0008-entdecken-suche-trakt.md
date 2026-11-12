@@ -60,6 +60,15 @@ die Hooks der schreibenden Pakete sind präziser. (g) Trakt-Konten je Profil ode
 > Unverändert gültig bleibt alles Übrige, insbesondere I-7: nur Server-Schlüssel, kein Trakt-Konto
 > je Profil, nichts wird gesendet, und ein Ausfall kostet nur die Reihe.
 
+> **Nachtrag vom 12. November 2026: Favorit durch Merkliste abgelöst (Konzept 20).** Der Favorit
+> für Serien und Podcasts (E-8) entfällt mit Vertrag 1.31.0 (`listFavorites`, `addFavorite`,
+> `removeFavorite`, `ItemDetail.favorite`, Fehlercode `not_favoritable`). Steht eine Serie oder ein
+> Podcast auf der Merkliste eines Profils, löst das die Benachrichtigung «neue Folge» und die
+> Offline-Regel «neue Podcast-Folgen automatisch laden» aus. Migration 00054 übernimmt die
+> Favoriten in die Merkliste und löscht die Tabelle `favorites`; die neue Spalte
+> `watchlist.follow_since` bestimmt, ab wann eine Podcast-Folge als neu gilt. Die Radio-Favoriten
+> («Meine Sender», OB-6) bleiben.
+
 ## Folgen
 
 - Vertrag 0.8.0 (109 Operationen): `search` (POST), `listGenres`, `getCollection`, Merkliste und Favoriten je

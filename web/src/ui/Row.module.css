@@ -20,7 +20,36 @@
   line-height: var(--sc-font-line-height-snug);
 }
 
-/* "Alle anzeigen ›": right of the title, before the paging buttons. */
+/* The title as the link to the row's page (concept 20 P-7), with a small arrow after it. */
+.titleLink {
+  display: inline-flex;
+  gap: var(--sc-space-1);
+  align-items: center;
+  border-radius: var(--sc-radius-sm);
+  color: inherit;
+  text-decoration: none;
+}
+
+.titleLink > svg {
+  opacity: 0.6;
+  transition: opacity var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+@media (hover: hover) {
+  .titleLink:hover {
+    color: var(--sc-color-text-secondary);
+  }
+
+  .titleLink:hover > svg {
+    opacity: 1;
+  }
+}
+
+.titleLink:focus-visible > svg {
+  opacity: 1;
+}
+
+/* A separate link right of the title (the radio page), before the paging buttons. */
 .more {
   margin-left: auto;
   padding: 0 var(--sc-space-1);

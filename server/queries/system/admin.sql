@@ -290,11 +290,8 @@ ON CONFLICT (item_id, profile_id) DO UPDATE SET created_at = max(user_picks.crea
 
 -- name: AdminMoveWatchlist :exec
 -- A profile that has both titles on its watchlist keeps the target's entry; the source's one goes
--- with the source (ON DELETE CASCADE). The same holds for favourites and notifications.
+-- with the source (ON DELETE CASCADE). The same holds for notifications.
 UPDATE OR IGNORE watchlist SET item_id = @target_id WHERE item_id = @source_id;
-
--- name: AdminMoveFavorites :exec
-UPDATE OR IGNORE favorites SET item_id = @target_id WHERE item_id = @source_id;
 
 -- name: AdminMoveCollectionItems :exec
 -- Inserted (not updated) so the search index triggers of collection_items run for the target; the

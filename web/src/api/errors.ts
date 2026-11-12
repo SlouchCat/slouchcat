@@ -70,7 +70,6 @@ const problemKeys = {
   root_required: 'errors.code.root_required',
   rating_below_library_default: 'errors.code.rating_below_library_default',
   not_listable: 'errors.code.not_listable',
-  not_favoritable: 'errors.code.not_favoritable',
   not_editable: 'errors.code.not_editable',
   // Administration (M8).
   env_wins: 'errors.code.env_wins',

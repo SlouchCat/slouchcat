@@ -264,15 +264,14 @@ func TestSearchItems(t *testing.T) {
 	wantField(t, "limit", errOf(c.svc.SearchItems(c.ctx, "movie", 51)), "limit", "invalid_value")
 }
 
-// Merging titles (B-9) moves watchlist, favourites, collection membership, notifications and user
-// picks (concept 18 part B, 14.8: a profile that picked both keeps the newer time).
+// Merging titles (B-9) moves watchlist (with its follow_since, concept 20 P-2), collection
+// membership, notifications and user picks (concept 18 part B, 14.8: a profile that picked both keeps the newer time).
 func TestMergeMovesDiscoverRows(t *testing.T) {
 	m := newMaintFixture(t)
 	f := m.f
 	target, source := f.Rated(16), f.Rated(18)
-	m.exec(t, `INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (?, ?, 1), (?, ?, 2), (?, ?, 3)`,
+	m.exec(t, `INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (?, ?, 1, 7), (?, ?, 2, 2), (?, ?, 3, 3)`,
 		f.P18.ID, source.ID, f.P16.ID, source.ID, f.P16.ID, target.ID)
-	m.exec(t, `INSERT INTO favorites (profile_id, item_id, created_at) VALUES (?, ?, 1)`, f.P18.ID, source.ID)
 	m.exec(t, `INSERT INTO collections (id, source, name, created_at, updated_at) VALUES ('01J9000000000000000000COLL', 'manual', 'Mix', 1, 1)`)
 	m.exec(t, `INSERT INTO collection_items (collection_id, item_id, position, created_at) VALUES ('01J9000000000000000000COLL', ?, 5, 1)`, source.ID)
 	m.exec(t, `INSERT INTO notifications (profile_id, kind, item_id, parent_id, created_at) VALUES (?, 'new_episode', ?, ?, 1)`,
@@ -291,7 +290,7 @@ func TestMergeMovesDiscoverRows(t *testing.T) {
 	for what, q := range map[string]string{
 		"watchlist P18":     `SELECT count(*) FROM watchlist WHERE profile_id = ` + strconv.FormatInt(f.P18.ID, 10) + ` AND item_id = ?`,
 		"watchlist P16":     `SELECT count(*) FROM watchlist WHERE profile_id = ` + strconv.FormatInt(f.P16.ID, 10) + ` AND item_id = ?`,
-		"favorite":          `SELECT count(*) FROM favorites WHERE item_id = ?`,
+		"follow_since P18":  `SELECT count(*) FROM watchlist WHERE profile_id = ` + strconv.FormatInt(f.P18.ID, 10) + ` AND item_id = ? AND follow_since = 7`,
 		"collection member": `SELECT count(*) FROM collection_items WHERE collection_id = '01J9000000000000000000COLL' AND position = 5 AND item_id = ?`,
 		"search row":        `SELECT count(*) FROM search_index WHERE kind = 'collection' AND item_id = ?`,
 		"notification":      `SELECT count(*) FROM notifications WHERE item_id = ?1 AND parent_id = ?1`,

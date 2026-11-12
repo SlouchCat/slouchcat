@@ -9,6 +9,7 @@ import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
 import { Button, Notice, Skeleton, SpatialButton, SpatialGroup, SpatialPage } from '@/ui';
+import { useCoverPens } from './EditMetadata';
 import { picksSource } from './queries';
 import styles from '@/features/discover/Discover.module.css';
 
@@ -24,6 +25,7 @@ const BACK_KEY = 'picks-back';
  */
 export function PicksPage() {
   const { t } = useTranslation();
+  const pens = useCoverPens();
   useDocumentTitle(t('picks.page.title'));
   const goBack = useGoBack(paths.home);
   useBackKeys(goBack);
@@ -69,7 +71,9 @@ export function PicksPage() {
               focusKey={GRID_KEY}
               label={t('picks.page.title')}
               showWatched
+              tool={pens.tool}
             />
+            {pens.editor}
             {paged.failed && <PageRetry onRetry={paged.retry} />}
           </section>
         )}

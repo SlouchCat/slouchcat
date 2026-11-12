@@ -107,7 +107,7 @@ func TestRelinkSeriesMergesTreeAndUserData(t *testing.T) {
 	e.progress(2, deadE12, 100, false)
 	e.progressEvent(deadE11)
 	e.playbackSession("01AAAAAAAAAAAAAAAAAAAAAAAA", deadE11)
-	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (1, ?, 1)`, dead)
+	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (1, ?, 1, 1)`, dead)
 	e.exec(`INSERT INTO user_picks (item_id, profile_id, created_at) VALUES (?, 1, 5)`, dead)
 
 	newDir := tree(t, []string{

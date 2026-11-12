@@ -67,7 +67,7 @@ func TestRelinkFoldsOlderTwins(t *testing.T) {
 	e.profiles(2)
 	a := e.addFilm(dir, lib.ID, "Heat A/Heat.mkv", 949)
 	e.progress(1, a, 100, true)
-	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (2, ?, 1)`, a)
+	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (2, ?, 1, 1)`, a)
 	e.dropFilm(dir, lib.ID, "Heat A/Heat.mkv")
 	e.clock.Advance(24 * time.Hour)
 	tt := e.addFilm(dir, lib.ID, "Heat T/Heat.mkv", 949)
@@ -444,7 +444,7 @@ func TestRelinkMergesConflictingUserData(t *testing.T) {
 	copyD1, copyD2 := "01COPYDEV1AAAAAAAAAAAAAAAA", "01COPYDEV2AAAAAAAAAAAAAAAA"
 
 	dead := e.addFilm(dir, lib.ID, "Heat/Heat.mkv", 949)
-	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (1, ?, 1)`, dead)
+	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (1, ?, 1, 1)`, dead)
 	e.exec(`INSERT INTO notifications (profile_id, kind, item_id, created_at) VALUES (1, 'new_episode', ?, 1)`, dead)
 	e.exec(`INSERT INTO progress_days (profile_id, item_id, device_id, day, played_ms, plays) VALUES (1, ?, '', 10, 100, 1)`, dead)
 	e.progress(1, dead, 500, false)
@@ -454,7 +454,7 @@ func TestRelinkMergesConflictingUserData(t *testing.T) {
 	e.dropFilm(dir, lib.ID, "Heat/Heat.mkv")
 
 	c := e.addFilm(dir, lib.ID, "Heat Copy/Heat.mkv", 949)
-	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (1, ?, 2), (2, ?, 2)`, c, c)
+	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (1, ?, 2, 2), (2, ?, 2, 2)`, c, c)
 	e.exec(`INSERT INTO notifications (profile_id, kind, item_id, created_at) VALUES (1, 'new_episode', ?, 2), (2, 'new_episode', ?, 2)`, c, c)
 	e.exec(`INSERT INTO progress_days (profile_id, item_id, device_id, day, played_ms, plays) VALUES (1, ?, '', 10, 50, 2), (1, ?, '', 11, 7, 1)`, c, c)
 	e.exec(`INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, playback_rate, updated_at)

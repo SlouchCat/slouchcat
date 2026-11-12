@@ -46,13 +46,6 @@ export async function clearWatchlist(api: APIRequestContext): Promise<void> {
   throw new Error('watchlist not empty after 20 rounds');
 }
 
-/** Removes every favourite of the request context's profile. */
-export async function clearFavorites(api: APIRequestContext): Promise<void> {
-  const response = await api.get('/api/v1/favorites');
-  await expectStatus(response, [200]);
-  for (const item of (await response.json()) as Ref[]) await setFavorite(api, item.id, false);
-}
-
 /** Marks every notification of the request context's profile read (there is no delete). */
 export async function readAllNotifications(api: APIRequestContext): Promise<void> {
   const response = await api.post('/api/v1/notifications/read-all', { headers: CSRF });
@@ -60,12 +53,11 @@ export async function readAllNotifications(api: APIRequestContext): Promise<void
 }
 
 /**
- * The viewer state of M7 for the owner's primary profile: no watchlist entries, no favourites, no
- * unread notifications. Runs before and after every test (fixtures.ts).
+ * The viewer state of M7 for the owner's primary profile: no watchlist entries (since concept 20
+ * P-2 also in place of the favourites), no unread notifications. Runs before and after every test (fixtures.ts).
  */
 export async function resetViewerLists(api: APIRequestContext): Promise<void> {
   await clearWatchlist(api);
-  await clearFavorites(api);
   await readAllNotifications(api);
 }
 
@@ -74,14 +66,6 @@ export async function setWatchlist(api: APIRequestContext, id: string, on: boole
   const response = on
     ? await api.put(`/api/v1/items/${id}/watchlist`, { headers: CSRF })
     : await api.delete(`/api/v1/items/${id}/watchlist`, { headers: CSRF });
-  await expectStatus(response, [204]);
-}
-
-/** Marks a series or podcast as favourite or not (idempotent). */
-export async function setFavorite(api: APIRequestContext, id: string, on: boolean) {
-  const response = on
-    ? await api.put(`/api/v1/items/${id}/favorite`, { headers: CSRF })
-    : await api.delete(`/api/v1/items/${id}/favorite`, { headers: CSRF });
   await expectStatus(response, [204]);
 }
 

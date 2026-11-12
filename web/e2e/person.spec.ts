@@ -95,12 +95,18 @@ test.describe('a person with a portrait', () => {
     await expectFocusOn(page, credits.nth(1));
     await page.keyboard.press('ArrowLeft');
     await expectFocusOn(page, credits.first());
-    // Tab from a card reaches its check mark (concept 20 P-5), then its watchlist button;
-    // Shift+Tab comes back.
+    // Tab from a card reaches the pen of the server administrator (concept 20 P-7), its check mark
+    // (P-5), then its watchlist button; Shift+Tab comes back.
+    await page.keyboard.press('Tab');
+    await expectFocusOn(
+      page,
+      page.getByRole('button', { name: `${H264_TITLE}: Metadaten bearbeiten` }),
+    );
     await page.keyboard.press('Tab');
     await expectFocusOn(page, page.getByRole('button', { name: `Gesehen: ${H264_TITLE}` }).first());
     await page.keyboard.press('Tab');
     await expectFocusOn(page, page.getByRole('button', { name: `${H264_TITLE} merken` }));
+    await page.keyboard.press('Shift+Tab');
     await page.keyboard.press('Shift+Tab');
     await page.keyboard.press('Shift+Tab');
     await expectFocusOn(page, credits.first());

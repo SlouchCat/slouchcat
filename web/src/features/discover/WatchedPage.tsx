@@ -1,4 +1,5 @@
 import type { ItemRef, RootContent, WatchedEntry, WatchedSort } from '@slouchcat/api-client';
+import { getRouteApi } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
@@ -23,6 +24,7 @@ import {
 import { cardKey, PageRetry, type CardFacts } from './ItemGrid';
 import { PagedItemGrid } from './PagedItemGrid';
 import { watchedSource } from './queries';
+import { validateWatchedParams, WATCHED_CONTENTS, type WatchedParams } from './watchedParams';
 import styles from './Discover.module.css';
 
 const GRID_KEY = 'watched-item';
@@ -30,8 +32,10 @@ const BACK_KEY = 'watched-back';
 const CONTENT_KEY = 'watched-content';
 const SORT_KEY = 'watched-sort';
 
+const route = getRouteApi('/_authed/_active/_chrome/watched');
+
 /** The chips «Alle», «Filme», «Serien», «Hörbücher», «Podcasts» (listWatched `content`). */
-const CONTENTS = ['', 'movie', 'series', 'audiobook', 'podcast'] as const;
+const CONTENTS = ['', ...WATCHED_CONTENTS] as const;
 const SORTS: readonly WatchedSort[] = ['watched', 'title'];
 
 /**
@@ -46,13 +50,26 @@ export function WatchedPage() {
   useDocumentTitle(t('watched.page.title'));
   const goBack = useGoBack(paths.home);
   useBackKeys(goBack);
-  const [content, setContent] = useState<RootContent | ''>('');
-  const [sort, setSort] = useState<WatchedSort>('watched');
+  // Kind and order live in the URL, so the way back from a title returns to the same view.
+  const params = route.useSearch();
+  const navigate = route.useNavigate();
+  const content = params.content;
+  const sort: WatchedSort = params.sort ?? 'watched';
+  const update = (change: Partial<WatchedParams>) =>
+    void navigate({
+      search: (previous) => {
+        const next: WatchedParams = { ...validateWatchedParams(previous), ...change };
+        if (next.content === undefined) delete next.content;
+        if (next.sort === undefined) delete next.sort;
+        return next;
+      },
+      replace: true,
+    });
   // The pen on the covers (concept 15 7.4), for the one who manages the library.
   const session = useActiveSession();
   const canManage = session.account.role === 'admin' && session.profile.isPrimary;
   const [editing, setEditing] = useState<string | null>(null);
-  const source = useMemo(() => watchedSource(content || undefined, sort), [content, sort]);
+  const source = useMemo(() => watchedSource(content, sort), [content, sort]);
   // Every title, read page by page as the grid asks (concept 18 C-3).
   const [span, setSpan] = useState<PlaceRange>({ start: 0, end: 0 });
   const paged = usePagedList(source, rangeBySize(span));
@@ -79,8 +96,9 @@ export function WatchedPage() {
         }),
       };
     }
-    const count = item.watchedCount ?? 0;
     const total = entry.episodeCount;
+    // A series marked whole just now has every episode, before the list is read again.
+    const count = item.watched === true ? total : (item.watchedCount ?? 0);
     return {
       caption: t('watched.page.episodes', { count, total, date }),
       progress:
@@ -126,8 +144,8 @@ export function WatchedPage() {
               <ChoiceChips
                 label={t('watched.page.content')}
                 focusKey={CONTENT_KEY}
-                value={content}
-                onChange={(value) => setContent(value as RootContent | '')}
+                value={content ?? ''}
+                onChange={(value) => update({ content: (value || undefined) as RootContent })}
                 options={CONTENTS.map((value) => ({
                   value,
                   label: t(`watched.page.contents.${value || 'all'}`),
@@ -142,7 +160,7 @@ export function WatchedPage() {
                 label={t('watched.page.sort')}
                 focusKey={SORT_KEY}
                 value={sort}
-                onChange={(value) => setSort(value as WatchedSort)}
+                onChange={(value) => update({ sort: value === 'title' ? 'title' : undefined })}
                 options={SORTS.map((value) => ({
                   value,
                   label: t(`watched.page.sorts.${value}`),
@@ -165,9 +183,15 @@ export function WatchedPage() {
           />
         )}
 
-        {list.isSuccess && paged.total === 0 && (
-          <Notice title={t('watched.page.empty.title')}>{t('watched.page.empty.body')}</Notice>
-        )}
+        {list.isSuccess &&
+          paged.total === 0 &&
+          (content ? (
+            <Notice
+              title={t('watched.page.emptyKind', { kind: t(`watched.page.contents.${content}`) })}
+            />
+          ) : (
+            <Notice title={t('watched.page.empty.title')}>{t('watched.page.empty.body')}</Notice>
+          ))}
 
         {paged.total > 0 && (
           <section className={styles.section}>

@@ -275,9 +275,10 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		defer cancel()
 		playbackSvc.WaitActivity(drain)
 	}()
-	// In-app inbox (M7, E-8): new episodes of favourite series and podcasts, checked against the
-	// profile's visibility before an entry is stored. Channels (M8, A-6): deliveries through the
-	// queue; the Telegram base URL and http push endpoints (mocks) only in development mode.
+	// In-app inbox (M7, E-8): new episodes of the series and podcasts on a profile's watchlist
+	// (concept 20 P-2), checked against the profile's visibility before an entry is stored. Channels
+	// (M8, A-6): deliveries through the queue; the Telegram base URL and http push endpoints (mocks)
+	// only in development mode.
 	if !cfg.Dev && cfg.TelegramBaseURL != "" {
 		log.Warn("SLOUCHCAT_TELEGRAM_BASE_URL is ignored without --dev")
 	}

@@ -77,11 +77,14 @@ func TestMigration00015IndexesFrozenData(t *testing.T) {
 	if got := homeRowOrder(t, db); !slices.Equal(got, defaultOrder) {
 		t.Errorf("home_rows order = %v, want %v", got, defaultOrder)
 	}
-	for _, col := range []string{"watchlist", "favorites", "collections", "collection_items", "item_genres",
+	for _, col := range []string{"watchlist", "collections", "collection_items", "item_genres",
 		"spotlight_config", "spotlight_entries", "spotlight_overrides", "notifications"} {
 		if got := count(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, col); got != 1 {
 			t.Errorf("table %s missing after the full migration run", col)
 		}
+	}
+	if got := count(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'favorites'`); got != 0 {
+		t.Error("the favourites table of 00015 is still present after 00054 (concept 20 P-2)")
 	}
 	if got := count(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'trakt%'`); got != 0 {
 		t.Error("the Trakt cache table of 00015 is still present after 00021")

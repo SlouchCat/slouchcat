@@ -219,12 +219,6 @@ type DownloadTombstone struct {
 	RemovedAt int64
 }
 
-type Favorite struct {
-	ProfileID int64
-	ItemID    string
-	CreatedAt int64
-}
-
 type HomeRow struct {
 	ID        string
 	Key       string
@@ -998,9 +992,10 @@ type VisibleItem struct {
 }
 
 type Watchlist struct {
-	ProfileID int64
-	ItemID    string
-	CreatedAt int64
+	ProfileID   int64
+	ItemID      string
+	CreatedAt   int64
+	FollowSince int64
 }
 
 type WebhookEvent struct {

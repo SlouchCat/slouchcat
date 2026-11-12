@@ -565,12 +565,9 @@ func (s *Service) mergeSource(ctx context.Context, check func(*systemq.Queries, 
 			_, err := q.AdminDeleteUserPicksOfItem(ctx, id)
 			return err
 		}},
-		// M7: watchlist, favourites, collection membership and notifications follow the title.
+		// M7: watchlist, collection membership and notifications follow the title.
 		{"watchlist", func() error {
 			return q.AdminMoveWatchlist(ctx, systemq.AdminMoveWatchlistParams{TargetID: targetID, SourceID: id})
-		}},
-		{"favorites", func() error {
-			return q.AdminMoveFavorites(ctx, systemq.AdminMoveFavoritesParams{TargetID: targetID, SourceID: id})
 		}},
 		{"collection items", func() error {
 			return q.AdminMoveCollectionItems(ctx, systemq.AdminMoveCollectionItemsParams{TargetID: targetID, SourceID: id})

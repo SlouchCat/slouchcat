@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// Migration 00055 (concept 20 sections 9 and 10, stage 5) on the frozen state of stage 2
-// (gesehen.sql, the newest one before it). The state grants no library to a profile, so the test
+// Migration 00055 (concept 20 sections 9 and 10, stage 5) on the frozen state of stage 3
+// (merkliste.sql, after 00054, the newest one before it). The state grants no library to a profile, so the test
 // adds three grants first: a valid one, one of a library that no longer exists and one of a
 // profile that no longer exists. Only the valid one survives; the table refers to libraries now,
 // so deleting a library takes its grants along. items.removed_at exists, comes only with
@@ -19,7 +19,7 @@ func TestMigration00055LibraryAndTitleDeletion(t *testing.T) {
 	ctx := context.Background()
 	cfg := t.TempDir()
 	path := cfg + "/" + FileName
-	replay(t, path, frozenState(t, "gesehen.sql"))
+	replay(t, path, frozenState(t, "merkliste.sql"))
 	raw := openRaw(t, path)
 	if _, err := raw.ExecContext(ctx, `UPDATE profiles SET all_libraries = 0 WHERE id = 2`); err != nil {
 		t.Fatal(err)

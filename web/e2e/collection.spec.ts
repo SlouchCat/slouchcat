@@ -95,6 +95,56 @@ test('collection by keyboard: arrows, Enter, back; no focus trap @keyboard', asy
   }
 });
 
+// Concept 20 O-3: «Sammlungen» lists every visible collection by name; arrows walk the grid, Enter
+// opens a collection, back returns to the list, no focus trap.
+test('the page «Sammlungen» by keyboard: arrows, Enter, back; no focus trap @keyboard', async ({
+  page,
+  owner,
+}) => {
+  const h264 = await itemIdByTitle(owner, H264_TITLE);
+  const chapters = await itemIdByTitle(owner, CHAPTERS_TITLE);
+  const first = await createCollection(owner, `${NAME} A`, [h264]);
+  const second = await createCollection(owner, `${NAME} B`, [h264, chapters]);
+  try {
+    await page.goto('/collections');
+    await expect(page.getByRole('heading', { level: 1, name: 'Sammlungen' })).toBeVisible();
+    await expect(page).toHaveTitle('Sammlungen · Slouchcat');
+    const grid = page.getByRole('list', { name: 'Sammlungen' });
+    const cardA = grid.getByRole('link', { name: new RegExp(`${NAME} A`) });
+    const cardB = grid.getByRole('link', { name: new RegExp(`${NAME} B`) });
+    await expect(cardA).toHaveAttribute('href', `/collections/${first.id}`);
+    await expect(cardB).toContainText('2 Titel');
+    // By name: A stands right before B.
+    const names = await grid.getByRole('link').allTextContents();
+    const at = names.findIndex((text) => text.includes(`${NAME} A`));
+    expect(names[at + 1]).toContain(`${NAME} B`);
+
+    await cardA.focus();
+    await expectVisibleFocus(page);
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, cardB);
+    await page.keyboard.press('ArrowLeft');
+    await expectFocusOn(page, cardA);
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(new RegExp(`/collections/${first.id}$`));
+    await expect(page.getByRole('heading', { level: 1, name: `${NAME} A` })).toBeVisible();
+    await page.goBack();
+    await expect(page.getByRole('heading', { level: 1, name: 'Sammlungen' })).toBeVisible();
+    await expectNoFocusTrap(page);
+
+    // Up from the first row leaves the grid for «Zurück»; Backspace goes back (the start page).
+    await grid.getByRole('link').first().focus();
+    await page.keyboard.press('ArrowUp');
+    await expectFocusOn(page, page.getByRole('button', { name: 'Zurück', exact: true }));
+    await resetFocus(page);
+    await page.keyboard.press('Backspace');
+    await expect(page).toHaveURL((url) => url.pathname === '/');
+  } finally {
+    await deleteCollection(owner, first.id);
+    await deleteCollection(owner, second.id);
+  }
+});
+
 /** Ids of every episode of every season of a series (specials included), for the profile of api. */
 async function allEpisodeIds(api: APIRequestContext, seriesId: string): Promise<string[]> {
   const series = (await (await api.get(`/api/v1/items/${seriesId}`)).json()) as {

@@ -11,6 +11,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { AppLink } from './AppLink';
 import { Button } from './Button';
+import { Icon } from './Icon';
 import styles from './Row.module.css';
 import { SpatialGroup, useSpatialItem } from './spatial';
 
@@ -23,7 +24,12 @@ interface RowProps {
    * posters wide (the library tiles of «Meine Medien», concept 15 P-7).
    */
   variant?: 'cards' | 'chips' | 'tiles';
-  /** A page with all of the row's entries ("Alle anzeigen ›"), linked right of the title. */
+  /**
+   * The page with all of the row's entries (concept 20 P-7): the title itself becomes the link, with
+   * a small arrow after it, a stop of the arrow keys above the cards (↑ from the row) and of Tab.
+   */
+  href?: string;
+  /** A separate link right of the title (the radio page's «Alle aus …»). */
   moreHref?: string;
   moreLabel?: string;
 }
@@ -271,6 +277,38 @@ export function RowList({
   );
 }
 
+interface RowTitleProps {
+  id?: string;
+  title: string;
+  /** The row's page: the title becomes its link, with a small arrow after it (concept 20 P-7). */
+  href?: string;
+  /** Focus key of the link. */
+  focusKey?: string;
+}
+
+/**
+ * The heading of a row (Row, and the spotlight's heading over the stage of HeroCarousel). With
+ * `href` the title is the link to the row's page, with a small arrow after it; arrow keys reach it
+ * like a card (↑ from the row's cards), Enter opens the page.
+ */
+export function RowTitle({ id, title, href, focusKey }: RowTitleProps) {
+  return (
+    <h2 id={id} className={styles.title}>
+      {href ? <TitleLink href={href} title={title} focusKey={focusKey} /> : title}
+    </h2>
+  );
+}
+
+function TitleLink({ href, title, focusKey }: { href: string; title: string; focusKey?: string }) {
+  const { ref, onFocus } = useSpatialItem<HTMLAnchorElement>({ focusKey });
+  return (
+    <AppLink ref={ref} href={href} className={styles.titleLink} onFocus={onFocus}>
+      {title}
+      <Icon name="chevronRight" size="sm" />
+    </AppLink>
+  );
+}
+
 /** The row's link to its full page; arrow keys reach it like a card. */
 function MoreLink({ href, label }: { href: string; label: string }) {
   const { ref, onFocus } = useSpatialItem<HTMLAnchorElement>();
@@ -283,34 +321,64 @@ function MoreLink({ href, label }: { href: string; label: string }) {
 
 /**
  * Titled horizontal row of cards. Arrow keys move inside the row (spatial navigation); pointer
- * users scroll with the paging buttons, touch users swipe.
+ * users scroll with the paging buttons, touch users swipe. With `href` the title leads to the row's
+ * page (concept 20 P-7).
  */
 export function Row({
   title,
   children,
   focusKey,
   variant = 'cards',
+  href,
   moreHref,
   moreLabel,
 }: RowProps) {
   const headingId = useId();
+  const listKey = focusKey ?? `row-${headingId}`;
+  const titleKey = `${listKey}-title`;
+  const list = (
+    <RowList
+      focusKey={listKey}
+      variant={variant}
+      arrows="hover"
+      header={
+        <>
+          <RowTitle id={headingId} title={title} href={href} focusKey={titleKey} />
+          {moreHref && moreLabel && <MoreLink href={moreHref} label={moreLabel} />}
+        </>
+      }
+    >
+      {children}
+    </RowList>
+  );
+  if (!href) {
+    return (
+      <section className={styles.row} aria-labelledby={headingId}>
+        {list}
+      </section>
+    );
+  }
+  // With a title link the row is a group of its own (concept 20 P-7): ↑ from the cards lands on
+  // the title, ↓ from the title in the cards; every other press, and entering the row from
+  // another, goes by geometry to the cards (the focus ring's room around the cards overlaps the
+  // title block, so geometry alone would pass the title by).
   return (
-    <section className={styles.row} aria-labelledby={headingId}>
-      <RowList
-        focusKey={focusKey}
-        variant={variant}
-        arrows="hover"
-        header={
-          <>
-            <h2 id={headingId} className={styles.title}>
-              {title}
-            </h2>
-            {moreHref && moreLabel && <MoreLink href={moreHref} label={moreLabel} />}
-          </>
-        }
-      >
-        {children}
-      </RowList>
-    </section>
+    <SpatialGroup
+      as="section"
+      className={styles.row}
+      aria-labelledby={headingId}
+      focusKey={`${listKey}-block`}
+      rememberLastChild={false}
+      preferredChildFocusKey={listKey}
+      nextFocusKey={(direction, from) =>
+        from === listKey && direction === 'up'
+          ? titleKey
+          : from === titleKey && direction === 'down'
+            ? listKey
+            : null
+      }
+    >
+      {list}
+    </SpatialGroup>
   );
 }

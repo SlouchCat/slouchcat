@@ -8,12 +8,12 @@ import {
   type ReactNode,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAppNavigate } from './AppLink';
+import { AppLink, useAppNavigate } from './AppLink';
 import { Button, SpatialButton, SpatialButtonLink } from './Button';
 import styles from './HeroCarousel.module.css';
 import { PosterCard } from './PosterCard';
 import { TitleOrLogo } from './TitleOrLogo';
-import { RowList } from './Row';
+import { RowList, RowTitle } from './Row';
 import { setSpatialFocus, SpatialGroup } from './spatial';
 
 export interface HeroSlide {
@@ -51,8 +51,13 @@ export interface HeroSlide {
 }
 
 interface HeroCarouselProps {
-  /** Visible eyebrow and accessible name of the carousel. */
+  /** Heading over the stage and accessible name of the carousel. */
   label: string;
+  /**
+   * The page of the whole list (concept 20 P-7): the heading over the stage becomes its link, like
+   * the title of a row, and a stop of the arrow keys above the stage's buttons.
+   */
+  href?: string;
   slides: readonly HeroSlide[];
   playLabel: string;
   detailsLabel: string;
@@ -212,6 +217,7 @@ export function dismissHeroPrepaint() {
  */
 export function HeroCarousel({
   label,
+  href,
   slides,
   playLabel,
   detailsLabel,
@@ -455,6 +461,9 @@ export function HeroCarousel({
       data-paused={paused || undefined}
       style={{ '--hero-interval': `${intervalSeconds}s` } as CSSProperties}
     >
+      <div className={styles.header}>
+        <RowTitle title={label} href={href} focusKey="hero-title" />
+      </div>
       <div className={styles.stage}>
         <div className={styles.art} aria-hidden="true">
           {slides.map((item, position) => {
@@ -503,10 +512,6 @@ export function HeroCarousel({
         </div>
 
         <div className={styles.content}>
-          <p className={styles.eyebrow}>
-            <span className={styles.mark} aria-hidden="true" />
-            {label}
-          </p>
           <div
             key={slide.id}
             className={styles.slide}
@@ -515,9 +520,19 @@ export function HeroCarousel({
             aria-label={t('ui.carousel.position', { index: current + 1, count })}
             aria-live={paused ? 'polite' : 'off'}
           >
-            <h2 className={styles.title}>
-              <TitleOrLogo title={slide.title} logoUrl={slide.logoUrl} className={styles.logo} />
-            </h2>
+            {/* The film title leads to its detail page (concept 20 P-7) for the pointer; the keyboard
+                has «Details» right below, so the link is no extra stop. */}
+            <h3 className={styles.title}>
+              <AppLink
+                href={slide.detailsHref}
+                className={styles.titleLink}
+                tabIndex={-1}
+                onPointerDown={press}
+                onClick={(event) => follow(event, 'detailsHref')}
+              >
+                <TitleOrLogo title={slide.title} logoUrl={slide.logoUrl} className={styles.logo} />
+              </AppLink>
+            </h3>
             {slide.note && <p className={styles.note}>{slide.note}</p>}
             {slide.meta && <div className={styles.meta}>{slide.meta}</div>}
           </div>
