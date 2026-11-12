@@ -145,6 +145,28 @@ func (q *Queries) CountFailedJobs(ctx context.Context, type_ interface{}) (int64
 	return count, err
 }
 
+const countFailedJobsOfTypes = `-- name: CountFailedJobsOfTypes :one
+SELECT count(*) FROM jobs WHERE state = 'failed' AND type IN (/*SLICE:types*/?)
+`
+
+// The failed runs of the registered types in @types (what retryFailedJobs left: skipped).
+func (q *Queries) CountFailedJobsOfTypes(ctx context.Context, types []string) (int64, error) {
+	query := countFailedJobsOfTypes
+	var queryParams []interface{}
+	if len(types) > 0 {
+		for _, v := range types {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:types*/?", strings.Repeat(",?", len(types))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:types*/?", "NULL", 1)
+	}
+	row := q.db.QueryRowContext(ctx, query, queryParams...)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countJobRunsByState = `-- name: CountJobRunsByState :one
 SELECT count(*) FROM jobs WHERE type = ?1 AND state = ?2
 `
@@ -1260,7 +1282,7 @@ WHERE id IN (
     SELECT f.id FROM (
         SELECT j.id, ROW_NUMBER() OVER (PARTITION BY j.idempotency_key ORDER BY j.updated_at DESC, j.id DESC) AS rn
         FROM jobs AS j
-        WHERE j.state = 'failed' AND (?2 IS NULL OR j.type = ?2)
+        WHERE j.state = 'failed' AND j.type IN (/*SLICE:types*/?)
           AND j.idempotency_key IS NOT NULL
           AND NOT EXISTS (
               SELECT 1 FROM jobs AS a WHERE a.idempotency_key = j.idempotency_key AND a.state IN ('queued', 'running'))
@@ -1270,16 +1292,28 @@ WHERE id IN (
 `
 
 type MergeFailedJobsParams struct {
-	Now  int64
-	Type interface{}
+	Now   int64
+	Types []string
 }
 
 // Bulk actions on the failed runs (concept 20, P-6): every type, or the one in @type. Package
-// jobs runs the three of retryFailedJobs in one transaction (Queue.RetryFailed).
+// jobs runs the three of retryFailedJobs in one transaction (Queue.RetryFailed); the retry takes
+// only the registered types in @types, so the runs of a type that no longer exists stay failed.
 // Of the failed runs that share an idempotency key and have no active twin, all but the newest
 // are discarded (cancelled), so the requeue below cannot hit the unique index of active keys.
 func (q *Queries) MergeFailedJobs(ctx context.Context, arg MergeFailedJobsParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, mergeFailedJobs, arg.Now, arg.Type)
+	query := mergeFailedJobs
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.Now)
+	if len(arg.Types) > 0 {
+		for _, v := range arg.Types {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:types*/?", strings.Repeat(",?", len(arg.Types))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:types*/?", "NULL", 1)
+	}
+	result, err := q.db.ExecContext(ctx, query, queryParams...)
 	if err != nil {
 		return 0, err
 	}
@@ -1561,20 +1595,31 @@ const retryFailedJobs = `-- name: RetryFailedJobs :execrows
 UPDATE jobs
 SET state = 'queued', attempts = 0, run_after = ?1, lease_owner = NULL, lease_until = NULL, updated_at = ?1,
     started_at = NULL, finished_at = NULL, progress_done = NULL, progress_total = NULL, progress_note = NULL, skipped = 0
-WHERE jobs.state = 'failed' AND (?2 IS NULL OR jobs.type = ?2)
+WHERE jobs.state = 'failed' AND jobs.type IN (/*SLICE:types*/?)
   AND (jobs.idempotency_key IS NULL OR NOT EXISTS (
       SELECT 1 FROM jobs AS a WHERE a.idempotency_key = jobs.idempotency_key AND a.state IN ('queued', 'running')))
 `
 
 type RetryFailedJobsParams struct {
-	Now  int64
-	Type interface{}
+	Now   int64
+	Types []string
 }
 
 // The failed runs go back to the queue with their attempts reset, like RetryFailedJob; a run whose
 // key an active job holds stays failed (skipped).
 func (q *Queries) RetryFailedJobs(ctx context.Context, arg RetryFailedJobsParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, retryFailedJobs, arg.Now, arg.Type)
+	query := retryFailedJobs
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.Now)
+	if len(arg.Types) > 0 {
+		for _, v := range arg.Types {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:types*/?", strings.Repeat(",?", len(arg.Types))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:types*/?", "NULL", 1)
+	}
+	result, err := q.db.ExecContext(ctx, query, queryParams...)
 	if err != nil {
 		return 0, err
 	}

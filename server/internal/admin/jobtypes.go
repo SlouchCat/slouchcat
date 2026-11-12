@@ -486,12 +486,20 @@ func (s *Service) listFailedRuns(ctx context.Context, limit, offset int) (model.
 }
 
 // RetryFailedJobs queues the failed runs of typ ("" for every type) again in one transaction
-// (retryFailedJobs, concept 20 P-6); model.ErrNotFound for an unknown type.
+// (retryFailedJobs, concept 20 P-6); model.ErrNotFound for an unknown type. Only the types of the
+// registry qualify: the failures of a type that no longer exists stay failed (a row of job_types
+// alone runs nothing), «Alle löschen» removes them.
 func (s *Service) RetryFailedJobs(ctx context.Context, typ string) (model.JobFailedRetry, error) {
 	if err := s.failedScope(ctx, typ); err != nil {
 		return model.JobFailedRetry{}, err
 	}
-	r, err := s.jobctl.reg.Queue().RetryFailed(ctx, typ)
+	var types []string
+	for _, t := range s.jobctl.reg.Types() {
+		if typ == "" || t.Name == typ {
+			types = append(types, t.Name)
+		}
+	}
+	r, err := s.jobctl.reg.Queue().RetryFailed(ctx, types)
 	if err != nil {
 		return model.JobFailedRetry{}, err
 	}

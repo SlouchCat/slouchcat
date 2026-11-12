@@ -1998,10 +1998,16 @@ function FailedTab({
   );
   const first = paged.first;
   const { loaded, slots } = paged;
-  const jobs = useMemo(
-    () => slots.slice(0, loaded).filter((job): job is JobRun => job !== undefined),
-    [loaded, slots],
-  );
+  // Offsets over a list that changes between two pages can bring a run twice (a run failed in
+  // between pushes the rest down): each run is drawn once, its first place counts.
+  const jobs = useMemo(() => {
+    const seen = new Set<number>();
+    return slots.slice(0, loaded).filter((job): job is JobRun => {
+      if (job === undefined || seen.has(job.id)) return false;
+      seen.add(job.id);
+      return true;
+    });
+  }, [loaded, slots]);
   const listed = paged.total;
   const [end, near] = useNearEnd();
   if (near && loaded >= wanted && wanted < listed) setWanted(wanted + PAGED_LIST_PAGE);

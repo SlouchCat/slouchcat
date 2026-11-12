@@ -47,6 +47,14 @@ func TestFailedJobsOverHTTP(t *testing.T) {
 	fail(typeA)
 	fail(typeA)
 	fail(typeB)
+	// A failure of a type the registry no longer knows: listed and dismissed, never queued again.
+	gone, err := pf.queue.Enqueue(ctx, jobs.NewJob{Type: "old.gone", MaxAttempts: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pf.f.DB.Write.ExecContext(ctx, `UPDATE jobs SET state = 'failed' WHERE id = ?`, gone); err != nil {
+		t.Fatal(err)
+	}
 
 	// Without a type only state=failed; the rest is 422 from the handler.
 	rec := send(t, pf.h, http.MethodGet, BasePath+"/admin/jobs?state=queued", "p18", "", nil)
@@ -64,13 +72,13 @@ func TestFailedJobsOverHTTP(t *testing.T) {
 		decode(t, rec, &out)
 		return out
 	}
-	if all := page("state=failed"); all.Total != 3 || len(all.Runs) != 3 {
-		t.Fatalf("failed of every type = %d of %d, want 3 of 3", len(all.Runs), all.Total)
+	if all := page("state=failed"); all.Total != 4 || len(all.Runs) != 4 {
+		t.Fatalf("failed of every type = %d of %d, want 4 of 4", len(all.Runs), all.Total)
 	}
-	first, second := page("state=failed&limit=2"), page("state=failed&limit=2&offset=2")
-	if first.Total != 3 || len(first.Runs) != 2 || len(second.Runs) != 1 || second.Runs[0].Id == first.Runs[0].Id ||
-		second.Runs[0].Id == first.Runs[1].Id {
-		t.Fatalf("pages = %+v / %+v, want 2 then the third", first.Runs, second.Runs)
+	first, second := page("state=failed&limit=3"), page("state=failed&limit=3&offset=3")
+	if first.Total != 4 || len(first.Runs) != 3 || len(second.Runs) != 1 || second.Runs[0].Id == first.Runs[0].Id ||
+		second.Runs[0].Id == first.Runs[1].Id || second.Runs[0].Id == first.Runs[2].Id {
+		t.Fatalf("pages = %+v / %+v, want 3 then the fourth", first.Runs, second.Runs)
 	}
 	if a := page("type=" + typeA + "&state=failed&offset=1"); a.Total != 2 || len(a.Runs) != 1 {
 		t.Fatalf("failed of %s from 1 = %d of %d, want 1 of 2", typeA, len(a.Runs), a.Total)
@@ -84,6 +92,16 @@ func TestFailedJobsOverHTTP(t *testing.T) {
 	decode(t, rec, &retried)
 	if retried != (gen.JobRetryFailedResult{Retried: 2}) {
 		t.Errorf("retry of %s = %+v, want 2 retried", typeA, retried)
+	}
+	// Every type: typeB is queued, the unregistered type stays failed and is no skip.
+	rec = send(t, pf.h, http.MethodPost, BasePath+"/admin/jobs/failed/retry", "p18", "", nil)
+	wantStatus(t, rec, http.StatusOK)
+	decode(t, rec, &retried)
+	if retried != (gen.JobRetryFailedResult{Retried: 1}) {
+		t.Errorf("retry of every type = %+v, want 1 retried (typeB only)", retried)
+	}
+	if left := page("state=failed"); left.Total != 1 || left.Runs[0].Id != gone {
+		t.Fatalf("failed after the retry = %+v, want the unregistered one", left.Runs)
 	}
 	rec = send(t, pf.h, http.MethodDelete, BasePath+"/admin/jobs/failed", "p18", "", nil)
 	wantStatus(t, rec, http.StatusOK)

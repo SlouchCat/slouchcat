@@ -192,7 +192,8 @@ SET state = 'cancelled', lease_owner = NULL, lease_until = NULL, updated_at = @n
 WHERE id = @id AND state IN ('queued', 'running', 'failed');
 
 -- Bulk actions on the failed runs (concept 20, P-6): every type, or the one in @type. Package
--- jobs runs the three of retryFailedJobs in one transaction (Queue.RetryFailed).
+-- jobs runs the three of retryFailedJobs in one transaction (Queue.RetryFailed); the retry takes
+-- only the registered types in @types, so the runs of a type that no longer exists stay failed.
 
 -- name: MergeFailedJobs :execrows
 -- Of the failed runs that share an idempotency key and have no active twin, all but the newest
@@ -203,7 +204,7 @@ WHERE id IN (
     SELECT f.id FROM (
         SELECT j.id, ROW_NUMBER() OVER (PARTITION BY j.idempotency_key ORDER BY j.updated_at DESC, j.id DESC) AS rn
         FROM jobs AS j
-        WHERE j.state = 'failed' AND (sqlc.narg('type') IS NULL OR j.type = sqlc.narg('type'))
+        WHERE j.state = 'failed' AND j.type IN (sqlc.slice('types'))
           AND j.idempotency_key IS NOT NULL
           AND NOT EXISTS (
               SELECT 1 FROM jobs AS a WHERE a.idempotency_key = j.idempotency_key AND a.state IN ('queued', 'running'))
@@ -217,9 +218,13 @@ WHERE id IN (
 UPDATE jobs
 SET state = 'queued', attempts = 0, run_after = @now, lease_owner = NULL, lease_until = NULL, updated_at = @now,
     started_at = NULL, finished_at = NULL, progress_done = NULL, progress_total = NULL, progress_note = NULL, skipped = 0
-WHERE jobs.state = 'failed' AND (sqlc.narg('type') IS NULL OR jobs.type = sqlc.narg('type'))
+WHERE jobs.state = 'failed' AND jobs.type IN (sqlc.slice('types'))
   AND (jobs.idempotency_key IS NULL OR NOT EXISTS (
       SELECT 1 FROM jobs AS a WHERE a.idempotency_key = jobs.idempotency_key AND a.state IN ('queued', 'running')));
+
+-- name: CountFailedJobsOfTypes :one
+-- The failed runs of the registered types in @types (what retryFailedJobs left: skipped).
+SELECT count(*) FROM jobs WHERE state = 'failed' AND type IN (sqlc.slice('types'));
 
 -- name: CountFailedJobs :one
 SELECT count(*) FROM jobs WHERE state = 'failed' AND (sqlc.narg('type') IS NULL OR type = sqlc.narg('type'));

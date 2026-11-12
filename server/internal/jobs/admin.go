@@ -82,28 +82,32 @@ func failedScope(typ string) any {
 	return typ
 }
 
-// RetryFailed queues every failed job of typ ("" for every type) again with its attempts reset,
-// in one transaction (retryFailedJobs, concept 20 P-6). The rule of Retry holds: a job whose key
-// an active job holds stays failed. Of several failed jobs with the same key only the newest is
-// queued and the older ones are cancelled; one UPDATE over all of them would otherwise break the
-// unique index of active keys and fail as a whole.
-func (q *Queue) RetryFailed(ctx context.Context, typ string) (FailedRetry, error) {
+// RetryFailed queues every failed job of the types again with its attempts reset, in one
+// transaction (retryFailedJobs, concept 20 P-6). The caller passes the registered types only, so
+// the failures of a type that no longer exists are never queued again. The rule of Retry holds: a
+// job whose key an active job holds stays failed. Of several failed jobs with the same key only the
+// newest is queued and the older ones are cancelled; one UPDATE over all of them would otherwise
+// break the unique index of active keys and fail as a whole.
+func (q *Queue) RetryFailed(ctx context.Context, types []string) (FailedRetry, error) {
+	if len(types) == 0 {
+		return FailedRetry{}, nil
+	}
 	tx, err := q.db.BeginTx(ctx, nil)
 	if err != nil {
 		return FailedRetry{}, fmt.Errorf("retry failed jobs: begin: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 	w := q.q.WithTx(tx)
-	now, scope := q.now().UnixMilli(), failedScope(typ)
-	merged, err := w.MergeFailedJobs(ctx, systemq.MergeFailedJobsParams{Now: now, Type: scope})
+	now := q.now().UnixMilli()
+	merged, err := w.MergeFailedJobs(ctx, systemq.MergeFailedJobsParams{Now: now, Types: types})
 	if err != nil {
 		return FailedRetry{}, fmt.Errorf("merge failed jobs: %w", err)
 	}
-	retried, err := w.RetryFailedJobs(ctx, systemq.RetryFailedJobsParams{Now: now, Type: scope})
+	retried, err := w.RetryFailedJobs(ctx, systemq.RetryFailedJobsParams{Now: now, Types: types})
 	if err != nil {
 		return FailedRetry{}, fmt.Errorf("retry failed jobs: %w", err)
 	}
-	skipped, err := w.CountFailedJobs(ctx, scope)
+	skipped, err := w.CountFailedJobsOfTypes(ctx, types)
 	if err != nil {
 		return FailedRetry{}, fmt.Errorf("count failed jobs: %w", err)
 	}

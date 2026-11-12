@@ -526,6 +526,24 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'system' }));
   });
 
+  it('draws a failed run once even when the list brings it twice (review of stage 4)', async () => {
+    mockApi(
+      routes({
+        'GET /admin/jobs': () =>
+          json({
+            runs: [failedRun({}), failedRun({ id: 71, type: 'probe.keyframes' }), failedRun({})],
+            total: 3,
+          }),
+      }),
+    );
+    const errors = vi.spyOn(console, 'error');
+    renderApp('/admin/jobs?tab=failed');
+    const table = await screen.findByRole('table', { name: 'Fehlschläge (alle Arten)' });
+    expect(within(table).getAllByRole('row').slice(1)).toHaveLength(2);
+    expect(errors.mock.calls.flat().join(' ')).not.toMatch(/same key/);
+    errors.mockRestore();
+  });
+
   it('keeps an unsaved schedule across tabs and folding (S-17), asks before leaving, and saves it', async () => {
     let saved = false;
     const { calls } = mockApi(

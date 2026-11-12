@@ -89,7 +89,8 @@ func TestStatsListFailedAndRetry(t *testing.T) {
 // Concept 20, P-6: RetryFailed queues every failed job of a type or of all in one transaction.
 // Two failures share the key "dup": only the newer is queued, the older one is merged (one UPDATE
 // over both would break the unique index jobs_active_idempotency_key). The failure with key
-// "held" has an active twin and stays failed. DismissFailed cancels what is left.
+// "held" has an active twin and stays failed; a type outside the list (no longer registered) is
+// left alone. DismissFailed cancels what is left, of every type.
 func TestRetryAndDismissFailed(t *testing.T) {
 	ctx := context.Background()
 	q, clk := newTestQueue(t)
@@ -105,6 +106,11 @@ func TestRetryAndDismissFailed(t *testing.T) {
 	dupNew := fail(NewJob{Type: "a", IdempotencyKey: "dup"})
 	held := fail(NewJob{Type: "a", IdempotencyKey: "held"})
 	plain := fail(NewJob{Type: "b"})
+	// A failure of a type that is no longer registered (no worker claims it any more).
+	gone := mustEnqueue(t, q, NewJob{Type: "gone"})
+	if _, err := q.db.ExecContext(ctx, `UPDATE jobs SET state = 'failed' WHERE id = ?`, gone); err != nil {
+		t.Fatal(err)
+	}
 	twin := mustEnqueue(t, q, NewJob{Type: "a", IdempotencyKey: "held", Delay: time.Hour})
 	state := func(id int64) State {
 		t.Helper()
@@ -116,19 +122,22 @@ func TestRetryAndDismissFailed(t *testing.T) {
 	}
 
 	// The filter: only b.
-	if r, err := q.RetryFailed(ctx, "b"); err != nil || r != (FailedRetry{Retried: 1}) {
+	if r, err := q.RetryFailed(ctx, []string{"b"}); err != nil || r != (FailedRetry{Retried: 1}) {
 		t.Fatalf("retry of b = %+v, %v; want 1 retried", r, err)
 	}
 	if state(plain) != StateQueued || state(dupNew) != StateFailed {
 		t.Fatalf("after the retry of b: plain %s, dup %s", state(plain), state(dupNew))
 	}
 	// Every type: the newer dup is queued, the older merged, held skipped.
-	r, err := q.RetryFailed(ctx, "")
+	r, err := q.RetryFailed(ctx, []string{"a", "b"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if r != (FailedRetry{Retried: 1, Skipped: 1, Merged: 1}) {
 		t.Fatalf("retry of every type = %+v, want 1 retried, 1 skipped, 1 merged", r)
+	}
+	if state(gone) != StateFailed {
+		t.Fatalf("the failure of an unregistered type = %s, want failed", state(gone))
 	}
 	if state(dupNew) != StateQueued || state(dupOld) != StateCancelled || state(held) != StateFailed || state(twin) != StateQueued {
 		t.Fatalf("states: dupNew %s, dupOld %s, held %s, twin %s", state(dupNew), state(dupOld), state(held), state(twin))
@@ -140,13 +149,13 @@ func TestRetryAndDismissFailed(t *testing.T) {
 	if n, err := q.DismissFailed(ctx, "b"); err != nil || n != 0 {
 		t.Fatalf("dismiss of b = %d, %v; want 0", n, err)
 	}
-	if n, err := q.DismissFailed(ctx, ""); err != nil || n != 1 {
-		t.Fatalf("dismiss of every type = %d, %v; want 1", n, err)
+	if n, err := q.DismissFailed(ctx, ""); err != nil || n != 2 {
+		t.Fatalf("dismiss of every type = %d, %v; want 2 (held and gone)", n, err)
 	}
 	if state(held) != StateCancelled || state(twin) != StateQueued {
 		t.Fatalf("after the dismiss: held %s, twin %s", state(held), state(twin))
 	}
-	if r, err := q.RetryFailed(ctx, ""); err != nil || r != (FailedRetry{}) {
+	if r, err := q.RetryFailed(ctx, []string{"a", "b"}); err != nil || r != (FailedRetry{}) {
 		t.Fatalf("retry without failures = %+v, %v", r, err)
 	}
 }
