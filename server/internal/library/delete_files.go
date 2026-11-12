@@ -81,34 +81,76 @@ func (s *Service) checkFiles(ctx context.Context, q *systemq.Queries, t itemTree
 	return out, nil
 }
 
-// fileReason is the verdict of one file (see checkFiles); dirs caches the folders.
+// fileCheckTimeout bounds the lstat and the access check of one file before a delete: a hanging
+// share answers unreachable instead of holding the dialog (review finding 8).
+const fileCheckTimeout = 3 * time.Second
+
+// fileReason is the verdict of one file (see checkFiles); dirs caches the folders. The checks run
+// with a deadline; a root whose check hangs answers unreachable at once until that check returns.
 func (s *Service) fileReason(f systemq.ListMediaFilesOfItemsRow, shared bool, dirs map[string]string) string {
 	if shared {
 		return model.DeleteReasonShared
 	}
+	if _, hanging := s.hangingChecks.Load(f.RootPath); hanging {
+		return model.DeleteReasonUnreachable
+	}
+	timeout := s.fileCheckTimeout
+	if timeout == 0 {
+		timeout = fileCheckTimeout
+	}
+	key := f.RootPath + "\x00" + path.Dir(f.RelPath)
+	cached, known := dirs[key]
+	type verdict struct{ reason, dir string }
+	answer := make(chan verdict, 1)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		reason, dir := s.fileReasonNow(f, cached, known)
+		answer <- verdict{reason, dir}
+	}()
+	select {
+	case v := <-answer:
+		if v.dir != "-" {
+			dirs[key] = v.dir
+		}
+		return v.reason
+	case <-time.After(timeout):
+		s.hangingChecks.Store(f.RootPath, struct{}{})
+		go func() {
+			<-done
+			s.hangingChecks.Delete(f.RootPath)
+		}()
+		return model.DeleteReasonUnreachable
+	}
+}
+
+// fileReasonNow is fileReason without the deadline. cached is the verdict of the file's folder
+// when known; it returns the file's reason and the folder's verdict to remember ("-" when the
+// folder was not checked). It touches no shared state, so a check that hangs past its deadline
+// harms nothing.
+func (s *Service) fileReasonNow(f systemq.ListMediaFilesOfItemsRow, cached string, known bool) (string, string) {
 	root, err := paths.NewRoot(f.RootPath)
 	if err != nil {
-		return model.DeleteReasonUnreachable
+		return model.DeleteReasonUnreachable, "-"
 	}
 	r, err := paths.Open(root)
 	if err != nil {
-		return model.DeleteReasonUnreachable
+		return model.DeleteReasonUnreachable, "-"
 	}
 	fi, err := r.Lstat(f.RelPath)
 	_ = r.Close()
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
-		return model.DeleteReasonMissing
+		return model.DeleteReasonMissing, "-"
 	case err != nil:
-		return model.DeleteReasonUnreachable
+		return model.DeleteReasonUnreachable, "-"
 	case !fi.Mode().IsRegular():
-		return model.DeleteReasonNotRegular
+		return model.DeleteReasonNotRegular, "-"
+	}
+	if known {
+		return cached, "-"
 	}
 	dir := path.Dir(f.RelPath)
-	key := f.RootPath + "\x00" + dir
-	if reason, ok := dirs[key]; ok {
-		return reason
-	}
 	reason := ""
 	switch err := s.deleteCheck(root, dir); {
 	case err == nil:
@@ -119,8 +161,7 @@ func (s *Service) fileReason(f systemq.ListMediaFilesOfItemsRow, shared bool, di
 	default:
 		reason = model.DeleteReasonUnreachable
 	}
-	dirs[key] = reason
-	return reason
+	return reason, reason
 }
 
 // filesVerdict is whether «Auch die Dateien löschen» is possible, and why not.

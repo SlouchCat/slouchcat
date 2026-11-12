@@ -6,7 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
@@ -353,4 +355,48 @@ func TestDeleteFilesTakesEmptyContainersAbove(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM items WHERE id = ?`, duo); n != 1 {
 		t.Error("the series Duo with a season left went")
 	}
+}
+
+// Review finding 8: a check that hangs (a share that does not answer) gives up after its deadline:
+// the file is not deletable with reason unreachable, the preview answers at once, and the next
+// file of the same root does not start another check while the first one hangs.
+func TestDeleteFilesCheckGivesUpOnAHangingShare(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	files := []string{
+		"Show (2020)/Season 01/Show - S01E01.mkv", "Show (2020)/Season 02/Show - S02E01.mkv",
+		"Keep (2001)/Season 01/Keep - S01E01.mkv", "Keep (2001)/Season 01/Keep - S01E02.mkv",
+	}
+	dir := tree(t, files)
+	lib := e.createSeries(dir)
+	e.scan(lib.ID)
+	show := e.str(`SELECT id FROM items WHERE kind = 'series' AND title = 'Show'`)
+	release := make(chan struct{})
+	var calls atomic.Int32
+	e.svc.fileCheckTimeout = 50 * time.Millisecond
+	e.svc.deleteCheckFn = func(paths.Root, string) error {
+		calls.Add(1)
+		<-release
+		return nil
+	}
+	start := time.Now()
+	preview, err := e.svc.ItemDeletion(e.ctx, show, "de")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("preview took %v", elapsed)
+	}
+	if preview.FilesDeletable || preview.FilesReason != model.DeleteReasonUnreachable {
+		t.Errorf("preview = %+v", preview)
+	}
+	for _, f := range preview.Files {
+		if f.Deletable || f.Reason != model.DeleteReasonUnreachable {
+			t.Errorf("file %+v", f)
+		}
+	}
+	if n := calls.Load(); n != 1 {
+		t.Errorf("checks started = %d, want 1 while it hangs", n)
+	}
+	close(release)
 }
