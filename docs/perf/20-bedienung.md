@@ -116,3 +116,47 @@ wie heute von den gesehenen Zeilen) ist darum nicht gebaut. Die Kosten verhalten
 - `setItemWatched` für eine ganze Serie: schreibt je sichtbare Folge eine Zeile in einer Transaktion; bei
   Serien mit einigen hundert Folgen unkritisch, nicht eigens gemessen.
 - CT 190: beide Messungen folgen bei der Abnahme der Stufe auf dem Server mit seiner echten Datenbank.
+
+## 5. M-1 Bibliothek löschen
+
+Gemessen am 12. November 2026 lokal (dieselbe Maschine wie oben, i7-14700K, 28 Kerne, Go 1.27.2) auf dem Zweig
+`claude/k20-s5`. Auftrag aus Konzept 20, Abschnitt 9.3: Wie lange dauert das Löschen einer Bibliothek mit
+10 000 Titeln, wenn die Fremdschlüssel alles mitnehmen, was an den Titeln hängt, und die Trigger des
+Suchindexes ihre Dokumente löschen? Unter fünf Sekunden läuft `deleteLibrary` direkt in der Anfrage, darüber
+als Hintergrundjob `library.delete` mit einem Merkmal «wird gelöscht».
+
+`BenchmarkDeleteLibrary` in `server/internal/library/delete_library_bench_test.go`:
+
+```
+go test -run '^$' -bench DeleteLibrary -benchtime 3x -timeout 30m -v ./internal/library/
+```
+
+Aufbau je Lauf: zwei gleich gebaute Bibliotheken, damit die Tabellen auch Zeilen der anderen Bibliothek
+enthalten. Fall «films»: je 10 000 Filme mit einer Datei, drei Spuren, zwei Texten, vier Bildzeilen, zwei
+gewählten Bildern, sechs Mitwirkenden (aus 20 000 Personen), einem Trailer und zwei Genres; 500 TMDB-Sammlungen
+mit je zwei Filmen. Fall «series»: je 400 Serien mit einer Staffel zu 25 Folgen (10 000 Folgen mit Datei). In
+beiden Fällen haben drei Profile Fortschritt auf jedem dritten Titel mit je zehn Fortschrittsereignissen und
+zwei Wiedergabesitzungen, jeder zehnte Titel steht auf einer Merkliste. Gemessen wird die Transaktion von
+`deleteLibrary` (Freigaben, `activity_events.library_id` auf `NULL`, Bibliothekszeile), ohne die Sicherung.
+
+| Stand | films | series |
+|---|---:|---:|
+| Schema bis Migration 00053 | **41,8 s** (zweiter Lauf 54,3 s) | **45,0 s** |
+| mit den Indizes aus Migration 00055 | **2,8 s** | **3,3 s** |
+
+**Befund:** Fast die ganze Zeit ging in die Suche der Kindzeilen durch die Fremdschlüssel, nicht in die Trigger
+des Suchindexes. `progress_events.item_id`, `playback_sessions.item_id` und `progress.item_id` hatten keinen
+Index, dessen erste Spalte sie sind; jeder gelöschte Titel las diese Tabellen darum ganz (hier 200 000
+Fortschrittsereignisse und 40 000 Sitzungen, also rund 2,6 Milliarden gelesene Zeilen). Migration 00055 legt
+die fehlenden Indizes an: `progress_item`, `progress_events_item`, `progress_days_item`,
+`playback_sessions_item`, `downloads_media_file`, `notifications_parent` und `item_local_images_root`. Davon
+profitiert auch das endgültige Löschen eines Titels (O-14) und das Zusammenführen beim Umhängen.
+
+**Entscheid:** Mit den Indizes bleibt das Löschen von 10 000 Titeln unter fünf Sekunden; `deleteLibrary` läuft
+darum **direkt in der Anfrage**, ohne Jobart `library.delete` und ohne Merkmal «wird gelöscht» (keine zweite
+Migration). Die Sicherung mit `VACUUM INTO` vorher kommt dazu; sie dauert so lange wie die Sicherung vor
+einer Migration.
+
+**Nicht gemessen:** CT 190. Die Maschine dort ist langsamer als diese; mit Faktor zwei bis drei läge eine
+Bibliothek mit 10 000 Titeln knapp über fünf Sekunden. Die Messung auf CT 190 folgt bei der Abnahme der Stufe;
+liegt sie dort deutlich über fünf Sekunden, wird der Hintergrundjob nachgebaut.
