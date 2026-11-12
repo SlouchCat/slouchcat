@@ -368,3 +368,12 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   darum nicht sichtbar). Dann `store.Dump`, kein neuer Pfad im Stand. `TestFrozenGesehenStateCoversTheStage`
   prüft, dass jede dieser Datenarten vorhanden ist; `TestMigration00053ProgressWatchedAt` prüft den Schritt von
   `radio-wikidata.sql` aus.
+- `loeschen.sql`: Stand nach Stufe 5 des Konzepts 20 «Löschen» (Migration 00055 mit `profile_libraries` samt
+  Fremdschlüssel auf `libraries`, `items.removed_at`, dem Teilindex `items_removed` und den Indizes auf den
+  Kindspalten der Fremdschlüssel aus der Messung M-1). Erzeugt am 12. November 2026 aus `gesehen.sql`: Stand
+  eingespielt, mit `store.Open` migriert, dann per SQL: das zweite Profil auf zwei Bibliotheken beschränkt
+  («Filme» und «Podcasts» in `profile_libraries`), der Film «Slouchcat Test HEVC 10bit» und die Serie
+  «Slouchcat Test Intro Show» mit Staffel und Folgen aus Slouchcat entfernt (`removed_at` und `deleted_at`,
+  Stichtag 12. November 2026, 12:00 UTC; die Dateien bleiben verzeichnet). Dann `store.Dump`, kein neuer Pfad
+  im Stand. `TestFrozenLoeschenStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist;
+  `TestMigration00055LibraryAndTitleDeletion` prüft den Schritt von `gesehen.sql` aus.

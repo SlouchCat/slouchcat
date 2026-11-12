@@ -354,6 +354,7 @@ type Item struct {
 	BookMatchScore    sql.NullFloat64
 	BookMatchError    sql.NullString
 	BookMatchManual   int64
+	RemovedAt         sql.NullInt64
 }
 
 type ItemFieldSource struct {
