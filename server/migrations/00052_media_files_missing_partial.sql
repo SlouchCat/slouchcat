@@ -7,8 +7,9 @@
 -- titles through media_files_item. On CT 190 (61 749 files, 713 of them missing, 106 podcasts)
 -- PodcastList took 47 s, PodcastDownloadStats 47 s and PodcastNewestRoots 93 s: the list of the
 -- page «Podcasts» of the administration stayed empty for minutes (docs/perf/podcasts-liste.md).
--- CountLibraryMediaFiles and ListKeyframesBackfillFiles had worked around the same trap with
--- INDEXED BY; this migration removes the trap for every query.
+-- CountLibraryMediaFiles (INDEXED BY media_files_missing on the missing rows) and
+-- ListKeyframesBackfillFiles (INDEXED BY media_files_keyframes) had worked around the same trap;
+-- this migration removes the trap for every query.
 --
 -- Partial on missing_since IS NOT NULL, the index can no longer serve an IS NULL; every search for
 -- missing files (IS NOT NULL, missing_since < ?) still finds it.
