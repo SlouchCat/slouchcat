@@ -373,12 +373,46 @@ func (s *Service) recordedAndCompanions(ctx context.Context, q *systemq.Queries,
 			if !e.Type().IsRegular() {
 				continue // a folder or a symlink of that name stays
 			}
+			// A file with a media extension is never a companion: it may be the next film or
+			// episode of the folder that no scan has seen yet ("Alien-Resurrection.mkv" next to
+			// "Alien.mkv"). Nor is a file that is a media file of any title under another name.
+			if isMediaName(e.Name()) {
+				continue
+			}
+			if ok, err := s.knownIdentity(ctx, q, e); err != nil {
+				return nil, err
+			} else if ok {
+				continue
+			}
 			if err := add(f.RootID, path.Join(dir, e.Name())); err != nil {
 				return nil, err
 			}
 		}
 	}
 	return out, nil
+}
+
+// isMediaName reports whether the name has the extension of a file the scanner reads as media
+// (video, or audio of books and podcasts).
+func isMediaName(name string) bool {
+	return IsVideo(name) || IsAudio(name)
+}
+
+// knownIdentity reports whether the entry is, by device and inode, the file of a media_files row.
+func (s *Service) knownIdentity(ctx context.Context, q *systemq.Queries, e fs.DirEntry) (bool, error) {
+	info, err := e.Info()
+	if err != nil {
+		return true, nil //nolint:nilerr // an entry that cannot be read is no companion to delete
+	}
+	id := sysFileID(info.Sys())
+	if id.dev == 0 || id.inode == 0 {
+		return false, nil
+	}
+	n, err := q.CountMediaFilesWithIdentity(ctx, systemq.CountMediaFilesWithIdentityParams{Dev: toInt64(id.dev), Inode: toInt64(id.inode)})
+	if err != nil {
+		return false, fmt.Errorf("identity of %s: %w", e.Name(), err)
+	}
+	return n > 0, nil
 }
 
 // removeEmptyFolders is step 4: each folder a file left goes when it is empty, then each empty

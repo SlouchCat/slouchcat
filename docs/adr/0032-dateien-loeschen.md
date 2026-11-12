@@ -63,7 +63,9 @@ mit, was Slouchcat nicht kennt); (e) weiches Löschen des Titels, wenn alle Date
    4. danach der Ordner, wenn er leer ist, und leere Elternordner bis unter den Bibliotheksordner.
 4. **Nie:** eine Datei, die in `media_files` einem Titel gehört, oder ein verzeichnetes Bild eines Titels
    ausserhalb, auch wenn ihr Name nach Regel 3 passte (flacher Filmordner: `Alien.mkv` und
-   `Alien-Resurrection.mkv`); eine Mediendatei, die als harter Link zugleich die Datei eines anderen Titels
+   `Alien-Resurrection.mkv`); als Begleitdatei nie eine Datei mit der Endung einer Video- oder Audiodatei
+   (auch wenn noch kein Scan sie kennt) und nie eine Datei, deren Gerät und Inode die einer Mediendatei
+   irgendeines Titels sind; eine Mediendatei, die als harter Link zugleich die Datei eines anderen Titels
    ist (sie bleibt, das Ergebnis nennt sie); ein Symlink (wird nie verfolgt, bleibt liegen); der
    Bibliotheksordner selbst; ein Ordner mit Inhalt (kein rekursives Löschen; das Ergebnis zählt, was liegen
    bleibt). Eine schon fehlende Datei gilt als gelöscht.

@@ -259,3 +259,32 @@ func TestDeleteFilesKeepsAHardLinkOfAnotherTitle(t *testing.T) {
 		t.Error("the shared file counts as deletable")
 	}
 }
+
+// Review finding 1: a file with a media extension is never a companion, even when no scan has seen
+// it yet (the next film of a flat folder), and neither is a file whose device and inode are those
+// of a media file of any title (a hard link under a fitting name). Other companions still go.
+func TestDeleteFilesNeverTakesMediaAsCompanion(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	dir := tree(t, []string{"Alien.mkv", "Heat (1995).mkv", "Ronin (1998).mkv"})
+	lib := e.create(dir)
+	e.scan(lib.ID)
+	writeFile(t, dir, "Alien-Resurrection.mkv", "new film, not scanned yet")
+	writeFile(t, dir, "Alien-commentary.mp3", "audio, not scanned")
+	writeFile(t, dir, "Alien.de.srt", "subtitle")
+	if err := os.Link(filepath.Join(dir, "Heat (1995).mkv"), filepath.Join(dir, "Alien.heat-backup")); err != nil {
+		t.Fatal(err)
+	}
+	alien := e.str(`SELECT item_id FROM media_files WHERE rel_path = 'Alien.mkv'`)
+	if _, err := e.svc.DeleteItem(e.ctx, alien, "de", model.DeleteModeFiles, "", model.Actor{}); err != nil {
+		t.Fatal(err)
+	}
+	for rel, want := range map[string]bool{
+		"Alien.mkv": false, "Alien.de.srt": false,
+		"Alien-Resurrection.mkv": true, "Alien-commentary.mp3": true, "Alien.heat-backup": true, "Heat (1995).mkv": true,
+	} {
+		if got := exists(t, dir, rel); got != want {
+			t.Errorf("%s exists = %v, want %v", rel, got, want)
+		}
+	}
+}

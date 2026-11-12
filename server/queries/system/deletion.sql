@@ -231,3 +231,8 @@ WHERE i.id IN (sqlc.slice('item_ids')) AND i.kind = 'season'
 -- Deleted for good (O-14): the foreign keys take everything on the titles and below them,
 -- progress, check marks and watchlist entries included.
 DELETE FROM items WHERE id IN (sqlc.slice('ids'));
+
+-- name: CountMediaFilesWithIdentity :one
+-- Media files of any title with this device and inode: a companion candidate that is one (a hard
+-- link, or a file moved under a fitting name) is never deleted as a companion.
+SELECT count(*) FROM media_files WHERE dev = @dev AND inode = @inode AND dev <> 0 AND inode <> 0;

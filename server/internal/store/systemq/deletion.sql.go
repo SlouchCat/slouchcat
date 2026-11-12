@@ -87,6 +87,24 @@ func (q *Queries) CountMediaFilesOfItems(ctx context.Context, itemIds []string) 
 	return count, err
 }
 
+const countMediaFilesWithIdentity = `-- name: CountMediaFilesWithIdentity :one
+SELECT count(*) FROM media_files WHERE dev = ?1 AND inode = ?2 AND dev <> 0 AND inode <> 0
+`
+
+type CountMediaFilesWithIdentityParams struct {
+	Dev   int64
+	Inode int64
+}
+
+// Media files of any title with this device and inode: a companion candidate that is one (a hard
+// link, or a file moved under a fitting name) is never deleted as a companion.
+func (q *Queries) CountMediaFilesWithIdentity(ctx context.Context, arg CountMediaFilesWithIdentityParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countMediaFilesWithIdentity, arg.Dev, arg.Inode)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countRemovedItems = `-- name: CountRemovedItems :one
 SELECT count(*) FROM items AS i INDEXED BY items_removed
 LEFT JOIN items AS p ON p.id = i.parent_id

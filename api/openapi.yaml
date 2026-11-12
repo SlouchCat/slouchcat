@@ -4205,7 +4205,8 @@ paths:
         and metadata files Slouchcat read for them (recorded local images, the folder cover of a
         book or podcast, `movie.nfo`, `tvshow.nfo`, `season.nfo` and `metadata.json` of a folder
         once no media file of any title is left in it); companions next to a deleted media file
-        whose name starts with its whole stem followed by `.` or `-`; then the folders left empty,
+        whose name starts with its whole stem followed by `.` or `-` (never one with a video or
+        audio extension, never one that is by device and inode a media file); then the folders left empty,
         up to below the library root. A file that is a media file of another title is never
         deleted; a hard link of another title's file stays and is named. Nothing is deleted
         recursively; `leftInFolder` counts what stays. A missing file counts as deleted. The rows of
