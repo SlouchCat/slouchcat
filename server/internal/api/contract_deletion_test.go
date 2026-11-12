@@ -101,10 +101,7 @@ func TestContractItemDeletion(t *testing.T) {
 			t.Fatal(err)
 		}
 		st := fi.Sys().(*syscall.Stat_t)
-		if _, err := pf.f.DB.Write.Exec(`UPDATE media_files SET dev = ?, inode = ? WHERE rel_path = ?`,
-			int64(st.Dev), int64(st.Ino), f.Path); err != nil {
-			t.Fatal(err)
-		}
+		pf.f.RecordFileIdentity(t, f.Path, st.Dev, st.Ino)
 	}
 	rec = send(t, pf.h, http.MethodGet, path, "p18", "", nil)
 	wantStatus(t, rec, http.StatusOK)
