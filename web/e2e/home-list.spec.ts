@@ -17,6 +17,8 @@ import {
 const grid = (page: Page) => page.getByRole('list', { name: ROW_TITLES.recent });
 const cards = (page: Page) => grid(page).getByRole('link');
 const chips = (page: Page) => page.getByRole('group', { name: 'Inhalt' });
+// A card's name starts with its progress («28 % ») once a spec running alongside played the title.
+const card = (title: string, end = '') => new RegExp(`^(\\d+ % )?${title}${end}`);
 
 test('«Neu hinzugefügt» as a list: count, filter, pens, arrows, Enter, back; no focus trap @keyboard', async ({
   page,
@@ -28,9 +30,7 @@ test('«Neu hinzugefügt» as a list: count, filter, pens, arrows, Enter, back; 
   await expect(count).toBeVisible();
   const total = Number((await count.textContent())?.split(' ')[0]);
   await expect(cards(page)).toHaveCount(total);
-  await expect(
-    grid(page).getByRole('link', { name: new RegExp(`^${H264_TITLE} \\d{4}$`) }),
-  ).toBeVisible();
+  await expect(grid(page).getByRole('link', { name: card(H264_TITLE, ' \\d{4}$') })).toBeVisible();
   // The pen on the cards for the server administrator (every kind the editor edits).
   expect(
     await grid(page)
@@ -43,10 +43,10 @@ test('«Neu hinzugefügt» as a list: count, filter, pens, arrows, Enter, back; 
   await expect(page).toHaveURL(/\/lists\/recent\?content=series$/);
   await expect(
     grid(page)
-      .getByRole('link', { name: new RegExp(`^${SHOW_TITLE}`) })
+      .getByRole('link', { name: card(SHOW_TITLE) })
       .first(),
   ).toBeVisible();
-  await expect(grid(page).getByRole('link', { name: new RegExp(`^${H264_TITLE}`) })).toHaveCount(0);
+  await expect(grid(page).getByRole('link', { name: card(H264_TITLE) })).toHaveCount(0);
   await chips(page).getByRole('button', { name: 'Alle' }).click();
   await expect(cards(page)).toHaveCount(total);
 
