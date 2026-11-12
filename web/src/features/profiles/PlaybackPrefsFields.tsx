@@ -87,7 +87,7 @@ interface PlaybackPrefsFieldsProps {
 
 /**
  * The language and subtitle preferences of a profile (concept 13 11.4, F-13): the audio languages
- * in order, the subtitle rule and the subtitle languages in order. «Meine Wiedergabe» shows them
+ * in order, the subtitle rule and the subtitle languages in order. «Einstellungen» shows them
  * for the active profile, the profile form of the primary profile for any profile. The server
  * chooses the tracks from them (rule 12); the fields only hold the values.
  */

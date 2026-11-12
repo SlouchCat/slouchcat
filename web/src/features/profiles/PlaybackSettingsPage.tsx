@@ -4,18 +4,21 @@ import { useId, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
+import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { Notice, Panel, Skeleton } from '@/ui';
+import { ButtonLink, Notice, Panel, Skeleton } from '@/ui';
 import { AdminPage, AriaButton, ConfirmDialog, Form, SectionHeader } from '@/ui/aria';
 import { PlaybackPrefsFields } from './PlaybackPrefsFields';
 import { adoptPlaybackPrefs, myPlaybackPrefsQuery, putMyPlaybackPrefs } from './playbackPrefs';
 import styles from './PlaybackSettingsPage.module.css';
 
 /**
- * «Meine Wiedergabe» (concept 13 11.4, F-13): every profile sets its own audio languages, subtitle
- * rule and subtitle languages, saved together, and forgets the languages it chose per series
- * (after a confirmation). The server chooses the tracks of a start from them (rule 12).
+ * «Einstellungen» (concept 13 11.4, F-13; named so since concept 20, P-13): every profile sets its
+ * own audio languages, subtitle rule and subtitle languages, saved together, and forgets the
+ * languages it chose per series (after a confirmation). The server chooses the tracks of a start
+ * from them (rule 12). A third field leads to the notification channels of the account, which
+ * have no entry in the sidebar (concept 20, O-8).
  */
 export function PlaybackSettingsPage() {
   const { t } = useTranslation();
@@ -24,6 +27,7 @@ export function PlaybackSettingsPage() {
   const queryClient = useQueryClient();
   const languagesId = useId();
   const seriesId = useId();
+  const notificationsId = useId();
   const prefs = useQuery(myPlaybackPrefsQuery);
   // The changed preferences until they are saved; null shows what the server holds.
   const [draft, setDraft] = useState<PlaybackPrefs | null>(null);
@@ -105,6 +109,18 @@ export function PlaybackSettingsPage() {
           </span>
         </div>
         {reset.isError && <Notice tone="danger">{problemMessage(t, reset.error)}</Notice>}
+      </Panel>
+      <Panel as="section" aria-labelledby={notificationsId}>
+        <SectionHeader
+          id={notificationsId}
+          title={t('settings.playback.notifications.title')}
+          description={t('settings.playback.notifications.body')}
+        />
+        <div className={styles.actions}>
+          <ButtonLink variant="secondary" icon="bell" href={paths.notificationSettings}>
+            {t('settings.playback.notifications.link')}
+          </ButtonLink>
+        </div>
       </Panel>
     </AdminPage>
   );

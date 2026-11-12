@@ -38,7 +38,7 @@ const props = (overrides: Partial<SideNavProps> = {}): SideNavProps => ({
   offlineLink: { href: '/downloads', label: 'Zu den Downloads' },
   accountLabel: 'Konto',
   account: [
-    { href: '/settings/playback', label: 'Meine Wiedergabe', icon: 'sliders' },
+    { href: '/settings/playback', label: 'Einstellungen', icon: 'sliders' },
     { href: '/settings/profiles', label: 'Profile', icon: 'users' },
   ],
   logoutLabel: 'Abmelden',
@@ -63,7 +63,7 @@ describe('side navigation (concepts 08 and 17)', () => {
       'Filme, 12 Titel',
       'Serien, 3 Titel',
       'User-Empfehlungen4',
-      'Meine Wiedergabe',
+      'Einstellungen',
       'Profile',
     ]);
     expect(screen.getByRole('link', { name: 'Start' })).toHaveAttribute('aria-current', 'page');
@@ -97,7 +97,7 @@ describe('side navigation (concepts 08 and 17)', () => {
       within(account)
         .getAllByRole('link')
         .map((link) => link.textContent),
-    ).toEqual(['Meine Wiedergabe', 'Profile']);
+    ).toEqual(['Einstellungen', 'Profile']);
     expect(within(nav()).queryByRole('button', { name: /Meine Medien/ })).not.toBeInTheDocument();
     expect(nav().querySelector('[aria-expanded]')).toBeNull();
   });

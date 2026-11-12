@@ -18,7 +18,7 @@
     "logout": "Sign out",
     "skip": "Skip to content",
     "profiles": "Profiles",
-    "playback": "My playback",
+    "playback": "Settings",
     "switchProfile": "Switch profile, now {{name}}",
     "downloads": "Downloads",
     "search": "Search",
@@ -5043,7 +5043,7 @@
   },
   "settings": {
     "playback": {
-      "title": "My playback",
+      "title": "Settings",
       "intro": "Sound and subtitles for the profile {{name}}, on every device. What you pick by hand in the player comes first.",
       "languages": "Languages and subtitles",
       "audio": {
@@ -5081,6 +5081,11 @@
         "confirmBody": "Every series then plays by your languages and subtitles above again. This cannot be undone.",
         "confirm": "Reset",
         "done": "Series memory reset."
+      },
+      "notifications": {
+        "title": "Notifications",
+        "body": "Whether new episodes, invitations and announcements also come by e-mail, Web Push or Telegram is set for the whole account on a page of its own.",
+        "link": "To the notification channels"
       }
     },
     "notifications": {

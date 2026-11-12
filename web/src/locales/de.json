@@ -18,7 +18,7 @@
     "logout": "Abmelden",
     "skip": "Zum Inhalt springen",
     "profiles": "Profile",
-    "playback": "Meine Wiedergabe",
+    "playback": "Einstellungen",
     "switchProfile": "Profil wechseln, aktuell {{name}}",
     "downloads": "Downloads",
     "search": "Suche",
@@ -5043,7 +5043,7 @@
   },
   "settings": {
     "playback": {
-      "title": "Meine Wiedergabe",
+      "title": "Einstellungen",
       "intro": "Ton und Untertitel für das Profil {{name}}, auf jedem Gerät. Was du im Player von Hand wählst, geht vor.",
       "languages": "Sprachen und Untertitel",
       "audio": {
@@ -5081,6 +5081,11 @@
         "confirmBody": "Alle Serien spielen danach wieder nach deinen Sprachen und Untertiteln oben. Das lässt sich nicht rückgängig machen.",
         "confirm": "Zurücksetzen",
         "done": "Serienmerker zurückgesetzt."
+      },
+      "notifications": {
+        "title": "Benachrichtigungen",
+        "body": "Ob neue Folgen, Einladungen und Ankündigungen auch per E-Mail, Web Push oder Telegram kommen, stellst du für das ganze Konto auf einer eigenen Seite ein.",
+        "link": "Zu den Benachrichtigungskanälen"
       }
     },
     "notifications": {

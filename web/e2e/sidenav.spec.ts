@@ -99,7 +99,7 @@ test('the column at 1280 px: its entries, arrows between them, Enter, into the c
   const account = nav(page).getByRole('list', { name: 'Konto' });
   await expect(account.getByRole('link', { name: 'Verwaltung' })).toHaveAttribute('href', '/admin');
   await expect(account.getByRole('link', { name: 'Profile', exact: true })).toBeVisible();
-  await expect(account.getByRole('link', { name: 'Meine Wiedergabe' })).toBeVisible();
+  await expect(account.getByRole('link', { name: 'Einstellungen' })).toBeVisible();
   await expect(nav(page).getByRole('button', { name: 'Abmelden' })).toBeVisible();
   await expect(hideButton(page)).toBeVisible();
 

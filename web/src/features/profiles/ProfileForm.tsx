@@ -103,7 +103,7 @@ export function ProfileForm({
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['profiles'] }),
         queryClient.invalidateQueries({ queryKey: ['auth'] }),
-        // «Meine Wiedergabe» and the sound panel read the active profile's lists from there.
+        // «Einstellungen» and the sound panel read the active profile's lists from there.
         ...(saved.id === session.profile.id
           ? [queryClient.invalidateQueries({ queryKey: myPlaybackPrefsQuery.queryKey })]
           : []),

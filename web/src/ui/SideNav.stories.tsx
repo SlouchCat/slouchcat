@@ -6,7 +6,7 @@ import { SideNav, type SideNavEntry, type SideNavProps } from './SideNav';
 // sees depends on its role (concept 17, 9.2): every profile media and playback, the primary
 // profile of an account also the profiles, the server admin also the administration.
 
-const playback: SideNavEntry = { href: '#playback', label: 'Meine Wiedergabe', icon: 'sliders' };
+const playback: SideNavEntry = { href: '#playback', label: 'Einstellungen', icon: 'sliders' };
 const profiles: SideNavEntry = { href: '#profiles', label: 'Profile', icon: 'users' };
 const admin: SideNavEntry = {
   href: '#admin',
