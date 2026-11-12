@@ -632,7 +632,7 @@ func (q *Queries) ListItemImages(ctx context.Context, arg ListItemImagesParams) 
 }
 
 const listItemProgress = `-- name: ListItemProgress :many
-SELECT p.profile_id, p.item_id, p.position_ms, p.duration_ms, p.completed, p.updated_at, p.playback_rate FROM progress AS p
+SELECT p.profile_id, p.item_id, p.position_ms, p.duration_ms, p.completed, p.updated_at, p.playback_rate, p.watched_at FROM progress AS p
 JOIN visible_items AS v ON v.item_id = p.item_id AND v.profile_id = p.profile_id
 WHERE p.profile_id = ?1 AND p.item_id IN (/*SLICE:item_ids*/?)
 `
@@ -670,6 +670,7 @@ func (q *Queries) ListItemProgress(ctx context.Context, arg ListItemProgressPara
 			&i.Completed,
 			&i.UpdatedAt,
 			&i.PlaybackRate,
+			&i.WatchedAt,
 		); err != nil {
 			return nil, err
 		}

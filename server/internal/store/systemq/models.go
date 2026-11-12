@@ -670,6 +670,7 @@ type Progress struct {
 	Completed    int64
 	UpdatedAt    int64
 	PlaybackRate sql.NullFloat64
+	WatchedAt    sql.NullInt64
 }
 
 type ProgressDay struct {
