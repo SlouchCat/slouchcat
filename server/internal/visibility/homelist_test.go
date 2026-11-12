@@ -2,6 +2,7 @@ package visibility
 
 import (
 	"context"
+	"database/sql"
 	"os"
 	"slices"
 	"strings"
@@ -165,26 +166,33 @@ func TestHomeListRecentUsesTheIndex(t *testing.T) {
 			if name == "listRecentlyAddedPage" {
 				args = append(args, 0, 50)
 			}
-			rows, err := f.DB.Read.QueryContext(context.Background(), "EXPLAIN QUERY PLAN "+query, args...)
-			if err != nil {
-				t.Fatal(err)
-			}
-			var plan []string
-			for rows.Next() {
-				var id, parent, unused int
-				var detail string
-				if err := rows.Scan(&id, &parent, &unused, &detail); err != nil {
-					t.Fatal(err)
-				}
-				plan = append(plan, detail)
-			}
-			if err := rows.Close(); err != nil {
-				t.Fatal(err)
-			}
-			text := strings.Join(plan, "\n")
+			text := strings.Join(queryPlan(t, f.DB.Read, query, args), "\n")
 			if !strings.Contains(text, "items_top_added") || strings.Contains(text, "TEMP B-TREE") {
 				t.Errorf("%s with content %q does not walk items_top_added in order:\n%s", name, content, text)
 			}
 		}
 	}
+}
+
+// queryPlan returns the detail lines of EXPLAIN QUERY PLAN for query with args.
+func queryPlan(t *testing.T, db *sql.DB, query string, args []any) []string {
+	t.Helper()
+	rows, err := db.QueryContext(context.Background(), "EXPLAIN QUERY PLAN "+query, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var plan []string
+	for rows.Next() {
+		var id, parent, unused int
+		var detail string
+		if err := rows.Scan(&id, &parent, &unused, &detail); err != nil {
+			t.Fatal(err)
+		}
+		plan = append(plan, detail)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return plan
 }
