@@ -1,4 +1,4 @@
-import type { Library } from '@slouchcat/api-client';
+import type { Library, LibraryDeletion } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -11,6 +11,7 @@ import {
   AdminPage,
   AriaButton,
   ConfirmDialog,
+  ConfirmInputDialog,
   DataTable,
   StatusRegion,
   Tabs,
@@ -77,6 +78,8 @@ function LibrariesContent() {
 
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // The library «Bibliothek löschen …» asks about (concept 20 P-8).
+  const [deleting, setDeleting] = useState<Library | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [foldersId, setFoldersId] = useState<number | null>(null);
   const [foldersOpen, setFoldersOpen] = useState(false);
@@ -92,7 +95,8 @@ function LibrariesContent() {
   const unsaved = useUnsavedChanges(draft.dirty);
   const continueRef = useRef<HTMLButtonElement>(null);
   // The draft lives outside the dialog, so `unsaved.pausePolling` stays out of this.
-  const hold = confirmOpen || addOpen || foldersOpen || ratingOpen || trickplayOpen;
+  const hold =
+    confirmOpen || addOpen || foldersOpen || ratingOpen || trickplayOpen || deleting !== null;
 
   // An unknown `?tab=` shows the first tab; the address says so too.
   const [tab, selectTab] = useSearchSelection('tab', TABS, 'all', { normalise: true });
@@ -195,6 +199,46 @@ function LibrariesContent() {
     },
     onError: failed,
   });
+  // «Bibliothek löschen …» (concept 20 P-8): the typed name goes to the server, which compares it
+  // against its own row; the row leaves the list, so the focus goes to the h1.
+  const removeLibrary = useMutation({
+    mutationFn: ({
+      library,
+      confirmName,
+    }: {
+      library: Library;
+      confirmName: string;
+    }): Promise<LibraryDeletion> =>
+      request(
+        api.POST('/admin/libraries/{id}/deletion', {
+          params: { path: { id: library.id } },
+          body: { confirmName },
+        }),
+      ),
+    onSuccess: async (deleted, { library }) => {
+      setDeleting(null);
+      setFailure(null);
+      setMessage(
+        t('admin.libraries.delete.done', {
+          name: deleted.name,
+          count: deleted.items,
+          formatted: number.format(deleted.items),
+          backup: deleted.backup ?? '–',
+        }),
+      );
+      queryClient.setQueryData<Library[]>(librariesQuery.queryKey, (list) =>
+        list?.filter((entry) => entry.id !== library.id),
+      );
+      await queryClient.invalidateQueries({ queryKey: librariesQuery.queryKey });
+      await afterDialogsClosed();
+      focusTitleIfLost(titleRef);
+    },
+    onError: (error) => {
+      setDeleting(null);
+      failed(error);
+      void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
+    },
+  });
   const acceptLoss = useMutation({
     mutationFn: (id: number): Promise<Library> =>
       request(api.POST('/admin/libraries/{id}/accept-loss', { params: { path: { id } } })),
@@ -243,6 +287,7 @@ function LibrariesContent() {
           confirmLabel: t('admin.libraries.acceptLoss.confirm'),
           onConfirm: () => acceptLossMutate(library.id),
         }),
+      onDelete: (library) => setDeleting(library),
     }),
     [scanMutate, cancelMutate, acceptLossMutate, ask, t],
   );
@@ -421,6 +466,36 @@ function LibrariesContent() {
           tone="danger"
           onConfirm={confirmation.onConfirm}
         />
+      )}
+      {deleting && (
+        <ConfirmInputDialog
+          isOpen
+          onOpenChange={(open) => {
+            if (open) return;
+            setDeleting(null);
+            void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
+          }}
+          title={t('admin.libraries.delete.title', { name: deleting.name })}
+          expected={deleting.name}
+          inputLabel={t('admin.libraries.delete.inputLabel')}
+          mismatchText={t('admin.libraries.delete.mismatch', { name: deleting.name })}
+          confirmLabel={t('admin.libraries.delete.confirm')}
+          cancelLabel={t('common.cancel')}
+          isPending={removeLibrary.isPending}
+          onConfirm={(confirmName) => removeLibrary.mutate({ library: deleting, confirmName })}
+        >
+          <p>
+            {t('admin.libraries.delete.lead', {
+              name: deleting.name,
+              roots: t('admin.libraries.rootCount', { count: deleting.roots.length }),
+              count: deleting.scan.itemCount,
+              formatted: number.format(deleting.scan.itemCount),
+            })}
+          </p>
+          <p>{t('admin.libraries.delete.files')}</p>
+          <p>{t('admin.libraries.delete.backup')}</p>
+          <p>{t('admin.libraries.delete.final')}</p>
+        </ConfirmInputDialog>
       )}
       <ConfirmDialog {...unsaved.dialog} />
     </AdminPage>

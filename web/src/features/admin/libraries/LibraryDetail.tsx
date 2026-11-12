@@ -27,12 +27,15 @@ export interface LibraryHandlers {
   /** «Vorschau beim Spulen» of a video library (concept 18, 9). */
   onTrickplay: (id: number) => void;
   onAcceptLoss: (library: Library) => void;
+  /** «Bibliothek löschen …» (concept 20 P-8): the typed confirmation of the page. */
+  onDelete: (library: Library) => void;
 }
 
 /**
  * The fold-out of a library (Bib-C): «Erneut scannen» or, while a scan runs, «Scan abbrechen»,
  * and «Ordner» as buttons, «Vorschau beim Spulen» for a video library (concept 18, 9);
- * «Standardstufe ändern» (audio) and «Verlust akzeptieren» (danger) in «Weitere Aktionen» (S-6);
+ * «Standardstufe ändern» (audio), «Verlust akzeptieren» and «Bibliothek löschen …» (danger) in
+ * «Weitere Aktionen» (S-6; concept 20 P-8);
  * the link to its metadata (video); the progress of a running scan, the error band of the last
  * one, the trickplay setting, and every folder with its whole path (BIB-1 to BIB-4).
  */
@@ -77,10 +80,12 @@ export const LibraryDetail = memo(function LibraryDetail({
     ...(canAcceptLoss(library)
       ? [{ id: 'acceptLoss', label: t('admin.libraries.acceptLoss.action'), danger: true }]
       : []),
+    { id: 'delete', label: t('admin.libraries.delete.action'), danger: true },
   ];
   const onMenu = (id: string) => {
     if (id === 'rating') handlers.onRating(library.id);
     else if (id === 'acceptLoss') handlers.onAcceptLoss(library);
+    else if (id === 'delete') handlers.onDelete(library);
   };
 
   return (
@@ -112,7 +117,7 @@ export const LibraryDetail = memo(function LibraryDetail({
             {t('admin.libraries.trickplay.action')}
           </AriaButton>
         )}
-        {menu.length > 0 && <ActionMenu rowName={library.name} items={menu} onAction={onMenu} />}
+        <ActionMenu rowName={library.name} items={menu} onAction={onMenu} />
         {library.kind === 'video' && (
           <TextLink href={`${paths.adminMetadata}?library=${library.id}`}>
             {t('admin.libraries.metadata.link')}

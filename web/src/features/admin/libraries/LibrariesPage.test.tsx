@@ -22,6 +22,18 @@ async function openRow(user: User, name: string) {
   return screen.findByRole('region', { name });
 }
 
+/** Opens the menu «Weitere Aktionen» and returns its entries; Escape closes it again. */
+async function menuEntries(user: User, more: HTMLElement) {
+  await user.click(more);
+  const menu = await screen.findByRole('menu');
+  const entries = within(menu)
+    .getAllByRole('menuitem')
+    .map((item) => item.textContent ?? '');
+  await user.keyboard('{Escape}');
+  await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+  return entries;
+}
+
 /** Opens «Bibliothek hinzufügen» from the page's head. */
 async function openAdd(user: User) {
   await user.click(await screen.findByRole('button', { name: 'Bibliothek hinzufügen' }));
@@ -301,11 +313,11 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     await waitFor(() =>
       expect(calls.some((call) => call.path === '/admin/libraries/1/accept-loss')).toBe(true),
     );
-    // The menu went with the loss: the h1 has the focus (ALL-2).
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { level: 1, name: 'Bibliotheken' })).toHaveFocus(),
-    );
-    expect(within(detail).queryByRole('button', { name: 'Weitere Aktionen für Filme' })).toBeNull();
+    // The loss went with the entry; the menu stays for «Bibliothek löschen …» (concept 20 P-8)
+    // and keeps the focus.
+    const more = within(detail).getByRole('button', { name: 'Weitere Aktionen für Filme' });
+    await waitFor(() => expect(more).toHaveFocus());
+    expect(await menuEntries(user, more)).toEqual(['Bibliothek löschen …']);
   });
 
   it('offers no loss acceptance once the loss is accepted, like the overview (concept 11)', async () => {
@@ -325,8 +337,13 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
 
     const detail = await openRow(user, 'Filme');
     expect(within(detail).getByText(/Mehr als 20 % der Dateien fehlen/)).toBeVisible();
-    // A video library without a loss to accept has nothing more to offer.
-    expect(within(detail).queryByRole('button', { name: 'Weitere Aktionen für Filme' })).toBeNull();
+    // A video library without a loss to accept offers only the delete (concept 20 P-8).
+    expect(
+      await menuEntries(
+        user,
+        within(detail).getByRole('button', { name: 'Weitere Aktionen für Filme' }),
+      ),
+    ).toEqual(['Bibliothek löschen …']);
   });
 
   it('starts a rescan, polls every 5 s while the scan runs and shows «Live» meanwhile', async () => {
@@ -724,7 +741,12 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     ).toBeVisible();
     expect(within(detail).queryByRole('button', { name: 'Scan abbrechen' })).toBeNull();
     expect(within(detail).getByRole('button', { name: 'Erneut scannen' })).toBeEnabled();
-    expect(within(detail).queryByRole('button', { name: 'Weitere Aktionen für Filme' })).toBeNull();
+    expect(
+      await menuEntries(
+        user,
+        within(detail).getByRole('button', { name: 'Weitere Aktionen für Filme' }),
+      ),
+    ).toEqual(['Bibliothek löschen …']);
   });
 
   it('audio libraries: default rating in the row, changed through PATCH (AN-2, M6)', async () => {
@@ -750,8 +772,11 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     ).toBeVisible();
     const movieDetail = await openRow(user, 'Filme');
     expect(
-      within(movieDetail).queryByRole('button', { name: 'Weitere Aktionen für Filme' }),
-    ).toBeNull();
+      await menuEntries(
+        user,
+        within(movieDetail).getByRole('button', { name: 'Weitere Aktionen für Filme' }),
+      ),
+    ).toEqual(['Bibliothek löschen …']);
 
     const detail = await openRow(user, 'Hörbücher');
     const more = within(detail).getByRole('button', { name: 'Weitere Aktionen für Hörbücher' });
@@ -765,6 +790,68 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({ defaultRating: 12 });
     expect(screen.getByText('Die Standardstufe von Hörbücher ist jetzt FSK 12.')).toBeVisible();
     await waitFor(() => expect(more).toHaveFocus());
+  });
+
+  it('deletes a library after its name was typed; a running playback refuses (concept 20 P-8)', async () => {
+    let answer: 'playing' | 'ok' = 'playing';
+    const films = library({ scan: { state: 'done', itemCount: 318, fileCount: 300 } });
+    const { calls } = mockApi({
+      ...signedIn,
+      'GET /admin/libraries': () =>
+        json(answer === 'ok' && calls.some((c) => c.method === 'POST') ? [] : [films]),
+      'POST /admin/libraries/1/deletion': () =>
+        answer === 'playing'
+          ? json(
+              {
+                type: 'about:blank',
+                title: 'Conflict',
+                status: 409,
+                code: 'playing',
+                playingProfiles: ['Anna'],
+              },
+              409,
+            )
+          : json({ name: 'Filme', roots: 1, items: 318, backup: 'pre-library-delete-1.31.0-x.db' }),
+    });
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    const detail = await openRow(user, 'Filme');
+    const open = async () => {
+      await user.click(within(detail).getByRole('button', { name: 'Weitere Aktionen für Filme' }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Bibliothek löschen …' }));
+      return screen.findByRole('alertdialog', { name: 'Bibliothek «Filme» löschen?' });
+    };
+    let dialog = await open();
+    expect(
+      within(dialog).getByText(/1 Ordner und 318 Titel verschwinden aus Slouchcat/),
+    ).toBeVisible();
+    expect(within(dialog).getByText(/Die Dateien auf der Platte bleiben unberührt/)).toBeVisible();
+    expect(
+      within(dialog).getByText(/setzt alles auf den Stand vor dem Löschen zurück/),
+    ).toBeVisible();
+    const confirm = within(dialog).getByRole('button', { name: 'Bibliothek löschen' });
+    expect(confirm).toBeDisabled();
+    await user.type(within(dialog).getByLabelText('Zur Bestätigung den Namen eintippen'), 'filme');
+    expect(confirm).toBeDisabled();
+    await user.clear(within(dialog).getByLabelText('Zur Bestätigung den Namen eintippen'));
+    await user.type(within(dialog).getByLabelText('Zur Bestätigung den Namen eintippen'), 'Filme');
+    await user.click(confirm);
+    expect(await screen.findByText(/Gerade läuft einer dieser Titel bei Anna/)).toBeVisible();
+    expect(calls.find((call) => call.method === 'POST')?.body).toEqual({ confirmName: 'Filme' });
+
+    answer = 'ok';
+    dialog = await open();
+    await user.type(within(dialog).getByLabelText('Zur Bestätigung den Namen eintippen'), 'Filme');
+    await user.click(within(dialog).getByRole('button', { name: 'Bibliothek löschen' }));
+    expect(
+      await screen.findByText(
+        'Bibliothek «Filme» gelöscht, 318 Titel. Sicherung: pre-library-delete-1.31.0-x.db',
+      ),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Filme' })).toBeNull());
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Bibliotheken' })).toHaveFocus(),
+    );
   });
 
   it('adds a podcast library without folder and an audiobook library with its rating', async () => {

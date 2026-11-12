@@ -1633,6 +1633,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/libraries/{id}/deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Delete a library for good (concept 20 P-8)
+         * @description Deletes the library with its folders, titles and everything on them: progress, watchlist
+         *     and check marks, picks, own images and texts, the home row of the library, the grants of the
+         *     profiles and the downloads of its titles (the devices drop them at their next sync). TMDB
+         *     collections left without a member go; manual ones stay, empty or not. It never deletes a
+         *     file on the disk; a later scan of the same folders in a new library creates the titles
+         *     again, without user data. `confirmName` must repeat the library's name (compared after
+         *     trimming against the stored row, `confirm_mismatch`). A running scan of the library is
+         *     cancelled first, and the queued and running jobs of its titles with it. Before anything is
+         *     deleted the server backs the database up (`backup`, its own name and retention: the last
+         *     two, apart from the backups before a migration); restoring that backup puts everything
+         *     back to the state before the delete, the progress of every profile since included. While a
+         *     profile plays a title of the library the delete is refused and the playback goes on
+         *     (`playing`, the problem names the profiles). A POST and not a DELETE, because the
+         *     confirmation travels in the body.
+         */
+        post: operations["deleteLibrary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/fs/browse": {
         parameters: {
             query?: never;
@@ -5393,6 +5426,11 @@ export interface components {
             extensions?: {
                 [key: string]: number;
             };
+            /**
+             * @description The profiles that play a title of what is about to be deleted (`playing`, concept 20
+             *     O-13), by name, each once. Absent for other problems.
+             */
+            playingProfiles?: string[];
         };
         FieldError: {
             /** @description JSON pointer-like field name, for example `email` or `library.path`. */
@@ -7903,6 +7941,28 @@ export interface components {
             /** @description The folder's path, repeated by the administrator. */
             confirmPath: string;
         };
+        /**
+         * @description The confirmation of a library delete (concept 20 P-8). It is typed by the administrator and
+         *     compared against the stored name, so a mis-aimed click cannot delete a library.
+         */
+        LibraryDeletionRequest: {
+            /** @description The library's name, repeated by the administrator (compared after trimming). */
+            confirmName: string;
+        };
+        /** @description What `deleteLibrary` deleted. */
+        LibraryDeletion: {
+            /** @description Name of the deleted library. */
+            name: string;
+            /** @description Folders that went with it. */
+            roots: number;
+            /** @description Titles that went with it, every row (seasons and episodes included). */
+            items: number;
+            /**
+             * @description File name of the backup written before the delete in the backup directory (the backup
+             *     page lists it as an automatic backup). Absent when the server writes no backups.
+             */
+            backup?: string;
+        };
         /** @description Changes to a library; every field is optional. */
         LibraryUpdate: {
             name?: string;
@@ -9162,7 +9222,7 @@ export interface components {
          *     builds the sentence from `kind` and the fields, with a general sentence for a kind it does not
          *     know. Known kinds: `playback_started`, `playback_completed`, `playback_stopped`, `scan_started`,
          *     `scan_done`, `scan_failed`, `scan_aborted`, `job_failed`, `backup_created`, `backup_restored`,
-         *     `server_started`, `server_restart`. The log keeps 30 days and at most 2'000 entries; the entries
+         *     `server_started`, `server_restart`, `library_deleted`, `item_deleted` (concept 20 stage 5). The log keeps 30 days and at most 2'000 entries; the entries
          *     of a deleted account or profile are deleted with it.
          */
         ActivityEntry: {
@@ -9179,9 +9239,9 @@ export interface components {
             profileName?: string;
             /** @description E-mail address of the account, read now; absent without an account. */
             accountEmail?: string;
-            /** @description Title of the item at the time of the event (playback kinds). */
+            /** @description Title of the item at the time of the event (playback kinds, `item_deleted`). */
             itemTitle?: string;
-            /** @description Name of the library at the time of the event (scan kinds). */
+            /** @description Name of the library at the time of the event (scan kinds, `library_deleted`). */
             libraryName?: string;
             detail: components["schemas"]["ActivityDetail"];
         };
@@ -9208,10 +9268,19 @@ export interface components {
             reason?: string;
             /** @description Job type of `job_failed`. */
             jobType?: string;
-            /** @description Failures of the job type in this hour (`job_failed`). */
+            /**
+             * @description Failures of the job type in this hour (`job_failed`); titles of the deleted library
+             *     (`library_deleted`, every row of items, episodes included); files deleted with the title
+             *     (`item_deleted`, absent with `mode` `library`).
+             */
             count?: number;
             /** @description Who ended the playback (`playback_stopped`) - `admin` (stopped on the streams page) or `revoked` (its device forgotten). */
             by?: string;
+            /**
+             * @description What the administrator chose when deleting a title (`item_deleted`, concept 20 P-9) -
+             *     `library` (only taken out of Slouchcat) or `files` (the files deleted as well).
+             */
+            mode?: string;
         };
         /**
          * @description What needs the administrator's attention (concept 11). The server decides what counts (rule
@@ -14427,6 +14496,67 @@ export interface operations {
             /**
              * @description `confirmPath` does not repeat the folder's path (`confirm_mismatch`), or it is missing
              *     (`validation_failed`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteLibrary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["LibraryID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryDeletionRequest"];
+            };
+        };
+        responses: {
+            /** @description What was deleted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryDeletion"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description No such library (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description A profile plays a title of the library (`playing`); `playingProfiles` names them. Nothing
+             *     was deleted.
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description `confirmName` does not repeat the library's name (`confirm_mismatch`), or it is missing
+             *     or too long (`validation_failed`).
              */
             422: {
                 headers: {

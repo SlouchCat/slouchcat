@@ -43,6 +43,7 @@ var knownActivity = map[string]bool{
 	model.ActivityScanStarted: true, model.ActivityScanDone: true, model.ActivityScanFailed: true, model.ActivityScanAborted: true,
 	model.ActivityJobFailed: true, model.ActivityBackupCreated: true, model.ActivityBackupRestored: true,
 	model.ActivityServerStarted: true, model.ActivityServerRestart: true,
+	model.ActivityLibraryDeleted: true, model.ActivityItemDeleted: true,
 }
 
 // Fixed codes of the detail (rule 10: no free error text in the log).
@@ -50,6 +51,7 @@ var (
 	activityReasons  = map[string]bool{"root_missing": true, "root_empty": true, "loss_over_threshold": true, abortCancelled: true, "error": true}
 	activityTriggers = map[string]bool{model.ScanTriggerManual: true, model.ScanTriggerSchedule: true, model.ScanTriggerWatcher: true}
 	activityStoppers = map[string]bool{model.StoppedByAdmin: true, model.StoppedByRevoked: true}
+	activityModes    = map[string]bool{"library": true, "files": true}
 )
 
 // RecordActivity writes an event to the activity log with the flood rule of its kind:
@@ -170,6 +172,9 @@ func cleanActivityDetail(kind string, d model.ActivityDetail) model.ActivityDeta
 	if !activityStoppers[d.By] {
 		d.By = ""
 	}
+	if !activityModes[d.Mode] {
+		d.Mode = ""
+	}
 	return d
 }
 
@@ -189,7 +194,8 @@ func (s *Service) recentActivity(ctx context.Context) ([]model.ActivityEntry, er
 		switch {
 		case r.ItemID.Valid:
 			e.ItemTitle = r.Subject.String
-		case r.LibraryID.Valid:
+		case r.LibraryID.Valid, r.Kind == model.ActivityLibraryDeleted:
+			// A deleted library's own event has no library_id any more: the subject is its name.
 			e.LibraryName = r.Subject.String
 		}
 		if err := json.Unmarshal([]byte(r.Detail), &e.Detail); err != nil {

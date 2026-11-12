@@ -349,7 +349,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		library.WithNewEpisodes(notifySvc.NewEpisodes), library.WithScanAborted(notifySvc.ScanAborted),
 		library.WithRootRemoved(notifySvc.RootRemoved), library.WithRootContentChanged(notifySvc.RootContentChanged),
 		library.WithBrowseRoots(cfg.BrowseRoots), library.WithVisibilityRecheck(playbackSvc.RecheckVisibility),
-		library.WithCacheDir(cfg.CacheDir), library.WithImageFolders(metaSvc.SweepOrphanImages, metaSvc.RemoveItemImages))
+		library.WithCacheDir(cfg.CacheDir), library.WithImageFolders(metaSvc.SweepOrphanImages, metaSvc.RemoveItemImages),
+		library.WithBackups(cfg.ConfigDir, version))
 	authSvc.WithMetadataLanguages(metaSvc.AvailableMetadataLanguages)
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
 	// The zone of the watch-time grid, resolved once by name (concept 12).

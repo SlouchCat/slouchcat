@@ -58,6 +58,7 @@ export type AdminStream = components['schemas']['AdminStream'];
 export type ProgressEvent = components['schemas']['ProgressEvent'];
 export type Progress = components['schemas']['Progress'];
 export type Library = components['schemas']['Library'];
+export type LibraryDeletion = components['schemas']['LibraryDeletion'];
 export type LibraryKeyframeIndex = components['schemas']['LibraryKeyframeIndex'];
 export type LibraryTrickplay = components['schemas']['LibraryTrickplay'];
 export type LibraryTrickplayEstimate = components['schemas']['LibraryTrickplayEstimate'];

@@ -181,7 +181,7 @@
       "update_running": "Gerade wird ein Update installiert. Warte, bis es fertig ist.",
       "announcement_published": "Die Ankündigung ist schon veröffentlicht und lässt sich nicht mehr ändern.",
       "scan_running": "Ein Scan dieser Bibliothek läuft gerade. Warte, bis er fertig ist, oder brich ihn ab.",
-      "confirm_mismatch": "Der abgetippte Pfad stimmt nicht mit dem Ordner überein. Nichts wurde entfernt.",
+      "confirm_mismatch": "Die Eingabe stimmt nicht mit dem überein, was entfernt werden soll. Nichts wurde gelöscht.",
       "owner_required": "Das darf nur der Besitzer.",
       "owner_protected": "Das Besitzerkonto lässt sich weder entfernen noch degradieren.",
       "last_admin": "Das ist der letzte Administrator. Ernenne zuerst einen zweiten.",
@@ -194,7 +194,9 @@
       "provider_paused": "Die Quelle pausiert nach wiederholten Absagen. Versuche es später noch einmal.",
       "offer_conflict": "Das Radio-Angebot hat sich inzwischen geändert. Bitte noch einmal übernehmen.",
       "root_not_writable": "Der Podcast-Ordner besteht die Ordnerprüfung nicht; Slouchcat kann dort keine Folgen speichern.",
-      "root_required": "Die Bibliothek hat keinen Podcast-Ordner, in dem Slouchcat Folgen speichern könnte."
+      "root_required": "Die Bibliothek hat keinen Podcast-Ordner, in dem Slouchcat Folgen speichern könnte.",
+      "playing": "Gerade spielt jemand einen dieser Titel ab. Gelöscht wird erst, wenn die Wiedergabe zu Ende ist.",
+      "playing_named": "Gerade läuft einer dieser Titel bei {{names}}. Gelöscht wird erst, wenn die Wiedergabe zu Ende ist; nichts wurde gelöscht."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -1814,6 +1816,20 @@
         "saved": "Die Vorschau beim Spulen von {{name}} ist gespeichert.",
         "summary": "Vorschau beim Spulen: Filme {{movies}} · Serien {{series}}",
         "summaryNoKeep": "Beim Start, ohne Speichern"
+      },
+      "delete": {
+        "action": "Bibliothek löschen …",
+        "title": "Bibliothek «{{name}}» löschen?",
+        "lead_one": "{{roots}} und {{formatted}} Titel verschwinden aus Slouchcat, samt Fortschritt, Haken, Merkliste, Empfehlungen, eigenen Bildern und Texten, der Startseitenreihe «Neu in {{name}}», den Freigaben der Profile und den Downloads auf den Geräten.",
+        "lead_other": "{{roots}} und {{formatted}} Titel verschwinden aus Slouchcat, samt Fortschritt, Haken, Merkliste, Empfehlungen, eigenen Bildern und Texten, der Startseitenreihe «Neu in {{name}}», den Freigaben der Profile und den Downloads auf den Geräten.",
+        "files": "Die Dateien auf der Platte bleiben unberührt. Läuft gerade ein Scan dieser Bibliothek, bricht Slouchcat ihn zuerst ab.",
+        "backup": "Vorher legt Slouchcat eine Sicherung der Datenbank an (Verwaltung › Sicherung). Wer diese Sicherung zurückspielt, setzt alles auf den Stand vor dem Löschen zurück, auch den Fortschritt aller Profile seither.",
+        "final": "Sonst lässt es sich nicht rückgängig machen: Ein neuer Scan derselben Ordner legt die Titel ohne Fortschritt wieder an.",
+        "inputLabel": "Zur Bestätigung den Namen eintippen",
+        "mismatch": "Tippe {{name}} genau so ab, dann wird der Knopf aktiv.",
+        "confirm": "Bibliothek löschen",
+        "done_one": "Bibliothek «{{name}}» gelöscht, {{formatted}} Titel. Sicherung: {{backup}}",
+        "done_other": "Bibliothek «{{name}}» gelöscht, {{formatted}} Titel. Sicherung: {{backup}}"
       }
     },
     "access": {
@@ -4557,7 +4573,12 @@
       "serverStartedVersion": "Server gestartet, Version {{version}}",
       "serverRestart": "Server neu gestartet",
       "serverRestartBy": "Neustart durch {{account}}",
-      "unknown": "Ereignis auf dem Server"
+      "unknown": "Ereignis auf dem Server",
+      "libraryDeleted_one": "Bibliothek «{{library}}» von {{account}} gelöscht ({{count}} Titel)",
+      "libraryDeleted_other": "Bibliothek «{{library}}» von {{account}} gelöscht ({{count}} Titel)",
+      "itemRemoved": "«{{title}}» von {{account}} aus Slouchcat entfernt",
+      "itemFilesDeleted_one": "«{{title}}» von {{account}} samt {{count}} Datei gelöscht ({{size}})",
+      "itemFilesDeleted_other": "«{{title}}» von {{account}} samt {{count}} Dateien gelöscht ({{size}})"
     },
     "audiobookSources": {
       "title": "Hörbücher: Quellen",

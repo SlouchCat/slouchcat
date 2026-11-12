@@ -374,7 +374,15 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		}
 		p.write(w, r, http.StatusConflict, "scan_running", "A scan of this library is running; it holds the folders it started with.")
 	case errors.Is(err, model.ErrConfirmMismatch):
-		p.write(w, r, http.StatusUnprocessableEntity, "confirm_mismatch", "The typed path does not repeat the folder that is about to be removed.")
+		p.write(w, r, http.StatusUnprocessableEntity, "confirm_mismatch", "The typed confirmation does not repeat what is about to be removed.")
+	case errors.Is(err, model.ErrPlaying):
+		var pe *model.PlayingError
+		body := problemBody(r, http.StatusConflict, "playing", "A profile plays a title of what is about to be deleted; nothing was deleted.", nil, nil)
+		if errors.As(err, &pe) && len(pe.Profiles) > 0 {
+			names := append([]string{}, pe.Profiles...)
+			body.PlayingProfiles = &names
+		}
+		p.send(w, http.StatusConflict, body)
 	case errors.Is(err, model.ErrTMDBKeyInvalid):
 		p.write(w, r, http.StatusUnprocessableEntity, "tmdb_key_invalid", "TMDB rejected the key.")
 	case errors.Is(err, model.ErrUnauthenticated):

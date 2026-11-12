@@ -160,7 +160,8 @@ func autoBackupName(prefix, version string, now time.Time, suffix string) string
 }
 
 // ParseAutoBackupName reads the server version and the time of an automatic backup's file name
-// (pre-migration, legacy pre-migration or pre-restore); ok is false for any other name.
+// (pre-migration, legacy pre-migration, pre-restore or pre-library-delete); ok is false for any
+// other name.
 func ParseAutoBackupName(name string) (version string, at time.Time, ok bool) {
 	var base string
 	switch {
@@ -173,6 +174,8 @@ func ParseAutoBackupName(name string) (version string, at time.Time, ok bool) {
 		}
 	case strings.HasPrefix(name, preRestorePrefix) && strings.HasSuffix(name, preRestoreSuffix):
 		base = strings.TrimSuffix(strings.TrimPrefix(name, preRestorePrefix), preRestoreSuffix)
+	case isLibraryDeleteBackup(name):
+		base = strings.TrimSuffix(strings.TrimPrefix(name, preLibraryDeletePrefix), backupSuffix)
 	default:
 		return "", time.Time{}, false
 	}

@@ -3394,6 +3394,69 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /admin/libraries/{id}/deletion:
+    post:
+      operationId: deleteLibrary
+      summary: Delete a library for good (concept 20 P-8)
+      description: |
+        Deletes the library with its folders, titles and everything on them: progress, watchlist
+        and check marks, picks, own images and texts, the home row of the library, the grants of the
+        profiles and the downloads of its titles (the devices drop them at their next sync). TMDB
+        collections left without a member go; manual ones stay, empty or not. It never deletes a
+        file on the disk; a later scan of the same folders in a new library creates the titles
+        again, without user data. `confirmName` must repeat the library's name (compared after
+        trimming against the stored row, `confirm_mismatch`). A running scan of the library is
+        cancelled first, and the queued and running jobs of its titles with it. Before anything is
+        deleted the server backs the database up (`backup`, its own name and retention: the last
+        two, apart from the backups before a migration); restoring that backup puts everything
+        back to the state before the delete, the progress of every profile since included. While a
+        profile plays a title of the library the delete is refused and the playback goes on
+        (`playing`, the problem names the profiles). A POST and not a DELETE, because the
+        confirmation travels in the body.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/LibraryID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LibraryDeletionRequest"
+      responses:
+        "200":
+          description: What was deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LibraryDeletion"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: No such library (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: |
+            A profile plays a title of the library (`playing`); `playingProfiles` names them. Nothing
+            was deleted.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            `confirmName` does not repeat the library's name (`confirm_mismatch`), or it is missing
+            or too long (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /admin/fs/browse:
     post:
       operationId: browseServerPaths
@@ -10439,6 +10502,13 @@ components:
           additionalProperties:
             type: integer
           examples: [{"maxStreams": 1, "activeStreams": 1}]
+        playingProfiles:
+          type: array
+          description: |
+            The profiles that play a title of what is about to be deleted (`playing`, concept 20
+            O-13), by name, each once. Absent for other problems.
+          items:
+            type: string
 
     FieldError:
       type: object
@@ -14408,6 +14478,41 @@ components:
           minLength: 1
           maxLength: 4096
 
+    LibraryDeletionRequest:
+      type: object
+      required: [confirmName]
+      description: |
+        The confirmation of a library delete (concept 20 P-8). It is typed by the administrator and
+        compared against the stored name, so a mis-aimed click cannot delete a library.
+      properties:
+        confirmName:
+          type: string
+          description: The library's name, repeated by the administrator (compared after trimming).
+          minLength: 1
+          maxLength: 80
+
+    LibraryDeletion:
+      type: object
+      required: [name, roots, items]
+      description: What `deleteLibrary` deleted.
+      properties:
+        name:
+          type: string
+          description: Name of the deleted library.
+        roots:
+          type: integer
+          minimum: 0
+          description: Folders that went with it.
+        items:
+          type: integer
+          minimum: 0
+          description: Titles that went with it, every row (seasons and episodes included).
+        backup:
+          type: string
+          description: |
+            File name of the backup written before the delete in the backup directory (the backup
+            page lists it as an automatic backup). Absent when the server writes no backups.
+
     LibraryUpdate:
       type: object
       description: Changes to a library; every field is optional.
@@ -16518,7 +16623,7 @@ components:
         builds the sentence from `kind` and the fields, with a general sentence for a kind it does not
         know. Known kinds: `playback_started`, `playback_completed`, `playback_stopped`, `scan_started`,
         `scan_done`, `scan_failed`, `scan_aborted`, `job_failed`, `backup_created`, `backup_restored`,
-        `server_started`, `server_restart`. The log keeps 30 days and at most 2'000 entries; the entries
+        `server_started`, `server_restart`, `library_deleted`, `item_deleted` (concept 20 stage 5). The log keeps 30 days and at most 2'000 entries; the entries
         of a deleted account or profile are deleted with it.
       required: [id, at, kind, detail]
       properties:
@@ -16540,10 +16645,10 @@ components:
           description: E-mail address of the account, read now; absent without an account.
         itemTitle:
           type: string
-          description: Title of the item at the time of the event (playback kinds).
+          description: Title of the item at the time of the event (playback kinds, `item_deleted`).
         libraryName:
           type: string
-          description: Name of the library at the time of the event (scan kinds).
+          description: Name of the library at the time of the event (scan kinds, `library_deleted`).
         detail:
           $ref: "#/components/schemas/ActivityDetail"
 
@@ -16579,10 +16684,18 @@ components:
         count:
           type: integer
           minimum: 1
-          description: Failures of the job type in this hour (`job_failed`).
+          description: |
+            Failures of the job type in this hour (`job_failed`); titles of the deleted library
+            (`library_deleted`, every row of items, episodes included); files deleted with the title
+            (`item_deleted`, absent with `mode` `library`).
         by:
           type: string
           description: Who ended the playback (`playback_stopped`) - `admin` (stopped on the streams page) or `revoked` (its device forgotten).
+        mode:
+          type: string
+          description: |
+            What the administrator chose when deleting a title (`item_deleted`, concept 20 P-9) -
+            `library` (only taken out of Slouchcat) or `files` (the files deleted as well).
 
     DashboardAttention:
       type: object

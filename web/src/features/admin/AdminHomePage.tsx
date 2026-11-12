@@ -101,6 +101,8 @@ const activityLook: Record<string, { icon: IconName; tone: ActivityTone }> = {
   backup_restored: { icon: 'archive', tone: 'accent' },
   server_started: { icon: 'server', tone: 'neutral' },
   server_restart: { icon: 'power', tone: 'neutral' },
+  library_deleted: { icon: 'trash', tone: 'warning' },
+  item_deleted: { icon: 'trash', tone: 'warning' },
 };
 
 /**
@@ -150,6 +152,23 @@ export function activitySentence(t: TFunction, event: ActivityEvent, language: s
       return event.accountEmail
         ? t('admin.activity.serverRestartBy', { account: event.accountEmail })
         : t('admin.activity.serverRestart');
+    case 'library_deleted':
+      return t('admin.activity.libraryDeleted', {
+        library,
+        account: event.accountEmail ?? t('admin.activity.someone'),
+        count: detail.count ?? 0,
+      });
+    case 'item_deleted': {
+      const account = event.accountEmail ?? t('admin.activity.someone');
+      return detail.mode === 'files'
+        ? t('admin.activity.itemFilesDeleted', {
+            title,
+            account,
+            count: detail.count ?? 0,
+            size: formatBytes(detail.sizeBytes ?? 0, language),
+          })
+        : t('admin.activity.itemRemoved', { title, account });
+    }
     default:
       return t('admin.activity.unknown');
   }

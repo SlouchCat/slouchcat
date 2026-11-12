@@ -181,7 +181,7 @@
       "update_running": "An update is being installed. Wait until it is done.",
       "announcement_published": "The announcement is already published and can no longer be changed.",
       "scan_running": "A scan of this library is running. Wait for it to finish, or cancel it.",
-      "confirm_mismatch": "The typed path does not match the folder. Nothing was removed.",
+      "confirm_mismatch": "What you typed does not match what is about to be removed. Nothing was deleted.",
       "owner_required": "Only the owner may do this.",
       "owner_protected": "The owner's account can be neither removed nor demoted.",
       "last_admin": "This is the last administrator. Appoint a second one first.",
@@ -194,7 +194,9 @@
       "provider_paused": "The source rests after repeated refusals. Please try again later.",
       "offer_conflict": "The radio offer changed meanwhile. Please apply once more.",
       "root_not_writable": "The podcast folder fails the folder check; Slouchcat cannot store episodes there.",
-      "root_required": "The library has no podcast folder Slouchcat could store episodes in."
+      "root_required": "The library has no podcast folder Slouchcat could store episodes in.",
+      "playing": "Someone is playing one of these titles right now. It can be deleted once the playback has ended.",
+      "playing_named": "One of these titles is playing for {{names}} right now. It can be deleted once the playback has ended; nothing was deleted."
     },
     "field": {
       "required": "Required.",
@@ -1814,6 +1816,20 @@
         "saved": "The seek preview of {{name}} is saved.",
         "summary": "Seek preview: films {{movies}} · series {{series}}",
         "summaryNoKeep": "At start, not kept"
+      },
+      "delete": {
+        "action": "Delete library …",
+        "title": "Delete the library “{{name}}”?",
+        "lead_one": "{{roots}} and {{formatted}} title leave Slouchcat, with progress, check marks, watchlist, picks, own images and texts, the home row “New in {{name}}”, the grants of the profiles and the downloads on the devices.",
+        "lead_other": "{{roots}} and {{formatted}} titles leave Slouchcat, with progress, check marks, watchlist, picks, own images and texts, the home row “New in {{name}}”, the grants of the profiles and the downloads on the devices.",
+        "files": "The files on the disk stay untouched. If a scan of this library is running, Slouchcat cancels it first.",
+        "backup": "Before that, Slouchcat backs the database up (Administration › Backup). Restoring this backup puts everything back to the state before the delete, the progress of every profile since included.",
+        "final": "Otherwise it cannot be undone: a new scan of the same folders creates the titles again, without progress.",
+        "inputLabel": "Type the name to confirm",
+        "mismatch": "Type {{name}} exactly like this to enable the button.",
+        "confirm": "Delete library",
+        "done_one": "Library “{{name}}” deleted, {{formatted}} title. Backup: {{backup}}",
+        "done_other": "Library “{{name}}” deleted, {{formatted}} titles. Backup: {{backup}}"
       }
     },
     "access": {
@@ -4557,7 +4573,12 @@
       "serverStartedVersion": "Server started, version {{version}}",
       "serverRestart": "Server restarted",
       "serverRestartBy": "Restart by {{account}}",
-      "unknown": "Event on the server"
+      "unknown": "Event on the server",
+      "libraryDeleted_one": "Library “{{library}}” deleted by {{account}} ({{count}} title)",
+      "libraryDeleted_other": "Library “{{library}}” deleted by {{account}} ({{count}} titles)",
+      "itemRemoved": "“{{title}}” taken out of Slouchcat by {{account}}",
+      "itemFilesDeleted_one": "“{{title}}” deleted by {{account}} with {{count}} file ({{size}})",
+      "itemFilesDeleted_other": "“{{title}}” deleted by {{account}} with {{count}} files ({{size}})"
     },
     "audiobookSources": {
       "title": "Audiobooks: sources",

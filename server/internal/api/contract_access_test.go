@@ -223,6 +223,9 @@ var adminRegistry = map[string]adminCall{
 	"applyMetadata":         {contract: "POST /admin/metadata/apply", path: "/admin/metadata/apply", body: `{"what":["texts"]}`, ownerStatus: http.StatusAccepted},
 	"removeLibraryRoot": {contract: "POST /admin/libraries/{id}/roots/{rootId}/removal", path: "/admin/libraries/777/roots/888/removal",
 		body: `{"confirmPath":"/media/does-not-exist"}`, ownerStatus: http.StatusNotFound},
+	// Concept 20 P-8: the fixture has no library 777.
+	"deleteLibrary": {contract: "POST /admin/libraries/{id}/deletion", path: "/admin/libraries/777/deletion",
+		body: `{"confirmName":"Filme"}`, ownerStatus: http.StatusNotFound},
 	"listInvitations":     {contract: "GET /admin/invitations", path: "/admin/invitations", ownerStatus: http.StatusOK},
 	"createInvitation":    {contract: "POST /admin/invitations", path: "/admin/invitations", body: `{"maxRating":6,"allLibraries":true}`, ownerStatus: http.StatusCreated},
 	"revokeInvitation":    {contract: "DELETE /admin/invitations/{id}", path: "/admin/invitations/9999", ownerStatus: http.StatusNotFound},

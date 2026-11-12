@@ -94,6 +94,8 @@ const problemKeys = {
   radio_catalog_loading: 'errors.code.radio_catalog_loading',
   // The radio offer (contract 1.28.0): it changed since the version the draft is based on.
   offer_conflict: 'errors.code.offer_conflict',
+  // Deleting a library or a title (concept 20 stage 5, O-13): a profile plays one of its titles.
+  playing: 'errors.code.playing',
 } as const;
 
 // Field error codes (`Problem.errors[].code`); unknown codes read as "invalid value".
@@ -156,6 +158,11 @@ const has = <K extends string>(map: Record<K, string>, key: string): key is K =>
 export function problemMessage(t: TFunction, error: unknown): string {
   if (!isApiError(error)) return t('errors.code.network');
   const code = error.code;
+  // `playing` names the profiles that play a title of what was about to be deleted.
+  const playing = error.problem?.playingProfiles ?? [];
+  if (code === 'playing' && playing.length > 0) {
+    return t('errors.code.playing_named', { names: playing.join(t('format.listSeparator')) });
+  }
   return has(problemKeys, code) ? t(problemKeys[code]) : t('errors.code.unknown');
 }
 

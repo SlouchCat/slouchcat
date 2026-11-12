@@ -77,6 +77,9 @@ type Service struct {
 	// browseRoots are the directories a new library root must lie below (WithBrowseRoots, E14);
 	// empty switches the rule off.
 	browseRoots []string
+	// backupConfigDir and version name the backup before a library delete (WithBackups); empty
+	// writes none.
+	backupConfigDir, version string
 	// cacheDir is the cache directory that holds the chapter images (WithCacheDir, concept 13
 	// stage 3); empty switches chapters.images off.
 	cacheDir string

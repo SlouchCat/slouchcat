@@ -139,6 +139,10 @@ const (
 	ActivityBackupRestored    = "backup_restored"
 	ActivityServerStarted     = "server_started"
 	ActivityServerRestart     = "server_restart"
+	// A library deleted (concept 20 P-8; Subject its name, Detail.Count its titles) and a title
+	// deleted (P-9; Detail.Mode library or files, Count the files deleted, SizeBytes their size).
+	ActivityLibraryDeleted = "library_deleted"
+	ActivityItemDeleted    = "item_deleted"
 )
 
 // What started a full scan (ActivityDetail.Trigger).
@@ -163,7 +167,8 @@ type ActivityEvent struct {
 
 // ActivityDetail holds the few numbers and fixed codes of an event (ActivityEntry.detail): no
 // secret, no path, no IP address and no free error text (rule 10). Reason is one of
-// root_missing, root_empty, loss_over_threshold, cancelled or error; By is admin or revoked.
+// root_missing, root_empty, loss_over_threshold, cancelled or error; By is admin or revoked; Mode
+// is library or files (item_deleted).
 type ActivityDetail struct {
 	NewTitles *int   `json:"newTitles,omitempty"`
 	SizeBytes int64  `json:"sizeBytes,omitempty"`
@@ -173,6 +178,7 @@ type ActivityDetail struct {
 	JobType   string `json:"jobType,omitempty"`
 	Count     int    `json:"count,omitempty"`
 	By        string `json:"by,omitempty"`
+	Mode      string `json:"mode,omitempty"`
 }
 
 // ActivityEntry is one row of the activity log as the dashboard shows it. Account and profile
