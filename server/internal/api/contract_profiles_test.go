@@ -1250,6 +1250,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	adm := admin.New(f.DB, a, &authTestLibraries{}, ring, &authTestTMDB{}, func(string) string { return "" }, log).
 		WithMetadata(contractMetadata{}).WithLibraryMaintenance(contractLibraryMaintenance{}).WithPodcasts(pods).WithTrakt(pods).
 		WithBooks(pods).WithPodcastStorage(library.New(f.DB, jobs.NewQueue(f.DB.Write, nil), transcode.Runner{}, log)).
+		WithTitleDeletion(library.New(f.DB, jobs.NewQueue(f.DB.Write, nil), transcode.Runner{}, log)).
 		WithBackups(t.TempDir(), "test")
 	googleKey = adm.GoogleBooksKey
 	restarts := &atomic.Int32{}

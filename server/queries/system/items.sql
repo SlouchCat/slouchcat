@@ -24,9 +24,11 @@ SELECT * FROM items WHERE library_id = @library_id AND deleted_at IS NULL ORDER 
 -- seasons and episodes; extras and podcast episodes only for the tree (kind, parent), so a
 -- returning extra restores its season and series in the index as well. Only the columns of the
 -- scanner's item index (loadItemIndex); the most recently deleted first, the later id among equal
--- times (as FindDeletedTwin). The list names every kind, so the planner seeks items_library_kind
+-- times (as FindDeletedTwin). Titles taken out of Slouchcat (removed_at, concept 20 section 10.2)
+-- are in it as well: the scanner puts new files under them instead of creating a second title,
+-- and never brings them back. The list names every kind, so the planner seeks items_library_kind
 -- (library, kind, deleted_at) instead of walking the live titles of the library.
-SELECT id, kind, parent_id, season_number, episode_number, sort_title, year, tmdb_id, tvdb_id, imdb_id, deleted_at
+SELECT id, kind, parent_id, season_number, episode_number, sort_title, year, tmdb_id, tvdb_id, imdb_id, deleted_at, removed_at
 FROM items
 WHERE library_id = @library_id AND deleted_at IS NOT NULL
   AND kind IN ('movie', 'series', 'season', 'episode', 'extra', 'audiobook', 'podcast', 'podcast_episode')
@@ -98,8 +100,10 @@ WHERE id = @id;
 -- its soft-deleted parent and grandparent (the season and series of an episode or a season
 -- extra), so the tree stays whole. An ancestor that is not a container (the film of an extra)
 -- comes back only with a present file of its own; otherwise the next sweep would delete it again.
+-- A title taken out of Slouchcat (removed_at, concept 20 section 10.2) never comes back this way,
+-- neither itself nor as the parent of a file; only "Wieder aufnehmen" clears it.
 UPDATE items SET deleted_at = NULL, updated_at = @now
-WHERE items.deleted_at IS NOT NULL
+WHERE items.deleted_at IS NOT NULL AND items.removed_at IS NULL
   AND (items.id = @id
        OR (items.id IN ((SELECT p.parent_id FROM items AS p WHERE p.id = @id),
                         (SELECT g.parent_id FROM items AS g WHERE g.id = (SELECT p.parent_id FROM items AS p WHERE p.id = @id)))
@@ -224,3 +228,10 @@ ORDER BY m.rel_path;
 -- name: ListItemParents :many
 -- id and parent of titles, for the series of the seasons of a root (local image scan).
 SELECT id, parent_id FROM items WHERE id IN (sqlc.slice('ids'));
+
+-- name: MarkItemRemoved :exec
+-- A title the scanner creates below a title taken out of Slouchcat (a new episode, season,
+-- version or extra) is taken out with it, under the same stamp, so "Wieder aufnehmen" brings both
+-- back (concept 20 section 10.2).
+UPDATE items SET removed_at = @removed_at, deleted_at = COALESCE(deleted_at, @removed_at), updated_at = @now
+WHERE id = @id;

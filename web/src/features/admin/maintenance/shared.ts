@@ -13,12 +13,13 @@ import { issueKinds } from '../queries';
 
 export const DUPLICATES = 'duplicates';
 export const RELINK = 'relink';
+export const REMOVED = 'removed';
 
 /**
- * The tabs in their order: one per kind of issue, the duplicates (PFL-1), then the orphaned user
- * data (ADR 0023).
+ * The tabs in their order: one per kind of issue, the duplicates (PFL-1), the orphaned user data
+ * (ADR 0023), then the titles taken out of Slouchcat (concept 20 P-9).
  */
-export const TABS: readonly string[] = [...issueKinds, DUPLICATES, RELINK];
+export const TABS: readonly string[] = [...issueKinds, DUPLICATES, RELINK, REMOVED];
 
 /** Selection key of an issue: unplayable issues are per file, the others per title. */
 export const issueKey = (issue: Issue) => `${issue.itemId}:${issue.mediaFileId ?? ''}`;

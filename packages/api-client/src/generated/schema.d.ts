@@ -1996,6 +1996,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/items/{id}/deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What deleting a title would touch (concept 20 P-9)
+         * @description The preview of `deleteItem`: every media file of the title, of every title below it
+         *     (seasons, episodes, podcast episodes) and of its extras, each with the folder of its
+         *     library root and its size; their number and total size; the folder they share below the
+         *     root (absent when they lie under more than one root, or there is none); `confirmTitle`, the
+         *     title the dialog shows, and `typeTitle`, whether the administrator has to type it (more than
+         *     one file); and the profiles that play one of the titles right now (`playingProfiles`: the
+         *     delete is refused until they stop, O-13). Films, series, seasons, episodes, audiobooks,
+         *     podcasts and podcast episodes with a file can be deleted; an extra and a podcast episode
+         *     that is only a reference from the feed cannot (`not_deletable`, O-5). A deleted or removed
+         *     title answers 404.
+         */
+        get: operations["getItemDeletion"];
+        put?: never;
+        /**
+         * Delete a title (concept 20 P-9)
+         * @description `mode` `library` («Nur aus Slouchcat entfernen»): the title and every title below it leave
+         *     every list of every profile and are marked as taken out; their files, progress, check marks
+         *     and watchlist entries stay, the downloads on the devices go. The scanner never brings them
+         *     back, whatever happens in their folders: a new file there (another version, a new episode
+         *     or season) joins the title and stays out with it. `listRemovedItems` lists them,
+         *     `restoreRemovedItem` brings them back. With more than one file `confirmTitle` must repeat
+         *     `confirmTitle` of the preview (without case and surrounding spaces, `confirm_mismatch`).
+         *     Refused while a profile plays one of the titles (`playing`, the problem names the profiles)
+         *     and while a scan of its library runs (`scan_running`). Every delete writes an activity
+         *     entry (`item_deleted`). A POST and not a DELETE, because the confirmation travels in the
+         *     body.
+         */
+        post: operations["deleteItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/items/{id}/match": {
         parameters: {
             query?: never;
@@ -2649,6 +2692,53 @@ export interface paths {
          *     not add them again; a title left without a file is soft-deleted too.
          */
         post: operations["cleanupItems"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/maintenance/removed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Titles taken out of Slouchcat (concept 20, «Entfernte Titel»)
+         * @description The titles `deleteItem` took out with `mode` `library` that can come back on their own:
+         *     a season or episode of a series that is taken out too comes back with the series and is not
+         *     listed. Newest first, each with its library, the series or podcast it belongs to and the
+         *     folder its files share.
+         */
+        get: operations["listRemovedItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/maintenance/removed/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bring a removed title back («Wieder aufnehmen»)
+         * @description The title and every title below it that was taken out with it come back: the same titles
+         *     with all their episodes, progress, check marks and watchlist entries, for every kind. A title
+         *     below that was taken out on its own before stays out. Files that went missing meanwhile are
+         *     handled by the next scan as always. Refused while a scan of its library runs
+         *     (`scan_running`).
+         */
+        post: operations["restoreRemovedItem"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7962,6 +8052,81 @@ export interface components {
              *     page lists it as an automatic backup). Absent when the server writes no backups.
              */
             backup?: string;
+        };
+        ItemDeletionPreview: {
+            itemId: components["schemas"]["ItemID"];
+            kind: components["schemas"]["ItemKind"];
+            /** @description The title the dialog shows (in the server's text language) and the administrator types. */
+            confirmTitle: string;
+            /** @description Whether `deleteItem` needs `confirmTitle` (more than one file); with one file the red button is enough. */
+            typeTitle: boolean;
+            /** @description Every media file of the title, the titles below it and its extras, by folder and path. */
+            files: components["schemas"]["DeletionFile"][];
+            folder?: components["schemas"]["DeletionFolder"];
+            fileCount: number;
+            /** Format: int64 */
+            totalBytes: number;
+            /** @description Profiles that play one of the titles right now (O-13); empty when none. */
+            playingProfiles: string[];
+        };
+        DeletionFile: {
+            /** @description The folder of the library root in the container. */
+            rootPath: string;
+            /** @description The path of the file relative to `rootPath`. */
+            path: string;
+            /** Format: int64 */
+            sizeBytes: number;
+        };
+        /** @description The folder the files share below their library root (`path` empty for the root itself). */
+        DeletionFolder: {
+            rootPath: string;
+            path: string;
+        };
+        ItemDeletionRequest: {
+            /**
+             * @description `library`: only out of Slouchcat, the files stay.
+             * @enum {string}
+             */
+            mode: "library";
+            /** @description The title, typed; required when the preview says `typeTitle`. */
+            confirmTitle?: string;
+        };
+        ItemDeletionResult: {
+            /** @description Titles that left the lists (the title and every title below it). */
+            removedItems: number;
+            deletedFiles: number;
+            /** Format: int64 */
+            deletedBytes: number;
+            /** @description Files that stayed, with why. */
+            leftover: components["schemas"]["DeletionLeftover"][];
+        };
+        DeletionLeftover: {
+            rootPath: string;
+            path: string;
+            /** @description Fixed code of why the file stayed. */
+            reason: string;
+        };
+        RemovedItemPage: {
+            items: components["schemas"]["RemovedItem"][];
+            total: number;
+        };
+        RemovedItem: {
+            id: components["schemas"]["ItemID"];
+            kind: components["schemas"]["ItemKind"];
+            title: string;
+            /** @description The series (and season) of a season or episode, the podcast of a podcast episode. */
+            parentTitle?: string;
+            /** Format: int64 */
+            libraryId: number;
+            libraryName: string;
+            folder?: components["schemas"]["DeletionFolder"];
+            /** Format: date-time */
+            removedAt: string;
+        };
+        RemovedItemRestore: {
+            itemId: components["schemas"]["ItemID"];
+            /** @description Titles that came back (the title and every title below it taken out with it). */
+            restoredItems: number;
         };
         /** @description Changes to a library; every field is optional. */
         LibraryUpdate: {
@@ -15220,6 +15385,111 @@ export interface operations {
             };
         };
     };
+    getItemDeletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The preview. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDeletionPreview"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown, deleted or removed title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The title has no delete (`not_deletable`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemDeletionRequest"];
+            };
+        };
+        responses: {
+            /** @description What was deleted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDeletionResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown, deleted or removed title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description A profile plays one of the titles (`playing`, `playingProfiles` names them) or a scan of
+             *     the library runs (`scan_running`). Nothing was deleted.
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The title has no delete (`not_deletable`), the typed title does not match
+             *     (`confirm_mismatch`), or the mode is unknown (`validation_failed`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     setItemMatch: {
         parameters: {
             query?: never;
@@ -16305,6 +16575,86 @@ export interface operations {
             403: components["responses"]["AdminOnly"];
             /** @description Validation failed (`validation_failed`). */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listRemovedItems: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of removed titles. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemovedItemPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    restoreRemovedItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The title is back. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemovedItemRestore"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /**
+             * @description Unknown title, not taken out, or below a title that is taken out too (it comes back with
+             *     that one) (`not_found`).
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A scan of the library runs (`scan_running`). */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

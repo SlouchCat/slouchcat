@@ -5,6 +5,8 @@
 -- was deleted (library.relinkGrace, decision 21), so two titles that lived side by side for longer
 -- are never merged on their own. The maintenance action knows no such rule: the administrator sees
 -- both titles and decides. The deleted twin survives with its id; the live copy merges into it.
+-- A title taken out of Slouchcat (removed_at, concept 20 section 10.2) is no twin: it stays out
+-- until "Wieder aufnehmen", and a live copy beside it stays a title of its own.
 -- Times are Unix milliseconds.
 --
 -- The twin lookups are a UNION of one lookup per provider id, each through its own index
@@ -33,7 +35,7 @@ hits AS (
 SELECT d.id FROM live AS l
 CROSS JOIN hits AS h
 CROSS JOIN items AS d ON d.id = h.id
-WHERE d.library_id = l.library_id AND d.kind = l.kind AND d.id <> l.id
+WHERE d.library_id = l.library_id AND d.kind = l.kind AND d.id <> l.id AND d.removed_at IS NULL
   AND (CAST(sqlc.narg('grace_ms') AS INTEGER) IS NULL OR l.created_at > d.deleted_at - CAST(sqlc.narg('grace_ms') AS INTEGER))
   AND (d.tmdb_id IS NULL OR l.tmdb_id IS NULL OR d.tmdb_id = l.tmdb_id)
   AND (d.tvdb_id IS NULL OR l.tvdb_id IS NULL OR d.tvdb_id = l.tvdb_id)
@@ -69,7 +71,7 @@ pairs AS (
     FROM hits AS h
     CROSS JOIN items AS l ON l.id = h.live_id
     CROSS JOIN items AS d ON d.id = h.deleted_id
-    WHERE d.library_id = l.library_id AND d.kind = l.kind AND d.id <> l.id
+    WHERE d.library_id = l.library_id AND d.kind = l.kind AND d.id <> l.id AND d.removed_at IS NULL
       AND (d.tmdb_id IS NULL OR l.tmdb_id IS NULL OR d.tmdb_id = l.tmdb_id)
       AND (d.tvdb_id IS NULL OR l.tvdb_id IS NULL OR d.tvdb_id = l.tvdb_id)
       AND (d.imdb_id IS NULL OR l.imdb_id IS NULL OR d.imdb_id = l.imdb_id)
@@ -165,7 +167,7 @@ WITH hits AS (
 )
 SELECT d.id FROM hits AS h
 CROSS JOIN items AS d ON d.id = h.id
-WHERE d.library_id = @library_id AND d.kind = @kind
+WHERE d.library_id = @library_id AND d.kind = @kind AND d.removed_at IS NULL
   AND (d.tmdb_id IS NULL OR sqlc.narg('tmdb_id') IS NULL OR d.tmdb_id = sqlc.narg('tmdb_id'))
   AND (d.tvdb_id IS NULL OR sqlc.narg('tvdb_id') IS NULL OR d.tvdb_id = sqlc.narg('tvdb_id'))
   AND (d.imdb_id IS NULL OR sqlc.narg('imdb_id') IS NULL OR d.imdb_id = sqlc.narg('imdb_id'))
@@ -258,6 +260,7 @@ WHERE downloads.item_id = @target_id
 WITH deleted AS (
     SELECT d.id, d.tmdb_id, d.tvdb_id, d.imdb_id FROM libraries AS lib
     CROSS JOIN items AS d ON d.library_id = lib.id AND d.kind IN ('movie', 'series') AND d.deleted_at = @now
+    WHERE d.removed_at IS NULL
 ),
 hits AS (
     SELECT d.id AS deleted_id, l.id AS live_id FROM deleted AS d

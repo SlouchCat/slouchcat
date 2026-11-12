@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"strings"
+	"time"
 )
 
 // Deleting a library and titles (concept 20 sections 9 to 11, stage 5, ADR 0032).
@@ -34,4 +35,79 @@ type LibraryDeletion struct {
 	Roots  int
 	Items  int
 	Backup string
+}
+
+// Deleting a title (concept 20 P-9, sections 10 and 11).
+
+// Modes of a title delete: only out of Slouchcat, or the files as well (ADR 0032).
+const (
+	DeleteModeLibrary = "library"
+	DeleteModeFiles   = "files"
+)
+
+// ErrNotDeletable: the title is of a kind that has no delete (an extra; a podcast episode that
+// is only a reference from the feed, O-5; 422 not_deletable).
+var ErrNotDeletable = errors.New("not deletable")
+
+// ItemDeletionPreview is what a delete of a title would touch: its media files and those of every
+// title below it with the folder of their library root, how many and how big, the title the
+// administrator types when there is more than one file (TypeTitle), the folder of the title when
+// its files share one, and the profiles that play one of them right now (O-13).
+type ItemDeletionPreview struct {
+	ItemID          string
+	Kind            string
+	ConfirmTitle    string
+	TypeTitle       bool
+	Files           []DeletionFile
+	Folder          *DeletionFolder
+	FileCount       int
+	TotalBytes      int64
+	PlayingProfiles []string
+}
+
+// DeletionFile is one media file of a preview.
+type DeletionFile struct {
+	RootPath  string
+	Path      string // relative to RootPath
+	SizeBytes int64
+}
+
+// DeletionFolder is the folder the files of a title share, below its library root.
+type DeletionFolder struct {
+	RootPath string
+	Path     string // relative to RootPath; "" for the root itself
+}
+
+// ItemDeletionResult is the outcome of deleteItem: how many titles left (the title and every one
+// below it), how many files and bytes went, and which files stayed and why.
+type ItemDeletionResult struct {
+	RemovedItems int
+	DeletedFiles int
+	DeletedBytes int64
+	Leftover     []DeletionLeftover
+}
+
+// DeletionLeftover is a file that stayed, with the fixed code of why.
+type DeletionLeftover struct {
+	RootPath string
+	Path     string
+	Reason   string
+}
+
+// RemovedItem is a title taken out of Slouchcat that can come back (the page «Entfernte Titel»).
+type RemovedItem struct {
+	ID          string
+	Kind        string
+	Title       string
+	ParentTitle string // the series of a season, the series and season of an episode, the podcast of an episode
+	LibraryID   int64
+	LibraryName string
+	Folder      *DeletionFolder
+	RemovedAt   time.Time
+}
+
+// RemovedItemPage is one page of removed titles and the number of all of them.
+type RemovedItemPage struct {
+	Items []RemovedItem
+	Total int
 }

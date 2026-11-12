@@ -422,8 +422,11 @@ func (w *batchWriter) touchBook(itemID string) {
 
 // restore brings back a soft-deleted item with its soft-deleted ancestors. force restores even
 // when the index does not know the item as deleted (a missing file reappeared).
+//
+// A title taken out of Slouchcat (removed_at) is never restored, whatever happens in its folder
+// (concept 20 section 10.2); RestoreItem refuses it as well.
 func (w *batchWriter) restore(ctx context.Context, id string, force bool) error {
-	if !force && !w.ix().deleted[id] {
+	if w.ix().removed[id] != 0 || !force && !w.ix().deleted[id] {
 		return nil
 	}
 	if err := w.q.RestoreItem(ctx, systemq.RestoreItemParams{Now: w.ms, ID: id}); err != nil {
@@ -443,6 +446,24 @@ func (w *batchWriter) insert(ctx context.Context, p systemq.InsertItemParams) er
 		w.ix().parent[p.ID] = p.ParentID.String
 	}
 	w.stats.items++
+	return w.inheritRemoved(ctx, p.ID, p.ParentID.String)
+}
+
+// inheritRemoved takes a new item out of Slouchcat when its parent is (concept 20 section 10.2):
+// a new episode, season or extra below a removed title stays invisible with it and comes back
+// with it on «Wieder aufnehmen», which restores the stamp.
+func (w *batchWriter) inheritRemoved(ctx context.Context, id, parent string) error {
+	stamp := w.ix().removed[parent]
+	if parent == "" || stamp == 0 {
+		return nil
+	}
+	if err := w.q.MarkItemRemoved(ctx, systemq.MarkItemRemovedParams{
+		RemovedAt: sql.NullInt64{Int64: stamp, Valid: true}, Now: w.ms, ID: id,
+	}); err != nil {
+		return fmt.Errorf("take new item %s out with its parent: %w", id, err)
+	}
+	w.ix().removed[id] = stamp
+	w.ix().deleted[id] = true
 	return nil
 }
 
@@ -535,6 +556,9 @@ func (w *batchWriter) episodeItem(ctx context.Context, info fileInfo) (string, e
 		return "", err
 	}
 	w.ix().episodes[episodeKey] = id
+	if w.ix().removed[id] != 0 {
+		return id, nil // taken out with its series or season: no news, no match
+	}
 	w.episodes = append(w.episodes, id)
 	if w.ix().matched[seriesID] {
 		if err := enqueueTx(ctx, w.q, w.now, episodeMatchJob(id)); err != nil {
@@ -553,7 +577,7 @@ func (w *batchWriter) extraItem(ctx context.Context, info fileInfo) (string, err
 		return "", nil
 	}
 	if info.seasonDir {
-		if season := w.ix().seasons[seriesKey(parent, info.season)]; season != "" && !w.ix().deleted[season] {
+		if season := w.ix().seasons[seriesKey(parent, info.season)]; season != "" && (!w.ix().deleted[season] || w.ix().removed[season] != 0) {
 			parent = season
 		}
 	}

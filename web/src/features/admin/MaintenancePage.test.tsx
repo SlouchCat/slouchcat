@@ -1031,4 +1031,50 @@ describe('maintenance page', () => {
     expect(await screen.findByText('Nur für Administratoren')).toBeVisible();
     expect(calls.some((call) => call.path.startsWith('/admin/maintenance'))).toBe(false);
   });
+
+  it('«Entfernte Titel»: lists the removed titles and takes one back (concept 20 P-9)', async () => {
+    let removed = {
+      total: 2,
+      items: [
+        {
+          id: id(41),
+          kind: 'series',
+          title: 'Silo',
+          libraryId: 2,
+          libraryName: 'Serien',
+          folder: { rootPath: '/media/serien', path: 'Silo (2023)' },
+          removedAt: '2026-11-12T10:00:00Z',
+        },
+        {
+          id: id(42),
+          kind: 'season',
+          title: 'Staffel 2',
+          parentTitle: 'Dark',
+          libraryId: 2,
+          libraryName: 'Serien',
+          removedAt: '2026-11-11T10:00:00Z',
+        },
+      ],
+    };
+    const { calls } = setup({
+      'GET /admin/maintenance/removed': () => json(removed),
+      'POST /admin/maintenance/removed/*/restore': () => {
+        removed = { total: 1, items: [removed.items[1]!] };
+        return json({ itemId: id(41), restoredItems: 12 });
+      },
+    });
+    renderApp('/admin/maintenance?tab=removed');
+    const table = await screen.findByRole('table', { name: 'Entfernte Titel' });
+    expect(within(table).getByText('/media/serien/Silo (2023)/')).toBeVisible();
+    expect(within(table).getByText('Dark › Staffel 2')).toBeVisible();
+    expect(within(table).getByText('Keine Datei')).toBeVisible();
+    const user = userEvent.setup();
+    await user.click(within(table).getByRole('button', { name: 'Silo wieder aufnehmen' }));
+    expect(await screen.findByText('«Silo» ist wieder da (12 Titel).')).toBeInTheDocument();
+    expect(calls.some((call) => call.path === `/admin/maintenance/removed/${id(41)}/restore`)).toBe(
+      true,
+    );
+    await waitFor(() => expect(within(panel()).queryByText('Silo')).toBeNull());
+    await waitFor(() => expect(title()).toHaveFocus());
+  });
 });

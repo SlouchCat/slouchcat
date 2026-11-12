@@ -217,6 +217,7 @@ type Service struct {
 	libraries      Libraries
 	trickplay      TrickplayUsage     // nil: no stored bytes and no free space in the estimate
 	maint          LibraryMaintenance // nil until WithLibraryMaintenance
+	deletion       TitleDeletion      // nil until WithTitleDeletion (concept 20 P-9)
 	meta           Metadata           // nil until WithMetadata
 	imageRemove    ImageRemover       // nil until WithImageRemoval
 	streams        Streams            // nil until WithStreams

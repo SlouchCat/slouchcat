@@ -33,6 +33,42 @@ func (q *Queries) CountLibraryItemsAll(ctx context.Context, libraryID int64) (in
 	return count, err
 }
 
+const countRemovedItems = `-- name: CountRemovedItems :one
+SELECT count(*) FROM items AS i INDEXED BY items_removed
+LEFT JOIN items AS p ON p.id = i.parent_id
+WHERE i.removed_at IS NOT NULL AND (p.id IS NULL OR p.removed_at IS NULL)
+`
+
+func (q *Queries) CountRemovedItems(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countRemovedItems)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deleteDownloadsOfItems = `-- name: DeleteDownloadsOfItems :execrows
+DELETE FROM downloads WHERE item_id IN (/*SLICE:item_ids*/?)
+`
+
+// The downloads of the titles; the tombstones of the delete trigger tell the devices to drop them.
+func (q *Queries) DeleteDownloadsOfItems(ctx context.Context, itemIds []string) (int64, error) {
+	query := deleteDownloadsOfItems
+	var queryParams []interface{}
+	if len(itemIds) > 0 {
+		for _, v := range itemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(itemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	result, err := q.db.ExecContext(ctx, query, queryParams...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteEmptyTMDBCollections = `-- name: DeleteEmptyTMDBCollections :execrows
 DELETE FROM collections
 WHERE id IN (/*SLICE:ids*/?) AND source = 'tmdb'
@@ -84,6 +120,97 @@ func (q *Queries) DeleteLibraryRow(ctx context.Context, id int64) (int64, error)
 	return result.RowsAffected()
 }
 
+const getDeletionItem = `-- name: GetDeletionItem :one
+
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.deleted_at, i.removed_at, i.enclosure_url,
+       CAST(COALESCE((SELECT t.title FROM item_texts AS t WHERE t.item_id = i.id AND t.lang = ?1), i.title) AS TEXT) AS display_title
+FROM items AS i WHERE i.id = ?2
+`
+
+type GetDeletionItemParams struct {
+	Lang string
+	ID   string
+}
+
+type GetDeletionItemRow struct {
+	ID           string
+	Kind         string
+	ParentID     sql.NullString
+	LibraryID    int64
+	DeletedAt    sql.NullInt64
+	RemovedAt    sql.NullInt64
+	EnclosureUrl sql.NullString
+	DisplayTitle string
+}
+
+// Deleting a title (concept 20 sections 10 and 11).
+// The title a deletion asks about, with its title in the given language (the text the dialog
+// shows and the administrator types; items.title without one) and the folder of its library.
+func (q *Queries) GetDeletionItem(ctx context.Context, arg GetDeletionItemParams) (GetDeletionItemRow, error) {
+	row := q.db.QueryRowContext(ctx, getDeletionItem, arg.Lang, arg.ID)
+	var i GetDeletionItemRow
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.ParentID,
+		&i.LibraryID,
+		&i.DeletedAt,
+		&i.RemovedAt,
+		&i.EnclosureUrl,
+		&i.DisplayTitle,
+	)
+	return i, err
+}
+
+const listActiveJobsOfItems = `-- name: ListActiveJobsOfItems :many
+WITH tree AS (SELECT i.id FROM items AS i WHERE i.id IN (/*SLICE:item_ids*/?))
+SELECT j.id FROM jobs AS j
+WHERE j.state IN ('queued', 'running')
+  AND (json_extract(j.payload, '$.itemId') IN (SELECT id FROM tree)
+       OR json_extract(j.payload, '$.episodeId') IN (SELECT id FROM tree)
+       OR json_extract(j.payload, '$.podcastId') IN (SELECT id FROM tree)
+       OR json_extract(j.payload, '$.seriesId') IN (SELECT id FROM tree)
+       OR json_extract(j.payload, '$.seasonId') IN (SELECT id FROM tree)
+       OR json_extract(j.payload, '$.mediaFileId') IN (SELECT m.id FROM media_files AS m WHERE m.item_id IN (SELECT id FROM tree))
+       OR json_extract(j.payload, '$.downloadId') IN (SELECT d.id FROM downloads AS d WHERE d.item_id IN (SELECT id FROM tree)))
+ORDER BY j.id
+`
+
+// Queued and running jobs of the titles, their files or their downloads (ListActiveJobsOfLibrary
+// for one tree).
+func (q *Queries) ListActiveJobsOfItems(ctx context.Context, itemIds []string) ([]int64, error) {
+	query := listActiveJobsOfItems
+	var queryParams []interface{}
+	if len(itemIds) > 0 {
+		for _, v := range itemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(itemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listActiveJobsOfLibrary = `-- name: ListActiveJobsOfLibrary :many
 SELECT j.id FROM jobs AS j
 WHERE j.state IN ('queued', 'running')
@@ -129,6 +256,59 @@ func (q *Queries) ListActiveJobsOfLibrary(ctx context.Context, libraryID int64) 
 	return items, nil
 }
 
+const listItemTree = `-- name: ListItemTree :many
+WITH RECURSIVE tree(id, depth) AS (
+    SELECT i.id, 0 FROM items AS i WHERE i.id = ?1
+    UNION ALL
+    SELECT c.id, t.depth + 1 FROM items AS c JOIN tree AS t ON c.parent_id = t.id WHERE t.depth < 4
+)
+SELECT i.id, i.kind, i.parent_id, i.deleted_at, i.removed_at, i.enclosure_url FROM tree AS t
+JOIN items AS i ON i.id = t.id
+ORDER BY t.depth, i.id
+`
+
+type ListItemTreeRow struct {
+	ID           string
+	Kind         string
+	ParentID     sql.NullString
+	DeletedAt    sql.NullInt64
+	RemovedAt    sql.NullInt64
+	EnclosureUrl sql.NullString
+}
+
+// A title and every title below it (seasons, episodes, podcast episodes, extras), deleted ones
+// too, the title first. Four levels are the deepest tree (series, season, episode; an extra of a
+// season).
+func (q *Queries) ListItemTree(ctx context.Context, id string) ([]ListItemTreeRow, error) {
+	rows, err := q.db.QueryContext(ctx, listItemTree, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListItemTreeRow{}
+	for rows.Next() {
+		var i ListItemTreeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.ParentID,
+			&i.DeletedAt,
+			&i.RemovedAt,
+			&i.EnclosureUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listLibraryItemIDs = `-- name: ListLibraryItemIDs :many
 SELECT id FROM items WHERE library_id = ?1 ORDER BY id
 `
@@ -147,6 +327,122 @@ func (q *Queries) ListLibraryItemIDs(ctx context.Context, libraryID int64) ([]st
 			return nil, err
 		}
 		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMediaFilesOfItems = `-- name: ListMediaFilesOfItems :many
+SELECT m.id, m.item_id, m.root_id, r.path AS root_path, m.rel_path, m.size, m.dev, m.inode, m.missing_since
+FROM media_files AS m
+JOIN library_roots AS r ON r.id = m.root_id
+WHERE m.item_id IN (/*SLICE:item_ids*/?)
+ORDER BY r.path, m.rel_path
+`
+
+type ListMediaFilesOfItemsRow struct {
+	ID           string
+	ItemID       string
+	RootID       int64
+	RootPath     string
+	RelPath      string
+	Size         int64
+	Dev          int64
+	Inode        int64
+	MissingSince sql.NullInt64
+}
+
+// The media files of the titles with the folder of their library root, by path.
+func (q *Queries) ListMediaFilesOfItems(ctx context.Context, itemIds []string) ([]ListMediaFilesOfItemsRow, error) {
+	query := listMediaFilesOfItems
+	var queryParams []interface{}
+	if len(itemIds) > 0 {
+		for _, v := range itemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(itemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMediaFilesOfItemsRow{}
+	for rows.Next() {
+		var i ListMediaFilesOfItemsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ItemID,
+			&i.RootID,
+			&i.RootPath,
+			&i.RelPath,
+			&i.Size,
+			&i.Dev,
+			&i.Inode,
+			&i.MissingSince,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPlayingProfilesOfItems = `-- name: ListPlayingProfilesOfItems :many
+SELECT DISTINCT p.name FROM playback_sessions AS ps
+JOIN sessions AS s ON s.id = ps.session_id
+JOIN profiles AS p ON p.id = ps.profile_id
+WHERE ps.revoked_at IS NULL AND ps.expires_at > ?1 AND ps.last_activity_at >= ?2
+  AND s.revoked_at IS NULL AND s.expires_at > ?1
+  AND ps.item_id IN (/*SLICE:item_ids*/?)
+ORDER BY p.name
+`
+
+type ListPlayingProfilesOfItemsParams struct {
+	Now         int64
+	ActiveAfter int64
+	ItemIds     []string
+}
+
+// The profiles that play one of the titles right now, as ListPlayingProfilesOfLibrary counts.
+func (q *Queries) ListPlayingProfilesOfItems(ctx context.Context, arg ListPlayingProfilesOfItemsParams) ([]string, error) {
+	query := listPlayingProfilesOfItems
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.Now)
+	queryParams = append(queryParams, arg.ActiveAfter)
+	if len(arg.ItemIds) > 0 {
+		for _, v := range arg.ItemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(arg.ItemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		items = append(items, name)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -176,7 +472,9 @@ type ListPlayingProfilesOfLibraryParams struct {
 }
 
 // Deleting a library and titles (concept 20 sections 9 to 11, stage 5). Owner: library package.
-// Times are Unix milliseconds.
+// Times are Unix milliseconds. A sqlc.slice always comes after every named parameter of its
+// query: sqlc numbers the named ones (?1, ?2) before it expands the slice, so a named parameter
+// behind a slice would read an element of the slice.
 // The profiles that play a title of the library right now (O-13: a delete is refused while one
 // does), as the stream overview counts a stream: not revoked, not expired, a request within the
 // activity window, the browser session valid. By name, each once.
@@ -193,6 +491,69 @@ func (q *Queries) ListPlayingProfilesOfLibrary(ctx context.Context, arg ListPlay
 			return nil, err
 		}
 		items = append(items, name)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRemovedItems = `-- name: ListRemovedItems :many
+SELECT i.id, i.kind, i.title, i.library_id, l.name AS library_name, i.removed_at,
+       CAST(COALESCE(p.title, '') AS TEXT) AS parent_title, CAST(COALESCE(g.title, '') AS TEXT) AS grandparent_title
+FROM items AS i INDEXED BY items_removed
+JOIN libraries AS l ON l.id = i.library_id
+LEFT JOIN items AS p ON p.id = i.parent_id
+LEFT JOIN items AS g ON g.id = p.parent_id
+WHERE i.removed_at IS NOT NULL AND (p.id IS NULL OR p.removed_at IS NULL)
+ORDER BY i.removed_at DESC, i.id DESC
+LIMIT ?2 OFFSET ?1
+`
+
+type ListRemovedItemsParams struct {
+	OffsetCount int64
+	LimitCount  int64
+}
+
+type ListRemovedItemsRow struct {
+	ID               string
+	Kind             string
+	Title            string
+	LibraryID        int64
+	LibraryName      string
+	RemovedAt        sql.NullInt64
+	ParentTitle      string
+	GrandparentTitle string
+}
+
+// The titles taken out of Slouchcat that can come back on their own: those whose parent is not
+// taken out too (a season of a removed series comes back with the series). Newest first, with
+// the library and the series or podcast above a season or episode.
+func (q *Queries) ListRemovedItems(ctx context.Context, arg ListRemovedItemsParams) ([]ListRemovedItemsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRemovedItems, arg.OffsetCount, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRemovedItemsRow{}
+	for rows.Next() {
+		var i ListRemovedItemsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.Title,
+			&i.LibraryID,
+			&i.LibraryName,
+			&i.RemovedAt,
+			&i.ParentTitle,
+			&i.GrandparentTitle,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -233,4 +594,70 @@ func (q *Queries) ListTMDBCollectionsOfLibrary(ctx context.Context, libraryID in
 		return nil, err
 	}
 	return items, nil
+}
+
+const markItemsRemoved = `-- name: MarkItemsRemoved :execrows
+UPDATE items SET removed_at = COALESCE(removed_at, ?1), deleted_at = COALESCE(deleted_at, ?1), updated_at = ?1
+WHERE id IN (/*SLICE:item_ids*/?)
+`
+
+type MarkItemsRemovedParams struct {
+	Now     int64
+	ItemIds []string
+}
+
+// "Nur aus Slouchcat entfernen": the titles leave every list (deleted_at) and are marked as taken
+// out (removed_at). A title taken out before keeps its own stamp, so it stays out when the title
+// above comes back; one soft-deleted before keeps its deletion time.
+func (q *Queries) MarkItemsRemoved(ctx context.Context, arg MarkItemsRemovedParams) (int64, error) {
+	query := markItemsRemoved
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.Now)
+	if len(arg.ItemIds) > 0 {
+		for _, v := range arg.ItemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(arg.ItemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	result, err := q.db.ExecContext(ctx, query, queryParams...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const restoreRemovedItems = `-- name: RestoreRemovedItems :execrows
+UPDATE items SET removed_at = NULL, deleted_at = NULL, updated_at = ?1
+WHERE removed_at = ?2 AND id IN (/*SLICE:item_ids*/?)
+`
+
+type RestoreRemovedItemsParams struct {
+	Now       int64
+	RemovedAt sql.NullInt64
+	ItemIds   []string
+}
+
+// "Wieder aufnehmen": the titles of the tree taken out with the stamp of the title come back, the
+// same titles with all their user data. A title below taken out on its own before keeps its stamp
+// and stays out.
+func (q *Queries) RestoreRemovedItems(ctx context.Context, arg RestoreRemovedItemsParams) (int64, error) {
+	query := restoreRemovedItems
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.Now)
+	queryParams = append(queryParams, arg.RemovedAt)
+	if len(arg.ItemIds) > 0 {
+		for _, v := range arg.ItemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(arg.ItemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	result, err := q.db.ExecContext(ctx, query, queryParams...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

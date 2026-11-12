@@ -223,6 +223,12 @@ var adminRegistry = map[string]adminCall{
 	"applyMetadata":         {contract: "POST /admin/metadata/apply", path: "/admin/metadata/apply", body: `{"what":["texts"]}`, ownerStatus: http.StatusAccepted},
 	"removeLibraryRoot": {contract: "POST /admin/libraries/{id}/roots/{rootId}/removal", path: "/admin/libraries/777/roots/888/removal",
 		body: `{"confirmPath":"/media/does-not-exist"}`, ownerStatus: http.StatusNotFound},
+	// Concept 20 P-9: unknown titles; the removed list of the fixture is empty.
+	"getItemDeletion": {contract: "GET /admin/items/{id}/deletion", path: "/admin/items/" + unknownItemID + "/deletion", ownerStatus: http.StatusNotFound},
+	"deleteItem": {contract: "POST /admin/items/{id}/deletion", path: "/admin/items/" + unknownItemID + "/deletion",
+		body: `{"mode":"library"}`, ownerStatus: http.StatusNotFound},
+	"listRemovedItems":   {contract: "GET /admin/maintenance/removed", path: "/admin/maintenance/removed", ownerStatus: http.StatusOK},
+	"restoreRemovedItem": {contract: "POST /admin/maintenance/removed/{id}/restore", path: "/admin/maintenance/removed/" + unknownItemID + "/restore", ownerStatus: http.StatusNotFound},
 	// Concept 20 P-8: the fixture has no library 777.
 	"deleteLibrary": {contract: "POST /admin/libraries/{id}/deletion", path: "/admin/libraries/777/deletion",
 		body: `{"confirmName":"Filme"}`, ownerStatus: http.StatusNotFound},

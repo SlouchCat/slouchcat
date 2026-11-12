@@ -3,6 +3,8 @@ package library
 import (
 	"testing"
 	"time"
+
+	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
 // Step 0 of concept 20 stage 5 (section 10.2): what a scan does with a file under a title that
@@ -55,7 +57,22 @@ func softDeleteTree(age time.Duration) func(e *env, titleID string) {
 	}
 }
 
+// removeTitle takes the title out of Slouchcat as the administrator does («Nur aus Slouchcat
+// entfernen», concept 20 section 10.2): the rule of stage 5 is that the title stays out whatever
+// happens in its folder, and a new file there joins it, taken out as well.
+func removeTitle(e *env, titleID string) {
+	e.t.Helper()
+	title := e.str(`SELECT title FROM items WHERE id = ?`, titleID)
+	if _, err := e.svc.DeleteItem(e.ctx, titleID, "de", model.DeleteModeLibrary, title, model.Actor{}); err != nil {
+		e.t.Fatalf("remove %s: %v", titleID, err)
+	}
+}
+
 var takenOutModes = []takenOutMode{
+	{name: "removed", mark: removeTitle, outcome: map[string]takenOutcome{
+		"film new version": stays, "film renamed": stays, "film upgrade": stays,
+		"series new episode": stays, "series renamed": stays, "series upgrade": stays,
+	}},
 	{name: "soft-deleted now", mark: softDeleteTree(0), outcome: map[string]takenOutcome{
 		"film new version": revives, "film renamed": stays, "film upgrade": revives,
 		"series new episode": revives, "series renamed": stays, "series upgrade": revives,
@@ -158,6 +175,12 @@ func (e *env) checkTakenOut(titleID, file string, want takenOutcome) {
 		got = revives
 	case under && titles == 1 && !live && !ownerLive:
 		got = stays
+		// Taken out (stage 5): the file's title carries the stamp of the title, so it comes back
+		// with it; a soft-deleted title has none.
+		if e.count(`SELECT count(*) FROM items WHERE id = ? AND removed_at IS NOT NULL`, titleID) == 1 &&
+			e.count(`SELECT count(*) FROM items AS o JOIN items AS t ON t.id = ? WHERE o.id = ? AND o.removed_at = t.removed_at`, titleID, owner) != 1 {
+			e.t.Errorf("the title of %s is not taken out with the title", file)
+		}
 	case !under && titles == 2 && !live && ownerLive:
 		got = doubles
 	default:
@@ -166,5 +189,47 @@ func (e *env) checkTakenOut(titleID, file string, want takenOutcome) {
 	}
 	if got != want {
 		e.t.Errorf("outcome %v, want %v", got, want)
+	}
+}
+
+// Without a year in the folder name the name does not find a title (only the folder does): a new
+// file in the folder of a removed film or series still joins it, through the folder rule of find.
+func TestRemovedTitleKeepsItsFolderWithoutYear(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, kept, added string
+		series            bool
+	}{
+		{name: "film", kept: "Heat/Heat - 1080p.mkv", added: "Heat/Heat - 2160p.mkv"},
+		{name: "series", kept: "Nightly/Season 01/Nightly - S01E01.mkv", added: "Nightly/Season 02/Nightly - S02E01.mkv", series: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := newEnv(t)
+			var lib model.Library
+			var title string
+			if tc.series {
+				files := []string{tc.kept}
+				for _, ep := range []string{"S01E01", "S01E02", "S01E03", "S01E04", "S01E05"} {
+					files = append(files, "Keep (2001)/Season 01/Keep - "+ep+".mkv")
+				}
+				dir := tree(t, files)
+				lib = e.createSeries(dir)
+				e.scan(lib.ID)
+				title = e.str(`SELECT s.parent_id FROM media_files AS m JOIN items AS ep ON ep.id = m.item_id
+				               JOIN items AS s ON s.id = ep.parent_id WHERE m.rel_path = ?`, tc.kept)
+				removeTitle(e, title)
+				writeFile(t, dir, tc.added, "new season")
+			} else {
+				dir := tree(t, append(append([]string{}, twentyMovies[4:16]...), tc.kept))
+				lib = e.create(dir)
+				e.scan(lib.ID)
+				title = e.str(`SELECT item_id FROM media_files WHERE rel_path = ?`, tc.kept)
+				removeTitle(e, title)
+				writeFile(t, dir, tc.added, "another version")
+			}
+			e.scan(lib.ID)
+			e.checkTakenOut(title, tc.added, stays)
+		})
 	}
 }

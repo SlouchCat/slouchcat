@@ -1850,7 +1850,8 @@
         "unplayable": "Nicht abspielbar",
         "rating_mismatch": "Freigabe abweichend",
         "duplicates": "Duplikate",
-        "relink": "Verwaiste Benutzerdaten"
+        "relink": "Verwaiste Benutzerdaten",
+        "removed": "Entfernte Titel"
       },
       "hint": {
         "unmatched": "Ohne Zuordnung fehlen Beschreibung, Bilder und Freigabe. Ordne den Titel zu oder aktualisiere ihn.",
@@ -1860,7 +1861,8 @@
         "unplayable": "Dateien, die sich nicht lesen lassen. Prüfe sie erneut oder entferne sie aus der Bibliothek.",
         "rating_mismatch": "Die gespeicherte Freigabe weicht von der berechneten ab. Eine Freigabe-Änderung oder der nächste Scan korrigiert sie. Hier gibt es nichts auszuwählen.",
         "duplicates": "Titel, die doppelt vorkommen. Wähle den Titel, der bleiben soll, und führe die anderen mit ihm zusammen.",
-        "relink": "Gelöschte Titel, die als neue Kopie zurück in der Bibliothek sind. Fortschritt, Verlauf und Listen hängen noch am gelöschten Titel. «Umhängen» führt die Kopie mit ihm zusammen, der alte Titel bleibt."
+        "relink": "Gelöschte Titel, die als neue Kopie zurück in der Bibliothek sind. Fortschritt, Verlauf und Listen hängen noch am gelöschten Titel. «Umhängen» führt die Kopie mit ihm zusammen, der alte Titel bleibt.",
+        "removed": "Titel, die aus Slouchcat entfernt wurden; ihre Dateien liegen noch da. «Wieder aufnehmen» holt denselben Titel zurück, mit Folgen, Fortschritt, Haken und Merkliste."
       },
       "empty": "Nichts zu tun.",
       "selection": "Auswahl",
@@ -2007,6 +2009,21 @@
         "confirmRemoved_other": "Die Kopien werden endgültig entfernt.",
         "confirmExtra_one": "Eine weitere Kopie desselben Titels wird übersprungen und steht danach unter «Duplikate».",
         "confirmExtra_other": "{{count}} weitere Kopien derselben Titel werden übersprungen und stehen danach unter «Duplikate»."
+      },
+      "removed": {
+        "empty": "Keine entfernten Titel.",
+        "columns": {
+          "title": "Titel",
+          "library": "Bibliothek",
+          "folder": "Ordner",
+          "removedAt": "Entfernt am",
+          "action": "Aktion"
+        },
+        "restore": "Wieder aufnehmen",
+        "restoreLabel": "{{title}} wieder aufnehmen",
+        "restored_one": "«{{title}}» ist wieder da ({{count}} Titel).",
+        "restored_other": "«{{title}}» ist wieder da ({{count}} Titel).",
+        "noFolder": "Keine Datei"
       }
     },
     "item": {
@@ -4691,6 +4708,33 @@
         "candidate": "{{source}}: {{title}} · {{length}}",
         "noCandidates": "keine",
         "edit": "{{title}} bearbeiten"
+      }
+    },
+    "itemDelete": {
+      "action": "Löschen",
+      "editorAction": "Löschen …",
+      "title": "«{{title}}» löschen?",
+      "loading": "Titel löschen",
+      "choice": "Was soll geschehen?",
+      "mode": {
+        "library": "Nur aus Slouchcat entfernen"
+      },
+      "libraryHint": "Die Dateien bleiben auf der Platte. Der Titel bleibt entfernt, auch wenn neue Dateien dazukommen; unter «Wartung › Entfernte Titel» lässt er sich mit Fortschritt, Haken und Merkliste wieder aufnehmen.",
+      "everywhere": "Der Titel verschwindet für alle Profile aus allen Listen, Downloads auf den Geräten werden entfernt.",
+      "arr": "Radarr und Sonarr erfahren davon nichts.",
+      "affected_one": "Betroffen: {{count}} Datei · {{size}}",
+      "affected_other": "Betroffen: {{count}} Dateien · {{size}}",
+      "noFiles": "Keine Datei verzeichnet.",
+      "folder": "Ordner",
+      "files": "Dateien",
+      "playing": "Läuft gerade bei {{names}}. Löschen geht erst, wenn die Wiedergabe zu Ende ist.",
+      "typeLabel": "Zur Bestätigung den Titel eintippen",
+      "typeHint": "Tippe {{title}} ab (Gross- und Kleinschreibung egal), dann wird der Knopf aktiv.",
+      "confirm": {
+        "library": "Aus Slouchcat entfernen"
+      },
+      "done": {
+        "library": "«{{title}}» ist aus Slouchcat entfernt. Die Dateien liegen noch da."
       }
     }
   },

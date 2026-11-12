@@ -1,5 +1,7 @@
 -- Deleting a library and titles (concept 20 sections 9 to 11, stage 5). Owner: library package.
--- Times are Unix milliseconds.
+-- Times are Unix milliseconds. A sqlc.slice always comes after every named parameter of its
+-- query: sqlc numbers the named ones (?1, ?2) before it expands the slice, so a named parameter
+-- behind a slice would read an element of the slice.
 
 -- name: ListPlayingProfilesOfLibrary :many
 -- The profiles that play a title of the library right now (O-13: a delete is refused while one
@@ -71,3 +73,95 @@ DELETE FROM libraries WHERE id = @id;
 DELETE FROM collections
 WHERE id IN (sqlc.slice('ids')) AND source = 'tmdb'
   AND NOT EXISTS (SELECT 1 FROM collection_items AS ci WHERE ci.collection_id = collections.id);
+
+-- Deleting a title (concept 20 sections 10 and 11).
+
+-- name: GetDeletionItem :one
+-- The title a deletion asks about, with its title in the given language (the text the dialog
+-- shows and the administrator types; items.title without one) and the folder of its library.
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.deleted_at, i.removed_at, i.enclosure_url,
+       CAST(COALESCE((SELECT t.title FROM item_texts AS t WHERE t.item_id = i.id AND t.lang = @lang), i.title) AS TEXT) AS display_title
+FROM items AS i WHERE i.id = @id;
+
+-- name: ListItemTree :many
+-- A title and every title below it (seasons, episodes, podcast episodes, extras), deleted ones
+-- too, the title first. Four levels are the deepest tree (series, season, episode; an extra of a
+-- season).
+WITH RECURSIVE tree(id, depth) AS (
+    SELECT i.id, 0 FROM items AS i WHERE i.id = @id
+    UNION ALL
+    SELECT c.id, t.depth + 1 FROM items AS c JOIN tree AS t ON c.parent_id = t.id WHERE t.depth < 4
+)
+SELECT i.id, i.kind, i.parent_id, i.deleted_at, i.removed_at, i.enclosure_url FROM tree AS t
+JOIN items AS i ON i.id = t.id
+ORDER BY t.depth, i.id;
+
+-- name: ListMediaFilesOfItems :many
+-- The media files of the titles with the folder of their library root, by path.
+SELECT m.id, m.item_id, m.root_id, r.path AS root_path, m.rel_path, m.size, m.dev, m.inode, m.missing_since
+FROM media_files AS m
+JOIN library_roots AS r ON r.id = m.root_id
+WHERE m.item_id IN (sqlc.slice('item_ids'))
+ORDER BY r.path, m.rel_path;
+
+-- name: ListPlayingProfilesOfItems :many
+-- The profiles that play one of the titles right now, as ListPlayingProfilesOfLibrary counts.
+SELECT DISTINCT p.name FROM playback_sessions AS ps
+JOIN sessions AS s ON s.id = ps.session_id
+JOIN profiles AS p ON p.id = ps.profile_id
+WHERE ps.revoked_at IS NULL AND ps.expires_at > @now AND ps.last_activity_at >= @active_after
+  AND s.revoked_at IS NULL AND s.expires_at > @now
+  AND ps.item_id IN (sqlc.slice('item_ids'))
+ORDER BY p.name;
+
+-- name: ListActiveJobsOfItems :many
+-- Queued and running jobs of the titles, their files or their downloads (ListActiveJobsOfLibrary
+-- for one tree).
+WITH tree AS (SELECT i.id FROM items AS i WHERE i.id IN (sqlc.slice('item_ids')))
+SELECT j.id FROM jobs AS j
+WHERE j.state IN ('queued', 'running')
+  AND (json_extract(j.payload, '$.itemId') IN (SELECT id FROM tree)
+       OR json_extract(j.payload, '$.episodeId') IN (SELECT id FROM tree)
+       OR json_extract(j.payload, '$.podcastId') IN (SELECT id FROM tree)
+       OR json_extract(j.payload, '$.seriesId') IN (SELECT id FROM tree)
+       OR json_extract(j.payload, '$.seasonId') IN (SELECT id FROM tree)
+       OR json_extract(j.payload, '$.mediaFileId') IN (SELECT m.id FROM media_files AS m WHERE m.item_id IN (SELECT id FROM tree))
+       OR json_extract(j.payload, '$.downloadId') IN (SELECT d.id FROM downloads AS d WHERE d.item_id IN (SELECT id FROM tree)))
+ORDER BY j.id;
+
+-- name: MarkItemsRemoved :execrows
+-- "Nur aus Slouchcat entfernen": the titles leave every list (deleted_at) and are marked as taken
+-- out (removed_at). A title taken out before keeps its own stamp, so it stays out when the title
+-- above comes back; one soft-deleted before keeps its deletion time.
+UPDATE items SET removed_at = COALESCE(removed_at, @now), deleted_at = COALESCE(deleted_at, @now), updated_at = @now
+WHERE id IN (sqlc.slice('item_ids'));
+
+-- name: DeleteDownloadsOfItems :execrows
+-- The downloads of the titles; the tombstones of the delete trigger tell the devices to drop them.
+DELETE FROM downloads WHERE item_id IN (sqlc.slice('item_ids'));
+
+-- name: ListRemovedItems :many
+-- The titles taken out of Slouchcat that can come back on their own: those whose parent is not
+-- taken out too (a season of a removed series comes back with the series). Newest first, with
+-- the library and the series or podcast above a season or episode.
+SELECT i.id, i.kind, i.title, i.library_id, l.name AS library_name, i.removed_at,
+       CAST(COALESCE(p.title, '') AS TEXT) AS parent_title, CAST(COALESCE(g.title, '') AS TEXT) AS grandparent_title
+FROM items AS i INDEXED BY items_removed
+JOIN libraries AS l ON l.id = i.library_id
+LEFT JOIN items AS p ON p.id = i.parent_id
+LEFT JOIN items AS g ON g.id = p.parent_id
+WHERE i.removed_at IS NOT NULL AND (p.id IS NULL OR p.removed_at IS NULL)
+ORDER BY i.removed_at DESC, i.id DESC
+LIMIT @limit_count OFFSET @offset_count;
+
+-- name: CountRemovedItems :one
+SELECT count(*) FROM items AS i INDEXED BY items_removed
+LEFT JOIN items AS p ON p.id = i.parent_id
+WHERE i.removed_at IS NOT NULL AND (p.id IS NULL OR p.removed_at IS NULL);
+
+-- name: RestoreRemovedItems :execrows
+-- "Wieder aufnehmen": the titles of the tree taken out with the stamp of the title come back, the
+-- same titles with all their user data. A title below taken out on its own before keeps its stamp
+-- and stays out.
+UPDATE items SET removed_at = NULL, deleted_at = NULL, updated_at = @now
+WHERE removed_at = @removed_at AND id IN (sqlc.slice('item_ids'));

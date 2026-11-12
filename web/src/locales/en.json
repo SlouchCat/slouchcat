@@ -1850,7 +1850,8 @@
         "unplayable": "Unplayable",
         "rating_mismatch": "Rating mismatch",
         "duplicates": "Duplicates",
-        "relink": "Orphaned user data"
+        "relink": "Orphaned user data",
+        "removed": "Removed titles"
       },
       "hint": {
         "unmatched": "Without a match there is no description, artwork or rating. Match the title or refresh it.",
@@ -1860,7 +1861,8 @@
         "unplayable": "Files that cannot be read. Check them again or remove them from the library.",
         "rating_mismatch": "The stored rating differs from the computed one. A rating change or the next scan corrects it. There is nothing to select here.",
         "duplicates": "Titles that exist twice. Pick the title to keep and merge the others into it.",
-        "relink": "Deleted titles that are back in the library as a new copy. Progress, history and lists still hang on the deleted title. «Relink» merges the copy into it; the old title stays."
+        "relink": "Deleted titles that are back in the library as a new copy. Progress, history and lists still hang on the deleted title. «Relink» merges the copy into it; the old title stays.",
+        "removed": "Titles taken out of Slouchcat; their files are still there. “Take back” brings the same title back, with its episodes, progress, check marks and watchlist."
       },
       "empty": "Nothing to do.",
       "selection": "Selection",
@@ -2007,6 +2009,21 @@
         "confirmRemoved_other": "The copies are removed for good.",
         "confirmExtra_one": "One more copy of the same title is skipped and is then listed under «Duplicates».",
         "confirmExtra_other": "{{count}} more copies of the same titles are skipped and are then listed under «Duplicates»."
+      },
+      "removed": {
+        "empty": "No removed titles.",
+        "columns": {
+          "title": "Title",
+          "library": "Library",
+          "folder": "Folder",
+          "removedAt": "Removed on",
+          "action": "Action"
+        },
+        "restore": "Take back",
+        "restoreLabel": "Take {{title}} back",
+        "restored_one": "“{{title}}” is back ({{count}} title).",
+        "restored_other": "“{{title}}” is back ({{count}} titles).",
+        "noFolder": "No file"
       }
     },
     "item": {
@@ -4691,6 +4708,33 @@
         "candidate": "{{source}}: {{title}} · {{length}}",
         "noCandidates": "none",
         "edit": "Edit {{title}}"
+      }
+    },
+    "itemDelete": {
+      "action": "Delete",
+      "editorAction": "Delete …",
+      "title": "Delete “{{title}}”?",
+      "loading": "Delete title",
+      "choice": "What should happen?",
+      "mode": {
+        "library": "Only take it out of Slouchcat"
+      },
+      "libraryHint": "The files stay on the disk. The title stays out even when new files arrive; under “Maintenance › Removed titles” it can be taken back with progress, check marks and watchlist.",
+      "everywhere": "The title leaves every list of every profile; downloads on the devices are removed.",
+      "arr": "Radarr and Sonarr learn nothing of it.",
+      "affected_one": "Affected: {{count}} file · {{size}}",
+      "affected_other": "Affected: {{count}} files · {{size}}",
+      "noFiles": "No file recorded.",
+      "folder": "Folder",
+      "files": "Files",
+      "playing": "Playing for {{names}} right now. It can be deleted once the playback has ended.",
+      "typeLabel": "Type the title to confirm",
+      "typeHint": "Type {{title}} (any case) to enable the button.",
+      "confirm": {
+        "library": "Take out of Slouchcat"
+      },
+      "done": {
+        "library": "“{{title}}” is taken out of Slouchcat. The files are still there."
       }
     }
   },

@@ -115,7 +115,7 @@ func seedDeleteBench(b *testing.B, shape string) *store.DB {
 		title := func(kind string, parent sql.NullString, k int) string {
 			it := id()
 			exec(`INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, genres, tmdb_id, available, added_at, created_at, updated_at)
-			      VALUES (?, ?, ?, ?, ?, ?, '["Drama","Krimi"]', ?, 1, ?, ?, ?)`, it, kind, parent, lib, fmt.Sprintf("Titel %d %d", lib, k), fmt.Sprintf("titel %06d", k), int64(lib)*1000000+int64(k), now, now, now)
+			      VALUES (?, ?, ?, ?, ?, ?, '["Drama","Krimi"]', ?, 1, ?, ?, ?)`, it, kind, parent, lib, fmt.Sprintf("Titel %d %d", lib, k), fmt.Sprintf("titel %06d", k), lib*1000000+int64(k), now, now, now)
 			for _, lang := range []string{"de", "en"} {
 				exec(`INSERT INTO item_texts (item_id, lang, title, overview) VALUES (?, ?, ?, 'Eine Beschreibung')`, it, lang, fmt.Sprintf("Titel %s %d", lang, k))
 			}

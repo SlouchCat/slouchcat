@@ -1,4 +1,10 @@
-import type { DuplicateGroup, Issue, IssueKind, RelinkPair } from '@slouchcat/api-client';
+import type {
+  DuplicateGroup,
+  Issue,
+  IssueKind,
+  RelinkPair,
+  RemovedItem,
+} from '@slouchcat/api-client';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -21,11 +27,13 @@ import { DuplicatesTab } from './maintenance/DuplicatesTab';
 import { IssueTab, type IssueHandlers } from './maintenance/IssueTab';
 import { RatingDialog } from './maintenance/RatingDialog';
 import { RelinkTab } from './maintenance/RelinkTab';
+import { RemovedTab } from './maintenance/RemovedTab';
 import {
   DUPLICATES,
   groupKey,
   pairKey,
   RELINK,
+  REMOVED,
   TABS,
   userDataSummary,
   type Confirmation,
@@ -39,6 +47,7 @@ import {
   librariesQuery,
   maintenanceKey,
   relinkQuery,
+  removedQuery,
 } from './queries';
 
 /** The dialog of the page besides its confirmation: assignment or rating of the selection. */
@@ -99,6 +108,7 @@ function MaintenanceContent() {
   });
   const duplicates = useQuery({ ...duplicatesQuery, refetchOnWindowFocus: !hold });
   const relinkPairs = useQuery({ ...relinkQuery, refetchOnWindowFocus: !hold });
+  const removedTitles = useQuery({ ...removedQuery, refetchOnWindowFocus: !hold });
   // The names of the sections; the page does not follow a scan.
   const libraries = useQuery({
     ...librariesQuery,
@@ -242,6 +252,27 @@ function MaintenanceContent() {
       }));
       void queryClient.invalidateQueries({ queryKey: maintenanceKey });
     },
+  });
+
+  // «Wieder aufnehmen» (concept 20 P-9): no question, nothing is lost; the row goes with it.
+  const restore = useMutation({
+    mutationFn: (item: RemovedItem) =>
+      request(
+        api.POST('/admin/maintenance/removed/{id}/restore', { params: { path: { id: item.id } } }),
+      ),
+    onSuccess: (result, item) =>
+      finish(
+        REMOVED,
+        {
+          tone: 'info',
+          text: t('admin.maintenance.removed.restored', {
+            title: item.parentTitle ? `${item.parentTitle} › ${item.title}` : item.title,
+            count: result.restoredItems,
+          }),
+        },
+        true,
+      ),
+    onError: (error) => failed(REMOVED, error),
   });
 
   // Every confirmation is the page's own: the rows that asked for it may go while it is open.
@@ -397,6 +428,23 @@ function MaintenanceContent() {
           relinking={relink.isPending}
           onExcludedChange={setRelinkExcluded}
           onRelink={onRelink}
+        />
+      ),
+    },
+    {
+      id: REMOVED,
+      label: t('admin.maintenance.tab.removed'),
+      count: removedTitles.data === undefined ? undefined : number.format(removedTitles.data.total),
+      countLabel:
+        removedTitles.data === undefined
+          ? undefined
+          : t('admin.maintenance.titleCount', { count: removedTitles.data.total }),
+      content: (
+        <RemovedTab
+          outcome={outcomes[REMOVED]}
+          hold={hold}
+          restoring={restore.isPending ? restore.variables.id : undefined}
+          onRestore={(item) => restore.mutate(item)}
         />
       ),
     },

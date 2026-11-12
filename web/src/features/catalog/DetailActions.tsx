@@ -1,4 +1,5 @@
 import type { ItemDetail, ItemRef, MediaFileInfo } from '@slouchcat/api-client';
+import { useNavigate } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
 import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -28,6 +29,16 @@ const DownloadAction = lazy(() =>
   })),
 );
 
+// «Löschen» (concept 20 P-9) is the administrator's: its dialog loads only when it opens.
+const DeleteItemDialog = lazy(() =>
+  import('@/features/admin/deletion/DeleteItemDialog').then((module) => ({
+    default: module.DeleteItemDialog,
+  })),
+);
+
+/** The kinds with a delete; a podcast episode only with a file (O-5), extras never. */
+const DELETABLE_KINDS = new Set(['movie', 'series', 'season', 'episode', 'audiobook', 'podcast']);
+
 export const PLAY_KEY = 'detail-play';
 export const TRAILER_KEY = 'detail-trailer';
 const RESTART_KEY = 'detail-restart';
@@ -35,6 +46,7 @@ const DOWNLOAD_KEY = 'detail-download';
 const WATCHLIST_KEY = 'detail-watchlist';
 const FAVORITE_KEY = 'detail-favorite';
 const WATCHED_KEY = 'detail-watched';
+const DELETE_KEY = 'detail-delete';
 /** The round button's state per check mark: half filled for a partly watched series (F-12). */
 const WATCHED_PRESSED = { none: false, half: 'mixed', full: true } as const;
 export const RECOMMEND_KEY = 'detail-recommend';
@@ -204,6 +216,14 @@ export function DetailActions({ item, file, target, onTrailer }: DetailActionsPr
   const failed = watchlist.error ?? favorite.error ?? recommend.error;
   // The check mark «gesehen» (concept 20 P-5): every title but extras; offline a display only.
   const watched = useWatchedToggle(item);
+  // «Löschen» (concept 20 P-9): after the delete the page of the title is gone, so the reader
+  // lands on the title above it or on its library.
+  const deletable =
+    canManage &&
+    (DELETABLE_KINDS.has(item.kind) ||
+      (item.kind === 'podcast_episode' && item.mediaFiles.length > 0));
+  const [deleting, setDeleting] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <>
@@ -322,7 +342,34 @@ export function DetailActions({ item, file, target, onTrailer }: DetailActionsPr
         {canManage && !EDITABLE_KINDS.has(item.kind) && (
           <RoundAction icon="info" label={t('item.manage')} href={paths.adminItem(item.id)} />
         )}
+        {deletable && (
+          <RoundAction
+            focusKey={DELETE_KEY}
+            icon="trash"
+            label={t('admin.itemDelete.action')}
+            isDisabled={!online}
+            onPress={() => setDeleting(true)}
+          />
+        )}
       </SpatialGroup>
+      {deleting && (
+        <Suspense fallback={null}>
+          <DeleteItemDialog
+            itemId={item.id}
+            isOpen
+            onOpenChange={setDeleting}
+            onDeleted={() => {
+              setDeleting(false);
+              const href = item.parentId
+                ? paths.item(item.parentId)
+                : item.libraryId !== undefined
+                  ? paths.library(item.libraryId)
+                  : paths.home;
+              void navigate({ href, replace: true });
+            }}
+          />
+        </Suspense>
+      )}
       {pickHint && !failed && <Notice title={pickHint} />}
       {failed && <Notice tone="danger" title={problemMessage(t, failed)} />}
       {watched.error && <Notice tone="danger" title={watched.error} />}

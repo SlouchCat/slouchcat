@@ -20,6 +20,7 @@ import type {
   IntegrationCreated,
   IntegrationEvent,
   IntegrationRequest,
+  ItemDeletionPreview,
   Invitation,
   Issue,
   IssueKind,
@@ -28,6 +29,7 @@ import type {
   JobDismissResult,
   JobRetryFailedResult,
   ProviderKeyCheck,
+  RemovedItemPage,
   JobOverview,
   JobRun,
   JobRunPage,
@@ -149,6 +151,23 @@ export const relinkQuery = queryOptions({
   queryFn: ({ signal }): Promise<RelinkPairList> =>
     request(api.GET('/admin/maintenance/relink', { signal })),
 });
+
+/** The titles taken out of Slouchcat (concept 20 P-9, «Entfernte Titel»), the first 200. */
+export const removedQuery = queryOptions({
+  queryKey: [...maintenanceKey, 'removed'],
+  queryFn: ({ signal }): Promise<RemovedItemPage> =>
+    request(api.GET('/admin/maintenance/removed', { params: { query: { limit: 200 } }, signal })),
+});
+
+/** The preview of deleting a title (concept 20 P-9); read fresh every time the dialog opens. */
+export const itemDeletionQuery = (id: string) =>
+  queryOptions({
+    queryKey: ['admin', 'itemDeletion', id],
+    queryFn: ({ signal }): Promise<ItemDeletionPreview> =>
+      request(api.GET('/admin/items/{id}/deletion', { params: { path: { id } }, signal })),
+    staleTime: 0,
+    gcTime: 0,
+  });
 
 export const adminItemQuery = (id: string) =>
   queryOptions({

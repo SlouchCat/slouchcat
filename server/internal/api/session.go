@@ -375,6 +375,8 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusConflict, "scan_running", "A scan of this library is running; it holds the folders it started with.")
 	case errors.Is(err, model.ErrConfirmMismatch):
 		p.write(w, r, http.StatusUnprocessableEntity, "confirm_mismatch", "The typed confirmation does not repeat what is about to be removed.")
+	case errors.Is(err, model.ErrNotDeletable):
+		p.write(w, r, http.StatusUnprocessableEntity, "not_deletable", "This title has no delete: an extra, or a podcast episode that is only a reference from its feed.")
 	case errors.Is(err, model.ErrPlaying):
 		var pe *model.PlayingError
 		body := problemBody(r, http.StatusConflict, "playing", "A profile plays a title of what is about to be deleted; nothing was deleted.", nil, nil)

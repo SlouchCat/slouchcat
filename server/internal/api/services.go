@@ -192,6 +192,13 @@ type AdminService interface {
 	MergeItems(ctx context.Context, targetID string, sourceIDs []string) (model.AdminItem, error)
 	// CleanupItems soft-deletes orphaned titles and removes media files as ignored.
 	CleanupItems(ctx context.Context, itemIDs, mediaFileIDs []string) (items, files int, err error)
+	// Deleting a title (concept 20 P-9): the preview, the delete, the removed titles and their way
+	// back. Errors: model.ErrNotFound, model.ErrNotDeletable, model.ErrConfirmMismatch,
+	// *model.PlayingError, *model.ScanRunningError, *model.ValidationError.
+	GetItemDeletion(ctx context.Context, itemID string) (model.ItemDeletionPreview, error)
+	DeleteItem(ctx context.Context, itemID, mode, confirmTitle string, by model.Actor) (model.ItemDeletionResult, error)
+	ListRemovedItems(ctx context.Context, limit, offset int) (model.RemovedItemPage, error)
+	RestoreRemovedItem(ctx context.Context, itemID string) (int, error)
 	// ListRelinkPairs returns the soft-deleted titles with a live copy and their user data
 	// (ADR 0023); RelinkItems merges the copies into them (*model.ValidationError for a malformed
 	// request, *model.ScanRunningError when a scan stopped the run before any merge) and returns

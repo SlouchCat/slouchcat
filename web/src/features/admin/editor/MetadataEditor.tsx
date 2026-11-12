@@ -15,6 +15,7 @@ import {
   useStatusMessage,
 } from '@/ui/aria';
 import { visibleLibrariesQuery } from '@/features/catalog/queries';
+import { DeleteItemDialog } from '../deletion/DeleteItemDialog';
 import { adminItemQuery } from '../queries';
 import { ImagesEditorTab } from './ImagesEditorTab';
 import { emptyDraft, type EditorDraft } from './editorModel';
@@ -43,6 +44,23 @@ function headImage(item: AdminItem) {
   };
 }
 
+/** The kinds with a delete (concept 20 P-9); a podcast episode only with a file (O-5). */
+function deletableInEditor(item: AdminItem): boolean {
+  switch (item.kind) {
+    case 'movie':
+    case 'series':
+    case 'season':
+    case 'episode':
+    case 'audiobook':
+    case 'podcast':
+      return true;
+    case 'podcast_episode':
+      return item.mediaFiles.length > 0;
+    default:
+      return false;
+  }
+}
+
 /**
  * The metadata editor of a title (concept 15 7.4, variant A «Dialog»), opened with the pen on the
  * detail page or a library cover: a head with picture, title, kind, library and the link to the
@@ -63,6 +81,8 @@ export function MetadataEditor({ itemId, onClose }: MetadataEditorProps) {
   const [message, setMessage] = useStatusMessage();
   const [draft, setDraft] = useState<EditorDraft>(emptyDraft);
   const [discarding, setDiscarding] = useState(false);
+  // «Löschen …» (concept 20 P-9): the way to delete a season, whose pen sits on its cover.
+  const [deleting, setDeleting] = useState(false);
   const dirty = draft.unlock.length > 0 || Object.keys(draft.changed).length > 0;
   // Escape or «Schliessen» with unsaved metadata asks first; a clean draft closes at once.
   const requestClose = () => (dirty ? setDiscarding(true) : onClose());
@@ -159,10 +179,31 @@ export function MetadataEditor({ itemId, onClose }: MetadataEditorProps) {
       }
       imageUrl={image.url}
       imageShape={image.shape}
-      link={<TextLink href={paths.adminItem(data.id)}>{t('admin.editor.openAdmin')}</TextLink>}
+      link={
+        <span className={styles.links}>
+          <TextLink href={paths.adminItem(data.id)}>{t('admin.editor.openAdmin')}</TextLink>
+          {deletableInEditor(data) && (
+            <AriaButton variant="ghost" icon="trash" onPress={() => setDeleting(true)}>
+              {t('admin.itemDelete.editorAction')}
+            </AriaButton>
+          )}
+        </span>
+      }
       closeLabel={t('admin.editor.close')}
       onClose={requestClose}
     >
+      {deleting && (
+        <DeleteItemDialog
+          itemId={data.id}
+          isOpen
+          onOpenChange={setDeleting}
+          // The title is gone: the editor closes, and the page behind reads its list again.
+          onDeleted={() => {
+            setDeleting(false);
+            onClose();
+          }}
+        />
+      )}
       <ConfirmDialog
         isOpen={discarding}
         onOpenChange={setDiscarding}
