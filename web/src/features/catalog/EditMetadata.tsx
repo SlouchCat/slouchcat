@@ -13,6 +13,20 @@ const MetadataEditor = lazy(() =>
   })),
 );
 
+/** First parts of the query keys of the browsing lists the editor reads again when it closes. */
+const REFRESHED_LISTS: ReadonlySet<string> = new Set([
+  'library',
+  'home',
+  'homeList',
+  'watchlist',
+  'picks',
+  'collection',
+  'collections',
+  'search',
+  'person',
+  'watched',
+]);
+
 /** The kinds the metadata editor edits (updateItemMetadata): the pen shows only on these. */
 export const EDITABLE_KINDS: ReadonlySet<string> = new Set([
   'movie',
@@ -24,7 +38,8 @@ export const EDITABLE_KINDS: ReadonlySet<string> = new Set([
 
 /**
  * The metadata editor of one title over a browsing page (concept 15 7.4). Closing it reads the
- * title, the library pages and the start page again, so new images and texts stand at once.
+ * title, the library pages, the start page and every other list of titles again, so new images
+ * and texts stand at once.
  */
 export function EditMetadata({ itemId, onClose }: { itemId: string; onClose: () => void }) {
   const queryClient = useQueryClient();
@@ -35,8 +50,11 @@ export function EditMetadata({ itemId, onClose }: { itemId: string; onClose: () 
         onClose={() => {
           onClose();
           void queryClient.invalidateQueries({ queryKey: ['item', itemId] });
-          void queryClient.invalidateQueries({ queryKey: ['library'] });
-          void queryClient.invalidateQueries({ queryKey: ['home'] });
+          // Every browsing list whose cards may show the title (concept 20 P-7: the pens stand on
+          // all of them), by the first part of their keys.
+          void queryClient.invalidateQueries({
+            predicate: (query) => REFRESHED_LISTS.has(String(query.queryKey[0])),
+          });
         }}
       />
     </Suspense>

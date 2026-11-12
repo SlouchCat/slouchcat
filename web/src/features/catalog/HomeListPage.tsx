@@ -1,11 +1,11 @@
-import type { HomeListKey, RootContent } from '@slouchcat/api-client';
+import type { HomeListKey, ItemRef, RootContent } from '@slouchcat/api-client';
 import { getRouteApi } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { isApiError } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
-import { cardKey, PageRetry } from '@/features/discover/ItemGrid';
+import { cardKey, PageRetry, type CardFacts } from '@/features/discover/ItemGrid';
 import { PagedItemGrid } from '@/features/discover/PagedItemGrid';
 import { rangeBySize, usePagedList, type PlaceRange } from '@/lib/pagedList';
 import { useBackKeys } from '@/lib/useBackKeys';
@@ -21,9 +21,16 @@ import {
   SpatialGroup,
   SpatialPage,
 } from '@/ui';
+import {
+  continueEdited,
+  continueSeries,
+  remaining,
+  seriesCardText,
+  startedProgress,
+} from './continueCard';
 import { useCoverPens } from './EditMetadata';
-import { HOME_LIST_CONTENTS, HOME_LIST_KEYS } from './homeListParams';
-import { homeRowTitle } from './labels';
+import { HOME_LIST_CONTENTS_OF, HOME_LIST_KEYS } from './homeListParams';
+import { homeRowTitle, isAudioKind } from './labels';
 import { homeListSource } from './queries';
 import styles from '@/features/discover/Discover.module.css';
 
@@ -59,6 +66,28 @@ function HomeList({ listKey }: { listKey: HomeListKey }) {
   const paged = usePagedList(homeListSource(listKey, content), rangeBySize(span));
   const list = paged.first;
 
+  // «Weiterschauen» draws its cards like the row: an episode as its series, with «S4 · F7 · Noch
+  // 20 min» under the series title, and the pen edits the series (continueCard).
+  const continuing = listKey === 'continue';
+  const tool =
+    pens.tool && continuing ? (item: ItemRef) => pens.tool?.(continueEdited(item)) : pens.tool;
+  const describe = continuing
+    ? (item: ItemRef): CardFacts => {
+        const progress = startedProgress(item);
+        const bar = progress && {
+          percent: progress.percent,
+          label: t(isAudioKind(item.kind) ? 'item.listened' : 'item.watched', {
+            percent: Math.round(progress.percent),
+          }),
+        };
+        const series = continueSeries(item);
+        if (series) {
+          return { ...seriesCardText(t, series, item), images: series.images, progress: bar };
+        }
+        return { caption: progress ? remaining(t, progress) : undefined, progress: bar };
+      }
+    : undefined;
+
   if (isApiError(list.error, 404)) return <ListNotFound />;
 
   const first = paged.slots[0];
@@ -89,7 +118,7 @@ function HomeList({ listKey }: { listKey: HomeListKey }) {
             }
             options={[
               { value: '', label: t('library.content.all') },
-              ...HOME_LIST_CONTENTS.map((value) => ({
+              ...HOME_LIST_CONTENTS_OF[listKey].map((value) => ({
                 value,
                 label: t(`library.content.${value}`),
               })),
@@ -119,7 +148,8 @@ function HomeList({ listKey }: { listKey: HomeListKey }) {
               focusKey={GRID_KEY}
               label={title}
               showWatched
-              tool={pens.tool}
+              tool={tool}
+              describe={describe}
             />
             {paged.failed && <PageRetry onRetry={paged.retry} />}
           </section>

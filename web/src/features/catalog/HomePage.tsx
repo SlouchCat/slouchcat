@@ -11,7 +11,6 @@ import { countryName, facetValueName } from '@/app/radio/labels';
 import { wantsSound } from '@/app/radio/priority';
 import { useRadioFavorite } from '@/app/radio/queries';
 import { useRadio, type RadioPlayer } from '@/app/radio/useRadio';
-import { formatRuntime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import {
   Button,
@@ -35,6 +34,13 @@ import {
   type HeroSlide,
 } from '@/ui';
 import { CoverWatchlist, WATCHLIST_KINDS } from '@/features/discover/CoverWatchlist';
+import {
+  continueEdited,
+  continueSeries,
+  remaining,
+  seriesCardText,
+  startedProgress,
+} from './continueCard';
 import { CoverPen, EDITABLE_KINDS, EditMetadata } from './EditMetadata';
 import { ItemMeta } from './ItemMeta';
 import { homeRowTitle, isAudioKind } from './labels';
@@ -133,29 +139,13 @@ function stationState(radio: RadioPlayer, stationId: number) {
 
 const genreHref = (name: string) => `${paths.search}?genre=${encodeURIComponent(name)}`;
 
-/** "Noch 20 min": the time left of a started title. */
-function remaining(t: TFunction, progress: NonNullable<ItemRef['progress']>): string {
-  const minutes = Math.max(1, Math.round((progress.durationMs - progress.positionMs) / 60_000));
-  return t('home.remaining', { time: formatRuntime(t, minutes) });
-}
-
-/**
- * The series a card of "Weiterschauen" shows instead of its episode (concept 15 P-1): its poster
- * and title. Undefined for every other card and for an episode without `seriesRef`, which show the
- * title itself; the other rows stay as they are.
- */
+/** The series a card of "Weiterschauen" shows instead of its episode (continueSeries). */
 const seriesOf = (row: HomeRow, item: ItemRef) =>
-  row.key === 'continue' && item.kind === 'episode' ? item.seriesRef : undefined;
+  row.key === 'continue' ? continueSeries(item) : undefined;
 
-/**
- * The title a card's pen edits (concept 15 P-6): the title of the cover it sits on. On a series
- * card of "Weiterschauen" that is the series, whose poster and title the card shows, not the
- * episode the card opens.
- */
-function editedTitle(row: HomeRow, item: ItemRef): Pick<ItemRef, 'id' | 'kind' | 'title'> {
-  const series = seriesOf(row, item);
-  return series ? { id: series.id, kind: 'series', title: series.title } : item;
-}
+/** The title a card's pen edits: the series on a series card of "Weiterschauen" (continueEdited). */
+const editedTitle = (row: HomeRow, item: ItemRef): Pick<ItemRef, 'id' | 'kind' | 'title'> =>
+  row.key === 'continue' ? continueEdited(item) : item;
 
 /**
  * Focus and React key of a card, by the row's id (several library rows share a key, concept 15
@@ -163,38 +153,6 @@ function editedTitle(row: HomeRow, item: ItemRef): Pick<ItemRef, 'id' | 'kind' |
  * ends the card shows the next one and keeps its focus on return.
  */
 const cardKey = (row: HomeRow, item: ItemRef) => `${row.id}-${seriesOf(row, item)?.id ?? item.id}`;
-
-/**
- * The progress of a started title: a position past 0. A next episode with a progress row at 0
- * (opened, never played) counts as new, without "Noch …" and without a bar.
- */
-const startedProgress = (item: ItemRef) =>
-  item.progress && item.progress.positionMs > 0 ? item.progress : undefined;
-
-/** "S4 · F7", or "S4 · F7–F8" for a file with several episodes; undefined without numbers. */
-function shortEpisodeCode(t: TFunction, item: ItemRef): string | undefined {
-  if (item.seasonNumber === undefined || item.episodeNumber === undefined) return undefined;
-  const numbers = { season: item.seasonNumber, episode: item.episodeNumber };
-  return item.episodeEnd !== undefined && item.episodeEnd > item.episodeNumber
-    ? t('home.continue.episodeRange', { ...numbers, end: item.episodeEnd })
-    : t('home.continue.episode', numbers);
-}
-
-/**
- * Title, caption and spoken name of a series card (seriesOf): "S4 · F7 · Noch 20 min" under the
- * series title, "S4 · F8 · Neu" for the next episode not started yet; the name adds the episode's
- * own title ("Die Simpsons, S4 · F7, Donuts im Stau, Noch 20 min").
- */
-function seriesCardText(t: TFunction, series: { title: string }, item: ItemRef) {
-  const code = shortEpisodeCode(t, item);
-  const progress = startedProgress(item);
-  const state = progress ? remaining(t, progress) : t('home.continue.new');
-  return {
-    title: series.title,
-    caption: [code, state].filter(Boolean).join(t('format.separator')),
-    label: [series.title, code, item.title, state].filter(Boolean).join(t('format.listSeparator')),
-  };
-}
 
 function cardCaption(t: TFunction, row: HomeRow, item: ItemRef): string | undefined {
   // A curated spotlight title carries the main user's note (M11); it says more than the year.

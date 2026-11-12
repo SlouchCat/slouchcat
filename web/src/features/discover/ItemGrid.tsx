@@ -59,10 +59,19 @@ interface ItemGridProps {
   describe?: (item: ItemRef) => CardFacts;
 }
 
-/** What a page may say on a card instead of the year and the progress (ItemGrid `describe`). */
+/**
+ * What a page may say on a card instead of the year and the progress (ItemGrid `describe`); the
+ * list «Weiterschauen» also draws an episode as its series (title, spoken name and poster, concept
+ * 20 P-7).
+ */
 export interface CardFacts {
   caption?: string;
   progress?: { percent: number; label: string };
+  title?: string;
+  /** The card's spoken name when it says more than its title (PosterCard `label`). */
+  label?: string;
+  /** The poster to draw instead of the title's own. */
+  images?: ItemRef['images'];
 }
 
 interface ItemCellProps {
@@ -105,7 +114,8 @@ export function ItemCell({
     <PosterCard
       focusKey={cardKey(focusKey, item)}
       href={paths.item(item.id)}
-      title={item.title}
+      title={facts?.title ?? item.title}
+      label={facts?.label}
       caption={
         facts?.caption ??
         (item.kind === 'episode' && item.seriesTitle
@@ -113,8 +123,8 @@ export function ItemCell({
           : (caption(item) ?? t(`kind.${item.kind}`)))
       }
       clampCaption={clampCaption}
-      posterUrl={imageUrl(item.images.poster)}
-      posterSmallUrl={imageUrl(item.images.posterSmall)}
+      posterUrl={imageUrl((facts?.images ?? item.images).poster)}
+      posterSmallUrl={imageUrl((facts?.images ?? item.images).posterSmall)}
       accent={item.accent}
       shape={audio ? 'square' : 'poster'}
       frame={frame}

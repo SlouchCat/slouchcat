@@ -8,13 +8,25 @@ export const HOME_LIST_KEYS: readonly HomeListKey[] = [
   'released',
 ];
 
-/** The kinds of the top level the filter of the list page offers (RootContent). */
+/** The kinds of the top level a list may hold (RootContent), in the order of the filter. */
 export const HOME_LIST_CONTENTS: readonly RootContent[] = [
   'movie',
   'series',
   'audiobook',
   'podcast',
 ];
+
+/**
+ * The kinds the filter of each list offers: only those that can match. «Kürzlich veröffentlicht»
+ * dates films, series and audiobooks, never podcasts; the spotlight holds films and series of a
+ * Trakt list.
+ */
+export const HOME_LIST_CONTENTS_OF: Readonly<Record<HomeListKey, readonly RootContent[]>> = {
+  continue: HOME_LIST_CONTENTS,
+  recent: HOME_LIST_CONTENTS,
+  released: ['movie', 'series', 'audiobook'],
+  spotlight: ['movie', 'series'],
+};
 
 /** The search parameters of the list page: `content`, one kind of the top level. */
 export function validateHomeListSearch(search: Record<string, unknown>): { content?: RootContent } {
