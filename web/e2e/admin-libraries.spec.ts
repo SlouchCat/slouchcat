@@ -414,7 +414,10 @@ test('the audio libraries show kind and default rating; the menu opens the ratin
   await page.keyboard.press('Enter');
   const item = page.getByRole('menuitem', { name: 'Standardstufe ändern' });
   await expectFocusOn(page, item);
+  // ↓ reaches «Bibliothek löschen …» below «Gefahr» (concept 20 P-8), ↑ goes back.
   await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, page.getByRole('menuitem', { name: 'Bibliothek löschen …' }));
+  await page.keyboard.press('ArrowUp');
   await expectFocusOn(page, item);
   await page.keyboard.press('Escape');
   await expect(item).toHaveCount(0);
