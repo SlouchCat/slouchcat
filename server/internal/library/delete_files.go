@@ -549,18 +549,32 @@ func (s *Service) dropDeletedFiles(ctx context.Context, t itemTree, gone []strin
 			return 0, nil, fmt.Errorf("delete titles for good: %w", err)
 		}
 	}
+	// Containers left without a child go as well (review finding 7): seasons of the tree, then
+	// the season and the series above the title (the last episode of a season, the last season of
+	// a series), each after the one below it.
+	var groups [][]string
 	if left > 0 {
-		// Seasons that lost their last episode go as well.
-		for chunk := range slices.Chunk(t.ids, treeChunk) {
+		groups = append(groups, t.ids)
+	}
+	for id, n := t.item.ParentID, 0; id.Valid && n < 2; n++ {
+		groups = append(groups, []string{id.String})
+		up, err := q.GetDeletionItem(ctx, systemq.GetDeletionItemParams{ID: id.String})
+		if err != nil {
+			return 0, nil, fmt.Errorf("load parent %s: %w", id.String, err)
+		}
+		id = up.ParentID
+	}
+	for _, group := range groups {
+		for chunk := range slices.Chunk(group, treeChunk) {
 			ids, err := q.ListEmptyContainers(ctx, chunk)
 			if err != nil {
-				return 0, nil, fmt.Errorf("empty seasons: %w", err)
+				return 0, nil, fmt.Errorf("empty containers: %w", err)
 			}
 			if len(ids) == 0 {
 				continue
 			}
 			if _, err := q.HardDeleteItems(ctx, ids); err != nil {
-				return 0, nil, fmt.Errorf("delete empty seasons: %w", err)
+				return 0, nil, fmt.Errorf("delete empty containers: %w", err)
 			}
 			deleted = append(deleted, ids...)
 		}

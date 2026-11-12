@@ -322,3 +322,35 @@ func TestDeleteFilesKeepsAReplacedFile(t *testing.T) {
 		t.Error("the replaced file or the title went")
 	}
 }
+
+// Review finding 7: deleting the last episode of a season with its file takes the empty season,
+// and the last season of a series the empty series; a series with another season stays.
+func TestDeleteFilesTakesEmptyContainersAbove(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	files := []string{
+		"Solo (2020)/Season 01/Solo - S01E01.mkv",
+		"Duo (2021)/Season 01/Duo - S01E01.mkv", "Duo (2021)/Season 02/Duo - S02E01.mkv",
+		"Keep (2001)/Season 01/Keep - S01E01.mkv", "Keep (2001)/Season 01/Keep - S01E02.mkv",
+	}
+	dir := tree(t, files)
+	lib := e.createSeries(dir)
+	e.scan(lib.ID)
+	episode := func(rel string) string { return e.str(`SELECT item_id FROM media_files WHERE rel_path = ?`, rel) }
+	solo := e.str(`SELECT id FROM items WHERE kind = 'series' AND title = 'Solo'`)
+	duo := e.str(`SELECT id FROM items WHERE kind = 'series' AND title = 'Duo'`)
+	for _, rel := range []string{"Solo (2020)/Season 01/Solo - S01E01.mkv", "Duo (2021)/Season 02/Duo - S02E01.mkv"} {
+		if _, err := e.svc.DeleteItem(e.ctx, episode(rel), "de", model.DeleteModeFiles, "", model.Actor{}); err != nil {
+			t.Fatalf("%s: %v", rel, err)
+		}
+	}
+	if n := e.count(`SELECT count(*) FROM items WHERE id = ? OR parent_id = ?`, solo, solo); n != 0 {
+		t.Errorf("rows of the emptied series Solo left: %d", n)
+	}
+	if n := e.count(`SELECT count(*) FROM items WHERE parent_id = ? AND kind = 'season'`, duo); n != 1 {
+		t.Errorf("seasons of Duo = %d, want the first one", n)
+	}
+	if n := e.count(`SELECT count(*) FROM items WHERE id = ?`, duo); n != 1 {
+		t.Error("the series Duo with a season left went")
+	}
+}

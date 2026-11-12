@@ -470,11 +470,12 @@ func (q *Queries) ListCoverPathsOfItems(ctx context.Context, itemIds []string) (
 
 const listEmptyContainers = `-- name: ListEmptyContainers :many
 SELECT i.id FROM items AS i
-WHERE i.id IN (/*SLICE:item_ids*/?) AND i.kind = 'season'
+WHERE i.id IN (/*SLICE:item_ids*/?) AND i.kind IN ('season', 'series')
   AND NOT EXISTS (SELECT 1 FROM items AS c WHERE c.parent_id = i.id)
 `
 
-// Of the given titles, the seasons without a child left.
+// Of the given titles, the seasons and series without a child left (a podcast stays as a
+// subscription).
 func (q *Queries) ListEmptyContainers(ctx context.Context, itemIds []string) ([]string, error) {
 	query := listEmptyContainers
 	var queryParams []interface{}

@@ -75,7 +75,9 @@ mit, was Slouchcat nicht kennt); (e) weiches Löschen des Titels, wenn alle Date
    damit kein Player eine gelöschte Version anbietet. Bleibt vom ganzen Titel keine Datei, wird er **endgültig**
    gelöscht, samt Fortschritt, Haken und Merkliste (O-14); er bekommt weder `deleted_at` noch `removed_at`.
    Scheitert eine Datei, bleibt der Titel mit den verbliebenen Dateien, Titel darunter ohne Datei und leer
-   gewordene Staffeln gehen endgültig, und das Ergebnis nennt die gebliebenen Dateien. Eine Podcast-Folge mit
+   gewordene Staffeln gehen endgültig, und das Ergebnis nennt die gebliebenen Dateien. Wird mit der letzten
+   Folge einer Staffel oder der letzten Staffel einer Serie gelöscht, gehen die leere Staffel und die leere
+   Serie darüber endgültig mit. Eine Podcast-Folge mit
    Enclosure bleibt als Verweis aus dem Feed. Jedes Löschen schreibt ein Aktivitätsereignis `item_deleted`
    (wer, Titel, Wahl, Zahl der Dateien, Bytes; kein Pfad).
 6. **Kein automatisches Löschen.** Kein Aufräumjob, keine Regel «nach dem Sehen löschen», keine Frist, kein

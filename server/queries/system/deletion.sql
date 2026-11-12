@@ -222,9 +222,10 @@ WHERE i.id IN (sqlc.slice('item_ids'))
   AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = i.id);
 
 -- name: ListEmptyContainers :many
--- Of the given titles, the seasons without a child left.
+-- Of the given titles, the seasons and series without a child left (a podcast stays as a
+-- subscription).
 SELECT i.id FROM items AS i
-WHERE i.id IN (sqlc.slice('item_ids')) AND i.kind = 'season'
+WHERE i.id IN (sqlc.slice('item_ids')) AND i.kind IN ('season', 'series')
   AND NOT EXISTS (SELECT 1 FROM items AS c WHERE c.parent_id = i.id);
 
 -- name: HardDeleteItems :execrows
