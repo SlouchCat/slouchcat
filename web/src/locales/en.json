@@ -38,6 +38,7 @@
     "hideSidebar": "Hide sidebar",
     "showSidebar": "Show sidebar",
     "radio": "Radio",
+    "watched": "Watched",
     "account": "Account",
     "switchProfileShort": "Switch",
     "switchProfileCard": "Switch profile, currently {{name}}",
@@ -5435,6 +5436,33 @@
     }
   },
   "watched": {
+    "page": {
+      "title": "Watched",
+      "count_one": "{{count}} title",
+      "count_other": "{{count}} titles",
+      "filters": "Filters",
+      "content": "Kind",
+      "contents": {
+        "all": "All",
+        "movie": "Films",
+        "series": "Series",
+        "audiobook": "Audiobooks",
+        "podcast": "Podcasts"
+      },
+      "sort": "Sort",
+      "sorts": {
+        "watched": "Last watched",
+        "title": "Title A–Z"
+      },
+      "watchedOn": "watched on {{date}}",
+      "heardOn": "heard on {{date}}",
+      "episodes_one": "{{count}} of {{total}} episodes · last {{date}}",
+      "episodes_other": "{{count}} of {{total}} episodes · last {{date}}",
+      "empty": {
+        "title": "Nothing watched yet.",
+        "body": "What you watch or listen to the end shows up here."
+      }
+    },
     "label": "Watched: {{title}}",
     "button": "Watched",
     "hint": {

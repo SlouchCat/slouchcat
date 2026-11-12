@@ -32,6 +32,7 @@ export const sideNavArgs: SideNavProps = {
     { href: '#search', label: 'Suche', icon: 'search' },
     { href: '#watchlist', label: 'Merkliste', icon: 'bookmark' },
     { href: '#radio', label: 'Radio', icon: 'radio' },
+    { href: '#watched', label: 'Gesehen', icon: 'check' },
     { href: '#downloads', label: 'Downloads', icon: 'download' },
   ],
   librariesLabel: 'Meine Medien',

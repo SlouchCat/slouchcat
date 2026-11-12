@@ -38,6 +38,7 @@
     "hideSidebar": "Seitenleiste ausblenden",
     "showSidebar": "Seitenleiste einblenden",
     "radio": "Radio",
+    "watched": "Gesehen",
     "account": "Konto",
     "switchProfileShort": "Wechseln",
     "switchProfileCard": "Profil wechseln, jetzt {{name}}",
@@ -5435,6 +5436,33 @@
     }
   },
   "watched": {
+    "page": {
+      "title": "Gesehen",
+      "count_one": "{{count}} Titel",
+      "count_other": "{{count}} Titel",
+      "filters": "Filter",
+      "content": "Medienart",
+      "contents": {
+        "all": "Alle",
+        "movie": "Filme",
+        "series": "Serien",
+        "audiobook": "Hörbücher",
+        "podcast": "Podcasts"
+      },
+      "sort": "Sortierung",
+      "sorts": {
+        "watched": "Zuletzt gesehen",
+        "title": "Titel A–Z"
+      },
+      "watchedOn": "gesehen am {{date}}",
+      "heardOn": "gehört am {{date}}",
+      "episodes_one": "{{count}} von {{total}} Folgen · zuletzt {{date}}",
+      "episodes_other": "{{count}} von {{total}} Folgen · zuletzt {{date}}",
+      "empty": {
+        "title": "Noch nichts gesehen.",
+        "body": "Was du zu Ende schaust oder hörst, erscheint hier."
+      }
+    },
     "label": "Gesehen: {{title}}",
     "button": "Gesehen",
     "hint": {

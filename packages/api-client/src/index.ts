@@ -45,6 +45,10 @@ export type Chapter = components['schemas']['Chapter'];
 export type Segment = components['schemas']['Segment'];
 export type WatchTime = components['schemas']['WatchTime'];
 export type WatchReport = components['schemas']['WatchReport'];
+// The page «Gesehen» (concept 20 P-14, contract 1.31.0).
+export type WatchedEntry = components['schemas']['WatchedEntry'];
+export type WatchedPage = components['schemas']['WatchedPage'];
+export type WatchedSort = components['schemas']['WatchedSort'];
 export type PlaybackLimits = components['schemas']['PlaybackLimits'];
 export type PlaybackPrefs = components['schemas']['PlaybackPrefs'];
 export type SubtitleMode = components['schemas']['SubtitleMode'];

@@ -576,6 +576,13 @@ const watchlistRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/discover/WatchlistPage'), 'WatchlistPage'),
 });
 
+// concept 20 P-14: the page «Gesehen».
+const watchedRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/watched',
+  component: lazyRouteComponent(() => import('@/features/discover/WatchedPage'), 'WatchedPage'),
+});
+
 const collectionRoute = createRoute({
   getParentRoute: () => chromeRoute,
   path: '/collections/$collectionId',
@@ -691,6 +698,7 @@ export const routeTree = rootRoute.addChildren([
         // discover M7
         searchRoute,
         watchlistRoute,
+        watchedRoute,
         collectionRoute,
         notificationsRoute,
         // concept 08
