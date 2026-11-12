@@ -92,36 +92,52 @@ func (s *Service) fileReason(f systemq.ListMediaFilesOfItemsRow, shared bool, di
 	if shared {
 		return model.DeleteReasonShared
 	}
-	if _, hanging := s.hangingChecks.Load(f.RootPath); hanging {
+	key := f.RootPath + "\x00" + path.Dir(f.RelPath)
+	cached, known := dirs[key]
+	type verdict struct{ reason, dir string }
+	v, ok := withDeadline(s, f.RootPath, func() verdict {
+		reason, dir := s.fileReasonNow(f, cached, known)
+		return verdict{reason, dir}
+	})
+	if !ok {
 		return model.DeleteReasonUnreachable
+	}
+	if v.dir != "-" {
+		dirs[key] = v.dir
+	}
+	return v.reason
+}
+
+// withDeadline runs fn, a file system call below the root rootDir, with the deadline of the checks
+// and deletes (review findings 8 and N5). It reports false when the call did not answer in time,
+// or when an earlier call below the same root still hangs: the root is marked hanging until that
+// call returns, and everything else below it answers false at once. fn must touch no shared state;
+// its result is read only when it answered in time.
+func withDeadline[T any](s *Service, rootDir string, fn func() T) (T, bool) {
+	var zero T
+	if _, hanging := s.hangingChecks.Load(rootDir); hanging {
+		return zero, false
 	}
 	timeout := s.fileCheckTimeout
 	if timeout == 0 {
 		timeout = fileCheckTimeout
 	}
-	key := f.RootPath + "\x00" + path.Dir(f.RelPath)
-	cached, known := dirs[key]
-	type verdict struct{ reason, dir string }
-	answer := make(chan verdict, 1)
+	answer := make(chan T, 1)
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		reason, dir := s.fileReasonNow(f, cached, known)
-		answer <- verdict{reason, dir}
+		answer <- fn()
 	}()
 	select {
 	case v := <-answer:
-		if v.dir != "-" {
-			dirs[key] = v.dir
-		}
-		return v.reason
+		return v, true
 	case <-time.After(timeout):
-		s.hangingChecks.Store(f.RootPath, struct{}{})
+		s.hangingChecks.Store(rootDir, struct{}{})
 		go func() {
 			<-done
-			s.hangingChecks.Delete(f.RootPath)
+			s.hangingChecks.Delete(rootDir)
 		}()
-		return model.DeleteReasonUnreachable
+		return zero, false
 	}
 }
 
@@ -220,7 +236,13 @@ func (s *Service) deleteWithFiles(ctx context.Context, q *systemq.Queries, t ite
 			continue
 		}
 		// The file must still be the one the scan recorded (device and inode), else it stays.
-		switch err := s.removeFile(root, f.RelPath, recordedID(f), true); {
+		err, answered := withDeadline(s, f.RootPath, func() error { return s.removeFile(root, f.RelPath, recordedID(f), true) })
+		if !answered {
+			// The share does not answer: this file and the rest below the root stay (review N5).
+			out.Leftover = append(out.Leftover, model.DeletionLeftover{RootPath: f.RootPath, Path: f.RelPath, Reason: model.DeleteReasonUnreachable})
+			continue
+		}
+		switch {
 		case err == nil:
 			out.DeletedBytes += f.Size
 		case errors.Is(err, fs.ErrNotExist):
@@ -239,14 +261,17 @@ func (s *Service) deleteWithFiles(ctx context.Context, q *systemq.Queries, t ite
 		return out, err
 	}
 	for _, x := range extra {
-		switch err := s.removeFile(x.root, x.rel, paths.FileID{}, false); {
+		err, answered := withDeadline(s, x.root.Dir(), func() error { return s.removeFile(x.root, x.rel, paths.FileID{}, false) })
+		switch {
+		case !answered:
+			out.Leftover = append(out.Leftover, model.DeletionLeftover{RootPath: x.root.Dir(), Path: x.rel, Reason: model.DeleteReasonUnreachable})
 		case err == nil, errors.Is(err, fs.ErrNotExist):
 		default:
 			s.log.WarnContext(ctx, "file of a deleted title not deleted", "item_id", t.item.ID, "root", x.root.Dir(), "path", x.rel, "err", err)
 			out.Leftover = append(out.Leftover, model.DeletionLeftover{RootPath: x.root.Dir(), Path: x.rel, Reason: removeReason(err)})
 		}
 	}
-	out.LeftInFolder = removeEmptyFolders(dirs)
+	out.LeftInFolder = s.removeEmptyFolders(dirs)
 	removed, deleted, err := s.dropDeletedFiles(ctx, t, gone, extra)
 	if err != nil {
 		return out, err
@@ -417,10 +442,18 @@ func (s *Service) recordedAndCompanions(ctx context.Context, q *systemq.Queries,
 		}
 		dir, base := path.Dir(f.RelPath), path.Base(f.RelPath)
 		stem := strings.TrimSuffix(base, path.Ext(base))
-		names, err := paths.ReadDirNames(root, dir, 0)
-		if err != nil {
-			continue // the folder is gone or unreadable: no companion to find
+		type listing struct {
+			names []string
+			err   error
 		}
+		l, answered := withDeadline(s, f.RootPath, func() listing {
+			names, err := paths.ReadDirNames(root, dir, 0)
+			return listing{names, err}
+		})
+		if !answered || l.err != nil {
+			continue // the folder hangs, is gone or unreadable: no companion to find
+		}
+		names := l.names
 		// The stems of the other media files of the folder, on the disk and in the database: a
 		// candidate that starts with a longer one belongs to that file («Alien-Resurrection.de.srt»
 		// next to «Alien.mkv» and «Alien-Resurrection.mkv»; review N1).
@@ -435,10 +468,18 @@ func (s *Service) recordedAndCompanions(ctx context.Context, q *systemq.Queries,
 				candidates = append(candidates, n)
 			}
 		}
-		entries, err := paths.LstatAll(root, dir, candidates)
-		if err != nil {
+		type stats struct {
+			entries []fs.DirEntry
+			err     error
+		}
+		st, answered := withDeadline(s, f.RootPath, func() stats {
+			entries, err := paths.LstatAll(root, dir, candidates)
+			return stats{entries, err}
+		})
+		if !answered || st.err != nil {
 			continue
 		}
+		entries := st.entries
 		for _, e := range entries {
 			if !e.Type().IsRegular() {
 				continue // a folder or a symlink of that name stays
@@ -551,7 +592,7 @@ func (s *Service) knownIdentity(ctx context.Context, q *systemq.Queries, e fs.Di
 // removeEmptyFolders is step 4: each folder a file left goes when it is empty, then each empty
 // folder above it up to below the library root. It returns how many entries stay in the folders
 // that stayed (what Slouchcat does not know; nothing is deleted recursively).
-func removeEmptyFolders(dirs map[string]fileTarget) int {
+func (s *Service) removeEmptyFolders(dirs map[string]fileTarget) int {
 	left := map[string]int{}
 	keys := slices.Sorted(func(yield func(string) bool) {
 		for k := range dirs {
@@ -567,9 +608,19 @@ func removeEmptyFolders(dirs map[string]fileTarget) int {
 	for _, k := range keys {
 		d := dirs[k]
 		for dir := d.rel; dir != "." && dir != "/" && dir != ""; dir = path.Dir(dir) {
-			if err := paths.RemoveEmptyDir(d.root, dir); err != nil {
-				if names, rerr := paths.ReadDirNames(d.root, dir, 0); rerr == nil {
-					left[d.root.Dir()+"\x00"+dir] = len(names)
+			err, answered := withDeadline(s, d.root.Dir(), func() error { return paths.RemoveEmptyDir(d.root, dir) })
+			if !answered {
+				break // the share hangs: the folder stays
+			}
+			if err != nil {
+				if n, answered := withDeadline(s, d.root.Dir(), func() int {
+					names, rerr := paths.ReadDirNames(d.root, dir, 0)
+					if rerr != nil {
+						return -1
+					}
+					return len(names)
+				}); answered && n >= 0 {
+					left[d.root.Dir()+"\x00"+dir] = n
 				}
 				break
 			}

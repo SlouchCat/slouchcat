@@ -114,6 +114,10 @@ mit, was Slouchcat nicht kennt); (e) weiches Löschen des Titels, wenn alle Date
   CT 190 wird ein eigener Testordner schreibbar eingebunden, die echten Medien bleiben nur lesbar.
 - Der Schaden eines Fehlers ist auf schreibbar eingebundene Ordner begrenzt und dort auf die Dateien eines
   Titels, den der Administrator mit Namen bestätigt hat (bei mehr als einer Datei getippt).
+- Jeder Dateizugriff der Prüfung und des Löschens (`lstat`, `faccessat`, Löschen, Ordner lesen, leere
+  Ordner entfernen) hat eine Frist von drei Sekunden. Antwortet eine Freigabe nicht, gilt die Wurzel als
+  hängend: die betroffene Datei und alles Weitere darunter bleiben mit dem Grund `unreachable`, das Löschen
+  endet und gibt Sperre und gehaltene Titel frei.
 - Die Prüfung sieht ACLs und die Regeln einer Netzfreigabe nur so weit, wie der Kernel sie sieht; scheitert
   das Löschen trotzdem, bleibt der Titel mit der Datei, und das Ergebnis nennt sie.
 - Ein Podcast-Ordner, der für ADR 0029 schreibbar eingebunden ist, ist damit auch für das Löschen von Hand

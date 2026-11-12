@@ -479,3 +479,60 @@ func TestDeleteFilesKeepsAFileWithoutIdentity(t *testing.T) {
 		t.Error("the file without identity went")
 	}
 }
+
+// Review N5: a delete whose share stops answering gives up after the deadline: the file that hangs
+// and every later file of that root stay as unreachable, nothing below the root is touched any
+// more, the title stays, and the delete returns with the lock and the set of held titles released.
+func TestDeleteFilesGivesUpOnAHangingShare(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	files := []string{
+		"Show (2020)/Season 01/Show - S01E01.mkv", "Show (2020)/Season 01/Show - S01E02.mkv",
+		"Keep (2001)/Season 01/Keep - S01E01.mkv", "Keep (2001)/Season 01/Keep - S01E02.mkv",
+	}
+	dir := tree(t, files)
+	lib := e.createSeries(dir)
+	e.scan(lib.ID)
+	deleting := model.NewDeletingSet()
+	WithDeleting(deleting)(e.svc)
+	show := e.str(`SELECT id FROM items WHERE kind = 'series' AND title = 'Show'`)
+	release := make(chan struct{})
+	defer close(release)
+	var calls atomic.Int32
+	e.svc.fileCheckTimeout = 50 * time.Millisecond
+	e.svc.removeFileFn = func(paths.Root, string) error {
+		calls.Add(1)
+		<-release
+		return nil
+	}
+	start := time.Now()
+	out, err := e.deleteItem(show, "de", model.DeleteModeFiles, "Show", model.Actor{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("delete took %v", elapsed)
+	}
+	if out.DeletedFiles != 0 || out.TitleDeleted || len(out.Leftover) != 2 {
+		t.Fatalf("result = %+v", out)
+	}
+	for _, l := range out.Leftover {
+		if l.Reason != model.DeleteReasonUnreachable {
+			t.Errorf("leftover %+v", l)
+		}
+	}
+	if n := calls.Load(); n != 1 {
+		t.Errorf("deletes started = %d, want 1 while the share hangs", n)
+	}
+	if deleting.Has(show) {
+		t.Error("the title is still held")
+	}
+	if unlock, ok := e.svc.tryLockScan(lib.ID); !ok {
+		t.Error("the scan lock is still held")
+	} else {
+		unlock()
+	}
+	if !exists(t, dir, files[0]) || e.count(`SELECT count(*) FROM items WHERE id = ? AND deleted_at IS NULL`, show) != 1 {
+		t.Error("a file or the title went")
+	}
+}
