@@ -84,7 +84,8 @@ mit, was Slouchcat nicht kennt); (e) weiches Löschen des Titels, wenn alle Date
 7. **Lint-Regel.** `Remove` und `RemoveAll` auf `*os.Root` sind ausserhalb von `internal/paths` verboten
    (`forbidigo`, Muster `^os\.Root\.Remove(All)?$`). Gelöscht wird unter einer Wurzel nur mit
    `paths.Remove` (nur gewöhnliche Dateien, `lstat` ohne Folgen von Symlinks, `..` und Symlinks nach
-   aussen abgelehnt) und `paths.RemoveEmptyDir` (nur leere Ordner, nie die Wurzel). Die bestehenden Löschungen
+   aussen abgelehnt; eine Mediendatei nur, wenn Gerät und Inode noch die aus `media_files` sind, sonst
+   bleibt sie mit dem Grund `changed`) und `paths.RemoveEmptyDir` (nur leere Ordner, nie die Wurzel). Die bestehenden Löschungen
    im Cache (Bilder, Trickplay, Kapitelbilder, Offline-Pakete, Radiologos, Anime-Listen) und der eigenen
    Hilfsdateien eines Downloads (`internal/fetch`, Podcast-Downloads nach ADR 0029) tragen an jeder Stelle ein
    `//nolint:forbidigo` mit Begründung; `os.Remove` auf `/config` und `/cache` bleibt erlaubt.

@@ -71,6 +71,7 @@ const (
 	DeleteReasonUnreachable  = "unreachable"   // the root or the folder cannot be opened
 	DeleteReasonMissing      = "missing"       // already gone; counts as deleted
 	DeleteReasonFailed       = "failed"        // the delete itself failed
+	DeleteReasonChanged      = "changed"       // another file than the scanned one lies at the path
 )
 
 // ItemDeletionPreview is what a delete of a title would touch: its media files and those of every

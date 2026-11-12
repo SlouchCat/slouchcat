@@ -19,11 +19,21 @@ var ErrNotRegular = errors.New("not a regular file")
 // ErrNotDir is returned by RemoveEmptyDir for anything but a directory.
 var ErrNotDir = errors.New("not a directory")
 
+// ErrChanged is returned by Remove when the file at the path is not the one expected: its device
+// and inode differ from what the caller recorded (the file was replaced since the scan).
+var ErrChanged = errors.New("file changed")
+
+// FileID is the device and inode a caller expects at a path; the zero value expects nothing.
+type FileID struct {
+	Dev, Inode uint64
+}
+
 // Remove deletes the regular file rel below root. rel passes the lexical check of Resolve and is
 // then opened through the root's *os.Root, so ".." and symlinks out of the root are refused; the
 // entry itself is looked at with lstat, so a symlink is refused as ErrNotRegular instead of being
-// followed. A missing file answers an error that wraps fs.ErrNotExist.
-func Remove(root Root, rel string) error {
+// followed. A missing file answers an error that wraps fs.ErrNotExist. With a non-zero want the
+// file must have that device and inode, else ErrChanged and nothing is deleted.
+func Remove(root Root, rel string, want FileID) error {
 	if _, err := Resolve(root, rel); err != nil {
 		return err
 	}
@@ -38,6 +48,9 @@ func Remove(root Root, rel string) error {
 	}
 	if !fi.Mode().IsRegular() {
 		return fmt.Errorf("remove %s: %w", rel, ErrNotRegular)
+	}
+	if want != (FileID{}) && fileIDOf(fi) != want {
+		return fmt.Errorf("remove %s: %w", rel, ErrChanged)
 	}
 	if err := r.Remove(rel); err != nil {
 		return fmt.Errorf("remove %s: %w", rel, err)

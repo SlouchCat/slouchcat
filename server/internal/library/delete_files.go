@@ -177,7 +177,8 @@ func (s *Service) deleteWithFiles(ctx context.Context, q *systemq.Queries, t ite
 			out.Leftover = append(out.Leftover, model.DeletionLeftover{RootPath: f.RootPath, Path: f.RelPath, Reason: model.DeleteReasonShared})
 			continue
 		}
-		switch err := s.removeFile(root, f.RelPath); {
+		// The file must still be the one the scan recorded (device and inode), else it stays.
+		switch err := s.removeFile(root, f.RelPath, recordedID(f)); {
 		case err == nil:
 			out.DeletedBytes += f.Size
 		case errors.Is(err, fs.ErrNotExist):
@@ -196,7 +197,7 @@ func (s *Service) deleteWithFiles(ctx context.Context, q *systemq.Queries, t ite
 		return out, err
 	}
 	for _, x := range extra {
-		switch err := s.removeFile(x.root, x.rel); {
+		switch err := s.removeFile(x.root, x.rel, paths.FileID{}); {
 		case err == nil, errors.Is(err, fs.ErrNotExist):
 		default:
 			s.log.WarnContext(ctx, "file of a deleted title not deleted", "item_id", t.item.ID, "root", x.root.Dir(), "path", x.rel, "err", err)
@@ -222,16 +223,26 @@ func (s *Service) deleteWithFiles(ctx context.Context, q *systemq.Queries, t ite
 }
 
 // removeFile is paths.Remove, or the test seam.
-func (s *Service) removeFile(root paths.Root, rel string) error {
+func (s *Service) removeFile(root paths.Root, rel string, want paths.FileID) error {
 	if s.removeFileFn != nil {
 		return s.removeFileFn(root, rel)
 	}
-	return paths.Remove(root, rel)
+	return paths.Remove(root, rel, want)
+}
+
+// recordedID is the device and inode the scan recorded for a media file (zero: none recorded).
+func recordedID(f systemq.ListMediaFilesOfItemsRow) paths.FileID {
+	if f.Dev == 0 || f.Inode == 0 {
+		return paths.FileID{}
+	}
+	return paths.FileID{Dev: uint64(f.Dev), Inode: uint64(f.Inode)} //nolint:gosec // G115: stored from a uint64 by toInt64
 }
 
 // removeReason maps a failed paths.Remove to the fixed code of the result.
 func removeReason(err error) string {
 	switch {
+	case errors.Is(err, paths.ErrChanged):
+		return model.DeleteReasonChanged
 	case errors.Is(err, paths.ErrNotRegular):
 		return model.DeleteReasonNotRegular
 	case errors.Is(err, fs.ErrPermission):

@@ -5,6 +5,7 @@ package paths
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"syscall"
 
 	"golang.org/x/sys/unix"
@@ -53,4 +54,13 @@ func MayDeleteIn(root Root, rel string) error {
 		return ErrNoPermission
 	}
 	return fmt.Errorf("faccessat %s: %w", rel, err)
+}
+
+// fileIDOf is the device and inode of a file (lstat); zero when the platform has none.
+func fileIDOf(fi fs.FileInfo) FileID {
+	st, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok {
+		return FileID{}
+	}
+	return FileID{Dev: uint64(st.Dev), Inode: uint64(st.Ino)} //nolint:unconvert // the widths of Stat_t differ between architectures
 }

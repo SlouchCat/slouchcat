@@ -4760,7 +4760,8 @@
         "unreachable": "der Ordner ist nicht erreichbar",
         "missing": "fehlt schon (zählt als gelöscht)",
         "failed": "Löschen fehlgeschlagen",
-        "no_files": "keine Datei verzeichnet"
+        "no_files": "keine Datei verzeichnet",
+        "changed": "an der Stelle liegt inzwischen eine andere Datei"
       }
     }
   },

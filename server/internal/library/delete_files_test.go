@@ -193,7 +193,7 @@ func TestDeleteFilesPartialFailureKeepsTheTitle(t *testing.T) {
 		if rel == stuck {
 			return fs.ErrPermission
 		}
-		return paths.Remove(root, rel)
+		return paths.Remove(root, rel, paths.FileID{})
 	}
 	remove(t, dir, "Show (2020)/Season 01/Show - S01E02.mkv") // gone before: counts as deleted
 	out, err := e.svc.DeleteItem(e.ctx, show, "de", model.DeleteModeFiles, "Show", model.Actor{})
@@ -286,5 +286,32 @@ func TestDeleteFilesNeverTakesMediaAsCompanion(t *testing.T) {
 		if got := exists(t, dir, rel); got != want {
 			t.Errorf("%s exists = %v, want %v", rel, got, want)
 		}
+	}
+}
+
+// Review finding 3: a file replaced at the path of a scanned media file (another inode) stays,
+// the result names it with reason changed, and the title stays with it.
+func TestDeleteFilesKeepsAReplacedFile(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	dir := tree(t, append(append([]string{}, twentyMovies[4:10]...), takenFilm))
+	lib := e.create(dir)
+	e.scan(lib.ID)
+	film := e.str(`SELECT item_id FROM media_files WHERE rel_path = ?`, takenFilm)
+	// The old inode stays alive through a link outside the root, so the new file gets another one.
+	if err := os.Link(filepath.Join(dir, filepath.FromSlash(takenFilm)), filepath.Join(t.TempDir(), "old")); err != nil {
+		t.Fatal(err)
+	}
+	remove(t, dir, takenFilm)
+	writeFile(t, dir, takenFilm, "another file under the same name, not scanned")
+	out, err := e.svc.DeleteItem(e.ctx, film, "de", model.DeleteModeFiles, "", model.Actor{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.DeletedFiles != 0 || out.TitleDeleted || len(out.Leftover) != 1 || out.Leftover[0].Reason != model.DeleteReasonChanged {
+		t.Errorf("result = %+v", out)
+	}
+	if !exists(t, dir, takenFilm) || e.count(`SELECT count(*) FROM items WHERE id = ?`, film) != 1 {
+		t.Error("the replaced file or the title went")
 	}
 }

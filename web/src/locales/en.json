@@ -4760,7 +4760,8 @@
         "unreachable": "the folder cannot be reached",
         "missing": "already gone (counts as deleted)",
         "failed": "delete failed",
-        "no_files": "no file recorded"
+        "no_files": "no file recorded",
+        "changed": "another file lies at the path by now"
       }
     }
   },

@@ -8174,8 +8174,9 @@ export interface components {
             rootPath: string;
             path: string;
             /**
-             * @description Fixed code of why the file stayed: `shared`, `no_permission`, `not_regular`, `unreachable`
-             *     or `failed` (the delete itself failed).
+             * @description Fixed code of why the file stayed: `shared`, `no_permission`, `not_regular`, `unreachable`,
+             *     `changed` (another file than the scanned one lies at the path: device and inode differ) or
+             *     `failed` (the delete itself failed).
              */
             reason: string;
         };

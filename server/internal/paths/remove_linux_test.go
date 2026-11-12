@@ -42,27 +42,27 @@ func TestRemoveStaysInsideTheRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := Remove(root, "Film/Film.mkv"); err != nil {
+	if err := Remove(root, "Film/Film.mkv", FileID{}); err != nil {
 		t.Fatalf("remove a file: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "Film", "Film.mkv")); !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("the file is still there: %v", err)
 	}
-	if err := Remove(root, "Film/Film.mkv"); !errors.Is(err, fs.ErrNotExist) {
+	if err := Remove(root, "Film/Film.mkv", FileID{}); !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("remove a missing file = %v, want not exist", err)
 	}
-	if err := Remove(root, "Film/link.mkv"); !errors.Is(err, ErrNotRegular) {
+	if err := Remove(root, "Film/link.mkv", FileID{}); !errors.Is(err, ErrNotRegular) {
 		t.Errorf("remove a symlink = %v, want not regular", err)
 	}
 	for _, rel := range []string{"away/secret.mkv", "../" + filepath.Base(outside) + "/secret.mkv", secret, "Film/../../x"} {
-		if err := Remove(root, rel); err == nil {
+		if err := Remove(root, rel, FileID{}); err == nil {
 			t.Errorf("remove %s went through", rel)
 		}
 	}
 	if _, err := os.Stat(secret); err != nil {
 		t.Errorf("the file outside the root went: %v", err)
 	}
-	if err := Remove(root, "Other"); !errors.Is(err, ErrNotRegular) {
+	if err := Remove(root, "Other", FileID{}); !errors.Is(err, ErrNotRegular) {
 		t.Errorf("remove a directory as a file = %v", err)
 	}
 
@@ -124,5 +124,48 @@ func TestMayDeleteInChecksWithoutWriting(t *testing.T) {
 	entries, err := os.ReadDir(filepath.Join(dir, "open"))
 	if err != nil || len(entries) != 0 {
 		t.Errorf("the check wrote into the folder: %v, %v", entries, err)
+	}
+}
+
+// Review finding 3: with an expected device and inode, Remove deletes only that file; another file
+// at the same path (replaced since the scan) stays and answers ErrChanged.
+func TestRemoveChecksTheExpectedFile(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	p := filepath.Join(dir, "Film.mkv")
+	if err := os.WriteFile(p, []byte("old"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	fi, err := os.Lstat(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := fileIDOf(fi)
+	// Replace it: a new inode at the same path (the old one is kept alive by a link).
+	if err := os.Link(p, filepath.Join(dir, "keep")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(p); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, []byte("new"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	root, err := NewRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Remove(root, "Film.mkv", old); !errors.Is(err, ErrChanged) {
+		t.Errorf("remove a replaced file = %v, want changed", err)
+	}
+	if _, err := os.Stat(p); err != nil {
+		t.Errorf("the replacing file went: %v", err)
+	}
+	fi, err = os.Lstat(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Remove(root, "Film.mkv", fileIDOf(fi)); err != nil {
+		t.Errorf("remove the expected file: %v", err)
 	}
 }

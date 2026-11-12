@@ -2,7 +2,10 @@
 
 package paths
 
-import "errors"
+import (
+	"errors"
+	"io/fs"
+)
 
 // ErrReadOnly and ErrNoPermission are the two answers of MayDeleteIn besides nil.
 var (
@@ -16,3 +19,6 @@ func ReadOnlyAt(Root, string) (bool, error) { return true, nil }
 
 // MayDeleteIn answers ErrReadOnly on platforms without faccessat (see ReadOnlyAt).
 func MayDeleteIn(Root, string) error { return ErrReadOnly }
+
+// fileIDOf is zero on platforms without Stat_t: only the zero FileID matches.
+func fileIDOf(fs.FileInfo) FileID { return FileID{} }
