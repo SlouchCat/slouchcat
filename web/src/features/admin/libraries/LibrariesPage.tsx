@@ -30,6 +30,7 @@ import { DefaultRatingDialog } from './DefaultRatingDialog';
 import { libraryColumns } from './libraryColumns';
 import { LibraryDetail, type LibraryHandlers } from './LibraryDetail';
 import { LibraryFoldersDialog } from './LibraryFoldersDialog';
+import { RenameLibraryDialog } from './RenameLibraryDialog';
 import { TrickplayDialog } from './TrickplayDialog';
 import styles from './Libraries.module.css';
 
@@ -102,6 +103,10 @@ function LibrariesContent() {
   const [ratingOpen, setRatingOpen] = useState(false);
   // Each opening of the rating dialog mounts it afresh, so it starts at the library's value.
   const [ratingSession, setRatingSession] = useState(0);
+  // The same for «Umbenennen …».
+  const [renameId, setRenameId] = useState<number | null>(null);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameSession, setRenameSession] = useState(0);
   // The same for «Vorschau beim Spulen» (concept 18, 9).
   const [trickplayId, setTrickplayId] = useState<number | null>(null);
   const [trickplayOpen, setTrickplayOpen] = useState(false);
@@ -111,7 +116,13 @@ function LibrariesContent() {
   const continueRef = useRef<HTMLButtonElement>(null);
   // The draft lives outside the dialog, so `unsaved.pausePolling` stays out of this.
   const hold =
-    confirmOpen || addOpen || foldersOpen || ratingOpen || trickplayOpen || deleting !== null;
+    confirmOpen ||
+    addOpen ||
+    foldersOpen ||
+    ratingOpen ||
+    renameOpen ||
+    trickplayOpen ||
+    deleting !== null;
 
   // An unknown `?tab=` shows the first tab; the address says so too.
   const [tab, selectTab] = useSearchSelection('tab', TABS, 'all', { normalise: true });
@@ -338,6 +349,11 @@ function LibrariesContent() {
         setFoldersId(id);
         setFoldersOpen(true);
       },
+      onRename: (id) => {
+        setRenameId(id);
+        setRenameSession((session) => session + 1);
+        setRenameOpen(true);
+      },
       onRating: (id) => {
         setRatingId(id);
         setRatingSession((session) => session + 1);
@@ -371,6 +387,7 @@ function LibrariesContent() {
   );
   const foldersLibrary = data?.find((library) => library.id === foldersId);
   const ratingLibrary = data?.find((library) => library.id === ratingId);
+  const renameLibrary = data?.find((library) => library.id === renameId);
   const trickplayLibrary = data?.find((library) => library.id === trickplayId);
 
   // The band is gone while the dialog is open, so a dialog opened from it hands the focus back to
@@ -488,6 +505,23 @@ function LibrariesContent() {
           isOpen={foldersOpen}
           onOpenChange={setFoldersOpen}
           onChanged={(updated) => void refresh(updated)}
+        />
+      )}
+      {renameLibrary && (
+        <RenameLibraryDialog
+          key={renameSession}
+          library={renameLibrary}
+          isOpen={renameOpen}
+          onOpenChange={setRenameOpen}
+          onSaved={(updated) => {
+            setFailure(null);
+            setMessage(t('admin.libraries.rename.saved', { name: updated.name }));
+            // The name shows in the side navigation and the header of the library page
+            // (['libraries', …]), in the rows «Neu in …» of the start page and their lists.
+            for (const queryKey of [['libraries'], ['home'], ['homeList'], ['library']])
+              void queryClient.invalidateQueries({ queryKey });
+            void refresh(updated);
+          }}
         />
       )}
       {ratingLibrary && (

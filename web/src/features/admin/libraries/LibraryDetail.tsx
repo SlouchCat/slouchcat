@@ -27,6 +27,8 @@ export interface LibraryHandlers {
   /** «Vorschau beim Spulen» of a video library (concept 18, 9). */
   onTrickplay: (id: number) => void;
   onAcceptLoss: (library: Library) => void;
+  /** «Umbenennen …»: the name dialog of the page. */
+  onRename: (id: number) => void;
   /** «Bibliothek löschen …» (concept 20 P-8): the typed confirmation of the page. */
   onDelete: (library: Library) => void;
 }
@@ -34,8 +36,8 @@ export interface LibraryHandlers {
 /**
  * The fold-out of a library (Bib-C): «Erneut scannen» or, while a scan runs, «Scan abbrechen»,
  * and «Ordner» as buttons, «Vorschau beim Spulen» for a video library (concept 18, 9);
- * «Standardstufe ändern» (audio), «Verlust akzeptieren» and «Bibliothek löschen …» (danger) in
- * «Weitere Aktionen» (S-6; concept 20 P-8);
+ * «Umbenennen …», «Standardstufe ändern» (audio), «Verlust akzeptieren» and «Bibliothek löschen …»
+ * (danger) in «Weitere Aktionen» (S-6; concept 20 P-8);
  * the link to its metadata (video); the progress of a running scan, the error band of the last
  * one, the trickplay setting, and every folder with its whole path (BIB-1 to BIB-4).
  */
@@ -74,6 +76,7 @@ export const LibraryDetail = memo(function LibraryDetail({
   });
 
   const menu: ActionMenuItem[] = [
+    { id: 'rename', label: t('admin.libraries.rename.action') },
     ...(isAudioLibrary(library.kind)
       ? [{ id: 'rating', label: t('admin.libraries.changeRating.action') }]
       : []),
@@ -83,7 +86,8 @@ export const LibraryDetail = memo(function LibraryDetail({
     { id: 'delete', label: t('admin.libraries.delete.action'), danger: true },
   ];
   const onMenu = (id: string) => {
-    if (id === 'rating') handlers.onRating(library.id);
+    if (id === 'rename') handlers.onRename(library.id);
+    else if (id === 'rating') handlers.onRating(library.id);
     else if (id === 'acceptLoss') handlers.onAcceptLoss(library);
     else if (id === 'delete') handlers.onDelete(library);
   };

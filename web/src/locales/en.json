@@ -1841,6 +1841,12 @@
         "jobs": "Go to the job",
         "done": "Library “{{name}}” deleted.",
         "notDone": "Library “{{name}}” was not deleted. The job says why."
+      },
+      "rename": {
+        "action": "Rename …",
+        "title": "Rename library “{{name}}”",
+        "label": "Name",
+        "saved": "The library is now called “{{name}}”."
       }
     },
     "access": {

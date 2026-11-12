@@ -1841,6 +1841,12 @@
         "jobs": "Zum Job",
         "done": "Bibliothek «{{name}}» gelöscht.",
         "notDone": "Bibliothek «{{name}}» wurde nicht gelöscht. Warum, steht beim Job."
+      },
+      "rename": {
+        "action": "Umbenennen …",
+        "title": "Bibliothek «{{name}}» umbenennen",
+        "label": "Name",
+        "saved": "Die Bibliothek heisst jetzt «{{name}}»."
       }
     },
     "access": {

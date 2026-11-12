@@ -317,7 +317,7 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     // and keeps the focus.
     const more = within(detail).getByRole('button', { name: 'Weitere Aktionen für Filme' });
     await waitFor(() => expect(more).toHaveFocus());
-    expect(await menuEntries(user, more)).toEqual(['Bibliothek löschen …']);
+    expect(await menuEntries(user, more)).toEqual(['Umbenennen …', 'Bibliothek löschen …']);
   });
 
   it('offers no loss acceptance once the loss is accepted, like the overview (concept 11)', async () => {
@@ -343,7 +343,7 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
         user,
         within(detail).getByRole('button', { name: 'Weitere Aktionen für Filme' }),
       ),
-    ).toEqual(['Bibliothek löschen …']);
+    ).toEqual(['Umbenennen …', 'Bibliothek löschen …']);
   });
 
   it('starts a rescan, polls every 5 s while the scan runs and shows «Live» meanwhile', async () => {
@@ -746,7 +746,7 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
         user,
         within(detail).getByRole('button', { name: 'Weitere Aktionen für Filme' }),
       ),
-    ).toEqual(['Bibliothek löschen …']);
+    ).toEqual(['Umbenennen …', 'Bibliothek löschen …']);
   });
 
   it('audio libraries: default rating in the row, changed through PATCH (AN-2, M6)', async () => {
@@ -776,7 +776,7 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
         user,
         within(movieDetail).getByRole('button', { name: 'Weitere Aktionen für Filme' }),
       ),
-    ).toEqual(['Bibliothek löschen …']);
+    ).toEqual(['Umbenennen …', 'Bibliothek löschen …']);
 
     const detail = await openRow(user, 'Hörbücher');
     const more = within(detail).getByRole('button', { name: 'Weitere Aktionen für Hörbücher' });
@@ -790,6 +790,50 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({ defaultRating: 12 });
     expect(screen.getByText('Die Standardstufe von Hörbücher ist jetzt FSK 12.')).toBeVisible();
     await waitFor(() => expect(more).toHaveFocus());
+  });
+
+  it('renames a library from its menu; a server error sits at the field', async () => {
+    let films = library({ scan: { state: 'done', itemCount: 318, fileCount: 300 } });
+    let refuse = true;
+    const { calls } = mockApi({
+      ...signedIn,
+      'GET /admin/libraries': () => json([films]),
+      'GET /libraries/visible': () => json([]),
+      'PATCH /admin/libraries/1': (call) => {
+        if (refuse)
+          return problem(422, 'validation_failed', {
+            errors: [{ field: 'name', code: 'too_long' }],
+          });
+        films = { ...films, name: (call.body as { name: string }).name };
+        return json(films);
+      },
+    });
+    const { queryClient } = renderApp('/admin/libraries');
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    const user = userEvent.setup();
+    const detail = await openRow(user, 'Filme');
+    const more = within(detail).getByRole('button', { name: 'Weitere Aktionen für Filme' });
+    await user.click(more);
+    await user.click(await screen.findByRole('menuitem', { name: 'Umbenennen …' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Bibliothek «Filme» umbenennen' });
+    const field = within(dialog).getByLabelText('Name');
+    expect(field).toHaveValue('Filme');
+    await waitFor(() => expect(field).toHaveFocus());
+    await user.keyboard('Spielfilme{Enter}');
+    await waitFor(() => expect(field).toHaveAccessibleDescription('Zu lang.'));
+    expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(1);
+    expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({ name: 'Spielfilme' });
+
+    refuse = false;
+    await user.type(field, 'X');
+    await user.keyboard('{Backspace}{Enter}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(2);
+    expect(screen.getByText('Die Bibliothek heisst jetzt «Spielfilme».')).toBeVisible();
+    expect(await screen.findByRole('button', { name: 'Spielfilme' })).toBeVisible();
+    // Everything else that shows the name reads it again.
+    for (const queryKey of [['libraries'], ['home'], ['homeList'], ['library']])
+      expect(invalidate).toHaveBeenCalledWith({ queryKey });
   });
 
   it('deletes a library in the background after its name was typed; a running playback refuses (concept 20 P-8)', async () => {
@@ -1046,7 +1090,7 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
   });
 
-  it('walks a menu of two entries with the arrow keys; Escape returns to its button', async () => {
+  it('walks the menu with the arrow keys; Escape returns to its button', async () => {
     const aborted = library({
       ...books,
       scan: { state: 'aborted', itemCount: 1, fileCount: 1, lastError: 'loss_over_threshold' },
@@ -1059,11 +1103,14 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     const more = within(detail).getByRole('button', { name: 'Weitere Aktionen für Hörbücher' });
     more.focus();
     await user.keyboard('{Enter}');
-    const rating = await screen.findByRole('menuitem', { name: 'Standardstufe ändern' });
+    const rename = await screen.findByRole('menuitem', { name: 'Umbenennen …' });
+    const rating = screen.getByRole('menuitem', { name: 'Standardstufe ändern' });
     const loss = screen.getByRole('menuitem', { name: 'Verlust akzeptieren' });
     // «Gefahr» at the bottom.
     expect(screen.getByRole('group', { name: 'Gefahr' })).toContainElement(loss);
-    await waitFor(() => expect(rating).toHaveFocus());
+    await waitFor(() => expect(rename).toHaveFocus());
+    await user.keyboard('{ArrowDown}');
+    expect(rating).toHaveFocus();
     await user.keyboard('{ArrowDown}');
     expect(loss).toHaveFocus();
     await user.keyboard('{ArrowUp}');
