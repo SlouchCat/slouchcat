@@ -304,6 +304,24 @@ func TestDeleteItemTiedToItsPreview(t *testing.T) {
 	if !exists(t, dir, takenE01) || e.count(`SELECT count(*) FROM items WHERE id = ? AND deleted_at IS NULL`, show) != 1 {
 		t.Fatal("something went although the files changed")
 	}
+	// Review N4: a file that only changed (path, size) changes the stamp as well.
+	preview, err = e.svc.ItemDeletion(e.ctx, show, "de")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.exec(`UPDATE media_files SET size = size + 1 WHERE rel_path = ?`, takenE01)
+	if _, err := e.svc.DeleteItem(e.ctx, show, "de", model.DeleteModeFiles, "Night Shift", preview.Expected, model.Actor{}); !errors.Is(err, model.ErrChanged) {
+		t.Fatalf("delete after a size change = %v, want changed", err)
+	}
+	preview, err = e.svc.ItemDeletion(e.ctx, show, "de")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.exec(`UPDATE media_files SET rel_path = ? WHERE rel_path = ?`, takenShow+"/Season 01/renamed.mkv", takenE01)
+	if _, err := e.svc.DeleteItem(e.ctx, show, "de", model.DeleteModeFiles, "Night Shift", preview.Expected, model.Actor{}); !errors.Is(err, model.ErrChanged) {
+		t.Fatalf("delete after a rename = %v, want changed", err)
+	}
+	e.exec(`UPDATE media_files SET rel_path = ? WHERE rel_path = ?`, takenE01, takenShow+"/Season 01/renamed.mkv")
 	if _, err := e.deleteItem(show, "de", model.DeleteModeFiles, "Night Shift", model.Actor{}); err != nil {
 		t.Errorf("delete with the new preview: %v", err)
 	}

@@ -74,7 +74,7 @@ mit, was Slouchcat nicht kennt); (e) weiches Löschen des Titels, wenn alle Date
 5. **Reihenfolge und Datenbank.** Spielt ein Profil einen der Titel ab, lehnt der Server ab (409 `playing`,
    O-13) und beendet keine Wiedergabe. Von der letzten Prüfung bis zum Abschluss hält das Löschen die Titel
    in einer Liste im Speicher, und ein Wiedergabestart eines davon antwortet 409 `deleting`. Der Auftrag
-   wiederholt den Stempel der Vorschau (`expectedFiles`: Zahl und Hash der Datei-Ids); weicht er nach dem
+   wiederholt den Stempel der Vorschau (`expectedFiles`: Zahl und Hash über Id, Pfad, Gerät, Inode und Grösse jeder Datei); weicht er nach dem
    Neuladen unter der Sperre ab, antwortet der Server 409 `changed` und löscht nichts, und der Dialog liest
    die Vorschau neu. Sonst unter der Scan-Sperre der Bibliothek (ohne zu warten:
    `scan_running`): erst die Dateien, dann die Datenbank. Die Zeilen der gelöschten Dateien fallen sofort weg,

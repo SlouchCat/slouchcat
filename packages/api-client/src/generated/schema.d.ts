@@ -8143,7 +8143,8 @@ export interface components {
             path: string;
         };
         /**
-         * @description The stamp of the files a preview listed: their number and a hash of their ids. `deleteItem`
+         * @description The stamp of the files a preview listed: their number and a hash over each file's id, path,
+         *     device, inode and size. `deleteItem`
          *     repeats it, so the delete takes exactly what the administrator saw; when the files changed
          *     meanwhile the server answers 409 `changed` and deletes nothing.
          */

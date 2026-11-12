@@ -188,15 +188,17 @@ func checkConfirmation(t itemTree, confirmTitle string, expected model.ExpectedF
 	return nil
 }
 
-// expectedFiles is the stamp of the files of a tree: their number and a hash over their sorted ids.
+// expectedFiles is the stamp of the files of a tree: their number and a hash over each file's id,
+// path, device, inode and size, sorted (review N4): a file renamed, replaced or changed since the
+// preview changes the stamp as much as a file that joined or left.
 func expectedFiles(files []systemq.ListMediaFilesOfItemsRow) model.ExpectedFiles {
-	ids := make([]string, 0, len(files))
+	lines := make([]string, 0, len(files))
 	for _, f := range files {
-		ids = append(ids, f.ID)
+		lines = append(lines, fmt.Sprintf("%s|%d|%s|%d|%d|%d", f.ID, f.RootID, f.RelPath, f.Dev, f.Inode, f.Size))
 	}
-	slices.Sort(ids)
-	sum := sha256.Sum256([]byte(strings.Join(ids, "\n")))
-	return model.ExpectedFiles{Count: len(ids), Hash: hex.EncodeToString(sum[:16])}
+	slices.Sort(lines)
+	sum := sha256.Sum256([]byte(strings.Join(lines, "\n")))
+	return model.ExpectedFiles{Count: len(lines), Hash: hex.EncodeToString(sum[:16])}
 }
 
 // removeTree marks the titles as taken out and drops their downloads, in one transaction; it
