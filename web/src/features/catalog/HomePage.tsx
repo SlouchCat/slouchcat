@@ -38,6 +38,7 @@ import { CoverWatchlist, WATCHLIST_KINDS } from '@/features/discover/CoverWatchl
 import { CoverPen, EDITABLE_KINDS, EditMetadata } from './EditMetadata';
 import { ItemMeta } from './ItemMeta';
 import { homeRowTitle, isAudioKind } from './labels';
+import { CoverWatched, WATCHED_KINDS } from './watched';
 import { homeQuery } from './queries';
 import { usePlayStart } from './usePlayStart';
 import styles from './HomePage.module.css';
@@ -357,6 +358,14 @@ export function HomePage() {
     ) : undefined;
   };
 
+  // The check mark of a spotlight poster (concept 20 P-5): a Tab stop only on the active poster.
+  const spotlightCheck = (row: HomeRow, slide: HeroSlide, active: boolean) => {
+    const item = row.items.find((entry) => entry.id === slide.id);
+    return item && WATCHED_KINDS.has(item.kind) ? (
+      <CoverWatched item={item} excludeFromTabOrder={!active} />
+    ) : undefined;
+  };
+
   // A title taken off the watchlist from its cover in the row «Merkliste»: the focus goes to the
   // neighbouring card (or the header) before the card disappears, as on the watchlist page.
   const unmarkedFrom = (row: HomeRow, item: ItemRef) => {
@@ -540,6 +549,9 @@ export function HomePage() {
                   <CoverPen item={edited} onEdit={setEditing} />
                 ) : undefined
               }
+              // The check of the title the card opens: on a series card of "Weiterschauen" the
+              // episode (concept 20 P-5), which then gives way to the next one.
+              check={WATCHED_KINDS.has(item.kind) ? <CoverWatched item={item} /> : undefined}
               // A series card of "Weiterschauen" shows an episode: no watchlist button (kinds).
               mark={
                 WATCHLIST_KINDS.has(item.kind) ? (
@@ -588,6 +600,7 @@ export function HomePage() {
                       canManage ? (slide, active) => spotlightPen(row, slide, active) : undefined
                     }
                     mark={(slide, active) => spotlightMark(row, slide, active)}
+                    check={(slide, active) => spotlightCheck(row, slide, active)}
                   />
                 );
               }

@@ -14,6 +14,7 @@ import { CoverPen, EditMetadata } from './EditMetadata';
 import { episodeCode } from './labels';
 import { itemQuery } from './queries';
 import { usePlayStart } from './usePlayStart';
+import { CoverWatched } from './watched';
 import styles from './ItemPage.module.css';
 
 // The season's "Herunterladen" reads the offline database: a chunk of its own (M5).
@@ -94,7 +95,10 @@ export function EpisodeList({
                       }
                     : undefined
                 }
-                watchedLabel={progress?.completed ? t('library.status.watched') : undefined}
+                // Named with the code, as «Details» is ("Gesehen: S01E02 · Die lange Nacht").
+                watchedControl={
+                  <CoverWatched item={{ ...episode, title: named }} appearance="row" />
+                }
                 highlight={
                   episode.id === marked
                     ? t(
@@ -172,7 +176,7 @@ function revealChosen(scroller: HTMLDivElement | null) {
 
 /**
  * The seasons of a series as a shelf of covers (concept 17 D-1, variant A; E-13): each with
- * "2004 · 24 Folgen", a bar of the watched episodes and a check when all are watched. The chosen
+ * "2004 · 24 Folgen", a bar of the watched episodes and the check mark of the season. The chosen
  * season (first the one of the `nextUp` episode) shows its text and episodes underneath. Fixed
  * arrows page the shelf, a mouse drags it, and the chosen season moves into view by itself when
  * the page opens (the season of the next episode may be the ninth) and when it changes (concept 20
@@ -232,10 +236,9 @@ export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; 
               dimmed={!active}
               aria-current={active ? 'true' : undefined}
               tabIndex={active ? 0 : -1}
-              watchedLabel={
-                total > 0 && watched === total ? t('library.status.watched') : undefined
-              }
-              // Only the chosen season is a Tab stop, then its pen (roving tabindex).
+              // Only the chosen season is a Tab stop, then its pen and its check (roving
+              // tabindex). The check sets or clears every episode of the season (concept 20 P-5).
+              check={<CoverWatched item={season} excludeFromTabOrder={!active} />}
               tool={
                 canManage ? (
                   <CoverPen

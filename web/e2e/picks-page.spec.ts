@@ -81,7 +81,15 @@ test('User picks by keyboard: the star, arrows, Enter, back; no focus trap @keyb
   await resetFocus(page);
   await tabTo(page, page.getByRole('button', { name: 'Zurück' }));
   await tabTo(page, cards(page).first(), 3);
-  // Then the card's watchlist button (concept 17 D-9).
+  // Then the card's check mark (concept 20 P-5) and its watchlist button (concept 17 D-9).
+  await page.keyboard.press('Tab');
+  await expectFocusOn(
+    page,
+    grid(page)
+      .getByRole('listitem')
+      .first()
+      .getByRole('button', { name: /^Gesehen: / }),
+  );
   await page.keyboard.press('Tab');
   await expectFocusOn(
     page,

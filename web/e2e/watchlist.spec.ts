@@ -193,9 +193,12 @@ test('the cover button by keyboard: Tab after the card, arrows pass it, focus to
   await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, cards.first());
 
-  // Tab: the card's cover button, shown with the focus. The arrow keys pass it by and move on
-  // from the card.
+  // Tab: the card's check mark (concept 20 P-5), then its cover button, shown with the focus.
+  // The arrow keys pass it by and move on from the card.
   const first = coverMark(page, EXTRAS_TITLE, true);
+  const check = grid(page).getByRole('button', { name: `Gesehen: ${EXTRAS_TITLE}`, exact: true });
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, check);
   await page.keyboard.press('Tab');
   await expectFocusOn(page, first);
   await expect(first.locator('xpath=../..')).toHaveCSS('opacity', '1');
@@ -204,7 +207,9 @@ test('the cover button by keyboard: Tab after the card, arrows pass it, focus to
   await page.keyboard.press('ArrowLeft');
   await expectFocusOn(page, cards.first());
 
-  // Tab order in the cell: card, cover button, "Entfernen".
+  // Tab order in the cell: card, check, cover button, "Entfernen".
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, check);
   await page.keyboard.press('Tab');
   await expectFocusOn(page, first);
   await page.keyboard.press('Tab');

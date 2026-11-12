@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { EpisodeListItem } from './EpisodeListItem';
+import { WatchedToggle } from './WatchedToggle';
 import { accents, art } from './stories/fixtures';
 
 const meta = {
@@ -50,3 +51,34 @@ export const Focused: Story = { tags: ['press:Tab'] };
 
 /** Tab again: «Details», which opens the episode's page (concept 20 P-4). */
 export const DetailsFocused: Story = { tags: ['press:Tab+Tab'] };
+
+/** The check as a button (concept 20 P-5): an empty ring that sets «gesehen». */
+export const WithToggle: Story = {
+  args: {
+    watchedControl: (
+      <WatchedToggle
+        appearance="row"
+        state="none"
+        label="Gesehen: S01E02 · Die lange Nacht"
+        onPress={() => undefined}
+      />
+    ),
+  },
+};
+
+/** The same button set: filled in the accent. */
+export const WithToggleSet: Story = {
+  args: {
+    watchedControl: (
+      <WatchedToggle
+        appearance="row"
+        state="full"
+        label="Gesehen: S01E02 · Die lange Nacht"
+        onPress={() => undefined}
+      />
+    ),
+  },
+};
+
+/** Tab after «Details» reaches the check: link, Details, check. */
+export const ToggleFocused: Story = { ...WithToggle, tags: ['press:Tab+Tab+Tab'] };

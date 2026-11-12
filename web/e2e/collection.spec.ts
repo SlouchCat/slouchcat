@@ -140,20 +140,26 @@ test('a series in a collection carries the check once every episode is watched (
   const { id } = await createCollection(owner, NAME, [h264, series]);
   try {
     const seriesCard = (list: Locator) => list.getByRole('link', { name: new RegExp(SHOW_TITLE) });
-    const check = (card: Locator) => card.getByRole('img', { name: 'Gesehen', exact: true });
-    // Every episode but the last (the special comes last) watched: no check yet.
+    // The check mark beside the card (concept 20 P-5): half while some episodes are watched.
+    const check = (list: Locator) =>
+      list.getByRole('button', { name: `Gesehen: ${SHOW_TITLE}`, exact: true });
+    // Every episode but the last (the special comes last) watched: a half check.
     for (const episode of episodes.slice(0, -1)) await finish(page.request, episode);
     await page.goto(`/collections/${id}`);
     const members = page.getByRole('list', { name: 'Titel' });
     await expect(seriesCard(members)).toBeVisible();
-    await expect(check(seriesCard(members))).toHaveCount(0);
+    await expect(check(members)).toHaveAttribute('aria-pressed', 'mixed');
 
     await finish(page.request, episodes.at(-1)!);
     await page.reload();
-    await expect(check(seriesCard(members))).toBeVisible();
+    await expect(check(members)).toHaveAttribute('aria-pressed', 'true');
+    await expect(check(members)).toBeVisible();
     // The collection shelf on the film's detail page shows it too.
     await page.goto(`/items/${h264}`);
-    await expect(check(seriesCard(page.getByRole('list', { name: NAME })))).toBeVisible();
+    await expect(check(page.getByRole('list', { name: NAME }))).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   } finally {
     await deleteCollection(owner, id);
   }

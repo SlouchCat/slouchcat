@@ -266,14 +266,19 @@ describe('detail page: series, season, episode, extra', () => {
 
     // The shelf (E-13): the season of the nextUp episode is chosen, with its watched episodes.
     const shelf = screen.getByRole('region', { name: 'Staffeln' });
-    // Each cover also carries the pen (concept 20 P-3); the card is the button without «Metadaten».
-    const season1 = within(shelf).getByRole('button', { name: /^(?!.*Metadaten).*Season 1/ });
+    // Each cover also carries the pen (concept 20 P-3) and the check (P-5); the card is the button
+    // without «Metadaten» and «Gesehen».
+    const season1 = within(shelf).getByRole('button', {
+      name: /^(?!.*Metadaten)(?!Gesehen).*Season 1/,
+    });
     expect(season1).toHaveAttribute('aria-current', 'true');
     expect(within(season1).getByText('2024 · 3 Folgen · 1 gesehen')).toBeVisible();
     expect(
       within(season1).getByRole('progressbar', { name: '1 von 3 Folgen gesehen' }),
     ).toBeVisible();
-    const specials = within(shelf).getByRole('button', { name: /^(?!.*Metadaten).*Specials/ });
+    const specials = within(shelf).getByRole('button', {
+      name: /^(?!.*Metadaten)(?!Gesehen).*Specials/,
+    });
     expect(specials).not.toHaveAttribute('aria-current');
     expect(specials).toHaveAttribute('tabindex', '-1');
     // Only the chosen season's pen is a Tab stop, like its card.
@@ -283,6 +288,14 @@ describe('detail page: series, season, episode, extra', () => {
     expect(
       within(shelf).getByRole('button', { name: 'Specials: Metadaten bearbeiten' }),
     ).toHaveAttribute('tabindex', '-1');
+    // The season's check, half filled with 1 of 3 episodes (F-12); a Tab stop like the pen.
+    const seasonCheck = within(shelf).getByRole('button', { name: 'Gesehen: Season 1' });
+    expect(seasonCheck).toHaveAttribute('aria-pressed', 'mixed');
+    expect(seasonCheck).not.toHaveAttribute('tabindex');
+    expect(within(shelf).getByRole('button', { name: 'Gesehen: Specials' })).toHaveAttribute(
+      'tabindex',
+      '-1',
+    );
 
     // The chosen season: its text and the episodes as a list (E-14).
     expect(await screen.findByText('Weber übernimmt ihren ersten Fall.')).toBeVisible();
@@ -299,12 +312,16 @@ describe('detail page: series, season, episode, extra', () => {
       'href',
       `/items/${seriesIds.e1}`,
     );
-    // The check stands outside the link, at the far right of the row.
+    // The check stands outside the link, at the far right of the row: a button (concept 20 P-5).
     const double = within(list).getByRole('link', { name: /^Abspielen.*S01E03–E04/ });
-    expect(within(double).queryByRole('img', { name: 'Gesehen' })).not.toBeInTheDocument();
+    expect(within(double).queryByRole('button')).not.toBeInTheDocument();
     expect(
-      within(double.closest('li') as HTMLElement).getByRole('img', { name: 'Gesehen' }),
-    ).toBeVisible();
+      within(double.closest('li') as HTMLElement).getByRole('button', { name: /^Gesehen: / }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(within(list).getByRole('button', { name: 'Gesehen: S01E01 · Pilot' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
     expect(
       within(list).getByRole('link', { name: /^Abspielen.*Die lange Nacht/ }),
     ).not.toHaveAccessibleDescription();
@@ -427,7 +444,9 @@ describe('detail page: series, season, episode, extra', () => {
 
     const shelf = await screen.findByRole('region', { name: 'Staffeln' });
     await screen.findByRole('list', { name: 'Folgen' });
-    await user.click(within(shelf).getByRole('button', { name: /^(?!.*Metadaten).*Specials/ }));
+    await user.click(
+      within(shelf).getByRole('button', { name: /^(?!.*Metadaten)(?!Gesehen).*Specials/ }),
+    );
     // The episodes of the previous season do not stay on screen while the next one loads.
     expect(screen.queryByRole('list', { name: 'Folgen' })).not.toBeInTheDocument();
     expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();

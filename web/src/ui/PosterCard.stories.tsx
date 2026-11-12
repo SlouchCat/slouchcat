@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Button } from './Button';
 import { PosterCard } from './PosterCard';
+import { WatchedToggle } from './WatchedToggle';
 import { accents, art } from './stories/fixtures';
 
 const meta = {
@@ -115,10 +116,9 @@ export const SquareHeard: Story = {
 };
 
 /**
- * The pen beside the card's link, over the top right of its cover (concept 17 D-7): card and pen
- * share a cell that carries the focus scale, so the card stays large while the pointer is on the
- * pen; the pen itself grows and lightens (tool.hover.scale). A finished title's check moves to the
- * bottom right.
+ * The pen beside the card's link, over the top left of its cover (concept 17 D-7, concept 20):
+ * card and pen share a cell that carries the focus scale, so the card stays large while the
+ * pointer is on the pen; the pen itself grows and lightens (tool.hover.scale).
  */
 export const WithTool: Story = {
   args: {
@@ -191,10 +191,7 @@ export const WithMarkFocused: Story = {
   tags: ['press:Tab+Tab'],
 };
 
-/**
- * A marked title shows the filled button always; the check of a finished title moves to the top
- * left.
- */
+/** A marked title shows the filled button always. */
 export const WithMarkPressed: Story = {
   args: {
     title: 'Glut',
@@ -218,7 +215,7 @@ export const WithMarkProgress: Story = {
   },
 };
 
-/** Pen at the top right, mark at the bottom right; Tab goes link, pen, mark. */
+/** Pen at the top left, mark at the bottom right; Tab goes link, pen, mark. */
 export const WithToolAndMark: Story = {
   args: {
     title: 'Glut',
@@ -370,4 +367,60 @@ export const TitlesOnOneLine: Story = {
       </div>
     </div>
   ),
+};
+
+/** The check mark «gesehen» as `CoverWatched` draws it (concept 20 P-5). */
+const check = (state: 'none' | 'half' | 'full') => (
+  <WatchedToggle state={state} label="Gesehen: Glut" onPress={() => undefined} />
+);
+
+/**
+ * The check mark over the top right of the cover: an empty one shows with a pointer only while
+ * pointed at or focused (O-1), so at rest the card looks as without it.
+ */
+export const WithCheck: Story = {
+  args: {
+    title: 'Glut',
+    caption: '2019',
+    posterUrl: art.posterEmber,
+    accent: accents.ember,
+    check: check('none'),
+  },
+};
+
+/** Tab after the card's link reaches the empty check: it shows with its focus. */
+export const WithCheckFocused: Story = {
+  ...WithCheck,
+  tags: ['press:Tab+Tab'],
+};
+
+/** A watched title: the filled check shows always. */
+export const WithCheckFull: Story = {
+  args: { ...WithCheck.args, check: check('full') },
+};
+
+/** A partly watched series (F-12): the half check shows always. */
+export const WithCheckHalf: Story = {
+  args: {
+    ...WithCheck.args,
+    title: 'Nordlicht',
+    caption: '19 von 96 Folgen',
+    progress: { percent: 20, label: '19 von 96 Folgen gesehen' },
+    check: check('half'),
+  },
+};
+
+/** Pen top left, check top right, mark bottom right; Tab goes link, pen, check, mark. */
+export const WithToolCheckAndMark: Story = {
+  args: {
+    ...WithToolAndMark.args,
+    watchedLabel: undefined,
+    check: check('full'),
+  },
+};
+
+/** The third Tab stop of the cell is the check. */
+export const WithToolCheckAndMarkFocused: Story = {
+  ...WithToolCheckAndMark,
+  tags: ['press:Tab+Tab+Tab'],
 };

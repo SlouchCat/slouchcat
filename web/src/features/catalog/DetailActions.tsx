@@ -17,6 +17,7 @@ import { useOnline } from '@/lib/useOnline';
 import { Button, Notice, RoundAction, SpatialButtonLink, SpatialGroup } from '@/ui';
 import { EDITABLE_KINDS } from './EditMetadata';
 import { episodeCode, isAudioKind } from './labels';
+import { useWatchedToggle, WATCHED_KINDS } from './watched';
 import styles from './ItemPage.module.css';
 
 // "Herunterladen" and the download state (M5) read the offline database: a chunk of their own,
@@ -33,6 +34,9 @@ const RESTART_KEY = 'detail-restart';
 const DOWNLOAD_KEY = 'detail-download';
 const WATCHLIST_KEY = 'detail-watchlist';
 const FAVORITE_KEY = 'detail-favorite';
+const WATCHED_KEY = 'detail-watched';
+/** The round button's state per check mark: half filled for a partly watched series (F-12). */
+const WATCHED_PRESSED = { none: false, half: 'mixed', full: true } as const;
 export const RECOMMEND_KEY = 'detail-recommend';
 
 type NextUp = NonNullable<ItemDetail['nextUp']>;
@@ -172,7 +176,7 @@ interface DetailActionsProps {
 /**
  * The actions of a detail page (concept 17 D-2, variant A; E-10, E-11): the big button with its
  * second line and progress stroke, under it the round actions in this order: Trailer, Von vorne,
- * Merken, Favorit, Empfehlen, Download, Verwalten. Offline Merken, Favorit and Empfehlen are
+ * Merken, Favorit, Gesehen, Empfehlen, Download, Verwalten. Offline Merken, Favorit and Empfehlen are
  * disabled (they live on the server), like the cover's watchlist button. «Empfehlen» (concept 18
  * part B) stands only where the server says it applies (`canRecommend`: the owner's account, no
  * season or extra); a press puts the title into the user picks or takes the own pick back, and a
@@ -197,6 +201,8 @@ export function DetailActions({ item, file, target, onTrailer }: DetailActionsPr
   const recommend = useRecommendMutation();
   const [pickHint, setPickHint] = useState<string | null>(null);
   const failed = watchlist.error ?? favorite.error ?? recommend.error;
+  // The check mark «gesehen» (concept 20 P-5): every title but extras; offline a display only.
+  const watched = useWatchedToggle(item);
 
   return (
     <>
@@ -261,6 +267,19 @@ export function DetailActions({ item, file, target, onTrailer }: DetailActionsPr
             onPress={() => favorite.mutate({ id: item.id, on: !item.favorite })}
           />
         )}
+        {/* «Gesehen» beside the favourite; it takes the favourite's place in stage 3. */}
+        {WATCHED_KINDS.has(item.kind) && (
+          <RoundAction
+            focusKey={WATCHED_KEY}
+            icon="check"
+            label={t('watched.button')}
+            pressed={WATCHED_PRESSED[watched.state]}
+            description={watched.hint}
+            isDisabled={watched.readOnly}
+            busy={watched.busy}
+            onPress={watched.press}
+          />
+        )}
         {item.canRecommend && (
           <RoundAction
             focusKey={RECOMMEND_KEY}
@@ -305,6 +324,8 @@ export function DetailActions({ item, file, target, onTrailer }: DetailActionsPr
       </SpatialGroup>
       {pickHint && !failed && <Notice title={pickHint} />}
       {failed && <Notice tone="danger" title={problemMessage(t, failed)} />}
+      {watched.error && <Notice tone="danger" title={watched.error} />}
+      {watched.dialog}
     </>
   );
 }
