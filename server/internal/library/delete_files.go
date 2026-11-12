@@ -300,8 +300,9 @@ func (s *Service) recordedAndCompanions(ctx context.Context, q *systemq.Queries,
 		out = append(out, fileTarget{rootID: rootID, root: root, rel: rel})
 		return nil
 	}
-	// (2) Recorded images and folder covers.
-	for chunk := range slices.Chunk(t.ids, treeChunk) {
+	// (2) Recorded images and folder covers, only of the titles that go (review finding 6): a
+	// series that keeps a file keeps its poster.
+	for chunk := range slices.Chunk(endingTitles(t, gone), treeChunk) {
 		images, err := q.ListLocalImagesOfItems(ctx, chunk)
 		if err != nil {
 			return nil, fmt.Errorf("recorded images of %s: %w", t.item.ID, err)
@@ -401,6 +402,32 @@ func (s *Service) recordedAndCompanions(ctx context.Context, q *systemq.Queries,
 		}
 	}
 	return out, nil
+}
+
+// endingTitles are the titles of the tree that keep no media file after the delete: those whose
+// files all went, and the containers above whose children all end. With every file gone it is the
+// whole tree.
+func endingTitles(t itemTree, gone []string) []string {
+	goneSet := make(map[string]bool, len(gone))
+	for _, id := range gone {
+		goneSet[id] = true
+	}
+	keeps := map[string]bool{} // titles with a file left, and every title above them
+	for _, f := range t.files {
+		if goneSet[f.ID] {
+			continue
+		}
+		for id, ok := f.ItemID, true; ok; id, ok = t.parent[id] {
+			keeps[id] = true
+		}
+	}
+	out := make([]string, 0, len(t.ids))
+	for _, id := range t.ids {
+		if !keeps[id] {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // isMediaName reports whether the name has the extension of a file the scanner reads as media

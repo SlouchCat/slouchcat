@@ -188,6 +188,10 @@ func TestDeleteFilesPartialFailureKeepsTheTitle(t *testing.T) {
 	lib := e.createSeries(dir)
 	e.scan(lib.ID)
 	show := e.str(`SELECT id FROM items WHERE kind = 'series' AND title = 'Show'`)
+	// Review finding 6: the series keeps a file, so it keeps its recorded poster.
+	writeFile(t, dir, "Show (2020)/poster.jpg", "poster")
+	e.exec(`INSERT INTO item_local_images (item_id, kind, rel_path, root_id, width, height, size, mtime)
+	        VALUES (?, 'poster', 'Show (2020)/poster.jpg', (SELECT id FROM library_roots WHERE library_id = ?), 1, 1, 1, 1)`, show, lib.ID)
 	stuck := "Show (2020)/Season 02/Show - S02E01.mkv"
 	e.svc.removeFileFn = func(root paths.Root, rel string) error {
 		if rel == stuck {
@@ -217,6 +221,9 @@ func TestDeleteFilesPartialFailureKeepsTheTitle(t *testing.T) {
 	}
 	if exists(t, dir, "Show (2020)/Season 01") || !exists(t, dir, stuck) {
 		t.Error("folders after the partial delete are wrong")
+	}
+	if !exists(t, dir, "Show (2020)/poster.jpg") || e.count(`SELECT count(*) FROM item_local_images WHERE item_id = ?`, show) != 1 {
+		t.Error("the poster of the series that stays went")
 	}
 }
 

@@ -25,9 +25,10 @@ const treeChunk = 5000
 
 // itemTree is a title with every title below it and their media files.
 type itemTree struct {
-	item  systemq.GetDeletionItemRow
-	ids   []string
-	files []systemq.ListMediaFilesOfItemsRow
+	item   systemq.GetDeletionItemRow
+	ids    []string
+	parent map[string]string // item id → parent id inside the tree
+	files  []systemq.ListMediaFilesOfItemsRow
 }
 
 // loadTree reads the title and its tree. A deleted or removed title has no delete
@@ -46,9 +47,12 @@ func (s *Service) loadTree(ctx context.Context, q *systemq.Queries, itemID, lang
 	if err != nil {
 		return itemTree{}, fmt.Errorf("list titles below %s: %w", itemID, err)
 	}
-	t := itemTree{item: it, ids: make([]string, 0, len(rows))}
+	t := itemTree{item: it, ids: make([]string, 0, len(rows)), parent: map[string]string{}}
 	for _, r := range rows {
 		t.ids = append(t.ids, r.ID)
+		if r.ID != itemID && r.ParentID.Valid {
+			t.parent[r.ID] = r.ParentID.String
+		}
 	}
 	for chunk := range slices.Chunk(t.ids, treeChunk) {
 		files, err := q.ListMediaFilesOfItems(ctx, chunk)
