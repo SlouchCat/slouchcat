@@ -105,7 +105,10 @@ describe('collection page', () => {
     expect(check('Ganz gesehen')).toHaveAttribute('aria-pressed', 'true');
     expect(check('Halb gesehen')).toHaveAttribute('aria-pressed', 'false');
     expect(check('Ohne Folgen')).toHaveAttribute('aria-pressed', 'false');
-    expect(check('Slouchcat Test Podcast')).toHaveAttribute('aria-pressed', 'true');
+    // Audio is heard (coordinator's decision of 12 November 2026).
+    expect(
+      within(members).getByRole('button', { name: 'Gehört: Slouchcat Test Podcast' }),
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('says "nicht gefunden" for an unknown or invisible collection', async () => {

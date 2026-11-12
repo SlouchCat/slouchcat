@@ -574,7 +574,7 @@ test('the spotlight posters carry the pen: Tab poster then pen, the band holds, 
   // poster, not in its button, and turns with it (CSS order of the item).
   const marks = row.getByRole('button', { name: / merken$/ });
   await expect(marks).toHaveCount(count);
-  const checks = row.getByRole('button', { name: /^Gesehen: / });
+  const checks = row.getByRole('button', { name: /^(Gesehen|Gehört): / });
   await expect(checks).toHaveCount(count);
   for (let index = 0; index < count; index += 1) {
     const item = row.getByRole('listitem').nth(index);
@@ -587,7 +587,9 @@ test('the spotlight posters carry the pen: Tab poster then pen, the band holds, 
     name: /: Metadaten bearbeiten$/,
   });
   const activeMark = active.locator('xpath=..').getByRole('button', { name: / merken$/ });
-  const activeCheck = active.locator('xpath=..').getByRole('button', { name: /^Gesehen: / });
+  const activeCheck = active
+    .locator('xpath=..')
+    .getByRole('button', { name: /^(Gesehen|Gehört): / });
   await expect(pens.and(page.locator(':not([tabindex="-1"])'))).toHaveCount(1);
   await expect(marks.and(page.locator(':not([tabindex="-1"])'))).toHaveCount(1);
   await expect(checks.and(page.locator(':not([tabindex="-1"])'))).toHaveCount(1);

@@ -22,8 +22,11 @@ test('User picks by keyboard: the star, arrows, Enter, back; no focus trap @keyb
   await expect(page.getByRole('heading', { level: 1, name: EXTRAS_TITLE })).toBeVisible();
   await resetFocus(page);
   const star = page.getByRole('button', { name: 'Empfehlen' });
-  // The round actions in their order: «Merken», then the star (a film has no «Favorit»).
+  // The round actions in their order: «Merken», «Gesehen» (concept 20 P-5), then the star (a film
+  // has no «Favorit»).
   await tabTo(page, page.getByRole('button', { name: /^(Merken|Gemerkt)$/ }), 40);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByRole('button', { name: 'Gesehen', exact: true }));
   await page.keyboard.press('Tab');
   await expectFocusOn(page, star);
   await expect(star).toHaveAttribute('aria-pressed', 'false');
@@ -88,7 +91,7 @@ test('User picks by keyboard: the star, arrows, Enter, back; no focus trap @keyb
     grid(page)
       .getByRole('listitem')
       .first()
-      .getByRole('button', { name: /^Gesehen: / }),
+      .getByRole('button', { name: /^(Gesehen|Gehört): / }),
   );
   await page.keyboard.press('Tab');
   await expectFocusOn(

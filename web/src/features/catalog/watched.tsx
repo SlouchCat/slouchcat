@@ -6,6 +6,7 @@ import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { useOnline } from '@/lib/useOnline';
 import { WatchedToggle, type WatchedState } from '@/ui';
+import { isAudioKind } from './labels';
 import styles from './watched.module.css';
 
 // The question comes with react-aria: a chunk of its own, loaded on the first press that asks, so
@@ -266,6 +267,34 @@ export function useWatchedMutation() {
   });
 }
 
+/** The texts of a check mark that means «gesehen». */
+const SEEN = {
+  label: 'watched.label',
+  button: 'watched.button',
+  set: 'watched.hint.set',
+  half: 'watched.hint.half',
+  remove: 'watched.hint.remove',
+  full: 'watched.state.full',
+  partly: 'watched.state.half',
+  removeTitle: 'watched.ask.removeTitle',
+  halfTitle: 'watched.ask.halfTitle',
+  markAll: 'watched.ask.markAll',
+} as const;
+
+/** …and the same for audio, which is heard (`watched.heard.*`). */
+const HEARD = {
+  ...SEEN,
+  label: 'watched.heard.label',
+  button: 'watched.heard.button',
+  set: 'watched.heard.hint.set',
+  half: 'watched.heard.hint.half',
+  full: 'watched.heard.state.full',
+  partly: 'watched.heard.state.half',
+  removeTitle: 'watched.heard.ask.removeTitle',
+  halfTitle: 'watched.heard.ask.halfTitle',
+  markAll: 'watched.heard.ask.markAll',
+} as const;
+
 /** How long the note on why a change failed stays beside the check mark. */
 const ERROR_SHOWN_MS = 5000;
 
@@ -283,8 +312,10 @@ export interface WatchedToggleModel {
   /** Offline: a display only (rule 12, the server decides). */
   readOnly: boolean;
   busy: boolean;
-  /** The spoken name ("Gesehen: Nordlicht"), the same in every state. */
+  /** The spoken name ("Gesehen: Nordlicht", "Gehört: …" for audio), the same in every state. */
   label: string;
+  /** The text of the detail page's round button: «Gesehen», for audio «Gehört». */
+  buttonLabel: string;
   /** What a press does, as the pointer's hint. */
   hint: string;
   /** The name of the display while read only ("Gesehen", "Teilweise gesehen"). */
@@ -313,6 +344,9 @@ export function useWatchedToggle(
   const [open, setOpen] = useState(false);
   const state = watchedState(item);
   const count = item.watchedCount ?? 0;
+  // Audiobooks, podcasts and their episodes are heard, not watched (coordinator's decision of
+  // 12 November 2026); the page keeps its name «Gesehen».
+  const texts = isAudioKind(item.kind) ? HEARD : SEEN;
 
   // Why a change failed stands for a few seconds, and goes with the next press.
   const { isError, reset } = mutation;
@@ -342,7 +376,7 @@ export function useWatchedToggle(
       <WatchedChoice
         isOpen={open}
         onOpenChange={setOpen}
-        title={t(asking === 'half' ? 'watched.ask.halfTitle' : 'watched.ask.removeTitle', {
+        title={t(asking === 'half' ? texts.halfTitle : texts.removeTitle, {
           title: item.title,
         })}
         body={
@@ -355,7 +389,7 @@ export function useWatchedToggle(
         cancelLabel={t('common.cancel')}
         removeLabel={t('watched.ask.removeAll')}
         onRemove={() => change(false)}
-        markAllLabel={asking === 'half' ? t('watched.ask.markAll') : undefined}
+        markAllLabel={asking === 'half' ? t(texts.markAll) : undefined}
         onMarkAll={asking === 'half' ? () => change(true) : undefined}
       />
     </Suspense>
@@ -365,15 +399,10 @@ export function useWatchedToggle(
     state,
     readOnly: !online,
     busy,
-    label: t('watched.label', { title: item.title }),
-    hint: t(
-      state === 'none'
-        ? 'watched.hint.set'
-        : state === 'half'
-          ? 'watched.hint.half'
-          : 'watched.hint.remove',
-    ),
-    stateLabel: t(state === 'half' ? 'watched.state.half' : 'watched.state.full'),
+    label: t(texts.label, { title: item.title }),
+    buttonLabel: t(texts.button),
+    hint: t(state === 'none' ? texts.set : state === 'half' ? texts.half : texts.remove),
+    stateLabel: t(state === 'half' ? texts.partly : texts.full),
     press,
     dialog,
     error: mutation.isError ? problemMessage(t, mutation.error) : null,

@@ -273,7 +273,7 @@ export function DetailActions({ item, file, target, onTrailer }: DetailActionsPr
           <RoundAction
             focusKey={WATCHED_KEY}
             icon="check"
-            label={t('watched.button')}
+            label={watched.buttonLabel}
             pressed={WATCHED_PRESSED[watched.state]}
             description={watched.hint}
             isDisabled={watched.readOnly}

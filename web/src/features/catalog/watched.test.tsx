@@ -255,6 +255,20 @@ describe('CoverWatched', () => {
     expect(screen.getByRole('img', { name: 'Gesehen' })).toBeInTheDocument();
   });
 
+  it('says «gehört» for audio', async () => {
+    mockApi({ 'PUT /items/*/watched': () => new Response(null, { status: 204 }) });
+    renderCover({ ...series(false, 3), kind: 'podcast', title: 'Echo' });
+    const button = screen.getByRole('button', { name: 'Gehört: Echo' });
+    expect(button).toHaveAttribute(
+      'title',
+      'Teilweise gehört: alle markieren oder alle Haken entfernen',
+    );
+    await userEvent.setup().click(button);
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent('«Echo» ist teilweise gehört');
+    expect(screen.getByRole('button', { name: 'Alle Folgen als gehört markieren' })).toBeVisible();
+  });
+
   it('has no check on an extra', () => {
     renderCover({ ...film, kind: 'extra' });
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
