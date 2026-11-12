@@ -89,6 +89,12 @@ linters:
         # each call (nolint with the reason).
         - pattern: ^os\.Root\.Remove(All)?$
           msg: files below a root are deleted only through paths.Remove and paths.RemoveEmptyDir (ADR 0032, CLAUDE.md rule 4)
+        # ADR 0032 (review finding 4): in the packages that handle library files, nothing deletes
+        # or renames by path or by system call either; the exclusion below scopes the rule to them.
+        - pattern: ^os\.(Remove|RemoveAll|Rename)$
+          msg: "ADR 0032: in this package no file is deleted or renamed by path; below a root through paths.Remove, paths.RemoveEmptyDir or an os.Root"
+        - pattern: ^(unix|syscall)\.(Unlink|Unlinkat|Rmdir)$
+          msg: "ADR 0032: in this package no file is deleted by system call; below a root through paths.Remove and paths.RemoveEmptyDir"
         - pattern: \.(EnqueueOverridingPause|RaiseQueuedJobForPlayback|EnqueueOverridingWindow)$
           msg: only a playback lifts the pause, a playback or an offline download the time window of a job type, through package library (concept 14 6.5, ADR 0022; concept 15 4.3, M-1)
     govet:
@@ -113,6 +119,15 @@ linters:
         linters:
           - forbidigo
         text: Remove
+      # The path rules of ADR 0032 hold in the packages that handle library files.
+      - path-except: internal/(library|metadata|browse|api|offline)/
+        linters:
+          - forbidigo
+        text: "ADR 0032: in this package"
+      - path: _test\.go
+        linters:
+          - forbidigo
+        text: "ADR 0032: in this package"
       # The updater companion runs docker compose (ADR 0024). Only exec.CommandContext is lifted
       # there; exec.Command and exec.LookPath stay forbidden.
       - path: ^cmd/updater/
