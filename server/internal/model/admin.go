@@ -362,6 +362,13 @@ type JobRunPage struct {
 	Runs  []JobRun
 }
 
+// JobFailedRetry is the outcome of retryFailedJobs (concept 20, P-6): Retried runs are queued
+// again, Skipped stay failed (an active job holds their key), Merged ended cancelled (an older
+// failure of a key whose newest failed run was queued).
+type JobFailedRetry struct {
+	Retried, Skipped, Merged int
+}
+
 // JobSummary is a job as the administration sees it.
 type JobSummary struct {
 	ID          int64

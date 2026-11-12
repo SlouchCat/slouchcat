@@ -134,6 +134,17 @@ func (q *Queries) CompleteJob(ctx context.Context, arg CompleteJobParams) (int64
 	return result.RowsAffected()
 }
 
+const countFailedJobs = `-- name: CountFailedJobs :one
+SELECT count(*) FROM jobs WHERE state = 'failed' AND (?1 IS NULL OR type = ?1)
+`
+
+func (q *Queries) CountFailedJobs(ctx context.Context, type_ interface{}) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countFailedJobs, type_)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countJobRunsByState = `-- name: CountJobRunsByState :one
 SELECT count(*) FROM jobs WHERE type = ?1 AND state = ?2
 `
@@ -201,6 +212,27 @@ func (q *Queries) DeferJob(ctx context.Context, arg DeferJobParams) (int64, erro
 		arg.ID,
 		arg.WorkerID,
 	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const dismissFailedJobs = `-- name: DismissFailedJobs :execrows
+UPDATE jobs
+SET state = 'cancelled', lease_owner = NULL, lease_until = NULL, updated_at = ?1, finished_at = ?1
+WHERE state = 'failed' AND (?2 IS NULL OR type = ?2)
+`
+
+type DismissFailedJobsParams struct {
+	Now  int64
+	Type interface{}
+}
+
+// dismissFailedJobs: the failed runs end cancelled, like the single dismiss (CancelJob); jobs.prune
+// removes them later.
+func (q *Queries) DismissFailedJobs(ctx context.Context, arg DismissFailedJobsParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, dismissFailedJobs, arg.Now, arg.Type)
 	if err != nil {
 		return 0, err
 	}
@@ -765,6 +797,65 @@ func (q *Queries) ListDueJobSchedules(ctx context.Context, now int64) ([]ListDue
 	return items, nil
 }
 
+const listFailedJobRuns = `-- name: ListFailedJobRuns :many
+SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped, override_pause, override_window FROM jobs
+WHERE state = 'failed'
+ORDER BY COALESCE(finished_at, started_at, updated_at) DESC, id DESC
+LIMIT ?2 OFFSET ?1
+`
+
+type ListFailedJobRunsParams struct {
+	OffsetCount int64
+	LimitCount  int64
+}
+
+// The failed runs of every type, newest first (listJobRuns without type, concept 20, P-6).
+func (q *Queries) ListFailedJobRuns(ctx context.Context, arg ListFailedJobRunsParams) ([]Job, error) {
+	rows, err := q.db.QueryContext(ctx, listFailedJobRuns, arg.OffsetCount, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Job{}
+	for rows.Next() {
+		var i Job
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Priority,
+			&i.IdempotencyKey,
+			&i.Payload,
+			&i.State,
+			&i.RunAfter,
+			&i.LeaseOwner,
+			&i.LeaseUntil,
+			&i.Attempts,
+			&i.MaxAttempts,
+			&i.LastError,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.ProgressDone,
+			&i.ProgressTotal,
+			&i.ProgressNote,
+			&i.Skipped,
+			&i.OverridePause,
+			&i.OverrideWindow,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listHistoryJobTypes = `-- name: ListHistoryJobTypes :many
 SELECT DISTINCT type FROM jobs WHERE state IN ('done', 'cancelled') ORDER BY type
 `
@@ -835,18 +926,24 @@ const listJobRunsByState = `-- name: ListJobRunsByState :many
 SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped, override_pause, override_window FROM jobs
 WHERE type = ?1 AND state = ?2
 ORDER BY COALESCE(finished_at, started_at, updated_at) DESC, id DESC
-LIMIT ?3
+LIMIT ?4 OFFSET ?3
 `
 
 type ListJobRunsByStateParams struct {
-	Type       string
-	State      string
-	LimitCount int64
+	Type        string
+	State       string
+	OffsetCount int64
+	LimitCount  int64
 }
 
 // The runs of a type in one state (running, done, failed, cancelled), newest first.
 func (q *Queries) ListJobRunsByState(ctx context.Context, arg ListJobRunsByStateParams) ([]Job, error) {
-	rows, err := q.db.QueryContext(ctx, listJobRunsByState, arg.Type, arg.State, arg.LimitCount)
+	rows, err := q.db.QueryContext(ctx, listJobRunsByState,
+		arg.Type,
+		arg.State,
+		arg.OffsetCount,
+		arg.LimitCount,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -993,14 +1090,15 @@ const listQueuedJobRuns = `-- name: ListQueuedJobRuns :many
 SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped, override_pause, override_window FROM jobs
 WHERE type = ?1 AND state = 'queued' AND (run_after > ?2) = ?3
 ORDER BY priority DESC, created_at, id
-LIMIT ?4
+LIMIT ?5 OFFSET ?4
 `
 
 type ListQueuedJobRunsParams struct {
-	Type       string
-	Now        int64
-	Planned    int64
-	LimitCount int64
+	Type        string
+	Now         int64
+	Planned     int64
+	OffsetCount int64
+	LimitCount  int64
 }
 
 // The waiting runs of a type in claim order (priority, then age); @planned 1 lists those whose
@@ -1010,6 +1108,7 @@ func (q *Queries) ListQueuedJobRuns(ctx context.Context, arg ListQueuedJobRunsPa
 		arg.Type,
 		arg.Now,
 		arg.Planned,
+		arg.OffsetCount,
 		arg.LimitCount,
 	)
 	if err != nil {
@@ -1147,6 +1246,40 @@ type MarkJobScheduleOnceFiredParams struct {
 // again in the meantime stays while the firing that happened is still recorded.
 func (q *Queries) MarkJobScheduleOnceFired(ctx context.Context, arg MarkJobScheduleOnceFiredParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, markJobScheduleOnceFired, arg.FiredOnceAt, arg.Now, arg.Type)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const mergeFailedJobs = `-- name: MergeFailedJobs :execrows
+
+UPDATE jobs
+SET state = 'cancelled', lease_owner = NULL, lease_until = NULL, updated_at = ?1, finished_at = ?1
+WHERE id IN (
+    SELECT f.id FROM (
+        SELECT j.id, ROW_NUMBER() OVER (PARTITION BY j.idempotency_key ORDER BY j.updated_at DESC, j.id DESC) AS rn
+        FROM jobs AS j
+        WHERE j.state = 'failed' AND (?2 IS NULL OR j.type = ?2)
+          AND j.idempotency_key IS NOT NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM jobs AS a WHERE a.idempotency_key = j.idempotency_key AND a.state IN ('queued', 'running'))
+    ) AS f
+    WHERE f.rn > 1
+)
+`
+
+type MergeFailedJobsParams struct {
+	Now  int64
+	Type interface{}
+}
+
+// Bulk actions on the failed runs (concept 20, P-6): every type, or the one in @type. Package
+// jobs runs the three of retryFailedJobs in one transaction (Queue.RetryFailed).
+// Of the failed runs that share an idempotency key and have no active twin, all but the newest
+// are discarded (cancelled), so the requeue below cannot hit the unique index of active keys.
+func (q *Queries) MergeFailedJobs(ctx context.Context, arg MergeFailedJobsParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, mergeFailedJobs, arg.Now, arg.Type)
 	if err != nil {
 		return 0, err
 	}
@@ -1418,6 +1551,30 @@ type ResumeJobTypeParams struct {
 
 func (q *Queries) ResumeJobType(ctx context.Context, arg ResumeJobTypeParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, resumeJobType, arg.Now, arg.Type)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const retryFailedJobs = `-- name: RetryFailedJobs :execrows
+UPDATE jobs
+SET state = 'queued', attempts = 0, run_after = ?1, lease_owner = NULL, lease_until = NULL, updated_at = ?1,
+    started_at = NULL, finished_at = NULL, progress_done = NULL, progress_total = NULL, progress_note = NULL, skipped = 0
+WHERE jobs.state = 'failed' AND (?2 IS NULL OR jobs.type = ?2)
+  AND (jobs.idempotency_key IS NULL OR NOT EXISTS (
+      SELECT 1 FROM jobs AS a WHERE a.idempotency_key = jobs.idempotency_key AND a.state IN ('queued', 'running')))
+`
+
+type RetryFailedJobsParams struct {
+	Now  int64
+	Type interface{}
+}
+
+// The failed runs go back to the queue with their attempts reset, like RetryFailedJob; a run whose
+// key an active job holds stays failed (skipped).
+func (q *Queries) RetryFailedJobs(ctx context.Context, arg RetryFailedJobsParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, retryFailedJobs, arg.Now, arg.Type)
 	if err != nil {
 		return 0, err
 	}

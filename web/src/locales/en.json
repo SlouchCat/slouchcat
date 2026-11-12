@@ -4018,7 +4018,21 @@
         "downloadWarning": "The downloads end as “failed” and are not prepared again.",
         "confirm": "Cancel",
         "keep": "Keep",
-        "cancelFailedBody": "Slouchcat no longer retries this run."
+        "deleteRunTitle": "Delete the failed run of {{name}}?",
+        "deleteRunBody": "Slouchcat no longer tries this run. Under «Runs» it then shows as «cancelled» until the cleanup removes it later.",
+        "deleteRunConfirm": "Delete",
+        "retryFailedTitle_one": "Retry {{count}} failed run?",
+        "retryFailedTitle_other": "Retry all {{count}} failed runs?",
+        "retryFailedTypeTitle_one": "Retry {{count}} failed run of {{name}}?",
+        "retryFailedTypeTitle_other": "Retry all {{count}} failed runs of {{name}}?",
+        "retryFailedBody": "The runs go back to the queue with their attempts reset. When the same work already waits or runs, a run stays failed; of duplicate runs only the newest comes back.",
+        "retryFailedConfirm": "Retry all",
+        "dismissFailedTitle_one": "Delete {{count}} failed run?",
+        "dismissFailedTitle_other": "Delete all {{count}} failed runs?",
+        "dismissFailedTypeTitle_one": "Delete {{count}} failed run of {{name}}?",
+        "dismissFailedTypeTitle_other": "Delete all {{count}} failed runs of {{name}}?",
+        "dismissFailedBody": "Slouchcat no longer tries them. Under «Runs» they then show as «cancelled» until the cleanup removes them later.",
+        "dismissFailedConfirm": "Delete all"
       },
       "messages": {
         "ran_zero": "{{name}}: nothing to queue.",
@@ -4032,7 +4046,18 @@
         "runCancelled": "Run {{id}} cancelled.",
         "runRetried": "Run {{id}} is queued again.",
         "scheduleSaved": "Schedule of {{name}} saved.",
-        "windowSaved": "Time window of {{name}} saved."
+        "windowSaved": "Time window of {{name}} saved.",
+        "runDeleted": "Run {{id}} deleted.",
+        "failedRetried_zero": "No run queued.",
+        "failedRetried_one": "{{count}} run waits again.",
+        "failedRetried_other": "{{count}} runs wait again.",
+        "failedSkipped_one": "{{count}} stays failed because the same work already waits or runs.",
+        "failedSkipped_other": "{{count}} stay failed because the same work already waits or runs.",
+        "failedMerged_one": "{{count}} duplicate run was discarded.",
+        "failedMerged_other": "{{count}} duplicate runs were discarded.",
+        "failedDismissed_zero": "No run to delete.",
+        "failedDismissed_one": "{{count}} failed run deleted.",
+        "failedDismissed_other": "{{count}} failed runs deleted."
       },
       "runs": {
         "title": "Runs of {{name}}",
@@ -4062,7 +4087,11 @@
         "cancel": "Cancel",
         "cancelLabel": "Cancel run {{id}}",
         "runAfter": "not before {{time}}",
-        "heading": "Runs"
+        "heading": "Runs",
+        "delete": "Delete",
+        "deleteLabel": "Delete run {{id}}",
+        "retryAllLabel": "Retry all failed runs of {{name}}",
+        "dismissAllLabel": "Delete all failed runs of {{name}}"
       },
       "schedule": {
         "title": "Schedule of {{name}}",
@@ -4308,16 +4337,19 @@
         "state": "State"
       },
       "failed": {
-        "title": "Latest failures (all types)",
+        "title": "Failures (all types)",
         "count_one": "{{count}} failed",
         "count_other": "{{count}} failed",
         "empty": "No failures.",
-        "shown": "{{shown}} of {{total}} · All failures of a job type are under «Runs» in its row.",
+        "shown": "{{shown}} of {{total}} loaded",
         "columns": {
           "type": "Job type",
           "at": "Time"
         },
-        "retryLabel": "Queue run {{id}} of {{name}} again"
+        "retryLabel": "Queue run {{id}} of {{name}} again",
+        "retryAll": "Retry all",
+        "dismissAll": "Delete all …",
+        "deleteLabel": "Delete run {{id}} of {{name}}"
       },
       "separator": " · ",
       "none": "–",

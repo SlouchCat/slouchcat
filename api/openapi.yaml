@@ -6749,13 +6749,17 @@ paths:
         At most `limit` runs of the type in the state (`planned` is `queued` with a start in the future:
         backoff, debounce, a waiting download). `queued` and `planned` come in claim order (priority, then
         age), so the first row is the next to run; every other state newest first. `total` counts all runs
-        of that state.
+        of that state. `offset` skips that many runs (since contract 1.31.0, concept 20 P-6).
+
+        Since contract 1.31.0 `type` is optional, but only with `state=failed`: without it the page lists
+        the failed runs of every type («Fehlgeschlagen»). Without `type` and with any other state the
+        answer is 422 (`validation_failed`, field `type`, `required`).
       tags: [admin]
       x-visibility: admin
       parameters:
         - name: type
           in: query
-          required: true
+          required: false
           schema:
             $ref: "#/components/schemas/JobTypeName"
         - name: state
@@ -6772,6 +6776,14 @@ paths:
             minimum: 1
             maximum: 200
             default: 50
+        - name: offset
+          in: query
+          required: false
+          description: Since contract 1.31.0. Runs to skip, for paging.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
       responses:
         "200":
           description: The runs.
@@ -7041,6 +7053,78 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/JobCancelResult"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown job type (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  # ---------------------------------------------------------------------------------------------
+  # Concept 20 P-6 (contract 1.31.0): the bulk actions on the failed runs, of every type or of one.
+  # Each runs in one transaction on the server.
+  # ---------------------------------------------------------------------------------------------
+  /admin/jobs/failed/retry:
+    post:
+      operationId: retryFailedJobs
+      summary: Queue every failed run again, of every type or of one
+      description: |
+        Since contract 1.31.0 (concept 20, P-6). Every failed run (of `type`, when given) goes back to the
+        queue with its attempts reset, like `retryJob`, in one transaction. A run whose idempotency key a
+        waiting or running job holds stays failed and counts as `skipped`. Of several failed runs with the
+        same key only the newest is queued; the older ones end `cancelled` and count as `merged`.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/JobTypeName"
+      responses:
+        "200":
+          description: What happened to the failed runs.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobRetryFailedResult"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown job type (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/jobs/failed:
+    delete:
+      operationId: dismissFailedJobs
+      summary: Dismiss every failed run, of every type or of one
+      description: |
+        Since contract 1.31.0 (concept 20, P-6). Every failed run (of `type`, when given) ends `cancelled`,
+        like `cancelJob` on a failed run, in one transaction; `jobs.prune` removes it later.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/JobTypeName"
+      responses:
+        "200":
+          description: How many failed runs were dismissed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobDismissResult"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -16940,6 +17024,31 @@ components:
       required: [cancelled]
       properties:
         cancelled:
+          type: integer
+          minimum: 0
+
+    # Concept 20 P-6 (contract 1.31.0): the answers of the bulk actions on failed runs.
+    JobRetryFailedResult:
+      type: object
+      description: Since contract 1.31.0. `retried` runs are queued again, `skipped` stay failed (an active job holds their key), `merged` ended cancelled (an older failure of a key whose newest run was queued).
+      required: [retried, skipped, merged]
+      properties:
+        retried:
+          type: integer
+          minimum: 0
+        skipped:
+          type: integer
+          minimum: 0
+        merged:
+          type: integer
+          minimum: 0
+
+    JobDismissResult:
+      type: object
+      description: Since contract 1.31.0. How many failed runs ended cancelled.
+      required: [dismissed]
+      properties:
+        dismissed:
           type: integer
           minimum: 0
 

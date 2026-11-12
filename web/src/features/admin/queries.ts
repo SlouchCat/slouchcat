@@ -25,6 +25,8 @@ import type {
   IssueKind,
   IssuePage,
   JobCancelResult,
+  JobDismissResult,
+  JobRetryFailedResult,
   JobOverview,
   JobRun,
   JobRunPage,
@@ -423,11 +425,34 @@ export type JobRunState = 'queued' | 'planned' | 'running' | 'failed' | 'done' |
 
 export const jobRunsQuery = (type: string, state: JobRunState) =>
   queryOptions({
-    queryKey: ['admin', 'job-runs', type, state],
+    queryKey: [...jobRunsKey, type, state],
     queryFn: ({ signal }): Promise<JobRunPage> =>
       request(api.GET('/admin/jobs', { params: { query: { type, state, limit: 200 } }, signal })),
     refetchInterval: JOBS_POLL_MS,
   });
+
+/** Every query of the runs of a type and of the failed runs of every type (concept 20, P-6). */
+export const jobRunsKey = ['admin', 'job-runs'] as const;
+
+/** The failed runs of every type, newest first, read page by page as the tab scrolls (P-6). */
+export const failedRunsSource: PagedSource<JobRunPage, JobRun> = {
+  key: [...jobRunsKey, 'failed-all'],
+  fetch: (offset, limit, signal) =>
+    request(
+      api.GET('/admin/jobs', { params: { query: { state: 'failed', offset, limit } }, signal }),
+    ),
+  items: (page) => page.runs,
+  total: (page) => page.total,
+  id: (job) => job.id,
+};
+
+/** Queues the failed runs of a type, or of every type, again in one request (P-6). */
+export const retryFailedJobs = (type?: string): Promise<JobRetryFailedResult> =>
+  request(api.POST('/admin/jobs/failed/retry', { params: { query: type ? { type } : {} } }));
+
+/** Dismisses the failed runs of a type, or of every type, in one request (P-6). */
+export const dismissFailedJobs = (type?: string): Promise<JobDismissResult> =>
+  request(api.DELETE('/admin/jobs/failed', { params: { query: type ? { type } : {} } }));
 
 export const runJobType = (type: string): Promise<JobRun[]> =>
   request(api.POST('/admin/job-types/{type}/run', { params: { path: { type } } }));

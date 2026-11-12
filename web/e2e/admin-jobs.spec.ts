@@ -170,7 +170,7 @@ test('background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and 
   await expect(tabs.getByRole('tab', { selected: true })).toHaveText(/^Fehlschläge/);
   await expect(page).toHaveURL(/\/admin\/jobs\?tab=failed$/);
   await expect(
-    page.getByRole('heading', { level: 2, name: 'Letzte Fehlschläge (alle Arten)' }),
+    page.getByRole('heading', { level: 2, name: 'Fehlschläge (alle Arten)' }),
   ).toBeVisible();
   for (let presses = 0; presses < 4; presses += 1) await page.keyboard.press('ArrowLeft');
   await expect(tabs.getByRole('tab', { selected: true })).toHaveText(/^Bibliothek/);
@@ -539,42 +539,43 @@ test('background jobs by keyboard: a time window for the keyframe index, set and
   await expectNoFocusTrap(page);
 });
 
-/** Two failures the stubbed dashboard adds to the server's own (see the next test). */
+/** Three failures the stubbed lists add to the server's own (see the next test). */
 const STUB_RETRY = 990_001;
 const STUB_CANCEL = 990_002;
+const STUB_BULK = 990_003;
 
 test.describe('failures', () => {
   // Chromium sends the page's GET requests through the service worker, where page.route does not
-  // see them; the dashboard is answered here, so the worker stays out.
+  // see them; the dashboard and the list are answered here, so the worker stays out.
   test.use({ serviceWorkers: 'block' });
 
-  test('the overview links the tab «Fehlschläge»; retry and cancel there by keyboard, the focus goes to the h1 @keyboard', async ({
+  test('the overview links the tab «Fehlschläge»; retry, delete and the bulk actions there by keyboard, the focus goes to the h1 @keyboard', async ({
     page,
   }) => {
     // No API of the e2e server ends a run as failed in time: every type has five attempts with a
     // backoff from 10 s doubling (about 2.5 min, `server/internal/jobs/queue.go`), and there is no
-    // test hook. The dashboard is therefore answered by the server plus two stubbed failures, and
-    // their «Erneut» and «Abbrechen» calls are answered here; everything else is the real page.
-    const updatedAt = new Date().toISOString();
+    // test hook. The dashboard and the failed runs of every type (concept 20, P-6) are therefore
+    // answered by the server plus three stubbed failures, and the calls on them are answered here
+    // (the bulk actions too: they must not touch the server's own failures); everything else is
+    // the real page.
+    const now = new Date().toISOString();
+    const stub = (id: number, type: string, lastError: string) => ({
+      id,
+      type,
+      state: 'failed',
+      priority: 4,
+      attempts: 5,
+      maxAttempts: 5,
+      lastError,
+      updatedAt: now,
+      finishedAt: now,
+      skipped: false,
+      estimate: 'none',
+    });
     const stubs = [
-      {
-        id: STUB_RETRY,
-        type: 'metadata.match',
-        state: 'failed',
-        attempts: 5,
-        maxAttempts: 5,
-        lastError: 'tmdb: HTTP 503 Service Unavailable',
-        updatedAt,
-      },
-      {
-        id: STUB_CANCEL,
-        type: 'probe.keyframes',
-        state: 'failed',
-        attempts: 5,
-        maxAttempts: 5,
-        lastError: 'ffprobe: Invalid data found when processing input',
-        updatedAt,
-      },
+      stub(STUB_RETRY, 'metadata.match', 'tmdb: HTTP 503 Service Unavailable'),
+      stub(STUB_CANCEL, 'probe.keyframes', 'ffprobe: Invalid data found when processing input'),
+      stub(STUB_BULK, 'image.fetch', 'fanart: context deadline exceeded'),
     ];
     let failures = [...stubs];
     const calls: string[] = [];
@@ -585,6 +586,20 @@ test.describe('failures', () => {
       body.jobs.recentFailed = [...failures, ...body.jobs.recentFailed].slice(0, 10);
       await route.fulfill({ response, json: body });
     });
+    await page.route(
+      (url) =>
+        url.pathname === '/api/v1/admin/jobs' &&
+        url.searchParams.get('state') === 'failed' &&
+        !url.searchParams.has('type'),
+      async (route) => {
+        const response = await route.fetch();
+        const body = (await response.json()) as { total: number; runs: unknown[] };
+        const offset = Number(new URL(route.request().url()).searchParams.get('offset') ?? '0');
+        body.total += failures.length;
+        if (offset === 0) body.runs = [...failures, ...body.runs];
+        await route.fulfill({ response, json: body });
+      },
+    );
     await page.route(`**/api/v1/admin/jobs/${STUB_RETRY}/retry`, async (route) => {
       calls.push(`${route.request().method()} retry`);
       failures = failures.filter((job) => job.id !== STUB_RETRY);
@@ -595,6 +610,12 @@ test.describe('failures', () => {
       calls.push('DELETE cancel');
       failures = failures.filter((job) => job.id !== STUB_CANCEL);
       await route.fulfill({ status: 204 });
+    });
+    await page.route('**/api/v1/admin/jobs/failed**', async (route) => {
+      calls.push(`${route.request().method()} bulk`);
+      const dismissed = failures.length;
+      failures = [];
+      await route.fulfill({ json: { dismissed } });
     });
 
     // The overview's card «Aufgaben» links the tab.
@@ -609,7 +630,7 @@ test.describe('failures', () => {
     await expect(page).toHaveURL(/\/admin\/jobs\?tab=failed$/);
     const tabs = page.getByRole('tablist', { name: 'Jobs nach Gruppe' });
     await expect(tabs.getByRole('tab', { selected: true })).toHaveText(/^Fehlschläge/);
-    const table = page.getByRole('table', { name: 'Letzte Fehlschläge (alle Arten)' });
+    const table = page.getByRole('table', { name: 'Fehlschläge (alle Arten)' });
     const retryRow = table.getByRole('row', { name: /^Titel zuordnen/ });
     await expect(retryRow.getByText('tmdb: HTTP 503 Service Unavailable')).toBeVisible();
     const h1 = page.getByRole('heading', { level: 1, name: 'Hintergrundjobs' });
@@ -627,33 +648,58 @@ test.describe('failures', () => {
     await expect(retryRow).toHaveCount(0);
     await expect(h1).toBeFocused();
 
-    // «Abbrechen» asks: Escape keeps the run with the focus back on the button, Enter on the
-    // confirmation cancels it, the row goes and the h1 takes the focus.
-    const cancel = table.getByRole('button', {
-      name: `Lauf ${STUB_CANCEL} von Keyframe-Index (ganze Datei lesen) abbrechen`,
+    // «Löschen» asks: Escape keeps the run with the focus back on the button, Enter on the
+    // confirmation deletes it, the row goes and the h1 takes the focus.
+    const remove = table.getByRole('button', {
+      name: `Lauf ${STUB_CANCEL} von Keyframe-Index (ganze Datei lesen) löschen`,
     });
-    await tabTo(page, cancel, TAB_MAX);
+    await tabTo(page, remove, TAB_MAX);
     await page.keyboard.press('Enter');
     const dialog = page.getByRole('alertdialog', {
-      name: 'Lauf von Keyframe-Index (ganze Datei lesen) abbrechen?',
+      name: 'Fehlgeschlagenen Lauf von Keyframe-Index (ganze Datei lesen) löschen?',
     });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByText('Slouchcat versucht diesen Lauf nicht mehr.')).toBeVisible();
+    await expect(dialog.getByText(/steht er danach als «abgebrochen»/)).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
-    await expectFocusOn(page, cancel);
+    await expectFocusOn(page, remove);
     expect(calls).toEqual(['POST retry']);
     await page.keyboard.press('Enter');
     await expect(dialog).toBeVisible();
-    await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).press('Enter');
-    await expect(page.getByRole('status').first()).toContainText(
-      `Lauf ${STUB_CANCEL} abgebrochen.`,
-    );
-    await expect(cancel).toHaveCount(0);
+    await dialog.getByRole('button', { name: 'Löschen', exact: true }).press('Enter');
+    await expect(page.getByRole('status').first()).toContainText(`Lauf ${STUB_CANCEL} gelöscht.`);
+    await expect(remove).toHaveCount(0);
     await expect(h1).toBeFocused();
     expect(calls).toEqual(['POST retry', 'DELETE cancel']);
     // Firefox keeps the closing confirmation in the page for its exit animation; wait it out.
     await expect(dialog).toHaveCount(0);
+
+    // Both bulk actions ask with the count (O-10): Escape keeps everything, the focus goes back to
+    // the button; «Alle löschen» on the confirmation empties the list.
+    const retryAll = page.getByRole('button', { name: 'Alle erneut versuchen', exact: true });
+    await tabTo(page, retryAll, TAB_MAX);
+    await page.keyboard.press('Enter');
+    const retryDialog = page.getByRole('alertdialog', {
+      name: /fehlgeschlagenen? L(a|ä)uf(e)? erneut versuchen\?$/,
+    });
+    await expect(retryDialog).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(retryDialog).toHaveCount(0);
+    await expectFocusOn(page, retryAll);
+    const dismissAll = page.getByRole('button', { name: 'Alle löschen …', exact: true });
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, dismissAll);
+    await page.keyboard.press('Enter');
+    const dismissDialog = page.getByRole('alertdialog', {
+      name: /fehlgeschlagenen? L(a|ä)uf(e)? löschen\?$/,
+    });
+    await expect(dismissDialog).toBeVisible();
+    await expect(dismissDialog.getByText(/stehen sie danach als «abgebrochen»/)).toBeVisible();
+    await dismissDialog.getByRole('button', { name: 'Alle löschen', exact: true }).press('Enter');
+    await expect(page.getByRole('status').first()).toContainText('gelöscht.');
+    await expect(h1).toBeFocused();
+    expect(calls).toEqual(['POST retry', 'DELETE cancel', 'DELETE bulk']);
+    await expect(dismissDialog).toHaveCount(0);
     await expectNoFocusTrap(page);
   });
 });

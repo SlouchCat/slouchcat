@@ -86,6 +86,71 @@ func TestStatsListFailedAndRetry(t *testing.T) {
 	}
 }
 
+// Concept 20, P-6: RetryFailed queues every failed job of a type or of all in one transaction.
+// Two failures share the key "dup": only the newer is queued, the older one is merged (one UPDATE
+// over both would break the unique index jobs_active_idempotency_key). The failure with key
+// "held" has an active twin and stays failed. DismissFailed cancels what is left.
+func TestRetryAndDismissFailed(t *testing.T) {
+	ctx := context.Background()
+	q, clk := newTestQueue(t)
+	fail := func(j NewJob) int64 {
+		t.Helper()
+		j.MaxAttempts = 1
+		id := mustEnqueue(t, q, j)
+		failFinally(t, q, "broke")
+		clk.Advance(time.Second)
+		return id
+	}
+	dupOld := fail(NewJob{Type: "a", IdempotencyKey: "dup"})
+	dupNew := fail(NewJob{Type: "a", IdempotencyKey: "dup"})
+	held := fail(NewJob{Type: "a", IdempotencyKey: "held"})
+	plain := fail(NewJob{Type: "b"})
+	twin := mustEnqueue(t, q, NewJob{Type: "a", IdempotencyKey: "held", Delay: time.Hour})
+	state := func(id int64) State {
+		t.Helper()
+		j, err := q.Get(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return j.State
+	}
+
+	// The filter: only b.
+	if r, err := q.RetryFailed(ctx, "b"); err != nil || r != (FailedRetry{Retried: 1}) {
+		t.Fatalf("retry of b = %+v, %v; want 1 retried", r, err)
+	}
+	if state(plain) != StateQueued || state(dupNew) != StateFailed {
+		t.Fatalf("after the retry of b: plain %s, dup %s", state(plain), state(dupNew))
+	}
+	// Every type: the newer dup is queued, the older merged, held skipped.
+	r, err := q.RetryFailed(ctx, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r != (FailedRetry{Retried: 1, Skipped: 1, Merged: 1}) {
+		t.Fatalf("retry of every type = %+v, want 1 retried, 1 skipped, 1 merged", r)
+	}
+	if state(dupNew) != StateQueued || state(dupOld) != StateCancelled || state(held) != StateFailed || state(twin) != StateQueued {
+		t.Fatalf("states: dupNew %s, dupOld %s, held %s, twin %s", state(dupNew), state(dupOld), state(held), state(twin))
+	}
+	if j, err := q.Get(ctx, dupNew); err != nil || j.Attempts != 0 || !j.RunAfter.Equal(clk.Now()) {
+		t.Fatalf("requeued job = %+v, %v; want attempts 0 to run now", j, err)
+	}
+
+	if n, err := q.DismissFailed(ctx, "b"); err != nil || n != 0 {
+		t.Fatalf("dismiss of b = %d, %v; want 0", n, err)
+	}
+	if n, err := q.DismissFailed(ctx, ""); err != nil || n != 1 {
+		t.Fatalf("dismiss of every type = %d, %v; want 1", n, err)
+	}
+	if state(held) != StateCancelled || state(twin) != StateQueued {
+		t.Fatalf("after the dismiss: held %s, twin %s", state(held), state(twin))
+	}
+	if r, err := q.RetryFailed(ctx, ""); err != nil || r != (FailedRetry{}) {
+		t.Fatalf("retry without failures = %+v, %v", r, err)
+	}
+}
+
 // Concept 11: the queries of the overview. ListRunningJobs lists the running jobs of every type,
 // the newest start first, at most the limit; ListFailedJobsNewestPerType has one row per type with
 // the newest failure and the number of failures, the type with the newest failure first.

@@ -4018,7 +4018,21 @@
         "downloadWarning": "Die Downloads enden als «fehlgeschlagen» und werden nicht nachgeholt.",
         "confirm": "Abbrechen",
         "keep": "Behalten",
-        "cancelFailedBody": "Slouchcat versucht diesen Lauf nicht mehr."
+        "deleteRunTitle": "Fehlgeschlagenen Lauf von {{name}} löschen?",
+        "deleteRunBody": "Slouchcat versucht diesen Lauf nicht mehr. Unter «Läufe» steht er danach als «abgebrochen», bis die Aufräumung ihn später entfernt.",
+        "deleteRunConfirm": "Löschen",
+        "retryFailedTitle_one": "{{count}} fehlgeschlagenen Lauf erneut versuchen?",
+        "retryFailedTitle_other": "Alle {{count}} fehlgeschlagenen Läufe erneut versuchen?",
+        "retryFailedTypeTitle_one": "{{count}} fehlgeschlagenen Lauf von {{name}} erneut versuchen?",
+        "retryFailedTypeTitle_other": "Alle {{count}} fehlgeschlagenen Läufe von {{name}} erneut versuchen?",
+        "retryFailedBody": "Die Läufe kommen mit zurückgesetzten Versuchen wieder in die Warteschlange. Wartet oder läuft dieselbe Arbeit schon, bleibt ein Lauf fehlgeschlagen; von doppelten Läufen kommt nur der neueste zurück.",
+        "retryFailedConfirm": "Alle erneut versuchen",
+        "dismissFailedTitle_one": "{{count}} fehlgeschlagenen Lauf löschen?",
+        "dismissFailedTitle_other": "Alle {{count}} fehlgeschlagenen Läufe löschen?",
+        "dismissFailedTypeTitle_one": "{{count}} fehlgeschlagenen Lauf von {{name}} löschen?",
+        "dismissFailedTypeTitle_other": "Alle {{count}} fehlgeschlagenen Läufe von {{name}} löschen?",
+        "dismissFailedBody": "Slouchcat versucht sie nicht mehr. Unter «Läufe» stehen sie danach als «abgebrochen», bis die Aufräumung sie später entfernt.",
+        "dismissFailedConfirm": "Alle löschen"
       },
       "messages": {
         "ran_zero": "{{name}}: nichts einzureihen.",
@@ -4032,7 +4046,18 @@
         "runCancelled": "Lauf {{id}} abgebrochen.",
         "runRetried": "Lauf {{id}} wartet wieder.",
         "scheduleSaved": "Zeitplan von {{name}} gespeichert.",
-        "windowSaved": "Zeitfenster von {{name}} gespeichert."
+        "windowSaved": "Zeitfenster von {{name}} gespeichert.",
+        "runDeleted": "Lauf {{id}} gelöscht.",
+        "failedRetried_zero": "Kein Lauf eingereiht.",
+        "failedRetried_one": "{{count}} Lauf wartet wieder.",
+        "failedRetried_other": "{{count}} Läufe warten wieder.",
+        "failedSkipped_one": "{{count}} bleibt fehlgeschlagen, weil dieselbe Arbeit schon wartet oder läuft.",
+        "failedSkipped_other": "{{count}} bleiben fehlgeschlagen, weil dieselbe Arbeit schon wartet oder läuft.",
+        "failedMerged_one": "{{count}} doppelter Lauf ist verworfen.",
+        "failedMerged_other": "{{count}} doppelte Läufe sind verworfen.",
+        "failedDismissed_zero": "Kein Lauf zu löschen.",
+        "failedDismissed_one": "{{count}} fehlgeschlagener Lauf gelöscht.",
+        "failedDismissed_other": "{{count}} fehlgeschlagene Läufe gelöscht."
       },
       "runs": {
         "title": "Läufe von {{name}}",
@@ -4062,7 +4087,11 @@
         "cancel": "Abbrechen",
         "cancelLabel": "Lauf {{id}} abbrechen",
         "runAfter": "frühestens {{time}}",
-        "heading": "Läufe"
+        "heading": "Läufe",
+        "delete": "Löschen",
+        "deleteLabel": "Lauf {{id}} löschen",
+        "retryAllLabel": "Alle fehlgeschlagenen Läufe von {{name}} erneut versuchen",
+        "dismissAllLabel": "Alle fehlgeschlagenen Läufe von {{name}} löschen"
       },
       "schedule": {
         "title": "Zeitplan von {{name}}",
@@ -4308,16 +4337,19 @@
         "state": "Zustand"
       },
       "failed": {
-        "title": "Letzte Fehlschläge (alle Arten)",
+        "title": "Fehlschläge (alle Arten)",
         "count_one": "{{count}} fehlgeschlagen",
         "count_other": "{{count}} fehlgeschlagen",
         "empty": "Keine Fehlschläge.",
-        "shown": "{{shown}} von {{total}} · Alle Fehlschläge einer Jobart stehen unter «Läufe» in ihrer Zeile.",
+        "shown": "{{shown}} von {{total}} geladen",
         "columns": {
           "type": "Jobart",
           "at": "Zeit"
         },
-        "retryLabel": "Lauf {{id}} von {{name}} erneut einreihen"
+        "retryLabel": "Lauf {{id}} von {{name}} erneut einreihen",
+        "retryAll": "Alle erneut versuchen",
+        "dismissAll": "Alle löschen …",
+        "deleteLabel": "Lauf {{id}} von {{name}} löschen"
       },
       "separator": " · ",
       "none": "–",

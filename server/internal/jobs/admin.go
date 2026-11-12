@@ -68,3 +68,57 @@ func (q *Queue) Retry(ctx context.Context, id int64) (Job, error) {
 	}
 	return q.Get(ctx, active)
 }
+
+// FailedRetry is the outcome of RetryFailed: Retried runs are queued again, Skipped stay failed
+// (an active job holds their key), Merged ended cancelled (an older failure of a key whose newest
+// failed run was queued).
+type FailedRetry struct{ Retried, Skipped, Merged int }
+
+// failedScope is the type filter of the bulk actions: nil for every type.
+func failedScope(typ string) any {
+	if typ == "" {
+		return nil
+	}
+	return typ
+}
+
+// RetryFailed queues every failed job of typ ("" for every type) again with its attempts reset,
+// in one transaction (retryFailedJobs, concept 20 P-6). The rule of Retry holds: a job whose key
+// an active job holds stays failed. Of several failed jobs with the same key only the newest is
+// queued and the older ones are cancelled; one UPDATE over all of them would otherwise break the
+// unique index of active keys and fail as a whole.
+func (q *Queue) RetryFailed(ctx context.Context, typ string) (FailedRetry, error) {
+	tx, err := q.db.BeginTx(ctx, nil)
+	if err != nil {
+		return FailedRetry{}, fmt.Errorf("retry failed jobs: begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	w := q.q.WithTx(tx)
+	now, scope := q.now().UnixMilli(), failedScope(typ)
+	merged, err := w.MergeFailedJobs(ctx, systemq.MergeFailedJobsParams{Now: now, Type: scope})
+	if err != nil {
+		return FailedRetry{}, fmt.Errorf("merge failed jobs: %w", err)
+	}
+	retried, err := w.RetryFailedJobs(ctx, systemq.RetryFailedJobsParams{Now: now, Type: scope})
+	if err != nil {
+		return FailedRetry{}, fmt.Errorf("retry failed jobs: %w", err)
+	}
+	skipped, err := w.CountFailedJobs(ctx, scope)
+	if err != nil {
+		return FailedRetry{}, fmt.Errorf("count failed jobs: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return FailedRetry{}, fmt.Errorf("retry failed jobs: commit: %w", err)
+	}
+	return FailedRetry{Retried: int(retried), Skipped: int(skipped), Merged: int(merged)}, nil
+}
+
+// DismissFailed cancels every failed job of typ ("" for every type) in one statement
+// (dismissFailedJobs, concept 20 P-6) and returns how many; jobs.prune removes them later.
+func (q *Queue) DismissFailed(ctx context.Context, typ string) (int, error) {
+	n, err := q.q.DismissFailedJobs(ctx, systemq.DismissFailedJobsParams{Now: q.now().UnixMilli(), Type: failedScope(typ)})
+	if err != nil {
+		return 0, fmt.Errorf("dismiss failed jobs: %w", err)
+	}
+	return int(n), nil
+}

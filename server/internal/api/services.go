@@ -299,7 +299,8 @@ type AdminService interface {
 	// *model.ValidationError, and the services' own refusals of a manual run
 	// (model.ErrProviderNotConfigured, model.ErrRefreshTooSoon, model.ErrUpdateCheckDisabled).
 	ListJobTypes(ctx context.Context) (model.JobOverview, error)
-	ListJobRuns(ctx context.Context, typ, state string, limit int) (model.JobRunPage, error)
+	// ListJobRuns with an empty typ lists the failed runs of every type (concept 20, P-6).
+	ListJobRuns(ctx context.Context, typ, state string, limit, offset int) (model.JobRunPage, error)
 	RunJobType(ctx context.Context, typ string) ([]model.JobRun, error)
 	PauseJobType(ctx context.Context, typ string) (model.JobTypeInfo, error)
 	ResumeJobType(ctx context.Context, typ string) (model.JobTypeInfo, error)
@@ -308,6 +309,10 @@ type AdminService interface {
 	// (concept 15, 4.3).
 	UpdateJobTypeWindow(ctx context.Context, typ string, upd model.JobTypeWindowUpdate) (model.JobTypeInfo, error)
 	CancelJobRuns(ctx context.Context, typ string, all bool) (int, error)
+	// RetryFailedJobs and DismissFailedJobs act on the failed runs of typ, "" for every type, each
+	// in one transaction (concept 20, P-6); model.ErrNotFound for an unknown type.
+	RetryFailedJobs(ctx context.Context, typ string) (model.JobFailedRetry, error)
+	DismissFailedJobs(ctx context.Context, typ string) (int, error)
 	// Settings and integrations (A-2). UpdateSettings checks everything before it stores anything:
 	// *model.ValidationError, *model.EnvWinsError, model.ErrTMDBKeyInvalid, model.ErrTMDBUnreachable,
 	// model.ErrTelegramTokenInvalid, model.ErrTelegramUnreachable.

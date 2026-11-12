@@ -3543,7 +3543,11 @@ export interface paths {
          * @description At most `limit` runs of the type in the state (`planned` is `queued` with a start in the future:
          *     backoff, debounce, a waiting download). `queued` and `planned` come in claim order (priority, then
          *     age), so the first row is the next to run; every other state newest first. `total` counts all runs
-         *     of that state.
+         *     of that state. `offset` skips that many runs (since contract 1.31.0, concept 20 P-6).
+         *
+         *     Since contract 1.31.0 `type` is optional, but only with `state=failed`: without it the page lists
+         *     the failed runs of every type («Fehlgeschlagen»). Without `type` and with any other state the
+         *     answer is 422 (`validation_failed`, field `type`, `required`).
          */
         get: operations["listJobRuns"];
         put?: never;
@@ -3692,6 +3696,50 @@ export interface paths {
          *     ends `failed` with `cancelled_by_admin` and is not prepared again by itself. Cancelling is final.
          */
         delete: operations["cancelJobRuns"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/jobs/failed/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queue every failed run again, of every type or of one
+         * @description Since contract 1.31.0 (concept 20, P-6). Every failed run (of `type`, when given) goes back to the
+         *     queue with its attempts reset, like `retryJob`, in one transaction. A run whose idempotency key a
+         *     waiting or running job holds stays failed and counts as `skipped`. Of several failed runs with the
+         *     same key only the newest is queued; the older ones end `cancelled` and count as `merged`.
+         */
+        post: operations["retryFailedJobs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/jobs/failed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Dismiss every failed run, of every type or of one
+         * @description Since contract 1.31.0 (concept 20, P-6). Every failed run (of `type`, when given) ends `cancelled`,
+         *     like `cancelJob` on a failed run, in one transaction; `jobs.prune` removes it later.
+         */
+        delete: operations["dismissFailedJobs"];
         options?: never;
         head?: never;
         patch?: never;
@@ -9414,6 +9462,16 @@ export interface components {
         };
         JobCancelResult: {
             cancelled: number;
+        };
+        /** @description Since contract 1.31.0. `retried` runs are queued again, `skipped` stay failed (an active job holds their key), `merged` ended cancelled (an older failure of a key whose newest run was queued). */
+        JobRetryFailedResult: {
+            retried: number;
+            skipped: number;
+            merged: number;
+        };
+        /** @description Since contract 1.31.0. How many failed runs ended cancelled. */
+        JobDismissResult: {
+            dismissed: number;
         };
         StorageInfo: {
             /** @example /config */
@@ -17597,9 +17655,11 @@ export interface operations {
     listJobRuns: {
         parameters: {
             query: {
-                type: components["schemas"]["JobTypeName"];
+                type?: components["schemas"]["JobTypeName"];
                 state: "queued" | "planned" | "running" | "failed" | "done" | "cancelled";
                 limit?: number;
+                /** @description Since contract 1.31.0. Runs to skip, for paging. */
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -17904,6 +17964,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobCancelResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown job type (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    retryFailedJobs: {
+        parameters: {
+            query?: {
+                type?: components["schemas"]["JobTypeName"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What happened to the failed runs. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobRetryFailedResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown job type (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    dismissFailedJobs: {
+        parameters: {
+            query?: {
+                type?: components["schemas"]["JobTypeName"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description How many failed runs were dismissed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDismissResult"];
                 };
             };
             401: components["responses"]["Unauthenticated"];

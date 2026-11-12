@@ -95,7 +95,7 @@
       "admin-jobs.spec.ts": {
         "background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and schedule": 6.2,
         "background jobs by keyboard: the menu cancels waiting runs after asking; a cancelled run hands the focus to the h1": 8.3,
-        "failures › the overview links the tab «Fehlschläge»; retry and cancel there by keyboard, the focus goes to the h1": 2.3
+        "failures › the overview links the tab «Fehlschläge»; retry, delete and the bulk actions there by keyboard, the focus goes to the h1": 2.3
       },
       "admin-libraries.spec.ts": {
         "\"Scan abbrechen\" shows while a scan is queued or running and cancels it": 5.5,
@@ -552,7 +552,7 @@
       "admin-jobs.spec.ts": {
         "background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and schedule": 8.8,
         "background jobs by keyboard: the menu cancels waiting runs after asking; a cancelled run hands the focus to the h1": 8.8,
-        "failures › the overview links the tab «Fehlschläge»; retry and cancel there by keyboard, the focus goes to the h1": 2.9
+        "failures › the overview links the tab «Fehlschläge»; retry, delete and the bulk actions there by keyboard, the focus goes to the h1": 2.9
       },
       "admin-libraries.spec.ts": {
         "\"Scan abbrechen\" shows while a scan is queued or running and cancels it": 6,
