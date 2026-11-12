@@ -234,10 +234,13 @@ test('the pen opens the dialog; Tab stays inside, Escape closes, focus back on t
     /^Zuordnen/,
     /^Aktualisieren/,
   ]);
-  // Tab order of the head: the link, «Schliessen», then the selected tab; the focus never leaves.
+  // Tab order of the head: the link, «Löschen …» (concept 20 P-9, a film), «Schliessen», then the
+  // selected tab; the focus never leaves.
   const link = dialog(page).getByRole('link', { name: 'In der Verwaltung öffnen' });
   const close = dialog(page).getByRole('button', { name: 'Schliessen' });
   await tabTo(page, link, 10);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, dialog(page).getByRole('button', { name: 'Löschen …' }));
   await page.keyboard.press('Tab');
   await expectFocusOn(page, close);
   await page.keyboard.press('Tab');
