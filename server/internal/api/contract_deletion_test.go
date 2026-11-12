@@ -7,9 +7,12 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
@@ -90,9 +93,26 @@ func TestContractItemDeletion(t *testing.T) {
 	if code := problemCode(t, rec); code != "changed" {
 		t.Errorf("a foreign stamp = %s, want changed", code)
 	}
+	// The fixture writes its media_files rows without device and inode, which a scan records;
+	// without them no file goes (review N3). The test records them, then reads the preview again.
+	for _, f := range preview.Files {
+		fi, err := os.Lstat(filepath.Join(f.RootPath, filepath.FromSlash(f.Path)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		st := fi.Sys().(*syscall.Stat_t)
+		if _, err := pf.f.DB.Write.Exec(`UPDATE media_files SET dev = ?, inode = ? WHERE rel_path = ?`,
+			int64(st.Dev), int64(st.Ino), f.Path); err != nil { //nolint:unconvert // the widths of Stat_t differ between architectures
+			t.Fatal(err)
+		}
+	}
+	rec = send(t, pf.h, http.MethodGet, path, "p18", "", nil)
+	wantStatus(t, rec, http.StatusOK)
+	decode(t, rec, &preview)
+	stamp = fmt.Sprintf(`"expectedFiles":{"count":%d,"hash":%q}`, preview.ExpectedFiles.Count, preview.ExpectedFiles.Hash)
 	// «Auch die Dateien löschen»: the files go, and the title for good (O-14); it is not listed
 	// among the removed titles.
-	rec = send(t, pf.h, http.MethodPost, path, "p18", confirm[:len(`{"mode":"`)]+`files"`+confirm[len(`{"mode":"library"`):], nil)
+	rec = send(t, pf.h, http.MethodPost, path, "p18", `{"mode":"files",`+stamp+`,"confirmTitle":`+strconv.Quote(preview.ConfirmTitle)+`}`, nil)
 	wantStatus(t, rec, http.StatusOK)
 	decode(t, rec, &result)
 	if result.DeletedFiles != preview.FileCount || result.TitleDeleted == nil || !*result.TitleDeleted || len(result.Leftover) != 0 {
