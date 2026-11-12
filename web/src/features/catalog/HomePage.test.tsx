@@ -901,19 +901,26 @@ describe('start page', () => {
     expect(within(picks).getByRole('link', { name: /Heat/ })).toHaveTextContent(
       'Unbedingt im Kino-Modus schauen.',
     );
-    // Picks and watchlist link their full page (concept 08, O-3); the other rows do not.
-    expect(within(picks).getByRole('link', { name: 'Alle anzeigen ›' })).toHaveAttribute(
-      'href',
-      '/picks',
-    );
+    // Each row title links its full page (concept 20 P-7, 8.2); the genres have none, each chip
+    // is a target already.
+    for (const [name, href] of [
+      ['User-Empfehlungen', '/picks'],
+      ['Weiterschauen', '/lists/continue'],
+      ['Neu hinzugefügt', '/lists/recent'],
+      ['Merkliste', '/watchlist'],
+      ['Sammlungen', '/collections'],
+      ['Spotlight', '/lists/spotlight'],
+      ['Kürzlich veröffentlicht', '/lists/released'],
+    ] as const) {
+      const heading = within(screen.getByRole('region', { name })).getByRole('heading', {
+        level: 2,
+      });
+      expect(within(heading).getByRole('link', { name })).toHaveAttribute('href', href);
+    }
+    expect(screen.queryByRole('link', { name: 'Alle anzeigen ›' })).not.toBeInTheDocument();
     expect(
-      within(screen.getByRole('region', { name: 'Merkliste' })).getByRole('link', {
-        name: 'Alle anzeigen ›',
-      }),
-    ).toHaveAttribute('href', '/watchlist');
-    expect(
-      within(screen.getByRole('region', { name: 'Weiterschauen' })).queryByRole('link', {
-        name: 'Alle anzeigen ›',
+      within(screen.getByRole('region', { name: 'Genres' })).queryByRole('link', {
+        name: 'Genres',
       }),
     ).not.toBeInTheDocument();
 
@@ -1258,7 +1265,7 @@ describe('start page', () => {
       expect(tiles[0]!.querySelectorAll('img')).toHaveLength(2);
 
       const films = screen.getByRole('region', { name: 'Neu in Filme' });
-      expect(within(films).getByRole('link', { name: 'Alle anzeigen ›' })).toHaveAttribute(
+      expect(within(films).getByRole('link', { name: 'Neu in Filme' })).toHaveAttribute(
         'href',
         '/libraries/1?sort=added',
       );
@@ -1513,7 +1520,7 @@ describe('start page', () => {
         'aria-pressed',
         'true',
       );
-      expect(within(row).getByRole('link', { name: 'Alle anzeigen ›' })).toHaveAttribute(
+      expect(within(row).getByRole('link', { name: 'Meine Sender' })).toHaveAttribute(
         'href',
         '/radio',
       );

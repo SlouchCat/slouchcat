@@ -1,7 +1,8 @@
 import type { ItemRef } from '@slouchcat/api-client';
 import { useQueryClient } from '@tanstack/react-query';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useActiveSession } from '@/app/session';
 import { Button } from '@/ui';
 
 // The pen's dialog loads with react-aria on demand, like the trailer dialog: the browsing pages
@@ -72,4 +73,23 @@ export function CoverPen({
       onPress={() => onEdit(item.id)}
     />
   );
+}
+
+/**
+ * The pens of a list of titles (concept 20 P-7: watchlist, user picks, collection, search, person,
+ * the lists behind the row titles): `tool` for the grid's cards, only for the one who manages the
+ * library (the administrator with the primary profile, a shortcut, not a rule: the server checks),
+ * and the editor it opens, to render once on the page.
+ */
+export function useCoverPens(): {
+  tool?: (item: Pick<ItemRef, 'id' | 'kind' | 'title'>) => ReactNode;
+  editor: ReactNode;
+} {
+  const session = useActiveSession();
+  const canManage = session.account.role === 'admin' && session.profile.isPrimary;
+  const [editing, setEditing] = useState<string | null>(null);
+  return {
+    tool: canManage ? (item) => <CoverPen item={item} onEdit={setEditing} /> : undefined,
+    editor: editing ? <EditMetadata itemId={editing} onClose={() => setEditing(null)} /> : null,
+  };
 }

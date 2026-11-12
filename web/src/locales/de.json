@@ -454,6 +454,15 @@
     }
   },
   "home": {
+    "list": {
+      "count_one": "{{count}} Titel",
+      "count_other": "{{count}} Titel",
+      "empty": "In dieser Auswahl steht kein Titel.",
+      "notFound": {
+        "title": "Liste nicht gefunden",
+        "body": "Diese Liste gibt es gerade nicht, etwa weil das Spotlight ausgeschaltet ist."
+      }
+    },
     "title": "Startseite",
     "picks": "User-Empfehlungen",
     "rows": {
@@ -464,7 +473,6 @@
       "genres": "Genres",
       "spotlight": "Spotlight",
       "released": "Kürzlich veröffentlicht",
-      "all": "Alle anzeigen ›",
       "libraries": "Meine Medien",
       "library": "Neu in {{library}}",
       "radio": "Meine Sender"

@@ -141,7 +141,16 @@ test('search by keyboard: "/", arrows, Enter, back; no focus trap @keyboard', as
     await page.keyboard.press('ArrowLeft');
     await expectFocusOn(page, cards.first());
   }
-  // Tab from a card reaches its watchlist button (concept 17 D-9); an arrow moves on from the card.
+  // Tab from a card reaches the pen of the server administrator (concept 20 P-7), then its
+  // watchlist button (concept 17 D-9); an arrow moves on from the card.
+  await page.keyboard.press('Tab');
+  await expectFocusOn(
+    page,
+    titles(page)
+      .getByRole('listitem')
+      .first()
+      .getByRole('button', { name: /: Metadaten bearbeiten$/ }),
+  );
   await page.keyboard.press('Tab');
   await expectFocusOn(
     page,
@@ -150,6 +159,7 @@ test('search by keyboard: "/", arrows, Enter, back; no focus trap @keyboard', as
       .first()
       .getByRole('button', { name: / merken$/ }),
   );
+  await page.keyboard.press('Shift+Tab');
   await page.keyboard.press('Shift+Tab');
   await expectFocusOn(page, cards.first());
 

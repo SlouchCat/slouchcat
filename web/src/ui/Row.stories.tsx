@@ -39,9 +39,21 @@ export const Default: Story = {};
 /** First card focused by Tab (the paging buttons are pointer-only). */
 export const Focused: Story = { tags: ['press:Tab'] };
 
-/** A row with a page of all its entries: "Alle anzeigen ›" right of the title (concept 08). */
+/**
+ * A row with a page of all its entries (concept 20 P-7): the title itself is the link, with a small
+ * arrow after it.
+ */
+export const WithTitleLink: Story = { args: { title: 'Neu hinzugefügt', href: '#' } };
+
+/** The title link focused by Tab: the first stop of the row, before the cards. */
+export const TitleLinkFocused: Story = {
+  args: { title: 'Neu hinzugefügt', href: '#' },
+  tags: ['press:Tab'],
+};
+
+/** A separate link right of the title (the radio page's «Alle aus …»). */
 export const WithMoreLink: Story = {
-  args: { title: 'User-Empfehlungen', moreHref: '#', moreLabel: 'Alle anzeigen ›' },
+  args: { title: 'Beliebt in der Schweiz', moreHref: '#', moreLabel: 'Alle aus der Schweiz ›' },
 };
 
 /**

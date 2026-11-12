@@ -14,6 +14,7 @@ import { ItemPage } from '@/features/catalog/ItemPage';
 import { homeQuery } from '@/features/catalog/queries';
 import { isStatsDays } from '@/features/admin/statsDays';
 import { validateLibraryParams } from '@/features/catalog/libraryParams';
+import { validateHomeListSearch } from '@/features/catalog/homeListParams';
 import { validateSearchParams } from '@/features/discover/searchParams';
 import { validateRadioSearch } from '@/features/radio/filters';
 import { leaveOfflineProfile, offlineChoice } from '@/features/offline/offlineSession';
@@ -576,6 +577,15 @@ const watchlistRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/discover/WatchlistPage'), 'WatchlistPage'),
 });
 
+// concept 20 P-7: the whole list behind a row title of the start page.
+const homeListRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/lists/$key',
+  // content, one kind of the top level; anything else is dropped.
+  validateSearch: validateHomeListSearch,
+  component: lazyRouteComponent(() => import('@/features/catalog/HomeListPage'), 'HomeListPage'),
+});
+
 // concept 20 O-3: every collection, the target of the start page row's title.
 const collectionsRoute = createRoute({
   getParentRoute: () => chromeRoute,
@@ -701,6 +711,7 @@ export const routeTree = rootRoute.addChildren([
         // discover M7
         searchRoute,
         watchlistRoute,
+        homeListRoute,
         collectionsRoute,
         collectionRoute,
         notificationsRoute,

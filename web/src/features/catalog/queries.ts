@@ -1,8 +1,11 @@
 import type {
   components,
+  HomeListKey,
   HomePage,
   ItemDetail,
+  ItemPage,
   ItemRef,
+  RootContent,
   Person,
   PodcastEpisodes,
   paths,
@@ -113,6 +116,27 @@ export const picksSource: PagedSource<PicksPage, ItemRef> = {
   total: (page) => page.total,
   id: (item) => item.id,
 };
+
+/**
+ * The whole list behind a row title of the start page (listHomeRow, concept 20 P-7), filtered by the
+ * kind of the top level; paged as the grid asks (concept 18 C-3).
+ */
+export const homeListSource = (
+  key: HomeListKey,
+  content: RootContent | undefined,
+): PagedSource<ItemPage, ItemRef> => ({
+  key: ['homeList', key, content ?? ''],
+  fetch: (offset, limit, signal) =>
+    request(
+      api.GET('/home/rows/{key}', {
+        params: { path: { key }, query: { offset, limit, content } },
+        signal,
+      }),
+    ),
+  items: (page) => page.items,
+  total: (page) => page.total,
+  id: (item) => item.id,
+});
 
 /**
  * The row «Reihen und Sammlungen» of an audiobook library with the grid's filters (concept 19

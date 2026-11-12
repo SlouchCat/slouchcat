@@ -225,9 +225,12 @@ test('the cover button by keyboard: Tab after the card, arrows pass it, focus to
   await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, cards.first());
 
-  // Tab: the card's cover button, shown with the focus. The arrow keys pass it by and move on
-  // from the card.
+  // Tab: the pen of the server administrator (concept 20 P-7), then the card's cover button, shown
+  // with the focus. The arrow keys pass them by and move on from the card.
   const first = coverMark(page, EXTRAS_TITLE, true);
+  const pen = grid(page).getByRole('button', { name: `${EXTRAS_TITLE}: Metadaten bearbeiten` });
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, pen);
   await page.keyboard.press('Tab');
   await expectFocusOn(page, first);
   await expect(first.locator('xpath=../..')).toHaveCSS('opacity', '1');
@@ -236,7 +239,9 @@ test('the cover button by keyboard: Tab after the card, arrows pass it, focus to
   await page.keyboard.press('ArrowLeft');
   await expectFocusOn(page, cards.first());
 
-  // Tab order in the cell: card, cover button, "Entfernen".
+  // Tab order in the cell: card, pen, cover button, "Entfernen".
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, pen);
   await page.keyboard.press('Tab');
   await expectFocusOn(page, first);
   await page.keyboard.press('Tab');

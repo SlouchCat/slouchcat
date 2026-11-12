@@ -22,6 +22,7 @@ import {
   SpatialGroup,
   SpatialPage,
 } from '@/ui';
+import { useCoverPens } from '@/features/catalog/EditMetadata';
 import { PageRetry } from './ItemGrid';
 import { PagedItemGrid } from './PagedItemGrid';
 import { genresQuery, searchSource } from './queries';
@@ -51,6 +52,7 @@ const DEBOUNCE_MS = 200;
  */
 export function SearchPage() {
   const { t } = useTranslation();
+  const pens = useCoverPens();
   useDocumentTitle(t('search.title'));
   const params = route.useSearch();
   const navigate = route.useNavigate();
@@ -290,7 +292,9 @@ export function SearchPage() {
                 onRange={setSpan}
                 focusKey="search-item"
                 label={t('search.sections.titles')}
+                tool={pens.tool}
               />
+              {pens.editor}
               {paged.failed && <PageRetry onRetry={paged.retry} />}
             </section>
           )}

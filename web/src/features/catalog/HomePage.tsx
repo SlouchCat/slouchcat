@@ -51,7 +51,14 @@ const TrailerPanel = lazy(() =>
 
 // Rows with a page of all their titles ("Alle anzeigen ›", concept 08 O-3), and a library row
 // («Neu in …», concept 15 P-7), whose library opens sorted by «Zuletzt hinzugefügt».
+// The page behind each row title (concept 20 P-7, 8.2); genres and «Meine Medien» have none, each
+// of their tiles is a target already.
 const rowPages: Partial<Record<HomeRow['key'], string>> = {
+  spotlight: paths.homeList('spotlight'),
+  continue: paths.homeList('continue'),
+  recent: paths.homeList('recent'),
+  released: paths.homeList('released'),
+  collections: paths.collections,
   picks: paths.picks,
   watchlist: paths.watchlist,
   radio: paths.radio,
@@ -405,15 +412,8 @@ export function HomePage() {
     }
     if (row.key === 'radio') {
       // «Meine Sender» (concept 16, 10.2): square station tiles that play through the app's radio.
-      const moreHref = rowPage(row);
       return (
-        <Row
-          key={row.id}
-          title={title}
-          focusKey={focusKey}
-          moreHref={moreHref}
-          moreLabel={moreHref ? t('home.rows.all') : undefined}
-        >
+        <Row key={row.id} title={title} focusKey={focusKey} href={rowPage(row)}>
           {(row.stations ?? []).map((tile, tileIndex) => {
             const { station } = tile;
             const state = stationState(radio, station.id);
@@ -470,7 +470,7 @@ export function HomePage() {
     }
     if (row.key === 'collections') {
       return (
-        <Row key={row.id} title={title} focusKey={focusKey}>
+        <Row key={row.id} title={title} focusKey={focusKey} href={rowPage(row)}>
           {(row.collections ?? []).map((collection, itemIndex) => (
             <CollectionCard
               key={collection.id}
@@ -489,15 +489,8 @@ export function HomePage() {
         </Row>
       );
     }
-    const moreHref = rowPage(row);
     return (
-      <Row
-        key={row.id}
-        title={title}
-        focusKey={focusKey}
-        moreHref={moreHref}
-        moreLabel={moreHref ? t('home.rows.all') : undefined}
-      >
+      <Row key={row.id} title={title} focusKey={focusKey} href={rowPage(row)}>
         {row.items.map((item, itemIndex) => {
           const series = seriesOf(row, item);
           const text = series
@@ -567,6 +560,7 @@ export function HomePage() {
                   <HeroCarousel
                     key={row.id}
                     label={homeRowTitle(t, row)}
+                    href={rowPage(row)}
                     slides={slides(row)}
                     playLabel={t('item.play')}
                     detailsLabel={t('item.details')}

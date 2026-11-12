@@ -11,6 +11,8 @@ interface PagedItemGridProps {
   focusKey: string;
   label: string;
   showWatched?: boolean;
+  /** A control over the cover beside the card's link (the pen, concept 20 P-7; ItemGrid `tool`). */
+  tool?: (item: ItemRef) => ReactNode;
   /** Extra controls under a card (the watchlist's "Entfernen"). */
   below?: (item: ItemRef) => ReactNode;
   onUnmarked?: (item: ItemRef) => void;
@@ -29,6 +31,7 @@ export function PagedItemGrid({
   focusKey,
   label,
   showWatched = false,
+  tool,
   below,
   onUnmarked,
   onRange,
@@ -40,6 +43,7 @@ export function PagedItemGrid({
         focusKey={focusKey}
         label={label}
         showWatched={showWatched}
+        tool={tool}
         below={below}
         onUnmarked={onUnmarked}
         onRange={onRange}
@@ -52,6 +56,7 @@ export function PagedItemGrid({
       focusKey={focusKey}
       label={label}
       showWatched={showWatched}
+      tool={tool}
       below={below}
       onUnmarked={onUnmarked}
     />

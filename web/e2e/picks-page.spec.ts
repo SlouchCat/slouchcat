@@ -8,7 +8,7 @@ import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard'
 
 // Concept 18 part B (14.4, 14.9): the star «Empfehlen» of the title page puts the title at the
 // front of the user picks; the page lists every pick once, newest first, without a note and
-// without «Mehr laden» (16.4); the start page row links it with "Alle anzeigen ›" (concept 08).
+// without «Mehr laden» (16.4); the title of the start page row links it (concept 20 P-7).
 // The `owner` fixture leaves only the baseline pick (the H264 film) and removes the one made here.
 const grid = (page: Page) => page.getByRole('list', { name: ROW_TITLES.picks });
 const cards = (page: Page) => grid(page).getByRole('link');
@@ -35,10 +35,10 @@ test('User picks by keyboard: the star, arrows, Enter, back; no focus trap @keyb
   await expect(done).toHaveAttribute('aria-pressed', 'true');
   await expectFocusOn(page, done);
 
-  // The start page row links the page.
+  // The start page row's title links the page (concept 20 P-7).
   await page.goto('/');
   const row = page.getByRole('region', { name: ROW_TITLES.picks });
-  const all = row.getByRole('link', { name: 'Alle anzeigen ›' });
+  const all = row.getByRole('link', { name: ROW_TITLES.picks });
   await expect(all).toHaveAttribute('href', '/picks');
   await all.click();
   await expect(page).toHaveURL('/picks');
@@ -81,7 +81,16 @@ test('User picks by keyboard: the star, arrows, Enter, back; no focus trap @keyb
   await resetFocus(page);
   await tabTo(page, page.getByRole('button', { name: 'Zurück' }));
   await tabTo(page, cards(page).first(), 3);
-  // Then the card's watchlist button (concept 17 D-9).
+  // Then the pen of the server administrator (concept 20 P-7) and the card's watchlist button
+  // (concept 17 D-9).
+  await page.keyboard.press('Tab');
+  await expectFocusOn(
+    page,
+    grid(page)
+      .getByRole('listitem')
+      .first()
+      .getByRole('button', { name: /: Metadaten bearbeiten$/ }),
+  );
   await page.keyboard.press('Tab');
   await expectFocusOn(
     page,
