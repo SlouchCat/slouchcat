@@ -161,6 +161,27 @@ einer Migration.
 Bibliothek mit 10 000 Titeln knapp über fünf Sekunden. Die Messung auf CT 190 folgt bei der Abnahme der Stufe;
 liegt sie dort deutlich über fünf Sekunden, wird der Hintergrundjob nachgebaut.
 
+### 5.1 CT 190 bei der Abnahme (12. November 2026)
+
+Marcos Abnahme auf CT 190 (Test-Image von Stufe 5, Datenbank 1,5 GB), Dauer der Anfrage aus dem Protokoll des
+Servers:
+
+| Anfrage | Titel | Dauer |
+|---|---:|---:|
+| `POST /api/v1/admin/libraries/3/deletion` | 304 | **9 524 ms** |
+| `POST /api/v1/admin/libraries/2/deletion` | 31 641 | **27 425 ms** |
+
+Die Sicherung mit `VACUUM INTO` vor dem Löschen braucht bei dieser Datenbank allein rund 9 s; sie fällt bei
+jeder Bibliothek an, auch bei einer kleinen. Für das Löschen selbst bleiben bei 31 641 Titeln rund 18 s (27,4 s abzüglich der Sicherung, nicht einzeln gemessen). Marco
+meldete: «Ich muss manchmal zwei mal klicken oder sehr lange warten.» Im Protokoll steht je Bibliothek nur
+eine Anfrage (Abschnitt 9.3 des Konzepts erklärt den zweiten Klick).
+
+**Entscheid (ersetzt den Entscheid oben):** `deleteLibrary` antwortet nach den Prüfungen mit 202 und einer
+Job-Nummer; die Bibliothek ist über `libraries.deleting_at` (Migration 00056) sofort unsichtbar, die Jobart
+`library.delete` sichert und löscht im Hintergrund. Die Anfrage selbst dauert lokal unter 1 ms
+(e2e-Lauf: 0,78 ms für die 202, der Job danach 52 ms). Eintrag im Entscheidungsprotokoll vom 12. November 2026
+«Bibliothek löschen als Hintergrundjob».
+
 ## M-3 listHomeRow
 
 Stufe 3 (Abschnitt 8.3): Antwortzeit von `listHomeRow` für `continue` mit 200 angefangenen Titeln und

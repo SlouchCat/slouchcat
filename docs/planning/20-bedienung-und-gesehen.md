@@ -649,7 +649,8 @@ Mockup «Jobs, Löschen, Duplikate», Thema «Bibliothek löschen».
      Profil sieht sie nicht.
   `activity_events.library_id` (`00031:27`) wird für die gelöschte Bibliothek auf `NULL` gesetzt;
   der Name steht im Text des Ereignisses.
-- Ablauf im Paket `library` unter der Scan-Sperre (`lockScan`):
+- Ablauf im Paket `library` unter der Scan-Sperre (`lockScan`), seit dem 12. November 2026 im Job
+  `library.delete`:
   1. Laufenden Scan abbrechen. **Wartende und laufende Jobs zu Titeln der Bibliothek abbrechen**
      (Abgleich, Trickplay, Keyframes, Bilder hängen am Titel, nicht an der Bibliothek; sie
      scheiterten sonst nach dem Löschen und füllten «Fehlgeschlagen»).
@@ -664,6 +665,33 @@ Mockup «Jobs, Löschen, Duplikate», Thema «Bibliothek löschen».
   Anfrage. Darüber läuft es als Hintergrundjob `library.delete`; dann braucht die Bibliothek ein
   Merkmal «wird gelöscht», damit sie sofort aus allen Ansichten verschwindet, und die Jobart
   einen Eintrag in `job_types`. Das wäre eine zweite Migration.
+- **Ergebnis (12. November 2026):** Lokal lag das Löschen nach den Indizes aus Migration 00055 bei
+  2,8 bis 3,3 s, darum lief es zuerst in der Anfrage (`docs/perf/20-bedienung.md`, Abschnitt 5).
+  Bei Marcos Abnahme auf CT 190 dauerte die Anfrage 9,5 s für 304 Titel und 27,4 s für 31 641
+  Titel, davon rund 9 s für die Sicherung einer 1,5-GB-Datenbank; Marco musste «manchmal zwei Mal
+  klicken oder sehr lange warten». **Entscheid: Bibliothek löschen läuft als Hintergrundjob.**
+  - `deleteLibrary` prüft in der Anfrage nur den Namen (422) und laufende Wiedergaben (409
+    `playing`), setzt `libraries.deleting_at` (Migration 00056) und antwortet **202**
+    `{ "jobId", "name" }`. Eine zweite Anfrage, solange die Bibliothek gelöscht wird, bekommt 409
+    `deleting`.
+  - Mit `deleting_at` verschwindet die Bibliothek sofort: aus den Listen der Bibliotheken,
+    `visible_items` (damit aus Bibliotheksansichten, Startseitenreihen, Suche und Offline-Abgleich),
+    Scans und neuen Jobs.
+  - Die Jobart `library.delete` (allgemeiner Pool, Priorität 7, ohne automatische Wiederholung)
+    macht den Ablauf unten. Scheitert sie, bevor etwas gelöscht ist, oder bricht jemand sie ab,
+    bekommt die Bibliothek ihr `deleting_at` zurückgesetzt und ist wieder da. Nach einem Neustart
+    holt der Server einen angefangenen Job wieder ab oder stellt ihn neu ein; der Ablauf ist
+    wiederholbar.
+  - Die Seite «Bibliotheken» schliesst den Dialog bei der 202, nimmt die Zeile heraus und meldet
+    «Bibliothek «X» wird im Hintergrund gelöscht.» mit einem Verweis auf den Job. Sie fragt alle
+    zwei Sekunden nach den wartenden und laufenden Läufen von `library.delete` und liest die Liste
+    neu, sobald der Job fertig ist («Bibliothek «X» gelöscht.»; ist sie wieder da, sagt die Seite,
+    dass sie nicht gelöscht wurde).
+  - **Zwei Klicks:** Das Protokoll zeigt je Bibliothek nur eine Anfrage. Der Dialog leerte sein
+    Feld beim Bestätigen und zeigte während der Anfrage wieder «Tippe … ab, dann wird der Knopf
+    aktiv»; das las sich wie ein Klick ohne Wirkung, und der zweite Klick traf den wartenden Knopf,
+    der nichts sendet. Das Feld zeigt jetzt bis zur Antwort, was gesendet wurde. e2e-Tests prüfen,
+    dass ein Mausklick und ein Enter je genau eine Anfrage senden, auch im Dialog «Titel löschen».
 - Podcast-Bibliotheken: Auch Abos ohne Datei gehen mit (O-4).
 
 ## 10. P-9 Titel löschen: nur aus Slouchcat
