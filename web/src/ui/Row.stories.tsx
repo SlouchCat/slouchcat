@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { PosterCard } from './PosterCard';
-import { Row } from './Row';
+import { Row, RowList } from './Row';
 import { accents, titles } from './stories/fixtures';
 
 const accentOf = { dusk: accents.dusk, ember: accents.ember, moss: accents.moss } as const;
@@ -42,4 +42,25 @@ export const Focused: Story = { tags: ['press:Tab'] };
 /** A row with a page of all its entries: "Alle anzeigen ›" right of the title (concept 08). */
 export const WithMoreLink: Story = {
   args: { title: 'User-Empfehlungen', moreHref: '#', moreLabel: 'Alle anzeigen ›' },
+};
+
+/**
+ * Fixed paging buttons beside the row (concept 20 P-1, `arrows="always"`: the season shelf): at the
+ * start the left one is disabled.
+ */
+export const FixedArrows: Story = {
+  render: () => (
+    <RowList arrows="always" aria-label="Staffeln">
+      {cards}
+    </RowList>
+  ),
+};
+
+/** Every card fits: no paging buttons at all. */
+export const FixedArrowsAllFit: Story = {
+  render: () => (
+    <RowList arrows="always" aria-label="Staffeln">
+      {cards.slice(0, 3)}
+    </RowList>
+  ),
 };

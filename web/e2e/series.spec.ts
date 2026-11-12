@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { itemPath, SHOW_TITLE } from './catalog';
 import {
   expectFocusOn,
@@ -25,6 +25,17 @@ const seriesPlay = (page: Page) =>
   });
 const episodePlay = (page: Page) =>
   page.getByRole('link', { name: /^(Abspielen|Fortsetzen|Nochmals ansehen)( |$)/ });
+
+/**
+ * Whether the season card stands wholly inside the shelf's scroll box (concept 20 P-1: the chosen
+ * season moves into view by itself), whatever the page's own scroll position.
+ */
+const inShelf = (card: Locator) =>
+  card.evaluate((element) => {
+    const box = element.closest('ul')?.parentElement?.getBoundingClientRect();
+    const place = element.getBoundingClientRect();
+    return box !== undefined && place.left >= box.left - 1 && place.right <= box.right + 1;
+  });
 
 /** Index of the focused row in the episode list, or -1. */
 const focusedEpisode = (page: Page) =>
@@ -53,6 +64,12 @@ test('seasons: a shelf with Season 1 first, specials last; S01E03–E04 is one e
 }) => {
   await expect(seasonCards(page)).toHaveCount(2);
   await expect(seasonCards(page).first()).toHaveAttribute('aria-current', 'true');
+  expect(await inShelf(seasonCards(page).first())).toBe(true);
+  // Two seasons fit: the shelf's fixed paging buttons are gone (concept 20 P-1).
+  const seasonsRegion = page.getByRole('region', { name: 'Staffeln' });
+  await expect(
+    seasonsRegion.getByRole('button', { name: /^(Zurück|Weiter)blättern$/ }),
+  ).toHaveCount(0);
   await expect(seasonCards(page).first()).toContainText('3 Folgen');
   await expect(seasonCards(page).last()).toContainText(/Specials|Season 0|Staffel 0/);
   await expect(episodes(page).getByRole('link')).toHaveCount(3);
@@ -84,6 +101,7 @@ test('arrows: play → round actions → season shelf → episodes; Enter on a s
   await expectFocusOn(page, specials);
   await page.keyboard.press('Enter');
   await expect(specials).toHaveAttribute('aria-current', 'true');
+  expect(await inShelf(specials)).toBe(true);
   await expect(episodes(page).getByText('S00E01', { exact: true })).toBeVisible();
   await expect(episodes(page).getByRole('link')).toHaveCount(1);
 

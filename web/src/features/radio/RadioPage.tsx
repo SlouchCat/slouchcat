@@ -522,7 +522,11 @@ export function RadioPage() {
                   ))}
                 </ol>
               ) : (
-                <RowList focusKey="radio-row-favorites" aria-label={t('radio.page.rows.favorites')}>
+                <RowList
+                  focusKey="radio-row-favorites"
+                  aria-label={t('radio.page.rows.favorites')}
+                  arrows="always"
+                >
                   {favoriteList.map((station) => tile(station, TILE_KEYS.favorite))}
                 </RowList>
               )}

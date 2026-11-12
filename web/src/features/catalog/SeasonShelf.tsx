@@ -1,7 +1,7 @@
 import type { ItemDetail, ItemRef } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -139,17 +139,38 @@ function ChosenSeason({ season, nextUp }: { season: ItemRef; nextUp?: NextUp }) 
 }
 
 /**
+ * Scrolls the row sideways so the chosen card stands wholly in view, without moving the page (the
+ * shelf may still be below the fold) and without taking the focus.
+ */
+function revealChosen(scroller: HTMLDivElement | null) {
+  const card = scroller?.querySelector('[aria-current="true"]');
+  if (!scroller || !card) return;
+  const inset = parseFloat(getComputedStyle(scroller).scrollPaddingInlineStart) || 0;
+  const box = scroller.getBoundingClientRect();
+  const place = card.getBoundingClientRect();
+  if (place.left < box.left + inset) scroller.scrollLeft -= box.left + inset - place.left;
+  else if (place.right > box.right - inset)
+    scroller.scrollLeft += place.right - (box.right - inset);
+}
+
+/**
  * The seasons of a series as a shelf of covers (concept 17 D-1, variant A; E-13): each with
  * "2004 · 24 Folgen", a bar of the watched episodes and a check when all are watched. The chosen
- * season (first the one of the `nextUp` episode) shows its text and episodes underneath.
+ * season (first the one of the `nextUp` episode) shows its text and episodes underneath. Fixed
+ * arrows page the shelf, a mouse drags it, and the chosen season moves into view by itself when
+ * the page opens (the season of the next episode may be the ninth) and when it changes (concept 20
+ * P-1).
  */
 export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; nextUp?: NextUp }) {
   const { t } = useTranslation();
   const [chosen, setChosen] = useState<string | null>(null);
+  const scroller = useRef<HTMLDivElement>(null);
   const current =
     seasons.find((season) => season.id === chosen) ??
     seasons.find((season) => season.id === nextUp?.episode.parentId) ??
     seasons[0];
+  const currentId = current?.id;
+  useLayoutEffect(() => revealChosen(scroller.current), [currentId]);
   if (!current) return null;
   return (
     // One group for shelf and episodes, as wide as the page: ↓ from the actions in the head enters
@@ -167,6 +188,8 @@ export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; 
       <RowList
         focusKey="detail-seasons"
         aria-label={t('item.seasons')}
+        arrows="always"
+        scrollerRef={scroller}
         preferredChildFocusKey={seasonKey(current)}
       >
         {seasons.map((season) => {

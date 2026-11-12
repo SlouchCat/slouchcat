@@ -66,6 +66,7 @@ export function MemberShelf({
       {members.length > 0 && (
         <RowList
           aria-label={name}
+          arrows="always"
           preferredChildFocusKey={current ? memberKey(current) : undefined}
         >
           {members.map((member) => {

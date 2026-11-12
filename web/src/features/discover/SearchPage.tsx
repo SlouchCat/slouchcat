@@ -301,7 +301,11 @@ export function SearchPage() {
                 {t('search.sections.people')}
               </h2>
               <div className={styles.bleed}>
-                <RowList focusKey="search-people" aria-label={t('search.sections.people')}>
+                <RowList
+                  focusKey="search-people"
+                  aria-label={t('search.sections.people')}
+                  arrows="always"
+                >
                   {people.map((person) => (
                     <CastCard
                       key={person.id}

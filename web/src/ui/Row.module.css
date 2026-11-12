@@ -114,6 +114,47 @@
   scroll-snap-align: start;
 }
 
+/*
+ * A row with fixed paging buttons beside it (concept 20 P-1, RowList arrows="always"): the buttons
+ * stand in the page's gutters, the cards between them keep a small inset for the focus ring and
+ * the focus scale. Below 768 px still three cards fit, now between the buttons.
+ */
+.rail {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  padding-inline: var(--page-gutter);
+}
+
+.rail > .scroller {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.fixed {
+  --row-card-width: calc((100cqi - 2 * var(--sc-space-2) - 2 * var(--sc-space-4)) / 3);
+
+  scroll-padding-inline: var(--sc-space-2);
+
+  /* Snaps only near a card: a drag or a trackpad stops where it was let go. */
+  scroll-snap-type: x proximity;
+}
+
+.fixed > .list {
+  padding-inline: var(--sc-space-2);
+}
+
+@media (pointer: fine) {
+  .fixed {
+    cursor: grab;
+  }
+
+  .fixed[data-dragging] {
+    cursor: grabbing;
+    user-select: none;
+  }
+}
+
 /* CARD_SIZES (PosterCard.tsx), posterSizes (api/preload.go) and #poster-prepaint (global.css). */
 @media (width >= 768px) {
   .scroller {
