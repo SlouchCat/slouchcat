@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## Podcasts-Liste der Verwaltung schneller (12. November 2026)
+## Release 1.30.1: Podcasts-Liste der Verwaltung schneller (12. November 2026)
 
 Nach dem Update auf 1.30.0 blieb die Feedliste der Seite «Podcasts» (`/admin` › Bibliothek › Podcasts) minutenlang
 leer: `GET /api/v1/admin/podcasts` brauchte auf CT 190 201 bis 223 s. Drei Abfragen (`PodcastList`,
@@ -8,8 +8,9 @@ leer: `GET /api/v1/admin/podcasts` brauchte auf CT 190 201 bis 223 s. Drei Abfra
 `media_files_missing` und lasen je Podcast jede vorhandene Datei des Servers. Migration **00052** macht den Index
 partiell (`WHERE missing_since IS NOT NULL`); alle Abfragen der Liste zusammen 188 s → 2,6 s auf CT 190 (gleicher
 Plan, nur lesend gemessen). Ohne Vertragsänderung. Messung in `docs/perf/podcasts-liste.md`, Plantest
-`TestPodcastListQueriesReachFilesThroughEpisodes`. Zweig `claude/podcasts-list-speed`, noch nicht veröffentlicht;
-die Zeit des Endpunkts mit dem neuen Image misst Marco nach dem Update (Log `duration_ms`).
+`TestPodcastListQueriesReachFilesThroughEpisodes`. PR #150 (Merge `f78e9f78`), Versionsstellen im eigenen PR,
+veröffentlicht als Patch **1.30.1** (Vertrag bleibt 1.30.0). Die Zeit des Endpunkts mit dem neuen Image misst Marco
+nach dem Update per Updater (Log `duration_ms`).
 
 ## Konzept 19 abgeschlossen (12. November 2026)
 
