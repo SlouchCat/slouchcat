@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Button } from './Button';
 import { accents } from './stories/fixtures';
 import { VolumeRow } from './VolumeRow';
+import { WatchedToggle } from './WatchedToggle';
 
 const meta = {
   title: 'UI/VolumeRow',
@@ -62,3 +63,22 @@ export const WithoutNumber: Story = { args: { number: undefined } };
 export const Focused: Story = { tags: ['press:Tab'] };
 
 export const PlayFocused: Story = { tags: ['press:Tab+Tab'] };
+
+/** The check mark as a button at the end of the row (concept 20 P-5): heard, the cover dimmed. */
+export const WithToggle: Story = {
+  args: {
+    caption: 'Gehört',
+    watchedLabel: 'Gehört',
+    watchedControl: (
+      <WatchedToggle
+        appearance="row"
+        state="full"
+        label="Gehört: Die Stunde der Dämmerung"
+        onPress={() => undefined}
+      />
+    ),
+  },
+};
+
+/** Tab after the play button reaches the check. */
+export const ToggleFocused: Story = { ...WithToggle, tags: ['press:Tab+Tab+Tab'] };
