@@ -102,7 +102,7 @@ func TestContractItemDeletion(t *testing.T) {
 		}
 		st := fi.Sys().(*syscall.Stat_t)
 		if _, err := pf.f.DB.Write.Exec(`UPDATE media_files SET dev = ?, inode = ? WHERE rel_path = ?`,
-			int64(st.Dev), int64(st.Ino), f.Path); err != nil { //nolint:unconvert // the widths of Stat_t differ between architectures
+			int64(st.Dev), int64(st.Ino), f.Path); err != nil {
 			t.Fatal(err)
 		}
 	}
