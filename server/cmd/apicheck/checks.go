@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -31,6 +32,7 @@ func checks() []check {
 		{"Suche mit Filtern", checkSearch},
 		{"Detail", checkDetail},
 		{"Merkliste", checkWatchlist},
+		{"Haken «gesehen» und Seite «Gesehen»", checkWatched},
 		{"Favoriten", checkFavorites},
 		{"Abspielstart mit Fähigkeitsprofil", checkPlaybackStart},
 		{"Abruf Direct Play/HLS mit Stream-Token", checkStreams},
@@ -219,6 +221,52 @@ func checkWatchlist(ctx context.Context, s *state) (string, error) {
 	}
 	return fmt.Sprintf("%q aufgenommen (Merkliste %d Einträge), Detail inWatchlist=true, wieder entfernt",
 		s.movie.Title, page.Total+1), nil
+}
+
+// checkWatched sets the check mark of a title by hand (setItemWatched, contract 1.31.0), finds it
+// with watchedAt on the detail and on the page «Gesehen» (listWatched) and removes it again.
+func checkWatched(ctx context.Context, s *state) (string, error) {
+	path := "/items/" + s.movie.ID + "/watched"
+	if err := s.c.call(ctx, http.MethodPut, path, nil, map[string]bool{"watched": true}, nil, http.StatusNoContent); err != nil {
+		return "", err
+	}
+	var page struct {
+		Items []struct {
+			Item          itemRef   `json:"item"`
+			LastWatchedAt time.Time `json:"lastWatchedAt"`
+		} `json:"items"`
+		Total int `json:"total"`
+	}
+	listed := func() (bool, error) {
+		if err := s.c.get(ctx, "/watched", url.Values{"content": {"movie"}, "limit": {"100"}}, &page); err != nil {
+			return false, err
+		}
+		for _, e := range page.Items {
+			if e.Item.ID == s.movie.ID {
+				return !e.LastWatchedAt.IsZero(), nil
+			}
+		}
+		return false, nil
+	}
+	if ok, err := listed(); err != nil || !ok {
+		return "", errors.Join(err, errors.New("the title is not on the page Gesehen with lastWatchedAt"))
+	}
+	detail, err := s.detail(ctx, s.movie.ID)
+	if err != nil {
+		return "", err
+	}
+	if detail.Progress == nil || !detail.Progress.Completed || detail.Progress.WatchedAt == nil {
+		return "", errors.New("the detail does not show the title as watched")
+	}
+	total := page.Total
+	if err := s.c.call(ctx, http.MethodPut, path, nil, map[string]bool{"watched": false}, nil, http.StatusNoContent); err != nil {
+		return "", err
+	}
+	if ok, err := listed(); err != nil || ok {
+		return "", errors.Join(err, errors.New("the title stayed on the page Gesehen"))
+	}
+	return fmt.Sprintf("%q als gesehen markiert («Gesehen» %d Filme, watchedAt gesetzt), Haken wieder entfernt",
+		s.movie.Title, total), nil
 }
 
 // checkFavorites reads the favourites, removes one and marks it again. The fixtures already made

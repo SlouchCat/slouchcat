@@ -14,9 +14,9 @@ import (
 func TestHTTPSetItemWatched(t *testing.T) {
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
-	put := func(token, id, body string) *http.Response {
+	put := func(token, id, body string) int {
 		t.Helper()
-		return send(t, h, http.MethodPut, BasePath+"/items/"+id+"/watched", token, body, nil).Result()
+		return send(t, h, http.MethodPut, BasePath+"/items/"+id+"/watched", token, body, nil).Code
 	}
 	detail := func(token, id string) gen.ItemDetail {
 		t.Helper()
@@ -29,15 +29,15 @@ func TestHTTPSetItemWatched(t *testing.T) {
 		return d
 	}
 	film := f.Rated(12)
-	if res := put("p12", film.ID, `{"watched":true}`); res.StatusCode != http.StatusNoContent {
-		t.Fatalf("mark film: %d", res.StatusCode)
+	if code := put("p12", film.ID, `{"watched":true}`); code != http.StatusNoContent {
+		t.Fatalf("mark film: %d", code)
 	}
 	if p := detail("p12", film.ID).Progress; p == nil || !p.Completed || p.PositionMs != p.DurationMs || p.WatchedAt == nil || !p.WatchedAt.Equal(p.UpdatedAt) {
 		t.Errorf("film after the check mark: %+v, want finished at the end with watchedAt", p)
 	}
 	show := f.Show
-	if res := put("p12", show.Series.ID, `{"watched":true}`); res.StatusCode != http.StatusNoContent {
-		t.Fatalf("mark series: %d", res.StatusCode)
+	if code := put("p12", show.Series.ID, `{"watched":true}`); code != http.StatusNoContent {
+		t.Fatalf("mark series: %d", code)
 	}
 	// P12 sees E1, E3 and the special: all three watched, the series full (contract 1.31.0).
 	if d := detail("p12", show.Series.ID); d.Watched == nil || !*d.Watched || d.WatchedCount == nil || *d.WatchedCount != 3 {
@@ -52,15 +52,15 @@ func TestHTTPSetItemWatched(t *testing.T) {
 	if d := detail("p18", show.Series.ID); d.Watched == nil || *d.Watched {
 		t.Errorf("series for P18 (nothing marked): watched %v, want false", d.Watched)
 	}
-	if res := put("p12", show.Series.ID, `{"watched":false}`); res.StatusCode != http.StatusNoContent {
-		t.Fatalf("unmark series: %d", res.StatusCode)
+	if code := put("p12", show.Series.ID, `{"watched":false}`); code != http.StatusNoContent {
+		t.Fatalf("unmark series: %d", code)
 	}
 	if p := detail("p12", show.E1.ID).Progress; p != nil && (p.Completed || p.WatchedAt != nil) {
 		t.Errorf("E1 for P12 after removing: %+v, want open without watchedAt", p)
 	}
 	// One episode marked: the half check mark, watched false with watchedCount 1 (F-12).
-	if res := put("p12", show.E1.ID, `{"watched":true}`); res.StatusCode != http.StatusNoContent {
-		t.Fatalf("mark E1: %d", res.StatusCode)
+	if code := put("p12", show.E1.ID, `{"watched":true}`); code != http.StatusNoContent {
+		t.Fatalf("mark E1: %d", code)
 	}
 	if d := detail("p12", show.Series.ID); d.Watched == nil || *d.Watched || d.WatchedCount == nil || *d.WatchedCount != 1 {
 		t.Errorf("series for P12 with E1 marked: watched %v, watchedCount %v, want false and 1", d.Watched, d.WatchedCount)
@@ -89,13 +89,13 @@ func TestHTTPSetItemWatched(t *testing.T) {
 			t.Errorf("listWatched?%s: %d, want 422", q, rec.Code)
 		}
 	}
-	if res := put("p12", film.ID, ""); res.StatusCode != http.StatusBadRequest {
-		t.Errorf("no body: %d, want 400", res.StatusCode)
+	if code := put("p12", film.ID, ""); code != http.StatusBadRequest {
+		t.Errorf("no body: %d, want 400", code)
 	}
-	if res := put("p6", film.ID, `{"watched":true}`); res.StatusCode != http.StatusNotFound {
-		t.Errorf("invisible film: %d, want 404", res.StatusCode)
+	if code := put("p6", film.ID, `{"watched":true}`); code != http.StatusNotFound {
+		t.Errorf("invisible film: %d, want 404", code)
 	}
-	if res := put("none", film.ID, `{"watched":true}`); res.StatusCode != http.StatusForbidden {
-		t.Errorf("session without profile: %d, want 403", res.StatusCode)
+	if code := put("none", film.ID, `{"watched":true}`); code != http.StatusForbidden {
+		t.Errorf("session without profile: %d, want 403", code)
 	}
 }
