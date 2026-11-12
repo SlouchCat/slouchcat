@@ -1,7 +1,8 @@
 # Konzept: Bedienung, Löschen und die neue Seite «Gesehen»
 
-- **Status: Fassung 2 (11. November 2026), Kritiker-Review eingearbeitet (REVISE, 1 Blocker,
-  13 Major, 13 Minor; Abschnitt 21).** Marco hat am 10. und 11. November 2026 im Interview
+- **Status: Fassung 3 (12. November 2026): Nachtrag P-15 «Kontinent-Kacheln» (Abschnitt 22).**
+  Fassung 2 vom 11. November 2026 hat das Kritiker-Review eingearbeitet (REVISE, 1 Blocker,
+  13 Major, 13 Minor; Abschnitt 21). Marco hat am 10. und 11. November 2026 im Interview
   dreizehn Fragen beantwortet (**F-1 bis F-13**, Abschnitt 17), drei davon an klickbaren Mockups
   (Anhang A), zwei nach dem Review. Offen sind die Punkte **O-1 bis O-14** (Abschnitt 18), jeder
   mit Empfehlung; bis zu Marcos Antwort gilt die Empfehlung. **Die Umsetzung beginnt erst auf
@@ -20,6 +21,13 @@
   **nicht fest**: Konzept 19 hat für die Teile A und B noch Nummern offen, und vergeben wird in
   Bau-Reihenfolge (goose verlangt lückenlose Reihenfolge, die Regel «Vertrag = Tag» eine
   aufsteigende Version). Abschnitt 19 sagt je Stufe nur, **ob** sie Vertrag und Migration braucht.
+- **`main` ist seither weitergelaufen:** Am 12. November 2026 steht es auf **`6791dbda`**
+  (Release 1.30.1, Vertrag 1.30.0, letzte Migration `00052`), 140 Commits nach dem Anker; darin
+  Konzept 19 Stufe D3 und die Teile A (Podcasts) und B (Radio-Angebot). Die Abschnitte 2 bis 15
+  beschreiben «Heute» am Anker `ee06058b`; nur Abschnitt 22 ist gegen `6791dbda` gelesen. **Vor
+  dem Bau jeder Stufe** werden ihre «Heute»-Angaben am dann aktuellen `main` nachgeprüft
+  (Schritt 0). Bekannt überholt: O-7 (PR #139 ist gemergt). Frage 27 und ADR 0032 sind auf `main`
+  weiterhin frei.
 - `:Zeile`-Angaben beziehen sich auf `ee06058b`; **nach Namen suchen, nicht nach Zeile.** Pfade
   ohne Präfix liegen unter `server/` (Go) oder `web/src/` (Web-App), wo es eindeutig ist.
 - Massgeblich bleiben `docs/spec/01-anforderungen-v1.md`, `docs/planning/04-entscheidungen.md`
@@ -50,6 +58,7 @@
 | P-12 | «Schlüssel der Anbieter» sieht chaotisch aus. Aufräumen. | 14 |
 | P-13 | «Meine Wiedergabe» soll «Einstellungen» heissen. | 14.4 |
 | P-14 | Neue Kategorie auf der Höhe von «Radio»: alles, was einmal gesehen wurde; Serien und Podcasts als ganze Serie. | 15 |
+| P-15 | Nachtrag vom 12. November 2026, mit Bildschirmfoto: Die Kontinent-Knöpfe unter «Verwaltung › Radio › Angebot › Länder» sehen schlecht aus. Anpassen. | 22 |
 
 ## 2. P-1 Staffelreihe mit Pfeilen
 
@@ -967,7 +976,7 @@ Bis zu Marcos Antwort gilt die Empfehlung.
 | O-4 | Bibliothek löschen: Gehen bei einer Podcast-Bibliothek auch die Abos ohne Datei mit? | Ja, die ganze Bibliothek ist weg. |
 | O-5 | Podcast-Folgen, die nur als Verweis aus dem Feed bestehen: einzeln löschbar? | Nein. Der Feed brächte sie beim nächsten Abruf zurück; dafür bräuchte es eine eigene Ausblendliste. |
 | O-6 | Dateien löschen: Papierkorb-Ordner statt endgültig? | Nein, endgültig. Ein Papierkorb bräuchte Platz, eine Frist und eine eigene Ansicht. |
-| O-7 | Zieht der Google-Books-Schlüssel (Konzept 19 D3) als sechste Karte auf die Seite «Schlüssel der Anbieter»? | Ja, nach dem Merge von PR #139; die Seite «Hörbücher: Quellen» verweist dann dorthin. |
+| O-7 | Zieht der Google-Books-Schlüssel (Konzept 19 D3) als sechste Karte auf die Seite «Schlüssel der Anbieter»? | Ja (PR #139 ist seit dem 10. November 2026 gemergt, Release 1.26.0); die Seite «Hörbücher: Quellen» verweist dann dorthin. |
 | O-8 | Bekommt die Seite «Einstellungen» einen Verweis auf «Benachrichtigungskanäle»? | Ja, als drittes Feld mit Link. |
 | O-9 | Gilt die Nachfrage «weiter oder von vorn» auch für Bände einer Hörbuch-Reihe? | Ja (Text «Weiterhören ab …»); es ist derselbe Direktstart. |
 | O-10 | Fragt «Alle erneut versuchen» nach? | Nein, es ist gefahrlos. Nur «Alle löschen» fragt. |
@@ -983,7 +992,7 @@ Bis zu Marcos Antwort gilt die Empfehlung.
 | **1 · Serienseite und Kleines** | P-1 Pfeile, P-3 Bleistift der Staffel, P-4 Folgenklick mit Nachfrage, P-11 Entwurf, P-13 Umbenennung | keiner / keine (Patch-Release) | ≈ 4 Tage |
 | **2 · Haken und «Gesehen»** | P-5 Haken zum Anklicken in drei Zuständen, `watched_at`, P-14 Seite «Gesehen» | additiv (`setItemWatched`, `listWatched`, `watchedAt`), **geänderte Bedeutung** von `ItemRef.watched` und `watchedCount` / eine (`progress.watched_at`) | ≈ 8 Tage |
 | **3 · Startseite und Favorit** | P-7 Reihentitel, Listenseite, Spotlight-Titel, Bleistifte auf allen Listen; P-2 Favorit entfernen | **brechend** (Favoriten-Operationen fallen), additiv (`listHomeRow`, `listCollections`) / eine (Favoriten in die Merkliste, `watchlist.follow_since`, Tabelle weg) | ≈ 7 Tage |
-| **4 · Verwaltung** | P-6 Jobs, P-10 Duplikate mit Pfad, P-12 Schlüssel mit «Prüfen» | additiv / keine | ≈ 4 Tage |
+| **4 · Verwaltung** | P-6 Jobs, P-10 Duplikate mit Pfad, P-12 Schlüssel mit «Prüfen», P-15 Kontinent-Kacheln | additiv / keine | ≈ 4,5 Tage |
 | **5 · Löschen** | P-8 Bibliothek löschen, P-9 Titel löschen in beiden Arten, «Entfernte Titel», ADR 0032, Lint-Regel, Doku | additiv / eine bis zwei (`profile_libraries` mit Fremdschlüssel, `items.removed_at`; bei M-1 über fünf Sekunden dazu Merkmal «wird gelöscht» und Jobart) | ≈ 10 Tage |
 
 - **Abhängigkeiten:**
@@ -1055,6 +1064,61 @@ unter einem weich gelöschten Titel behandelt (10.2); ob ein Aufräumlauf die Bi
 gelöschter Titel entfernt (9.3); was `/play/{seriesId}` im Player tut (5.2, darum keine Nachfrage
 für Serien im Spotlight).
 
+## 22. Nachtrag P-15: Kontinent-Kacheln im Radio-Angebot (12. November 2026)
+
+Gelesen gegen `main` **`6791dbda`**. Marco hat ein Bildschirmfoto des Bandes «Länder» geschickt
+(«Verwaltung › Radio › Angebot», gebaut mit Konzept 19 Teil B) und will es angepasst haben.
+
+### 22.1 Heute
+
+- Die sechs Kontinente sind je ein `AriaButton` mit `block`
+  (`features/admin/radio/OfferTab.tsx`, Schleife über `RADIO_CONTINENTS`), in einem Raster
+  (`.continents`, `features/admin/radio/Radio.module.css`). Im Knopf stehen **zwei Zeilen**:
+  der Name und darunter «51 Länder · 26.395 Sender · 1 gewählt» (`.continent`, `.continentSub`).
+- Der Knopf ist für **eine** Zeile gebaut (`ui/Button.module.css`): Pillenform
+  (`border-radius: var(--sc-radius-full)`), `line-height: 1`, `white-space: nowrap`, Inhalt
+  **zentriert** (`justify-content: center`), Höhe eine Bedienhöhe.
+- Daraus folgt, was das Bildschirmfoto zeigt: Die zwei Zeilen kleben aneinander und füllen die
+  Pille bis an den Rand; weil der Block als Ganzes zentriert wird, beginnt der Text in jedem
+  Knopf an einer anderen Stelle (bei «Europa» weit links, bei «Asien» in der Mitte); Name und
+  Zahlen sind gleich fett und gleich gross; dass der Knopf aufklappt, sieht man ihm nicht an.
+- Über den Knöpfen steht ein langer Erklärsatz («Alle Länder nach Kontinent. Ein Kontinent öffnet
+  seine Länder; nochmals drücken oder Escape schliesst sie.»).
+
+### 22.2 Vorschlag
+
+Mockup «Radio: Länder» (Anhang A; oben umschaltbar «Neu» und «Heute»).
+
+- **Kacheln statt Pillen:** rechteckig mit der Rundung der Karten, die Höhe wächst mit dem Inhalt
+  (mindestens 68 px), Inhalt **linksbündig**.
+- **Zwei klar getrennte Zeilen:** der Name gross und fett, darunter «51 Länder · 26.395 Sender» in
+  der Farbe für Nebentext.
+- **«1 gewählt» als Abzeichen rechts** in der Akzentfarbe, nur wenn die Zahl grösser als null
+  ist. So sieht man auf einen Blick, in welchen Kontinenten schon etwas gewählt ist.
+- **Pfeil ganz rechts**, der zeigt, dass die Kachel aufklappt; bei der offenen Kachel dreht er.
+- **Offene Kachel** mit Akzentrand und getöntem Grund (nicht mehr vollflächig in der
+  Akzentfarbe); ihre Länder stehen direkt darunter in einem Rahmen derselben Farbe, mit der
+  Überschrift «Länder in Europa» und den zwei Knöpfen «Alle wählen» und «Alle abwählen».
+- **Überschrift «Nach Kontinent»** statt des Erklärsatzes. Der Satz bleibt als Beschreibung für
+  Screenreader (`aria-describedby`), sichtbar ist er nicht mehr.
+- Raster: `auto-fill` mit Mindestbreite 250 px, also drei Kacheln je Zeile am Schreibtisch, eine
+  am Handy. Alle Kacheln einer Zeile sind gleich hoch.
+
+### 22.3 Bau
+
+- Neues Bauteil **`DisclosureTile`** in `web/src/ui` (ein `<button>` mit `aria-expanded` und
+  `aria-controls`, Plätze für Titel, Unterzeile, Abzeichen), mit Story und Bildvergleich. Der
+  `AriaButton` bleibt, wie er ist; zweizeilige Inhalte gehören nicht in ihn.
+- `OfferTab.tsx` nutzt die Kachel; Verhalten unverändert (ein Kontinent offen, nochmals drücken
+  oder Escape schliesst, Fokus zurück auf die Kachel). Die Tastaturtests des Angebots laufen
+  weiter; der Zugriff über den Namen des Knopfs bleibt.
+- Farben und Abstände nur aus Tokens (Regel 9). Texte: neuer Schlüssel für die Überschrift,
+  «gewählt» wandert aus der Unterzeile ins Abzeichen (`admin.radio.offer.continentChosen` bleibt).
+- Nur Web-App; kein Vertrag, keine Migration. Aufwand etwa ein halber Tag, in Stufe 4.
+- **Dieselbe Falle anderswo:** Vor dem Bau wird gesucht, wo sonst ein `AriaButton` oder `Button`
+  mehrzeiligen Inhalt trägt (`flex-direction: column` innerhalb eines Knopfs); Fundstellen
+  bekommen dieselbe Kachel.
+
 ---
 
 ## Anhang A. Mockups
@@ -1072,6 +1136,8 @@ Bilder; alle Titel sind erfunden.
 | Gesehen | `Gesehen.dc.html` | Die neue Seite mit Filter, Sortierung, Serien als ein Eintrag, halber Haken mit Auswahl, Rückfrage beim Entfernen |
 | Schlüssel | `Schluessel.dc.html` | Fünf Anbieter-Karten, auf- und zuklappbar, «Prüfen» |
 | Jobs, Löschen, Duplikate | `Verwaltung.dc.html` | Fünf Themen: Sammelaktionen der Jobs, Titel löschen (Ordner schreibbar oder nur lesbar), Bibliothek löschen, Duplikate mit ganzem Pfad, Band für den Entwurf einer Bibliothek |
+
+| Radio: Länder | `Laender.dc.html` | Kontinente als Kacheln mit Abzeichen und Pfeil, offene Kachel mit Länderliste; umschaltbar auf den heutigen Zustand |
 
 Die Mockups zeigen den Stand der Fragen F-1 bis F-13. Wo der Text dieses Papiers genauer ist als
 ein Mockup (Regeln zum Löschen von Dateien, Blättern der Listen), gilt das Papier.
