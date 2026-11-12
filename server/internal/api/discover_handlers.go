@@ -171,7 +171,7 @@ func (s *server) ListWatched(ctx context.Context, req gen.ListWatchedRequestObje
 	if err != nil {
 		return nil, err
 	}
-	q := model.WatchedQuery{Offset: max(deref(req.Params.Offset), 0), Limit: deref(req.Params.Limit)}
+	q := model.WatchedQuery{Offset: deref(req.Params.Offset), Limit: deref(req.Params.Limit)}
 	if req.Params.Content != nil {
 		q.Content = string(*req.Params.Content)
 	}
@@ -182,12 +182,7 @@ func (s *server) ListWatched(ctx context.Context, req gen.ListWatchedRequestObje
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	limit := q.Limit
-	if limit <= 0 {
-		limit = visibility.DefaultPage
-	}
-	out := gen.WatchedPage{Items: make([]gen.WatchedEntry, 0, len(page.Items)), Total: page.Total, Offset: q.Offset,
-		Limit: min(limit, visibility.MaxWatchedPage)}
+	out := gen.WatchedPage{Items: make([]gen.WatchedEntry, 0, len(page.Items)), Total: page.Total, Offset: page.Offset, Limit: page.Limit}
 	for _, e := range page.Items {
 		out.Items = append(out.Items, gen.WatchedEntry{Item: toItemRef(session.Profile.ID, e.Item), LastWatchedAt: e.LastWatchedAt.UTC(),
 			EpisodeCount: e.EpisodeCount})

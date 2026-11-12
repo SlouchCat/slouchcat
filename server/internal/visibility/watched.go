@@ -51,7 +51,8 @@ var watchedContents = []string{"movie", "series", "audiobook", "podcast"}
 // Titles the profile may not see are left out and only visible episodes count. Sort watched (the
 // default) puts the newest last watched first, sort title orders by the sort key of the text chain
 // (metadata language, interface language, file name); ties by the other order, then the id. limit
-// is clamped to 1..MaxWatchedPage (0 = DefaultPage), offset to 0 and above. A content or sort
+// is clamped to 1..MaxWatchedPage (0 = DefaultPage), offset to 0 and above; the page carries both
+// as applied. A content or sort
 // outside its values is a *model.ValidationError (invalid_value).
 func (r *Reader) Watched(ctx context.Context, s Scope, q model.WatchedQuery) (model.WatchedPage, error) {
 	pid, err := r.profile(ctx, s)
@@ -84,7 +85,7 @@ func (r *Reader) Watched(ctx context.Context, s Scope, q model.WatchedQuery) (mo
 	if err != nil {
 		return model.WatchedPage{}, fmt.Errorf("list watched: %w", err)
 	}
-	out := model.WatchedPage{Items: make([]model.WatchedEntry, 0, len(rows))}
+	out := model.WatchedPage{Items: make([]model.WatchedEntry, 0, len(rows)), Offset: offset, Limit: limit}
 	if len(rows) == 0 {
 		if offset > 0 { // a page beyond the end carries no total
 			n, err := r.q.CountWatched(ctx, scopedq.CountWatchedParams{ProfileID: pid, Kind: q.Content})

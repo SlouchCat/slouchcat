@@ -603,10 +603,13 @@ type WatchedEntry struct {
 	EpisodeCount  *int
 }
 
-// WatchedPage is one page of listWatched with the size of the whole list.
+// WatchedPage is one page of listWatched with the size of the whole list and the offset and limit
+// the reader applied (after clamping).
 type WatchedPage struct {
-	Items []WatchedEntry
-	Total int
+	Items  []WatchedEntry
+	Total  int
+	Offset int
+	Limit  int
 }
 
 // WatchTime is the watch time of a profile today against its daily limit (K-5).
