@@ -128,6 +128,55 @@ describe('page «Gesehen»', () => {
     );
   });
 
+  it('keeps kind and order in the URL and says so when a kind has nothing', async () => {
+    const urls: URL[] = [];
+    const { fetchMock } = mockApi({
+      ...signedIn,
+      'GET /watched': () => {
+        urls.push(new URL(fetchMock.mock.calls.at(-1)![0].url));
+        return json(pageOf([]));
+      },
+    });
+    const { router } = renderApp('/watched?content=podcast&sort=title&letter=x');
+    expect(await screen.findByText('Unter «Podcasts» ist noch nichts gesehen.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Podcasts' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Titel A–Z' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(urls[0]?.searchParams.get('content')).toBe('podcast');
+    expect(urls[0]?.searchParams.get('sort')).toBe('title');
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Alle' }));
+    await user.click(screen.getByRole('button', { name: 'Zuletzt gesehen' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+    expect(await screen.findByText('Noch nichts gesehen.')).toBeVisible();
+  });
+
+  it('counts every episode of a series marked whole', async () => {
+    mockApi({
+      ...signedIn,
+      'GET /watched': () =>
+        json(
+          pageOf([
+            {
+              item: { ...show, watched: true, watchedCount: 19 },
+              lastWatchedAt: at,
+              episodeCount: 96,
+            },
+          ]),
+        ),
+    });
+    renderApp('/watched');
+    const list = await screen.findByRole('list', { name: 'Gesehen' });
+    expect(within(list).getByRole('link', { name: /Nordlicht/ })).toHaveTextContent(
+      '96 von 96 Folgen',
+    );
+  });
+
   it('says so when nothing is watched yet', async () => {
     mockApi({ ...signedIn, 'GET /watched': () => json(pageOf([])) });
     renderApp('/watched');

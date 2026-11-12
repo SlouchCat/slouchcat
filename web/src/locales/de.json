@@ -5505,6 +5505,23 @@
     }
   },
   "watched": {
+    "heard": {
+      "label": "Gehört: {{title}}",
+      "button": "Gehört",
+      "hint": {
+        "set": "Als gehört markieren",
+        "half": "Teilweise gehört: alle markieren oder alle Haken entfernen"
+      },
+      "state": {
+        "full": "Gehört",
+        "half": "Teilweise gehört"
+      },
+      "ask": {
+        "removeTitle": "«{{title}}» als ungehört markieren?",
+        "halfTitle": "«{{title}}» ist teilweise gehört",
+        "markAll": "Alle Folgen als gehört markieren"
+      }
+    },
     "page": {
       "title": "Gesehen",
       "count_one": "{{count}} Titel",
@@ -5527,6 +5544,7 @@
       "heardOn": "gehört am {{date}}",
       "episodes_one": "{{count}} von {{total}} Folgen · zuletzt {{date}}",
       "episodes_other": "{{count}} von {{total}} Folgen · zuletzt {{date}}",
+      "emptyKind": "Unter «{{kind}}» ist noch nichts gesehen.",
       "empty": {
         "title": "Noch nichts gesehen.",
         "body": "Was du zu Ende schaust oder hörst, erscheint hier."

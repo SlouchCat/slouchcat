@@ -16,6 +16,7 @@ import { isStatsDays } from '@/features/admin/statsDays';
 import { validateLibraryParams } from '@/features/catalog/libraryParams';
 import { validateHomeListSearch } from '@/features/catalog/homeListParams';
 import { validateSearchParams } from '@/features/discover/searchParams';
+import { validateWatchedParams } from '@/features/discover/watchedParams';
 import { validateRadioSearch } from '@/features/radio/filters';
 import { leaveOfflineProfile, offlineChoice } from '@/features/offline/offlineSession';
 import { offlineSupported } from '@/features/offline/support';
@@ -600,6 +601,8 @@ const collectionsRoute = createRoute({
 const watchedRoute = createRoute({
   getParentRoute: () => chromeRoute,
   path: '/watched',
+  // content, sort; anything else is dropped.
+  validateSearch: validateWatchedParams,
   component: lazyRouteComponent(() => import('@/features/discover/WatchedPage'), 'WatchedPage'),
 });
 

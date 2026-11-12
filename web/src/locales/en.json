@@ -5505,6 +5505,23 @@
     }
   },
   "watched": {
+    "heard": {
+      "label": "Listened: {{title}}",
+      "button": "Listened",
+      "hint": {
+        "set": "Mark as listened",
+        "half": "Partly listened: mark all or remove all check marks"
+      },
+      "state": {
+        "full": "Listened",
+        "half": "Partly listened"
+      },
+      "ask": {
+        "removeTitle": "Mark «{{title}}» as not listened?",
+        "halfTitle": "«{{title}}» is partly listened",
+        "markAll": "Mark every episode as listened"
+      }
+    },
     "page": {
       "title": "Watched",
       "count_one": "{{count}} title",
@@ -5527,6 +5544,7 @@
       "heardOn": "heard on {{date}}",
       "episodes_one": "{{count}} of {{total}} episodes · last {{date}}",
       "episodes_other": "{{count}} of {{total}} episodes · last {{date}}",
+      "emptyKind": "Nothing watched under «{{kind}}» yet.",
       "empty": {
         "title": "Nothing watched yet.",
         "body": "What you watch or listen to the end shows up here."

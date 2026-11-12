@@ -157,7 +157,7 @@ test('search by keyboard: "/", arrows, Enter, back; no focus trap @keyboard', as
     titles(page)
       .getByRole('listitem')
       .first()
-      .getByRole('button', { name: /^Gesehen: / }),
+      .getByRole('button', { name: /^(Gesehen|Gehört): / }),
   );
   await page.keyboard.press('Tab');
   await expectFocusOn(

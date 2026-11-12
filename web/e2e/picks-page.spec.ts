@@ -99,7 +99,7 @@ test('User picks by keyboard: the star, arrows, Enter, back; no focus trap @keyb
     grid(page)
       .getByRole('listitem')
       .first()
-      .getByRole('button', { name: /^Gesehen: / }),
+      .getByRole('button', { name: /^(Gesehen|Gehört): / }),
   );
   await page.keyboard.press('Tab');
   await expectFocusOn(
