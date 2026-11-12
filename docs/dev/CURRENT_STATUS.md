@@ -1,9 +1,9 @@
 # Aktueller Stand
 
-## Konzept 20 gebaut: Bedienung, Löschen und «Gesehen» (12. November 2026)
+## Release 1.31.0: Konzept 20, Bedienung, Löschen und «Gesehen» (12. November 2026)
 
 Alle fünf Stufen von `docs/planning/20-bedienung-und-gesehen.md` sind auf dem Zweig `claude/k20-bau` gebaut,
-auf Marcos Wunsch als **ein** Pull Request und **ein** Release. Vertrag **1.31.0** (brechend: die
+auf Marcos Wunsch als **ein** Pull Request (#153) und **ein** Release **1.31.0**, Versionsstellen im selben PR. Vertrag **1.31.0** (brechend: die
 Favoriten-Operationen fallen weg), Migrationen **00053** bis **00056**, ADR **0032**. Marcos Antworten zu O-1
 bis O-14 und zwei Nachfragen aus dem Review stehen im Entscheidungsprotokoll (Frage 27, Zeilen vom
 12. November 2026).
