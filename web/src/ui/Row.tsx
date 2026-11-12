@@ -31,8 +31,8 @@ interface RowProps {
 /**
  * The paging buttons of a row (concept 20 P-1): `hover` at the right end of the row's `header`,
  * shown only with a mouse while the pointer is on the row (the start page); `always` fixed left
- * and right beside the row, on touch screens too, disabled at the start and the end and gone when
- * every card fits; `none` without buttons. Never Tab stops: the arrow keys reach every card.
+ * and right beside the row (below 768 px over its ends), on touch screens too, disabled at the
+ * start and the end and gone when every card fits; `none` without buttons. Never Tab stops: the arrow keys reach every card.
  */
 export type RowArrows = 'hover' | 'always' | 'none';
 
@@ -133,14 +133,38 @@ export function RowList({
 
   // Dragging with the mouse; touch and pen swipe natively.
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    // A click that a drag left over (none comes when the mouse was let go off the card) must not
+    // eat this one.
+    swallowClick.current = false;
     const node = scroller.current;
     if (!node || event.pointerType !== 'mouse' || event.button !== 0) return;
     drag.current = { x: event.clientX, left: node.scrollLeft, moved: false, snap: '' };
+  };
+  /** Ends a drag; `swallow` when the mouse was let go, so the click after it hits no card. */
+  const endDrag = (event: PointerEvent<HTMLDivElement>, swallow: boolean) => {
+    const node = scroller.current;
+    const state = drag.current;
+    drag.current = null;
+    if (!node || !state?.moved) return;
+    node.style.scrollSnapType = state.snap;
+    delete node.dataset.dragging;
+    if (node.hasPointerCapture(event.pointerId)) node.releasePointerCapture(event.pointerId);
+    if (!swallow) return;
+    swallowClick.current = true;
+    // The click follows the pointerup in the same task; a later click or Enter is a real one.
+    setTimeout(() => {
+      swallowClick.current = false;
+    }, 0);
   };
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
     const node = scroller.current;
     const state = drag.current;
     if (!node || !state) return;
+    // Let go outside the row before the drag began (no capture yet): hovering never scrolls it.
+    if ((event.buttons & 1) === 0) {
+      endDrag(event, false);
+      return;
+    }
     const distance = event.clientX - state.x;
     if (!state.moved) {
       if (Math.abs(distance) <= DRAG_THRESHOLD) return;
@@ -153,16 +177,6 @@ export function RowList({
     }
     node.scrollLeft = state.left - distance;
   };
-  const endDrag = (event: PointerEvent<HTMLDivElement>) => {
-    const node = scroller.current;
-    const state = drag.current;
-    drag.current = null;
-    if (!node || !state?.moved) return;
-    swallowClick.current = true;
-    node.style.scrollSnapType = state.snap;
-    delete node.dataset.dragging;
-    if (node.hasPointerCapture(event.pointerId)) node.releasePointerCapture(event.pointerId);
-  };
 
   const pagingButton = (direction: -1 | 1, isDisabled?: boolean) => (
     <Button
@@ -172,6 +186,8 @@ export function RowList({
       excludeFromTabOrder
       isDisabled={isDisabled}
       aria-label={t(direction < 0 ? 'ui.row.previous' : 'ui.row.next')}
+      // Never focused by a click: a button that turns disabled would drop the focus to the body.
+      onMouseDown={(event) => event.preventDefault()}
       onPress={() => page(direction)}
     />
   );
@@ -187,8 +203,9 @@ export function RowList({
       {...(fixed && {
         onPointerDown,
         onPointerMove,
-        onPointerUp: endDrag,
-        onPointerCancel: endDrag,
+        onPointerUp: (event) => endDrag(event, true),
+        onPointerCancel: (event) => endDrag(event, false),
+        onLostPointerCapture: (event) => endDrag(event, false),
         // A link would start the browser's own drag of its address instead.
         onDragStart: (event) => event.preventDefault(),
         onClickCapture: (event) => {

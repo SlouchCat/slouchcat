@@ -115,15 +115,17 @@
 }
 
 /*
- * A row with fixed paging buttons beside it (concept 20 P-1, RowList arrows="always"): the buttons
- * stand in the page's gutters, the cards between them keep a small inset for the focus ring and
- * the focus scale. Below 768 px still three cards fit, now between the buttons.
+ * A row with fixed paging buttons beside it (concept 20 P-1, RowList arrows="always"). From 768 px
+ * the buttons stand in the page's gutters and the cards between them keep a small inset for the
+ * focus ring and the focus scale. Below, the cards keep the geometry of every other row (three
+ * between the gutters, in line with the section heading) and the 44 px buttons lie over the ends
+ * of the row, on a scrim so they stay legible over a poster.
  */
 .rail {
+  position: relative;
   display: flex;
   gap: var(--sc-space-2);
   align-items: center;
-  padding-inline: var(--page-gutter);
 }
 
 .rail > .scroller {
@@ -132,16 +134,40 @@
 }
 
 .fixed {
-  --row-card-width: calc((100cqi - 2 * var(--sc-space-2) - 2 * var(--sc-space-4)) / 3);
-
-  scroll-padding-inline: var(--sc-space-2);
-
   /* Snaps only near a card: a drag or a trackpad stops where it was let go. */
   scroll-snap-type: x proximity;
 }
 
-.fixed > .list {
-  padding-inline: var(--sc-space-2);
+@media (width < 768px) {
+  .rail > button {
+    position: absolute;
+    z-index: 1;
+    top: 50%;
+    translate: 0 -50%;
+    background-color: var(--sc-color-scrim-strong);
+  }
+
+  .rail > button:first-child {
+    inset-inline-start: 0;
+  }
+
+  .rail > button:last-child {
+    inset-inline-end: 0;
+  }
+}
+
+@media (width >= 768px) {
+  .rail {
+    padding-inline: var(--page-gutter);
+  }
+
+  .fixed {
+    scroll-padding-inline: var(--sc-space-2);
+  }
+
+  .fixed > .list {
+    padding-inline: var(--sc-space-2);
+  }
 }
 
 @media (pointer: fine) {
