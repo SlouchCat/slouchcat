@@ -177,3 +177,31 @@ test('kind and order stay on the way back from a title', async ({ page, owner })
   );
   await expect(cards(page)).toHaveCount(1);
 });
+
+test('with a mouse the empty check shows on hover and focus, the set one always (O-1)', async ({
+  page,
+  owner,
+}) => {
+  await useFreshProfile(page, owner, 'E2E Gesehen Maus');
+  await page.goto(`/search?q=${encodeURIComponent(H264_TITLE)}`);
+  const titles = page.getByRole('list', { name: 'Titel' });
+  const empty = titles.getByRole('button', { name: `Gesehen: ${H264_TITLE}`, exact: true });
+  const area = empty.locator('xpath=../..');
+  await expect(empty).toHaveAttribute('aria-pressed', 'false');
+  await page.mouse.move(0, 0);
+  await expect(area).toHaveCSS('opacity', '0');
+  // The pointer on the card shows it.
+  await empty.locator('xpath=ancestor::li[1]').getByRole('link').first().hover();
+  await expect(area).toHaveCSS('opacity', '1');
+  await page.mouse.move(0, 0);
+  await expect(area).toHaveCSS('opacity', '0');
+  // So does the keyboard focus, without the pointer.
+  await empty.focus();
+  await expect(area).toHaveCSS('opacity', '1');
+  // Set, it stays without pointer and focus.
+  await page.keyboard.press('Enter');
+  await expect(empty).toHaveAttribute('aria-pressed', 'true');
+  await resetFocus(page);
+  await page.mouse.move(0, 0);
+  await expect(area).toHaveCSS('opacity', '1');
+});
