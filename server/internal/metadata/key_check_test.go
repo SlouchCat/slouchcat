@@ -9,7 +9,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/logging"
@@ -87,25 +89,33 @@ func newKeyCheckProviders(t *testing.T) *httptest.Server {
 // Concept 20, P-12: one cheap request per provider with its configured key. A good key holds, a
 // refused one is «invalid», a provider that is down «unreachable», none «not_configured»; neither
 // the answer nor the log ever carries a key.
+// newKeyCheckService is a service whose providers all live on srv, with keys and a log that
+// redacts like the server's.
+func newKeyCheckService(t *testing.T, srv *httptest.Server, keys checkKeys, log *slog.Logger) (*Service, *store.DB) {
+	t.Helper()
+	db, err := storetest.Open(context.Background(), store.Options{ConfigDir: t.TempDir(), Version: "test", Logger: log})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	return New(db, jobs.NewQueue(db.Write, nil), keys, t.TempDir(), transcode.Runner{}, log,
+		WithBaseURL(srv.URL+"/3", srv.URL+"/t/p"), WithHTTPClient(srv.Client()),
+		WithTVDBBaseURL(srv.URL+"/v4", srv.URL+"/art"), WithFanartBaseURL(srv.URL+"/fanart", srv.URL+"/assets"),
+		WithYouTubeBaseURL(srv.URL+"/yt"),
+		WithYouTubeQuota(ratelimit.NewQuota("youtube-test", youtubeDailyUnits, ratelimit.MidnightPacific)),
+		WithTrakt("", WithTraktBaseURL(srv.URL+"/trakt"), WithTraktHTTPClient(srv.Client()),
+			WithTraktLimiter(ratelimit.New("trakt-test", 1000, 100))),
+		WithBookSourceURLs(BookSourceURLsFromBase(srv.URL))), db
+}
+
 func TestCheckProviderKey(t *testing.T) {
 	ctx := context.Background()
 	srv := newKeyCheckProviders(t)
 	logs := &bytes.Buffer{}
 	log := slog.New(logging.NewRedactingHandler(slog.NewTextHandler(&lockedWriter{w: logs}, nil)))
-	db, err := storetest.Open(ctx, store.Options{ConfigDir: t.TempDir(), Version: "test", Logger: log})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
 	service := func(keys checkKeys) *Service {
-		return New(db, jobs.NewQueue(db.Write, nil), keys, t.TempDir(), transcode.Runner{}, log,
-			WithBaseURL(srv.URL+"/3", srv.URL+"/t/p"), WithHTTPClient(srv.Client()),
-			WithTVDBBaseURL(srv.URL+"/v4", srv.URL+"/art"), WithFanartBaseURL(srv.URL+"/fanart", srv.URL+"/assets"),
-			WithYouTubeBaseURL(srv.URL+"/yt"),
-			WithYouTubeQuota(ratelimit.NewQuota("youtube-test", youtubeDailyUnits, ratelimit.MidnightPacific)),
-			WithTrakt("", WithTraktBaseURL(srv.URL+"/trakt"), WithTraktHTTPClient(srv.Client()),
-				WithTraktLimiter(ratelimit.New("trakt-test", 1000, 100))),
-			WithBookSourceURLs(BookSourceURLsFromBase(srv.URL)))
+		svc, _ := newKeyCheckService(t, srv, keys, log)
+		return svc
 	}
 	all := func(prefix string) checkKeys {
 		return checkKeys{tmdb: prefix + "tmdb-1234", tvdb: prefix + "tvdb-1234", pin: "pin-9876", fanart: prefix + "fanart-1234",
@@ -162,5 +172,70 @@ func TestKeyCheckMessageCutsTheKey(t *testing.T) {
 	}
 	if long := keyCheckMessage(errors.New(strings.Repeat("x", 1000)), nil); len([]rune(long)) != keyCheckMaxMessage+1 {
 		t.Errorf("long message has %d characters", len([]rune(long)))
+	}
+}
+
+// Review of stage 4: «Prüfen» of Google Books goes past the breaker of the source. Refused three
+// times and more, it still asks Google every time, and the source does not pause for the matches.
+func TestKeyCheckGoogleBooksLeavesTheBreaker(t *testing.T) {
+	ctx := context.Background()
+	var hits atomic.Int32
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /google/volumes", func(w http.ResponseWriter, _ *http.Request) {
+		hits.Add(1)
+		w.WriteHeader(http.StatusForbidden)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	svc, db := newKeyCheckService(t, srv, checkKeys{google: "refused-google-1234"}, slog.New(slog.DiscardHandler))
+	for i := range 4 {
+		got, err := svc.CheckProviderKey(ctx, KeyCheckGoogleBooks)
+		if err != nil || got.Problem != model.KeyCheckInvalid {
+			t.Fatalf("check %d = %+v, %v; want invalid", i+1, got, err)
+		}
+	}
+	if n := hits.Load(); n != 4 {
+		t.Errorf("Google was asked %d times, want 4", n)
+	}
+	if until, paused := svc.books.google.breaker.pausedUntil(ctx); paused {
+		t.Errorf("Google Books pauses until %v after the checks", until)
+	}
+	var stored int
+	if err := db.Read.QueryRowContext(ctx, `SELECT count(*) FROM settings WHERE key LIKE ?`, SettingBookPausedPrefix+"%").Scan(&stored); err != nil {
+		t.Fatal(err)
+	}
+	if stored != 0 {
+		t.Errorf("%d pause settings stored", stored)
+	}
+}
+
+// Review of stage 4: a provider that does not answer within the time of a check is «unreachable».
+func TestKeyCheckTimesOut(t *testing.T) {
+	old := keyCheckTimeout
+	keyCheckTimeout = 50 * time.Millisecond
+	t.Cleanup(func() { keyCheckTimeout = old })
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /3/configuration", func(_ http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-time.After(5 * time.Second):
+		}
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	svc, _ := newKeyCheckService(t, srv, checkKeys{tmdb: "slow-tmdb-1234"}, slog.New(slog.DiscardHandler))
+	start := time.Now()
+	got, err := svc.CheckProviderKey(context.Background(), KeyCheckTMDB)
+	if err != nil || got.Problem != model.KeyCheckUnreachable || got.Message == "" {
+		t.Fatalf("slow TMDB = %+v, %v; want unreachable with a message", got, err)
+	}
+	if took := time.Since(start); took > 2*time.Second {
+		t.Errorf("the check took %v", took)
+	}
+	// A request the caller cancelled stays an error.
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := svc.CheckProviderKey(cancelled, KeyCheckTMDB); err == nil {
+		t.Error("a cancelled check answered")
 	}
 }

@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/netguard"
 	"github.com/slouchcat/slouchcat/server/internal/trakt"
 )
 
@@ -38,9 +41,16 @@ const (
 // errFanartKeyRefused: Fanart.tv answered 401 or 403 to the key.
 var errFanartKeyRefused = errors.New("fanart: key refused")
 
+// keyCheckTimeout bounds one check: a provider that does not answer in time is «unreachable».
+// A variable for the tests.
+var keyCheckTimeout = 15 * time.Second
+
 // CheckProviderKey asks the provider with the configured key whether it holds (model.KeyCheck);
 // an unknown provider is a validation error. A provider without key is ok=false, not_configured.
 func (s *Service) CheckProviderKey(ctx context.Context, provider string) (model.KeyCheck, error) {
+	parent := ctx
+	ctx, cancel := context.WithTimeout(ctx, keyCheckTimeout)
+	defer cancel()
 	var secrets []string
 	var err error
 	switch provider {
@@ -97,7 +107,7 @@ func (s *Service) CheckProviderKey(ctx context.Context, provider string) (model.
 	default:
 		return model.KeyCheck{}, (&model.ValidationError{}).Add("provider", "invalid_value")
 	}
-	return keyCheckResult(ctx, err, secrets)
+	return keyCheckResult(parent, ctx, err, secrets)
 }
 
 // checkWith runs check unless key is empty (errNotConfigured).
@@ -121,24 +131,55 @@ func (s *Service) checkYouTube(ctx context.Context, key string) error {
 	return y.getJSON(ctx, "/videos", url.Values{"part": {"id"}, "id": {keyCheckYouTubeID}, "key": {key}}, &out)
 }
 
-// checkGoogleBooks searches one ISBN past the search cache; 400, 401 and 403 refuse the key.
+// checkGoogleBooks asks for one ISBN with the key: past the search cache and past the breaker of
+// the source, so a refused key checked three times does not pause Google Books for the matches
+// (the breaker counts the answers of real work only). The limiter of the host still applies.
+// 400, 401 and 403 refuse the key; 429 and 5xx are unreachable.
 func (s *Service) checkGoogleBooks(ctx context.Context, key string) error {
 	p := s.books.google
-	_, status, err := p.fetch(ctx, p.http, p.limiter,
-		queryURL(p.base, "/volumes", url.Values{"q": {"isbn:" + keyCheckISBN}, "maxResults": {"1"}, "key": {key}}), bookJSON)
-	if status == http.StatusBadRequest || status == http.StatusUnauthorized || status == http.StatusForbidden {
-		return fmt.Errorf("%w: googlebooks: status %d", model.ErrTMDBKeyInvalid, status)
+	if err := p.limiter.Wait(ctx); err != nil {
+		return err
 	}
-	return err
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		queryURL(p.base, "/volumes", url.Values{"q": {"isbn:" + keyCheckISBN}, "maxResults": {"1"}, "key": {key}}), nil)
+	if err != nil {
+		return fmt.Errorf("googlebooks request: %w", netguard.Clean(err))
+	}
+	req.Header.Set("User-Agent", p.agent)
+	req.Header.Set("Accept", "application/json")
+	logRequest(p.log, p.name, req)
+	resp, err := p.http.Do(req)
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+		return fmt.Errorf("%w: googlebooks: %w", model.ErrTMDBUnreachable, netguard.Clean(err))
+	}
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxBookBytes))
+	_ = resp.Body.Close()
+	switch status := resp.StatusCode; {
+	case status >= 200 && status < 300 || status == http.StatusNotFound:
+		return nil
+	case status == http.StatusBadRequest || status == http.StatusUnauthorized || status == http.StatusForbidden:
+		return fmt.Errorf("%w: googlebooks: status %d", model.ErrTMDBKeyInvalid, status)
+	case status == http.StatusTooManyRequests || status >= 500:
+		return fmt.Errorf("%w: googlebooks: status %d", model.ErrTMDBUnreachable, status)
+	default:
+		return fmt.Errorf("googlebooks: status %d", status)
+	}
 }
 
-// keyCheckResult maps the outcome of a check; a database or context error stays an error.
-func keyCheckResult(ctx context.Context, err error, secrets []string) (model.KeyCheck, error) {
+// keyCheckResult maps the outcome of a check; a cancelled request (parent) stays an error, the
+// check's own timeout (ctx) is «unreachable».
+func keyCheckResult(parent, ctx context.Context, err error, secrets []string) (model.KeyCheck, error) {
 	switch {
 	case err == nil:
 		return model.KeyCheck{OK: true}, nil
-	case ctx.Err() != nil:
-		return model.KeyCheck{}, ctx.Err()
+	case parent.Err() != nil:
+		return model.KeyCheck{}, parent.Err()
+	case ctx.Err() != nil || errors.Is(err, context.DeadlineExceeded):
+		return model.KeyCheck{Problem: model.KeyCheckUnreachable,
+			Message: fmt.Sprintf("no answer within %s", keyCheckTimeout)}, nil
 	case errors.Is(err, errNotConfigured):
 		return model.KeyCheck{Problem: model.KeyCheckNotConfigured}, nil
 	}
@@ -148,7 +189,7 @@ func keyCheckResult(ctx context.Context, err error, secrets []string) (model.Key
 		errors.Is(err, trakt.ErrUnauthorized):
 		check.Problem = model.KeyCheckInvalid
 	case errors.Is(err, model.ErrTMDBUnreachable), errors.Is(err, trakt.ErrUnavailable), errors.Is(err, errQuotaExhausted), errors.Is(err, errYouTubeUnavailable),
-		errors.Is(err, errSourceBlocked):
+		errors.Is(err, errSourceBlocked), errors.Is(err, errSourcePaused):
 		check.Problem = model.KeyCheckUnreachable
 	}
 	return check, nil
