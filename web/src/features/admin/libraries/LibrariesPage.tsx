@@ -306,10 +306,10 @@ function LibrariesContent() {
         />
       )}
       {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
+      {/* A polite live region: it appears when the dialog closes on a kept draft. */}
       {draft.dirty && !addOpen && (
         <Notice
           tone="warning"
-          live={false}
           title={t('admin.libraries.add.draft.band')}
           actions={
             <>

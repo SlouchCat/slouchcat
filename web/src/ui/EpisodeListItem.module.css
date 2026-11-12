@@ -155,6 +155,11 @@
   color: var(--sc-color-bg-base);
 }
 
+/* The box of «Details»: exactly as large as the button in it. */
+.details {
+  display: flex;
+}
+
 .open {
   border: 1.5px solid var(--sc-color-text-muted);
   background-color: transparent;
@@ -192,7 +197,7 @@
     grid-column: 2;
   }
 
-  .row > :nth-child(2) {
+  .details {
     grid-column: 2;
   }
 }

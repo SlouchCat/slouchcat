@@ -588,6 +588,8 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     await user.click(within(question).getByRole('button', { name: 'Entwurf behalten' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(band()).toBeVisible();
+    // Announced politely as it appears.
+    expect(band()?.closest('[role="status"]')).not.toBeNull();
 
     // «Weiter bearbeiten» opens the dialog with the draft; the band is gone meanwhile.
     await user.click(screen.getByRole('button', { name: 'Weiter bearbeiten' }));

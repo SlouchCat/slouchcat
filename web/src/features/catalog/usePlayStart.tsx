@@ -23,6 +23,16 @@ type Started = NonNullable<ItemRef['progress']>;
 const startedAt = (progress: ItemRef['progress']): Started | undefined =>
   progress && !progress.completed && progress.positionMs > 0 ? progress : undefined;
 
+/** The parts of a click that ask reads: which button and the modifier keys. */
+interface PlayClick {
+  preventDefault: () => void;
+  button?: number;
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+  shiftKey?: boolean;
+  altKey?: boolean;
+}
+
 const BODY_KEYS = {
   episode: 'item.resumeChoice.bodyEpisode',
   podcast_episode: 'item.resumeChoice.bodyPodcastEpisode',
@@ -33,11 +43,13 @@ const BODY_KEYS = {
  * series, seasons and podcasts and «Abspielen» of a film in the spotlight. `ask(item, event)` on
  * the click of such a play link: a started title (position over 0, not finished) asks first
  * whether to resume or start over, and the link does nothing itself; any other title plays at
- * once. Render `dialog` once beside the links. Not for the volumes of an audiobook series (they
- * always resume, O-9), the cards of «Weiterschauen» or the detail page.
+ * once. A click with another button or a modifier key (Ctrl or Cmd for a new tab) never asks: the
+ * link does what the browser does with it. Render `dialog` once beside the links. Not for the
+ * volumes of an audiobook series (they always resume, O-9), the cards of «Weiterschauen» or the
+ * detail page.
  */
 export function usePlayStart(): {
-  ask: (item: PlayStartItem, event?: { preventDefault: () => void }) => boolean;
+  ask: (item: PlayStartItem, event?: PlayClick) => boolean;
   dialog: ReactNode;
   asking: boolean;
 } {
@@ -47,9 +59,19 @@ export function usePlayStart(): {
   const [pending, setPending] = useState<{ item: PlayStartItem; progress: Started } | null>(null);
   const [open, setOpen] = useState(false);
 
-  const ask = (item: PlayStartItem, event?: { preventDefault: () => void }) => {
+  const ask = (item: PlayStartItem, event?: PlayClick) => {
     const progress = startedAt(item.progress);
     if (!progress) return false;
+    if (
+      event &&
+      ((event.button ?? 0) !== 0 ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        event.altKey)
+    ) {
+      return false;
+    }
     event?.preventDefault();
     setPending({ item, progress });
     setOpen(true);

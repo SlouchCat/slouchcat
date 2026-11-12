@@ -196,7 +196,7 @@ test('Enter on an episode plays it; ← → and Tab reach «Details», which ope
   await expect(page).toHaveURL(new RegExp(`${series}$`));
 });
 
-test('a started episode asks first: resume has the focus, Escape closes and gives the focus back (concept 20 P-4) @keyboard', async ({
+test('a started episode asks first: resume has the focus, ↑ ↓ and Tab move, Escape gives the focus back, Ctrl-click opens a tab (concept 20 P-4) @keyboard', async ({
   page,
 }) => {
   const id = await firstEpisode(page);
@@ -218,7 +218,24 @@ test('a started episode asks first: resume has the focus, Escape closes and give
     await expectFocusOn(page, row);
     await expect(page).toHaveURL(new RegExp(`${series}$`));
 
+    // Ctrl-click (Cmd on a Mac) is the browser's: a new tab, no question. The tab never loads,
+    // so it reports no progress.
+    const context = page.context();
+    const blank = /\/play\/[^/?]+$/;
+    await context.route(blank, (route) =>
+      route.request().resourceType() === 'document' ? route.abort() : route.fallback(),
+    );
+    const [tab] = await Promise.all([
+      context.waitForEvent('page'),
+      row.click({ modifiers: ['ControlOrMeta'] }),
+    ]);
+    await tab.close();
+    await context.unroute(blank);
+    await expect(choice).toHaveCount(0);
+    await expect(page).toHaveURL(new RegExp(`${series}$`));
+
     // Tab stays in the dialog: «Von vorn starten», «Abbrechen», back to the default.
+    await row.focus();
     await page.keyboard.press('Enter');
     await expect(choice).toBeVisible();
     await page.keyboard.press('Tab');
@@ -229,6 +246,18 @@ test('a started episode asks first: resume has the focus, Escape closes and give
     await expectFocusOn(page, choice.getByRole('button', { name: 'Weiterschauen ab 0:04' }));
     await page.keyboard.press('Shift+Tab');
     await page.keyboard.press('Shift+Tab');
+    await expectFocusOn(page, choice.getByRole('button', { name: 'Von vorn starten' }));
+    // ↓ and ↑ move between the buttons too, without wrapping.
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, choice.getByRole('button', { name: 'Abbrechen' }));
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, choice.getByRole('button', { name: 'Abbrechen' }));
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('ArrowUp');
+    await expectFocusOn(page, choice.getByRole('button', { name: 'Weiterschauen ab 0:04' }));
+    await page.keyboard.press('ArrowUp');
+    await expectFocusOn(page, choice.getByRole('button', { name: 'Weiterschauen ab 0:04' }));
+    await page.keyboard.press('ArrowDown');
     await expectFocusOn(page, choice.getByRole('button', { name: 'Von vorn starten' }));
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(new RegExp(`/play/${id}\\?at=0$`));

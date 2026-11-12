@@ -131,15 +131,18 @@ export function EpisodeListItem({
         </span>
         {caption && <span className={styles.caption}>{caption}</span>}
       </AppLink>
-      <SpatialButtonLink
-        focusKey={focusKey ? `${focusKey}-details` : undefined}
-        href={detailsHref}
-        variant="secondary"
-        icon="info"
-        aria-label={detailsName}
-      >
-        {detailsLabel}
-      </SpatialButtonLink>
+      {/* A box of its own: ButtonLink takes no class, the phone layout places this one. */}
+      <span className={styles.details}>
+        <SpatialButtonLink
+          focusKey={focusKey ? `${focusKey}-details` : undefined}
+          href={detailsHref}
+          variant="secondary"
+          icon="info"
+          aria-label={detailsName}
+        >
+          {detailsLabel}
+        </SpatialButtonLink>
+      </span>
       <span className={styles.mark}>
         {watchedControl ??
           (watchedLabel ? (

@@ -1662,7 +1662,7 @@
           "discarded": "The draft of the new library has been discarded.",
           "question": {
             "title": "Keep or discard the draft?",
-            "body": "You have started a new library. If you keep the draft, you can continue editing it from the band on the page.",
+            "body": "You have started a new library. If you keep the draft, you can continue editing it from the banner on the page.",
             "keep": "Keep draft",
             "discard": "Discard draft"
           }
