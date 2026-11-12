@@ -93,8 +93,8 @@ linters:
         # or renames by path or by system call either; the exclusion below scopes the rule to them.
         - pattern: ^os\.(Remove|RemoveAll|Rename)$
           msg: "ADR 0032: in this package no file is deleted or renamed by path; below a root through paths.Remove, paths.RemoveEmptyDir or an os.Root"
-        - pattern: ^(unix|syscall)\.(Unlink|Unlinkat|Rmdir)$
-          msg: "ADR 0032: in this package no file is deleted by system call; below a root through paths.Remove and paths.RemoveEmptyDir"
+        - pattern: ^(unix|syscall)\.(Unlink|Unlinkat|Rmdir|Rename|Renameat2?)$
+          msg: "ADR 0032: in this package no file is deleted or renamed by system call; below a root through paths.Remove and paths.RemoveEmptyDir"
         - pattern: \.(EnqueueOverridingPause|RaiseQueuedJobForPlayback|EnqueueOverridingWindow)$
           msg: only a playback lifts the pause, a playback or an offline download the time window of a job type, through package library (concept 14 6.5, ADR 0022; concept 15 4.3, M-1)
     govet:

@@ -98,7 +98,8 @@ mit, was Slouchcat nicht kennt); (e) weiches Löschen des Titels, wenn alle Date
    Hilfsdateien eines Downloads (`internal/fetch`, Podcast-Downloads nach ADR 0029) tragen an jeder Stelle ein
    `//nolint:forbidigo` mit Begründung. In den Paketen, die mit Dateien der Bibliotheken umgehen
    (`library`, `metadata`, `browse`, `api`, `offline`), sind zudem `os.Remove`, `os.RemoveAll` und
-   `os.Rename` sowie `unix`/`syscall` `Unlink`, `Unlinkat` und `Rmdir` verboten (Ausnahme-Regel nach Pfad,
+   `os.Rename` sowie `unix`/`syscall` `Unlink`, `Unlinkat`, `Rmdir`, `Rename`, `Renameat` und `Renameat2`
+   verboten (Ausnahme-Regel nach Pfad,
    Tests ausgenommen); in den übrigen Paketen bleibt `os.Remove` auf `/config` und `/cache` erlaubt.
 8. **Radarr und Sonarr wissen von nichts.** Slouchcat steuert sie nicht (Nicht-Ziel der Spec); der Dialog
    weist darauf hin. Lädt Radarr denselben Film später neu, erscheint er als neuer Titel ohne Benutzerdaten.
