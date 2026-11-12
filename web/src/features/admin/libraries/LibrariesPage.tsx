@@ -15,6 +15,8 @@ import {
   StatusRegion,
   Tabs,
   afterDialogsClosed,
+  afterRender,
+  focusLost,
   focusTitleIfLost,
   useSearchSelection,
   useStatusMessage,
@@ -47,7 +49,8 @@ interface Confirmation {
  * band and folders; «Bibliothek hinzufügen» opens a dialog whose draft the page keeps. The list
  * is polled every 5 s while a scan is queued or running, and paused only while a dialog of the
  * page is open: a kept draft does not stop the scan progress. Leaving the page with a draft asks
- * first (S-13).
+ * first (S-13); while the dialog is closed, a band says that the draft is there and offers to go
+ * on or to discard it (concept 20, 13.2).
  */
 export function LibrariesPage() {
   const { t } = useTranslation();
@@ -87,6 +90,7 @@ function LibrariesContent() {
   const [trickplaySession, setTrickplaySession] = useState(0);
   const draft = useLibraryDraft();
   const unsaved = useUnsavedChanges(draft.dirty);
+  const continueRef = useRef<HTMLButtonElement>(null);
   // The draft lives outside the dialog, so `unsaved.pausePolling` stays out of this.
   const hold = confirmOpen || addOpen || foldersOpen || ratingOpen || trickplayOpen;
 
@@ -256,6 +260,23 @@ function LibrariesContent() {
   const ratingLibrary = data?.find((library) => library.id === ratingId);
   const trickplayLibrary = data?.find((library) => library.id === trickplayId);
 
+  // The band is gone while the dialog is open, so a dialog opened from it hands the focus back to
+  // the band's button once it shows again; with the draft discarded, to the h1.
+  const onAddOpenChange = useCallback((open: boolean) => {
+    setAddOpen(open);
+    if (open) return;
+    void afterDialogsClosed().then(() => {
+      if (focusLost()) (continueRef.current ?? titleRef.current)?.focus();
+    });
+  }, []);
+  const discardDraft = () => {
+    draft.reset();
+    setFailure(null);
+    setMessage(t('admin.libraries.add.draft.discarded'));
+    // The band goes with the button that had the focus.
+    void afterRender().then(() => focusTitleIfLost(titleRef));
+  };
+
   const tabName = (id: TabId) =>
     id === 'all' ? t('admin.libraries.tabs.all') : t(`library.kind.${id}`);
 
@@ -285,6 +306,23 @@ function LibrariesContent() {
         />
       )}
       {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
+      {draft.dirty && !addOpen && (
+        <Notice
+          tone="warning"
+          live={false}
+          title={t('admin.libraries.add.draft.band')}
+          actions={
+            <>
+              <AriaButton ref={continueRef} icon="pen" onPress={() => onAddOpenChange(true)}>
+                {t('admin.libraries.add.draft.continue')}
+              </AriaButton>
+              <AriaButton variant="ghost" onPress={discardDraft}>
+                {t('admin.libraries.add.draft.discard')}
+              </AriaButton>
+            </>
+          }
+        />
+      )}
       <StatusRegion message={failure === null ? message : null} />
       {data?.length === 0 && <Notice>{t('admin.libraries.empty')}</Notice>}
       {data && data.length > 0 && (
@@ -324,7 +362,7 @@ function LibrariesContent() {
       <AddLibraryDialog
         draft={draft}
         isOpen={addOpen}
-        onOpenChange={setAddOpen}
+        onOpenChange={onAddOpenChange}
         onCreated={(library) => {
           setFailure(null);
           setMessage(t('admin.libraries.add.created', { name: library.name }));

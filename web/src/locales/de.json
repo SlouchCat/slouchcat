@@ -1654,7 +1654,19 @@
       "add": {
         "title": "Bibliothek hinzufügen",
         "submitting": "Wird hinzugefügt …",
-        "created": "Die Bibliothek {{name}} ist angelegt."
+        "created": "Die Bibliothek {{name}} ist angelegt.",
+        "draft": {
+          "band": "Der Entwurf einer neuen Bibliothek ist noch nicht gespeichert.",
+          "continue": "Weiter bearbeiten",
+          "discard": "Entwurf verwerfen",
+          "discarded": "Der Entwurf der neuen Bibliothek ist verworfen.",
+          "question": {
+            "title": "Entwurf behalten oder verwerfen?",
+            "body": "Du hast eine neue Bibliothek angefangen. Behältst du den Entwurf, kannst du ihn über das Band auf der Seite weiter bearbeiten.",
+            "keep": "Entwurf behalten",
+            "discard": "Entwurf verwerfen"
+          }
+        }
       },
       "cancel": "Scan abbrechen",
       "scanStarted": "Der Scan von {{name}} ist gestartet.",

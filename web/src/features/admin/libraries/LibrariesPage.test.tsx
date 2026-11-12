@@ -383,8 +383,8 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     await act(() => vi.advanceTimersByTimeAsync(12_000));
     expect(lists()).toBe(before);
 
-    // Closed with the draft kept: the scan progress stays live.
-    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+    // Closed with the draft kept (Escape does not ask): the scan progress stays live.
+    await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(await screen.findByText('Live, alle 5 Sekunden')).toBeVisible();
     const closed = lists();
@@ -557,7 +557,8 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     let dialog = await openAdd(user);
     await user.type(within(dialog).getByLabelText('Name'), 'Dokus');
     await user.type(within(dialog).getByLabelText('Ordner'), '/media/Dokus');
-    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+    // Escape keeps the draft without asking.
+    await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     // The focus is back on the button that opened it.
     await waitFor(() =>
@@ -567,6 +568,90 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     dialog = await openAdd(user);
     expect(within(dialog).getByLabelText('Name')).toHaveValue('Dokus');
     expect(within(dialog).getByLabelText('Ordner')).toHaveValue('/media/Dokus');
+  });
+
+  it('asks on «Abbrechen» whether to keep the draft; the band offers it again (concept 20, 13.2)', async () => {
+    mockApi({ ...signedIn, 'GET /admin/libraries': () => json([library()]) });
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    const band = () =>
+      screen.queryByText('Der Entwurf einer neuen Bibliothek ist noch nicht gespeichert.');
+
+    let dialog = await openAdd(user);
+    await user.type(within(dialog).getByLabelText('Name'), 'Dokus');
+    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+    let question = await screen.findByRole('alertdialog', {
+      name: 'Entwurf behalten oder verwerfen?',
+    });
+    // «Entwurf behalten» is where Enter by habit lands.
+    expect(within(question).getByRole('button', { name: 'Entwurf behalten' })).toHaveFocus();
+    await user.click(within(question).getByRole('button', { name: 'Entwurf behalten' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(band()).toBeVisible();
+
+    // «Weiter bearbeiten» opens the dialog with the draft; the band is gone meanwhile.
+    await user.click(screen.getByRole('button', { name: 'Weiter bearbeiten' }));
+    dialog = await screen.findByRole('dialog', { name: 'Bibliothek hinzufügen' });
+    expect(within(dialog).getByLabelText('Name')).toHaveValue('Dokus');
+    expect(band()).toBeNull();
+
+    // «Entwurf verwerfen» in the question empties it: no band, the next opening is empty.
+    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+    question = await screen.findByRole('alertdialog', { name: 'Entwurf behalten oder verwerfen?' });
+    await user.click(within(question).getByRole('button', { name: 'Entwurf verwerfen' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(band()).toBeNull();
+    dialog = await openAdd(user);
+    expect(within(dialog).getByLabelText('Name')).toHaveValue('');
+
+    // Untouched, «Abbrechen» closes without asking.
+    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+
+  it('discards the draft from the band; leaving then does not ask (concept 20, 13.2)', async () => {
+    mockApi({ ...signedIn, 'GET /admin/libraries': () => json([library()]) });
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    const nav = () => screen.getByRole('navigation', { name: 'Verwaltung' });
+
+    const dialog = await openAdd(user);
+    await user.type(within(dialog).getByLabelText('Name'), 'Dokus');
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    // react-aria hands the focus back to the opener first.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Bibliothek hinzufügen' })).toHaveFocus(),
+    );
+    await user.click(screen.getByRole('button', { name: 'Entwurf verwerfen' }));
+    expect(
+      screen.queryByText('Der Entwurf einer neuen Bibliothek ist noch nicht gespeichert.'),
+    ).toBeNull();
+    expect(screen.getByText('Der Entwurf der neuen Bibliothek ist verworfen.')).toBeVisible();
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Bibliotheken' })).toHaveFocus(),
+    );
+    await user.click(within(nav()).getByRole('link', { name: /^Integrationen/ }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
+  });
+
+  it('a single folder card without a path is no draft, whatever its content (concept 20, 13.2)', async () => {
+    mockApi({ ...signedIn, 'GET /admin/libraries': () => json([library()]) });
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+
+    const dialog = await openAdd(user);
+    // A second card (for series), then the first one out: one empty card for series is left.
+    await user.click(within(dialog).getByRole('button', { name: 'Weiteren Ordner hinzufügen' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Ordner 1 entfernen' }));
+    expect(within(dialog).getByRole('radio', { name: 'Serien' })).toBeChecked();
+    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(
+      screen.queryByText('Der Entwurf einer neuen Bibliothek ist noch nicht gespeichert.'),
+    ).toBeNull();
   });
 
   it('orders the sources of a new folder by position (S-16)', async () => {
@@ -818,7 +903,7 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     // A typed name is a draft: leaving asks, staying keeps it.
     dialog = await openAdd(user);
     await user.type(within(dialog).getByLabelText('Name'), 'Dokus');
-    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+    await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await user.click(within(nav()).getByRole('link', { name: /^Integrationen/ }));
     const leave = await screen.findByRole('alertdialog', {

@@ -1654,7 +1654,19 @@
       "add": {
         "title": "Add library",
         "submitting": "Adding …",
-        "created": "The library {{name}} has been added."
+        "created": "The library {{name}} has been added.",
+        "draft": {
+          "band": "The draft of a new library has not been saved yet.",
+          "continue": "Continue editing",
+          "discard": "Discard draft",
+          "discarded": "The draft of the new library has been discarded.",
+          "question": {
+            "title": "Keep or discard the draft?",
+            "body": "You have started a new library. If you keep the draft, you can continue editing it from the band on the page.",
+            "keep": "Keep draft",
+            "discard": "Discard draft"
+          }
+        }
       },
       "cancel": "Cancel scan",
       "scanStarted": "The scan of {{name}} has started.",

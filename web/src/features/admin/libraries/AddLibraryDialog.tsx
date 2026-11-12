@@ -9,7 +9,9 @@ import {
   AriaButton,
   Form,
   FormDialog,
+  ConfirmDialog,
   TextField,
+  defaultProviders,
   folderListError,
   type FolderEntry,
 } from '@/ui/aria';
@@ -43,17 +45,18 @@ export interface LibraryDraft {
   reset: () => void;
 }
 
-/** Whether the cards are the ones a new video library starts with, apart from their keys. */
+/**
+ * Whether the cards hold nothing typed: a single card without a path, whatever its content, with
+ * the sources its content starts with (concept 20, 13.2). Adding a card and removing the first
+ * leaves one for series; that is no draft.
+ */
 function untouchedFolders(folders: readonly FolderEntry[]): boolean {
-  const [start] = initialFolders('video');
   const [only] = folders;
   return (
     folders.length === 1 &&
     only !== undefined &&
-    start !== undefined &&
     only.path.trim() === '' &&
-    only.content === start.content &&
-    only.providers.join() === start.providers.join()
+    only.providers.join() === defaultProviders(only.content).join()
   );
 }
 
@@ -113,7 +116,8 @@ interface AddLibraryDialogProps {
  * S-16) and the folder browser, «Vorschau beim Spulen» of a video library (concept 18, 9),
  * «N Ordner hinzufügen». The draft is the page's, so what was
  * typed is still there when the dialog is closed without adding and opened again, and leaving the
- * page asks first (S-13); a library that was added empties it.
+ * page asks first (S-13); a library that was added empties it. «Abbrechen» asks whether to keep
+ * or discard a draft; ✕ and Escape keep it without asking (concept 20, 13.2).
  */
 export function AddLibraryDialog({
   draft,
@@ -126,6 +130,7 @@ export function AddLibraryDialog({
   const { name, setName, kind, rating, setRating, folders, setFolders, changeKind } = draft;
   const { trickplay, setTrickplay } = draft;
   const trickplayHeading = useId();
+  const [asking, setAsking] = useState(false);
   const providers = useQuery({ ...metadataProvidersQuery, enabled: isOpen });
   const create = useMutation({
     mutationFn: (body: LibraryRequest): Promise<Library> =>
@@ -152,6 +157,12 @@ export function AddLibraryDialog({
     create.reset();
     onOpenChange(false);
   };
+  // «Abbrechen» with something entered: keep the draft (the page's band offers it again) or
+  // discard it. Only «Entwurf verwerfen» empties it; the other ways out of the question keep it.
+  const cancel = () => {
+    if (draft.dirty) setAsking(true);
+    else close();
+  };
   const required = (value: string) => (value.trim() ? null : t('errors.field.required'));
   const submitText = create.isPending
     ? t('admin.libraries.add.submitting')
@@ -160,77 +171,94 @@ export function AddLibraryDialog({
       : t('library.roots.submit', { count: folders.length });
 
   return (
-    <FormDialog
-      isOpen={isOpen}
-      onOpenChange={(open) => (open ? onOpenChange(true) : close())}
-      title={t('admin.libraries.add.title')}
-      size="wide"
-    >
-      <Form className={styles.form} onSubmit={onSubmit} validationErrors={errors?.fields}>
-        {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
-        <TextField
-          name="name"
-          label={t('setup.library.name')}
-          isRequired
-          validate={required}
-          value={name}
-          onChange={setName}
-        />
-        <LibraryFields
-          kind={kind}
-          onKindChange={changeKind}
-          rating={rating}
-          onRatingChange={setRating}
-          folders={folders}
-          onFoldersChange={(next) => {
-            // The server names a card by its index: a message must not move to another card.
-            if (create.error) create.reset();
-            setFolders(() => next);
-          }}
-          providerInfos={providers.data}
-          fieldErrors={errors?.fields}
-          ordering="rank"
-          pathButton={(folder, inputRef) => (
-            <PathBrowserButton
-              path={folder.path}
-              onPathChange={(path) =>
-                setFolders((list) =>
-                  list.map((entry) => (entry.key === folder.key ? { ...entry, path } : entry)),
-                )
-              }
-              fieldRef={inputRef}
-            />
+    <>
+      <FormDialog
+        isOpen={isOpen}
+        onOpenChange={(open) => (open ? onOpenChange(true) : close())}
+        title={t('admin.libraries.add.title')}
+        size="wide"
+      >
+        <Form className={styles.form} onSubmit={onSubmit} validationErrors={errors?.fields}>
+          {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
+          <TextField
+            name="name"
+            label={t('setup.library.name')}
+            isRequired
+            validate={required}
+            value={name}
+            onChange={setName}
+          />
+          <LibraryFields
+            kind={kind}
+            onKindChange={changeKind}
+            rating={rating}
+            onRatingChange={setRating}
+            folders={folders}
+            onFoldersChange={(next) => {
+              // The server names a card by its index: a message must not move to another card.
+              if (create.error) create.reset();
+              setFolders(() => next);
+            }}
+            providerInfos={providers.data}
+            fieldErrors={errors?.fields}
+            ordering="rank"
+            pathButton={(folder, inputRef) => (
+              <PathBrowserButton
+                path={folder.path}
+                onPathChange={(path) =>
+                  setFolders((list) =>
+                    list.map((entry) => (entry.key === folder.key ? { ...entry, path } : entry)),
+                  )
+                }
+                fieldRef={inputRef}
+              />
+            )}
+          />
+          {kind === 'video' && (
+            <section className={styles.trickplaySection} aria-labelledby={trickplayHeading}>
+              <h3 id={trickplayHeading} className={styles.rootsTitle}>
+                {t('admin.libraries.trickplay.action')}
+              </h3>
+              <p className={styles.muted}>{t('admin.libraries.trickplay.description')}</p>
+              <TrickplayFields value={trickplay} onChange={setTrickplay} />
+            </section>
           )}
-        />
-        {kind === 'video' && (
-          <section className={styles.trickplaySection} aria-labelledby={trickplayHeading}>
-            <h3 id={trickplayHeading} className={styles.rootsTitle}>
-              {t('admin.libraries.trickplay.action')}
-            </h3>
-            <p className={styles.muted}>{t('admin.libraries.trickplay.description')}</p>
-            <TrickplayFields value={trickplay} onChange={setTrickplay} />
-          </section>
-        )}
-        {listError && folders.some((folder) => folder.path.trim()) && (
-          <Notice tone="warning" live={false}>
-            {listError}
-          </Notice>
-        )}
-        <div className={styles.dialogActions}>
-          <AriaButton variant="ghost" onPress={close}>
-            {t('common.cancel')}
-          </AriaButton>
-          <AriaButton
-            type="submit"
-            variant="primary"
-            icon="plus"
-            isPending={create.isPending}
-            isDisabled={listError !== null && folders.length > 0}
-          >
-            {submitText}
-          </AriaButton>
-        </div>
-      </Form>
-    </FormDialog>
+          {listError && folders.some((folder) => folder.path.trim()) && (
+            <Notice tone="warning" live={false}>
+              {listError}
+            </Notice>
+          )}
+          <div className={styles.dialogActions}>
+            <AriaButton variant="ghost" onPress={cancel}>
+              {t('common.cancel')}
+            </AriaButton>
+            <AriaButton
+              type="submit"
+              variant="primary"
+              icon="plus"
+              isPending={create.isPending}
+              isDisabled={listError !== null && folders.length > 0}
+            >
+              {submitText}
+            </AriaButton>
+          </div>
+        </Form>
+      </FormDialog>
+      <ConfirmDialog
+        isOpen={asking}
+        onOpenChange={(open) => {
+          if (open) return;
+          setAsking(false);
+          close();
+        }}
+        title={t('admin.libraries.add.draft.question.title')}
+        body={t('admin.libraries.add.draft.question.body')}
+        confirmLabel={t('admin.libraries.add.draft.question.discard')}
+        cancelLabel={t('admin.libraries.add.draft.question.keep')}
+        tone="danger"
+        defaultFocus="cancel"
+        onConfirm={draft.reset}
+      />
+    </>
   );
 }
