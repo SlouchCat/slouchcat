@@ -42,27 +42,27 @@ func TestRemoveStaysInsideTheRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := Remove(root, "Film/Film.mkv", FileID{}); err != nil {
+	if err := Remove(root, "Film/Film.mkv"); err != nil {
 		t.Fatalf("remove a file: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "Film", "Film.mkv")); !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("the file is still there: %v", err)
 	}
-	if err := Remove(root, "Film/Film.mkv", FileID{}); !errors.Is(err, fs.ErrNotExist) {
+	if err := Remove(root, "Film/Film.mkv"); !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("remove a missing file = %v, want not exist", err)
 	}
-	if err := Remove(root, "Film/link.mkv", FileID{}); !errors.Is(err, ErrNotRegular) {
+	if err := Remove(root, "Film/link.mkv"); !errors.Is(err, ErrNotRegular) {
 		t.Errorf("remove a symlink = %v, want not regular", err)
 	}
 	for _, rel := range []string{"away/secret.mkv", "../" + filepath.Base(outside) + "/secret.mkv", secret, "Film/../../x"} {
-		if err := Remove(root, rel, FileID{}); err == nil {
+		if err := Remove(root, rel); err == nil {
 			t.Errorf("remove %s went through", rel)
 		}
 	}
 	if _, err := os.Stat(secret); err != nil {
 		t.Errorf("the file outside the root went: %v", err)
 	}
-	if err := Remove(root, "Other", FileID{}); !errors.Is(err, ErrNotRegular) {
+	if err := Remove(root, "Other"); !errors.Is(err, ErrNotRegular) {
 		t.Errorf("remove a directory as a file = %v", err)
 	}
 
@@ -155,7 +155,7 @@ func TestRemoveChecksTheExpectedFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := Remove(root, "Film.mkv", old); !errors.Is(err, ErrChanged) {
+	if err := RemoveExpected(root, "Film.mkv", old); !errors.Is(err, ErrChanged) {
 		t.Errorf("remove a replaced file = %v, want changed", err)
 	}
 	if _, err := os.Stat(p); err != nil {
@@ -165,7 +165,30 @@ func TestRemoveChecksTheExpectedFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := Remove(root, "Film.mkv", fileIDOf(fi)); err != nil {
+	if err := RemoveExpected(root, "Film.mkv", fileIDOf(fi)); err != nil {
 		t.Errorf("remove the expected file: %v", err)
+	}
+}
+
+// Review N3: without a recorded identity a file is not deleted by RemoveExpected (changed); a
+// missing one still says not exist.
+func TestRemoveExpectedNeedsAnIdentity(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Film.mkv"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	root, err := NewRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := RemoveExpected(root, "Film.mkv", FileID{}); !errors.Is(err, ErrChanged) {
+		t.Errorf("zero identity = %v, want changed", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "Film.mkv")); err != nil {
+		t.Errorf("the file went: %v", err)
+	}
+	if err := RemoveExpected(root, "gone.mkv", FileID{}); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("missing file = %v, want not exist", err)
 	}
 }

@@ -199,7 +199,7 @@ func TestDeleteFilesPartialFailureKeepsTheTitle(t *testing.T) {
 		if rel == stuck {
 			return fs.ErrPermission
 		}
-		return paths.Remove(root, rel, paths.FileID{})
+		return paths.Remove(root, rel)
 	}
 	remove(t, dir, "Show (2020)/Season 01/Show - S01E02.mkv") // gone before: counts as deleted
 	out, err := e.deleteItem(show, "de", model.DeleteModeFiles, "Show", model.Actor{})
@@ -415,7 +415,7 @@ func TestDeleteHoldsTheTitlesAgainstPlayback(t *testing.T) {
 	held := false
 	e.svc.removeFileFn = func(root paths.Root, rel string) error {
 		held = held || deleting.Has(film)
-		return paths.Remove(root, rel, paths.FileID{})
+		return paths.Remove(root, rel)
 	}
 	if _, err := e.deleteItem(film, "de", model.DeleteModeFiles, "", model.Actor{}); err != nil {
 		t.Fatal(err)
@@ -455,5 +455,27 @@ func TestDeleteFilesLeavesTheCompanionsOfALongerNeighbour(t *testing.T) {
 		if got := exists(t, dir, rel); got != want {
 			t.Errorf("%s exists = %v, want %v", rel, got, want)
 		}
+	}
+}
+
+// Review N3: a media file without recorded device and inode is not deleted: it stays with reason
+// changed, and the title stays with it.
+func TestDeleteFilesKeepsAFileWithoutIdentity(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	dir := tree(t, append(append([]string{}, twentyMovies[4:10]...), takenFilm))
+	lib := e.create(dir)
+	e.scan(lib.ID)
+	film := e.str(`SELECT item_id FROM media_files WHERE rel_path = ?`, takenFilm)
+	e.exec(`UPDATE media_files SET dev = 0, inode = 0 WHERE rel_path = ?`, takenFilm)
+	out, err := e.deleteItem(film, "de", model.DeleteModeFiles, "", model.Actor{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.DeletedFiles != 0 || out.TitleDeleted || len(out.Leftover) != 1 || out.Leftover[0].Reason != model.DeleteReasonChanged {
+		t.Errorf("result = %+v", out)
+	}
+	if !exists(t, dir, takenFilm) {
+		t.Error("the file without identity went")
 	}
 }

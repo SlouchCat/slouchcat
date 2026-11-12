@@ -31,9 +31,20 @@ type FileID struct {
 // Remove deletes the regular file rel below root. rel passes the lexical check of Resolve and is
 // then opened through the root's *os.Root, so ".." and symlinks out of the root are refused; the
 // entry itself is looked at with lstat, so a symlink is refused as ErrNotRegular instead of being
-// followed. A missing file answers an error that wraps fs.ErrNotExist. With a non-zero want the
-// file must have that device and inode, else ErrChanged and nothing is deleted.
-func Remove(root Root, rel string, want FileID) error {
+// followed. A missing file answers an error that wraps fs.ErrNotExist. For the files that belong
+// to no recorded identity (companions, recorded images); a media file goes with RemoveExpected.
+func Remove(root Root, rel string) error {
+	return remove(root, rel, false, FileID{})
+}
+
+// RemoveExpected is Remove for a file whose device and inode the caller recorded: the file must
+// still have them, else ErrChanged and nothing is deleted. A zero want (nothing recorded, or a
+// platform without inodes) is ErrChanged as well: without an identity the file is not deleted.
+func RemoveExpected(root Root, rel string, want FileID) error {
+	return remove(root, rel, true, want)
+}
+
+func remove(root Root, rel string, check bool, want FileID) error {
 	if _, err := Resolve(root, rel); err != nil {
 		return err
 	}
@@ -49,7 +60,7 @@ func Remove(root Root, rel string, want FileID) error {
 	if !fi.Mode().IsRegular() {
 		return fmt.Errorf("remove %s: %w", rel, ErrNotRegular)
 	}
-	if want != (FileID{}) && fileIDOf(fi) != want {
+	if check && (want == FileID{} || fileIDOf(fi) != want) {
 		return fmt.Errorf("remove %s: %w", rel, ErrChanged)
 	}
 	if err := r.Remove(rel); err != nil {

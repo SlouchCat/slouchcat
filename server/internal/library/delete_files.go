@@ -220,7 +220,7 @@ func (s *Service) deleteWithFiles(ctx context.Context, q *systemq.Queries, t ite
 			continue
 		}
 		// The file must still be the one the scan recorded (device and inode), else it stays.
-		switch err := s.removeFile(root, f.RelPath, recordedID(f)); {
+		switch err := s.removeFile(root, f.RelPath, recordedID(f), true); {
 		case err == nil:
 			out.DeletedBytes += f.Size
 		case errors.Is(err, fs.ErrNotExist):
@@ -239,7 +239,7 @@ func (s *Service) deleteWithFiles(ctx context.Context, q *systemq.Queries, t ite
 		return out, err
 	}
 	for _, x := range extra {
-		switch err := s.removeFile(x.root, x.rel, paths.FileID{}); {
+		switch err := s.removeFile(x.root, x.rel, paths.FileID{}, false); {
 		case err == nil, errors.Is(err, fs.ErrNotExist):
 		default:
 			s.log.WarnContext(ctx, "file of a deleted title not deleted", "item_id", t.item.ID, "root", x.root.Dir(), "path", x.rel, "err", err)
@@ -264,12 +264,16 @@ func (s *Service) deleteWithFiles(ctx context.Context, q *systemq.Queries, t ite
 	return out, nil
 }
 
-// removeFile is paths.Remove, or the test seam.
-func (s *Service) removeFile(root paths.Root, rel string, want paths.FileID) error {
+// removeFile is paths.RemoveExpected for a media file (its recorded identity must match; none
+// recorded leaves it as changed, review N3) and paths.Remove for the others, or the test seam.
+func (s *Service) removeFile(root paths.Root, rel string, want paths.FileID, media bool) error {
 	if s.removeFileFn != nil {
 		return s.removeFileFn(root, rel)
 	}
-	return paths.Remove(root, rel, want)
+	if media {
+		return paths.RemoveExpected(root, rel, want)
+	}
+	return paths.Remove(root, rel)
 }
 
 // recordedID is the device and inode the scan recorded for a media file (zero: none recorded).
