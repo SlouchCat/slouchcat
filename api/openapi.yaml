@@ -105,7 +105,8 @@ info:
     `ItemRef.watched` and `watchedCount`): a title stays «gesehen» once finished (90 % rule or the
     check mark by hand) until the check mark is removed, also when it is started again
     (`Progress.watchedAt`). `setItemWatched` sets or removes the check mark of a title, or of every
-    visible episode of a season, series or podcast.
+    visible episode of a season, series or podcast. `ItemRef.watchedCount` is also set on series and
+    podcasts (the half check mark). `listWatched` is the page «Gesehen».
 
     Offline (M5): a profile downloads movies, episodes and seasons to its device (`createDownloads`). The
     server prepares a fragmented MP4 per title in the background; the device fetches it through
@@ -5659,6 +5660,61 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /watched:
+    get:
+      operationId: listWatched
+      summary: The page «Gesehen» of the active profile (concept 20 P-14)
+      description: |
+        Since contract 1.31.0 (concept 20 section 15.4). Every film and audiobook the profile has
+        finished (`Progress.watchedAt`: 90 % rule or the check mark by hand), and every series and
+        podcast with at least one visible watched episode, once each; never radio, extras, seasons or
+        single episodes. A title stays while it is started again and leaves when its check mark is
+        removed or while it is invisible for the profile. Only visible episodes count.
+      tags: [discover]
+      x-visibility: scoped
+      parameters:
+        - name: content
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/RootContent"
+          description: One kind of title (the chips «Filme», «Serien», «Hörbücher», «Podcasts»); absent = all.
+        - name: sort
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/WatchedSort"
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: One page of the list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchedPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          description: "`content` or `sort` outside its values (`validation_failed`, `invalid_value`)."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /items/{id}/watchlist:
     put:
       operationId: addToWatchlist
@@ -11041,6 +11097,58 @@ components:
             Present in the answer of `reportProgress` when the active profile has a daily limit (K-5). With
             `remainingMinutes` 0 the server has revoked every playback session of the profile; the client
             stops and shows the hint.
+
+    WatchedSort:
+      type: string
+      enum: [watched, title]
+      default: watched
+      description: |
+        Order of `listWatched` (since contract 1.31.0): `watched` puts the newest last watched first,
+        `title` sorts A to Z by the title's sort key in the profile language; ties by the other
+        order, then the id.
+
+    WatchedEntry:
+      type: object
+      description: Since contract 1.31.0. One title of the page «Gesehen».
+      required: [item, lastWatchedAt]
+      properties:
+        item:
+          $ref: "#/components/schemas/ItemRef"
+          description: |
+            The card as in every list; a series or podcast carries `watched` and `watchedCount` (its
+            visible watched episodes), the half check mark when `watched` is false.
+        lastWatchedAt:
+          type: string
+          format: date-time
+          description: |
+            When the title was last finished (`Progress.watchedAt`); of a series or podcast the newest
+            date of its visible watched episodes.
+        episodeCount:
+          type: integer
+          minimum: 0
+          description: |
+            Series and podcasts only: their visible episodes (the «96» of «19 von 96 Folgen»), over the
+            same episodes as `item.watchedCount`.
+
+    WatchedPage:
+      type: object
+      description: Since contract 1.31.0. One page of `listWatched`.
+      required: [items, total, offset, limit]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WatchedEntry"
+        total:
+          type: integer
+          minimum: 0
+          description: The size of the whole list with the same `content`.
+        offset:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
 
     ItemWatchedRequest:
       type: object

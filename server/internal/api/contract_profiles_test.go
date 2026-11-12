@@ -968,6 +968,10 @@ var profileRegistry = map[string]profileCall{
 	// find the fixture's positions; the positive checks are in watched_api_test.go.
 	"setItemWatched": {contract: "PUT /items/{id}/watched", path: "/items/{id}/watched", perItem: true,
 		body: `{"watched":false}`, okStatus: http.StatusNoContent},
+	// The page «Gesehen» (concept 20 section 15.4): every profile gets its list; the leak check of
+	// the registry runs over it. The positive checks are in watched_api_test.go and TestWatchedList.
+	"listWatched": {contract: "GET /watched", path: "/watched?limit=100",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
 	// Webradio (concept 16 stage 1, contract 1.17.0): the real radio service on the stations of
 	// vistest.AddRadio (contractRadio, live part fake). Every profile reaches the visible CH
 	// station; the demarked and the not chosen country's station answer 404 in TestRadioHiddenStations404.

@@ -65,6 +65,30 @@ func TestHTTPSetItemWatched(t *testing.T) {
 	if d := detail("p12", show.Series.ID); d.Watched == nil || *d.Watched || d.WatchedCount == nil || *d.WatchedCount != 1 {
 		t.Errorf("series for P12 with E1 marked: watched %v, watchedCount %v, want false and 1", d.Watched, d.WatchedCount)
 	}
+	// listWatched: the film and the series (one entry, its visible episodes counted).
+	var page gen.WatchedPage
+	rec := send(t, h, http.MethodGet, BasePath+"/watched?limit=500", "p12", "", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("listWatched: %d %s", rec.Code, rec.Body.String())
+	}
+	decode(t, rec, &page)
+	if len(page.Items) != 2 || page.Total != 2 || page.Limit != 100 || page.Items[0].Item.Id != show.Series.ID || page.Items[1].Item.Id != film.ID {
+		t.Fatalf("listWatched for P12 = %s, want the series, then the film, limit 100", rec.Body.String())
+	}
+	series := page.Items[0]
+	if series.EpisodeCount == nil || *series.EpisodeCount != 3 || series.Item.WatchedCount == nil || *series.Item.WatchedCount != 1 ||
+		page.Items[1].EpisodeCount != nil || page.Items[1].LastWatchedAt.IsZero() {
+		t.Errorf("listWatched entries = %s, want the series with 1 of 3 episodes", rec.Body.String())
+	}
+	decode(t, send(t, h, http.MethodGet, BasePath+"/watched?content=movie&sort=title", "p12", "", nil), &page)
+	if len(page.Items) != 1 || page.Items[0].Item.Id != film.ID || page.Total != 1 {
+		t.Errorf("listWatched films by title = %+v", page)
+	}
+	for _, q := range []string{"content=radio", "sort=added"} {
+		if rec := send(t, h, http.MethodGet, BasePath+"/watched?"+q, "p12", "", nil); rec.Code != http.StatusUnprocessableEntity {
+			t.Errorf("listWatched?%s: %d, want 422", q, rec.Code)
+		}
+	}
 	if res := put("p12", film.ID, ""); res.StatusCode != http.StatusBadRequest {
 		t.Errorf("no body: %d, want 400", res.StatusCode)
 	}

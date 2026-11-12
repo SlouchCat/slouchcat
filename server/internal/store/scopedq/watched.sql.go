@@ -7,7 +7,105 @@ package scopedq
 
 import (
 	"context"
+	"strings"
 )
+
+const countWatched = `-- name: CountWatched :one
+WITH watched AS (
+    SELECT i.id, i.kind, i.library_id, i.parent_id
+    FROM progress AS p INDEXED BY progress_watched
+    CROSS JOIN items AS i ON i.id = p.item_id
+    WHERE p.profile_id = ?2 AND p.watched_at IS NOT NULL
+      AND i.kind IN ('movie', 'audiobook', 'episode', 'podcast_episode')
+),
+entries AS (
+    SELECT w.id FROM watched AS w
+    CROSS JOIN visible_items AS v ON v.item_id = w.id AND v.profile_id = ?2
+    WHERE w.kind IN ('movie', 'audiobook')
+    UNION
+    SELECT t.id FROM watched AS w
+    CROSS JOIN visible_items AS ve ON ve.item_id = w.id AND ve.profile_id = ?2
+    LEFT JOIN items AS se ON se.id = w.parent_id AND se.kind = 'season'
+    CROSS JOIN items AS t ON t.id = COALESCE(se.parent_id, w.parent_id) AND t.kind IN ('series', 'podcast') AND t.library_id = w.library_id
+    CROSS JOIN visible_items AS vt ON vt.item_id = t.id AND vt.profile_id = ?2
+    WHERE w.kind IN ('episode', 'podcast_episode')
+)
+SELECT count(*) FROM entries AS e
+JOIN items AS i ON i.id = e.id
+WHERE i.kind = ?1 OR ?1 = ''
+`
+
+type CountWatchedParams struct {
+	Kind      string
+	ProfileID int64
+}
+
+// The size of ListWatched, for a page beyond its end (that page has no row to carry total).
+func (q *Queries) CountWatched(ctx context.Context, arg CountWatchedParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countWatched, arg.Kind, arg.ProfileID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const listVisibleEpisodeCounts = `-- name: ListVisibleEpisodeCounts :many
+SELECT i.id,
+       CAST((SELECT count(*) FROM items AS se
+             CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+             CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+             WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season'))
+               AND +e.library_id = i.library_id) AS INTEGER) AS episode_count
+FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+WHERE i.id IN (/*SLICE:item_ids*/?) AND i.kind IN ('series', 'podcast')
+`
+
+type ListVisibleEpisodeCountsParams struct {
+	ProfileID int64
+	ItemIds   []string
+}
+
+type ListVisibleEpisodeCountsRow struct {
+	ID           string
+	EpisodeCount int64
+}
+
+// The number of visible episodes of the given series and podcasts, over the episodes of the rule
+// of ItemRef.watched (an episode or podcast episode of the title's library in one of its seasons,
+// specials included, or directly below it): episodeCount of listWatched, the "96" of "19 of 96".
+func (q *Queries) ListVisibleEpisodeCounts(ctx context.Context, arg ListVisibleEpisodeCountsParams) ([]ListVisibleEpisodeCountsRow, error) {
+	query := listVisibleEpisodeCounts
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.ProfileID)
+	if len(arg.ItemIds) > 0 {
+		for _, v := range arg.ItemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(arg.ItemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVisibleEpisodeCountsRow{}
+	for rows.Next() {
+		var i ListVisibleEpisodeCountsRow
+		if err := rows.Scan(&i.ID, &i.EpisodeCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
 
 const listVisibleWatchTargets = `-- name: ListVisibleWatchTargets :many
 
@@ -73,6 +171,121 @@ func (q *Queries) ListVisibleWatchTargets(ctx context.Context, arg ListVisibleWa
 	for rows.Next() {
 		var i ListVisibleWatchTargetsRow
 		if err := rows.Scan(&i.ID, &i.DurationMs); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWatched = `-- name: ListWatched :many
+WITH watched AS (
+    SELECT i.id, i.kind, i.library_id, i.parent_id, p.watched_at
+    FROM progress AS p INDEXED BY progress_watched
+    CROSS JOIN items AS i ON i.id = p.item_id
+    WHERE p.profile_id = ?3 AND p.watched_at IS NOT NULL
+      AND i.kind IN ('movie', 'audiobook', 'episode', 'podcast_episode')
+),
+singles AS (
+    SELECT w.id, w.watched_at AS last_watched_at, 0 AS watched_count
+    FROM watched AS w
+    CROSS JOIN visible_items AS v ON v.item_id = w.id AND v.profile_id = ?3
+    WHERE w.kind IN ('movie', 'audiobook')
+),
+episodes AS (
+    SELECT COALESCE(se.parent_id, w.parent_id) AS top_id, w.library_id, w.watched_at
+    FROM watched AS w
+    CROSS JOIN visible_items AS ve ON ve.item_id = w.id AND ve.profile_id = ?3
+    LEFT JOIN items AS se ON se.id = w.parent_id AND se.kind = 'season'
+    WHERE w.kind IN ('episode', 'podcast_episode')
+),
+tops AS (
+    SELECT t.id, max(x.watched_at) AS last_watched_at, count(*) AS watched_count
+    FROM episodes AS x
+    CROSS JOIN items AS t ON t.id = x.top_id AND t.kind IN ('series', 'podcast') AND t.library_id = x.library_id
+    CROSS JOIN visible_items AS vt ON vt.item_id = t.id AND vt.profile_id = ?3
+    GROUP BY t.id
+),
+entries AS (
+    SELECT id, last_watched_at, watched_count FROM singles
+    UNION ALL
+    SELECT id, last_watched_at, watched_count FROM tops
+),
+keyed AS (
+    SELECT e.id, i.kind, e.last_watched_at, e.watched_count,
+           CASE WHEN CAST(?4 AS INTEGER) = 1 THEN 0 ELSE -e.last_watched_at END AS first_key,
+           COALESCE(NULLIF(tm.sort_key, ''), NULLIF(tu.sort_key, ''), i.sort_title, '') AS sort_key,
+           CASE WHEN CAST(?4 AS INTEGER) = 1 THEN -e.last_watched_at ELSE 0 END AS last_key
+    FROM entries AS e
+    CROSS JOIN items AS i ON i.id = e.id
+    LEFT JOIN item_texts AS tm ON tm.item_id = i.id AND tm.lang = ?5
+    LEFT JOIN item_texts AS tu ON tu.item_id = i.id AND tu.lang = ?6
+    WHERE i.kind = ?7 OR ?7 = ''
+)
+SELECT k.id, k.kind, CAST(k.last_watched_at AS INTEGER) AS last_watched_at, CAST(k.watched_count AS INTEGER) AS watched_count,
+       CAST(count(*) OVER () AS INTEGER) AS total
+FROM keyed AS k
+ORDER BY k.first_key, k.sort_key, k.last_key, k.id
+LIMIT ?2 OFFSET ?1
+`
+
+type ListWatchedParams struct {
+	OffsetCount int64
+	LimitCount  int64
+	ProfileID   int64
+	ByTitle     int64
+	MetaLang    string
+	UiLang      string
+	Kind        string
+}
+
+type ListWatchedRow struct {
+	ID            string
+	Kind          string
+	LastWatchedAt int64
+	WatchedCount  int64
+	Total         int64
+}
+
+// The page "Gesehen" (listWatched, section 15.4): every film and audiobook with watched_at, and
+// every series and podcast with at least one visible watched episode (of the title's library, the
+// rule of ItemRef.watched), once each. Radio, extras, seasons and episodes are no entries.
+// last_watched_at is the title's watched_at or the newest one of its visible episodes,
+// watched_count the number of its visible watched episodes (0 for a single title). Both branches
+// walk the progress rows of the profile with watched_at (the partial index progress_watched)
+// before any visibility check. kind narrows to one content (” = all), by_title sorts by the
+// sort key of the text chain (metadata language, interface language, file name) instead of newest
+// first, ties by the other order and the id. total is the size of the whole list.
+func (q *Queries) ListWatched(ctx context.Context, arg ListWatchedParams) ([]ListWatchedRow, error) {
+	rows, err := q.db.QueryContext(ctx, listWatched,
+		arg.OffsetCount,
+		arg.LimitCount,
+		arg.ProfileID,
+		arg.ByTitle,
+		arg.MetaLang,
+		arg.UiLang,
+		arg.Kind,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListWatchedRow{}
+	for rows.Next() {
+		var i ListWatchedRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.LastWatchedAt,
+			&i.WatchedCount,
+			&i.Total,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

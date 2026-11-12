@@ -404,6 +404,9 @@ type CatalogService interface {
 	Genres(ctx context.Context, profile model.Profile) ([]model.GenreRef, error)
 	Collection(ctx context.Context, profile model.Profile, id string, offset, limit int) (model.Collection, error)
 	Watchlist(ctx context.Context, profile model.Profile, offset, limit int) ([]model.ItemSummary, int, error)
+	// Watched returns one page of the page «Gesehen» (listWatched, concept 20 section 15.4); a
+	// content or sort outside its values is a *model.ValidationError.
+	Watched(ctx context.Context, profile model.Profile, q model.WatchedQuery) (model.WatchedPage, error)
 	AddToWatchlist(ctx context.Context, profile model.Profile, itemID string) error
 	RemoveFromWatchlist(ctx context.Context, profile model.Profile, itemID string) error
 	Favorites(ctx context.Context, profile model.Profile) ([]model.ItemSummary, error)

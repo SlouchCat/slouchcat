@@ -2904,6 +2904,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/watched": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The page «Gesehen» of the active profile (concept 20 P-14)
+         * @description Since contract 1.31.0 (concept 20 section 15.4). Every film and audiobook the profile has
+         *     finished (`Progress.watchedAt`: 90 % rule or the check mark by hand), and every series and
+         *     podcast with at least one visible watched episode, once each; never radio, extras, seasons or
+         *     single episodes. A title stays while it is started again and leaves when its check mark is
+         *     removed or while it is invisible for the profile. Only visible episodes count.
+         */
+        get: operations["listWatched"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/items/{id}/watchlist": {
         parameters: {
             query?: never;
@@ -5757,6 +5781,41 @@ export interface components {
              *     stops and shows the hint.
              */
             watchTime?: components["schemas"]["WatchTime"];
+        };
+        /**
+         * @description Order of `listWatched` (since contract 1.31.0): `watched` puts the newest last watched first,
+         *     `title` sorts A to Z by the title's sort key in the profile language; ties by the other
+         *     order, then the id.
+         * @default watched
+         * @enum {string}
+         */
+        WatchedSort: "watched" | "title";
+        /** @description Since contract 1.31.0. One title of the page «Gesehen». */
+        WatchedEntry: {
+            /**
+             * @description The card as in every list; a series or podcast carries `watched` and `watchedCount` (its
+             *     visible watched episodes), the half check mark when `watched` is false.
+             */
+            item: components["schemas"]["ItemRef"];
+            /**
+             * Format: date-time
+             * @description When the title was last finished (`Progress.watchedAt`); of a series or podcast the newest
+             *     date of its visible watched episodes.
+             */
+            lastWatchedAt: string;
+            /**
+             * @description Series and podcasts only: their visible episodes (the «96» of «19 von 96 Folgen»), over the
+             *     same episodes as `item.watchedCount`.
+             */
+            episodeCount?: number;
+        };
+        /** @description Since contract 1.31.0. One page of `listWatched`. */
+        WatchedPage: {
+            items: components["schemas"]["WatchedEntry"][];
+            /** @description The size of the whole list with the same `content`. */
+            total: number;
+            offset: number;
+            limit: number;
         };
         /** @description Since contract 1.31.0. The check mark of `setItemWatched`. */
         ItemWatchedRequest: {
@@ -16372,6 +16431,42 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             /** @description Unknown or not visible for the active profile (`not_found`). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listWatched: {
+        parameters: {
+            query?: {
+                /** @description One kind of title (the chips «Filme», «Serien», «Hörbücher», «Podcasts»); absent = all. */
+                content?: components["schemas"]["RootContent"];
+                sort?: components["schemas"]["WatchedSort"];
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of the list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchedPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description `content` or `sort` outside its values (`validation_failed`, `invalid_value`). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

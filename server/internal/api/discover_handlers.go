@@ -22,6 +22,7 @@ func (e serviceProblem) VisitListGenresResponse(w http.ResponseWriter) error    
 func (e serviceProblem) VisitGetCollectionResponse(w http.ResponseWriter) error  { return e.visit(w) }
 func (e serviceProblem) VisitListWatchlistResponse(w http.ResponseWriter) error  { return e.visit(w) }
 func (e serviceProblem) VisitAddToWatchlistResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitListWatchedResponse(w http.ResponseWriter) error    { return e.visit(w) }
 func (e serviceProblem) VisitRecommendItemResponse(w http.ResponseWriter) error  { return e.visit(w) }
 func (e serviceProblem) VisitUnrecommendItemResponse(w http.ResponseWriter) error {
 	return e.visit(w)
@@ -162,6 +163,36 @@ func (s *server) ListWatchlist(ctx context.Context, req gen.ListWatchlistRequest
 		return s.problem(ctx, err), nil
 	}
 	return gen.ListWatchlist200JSONResponse(gen.ItemPage{Items: toItemRefList(session.Profile.ID, items), Total: total, Offset: offset, Limit: limit}), nil
+}
+
+// ListWatched answers the page «Gesehen» (concept 20 section 15.4).
+func (s *server) ListWatched(ctx context.Context, req gen.ListWatchedRequestObject) (gen.ListWatchedResponseObject, error) {
+	session, err := s.itemSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	q := model.WatchedQuery{Offset: max(deref(req.Params.Offset), 0), Limit: deref(req.Params.Limit)}
+	if req.Params.Content != nil {
+		q.Content = string(*req.Params.Content)
+	}
+	if req.Params.Sort != nil {
+		q.Sort = string(*req.Params.Sort)
+	}
+	page, err := s.opts.Catalog.Watched(ctx, session.Profile, q)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	limit := q.Limit
+	if limit <= 0 {
+		limit = visibility.DefaultPage
+	}
+	out := gen.WatchedPage{Items: make([]gen.WatchedEntry, 0, len(page.Items)), Total: page.Total, Offset: q.Offset,
+		Limit: min(limit, visibility.MaxWatchedPage)}
+	for _, e := range page.Items {
+		out.Items = append(out.Items, gen.WatchedEntry{Item: toItemRef(session.Profile.ID, e.Item), LastWatchedAt: e.LastWatchedAt.UTC(),
+			EpisodeCount: e.EpisodeCount})
+	}
+	return gen.ListWatched200JSONResponse(out), nil
 }
 
 func (s *server) AddToWatchlist(ctx context.Context, req gen.AddToWatchlistRequestObject) (gen.AddToWatchlistResponseObject, error) {

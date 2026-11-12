@@ -575,6 +575,36 @@ type WatchTarget struct {
 	DurationMs int64
 }
 
+// The page «Gesehen» (listWatched, concept 20 section 15.4).
+const (
+	WatchedSortWatched = "watched" // newest last watched first (default)
+	WatchedSortTitle   = "title"   // by the sort key of the title, A to Z
+)
+
+// WatchedQuery selects a page of listWatched: Content one of RootContent ("" = all), Sort one of
+// WatchedSort* ("" = watched).
+type WatchedQuery struct {
+	Content       string
+	Sort          string
+	Offset, Limit int
+}
+
+// WatchedEntry is one title of the page «Gesehen»: a film or audiobook the profile finished, or a
+// series or podcast with at least one watched visible episode. LastWatchedAt is the title's
+// watched_at or the newest one of its visible episodes; EpisodeCount is set on series and podcasts
+// only (their visible episodes, next to Item.WatchedCount).
+type WatchedEntry struct {
+	Item          ItemSummary
+	LastWatchedAt time.Time
+	EpisodeCount  *int
+}
+
+// WatchedPage is one page of listWatched with the size of the whole list.
+type WatchedPage struct {
+	Items []WatchedEntry
+	Total int
+}
+
 // WatchTime is the watch time of a profile today against its daily limit (K-5).
 type WatchTime struct {
 	LimitMinutes     int
