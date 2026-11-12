@@ -7386,6 +7386,11 @@ export interface components {
             id: string;
             /** Format: int64 */
             rootId?: number;
+            /**
+             * @description Since contract 1.31.0 (concept 20, P-10). The folder of the library root in the container
+             *     (`/media/…`), not on the NAS; the whole path is `rootPath` + `/` + `path`.
+             */
+            rootPath?: string;
             /** @description Path relative to the library root (administration only). */
             path: string;
             /** Format: int64 */
@@ -7675,7 +7680,21 @@ export interface components {
                 /** Format: int64 */
                 libraryId?: number;
                 files: components["schemas"]["AdminMediaFile"][];
+                /**
+                 * @description Since contract 1.31.0 (concept 20, P-10). A series or podcast, whose files hang on its
+                 *     episodes: per library root the folder all present episode files share.
+                 */
+                folders?: components["schemas"]["DuplicateFolder"][];
             }[];
+        };
+        DuplicateFolder: {
+            /** @description The folder of the library root in the container. */
+            rootPath: string;
+            /** @description The common folder relative to `rootPath`; empty is the root itself. */
+            path: string;
+            fileCount: number;
+            /** Format: int64 */
+            sizeBytes: number;
         };
         MergeRequest: {
             targetId: components["schemas"]["ItemID"];

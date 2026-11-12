@@ -57,7 +57,15 @@ const groups: DuplicateGroup[] = [
         title: 'Slouchcat Test H264',
         year: 2024,
         libraryId: 1,
-        files: [{ id: 'mf-a', path: 'H264/a.mp4', sizeBytes: 1_000_000, available: true }],
+        files: [
+          {
+            id: 'mf-a',
+            rootPath: '/media/filme',
+            path: 'H264/a.mp4',
+            sizeBytes: 1_000_000,
+            available: true,
+          },
+        ],
       },
       {
         itemId: id(9),
@@ -65,14 +73,37 @@ const groups: DuplicateGroup[] = [
         title: 'Slouchcat Test H264 Copy',
         year: 2024,
         libraryId: 2,
-        files: [{ id: 'mf-b', path: 'Copy/a.mp4', sizeBytes: 1_000_000, available: true }],
+        files: [
+          {
+            id: 'mf-b',
+            rootPath: '/media/serien/',
+            path: 'Copy/a.mp4',
+            sizeBytes: 1_000_000,
+            available: true,
+          },
+        ],
       },
     ],
   },
   {
     reason: 'title_year',
     items: [
-      { itemId: id(10), kind: 'series', title: 'Das Boot', year: 1985, files: [] },
+      {
+        itemId: id(10),
+        kind: 'series',
+        title: 'Das Boot',
+        year: 1985,
+        libraryId: 2,
+        files: [],
+        folders: [
+          {
+            rootPath: '/media/serien',
+            path: 'Das Boot (1985)',
+            fileCount: 96,
+            sizeBytes: 212_000_000_000,
+          },
+        ],
+      },
       { itemId: id(11), kind: 'series', title: 'Das Boot', year: 1985, files: [] },
     ],
   },
@@ -574,8 +605,11 @@ describe('maintenance page', () => {
     expect(
       screen.getByText(/^Gleicher Dateiinhalt · Slouchcat Test H264 \(2024\) · 2 Titel$/),
     ).toBeVisible();
-    expect(within(group).getByText('Copy/a.mp4')).toBeVisible();
-    expect(within(group).getByText('H264/a.mp4')).toBeVisible();
+    // P-10: the whole path in the container, with the library next to the title.
+    expect(within(group).getByText('/media/serien/Copy/a.mp4')).toBeVisible();
+    expect(within(group).getByText('/media/filme/H264/a.mp4')).toBeVisible();
+    expect(within(group).getByText('Bibliothek «Serien»')).toBeVisible();
+    expect(screen.getByText(/^Die Pfade sind die im Container/)).toBeVisible();
     // PFL-4: each file with its size.
     expect(within(group).getAllByText('1 MB')).toHaveLength(2);
     // Only the first group starts open (mockup Pfl-C); the second one opens with its button.
@@ -584,7 +618,10 @@ describe('maintenance page', () => {
     expect(screen.queryByRole('group', { name: 'Gruppe 2' })).not.toBeInTheDocument();
     await user.click(secondToggle);
     const second = screen.getByRole('group', { name: 'Gruppe 2' });
-    expect(within(second).getAllByText('Keine Datei')).toHaveLength(2);
+    // A series shows the folder of its episodes with their number and size (P-10).
+    expect(within(second).getByText('/media/serien/Das Boot (1985)/')).toBeVisible();
+    expect(within(second).getByText('96 Dateien · 212 GB')).toBeVisible();
+    expect(within(second).getAllByText('Keine Datei')).toHaveLength(1);
 
     // «bleibt» marks the title to keep and follows the choice.
     const items = within(group).getByRole('list', { name: 'Gruppe 1' });

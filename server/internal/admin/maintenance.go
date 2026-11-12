@@ -335,13 +335,20 @@ func (s *Service) ListDuplicates(ctx context.Context, libraryID *int64) ([]model
 		add(key{r.LibraryID, r.Kind, fmt.Sprintf("t:%s\x00%d\x00%v", r.SortTitle, r.Year.Int64, r.Year.Valid)},
 			model.DuplicateItem{ItemID: r.ID, Kind: r.Kind, Title: r.Title, Year: nullInt(r.Year), LibraryID: r.LibraryID})
 	}
-	var ids []string
+	var ids, tops []string
 	for _, k := range order {
 		for _, it := range members[k] {
 			ids = append(ids, it.ItemID)
+			if it.Kind == "series" || it.Kind == "podcast" {
+				tops = append(tops, it.ItemID) // their files hang on the episodes
+			}
 		}
 	}
 	files, err := s.mediaFiles(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	folders, err := s.descendantFolders(ctx, tops)
 	if err != nil {
 		return nil, err
 	}
@@ -357,6 +364,7 @@ func (s *Service) ListDuplicates(ctx context.Context, libraryID *int64) ([]model
 			if group.Items[i].Files == nil {
 				group.Items[i].Files = []model.AdminMediaFile{}
 			}
+			group.Items[i].Folders = folders[group.Items[i].ItemID]
 			set = append(set, group.Items[i].ItemID)
 		}
 		slices.Sort(set)
@@ -401,7 +409,7 @@ func (s *Service) ListDuplicates(ctx context.Context, libraryID *int64) ([]model
 			out = append(out, model.DuplicateGroup{Reason: DuplicateFileHash})
 			current, currentHash = &out[len(out)-1], r.PartialHash.String
 		}
-		f := model.AdminMediaFile{ID: r.MediaFileID, RootID: r.RootID, Path: r.RelPath, SizeBytes: r.Size,
+		f := model.AdminMediaFile{ID: r.MediaFileID, RootID: r.RootID, RootPath: r.RootPath, Path: r.RelPath, SizeBytes: r.Size,
 			Available: !r.MissingSince.Valid, VersionLabel: r.VersionLabel.String}
 		if n := len(current.Items); n > 0 && current.Items[n-1].ItemID == r.ID {
 			current.Items[n-1].Files = append(current.Items[n-1].Files, f)
@@ -409,6 +417,39 @@ func (s *Service) ListDuplicates(ctx context.Context, libraryID *int64) ([]model
 		}
 		current.Items = append(current.Items, model.DuplicateItem{ItemID: r.ID, Kind: r.Kind, Title: r.Title, Year: nullInt(r.Year),
 			LibraryID: r.LibraryID, Files: []model.AdminMediaFile{f}})
+	}
+	return out, nil
+}
+
+// descendantFolders returns, per series or podcast of itemIDs, the folders of the present
+// files of its episodes: one per library root, the folder all of them share (concept 20, P-10).
+// Titles without such files have none.
+func (s *Service) descendantFolders(ctx context.Context, itemIDs []string) (map[string][]model.DuplicateFolder, error) {
+	out := map[string][]model.DuplicateFolder{}
+	if len(itemIDs) == 0 {
+		return out, nil
+	}
+	rows, err := s.sys.AdminListDescendantFiles(ctx, itemIDs)
+	if err != nil {
+		return nil, fmt.Errorf("list files below the titles: %w", err)
+	}
+	var prefix []string // the folder parts all files of the current entry share
+	for i, r := range rows {
+		parts := strings.Split(r.RelPath, "/")
+		dir := parts[:len(parts)-1]
+		if i == 0 || rows[i-1].TopID != r.TopID || rows[i-1].RootID != r.RootID {
+			out[r.TopID] = append(out[r.TopID], model.DuplicateFolder{RootPath: r.RootPath})
+			prefix = dir
+		}
+		n := 0
+		for n < len(prefix) && n < len(dir) && prefix[n] == dir[n] {
+			n++
+		}
+		prefix = prefix[:n]
+		f := &out[r.TopID][len(out[r.TopID])-1]
+		f.FileCount++
+		f.SizeBytes += r.Size
+		f.Path = strings.Join(prefix, "/")
 	}
 	return out, nil
 }

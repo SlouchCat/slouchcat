@@ -371,6 +371,7 @@ type ItemRating struct {
 type AdminMediaFile struct {
 	ID           string
 	RootID       int64
+	RootPath     string // the library root's folder in the container (concept 20, P-10)
 	Path         string // relative to the library root
 	SizeBytes    int64
 	Available    bool
@@ -483,6 +484,18 @@ type DuplicateItem struct {
 	Year      *int
 	LibraryID int64
 	Files     []AdminMediaFile
+	// Folders of a series or podcast, whose files hang on the episodes (concept 20, P-10): per
+	// library root the common folder of the present episode files.
+	Folders []DuplicateFolder
+}
+
+// DuplicateFolder is the common folder of the files below a title in one library root: Path is
+// relative to RootPath ("" is the root itself).
+type DuplicateFolder struct {
+	RootPath  string
+	Path      string
+	FileCount int
+	SizeBytes int64
 }
 
 // DuplicateGroup is a set of titles or files that exist twice (B-9).

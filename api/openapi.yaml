@@ -13521,6 +13521,11 @@ components:
         rootId:
           type: integer
           format: int64
+        rootPath:
+          type: string
+          description: |
+            Since contract 1.31.0 (concept 20, P-10). The folder of the library root in the container
+            (`/media/…`), not on the NAS; the whole path is `rootPath` + `/` + `path`.
         path:
           type: string
           description: Path relative to the library root (administration only).
@@ -14025,6 +14030,32 @@ components:
                 type: array
                 items:
                   $ref: "#/components/schemas/AdminMediaFile"
+              folders:
+                type: array
+                description: |
+                  Since contract 1.31.0 (concept 20, P-10). A series or podcast, whose files hang on its
+                  episodes: per library root the folder all present episode files share.
+                items:
+                  $ref: "#/components/schemas/DuplicateFolder"
+
+    # Concept 20 P-10 (contract 1.31.0): where the files of a series or podcast lie.
+    DuplicateFolder:
+      type: object
+      required: [rootPath, path, fileCount, sizeBytes]
+      properties:
+        rootPath:
+          type: string
+          description: The folder of the library root in the container.
+        path:
+          type: string
+          description: The common folder relative to `rootPath`; empty is the root itself.
+        fileCount:
+          type: integer
+          minimum: 1
+        sizeBytes:
+          type: integer
+          format: int64
+          minimum: 0
 
     MergeRequest:
       type: object

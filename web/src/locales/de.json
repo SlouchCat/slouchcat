@@ -1935,7 +1935,11 @@
         "meta_one": "{{reason}} · {{title}} · {{count}} Titel",
         "meta_other": "{{reason}} · {{title}} · {{count}} Titel",
         "keep": "bleibt",
-        "noFiles": "Keine Datei"
+        "noFiles": "Keine Datei",
+        "containerPaths": "Die Pfade sind die im Container (/media/…), nicht die auf dem NAS; daneben steht jeweils die Bibliothek.",
+        "library": "Bibliothek «{{name}}»",
+        "folderFiles_one": "{{n}} Datei · {{size}}",
+        "folderFiles_other": "{{n}} Dateien · {{size}}"
       },
       "relink": {
         "empty": "Keine verwaisten Benutzerdaten.",

@@ -1935,7 +1935,11 @@
         "meta_one": "{{reason}} · {{title}} · {{count}} title",
         "meta_other": "{{reason}} · {{title}} · {{count}} titles",
         "keep": "stays",
-        "noFiles": "No file"
+        "noFiles": "No file",
+        "containerPaths": "The paths are those in the container (/media/…), not on the NAS; each names its library.",
+        "library": "Library «{{name}}»",
+        "folderFiles_one": "{{n}} file · {{size}}",
+        "folderFiles_other": "{{n}} files · {{size}}"
       },
       "relink": {
         "empty": "No orphaned user data.",

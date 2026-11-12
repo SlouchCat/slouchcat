@@ -368,7 +368,7 @@ func TestAdminMaintenanceDuplicates(t *testing.T) {
 		var ids []string
 		for _, it := range g.Items {
 			ids = append(ids, it.ItemID)
-			if len(it.Files) == 0 || it.Files[0].Path == "" || it.LibraryID == 0 {
+			if len(it.Files) == 0 || it.Files[0].Path == "" || it.Files[0].RootPath == "" || it.LibraryID == 0 {
 				t.Errorf("%s group: item %s without files or library: %+v", g.Reason, it.ItemID, it)
 			}
 			if g.Reason == DuplicateFileHash && len(it.Files) != 1 {
@@ -391,6 +391,51 @@ func TestAdminMaintenanceDuplicates(t *testing.T) {
 	other := f.OtherLibraryID()
 	if groups, err := m.svc.ListDuplicates(m.ctx, &other); err != nil || len(groups) != 0 {
 		t.Errorf("duplicates of library X = %+v, %v", groups, err)
+	}
+}
+
+// Concept 20, P-10: a series lists the folder of its episode files per library root, with their
+// number and size; a missing file does not count, a title without episodes has no folder.
+func TestAdminDuplicateFoldersOfASeries(t *testing.T) {
+	m := newMaintFixture(t)
+	f := m.f
+	var root string
+	var count int
+	var size int64
+	row := f.DB.Write.QueryRowContext(m.ctx, `SELECT r.path, count(*), sum(m.size) FROM media_files AS m
+		JOIN library_roots AS r ON r.id = m.root_id JOIN items AS e ON e.id = m.item_id
+		LEFT JOIN items AS s ON s.id = e.parent_id WHERE (e.parent_id = ? OR s.parent_id = ?) AND m.missing_since IS NULL
+		GROUP BY r.path`, f.Show.Series.ID, f.Show.Series.ID)
+	if err := row.Scan(&root, &count, &size); err != nil {
+		t.Fatal(err)
+	}
+	if count < 2 {
+		t.Fatalf("the fixture's series has %d episode files, want at least 2", count)
+	}
+	folders, err := m.svc.descendantFolders(m.ctx, []string{f.Show.Series.ID, f.Rated(16).ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []model.DuplicateFolder{{RootPath: root, Path: "Show", FileCount: count, SizeBytes: size}}
+	if !slices.Equal(folders[f.Show.Series.ID], want) || len(folders[f.Rated(16).ID]) != 0 {
+		t.Fatalf("folders = %+v, want %+v for the series and none for the film", folders, want)
+	}
+	m.exec(t, `UPDATE media_files SET missing_since = 1 WHERE id = ?`, f.Show.E1.FileID)
+	folders, err = m.svc.descendantFolders(m.ctx, []string{f.Show.Series.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := folders[f.Show.Series.ID]; len(got) != 1 || got[0].FileCount != count-1 {
+		t.Fatalf("folders without the missing file = %+v, want %d files", got, count-1)
+	}
+	// A file outside the series folder leaves the library root itself as the common folder.
+	m.exec(t, `UPDATE media_files SET missing_since = NULL, rel_path = 'Elsewhere/Show - S01E01.mp4' WHERE id = ?`, f.Show.E1.FileID)
+	folders, err = m.svc.descendantFolders(m.ctx, []string{f.Show.Series.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := folders[f.Show.Series.ID]; len(got) != 1 || got[0].Path != "" || got[0].FileCount != count {
+		t.Fatalf("folders with a file elsewhere = %+v, want the root with %d files", got, count)
 	}
 }
 
