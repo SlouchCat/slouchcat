@@ -1205,3 +1205,46 @@ func TestHomeStopsLoadingBehindThePage(t *testing.T) {
 		t.Errorf("until the stage without spotlight: page %+v, err %v, %d rows loaded, want an empty page and no row loaded", page, err, loaded.Load())
 	}
 }
+
+// Concept 20 P-7 (8.3): the list behind a row title exists for continue, recent, released and
+// spotlight; the spotlight list only while its row does (enabled, at least min_hits hits), without
+// the cut to item_count and with HasTrailer like the row. Any other key is not found.
+func TestHomeListKeysAndSpotlightCondition(t *testing.T) {
+	t.Parallel()
+	f := discoverFixture(t)
+	now := time.Date(2026, 10, 21, 4, 0, 0, 0, time.UTC)
+	s := New(f.DB, f.CacheDir, vistest.Logger(), WithClock(func() time.Time { return now }))
+	ctx := context.Background()
+	f.AddSpotlightFilms(t, 12)
+	exec(t, f, `UPDATE spotlight_config SET min_hits = 10, item_count = 5`)
+	for k := 1; k <= 12; k++ {
+		exec(t, f, `INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', ?, ?, ?)`, k, 8000+k, now.Add(-time.Hour).UnixMilli())
+	}
+	items, total, err := s.HomeList(ctx, f.P18, RowSpotlight, "", 0, 50)
+	if err != nil || len(items) != 12 || total != 12 {
+		t.Fatalf("spotlight list = %v (%d, %v), want all 12 titles without the cut to 5", itemIDs(items), total, err)
+	}
+	for _, it := range items {
+		if it.HasTrailer == nil {
+			t.Errorf("spotlight list: %s without HasTrailer", it.ID)
+		}
+	}
+	exec(t, f, `DELETE FROM spotlight_entries WHERE position > 9`)
+	if _, _, err := s.HomeList(ctx, f.P18, RowSpotlight, "", 0, 50); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("spotlight list below min_hits: err = %v, want not found", err)
+	}
+	exec(t, f, `UPDATE spotlight_config SET min_hits = 0, enabled = 0`)
+	if _, _, err := s.HomeList(ctx, f.P18, RowSpotlight, "", 0, 50); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("disabled spotlight list: err = %v, want not found", err)
+	}
+	for _, key := range []string{RowRecent, RowReleased, RowContinue} {
+		if _, _, err := s.HomeList(ctx, f.P18, key, "", 0, 50); err != nil {
+			t.Errorf("list %s: %v", key, err)
+		}
+	}
+	for _, key := range []string{RowPicks, RowWatchlist, RowCollections, RowGenres, RowLibrary, "nope"} {
+		if _, _, err := s.HomeList(ctx, f.P18, key, "", 0, 50); !errors.Is(err, model.ErrNotFound) {
+			t.Errorf("list %s: err = %v, want not found", key, err)
+		}
+	}
+}

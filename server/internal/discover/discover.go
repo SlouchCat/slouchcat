@@ -515,6 +515,41 @@ func (s *Service) PicksPage(ctx context.Context, profile model.Profile, offset, 
 	return s.vis.PicksPage(ctx, visibility.Profile(profile), offset, limit)
 }
 
+// HomeList returns one page of the list behind a row title of the start page and its number
+// (listHomeRow, concept 20 P-7): continue, recent, released or spotlight, by the rules of the row
+// without its cut, filtered to one kind of the top level (content, "" = all). The spotlight list
+// exists only while its row does (enabled, at least min_hits and at least one hit, spotlightRow)
+// and carries HasTrailer like the row; any other key and the missing spotlight are
+// model.ErrNotFound.
+func (s *Service) HomeList(ctx context.Context, profile model.Profile, key, content string, offset, limit int) ([]model.ItemSummary, int, error) {
+	scope := visibility.Profile(profile)
+	switch key {
+	case RowContinue:
+		return s.vis.ContinuePage(ctx, scope, content, offset, limit)
+	case RowRecent:
+		return s.vis.RecentPage(ctx, scope, content, offset, limit)
+	case RowReleased:
+		return s.vis.ReleasedPage(ctx, scope, content, offset, limit)
+	case RowSpotlight:
+		cfg, err := s.read.GetSpotlightConfig(ctx)
+		if err != nil {
+			return nil, 0, fmt.Errorf("get spotlight config: %w", err)
+		}
+		items, total, hits, err := s.vis.SpotlightPage(ctx, scope, content, offset, limit)
+		if err != nil {
+			return nil, 0, err
+		}
+		if hits == 0 || hits < int(cfg.MinHits) {
+			return nil, 0, model.ErrNotFound
+		}
+		if err := s.markTrailers(ctx, scope, items); err != nil {
+			return nil, 0, err
+		}
+		return items, total, nil
+	}
+	return nil, 0, model.ErrNotFound
+}
+
 // Item returns the detail of a visible title (with its series tree, extras, cast and trailer
 // count); media files carry their MIME type for the client's canPlayType check.
 func (s *Service) Item(ctx context.Context, profile model.Profile, itemID string) (model.ItemDetail, error) {

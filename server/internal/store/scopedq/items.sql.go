@@ -11,6 +11,68 @@ import (
 	"strings"
 )
 
+const countRecentlyAdded = `-- name: CountRecentlyAdded :one
+SELECT count(*) FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+WHERE i.kind IN ('movie', 'series', 'audiobook', 'podcast')
+  AND (CAST(?2 AS TEXT) = '' OR i.kind = CAST(?2 AS TEXT))
+`
+
+type CountRecentlyAddedParams struct {
+	ProfileID int64
+	Content   string
+}
+
+// The number of titles of ListRecentlyAddedPage.
+func (q *Queries) CountRecentlyAdded(ctx context.Context, arg CountRecentlyAddedParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countRecentlyAdded, arg.ProfileID, arg.Content)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countRecentlyReleased = `-- name: CountRecentlyReleased :one
+SELECT count(*) FROM (
+    SELECT t.id AS item_id, t.release_date AS released
+    FROM items AS t
+    JOIN visible_items AS v ON v.item_id = t.id AND v.profile_id = ?1
+    WHERE t.kind IN ('movie', 'audiobook') AND t.deleted_at IS NULL
+      AND (CAST(?2 AS TEXT) = '' OR t.kind = CAST(?2 AS TEXT))
+      AND t.release_date IS NOT NULL AND t.release_date >= ?3 AND t.release_date <= ?4
+    UNION ALL
+    SELECT s.id, max(e.release_date)
+    FROM items AS s
+    JOIN visible_items AS vs ON vs.item_id = s.id AND vs.profile_id = ?1
+    JOIN items AS se ON se.parent_id = s.id AND se.kind = 'season' AND se.deleted_at IS NULL
+    JOIN items AS e ON e.parent_id = se.id AND e.kind = 'episode' AND e.deleted_at IS NULL
+                   AND e.release_date IS NOT NULL AND e.release_date >= ?3 AND e.release_date <= ?4
+    JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+    WHERE s.kind = 'series' AND s.deleted_at IS NULL
+      AND (CAST(?2 AS TEXT) = '' OR CAST(?2 AS TEXT) = 'series')
+    GROUP BY s.id
+) AS r
+`
+
+type CountRecentlyReleasedParams struct {
+	ProfileID int64
+	Content   string
+	Since     sql.NullString
+	Today     sql.NullString
+}
+
+// The number of titles of ListRecentlyReleasedPage.
+func (q *Queries) CountRecentlyReleased(ctx context.Context, arg CountRecentlyReleasedParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countRecentlyReleased,
+		arg.ProfileID,
+		arg.Content,
+		arg.Since,
+		arg.Today,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countUserPicks = `-- name: CountUserPicks :one
 SELECT count(DISTINCT u.item_id)
 FROM user_picks AS u
@@ -944,6 +1006,129 @@ func (q *Queries) ListRecentlyAdded(ctx context.Context, arg ListRecentlyAddedPa
 	return items, nil
 }
 
+const listRecentlyAddedPage = `-- name: ListRecentlyAddedPage :many
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+WHERE i.kind IN ('movie', 'series', 'audiobook', 'podcast')
+  AND (CAST(?2 AS TEXT) = '' OR i.kind = CAST(?2 AS TEXT))
+ORDER BY i.added_at DESC, i.id DESC
+LIMIT ?4 OFFSET ?3
+`
+
+type ListRecentlyAddedPageParams struct {
+	ProfileID   int64
+	Content     string
+	OffsetCount int64
+	LimitCount  int64
+}
+
+// One page of the list behind the row recent (listHomeRow, concept 20 P-7) with the filter
+// @content (one kind of the top level, empty = all). The kind term stays as in the index
+// items_top_added and the filter is a second term, so the planner still walks the index in its
+// order (TestHomeListRecentUsesTheIndex).
+func (q *Queries) ListRecentlyAddedPage(ctx context.Context, arg ListRecentlyAddedPageParams) ([]Item, error) {
+	rows, err := q.db.QueryContext(ctx, listRecentlyAddedPage,
+		arg.ProfileID,
+		arg.Content,
+		arg.OffsetCount,
+		arg.LimitCount,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Item{}
+	for rows.Next() {
+		var i Item
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.ParentID,
+			&i.LibraryID,
+			&i.Title,
+			&i.SortTitle,
+			&i.OriginalTitle,
+			&i.Year,
+			&i.ReleaseDate,
+			&i.RuntimeMinutes,
+			&i.Genres,
+			&i.TmdbID,
+			&i.ImdbID,
+			&i.OwnRating,
+			&i.EffectiveRating,
+			&i.MinChildRating,
+			&i.Available,
+			&i.RatingSource,
+			&i.EnclosureUrl,
+			&i.LockedFields,
+			&i.MetadataState,
+			&i.MetadataError,
+			&i.MatchedAt,
+			&i.AddedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.SeasonNumber,
+			&i.EpisodeNumber,
+			&i.EpisodeEnd,
+			&i.TvdbID,
+			&i.ExtraKind,
+			&i.TmdbPosterPath,
+			&i.TmdbBackdropPath,
+			&i.TrailerState,
+			&i.TrailerCheckedAt,
+			&i.SegmentsState,
+			&i.SegmentsCheckedAt,
+			&i.Author,
+			&i.Narrator,
+			&i.SeriesName,
+			&i.SeriesIndex,
+			&i.Explicit,
+			&i.DurationMs,
+			&i.CoverUrl,
+			&i.CoverPath,
+			&i.FeedUrl,
+			&i.FeedEtag,
+			&i.FeedModified,
+			&i.FeedCheckedAt,
+			&i.FeedError,
+			&i.Guid,
+			&i.PublishedAt,
+			&i.EnclosureType,
+			&i.EnclosureLength,
+			&i.Providers,
+			&i.AnilistID,
+			&i.FeedOrigin,
+			&i.FilledProviders,
+			&i.VoteAverage,
+			&i.OriginalLanguage,
+			&i.Publisher,
+			&i.Isbn,
+			&i.Asin,
+			&i.AudioSeriesID,
+			&i.AuthorDisplay,
+			&i.BookMatchState,
+			&i.BookMatchProvider,
+			&i.BookMatchID,
+			&i.BookMatchRegion,
+			&i.BookMatchedAt,
+			&i.BookMatchScore,
+			&i.BookMatchError,
+			&i.BookMatchManual,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRecentlyReleased = `-- name: ListRecentlyReleased :many
 SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, r.released FROM (
     SELECT t.id AS item_id, t.release_date AS released
@@ -1000,6 +1185,154 @@ func (q *Queries) ListRecentlyReleased(ctx context.Context, arg ListRecentlyRele
 	items := []ListRecentlyReleasedRow{}
 	for rows.Next() {
 		var i ListRecentlyReleasedRow
+		if err := rows.Scan(
+			&i.Item.ID,
+			&i.Item.Kind,
+			&i.Item.ParentID,
+			&i.Item.LibraryID,
+			&i.Item.Title,
+			&i.Item.SortTitle,
+			&i.Item.OriginalTitle,
+			&i.Item.Year,
+			&i.Item.ReleaseDate,
+			&i.Item.RuntimeMinutes,
+			&i.Item.Genres,
+			&i.Item.TmdbID,
+			&i.Item.ImdbID,
+			&i.Item.OwnRating,
+			&i.Item.EffectiveRating,
+			&i.Item.MinChildRating,
+			&i.Item.Available,
+			&i.Item.RatingSource,
+			&i.Item.EnclosureUrl,
+			&i.Item.LockedFields,
+			&i.Item.MetadataState,
+			&i.Item.MetadataError,
+			&i.Item.MatchedAt,
+			&i.Item.AddedAt,
+			&i.Item.CreatedAt,
+			&i.Item.UpdatedAt,
+			&i.Item.DeletedAt,
+			&i.Item.SeasonNumber,
+			&i.Item.EpisodeNumber,
+			&i.Item.EpisodeEnd,
+			&i.Item.TvdbID,
+			&i.Item.ExtraKind,
+			&i.Item.TmdbPosterPath,
+			&i.Item.TmdbBackdropPath,
+			&i.Item.TrailerState,
+			&i.Item.TrailerCheckedAt,
+			&i.Item.SegmentsState,
+			&i.Item.SegmentsCheckedAt,
+			&i.Item.Author,
+			&i.Item.Narrator,
+			&i.Item.SeriesName,
+			&i.Item.SeriesIndex,
+			&i.Item.Explicit,
+			&i.Item.DurationMs,
+			&i.Item.CoverUrl,
+			&i.Item.CoverPath,
+			&i.Item.FeedUrl,
+			&i.Item.FeedEtag,
+			&i.Item.FeedModified,
+			&i.Item.FeedCheckedAt,
+			&i.Item.FeedError,
+			&i.Item.Guid,
+			&i.Item.PublishedAt,
+			&i.Item.EnclosureType,
+			&i.Item.EnclosureLength,
+			&i.Item.Providers,
+			&i.Item.AnilistID,
+			&i.Item.FeedOrigin,
+			&i.Item.FilledProviders,
+			&i.Item.VoteAverage,
+			&i.Item.OriginalLanguage,
+			&i.Item.Publisher,
+			&i.Item.Isbn,
+			&i.Item.Asin,
+			&i.Item.AudioSeriesID,
+			&i.Item.AuthorDisplay,
+			&i.Item.BookMatchState,
+			&i.Item.BookMatchProvider,
+			&i.Item.BookMatchID,
+			&i.Item.BookMatchRegion,
+			&i.Item.BookMatchedAt,
+			&i.Item.BookMatchScore,
+			&i.Item.BookMatchError,
+			&i.Item.BookMatchManual,
+			&i.Released,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRecentlyReleasedPage = `-- name: ListRecentlyReleasedPage :many
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, r.released FROM (
+    SELECT t.id AS item_id, t.release_date AS released
+    FROM items AS t
+    JOIN visible_items AS v ON v.item_id = t.id AND v.profile_id = ?1
+    WHERE t.kind IN ('movie', 'audiobook') AND t.deleted_at IS NULL
+      AND (CAST(?2 AS TEXT) = '' OR t.kind = CAST(?2 AS TEXT))
+      AND t.release_date IS NOT NULL AND t.release_date >= ?3 AND t.release_date <= ?4
+    UNION ALL
+    SELECT s.id, max(e.release_date)
+    FROM items AS s
+    JOIN visible_items AS vs ON vs.item_id = s.id AND vs.profile_id = ?1
+    JOIN items AS se ON se.parent_id = s.id AND se.kind = 'season' AND se.deleted_at IS NULL
+    JOIN items AS e ON e.parent_id = se.id AND e.kind = 'episode' AND e.deleted_at IS NULL
+                   AND e.release_date IS NOT NULL AND e.release_date >= ?3 AND e.release_date <= ?4
+    JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+    WHERE s.kind = 'series' AND s.deleted_at IS NULL
+      AND (CAST(?2 AS TEXT) = '' OR CAST(?2 AS TEXT) = 'series')
+    GROUP BY s.id
+) AS r
+JOIN items AS i ON i.id = r.item_id
+ORDER BY r.released DESC, i.id DESC
+LIMIT ?6 OFFSET ?5
+`
+
+type ListRecentlyReleasedPageParams struct {
+	ProfileID   int64
+	Content     string
+	Since       sql.NullString
+	Today       sql.NullString
+	OffsetCount int64
+	LimitCount  int64
+}
+
+type ListRecentlyReleasedPageRow struct {
+	Item     Item
+	Released sql.NullString
+}
+
+// One page of the list behind the row released (listHomeRow, concept 20 P-7): the same titles in
+// the same order as ListRecentlyReleased, with the filter @content (one kind of the top level,
+// empty = all).
+func (q *Queries) ListRecentlyReleasedPage(ctx context.Context, arg ListRecentlyReleasedPageParams) ([]ListRecentlyReleasedPageRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRecentlyReleasedPage,
+		arg.ProfileID,
+		arg.Content,
+		arg.Since,
+		arg.Today,
+		arg.OffsetCount,
+		arg.LimitCount,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRecentlyReleasedPageRow{}
+	for rows.Next() {
+		var i ListRecentlyReleasedPageRow
 		if err := rows.Scan(
 			&i.Item.ID,
 			&i.Item.Kind,

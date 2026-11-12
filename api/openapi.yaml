@@ -107,6 +107,10 @@ info:
     podcast on the watchlist of a profile now triggers the notification of a new episode and the
     offline rule `newPodcastEpisodes`; the server moved every favourite onto the watchlist.
 
+    Lists behind the row titles (concept 20 stage 3, contract 1.31.0; additive): `listHomeRow`
+    pages the whole list behind the rows `continue`, `recent`, `released` and `spotlight` with a
+    filter by the kind of the top level.
+
     Offline (M5): a profile downloads movies, episodes and seasons to its device (`createDownloads`). The
     server prepares a fragmented MP4 per title in the background; the device fetches it through
     `getDownloadManifest` and the download token `dt`, stores it in the browser (OPFS) and plays it
@@ -1400,6 +1404,73 @@ paths:
                 $ref: "#/components/schemas/HomePage"
         "401":
           description: No valid session (`unauthenticated`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /home/rows/{key}:
+    get:
+      operationId: listHomeRow
+      summary: The whole list behind a row of the start page (concept 20 P-7)
+      description: |
+        Since contract 1.31.0. The list behind the row title of `getHome` for the rows `continue`,
+        `recent`, `released` and `spotlight` (the page `/lists/{key}`): the same titles in the same
+        order and with the same rules as the row, the cards like the row's, only without the row's
+        cut to 20 titles. `continue` (one entry per series) is computed once per call and holds at
+        most 200 entries, so the order may shift between two pages while somebody watches.
+        `spotlight` holds every title of the chosen list in the visible library after the pinned
+        ones took their place, without the cut to the configured number of titles; while the
+        spotlight is switched off or has fewer hits than its minimum the row is missing on the start
+        page and this list answers 404. `content` keeps the titles whose title of the top level has
+        that kind: `series` keeps the next episodes of a series in `continue`, `podcast` the podcast
+        episodes. Every title passed the visibility layer of the active profile.
+      tags: [items]
+      x-visibility: scoped
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/HomeListKey"
+        - name: content
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/RootContent"
+          description: Only titles of this kind at the top level; absent = all.
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: One page of the list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: An unknown key, or the spotlight while it has no row (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: "`content` is no kind of the top level (`validation_failed`)."
           content:
             application/problem+json:
               schema:
@@ -11332,6 +11403,13 @@ components:
         15 P-7); a row is named by `HomeRowId`, the key alone no longer. Contract 1.19.0 added `radio`
         («Meine Sender», concept 16 stage 2).
       enum: [spotlight, picks, continue, recent, released, watchlist, collections, genres, libraries, library, radio]
+
+    HomeListKey:
+      type: string
+      description: |
+        The rows of the start page whose title leads to a list of its own (`listHomeRow`, contract
+        1.31.0, concept 20 P-7).
+      enum: [continue, recent, released, spotlight]
 
     HomeRowId:
       type: string

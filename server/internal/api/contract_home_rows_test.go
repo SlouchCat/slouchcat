@@ -292,3 +292,80 @@ func TestContractHomeRadioRow(t *testing.T) {
 		t.Error("P0 without favourites has the row radio")
 	}
 }
+
+// Concept 20 P-7 through GET /home/rows/{key}: the list behind a row title answers an ItemPage with
+// the cards of the row (the episode of «Weiterschauen» with its progress and series), filtered by
+// the kind of the top level and paged; an unknown key and the spotlight without a row answer 404
+// not_found, an unknown content 422 validation_failed.
+func TestContractHomeList(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	f.AddSeries(t)
+	log := vistest.Logger()
+	ctx := context.Background()
+	now := time.Now().UnixMilli()
+	if _, err := f.DB.Write.ExecContext(ctx, `INSERT OR REPLACE INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at)
+	    VALUES (?, ?, 1000, ?, 0, ?), (?, ?, 1000, ?, 0, ?)`,
+		f.P18.ID, f.Show.E3.ID, vistest.DurationMs, now-1000, f.P18.ID, f.Rated(12).ID, vistest.DurationMs, now-2000); err != nil {
+		t.Fatal(err)
+	}
+	session := model.Session{ID: 1, Account: f.Account, Profile: f.P18, ExpiresAt: time.Now().Add(time.Hour)}
+	h := NewHandler(Options{
+		Version: "test", Started: time.Now(), Logger: log, Web: shellHandler(),
+		Auth: preloadAuth{sessions: map[string]model.Session{"p18": session}}, Catalog: discover.New(f.DB, f.CacheDir, log), Playback: playback.New(f.DB, log),
+	})
+	type page struct {
+		Items []struct {
+			ID        string `json:"id"`
+			Kind      string `json:"kind"`
+			SeriesRef *struct {
+				ID string `json:"id"`
+			} `json:"seriesRef"`
+			Progress *struct {
+				PositionMs int64 `json:"positionMs"`
+			} `json:"progress"`
+		} `json:"items"`
+		Total  int `json:"total"`
+		Offset int `json:"offset"`
+		Limit  int `json:"limit"`
+	}
+	get := func(path string, want int) page {
+		t.Helper()
+		rec := getWithToken(h, BasePath+path, "p18")
+		if rec.Code != want {
+			t.Fatalf("GET %s: status %d (%s), want %d", path, rec.Code, rec.Body.String(), want)
+		}
+		var p page
+		if want == http.StatusOK {
+			if err := json.Unmarshal(rec.Body.Bytes(), &p); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return p
+	}
+	all := get("/home/rows/continue", http.StatusOK)
+	if all.Total != 2 || len(all.Items) != 2 || all.Items[0].ID != f.Show.E3.ID || all.Items[0].SeriesRef == nil ||
+		all.Items[0].SeriesRef.ID != f.Show.Series.ID || all.Items[0].Progress == nil || all.Limit != 50 {
+		t.Errorf("continue = %+v, want E3 with its series and progress, then the film, limit 50", all)
+	}
+	if series := get("/home/rows/continue?content=series", http.StatusOK); series.Total != 1 || series.Items[0].ID != f.Show.E3.ID {
+		t.Errorf("continue with series = %+v, want E3 only", series)
+	}
+	recent := get("/home/rows/recent?limit=1&offset=1", http.StatusOK)
+	if len(recent.Items) != 1 || recent.Offset != 1 || recent.Limit != 1 || recent.Total < 2 {
+		t.Errorf("recent page (1, 1) = %+v", recent)
+	}
+	if capped := get("/home/rows/released?limit=500", http.StatusOK); capped.Limit != 100 {
+		t.Errorf("released limit 500 answers limit %d, want 100", capped.Limit)
+	}
+	for _, path := range []string{"/home/rows/spotlight", "/home/rows/picks", "/home/rows/nope"} {
+		rec := getWithToken(h, BasePath+path, "p18")
+		if rec.Code != http.StatusNotFound || !strings.Contains(rec.Body.String(), `"not_found"`) {
+			t.Errorf("GET %s: status %d (%s), want 404 not_found", path, rec.Code, rec.Body.String())
+		}
+	}
+	if rec := getWithToken(h, BasePath+"/home/rows/recent?content=episode", "p18"); rec.Code != http.StatusUnprocessableEntity ||
+		!strings.Contains(rec.Body.String(), `"validation_failed"`) {
+		t.Errorf("content episode: status %d (%s), want 422 validation_failed", rec.Code, rec.Body.String())
+	}
+}

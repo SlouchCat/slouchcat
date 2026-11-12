@@ -16,6 +16,25 @@ WHERE i.kind IN ('movie', 'series', 'audiobook', 'podcast')
 ORDER BY i.added_at DESC, i.id DESC
 LIMIT @limit_count;
 
+-- One page of the list behind the row recent (listHomeRow, concept 20 P-7) with the filter
+-- @content (one kind of the top level, empty = all). The kind term stays as in the index
+-- items_top_added and the filter is a second term, so the planner still walks the index in its
+-- order (TestHomeListRecentUsesTheIndex).
+-- name: ListRecentlyAddedPage :many
+SELECT i.* FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
+WHERE i.kind IN ('movie', 'series', 'audiobook', 'podcast')
+  AND (CAST(@content AS TEXT) = '' OR i.kind = CAST(@content AS TEXT))
+ORDER BY i.added_at DESC, i.id DESC
+LIMIT @limit_count OFFSET @offset_count;
+
+-- The number of titles of ListRecentlyAddedPage.
+-- name: CountRecentlyAdded :one
+SELECT count(*) FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
+WHERE i.kind IN ('movie', 'series', 'audiobook', 'podcast')
+  AND (CAST(@content AS TEXT) = '' OR i.kind = CAST(@content AS TEXT));
+
 -- The row "Weiterschauen" (E-1, concept 15 P-1), newest activity first: one entry per series and
 -- one per started, not completed film, audiobook or podcast episode.
 --
@@ -382,6 +401,55 @@ SELECT sqlc.embed(i), r.released FROM (
 JOIN items AS i ON i.id = r.item_id
 ORDER BY r.released DESC, i.id DESC
 LIMIT @limit_count;
+
+-- One page of the list behind the row released (listHomeRow, concept 20 P-7): the same titles in
+-- the same order as ListRecentlyReleased, with the filter @content (one kind of the top level,
+-- empty = all).
+-- name: ListRecentlyReleasedPage :many
+SELECT sqlc.embed(i), r.released FROM (
+    SELECT t.id AS item_id, t.release_date AS released
+    FROM items AS t
+    JOIN visible_items AS v ON v.item_id = t.id AND v.profile_id = @profile_id
+    WHERE t.kind IN ('movie', 'audiobook') AND t.deleted_at IS NULL
+      AND (CAST(@content AS TEXT) = '' OR t.kind = CAST(@content AS TEXT))
+      AND t.release_date IS NOT NULL AND t.release_date >= @since AND t.release_date <= @today
+    UNION ALL
+    SELECT s.id, max(e.release_date)
+    FROM items AS s
+    JOIN visible_items AS vs ON vs.item_id = s.id AND vs.profile_id = @profile_id
+    JOIN items AS se ON se.parent_id = s.id AND se.kind = 'season' AND se.deleted_at IS NULL
+    JOIN items AS e ON e.parent_id = se.id AND e.kind = 'episode' AND e.deleted_at IS NULL
+                   AND e.release_date IS NOT NULL AND e.release_date >= @since AND e.release_date <= @today
+    JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = @profile_id
+    WHERE s.kind = 'series' AND s.deleted_at IS NULL
+      AND (CAST(@content AS TEXT) = '' OR CAST(@content AS TEXT) = 'series')
+    GROUP BY s.id
+) AS r
+JOIN items AS i ON i.id = r.item_id
+ORDER BY r.released DESC, i.id DESC
+LIMIT @limit_count OFFSET @offset_count;
+
+-- The number of titles of ListRecentlyReleasedPage.
+-- name: CountRecentlyReleased :one
+SELECT count(*) FROM (
+    SELECT t.id AS item_id, t.release_date AS released
+    FROM items AS t
+    JOIN visible_items AS v ON v.item_id = t.id AND v.profile_id = @profile_id
+    WHERE t.kind IN ('movie', 'audiobook') AND t.deleted_at IS NULL
+      AND (CAST(@content AS TEXT) = '' OR t.kind = CAST(@content AS TEXT))
+      AND t.release_date IS NOT NULL AND t.release_date >= @since AND t.release_date <= @today
+    UNION ALL
+    SELECT s.id, max(e.release_date)
+    FROM items AS s
+    JOIN visible_items AS vs ON vs.item_id = s.id AND vs.profile_id = @profile_id
+    JOIN items AS se ON se.parent_id = s.id AND se.kind = 'season' AND se.deleted_at IS NULL
+    JOIN items AS e ON e.parent_id = se.id AND e.kind = 'episode' AND e.deleted_at IS NULL
+                   AND e.release_date IS NOT NULL AND e.release_date >= @since AND e.release_date <= @today
+    JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = @profile_id
+    WHERE s.kind = 'series' AND s.deleted_at IS NULL
+      AND (CAST(@content AS TEXT) = '' OR CAST(@content AS TEXT) = 'series')
+    GROUP BY s.id
+) AS r;
 
 -- Which of the given visible titles have a stored trailer (ItemRef.hasTrailer, M11 D3: filled only
 -- for the rows spotlight and picks of the start page, so one query over at most 40 titles).

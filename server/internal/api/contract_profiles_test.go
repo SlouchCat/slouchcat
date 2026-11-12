@@ -329,6 +329,10 @@ var profileRegistry = map[string]profileCall{
 		check: checkAudioSeries},
 	"listPicks": {contract: "GET /picks", path: "/picks?limit=100",
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
+	// Concept 20 P-7: the list behind the row title «Neu hinzugefügt»; the leak check runs over the
+	// answer, TestContractHomeList (contract_home_rows_test.go) checks keys, filter and paging.
+	"listHomeRow": {contract: "GET /home/rows/{key}", path: "/home/rows/recent?limit=100",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
 	"getItem": {contract: "GET /items/{id}", path: "/items/{id}", perItem: true, okStatus: http.StatusOK,
 		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
 			var d struct {

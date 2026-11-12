@@ -418,6 +418,10 @@ type CatalogService interface {
 	VisibleLibraries(ctx context.Context, profile model.Profile) ([]model.LibraryNav, error)
 	LibraryItems(ctx context.Context, profile model.Profile, libraryID int64, q model.LibraryQuery) (model.LibraryPage, error)
 	PicksPage(ctx context.Context, profile model.Profile, offset, limit int) ([]model.ItemSummary, int, error)
+	// HomeList pages the list behind a row title of the start page (listHomeRow, concept 20 P-7):
+	// key continue, recent, released or spotlight, content one kind of the top level ("" = all);
+	// model.ErrNotFound for another key and for the spotlight while it has no row.
+	HomeList(ctx context.Context, profile model.Profile, key, content string, offset, limit int) ([]model.ItemSummary, int, error)
 	// Audiobook series (contract 1.25.0, concept 19 stage D2). AudioGroups answers the row «Reihen
 	// und Sammlungen» of a library with the filters of LibraryItems (genre, years, maxRating,
 	// status); AudioSeries the page of a series. model.ErrNotFound for a library the profile does

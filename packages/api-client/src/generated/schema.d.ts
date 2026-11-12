@@ -600,6 +600,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/home/rows/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The whole list behind a row of the start page (concept 20 P-7)
+         * @description Since contract 1.31.0. The list behind the row title of `getHome` for the rows `continue`,
+         *     `recent`, `released` and `spotlight` (the page `/lists/{key}`): the same titles in the same
+         *     order and with the same rules as the row, the cards like the row's, only without the row's
+         *     cut to 20 titles. `continue` (one entry per series) is computed once per call and holds at
+         *     most 200 entries, so the order may shift between two pages while somebody watches.
+         *     `spotlight` holds every title of the chosen list in the visible library after the pinned
+         *     ones took their place, without the cut to the configured number of titles; while the
+         *     spotlight is switched off or has fewer hits than its minimum the row is missing on the start
+         *     page and this list answers 404. `content` keeps the titles whose title of the top level has
+         *     that kind: `series` keeps the next episodes of a series in `continue`, `podcast` the podcast
+         *     episodes. Every title passed the visibility layer of the active profile.
+         */
+        get: operations["listHomeRow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/picks": {
         parameters: {
             query?: never;
@@ -5956,6 +5986,12 @@ export interface components {
          * @enum {string}
          */
         HomeRowKey: "spotlight" | "picks" | "continue" | "recent" | "released" | "watchlist" | "collections" | "genres" | "libraries" | "library" | "radio";
+        /**
+         * @description The rows of the start page whose title leads to a list of its own (`listHomeRow`, contract
+         *     1.31.0, concept 20 P-7).
+         * @enum {string}
+         */
+        HomeListKey: "continue" | "recent" | "released" | "spotlight";
         /**
          * @description The identity of a start page row (since contract 1.15.0): its key for every row but
          *     `library`, `library:<libraryId>` for a library row.
@@ -12106,6 +12142,52 @@ export interface operations {
             };
             /** @description No valid session (`unauthenticated`). */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listHomeRow: {
+        parameters: {
+            query?: {
+                /** @description Only titles of this kind at the top level; absent = all. */
+                content?: components["schemas"]["RootContent"];
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                key: components["schemas"]["HomeListKey"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of the list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description An unknown key, or the spotlight while it has no row (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `content` is no kind of the top level (`validation_failed`). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

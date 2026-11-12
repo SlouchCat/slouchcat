@@ -20,6 +20,7 @@ func (e serviceProblem) VisitListVisibleLibrariesResponse(w http.ResponseWriter)
 }
 func (e serviceProblem) VisitListLibraryItemsResponse(w http.ResponseWriter) error { return e.visit(w) }
 func (e serviceProblem) VisitListPicksResponse(w http.ResponseWriter) error        { return e.visit(w) }
+func (e serviceProblem) VisitListHomeRowResponse(w http.ResponseWriter) error      { return e.visit(w) }
 
 func (s *server) ListVisibleLibraries(ctx context.Context, _ gen.ListVisibleLibrariesRequestObject) (gen.ListVisibleLibrariesResponseObject, error) {
 	session, err := s.itemSession(ctx)
@@ -137,4 +138,33 @@ func (s *server) ListPicks(ctx context.Context, req gen.ListPicksRequestObject) 
 		return s.problem(ctx, err), nil
 	}
 	return gen.ListPicks200JSONResponse(gen.PicksPage{Items: toItemRefList(session.Profile.ID, items), Total: total, Offset: offset, Limit: limit}), nil
+}
+
+// ListHomeRow answers one page of the list behind a row title of the start page (concept 20 P-7).
+func (s *server) ListHomeRow(ctx context.Context, req gen.ListHomeRowRequestObject) (gen.ListHomeRowResponseObject, error) {
+	session, err := s.itemSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	p := req.Params
+	content := ""
+	if p.Content != nil {
+		if !p.Content.Valid() {
+			return s.problem(ctx, (&model.ValidationError{}).Add("content", "invalid_value")), nil
+		}
+		content = string(*p.Content)
+	}
+	if !req.Key.Valid() {
+		return s.problem(ctx, model.ErrNotFound), nil
+	}
+	offset, limit := max(deref(p.Offset), 0), deref(p.Limit)
+	if limit <= 0 {
+		limit = visibility.DefaultLibraryPage
+	}
+	limit = min(limit, visibility.MaxLibraryPage)
+	items, total, err := s.opts.Catalog.HomeList(ctx, session.Profile, string(req.Key), content, offset, limit)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.ListHomeRow200JSONResponse(gen.ItemPage{Items: toItemRefList(session.Profile.ID, items), Total: total, Offset: offset, Limit: limit}), nil
 }
