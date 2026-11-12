@@ -118,6 +118,40 @@ func (q *Queries) CountRemovedItems(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countSidecarsOfOthersAtPath = `-- name: CountSidecarsOfOthersAtPath :one
+SELECT count(*) FROM tracks AS tr
+JOIN media_files AS m ON m.id = tr.media_file_id
+WHERE tr.source = 'sidecar' AND m.root_id = ?1 AND tr.rel_path = ?2
+  AND m.item_id NOT IN (/*SLICE:item_ids*/?)
+`
+
+type CountSidecarsOfOthersAtPathParams struct {
+	RootID  int64
+	RelPath sql.NullString
+	ItemIds []string
+}
+
+// Whether the path is a sidecar subtitle recorded for a media file of a title outside the given
+// ones (tracks.rel_path, relative to the root of the media file): it belongs to that title.
+func (q *Queries) CountSidecarsOfOthersAtPath(ctx context.Context, arg CountSidecarsOfOthersAtPathParams) (int64, error) {
+	query := countSidecarsOfOthersAtPath
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.RootID)
+	queryParams = append(queryParams, arg.RelPath)
+	if len(arg.ItemIds) > 0 {
+		for _, v := range arg.ItemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(arg.ItemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	row := q.db.QueryRowContext(ctx, query, queryParams...)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countTitleFilesAtPath = `-- name: CountTitleFilesAtPath :one
 SELECT (SELECT count(*) FROM media_files AS m WHERE m.root_id = ?1 AND m.rel_path = ?2)
      + (SELECT count(*) FROM item_local_images AS l
@@ -666,6 +700,42 @@ func (q *Queries) ListLocalImagesOfItems(ctx context.Context, itemIds []string) 
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMediaFileNamesInFolder = `-- name: ListMediaFileNamesInFolder :many
+SELECT rel_path FROM media_files
+WHERE root_id = ?1 AND substr(rel_path, 1, length(CAST(?2 AS TEXT))) = CAST(?2 AS TEXT)
+  AND instr(substr(rel_path, length(CAST(?2 AS TEXT)) + 1), '/') = 0
+`
+
+type ListMediaFileNamesInFolderParams struct {
+	RootID int64
+	Prefix string
+}
+
+// The media files the database knows directly in a folder of a root (prefix ends with "/", or ""
+// for the root itself): their stems guard the companions of a shorter stem.
+func (q *Queries) ListMediaFileNamesInFolder(ctx context.Context, arg ListMediaFileNamesInFolderParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listMediaFileNamesInFolder, arg.RootID, arg.Prefix)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var rel_path string
+		if err := rows.Scan(&rel_path); err != nil {
+			return nil, err
+		}
+		items = append(items, rel_path)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

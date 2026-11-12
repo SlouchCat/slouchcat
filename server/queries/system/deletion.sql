@@ -196,6 +196,21 @@ SELECT (SELECT count(*) FROM media_files AS m WHERE m.root_id = @root_id AND m.r
      + (SELECT count(*) FROM item_local_images AS l
         WHERE l.root_id = @root_id AND l.rel_path = @rel_path AND l.item_id NOT IN (sqlc.slice('item_ids'))) AS n;
 
+-- name: CountSidecarsOfOthersAtPath :one
+-- Whether the path is a sidecar subtitle recorded for a media file of a title outside the given
+-- ones (tracks.rel_path, relative to the root of the media file): it belongs to that title.
+SELECT count(*) FROM tracks AS tr
+JOIN media_files AS m ON m.id = tr.media_file_id
+WHERE tr.source = 'sidecar' AND m.root_id = @root_id AND tr.rel_path = @rel_path
+  AND m.item_id NOT IN (sqlc.slice('item_ids'));
+
+-- name: ListMediaFileNamesInFolder :many
+-- The media files the database knows directly in a folder of a root (prefix ends with "/", or ""
+-- for the root itself): their stems guard the companions of a shorter stem.
+SELECT rel_path FROM media_files
+WHERE root_id = @root_id AND substr(rel_path, 1, length(CAST(@prefix AS TEXT))) = CAST(@prefix AS TEXT)
+  AND instr(substr(rel_path, length(CAST(@prefix AS TEXT)) + 1), '/') = 0;
+
 -- name: CountMediaFilesBelow :one
 -- Media files of the root at or below the folder prefix (ending with "/", or "" for the whole
 -- root), other than the given ones: a fixed-name metadata file goes only with the last of them.

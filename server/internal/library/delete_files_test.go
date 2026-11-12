@@ -424,3 +424,36 @@ func TestDeleteHoldsTheTitlesAgainstPlayback(t *testing.T) {
 		t.Errorf("held during the delete %v, held after %v", held, deleting.Has(film))
 	}
 }
+
+// Review N1: «-» after the stem also starts a longer neighbour. Deleting «Alien.mkv» leaves the
+// files of «Alien-Resurrection.mkv» (scanned) and of «Alien-Covenant.mkv» (on the disk, not yet
+// scanned) alone, and a file recorded as the sidecar subtitle of another title; its own subtitle
+// still goes.
+func TestDeleteFilesLeavesTheCompanionsOfALongerNeighbour(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	dir := tree(t, []string{"Alien.mkv", "Alien-Resurrection.mkv", "Heat (1995).mkv", "Ronin (1998).mkv"})
+	lib := e.create(dir)
+	e.scan(lib.ID)
+	for _, rel := range []string{
+		"Alien.de.srt", "Alien-Resurrection.de.srt", "Alien-Resurrection-poster.jpg", "Alien-Resurrection.MKV.part",
+		"Alien-Covenant.mkv", "Alien-Covenant.en.srt", "Alien.notes.srt",
+	} {
+		writeFile(t, dir, rel, rel)
+	}
+	heat := e.str(`SELECT id FROM media_files WHERE rel_path = 'Heat (1995).mkv'`)
+	e.exec(`INSERT INTO tracks (media_file_id, stream_index, kind, source, rel_path) VALUES (?, 0, 'subtitle', 'sidecar', 'Alien.notes.srt')`, heat)
+	alien := e.str(`SELECT item_id FROM media_files WHERE rel_path = 'Alien.mkv'`)
+	if _, err := e.deleteItem(alien, "de", model.DeleteModeFiles, "", model.Actor{}); err != nil {
+		t.Fatal(err)
+	}
+	for rel, want := range map[string]bool{
+		"Alien.mkv": false, "Alien.de.srt": false,
+		"Alien-Resurrection.mkv": true, "Alien-Resurrection.de.srt": true, "Alien-Resurrection-poster.jpg": true,
+		"Alien-Resurrection.MKV.part": true, "Alien-Covenant.mkv": true, "Alien-Covenant.en.srt": true, "Alien.notes.srt": true,
+	} {
+		if got := exists(t, dir, rel); got != want {
+			t.Errorf("%s exists = %v, want %v", rel, got, want)
+		}
+	}
+}

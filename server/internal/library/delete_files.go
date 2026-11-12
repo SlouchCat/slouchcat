@@ -2,6 +2,7 @@ package library
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -334,7 +335,11 @@ func (s *Service) recordedAndCompanions(ctx context.Context, q *systemq.Queries,
 		if err != nil {
 			return fmt.Errorf("owner of %s: %w", rel, err)
 		}
-		if n > 0 {
+		sidecars, err := q.CountSidecarsOfOthersAtPath(ctx, systemq.CountSidecarsOfOthersAtPathParams{RootID: rootID, RelPath: sql.NullString{String: rel, Valid: true}, ItemIds: t.ids})
+		if err != nil {
+			return fmt.Errorf("sidecar owner of %s: %w", rel, err)
+		}
+		if n+sidecars > 0 {
 			return nil
 		}
 		seen[key] = true
@@ -412,9 +417,17 @@ func (s *Service) recordedAndCompanions(ctx context.Context, q *systemq.Queries,
 		if err != nil {
 			continue // the folder is gone or unreadable: no companion to find
 		}
+		// The stems of the other media files of the folder, on the disk and in the database: a
+		// candidate that starts with a longer one belongs to that file («Alien-Resurrection.de.srt»
+		// next to «Alien.mkv» and «Alien-Resurrection.mkv»; review N1).
+		known, err := q.ListMediaFileNamesInFolder(ctx, systemq.ListMediaFileNamesInFolderParams{RootID: f.RootID, Prefix: folderPrefix(dir)})
+		if err != nil {
+			return nil, fmt.Errorf("media files in %s: %w", dir, err)
+		}
+		longer := longerStems(stem, base, names, known)
 		var candidates []string
 		for _, n := range names {
-			if n != base && (strings.HasPrefix(n, stem+".") || strings.HasPrefix(n, stem+"-")) {
+			if n != base && hasStemPrefix(n, stem) && !slices.ContainsFunc(longer, func(l string) bool { return hasStemPrefix(n, l) }) {
 				candidates = append(candidates, n)
 			}
 		}
@@ -467,6 +480,43 @@ func endingTitles(t itemTree, gone []string) []string {
 		if !keeps[id] {
 			out = append(out, id)
 		}
+	}
+	return out
+}
+
+// hasStemPrefix reports whether name starts with the whole stem followed by "." or "-".
+func hasStemPrefix(name, stem string) bool {
+	return strings.HasPrefix(name, stem+".") || strings.HasPrefix(name, stem+"-")
+}
+
+// folderPrefix is the rel_path prefix of the files directly in dir ("" for the root itself).
+func folderPrefix(dir string) string {
+	if dir == "." || dir == "" {
+		return ""
+	}
+	return dir + "/"
+}
+
+// longerStems are the stems of the media files of the folder other than base (names on the disk
+// with a media extension, known rel_paths of the database) that are longer than stem and start with
+// it: their companions are not those of stem.
+func longerStems(stem, base string, names, known []string) []string {
+	var out []string
+	add := func(name string) {
+		if name == base {
+			return
+		}
+		if l := strings.TrimSuffix(name, path.Ext(name)); len(l) > len(stem) && strings.HasPrefix(l, stem) && !slices.Contains(out, l) {
+			out = append(out, l)
+		}
+	}
+	for _, n := range names {
+		if isMediaName(n) {
+			add(n)
+		}
+	}
+	for _, rel := range known {
+		add(path.Base(rel))
 	}
 	return out
 }
