@@ -137,7 +137,7 @@ USER 1000:1000
 VOLUME ["/config", "/cache"]
 EXPOSE 8096
 
-HEALTHCHECK --interval=5s --timeout=2s --start-period=1s --start-interval=1s --retries=3 \
+HEALTHCHECK --interval=5s --timeout=2s --start-period=10s --start-interval=1s --retries=3 \
   CMD ["/usr/local/bin/slouchcat", "healthcheck"]
 
 ENTRYPOINT ["/usr/local/bin/slouchcat"]
