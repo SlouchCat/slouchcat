@@ -1,6 +1,6 @@
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test, type APIRequestContext } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { CSRF } from './catalog';
 import { MEDIA_DIR, MOVIES_DIR } from './env';
 import {
@@ -16,7 +16,8 @@ import {
 // entfernen» takes the film out and leads to its library, the maintenance page lists it and
 // «Wieder aufnehmen» brings it back. The film is the spec's own copy of a test film in a hidden
 // folder below the media root (the other libraries and the folder browser skip hidden entries);
-// the file stays where it is. The spec deletes its library at the end.
+// the file stays where it is. One press of the confirming button, by keyboard or by mouse, sends
+// exactly one request. The spec deletes its library at the end.
 
 const NAME = 'E2E Titel löschen';
 const TITLE = 'E2E Entfernfilm';
@@ -64,6 +65,16 @@ async function prepare(api: APIRequestContext): Promise<string> {
   return id;
 }
 
+/** The delete requests of the title the page sends from now on: one per press of the button. */
+function deletions(page: Page): string[] {
+  const sent: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && /\/admin\/items\/[^/]+\/deletion$/.test(request.url()))
+      sent.push(request.url());
+  });
+  return sent;
+}
+
 test.beforeAll(() => {
   mkdirSync(join(base, `${TITLE} (2003)`), { recursive: true });
   copyFileSync(
@@ -109,8 +120,10 @@ test('a title is taken out of Slouchcat and back in, by keyboard @keyboard', asy
   const confirm = dialog.getByRole('button', { name: 'Aus Slouchcat entfernen' });
   await tabTo(page, confirm, 10);
   await expectVisibleFocus(page);
+  const sent = deletions(page);
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(new RegExp(`/libraries/${libraryId}$`));
+  expect(sent).toHaveLength(1);
   expect((await page.request.get(`/api/v1/items/${itemId}`)).status()).toBe(404);
   expect(existsSync(film)).toBe(true);
 
@@ -128,6 +141,25 @@ test('a title is taken out of Slouchcat and back in, by keyboard @keyboard', asy
   await expect(page.getByRole('heading', { level: 1, name: 'Pflege' })).toBeFocused();
   await expectNoFocusTrap(page);
   expect((await page.request.get(`/api/v1/items/${itemId}`)).status()).toBe(200);
+});
+
+test('one click on the button takes the title out with one request', async ({ page }) => {
+  itemId = await prepare(page.request);
+  await page.goto(`/items/${itemId}`);
+  await expect(page.getByRole('heading', { level: 1, name: TITLE })).toBeVisible();
+  await page.getByRole('button', { name: 'Löschen', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: `«${TITLE}» löschen?` });
+  await expect(dialog).toBeVisible();
+  const sent = deletions(page);
+  await dialog.getByRole('button', { name: 'Aus Slouchcat entfernen' }).click();
+  await expect(page).toHaveURL(new RegExp(`/libraries/${libraryId}$`));
+  expect(sent).toHaveLength(1);
+  expect((await page.request.get(`/api/v1/items/${itemId}`)).status()).toBe(404);
+  // Back in for the next test, which deletes it with its file.
+  const restored = await page.request.post(`/api/v1/admin/maintenance/removed/${itemId}/restore`, {
+    headers: CSRF,
+  });
+  expect(restored.status()).toBe(200);
 });
 
 test('the title is deleted with its file, by keyboard, in a writable folder @keyboard', async ({
