@@ -161,7 +161,7 @@ func recommendStatus(status int) func(f *vistest.Fixture, p model.Profile, m vis
 }
 
 // listableStatus is status for titles the watchlist takes and 422 not_listable for extras (seasons
-// are containers and checked in the subtest "favourites").
+// are containers and checked in the subtest "containers on the watchlist").
 func listableStatus(m vistest.Movie) int {
 	if m.Kind == "extra" {
 		return http.StatusUnprocessableEntity
@@ -328,6 +328,10 @@ var profileRegistry = map[string]profileCall{
 		},
 		check: checkAudioSeries},
 	"listPicks": {contract: "GET /picks", path: "/picks?limit=100",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
+	// Concept 20 P-7: the list behind the row title «Neu hinzugefügt»; the leak check runs over the
+	// answer, TestContractHomeList (contract_home_rows_test.go) checks keys, filter and paging.
+	"listHomeRow": {contract: "GET /home/rows/{key}", path: "/home/rows/recent?limit=100",
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
 	"getItem": {contract: "GET /items/{id}", path: "/items/{id}", perItem: true, okStatus: http.StatusOK,
 		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
@@ -563,7 +567,7 @@ var profileRegistry = map[string]profileCall{
 				t.Errorf("segment 3: %v %x", rec.Header(), rec.Body.Bytes())
 			}
 		}},
-	// M7 discover (design 3.1, plan 10.2): search, genres, collections, watchlist and favourites.
+	// M7 discover (design 3.1, plan 10.2): search, genres, collections and watchlist.
 	// Positive checks name what each profile must find; the walk of every response proves that
 	// nothing above the profile leaks, also through people and collections.
 	"search": {contract: "POST /search", path: "/search", body: `{"query":"Fi"}`,
@@ -588,6 +592,27 @@ var profileRegistry = map[string]profileCall{
 			}
 			if len(genres) != 1 || genres[0].Name != fixtureGenre(p) || genres[0].Count != want {
 				t.Errorf("listGenres for %s = %s, want %s with %d titles", token, rec.Body.String(), fixtureGenre(p), want)
+			}
+		}},
+	// Concept 20 O-3: the page «Sammlungen» lists the mixed collection with the number of the
+	// profile's visible members, and only while it has one.
+	"listVisibleCollections": {contract: "GET /collections", path: "/collections",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK },
+		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+			var list []struct {
+				ID    string `json:"id"`
+				Count int    `json:"count"`
+			}
+			decode(t, rec, &list)
+			members := mixedMembers(f, fixtureProfile(f, token))
+			i := slices.IndexFunc(list, func(c struct {
+				ID    string `json:"id"`
+				Count int    `json:"count"`
+			}) bool {
+				return c.ID == vistest.MixedCollectionID
+			})
+			if (i >= 0) != (len(members) > 0) || (i >= 0 && list[i].Count != len(members)) {
+				t.Errorf("listVisibleCollections for %s = %+v, want the mixed collection with %d members", token, list, len(members))
 			}
 		}},
 	"getCollection": {contract: "GET /collections/{id}", path: "/collections/" + vistest.MixedCollectionID,
@@ -680,36 +705,6 @@ var profileRegistry = map[string]profileCall{
 				t.Errorf("detail of %s for %s after taking back: still recommendedByMe", m.Label, token)
 			}
 		}},
-	"listFavorites": {contract: "GET /favorites", path: "/favorites",
-		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK },
-		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
-			var list []struct {
-				ID   string `json:"id"`
-				Kind string `json:"kind"`
-			}
-			decode(t, rec, &list)
-			var got []string
-			for _, it := range list {
-				got = append(got, it.ID)
-				if it.Kind != "series" && it.Kind != "podcast" {
-					t.Errorf("listFavorites for %s: favourite of kind %s", token, it.Kind)
-				}
-			}
-			if token == "p18" && !slices.Equal(got, []string{f.Show.Series.ID}) {
-				t.Errorf("listFavorites for P18 = %v, want the series of the fixture", got)
-			}
-		}},
-	// Playable titles are never favourites (422 not_favoritable); series and podcasts are checked
-	// in the subtest "favourites".
-	"addFavorite": {contract: "PUT /items/{id}/favorite", path: "/items/{id}/favorite", perItem: true,
-		okStatus: http.StatusUnprocessableEntity,
-		check: func(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
-			if code := problemCode(t, rec); code != "not_favoritable" {
-				t.Errorf("addFavorite %s: code %s, want not_favoritable", m.Label, code)
-			}
-		}},
-	"removeFavorite": {contract: "DELETE /items/{id}/favorite", path: "/items/{id}/favorite", perItem: true,
-		okStatus: http.StatusNoContent},
 	// M7 inbox (E-8): the fixture has no entries; contract_notify_test.go covers the visibility of
 	// the entries and the foreign-entry 404.
 	"listNotifications": {contract: "GET /notifications", path: "/notifications",
@@ -963,6 +958,15 @@ var profileRegistry = map[string]profileCall{
 				t.Errorf("reportProgress %s = %s", m.Label, rec.Body.String())
 			}
 		}},
+	// Concept 20 section 6.4 (contract 1.31.0): every visible title of every kind answers 204, an
+	// invisible one 404. The body removes the check mark, so the operations after it in name order
+	// find the fixture's positions; the positive checks are in watched_api_test.go.
+	"setItemWatched": {contract: "PUT /items/{id}/watched", path: "/items/{id}/watched", perItem: true,
+		body: `{"watched":false}`, okStatus: http.StatusNoContent},
+	// The page «Gesehen» (concept 20 section 15.4): every profile gets its list; the leak check of
+	// the registry runs over it. The positive checks are in watched_api_test.go and TestWatchedList.
+	"listWatched": {contract: "GET /watched", path: "/watched?limit=100",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
 	// Webradio (concept 16 stage 1, contract 1.17.0): the real radio service on the stations of
 	// vistest.AddRadio (contractRadio, live part fake). Every profile reaches the visible CH
 	// station; the demarked and the not chosen country's station answer 404 in TestRadioHiddenStations404.
@@ -1241,6 +1245,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	adm := admin.New(f.DB, a, &authTestLibraries{}, ring, &authTestTMDB{}, func(string) string { return "" }, log).
 		WithMetadata(contractMetadata{}).WithLibraryMaintenance(contractLibraryMaintenance{}).WithPodcasts(pods).WithTrakt(pods).
 		WithBooks(pods).WithPodcastStorage(library.New(f.DB, jobs.NewQueue(f.DB.Write, nil), transcode.Runner{}, log)).
+		WithTitleDeletion(library.New(f.DB, jobs.NewQueue(f.DB.Write, nil), transcode.Runner{}, log)).
 		WithBackups(t.TempDir(), "test")
 	googleKey = adm.GoogleBooksKey
 	restarts := &atomic.Int32{}
@@ -1754,48 +1759,47 @@ func TestContractChildProfiles(t *testing.T) {
 		})
 	}
 
-	// Favourites of containers (E-8): series and podcasts never pass the per-item loop above. A
-	// profile that sees them marks and unmarks them (204), the detail reports the mark; any other
-	// profile gets 404. A season is visible but not listable (422 not_listable).
-	t.Run("favourites", func(t *testing.T) {
+	// Containers on the watchlist (E-5; since 1.31.0 also in place of the favourites of E-8,
+	// concept 20 P-2): series and podcasts never pass the per-item loop above. A profile that sees
+	// them puts them on its watchlist and takes them off (204), the list and the detail report the
+	// entry; any other profile gets 404. A season is visible but not listable (422 not_listable).
+	t.Run("containers on the watchlist", func(t *testing.T) {
 		for _, token := range []string{"p0", "p6", "p12", "p16", "p18", "px", "pg", "pg18"} {
 			profile := pf.tokens[token]
 			for _, m := range []vistest.Movie{f.Show.Series, f.Audio.Podcast, f.Audio.ExplicitPodcast} {
-				path := BasePath + "/items/" + m.ID + "/favorite"
+				path := BasePath + "/items/" + m.ID + "/watchlist"
 				visible := f.VisibleTo(profile, m)
 				want := http.StatusNotFound
 				if visible {
 					want = http.StatusNoContent
 				}
 				if rec := send(t, h, http.MethodPut, path, token, "", nil); rec.Code != want {
-					t.Errorf("%s addFavorite %s: status %d (%s), want %d", profile.Name, m.Label, rec.Code, rec.Body.String(), want)
+					t.Errorf("%s addToWatchlist %s: status %d (%s), want %d", profile.Name, m.Label, rec.Code, rec.Body.String(), want)
 				} else if !visible && problemCode(t, rec) != "not_found" {
-					t.Errorf("%s addFavorite %s: code %s", profile.Name, m.Label, problemCode(t, rec))
+					t.Errorf("%s addToWatchlist %s: code %s", profile.Name, m.Label, problemCode(t, rec))
 				}
-				list := send(t, h, http.MethodGet, BasePath+"/favorites", token, "", nil)
-				assertOnlyVisible(t, f, "listFavorites", profile, titles, itemIDsIn(t, list, titles))
+				list := send(t, h, http.MethodGet, BasePath+"/watchlist?limit=200", token, "", nil)
+				assertOnlyVisible(t, f, "listWatchlist", profile, titles, itemIDsIn(t, list, titles))
 				if itemIDsIn(t, list, titles)[m.ID] != visible {
-					t.Errorf("%s listFavorites after adding %s = %s", profile.Name, m.Label, list.Body.String())
+					t.Errorf("%s listWatchlist after adding %s = %s", profile.Name, m.Label, list.Body.String())
 				}
 				if visible {
 					var d struct {
-						Favorite    bool `json:"favorite"`
 						InWatchlist bool `json:"inWatchlist"`
 					}
 					decode(t, send(t, h, http.MethodGet, BasePath+"/items/"+m.ID, token, "", nil), &d)
-					if !d.Favorite {
-						t.Errorf("%s getItem %s: favorite false after adding", profile.Name, m.Label)
+					if !d.InWatchlist {
+						t.Errorf("%s getItem %s: inWatchlist false after adding", profile.Name, m.Label)
 					}
 				}
 				if rec := send(t, h, http.MethodDelete, path, token, "", nil); rec.Code != want {
-					t.Errorf("%s removeFavorite %s: status %d, want %d", profile.Name, m.Label, rec.Code, want)
+					t.Errorf("%s removeFromWatchlist %s: status %d, want %d", profile.Name, m.Label, rec.Code, want)
 				}
-				if itemIDsIn(t, send(t, h, http.MethodGet, BasePath+"/favorites", token, "", nil), titles)[m.ID] {
-					t.Errorf("%s listFavorites still holds %s", profile.Name, m.Label)
+				if itemIDsIn(t, send(t, h, http.MethodGet, BasePath+"/watchlist?limit=200", token, "", nil), titles)[m.ID] {
+					t.Errorf("%s listWatchlist still holds %s", profile.Name, m.Label)
 				}
-				// The watchlist takes containers too.
-				if rec := send(t, h, http.MethodPut, BasePath+"/items/"+m.ID+"/watchlist", token, "", nil); rec.Code != want {
-					t.Errorf("%s addToWatchlist %s: status %d, want %d", profile.Name, m.Label, rec.Code, want)
+				if rec := send(t, h, http.MethodPut, path, token, "", nil); rec.Code != want {
+					t.Errorf("%s addToWatchlist %s again: status %d, want %d", profile.Name, m.Label, rec.Code, want)
 				}
 			}
 			season := http.StatusNotFound

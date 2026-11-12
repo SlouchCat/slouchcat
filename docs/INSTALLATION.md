@@ -28,8 +28,8 @@ Fassung nicht geprüft worden, weil im Projekt keine solchen Geräte vorhanden w
 
 ```bash
 mkdir -p ~/slouchcat && cd ~/slouchcat
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.30.1/deploy/compose.yaml
-curl -fsSL -o .env https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.30.1/deploy/.env.example
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.31.0/deploy/compose.yaml
+curl -fsSL -o .env https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.31.0/deploy/.env.example
 mkdir -p config cache
 ```
 
@@ -49,7 +49,7 @@ Du hast jetzt vier Dinge nebeneinander:
 
 ```bash
 # Die Fassung, die laufen soll.
-SLOUCHCAT_VERSION=1.30.1
+SLOUCHCAT_VERSION=1.31.0
 
 # Der Ordner auf deinem Rechner, in dem die Medien liegen.
 MEDIA_DIR=/srv/media
@@ -121,7 +121,7 @@ Zeit: Der Start eines 4K-HDR-Films dauert dann bis zu zehn Sekunden statt unter 
 ist höchstens 1080p ohne HDR. Mit Grafikchip nimmst du eine zweite Datei dazu:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.30.1/deploy/compose.nvidia.yaml
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.31.0/deploy/compose.nvidia.yaml
 echo 'COMPOSE_FILE=compose.yaml:compose.nvidia.yaml' >> .env
 docker compose up -d
 ```
@@ -144,7 +144,7 @@ sein. Alle anderen Medien bleiben nur lesbar. Dafür gibt es eine Zusatzdatei, d
 für den Grafikchip dazunimmst:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.30.1/deploy/compose.podcasts.yaml
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.31.0/deploy/compose.podcasts.yaml
 ```
 
 In `.env` trägst du drei Zeilen ein (mit Grafikchip kommt `compose.podcasts.yaml` hinten an deine
@@ -201,6 +201,54 @@ nachladen» am Podcast. Laufen beide eine Weile parallel, überschreibt Slouchca
 keine zweimal ein, kann aber eine Folge ein zweites Mal unter leicht anderem Namen speichern; darum
 die Reihenfolge.
 
+### Dateien aus Slouchcat löschen (freiwillig)
+
+Ab Werk sind alle Medien nur lesbar eingebunden (`:ro` in `compose.yaml`), und das bleibt so. «Löschen» auf
+der Detailseite eines Titels bietet dann nur «Nur aus Slouchcat entfernen»: Der Titel verschwindet aus allen
+Listen, die Dateien bleiben liegen, und unter «Wartung › Entfernte Titel» holst du ihn mit Fortschritt und
+Haken zurück. Die zweite Wahl, «Auch die Dateien löschen», ist grau mit dem Grund «nur lesbar eingebunden».
+
+Willst du Dateien aus Slouchcat heraus löschen, bindest du **genau den Ordner, um den es geht,** selbst und
+bewusst schreibbar ein. Nimm dafür zuerst einen **Testordner** und erst später, wenn überhaupt, einen echten.
+Der Ordner muss schon unter `MEDIA_DIR` liegen, und der Pfad im Container muss genau der sein, unter dem die
+Bibliothek ihn kennt (Verwaltung → Bibliotheken). Du ergänzt ihn in `compose.override.yaml` (siehe oben),
+ohne `:ro`:
+
+```yaml
+services:
+  slouchcat:
+    volumes:
+      # Nur dieser Ordner ist schreibbar; alles andere unter /media bleibt nur lesbar.
+      - /srv/media/Testfilme:/media/Testfilme
+```
+
+Danach `docker compose up -d`. Im Dialog «Ordner von …» steht beim Ordner jetzt «schreibbar». Was Slouchcat
+dann tut und was nie:
+
+- **Es prüft, ohne zu schreiben.** Je Datei fragt es, ob es im Ordner dieser Datei löschen darf (Rechte des
+  Benutzers aus `PUID`/`PGID`, nur lesbare Einhängung). Ist auch nur eine Datei nicht löschbar, bleibt
+  «Auch die Dateien löschen» grau, und der Dialog nennt den Grund.
+- **Es löscht genau das:** die Mediendateien des Titels (bei Serie, Staffel und Podcast die aller Folgen,
+  dazu die Extras), die Bild- und `.nfo`-Dateien, die es selbst gelesen hat, Begleitdateien mit dem ganzen
+  Dateinamen davor (`Film (2024).de.srt`), danach leere Ordner. Was es nicht kennt, bleibt liegen; der
+  Ordner bleibt dann stehen.
+- **Nie** eine Datei, die zu einem anderen Titel gehört, nie rekursiv, nie automatisch, nie ohne deine
+  Bestätigung (bei mehr als einer Datei tippst du den Titel ab). Es gibt keinen Papierkorb: gelöscht ist
+  gelöscht.
+- **Danach ist der Titel endgültig weg**, samt Fortschritt, Haken und Merkliste. Lässt sich eine Datei
+  nicht löschen, bleibt der Titel mit ihr, und das Ergebnis nennt sie.
+- **Radarr und Sonarr erfahren davon nichts.** Überwachen sie den Titel noch, laden sie ihn womöglich neu;
+  er erscheint dann als neuer Titel.
+
+**Rechte.** Der Benutzer aus `PUID`/`PGID` braucht Schreibrecht in den Ordnern der Dateien, nicht nur im
+obersten Ordner; Radarr und Sonarr legen ihre Ordner oft mit eigenem Besitzer an. Liegt der Ordner auf einem
+NAS, muss auch die Freigabe (NFS-Export oder SMB) Schreiben erlauben, und die Einhängung auf dem Rechner darf
+nicht `ro` sein.
+
+**Zurück zu nur lesbar.** Zeile aus `compose.override.yaml` entfernen und `docker compose up -d`. Eine
+Bibliothek zu löschen (Verwaltung → Bibliotheken → «Bibliothek löschen …») entfernt übrigens nie eine Datei,
+auch nicht in einem schreibbaren Ordner.
+
 ## 5. Einrichten
 
 Beim ersten Aufruf führt dich ein Assistent durch vier Schritte:
@@ -232,8 +280,8 @@ auf deinen Anschluss zeigt, und im Router die Weiterleitung der Ports 80/tcp, 44
 den Rechner.
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.30.1/deploy/Caddyfile
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.30.1/deploy/compose.https-only.yaml
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.31.0/deploy/Caddyfile
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.31.0/deploy/compose.https-only.yaml
 ```
 
 In `.env`:
@@ -336,7 +384,7 @@ Wer das nicht will, lässt den Begleiter weg; alles andere bleibt gleich.
 
 ```bash
 cd ~/slouchcat
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.30.1/deploy/compose.updater.yaml
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.31.0/deploy/compose.updater.yaml
 mkdir -p updater
 echo "SLOUCHCAT_DEPLOY_DIR=$(pwd)" >> .env
 ```

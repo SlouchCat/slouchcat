@@ -125,6 +125,9 @@ type AdminService interface {
 	// (E12). Errors: model.ErrNotFound, *model.ValidationError, model.ErrConfirmMismatch,
 	// model.ErrScanRunning.
 	RemoveLibraryRoot(ctx context.Context, libraryID, rootID int64, confirmPath string) (model.Library, error)
+	// DeleteLibrary deletes a library for good, never a file (concept 20 P-8). Errors:
+	// model.ErrNotFound, *model.ValidationError, model.ErrConfirmMismatch, *model.PlayingError.
+	DeleteLibrary(ctx context.Context, libraryID int64, confirmName string, by model.Actor) (model.LibraryDeletionQueued, error)
 	// SetItemRating overrides (or, with nil, clears) the age rating of a title and returns its
 	// ratings; model.ErrNotFound for an unknown title.
 	SetItemRating(ctx context.Context, itemID string, rating *int) (model.ItemRating, error)
@@ -189,6 +192,14 @@ type AdminService interface {
 	MergeItems(ctx context.Context, targetID string, sourceIDs []string) (model.AdminItem, error)
 	// CleanupItems soft-deletes orphaned titles and removes media files as ignored.
 	CleanupItems(ctx context.Context, itemIDs, mediaFileIDs []string) (items, files int, err error)
+	// Deleting a title (concept 20 P-9): the preview, the delete, the removed titles and their way
+	// back. Errors: model.ErrNotFound, model.ErrNotDeletable, model.ErrConfirmMismatch,
+	// *model.PlayingError, *model.ScanRunningError, *model.ValidationError, model.ErrChanged (the
+	// files differ from the preview's expectedFiles).
+	GetItemDeletion(ctx context.Context, itemID string) (model.ItemDeletionPreview, error)
+	DeleteItem(ctx context.Context, itemID, mode, confirmTitle string, expected model.ExpectedFiles, by model.Actor) (model.ItemDeletionResult, error)
+	ListRemovedItems(ctx context.Context, limit, offset int) (model.RemovedItemPage, error)
+	RestoreRemovedItem(ctx context.Context, itemID string) (int, error)
 	// ListRelinkPairs returns the soft-deleted titles with a live copy and their user data
 	// (ADR 0023); RelinkItems merges the copies into them (*model.ValidationError for a malformed
 	// request, *model.ScanRunningError when a scan stopped the run before any merge) and returns
@@ -299,7 +310,8 @@ type AdminService interface {
 	// *model.ValidationError, and the services' own refusals of a manual run
 	// (model.ErrProviderNotConfigured, model.ErrRefreshTooSoon, model.ErrUpdateCheckDisabled).
 	ListJobTypes(ctx context.Context) (model.JobOverview, error)
-	ListJobRuns(ctx context.Context, typ, state string, limit int) (model.JobRunPage, error)
+	// ListJobRuns with an empty typ lists the failed runs of every type (concept 20, P-6).
+	ListJobRuns(ctx context.Context, typ, state string, limit, offset int) (model.JobRunPage, error)
 	RunJobType(ctx context.Context, typ string) ([]model.JobRun, error)
 	PauseJobType(ctx context.Context, typ string) (model.JobTypeInfo, error)
 	ResumeJobType(ctx context.Context, typ string) (model.JobTypeInfo, error)
@@ -308,11 +320,18 @@ type AdminService interface {
 	// (concept 15, 4.3).
 	UpdateJobTypeWindow(ctx context.Context, typ string, upd model.JobTypeWindowUpdate) (model.JobTypeInfo, error)
 	CancelJobRuns(ctx context.Context, typ string, all bool) (int, error)
+	// RetryFailedJobs and DismissFailedJobs act on the failed runs of typ, "" for every type, each
+	// in one transaction (concept 20, P-6); model.ErrNotFound for an unknown type.
+	RetryFailedJobs(ctx context.Context, typ string) (model.JobFailedRetry, error)
+	DismissFailedJobs(ctx context.Context, typ string) (int, error)
 	// Settings and integrations (A-2). UpdateSettings checks everything before it stores anything:
 	// *model.ValidationError, *model.EnvWinsError, model.ErrTMDBKeyInvalid, model.ErrTMDBUnreachable,
 	// model.ErrTelegramTokenInvalid, model.ErrTelegramUnreachable.
 	Settings(ctx context.Context) (model.AdminSettings, error)
 	UpdateSettings(ctx context.Context, upd model.AdminSettingsUpdate) (model.AdminSettings, error)
+	// CheckProviderKey asks a provider whether its key holds (concept 20, P-12); the key is
+	// neither returned nor logged.
+	CheckProviderKey(ctx context.Context, provider string) (model.KeyCheck, error)
 	// SendTestEmail sends a test mail to to, or to the main account when empty
 	// (model.ErrEmailNotConfigured, *model.SendError with model.ErrEmailSendFailed,
 	// model.ErrTooManyAttempts for the client in model.ClientIP of ctx).
@@ -397,18 +416,19 @@ type CatalogService interface {
 
 	// Discover (M7). Search over the FTS index through the visibility layer (E-4); genres of the
 	// visible titles; a collection with one page of its visible members (model.ErrNotFound without
-	// a visible member); the watchlist (E-5) and the favourites (E-8) of the profile. Add/Remove
-	// answer model.ErrNotFound for an invisible title, model.ErrNotListable for seasons and extras,
-	// model.ErrNotFavoritable for anything but series and podcasts.
+	// a visible member); the watchlist (E-5) of the profile. Add/Remove answer model.ErrNotFound
+	// for an invisible title, model.ErrNotListable for seasons and extras.
 	Search(ctx context.Context, profile model.Profile, q model.SearchQuery) (model.SearchResult, error)
 	Genres(ctx context.Context, profile model.Profile) ([]model.GenreRef, error)
 	Collection(ctx context.Context, profile model.Profile, id string, offset, limit int) (model.Collection, error)
+	// Collections lists every collection with a visible member (the page «Sammlungen», concept 20 O-3).
+	Collections(ctx context.Context, profile model.Profile) ([]model.CollectionRef, error)
 	Watchlist(ctx context.Context, profile model.Profile, offset, limit int) ([]model.ItemSummary, int, error)
+	// Watched returns one page of the page «Gesehen» (listWatched, concept 20 section 15.4); a
+	// content or sort outside its values is a *model.ValidationError.
+	Watched(ctx context.Context, profile model.Profile, q model.WatchedQuery) (model.WatchedPage, error)
 	AddToWatchlist(ctx context.Context, profile model.Profile, itemID string) error
 	RemoveFromWatchlist(ctx context.Context, profile model.Profile, itemID string) error
-	Favorites(ctx context.Context, profile model.Profile) ([]model.ItemSummary, error)
-	AddFavorite(ctx context.Context, profile model.Profile, itemID string) error
-	RemoveFavorite(ctx context.Context, profile model.Profile, itemID string) error
 	// User picks (concept 18 part B, ADR 0028): Recommend stores or renews the profile's pick,
 	// Unrecommend takes it back; model.ErrNotFound for an invisible title, a season, an extra and
 	// a profile outside the owner's account (owner false).
@@ -422,6 +442,10 @@ type CatalogService interface {
 	VisibleLibraries(ctx context.Context, profile model.Profile) ([]model.LibraryNav, error)
 	LibraryItems(ctx context.Context, profile model.Profile, libraryID int64, q model.LibraryQuery) (model.LibraryPage, error)
 	PicksPage(ctx context.Context, profile model.Profile, offset, limit int) ([]model.ItemSummary, int, error)
+	// HomeList pages the list behind a row title of the start page (listHomeRow, concept 20 P-7):
+	// key continue, recent, released or spotlight, content one kind of the top level ("" = all);
+	// model.ErrNotFound for another key and for the spotlight while it has no row.
+	HomeList(ctx context.Context, profile model.Profile, key, content string, offset, limit int) ([]model.ItemSummary, int, error)
 	// Audiobook series (contract 1.25.0, concept 19 stage D2). AudioGroups answers the row «Reihen
 	// und Sammlungen» of a library with the filters of LibraryItems (genre, years, maxRating,
 	// status); AudioSeries the page of a series. model.ErrNotFound for a library the profile does
@@ -520,6 +544,9 @@ type PlaybackService interface {
 	// Report stores a progress event and returns the merged progress (with the watch time of a
 	// profile with a daily limit; at the limit its playback sessions are revoked).
 	Report(ctx context.Context, profile model.Profile, itemID string, ev model.ProgressEvent) (model.Progress, error)
+	// SetWatched sets or removes the check mark of a visible title, or of every visible episode of
+	// a season, series or podcast (setItemWatched, concept 20 section 6.4), or model.ErrNotFound.
+	SetWatched(ctx context.Context, profile model.Profile, itemID string, watched bool) error
 	// Tracks returns the audio and subtitle tracks of a media file of a visible title (empty id:
 	// the primary file), or model.ErrNotFound.
 	Tracks(ctx context.Context, profile model.Profile, itemID, mediaFileID string) (model.TrackList, error)

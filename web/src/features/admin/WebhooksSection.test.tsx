@@ -20,6 +20,7 @@ const settings: AdminSettings = {
     fanartClient: { source: 'none' },
     youtube: { source: 'none' },
     trakt: { source: 'none' },
+    googleBooks: { source: 'none' },
   },
   email: { source: 'none' },
   telegram: { source: 'none' },

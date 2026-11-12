@@ -1,6 +1,7 @@
 # Konzept: Bedienung, Löschen und die neue Seite «Gesehen»
 
-- **Status: Fassung 3 (12. November 2026): Nachtrag P-15 «Kontinent-Kacheln» (Abschnitt 22).**
+- **Status: Fassung 3 (12. November 2026): Nachtrag P-15 «Kontinent-Kacheln» (Abschnitt 22).
+  Am 12. November 2026 hat Marco O-1 bis O-14 beantwortet (Abschnitt 18) und den Bau freigegeben.**
   Fassung 2 vom 11. November 2026 hat das Kritiker-Review eingearbeitet (REVISE, 1 Blocker,
   13 Major, 13 Minor; Abschnitt 21). Marco hat am 10. und 11. November 2026 im Interview
   dreizehn Fragen beantwortet (**F-1 bis F-13**, Abschnitt 17), drei davon an klickbaren Mockups
@@ -185,6 +186,15 @@ Jede Serie auf der Merkliste meldet künftig neue Folgen, auch wenn man sie nur 
 gemerkt hat. Die Obergrenze von 50 Meldungen je Serie und Lauf bleibt (`notify.MaxPerParent`).
 Wer keine Meldung will, nimmt die Serie von der Merkliste.
 
+Nachtrag nach dem Bau (12. November 2026) zur Regel «neue Podcast-Folgen automatisch laden»:
+
+- **Wieder aufnehmen setzt neu an.** Nimmt man einen Podcast von der Merkliste und setzt ihn später
+  wieder darauf, ist das ein neuer Eintrag: `follow_since` ist der neue Zeitpunkt. Folgen, die in der
+  Lücke erschienen sind, lädt die Regel nicht nach.
+- **Ohne Bezugspunkt zählt alles als neu.** Kannte Slouchcat beim Merken noch keine Folge des
+  Podcasts und hat das Profil keine angefangen, ist der Stichtag 0: Die Regel lädt die neuesten
+  sichtbaren Folgen, höchstens so viele, wie die Regel erlaubt (`max_count`).
+
 ## 4. P-3 Bleistift auf den Staffelcovern
 
 ### 4.1 Heute
@@ -322,6 +332,11 @@ eigenes Merkmal neben `completed`:
   Film, der offline fertig gesehen und vor dem Hochladen online nochmals gestartet wurde, nie
   unter «Gesehen». Je Weg ein Test.
 - Dazu setzt sie der Haken von Hand (6.4).
+- **Haken entfernt, dann kommt ein älteres Ereignis über 90 %:** Entfernt man den Haken und trifft
+  danach ein verspätetes Online-Ereignis oder ein Offline-Ereignis ein, das die 90-%-Regel erfüllt,
+  setzt dieses `watched_at` wieder, auch wenn es älter ist als das Entfernen. Das ist angenommen
+  (Review vom 12. November 2026): Der Fall ist selten, das Ereignis belegt eine echte Wiedergabe,
+  und eine eigene Spalte `watched_cleared_at` nur für diesen Fall lohnt sich nicht.
 - Sie **bleibt stehen**, wenn ein späteres Ereignis den Titel wieder öffnet. `completed` und
   `position_ms` verhalten sich wie heute (AN-10 bleibt für «Weiterschauen»).
 - **Zusammenführen und Umhängen:** `AdminMergeProgress` (`queries/system/admin.sql:228-239`,
@@ -352,7 +367,44 @@ heute; alles, was **anzeigt oder filtert**, liest `watched_at`.
   gesehener Film im zweiten Durchgang zählt also als «gesehen», nicht als «angefangen»; in
   «Weiterschauen» steht er trotzdem.
 - **Schritt 0 des Baus:** jede Fundstelle von `completed` in `server/` und `web/` einer der zwei
-  Spalten zuordnen und die Tabelle oben vervollständigen.
+  Spalten zuordnen und die Tabelle oben vervollständigen. Erledigt am 12. November 2026, siehe
+  die folgende Tabelle.
+
+**Fundstellen von `completed` (Schritt 0, Stand Vertrag 1.30.0, Migration 00052).** Gesucht
+wurde nach `completed` und `Completed` in `server/` (ohne generierten Code) und `web/src` (ohne
+Tests, Stories und Texte). Nicht aufgeführt sind die gleichnamigen Begriffe ohne Bezug zum
+Fortschritt: der Jobzustand `completed`, das Aktivitätsereignis `playback_completed` (das schreibt
+weiter nur die 90-%-Regel einer echten Wiedergabe, O-2) und Kommentare.
+
+| Fundstelle | Zweck | Liest künftig |
+|---|---|---|
+| `queries/app/progress.sql` `UpsertProgress` | schreibt den Fortschritt eines Ereignisses | schreibt beides: `completed` wie heute, `watched_at` nur dazu (Schritt 2) |
+| `internal/playback/playback.go` `report` (auch der Zweig `isLate`) | 90-%-Regel online, Aktivitätsereignis beim Übergang | schreibt beides; das Aktivitätsereignis bleibt am Übergang von `completed` |
+| `internal/playback/offline.go` `storeOfflineEvent` (auch das ältere Ereignis) | 90-%-Regel offline | schreibt beides |
+| `queries/system/admin.sql` `AdminMergeProgress` (`admin/maintenance.go`, `library/relink.go`) | Zusammenführen, Umhängen | `completed` entscheidet «weiter» wie heute; `watched_at` eigene Regel (das spätere Datum) |
+| `queries/scoped/items.sql` `ListContinueWatching` | «Weiterschauen», nächste Folge im Fenster | `completed` |
+| `queries/scoped/items.sql` `ListSeriesNextUpEpisodes`, `GetNextVisibleEpisode`; `visibility/nextup.go` | «Als Nächstes» der Serien- und Staffelseite | `completed` |
+| `queries/scoped/audio.sql` `ListVisibleAudioSeriesVolumes(Of)` → `visibility/audio_series.go` `Next` | nächster Band einer Hörbuch-Reihe | `completed` |
+| dieselben Abfragen → `seriesFacts.completed`, `AudioGroup.completed` (`api/audio_series_handlers.go`, Web `AudioGroupsRow`) | Anzeige «3 von 6 gehört» an der Reihe | **`watched_at`** (eigene Spalte `watched` neben `completed`) |
+| `queries/scoped/audio.sql` `ListVisibleAudioCollections` | Anzeige «gehört» an Hörbuch-Sammlungen | **`watched_at`** |
+| `queries/system/offline.sql` `CountOpenAutoDownloads` | Plätze der Auto-Downloads (O-3) | `completed` |
+| `queries/system/offline.sql` `ListRecentEpisodeProgress` → `internal/offline/sync.go` | Offline-Regel «nächste Folge laden» | `updated_at` (kein `completed`); darum die Staffelung in 6.4 |
+| `internal/playback/sessions.go` (Startstelle), `internal/playback/enclosure.go` (Podcast-Verweis) | Wiedergabe setzt an der Stelle fort | `completed` |
+| `queries/scoped/items.sql` `ListVisibleChildCounts` → `ItemRef.watched`, `watchedCount` (`visibility/tree.go`) | Haken auf Karten, Staffelzähler | **`watched_at`** |
+| `visibility/library.go` Status und Filter (`lib`-Ausdruck, `episodeStatsBody`, `episodeStat`) | Bibliothek: Filter `status`, Zustand, Fortschritt der Serien | **`watched_at`**, dann `position_ms` |
+| `visibility/mapping.go` `Progress.Completed`, `api/item_handlers.go` `toProgress`, `cmd/apicheck/model.go` | `Progress.completed` im Vertrag | bleibt `completed`; neu daneben `watchedAt` |
+| Web `features/catalog/labels.ts` `isFinished` (Karten in `ItemGrid`, `CollectionShelf`, `SeriesPage`) | Haken eines einzelnen Titels | **`watchedAt`** (Serie und Podcast über `watched`) |
+| Web `features/catalog/SeasonShelf.tsx` `watchedLabel` | Haken einer Folgenzeile | **`watchedAt`** |
+| Web `SeasonShelf.tsx` Balken, `ItemPage.tsx` und `DetailActions.tsx` «Fortsetzen», `CollectionShelf.tsx` Balken | laufende Stelle | `completed`, `positionMs` |
+| Web `DetailActions.tsx` «Nochmals ansehen» | Neustart bei fertigem Titel | `completed` (das Datum daneben darf `watchedAt` zeigen) |
+| Web `SeriesPage.tsx` `playTarget` | Startknopf der Hörbuch-Reihe | `completed` |
+| Web `features/offline/playback.ts`, `features/offline/sync.ts` | Startstelle offline | `completed` |
+
+Zwei Ergänzungen gegenüber Abschnitt 6.4, beide additiv: `ItemRef.watchedCount` steht neu auch an
+Serien und Podcasts (die sichtbaren Folgen mit `watched_at`), damit jede Karte den halben Haken
+(F-12) ohne weitere Abfrage zeigen kann: voll bei `watched`, halb bei `watched = false` und
+`watchedCount > 0`, sonst leer. Und die Anzeige «gehört» an Hörbuch-Reihen und -Sammlungen zählt
+nach `watched_at`, wie die Faustregel es verlangt.
 
 ### 6.4 Vertrag und Server
 
@@ -378,6 +430,31 @@ heute; alles, was **anzeigt oder filtert**, liest `watched_at`.
     (`items.sql:59-61`). Mit der Staffelung erscheint nach «Staffel 1 gesehen» die Serie in
     «Weiterschauen» mit der ersten Folge von Staffel 2 (Regel aus Konzept 15, P-1). Test für
     beide Leser.
+  - **Schon gesehene Folgen bleiben, wie sie sind** (Entscheid vom 12. November 2026): Setzt man
+    den Haken einer Serie, Staffel oder eines Podcasts, behalten Folgen mit `watched_at` ihr Datum
+    und ihr `updated_at` (`SetProgressWatched` ändert eine Zeile mit `watched_at` nicht). Nur die
+    neu markierten Folgen bekommen «jetzt» in der Staffelung oben.
+  - **Ein Haken auf einer älteren Folge verschiebt «Weiterschauen» nicht** (Entscheid vom
+    12. November 2026). Massgeblich ist die jüngste angefangene oder fertige Zeile
+    (`completed = 1` oder Stelle grösser als null) unter den sichtbaren Folgen der Serie, also die
+    Zeile, nach der sich «Weiterschauen» und «Als Nächstes» richten. Die Regel, je neu markierte
+    Folge:
+    - Folge **gleich oder nach** dieser Zeile in der Folgenreihenfolge (Staffel, dann Folge;
+      Specials zuerst): `updated_at` = `watched_at`, wie oben. Sie wird die jüngste, beide Leser
+      gehen nach ihr weiter.
+    - Folge **davor**: `updated_at` liegt unter dem dieser Zeile (eine Millisekunde darunter);
+      eine gespeicherte Zeile, deren `updated_at` schon älter ist, behält es. `watched_at` ist
+      trotzdem «jetzt». So bleiben «Weiterschauen» (`ListContinueWatching`, `nextUp`) und die
+      Offline-Regel «nächste Folge» (`ListRecentEpisodeProgress`) auf Staffel 4, wenn man beim
+      Schauen von Staffel 4 S1E3 abhakt; beide Leser nehmen die jüngste Zeile der Serie.
+    Gilt nur für Folgen einer Serie; Filme, Hörbücher und Podcast-Folgen sind in «Weiterschauen»
+    je ein eigener Eintrag. Umgesetzt in `ListVisibleWatchTargets` (`newest_at`, `behind`) und
+    `playback.Service.SetWatched`, Tests `TestSetWatchedSeasonKeepsWatchedEpisodes` und
+    `TestSetWatchedBehindKeepsContinueWatching` (`internal/offline/watched_test.go`).
+  - **Lesen und Schreiben getrennt:** Die Ziele liest `visibility` auf der Leseverbindung, bevor
+    die Schreibtransaktion beginnt (Regel 2). Ändert dazwischen ein Ereignis oder ein Scan eine
+    Folge, behält diese im ungünstigsten Fall den Stand dieses Ereignisses. Angenommen (Review vom
+    12. November 2026); das Lesen in die Transaktion zu ziehen ginge nur an der Paketgrenze vorbei.
 - **`ItemRef.watched` gibt es schon** (seit Vertrag 1.22.0: «alle sichtbaren Folgen fertig»,
   `queries/scoped/items.sql:204-246`, `visibility/tree.go:20-21`). Das Feld bleibt, seine
   **Bedeutung ändert sich** von `completed` auf `watched_at`; die Beschreibung im Vertrag wird
@@ -512,7 +589,8 @@ Mockups «Startseite» und «Listenseite».
 - **Messauftrag M-3:** Antwortzeit von `listHomeRow` für `continue` mit 200 angefangenen Titeln
   und für `recent` mit Filter auf CT 190; Ziel unter 150 ms.
 - Alle Abfragen bleiben in `queries/scoped/` und enthalten `visible_items` (Regel 2).
-- **Neue Operation `listCollections`** für `/collections` (O-3), falls sie gebaut wird.
+- **Neue Operation `listVisibleCollections`** (`GET /collections`) für `/collections` (O-3); gebaut.
+  Der Name `listCollections` war schon vergeben (`GET /admin/collections`).
 - Additiv. Tastaturtest für die neue Seite. **Der Reihentitel wird ein Fokus-Halt:** Pfeil nach
   oben aus einer Reihe führt neu auf ihren Titel statt in die Reihe darüber, Enter öffnet die
   Liste. Das ändert die Pfeilwege **aller** Reihen der Startseite; die Tastaturtests der
@@ -571,7 +649,8 @@ Mockup «Jobs, Löschen, Duplikate», Thema «Bibliothek löschen».
      Profil sieht sie nicht.
   `activity_events.library_id` (`00031:27`) wird für die gelöschte Bibliothek auf `NULL` gesetzt;
   der Name steht im Text des Ereignisses.
-- Ablauf im Paket `library` unter der Scan-Sperre (`lockScan`):
+- Ablauf im Paket `library` unter der Scan-Sperre (`lockScan`), seit dem 12. November 2026 im Job
+  `library.delete`:
   1. Laufenden Scan abbrechen. **Wartende und laufende Jobs zu Titeln der Bibliothek abbrechen**
      (Abgleich, Trickplay, Keyframes, Bilder hängen am Titel, nicht an der Bibliothek; sie
      scheiterten sonst nach dem Löschen und füllten «Fehlgeschlagen»).
@@ -586,6 +665,33 @@ Mockup «Jobs, Löschen, Duplikate», Thema «Bibliothek löschen».
   Anfrage. Darüber läuft es als Hintergrundjob `library.delete`; dann braucht die Bibliothek ein
   Merkmal «wird gelöscht», damit sie sofort aus allen Ansichten verschwindet, und die Jobart
   einen Eintrag in `job_types`. Das wäre eine zweite Migration.
+- **Ergebnis (12. November 2026):** Lokal lag das Löschen nach den Indizes aus Migration 00055 bei
+  2,8 bis 3,3 s, darum lief es zuerst in der Anfrage (`docs/perf/20-bedienung.md`, Abschnitt 5).
+  Bei Marcos Abnahme auf CT 190 dauerte die Anfrage 9,5 s für 304 Titel und 27,4 s für 31 641
+  Titel, davon rund 9 s für die Sicherung einer 1,5-GB-Datenbank; Marco musste «manchmal zwei Mal
+  klicken oder sehr lange warten». **Entscheid: Bibliothek löschen läuft als Hintergrundjob.**
+  - `deleteLibrary` prüft in der Anfrage nur den Namen (422) und laufende Wiedergaben (409
+    `playing`), setzt `libraries.deleting_at` (Migration 00056) und antwortet **202**
+    `{ "jobId", "name" }`. Eine zweite Anfrage, solange die Bibliothek gelöscht wird, bekommt 409
+    `deleting`.
+  - Mit `deleting_at` verschwindet die Bibliothek sofort: aus den Listen der Bibliotheken,
+    `visible_items` (damit aus Bibliotheksansichten, Startseitenreihen, Suche und Offline-Abgleich),
+    Scans und neuen Jobs.
+  - Die Jobart `library.delete` (allgemeiner Pool, Priorität 7, ohne automatische Wiederholung)
+    macht den Ablauf unten. Scheitert sie, bevor etwas gelöscht ist, oder bricht jemand sie ab,
+    bekommt die Bibliothek ihr `deleting_at` zurückgesetzt und ist wieder da. Nach einem Neustart
+    holt der Server einen angefangenen Job wieder ab oder stellt ihn neu ein; der Ablauf ist
+    wiederholbar.
+  - Die Seite «Bibliotheken» schliesst den Dialog bei der 202, nimmt die Zeile heraus und meldet
+    «Bibliothek «X» wird im Hintergrund gelöscht.» mit einem Verweis auf den Job. Sie fragt alle
+    zwei Sekunden nach den wartenden und laufenden Läufen von `library.delete` und liest die Liste
+    neu, sobald der Job fertig ist («Bibliothek «X» gelöscht.»; ist sie wieder da, sagt die Seite,
+    dass sie nicht gelöscht wurde).
+  - **Zwei Klicks:** Das Protokoll zeigt je Bibliothek nur eine Anfrage. Der Dialog leerte sein
+    Feld beim Bestätigen und zeigte während der Anfrage wieder «Tippe … ab, dann wird der Knopf
+    aktiv»; das las sich wie ein Klick ohne Wirkung, und der zweite Klick traf den wartenden Knopf,
+    der nichts sendet. Das Feld zeigt jetzt bis zur Antwort, was gesendet wurde. e2e-Tests prüfen,
+    dass ein Mausklick und ein Enter je genau eine Anfrage senden, auch im Dialog «Titel löschen».
 - Podcast-Bibliotheken: Auch Abos ohne Datei gehen mit (O-4).
 
 ## 10. P-9 Titel löschen: nur aus Slouchcat
@@ -966,24 +1072,26 @@ Mockup «Gesehen».
 
 ## 18. Offene Punkte
 
-Bis zu Marcos Antwort gilt die Empfehlung.
+Marco hat am 12. November 2026 alle vierzehn Punkte einzeln beantwortet (Spalte «Antwort»); vier
+weichen von der Empfehlung ab (O-9, O-10, O-13, O-14). Wo der Text oben etwas anderes sagt, gilt
+die Antwort.
 
-| Nr. | Punkt | Empfehlung |
-|---|---|---|
-| O-1 | Leerer Kreis auf Posterkarten mit Maus: immer sichtbar oder erst beim Zeigen? | Erst beim Zeigen und im Fokus; der gesetzte Haken immer. Sonst trägt jede Karte dauernd bis zu drei Knöpfe (Bleistift, Merken, Haken). |
-| O-2 | Schreibt der Haken von Hand ein Aktivitätsereignis «fertig gesehen»? | Nein. Das Protokoll der Verwaltung soll echte Wiedergaben zeigen. |
-| O-3 | Bekommt «Sammlungen» eine Übersichtsseite `/collections` als Ziel des Reihentitels? | Ja, einfaches Raster aller sichtbaren Sammlungen. |
-| O-4 | Bibliothek löschen: Gehen bei einer Podcast-Bibliothek auch die Abos ohne Datei mit? | Ja, die ganze Bibliothek ist weg. |
-| O-5 | Podcast-Folgen, die nur als Verweis aus dem Feed bestehen: einzeln löschbar? | Nein. Der Feed brächte sie beim nächsten Abruf zurück; dafür bräuchte es eine eigene Ausblendliste. |
-| O-6 | Dateien löschen: Papierkorb-Ordner statt endgültig? | Nein, endgültig. Ein Papierkorb bräuchte Platz, eine Frist und eine eigene Ansicht. |
-| O-7 | Zieht der Google-Books-Schlüssel (Konzept 19 D3) als sechste Karte auf die Seite «Schlüssel der Anbieter»? | Ja (PR #139 ist seit dem 10. November 2026 gemergt, Release 1.26.0); die Seite «Hörbücher: Quellen» verweist dann dorthin. |
-| O-8 | Bekommt die Seite «Einstellungen» einen Verweis auf «Benachrichtigungskanäle»? | Ja, als drittes Feld mit Link. |
-| O-9 | Gilt die Nachfrage «weiter oder von vorn» auch für Bände einer Hörbuch-Reihe? | Ja (Text «Weiterhören ab …»); es ist derselbe Direktstart. |
-| O-10 | Fragt «Alle erneut versuchen» nach? | Nein, es ist gefahrlos. Nur «Alle löschen» fragt. |
-| O-11 | Löscht «Auch die Dateien löschen» Begleitdateien mit? | Ja, aber nur nach der genauen Regel aus 11.2: von Slouchcat verzeichnete Bild- und `.nfo`-Dateien und Dateien mit dem ganzen Dateistamm; nie eine Datei eines anderen Titels. |
-| O-12 | Soll die Serie auf der Merkliste bleiben, wenn man alle Folgen gesehen hat? | Ja. Sie meldet weiter neue Folgen, bis man sie von Hand entfernt. |
-| O-13 | Löschen, während der Titel bei einem anderen Profil läuft: ablehnen oder Wiedergabe beenden? | Beenden. Der Dialog nennt das Profil vorher; der Administrator entscheidet. |
-| O-14 | «Auch die Dateien löschen»: Benutzerdaten behalten für den Fall, dass der Titel wiederkommt? | Ja, weich löschen wie bei einer verschwundenen Datei. Kostet nichts und rettet Fortschritt, wenn Radarr den Film neu lädt. |
+| Nr. | Punkt | Empfehlung | **Antwort (12. November 2026)** |
+|---|---|---|---|
+| O-1 | Leerer Kreis auf Posterkarten mit Maus: immer sichtbar oder erst beim Zeigen? | Erst beim Zeigen und im Fokus; der gesetzte Haken immer. Sonst trägt jede Karte dauernd bis zu drei Knöpfe (Bleistift, Merken, Haken). | **Erst beim Zeigen** (Empfehlung) |
+| O-2 | Schreibt der Haken von Hand ein Aktivitätsereignis «fertig gesehen»? | Nein. Das Protokoll der Verwaltung soll echte Wiedergaben zeigen. | **Nein** (Empfehlung) |
+| O-3 | Bekommt «Sammlungen» eine Übersichtsseite `/collections` als Ziel des Reihentitels? | Ja, einfaches Raster aller sichtbaren Sammlungen. | **Ja, einfaches Raster** (Empfehlung) |
+| O-4 | Bibliothek löschen: Gehen bei einer Podcast-Bibliothek auch die Abos ohne Datei mit? | Ja, die ganze Bibliothek ist weg. | **Ja, alles weg** (Empfehlung) |
+| O-5 | Podcast-Folgen, die nur als Verweis aus dem Feed bestehen: einzeln löschbar? | Nein. Der Feed brächte sie beim nächsten Abruf zurück; dafür bräuchte es eine eigene Ausblendliste. | **Nein** (Empfehlung) |
+| O-6 | Dateien löschen: Papierkorb-Ordner statt endgültig? | Nein, endgültig. Ein Papierkorb bräuchte Platz, eine Frist und eine eigene Ansicht. | **Endgültig** (Empfehlung) |
+| O-7 | Zieht der Google-Books-Schlüssel (Konzept 19 D3) als sechste Karte auf die Seite «Schlüssel der Anbieter»? | Ja (PR #139 ist seit dem 10. November 2026 gemergt, Release 1.26.0); die Seite «Hörbücher: Quellen» verweist dann dorthin. | **Ja, sechste Karte** (Empfehlung) |
+| O-8 | Bekommt die Seite «Einstellungen» einen Verweis auf «Benachrichtigungskanäle»? | Ja, als drittes Feld mit Link. | **Ja, drittes Feld** (Empfehlung) |
+| O-9 | Gilt die Nachfrage «weiter oder von vorn» auch für Bände einer Hörbuch-Reihe? | Ja (Text «Weiterhören ab …»); es ist derselbe Direktstart. | **Nein: Bände spielen immer ab der gemerkten Stelle** (gegen die Empfehlung) |
+| O-10 | Fragt «Alle erneut versuchen» nach? | Nein, es ist gefahrlos. Nur «Alle löschen» fragt. | **Mit Rückfrage**: auch «Alle erneut versuchen» fragt mit der Anzahl nach (gegen die Empfehlung) |
+| O-11 | Löscht «Auch die Dateien löschen» Begleitdateien mit? | Ja, aber nur nach der genauen Regel aus 11.2: von Slouchcat verzeichnete Bild- und `.nfo`-Dateien und Dateien mit dem ganzen Dateistamm; nie eine Datei eines anderen Titels. | **Ja, nach genauer Regel** (Empfehlung) |
+| O-12 | Soll die Serie auf der Merkliste bleiben, wenn man alle Folgen gesehen hat? | Ja. Sie meldet weiter neue Folgen, bis man sie von Hand entfernt. | **Bleibt** (Empfehlung) |
+| O-13 | Löschen, während der Titel bei einem anderen Profil läuft: ablehnen oder Wiedergabe beenden? | Beenden. Der Dialog nennt das Profil vorher; der Administrator entscheidet. | **Löschen ablehnen**: solange ein Profil den Titel abspielt, antwortet der Server mit 409, der Dialog nennt das Profil (gegen die Empfehlung) |
+| O-14 | «Auch die Dateien löschen»: Benutzerdaten behalten für den Fall, dass der Titel wiederkommt? | Ja, weich löschen wie bei einer verschwundenen Datei. Kostet nichts und rettet Fortschritt, wenn Radarr den Film neu lädt. | **Nein, alles weg**: Sind alle Dateien gelöscht, wird der Titel endgültig gelöscht, samt Fortschritt, Haken und Merkliste (gegen die Empfehlung) |
 
 ## 19. Bauplan in Stufen
 

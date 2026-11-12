@@ -139,6 +139,10 @@ const (
 	ActivityBackupRestored    = "backup_restored"
 	ActivityServerStarted     = "server_started"
 	ActivityServerRestart     = "server_restart"
+	// A library deleted (concept 20 P-8; Subject its name, Detail.Count its titles) and a title
+	// deleted (P-9; Detail.Mode library or files, Count the files deleted, SizeBytes their size).
+	ActivityLibraryDeleted = "library_deleted"
+	ActivityItemDeleted    = "item_deleted"
 )
 
 // What started a full scan (ActivityDetail.Trigger).
@@ -163,7 +167,8 @@ type ActivityEvent struct {
 
 // ActivityDetail holds the few numbers and fixed codes of an event (ActivityEntry.detail): no
 // secret, no path, no IP address and no free error text (rule 10). Reason is one of
-// root_missing, root_empty, loss_over_threshold, cancelled or error; By is admin or revoked.
+// root_missing, root_empty, loss_over_threshold, cancelled or error; By is admin or revoked; Mode
+// is library or files (item_deleted).
 type ActivityDetail struct {
 	NewTitles *int   `json:"newTitles,omitempty"`
 	SizeBytes int64  `json:"sizeBytes,omitempty"`
@@ -173,6 +178,7 @@ type ActivityDetail struct {
 	JobType   string `json:"jobType,omitempty"`
 	Count     int    `json:"count,omitempty"`
 	By        string `json:"by,omitempty"`
+	Mode      string `json:"mode,omitempty"`
 }
 
 // ActivityEntry is one row of the activity log as the dashboard shows it. Account and profile
@@ -362,6 +368,13 @@ type JobRunPage struct {
 	Runs  []JobRun
 }
 
+// JobFailedRetry is the outcome of retryFailedJobs (concept 20, P-6): Retried runs are queued
+// again, Skipped stay failed (an active job holds their key), Merged ended cancelled (an older
+// failure of a key whose newest failed run was queued).
+type JobFailedRetry struct {
+	Retried, Skipped, Merged int
+}
+
 // JobSummary is a job as the administration sees it.
 type JobSummary struct {
 	ID          int64
@@ -487,6 +500,7 @@ type AdminKeys struct {
 	// Fanart.tv (concept 10 step 6): the project key and the optional personal client key.
 	Fanart       KeyState
 	FanartClient KeyState
+	GoogleBooks  KeyState // concept 20, O-7
 }
 
 // EmailSettings is the e-mail server without its password.
@@ -523,6 +537,25 @@ const (
 	ClearFanartClient = "fanartClient"
 	ClearEmail        = "email"
 	ClearTelegram     = "telegram"
+	// ClearGoogleBooks: the Google Books key of concept 19 D3, on the page of the provider keys
+	// since concept 20 (O-7).
+	ClearGoogleBooks = "googleBooks"
+)
+
+// KeyCheck is the answer of checkProviderKey (concept 20, P-12): OK, or the kind of problem and
+// the provider's error in plain text, never with the key.
+type KeyCheck struct {
+	OK      bool
+	Problem string // one of KeyCheck* below; "" when OK
+	Message string
+}
+
+// Problems of a KeyCheck.
+const (
+	KeyCheckNotConfigured = "not_configured"
+	KeyCheckInvalid       = "invalid"
+	KeyCheckUnreachable   = "unreachable"
+	KeyCheckFailed        = "failed"
 )
 
 // AdminSettingsUpdate changes settings: nil fields keep their value, Clear removes stored values.
@@ -544,6 +577,7 @@ type AdminKeysUpdate struct {
 	Trakt        *string
 	Fanart       *string
 	FanartClient *string
+	GoogleBooks  *string // concept 20, O-7
 }
 
 // EmailSettingsUpdate replaces the e-mail server; a nil Password keeps the stored one.

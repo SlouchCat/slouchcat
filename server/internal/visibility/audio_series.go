@@ -68,7 +68,7 @@ func factsOf(volumes []seriesVolume, names audioseries.Names) seriesFacts {
 			f.narrator = ""
 		}
 		f.duration += v.DurationMs.Int64
-		if v.Completed == 1 {
+		if v.Watched == 1 { // heard, by watched_at (concept 20 section 6.3); Next reads completed
 			f.completed++
 		}
 	}

@@ -17,6 +17,7 @@ import {
   SpatialPage,
   setSpatialFocus,
 } from '@/ui';
+import { useCoverPens } from '@/features/catalog/EditMetadata';
 import { cardKey, PageRetry } from './ItemGrid';
 import { PagedItemGrid } from './PagedItemGrid';
 import { useWatchlistMutation, watchlistSource } from './queries';
@@ -29,6 +30,7 @@ const removeKey = (item: ItemRef) => `watchlist-remove-${item.id}`;
 /** The watchlist of the active profile (E-5): its titles, each with "Entfernen". */
 export function WatchlistPage() {
   const { t } = useTranslation();
+  const pens = useCoverPens();
   useDocumentTitle(t('watchlist.title'));
   const goBack = useGoBack(paths.home);
   useBackKeys(goBack);
@@ -116,6 +118,7 @@ export function WatchlistPage() {
               onRange={setSpan}
               focusKey={GRID_KEY}
               label={t('watchlist.title')}
+              tool={pens.tool}
               onUnmarked={onUnmarked}
               below={(item) => (
                 <SpatialButton
@@ -132,6 +135,7 @@ export function WatchlistPage() {
                 </SpatialButton>
               )}
             />
+            {pens.editor}
             {paged.failed && <PageRetry onRetry={paged.retry} />}
           </section>
         )}

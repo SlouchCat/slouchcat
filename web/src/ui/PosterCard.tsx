@@ -62,7 +62,10 @@ interface PosterCardProps {
   accent?: string;
   /** Small label on the poster (the kind of an extra: "Trailer", "Featurette"). */
   badge?: string;
-  /** A finished title: a check mark on the poster, with this as its spoken name ("Gesehen"). */
+  /**
+   * A finished title: a check mark on the poster, with this as its spoken name ("Gesehen"). A
+   * display only, for cards without `check` (the offline library).
+   */
   watchedLabel?: string;
   /** Watch progress 0 … 100 with its accessible label. */
   progress?: { percent: number; label: string };
@@ -90,18 +93,25 @@ interface PosterCardProps {
    */
   frame?: 'poster' | 'own';
   /**
-   * A control beside the card's link (or button), over the top right of its cover: the pen
-   * (concept 15 7.4). Not inside the link, so Tab reaches it after the link and the arrow keys pass
+   * A control beside the card's link (or button), over the top left of its cover: the pen
+   * (concept 15 7.4; on the left since concept 20, the check mark has the right). Not inside the link, so Tab reaches it after the link and the arrow keys pass
    * it by. Card and tool then share one cell that carries the focus scale, so the card stays large
    * while the pointer or the focus is on the tool (concept 17 D-7).
    */
   tool?: ReactNode;
   /**
+   * The check mark «gesehen» beside the card's link, over the top right of its cover (concept 20
+   * P-5, WatchedToggle): after the pen in the DOM, so Tab goes link, pen, check, mark. With a
+   * pointer an empty check shows only while the pointer is on the cell or the focus is in it; a
+   * set or half one always, and on screens without hover every check shows (O-1).
+   */
+  check?: ReactNode;
+  /**
    * A second control beside the card's link, over the bottom right of its cover: the watchlist
    * button (concept 17 D-9). In the same cell as `tool` and after it in the DOM, so Tab goes link,
    * pen, mark. Shown while the pointer is on the cell or the focus is in it, always while it is
-   * pressed (`aria-pressed="true"`) and on screens without hover. With a mark the check of a
-   * finished title sits at the top left and the progress bar ends left of the button.
+   * pressed (`aria-pressed="true"`) and on screens without hover. With a mark the progress bar
+   * ends left of the button.
    */
   mark?: ReactNode;
   focusKey?: string;
@@ -141,6 +151,7 @@ export function PosterCard({
   shape = 'poster',
   frame = 'poster',
   tool,
+  check,
   mark,
   focusKey,
 }: PosterCardProps) {
@@ -267,7 +278,7 @@ export function PosterCard({
         {content}
       </AppLink>
     );
-  if (tool === undefined && mark === undefined) return card;
+  if (tool === undefined && check === undefined && mark === undefined) return card;
   return (
     <div
       className={[styles.cell, mark !== undefined && styles.marked, own && styles.own]
@@ -276,6 +287,7 @@ export function PosterCard({
     >
       {card}
       {tool !== undefined && <div className={styles.tool}>{tool}</div>}
+      {check !== undefined && <div className={styles.check}>{check}</div>}
       {mark !== undefined && (
         <div className={styles.markArea}>
           <div className={styles.mark}>{mark}</div>

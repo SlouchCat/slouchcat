@@ -12,8 +12,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/store/scopedq"
 )
 
-// Discover reads of M7 (design 3.1, queries/scoped/discover.sql): the watchlist and the favourites
-// of a profile, collections, genres and the spotlight row (M11, queries/scoped/spotlight.sql). Each
+// Discover reads of M7 (design 3.1, queries/scoped/discover.sql): the watchlist of a profile, collections, genres and the spotlight row (M11, queries/scoped/spotlight.sql). Each
 // joins visible_items: an entry whose title became invisible is left out, a collection exists for
 // the profile only through a visible member and counts only visible members, a spotlight entry
 // shows only a visible library title.
@@ -23,9 +22,6 @@ const (
 	DefaultPage = 50
 	MaxPage     = 200
 )
-
-// MaxFavorites caps the favourites list.
-const MaxFavorites = 500
 
 // page clamps offset to 0 and above and limit to 1..MaxPage (0 or less = DefaultPage).
 func page(offset, limit int) (int, int) {
@@ -83,29 +79,6 @@ func (r *Reader) InWatchlist(ctx context.Context, s Scope, itemID string) (bool,
 	return n > 0, nil
 }
 
-// Favorites returns the profile's favourite series and podcasts that it may still see, newest
-// first (E-8), at most MaxFavorites.
-func (r *Reader) Favorites(ctx context.Context, s Scope) ([]model.ItemSummary, error) {
-	pid, err := r.profile(ctx, s)
-	if err != nil {
-		return nil, err
-	}
-	return r.list(ctx, s, pid, "favorites")(r.q.ListFavorites(ctx, scopedq.ListFavoritesParams{ProfileID: pid, LimitCount: MaxFavorites}))
-}
-
-// IsFavorite reports whether a visible title is a favourite of the profile; an invisible one never is.
-func (r *Reader) IsFavorite(ctx context.Context, s Scope, itemID string) (bool, error) {
-	pid, err := r.profile(ctx, s)
-	if err != nil {
-		return false, err
-	}
-	n, err := r.q.GetFavorite(ctx, scopedq.GetFavoriteParams{ProfileID: pid, ItemID: itemID})
-	if err != nil {
-		return false, fmt.Errorf("get favorite: %w", err)
-	}
-	return n > 0, nil
-}
-
 // Genres returns the genres of the visible films, series, audiobooks and podcasts in the profile
 // language with their counts, most frequent first, at most limit (clamped to 1..MaxRowItems).
 func (r *Reader) Genres(ctx context.Context, s Scope, limit int) ([]model.GenreRef, error) {
@@ -128,14 +101,27 @@ func (r *Reader) Genres(ctx context.Context, s Scope, limit int) ([]model.GenreR
 	return out, nil
 }
 
+// MaxCollections caps the page «Sammlungen» (listVisibleCollections, concept 20 O-3).
+const MaxCollections = 500
+
 // Collections returns the collections with at least one visible member, by name, at most limit
 // (clamped to 1..MaxRowItems), each with the number of visible members and its cover (E-6).
 func (r *Reader) Collections(ctx context.Context, s Scope, limit int) ([]model.CollectionRef, error) {
+	return r.collections(ctx, s, clamp(limit))
+}
+
+// AllCollections returns the same collections as Collections without the cut to MaxRowItems, at
+// most MaxCollections (the page «Sammlungen», concept 20 O-3).
+func (r *Reader) AllCollections(ctx context.Context, s Scope) ([]model.CollectionRef, error) {
+	return r.collections(ctx, s, MaxCollections)
+}
+
+func (r *Reader) collections(ctx context.Context, s Scope, limit int64) ([]model.CollectionRef, error) {
 	pid, err := r.profile(ctx, s)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := r.q.ListVisibleCollections(ctx, scopedq.ListVisibleCollectionsParams{ProfileID: pid, LimitCount: clamp(limit)})
+	rows, err := r.q.ListVisibleCollections(ctx, scopedq.ListVisibleCollectionsParams{ProfileID: pid, LimitCount: limit})
 	if err != nil {
 		return nil, fmt.Errorf("list collections: %w", err)
 	}
@@ -361,16 +347,12 @@ func placeSpotlight(rows []scopedq.ListSpotlightRowRow) []scopedq.ListSpotlightR
 	return out
 }
 
-// discoverDetail sets the favourite mark and the visible collections of a title on its detail;
+// discoverDetail sets the own recommendation and the visible collections of a title on its detail;
 // the watchlist mark comes with the summary (extras, contract 1.20.0).
 func (r *Reader) discoverDetail(ctx context.Context, s Scope, pid int64, itemID string, d *model.ItemDetail) error {
-	n, err := r.q.GetFavorite(ctx, scopedq.GetFavoriteParams{ProfileID: pid, ItemID: itemID})
-	if err != nil {
-		return fmt.Errorf("get favorite: %w", err)
-	}
-	d.Favorite = n > 0
 	// The own recommendation counts only while it has not expired (concept 18 part B, 14.6).
-	if n, err = r.q.GetOwnUserPick(ctx, scopedq.GetOwnUserPickParams{ProfileID: pid, ItemID: itemID, Now: r.now().UnixMilli()}); err != nil {
+	n, err := r.q.GetOwnUserPick(ctx, scopedq.GetOwnUserPickParams{ProfileID: pid, ItemID: itemID, Now: r.now().UnixMilli()})
+	if err != nil {
 		return fmt.Errorf("get own user pick: %w", err)
 	}
 	d.RecommendedByMe = n > 0

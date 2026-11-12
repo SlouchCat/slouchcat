@@ -165,7 +165,7 @@ test('The spotlight band comes from the mock and goes while Trakt is down (E-7, 
   for (let slide = 0; slide < entries.length; slide += 1) {
     await posters.nth(slide).click();
     await expect(posters.nth(slide)).toHaveAttribute('aria-current', 'true');
-    const title = (await spotlight.getByRole('heading', { level: 2 }).textContent()) ?? '';
+    const title = (await spotlight.getByRole('heading', { level: 3 }).textContent()) ?? '';
     await expect(posters.nth(slide)).toHaveAccessibleName(startsWith(title));
     shown.push(title);
   }
@@ -201,7 +201,7 @@ test('the band: arrow keys move in the poster row, Enter selects, the focus stay
   await resetFocus(page);
   const posters = strip(page);
   expect(await posters.count()).toBeGreaterThan(2);
-  const heading = hero(page).getByRole('heading', { level: 2 });
+  const heading = hero(page).getByRole('heading', { level: 3 });
   const [first = '', second = ''] = await spotlightTitles(owner);
   await expect(heading).toHaveText(first);
   await expect(posters.nth(0)).toHaveAccessibleName(startsWith(first));
@@ -331,7 +331,7 @@ test('the trailer button on the stage: keys, dialog, paging (step 8, W-10, C-4)'
     const play = hero(page).getByRole('link', { name: 'Abspielen' });
     const details = hero(page).getByRole('link', { name: 'Details' });
     const trailer = hero(page).getByRole('button', { name: 'Trailer', exact: true });
-    await expect(hero(page).getByRole('heading', { level: 2 })).toHaveText(first.title);
+    await expect(hero(page).getByRole('heading', { level: 3 })).toHaveText(first.title);
 
     // Abspielen → Details → Trailer by arrows, and the same order by Tab; nothing pages on the way.
     await page.keyboard.press('ArrowDown');
@@ -413,7 +413,7 @@ test('prefers-reduced-motion stops the rotation (7b)', async ({ page, owner }) =
       intervals: [1000],
     })
     .toBe(true);
-  const heading = hero(page).getByRole('heading', { level: 2 });
+  const heading = hero(page).getByRole('heading', { level: 3 });
   const posters = strip(page);
   // The keyboard focus stays out of the band, which holds it as well.
   await page.clock.install();
@@ -476,7 +476,7 @@ test('one draw per page view: the shell start, start=K, no jump on a refetch (F-
   await page.clock.install();
   await page.reload();
   await expect(hero(page)).toBeVisible();
-  const heading = hero(page).getByRole('heading', { level: 2 });
+  const heading = hero(page).getByRole('heading', { level: 3 });
   const posters = strip(page);
   await expect(heading).toHaveText(titles[0] ?? '');
   await expect(posters.nth(0)).toHaveAttribute('aria-current', 'true');
@@ -530,10 +530,11 @@ test('the band holds on keyboard focus and the pause button, not on a click (F-3
   await tabTo(page, band.getByRole('link', { name: 'Abspielen' }), 3);
   await expect(band).toHaveAttribute('data-paused');
   await expect(timer).toHaveCount(0);
+  // Details, Pause, the active poster with its pen, check (concept 20 P-5) and mark, then the row.
   await tabTo(
     page,
     page.locator('main section[aria-labelledby]').first().getByRole('link').first(),
-    6,
+    7,
   );
   await expect(band).not.toHaveAttribute('data-paused');
 
@@ -569,13 +570,15 @@ test('the spotlight posters carry the pen: Tab poster then pen, the band holds, 
   expect(count).toBeGreaterThan(1);
   await expect(pens).toHaveCount(count);
   await expect(band.getByRole('button', { name: /: Metadaten bearbeiten$/ })).toHaveCount(count);
-  // Each pen and watchlist button (concept 17 D-9) sits beside its poster, not in its button, and
-  // turns with it (CSS order of the item).
+  // Each pen, check mark (concept 20 P-5) and watchlist button (concept 17 D-9) sits beside its
+  // poster, not in its button, and turns with it (CSS order of the item).
   const marks = row.getByRole('button', { name: / merken$/ });
   await expect(marks).toHaveCount(count);
+  const checks = row.getByRole('button', { name: /^(Gesehen|Gehört): / });
+  await expect(checks).toHaveCount(count);
   for (let index = 0; index < count; index += 1) {
     const item = row.getByRole('listitem').nth(index);
-    await expect(item.getByRole('button')).toHaveCount(3);
+    await expect(item.getByRole('button')).toHaveCount(4);
     await expect(item.locator('button button')).toHaveCount(0);
   }
   // Only the active poster's pen and mark are Tab stops (the row's roving tabindex).
@@ -584,10 +587,15 @@ test('the spotlight posters carry the pen: Tab poster then pen, the band holds, 
     name: /: Metadaten bearbeiten$/,
   });
   const activeMark = active.locator('xpath=..').getByRole('button', { name: / merken$/ });
+  const activeCheck = active
+    .locator('xpath=..')
+    .getByRole('button', { name: /^(Gesehen|Gehört): / });
   await expect(pens.and(page.locator(':not([tabindex="-1"])'))).toHaveCount(1);
   await expect(marks.and(page.locator(':not([tabindex="-1"])'))).toHaveCount(1);
+  await expect(checks.and(page.locator(':not([tabindex="-1"])'))).toHaveCount(1);
 
-  // Tab: the active poster, its pen, its mark; the band holds while the focus is in the row.
+  // Tab: the active poster, its pen, its check, its mark; the band holds while the focus is in
+  // the row.
   await page.getByRole('button', { name: 'Seitenleiste ausblenden' }).focus();
   await tabTo(page, active, 6);
   const shown = (await active.getAttribute('aria-label')) ?? (await active.textContent()) ?? '';
@@ -595,8 +603,12 @@ test('the spotlight posters carry the pen: Tab poster then pen, the band holds, 
   await expectFocusOn(page, activePen);
   await expect(band).toHaveAttribute('data-paused');
   await page.keyboard.press('Tab');
+  await expectFocusOn(page, activeCheck);
+  await expect(band).toHaveAttribute('data-paused');
+  await page.keyboard.press('Tab');
   await expectFocusOn(page, activeMark);
   await expect(band).toHaveAttribute('data-paused');
+  await page.keyboard.press('Shift+Tab');
   await page.keyboard.press('Shift+Tab');
   await expectFocusOn(page, activePen);
   const title = ((await activePen.getAttribute('aria-label')) ?? '').replace(
@@ -632,7 +644,7 @@ test('the spotlight posters carry the pen: Tab poster then pen, the band holds, 
   await tabTo(
     page,
     page.locator('main section[aria-labelledby]').first().getByRole('link').first(),
-    3,
+    4,
   );
   await expect(band).not.toHaveAttribute('data-paused');
   await expectNoFocusTrap(page, 200);
@@ -985,7 +997,7 @@ test('"Weiterschauen" per series: the series card, arrow keys in the row, Enter 
   const [first, , double] = await episodeIds(owner, await itemIdByTitle(owner, SHOW_TITLE));
   if (!first || !double) throw new Error('season 1 of the test show is incomplete');
   const row = page.getByRole('region', { name: ROW_TITLES.continue });
-  const cards = row.getByRole('link');
+  const cards = row.getByRole('list').getByRole('link');
   const seriesCard = row.getByRole('link', { name: new RegExp(`^${SHOW_TITLE}, `) });
 
   // The first episode watched to the end: the series stays with the next one, not started yet.
@@ -1096,8 +1108,11 @@ test('«Meine Medien» and «Neu in …»: tiles by arrow keys and Tab, Enter op
       await page.keyboard.press('ArrowLeft');
       await expect.poll(inTiles).toBe(0);
     }
-    // Down into «Neu in Filme», up back to the tiles.
-    const filmCards = page.getByRole('region', { name: 'Neu in Filme' }).getByRole('link');
+    // Down into the cards of «Neu in Filme», up onto its title (concept 20 P-7), up again back to
+    // the tiles.
+    const filmRow = page.getByRole('region', { name: 'Neu in Filme' });
+    const filmTitle = filmRow.getByRole('link', { name: 'Neu in Filme' });
+    const filmCards = filmRow.getByRole('list').getByRole('link');
     await page.keyboard.press('ArrowDown');
     await expect
       .poll(() =>
@@ -1106,6 +1121,8 @@ test('«Meine Medien» and «Neu in …»: tiles by arrow keys and Tab, Enter op
         ),
       )
       .toBe(true);
+    await page.keyboard.press('ArrowUp');
+    await expectFocusOn(page, filmTitle);
     await page.keyboard.press('ArrowUp');
     await expect.poll(inTiles).toBe(0);
 
@@ -1117,14 +1134,12 @@ test('«Meine Medien» and «Neu in …»: tiles by arrow keys and Tab, Enter op
     await expect(page).toHaveURL(/\/$/);
     await expect(mine).toBeVisible();
 
-    // Tab reaches the first tile after the side navigation, then «Alle anzeigen ›» of «Neu in
-    // Filme»: Enter opens the library sorted by «Zuletzt hinzugefügt».
+    // Tab reaches the first tile after the side navigation, then the title of «Neu in Filme»
+    // (concept 20 P-7): Enter opens the library sorted by «Zuletzt hinzugefügt».
     await resetFocus(page);
     await tabTo(page, page.getByRole('button', { name: 'Seitenleiste ausblenden' }));
     await tabTo(page, tiles.first(), 3);
-    const all = page
-      .getByRole('region', { name: 'Neu in Filme' })
-      .getByRole('link', { name: 'Alle anzeigen ›' });
+    const all = filmTitle;
     await expect(all).toHaveAttribute('href', `/libraries/${films.id}?sort=added`);
     await tabTo(page, all, libraries.length + 2);
     await page.keyboard.press('Enter');
@@ -1141,8 +1156,9 @@ test('«Meine Medien» and «Neu in …»: tiles by arrow keys and Tab, Enter op
 
 test('arrow keys move hero → rows → header, Enter opens, back returns', async ({ page }) => {
   const hasHero = (await hero(page).count()) > 0;
-  const firstCard = recentRow(page).getByRole('link').first();
-  const cards = recentRow(page).getByRole('link');
+  const cards = recentRow(page).getByRole('list').getByRole('link');
+  const firstCard = cards.first();
+  const recentTitle = recentRow(page).getByRole('link', { name: ROW_TITLES.recent });
 
   await page.keyboard.press('ArrowDown');
   if (hasHero) {
@@ -1153,29 +1169,36 @@ test('arrow keys move hero → rows → header, Enter opens, back returns', asyn
     await expectFocusOn(page, details);
 
     // Right on the last button pages the carousel; focus stays on the button.
-    const before = await hero(page).getByRole('heading', { level: 2 }).textContent();
+    const before = await hero(page).getByRole('heading', { level: 3 }).textContent();
     const slides = await strip(page).count();
     await page.keyboard.press('ArrowRight');
     await expectFocusOn(page, details);
     if (slides > 1) {
-      await expect(hero(page).getByRole('heading', { level: 2 })).not.toHaveText(before ?? '');
+      await expect(hero(page).getByRole('heading', { level: 3 })).not.toHaveText(before ?? '');
     }
     await page.keyboard.press('ArrowLeft');
     await expectFocusOn(page, play);
 
-    // Down to the rows: the poster row, the picks and "Weiterschauen" may stand between the
-    // buttons and "Neu hinzugefügt".
-    for (let presses = 0; presses < 5; presses += 1) {
+    // Up from the buttons onto the heading «Spotlight» over the stage, a link to its list
+    // (concept 20 P-7), and down again.
+    await page.keyboard.press('ArrowUp');
+    await expectFocusOn(page, hero(page).getByRole('link', { name: ROW_TITLES.spotlight }));
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, play);
+
+    // Down to the rows: the poster row, the picks and "Weiterschauen" (each with its title) may
+    // stand between the buttons and "Neu hinzugefügt".
+    for (let presses = 0; presses < 10; presses += 1) {
       if (
-        await recentRow(page)
-          .getByRole('link')
-          .evaluateAll((links) => links.includes(document.activeElement as HTMLAnchorElement))
+        await cards.evaluateAll((links) =>
+          links.includes(document.activeElement as HTMLAnchorElement),
+        )
       )
         break;
       await page.keyboard.press('ArrowDown');
     }
   } else {
-    for (let presses = 0; presses < 2; presses += 1) {
+    for (let presses = 0; presses < 4; presses += 1) {
       if (await firstCard.evaluate((element) => element === document.activeElement)) break;
       await page.keyboard.press('ArrowDown');
     }
@@ -1197,7 +1220,19 @@ test('arrow keys move hero → rows → header, Enter opens, back returns', asyn
     await expect.poll(inRecent).toBe(start);
   }
 
-  // Enter opens the detail page, browser back returns.
+  // Up from the cards onto the row title (concept 20 P-7); Enter opens the list, back returns.
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, recentTitle);
+  await expect(recentTitle).toHaveAttribute('href', '/lists/recent');
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/lists\/recent$/);
+  await expect(page.getByRole('heading', { level: 1, name: ROW_TITLES.recent })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(recentRow(page)).toBeVisible();
+  await firstCard.focus();
+
+  // Enter on a card opens the detail page, browser back returns.
   const href = await page.evaluate(() => document.activeElement?.getAttribute('href'));
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(new RegExp(`${href ?? '/items/'}$`));
@@ -1206,10 +1241,10 @@ test('arrow keys move hero → rows → header, Enter opens, back returns', asyn
   await expect(page).toHaveURL(/\/$/);
   await expect(recentRow(page)).toBeVisible();
 
-  // Up from the top content lands in the header.
+  // Up from the top content lands in the header: each row takes two presses, its title first.
   await resetFocus(page);
   await page.keyboard.press('ArrowDown');
-  for (let presses = 0; presses < 6; presses += 1) {
+  for (let presses = 0; presses < 20; presses += 1) {
     const inHeader = await page.evaluate(
       () =>
         document.activeElement?.closest('header') !== null &&
@@ -1249,10 +1284,11 @@ test('Tab: skip link, header, side navigation, hero, then the cards; no focus tr
       await tabTo(page, strip(page).and(page.locator('[aria-current="true"]')), 1);
     }
   }
+  // After the active poster its pen, check (concept 20 P-5) and mark.
   await tabTo(
     page,
     page.locator('main section[aria-labelledby]').first().getByRole('link').first(),
-    3,
+    4,
   );
   await expectNoFocusTrap(page, 120);
 });

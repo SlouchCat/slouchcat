@@ -220,3 +220,11 @@
   font-size: var(--sc-font-size-md);
   font-weight: var(--sc-font-weight-semibold);
 }
+
+/* «Alle erneut versuchen» and «Alle löschen …» above the failed runs (concept 20, P-6). */
+.bulkActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+}

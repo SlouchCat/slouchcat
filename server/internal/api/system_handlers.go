@@ -145,7 +145,7 @@ func toActivityEntry(a model.ActivityEntry) gen.ActivityEntry {
 		ItemTitle: optString(a.ItemTitle), LibraryName: optString(a.LibraryName),
 		Detail: gen.ActivityDetail{
 			NewTitles: d.NewTitles, Version: optString(d.Version), Trigger: optString(d.Trigger), Reason: optString(d.Reason),
-			JobType: optString(d.JobType), By: optString(d.By),
+			JobType: optString(d.JobType), By: optString(d.By), Mode: optString(d.Mode),
 		},
 	}
 	if d.SizeBytes > 0 {

@@ -32,8 +32,9 @@ type deliverPayload struct {
 	DeliveryID int64 `json:"deliveryId"`
 }
 
-// Dispatch is the default Dispatcher of the inbox: a new episode of a favourite becomes the event
-// new_content of the profile's account, in the profile's language, prefixed with its name (5.5).
+// Dispatch is the default Dispatcher of the inbox: a new episode of a series or podcast on the
+// watchlist becomes the event new_content of the profile's account, in the profile's language,
+// prefixed with its name (5.5).
 // Its visibility for the profile is checked before (NewEpisodes).
 func (s *Service) Dispatch(ctx context.Context, n model.Notification, p model.Profile) error {
 	parent := n.Item.SeriesTitle

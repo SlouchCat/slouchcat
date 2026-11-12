@@ -67,9 +67,19 @@ test('the column at 1280 px: its entries, arrows between them, Enter, into the c
   await expect(switchLink(nav(page))).toHaveAttribute('href', '/profiles');
   await expect(switchLink(nav(page))).toHaveText('Wechseln');
 
-  for (const name of ['Start', 'Suche', 'Merkliste', 'Radio', 'Downloads']) {
+  // «Gesehen» below «Radio» (concept 20 P-14).
+  const entries = ['Start', 'Suche', 'Merkliste', 'Radio', 'Gesehen', 'Downloads'];
+  for (const name of entries) {
     await expect(nav(page).getByRole('link', { name, exact: true })).toBeVisible();
   }
+  const top = await nav(page)
+    .getByRole('link')
+    .evaluateAll((links) => links.map((link) => link.textContent?.trim() ?? ''));
+  expect(top.filter((name) => entries.includes(name))).toEqual(entries);
+  await expect(nav(page).getByRole('link', { name: 'Gesehen', exact: true })).toHaveAttribute(
+    'href',
+    '/watched',
+  );
   await expect(nav(page).getByRole('link', { name: 'Start', exact: true })).toHaveAttribute(
     'aria-current',
     'page',
@@ -99,7 +109,7 @@ test('the column at 1280 px: its entries, arrows between them, Enter, into the c
   const account = nav(page).getByRole('list', { name: 'Konto' });
   await expect(account.getByRole('link', { name: 'Verwaltung' })).toHaveAttribute('href', '/admin');
   await expect(account.getByRole('link', { name: 'Profile', exact: true })).toBeVisible();
-  await expect(account.getByRole('link', { name: 'Meine Wiedergabe' })).toBeVisible();
+  await expect(account.getByRole('link', { name: 'Einstellungen' })).toBeVisible();
   await expect(nav(page).getByRole('button', { name: 'Abmelden' })).toBeVisible();
   await expect(hideButton(page)).toBeVisible();
 
@@ -128,7 +138,7 @@ test('the column at 1280 px: its entries, arrows between them, Enter, into the c
 
   // Arrow left from the first card of a row lands on the current page's entry; arrow right
   // returns to the card the viewer left.
-  const firstCard = recentRow(page).getByRole('link').first();
+  const firstCard = recentRow(page).getByRole('list').getByRole('link').first();
   await firstCard.focus();
   await page.keyboard.press('ArrowLeft');
   await expectFocusOn(page, start);
@@ -356,7 +366,8 @@ test('the prepaints lie on the band and on the first card, column shown and hidd
     );
     expectSameBox(
       await boxOf(page, '#hero-prepaint'),
-      await boxOf(page, 'main section[aria-roledescription] > div'),
+      // The stage, below the heading «Spotlight» (concept 20 P-7).
+      await boxOf(page, 'main section[aria-roledescription] > div + div'),
     );
   }
 

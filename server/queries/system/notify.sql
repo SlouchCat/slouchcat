@@ -1,20 +1,24 @@
 -- In-app notifications (M7, E-8, plan 5.5), package notify. Inbox reads join visible_items for the
 -- episode, so an entry whose episode the profile may no longer see is neither listed nor counted.
 
--- name: NotifyHasFavorites :one
--- Whether any profile has a favourite; without one a batch of new episodes needs no further read.
-SELECT EXISTS (SELECT 1 FROM favorites) AS has_favorites;
+-- name: NotifyHasFollowed :one
+-- Whether any profile has a series or podcast on its watchlist (concept 20 P-2: the watchlist took
+-- over from the favourite); without one a batch of new episodes needs no further read.
+SELECT EXISTS (
+    SELECT 1 FROM watchlist AS w JOIN items AS i ON i.id = w.item_id AND i.kind IN ('series', 'podcast')
+) AS has_followed;
 
--- name: NotifyFavoriteTargets :many
--- For a batch of new episodes: the favourite-able parent of each (the series of a series episode,
--- episode -> season -> series, or the podcast of a podcast episode) and every profile with a
--- favourite on that parent. Visibility of the episode is checked by the caller per profile through
+-- name: NotifyFollowerTargets :many
+-- For a batch of new episodes: the followed parent of each (the series of a series episode,
+-- episode -> season -> series, or the podcast of a podcast episode) and every profile with that
+-- parent on its watchlist. Visibility of the episode is checked by the caller per profile through
 -- package visibility.
-SELECT e.id AS episode_id, f.item_id AS parent_id, p.id, p.account_id, p.name, p.max_rating, p.language
+SELECT e.id AS episode_id, w.item_id AS parent_id, p.id, p.account_id, p.name, p.max_rating, p.language
 FROM items AS e
 LEFT JOIN items AS s ON s.id = e.parent_id AND e.kind = 'episode'
-JOIN favorites AS f ON f.item_id = CASE e.kind WHEN 'episode' THEN s.parent_id ELSE e.parent_id END
-JOIN profiles AS p ON p.id = f.profile_id
+JOIN watchlist AS w ON w.item_id = CASE e.kind WHEN 'episode' THEN s.parent_id ELSE e.parent_id END
+JOIN items AS f ON f.id = w.item_id AND f.kind IN ('series', 'podcast')
+JOIN profiles AS p ON p.id = w.profile_id
 WHERE e.id IN (sqlc.slice('episode_ids')) AND e.kind IN ('episode', 'podcast_episode') AND e.deleted_at IS NULL
 ORDER BY e.id, p.id;
 

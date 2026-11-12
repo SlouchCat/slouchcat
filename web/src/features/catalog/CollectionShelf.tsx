@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
 import { paths } from '@/app/paths';
 import { PosterCard, RowList, SpatialButtonLink, SpatialGroup } from '@/ui';
-import { isAudioKind, isFinished } from './labels';
+import { isAudioKind } from './labels';
+import { CoverWatched, WATCHED_KINDS } from './watched';
 import styles from './ItemPage.module.css';
 
 interface MemberShelfProps {
@@ -66,11 +67,11 @@ export function MemberShelf({
       {members.length > 0 && (
         <RowList
           aria-label={name}
+          arrows="always"
           preferredChildFocusKey={current ? memberKey(current) : undefined}
         >
           {members.map((member) => {
             const progress = member.progress;
-            const finished = isFinished(member);
             const audio = isAudioKind(member.kind);
             const active = member.id === currentId;
             return (
@@ -86,13 +87,9 @@ export function MemberShelf({
                 shape={audio ? 'square' : 'poster'}
                 active={active}
                 aria-current={active ? 'true' : undefined}
-                watchedLabel={
-                  finished
-                    ? t(audio ? 'library.status.heard' : 'library.status.watched')
-                    : undefined
-                }
                 progress={
-                  progress && !finished && progress.positionMs > 0
+                  // The running position; a finished title shows its check (concept 20 P-5).
+                  progress && !progress.completed && progress.positionMs > 0
                     ? {
                         percent: progress.percent,
                         label: t(audio ? 'item.listened' : 'item.watched', {
@@ -101,6 +98,7 @@ export function MemberShelf({
                       }
                     : undefined
                 }
+                check={WATCHED_KINDS.has(member.kind) ? <CoverWatched item={member} /> : undefined}
                 mark={coverMark?.(member)}
               />
             );

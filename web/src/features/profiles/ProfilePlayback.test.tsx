@@ -7,7 +7,7 @@ import { json, mockApi, renderApp, signedIn, type Routes } from '@/test/api';
 import { myPlaybackPrefsQuery } from './playbackPrefs';
 
 // The playback preferences in the profile form of the primary profile (concept 13 11.4): the same
-// fields as «Meine Wiedergabe», for any profile of the account.
+// fields as «Einstellungen», for any profile of the account.
 
 const routes = (extra: Routes = {}): Routes => ({
   ...signedIn,
@@ -52,7 +52,7 @@ describe('playback preferences in the profile form', () => {
       }),
     );
     const { queryClient } = renderApp('/settings/profiles');
-    // «Meine Wiedergabe» or the sound panel holds the lists of before.
+    // «Einstellungen» or the sound panel holds the lists of before.
     queryClient.setQueryData(myPlaybackPrefsQuery.queryKey, {
       audioLanguages: ['de'],
       subtitleMode: 'forced',

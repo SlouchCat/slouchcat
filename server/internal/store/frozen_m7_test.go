@@ -13,7 +13,8 @@ import (
 
 // The frozen M7 state carries every kind of M7 data (testdata/db/README.md), so later migrations
 // are tested against picks (global and per profile with note and window; discarded by 00041), a
-// manual collection with members, a watchlist entry, favourites, a changed row order with a
+// manual collection with members, a watchlist entry, favourites (on the watchlist since 00054,
+// concept 20 P-2), a changed row order with a
 // hidden row, the Trakt lists of a run and an in-app notification; the search index and the
 // genres come from the triggers. Migration 00021 (M11, ADR 0011) carries the trending entries over into
 // spotlight_entries and seeds the singleton spotlight_config with the former constants.
@@ -45,8 +46,8 @@ func TestFrozenM7StateCoversM7Data(t *testing.T) {
 		"manual collection with ordered members":     `SELECT count(*) FROM collections c WHERE c.source = 'manual' AND (SELECT count(*) FROM collection_items m WHERE m.collection_id = c.id) = 2`,
 		"collection in the search index":             `SELECT count(*) FROM search_index WHERE kind = 'collection'`,
 		"watchlist entry":                            `SELECT count(*) FROM watchlist`,
-		"favourite series":                           `SELECT count(*) FROM favorites f JOIN items i ON i.id = f.item_id WHERE i.kind = 'series'`,
-		"favourite podcast":                          `SELECT count(*) FROM favorites f JOIN items i ON i.id = f.item_id WHERE i.kind = 'podcast'`,
+		"favourite series on the watchlist":          `SELECT count(*) FROM watchlist w JOIN items i ON i.id = w.item_id WHERE i.kind = 'series' AND w.follow_since = w.created_at`,
+		"favourite podcast on the watchlist":         `SELECT count(*) FROM watchlist w JOIN items i ON i.id = w.item_id WHERE i.kind = 'podcast' AND w.follow_since = w.created_at`,
 		"changed row order with a hidden row":        `SELECT count(*) FROM home_rows WHERE key = 'genres' AND hidden = 1`,
 		"eight home rows":                            `SELECT count(*) FROM home_rows WHERE (SELECT count(*) FROM home_rows WHERE key NOT IN ('libraries', 'library', 'radio')) = 8`,
 		"spotlight movies and shows":                 `SELECT count(*) FROM spotlight_entries s WHERE s.list_key = 'trending' AND s.media = 'show' AND EXISTS (SELECT 1 FROM spotlight_entries u WHERE u.list_key = 'trending' AND u.media = 'movie')`,

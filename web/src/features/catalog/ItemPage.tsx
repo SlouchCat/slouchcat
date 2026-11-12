@@ -56,6 +56,8 @@ import { ItemMeta } from './ItemMeta';
 import { creditCaption, episodeCode, extraKindLabel, isAudioKind } from './labels';
 import { audioSeriesQuery, itemQuery, podcastEpisodesSource } from './queries';
 import { EpisodeList, SeasonShelf, seasonFacts } from './SeasonShelf';
+import { usePlayStart } from './usePlayStart';
+import { CoverWatched } from './watched';
 import styles from './ItemPage.module.css';
 
 const route = getRouteApi('/_authed/_active/_chrome/items/$itemId');
@@ -286,6 +288,8 @@ function PodcastEpisodes({ item }: { item: ItemDetail }) {
       .filter(Boolean)
       .join(t('format.separator')) || undefined;
   const error = paged.first.error ?? undefined;
+  // A started episode asks whether to resume or start over (concept 20 P-4).
+  const playStart = usePlayStart();
 
   return (
     <section className={styles.block} aria-labelledby="item-podcast-episodes-heading">
@@ -313,6 +317,8 @@ function PodcastEpisodes({ item }: { item: ItemDetail }) {
               progress={watchedProgress(t, episode)}
               playHref={paths.play(episode.id)}
               playLabel={t('item.podcast.play', { title: episode.title })}
+              onPlay={(event) => playStart.ask(episode, event)}
+              watchedControl={<CoverWatched item={episode} appearance="row" />}
             />
           )}
         />
@@ -335,6 +341,7 @@ function PodcastEpisodes({ item }: { item: ItemDetail }) {
         />
       )}
       {paged.failed && <PageRetry onRetry={paged.retry} />}
+      {playStart.dialog}
     </section>
   );
 }

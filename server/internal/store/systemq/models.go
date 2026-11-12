@@ -219,12 +219,6 @@ type DownloadTombstone struct {
 	RemovedAt int64
 }
 
-type Favorite struct {
-	ProfileID int64
-	ItemID    string
-	CreatedAt int64
-}
-
 type HomeRow struct {
 	ID        string
 	Key       string
@@ -354,6 +348,7 @@ type Item struct {
 	BookMatchScore    sql.NullFloat64
 	BookMatchError    sql.NullString
 	BookMatchManual   int64
+	RemovedAt         sql.NullInt64
 }
 
 type ItemFieldSource struct {
@@ -471,6 +466,7 @@ type Library struct {
 	PodcastLastN         int64
 	PodcastParallel      int64
 	PodcastRootID        sql.NullInt64
+	DeletingAt           sql.NullInt64
 }
 
 type LibraryMetadatum struct {
@@ -670,6 +666,7 @@ type Progress struct {
 	Completed    int64
 	UpdatedAt    int64
 	PlaybackRate sql.NullFloat64
+	WatchedAt    sql.NullInt64
 }
 
 type ProgressDay struct {
@@ -996,9 +993,10 @@ type VisibleItem struct {
 }
 
 type Watchlist struct {
-	ProfileID int64
-	ItemID    string
-	CreatedAt int64
+	ProfileID   int64
+	ItemID      string
+	CreatedAt   int64
+	FollowSince int64
 }
 
 type WebhookEvent struct {

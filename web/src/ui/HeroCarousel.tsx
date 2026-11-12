@@ -8,12 +8,12 @@ import {
   type ReactNode,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAppNavigate } from './AppLink';
+import { AppLink, useAppNavigate } from './AppLink';
 import { Button, SpatialButton, SpatialButtonLink } from './Button';
 import styles from './HeroCarousel.module.css';
 import { PosterCard } from './PosterCard';
 import { TitleOrLogo } from './TitleOrLogo';
-import { RowList } from './Row';
+import { RowList, RowTitle } from './Row';
 import { setSpatialFocus, SpatialGroup } from './spatial';
 
 export interface HeroSlide {
@@ -51,8 +51,13 @@ export interface HeroSlide {
 }
 
 interface HeroCarouselProps {
-  /** Visible eyebrow and accessible name of the carousel. */
+  /** Heading over the stage and accessible name of the carousel. */
   label: string;
+  /**
+   * The page of the whole list (concept 20 P-7): the heading over the stage becomes its link, like
+   * the title of a row, and a stop of the arrow keys above the stage's buttons.
+   */
+  href?: string;
   slides: readonly HeroSlide[];
   playLabel: string;
   detailsLabel: string;
@@ -65,6 +70,11 @@ interface HeroCarouselProps {
   resumeLabel: string;
   /** Opens the trailer of a slide; the button stands only on slides with `hasTrailer: true`. */
   onTrailerPress?: (slide: HeroSlide) => void;
+  /**
+   * Asked before «Abspielen» plays a slide: return true when the page takes the press over (a
+   * started film asks whether to resume, concept 20 P-4); the link then does not navigate.
+   */
+  onPlayPress?: (slide: HeroSlide) => boolean;
   /** Holds the carousel on its slide, for example while a dialog opened from it is on screen. */
   paused?: boolean;
   /**
@@ -77,7 +87,7 @@ interface HeroCarouselProps {
   /** Called once the first image is on screen (loaded and painted) or has failed. */
   onArtShown?: () => void;
   /**
-   * A control beside a poster of the row, over the top right of its cover (the start page's pen,
+   * A control beside a poster of the row, over the top left of its cover (the start page's pen,
    * concept 15 P-6), not inside the poster's button; `active` for the active poster, the row's one
    * Tab stop, so the tools of the others leave the Tab order. It turns with its poster (CSS
    * `order` of the list item); while it has the focus the band holds like on the poster.
@@ -89,6 +99,12 @@ interface HeroCarouselProps {
    * the active one. Not on the band above.
    */
   mark?: (slide: HeroSlide, active: boolean) => ReactNode;
+  /**
+   * The check mark «gesehen» over the top right of a poster of the row (concept 20 P-5), between
+   * `tool` and `mark` in the Tab order and, like them, out of it for every poster but the active
+   * one. Not on the band above.
+   */
+  check?: (slide: HeroSlide, active: boolean) => ReactNode;
 }
 
 export const HERO_PLAY_KEY = 'hero-play';
@@ -201,6 +217,7 @@ export function dismissHeroPrepaint() {
  */
 export function HeroCarousel({
   label,
+  href,
   slides,
   playLabel,
   detailsLabel,
@@ -209,12 +226,14 @@ export function HeroCarousel({
   pauseLabel,
   resumeLabel,
   onTrailerPress,
+  onPlayPress,
   paused: held = false,
   start = 0,
   intervalSeconds = 5,
   onArtShown,
   tool,
   mark,
+  check,
 }: HeroCarouselProps) {
   const { t } = useTranslation();
   const navigate = useAppNavigate();
@@ -390,18 +409,15 @@ export function HeroCarousel({
   };
   const follow = (event: MouseEvent<HTMLAnchorElement>, link: 'playHref' | 'detailsHref') => {
     const target = pressedSlide();
-    if (
-      !target ||
-      target.id === slide?.id ||
-      event.detail === 0 ||
-      event.button !== 0 ||
-      event.metaKey ||
-      event.ctrlKey ||
-      event.shiftKey ||
-      event.altKey
-    ) {
+    const plain =
+      event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+    // The slide the press meant: the one under the pointer when it went down, else the current.
+    const meant = target && event.detail !== 0 ? target : slide;
+    if (link === 'playHref' && plain && meant && onPlayPress?.(meant)) {
+      event.preventDefault();
       return;
     }
+    if (!target || target.id === slide?.id || event.detail === 0 || !plain) return;
     event.preventDefault();
     navigate(target[link]);
   };
@@ -445,6 +461,9 @@ export function HeroCarousel({
       data-paused={paused || undefined}
       style={{ '--hero-interval': `${intervalSeconds}s` } as CSSProperties}
     >
+      <div className={styles.header}>
+        <RowTitle title={label} href={href} focusKey="hero-title" />
+      </div>
       <div className={styles.stage}>
         <div className={styles.art} aria-hidden="true">
           {slides.map((item, position) => {
@@ -493,10 +512,6 @@ export function HeroCarousel({
         </div>
 
         <div className={styles.content}>
-          <p className={styles.eyebrow}>
-            <span className={styles.mark} aria-hidden="true" />
-            {label}
-          </p>
           <div
             key={slide.id}
             className={styles.slide}
@@ -505,9 +520,19 @@ export function HeroCarousel({
             aria-label={t('ui.carousel.position', { index: current + 1, count })}
             aria-live={paused ? 'polite' : 'off'}
           >
-            <h2 className={styles.title}>
-              <TitleOrLogo title={slide.title} logoUrl={slide.logoUrl} className={styles.logo} />
-            </h2>
+            {/* The film title leads to its detail page (concept 20 P-7) for the pointer; the keyboard
+                has «Details» right below, so the link is no extra stop. */}
+            <h3 className={styles.title}>
+              <AppLink
+                href={slide.detailsHref}
+                className={styles.titleLink}
+                tabIndex={-1}
+                onPointerDown={press}
+                onClick={(event) => follow(event, 'detailsHref')}
+              >
+                <TitleOrLogo title={slide.title} logoUrl={slide.logoUrl} className={styles.logo} />
+              </AppLink>
+            </h3>
             {slide.note && <p className={styles.note}>{slide.note}</p>}
             {slide.meta && <div className={styles.meta}>{slide.meta}</div>}
           </div>
@@ -622,6 +647,7 @@ export function HeroCarousel({
                 tabIndex={active ? 0 : -1}
                 onArrowPress={holdEnds(position)}
                 tool={tool?.(item, active)}
+                check={check?.(item, active)}
                 mark={mark?.(item, active)}
               >
                 {/* Time to the next slide; gone while the band holds, anew when it moves on. */}

@@ -161,14 +161,14 @@ func (s *Service) podcastWriteTest(r *os.Root) string {
 		return model.PodcastFolderReadOnly
 	}
 	_ = f.Close()
-	defer func() { _ = r.Remove(name) }()
+	defer func() { _ = r.Remove(name) }() //nolint:forbidigo // the own probe files of the podcast folder check, never a file of a title (concept 19 F-4, ADR 0032)
 	if err := r.Chmod(name, podcastFileMode); err != nil {
 		return model.PodcastFolderPermissions
 	}
 	if err := s.linkFile(r, name, link); err != nil {
 		return model.PodcastFolderNoHardLinks
 	}
-	_ = r.Remove(link)
+	_ = r.Remove(link) //nolint:forbidigo // the own probe files of the podcast folder check, never a file of a title (concept 19 F-4, ADR 0032)
 	if fi, err := r.Stat(name); err != nil || fi.Mode().Perm()&0o444 != 0o444 {
 		return model.PodcastFolderPermissions
 	}
@@ -193,7 +193,7 @@ func podcastFolderProblem(r *os.Root, folder string) string {
 // root; an own leftover of that name goes first): the download's test that it may write there
 // before it loads (5.4), where the folder check only tried the root.
 func podcastWriteProbe(r *os.Root, name string) bool {
-	if err := r.Remove(name); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	if err := r.Remove(name); err != nil && !errors.Is(err, fs.ErrNotExist) { //nolint:forbidigo // the own probe files of the podcast folder check, never a file of a title (concept 19 F-4, ADR 0032)
 		return false
 	}
 	f, err := r.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, podcastFileMode)
@@ -201,7 +201,7 @@ func podcastWriteProbe(r *os.Root, name string) bool {
 		return false
 	}
 	_ = f.Close()
-	return r.Remove(name) == nil
+	return r.Remove(name) == nil //nolint:forbidigo // the own probe files of the podcast folder check, never a file of a title (concept 19 F-4, ADR 0032)
 }
 
 // linkFile sets a hard link newname on oldname inside r (the test seam podcastLink replaces it).

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { formatBytes, formatDateTime } from '@/lib/format';
 import { Chip, Notice, Text, VisuallyHidden } from '@/ui';
 import { DataTable, type DataColumn } from '@/ui/aria';
+import { fullPath } from '../maintenance/shared';
 import styles from './AdminItem.module.css';
 
 type MediaFile = AdminItem['mediaFiles'][number];
@@ -19,7 +20,7 @@ function splitPath(path: string): { name: string; folder: string } {
 
 /**
  * The tab «Dateien» (TIT-6): per file a row with name, version, size and state; it folds out
- * into the whole path, when it was probed and the whole probe error, so long texts stay
+ * into the whole path in the container (library root and path, concept 20 P-10), when it was probed and the whole probe error, so long texts stay
  * reachable by keyboard and touch (S-5).
  */
 export function FilesTab({
@@ -102,7 +103,7 @@ export function FilesTab({
             onExpandedChange,
             render: (file) => (
               <div className={styles.stack}>
-                <code className={styles.path}>{file.path}</code>
+                <code className={styles.path}>{fullPath(file.rootPath, file.path)}</code>
                 {file.probedAt && (
                   <span className={styles.muted}>
                     {t('admin.item.files.probedAt', {

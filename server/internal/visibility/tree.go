@@ -17,8 +17,9 @@ import (
 // profile may not see is absent from every list, and a person exists for the profile only through
 // the visible titles of their credits.
 
-// treeExtras fills the child counts of series and seasons, the completed episodes of seasons,
-// whether a series or podcast is watched (every visible episode completed, contract 1.22.0), the
+// treeExtras fills the child counts of series and seasons, the watched episodes of seasons, series
+// and podcasts (watched_at, concept 20 section 6.3), whether a series or podcast is watched (every
+// visible episode watched, contract 1.22.0), the
 // parents the profile may see, the series titles of seasons and episodes (the text chain of the
 // scope, then the parsed title) and the series of episodes with their images (concept 15 P-1).
 // The series of all items are loaded together: one query for their texts and, when the items hold
@@ -28,11 +29,22 @@ func (r *Reader) treeExtras(ctx context.Context, pid int64, lang langPref, ids [
 	if err != nil {
 		return fmt.Errorf("list child counts: %w", err)
 	}
+	var tops []string
 	for _, c := range counts {
 		out.childCounts[c.ID] = int(c.ChildCount)
 		out.watched[c.ID] = int(c.WatchedCount)
 		if w, ok := c.Watched.(int64); ok { // NULL: no visible episode (or not a series or podcast)
 			out.allWatched[c.ID] = w == 1
+			tops = append(tops, c.ID)
+		}
+	}
+	if len(tops) > 0 { // series and podcasts with visible episodes: their watched ones (F-12)
+		watched, err := r.q.ListVisibleWatchedCounts(ctx, scopedq.ListVisibleWatchedCountsParams{ProfileID: pid, ItemIds: tops})
+		if err != nil {
+			return fmt.Errorf("list watched counts: %w", err)
+		}
+		for _, w := range watched {
+			out.watched[w.ID] = int(w.WatchedCount)
 		}
 	}
 	parents, err := r.q.ListVisibleParents(ctx, scopedq.ListVisibleParentsParams{ProfileID: pid, ItemIds: ids})
@@ -104,7 +116,7 @@ func (r *Reader) treeExtras(ctx context.Context, pid int64, lang langPref, ids [
 // completeDetail adds what the detail page of each kind shows: seasons, extras and next up of a
 // series, episodes, extras, next up and the series of a season, the season, series and next
 // episode of an episode, the extras of a film, and for every kind the cast, the number of
-// trailers, the favourite mark of the profile and the visible collections of the title (the
+// trailers, the own recommendation and the visible collections of the title (the
 // watchlist mark is on the summary).
 func (r *Reader) completeDetail(ctx context.Context, s Scope, pid int64, it scopedq.Item, d *model.ItemDetail) error {
 	self := sql.NullString{String: it.ID, Valid: true}
@@ -170,7 +182,7 @@ func (r *Reader) completeDetail(ctx context.Context, s Scope, pid int64, it scop
 		return fmt.Errorf("count trailers: %w", err)
 	}
 	d.TrailerCount = int(n)
-	return r.discoverDetail(ctx, s, pid, it.ID, d) // favourite mark, collections (M7)
+	return r.discoverDetail(ctx, s, pid, it.ID, d) // own recommendation, collections (M7)
 }
 
 // list returns a function that summarizes the result of one of the tree queries; what names the

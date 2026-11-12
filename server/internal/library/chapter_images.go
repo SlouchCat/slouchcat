@@ -358,7 +358,7 @@ func (s *Service) handleChapterImages(ctx context.Context, j *jobs.Job) error {
 	done := false
 	defer func() {
 		if !done {
-			_ = root.RemoveAll(tmp)
+			_ = root.RemoveAll(tmp) //nolint:forbidigo // the cache root (chapter images), never a library root (ADR 0032)
 		}
 	}()
 	written, black, failed := 0, 0, 0
@@ -452,7 +452,7 @@ func (s *Service) grabChapter(ctx context.Context, root *os.Root, cache paths.Ro
 		isBlack, gerr := s.grabFrame(frameCtx, in, at, transcode.ChapterImageWidth, v, out)
 		cancel()
 		if gerr != nil {
-			_ = root.Remove(try)
+			_ = root.Remove(try) //nolint:forbidigo // the cache root (chapter images), never a library root (ADR 0032)
 			if ctx.Err() != nil {
 				return ok, black, ctx.Err()
 			}
@@ -460,7 +460,7 @@ func (s *Service) grabChapter(ctx context.Context, root *os.Root, cache paths.Ro
 			continue
 		}
 		if rerr := root.Rename(try, rel); rerr != nil {
-			_ = root.Remove(try)
+			_ = root.Remove(try) //nolint:forbidigo // the cache root (chapter images), never a library root (ADR 0032)
 			err = fmt.Errorf("store chapter image: %w", rerr)
 			continue
 		}
@@ -526,7 +526,7 @@ func (s *Service) sweepChapterImages(ctx context.Context) error {
 				continue
 			}
 		}
-		if err := root.RemoveAll(rel); err != nil {
+		if err := root.RemoveAll(rel); err != nil { //nolint:forbidigo // the cache root (chapter images), never a library root (ADR 0032)
 			s.log.WarnContext(ctx, "remove stale chapter images", "folder", name, "err", err)
 			continue
 		}

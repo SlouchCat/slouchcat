@@ -72,7 +72,6 @@ describe('notifications', () => {
           genres: [],
           mediaFiles: [],
           inWatchlist: false,
-          favorite: false,
           collections: [],
         }),
     });

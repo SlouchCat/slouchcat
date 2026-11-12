@@ -67,7 +67,7 @@ func TestRelinkFoldsOlderTwins(t *testing.T) {
 	e.profiles(2)
 	a := e.addFilm(dir, lib.ID, "Heat A/Heat.mkv", 949)
 	e.progress(1, a, 100, true)
-	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (2, ?, 1)`, a)
+	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (2, ?, 1, 1)`, a)
 	e.dropFilm(dir, lib.ID, "Heat A/Heat.mkv")
 	e.clock.Advance(24 * time.Hour)
 	tt := e.addFilm(dir, lib.ID, "Heat T/Heat.mkv", 949)
@@ -424,7 +424,8 @@ func TestRelinkJobRecheckAndFallbackMatch(t *testing.T) {
 
 // User data that both titles hold for the same key: one row survives per unique key (watchlist,
 // notifications, downloads per device), condensed days add up, the further progress wins with its
-// playback rate, and a dead download of the survivor gives way to the copy's working one for the
+// playback rate while the later watched_at wins on its own (concept 20 section 6.3: the dead
+// title was finished once and started again), and a dead download of the survivor gives way to the copy's working one for the
 // same device, whose package the device keeps.
 func TestRelinkMergesConflictingUserData(t *testing.T) {
 	t.Parallel()
@@ -443,16 +444,17 @@ func TestRelinkMergesConflictingUserData(t *testing.T) {
 	copyD1, copyD2 := "01COPYDEV1AAAAAAAAAAAAAAAA", "01COPYDEV2AAAAAAAAAAAAAAAA"
 
 	dead := e.addFilm(dir, lib.ID, "Heat/Heat.mkv", 949)
-	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (1, ?, 1)`, dead)
+	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (1, ?, 1, 1)`, dead)
 	e.exec(`INSERT INTO notifications (profile_id, kind, item_id, created_at) VALUES (1, 'new_episode', ?, 1)`, dead)
 	e.exec(`INSERT INTO progress_days (profile_id, item_id, device_id, day, played_ms, plays) VALUES (1, ?, '', 10, 100, 1)`, dead)
 	e.progress(1, dead, 500, false)
+	e.exec(`UPDATE progress SET watched_at = 7 WHERE item_id = ?`, dead)
 	download(deadD1, dev1, dead, e.fileOf("Heat/Heat.mkv"), nil) // its file goes missing below
 	download(deadD2, dev2, dead, nil, "https://example.org/heat.mkv")
 	e.dropFilm(dir, lib.ID, "Heat/Heat.mkv")
 
 	c := e.addFilm(dir, lib.ID, "Heat Copy/Heat.mkv", 949)
-	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (1, ?, 2), (2, ?, 2)`, c, c)
+	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (1, ?, 2, 2), (2, ?, 2, 2)`, c, c)
 	e.exec(`INSERT INTO notifications (profile_id, kind, item_id, created_at) VALUES (1, 'new_episode', ?, 2), (2, 'new_episode', ?, 2)`, c, c)
 	e.exec(`INSERT INTO progress_days (profile_id, item_id, device_id, day, played_ms, plays) VALUES (1, ?, '', 10, 50, 2), (1, ?, '', 11, 7, 1)`, c, c)
 	e.exec(`INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, playback_rate, updated_at)
@@ -469,7 +471,7 @@ func TestRelinkMergesConflictingUserData(t *testing.T) {
 		{"watchlist", `SELECT group_concat(profile_id || ':' || created_at, ' ') FROM (SELECT * FROM watchlist WHERE item_id = ? ORDER BY profile_id)`, "1:1 2:2"},
 		{"notifications", `SELECT group_concat(profile_id || ':' || created_at, ' ') FROM (SELECT * FROM notifications WHERE item_id = ? ORDER BY profile_id)`, "1:1 2:2"},
 		{"progress days", `SELECT group_concat(day || ':' || played_ms || ':' || plays, ' ') FROM (SELECT * FROM progress_days WHERE item_id = ? ORDER BY day)`, "10:150:3 11:7:1"},
-		{"progress", `SELECT position_ms || ':' || playback_rate FROM progress WHERE item_id = ?`, "900:1.5"},
+		{"progress", `SELECT position_ms || ':' || playback_rate || ':' || watched_at FROM progress WHERE item_id = ?`, "900:1.5:7"},
 		{"downloads", `SELECT group_concat(device_id || ':' || id, ' ') FROM (SELECT * FROM downloads WHERE item_id = ? ORDER BY device_id)`,
 			dev1 + ":" + copyD1 + " " + dev2 + ":" + deadD2},
 	} {

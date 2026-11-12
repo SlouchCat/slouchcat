@@ -1,14 +1,13 @@
 import type { KeyState, Library } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId, useRef, useState, type FormEvent, type RefObject } from 'react';
+import { useEffect, useId, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formErrors, problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import { formatBookLength, formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Chip, Notice, SelectField, Skeleton, Text, TextLink, VisuallyHidden } from '@/ui';
 import {
   AdminPage,
@@ -33,7 +32,7 @@ import {
   type DataColumn,
 } from '@/ui/aria';
 import { MetadataEditor } from './editor/MetadataEditor';
-import { Actions, Outcome, SourceChip } from './integrations/shared';
+import { SourceChip } from './integrations/shared';
 import { providerName } from './item/facts';
 import { LibraryFoldersDialog } from './libraries/LibraryFoldersDialog';
 import {
@@ -42,7 +41,6 @@ import {
   AUDIOBOOK_MATCH_POLL_MS,
   librariesQuery,
   matchAllAudiobooks,
-  metadataProvidersQuery,
   updateAudiobookSources,
   type AudibleRegion,
   type AudiobookAutoMatch,
@@ -75,7 +73,6 @@ const AUTO = {
 const isAuto = (value: string): value is AudiobookAutoMatch => value in AUTO;
 
 /** Where a signed-in user creates a key for Google Books (an address, not a text). */
-const GOOGLE_KEY_URL = 'https://console.cloud.google.com/apis/credentials';
 
 /** The tolerances the page offers by name (mockup `Quellen`); the server allows 1 to 10. */
 const TOLERANCES = [1, 3, 5] as const;
@@ -413,89 +410,21 @@ function Settings({
   );
 }
 
-/** Google Books' key (KeyRow of the integrations): write-only, saved and deleted on its own. */
+/**
+ * Google Books' key: stored and checked on the page of the provider keys since concept 20 (O-7);
+ * here its state and the way there.
+ */
 function GoogleBooksKey({ state }: { state: KeyState }) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const [message, setMessage] = useStatusMessage();
-  const [value, setValue] = useState('');
-  const name = t('admin.audiobookSources.googleBooks.name');
-  const save = useTransientMutation(updateAudiobookSources, (next, body) => {
-    queryClient.setQueryData(audiobookSourcesQuery.queryKey, next);
-    // The editor offers Google Books only while it has a key.
-    void queryClient.invalidateQueries({ queryKey: metadataProvidersQuery.queryKey });
-    if (body.clearGoogleBooksKey) setValue('');
-    setMessage(
-      t(body.clearGoogleBooksKey ? 'admin.integrations.cleared' : 'admin.integrations.saved', {
-        name,
-      }),
-    );
-  });
-  const errors = save.error ? formErrors(t, save.error) : null;
-  const env = state.source === 'env';
-  const keepHintId = useId();
-  const keepHint = state.source === 'stored' ? t('admin.integrations.keys.newValue') : undefined;
-
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    // Empty keeps what is stored (decision 18).
-    if (value === '') return;
-    setMessage(null);
-    const sent = value;
-    void save.run({ googleBooksKey: value.trim() }).then((outcome) => {
-      if (outcome.ok) setValue((current) => (current === sent ? '' : current));
-    });
-  };
-
   return (
     <SettingRow
-      label={name}
+      label={t('admin.audiobookSources.googleBooks.name')}
       labelAddon={<SourceChip source={state.source} hint={state.hint} />}
-      help={
-        <>
-          {t('admin.audiobookSources.googleBooks.description')}{' '}
-          <TextLink href={GOOGLE_KEY_URL} external>
-            {t('admin.audiobookSources.googleBooks.link')}
-          </TextLink>
-        </>
-      }
+      help={t('admin.audiobookSources.googleBooks.description')}
     >
-      <div className={styles.stack}>
-        <Form className={styles.keyForm} onSubmit={onSubmit} validationErrors={errors?.fields}>
-          <TextField
-            name="googleBooksKey"
-            type="password"
-            label={name}
-            hideLabel
-            description={env ? t('admin.integrations.envHint') : undefined}
-            placeholder={keepHint && t('admin.integrations.keys.setPlaceholder')}
-            aria-describedby={keepHint && keepHintId}
-            autoComplete="off"
-            spellCheck="false"
-            mono
-            isDisabled={env}
-            value={value}
-            onChange={setValue}
-            validate={(text) =>
-              env || text === '' || text.trim() ? null : t('errors.field.required')
-            }
-          />
-          {!env && (
-            <Actions
-              name={name}
-              saveLabel={t('admin.integrations.saveLabel', { name })}
-              stored={state.source === 'stored'}
-              isPending={save.isPending}
-              onClear={() => {
-                setMessage(null);
-                return save.run({ clearGoogleBooksKey: true });
-              }}
-            />
-          )}
-        </Form>
-        {keepHint && <VisuallyHidden id={keepHintId}>{keepHint}</VisuallyHidden>}
-        <Outcome error={errors?.form ? save.error : null} message={message} />
-      </div>
+      <TextLink href={paths.adminIntegrations}>
+        {t('admin.audiobookSources.googleBooks.link')}
+      </TextLink>
     </SettingRow>
   );
 }

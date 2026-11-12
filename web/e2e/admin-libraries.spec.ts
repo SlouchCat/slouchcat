@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { CSRF } from './catalog';
 import {
   expectFocusOn,
   expectNoFocusTrap,
@@ -412,9 +413,16 @@ test('the audio libraries show kind and default rating; the menu opens the ratin
   });
   await tabTo(page, more, 10);
   await page.keyboard.press('Enter');
+  const rename = page.getByRole('menuitem', { name: 'Umbenennen …' });
   const item = page.getByRole('menuitem', { name: 'Standardstufe ändern' });
+  await expectFocusOn(page, rename);
+  // ↓ reaches «Standardstufe ändern», then «Bibliothek löschen …» below «Gefahr» (concept 20
+  // P-8); ↑ goes back.
+  await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, item);
   await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, page.getByRole('menuitem', { name: 'Bibliothek löschen …' }));
+  await page.keyboard.press('ArrowUp');
   await expectFocusOn(page, item);
   await page.keyboard.press('Escape');
   await expect(item).toHaveCount(0);
@@ -422,6 +430,8 @@ test('the audio libraries show kind and default rating; the menu opens the ratin
 
   // "Standardstufe ändern" opens the dialog with the current rating; Escape leaves it unchanged.
   await page.keyboard.press('Enter');
+  await expectFocusOn(page, rename);
+  await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, item);
   await page.keyboard.press('Enter');
   const dialog = page.getByRole('dialog', { name: 'Standardstufe von Hörbücher' });
@@ -437,6 +447,77 @@ test('the audio libraries show kind and default rating; the menu opens the ratin
     foldOut(page, 'Podcasts').getByText('Kein Ordner: Die Titel kommen aus abonnierten Feeds.'),
   ).toBeVisible();
   await expectNoFocusTrap(page);
+});
+
+test('«Umbenennen …» renames a library by keyboard, one request per submit @keyboard', async ({
+  page,
+}) => {
+  // A podcast library of the test's own: it needs no folder, and no other spec knows its name.
+  const before = 'E2E Umbenennen';
+  const after = 'E2E Umbenannt';
+  const created = await page.request.post('/api/v1/admin/libraries', {
+    headers: CSRF,
+    data: { name: before, kind: 'podcasts', roots: [] },
+  });
+  expect(created.status()).toBe(201);
+  const id = ((await created.json()) as { id: number }).id;
+  try {
+    await page.reload();
+    await expect(toggle(page, before)).toBeVisible();
+    await resetFocus(page);
+    await openRow(page, before);
+    const more = (name: string) =>
+      page.getByRole('button', { name: `Weitere Aktionen für ${name}` });
+    await tabTo(page, more(before), 10);
+    await page.keyboard.press('Enter');
+    await expectFocusOn(page, page.getByRole('menuitem', { name: 'Umbenennen …' }));
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('dialog', { name: `Bibliothek «${before}» umbenennen` });
+    const field = dialog.getByLabel('Name', { exact: true });
+    // The field holds the name, selected: typing replaces it.
+    await expectFocusOn(page, field);
+    await expectVisibleFocus(page);
+    await expect(field).toHaveValue(before);
+    expect(
+      await field.evaluate((input: HTMLInputElement) => [input.selectionStart, input.selectionEnd]),
+    ).toEqual([0, before.length]);
+
+    // Escape leaves the name as it was and hands the focus back to the menu button.
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expectFocusOn(page, more(before));
+
+    // Now for real: Enter in the field saves, with one request.
+    const sent: string[] = [];
+    page.on('request', (request) => {
+      if (request.method() === 'PATCH' && request.url().endsWith(`/admin/libraries/${id}`))
+        sent.push(request.url());
+    });
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
+    await expectFocusOn(page, field);
+    await page.keyboard.type(after);
+    await page.keyboard.press('Enter');
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByText(`Die Bibliothek heisst jetzt «${after}».`)).toBeVisible();
+    await expect(toggle(page, after)).toBeVisible();
+    await expect(toggle(page, before)).toHaveCount(0);
+    await expectFocusOn(page, more(after));
+    await expectVisibleFocus(page);
+    expect(sent).toHaveLength(1);
+    await expectNoFocusTrap(page);
+  } finally {
+    const listed = (await (await page.request.get('/api/v1/admin/libraries')).json()) as {
+      id: number;
+      name: string;
+    }[];
+    const name = listed.find((library) => library.id === id)?.name;
+    if (name)
+      await page.request.post(`/api/v1/admin/libraries/${id}/deletion`, {
+        headers: CSRF,
+        data: { confirmName: name },
+      });
+  }
 });
 
 test('«Vorschau beim Spulen» by keyboard: groups with arrows, Speichern, scope, Escape and save (concept 18, 9) @keyboard', async ({

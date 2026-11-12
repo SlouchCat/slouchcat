@@ -235,10 +235,11 @@ func TestFetchSourceResumes(t *testing.T) {
 	}
 }
 
-// O-3, M7 E-8: a profile with a favourite podcast gets the visible episodes published after the
-// newest one Slouchcat knew when the favourite was set and after the newest one the profile
-// started, newest first, up to maxCount; the explicit episode never for a profile under 18.
-// Listening alone (without a favourite) downloads nothing.
+// O-3, concept 20 P-2: a profile with the podcast on its watchlist gets the visible episodes
+// published after the newest one Slouchcat knew when the profile began to follow it (follow_since,
+// not created_at) and after the newest one the profile started, newest first, up to maxCount; the
+// explicit episode never for a profile under 18. Listening alone (without the watchlist entry)
+// downloads nothing.
 func TestPodcastAutoDownloads(t *testing.T) {
 	t.Parallel()
 	e := newAudioEnv(t)
@@ -259,8 +260,9 @@ func TestPodcastAutoDownloads(t *testing.T) {
 	for i, ep := range []vistest.Movie{a.FileOnlyExplicit, a.Episodes[0], a.Episodes[1], a.Episodes[2], a.Episodes[3], a.Explicit, a.EnclosureOnly} {
 		e.exec(`UPDATE items SET added_at = ? WHERE id = ?`, time.Date(2026, 10, 1+i, 7, 0, 0, 0, time.UTC).UnixMilli(), ep.ID)
 	}
-	favorite := func(p model.Profile, at time.Time) {
-		e.exec(`INSERT INTO favorites (profile_id, item_id, created_at) VALUES (?, ?, ?)`, p.ID, a.Podcast.ID, at.UnixMilli())
+	follow := func(p model.Profile, created, since time.Time) {
+		e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (?, ?, ?, ?)`,
+			p.ID, a.Podcast.ID, created.UnixMilli(), since.UnixMilli())
 	}
 	auto := func(s model.OfflineSync) []string {
 		var out []string
@@ -274,15 +276,16 @@ func TestPodcastAutoDownloads(t *testing.T) {
 	}
 	sorted := func(ids ...string) []string { slices.Sort(ids); return ids }
 
-	// Without a favourite there is nothing to download, even after listening.
+	// Without the watchlist entry there is nothing to download, even after listening.
 	rule(e.f.P16, 3)
 	started(e.f.P16, a.Episodes[1].ID)
 	if got := auto(e.sync(e.f.P16, e.devA)); len(got) != 0 {
-		t.Fatalf("auto-downloads without a favourite: %v", got)
+		t.Fatalf("auto-downloads without a watchlist entry: %v", got)
 	}
-	// P16 set the favourite when only episode 0 was known and started episode 6: the visible
-	// episodes newer than episode 6 come, the explicit one does not.
-	favorite(e.f.P16, time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC))
+	// P16 put the podcast on its watchlist when only episode 0 was known and started episode 6: the
+	// visible episodes newer than episode 6 come, the explicit one does not.
+	at := time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
+	follow(e.f.P16, at, at)
 	if got, want := auto(e.sync(e.f.P16, e.devA)), sorted(a.EnclosureOnly.ID, a.Episodes[3].ID, a.Episodes[2].ID); !slices.Equal(got, want) {
 		t.Errorf("P16 auto-downloads = %v, want %v", got, want)
 	}
@@ -291,10 +294,12 @@ func TestPodcastAutoDownloads(t *testing.T) {
 		MaxCount: 3, Quality: model.DownloadLow}); err != nil {
 		t.Fatal(err)
 	}
-	// P18 started episode 6 but set the favourite when episode 16 was the newest: only the two
-	// episodes after it count (not episodes 12 and 16), the explicit one included.
+	// P18 started episode 6 and had the podcast on its watchlist since before episode 0, but follows it
+	// only since episode 16 was the newest (migration 00054 sets follow_since to the moment of the
+	// migration): only the two episodes after it count (not episodes 12 and 16), the explicit one
+	// included.
 	started(e.f.P18, a.Episodes[1].ID)
-	favorite(e.f.P18, time.Date(2026, 10, 5, 12, 0, 0, 0, time.UTC))
+	follow(e.f.P18, time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC), time.Date(2026, 10, 5, 12, 0, 0, 0, time.UTC))
 	if got, want := auto(e.sync(e.f.P18, e.devB)), sorted(a.EnclosureOnly.ID, a.Explicit.ID); !slices.Equal(got, want) {
 		t.Errorf("P18 auto-downloads = %v, want %v", got, want)
 	}

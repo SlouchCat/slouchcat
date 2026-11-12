@@ -268,6 +268,9 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	// Playback exists before the metadata jobs run: a match that changes a rating ends the open
 	// direct-play streams of titles that became invisible (M3 review, finding 20).
 	playbackSvc, mgr, caps, closeTranscoder := newPlayback(ctx, cfg, db, runner, keyring, log)
+	// The titles a delete works on: playback refuses to start one (concept 20, ADR 0032).
+	deleting := model.NewDeletingSet()
+	playbackSvc.WithDeleting(deleting)
 	// Registered after the database's Close, so it runs before it: the start events still being
 	// written to the activity log finish first (after the HTTP server and the workers stopped).
 	defer func() {
@@ -275,9 +278,10 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		defer cancel()
 		playbackSvc.WaitActivity(drain)
 	}()
-	// In-app inbox (M7, E-8): new episodes of favourite series and podcasts, checked against the
-	// profile's visibility before an entry is stored. Channels (M8, A-6): deliveries through the
-	// queue; the Telegram base URL and http push endpoints (mocks) only in development mode.
+	// In-app inbox (M7, E-8): new episodes of the series and podcasts on a profile's watchlist
+	// (concept 20 P-2), checked against the profile's visibility before an entry is stored. Channels
+	// (M8, A-6): deliveries through the queue; the Telegram base URL and http push endpoints (mocks)
+	// only in development mode.
 	if !cfg.Dev && cfg.TelegramBaseURL != "" {
 		log.Warn("SLOUCHCAT_TELEGRAM_BASE_URL is ignored without --dev")
 	}
@@ -349,7 +353,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		library.WithNewEpisodes(notifySvc.NewEpisodes), library.WithScanAborted(notifySvc.ScanAborted),
 		library.WithRootRemoved(notifySvc.RootRemoved), library.WithRootContentChanged(notifySvc.RootContentChanged),
 		library.WithBrowseRoots(cfg.BrowseRoots), library.WithVisibilityRecheck(playbackSvc.RecheckVisibility),
-		library.WithCacheDir(cfg.CacheDir), library.WithImageFolders(metaSvc.SweepOrphanImages, metaSvc.RemoveItemImages))
+		library.WithCacheDir(cfg.CacheDir), library.WithImageFolders(metaSvc.SweepOrphanImages, metaSvc.RemoveItemImages),
+		library.WithBackups(cfg.ConfigDir, version), library.WithDeleting(deleting))
 	authSvc.WithMetadataLanguages(metaSvc.AvailableMetadataLanguages)
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
 	// The zone of the watch-time grid, resolved once by name (concept 12).
@@ -357,7 +362,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	adminSvc.WithLocation(zone)
 	log.Info("time zone of the statistics", "zone", zoneName)
 	adminSvc.WithTrickplay(libSvc).WithPodcastStorage(libSvc).WithImageRemoval(metaSvc.RemoveItemImages)
-	adminSvc.WithAniList(cfg.AniList).WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc).WithBooks(metaSvc).
+	adminSvc.WithAniList(cfg.AniList).WithQueue(queue).WithLibraryMaintenance(libSvc).WithTitleDeletion(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc).WithBooks(metaSvc).
 		WithTrakt(metaSvc).WithBackups(cfg.ConfigDir, version).WithRestart(requestRestart).
 		// The browsable roots are classified once, here: the wizard's root list answers before
 		// any account exists and must make no system call per request (idea 02, E5).

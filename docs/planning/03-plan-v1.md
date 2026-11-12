@@ -211,7 +211,7 @@ Festgeschriebener Umfang der eigenen Queue in SQLite: Lease mit Ablauf (5 min, H
 | `slouchcat` | ja | Go-Binary (per `GOARCH` cross-kompiliert, nur die apt-Stufe emuliert), eingebettete Web-App, ffmpeg/ffprobe (jellyfin-ffmpeg-Build), Intel-/AMD-Mediatreiber; Basis `debian:trixie-slim` (aktuelles Debian stable; jellyfin-ffmpeg liefert trixie-Pakete, wird in M0 verifiziert; fehlt ein Paket für eine Architektur, bleibt diese auf `bookworm-slim` bis zum nächsten jellyfin-ffmpeg-Release, dokumentiert in der ADR); amd64 ab M0, arm64 ab M1b; Lizenzordner `/licenses` mit GPL-Quellcode-Hinweis für ffmpeg |
 | `caddy` | optional (Profil `https`) | Reverse Proxy mit Let's-Encrypt-Zertifikat (K-8) |
 
-Volumes: `/config` (DB, Einstellungen, Sicherungen, `secret.key`), `/cache` (regenerierbar), `/media/...` read-only (B-1). Beim Start prüft der Server per `statfs`, ob `/config` auf NFS/SMB/CIFS liegt, und bricht mit klarer Meldung ab (SQLite-WAL auf Netzlaufwerken beschädigt die Datenbank).
+Volumes: `/config` (DB, Einstellungen, Sicherungen, `secret.key`), `/cache` (regenerierbar), `/media/...` read-only (B-1; ein bewusst schreibbar eingebundener Ordner nach ADR 0029 und ADR 0032 ist die Ausnahme des Betreibers). Beim Start prüft der Server per `statfs`, ob `/config` auf NFS/SMB/CIFS liegt, und bricht mit klarer Meldung ab (SQLite-WAL auf Netzlaufwerken beschädigt die Datenbank).
 
 ```yaml
 # compose.yaml (Auszug)
@@ -536,7 +536,7 @@ Durchstich-Ziel "innerhalb der ersten Wochen" (Spec "Constraints"): M0 + M1a = 1
 | K-6 | M2 | E2E: Einladung → Gastkonto → eigenes Profil; Gast erhält 403 auf alle `x-visibility: admin`-Operationen und sieht nur freigegebene Bibliotheken; benutzter/abgelaufener Link → 410 |
 | K-7 | M2, M5 | Test: nach Entzug 401 auf allen Sitzungen und Stream-Tokens innert 1 s; Downloads des Gastes beim nächsten Kontakt gelöscht (AN-4) |
 | K-8 | M2 | Manuell: HTTPS-Domain mit gültigem Zertifikat (Caddy-Profil); automatisiert: 10.2 läuft direkt gegen die API ohne UI |
-| B-1 | M1a | E2E: Bibliothek Typ Film und Serie anlegen; Schreibversuch des Server-Prozesses auf `/media` schlägt fehl (`:ro`, Test im Container) |
+| B-1 | M1a | E2E: Bibliothek Typ Film und Serie anlegen; Schreibversuch des Server-Prozesses auf `/media` schlägt fehl (`:ro`, Test im Container). *Nachtrag ADR 0032 (12. November 2026): gilt für die Vorgabe weiter; Gegenstück für einen bewusst schreibbar eingebundenen Ordner: «Auch die Dateien löschen» löscht genau die Dateien des Titels (`web/e2e/admin-item-delete.spec.ts`, `server/internal/library/delete_files_test.go`), bei einem nur lesbaren Ordner ist die Wahl grau (`TestDeleteFilesRefusedOnReadOnlyMount`)* |
 | B-2 | M1a, M3 | Namenskorpus ≥ 150 Pfadmuster + 20 NFO-Fälle: ≥ 98 % korrekt als Film/Serie/Staffel/Folge |
 | B-3 | M1a, M2, M3 | Test: Profil de/en erhält Titel und Beschreibung in seiner Sprache, Fallback en; Poster für 25 Referenzfilme vorhanden |
 | B-4 | M1a | Test ext4: neu/umbenannt/gelöscht sichtbar < 60 s; Umbenennung behält Fortschritt; Netzfreigaben gemäss AN-12 mit Messwert |

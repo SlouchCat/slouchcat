@@ -98,7 +98,7 @@ func (q *Queries) PodcastFindByFeed(ctx context.Context, arg PodcastFindByFeedPa
 }
 
 const podcastGet = `-- name: PodcastGet :one
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, l.default_rating AS library_default_rating
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at, l.default_rating AS library_default_rating
 FROM items AS i JOIN libraries AS l ON l.id = i.library_id
 WHERE i.id = ?1 AND i.kind = 'podcast'
 `
@@ -178,6 +178,7 @@ type PodcastGetRow struct {
 	BookMatchScore       sql.NullFloat64
 	BookMatchError       sql.NullString
 	BookMatchManual      int64
+	RemovedAt            sql.NullInt64
 	LibraryDefaultRating sql.NullInt64
 }
 
@@ -260,6 +261,7 @@ func (q *Queries) PodcastGet(ctx context.Context, id string) (PodcastGetRow, err
 		&i.BookMatchScore,
 		&i.BookMatchError,
 		&i.BookMatchManual,
+		&i.RemovedAt,
 		&i.LibraryDefaultRating,
 	)
 	return i, err
@@ -271,7 +273,7 @@ INSERT INTO items (id, kind, library_id, title, sort_title, author, explicit, co
                    matched_at, added_at, created_at, updated_at)
 VALUES (?1, 'podcast', ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
         ?10, ?11, ?12, ?13, ?14, '["local"]', 'matched', ?11, ?11, ?11, ?11)
-RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual
+RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at
 `
 
 type PodcastInsertParams struct {
@@ -387,6 +389,7 @@ func (q *Queries) PodcastInsert(ctx context.Context, arg PodcastInsertParams) (I
 		&i.BookMatchScore,
 		&i.BookMatchError,
 		&i.BookMatchManual,
+		&i.RemovedAt,
 	)
 	return i, err
 }
@@ -486,7 +489,7 @@ INSERT INTO items (id, kind, library_id, title, sort_title, author, genres, expl
                    feed_error, own_rating, rating_source, providers, metadata_state, matched_at, added_at, created_at, updated_at)
 VALUES (?1, 'podcast', ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
         ?11, ?12, ?13, '["local"]', 'matched', ?14, ?14, ?14, ?14)
-RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual
+RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at
 `
 
 type PodcastInsertFromFolderParams struct {
@@ -604,6 +607,7 @@ func (q *Queries) PodcastInsertFromFolder(ctx context.Context, arg PodcastInsert
 		&i.BookMatchScore,
 		&i.BookMatchError,
 		&i.BookMatchManual,
+		&i.RemovedAt,
 	)
 	return i, err
 }

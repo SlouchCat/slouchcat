@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import type { Page, TestInfo } from '@playwright/test';
 import { createProfile, loginOwner } from './accounts';
 import { CSRF } from './catalog';
-import { introSeason, setFavorite } from './discover';
+import { introSeason, setWatchlist } from './discover';
 import { OWNER, OWNER_PROFILE } from './env';
 import { expect, test } from './fixtures';
 import {
@@ -198,14 +198,14 @@ function copyTarget(testInfo: TestInfo): string {
   return String(13 + project * 5 + Math.min(testInfo.retry, 1)).padStart(2, '0');
 }
 
-test('E-8: a new episode of a favourite reaches the e-mail channel with the profile name', async ({
+test('E-8: a new episode of a series on the watchlist reaches the e-mail channel with the profile name', async ({
   owner,
 }, testInfo) => {
   // Copy to mail: the scan, the dispatch through the job queue and the SMTP delivery (plan A-6).
   test.setTimeout(180_000);
   await setChannel(owner, 'email', { enabled: true, events: ['new_content'] });
   const series = await itemIdByTitle(owner, INTRO_SHOW_TITLE);
-  await setFavorite(owner, series, true);
+  await setWatchlist(owner, series, true);
 
   const season = introSeason();
   const source = readdirSync(season).find((name) => /S01E01\.\w+$/.test(name));

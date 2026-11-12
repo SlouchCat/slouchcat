@@ -223,6 +223,15 @@ var adminRegistry = map[string]adminCall{
 	"applyMetadata":         {contract: "POST /admin/metadata/apply", path: "/admin/metadata/apply", body: `{"what":["texts"]}`, ownerStatus: http.StatusAccepted},
 	"removeLibraryRoot": {contract: "POST /admin/libraries/{id}/roots/{rootId}/removal", path: "/admin/libraries/777/roots/888/removal",
 		body: `{"confirmPath":"/media/does-not-exist"}`, ownerStatus: http.StatusNotFound},
+	// Concept 20 P-9: unknown titles; the removed list of the fixture is empty.
+	"getItemDeletion": {contract: "GET /admin/items/{id}/deletion", path: "/admin/items/" + unknownItemID + "/deletion", ownerStatus: http.StatusNotFound},
+	"deleteItem": {contract: "POST /admin/items/{id}/deletion", path: "/admin/items/" + unknownItemID + "/deletion",
+		body: `{"mode":"library","expectedFiles":{"count":0,"hash":"00000000000000000000000000000000"}}`, ownerStatus: http.StatusNotFound},
+	"listRemovedItems":   {contract: "GET /admin/maintenance/removed", path: "/admin/maintenance/removed", ownerStatus: http.StatusOK},
+	"restoreRemovedItem": {contract: "POST /admin/maintenance/removed/{id}/restore", path: "/admin/maintenance/removed/" + unknownItemID + "/restore", ownerStatus: http.StatusNotFound},
+	// Concept 20 P-8: the fixture has no library 777.
+	"deleteLibrary": {contract: "POST /admin/libraries/{id}/deletion", path: "/admin/libraries/777/deletion",
+		body: `{"confirmName":"Filme"}`, ownerStatus: http.StatusNotFound},
 	"listInvitations":     {contract: "GET /admin/invitations", path: "/admin/invitations", ownerStatus: http.StatusOK},
 	"createInvitation":    {contract: "POST /admin/invitations", path: "/admin/invitations", body: `{"maxRating":6,"allLibraries":true}`, ownerStatus: http.StatusCreated},
 	"revokeInvitation":    {contract: "DELETE /admin/invitations/{id}", path: "/admin/invitations/9999", ownerStatus: http.StatusNotFound},
@@ -351,6 +360,10 @@ var adminRegistry = map[string]adminCall{
 	"getDashboard":  {contract: "GET /admin/dashboard", path: "/admin/dashboard", ownerStatus: http.StatusOK},
 	"retryJob":      {contract: "POST /admin/jobs/{id}/retry", path: "/admin/jobs/9999/retry", ownerStatus: http.StatusNotFound},
 	"cancelJob":     {contract: "DELETE /admin/jobs/{id}", path: "/admin/jobs/9999", ownerStatus: http.StatusNotFound},
+	// Concept 20 P-6 (contract 1.31.0): the bulk actions on failed runs; the fixture has none
+	// (TestFailedJobsOverHTTP covers the counts, the type filter and the pages).
+	"retryFailedJobs":   {contract: "POST /admin/jobs/failed/retry", path: "/admin/jobs/failed/retry", ownerStatus: http.StatusOK},
+	"dismissFailedJobs": {contract: "DELETE /admin/jobs/failed", path: "/admin/jobs/failed", ownerStatus: http.StatusOK},
 	// Concept 09: the page "Hintergrundjobs"; the fixture's registry knows download.prepare and
 	// notify.deliver (event types) and the schedule types of package metadata; nobody.home does
 	// not exist (404). updateJobTypeWindow is concept 15, 4.3 (TestJobTypeWindowOverHTTP covers
@@ -367,6 +380,7 @@ var adminRegistry = map[string]adminCall{
 	"updateAdminSettings": {contract: "PUT /admin/settings", path: "/admin/settings", body: `{"updateCheckEnabled":true}`, ownerStatus: http.StatusOK},
 	"sendTestEmail":       {contract: "POST /admin/settings/email/test", path: "/admin/settings/email/test", body: `{}`, ownerStatus: http.StatusUnprocessableEntity},
 	"rotatePushKeys":      {contract: "POST /admin/settings/push/rotate", path: "/admin/settings/push/rotate", ownerStatus: http.StatusOK},
+	"checkProviderKey":    {contract: "POST /admin/settings/keys/{provider}/check", path: "/admin/settings/keys/tmdb/check", ownerStatus: http.StatusOK}, // concept 20 P-12, TestCheckProviderKeyOverHTTP
 	"listBackups":         {contract: "GET /admin/backups", path: "/admin/backups", ownerStatus: http.StatusOK},
 	"createBackup":        {contract: "POST /admin/backups", path: "/admin/backups", body: `{"includeSecrets":false}`, ownerStatus: http.StatusCreated},
 	"downloadBackup": {contract: "GET /admin/backups/{name}/download", path: "/admin/backups/missing.tar.gz/download",

@@ -545,6 +545,21 @@ describe('admin overview (concept 11, A-3)', () => {
     expect(sentence('server_restart', { accountEmail: 'owner@example.test' })).toBe(
       'Neustart durch owner@example.test',
     );
+    // Concept 20 stage 5: a deleted library and a deleted title, with and without the files.
+    const owner = { accountEmail: 'owner@example.test' };
+    expect(sentence('library_deleted', { ...owner, ...library, detail: { count: 318 } })).toBe(
+      'Bibliothek «Filme» von owner@example.test gelöscht (318 Titel)',
+    );
+    expect(
+      sentence('item_deleted', { ...owner, itemTitle: 'Alien', detail: { mode: 'library' } }),
+    ).toBe('«Alien» von owner@example.test aus Slouchcat entfernt');
+    expect(
+      sentence('item_deleted', {
+        ...owner,
+        itemTitle: 'Alien',
+        detail: { mode: 'files', count: 2, sizeBytes: 2e9 },
+      }),
+    ).toMatch(/^«Alien» von owner@example.test samt 2 Dateien gelöscht \(2\sGB\)$/);
     expect(sentence('telescope_aligned', viewer)).toBe('Ereignis auf dem Server');
   });
 

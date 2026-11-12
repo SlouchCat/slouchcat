@@ -62,7 +62,7 @@ func (s *Service) copyTrickplay(ctx context.Context, root *os.Root, id string, p
 		return s.waitTrickplay(ctx, root, id, p)
 	}
 	tmp := id + "/" + trickplayDir + ".tmp"
-	if err := root.RemoveAll(tmp); err != nil {
+	if err := root.RemoveAll(tmp); err != nil { //nolint:forbidigo // the cache root (offline packages), never a library root (ADR 0032)
 		return 0, false, err
 	}
 	if err := root.MkdirAll(tmp, 0o750); err != nil {
@@ -81,7 +81,7 @@ func (s *Service) copyTrickplay(ctx context.Context, root *os.Root, id string, p
 		if errors.Is(err, fs.ErrNotExist) {
 			// The set went while it was copied (the maintenance of the cache, a set made again):
 			// ask for it again and wait as for a missing one.
-			if rerr := root.RemoveAll(tmp); rerr != nil {
+			if rerr := root.RemoveAll(tmp); rerr != nil { //nolint:forbidigo // the cache root (offline packages), never a library root (ADR 0032)
 				return 0, false, rerr
 			}
 			return s.waitTrickplay(ctx, root, id, p)
@@ -91,8 +91,8 @@ func (s *Service) copyTrickplay(ctx context.Context, root *os.Root, id string, p
 		}
 		bytes += written
 	}
-	_ = root.Remove(id + "/" + trickplayWaitMarker)
-	if err := root.RemoveAll(id + "/" + trickplayDir); err != nil {
+	_ = root.Remove(id + "/" + trickplayWaitMarker)                 //nolint:forbidigo // the cache root (offline packages), never a library root (ADR 0032)
+	if err := root.RemoveAll(id + "/" + trickplayDir); err != nil { //nolint:forbidigo // the cache root (offline packages), never a library root (ADR 0032)
 		return 0, false, err
 	}
 	if err := root.Rename(tmp, id+"/"+trickplayDir); err != nil {
@@ -111,7 +111,7 @@ func (s *Service) waitTrickplay(ctx context.Context, root *os.Root, id string, p
 	}
 	marker := id + "/" + trickplayWaitMarker
 	if !queued {
-		_ = root.Remove(marker)
+		_ = root.Remove(marker) //nolint:forbidigo // the cache root (offline packages), never a library root (ADR 0032)
 		return 0, false, nil
 	}
 	info, err := root.Stat(marker)
@@ -128,7 +128,7 @@ func (s *Service) waitTrickplay(ctx context.Context, root *os.Root, id string, p
 		return 0, true, nil
 	}
 	s.log.InfoContext(ctx, "trickplay not ready after the wait, download without preview", "download_id", id, "media_file_id", p.fileID)
-	_ = root.Remove(marker)
+	_ = root.Remove(marker) //nolint:forbidigo // the cache root (offline packages), never a library root (ADR 0032)
 	return 0, false, nil
 }
 

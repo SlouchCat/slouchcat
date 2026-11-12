@@ -67,6 +67,20 @@ type Story = StoryObj<typeof meta>;
  */
 export const Default: Story = { args: { slides: slides.slice(0, 2) } };
 
+/**
+ * The spotlight of the start page (concept 20 P-7): the heading «Spotlight» over the stage links the
+ * whole list like the title of a row; the film title in the stage leads to its detail page.
+ */
+export const WithHeadingLink: Story = {
+  args: { label: 'Spotlight', href: '#', slides: slides.slice(0, 2) },
+};
+
+/** The heading link focused by Tab, before the stage's buttons. */
+export const HeadingLinkFocused: Story = {
+  args: { label: 'Spotlight', href: '#', slides: slides.slice(0, 2) },
+  tags: ['press:Tab'],
+};
+
 /** Play focused: the primary button fills with the profile accent. */
 export const Focused: Story = { args: { slides: slides.slice(0, 2) }, tags: ['press:Tab'] };
 

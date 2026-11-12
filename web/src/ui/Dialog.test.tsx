@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { AriaButton } from './AriaButton';
-import { ConfirmDialog, FormDialog } from './Dialog';
+import { ConfirmDialog, ConfirmInputDialog, FormDialog } from './Dialog';
 import { RadioGroup } from './RadioGroup';
 import { TextField } from './TextField';
 
@@ -78,6 +78,49 @@ describe('ConfirmDialog', () => {
     );
     // focusOnMount moves the focus right after the commit, not during the render.
     await waitFor(() => expect(screen.getByRole('button', { name: 'Abbrechen' })).toHaveFocus());
+  });
+});
+
+describe('ConfirmInputDialog', () => {
+  it('sends once per click and keeps showing what it sent while pending', async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn();
+    function Page() {
+      const [pending, setPending] = useState(false);
+      return (
+        <ConfirmInputDialog
+          isOpen
+          onOpenChange={() => undefined}
+          title="Bibliothek «Filme» löschen?"
+          expected="Filme"
+          inputLabel="Name eintippen"
+          mismatchText="Tippe Filme genau so ab."
+          confirmLabel="Löschen"
+          cancelLabel="Abbrechen"
+          isPending={pending}
+          onConfirm={(typed) => {
+            onConfirm(typed);
+            setPending(true);
+          }}
+        >
+          <p>Alles geht.</p>
+        </ConfirmInputDialog>
+      );
+    }
+    render(<Page />);
+    const field = screen.getByLabelText('Name eintippen');
+    await user.type(field, 'Filme');
+    expect(screen.queryByText('Tippe Filme genau so ab.')).toBeNull();
+    const button = screen.getByRole('button', { name: 'Löschen' });
+    await user.click(button);
+    expect(onConfirm).toHaveBeenCalledExactlyOnceWith('Filme');
+    // Pending: the field still says what was sent, without the hint to type it again.
+    expect(field).toHaveValue('Filme');
+    expect(field).toHaveAttribute('readonly');
+    expect(screen.queryByText('Tippe Filme genau so ab.')).toBeNull();
+    // A second click on the pending button sends nothing.
+    await user.click(button);
+    expect(onConfirm).toHaveBeenCalledOnce();
   });
 });
 

@@ -295,7 +295,7 @@ func (s *Service) removeSource(ctx context.Context, rel string) {
 		return
 	}
 	defer root.Close()
-	if err := root.Remove(rel); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	if err := root.Remove(rel); err != nil && !errors.Is(err, fs.ErrNotExist) { //nolint:forbidigo // the cache root (offline packages), never a library root (ADR 0032)
 		s.log.WarnContext(ctx, "remove download source", "path", rel, "err", err)
 	}
 }

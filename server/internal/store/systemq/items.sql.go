@@ -12,7 +12,7 @@ import (
 )
 
 const countAllLibraryItems = `-- name: CountAllLibraryItems :one
-SELECT count(*) FROM items WHERE deleted_at IS NULL AND library_id IN (SELECT id FROM libraries)
+SELECT count(*) FROM items WHERE deleted_at IS NULL AND library_id IN (SELECT id FROM libraries WHERE deleting_at IS NULL)
 `
 
 // The sum of CountLibraryItems over every library (concept 11, Dashboard.counts.titles).
@@ -91,7 +91,7 @@ func (q *Queries) DeleteTrack(ctx context.Context, id int64) error {
 }
 
 const getItemSystem = `-- name: GetItemSystem :one
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual FROM items WHERE id = ?1
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at FROM items WHERE id = ?1
 `
 
 func (q *Queries) GetItemSystem(ctx context.Context, id string) (Item, error) {
@@ -172,6 +172,7 @@ func (q *Queries) GetItemSystem(ctx context.Context, id string) (Item, error) {
 		&i.BookMatchScore,
 		&i.BookMatchError,
 		&i.BookMatchManual,
+		&i.RemovedAt,
 	)
 	return i, err
 }
@@ -222,7 +223,7 @@ INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, original_
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
         ?10, ?11, ?12, ?13, ?14, ?15, ?16,
         ?17, ?18, ?19, ?20, ?20, ?20)
-RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual
+RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at
 `
 
 type InsertItemParams struct {
@@ -351,6 +352,7 @@ func (q *Queries) InsertItem(ctx context.Context, arg InsertItemParams) (Item, e
 		&i.BookMatchScore,
 		&i.BookMatchError,
 		&i.BookMatchManual,
+		&i.RemovedAt,
 	)
 	return i, err
 }
@@ -523,7 +525,7 @@ func (q *Queries) LastJobFailedSince(ctx context.Context, arg LastJobFailedSince
 }
 
 const listDeletedItemsByLibrary = `-- name: ListDeletedItemsByLibrary :many
-SELECT id, kind, parent_id, season_number, episode_number, sort_title, year, tmdb_id, tvdb_id, imdb_id, deleted_at
+SELECT id, kind, parent_id, season_number, episode_number, sort_title, year, tmdb_id, tvdb_id, imdb_id, deleted_at, removed_at
 FROM items
 WHERE library_id = ?1 AND deleted_at IS NOT NULL
   AND kind IN ('movie', 'series', 'season', 'episode', 'extra', 'audiobook', 'podcast', 'podcast_episode')
@@ -542,6 +544,7 @@ type ListDeletedItemsByLibraryRow struct {
 	TvdbID        sql.NullInt64
 	ImdbID        sql.NullString
 	DeletedAt     sql.NullInt64
+	RemovedAt     sql.NullInt64
 }
 
 // Soft-deleted items that a re-downloaded file may bring back (plan 3.2, ADR 0023): titles by
@@ -549,7 +552,9 @@ type ListDeletedItemsByLibraryRow struct {
 // seasons and episodes; extras and podcast episodes only for the tree (kind, parent), so a
 // returning extra restores its season and series in the index as well. Only the columns of the
 // scanner's item index (loadItemIndex); the most recently deleted first, the later id among equal
-// times (as FindDeletedTwin). The list names every kind, so the planner seeks items_library_kind
+// times (as FindDeletedTwin). Titles taken out of Slouchcat (removed_at, concept 20 section 10.2)
+// are in it as well: the scanner puts new files under them instead of creating a second title,
+// and never brings them back. The list names every kind, so the planner seeks items_library_kind
 // (library, kind, deleted_at) instead of walking the live titles of the library.
 func (q *Queries) ListDeletedItemsByLibrary(ctx context.Context, libraryID int64) ([]ListDeletedItemsByLibraryRow, error) {
 	rows, err := q.db.QueryContext(ctx, listDeletedItemsByLibrary, libraryID)
@@ -572,6 +577,7 @@ func (q *Queries) ListDeletedItemsByLibrary(ctx context.Context, libraryID int64
 			&i.TvdbID,
 			&i.ImdbID,
 			&i.DeletedAt,
+			&i.RemovedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -630,7 +636,7 @@ func (q *Queries) ListItemParents(ctx context.Context, ids []string) ([]ListItem
 }
 
 const listItemsByLibrary = `-- name: ListItemsByLibrary :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual FROM items WHERE library_id = ?1 AND deleted_at IS NULL ORDER BY id
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at FROM items WHERE library_id = ?1 AND deleted_at IS NULL ORDER BY id
 `
 
 func (q *Queries) ListItemsByLibrary(ctx context.Context, libraryID int64) ([]Item, error) {
@@ -717,6 +723,7 @@ func (q *Queries) ListItemsByLibrary(ctx context.Context, libraryID int64) ([]It
 			&i.BookMatchScore,
 			&i.BookMatchError,
 			&i.BookMatchManual,
+			&i.RemovedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1009,6 +1016,25 @@ func (q *Queries) ListSidecarTracksByRoot(ctx context.Context, rootID int64) ([]
 	return items, nil
 }
 
+const markItemRemoved = `-- name: MarkItemRemoved :exec
+UPDATE items SET removed_at = ?1, deleted_at = COALESCE(deleted_at, ?1), updated_at = ?2
+WHERE id = ?3
+`
+
+type MarkItemRemovedParams struct {
+	RemovedAt sql.NullInt64
+	Now       int64
+	ID        string
+}
+
+// A title the scanner creates below a title taken out of Slouchcat (a new episode, season,
+// version or extra) is taken out with it, under the same stamp, so "Wieder aufnehmen" brings both
+// back (concept 20 section 10.2).
+func (q *Queries) MarkItemRemoved(ctx context.Context, arg MarkItemRemovedParams) error {
+	_, err := q.db.ExecContext(ctx, markItemRemoved, arg.RemovedAt, arg.Now, arg.ID)
+	return err
+}
+
 const resetUnavailableKeyframes = `-- name: ResetUnavailableKeyframes :exec
 UPDATE media_files SET keyframes_source = NULL, updated_at = ?1 WHERE id = ?2 AND keyframes_source = 'none'
 `
@@ -1027,7 +1053,7 @@ func (q *Queries) ResetUnavailableKeyframes(ctx context.Context, arg ResetUnavai
 
 const restoreItem = `-- name: RestoreItem :exec
 UPDATE items SET deleted_at = NULL, updated_at = ?1
-WHERE items.deleted_at IS NOT NULL
+WHERE items.deleted_at IS NOT NULL AND items.removed_at IS NULL
   AND (items.id = ?2
        OR (items.id IN ((SELECT p.parent_id FROM items AS p WHERE p.id = ?2),
                         (SELECT g.parent_id FROM items AS g WHERE g.id = (SELECT p.parent_id FROM items AS p WHERE p.id = ?2)))
@@ -1044,6 +1070,8 @@ type RestoreItemParams struct {
 // its soft-deleted parent and grandparent (the season and series of an episode or a season
 // extra), so the tree stays whole. An ancestor that is not a container (the film of an extra)
 // comes back only with a present file of its own; otherwise the next sweep would delete it again.
+// A title taken out of Slouchcat (removed_at, concept 20 section 10.2) never comes back this way,
+// neither itself nor as the parent of a file; only "Wieder aufnehmen" clears it.
 func (q *Queries) RestoreItem(ctx context.Context, arg RestoreItemParams) error {
 	_, err := q.db.ExecContext(ctx, restoreItem, arg.Now, arg.ID)
 	return err

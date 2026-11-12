@@ -11,7 +11,6 @@ import { countryName, facetValueName } from '@/app/radio/labels';
 import { wantsSound } from '@/app/radio/priority';
 import { useRadioFavorite } from '@/app/radio/queries';
 import { useRadio, type RadioPlayer } from '@/app/radio/useRadio';
-import { formatRuntime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import {
   Button,
@@ -35,10 +34,19 @@ import {
   type HeroSlide,
 } from '@/ui';
 import { CoverWatchlist, WATCHLIST_KINDS } from '@/features/discover/CoverWatchlist';
+import {
+  continueEdited,
+  continueSeries,
+  remaining,
+  seriesCardText,
+  startedProgress,
+} from './continueCard';
 import { CoverPen, EDITABLE_KINDS, EditMetadata } from './EditMetadata';
 import { ItemMeta } from './ItemMeta';
 import { homeRowTitle, isAudioKind } from './labels';
+import { CoverWatched, WATCHED_KINDS } from './watched';
 import { homeQuery } from './queries';
+import { usePlayStart } from './usePlayStart';
 import styles from './HomePage.module.css';
 
 const authed = getRouteApi('/_authed/_active');
@@ -50,7 +58,14 @@ const TrailerPanel = lazy(() =>
 
 // Rows with a page of all their titles ("Alle anzeigen ›", concept 08 O-3), and a library row
 // («Neu in …», concept 15 P-7), whose library opens sorted by «Zuletzt hinzugefügt».
+// The page behind each row title (concept 20 P-7, 8.2); genres and «Meine Medien» have none, each
+// of their tiles is a target already.
 const rowPages: Partial<Record<HomeRow['key'], string>> = {
+  spotlight: paths.homeList('spotlight'),
+  continue: paths.homeList('continue'),
+  recent: paths.homeList('recent'),
+  released: paths.homeList('released'),
+  collections: paths.collections,
   picks: paths.picks,
   watchlist: paths.watchlist,
   radio: paths.radio,
@@ -124,29 +139,13 @@ function stationState(radio: RadioPlayer, stationId: number) {
 
 const genreHref = (name: string) => `${paths.search}?genre=${encodeURIComponent(name)}`;
 
-/** "Noch 20 min": the time left of a started title. */
-function remaining(t: TFunction, progress: NonNullable<ItemRef['progress']>): string {
-  const minutes = Math.max(1, Math.round((progress.durationMs - progress.positionMs) / 60_000));
-  return t('home.remaining', { time: formatRuntime(t, minutes) });
-}
-
-/**
- * The series a card of "Weiterschauen" shows instead of its episode (concept 15 P-1): its poster
- * and title. Undefined for every other card and for an episode without `seriesRef`, which show the
- * title itself; the other rows stay as they are.
- */
+/** The series a card of "Weiterschauen" shows instead of its episode (continueSeries). */
 const seriesOf = (row: HomeRow, item: ItemRef) =>
-  row.key === 'continue' && item.kind === 'episode' ? item.seriesRef : undefined;
+  row.key === 'continue' ? continueSeries(item) : undefined;
 
-/**
- * The title a card's pen edits (concept 15 P-6): the title of the cover it sits on. On a series
- * card of "Weiterschauen" that is the series, whose poster and title the card shows, not the
- * episode the card opens.
- */
-function editedTitle(row: HomeRow, item: ItemRef): Pick<ItemRef, 'id' | 'kind' | 'title'> {
-  const series = seriesOf(row, item);
-  return series ? { id: series.id, kind: 'series', title: series.title } : item;
-}
+/** The title a card's pen edits: the series on a series card of "Weiterschauen" (continueEdited). */
+const editedTitle = (row: HomeRow, item: ItemRef): Pick<ItemRef, 'id' | 'kind' | 'title'> =>
+  row.key === 'continue' ? continueEdited(item) : item;
 
 /**
  * Focus and React key of a card, by the row's id (several library rows share a key, concept 15
@@ -154,38 +153,6 @@ function editedTitle(row: HomeRow, item: ItemRef): Pick<ItemRef, 'id' | 'kind' |
  * ends the card shows the next one and keeps its focus on return.
  */
 const cardKey = (row: HomeRow, item: ItemRef) => `${row.id}-${seriesOf(row, item)?.id ?? item.id}`;
-
-/**
- * The progress of a started title: a position past 0. A next episode with a progress row at 0
- * (opened, never played) counts as new, without "Noch …" and without a bar.
- */
-const startedProgress = (item: ItemRef) =>
-  item.progress && item.progress.positionMs > 0 ? item.progress : undefined;
-
-/** "S4 · F7", or "S4 · F7–F8" for a file with several episodes; undefined without numbers. */
-function shortEpisodeCode(t: TFunction, item: ItemRef): string | undefined {
-  if (item.seasonNumber === undefined || item.episodeNumber === undefined) return undefined;
-  const numbers = { season: item.seasonNumber, episode: item.episodeNumber };
-  return item.episodeEnd !== undefined && item.episodeEnd > item.episodeNumber
-    ? t('home.continue.episodeRange', { ...numbers, end: item.episodeEnd })
-    : t('home.continue.episode', numbers);
-}
-
-/**
- * Title, caption and spoken name of a series card (seriesOf): "S4 · F7 · Noch 20 min" under the
- * series title, "S4 · F8 · Neu" for the next episode not started yet; the name adds the episode's
- * own title ("Die Simpsons, S4 · F7, Donuts im Stau, Noch 20 min").
- */
-function seriesCardText(t: TFunction, series: { title: string }, item: ItemRef) {
-  const code = shortEpisodeCode(t, item);
-  const progress = startedProgress(item);
-  const state = progress ? remaining(t, progress) : t('home.continue.new');
-  return {
-    title: series.title,
-    caption: [code, state].filter(Boolean).join(t('format.separator')),
-    label: [series.title, code, item.title, state].filter(Boolean).join(t('format.listSeparator')),
-  };
-}
 
 function cardCaption(t: TFunction, row: HomeRow, item: ItemRef): string | undefined {
   // A curated spotlight title carries the main user's note (M11); it says more than the year.
@@ -236,6 +203,9 @@ export function HomePage() {
   const canManage = session.account.role === 'admin' && session.profile.isPrimary;
   // The title whose metadata editor is open.
   const [editing, setEditing] = useState<string | null>(null);
+  // «Abspielen» of a started film in the spotlight asks whether to resume (concept 20 P-4). Not for
+  // a series: its card does not know whether its next episode is started.
+  const playStart = usePlayStart();
   // Only a stage at the top is the page's first image: the server paints it into the shell, and the
   // posters wait for it. A stage further down has no prepaint and holds no poster back.
   const leadRow = home.data?.rows.find(hasEntries);
@@ -353,6 +323,14 @@ export function HomePage() {
     ) : undefined;
   };
 
+  // The check mark of a spotlight poster (concept 20 P-5): a Tab stop only on the active poster.
+  const spotlightCheck = (row: HomeRow, slide: HeroSlide, active: boolean) => {
+    const item = row.items.find((entry) => entry.id === slide.id);
+    return item && WATCHED_KINDS.has(item.kind) ? (
+      <CoverWatched item={item} excludeFromTabOrder={!active} />
+    ) : undefined;
+  };
+
   // A title taken off the watchlist from its cover in the row «Merkliste»: the focus goes to the
   // neighbouring card (or the header) before the card disappears, as on the watchlist page.
   const unmarkedFrom = (row: HomeRow, item: ItemRef) => {
@@ -401,15 +379,8 @@ export function HomePage() {
     }
     if (row.key === 'radio') {
       // «Meine Sender» (concept 16, 10.2): square station tiles that play through the app's radio.
-      const moreHref = rowPage(row);
       return (
-        <Row
-          key={row.id}
-          title={title}
-          focusKey={focusKey}
-          moreHref={moreHref}
-          moreLabel={moreHref ? t('home.rows.all') : undefined}
-        >
+        <Row key={row.id} title={title} focusKey={focusKey} href={rowPage(row)}>
           {(row.stations ?? []).map((tile, tileIndex) => {
             const { station } = tile;
             const state = stationState(radio, station.id);
@@ -466,7 +437,7 @@ export function HomePage() {
     }
     if (row.key === 'collections') {
       return (
-        <Row key={row.id} title={title} focusKey={focusKey}>
+        <Row key={row.id} title={title} focusKey={focusKey} href={rowPage(row)}>
           {(row.collections ?? []).map((collection, itemIndex) => (
             <CollectionCard
               key={collection.id}
@@ -485,15 +456,8 @@ export function HomePage() {
         </Row>
       );
     }
-    const moreHref = rowPage(row);
     return (
-      <Row
-        key={row.id}
-        title={title}
-        focusKey={focusKey}
-        moreHref={moreHref}
-        moreLabel={moreHref ? t('home.rows.all') : undefined}
-      >
+      <Row key={row.id} title={title} focusKey={focusKey} href={rowPage(row)}>
         {row.items.map((item, itemIndex) => {
           const series = seriesOf(row, item);
           const text = series
@@ -536,6 +500,9 @@ export function HomePage() {
                   <CoverPen item={edited} onEdit={setEditing} />
                 ) : undefined
               }
+              // The check of the title the card opens: on a series card of "Weiterschauen" the
+              // episode (concept 20 P-5), which then gives way to the next one.
+              check={WATCHED_KINDS.has(item.kind) ? <CoverWatched item={item} /> : undefined}
               // A series card of "Weiterschauen" shows an episode: no watchlist button (kinds).
               mark={
                 WATCHLIST_KINDS.has(item.kind) ? (
@@ -563,6 +530,7 @@ export function HomePage() {
                   <HeroCarousel
                     key={row.id}
                     label={homeRowTitle(t, row)}
+                    href={rowPage(row)}
                     slides={slides(row)}
                     playLabel={t('item.play')}
                     detailsLabel={t('item.details')}
@@ -574,12 +542,17 @@ export function HomePage() {
                     start={home.data.heroStart}
                     intervalSeconds={home.data.heroIntervalSeconds}
                     onTrailerPress={setTrailerSlide}
-                    paused={trailerSlide !== undefined || editing !== null}
+                    onPlayPress={(slide) => {
+                      const item = row.items.find((entry) => entry.id === slide.id);
+                      return item?.kind === 'movie' && playStart.ask(item);
+                    }}
+                    paused={trailerSlide !== undefined || editing !== null || playStart.asking}
                     onArtShown={() => setHeroShown(true)}
                     tool={
                       canManage ? (slide, active) => spotlightPen(row, slide, active) : undefined
                     }
                     mark={(slide, active) => spotlightMark(row, slide, active)}
+                    check={(slide, active) => spotlightCheck(row, slide, active)}
                   />
                 );
               }
@@ -603,6 +576,7 @@ export function HomePage() {
           </div>
         )}
         {editing && <EditMetadata itemId={editing} onClose={() => setEditing(null)} />}
+        {playStart.dialog}
         {trailerSlide && (
           <Suspense fallback={null}>
             <TrailerPanel

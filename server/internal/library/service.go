@@ -77,6 +77,23 @@ type Service struct {
 	// browseRoots are the directories a new library root must lie below (WithBrowseRoots, E14);
 	// empty switches the rule off.
 	browseRoots []string
+	// deleteCheckFn replaces the check before «Auch die Dateien löschen» (a test seam for a
+	// read-only mount; nil outside tests, then paths.ReadOnlyAt and paths.MayDeleteIn decide).
+	deleteCheckFn func(root paths.Root, dir string) error
+	// removeFileFn replaces paths.Remove in deleteWithFiles (a test seam for a file that fails to
+	// go; nil outside tests).
+	removeFileFn func(root paths.Root, rel string) error
+	// deleting holds the titles a delete works on (WithDeleting); nil: none.
+	deleting *model.DeletingSet
+	// hangingChecks holds the roots whose file check before a delete hangs (fileReason);
+	// fileCheckTimeout replaces fileCheckTimeout (a test seam; zero outside tests).
+	hangingChecks    sync.Map
+	fileCheckTimeout time.Duration
+	// mountChecks holds the library folders whose read-only check runs (rootReadOnly).
+	mountChecks sync.Map
+	// backupConfigDir and version name the backup before a library delete (WithBackups); empty
+	// writes none.
+	backupConfigDir, version string
 	// cacheDir is the cache directory that holds the chapter images (WithCacheDir, concept 13
 	// stage 3); empty switches chapters.images off.
 	cacheDir string
@@ -540,6 +557,15 @@ func (s *Service) CancelScan(ctx context.Context, libraryID int64) (model.Librar
 	if _, err := s.Get(ctx, libraryID); err != nil {
 		return model.Library{}, err
 	}
+	if err := s.cancelScans(ctx, libraryID); err != nil {
+		return model.Library{}, err
+	}
+	return s.Get(ctx, libraryID)
+}
+
+// cancelScans is CancelScan without the lookup of the library, for library.delete, whose
+// library is already gone for GetLibrary (deleting_at).
+func (s *Service) cancelScans(ctx context.Context, libraryID int64) error {
 	cancelled := false
 	sq := systemq.New(s.db.Write)
 	for _, key := range []string{scanKey(libraryID), pathScanKey(libraryID)} {
@@ -548,11 +574,11 @@ func (s *Service) CancelScan(ctx context.Context, libraryID int64) (model.Librar
 			continue
 		}
 		if err != nil {
-			return model.Library{}, fmt.Errorf("find scan job %s: %w", key, err)
+			return fmt.Errorf("find scan job %s: %w", key, err)
 		}
 		ok, err := s.queue.Cancel(ctx, id)
 		if err != nil {
-			return model.Library{}, err
+			return err
 		}
 		cancelled = cancelled || ok
 	}
@@ -565,11 +591,11 @@ func (s *Service) CancelScan(ctx context.Context, libraryID int64) (model.Librar
 	}
 	if cancelled || len(runs) > 0 {
 		if err := s.setState(ctx, libraryID, "aborted", abortCancelled); err != nil {
-			return model.Library{}, err
+			return err
 		}
 		s.log.InfoContext(ctx, "scan cancelled", "library_id", libraryID, "running", len(runs))
 	}
-	return s.Get(ctx, libraryID)
+	return nil
 }
 
 // ignoreBatch bounds the media files IgnoreFiles handles per transaction (about three rows each).
@@ -910,7 +936,7 @@ func (s *Service) toModel(ctx context.Context, l appq.Library) (model.Library, e
 		m.Roots = append(m.Roots, model.LibraryRoot{
 			ID: r.ID, Path: r.Path, FSType: r.FsType, Watch: r.Watch, Warning: warning,
 			Content: r.Content, Providers: model.ParseProviders(r.Providers),
-			ItemCount: int(content.Items), FileCount: int(content.Files),
+			ItemCount: int(content.Items), FileCount: int(content.Files), ReadOnly: s.rootReadOnly(r.Path),
 		})
 	}
 	return m, nil
@@ -947,6 +973,8 @@ func (s *Service) Start(ctx context.Context) error {
 	for _, r := range roots {
 		s.startWatcher(r)
 	}
+	// A library marked for deletion without an active job (the job was dismissed) is deleted now.
+	s.requeueLibraryDeletes(ctx)
 	<-ctx.Done()
 	s.wg.Wait()
 	return nil

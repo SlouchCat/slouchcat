@@ -127,7 +127,7 @@ func (s *Service) mediaFiles(ctx context.Context, itemIDs []string) (map[string]
 	}
 	for _, r := range rows {
 		out[r.ItemID] = append(out[r.ItemID], model.AdminMediaFile{
-			ID: r.ID, RootID: r.RootID, Path: r.RelPath, SizeBytes: r.Size, Available: !r.MissingSince.Valid,
+			ID: r.ID, RootID: r.RootID, RootPath: r.RootPath, Path: r.RelPath, SizeBytes: r.Size, Available: !r.MissingSince.Valid,
 			VersionLabel: r.VersionLabel.String, ProbedAt: nullTime(r.ProbedAt), ProbeError: r.ProbeError.String,
 		})
 	}

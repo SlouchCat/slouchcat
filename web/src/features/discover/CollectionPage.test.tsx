@@ -99,11 +99,16 @@ describe('collection page', () => {
     });
     renderApp(`/collections/${id}`);
     const members = await screen.findByRole('region', { name: 'Titel' });
-    const card = (name: RegExp) => within(members).getByRole('link', { name });
-    expect(within(card(/Ganz gesehen/)).getByRole('img', { name: 'Gesehen' })).toBeVisible();
-    expect(within(card(/Halb gesehen/)).queryByRole('img', { name: 'Gesehen' })).toBeNull();
-    expect(within(card(/Ohne Folgen/)).queryByRole('img', { name: 'Gesehen' })).toBeNull();
-    expect(within(card(/Test Podcast/)).getByRole('img', { name: 'Gehört' })).toBeVisible();
+    // The check marks beside the cards (concept 20 P-5).
+    const check = (title: string) =>
+      within(members).getByRole('button', { name: `Gesehen: ${title}` });
+    expect(check('Ganz gesehen')).toHaveAttribute('aria-pressed', 'true');
+    expect(check('Halb gesehen')).toHaveAttribute('aria-pressed', 'false');
+    expect(check('Ohne Folgen')).toHaveAttribute('aria-pressed', 'false');
+    // Audio is heard (coordinator's decision of 12 November 2026).
+    expect(
+      within(members).getByRole('button', { name: 'Gehört: Slouchcat Test Podcast' }),
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('says "nicht gefunden" for an unknown or invisible collection', async () => {

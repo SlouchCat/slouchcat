@@ -9,10 +9,11 @@ import {
   tabTo,
 } from './keyboard';
 
-// «Meine Wiedergabe» (concept 13 11.4, F-13) by keyboard (rule 8): the audio languages in order
+// «Einstellungen» (concept 13 11.4, F-13) by keyboard (rule 8): the audio languages in order
 // (add, pick and swap with the arrows on a closed select, remove), the subtitle rule with the
-// arrows, saving with Enter, the series memory reset behind a confirmation, Back to the page
-// before, a visible ring on every stop and no focus trap. The owner's preferences go back as
+// arrows, saving with Enter, the series memory reset behind a confirmation, the link of the third
+// field to the notification channels (concept 20, O-8), Back to the page before, a visible ring
+// on every stop and no focus trap. The owner's preferences go back as
 // they were after each test (the track choice of the other specs reads them).
 
 interface Prefs {
@@ -62,7 +63,7 @@ async function tabToFromTop(page: Page, target: Locator): Promise<void> {
   await tabTo(page, target, 200);
 }
 
-test('«Meine Wiedergabe» by keyboard: languages, subtitle rule, save, series reset, Back @keyboard', async ({
+test('«Einstellungen» by keyboard: languages, subtitle rule, save, series reset, Back @keyboard', async ({
   page,
 }) => {
   test.setTimeout(60_000);
@@ -70,11 +71,11 @@ test('«Meine Wiedergabe» by keyboard: languages, subtitle rule, save, series r
   try {
     // The sidebar leads there for every profile; Enter follows the link.
     await page.goto('/');
-    const link = page.getByRole('link', { name: 'Meine Wiedergabe' });
+    const link = page.getByRole('link', { name: 'Einstellungen' });
     await tabToFromTop(page, link);
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/settings\/playback$/);
-    await expect(page.getByRole('heading', { level: 1, name: 'Meine Wiedergabe' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Einstellungen' })).toBeVisible();
     const list = audioList(page);
     await expect(place(list, 1)).toBeVisible();
     const start = await placesOf(list);
@@ -158,6 +159,22 @@ test('«Meine Wiedergabe» by keyboard: languages, subtitle rule, save, series r
 
     await expectNoFocusTrap(page, 200);
 
+    // The third field (concept 20, O-8): Tab after the reset reaches the link to the
+    // notification channels; Enter opens them, Back returns here.
+    const channels = page
+      .getByRole('region', { name: 'Benachrichtigungen' })
+      .getByRole('link', { name: 'Zu den Benachrichtigungskanälen' });
+    await tabToFromTop(page, reset);
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, channels);
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/settings\/notifications$/);
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Benachrichtigungskanäle' }),
+    ).toBeVisible();
+    await page.goBack();
+    await expect(page.getByRole('heading', { level: 1, name: 'Einstellungen' })).toBeVisible();
+
     // Back leads to the page before.
     await page.goBack();
     await expect(page).toHaveURL(/\/$/);
@@ -169,7 +186,7 @@ test('«Meine Wiedergabe» by keyboard: languages, subtitle rule, save, series r
 // The last audio language goes too (final review stage 2, G3-M1): «Originalton immer». The focus
 // moves to «Weitere Tonsprache», the hint says the original language plays, Enter on «Speichern»
 // stores the empty list.
-test('«Meine Wiedergabe» by keyboard: removing the last audio language @keyboard', async ({
+test('«Einstellungen» by keyboard: removing the last audio language @keyboard', async ({
   page,
 }) => {
   const before = await prefsOf(page.request);

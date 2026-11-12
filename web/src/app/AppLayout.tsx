@@ -253,6 +253,14 @@ export function AppLayout() {
       icon: 'radio',
       current: pathname.startsWith(paths.radio),
     },
+    // Everything the profile has watched or heard, below «Radio» for every profile (concept 20
+    // P-14).
+    {
+      href: paths.watched,
+      label: t('nav.watched'),
+      icon: 'check',
+      current: pathname.startsWith(paths.watched),
+    },
   ];
   // Every profile has its downloads on this device (M5), where the browser can keep them (K13).
   if (offlineSupported()) {

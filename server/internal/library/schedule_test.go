@@ -68,8 +68,11 @@ func TestRunSweepRaisesWaitingSweep(t *testing.T) {
 			t.Errorf("%s = %+v, want a schedule type that fires at the start", name, ty)
 		}
 	}
-	if len(r.Types()) != 18 {
-		t.Errorf("registered types = %d, want the 17 job types of the library (three of trickplay, library.author_display, three of stored podcast episodes) plus jobs.prune", len(r.Types()))
+	if len(r.Types()) != 19 {
+		t.Errorf("registered types = %d, want the 18 job types of the library (three of trickplay, library.author_display, three of stored podcast episodes, library.delete) plus jobs.prune", len(r.Types()))
+	}
+	if ty, ok := r.Lookup(JobLibraryDelete); !ok || ty.Trigger != jobs.TriggerEvent || ty.Priority != prioLibraryDelete || ty.Cancel == nil {
+		t.Errorf("%s = %+v, want an event type with a cancel hook", JobLibraryDelete, ty)
 	}
 	if ty, ok := r.Lookup(JobAuthorDisplay); !ok || ty.Trigger != jobs.TriggerEvent || ty.Pool != jobs.PoolGeneral || ty.Priority != prioAuthorDisplay {
 		t.Errorf("%s = %+v, want an event type of the pool general", JobAuthorDisplay, ty)

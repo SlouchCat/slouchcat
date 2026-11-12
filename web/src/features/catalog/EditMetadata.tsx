@@ -1,7 +1,8 @@
 import type { ItemRef } from '@slouchcat/api-client';
 import { useQueryClient } from '@tanstack/react-query';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useActiveSession } from '@/app/session';
 import { Button } from '@/ui';
 
 // The pen's dialog loads with react-aria on demand, like the trailer dialog: the browsing pages
@@ -11,6 +12,20 @@ const MetadataEditor = lazy(() =>
     default: module.MetadataEditor,
   })),
 );
+
+/** First parts of the query keys of the browsing lists the editor reads again when it closes. */
+const REFRESHED_LISTS: ReadonlySet<string> = new Set([
+  'library',
+  'home',
+  'homeList',
+  'watchlist',
+  'picks',
+  'collection',
+  'collections',
+  'search',
+  'person',
+  'watched',
+]);
 
 /** The kinds the metadata editor edits (updateItemMetadata): the pen shows only on these. */
 export const EDITABLE_KINDS: ReadonlySet<string> = new Set([
@@ -23,7 +38,8 @@ export const EDITABLE_KINDS: ReadonlySet<string> = new Set([
 
 /**
  * The metadata editor of one title over a browsing page (concept 15 7.4). Closing it reads the
- * title, the library pages and the start page again, so new images and texts stand at once.
+ * title, the library pages, the start page and every other list of titles again, so new images
+ * and texts stand at once.
  */
 export function EditMetadata({ itemId, onClose }: { itemId: string; onClose: () => void }) {
   const queryClient = useQueryClient();
@@ -34,8 +50,11 @@ export function EditMetadata({ itemId, onClose }: { itemId: string; onClose: () 
         onClose={() => {
           onClose();
           void queryClient.invalidateQueries({ queryKey: ['item', itemId] });
-          void queryClient.invalidateQueries({ queryKey: ['library'] });
-          void queryClient.invalidateQueries({ queryKey: ['home'] });
+          // Every browsing list whose cards may show the title (concept 20 P-7: the pens stand on
+          // all of them), by the first part of their keys.
+          void queryClient.invalidateQueries({
+            predicate: (query) => REFRESHED_LISTS.has(String(query.queryKey[0])),
+          });
         }}
       />
     </Suspense>
@@ -72,4 +91,23 @@ export function CoverPen({
       onPress={() => onEdit(item.id)}
     />
   );
+}
+
+/**
+ * The pens of a list of titles (concept 20 P-7: watchlist, user picks, collection, search, person,
+ * the lists behind the row titles): `tool` for the grid's cards, only for the one who manages the
+ * library (the administrator with the primary profile, a shortcut, not a rule: the server checks),
+ * and the editor it opens, to render once on the page.
+ */
+export function useCoverPens(): {
+  tool?: (item: Pick<ItemRef, 'id' | 'kind' | 'title'>) => ReactNode;
+  editor: ReactNode;
+} {
+  const session = useActiveSession();
+  const canManage = session.account.role === 'admin' && session.profile.isPrimary;
+  const [editing, setEditing] = useState<string | null>(null);
+  return {
+    tool: canManage ? (item) => <CoverPen item={item} onEdit={setEditing} /> : undefined,
+    editor: editing ? <EditMetadata itemId={editing} onClose={() => setEditing(null)} /> : null,
+  };
 }

@@ -13,7 +13,7 @@ const stored: PlaybackPrefs = {
 const audioList = () => screen.getByRole('group', { name: 'Tonsprachen' });
 const subtitleList = () => screen.getByRole('group', { name: 'Untertitelsprachen' });
 
-describe('«Meine Wiedergabe» (concept 13 11.4)', () => {
+describe('«Einstellungen» (concept 13 11.4; concept 20, P-13)', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('changes the audio languages, the subtitle rule and the subtitle languages and saves them together', async () => {
@@ -28,9 +28,7 @@ describe('«Meine Wiedergabe» (concept 13 11.4)', () => {
       },
     });
     renderApp('/settings/playback');
-    expect(
-      await screen.findByRole('heading', { level: 1, name: 'Meine Wiedergabe' }),
-    ).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Einstellungen' })).toBeVisible();
     await screen.findByRole('group', { name: 'Tonsprachen' });
     expect(within(audioList()).getByLabelText('1. Tonsprache')).toHaveValue('de');
 
@@ -165,6 +163,16 @@ describe('«Meine Wiedergabe» (concept 13 11.4)', () => {
     ]);
   });
 
+  it('links to the notification channels in a third field (concept 20, O-8)', async () => {
+    mockApi({ ...signedIn, 'GET /me/playback-prefs': () => json(stored) });
+    renderApp('/settings/playback');
+    const field = await screen.findByRole('region', { name: 'Benachrichtigungen' });
+    expect(within(field).getByText(/für das ganze Konto auf einer eigenen Seite/)).toBeVisible();
+    expect(
+      within(field).getByRole('link', { name: 'Zu den Benachrichtigungskanälen' }),
+    ).toHaveAttribute('href', '/settings/notifications');
+  });
+
   it('is in the sidebar of every profile, not only the primary one', async () => {
     mockApi({
       'GET /auth/session': () =>
@@ -172,7 +180,7 @@ describe('«Meine Wiedergabe» (concept 13 11.4)', () => {
       'GET /me/playback-prefs': () => json(stored),
     });
     renderApp('/settings/playback');
-    const link = await screen.findByRole('link', { name: 'Meine Wiedergabe' });
+    const link = await screen.findByRole('link', { name: 'Einstellungen' });
     expect(link).toHaveAttribute('aria-current', 'page');
     expect(screen.queryByRole('link', { name: 'Profile' })).toBeNull();
   });

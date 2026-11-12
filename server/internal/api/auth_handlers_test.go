@@ -177,6 +177,18 @@ func (f *authTestLibraries) RemoveRoot(ctx context.Context, id, rootID int64, co
 	return lib, nil
 }
 
+// DeleteLibrary answers like package library does: unknown id 404, a wrong name 422.
+func (f *authTestLibraries) DeleteLibrary(ctx context.Context, id int64, confirmName string, _ model.Actor) (model.LibraryDeletionQueued, error) {
+	lib, err := f.Get(ctx, id)
+	if err != nil {
+		return model.LibraryDeletionQueued{}, err
+	}
+	if strings.TrimSpace(confirmName) != lib.Name {
+		return model.LibraryDeletionQueued{}, model.ErrConfirmMismatch
+	}
+	return model.LibraryDeletionQueued{Name: lib.Name, JobID: 1}, nil
+}
+
 type authTestTMDB struct{ err error }
 
 func (f *authTestTMDB) CheckKey(context.Context, string) error { return f.err }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -31,7 +32,7 @@ func checks() []check {
 		{"Suche mit Filtern", checkSearch},
 		{"Detail", checkDetail},
 		{"Merkliste", checkWatchlist},
-		{"Favoriten", checkFavorites},
+		{"Haken «gesehen» und Seite «Gesehen»", checkWatched},
 		{"Abspielstart mit Fähigkeitsprofil", checkPlaybackStart},
 		{"Abruf Direct Play/HLS mit Stream-Token", checkStreams},
 		{"Spur- und Untertitelwahl", checkTracks},
@@ -221,30 +222,50 @@ func checkWatchlist(ctx context.Context, s *state) (string, error) {
 		s.movie.Title, page.Total+1), nil
 }
 
-// checkFavorites reads the favourites, removes one and marks it again. The fixtures already made
-// the podcast a favourite, which is what gave the inbox its entry.
-func checkFavorites(ctx context.Context, s *state) (string, error) {
-	path := "/items/" + s.podcast.ID + "/favorite"
-	var favorites []itemRef
-	if err := s.c.get(ctx, "/favorites", nil, &favorites); err != nil {
+// checkWatched sets the check mark of a title by hand (setItemWatched, contract 1.31.0), finds it
+// with watchedAt on the detail and on the page «Gesehen» (listWatched) and removes it again.
+func checkWatched(ctx context.Context, s *state) (string, error) {
+	path := "/items/" + s.movie.ID + "/watched"
+	if err := s.c.call(ctx, http.MethodPut, path, nil, map[string]bool{"watched": true}, nil, http.StatusNoContent); err != nil {
 		return "", err
 	}
-	if !contains(favorites, s.podcast.ID) {
-		return "", errors.New("the podcast is not among the favourites")
+	var page struct {
+		Items []struct {
+			Item          itemRef   `json:"item"`
+			LastWatchedAt time.Time `json:"lastWatchedAt"`
+		} `json:"items"`
+		Total int `json:"total"`
 	}
-	if err := s.c.call(ctx, http.MethodDelete, path, nil, nil, nil, http.StatusNoContent, http.StatusOK); err != nil {
+	listed := func() (bool, error) {
+		if err := s.c.get(ctx, "/watched", url.Values{"content": {"movie"}, "limit": {"100"}}, &page); err != nil {
+			return false, err
+		}
+		for _, e := range page.Items {
+			if e.Item.ID == s.movie.ID {
+				return !e.LastWatchedAt.IsZero(), nil
+			}
+		}
+		return false, nil
+	}
+	if ok, err := listed(); err != nil || !ok {
+		return "", errors.Join(err, errors.New("the title is not on the page Gesehen with lastWatchedAt"))
+	}
+	detail, err := s.detail(ctx, s.movie.ID)
+	if err != nil {
 		return "", err
 	}
-	if err := s.c.get(ctx, "/favorites", nil, &favorites); err != nil {
+	if detail.Progress == nil || !detail.Progress.Completed || detail.Progress.WatchedAt == nil {
+		return "", errors.New("the detail does not show the title as watched")
+	}
+	total := page.Total
+	if err := s.c.call(ctx, http.MethodPut, path, nil, map[string]bool{"watched": false}, nil, http.StatusNoContent); err != nil {
 		return "", err
 	}
-	if contains(favorites, s.podcast.ID) {
-		return "", errors.New("the podcast stayed among the favourites")
+	if ok, err := listed(); err != nil || ok {
+		return "", errors.Join(err, errors.New("the title stayed on the page Gesehen"))
 	}
-	if err := s.c.call(ctx, http.MethodPut, path, nil, nil, nil, http.StatusNoContent, http.StatusOK); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%q als Favorit gelesen, entfernt und wieder gesetzt", s.podcast.Title), nil
+	return fmt.Sprintf("%q als gesehen markiert («Gesehen» %d Filme, watchedAt gesetzt), Haken wieder entfernt",
+		s.movie.Title, total), nil
 }
 
 // directCapabilities is the capability profile of a browser that plays H.264 and AAC in MP4.
@@ -592,7 +613,7 @@ func checkOfflineEvents(ctx context.Context, s *state) (string, error) {
 }
 
 // checkNotifications reads the inbox and marks it read. The fixtures created the entry through a
-// favourite podcast that got a new episode (E-8).
+// podcast on the watchlist that got a new episode (E-8, concept 20 P-2).
 func checkNotifications(ctx context.Context, s *state) (string, error) {
 	var page notificationPage
 	if err := s.c.get(ctx, "/notifications", query("limit", "50"), &page); err != nil {

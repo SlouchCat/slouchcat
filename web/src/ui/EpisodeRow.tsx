@@ -1,3 +1,4 @@
+import type { MouseEvent, ReactNode } from 'react';
 import { AppLink } from './AppLink';
 import { SpatialButtonLink } from './Button';
 import styles from './EpisodeRow.module.css';
@@ -15,13 +16,23 @@ interface EpisodeRowProps {
   /** The player of the episode, and the name of that link ("Folge 3 abspielen"). */
   playHref: string;
   playLabel: string;
+  /**
+   * Called on a click of the play button before it is followed: a started episode asks first
+   * whether to resume (ResumeChoice, concept 20 P-4) and prevents the default.
+   */
+  onPlay?: (event: MouseEvent<HTMLAnchorElement>) => void;
+  /**
+   * The check mark «gesehen» after the play button (concept 20 P-5, WatchedToggle): outside the
+   * arrow navigation, Tab reaches it after the play button.
+   */
+  watchedControl?: ReactNode;
   focusKey?: string;
 }
 
 /**
  * A podcast episode in the list of its podcast (M6): title, date and duration and the progress,
- * a link to the episode and a play button of its own. Both take part in the arrow navigation;
- * ← and → move between them, ↑ and ↓ between the episodes.
+ * a link to the episode and a play button of its own, then the check mark. Link and play button
+ * take part in the arrow navigation; ← and → move between them, ↑ and ↓ between the episodes.
  */
 export function EpisodeRow({
   href,
@@ -30,6 +41,8 @@ export function EpisodeRow({
   progress,
   playHref,
   playLabel,
+  onPlay,
+  watchedControl,
   focusKey,
 }: EpisodeRowProps) {
   const { ref, onFocus } = useSpatialItem<HTMLAnchorElement>({ focusKey });
@@ -51,7 +64,9 @@ export function EpisodeRow({
         icon="play"
         iconOnly
         aria-label={playLabel}
+        onClick={onPlay}
       />
+      {watchedControl}
     </div>
   );
 }

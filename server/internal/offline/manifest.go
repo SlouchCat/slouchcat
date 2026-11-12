@@ -153,7 +153,7 @@ func (s *Service) removeFiles(ctx context.Context, id string) {
 		return
 	}
 	defer root.Close()
-	if err := root.RemoveAll(id); err != nil {
+	if err := root.RemoveAll(id); err != nil { //nolint:forbidigo // the cache root (offline packages), never a library root (ADR 0032)
 		s.log.WarnContext(ctx, "remove download files", "download_id", id, "err", err)
 	}
 }

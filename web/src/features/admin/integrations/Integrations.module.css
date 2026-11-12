@@ -139,3 +139,50 @@
   align-items: center;
   margin-left: auto;
 }
+
+/* The provider cards (concept 20, P-12): one below the other, each framed like a card. */
+.providers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
+
+.provider {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  padding: var(--sc-space-4);
+  border: 1px solid var(--sc-color-border);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+}
+
+.providerHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-4);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.providerText {
+  display: flex;
+  flex: 1 1 18rem;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+}
+
+.providerName {
+  margin: 0;
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.providerBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  padding-top: var(--sc-space-3);
+  border-top: 1px solid var(--sc-color-border);
+}

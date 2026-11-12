@@ -26,6 +26,7 @@ import {
 import { BACK_KEY, DetailBody, DetailHeader, DetailPage } from './DetailHeader';
 import { CoverPen, EDITABLE_KINDS, EditMetadata } from './EditMetadata';
 import { isFinished } from './labels';
+import { CoverWatched } from './watched';
 import { audioSeriesQuery } from './queries';
 import { useBackFocus } from './useBackFocus';
 import itemStyles from './ItemPage.module.css';
@@ -291,9 +292,12 @@ function SeriesView({ libraryId, seriesId }: { libraryId: number | null; seriesI
             {/* The server's order (D4.3): by number, 0.5 before 1, without a number last. */}
             <SpatialGroup as="ul" className={styles.volumes} aria-label={t('audioSeries.list')}>
               {volumes.map(({ item, seriesIndex, narrator }) => {
+                // Heard (the check, `watchedAt`) and a running position (what plays next,
+                // `completed`) apart: a volume heard once and started again is both (concept 20
+                // section 6.3).
                 const finished = isFinished(item);
                 const progress = item.progress;
-                const started = !finished && progress && progress.positionMs > 0;
+                const started = progress && !progress.completed && progress.positionMs > 0;
                 const caption = [
                   // The narrator where the volumes differ (a reading and a radio play).
                   series.narrator === undefined ? narrator : undefined,
@@ -339,13 +343,18 @@ function SeriesView({ libraryId, seriesId }: { libraryId: number | null; seriesI
                           : undefined
                       }
                       duration={item.durationMs ? formatDuration(t, item.durationMs) : undefined}
-                      playHref={finished ? paths.playAt(item.id, 0) : paths.play(item.id)}
+                      playHref={
+                        progress?.completed ? paths.playAt(item.id, 0) : paths.play(item.id)
+                      }
                       playLabel={t('audioSeries.play', { title: item.title })}
                       tool={
                         canManage && EDITABLE_KINDS.has(item.kind) ? (
                           <CoverPen item={item} onEdit={setEditing} />
                         ) : undefined
                       }
+                      // The check mark of the volume (concept 20 P-5); the volume itself never
+                      // asks whether to resume (O-9).
+                      watchedControl={<CoverWatched item={item} appearance="row" />}
                     />
                   </li>
                 );

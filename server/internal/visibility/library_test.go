@@ -468,7 +468,7 @@ func TestLibraryItemsStatus(t *testing.T) {
 	}
 	// E1 completed: the series is started for P18, P12 and P16.
 	for _, p := range []model.Profile{f.P18, f.P16, f.P12} {
-		exec(t, f, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at) VALUES (?, ?, 0, 100, 1, 9000)`, p.ID, s.E1.ID)
+		exec(t, f, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, watched_at) VALUES (?, ?, 0, 100, 1, 9000, 9000)`, p.ID, s.E1.ID)
 	}
 	if got := status(f.P16, model.LibraryStatusStarted); !slices.Equal(got, []string{s.Series.ID}) {
 		t.Errorf("P16 started = %v, want the series", got)
@@ -477,7 +477,7 @@ func TestLibraryItemsStatus(t *testing.T) {
 	// P16 sees E2, which is open.
 	for _, p := range []model.Profile{f.P16, f.P12} {
 		for _, e := range []vistest.Movie{s.E3, s.Special} {
-			exec(t, f, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at) VALUES (?, ?, 0, 100, 1, 9500)`, p.ID, e.ID)
+			exec(t, f, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, watched_at) VALUES (?, ?, 0, 100, 1, 9500, 9500)`, p.ID, e.ID)
 		}
 	}
 	if got := status(f.P12, model.LibraryStatusWatched); !slices.Equal(got, []string{s.Series.ID}) {
@@ -530,7 +530,7 @@ func TestLibraryItemsAudioStatus(t *testing.T) {
 	pods := f.Audio.PodcastLibraryID
 	for _, e := range f.Audio.Episodes {
 		if f.VisibleTo(f.P0, e) {
-			exec(t, f, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at) VALUES (?, ?, 0, 100, 1, 7000)`, f.P0.ID, e.ID)
+			exec(t, f, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, watched_at) VALUES (?, ?, 0, 100, 1, 7000, 7000)`, f.P0.ID, e.ID)
 		}
 	}
 	started := ids(libraryItems(t, r, f.P0, pods, model.LibraryQuery{Status: []string{model.LibraryStatusStarted, model.LibraryStatusWatched}}).Items)
@@ -635,5 +635,32 @@ func TestLibraryNewestTiesAtTheCut(t *testing.T) {
 				t.Errorf("%s LibraryNewest(%d) = %v, want the library page by added %v", p.Name, limit, ids(got), want)
 			}
 		}
+	}
+}
+
+// Concept 20 section 6.3 (contract 1.31.0): the status reads watched_at. A film watched once and
+// started again (completed 0, a position, watched_at kept) is watched, not started; a film with a
+// position and no watched_at is started; removing watched_at from a row at position 0 leaves it
+// unwatched.
+func TestLibraryItemsStatusReadsWatchedAt(t *testing.T) {
+	t.Parallel()
+	f := libraryFixture(t)
+	r := New(f.DB, vistest.Logger())
+	status := func(st string) []string {
+		return sorted(ids(libraryItems(t, r, f.P18, f.LibraryID(), model.LibraryQuery{Status: []string{st}}).Items))
+	}
+	again, open, cleared := f.Rated(6), f.Rated(12), f.Rated(16)
+	exec(t, f, `DELETE FROM progress WHERE profile_id = ?`, f.P18.ID)
+	exec(t, f, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, watched_at) VALUES
+		(?, ?, 600000, 7200000, 0, 20, 10), (?, ?, 600000, 7200000, 0, 20, NULL), (?, ?, 0, 7200000, 0, 20, NULL)`,
+		f.P18.ID, again.ID, f.P18.ID, open.ID, f.P18.ID, cleared.ID)
+	if got := status(model.LibraryStatusWatched); !slices.Equal(got, []string{again.ID}) {
+		t.Errorf("watched = %v, want the film in its second run %s", got, again.ID)
+	}
+	if got := status(model.LibraryStatusStarted); !slices.Equal(got, []string{open.ID}) {
+		t.Errorf("started = %v, want only %s", got, open.ID)
+	}
+	if got := status(model.LibraryStatusUnwatched); !slices.Contains(got, cleared.ID) || slices.Contains(got, again.ID) {
+		t.Errorf("unwatched = %v, want %s and not %s", got, cleared.ID, again.ID)
 	}
 }

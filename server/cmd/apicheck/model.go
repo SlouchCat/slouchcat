@@ -4,6 +4,8 @@ package main
 // are written by hand on purpose: a third-party client has the contract, not the generated code
 // of this repository.
 
+import "time"
+
 type sessionInfo struct {
 	Account struct {
 		ID    int64  `json:"id"`
@@ -63,10 +65,11 @@ type itemRef struct {
 }
 
 type progress struct {
-	PositionMs int64   `json:"positionMs"`
-	DurationMs int64   `json:"durationMs"`
-	Percent    float64 `json:"percent"`
-	Completed  bool    `json:"completed"`
+	PositionMs int64      `json:"positionMs"`
+	DurationMs int64      `json:"durationMs"`
+	Percent    float64    `json:"percent"`
+	Completed  bool       `json:"completed"`
+	WatchedAt  *time.Time `json:"watchedAt"` // contract 1.31.0
 }
 
 type mediaFileInfo struct {
@@ -84,7 +87,6 @@ type itemDetail struct {
 	Overview     string          `json:"overview"`
 	Genres       []string        `json:"genres"`
 	InWatchlist  bool            `json:"inWatchlist"`
-	Favorite     bool            `json:"favorite"`
 	MediaFiles   []mediaFileInfo `json:"mediaFiles"`
 	Chapters     []chapter       `json:"chapters"`
 	Episodes     []itemRef       `json:"episodes"`

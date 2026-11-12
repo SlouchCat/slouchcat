@@ -288,7 +288,7 @@ func TestUpdateJobTypeWindow(t *testing.T) {
 	// A waiting run that may start outside the window (a playback) says so in the list of runs; it
 	// does not wait for the window, so the type reports no windowOpensAt.
 	jf.exec(t, `UPDATE jobs SET override_window = 1 WHERE id = ?`, id)
-	page, err := jf.svc.ListJobRuns(ctx, heavy, "queued", 0)
+	page, err := jf.svc.ListJobRuns(ctx, heavy, "queued", 0, 0)
 	if err != nil || len(page.Runs) != 1 || !page.Runs[0].OverridesWindow || page.Runs[0].OverridesPause {
 		t.Errorf("queued runs = %+v %v, want the run with override_window", page, err)
 	}
@@ -509,21 +509,21 @@ func TestListAndCancelJobRuns(t *testing.T) {
 	if err != nil || running == nil || running.IdempotencyKey != "running" {
 		t.Fatalf("claim: %+v %v", running, err)
 	}
-	page, err := jf.svc.ListJobRuns(ctx, fakeEvent, "queued", 2)
+	page, err := jf.svc.ListJobRuns(ctx, fakeEvent, "queued", 2, 0)
 	if err != nil || page.Total != 3 || len(page.Runs) != 2 || page.Runs[0].Priority != 5 || page.Runs[1].Priority != 3 {
 		t.Errorf("queued page = %+v, %v; want total 3, the two highest priorities first", page, err)
 	}
-	if page, err := jf.svc.ListJobRuns(ctx, fakeEvent, "planned", 0); err != nil || page.Total != 1 || len(page.Runs) != 1 || page.Runs[0].RunAfter.IsZero() {
+	if page, err := jf.svc.ListJobRuns(ctx, fakeEvent, "planned", 0, 0); err != nil || page.Total != 1 || len(page.Runs) != 1 || page.Runs[0].RunAfter.IsZero() {
 		t.Errorf("planned page = %+v, %v", page, err)
 	}
-	if page, err := jf.svc.ListJobRuns(ctx, fakeEvent, "running", 0); err != nil || page.Total != 1 || page.Runs[0].ID != running.ID {
+	if page, err := jf.svc.ListJobRuns(ctx, fakeEvent, "running", 0, 0); err != nil || page.Total != 1 || page.Runs[0].ID != running.ID {
 		t.Errorf("running page = %+v, %v", page, err)
 	}
 	var verr *model.ValidationError
-	if _, err := jf.svc.ListJobRuns(ctx, fakeEvent, "held", 0); !errors.As(err, &verr) {
+	if _, err := jf.svc.ListJobRuns(ctx, fakeEvent, "held", 0, 0); !errors.As(err, &verr) {
 		t.Errorf("unknown state: %v", err)
 	}
-	if _, err := jf.svc.ListJobRuns(ctx, "nobody.home", "queued", 0); !errors.Is(err, model.ErrNotFound) {
+	if _, err := jf.svc.ListJobRuns(ctx, "nobody.home", "queued", 0, 0); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("unknown type: %v", err)
 	}
 	n, err := jf.svc.CancelJobRuns(ctx, fakeEvent, false)
@@ -536,7 +536,7 @@ func TestListAndCancelJobRuns(t *testing.T) {
 	if n, err := jf.svc.CancelJobRuns(ctx, fakeEvent, true); err != nil || n != 1 {
 		t.Errorf("cancel all = %d, %v; want the running one", n, err)
 	}
-	if page, err := jf.svc.ListJobRuns(ctx, fakeEvent, "cancelled", 0); err != nil || page.Total != 5 {
+	if page, err := jf.svc.ListJobRuns(ctx, fakeEvent, "cancelled", 0, 0); err != nil || page.Total != 5 {
 		t.Errorf("cancelled page = %+v, %v", page, err)
 	}
 	if _, err := jf.svc.CancelJobRuns(ctx, "nobody.home", false); !errors.Is(err, model.ErrNotFound) {

@@ -9,6 +9,7 @@ import { rangeBySize, usePagedList, type PlaceRange } from '@/lib/pagedList';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
 import { BACK_KEY, DetailBody, DetailHeader, DetailPage } from '@/features/catalog/DetailHeader';
+import { useCoverPens } from '@/features/catalog/EditMetadata';
 import { isAudioKind } from '@/features/catalog/labels';
 import { Button, ButtonLink, Notice, Skeleton, SpatialPage } from '@/ui';
 import { cardKey, PageRetry } from './ItemGrid';
@@ -32,6 +33,7 @@ export function CollectionPage() {
 
 function CollectionView({ id }: { id: string }) {
   const { t } = useTranslation();
+  const pens = useCoverPens();
   // Every member, read page by page as the grid asks (concept 18 C-3).
   const [span, setSpan] = useState<PlaceRange>({ start: 0, end: 0 });
   const paged = usePagedList(collectionSource(id), rangeBySize(span));
@@ -105,7 +107,9 @@ function CollectionView({ id }: { id: string }) {
               focusKey={GRID_KEY}
               label={t('collection.members')}
               showWatched
+              tool={pens.tool}
             />
+            {pens.editor}
             {paged.failed && <PageRetry onRetry={paged.retry} />}
           </section>
         </DetailBody>

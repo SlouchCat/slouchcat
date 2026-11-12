@@ -36,6 +36,9 @@ var (
 	errQuotaExhausted = errors.New("youtube: daily quota exhausted")
 	// errYouTubeKeyInvalid: Google rejected the key; YouTube is skipped.
 	errYouTubeKeyInvalid = errors.New("youtube: api key rejected")
+	// errYouTubeUnavailable: YouTube answered 429 or 5xx (the key check of concept 20 P-12 tells
+	// it apart from a refused key).
+	errYouTubeUnavailable = errors.New("youtube: unavailable")
 )
 
 // youtubeTrailers searches trailers on YouTube. The API key travels in the query parameter key
@@ -307,6 +310,8 @@ func (y *youtubeTrailers) getJSON(ctx context.Context, path string, q url.Values
 		return errQuotaExhausted
 	case reasons["keyInvalid"] || reasons["API_KEY_INVALID"] || reasons["accessNotConfigured"] || reasons["forbidden"]:
 		return fmt.Errorf("%w: status %d", errYouTubeKeyInvalid, resp.StatusCode)
+	case resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500:
+		return fmt.Errorf("%w: youtube %s: status %d", errYouTubeUnavailable, path, resp.StatusCode)
 	default:
 		return fmt.Errorf("youtube %s: status %d", path, resp.StatusCode)
 	}

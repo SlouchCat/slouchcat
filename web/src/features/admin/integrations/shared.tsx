@@ -26,16 +26,6 @@ import styles from './Integrations.module.css';
 
 export type KeyName = keyof AdminSettings['keys'];
 
-export const KEYS = [
-  'tmdb',
-  'tvdb',
-  'tvdbPin',
-  'youtube',
-  'fanart',
-  'fanartClient',
-  'trakt',
-] as const satisfies readonly KeyName[];
-
 export const TLS_MODES = ['starttls', 'tls', 'none'] as const satisfies readonly SMTPTLS[];
 
 export const sourceTone = { env: 'info', stored: 'success', none: 'outline' } as const;

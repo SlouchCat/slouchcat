@@ -40,6 +40,7 @@ const watched: ItemRef = {
     percent: 100,
     completed: true,
     updatedAt: '2026-10-20T19:00:00Z',
+    watchedAt: '2026-10-20T19:00:00Z',
   },
 };
 
@@ -105,9 +106,16 @@ describe('library page', () => {
       'href',
       `/items/${ids.heat}`,
     );
-    // Watched: a check mark; started: the progress; no age rating (concept 17 F-10).
-    const arrivalCard = within(grid).getByRole('link', { name: /Arrival/ });
-    expect(within(arrivalCard).getByRole('img', { name: 'Gesehen' })).toBeInTheDocument();
+    // Watched: the check mark set (beside the card's link, concept 20 P-5); started: the
+    // progress; no age rating (concept 17 F-10).
+    expect(within(grid).getByRole('button', { name: 'Gesehen: Arrival' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(within(grid).getByRole('button', { name: 'Gesehen: Alien' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
     const alienCard = within(grid).getByRole('link', { name: /Alien/ });
     expect(within(alienCard).getByRole('progressbar', { name: '36 % gesehen' })).toBeVisible();
     expect(within(alienCard).queryByText('FSK 16')).not.toBeInTheDocument();

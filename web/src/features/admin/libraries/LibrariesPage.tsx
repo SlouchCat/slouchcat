@@ -1,37 +1,56 @@
-import type { Library } from '@slouchcat/api-client';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Library, LibraryDeletionQueued } from '@slouchcat/api-client';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
+import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { Notice, Page, Skeleton, Text, VisuallyHidden } from '@/ui';
+import { Notice, Page, Skeleton, Text, TextLink, VisuallyHidden } from '@/ui';
 import {
   AdminPage,
   AriaButton,
   ConfirmDialog,
+  ConfirmInputDialog,
   DataTable,
   StatusRegion,
   Tabs,
   afterDialogsClosed,
+  afterRender,
+  focusLost,
   focusTitleIfLost,
   useSearchSelection,
   useStatusMessage,
   useUnsavedChanges,
 } from '@/ui/aria';
-import { librariesQuery, isScanning, SCAN_POLL_MS } from '../queries';
+import { jobRunsKey, jobRunsQuery, librariesQuery, isScanning, SCAN_POLL_MS } from '../queries';
 import { AddLibraryDialog, useLibraryDraft } from './AddLibraryDialog';
 import { DefaultRatingDialog } from './DefaultRatingDialog';
 import { libraryColumns } from './libraryColumns';
 import { LibraryDetail, type LibraryHandlers } from './LibraryDetail';
 import { LibraryFoldersDialog } from './LibraryFoldersDialog';
+import { RenameLibraryDialog } from './RenameLibraryDialog';
 import { TrickplayDialog } from './TrickplayDialog';
 import styles from './Libraries.module.css';
 
 /** The filter tabs by kind (Bib-C): all libraries, then one per kind. */
 const TABS = ['all', 'video', 'audiobooks', 'podcasts'] as const;
 type TabId = (typeof TABS)[number];
+
+/** The job type that deletes a library (concept 20 P-8, decision of 2026-11-12). */
+const DELETE_JOB = 'library.delete';
+/** How often the page asks whether a delete it queued has ended. */
+const DELETE_POLL_MS = 2000;
+
+/** A delete queued from this page: its job, and the library it hides until the job ends. */
+interface Removal {
+  jobId: number;
+  libraryId: number;
+  name: string;
+  /** When the 202 came; only an answer fetched after it can say that the job ended. */
+  since: number;
+}
 
 /** A confirmation the page opens itself (from a row's menu; the row may change meanwhile). */
 interface Confirmation {
@@ -47,7 +66,8 @@ interface Confirmation {
  * band and folders; «Bibliothek hinzufügen» opens a dialog whose draft the page keeps. The list
  * is polled every 5 s while a scan is queued or running, and paused only while a dialog of the
  * page is open: a kept draft does not stop the scan progress. Leaving the page with a draft asks
- * first (S-13).
+ * first (S-13); while the dialog is closed, a band says that the draft is there and offers to go
+ * on or to discard it (concept 20, 13.2).
  */
 export function LibrariesPage() {
   const { t } = useTranslation();
@@ -74,6 +94,8 @@ function LibrariesContent() {
 
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // The library «Bibliothek löschen …» asks about (concept 20 P-8).
+  const [deleting, setDeleting] = useState<Library | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [foldersId, setFoldersId] = useState<number | null>(null);
   const [foldersOpen, setFoldersOpen] = useState(false);
@@ -81,14 +103,26 @@ function LibrariesContent() {
   const [ratingOpen, setRatingOpen] = useState(false);
   // Each opening of the rating dialog mounts it afresh, so it starts at the library's value.
   const [ratingSession, setRatingSession] = useState(0);
+  // The same for «Umbenennen …».
+  const [renameId, setRenameId] = useState<number | null>(null);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameSession, setRenameSession] = useState(0);
   // The same for «Vorschau beim Spulen» (concept 18, 9).
   const [trickplayId, setTrickplayId] = useState<number | null>(null);
   const [trickplayOpen, setTrickplayOpen] = useState(false);
   const [trickplaySession, setTrickplaySession] = useState(0);
   const draft = useLibraryDraft();
   const unsaved = useUnsavedChanges(draft.dirty);
+  const continueRef = useRef<HTMLButtonElement>(null);
   // The draft lives outside the dialog, so `unsaved.pausePolling` stays out of this.
-  const hold = confirmOpen || addOpen || foldersOpen || ratingOpen || trickplayOpen;
+  const hold =
+    confirmOpen ||
+    addOpen ||
+    foldersOpen ||
+    ratingOpen ||
+    renameOpen ||
+    trickplayOpen ||
+    deleting !== null;
 
   // An unknown `?tab=` shows the first tab; the address says so too.
   const [tab, selectTab] = useSearchSelection('tab', TABS, 'all', { normalise: true });
@@ -173,6 +207,52 @@ function LibrariesContent() {
     },
     [setMessage],
   );
+  // The deletes queued from this page (concept 20 P-8). The runs of `library.delete` are polled
+  // while one is open; once its job is neither queued nor running in an answer fetched after the
+  // 202, the list is fetched again. The library being back in it means the job did not delete it
+  // (it failed before deleting anything, or it was cancelled); the jobs page says why.
+  const [removals, setRemovals] = useState<readonly Removal[]>([]);
+  // The jobs whose end the page has taken up already; a render before the list came back must
+  // not take it up again.
+  const settled = useRef(new Set<number>());
+  const [queuedRuns, runningRuns] = useQueries({
+    queries: (['queued', 'running'] as const).map((state) => ({
+      ...jobRunsQuery(DELETE_JOB, state),
+      enabled: removals.length > 0,
+      refetchInterval: removals.length > 0 ? DELETE_POLL_MS : false,
+    })),
+  });
+  const queuedData = queuedRuns?.data;
+  const runningData = runningRuns?.data;
+  const seen = Math.min(queuedRuns?.dataUpdatedAt ?? 0, runningRuns?.dataUpdatedAt ?? 0);
+  useEffect(() => {
+    if (removals.length === 0 || !queuedData || !runningData) return;
+    const open = new Set([...queuedData.runs, ...runningData.runs].map((run) => run.id));
+    const ended = removals.filter(
+      (removal) =>
+        removal.since <= seen && !open.has(removal.jobId) && !settled.current.has(removal.jobId),
+    );
+    if (ended.length === 0) return;
+    for (const removal of ended) settled.current.add(removal.jobId);
+    void queryClient
+      .fetchQuery({ ...librariesQuery, staleTime: 0 })
+      .finally(() =>
+        setRemovals((current) => current.filter((removal) => !ended.includes(removal))),
+      )
+      .then((list) => {
+        const back = ended.filter((removal) =>
+          list.some((entry) => entry.id === removal.libraryId),
+        );
+        const gone = ended.filter((removal) => !back.includes(removal));
+        const lines = [
+          ...gone.map((removal) => t('admin.libraries.delete.done', { name: removal.name })),
+          ...back.map((removal) => t('admin.libraries.delete.notDone', { name: removal.name })),
+        ];
+        setFailure(null);
+        setMessage(lines.join(t('format.separator')), back.length > 0 ? 'warning' : undefined);
+      })
+      .catch(failed);
+  }, [removals, queuedData, runningData, seen, queryClient, t, setMessage, failed]);
   const scan = useMutation({
     mutationFn: (id: number): Promise<Library> =>
       request(api.POST('/admin/libraries/{id}/scan', { params: { path: { id } } })),
@@ -190,6 +270,53 @@ function LibrariesContent() {
       return succeeded(library);
     },
     onError: failed,
+  });
+  // «Bibliothek löschen …» (concept 20 P-8): the typed name goes to the server, which compares it
+  // against its own row and queues the job `library.delete` (202). The library is hidden at once,
+  // so the dialog closes and the row leaves the list right away; the focus goes to the h1.
+  const removeLibrary = useMutation({
+    mutationFn: ({
+      library,
+      confirmName,
+    }: {
+      library: Library;
+      confirmName: string;
+    }): Promise<LibraryDeletionQueued> =>
+      request(
+        api.POST('/admin/libraries/{id}/deletion', {
+          params: { path: { id: library.id } },
+          body: { confirmName },
+        }),
+      ),
+    onSuccess: async (queued, { library }) => {
+      setDeleting(null);
+      setFailure(null);
+      setRemovals((current) => [
+        ...current,
+        { jobId: queued.jobId, libraryId: library.id, name: queued.name, since: Date.now() },
+      ]);
+      // A poll already on its way could not know the job yet: it is cancelled and asked again.
+      void queryClient.invalidateQueries({ queryKey: jobRunsKey });
+      setMessage(
+        <>
+          {t('admin.libraries.delete.queued', { name: queued.name })}{' '}
+          <TextLink href={`${paths.adminJobs}?item=${DELETE_JOB}`}>
+            {t('admin.libraries.delete.jobs')}
+          </TextLink>
+        </>,
+      );
+      queryClient.setQueryData<Library[]>(librariesQuery.queryKey, (list) =>
+        list?.filter((entry) => entry.id !== library.id),
+      );
+      await queryClient.invalidateQueries({ queryKey: librariesQuery.queryKey });
+      await afterDialogsClosed();
+      focusTitleIfLost(titleRef);
+    },
+    onError: (error) => {
+      setDeleting(null);
+      failed(error);
+      void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
+    },
   });
   const acceptLoss = useMutation({
     mutationFn: (id: number): Promise<Library> =>
@@ -222,6 +349,11 @@ function LibrariesContent() {
         setFoldersId(id);
         setFoldersOpen(true);
       },
+      onRename: (id) => {
+        setRenameId(id);
+        setRenameSession((session) => session + 1);
+        setRenameOpen(true);
+      },
       onRating: (id) => {
         setRatingId(id);
         setRatingSession((session) => session + 1);
@@ -239,6 +371,7 @@ function LibrariesContent() {
           confirmLabel: t('admin.libraries.acceptLoss.confirm'),
           onConfirm: () => acceptLossMutate(library.id),
         }),
+      onDelete: (library) => setDeleting(library),
     }),
     [scanMutate, cancelMutate, acceptLossMutate, ask, t],
   );
@@ -254,7 +387,25 @@ function LibrariesContent() {
   );
   const foldersLibrary = data?.find((library) => library.id === foldersId);
   const ratingLibrary = data?.find((library) => library.id === ratingId);
+  const renameLibrary = data?.find((library) => library.id === renameId);
   const trickplayLibrary = data?.find((library) => library.id === trickplayId);
+
+  // The band is gone while the dialog is open, so a dialog opened from it hands the focus back to
+  // the band's button once it shows again; with the draft discarded, to the h1.
+  const onAddOpenChange = useCallback((open: boolean) => {
+    setAddOpen(open);
+    if (open) return;
+    void afterDialogsClosed().then(() => {
+      if (focusLost()) (continueRef.current ?? titleRef.current)?.focus();
+    });
+  }, []);
+  const discardDraft = () => {
+    draft.reset();
+    setFailure(null);
+    setMessage(t('admin.libraries.add.draft.discarded'));
+    // The band goes with the button that had the focus.
+    void afterRender().then(() => focusTitleIfLost(titleRef));
+  };
 
   const tabName = (id: TabId) =>
     id === 'all' ? t('admin.libraries.tabs.all') : t(`library.kind.${id}`);
@@ -285,6 +436,23 @@ function LibrariesContent() {
         />
       )}
       {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
+      {/* A polite live region: it appears when the dialog closes on a kept draft. */}
+      {draft.dirty && !addOpen && (
+        <Notice
+          tone="warning"
+          title={t('admin.libraries.add.draft.band')}
+          actions={
+            <>
+              <AriaButton ref={continueRef} icon="pen" onPress={() => onAddOpenChange(true)}>
+                {t('admin.libraries.add.draft.continue')}
+              </AriaButton>
+              <AriaButton variant="ghost" onPress={discardDraft}>
+                {t('admin.libraries.add.draft.discard')}
+              </AriaButton>
+            </>
+          }
+        />
+      )}
       <StatusRegion message={failure === null ? message : null} />
       {data?.length === 0 && <Notice>{t('admin.libraries.empty')}</Notice>}
       {data && data.length > 0 && (
@@ -324,7 +492,7 @@ function LibrariesContent() {
       <AddLibraryDialog
         draft={draft}
         isOpen={addOpen}
-        onOpenChange={setAddOpen}
+        onOpenChange={onAddOpenChange}
         onCreated={(library) => {
           setFailure(null);
           setMessage(t('admin.libraries.add.created', { name: library.name }));
@@ -337,6 +505,23 @@ function LibrariesContent() {
           isOpen={foldersOpen}
           onOpenChange={setFoldersOpen}
           onChanged={(updated) => void refresh(updated)}
+        />
+      )}
+      {renameLibrary && (
+        <RenameLibraryDialog
+          key={renameSession}
+          library={renameLibrary}
+          isOpen={renameOpen}
+          onOpenChange={setRenameOpen}
+          onSaved={(updated) => {
+            setFailure(null);
+            setMessage(t('admin.libraries.rename.saved', { name: updated.name }));
+            // The name shows in the side navigation and the header of the library page
+            // (['libraries', …]), in the rows «Neu in …» of the start page and their lists.
+            for (const queryKey of [['libraries'], ['home'], ['homeList'], ['library']])
+              void queryClient.invalidateQueries({ queryKey });
+            void refresh(updated);
+          }}
         />
       )}
       {ratingLibrary && (
@@ -383,6 +568,36 @@ function LibrariesContent() {
           tone="danger"
           onConfirm={confirmation.onConfirm}
         />
+      )}
+      {deleting && (
+        <ConfirmInputDialog
+          isOpen
+          onOpenChange={(open) => {
+            if (open) return;
+            setDeleting(null);
+            void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
+          }}
+          title={t('admin.libraries.delete.title', { name: deleting.name })}
+          expected={deleting.name}
+          inputLabel={t('admin.libraries.delete.inputLabel')}
+          mismatchText={t('admin.libraries.delete.mismatch', { name: deleting.name })}
+          confirmLabel={t('admin.libraries.delete.confirm')}
+          cancelLabel={t('common.cancel')}
+          isPending={removeLibrary.isPending}
+          onConfirm={(confirmName) => removeLibrary.mutate({ library: deleting, confirmName })}
+        >
+          <p>
+            {t('admin.libraries.delete.lead', {
+              name: deleting.name,
+              roots: t('admin.libraries.rootCount', { count: deleting.roots.length }),
+              count: deleting.scan.itemCount,
+              formatted: number.format(deleting.scan.itemCount),
+            })}
+          </p>
+          <p>{t('admin.libraries.delete.files')}</p>
+          <p>{t('admin.libraries.delete.backup')}</p>
+          <p>{t('admin.libraries.delete.final')}</p>
+        </ConfirmInputDialog>
       )}
       <ConfirmDialog {...unsaved.dialog} />
     </AdminPage>

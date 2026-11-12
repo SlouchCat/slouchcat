@@ -25,13 +25,14 @@ ORDER BY COALESCE(m.part_index, 0), m.rel_path, m.id;
 -- Audiobook series (concept 19 stage D2, D4.1): the visible books of a library that belong to a
 -- series, with what the row "Reihen und Sammlungen" and the page of a series compute from them
 -- (count, spellings, author, narrator, duration, order, completed). sort_key is the title sort key
--- in the metadata language, then the interface language, then the file name's; the visibility
--- package groups and orders in Go.
+-- in the metadata language, then the interface language, then the file name's, the visibility
+-- package groups and orders in Go. completed leads to the next volume (it continues), watched
+-- counts the volumes heard (it shows, watched_at, concept 20 section 6.3).
 -- name: ListVisibleAudioSeriesVolumes :many
 SELECT i.id, CAST(i.audio_series_id AS TEXT) AS series_id, s.name AS series_display, s.name_locked,
        i.series_name, i.series_index, COALESCE(i.author_display, i.author) AS author, i.narrator, i.duration_ms,
        CAST(COALESCE(NULLIF(tm.sort_key, ''), NULLIF(tu.sort_key, ''), i.sort_title, '') AS TEXT) AS sort_key,
-       COALESCE(p.completed, 0) AS completed
+       COALESCE(p.completed, 0) AS completed, CAST(p.watched_at IS NOT NULL AS INTEGER) AS watched
 FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
 JOIN audio_series AS s ON s.id = i.audio_series_id AND s.library_id = i.library_id
@@ -45,7 +46,7 @@ WHERE i.library_id = @library_id AND i.kind = 'audiobook';
 SELECT i.id, CAST(i.audio_series_id AS TEXT) AS series_id, s.name AS series_display, s.name_locked,
        i.series_name, i.series_index, COALESCE(i.author_display, i.author) AS author, i.narrator, i.duration_ms,
        CAST(COALESCE(NULLIF(tm.sort_key, ''), NULLIF(tu.sort_key, ''), i.sort_title, '') AS TEXT) AS sort_key,
-       COALESCE(p.completed, 0) AS completed
+       COALESCE(p.completed, 0) AS completed, CAST(p.watched_at IS NOT NULL AS INTEGER) AS watched
 FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
 JOIN audio_series AS s ON s.id = i.audio_series_id AND s.library_id = i.library_id
@@ -63,11 +64,12 @@ JOIN audio_series AS s ON s.id = i.audio_series_id AND s.library_id = i.library_
 WHERE i.audio_series_id = @series_id AND i.kind = 'audiobook';
 
 -- The audiobook collections of a library (D4.1): manual collections whose visible members are all
--- audiobooks, with at least one visible member in this library. Count, completed members and
--- cover over every visible member, as the collection page and ListVisibleCollections count them.
+-- audiobooks, with at least one visible member in this library. Count, heard members (watched_at,
+-- concept 20 section 6.3) and cover over every visible member, as the collection page and
+-- ListVisibleCollections count them.
 -- name: ListVisibleAudioCollections :many
 SELECT c.id, c.name, c.name_de, count(*) AS member_count,
-       CAST(sum(COALESCE(p.completed, 0)) AS INTEGER) AS completed,
+       CAST(sum(p.watched_at IS NOT NULL) AS INTEGER) AS completed,
        CAST((SELECT ci2.item_id FROM collection_items AS ci2
              JOIN items AS i2 ON i2.id = ci2.item_id
              JOIN visible_items AS v2 ON v2.item_id = ci2.item_id AND v2.profile_id = @profile_id

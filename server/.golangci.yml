@@ -83,6 +83,18 @@ linters:
         - pattern: ^exec\.(Command|CommandContext|LookPath)$
           pkg: ^os/exec$
           msg: external processes run only through internal/transcode (and docker compose in cmd/updater, ADR 0024), with exec.CommandContext and an argument list (CLAUDE.md rule 3)
+        # ADR 0032 (concept 20 section 11): files below a root are deleted only through
+        # paths.Remove and paths.RemoveEmptyDir, which check the path, refuse symlinks and never
+        # delete recursively. The deletes in the cache and of a download's own files say so at
+        # each call (nolint with the reason).
+        - pattern: ^os\.Root\.Remove(All)?$
+          msg: files below a root are deleted only through paths.Remove and paths.RemoveEmptyDir (ADR 0032, CLAUDE.md rule 4)
+        # ADR 0032 (review finding 4): in the packages that handle library files, nothing deletes
+        # or renames by path or by system call either; the exclusion below scopes the rule to them.
+        - pattern: ^os\.(Remove|RemoveAll|Rename)$
+          msg: "ADR 0032: in this package no file is deleted or renamed by path; below a root through paths.Remove, paths.RemoveEmptyDir or an os.Root"
+        - pattern: ^(unix|syscall)\.(Unlink|Unlinkat|Rmdir|Rename|Renameat2?)$
+          msg: "ADR 0032: in this package no file is deleted or renamed by system call; below a root through paths.Remove and paths.RemoveEmptyDir"
         - pattern: \.(EnqueueOverridingPause|RaiseQueuedJobForPlayback|EnqueueOverridingWindow)$
           msg: only a playback lifts the pause, a playback or an offline download the time window of a job type, through package library (concept 14 6.5, ADR 0022; concept 15 4.3, M-1)
     govet:
@@ -102,6 +114,20 @@ linters:
       - path: internal/transcode/
         linters:
           - forbidigo
+      # The one package that deletes below a root (ADR 0032).
+      - path: internal/paths/
+        linters:
+          - forbidigo
+        text: Remove
+      # The path rules of ADR 0032 hold in the packages that handle library files.
+      - path-except: internal/(library|metadata|browse|api|offline)/
+        linters:
+          - forbidigo
+        text: "ADR 0032: in this package"
+      - path: _test\.go
+        linters:
+          - forbidigo
+        text: "ADR 0032: in this package"
       # The updater companion runs docker compose (ADR 0024). Only exec.CommandContext is lifted
       # there; exec.Command and exec.LookPath stay forbidden.
       - path: ^cmd/updater/

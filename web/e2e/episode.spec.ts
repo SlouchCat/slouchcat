@@ -16,7 +16,11 @@ test.beforeEach(async ({ page }) => {
   if (!firstEpisode) {
     series = await itemPath(page, SHOW_TITLE);
     await page.goto(series);
-    const card = page.getByRole('list', { name: 'Folgen' }).getByRole('link').first();
+    // «Details» of the first episode: the row itself plays it (concept 20 P-4).
+    const card = page
+      .getByRole('list', { name: 'Folgen' })
+      .getByRole('link', { name: /^Details: / })
+      .first();
     await expect(card).toBeVisible();
     firstEpisode = (await card.getAttribute('href')) ?? '';
   }

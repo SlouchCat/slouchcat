@@ -1,4 +1,4 @@
--- Discover reads of M7 (design 3.1): watchlist, favourites, collections and genres (the spotlight row: spotlight.sql).
+-- Discover reads of M7 (design 3.1): watchlist, collections and genres (the spotlight row: spotlight.sql).
 -- Every query joins visible_items for the given profile, so an entry whose title became invisible
 -- is absent and a collection exists for the profile only through a visible member. Times are Unix
 -- milliseconds.
@@ -30,21 +30,6 @@ WHERE w.profile_id = @profile_id AND w.item_id = @item_id;
 SELECT w.item_id FROM watchlist AS w
 JOIN visible_items AS v ON v.item_id = w.item_id AND v.profile_id = w.profile_id
 WHERE w.profile_id = @profile_id AND w.item_id IN (sqlc.slice('item_ids'));
-
--- Favourite series and podcasts of the profile (E-8), newest first.
--- name: ListFavorites :many
-SELECT i.* FROM favorites AS f
-JOIN items AS i ON i.id = f.item_id
-JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
-WHERE f.profile_id = @profile_id
-ORDER BY f.created_at DESC, i.id
-LIMIT @limit_count;
-
--- 1 when the visible title is a favourite of the profile, else 0.
--- name: GetFavorite :one
-SELECT count(*) FROM favorites AS f
-JOIN visible_items AS v ON v.item_id = f.item_id AND v.profile_id = f.profile_id
-WHERE f.profile_id = @profile_id AND f.item_id = @item_id;
 
 -- Collections with at least one visible member (E-6), by name: the number of visible members and
 -- the cover, the visible member first in collection order (position, then release date). Since

@@ -674,7 +674,7 @@ func (r *trickplayRun) manifest(ctx context.Context, row systemq.GetTrickplayFil
 			}
 		}
 	}
-	if err := r.root.RemoveAll(r.rel); err != nil {
+	if err := r.root.RemoveAll(r.rel); err != nil { //nolint:forbidigo // the cache root (trickplay), never a library root (ADR 0032)
 		return fmt.Errorf("clear trickplay set: %w", err)
 	}
 	if err := r.root.MkdirAll(r.rel, 0o750); err != nil {
@@ -704,7 +704,7 @@ func (r *trickplayRun) writeFile(name string, data []byte) error {
 		err = cerr
 	}
 	if err != nil {
-		_ = r.root.Remove(tmp)
+		_ = r.root.Remove(tmp) //nolint:forbidigo // the cache root (trickplay), never a library root (ADR 0032)
 		return fmt.Errorf("write trickplay %s: %w", name, err)
 	}
 	return r.store(tmp, name)
@@ -713,7 +713,7 @@ func (r *trickplayRun) writeFile(name string, data []byte) error {
 // store renames the flushed file tmp to name in the set and flushes the folder.
 func (r *trickplayRun) store(tmp, name string) error {
 	if err := r.root.Rename(tmp, r.rel+"/"+name); err != nil {
-		_ = r.root.Remove(tmp)
+		_ = r.root.Remove(tmp) //nolint:forbidigo // the cache root (trickplay), never a library root (ADR 0032)
 		return fmt.Errorf("store trickplay %s: %w", name, err)
 	}
 	return syncTrickplayDir(r.root, r.rel)
@@ -772,7 +772,7 @@ func (r *trickplayRun) sheets(ctx context.Context) error {
 		// The set made again replaces the complete one; a stop between the two steps is
 		// repaired by place.
 		main := strings.TrimSuffix(r.rel, trickplayNextSuffix)
-		if err := r.root.RemoveAll(main); err != nil {
+		if err := r.root.RemoveAll(main); err != nil { //nolint:forbidigo // the cache root (trickplay), never a library root (ADR 0032)
 			return fmt.Errorf("remove the trickplay set made again: %w", err)
 		}
 		if err := r.root.Rename(r.rel, main); err != nil {
@@ -908,14 +908,14 @@ feed:
 		return err
 	}
 	if err := r.s.trickplaySheet(ctx, tiles, r.m.TileHeight, out); err != nil {
-		_ = r.root.Remove(tmp)
+		_ = r.root.Remove(tmp) //nolint:forbidigo // the cache root (trickplay), never a library root (ADR 0032)
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
 		return fmt.Errorf("trickplay sheet %d of %s: %w", n, r.p.MediaFileID, err)
 	}
 	if err := r.syncFile(tmp); err != nil {
-		_ = r.root.Remove(tmp)
+		_ = r.root.Remove(tmp) //nolint:forbidigo // the cache root (trickplay), never a library root (ADR 0032)
 		return err
 	}
 	return r.store(tmp, TrickplaySheetName(n))

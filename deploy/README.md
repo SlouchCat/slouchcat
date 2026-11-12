@@ -118,7 +118,7 @@ docker compose ps             # Status "healthy" nach wenigen Sekunden
 ```
 
 Die Web-Oberfläche läuft auf <http://localhost:8096>. `compose.yaml` verweist auf
-`ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION}` (Standard `1.30.1`); das Image entsteht bei jedem
+`ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION}` (Standard `1.31.0`); das Image entsteht bei jedem
 Release (`.github/workflows/release.yml`, ADR 0001). Die Fassung ist bewusst festgenagelt: eine
 Aktualisierung ist ein eigener Schritt (`SLOUCHCAT_VERSION` in `.env` ändern, dann
 `docker compose pull && docker compose up -d`), die Update-Prüfung sagt nur, dass es eine gibt.
@@ -230,8 +230,10 @@ Version gibt es nur `off` (ein anderer Wert erzeugt eine Warnung im Log und blei
 
 Das Image definiert den Healthcheck selbst (`slouchcat healthcheck` ruft
 `http://127.0.0.1:8096/api/v1/healthz` auf; kein curl im Image), Compose übernimmt ihn:
-Intervall 5 s, Timeout 2 s, Startphase 1 s mit Prüfung jede Sekunde (`--start-interval`, Docker Engine
-ab 25), 3 Versuche.
+Intervall 5 s, Timeout 2 s, Startphase 10 s mit Prüfung jede Sekunde (`--start-interval`, Docker Engine
+ab 25), 3 Versuche. In der Startphase meldet der Container «healthy» spätestens eine Sekunde, nachdem der
+Server bereit ist; Fehlversuche darin zählen nicht. Mit nur 1 s Startphase kam die zweite Prüfung erst nach
+6 s, so dass ein Start knapp über 1 s als 6 s gemessen wurde (CI-Prüfung `measure-healthy.sh`, Grenze 5 s).
 
 ## Updater-Begleiter (`compose.updater.yaml`, freiwillig)
 

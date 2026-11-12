@@ -147,7 +147,7 @@ func (n podcastOwnNames) remove(r *os.Root, keepPart bool) {
 		if keepPart && (name == n.part || name == n.validator) {
 			continue
 		}
-		_ = r.Remove(name)
+		_ = r.Remove(name) //nolint:forbidigo // the own files of a podcast download, never a file of a title (concept 19 F-4, ADR 0032)
 	}
 }
 
@@ -547,13 +547,13 @@ func (s *Service) writePodcastMetadata(ctx context.Context, r *os.Root, folder s
 		return
 	}
 	tmp := folder + "/" + podcastOwnPrefix + set.PodcastID + "-metadata.json"
-	_ = r.Remove(tmp)
+	_ = r.Remove(tmp) //nolint:forbidigo // the own temporary metadata file, never a file of a title (concept 19 F-4, ADR 0032)
 	f, err := r.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, podcastFileMode)
 	if err != nil {
 		s.log.WarnContext(ctx, "write metadata.json of a new podcast folder", "item_id", set.PodcastID, "err", err)
 		return
 	}
-	defer func() { _ = r.Remove(tmp) }()
+	defer func() { _ = r.Remove(tmp) }() //nolint:forbidigo // the own temporary metadata file, never a file of a title (concept 19 F-4, ADR 0032)
 	_, werr := f.Write(data)
 	if err := errors.Join(werr, f.Close(), r.Chmod(tmp, podcastFileMode)); err != nil {
 		s.log.WarnContext(ctx, "write metadata.json of a new podcast folder", "item_id", set.PodcastID, "err", err)
@@ -684,18 +684,18 @@ func (s *Service) checkPodcastEpisode(ctx context.Context, pr paths.Root, r *os.
 	}
 	switch err := s.tagPodcastAudio(ctx, r, abs, own.tagged, ext, tags); {
 	case errors.Is(err, transcode.ErrNotTaggable):
-		_ = r.Remove(own.tagged)
+		_ = r.Remove(own.tagged) //nolint:forbidigo // the own tagged copy of a podcast download, never a file of a title (concept 19 F-4, ADR 0032)
 	case err != nil:
 		s.log.WarnContext(ctx, "tags of a stored episode not written, the untagged file is entered", "item_id", ep.ID, "err",
 			strings.ReplaceAll(err.Error(), pr.Dir(), ""))
-		_ = r.Remove(own.tagged)
+		_ = r.Remove(own.tagged) //nolint:forbidigo // the own tagged copy of a podcast download, never a file of a title (concept 19 F-4, ADR 0032)
 	default:
 		tp, err := s.probe.Probe(ctx, tagged)
 		if err == nil && mainAudio(tp.Streams) != nil && tp.Format.Duration > 0 {
 			src, probe = own.tagged, tp
 		} else {
 			s.log.WarnContext(ctx, "tagged copy of a stored episode does not probe, the untagged file is entered", "item_id", ep.ID)
-			_ = r.Remove(own.tagged)
+			_ = r.Remove(own.tagged) //nolint:forbidigo // the own tagged copy of a podcast download, never a file of a title (concept 19 F-4, ADR 0032)
 		}
 	}
 	if err := r.Chmod(src, podcastFileMode); err != nil {
@@ -709,7 +709,7 @@ func (s *Service) checkPodcastEpisode(ctx context.Context, pr paths.Root, r *os.
 // with O_EXCL through the root, and ffmpeg writes into it through transcode.Runner.TagAudio (the
 // test seam podcastTag replaces it), with the server's cache for formats that need to seek.
 func (s *Service) tagPodcastAudio(ctx context.Context, r *os.Root, in, name, ext string, tags transcode.AudioTags) error {
-	if err := r.Remove(name); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	if err := r.Remove(name); err != nil && !errors.Is(err, fs.ErrNotExist) { //nolint:forbidigo // the own files of a podcast download, never a file of a title (concept 19 F-4, ADR 0032)
 		return err
 	}
 	f, err := r.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, podcastFileMode)
@@ -766,7 +766,7 @@ func (s *Service) enterPodcastFile(ctx context.Context, r *os.Root, target podca
 		return false, fmt.Errorf("no free name for stored episode %s", ep.ID)
 	}
 	if err := s.insertPodcastFile(ctx, r, target.root, set.PodcastID, ep.ID, linked, ext, probe, revive); err != nil {
-		if rerr := r.Remove(linked); rerr != nil {
+		if rerr := r.Remove(linked); rerr != nil { //nolint:forbidigo // the own files of a podcast download, never a file of a title (concept 19 F-4, ADR 0032)
 			s.log.WarnContext(ctx, "remove the link of a stored episode that was not entered", "item_id", ep.ID, "err", rerr)
 		}
 		if errors.Is(err, errPodcastEpisodeHasFile) {
@@ -933,7 +933,7 @@ func (s *Service) sweepPodcastLeftovers(ctx context.Context) error {
 					_ = r.Close()
 					return fmt.Errorf("active download of %s: %w", id, err)
 				}
-				if err := r.Remove(rel); err == nil {
+				if err := r.Remove(rel); err == nil { //nolint:forbidigo // the own files of a podcast download, never a file of a title (concept 19 F-4, ADR 0032)
 					removed++
 				}
 			}

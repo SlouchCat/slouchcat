@@ -374,7 +374,28 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		}
 		p.write(w, r, http.StatusConflict, "scan_running", "A scan of this library is running; it holds the folders it started with.")
 	case errors.Is(err, model.ErrConfirmMismatch):
-		p.write(w, r, http.StatusUnprocessableEntity, "confirm_mismatch", "The typed path does not repeat the folder that is about to be removed.")
+		p.write(w, r, http.StatusUnprocessableEntity, "confirm_mismatch", "The typed confirmation does not repeat what is about to be removed.")
+	case errors.Is(err, model.ErrChanged):
+		p.write(w, r, http.StatusConflict, "changed", "The files of the title changed since the preview; check it again.")
+	case errors.Is(err, model.ErrDeleting):
+		p.write(w, r, http.StatusConflict, "deleting", "It is being deleted right now.")
+	case errors.Is(err, model.ErrNotDeletable):
+		p.write(w, r, http.StatusUnprocessableEntity, "not_deletable", "This title has no delete: an extra, or a podcast episode that is only a reference from its feed.")
+	case errors.Is(err, model.ErrFilesNotDeletable):
+		detail := "A file of the title cannot be deleted; nothing was deleted."
+		var fe *model.FilesNotDeletableError
+		if errors.As(err, &fe) && fe.Reason != "" {
+			detail = fmt.Sprintf("A file of the title cannot be deleted (%s); nothing was deleted.", fe.Reason)
+		}
+		p.write(w, r, http.StatusUnprocessableEntity, "files_not_deletable", detail)
+	case errors.Is(err, model.ErrPlaying):
+		var pe *model.PlayingError
+		body := problemBody(r, http.StatusConflict, "playing", "A profile plays a title of what is about to be deleted; nothing was deleted.", nil, nil)
+		if errors.As(err, &pe) && len(pe.Profiles) > 0 {
+			names := append([]string{}, pe.Profiles...)
+			body.PlayingProfiles = &names
+		}
+		p.send(w, http.StatusConflict, body)
 	case errors.Is(err, model.ErrTMDBKeyInvalid):
 		p.write(w, r, http.StatusUnprocessableEntity, "tmdb_key_invalid", "TMDB rejected the key.")
 	case errors.Is(err, model.ErrUnauthenticated):
@@ -437,8 +458,6 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusGone, "download_evicted", "The server removed its prepared copy; the next sync prepares it again.")
 	case errors.Is(err, model.ErrNotListable):
 		p.write(w, r, http.StatusUnprocessableEntity, "not_listable", "Seasons and extras cannot be put on the watchlist.")
-	case errors.Is(err, model.ErrNotFavoritable):
-		p.write(w, r, http.StatusUnprocessableEntity, "not_favoritable", "Only series and podcasts can be favourites.")
 	case errors.Is(err, model.ErrNotEditable):
 		p.write(w, r, http.StatusUnprocessableEntity, "not_editable", "Collections from TMDB cannot be changed.")
 	case errors.Is(err, model.ErrNotImplemented):

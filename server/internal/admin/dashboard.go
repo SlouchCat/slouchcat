@@ -386,8 +386,8 @@ func (s *Service) integrations(ctx context.Context, update model.UpdateState) ([
 		if k.field == model.ClearTVDBPin {
 			continue // part of the TVDB key
 		}
-		if k.field == model.ClearFanart || k.field == model.ClearFanartClient {
-			continue // an image source switched on the page "Metadaten", not an integration of the overview
+		if k.field == model.ClearFanart || k.field == model.ClearFanartClient || k.field == model.ClearGoogleBooks {
+			continue // a source switched on its own page ("Metadaten", "Hörbücher: Quellen"), not an integration of the overview
 		}
 		ks, err := s.keyState(ctx, k)
 		if err != nil {

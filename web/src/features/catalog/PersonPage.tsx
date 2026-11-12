@@ -20,7 +20,9 @@ import {
   SpatialPage,
 } from '@/ui';
 import { CoverWatchlist, WATCHLIST_KINDS } from '@/features/discover/CoverWatchlist';
+import { useCoverPens } from './EditMetadata';
 import { creditCaption } from './labels';
+import { CoverWatched, WATCHED_KINDS } from './watched';
 import { personQuery } from './queries';
 import styles from './PersonPage.module.css';
 
@@ -31,6 +33,7 @@ const BACK_KEY = 'person-back';
 /** A person (B-3): name and the titles with a role that the active profile may see. */
 export function PersonPage() {
   const { t } = useTranslation();
+  const pens = useCoverPens();
   const { personId } = route.useParams();
   const id = Number(personId);
   const valid = Number.isInteger(id) && id > 0;
@@ -108,6 +111,12 @@ export function PersonPage() {
                 posterUrl={imageUrl(credit.item.images.poster)}
                 posterSmallUrl={imageUrl(credit.item.images.posterSmall)}
                 accent={credit.item.accent}
+                tool={pens.tool?.(credit.item)}
+                check={
+                  WATCHED_KINDS.has(credit.item.kind) ? (
+                    <CoverWatched item={credit.item} />
+                  ) : undefined
+                }
                 mark={
                   WATCHLIST_KINDS.has(credit.item.kind) ? (
                     <CoverWatchlist item={credit.item} />
@@ -117,6 +126,7 @@ export function PersonPage() {
             ))}
           </Row>
         </div>
+        {pens.editor}
       </main>
     </SpatialPage>
   );

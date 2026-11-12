@@ -21,13 +21,17 @@ import (
 // Folders map titles to the folders of their files and back, for titles without a year and for
 // extras, whose parent is the title of their folder.
 type itemIndex struct {
-	byTMDB   map[int64]string
-	byTVDB   map[int64]string
-	byIMDB   map[string]string
-	byTitle  map[string][]itemRef
-	refs     map[string]itemRef         // undeleted title id → its provider ids
-	series   bool                       // the titles are series
-	deleted  map[string]bool            // soft-deleted items that a new file may restore
+	byTMDB  map[int64]string
+	byTVDB  map[int64]string
+	byIMDB  map[string]string
+	byTitle map[string][]itemRef
+	refs    map[string]itemRef // undeleted title id → its provider ids
+	series  bool               // the titles are series
+	deleted map[string]bool    // soft-deleted items that a new file may restore
+	// removed holds the items taken out of Slouchcat (removed_at, concept 20 section 10.2) with
+	// their stamp: they are deleted as well, never restored, and new files below them attach to
+	// them and are taken out with the same stamp.
+	removed  map[string]int64
 	parent   map[string]string          // item id → parent id (seasons, episodes, extras)
 	kinds    map[string]string          // item id → kind
 	folders  map[string]map[string]bool // title id → its folders (see titleFolderKey)
@@ -49,7 +53,7 @@ type itemRef struct {
 func newItemIndex() *itemIndex {
 	return &itemIndex{
 		byTMDB: map[int64]string{}, byTVDB: map[int64]string{}, byIMDB: map[string]string{},
-		byTitle: map[string][]itemRef{}, deletedByTitle: map[string][]itemRef{}, refs: map[string]itemRef{}, deleted: map[string]bool{}, parent: map[string]string{}, kinds: map[string]string{},
+		byTitle: map[string][]itemRef{}, deletedByTitle: map[string][]itemRef{}, refs: map[string]itemRef{}, deleted: map[string]bool{}, removed: map[string]int64{}, parent: map[string]string{}, kinds: map[string]string{},
 		folders: map[string]map[string]bool{}, byFolder: map[string]string{},
 		seasons: map[string]string{}, episodes: map[string]string{}, matched: map[string]bool{},
 	}
@@ -124,7 +128,7 @@ func newLibraryIndex() *libraryIndex {
 	shared := newItemIndex()
 	for _, kind := range titleKinds {
 		idx := newItemIndex()
-		idx.kinds, idx.parent, idx.deleted = shared.kinds, shared.parent, shared.deleted
+		idx.kinds, idx.parent, idx.deleted, idx.removed = shared.kinds, shared.parent, shared.deleted, shared.removed
 		idx.series = kind == "series"
 		li.byKind[kind] = idx
 	}
@@ -169,6 +173,9 @@ func (s *Service) loadItemIndex(ctx context.Context, lib appq.Library, scans []*
 		if it.ParentID.Valid {
 			any.parent[it.ID] = it.ParentID.String
 		}
+		if isDeleted && it.RemovedAt.Valid {
+			any.removed[it.ID] = it.RemovedAt.Int64
+		}
 		idx := li.byKind[titleKindOfItem(it.Kind)]
 		if idx == nil {
 			return // an extra: reachable through its folder only
@@ -176,7 +183,9 @@ func (s *Service) loadItemIndex(ctx context.Context, lib appq.Library, scans []*
 		switch it.Kind {
 		case "movie", "series", "audiobook", "podcast":
 			if isDeleted {
-				idx.addDeleted(it, it.DeletedAt.Int64 >= byTitleSince)
+				// A title taken out of Slouchcat is found by name and year at any age: its folder
+				// may hold the next version of it under another name.
+				idx.addDeleted(it, it.DeletedAt.Int64 >= byTitleSince || it.RemovedAt.Valid)
 				return
 			}
 			idx.add(it.ID, it.SortTitle, it.Year, it.TmdbID.Int64, it.TvdbID.Int64, it.ImdbID.String)
@@ -201,6 +210,7 @@ func (s *Service) loadItemIndex(ctx context.Context, lib appq.Library, scans []*
 		add(systemq.Item{
 			ID: d.ID, Kind: d.Kind, ParentID: d.ParentID, SeasonNumber: d.SeasonNumber, EpisodeNumber: d.EpisodeNumber,
 			SortTitle: d.SortTitle, Year: d.Year, TmdbID: d.TmdbID, TvdbID: d.TvdbID, ImdbID: d.ImdbID, DeletedAt: d.DeletedAt,
+			RemovedAt: d.RemovedAt,
 		}, true)
 	}
 	for _, rs := range scans {
@@ -311,13 +321,22 @@ func (idx *itemIndex) addFolder(id, folder string) {
 	}
 }
 
-// folderTitle returns the undeleted title of a folder, the parent of an extra there.
+// folderTitle returns the title of a folder, the parent of an extra there: an undeleted one, or
+// one taken out of Slouchcat, which the extra joins (and is taken out with it).
 func (idx *itemIndex) folderTitle(folder string) string {
 	id := idx.byFolder[folder]
-	if folder == "" || idx.deleted[id] {
+	if folder == "" || idx.deleted[id] && idx.removed[id] == 0 {
 		return ""
 	}
 	return id
+}
+
+// removedFolderTitle returns the title taken out of Slouchcat that owns the folder alone, or "".
+func (idx *itemIndex) removedFolderTitle(folder string) string {
+	if id := idx.byFolder[folder]; folder != "" && id != "" && idx.removed[id] != 0 {
+		return id
+	}
+	return ""
 }
 
 // find returns the title of a file: by TVDB id, else TMDB id, else IMDb id, else (in a series
@@ -329,7 +348,23 @@ func (idx *itemIndex) folderTitle(folder string) string {
 // seriesFolderKey name it), so two titles of the same name in different folders stay apart.
 // Last, a file with a year finds a title soft-deleted within titleRelinkWindow by (sort_title,
 // year), the most recently deleted that fits (ADR 0023, A1); without a year it does not.
+//
+// A title taken out of Slouchcat (concept 20 section 10.2) keeps its folder: after the provider
+// ids, a file in a folder that such a title owns alone belongs to it -- a new episode, a new
+// season, another version, an upgrade under another name -- and is taken out with it. A removed
+// title is also found by (sort_title, year) at any age.
 func (idx *itemIndex) find(m titleInfo, folder string) string {
+	if id := idx.findByID(m); id != "" {
+		return id
+	}
+	if id := idx.removedFolderTitle(folder); id != "" {
+		return id
+	}
+	return idx.findByName(m, folder)
+}
+
+// findByID is the first step of find: the title by TVDB, TMDB or IMDb id.
+func (idx *itemIndex) findByID(m titleInfo) string {
 	if m.tvdb != 0 {
 		if id, ok := idx.byTVDB[m.tvdb]; ok {
 			return id
@@ -345,6 +380,11 @@ func (idx *itemIndex) find(m titleInfo, folder string) string {
 			return id
 		}
 	}
+	return ""
+}
+
+// findByName is the rest of find: the folder of a series, then (sort_title, year).
+func (idx *itemIndex) findByName(m titleInfo, folder string) string {
 	if owner := idx.byFolder[folder]; idx.series && folder != "" && owner != "" && !idx.deleted[owner] {
 		if ref, ok := idx.refs[owner]; ok && ref.fits(m) {
 			return owner

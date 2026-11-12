@@ -325,6 +325,7 @@ func (s *Service) jobRun(ctx context.Context, j jobs.Job, st *typeStats, now tim
 func (s *Service) jobSubject(ctx context.Context, j jobs.Job) string {
 	var p struct {
 		LibraryID   int64  `json:"libraryId"`
+		LibraryName string `json:"libraryName"` // library.delete: the row may be gone already
 		ItemID      string `json:"itemId"`
 		PodcastID   string `json:"podcastId"`
 		SeasonID    string `json:"seasonId"`
@@ -340,6 +341,8 @@ func (s *Service) jobSubject(ctx context.Context, j jobs.Job) string {
 	case p.LibraryID != 0:
 		if lib, err := s.read.GetLibrary(ctx, p.LibraryID); err == nil {
 			subject = lib.Name
+		} else {
+			subject = p.LibraryName // being deleted (hidden from GetLibrary) or deleted
 		}
 	case p.ItemID != "":
 		subject = s.itemLabel(ctx, p.ItemID)
@@ -401,16 +404,18 @@ func (s *Service) itemLabel(ctx context.Context, id string) string {
 	return top.Title + " · " + m
 }
 
-// ListJobRuns returns the runs of a type in one state (listJobRuns); model.ErrNotFound for an
-// unknown type, a validation error for an unknown state.
-func (s *Service) ListJobRuns(ctx context.Context, typ, state string, limit int) (model.JobRunPage, error) {
+// ListJobRuns returns the runs of a type in one state (listJobRuns), limit of them after offset;
+// model.ErrNotFound for an unknown type, a validation error for an unknown state. An empty typ
+// lists the failed runs of every type (concept 20, P-6); the handler allows it for failed only.
+func (s *Service) ListJobRuns(ctx context.Context, typ, state string, limit, offset int) (model.JobRunPage, error) {
+	if typ == "" {
+		return s.listFailedRuns(ctx, limit, offset)
+	}
 	if _, _, err := s.jobType(ctx, typ); err != nil {
 		return model.JobRunPage{}, err
 	}
-	if limit <= 0 {
-		limit = jobRunsLimitDefault
-	}
-	limit = min(limit, jobRunsLimitMax)
+	limit = jobRunsLimit(limit)
+	offset = max(offset, 0)
 	now := s.now()
 	st := &typeStats{}
 	if m, _, ok, err := s.jobctl.reg.Queue().MedianDuration(ctx, typ); err != nil {
@@ -427,12 +432,14 @@ func (s *Service) ListJobRuns(ctx context.Context, typ, state string, limit int)
 		if state == model.JobRunPlanned {
 			planned = 1
 		}
-		rows, err = s.sys.ListQueuedJobRuns(ctx, systemq.ListQueuedJobRunsParams{Type: typ, Now: now.UnixMilli(), Planned: planned, LimitCount: int64(limit)})
+		rows, err = s.sys.ListQueuedJobRuns(ctx, systemq.ListQueuedJobRunsParams{Type: typ, Now: now.UnixMilli(), Planned: planned,
+			LimitCount: int64(limit), OffsetCount: int64(offset)})
 		if err == nil {
 			total, err = s.sys.CountQueuedJobRuns(ctx, systemq.CountQueuedJobRunsParams{Type: typ, Now: now.UnixMilli(), Planned: planned})
 		}
 	case string(jobs.StateRunning), string(jobs.StateDone), string(jobs.StateFailed), string(jobs.StateCancelled):
-		rows, err = s.sys.ListJobRunsByState(ctx, systemq.ListJobRunsByStateParams{Type: typ, State: state, LimitCount: int64(limit)})
+		rows, err = s.sys.ListJobRunsByState(ctx, systemq.ListJobRunsByStateParams{Type: typ, State: state, LimitCount: int64(limit),
+			OffsetCount: int64(offset)})
 		if err == nil {
 			total, err = s.sys.CountJobRunsByState(ctx, systemq.CountJobRunsByStateParams{Type: typ, State: state})
 		}
@@ -448,6 +455,86 @@ func (s *Service) ListJobRuns(ctx context.Context, typ, state string, limit int)
 		page.Runs = append(page.Runs, s.jobRun(ctx, jobs.FromRow(r), st, now))
 	}
 	return page, nil
+}
+
+// jobRunsLimit is the page size of listJobRuns: the default for none, at most the maximum.
+func jobRunsLimit(limit int) int {
+	if limit <= 0 {
+		limit = jobRunsLimitDefault
+	}
+	return min(limit, jobRunsLimitMax)
+}
+
+// listFailedRuns returns the failed runs of every type, newest first (the tab «Fehlgeschlagen»,
+// concept 20 P-6). A failed run has no estimate, so no type's median is needed.
+func (s *Service) listFailedRuns(ctx context.Context, limit, offset int) (model.JobRunPage, error) {
+	if s.jobctl == nil {
+		return model.JobRunPage{}, ErrNotConfigured
+	}
+	now := s.now()
+	rows, err := s.sys.ListFailedJobRuns(ctx, systemq.ListFailedJobRunsParams{LimitCount: int64(jobRunsLimit(limit)),
+		OffsetCount: int64(max(offset, 0))})
+	if err != nil {
+		return model.JobRunPage{}, fmt.Errorf("list failed runs: %w", err)
+	}
+	total, err := s.sys.CountFailedJobs(ctx, nil)
+	if err != nil {
+		return model.JobRunPage{}, fmt.Errorf("count failed runs: %w", err)
+	}
+	page := model.JobRunPage{Total: int(total), Runs: make([]model.JobRun, 0, len(rows))}
+	for _, r := range rows {
+		page.Runs = append(page.Runs, s.jobRun(ctx, jobs.FromRow(r), nil, now))
+	}
+	return page, nil
+}
+
+// RetryFailedJobs queues the failed runs of typ ("" for every type) again in one transaction
+// (retryFailedJobs, concept 20 P-6); model.ErrNotFound for an unknown type. Only the types of the
+// registry qualify: the failures of a type that no longer exists stay failed (a row of job_types
+// alone runs nothing), «Alle löschen» removes them.
+func (s *Service) RetryFailedJobs(ctx context.Context, typ string) (model.JobFailedRetry, error) {
+	if err := s.failedScope(ctx, typ); err != nil {
+		return model.JobFailedRetry{}, err
+	}
+	var types []string
+	for _, t := range s.jobctl.reg.Types() {
+		if typ == "" || t.Name == typ {
+			types = append(types, t.Name)
+		}
+	}
+	r, err := s.jobctl.reg.Queue().RetryFailed(ctx, types)
+	if err != nil {
+		return model.JobFailedRetry{}, err
+	}
+	s.log.InfoContext(ctx, "failed jobs queued again by the admin", "job_type", typ, "retried", r.Retried, "skipped", r.Skipped,
+		"merged", r.Merged)
+	return model.JobFailedRetry{Retried: r.Retried, Skipped: r.Skipped, Merged: r.Merged}, nil
+}
+
+// DismissFailedJobs cancels the failed runs of typ ("" for every type) in one statement
+// (dismissFailedJobs, concept 20 P-6) and returns how many; model.ErrNotFound for an unknown type.
+func (s *Service) DismissFailedJobs(ctx context.Context, typ string) (int, error) {
+	if err := s.failedScope(ctx, typ); err != nil {
+		return 0, err
+	}
+	n, err := s.jobctl.reg.Queue().DismissFailed(ctx, typ)
+	if err != nil {
+		return 0, err
+	}
+	s.log.InfoContext(ctx, "failed jobs dismissed by the admin", "job_type", typ, "dismissed", n)
+	return n, nil
+}
+
+// failedScope checks the type filter of a bulk action on failed runs: "" is every type.
+func (s *Service) failedScope(ctx context.Context, typ string) error {
+	if s.jobctl == nil {
+		return ErrNotConfigured
+	}
+	if typ == "" {
+		return nil
+	}
+	_, _, err := s.jobType(ctx, typ)
+	return err
 }
 
 // RunJobType runs a type now with the manual priority (runJobType, F-3, F-5): the queued runs are

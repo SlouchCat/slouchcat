@@ -11,6 +11,68 @@ import (
 	"strings"
 )
 
+const countRecentlyAdded = `-- name: CountRecentlyAdded :one
+SELECT count(*) FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+WHERE i.kind IN ('movie', 'series', 'audiobook', 'podcast')
+  AND (CAST(?2 AS TEXT) = '' OR i.kind = CAST(?2 AS TEXT))
+`
+
+type CountRecentlyAddedParams struct {
+	ProfileID int64
+	Content   string
+}
+
+// The number of titles of ListRecentlyAddedPage.
+func (q *Queries) CountRecentlyAdded(ctx context.Context, arg CountRecentlyAddedParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countRecentlyAdded, arg.ProfileID, arg.Content)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countRecentlyReleased = `-- name: CountRecentlyReleased :one
+SELECT count(*) FROM (
+    SELECT t.id AS item_id, t.release_date AS released
+    FROM items AS t
+    JOIN visible_items AS v ON v.item_id = t.id AND v.profile_id = ?1
+    WHERE t.kind IN ('movie', 'audiobook') AND t.deleted_at IS NULL
+      AND (CAST(?2 AS TEXT) = '' OR t.kind = CAST(?2 AS TEXT))
+      AND t.release_date IS NOT NULL AND t.release_date >= ?3 AND t.release_date <= ?4
+    UNION ALL
+    SELECT s.id, max(e.release_date)
+    FROM items AS s
+    JOIN visible_items AS vs ON vs.item_id = s.id AND vs.profile_id = ?1
+    JOIN items AS se ON se.parent_id = s.id AND se.kind = 'season' AND se.deleted_at IS NULL
+    JOIN items AS e ON e.parent_id = se.id AND e.kind = 'episode' AND e.deleted_at IS NULL
+                   AND e.release_date IS NOT NULL AND e.release_date >= ?3 AND e.release_date <= ?4
+    JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+    WHERE s.kind = 'series' AND s.deleted_at IS NULL
+      AND (CAST(?2 AS TEXT) = '' OR CAST(?2 AS TEXT) = 'series')
+    GROUP BY s.id
+) AS r
+`
+
+type CountRecentlyReleasedParams struct {
+	ProfileID int64
+	Content   string
+	Since     sql.NullString
+	Today     sql.NullString
+}
+
+// The number of titles of ListRecentlyReleasedPage.
+func (q *Queries) CountRecentlyReleased(ctx context.Context, arg CountRecentlyReleasedParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countRecentlyReleased,
+		arg.ProfileID,
+		arg.Content,
+		arg.Since,
+		arg.Today,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countUserPicks = `-- name: CountUserPicks :one
 SELECT count(DISTINCT u.item_id)
 FROM user_picks AS u
@@ -104,7 +166,7 @@ func (q *Queries) GetItemImage(ctx context.Context, arg GetItemImageParams) (Ima
 }
 
 const getNextVisibleEpisode = `-- name: GetNextVisibleEpisode :one
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual FROM items AS i
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 JOIN items AS s ON s.id = i.parent_id AND s.kind = 'season'
 WHERE s.parent_id = ?2 AND i.kind = 'episode' AND i.id <> ?3
@@ -209,6 +271,7 @@ func (q *Queries) GetNextVisibleEpisode(ctx context.Context, arg GetNextVisibleE
 		&i.BookMatchScore,
 		&i.BookMatchError,
 		&i.BookMatchManual,
+		&i.RemovedAt,
 	)
 	return i, err
 }
@@ -239,7 +302,7 @@ func (q *Queries) GetOwnUserPick(ctx context.Context, arg GetOwnUserPickParams) 
 
 const getVisibleItem = `-- name: GetVisibleItem :one
 
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual FROM items AS i
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 WHERE i.id = ?2
 `
@@ -330,6 +393,7 @@ func (q *Queries) GetVisibleItem(ctx context.Context, arg GetVisibleItemParams) 
 		&i.BookMatchScore,
 		&i.BookMatchError,
 		&i.BookMatchManual,
+		&i.RemovedAt,
 	)
 	return i, err
 }
@@ -424,7 +488,7 @@ next_episodes AS (
       AND (coalesce(x.season_number, xs.season_number) <> 0 OR n.season_number = 0)
       AND coalesce(xp.completed, 0) = 0
 )
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual FROM newest AS n
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at FROM newest AS n
 LEFT JOIN next_episodes AS nx ON nx.series_id = n.series_id AND nx.rn = 1
 JOIN items AS i ON i.id = CASE WHEN n.completed = 0 THEN n.item_id ELSE nx.next_id END
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
@@ -550,6 +614,7 @@ func (q *Queries) ListContinueWatching(ctx context.Context, arg ListContinueWatc
 			&i.BookMatchScore,
 			&i.BookMatchError,
 			&i.BookMatchManual,
+			&i.RemovedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -632,7 +697,7 @@ func (q *Queries) ListItemImages(ctx context.Context, arg ListItemImagesParams) 
 }
 
 const listItemProgress = `-- name: ListItemProgress :many
-SELECT p.profile_id, p.item_id, p.position_ms, p.duration_ms, p.completed, p.updated_at, p.playback_rate FROM progress AS p
+SELECT p.profile_id, p.item_id, p.position_ms, p.duration_ms, p.completed, p.updated_at, p.playback_rate, p.watched_at FROM progress AS p
 JOIN visible_items AS v ON v.item_id = p.item_id AND v.profile_id = p.profile_id
 WHERE p.profile_id = ?1 AND p.item_id IN (/*SLICE:item_ids*/?)
 `
@@ -670,6 +735,7 @@ func (q *Queries) ListItemProgress(ctx context.Context, arg ListItemProgressPara
 			&i.Completed,
 			&i.UpdatedAt,
 			&i.PlaybackRate,
+			&i.WatchedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -832,7 +898,7 @@ func (q *Queries) ListMediaFilesForItem(ctx context.Context, arg ListMediaFilesF
 }
 
 const listRecentlyAdded = `-- name: ListRecentlyAdded :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual FROM items AS i
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 WHERE i.kind IN ('movie', 'series', 'audiobook', 'podcast')
 ORDER BY i.added_at DESC, i.id DESC
@@ -930,6 +996,131 @@ func (q *Queries) ListRecentlyAdded(ctx context.Context, arg ListRecentlyAddedPa
 			&i.BookMatchScore,
 			&i.BookMatchError,
 			&i.BookMatchManual,
+			&i.RemovedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRecentlyAddedPage = `-- name: ListRecentlyAddedPage :many
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+WHERE i.kind IN ('movie', 'series', 'audiobook', 'podcast')
+  AND (CAST(?2 AS TEXT) = '' OR i.kind = CAST(?2 AS TEXT))
+ORDER BY i.added_at DESC, i.id DESC
+LIMIT ?4 OFFSET ?3
+`
+
+type ListRecentlyAddedPageParams struct {
+	ProfileID   int64
+	Content     string
+	OffsetCount int64
+	LimitCount  int64
+}
+
+// One page of the list behind the row recent (listHomeRow, concept 20 P-7) with the filter
+// @content (one kind of the top level, empty = all). The kind term stays as in the index
+// items_top_added and the filter is a second term, so the planner still walks the index in its
+// order (TestHomeListRecentUsesTheIndex).
+func (q *Queries) ListRecentlyAddedPage(ctx context.Context, arg ListRecentlyAddedPageParams) ([]Item, error) {
+	rows, err := q.db.QueryContext(ctx, listRecentlyAddedPage,
+		arg.ProfileID,
+		arg.Content,
+		arg.OffsetCount,
+		arg.LimitCount,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Item{}
+	for rows.Next() {
+		var i Item
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.ParentID,
+			&i.LibraryID,
+			&i.Title,
+			&i.SortTitle,
+			&i.OriginalTitle,
+			&i.Year,
+			&i.ReleaseDate,
+			&i.RuntimeMinutes,
+			&i.Genres,
+			&i.TmdbID,
+			&i.ImdbID,
+			&i.OwnRating,
+			&i.EffectiveRating,
+			&i.MinChildRating,
+			&i.Available,
+			&i.RatingSource,
+			&i.EnclosureUrl,
+			&i.LockedFields,
+			&i.MetadataState,
+			&i.MetadataError,
+			&i.MatchedAt,
+			&i.AddedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.SeasonNumber,
+			&i.EpisodeNumber,
+			&i.EpisodeEnd,
+			&i.TvdbID,
+			&i.ExtraKind,
+			&i.TmdbPosterPath,
+			&i.TmdbBackdropPath,
+			&i.TrailerState,
+			&i.TrailerCheckedAt,
+			&i.SegmentsState,
+			&i.SegmentsCheckedAt,
+			&i.Author,
+			&i.Narrator,
+			&i.SeriesName,
+			&i.SeriesIndex,
+			&i.Explicit,
+			&i.DurationMs,
+			&i.CoverUrl,
+			&i.CoverPath,
+			&i.FeedUrl,
+			&i.FeedEtag,
+			&i.FeedModified,
+			&i.FeedCheckedAt,
+			&i.FeedError,
+			&i.Guid,
+			&i.PublishedAt,
+			&i.EnclosureType,
+			&i.EnclosureLength,
+			&i.Providers,
+			&i.AnilistID,
+			&i.FeedOrigin,
+			&i.FilledProviders,
+			&i.VoteAverage,
+			&i.OriginalLanguage,
+			&i.Publisher,
+			&i.Isbn,
+			&i.Asin,
+			&i.AudioSeriesID,
+			&i.AuthorDisplay,
+			&i.BookMatchState,
+			&i.BookMatchProvider,
+			&i.BookMatchID,
+			&i.BookMatchRegion,
+			&i.BookMatchedAt,
+			&i.BookMatchScore,
+			&i.BookMatchError,
+			&i.BookMatchManual,
+			&i.RemovedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -945,7 +1136,7 @@ func (q *Queries) ListRecentlyAdded(ctx context.Context, arg ListRecentlyAddedPa
 }
 
 const listRecentlyReleased = `-- name: ListRecentlyReleased :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, r.released FROM (
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at, r.released FROM (
     SELECT t.id AS item_id, t.release_date AS released
     FROM items AS t
     JOIN visible_items AS v ON v.item_id = t.id AND v.profile_id = ?1
@@ -1075,6 +1266,156 @@ func (q *Queries) ListRecentlyReleased(ctx context.Context, arg ListRecentlyRele
 			&i.Item.BookMatchScore,
 			&i.Item.BookMatchError,
 			&i.Item.BookMatchManual,
+			&i.Item.RemovedAt,
+			&i.Released,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRecentlyReleasedPage = `-- name: ListRecentlyReleasedPage :many
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at, r.released FROM (
+    SELECT t.id AS item_id, t.release_date AS released
+    FROM items AS t
+    JOIN visible_items AS v ON v.item_id = t.id AND v.profile_id = ?1
+    WHERE t.kind IN ('movie', 'audiobook') AND t.deleted_at IS NULL
+      AND (CAST(?2 AS TEXT) = '' OR t.kind = CAST(?2 AS TEXT))
+      AND t.release_date IS NOT NULL AND t.release_date >= ?3 AND t.release_date <= ?4
+    UNION ALL
+    SELECT s.id, max(e.release_date)
+    FROM items AS s
+    JOIN visible_items AS vs ON vs.item_id = s.id AND vs.profile_id = ?1
+    JOIN items AS se ON se.parent_id = s.id AND se.kind = 'season' AND se.deleted_at IS NULL
+    JOIN items AS e ON e.parent_id = se.id AND e.kind = 'episode' AND e.deleted_at IS NULL
+                   AND e.release_date IS NOT NULL AND e.release_date >= ?3 AND e.release_date <= ?4
+    JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+    WHERE s.kind = 'series' AND s.deleted_at IS NULL
+      AND (CAST(?2 AS TEXT) = '' OR CAST(?2 AS TEXT) = 'series')
+    GROUP BY s.id
+) AS r
+JOIN items AS i ON i.id = r.item_id
+ORDER BY r.released DESC, i.id DESC
+LIMIT ?6 OFFSET ?5
+`
+
+type ListRecentlyReleasedPageParams struct {
+	ProfileID   int64
+	Content     string
+	Since       sql.NullString
+	Today       sql.NullString
+	OffsetCount int64
+	LimitCount  int64
+}
+
+type ListRecentlyReleasedPageRow struct {
+	Item     Item
+	Released sql.NullString
+}
+
+// One page of the list behind the row released (listHomeRow, concept 20 P-7): the same titles in
+// the same order as ListRecentlyReleased, with the filter @content (one kind of the top level,
+// empty = all).
+func (q *Queries) ListRecentlyReleasedPage(ctx context.Context, arg ListRecentlyReleasedPageParams) ([]ListRecentlyReleasedPageRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRecentlyReleasedPage,
+		arg.ProfileID,
+		arg.Content,
+		arg.Since,
+		arg.Today,
+		arg.OffsetCount,
+		arg.LimitCount,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRecentlyReleasedPageRow{}
+	for rows.Next() {
+		var i ListRecentlyReleasedPageRow
+		if err := rows.Scan(
+			&i.Item.ID,
+			&i.Item.Kind,
+			&i.Item.ParentID,
+			&i.Item.LibraryID,
+			&i.Item.Title,
+			&i.Item.SortTitle,
+			&i.Item.OriginalTitle,
+			&i.Item.Year,
+			&i.Item.ReleaseDate,
+			&i.Item.RuntimeMinutes,
+			&i.Item.Genres,
+			&i.Item.TmdbID,
+			&i.Item.ImdbID,
+			&i.Item.OwnRating,
+			&i.Item.EffectiveRating,
+			&i.Item.MinChildRating,
+			&i.Item.Available,
+			&i.Item.RatingSource,
+			&i.Item.EnclosureUrl,
+			&i.Item.LockedFields,
+			&i.Item.MetadataState,
+			&i.Item.MetadataError,
+			&i.Item.MatchedAt,
+			&i.Item.AddedAt,
+			&i.Item.CreatedAt,
+			&i.Item.UpdatedAt,
+			&i.Item.DeletedAt,
+			&i.Item.SeasonNumber,
+			&i.Item.EpisodeNumber,
+			&i.Item.EpisodeEnd,
+			&i.Item.TvdbID,
+			&i.Item.ExtraKind,
+			&i.Item.TmdbPosterPath,
+			&i.Item.TmdbBackdropPath,
+			&i.Item.TrailerState,
+			&i.Item.TrailerCheckedAt,
+			&i.Item.SegmentsState,
+			&i.Item.SegmentsCheckedAt,
+			&i.Item.Author,
+			&i.Item.Narrator,
+			&i.Item.SeriesName,
+			&i.Item.SeriesIndex,
+			&i.Item.Explicit,
+			&i.Item.DurationMs,
+			&i.Item.CoverUrl,
+			&i.Item.CoverPath,
+			&i.Item.FeedUrl,
+			&i.Item.FeedEtag,
+			&i.Item.FeedModified,
+			&i.Item.FeedCheckedAt,
+			&i.Item.FeedError,
+			&i.Item.Guid,
+			&i.Item.PublishedAt,
+			&i.Item.EnclosureType,
+			&i.Item.EnclosureLength,
+			&i.Item.Providers,
+			&i.Item.AnilistID,
+			&i.Item.FeedOrigin,
+			&i.Item.FilledProviders,
+			&i.Item.VoteAverage,
+			&i.Item.OriginalLanguage,
+			&i.Item.Publisher,
+			&i.Item.Isbn,
+			&i.Item.Asin,
+			&i.Item.AudioSeriesID,
+			&i.Item.AuthorDisplay,
+			&i.Item.BookMatchState,
+			&i.Item.BookMatchProvider,
+			&i.Item.BookMatchID,
+			&i.Item.BookMatchRegion,
+			&i.Item.BookMatchedAt,
+			&i.Item.BookMatchScore,
+			&i.Item.BookMatchError,
+			&i.Item.BookMatchManual,
+			&i.Item.RemovedAt,
 			&i.Released,
 		); err != nil {
 			return nil, err
@@ -1166,7 +1507,7 @@ func (q *Queries) ListSeriesNextUpEpisodes(ctx context.Context, arg ListSeriesNe
 }
 
 const listUserPicks = `-- name: ListUserPicks :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, CAST(max(u.created_at) AS INTEGER) AS picked_at
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at, CAST(max(u.created_at) AS INTEGER) AS picked_at
 FROM user_picks AS u
 JOIN picks_config AS c ON c.id = 1
 JOIN items AS i ON i.id = u.item_id
@@ -1283,6 +1624,7 @@ func (q *Queries) ListUserPicks(ctx context.Context, arg ListUserPicksParams) ([
 			&i.Item.BookMatchScore,
 			&i.Item.BookMatchError,
 			&i.Item.BookMatchManual,
+			&i.Item.RemovedAt,
 			&i.PickedAt,
 		); err != nil {
 			return nil, err
@@ -1307,8 +1649,8 @@ SELECT i.id,
        ELSE 0 END AS INTEGER) AS child_count,
        CAST(CASE WHEN i.kind = 'season' THEN
          (SELECT count(*) FROM items AS c
-          JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
-          JOIN progress AS pc ON pc.profile_id = ?1 AND pc.item_id = c.id AND pc.completed = 1
+          CROSS JOIN progress AS pc ON pc.profile_id = ?1 AND pc.item_id = c.id AND pc.watched_at IS NOT NULL
+          CROSS JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
           WHERE c.parent_id = i.id AND c.kind = 'episode')
        ELSE 0 END AS INTEGER) AS watched_count,
        CASE WHEN i.kind NOT IN ('series', 'podcast') THEN NULL
@@ -1318,7 +1660,7 @@ SELECT i.id,
            LEFT JOIN progress AS pe ON pe.profile_id = ?1 AND pe.item_id = e.id
            CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
            WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season'))
-             AND +e.library_id = i.library_id AND COALESCE(pe.completed, 0) = 0) THEN 0
+             AND +e.library_id = i.library_id AND pe.watched_at IS NULL) THEN 0
          WHEN EXISTS (
            SELECT 1 FROM items AS se
            CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
@@ -1344,16 +1686,19 @@ type ListVisibleChildCountsRow struct {
 }
 
 // Number of visible content children of visible series and seasons: seasons of a series, episodes
-// of a season (extras never count); 0 for a podcast. One query with correlated subqueries over
-// visible_items. watched_count counts the visible episodes of a season the profile has completed
-// (concept 17 section 2.3, like the "done" of the library's episode statistics). watched
-// (ItemRef.watched, contract 1.22.0) is set for series and podcasts only, over the episodes of the
-// library status rule (visibility.episodeStatsBody): an episode or podcast episode of the title's
-// library in one of its seasons (specials included) or directly below it. It is 0 when a visible
-// episode is not completed, 1 when every visible episode is, NULL without a visible episode. The
-// first EXISTS reads the progress before visible_items (CROSS JOIN), so a completed episode costs
-// no visibility check and an unwatched title stops at its first open episode; the second runs
-// only when no episode is open. The unary + on e.library_id keeps the planner on the parent index
+// of a season (extras never count), 0 for a podcast. One query with correlated subqueries over
+// visible_items. The check mark reads watched_at (concept 20 section 6.3, contract 1.31.0), not
+// completed: a title finished once stays watched when it is started again. watched_count counts
+// the visible episodes of a season the profile has watched (concept 17 section 2.3), reading the
+// progress before visible_items (CROSS JOIN), so an unwatched episode costs no visibility check;
+// series and podcasts get theirs from ListVisibleWatchedCounts. watched (ItemRef.watched, contract
+// 1.22.0) is set for series and podcasts only, over the episodes of the library status rule
+// (visibility.episodeStatsBody): an episode or podcast episode of the title's library in one of
+// its seasons (specials included) or directly below it. It is 0 when a visible episode is not
+// watched, 1 when every visible episode is, NULL without a visible episode. The first EXISTS
+// reads the progress before visible_items (CROSS JOIN), so a watched episode costs no visibility
+// check and an unwatched title stops at its first open episode; the second runs only when no
+// episode is open. The unary + on e.library_id keeps the planner on the parent index
 // (items_episode) instead of reading every episode of the library.
 func (q *Queries) ListVisibleChildCounts(ctx context.Context, arg ListVisibleChildCountsParams) ([]ListVisibleChildCountsRow, error) {
 	query := listVisibleChildCounts
@@ -1457,7 +1802,7 @@ func (q *Queries) ListVisibleCredits(ctx context.Context, arg ListVisibleCredits
 }
 
 const listVisibleEpisodes = `-- name: ListVisibleEpisodes :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual FROM items AS i
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 WHERE i.parent_id = ?2 AND i.kind = 'episode'
 ORDER BY i.episode_number IS NULL, i.episode_number, i.sort_title, i.id
@@ -1553,6 +1898,7 @@ func (q *Queries) ListVisibleEpisodes(ctx context.Context, arg ListVisibleEpisod
 			&i.BookMatchScore,
 			&i.BookMatchError,
 			&i.BookMatchManual,
+			&i.RemovedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1568,7 +1914,7 @@ func (q *Queries) ListVisibleEpisodes(ctx context.Context, arg ListVisibleEpisod
 }
 
 const listVisibleExtras = `-- name: ListVisibleExtras :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual FROM items AS i
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 WHERE i.parent_id = ?2 AND i.kind = 'extra'
 ORDER BY i.extra_kind, i.sort_title, i.id
@@ -1664,6 +2010,7 @@ func (q *Queries) ListVisibleExtras(ctx context.Context, arg ListVisibleExtrasPa
 			&i.BookMatchScore,
 			&i.BookMatchError,
 			&i.BookMatchManual,
+			&i.RemovedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1680,7 +2027,7 @@ func (q *Queries) ListVisibleExtras(ctx context.Context, arg ListVisibleExtrasPa
 
 const listVisibleItems = `-- name: ListVisibleItems :many
 
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual FROM items AS i
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 WHERE i.id IN (/*SLICE:item_ids*/?)
 `
@@ -1787,6 +2134,7 @@ func (q *Queries) ListVisibleItems(ctx context.Context, arg ListVisibleItemsPara
 			&i.BookMatchScore,
 			&i.BookMatchError,
 			&i.BookMatchManual,
+			&i.RemovedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1857,7 +2205,7 @@ func (q *Queries) ListVisibleParents(ctx context.Context, arg ListVisibleParents
 }
 
 const listVisiblePersonCredits = `-- name: ListVisiblePersonCredits :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, p.name AS person_name, c.role, c.character,
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at, p.name AS person_name, c.role, c.character,
        pi.content_hash AS image_hash, pi.width AS image_width, pi.height AS image_height
 FROM credits AS c
 JOIN people AS p ON p.id = c.person_id
@@ -1969,6 +2317,7 @@ func (q *Queries) ListVisiblePersonCredits(ctx context.Context, arg ListVisibleP
 			&i.Item.BookMatchScore,
 			&i.Item.BookMatchError,
 			&i.Item.BookMatchManual,
+			&i.Item.RemovedAt,
 			&i.PersonName,
 			&i.Role,
 			&i.Character,
@@ -1990,7 +2339,7 @@ func (q *Queries) ListVisiblePersonCredits(ctx context.Context, arg ListVisibleP
 }
 
 const listVisibleSeasons = `-- name: ListVisibleSeasons :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual FROM items AS i
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 WHERE i.parent_id = ?2 AND i.kind = 'season'
 ORDER BY COALESCE(i.season_number, 0) = 0, i.season_number, i.sort_title, i.id
@@ -2086,6 +2435,7 @@ func (q *Queries) ListVisibleSeasons(ctx context.Context, arg ListVisibleSeasons
 			&i.BookMatchScore,
 			&i.BookMatchError,
 			&i.BookMatchManual,
+			&i.RemovedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -2243,6 +2593,69 @@ func (q *Queries) ListVisibleTrailers(ctx context.Context, arg ListVisibleTraile
 			&i.Official,
 			&i.CreatedAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleWatchedCounts = `-- name: ListVisibleWatchedCounts :many
+SELECT t.id, CAST(count(*) AS INTEGER) AS watched_count
+FROM progress AS pw INDEXED BY progress_watched
+CROSS JOIN items AS e ON e.id = pw.item_id AND e.kind IN ('episode', 'podcast_episode')
+LEFT JOIN items AS se ON se.id = e.parent_id AND se.kind = 'season'
+CROSS JOIN items AS t ON t.id = COALESCE(se.parent_id, e.parent_id) AND t.kind IN ('series', 'podcast') AND t.library_id = e.library_id
+CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+WHERE pw.profile_id = ?1 AND pw.watched_at IS NOT NULL AND t.id IN (/*SLICE:item_ids*/?)
+GROUP BY t.id
+`
+
+type ListVisibleWatchedCountsParams struct {
+	ProfileID int64
+	ItemIds   []string
+}
+
+type ListVisibleWatchedCountsRow struct {
+	ID           string
+	WatchedCount int64
+}
+
+// The visible watched episodes of the given series and podcasts (ItemRef.watchedCount since
+// contract 1.31.0, concept 20 F-12: with watched 0, a count above 0 is the half check mark), over
+// the episodes of the rule of ListVisibleChildCounts.watched. It starts from the watched progress
+// rows of the profile (the partial index progress_watched) and maps each to its series or podcast,
+// so its cost follows what the profile has watched, not the size of the titles: counting over the
+// episodes of each title read every episode of an unwatched podcast (100 podcasts of 1000
+// episodes: 103 ms instead of 1 ms, docs/perf/20-bedienung.md). Only rows of a requested title get
+// the visibility check. A title without a watched episode has no row.
+func (q *Queries) ListVisibleWatchedCounts(ctx context.Context, arg ListVisibleWatchedCountsParams) ([]ListVisibleWatchedCountsRow, error) {
+	query := listVisibleWatchedCounts
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.ProfileID)
+	if len(arg.ItemIds) > 0 {
+		for _, v := range arg.ItemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(arg.ItemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVisibleWatchedCountsRow{}
+	for rows.Next() {
+		var i ListVisibleWatchedCountsRow
+		if err := rows.Scan(&i.ID, &i.WatchedCount); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

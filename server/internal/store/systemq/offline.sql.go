@@ -749,40 +749,41 @@ func (q *Queries) ListFailedDownloadFiles(ctx context.Context) ([]string, error)
 	return items, nil
 }
 
-const listFavoritePodcasts = `-- name: ListFavoritePodcasts :many
-SELECT f.item_id AS podcast_id,
+const listFollowedPodcasts = `-- name: ListFollowedPodcasts :many
+SELECT w.item_id AS podcast_id,
        CAST(MAX(
            COALESCE((SELECT MAX(e.published_at) FROM items AS e
-                     WHERE e.parent_id = f.item_id AND e.kind = 'podcast_episode' AND e.added_at <= f.created_at), 0),
+                     WHERE e.parent_id = w.item_id AND e.kind = 'podcast_episode' AND e.added_at <= w.follow_since), 0),
            COALESCE((SELECT MAX(e.published_at) FROM progress AS p
                      JOIN items AS e ON e.id = p.item_id AND e.kind = 'podcast_episode'
-                     WHERE p.profile_id = f.profile_id AND e.parent_id = f.item_id), 0)
+                     WHERE p.profile_id = w.profile_id AND e.parent_id = w.item_id), 0)
        ) AS INTEGER) AS since
-FROM favorites AS f
-JOIN items AS i ON i.id = f.item_id AND i.kind = 'podcast' AND i.deleted_at IS NULL
-WHERE f.profile_id = ?1
-ORDER BY f.created_at DESC, f.item_id
+FROM watchlist AS w
+JOIN items AS i ON i.id = w.item_id AND i.kind = 'podcast' AND i.deleted_at IS NULL
+WHERE w.profile_id = ?1
+ORDER BY w.created_at DESC, w.item_id
 `
 
-type ListFavoritePodcastsRow struct {
+type ListFollowedPodcastsRow struct {
 	PodcastID string
 	Since     int64
 }
 
-// The favourite podcasts of the profile (new podcast episodes, O-3, M7 E-8), newest favourite
-// first, with the moment after which episodes are new: the later of the publication date of the
-// newest episode Slouchcat knew when the favourite was set (added_at) and that of the newest episode
-// the profile started there; 0 when neither exists. Visibility is applied by the caller through the
-// profile scope of package visibility.
-func (q *Queries) ListFavoritePodcasts(ctx context.Context, profileID int64) ([]ListFavoritePodcastsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listFavoritePodcasts, profileID)
+// The podcasts on the watchlist of the profile (new podcast episodes, O-3; concept 20 P-2: the
+// watchlist took over from the favourite), newest entry first, with the moment after which episodes
+// are new: the later of the publication date of the newest episode Slouchcat knew when the profile
+// began to follow the podcast (follow_since) and that of the newest episode the profile started
+// there; 0 when neither exists. Visibility is applied by the caller through the profile scope of
+// package visibility.
+func (q *Queries) ListFollowedPodcasts(ctx context.Context, profileID int64) ([]ListFollowedPodcastsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listFollowedPodcasts, profileID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListFavoritePodcastsRow{}
+	items := []ListFollowedPodcastsRow{}
 	for rows.Next() {
-		var i ListFavoritePodcastsRow
+		var i ListFollowedPodcastsRow
 		if err := rows.Scan(&i.PodcastID, &i.Since); err != nil {
 			return nil, err
 		}

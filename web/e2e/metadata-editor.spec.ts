@@ -63,14 +63,17 @@ async function penCell(row: Locator) {
   return { cell, card: cell.getByRole('link'), pen: cellPen, title: label.replace(COVER_PEN, '') };
 }
 
-/** The pen lies on the top right of its card's cover, at least a 32 px touch target. */
+/**
+ * The pen lies on the top left of its card's cover (since concept 20 the check mark has the top
+ * right), at least a 32 px touch target.
+ */
 async function expectOnCover(card: Locator, cardPen: Locator): Promise<void> {
   const cover = await boxOf(card.locator('span').first());
   const button = await boxOf(cardPen);
   expect(button.width).toBeGreaterThanOrEqual(32);
   expect(button.height).toBeGreaterThanOrEqual(32);
-  expect(button.x).toBeGreaterThanOrEqual(cover.x + cover.width / 2);
-  expect(button.x + button.width).toBeLessThanOrEqual(cover.x + cover.width);
+  expect(button.x).toBeGreaterThanOrEqual(cover.x);
+  expect(button.x + button.width).toBeLessThanOrEqual(cover.x + cover.width / 2);
   expect(button.y).toBeGreaterThanOrEqual(cover.y);
   expect(button.y + button.height).toBeLessThanOrEqual(cover.y + cover.height / 3);
 }
@@ -110,6 +113,8 @@ async function showWatched(page: Page): Promise<void> {
         percent: 100,
         completed: true,
         updatedAt: new Date().toISOString(),
+        // The check mark reads watchedAt since contract 1.31.0 (concept 20 section 6.3).
+        watchedAt: new Date().toISOString(),
       };
     }
     await route.fulfill({ response, json: body });
@@ -229,10 +234,13 @@ test('the pen opens the dialog; Tab stays inside, Escape closes, focus back on t
     /^Zuordnen/,
     /^Aktualisieren/,
   ]);
-  // Tab order of the head: the link, «Schliessen», then the selected tab; the focus never leaves.
+  // Tab order of the head: the link, «Löschen …» (concept 20 P-9, a film), «Schliessen», then the
+  // selected tab; the focus never leaves.
   const link = dialog(page).getByRole('link', { name: 'In der Verwaltung öffnen' });
   const close = dialog(page).getByRole('button', { name: 'Schliessen' });
   await tabTo(page, link, 10);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, dialog(page).getByRole('button', { name: 'Löschen …' }));
   await page.keyboard.press('Tab');
   await expectFocusOn(page, close);
   await page.keyboard.press('Tab');
@@ -527,7 +535,7 @@ test('start page: Tab reaches a card, then its pen; Enter opens, Escape returns 
 }) => {
   await page.goto('/');
   const { cell, card, pen: cardPen, title } = await penCell(recentRow(page));
-  // Shown without hover or focus, on the cover's top right.
+  // Shown without hover or focus, on the cover's top left.
   await page.mouse.move(0, 0);
   await expect(cardPen.locator('xpath=..')).toHaveCSS('opacity', '1');
   await expectOnCover(card, cardPen);
@@ -708,21 +716,23 @@ test.describe('on a phone', () => {
     const cardPen = cell.getByRole('button', { name: `${TITLE}: Metadaten bearbeiten` });
     await expect(cardPen).toBeVisible();
     await cardPen.scrollIntoViewIfNeeded();
-    // All on the cover, apart: the pen at the top right, the check at the top left (concept 17
-    // D-9) and the watchlist button at the bottom right, shown without hover on a touch screen.
-    const check = cell.getByRole('img', { name: 'Gesehen' });
+    // All on the cover, apart: the pen at the top left, the check at the top right (concept 20
+    // P-5) and the watchlist button at the bottom right, shown without hover on a touch screen.
+    const check = cell.getByRole('button', { name: `Gesehen: ${TITLE}`, exact: true });
     await expect(check).toBeVisible();
+    await expect(check).toHaveAttribute('aria-pressed', 'true');
     const watchlist = cell.getByRole('button', { name: `${TITLE} merken`, exact: true });
     await expect(watchlist.locator('xpath=../..')).toHaveCSS('opacity', '1');
-    const cover = await boxOf(check.locator('xpath=..'));
+    const cover = await boxOf(cell.locator('a').first().locator('span').first());
     const button = await boxOf(cardPen);
     const mark = await boxOf(check);
     const keep = await boxOf(watchlist);
     expect(button.width).toBeGreaterThanOrEqual(32);
     expect(button.height).toBeGreaterThanOrEqual(32);
-    expect(button.x + button.width).toBeLessThanOrEqual(cover.x + cover.width);
+    expect(button.x).toBeGreaterThanOrEqual(cover.x);
     expect(button.y).toBeGreaterThanOrEqual(cover.y);
-    expect(mark.x + mark.width).toBeLessThanOrEqual(button.x);
+    expect(mark.x).toBeGreaterThanOrEqual(button.x + button.width);
+    expect(mark.x + mark.width).toBeLessThanOrEqual(cover.x + cover.width);
     expect(mark.y).toBeGreaterThanOrEqual(cover.y);
     expect(keep.width).toBeGreaterThanOrEqual(32);
     expect(keep.y).toBeGreaterThanOrEqual(button.y + button.height);

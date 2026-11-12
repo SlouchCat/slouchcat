@@ -114,6 +114,9 @@ type Libraries interface {
 	// confirmPath must repeat the stored path; model.ErrNotFound, model.ErrConfirmMismatch,
 	// model.ErrScanRunning.
 	RemoveRoot(ctx context.Context, libraryID, rootID int64, confirmPath string) (model.Library, error)
+	// DeleteLibrary deletes a library for good, never a file (concept 20 P-8). confirmName must
+	// repeat the stored name; model.ErrNotFound, model.ErrConfirmMismatch, *model.PlayingError.
+	DeleteLibrary(ctx context.Context, libraryID int64, confirmName string, by model.Actor) (model.LibraryDeletionQueued, error)
 }
 
 // LibraryMaintenance is implemented by package library (M3): cancelling a scan and removing
@@ -186,6 +189,9 @@ type Metadata interface {
 	// *model.ValidationError).
 	UploadItemImage(ctx context.Context, itemID, kind string, data []byte) error
 	ChoosableImageKinds(ctx context.Context, itemID string) ([]string, error)
+	// CheckProviderKey asks the provider with its configured key whether it holds (concept 20,
+	// P-12); *model.ValidationError for an unknown provider. Neither answer nor error carries the key.
+	CheckProviderKey(ctx context.Context, provider string) (model.KeyCheck, error)
 }
 
 // ErrNotConfigured: a maintenance operation needs a collaborator that was not wired
@@ -211,6 +217,7 @@ type Service struct {
 	libraries      Libraries
 	trickplay      TrickplayUsage     // nil: no stored bytes and no free space in the estimate
 	maint          LibraryMaintenance // nil until WithLibraryMaintenance
+	deletion       TitleDeletion      // nil until WithTitleDeletion (concept 20 P-9)
 	meta           Metadata           // nil until WithMetadata
 	imageRemove    ImageRemover       // nil until WithImageRemoval
 	streams        Streams            // nil until WithStreams
@@ -744,6 +751,23 @@ func (s *Service) RemoveLibraryRoot(ctx context.Context, libraryID, rootID int64
 		return model.Library{}, verr
 	}
 	return s.withKeyframeIndex(ctx)(s.libraries.RemoveRoot(ctx, libraryID, rootID, confirmPath))
+}
+
+// DeleteLibrary deletes a library for good (concept 20 P-8); confirmName is compared against the
+// stored name inside package library, never here.
+func (s *Service) DeleteLibrary(ctx context.Context, libraryID int64, confirmName string, by model.Actor) (model.LibraryDeletionQueued, error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
+	var verr *model.ValidationError
+	switch name := strings.TrimSpace(confirmName); {
+	case name == "":
+		verr = verr.Add("confirmName", "required")
+	case utf8.RuneCountInString(name) > maxLibraryName:
+		verr = verr.Add("confirmName", "too_long")
+	}
+	if verr != nil {
+		return model.LibraryDeletionQueued{}, verr
+	}
+	return s.libraries.DeleteLibrary(ctx, libraryID, confirmName, by)
 }
 
 // queueRefresh queues a metadata match for the title, which fills in the rating again now that the

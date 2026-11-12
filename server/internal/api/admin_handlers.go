@@ -26,6 +26,7 @@ func (e serviceProblem) VisitListMetadataProvidersResponse(w http.ResponseWriter
 func (e serviceProblem) VisitRemoveLibraryRootResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
+func (e serviceProblem) VisitDeleteLibraryResponse(w http.ResponseWriter) error { return e.visit(w) }
 func (e serviceProblem) VisitAcceptLibraryLossResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
@@ -132,6 +133,22 @@ func (s *server) RemoveLibraryRoot(ctx context.Context, req gen.RemoveLibraryRoo
 	return gen.RemoveLibraryRoot200JSONResponse(toLibrary(lib)), nil
 }
 
+// DeleteLibrary queues the delete of a library (concept 20 P-8, 202 with the job); the typed name travels in the body,
+// which is why it is a POST and not a DELETE.
+func (s *server) DeleteLibrary(ctx context.Context, req gen.DeleteLibraryRequestObject) (gen.DeleteLibraryResponseObject, error) {
+	session, _ := sessionFrom(ctx)
+	out, err := s.opts.Admin.DeleteLibrary(ctx, req.Id, deref(req.Body).ConfirmName, actorOf(session))
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.DeleteLibrary202JSONResponse{JobId: out.JobID, Name: out.Name}, nil
+}
+
+// actorOf is who asked, for the activity log: the account and the active profile of the session.
+func actorOf(session model.Session) model.Actor {
+	return model.Actor{AccountID: session.Account.ID, ProfileID: session.Profile.ID}
+}
+
 func (s *server) AcceptLibraryLoss(ctx context.Context, req gen.AcceptLibraryLossRequestObject) (gen.AcceptLibraryLossResponseObject, error) {
 	lib, err := s.opts.Admin.AcceptLibraryLoss(ctx, req.Id)
 	if err != nil {
@@ -176,6 +193,7 @@ func toLibrary(l model.Library) gen.Library {
 		if r.Warning != "" {
 			root.Warning = &r.Warning
 		}
+		root.ReadOnly = r.ReadOnly
 		roots = append(roots, root)
 	}
 	scan := gen.LibraryScan{

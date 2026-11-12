@@ -18,10 +18,10 @@
 // concept 08, F-2, ADR 0016), and the rhythm of the stage (HeroIntervalSeconds, F-10).
 // The library views of concept 08 (side navigation, library page, user picks) pass
 // through to visibility.
-// The package also answers search, genres, collections, the watchlist and the favourites of a
-// profile (m7.go).
-// It holds no SQL on titles: reads go through visibility, the writes of watchlist and favourites
-// through store/appq, whose tables name titles only by id.
+// The package also answers search, genres, collections, and the watchlist of a profile
+// (m7.go).
+// It holds no SQL on titles: reads go through visibility, the watchlist writes through
+// store/appq, whose tables name titles only by id.
 package discover
 
 import (
@@ -74,7 +74,7 @@ const MaxRows = model.MaxVisibleHomeRows
 type Service struct {
 	vis      *visibility.Reader
 	read     *appq.Queries // home_rows
-	write    *appq.Queries // watchlist, favorites
+	write    *appq.Queries // watchlist, user picks
 	cacheDir string
 	log      *slog.Logger
 	now      func() time.Time
@@ -96,7 +96,7 @@ type Service struct {
 type Option func(*Service)
 
 // WithClock replaces time.Now: the retention of the user picks (E-2) and the time of user picks,
-// watchlist and favourite entries.
+// and watchlist entries.
 func WithClock(now func() time.Time) Option {
 	return func(s *Service) { s.now = now }
 }
@@ -513,6 +513,45 @@ func (s *Service) AudioSeries(ctx context.Context, profile model.Profile, librar
 // concept 18 part B), the row picks without its cut; without HasTrailer.
 func (s *Service) PicksPage(ctx context.Context, profile model.Profile, offset, limit int) ([]model.ItemSummary, int, error) {
 	return s.vis.PicksPage(ctx, visibility.Profile(profile), offset, limit)
+}
+
+// HomeList returns one page of the list behind a row title of the start page and its number
+// (listHomeRow, concept 20 P-7): continue, recent, released or spotlight, by the rules of the row
+// without its cut, filtered to one kind of the top level (content, "" = all). A list exists only
+// while its row does: a row hidden in the row settings has none (the title has no link then), and
+// the spotlight list needs its row on the start page (enabled, at least min_hits and at least one
+// hit, spotlightRow); it carries HasTrailer like the row. Any other key and a missing list are
+// model.ErrNotFound.
+func (s *Service) HomeList(ctx context.Context, profile model.Profile, key, content string, offset, limit int) ([]model.ItemSummary, int, error) {
+	scope := visibility.Profile(profile)
+	order, err := s.rowOrder(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	if !slices.ContainsFunc(order, func(r model.HomeRowSetting) bool { return r.Key == key }) {
+		return nil, 0, model.ErrNotFound
+	}
+	switch key {
+	case RowContinue:
+		return s.vis.ContinuePage(ctx, scope, content, offset, limit)
+	case RowRecent:
+		return s.vis.RecentPage(ctx, scope, content, offset, limit)
+	case RowReleased:
+		return s.vis.ReleasedPage(ctx, scope, content, offset, limit)
+	case RowSpotlight:
+		items, total, shown, err := s.vis.SpotlightPage(ctx, scope, content, offset, limit)
+		if err != nil {
+			return nil, 0, err
+		}
+		if !shown {
+			return nil, 0, model.ErrNotFound
+		}
+		if err := s.markTrailers(ctx, scope, items); err != nil {
+			return nil, 0, err
+		}
+		return items, total, nil
+	}
+	return nil, 0, model.ErrNotFound
 }
 
 // Item returns the detail of a visible title (with its series tree, extras, cast and trailer

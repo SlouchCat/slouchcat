@@ -184,6 +184,7 @@ const done = {
   percent: 100,
   completed: true,
   updatedAt: '2026-11-01T19:00:00Z',
+  watchedAt: '2026-11-01T19:00:00Z',
 };
 
 const prequel = volume('01JB8Z6Q4M7N9P2R3S5T7V9B05', 'Die Vorgeschichte', { progress: done });
@@ -261,8 +262,16 @@ describe('the page of a series (PD-7)', () => {
       within(rows[3]!).getByRole('link', { name: 'Band 2: Das Lösegeld (Hörspiel)' }),
     ).toBeVisible();
     expect(within(rows[3]!).getByText('Ensemble')).toBeVisible();
-    // A finished volume: checked, and its button starts it again.
-    expect(within(rows[1]!).getByRole('img', { name: 'Gehört' })).toBeInTheDocument();
+    // A finished volume: its check mark set at the end of the row (concept 20 P-5), and its
+    // button starts it again.
+    expect(within(rows[1]!).getByRole('button', { name: 'Gehört: Die Geisel' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(within(rows[2]!).getByRole('button', { name: /^Gehört: / })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
     expect(within(rows[1]!).getByRole('link', { name: 'Abspielen: Die Geisel' })).toHaveAttribute(
       'href',
       `/play/${first.id}?at=0`,

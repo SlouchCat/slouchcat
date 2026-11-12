@@ -30,6 +30,7 @@ export { dismissHeroPrepaint, HeroCarousel, HERO_PLAY_KEY, type HeroSlide } from
 export { Icon, type IconName } from './Icon';
 export { InboxEntry } from './InboxEntry';
 export { LetterBar } from './LetterBar';
+export { DisclosureTile } from './DisclosureTile';
 export { LibraryTile, type LibraryTileCover } from './LibraryTile';
 export { Logo } from './Logo';
 export { MiniPlayer, type MiniPlayerState } from './MiniPlayer';
@@ -42,7 +43,7 @@ export { PosterFallback } from './PosterFallback';
 export { ProfileAvatar, ProfileTile } from './ProfileTile';
 export { ProgressBar } from './ProgressBar';
 export { RoundAction } from './RoundAction';
-export { Row, RowList } from './Row';
+export { Row, RowList, RowTitle } from './Row';
 export { SearchField } from './SearchField';
 export { SelectField, type SelectGroup, type SelectOption } from './SelectField';
 export {
@@ -76,4 +77,5 @@ export { useNearEnd } from './useNearEnd';
 export { useVirtualPlaces, type PlaceSpan } from './useVirtualPlaces';
 export { VisuallyHidden } from './VisuallyHidden';
 export { VolumeRow } from './VolumeRow';
+export { WatchedToggle, type WatchedState } from './WatchedToggle';
 export { ImageCandidateGrid, type ImageCandidateTile } from './ImageCandidateGrid';

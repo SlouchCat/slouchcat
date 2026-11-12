@@ -57,7 +57,15 @@ const groups: DuplicateGroup[] = [
         title: 'Slouchcat Test H264',
         year: 2024,
         libraryId: 1,
-        files: [{ id: 'mf-a', path: 'H264/a.mp4', sizeBytes: 1_000_000, available: true }],
+        files: [
+          {
+            id: 'mf-a',
+            rootPath: '/media/filme',
+            path: 'H264/a.mp4',
+            sizeBytes: 1_000_000,
+            available: true,
+          },
+        ],
       },
       {
         itemId: id(9),
@@ -65,14 +73,37 @@ const groups: DuplicateGroup[] = [
         title: 'Slouchcat Test H264 Copy',
         year: 2024,
         libraryId: 2,
-        files: [{ id: 'mf-b', path: 'Copy/a.mp4', sizeBytes: 1_000_000, available: true }],
+        files: [
+          {
+            id: 'mf-b',
+            rootPath: '/media/serien/',
+            path: 'Copy/a.mp4',
+            sizeBytes: 1_000_000,
+            available: true,
+          },
+        ],
       },
     ],
   },
   {
     reason: 'title_year',
     items: [
-      { itemId: id(10), kind: 'series', title: 'Das Boot', year: 1985, files: [] },
+      {
+        itemId: id(10),
+        kind: 'series',
+        title: 'Das Boot',
+        year: 1985,
+        libraryId: 2,
+        files: [],
+        folders: [
+          {
+            rootPath: '/media/serien',
+            path: 'Das Boot (1985)',
+            fileCount: 96,
+            sizeBytes: 212_000_000_000,
+          },
+        ],
+      },
       { itemId: id(11), kind: 'series', title: 'Das Boot', year: 1985, files: [] },
     ],
   },
@@ -84,7 +115,6 @@ const noUserData: RelinkUserData = {
   progressDays: 0,
   playbackSessions: 0,
   watchlist: 0,
-  favorites: 0,
   collectionItems: 0,
   notifications: 0,
   userPicks: 0,
@@ -574,8 +604,11 @@ describe('maintenance page', () => {
     expect(
       screen.getByText(/^Gleicher Dateiinhalt · Slouchcat Test H264 \(2024\) · 2 Titel$/),
     ).toBeVisible();
-    expect(within(group).getByText('Copy/a.mp4')).toBeVisible();
-    expect(within(group).getByText('H264/a.mp4')).toBeVisible();
+    // P-10: the whole path in the container, with the library next to the title.
+    expect(within(group).getByText('/media/serien/Copy/a.mp4')).toBeVisible();
+    expect(within(group).getByText('/media/filme/H264/a.mp4')).toBeVisible();
+    expect(within(group).getByText('Bibliothek «Serien»')).toBeVisible();
+    expect(screen.getByText(/^Die Pfade sind die im Container/)).toBeVisible();
     // PFL-4: each file with its size.
     expect(within(group).getAllByText('1 MB')).toHaveLength(2);
     // Only the first group starts open (mockup Pfl-C); the second one opens with its button.
@@ -584,7 +617,10 @@ describe('maintenance page', () => {
     expect(screen.queryByRole('group', { name: 'Gruppe 2' })).not.toBeInTheDocument();
     await user.click(secondToggle);
     const second = screen.getByRole('group', { name: 'Gruppe 2' });
-    expect(within(second).getAllByText('Keine Datei')).toHaveLength(2);
+    // A series shows the folder of its episodes with their number and size (P-10).
+    expect(within(second).getByText('/media/serien/Das Boot (1985)/')).toBeVisible();
+    expect(within(second).getByText('96 Dateien · 212 GB')).toBeVisible();
+    expect(within(second).getAllByText('Keine Datei')).toHaveLength(1);
 
     // «bleibt» marks the title to keep and follows the choice.
     const items = within(group).getByRole('list', { name: 'Gruppe 1' });
@@ -993,5 +1029,51 @@ describe('maintenance page', () => {
     renderApp('/admin/maintenance');
     expect(await screen.findByText('Nur für Administratoren')).toBeVisible();
     expect(calls.some((call) => call.path.startsWith('/admin/maintenance'))).toBe(false);
+  });
+
+  it('«Entfernte Titel»: lists the removed titles and takes one back (concept 20 P-9)', async () => {
+    let removed = {
+      total: 2,
+      items: [
+        {
+          id: id(41),
+          kind: 'series',
+          title: 'Silo',
+          libraryId: 2,
+          libraryName: 'Serien',
+          folder: { rootPath: '/media/serien', path: 'Silo (2023)' },
+          removedAt: '2026-11-12T10:00:00Z',
+        },
+        {
+          id: id(42),
+          kind: 'season',
+          title: 'Staffel 2',
+          parentTitle: 'Dark',
+          libraryId: 2,
+          libraryName: 'Serien',
+          removedAt: '2026-11-11T10:00:00Z',
+        },
+      ],
+    };
+    const { calls } = setup({
+      'GET /admin/maintenance/removed': () => json(removed),
+      'POST /admin/maintenance/removed/*/restore': () => {
+        removed = { total: 1, items: [removed.items[1]!] };
+        return json({ itemId: id(41), restoredItems: 12 });
+      },
+    });
+    renderApp('/admin/maintenance?tab=removed');
+    const table = await screen.findByRole('table', { name: 'Entfernte Titel' });
+    expect(within(table).getByText('/media/serien/Silo (2023)/')).toBeVisible();
+    expect(within(table).getByText('Dark › Staffel 2')).toBeVisible();
+    expect(within(table).getByText('Keine Datei')).toBeVisible();
+    const user = userEvent.setup();
+    await user.click(within(table).getByRole('button', { name: 'Silo wieder aufnehmen' }));
+    expect(await screen.findByText('«Silo» ist wieder da (12 Titel).')).toBeInTheDocument();
+    expect(calls.some((call) => call.path === `/admin/maintenance/removed/${id(41)}/restore`)).toBe(
+      true,
+    );
+    await waitFor(() => expect(within(panel()).queryByText('Silo')).toBeNull());
+    await waitFor(() => expect(title()).toHaveFocus());
   });
 });

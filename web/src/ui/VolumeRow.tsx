@@ -23,7 +23,10 @@ interface VolumeRowProps {
   accent?: string;
   /** Listening progress 0 … 100 with its accessible label. */
   progress?: { percent: number; label: string };
-  /** A finished volume: a check mark on the cover, with this as its spoken name ("Gehört"). */
+  /**
+   * A finished volume: the cover a little dimmed and, without `watchedControl`, a check mark on it
+   * with this as its spoken name ("Gehört").
+   */
   watchedLabel?: string;
   /** The length of the volume ("11 h 11 min"). */
   duration?: string;
@@ -35,13 +38,18 @@ interface VolumeRowProps {
    * button, so Tab reaches it and the arrow keys pass it by.
    */
   tool?: ReactNode;
+  /**
+   * The check mark «gehört» as a button at the end of the row (concept 20 P-5, WatchedToggle),
+   * after the pen: Tab reaches it, the arrow keys pass it by. It replaces the check on the cover.
+   */
+  watchedControl?: ReactNode;
   focusKey?: string;
 }
 
 /**
  * A volume in the list of an audiobook series (concept 19 D4.3): number, square cover, title, a
  * line under it and the progress as one link to the volume, then its length, a play button of its
- * own and the pen. ← and → move between link and play button, ↑ and ↓ between the volumes.
+ * own, the pen and the check mark. ← and → move between link and play button, ↑ and ↓ between the volumes.
  */
 export function VolumeRow({
   href,
@@ -57,6 +65,7 @@ export function VolumeRow({
   playHref,
   playLabel,
   tool,
+  watchedControl,
   focusKey,
 }: VolumeRowProps) {
   const { ref, onFocus } = useSpatialItem<HTMLAnchorElement>({ focusKey });
@@ -81,7 +90,7 @@ export function VolumeRow({
           ) : (
             <PosterFallback />
           )}
-          {watchedLabel && (
+          {watchedLabel && !watchedControl && (
             <span className={styles.check} role="img" aria-label={watchedLabel}>
               <Icon name="check" size="sm" />
             </span>
@@ -107,6 +116,7 @@ export function VolumeRow({
         aria-label={playLabel}
       />
       {tool}
+      {watchedControl}
     </div>
   );
 }

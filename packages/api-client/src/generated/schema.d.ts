@@ -600,6 +600,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/home/rows/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The whole list behind a row of the start page (concept 20 P-7)
+         * @description Since contract 1.31.0. The list behind the row title of `getHome` for the rows `continue`,
+         *     `recent`, `released` and `spotlight` (the page `/lists/{key}`): the same titles in the same
+         *     order and with the same rules as the row, the cards like the row's, only without the row's
+         *     cut to 20 titles. `continue` (one entry per series) is computed once per call and holds at
+         *     most 200 entries, so the order may shift between two pages while somebody watches.
+         *     `spotlight` holds every title of the chosen list in the visible library after the pinned
+         *     ones took their place, without the cut to the configured number of titles; while the
+         *     spotlight is switched off or has fewer hits than its minimum the row is missing on the start
+         *     page and this list answers 404. A row hidden in the row settings (`setHomeRows`) has no list
+         *     either (404). The key is checked before `content`. `content` keeps the titles whose title of the top level has
+         *     that kind: `series` keeps the next episodes of a series in `continue`, `podcast` the podcast
+         *     episodes. Every title passed the visibility layer of the active profile.
+         */
+        get: operations["listHomeRow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/picks": {
         parameters: {
             query?: never;
@@ -1633,6 +1664,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/libraries/{id}/deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Delete a library for good (concept 20 P-8)
+         * @description Asks for the library to be deleted with its folders, titles and everything on them:
+         *     progress, watchlist and check marks, picks, own images and texts, the home row of the
+         *     library, the grants of the profiles and the downloads of its titles (the devices drop them at
+         *     their next sync). TMDB collections left without a member go; manual ones stay, empty or not.
+         *     It never deletes a file on the disk; a later scan of the same folders in a new library creates
+         *     the titles again, without user data. `confirmName` must repeat the library's name (compared
+         *     after trimming against the stored row, `confirm_mismatch`). While a profile plays a title of
+         *     the library the delete is refused and the playback goes on (`playing`, the problem names the
+         *     profiles); a library already being deleted answers `deleting`.
+         *
+         *     The delete runs in the background (job `library.delete`, on the jobs page with the
+         *     library's name; measured on CT 190: 27 s for 31 641 titles). The answer comes at once: from
+         *     then on the library is gone from every list, every view and the search, no scan or job starts
+         *     for it, and the job cancels the running scan and the jobs of its titles, backs the database up
+         *     (its own name and retention: the last two, apart from the backups before a migration;
+         *     restoring it puts everything back to the state before the delete, the progress of every profile
+         *     since included) and deletes the library in one transaction. A job that fails before that
+         *     transaction gives the library back and stays visible as a failed run; it is not retried. A
+         *     server that stops in the middle runs the job again from the start. A POST and not a DELETE,
+         *     because the confirmation travels in the body.
+         */
+        post: operations["deleteLibrary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/fs/browse": {
         parameters: {
             query?: never;
@@ -1957,6 +2027,68 @@ export interface paths {
         get: operations["getAdminItem"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/items/{id}/deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What deleting a title would touch (concept 20 P-9)
+         * @description The preview of `deleteItem`: every media file of the title, of every title below it
+         *     (seasons, episodes, podcast episodes) and of its extras, each with the folder of its
+         *     library root and its size; their number and total size; the folder they share below the
+         *     root (absent when they lie under more than one root, or there is none); `confirmTitle`, the
+         *     title the dialog shows, and `typeTitle`, whether the administrator has to type it (more than
+         *     one file); and the profiles that play one of the titles right now (`playingProfiles`: the
+         *     delete is refused until they stop, O-13). Films, series, seasons, episodes, audiobooks,
+         *     podcasts and podcast episodes with a file can be deleted; an extra and a podcast episode
+         *     that is only a reference from the feed cannot (`not_deletable`, O-5). A deleted or removed
+         *     title answers 404.
+         */
+        get: operations["getItemDeletion"];
+        put?: never;
+        /**
+         * Delete a title (concept 20 P-9)
+         * @description `mode` `library` («Nur aus Slouchcat entfernen»): the title and every title below it leave
+         *     every list of every profile and are marked as taken out; their files, progress, check marks
+         *     and watchlist entries stay, the downloads on the devices go. The scanner never brings them
+         *     back, whatever happens in their folders: a new file there (another version, a new episode
+         *     or season) joins the title and stays out with it. `listRemovedItems` lists them,
+         *     `restoreRemovedItem` brings them back.
+         *
+         *     `mode` `files` («Auch die Dateien löschen», ADR 0032) deletes, in this order and nothing
+         *     else: the media files of the title, of every title below it and of its extras; the image
+         *     and metadata files Slouchcat read for them (recorded local images, the folder cover of a
+         *     book or podcast, `movie.nfo`, `tvshow.nfo`, `season.nfo` and `metadata.json` of a folder
+         *     once no media file of any title is left in it); companions next to a deleted media file
+         *     whose name starts with its whole stem followed by `.` or `-` (never one with a video or
+         *     audio extension, never one that is by device and inode a media file); then the folders left empty,
+         *     up to below the library root. A file that is a media file of another title is never
+         *     deleted; a hard link of another title's file stays and is named. Nothing is deleted
+         *     recursively; `leftInFolder` counts what stays. A missing file counts as deleted. The rows of
+         *     the deleted files go at once; when no file of the title is left, the title is deleted for
+         *     good with all its user data (`titleDeleted`, O-14), otherwise it stays with the files that
+         *     are left (`leftover`). A podcast episode that has an enclosure stays as a reference from its
+         *     feed. Refused when a file cannot be deleted (`files_not_deletable`, see `filesReason` of the
+         *     preview). The media folders are read-only by default; deleting needs a folder the operator
+         *     mounted writable on purpose.
+         *
+         *     With more than one file `confirmTitle` must repeat
+         *     `confirmTitle` of the preview (without case and surrounding spaces, `confirm_mismatch`).
+         *     Refused while a profile plays one of the titles (`playing`, the problem names the profiles)
+         *     and while a scan of its library runs (`scan_running`). Every delete writes an activity
+         *     entry (`item_deleted`). A POST and not a DELETE, because the confirmation travels in the
+         *     body.
+         */
+        post: operations["deleteItem"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2622,6 +2754,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/maintenance/removed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Titles taken out of Slouchcat (concept 20, «Entfernte Titel»)
+         * @description The titles `deleteItem` took out with `mode` `library` that can come back on their own:
+         *     a season or episode of a series that is taken out too comes back with the series and is not
+         *     listed. Newest first, each with its library, the series or podcast it belongs to and the
+         *     folder its files share.
+         */
+        get: operations["listRemovedItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/maintenance/removed/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bring a removed title back («Wieder aufnehmen»)
+         * @description The title and every title below it that was taken out with it come back: the same titles
+         *     with all their episodes, progress, check marks and watchlist entries, for every kind. A title
+         *     below that was taken out on its own before stays out. Files that went missing meanwhile are
+         *     handled by the next scan as always. Refused while a scan of its library runs
+         *     (`scan_running`).
+         */
+        post: operations["restoreRemovedItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/maintenance/relink": {
         parameters: {
             query?: never;
@@ -2801,6 +2980,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/collections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every collection with a visible member (E-6, concept 20 O-3)
+         * @description Since contract 1.31.0. The page «Sammlungen» behind the title of the start page row
+         *     `collections`: the same collections in the same order as the row (by name, each with the
+         *     number of its visible members and its cover), only without the row's cut to 20, at most 500.
+         *     Audiobook collections stand in the row «Reihen und Sammlungen» of their library and are not
+         *     listed (like the row).
+         */
+        get: operations["listVisibleCollections"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/collections/{id}": {
         parameters: {
             query?: never;
@@ -2870,6 +3073,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/items/{id}/watched": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set or remove the check mark «gesehen» of a title (concept 20 P-5)
+         * @description Since contract 1.31.0 (concept 20 section 6.4). Idempotent; every kind. A film, episode,
+         *     extra, audiobook or podcast episode changes itself; a season, series or podcast changes
+         *     every visible episode below it in one transaction (a series: the episodes of all its
+         *     seasons, specials included), episodes the profile may not see stay as they are.
+         *
+         *     - `watched: true`: the title is finished (`completed`, the position at the end of its
+         *       duration, `watchedAt` and `updatedAt` now). A title without progress takes the duration
+         *       of its primary file, else of the feed or the metadata, else 0. Over several episodes the
+         *       times rise by one millisecond in episode order, so the last episode is the newest:
+         *       continue watching shows the next episode after it.
+         *     - `watched: false`: `watchedAt` goes. A finished title starts again at 0; a running
+         *       position of a second run stays. `updatedAt` stays, so continue watching does not move.
+         *
+         *     A check mark set by hand writes no activity event; the administration's log shows real
+         *     playbacks only. An invisible or unknown title answers 404.
+         */
+        put: operations["setItemWatched"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/watched": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The page «Gesehen» of the active profile (concept 20 P-14)
+         * @description Since contract 1.31.0 (concept 20 section 15.4). Every film and audiobook the profile has
+         *     finished (`Progress.watchedAt`: 90 % rule or the check mark by hand), and every series and
+         *     podcast with at least one visible watched episode, once each; never radio, extras, seasons or
+         *     single episodes. A title stays while it is started again and leaves when its check mark is
+         *     removed or while it is invisible for the profile. Only visible episodes count.
+         */
+        get: operations["listWatched"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/items/{id}/watchlist": {
         parameters: {
             query?: never;
@@ -2880,7 +3141,10 @@ export interface paths {
         get?: never;
         /**
          * Put a title on the watchlist of the active profile (E-5)
-         * @description Idempotent. Every kind except seasons and extras; an invisible title answers 404.
+         * @description Idempotent. Every kind except seasons and extras; an invisible title answers 404. Since
+         *     contract 1.31.0 (concept 20 P-2) a series or podcast on the watchlist takes the place of the
+         *     favourite: a new episode creates an in-app notification for the profile when the profile may
+         *     see the episode (5.5), and its new podcast episodes feed the auto-download rule (O-3).
          */
         put: operations["addToWatchlist"];
         post?: never;
@@ -2917,51 +3181,6 @@ export interface paths {
          *     picks unless another profile recommended it. 404 as for `recommendItem`.
          */
         delete: operations["unrecommendItem"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/favorites": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The favourite series and podcasts of the active profile (E-8)
-         * @description Newest first; favourites whose title became invisible are omitted.
-         */
-        get: operations["listFavorites"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/items/{id}/favorite": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Mark a series or podcast as favourite of the active profile (E-8)
-         * @description Idempotent. A new episode of a favourite creates an in-app notification for the profile when the
-         *     profile may see the episode (5.5); favourite podcasts also feed the auto-download rule (O-3).
-         */
-        put: operations["addFavorite"];
-        post?: never;
-        /**
-         * Remove the favourite mark
-         * @description Idempotent; an invisible or unknown title answers 404.
-         */
-        delete: operations["removeFavorite"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3485,7 +3704,11 @@ export interface paths {
          * @description At most `limit` runs of the type in the state (`planned` is `queued` with a start in the future:
          *     backoff, debounce, a waiting download). `queued` and `planned` come in claim order (priority, then
          *     age), so the first row is the next to run; every other state newest first. `total` counts all runs
-         *     of that state.
+         *     of that state. `offset` skips that many runs (since contract 1.31.0, concept 20 P-6).
+         *
+         *     Since contract 1.31.0 `type` is optional, but only with `state=failed`: without it the page lists
+         *     the failed runs of every type («Fehlgeschlagen»). Without `type` and with any other state the
+         *     answer is 422 (`validation_failed`, field `type`, `required`).
          */
         get: operations["listJobRuns"];
         put?: never;
@@ -3634,6 +3857,74 @@ export interface paths {
          *     ends `failed` with `cancelled_by_admin` and is not prepared again by itself. Cancelling is final.
          */
         delete: operations["cancelJobRuns"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/jobs/failed/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queue every failed run again, of every type or of one
+         * @description Since contract 1.31.0 (concept 20, P-6). Every failed run (of `type`, when given) goes back to the
+         *     queue with its attempts reset, like `retryJob`, in one transaction. A run whose idempotency key a
+         *     waiting or running job holds stays failed and counts as `skipped`. Of several failed runs with the
+         *     same key only the newest is queued; the older ones end `cancelled` and count as `merged`.
+         */
+        post: operations["retryFailedJobs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/jobs/failed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Dismiss every failed run, of every type or of one
+         * @description Since contract 1.31.0 (concept 20, P-6). Every failed run (of `type`, when given) ends `cancelled`,
+         *     like `cancelJob` on a failed run, in one transaction; `jobs.prune` removes it later.
+         */
+        delete: operations["dismissFailedJobs"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/settings/keys/{provider}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask a provider whether its configured key holds
+         * @description Since contract 1.31.0 (concept 20, P-12). One cheap request to the provider with the key the
+         *     server uses (stored or from `deploy/.env`): TMDB `/configuration`, the TVDB login, one Fanart.tv
+         *     film, one YouTube video (one quota unit), the trending list of Trakt, one ISBN at Google Books.
+         *     `ok: false` says why (`problem`) with the provider's error in plain text (`message`). Neither the
+         *     answer nor the log carries the key.
+         */
+        post: operations["checkProviderKey"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -5263,6 +5554,11 @@ export interface components {
             extensions?: {
                 [key: string]: number;
             };
+            /**
+             * @description The profiles that play a title of what is about to be deleted (`playing`, concept 20
+             *     O-13), by name, each once. Absent for other problems.
+             */
+            playingProfiles?: string[];
         };
         FieldError: {
             /** @description JSON pointer-like field name, for example `email` or `library.path`. */
@@ -5699,9 +5995,22 @@ export interface components {
             /** Format: int64 */
             durationMs: number;
             percent: number;
+            /**
+             * @description At or beyond 90 % of the duration by the newest event (AN-10): a later event below 90 %
+             *     reopens the title. Continue watching, next up and the resume position read it; the check
+             *     mark reads `watchedAt` (since contract 1.31.0).
+             */
             completed: boolean;
             /** Format: date-time */
             updatedAt: string;
+            /**
+             * Format: date-time
+             * @description Since contract 1.31.0 (concept 20 section 6.3): when the title was last finished, by an
+             *     event at or beyond 90 % or by the check mark (`setItemWatched`). It stays when the title is
+             *     started again and goes only when the check mark is removed; absent when the title was
+             *     never finished. The check mark «gesehen» of a single title shows it.
+             */
+            watchedAt?: string;
             /** @description Playback speed the profile last used for this title (H-3); absent until it was set. */
             playbackRate?: number;
             /**
@@ -5710,6 +6019,46 @@ export interface components {
              *     stops and shows the hint.
              */
             watchTime?: components["schemas"]["WatchTime"];
+        };
+        /**
+         * @description Order of `listWatched` (since contract 1.31.0): `watched` puts the newest last watched first,
+         *     `title` sorts A to Z by the title's sort key in the profile language; ties by the other
+         *     order, then the id.
+         * @default watched
+         * @enum {string}
+         */
+        WatchedSort: "watched" | "title";
+        /** @description Since contract 1.31.0. One title of the page «Gesehen». */
+        WatchedEntry: {
+            /**
+             * @description The card as in every list; a series or podcast carries `watched` and `watchedCount` (its
+             *     visible watched episodes), the half check mark when `watched` is false.
+             */
+            item: components["schemas"]["ItemRef"];
+            /**
+             * Format: date-time
+             * @description When the title was last finished (`Progress.watchedAt`); of a series or podcast the newest
+             *     date of its visible watched episodes.
+             */
+            lastWatchedAt: string;
+            /**
+             * @description Series and podcasts only: their visible episodes (the «96» of «19 von 96 Folgen»), over the
+             *     same episodes as `item.watchedCount`.
+             */
+            episodeCount?: number;
+        };
+        /** @description Since contract 1.31.0. One page of `listWatched`. */
+        WatchedPage: {
+            items: components["schemas"]["WatchedEntry"][];
+            /** @description The size of the whole list with the same `content`. */
+            total: number;
+            offset: number;
+            limit: number;
+        };
+        /** @description Since contract 1.31.0. The check mark of `setItemWatched`. */
+        ItemWatchedRequest: {
+            /** @description True sets the check mark «gesehen», false removes it. */
+            watched: boolean;
         };
         /**
          * @description A title as it appears in lists. Every response that contains an ItemRef is `scoped`; the
@@ -5738,16 +6087,23 @@ export interface components {
              */
             overview?: string;
             /**
-             * @description Visible episodes of a season the active profile has completed (since contract 1.20.0,
-             *     concept 17 section 2.3); set only on seasons, next to `childCount`.
+             * @description Visible episodes the active profile has watched (`Progress.watchedAt`): of a season since
+             *     contract 1.20.0 (concept 17 section 2.3, next to `childCount`), and since contract 1.31.0
+             *     also of a series (every season, specials included) and a podcast, counted over the same
+             *     episodes as `watched`. Until 1.30.0 it counted completed episodes. With `watched` false,
+             *     a value above 0 is the half check mark «teilweise gesehen» (concept 20 F-12). Absent on
+             *     every other kind.
              */
             watchedCount?: number;
             /**
-             * @description Series and podcasts only (since contract 1.22.0): every visible episode is completed by
-             *     the active profile, by the same rule as the library status `watched` (specials count
-             *     like every other episode). False when at least one visible episode is open; absent for
-             *     a series or podcast without visible episodes and on every other kind. Set on every
-             *     series and podcast ItemRef in every list and on `ItemDetail`.
+             * @description Series and podcasts only (since contract 1.22.0): every visible episode is watched by the
+             *     active profile, by the same rule as the library status `watched` (specials count like
+             *     every other episode). Since contract 1.31.0 an episode counts as watched by its
+             *     `Progress.watchedAt` (finished once or marked by hand), no longer by `completed`, so a
+             *     series stays watched while an episode is watched again. False when at least one visible
+             *     episode is not watched; absent for a series or podcast without visible episodes and on
+             *     every other kind. Set on every series and podcast ItemRef in every list and on
+             *     `ItemDetail`.
              */
             watched?: boolean;
             runtimeMinutes?: number;
@@ -5819,8 +6175,6 @@ export interface components {
             images: components["schemas"]["ItemImages"];
         };
         ItemDetail: components["schemas"]["ItemRef"] & {
-            /** @description A favourite of the active profile (E-8; series and podcasts only). */
-            favorite: boolean;
             /**
              * @description The active profile holds a recommendation of this title that has not expired (the star
              *     shows «Empfohlen ✓», contract 1.23.0, ADR 0028). Never who else or how many recommended it.
@@ -6000,6 +6354,12 @@ export interface components {
          * @enum {string}
          */
         HomeRowKey: "spotlight" | "picks" | "continue" | "recent" | "released" | "watchlist" | "collections" | "genres" | "libraries" | "library" | "radio";
+        /**
+         * @description The rows of the start page whose title leads to a list of its own (`listHomeRow`, contract
+         *     1.31.0, concept 20 P-7).
+         * @enum {string}
+         */
+        HomeListKey: "continue" | "recent" | "released" | "spotlight";
         /**
          * @description The identity of a start page row (since contract 1.15.0): its key for every row but
          *     `library`, `library:<libraryId>` for a library row.
@@ -7220,6 +7580,11 @@ export interface components {
             id: string;
             /** Format: int64 */
             rootId?: number;
+            /**
+             * @description Since contract 1.31.0 (concept 20, P-10). The folder of the library root in the container
+             *     (`/media/…`), not on the NAS; the whole path is `rootPath` + `/` + `path`.
+             */
+            rootPath?: string;
             /** @description Path relative to the library root (administration only). */
             path: string;
             /** Format: int64 */
@@ -7509,7 +7874,21 @@ export interface components {
                 /** Format: int64 */
                 libraryId?: number;
                 files: components["schemas"]["AdminMediaFile"][];
+                /**
+                 * @description Since contract 1.31.0 (concept 20, P-10). A series or podcast, whose files hang on its
+                 *     episodes: per library root the folder all present episode files share.
+                 */
+                folders?: components["schemas"]["DuplicateFolder"][];
             }[];
+        };
+        DuplicateFolder: {
+            /** @description The folder of the library root in the container. */
+            rootPath: string;
+            /** @description The common folder relative to `rootPath`; empty is the root itself. */
+            path: string;
+            fileCount: number;
+            /** Format: int64 */
+            sizeBytes: number;
         };
         MergeRequest: {
             targetId: components["schemas"]["ItemID"];
@@ -7531,8 +7910,6 @@ export interface components {
             playbackSessions: number;
             /** Format: int64 */
             watchlist: number;
-            /** Format: int64 */
-            favorites: number;
             /** Format: int64 */
             collectionItems: number;
             /** Format: int64 */
@@ -7693,6 +8070,151 @@ export interface components {
         LibraryRootRemoval: {
             /** @description The folder's path, repeated by the administrator. */
             confirmPath: string;
+        };
+        /**
+         * @description The confirmation of a library delete (concept 20 P-8). It is typed by the administrator and
+         *     compared against the stored name, so a mis-aimed click cannot delete a library.
+         */
+        LibraryDeletionRequest: {
+            /** @description The library's name, repeated by the administrator (compared after trimming). */
+            confirmName: string;
+        };
+        /** @description The queued delete of a library (`deleteLibrary`). */
+        LibraryDeletionQueued: {
+            /**
+             * Format: int64
+             * @description The job `library.delete` that deletes the library (the jobs page shows it).
+             */
+            jobId: number;
+            /** @description Name of the library being deleted. */
+            name: string;
+        };
+        ItemDeletionPreview: {
+            itemId: components["schemas"]["ItemID"];
+            kind: components["schemas"]["ItemKind"];
+            /** @description The title the dialog shows (in the server's text language) and the administrator types. */
+            confirmTitle: string;
+            /** @description Whether `deleteItem` needs `confirmTitle` (more than one file); with one file the red button is enough. */
+            typeTitle: boolean;
+            /** @description Every media file of the title, the titles below it and its extras, by folder and path. */
+            files: components["schemas"]["DeletionFile"][];
+            folder?: components["schemas"]["DeletionFolder"];
+            fileCount: number;
+            /** Format: int64 */
+            totalBytes: number;
+            /** @description Profiles that play one of the titles right now (O-13); empty when none. */
+            playingProfiles: string[];
+            /**
+             * @description Whether `mode` `files` is possible: every file is deletable (or a hard link of another
+             *     title's file, which stays), and at least one is. Checked without writing anything (ADR
+             *     0032).
+             */
+            filesDeletable: boolean;
+            expectedFiles: components["schemas"]["ExpectedFiles"];
+            /**
+             * @description Why `mode` `files` is not possible: the reason of the first file that cannot be deleted
+             *     (see `DeletionFile.reason`), or `no_files`. Absent when it is possible.
+             */
+            filesReason?: string;
+        };
+        DeletionFile: {
+            /** @description The folder of the library root in the container. */
+            rootPath: string;
+            /** @description The path of the file relative to `rootPath`. */
+            path: string;
+            /** Format: int64 */
+            sizeBytes: number;
+            /**
+             * @description Whether the server may delete the file, checked without writing (ADR 0032): the file
+             *     system of its folder is not mounted read-only (statfs) and the server may write in the
+             *     folder of the file (faccessat). A missing file counts as deletable.
+             */
+            deletable: boolean;
+            /**
+             * @description Fixed code: `read_only` (the folder's file system is mounted read-only), `no_permission`
+             *     (the server may not write in the folder), `shared` (a hard link of another title's file;
+             *     it stays), `not_regular` (a symlink or no regular file), `unreachable` (the root or the
+             *     folder cannot be opened), `missing` (already gone, counts as deleted). Absent for a file
+             *     that can be deleted.
+             */
+            reason?: string;
+        };
+        /** @description The folder the files share below their library root (`path` empty for the root itself). */
+        DeletionFolder: {
+            rootPath: string;
+            path: string;
+        };
+        /**
+         * @description The stamp of the files a preview listed: their number and a hash over each file's id, path,
+         *     device, inode and size. `deleteItem`
+         *     repeats it, so the delete takes exactly what the administrator saw; when the files changed
+         *     meanwhile the server answers 409 `changed` and deletes nothing.
+         */
+        ExpectedFiles: {
+            count: number;
+            hash: string;
+        };
+        ItemDeletionRequest: {
+            expectedFiles: components["schemas"]["ExpectedFiles"];
+            /**
+             * @description `library`: only out of Slouchcat, the files stay. `files`: the files are deleted as well,
+             *     and the title for good when none of its files is left (ADR 0032).
+             * @enum {string}
+             */
+            mode: "library" | "files";
+            /** @description The title, typed; required when the preview says `typeTitle`. */
+            confirmTitle?: string;
+        };
+        ItemDeletionResult: {
+            /** @description Titles that left the lists (the title and every title below it). */
+            removedItems: number;
+            deletedFiles: number;
+            /** Format: int64 */
+            deletedBytes: number;
+            /** @description Files that stayed, with why. */
+            leftover: components["schemas"]["DeletionLeftover"][];
+            /**
+             * @description Entries Slouchcat does not know that stay in the folders of the title (`files`; nothing
+             *     is deleted recursively).
+             */
+            leftInFolder?: number;
+            /**
+             * @description The title went for good with everything on it, progress, check marks and watchlist
+             *     included (`files`, no file of it left, O-14).
+             */
+            titleDeleted?: boolean;
+        };
+        DeletionLeftover: {
+            rootPath: string;
+            path: string;
+            /**
+             * @description Fixed code of why the file stayed: `shared`, `no_permission`, `not_regular`, `unreachable`,
+             *     `changed` (another file than the scanned one lies at the path: device and inode differ) or
+             *     `failed` (the delete itself failed).
+             */
+            reason: string;
+        };
+        RemovedItemPage: {
+            items: components["schemas"]["RemovedItem"][];
+            total: number;
+        };
+        RemovedItem: {
+            id: components["schemas"]["ItemID"];
+            kind: components["schemas"]["ItemKind"];
+            title: string;
+            /** @description The series (and season) of a season or episode, the podcast of a podcast episode. */
+            parentTitle?: string;
+            /** Format: int64 */
+            libraryId: number;
+            libraryName: string;
+            folder?: components["schemas"]["DeletionFolder"];
+            /** Format: date-time */
+            removedAt: string;
+        };
+        RemovedItemRestore: {
+            itemId: components["schemas"]["ItemID"];
+            /** @description Titles that came back (the title and every title below it taken out with it). */
+            restoredItems: number;
         };
         /** @description Changes to a library; every field is optional. */
         LibraryUpdate: {
@@ -7919,6 +8441,12 @@ export interface components {
             itemCount: number;
             /** @description Media files registered in this folder; they all go with the folder. */
             fileCount: number;
+            /**
+             * @description The folder's file system is mounted read-only (statfs, checked without writing; ADR
+             *     0032), so Slouchcat cannot delete a file in it. Absent when the check did not answer in
+             *     time (a hanging network share).
+             */
+            readOnly?: boolean;
         };
         LibraryScan: {
             state: components["schemas"]["ScanState"];
@@ -8142,7 +8670,10 @@ export interface components {
             enabled: boolean;
             /** @description Download the next episode of every started series. */
             nextEpisodes: boolean;
-            /** @description New episodes of the profile's favourite podcasts (O-3; favourites replaced the listening history in M7). */
+            /**
+             * @description New episodes of the podcasts on the profile's watchlist, published after the profile put the
+             *     podcast there (O-3; since contract 1.31.0 the watchlist replaces the favourites of M7).
+             */
             newPodcastEpisodes: boolean;
             wifiOnly: boolean;
             /** @description Most auto-downloads on this device the profile has not finished watching. */
@@ -8287,7 +8818,10 @@ export interface components {
             count: number;
             /** @description Of `count`, the volumes that pass the filters; equals `count` without a filter. */
             matching: number;
-            /** @description Of `count`, the volumes the active profile has completed (the bar of the tile). */
+            /**
+             * @description Of `count`, the volumes the active profile has heard (the bar of the tile): since contract 1.31.0
+             *     those with `Progress.watchedAt`, so a volume heard once and started again still counts.
+             */
             completed: number;
             /** @description The first visible volume in series or collection order; its cover represents the group. */
             cover?: components["schemas"]["ItemRef"];
@@ -8421,7 +8955,11 @@ export interface components {
          */
         LibrarySort: "title" | "added" | "released" | "vote" | "runtime" | "age" | "played" | "author";
         /**
-         * @description Watch status of a title for the active profile (F-8); exclusive per title.
+         * @description Watch status of a title for the active profile (F-8); exclusive per title. Since contract
+         *     1.31.0 it reads `Progress.watchedAt` (concept 20 section 6.3): `watched` once a film or
+         *     audiobook has `watchedAt`, also during a second run; `started` only without `watchedAt` and
+         *     with a position above 0; else `unwatched`. A series or podcast is `watched` when every visible
+         *     episode has `watchedAt`, `started` when some episode has it or a position.
          * @enum {string}
          */
         LibraryItemStatus: "unwatched" | "started" | "watched";
@@ -8485,7 +9023,7 @@ export interface components {
             readAt?: string;
             /** @description The new episode. */
             item: components["schemas"]["ItemRef"];
-            /** @description The favourite series or podcast, when still visible. */
+            /** @description The series or podcast on the watchlist, when still visible. */
             parent?: components["schemas"]["ItemRef"];
         };
         NotificationPage: {
@@ -8946,7 +9484,7 @@ export interface components {
          *     builds the sentence from `kind` and the fields, with a general sentence for a kind it does not
          *     know. Known kinds: `playback_started`, `playback_completed`, `playback_stopped`, `scan_started`,
          *     `scan_done`, `scan_failed`, `scan_aborted`, `job_failed`, `backup_created`, `backup_restored`,
-         *     `server_started`, `server_restart`. The log keeps 30 days and at most 2'000 entries; the entries
+         *     `server_started`, `server_restart`, `library_deleted`, `item_deleted` (concept 20 stage 5). The log keeps 30 days and at most 2'000 entries; the entries
          *     of a deleted account or profile are deleted with it.
          */
         ActivityEntry: {
@@ -8963,9 +9501,9 @@ export interface components {
             profileName?: string;
             /** @description E-mail address of the account, read now; absent without an account. */
             accountEmail?: string;
-            /** @description Title of the item at the time of the event (playback kinds). */
+            /** @description Title of the item at the time of the event (playback kinds, `item_deleted`). */
             itemTitle?: string;
-            /** @description Name of the library at the time of the event (scan kinds). */
+            /** @description Name of the library at the time of the event (scan kinds, `library_deleted`). */
             libraryName?: string;
             detail: components["schemas"]["ActivityDetail"];
         };
@@ -8992,10 +9530,19 @@ export interface components {
             reason?: string;
             /** @description Job type of `job_failed`. */
             jobType?: string;
-            /** @description Failures of the job type in this hour (`job_failed`). */
+            /**
+             * @description Failures of the job type in this hour (`job_failed`); titles of the deleted library
+             *     (`library_deleted`, every row of items, episodes included); files deleted with the title
+             *     (`item_deleted`, absent with `mode` `library`).
+             */
             count?: number;
             /** @description Who ended the playback (`playback_stopped`) - `admin` (stopped on the streams page) or `revoked` (its device forgotten). */
             by?: string;
+            /**
+             * @description What the administrator chose when deleting a title (`item_deleted`, concept 20 P-9) -
+             *     `library` (only taken out of Slouchcat) or `files` (the files deleted as well).
+             */
+            mode?: string;
         };
         /**
          * @description What needs the administrator's attention (concept 11). The server decides what counts (rule
@@ -9290,6 +9837,16 @@ export interface components {
         JobCancelResult: {
             cancelled: number;
         };
+        /** @description Since contract 1.31.0. `retried` runs are queued again, `skipped` stay failed (an active job holds their key), `merged` ended cancelled (an older failure of a key whose newest run was queued). */
+        JobRetryFailedResult: {
+            retried: number;
+            skipped: number;
+            merged: number;
+        };
+        /** @description Since contract 1.31.0. How many failed runs ended cancelled. */
+        JobDismissResult: {
+            dismissed: number;
+        };
         StorageInfo: {
             /** @example /config */
             path: string;
@@ -9477,7 +10034,8 @@ export interface components {
         };
         /**
          * @description The provider keys (M3, M7; Fanart.tv since concept 10 step 6, a project key and an optional
-         *     personal client key); the values themselves are never returned.
+         *     personal client key; Google Books since contract 1.31.0, concept 20 O-7, the same key as
+         *     `AudiobookSources.googleBooksKey`); the values themselves are never returned.
          */
         AdminSettingsKeys: {
             tmdb: components["schemas"]["KeyState"];
@@ -9487,6 +10045,19 @@ export interface components {
             trakt: components["schemas"]["KeyState"];
             fanart: components["schemas"]["KeyState"];
             fanartClient: components["schemas"]["KeyState"];
+            googleBooks: components["schemas"]["KeyState"];
+        };
+        ProviderKeyCheck: {
+            /** @description The provider took the key. */
+            ok: boolean;
+            /**
+             * @description Set when `ok` is false: no key configured, the provider refused it, the provider could not be
+             *     reached (or the YouTube quota is used up), or another answer (`message` says which).
+             * @enum {string}
+             */
+            problem?: "not_configured" | "invalid" | "unreachable" | "failed";
+            /** @description The provider's error in plain text, without the key; absent when ok or not configured. */
+            message?: string;
         };
         /** @description The e-mail server; the password is never returned. */
         AdminSettingsEmail: {
@@ -9525,7 +10096,7 @@ export interface components {
             email?: components["schemas"]["AdminSettingsEmailUpdate"];
             telegram?: components["schemas"]["AdminSettingsTelegramUpdate"];
             /** @description Stored values to remove. */
-            clear?: ("publicUrl" | "tmdb" | "tvdb" | "tvdbPin" | "youtube" | "trakt" | "fanart" | "fanartClient" | "email" | "telegram")[];
+            clear?: ("publicUrl" | "tmdb" | "tvdb" | "tvdbPin" | "youtube" | "trakt" | "fanart" | "fanartClient" | "email" | "telegram" | "googleBooks")[];
         };
         /** @description New keys; each is stored encrypted and never returned. */
         AdminSettingsKeysUpdate: {
@@ -9536,6 +10107,8 @@ export interface components {
             fanart?: string;
             fanartClient?: string;
             trakt?: string;
+            /** @description Since contract 1.31.0 (concept 20, O-7). */
+            googleBooks?: string;
         };
         /** @description The e-mail server as a whole; `password` absent keeps the stored password. */
         AdminSettingsEmailUpdate: {
@@ -9687,7 +10260,8 @@ export interface components {
          */
         Channel: "email" | "push" | "telegram";
         /**
-         * @description `new_content`: a new episode of a favourite (per profile, prefixed with the profile name);
+         * @description `new_content`: a new episode of a series or podcast on a profile's watchlist (per profile,
+         *     prefixed with the profile name);
          *     `errors`: failures the main user should see (main account only); `invitations`: an
          *     invitation was accepted; `announcements`: the main user published an announcement.
          * @enum {string}
@@ -12157,6 +12731,52 @@ export interface operations {
             };
         };
     };
+    listHomeRow: {
+        parameters: {
+            query?: {
+                /** @description Only titles of this kind at the top level; absent = all. */
+                content?: components["schemas"]["RootContent"];
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                key: components["schemas"]["HomeListKey"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of the list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description An unknown key, a hidden row, or the spotlight while it has no row (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `content` is no kind of the top level (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listPicks: {
         parameters: {
             query?: {
@@ -12598,7 +13218,8 @@ export interface operations {
             /**
              * @description The profile already runs as many streams as its limit allows (`stream_limit_reached`, W-8);
              *     `extensions.maxStreams` and `extensions.activeStreams` say how many. The client shows the hint and
-             *     does not retry by itself.
+             *     does not retry by itself. `deleting`: the administrator is deleting the title right now (concept
+             *     20, ADR 0032); it is gone a moment later.
              */
             409: {
                 headers: {
@@ -14196,6 +14817,67 @@ export interface operations {
             };
         };
     };
+    deleteLibrary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["LibraryID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryDeletionRequest"];
+            };
+        };
+        responses: {
+            /** @description The delete is queued; the library is gone from every view. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryDeletionQueued"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description No such library (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description A profile plays a title of the library (`playing`; `playingProfiles` names them), or the
+             *     library is being deleted already (`deleting`). Nothing was queued.
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description `confirmName` does not repeat the library's name (`confirm_mismatch`), or it is missing
+             *     or too long (`validation_failed`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     browseServerPaths: {
         parameters: {
             query?: never;
@@ -14839,6 +15521,113 @@ export interface operations {
             403: components["responses"]["AdminOnly"];
             /** @description Unknown title (`not_found`). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getItemDeletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The preview. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDeletionPreview"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown, deleted or removed title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The title has no delete (`not_deletable`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemDeletionRequest"];
+            };
+        };
+        responses: {
+            /** @description What was deleted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDeletionResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown, deleted or removed title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description A profile plays one of the titles (`playing`, `playingProfiles` names them), a scan of the
+             *     library runs (`scan_running`), or the files changed since the preview (`changed`: they are
+             *     not the ones `expectedFiles` names; read the preview again). Nothing was deleted.
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The title has no delete (`not_deletable`), a file cannot be deleted with `mode` `files`
+             *     (`files_not_deletable`), the typed title does not match (`confirm_mismatch`), or the mode
+             *     is unknown (`validation_failed`).
+             */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -15942,6 +16731,86 @@ export interface operations {
             };
         };
     };
+    listRemovedItems: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of removed titles. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemovedItemPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    restoreRemovedItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The title is back. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemovedItemRestore"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /**
+             * @description Unknown title, not taken out, or below a title that is taken out too (it comes back with
+             *     that one) (`not_found`).
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A scan of the library runs (`scan_running`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listRelinkPairs: {
         parameters: {
             query?: {
@@ -16181,6 +17050,27 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
         };
     };
+    listVisibleCollections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The collections, by name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionRef"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
     getCollection: {
         parameters: {
             query?: {
@@ -16278,6 +17168,77 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+        };
+    };
+    setItemWatched: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemWatchedRequest"];
+            };
+        };
+        responses: {
+            /** @description The check mark is set or removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown or not visible for the active profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listWatched: {
+        parameters: {
+            query?: {
+                /** @description One kind of title (the chips «Filme», «Serien», «Hörbücher», «Podcasts»); absent = all. */
+                content?: components["schemas"]["RootContent"];
+                sort?: components["schemas"]["WatchedSort"];
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of the list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchedPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description `content` or `sort` outside its values (`validation_failed`, `invalid_value`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     addToWatchlist: {
@@ -16405,98 +17366,6 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             /** @description Unknown, not visible, not recommendable or not the owner's account (`not_found`). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    listFavorites: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The favourites. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ItemRef"][];
-                };
-            };
-            401: components["responses"]["Unauthenticated"];
-        };
-    };
-    addFavorite: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Item ID (ULID). */
-                id: components["parameters"]["ItemID"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Marked. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthenticated"];
-            /** @description Unknown or not visible for the active profile (`not_found`). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Only series and podcasts can be favourites (`not_favoritable`). */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    removeFavorite: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Item ID (ULID). */
-                id: components["parameters"]["ItemID"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Not a favourite (any more). */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthenticated"];
-            /** @description Unknown or not visible for the active profile (`not_found`). */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -17401,9 +18270,11 @@ export interface operations {
     listJobRuns: {
         parameters: {
             query: {
-                type: components["schemas"]["JobTypeName"];
+                type?: components["schemas"]["JobTypeName"];
                 state: "queued" | "planned" | "running" | "failed" | "done" | "cancelled";
                 limit?: number;
+                /** @description Since contract 1.31.0. Runs to skip, for paging. */
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -17721,6 +18592,96 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    retryFailedJobs: {
+        parameters: {
+            query?: {
+                type?: components["schemas"]["JobTypeName"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What happened to the failed runs. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobRetryFailedResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown job type (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    dismissFailedJobs: {
+        parameters: {
+            query?: {
+                type?: components["schemas"]["JobTypeName"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description How many failed runs were dismissed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDismissResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown job type (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    checkProviderKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: "tmdb" | "tvdb" | "fanart" | "youtube" | "trakt" | "googlebooks";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The outcome of the check. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderKeyCheck"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
         };
     };
     getAdminSettings: {

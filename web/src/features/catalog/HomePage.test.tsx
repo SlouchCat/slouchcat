@@ -794,6 +794,53 @@ describe('start page', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/items/${ids.heat}`));
   });
 
+  it('«Abspielen» of a started film in the spotlight asks whether to resume (concept 20 P-4)', async () => {
+    mockApi({
+      ...signedIn,
+      'GET /home': () =>
+        json({
+          heroRow: 'spotlight',
+          rows: [{ id: 'spotlight', key: 'spotlight', items: [alien, arrival] }],
+        }),
+    });
+    const { router } = renderApp('/');
+    const user = userEvent.setup();
+    const hero = await screen.findByRole('region', { name: 'Spotlight' });
+    const play = within(hero).getByRole('link', { name: 'Abspielen' });
+    await user.click(play);
+    const choice = await screen.findByRole('dialog', { name: 'Alien' });
+    expect(within(choice).getByText('Du hast diesen Film angefangen.')).toBeVisible();
+    // The band holds while the question is open.
+    expect(hero).toHaveAttribute('data-paused');
+    expect(router.state.location.pathname).toBe('/');
+    await user.click(within(choice).getByRole('button', { name: 'Weiterschauen ab 0:42:13' }));
+    await waitFor(() => expect(router.state.location.href).toBe(`/play/${ids.alien}`));
+  });
+
+  it('«Abspielen» of a series in the spotlight plays at once, without a question (concept 20 P-4)', async () => {
+    mockApi({
+      ...signedIn,
+      'GET /home': () =>
+        json({
+          heroRow: 'spotlight',
+          // Even with a progress of its own: the card cannot know its next episode's.
+          rows: [
+            {
+              id: 'spotlight',
+              key: 'spotlight',
+              items: [{ ...showSeriesRef, progress: alien.progress }, arrival],
+            },
+          ],
+        }),
+    });
+    const { router } = renderApp('/');
+    const user = userEvent.setup();
+    const hero = await screen.findByRole('region', { name: 'Spotlight' });
+    await user.click(within(hero).getByRole('link', { name: 'Abspielen' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/play/${showSeriesRef.id}`));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('shows the header with profile name and the admin link for the owner', async () => {
     mockApi({ ...signedIn, 'GET /home': () => json(homePage) });
     renderApp('/');
@@ -854,19 +901,26 @@ describe('start page', () => {
     expect(within(picks).getByRole('link', { name: /Heat/ })).toHaveTextContent(
       'Unbedingt im Kino-Modus schauen.',
     );
-    // Picks and watchlist link their full page (concept 08, O-3); the other rows do not.
-    expect(within(picks).getByRole('link', { name: 'Alle anzeigen ›' })).toHaveAttribute(
-      'href',
-      '/picks',
-    );
+    // Each row title links its full page (concept 20 P-7, 8.2); the genres have none, each chip
+    // is a target already.
+    for (const [name, href] of [
+      ['User-Empfehlungen', '/picks'],
+      ['Weiterschauen', '/lists/continue'],
+      ['Neu hinzugefügt', '/lists/recent'],
+      ['Merkliste', '/watchlist'],
+      ['Sammlungen', '/collections'],
+      ['Spotlight', '/lists/spotlight'],
+      ['Kürzlich veröffentlicht', '/lists/released'],
+    ] as const) {
+      const heading = within(screen.getByRole('region', { name })).getByRole('heading', {
+        level: 2,
+      });
+      expect(within(heading).getByRole('link', { name })).toHaveAttribute('href', href);
+    }
+    expect(screen.queryByRole('link', { name: 'Alle anzeigen ›' })).not.toBeInTheDocument();
     expect(
-      within(screen.getByRole('region', { name: 'Merkliste' })).getByRole('link', {
-        name: 'Alle anzeigen ›',
-      }),
-    ).toHaveAttribute('href', '/watchlist');
-    expect(
-      within(screen.getByRole('region', { name: 'Weiterschauen' })).queryByRole('link', {
-        name: 'Alle anzeigen ›',
+      within(screen.getByRole('region', { name: 'Genres' })).queryByRole('link', {
+        name: 'Genres',
       }),
     ).not.toBeInTheDocument();
 
@@ -1211,7 +1265,7 @@ describe('start page', () => {
       expect(tiles[0]!.querySelectorAll('img')).toHaveLength(2);
 
       const films = screen.getByRole('region', { name: 'Neu in Filme' });
-      expect(within(films).getByRole('link', { name: 'Alle anzeigen ›' })).toHaveAttribute(
+      expect(within(films).getByRole('link', { name: 'Neu in Filme' })).toHaveAttribute(
         'href',
         '/libraries/1?sort=added',
       );
@@ -1466,7 +1520,7 @@ describe('start page', () => {
         'aria-pressed',
         'true',
       );
-      expect(within(row).getByRole('link', { name: 'Alle anzeigen ›' })).toHaveAttribute(
+      expect(within(row).getByRole('link', { name: 'Meine Sender' })).toHaveAttribute(
         'href',
         '/radio',
       );

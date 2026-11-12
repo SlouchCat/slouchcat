@@ -51,7 +51,7 @@ func (s *Service) PurgeEpisodeImagesOnce(ctx context.Context) (int, error) {
 		if _, err := root.Lstat(dir); errors.Is(err, os.ErrNotExist) {
 			continue
 		}
-		if err := root.RemoveAll(dir); err != nil {
+		if err := root.RemoveAll(dir); err != nil { //nolint:forbidigo // the cache root (images), never a library root (ADR 0032)
 			s.log.Warn("remove the images of a podcast episode", "item_id", id, "err", err)
 			failed++
 			continue

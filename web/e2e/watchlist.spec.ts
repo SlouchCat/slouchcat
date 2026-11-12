@@ -1,4 +1,5 @@
 import { type Page } from '@playwright/test';
+import { feedKey, PODCAST_TITLE, subscribeFeed, unsubscribe } from './audio';
 import { EXTRAS_TITLE, H264_TITLE } from './catalog';
 import { ROW_TITLES, setWatchlist, watchlistTitles } from './discover';
 import { expect, test } from './fixtures';
@@ -9,7 +10,7 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
-import { itemIdByTitle, useFreshProfile } from './playback';
+import { INTRO_SHOW_TITLE, itemIdByTitle, useFreshProfile } from './playback';
 
 // E-5: a watchlist per profile; the start page shows it as a row while it holds titles.
 
@@ -49,6 +50,37 @@ test('"Merken" on the detail page fills the list and the row, per profile (E-5)'
   await expect(page.getByRole('region', { name: ROW_TITLES.recent })).toBeVisible();
   await expect(watchlistRow(page)).toHaveCount(0);
   expect(await watchlistTitles(owner)).toEqual([H264_TITLE]);
+});
+
+// Concept 20 P-2: the favourite of series and podcasts is gone; «Merken» takes its place and
+// notifies new episodes (notifications.spec.ts) and feeds the podcast rule (podcast-auto-download).
+test('series and podcasts go on the watchlist; there is no favourite any more (concept 20 P-2)', async ({
+  page,
+  owner,
+}, testInfo) => {
+  const merken = page.getByRole('button', { name: 'Merken', exact: true });
+  const series = await itemIdByTitle(owner, INTRO_SHOW_TITLE);
+  await page.goto(`/items/${series}`);
+  await merken.click();
+  await expect(page.getByRole('button', { name: 'Gemerkt', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Favorit/ })).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Gemerkt', exact: true })).toBeVisible();
+
+  const podcast = await subscribeFeed(owner, feedKey(testInfo), 2);
+  try {
+    await page.goto(`/items/${podcast.id}`);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Favorit/ })).toHaveCount(0);
+    await merken.click();
+    await expect(page.getByRole('button', { name: 'Gemerkt', exact: true })).toBeVisible();
+    const titles = await watchlistTitles(owner);
+    expect(titles).toHaveLength(2);
+    expect(titles).toContain(INTRO_SHOW_TITLE);
+    expect(titles).toContain(podcast.title || PODCAST_TITLE);
+  } finally {
+    await unsubscribe(owner, podcast.id);
+  }
 });
 
 test('"Entfernen" takes a title off; the row goes with the last one (E-9)', async ({
@@ -193,9 +225,15 @@ test('the cover button by keyboard: Tab after the card, arrows pass it, focus to
   await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, cards.first());
 
-  // Tab: the card's cover button, shown with the focus. The arrow keys pass it by and move on
-  // from the card.
+  // Tab: the pen of the server administrator (concept 20 P-7), the card's check mark (P-5), then
+  // its cover button, shown with the focus. The arrow keys pass them by and move on from the card.
   const first = coverMark(page, EXTRAS_TITLE, true);
+  const pen = grid(page).getByRole('button', { name: `${EXTRAS_TITLE}: Metadaten bearbeiten` });
+  const check = grid(page).getByRole('button', { name: `Gesehen: ${EXTRAS_TITLE}`, exact: true });
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, pen);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, check);
   await page.keyboard.press('Tab');
   await expectFocusOn(page, first);
   await expect(first.locator('xpath=../..')).toHaveCSS('opacity', '1');
@@ -204,7 +242,11 @@ test('the cover button by keyboard: Tab after the card, arrows pass it, focus to
   await page.keyboard.press('ArrowLeft');
   await expectFocusOn(page, cards.first());
 
-  // Tab order in the cell: card, cover button, "Entfernen".
+  // Tab order in the cell: card, pen, check, cover button, "Entfernen".
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, pen);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, check);
   await page.keyboard.press('Tab');
   await expectFocusOn(page, first);
   await page.keyboard.press('Tab');

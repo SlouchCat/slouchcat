@@ -1,0 +1,101 @@
+/* The toggle itself: no own look, the disc in it carries the state. */
+.toggle {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--sc-radius-full);
+  background: none;
+  color: var(--sc-color-text-primary);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+span.toggle {
+  cursor: default;
+}
+
+.disc {
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--sc-radius-full);
+  transition:
+    background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    border-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    transform var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
+}
+
+/*
+ * Over a picture (poster cards, season covers): a disc of the pen's size, dark over the artwork,
+ * growing on hover and focus like the pen (tool.hover.scale).
+ */
+.cover .disc {
+  width: var(--sc-space-8);
+  height: var(--sc-space-8);
+  background-color: var(--sc-color-scrim-strong);
+}
+
+/* At the far right of a list row: a ring in a touch target of the control height. */
+.row {
+  width: var(--sc-control-height);
+  height: var(--sc-control-height);
+}
+
+.row .disc {
+  width: var(--sc-space-6);
+  height: var(--sc-space-6);
+  border: 2px solid var(--sc-color-text-muted);
+}
+
+/* Empty: the check only as a faint hint on a cover, none in a ring. */
+.none .disc svg {
+  opacity: 0;
+}
+
+.cover.none .disc svg {
+  opacity: 0.4;
+}
+
+/* Watched: filled in the profile accent. */
+.full .disc {
+  border-color: var(--sc-accent);
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
+}
+
+/* Partly watched (concept 20 F-12): the left half in the accent, the check in the text colour. */
+.half .disc {
+  border-color: var(--sc-accent);
+  background-image: linear-gradient(90deg, var(--sc-accent) 50%, transparent 50%);
+}
+
+/* The focus ring (global.css) goes around the button; the disc grows like the pen. */
+button.toggle:focus-visible .disc {
+  transform: scale(var(--sc-tool-hover-scale));
+}
+
+button.toggle:active .disc {
+  transform: scale(0.95);
+}
+
+@media (hover: hover) {
+  button.toggle:hover .disc {
+    border-color: var(--sc-color-text-primary);
+    transform: scale(var(--sc-tool-hover-scale));
+  }
+
+  button.full:hover .disc,
+  button.half:hover .disc {
+    border-color: var(--sc-accent);
+  }
+
+  button.cover.none:hover .disc {
+    background-color: var(--sc-color-surface-3);
+  }
+
+  button.row.none:hover .disc svg {
+    opacity: 0.5;
+  }
+}

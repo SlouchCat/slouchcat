@@ -191,6 +191,51 @@ UPDATE jobs
 SET state = 'cancelled', lease_owner = NULL, lease_until = NULL, updated_at = @now, finished_at = @now
 WHERE id = @id AND state IN ('queued', 'running', 'failed');
 
+-- Bulk actions on the failed runs (concept 20, P-6): every type, or the one in @type. Package
+-- jobs runs the three of retryFailedJobs in one transaction (Queue.RetryFailed); the retry takes
+-- only the registered types in @types, so the runs of a type that no longer exists stay failed.
+
+-- name: MergeFailedJobs :execrows
+-- Of the failed runs that share an idempotency key and have no active twin, all but the newest
+-- are discarded (cancelled), so the requeue below cannot hit the unique index of active keys.
+UPDATE jobs
+SET state = 'cancelled', lease_owner = NULL, lease_until = NULL, updated_at = @now, finished_at = @now
+WHERE id IN (
+    SELECT f.id FROM (
+        SELECT j.id, ROW_NUMBER() OVER (PARTITION BY j.idempotency_key ORDER BY j.updated_at DESC, j.id DESC) AS rn
+        FROM jobs AS j
+        WHERE j.state = 'failed' AND j.type IN (sqlc.slice('types'))
+          AND j.idempotency_key IS NOT NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM jobs AS a WHERE a.idempotency_key = j.idempotency_key AND a.state IN ('queued', 'running'))
+    ) AS f
+    WHERE f.rn > 1
+);
+
+-- name: RetryFailedJobs :execrows
+-- The failed runs go back to the queue with their attempts reset, like RetryFailedJob; a run whose
+-- key an active job holds stays failed (skipped).
+UPDATE jobs
+SET state = 'queued', attempts = 0, run_after = @now, lease_owner = NULL, lease_until = NULL, updated_at = @now,
+    started_at = NULL, finished_at = NULL, progress_done = NULL, progress_total = NULL, progress_note = NULL, skipped = 0
+WHERE jobs.state = 'failed' AND jobs.type IN (sqlc.slice('types'))
+  AND (jobs.idempotency_key IS NULL OR NOT EXISTS (
+      SELECT 1 FROM jobs AS a WHERE a.idempotency_key = jobs.idempotency_key AND a.state IN ('queued', 'running')));
+
+-- name: CountFailedJobsOfTypes :one
+-- The failed runs of the registered types in @types (what retryFailedJobs left: skipped).
+SELECT count(*) FROM jobs WHERE state = 'failed' AND type IN (sqlc.slice('types'));
+
+-- name: CountFailedJobs :one
+SELECT count(*) FROM jobs WHERE state = 'failed' AND (sqlc.narg('type') IS NULL OR type = sqlc.narg('type'));
+
+-- name: DismissFailedJobs :execrows
+-- dismissFailedJobs: the failed runs end cancelled, like the single dismiss (CancelJob); jobs.prune
+-- removes them later.
+UPDATE jobs
+SET state = 'cancelled', lease_owner = NULL, lease_until = NULL, updated_at = @now, finished_at = @now
+WHERE state = 'failed' AND (sqlc.narg('type') IS NULL OR type = sqlc.narg('type'));
+
 -- name: ListActiveJobsByType :many
 -- The queued and running jobs of a type, oldest first (cancelJobRuns, concept 09 6.3).
 SELECT * FROM jobs WHERE type = @type AND state IN ('queued', 'running') ORDER BY id;
@@ -348,7 +393,7 @@ LIMIT 1;
 SELECT * FROM jobs
 WHERE type = @type AND state = 'queued' AND (run_after > @now) = @planned
 ORDER BY priority DESC, created_at, id
-LIMIT @limit_count;
+LIMIT @limit_count OFFSET @offset_count;
 
 -- name: CountQueuedJobRuns :one
 SELECT count(*) FROM jobs WHERE type = @type AND state = 'queued' AND (run_after > @now) = @planned;
@@ -358,7 +403,14 @@ SELECT count(*) FROM jobs WHERE type = @type AND state = 'queued' AND (run_after
 SELECT * FROM jobs
 WHERE type = @type AND state = @state
 ORDER BY COALESCE(finished_at, started_at, updated_at) DESC, id DESC
-LIMIT @limit_count;
+LIMIT @limit_count OFFSET @offset_count;
+
+-- name: ListFailedJobRuns :many
+-- The failed runs of every type, newest first (listJobRuns without type, concept 20, P-6).
+SELECT * FROM jobs
+WHERE state = 'failed'
+ORDER BY COALESCE(finished_at, started_at, updated_at) DESC, id DESC
+LIMIT @limit_count OFFSET @offset_count;
 
 -- name: CountJobRunsByState :one
 SELECT count(*) FROM jobs WHERE type = @type AND state = @state;

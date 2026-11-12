@@ -74,7 +74,7 @@
         "a newer release in the manifest shows the update badge; switching the check off removes it (A-5)": 1.6,
         "a YouTube key is saved write-only and deleted again, all by keyboard": 3.2,
         "browser back leaves the page for the overview": 1,
-        "keys show their source; the Trakt id from the environment is read-only": 0.8,
+        "provider cards show their state; the Trakt id from the environment is read-only and checks by keyboard": 0.8,
         "the e-mail server and the Telegram bot are setting rows; the test mail by keyboard": 2.5,
         "the public address and the update check by keyboard": 3,
         "the six blocks start open and fold by keyboard from their band": 2.4,
@@ -95,7 +95,7 @@
       "admin-jobs.spec.ts": {
         "background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and schedule": 6.2,
         "background jobs by keyboard: the menu cancels waiting runs after asking; a cancelled run hands the focus to the h1": 8.3,
-        "failures › the overview links the tab «Fehlschläge»; retry and cancel there by keyboard, the focus goes to the h1": 2.3
+        "failures › the overview links the tab «Fehlschläge»; retry, delete and the bulk actions there by keyboard, the focus goes to the h1": 2.3
       },
       "admin-libraries.spec.ts": {
         "\"Scan abbrechen\" shows while a scan is queued or running and cancels it": 5.5,
@@ -240,10 +240,6 @@
         "extras are no titles of their own on the start page": 0.7,
         "the film lists its five extras with their kind": 0.8
       },
-      "favorites.spec.ts": {
-        "a series and a podcast become favourites; a film cannot (E-8)": 1.4,
-        "favourite by keyboard: arrows to the button, Enter toggles; no focus trap": 1.1
-      },
       "hdr.spec.ts": {
         "HDR10 4K: transcode with tonemapping, at most 1080p, starts within 5 s": 7.2
       },
@@ -305,14 +301,14 @@
       },
       "notification-channels.spec.ts": {
         "another profile than the primary one sees the channels without controls": 1.7,
-        "E-8: a new episode of a favourite reaches the e-mail channel with the profile name": 6.1,
+        "E-8: a new episode of a series on the watchlist reaches the e-mail channel with the profile name": 6.1,
         "e-mail: the test message reaches the mail server; a refused login shows the failure": 1.2,
         "keyboard: arrows to \"Kanäle einstellen\", Tab/Space/Enter in the blocks, fold, leave; no trap": 4.6,
         "Telegram: the link code to the bot, \"Verknüpft\" within 10 s, the test message, unlink": 5.7,
         "Web Push: the test message reaches the push service encrypted; an expired one goes": 1
       },
       "notifications.spec.ts": {
-        "a new episode of a favourite series shows in the badge and the inbox (E-8)": 30.9,
+        "a series put on the watchlist notifies its new episode in the badge and the inbox (E-8)": 30.9,
         "inbox by keyboard: arrows, Enter, \"Alle als gelesen markieren\"; no focus trap": 1.6
       },
       "offline-cold-start.spec.ts": {
@@ -358,7 +354,7 @@
         "player keys: Space and arrows; controls are reachable by Tab; Escape returns": 1.2
       },
       "podcast-auto-download.spec.ts": {
-        "a new episode of a favourite podcast is downloaded by itself (O-3)": 7.1
+        "a new episode of a podcast on the watchlist is downloaded by itself (O-3)": 7.1
       },
       "podcast.spec.ts": {
         "an episode plays through the server, not from the feed host": 3.5,
@@ -531,7 +527,7 @@
         "a newer release in the manifest shows the update badge; switching the check off removes it (A-5)": 2.9,
         "a YouTube key is saved write-only and deleted again, all by keyboard": 4.3,
         "browser back leaves the page for the overview": 1.3,
-        "keys show their source; the Trakt id from the environment is read-only": 1.1,
+        "provider cards show their state; the Trakt id from the environment is read-only and checks by keyboard": 1.1,
         "the e-mail server and the Telegram bot are setting rows; the test mail by keyboard": 3.6,
         "the public address and the update check by keyboard": 3.7,
         "the six blocks start open and fold by keyboard from their band": 2.8,
@@ -552,7 +548,7 @@
       "admin-jobs.spec.ts": {
         "background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and schedule": 8.8,
         "background jobs by keyboard: the menu cancels waiting runs after asking; a cancelled run hands the focus to the h1": 8.8,
-        "failures › the overview links the tab «Fehlschläge»; retry and cancel there by keyboard, the focus goes to the h1": 2.9
+        "failures › the overview links the tab «Fehlschläge»; retry, delete and the bulk actions there by keyboard, the focus goes to the h1": 2.9
       },
       "admin-libraries.spec.ts": {
         "\"Scan abbrechen\" shows while a scan is queued or running and cancels it": 6,
@@ -697,10 +693,6 @@
         "extras are no titles of their own on the start page": 1.3,
         "the film lists its five extras with their kind": 1.4
       },
-      "favorites.spec.ts": {
-        "a series and a podcast become favourites; a film cannot (E-8)": 2.4,
-        "favourite by keyboard: arrows to the button, Enter toggles; no focus trap": 1.4
-      },
       "hdr.spec.ts": {
         "HDR10 4K: transcode with tonemapping, at most 1080p, starts within 5 s": 8.5
       },
@@ -762,14 +754,14 @@
       },
       "notification-channels.spec.ts": {
         "another profile than the primary one sees the channels without controls": 1.7,
-        "E-8: a new episode of a favourite reaches the e-mail channel with the profile name": 6.2,
+        "E-8: a new episode of a series on the watchlist reaches the e-mail channel with the profile name": 6.2,
         "e-mail: the test message reaches the mail server; a refused login shows the failure": 1.9,
         "keyboard: arrows to \"Kanäle einstellen\", Tab/Space/Enter in the blocks, fold, leave; no trap": 4.9,
         "Telegram: the link code to the bot, \"Verknüpft\" within 10 s, the test message, unlink": 7.5,
         "Web Push: the test message reaches the push service encrypted; an expired one goes": 1.3
       },
       "notifications.spec.ts": {
-        "a new episode of a favourite series shows in the badge and the inbox (E-8)": 31.2,
+        "a series put on the watchlist notifies its new episode in the badge and the inbox (E-8)": 31.2,
         "inbox by keyboard: arrows, Enter, \"Alle als gelesen markieren\"; no focus trap": 1.9
       },
       "offline-measure.spec.ts": {
@@ -811,7 +803,7 @@
         "player keys: Space and arrows; controls are reachable by Tab; Escape returns": 2
       },
       "podcast-auto-download.spec.ts": {
-        "a new episode of a favourite podcast is downloaded by itself (O-3)": 6.7
+        "a new episode of a podcast on the watchlist is downloaded by itself (O-3)": 6.7
       },
       "podcast.spec.ts": {
         "an episode plays through the server, not from the feed host": 3.9,

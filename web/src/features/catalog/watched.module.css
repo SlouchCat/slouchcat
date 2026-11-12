@@ -1,0 +1,23 @@
+.root {
+  position: relative;
+  display: inline-flex;
+}
+
+/*
+ * Why a change failed: a small note below the check mark. The check sits at the top of a cover,
+ * so a note above it would leave the cover and be cut off by a row's scroll box.
+ */
+.error {
+  position: absolute;
+  z-index: 1;
+  top: calc(100% + var(--sc-space-1));
+  right: 0;
+  width: max-content;
+  max-width: var(--sc-size-poster-sm);
+  padding: var(--sc-space-1) var(--sc-space-2);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-state-danger);
+  color: var(--sc-color-bg-base);
+  font-size: var(--sc-font-size-xs);
+  line-height: var(--sc-font-line-height-snug);
+}

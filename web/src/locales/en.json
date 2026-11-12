@@ -18,7 +18,7 @@
     "logout": "Sign out",
     "skip": "Skip to content",
     "profiles": "Profiles",
-    "playback": "My playback",
+    "playback": "Settings",
     "switchProfile": "Switch profile, now {{name}}",
     "downloads": "Downloads",
     "search": "Search",
@@ -38,6 +38,7 @@
     "hideSidebar": "Hide sidebar",
     "showSidebar": "Show sidebar",
     "radio": "Radio",
+    "watched": "Watched",
     "account": "Account",
     "switchProfileShort": "Switch",
     "switchProfileCard": "Switch profile, currently {{name}}",
@@ -155,7 +156,6 @@
       "feed_exists": "This library already subscribes to the feed.",
       "rating_below_library_default": "The age rating must not be below the library's default.",
       "not_listable": "Seasons and extras cannot be put on the watchlist.",
-      "not_favoritable": "Only series and podcasts can be favourites.",
       "not_editable": "Collections from TMDB cannot be changed.",
       "env_wins": "This value is set in deploy/.env and can only be changed there.",
       "telegram_token_invalid": "Telegram rejected the token. Check the token from @BotFather.",
@@ -180,7 +180,7 @@
       "update_running": "An update is being installed. Wait until it is done.",
       "announcement_published": "The announcement is already published and can no longer be changed.",
       "scan_running": "A scan of this library is running. Wait for it to finish, or cancel it.",
-      "confirm_mismatch": "The typed path does not match the folder. Nothing was removed.",
+      "confirm_mismatch": "What you typed does not match what is about to be removed. Nothing was deleted.",
       "owner_required": "Only the owner may do this.",
       "owner_protected": "The owner's account can be neither removed nor demoted.",
       "last_admin": "This is the last administrator. Appoint a second one first.",
@@ -193,7 +193,13 @@
       "provider_paused": "The source rests after repeated refusals. Please try again later.",
       "offer_conflict": "The radio offer changed meanwhile. Please apply once more.",
       "root_not_writable": "The podcast folder fails the folder check; Slouchcat cannot store episodes there.",
-      "root_required": "The library has no podcast folder Slouchcat could store episodes in."
+      "root_required": "The library has no podcast folder Slouchcat could store episodes in.",
+      "playing": "Someone is playing one of these titles right now. It can be deleted once the playback has ended.",
+      "playing_named": "One of these titles is playing for {{names}} right now. It can be deleted once the playback has ended; nothing was deleted.",
+      "files_not_deletable": "A file of the title cannot be deleted. Nothing was deleted.",
+      "not_deletable": "This title cannot be deleted.",
+      "deleting": "This is being deleted right now.",
+      "changed": "Something changed meanwhile, please check again."
     },
     "field": {
       "required": "Required.",
@@ -455,6 +461,15 @@
     }
   },
   "home": {
+    "list": {
+      "count_one": "{{count}} title",
+      "count_other": "{{count}} titles",
+      "empty": "No title in this selection.",
+      "notFound": {
+        "title": "List not found",
+        "body": "This list does not exist right now, for example because the spotlight is switched off."
+      }
+    },
     "title": "Home",
     "picks": "User picks",
     "rows": {
@@ -465,7 +480,6 @@
       "genres": "Genres",
       "spotlight": "Spotlight",
       "released": "Recently released",
-      "all": "Show all ›",
       "libraries": "My media",
       "library": "New in {{library}}",
       "radio": "My stations"
@@ -608,7 +622,17 @@
     "seasons": "Seasons",
     "episodes": {
       "title": "Episodes",
-      "empty": "No episodes."
+      "empty": "No episodes.",
+      "play": "Play",
+      "details": "Details: {{title}}"
+    },
+    "resumeChoice": {
+      "bodyEpisode": "You started this episode.",
+      "bodyPodcastEpisode": "You started this episode.",
+      "bodyMovie": "You started this film.",
+      "resume": "Continue from {{time}}",
+      "resumeListening": "Continue listening from {{time}}",
+      "restart": "Start from the beginning"
     },
     "listened": "{{percent}} % listened",
     "audio": {
@@ -627,10 +651,6 @@
     "watchlist": {
       "add": "Add to watchlist",
       "added": "On watchlist"
-    },
-    "favorite": {
-      "label": "Favourite",
-      "hint": "Notify me about new episodes"
     },
     "recommend": {
       "add": "Recommend",
@@ -1316,7 +1336,8 @@
         "hits_other": "{{count}} matches",
         "hitsCaption": "Countries found",
         "continents": {
-          "label": "Every country by continent. A continent opens its countries; pressing it again or Escape closes them."
+          "label": "Every country by continent. A continent opens its countries; pressing it again or Escape closes them.",
+          "heading": "By continent"
         },
         "continent": {
           "europe": "Europe",
@@ -1333,7 +1354,7 @@
         "continentChosen_one": "{{count}} chosen",
         "continentChosen_other": "{{count}} chosen",
         "countryCaption": "Countries in {{continent}}",
-        "chooseAll": "Choose every country",
+        "chooseAll": "Select all",
         "removeAll": "Remove all",
         "chooseCountry": "Choose {{country}}",
         "columns": {
@@ -1644,7 +1665,19 @@
       "add": {
         "title": "Add library",
         "submitting": "Adding …",
-        "created": "The library {{name}} has been added."
+        "created": "The library {{name}} has been added.",
+        "draft": {
+          "band": "The draft of a new library has not been saved yet.",
+          "continue": "Continue editing",
+          "discard": "Discard draft",
+          "discarded": "The draft of the new library has been discarded.",
+          "question": {
+            "title": "Keep or discard the draft?",
+            "body": "You have started a new library. If you keep the draft, you can continue editing it from the banner on the page.",
+            "keep": "Keep draft",
+            "discard": "Discard draft"
+          }
+        }
       },
       "cancel": "Cancel scan",
       "scanStarted": "The scan of {{name}} has started.",
@@ -1704,7 +1737,9 @@
           "body": "Old path: {{old}} · New path: {{new}}. Titles and user data stay when the files lie there under the same names. The folder is read anew afterwards.",
           "confirm": "Change",
           "saved": "The folder now lies at {{path}} and is read anew."
-        }
+        },
+        "readOnly": "read-only",
+        "writable": "writable"
       },
       "openFolders": "Folders",
       "openFoldersLabel": "Edit the folders of {{name}}",
@@ -1790,6 +1825,28 @@
         "saved": "The seek preview of {{name}} is saved.",
         "summary": "Seek preview: films {{movies}} · series {{series}}",
         "summaryNoKeep": "At start, not kept"
+      },
+      "delete": {
+        "action": "Delete library …",
+        "title": "Delete the library “{{name}}”?",
+        "lead_one": "{{roots}} and {{formatted}} title leave Slouchcat, with progress, check marks, watchlist, picks, own images and texts, the home row “New in {{name}}”, the grants of the profiles and the downloads on the devices.",
+        "lead_other": "{{roots}} and {{formatted}} titles leave Slouchcat, with progress, check marks, watchlist, picks, own images and texts, the home row “New in {{name}}”, the grants of the profiles and the downloads on the devices.",
+        "files": "The files on the disk stay untouched. If a scan of this library is running, Slouchcat cancels it first.",
+        "backup": "Before that, Slouchcat backs the database up (Administration › Backup). Restoring this backup puts everything back to the state before the delete, the progress of every profile since included.",
+        "final": "Otherwise it cannot be undone: a new scan of the same folders creates the titles again, without progress.",
+        "inputLabel": "Type the name to confirm",
+        "mismatch": "Type {{name}} exactly like this to enable the button.",
+        "confirm": "Delete library",
+        "queued": "Library “{{name}}” is being deleted in the background.",
+        "jobs": "Go to the job",
+        "done": "Library “{{name}}” deleted.",
+        "notDone": "Library “{{name}}” was not deleted. The job says why."
+      },
+      "rename": {
+        "action": "Rename …",
+        "title": "Rename library “{{name}}”",
+        "label": "Name",
+        "saved": "The library is now called “{{name}}”."
       }
     },
     "access": {
@@ -1810,7 +1867,8 @@
         "unplayable": "Unplayable",
         "rating_mismatch": "Rating mismatch",
         "duplicates": "Duplicates",
-        "relink": "Orphaned user data"
+        "relink": "Orphaned user data",
+        "removed": "Removed titles"
       },
       "hint": {
         "unmatched": "Without a match there is no description, artwork or rating. Match the title or refresh it.",
@@ -1820,7 +1878,8 @@
         "unplayable": "Files that cannot be read. Check them again or remove them from the library.",
         "rating_mismatch": "The stored rating differs from the computed one. A rating change or the next scan corrects it. There is nothing to select here.",
         "duplicates": "Titles that exist twice. Pick the title to keep and merge the others into it.",
-        "relink": "Deleted titles that are back in the library as a new copy. Progress, history and lists still hang on the deleted title. «Relink» merges the copy into it; the old title stays."
+        "relink": "Deleted titles that are back in the library as a new copy. Progress, history and lists still hang on the deleted title. «Relink» merges the copy into it; the old title stays.",
+        "removed": "Titles taken out of Slouchcat; their files are still there. “Take back” brings the same title back, with its episodes, progress, check marks and watchlist."
       },
       "empty": "Nothing to do.",
       "selection": "Selection",
@@ -1912,7 +1971,11 @@
         "meta_one": "{{reason}} · {{title}} · {{count}} title",
         "meta_other": "{{reason}} · {{title}} · {{count}} titles",
         "keep": "stays",
-        "noFiles": "No file"
+        "noFiles": "No file",
+        "containerPaths": "The paths are those in the container (/media/…), not on the NAS; each names its library.",
+        "library": "Library «{{name}}»",
+        "folderFiles_one": "{{n}} file · {{size}}",
+        "folderFiles_other": "{{n}} files · {{size}}"
       },
       "relink": {
         "empty": "No orphaned user data.",
@@ -1937,8 +2000,6 @@
           "playbackSessions_other": "{{count}} playbacks",
           "watchlist_one": "{{count}} watchlist entry",
           "watchlist_other": "{{count}} watchlist entries",
-          "favorites_one": "{{count}} favourite",
-          "favorites_other": "{{count}} favourites",
           "collectionItems_one": "{{count}} collection entry",
           "collectionItems_other": "{{count}} collection entries",
           "notifications_one": "{{count}} notification",
@@ -1963,6 +2024,21 @@
         "confirmRemoved_other": "The copies are removed for good.",
         "confirmExtra_one": "One more copy of the same title is skipped and is then listed under «Duplicates».",
         "confirmExtra_other": "{{count}} more copies of the same titles are skipped and are then listed under «Duplicates»."
+      },
+      "removed": {
+        "empty": "No removed titles.",
+        "columns": {
+          "title": "Title",
+          "library": "Library",
+          "folder": "Folder",
+          "removedAt": "Removed on",
+          "action": "Action"
+        },
+        "restore": "Take back",
+        "restoreLabel": "Take {{title}} back",
+        "restored_one": "“{{title}}” is back ({{count}} title).",
+        "restored_other": "“{{title}}” is back ({{count}} titles).",
+        "noFolder": "No file"
       }
     },
     "item": {
@@ -3289,46 +3365,9 @@
       "notificationsLink": "Go to the notification channels",
       "keys": {
         "title": "Provider keys",
-        "intro": "For metadata (TMDB, TVDB), images (Fanart.tv), trailers (YouTube) and the Trakt lists of the home page.",
-        "count": "{{set}} of {{total}} set",
-        "setPlaceholder": "API key set",
-        "newValue": "Leave empty to keep the stored value. A new value replaces it.",
-        "tmdb": {
-          "name": "TMDB token",
-          "description": "API read access token from themoviedb.org: overviews, posters and age ratings.",
-          "link": "Get a token at themoviedb.org"
-        },
-        "tvdb": {
-          "name": "TVDB key",
-          "description": "API key from thetvdb.com: optional second source for series.",
-          "link": "Get a key at thetvdb.com"
-        },
-        "tvdbPin": {
-          "name": "TVDB PIN",
-          "description": "Subscriber PIN, only for a TVDB subscription with a PIN.",
-          "link": "Look up the PIN at thetvdb.com"
-        },
-        "youtube": {
-          "name": "YouTube key",
-          "description": "YouTube Data API key: finds trailers when TMDB knows none.",
-          "link": "Get a key in the Google Cloud Console"
-        },
-        "trakt": {
-          "name": "Trakt client ID",
-          "description": "For the rows “Trending” and “Popular” of the home page.",
-          "link": "Get a client ID at trakt.tv"
-        },
-        "traktStatus": "State of the Trakt lists",
-        "fanart": {
-          "name": "Fanart.tv key",
-          "description": "Project key (API key) from fanart.tv: logos and high-quality posters as the last image source; switch it on under \"Metadata\". New images show after 7 days.",
-          "link": "Get a project key at fanart.tv"
-        },
-        "fanartClient": {
-          "name": "Fanart.tv personal key",
-          "description": "Optional: new images after 2 days instead of 7.",
-          "link": "Get a personal key at fanart.tv"
-        }
+        "intro": "Slouchcat fetches texts, images and trailers with them. Without a key the provider stays off.",
+        "count": "{{set}} of {{total}} providers set up",
+        "newValue": "Leave empty to keep the stored value. A new value replaces it."
       },
       "webhooks": {
         "title": "Webhooks from Radarr and Sonarr",
@@ -3477,6 +3516,68 @@
         "name": "Public address",
         "label": "Address",
         "hint": "For example https://media.example.ch"
+      },
+      "providers": {
+        "fields": {
+          "tmdb": "Access token (v4)",
+          "tvdb": "Key",
+          "tvdbPin": "Subscriber PIN (subscription keys only)",
+          "fanart": "Project key",
+          "fanartClient": "Personal key (optional)",
+          "youtube": "Key",
+          "trakt": "Client id",
+          "googleBooks": "Key"
+        },
+        "open": {
+          "setup": "Set up",
+          "edit": "Edit",
+          "view": "View"
+        },
+        "check": {
+          "ok": "{{name}}: The provider answered, the key holds.",
+          "not_configured": "{{name}}: No key is set.",
+          "invalid": "{{name}}: The provider refuses the key ({{message}}).",
+          "unreachable": "{{name}}: The provider cannot be reached ({{message}}).",
+          "failed": "{{name}}: The check failed ({{message}})."
+        },
+        "tmdb": {
+          "name": "TMDB",
+          "purpose": "Texts, posters and trailers of films and series. Required for video libraries.",
+          "help": "Free in the TMDB account under «API»: the read access token (v4)."
+        },
+        "tvdb": {
+          "name": "TVDB",
+          "purpose": "Second source for series and anime: seasons and episode titles.",
+          "help": "Key and PIN are in the TVDB account. Without a subscription the PIN stays empty."
+        },
+        "fanart": {
+          "name": "Fanart.tv",
+          "purpose": "Logos, backgrounds and disc images; the source is switched on under «Metadata».",
+          "help": "With a personal key new images appear after two days, else after seven."
+        },
+        "youtube": {
+          "name": "YouTube",
+          "purpose": "Finds trailers TMDB does not know.",
+          "help": "A key of the «YouTube Data API v3» from the Google Cloud Console."
+        },
+        "trakt": {
+          "name": "Trakt",
+          "purpose": "Lists for the spotlight and the rows of the home page.",
+          "help": "The client id of your own Trakt app. The page «Spotlight» shows the state of the lists."
+        },
+        "googlebooks": {
+          "name": "Google Books",
+          "purpose": "Book data for audiobooks; without a key Slouchcat never asks Google Books.",
+          "help": "A key of the «Books API» from the Google Cloud Console. Which folder uses the source is set under «Audiobooks: sources»."
+        },
+        "close": "Fold away",
+        "toggleLabel": "{{action}}: {{name}}",
+        "link": "Get a key from {{name}}",
+        "stored": "Set; leave empty to keep it",
+        "storedHint": "Set, ends in {{hint}}; leave empty to keep it",
+        "envNote": "The value comes from deploy/.env and can only be changed there. «Check» asks the provider all the same.",
+        "checkAction": "Check",
+        "checkLabel": "Check {{name}}"
       }
     },
     "accounts": {
@@ -3995,7 +4096,21 @@
         "downloadWarning": "The downloads end as “failed” and are not prepared again.",
         "confirm": "Cancel",
         "keep": "Keep",
-        "cancelFailedBody": "Slouchcat no longer retries this run."
+        "deleteRunTitle": "Delete the failed run of {{name}}?",
+        "deleteRunBody": "Slouchcat no longer tries this run. Under «Runs» it then shows as «cancelled» until the cleanup removes it later.",
+        "deleteRunConfirm": "Delete",
+        "retryFailedTitle_one": "Retry {{count}} failed run?",
+        "retryFailedTitle_other": "Retry all {{count}} failed runs?",
+        "retryFailedTypeTitle_one": "Retry {{count}} failed run of {{name}}?",
+        "retryFailedTypeTitle_other": "Retry all {{count}} failed runs of {{name}}?",
+        "retryFailedBody": "The runs go back to the queue with their attempts reset. When the same work already waits or runs, a run stays failed; of duplicate runs only the newest comes back.",
+        "retryFailedConfirm": "Retry all",
+        "dismissFailedTitle_one": "Delete {{count}} failed run?",
+        "dismissFailedTitle_other": "Delete all {{count}} failed runs?",
+        "dismissFailedTypeTitle_one": "Delete {{count}} failed run of {{name}}?",
+        "dismissFailedTypeTitle_other": "Delete all {{count}} failed runs of {{name}}?",
+        "dismissFailedBody": "Slouchcat no longer tries them. Under «Runs» they then show as «cancelled» until the cleanup removes them later.",
+        "dismissFailedConfirm": "Delete all"
       },
       "messages": {
         "ran_zero": "{{name}}: nothing to queue.",
@@ -4009,7 +4124,18 @@
         "runCancelled": "Run {{id}} cancelled.",
         "runRetried": "Run {{id}} is queued again.",
         "scheduleSaved": "Schedule of {{name}} saved.",
-        "windowSaved": "Time window of {{name}} saved."
+        "windowSaved": "Time window of {{name}} saved.",
+        "runDeleted": "Run {{id}} deleted.",
+        "failedRetried_zero": "No run queued.",
+        "failedRetried_one": "{{count}} run waits again.",
+        "failedRetried_other": "{{count}} runs wait again.",
+        "failedSkipped_one": "{{count}} stays failed because the same work already waits or runs.",
+        "failedSkipped_other": "{{count}} stay failed because the same work already waits or runs.",
+        "failedMerged_one": "{{count}} duplicate run was discarded.",
+        "failedMerged_other": "{{count}} duplicate runs were discarded.",
+        "failedDismissed_zero": "No run to delete.",
+        "failedDismissed_one": "{{count}} failed run deleted.",
+        "failedDismissed_other": "{{count}} failed runs deleted."
       },
       "runs": {
         "title": "Runs of {{name}}",
@@ -4039,7 +4165,11 @@
         "cancel": "Cancel",
         "cancelLabel": "Cancel run {{id}}",
         "runAfter": "not before {{time}}",
-        "heading": "Runs"
+        "heading": "Runs",
+        "delete": "Delete",
+        "deleteLabel": "Delete run {{id}}",
+        "retryAllLabel": "Retry all failed runs of {{name}}",
+        "dismissAllLabel": "Delete all failed runs of {{name}}"
       },
       "schedule": {
         "title": "Schedule of {{name}}",
@@ -4269,6 +4399,11 @@
           "name": "Prune history",
           "description": "Deletes old runs and failures from the history.",
           "trigger": "Schedule daily: finished runs older than 30 days"
+        },
+        "library_delete": {
+          "name": "Delete library",
+          "description": "Deletes a library with its titles and everything on them, never a file; backs the database up first.",
+          "trigger": "“Delete library …” in the administration; if the run fails, the library is back"
         }
       },
       "tabs": {
@@ -4285,16 +4420,19 @@
         "state": "State"
       },
       "failed": {
-        "title": "Latest failures (all types)",
+        "title": "Failures (all types)",
         "count_one": "{{count}} failed",
         "count_other": "{{count}} failed",
         "empty": "No failures.",
-        "shown": "{{shown}} of {{total}} · All failures of a job type are under «Runs» in its row.",
+        "shown": "{{shown}} of {{total}} loaded",
         "columns": {
           "type": "Job type",
           "at": "Time"
         },
-        "retryLabel": "Queue run {{id}} of {{name}} again"
+        "retryLabel": "Queue run {{id}} of {{name}} again",
+        "retryAll": "Retry all",
+        "dismissAll": "Delete all …",
+        "deleteLabel": "Delete run {{id}} of {{name}}"
       },
       "separator": " · ",
       "none": "–",
@@ -4472,7 +4610,12 @@
       "serverStartedVersion": "Server started, version {{version}}",
       "serverRestart": "Server restarted",
       "serverRestartBy": "Restart by {{account}}",
-      "unknown": "Event on the server"
+      "unknown": "Event on the server",
+      "libraryDeleted_one": "Library “{{library}}” deleted by {{account}} ({{count}} title)",
+      "libraryDeleted_other": "Library “{{library}}” deleted by {{account}} ({{count}} titles)",
+      "itemRemoved": "“{{title}}” taken out of Slouchcat by {{account}}",
+      "itemFilesDeleted_one": "“{{title}}” deleted by {{account}} with {{count}} file ({{size}})",
+      "itemFilesDeleted_other": "“{{title}}” deleted by {{account}} with {{count}} files ({{size}})"
     },
     "audiobookSources": {
       "title": "Audiobooks: sources",
@@ -4510,8 +4653,8 @@
       },
       "googleBooks": {
         "name": "Google Books key",
-        "description": "Without a key the server never asks Google Books; only with a key can the source join the list of a folder.",
-        "link": "Get an API key from Google"
+        "description": "The Google Books key is now with the other providers.",
+        "link": "Set it up under «Integrations»"
       },
       "auto": {
         "label": "Match automatically",
@@ -4586,6 +4729,56 @@
         "noCandidates": "none",
         "edit": "Edit {{title}}"
       }
+    },
+    "itemDelete": {
+      "action": "Delete",
+      "editorAction": "Delete …",
+      "title": "Delete “{{title}}”?",
+      "loading": "Delete title",
+      "choice": "What should happen?",
+      "mode": {
+        "library": "Only take it out of Slouchcat",
+        "files": "Delete the files as well"
+      },
+      "libraryHint": "The files stay on the disk. The title stays out even when new files arrive; under “Maintenance › Removed titles” it can be taken back with progress, check marks and watchlist.",
+      "everywhere": "The title leaves every list of every profile; downloads on the devices are removed.",
+      "arr": "Radarr and Sonarr learn nothing of it.",
+      "affected_one": "Affected: {{count}} file · {{size}}",
+      "affected_other": "Affected: {{count}} files · {{size}}",
+      "noFiles": "No file recorded.",
+      "folder": "Folder",
+      "files": "Files",
+      "playing": "Playing for {{names}} right now. It can be deleted once the playback has ended.",
+      "typeLabel": "Type the title to confirm",
+      "typeHint": "Type {{title}} (any case) to enable the button.",
+      "confirm": {
+        "library": "Take out of Slouchcat",
+        "files": "Delete for good"
+      },
+      "done": {
+        "library": "“{{title}}” is taken out of Slouchcat. The files are still there.",
+        "files_one": "“{{title}}” is deleted, {{count}} file ({{size}}).",
+        "files_other": "“{{title}}” is deleted, {{count}} files ({{size}}).",
+        "kept_one": "“{{title}}”: {{count}} file deleted ({{size}}); the title stays with the files that could not be deleted.",
+        "kept_other": "“{{title}}”: {{count}} files deleted ({{size}}); the title stays with the files that could not be deleted.",
+        "left_one": "{{count}} file Slouchcat does not know stays in the folder.",
+        "left_other": "{{count}} files Slouchcat does not know stay in the folder."
+      },
+      "filesHint": "The files are deleted for good; there is no trash. When no file is left, the title is gone for good with progress, check marks and watchlist. If Radarr or Sonarr loads it again later, it shows up as a new title.",
+      "notDeletable": "Not possible: {{reason}}",
+      "leftover": "Stayed: {{path}} ({{reason}})",
+      "reason": {
+        "read_only": "the folder is mounted read-only",
+        "no_permission": "Slouchcat may not write in the folder",
+        "shared": "the file belongs to another title as well",
+        "not_regular": "not a regular file",
+        "unreachable": "the folder cannot be reached",
+        "missing": "already gone (counts as deleted)",
+        "failed": "delete failed",
+        "no_files": "no file recorded",
+        "changed": "another file lies at the path by now"
+      },
+      "changed": "Something changed meanwhile, please check again. The list below is read anew; nothing was deleted."
     }
   },
   "language": {
@@ -4861,7 +5054,7 @@
     },
     "rules": {
       "title": "Automatic downloads",
-      "intro": "Downloads the next episode of every series {{name}} watched in the last 60 days to this device, and new episodes of the podcasts {{name}} marked as favourites.",
+      "intro": "Downloads the next episode of every series {{name}} watched in the last 60 days to this device, and new episodes of the podcasts on the watchlist of {{name}}.",
       "options": "Settings",
       "enabled": "Automatic downloads on this device",
       "nextEpisodes": "Next episode of started series",
@@ -4873,7 +5066,7 @@
       "quality": "Quality",
       "save": "Save rule",
       "saved": "Saved. The rule applies from the next sync.",
-      "newPodcastEpisodes": "New episodes of favourite podcasts"
+      "newPodcastEpisodes": "New episodes of the podcasts on the watchlist"
     },
     "dialog": {
       "button": "Download",
@@ -4994,6 +5187,12 @@
     }
   },
   "collection": {
+    "all": {
+      "title": "Collections",
+      "count_one": "{{count}} collection",
+      "count_other": "{{count}} collections",
+      "empty": "There is no collection for this profile yet."
+    },
     "count_one": "{{count}} title",
     "count_other": "{{count}} titles",
     "members": "Titles",
@@ -5016,12 +5215,12 @@
     "summary_other": "{{count}} unread",
     "empty": {
       "title": "No notifications",
-      "body": "Mark series or podcasts as favourites to hear about new episodes here."
+      "body": "Put series or podcasts on your watchlist to hear about new episodes here."
     }
   },
   "settings": {
     "playback": {
-      "title": "My playback",
+      "title": "Settings",
       "intro": "Sound and subtitles for the profile {{name}}, on every device. What you pick by hand in the player comes first.",
       "languages": "Languages and subtitles",
       "audio": {
@@ -5059,11 +5258,16 @@
         "confirmBody": "Every series then plays by your languages and subtitles above again. This cannot be undone.",
         "confirm": "Reset",
         "done": "Series memory reset."
+      },
+      "notifications": {
+        "title": "Notifications",
+        "body": "Whether new episodes, invitations and announcements also come by e-mail, Web Push or Telegram is set for the whole account on a page of its own.",
+        "link": "To the notification channels"
       }
     },
     "notifications": {
       "title": "Notification channels",
-      "intro": "New episodes of your favourites, invitations and announcements arrive here in addition to the app’s inbox. The settings apply to the whole account with all its profiles; a message about a profile starts with its name.",
+      "intro": "New episodes of the series and podcasts on your watchlist, invitations and announcements arrive here in addition to the app’s inbox. The settings apply to the whole account with all its profiles; a message about a profile starts with its name.",
       "link": "Set up channels",
       "serverChannels": "Set up the server’s channels → Integrations",
       "list": "Channels",
@@ -5405,6 +5609,75 @@
       "options": "Books",
       "writeToVolumes": "Write to all books",
       "writeToVolumesHint": "Sets the name as the series of every book and locks it. Series with the same name and the same author become one."
+    }
+  },
+  "watched": {
+    "heard": {
+      "label": "Listened: {{title}}",
+      "button": "Listened",
+      "hint": {
+        "set": "Mark as listened",
+        "half": "Partly listened: mark all or remove all check marks"
+      },
+      "state": {
+        "full": "Listened",
+        "half": "Partly listened"
+      },
+      "ask": {
+        "removeTitle": "Mark «{{title}}» as not listened?",
+        "halfTitle": "«{{title}}» is partly listened",
+        "markAll": "Mark every episode as listened"
+      }
+    },
+    "page": {
+      "title": "Watched",
+      "count_one": "{{count}} title",
+      "count_other": "{{count}} titles",
+      "filters": "Filters",
+      "content": "Kind",
+      "contents": {
+        "all": "All",
+        "movie": "Films",
+        "series": "Series",
+        "audiobook": "Audiobooks",
+        "podcast": "Podcasts"
+      },
+      "sort": "Sort",
+      "sorts": {
+        "watched": "Last watched",
+        "title": "Title A–Z"
+      },
+      "watchedOn": "watched on {{date}}",
+      "heardOn": "heard on {{date}}",
+      "episodes_one": "{{count}} of {{total}} episodes · last {{date}}",
+      "episodes_other": "{{count}} of {{total}} episodes · last {{date}}",
+      "emptyKind": "Nothing watched under «{{kind}}» yet.",
+      "empty": {
+        "title": "Nothing watched yet.",
+        "body": "What you watch or listen to the end shows up here."
+      }
+    },
+    "label": "Watched: {{title}}",
+    "button": "Watched",
+    "hint": {
+      "set": "Mark as watched",
+      "remove": "Remove the check mark",
+      "half": "Partly watched: mark all or remove all check marks"
+    },
+    "state": {
+      "full": "Watched",
+      "half": "Partly watched"
+    },
+    "ask": {
+      "removeTitle": "Mark «{{title}}» as unwatched?",
+      "removeBody_one": "{{count}} episode loses its check mark. This cannot be undone.",
+      "removeBody_other": "{{count}} episodes lose their check mark. This cannot be undone.",
+      "removeBodyAll": "Every episode loses its check mark. This cannot be undone.",
+      "halfTitle": "«{{title}}» is partly watched",
+      "halfBody_one": "{{count}} episode has the check mark. Mark every episode or remove all check marks? Removing cannot be undone.",
+      "halfBody_other": "{{count}} episodes have the check mark. Mark every episode or remove all check marks? Removing cannot be undone.",
+      "markAll": "Mark every episode as watched",
+      "removeAll": "Remove all check marks"
     }
   }
 }

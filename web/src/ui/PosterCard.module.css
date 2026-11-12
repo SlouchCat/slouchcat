@@ -216,17 +216,23 @@
   transition: transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
 }
 
-/* Over the top right of the cover, always shown, on touch screens too (concept 15 7.4). */
+/*
+ * The pen over the top left of the cover, always shown, on touch screens too (concept 15 7.4;
+ * the left since concept 20, the check mark has the right).
+ */
 .tool {
   position: absolute;
   top: var(--sc-space-2);
-  right: var(--sc-space-2);
+  left: var(--sc-space-2);
 }
 
-/* A finished title's check moves to the bottom right, where it shows no progress bar. */
-.cell .watched {
-  top: auto;
-  bottom: var(--sc-space-2);
+/* The check mark «gesehen» over the top right of the cover (concept 20 P-5). */
+.check {
+  position: absolute;
+  top: var(--sc-space-2);
+  right: var(--sc-space-2);
+  display: flex;
+  transition: opacity var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
 }
 
 @media (hover: hover) {
@@ -309,12 +315,30 @@
   opacity: 1;
 }
 
-/* With the mark at the bottom right, a finished title's check goes to the top left (no badge
-   there: extras have no mark) and the progress bar ends left of the button. */
-.marked .watched {
-  inset: var(--sc-space-2) auto auto var(--sc-space-2);
+/*
+ * An empty check mark shows only while the pointer is on the cell or the focus is in it (O-1); a
+ * set or half one always, and so does one that says why a change failed. Screens without hover
+ * show every check. Hidden by opacity only, so it stays in the Tab order and shows with its focus.
+ */
+@media (hover: hover) {
+  .check {
+    opacity: 0;
+  }
+
+  .check:has([aria-pressed='true'], [aria-pressed='mixed'], [role='img'], [role='alert']) {
+    opacity: 1;
+  }
+
+  .cell:hover .check {
+    opacity: 1;
+  }
 }
 
+.cell:focus-within .check {
+  opacity: 1;
+}
+
+/* With the mark at the bottom right, the progress bar ends left of the button. */
 .marked .progress {
   right: calc(var(--sc-space-2) * 2 + var(--sc-space-8));
 }

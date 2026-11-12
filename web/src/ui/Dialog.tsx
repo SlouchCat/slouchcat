@@ -178,10 +178,19 @@ export function ConfirmInputDialog({
   // read the consequences and pressed Escape would find the button already armed on his next
   // click, which is the very mis-aimed click this dialog exists for.
   const [entry, setEntry] = useState({ asked: '', typed: '' });
+  // While the confirmation is on its way, the field keeps showing what was sent and the hint
+  // stays away. An emptied field with «type it again» under it reads as a click that did nothing,
+  // and a second click on the pending button sends nothing either (Marco's acceptance on CT 190,
+  // 2026-11-12: a delete of 27 s looked like it needed two clicks).
+  const [sent, setSent] = useState<string | null>(null);
   const asked = isOpen ? expected : '';
   const typed = entry.asked === asked ? entry.typed : '';
+  const shown = isPending && sent !== null ? sent : typed;
   const matches = typed.trim() === expected;
-  const clear = () => setEntry({ asked: '', typed: '' });
+  const clear = () => {
+    setEntry({ asked: '', typed: '' });
+    setSent(null);
+  };
   const density = useDensityPortalProps();
   const close = () => {
     clear();
@@ -211,13 +220,14 @@ export function ConfirmInputDialog({
           <div className={styles.body}>{children}</div>
           <TextField
             label={inputLabel}
-            value={typed}
+            value={shown}
             onChange={(value) => setEntry({ asked, typed: value })}
+            isReadOnly={isPending}
             mono
             inputRef={focusOnMount}
             autoComplete="off"
             spellCheck="false"
-            description={matches ? undefined : mismatchText}
+            description={matches || isPending ? undefined : mismatchText}
           />
           <div className={styles.actions}>
             <AriaButton variant="ghost" onPress={close}>
@@ -230,6 +240,7 @@ export function ConfirmInputDialog({
               onPress={() => {
                 const confirmed = typed.trim();
                 clear();
+                setSent(confirmed);
                 onConfirm(confirmed);
               }}
             >

@@ -291,7 +291,10 @@ func (w *batchWriter) podcastEpisode(ctx context.Context, podcastID string, op s
 	w.ix().kinds[id] = "podcast_episode"
 	w.ix().parent[id] = podcastID
 	w.stats.items++
-	if !w.index.created[podcastID] {
+	if err := w.inheritRemoved(ctx, id, podcastID); err != nil {
+		return "", err
+	}
+	if !w.index.created[podcastID] && w.ix().removed[id] == 0 {
 		w.episodes = append(w.episodes, id)
 	}
 	return id, nil
