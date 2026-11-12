@@ -250,7 +250,7 @@ describe('detail page: series, season, episode, extra', () => {
 
   it('series: the big button by nextUp, the season shelf, the chosen season and its episodes', async () => {
     const { calls } = mockApi(seriesRoutes);
-    renderApp(`/items/${seriesIds.show}`);
+    const { router } = renderApp(`/items/${seriesIds.show}`);
     const user = userEvent.setup();
 
     await screen.findByRole('heading', { level: 1, name: 'Slouchcat Test Show' });
@@ -287,18 +287,39 @@ describe('detail page: series, season, episode, extra', () => {
     // The chosen season: its text and the episodes as a list (E-14).
     expect(await screen.findByText('Weber übernimmt ihren ersten Fall.')).toBeVisible();
     const list = screen.getByRole('list', { name: 'Folgen' });
-    const pilot = within(list).getByRole('link', { name: /Pilot/ });
-    expect(pilot).toHaveAttribute('href', `/items/${seriesIds.e1}`);
+    // Still and text are one link that plays; «Details» opens the episode (concept 20 P-4).
+    const pilot = within(list).getByRole('link', { name: /^Abspielen.*Pilot/ });
+    expect(pilot).toHaveAttribute('href', `/play/${seriesIds.e1}`);
     expect(pilot).toHaveAccessibleDescription('Ein Anruf in der Nacht führt Weber an den Hafen.');
     expect(within(pilot).getByText('S01E01')).toBeVisible();
     expect(within(pilot).getByText('Weiterschauen')).toBeVisible();
     expect(within(pilot).getByText('45 min')).toBeVisible();
     expect(within(pilot).getByRole('progressbar', { name: '22 % gesehen' })).toBeVisible();
-    const double = within(list).getByRole('link', { name: /S01E03–E04/ });
-    expect(within(double).getByRole('img', { name: 'Gesehen' })).toBeVisible();
+    expect(within(list).getByRole('link', { name: 'Details: S01E01 · Pilot' })).toHaveAttribute(
+      'href',
+      `/items/${seriesIds.e1}`,
+    );
+    // The check stands outside the link, at the far right of the row.
+    const double = within(list).getByRole('link', { name: /^Abspielen.*S01E03–E04/ });
+    expect(within(double).queryByRole('img', { name: 'Gesehen' })).not.toBeInTheDocument();
     expect(
-      within(list).getByRole('link', { name: /Die lange Nacht/ }),
+      within(double.closest('li') as HTMLElement).getByRole('img', { name: 'Gesehen' }),
+    ).toBeVisible();
+    expect(
+      within(list).getByRole('link', { name: /^Abspielen.*Die lange Nacht/ }),
     ).not.toHaveAccessibleDescription();
+
+    // A started episode asks first: resume (focused) or start over; Escape keeps the page.
+    await user.click(pilot);
+    const choice = await screen.findByRole('dialog', { name: 'S01E01 · Pilot' });
+    expect(within(choice).getByText('Du hast diese Folge angefangen.')).toBeVisible();
+    await waitFor(() =>
+      expect(within(choice).getByRole('button', { name: 'Weiterschauen ab 10:00' })).toHaveFocus(),
+    );
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(router.state.location.pathname).toBe(`/items/${seriesIds.show}`);
+    await waitFor(() => expect(pilot).toHaveFocus());
 
     await user.click(specials);
     expect(specials).toHaveAttribute('aria-current', 'true');
@@ -368,6 +389,27 @@ describe('detail page: series, season, episode, extra', () => {
     expect(screen.getByRole('button', { name: 'Zurück' })).toBeVisible();
   });
 
+  it('series: «Von vorn starten» plays a started episode from 0 (concept 20 P-4)', async () => {
+    mockApi(seriesRoutes);
+    const { router } = renderApp(`/items/${seriesIds.show}`);
+    const user = userEvent.setup();
+    const list = await screen.findByRole('list', { name: 'Folgen' });
+    await user.click(within(list).getByRole('link', { name: /^Abspielen.*Pilot/ }));
+    const choice = await screen.findByRole('dialog', { name: 'S01E01 · Pilot' });
+    await user.click(within(choice).getByRole('button', { name: 'Von vorn starten' }));
+    await waitFor(() => expect(router.state.location.href).toBe(`/play/${seriesIds.e1}?at=0`));
+  });
+
+  it('series: an episode not yet started plays at once, without a question (concept 20 P-4)', async () => {
+    mockApi(seriesRoutes);
+    const { router } = renderApp(`/items/${seriesIds.show}`);
+    const user = userEvent.setup();
+    const list = await screen.findByRole('list', { name: 'Folgen' });
+    await user.click(within(list).getByRole('link', { name: /^Abspielen.*Die lange Nacht/ }));
+    await waitFor(() => expect(router.state.location.href).toBe(`/play/${seriesIds.e2}`));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('series: a season switch shows the loading state, then an error with a retry', async () => {
     let answer: (response: Response) => void = () => undefined;
     let fail = true;
@@ -414,10 +456,13 @@ describe('detail page: series, season, episode, extra', () => {
     expect(screen.queryByRole('button', { name: 'Merken' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Favorit' })).not.toBeInTheDocument();
     const list = screen.getByRole('list', { name: 'Folgen' });
-    expect(within(list).getByRole('link', { name: /S01E02/ })).toHaveAttribute(
+    expect(within(list).getByRole('link', { name: /^Abspielen.*S01E02/ })).toHaveAttribute(
       'href',
-      `/items/${seriesIds.e2}`,
+      `/play/${seriesIds.e2}`,
     );
+    expect(
+      within(list).getByRole('link', { name: 'Details: S01E02 · Die lange Nacht' }),
+    ).toHaveAttribute('href', `/items/${seriesIds.e2}`);
     expect(within(list).getByText('Weiterschauen')).toBeVisible();
     await waitFor(() => expect(document.title).toBe('Season 1 – Slouchcat Test Show · Slouchcat'));
   });
@@ -562,6 +607,30 @@ describe('detail page: audiobook, podcast, podcast episode (M6)', () => {
     expect(page?.searchParams.get('offset')).toBe('0');
     expect(page?.searchParams.get('limit')).toBe('100');
     expect(screen.queryByRole('button', { name: 'Mehr laden' })).not.toBeInTheDocument();
+  });
+
+  it('podcast: a started episode asks «Weiterhören ab …» before it plays (concept 20 P-4)', async () => {
+    mockApi({
+      ...signedIn,
+      [`GET /items/${audioIds.podcast}`]: () => json(podcastDetail),
+      [`GET /items/${audioIds.podcast}/episodes`]: () =>
+        json({
+          episodes: [podcastEpisodes.ep3, podcastEpisodes.ep2, podcastEpisodes.ep1],
+          total: 3,
+          offset: 0,
+          limit: 100,
+        }),
+    });
+    const { router } = renderApp(`/items/${audioIds.podcast}`);
+    const user = userEvent.setup();
+    const list = await screen.findByRole('list', { name: 'Episoden' });
+    await user.click(
+      within(list).getByRole('link', { name: 'Slouchcat Test Episode 2 abspielen' }),
+    );
+    const choice = await screen.findByRole('dialog', { name: 'Slouchcat Test Episode 2' });
+    expect(within(choice).getByText('Du hast diese Episode angefangen.')).toBeVisible();
+    await user.click(within(choice).getByRole('button', { name: 'Weiterhören ab 0:04' }));
+    await waitFor(() => expect(router.state.location.href).toBe(`/play/${audioIds.ep2}`));
   });
 
   it('podcast: a failed list keeps the newest episodes and offers a retry', async () => {

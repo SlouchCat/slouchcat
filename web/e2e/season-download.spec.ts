@@ -26,9 +26,12 @@ test('a season of six episodes downloads in one action (O-2)', async ({ page, ow
 
   // On the series page the button sits below the episodes of the chosen season.
   await page.goto(`/items/${seriesId}`);
-  await expect(page.getByRole('list', { name: 'Folgen' }).getByRole('link')).toHaveCount(6);
+  await expect(
+    page.getByRole('list', { name: 'Folgen' }).getByRole('link', { name: /^Details: / }),
+  ).toHaveCount(6);
   const button = page.getByRole('button', { name: 'Staffel herunterladen' });
-  await tabTo(page, button, 40);
+  // Past the six episodes, each with its row and «Details» (concept 20 P-4).
+  await tabTo(page, button, 50);
   await page.keyboard.press('Enter');
   const dialog = page.getByRole('dialog', { name: `${season.title} herunterladen` });
   await expect(dialog).toBeVisible();

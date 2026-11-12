@@ -65,6 +65,11 @@ interface HeroCarouselProps {
   resumeLabel: string;
   /** Opens the trailer of a slide; the button stands only on slides with `hasTrailer: true`. */
   onTrailerPress?: (slide: HeroSlide) => void;
+  /**
+   * Asked before «Abspielen» plays a slide: return true when the page takes the press over (a
+   * started film asks whether to resume, concept 20 P-4); the link then does not navigate.
+   */
+  onPlayPress?: (slide: HeroSlide) => boolean;
   /** Holds the carousel on its slide, for example while a dialog opened from it is on screen. */
   paused?: boolean;
   /**
@@ -209,6 +214,7 @@ export function HeroCarousel({
   pauseLabel,
   resumeLabel,
   onTrailerPress,
+  onPlayPress,
   paused: held = false,
   start = 0,
   intervalSeconds = 5,
@@ -390,18 +396,15 @@ export function HeroCarousel({
   };
   const follow = (event: MouseEvent<HTMLAnchorElement>, link: 'playHref' | 'detailsHref') => {
     const target = pressedSlide();
-    if (
-      !target ||
-      target.id === slide?.id ||
-      event.detail === 0 ||
-      event.button !== 0 ||
-      event.metaKey ||
-      event.ctrlKey ||
-      event.shiftKey ||
-      event.altKey
-    ) {
+    const plain =
+      event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+    // The slide the press meant: the one under the pointer when it went down, else the current.
+    const meant = target && event.detail !== 0 ? target : slide;
+    if (link === 'playHref' && plain && meant && onPlayPress?.(meant)) {
+      event.preventDefault();
       return;
     }
+    if (!target || target.id === slide?.id || event.detail === 0 || !plain) return;
     event.preventDefault();
     navigate(target[link]);
   };

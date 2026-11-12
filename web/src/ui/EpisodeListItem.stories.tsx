@@ -6,7 +6,11 @@ const meta = {
   title: 'UI/EpisodeListItem',
   component: EpisodeListItem,
   args: {
-    href: '#',
+    playHref: '#',
+    playLabel: 'Abspielen',
+    detailsHref: '#',
+    detailsLabel: 'Details',
+    detailsName: 'Details: S01E02 · Die lange Nacht',
     code: 'S01E02',
     title: 'Die lange Nacht',
     overview:
@@ -41,4 +45,8 @@ export const Bare: Story = {
   args: { code: 'S01E03–E04', title: 'Episode 3', stillUrl: undefined, overview: undefined },
 };
 
+/** Focus on the row's play link (Tab): the round play button turns to the accent. */
 export const Focused: Story = { tags: ['press:Tab'] };
+
+/** Tab again: «Details», which opens the episode's page (concept 20 P-4). */
+export const DetailsFocused: Story = { tags: ['press:Tab+Tab'] };

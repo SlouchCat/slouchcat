@@ -608,7 +608,17 @@
     "seasons": "Staffeln",
     "episodes": {
       "title": "Folgen",
-      "empty": "Keine Folgen."
+      "empty": "Keine Folgen.",
+      "play": "Abspielen",
+      "details": "Details: {{title}}"
+    },
+    "resumeChoice": {
+      "bodyEpisode": "Du hast diese Folge angefangen.",
+      "bodyPodcastEpisode": "Du hast diese Episode angefangen.",
+      "bodyMovie": "Du hast diesen Film angefangen.",
+      "resume": "Weiterschauen ab {{time}}",
+      "resumeListening": "Weiterhören ab {{time}}",
+      "restart": "Von vorn starten"
     },
     "listened": "{{percent}} % gehört",
     "audio": {

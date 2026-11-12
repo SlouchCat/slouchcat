@@ -794,6 +794,53 @@ describe('start page', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/items/${ids.heat}`));
   });
 
+  it('«Abspielen» of a started film in the spotlight asks whether to resume (concept 20 P-4)', async () => {
+    mockApi({
+      ...signedIn,
+      'GET /home': () =>
+        json({
+          heroRow: 'spotlight',
+          rows: [{ id: 'spotlight', key: 'spotlight', items: [alien, arrival] }],
+        }),
+    });
+    const { router } = renderApp('/');
+    const user = userEvent.setup();
+    const hero = await screen.findByRole('region', { name: 'Spotlight' });
+    const play = within(hero).getByRole('link', { name: 'Abspielen' });
+    await user.click(play);
+    const choice = await screen.findByRole('dialog', { name: 'Alien' });
+    expect(within(choice).getByText('Du hast diesen Film angefangen.')).toBeVisible();
+    // The band holds while the question is open.
+    expect(hero).toHaveAttribute('data-paused');
+    expect(router.state.location.pathname).toBe('/');
+    await user.click(within(choice).getByRole('button', { name: 'Weiterschauen ab 0:42:13' }));
+    await waitFor(() => expect(router.state.location.href).toBe(`/play/${ids.alien}`));
+  });
+
+  it('«Abspielen» of a series in the spotlight plays at once, without a question (concept 20 P-4)', async () => {
+    mockApi({
+      ...signedIn,
+      'GET /home': () =>
+        json({
+          heroRow: 'spotlight',
+          // Even with a progress of its own: the card cannot know its next episode's.
+          rows: [
+            {
+              id: 'spotlight',
+              key: 'spotlight',
+              items: [{ ...showSeriesRef, progress: alien.progress }, arrival],
+            },
+          ],
+        }),
+    });
+    const { router } = renderApp('/');
+    const user = userEvent.setup();
+    const hero = await screen.findByRole('region', { name: 'Spotlight' });
+    await user.click(within(hero).getByRole('link', { name: 'Abspielen' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/play/${showSeriesRef.id}`));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('shows the header with profile name and the admin link for the owner', async () => {
     mockApi({ ...signedIn, 'GET /home': () => json(homePage) });
     renderApp('/');

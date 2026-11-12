@@ -13,6 +13,7 @@ import { Button, EpisodeListItem, Notice, PosterCard, RowList, Skeleton, Spatial
 import { CoverPen, EditMetadata } from './EditMetadata';
 import { episodeCode } from './labels';
 import { itemQuery } from './queries';
+import { usePlayStart } from './usePlayStart';
 import styles from './ItemPage.module.css';
 
 // The season's "Herunterladen" reads the offline database: a chunk of its own (M5).
@@ -39,7 +40,8 @@ export function seasonFacts(t: TFunction, season: ItemRef): string[] {
 
 /**
  * The episodes of a season as a list (E-14): the `nextUp` episode marked with "Als Nächstes" or
- * "Weiterschauen" when it is in this list.
+ * "Weiterschauen" when it is in this list. A click on an episode starts it, a started one asks
+ * first whether to resume (concept 20 P-4); «Details» opens its page.
  */
 export function EpisodeList({
   episodes,
@@ -49,53 +51,66 @@ export function EpisodeList({
   nextUp?: NextUp;
 }) {
   const { t } = useTranslation();
+  const playStart = usePlayStart();
   if (episodes.length === 0) return <p className={styles.muted}>{t('item.episodes.empty')}</p>;
   const marked = nextUp && nextUp.reason !== 'rewatch' ? nextUp.episode.id : undefined;
   return (
-    <SpatialGroup
-      as="ul"
-      className={styles.episodeRows}
-      aria-label={t('item.episodes.title')}
-      preferredChildFocusKey={marked ? `episode-${marked}` : undefined}
-    >
-      {episodes.map((episode) => {
-        const progress = episode.progress;
-        return (
-          <li key={episode.id}>
-            <EpisodeListItem
-              focusKey={`episode-${episode.id}`}
-              href={paths.item(episode.id)}
-              code={episodeCode(t, episode)}
-              title={episode.title}
-              overview={episode.overview}
-              caption={
-                episode.runtimeMinutes ? formatRuntime(t, episode.runtimeMinutes) : undefined
-              }
-              stillUrl={imageUrl(episode.images.backdropSmall ?? episode.images.backdrop)}
-              accent={episode.accent}
-              progress={
-                progress && !progress.completed && progress.positionMs > 0
-                  ? {
-                      percent: progress.percent,
-                      label: t('item.watched', { percent: Math.round(progress.percent) }),
-                    }
-                  : undefined
-              }
-              watchedLabel={progress?.completed ? t('library.status.watched') : undefined}
-              highlight={
-                episode.id === marked
-                  ? t(
-                      nextUp?.reason === 'resume'
-                        ? 'item.nextUp.markResume'
-                        : 'item.nextUp.markNext',
-                    )
-                  : undefined
-              }
-            />
-          </li>
-        );
-      })}
-    </SpatialGroup>
+    <>
+      <SpatialGroup
+        as="ul"
+        className={styles.episodeRows}
+        aria-label={t('item.episodes.title')}
+        preferredChildFocusKey={marked ? `episode-${marked}` : undefined}
+      >
+        {episodes.map((episode) => {
+          const progress = episode.progress;
+          const code = episodeCode(t, episode);
+          const named = code
+            ? t('item.nextUp.episode', { code, title: episode.title })
+            : episode.title;
+          return (
+            <li key={episode.id}>
+              <EpisodeListItem
+                focusKey={`episode-${episode.id}`}
+                playHref={paths.play(episode.id)}
+                playLabel={t('item.episodes.play')}
+                onPlay={(event) => playStart.ask({ ...episode, title: named }, event)}
+                detailsHref={paths.item(episode.id)}
+                detailsLabel={t('item.details')}
+                detailsName={t('item.episodes.details', { title: named })}
+                code={code}
+                title={episode.title}
+                overview={episode.overview}
+                caption={
+                  episode.runtimeMinutes ? formatRuntime(t, episode.runtimeMinutes) : undefined
+                }
+                stillUrl={imageUrl(episode.images.backdropSmall ?? episode.images.backdrop)}
+                accent={episode.accent}
+                progress={
+                  progress && !progress.completed && progress.positionMs > 0
+                    ? {
+                        percent: progress.percent,
+                        label: t('item.watched', { percent: Math.round(progress.percent) }),
+                      }
+                    : undefined
+                }
+                watchedLabel={progress?.completed ? t('library.status.watched') : undefined}
+                highlight={
+                  episode.id === marked
+                    ? t(
+                        nextUp?.reason === 'resume'
+                          ? 'item.nextUp.markResume'
+                          : 'item.nextUp.markNext',
+                      )
+                    : undefined
+                }
+              />
+            </li>
+          );
+        })}
+      </SpatialGroup>
+      {playStart.dialog}
+    </>
   );
 }
 

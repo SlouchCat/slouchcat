@@ -1,0 +1,8 @@
+/* The three choices one under the other, as wide as the dialog: the default first. */
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  align-items: stretch;
+  margin-top: var(--sc-space-2);
+}

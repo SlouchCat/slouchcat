@@ -1,3 +1,4 @@
+import type { MouseEvent } from 'react';
 import { AppLink } from './AppLink';
 import { SpatialButtonLink } from './Button';
 import styles from './EpisodeRow.module.css';
@@ -15,6 +16,11 @@ interface EpisodeRowProps {
   /** The player of the episode, and the name of that link ("Folge 3 abspielen"). */
   playHref: string;
   playLabel: string;
+  /**
+   * Called on a click of the play button before it is followed: a started episode asks first
+   * whether to resume (ResumeChoice, concept 20 P-4) and prevents the default.
+   */
+  onPlay?: (event: MouseEvent<HTMLAnchorElement>) => void;
   focusKey?: string;
 }
 
@@ -30,6 +36,7 @@ export function EpisodeRow({
   progress,
   playHref,
   playLabel,
+  onPlay,
   focusKey,
 }: EpisodeRowProps) {
   const { ref, onFocus } = useSpatialItem<HTMLAnchorElement>({ focusKey });
@@ -51,6 +58,7 @@ export function EpisodeRow({
         icon="play"
         iconOnly
         aria-label={playLabel}
+        onClick={onPlay}
       />
     </div>
   );

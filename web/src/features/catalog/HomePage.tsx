@@ -39,6 +39,7 @@ import { CoverPen, EDITABLE_KINDS, EditMetadata } from './EditMetadata';
 import { ItemMeta } from './ItemMeta';
 import { homeRowTitle, isAudioKind } from './labels';
 import { homeQuery } from './queries';
+import { usePlayStart } from './usePlayStart';
 import styles from './HomePage.module.css';
 
 const authed = getRouteApi('/_authed/_active');
@@ -236,6 +237,9 @@ export function HomePage() {
   const canManage = session.account.role === 'admin' && session.profile.isPrimary;
   // The title whose metadata editor is open.
   const [editing, setEditing] = useState<string | null>(null);
+  // «Abspielen» of a started film in the spotlight asks whether to resume (concept 20 P-4). Not for
+  // a series: its card does not know whether its next episode is started.
+  const playStart = usePlayStart();
   // Only a stage at the top is the page's first image: the server paints it into the shell, and the
   // posters wait for it. A stage further down has no prepaint and holds no poster back.
   const leadRow = home.data?.rows.find(hasEntries);
@@ -574,7 +578,11 @@ export function HomePage() {
                     start={home.data.heroStart}
                     intervalSeconds={home.data.heroIntervalSeconds}
                     onTrailerPress={setTrailerSlide}
-                    paused={trailerSlide !== undefined || editing !== null}
+                    onPlayPress={(slide) => {
+                      const item = row.items.find((entry) => entry.id === slide.id);
+                      return item?.kind === 'movie' && playStart.ask(item);
+                    }}
+                    paused={trailerSlide !== undefined || editing !== null || playStart.asking}
                     onArtShown={() => setHeroShown(true)}
                     tool={
                       canManage ? (slide, active) => spotlightPen(row, slide, active) : undefined
@@ -603,6 +611,7 @@ export function HomePage() {
           </div>
         )}
         {editing && <EditMetadata itemId={editing} onClose={() => setEditing(null)} />}
+        {playStart.dialog}
         {trailerSlide && (
           <Suspense fallback={null}>
             <TrailerPanel

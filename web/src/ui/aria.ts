@@ -26,6 +26,8 @@ export { CodeBlock } from './CodeBlock';
 export { DataTable, type DataColumn } from './DataTable';
 export { ConfirmDialog, ConfirmInputDialog, FormDialog } from './Dialog';
 export { EditorDialog } from './EditorDialog';
+// The question «Weiterschauen ab … / Von vorn starten» before a direct start (concept 20 P-4).
+export { ResumeChoice } from './ResumeChoice';
 export {
   FolderList,
   contentsOf,

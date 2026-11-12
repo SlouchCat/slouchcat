@@ -608,7 +608,17 @@
     "seasons": "Seasons",
     "episodes": {
       "title": "Episodes",
-      "empty": "No episodes."
+      "empty": "No episodes.",
+      "play": "Play",
+      "details": "Details: {{title}}"
+    },
+    "resumeChoice": {
+      "bodyEpisode": "You started this episode.",
+      "bodyPodcastEpisode": "You started this episode.",
+      "bodyMovie": "You started this film.",
+      "resume": "Continue from {{time}}",
+      "resumeListening": "Continue listening from {{time}}",
+      "restart": "Start from the beginning"
     },
     "listened": "{{percent}} % listened",
     "audio": {
