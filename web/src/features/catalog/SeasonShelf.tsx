@@ -1,14 +1,16 @@
 import type { ItemDetail, ItemRef } from '@slouchcat/api-client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import { lazy, Suspense, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
+import { useActiveSession } from '@/app/session';
 import { offlineSupported } from '@/features/offline/support';
 import { formatRuntime } from '@/lib/format';
 import { Button, EpisodeListItem, Notice, PosterCard, RowList, Skeleton, SpatialGroup } from '@/ui';
+import { CoverPen, EditMetadata } from './EditMetadata';
 import { episodeCode } from './labels';
 import { itemQuery } from './queries';
 import styles from './ItemPage.module.css';
@@ -163,6 +165,11 @@ function revealChosen(scroller: HTMLDivElement | null) {
  */
 export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; nextUp?: NextUp }) {
   const { t } = useTranslation();
+  const session = useActiveSession();
+  const queryClient = useQueryClient();
+  // The pen on a season's cover (concept 20 P-3), as on every other cover.
+  const canManage = session.account.role === 'admin' && session.profile.isPrimary;
+  const [editing, setEditing] = useState<ItemRef | null>(null);
   const [chosen, setChosen] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const current =
@@ -213,6 +220,16 @@ export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; 
               watchedLabel={
                 total > 0 && watched === total ? t('library.status.watched') : undefined
               }
+              // Only the chosen season is a Tab stop, then its pen (roving tabindex).
+              tool={
+                canManage ? (
+                  <CoverPen
+                    item={season}
+                    onEdit={() => setEditing(season)}
+                    excludeFromTabOrder={!active}
+                  />
+                ) : undefined
+              }
               progress={
                 watched > 0 && watched < total
                   ? {
@@ -241,6 +258,18 @@ export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; 
           </Suspense>
         )}
       </div>
+      {editing && (
+        <EditMetadata
+          itemId={editing.id}
+          onClose={() => {
+            setEditing(null);
+            // The shelf's covers come with the series.
+            if (editing.parentId) {
+              void queryClient.invalidateQueries({ queryKey: ['item', editing.parentId] });
+            }
+          }}
+        />
+      )}
     </SpatialGroup>
   );
 }

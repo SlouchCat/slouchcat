@@ -15,7 +15,11 @@ import {
 let series = '';
 
 const shelf = (page: Page) => page.getByRole('list', { name: 'Staffeln' });
-const seasonCards = (page: Page) => shelf(page).getByRole('button');
+// The season cards, without the pens on their covers (concept 20 P-3).
+const seasonCards = (page: Page) =>
+  shelf(page).getByRole('button', { name: /^(?!.*: Metadaten bearbeiten$)/ });
+const seasonPens = (page: Page) =>
+  shelf(page).getByRole('button', { name: /: Metadaten bearbeiten$/ });
 const episodes = (page: Page) => page.getByRole('list', { name: 'Folgen' });
 // The big button of a series names its nextUp episode (concept 17 3.3); other specs may have left
 // progress behind, so any of the four reasons.
@@ -150,11 +154,41 @@ test('Tab: header, back, actions, the chosen season, episodes; no focus trap @ke
   // "Favorit", "Empfehlen" and "Verwalten".
   await tabTo(page, seriesPlay(page), 4);
   await tabTo(page, page.getByRole('button', { name: 'Favorit' }), 4);
-  // Only the chosen season is a Tab stop of the shelf (roving tabindex).
+  // Only the chosen season is a Tab stop of the shelf (roving tabindex), then its pen.
   await tabTo(page, seasonCards(page).first(), 4);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, seasonPens(page).first());
   await page.keyboard.press('Tab');
   await expectFocusOn(page, episodes(page).getByRole('link').first());
   await expectNoFocusTrap(page);
+});
+
+test('the pen on a season cover opens its editor on «Bilder»; Escape returns to the pen (concept 20 P-3) @keyboard', async ({
+  page,
+}) => {
+  // A pen on every season; only the chosen season's pen is a Tab stop.
+  await expect(seasonPens(page)).toHaveCount(2);
+  await expect(seasonPens(page).last()).toHaveAttribute('tabindex', '-1');
+  const pen = seasonPens(page).first();
+  const season = ((await pen.getAttribute('aria-label')) ?? '').replace(
+    /: Metadaten bearbeiten$/,
+    '',
+  );
+  await tabTo(page, seasonCards(page).first(), 40);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, pen);
+
+  await page.keyboard.press('Enter');
+  const editor = page.getByRole('dialog', { name: season });
+  await expect(editor).toBeVisible();
+  await expect(
+    editor
+      .getByRole('tablist', { name: 'Bereiche des Editors' })
+      .getByRole('tab', { selected: true }),
+  ).toHaveText(/^Bilder/);
+  await page.keyboard.press('Escape');
+  await expect(editor).toHaveCount(0);
+  await expectFocusOn(page, pen);
 });
 
 test('season page by keyboard: the series link, play, the episodes; no focus trap @keyboard', async ({

@@ -266,15 +266,23 @@ describe('detail page: series, season, episode, extra', () => {
 
     // The shelf (E-13): the season of the nextUp episode is chosen, with its watched episodes.
     const shelf = screen.getByRole('region', { name: 'Staffeln' });
-    const season1 = within(shelf).getByRole('button', { name: /Season 1/ });
+    // Each cover also carries the pen (concept 20 P-3); the card is the button without «Metadaten».
+    const season1 = within(shelf).getByRole('button', { name: /^(?!.*Metadaten).*Season 1/ });
     expect(season1).toHaveAttribute('aria-current', 'true');
     expect(within(season1).getByText('2024 · 3 Folgen · 1 gesehen')).toBeVisible();
     expect(
       within(season1).getByRole('progressbar', { name: '1 von 3 Folgen gesehen' }),
     ).toBeVisible();
-    const specials = within(shelf).getByRole('button', { name: /Specials/ });
+    const specials = within(shelf).getByRole('button', { name: /^(?!.*Metadaten).*Specials/ });
     expect(specials).not.toHaveAttribute('aria-current');
     expect(specials).toHaveAttribute('tabindex', '-1');
+    // Only the chosen season's pen is a Tab stop, like its card.
+    expect(
+      within(shelf).getByRole('button', { name: 'Season 1: Metadaten bearbeiten' }),
+    ).not.toHaveAttribute('tabindex');
+    expect(
+      within(shelf).getByRole('button', { name: 'Specials: Metadaten bearbeiten' }),
+    ).toHaveAttribute('tabindex', '-1');
 
     // The chosen season: its text and the episodes as a list (E-14).
     expect(await screen.findByText('Weber übernimmt ihren ersten Fall.')).toBeVisible();
@@ -377,7 +385,7 @@ describe('detail page: series, season, episode, extra', () => {
 
     const shelf = await screen.findByRole('region', { name: 'Staffeln' });
     await screen.findByRole('list', { name: 'Folgen' });
-    await user.click(within(shelf).getByRole('button', { name: /Specials/ }));
+    await user.click(within(shelf).getByRole('button', { name: /^(?!.*Metadaten).*Specials/ }));
     // The episodes of the previous season do not stay on screen while the next one loads.
     expect(screen.queryByRole('list', { name: 'Folgen' })).not.toBeInTheDocument();
     expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
