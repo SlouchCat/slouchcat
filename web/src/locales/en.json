@@ -1327,7 +1327,8 @@
         "hits_other": "{{count}} matches",
         "hitsCaption": "Countries found",
         "continents": {
-          "label": "Every country by continent. A continent opens its countries; pressing it again or Escape closes them."
+          "label": "Every country by continent. A continent opens its countries; pressing it again or Escape closes them.",
+          "heading": "By continent"
         },
         "continent": {
           "europe": "Europe",
@@ -1344,7 +1345,7 @@
         "continentChosen_one": "{{count}} chosen",
         "continentChosen_other": "{{count}} chosen",
         "countryCaption": "Countries in {{continent}}",
-        "chooseAll": "Choose every country",
+        "chooseAll": "Select all",
         "removeAll": "Remove all",
         "chooseCountry": "Choose {{country}}",
         "columns": {

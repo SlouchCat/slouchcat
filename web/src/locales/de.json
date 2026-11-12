@@ -1327,7 +1327,8 @@
         "hits_other": "{{count}} Treffer",
         "hitsCaption": "Gefundene Länder",
         "continents": {
-          "label": "Alle Länder nach Kontinent. Ein Kontinent öffnet seine Länder; nochmals drücken oder Escape schliesst sie."
+          "label": "Alle Länder nach Kontinent. Ein Kontinent öffnet seine Länder; nochmals drücken oder Escape schliesst sie.",
+          "heading": "Nach Kontinent"
         },
         "continent": {
           "europe": "Europa",
@@ -1344,7 +1345,7 @@
         "continentChosen_one": "{{count}} gewählt",
         "continentChosen_other": "{{count}} gewählt",
         "countryCaption": "Länder in {{continent}}",
-        "chooseAll": "Alle Länder wählen",
+        "chooseAll": "Alle wählen",
         "removeAll": "Alle abwählen",
         "chooseCountry": "{{country}} wählen",
         "columns": {

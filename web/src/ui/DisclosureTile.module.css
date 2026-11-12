@@ -1,0 +1,90 @@
+/*
+ * A tile that opens a region (concept 20, P-15): the rounding of the cards, at least 68 px high and
+ * growing with its two lines, left aligned. Open, the accent is the border on a tinted ground; the
+ * tint is a variable of the tile, so a frame with another accent recolours it.
+ */
+.tile {
+  --sc-tile-tint: color-mix(in srgb, var(--sc-accent) 12%, transparent);
+
+  display: flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: calc(var(--sc-space-8) * 2 + var(--sc-space-1));
+  padding: var(--sc-space-3) var(--sc-space-4);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-2);
+  color: var(--sc-color-text-primary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition:
+    background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    border-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.tile:hover {
+  background-color: var(--sc-color-surface-3);
+}
+
+.tile:focus-visible {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+}
+
+.tile[aria-expanded='true'] {
+  border-color: var(--sc-accent);
+  background-color: var(--sc-tile-tint);
+}
+
+.text {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.subtitle {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.badge {
+  flex: none;
+  padding: var(--sc-space-1) var(--sc-space-2);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  white-space: nowrap;
+}
+
+.chevron {
+  display: inline-flex;
+  flex: none;
+  color: var(--sc-color-text-muted);
+  transition: transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.tile[aria-expanded='true'] .chevron {
+  color: var(--sc-color-text-primary);
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile,
+  .chevron {
+    transition: none;
+  }
+}
