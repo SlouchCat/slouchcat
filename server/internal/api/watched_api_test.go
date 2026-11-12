@@ -32,15 +32,16 @@ func TestHTTPSetItemWatched(t *testing.T) {
 	if res := put("p12", film.ID, `{"watched":true}`); res.StatusCode != http.StatusNoContent {
 		t.Fatalf("mark film: %d", res.StatusCode)
 	}
-	if p := detail("p12", film.ID).Progress; p == nil || !p.Completed || p.PositionMs != p.DurationMs {
-		t.Errorf("film after the check mark: %+v, want finished at the end", p)
+	if p := detail("p12", film.ID).Progress; p == nil || !p.Completed || p.PositionMs != p.DurationMs || p.WatchedAt == nil || !p.WatchedAt.Equal(p.UpdatedAt) {
+		t.Errorf("film after the check mark: %+v, want finished at the end with watchedAt", p)
 	}
 	show := f.Show
 	if res := put("p12", show.Series.ID, `{"watched":true}`); res.StatusCode != http.StatusNoContent {
 		t.Fatalf("mark series: %d", res.StatusCode)
 	}
-	if d := detail("p12", show.Series.ID); d.Watched == nil || !*d.Watched {
-		t.Errorf("series for P12 after the check mark: watched %v, want true", d.Watched)
+	// P12 sees E1, E3 and the special: all three watched, the series full (contract 1.31.0).
+	if d := detail("p12", show.Series.ID); d.Watched == nil || !*d.Watched || d.WatchedCount == nil || *d.WatchedCount != 3 {
+		t.Errorf("series for P12 after the check mark: watched %v, watchedCount %v, want true and 3", d.Watched, d.WatchedCount)
 	}
 	if p := detail("p12", show.E1.ID).Progress; p == nil || !p.Completed {
 		t.Errorf("E1 for P12: %+v, want finished", p)
@@ -54,8 +55,15 @@ func TestHTTPSetItemWatched(t *testing.T) {
 	if res := put("p12", show.Series.ID, `{"watched":false}`); res.StatusCode != http.StatusNoContent {
 		t.Fatalf("unmark series: %d", res.StatusCode)
 	}
-	if p := detail("p12", show.E1.ID).Progress; p != nil && p.Completed {
-		t.Errorf("E1 for P12 after removing: %+v, want open", p)
+	if p := detail("p12", show.E1.ID).Progress; p != nil && (p.Completed || p.WatchedAt != nil) {
+		t.Errorf("E1 for P12 after removing: %+v, want open without watchedAt", p)
+	}
+	// One episode marked: the half check mark, watched false with watchedCount 1 (F-12).
+	if res := put("p12", show.E1.ID, `{"watched":true}`); res.StatusCode != http.StatusNoContent {
+		t.Fatalf("mark E1: %d", res.StatusCode)
+	}
+	if d := detail("p12", show.Series.ID); d.Watched == nil || *d.Watched || d.WatchedCount == nil || *d.WatchedCount != 1 {
+		t.Errorf("series for P12 with E1 marked: watched %v, watchedCount %v, want false and 1", d.Watched, d.WatchedCount)
 	}
 	if res := put("p12", film.ID, ""); res.StatusCode != http.StatusBadRequest {
 		t.Errorf("no body: %d, want 400", res.StatusCode)

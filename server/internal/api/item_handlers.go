@@ -649,7 +649,7 @@ func toItemRef(profileID int64, it model.ItemSummary) gen.ItemRef {
 		ref.ParentId = &it.ParentID
 	}
 	ref.SeasonNumber, ref.EpisodeNumber, ref.EpisodeEnd, ref.ChildCount = it.SeasonNumber, it.EpisodeNumber, it.EpisodeEnd, it.ChildCount
-	ref.WatchedCount = it.WatchedCount // seasons only
+	ref.WatchedCount = it.WatchedCount // seasons, series and podcasts (contract 1.31.0)
 	ref.Watched = it.Watched           // series and podcasts (contract 1.22.0)
 	ref.SeriesTitle = optString(it.SeriesTitle)
 	if s := it.SeriesRef; s != nil { // episodes only (contract 1.14.0); the image URLs name the series
@@ -678,6 +678,10 @@ func toProgress(p model.Progress) gen.Progress {
 		Completed:  p.Completed,
 		UpdatedAt:  p.UpdatedAt.UTC(),
 		WatchTime:  toWatchTime(p.WatchTime),
+	}
+	if p.WatchedAt != nil {
+		w := p.WatchedAt.UTC()
+		out.WatchedAt = &w
 	}
 	if p.PlaybackRate != nil {
 		r := float32(*p.PlaybackRate)

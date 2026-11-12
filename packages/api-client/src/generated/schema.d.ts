@@ -5733,9 +5733,22 @@ export interface components {
             /** Format: int64 */
             durationMs: number;
             percent: number;
+            /**
+             * @description At or beyond 90 % of the duration by the newest event (AN-10): a later event below 90 %
+             *     reopens the title. Continue watching, next up and the resume position read it; the check
+             *     mark reads `watchedAt` (since contract 1.31.0).
+             */
             completed: boolean;
             /** Format: date-time */
             updatedAt: string;
+            /**
+             * Format: date-time
+             * @description Since contract 1.31.0 (concept 20 section 6.3): when the title was last finished, by an
+             *     event at or beyond 90 % or by the check mark (`setItemWatched`). It stays when the title is
+             *     started again and goes only when the check mark is removed; absent when the title was
+             *     never finished. The check mark «gesehen» of a single title shows it.
+             */
+            watchedAt?: string;
             /** @description Playback speed the profile last used for this title (H-3); absent until it was set. */
             playbackRate?: number;
             /**
@@ -5777,16 +5790,23 @@ export interface components {
              */
             overview?: string;
             /**
-             * @description Visible episodes of a season the active profile has completed (since contract 1.20.0,
-             *     concept 17 section 2.3); set only on seasons, next to `childCount`.
+             * @description Visible episodes the active profile has watched (`Progress.watchedAt`): of a season since
+             *     contract 1.20.0 (concept 17 section 2.3, next to `childCount`), and since contract 1.31.0
+             *     also of a series (every season, specials included) and a podcast, counted over the same
+             *     episodes as `watched`. Until 1.30.0 it counted completed episodes. With `watched` false,
+             *     a value above 0 is the half check mark «teilweise gesehen» (concept 20 F-12). Absent on
+             *     every other kind.
              */
             watchedCount?: number;
             /**
-             * @description Series and podcasts only (since contract 1.22.0): every visible episode is completed by
-             *     the active profile, by the same rule as the library status `watched` (specials count
-             *     like every other episode). False when at least one visible episode is open; absent for
-             *     a series or podcast without visible episodes and on every other kind. Set on every
-             *     series and podcast ItemRef in every list and on `ItemDetail`.
+             * @description Series and podcasts only (since contract 1.22.0): every visible episode is watched by the
+             *     active profile, by the same rule as the library status `watched` (specials count like
+             *     every other episode). Since contract 1.31.0 an episode counts as watched by its
+             *     `Progress.watchedAt` (finished once or marked by hand), no longer by `completed`, so a
+             *     series stays watched while an episode is watched again. False when at least one visible
+             *     episode is not watched; absent for a series or podcast without visible episodes and on
+             *     every other kind. Set on every series and podcast ItemRef in every list and on
+             *     `ItemDetail`.
              */
             watched?: boolean;
             runtimeMinutes?: number;
@@ -8326,7 +8346,10 @@ export interface components {
             count: number;
             /** @description Of `count`, the volumes that pass the filters; equals `count` without a filter. */
             matching: number;
-            /** @description Of `count`, the volumes the active profile has completed (the bar of the tile). */
+            /**
+             * @description Of `count`, the volumes the active profile has heard (the bar of the tile): since contract 1.31.0
+             *     those with `Progress.watchedAt`, so a volume heard once and started again still counts.
+             */
             completed: number;
             /** @description The first visible volume in series or collection order; its cover represents the group. */
             cover?: components["schemas"]["ItemRef"];
@@ -8460,7 +8483,11 @@ export interface components {
          */
         LibrarySort: "title" | "added" | "released" | "vote" | "runtime" | "age" | "played" | "author";
         /**
-         * @description Watch status of a title for the active profile (F-8); exclusive per title.
+         * @description Watch status of a title for the active profile (F-8); exclusive per title. Since contract
+         *     1.31.0 it reads `Progress.watchedAt` (concept 20 section 6.3): `watched` once a film or
+         *     audiobook has `watchedAt`, also during a second run; `started` only without `watchedAt` and
+         *     with a position above 0; else `unwatched`. A series or podcast is `watched` when every visible
+         *     episode has `watchedAt`, `started` when some episode has it or a position.
          * @enum {string}
          */
         LibraryItemStatus: "unwatched" | "started" | "watched";

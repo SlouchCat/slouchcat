@@ -158,22 +158,22 @@ func TestContractDetailSeasonShelf(t *testing.T) {
 	show := f.Show
 	for _, p := range []int64{f.P12.ID, f.P16.ID} {
 		for _, id := range []string{show.E1.ID, show.E2.ID} {
-			if _, err := f.DB.Write.Exec(`INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at) VALUES (?, ?, 5000, 5000, 1, 1)`, p, id); err != nil {
+			if _, err := f.DB.Write.Exec(`INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, watched_at) VALUES (?, ?, 5000, 5000, 1, 1, 1)`, p, id); err != nil {
 				t.Fatal(err)
 			}
 		}
 	}
-	// Seasons of the series: watchedCount of the visible completed episodes (P12 does not see E2)
+	// Seasons of the series: watchedCount of the visible watched episodes (P12 does not see E2)
 	// and the year (from the release date when the season has none: TestSeasonYearAndWatchedCount
-	// in visibility, since rule 2 keeps title SQL out of this package); the series itself has no
-	// watchedCount.
+	// in visibility, since rule 2 keeps title SQL out of this package); since contract 1.31.0 the
+	// series carries the same count over all its seasons (concept 20 F-12).
 	for _, tc := range []struct {
 		token   string
 		watched int
 	}{{"p12", 1}, {"p16", 2}, {"p18", 0}} {
 		d := getRawDetail(t, h, tc.token, show.Series.ID)
-		if _, ok := d.num("watchedCount"); ok {
-			t.Errorf("%s series carries watchedCount", tc.token)
+		if n, ok := d.num("watchedCount"); !ok || n != tc.watched {
+			t.Errorf("%s series watchedCount = %d (set %v), want %d", tc.token, n, ok, tc.watched)
 		}
 		seasons := d.list(t, "seasons")
 		if len(seasons) != 2 || seasons[0].str("id") != show.Season.ID {
@@ -350,7 +350,7 @@ func TestContractSeriesAndPodcastWatched(t *testing.T) {
 	// P12 completes every episode it may see (not E2, rated 16) and every podcast episode rated
 	// up to 12.
 	for _, id := range []string{show.E1.ID, show.E3.ID, show.Special.ID, a.Episodes[0].ID, a.Episodes[1].ID, a.Episodes[2].ID, a.EnclosureOnly.ID} {
-		if _, err := f.DB.Write.Exec(`INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at) VALUES (?, ?, 5000, 5000, 1, 1)`, f.P12.ID, id); err != nil {
+		if _, err := f.DB.Write.Exec(`INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, watched_at) VALUES (?, ?, 5000, 5000, 1, 1, 1)`, f.P12.ID, id); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -30,7 +30,8 @@ func seasonsOf(t *testing.T, r *Reader, p model.Profile, seriesID string) map[st
 }
 
 // Concept 17 section 2.3: a season without a year of its own takes the year of its release date;
-// watchedCount counts the completed episodes the profile may see, per profile, on seasons only.
+// watchedCount counts the watched episodes (watched_at) the profile may see, per profile, on
+// seasons and since contract 1.31.0 on the series too (concept 20 F-12: the half check mark).
 func TestSeasonYearAndWatchedCount(t *testing.T) {
 	t.Parallel()
 	f := vistest.New(t)
@@ -69,8 +70,8 @@ func TestSeasonYearAndWatchedCount(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if d.Year != nil || d.WatchedCount != nil {
-			t.Errorf("%s series: year %v watchedCount %v, want neither", tc.p.Name, d.Year, d.WatchedCount)
+		if d.Year != nil || d.WatchedCount == nil || *d.WatchedCount != tc.watched {
+			t.Errorf("%s series: year %v watchedCount %v, want no year and %d", tc.p.Name, d.Year, d.WatchedCount, tc.watched)
 		}
 	}
 	// A season with a year of its own keeps it.

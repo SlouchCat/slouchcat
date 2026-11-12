@@ -10,10 +10,10 @@ import (
 )
 
 // Contract 1.22.0: ItemRef.watched marks a series (and a podcast, below) whose visible episodes
-// the profile has all completed, by the rule of the library status watched (specials count, a
-// hidden episode does not); false while one visible episode is open, absent on a series without
-// visible episodes and on every other kind. The detail and the lists read it from the same
-// batched child counts.
+// the profile has all watched (since 1.31.0 by watched_at, concept 20 section 6.3), by the rule of
+// the library status watched (specials count, a hidden episode does not); false while one visible
+// episode is not watched, absent on a series without visible episodes and on every other kind. The
+// detail and the lists read it from the same batched child counts.
 func TestSeriesWatched(t *testing.T) {
 	t.Parallel()
 	f := vistest.New(t)
@@ -69,10 +69,11 @@ func TestSeriesWatched(t *testing.T) {
 	if d, l := watchedOf(f.P18); !is(d, true) || !is(l, true) {
 		t.Errorf("P18 with every episode completed: detail %v list %v, want true", d, l)
 	}
-	// A started episode is open.
+	// An episode watched once and started again stays watched (watched_at, concept 20 section
+	// 6.3, contract 1.31.0): the series keeps its check mark.
 	setProgress(t, f, f.P18, show.E2.ID, false, 5)
-	if d, l := watchedOf(f.P18); !is(d, false) || !is(l, false) {
-		t.Errorf("P18 with E2 started again: detail %v list %v, want false", d, l)
+	if d, l := watchedOf(f.P18); !is(d, true) || !is(l, true) {
+		t.Errorf("P18 with E2 started again: detail %v list %v, want true (watched_at stays)", d, l)
 	}
 	// An episode that is deleted or unavailable is not visible, so its open state does not count.
 	exec(t, f, `UPDATE items SET deleted_at = 1 WHERE id = ?`, show.E2.ID)
@@ -153,6 +154,16 @@ func TestPodcastWatched(t *testing.T) {
 	}
 	if d, l := watchedOf(f.P18); !is(d, false) || !is(l, false) {
 		t.Errorf("P18 with the episodes rated 16 and 18 open: detail %v list %v, want false", d, l)
+	}
+	// watchedCount (contract 1.31.0, concept 20 F-12): the heard episodes the profile may see.
+	for _, p := range []model.Profile{f.P12, f.P18} {
+		d, err := r.Item(ctx, Profile(p), a.Podcast.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d.WatchedCount == nil || *d.WatchedCount != 4 {
+			t.Errorf("%s podcast watchedCount = %v, want 4", p.Name, d.WatchedCount)
+		}
 	}
 	book, err := r.Item(ctx, Profile(f.P18), a.Books[0].ID)
 	if err != nil {

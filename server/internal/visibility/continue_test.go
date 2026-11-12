@@ -28,9 +28,13 @@ func setProgress(t *testing.T, f *vistest.Fixture, p model.Profile, itemID strin
 	if completed {
 		pos, done = vistest.DurationMs, 1
 	}
-	exec(t, f, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at) VALUES (?, ?, ?, ?, ?, ?)
-	            ON CONFLICT (profile_id, item_id) DO UPDATE SET position_ms = excluded.position_ms, completed = excluded.completed, updated_at = excluded.updated_at`,
-		p.ID, itemID, pos, vistest.DurationMs, done, at)
+	// As the 90 % rule writes it: a completed row is watched at its time, a later open one keeps
+	// the date (concept 20 section 6.3).
+	exec(t, f, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, watched_at)
+	            VALUES (?, ?, ?, ?, ?, ?, CASE WHEN ? = 1 THEN ? END)
+	            ON CONFLICT (profile_id, item_id) DO UPDATE SET position_ms = excluded.position_ms, completed = excluded.completed,
+	              updated_at = excluded.updated_at, watched_at = COALESCE(excluded.watched_at, progress.watched_at)`,
+		p.ID, itemID, pos, vistest.DurationMs, done, at, done, at)
 }
 
 // Concept 15 P-1: one entry per series. The newest progress of the series counts, completed or

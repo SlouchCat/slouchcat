@@ -632,12 +632,13 @@ type ItemSummary struct {
 	SeriesTitle   string
 	ExtraKind     string // trailer, featurette, deleted_scene, behind_the_scenes, interview, scene, short, other
 	ChildCount    *int   // visible seasons of a series, visible episodes of a season
-	// WatchedCount is the number of visible episodes of a season the profile has completed
-	// (concept 17 section 2.3, contract 1.20.0); set on seasons only.
+	// WatchedCount is the number of visible episodes the profile has watched (watched_at, concept
+	// 20 section 6.3): of a season (concept 17 section 2.3, contract 1.20.0), and since contract
+	// 1.31.0 of a series or podcast too; nil on other kinds.
 	WatchedCount *int
-	// Watched marks a series or podcast whose visible episodes the profile has all completed, by the
-	// rule of the library status watched (contract 1.22.0); nil on other kinds and on a series or
-	// podcast without visible episodes.
+	// Watched marks a series or podcast whose visible episodes the profile has all watched
+	// (watched_at), by the rule of the library status watched (contract 1.22.0); nil on other kinds
+	// and on a series or podcast without visible episodes.
 	Watched *bool
 	// SeriesRef is the visible series of an episode with its title and images (concept 15 P-1,
 	// contract 1.14.0 ItemRef.seriesRef); nil on every other kind.
