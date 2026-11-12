@@ -466,6 +466,7 @@ type Library struct {
 	PodcastLastN         int64
 	PodcastParallel      int64
 	PodcastRootID        sql.NullInt64
+	DeletingAt           sql.NullInt64
 }
 
 type LibraryMetadatum struct {

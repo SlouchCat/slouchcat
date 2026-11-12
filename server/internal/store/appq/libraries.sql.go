@@ -24,10 +24,21 @@ func (q *Queries) AcceptLibraryLoss(ctx context.Context, arg AcceptLibraryLossPa
 	return err
 }
 
-const getLibrary = `-- name: GetLibrary :one
-SELECT id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at, trickplay_movies, trickplay_movies_keep, trickplay_series, trickplay_series_keep, trickplay_series_scope, podcast_mode, podcast_scope, podcast_last_n, podcast_parallel, podcast_root_id FROM libraries WHERE id = ?1
+const clearLibraryDeleting = `-- name: ClearLibraryDeleting :exec
+UPDATE libraries SET deleting_at = NULL WHERE id = ?1
 `
 
+// The job failed before it deleted anything: the library comes back.
+func (q *Queries) ClearLibraryDeleting(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, clearLibraryDeleting, id)
+	return err
+}
+
+const getLibrary = `-- name: GetLibrary :one
+SELECT id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at, trickplay_movies, trickplay_movies_keep, trickplay_series, trickplay_series_keep, trickplay_series_scope, podcast_mode, podcast_scope, podcast_last_n, podcast_parallel, podcast_root_id, deleting_at FROM libraries WHERE id = ?1 AND deleting_at IS NULL
+`
+
+// A library that is being deleted answers no row, like one that is gone.
 func (q *Queries) GetLibrary(ctx context.Context, id int64) (Library, error) {
 	row := q.db.QueryRowContext(ctx, getLibrary, id)
 	var i Library
@@ -55,6 +66,44 @@ func (q *Queries) GetLibrary(ctx context.Context, id int64) (Library, error) {
 		&i.PodcastLastN,
 		&i.PodcastParallel,
 		&i.PodcastRootID,
+		&i.DeletingAt,
+	)
+	return i, err
+}
+
+const getLibraryForDeletion = `-- name: GetLibraryForDeletion :one
+SELECT id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at, trickplay_movies, trickplay_movies_keep, trickplay_series, trickplay_series_keep, trickplay_series_scope, podcast_mode, podcast_scope, podcast_last_n, podcast_parallel, podcast_root_id, deleting_at FROM libraries WHERE id = ?1
+`
+
+// The library with its deleting mark, for deleteLibrary and the job library.delete only.
+func (q *Queries) GetLibraryForDeletion(ctx context.Context, id int64) (Library, error) {
+	row := q.db.QueryRowContext(ctx, getLibraryForDeletion, id)
+	var i Library
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Kind,
+		&i.DefaultRating,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastScanState,
+		&i.LastScanStartedAt,
+		&i.LastScanFinishedAt,
+		&i.LastScanError,
+		&i.ScanFilesSeen,
+		&i.ScanFilesTotal,
+		&i.LossAcceptedAt,
+		&i.TrickplayMovies,
+		&i.TrickplayMoviesKeep,
+		&i.TrickplaySeries,
+		&i.TrickplaySeriesKeep,
+		&i.TrickplaySeriesScope,
+		&i.PodcastMode,
+		&i.PodcastScope,
+		&i.PodcastLastN,
+		&i.PodcastParallel,
+		&i.PodcastRootID,
+		&i.DeletingAt,
 	)
 	return i, err
 }
@@ -83,7 +132,7 @@ const insertLibrary = `-- name: InsertLibrary :one
 
 INSERT INTO libraries (name, kind, default_rating, created_at, updated_at)
 VALUES (?1, ?2, ?3, ?4, ?4)
-RETURNING id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at, trickplay_movies, trickplay_movies_keep, trickplay_series, trickplay_series_keep, trickplay_series_scope, podcast_mode, podcast_scope, podcast_last_n, podcast_parallel, podcast_root_id
+RETURNING id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at, trickplay_movies, trickplay_movies_keep, trickplay_series, trickplay_series_keep, trickplay_series_scope, podcast_mode, podcast_scope, podcast_last_n, podcast_parallel, podcast_root_id, deleting_at
 `
 
 type InsertLibraryParams struct {
@@ -127,6 +176,7 @@ func (q *Queries) InsertLibrary(ctx context.Context, arg InsertLibraryParams) (L
 		&i.PodcastLastN,
 		&i.PodcastParallel,
 		&i.PodcastRootID,
+		&i.DeletingAt,
 	)
 	return i, err
 }
@@ -208,10 +258,39 @@ func (q *Queries) ListAllLibraryRoots(ctx context.Context) ([]LibraryRoot, error
 	return items, nil
 }
 
-const listLibraries = `-- name: ListLibraries :many
-SELECT id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at, trickplay_movies, trickplay_movies_keep, trickplay_series, trickplay_series_keep, trickplay_series_scope, podcast_mode, podcast_scope, podcast_last_n, podcast_parallel, podcast_root_id FROM libraries ORDER BY id
+const listDeletingLibraries = `-- name: ListDeletingLibraries :many
+SELECT id FROM libraries WHERE deleting_at IS NOT NULL ORDER BY id
 `
 
+// Libraries marked for deletion (the start of the server queues library.delete for each again).
+func (q *Queries) ListDeletingLibraries(ctx context.Context) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, listDeletingLibraries)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLibraries = `-- name: ListLibraries :many
+SELECT id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at, trickplay_movies, trickplay_movies_keep, trickplay_series, trickplay_series_keep, trickplay_series_scope, podcast_mode, podcast_scope, podcast_last_n, podcast_parallel, podcast_root_id, deleting_at FROM libraries WHERE deleting_at IS NULL ORDER BY id
+`
+
+// A library that is being deleted (deleting_at, library.delete) is gone for every caller.
 func (q *Queries) ListLibraries(ctx context.Context) ([]Library, error) {
 	rows, err := q.db.QueryContext(ctx, listLibraries)
 	if err != nil {
@@ -245,6 +324,7 @@ func (q *Queries) ListLibraries(ctx context.Context) ([]Library, error) {
 			&i.PodcastLastN,
 			&i.PodcastParallel,
 			&i.PodcastRootID,
+			&i.DeletingAt,
 		); err != nil {
 			return nil, err
 		}
@@ -293,6 +373,24 @@ func (q *Queries) ListLibraryRoots(ctx context.Context, libraryID int64) ([]Libr
 		return nil, err
 	}
 	return items, nil
+}
+
+const markLibraryDeleting = `-- name: MarkLibraryDeleting :execrows
+UPDATE libraries SET deleting_at = ?1 WHERE id = ?2 AND deleting_at IS NULL
+`
+
+type MarkLibraryDeletingParams struct {
+	Now sql.NullInt64
+	ID  int64
+}
+
+// deleteLibrary: the library leaves every view at once; a second request finds it marked.
+func (q *Queries) MarkLibraryDeleting(ctx context.Context, arg MarkLibraryDeletingParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, markLibraryDeleting, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const setLibraryScanProgress = `-- name: SetLibraryScanProgress :exec
@@ -421,7 +519,7 @@ func (q *Queries) UpdateLibraryRootPath(ctx context.Context, arg UpdateLibraryRo
 
 const updateLibrarySettings = `-- name: UpdateLibrarySettings :one
 UPDATE libraries SET name = ?1, default_rating = ?2, updated_at = ?3 WHERE id = ?4
-RETURNING id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at, trickplay_movies, trickplay_movies_keep, trickplay_series, trickplay_series_keep, trickplay_series_scope, podcast_mode, podcast_scope, podcast_last_n, podcast_parallel, podcast_root_id
+RETURNING id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at, trickplay_movies, trickplay_movies_keep, trickplay_series, trickplay_series_keep, trickplay_series_scope, podcast_mode, podcast_scope, podcast_last_n, podcast_parallel, podcast_root_id, deleting_at
 `
 
 type UpdateLibrarySettingsParams struct {
@@ -463,6 +561,7 @@ func (q *Queries) UpdateLibrarySettings(ctx context.Context, arg UpdateLibrarySe
 		&i.PodcastLastN,
 		&i.PodcastParallel,
 		&i.PodcastRootID,
+		&i.DeletingAt,
 	)
 	return i, err
 }

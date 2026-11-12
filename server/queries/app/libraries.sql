@@ -36,10 +36,28 @@ UPDATE library_roots SET path = @path, fs_type = @fs_type, watch = @watch WHERE 
 RETURNING *;
 
 -- name: ListLibraries :many
-SELECT * FROM libraries ORDER BY id;
+-- A library that is being deleted (deleting_at, library.delete) is gone for every caller.
+SELECT * FROM libraries WHERE deleting_at IS NULL ORDER BY id;
 
 -- name: GetLibrary :one
+-- A library that is being deleted answers no row, like one that is gone.
+SELECT * FROM libraries WHERE id = @id AND deleting_at IS NULL;
+
+-- name: GetLibraryForDeletion :one
+-- The library with its deleting mark, for deleteLibrary and the job library.delete only.
 SELECT * FROM libraries WHERE id = @id;
+
+-- name: MarkLibraryDeleting :execrows
+-- deleteLibrary: the library leaves every view at once; a second request finds it marked.
+UPDATE libraries SET deleting_at = @now WHERE id = @id AND deleting_at IS NULL;
+
+-- name: ClearLibraryDeleting :exec
+-- The job failed before it deleted anything: the library comes back.
+UPDATE libraries SET deleting_at = NULL WHERE id = @id;
+
+-- name: ListDeletingLibraries :many
+-- Libraries marked for deletion (the start of the server queues library.delete for each again).
+SELECT id FROM libraries WHERE deleting_at IS NOT NULL ORDER BY id;
 
 -- name: ListLibraryRoots :many
 SELECT * FROM library_roots WHERE library_id = @library_id ORDER BY id;

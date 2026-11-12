@@ -12,7 +12,7 @@ import (
 )
 
 const countAllLibraryItems = `-- name: CountAllLibraryItems :one
-SELECT count(*) FROM items WHERE deleted_at IS NULL AND library_id IN (SELECT id FROM libraries)
+SELECT count(*) FROM items WHERE deleted_at IS NULL AND library_id IN (SELECT id FROM libraries WHERE deleting_at IS NULL)
 `
 
 // The sum of CountLibraryItems over every library (concept 11, Dashboard.counts.titles).

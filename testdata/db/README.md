@@ -386,3 +386,11 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   Stichtag 12. November 2026, 12:00 UTC; die Dateien bleiben verzeichnet). Dann `store.Dump`, kein neuer Pfad
   im Stand. `TestFrozenLoeschenStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist;
   `TestMigration00055LibraryAndTitleDeletion` prüft den Schritt von `merkliste.sql` aus.
+- `loeschen-job.sql`: Stand nach Migration 00056 «Bibliothek löschen als Hintergrundjob» (Konzept 20, Abschnitt
+  9.3 nach der Abnahme auf CT 190: `libraries.deleting_at`, `visible_items` lässt die Titel einer Bibliothek
+  weg, die gerade gelöscht wird). Erzeugt am 12. November 2026 aus `loeschen.sql`: Stand eingespielt, mit
+  `store.Open` migriert, dann per SQL die Bibliothek «Hörbücher» als «wird gelöscht» markiert (Stichtag
+  12. November 2026, 12:00 UTC) und ihr Auftrag `library.delete` (Schlüssel `library-delete:3`) in die
+  Warteschlange gelegt, so wie ein Server beide zurücklässt, der mitten im Löschen anhält. Dann `store.Dump`,
+  kein neuer Pfad im Stand. `TestFrozenLoeschenJobStateCoversTheStage` prüft, dass jede dieser Datenarten
+  vorhanden ist; `TestMigration00056LibraryDeleting` prüft den Schritt von `loeschen.sql` aus.
