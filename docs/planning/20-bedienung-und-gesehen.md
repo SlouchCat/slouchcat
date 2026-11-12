@@ -323,6 +323,11 @@ eigenes Merkmal neben `completed`:
   Film, der offline fertig gesehen und vor dem Hochladen online nochmals gestartet wurde, nie
   unter «Gesehen». Je Weg ein Test.
 - Dazu setzt sie der Haken von Hand (6.4).
+- **Haken entfernt, dann kommt ein älteres Ereignis über 90 %:** Entfernt man den Haken und trifft
+  danach ein verspätetes Online-Ereignis oder ein Offline-Ereignis ein, das die 90-%-Regel erfüllt,
+  setzt dieses `watched_at` wieder, auch wenn es älter ist als das Entfernen. Das ist angenommen
+  (Review vom 12. November 2026): Der Fall ist selten, das Ereignis belegt eine echte Wiedergabe,
+  und eine eigene Spalte `watched_cleared_at` nur für diesen Fall lohnt sich nicht.
 - Sie **bleibt stehen**, wenn ein späteres Ereignis den Titel wieder öffnet. `completed` und
   `position_ms` verhalten sich wie heute (AN-10 bleibt für «Weiterschauen»).
 - **Zusammenführen und Umhängen:** `AdminMergeProgress` (`queries/system/admin.sql:228-239`,
@@ -416,6 +421,31 @@ nach `watched_at`, wie die Faustregel es verlangt.
     (`items.sql:59-61`). Mit der Staffelung erscheint nach «Staffel 1 gesehen» die Serie in
     «Weiterschauen» mit der ersten Folge von Staffel 2 (Regel aus Konzept 15, P-1). Test für
     beide Leser.
+  - **Schon gesehene Folgen bleiben, wie sie sind** (Entscheid vom 12. November 2026): Setzt man
+    den Haken einer Serie, Staffel oder eines Podcasts, behalten Folgen mit `watched_at` ihr Datum
+    und ihr `updated_at` (`SetProgressWatched` ändert eine Zeile mit `watched_at` nicht). Nur die
+    neu markierten Folgen bekommen «jetzt» in der Staffelung oben.
+  - **Ein Haken auf einer älteren Folge verschiebt «Weiterschauen» nicht** (Entscheid vom
+    12. November 2026). Massgeblich ist die jüngste angefangene oder fertige Zeile
+    (`completed = 1` oder Stelle grösser als null) unter den sichtbaren Folgen der Serie, also die
+    Zeile, nach der sich «Weiterschauen» und «Als Nächstes» richten. Die Regel, je neu markierte
+    Folge:
+    - Folge **gleich oder nach** dieser Zeile in der Folgenreihenfolge (Staffel, dann Folge;
+      Specials zuerst): `updated_at` = `watched_at`, wie oben. Sie wird die jüngste, beide Leser
+      gehen nach ihr weiter.
+    - Folge **davor**: `updated_at` liegt unter dem dieser Zeile (eine Millisekunde darunter);
+      eine gespeicherte Zeile, deren `updated_at` schon älter ist, behält es. `watched_at` ist
+      trotzdem «jetzt». So bleiben «Weiterschauen» (`ListContinueWatching`, `nextUp`) und die
+      Offline-Regel «nächste Folge» (`ListRecentEpisodeProgress`) auf Staffel 4, wenn man beim
+      Schauen von Staffel 4 S1E3 abhakt; beide Leser nehmen die jüngste Zeile der Serie.
+    Gilt nur für Folgen einer Serie; Filme, Hörbücher und Podcast-Folgen sind in «Weiterschauen»
+    je ein eigener Eintrag. Umgesetzt in `ListVisibleWatchTargets` (`newest_at`, `behind`) und
+    `playback.Service.SetWatched`, Tests `TestSetWatchedSeasonKeepsWatchedEpisodes` und
+    `TestSetWatchedBehindKeepsContinueWatching` (`internal/offline/watched_test.go`).
+  - **Lesen und Schreiben getrennt:** Die Ziele liest `visibility` auf der Leseverbindung, bevor
+    die Schreibtransaktion beginnt (Regel 2). Ändert dazwischen ein Ereignis oder ein Scan eine
+    Folge, behält diese im ungünstigsten Fall den Stand dieses Ereignisses. Angenommen (Review vom
+    12. November 2026); das Lesen in die Transaktion zu ziehen ginge nur an der Paketgrenze vorbei.
 - **`ItemRef.watched` gibt es schon** (seit Vertrag 1.22.0: «alle sichtbaren Folgen fertig»,
   `queries/scoped/items.sql:204-246`, `visibility/tree.go:20-21`). Das Feld bleibt, seine
   **Bedeutung ändert sich** von `completed` auf `watched_at`; die Beschreibung im Vertrag wird
