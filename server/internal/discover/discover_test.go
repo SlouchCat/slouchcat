@@ -1208,7 +1208,8 @@ func TestHomeStopsLoadingBehindThePage(t *testing.T) {
 
 // Concept 20 P-7 (8.3): the list behind a row title exists for continue, recent, released and
 // spotlight; the spotlight list only while its row does (enabled, at least min_hits hits), without
-// the cut to item_count and with HasTrailer like the row. Any other key is not found.
+// the cut to item_count and with HasTrailer like the row; no list of a hidden row. Any other key is
+// not found.
 func TestHomeListKeysAndSpotlightCondition(t *testing.T) {
 	t.Parallel()
 	f := discoverFixture(t)
@@ -1246,5 +1247,13 @@ func TestHomeListKeysAndSpotlightCondition(t *testing.T) {
 		if _, _, err := s.HomeList(ctx, f.P18, key, "", 0, 50); !errors.Is(err, model.ErrNotFound) {
 			t.Errorf("list %s: err = %v, want not found", key, err)
 		}
+	}
+	// A row hidden in the row settings has no list either (its title has no link then).
+	exec(t, f, `UPDATE home_rows SET hidden = 1 WHERE key = 'recent'`)
+	if _, _, err := s.HomeList(ctx, f.P18, RowRecent, "", 0, 50); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("list of the hidden row recent: err = %v, want not found", err)
+	}
+	if _, _, err := s.HomeList(ctx, f.P18, RowReleased, "", 0, 50); err != nil {
+		t.Errorf("list released beside the hidden row: %v", err)
 	}
 }

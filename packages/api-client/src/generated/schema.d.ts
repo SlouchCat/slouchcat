@@ -617,7 +617,8 @@ export interface paths {
          *     `spotlight` holds every title of the chosen list in the visible library after the pinned
          *     ones took their place, without the cut to the configured number of titles; while the
          *     spotlight is switched off or has fewer hits than its minimum the row is missing on the start
-         *     page and this list answers 404. `content` keeps the titles whose title of the top level has
+         *     page and this list answers 404. A row hidden in the row settings (`setHomeRows`) has no list
+         *     either (404). The key is checked before `content`. `content` keeps the titles whose title of the top level has
          *     that kind: `series` keeps the next episodes of a series in `continue`, `podcast` the podcast
          *     episodes. Every title passed the visibility layer of the active profile.
          */
@@ -12443,7 +12444,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
-            /** @description An unknown key, or the spotlight while it has no row (`not_found`). */
+            /** @description An unknown key, a hidden row, or the spotlight while it has no row (`not_found`). */
             404: {
                 headers: {
                     [name: string]: unknown;

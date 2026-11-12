@@ -102,7 +102,7 @@ func TestHomeListsAreTheRowsWithoutTheCut(t *testing.T) {
 
 // Concept 20 P-7 (8.3): the spotlight list is the whole list after the pinned entries took their
 // place, without the cut to item_count; content filters after the placing, and the hits (the
-// condition of the row with min_hits) count before the filter. Disabled, there are no hits.
+// condition of the row with min_hits) count before the filter. Disabled, there is no row.
 func TestSpotlightPageWithoutTheCut(t *testing.T) {
 	t.Parallel()
 	f := discoverFixture(t)
@@ -117,12 +117,12 @@ func TestSpotlightPageWithoutTheCut(t *testing.T) {
 	for k := 4; k <= 24; k++ {
 		want = append(want, all[k-1])
 	}
-	got, total, hits, err := r.SpotlightPage(ctx, Profile(f.P0), "", 0, MaxLibraryPage)
+	got, total, shown, err := r.SpotlightPage(ctx, Profile(f.P0), "", 0, MaxLibraryPage)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(ids(got), want) || total != 24 || hits != 24 {
-		t.Errorf("spotlight page = %v (total %d, hits %d), want %v of 24", ids(got), total, hits, want)
+	if !slices.Equal(ids(got), want) || total != 24 || !shown {
+		t.Errorf("spotlight page = %v (total %d, shown %v), want %v of 24", ids(got), total, shown, want)
 	}
 	if got[1].Note != "angeheftet" {
 		t.Errorf("pinned note = %q", got[1].Note)
@@ -130,12 +130,18 @@ func TestSpotlightPageWithoutTheCut(t *testing.T) {
 	if page, total, _, err := r.SpotlightPage(ctx, Profile(f.P0), "", 20, 10); err != nil || !slices.Equal(ids(page), want[20:]) || total != 24 {
 		t.Errorf("spotlight page (20, 10) = %v (%d, %v), want %v", ids(page), total, err, want[20:])
 	}
-	if page, total, hits, err := r.SpotlightPage(ctx, Profile(f.P0), "series", 0, 10); err != nil || len(page) != 0 || total != 0 || hits != 24 {
-		t.Errorf("spotlight page with series = %v (total %d, hits %d, %v), want none of 24 hits", ids(page), total, hits, err)
+	if page, total, shown, err := r.SpotlightPage(ctx, Profile(f.P0), "series", 0, 10); err != nil || len(page) != 0 || total != 0 || !shown {
+		t.Errorf("spotlight page with series = %v (total %d, shown %v, %v), want none, the row shown", ids(page), total, shown, err)
 	}
 	exec(t, f, `UPDATE spotlight_config SET enabled = 0`)
-	if page, total, hits, err := r.SpotlightPage(ctx, Profile(f.P0), "", 0, 10); err != nil || len(page) != 0 || total != 0 || hits != 0 {
-		t.Errorf("disabled spotlight page = %v (total %d, hits %d, %v), want nothing", ids(page), total, hits, err)
+	if page, total, shown, err := r.SpotlightPage(ctx, Profile(f.P0), "", 0, 10); err != nil || len(page) != 0 || total != 0 || shown {
+		t.Errorf("disabled spotlight page = %v (total %d, shown %v, %v), want nothing", ids(page), total, shown, err)
+	}
+	// Below min_hits (nine hits of ten) the row and the list are gone.
+	exec(t, f, `UPDATE spotlight_config SET enabled = 1, min_hits = 10`)
+	exec(t, f, `DELETE FROM spotlight_entries WHERE position > 9`)
+	if page, _, shown, err := r.SpotlightPage(ctx, Profile(f.P0), "", 0, 10); err != nil || len(page) != 0 || shown {
+		t.Errorf("spotlight page below min_hits = %v (shown %v, %v), want nothing", ids(page), shown, err)
 	}
 }
 

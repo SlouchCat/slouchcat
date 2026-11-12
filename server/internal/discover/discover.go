@@ -517,12 +517,20 @@ func (s *Service) PicksPage(ctx context.Context, profile model.Profile, offset, 
 
 // HomeList returns one page of the list behind a row title of the start page and its number
 // (listHomeRow, concept 20 P-7): continue, recent, released or spotlight, by the rules of the row
-// without its cut, filtered to one kind of the top level (content, "" = all). The spotlight list
-// exists only while its row does (enabled, at least min_hits and at least one hit, spotlightRow)
-// and carries HasTrailer like the row; any other key and the missing spotlight are
+// without its cut, filtered to one kind of the top level (content, "" = all). A list exists only
+// while its row does: a row hidden in the row settings has none (the title has no link then), and
+// the spotlight list needs its row on the start page (enabled, at least min_hits and at least one
+// hit, spotlightRow); it carries HasTrailer like the row. Any other key and a missing list are
 // model.ErrNotFound.
 func (s *Service) HomeList(ctx context.Context, profile model.Profile, key, content string, offset, limit int) ([]model.ItemSummary, int, error) {
 	scope := visibility.Profile(profile)
+	order, err := s.rowOrder(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	if !slices.ContainsFunc(order, func(r model.HomeRowSetting) bool { return r.Key == key }) {
+		return nil, 0, model.ErrNotFound
+	}
 	switch key {
 	case RowContinue:
 		return s.vis.ContinuePage(ctx, scope, content, offset, limit)
@@ -531,15 +539,11 @@ func (s *Service) HomeList(ctx context.Context, profile model.Profile, key, cont
 	case RowReleased:
 		return s.vis.ReleasedPage(ctx, scope, content, offset, limit)
 	case RowSpotlight:
-		cfg, err := s.read.GetSpotlightConfig(ctx)
-		if err != nil {
-			return nil, 0, fmt.Errorf("get spotlight config: %w", err)
-		}
-		items, total, hits, err := s.vis.SpotlightPage(ctx, scope, content, offset, limit)
+		items, total, shown, err := s.vis.SpotlightPage(ctx, scope, content, offset, limit)
 		if err != nil {
 			return nil, 0, err
 		}
-		if hits == 0 || hits < int(cfg.MinHits) {
+		if !shown {
 			return nil, 0, model.ErrNotFound
 		}
 		if err := s.markTrailers(ctx, scope, items); err != nil {

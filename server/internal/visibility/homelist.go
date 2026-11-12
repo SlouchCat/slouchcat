@@ -121,28 +121,31 @@ func (r *Reader) ContinuePage(ctx context.Context, s Scope, content string, offs
 
 // SpotlightPage returns one page of the spotlight list (the rule of SpotlightRow: hidden entries
 // left out, stale entries too, the pinned ones at their place) without the cut to item_count, the
-// number of its titles after the filter, and the number of hits before the filter, which decides
-// with min_hits whether the row exists (plan 5.3). A disabled configuration has no hits.
-func (r *Reader) SpotlightPage(ctx context.Context, s Scope, content string, offset, limit int) ([]model.ItemSummary, int, int, error) {
+// number of its titles after the filter, and whether the row exists on the start page: enabled,
+// at least one hit and at least min_hits hits before the filter (plan 5.3, spotlightRow of
+// package discover). Without the row the page is empty.
+func (r *Reader) SpotlightPage(ctx context.Context, s Scope, content string, offset, limit int) ([]model.ItemSummary, int, bool, error) {
 	pid, err := r.profile(ctx, s)
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, 0, false, err
 	}
 	offset, limit = libraryPage(offset, limit)
 	cfg, err := r.app.GetSpotlightConfig(ctx)
 	if err != nil {
-		return nil, 0, 0, fmt.Errorf("get spotlight config: %w", err)
+		return nil, 0, false, fmt.Errorf("get spotlight config: %w", err)
 	}
 	if cfg.Enabled == 0 {
-		return nil, 0, 0, nil
+		return nil, 0, false, nil
 	}
 	minFetched := r.now().Add(-2 * time.Duration(cfg.IntervalHours) * time.Hour).UnixMilli()
 	rows, err := r.q.ListSpotlightRow(ctx, scopedq.ListSpotlightRowParams{ProfileID: pid, ListKey: cfg.ListKey, MinFetched: minFetched})
 	if err != nil {
-		return nil, 0, 0, fmt.Errorf("list spotlight row: %w", err)
+		return nil, 0, false, fmt.Errorf("list spotlight row: %w", err)
 	}
 	ordered := placeSpotlight(rows)
-	hits := len(ordered)
+	if hits := len(ordered); hits == 0 || hits < int(cfg.MinHits) {
+		return nil, 0, false, nil
+	}
 	if content != "" {
 		kept := ordered[:0]
 		for _, row := range ordered {
@@ -161,10 +164,10 @@ func (r *Reader) SpotlightPage(ctx context.Context, s Scope, content string, off
 	}
 	out, err := r.summaries(ctx, s, pid, items)
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, 0, false, err
 	}
 	for i := range out {
 		out[i].Note = notes[out[i].ID]
 	}
-	return out, total, hits, nil
+	return out, total, true, nil
 }

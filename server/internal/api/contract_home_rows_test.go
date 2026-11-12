@@ -364,6 +364,10 @@ func TestContractHomeList(t *testing.T) {
 			t.Errorf("GET %s: status %d (%s), want 404 not_found", path, rec.Code, rec.Body.String())
 		}
 	}
+	// The key is checked first: an unknown list is 404 whatever the filter.
+	if rec := getWithToken(h, BasePath+"/home/rows/nope?content=episode", "p18"); rec.Code != http.StatusNotFound {
+		t.Errorf("unknown key with an unknown content: status %d (%s), want 404", rec.Code, rec.Body.String())
+	}
 	if rec := getWithToken(h, BasePath+"/home/rows/recent?content=episode", "p18"); rec.Code != http.StatusUnprocessableEntity ||
 		!strings.Contains(rec.Body.String(), `"validation_failed"`) {
 		t.Errorf("content episode: status %d (%s), want 422 validation_failed", rec.Code, rec.Body.String())

@@ -613,7 +613,7 @@ func checkOfflineEvents(ctx context.Context, s *state) (string, error) {
 }
 
 // checkNotifications reads the inbox and marks it read. The fixtures created the entry through a
-// favourite podcast that got a new episode (E-8).
+// podcast on the watchlist that got a new episode (E-8, concept 20 P-2).
 func checkNotifications(ctx context.Context, s *state) (string, error) {
 	var page notificationPage
 	if err := s.c.get(ctx, "/notifications", query("limit", "50"), &page); err != nil {

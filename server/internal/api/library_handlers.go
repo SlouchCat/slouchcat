@@ -146,6 +146,9 @@ func (s *server) ListHomeRow(ctx context.Context, req gen.ListHomeRowRequestObje
 	if err != nil {
 		return nil, err
 	}
+	if !req.Key.Valid() {
+		return s.problem(ctx, model.ErrNotFound), nil
+	}
 	p := req.Params
 	content := ""
 	if p.Content != nil {
@@ -153,9 +156,6 @@ func (s *server) ListHomeRow(ctx context.Context, req gen.ListHomeRowRequestObje
 			return s.problem(ctx, (&model.ValidationError{}).Add("content", "invalid_value")), nil
 		}
 		content = string(*p.Content)
-	}
-	if !req.Key.Valid() {
-		return s.problem(ctx, model.ErrNotFound), nil
 	}
 	offset, limit := max(deref(p.Offset), 0), deref(p.Limit)
 	if limit <= 0 {
