@@ -104,8 +104,6 @@ counts AS (
     UNION ALL
     SELECT t.root, 'watchlist', count(*) FROM tree AS t JOIN watchlist AS x ON x.item_id = t.id GROUP BY t.root
     UNION ALL
-    SELECT t.root, 'favorites', count(*) FROM tree AS t JOIN favorites AS x ON x.item_id = t.id GROUP BY t.root
-    UNION ALL
     SELECT t.root, 'collection_items', count(*) FROM tree AS t JOIN collection_items AS x ON x.item_id = t.id GROUP BY t.root
     UNION ALL
     SELECT t.root, 'notifications', count(*) FROM tree AS t JOIN notifications AS x ON x.item_id = t.id GROUP BY t.root
@@ -122,7 +120,6 @@ SELECT CAST(counts.root AS TEXT) AS id,
     CAST(sum(CASE counts.tbl WHEN 'progress_days' THEN counts.n ELSE 0 END) AS INTEGER)     AS progress_days,
     CAST(sum(CASE counts.tbl WHEN 'playback_sessions' THEN counts.n ELSE 0 END) AS INTEGER) AS playback_sessions,
     CAST(sum(CASE counts.tbl WHEN 'watchlist' THEN counts.n ELSE 0 END) AS INTEGER)         AS watchlist,
-    CAST(sum(CASE counts.tbl WHEN 'favorites' THEN counts.n ELSE 0 END) AS INTEGER)         AS favorites,
     CAST(sum(CASE counts.tbl WHEN 'collection_items' THEN counts.n ELSE 0 END) AS INTEGER)  AS collection_items,
     CAST(sum(CASE counts.tbl WHEN 'notifications' THEN counts.n ELSE 0 END) AS INTEGER)     AS notifications,
     CAST(sum(CASE counts.tbl WHEN 'user_picks' THEN counts.n ELSE 0 END) AS INTEGER)        AS user_picks,

@@ -351,10 +351,11 @@ func titleOf(name string) string {
 	return name
 }
 
-// seedNotification makes the server create a real inbox entry (E-8): the profile marks the
-// podcast as a favourite, a new episode appears in the feed and the administration fetches it.
+// seedNotification makes the server create a real inbox entry (E-8): the profile puts the
+// podcast on its watchlist (contract 1.31.0: the watchlist took over from the favourite), a new
+// episode appears in the feed and the administration fetches it.
 func (s *state) seedNotification(ctx context.Context) error {
-	path := "/items/" + s.podcast.ID + "/favorite"
+	path := "/items/" + s.podcast.ID + "/watchlist"
 	if err := s.c.call(ctx, http.MethodPut, path, nil, nil, nil, http.StatusNoContent, http.StatusOK); err != nil {
 		return err
 	}

@@ -18,10 +18,10 @@
 // concept 08, F-2, ADR 0016), and the rhythm of the stage (HeroIntervalSeconds, F-10).
 // The library views of concept 08 (side navigation, library page, user picks) pass
 // through to visibility.
-// The package also answers search, genres, collections, the watchlist and the favourites of a
-// profile (m7.go).
-// It holds no SQL on titles: reads go through visibility, the writes of watchlist and favourites
-// through store/appq, whose tables name titles only by id.
+// The package also answers search, genres, collections, and the watchlist of a profile
+// (m7.go).
+// It holds no SQL on titles: reads go through visibility, the watchlist writes through
+// store/appq, whose tables name titles only by id.
 package discover
 
 import (
@@ -96,7 +96,7 @@ type Service struct {
 type Option func(*Service)
 
 // WithClock replaces time.Now: the retention of the user picks (E-2) and the time of user picks,
-// watchlist and favourite entries.
+// and watchlist entries.
 func WithClock(now func() time.Time) Option {
 	return func(s *Service) { s.now = now }
 }

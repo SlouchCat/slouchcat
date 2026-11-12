@@ -359,9 +359,10 @@ func TestRecommendAndUnrecommend(t *testing.T) {
 	}
 }
 
-// E-5, E-8: watchlist and favourites belong to the profile; invisible titles answer not found,
-// seasons and extras are not listable, only series and podcasts are favourites.
-func TestWatchlistAndFavoriteWrites(t *testing.T) {
+// E-5: the watchlist belongs to the profile; invisible titles answer not found, seasons and extras
+// are not listable. A new entry follows its title from the moment it was added (follow_since,
+// concept 20 P-2), and adding again keeps both times.
+func TestWatchlistWrites(t *testing.T) {
 	t.Parallel()
 	f := discoverFixture(t)
 	now := time.UnixMilli(50_000)
@@ -418,44 +419,21 @@ func TestWatchlistAndFavoriteWrites(t *testing.T) {
 		t.Errorf("P6 watchlist after remove = %v, %v", itemIDs(items), err)
 	}
 
-	for _, tc := range []struct {
-		name string
-		p    model.Profile
-		id   string
-		want error
-	}{
-		{"movie", f.P18, f.Rated(6).ID, model.ErrNotFavoritable},
-		{"episode", f.P18, f.Show.E1.ID, model.ErrNotFavoritable},
-		{"audiobook", f.P18, f.Audio.Books[0].ID, model.ErrNotFavoritable},
-		{"invisible series", f.P6, f.Show.Series.ID, model.ErrNotFound},
-		{"invisible podcast", f.P12, f.Audio.ExplicitPodcast.ID, model.ErrNotFound},
-		{"series", f.P12, f.Show.Series.ID, nil},
-		{"podcast", f.P6, f.Audio.Podcast.ID, nil},
-	} {
-		if err := s.AddFavorite(ctx, tc.p, tc.id); !errors.Is(err, tc.want) {
-			t.Errorf("favourite %s: err = %v, want %v", tc.name, err, tc.want)
-		}
-	}
-	for _, tc := range []struct {
-		p    model.Profile
-		want []string
-	}{{f.P12, []string{f.Show.Series.ID}}, {f.P6, []string{f.Audio.Podcast.ID}}, {f.P18, []string{f.Show.Series.ID}}} {
-		favs, err := s.Favorites(ctx, tc.p)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !slices.Equal(itemIDs(favs), tc.want) {
-			t.Errorf("%s favourites = %v, want %v", tc.p.Name, itemIDs(favs), tc.want)
-		}
-	}
-	if err := s.RemoveFavorite(ctx, f.P12, f.Show.Series.ID); err != nil {
+	var created, since int64
+	if err := f.DB.Read.QueryRow(`SELECT created_at, follow_since FROM watchlist WHERE profile_id = ? AND item_id = ?`,
+		f.P18.ID, f.Audio.Podcast.ID).Scan(&created, &since); err != nil {
 		t.Fatal(err)
 	}
-	if favs, err := s.Favorites(ctx, f.P12); err != nil || len(favs) != 0 {
-		t.Errorf("P12 favourites after remove = %v, %v", itemIDs(favs), err)
+	if created != now.UnixMilli() || since != now.UnixMilli() {
+		t.Errorf("new podcast entry: created_at %d, follow_since %d, want both %d", created, since, now.UnixMilli())
 	}
-	if err := s.RemoveFavorite(ctx, f.P6, f.Show.Series.ID); !errors.Is(err, model.ErrNotFound) {
-		t.Errorf("remove invisible favourite: err = %v", err)
+	now = now.Add(time.Hour)
+	if err := s.AddToWatchlist(ctx, f.P18, f.Audio.Podcast.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.DB.Read.QueryRow(`SELECT follow_since FROM watchlist WHERE profile_id = ? AND item_id = ?`,
+		f.P18.ID, f.Audio.Podcast.ID).Scan(&since); err != nil || since != created {
+		t.Errorf("follow_since after adding again = %d (%v), want %d", since, err, created)
 	}
 }
 

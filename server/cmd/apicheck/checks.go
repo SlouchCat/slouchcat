@@ -31,7 +31,6 @@ func checks() []check {
 		{"Suche mit Filtern", checkSearch},
 		{"Detail", checkDetail},
 		{"Merkliste", checkWatchlist},
-		{"Favoriten", checkFavorites},
 		{"Abspielstart mit Fähigkeitsprofil", checkPlaybackStart},
 		{"Abruf Direct Play/HLS mit Stream-Token", checkStreams},
 		{"Spur- und Untertitelwahl", checkTracks},
@@ -219,32 +218,6 @@ func checkWatchlist(ctx context.Context, s *state) (string, error) {
 	}
 	return fmt.Sprintf("%q aufgenommen (Merkliste %d Einträge), Detail inWatchlist=true, wieder entfernt",
 		s.movie.Title, page.Total+1), nil
-}
-
-// checkFavorites reads the favourites, removes one and marks it again. The fixtures already made
-// the podcast a favourite, which is what gave the inbox its entry.
-func checkFavorites(ctx context.Context, s *state) (string, error) {
-	path := "/items/" + s.podcast.ID + "/favorite"
-	var favorites []itemRef
-	if err := s.c.get(ctx, "/favorites", nil, &favorites); err != nil {
-		return "", err
-	}
-	if !contains(favorites, s.podcast.ID) {
-		return "", errors.New("the podcast is not among the favourites")
-	}
-	if err := s.c.call(ctx, http.MethodDelete, path, nil, nil, nil, http.StatusNoContent, http.StatusOK); err != nil {
-		return "", err
-	}
-	if err := s.c.get(ctx, "/favorites", nil, &favorites); err != nil {
-		return "", err
-	}
-	if contains(favorites, s.podcast.ID) {
-		return "", errors.New("the podcast stayed among the favourites")
-	}
-	if err := s.c.call(ctx, http.MethodPut, path, nil, nil, nil, http.StatusNoContent, http.StatusOK); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%q als Favorit gelesen, entfernt und wieder gesetzt", s.podcast.Title), nil
 }
 
 // directCapabilities is the capability profile of a browser that plays H.264 and AAC in MP4.

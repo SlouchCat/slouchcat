@@ -39,7 +39,7 @@ func TestFrozenM8StateCoversM8Data(t *testing.T) {
 		"encrypted mail server password":         `SELECT count(*) FROM settings WHERE key = 'smtp_password' AND value LIKE 'v1:%'`,
 		"public url and update check setting":    `SELECT count(*) FROM settings s WHERE s.key = 'public_url' AND EXISTS (SELECT 1 FROM settings WHERE key = 'update_check_enabled')`,
 		"progress event with its device":         `SELECT count(*) FROM progress_events p JOIN devices d ON d.id = p.device_id`,
-		"favourite of M7, its pick discarded":    `SELECT count(*) FROM favorites WHERE (SELECT count(*) FROM sqlite_master WHERE name LIKE 'top_picks%') = 0 AND (SELECT count(*) FROM user_picks) = 0`,
+		"favourite of M7, its pick discarded":    `SELECT count(*) FROM watchlist w JOIN items i ON i.id = w.item_id WHERE i.kind IN ('series', 'podcast') AND (SELECT count(*) FROM sqlite_master WHERE name LIKE 'top_picks%') = 0 AND (SELECT count(*) FROM user_picks) = 0`,
 	} {
 		var n int
 		if err := db.Read.QueryRow(query).Scan(&n); err != nil {

@@ -149,7 +149,6 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 		NextEpisode:    optItemRef(pid, d.NextEpisode),
 		TrailerCount:   &d.TrailerCount,
 		InWatchlist:    d.InWatchlist,
-		Favorite:       d.Favorite,
 		// Concept 18 part B (ADR 0028): the own pick that has not expired, and whether the star
 		// applies: a profile of the owner's account on any kind but seasons and extras (U-F10).
 		RecommendedByMe: d.RecommendedByMe,

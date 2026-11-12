@@ -34,14 +34,14 @@ func (r *dispatchRecorder) of(p model.Profile) []string {
 	return slices.Clone(r.calls[p.ID])
 }
 
-// E-8, plan 5.5 and 10.2: a new episode of a favourite series reaches only the inboxes of the
+// E-8, plan 5.5 and 10.2: a new episode of a series on the watchlist (concept 20 P-2) reaches only the inboxes of the
 // profiles that may see it, and the dispatcher is called for nobody else. The inbox answers only
 // visible ids; another profile's entry answers 404.
 //
 // The fixture episodes stand in for new ones (the hook of library and metadata hands over the ids
 // of new episode items; package api may not write title tables): Show.E2 has its own rating 16,
 // Show.E1 the series' rating 12. The fixture series is rated 12, so P6 can never see its episodes:
-// P6 holds a favourite (set while the series was rated lower) to prove the negative, P12 and P18
+// P6 has it on its watchlist (put there while the series was rated lower) to prove the negative, P12 and P18
 // receive the series-level episode.
 func TestContractNotifications(t *testing.T) {
 	t.Parallel()
@@ -54,7 +54,7 @@ func TestContractNotifications(t *testing.T) {
 	h := NewHandler(o)
 	ctx := context.Background()
 	for _, p := range []model.Profile{f.P6, f.P12, f.P18} {
-		if _, err := f.DB.Write.Exec(`INSERT OR IGNORE INTO favorites (profile_id, item_id, created_at) VALUES (?, ?, 1)`, p.ID, f.Show.Series.ID); err != nil {
+		if _, err := f.DB.Write.Exec(`INSERT OR IGNORE INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (?, ?, 1, 1)`, p.ID, f.Show.Series.ID); err != nil {
 			t.Fatal(err)
 		}
 	}

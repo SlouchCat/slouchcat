@@ -51,9 +51,8 @@ var (
 
 // Discover and curation errors (M7).
 var (
-	ErrNotListable    = errors.New("not listable")    // 422 not_listable (seasons and extras on the watchlist)
-	ErrNotFavoritable = errors.New("not favoritable") // 422 not_favoritable (favourites: series and podcasts only)
-	ErrNotEditable    = errors.New("not editable")    // 422 not_editable (TMDB collections)
+	ErrNotListable = errors.New("not listable") // 422 not_listable (seasons and extras on the watchlist)
+	ErrNotEditable = errors.New("not editable") // 422 not_editable (TMDB collections)
 )
 
 // Incoming webhook errors (M9, I-8).
@@ -498,7 +497,6 @@ type RelinkUserData struct {
 	ProgressDays     int64
 	PlaybackSessions int64
 	Watchlist        int64
-	Favorites        int64
 	CollectionItems  int64
 	Notifications    int64
 	UserPicks        int64
@@ -814,9 +812,8 @@ type ItemDetail struct {
 	OriginalTitle string
 	Tagline       string
 	Overview      string
-	// Discover (M7): a favourite of the profile; the visible collections (the watchlist mark is
-	// on ItemSummary since contract 1.20.0).
-	Favorite    bool
+	// Discover (M7): the visible collections (the watchlist mark is on ItemSummary since contract
+	// 1.20.0; the favourite went away in 1.31.0, concept 20 P-2).
 	Collections []CollectionRef
 	// RecommendedByMe: the profile holds a user pick of the title that has not expired (concept 18
 	// part B, 14.6); never who else or how many recommended it.
@@ -1006,7 +1003,7 @@ type Notification struct {
 	CreatedAt time.Time
 	ReadAt    *time.Time
 	Item      ItemSummary  // the new episode
-	Parent    *ItemSummary // the favourite series or podcast, nil when not visible
+	Parent    *ItemSummary // the followed series or podcast, nil when not visible
 }
 
 // AdminUserPick is a title of the user picks in the administration (concept 18 part B, 14.7, ADR

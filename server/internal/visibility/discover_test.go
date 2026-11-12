@@ -123,7 +123,7 @@ func TestUserPicksOnceNewestFirstAndRated(t *testing.T) {
 	}
 }
 
-func TestWatchlistFavoritesAndDetail(t *testing.T) {
+func TestWatchlistAndDetail(t *testing.T) {
 	t.Parallel()
 	f := discoverFixture(t)
 	ctx := context.Background()
@@ -141,7 +141,7 @@ func TestWatchlistFavoritesAndDetail(t *testing.T) {
 		}
 	}
 	// An entry whose title is above the profile's ceiling is left out (P6 with the film rated 18).
-	exec(t, f, `INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (?, ?, 20)`, f.P6.ID, f.Rated(18).ID)
+	exec(t, f, `INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (?, ?, 20, 20)`, f.P6.ID, f.Rated(18).ID)
 	items, total, err := r.Watchlist(ctx, Profile(f.P6), 0, 0)
 	if err != nil {
 		t.Fatal(err)
@@ -150,7 +150,7 @@ func TestWatchlistFavoritesAndDetail(t *testing.T) {
 		t.Errorf("P6 watchlist with an invisible entry = %v (%d), want %v", ids(items), total, want)
 	}
 	// The start page row reads the same entries without counting (k2), newest first, cut at limit.
-	exec(t, f, `INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (?, ?, 30)`, f.P6.ID, f.Rated(0).ID)
+	exec(t, f, `INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (?, ?, 30, 30)`, f.P6.ID, f.Rated(0).ID)
 	row, err := r.WatchlistRow(ctx, Profile(f.P6), 20)
 	if err != nil {
 		t.Fatal(err)
@@ -162,27 +162,19 @@ func TestWatchlistFavoritesAndDetail(t *testing.T) {
 		t.Errorf("P6 watchlist row limit 1 = %v, %v", ids(row), err)
 	}
 
-	favs, err := r.Favorites(ctx, Profile(f.P18))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := []string{f.Show.Series.ID}; !slices.Equal(ids(favs), want) {
-		t.Errorf("P18 favourites = %v, want %v", ids(favs), want)
-	}
-
 	d, err := r.Item(ctx, Profile(f.P18), f.Rated(18).ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !d.InWatchlist || d.Favorite || len(d.Collections) != 2 {
-		t.Errorf("P18 detail of the film rated 18: inWatchlist %v favorite %v collections %+v", d.InWatchlist, d.Favorite, d.Collections)
+	if !d.InWatchlist || len(d.Collections) != 2 {
+		t.Errorf("P18 detail of the film rated 18: inWatchlist %v collections %+v", d.InWatchlist, d.Collections)
 	}
 	d, err = r.Item(ctx, Profile(f.P18), f.Show.Series.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d.InWatchlist || !d.Favorite || d.Collections == nil || len(d.Collections) != 0 {
-		t.Errorf("P18 detail of the series: inWatchlist %v favorite %v collections %+v", d.InWatchlist, d.Favorite, d.Collections)
+	if d.InWatchlist || d.Collections == nil || len(d.Collections) != 0 {
+		t.Errorf("P18 detail of the series: inWatchlist %v collections %+v", d.InWatchlist, d.Collections)
 	}
 	// P12 sees the mixed collection with two members on the detail of the film rated 6, by its German name.
 	d, err = r.Item(ctx, Profile(f.P12), f.Rated(6).ID)
@@ -203,7 +195,7 @@ func TestWatchlistMarkOnEverySummary(t *testing.T) {
 	ctx := context.Background()
 	r := New(f.DB, vistest.Logger())
 	// P18 marks the film rated 6 too, which P6 has marked already and P12 sees unmarked.
-	exec(t, f, `INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (?, ?, 40)`, f.P18.ID, f.Rated(6).ID)
+	exec(t, f, `INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (?, ?, 40, 40)`, f.P18.ID, f.Rated(6).ID)
 	for _, tc := range []struct {
 		p      model.Profile
 		marked []string

@@ -227,37 +227,23 @@ describe('detail page', () => {
         .filter((call) => call.path === `/items/${ids.alien}/watchlist`)
         .map((call) => call.method),
     ).toEqual(['PUT', 'DELETE']);
-    // A film is no favourite: only series and podcasts (E-8).
+    // No title has a favourite any more (concept 20 P-2).
     expect(screen.queryByRole('button', { name: 'Favorit' })).not.toBeInTheDocument();
   });
 
-  it('marks a series as favourite and shows its collections', async () => {
-    let favorite = false;
+  it('shows the collections of a series', async () => {
     const collectionId = '01JB8Z6Q4M7N9P2R3S5T7V9C01';
     mockApi({
       ...signedIn,
       [`GET /items/${seriesIds.show}`]: () =>
         json({
           ...showDetail,
-          favorite,
           collections: [{ id: collectionId, name: 'Test-Sammlung', count: 2 }],
         }),
       [`GET /items/${seriesIds.season1}`]: () => json(season1Detail),
-      [`PUT /items/${seriesIds.show}/favorite`]: () => {
-        favorite = true;
-        return new Response(null, { status: 204 });
-      },
     });
     renderApp(`/items/${seriesIds.show}`);
-    const button = await screen.findByRole('button', { name: 'Favorit' });
-    expect(button).toHaveAttribute('aria-pressed', 'false');
-    await userEvent.setup().click(button);
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Favorit' })).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      ),
-    );
+    await screen.findByRole('heading', { level: 1, name: 'Slouchcat Test Show' });
     // Without members (an older server) the shelf still names the collection and links it.
     const collection = screen.getByRole('region', { name: 'Test-Sammlung' });
     expect(within(collection).getByText('2 Titel')).toBeVisible();

@@ -1310,20 +1310,6 @@ func (q *Queries) AdminMoveDownloads(ctx context.Context, arg AdminMoveDownloads
 	return err
 }
 
-const adminMoveFavorites = `-- name: AdminMoveFavorites :exec
-UPDATE OR IGNORE favorites SET item_id = ?1 WHERE item_id = ?2
-`
-
-type AdminMoveFavoritesParams struct {
-	TargetID string
-	SourceID string
-}
-
-func (q *Queries) AdminMoveFavorites(ctx context.Context, arg AdminMoveFavoritesParams) error {
-	_, err := q.db.ExecContext(ctx, adminMoveFavorites, arg.TargetID, arg.SourceID)
-	return err
-}
-
 const adminMoveMediaFiles = `-- name: AdminMoveMediaFiles :exec
 
 UPDATE media_files SET item_id = ?1, updated_at = ?2 WHERE item_id = ?3
@@ -1427,7 +1413,7 @@ type AdminMoveWatchlistParams struct {
 }
 
 // A profile that has both titles on its watchlist keeps the target's entry; the source's one goes
-// with the source (ON DELETE CASCADE). The same holds for favourites and notifications.
+// with the source (ON DELETE CASCADE). The same holds for notifications.
 func (q *Queries) AdminMoveWatchlist(ctx context.Context, arg AdminMoveWatchlistParams) error {
 	_, err := q.db.ExecContext(ctx, adminMoveWatchlist, arg.TargetID, arg.SourceID)
 	return err

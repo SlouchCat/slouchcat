@@ -56,9 +56,8 @@ func (f *Fixture) AddDiscover(t testing.TB) {
 	exec(t, f.DB, `INSERT INTO collection_items (collection_id, item_id, position, created_at) VALUES (?, ?, 0, 1)`, ManualCollectionID, f.Rated(18).ID)
 	f.Discover.MixedImageRel, f.Discover.MixedImageWebPRel = f.addSubjectImage(t, "collection_images", "collection_id", MixedCollectionID,
 		"collections/"+MixedCollectionID, "w400", 8, 12)
-	exec(t, f.DB, `INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (?, ?, 10), (?, ?, 10)`,
+	exec(t, f.DB, `INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (?, ?, 10, 10), (?, ?, 10, 10)`,
 		f.P6.ID, f.Rated(6).ID, f.P18.ID, f.Rated(18).ID)
-	exec(t, f.DB, `INSERT INTO favorites (profile_id, item_id, created_at) VALUES (?, ?, 10)`, f.P18.ID, f.Show.Series.ID)
 	exec(t, f.DB, `INSERT INTO user_picks (item_id, profile_id, created_at) VALUES (?, ?, ?), (?, ?, ?)`,
 		f.Rated(12).ID, f.P12.ID, PickedAt-1500, f.Rated(0).ID, f.P18.ID, ExpiredPickAt)
 }

@@ -10,26 +10,10 @@ import (
 	"database/sql"
 )
 
-const addFavorite = `-- name: AddFavorite :exec
-INSERT INTO favorites (profile_id, item_id, created_at) VALUES (?1, ?2, ?3)
-ON CONFLICT (profile_id, item_id) DO NOTHING
-`
-
-type AddFavoriteParams struct {
-	ProfileID int64
-	ItemID    string
-	Now       int64
-}
-
-func (q *Queries) AddFavorite(ctx context.Context, arg AddFavoriteParams) error {
-	_, err := q.db.ExecContext(ctx, addFavorite, arg.ProfileID, arg.ItemID, arg.Now)
-	return err
-}
-
 const addWatchlist = `-- name: AddWatchlist :exec
 
 
-INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (?1, ?2, ?3)
+INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (?1, ?2, ?3, ?3)
 ON CONFLICT (profile_id, item_id) DO NOTHING
 `
 
@@ -42,8 +26,9 @@ type AddWatchlistParams struct {
 // Discover (package store/appq, M7 design 3.1). The tables name items only by id; the visibility of
 // a title is checked through the visibility package before any of these writes run. Times are Unix
 // milliseconds.
-// Watchlist and favourites (stream A). Owner: discover package. Both writes are idempotent; adding
-// again keeps the first created_at.
+// Watchlist (stream A). Owner: discover package. Both writes are idempotent; adding again keeps the
+// first created_at. A new entry follows the title from the moment it was added (follow_since, concept
+// 20 P-2: new podcast episodes after it are fetched by the offline rule).
 func (q *Queries) AddWatchlist(ctx context.Context, arg AddWatchlistParams) error {
 	_, err := q.db.ExecContext(ctx, addWatchlist, arg.ProfileID, arg.ItemID, arg.Now)
 	return err
@@ -125,20 +110,6 @@ func (q *Queries) ListHomeRows(ctx context.Context) ([]ListHomeRowsRow, error) {
 		return nil, err
 	}
 	return items, nil
-}
-
-const removeFavorite = `-- name: RemoveFavorite :exec
-DELETE FROM favorites WHERE profile_id = ?1 AND item_id = ?2
-`
-
-type RemoveFavoriteParams struct {
-	ProfileID int64
-	ItemID    string
-}
-
-func (q *Queries) RemoveFavorite(ctx context.Context, arg RemoveFavoriteParams) error {
-	_, err := q.db.ExecContext(ctx, removeFavorite, arg.ProfileID, arg.ItemID)
-	return err
 }
 
 const removeWatchlist = `-- name: RemoveWatchlist :exec

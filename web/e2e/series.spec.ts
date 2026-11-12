@@ -278,9 +278,9 @@ test('Tab: header, back, actions, the chosen season, episodes; no focus trap @ke
   await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
   await tabTo(page, page.getByRole('button', { name: 'Zurück' }), 3);
   // The pen and the watchlist button on the cover, play, then the round actions: "Merken",
-  // "Favorit", "Empfehlen" and "Verwalten".
+  // "Empfehlen" and "Verwalten" (the favourite is gone, concept 20 P-2).
   await tabTo(page, seriesPlay(page), 4);
-  await tabTo(page, page.getByRole('button', { name: 'Favorit' }), 4);
+  await tabTo(page, page.getByRole('button', { name: 'Empfehlen' }), 4);
   // Only the chosen season is a Tab stop of the shelf (roving tabindex), then its pen.
   await tabTo(page, seasonCards(page).first(), 4);
   await page.keyboard.press('Tab');
@@ -337,8 +337,8 @@ test('season page by keyboard: the series link, play, the episodes; no focus tra
   const seriesLink = page.getByRole('link', { name: SHOW_TITLE, exact: true });
   await expect(seriesLink).toHaveAttribute('href', series);
   await expect(playLinks(page)).toHaveCount(3);
-  // No watchlist and no favourite for a season (concept 17 E-15).
-  await expect(page.getByRole('button', { name: /^(Merken|Gemerkt|Favorit)$/ })).toHaveCount(0);
+  // No watchlist for a season (concept 17 E-15).
+  await expect(page.getByRole('button', { name: /^(Merken|Gemerkt)$/ })).toHaveCount(0);
 
   // Arrows: the start focus on play, ↑ to the series link, ↓ back, ↓ into the episodes.
   await resetFocus(page);

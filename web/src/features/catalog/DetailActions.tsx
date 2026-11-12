@@ -6,7 +6,6 @@ import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import {
-  useFavoriteMutation,
   useRecommendMutation,
   useWatchlistMutation,
   useWatchlistPending,
@@ -32,7 +31,6 @@ export const TRAILER_KEY = 'detail-trailer';
 const RESTART_KEY = 'detail-restart';
 const DOWNLOAD_KEY = 'detail-download';
 const WATCHLIST_KEY = 'detail-watchlist';
-const FAVORITE_KEY = 'detail-favorite';
 export const RECOMMEND_KEY = 'detail-recommend';
 
 type NextUp = NonNullable<ItemDetail['nextUp']>;
@@ -172,10 +170,9 @@ interface DetailActionsProps {
 /**
  * The actions of a detail page (concept 17 D-2, variant A; E-10, E-11): the big button with its
  * second line and progress stroke, under it the round actions in this order: Trailer, Von vorne,
- * Merken, Favorit, Empfehlen, Download, Verwalten. Offline Merken, Favorit and Empfehlen are
- * disabled (they live on the server), like the cover's watchlist button. «Empfehlen» (concept 18
- * part B) stands only where the server says it applies (`canRecommend`: the owner's account, no
- * season or extra); a press puts the title into the user picks or takes the own pick back, and a
+ * Merken, Empfehlen, Download, Verwalten. Offline Merken and Empfehlen are disabled (they live on
+ * the server), like the cover's watchlist button. «Empfehlen» (concept 18 part B) stands only
+ * where the server says it applies (`canRecommend`: the owner's account, no season or extra); a press puts the title into the user picks or takes the own pick back, and a
  * hint under the row says so.
  */
 export function DetailActions({ item, file, target, onTrailer }: DetailActionsProps) {
@@ -187,16 +184,14 @@ export function DetailActions({ item, file, target, onTrailer }: DetailActionsPr
   // A shortcut for the one who manages the library, not a visibility rule: the server answers the
   // administration page only for that account and profile anyway.
   const canManage = session.account.role === 'admin' && session.profile.isPrimary;
-  // Every kind but seasons and extras goes on the watchlist (E-5); series and podcasts can be
-  // favourites, which notify about new episodes (E-8).
+  // Every kind but seasons and extras goes on the watchlist (E-5); a series or podcast there
+  // notifies about new episodes (concept 20 P-2, in place of the favourite of E-8).
   const listable = item.kind !== 'season' && item.kind !== 'extra';
-  const favoritable = item.kind === 'series' || item.kind === 'podcast';
   const watchlist = useWatchlistMutation();
   const watchlistPending = useWatchlistPending(item.id);
-  const favorite = useFavoriteMutation();
   const recommend = useRecommendMutation();
   const [pickHint, setPickHint] = useState<string | null>(null);
-  const failed = watchlist.error ?? favorite.error ?? recommend.error;
+  const failed = watchlist.error ?? recommend.error;
 
   return (
     <>
@@ -247,18 +242,6 @@ export function DetailActions({ item, file, target, onTrailer }: DetailActionsPr
             isDisabled={!online}
             busy={watchlistPending}
             onPress={() => watchlist.mutate({ id: item.id, on: !item.inWatchlist })}
-          />
-        )}
-        {favoritable && (
-          <RoundAction
-            focusKey={FAVORITE_KEY}
-            icon="heart"
-            label={t('item.favorite.label')}
-            pressed={item.favorite}
-            description={t('item.favorite.hint')}
-            isDisabled={!online}
-            busy={favorite.isPending}
-            onPress={() => favorite.mutate({ id: item.id, on: !item.favorite })}
           />
         )}
         {item.canRecommend && (

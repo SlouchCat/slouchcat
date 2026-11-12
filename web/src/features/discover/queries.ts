@@ -198,21 +198,6 @@ export function useWatchlistMutation() {
   });
 }
 
-/** Marks a series or podcast as favourite or not (E-8: new episodes notify). */
-export function useFavoriteMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, on }: { id: string; on: boolean }) =>
-      request(
-        on
-          ? api.PUT('/items/{id}/favorite', { params: { path: { id } } })
-          : api.DELETE('/items/{id}/favorite', { params: { path: { id } } }),
-      ),
-    onSettled: (_data, _error, { id }) =>
-      queryClient.invalidateQueries({ queryKey: ['item', id], exact: true }),
-  });
-}
-
 /**
  * Recommends a title to every profile that may see it, or takes the own recommendation back
  * (concept 18 part B, ADR 0028). The answer of a recommendation names its retention in days

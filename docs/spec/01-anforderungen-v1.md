@@ -28,7 +28,7 @@
 | Video-Bibliothek und Metadaten | active | Filme und Serien: Scannen, Erkennen, TMDB/TVDB, Versionen, Trailer, Extras, Pflegewerkzeuge | Kriterien B-1 bis B-9 |
 | Hörbücher und Podcasts | active | Hörbücher mit Kapiteln, Podcast-Abos per Feed, Fortschritt je Profil | Kriterien H-1 bis H-4; **Musik, Fotos, Live-TV zurückgestellt** (Runde 4) |
 | Wiedergabe und Transcoding | active | Direct Play, GPU-Transcoding zu HLS, Tonemapping, Qualitätsregeln, Komfortfunktionen, Geräte-Fähigkeiten | Kriterien W-1 bis W-10 |
-| Entdecken und Kuratierung | active | Startseite mit Karussell „User-Empfehlungen“ (bis Konzept 17 „Cat's Empfehlungen“) und fünf Reihen, Suche mit Filtern, Trakt-Top-Listen aus der eigenen Bibliothek, Favoriten mit Benachrichtigung | Kriterien E-1 bis E-9; **algorithmische Empfehlungen, Profil-Interaktion sowie Assistent, Zufall, Trailer-Reel und Themenlisten zurückgestellt** (Runden 6 und 18); Ausnahme seit 8. November 2026: anonyme Empfehlungen zwischen Profilen (Frage 25, ADR 0028) |
+| Entdecken und Kuratierung | active | Startseite mit Karussell „User-Empfehlungen“ (bis Konzept 17 „Cat's Empfehlungen“) und fünf Reihen, Suche mit Filtern, Trakt-Top-Listen aus der eigenen Bibliothek, Favoriten mit Benachrichtigung (seit Konzept 20 Stufe 3: Merkliste mit Benachrichtigung, siehe E-8) | Kriterien E-1 bis E-9; **algorithmische Empfehlungen, Profil-Interaktion sowie Assistent, Zufall, Trailer-Reel und Themenlisten zurückgestellt** (Runden 6 und 18); Ausnahme seit 8. November 2026: anonyme Empfehlungen zwischen Profilen (Frage 25, ADR 0028) |
 | Offline-Wiedergabe | active | Downloads einzelner Titel, Staffeln, Auto-Downloads, kein Ablauf, Profilregeln offline | Kriterien O-1 bis O-7 |
 | Clients und Design | active | Web-App als PWA für Desktop, Handy, Tablet; eigenes Design-System; Admin-Oberfläche gleichwertig | Kriterien C-1 bis C-5; **TV-Apps und native Mobile-Apps zurückgestellt** (Runde 3) |
 | Server-Administration | active | Einrichtungsassistent, zentrale Verwaltung, Dashboard, Sicherung, Update-Hinweis, Benachrichtigungen, Statistiken, Ankündigungen | Kriterien A-1 bis A-9 |
@@ -121,7 +121,7 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 - [ ] E-5 Jedes Profil hat eine eigene Merkliste.
 - [ ] E-6 Sammlungen entstehen automatisch aus TMDB-Reihen und manuell durch den Admin.
 - [ ] E-7 Reihen „Trending bei Trakt“ und „Beliebt bei Trakt“ (Filme und Serien, Top 20) zeigen ausschliesslich Titel, die in der eigenen Bibliothek vorhanden sind, und aktualisieren sich täglich.
-- [ ] E-8 Ein Profil markiert Serien als Favorit; erscheint eine neue Folge in der Bibliothek, wird das Profil benachrichtigt (In-App und über seine Kanäle aus A-6).
+- [ ] E-8 Ein Profil markiert Serien als Favorit; erscheint eine neue Folge in der Bibliothek, wird das Profil benachrichtigt (In-App und über seine Kanäle aus A-6). (Nachtrag Konzept 20 Stufe 3, P-2: Favorit durch Merkliste abgelöst. Steht eine Serie oder ein Podcast auf der Merkliste eines Profils, meldet sie neue Folgen, und neue Podcast-Folgen fallen unter die Offline-Regel O-3; der Favorit samt Knopf und Schnittstelle entfällt, bestehende Favoriten sind in die Merkliste übernommen. Das Herz beim Radio bleibt.)
 - [ ] E-9 Die Startseite bleibt übersichtlich: höchstens acht Reihen, keine leeren Reihen, klare Reihenfolge, die der Hauptbenutzer anpassen kann. (Ab Konzept 15 Stufe 3, Frage 22 F-12: höchstens fünfzehn sichtbare Reihen.)
 
 ### Offline-Wiedergabe (O)
@@ -177,7 +177,7 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 | Design-Richtung ergibt sich später | Runde 14 | Dunkel und kinoartig, Akzentfarbe je Profil, Posterfarben im Hintergrund; ordentlich und übersichtlich |
 | Stack braucht eine Vorgabe des Auftraggebers | Runde 15 | Keine Vorgabe; Kriterien stabil, überall lauffähig, performant; Plan entscheidet |
 | Kein Ablaufdatum gilt auch auf iOS | Runde 16 | PWA zuerst mit Hinweis; native iOS-App nach Version 1 bei Bedarf |
-| Entdecken = Startseite plus Suche | Runden 17–18 | Plus Trakt-Top-Listen aus der eigenen Bibliothek und Favoriten-Benachrichtigung; Top Picks heissen „Cat's Empfehlungen“; lokale Hilfen nicht gewählt |
+| Entdecken = Startseite plus Suche | Runden 17–18 | Plus Trakt-Top-Listen aus der eigenen Bibliothek und Favoriten-Benachrichtigung (seit Konzept 20 Stufe 3 über die Merkliste, E-8); Top Picks heissen „Cat's Empfehlungen“; lokale Hilfen nicht gewählt |
 | Trakt heisst Konto-Sync | Runde 19 | Nur öffentliche Listen, kein Login, kein Scrobbling |
 | Admin-Oberfläche ist Nebensache | Runde 13 | Gleichwertig, mit Benachrichtigungen, Statistiken, Ankündigungen; Hauptbenutzer per E-Mail (Wünschen via Seerr in Runde 20 gestrichen) |
 
@@ -327,7 +327,7 @@ Keine Entität wurde umbenannt oder entfernt; das Modell wuchs nur durch bewusst
 
 ### Runde 17 – Entdecken, Ziel
 **F:** Welche Entdecken-Hilfen gehören in Version 1?
-**A:** Zum Beispiel Top 20 von Trakt.tv (Filme und Serien), aber nur Titel aus der eigenen Bibliothek. Ausserdem Favoriten mit Benachrichtigung bei neuen Folgen.
+**A:** Zum Beispiel Top 20 von Trakt.tv (Filme und Serien), aber nur Titel aus der eigenen Bibliothek. Ausserdem Favoriten mit Benachrichtigung bei neuen Folgen. (Nachtrag: Favorit durch Merkliste abgelöst, Konzept 20 Stufe 3, siehe E-8.)
 **Mehrdeutigkeit:** 14 %
 
 ### Runde 18 – Entdecken, Ziel

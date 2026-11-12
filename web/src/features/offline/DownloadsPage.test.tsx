@@ -249,10 +249,10 @@ describe('downloads page', () => {
     renderApp('/downloads');
     const group = await screen.findByRole('group', { name: 'Einstellungen' });
     const podcasts = within(group).getByRole('checkbox', {
-      name: 'Neue Episoden favorisierter Podcasts',
+      name: 'Neue Episoden der Podcasts auf der Merkliste',
     });
     expect(podcasts).not.toBeChecked();
-    await user.click(within(group).getByText('Neue Episoden favorisierter Podcasts'));
+    await user.click(within(group).getByText('Neue Episoden der Podcasts auf der Merkliste'));
     expect(podcasts).toBeChecked();
     await user.click(screen.getByRole('button', { name: 'Regel speichern' }));
     expect(await screen.findByText(/Gespeichert/)).toBeVisible();

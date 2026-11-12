@@ -2880,7 +2880,10 @@ export interface paths {
         get?: never;
         /**
          * Put a title on the watchlist of the active profile (E-5)
-         * @description Idempotent. Every kind except seasons and extras; an invisible title answers 404.
+         * @description Idempotent. Every kind except seasons and extras; an invisible title answers 404. Since
+         *     contract 1.31.0 (concept 20 P-2) a series or podcast on the watchlist takes the place of the
+         *     favourite: a new episode creates an in-app notification for the profile when the profile may
+         *     see the episode (5.5), and its new podcast episodes feed the auto-download rule (O-3).
          */
         put: operations["addToWatchlist"];
         post?: never;
@@ -2917,51 +2920,6 @@ export interface paths {
          *     picks unless another profile recommended it. 404 as for `recommendItem`.
          */
         delete: operations["unrecommendItem"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/favorites": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The favourite series and podcasts of the active profile (E-8)
-         * @description Newest first; favourites whose title became invisible are omitted.
-         */
-        get: operations["listFavorites"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/items/{id}/favorite": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Mark a series or podcast as favourite of the active profile (E-8)
-         * @description Idempotent. A new episode of a favourite creates an in-app notification for the profile when the
-         *     profile may see the episode (5.5); favourite podcasts also feed the auto-download rule (O-3).
-         */
-        put: operations["addFavorite"];
-        post?: never;
-        /**
-         * Remove the favourite mark
-         * @description Idempotent; an invisible or unknown title answers 404.
-         */
-        delete: operations["removeFavorite"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5819,8 +5777,6 @@ export interface components {
             images: components["schemas"]["ItemImages"];
         };
         ItemDetail: components["schemas"]["ItemRef"] & {
-            /** @description A favourite of the active profile (E-8; series and podcasts only). */
-            favorite: boolean;
             /**
              * @description The active profile holds a recommendation of this title that has not expired (the star
              *     shows «Empfohlen ✓», contract 1.23.0, ADR 0028). Never who else or how many recommended it.
@@ -7532,8 +7488,6 @@ export interface components {
             /** Format: int64 */
             watchlist: number;
             /** Format: int64 */
-            favorites: number;
-            /** Format: int64 */
             collectionItems: number;
             /** Format: int64 */
             notifications: number;
@@ -8142,7 +8096,10 @@ export interface components {
             enabled: boolean;
             /** @description Download the next episode of every started series. */
             nextEpisodes: boolean;
-            /** @description New episodes of the profile's favourite podcasts (O-3; favourites replaced the listening history in M7). */
+            /**
+             * @description New episodes of the podcasts on the profile's watchlist, published after the profile put the
+             *     podcast there (O-3; since contract 1.31.0 the watchlist replaces the favourites of M7).
+             */
             newPodcastEpisodes: boolean;
             wifiOnly: boolean;
             /** @description Most auto-downloads on this device the profile has not finished watching. */
@@ -8485,7 +8442,7 @@ export interface components {
             readAt?: string;
             /** @description The new episode. */
             item: components["schemas"]["ItemRef"];
-            /** @description The favourite series or podcast, when still visible. */
+            /** @description The series or podcast on the watchlist, when still visible. */
             parent?: components["schemas"]["ItemRef"];
         };
         NotificationPage: {
@@ -9687,7 +9644,8 @@ export interface components {
          */
         Channel: "email" | "push" | "telegram";
         /**
-         * @description `new_content`: a new episode of a favourite (per profile, prefixed with the profile name);
+         * @description `new_content`: a new episode of a series or podcast on a profile's watchlist (per profile,
+         *     prefixed with the profile name);
          *     `errors`: failures the main user should see (main account only); `invitations`: an
          *     invitation was accepted; `announcements`: the main user published an announcement.
          * @enum {string}
@@ -16405,98 +16363,6 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             /** @description Unknown, not visible, not recommendable or not the owner's account (`not_found`). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    listFavorites: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The favourites. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ItemRef"][];
-                };
-            };
-            401: components["responses"]["Unauthenticated"];
-        };
-    };
-    addFavorite: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Item ID (ULID). */
-                id: components["parameters"]["ItemID"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Marked. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthenticated"];
-            /** @description Unknown or not visible for the active profile (`not_found`). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Only series and podcasts can be favourites (`not_favoritable`). */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    removeFavorite: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Item ID (ULID). */
-                id: components["parameters"]["ItemID"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Not a favourite (any more). */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthenticated"];
-            /** @description Unknown or not visible for the active profile (`not_found`). */
             404: {
                 headers: {
                     [name: string]: unknown;

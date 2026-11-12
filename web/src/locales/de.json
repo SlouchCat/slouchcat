@@ -155,7 +155,6 @@
       "feed_exists": "Diese Bibliothek hat den Feed bereits abonniert.",
       "rating_below_library_default": "Die Altersstufe darf nicht unter dem Standard der Bibliothek liegen.",
       "not_listable": "Staffeln und Extras kann man nicht merken.",
-      "not_favoritable": "Nur Serien und Podcasts können Favoriten sein.",
       "not_editable": "Sammlungen von TMDB lassen sich nicht ändern.",
       "env_wins": "Dieser Wert ist in deploy/.env gesetzt und lässt sich nur dort ändern.",
       "telegram_token_invalid": "Telegram hat das Token abgelehnt. Prüfe das Token von @BotFather.",
@@ -637,10 +636,6 @@
     "watchlist": {
       "add": "Merken",
       "added": "Gemerkt"
-    },
-    "favorite": {
-      "label": "Favorit",
-      "hint": "Bei neuen Folgen benachrichtigen"
     },
     "recommend": {
       "add": "Empfehlen",
@@ -1959,8 +1954,6 @@
           "playbackSessions_other": "{{count}} Wiedergaben",
           "watchlist_one": "{{count}} Merklisten-Eintrag",
           "watchlist_other": "{{count}} Merklisten-Einträge",
-          "favorites_one": "{{count}} Favorit",
-          "favorites_other": "{{count}} Favoriten",
           "collectionItems_one": "{{count}} Sammlungseintrag",
           "collectionItems_other": "{{count}} Sammlungseinträge",
           "notifications_one": "{{count}} Benachrichtigung",
@@ -4883,7 +4876,7 @@
     },
     "rules": {
       "title": "Automatische Downloads",
-      "intro": "Lädt auf diesem Gerät die nächste Folge jeder Serie, die {{name}} in den letzten 60 Tagen geschaut hat, und neue Episoden der Podcasts, die {{name}} favorisiert hat.",
+      "intro": "Lädt auf diesem Gerät die nächste Folge jeder Serie, die {{name}} in den letzten 60 Tagen geschaut hat, und neue Episoden der Podcasts auf der Merkliste von {{name}}.",
       "options": "Einstellungen",
       "enabled": "Automatische Downloads auf diesem Gerät",
       "nextEpisodes": "Nächste Folge begonnener Serien",
@@ -4895,7 +4888,7 @@
       "quality": "Qualität",
       "save": "Regel speichern",
       "saved": "Gespeichert. Die Regel gilt ab dem nächsten Abgleich.",
-      "newPodcastEpisodes": "Neue Episoden favorisierter Podcasts"
+      "newPodcastEpisodes": "Neue Episoden der Podcasts auf der Merkliste"
     },
     "dialog": {
       "button": "Herunterladen",
@@ -5038,7 +5031,7 @@
     "summary_other": "{{count}} ungelesen",
     "empty": {
       "title": "Keine Benachrichtigungen",
-      "body": "Markiere Serien oder Podcasts als Favorit, dann erfährst du hier von neuen Folgen."
+      "body": "Setze Serien oder Podcasts auf deine Merkliste, dann erfährst du hier von neuen Folgen."
     }
   },
   "settings": {
@@ -5090,7 +5083,7 @@
     },
     "notifications": {
       "title": "Benachrichtigungskanäle",
-      "intro": "Neue Folgen deiner Favoriten, Einladungen und Ankündigungen kommen hier zusätzlich zum Eingang der App an. Die Einstellungen gelten für das ganze Konto mit allen Profilen; eine Nachricht zu einem Profil beginnt mit seinem Namen.",
+      "intro": "Neue Folgen der Serien und Podcasts auf deiner Merkliste, Einladungen und Ankündigungen kommen hier zusätzlich zum Eingang der App an. Die Einstellungen gelten für das ganze Konto mit allen Profilen; eine Nachricht zu einem Profil beginnt mit seinem Namen.",
       "link": "Kanäle einstellen",
       "serverChannels": "Kanäle des Servers einrichten → Integrationen",
       "list": "Kanäle",
