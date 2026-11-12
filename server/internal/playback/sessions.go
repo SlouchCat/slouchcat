@@ -283,6 +283,9 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		s.stopOutput(id)
 		return model.PlaybackInfo{}, fmt.Errorf("insert playback session: %w", err)
 	}
+	if err := s.recheckDeleting(context.WithoutCancel(ctx), item.ID, id); err != nil {
+		return model.PlaybackInfo{}, err
+	}
 	if hls != nil {
 		// The browser session may have ended (logout) while the output waited for admission.
 		if _, err := s.read.GetPlaybackSession(ctx, appq.GetPlaybackSessionParams{ID: id, Now: s.now().UnixMilli()}); err != nil {
@@ -1073,6 +1076,22 @@ func (s *Service) OpenGrant(ctx context.Context, g model.PlaybackGrant) (model.S
 	}
 	src.File = s.track(ctx, g, src.File)
 	return src, nil
+}
+
+// recheckDeleting closes the gap between the check of Start and the new row (review N2): a delete
+// that began meanwhile holds the title, and its check for running playbacks may have missed this
+// one, so the new playback ends at once and the start answers model.ErrDeleting.
+func (s *Service) recheckDeleting(ctx context.Context, itemID, id string) error {
+	if !s.deleting.Has(itemID) {
+		return nil
+	}
+	if _, err := s.write.StopPlaybackSession(ctx, appq.StopPlaybackSessionParams{
+		ID: id, Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}, StoppedBy: nullString(model.StoppedByAdmin),
+	}); err != nil {
+		return fmt.Errorf("stop playback session: %w", err)
+	}
+	s.end(id, model.StoppedByAdmin)
+	return model.ErrDeleting
 }
 
 // Stop revokes a playback session of the browser session, ends its open streams and stops its HLS
