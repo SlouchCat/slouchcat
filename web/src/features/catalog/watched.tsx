@@ -1,6 +1,6 @@
 import type { ItemRef } from '@slouchcat/api-client';
 import { useIsMutating, useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
-import { lazy, Suspense, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -102,11 +102,24 @@ function changed(
   };
 }
 
-function walk(value: unknown, id: string, on: boolean, now: string): unknown {
+/** A title in a query's data: an object with the id, a kind and images (an ItemRef or more). */
+const isTitle = (value: Record<string, unknown>, id: string) =>
+  value.id === id && typeof value.kind === 'string' && 'images' in value;
+
+/**
+ * Replaces every title `id` in a query's data by what `replace` makes of it, walking plain objects
+ * and arrays only and depth first, so the titles come in the same order on every walk; every
+ * untouched subtree stays the same object (structural sharing).
+ */
+function replaceTitle(
+  value: unknown,
+  id: string,
+  replace: (title: Record<string, unknown>) => Record<string, unknown>,
+): unknown {
   if (Array.isArray(value)) {
     let touched = false;
     const next = value.map((entry: unknown) => {
-      const patched = walk(entry, id, on, now);
+      const patched = replaceTitle(entry, id, replace);
       if (patched !== entry) touched = true;
       return patched;
     });
@@ -115,17 +128,36 @@ function walk(value: unknown, id: string, on: boolean, now: string): unknown {
   if (!isPlainObject(value)) return value;
   let next: Record<string, unknown> | undefined;
   for (const [key, entry] of Object.entries(value)) {
-    const patched = walk(entry, id, on, now);
+    const patched = replaceTitle(entry, id, replace);
     if (patched !== entry) {
       next ??= { ...value };
       next[key] = patched;
     }
   }
-  if (value.id === id && typeof value.kind === 'string' && 'images' in value) {
-    const item = (next ?? value) as unknown as WatchedItem;
-    if (watchedState(item) !== (on ? 'full' : 'none')) next = changed(next ?? value, on, now);
-  }
+  if (isTitle(value, id)) return replace(next ?? value);
   return next ?? value;
+}
+
+/** The originals a change replaced in one query's data, in walk order (useWatchedMutation). */
+interface Patched {
+  data: unknown;
+  originals: Record<string, unknown>[];
+}
+
+/** Sets the check mark of title `id` in a query's data and keeps what it replaced. */
+function patchWithOriginals(
+  data: unknown,
+  id: string,
+  on: boolean,
+  now: string,
+): Patched | undefined {
+  const originals: Record<string, unknown>[] = [];
+  const next = replaceTitle(data, id, (title) => {
+    originals.push(title);
+    if (watchedState(title as unknown as WatchedItem) === (on ? 'full' : 'none')) return title;
+    return changed(title, on, now);
+  });
+  return next === data ? undefined : { data: next, originals };
 }
 
 /**
@@ -134,8 +166,21 @@ function walk(value: unknown, id: string, on: boolean, now: string): unknown {
  * are read again. Undefined when nothing changed.
  */
 export function patchWatched(data: unknown, id: string, on: boolean, now: string): unknown {
-  const next = walk(data, id, on, now);
-  return next === data ? undefined : next;
+  return patchWithOriginals(data, id, on, now)?.data;
+}
+
+/**
+ * Puts the titles a change replaced back, exactly as they were (a half series stays half, a
+ * second run keeps its position); undefined when the query no longer holds as many of them.
+ */
+export function restoreWatched(
+  data: unknown,
+  id: string,
+  originals: readonly Record<string, unknown>[],
+): unknown {
+  let index = 0;
+  const next = replaceTitle(data, id, (title) => originals[index++] ?? title);
+  return index === originals.length ? next : undefined;
 }
 
 /** Every check mark change shares this key, so a second button of the same title sees it. */
@@ -178,42 +223,51 @@ export function useWatchedPending(id: string): boolean {
 
 /**
  * Sets or removes the check mark of a title (setItemWatched, concept 20 P-5). The new state
- * stands at once wherever the title is cached; an error turns it back. Afterwards every query that
- * shows check marks is read again (SHOWS_CHECKS), without waiting for them.
+ * stands at once wherever the title is cached; an error puts back the titles exactly as they were.
+ * After the last change in flight every query that shows check marks is read again
+ * (SHOWS_CHECKS), without waiting for them.
  */
 export function useWatchedMutation() {
   const queryClient = useQueryClient();
-  const patch = (keys: readonly QueryKey[], id: string, on: boolean, now: string) => {
-    for (const queryKey of keys) {
-      queryClient.setQueryData(queryKey, (data: unknown) => patchWatched(data, id, on, now));
-    }
-  };
   return useMutation({
     mutationKey: WATCHED_MUTATION_KEY,
     mutationFn: ({ id, on }: WatchedChange) =>
       request(api.PUT('/items/{id}/watched', { params: { path: { id } }, body: { watched: on } })),
     onMutate: async ({ id, on }) => {
       const now = new Date().toISOString();
-      const keys = queryClient
+      // Each query patched once; what it replaced is kept for an error (restoreWatched).
+      const changes = queryClient
         .getQueryCache()
         .findAll()
-        .filter((query) => patchWatched(query.state.data, id, on, now) !== undefined)
-        .map((query) => query.queryKey);
+        .flatMap((query) => {
+          const patched = patchWithOriginals(query.state.data, id, on, now);
+          return patched ? [{ queryKey: query.queryKey, ...patched }] : [];
+        });
       await Promise.all(
-        keys.map((queryKey) => queryClient.cancelQueries({ queryKey, exact: true })),
+        changes.map(({ queryKey }) => queryClient.cancelQueries({ queryKey, exact: true })),
       );
-      patch(keys, id, on, now);
-      return { keys, now };
+      for (const { queryKey, data } of changes) queryClient.setQueryData(queryKey, data);
+      return { changes: changes.map(({ queryKey, originals }) => ({ queryKey, originals })) };
     },
-    onError: (_error, { id, on }, context) => {
-      if (context) patch(context.keys, id, !on, context.now);
+    onError: (_error, { id }, context) => {
+      for (const { queryKey, originals } of context?.changes ?? []) {
+        const back = restoreWatched(queryClient.getQueryData(queryKey), id, originals);
+        if (back === undefined) void queryClient.invalidateQueries({ queryKey, exact: true });
+        else queryClient.setQueryData(queryKey, back);
+      }
     },
     // Not awaited: the button is free again as soon as the server answered, the lists follow.
+    // Only after the last change in flight, so a quick second press does not see its own state
+    // read back over by the answer to the first.
     onSettled: () => {
+      if (queryClient.isMutating({ mutationKey: WATCHED_MUTATION_KEY }) > 1) return;
       void queryClient.invalidateQueries({ predicate: (query) => showsChecks(query.queryKey) });
     },
   });
 }
+
+/** How long the note on why a change failed stays beside the check mark. */
+const ERROR_SHOWN_MS = 5000;
 
 interface WatchedOptions {
   /**
@@ -260,6 +314,14 @@ export function useWatchedToggle(
   const state = watchedState(item);
   const count = item.watchedCount ?? 0;
 
+  // Why a change failed stands for a few seconds, and goes with the next press.
+  const { isError, reset } = mutation;
+  useEffect(() => {
+    if (!isError) return;
+    const timer = window.setTimeout(reset, ERROR_SHOWN_MS);
+    return () => window.clearTimeout(timer);
+  }, [isError, reset]);
+
   const change = (on: boolean) =>
     mutation.mutate({ id: item.id, on }, { onSuccess: on ? undefined : options.onRemoved });
   const ask = (what: 'remove' | 'half') => {
@@ -268,6 +330,7 @@ export function useWatchedToggle(
   };
   const press = () => {
     if (busy || !online) return;
+    reset();
     if (state === 'none') change(true);
     else if (state === 'half') ask('half');
     else if (isGroup(item.kind)) ask('remove');

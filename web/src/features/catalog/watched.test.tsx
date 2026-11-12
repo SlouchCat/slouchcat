@@ -1,10 +1,11 @@
 import type { ItemRef } from '@slouchcat/api-client';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, renderHook, screen, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockApi, problem } from '@/test/api';
-import { CoverWatched, patchWatched, watchedState } from './watched';
+import { CoverWatched, patchWatched, useWatchedMutation, watchedState } from './watched';
 
 const id = '55555555-5555-4555-8555-555555555555';
 const other = '66666666-6666-4666-8666-666666666666';
@@ -218,6 +219,35 @@ describe('CoverWatched', () => {
     );
   });
 
+  it('takes the note away with the next press and after five seconds', async () => {
+    let refuse = true;
+    mockApi({
+      'PUT /items/*/watched': () =>
+        refuse ? problem(404, 'not_found') : new Response(null, { status: 204 }),
+    });
+    renderCover(film);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Gesehen: Alien' }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    refuse = false;
+    await user.click(screen.getByRole('button', { name: 'Gesehen: Alien' }));
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      refuse = true;
+      await act(async () => {
+        screen.getByRole('button', { name: 'Gesehen: Alien' }).click();
+        await vi.advanceTimersByTimeAsync(10);
+      });
+      await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+      await act(() => vi.advanceTimersByTimeAsync(5000));
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('is a display only offline', () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     renderCover(watchedFilm);
@@ -228,5 +258,105 @@ describe('CoverWatched', () => {
   it('has no check on an extra', () => {
     renderCover({ ...film, kind: 'extra' });
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+});
+
+describe('useWatchedMutation', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** The title in three queries: its detail, a library page and the start page. */
+  const setup = (title: ItemRef) => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const other = { ...film, id: '88888888-8888-4888-8888-888888888888', title: 'Other' };
+    queryClient.setQueryData(['item', id], { ...title, collections: [] });
+    queryClient.setQueryData(['library', 1, {}], { pages: [{ items: [other, title] }] });
+    queryClient.setQueryData(['home'], { rows: [{ id: 'recent', items: [title, title] }] });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => useWatchedMutation(), { wrapper });
+    const titles = () => [
+      queryClient.getQueryData<ItemRef & { collections: [] }>(['item', id]),
+      queryClient.getQueryData<{ pages: { items: ItemRef[] }[] }>(['library', 1, {}])?.pages[0]
+        ?.items[1],
+      ...(queryClient.getQueryData<{ rows: { items: ItemRef[] }[] }>(['home'])?.rows[0]?.items ??
+        []),
+    ];
+    return { queryClient, result, titles };
+  };
+
+  /** The server refuses, once the test says so (the patched state is seen first). */
+  const refuse = () => {
+    let answer: (response: Response) => void = () => undefined;
+    mockApi({
+      'PUT /items/*/watched': () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve;
+        }),
+    });
+    return () => act(() => answer(problem(500, 'internal')));
+  };
+
+  it('puts a half series back as it was when «mark all» fails', async () => {
+    const fail = refuse();
+    const half = series(false, 19);
+    const { result, titles } = setup(half);
+    act(() => result.current.mutate({ id, on: true }));
+    await waitFor(() => expect(watchedState(titles()[1]!)).toBe('full'));
+    fail();
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    for (const title of titles()) {
+      expect(title).toMatchObject({ watched: false, watchedCount: 19 });
+      expect(watchedState(title!)).toBe('half');
+    }
+    // What was there, not a state computed back (the query cache copies on write).
+    expect(titles()[1]).toEqual(half);
+  });
+
+  it('puts a half series back as it was when «remove all» fails', async () => {
+    const fail = refuse();
+    const half = series(false, 19);
+    const { result, titles } = setup(half);
+    act(() => result.current.mutate({ id, on: false }));
+    await waitFor(() => expect(watchedState(titles()[1]!)).toBe('none'));
+    fail();
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    for (const title of titles()) expect(title).toMatchObject({ watched: false, watchedCount: 19 });
+    expect(titles()[2]).toEqual(half);
+  });
+
+  it('puts a film in its second run back with its position when the removal fails', async () => {
+    const fail = refuse();
+    const again: ItemRef = {
+      ...watchedFilm,
+      progress: { ...watchedFilm.progress!, completed: false, positionMs: 1000, percent: 1 },
+    };
+    const { result, titles } = setup(again);
+    act(() => result.current.mutate({ id, on: false }));
+    await waitFor(() => expect(watchedState(titles()[1]!)).toBe('none'));
+    fail();
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    for (const title of titles()) expect(title?.progress).toEqual(again.progress);
+    expect(titles()[1]).toEqual(again);
+  });
+
+  it('reads the lists again only after the last change in flight', async () => {
+    const answers: ((response: Response) => void)[] = [];
+    mockApi({
+      'PUT /items/*/watched': () =>
+        new Promise<Response>((resolve) => {
+          answers.push(resolve);
+        }),
+    });
+    const { queryClient, result } = setup(film);
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    act(() => result.current.mutate({ id, on: true }));
+    act(() => result.current.mutate({ id, on: false }));
+    await waitFor(() => expect(answers).toHaveLength(2));
+    act(() => answers[0]!(new Response(null, { status: 204 })));
+    await waitFor(() => expect(queryClient.isMutating()).toBe(1));
+    expect(invalidate).not.toHaveBeenCalled();
+    act(() => answers[1]!(new Response(null, { status: 204 })));
+    await waitFor(() => expect(invalidate).toHaveBeenCalledTimes(1));
   });
 });
