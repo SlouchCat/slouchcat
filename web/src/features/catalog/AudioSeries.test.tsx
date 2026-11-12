@@ -184,6 +184,7 @@ const done = {
   percent: 100,
   completed: true,
   updatedAt: '2026-11-01T19:00:00Z',
+  watchedAt: '2026-11-01T19:00:00Z',
 };
 
 const prequel = volume('01JB8Z6Q4M7N9P2R3S5T7V9B05', 'Die Vorgeschichte', { progress: done });

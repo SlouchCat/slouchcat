@@ -369,6 +369,7 @@ function MaintenanceContent() {
           : t('admin.maintenance.duplicates.groups', { count: duplicates.data.length }),
       content: (
         <DuplicatesTab
+          libraries={libraries.data}
           outcome={outcomes[DUPLICATES]}
           targets={targets}
           expanded={expanded}

@@ -115,8 +115,9 @@ test('«Hörbücher: Quellen» by keyboard: folder dialog, settings, «Jetzt all
   ).toBe(true);
   await expect(page).toHaveURL(/\/admin\/metadata\/audiobooks$/);
 
-  // The key of Google Books is the next stop; nothing is typed.
-  await tabTo(page, page.locator('input[name="googleBooksKey"]'), 4);
+  // The Google Books key lives with the provider keys since concept 20 (O-7): its link is the
+  // next stop.
+  await tabTo(page, page.getByRole('link', { name: 'Unter «Integrationen» einrichten' }), 4);
 
   // «Automatisch zuordnen» and the tolerance: one Tab stop each, the arrows pick; nothing saved.
   const all = page.getByRole('radio', { name: 'Alle ohne Zuordnung' });

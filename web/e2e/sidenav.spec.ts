@@ -67,9 +67,19 @@ test('the column at 1280 px: its entries, arrows between them, Enter, into the c
   await expect(switchLink(nav(page))).toHaveAttribute('href', '/profiles');
   await expect(switchLink(nav(page))).toHaveText('Wechseln');
 
-  for (const name of ['Start', 'Suche', 'Merkliste', 'Radio', 'Downloads']) {
+  // «Gesehen» below «Radio» (concept 20 P-14).
+  const entries = ['Start', 'Suche', 'Merkliste', 'Radio', 'Gesehen', 'Downloads'];
+  for (const name of entries) {
     await expect(nav(page).getByRole('link', { name, exact: true })).toBeVisible();
   }
+  const top = await nav(page)
+    .getByRole('link')
+    .evaluateAll((links) => links.map((link) => link.textContent?.trim() ?? ''));
+  expect(top.filter((name) => entries.includes(name))).toEqual(entries);
+  await expect(nav(page).getByRole('link', { name: 'Gesehen', exact: true })).toHaveAttribute(
+    'href',
+    '/watched',
+  );
   await expect(nav(page).getByRole('link', { name: 'Start', exact: true })).toHaveAttribute(
     'aria-current',
     'page',

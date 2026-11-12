@@ -50,6 +50,7 @@ const item: AdminItem = {
     },
     {
       id: 'mf-2',
+      rootPath: '/media/filme',
       path: 'Alien (1979)/Alien - broken.mkv',
       sizeBytes: 12,
       available: false,
@@ -123,7 +124,8 @@ describe('admin item page', () => {
     expect(broken).toHaveAttribute('aria-expanded', 'false');
     await user.click(broken);
     expect(broken).toHaveAttribute('aria-expanded', 'true');
-    expect(within(files).getByText('Alien (1979)/Alien - broken.mkv')).toBeVisible();
+    // The whole path in the container: the library root, then the path below it (P-10).
+    expect(within(files).getByText('/media/filme/Alien (1979)/Alien - broken.mkv')).toBeVisible();
     expect(within(files).getByText('invalid data found when processing input')).toBeVisible();
     expect(within(files).getByText(/^Geprüft am /)).toBeVisible();
 

@@ -129,9 +129,29 @@ const failedJob = (overrides: Partial<JobSummary>): JobSummary => ({
   ...overrides,
 });
 
+/** A failed run as `listJobRuns` without a type lists it (concept 20, P-6). */
+const failedRun = (overrides: Partial<JobRun>): JobRun =>
+  run({
+    id: 70,
+    type: 'metadata.match',
+    state: 'failed',
+    attempts: 5,
+    maxAttempts: 5,
+    lastError: 'tmdb: HTTP 503',
+    updatedAt: '2026-10-30T11:00:00Z',
+    finishedAt: '2026-10-30T11:00:00Z',
+    subject: 'Alien',
+    ...overrides,
+  });
+
 const routes = (extra: Routes = {}): Routes => ({
   ...signedIn,
   'GET /admin/job-types': () => json(overview()),
+  'GET /admin/jobs': () =>
+    json({
+      runs: [failedRun({}), failedRun({ id: 71, type: 'probe.keyframes', subject: undefined })],
+      total: 2,
+    }),
   'GET /admin/dashboard': () =>
     json(
       dashboardFixture({
@@ -415,26 +435,29 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     ]);
   });
 
-  it('the tab «Fehlschläge» lists the newest failures of every type with «Erneut» and «Abbrechen»', async () => {
+  it('the tab «Fehlschläge» lists every failure with «Erneut» and «Löschen», and both bulk actions ask with the count (P-6, O-10)', async () => {
     const { calls } = mockApi(
       routes({
         'POST /admin/jobs/70/retry': () => json(failedJob({ state: 'queued' })),
         'DELETE /admin/jobs/71': () => new Response(null, { status: 204 }),
+        'POST /admin/jobs/failed/retry': () => json({ retried: 1, skipped: 1, merged: 0 }),
+        'DELETE /admin/jobs/failed': () => json({ dismissed: 2 }),
       }),
     );
     const { router } = renderApp('/admin/jobs?tab=failed');
     const tab = await screen.findByRole('tab', { selected: true });
     expect(tab).toHaveAccessibleName('Fehlschläge 2 fehlgeschlagen');
-    const table = await screen.findByRole('table', { name: 'Letzte Fehlschläge (alle Arten)' });
+    const table = await screen.findByRole('table', { name: 'Fehlschläge (alle Arten)' });
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows.map((row) => row.querySelector('th')?.textContent)).toEqual([
       'Titel zuordnen',
       'Keyframe-Index (ganze Datei lesen)',
     ]);
+    expect(within(rows[0]!).getByText('Alien')).toBeVisible();
     expect(within(rows[0]!).getByText('5 von 5')).toBeVisible();
     // The whole error, wrapped: readable without a pointer (S-5).
     expect(within(rows[0]!).getByText('tmdb: HTTP 503')).toBeVisible();
-    expect(screen.getByText(/^2 von 2 · /)).toBeVisible();
+    expect(screen.getByText('2 von 2 geladen')).toBeVisible();
 
     // «Erneut» queues the run again; its row goes, so the focus moves to the page's h1 (ALL-2).
     const user = userEvent.setup();
@@ -446,27 +469,79 @@ describe('admin jobs page (concept 09, concept 12)', () => {
       expect(screen.getByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toHaveFocus(),
     );
 
-    // «Abbrechen» asks first.
+    // «Löschen» asks first and says what becomes of the run.
     await user.click(
       within(rows[1]!).getByRole('button', {
-        name: 'Lauf 71 von Keyframe-Index (ganze Datei lesen) abbrechen',
+        name: 'Lauf 71 von Keyframe-Index (ganze Datei lesen) löschen',
       }),
     );
-    const dialog = await screen.findByRole('alertdialog', {
-      name: 'Lauf von Keyframe-Index (ganze Datei lesen) abbrechen?',
+    let dialog = await screen.findByRole('alertdialog', {
+      name: 'Fehlgeschlagenen Lauf von Keyframe-Index (ganze Datei lesen) löschen?',
     });
-    expect(within(dialog).getByText('Slouchcat versucht diesen Lauf nicht mehr.')).toBeVisible();
-    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
-    expect(await screen.findByText('Lauf 71 abgebrochen.')).toBeVisible();
+    expect(within(dialog).getByText(/steht er danach als «abgebrochen»/)).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Löschen' }));
+    expect(await screen.findByText('Lauf 71 gelöscht.')).toBeVisible();
+
+    // «Alle erneut versuchen» asks with the count too (O-10); the answer names what stayed.
+    await user.click(screen.getByRole('button', { name: 'Alle erneut versuchen' }));
+    dialog = await screen.findByRole('alertdialog', {
+      name: 'Alle 2 fehlgeschlagenen Läufe erneut versuchen?',
+    });
+    await user.click(within(dialog).getByRole('button', { name: 'Alle erneut versuchen' }));
+    expect(
+      await screen.findByText(
+        '1 Lauf wartet wieder. 1 bleibt fehlgeschlagen, weil dieselbe Arbeit schon wartet oder läuft.',
+      ),
+    ).toBeVisible();
+    // «Alle löschen …» asks with the count; «Behalten» keeps everything. The bulk buttons wait
+    // until the page has read the lists again.
+    const dismissAll = screen.getByRole('button', { name: 'Alle löschen …' });
+    await waitFor(() => expect(dismissAll).toBeEnabled());
+    await user.click(dismissAll);
+    dialog = await screen.findByRole('alertdialog', {
+      name: 'Alle 2 fehlgeschlagenen Läufe löschen?',
+    });
+    expect(within(dialog).getByText(/stehen sie danach als «abgebrochen»/)).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Behalten' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    await user.click(screen.getByRole('button', { name: 'Alle löschen …' }));
+    dialog = await screen.findByRole('alertdialog', {
+      name: 'Alle 2 fehlgeschlagenen Läufe löschen?',
+    });
+    await user.click(within(dialog).getByRole('button', { name: 'Alle löschen' }));
+    expect(await screen.findByText('2 fehlgeschlagene Läufe gelöscht.')).toBeVisible();
     expect(
       calls.filter((call) => call.method !== 'GET').map((call) => `${call.method} ${call.path}`),
-    ).toEqual(['POST /admin/jobs/70/retry', 'DELETE /admin/jobs/71']);
+    ).toEqual([
+      'POST /admin/jobs/70/retry',
+      'DELETE /admin/jobs/71',
+      'POST /admin/jobs/failed/retry',
+      'DELETE /admin/jobs/failed',
+    ]);
 
     // The tab lives in the address: another tab drops `?tab=failed`.
     await user.click(screen.getByRole('tab', { name: /^Bibliothek/ }));
     await waitFor(() => expect(router.state.location.search).toEqual({}));
     await user.click(screen.getByRole('tab', { name: /^System/ }));
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'system' }));
+  });
+
+  it('draws a failed run once even when the list brings it twice (review of stage 4)', async () => {
+    mockApi(
+      routes({
+        'GET /admin/jobs': () =>
+          json({
+            runs: [failedRun({}), failedRun({ id: 71, type: 'probe.keyframes' }), failedRun({})],
+            total: 3,
+          }),
+      }),
+    );
+    const errors = vi.spyOn(console, 'error');
+    renderApp('/admin/jobs?tab=failed');
+    const table = await screen.findByRole('table', { name: 'Fehlschläge (alle Arten)' });
+    expect(within(table).getAllByRole('row').slice(1)).toHaveLength(2);
+    expect(errors.mock.calls.flat().join(' ')).not.toMatch(/same key/);
+    errors.mockRestore();
   });
 
   it('keeps an unsaved schedule across tabs and folding (S-17), asks before leaving, and saves it', async () => {
@@ -600,6 +675,8 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     );
     renderApp('/admin/jobs');
     expect(await screen.findByText('Live, alle 5 Sekunden')).toBeVisible();
+    // The live line comes with the page, the rows with the overview: wait for them.
+    await screen.findByRole('tablist', { name: 'Jobs nach Gruppe' });
     const user = userEvent.setup();
     await openRow(user, 'Bibliotheksscan');
     const schedule = () =>
@@ -628,37 +705,25 @@ describe('admin jobs page (concept 09, concept 12)', () => {
   });
 
   it('a confirmation stays when its row drops out meanwhile; closing it resumes polling and focuses the h1', async () => {
-    let failures = [failedJob({})];
+    let failures = [failedRun({})];
     mockApi(
       routes({
-        'GET /admin/dashboard': () =>
-          json(
-            dashboardFixture({
-              jobs: {
-                queued: 0,
-                running: 0,
-                failed: failures.length,
-                recentFailed: failures,
-                active: [],
-                failedByType: [],
-              },
-            }),
-          ),
+        'GET /admin/jobs': () => json({ runs: failures, total: failures.length }),
       }),
     );
     const { queryClient } = renderApp('/admin/jobs?tab=failed');
-    const table = await screen.findByRole('table', { name: 'Letzte Fehlschläge (alle Arten)' });
+    const table = await screen.findByRole('table', { name: 'Fehlschläge (alle Arten)' });
     const user = userEvent.setup();
     await user.click(
-      within(table).getByRole('button', { name: 'Lauf 70 von Titel zuordnen abbrechen' }),
+      within(table).getByRole('button', { name: 'Lauf 70 von Titel zuordnen löschen' }),
     );
     const dialog = await screen.findByRole('alertdialog', {
-      name: 'Lauf von Titel zuordnen abbrechen?',
+      name: 'Fehlgeschlagenen Lauf von Titel zuordnen löschen?',
     });
     expect(screen.getByText('Aktualisierung pausiert')).toBeVisible();
-    // Another poll (the sidebar's) brings a list without the row.
+    // Another read brings a list without the row.
     failures = [];
-    await queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
+    await queryClient.invalidateQueries({ queryKey: ['admin', 'job-runs'] });
     expect(await screen.findByText('Keine Fehlschläge.')).toBeInTheDocument();
     expect(dialog).toBeVisible();
     await user.keyboard('{Escape}');
@@ -689,8 +754,8 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     expect(await screen.findByText('Keine Jobs in dieser Gruppe.')).toBeVisible();
   });
 
-  it('shows the runs of a type in its row, one tab per state, with «Erneut» for a failed run', async () => {
-    const { calls } = mockApi(
+  it('shows the runs of a type in its row, one tab per state, with «Erneut», «Löschen» and the bulk actions for failed runs', async () => {
+    const { calls, fetchMock } = mockApi(
       routes({
         'GET /admin/jobs': () =>
           json({
@@ -698,6 +763,7 @@ describe('admin jobs page (concept 09, concept 12)', () => {
             total: 1,
           }),
         'POST /admin/jobs/80/retry': () => json(failedJob({ id: 80, state: 'queued' })),
+        'DELETE /admin/jobs/failed': () => json({ dismissed: 1 }),
       }),
     );
     renderApp('/admin/jobs?tab=metadata');
@@ -727,6 +793,27 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     expect(calls.filter((call) => call.method === 'POST').map((call) => call.path)).toEqual([
       '/admin/jobs/80/retry',
     ]);
+    // A failed run has «Löschen»; the bulk actions above it act on this type only.
+    expect(within(table).getByRole('button', { name: 'Lauf 80 löschen' })).toBeVisible();
+    expect(
+      within(runs).getByRole('button', {
+        name: 'Alle fehlgeschlagenen Läufe von Titel zuordnen erneut versuchen',
+      }),
+    ).toBeVisible();
+    await user.click(
+      within(runs).getByRole('button', {
+        name: 'Alle fehlgeschlagenen Läufe von Titel zuordnen löschen',
+      }),
+    );
+    const dialog = await screen.findByRole('alertdialog', {
+      name: '1 fehlgeschlagenen Lauf von Titel zuordnen löschen?',
+    });
+    await user.click(within(dialog).getByRole('button', { name: 'Alle löschen' }));
+    expect(await screen.findByText('1 fehlgeschlagener Lauf gelöscht.')).toBeVisible();
+    const dismiss = fetchMock.mock.calls
+      .map(([request]) => request)
+      .find((request) => request.method === 'DELETE');
+    expect(new URL(dismiss!.url).searchParams.get('type')).toBe('metadata.match');
   });
 
   it('the running time of a run ticks once a second (JOB-4a)', async () => {

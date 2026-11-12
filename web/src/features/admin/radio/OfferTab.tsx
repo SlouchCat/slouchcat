@@ -21,7 +21,15 @@ import { problemMessage } from '@/api/errors';
 import { countryName } from '@/app/radio/labels';
 import { radioKeys } from '@/app/radio/queries';
 import { usePagedList, type PlaceRange } from '@/lib/pagedList';
-import { FactList, Notice, Skeleton, StationLogo, Text } from '@/ui';
+import {
+  DisclosureTile,
+  FactList,
+  Notice,
+  Skeleton,
+  StationLogo,
+  Text,
+  VisuallyHidden,
+} from '@/ui';
 import {
   AriaButton,
   BandPanel,
@@ -524,41 +532,45 @@ export function OfferTab({ steps, onStepsChange, titleRef }: OfferTabProps) {
                   )}
                 </>
               )}
-              <Text tone="secondary">{t('admin.radio.offer.continents.label')}</Text>
-              <div className={styles.continents}>
+              {/* Concept 20, P-15: a heading over the tiles; the old sentence describes them. */}
+              <h3 id={`${id}-continents`} className={styles.continentsHeading}>
+                {t('admin.radio.offer.continents.heading')}
+              </h3>
+              <VisuallyHidden id={`${id}-continents-hint`}>
+                {t('admin.radio.offer.continents.label')}
+              </VisuallyHidden>
+              <div
+                className={styles.continents}
+                role="group"
+                aria-labelledby={`${id}-continents`}
+                aria-describedby={`${id}-continents-hint`}
+              >
                 {RADIO_CONTINENTS.map((key) => {
                   const list = countries.filter((country) => country.continent === key);
                   const stations = list.reduce((sum, country) => sum + country.total, 0);
                   const picked = list.filter(isChosen).length;
                   const isOpen = continent === key;
                   return (
-                    <AriaButton
+                    <DisclosureTile
                       key={key}
                       id={continentButton(key)}
-                      variant={isOpen ? 'primary' : 'secondary'}
-                      block
-                      aria-expanded={isOpen}
-                      aria-controls={isOpen ? `${id}-countries` : undefined}
-                      onPress={() => setContinent(isOpen ? null : key)}
-                    >
-                      <span className={styles.continent}>
-                        <span className={styles.relayName}>
-                          {t(`admin.radio.offer.continent.${key}`)}
-                        </span>
-                        <span className={styles.continentSub}>
-                          {[
-                            t('admin.radio.offer.continentCountries', { count: list.length }),
-                            t('admin.radio.offer.continentStations', {
-                              count: stations,
-                              n: number.format(stations),
-                            }),
-                            picked > 0 && t('admin.radio.offer.continentChosen', { count: picked }),
-                          ]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </span>
-                      </span>
-                    </AriaButton>
+                      title={t(`admin.radio.offer.continent.${key}`)}
+                      subtitle={[
+                        t('admin.radio.offer.continentCountries', { count: list.length }),
+                        t('admin.radio.offer.continentStations', {
+                          count: stations,
+                          n: number.format(stations),
+                        }),
+                      ].join(' · ')}
+                      badge={
+                        picked > 0
+                          ? t('admin.radio.offer.continentChosen', { count: picked })
+                          : undefined
+                      }
+                      isExpanded={isOpen}
+                      controls={isOpen ? `${id}-countries` : undefined}
+                      onToggle={() => setContinent(isOpen ? null : key)}
+                    />
                   );
                 })}
               </div>
@@ -566,24 +578,29 @@ export function OfferTab({ steps, onStepsChange, titleRef }: OfferTabProps) {
                 <div
                   ref={continentPanel}
                   id={`${id}-countries`}
-                  className={styles.section}
+                  className={styles.continentPanel}
                   role="group"
-                  aria-label={t('admin.radio.offer.countryCaption', {
-                    continent: t(`admin.radio.offer.continent.${continent}`),
-                  })}
+                  aria-labelledby={`${id}-countries-title`}
                 >
-                  <span className={styles.actions}>
-                    <AriaButton size="sm" onPress={() => chooseMany(inContinent, true)}>
-                      {t('admin.radio.offer.chooseAll')}
-                    </AriaButton>
-                    <AriaButton
-                      size="sm"
-                      variant="ghost"
-                      onPress={() => chooseMany(inContinent, false)}
-                    >
-                      {t('admin.radio.offer.removeAll')}
-                    </AriaButton>
-                  </span>
+                  <div className={styles.continentPanelHead}>
+                    <h4 id={`${id}-countries-title`} className={styles.continentPanelTitle}>
+                      {t('admin.radio.offer.countryCaption', {
+                        continent: t(`admin.radio.offer.continent.${continent}`),
+                      })}
+                    </h4>
+                    <span className={styles.actions}>
+                      <AriaButton size="sm" onPress={() => chooseMany(inContinent, true)}>
+                        {t('admin.radio.offer.chooseAll')}
+                      </AriaButton>
+                      <AriaButton
+                        size="sm"
+                        variant="ghost"
+                        onPress={() => chooseMany(inContinent, false)}
+                      >
+                        {t('admin.radio.offer.removeAll')}
+                      </AriaButton>
+                    </span>
+                  </div>
                   <div className={styles.scrollList}>
                     <DataTable
                       caption={t('admin.radio.offer.countryCaption', {

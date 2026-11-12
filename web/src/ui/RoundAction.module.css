@@ -42,6 +42,11 @@
   color: var(--sc-on-accent);
 }
 
+/* Partly on (the half check mark, concept 20 F-12): the left half of the circle in the accent. */
+.mixed .circle {
+  background-image: linear-gradient(90deg, var(--sc-accent) 50%, transparent 50%);
+}
+
 /* The focus ring (global.css) goes around circle and label: one element, one ring. */
 .action:focus-visible .circle {
   background-color: var(--sc-color-surface-2);

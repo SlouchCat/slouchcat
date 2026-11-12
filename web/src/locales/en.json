@@ -38,6 +38,7 @@
     "hideSidebar": "Hide sidebar",
     "showSidebar": "Show sidebar",
     "radio": "Radio",
+    "watched": "Watched",
     "account": "Account",
     "switchProfileShort": "Switch",
     "switchProfileCard": "Switch profile, currently {{name}}",
@@ -1329,7 +1330,8 @@
         "hits_other": "{{count}} matches",
         "hitsCaption": "Countries found",
         "continents": {
-          "label": "Every country by continent. A continent opens its countries; pressing it again or Escape closes them."
+          "label": "Every country by continent. A continent opens its countries; pressing it again or Escape closes them.",
+          "heading": "By continent"
         },
         "continent": {
           "europe": "Europe",
@@ -1346,7 +1348,7 @@
         "continentChosen_one": "{{count}} chosen",
         "continentChosen_other": "{{count}} chosen",
         "countryCaption": "Countries in {{continent}}",
-        "chooseAll": "Choose every country",
+        "chooseAll": "Select all",
         "removeAll": "Remove all",
         "chooseCountry": "Choose {{country}}",
         "columns": {
@@ -1937,7 +1939,11 @@
         "meta_one": "{{reason}} · {{title}} · {{count}} title",
         "meta_other": "{{reason}} · {{title}} · {{count}} titles",
         "keep": "stays",
-        "noFiles": "No file"
+        "noFiles": "No file",
+        "containerPaths": "The paths are those in the container (/media/…), not on the NAS; each names its library.",
+        "library": "Library «{{name}}»",
+        "folderFiles_one": "{{n}} file · {{size}}",
+        "folderFiles_other": "{{n}} files · {{size}}"
       },
       "relink": {
         "empty": "No orphaned user data.",
@@ -3312,46 +3318,9 @@
       "notificationsLink": "Go to the notification channels",
       "keys": {
         "title": "Provider keys",
-        "intro": "For metadata (TMDB, TVDB), images (Fanart.tv), trailers (YouTube) and the Trakt lists of the home page.",
-        "count": "{{set}} of {{total}} set",
-        "setPlaceholder": "API key set",
-        "newValue": "Leave empty to keep the stored value. A new value replaces it.",
-        "tmdb": {
-          "name": "TMDB token",
-          "description": "API read access token from themoviedb.org: overviews, posters and age ratings.",
-          "link": "Get a token at themoviedb.org"
-        },
-        "tvdb": {
-          "name": "TVDB key",
-          "description": "API key from thetvdb.com: optional second source for series.",
-          "link": "Get a key at thetvdb.com"
-        },
-        "tvdbPin": {
-          "name": "TVDB PIN",
-          "description": "Subscriber PIN, only for a TVDB subscription with a PIN.",
-          "link": "Look up the PIN at thetvdb.com"
-        },
-        "youtube": {
-          "name": "YouTube key",
-          "description": "YouTube Data API key: finds trailers when TMDB knows none.",
-          "link": "Get a key in the Google Cloud Console"
-        },
-        "trakt": {
-          "name": "Trakt client ID",
-          "description": "For the rows “Trending” and “Popular” of the home page.",
-          "link": "Get a client ID at trakt.tv"
-        },
-        "traktStatus": "State of the Trakt lists",
-        "fanart": {
-          "name": "Fanart.tv key",
-          "description": "Project key (API key) from fanart.tv: logos and high-quality posters as the last image source; switch it on under \"Metadata\". New images show after 7 days.",
-          "link": "Get a project key at fanart.tv"
-        },
-        "fanartClient": {
-          "name": "Fanart.tv personal key",
-          "description": "Optional: new images after 2 days instead of 7.",
-          "link": "Get a personal key at fanart.tv"
-        }
+        "intro": "Slouchcat fetches texts, images and trailers with them. Without a key the provider stays off.",
+        "count": "{{set}} of {{total}} providers set up",
+        "newValue": "Leave empty to keep the stored value. A new value replaces it."
       },
       "webhooks": {
         "title": "Webhooks from Radarr and Sonarr",
@@ -3500,6 +3469,68 @@
         "name": "Public address",
         "label": "Address",
         "hint": "For example https://media.example.ch"
+      },
+      "providers": {
+        "fields": {
+          "tmdb": "Access token (v4)",
+          "tvdb": "Key",
+          "tvdbPin": "Subscriber PIN (subscription keys only)",
+          "fanart": "Project key",
+          "fanartClient": "Personal key (optional)",
+          "youtube": "Key",
+          "trakt": "Client id",
+          "googleBooks": "Key"
+        },
+        "open": {
+          "setup": "Set up",
+          "edit": "Edit",
+          "view": "View"
+        },
+        "check": {
+          "ok": "{{name}}: The provider answered, the key holds.",
+          "not_configured": "{{name}}: No key is set.",
+          "invalid": "{{name}}: The provider refuses the key ({{message}}).",
+          "unreachable": "{{name}}: The provider cannot be reached ({{message}}).",
+          "failed": "{{name}}: The check failed ({{message}})."
+        },
+        "tmdb": {
+          "name": "TMDB",
+          "purpose": "Texts, posters and trailers of films and series. Required for video libraries.",
+          "help": "Free in the TMDB account under «API»: the read access token (v4)."
+        },
+        "tvdb": {
+          "name": "TVDB",
+          "purpose": "Second source for series and anime: seasons and episode titles.",
+          "help": "Key and PIN are in the TVDB account. Without a subscription the PIN stays empty."
+        },
+        "fanart": {
+          "name": "Fanart.tv",
+          "purpose": "Logos, backgrounds and disc images; the source is switched on under «Metadata».",
+          "help": "With a personal key new images appear after two days, else after seven."
+        },
+        "youtube": {
+          "name": "YouTube",
+          "purpose": "Finds trailers TMDB does not know.",
+          "help": "A key of the «YouTube Data API v3» from the Google Cloud Console."
+        },
+        "trakt": {
+          "name": "Trakt",
+          "purpose": "Lists for the spotlight and the rows of the home page.",
+          "help": "The client id of your own Trakt app. The page «Spotlight» shows the state of the lists."
+        },
+        "googlebooks": {
+          "name": "Google Books",
+          "purpose": "Book data for audiobooks; without a key Slouchcat never asks Google Books.",
+          "help": "A key of the «Books API» from the Google Cloud Console. Which folder uses the source is set under «Audiobooks: sources»."
+        },
+        "close": "Fold away",
+        "toggleLabel": "{{action}}: {{name}}",
+        "link": "Get a key from {{name}}",
+        "stored": "Set; leave empty to keep it",
+        "storedHint": "Set, ends in {{hint}}; leave empty to keep it",
+        "envNote": "The value comes from deploy/.env and can only be changed there. «Check» asks the provider all the same.",
+        "checkAction": "Check",
+        "checkLabel": "Check {{name}}"
       }
     },
     "accounts": {
@@ -4018,7 +4049,21 @@
         "downloadWarning": "The downloads end as “failed” and are not prepared again.",
         "confirm": "Cancel",
         "keep": "Keep",
-        "cancelFailedBody": "Slouchcat no longer retries this run."
+        "deleteRunTitle": "Delete the failed run of {{name}}?",
+        "deleteRunBody": "Slouchcat no longer tries this run. Under «Runs» it then shows as «cancelled» until the cleanup removes it later.",
+        "deleteRunConfirm": "Delete",
+        "retryFailedTitle_one": "Retry {{count}} failed run?",
+        "retryFailedTitle_other": "Retry all {{count}} failed runs?",
+        "retryFailedTypeTitle_one": "Retry {{count}} failed run of {{name}}?",
+        "retryFailedTypeTitle_other": "Retry all {{count}} failed runs of {{name}}?",
+        "retryFailedBody": "The runs go back to the queue with their attempts reset. When the same work already waits or runs, a run stays failed; of duplicate runs only the newest comes back.",
+        "retryFailedConfirm": "Retry all",
+        "dismissFailedTitle_one": "Delete {{count}} failed run?",
+        "dismissFailedTitle_other": "Delete all {{count}} failed runs?",
+        "dismissFailedTypeTitle_one": "Delete {{count}} failed run of {{name}}?",
+        "dismissFailedTypeTitle_other": "Delete all {{count}} failed runs of {{name}}?",
+        "dismissFailedBody": "Slouchcat no longer tries them. Under «Runs» they then show as «cancelled» until the cleanup removes them later.",
+        "dismissFailedConfirm": "Delete all"
       },
       "messages": {
         "ran_zero": "{{name}}: nothing to queue.",
@@ -4032,7 +4077,18 @@
         "runCancelled": "Run {{id}} cancelled.",
         "runRetried": "Run {{id}} is queued again.",
         "scheduleSaved": "Schedule of {{name}} saved.",
-        "windowSaved": "Time window of {{name}} saved."
+        "windowSaved": "Time window of {{name}} saved.",
+        "runDeleted": "Run {{id}} deleted.",
+        "failedRetried_zero": "No run queued.",
+        "failedRetried_one": "{{count}} run waits again.",
+        "failedRetried_other": "{{count}} runs wait again.",
+        "failedSkipped_one": "{{count}} stays failed because the same work already waits or runs.",
+        "failedSkipped_other": "{{count}} stay failed because the same work already waits or runs.",
+        "failedMerged_one": "{{count}} duplicate run was discarded.",
+        "failedMerged_other": "{{count}} duplicate runs were discarded.",
+        "failedDismissed_zero": "No run to delete.",
+        "failedDismissed_one": "{{count}} failed run deleted.",
+        "failedDismissed_other": "{{count}} failed runs deleted."
       },
       "runs": {
         "title": "Runs of {{name}}",
@@ -4062,7 +4118,11 @@
         "cancel": "Cancel",
         "cancelLabel": "Cancel run {{id}}",
         "runAfter": "not before {{time}}",
-        "heading": "Runs"
+        "heading": "Runs",
+        "delete": "Delete",
+        "deleteLabel": "Delete run {{id}}",
+        "retryAllLabel": "Retry all failed runs of {{name}}",
+        "dismissAllLabel": "Delete all failed runs of {{name}}"
       },
       "schedule": {
         "title": "Schedule of {{name}}",
@@ -4308,16 +4368,19 @@
         "state": "State"
       },
       "failed": {
-        "title": "Latest failures (all types)",
+        "title": "Failures (all types)",
         "count_one": "{{count}} failed",
         "count_other": "{{count}} failed",
         "empty": "No failures.",
-        "shown": "{{shown}} of {{total}} · All failures of a job type are under «Runs» in its row.",
+        "shown": "{{shown}} of {{total}} loaded",
         "columns": {
           "type": "Job type",
           "at": "Time"
         },
-        "retryLabel": "Queue run {{id}} of {{name}} again"
+        "retryLabel": "Queue run {{id}} of {{name}} again",
+        "retryAll": "Retry all",
+        "dismissAll": "Delete all …",
+        "deleteLabel": "Delete run {{id}} of {{name}}"
       },
       "separator": " · ",
       "none": "–",
@@ -4533,8 +4596,8 @@
       },
       "googleBooks": {
         "name": "Google Books key",
-        "description": "Without a key the server never asks Google Books; only with a key can the source join the list of a folder.",
-        "link": "Get an API key from Google"
+        "description": "The Google Books key is now with the other providers.",
+        "link": "Set it up under «Integrations»"
       },
       "auto": {
         "label": "Match automatically",
@@ -5439,6 +5502,57 @@
       "options": "Books",
       "writeToVolumes": "Write to all books",
       "writeToVolumesHint": "Sets the name as the series of every book and locks it. Series with the same name and the same author become one."
+    }
+  },
+  "watched": {
+    "page": {
+      "title": "Watched",
+      "count_one": "{{count}} title",
+      "count_other": "{{count}} titles",
+      "filters": "Filters",
+      "content": "Kind",
+      "contents": {
+        "all": "All",
+        "movie": "Films",
+        "series": "Series",
+        "audiobook": "Audiobooks",
+        "podcast": "Podcasts"
+      },
+      "sort": "Sort",
+      "sorts": {
+        "watched": "Last watched",
+        "title": "Title A–Z"
+      },
+      "watchedOn": "watched on {{date}}",
+      "heardOn": "heard on {{date}}",
+      "episodes_one": "{{count}} of {{total}} episodes · last {{date}}",
+      "episodes_other": "{{count}} of {{total}} episodes · last {{date}}",
+      "empty": {
+        "title": "Nothing watched yet.",
+        "body": "What you watch or listen to the end shows up here."
+      }
+    },
+    "label": "Watched: {{title}}",
+    "button": "Watched",
+    "hint": {
+      "set": "Mark as watched",
+      "remove": "Remove the check mark",
+      "half": "Partly watched: mark all or remove all check marks"
+    },
+    "state": {
+      "full": "Watched",
+      "half": "Partly watched"
+    },
+    "ask": {
+      "removeTitle": "Mark «{{title}}» as unwatched?",
+      "removeBody_one": "{{count}} episode loses its check mark. This cannot be undone.",
+      "removeBody_other": "{{count}} episodes lose their check mark. This cannot be undone.",
+      "removeBodyAll": "Every episode loses its check mark. This cannot be undone.",
+      "halfTitle": "«{{title}}» is partly watched",
+      "halfBody_one": "{{count}} episode has the check mark. Mark every episode or remove all check marks? Removing cannot be undone.",
+      "halfBody_other": "{{count}} episodes have the check mark. Mark every episode or remove all check marks? Removing cannot be undone.",
+      "markAll": "Mark every episode as watched",
+      "removeAll": "Remove all check marks"
     }
   }
 }

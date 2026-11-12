@@ -264,10 +264,13 @@ func validateLibraryQuery(q model.LibraryQuery) (libraryFilter, *model.Validatio
 //
 // Sort title orders by the sort key of the title in the profile language (item_texts.sort_key),
 // the English one, then items.sort_title; every order breaks ties by that key and then the id.
-// Status is exclusive per title: films and audiobooks by their own progress, series and podcasts
-// by their visible episodes (watched = at least one and all completed, started = some progress
-// and not all completed, unwatched otherwise); series and podcasts carry it as Progress (watched:
-// Completed, started: not completed, both at the time of the latest episode progress).
+// Status is exclusive per title and reads watched_at (concept 20 section 6.3): films and audiobooks
+// by their own progress (watched = watched_at set, started = no watched_at and a position above 0,
+// unwatched otherwise, so a watched film in its second run counts as watched), series and podcasts
+// by their visible episodes (watched = at least one and all watched, started = some episode watched
+// or with a position and not all watched, unwatched otherwise); series and podcasts carry it as
+// Progress (watched: Completed, started: not completed, both at the time of the latest episode
+// progress).
 // MaxRating lowers the ceiling of visible_items for this page (an unknown rating never passes
 // it). Facets: the letters of the filtered set without the letter filter (A..Z, then #), the
 // genres of the library's visible top-level titles in the profile language and their known
@@ -414,7 +417,7 @@ func libraryStmt(s Scope, pid, libraryID int64, f libraryFilter, head string, wi
 		CASE WHEN i.kind IN ('series', 'podcast') THEN
 		       CASE WHEN ep.n > 0 AND ep.done = ep.n THEN 'watched' WHEN ep.touched > 0 THEN 'started' ELSE 'unwatched' END
 		     ELSE
-		       CASE WHEN p.completed = 1 THEN 'watched' WHEN p.position_ms > 0 THEN 'started' ELSE 'unwatched' END
+		       CASE WHEN p.watched_at IS NOT NULL THEN 'watched' WHEN p.position_ms > 0 THEN 'started' ELSE 'unwatched' END
 		END AS status,
 		CASE WHEN i.kind IN ('series', 'podcast') THEN ep.played_at ELSE p.updated_at END AS played_at`)
 	}
@@ -505,13 +508,13 @@ func libraryIDs(ctx context.Context, tx *sql.Tx, b *stmt) ([]string, []string, e
 }
 
 // episodeStatsBody appends the aggregate over the visible episodes of a library per series or
-// podcast (top_id): their number, the completed ones, those with any progress and the time of the
-// latest progress of the profile. An episode's parent is its season (whose parent is the series)
+// podcast (top_id): their number, the watched ones (watched_at, concept 20 section 6.3), those
+// watched or with a position and the time of the latest progress of the profile. An episode's parent is its season (whose parent is the series)
 // or its podcast.
 func episodeStatsBody(b *stmt, pid, libraryID int64) {
 	b.add(`SELECT COALESCE(se.parent_id, e.parent_id) AS top_id, count(*) AS n,
-		sum(COALESCE(pe.completed, 0)) AS done,
-		sum(CASE WHEN pe.position_ms > 0 OR pe.completed = 1 THEN 1 ELSE 0 END) AS touched,
+		sum(pe.watched_at IS NOT NULL) AS done,
+		sum(CASE WHEN pe.position_ms > 0 OR pe.watched_at IS NOT NULL THEN 1 ELSE 0 END) AS touched,
 		max(pe.updated_at) AS played_at
 		FROM items AS e
 		JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?
@@ -527,17 +530,18 @@ type episodeStat struct {
 }
 
 // progress returns the progress a series or podcast shows for its status: completed when every
-// visible episode is (watched), not completed when some episode has progress (started), nil
-// otherwise (unwatched); positions stay 0, UpdatedAt is the latest episode progress.
+// visible episode is watched (watched), not completed when some episode is watched or has a
+// position (started), nil otherwise (unwatched); positions stay 0, UpdatedAt is the latest episode
+// progress.
 func (e episodeStat) progress() *model.Progress {
-	if e.touched == 0 { // done counts completed episodes, which are touched too
+	if e.touched == 0 { // done counts watched episodes, which are touched too
 		return nil
 	}
 	return &model.Progress{Completed: e.n > 0 && e.done == e.n, UpdatedAt: time.UnixMilli(e.playedAt.Int64).UTC()}
 }
 
 // watched returns ItemRef.watched of a series or podcast (contract 1.22.0): every visible episode
-// completed, nil without a visible episode.
+// watched (watched_at), nil without a visible episode.
 func (e episodeStat) watched() *bool {
 	if e.n == 0 {
 		return nil

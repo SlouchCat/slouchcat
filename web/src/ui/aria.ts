@@ -28,6 +28,8 @@ export { ConfirmDialog, ConfirmInputDialog, FormDialog } from './Dialog';
 export { EditorDialog } from './EditorDialog';
 // The question «Weiterschauen ab … / Von vorn starten» before a direct start (concept 20 P-4).
 export { ResumeChoice } from './ResumeChoice';
+// The question of the check mark of a season, series or podcast (concept 20 P-5).
+export { WatchedChoice } from './WatchedChoice';
 export {
   FolderList,
   contentsOf,

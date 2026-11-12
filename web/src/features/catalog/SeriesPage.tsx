@@ -291,9 +291,12 @@ function SeriesView({ libraryId, seriesId }: { libraryId: number | null; seriesI
             {/* The server's order (D4.3): by number, 0.5 before 1, without a number last. */}
             <SpatialGroup as="ul" className={styles.volumes} aria-label={t('audioSeries.list')}>
               {volumes.map(({ item, seriesIndex, narrator }) => {
+                // Heard (the check, `watchedAt`) and a running position (what plays next,
+                // `completed`) apart: a volume heard once and started again is both (concept 20
+                // section 6.3).
                 const finished = isFinished(item);
                 const progress = item.progress;
-                const started = !finished && progress && progress.positionMs > 0;
+                const started = progress && !progress.completed && progress.positionMs > 0;
                 const caption = [
                   // The narrator where the volumes differ (a reading and a radio play).
                   series.narrator === undefined ? narrator : undefined,
@@ -339,7 +342,9 @@ function SeriesView({ libraryId, seriesId }: { libraryId: number | null; seriesI
                           : undefined
                       }
                       duration={item.durationMs ? formatDuration(t, item.durationMs) : undefined}
-                      playHref={finished ? paths.playAt(item.id, 0) : paths.play(item.id)}
+                      playHref={
+                        progress?.completed ? paths.playAt(item.id, 0) : paths.play(item.id)
+                      }
                       playLabel={t('audioSeries.play', { title: item.title })}
                       tool={
                         canManage && EDITABLE_KINDS.has(item.kind) ? (

@@ -10,6 +10,25 @@ import (
 	"database/sql"
 )
 
+const clearProgressWatched = `-- name: ClearProgressWatched :exec
+UPDATE progress SET watched_at = NULL, position_ms = CASE WHEN completed = 1 THEN 0 ELSE position_ms END, completed = 0
+WHERE profile_id = ?1 AND item_id = ?2
+`
+
+type ClearProgressWatchedParams struct {
+	ProfileID int64
+	ItemID    string
+}
+
+// The check mark removed: watched_at goes; a finished title (completed) starts again at 0, a
+// running position (a second run, not completed) stays. updated_at stays, so neither continue
+// watching nor the offline rule "next episode" (ListRecentEpisodeProgress) sees an activity. The
+// row stays for the remembered playback rate.
+func (q *Queries) ClearProgressWatched(ctx context.Context, arg ClearProgressWatchedParams) error {
+	_, err := q.db.ExecContext(ctx, clearProgressWatched, arg.ProfileID, arg.ItemID)
+	return err
+}
+
 const condenseProgressDay = `-- name: CondenseProgressDay :exec
 INSERT INTO progress_days (profile_id, item_id, device_id, day, played_ms, plays)
 SELECT profile_id, item_id, COALESCE(device_id, ''), ?1, SUM(played_ms),
@@ -154,7 +173,7 @@ func (q *Queries) GetLatestDeviceProgressEvent(ctx context.Context, arg GetLates
 
 const getProgress = `-- name: GetProgress :one
 
-SELECT profile_id, item_id, position_ms, duration_ms, completed, updated_at, playback_rate FROM progress WHERE profile_id = ?1 AND item_id = ?2
+SELECT profile_id, item_id, position_ms, duration_ms, completed, updated_at, playback_rate, watched_at FROM progress WHERE profile_id = ?1 AND item_id = ?2
 `
 
 type GetProgressParams struct {
@@ -175,6 +194,7 @@ func (q *Queries) GetProgress(ctx context.Context, arg GetProgressParams) (Progr
 		&i.Completed,
 		&i.UpdatedAt,
 		&i.PlaybackRate,
+		&i.WatchedAt,
 	)
 	return i, err
 }
@@ -219,6 +239,25 @@ func (q *Queries) InsertProgressEvent(ctx context.Context, arg InsertProgressEve
 	return err
 }
 
+const markProgressWatched = `-- name: MarkProgressWatched :exec
+UPDATE progress SET watched_at = max(COALESCE(watched_at, 0), ?1)
+WHERE profile_id = ?2 AND item_id = ?3
+`
+
+type MarkProgressWatchedParams struct {
+	At        interface{}
+	ProfileID int64
+	ItemID    string
+}
+
+// An accepted event that meets the 90 % rule but does not replace the stored progress (a late
+// online event, an offline event older than the stored progress) still finishes the title:
+// watched_at becomes the later of the stored one and the event's time, nothing else changes.
+func (q *Queries) MarkProgressWatched(ctx context.Context, arg MarkProgressWatchedParams) error {
+	_, err := q.db.ExecContext(ctx, markProgressWatched, arg.At, arg.ProfileID, arg.ItemID)
+	return err
+}
+
 const oldestCondensableDay = `-- name: OldestCondensableDay :one
 
 SELECT CAST(COALESCE(MIN(server_time) / 86400000, -1) AS INTEGER) AS day FROM progress_events
@@ -236,6 +275,52 @@ func (q *Queries) OldestCondensableDay(ctx context.Context, before int64) (int64
 	var day int64
 	err := row.Scan(&day)
 	return day, err
+}
+
+const setProgressWatched = `-- name: SetProgressWatched :exec
+
+INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, watched_at)
+VALUES (?1, ?2, ?3, ?3, 1, ?4, ?5)
+ON CONFLICT (profile_id, item_id) DO UPDATE SET
+    position_ms = CASE WHEN progress.duration_ms > 0 THEN progress.duration_ms ELSE excluded.duration_ms END,
+    duration_ms = CASE WHEN progress.duration_ms > 0 THEN progress.duration_ms ELSE excluded.duration_ms END,
+    completed = 1,
+    updated_at = CASE WHEN excluded.updated_at < excluded.watched_at THEN min(progress.updated_at, excluded.updated_at)
+                      ELSE excluded.updated_at END,
+    watched_at = excluded.watched_at
+WHERE progress.watched_at IS NULL
+`
+
+type SetProgressWatchedParams struct {
+	ProfileID  int64
+	ItemID     string
+	DurationMs int64
+	UpdatedAt  int64
+	At         sql.NullInt64
+}
+
+// The check mark set by hand (setItemWatched, concept 20 section 6.4). The caller checks the
+// visibility and gives the time of each title (watched_at, staggered over the episodes of a
+// series, so the last one is the newest), its updated_at and the duration a new row starts with.
+// Finished: completed, the position at the end, watched_at at the given time. A stored row keeps
+// its duration unless it has none, a new row takes the given one (0 when none is known). The
+// playback rate stays. A row that is already watched stays as it is (the WHERE of the upsert):
+// its watched_at, the same as COALESCE(progress.watched_at, excluded.watched_at), and its
+// updated_at, so marking a whole series keeps the dates of the episodes seen before. updated_at
+// is the given one, equal to watched_at for a title that may become the newest of its series. A
+// given updated_at below watched_at marks an episode behind the newest row of its series (the
+// caller passes below both): a stored row then keeps the older of its own and the given one, so
+// it never becomes newer than that row. sqlc does not bind a parameter inside DO UPDATE, hence
+// the comparison of the two inserted values instead of a flag.
+func (q *Queries) SetProgressWatched(ctx context.Context, arg SetProgressWatchedParams) error {
+	_, err := q.db.ExecContext(ctx, setProgressWatched,
+		arg.ProfileID,
+		arg.ItemID,
+		arg.DurationMs,
+		arg.UpdatedAt,
+		arg.At,
+	)
+	return err
 }
 
 const sumPlayedMs = `-- name: SumPlayedMs :one
@@ -315,12 +400,14 @@ func (q *Queries) SumPlayedMsByQuarterHour(ctx context.Context, arg SumPlayedMsB
 }
 
 const upsertProgress = `-- name: UpsertProgress :exec
-INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, playback_rate)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, playback_rate, watched_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
 ON CONFLICT (profile_id, item_id) DO UPDATE SET
     position_ms = excluded.position_ms, duration_ms = excluded.duration_ms,
     completed = excluded.completed, updated_at = excluded.updated_at,
-    playback_rate = COALESCE(excluded.playback_rate, progress.playback_rate)
+    playback_rate = COALESCE(excluded.playback_rate, progress.playback_rate),
+    watched_at = CASE WHEN progress.watched_at IS NULL OR excluded.watched_at > progress.watched_at
+                      THEN COALESCE(excluded.watched_at, progress.watched_at) ELSE progress.watched_at END
 `
 
 type UpsertProgressParams struct {
@@ -331,9 +418,13 @@ type UpsertProgressParams struct {
 	Completed    int64
 	Now          int64
 	PlaybackRate sql.NullFloat64
+	WatchedAt    sql.NullInt64
 }
 
 // playback_rate (H-3) is replaced only by an event that carries one; NULL keeps the stored speed.
+// watched_at (concept 20 section 6.3) is the time of an event that meets the 90 % rule, NULL for
+// one that does not: the later of it and the stored one stays, so an event below 90 % reopens the
+// title for continue watching (completed) but never clears its check mark.
 func (q *Queries) UpsertProgress(ctx context.Context, arg UpsertProgressParams) error {
 	_, err := q.db.ExecContext(ctx, upsertProgress,
 		arg.ProfileID,
@@ -343,6 +434,7 @@ func (q *Queries) UpsertProgress(ctx context.Context, arg UpsertProgressParams) 
 		arg.Completed,
 		arg.Now,
 		arg.PlaybackRate,
+		arg.WatchedAt,
 	)
 	return err
 }

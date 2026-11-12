@@ -323,6 +323,11 @@ eigenes Merkmal neben `completed`:
   Film, der offline fertig gesehen und vor dem Hochladen online nochmals gestartet wurde, nie
   unter «Gesehen». Je Weg ein Test.
 - Dazu setzt sie der Haken von Hand (6.4).
+- **Haken entfernt, dann kommt ein älteres Ereignis über 90 %:** Entfernt man den Haken und trifft
+  danach ein verspätetes Online-Ereignis oder ein Offline-Ereignis ein, das die 90-%-Regel erfüllt,
+  setzt dieses `watched_at` wieder, auch wenn es älter ist als das Entfernen. Das ist angenommen
+  (Review vom 12. November 2026): Der Fall ist selten, das Ereignis belegt eine echte Wiedergabe,
+  und eine eigene Spalte `watched_cleared_at` nur für diesen Fall lohnt sich nicht.
 - Sie **bleibt stehen**, wenn ein späteres Ereignis den Titel wieder öffnet. `completed` und
   `position_ms` verhalten sich wie heute (AN-10 bleibt für «Weiterschauen»).
 - **Zusammenführen und Umhängen:** `AdminMergeProgress` (`queries/system/admin.sql:228-239`,
@@ -353,7 +358,44 @@ heute; alles, was **anzeigt oder filtert**, liest `watched_at`.
   gesehener Film im zweiten Durchgang zählt also als «gesehen», nicht als «angefangen»; in
   «Weiterschauen» steht er trotzdem.
 - **Schritt 0 des Baus:** jede Fundstelle von `completed` in `server/` und `web/` einer der zwei
-  Spalten zuordnen und die Tabelle oben vervollständigen.
+  Spalten zuordnen und die Tabelle oben vervollständigen. Erledigt am 12. November 2026, siehe
+  die folgende Tabelle.
+
+**Fundstellen von `completed` (Schritt 0, Stand Vertrag 1.30.0, Migration 00052).** Gesucht
+wurde nach `completed` und `Completed` in `server/` (ohne generierten Code) und `web/src` (ohne
+Tests, Stories und Texte). Nicht aufgeführt sind die gleichnamigen Begriffe ohne Bezug zum
+Fortschritt: der Jobzustand `completed`, das Aktivitätsereignis `playback_completed` (das schreibt
+weiter nur die 90-%-Regel einer echten Wiedergabe, O-2) und Kommentare.
+
+| Fundstelle | Zweck | Liest künftig |
+|---|---|---|
+| `queries/app/progress.sql` `UpsertProgress` | schreibt den Fortschritt eines Ereignisses | schreibt beides: `completed` wie heute, `watched_at` nur dazu (Schritt 2) |
+| `internal/playback/playback.go` `report` (auch der Zweig `isLate`) | 90-%-Regel online, Aktivitätsereignis beim Übergang | schreibt beides; das Aktivitätsereignis bleibt am Übergang von `completed` |
+| `internal/playback/offline.go` `storeOfflineEvent` (auch das ältere Ereignis) | 90-%-Regel offline | schreibt beides |
+| `queries/system/admin.sql` `AdminMergeProgress` (`admin/maintenance.go`, `library/relink.go`) | Zusammenführen, Umhängen | `completed` entscheidet «weiter» wie heute; `watched_at` eigene Regel (das spätere Datum) |
+| `queries/scoped/items.sql` `ListContinueWatching` | «Weiterschauen», nächste Folge im Fenster | `completed` |
+| `queries/scoped/items.sql` `ListSeriesNextUpEpisodes`, `GetNextVisibleEpisode`; `visibility/nextup.go` | «Als Nächstes» der Serien- und Staffelseite | `completed` |
+| `queries/scoped/audio.sql` `ListVisibleAudioSeriesVolumes(Of)` → `visibility/audio_series.go` `Next` | nächster Band einer Hörbuch-Reihe | `completed` |
+| dieselben Abfragen → `seriesFacts.completed`, `AudioGroup.completed` (`api/audio_series_handlers.go`, Web `AudioGroupsRow`) | Anzeige «3 von 6 gehört» an der Reihe | **`watched_at`** (eigene Spalte `watched` neben `completed`) |
+| `queries/scoped/audio.sql` `ListVisibleAudioCollections` | Anzeige «gehört» an Hörbuch-Sammlungen | **`watched_at`** |
+| `queries/system/offline.sql` `CountOpenAutoDownloads` | Plätze der Auto-Downloads (O-3) | `completed` |
+| `queries/system/offline.sql` `ListRecentEpisodeProgress` → `internal/offline/sync.go` | Offline-Regel «nächste Folge laden» | `updated_at` (kein `completed`); darum die Staffelung in 6.4 |
+| `internal/playback/sessions.go` (Startstelle), `internal/playback/enclosure.go` (Podcast-Verweis) | Wiedergabe setzt an der Stelle fort | `completed` |
+| `queries/scoped/items.sql` `ListVisibleChildCounts` → `ItemRef.watched`, `watchedCount` (`visibility/tree.go`) | Haken auf Karten, Staffelzähler | **`watched_at`** |
+| `visibility/library.go` Status und Filter (`lib`-Ausdruck, `episodeStatsBody`, `episodeStat`) | Bibliothek: Filter `status`, Zustand, Fortschritt der Serien | **`watched_at`**, dann `position_ms` |
+| `visibility/mapping.go` `Progress.Completed`, `api/item_handlers.go` `toProgress`, `cmd/apicheck/model.go` | `Progress.completed` im Vertrag | bleibt `completed`; neu daneben `watchedAt` |
+| Web `features/catalog/labels.ts` `isFinished` (Karten in `ItemGrid`, `CollectionShelf`, `SeriesPage`) | Haken eines einzelnen Titels | **`watchedAt`** (Serie und Podcast über `watched`) |
+| Web `features/catalog/SeasonShelf.tsx` `watchedLabel` | Haken einer Folgenzeile | **`watchedAt`** |
+| Web `SeasonShelf.tsx` Balken, `ItemPage.tsx` und `DetailActions.tsx` «Fortsetzen», `CollectionShelf.tsx` Balken | laufende Stelle | `completed`, `positionMs` |
+| Web `DetailActions.tsx` «Nochmals ansehen» | Neustart bei fertigem Titel | `completed` (das Datum daneben darf `watchedAt` zeigen) |
+| Web `SeriesPage.tsx` `playTarget` | Startknopf der Hörbuch-Reihe | `completed` |
+| Web `features/offline/playback.ts`, `features/offline/sync.ts` | Startstelle offline | `completed` |
+
+Zwei Ergänzungen gegenüber Abschnitt 6.4, beide additiv: `ItemRef.watchedCount` steht neu auch an
+Serien und Podcasts (die sichtbaren Folgen mit `watched_at`), damit jede Karte den halben Haken
+(F-12) ohne weitere Abfrage zeigen kann: voll bei `watched`, halb bei `watched = false` und
+`watchedCount > 0`, sonst leer. Und die Anzeige «gehört» an Hörbuch-Reihen und -Sammlungen zählt
+nach `watched_at`, wie die Faustregel es verlangt.
 
 ### 6.4 Vertrag und Server
 
@@ -379,6 +421,31 @@ heute; alles, was **anzeigt oder filtert**, liest `watched_at`.
     (`items.sql:59-61`). Mit der Staffelung erscheint nach «Staffel 1 gesehen» die Serie in
     «Weiterschauen» mit der ersten Folge von Staffel 2 (Regel aus Konzept 15, P-1). Test für
     beide Leser.
+  - **Schon gesehene Folgen bleiben, wie sie sind** (Entscheid vom 12. November 2026): Setzt man
+    den Haken einer Serie, Staffel oder eines Podcasts, behalten Folgen mit `watched_at` ihr Datum
+    und ihr `updated_at` (`SetProgressWatched` ändert eine Zeile mit `watched_at` nicht). Nur die
+    neu markierten Folgen bekommen «jetzt» in der Staffelung oben.
+  - **Ein Haken auf einer älteren Folge verschiebt «Weiterschauen» nicht** (Entscheid vom
+    12. November 2026). Massgeblich ist die jüngste angefangene oder fertige Zeile
+    (`completed = 1` oder Stelle grösser als null) unter den sichtbaren Folgen der Serie, also die
+    Zeile, nach der sich «Weiterschauen» und «Als Nächstes» richten. Die Regel, je neu markierte
+    Folge:
+    - Folge **gleich oder nach** dieser Zeile in der Folgenreihenfolge (Staffel, dann Folge;
+      Specials zuerst): `updated_at` = `watched_at`, wie oben. Sie wird die jüngste, beide Leser
+      gehen nach ihr weiter.
+    - Folge **davor**: `updated_at` liegt unter dem dieser Zeile (eine Millisekunde darunter);
+      eine gespeicherte Zeile, deren `updated_at` schon älter ist, behält es. `watched_at` ist
+      trotzdem «jetzt». So bleiben «Weiterschauen» (`ListContinueWatching`, `nextUp`) und die
+      Offline-Regel «nächste Folge» (`ListRecentEpisodeProgress`) auf Staffel 4, wenn man beim
+      Schauen von Staffel 4 S1E3 abhakt; beide Leser nehmen die jüngste Zeile der Serie.
+    Gilt nur für Folgen einer Serie; Filme, Hörbücher und Podcast-Folgen sind in «Weiterschauen»
+    je ein eigener Eintrag. Umgesetzt in `ListVisibleWatchTargets` (`newest_at`, `behind`) und
+    `playback.Service.SetWatched`, Tests `TestSetWatchedSeasonKeepsWatchedEpisodes` und
+    `TestSetWatchedBehindKeepsContinueWatching` (`internal/offline/watched_test.go`).
+  - **Lesen und Schreiben getrennt:** Die Ziele liest `visibility` auf der Leseverbindung, bevor
+    die Schreibtransaktion beginnt (Regel 2). Ändert dazwischen ein Ereignis oder ein Scan eine
+    Folge, behält diese im ungünstigsten Fall den Stand dieses Ereignisses. Angenommen (Review vom
+    12. November 2026); das Lesen in die Transaktion zu ziehen ginge nur an der Paketgrenze vorbei.
 - **`ItemRef.watched` gibt es schon** (seit Vertrag 1.22.0: «alle sichtbaren Folgen fertig»,
   `queries/scoped/items.sql:204-246`, `visibility/tree.go:20-21`). Das Feld bleibt, seine
   **Bedeutung ändert sich** von `completed` auf `watched_at`; die Beschreibung im Vertrag wird

@@ -3,7 +3,8 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
 import { paths } from '@/app/paths';
-import { isAudioKind, isFinished } from '@/features/catalog/labels';
+import { isAudioKind } from '@/features/catalog/labels';
+import { CoverWatched, WATCHED_KINDS } from '@/features/catalog/watched';
 import { Notice, PosterCard, SpatialButton, SpatialGroup } from '@/ui';
 import { CoverWatchlist, WATCHLIST_KINDS } from './CoverWatchlist';
 import styles from './Discover.module.css';
@@ -31,8 +32,8 @@ interface ItemGridProps {
   /** Extra controls under a card (the watchlist's "Entfernen"). */
   below?: (item: ItemRef) => ReactNode;
   /**
-   * The watch state on each card: a check mark when finished (a series or podcast by `watched`),
-   * else the progress (library).
+   * The progress of a started title on each card (library). The check mark «gesehen» is on every
+   * card anyway (concept 20 P-5).
    */
   showWatched?: boolean;
   /** Extra class of the grid (the library's column count). */
@@ -49,6 +50,19 @@ interface ItemGridProps {
   mark?: boolean;
   /** Called once a title was taken off the watchlist from its cover (the watchlist page). */
   onUnmarked?: (item: ItemRef) => void;
+  /** Called once the check mark of a title was removed from its cover (the page «Gesehen»). */
+  onUnwatched?: (item: ItemRef) => void;
+  /**
+   * The caption and the bar of a card when the page knows more than the title (the page «Gesehen»:
+   * «gesehen am 8. Nov.», «19 von 96 Folgen · zuletzt 9. Nov.»).
+   */
+  describe?: (item: ItemRef) => CardFacts;
+}
+
+/** What a page may say on a card instead of the year and the progress (ItemGrid `describe`). */
+export interface CardFacts {
+  caption?: string;
+  progress?: { percent: number; label: string };
 }
 
 interface ItemCellProps {
@@ -59,6 +73,8 @@ interface ItemCellProps {
   tool?: (item: ItemRef) => ReactNode;
   mark?: boolean;
   onUnmarked?: (item: ItemRef) => void;
+  onUnwatched?: (item: ItemRef) => void;
+  describe?: (item: ItemRef) => CardFacts;
   /** Return false to consume an arrow press (the virtual library grid, concept 17 E-12). */
   onArrowPress?: (direction: string) => boolean;
   /** The caption on one line (the virtual library grid, whose rows have a fixed height). */
@@ -67,7 +83,7 @@ interface ItemCellProps {
   frame?: 'poster' | 'own';
 }
 
-/** One title's poster card in a grid: watch state, pen and watchlist button (ItemGrid). */
+/** One title's poster card in a grid: progress, pen, check mark and watchlist button (ItemGrid). */
 export function ItemCell({
   item,
   focusKey,
@@ -75,6 +91,8 @@ export function ItemCell({
   tool,
   mark = true,
   onUnmarked,
+  onUnwatched,
+  describe,
   onArrowPress,
   clampCaption,
   frame,
@@ -82,16 +100,17 @@ export function ItemCell({
   const { t } = useTranslation();
   const audio = isAudioKind(item.kind);
   const progress = showWatched ? item.progress : undefined;
-  const finished = showWatched && isFinished(item);
+  const facts = describe?.(item);
   return (
     <PosterCard
       focusKey={cardKey(focusKey, item)}
       href={paths.item(item.id)}
       title={item.title}
       caption={
-        item.kind === 'episode' && item.seriesTitle
+        facts?.caption ??
+        (item.kind === 'episode' && item.seriesTitle
           ? item.seriesTitle
-          : (caption(item) ?? t(`kind.${item.kind}`))
+          : (caption(item) ?? t(`kind.${item.kind}`)))
       }
       clampCaption={clampCaption}
       posterUrl={imageUrl(item.images.poster)}
@@ -99,21 +118,26 @@ export function ItemCell({
       accent={item.accent}
       shape={audio ? 'square' : 'poster'}
       frame={frame}
-      watchedLabel={
-        finished ? t(audio ? 'library.status.heard' : 'library.status.watched') : undefined
-      }
       progress={
-        progress && !finished && progress.percent > 0
-          ? {
-              percent: progress.percent,
-              label: t(audio ? 'item.listened' : 'item.watched', {
-                percent: Math.round(progress.percent),
-              }),
-            }
-          : undefined
+        facts
+          ? facts.progress
+          : // The running position (a second run too); a finished title shows its check instead.
+            progress && !progress.completed && progress.percent > 0
+            ? {
+                percent: progress.percent,
+                label: t(audio ? 'item.listened' : 'item.watched', {
+                  percent: Math.round(progress.percent),
+                }),
+              }
+            : undefined
       }
       onArrowPress={onArrowPress}
       tool={tool?.(item)}
+      check={
+        WATCHED_KINDS.has(item.kind) ? (
+          <CoverWatched item={item} onRemoved={onUnwatched && (() => onUnwatched(item))} />
+        ) : undefined
+      }
       mark={
         mark && WATCHLIST_KINDS.has(item.kind) ? (
           <CoverWatchlist item={item} onRemoved={onUnmarked && (() => onUnmarked(item))} />
@@ -134,6 +158,8 @@ export function ItemGrid({
   tool,
   mark = true,
   onUnmarked,
+  onUnwatched,
+  describe,
 }: ItemGridProps) {
   return (
     <SpatialGroup
@@ -151,6 +177,8 @@ export function ItemGrid({
             tool={tool}
             mark={mark}
             onUnmarked={onUnmarked}
+            onUnwatched={onUnwatched}
+            describe={describe}
           />
           {below?.(item)}
         </li>

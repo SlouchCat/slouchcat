@@ -172,8 +172,9 @@ test('the book’s detail page by keyboard: arrows into the chapters, Tab, Enter
   await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
   await tabTo(page, page.getByRole('button', { name: 'Zurück' }), 2);
   await tabTo(page, play, 4);
-  // Between them the shelf of the series: «Alle anzeigen» and the two volumes.
-  await tabTo(page, chapter(1), 10);
+  // Between them the round actions and the shelf of the series: «Alle anzeigen» and the two
+  // volumes, each with its check mark (concept 20 P-5) and its watchlist button.
+  await tabTo(page, chapter(1), 14);
   await expectNoFocusTrap(page);
 
   // Enter on a chapter starts the player there; Backspace returns to the book, Escape home.

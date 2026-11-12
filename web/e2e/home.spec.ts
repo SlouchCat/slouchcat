@@ -530,10 +530,11 @@ test('the band holds on keyboard focus and the pause button, not on a click (F-3
   await tabTo(page, band.getByRole('link', { name: 'Abspielen' }), 3);
   await expect(band).toHaveAttribute('data-paused');
   await expect(timer).toHaveCount(0);
+  // Details, Pause, the active poster with its pen, check (concept 20 P-5) and mark, then the row.
   await tabTo(
     page,
     page.locator('main section[aria-labelledby]').first().getByRole('link').first(),
-    6,
+    7,
   );
   await expect(band).not.toHaveAttribute('data-paused');
 
@@ -569,13 +570,15 @@ test('the spotlight posters carry the pen: Tab poster then pen, the band holds, 
   expect(count).toBeGreaterThan(1);
   await expect(pens).toHaveCount(count);
   await expect(band.getByRole('button', { name: /: Metadaten bearbeiten$/ })).toHaveCount(count);
-  // Each pen and watchlist button (concept 17 D-9) sits beside its poster, not in its button, and
-  // turns with it (CSS order of the item).
+  // Each pen, check mark (concept 20 P-5) and watchlist button (concept 17 D-9) sits beside its
+  // poster, not in its button, and turns with it (CSS order of the item).
   const marks = row.getByRole('button', { name: / merken$/ });
   await expect(marks).toHaveCount(count);
+  const checks = row.getByRole('button', { name: /^Gesehen: / });
+  await expect(checks).toHaveCount(count);
   for (let index = 0; index < count; index += 1) {
     const item = row.getByRole('listitem').nth(index);
-    await expect(item.getByRole('button')).toHaveCount(3);
+    await expect(item.getByRole('button')).toHaveCount(4);
     await expect(item.locator('button button')).toHaveCount(0);
   }
   // Only the active poster's pen and mark are Tab stops (the row's roving tabindex).
@@ -584,10 +587,13 @@ test('the spotlight posters carry the pen: Tab poster then pen, the band holds, 
     name: /: Metadaten bearbeiten$/,
   });
   const activeMark = active.locator('xpath=..').getByRole('button', { name: / merken$/ });
+  const activeCheck = active.locator('xpath=..').getByRole('button', { name: /^Gesehen: / });
   await expect(pens.and(page.locator(':not([tabindex="-1"])'))).toHaveCount(1);
   await expect(marks.and(page.locator(':not([tabindex="-1"])'))).toHaveCount(1);
+  await expect(checks.and(page.locator(':not([tabindex="-1"])'))).toHaveCount(1);
 
-  // Tab: the active poster, its pen, its mark; the band holds while the focus is in the row.
+  // Tab: the active poster, its pen, its check, its mark; the band holds while the focus is in
+  // the row.
   await page.getByRole('button', { name: 'Seitenleiste ausblenden' }).focus();
   await tabTo(page, active, 6);
   const shown = (await active.getAttribute('aria-label')) ?? (await active.textContent()) ?? '';
@@ -595,8 +601,12 @@ test('the spotlight posters carry the pen: Tab poster then pen, the band holds, 
   await expectFocusOn(page, activePen);
   await expect(band).toHaveAttribute('data-paused');
   await page.keyboard.press('Tab');
+  await expectFocusOn(page, activeCheck);
+  await expect(band).toHaveAttribute('data-paused');
+  await page.keyboard.press('Tab');
   await expectFocusOn(page, activeMark);
   await expect(band).toHaveAttribute('data-paused');
+  await page.keyboard.press('Shift+Tab');
   await page.keyboard.press('Shift+Tab');
   await expectFocusOn(page, activePen);
   const title = ((await activePen.getAttribute('aria-label')) ?? '').replace(
@@ -632,7 +642,7 @@ test('the spotlight posters carry the pen: Tab poster then pen, the band holds, 
   await tabTo(
     page,
     page.locator('main section[aria-labelledby]').first().getByRole('link').first(),
-    3,
+    4,
   );
   await expect(band).not.toHaveAttribute('data-paused');
   await expectNoFocusTrap(page, 200);
@@ -1272,10 +1282,11 @@ test('Tab: skip link, header, side navigation, hero, then the cards; no focus tr
       await tabTo(page, strip(page).and(page.locator('[aria-current="true"]')), 1);
     }
   }
+  // After the active poster its pen, check (concept 20 P-5) and mark.
   await tabTo(
     page,
     page.locator('main section[aria-labelledby]').first().getByRole('link').first(),
-    3,
+    4,
   );
   await expectNoFocusTrap(page, 120);
 });

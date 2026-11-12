@@ -351,6 +351,10 @@ var adminRegistry = map[string]adminCall{
 	"getDashboard":  {contract: "GET /admin/dashboard", path: "/admin/dashboard", ownerStatus: http.StatusOK},
 	"retryJob":      {contract: "POST /admin/jobs/{id}/retry", path: "/admin/jobs/9999/retry", ownerStatus: http.StatusNotFound},
 	"cancelJob":     {contract: "DELETE /admin/jobs/{id}", path: "/admin/jobs/9999", ownerStatus: http.StatusNotFound},
+	// Concept 20 P-6 (contract 1.31.0): the bulk actions on failed runs; the fixture has none
+	// (TestFailedJobsOverHTTP covers the counts, the type filter and the pages).
+	"retryFailedJobs":   {contract: "POST /admin/jobs/failed/retry", path: "/admin/jobs/failed/retry", ownerStatus: http.StatusOK},
+	"dismissFailedJobs": {contract: "DELETE /admin/jobs/failed", path: "/admin/jobs/failed", ownerStatus: http.StatusOK},
 	// Concept 09: the page "Hintergrundjobs"; the fixture's registry knows download.prepare and
 	// notify.deliver (event types) and the schedule types of package metadata; nobody.home does
 	// not exist (404). updateJobTypeWindow is concept 15, 4.3 (TestJobTypeWindowOverHTTP covers
@@ -367,6 +371,7 @@ var adminRegistry = map[string]adminCall{
 	"updateAdminSettings": {contract: "PUT /admin/settings", path: "/admin/settings", body: `{"updateCheckEnabled":true}`, ownerStatus: http.StatusOK},
 	"sendTestEmail":       {contract: "POST /admin/settings/email/test", path: "/admin/settings/email/test", body: `{}`, ownerStatus: http.StatusUnprocessableEntity},
 	"rotatePushKeys":      {contract: "POST /admin/settings/push/rotate", path: "/admin/settings/push/rotate", ownerStatus: http.StatusOK},
+	"checkProviderKey":    {contract: "POST /admin/settings/keys/{provider}/check", path: "/admin/settings/keys/tmdb/check", ownerStatus: http.StatusOK}, // concept 20 P-12, TestCheckProviderKeyOverHTTP
 	"listBackups":         {contract: "GET /admin/backups", path: "/admin/backups", ownerStatus: http.StatusOK},
 	"createBackup":        {contract: "POST /admin/backups", path: "/admin/backups", body: `{"includeSecrets":false}`, ownerStatus: http.StatusCreated},
 	"downloadBackup": {contract: "GET /admin/backups/{name}/download", path: "/admin/backups/missing.tar.gz/download",

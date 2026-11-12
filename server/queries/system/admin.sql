@@ -7,11 +7,27 @@
 -- name: AdminListMediaFiles :many
 -- Media files of the titles with their root and path, per title in the order of the versions
 -- (available first, then the largest height, then the oldest).
-SELECT m.id, m.item_id, m.root_id, m.rel_path, m.size, m.version_label, m.height, m.probed_at, m.probe_error,
-       m.missing_since
+SELECT m.id, m.item_id, m.root_id, r.path AS root_path, m.rel_path, m.size, m.version_label, m.height, m.probed_at,
+       m.probe_error, m.missing_since
 FROM media_files AS m
+JOIN library_roots AS r ON r.id = m.root_id
 WHERE m.item_id IN (sqlc.slice('item_ids'))
 ORDER BY m.item_id, m.missing_since IS NOT NULL, COALESCE(m.height, 0) DESC, m.created_at, m.id;
+
+-- name: AdminListDescendantFiles :many
+-- The present media files below the titles (seasons and episodes of a series, the episodes of a
+-- podcast) with their folder (concept 20, P-10: the duplicates page shows where a series lies).
+WITH RECURSIVE tree (top_id, id) AS (
+    SELECT i.id, i.id FROM items AS i WHERE i.id IN (sqlc.slice('item_ids'))
+    UNION ALL
+    SELECT t.top_id, c.id FROM items AS c JOIN tree AS t ON c.parent_id = t.id WHERE c.deleted_at IS NULL
+)
+SELECT CAST(t.top_id AS TEXT) AS top_id, m.root_id, r.path AS root_path, m.rel_path, m.size
+FROM tree AS t
+JOIN media_files AS m ON m.item_id = t.id
+JOIN library_roots AS r ON r.id = m.root_id
+WHERE t.id <> t.top_id AND m.missing_since IS NULL
+ORDER BY t.top_id, m.root_id, m.rel_path;
 
 -- name: AdminCountChildren :one
 -- Children of a title that are not deleted: seasons, episodes (of the title and of its seasons)
@@ -199,10 +215,11 @@ ORDER BY i.library_id, i.kind, i.sort_title, i.year, i.id;
 -- name: AdminListHashDuplicates :many
 -- Media files whose content hash a file of another title shares. Files below 1 MiB (empty files,
 -- placeholder trees, samples) are left out: identical small files say nothing about duplicates.
-SELECT m.partial_hash, m.id AS media_file_id, m.root_id, m.rel_path, m.size, m.version_label, m.missing_since,
-       i.id, i.kind, i.title, i.year, i.library_id
+SELECT m.partial_hash, m.id AS media_file_id, m.root_id, r.path AS root_path, m.rel_path, m.size, m.version_label,
+       m.missing_since, i.id, i.kind, i.title, i.year, i.library_id
 FROM media_files AS m
 JOIN items AS i ON i.id = m.item_id
+JOIN library_roots AS r ON r.id = m.root_id
 WHERE m.partial_hash IS NOT NULL AND m.size >= 1048576 AND i.deleted_at IS NULL
   AND (sqlc.narg('library_id') IS NULL OR i.library_id = sqlc.narg('library_id'))
   AND EXISTS (SELECT 1 FROM media_files AS o JOIN items AS oi ON oi.id = o.item_id
@@ -228,15 +245,27 @@ UPDATE OR IGNORE credits SET item_id = @target_id WHERE item_id = @source_id;
 -- name: AdminMergeProgress :exec
 -- Per profile the further progress wins: completed over not completed, then the larger position.
 -- The playback rate goes with the winning row; a winner without one keeps the target's.
-INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, playback_rate, updated_at)
-SELECT p.profile_id, @target_id, p.position_ms, p.duration_ms, p.completed, p.playback_rate, p.updated_at
+-- watched_at (concept 20 section 6.3) has its own rule outside that comparison: the later of both
+-- wins, so a title in its second run (not completed) keeps the date its copy was finished.
+INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, playback_rate, updated_at, watched_at)
+SELECT p.profile_id, @target_id, p.position_ms, p.duration_ms, p.completed, p.playback_rate, p.updated_at, p.watched_at
 FROM progress AS p WHERE p.item_id = @source_id AND true
 ON CONFLICT (profile_id, item_id) DO UPDATE
-SET position_ms = excluded.position_ms, duration_ms = excluded.duration_ms, completed = excluded.completed,
-    playback_rate = coalesce(excluded.playback_rate, progress.playback_rate),
-    updated_at = max(progress.updated_at, excluded.updated_at)
-WHERE excluded.completed > progress.completed
-   OR (excluded.completed = progress.completed AND excluded.position_ms > progress.position_ms);
+SET position_ms = CASE WHEN excluded.completed > progress.completed
+                         OR (excluded.completed = progress.completed AND excluded.position_ms > progress.position_ms)
+                       THEN excluded.position_ms ELSE progress.position_ms END,
+    duration_ms = CASE WHEN excluded.completed > progress.completed
+                         OR (excluded.completed = progress.completed AND excluded.position_ms > progress.position_ms)
+                       THEN excluded.duration_ms ELSE progress.duration_ms END,
+    completed = max(progress.completed, excluded.completed),
+    playback_rate = CASE WHEN excluded.completed > progress.completed
+                           OR (excluded.completed = progress.completed AND excluded.position_ms > progress.position_ms)
+                         THEN coalesce(excluded.playback_rate, progress.playback_rate) ELSE progress.playback_rate END,
+    updated_at = CASE WHEN excluded.completed > progress.completed
+                        OR (excluded.completed = progress.completed AND excluded.position_ms > progress.position_ms)
+                      THEN max(progress.updated_at, excluded.updated_at) ELSE progress.updated_at END,
+    watched_at = CASE WHEN progress.watched_at IS NULL OR excluded.watched_at > progress.watched_at
+                      THEN coalesce(excluded.watched_at, progress.watched_at) ELSE progress.watched_at END;
 
 -- name: AdminMoveProgressEvents :exec
 UPDATE progress_events SET item_id = @target_id WHERE item_id = @source_id;

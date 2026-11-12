@@ -6,9 +6,13 @@ import type {
   ItemRef,
   Notification,
   NotificationPage,
+  RootContent,
   SearchRequest,
   SearchResult,
   UserPickResult,
+  WatchedEntry,
+  WatchedPage,
+  WatchedSort,
 } from '@slouchcat/api-client';
 import {
   queryOptions,
@@ -66,6 +70,27 @@ export const watchlistSource: PagedSource<ItemPage, ItemRef> = {
   total: (page) => page.total,
   id: (item) => item.id,
 };
+
+/**
+ * The page «Gesehen» of the active profile (concept 20 P-14): one kind of title or all, by the
+ * last watched date or by title.
+ */
+export const watchedSource = (
+  content: RootContent | undefined,
+  sort: WatchedSort,
+): PagedSource<WatchedPage, WatchedEntry> => ({
+  key: ['watched', { content: content ?? null, sort }],
+  fetch: (offset, limit, signal) =>
+    request(
+      api.GET('/watched', {
+        params: { query: { ...(content ? { content } : {}), sort, offset, limit } },
+        signal,
+      }),
+    ),
+  items: (page) => page.items,
+  total: (page) => page.total,
+  id: (entry) => entry.item.id,
+});
 
 /** The inbox page (E-8), newest first (concept 18 C-3); page 0 counts the unread. */
 export const notificationsSource: PagedSource<NotificationPage, Notification> = {

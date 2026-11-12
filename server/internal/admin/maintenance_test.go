@@ -368,7 +368,7 @@ func TestAdminMaintenanceDuplicates(t *testing.T) {
 		var ids []string
 		for _, it := range g.Items {
 			ids = append(ids, it.ItemID)
-			if len(it.Files) == 0 || it.Files[0].Path == "" || it.LibraryID == 0 {
+			if len(it.Files) == 0 || it.Files[0].Path == "" || it.Files[0].RootPath == "" || it.LibraryID == 0 {
 				t.Errorf("%s group: item %s without files or library: %+v", g.Reason, it.ItemID, it)
 			}
 			if g.Reason == DuplicateFileHash && len(it.Files) != 1 {
@@ -394,15 +394,61 @@ func TestAdminMaintenanceDuplicates(t *testing.T) {
 	}
 }
 
+// Concept 20, P-10: a series lists the folder of its episode files per library root, with their
+// number and size; a missing file does not count, a title without episodes has no folder.
+func TestAdminDuplicateFoldersOfASeries(t *testing.T) {
+	m := newMaintFixture(t)
+	f := m.f
+	var root string
+	var count int
+	var size int64
+	row := f.DB.Write.QueryRowContext(m.ctx, `SELECT r.path, count(*), sum(m.size) FROM media_files AS m
+		JOIN library_roots AS r ON r.id = m.root_id JOIN items AS e ON e.id = m.item_id
+		LEFT JOIN items AS s ON s.id = e.parent_id WHERE (e.parent_id = ? OR s.parent_id = ?) AND m.missing_since IS NULL
+		GROUP BY r.path`, f.Show.Series.ID, f.Show.Series.ID)
+	if err := row.Scan(&root, &count, &size); err != nil {
+		t.Fatal(err)
+	}
+	if count < 2 {
+		t.Fatalf("the fixture's series has %d episode files, want at least 2", count)
+	}
+	folders, err := m.svc.descendantFolders(m.ctx, []string{f.Show.Series.ID, f.Rated(16).ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []model.DuplicateFolder{{RootPath: root, Path: "Show", FileCount: count, SizeBytes: size}}
+	if !slices.Equal(folders[f.Show.Series.ID], want) || len(folders[f.Rated(16).ID]) != 0 {
+		t.Fatalf("folders = %+v, want %+v for the series and none for the film", folders, want)
+	}
+	m.exec(t, `UPDATE media_files SET missing_since = 1 WHERE id = ?`, f.Show.E1.FileID)
+	folders, err = m.svc.descendantFolders(m.ctx, []string{f.Show.Series.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := folders[f.Show.Series.ID]; len(got) != 1 || got[0].FileCount != count-1 {
+		t.Fatalf("folders without the missing file = %+v, want %d files", got, count-1)
+	}
+	// A file outside the series folder leaves the library root itself as the common folder.
+	m.exec(t, `UPDATE media_files SET missing_since = NULL, rel_path = 'Elsewhere/Show - S01E01.mp4' WHERE id = ?`, f.Show.E1.FileID)
+	folders, err = m.svc.descendantFolders(m.ctx, []string{f.Show.Series.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := folders[f.Show.Series.ID]; len(got) != 1 || got[0].Path != "" || got[0].FileCount != count {
+		t.Fatalf("folders with a file elsewhere = %+v, want the root with %d files", got, count)
+	}
+}
+
 // B-9: a merge moves files, trailers, credits and the further progress to the target and deletes
-// the source for good.
+// the source for good. watched_at follows its own rule (concept 20 section 6.3): the later of both
+// rows wins, whichever row is further.
 func TestAdminMaintenanceMerge(t *testing.T) {
 	m := newMaintFixture(t)
 	f := m.f
 	target, source := f.Rated(16), f.Rated(18)
-	m.exec(t, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at) VALUES
-	           (?, ?, 1000, 7200000, 0, 10), (?, ?, 3000000, 7200000, 0, 20),
-	           (?, ?, 5000, 7200000, 1, 30), (?, ?, 6000000, 7200000, 0, 40)`,
+	m.exec(t, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, watched_at) VALUES
+	           (?, ?, 1000, 7200000, 0, 10, 5), (?, ?, 3000000, 7200000, 0, 20, NULL),
+	           (?, ?, 5000, 7200000, 1, 30, 30), (?, ?, 6000000, 7200000, 0, 40, 35)`,
 		f.P18.ID, target.ID, f.P18.ID, source.ID, f.P16.ID, target.ID, f.P16.ID, source.ID)
 
 	var verr *model.ValidationError
@@ -448,18 +494,20 @@ func TestAdminMaintenanceMerge(t *testing.T) {
 	if err := f.DB.Read.QueryRow(`SELECT count(*) FROM credits WHERE item_id = ? AND role = 'director'`, target.ID).Scan(&n); err != nil || n != 1 {
 		t.Errorf("director credit on the target: %d, %v", n, err)
 	}
-	progress := func(profileID int64) (pos int64, completed int) {
+	progress := func(profileID int64) (pos int64, completed int, watched int64) {
 		t.Helper()
-		if err := f.DB.Read.QueryRow(`SELECT position_ms, completed FROM progress WHERE profile_id = ? AND item_id = ?`, profileID, target.ID).Scan(&pos, &completed); err != nil {
+		if err := f.DB.Read.QueryRow(`SELECT position_ms, completed, watched_at FROM progress WHERE profile_id = ? AND item_id = ?`, profileID, target.ID).Scan(&pos, &completed, &watched); err != nil {
 			t.Fatal(err)
 		}
-		return pos, completed
+		return pos, completed, watched
 	}
-	if pos, done := progress(f.P18.ID); pos != 3000000 || done != 0 {
-		t.Errorf("P18 progress after the merge = %d (completed %d), want the larger position", pos, done)
+	// P18: the source is further, the target's date stays (the source was never finished).
+	if pos, done, watched := progress(f.P18.ID); pos != 3000000 || done != 0 || watched != 5 {
+		t.Errorf("P18 progress after the merge = %d (completed %d, watched_at %d), want the larger position and watched_at 5", pos, done, watched)
 	}
-	if pos, done := progress(f.P16.ID); pos != 5000 || done != 1 {
-		t.Errorf("P16 progress after the merge = %d (completed %d), want the completed row", pos, done)
+	// P16: the completed target is further, the source's later date wins (finished, then started again).
+	if pos, done, watched := progress(f.P16.ID); pos != 5000 || done != 1 || watched != 35 {
+		t.Errorf("P16 progress after the merge = %d (completed %d, watched_at %d), want the completed row and watched_at 35", pos, done, watched)
 	}
 	if it.ID != target.ID {
 		t.Errorf("merge answered %s", it.ID)
@@ -806,4 +854,7 @@ func (m *fakeMetadata) LocalImagePreview(context.Context, string, string) (model
 func (m *fakeMetadata) UploadItemImage(context.Context, string, string, []byte) error { return nil }
 func (m *fakeMetadata) ChoosableImageKinds(context.Context, string) ([]string, error) {
 	return []string{}, nil
+}
+func (m *fakeMetadata) CheckProviderKey(context.Context, string) (model.KeyCheck, error) {
+	return model.KeyCheck{OK: true}, nil
 }

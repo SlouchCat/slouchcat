@@ -74,11 +74,13 @@ test('library by keyboard: Tab order, arrows into the letter bar and back, Enter
   await page.keyboard.press('ArrowLeft');
   await expectFocusOn(page, cards(page).first());
 
-  // Tab from a card: its pen, then its watchlist button (concept 17 D-9); the arrows pass both
-  // and move on from the card.
+  // Tab from a card: its pen, its check mark (concept 20 P-5), then its watchlist button
+  // (concept 17 D-9); the arrows pass all three and move on from the card.
   const firstCell = grid(page).getByRole('listitem').first();
   await page.keyboard.press('Tab');
   await expectFocusOn(page, firstCell.getByRole('button', { name: /: Metadaten bearbeiten$/ }));
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, firstCell.getByRole('button', { name: /^Gesehen: / }));
   await page.keyboard.press('Tab');
   await expectFocusOn(page, firstCell.getByRole('button', { name: / merken$/ }));
   await page.keyboard.press('ArrowRight');

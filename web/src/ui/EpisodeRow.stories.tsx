@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { EpisodeRow } from './EpisodeRow';
+import { WatchedToggle } from './WatchedToggle';
 
 const meta = {
   title: 'UI/EpisodeRow',
@@ -34,3 +35,20 @@ export const WithProgress: Story = {
 export const Focused: Story = { tags: ['press:Tab'] };
 
 export const PlayFocused: Story = { tags: ['press:Tab+Tab'] };
+
+/** The check mark after the play button (concept 20 P-5): heard. */
+export const WithToggle: Story = {
+  args: {
+    watchedControl: (
+      <WatchedToggle
+        appearance="row"
+        state="full"
+        label="Gesehen: Folge 12: Ein langer Abend"
+        onPress={() => undefined}
+      />
+    ),
+  },
+};
+
+/** Tab after the play button reaches the check. */
+export const ToggleFocused: Story = { ...WithToggle, tags: ['press:Tab+Tab+Tab'] };

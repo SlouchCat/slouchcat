@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/mail"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -125,13 +126,14 @@ var providerKeys = []providerKey{
 	{model.ClearTrakt, SettingTraktClientID, EnvTraktClientID},
 	{model.ClearFanart, SettingFanartKey, EnvFanartKey},
 	{model.ClearFanartClient, SettingFanartClient, EnvFanartKey},
+	{model.ClearGoogleBooks, SettingGoogleBooksKey, EnvGoogleBooksKey}, // concept 20, O-7
 }
 
 // clearable are the valid entries of AdminSettingsUpdate.Clear.
 var clearable = map[string]bool{
 	model.ClearPublicURL: true, model.ClearTMDB: true, model.ClearTVDB: true, model.ClearTVDBPin: true,
 	model.ClearYouTube: true, model.ClearTrakt: true, model.ClearEmail: true, model.ClearTelegram: true,
-	model.ClearFanart: true, model.ClearFanartClient: true,
+	model.ClearFanart: true, model.ClearFanartClient: true, model.ClearGoogleBooks: true,
 }
 
 // Settings returns the server settings and integrations without any secret.
@@ -153,7 +155,7 @@ func (s *Service) Settings(ctx context.Context) (model.AdminSettings, error) {
 	}
 	st.Keys = model.AdminKeys{TMDB: states[model.ClearTMDB], TVDB: states[model.ClearTVDB], TVDBPin: states[model.ClearTVDBPin],
 		YouTube: states[model.ClearYouTube], Trakt: states[model.ClearTrakt],
-		Fanart: states[model.ClearFanart], FanartClient: states[model.ClearFanartClient]}
+		Fanart: states[model.ClearFanart], FanartClient: states[model.ClearFanartClient], GoogleBooks: states[model.ClearGoogleBooks]}
 	if st.Email, err = s.emailSettings(ctx); err != nil {
 		return model.AdminSettings{}, err
 	}
@@ -344,6 +346,7 @@ func validateSettings(upd model.AdminSettingsUpdate) (settingsChange, *model.Val
 		model.ClearTMDB: upd.Keys.TMDB, model.ClearTVDB: upd.Keys.TVDB, model.ClearTVDBPin: upd.Keys.TVDBPin,
 		model.ClearYouTube: upd.Keys.YouTube, model.ClearTrakt: upd.Keys.Trakt,
 		model.ClearFanart: upd.Keys.Fanart, model.ClearFanartClient: upd.Keys.FanartClient,
+		model.ClearGoogleBooks: upd.Keys.GoogleBooks,
 	}
 	for _, k := range providerKeys {
 		v := values[k.field]
@@ -644,4 +647,24 @@ func (s *Service) RotatePushKeys(ctx context.Context) (model.AdminSettings, erro
 	}
 	s.log.InfoContext(ctx, "web push keys rotated")
 	return s.Settings(ctx)
+}
+
+// checkableProviders are the providers of checkProviderKey, the contract's enum.
+var checkableProviders = []string{"tmdb", "tvdb", "fanart", "youtube", "trakt", "googlebooks"}
+
+// CheckProviderKey asks a provider whether its configured key holds (checkProviderKey, concept 20
+// P-12): one cheap request through package metadata. The key is neither returned nor logged.
+func (s *Service) CheckProviderKey(ctx context.Context, provider string) (model.KeyCheck, error) {
+	if !slices.Contains(checkableProviders, provider) {
+		return model.KeyCheck{}, (&model.ValidationError{}).Add("provider", "invalid_value")
+	}
+	if s.meta == nil {
+		return model.KeyCheck{}, ErrNotConfigured
+	}
+	c, err := s.meta.CheckProviderKey(ctx, provider)
+	if err != nil {
+		return model.KeyCheck{}, err
+	}
+	s.log.InfoContext(ctx, "provider key checked by the admin", "provider", provider, "ok", c.OK, "problem", c.Problem)
+	return c, nil
 }

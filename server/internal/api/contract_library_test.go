@@ -239,7 +239,7 @@ func TestContractLibraryItemsChildProfile(t *testing.T) {
 	}
 	// The series is watched once every visible episode is completed (concept 08, 4.2).
 	for _, e := range []vistest.Movie{f.Show.E1, f.Show.E3, f.Show.Special} {
-		exec(`INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at) VALUES (?, ?, 0, 100, 1, 9000)`, f.P12.ID, e.ID)
+		exec(`INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, watched_at) VALUES (?, ?, 0, 100, 1, 9000, 9000)`, f.P12.ID, e.ID)
 	}
 	watched := libraryPage(t, h, "p12", "&status=watched")
 	if !slices.Equal(watched.ids(), []string{f.Show.Series.ID}) || watched.Items[0].Progress == nil || !watched.Items[0].Progress.Completed {

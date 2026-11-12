@@ -132,7 +132,7 @@ func TestAudioSeriesPageOrder(t *testing.T) {
 		t.Errorf("duration %d", page.DurationMs)
 	}
 	// The first two completed: next is the third; all completed: the first.
-	run(t, f, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at) VALUES (?, ?, 0, 1, 1, 1), (?, ?, 0, 1, 1, 1)`,
+	run(t, f, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, watched_at) VALUES (?, ?, 0, 1, 1, 1, 1), (?, ?, 0, 1, 1, 1, 1)`,
 		f.P18.ID, order[0], f.P18.ID, order[1])
 	if page, err = r.AudioSeries(ctx, Profile(f.P18), lib, vistest.AudioSeriesID); err != nil || page.Next.ID != order[2] {
 		t.Errorf("next after two completed: %v (%v), want %s", page.Next, err, order[2])
@@ -142,7 +142,7 @@ func TestAudioSeriesPageOrder(t *testing.T) {
 		t.Errorf("tile %+v (%v), want 2 of 6 completed", g, err)
 	}
 	for _, id := range order[2:] {
-		run(t, f, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at) VALUES (?, ?, 0, 1, 1, 1)`, f.P18.ID, id)
+		run(t, f, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, watched_at) VALUES (?, ?, 0, 1, 1, 1, 1)`, f.P18.ID, id)
 	}
 	if page, err = r.AudioSeries(ctx, Profile(f.P18), lib, vistest.AudioSeriesID); err != nil || page.Next.ID != order[0] {
 		t.Errorf("next with all completed: %v (%v), want the first", page.Next, err)

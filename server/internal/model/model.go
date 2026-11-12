@@ -370,6 +370,7 @@ type ItemRating struct {
 type AdminMediaFile struct {
 	ID           string
 	RootID       int64
+	RootPath     string // the library root's folder in the container (concept 20, P-10)
 	Path         string // relative to the library root
 	SizeBytes    int64
 	Available    bool
@@ -482,6 +483,18 @@ type DuplicateItem struct {
 	Year      *int
 	LibraryID int64
 	Files     []AdminMediaFile
+	// Folders of a series or podcast, whose files hang on the episodes (concept 20, P-10): per
+	// library root the common folder of the present episode files.
+	Folders []DuplicateFolder
+}
+
+// DuplicateFolder is the common folder of the files below a title in one library root: Path is
+// relative to RootPath ("" is the root itself).
+type DuplicateFolder struct {
+	RootPath  string
+	Path      string
+	FileCount int
+	SizeBytes int64
 }
 
 // DuplicateGroup is a set of titles or files that exist twice (B-9).
@@ -554,12 +567,60 @@ type Image struct {
 
 // Progress is the merged playback position of a profile for an item.
 type Progress struct {
-	PositionMs   int64
-	DurationMs   int64
-	Completed    bool
-	UpdatedAt    time.Time
+	PositionMs int64
+	DurationMs int64
+	Completed  bool
+	UpdatedAt  time.Time
+	// WatchedAt is when the title was last finished (90 % rule or the check mark, concept 20
+	// section 6.3); it stays when a later event reopens the title, nil when it never was.
+	WatchedAt    *time.Time
 	PlaybackRate *float64   // H-3: speed the profile last used for the title, nil until set
 	WatchTime    *WatchTime // K-5: present when the profile has a daily limit
+}
+
+// WatchTarget is a title the check mark «gesehen» writes (setItemWatched, concept 20 section 6.4):
+// the title itself or one visible episode below it, with the duration a new progress row starts
+// with (0 when none is known). Behind is set on an episode that comes before the newest started or
+// finished episode of its series in episode order; NewestAt is that episode's updated_at (Unix
+// milliseconds), so the check mark can stay older than it.
+type WatchTarget struct {
+	ItemID     string
+	DurationMs int64
+	Behind     bool
+	NewestAt   int64
+}
+
+// The page «Gesehen» (listWatched, concept 20 section 15.4).
+const (
+	WatchedSortWatched = "watched" // newest last watched first (default)
+	WatchedSortTitle   = "title"   // by the sort key of the title, A to Z
+)
+
+// WatchedQuery selects a page of listWatched: Content one of RootContent ("" = all), Sort one of
+// WatchedSort* ("" = watched).
+type WatchedQuery struct {
+	Content       string
+	Sort          string
+	Offset, Limit int
+}
+
+// WatchedEntry is one title of the page «Gesehen»: a film or audiobook the profile finished, or a
+// series or podcast with at least one watched visible episode. LastWatchedAt is the title's
+// watched_at or the newest one of its visible episodes; EpisodeCount is set on series and podcasts
+// only (their visible episodes, next to Item.WatchedCount).
+type WatchedEntry struct {
+	Item          ItemSummary
+	LastWatchedAt time.Time
+	EpisodeCount  *int
+}
+
+// WatchedPage is one page of listWatched with the size of the whole list and the offset and limit
+// the reader applied (after clamping).
+type WatchedPage struct {
+	Items  []WatchedEntry
+	Total  int
+	Offset int
+	Limit  int
 }
 
 // WatchTime is the watch time of a profile today against its daily limit (K-5).
@@ -619,12 +680,13 @@ type ItemSummary struct {
 	SeriesTitle   string
 	ExtraKind     string // trailer, featurette, deleted_scene, behind_the_scenes, interview, scene, short, other
 	ChildCount    *int   // visible seasons of a series, visible episodes of a season
-	// WatchedCount is the number of visible episodes of a season the profile has completed
-	// (concept 17 section 2.3, contract 1.20.0); set on seasons only.
+	// WatchedCount is the number of visible episodes the profile has watched (watched_at, concept
+	// 20 section 6.3): of a season (concept 17 section 2.3, contract 1.20.0), and since contract
+	// 1.31.0 of a series or podcast too; nil on other kinds.
 	WatchedCount *int
-	// Watched marks a series or podcast whose visible episodes the profile has all completed, by the
-	// rule of the library status watched (contract 1.22.0); nil on other kinds and on a series or
-	// podcast without visible episodes.
+	// Watched marks a series or podcast whose visible episodes the profile has all watched
+	// (watched_at), by the rule of the library status watched (contract 1.22.0); nil on other kinds
+	// and on a series or podcast without visible episodes.
 	Watched *bool
 	// SeriesRef is the visible series of an episode with its title and images (concept 15 P-1,
 	// contract 1.14.0 ItemRef.seriesRef); nil on every other kind.

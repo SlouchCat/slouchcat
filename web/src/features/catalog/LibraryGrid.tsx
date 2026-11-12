@@ -12,7 +12,7 @@ import {
   type ReactNode,
   type Ref,
 } from 'react';
-import { cardKey, ItemCell } from '@/features/discover/ItemGrid';
+import { cardKey, ItemCell, type CardFacts } from '@/features/discover/ItemGrid';
 import { setSpatialFocus, Skeleton, SpatialGroup } from '@/ui';
 import type { DrawnRange } from './libraryPages';
 import { useBackFocus } from './useBackFocus';
@@ -47,6 +47,10 @@ interface LibraryGridProps {
   below?: (item: ItemRef) => ReactNode;
   /** Called once a title was taken off the watchlist from its cover (ItemGrid `onUnmarked`). */
   onUnmarked?: (item: ItemRef) => void;
+  /** Called once a title's check mark was removed from its cover (ItemGrid `onUnwatched`). */
+  onUnwatched?: (item: ItemRef) => void;
+  /** Caption and bar of a card from the page (ItemGrid `describe`). */
+  describe?: (item: ItemRef) => CardFacts;
   /**
    * `square`: every title the grid can show is an audiobook or a podcast, and the covers stand in
    * square frames of their own (concept 19 C); the rows are lower. Else every card has the 2:3
@@ -119,6 +123,8 @@ export function LibraryGrid({
   showWatched = true,
   below,
   onUnmarked,
+  onUnwatched,
+  describe,
   cover = 'poster',
   onRange,
   ref,
@@ -373,6 +379,8 @@ export function LibraryGrid({
                     showWatched={showWatched}
                     tool={tool}
                     onUnmarked={onUnmarked}
+                    onUnwatched={onUnwatched}
+                    describe={describe}
                     clampCaption
                     frame={cover === 'square' ? 'own' : undefined}
                     onArrowPress={(direction) => arrow(index, direction)}

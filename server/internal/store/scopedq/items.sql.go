@@ -694,7 +694,7 @@ func (q *Queries) ListItemImages(ctx context.Context, arg ListItemImagesParams) 
 }
 
 const listItemProgress = `-- name: ListItemProgress :many
-SELECT p.profile_id, p.item_id, p.position_ms, p.duration_ms, p.completed, p.updated_at, p.playback_rate FROM progress AS p
+SELECT p.profile_id, p.item_id, p.position_ms, p.duration_ms, p.completed, p.updated_at, p.playback_rate, p.watched_at FROM progress AS p
 JOIN visible_items AS v ON v.item_id = p.item_id AND v.profile_id = p.profile_id
 WHERE p.profile_id = ?1 AND p.item_id IN (/*SLICE:item_ids*/?)
 `
@@ -732,6 +732,7 @@ func (q *Queries) ListItemProgress(ctx context.Context, arg ListItemProgressPara
 			&i.Completed,
 			&i.UpdatedAt,
 			&i.PlaybackRate,
+			&i.WatchedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1640,8 +1641,8 @@ SELECT i.id,
        ELSE 0 END AS INTEGER) AS child_count,
        CAST(CASE WHEN i.kind = 'season' THEN
          (SELECT count(*) FROM items AS c
-          JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
-          JOIN progress AS pc ON pc.profile_id = ?1 AND pc.item_id = c.id AND pc.completed = 1
+          CROSS JOIN progress AS pc ON pc.profile_id = ?1 AND pc.item_id = c.id AND pc.watched_at IS NOT NULL
+          CROSS JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
           WHERE c.parent_id = i.id AND c.kind = 'episode')
        ELSE 0 END AS INTEGER) AS watched_count,
        CASE WHEN i.kind NOT IN ('series', 'podcast') THEN NULL
@@ -1651,7 +1652,7 @@ SELECT i.id,
            LEFT JOIN progress AS pe ON pe.profile_id = ?1 AND pe.item_id = e.id
            CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
            WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season'))
-             AND +e.library_id = i.library_id AND COALESCE(pe.completed, 0) = 0) THEN 0
+             AND +e.library_id = i.library_id AND pe.watched_at IS NULL) THEN 0
          WHEN EXISTS (
            SELECT 1 FROM items AS se
            CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
@@ -1677,16 +1678,19 @@ type ListVisibleChildCountsRow struct {
 }
 
 // Number of visible content children of visible series and seasons: seasons of a series, episodes
-// of a season (extras never count); 0 for a podcast. One query with correlated subqueries over
-// visible_items. watched_count counts the visible episodes of a season the profile has completed
-// (concept 17 section 2.3, like the "done" of the library's episode statistics). watched
-// (ItemRef.watched, contract 1.22.0) is set for series and podcasts only, over the episodes of the
-// library status rule (visibility.episodeStatsBody): an episode or podcast episode of the title's
-// library in one of its seasons (specials included) or directly below it. It is 0 when a visible
-// episode is not completed, 1 when every visible episode is, NULL without a visible episode. The
-// first EXISTS reads the progress before visible_items (CROSS JOIN), so a completed episode costs
-// no visibility check and an unwatched title stops at its first open episode; the second runs
-// only when no episode is open. The unary + on e.library_id keeps the planner on the parent index
+// of a season (extras never count), 0 for a podcast. One query with correlated subqueries over
+// visible_items. The check mark reads watched_at (concept 20 section 6.3, contract 1.31.0), not
+// completed: a title finished once stays watched when it is started again. watched_count counts
+// the visible episodes of a season the profile has watched (concept 17 section 2.3), reading the
+// progress before visible_items (CROSS JOIN), so an unwatched episode costs no visibility check;
+// series and podcasts get theirs from ListVisibleWatchedCounts. watched (ItemRef.watched, contract
+// 1.22.0) is set for series and podcasts only, over the episodes of the library status rule
+// (visibility.episodeStatsBody): an episode or podcast episode of the title's library in one of
+// its seasons (specials included) or directly below it. It is 0 when a visible episode is not
+// watched, 1 when every visible episode is, NULL without a visible episode. The first EXISTS
+// reads the progress before visible_items (CROSS JOIN), so a watched episode costs no visibility
+// check and an unwatched title stops at its first open episode; the second runs only when no
+// episode is open. The unary + on e.library_id keeps the planner on the parent index
 // (items_episode) instead of reading every episode of the library.
 func (q *Queries) ListVisibleChildCounts(ctx context.Context, arg ListVisibleChildCountsParams) ([]ListVisibleChildCountsRow, error) {
 	query := listVisibleChildCounts
@@ -2576,6 +2580,69 @@ func (q *Queries) ListVisibleTrailers(ctx context.Context, arg ListVisibleTraile
 			&i.Official,
 			&i.CreatedAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleWatchedCounts = `-- name: ListVisibleWatchedCounts :many
+SELECT t.id, CAST(count(*) AS INTEGER) AS watched_count
+FROM progress AS pw INDEXED BY progress_watched
+CROSS JOIN items AS e ON e.id = pw.item_id AND e.kind IN ('episode', 'podcast_episode')
+LEFT JOIN items AS se ON se.id = e.parent_id AND se.kind = 'season'
+CROSS JOIN items AS t ON t.id = COALESCE(se.parent_id, e.parent_id) AND t.kind IN ('series', 'podcast') AND t.library_id = e.library_id
+CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+WHERE pw.profile_id = ?1 AND pw.watched_at IS NOT NULL AND t.id IN (/*SLICE:item_ids*/?)
+GROUP BY t.id
+`
+
+type ListVisibleWatchedCountsParams struct {
+	ProfileID int64
+	ItemIds   []string
+}
+
+type ListVisibleWatchedCountsRow struct {
+	ID           string
+	WatchedCount int64
+}
+
+// The visible watched episodes of the given series and podcasts (ItemRef.watchedCount since
+// contract 1.31.0, concept 20 F-12: with watched 0, a count above 0 is the half check mark), over
+// the episodes of the rule of ListVisibleChildCounts.watched. It starts from the watched progress
+// rows of the profile (the partial index progress_watched) and maps each to its series or podcast,
+// so its cost follows what the profile has watched, not the size of the titles: counting over the
+// episodes of each title read every episode of an unwatched podcast (100 podcasts of 1000
+// episodes: 103 ms instead of 1 ms, docs/perf/20-bedienung.md). Only rows of a requested title get
+// the visibility check. A title without a watched episode has no row.
+func (q *Queries) ListVisibleWatchedCounts(ctx context.Context, arg ListVisibleWatchedCountsParams) ([]ListVisibleWatchedCountsRow, error) {
+	query := listVisibleWatchedCounts
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.ProfileID)
+	if len(arg.ItemIds) > 0 {
+		for _, v := range arg.ItemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(arg.ItemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVisibleWatchedCountsRow{}
+	for rows.Next() {
+		var i ListVisibleWatchedCountsRow
+		if err := rows.Scan(&i.ID, &i.WatchedCount); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -357,3 +357,14 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   12:00 UTC. Dann `store.Dump`, kein Pfad aus dem Dateisystem dazu. `TestFrozenRadioWikidataStateCoversTheStage`
   prüft, dass jede dieser Datenarten vorhanden ist; `TestMigration00051RadioWikidata` prüft den Schritt von
   `radio-angebot.sql` aus.
+- `gesehen.sql`: Stand nach Stufe 2 des Konzepts 20 «Haken und Gesehen» (Migration 00053 mit `progress.watched_at` und
+  dem Teilindex `progress_watched`). Erzeugt am 12. November 2026 aus `radio-wikidata.sql`: Stand eingespielt, mit
+  `store.Open` migriert, dann den echten Dienst `playback.Service` getrieben (Uhr ab 12. November 2026, 12:00 UTC):
+  für das Hauptprofil ein Film per 90-%-Regel fertig (`Report`), ein Film fertig und eine Stunde später wieder
+  angefangen (`completed` 0, `watched_at` bleibt), Staffel 1 von «Slouchcat Test Show» per `SetWatched` von Hand
+  gesetzt (drei Folgen mit gestaffelten Zeiten im Abstand von einer Millisekunde; die Specials nicht, die Serie ist
+  also halb gesehen) und ein Film gesetzt und wieder entfernt (Stelle 0, ohne `watched_at`); für das zweite Profil
+  der ganze «Frozen Podcast» und ein Film von Hand gesetzt (die Hörbücher des Stands haben keine Datei und sind
+  darum nicht sichtbar). Dann `store.Dump`, kein neuer Pfad im Stand. `TestFrozenGesehenStateCoversTheStage`
+  prüft, dass jede dieser Datenarten vorhanden ist; `TestMigration00053ProgressWatchedAt` prüft den Schritt von
+  `radio-wikidata.sql` aus.

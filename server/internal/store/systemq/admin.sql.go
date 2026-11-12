@@ -360,6 +360,69 @@ func (q *Queries) AdminGetWidestItemImage(ctx context.Context, arg AdminGetWides
 	return i, err
 }
 
+const adminListDescendantFiles = `-- name: AdminListDescendantFiles :many
+WITH RECURSIVE tree (top_id, id) AS (
+    SELECT i.id, i.id FROM items AS i WHERE i.id IN (/*SLICE:item_ids*/?)
+    UNION ALL
+    SELECT t.top_id, c.id FROM items AS c JOIN tree AS t ON c.parent_id = t.id WHERE c.deleted_at IS NULL
+)
+SELECT CAST(t.top_id AS TEXT) AS top_id, m.root_id, r.path AS root_path, m.rel_path, m.size
+FROM tree AS t
+JOIN media_files AS m ON m.item_id = t.id
+JOIN library_roots AS r ON r.id = m.root_id
+WHERE t.id <> t.top_id AND m.missing_since IS NULL
+ORDER BY t.top_id, m.root_id, m.rel_path
+`
+
+type AdminListDescendantFilesRow struct {
+	TopID    string
+	RootID   int64
+	RootPath string
+	RelPath  string
+	Size     int64
+}
+
+// The present media files below the titles (seasons and episodes of a series, the episodes of a
+// podcast) with their folder (concept 20, P-10: the duplicates page shows where a series lies).
+func (q *Queries) AdminListDescendantFiles(ctx context.Context, itemIds []string) ([]AdminListDescendantFilesRow, error) {
+	query := adminListDescendantFiles
+	var queryParams []interface{}
+	if len(itemIds) > 0 {
+		for _, v := range itemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(itemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AdminListDescendantFilesRow{}
+	for rows.Next() {
+		var i AdminListDescendantFilesRow
+		if err := rows.Scan(
+			&i.TopID,
+			&i.RootID,
+			&i.RootPath,
+			&i.RelPath,
+			&i.Size,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const adminListFileAndFeedEpisodes = `-- name: AdminListFileAndFeedEpisodes :many
 SELECT fe.id AS file_id, fe.title AS file_title, fe.year AS file_year,
        ne.id AS feed_id, ne.title AS feed_title, ne.year AS feed_year, fe.library_id, fe.parent_id
@@ -420,10 +483,11 @@ func (q *Queries) AdminListFileAndFeedEpisodes(ctx context.Context, libraryID in
 }
 
 const adminListHashDuplicates = `-- name: AdminListHashDuplicates :many
-SELECT m.partial_hash, m.id AS media_file_id, m.root_id, m.rel_path, m.size, m.version_label, m.missing_since,
-       i.id, i.kind, i.title, i.year, i.library_id
+SELECT m.partial_hash, m.id AS media_file_id, m.root_id, r.path AS root_path, m.rel_path, m.size, m.version_label,
+       m.missing_since, i.id, i.kind, i.title, i.year, i.library_id
 FROM media_files AS m
 JOIN items AS i ON i.id = m.item_id
+JOIN library_roots AS r ON r.id = m.root_id
 WHERE m.partial_hash IS NOT NULL AND m.size >= 1048576 AND i.deleted_at IS NULL
   AND (?1 IS NULL OR i.library_id = ?1)
   AND EXISTS (SELECT 1 FROM media_files AS o JOIN items AS oi ON oi.id = o.item_id
@@ -435,6 +499,7 @@ type AdminListHashDuplicatesRow struct {
 	PartialHash  sql.NullString
 	MediaFileID  string
 	RootID       int64
+	RootPath     string
 	RelPath      string
 	Size         int64
 	VersionLabel sql.NullString
@@ -461,6 +526,7 @@ func (q *Queries) AdminListHashDuplicates(ctx context.Context, libraryID interfa
 			&i.PartialHash,
 			&i.MediaFileID,
 			&i.RootID,
+			&i.RootPath,
 			&i.RelPath,
 			&i.Size,
 			&i.VersionLabel,
@@ -544,9 +610,10 @@ func (q *Queries) AdminListImages(ctx context.Context, arg AdminListImagesParams
 const adminListMediaFiles = `-- name: AdminListMediaFiles :many
 
 
-SELECT m.id, m.item_id, m.root_id, m.rel_path, m.size, m.version_label, m.height, m.probed_at, m.probe_error,
-       m.missing_since
+SELECT m.id, m.item_id, m.root_id, r.path AS root_path, m.rel_path, m.size, m.version_label, m.height, m.probed_at,
+       m.probe_error, m.missing_since
 FROM media_files AS m
+JOIN library_roots AS r ON r.id = m.root_id
 WHERE m.item_id IN (/*SLICE:item_ids*/?)
 ORDER BY m.item_id, m.missing_since IS NOT NULL, COALESCE(m.height, 0) DESC, m.created_at, m.id
 `
@@ -555,6 +622,7 @@ type AdminListMediaFilesRow struct {
 	ID           string
 	ItemID       string
 	RootID       int64
+	RootPath     string
 	RelPath      string
 	Size         int64
 	VersionLabel sql.NullString
@@ -593,6 +661,7 @@ func (q *Queries) AdminListMediaFiles(ctx context.Context, itemIds []string) ([]
 			&i.ID,
 			&i.ItemID,
 			&i.RootID,
+			&i.RootPath,
 			&i.RelPath,
 			&i.Size,
 			&i.VersionLabel,
@@ -1202,15 +1271,25 @@ func (q *Queries) AdminMediaFileDurations(ctx context.Context, ids []string) ([]
 }
 
 const adminMergeProgress = `-- name: AdminMergeProgress :exec
-INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, playback_rate, updated_at)
-SELECT p.profile_id, ?1, p.position_ms, p.duration_ms, p.completed, p.playback_rate, p.updated_at
+INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, playback_rate, updated_at, watched_at)
+SELECT p.profile_id, ?1, p.position_ms, p.duration_ms, p.completed, p.playback_rate, p.updated_at, p.watched_at
 FROM progress AS p WHERE p.item_id = ?2 AND true
 ON CONFLICT (profile_id, item_id) DO UPDATE
-SET position_ms = excluded.position_ms, duration_ms = excluded.duration_ms, completed = excluded.completed,
-    playback_rate = coalesce(excluded.playback_rate, progress.playback_rate),
-    updated_at = max(progress.updated_at, excluded.updated_at)
-WHERE excluded.completed > progress.completed
-   OR (excluded.completed = progress.completed AND excluded.position_ms > progress.position_ms)
+SET position_ms = CASE WHEN excluded.completed > progress.completed
+                         OR (excluded.completed = progress.completed AND excluded.position_ms > progress.position_ms)
+                       THEN excluded.position_ms ELSE progress.position_ms END,
+    duration_ms = CASE WHEN excluded.completed > progress.completed
+                         OR (excluded.completed = progress.completed AND excluded.position_ms > progress.position_ms)
+                       THEN excluded.duration_ms ELSE progress.duration_ms END,
+    completed = max(progress.completed, excluded.completed),
+    playback_rate = CASE WHEN excluded.completed > progress.completed
+                           OR (excluded.completed = progress.completed AND excluded.position_ms > progress.position_ms)
+                         THEN coalesce(excluded.playback_rate, progress.playback_rate) ELSE progress.playback_rate END,
+    updated_at = CASE WHEN excluded.completed > progress.completed
+                        OR (excluded.completed = progress.completed AND excluded.position_ms > progress.position_ms)
+                      THEN max(progress.updated_at, excluded.updated_at) ELSE progress.updated_at END,
+    watched_at = CASE WHEN progress.watched_at IS NULL OR excluded.watched_at > progress.watched_at
+                      THEN coalesce(excluded.watched_at, progress.watched_at) ELSE progress.watched_at END
 `
 
 type AdminMergeProgressParams struct {
@@ -1220,6 +1299,8 @@ type AdminMergeProgressParams struct {
 
 // Per profile the further progress wins: completed over not completed, then the larger position.
 // The playback rate goes with the winning row; a winner without one keeps the target's.
+// watched_at (concept 20 section 6.3) has its own rule outside that comparison: the later of both
+// wins, so a title in its second run (not completed) keeps the date its copy was finished.
 func (q *Queries) AdminMergeProgress(ctx context.Context, arg AdminMergeProgressParams) error {
 	_, err := q.db.ExecContext(ctx, adminMergeProgress, arg.TargetID, arg.SourceID)
 	return err

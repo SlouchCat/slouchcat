@@ -2924,6 +2924,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/items/{id}/watched": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set or remove the check mark «gesehen» of a title (concept 20 P-5)
+         * @description Since contract 1.31.0 (concept 20 section 6.4). Idempotent; every kind. A film, episode,
+         *     extra, audiobook or podcast episode changes itself; a season, series or podcast changes
+         *     every visible episode below it in one transaction (a series: the episodes of all its
+         *     seasons, specials included), episodes the profile may not see stay as they are.
+         *
+         *     - `watched: true`: the title is finished (`completed`, the position at the end of its
+         *       duration, `watchedAt` and `updatedAt` now). A title without progress takes the duration
+         *       of its primary file, else of the feed or the metadata, else 0. Over several episodes the
+         *       times rise by one millisecond in episode order, so the last episode is the newest:
+         *       continue watching shows the next episode after it.
+         *     - `watched: false`: `watchedAt` goes. A finished title starts again at 0; a running
+         *       position of a second run stays. `updatedAt` stays, so continue watching does not move.
+         *
+         *     A check mark set by hand writes no activity event; the administration's log shows real
+         *     playbacks only. An invisible or unknown title answers 404.
+         */
+        put: operations["setItemWatched"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/watched": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The page «Gesehen» of the active profile (concept 20 P-14)
+         * @description Since contract 1.31.0 (concept 20 section 15.4). Every film and audiobook the profile has
+         *     finished (`Progress.watchedAt`: 90 % rule or the check mark by hand), and every series and
+         *     podcast with at least one visible watched episode, once each; never radio, extras, seasons or
+         *     single episodes. A title stays while it is started again and leaves when its check mark is
+         *     removed or while it is invisible for the profile. Only visible episodes count.
+         */
+        get: operations["listWatched"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/items/{id}/watchlist": {
         parameters: {
             query?: never;
@@ -3497,7 +3555,11 @@ export interface paths {
          * @description At most `limit` runs of the type in the state (`planned` is `queued` with a start in the future:
          *     backoff, debounce, a waiting download). `queued` and `planned` come in claim order (priority, then
          *     age), so the first row is the next to run; every other state newest first. `total` counts all runs
-         *     of that state.
+         *     of that state. `offset` skips that many runs (since contract 1.31.0, concept 20 P-6).
+         *
+         *     Since contract 1.31.0 `type` is optional, but only with `state=failed`: without it the page lists
+         *     the failed runs of every type («Fehlgeschlagen»). Without `type` and with any other state the
+         *     answer is 422 (`validation_failed`, field `type`, `required`).
          */
         get: operations["listJobRuns"];
         put?: never;
@@ -3646,6 +3708,74 @@ export interface paths {
          *     ends `failed` with `cancelled_by_admin` and is not prepared again by itself. Cancelling is final.
          */
         delete: operations["cancelJobRuns"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/jobs/failed/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queue every failed run again, of every type or of one
+         * @description Since contract 1.31.0 (concept 20, P-6). Every failed run (of `type`, when given) goes back to the
+         *     queue with its attempts reset, like `retryJob`, in one transaction. A run whose idempotency key a
+         *     waiting or running job holds stays failed and counts as `skipped`. Of several failed runs with the
+         *     same key only the newest is queued; the older ones end `cancelled` and count as `merged`.
+         */
+        post: operations["retryFailedJobs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/jobs/failed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Dismiss every failed run, of every type or of one
+         * @description Since contract 1.31.0 (concept 20, P-6). Every failed run (of `type`, when given) ends `cancelled`,
+         *     like `cancelJob` on a failed run, in one transaction; `jobs.prune` removes it later.
+         */
+        delete: operations["dismissFailedJobs"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/settings/keys/{provider}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask a provider whether its configured key holds
+         * @description Since contract 1.31.0 (concept 20, P-12). One cheap request to the provider with the key the
+         *     server uses (stored or from `deploy/.env`): TMDB `/configuration`, the TVDB login, one Fanart.tv
+         *     film, one YouTube video (one quota unit), the trending list of Trakt, one ISBN at Google Books.
+         *     `ok: false` says why (`problem`) with the provider's error in plain text (`message`). Neither the
+         *     answer nor the log carries the key.
+         */
+        post: operations["checkProviderKey"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -5711,9 +5841,22 @@ export interface components {
             /** Format: int64 */
             durationMs: number;
             percent: number;
+            /**
+             * @description At or beyond 90 % of the duration by the newest event (AN-10): a later event below 90 %
+             *     reopens the title. Continue watching, next up and the resume position read it; the check
+             *     mark reads `watchedAt` (since contract 1.31.0).
+             */
             completed: boolean;
             /** Format: date-time */
             updatedAt: string;
+            /**
+             * Format: date-time
+             * @description Since contract 1.31.0 (concept 20 section 6.3): when the title was last finished, by an
+             *     event at or beyond 90 % or by the check mark (`setItemWatched`). It stays when the title is
+             *     started again and goes only when the check mark is removed; absent when the title was
+             *     never finished. The check mark «gesehen» of a single title shows it.
+             */
+            watchedAt?: string;
             /** @description Playback speed the profile last used for this title (H-3); absent until it was set. */
             playbackRate?: number;
             /**
@@ -5722,6 +5865,46 @@ export interface components {
              *     stops and shows the hint.
              */
             watchTime?: components["schemas"]["WatchTime"];
+        };
+        /**
+         * @description Order of `listWatched` (since contract 1.31.0): `watched` puts the newest last watched first,
+         *     `title` sorts A to Z by the title's sort key in the profile language; ties by the other
+         *     order, then the id.
+         * @default watched
+         * @enum {string}
+         */
+        WatchedSort: "watched" | "title";
+        /** @description Since contract 1.31.0. One title of the page «Gesehen». */
+        WatchedEntry: {
+            /**
+             * @description The card as in every list; a series or podcast carries `watched` and `watchedCount` (its
+             *     visible watched episodes), the half check mark when `watched` is false.
+             */
+            item: components["schemas"]["ItemRef"];
+            /**
+             * Format: date-time
+             * @description When the title was last finished (`Progress.watchedAt`); of a series or podcast the newest
+             *     date of its visible watched episodes.
+             */
+            lastWatchedAt: string;
+            /**
+             * @description Series and podcasts only: their visible episodes (the «96» of «19 von 96 Folgen»), over the
+             *     same episodes as `item.watchedCount`.
+             */
+            episodeCount?: number;
+        };
+        /** @description Since contract 1.31.0. One page of `listWatched`. */
+        WatchedPage: {
+            items: components["schemas"]["WatchedEntry"][];
+            /** @description The size of the whole list with the same `content`. */
+            total: number;
+            offset: number;
+            limit: number;
+        };
+        /** @description Since contract 1.31.0. The check mark of `setItemWatched`. */
+        ItemWatchedRequest: {
+            /** @description True sets the check mark «gesehen», false removes it. */
+            watched: boolean;
         };
         /**
          * @description A title as it appears in lists. Every response that contains an ItemRef is `scoped`; the
@@ -5750,16 +5933,23 @@ export interface components {
              */
             overview?: string;
             /**
-             * @description Visible episodes of a season the active profile has completed (since contract 1.20.0,
-             *     concept 17 section 2.3); set only on seasons, next to `childCount`.
+             * @description Visible episodes the active profile has watched (`Progress.watchedAt`): of a season since
+             *     contract 1.20.0 (concept 17 section 2.3, next to `childCount`), and since contract 1.31.0
+             *     also of a series (every season, specials included) and a podcast, counted over the same
+             *     episodes as `watched`. Until 1.30.0 it counted completed episodes. With `watched` false,
+             *     a value above 0 is the half check mark «teilweise gesehen» (concept 20 F-12). Absent on
+             *     every other kind.
              */
             watchedCount?: number;
             /**
-             * @description Series and podcasts only (since contract 1.22.0): every visible episode is completed by
-             *     the active profile, by the same rule as the library status `watched` (specials count
-             *     like every other episode). False when at least one visible episode is open; absent for
-             *     a series or podcast without visible episodes and on every other kind. Set on every
-             *     series and podcast ItemRef in every list and on `ItemDetail`.
+             * @description Series and podcasts only (since contract 1.22.0): every visible episode is watched by the
+             *     active profile, by the same rule as the library status `watched` (specials count like
+             *     every other episode). Since contract 1.31.0 an episode counts as watched by its
+             *     `Progress.watchedAt` (finished once or marked by hand), no longer by `completed`, so a
+             *     series stays watched while an episode is watched again. False when at least one visible
+             *     episode is not watched; absent for a series or podcast without visible episodes and on
+             *     every other kind. Set on every series and podcast ItemRef in every list and on
+             *     `ItemDetail`.
              */
             watched?: boolean;
             runtimeMinutes?: number;
@@ -7236,6 +7426,11 @@ export interface components {
             id: string;
             /** Format: int64 */
             rootId?: number;
+            /**
+             * @description Since contract 1.31.0 (concept 20, P-10). The folder of the library root in the container
+             *     (`/media/…`), not on the NAS; the whole path is `rootPath` + `/` + `path`.
+             */
+            rootPath?: string;
             /** @description Path relative to the library root (administration only). */
             path: string;
             /** Format: int64 */
@@ -7525,7 +7720,21 @@ export interface components {
                 /** Format: int64 */
                 libraryId?: number;
                 files: components["schemas"]["AdminMediaFile"][];
+                /**
+                 * @description Since contract 1.31.0 (concept 20, P-10). A series or podcast, whose files hang on its
+                 *     episodes: per library root the folder all present episode files share.
+                 */
+                folders?: components["schemas"]["DuplicateFolder"][];
             }[];
+        };
+        DuplicateFolder: {
+            /** @description The folder of the library root in the container. */
+            rootPath: string;
+            /** @description The common folder relative to `rootPath`; empty is the root itself. */
+            path: string;
+            fileCount: number;
+            /** Format: int64 */
+            sizeBytes: number;
         };
         MergeRequest: {
             targetId: components["schemas"]["ItemID"];
@@ -8304,7 +8513,10 @@ export interface components {
             count: number;
             /** @description Of `count`, the volumes that pass the filters; equals `count` without a filter. */
             matching: number;
-            /** @description Of `count`, the volumes the active profile has completed (the bar of the tile). */
+            /**
+             * @description Of `count`, the volumes the active profile has heard (the bar of the tile): since contract 1.31.0
+             *     those with `Progress.watchedAt`, so a volume heard once and started again still counts.
+             */
             completed: number;
             /** @description The first visible volume in series or collection order; its cover represents the group. */
             cover?: components["schemas"]["ItemRef"];
@@ -8438,7 +8650,11 @@ export interface components {
          */
         LibrarySort: "title" | "added" | "released" | "vote" | "runtime" | "age" | "played" | "author";
         /**
-         * @description Watch status of a title for the active profile (F-8); exclusive per title.
+         * @description Watch status of a title for the active profile (F-8); exclusive per title. Since contract
+         *     1.31.0 it reads `Progress.watchedAt` (concept 20 section 6.3): `watched` once a film or
+         *     audiobook has `watchedAt`, also during a second run; `started` only without `watchedAt` and
+         *     with a position above 0; else `unwatched`. A series or podcast is `watched` when every visible
+         *     episode has `watchedAt`, `started` when some episode has it or a position.
          * @enum {string}
          */
         LibraryItemStatus: "unwatched" | "started" | "watched";
@@ -9307,6 +9523,16 @@ export interface components {
         JobCancelResult: {
             cancelled: number;
         };
+        /** @description Since contract 1.31.0. `retried` runs are queued again, `skipped` stay failed (an active job holds their key), `merged` ended cancelled (an older failure of a key whose newest run was queued). */
+        JobRetryFailedResult: {
+            retried: number;
+            skipped: number;
+            merged: number;
+        };
+        /** @description Since contract 1.31.0. How many failed runs ended cancelled. */
+        JobDismissResult: {
+            dismissed: number;
+        };
         StorageInfo: {
             /** @example /config */
             path: string;
@@ -9494,7 +9720,8 @@ export interface components {
         };
         /**
          * @description The provider keys (M3, M7; Fanart.tv since concept 10 step 6, a project key and an optional
-         *     personal client key); the values themselves are never returned.
+         *     personal client key; Google Books since contract 1.31.0, concept 20 O-7, the same key as
+         *     `AudiobookSources.googleBooksKey`); the values themselves are never returned.
          */
         AdminSettingsKeys: {
             tmdb: components["schemas"]["KeyState"];
@@ -9504,6 +9731,19 @@ export interface components {
             trakt: components["schemas"]["KeyState"];
             fanart: components["schemas"]["KeyState"];
             fanartClient: components["schemas"]["KeyState"];
+            googleBooks: components["schemas"]["KeyState"];
+        };
+        ProviderKeyCheck: {
+            /** @description The provider took the key. */
+            ok: boolean;
+            /**
+             * @description Set when `ok` is false: no key configured, the provider refused it, the provider could not be
+             *     reached (or the YouTube quota is used up), or another answer (`message` says which).
+             * @enum {string}
+             */
+            problem?: "not_configured" | "invalid" | "unreachable" | "failed";
+            /** @description The provider's error in plain text, without the key; absent when ok or not configured. */
+            message?: string;
         };
         /** @description The e-mail server; the password is never returned. */
         AdminSettingsEmail: {
@@ -9542,7 +9782,7 @@ export interface components {
             email?: components["schemas"]["AdminSettingsEmailUpdate"];
             telegram?: components["schemas"]["AdminSettingsTelegramUpdate"];
             /** @description Stored values to remove. */
-            clear?: ("publicUrl" | "tmdb" | "tvdb" | "tvdbPin" | "youtube" | "trakt" | "fanart" | "fanartClient" | "email" | "telegram")[];
+            clear?: ("publicUrl" | "tmdb" | "tvdb" | "tvdbPin" | "youtube" | "trakt" | "fanart" | "fanartClient" | "email" | "telegram" | "googleBooks")[];
         };
         /** @description New keys; each is stored encrypted and never returned. */
         AdminSettingsKeysUpdate: {
@@ -9553,6 +9793,8 @@ export interface components {
             fanart?: string;
             fanartClient?: string;
             trakt?: string;
+            /** @description Since contract 1.31.0 (concept 20, O-7). */
+            googleBooks?: string;
         };
         /** @description The e-mail server as a whole; `password` absent keeps the stored password. */
         AdminSettingsEmailUpdate: {
@@ -16365,6 +16607,77 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
         };
     };
+    setItemWatched: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemWatchedRequest"];
+            };
+        };
+        responses: {
+            /** @description The check mark is set or removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown or not visible for the active profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listWatched: {
+        parameters: {
+            query?: {
+                /** @description One kind of title (the chips «Filme», «Serien», «Hörbücher», «Podcasts»); absent = all. */
+                content?: components["schemas"]["RootContent"];
+                sort?: components["schemas"]["WatchedSort"];
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of the list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchedPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description `content` or `sort` outside its values (`validation_failed`, `invalid_value`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     addToWatchlist: {
         parameters: {
             query?: never;
@@ -17394,9 +17707,11 @@ export interface operations {
     listJobRuns: {
         parameters: {
             query: {
-                type: components["schemas"]["JobTypeName"];
+                type?: components["schemas"]["JobTypeName"];
                 state: "queued" | "planned" | "running" | "failed" | "done" | "cancelled";
                 limit?: number;
+                /** @description Since contract 1.31.0. Runs to skip, for paging. */
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -17714,6 +18029,96 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    retryFailedJobs: {
+        parameters: {
+            query?: {
+                type?: components["schemas"]["JobTypeName"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What happened to the failed runs. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobRetryFailedResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown job type (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    dismissFailedJobs: {
+        parameters: {
+            query?: {
+                type?: components["schemas"]["JobTypeName"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description How many failed runs were dismissed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDismissResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown job type (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    checkProviderKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: "tmdb" | "tvdb" | "fanart" | "youtube" | "trakt" | "googlebooks";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The outcome of the check. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderKeyCheck"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
         };
     };
     getAdminSettings: {

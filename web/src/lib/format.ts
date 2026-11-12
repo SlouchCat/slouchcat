@@ -83,6 +83,13 @@ export function formatDate(iso: string, language: string): string {
   return new Intl.DateTimeFormat(language, { dateStyle: 'medium' }).format(new Date(iso));
 }
 
+/** Day and month without the year ("8. Nov." in de, "Nov 8" in en): the page «Gesehen». */
+export function formatDayMonth(iso: string, language: string): string {
+  return new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short' }).format(
+    new Date(iso),
+  );
+}
+
 /** Length of an audio title (M6): "45 min", "1 h 5 min", or "8 s" under a minute. */
 export function formatDuration(t: TFunction, ms: number): string {
   if (ms < 60_000) return t('format.seconds', { seconds: Math.max(0, Math.round(ms / 1000)) });

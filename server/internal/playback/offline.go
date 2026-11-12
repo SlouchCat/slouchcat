@@ -64,7 +64,8 @@ func (s *Service) OfflineWatchTime(ctx context.Context, profile model.Profile, n
 //     event of the playback plus playedSlack percent, 11 s for the first one. An event newer than
 //     the stored progress replaces it (position, completed by the 90 % rule, updated_at = corrected
 //     time); an older one only counts for the watch time, so "completed" stays until a newer event
-//     below 90 % comes.
+//     below 90 % comes. Every accepted event that meets the 90 % rule, older or not, sets watched_at
+//     to the later of the stored one and its corrected time (concept 20 section 6.3).
 //
 // Afterwards every profile with accepted events gets the watch-limit check of Report: at the
 // limit its running playback ends (stopped_by limit). An empty batch, more than MaxOfflineEvents
@@ -315,18 +316,28 @@ func storeOfflineEvent(ctx context.Context, q *appq.Queries, deviceID string, ev
 		return false, fmt.Errorf("insert offline progress event: %w", err)
 	}
 
-	// AN-10: the event with the latest time wins; an older one only books watch time.
+	// AN-10: the event with the latest time wins; an older one only books watch time and, when it
+	// meets the 90 % rule, the check mark (watched_at at its corrected time, concept 20 section 6.3).
+	position := min(ev.PositionMs, ev.DurationMs)
+	var finished sql.NullInt64
+	if Completed(position, ev.DurationMs) {
+		finished = sql.NullInt64{Int64: at, Valid: true}
+	}
 	cur, err := q.GetProgress(ctx, appq.GetProgressParams{ProfileID: ev.ProfileID, ItemID: ev.ItemID})
 	switch {
 	case err == nil && at <= cur.UpdatedAt:
+		if finished.Valid {
+			if err := q.MarkProgressWatched(ctx, appq.MarkProgressWatchedParams{ProfileID: ev.ProfileID, ItemID: ev.ItemID, At: at}); err != nil {
+				return false, fmt.Errorf("mark progress watched: %w", err)
+			}
+		}
 		return true, nil
 	case err != nil && !errors.Is(err, sql.ErrNoRows):
 		return false, fmt.Errorf("get progress: %w", err)
 	}
-	position := min(ev.PositionMs, ev.DurationMs)
 	err = q.UpsertProgress(ctx, appq.UpsertProgressParams{
 		ProfileID: ev.ProfileID, ItemID: ev.ItemID, PositionMs: position, DurationMs: ev.DurationMs,
-		Completed: boolInt(Completed(position, ev.DurationMs)), Now: at, PlaybackRate: nullRate(ev.PlaybackRate),
+		Completed: boolInt(finished.Valid), Now: at, PlaybackRate: nullRate(ev.PlaybackRate), WatchedAt: finished,
 	})
 	if err != nil {
 		return false, fmt.Errorf("upsert progress: %w", err)

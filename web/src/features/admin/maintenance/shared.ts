@@ -26,6 +26,16 @@ export const issueKey = (issue: Issue) => `${issue.itemId}:${issue.mediaFileId ?
 /** Key of a duplicate group: its titles, which no other group shares. */
 export const groupKey = (group: DuplicateGroup) => group.items.map((item) => item.itemId).join('-');
 
+/**
+ * The whole path of a file or folder in the container (concept 20, P-10): the library root's
+ * folder, then the path below it. A folder ends with «/».
+ */
+export function fullPath(rootPath: string | undefined, path: string, folder = false): string {
+  const root = (rootPath ?? '').replace(/\/+$/, '');
+  const joined = path === '' ? root : root === '' ? path : `${root}/${path}`;
+  return folder ? `${joined}/` : joined;
+}
+
 /** Key of a pair of a deleted title and its live copy. */
 export const pairKey = (pair: RelinkPair) => `${pair.deletedId}:${pair.liveId}`;
 

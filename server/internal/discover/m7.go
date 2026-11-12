@@ -43,6 +43,11 @@ func (s *Service) Watchlist(ctx context.Context, profile model.Profile, offset, 
 	return s.vis.Watchlist(ctx, visibility.Profile(profile), offset, limit)
 }
 
+// Watched returns one page of the page «Gesehen» and the size of the list (concept 20 section 15.4).
+func (s *Service) Watched(ctx context.Context, profile model.Profile, q model.WatchedQuery) (model.WatchedPage, error) {
+	return s.vis.Watched(ctx, visibility.Profile(profile), q)
+}
+
 // AddToWatchlist puts a visible title on the profile's watchlist (idempotent); seasons and extras
 // are model.ErrNotListable.
 func (s *Service) AddToWatchlist(ctx context.Context, profile model.Profile, itemID string) error {

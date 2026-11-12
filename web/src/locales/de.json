@@ -38,6 +38,7 @@
     "hideSidebar": "Seitenleiste ausblenden",
     "showSidebar": "Seitenleiste einblenden",
     "radio": "Radio",
+    "watched": "Gesehen",
     "account": "Konto",
     "switchProfileShort": "Wechseln",
     "switchProfileCard": "Profil wechseln, jetzt {{name}}",
@@ -1329,7 +1330,8 @@
         "hits_other": "{{count}} Treffer",
         "hitsCaption": "Gefundene Länder",
         "continents": {
-          "label": "Alle Länder nach Kontinent. Ein Kontinent öffnet seine Länder; nochmals drücken oder Escape schliesst sie."
+          "label": "Alle Länder nach Kontinent. Ein Kontinent öffnet seine Länder; nochmals drücken oder Escape schliesst sie.",
+          "heading": "Nach Kontinent"
         },
         "continent": {
           "europe": "Europa",
@@ -1346,7 +1348,7 @@
         "continentChosen_one": "{{count}} gewählt",
         "continentChosen_other": "{{count}} gewählt",
         "countryCaption": "Länder in {{continent}}",
-        "chooseAll": "Alle Länder wählen",
+        "chooseAll": "Alle wählen",
         "removeAll": "Alle abwählen",
         "chooseCountry": "{{country}} wählen",
         "columns": {
@@ -1937,7 +1939,11 @@
         "meta_one": "{{reason}} · {{title}} · {{count}} Titel",
         "meta_other": "{{reason}} · {{title}} · {{count}} Titel",
         "keep": "bleibt",
-        "noFiles": "Keine Datei"
+        "noFiles": "Keine Datei",
+        "containerPaths": "Die Pfade sind die im Container (/media/…), nicht die auf dem NAS; daneben steht jeweils die Bibliothek.",
+        "library": "Bibliothek «{{name}}»",
+        "folderFiles_one": "{{n}} Datei · {{size}}",
+        "folderFiles_other": "{{n}} Dateien · {{size}}"
       },
       "relink": {
         "empty": "Keine verwaisten Benutzerdaten.",
@@ -3312,46 +3318,9 @@
       "notificationsLink": "Zu den Benachrichtigungskanälen",
       "keys": {
         "title": "Schlüssel der Anbieter",
-        "intro": "Für Metadaten (TMDB, TVDB), Bilder (Fanart.tv), Trailer (YouTube) und die Trakt-Listen der Startseite.",
-        "count": "{{set}} von {{total}} gesetzt",
-        "setPlaceholder": "API Key gesetzt",
-        "newValue": "Leer lassen, um den gespeicherten Wert zu behalten. Ein neuer Wert ersetzt ihn.",
-        "tmdb": {
-          "name": "TMDB-Token",
-          "description": "Lesezugriffs-Token (API Read Access Token) von themoviedb.org: Beschreibungen, Poster und Altersfreigaben.",
-          "link": "Token bei themoviedb.org holen"
-        },
-        "tvdb": {
-          "name": "TVDB-Schlüssel",
-          "description": "API-Schlüssel von thetvdb.com: optionale zweite Quelle für Serien.",
-          "link": "Schlüssel bei thetvdb.com holen"
-        },
-        "tvdbPin": {
-          "name": "TVDB-PIN",
-          "description": "Abonnenten-PIN, nur für ein TVDB-Abonnement mit PIN.",
-          "link": "PIN bei thetvdb.com nachsehen"
-        },
-        "youtube": {
-          "name": "YouTube-Schlüssel",
-          "description": "API-Schlüssel der YouTube Data API: sucht Trailer, wenn TMDB keinen kennt.",
-          "link": "Schlüssel in der Google Cloud Console holen"
-        },
-        "trakt": {
-          "name": "Trakt-Client-ID",
-          "description": "Für die Reihen «Trending» und «Beliebt» der Startseite.",
-          "link": "Client-ID bei trakt.tv holen"
-        },
-        "traktStatus": "Stand der Trakt-Listen",
-        "fanart": {
-          "name": "Fanart.tv-Schlüssel",
-          "description": "Projektschlüssel (API-Schlüssel) von fanart.tv: Logos und Poster in hoher Güte als letzte Bildquelle; eingeschaltet wird sie unter «Metadaten». Neue Bilder erscheinen nach 7 Tagen.",
-          "link": "Projektschlüssel bei fanart.tv holen"
-        },
-        "fanartClient": {
-          "name": "Persönlicher Fanart.tv-Schlüssel",
-          "description": "Optional: neue Bilder schon nach 2 Tagen statt nach 7.",
-          "link": "Persönlichen Schlüssel bei fanart.tv holen"
-        }
+        "intro": "Slouchcat holt damit Texte, Bilder und Trailer. Ohne Schlüssel bleibt der Anbieter aus.",
+        "count": "{{set}} von {{total}} Anbietern eingerichtet",
+        "newValue": "Leer lassen, um den gespeicherten Wert zu behalten. Ein neuer Wert ersetzt ihn."
       },
       "webhooks": {
         "title": "Webhooks von Radarr und Sonarr",
@@ -3500,6 +3469,68 @@
         "name": "Öffentliche Adresse",
         "label": "Adresse",
         "hint": "Zum Beispiel https://media.example.ch"
+      },
+      "providers": {
+        "fields": {
+          "tmdb": "Zugriffstoken (v4)",
+          "tvdb": "Schlüssel",
+          "tvdbPin": "Abo-PIN (nur bei Abo-Schlüssel)",
+          "fanart": "Projekt-Schlüssel",
+          "fanartClient": "Persönlicher Schlüssel (freiwillig)",
+          "youtube": "Schlüssel",
+          "trakt": "Client-ID",
+          "googleBooks": "Schlüssel"
+        },
+        "open": {
+          "setup": "Einrichten",
+          "edit": "Bearbeiten",
+          "view": "Ansehen"
+        },
+        "check": {
+          "ok": "{{name}}: Der Anbieter hat geantwortet, der Schlüssel gilt.",
+          "not_configured": "{{name}}: Es ist kein Schlüssel gesetzt.",
+          "invalid": "{{name}}: Der Anbieter lehnt den Schlüssel ab ({{message}}).",
+          "unreachable": "{{name}}: Der Anbieter ist nicht erreichbar ({{message}}).",
+          "failed": "{{name}}: Die Prüfung ist fehlgeschlagen ({{message}})."
+        },
+        "tmdb": {
+          "name": "TMDB",
+          "purpose": "Texte, Poster und Trailer für Filme und Serien. Pflicht für Video-Bibliotheken.",
+          "help": "Kostenlos im TMDB-Konto unter «API»: das Lesezugriffs-Token (v4)."
+        },
+        "tvdb": {
+          "name": "TVDB",
+          "purpose": "Zweite Quelle für Serien und Anime: Staffeln und Folgentitel.",
+          "help": "Schlüssel und PIN stehen im TVDB-Konto. Ohne Abo bleibt die PIN leer."
+        },
+        "fanart": {
+          "name": "Fanart.tv",
+          "purpose": "Logos, Hintergründe und Disc-Bilder; eingeschaltet wird die Quelle unter «Metadaten».",
+          "help": "Mit persönlichem Schlüssel erscheinen neue Bilder nach zwei Tagen, sonst nach sieben."
+        },
+        "youtube": {
+          "name": "YouTube",
+          "purpose": "Trailer suchen, wenn TMDB keinen kennt.",
+          "help": "Ein Schlüssel der «YouTube Data API v3» aus der Google Cloud Console."
+        },
+        "trakt": {
+          "name": "Trakt",
+          "purpose": "Listen für das Spotlight und die Reihen der Startseite.",
+          "help": "Die Client-ID einer eigenen Trakt-App. Den Stand der Listen zeigt die Seite «Spotlight»."
+        },
+        "googlebooks": {
+          "name": "Google Books",
+          "purpose": "Buchdaten für Hörbücher; ohne Schlüssel fragt Slouchcat Google Books nie.",
+          "help": "Ein Schlüssel der «Books API» aus der Google Cloud Console. Welcher Ordner die Quelle nutzt, steht unter «Hörbücher: Quellen»."
+        },
+        "close": "Zuklappen",
+        "toggleLabel": "{{action}}: {{name}}",
+        "link": "Schlüssel bei {{name}} holen",
+        "stored": "Gesetzt; leer lassen behält ihn",
+        "storedHint": "Gesetzt, endet auf {{hint}}; leer lassen behält ihn",
+        "envNote": "Der Wert kommt aus deploy/.env und lässt sich nur dort ändern. «Prüfen» fragt den Anbieter trotzdem.",
+        "checkAction": "Prüfen",
+        "checkLabel": "{{name}} prüfen"
       }
     },
     "accounts": {
@@ -4018,7 +4049,21 @@
         "downloadWarning": "Die Downloads enden als «fehlgeschlagen» und werden nicht nachgeholt.",
         "confirm": "Abbrechen",
         "keep": "Behalten",
-        "cancelFailedBody": "Slouchcat versucht diesen Lauf nicht mehr."
+        "deleteRunTitle": "Fehlgeschlagenen Lauf von {{name}} löschen?",
+        "deleteRunBody": "Slouchcat versucht diesen Lauf nicht mehr. Unter «Läufe» steht er danach als «abgebrochen», bis die Aufräumung ihn später entfernt.",
+        "deleteRunConfirm": "Löschen",
+        "retryFailedTitle_one": "{{count}} fehlgeschlagenen Lauf erneut versuchen?",
+        "retryFailedTitle_other": "Alle {{count}} fehlgeschlagenen Läufe erneut versuchen?",
+        "retryFailedTypeTitle_one": "{{count}} fehlgeschlagenen Lauf von {{name}} erneut versuchen?",
+        "retryFailedTypeTitle_other": "Alle {{count}} fehlgeschlagenen Läufe von {{name}} erneut versuchen?",
+        "retryFailedBody": "Die Läufe kommen mit zurückgesetzten Versuchen wieder in die Warteschlange. Wartet oder läuft dieselbe Arbeit schon, bleibt ein Lauf fehlgeschlagen; von doppelten Läufen kommt nur der neueste zurück.",
+        "retryFailedConfirm": "Alle erneut versuchen",
+        "dismissFailedTitle_one": "{{count}} fehlgeschlagenen Lauf löschen?",
+        "dismissFailedTitle_other": "Alle {{count}} fehlgeschlagenen Läufe löschen?",
+        "dismissFailedTypeTitle_one": "{{count}} fehlgeschlagenen Lauf von {{name}} löschen?",
+        "dismissFailedTypeTitle_other": "Alle {{count}} fehlgeschlagenen Läufe von {{name}} löschen?",
+        "dismissFailedBody": "Slouchcat versucht sie nicht mehr. Unter «Läufe» stehen sie danach als «abgebrochen», bis die Aufräumung sie später entfernt.",
+        "dismissFailedConfirm": "Alle löschen"
       },
       "messages": {
         "ran_zero": "{{name}}: nichts einzureihen.",
@@ -4032,7 +4077,18 @@
         "runCancelled": "Lauf {{id}} abgebrochen.",
         "runRetried": "Lauf {{id}} wartet wieder.",
         "scheduleSaved": "Zeitplan von {{name}} gespeichert.",
-        "windowSaved": "Zeitfenster von {{name}} gespeichert."
+        "windowSaved": "Zeitfenster von {{name}} gespeichert.",
+        "runDeleted": "Lauf {{id}} gelöscht.",
+        "failedRetried_zero": "Kein Lauf eingereiht.",
+        "failedRetried_one": "{{count}} Lauf wartet wieder.",
+        "failedRetried_other": "{{count}} Läufe warten wieder.",
+        "failedSkipped_one": "{{count}} bleibt fehlgeschlagen, weil dieselbe Arbeit schon wartet oder läuft.",
+        "failedSkipped_other": "{{count}} bleiben fehlgeschlagen, weil dieselbe Arbeit schon wartet oder läuft.",
+        "failedMerged_one": "{{count}} doppelter Lauf ist verworfen.",
+        "failedMerged_other": "{{count}} doppelte Läufe sind verworfen.",
+        "failedDismissed_zero": "Kein Lauf zu löschen.",
+        "failedDismissed_one": "{{count}} fehlgeschlagener Lauf gelöscht.",
+        "failedDismissed_other": "{{count}} fehlgeschlagene Läufe gelöscht."
       },
       "runs": {
         "title": "Läufe von {{name}}",
@@ -4062,7 +4118,11 @@
         "cancel": "Abbrechen",
         "cancelLabel": "Lauf {{id}} abbrechen",
         "runAfter": "frühestens {{time}}",
-        "heading": "Läufe"
+        "heading": "Läufe",
+        "delete": "Löschen",
+        "deleteLabel": "Lauf {{id}} löschen",
+        "retryAllLabel": "Alle fehlgeschlagenen Läufe von {{name}} erneut versuchen",
+        "dismissAllLabel": "Alle fehlgeschlagenen Läufe von {{name}} löschen"
       },
       "schedule": {
         "title": "Zeitplan von {{name}}",
@@ -4308,16 +4368,19 @@
         "state": "Zustand"
       },
       "failed": {
-        "title": "Letzte Fehlschläge (alle Arten)",
+        "title": "Fehlschläge (alle Arten)",
         "count_one": "{{count}} fehlgeschlagen",
         "count_other": "{{count}} fehlgeschlagen",
         "empty": "Keine Fehlschläge.",
-        "shown": "{{shown}} von {{total}} · Alle Fehlschläge einer Jobart stehen unter «Läufe» in ihrer Zeile.",
+        "shown": "{{shown}} von {{total}} geladen",
         "columns": {
           "type": "Jobart",
           "at": "Zeit"
         },
-        "retryLabel": "Lauf {{id}} von {{name}} erneut einreihen"
+        "retryLabel": "Lauf {{id}} von {{name}} erneut einreihen",
+        "retryAll": "Alle erneut versuchen",
+        "dismissAll": "Alle löschen …",
+        "deleteLabel": "Lauf {{id}} von {{name}} löschen"
       },
       "separator": " · ",
       "none": "–",
@@ -4533,8 +4596,8 @@
       },
       "googleBooks": {
         "name": "Schlüssel für Google Books",
-        "description": "Ohne Schlüssel fragt der Server Google Books nie; erst mit Schlüssel lässt sich die Quelle in die Liste eines Ordners nehmen.",
-        "link": "API-Schlüssel bei Google holen"
+        "description": "Der Schlüssel für Google Books steht jetzt bei den übrigen Anbietern.",
+        "link": "Unter «Integrationen» einrichten"
       },
       "auto": {
         "label": "Automatisch zuordnen",
@@ -5439,6 +5502,57 @@
       "options": "Bände",
       "writeToVolumes": "In alle Bände schreiben",
       "writeToVolumesHint": "Setzt den Namen als Reihe jedes Bandes und sperrt ihn. Reihen mit demselben Namen und demselben Autor werden so zu einer."
+    }
+  },
+  "watched": {
+    "page": {
+      "title": "Gesehen",
+      "count_one": "{{count}} Titel",
+      "count_other": "{{count}} Titel",
+      "filters": "Filter",
+      "content": "Medienart",
+      "contents": {
+        "all": "Alle",
+        "movie": "Filme",
+        "series": "Serien",
+        "audiobook": "Hörbücher",
+        "podcast": "Podcasts"
+      },
+      "sort": "Sortierung",
+      "sorts": {
+        "watched": "Zuletzt gesehen",
+        "title": "Titel A–Z"
+      },
+      "watchedOn": "gesehen am {{date}}",
+      "heardOn": "gehört am {{date}}",
+      "episodes_one": "{{count}} von {{total}} Folgen · zuletzt {{date}}",
+      "episodes_other": "{{count}} von {{total}} Folgen · zuletzt {{date}}",
+      "empty": {
+        "title": "Noch nichts gesehen.",
+        "body": "Was du zu Ende schaust oder hörst, erscheint hier."
+      }
+    },
+    "label": "Gesehen: {{title}}",
+    "button": "Gesehen",
+    "hint": {
+      "set": "Als gesehen markieren",
+      "remove": "Haken entfernen",
+      "half": "Teilweise gesehen: alle markieren oder alle Haken entfernen"
+    },
+    "state": {
+      "full": "Gesehen",
+      "half": "Teilweise gesehen"
+    },
+    "ask": {
+      "removeTitle": "«{{title}}» als ungesehen markieren?",
+      "removeBody_one": "Bei {{count}} Folge fällt der Haken. Das lässt sich nicht rückgängig machen.",
+      "removeBody_other": "Bei {{count}} Folgen fällt der Haken. Das lässt sich nicht rückgängig machen.",
+      "removeBodyAll": "Bei allen Folgen fällt der Haken. Das lässt sich nicht rückgängig machen.",
+      "halfTitle": "«{{title}}» ist teilweise gesehen",
+      "halfBody_one": "{{count}} Folge trägt den Haken. Alle Folgen markieren oder alle Haken entfernen? Das Entfernen lässt sich nicht rückgängig machen.",
+      "halfBody_other": "{{count}} Folgen tragen den Haken. Alle Folgen markieren oder alle Haken entfernen? Das Entfernen lässt sich nicht rückgängig machen.",
+      "markAll": "Alle Folgen als gesehen markieren",
+      "removeAll": "Alle Haken entfernen"
     }
   }
 }

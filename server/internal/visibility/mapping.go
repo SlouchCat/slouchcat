@@ -225,6 +225,10 @@ func summarize(it scopedq.Item, ex extras, lang langPref) model.ItemSummary {
 			Completed:  p.Completed == 1,
 			UpdatedAt:  time.UnixMilli(p.UpdatedAt).UTC(),
 		}
+		if p.WatchedAt.Valid { // concept 20 section 6.3
+			w := time.UnixMilli(p.WatchedAt.Int64).UTC()
+			s.Progress.WatchedAt = &w
+		}
 		if p.PlaybackRate.Valid {
 			rate := p.PlaybackRate.Float64
 			s.Progress.PlaybackRate = &rate
@@ -256,8 +260,8 @@ func summarize(it scopedq.Item, ex extras, lang langPref) model.ItemSummary {
 		n := ex.childCounts[it.ID]
 		s.ChildCount = &n
 	}
-	if it.Kind == "season" {
-		w := ex.watched[it.ID]
+	if it.Kind == "season" || it.Kind == "series" || it.Kind == "podcast" {
+		w := ex.watched[it.ID] // concept 20 F-12: series and podcasts too since contract 1.31.0
 		s.WatchedCount = &w
 	}
 	if done, ok := ex.allWatched[it.ID]; ok && (it.Kind == "series" || it.Kind == "podcast") {

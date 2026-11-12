@@ -2,7 +2,7 @@ import type { ItemRef } from '@slouchcat/api-client';
 import type { ReactNode } from 'react';
 import { LibraryGrid } from '@/features/catalog/LibraryGrid';
 import { PAGED_LIST_VIRTUAL_FROM, type PlaceRange } from '@/lib/pagedList';
-import { ItemGrid } from './ItemGrid';
+import { ItemGrid, type CardFacts } from './ItemGrid';
 
 interface PagedItemGridProps {
   /** The places of the list (usePagedList). */
@@ -16,6 +16,10 @@ interface PagedItemGridProps {
   /** Extra controls under a card (the watchlist's "Entfernen"). */
   below?: (item: ItemRef) => ReactNode;
   onUnmarked?: (item: ItemRef) => void;
+  /** Called once a title's check mark was removed from its cover (the page «Gesehen»). */
+  onUnwatched?: (item: ItemRef) => void;
+  /** Caption and bar of a card from the page (the page «Gesehen»). */
+  describe?: (item: ItemRef) => CardFacts;
   /** The places the drawn rows ask for (a virtual grid). */
   onRange: (range: PlaceRange) => void;
 }
@@ -34,6 +38,8 @@ export function PagedItemGrid({
   tool,
   below,
   onUnmarked,
+  onUnwatched,
+  describe,
   onRange,
 }: PagedItemGridProps) {
   if (slots.length > PAGED_LIST_VIRTUAL_FROM) {
@@ -46,6 +52,8 @@ export function PagedItemGrid({
         tool={tool}
         below={below}
         onUnmarked={onUnmarked}
+        onUnwatched={onUnwatched}
+        describe={describe}
         onRange={onRange}
       />
     );
@@ -59,6 +67,8 @@ export function PagedItemGrid({
       tool={tool}
       below={below}
       onUnmarked={onUnmarked}
+      onUnwatched={onUnwatched}
+      describe={describe}
     />
   );
 }

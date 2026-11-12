@@ -12,8 +12,9 @@ import {
 } from './keyboard';
 
 // Integrations (A-2; concept 12, variant A) against the real server: six blocks that fold away by
-// their band, provider keys with their source (the e2e server sets the Trakt client id in its
-// environment, no TMDB key), a YouTube key saved and deleted by keyboard, the public address and
+// their band, provider cards with their state (the e2e server sets the Trakt client id in its
+// environment, no TMDB key; concept 20 P-12), «Prüfen» against the Trakt mock, a YouTube key
+// saved and deleted by keyboard, the public address and
 // the update check in the «Server» block, the e-mail server and the Telegram bot as setting rows
 // (both from the environment, with a test mail through the SMTP mock), and the question before
 // leaving with unsaved input. Every test leaves the settings as it found them.
@@ -71,8 +72,8 @@ test('the six blocks start open and fold by keyboard from their band @keyboard',
   const band = region(page, 'Schlüssel der Anbieter').getByRole('button', {
     name: 'Schlüssel der Anbieter',
   });
-  const field = region(page, 'Schlüssel der Anbieter').getByRole('textbox', {
-    name: 'YouTube-Schlüssel',
+  const field = region(page, 'Schlüssel der Anbieter').getByRole('button', {
+    name: 'Einrichten: YouTube',
     exact: true,
   });
   await resetFocus(page);
@@ -107,15 +108,17 @@ test('unsaved input survives a folded block; leaving asks first', async ({ page,
   const before = await settingsOf(owner);
   await openIntegrations(page);
   const keys = region(page, 'Schlüssel der Anbieter');
-  const field = keys.getByRole('textbox', { name: 'YouTube-Schlüssel', exact: true });
+  const youtube = region(page, 'YouTube');
+  await youtube.getByRole('button', { name: 'Einrichten: YouTube' }).click();
+  const field = youtube.getByRole('textbox', { name: 'Schlüssel', exact: true });
   await field.fill('unsaved-key');
-  await expect(keys.getByText('ungespeichert', { exact: true })).toBeVisible();
+  await expect(keys.getByText('ungespeichert', { exact: true }).first()).toBeVisible();
 
   const band = keys.getByRole('button', { name: 'Schlüssel der Anbieter' });
   await band.focus();
   await page.keyboard.press('Enter');
   await expect(field).toBeHidden();
-  await expect(keys.getByText('ungespeichert', { exact: true })).toBeVisible();
+  await expect(keys.getByText('ungespeichert', { exact: true }).first()).toBeVisible();
   await page.keyboard.press('Enter');
   await expect(field).toHaveValue('unsaved-key');
 
@@ -160,7 +163,9 @@ test('unsaved input survives a folded block; leaving asks first', async ({ page,
   expect(await settingsOf(owner)).toEqual(before);
 });
 
-test('keys show their source; the Trakt id from the environment is read-only', async ({ page }) => {
+test('provider cards show their state; the Trakt id from the environment is read-only and checks by keyboard @keyboard', async ({
+  page,
+}) => {
   await openIntegrations(page);
   await expect(
     page
@@ -168,26 +173,47 @@ test('keys show their source; the Trakt id from the environment is read-only', a
       .getByRole('link', { name: 'Integrationen' }),
   ).toHaveAttribute('aria-current', 'page');
   const keys = region(page, 'Schlüssel der Anbieter');
-  // One row per key (S-7): a group named like the key, the field inside it.
-  const trakt = keys
-    .getByRole('group', { name: 'Trakt-Client-ID' })
-    .getByRole('textbox', { name: 'Trakt-Client-ID', exact: true });
-  await expect(trakt).toBeDisabled();
-  await expect(keys.getByText('In deploy/.env gesetzt', { exact: true })).toBeVisible();
-  await expect(keys.getByRole('button', { name: 'Trakt-Client-ID speichern' })).toHaveCount(0);
-  // The e2e server runs without a TMDB key.
-  await expect(keys.getByRole('textbox', { name: 'TMDB-Token', exact: true })).toBeEnabled();
-  await expect(keys.getByRole('button', { name: 'TMDB-Token löschen' })).toHaveCount(0);
-  // One line per key (Int-A): the field and its «Speichern» stand side by side.
-  const tmdbField = await keys
-    .getByRole('textbox', { name: 'TMDB-Token', exact: true })
-    .boundingBox();
-  const tmdbSave = await keys.getByRole('button', { name: 'TMDB-Token speichern' }).boundingBox();
-  expect(Math.round(tmdbSave?.y ?? -1)).toBe(Math.round(tmdbField?.y ?? 0));
-  await expect(keys.getByRole('link', { name: 'Stand der Trakt-Listen' })).toHaveAttribute(
-    'href',
-    '/admin/spotlight',
+  // Six cards, folded; the e2e server runs with the Trakt id from its environment, without TMDB.
+  await expect(keys.getByRole('heading', { level: 3 })).toHaveText([
+    'TMDB',
+    'TVDB',
+    'Fanart.tv',
+    'YouTube',
+    'Trakt',
+    'Google Books',
+  ]);
+  // Other specs may leave a key of their own: the band counts the six providers.
+  await expect(keys.getByText(/^\d von 6 Anbietern eingerichtet$/)).toBeVisible();
+  const trakt = region(page, 'Trakt');
+  await expect(trakt.getByText('In deploy/.env gesetzt', { exact: true })).toBeVisible();
+  await expect(
+    region(page, 'TMDB').getByRole('button', { name: 'Einrichten: TMDB' }),
+  ).toBeVisible();
+
+  // Enter opens the card; the field is locked, the note stands once, «Prüfen» asks the mock.
+  const toggle = trakt.getByRole('button', { name: 'Ansehen: Trakt' });
+  await resetFocus(page);
+  await tabTo(page, toggle, 80);
+  await page.keyboard.press('Enter');
+  await expect(trakt.getByRole('button', { name: 'Zuklappen: Trakt' })).toHaveAttribute(
+    'aria-expanded',
+    'true',
   );
+  await expect(trakt.getByRole('textbox', { name: 'Client-ID', exact: true })).toBeDisabled();
+  await expect(trakt.getByText(/lässt sich nur dort ändern/)).toHaveCount(1);
+  await expect(trakt.getByRole('button', { name: 'Trakt speichern' })).toHaveCount(0);
+  const check = trakt.getByRole('button', { name: 'Trakt prüfen' });
+  await tabTo(page, check, 6);
+  await expectVisibleFocus(page);
+  await page.keyboard.press('Enter');
+  await expect(
+    trakt.getByText('Trakt: Der Anbieter hat geantwortet, der Schlüssel gilt.'),
+  ).toBeVisible();
+  // Back on the toggle, Space folds the card again.
+  await trakt.getByRole('button', { name: 'Zuklappen: Trakt' }).focus();
+  await page.keyboard.press('Space');
+  await expect(trakt.getByRole('textbox')).toHaveCount(0);
+  await expectFocusOn(page, toggle);
 });
 
 test('a YouTube key is saved write-only and deleted again, all by keyboard', async ({
@@ -197,13 +223,20 @@ test('a YouTube key is saved write-only and deleted again, all by keyboard', asy
   const key = YOUTUBE_KEY;
   try {
     await openIntegrations(page);
-    const keys = region(page, 'Schlüssel der Anbieter');
-    const field = keys.getByRole('textbox', { name: 'YouTube-Schlüssel', exact: true });
+    const keys = region(page, 'YouTube');
+    // The card opens by keyboard; its field is the next stop (concept 20, P-12).
     await resetFocus(page);
-    await tabTo(page, field, 80);
-    await page.keyboard.type(key);
+    await tabTo(page, keys.getByRole('button', { name: 'Einrichten: YouTube' }), 80);
+    await page.keyboard.press('Enter');
+    const field = keys.getByRole('textbox', { name: 'Schlüssel', exact: true });
     await page.keyboard.press('Tab');
-    const save = keys.getByRole('button', { name: 'YouTube-Schlüssel speichern' });
+    await expectFocusOn(page, field);
+    await page.keyboard.type(key);
+    // The one link of the card, then «Speichern».
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, keys.getByRole('link', { name: 'Schlüssel bei YouTube holen' }));
+    await page.keyboard.press('Tab');
+    const save = keys.getByRole('button', { name: 'YouTube speichern' });
     await expectFocusOn(page, save);
     const stored = page.waitForResponse(
       (response) =>
@@ -211,17 +244,21 @@ test('a YouTube key is saved write-only and deleted again, all by keyboard', asy
     );
     await page.keyboard.press('Enter');
     expect((await stored).status()).toBe(200);
-    await expect(keys.getByText('YouTube-Schlüssel gespeichert.')).toBeVisible();
+    await expect(keys.getByText('YouTube gespeichert.')).toBeVisible();
     // Write-only: the field is empty again, only the last four characters come back.
     await expect(field).toHaveValue('');
-    await expect(keys.getByText('Gespeichert, endet auf wxyz')).toBeVisible();
+    await expect(field).toHaveAttribute(
+      'placeholder',
+      'Gesetzt, endet auf wxyz; leer lassen behält ihn',
+    );
+    await expect(keys.getByText('Gespeichert', { exact: true })).toBeVisible();
     expect((await settingsOf(owner)).keys.youtube).toEqual({ source: 'stored', hint: 'wxyz' });
 
     // "Löschen": the dialog takes the focus, Escape closes it, Enter confirms.
-    const remove = keys.getByRole('button', { name: 'YouTube-Schlüssel löschen' });
+    const remove = keys.getByRole('button', { name: 'YouTube löschen' });
     await remove.focus();
     await page.keyboard.press('Enter');
-    const dialog = page.getByRole('alertdialog', { name: 'YouTube-Schlüssel löschen?' });
+    const dialog = page.getByRole('alertdialog', { name: 'YouTube löschen?' });
     await expect(dialog).toBeVisible();
     await expectVisibleFocus(page);
     await page.keyboard.press('Escape');
@@ -230,9 +267,9 @@ test('a YouTube key is saved write-only and deleted again, all by keyboard', asy
     await page.keyboard.press('Enter');
     await expect(dialog.getByRole('button', { name: 'Löschen' })).toBeFocused();
     await page.keyboard.press('Enter');
-    await expect(keys.getByText('YouTube-Schlüssel gelöscht.')).toBeVisible();
+    await expect(keys.getByText('YouTube gelöscht.')).toBeVisible();
     await expect(remove).toHaveCount(0);
-    // «Löschen …» is gone with the key: the row's «Speichern» takes the focus (ALL-2).
+    // «Löschen …» is gone with the key: the card's «Speichern» takes the focus (ALL-2).
     await expectFocusOn(page, save);
     expect((await settingsOf(owner)).keys.youtube?.source).toBe('none');
     await expectNoFocusTrap(page, 120);

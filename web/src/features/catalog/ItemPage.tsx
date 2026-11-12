@@ -57,6 +57,7 @@ import { creditCaption, episodeCode, extraKindLabel, isAudioKind } from './label
 import { audioSeriesQuery, itemQuery, podcastEpisodesSource } from './queries';
 import { EpisodeList, SeasonShelf, seasonFacts } from './SeasonShelf';
 import { usePlayStart } from './usePlayStart';
+import { CoverWatched } from './watched';
 import styles from './ItemPage.module.css';
 
 const route = getRouteApi('/_authed/_active/_chrome/items/$itemId');
@@ -317,6 +318,7 @@ function PodcastEpisodes({ item }: { item: ItemDetail }) {
               playHref={paths.play(episode.id)}
               playLabel={t('item.podcast.play', { title: episode.title })}
               onPlay={(event) => playStart.ask(episode, event)}
+              watchedControl={<CoverWatched item={episode} appearance="row" />}
             />
           )}
         />

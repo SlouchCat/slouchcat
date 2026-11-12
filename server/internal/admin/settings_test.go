@@ -341,3 +341,35 @@ func TestVAPIDKeysAndRotation(t *testing.T) {
 		t.Errorf("after the rotation: %+v (%d calls)", st.Push, rot.calls)
 	}
 }
+
+// Concept 20, O-7: the Google Books key of the audiobook sources is a provider key of the
+// settings too; one stored value, seen from both pages, cleared from either.
+func TestSettingsGoogleBooksKey(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	const key = "FAKE-google-books-key-0123456789"
+	st, err := f.svc.UpdateSettings(ctx, model.AdminSettingsUpdate{Keys: model.AdminKeysUpdate{GoogleBooks: ptr(key)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Keys.GoogleBooks != (model.KeyState{Source: "stored", Hint: "6789"}) {
+		t.Errorf("googleBooks = %+v", st.Keys.GoogleBooks)
+	}
+	if v := f.rawSetting(t, SettingGoogleBooksKey); !strings.HasPrefix(v, "v1:") {
+		t.Errorf("stored as %q, want encrypted", v)
+	}
+	if got, _ := f.svc.GoogleBooksKey(ctx); got != key {
+		t.Errorf("GoogleBooksKey = %q", got)
+	}
+	// The state the page «Hörbücher: Quellen» shows (AudiobookSources) reads the same setting.
+	if ks, err := f.svc.keyState(ctx, googleKeySetting); err != nil || ks.Source != "stored" {
+		t.Errorf("audiobook sources key = %+v, %v; want the same stored key", ks, err)
+	}
+	if st, err = f.svc.UpdateSettings(ctx, model.AdminSettingsUpdate{Clear: []string{model.ClearGoogleBooks}}); err != nil ||
+		st.Keys.GoogleBooks.Source != "none" {
+		t.Errorf("after clearing: %+v, %v", st.Keys.GoogleBooks, err)
+	}
+	if _, err := f.svc.CheckProviderKey(ctx, "nobody"); err == nil {
+		t.Error("an unknown provider was checked")
+	}
+}

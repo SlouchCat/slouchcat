@@ -1,0 +1,19 @@
+.root {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Why a change failed: a small note above the check mark, inside the cover or the row. */
+.error {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + var(--sc-space-1));
+  width: max-content;
+  max-width: var(--sc-size-poster-sm);
+  padding: var(--sc-space-1) var(--sc-space-2);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-state-danger);
+  color: var(--sc-color-bg-base);
+  font-size: var(--sc-font-size-xs);
+  line-height: var(--sc-font-line-height-snug);
+}

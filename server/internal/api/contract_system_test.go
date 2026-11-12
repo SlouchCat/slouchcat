@@ -72,7 +72,7 @@ func TestSetupChecksOverHTTP(t *testing.T) {
 	wantStatus(t, rec, http.StatusOK)
 	var tc gen.TMDBCheck
 	decode(t, rec, &tc)
-	if tc.Ok || tc.Problem == nil || *tc.Problem != gen.Invalid {
+	if tc.Ok || tc.Problem == nil || *tc.Problem != gen.TMDBCheckProblemInvalid {
 		t.Errorf("key check = %s", rec.Body.String())
 	}
 	if strings.Contains(e.logs.String(), authTestKey) {

@@ -37,8 +37,11 @@ test('arrows: start on play, up to the back arrow, down to the round actions; fa
     await page.keyboard.press('ArrowRight');
   }
   await expectFocusOn(page, merken);
+  // «Gesehen» (concept 20 P-5), then the star of the user picks (concept 18 part B); the global
+  // setup recommended this film.
   await page.keyboard.press('ArrowRight');
-  // The star of the user picks (concept 18 part B); the global setup recommended this film.
+  await expectFocusOn(page, page.getByRole('button', { name: 'Gesehen', exact: true }));
+  await page.keyboard.press('ArrowRight');
   await expectFocusOn(page, star(page));
   await page.keyboard.press('ArrowUp');
   await expectFocusOn(page, play(page));
@@ -70,6 +73,8 @@ test('Tab: back arrow, pen, watchlist on the cover, play, round actions; no focu
   await page.keyboard.press('Tab');
   await expectFocusOn(page, play(page));
   await tabTo(page, page.getByRole('button', { name: /^(Merken|Gemerkt)$/ }), 3);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByRole('button', { name: 'Gesehen', exact: true }));
   await page.keyboard.press('Tab');
   await expectFocusOn(page, star(page));
   await expectNoFocusTrap(page);

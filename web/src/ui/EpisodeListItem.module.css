@@ -138,7 +138,10 @@
   white-space: nowrap;
 }
 
-/* The check at the far right: a display for now, the button of concept 20 P-5 later. */
+/*
+ * The check at the far right: the button that sets and clears «gesehen» (concept 20 P-5,
+ * WatchedToggle), or the display without it.
+ */
 .mark {
   display: inline-grid;
   place-items: center;

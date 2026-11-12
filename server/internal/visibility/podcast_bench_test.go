@@ -42,8 +42,9 @@ func BenchmarkPodcastLibrary(b *testing.B) {
 	} {
 		benchExec(b, f, query)
 	}
-	benchExec(b, f, fmt.Sprintf(`INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at)
-	 SELECT ?, id, %[1]d, %[1]d, 1, 1 FROM items WHERE id LIKE '01J9PODBENE%%'`, vistest.DurationMs), f.P16.ID)
+	// Heard as the 90 % rule writes it: completed and watched_at (concept 20 section 6.3).
+	benchExec(b, f, fmt.Sprintf(`INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, watched_at)
+	 SELECT ?, id, %[1]d, %[1]d, 1, 1, 1 FROM items WHERE id LIKE '01J9PODBENE%%'`, vistest.DurationMs), f.P16.ID)
 	b.Logf("fixture: %d podcasts × %d episodes in %v", podcasts, perPodcast, time.Since(start).Round(time.Millisecond))
 	ids := make([]string, 0, podcasts)
 	for p := 1; p <= podcasts; p++ {

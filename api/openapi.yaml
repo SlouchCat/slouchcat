@@ -101,6 +101,13 @@ info:
     (`AdminRadioStation.wikidata`); `AdminRadioStation.sources` names where each value comes from. The
     setting `RadioConfig.wikidataEnabled` («Wikidata verwenden», on by default) turns it off.
 
+    Check mark «gesehen» (concept 20 stage 2, contract 1.31.0; additive, with a changed meaning of
+    `ItemRef.watched` and `watchedCount`): a title stays «gesehen» once finished (90 % rule or the
+    check mark by hand) until the check mark is removed, also when it is started again
+    (`Progress.watchedAt`). `setItemWatched` sets or removes the check mark of a title, or of every
+    visible episode of a season, series or podcast. `ItemRef.watchedCount` is also set on series and
+    podcasts (the half check mark). `listWatched` is the page «Gesehen».
+
     Watchlist instead of favourite (concept 20 stage 3, contract 1.31.0; breaking): the favourite of
     series and podcasts is gone (`listFavorites`, `addFavorite`, `removeFavorite`,
     `ItemDetail.favorite`, `RelinkUserData.favorites` and the error `not_favoritable`). A series or
@@ -5714,6 +5721,103 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthenticated"
 
+  /items/{id}/watched:
+    put:
+      operationId: setItemWatched
+      summary: Set or remove the check mark «gesehen» of a title (concept 20 P-5)
+      description: |
+        Since contract 1.31.0 (concept 20 section 6.4). Idempotent; every kind. A film, episode,
+        extra, audiobook or podcast episode changes itself; a season, series or podcast changes
+        every visible episode below it in one transaction (a series: the episodes of all its
+        seasons, specials included), episodes the profile may not see stay as they are.
+
+        - `watched: true`: the title is finished (`completed`, the position at the end of its
+          duration, `watchedAt` and `updatedAt` now). A title without progress takes the duration
+          of its primary file, else of the feed or the metadata, else 0. Over several episodes the
+          times rise by one millisecond in episode order, so the last episode is the newest:
+          continue watching shows the next episode after it.
+        - `watched: false`: `watchedAt` goes. A finished title starts again at 0; a running
+          position of a second run stays. `updatedAt` stays, so continue watching does not move.
+
+        A check mark set by hand writes no activity event; the administration's log shows real
+        playbacks only. An invisible or unknown title answers 404.
+      tags: [items]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemWatchedRequest"
+      responses:
+        "204":
+          description: The check mark is set or removed.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Unknown or not visible for the active profile (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /watched:
+    get:
+      operationId: listWatched
+      summary: The page «Gesehen» of the active profile (concept 20 P-14)
+      description: |
+        Since contract 1.31.0 (concept 20 section 15.4). Every film and audiobook the profile has
+        finished (`Progress.watchedAt`: 90 % rule or the check mark by hand), and every series and
+        podcast with at least one visible watched episode, once each; never radio, extras, seasons or
+        single episodes. A title stays while it is started again and leaves when its check mark is
+        removed or while it is invisible for the profile. Only visible episodes count.
+      tags: [discover]
+      x-visibility: scoped
+      parameters:
+        - name: content
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/RootContent"
+          description: One kind of title (the chips «Filme», «Serien», «Hörbücher», «Podcasts»); absent = all.
+        - name: sort
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/WatchedSort"
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: One page of the list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchedPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          description: "`content` or `sort` outside its values (`validation_failed`, `invalid_value`)."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /items/{id}/watchlist:
     put:
       operationId: addToWatchlist
@@ -6685,13 +6789,17 @@ paths:
         At most `limit` runs of the type in the state (`planned` is `queued` with a start in the future:
         backoff, debounce, a waiting download). `queued` and `planned` come in claim order (priority, then
         age), so the first row is the next to run; every other state newest first. `total` counts all runs
-        of that state.
+        of that state. `offset` skips that many runs (since contract 1.31.0, concept 20 P-6).
+
+        Since contract 1.31.0 `type` is optional, but only with `state=failed`: without it the page lists
+        the failed runs of every type («Fehlgeschlagen»). Without `type` and with any other state the
+        answer is 422 (`validation_failed`, field `type`, `required`).
       tags: [admin]
       x-visibility: admin
       parameters:
         - name: type
           in: query
-          required: true
+          required: false
           schema:
             $ref: "#/components/schemas/JobTypeName"
         - name: state
@@ -6708,6 +6816,14 @@ paths:
             minimum: 1
             maximum: 200
             default: 50
+        - name: offset
+          in: query
+          required: false
+          description: Since contract 1.31.0. Runs to skip, for paging.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
       responses:
         "200":
           description: The runs.
@@ -6987,6 +7103,112 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+
+  # ---------------------------------------------------------------------------------------------
+  # Concept 20 P-6 (contract 1.31.0): the bulk actions on the failed runs, of every type or of one.
+  # Each runs in one transaction on the server.
+  # ---------------------------------------------------------------------------------------------
+  /admin/jobs/failed/retry:
+    post:
+      operationId: retryFailedJobs
+      summary: Queue every failed run again, of every type or of one
+      description: |
+        Since contract 1.31.0 (concept 20, P-6). Every failed run (of `type`, when given) goes back to the
+        queue with its attempts reset, like `retryJob`, in one transaction. A run whose idempotency key a
+        waiting or running job holds stays failed and counts as `skipped`. Of several failed runs with the
+        same key only the newest is queued; the older ones end `cancelled` and count as `merged`.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/JobTypeName"
+      responses:
+        "200":
+          description: What happened to the failed runs.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobRetryFailedResult"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown job type (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/jobs/failed:
+    delete:
+      operationId: dismissFailedJobs
+      summary: Dismiss every failed run, of every type or of one
+      description: |
+        Since contract 1.31.0 (concept 20, P-6). Every failed run (of `type`, when given) ends `cancelled`,
+        like `cancelJob` on a failed run, in one transaction; `jobs.prune` removes it later.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/JobTypeName"
+      responses:
+        "200":
+          description: How many failed runs were dismissed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobDismissResult"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown job type (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  # ---------------------------------------------------------------------------------------------
+  # Concept 20 P-12 (contract 1.31.0): «Prüfen» on the page of the provider keys.
+  # ---------------------------------------------------------------------------------------------
+  /admin/settings/keys/{provider}/check:
+    post:
+      operationId: checkProviderKey
+      summary: Ask a provider whether its configured key holds
+      description: |
+        Since contract 1.31.0 (concept 20, P-12). One cheap request to the provider with the key the
+        server uses (stored or from `deploy/.env`): TMDB `/configuration`, the TVDB login, one Fanart.tv
+        film, one YouTube video (one quota unit), the trending list of Trakt, one ISBN at Google Books.
+        `ok: false` says why (`problem`) with the provider's error in plain text (`message`). Neither the
+        answer nor the log carries the key.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [tmdb, tvdb, fanart, youtube, trakt, googlebooks]
+      responses:
+        "200":
+          description: The outcome of the check.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderKeyCheck"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
 
   /admin/settings:
     get:
@@ -11007,9 +11229,21 @@ components:
           maximum: 100
         completed:
           type: boolean
+          description: |
+            At or beyond 90 % of the duration by the newest event (AN-10): a later event below 90 %
+            reopens the title. Continue watching, next up and the resume position read it; the check
+            mark reads `watchedAt` (since contract 1.31.0).
         updatedAt:
           type: string
           format: date-time
+        watchedAt:
+          type: string
+          format: date-time
+          description: |
+            Since contract 1.31.0 (concept 20 section 6.3): when the title was last finished, by an
+            event at or beyond 90 % or by the check mark (`setItemWatched`). It stays when the title is
+            started again and goes only when the check mark is removed; absent when the title was
+            never finished. The check mark «gesehen» of a single title shows it.
         playbackRate:
           type: number
           minimum: 0.5
@@ -11021,6 +11255,67 @@ components:
             Present in the answer of `reportProgress` when the active profile has a daily limit (K-5). With
             `remainingMinutes` 0 the server has revoked every playback session of the profile; the client
             stops and shows the hint.
+
+    WatchedSort:
+      type: string
+      enum: [watched, title]
+      default: watched
+      description: |
+        Order of `listWatched` (since contract 1.31.0): `watched` puts the newest last watched first,
+        `title` sorts A to Z by the title's sort key in the profile language; ties by the other
+        order, then the id.
+
+    WatchedEntry:
+      type: object
+      description: Since contract 1.31.0. One title of the page «Gesehen».
+      required: [item, lastWatchedAt]
+      properties:
+        item:
+          $ref: "#/components/schemas/ItemRef"
+          description: |
+            The card as in every list; a series or podcast carries `watched` and `watchedCount` (its
+            visible watched episodes), the half check mark when `watched` is false.
+        lastWatchedAt:
+          type: string
+          format: date-time
+          description: |
+            When the title was last finished (`Progress.watchedAt`); of a series or podcast the newest
+            date of its visible watched episodes.
+        episodeCount:
+          type: integer
+          minimum: 0
+          description: |
+            Series and podcasts only: their visible episodes (the «96» of «19 von 96 Folgen»), over the
+            same episodes as `item.watchedCount`.
+
+    WatchedPage:
+      type: object
+      description: Since contract 1.31.0. One page of `listWatched`.
+      required: [items, total, offset, limit]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WatchedEntry"
+        total:
+          type: integer
+          minimum: 0
+          description: The size of the whole list with the same `content`.
+        offset:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
+
+    ItemWatchedRequest:
+      type: object
+      description: Since contract 1.31.0. The check mark of `setItemWatched`.
+      required: [watched]
+      properties:
+        watched:
+          type: boolean
+          description: True sets the check mark «gesehen», false removes it.
 
     ItemRef:
       type: object
@@ -11057,16 +11352,23 @@ components:
           type: integer
           minimum: 0
           description: |
-            Visible episodes of a season the active profile has completed (since contract 1.20.0,
-            concept 17 section 2.3); set only on seasons, next to `childCount`.
+            Visible episodes the active profile has watched (`Progress.watchedAt`): of a season since
+            contract 1.20.0 (concept 17 section 2.3, next to `childCount`), and since contract 1.31.0
+            also of a series (every season, specials included) and a podcast, counted over the same
+            episodes as `watched`. Until 1.30.0 it counted completed episodes. With `watched` false,
+            a value above 0 is the half check mark «teilweise gesehen» (concept 20 F-12). Absent on
+            every other kind.
         watched:
           type: boolean
           description: |
-            Series and podcasts only (since contract 1.22.0): every visible episode is completed by
-            the active profile, by the same rule as the library status `watched` (specials count
-            like every other episode). False when at least one visible episode is open; absent for
-            a series or podcast without visible episodes and on every other kind. Set on every
-            series and podcast ItemRef in every list and on `ItemDetail`.
+            Series and podcasts only (since contract 1.22.0): every visible episode is watched by the
+            active profile, by the same rule as the library status `watched` (specials count like
+            every other episode). Since contract 1.31.0 an episode counts as watched by its
+            `Progress.watchedAt` (finished once or marked by hand), no longer by `completed`, so a
+            series stays watched while an episode is watched again. False when at least one visible
+            episode is not watched; absent for a series or podcast without visible episodes and on
+            every other kind. Set on every series and podcast ItemRef in every list and on
+            `ItemDetail`.
         runtimeMinutes:
           type: integer
           minimum: 0
@@ -13297,6 +13599,11 @@ components:
         rootId:
           type: integer
           format: int64
+        rootPath:
+          type: string
+          description: |
+            Since contract 1.31.0 (concept 20, P-10). The folder of the library root in the container
+            (`/media/…`), not on the NAS; the whole path is `rootPath` + `/` + `path`.
         path:
           type: string
           description: Path relative to the library root (administration only).
@@ -13801,6 +14108,32 @@ components:
                 type: array
                 items:
                   $ref: "#/components/schemas/AdminMediaFile"
+              folders:
+                type: array
+                description: |
+                  Since contract 1.31.0 (concept 20, P-10). A series or podcast, whose files hang on its
+                  episodes: per library root the folder all present episode files share.
+                items:
+                  $ref: "#/components/schemas/DuplicateFolder"
+
+    # Concept 20 P-10 (contract 1.31.0): where the files of a series or podcast lie.
+    DuplicateFolder:
+      type: object
+      required: [rootPath, path, fileCount, sizeBytes]
+      properties:
+        rootPath:
+          type: string
+          description: The folder of the library root in the container.
+        path:
+          type: string
+          description: The common folder relative to `rootPath`; empty is the root itself.
+        fileCount:
+          type: integer
+          minimum: 1
+        sizeBytes:
+          type: integer
+          format: int64
+          minimum: 0
 
     MergeRequest:
       type: object
@@ -15114,7 +15447,9 @@ components:
         completed:
           type: integer
           minimum: 0
-          description: Of `count`, the volumes the active profile has completed (the bar of the tile).
+          description: |
+            Of `count`, the volumes the active profile has heard (the bar of the tile): since contract 1.31.0
+            those with `Progress.watchedAt`, so a volume heard once and started again still counts.
         cover:
           $ref: "#/components/schemas/ItemRef"
           description: The first visible volume in series or collection order; its cover represents the group.
@@ -15341,7 +15676,12 @@ components:
     LibraryItemStatus:
       type: string
       enum: [unwatched, started, watched]
-      description: Watch status of a title for the active profile (F-8); exclusive per title.
+      description: |
+        Watch status of a title for the active profile (F-8); exclusive per title. Since contract
+        1.31.0 it reads `Progress.watchedAt` (concept 20 section 6.3): `watched` once a film or
+        audiobook has `watchedAt`, also during a second run; `started` only without `watchedAt` and
+        with a position above 0; else `unwatched`. A series or podcast is `watched` when every visible
+        episode has `watchedAt`, `started` when some episode has it or a position.
 
     LibraryFacets:
       type: object
@@ -16795,6 +17135,31 @@ components:
           type: integer
           minimum: 0
 
+    # Concept 20 P-6 (contract 1.31.0): the answers of the bulk actions on failed runs.
+    JobRetryFailedResult:
+      type: object
+      description: Since contract 1.31.0. `retried` runs are queued again, `skipped` stay failed (an active job holds their key), `merged` ended cancelled (an older failure of a key whose newest run was queued).
+      required: [retried, skipped, merged]
+      properties:
+        retried:
+          type: integer
+          minimum: 0
+        skipped:
+          type: integer
+          minimum: 0
+        merged:
+          type: integer
+          minimum: 0
+
+    JobDismissResult:
+      type: object
+      description: Since contract 1.31.0. How many failed runs ended cancelled.
+      required: [dismissed]
+      properties:
+        dismissed:
+          type: integer
+          minimum: 0
+
     StorageInfo:
       type: object
       required: [path, totalBytes, freeBytes]
@@ -17033,8 +17398,9 @@ components:
       type: object
       description: |
         The provider keys (M3, M7; Fanart.tv since concept 10 step 6, a project key and an optional
-        personal client key); the values themselves are never returned.
-      required: [tmdb, tvdb, tvdbPin, youtube, trakt, fanart, fanartClient]
+        personal client key; Google Books since contract 1.31.0, concept 20 O-7, the same key as
+        `AudiobookSources.googleBooksKey`); the values themselves are never returned.
+      required: [tmdb, tvdb, tvdbPin, youtube, trakt, fanart, fanartClient, googleBooks]
       properties:
         tmdb:
           $ref: "#/components/schemas/KeyState"
@@ -17050,6 +17416,26 @@ components:
           $ref: "#/components/schemas/KeyState"
         fanartClient:
           $ref: "#/components/schemas/KeyState"
+        googleBooks:
+          $ref: "#/components/schemas/KeyState"
+
+    # Concept 20 P-12 (contract 1.31.0): the answer of checkProviderKey.
+    ProviderKeyCheck:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+          description: The provider took the key.
+        problem:
+          type: string
+          enum: [not_configured, invalid, unreachable, failed]
+          description: |
+            Set when `ok` is false: no key configured, the provider refused it, the provider could not be
+            reached (or the YouTube quota is used up), or another answer (`message` says which).
+        message:
+          type: string
+          description: The provider's error in plain text, without the key; absent when ok or not configured.
 
     AdminSettingsEmail:
       type: object
@@ -17119,7 +17505,7 @@ components:
           description: Stored values to remove.
           items:
             type: string
-            enum: [publicUrl, tmdb, tvdb, tvdbPin, youtube, trakt, fanart, fanartClient, email, telegram]
+            enum: [publicUrl, tmdb, tvdb, tvdbPin, youtube, trakt, fanart, fanartClient, email, telegram, googleBooks]
 
     AdminSettingsKeysUpdate:
       type: object
@@ -17160,6 +17546,12 @@ components:
           minLength: 1
           maxLength: 1024
           writeOnly: true
+        googleBooks:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+          description: Since contract 1.31.0 (concept 20, O-7).
 
     AdminSettingsEmailUpdate:
       type: object

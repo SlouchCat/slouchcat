@@ -1,4 +1,4 @@
-import type { DuplicateGroup } from '@slouchcat/api-client';
+import type { DuplicateGroup, Library } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
@@ -13,10 +13,12 @@ import {
   type StatusMessage,
 } from '@/ui/aria';
 import { duplicatesQuery } from '../queries';
-import { groupKey, titleWithYear } from './shared';
+import { fullPath, groupKey, titleWithYear } from './shared';
 import styles from './Maintenance.module.css';
 
 interface DuplicatesTabProps {
+  /** The libraries: each title names its library next to its paths (P-10). */
+  libraries: readonly Library[] | undefined;
   outcome: StatusMessage | undefined;
   /** The title to keep per group (a draft of the page); the first one when none was picked. */
   targets: Readonly<Record<string, string>>;
@@ -32,6 +34,7 @@ interface DuplicatesTabProps {
 
 /** The duplicates (PFL-4): one section per group, not by library, since a group may span some. */
 export function DuplicatesTab({
+  libraries,
   outcome,
   targets,
   expanded,
@@ -48,6 +51,7 @@ export function DuplicatesTab({
     <div className={styles.tab}>
       <VisuallyHidden as="h2">{t('admin.maintenance.tab.duplicates')}</VisuallyHidden>
       <Text tone="secondary">{t('admin.maintenance.hint.duplicates')}</Text>
+      <Text tone="secondary">{t('admin.maintenance.duplicates.containerPaths')}</Text>
       <StatusRegion message={outcome} />
       {duplicates.isPending && <Skeleton shape="block" />}
       {duplicates.isError && (
@@ -72,6 +76,7 @@ export function DuplicatesTab({
             key={key}
             group={group}
             index={index}
+            libraries={libraries}
             target={
               group.items.some((item) => item.itemId === picked)
                 ? (picked ?? '')
@@ -93,6 +98,7 @@ export function DuplicatesTab({
 function DuplicateSection({
   group,
   index,
+  libraries,
   target,
   isExpanded,
   merging,
@@ -103,6 +109,7 @@ function DuplicateSection({
 }: {
   group: DuplicateGroup;
   index: number;
+  libraries: readonly Library[] | undefined;
   target: string;
   isExpanded: boolean;
   /** This group's merge runs. */
@@ -139,19 +146,46 @@ function DuplicateSection({
                 {titleWithYear(t, item.title, item.year)}
               </TextLink>
               <span className={styles.muted}>{t(`kind.${item.kind}`)}</span>
+              {item.libraryId !== undefined && (
+                <span className={styles.muted}>
+                  {t('admin.maintenance.duplicates.library', {
+                    name:
+                      libraries?.find((library) => library.id === item.libraryId)?.name ??
+                      t('admin.maintenance.library', { id: item.libraryId }),
+                  })}
+                </span>
+              )}
               {item.itemId === target && (
                 <span className={styles.keep}>{t('admin.maintenance.duplicates.keep')}</span>
               )}
             </span>
-            {item.files.length === 0 ? (
+            {item.files.length === 0 && (item.folders ?? []).length === 0 ? (
               <span className={styles.muted}>{t('admin.maintenance.duplicates.noFiles')}</span>
             ) : (
-              item.files.map((file) => (
-                <span key={file.id} className={styles.fileLine}>
-                  <code className={styles.path}>{file.path}</code>
-                  <span className={styles.muted}>{formatBytes(file.sizeBytes, i18n.language)}</span>
-                </span>
-              ))
+              <>
+                {item.files.map((file) => (
+                  <span key={file.id} className={styles.fileLine}>
+                    <code className={styles.path}>{fullPath(file.rootPath, file.path)}</code>
+                    <span className={styles.muted}>
+                      {formatBytes(file.sizeBytes, i18n.language)}
+                    </span>
+                  </span>
+                ))}
+                {(item.folders ?? []).map((folder) => (
+                  <span key={`${folder.rootPath}/${folder.path}`} className={styles.fileLine}>
+                    <code className={styles.path}>
+                      {fullPath(folder.rootPath, folder.path, true)}
+                    </code>
+                    <span className={styles.muted}>
+                      {t('admin.maintenance.duplicates.folderFiles', {
+                        count: folder.fileCount,
+                        n: new Intl.NumberFormat(i18n.language).format(folder.fileCount),
+                        size: formatBytes(folder.sizeBytes, i18n.language),
+                      })}
+                    </span>
+                  </span>
+                ))}
+              </>
             )}
           </li>
         ))}

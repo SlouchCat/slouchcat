@@ -22,6 +22,7 @@ import {
 import { CoverWatchlist, WATCHLIST_KINDS } from '@/features/discover/CoverWatchlist';
 import { useCoverPens } from './EditMetadata';
 import { creditCaption } from './labels';
+import { CoverWatched, WATCHED_KINDS } from './watched';
 import { personQuery } from './queries';
 import styles from './PersonPage.module.css';
 
@@ -111,6 +112,11 @@ export function PersonPage() {
                 posterSmallUrl={imageUrl(credit.item.images.posterSmall)}
                 accent={credit.item.accent}
                 tool={pens.tool?.(credit.item)}
+                check={
+                  WATCHED_KINDS.has(credit.item.kind) ? (
+                    <CoverWatched item={credit.item} />
+                  ) : undefined
+                }
                 mark={
                   WATCHLIST_KINDS.has(credit.item.kind) ? (
                     <CoverWatchlist item={credit.item} />

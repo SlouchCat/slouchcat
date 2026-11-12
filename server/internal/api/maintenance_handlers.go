@@ -323,14 +323,23 @@ func (s *server) ListDuplicates(ctx context.Context, req gen.ListDuplicatesReque
 				files = append(files, toAdminMediaFile(f))
 			}
 			libraryID := it.LibraryID
+			var folders *[]gen.DuplicateFolder
+			if len(it.Folders) > 0 {
+				list := make([]gen.DuplicateFolder, 0, len(it.Folders))
+				for _, f := range it.Folders {
+					list = append(list, gen.DuplicateFolder{RootPath: f.RootPath, Path: f.Path, FileCount: f.FileCount, SizeBytes: f.SizeBytes})
+				}
+				folders = &list
+			}
 			group.Items = append(group.Items, struct {
-				Files     []gen.AdminMediaFile `json:"files"`
-				ItemId    gen.ItemID           `json:"itemId"`
-				Kind      gen.ItemKind         `json:"kind"`
-				LibraryId *int64               `json:"libraryId,omitempty"`
-				Title     string               `json:"title"`
-				Year      *int                 `json:"year,omitempty"`
-			}{Files: files, ItemId: it.ItemID, Kind: gen.ItemKind(it.Kind), LibraryId: &libraryID, Title: it.Title, Year: it.Year})
+				Files     []gen.AdminMediaFile   `json:"files"`
+				Folders   *[]gen.DuplicateFolder `json:"folders,omitempty"`
+				ItemId    gen.ItemID             `json:"itemId"`
+				Kind      gen.ItemKind           `json:"kind"`
+				LibraryId *int64                 `json:"libraryId,omitempty"`
+				Title     string                 `json:"title"`
+				Year      *int                   `json:"year,omitempty"`
+			}{Files: files, Folders: folders, ItemId: it.ItemID, Kind: gen.ItemKind(it.Kind), LibraryId: &libraryID, Title: it.Title, Year: it.Year})
 		}
 		out = append(out, group)
 	}
@@ -475,7 +484,7 @@ func toAdminItem(it model.AdminItem) gen.AdminItem {
 
 func toAdminMediaFile(f model.AdminMediaFile) gen.AdminMediaFile {
 	out := gen.AdminMediaFile{
-		Id: f.ID, Path: f.Path, SizeBytes: f.SizeBytes, Available: f.Available, VersionLabel: optString(f.VersionLabel),
+		Id: f.ID, RootPath: optString(f.RootPath), Path: f.Path, SizeBytes: f.SizeBytes, Available: f.Available, VersionLabel: optString(f.VersionLabel),
 		ProbedAt: utc(f.ProbedAt), ProbeError: optString(f.ProbeError),
 	}
 	if f.RootID != 0 {

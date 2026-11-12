@@ -1,5 +1,4 @@
 import type {
-  Dashboard,
   JobRun,
   JobOverview,
   JobScheduleUpdate,
@@ -9,7 +8,7 @@ import type {
   JobWindow,
 } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
-import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearch } from '@tanstack/react-router';
 import {
   memo,
@@ -26,6 +25,7 @@ import { isApiError } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
 import { formatDateTime } from '@/lib/format';
+import { PAGED_LIST_PAGE, usePagedList } from '@/lib/pagedList';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import {
   Chip,
@@ -36,6 +36,7 @@ import {
   Skeleton,
   StatusDot,
   Text,
+  useNearEnd,
   VisuallyHidden,
 } from '@/ui';
 import {
@@ -77,11 +78,15 @@ import {
   cancelJob,
   cancelJobRuns,
   dashboardQuery,
+  dismissFailedJobs,
+  failedRunsSource,
   JOBS_POLL_MS,
+  jobRunsKey,
   jobRunsQuery,
   jobTypesQuery,
   pauseJobType,
   resumeJobType,
+  retryFailedJobs,
   retryJob,
   runJobType,
   updateJobSchedule,
@@ -381,6 +386,10 @@ interface Confirmation {
   title: string;
   body: string;
   onConfirm: () => void;
+  /** The confirm button, «Abbrechen» by default. */
+  confirmLabel?: string;
+  /** Danger by default; a retry is primary. */
+  tone?: 'primary' | 'danger';
 }
 
 /** What a page-level action of a type is doing right now, for the button's pending state. */
@@ -403,6 +412,10 @@ interface JobHandlers {
   onWindowSaved: (type: string, sent: WindowDraft) => Promise<void>;
   onRunSettled: (text: string) => void;
   onFailure: (error: unknown) => void;
+  /** The bulk actions on the failed runs of a type, and «Löschen» of one (concept 20, P-6). */
+  onRetryFailed: (type: string, count: number) => void;
+  onDismissFailed: (type: string, count: number) => void;
+  onDeleteFailed: (job: JobRun) => void;
 }
 
 /**
@@ -480,15 +493,6 @@ function JobsContent() {
     refetchInterval: hold ? false : JOBS_POLL_MS,
     refetchOnWindowFocus: !hold,
   });
-  // The failures come with the dashboard; the page asks it only while their tab is open, and
-  // the sidebar's slower poll of the same entry does the rest.
-  const failuresOpen = tab === 'failed';
-  const dashboard = useQuery({
-    ...dashboardQuery,
-    enabled: failuresOpen,
-    refetchInterval: failuresOpen && !hold ? JOBS_POLL_MS : false,
-    refetchOnWindowFocus: failuresOpen && !hold,
-  });
 
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const onExpandedChange = useCallback(
@@ -536,6 +540,7 @@ function JobsContent() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: jobTypesQuery.queryKey }),
         queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey }),
+        queryClient.invalidateQueries({ queryKey: jobRunsKey }),
       ]);
       await afterDialogsClosed();
       if (removed) titleRef.current?.focus();
@@ -584,8 +589,35 @@ function JobsContent() {
     onError: failed,
   });
   const retryOne = useMutation({
-    mutationFn: (job: JobSummary) => retryJob(job.id),
+    mutationFn: (job: JobRun | JobSummary) => retryJob(job.id),
     onSuccess: (_data, job) => settled(t('admin.jobs.messages.runRetried', { id: job.id }), true),
+    onError: failed,
+  });
+  const deleteOne = useMutation({
+    mutationFn: (job: JobRun) => cancelJob(job.id),
+    onSuccess: (_data, job) => settled(t('admin.jobs.messages.runDeleted', { id: job.id }), true),
+    onError: failed,
+  });
+  // The bulk actions on the failed runs (concept 20, P-6): without a type every type.
+  const retryFailed = useMutation({
+    mutationFn: (type: string | undefined) => retryFailedJobs(type),
+    onSuccess: (result) =>
+      settled(
+        t('admin.jobs.messages.failedRetried', { count: result.retried }) +
+          (result.skipped > 0
+            ? ` ${t('admin.jobs.messages.failedSkipped', { count: result.skipped })}`
+            : '') +
+          (result.merged > 0
+            ? ` ${t('admin.jobs.messages.failedMerged', { count: result.merged })}`
+            : ''),
+        true,
+      ),
+    onError: failed,
+  });
+  const dismissFailed = useMutation({
+    mutationFn: (type: string | undefined) => dismissFailedJobs(type),
+    onSuccess: (result) =>
+      settled(t('admin.jobs.messages.failedDismissed', { count: result.dismissed }), true),
     onError: failed,
   });
   const pending =
@@ -594,7 +626,10 @@ function JobsContent() {
     resume.isPending ||
     cancelRuns.isPending ||
     cancelOne.isPending ||
-    retryOne.isPending;
+    retryOne.isPending ||
+    deleteOne.isPending ||
+    retryFailed.isPending ||
+    dismissFailed.isPending;
   const busyOf = (type: string): Busy => {
     if (run.isPending && run.variables === type) return 'run';
     if (pause.isPending && pause.variables === type) return 'pause';
@@ -620,6 +655,9 @@ function JobsContent() {
   const { mutate: cancelRunsMutate } = cancelRuns;
   const { mutate: cancelOneMutate } = cancelOne;
   const { mutate: retryOneMutate } = retryOne;
+  const { mutate: deleteOneMutate } = deleteOne;
+  const { mutate: retryFailedMutate } = retryFailed;
+  const { mutate: dismissFailedMutate } = dismissFailed;
   const askCancelRun = useCallback(
     (job: JobRun) => {
       const name = typeName(t, job.type);
@@ -631,14 +669,44 @@ function JobsContent() {
     },
     [ask, t, cancelOneMutate],
   );
-  const askCancelFailed = useCallback(
-    (job: JobSummary) =>
+  // «Löschen» of a failed run and the two bulk actions ask with what they touch (P-6, O-10): a
+  // deleted run stays under «Läufe» as «abgebrochen» until the cleanup removes it.
+  const askDeleteFailed = useCallback(
+    (job: JobRun) =>
       ask({
-        title: t('admin.jobs.confirm.cancelRunTitle', { name: typeName(t, job.type) }),
-        body: t('admin.jobs.confirm.cancelFailedBody'),
-        onConfirm: () => cancelOneMutate(job),
+        title: t('admin.jobs.confirm.deleteRunTitle', { name: typeName(t, job.type) }),
+        body: t('admin.jobs.confirm.deleteRunBody'),
+        confirmLabel: t('admin.jobs.confirm.deleteRunConfirm'),
+        onConfirm: () => deleteOneMutate(job),
       }),
-    [ask, t, cancelOneMutate],
+    [ask, t, deleteOneMutate],
+  );
+  const askRetryFailed = useCallback(
+    (type: string | undefined, count: number) =>
+      ask({
+        title:
+          type === undefined
+            ? t('admin.jobs.confirm.retryFailedTitle', { count })
+            : t('admin.jobs.confirm.retryFailedTypeTitle', { count, name: typeName(t, type) }),
+        body: t('admin.jobs.confirm.retryFailedBody'),
+        confirmLabel: t('admin.jobs.confirm.retryFailedConfirm'),
+        tone: 'primary',
+        onConfirm: () => retryFailedMutate(type),
+      }),
+    [ask, t, retryFailedMutate],
+  );
+  const askDismissFailed = useCallback(
+    (type: string | undefined, count: number) =>
+      ask({
+        title:
+          type === undefined
+            ? t('admin.jobs.confirm.dismissFailedTitle', { count })
+            : t('admin.jobs.confirm.dismissFailedTypeTitle', { count, name: typeName(t, type) }),
+        body: t('admin.jobs.confirm.dismissFailedBody'),
+        confirmLabel: t('admin.jobs.confirm.dismissFailedConfirm'),
+        onConfirm: () => dismissFailedMutate(type),
+      }),
+    [ask, t, dismissFailedMutate],
   );
   const pauseType = useCallback((type: string) => pauseMutate(type), [pauseMutate]);
 
@@ -674,8 +742,14 @@ function JobsContent() {
       },
       onRunSettled: (text) => void settled(text, true),
       onFailure: failed,
+      onRetryFailed: askRetryFailed,
+      onDismissFailed: askDismissFailed,
+      onDeleteFailed: askDeleteFailed,
     }),
     [
+      askRetryFailed,
+      askDismissFailed,
+      askDeleteFailed,
       runMutate,
       pauseMutate,
       resumeMutate,
@@ -880,11 +954,14 @@ function JobsContent() {
                 tone: totals.failed > 0 ? 'danger' : 'neutral',
                 content: (
                   <FailedTab
-                    query={dashboard}
                     total={totals.failed}
+                    hold={hold}
                     retrying={(id) => retryOne.isPending && retryOne.variables?.id === id}
+                    bulkPending={retryFailed.isPending || dismissFailed.isPending}
                     onRetry={retryOneMutate}
-                    onCancel={askCancelFailed}
+                    onDelete={askDeleteFailed}
+                    onRetryAll={(count) => askRetryFailed(undefined, count)}
+                    onDismissAll={(count) => askDismissFailed(undefined, count)}
                   />
                 ),
               },
@@ -898,9 +975,9 @@ function JobsContent() {
           onOpenChange={onConfirmOpenChange}
           title={confirmation.title}
           body={confirmation.body}
-          confirmLabel={t('admin.jobs.confirm.confirm')}
+          confirmLabel={confirmation.confirmLabel ?? t('admin.jobs.confirm.confirm')}
           cancelLabel={t('admin.jobs.confirm.keep')}
-          tone="danger"
+          tone={confirmation.tone ?? 'danger'}
           onConfirm={confirmation.onConfirm}
         />
       )}
@@ -1286,8 +1363,12 @@ const JobDetail = memo(function JobDetail({
           <RunsBlock
             info={info}
             hold={hold}
+            pending={pending}
             onSettled={handlers.onRunSettled}
             onFailure={handlers.onFailure}
+            onRetryFailed={handlers.onRetryFailed}
+            onDismissFailed={handlers.onDismissFailed}
+            onDeleteFailed={handlers.onDeleteFailed}
           />
         </div>
       )}
@@ -1610,13 +1691,22 @@ function WindowBlock({
 function RunsBlock({
   info,
   hold,
+  pending,
   onSettled,
   onFailure,
+  onRetryFailed,
+  onDismissFailed,
+  onDeleteFailed,
 }: {
   info: JobTypeInfo;
   hold: boolean;
+  /** A page-level action runs: the bulk buttons wait for it. */
+  pending: boolean;
   onSettled: (text: string) => void;
   onFailure: (error: unknown) => void;
+  onRetryFailed: (type: string, count: number) => void;
+  onDismissFailed: (type: string, count: number) => void;
+  onDeleteFailed: (job: JobRun) => void;
 }) {
   const { t, i18n } = useTranslation();
   const name = typeName(t, info.type);
@@ -1656,9 +1746,13 @@ function RunsBlock({
                 type={info.type}
                 state={state}
                 hold={hold}
+                pending={pending}
                 language={i18n.language}
                 onSettled={onSettled}
                 onFailure={onFailure}
+                onRetryFailed={onRetryFailed}
+                onDismissFailed={onDismissFailed}
+                onDeleteFailed={onDeleteFailed}
               />
             ),
           };
@@ -1672,17 +1766,25 @@ const RunsTab = memo(function RunsTab({
   type,
   state,
   hold,
+  pending,
   language,
   onSettled,
   onFailure,
+  onRetryFailed,
+  onDismissFailed,
+  onDeleteFailed,
 }: {
   type: string;
   state: JobRunState;
   /** The page holds its polling (a draft, a confirmation): so do the runs. */
   hold: boolean;
+  pending: boolean;
   language: string;
   onSettled: (text: string) => void;
   onFailure: (error: unknown) => void;
+  onRetryFailed: (type: string, count: number) => void;
+  onDismissFailed: (type: string, count: number) => void;
+  onDeleteFailed: (job: JobRun) => void;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -1788,6 +1890,16 @@ const RunsTab = memo(function RunsTab({
               {t('admin.jobs.runs.retry')}
             </AriaButton>
           )}
+          {job.state === 'failed' && (
+            <AriaButton
+              variant="ghost"
+              icon="trash"
+              aria-label={t('admin.jobs.runs.deleteLabel', { id: job.id })}
+              onPress={() => onDeleteFailed(job)}
+            >
+              {t('admin.jobs.runs.delete')}
+            </AriaButton>
+          )}
           {(job.state === 'queued' || job.state === 'running') && (
             <AriaButton
               variant="ghost"
@@ -1807,8 +1919,30 @@ const RunsTab = memo(function RunsTab({
   if (query.isError) return <Notice tone="danger">{problemMessage(t, query.error)}</Notice>;
   const page = query.data;
   if (page.runs.length === 0) return <Text tone="secondary">{t('admin.jobs.runs.empty')}</Text>;
+  const name = typeName(t, type);
   return (
     <>
+      {state === 'failed' && (
+        <div className={styles.bulkActions}>
+          <AriaButton
+            icon="refresh"
+            isDisabled={pending}
+            aria-label={t('admin.jobs.runs.retryAllLabel', { name })}
+            onPress={() => onRetryFailed(type, page.total)}
+          >
+            {t('admin.jobs.failed.retryAll')}
+          </AriaButton>
+          <AriaButton
+            variant="dangerQuiet"
+            icon="trash"
+            isDisabled={pending}
+            aria-label={t('admin.jobs.runs.dismissAllLabel', { name })}
+            onPress={() => onDismissFailed(type, page.total)}
+          >
+            {t('admin.jobs.failed.dismissAll')}
+          </AriaButton>
+        </div>
+      )}
       <VisuallyHidden>
         {t('admin.jobs.runs.total', { count: page.total, shown: page.runs.length })}
       </VisuallyHidden>
@@ -1828,41 +1962,77 @@ const RunsTab = memo(function RunsTab({
 });
 
 /**
- * The tab «Fehlschläge» (JOB-8): the ten newest failures of every type from the dashboard
- * (`jobs.recentFailed`) with «Erneut» and «Abbrechen» (asks first, through the page); the tab
- * itself carries the total. All failures of one type are under «Läufe» of its row.
+ * The tab «Fehlschläge» (JOB-8, concept 20 P-6): every failed run of every type, newest first, a
+ * page more as the end comes into view (`listJobRuns` without a type), with «Alle erneut
+ * versuchen» and «Alle löschen …» above (both ask with the count, O-10) and «Erneut» and
+ * «Löschen» per row (the deletion asks, through the page). The tab itself carries the total; the
+ * list reads again whenever the polled total changes.
  */
 function FailedTab({
-  query,
   total,
+  hold,
   retrying,
+  bulkPending,
   onRetry,
-  onCancel,
+  onDelete,
+  onRetryAll,
+  onDismissAll,
 }: {
-  query: UseQueryResult<Dashboard>;
   total: number;
+  hold: boolean;
   retrying: (id: number) => boolean;
-  onRetry: (job: JobSummary) => void;
-  onCancel: (job: JobSummary) => void;
+  bulkPending: boolean;
+  onRetry: (job: JobRun) => void;
+  onDelete: (job: JobRun) => void;
+  onRetryAll: (count: number) => void;
+  onDismissAll: (count: number) => void;
 }) {
   const { t, i18n } = useTranslation();
+  const queryClient = useQueryClient();
   const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const [wanted, setWanted] = useState(PAGED_LIST_PAGE);
+  const paged = usePagedList(
+    failedRunsSource,
+    { start: 0, end: wanted - 1 },
+    { refetchOnWindowFocus: !hold },
+  );
+  const first = paged.first;
+  const { loaded, slots } = paged;
+  // Offsets over a list that changes between two pages can bring a run twice (a run failed in
+  // between pushes the rest down): each run is drawn once, its first place counts.
+  const jobs = useMemo(() => {
+    const seen = new Set<number>();
+    return slots.slice(0, loaded).filter((job): job is JobRun => {
+      if (job === undefined || seen.has(job.id)) return false;
+      seen.add(job.id);
+      return true;
+    });
+  }, [loaded, slots]);
+  const listed = paged.total;
+  const [end, near] = useNearEnd();
+  if (near && loaded >= wanted && wanted < listed) setWanted(wanted + PAGED_LIST_PAGE);
+  // The page polls the counts of the types, not this list: a changed total reads it again.
+  const seen = useRef(total);
+  useEffect(() => {
+    if (seen.current === total) return;
+    seen.current = total;
+    void queryClient.invalidateQueries({ queryKey: failedRunsSource.key });
+  }, [queryClient, total]);
   const heading = <h2 className={styles.tabTitle}>{t('admin.jobs.failed.title')}</h2>;
-  if (query.isPending) return <Skeleton shape="block" />;
-  if (query.isError) {
+  if (first.isPending) return <Skeleton shape="block" />;
+  if (first.isError) {
     return (
       <Notice
         tone="danger"
-        title={problemMessage(t, query.error)}
+        title={problemMessage(t, first.error)}
         actions={
-          <AriaButton icon="refresh" onPress={() => void query.refetch()}>
+          <AriaButton icon="refresh" onPress={() => void first.refetch()}>
             {t('common.retry')}
           </AriaButton>
         }
       />
     );
   }
-  const jobs = query.data.jobs.recentFailed;
   if (jobs.length === 0) {
     return (
       <div className={styles.tabBody}>
@@ -1871,12 +2041,17 @@ function FailedTab({
       </div>
     );
   }
-  const columns: DataColumn<JobSummary>[] = [
+  const columns: DataColumn<JobRun>[] = [
     {
       key: 'type',
       header: t('admin.jobs.failed.columns.type'),
       rowHeader: true,
       cell: (job) => typeName(t, job.type),
+    },
+    {
+      key: 'subject',
+      header: t('admin.jobs.runs.columns.subject'),
+      cell: (job) => job.subject ?? t('admin.jobs.runs.noSubject', { id: job.id }),
     },
     {
       key: 'attempts',
@@ -1896,8 +2071,8 @@ function FailedTab({
       key: 'at',
       header: t('admin.jobs.failed.columns.at'),
       cell: (job) => (
-        <time className={styles.nowrap} dateTime={job.updatedAt}>
-          {formatDateTime(job.updatedAt, i18n.language)}
+        <time className={styles.nowrap} dateTime={job.finishedAt ?? job.updatedAt}>
+          {formatDateTime(job.finishedAt ?? job.updatedAt, i18n.language)}
         </time>
       ),
     },
@@ -1922,10 +2097,10 @@ function FailedTab({
             <AriaButton
               variant="ghost"
               icon="trash"
-              aria-label={t('admin.jobs.running.cancelLabel', { id: job.id, name })}
-              onPress={() => onCancel(job)}
+              aria-label={t('admin.jobs.failed.deleteLabel', { id: job.id, name })}
+              onPress={() => onDelete(job)}
             >
-              {t('admin.jobs.runs.cancel')}
+              {t('admin.jobs.runs.delete')}
             </AriaButton>
           </span>
         );
@@ -1935,18 +2110,38 @@ function FailedTab({
   return (
     <div className={styles.tabBody}>
       {heading}
+      <div className={styles.bulkActions}>
+        <AriaButton icon="refresh" isDisabled={bulkPending} onPress={() => onRetryAll(listed)}>
+          {t('admin.jobs.failed.retryAll')}
+        </AriaButton>
+        <AriaButton
+          variant="dangerQuiet"
+          icon="trash"
+          isDisabled={bulkPending}
+          onPress={() => onDismissAll(listed)}
+        >
+          {t('admin.jobs.failed.dismissAll')}
+        </AriaButton>
+      </div>
       <DataTable
         caption={t('admin.jobs.failed.title')}
         columns={columns}
         rows={jobs}
         rowKey={(job) => String(job.id)}
       />
-      <Text tone="secondary" variant="caption">
-        {t('admin.jobs.failed.shown', {
-          shown: number.format(jobs.length),
-          total: number.format(total),
-        })}
-      </Text>
+      <div ref={end} className={styles.bulkActions}>
+        <Text tone="secondary" variant="caption">
+          {t('admin.jobs.failed.shown', {
+            shown: number.format(jobs.length),
+            total: number.format(listed),
+          })}
+        </Text>
+        {paged.failed && (
+          <AriaButton variant="secondary" icon="refresh" onPress={paged.retry}>
+            {t('common.retry')}
+          </AriaButton>
+        )}
+      </div>
     </div>
   );
 }

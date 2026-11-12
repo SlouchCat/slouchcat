@@ -165,7 +165,10 @@ test.describe('with a mouse from 768 px', () => {
   test('the question before leaving with unsaved input is compact', async ({ page }) => {
     await page.goto('/admin/integrations');
     await expect(page.getByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
-    await page.getByRole('textbox', { name: 'YouTube-Schlüssel', exact: true }).fill('unsaved-key');
+    // The provider cards start folded (concept 20, P-12).
+    const youtube = page.getByRole('region', { name: 'YouTube', exact: true });
+    await youtube.getByRole('button', { name: 'Einrichten: YouTube' }).click();
+    await youtube.getByRole('textbox', { name: 'Schlüssel', exact: true }).fill('unsaved-key');
     await page
       .getByRole('navigation', { name: 'Verwaltung' })
       .getByRole('link', { name: /^Hintergrundjobs(,|$)/ })

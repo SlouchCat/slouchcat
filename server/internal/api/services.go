@@ -299,7 +299,8 @@ type AdminService interface {
 	// *model.ValidationError, and the services' own refusals of a manual run
 	// (model.ErrProviderNotConfigured, model.ErrRefreshTooSoon, model.ErrUpdateCheckDisabled).
 	ListJobTypes(ctx context.Context) (model.JobOverview, error)
-	ListJobRuns(ctx context.Context, typ, state string, limit int) (model.JobRunPage, error)
+	// ListJobRuns with an empty typ lists the failed runs of every type (concept 20, P-6).
+	ListJobRuns(ctx context.Context, typ, state string, limit, offset int) (model.JobRunPage, error)
 	RunJobType(ctx context.Context, typ string) ([]model.JobRun, error)
 	PauseJobType(ctx context.Context, typ string) (model.JobTypeInfo, error)
 	ResumeJobType(ctx context.Context, typ string) (model.JobTypeInfo, error)
@@ -308,11 +309,18 @@ type AdminService interface {
 	// (concept 15, 4.3).
 	UpdateJobTypeWindow(ctx context.Context, typ string, upd model.JobTypeWindowUpdate) (model.JobTypeInfo, error)
 	CancelJobRuns(ctx context.Context, typ string, all bool) (int, error)
+	// RetryFailedJobs and DismissFailedJobs act on the failed runs of typ, "" for every type, each
+	// in one transaction (concept 20, P-6); model.ErrNotFound for an unknown type.
+	RetryFailedJobs(ctx context.Context, typ string) (model.JobFailedRetry, error)
+	DismissFailedJobs(ctx context.Context, typ string) (int, error)
 	// Settings and integrations (A-2). UpdateSettings checks everything before it stores anything:
 	// *model.ValidationError, *model.EnvWinsError, model.ErrTMDBKeyInvalid, model.ErrTMDBUnreachable,
 	// model.ErrTelegramTokenInvalid, model.ErrTelegramUnreachable.
 	Settings(ctx context.Context) (model.AdminSettings, error)
 	UpdateSettings(ctx context.Context, upd model.AdminSettingsUpdate) (model.AdminSettings, error)
+	// CheckProviderKey asks a provider whether its key holds (concept 20, P-12); the key is
+	// neither returned nor logged.
+	CheckProviderKey(ctx context.Context, provider string) (model.KeyCheck, error)
 	// SendTestEmail sends a test mail to to, or to the main account when empty
 	// (model.ErrEmailNotConfigured, *model.SendError with model.ErrEmailSendFailed,
 	// model.ErrTooManyAttempts for the client in model.ClientIP of ctx).
@@ -405,6 +413,9 @@ type CatalogService interface {
 	// Collections lists every collection with a visible member (the page «Sammlungen», concept 20 O-3).
 	Collections(ctx context.Context, profile model.Profile) ([]model.CollectionRef, error)
 	Watchlist(ctx context.Context, profile model.Profile, offset, limit int) ([]model.ItemSummary, int, error)
+	// Watched returns one page of the page «Gesehen» (listWatched, concept 20 section 15.4); a
+	// content or sort outside its values is a *model.ValidationError.
+	Watched(ctx context.Context, profile model.Profile, q model.WatchedQuery) (model.WatchedPage, error)
 	AddToWatchlist(ctx context.Context, profile model.Profile, itemID string) error
 	RemoveFromWatchlist(ctx context.Context, profile model.Profile, itemID string) error
 	// User picks (concept 18 part B, ADR 0028): Recommend stores or renews the profile's pick,
@@ -522,6 +533,9 @@ type PlaybackService interface {
 	// Report stores a progress event and returns the merged progress (with the watch time of a
 	// profile with a daily limit; at the limit its playback sessions are revoked).
 	Report(ctx context.Context, profile model.Profile, itemID string, ev model.ProgressEvent) (model.Progress, error)
+	// SetWatched sets or removes the check mark of a visible title, or of every visible episode of
+	// a season, series or podcast (setItemWatched, concept 20 section 6.4), or model.ErrNotFound.
+	SetWatched(ctx context.Context, profile model.Profile, itemID string, watched bool) error
 	// Tracks returns the audio and subtitle tracks of a media file of a visible title (empty id:
 	// the primary file), or model.ErrNotFound.
 	Tracks(ctx context.Context, profile model.Profile, itemID, mediaFileID string) (model.TrackList, error)

@@ -25,6 +25,12 @@ func (e serviceProblem) VisitUpdateJobTypeWindowResponse(w http.ResponseWriter) 
 	return e.visit(w)
 }
 func (e serviceProblem) VisitCancelJobRunsResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitRetryFailedJobsResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+func (e serviceProblem) VisitDismissFailedJobsResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
 
 func (s *server) ListJobTypes(ctx context.Context, _ gen.ListJobTypesRequestObject) (gen.ListJobTypesResponseObject, error) {
 	ov, err := s.opts.Admin.ListJobTypes(ctx)
@@ -42,11 +48,22 @@ func (s *server) ListJobTypes(ctx context.Context, _ gen.ListJobTypesRequestObje
 }
 
 func (s *server) ListJobRuns(ctx context.Context, req gen.ListJobRunsRequestObject) (gen.ListJobRunsResponseObject, error) {
-	limit := 0
+	limit, offset, typ := 0, 0, ""
 	if req.Params.Limit != nil {
 		limit = *req.Params.Limit
 	}
-	page, err := s.opts.Admin.ListJobRuns(ctx, req.Params.Type, string(req.Params.State), limit)
+	if req.Params.Offset != nil {
+		offset = *req.Params.Offset
+	}
+	if req.Params.Type != nil {
+		typ = *req.Params.Type
+	}
+	// Without a type only the failed runs of every type (concept 20, P-6); OpenAPI cannot say so.
+	if typ == "" && req.Params.State != gen.ListJobRunsParamsStateFailed {
+		var verr *model.ValidationError
+		return s.problem(ctx, verr.Add("type", "required")), nil
+	}
+	page, err := s.opts.Admin.ListJobRuns(ctx, typ, string(req.Params.State), limit, offset)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
@@ -127,6 +144,22 @@ func (s *server) CancelJobRuns(ctx context.Context, req gen.CancelJobRunsRequest
 		return s.problem(ctx, err), nil
 	}
 	return gen.CancelJobRuns200JSONResponse(gen.JobCancelResult{Cancelled: n}), nil
+}
+
+func (s *server) RetryFailedJobs(ctx context.Context, req gen.RetryFailedJobsRequestObject) (gen.RetryFailedJobsResponseObject, error) {
+	r, err := s.opts.Admin.RetryFailedJobs(ctx, deref(req.Params.Type))
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.RetryFailedJobs200JSONResponse(gen.JobRetryFailedResult{Retried: r.Retried, Skipped: r.Skipped, Merged: r.Merged}), nil
+}
+
+func (s *server) DismissFailedJobs(ctx context.Context, req gen.DismissFailedJobsRequestObject) (gen.DismissFailedJobsResponseObject, error) {
+	n, err := s.opts.Admin.DismissFailedJobs(ctx, deref(req.Params.Type))
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.DismissFailedJobs200JSONResponse(gen.JobDismissResult{Dismissed: n}), nil
 }
 
 func toJobTypeInfo(t model.JobTypeInfo) gen.JobTypeInfo {

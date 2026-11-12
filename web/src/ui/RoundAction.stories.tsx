@@ -22,6 +22,9 @@ export const Default: Story = {};
 /** A switch that is on (Merken → Gemerkt): the circle in the accent with a check. */
 export const Pressed: Story = { args: { label: 'Gemerkt', icon: 'plus', pressed: true } };
 
+/** «Gesehen» of a partly watched series (concept 20 F-12): half the circle in the accent. */
+export const Mixed: Story = { args: { label: 'Gesehen', icon: 'check', pressed: 'mixed' } };
+
 /** Offline or without a playable file. */
 export const Disabled: Story = {
   args: { label: 'Herunterladen', icon: 'download', isDisabled: true },

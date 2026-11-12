@@ -87,7 +87,7 @@ interface HeroCarouselProps {
   /** Called once the first image is on screen (loaded and painted) or has failed. */
   onArtShown?: () => void;
   /**
-   * A control beside a poster of the row, over the top right of its cover (the start page's pen,
+   * A control beside a poster of the row, over the top left of its cover (the start page's pen,
    * concept 15 P-6), not inside the poster's button; `active` for the active poster, the row's one
    * Tab stop, so the tools of the others leave the Tab order. It turns with its poster (CSS
    * `order` of the list item); while it has the focus the band holds like on the poster.
@@ -99,6 +99,12 @@ interface HeroCarouselProps {
    * the active one. Not on the band above.
    */
   mark?: (slide: HeroSlide, active: boolean) => ReactNode;
+  /**
+   * The check mark «gesehen» over the top right of a poster of the row (concept 20 P-5), between
+   * `tool` and `mark` in the Tab order and, like them, out of it for every poster but the active
+   * one. Not on the band above.
+   */
+  check?: (slide: HeroSlide, active: boolean) => ReactNode;
 }
 
 export const HERO_PLAY_KEY = 'hero-play';
@@ -227,6 +233,7 @@ export function HeroCarousel({
   onArtShown,
   tool,
   mark,
+  check,
 }: HeroCarouselProps) {
   const { t } = useTranslation();
   const navigate = useAppNavigate();
@@ -640,6 +647,7 @@ export function HeroCarousel({
                 tabIndex={active ? 0 : -1}
                 onArrowPress={holdEnds(position)}
                 tool={tool?.(item, active)}
+                check={check?.(item, active)}
                 mark={mark?.(item, active)}
               >
                 {/* Time to the next slide; gone while the band holds, anew when it moves on. */}

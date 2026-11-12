@@ -342,7 +342,10 @@ func TestContractNoTraktPerProfile(t *testing.T) {
 	paths, _ := doc["paths"].(map[string]any)
 	for path, item := range paths {
 		mentions := strings.Contains(strings.ToLower(fmt.Sprint(item)), "trakt")
-		if strings.HasPrefix(path, "/admin/trakt") || strings.HasPrefix(path, "/admin/spotlight") || path == "/home" {
+		// The admin settings name the server's Trakt client id like their schema (concept 20, P-12:
+		// «Prüfen» of the provider keys).
+		if strings.HasPrefix(path, "/admin/trakt") || strings.HasPrefix(path, "/admin/spotlight") || path == "/home" ||
+			strings.HasPrefix(path, "/admin/settings/keys/") {
 			continue
 		}
 		if mentions {

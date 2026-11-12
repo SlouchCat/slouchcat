@@ -101,8 +101,15 @@ describe('detail page', () => {
     expect(cards[0]).toHaveAttribute('aria-current', 'true');
     expect(cards[1]).not.toHaveAttribute('aria-current');
     expect(within(cards[0]!).getByRole('progressbar', { name: '36 % gesehen' })).toBeVisible();
-    expect(within(cards[1]!).getByRole('img', { name: 'Gesehen' })).toBeVisible();
-    expect(within(cards[2]!).queryByRole('img', { name: 'Gesehen' })).not.toBeInTheDocument();
+    // The check marks beside the cards (concept 20 P-5): Heat watched, Arrival not.
+    expect(within(list).getByRole('button', { name: 'Gesehen: Heat' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(within(list).getByRole('button', { name: 'Gesehen: Arrival' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
     // Before the file section (E-9).
     const file = screen.getByRole('region', { name: 'Datei' });
     expect(shelf.compareDocumentPosition(file) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -137,9 +144,10 @@ describe('detail page', () => {
     renderApp(`/items/${ids.alien}`);
     const shelf = await screen.findByRole('region', { name: 'Weltraum-Reihe' });
     const list = within(shelf).getByRole('list', { name: 'Weltraum-Reihe' });
-    const card = (name: RegExp) => within(list).getByRole('link', { name });
-    expect(within(card(/Ganz gesehen/)).getByRole('img', { name: 'Gesehen' })).toBeVisible();
-    expect(within(card(/Halb gesehen/)).queryByRole('img', { name: 'Gesehen' })).toBeNull();
+    const check = (title: string) =>
+      within(list).getByRole('button', { name: `Gesehen: ${title}` });
+    expect(check('Ganz gesehen')).toHaveAttribute('aria-pressed', 'true');
+    expect(check('Halb gesehen')).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('tints backdrop and poster with the title accent and offers every image size', async () => {
@@ -229,6 +237,44 @@ describe('detail page', () => {
     ).toEqual(['PUT', 'DELETE']);
     // No title has a favourite any more (concept 20 P-2).
     expect(screen.queryByRole('button', { name: 'Favorit' })).not.toBeInTheDocument();
+  });
+
+  it('sets and clears the check mark of a film with the round button «Gesehen» (concept 20 P-5)', async () => {
+    let watchedAt: string | undefined;
+    const { calls } = mockApi({
+      ...signedIn,
+      [`GET /items/${ids.alien}`]: () =>
+        json({ ...alienDetail, progress: { ...alienDetail.progress!, watchedAt } }),
+      [`PUT /items/${ids.alien}/watched`]: (call) => {
+        watchedAt = (call.body as { watched: boolean }).watched
+          ? '2026-11-12T10:00:00Z'
+          : undefined;
+        return new Response(null, { status: 204 });
+      },
+    });
+    renderApp(`/items/${ids.alien}`);
+    const user = userEvent.setup();
+    const button = await screen.findByRole('button', { name: 'Gesehen' });
+    expect(button).toHaveAttribute('aria-pressed', 'false');
+    await user.click(button);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Gesehen' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      ),
+    );
+    // A single title loses its check without a question.
+    await user.click(screen.getByRole('button', { name: 'Gesehen' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Gesehen' })).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      ),
+    );
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(
+      calls.filter((call) => call.path === `/items/${ids.alien}/watched`).map((call) => call.body),
+    ).toEqual([{ watched: true }, { watched: false }]);
   });
 
   it('shows the collections of a series', async () => {
