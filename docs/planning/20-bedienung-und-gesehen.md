@@ -1,6 +1,7 @@
 # Konzept: Bedienung, Löschen und die neue Seite «Gesehen»
 
-- **Status: Fassung 3 (12. November 2026): Nachtrag P-15 «Kontinent-Kacheln» (Abschnitt 22).**
+- **Status: Fassung 3 (12. November 2026): Nachtrag P-15 «Kontinent-Kacheln» (Abschnitt 22).
+  Am 12. November 2026 hat Marco O-1 bis O-14 beantwortet (Abschnitt 18) und den Bau freigegeben.**
   Fassung 2 vom 11. November 2026 hat das Kritiker-Review eingearbeitet (REVISE, 1 Blocker,
   13 Major, 13 Minor; Abschnitt 21). Marco hat am 10. und 11. November 2026 im Interview
   dreizehn Fragen beantwortet (**F-1 bis F-13**, Abschnitt 17), drei davon an klickbaren Mockups
@@ -966,24 +967,26 @@ Mockup «Gesehen».
 
 ## 18. Offene Punkte
 
-Bis zu Marcos Antwort gilt die Empfehlung.
+Marco hat am 12. November 2026 alle vierzehn Punkte einzeln beantwortet (Spalte «Antwort»); vier
+weichen von der Empfehlung ab (O-9, O-10, O-13, O-14). Wo der Text oben etwas anderes sagt, gilt
+die Antwort.
 
-| Nr. | Punkt | Empfehlung |
-|---|---|---|
-| O-1 | Leerer Kreis auf Posterkarten mit Maus: immer sichtbar oder erst beim Zeigen? | Erst beim Zeigen und im Fokus; der gesetzte Haken immer. Sonst trägt jede Karte dauernd bis zu drei Knöpfe (Bleistift, Merken, Haken). |
-| O-2 | Schreibt der Haken von Hand ein Aktivitätsereignis «fertig gesehen»? | Nein. Das Protokoll der Verwaltung soll echte Wiedergaben zeigen. |
-| O-3 | Bekommt «Sammlungen» eine Übersichtsseite `/collections` als Ziel des Reihentitels? | Ja, einfaches Raster aller sichtbaren Sammlungen. |
-| O-4 | Bibliothek löschen: Gehen bei einer Podcast-Bibliothek auch die Abos ohne Datei mit? | Ja, die ganze Bibliothek ist weg. |
-| O-5 | Podcast-Folgen, die nur als Verweis aus dem Feed bestehen: einzeln löschbar? | Nein. Der Feed brächte sie beim nächsten Abruf zurück; dafür bräuchte es eine eigene Ausblendliste. |
-| O-6 | Dateien löschen: Papierkorb-Ordner statt endgültig? | Nein, endgültig. Ein Papierkorb bräuchte Platz, eine Frist und eine eigene Ansicht. |
-| O-7 | Zieht der Google-Books-Schlüssel (Konzept 19 D3) als sechste Karte auf die Seite «Schlüssel der Anbieter»? | Ja (PR #139 ist seit dem 10. November 2026 gemergt, Release 1.26.0); die Seite «Hörbücher: Quellen» verweist dann dorthin. |
-| O-8 | Bekommt die Seite «Einstellungen» einen Verweis auf «Benachrichtigungskanäle»? | Ja, als drittes Feld mit Link. |
-| O-9 | Gilt die Nachfrage «weiter oder von vorn» auch für Bände einer Hörbuch-Reihe? | Ja (Text «Weiterhören ab …»); es ist derselbe Direktstart. |
-| O-10 | Fragt «Alle erneut versuchen» nach? | Nein, es ist gefahrlos. Nur «Alle löschen» fragt. |
-| O-11 | Löscht «Auch die Dateien löschen» Begleitdateien mit? | Ja, aber nur nach der genauen Regel aus 11.2: von Slouchcat verzeichnete Bild- und `.nfo`-Dateien und Dateien mit dem ganzen Dateistamm; nie eine Datei eines anderen Titels. |
-| O-12 | Soll die Serie auf der Merkliste bleiben, wenn man alle Folgen gesehen hat? | Ja. Sie meldet weiter neue Folgen, bis man sie von Hand entfernt. |
-| O-13 | Löschen, während der Titel bei einem anderen Profil läuft: ablehnen oder Wiedergabe beenden? | Beenden. Der Dialog nennt das Profil vorher; der Administrator entscheidet. |
-| O-14 | «Auch die Dateien löschen»: Benutzerdaten behalten für den Fall, dass der Titel wiederkommt? | Ja, weich löschen wie bei einer verschwundenen Datei. Kostet nichts und rettet Fortschritt, wenn Radarr den Film neu lädt. |
+| Nr. | Punkt | Empfehlung | **Antwort (12. November 2026)** |
+|---|---|---|---|
+| O-1 | Leerer Kreis auf Posterkarten mit Maus: immer sichtbar oder erst beim Zeigen? | Erst beim Zeigen und im Fokus; der gesetzte Haken immer. Sonst trägt jede Karte dauernd bis zu drei Knöpfe (Bleistift, Merken, Haken). | **Erst beim Zeigen** (Empfehlung) |
+| O-2 | Schreibt der Haken von Hand ein Aktivitätsereignis «fertig gesehen»? | Nein. Das Protokoll der Verwaltung soll echte Wiedergaben zeigen. | **Nein** (Empfehlung) |
+| O-3 | Bekommt «Sammlungen» eine Übersichtsseite `/collections` als Ziel des Reihentitels? | Ja, einfaches Raster aller sichtbaren Sammlungen. | **Ja, einfaches Raster** (Empfehlung) |
+| O-4 | Bibliothek löschen: Gehen bei einer Podcast-Bibliothek auch die Abos ohne Datei mit? | Ja, die ganze Bibliothek ist weg. | **Ja, alles weg** (Empfehlung) |
+| O-5 | Podcast-Folgen, die nur als Verweis aus dem Feed bestehen: einzeln löschbar? | Nein. Der Feed brächte sie beim nächsten Abruf zurück; dafür bräuchte es eine eigene Ausblendliste. | **Nein** (Empfehlung) |
+| O-6 | Dateien löschen: Papierkorb-Ordner statt endgültig? | Nein, endgültig. Ein Papierkorb bräuchte Platz, eine Frist und eine eigene Ansicht. | **Endgültig** (Empfehlung) |
+| O-7 | Zieht der Google-Books-Schlüssel (Konzept 19 D3) als sechste Karte auf die Seite «Schlüssel der Anbieter»? | Ja (PR #139 ist seit dem 10. November 2026 gemergt, Release 1.26.0); die Seite «Hörbücher: Quellen» verweist dann dorthin. | **Ja, sechste Karte** (Empfehlung) |
+| O-8 | Bekommt die Seite «Einstellungen» einen Verweis auf «Benachrichtigungskanäle»? | Ja, als drittes Feld mit Link. | **Ja, drittes Feld** (Empfehlung) |
+| O-9 | Gilt die Nachfrage «weiter oder von vorn» auch für Bände einer Hörbuch-Reihe? | Ja (Text «Weiterhören ab …»); es ist derselbe Direktstart. | **Nein: Bände spielen immer ab der gemerkten Stelle** (gegen die Empfehlung) |
+| O-10 | Fragt «Alle erneut versuchen» nach? | Nein, es ist gefahrlos. Nur «Alle löschen» fragt. | **Mit Rückfrage**: auch «Alle erneut versuchen» fragt mit der Anzahl nach (gegen die Empfehlung) |
+| O-11 | Löscht «Auch die Dateien löschen» Begleitdateien mit? | Ja, aber nur nach der genauen Regel aus 11.2: von Slouchcat verzeichnete Bild- und `.nfo`-Dateien und Dateien mit dem ganzen Dateistamm; nie eine Datei eines anderen Titels. | **Ja, nach genauer Regel** (Empfehlung) |
+| O-12 | Soll die Serie auf der Merkliste bleiben, wenn man alle Folgen gesehen hat? | Ja. Sie meldet weiter neue Folgen, bis man sie von Hand entfernt. | **Bleibt** (Empfehlung) |
+| O-13 | Löschen, während der Titel bei einem anderen Profil läuft: ablehnen oder Wiedergabe beenden? | Beenden. Der Dialog nennt das Profil vorher; der Administrator entscheidet. | **Löschen ablehnen**: solange ein Profil den Titel abspielt, antwortet der Server mit 409, der Dialog nennt das Profil (gegen die Empfehlung) |
+| O-14 | «Auch die Dateien löschen»: Benutzerdaten behalten für den Fall, dass der Titel wiederkommt? | Ja, weich löschen wie bei einer verschwundenen Datei. Kostet nichts und rettet Fortschritt, wenn Radarr den Film neu lädt. | **Nein, alles weg**: Sind alle Dateien gelöscht, wird der Titel endgültig gelöscht, samt Fortschritt, Haken und Merkliste (gegen die Empfehlung) |
 
 ## 19. Bauplan in Stufen
 
