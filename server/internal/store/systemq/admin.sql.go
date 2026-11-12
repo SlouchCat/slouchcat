@@ -1202,15 +1202,25 @@ func (q *Queries) AdminMediaFileDurations(ctx context.Context, ids []string) ([]
 }
 
 const adminMergeProgress = `-- name: AdminMergeProgress :exec
-INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, playback_rate, updated_at)
-SELECT p.profile_id, ?1, p.position_ms, p.duration_ms, p.completed, p.playback_rate, p.updated_at
+INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, playback_rate, updated_at, watched_at)
+SELECT p.profile_id, ?1, p.position_ms, p.duration_ms, p.completed, p.playback_rate, p.updated_at, p.watched_at
 FROM progress AS p WHERE p.item_id = ?2 AND true
 ON CONFLICT (profile_id, item_id) DO UPDATE
-SET position_ms = excluded.position_ms, duration_ms = excluded.duration_ms, completed = excluded.completed,
-    playback_rate = coalesce(excluded.playback_rate, progress.playback_rate),
-    updated_at = max(progress.updated_at, excluded.updated_at)
-WHERE excluded.completed > progress.completed
-   OR (excluded.completed = progress.completed AND excluded.position_ms > progress.position_ms)
+SET position_ms = CASE WHEN excluded.completed > progress.completed
+                         OR (excluded.completed = progress.completed AND excluded.position_ms > progress.position_ms)
+                       THEN excluded.position_ms ELSE progress.position_ms END,
+    duration_ms = CASE WHEN excluded.completed > progress.completed
+                         OR (excluded.completed = progress.completed AND excluded.position_ms > progress.position_ms)
+                       THEN excluded.duration_ms ELSE progress.duration_ms END,
+    completed = max(progress.completed, excluded.completed),
+    playback_rate = CASE WHEN excluded.completed > progress.completed
+                           OR (excluded.completed = progress.completed AND excluded.position_ms > progress.position_ms)
+                         THEN coalesce(excluded.playback_rate, progress.playback_rate) ELSE progress.playback_rate END,
+    updated_at = CASE WHEN excluded.completed > progress.completed
+                        OR (excluded.completed = progress.completed AND excluded.position_ms > progress.position_ms)
+                      THEN max(progress.updated_at, excluded.updated_at) ELSE progress.updated_at END,
+    watched_at = CASE WHEN progress.watched_at IS NULL OR excluded.watched_at > progress.watched_at
+                      THEN coalesce(excluded.watched_at, progress.watched_at) ELSE progress.watched_at END
 `
 
 type AdminMergeProgressParams struct {
@@ -1220,6 +1230,8 @@ type AdminMergeProgressParams struct {
 
 // Per profile the further progress wins: completed over not completed, then the larger position.
 // The playback rate goes with the winning row; a winner without one keeps the target's.
+// watched_at (concept 20 section 6.3) has its own rule outside that comparison: the later of both
+// wins, so a title in its second run (not completed) keeps the date its copy was finished.
 func (q *Queries) AdminMergeProgress(ctx context.Context, arg AdminMergeProgressParams) error {
 	_, err := q.db.ExecContext(ctx, adminMergeProgress, arg.TargetID, arg.SourceID)
 	return err

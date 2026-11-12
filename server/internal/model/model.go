@@ -556,10 +556,13 @@ type Image struct {
 
 // Progress is the merged playback position of a profile for an item.
 type Progress struct {
-	PositionMs   int64
-	DurationMs   int64
-	Completed    bool
-	UpdatedAt    time.Time
+	PositionMs int64
+	DurationMs int64
+	Completed  bool
+	UpdatedAt  time.Time
+	// WatchedAt is when the title was last finished (90 % rule or the check mark, concept 20
+	// section 6.3); it stays when a later event reopens the title, nil when it never was.
+	WatchedAt    *time.Time
 	PlaybackRate *float64   // H-3: speed the profile last used for the title, nil until set
 	WatchTime    *WatchTime // K-5: present when the profile has a daily limit
 }

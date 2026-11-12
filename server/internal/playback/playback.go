@@ -382,7 +382,7 @@ func (s *Service) report(ctx context.Context, profile model.Profile, itemID stri
 		PlaybackRate: ev.PlaybackRate}
 	if hasCur {
 		merged = model.Progress{PositionMs: cur.PositionMs, DurationMs: cur.DurationMs, Completed: cur.Completed == 1, UpdatedAt: time.UnixMilli(cur.UpdatedAt).UTC(),
-			PlaybackRate: rateOf(cur.PlaybackRate)}
+			WatchedAt: watchedAt(cur.WatchedAt), PlaybackRate: rateOf(cur.PlaybackRate)}
 	}
 	dup, err := q.CountDuplicateProgressEvents(ctx, appq.CountDuplicateProgressEventsParams{
 		PlaybackSessionID: nullString(ev.PlaybackSessionID), Seq: ev.Seq, ProfileID: profile.ID, ItemID: itemID,
@@ -422,7 +422,19 @@ func (s *Service) report(ctx context.Context, profile model.Profile, itemID stri
 	if err != nil {
 		return model.Progress{}, fmt.Errorf("insert progress event: %w", err)
 	}
+	// Concept 20 section 6.3: every accepted event that meets the 90 % rule finishes the title
+	// (watched_at), also a late one that leaves the merged position alone.
+	var finished sql.NullInt64
+	if completed {
+		finished = sql.NullInt64{Int64: now.UnixMilli(), Valid: true}
+	}
 	if isLate {
+		if finished.Valid {
+			if err := q.MarkProgressWatched(ctx, appq.MarkProgressWatchedParams{ProfileID: profile.ID, ItemID: itemID, At: finished.Int64}); err != nil {
+				return model.Progress{}, fmt.Errorf("mark progress watched: %w", err)
+			}
+			merged.WatchedAt = laterWatched(merged.WatchedAt, finished.Int64)
+		}
 		if err := tx.Commit(); err != nil {
 			return model.Progress{}, fmt.Errorf("commit progress: %w", err)
 		}
@@ -436,6 +448,7 @@ func (s *Service) report(ctx context.Context, profile model.Profile, itemID stri
 		Completed:    boolInt(completed),
 		Now:          now.UnixMilli(),
 		PlaybackRate: nullRate(ev.PlaybackRate),
+		WatchedAt:    finished,
 	})
 	if err != nil {
 		return model.Progress{}, fmt.Errorf("upsert progress: %w", err)
@@ -454,8 +467,30 @@ func (s *Service) report(ctx context.Context, profile model.Profile, itemID stri
 	if rate == nil && hasCur {
 		rate = rateOf(cur.PlaybackRate)
 	}
+	stored := merged.WatchedAt // the stored one; nil without a row
+	if finished.Valid {
+		stored = laterWatched(stored, finished.Int64)
+	}
 	return model.Progress{PositionMs: position, DurationMs: ev.DurationMs, Completed: completed, UpdatedAt: time.UnixMilli(now.UnixMilli()).UTC(),
-		PlaybackRate: rate}, nil
+		WatchedAt: stored, PlaybackRate: rate}, nil
+}
+
+// watchedAt is the time of a stored watched_at, nil when the title was never finished.
+func watchedAt(v sql.NullInt64) *time.Time {
+	if !v.Valid {
+		return nil
+	}
+	t := time.UnixMilli(v.Int64).UTC()
+	return &t
+}
+
+// laterWatched is the later of a stored watched_at and the time at (Unix ms) of a finishing event,
+// the rule of UpsertProgress and MarkProgressWatched.
+func laterWatched(stored *time.Time, at int64) *time.Time {
+	if stored != nil && stored.UnixMilli() >= at {
+		return stored
+	}
+	return watchedAt(sql.NullInt64{Int64: at, Valid: true})
 }
 
 // nullRate is the playback_rate column of an event's speed; NULL keeps the stored one.

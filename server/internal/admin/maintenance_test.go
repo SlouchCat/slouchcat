@@ -395,14 +395,15 @@ func TestAdminMaintenanceDuplicates(t *testing.T) {
 }
 
 // B-9: a merge moves files, trailers, credits and the further progress to the target and deletes
-// the source for good.
+// the source for good. watched_at follows its own rule (concept 20 section 6.3): the later of both
+// rows wins, whichever row is further.
 func TestAdminMaintenanceMerge(t *testing.T) {
 	m := newMaintFixture(t)
 	f := m.f
 	target, source := f.Rated(16), f.Rated(18)
-	m.exec(t, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at) VALUES
-	           (?, ?, 1000, 7200000, 0, 10), (?, ?, 3000000, 7200000, 0, 20),
-	           (?, ?, 5000, 7200000, 1, 30), (?, ?, 6000000, 7200000, 0, 40)`,
+	m.exec(t, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, watched_at) VALUES
+	           (?, ?, 1000, 7200000, 0, 10, 5), (?, ?, 3000000, 7200000, 0, 20, NULL),
+	           (?, ?, 5000, 7200000, 1, 30, 30), (?, ?, 6000000, 7200000, 0, 40, 35)`,
 		f.P18.ID, target.ID, f.P18.ID, source.ID, f.P16.ID, target.ID, f.P16.ID, source.ID)
 
 	var verr *model.ValidationError
@@ -448,18 +449,20 @@ func TestAdminMaintenanceMerge(t *testing.T) {
 	if err := f.DB.Read.QueryRow(`SELECT count(*) FROM credits WHERE item_id = ? AND role = 'director'`, target.ID).Scan(&n); err != nil || n != 1 {
 		t.Errorf("director credit on the target: %d, %v", n, err)
 	}
-	progress := func(profileID int64) (pos int64, completed int) {
+	progress := func(profileID int64) (pos int64, completed int, watched int64) {
 		t.Helper()
-		if err := f.DB.Read.QueryRow(`SELECT position_ms, completed FROM progress WHERE profile_id = ? AND item_id = ?`, profileID, target.ID).Scan(&pos, &completed); err != nil {
+		if err := f.DB.Read.QueryRow(`SELECT position_ms, completed, watched_at FROM progress WHERE profile_id = ? AND item_id = ?`, profileID, target.ID).Scan(&pos, &completed, &watched); err != nil {
 			t.Fatal(err)
 		}
-		return pos, completed
+		return pos, completed, watched
 	}
-	if pos, done := progress(f.P18.ID); pos != 3000000 || done != 0 {
-		t.Errorf("P18 progress after the merge = %d (completed %d), want the larger position", pos, done)
+	// P18: the source is further, the target's date stays (the source was never finished).
+	if pos, done, watched := progress(f.P18.ID); pos != 3000000 || done != 0 || watched != 5 {
+		t.Errorf("P18 progress after the merge = %d (completed %d, watched_at %d), want the larger position and watched_at 5", pos, done, watched)
 	}
-	if pos, done := progress(f.P16.ID); pos != 5000 || done != 1 {
-		t.Errorf("P16 progress after the merge = %d (completed %d), want the completed row", pos, done)
+	// P16: the completed target is further, the source's later date wins (finished, then started again).
+	if pos, done, watched := progress(f.P16.ID); pos != 5000 || done != 1 || watched != 35 {
+		t.Errorf("P16 progress after the merge = %d (completed %d, watched_at %d), want the completed row and watched_at 35", pos, done, watched)
 	}
 	if it.ID != target.ID {
 		t.Errorf("merge answered %s", it.ID)

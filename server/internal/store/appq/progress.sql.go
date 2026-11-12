@@ -220,6 +220,25 @@ func (q *Queries) InsertProgressEvent(ctx context.Context, arg InsertProgressEve
 	return err
 }
 
+const markProgressWatched = `-- name: MarkProgressWatched :exec
+UPDATE progress SET watched_at = max(COALESCE(watched_at, 0), ?1)
+WHERE profile_id = ?2 AND item_id = ?3
+`
+
+type MarkProgressWatchedParams struct {
+	At        interface{}
+	ProfileID int64
+	ItemID    string
+}
+
+// An accepted event that meets the 90 % rule but does not replace the stored progress (a late
+// online event, an offline event older than the stored progress) still finishes the title:
+// watched_at becomes the later of the stored one and the event's time, nothing else changes.
+func (q *Queries) MarkProgressWatched(ctx context.Context, arg MarkProgressWatchedParams) error {
+	_, err := q.db.ExecContext(ctx, markProgressWatched, arg.At, arg.ProfileID, arg.ItemID)
+	return err
+}
+
 const oldestCondensableDay = `-- name: OldestCondensableDay :one
 
 SELECT CAST(COALESCE(MIN(server_time) / 86400000, -1) AS INTEGER) AS day FROM progress_events
@@ -316,12 +335,14 @@ func (q *Queries) SumPlayedMsByQuarterHour(ctx context.Context, arg SumPlayedMsB
 }
 
 const upsertProgress = `-- name: UpsertProgress :exec
-INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, playback_rate)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, playback_rate, watched_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
 ON CONFLICT (profile_id, item_id) DO UPDATE SET
     position_ms = excluded.position_ms, duration_ms = excluded.duration_ms,
     completed = excluded.completed, updated_at = excluded.updated_at,
-    playback_rate = COALESCE(excluded.playback_rate, progress.playback_rate)
+    playback_rate = COALESCE(excluded.playback_rate, progress.playback_rate),
+    watched_at = CASE WHEN progress.watched_at IS NULL OR excluded.watched_at > progress.watched_at
+                      THEN COALESCE(excluded.watched_at, progress.watched_at) ELSE progress.watched_at END
 `
 
 type UpsertProgressParams struct {
@@ -332,9 +353,13 @@ type UpsertProgressParams struct {
 	Completed    int64
 	Now          int64
 	PlaybackRate sql.NullFloat64
+	WatchedAt    sql.NullInt64
 }
 
 // playback_rate (H-3) is replaced only by an event that carries one; NULL keeps the stored speed.
+// watched_at (concept 20 section 6.3) is the time of an event that meets the 90 % rule, NULL for
+// one that does not: the later of it and the stored one stays, so an event below 90 % reopens the
+// title for continue watching (completed) but never clears its check mark.
 func (q *Queries) UpsertProgress(ctx context.Context, arg UpsertProgressParams) error {
 	_, err := q.db.ExecContext(ctx, upsertProgress,
 		arg.ProfileID,
@@ -344,6 +369,7 @@ func (q *Queries) UpsertProgress(ctx context.Context, arg UpsertProgressParams) 
 		arg.Completed,
 		arg.Now,
 		arg.PlaybackRate,
+		arg.WatchedAt,
 	)
 	return err
 }

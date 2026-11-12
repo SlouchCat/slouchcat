@@ -6,12 +6,24 @@ SELECT * FROM progress WHERE profile_id = @profile_id AND item_id = @item_id;
 
 -- name: UpsertProgress :exec
 -- playback_rate (H-3) is replaced only by an event that carries one; NULL keeps the stored speed.
-INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, playback_rate)
-VALUES (@profile_id, @item_id, @position_ms, @duration_ms, @completed, @now, sqlc.narg('playback_rate'))
+-- watched_at (concept 20 section 6.3) is the time of an event that meets the 90 % rule, NULL for
+-- one that does not: the later of it and the stored one stays, so an event below 90 % reopens the
+-- title for continue watching (completed) but never clears its check mark.
+INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, playback_rate, watched_at)
+VALUES (@profile_id, @item_id, @position_ms, @duration_ms, @completed, @now, sqlc.narg('playback_rate'), sqlc.narg('watched_at'))
 ON CONFLICT (profile_id, item_id) DO UPDATE SET
     position_ms = excluded.position_ms, duration_ms = excluded.duration_ms,
     completed = excluded.completed, updated_at = excluded.updated_at,
-    playback_rate = COALESCE(excluded.playback_rate, progress.playback_rate);
+    playback_rate = COALESCE(excluded.playback_rate, progress.playback_rate),
+    watched_at = CASE WHEN progress.watched_at IS NULL OR excluded.watched_at > progress.watched_at
+                      THEN COALESCE(excluded.watched_at, progress.watched_at) ELSE progress.watched_at END;
+
+-- name: MarkProgressWatched :exec
+-- An accepted event that meets the 90 % rule but does not replace the stored progress (a late
+-- online event, an offline event older than the stored progress) still finishes the title:
+-- watched_at becomes the later of the stored one and the event's time, nothing else changes.
+UPDATE progress SET watched_at = max(COALESCE(watched_at, 0), @at)
+WHERE profile_id = @profile_id AND item_id = @item_id;
 
 -- name: InsertProgressEvent :exec
 INSERT INTO progress_events (profile_id, item_id, media_file_id, device_id, playback_session_id, position_ms,
