@@ -59,7 +59,7 @@ func TestDeleteFilesFlatMovieFolder(t *testing.T) {
 	if !preview.FilesDeletable || len(preview.Files) != 1 || !preview.Files[0].Deletable || preview.Files[0].Reason != "" {
 		t.Fatalf("preview = %+v", preview)
 	}
-	out, err := e.svc.DeleteItem(e.ctx, alien, "de", model.DeleteModeFiles, "", model.Actor{AccountID: 1})
+	out, err := e.deleteItem(alien, "de", model.DeleteModeFiles, "", model.Actor{AccountID: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +120,7 @@ func TestDeleteFilesSeriesLeavesUnknownFiles(t *testing.T) {
 	if preview.FileCount != 3 || !preview.TypeTitle || !preview.FilesDeletable {
 		t.Fatalf("preview = %+v", preview)
 	}
-	out, err := e.svc.DeleteItem(e.ctx, show, "de", model.DeleteModeFiles, "show", model.Actor{})
+	out, err := e.deleteItem(show, "de", model.DeleteModeFiles, "show", model.Actor{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +161,7 @@ func TestDeleteFilesRefusedOnReadOnlyMount(t *testing.T) {
 		preview.Files[0].Reason != model.DeleteReasonReadOnly {
 		t.Errorf("preview = %+v", preview)
 	}
-	_, err = e.svc.DeleteItem(e.ctx, film, "de", model.DeleteModeFiles, "", model.Actor{})
+	_, err = e.deleteItem(film, "de", model.DeleteModeFiles, "", model.Actor{})
 	var fe *model.FilesNotDeletableError
 	if !errors.As(err, &fe) || fe.Reason != model.DeleteReasonReadOnly || !errors.Is(err, model.ErrFilesNotDeletable) {
 		t.Errorf("delete = %v", err)
@@ -170,7 +170,7 @@ func TestDeleteFilesRefusedOnReadOnlyMount(t *testing.T) {
 		t.Error("something went although the folder is read-only")
 	}
 	// «Nur aus Slouchcat entfernen» stays possible.
-	if _, err := e.svc.DeleteItem(e.ctx, film, "de", model.DeleteModeLibrary, "", model.Actor{}); err != nil {
+	if _, err := e.deleteItem(film, "de", model.DeleteModeLibrary, "", model.Actor{}); err != nil {
 		t.Errorf("library mode on a read-only folder: %v", err)
 	}
 }
@@ -202,7 +202,7 @@ func TestDeleteFilesPartialFailureKeepsTheTitle(t *testing.T) {
 		return paths.Remove(root, rel, paths.FileID{})
 	}
 	remove(t, dir, "Show (2020)/Season 01/Show - S01E02.mkv") // gone before: counts as deleted
-	out, err := e.svc.DeleteItem(e.ctx, show, "de", model.DeleteModeFiles, "Show", model.Actor{})
+	out, err := e.deleteItem(show, "de", model.DeleteModeFiles, "Show", model.Actor{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +257,7 @@ func TestDeleteFilesKeepsAHardLinkOfAnotherTitle(t *testing.T) {
 	if preview.FilesDeletable || preview.FilesReason != model.DeleteReasonShared || preview.Files[0].Reason != model.DeleteReasonShared {
 		t.Errorf("preview = %+v", preview)
 	}
-	if _, err := e.svc.DeleteItem(e.ctx, film, "de", model.DeleteModeFiles, "", model.Actor{}); !errors.Is(err, model.ErrFilesNotDeletable) {
+	if _, err := e.deleteItem(film, "de", model.DeleteModeFiles, "", model.Actor{}); !errors.Is(err, model.ErrFilesNotDeletable) {
 		t.Errorf("delete of a title whose only file is shared: %v", err)
 	}
 	if !exists(t, dir, takenFilm) || !exists(t, other, takenFilm) {
@@ -285,7 +285,7 @@ func TestDeleteFilesNeverTakesMediaAsCompanion(t *testing.T) {
 		t.Fatal(err)
 	}
 	alien := e.str(`SELECT item_id FROM media_files WHERE rel_path = 'Alien.mkv'`)
-	if _, err := e.svc.DeleteItem(e.ctx, alien, "de", model.DeleteModeFiles, "", model.Actor{}); err != nil {
+	if _, err := e.deleteItem(alien, "de", model.DeleteModeFiles, "", model.Actor{}); err != nil {
 		t.Fatal(err)
 	}
 	for rel, want := range map[string]bool{
@@ -313,7 +313,7 @@ func TestDeleteFilesKeepsAReplacedFile(t *testing.T) {
 	}
 	remove(t, dir, takenFilm)
 	writeFile(t, dir, takenFilm, "another file under the same name, not scanned")
-	out, err := e.svc.DeleteItem(e.ctx, film, "de", model.DeleteModeFiles, "", model.Actor{})
+	out, err := e.deleteItem(film, "de", model.DeleteModeFiles, "", model.Actor{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -342,7 +342,7 @@ func TestDeleteFilesTakesEmptyContainersAbove(t *testing.T) {
 	solo := e.str(`SELECT id FROM items WHERE kind = 'series' AND title = 'Solo'`)
 	duo := e.str(`SELECT id FROM items WHERE kind = 'series' AND title = 'Duo'`)
 	for _, rel := range []string{"Solo (2020)/Season 01/Solo - S01E01.mkv", "Duo (2021)/Season 02/Duo - S02E01.mkv"} {
-		if _, err := e.svc.DeleteItem(e.ctx, episode(rel), "de", model.DeleteModeFiles, "", model.Actor{}); err != nil {
+		if _, err := e.deleteItem(episode(rel), "de", model.DeleteModeFiles, "", model.Actor{}); err != nil {
 			t.Fatalf("%s: %v", rel, err)
 		}
 	}
@@ -417,7 +417,7 @@ func TestDeleteHoldsTheTitlesAgainstPlayback(t *testing.T) {
 		held = held || deleting.Has(film)
 		return paths.Remove(root, rel, paths.FileID{})
 	}
-	if _, err := e.svc.DeleteItem(e.ctx, film, "de", model.DeleteModeFiles, "", model.Actor{}); err != nil {
+	if _, err := e.deleteItem(film, "de", model.DeleteModeFiles, "", model.Actor{}); err != nil {
 		t.Fatal(err)
 	}
 	if !held || deleting.Has(film) {

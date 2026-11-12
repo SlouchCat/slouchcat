@@ -89,6 +89,8 @@ type ItemDeletionPreview struct {
 	FileCount       int
 	TotalBytes      int64
 	PlayingProfiles []string
+	// Expected is what deleteItem must repeat (review finding 2).
+	Expected ExpectedFiles
 	// FilesDeletable: «Auch die Dateien löschen» is possible (every file deletable, or shared and
 	// staying, and one at least deletable); FilesReason is why not (the first file's reason, or
 	// no_files).
@@ -147,6 +149,17 @@ type RemovedItem struct {
 type RemovedItemPage struct {
 	Items []RemovedItem
 	Total int
+}
+
+// ErrChanged: the title's files changed between the preview and the delete (409 changed): the
+// administrator confirmed another set of files than the server would delete now.
+var ErrChanged = errors.New("changed since the preview")
+
+// ExpectedFiles ties a delete to its preview: the number of files and a hash of their ids, as the
+// preview reported them.
+type ExpectedFiles struct {
+	Count int
+	Hash  string
 }
 
 // ErrDeleting: a playback start of a title that is being deleted right now (409 deleting).

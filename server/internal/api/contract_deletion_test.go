@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -62,7 +63,8 @@ func TestContractItemDeletion(t *testing.T) {
 	if !preview.FilesDeletable || preview.FilesReason != nil || !preview.Files[0].Deletable {
 		t.Errorf("files verdict = %v %v, file %+v", preview.FilesDeletable, preview.FilesReason, preview.Files[0])
 	}
-	confirm := `{"mode":"library","confirmTitle":` + strconv.Quote(strings.ToUpper(preview.ConfirmTitle)) + `}`
+	stamp := fmt.Sprintf(`"expectedFiles":{"count":%d,"hash":%q}`, preview.ExpectedFiles.Count, preview.ExpectedFiles.Hash)
+	confirm := `{"mode":"library",` + stamp + `,"confirmTitle":` + strconv.Quote(strings.ToUpper(preview.ConfirmTitle)) + `}`
 	rec = send(t, pf.h, http.MethodPost, path, "p18", confirm, nil)
 	wantStatus(t, rec, http.StatusOK)
 	var result gen.ItemDeletionResult
@@ -82,6 +84,12 @@ func TestContractItemDeletion(t *testing.T) {
 	rec = send(t, pf.h, http.MethodPost, BasePath+"/admin/maintenance/removed/"+fixtureFilm6+"/restore", "p18", "", nil)
 	wantStatus(t, rec, http.StatusOK)
 	wantStatus(t, send(t, pf.h, http.MethodGet, BasePath+"/admin/items/"+fixtureFilm6, "p18", "", nil), http.StatusOK)
+	// A stamp that is not the preview's: 409 changed, nothing goes.
+	rec = send(t, pf.h, http.MethodPost, path, "p18", `{"mode":"files","expectedFiles":{"count":1,"hash":"00000000000000000000000000000000"}}`, nil)
+	wantStatus(t, rec, http.StatusConflict)
+	if code := problemCode(t, rec); code != "changed" {
+		t.Errorf("a foreign stamp = %s, want changed", code)
+	}
 	// «Auch die Dateien löschen»: the files go, and the title for good (O-14); it is not listed
 	// among the removed titles.
 	rec = send(t, pf.h, http.MethodPost, path, "p18", confirm[:len(`{"mode":"`)]+`files"`+confirm[len(`{"mode":"library"`):], nil)
@@ -97,5 +105,5 @@ func TestContractItemDeletion(t *testing.T) {
 		t.Errorf("removed after the delete with files = %+v", page)
 	}
 	// An unknown mode is refused (validation_failed).
-	wantStatus(t, send(t, pf.h, http.MethodPost, path, "p18", `{"mode":"trash"}`, nil), http.StatusUnprocessableEntity)
+	wantStatus(t, send(t, pf.h, http.MethodPost, path, "p18", `{"mode":"trash",`+stamp+`}`, nil), http.StatusUnprocessableEntity)
 }

@@ -63,7 +63,7 @@ func softDeleteTree(age time.Duration) func(e *env, titleID string) {
 func removeTitle(e *env, titleID string) {
 	e.t.Helper()
 	title := e.str(`SELECT title FROM items WHERE id = ?`, titleID)
-	if _, err := e.svc.DeleteItem(e.ctx, titleID, "de", model.DeleteModeLibrary, title, model.Actor{}); err != nil {
+	if _, err := e.deleteItem(titleID, "de", model.DeleteModeLibrary, title, model.Actor{}); err != nil {
 		e.t.Fatalf("remove %s: %v", titleID, err)
 	}
 }

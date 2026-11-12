@@ -2,7 +2,7 @@ import type { ItemDeletionPreview, ItemDeletionResult } from '@slouchcat/api-cli
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { api, request } from '@/api/client';
+import { api, isApiError, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { formatBytes } from '@/lib/format';
 import { Notice } from '@/ui';
@@ -45,8 +45,20 @@ export function DeleteItemDialog({
   const [typed, setTyped] = useState('');
   const data = preview.data;
   const remove = useMutation({
-    mutationFn: (body: { mode: Mode; confirmTitle?: string }): Promise<ItemDeletionResult> =>
+    mutationFn: (body: {
+      mode: Mode;
+      confirmTitle?: string;
+      expectedFiles: ItemDeletionPreview['expectedFiles'];
+    }): Promise<ItemDeletionResult> =>
       request(api.POST('/admin/items/{id}/deletion', { params: { path: { id: itemId } }, body })),
+    // The files changed since the preview: read it again, so the dialog shows what would go now
+    // and the typed title starts over.
+    onError: (error) => {
+      if (isApiError(error) && error.code === 'changed') {
+        setTyped('');
+        void preview.refetch();
+      }
+    },
     onSuccess: async (result) => {
       if (!data) return;
       setTyped('');
@@ -102,7 +114,12 @@ export function DeleteItemDialog({
           onSubmit={(event) => {
             event.preventDefault();
             if (playing.length > 0 || !matches) return;
-            remove.mutate({ mode, ...(data.typeTitle ? { confirmTitle: typed.trim() } : {}) });
+            // The stamp of the files the dialog shows: the server deletes only these (409 changed).
+            remove.mutate({
+              mode,
+              expectedFiles: data.expectedFiles,
+              ...(data.typeTitle ? { confirmTitle: typed.trim() } : {}),
+            });
           }}
         >
           {playing.length > 0 && (
@@ -176,7 +193,16 @@ export function DeleteItemDialog({
               }
             />
           )}
-          {remove.isError && <Notice tone="danger" title={problemMessage(t, remove.error)} />}
+          {remove.isError && (
+            <Notice
+              tone="danger"
+              title={
+                isApiError(remove.error) && remove.error.code === 'changed'
+                  ? t('admin.itemDelete.changed')
+                  : problemMessage(t, remove.error)
+              }
+            />
+          )}
           <div className={styles.actions}>
             <AriaButton variant="ghost" onPress={() => close(false)}>
               {t('common.cancel')}

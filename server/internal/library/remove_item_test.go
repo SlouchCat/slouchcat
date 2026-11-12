@@ -40,7 +40,7 @@ func TestRemoveFilmKeepsFileAndUserData(t *testing.T) {
 		t.Errorf("preview = %+v", preview)
 	}
 	// One file: no title to type.
-	out, err := e.svc.DeleteItem(e.ctx, film, "de", model.DeleteModeLibrary, "", model.Actor{AccountID: 1, ProfileID: 1})
+	out, err := e.deleteItem(film, "de", model.DeleteModeLibrary, "", model.Actor{AccountID: 1, ProfileID: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,10 +107,10 @@ func TestRemoveSeriesTypedAndRefusedWhilePlaying(t *testing.T) {
 	if preview.FileCount != 3 || !preview.TypeTitle || preview.Folder == nil || preview.Folder.Path != takenShow {
 		t.Errorf("preview = %+v", preview)
 	}
-	if _, err := e.svc.DeleteItem(e.ctx, show, "de", model.DeleteModeLibrary, "Night", model.Actor{}); !errors.Is(err, model.ErrConfirmMismatch) {
+	if _, err := e.deleteItem(show, "de", model.DeleteModeLibrary, "Night", model.Actor{}); !errors.Is(err, model.ErrConfirmMismatch) {
 		t.Errorf("wrong title: %v", err)
 	}
-	if _, err := e.svc.DeleteItem(e.ctx, show, "de", "trash", "Night Shift", model.Actor{}); err == nil {
+	if _, err := e.deleteItem(show, "de", "trash", "Night Shift", model.Actor{}); err == nil {
 		t.Error("an unknown mode was accepted")
 	}
 	now := e.clock.Now().UnixMilli()
@@ -122,11 +122,11 @@ func TestRemoveSeriesTypedAndRefusedWhilePlaying(t *testing.T) {
 		t.Errorf("preview while playing = %v, %v", p.PlayingProfiles, err)
 	}
 	var playing *model.PlayingError
-	if _, err := e.svc.DeleteItem(e.ctx, show, "de", model.DeleteModeLibrary, " night shift ", model.Actor{}); !errors.As(err, &playing) {
+	if _, err := e.deleteItem(show, "de", model.DeleteModeLibrary, " night shift ", model.Actor{}); !errors.As(err, &playing) {
 		t.Errorf("while playing: %v", err)
 	}
 	e.exec(`UPDATE playback_sessions SET revoked_at = ?`, now)
-	out, err := e.svc.DeleteItem(e.ctx, show, "de", model.DeleteModeLibrary, " night shift ", model.Actor{})
+	out, err := e.deleteItem(show, "de", model.DeleteModeLibrary, " night shift ", model.Actor{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func TestRemoveRefusesExtrasAndFeedEpisodes(t *testing.T) {
 	e.exec(`INSERT INTO items (id, kind, library_id, title, sort_title, added_at, created_at, updated_at) VALUES ('01PODCAST00000000000000001', 'podcast', 50, 'Pod', 'pod', 1, 1, 1)`)
 	e.exec(`INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, enclosure_url, added_at, created_at, updated_at)
 	        VALUES ('01PODCASTEPISODE0000000001', 'podcast_episode', '01PODCAST00000000000000001', 50, 'Ep', 'ep', 'https://example.test/ep.mp3', 1, 1, 1)`)
-	if _, err := e.svc.DeleteItem(e.ctx, "01PODCASTEPISODE0000000001", "de", model.DeleteModeLibrary, "", model.Actor{}); !errors.Is(err, model.ErrNotDeletable) {
+	if _, err := e.deleteItem("01PODCASTEPISODE0000000001", "de", model.DeleteModeLibrary, "", model.Actor{}); !errors.Is(err, model.ErrNotDeletable) {
 		t.Errorf("feed episode: %v", err)
 	}
 	if _, err := e.svc.ItemDeletion(e.ctx, "01UNKNOWN00000000000000001", "de"); !errors.Is(err, model.ErrNotFound) {
@@ -181,11 +181,11 @@ func TestRestoreRemovedTitles(t *testing.T) {
 	e.scan(lib.ID)
 	show := e.str(`SELECT id FROM items WHERE kind = 'series' AND title = 'Night Shift'`)
 	season2 := e.str(`SELECT id FROM items WHERE kind = 'season' AND parent_id = ? AND season_number = 2`, show)
-	if _, err := e.svc.DeleteItem(e.ctx, season2, "de", model.DeleteModeLibrary, "", model.Actor{}); err != nil {
+	if _, err := e.deleteItem(season2, "de", model.DeleteModeLibrary, "", model.Actor{}); err != nil {
 		t.Fatal(err)
 	}
 	e.clock.Advance(time.Minute)
-	if _, err := e.svc.DeleteItem(e.ctx, show, "de", model.DeleteModeLibrary, "Night Shift", model.Actor{}); err != nil {
+	if _, err := e.deleteItem(show, "de", model.DeleteModeLibrary, "Night Shift", model.Actor{}); err != nil {
 		t.Fatal(err)
 	}
 	writeFile(t, dir, takenShow+"/Season 01/Night Shift - S01E02.mkv", "new episode while out")
@@ -237,7 +237,7 @@ func TestRemovedFilmIsNoTwin(t *testing.T) {
 	e := newEnv(t)
 	dir, lib := e.filmLibrary()
 	film := e.addFilm(dir, lib.ID, "Heat (1995)/Heat (1995).mkv", 949)
-	if _, err := e.svc.DeleteItem(e.ctx, film, "de", model.DeleteModeLibrary, "", model.Actor{}); err != nil {
+	if _, err := e.deleteItem(film, "de", model.DeleteModeLibrary, "", model.Actor{}); err != nil {
 		t.Fatal(err)
 	}
 	// A new release of the same name and year in another folder joins the removed film and stays
@@ -263,5 +263,48 @@ func TestRemovedFilmIsNoTwin(t *testing.T) {
 	}
 	if n := e.count(`SELECT count(*) FROM items WHERE id = ? AND removed_at IS NOT NULL`, film); n != 1 {
 		t.Error("the removed film came back")
+	}
+}
+
+// deleteItem deletes as the dialog does: it reads the preview first and repeats its stamp of the
+// files (expectedFiles). A title without preview (not deletable, unknown) gets the zero stamp; the
+// delete answers the same error before it compares.
+func (e *env) deleteItem(itemID, lang, mode, confirmTitle string, by model.Actor) (model.ItemDeletionResult, error) {
+	e.t.Helper()
+	var expected model.ExpectedFiles
+	if p, err := e.svc.ItemDeletion(e.ctx, itemID, lang); err == nil {
+		expected = p.Expected
+	}
+	return e.svc.DeleteItem(e.ctx, itemID, lang, mode, confirmTitle, expected, by)
+}
+
+// Review finding 2: the delete takes exactly what the preview showed. A file that joined the title
+// after the preview (a new episode) changes the stamp: 409 changed and nothing is deleted; a
+// preview read again lets it through.
+func TestDeleteItemTiedToItsPreview(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	files := []string{takenE01, "Keep (2001)/Season 01/Keep - S01E01.mkv", "Keep (2001)/Season 01/Keep - S01E02.mkv"}
+	dir := tree(t, files)
+	lib := e.createSeries(dir)
+	e.scan(lib.ID)
+	show := e.str(`SELECT id FROM items WHERE kind = 'series' AND title = 'Night Shift'`)
+	preview, err := e.svc.ItemDeletion(e.ctx, show, "de")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preview.Expected.Count != 1 || len(preview.Expected.Hash) != 32 {
+		t.Fatalf("stamp = %+v", preview.Expected)
+	}
+	writeFile(t, dir, takenShow+"/Season 01/Night Shift - S01E02.mkv", "new episode after the preview")
+	e.scan(lib.ID)
+	if _, err := e.svc.DeleteItem(e.ctx, show, "de", model.DeleteModeFiles, "Night Shift", preview.Expected, model.Actor{}); !errors.Is(err, model.ErrChanged) {
+		t.Fatalf("delete with the old stamp = %v, want changed", err)
+	}
+	if !exists(t, dir, takenE01) || e.count(`SELECT count(*) FROM items WHERE id = ? AND deleted_at IS NULL`, show) != 1 {
+		t.Fatal("something went although the files changed")
+	}
+	if _, err := e.deleteItem(show, "de", model.DeleteModeFiles, "Night Shift", model.Actor{}); err != nil {
+		t.Errorf("delete with the new preview: %v", err)
 	}
 }

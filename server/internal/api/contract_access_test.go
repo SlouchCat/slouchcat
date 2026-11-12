@@ -226,7 +226,7 @@ var adminRegistry = map[string]adminCall{
 	// Concept 20 P-9: unknown titles; the removed list of the fixture is empty.
 	"getItemDeletion": {contract: "GET /admin/items/{id}/deletion", path: "/admin/items/" + unknownItemID + "/deletion", ownerStatus: http.StatusNotFound},
 	"deleteItem": {contract: "POST /admin/items/{id}/deletion", path: "/admin/items/" + unknownItemID + "/deletion",
-		body: `{"mode":"library"}`, ownerStatus: http.StatusNotFound},
+		body: `{"mode":"library","expectedFiles":{"count":0,"hash":"00000000000000000000000000000000"}}`, ownerStatus: http.StatusNotFound},
 	"listRemovedItems":   {contract: "GET /admin/maintenance/removed", path: "/admin/maintenance/removed", ownerStatus: http.StatusOK},
 	"restoreRemovedItem": {contract: "POST /admin/maintenance/removed/{id}/restore", path: "/admin/maintenance/removed/" + unknownItemID + "/restore", ownerStatus: http.StatusNotFound},
 	// Concept 20 P-8: the fixture has no library 777.

@@ -375,6 +375,8 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusConflict, "scan_running", "A scan of this library is running; it holds the folders it started with.")
 	case errors.Is(err, model.ErrConfirmMismatch):
 		p.write(w, r, http.StatusUnprocessableEntity, "confirm_mismatch", "The typed confirmation does not repeat what is about to be removed.")
+	case errors.Is(err, model.ErrChanged):
+		p.write(w, r, http.StatusConflict, "changed", "The files of the title changed since the preview; check it again.")
 	case errors.Is(err, model.ErrDeleting):
 		p.write(w, r, http.StatusConflict, "deleting", "The title is being deleted right now.")
 	case errors.Is(err, model.ErrNotDeletable):

@@ -2,7 +2,9 @@ package library
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"path"
@@ -98,6 +100,7 @@ func (s *Service) ItemDeletion(ctx context.Context, itemID, lang string) (model.
 		Files: files, Folder: commonFolder(t.files), FileCount: len(t.files), PlayingProfiles: playing,
 	}
 	out.FilesDeletable, out.FilesReason = filesVerdict(files)
+	out.Expected = expectedFiles(t.files)
 	for _, f := range t.files {
 		out.TotalBytes += f.Size
 	}
@@ -116,10 +119,12 @@ func (s *Service) ItemDeletion(ctx context.Context, itemID, lang string) (model.
 // spaces). Under the scan lock of the library, without waiting for a running scan (model.ErrScanRunning,
 // like the removal of a folder); refused while a profile plays one of the titles (O-13).
 //
-// Errors: model.ErrNotFound, model.ErrNotDeletable, model.ErrConfirmMismatch,
+// expected must repeat the preview's stamp of the files (model.ErrChanged otherwise).
+//
+// Errors: model.ErrNotFound, model.ErrNotDeletable, model.ErrConfirmMismatch, model.ErrChanged,
 // *model.PlayingError, *model.ScanRunningError, *model.FilesNotDeletableError,
 // *model.ValidationError (mode).
-func (s *Service) DeleteItem(ctx context.Context, itemID, lang, mode, confirmTitle string, by model.Actor) (model.ItemDeletionResult, error) {
+func (s *Service) DeleteItem(ctx context.Context, itemID, lang, mode, confirmTitle string, expected model.ExpectedFiles, by model.Actor) (model.ItemDeletionResult, error) {
 	if mode != model.DeleteModeLibrary && mode != model.DeleteModeFiles {
 		return model.ItemDeletionResult{}, (&model.ValidationError{}).Add("mode", "invalid")
 	}
@@ -128,8 +133,8 @@ func (s *Service) DeleteItem(ctx context.Context, itemID, lang, mode, confirmTit
 	if err != nil {
 		return model.ItemDeletionResult{}, err
 	}
-	if len(t.files) > 1 && !strings.EqualFold(strings.TrimSpace(confirmTitle), strings.TrimSpace(t.item.DisplayTitle)) {
-		return model.ItemDeletionResult{}, model.ErrConfirmMismatch
+	if err := checkConfirmation(t, confirmTitle, expected); err != nil {
+		return model.ItemDeletionResult{}, err
 	}
 	if err := s.refuseIfPlays(ctx, q, t.ids); err != nil {
 		return model.ItemDeletionResult{}, err
@@ -142,6 +147,9 @@ func (s *Service) DeleteItem(ctx context.Context, itemID, lang, mode, confirmTit
 	// Again under the lock: the tree may have grown, a playback may have started. From here to the
 	// commit no playback of the tree starts (playback answers deleting).
 	if t, err = s.loadTree(ctx, q, itemID, lang); err != nil {
+		return model.ItemDeletionResult{}, err
+	}
+	if err := checkConfirmation(t, confirmTitle, expected); err != nil {
 		return model.ItemDeletionResult{}, err
 	}
 	release := s.deleting.Hold(t.ids)
@@ -164,6 +172,31 @@ func (s *Service) DeleteItem(ctx context.Context, itemID, lang, mode, confirmTit
 		LibraryID: t.item.LibraryID, Subject: t.item.DisplayTitle, Detail: model.ActivityDetail{Mode: mode},
 	})
 	return model.ItemDeletionResult{RemovedItems: removed, Leftover: []model.DeletionLeftover{}}, nil
+}
+
+// checkConfirmation compares the delete with its preview (review finding 2): the files must be
+// those the preview listed (model.ErrChanged otherwise), and with more than one file the typed
+// title must match (model.ErrConfirmMismatch). DeleteItem checks before the lock and again on the
+// tree it reloaded under the lock.
+func checkConfirmation(t itemTree, confirmTitle string, expected model.ExpectedFiles) error {
+	if expected != expectedFiles(t.files) {
+		return model.ErrChanged
+	}
+	if len(t.files) > 1 && !strings.EqualFold(strings.TrimSpace(confirmTitle), strings.TrimSpace(t.item.DisplayTitle)) {
+		return model.ErrConfirmMismatch
+	}
+	return nil
+}
+
+// expectedFiles is the stamp of the files of a tree: their number and a hash over their sorted ids.
+func expectedFiles(files []systemq.ListMediaFilesOfItemsRow) model.ExpectedFiles {
+	ids := make([]string, 0, len(files))
+	for _, f := range files {
+		ids = append(ids, f.ID)
+	}
+	slices.Sort(ids)
+	sum := sha256.Sum256([]byte(strings.Join(ids, "\n")))
+	return model.ExpectedFiles{Count: len(ids), Hash: hex.EncodeToString(sum[:16])}
 }
 
 // removeTree marks the titles as taken out and drops their downloads, in one transaction; it

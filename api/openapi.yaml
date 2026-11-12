@@ -4253,8 +4253,9 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "409":
           description: |
-            A profile plays one of the titles (`playing`, `playingProfiles` names them) or a scan of
-            the library runs (`scan_running`). Nothing was deleted.
+            A profile plays one of the titles (`playing`, `playingProfiles` names them), a scan of the
+            library runs (`scan_running`), or the files changed since the preview (`changed`: they are
+            not the ones `expectedFiles` names; read the preview again). Nothing was deleted.
           content:
             application/problem+json:
               schema:
@@ -14764,7 +14765,7 @@ components:
 
     ItemDeletionPreview:
       type: object
-      required: [itemId, kind, confirmTitle, typeTitle, files, fileCount, totalBytes, playingProfiles, filesDeletable]
+      required: [itemId, kind, confirmTitle, typeTitle, files, fileCount, totalBytes, playingProfiles, filesDeletable, expectedFiles]
       properties:
         itemId:
           $ref: "#/components/schemas/ItemID"
@@ -14801,6 +14802,8 @@ components:
             Whether `mode` `files` is possible: every file is deletable (or a hard link of another
             title's file, which stays), and at least one is. Checked without writing anything (ADR
             0032).
+        expectedFiles:
+          $ref: "#/components/schemas/ExpectedFiles"
         filesReason:
           type: string
           description: |
@@ -14846,10 +14849,27 @@ components:
         path:
           type: string
 
+    ExpectedFiles:
+      type: object
+      required: [count, hash]
+      description: |
+        The stamp of the files a preview listed: their number and a hash of their ids. `deleteItem`
+        repeats it, so the delete takes exactly what the administrator saw; when the files changed
+        meanwhile the server answers 409 `changed` and deletes nothing.
+      properties:
+        count:
+          type: integer
+          minimum: 0
+        hash:
+          type: string
+          pattern: "^[0-9a-f]{32}$"
+
     ItemDeletionRequest:
       type: object
-      required: [mode]
+      required: [mode, expectedFiles]
       properties:
+        expectedFiles:
+          $ref: "#/components/schemas/ExpectedFiles"
         mode:
           type: string
           enum: [library, files]

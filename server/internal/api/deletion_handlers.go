@@ -27,6 +27,7 @@ func (s *server) GetItemDeletion(ctx context.Context, req gen.GetItemDeletionReq
 		Files: make([]gen.DeletionFile, 0, len(p.Files)), Folder: toDeletionFolder(p.Folder),
 		FileCount: p.FileCount, TotalBytes: p.TotalBytes, PlayingProfiles: append([]string{}, p.PlayingProfiles...),
 		FilesDeletable: p.FilesDeletable, FilesReason: optString(p.FilesReason),
+		ExpectedFiles: gen.ExpectedFiles{Count: p.Expected.Count, Hash: p.Expected.Hash},
 	}
 	for _, f := range p.Files {
 		out.Files = append(out.Files, gen.DeletionFile{
@@ -39,7 +40,8 @@ func (s *server) GetItemDeletion(ctx context.Context, req gen.GetItemDeletionReq
 func (s *server) DeleteItem(ctx context.Context, req gen.DeleteItemRequestObject) (gen.DeleteItemResponseObject, error) {
 	body := deref(req.Body)
 	session, _ := sessionFrom(ctx)
-	r, err := s.opts.Admin.DeleteItem(ctx, req.Id, string(body.Mode), deref(body.ConfirmTitle), actorOf(session))
+	expected := model.ExpectedFiles{Count: body.ExpectedFiles.Count, Hash: body.ExpectedFiles.Hash}
+	r, err := s.opts.Admin.DeleteItem(ctx, req.Id, string(body.Mode), deref(body.ConfirmTitle), expected, actorOf(session))
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}

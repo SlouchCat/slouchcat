@@ -194,9 +194,10 @@ type AdminService interface {
 	CleanupItems(ctx context.Context, itemIDs, mediaFileIDs []string) (items, files int, err error)
 	// Deleting a title (concept 20 P-9): the preview, the delete, the removed titles and their way
 	// back. Errors: model.ErrNotFound, model.ErrNotDeletable, model.ErrConfirmMismatch,
-	// *model.PlayingError, *model.ScanRunningError, *model.ValidationError.
+	// *model.PlayingError, *model.ScanRunningError, *model.ValidationError, model.ErrChanged (the
+	// files differ from the preview's expectedFiles).
 	GetItemDeletion(ctx context.Context, itemID string) (model.ItemDeletionPreview, error)
-	DeleteItem(ctx context.Context, itemID, mode, confirmTitle string, by model.Actor) (model.ItemDeletionResult, error)
+	DeleteItem(ctx context.Context, itemID, mode, confirmTitle string, expected model.ExpectedFiles, by model.Actor) (model.ItemDeletionResult, error)
 	ListRemovedItems(ctx context.Context, limit, offset int) (model.RemovedItemPage, error)
 	RestoreRemovedItem(ctx context.Context, itemID string) (int, error)
 	// ListRelinkPairs returns the soft-deleted titles with a live copy and their user data

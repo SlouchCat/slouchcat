@@ -22,6 +22,7 @@ const filmPreview = {
   playingProfiles: [],
   filesDeletable: false,
   filesReason: 'read_only',
+  expectedFiles: { count: 1, hash: 'a'.repeat(32) },
 };
 
 describe('deleting a title', () => {
@@ -60,7 +61,10 @@ describe('deleting a title', () => {
     expect(within(dialog).queryByLabelText('Zur Bestätigung den Titel eintippen')).toBeNull();
     await user.click(within(dialog).getByRole('button', { name: 'Aus Slouchcat entfernen' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/libraries/1'));
-    expect(calls.find((call) => call.method === 'POST')?.body).toEqual({ mode: 'library' });
+    expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
+      mode: 'library',
+      expectedFiles: { count: 1, hash: 'a'.repeat(32) },
+    });
   });
 
   it('a series: the folder, the typed title in any case; refused while a profile plays', async () => {
@@ -82,6 +86,9 @@ describe('deleting a title', () => {
           fileCount: 2,
           totalBytes: 2000,
           playingProfiles: playing,
+          filesDeletable: false,
+          filesReason: 'read_only',
+          expectedFiles: { count: 2, hash: 'b'.repeat(32) },
         }),
       [`POST /admin/items/${seriesIds.show}/deletion`]: () =>
         problem(409, 'playing', { playingProfiles: ['Ben'] }),
@@ -110,6 +117,7 @@ describe('deleting a title', () => {
     ).toBeVisible();
     expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
       mode: 'library',
+      expectedFiles: { count: 2, hash: 'b'.repeat(32) },
       confirmTitle: 'the show',
     });
   });
@@ -173,12 +181,37 @@ describe('deleting a title', () => {
       screen.getByText(/3 Dateien, die Slouchcat nicht kennt, bleiben im Ordner/),
     ).toBeVisible();
     expect(router.state.location.pathname).toBe(`/items/${ids.alien}`);
-    expect(calls.find((call) => call.method === 'POST')?.body).toEqual({ mode: 'files' });
+    expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
+      mode: 'files',
+      expectedFiles: { count: 1, hash: 'a'.repeat(32) },
+    });
 
     answer = 'gone';
     dialog = await open();
     await user.click(within(dialog).getByText('Auch die Dateien löschen'));
     await user.click(within(dialog).getByRole('button', { name: 'Endgültig löschen' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/libraries/1'));
+  });
+
+  it('files that changed since the preview: the dialog says so and reads the preview again', async () => {
+    let previews = 0;
+    mockApi({
+      ...signedIn,
+      [`GET /items/${ids.alien}`]: () => json(alienDetail),
+      [`GET /admin/items/${ids.alien}/deletion`]: () => {
+        previews += 1;
+        return json(filmPreview);
+      },
+      [`POST /admin/items/${ids.alien}/deletion`]: () => problem(409, 'changed'),
+    });
+    renderApp(`/items/${ids.alien}`);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Löschen' }));
+    const dialog = await screen.findByRole('dialog', { name: '«Alien» löschen?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Aus Slouchcat entfernen' }));
+    expect(
+      await within(dialog).findByText(/Inzwischen hat sich etwas geändert, bitte erneut prüfen/),
+    ).toBeVisible();
+    await waitFor(() => expect(previews).toBe(2));
   });
 });

@@ -8108,6 +8108,7 @@ export interface components {
              *     0032).
              */
             filesDeletable: boolean;
+            expectedFiles: components["schemas"]["ExpectedFiles"];
             /**
              * @description Why `mode` `files` is not possible: the reason of the first file that cannot be deleted
              *     (see `DeletionFile.reason`), or `no_files`. Absent when it is possible.
@@ -8141,7 +8142,17 @@ export interface components {
             rootPath: string;
             path: string;
         };
+        /**
+         * @description The stamp of the files a preview listed: their number and a hash of their ids. `deleteItem`
+         *     repeats it, so the delete takes exactly what the administrator saw; when the files changed
+         *     meanwhile the server answers 409 `changed` and deletes nothing.
+         */
+        ExpectedFiles: {
+            count: number;
+            hash: string;
+        };
         ItemDeletionRequest: {
+            expectedFiles: components["schemas"]["ExpectedFiles"];
             /**
              * @description `library`: only out of Slouchcat, the files stay. `files`: the files are deleted as well,
              *     and the title for good when none of its files is left (ADR 0032).
@@ -15596,8 +15607,9 @@ export interface operations {
                 };
             };
             /**
-             * @description A profile plays one of the titles (`playing`, `playingProfiles` names them) or a scan of
-             *     the library runs (`scan_running`). Nothing was deleted.
+             * @description A profile plays one of the titles (`playing`, `playingProfiles` names them), a scan of the
+             *     library runs (`scan_running`), or the files changed since the preview (`changed`: they are
+             *     not the ones `expectedFiles` names; read the preview again). Nothing was deleted.
              */
             409: {
                 headers: {

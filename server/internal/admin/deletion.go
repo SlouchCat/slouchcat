@@ -10,7 +10,7 @@ import (
 // of a title, and the page «Entfernte Titel».
 type TitleDeletion interface {
 	ItemDeletion(ctx context.Context, itemID, lang string) (model.ItemDeletionPreview, error)
-	DeleteItem(ctx context.Context, itemID, lang, mode, confirmTitle string, by model.Actor) (model.ItemDeletionResult, error)
+	DeleteItem(ctx context.Context, itemID, lang, mode, confirmTitle string, expected model.ExpectedFiles, by model.Actor) (model.ItemDeletionResult, error)
 	ListRemovedItems(ctx context.Context, limit, offset int) (model.RemovedItemPage, error)
 	RestoreRemovedItem(ctx context.Context, itemID string) (int, error)
 }
@@ -44,7 +44,7 @@ func (s *Service) GetItemDeletion(ctx context.Context, itemID string) (model.Ite
 }
 
 // DeleteItem deletes a title (deleteItem); the typed title is compared inside package library.
-func (s *Service) DeleteItem(ctx context.Context, itemID, mode, confirmTitle string, by model.Actor) (model.ItemDeletionResult, error) {
+func (s *Service) DeleteItem(ctx context.Context, itemID, mode, confirmTitle string, expected model.ExpectedFiles, by model.Actor) (model.ItemDeletionResult, error) {
 	if s.deletion == nil {
 		return model.ItemDeletionResult{}, ErrNotConfigured
 	}
@@ -53,7 +53,7 @@ func (s *Service) DeleteItem(ctx context.Context, itemID, mode, confirmTitle str
 	if err != nil {
 		return model.ItemDeletionResult{}, err
 	}
-	return s.deletion.DeleteItem(ctx, itemID, lang, mode, confirmTitle, by)
+	return s.deletion.DeleteItem(ctx, itemID, lang, mode, confirmTitle, expected, by)
 }
 
 // ListRemovedItems is the page «Entfernte Titel» (listRemovedItems).
