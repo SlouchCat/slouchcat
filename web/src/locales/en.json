@@ -3316,46 +3316,9 @@
       "notificationsLink": "Go to the notification channels",
       "keys": {
         "title": "Provider keys",
-        "intro": "For metadata (TMDB, TVDB), images (Fanart.tv), trailers (YouTube) and the Trakt lists of the home page.",
-        "count": "{{set}} of {{total}} set",
-        "setPlaceholder": "API key set",
-        "newValue": "Leave empty to keep the stored value. A new value replaces it.",
-        "tmdb": {
-          "name": "TMDB token",
-          "description": "API read access token from themoviedb.org: overviews, posters and age ratings.",
-          "link": "Get a token at themoviedb.org"
-        },
-        "tvdb": {
-          "name": "TVDB key",
-          "description": "API key from thetvdb.com: optional second source for series.",
-          "link": "Get a key at thetvdb.com"
-        },
-        "tvdbPin": {
-          "name": "TVDB PIN",
-          "description": "Subscriber PIN, only for a TVDB subscription with a PIN.",
-          "link": "Look up the PIN at thetvdb.com"
-        },
-        "youtube": {
-          "name": "YouTube key",
-          "description": "YouTube Data API key: finds trailers when TMDB knows none.",
-          "link": "Get a key in the Google Cloud Console"
-        },
-        "trakt": {
-          "name": "Trakt client ID",
-          "description": "For the rows “Trending” and “Popular” of the home page.",
-          "link": "Get a client ID at trakt.tv"
-        },
-        "traktStatus": "State of the Trakt lists",
-        "fanart": {
-          "name": "Fanart.tv key",
-          "description": "Project key (API key) from fanart.tv: logos and high-quality posters as the last image source; switch it on under \"Metadata\". New images show after 7 days.",
-          "link": "Get a project key at fanart.tv"
-        },
-        "fanartClient": {
-          "name": "Fanart.tv personal key",
-          "description": "Optional: new images after 2 days instead of 7.",
-          "link": "Get a personal key at fanart.tv"
-        }
+        "intro": "Slouchcat fetches texts, images and trailers with them. Without a key the provider stays off.",
+        "count": "{{set}} of {{total}} providers set up",
+        "newValue": "Leave empty to keep the stored value. A new value replaces it."
       },
       "webhooks": {
         "title": "Webhooks from Radarr and Sonarr",
@@ -3504,6 +3467,68 @@
         "name": "Public address",
         "label": "Address",
         "hint": "For example https://media.example.ch"
+      },
+      "providers": {
+        "fields": {
+          "tmdb": "Access token (v4)",
+          "tvdb": "Key",
+          "tvdbPin": "Subscriber PIN (subscription keys only)",
+          "fanart": "Project key",
+          "fanartClient": "Personal key (optional)",
+          "youtube": "Key",
+          "trakt": "Client id",
+          "googleBooks": "Key"
+        },
+        "open": {
+          "setup": "Set up",
+          "edit": "Edit",
+          "view": "View"
+        },
+        "check": {
+          "ok": "{{name}}: The provider answered, the key holds.",
+          "not_configured": "{{name}}: No key is set.",
+          "invalid": "{{name}}: The provider refuses the key ({{message}}).",
+          "unreachable": "{{name}}: The provider cannot be reached ({{message}}).",
+          "failed": "{{name}}: The check failed ({{message}})."
+        },
+        "tmdb": {
+          "name": "TMDB",
+          "purpose": "Texts, posters and trailers of films and series. Required for video libraries.",
+          "help": "Free in the TMDB account under «API»: the read access token (v4)."
+        },
+        "tvdb": {
+          "name": "TVDB",
+          "purpose": "Second source for series and anime: seasons and episode titles.",
+          "help": "Key and PIN are in the TVDB account. Without a subscription the PIN stays empty."
+        },
+        "fanart": {
+          "name": "Fanart.tv",
+          "purpose": "Logos, backgrounds and disc images; the source is switched on under «Metadata».",
+          "help": "With a personal key new images appear after two days, else after seven."
+        },
+        "youtube": {
+          "name": "YouTube",
+          "purpose": "Finds trailers TMDB does not know.",
+          "help": "A key of the «YouTube Data API v3» from the Google Cloud Console."
+        },
+        "trakt": {
+          "name": "Trakt",
+          "purpose": "Lists for the spotlight and the rows of the home page.",
+          "help": "The client id of your own Trakt app. The page «Spotlight» shows the state of the lists."
+        },
+        "googlebooks": {
+          "name": "Google Books",
+          "purpose": "Book data for audiobooks; without a key Slouchcat never asks Google Books.",
+          "help": "A key of the «Books API» from the Google Cloud Console. Which folder uses the source is set under «Audiobooks: sources»."
+        },
+        "close": "Fold away",
+        "toggleLabel": "{{action}}: {{name}}",
+        "link": "Get a key from {{name}}",
+        "stored": "Set; leave empty to keep it",
+        "storedHint": "Set, ends in {{hint}}; leave empty to keep it",
+        "envNote": "The value comes from deploy/.env and can only be changed there. «Check» asks the provider all the same.",
+        "checkAction": "Check",
+        "checkLabel": "Check {{name}}"
       }
     },
     "accounts": {
@@ -4569,8 +4594,8 @@
       },
       "googleBooks": {
         "name": "Google Books key",
-        "description": "Without a key the server never asks Google Books; only with a key can the source join the list of a folder.",
-        "link": "Get an API key from Google"
+        "description": "The Google Books key is now with the other providers.",
+        "link": "Set it up under «Integrations»"
       },
       "auto": {
         "label": "Match automatically",

@@ -14,7 +14,12 @@ import {
   useUnsavedChanges,
 } from '@/ui/aria';
 import { EmailForm } from './integrations/EmailForm';
-import { KeyRow } from './integrations/KeyRow';
+import {
+  PROVIDER_KEYS,
+  PROVIDERS,
+  ProviderCard,
+  providerSource,
+} from './integrations/ProviderCard';
 import { PushBlock } from './integrations/PushBlock';
 import { ServerBlock } from './integrations/ServerBlock';
 import {
@@ -22,7 +27,6 @@ import {
   EMAIL_DRAFT,
   emailValues,
   keyDraft,
-  KEYS,
   PASSWORD_DRAFT,
   PUBLIC_URL_DRAFT,
   TELEGRAM_DRAFT,
@@ -80,8 +84,11 @@ export function IntegrationsPage() {
   const [newName, setNewName] = useState('');
   const webhooksDirty = pathMaps.dirty || newName.trim() !== '';
   const unsaved = useUnsavedChanges(fields.dirty || email.dirty || webhooksDirty);
-  const keysDirty = KEYS.some((keyName) => fields.isDirty(keyDraft(keyName)));
-  const keysSet = data ? KEYS.filter((keyName) => data.keys[keyName].source !== 'none').length : 0;
+  const keysDirty = PROVIDER_KEYS.some((keyName) => fields.isDirty(keyDraft(keyName)));
+  // A provider counts as set up by its main key (concept 20, P-12).
+  const keysSet = data
+    ? PROVIDERS.filter((provider) => providerSource(provider, data.keys) !== 'none').length
+    : 0;
 
   return (
     <AdminPage
@@ -118,19 +125,19 @@ export function IntegrationsPage() {
                     unsaved={keysDirty}
                     count={t('admin.integrations.keys.count', {
                       set: keysSet,
-                      total: KEYS.length,
+                      total: PROVIDERS.length,
                     })}
                   />
                 }
               >
                 <Text tone="secondary">{t('admin.integrations.keys.intro')}</Text>
                 {/* The first work row of the page (docs/perf/verwaltungsseiten.md). */}
-                <div data-perf="first-work-row">
-                  {KEYS.map((keyName) => (
-                    <KeyRow
-                      key={keyName}
-                      keyName={keyName}
-                      state={data.keys[keyName]}
+                <div data-perf="first-work-row" className={styles.providers}>
+                  {PROVIDERS.map((provider) => (
+                    <ProviderCard
+                      key={provider.id}
+                      provider={provider}
+                      keys={data.keys}
                       drafts={fields}
                     />
                   ))}

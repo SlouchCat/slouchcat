@@ -186,6 +186,9 @@ type Metadata interface {
 	// *model.ValidationError).
 	UploadItemImage(ctx context.Context, itemID, kind string, data []byte) error
 	ChoosableImageKinds(ctx context.Context, itemID string) ([]string, error)
+	// CheckProviderKey asks the provider with its configured key whether it holds (concept 20,
+	// P-12); *model.ValidationError for an unknown provider. Neither answer nor error carries the key.
+	CheckProviderKey(ctx context.Context, provider string) (model.KeyCheck, error)
 }
 
 // ErrNotConfigured: a maintenance operation needs a collaborator that was not wired

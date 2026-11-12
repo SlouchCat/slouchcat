@@ -371,6 +371,7 @@ var adminRegistry = map[string]adminCall{
 	"updateAdminSettings": {contract: "PUT /admin/settings", path: "/admin/settings", body: `{"updateCheckEnabled":true}`, ownerStatus: http.StatusOK},
 	"sendTestEmail":       {contract: "POST /admin/settings/email/test", path: "/admin/settings/email/test", body: `{}`, ownerStatus: http.StatusUnprocessableEntity},
 	"rotatePushKeys":      {contract: "POST /admin/settings/push/rotate", path: "/admin/settings/push/rotate", ownerStatus: http.StatusOK},
+	"checkProviderKey":    {contract: "POST /admin/settings/keys/{provider}/check", path: "/admin/settings/keys/tmdb/check", ownerStatus: http.StatusOK}, // concept 20 P-12, TestCheckProviderKeyOverHTTP
 	"listBackups":         {contract: "GET /admin/backups", path: "/admin/backups", ownerStatus: http.StatusOK},
 	"createBackup":        {contract: "POST /admin/backups", path: "/admin/backups", body: `{"includeSecrets":false}`, ownerStatus: http.StatusCreated},
 	"downloadBackup": {contract: "GET /admin/backups/{name}/download", path: "/admin/backups/missing.tar.gz/download",

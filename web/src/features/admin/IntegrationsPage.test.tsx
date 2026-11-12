@@ -21,6 +21,7 @@ const settings = (overrides: Partial<AdminSettings> = {}): AdminSettings => ({
     fanartClient: { source: 'none' },
     youtube: { source: 'none' },
     trakt: { source: 'env' },
+    googleBooks: { source: 'none' },
   },
   email: { source: 'none' },
   telegram: { source: 'none' },
@@ -59,98 +60,236 @@ const puts = (calls: { method: string; path: string; body: unknown }[]) =>
     .filter((call) => call.method === 'PUT' && call.path === '/admin/settings')
     .map((call) => call.body as AdminSettingsUpdate);
 
+/** The card of a provider in the band of the keys (concept 20, P-12). */
+const card = (name: string) =>
+  within(section('Schlüssel der Anbieter')).getByRole('region', { name });
+
+/** Opens the card of a provider with its button and returns the card. */
+async function openCard(user: ReturnType<typeof userEvent.setup>, name: string) {
+  const region = within(
+    await screen.findByRole('region', { name: 'Schlüssel der Anbieter' }),
+  ).getByRole('region', { name });
+  const toggle = within(region).getByRole('button', { name: new RegExp(`: ${name}$`) });
+  if (toggle.getAttribute('aria-expanded') !== 'true') await user.click(toggle);
+  return region;
+}
+
 describe('integrations (A-2)', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('shows where each key comes from; a key from deploy/.env is read-only', async () => {
+  it('shows six provider cards, folded, with their purpose and state (P-12)', async () => {
     mockApi(routes());
     renderApp('/admin/integrations');
     expect(await screen.findByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
     const keys = await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
-    expect(within(keys).getByText('Gespeichert, endet auf a1b2')).toBeVisible();
-    expect(within(keys).getAllByText('Nicht gesetzt')).toHaveLength(5);
-    expect(within(keys).getByText('In deploy/.env gesetzt')).toBeVisible();
-
-    // One row per key (S-7): the row is a group named like the key, the field inside it.
-    const traktRow = within(keys).getByRole('group', { name: 'Trakt-Client-ID' });
-    expect(traktRow).toHaveAccessibleDescription(/Trending/);
-    const trakt = within(traktRow).getByLabelText('Trakt-Client-ID', INPUT);
-    expect(trakt).toBeDisabled();
-    expect(trakt).toHaveAccessibleDescription(/Ändern lässt sich der Wert nur dort/);
+    const cards = within(keys).getAllByRole('region');
     expect(
-      within(keys).queryByRole('button', { name: 'Trakt-Client-ID speichern' }),
-    ).not.toBeInTheDocument();
-    expect(within(keys).getByRole('link', { name: 'Stand der Trakt-Listen' })).toHaveAttribute(
-      'href',
-      '/admin/spotlight',
+      cards.map((region) => within(region).getByRole('heading', { level: 3 }).textContent),
+    ).toEqual(['TMDB', 'TVDB', 'Fanart.tv', 'YouTube', 'Trakt', 'Google Books']);
+    expect(within(card('TMDB')).getByText('Gespeichert')).toBeVisible();
+    expect(within(card('TMDB')).getByText(/Pflicht für Video-Bibliotheken/)).toBeVisible();
+    expect(within(card('Trakt')).getByText('In deploy/.env gesetzt')).toBeVisible();
+    expect(within(keys).getAllByText('Nicht gesetzt')).toHaveLength(4);
+    // Folded: no field; the button says what opening does.
+    expect(within(keys).queryByRole('textbox')).toBeNull();
+    expect(within(card('TMDB')).getByRole('button', { name: 'Bearbeiten: TMDB' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
     );
-    // Only a stored key can be deleted; the value itself is never shown.
-    expect(within(keys).getByRole('button', { name: 'TMDB-Token löschen' })).toBeVisible();
-    expect(within(keys).queryByRole('button', { name: 'YouTube-Schlüssel löschen' })).toBeNull();
-    expect(within(keys).getByLabelText('TMDB-Token', INPUT)).toHaveValue('');
-    expect(within(keys).getByLabelText('TMDB-Token', INPUT)).toHaveAttribute('type', 'password');
-    // A stored key says in its placeholder that it is set (K12-9), in its description that empty
-    // keeps it.
-    expect(within(keys).getByLabelText('TMDB-Token', INPUT)).toHaveAttribute(
-      'placeholder',
-      'API Key gesetzt',
+    expect(
+      within(card('YouTube')).getByRole('button', { name: 'Einrichten: YouTube' }),
+    ).toBeVisible();
+    expect(within(card('Trakt')).getByRole('button', { name: 'Ansehen: Trakt' })).toBeVisible();
+  });
+
+  it('an open card holds the fields of its provider, one help sentence with one link and one «Speichern»', async () => {
+    mockApi(routes());
+    renderApp('/admin/integrations');
+    const user = userEvent.setup();
+    const tvdb = await openCard(user, 'TVDB');
+    const toggle = within(tvdb).getByRole('button', { name: 'Zuklappen: TVDB' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(document.getElementById(toggle.getAttribute('aria-controls') ?? '')).toBeInTheDocument();
+    const key = within(tvdb).getByLabelText('Schlüssel', INPUT);
+    expect(key).toHaveAttribute('type', 'password');
+    expect(key).toHaveAttribute('placeholder', 'Nicht gesetzt');
+    expect(within(tvdb).getByLabelText('Abo-PIN (nur bei Abo-Schlüssel)', INPUT)).toBeVisible();
+    const links = within(tvdb).getAllByRole('link');
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAccessibleName('Schlüssel bei TVDB holen');
+    expect(links[0]).toHaveAttribute('href', 'https://thetvdb.com/dashboard/account/apikey');
+    expect(links[0]).toHaveAttribute('target', '_blank');
+    expect(within(tvdb).getAllByRole('button', { name: /speichern$/ })).toHaveLength(1);
+    // Nothing set: nothing to check or delete.
+    expect(within(tvdb).queryByRole('button', { name: 'TVDB prüfen' })).toBeNull();
+    expect(within(tvdb).queryByRole('button', { name: 'TVDB löschen' })).toBeNull();
+
+    // A stored key: the placeholder names its end, the description says empty keeps it.
+    const tmdb = await openCard(user, 'TMDB');
+    const token = within(tmdb).getByLabelText('Zugriffstoken (v4)', INPUT);
+    expect(token).toHaveValue('');
+    expect(token).toHaveAttribute('placeholder', 'Gesetzt, endet auf a1b2; leer lassen behält ihn');
+    expect(token).toHaveAccessibleDescription(/Leer lassen, um den gespeicherten Wert zu behalten/);
+    expect(within(tmdb).getByRole('button', { name: 'TMDB löschen' })).toBeVisible();
+    expect(within(tmdb).getByRole('button', { name: 'TMDB prüfen' })).toBeVisible();
+
+    await user.click(toggle);
+    expect(within(tvdb).queryByRole('textbox')).toBeNull();
+  });
+
+  it('a value from deploy/.env locks the fields, says so once and can still be checked', async () => {
+    const { calls } = mockApi(
+      routes({ 'POST /admin/settings/keys/trakt/check': () => json({ ok: true }) }),
     );
-    expect(within(keys).getByLabelText('TMDB-Token', INPUT)).toHaveAccessibleDescription(
-      /Leer lassen, um den gespeicherten Wert zu behalten/,
+    renderApp('/admin/integrations');
+    const user = userEvent.setup();
+    const trakt = await openCard(user, 'Trakt');
+    const field = within(trakt).getByLabelText('Client-ID', INPUT);
+    expect(field).toBeDisabled();
+    expect(field).toHaveAttribute('placeholder', 'In deploy/.env gesetzt');
+    expect(within(trakt).getAllByText(/lässt sich nur dort ändern/)).toHaveLength(1);
+    expect(within(trakt).queryByRole('button', { name: 'Trakt speichern' })).toBeNull();
+    expect(within(trakt).queryByRole('button', { name: 'Trakt löschen' })).toBeNull();
+    await user.click(within(trakt).getByRole('button', { name: 'Trakt prüfen' }));
+    expect(
+      await within(trakt).findByText('Trakt: Der Anbieter hat geantwortet, der Schlüssel gilt.'),
+    ).toBeVisible();
+    expect(calls.filter((call) => call.method === 'POST').map((call) => call.path)).toEqual([
+      '/admin/settings/keys/trakt/check',
+    ]);
+  });
+
+  it('«Prüfen» names the provider’s answer when the key does not hold', async () => {
+    mockApi(
+      routes({
+        'POST /admin/settings/keys/tmdb/check': () =>
+          json({ ok: false, problem: 'invalid', message: 'tmdb /configuration: status 401' }),
+      }),
+    );
+    renderApp('/admin/integrations');
+    const user = userEvent.setup();
+    const tmdb = await openCard(user, 'TMDB');
+    await user.click(within(tmdb).getByRole('button', { name: 'TMDB prüfen' }));
+    expect(
+      await within(tmdb).findByText(
+        'TMDB: Der Anbieter lehnt den Schlüssel ab (tmdb /configuration: status 401).',
+      ),
+    ).toBeVisible();
+  });
+
+  it('saves the fields of a card in one request; empty keeps, blanks alone are refused', async () => {
+    let current = settings();
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/settings': () => json(current),
+        'PUT /admin/settings': () => {
+          current = settings({
+            keys: {
+              ...current.keys,
+              tvdb: { source: 'stored', hint: '9xyz' },
+              tvdbPin: { source: 'stored' },
+            },
+          });
+          return json(current);
+        },
+      }),
+    );
+    renderApp('/admin/integrations');
+    const user = userEvent.setup();
+    const tvdb = await openCard(user, 'TVDB');
+    const save = within(tvdb).getByRole('button', { name: 'TVDB speichern' });
+    const key = within(tvdb).getByLabelText('Schlüssel', INPUT);
+    const pin = within(tvdb).getByLabelText('Abo-PIN (nur bei Abo-Schlüssel)', INPUT);
+    // Empty keeps what is stored (decision 18): nothing is sent, the focus stays on «Speichern».
+    await user.click(save);
+    expect(save).toHaveFocus();
+    expect(puts(calls)).toHaveLength(0);
+    // Blanks alone are no key: the field says so.
+    await fill(user, key, '   ');
+    await user.click(save);
+    await waitFor(() => expect(key).toHaveAccessibleDescription(/Pflichtfeld/));
+    expect(puts(calls)).toHaveLength(0);
+
+    await fill(user, key, 'tvdb-key-1239xyz');
+    await fill(user, pin, '4321');
+    // Typed input marks the card.
+    expect(within(tvdb).getByText('ungespeichert')).toBeVisible();
+    await user.click(save);
+    expect(await within(tvdb).findByText('TVDB gespeichert.')).toBeVisible();
+    expect(puts(calls)).toEqual([{ keys: { tvdb: 'tvdb-key-1239xyz', tvdbPin: '4321' } }]);
+    expect(key).toHaveValue('');
+    expect(pin).toHaveValue('');
+    expect(within(tvdb).getByText('Gespeichert')).toBeVisible();
+    expect(within(tvdb).queryByText('ungespeichert')).toBeNull();
+  });
+
+  it('an invalid TMDB key is reported at its field', async () => {
+    mockApi(routes({ 'PUT /admin/settings': () => problem(422, 'tmdb_key_invalid') }));
+    renderApp('/admin/integrations');
+    const user = userEvent.setup();
+    const tmdb = await openCard(user, 'TMDB');
+    const field = within(tmdb).getByLabelText('Zugriffstoken (v4)', INPUT);
+    await fill(user, field, 'bad');
+    await user.click(within(tmdb).getByRole('button', { name: 'TMDB speichern' }));
+    await waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'));
+    expect(field).toHaveAccessibleDescription(/TMDB hat den Schlüssel abgelehnt/);
+  });
+
+  it('deletes the stored keys of a card after the confirmation', async () => {
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/settings': () =>
+          json(
+            settings({
+              keys: {
+                ...settings().keys,
+                fanart: { source: 'stored', hint: 'a91e' },
+                fanartClient: { source: 'stored' },
+              },
+            }),
+          ),
+        'PUT /admin/settings': () => json(settings()),
+      }),
+    );
+    renderApp('/admin/integrations');
+    const user = userEvent.setup();
+    const fanart = await openCard(user, 'Fanart.tv');
+    await user.click(within(fanart).getByRole('button', { name: 'Fanart.tv löschen' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Fanart.tv löschen?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Löschen' }));
+    expect(await within(fanart).findByText('Fanart.tv gelöscht.')).toBeVisible();
+    expect(puts(calls)).toEqual([{ clear: ['fanart', 'fanartClient'] }]);
+    expect(within(fanart).queryByRole('button', { name: 'Fanart.tv löschen' })).toBeNull();
+    // «Löschen …» is gone with the keys: the card's «Speichern» takes the focus (ALL-2).
+    await waitFor(() =>
+      expect(within(fanart).getByRole('button', { name: 'Fanart.tv speichern' })).toHaveFocus(),
     );
   });
 
-  it('links every key to the page that issues it at its provider, in a new tab (K12-9)', async () => {
-    mockApi(routes());
+  it('a value the environment sets cannot be overridden (env_wins)', async () => {
+    mockApi(
+      routes({
+        'PUT /admin/settings': () =>
+          problem(422, 'env_wins', { errors: [{ field: 'keys.tvdb', code: 'env_wins' }] }),
+      }),
+    );
     renderApp('/admin/integrations');
-    const keys = await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
-    const links: [string, string, string][] = [
-      ['TMDB-Token', 'Token bei themoviedb.org holen', 'https://www.themoviedb.org/settings/api'],
-      [
-        'TVDB-Schlüssel',
-        'Schlüssel bei thetvdb.com holen',
-        'https://thetvdb.com/dashboard/account/apikey',
-      ],
-      [
-        'TVDB-PIN',
-        'PIN bei thetvdb.com nachsehen',
-        'https://thetvdb.com/dashboard/account/subscription',
-      ],
-      [
-        'YouTube-Schlüssel',
-        'Schlüssel in der Google Cloud Console holen',
-        'https://console.cloud.google.com/apis/credentials',
-      ],
-      [
-        'Fanart.tv-Schlüssel',
-        'Projektschlüssel bei fanart.tv holen',
-        'https://fanart.tv/get-an-api-key/',
-      ],
-      [
-        'Persönlicher Fanart.tv-Schlüssel',
-        'Persönlichen Schlüssel bei fanart.tv holen',
-        'https://fanart.tv/get-an-api-key/',
-      ],
-      ['Trakt-Client-ID', 'Client-ID bei trakt.tv holen', 'https://developer.trakt.tv/apps'],
-    ];
-    for (const [row, name, href] of links) {
-      const group = within(keys).getByRole('group', { name: row });
-      const link = within(group).getByRole('link', { name });
-      expect(link).toHaveAttribute('href', href);
-      expect(link).toHaveAttribute('target', '_blank');
-      expect(link).toHaveAttribute('rel', 'noreferrer noopener');
-      // The link sits in the row's help: the field keeps the row's visible label as its name.
-      expect(within(group).getByLabelText(row, INPUT)).toBeInTheDocument();
-    }
-    expect(within(keys).getAllByRole('link', { name: /holen|nachsehen/ })).toHaveLength(7);
+    const user = userEvent.setup();
+    const tvdb = await openCard(user, 'TVDB');
+    const field = within(tvdb).getByLabelText('Schlüssel', INPUT);
+    await fill(user, field, 'tvdb-key');
+    await user.click(within(tvdb).getByRole('button', { name: 'TVDB speichern' }));
+    await waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'));
+    expect(field).toHaveAccessibleDescription(/in deploy\/.env gesetzt/);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/lässt sich nur dort ändern/);
   });
 
   it('names every hidden-label field like the visible label of its row (WCAG 2.5.3)', async () => {
     mockApi(routes());
     renderApp('/admin/integrations');
     const keys = await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
+    expect(within(keys).queryAllByRole('group')).toHaveLength(0);
     const rows = [
-      ...within(keys).getAllByRole('group'),
       ...within(section('E-Mail-Server')).getAllByRole('group'),
       ...within(section('Telegram-Bot')).getAllByRole('group'),
     ];
@@ -166,93 +305,9 @@ describe('integrations (A-2)', () => {
         expect(within(row).getByLabelText(name, INPUT)).toBe(input);
       }
     }
-    // Seven keys, five mail fields, the bot token.
-    expect(fields).toBe(13);
-  });
-
-  it('saves a key write-only and shows its hint; an empty or blank key is not sent', async () => {
-    let current = settings();
-    const { calls } = mockApi(
-      routes({
-        'GET /admin/settings': () => json(current),
-        'PUT /admin/settings': () => {
-          current = settings({
-            keys: { ...current.keys, youtube: { source: 'stored', hint: '9xyz' } },
-          });
-          return json(current);
-        },
-      }),
-    );
-    renderApp('/admin/integrations');
-    const user = userEvent.setup();
-    const save = await screen.findByRole('button', { name: 'YouTube-Schlüssel speichern' });
-    const field = screen.getByLabelText('YouTube-Schlüssel', INPUT);
-    // Empty keeps what is stored (decision 18): nothing is sent, the focus stays on «Speichern».
-    await user.click(save);
-    expect(save).toHaveFocus();
-    expect(field).not.toHaveAccessibleDescription(/Pflichtfeld/);
-    expect(puts(calls)).toHaveLength(0);
-    // Blanks alone are no key: the field says so.
-    await fill(user, field, '   ');
-    await user.click(save);
-    await waitFor(() => expect(field).toHaveAccessibleDescription(/Pflichtfeld/));
-    expect(puts(calls)).toHaveLength(0);
-
-    await fill(user, field, 'yt-key-1239xyz');
-    await user.click(save);
-    expect(await screen.findByText('YouTube-Schlüssel gespeichert.')).toBeVisible();
-    expect(puts(calls)).toEqual([{ keys: { youtube: 'yt-key-1239xyz' } }]);
-    expect(field).toHaveValue('');
-    expect(section('Schlüssel der Anbieter')).toHaveTextContent('Gespeichert, endet auf 9xyz');
-  });
-
-  it('an invalid TMDB key is reported at its field', async () => {
-    mockApi(routes({ 'PUT /admin/settings': () => problem(422, 'tmdb_key_invalid') }));
-    renderApp('/admin/integrations');
-    const user = userEvent.setup();
-    const field = await screen.findByLabelText('TMDB-Token', INPUT);
-    await fill(user, field, 'bad');
-    await user.click(screen.getByRole('button', { name: 'TMDB-Token speichern' }));
-    await waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'));
-    expect(field).toHaveAccessibleDescription(/TMDB hat den Schlüssel abgelehnt/);
-  });
-
-  it('deletes a stored key after the confirmation', async () => {
-    const { calls } = mockApi(
-      routes({
-        'PUT /admin/settings': () =>
-          json(settings({ keys: { ...settings().keys, tmdb: { source: 'none' } } })),
-      }),
-    );
-    renderApp('/admin/integrations');
-    const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'TMDB-Token löschen' }));
-    const dialog = await screen.findByRole('alertdialog', { name: 'TMDB-Token löschen?' });
-    await user.click(within(dialog).getByRole('button', { name: 'Löschen' }));
-    expect(await screen.findByText('TMDB-Token gelöscht.')).toBeVisible();
-    expect(puts(calls)).toEqual([{ clear: ['tmdb'] }]);
-    expect(screen.queryByRole('button', { name: 'TMDB-Token löschen' })).not.toBeInTheDocument();
-    // «Löschen …» is gone with the key: the row's «Speichern» takes the focus (ALL-2).
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'TMDB-Token speichern' })).toHaveFocus(),
-    );
-  });
-
-  it('a value the environment sets cannot be overridden (env_wins)', async () => {
-    mockApi(
-      routes({
-        'PUT /admin/settings': () =>
-          problem(422, 'env_wins', { errors: [{ field: 'keys.tvdb', code: 'env_wins' }] }),
-      }),
-    );
-    renderApp('/admin/integrations');
-    const user = userEvent.setup();
-    const field = await screen.findByLabelText('TVDB-Schlüssel', INPUT);
-    await fill(user, field, 'tvdb-key');
-    await user.click(screen.getByRole('button', { name: 'TVDB-Schlüssel speichern' }));
-    await waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'));
-    expect(field).toHaveAccessibleDescription(/in deploy\/.env gesetzt/);
-    expect(await screen.findByRole('alert')).toHaveTextContent(/lässt sich nur dort ändern/);
+    // Five mail fields and the bot token; the provider cards start folded and label their
+    // fields visibly (P-12).
+    expect(fields).toBe(6);
   });
 
   it('stores the e-mail server, then sends a test mail to the main account', async () => {
@@ -637,10 +692,10 @@ describe('integrations (A-2)', () => {
         .map((mutation) => JSON.stringify(mutation.state.variables ?? null))
         .filter((variables) => secrets.some((secret) => variables.includes(secret)));
 
-    const keys = await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
-    await fill(user, within(keys).getByLabelText('YouTube-Schlüssel', INPUT), secrets[0]!);
-    await user.click(within(keys).getByRole('button', { name: 'YouTube-Schlüssel speichern' }));
-    expect(await within(keys).findByText('YouTube-Schlüssel gespeichert.')).toBeVisible();
+    const youtube = await openCard(user, 'YouTube');
+    await fill(user, within(youtube).getByLabelText('Schlüssel', INPUT), secrets[0]!);
+    await user.click(within(youtube).getByRole('button', { name: 'YouTube speichern' }));
+    expect(await within(youtube).findByText('YouTube gespeichert.')).toBeVisible();
 
     const email = section('E-Mail-Server');
     await fill(user, within(email).getByLabelText('Server und Port', INPUT), 'smtp.example.ch');
@@ -818,16 +873,17 @@ describe('integrations (A-2)', () => {
     );
     renderApp('/admin/integrations');
     const user = userEvent.setup();
-    const field = await screen.findByLabelText('YouTube-Schlüssel', INPUT);
+    const youtube = await openCard(user, 'YouTube');
+    const field = within(youtube).getByLabelText('Schlüssel', INPUT);
     await user.click(field);
     await user.paste('yt-key-0001');
-    await user.click(screen.getByRole('button', { name: 'YouTube-Schlüssel speichern' }));
+    await user.click(within(youtube).getByRole('button', { name: 'YouTube speichern' }));
     await waitFor(() => expect(puts(calls)).toHaveLength(1));
     // Typed while the save runs: it stays once the answer is there.
     await user.click(field);
     await user.paste('-2');
     release();
-    expect(await screen.findByText('YouTube-Schlüssel gespeichert.')).toBeVisible();
+    expect(await screen.findByText('YouTube gespeichert.')).toBeVisible();
     expect(field).toHaveValue('yt-key-0001-2');
     expect(puts(calls)).toEqual([{ keys: { youtube: 'yt-key-0001' } }]);
   });
@@ -872,7 +928,11 @@ describe('integrations (A-2)', () => {
     renderApp('/admin/integrations');
     const user = userEvent.setup();
     const keys = await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
-    await fill(user, within(keys).getByLabelText('YouTube-Schlüssel', INPUT), 'yt-draft');
+    await fill(
+      user,
+      within(await openCard(user, 'YouTube')).getByLabelText('Schlüssel', INPUT),
+      'yt-draft',
+    );
     await fill(user, within(section('Telegram-Bot')).getByLabelText('Bot-Token', INPUT), '1:draft');
     await fill(
       user,
@@ -881,17 +941,21 @@ describe('integrations (A-2)', () => {
     );
     const band = within(keys).getByRole('button', { name: 'Schlüssel der Anbieter' });
     // The band says the block holds unsaved input, folded or not.
-    expect(within(keys).getByText('ungespeichert')).toBeVisible();
+    expect(within(keys).getAllByText('ungespeichert')[0]).toBeVisible();
 
     for (const name of ['Schlüssel der Anbieter', 'E-Mail-Server', 'Telegram-Bot']) {
       await user.click(within(section(name)).getByRole('button', { name }));
     }
     expect(band).toHaveAttribute('aria-expanded', 'false');
-    expect(within(keys).getByText('ungespeichert')).toBeVisible();
+    expect(within(keys).getAllByText('ungespeichert')[0]).toBeVisible();
     for (const name of ['Schlüssel der Anbieter', 'E-Mail-Server', 'Telegram-Bot']) {
       await user.click(within(section(name)).getByRole('button', { name }));
     }
-    expect(within(keys).getByLabelText('YouTube-Schlüssel', INPUT)).toHaveValue('yt-draft');
+    // A folded card keeps it too.
+    await user.click(within(card('YouTube')).getByRole('button', { name: 'Zuklappen: YouTube' }));
+    expect(within(card('YouTube')).getByText('ungespeichert')).toBeVisible();
+    const youtube = await openCard(user, 'YouTube');
+    expect(within(youtube).getByLabelText('Schlüssel', INPUT)).toHaveValue('yt-draft');
     expect(within(section('Telegram-Bot')).getByLabelText('Bot-Token', INPUT)).toHaveValue(
       '1:draft',
     );
@@ -900,10 +964,10 @@ describe('integrations (A-2)', () => {
     );
 
     // The kept value is what gets saved; afterwards nothing is unsaved any more.
-    await user.click(within(keys).getByRole('button', { name: 'YouTube-Schlüssel speichern' }));
-    expect(await within(keys).findByText('YouTube-Schlüssel gespeichert.')).toBeVisible();
+    await user.click(within(youtube).getByRole('button', { name: 'YouTube speichern' }));
+    expect(await within(youtube).findByText('YouTube gespeichert.')).toBeVisible();
     expect(puts(calls)).toEqual([{ keys: { youtube: 'yt-draft' } }]);
-    expect(within(keys).queryByText('ungespeichert')).toBeNull();
+    expect(within(keys).queryAllByText('ungespeichert')).toHaveLength(0);
   });
 
   it('leaving the page with unsaved input asks first; staying keeps it', async () => {
@@ -937,9 +1001,11 @@ describe('integrations (A-2)', () => {
   it('the bands count what is set up', async () => {
     mockApi(routes());
     renderApp('/admin/integrations');
-    // TMDB is stored and Trakt comes from deploy/.env; the other five are not set.
-    expect(await screen.findByText('2 von 7 gesetzt')).toBeVisible();
-    expect(section('Schlüssel der Anbieter')).toContainElement(screen.getByText('2 von 7 gesetzt'));
+    // TMDB is stored and Trakt comes from deploy/.env; the other four providers are not set up.
+    expect(await screen.findByText('2 von 6 Anbietern eingerichtet')).toBeVisible();
+    expect(section('Schlüssel der Anbieter')).toContainElement(
+      screen.getByText('2 von 6 Anbietern eingerichtet'),
+    );
     expect(
       await within(section('Webhooks von Radarr und Sonarr')).findByText('0 Integrationen'),
     ).toBeVisible();

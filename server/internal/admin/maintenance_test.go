@@ -855,3 +855,6 @@ func (m *fakeMetadata) UploadItemImage(context.Context, string, string, []byte) 
 func (m *fakeMetadata) ChoosableImageKinds(context.Context, string) ([]string, error) {
 	return []string{}, nil
 }
+func (m *fakeMetadata) CheckProviderKey(context.Context, string) (model.KeyCheck, error) {
+	return model.KeyCheck{OK: true}, nil
+}

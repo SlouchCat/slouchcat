@@ -190,7 +190,7 @@ func (p *fanartProvider) getJSON(ctx context.Context, path string, out any) erro
 	case resp.StatusCode == http.StatusNotFound:
 		return ErrNotFound
 	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
-		return fmt.Errorf("fanart %s: key refused (%d)", path, resp.StatusCode)
+		return fmt.Errorf("%w: fanart %s: status %d", errFanartKeyRefused, path, resp.StatusCode)
 	case resp.StatusCode != http.StatusOK:
 		return fmt.Errorf("%w: fanart %s: status %d", model.ErrTMDBUnreachable, path, resp.StatusCode)
 	}

@@ -27,6 +27,7 @@ import type {
   JobCancelResult,
   JobDismissResult,
   JobRetryFailedResult,
+  ProviderKeyCheck,
   JobOverview,
   JobRun,
   JobRunPage,
@@ -486,6 +487,13 @@ export const settingsQuery = queryOptions({
 
 export const updateSettings = (body: AdminSettingsUpdate): Promise<AdminSettings> =>
   request(api.PUT('/admin/settings', { body }));
+
+/** The providers whose key «Prüfen» asks (concept 20, P-12; the contract's enum). */
+export type KeyProvider = 'tmdb' | 'tvdb' | 'fanart' | 'youtube' | 'trakt' | 'googlebooks';
+
+/** «Prüfen»: the server asks the provider with the configured key (concept 20, P-12). */
+export const checkProviderKey = (provider: KeyProvider): Promise<ProviderKeyCheck> =>
+  request(api.POST('/admin/settings/keys/{provider}/check', { params: { path: { provider } } }));
 
 /** A test mail to the main account's address through the configured e-mail server. */
 export const sendTestEmail = () => request(api.POST('/admin/settings/email/test'));

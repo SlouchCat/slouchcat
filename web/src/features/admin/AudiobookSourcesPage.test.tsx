@@ -7,8 +7,8 @@ import { audioIds, library } from '@/test/fixtures';
 import type { AudiobookSources, BookReviewEntry } from './queries';
 
 // The page «Hörbücher: Quellen» (concept 19 D6.6, mockup Quellen): the source list of each
-// audiobook folder with the way into its dialog, the settings with one save bar, the Google Books
-// key, the state of the sources and of the library, «Jetzt alle ohne Zuordnung zuordnen» and the
+// audiobook folder with the way into its dialog, the settings with one save bar, the state of the
+// Google Books key with the way to the provider keys (concept 20, O-7), the state of the sources and of the library, «Jetzt alle ohne Zuordnung zuordnen» and the
 // list «Prüfen» with the pen of the editor. The keyboard paths are in e2e/audiobook-sources.spec.ts.
 
 const sources = (overrides: Partial<AudiobookSources> = {}): AudiobookSources => ({
@@ -243,26 +243,20 @@ describe('AudiobookSourcesPage', () => {
     expect(table).toHaveTextContent('Google Books hat einen Fehler gemeldet.');
   });
 
-  it('stores the Google Books key on its own', async () => {
-    const { calls } = mockApi(
+  it('shows the state of the Google Books key and links to the provider keys (O-7)', async () => {
+    mockApi(
       routes({
-        'PATCH /admin/metadata/audiobooks': () =>
+        'GET /admin/metadata/audiobooks': () =>
           json(sources({ googleBooksKey: { source: 'stored', hint: 'wxyz' } })),
       }),
     );
-    const user = userEvent.setup();
     await openPage();
-    await user.type(
-      await screen.findByLabelText('Schlüssel für Google Books', { selector: 'input' }),
-      ' test-google-key-wxyz ',
-    );
-    await user.click(screen.getByRole('button', { name: 'Schlüssel für Google Books speichern' }));
-    await waitFor(() =>
-      expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({
-        googleBooksKey: 'test-google-key-wxyz',
-      }),
-    );
-    expect(await screen.findByText('Gespeichert, endet auf wxyz')).toBeVisible();
+    const row = await screen.findByRole('group', { name: 'Schlüssel für Google Books' });
+    expect(within(row).getByText('Gespeichert, endet auf wxyz')).toBeVisible();
+    expect(within(row).queryByRole('textbox')).toBeNull();
+    expect(
+      within(row).getByRole('link', { name: 'Unter «Integrationen» einrichten' }),
+    ).toHaveAttribute('href', '/admin/integrations');
   });
 
   it('queues every book without match and says how many', async () => {

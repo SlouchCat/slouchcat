@@ -494,6 +494,7 @@ type AdminKeys struct {
 	// Fanart.tv (concept 10 step 6): the project key and the optional personal client key.
 	Fanart       KeyState
 	FanartClient KeyState
+	GoogleBooks  KeyState // concept 20, O-7
 }
 
 // EmailSettings is the e-mail server without its password.
@@ -530,6 +531,25 @@ const (
 	ClearFanartClient = "fanartClient"
 	ClearEmail        = "email"
 	ClearTelegram     = "telegram"
+	// ClearGoogleBooks: the Google Books key of concept 19 D3, on the page of the provider keys
+	// since concept 20 (O-7).
+	ClearGoogleBooks = "googleBooks"
+)
+
+// KeyCheck is the answer of checkProviderKey (concept 20, P-12): OK, or the kind of problem and
+// the provider's error in plain text, never with the key.
+type KeyCheck struct {
+	OK      bool
+	Problem string // one of KeyCheck* below; "" when OK
+	Message string
+}
+
+// Problems of a KeyCheck.
+const (
+	KeyCheckNotConfigured = "not_configured"
+	KeyCheckInvalid       = "invalid"
+	KeyCheckUnreachable   = "unreachable"
+	KeyCheckFailed        = "failed"
 )
 
 // AdminSettingsUpdate changes settings: nil fields keep their value, Clear removes stored values.
@@ -551,6 +571,7 @@ type AdminKeysUpdate struct {
 	Trakt        *string
 	Fanart       *string
 	FanartClient *string
+	GoogleBooks  *string // concept 20, O-7
 }
 
 // EmailSettingsUpdate replaces the e-mail server; a nil Password keeps the stored one.

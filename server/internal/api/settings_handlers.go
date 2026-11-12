@@ -21,6 +21,9 @@ func (e serviceProblem) VisitUpdateAdminSettingsResponse(w http.ResponseWriter) 
 }
 func (e serviceProblem) VisitSendTestEmailResponse(w http.ResponseWriter) error  { return e.visit(w) }
 func (e serviceProblem) VisitRotatePushKeysResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitCheckProviderKeyResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
 
 func (s *server) GetAdminSettings(ctx context.Context, _ gen.GetAdminSettingsRequestObject) (gen.GetAdminSettingsResponseObject, error) {
 	st, err := s.opts.Admin.Settings(ctx)
@@ -35,7 +38,7 @@ func (s *server) UpdateAdminSettings(ctx context.Context, req gen.UpdateAdminSet
 	upd := model.AdminSettingsUpdate{PublicURL: b.PublicUrl, UpdateCheckEnabled: b.UpdateCheckEnabled}
 	if k := b.Keys; k != nil {
 		upd.Keys = model.AdminKeysUpdate{TMDB: k.Tmdb, TVDB: k.Tvdb, TVDBPin: k.TvdbPin, YouTube: k.Youtube, Trakt: k.Trakt,
-			Fanart: k.Fanart, FanartClient: k.FanartClient}
+			Fanart: k.Fanart, FanartClient: k.FanartClient, GoogleBooks: k.GoogleBooks}
 	}
 	if e := b.Email; e != nil {
 		upd.Email = &model.EmailSettingsUpdate{
@@ -74,6 +77,20 @@ func (s *server) RotatePushKeys(ctx context.Context, _ gen.RotatePushKeysRequest
 	return gen.RotatePushKeys200JSONResponse(toAdminSettings(st)), nil
 }
 
+// CheckProviderKey is «Prüfen» on the page of the provider keys (concept 20, P-12).
+func (s *server) CheckProviderKey(ctx context.Context, req gen.CheckProviderKeyRequestObject) (gen.CheckProviderKeyResponseObject, error) {
+	c, err := s.opts.Admin.CheckProviderKey(ctx, string(req.Provider))
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	out := gen.ProviderKeyCheck{Ok: c.OK, Message: optString(c.Message)}
+	if c.Problem != "" {
+		p := gen.ProviderKeyCheckProblem(c.Problem)
+		out.Problem = &p
+	}
+	return gen.CheckProviderKey200JSONResponse(out), nil
+}
+
 func toAdminSettings(st model.AdminSettings) gen.AdminSettings {
 	out := gen.AdminSettings{
 		PublicUrl: optString(st.PublicURL), PublicUrlSource: settingSource(st.PublicURLSource),
@@ -82,6 +99,7 @@ func toAdminSettings(st model.AdminSettings) gen.AdminSettings {
 			Tmdb: toKeyState(st.Keys.TMDB), Tvdb: toKeyState(st.Keys.TVDB), TvdbPin: toKeyState(st.Keys.TVDBPin),
 			Youtube: toKeyState(st.Keys.YouTube), Trakt: toKeyState(st.Keys.Trakt),
 			Fanart: toKeyState(st.Keys.Fanart), FanartClient: toKeyState(st.Keys.FanartClient),
+			GoogleBooks: toKeyState(st.Keys.GoogleBooks),
 		},
 		Email: gen.AdminSettingsEmail{
 			Source: settingSource(st.Email.Source), Host: optString(st.Email.Host), Port: optPositive(st.Email.Port),

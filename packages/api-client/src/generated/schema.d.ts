@@ -3745,6 +3745,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/settings/keys/{provider}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask a provider whether its configured key holds
+         * @description Since contract 1.31.0 (concept 20, P-12). One cheap request to the provider with the key the
+         *     server uses (stored or from `deploy/.env`): TMDB `/configuration`, the TVDB login, one Fanart.tv
+         *     film, one YouTube video (one quota unit), the trending list of Trakt, one ISBN at Google Books.
+         *     `ok: false` says why (`problem`) with the provider's error in plain text (`message`). Neither the
+         *     answer nor the log carries the key.
+         */
+        post: operations["checkProviderKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/settings": {
         parameters: {
             query?: never;
@@ -9679,7 +9703,8 @@ export interface components {
         };
         /**
          * @description The provider keys (M3, M7; Fanart.tv since concept 10 step 6, a project key and an optional
-         *     personal client key); the values themselves are never returned.
+         *     personal client key; Google Books since contract 1.31.0, concept 20 O-7, the same key as
+         *     `AudiobookSources.googleBooksKey`); the values themselves are never returned.
          */
         AdminSettingsKeys: {
             tmdb: components["schemas"]["KeyState"];
@@ -9689,6 +9714,19 @@ export interface components {
             trakt: components["schemas"]["KeyState"];
             fanart: components["schemas"]["KeyState"];
             fanartClient: components["schemas"]["KeyState"];
+            googleBooks: components["schemas"]["KeyState"];
+        };
+        ProviderKeyCheck: {
+            /** @description The provider took the key. */
+            ok: boolean;
+            /**
+             * @description Set when `ok` is false: no key configured, the provider refused it, the provider could not be
+             *     reached (or the YouTube quota is used up), or another answer (`message` says which).
+             * @enum {string}
+             */
+            problem?: "not_configured" | "invalid" | "unreachable" | "failed";
+            /** @description The provider's error in plain text, without the key; absent when ok or not configured. */
+            message?: string;
         };
         /** @description The e-mail server; the password is never returned. */
         AdminSettingsEmail: {
@@ -9727,7 +9765,7 @@ export interface components {
             email?: components["schemas"]["AdminSettingsEmailUpdate"];
             telegram?: components["schemas"]["AdminSettingsTelegramUpdate"];
             /** @description Stored values to remove. */
-            clear?: ("publicUrl" | "tmdb" | "tvdb" | "tvdbPin" | "youtube" | "trakt" | "fanart" | "fanartClient" | "email" | "telegram")[];
+            clear?: ("publicUrl" | "tmdb" | "tvdb" | "tvdbPin" | "youtube" | "trakt" | "fanart" | "fanartClient" | "email" | "telegram" | "googleBooks")[];
         };
         /** @description New keys; each is stored encrypted and never returned. */
         AdminSettingsKeysUpdate: {
@@ -9738,6 +9776,8 @@ export interface components {
             fanart?: string;
             fanartClient?: string;
             trakt?: string;
+            /** @description Since contract 1.31.0 (concept 20, O-7). */
+            googleBooks?: string;
         };
         /** @description The e-mail server as a whole; `password` absent keeps the stored password. */
         AdminSettingsEmailUpdate: {
@@ -18062,6 +18102,30 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    checkProviderKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: "tmdb" | "tvdb" | "fanart" | "youtube" | "trakt" | "googlebooks";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The outcome of the check. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderKeyCheck"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
         };
     };
     getAdminSettings: {

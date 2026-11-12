@@ -7136,6 +7136,40 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  # ---------------------------------------------------------------------------------------------
+  # Concept 20 P-12 (contract 1.31.0): «Prüfen» on the page of the provider keys.
+  # ---------------------------------------------------------------------------------------------
+  /admin/settings/keys/{provider}/check:
+    post:
+      operationId: checkProviderKey
+      summary: Ask a provider whether its configured key holds
+      description: |
+        Since contract 1.31.0 (concept 20, P-12). One cheap request to the provider with the key the
+        server uses (stored or from `deploy/.env`): TMDB `/configuration`, the TVDB login, one Fanart.tv
+        film, one YouTube video (one quota unit), the trending list of Trakt, one ISBN at Google Books.
+        `ok: false` says why (`problem`) with the provider's error in plain text (`message`). Neither the
+        answer nor the log carries the key.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [tmdb, tvdb, fanart, youtube, trakt, googlebooks]
+      responses:
+        "200":
+          description: The outcome of the check.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderKeyCheck"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+
   /admin/settings:
     get:
       operationId: getAdminSettings
@@ -17321,8 +17355,9 @@ components:
       type: object
       description: |
         The provider keys (M3, M7; Fanart.tv since concept 10 step 6, a project key and an optional
-        personal client key); the values themselves are never returned.
-      required: [tmdb, tvdb, tvdbPin, youtube, trakt, fanart, fanartClient]
+        personal client key; Google Books since contract 1.31.0, concept 20 O-7, the same key as
+        `AudiobookSources.googleBooksKey`); the values themselves are never returned.
+      required: [tmdb, tvdb, tvdbPin, youtube, trakt, fanart, fanartClient, googleBooks]
       properties:
         tmdb:
           $ref: "#/components/schemas/KeyState"
@@ -17338,6 +17373,26 @@ components:
           $ref: "#/components/schemas/KeyState"
         fanartClient:
           $ref: "#/components/schemas/KeyState"
+        googleBooks:
+          $ref: "#/components/schemas/KeyState"
+
+    # Concept 20 P-12 (contract 1.31.0): the answer of checkProviderKey.
+    ProviderKeyCheck:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+          description: The provider took the key.
+        problem:
+          type: string
+          enum: [not_configured, invalid, unreachable, failed]
+          description: |
+            Set when `ok` is false: no key configured, the provider refused it, the provider could not be
+            reached (or the YouTube quota is used up), or another answer (`message` says which).
+        message:
+          type: string
+          description: The provider's error in plain text, without the key; absent when ok or not configured.
 
     AdminSettingsEmail:
       type: object
@@ -17407,7 +17462,7 @@ components:
           description: Stored values to remove.
           items:
             type: string
-            enum: [publicUrl, tmdb, tvdb, tvdbPin, youtube, trakt, fanart, fanartClient, email, telegram]
+            enum: [publicUrl, tmdb, tvdb, tvdbPin, youtube, trakt, fanart, fanartClient, email, telegram, googleBooks]
 
     AdminSettingsKeysUpdate:
       type: object
@@ -17448,6 +17503,12 @@ components:
           minLength: 1
           maxLength: 1024
           writeOnly: true
+        googleBooks:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+          description: Since contract 1.31.0 (concept 20, O-7).
 
     AdminSettingsEmailUpdate:
       type: object

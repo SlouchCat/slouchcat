@@ -264,3 +264,16 @@ func (m contractMetadata) UploadItemImage(_ context.Context, _, kind string, dat
 func (m contractMetadata) ChoosableImageKinds(context.Context, string) ([]string, error) {
 	return []string{"poster", "backdrop", "logo"}, nil
 }
+
+// CheckProviderKey (concept 20, P-12): TMDB holds, YouTube has no key, Trakt refuses its client
+// id; package metadata asks the real providers (key_check_test.go).
+func (m contractMetadata) CheckProviderKey(_ context.Context, provider string) (model.KeyCheck, error) {
+	switch provider {
+	case "tmdb":
+		return model.KeyCheck{OK: true}, nil
+	case "youtube":
+		return model.KeyCheck{Problem: model.KeyCheckNotConfigured}, nil
+	default:
+		return model.KeyCheck{Problem: model.KeyCheckInvalid, Message: "trakt: status 403"}, nil
+	}
+}

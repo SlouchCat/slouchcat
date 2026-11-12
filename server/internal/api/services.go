@@ -318,6 +318,9 @@ type AdminService interface {
 	// model.ErrTelegramTokenInvalid, model.ErrTelegramUnreachable.
 	Settings(ctx context.Context) (model.AdminSettings, error)
 	UpdateSettings(ctx context.Context, upd model.AdminSettingsUpdate) (model.AdminSettings, error)
+	// CheckProviderKey asks a provider whether its key holds (concept 20, P-12); the key is
+	// neither returned nor logged.
+	CheckProviderKey(ctx context.Context, provider string) (model.KeyCheck, error)
 	// SendTestEmail sends a test mail to to, or to the main account when empty
 	// (model.ErrEmailNotConfigured, *model.SendError with model.ErrEmailSendFailed,
 	// model.ErrTooManyAttempts for the client in model.ClientIP of ctx).
