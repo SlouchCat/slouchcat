@@ -325,6 +325,7 @@ func (s *Service) jobRun(ctx context.Context, j jobs.Job, st *typeStats, now tim
 func (s *Service) jobSubject(ctx context.Context, j jobs.Job) string {
 	var p struct {
 		LibraryID   int64  `json:"libraryId"`
+		LibraryName string `json:"libraryName"` // library.delete: the row may be gone already
 		ItemID      string `json:"itemId"`
 		PodcastID   string `json:"podcastId"`
 		SeasonID    string `json:"seasonId"`
@@ -340,6 +341,8 @@ func (s *Service) jobSubject(ctx context.Context, j jobs.Job) string {
 	case p.LibraryID != 0:
 		if lib, err := s.read.GetLibrary(ctx, p.LibraryID); err == nil {
 			subject = lib.Name
+		} else {
+			subject = p.LibraryName // being deleted (hidden from GetLibrary) or deleted
 		}
 	case p.ItemID != "":
 		subject = s.itemLabel(ctx, p.ItemID)

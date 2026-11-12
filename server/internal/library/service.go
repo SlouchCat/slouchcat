@@ -557,6 +557,15 @@ func (s *Service) CancelScan(ctx context.Context, libraryID int64) (model.Librar
 	if _, err := s.Get(ctx, libraryID); err != nil {
 		return model.Library{}, err
 	}
+	if err := s.cancelScans(ctx, libraryID); err != nil {
+		return model.Library{}, err
+	}
+	return s.Get(ctx, libraryID)
+}
+
+// cancelScans is CancelScan without the lookup of the library, for library.delete, whose
+// library is already gone for GetLibrary (deleting_at).
+func (s *Service) cancelScans(ctx context.Context, libraryID int64) error {
 	cancelled := false
 	sq := systemq.New(s.db.Write)
 	for _, key := range []string{scanKey(libraryID), pathScanKey(libraryID)} {
@@ -565,11 +574,11 @@ func (s *Service) CancelScan(ctx context.Context, libraryID int64) (model.Librar
 			continue
 		}
 		if err != nil {
-			return model.Library{}, fmt.Errorf("find scan job %s: %w", key, err)
+			return fmt.Errorf("find scan job %s: %w", key, err)
 		}
 		ok, err := s.queue.Cancel(ctx, id)
 		if err != nil {
-			return model.Library{}, err
+			return err
 		}
 		cancelled = cancelled || ok
 	}
@@ -582,11 +591,11 @@ func (s *Service) CancelScan(ctx context.Context, libraryID int64) (model.Librar
 	}
 	if cancelled || len(runs) > 0 {
 		if err := s.setState(ctx, libraryID, "aborted", abortCancelled); err != nil {
-			return model.Library{}, err
+			return err
 		}
 		s.log.InfoContext(ctx, "scan cancelled", "library_id", libraryID, "running", len(runs))
 	}
-	return s.Get(ctx, libraryID)
+	return nil
 }
 
 // ignoreBatch bounds the media files IgnoreFiles handles per transaction (about three rows each).
@@ -964,6 +973,8 @@ func (s *Service) Start(ctx context.Context) error {
 	for _, r := range roots {
 		s.startWatcher(r)
 	}
+	// A library marked for deletion without an active job (the job was dismissed) is deleted now.
+	s.requeueLibraryDeletes(ctx)
 	<-ctx.Done()
 	s.wg.Wait()
 	return nil

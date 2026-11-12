@@ -127,7 +127,7 @@ type AdminService interface {
 	RemoveLibraryRoot(ctx context.Context, libraryID, rootID int64, confirmPath string) (model.Library, error)
 	// DeleteLibrary deletes a library for good, never a file (concept 20 P-8). Errors:
 	// model.ErrNotFound, *model.ValidationError, model.ErrConfirmMismatch, *model.PlayingError.
-	DeleteLibrary(ctx context.Context, libraryID int64, confirmName string, by model.Actor) (model.LibraryDeletion, error)
+	DeleteLibrary(ctx context.Context, libraryID int64, confirmName string, by model.Actor) (model.LibraryDeletionQueued, error)
 	// SetItemRating overrides (or, with nil, clears) the age rating of a title and returns its
 	// ratings; model.ErrNotFound for an unknown title.
 	SetItemRating(ctx context.Context, itemID string, rating *int) (model.ItemRating, error)

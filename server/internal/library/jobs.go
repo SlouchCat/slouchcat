@@ -308,6 +308,9 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 		Every: chapterImagesBackfillEvery, Seed: jobs.SeedOff,
 	})
 	r.Register(s.keyframesBackfillType())
+	// Concept 20 section 9.3: the delete of a marked library, queued by deleteLibrary only.
+	r.Register(jobs.Type{Name: JobLibraryDelete, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent,
+		Priority: prioLibraryDelete, Handler: s.handleLibraryDelete, Cancel: s.cancelLibraryDelete})
 	r.Register(jobs.Type{Name: JobAuthorDisplay, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioAuthorDisplay, Handler: s.handleAuthorDisplay})
 	s.trickplayTypes(r) // concept 18: trickplay.generate, trickplay.series, trickplay.backfill
 	// Stored podcast episodes (concept 19 part A, 6.2): one download per episode in the pool

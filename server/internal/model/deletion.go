@@ -28,7 +28,14 @@ type Actor struct {
 	ProfileID int64
 }
 
-// LibraryDeletion is the outcome of deleteLibrary: the library's name, how many folders and
+// LibraryDeletionQueued is the answer of deleteLibrary: the job library.delete that deletes the
+// library in the background, and the library's name.
+type LibraryDeletionQueued struct {
+	JobID int64
+	Name  string
+}
+
+// LibraryDeletion is the outcome of the job library.delete: the library's name, how many folders and
 // titles (every row of items, episodes included) went with it, and the file name of the backup
 // written before (empty when the server keeps no backups, as in tests).
 type LibraryDeletion struct {

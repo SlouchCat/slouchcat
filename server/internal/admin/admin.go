@@ -116,7 +116,7 @@ type Libraries interface {
 	RemoveRoot(ctx context.Context, libraryID, rootID int64, confirmPath string) (model.Library, error)
 	// DeleteLibrary deletes a library for good, never a file (concept 20 P-8). confirmName must
 	// repeat the stored name; model.ErrNotFound, model.ErrConfirmMismatch, *model.PlayingError.
-	DeleteLibrary(ctx context.Context, libraryID int64, confirmName string, by model.Actor) (model.LibraryDeletion, error)
+	DeleteLibrary(ctx context.Context, libraryID int64, confirmName string, by model.Actor) (model.LibraryDeletionQueued, error)
 }
 
 // LibraryMaintenance is implemented by package library (M3): cancelling a scan and removing
@@ -755,7 +755,7 @@ func (s *Service) RemoveLibraryRoot(ctx context.Context, libraryID, rootID int64
 
 // DeleteLibrary deletes a library for good (concept 20 P-8); confirmName is compared against the
 // stored name inside package library, never here.
-func (s *Service) DeleteLibrary(ctx context.Context, libraryID int64, confirmName string, by model.Actor) (model.LibraryDeletion, error) {
+func (s *Service) DeleteLibrary(ctx context.Context, libraryID int64, confirmName string, by model.Actor) (model.LibraryDeletionQueued, error) {
 	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	var verr *model.ValidationError
 	switch name := strings.TrimSpace(confirmName); {
@@ -765,7 +765,7 @@ func (s *Service) DeleteLibrary(ctx context.Context, libraryID int64, confirmNam
 		verr = verr.Add("confirmName", "too_long")
 	}
 	if verr != nil {
-		return model.LibraryDeletion{}, verr
+		return model.LibraryDeletionQueued{}, verr
 	}
 	return s.libraries.DeleteLibrary(ctx, libraryID, confirmName, by)
 }

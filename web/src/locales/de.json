@@ -198,7 +198,7 @@
       "playing_named": "Gerade läuft einer dieser Titel bei {{names}}. Gelöscht wird erst, wenn die Wiedergabe zu Ende ist; nichts wurde gelöscht.",
       "files_not_deletable": "Eine Datei des Titels lässt sich nicht löschen. Nichts wurde gelöscht.",
       "not_deletable": "Dieser Titel lässt sich nicht löschen.",
-      "deleting": "Dieser Titel wird gerade gelöscht.",
+      "deleting": "Wird gerade gelöscht.",
       "changed": "Inzwischen hat sich etwas geändert, bitte erneut prüfen."
     },
     "field": {
@@ -1837,8 +1837,10 @@
         "inputLabel": "Zur Bestätigung den Namen eintippen",
         "mismatch": "Tippe {{name}} genau so ab, dann wird der Knopf aktiv.",
         "confirm": "Bibliothek löschen",
-        "done_one": "Bibliothek «{{name}}» gelöscht, {{formatted}} Titel. Sicherung: {{backup}}",
-        "done_other": "Bibliothek «{{name}}» gelöscht, {{formatted}} Titel. Sicherung: {{backup}}"
+        "queued": "Bibliothek «{{name}}» wird im Hintergrund gelöscht.",
+        "jobs": "Zum Job",
+        "done": "Bibliothek «{{name}}» gelöscht.",
+        "notDone": "Bibliothek «{{name}}» wurde nicht gelöscht. Warum, steht beim Job."
       }
     },
     "access": {
@@ -4391,6 +4393,11 @@
           "name": "Verlauf aufräumen",
           "description": "Löscht alte Läufe und Fehlschläge aus dem Verlauf.",
           "trigger": "Zeitplan täglich: erledigte Läufe älter als 30 Tage"
+        },
+        "library_delete": {
+          "name": "Bibliothek löschen",
+          "description": "Löscht eine Bibliothek mit ihren Titeln und allem daran, nie eine Datei; vorher eine Sicherung der Datenbank.",
+          "trigger": "«Bibliothek löschen …» in der Verwaltung; schlägt der Lauf fehl, ist die Bibliothek wieder da"
         }
       },
       "tabs": {

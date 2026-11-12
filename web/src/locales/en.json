@@ -198,7 +198,7 @@
       "playing_named": "One of these titles is playing for {{names}} right now. It can be deleted once the playback has ended; nothing was deleted.",
       "files_not_deletable": "A file of the title cannot be deleted. Nothing was deleted.",
       "not_deletable": "This title cannot be deleted.",
-      "deleting": "This title is being deleted right now.",
+      "deleting": "This is being deleted right now.",
       "changed": "Something changed meanwhile, please check again."
     },
     "field": {
@@ -1837,8 +1837,10 @@
         "inputLabel": "Type the name to confirm",
         "mismatch": "Type {{name}} exactly like this to enable the button.",
         "confirm": "Delete library",
-        "done_one": "Library “{{name}}” deleted, {{formatted}} title. Backup: {{backup}}",
-        "done_other": "Library “{{name}}” deleted, {{formatted}} titles. Backup: {{backup}}"
+        "queued": "Library “{{name}}” is being deleted in the background.",
+        "jobs": "Go to the job",
+        "done": "Library “{{name}}” deleted.",
+        "notDone": "Library “{{name}}” was not deleted. The job says why."
       }
     },
     "access": {
@@ -4391,6 +4393,11 @@
           "name": "Prune history",
           "description": "Deletes old runs and failures from the history.",
           "trigger": "Schedule daily: finished runs older than 30 days"
+        },
+        "library_delete": {
+          "name": "Delete library",
+          "description": "Deletes a library with its titles and everything on them, never a file; backs the database up first.",
+          "trigger": "“Delete library …” in the administration; if the run fails, the library is back"
         }
       },
       "tabs": {

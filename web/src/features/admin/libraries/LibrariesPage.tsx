@@ -1,12 +1,13 @@
-import type { Library, LibraryDeletion } from '@slouchcat/api-client';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Library, LibraryDeletionQueued } from '@slouchcat/api-client';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
+import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { Notice, Page, Skeleton, Text, VisuallyHidden } from '@/ui';
+import { Notice, Page, Skeleton, Text, TextLink, VisuallyHidden } from '@/ui';
 import {
   AdminPage,
   AriaButton,
@@ -23,7 +24,7 @@ import {
   useStatusMessage,
   useUnsavedChanges,
 } from '@/ui/aria';
-import { librariesQuery, isScanning, SCAN_POLL_MS } from '../queries';
+import { jobRunsKey, jobRunsQuery, librariesQuery, isScanning, SCAN_POLL_MS } from '../queries';
 import { AddLibraryDialog, useLibraryDraft } from './AddLibraryDialog';
 import { DefaultRatingDialog } from './DefaultRatingDialog';
 import { libraryColumns } from './libraryColumns';
@@ -35,6 +36,20 @@ import styles from './Libraries.module.css';
 /** The filter tabs by kind (Bib-C): all libraries, then one per kind. */
 const TABS = ['all', 'video', 'audiobooks', 'podcasts'] as const;
 type TabId = (typeof TABS)[number];
+
+/** The job type that deletes a library (concept 20 P-8, decision of 2026-11-12). */
+const DELETE_JOB = 'library.delete';
+/** How often the page asks whether a delete it queued has ended. */
+const DELETE_POLL_MS = 2000;
+
+/** A delete queued from this page: its job, and the library it hides until the job ends. */
+interface Removal {
+  jobId: number;
+  libraryId: number;
+  name: string;
+  /** When the 202 came; only an answer fetched after it can say that the job ended. */
+  since: number;
+}
 
 /** A confirmation the page opens itself (from a row's menu; the row may change meanwhile). */
 interface Confirmation {
@@ -181,6 +196,52 @@ function LibrariesContent() {
     },
     [setMessage],
   );
+  // The deletes queued from this page (concept 20 P-8). The runs of `library.delete` are polled
+  // while one is open; once its job is neither queued nor running in an answer fetched after the
+  // 202, the list is fetched again. The library being back in it means the job did not delete it
+  // (it failed before deleting anything, or it was cancelled); the jobs page says why.
+  const [removals, setRemovals] = useState<readonly Removal[]>([]);
+  // The jobs whose end the page has taken up already; a render before the list came back must
+  // not take it up again.
+  const settled = useRef(new Set<number>());
+  const [queuedRuns, runningRuns] = useQueries({
+    queries: (['queued', 'running'] as const).map((state) => ({
+      ...jobRunsQuery(DELETE_JOB, state),
+      enabled: removals.length > 0,
+      refetchInterval: removals.length > 0 ? DELETE_POLL_MS : false,
+    })),
+  });
+  const queuedData = queuedRuns?.data;
+  const runningData = runningRuns?.data;
+  const seen = Math.min(queuedRuns?.dataUpdatedAt ?? 0, runningRuns?.dataUpdatedAt ?? 0);
+  useEffect(() => {
+    if (removals.length === 0 || !queuedData || !runningData) return;
+    const open = new Set([...queuedData.runs, ...runningData.runs].map((run) => run.id));
+    const ended = removals.filter(
+      (removal) =>
+        removal.since <= seen && !open.has(removal.jobId) && !settled.current.has(removal.jobId),
+    );
+    if (ended.length === 0) return;
+    for (const removal of ended) settled.current.add(removal.jobId);
+    void queryClient
+      .fetchQuery({ ...librariesQuery, staleTime: 0 })
+      .finally(() =>
+        setRemovals((current) => current.filter((removal) => !ended.includes(removal))),
+      )
+      .then((list) => {
+        const back = ended.filter((removal) =>
+          list.some((entry) => entry.id === removal.libraryId),
+        );
+        const gone = ended.filter((removal) => !back.includes(removal));
+        const lines = [
+          ...gone.map((removal) => t('admin.libraries.delete.done', { name: removal.name })),
+          ...back.map((removal) => t('admin.libraries.delete.notDone', { name: removal.name })),
+        ];
+        setFailure(null);
+        setMessage(lines.join(t('format.separator')), back.length > 0 ? 'warning' : undefined);
+      })
+      .catch(failed);
+  }, [removals, queuedData, runningData, seen, queryClient, t, setMessage, failed]);
   const scan = useMutation({
     mutationFn: (id: number): Promise<Library> =>
       request(api.POST('/admin/libraries/{id}/scan', { params: { path: { id } } })),
@@ -200,7 +261,8 @@ function LibrariesContent() {
     onError: failed,
   });
   // «Bibliothek löschen …» (concept 20 P-8): the typed name goes to the server, which compares it
-  // against its own row; the row leaves the list, so the focus goes to the h1.
+  // against its own row and queues the job `library.delete` (202). The library is hidden at once,
+  // so the dialog closes and the row leaves the list right away; the focus goes to the h1.
   const removeLibrary = useMutation({
     mutationFn: ({
       library,
@@ -208,23 +270,29 @@ function LibrariesContent() {
     }: {
       library: Library;
       confirmName: string;
-    }): Promise<LibraryDeletion> =>
+    }): Promise<LibraryDeletionQueued> =>
       request(
         api.POST('/admin/libraries/{id}/deletion', {
           params: { path: { id: library.id } },
           body: { confirmName },
         }),
       ),
-    onSuccess: async (deleted, { library }) => {
+    onSuccess: async (queued, { library }) => {
       setDeleting(null);
       setFailure(null);
+      setRemovals((current) => [
+        ...current,
+        { jobId: queued.jobId, libraryId: library.id, name: queued.name, since: Date.now() },
+      ]);
+      // A poll already on its way could not know the job yet: it is cancelled and asked again.
+      void queryClient.invalidateQueries({ queryKey: jobRunsKey });
       setMessage(
-        t('admin.libraries.delete.done', {
-          name: deleted.name,
-          count: deleted.items,
-          formatted: number.format(deleted.items),
-          backup: deleted.backup ?? '–',
-        }),
+        <>
+          {t('admin.libraries.delete.queued', { name: queued.name })}{' '}
+          <TextLink href={`${paths.adminJobs}?item=${DELETE_JOB}`}>
+            {t('admin.libraries.delete.jobs')}
+          </TextLink>
+        </>,
       );
       queryClient.setQueryData<Library[]>(librariesQuery.queryKey, (list) =>
         list?.filter((entry) => entry.id !== library.id),

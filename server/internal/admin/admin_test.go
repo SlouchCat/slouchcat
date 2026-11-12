@@ -163,15 +163,15 @@ func (f *fakeLibraries) UpdateRoot(ctx context.Context, libraryID, _ int64, _ mo
 	return f.Get(ctx, libraryID)
 }
 
-func (f *fakeLibraries) DeleteLibrary(ctx context.Context, libraryID int64, confirmName string, _ model.Actor) (model.LibraryDeletion, error) {
+func (f *fakeLibraries) DeleteLibrary(ctx context.Context, libraryID int64, confirmName string, _ model.Actor) (model.LibraryDeletionQueued, error) {
 	lib, err := f.Get(ctx, libraryID)
 	if err != nil {
-		return model.LibraryDeletion{}, err
+		return model.LibraryDeletionQueued{}, err
 	}
 	if confirmName != lib.Name {
-		return model.LibraryDeletion{}, model.ErrConfirmMismatch
+		return model.LibraryDeletionQueued{}, model.ErrConfirmMismatch
 	}
-	return model.LibraryDeletion{Name: lib.Name}, nil
+	return model.LibraryDeletionQueued{Name: lib.Name, JobID: 1}, nil
 }
 
 func (f *fakeLibraries) RemoveRoot(ctx context.Context, libraryID, rootID int64, confirmPath string) (model.Library, error) {

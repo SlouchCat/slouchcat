@@ -133,7 +133,7 @@ func (s *server) RemoveLibraryRoot(ctx context.Context, req gen.RemoveLibraryRoo
 	return gen.RemoveLibraryRoot200JSONResponse(toLibrary(lib)), nil
 }
 
-// DeleteLibrary deletes a library for good (concept 20 P-8); the typed name travels in the body,
+// DeleteLibrary queues the delete of a library (concept 20 P-8, 202 with the job); the typed name travels in the body,
 // which is why it is a POST and not a DELETE.
 func (s *server) DeleteLibrary(ctx context.Context, req gen.DeleteLibraryRequestObject) (gen.DeleteLibraryResponseObject, error) {
 	session, _ := sessionFrom(ctx)
@@ -141,7 +141,7 @@ func (s *server) DeleteLibrary(ctx context.Context, req gen.DeleteLibraryRequest
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	return gen.DeleteLibrary200JSONResponse{Name: out.Name, Roots: out.Roots, Items: out.Items, Backup: optString(out.Backup)}, nil
+	return gen.DeleteLibrary202JSONResponse{JobId: out.JobID, Name: out.Name}, nil
 }
 
 // actorOf is who asked, for the activity log: the account and the active profile of the session.

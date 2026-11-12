@@ -792,8 +792,9 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     await waitFor(() => expect(more).toHaveFocus());
   });
 
-  it('deletes a library after its name was typed; a running playback refuses (concept 20 P-8)', async () => {
+  it('deletes a library in the background after its name was typed; a running playback refuses (concept 20 P-8)', async () => {
     let answer: 'playing' | 'ok' = 'playing';
+    let jobDone = false;
     const films = library({ scan: { state: 'done', itemCount: 318, fileCount: 300 } });
     const { calls } = mockApi({
       ...signedIn,
@@ -811,7 +812,29 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
               },
               409,
             )
-          : json({ name: 'Filme', roots: 1, items: 318, backup: 'pre-library-delete-1.31.0-x.db' }),
+          : json({ jobId: 9, name: 'Filme' }, 202),
+      // The job is queued until the test lets it end.
+      'GET /admin/jobs': () =>
+        json(
+          jobDone
+            ? { total: 0, runs: [] }
+            : {
+                total: 1,
+                runs: [
+                  {
+                    id: 9,
+                    type: 'library.delete',
+                    state: 'queued',
+                    priority: 7,
+                    attempts: 0,
+                    maxAttempts: 5,
+                    updatedAt: '2026-11-12T10:00:00Z',
+                    skipped: 0,
+                    estimate: 'none',
+                  },
+                ],
+              },
+        ),
     });
     renderApp('/admin/libraries');
     const user = userEvent.setup();
@@ -843,15 +866,26 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     dialog = await open();
     await user.type(within(dialog).getByLabelText('Zur Bestätigung den Namen eintippen'), 'Filme');
     await user.click(within(dialog).getByRole('button', { name: 'Bibliothek löschen' }));
+    // The 202 closes the dialog at once; the row goes, the status says what goes on and where.
     expect(
-      await screen.findByText(
-        'Bibliothek «Filme» gelöscht, 318 Titel. Sicherung: pre-library-delete-1.31.0-x.db',
-      ),
+      await screen.findByText('Bibliothek «Filme» wird im Hintergrund gelöscht.', { exact: false }),
     ).toBeInTheDocument();
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Zum Job' })).toHaveAttribute(
+      'href',
+      '/admin/jobs?item=library.delete',
+    );
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Filme' })).toBeNull());
     await waitFor(() =>
       expect(screen.getByRole('heading', { level: 1, name: 'Bibliotheken' })).toHaveFocus(),
     );
+    // Once the job is neither queued nor running, the list is fetched again and says so.
+    jobDone = true;
+    expect(
+      await screen.findByText('Bibliothek «Filme» gelöscht.', undefined, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    // One click, one request each time.
+    expect(calls.filter((call) => call.method === 'POST')).toHaveLength(2);
   });
 
   it('adds a podcast library without folder and an audiobook library with its rating', async () => {

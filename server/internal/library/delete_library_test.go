@@ -6,10 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 )
@@ -77,15 +78,17 @@ func TestDeleteLibraryTakesEverythingButTheFiles(t *testing.T) {
 	}
 	items := e.count(`SELECT count(*) FROM items WHERE library_id = ?`, f.films.ID)
 
-	out, err := e.svc.DeleteLibrary(e.ctx, f.films.ID, "  Filme ", model.Actor{AccountID: 1, ProfileID: 1})
+	asked, err := e.svc.DeleteLibrary(e.ctx, f.films.ID, "  Filme ", model.Actor{AccountID: 1, ProfileID: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out.Name != "Filme" || out.Roots != 1 || out.Items != items || !strings.HasPrefix(out.Backup, "pre-library-delete-1.31.0-") {
-		t.Errorf("deletion = %+v, want Filme, 1 root, %d items, a backup", out, items)
+	if asked.Name != "Filme" || asked.JobID == 0 {
+		t.Errorf("asked = %+v", asked)
 	}
-	if _, err := os.Stat(filepath.Join(cfg, store.BackupDir, out.Backup)); err != nil {
-		t.Errorf("backup: %v", err)
+	e.runLibraryDelete(asked.JobID)
+	backups, err := filepath.Glob(filepath.Join(cfg, store.BackupDir, "pre-library-delete-1.31.0-*.db"))
+	if err != nil || len(backups) != 1 {
+		t.Errorf("backups = %v, %v; want one", backups, err)
 	}
 	for what, query := range map[string]string{
 		"titles":            `SELECT count(*) FROM items WHERE library_id = ?`,
@@ -189,4 +192,134 @@ func TestDeleteLibraryRefuses(t *testing.T) {
 	if _, err := e.svc.DeleteLibrary(e.ctx, f.films.ID, "Filme", model.Actor{}); err != nil {
 		t.Errorf("after the playback went quiet: %v", err)
 	}
+	// A second request finds the library being deleted.
+	if _, err := e.svc.DeleteLibrary(e.ctx, f.films.ID, "Filme", model.Actor{}); !errors.Is(err, model.ErrDeleting) {
+		t.Errorf("second request: %v, want deleting", err)
+	}
+}
+
+// runLibraryDelete runs the queued job library.delete as a worker would and checks that it ends
+// without error.
+func (e *env) runLibraryDelete(jobID int64) {
+	e.t.Helper()
+	j, err := e.queue.Get(e.ctx, jobID)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	if j.Type != JobLibraryDelete || j.State != jobs.StateQueued {
+		e.t.Fatalf("job = %s %s", j.Type, j.State)
+	}
+	if err := e.svc.handleLibraryDelete(e.ctx, &j); err != nil {
+		e.t.Fatalf("library.delete: %v", err)
+	}
+}
+
+// Concept 20 section 9.3 (acceptance on CT 190): the request marks the library and queues the job;
+// from that moment the library and its titles are gone for every view, no scan of it runs, and a
+// failure of the job before its transaction gives the library back. A run that repeats after a
+// stop of the server (the library already gone) ends without error.
+func TestDeleteLibraryInTheBackground(t *testing.T) {
+	t.Parallel()
+	f := newDeleteFixture(t)
+	e := f.e
+	queued, err := e.svc.DeleteLibrary(e.ctx, f.films.ID, "Filme", model.Actor{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Get(e.ctx, f.films.ID); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("Get of a deleting library = %v, want not found", err)
+	}
+	libs, err := e.svc.List(e.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if slices.ContainsFunc(libs, func(l model.Library) bool { return l.ID == f.films.ID }) {
+		t.Error("the list still shows the library")
+	}
+	if n := e.count(`SELECT count(*) FROM visible_items AS v JOIN items AS i ON i.id = v.item_id WHERE i.library_id = ?`, f.films.ID); n != 0 {
+		t.Errorf("visible titles of a deleting library: %d", n)
+	}
+	if n := e.count(`SELECT count(*) FROM visible_items AS v JOIN items AS i ON i.id = v.item_id WHERE i.library_id = ?`, f.other.ID); n == 0 {
+		t.Error("the other library is gone from view")
+	}
+	// A scan asked for now does nothing to it.
+	if _, err := e.svc.QueueScan(e.ctx, f.films.ID); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("scan of a deleting library = %v", err)
+	}
+
+	// A failure before the transaction: the playback check of the job (a playback that began
+	// before the mark) gives the library back, the run ends final.
+	now := e.clock.Now().UnixMilli()
+	e.exec(`UPDATE sessions SET expires_at = ? WHERE id = 1`, now+3600000)
+	e.exec(`INSERT INTO playback_sessions (id, session_id, account_id, profile_id, item_id, media_file_id, mode, started_at, last_activity_at, expires_at)
+	        VALUES ('01PLAYING00000000000000002', 1, 1, 1, ?, 'f', 'direct', ?, ?, ?)`, f.film, now, now, now+60000)
+	j, err := e.queue.Get(e.ctx, queued.JobID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.handleLibraryDelete(e.ctx, &j); err == nil {
+		t.Fatal("the job went through while a profile played")
+	}
+	if _, err := e.svc.Get(e.ctx, f.films.ID); err != nil {
+		t.Errorf("the library is not back after the failed job: %v", err)
+	}
+
+	// Again, without the playback: the job deletes it; a second run finds nothing to do.
+	e.exec(`UPDATE playback_sessions SET revoked_at = ?`, now)
+	e.exec(`DELETE FROM jobs WHERE id = ?`, queued.JobID)
+	queued, err = e.svc.DeleteLibrary(e.ctx, f.films.ID, "Filme", model.Actor{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.runLibraryDelete(queued.JobID)
+	if n := e.count(`SELECT count(*) FROM libraries WHERE id = ?`, f.films.ID); n != 0 {
+		t.Error("the library is still there")
+	}
+	j, err = e.queue.Get(e.ctx, queued.JobID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.handleLibraryDelete(e.ctx, &j); err != nil {
+		t.Errorf("a repeated run: %v", err)
+	}
+	if n := e.count(`SELECT count(*) FROM jobs WHERE id = ? AND state = 'cancelled'`, queued.JobID); n != 0 {
+		t.Error("the job cancelled itself")
+	}
+}
+
+// A library marked for deletion whose job is gone (dismissed on the jobs page) gets a new job at
+// the start of the server; a cancelled job gives the library back.
+func TestDeleteLibraryRequeuedAndCancelled(t *testing.T) {
+	t.Parallel()
+	f := newDeleteFixture(t)
+	e := f.e
+	queued, err := e.svc.DeleteLibrary(e.ctx, f.films.ID, "Filme", model.Actor{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.exec(`UPDATE jobs SET state = 'failed' WHERE id = ?`, queued.JobID)
+	e.svc.requeueLibraryDeletes(e.ctx)
+	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND state = 'queued' AND idempotency_key = ?`, JobLibraryDelete, libraryDeleteKey(f.films.ID)); n != 1 {
+		t.Fatalf("queued deletes after the start = %d, want 1", n)
+	}
+	id := e.str(`SELECT id FROM jobs WHERE type = ? AND state = 'queued'`, JobLibraryDelete)
+	j, err := e.queue.Get(e.ctx, mustInt(t, id))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.cancelLibraryDelete(e.ctx, j); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Get(e.ctx, f.films.ID); err != nil {
+		t.Errorf("the library is not back after the cancel: %v", err)
+	}
+}
+
+func mustInt(t *testing.T, s string) int64 {
+	t.Helper()
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return n
 }

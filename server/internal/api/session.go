@@ -378,7 +378,7 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, model.ErrChanged):
 		p.write(w, r, http.StatusConflict, "changed", "The files of the title changed since the preview; check it again.")
 	case errors.Is(err, model.ErrDeleting):
-		p.write(w, r, http.StatusConflict, "deleting", "The title is being deleted right now.")
+		p.write(w, r, http.StatusConflict, "deleting", "It is being deleted right now.")
 	case errors.Is(err, model.ErrNotDeletable):
 		p.write(w, r, http.StatusUnprocessableEntity, "not_deletable", "This title has no delete: an extra, or a podcast episode that is only a reference from its feed.")
 	case errors.Is(err, model.ErrFilesNotDeletable):

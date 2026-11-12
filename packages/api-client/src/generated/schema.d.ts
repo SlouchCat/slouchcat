@@ -1675,20 +1675,26 @@ export interface paths {
         put?: never;
         /**
          * Delete a library for good (concept 20 P-8)
-         * @description Deletes the library with its folders, titles and everything on them: progress, watchlist
-         *     and check marks, picks, own images and texts, the home row of the library, the grants of the
-         *     profiles and the downloads of its titles (the devices drop them at their next sync). TMDB
-         *     collections left without a member go; manual ones stay, empty or not. It never deletes a
-         *     file on the disk; a later scan of the same folders in a new library creates the titles
-         *     again, without user data. `confirmName` must repeat the library's name (compared after
-         *     trimming against the stored row, `confirm_mismatch`). A running scan of the library is
-         *     cancelled first, and the queued and running jobs of its titles with it. Before anything is
-         *     deleted the server backs the database up (`backup`, its own name and retention: the last
-         *     two, apart from the backups before a migration); restoring that backup puts everything
-         *     back to the state before the delete, the progress of every profile since included. While a
-         *     profile plays a title of the library the delete is refused and the playback goes on
-         *     (`playing`, the problem names the profiles). A POST and not a DELETE, because the
-         *     confirmation travels in the body.
+         * @description Asks for the library to be deleted with its folders, titles and everything on them:
+         *     progress, watchlist and check marks, picks, own images and texts, the home row of the
+         *     library, the grants of the profiles and the downloads of its titles (the devices drop them at
+         *     their next sync). TMDB collections left without a member go; manual ones stay, empty or not.
+         *     It never deletes a file on the disk; a later scan of the same folders in a new library creates
+         *     the titles again, without user data. `confirmName` must repeat the library's name (compared
+         *     after trimming against the stored row, `confirm_mismatch`). While a profile plays a title of
+         *     the library the delete is refused and the playback goes on (`playing`, the problem names the
+         *     profiles); a library already being deleted answers `deleting`.
+         *
+         *     The delete runs in the background (job `library.delete`, on the jobs page with the
+         *     library's name; measured on CT 190: 27 s for 31 641 titles). The answer comes at once: from
+         *     then on the library is gone from every list, every view and the search, no scan or job starts
+         *     for it, and the job cancels the running scan and the jobs of its titles, backs the database up
+         *     (its own name and retention: the last two, apart from the backups before a migration;
+         *     restoring it puts everything back to the state before the delete, the progress of every profile
+         *     since included) and deletes the library in one transaction. A job that fails before that
+         *     transaction gives the library back and stays visible as a failed run; it is not retried. A
+         *     server that stops in the middle runs the job again from the start. A POST and not a DELETE,
+         *     because the confirmation travels in the body.
          */
         post: operations["deleteLibrary"];
         delete?: never;
@@ -8073,19 +8079,15 @@ export interface components {
             /** @description The library's name, repeated by the administrator (compared after trimming). */
             confirmName: string;
         };
-        /** @description What `deleteLibrary` deleted. */
-        LibraryDeletion: {
-            /** @description Name of the deleted library. */
-            name: string;
-            /** @description Folders that went with it. */
-            roots: number;
-            /** @description Titles that went with it, every row (seasons and episodes included). */
-            items: number;
+        /** @description The queued delete of a library (`deleteLibrary`). */
+        LibraryDeletionQueued: {
             /**
-             * @description File name of the backup written before the delete in the backup directory (the backup
-             *     page lists it as an automatic backup). Absent when the server writes no backups.
+             * Format: int64
+             * @description The job `library.delete` that deletes the library (the jobs page shows it).
              */
-            backup?: string;
+            jobId: number;
+            /** @description Name of the library being deleted. */
+            name: string;
         };
         ItemDeletionPreview: {
             itemId: components["schemas"]["ItemID"];
@@ -14830,13 +14832,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description What was deleted. */
-            200: {
+            /** @description The delete is queued; the library is gone from every view. */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LibraryDeletion"];
+                    "application/json": components["schemas"]["LibraryDeletionQueued"];
                 };
             };
             401: components["responses"]["Unauthenticated"];
@@ -14851,8 +14853,8 @@ export interface operations {
                 };
             };
             /**
-             * @description A profile plays a title of the library (`playing`); `playingProfiles` names them. Nothing
-             *     was deleted.
+             * @description A profile plays a title of the library (`playing`; `playingProfiles` names them), or the
+             *     library is being deleted already (`deleting`). Nothing was queued.
              */
             409: {
                 headers: {
