@@ -368,3 +368,12 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   darum nicht sichtbar). Dann `store.Dump`, kein neuer Pfad im Stand. `TestFrozenGesehenStateCoversTheStage`
   prüft, dass jede dieser Datenarten vorhanden ist; `TestMigration00053ProgressWatchedAt` prüft den Schritt von
   `radio-wikidata.sql` aus.
+- `merkliste.sql`: Stand nach Stufe 3 des Konzepts 20 «Startseite und Favorit» (Migration 00054: die Favoriten in
+  der Merkliste, `watchlist.follow_since`, Tabelle `favorites` weg). Erzeugt am 12. November 2026 aus `gesehen.sql`:
+  Stand eingespielt, per SQL für das Hauptprofil «Slouchcat Test Show» auf der Merkliste (1. November 2026) und als
+  Favorit (5. November), «Frozen Podcast» nur als Favorit (6. November), für das zweite Profil «Slouchcat Test H264»
+  auf der Merkliste ohne Favorit (7. November); mit `store.Open` migriert (00054; `follow_since` des Films = Zeitpunkt
+  der Migration), dann mit dem echten Dienst `discover.Service` (Uhr 12. November 2026, 12:00 UTC) «Slouchcat Test
+  AC3 51» für das zweite Profil gemerkt (`follow_since` = `created_at`). Dann `store.Dump`, kein neuer Pfad im
+  Stand. `TestFrozenMerklisteStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist;
+  `TestMigration00054WatchlistTakesOverFavorites` prüft den Schritt von `radio-wikidata.sql` aus.

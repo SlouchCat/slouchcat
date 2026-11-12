@@ -74,7 +74,7 @@ const MaxRows = model.MaxVisibleHomeRows
 type Service struct {
 	vis      *visibility.Reader
 	read     *appq.Queries // home_rows
-	write    *appq.Queries // watchlist, favorites
+	write    *appq.Queries // watchlist, user picks
 	cacheDir string
 	log      *slog.Logger
 	now      func() time.Time
