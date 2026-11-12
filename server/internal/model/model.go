@@ -567,6 +567,14 @@ type Progress struct {
 	WatchTime    *WatchTime // K-5: present when the profile has a daily limit
 }
 
+// WatchTarget is a title the check mark «gesehen» writes (setItemWatched, concept 20 section 6.4):
+// the title itself or one visible episode below it, with the duration a new progress row starts
+// with (0 when none is known).
+type WatchTarget struct {
+	ItemID     string
+	DurationMs int64
+}
+
 // WatchTime is the watch time of a profile today against its daily limit (K-5).
 type WatchTime struct {
 	LimitMinutes     int

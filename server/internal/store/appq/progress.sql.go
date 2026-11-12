@@ -10,6 +10,25 @@ import (
 	"database/sql"
 )
 
+const clearProgressWatched = `-- name: ClearProgressWatched :exec
+UPDATE progress SET watched_at = NULL, position_ms = CASE WHEN completed = 1 THEN 0 ELSE position_ms END, completed = 0
+WHERE profile_id = ?1 AND item_id = ?2
+`
+
+type ClearProgressWatchedParams struct {
+	ProfileID int64
+	ItemID    string
+}
+
+// The check mark removed: watched_at goes; a finished title (completed) starts again at 0, a
+// running position (a second run, not completed) stays. updated_at stays, so neither continue
+// watching nor the offline rule "next episode" (ListRecentEpisodeProgress) sees an activity. The
+// row stays for the remembered playback rate.
+func (q *Queries) ClearProgressWatched(ctx context.Context, arg ClearProgressWatchedParams) error {
+	_, err := q.db.ExecContext(ctx, clearProgressWatched, arg.ProfileID, arg.ItemID)
+	return err
+}
+
 const condenseProgressDay = `-- name: CondenseProgressDay :exec
 INSERT INTO progress_days (profile_id, item_id, device_id, day, played_ms, plays)
 SELECT profile_id, item_id, COALESCE(device_id, ''), ?1, SUM(played_ms),
@@ -256,6 +275,39 @@ func (q *Queries) OldestCondensableDay(ctx context.Context, before int64) (int64
 	var day int64
 	err := row.Scan(&day)
 	return day, err
+}
+
+const setProgressWatched = `-- name: SetProgressWatched :exec
+
+INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, watched_at)
+VALUES (?1, ?2, ?3, ?3, 1, ?4, ?4)
+ON CONFLICT (profile_id, item_id) DO UPDATE SET
+    position_ms = CASE WHEN progress.duration_ms > 0 THEN progress.duration_ms ELSE excluded.duration_ms END,
+    duration_ms = CASE WHEN progress.duration_ms > 0 THEN progress.duration_ms ELSE excluded.duration_ms END,
+    completed = 1, updated_at = excluded.updated_at, watched_at = excluded.watched_at
+`
+
+type SetProgressWatchedParams struct {
+	ProfileID  int64
+	ItemID     string
+	DurationMs int64
+	At         int64
+}
+
+// The check mark set by hand (setItemWatched, concept 20 section 6.4). The caller checks the
+// visibility and gives the time of each title (staggered over the episodes of a series, so the
+// last one is the newest) and the duration a new row starts with.
+// Finished: completed, the position at the end, watched_at and updated_at at the given time. A
+// stored row keeps its duration unless it has none; a new row takes the given one (0 when none is
+// known). The playback rate stays.
+func (q *Queries) SetProgressWatched(ctx context.Context, arg SetProgressWatchedParams) error {
+	_, err := q.db.ExecContext(ctx, setProgressWatched,
+		arg.ProfileID,
+		arg.ItemID,
+		arg.DurationMs,
+		arg.At,
+	)
+	return err
 }
 
 const sumPlayedMs = `-- name: SumPlayedMs :one

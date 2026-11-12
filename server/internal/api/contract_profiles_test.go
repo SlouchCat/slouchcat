@@ -963,6 +963,11 @@ var profileRegistry = map[string]profileCall{
 				t.Errorf("reportProgress %s = %s", m.Label, rec.Body.String())
 			}
 		}},
+	// Concept 20 section 6.4 (contract 1.31.0): every visible title of every kind answers 204, an
+	// invisible one 404. The body removes the check mark, so the operations after it in name order
+	// find the fixture's positions; the positive checks are in watched_api_test.go.
+	"setItemWatched": {contract: "PUT /items/{id}/watched", path: "/items/{id}/watched", perItem: true,
+		body: `{"watched":false}`, okStatus: http.StatusNoContent},
 	// Webradio (concept 16 stage 1, contract 1.17.0): the real radio service on the stations of
 	// vistest.AddRadio (contractRadio, live part fake). Every profile reaches the visible CH
 	// station; the demarked and the not chosen country's station answer 404 in TestRadioHiddenStations404.

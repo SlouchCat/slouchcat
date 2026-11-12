@@ -25,6 +25,29 @@ ON CONFLICT (profile_id, item_id) DO UPDATE SET
 UPDATE progress SET watched_at = max(COALESCE(watched_at, 0), @at)
 WHERE profile_id = @profile_id AND item_id = @item_id;
 
+-- The check mark set by hand (setItemWatched, concept 20 section 6.4). The caller checks the
+-- visibility and gives the time of each title (staggered over the episodes of a series, so the
+-- last one is the newest) and the duration a new row starts with.
+
+-- name: SetProgressWatched :exec
+-- Finished: completed, the position at the end, watched_at and updated_at at the given time. A
+-- stored row keeps its duration unless it has none; a new row takes the given one (0 when none is
+-- known). The playback rate stays.
+INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, watched_at)
+VALUES (@profile_id, @item_id, @duration_ms, @duration_ms, 1, @at, @at)
+ON CONFLICT (profile_id, item_id) DO UPDATE SET
+    position_ms = CASE WHEN progress.duration_ms > 0 THEN progress.duration_ms ELSE excluded.duration_ms END,
+    duration_ms = CASE WHEN progress.duration_ms > 0 THEN progress.duration_ms ELSE excluded.duration_ms END,
+    completed = 1, updated_at = excluded.updated_at, watched_at = excluded.watched_at;
+
+-- name: ClearProgressWatched :exec
+-- The check mark removed: watched_at goes; a finished title (completed) starts again at 0, a
+-- running position (a second run, not completed) stays. updated_at stays, so neither continue
+-- watching nor the offline rule "next episode" (ListRecentEpisodeProgress) sees an activity. The
+-- row stays for the remembered playback rate.
+UPDATE progress SET watched_at = NULL, position_ms = CASE WHEN completed = 1 THEN 0 ELSE position_ms END, completed = 0
+WHERE profile_id = @profile_id AND item_id = @item_id;
+
 -- name: InsertProgressEvent :exec
 INSERT INTO progress_events (profile_id, item_id, media_file_id, device_id, playback_session_id, position_ms,
                              duration_ms, played_ms, seq, state, client_time, server_time)

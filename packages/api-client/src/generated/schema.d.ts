@@ -2870,6 +2870,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/items/{id}/watched": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set or remove the check mark «gesehen» of a title (concept 20 P-5)
+         * @description Since contract 1.31.0 (concept 20 section 6.4). Idempotent; every kind. A film, episode,
+         *     extra, audiobook or podcast episode changes itself; a season, series or podcast changes
+         *     every visible episode below it in one transaction (a series: the episodes of all its
+         *     seasons, specials included), episodes the profile may not see stay as they are.
+         *
+         *     - `watched: true`: the title is finished (`completed`, the position at the end of its
+         *       duration, `watchedAt` and `updatedAt` now). A title without progress takes the duration
+         *       of its primary file, else of the feed or the metadata, else 0. Over several episodes the
+         *       times rise by one millisecond in episode order, so the last episode is the newest:
+         *       continue watching shows the next episode after it.
+         *     - `watched: false`: `watchedAt` goes. A finished title starts again at 0; a running
+         *       position of a second run stays. `updatedAt` stays, so continue watching does not move.
+         *
+         *     A check mark set by hand writes no activity event; the administration's log shows real
+         *     playbacks only. An invisible or unknown title answers 404.
+         */
+        put: operations["setItemWatched"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/items/{id}/watchlist": {
         parameters: {
             query?: never;
@@ -5710,6 +5744,11 @@ export interface components {
              *     stops and shows the hint.
              */
             watchTime?: components["schemas"]["WatchTime"];
+        };
+        /** @description Since contract 1.31.0. The check mark of `setItemWatched`. */
+        ItemWatchedRequest: {
+            /** @description True sets the check mark «gesehen», false removes it. */
+            watched: boolean;
         };
         /**
          * @description A title as it appears in lists. Every response that contains an ItemRef is `scoped`; the
@@ -16278,6 +16317,41 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+        };
+    };
+    setItemWatched: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemWatchedRequest"];
+            };
+        };
+        responses: {
+            /** @description The check mark is set or removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown or not visible for the active profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     addToWatchlist: {

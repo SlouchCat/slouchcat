@@ -1,0 +1,42 @@
+-- The check mark "gesehen" (concept 20, P-5 and P-14, package store/scopedq, read by the visibility
+-- package only). Every query joins visible_items: a title the profile may not see is neither
+-- marked nor listed, and an episode it may not see is never counted.
+
+-- The titles setItemWatched writes for a visible title (section 6.4), in episode order: the title
+-- itself for a film, episode, extra, audiobook or podcast episode, the visible episodes of a
+-- season, the visible episodes of every season of a series (specials, season 0, first) or the
+-- visible episodes of a podcast, oldest first. duration_ms is the duration a missing progress row
+-- starts with: for an audiobook the book-wide duration, for every other kind the probed duration
+-- of the primary file (available files first, then the largest height, the oldest, as
+-- ListMediaFilesForItem orders them), then the duration from the feed and the runtime of the
+-- metadata, 0 when none is known.
+-- name: ListVisibleWatchTargets :many
+WITH title AS (
+    SELECT i.id, i.kind FROM items AS i
+    JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
+    WHERE i.id = @item_id
+),
+wanted AS (
+    SELECT t.id FROM title AS t WHERE t.kind NOT IN ('series', 'season', 'podcast')
+    UNION ALL
+    SELECT e.id FROM title AS t JOIN items AS e ON e.parent_id = t.id AND e.kind IN ('episode', 'podcast_episode')
+    WHERE t.kind IN ('season', 'podcast')
+    UNION ALL
+    SELECT e.id FROM title AS t
+    JOIN items AS s ON s.parent_id = t.id AND s.kind = 'season'
+    JOIN items AS e ON e.parent_id = s.id AND e.kind = 'episode'
+    WHERE t.kind = 'series'
+)
+SELECT e.id,
+       CAST(CASE WHEN e.kind = 'audiobook' THEN COALESCE(e.duration_ms, f.duration_ms, e.runtime_minutes * 60000, 0)
+                 ELSE COALESCE(f.duration_ms, e.duration_ms, e.runtime_minutes * 60000, 0) END AS INTEGER) AS duration_ms
+FROM wanted AS x
+JOIN items AS e ON e.id = x.id
+JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = @profile_id
+LEFT JOIN media_files AS f ON f.id = (
+    SELECT m.id FROM media_files AS m
+    WHERE m.item_id = e.id AND m.duration_ms > 0
+    ORDER BY (m.missing_since IS NULL AND m.probe_error IS NULL) DESC, m.height DESC, m.created_at, m.id
+    LIMIT 1)
+ORDER BY CASE WHEN e.kind = 'podcast_episode' THEN COALESCE(e.published_at, e.added_at) ELSE 0 END,
+         COALESCE(e.season_number, 0), COALESCE(e.episode_number, 0), e.id;

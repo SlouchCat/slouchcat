@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.30.0
+  version: 1.31.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -100,6 +100,12 @@ info:
     unique match gives the owner, which becomes the station's `provider`, and the founding date
     (`AdminRadioStation.wikidata`); `AdminRadioStation.sources` names where each value comes from. The
     setting `RadioConfig.wikidataEnabled` («Wikidata verwenden», on by default) turns it off.
+
+    Check mark «gesehen» (concept 20 stage 2, contract 1.31.0; additive, with a changed meaning of
+    `ItemRef.watched` and `watchedCount`): a title stays «gesehen» once finished (90 % rule or the
+    check mark by hand) until the check mark is removed, also when it is started again
+    (`Progress.watchedAt`). `setItemWatched` sets or removes the check mark of a title, or of every
+    visible episode of a season, series or podcast.
 
     Offline (M5): a profile downloads movies, episodes and seasons to its device (`createDownloads`). The
     server prepares a fragmented MP4 per title in the background; the device fetches it through
@@ -5611,6 +5617,48 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthenticated"
 
+  /items/{id}/watched:
+    put:
+      operationId: setItemWatched
+      summary: Set or remove the check mark «gesehen» of a title (concept 20 P-5)
+      description: |
+        Since contract 1.31.0 (concept 20 section 6.4). Idempotent; every kind. A film, episode,
+        extra, audiobook or podcast episode changes itself; a season, series or podcast changes
+        every visible episode below it in one transaction (a series: the episodes of all its
+        seasons, specials included), episodes the profile may not see stay as they are.
+
+        - `watched: true`: the title is finished (`completed`, the position at the end of its
+          duration, `watchedAt` and `updatedAt` now). A title without progress takes the duration
+          of its primary file, else of the feed or the metadata, else 0. Over several episodes the
+          times rise by one millisecond in episode order, so the last episode is the newest:
+          continue watching shows the next episode after it.
+        - `watched: false`: `watchedAt` goes. A finished title starts again at 0; a running
+          position of a second run stays. `updatedAt` stays, so continue watching does not move.
+
+        A check mark set by hand writes no activity event; the administration's log shows real
+        playbacks only. An invisible or unknown title answers 404.
+      tags: [items]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemWatchedRequest"
+      responses:
+        "204":
+          description: The check mark is set or removed.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Unknown or not visible for the active profile (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /items/{id}/watchlist:
     put:
       operationId: addToWatchlist
@@ -10981,6 +11029,15 @@ components:
             Present in the answer of `reportProgress` when the active profile has a daily limit (K-5). With
             `remainingMinutes` 0 the server has revoked every playback session of the profile; the client
             stops and shows the hint.
+
+    ItemWatchedRequest:
+      type: object
+      description: Since contract 1.31.0. The check mark of `setItemWatched`.
+      required: [watched]
+      properties:
+        watched:
+          type: boolean
+          description: True sets the check mark «gesehen», false removes it.
 
     ItemRef:
       type: object

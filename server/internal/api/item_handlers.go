@@ -29,6 +29,7 @@ func (e serviceProblem) VisitGetHomeResponse(w http.ResponseWriter) error       
 func (e serviceProblem) VisitGetItemResponse(w http.ResponseWriter) error         { return e.visit(w) }
 func (e serviceProblem) VisitStartPlaybackResponse(w http.ResponseWriter) error   { return e.visit(w) }
 func (e serviceProblem) VisitReportProgressResponse(w http.ResponseWriter) error  { return e.visit(w) }
+func (e serviceProblem) VisitSetItemWatchedResponse(w http.ResponseWriter) error  { return e.visit(w) }
 func (e serviceProblem) VisitGetItemTrailersResponse(w http.ResponseWriter) error { return e.visit(w) }
 func (e serviceProblem) VisitGetPersonResponse(w http.ResponseWriter) error       { return e.visit(w) }
 
@@ -322,6 +323,21 @@ func (s *server) ReportProgress(ctx context.Context, req gen.ReportProgressReque
 		return s.problem(ctx, err), nil
 	}
 	return gen.ReportProgress200JSONResponse(toProgress(p)), nil
+}
+
+// SetItemWatched sets or removes the check mark «gesehen» (concept 20 section 6.4).
+func (s *server) SetItemWatched(ctx context.Context, req gen.SetItemWatchedRequestObject) (gen.SetItemWatchedResponseObject, error) {
+	session, err := s.itemSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if req.Body == nil {
+		return s.problem(ctx, (&model.ValidationError{}).Add("body", "required")), nil
+	}
+	if err := s.opts.Playback.SetWatched(ctx, session.Profile, req.Id, req.Body.Watched); err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.SetItemWatched204Response{}, nil
 }
 
 // Image kinds and sizes of the contract (M1b image pipeline, plan 3.1): posters in w200, w400 and
