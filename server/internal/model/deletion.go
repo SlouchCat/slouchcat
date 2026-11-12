@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -146,4 +147,50 @@ type RemovedItem struct {
 type RemovedItemPage struct {
 	Items []RemovedItem
 	Total int
+}
+
+// ErrDeleting: a playback start of a title that is being deleted right now (409 deleting).
+var ErrDeleting = errors.New("deleting")
+
+// DeletingSet holds the titles a delete is working on, between its last check for running
+// playbacks and its commit (review finding 5): package library holds them, package playback refuses
+// to start one (ErrDeleting). Safe for concurrent use; the zero value is not usable, use
+// NewDeletingSet.
+type DeletingSet struct {
+	mu  sync.Mutex
+	ids map[string]int
+}
+
+// NewDeletingSet returns an empty set.
+func NewDeletingSet() *DeletingSet { return &DeletingSet{ids: map[string]int{}} }
+
+// Hold adds the ids and returns the function that takes them out again. A nil set holds nothing.
+func (d *DeletingSet) Hold(ids []string) (release func()) {
+	if d == nil {
+		return func() {}
+	}
+	d.mu.Lock()
+	for _, id := range ids {
+		d.ids[id]++
+	}
+	d.mu.Unlock()
+	return func() {
+		d.mu.Lock()
+		defer d.mu.Unlock()
+		for _, id := range ids {
+			if d.ids[id]--; d.ids[id] <= 0 {
+				delete(d.ids, id)
+			}
+		}
+	}
+}
+
+// Has reports whether a delete holds the id. A nil set holds nothing.
+func (d *DeletingSet) Has(id string) bool {
+	if d == nil {
+		return false
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.ids[id] > 0
 }

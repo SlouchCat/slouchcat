@@ -268,6 +268,9 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	// Playback exists before the metadata jobs run: a match that changes a rating ends the open
 	// direct-play streams of titles that became invisible (M3 review, finding 20).
 	playbackSvc, mgr, caps, closeTranscoder := newPlayback(ctx, cfg, db, runner, keyring, log)
+	// The titles a delete works on: playback refuses to start one (concept 20, ADR 0032).
+	deleting := model.NewDeletingSet()
+	playbackSvc.WithDeleting(deleting)
 	// Registered after the database's Close, so it runs before it: the start events still being
 	// written to the activity log finish first (after the HTTP server and the workers stopped).
 	defer func() {
@@ -351,7 +354,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		library.WithRootRemoved(notifySvc.RootRemoved), library.WithRootContentChanged(notifySvc.RootContentChanged),
 		library.WithBrowseRoots(cfg.BrowseRoots), library.WithVisibilityRecheck(playbackSvc.RecheckVisibility),
 		library.WithCacheDir(cfg.CacheDir), library.WithImageFolders(metaSvc.SweepOrphanImages, metaSvc.RemoveItemImages),
-		library.WithBackups(cfg.ConfigDir, version))
+		library.WithBackups(cfg.ConfigDir, version), library.WithDeleting(deleting))
 	authSvc.WithMetadataLanguages(metaSvc.AvailableMetadataLanguages)
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
 	// The zone of the watch-time grid, resolved once by name (concept 12).

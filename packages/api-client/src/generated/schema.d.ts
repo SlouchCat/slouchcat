@@ -13204,7 +13204,8 @@ export interface operations {
             /**
              * @description The profile already runs as many streams as its limit allows (`stream_limit_reached`, W-8);
              *     `extensions.maxStreams` and `extensions.activeStreams` say how many. The client shows the hint and
-             *     does not retry by itself.
+             *     does not retry by itself. `deleting`: the administrator is deleting the title right now (concept
+             *     20, ADR 0032); it is gone a moment later.
              */
             409: {
                 headers: {

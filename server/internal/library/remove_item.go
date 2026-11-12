@@ -139,10 +139,13 @@ func (s *Service) DeleteItem(ctx context.Context, itemID, lang, mode, confirmTit
 		return model.ItemDeletionResult{}, s.scanRunning(ctx, t.item.LibraryID)
 	}
 	defer unlock()
-	// Again under the lock: the tree may have grown, a playback may have started.
+	// Again under the lock: the tree may have grown, a playback may have started. From here to the
+	// commit no playback of the tree starts (playback answers deleting).
 	if t, err = s.loadTree(ctx, q, itemID, lang); err != nil {
 		return model.ItemDeletionResult{}, err
 	}
+	release := s.deleting.Hold(t.ids)
+	defer release()
 	if err := s.refuseIfPlays(ctx, q, t.ids); err != nil {
 		return model.ItemDeletionResult{}, err
 	}

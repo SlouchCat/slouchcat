@@ -197,7 +197,8 @@
       "playing": "Gerade spielt jemand einen dieser Titel ab. Gelöscht wird erst, wenn die Wiedergabe zu Ende ist.",
       "playing_named": "Gerade läuft einer dieser Titel bei {{names}}. Gelöscht wird erst, wenn die Wiedergabe zu Ende ist; nichts wurde gelöscht.",
       "files_not_deletable": "Eine Datei des Titels lässt sich nicht löschen. Nichts wurde gelöscht.",
-      "not_deletable": "Dieser Titel lässt sich nicht löschen."
+      "not_deletable": "Dieser Titel lässt sich nicht löschen.",
+      "deleting": "Dieser Titel wird gerade gelöscht."
     },
     "field": {
       "required": "Pflichtfeld.",

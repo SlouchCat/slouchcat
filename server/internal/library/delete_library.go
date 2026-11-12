@@ -18,6 +18,12 @@ import (
 // (playback.ActiveWindow): a playback without a request for longer is no longer playing.
 const playingWindow = 2 * time.Minute
 
+// WithDeleting sets the set of titles a delete works on, shared with package playback, which
+// refuses to start one of them (review finding 5).
+func WithDeleting(d *model.DeletingSet) Option {
+	return func(s *Service) { s.deleting = d }
+}
+
 // WithBackups sets the config directory and the server version for the backup that DeleteLibrary
 // writes before it deletes (store.BackupBeforeLibraryDelete); without it no backup is written.
 func WithBackups(configDir, version string) Option {
@@ -66,7 +72,14 @@ func (s *Service) DeleteLibrary(ctx context.Context, libraryID int64, confirmNam
 		return model.LibraryDeletion{}, err
 	}
 	defer unlock()
-	// Again under the lock: a playback may have started while the scan stopped.
+	titles, err := systemq.New(s.db.Read).ListLibraryItemIDs(ctx, libraryID)
+	if err != nil {
+		return model.LibraryDeletion{}, fmt.Errorf("list titles of library %d: %w", libraryID, err)
+	}
+	// No playback starts from here to the commit (playback answers deleting), then again under
+	// the lock: a playback may have started while the scan stopped.
+	release := s.deleting.Hold(titles)
+	defer release()
 	if err := s.refuseIfLibraryPlays(ctx, libraryID); err != nil {
 		return model.LibraryDeletion{}, err
 	}
@@ -86,10 +99,6 @@ func (s *Service) DeleteLibrary(ctx context.Context, libraryID int64, confirmNam
 			return model.LibraryDeletion{}, err
 		}
 		out.Backup = name
-	}
-	titles, err := systemq.New(s.db.Read).ListLibraryItemIDs(ctx, libraryID)
-	if err != nil {
-		return model.LibraryDeletion{}, fmt.Errorf("list titles of library %d: %w", libraryID, err)
 	}
 	if out.Items, err = s.deleteLibraryRows(ctx, libraryID); err != nil {
 		return model.LibraryDeletion{}, err

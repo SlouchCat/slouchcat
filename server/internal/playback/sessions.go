@@ -114,6 +114,10 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	if err != nil {
 		return model.PlaybackInfo{}, err
 	}
+	// A delete is about to take the title (concept 20, O-13 the other way round).
+	if s.deleting.Has(item.ID) {
+		return model.PlaybackInfo{}, model.ErrDeleting
+	}
 	in, err := s.loadInput(ctx, scope, item, req.MediaFileID)
 	if item.Kind == "podcast_episode" && errors.Is(err, model.ErrNotFound) {
 		// An episode without a file of its own (a podcast folder, ADR 0015) streams through the

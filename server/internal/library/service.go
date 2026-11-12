@@ -83,6 +83,8 @@ type Service struct {
 	// removeFileFn replaces paths.Remove in deleteWithFiles (a test seam for a file that fails to
 	// go; nil outside tests).
 	removeFileFn func(root paths.Root, rel string) error
+	// deleting holds the titles a delete works on (WithDeleting); nil: none.
+	deleting *model.DeletingSet
 	// hangingChecks holds the roots whose file check before a delete hangs (fileReason);
 	// fileCheckTimeout replaces fileCheckTimeout (a test seam; zero outside tests).
 	hangingChecks    sync.Map

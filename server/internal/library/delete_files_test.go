@@ -400,3 +400,27 @@ func TestDeleteFilesCheckGivesUpOnAHangingShare(t *testing.T) {
 	}
 	close(release)
 }
+
+// Review finding 5: while a delete works on a title (between its last check for playbacks and its
+// commit) the title is in the set playback refuses to start; after the delete it is free again.
+func TestDeleteHoldsTheTitlesAgainstPlayback(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	dir := tree(t, append(append([]string{}, twentyMovies[4:10]...), takenFilm))
+	lib := e.create(dir)
+	e.scan(lib.ID)
+	deleting := model.NewDeletingSet()
+	WithDeleting(deleting)(e.svc)
+	film := e.str(`SELECT item_id FROM media_files WHERE rel_path = ?`, takenFilm)
+	held := false
+	e.svc.removeFileFn = func(root paths.Root, rel string) error {
+		held = held || deleting.Has(film)
+		return paths.Remove(root, rel, paths.FileID{})
+	}
+	if _, err := e.svc.DeleteItem(e.ctx, film, "de", model.DeleteModeFiles, "", model.Actor{}); err != nil {
+		t.Fatal(err)
+	}
+	if !held || deleting.Has(film) {
+		t.Errorf("held during the delete %v, held after %v", held, deleting.Has(film))
+	}
+}

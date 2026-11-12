@@ -76,6 +76,8 @@ type Service struct {
 
 	// activity is the writer of the activity log (WithActivity, concept 11); nil = none.
 	activity func(ctx context.Context, e model.ActivityEvent)
+	// deleting holds the titles a delete works on (WithDeleting, concept 20 P-8/P-9); nil: none.
+	deleting *model.DeletingSet
 	// activityMu guards activityDone; activityWG counts the start events still being written
 	// (WaitActivity).
 	activityMu   sync.Mutex
@@ -135,6 +137,14 @@ func New(db *store.DB, log *slog.Logger, opts ...Option) *Service {
 // errors, so a failed write never aborts the playback. Call it before the service is used.
 func (s *Service) WithActivity(fn func(ctx context.Context, e model.ActivityEvent)) *Service {
 	s.activity = fn
+	return s
+}
+
+// WithDeleting sets the titles a delete of package library works on: a start of one of them
+// answers model.ErrDeleting (409 deleting), so no playback begins between the delete's last check
+// for running playbacks and its commit. Call it before the service is used.
+func (s *Service) WithDeleting(d *model.DeletingSet) *Service {
+	s.deleting = d
 	return s
 }
 

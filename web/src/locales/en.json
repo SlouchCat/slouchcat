@@ -197,7 +197,8 @@
       "playing": "Someone is playing one of these titles right now. It can be deleted once the playback has ended.",
       "playing_named": "One of these titles is playing for {{names}} right now. It can be deleted once the playback has ended; nothing was deleted.",
       "files_not_deletable": "A file of the title cannot be deleted. Nothing was deleted.",
-      "not_deletable": "This title cannot be deleted."
+      "not_deletable": "This title cannot be deleted.",
+      "deleting": "This title is being deleted right now."
     },
     "field": {
       "required": "Required.",

@@ -97,6 +97,7 @@ const problemKeys = {
   playing: 'errors.code.playing',
   not_deletable: 'errors.code.not_deletable',
   files_not_deletable: 'errors.code.files_not_deletable',
+  deleting: 'errors.code.deleting',
 } as const;
 
 // Field error codes (`Problem.errors[].code`); unknown codes read as "invalid value".

@@ -70,7 +70,8 @@ mit, was Slouchcat nicht kennt); (e) weiches Löschen des Titels, wenn alle Date
    Bibliotheksordner selbst; ein Ordner mit Inhalt (kein rekursives Löschen; das Ergebnis zählt, was liegen
    bleibt). Eine schon fehlende Datei gilt als gelöscht.
 5. **Reihenfolge und Datenbank.** Spielt ein Profil einen der Titel ab, lehnt der Server ab (409 `playing`,
-   O-13) und beendet keine Wiedergabe. Sonst unter der Scan-Sperre der Bibliothek (ohne zu warten:
+   O-13) und beendet keine Wiedergabe. Von der letzten Prüfung bis zum Abschluss hält das Löschen die Titel
+   in einer Liste im Speicher, und ein Wiedergabestart eines davon antwortet 409 `deleting`. Sonst unter der Scan-Sperre der Bibliothek (ohne zu warten:
    `scan_running`): erst die Dateien, dann die Datenbank. Die Zeilen der gelöschten Dateien fallen sofort weg,
    damit kein Player eine gelöschte Version anbietet. Bleibt vom ganzen Titel keine Datei, wird er **endgültig**
    gelöscht, samt Fortschritt, Haken und Merkliste (O-14); er bekommt weder `deleted_at` noch `removed_at`.
