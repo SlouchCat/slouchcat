@@ -76,4 +76,5 @@ export { useNearEnd } from './useNearEnd';
 export { useVirtualPlaces, type PlaceSpan } from './useVirtualPlaces';
 export { VisuallyHidden } from './VisuallyHidden';
 export { VolumeRow } from './VolumeRow';
+export { WatchedToggle, type WatchedState } from './WatchedToggle';
 export { ImageCandidateGrid, type ImageCandidateTile } from './ImageCandidateGrid';

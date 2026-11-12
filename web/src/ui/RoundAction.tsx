@@ -11,8 +11,12 @@ interface RoundActionProps {
   /** A link (the player, an administration page); without it a button that calls `onPress`. */
   href?: string;
   onPress?: () => void;
-  /** A switch (Merken, Favorit): `aria-pressed`, and the circle in the accent while on. */
-  pressed?: boolean;
+  /**
+   * A switch (Merken, Favorit, Gesehen): `aria-pressed`, and the circle in the accent while on.
+   * `mixed` (the check mark of a partly watched series, concept 20 F-12): half the circle in the
+   * accent, with the check.
+   */
+  pressed?: boolean | 'mixed';
   isDisabled?: boolean;
   /** A press in flight: still focusable, but the press does nothing (`aria-disabled`). */
   busy?: boolean;
@@ -45,11 +49,17 @@ export function RoundAction({
   const { ref, onFocus } = useSpatialItem<HTMLElement>({ focusKey, onArrowPress });
   const descriptionId = useId();
   const describedBy = description ? descriptionId : undefined;
-  const className = pressed ? `${styles.action} ${styles.on}` : styles.action;
+  const className = [
+    styles.action,
+    pressed === true && styles.on,
+    pressed === 'mixed' && styles.mixed,
+  ]
+    .filter(Boolean)
+    .join(' ');
   const content = (
     <>
       <span className={styles.circle}>
-        <Icon name={pressed ? 'check' : icon} size="md" />
+        <Icon name={pressed === undefined || pressed === false ? icon : 'check'} size="md" />
       </span>
       <span className={styles.label}>{label}</span>
     </>

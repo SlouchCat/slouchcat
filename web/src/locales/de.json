@@ -5433,5 +5433,29 @@
       "writeToVolumes": "In alle Bände schreiben",
       "writeToVolumesHint": "Setzt den Namen als Reihe jedes Bandes und sperrt ihn. Reihen mit demselben Namen und demselben Autor werden so zu einer."
     }
+  },
+  "watched": {
+    "label": "Gesehen: {{title}}",
+    "button": "Gesehen",
+    "hint": {
+      "set": "Als gesehen markieren",
+      "remove": "Haken entfernen",
+      "half": "Teilweise gesehen: alle markieren oder alle Haken entfernen"
+    },
+    "state": {
+      "full": "Gesehen",
+      "half": "Teilweise gesehen"
+    },
+    "ask": {
+      "removeTitle": "«{{title}}» als ungesehen markieren?",
+      "removeBody_one": "Bei {{count}} Folge fällt der Haken. Das lässt sich nicht rückgängig machen.",
+      "removeBody_other": "Bei {{count}} Folgen fällt der Haken. Das lässt sich nicht rückgängig machen.",
+      "removeBodyAll": "Bei allen Folgen fällt der Haken. Das lässt sich nicht rückgängig machen.",
+      "halfTitle": "«{{title}}» ist teilweise gesehen",
+      "halfBody_one": "{{count}} Folge trägt den Haken. Alle Folgen markieren oder alle Haken entfernen? Das Entfernen lässt sich nicht rückgängig machen.",
+      "halfBody_other": "{{count}} Folgen tragen den Haken. Alle Folgen markieren oder alle Haken entfernen? Das Entfernen lässt sich nicht rückgängig machen.",
+      "markAll": "Alle Folgen als gesehen markieren",
+      "removeAll": "Alle Haken entfernen"
+    }
   }
 }

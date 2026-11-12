@@ -5433,5 +5433,29 @@
       "writeToVolumes": "Write to all books",
       "writeToVolumesHint": "Sets the name as the series of every book and locks it. Series with the same name and the same author become one."
     }
+  },
+  "watched": {
+    "label": "Watched: {{title}}",
+    "button": "Watched",
+    "hint": {
+      "set": "Mark as watched",
+      "remove": "Remove the check mark",
+      "half": "Partly watched: mark all or remove all check marks"
+    },
+    "state": {
+      "full": "Watched",
+      "half": "Partly watched"
+    },
+    "ask": {
+      "removeTitle": "Mark «{{title}}» as unwatched?",
+      "removeBody_one": "{{count}} episode loses its check mark. This cannot be undone.",
+      "removeBody_other": "{{count}} episodes lose their check mark. This cannot be undone.",
+      "removeBodyAll": "Every episode loses its check mark. This cannot be undone.",
+      "halfTitle": "«{{title}}» is partly watched",
+      "halfBody_one": "{{count}} episode has the check mark. Mark every episode or remove all check marks? Removing cannot be undone.",
+      "halfBody_other": "{{count}} episodes have the check mark. Mark every episode or remove all check marks? Removing cannot be undone.",
+      "markAll": "Mark every episode as watched",
+      "removeAll": "Remove all check marks"
+    }
   }
 }
