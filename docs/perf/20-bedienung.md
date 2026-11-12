@@ -74,7 +74,44 @@ alle in den angefragten Titeln) grob 250 ms mehr, das sind etwa 2,5 µs je geseh
 gesehenen Folgen zahlt je Liste mit Serien grob 12 ms. Eine Messung ohne fremde Last steht noch aus, ebenso eine
 auf CT 190.
 
-## 3. Was nicht gemessen ist
+## 3. Folgenzahl und Zahl der gesehenen Folgen an Podcasts (Review, 12. November 2026)
+
+`BenchmarkWatchedCounts` in `server/internal/visibility/watched_bench_test.go`:
+
+```
+go test -run '^$' -bench WatchedCounts -benchtime 200x -v ./internal/visibility/
+```
+
+Aufbau: die Testbibliothek von `vistest` mit ihrer Podcast-Bibliothek, dazu 100 Podcasts mit je 1 000 Folgen
+(100 000 Folgen). Das Profil P16 hat 20 000 Folgen gehört, 200 von jedem Podcast. Gemessen am 12. November 2026
+auf dem Zweig `claude/k20-s2fix` (28 Kerne, Go 1.27.2, Last der Maschine um 4 bis 6).
+
+- `ListVisibleEpisodeCounts` liefert `episodeCount` der Seite «Gesehen» (die «96» von «19 von 96») für die
+  Serien und Podcasts einer Seite, höchstens 100.
+- `ListVisibleWatchedCounts` liefert `ItemRef.watchedCount` an Serien und Podcasts; gemessen für eine Reihe wie
+  auf der Startseite mit 1 bis 20 Titeln.
+
+| Lauf (200 Aufrufe) | p50 | p95 |
+|---|---:|---:|
+| `ListVisibleEpisodeCounts`, 1 Podcast | 1,0 ms | 1,1 ms |
+| `ListVisibleEpisodeCounts`, 20 Podcasts | 18,8 ms | 19,9 ms |
+| `ListVisibleEpisodeCounts`, 100 Podcasts | 92,4 ms | 93,8 ms |
+| `ListVisibleWatchedCounts`, 1 Podcast, 20 000 gehörte Folgen | 21,5 ms | 22,0 ms |
+| `ListVisibleWatchedCounts`, 5 Podcasts | 25,6 ms | 26,2 ms |
+| `ListVisibleWatchedCounts`, 20 Podcasts | 28,8 ms | 30,3 ms |
+
+Beide Abfragen bleiben unter der Grenze von 150 ms; die im Review vorgeschlagene Mischform (wenige angefragte
+Titel: von ihren Folgen über den Index `items_episode` und den Primärschlüssel von `progress` ausgehen, viele:
+wie heute von den gesehenen Zeilen) ist darum nicht gebaut. Die Kosten verhalten sich wie erwartet:
+
+- `ListVisibleEpisodeCounts` zählt je angefragten Titel alle seine Folgen, etwa 0,9 µs je Folge. Eine volle
+  Seite «Gesehen» mit 100 Podcasts zu je 1 000 Folgen ist der ungünstigste Fall (93 ms); die Seite fragt nur die
+  Serien und Podcasts an, die auf ihr stehen.
+- `ListVisibleWatchedCounts` geht von allen gesehenen Zeilen des Profils aus, unabhängig von der Zahl der
+  angefragten Titel: etwa 1 µs je gesehene Folge, schon für einen einzigen Titel 21 ms. Bei 100 000 gesehenen
+  Folgen wären es grob 110 ms je Reihe; erst dort lohnte sich die Mischform.
+
+## 4. Was nicht gemessen ist
 
 - `setItemWatched` für eine ganze Serie: schreibt je sichtbare Folge eine Zeile in einer Transaktion; bei
   Serien mit einigen hundert Folgen unkritisch, nicht eigens gemessen.

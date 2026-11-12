@@ -99,3 +99,91 @@ func BenchmarkWatchedList(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkWatchedCounts measures the two counts behind the half check mark on a podcast library
+// of 100 podcasts with 1000 episodes each (docs/perf/20-bedienung.md): ListVisibleEpisodeCounts
+// (episodeCount of listWatched) for 1, 20 and 100 podcasts, and ListVisibleWatchedCounts
+// (ItemRef.watchedCount) for a home-like row of 1 to 20 podcasts while P16 has heard 20 000
+// episodes, 200 of every podcast. Run:
+//
+//	go test -run '^$' -bench WatchedCounts -benchtime 200x -v ./internal/visibility/
+func BenchmarkWatchedCounts(b *testing.B) {
+	ctx := context.Background()
+	f := vistest.New(b)
+	f.AddAudio(b)
+	r := New(f.DB, vistest.Logger())
+	lib := f.Audio.PodcastLibraryID
+	start := time.Now()
+	const podcasts, perPodcast, heard = 100, 1000, 200
+	for _, query := range []string{
+		fmt.Sprintf(`WITH RECURSIVE n(s) AS (SELECT 1 UNION ALL SELECT s + 1 FROM n WHERE s < %d)
+		 INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, genres, own_rating, metadata_state, added_at, created_at, updated_at)
+		 SELECT printf('01J9PODBENP%%015d', s), 'podcast', NULL, %d, 'Podcast ' || s, 'podcast ' || s, '[]', 0, 'matched', 1, 1, 1 FROM n`,
+			podcasts, lib),
+		fmt.Sprintf(`WITH RECURSIVE n(e) AS (SELECT 1 UNION ALL SELECT e + 1 FROM n WHERE e < %d)
+		 INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, genres, own_rating, enclosure_url, published_at,
+		   metadata_state, added_at, created_at, updated_at)
+		 SELECT printf('01J9PODBENE%%05d%%010d', CAST(substr(p.id, 12) AS INTEGER), n.e), 'podcast_episode', p.id, %d,
+		   'Folge ' || n.e, 'folge ' || n.e, '[]', 0, 'https://example.invalid/' || n.e || '.mp3', n.e,
+		   'matched', 1, 1, 1
+		 FROM items AS p, n WHERE p.id LIKE '01J9PODBENP%%'`, perPodcast, lib),
+		`DELETE FROM progress`,
+	} {
+		benchExec(b, f, query)
+	}
+	benchExec(b, f, fmt.Sprintf(`INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, watched_at)
+	 SELECT ?, id, %[1]d, %[1]d, 1, 1800000000000 + rowid, 1800000000000 + rowid FROM items
+	 WHERE id LIKE '01J9PODBENE%%' AND CAST(substr(id, 17) AS INTEGER) <= %[2]d`, vistest.DurationMs, heard), f.P16.ID)
+	var watched int
+	if err := f.DB.Read.QueryRow(`SELECT count(*) FROM progress WHERE profile_id = ? AND watched_at IS NOT NULL`, f.P16.ID).Scan(&watched); err != nil ||
+		watched != podcasts*heard {
+		b.Fatalf("watched episodes = %d (%v), want %d", watched, err, podcasts*heard)
+	}
+	b.Logf("fixture: %d podcasts × %d episodes, %d heard by P16 in %v", podcasts, perPodcast, watched, time.Since(start).Round(time.Millisecond))
+	ids := make([]string, 0, podcasts)
+	for p := 1; p <= podcasts; p++ {
+		ids = append(ids, fmt.Sprintf("01J9PODBENP%015d", p))
+	}
+	type run struct {
+		name string
+		want int
+		run  func() ([]int64, error)
+	}
+	var runs []run
+	for _, n := range []int{1, 20, 100} {
+		runs = append(runs, run{fmt.Sprintf("episode-counts-%d", n), perPodcast, func() ([]int64, error) {
+			rows, err := r.q.ListVisibleEpisodeCounts(ctx, scopedq.ListVisibleEpisodeCountsParams{ProfileID: f.P16.ID, ItemIds: ids[:n]})
+			out := make([]int64, 0, len(rows))
+			for _, row := range rows {
+				out = append(out, row.EpisodeCount)
+			}
+			return out, err
+		}})
+	}
+	for _, n := range []int{1, 5, 20} {
+		runs = append(runs, run{fmt.Sprintf("watched-counts-%d", n), heard, func() ([]int64, error) {
+			rows, err := r.q.ListVisibleWatchedCounts(ctx, scopedq.ListVisibleWatchedCountsParams{ProfileID: f.P16.ID, ItemIds: ids[:n]})
+			out := make([]int64, 0, len(rows))
+			for _, row := range rows {
+				out = append(out, row.WatchedCount)
+			}
+			return out, err
+		}})
+	}
+	for _, tc := range runs {
+		b.Run(tc.name, func(b *testing.B) {
+			var lat []time.Duration
+			for b.Loop() {
+				t0 := time.Now()
+				counts, err := tc.run()
+				if err != nil || len(counts) == 0 || slices.ContainsFunc(counts, func(c int64) bool { return c != int64(tc.want) }) {
+					b.Fatalf("counts %v, %v, want %d each", counts, err, tc.want)
+				}
+				lat = append(lat, time.Since(t0))
+			}
+			slices.Sort(lat)
+			b.ReportMetric(float64(lat[len(lat)/2].Microseconds())/1000, "p50-ms")
+			b.ReportMetric(float64(lat[(len(lat)*95+99)/100-1].Microseconds())/1000, "p95-ms")
+		})
+	}
+}
