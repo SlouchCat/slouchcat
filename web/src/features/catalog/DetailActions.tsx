@@ -136,8 +136,9 @@ export function playTarget(
   if (item.progress?.completed) {
     return {
       label: t(audio ? 'item.action.againListening' : 'item.action.again'),
+      // The date the title was finished (concept 20 section 6.3), else its last event.
       detail: t(audio ? 'item.action.listenedOn' : 'item.action.watchedOn', {
-        date: formatDate(item.progress.updatedAt, language),
+        date: formatDate(item.progress.watchedAt ?? item.progress.updatedAt, language),
       }),
       href: paths.playAt(item.id, 0, version),
       available,

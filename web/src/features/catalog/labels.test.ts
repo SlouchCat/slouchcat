@@ -9,6 +9,7 @@ const completed: NonNullable<ItemRef['progress']> = {
   percent: 100,
   completed: true,
   updatedAt: '2026-10-10T20:00:00Z',
+  watchedAt: '2026-10-10T20:00:00Z',
 };
 
 const series = (overrides: Partial<ItemRef>): ItemRef => ({
@@ -21,9 +22,15 @@ const series = (overrides: Partial<ItemRef>): ItemRef => ({
 });
 
 describe('isFinished (contract 1.22.0)', () => {
-  it('takes a film by its progress', () => {
+  it('takes a film by watchedAt (contract 1.31.0), not by completed', () => {
     expect(isFinished({ ...alien, progress: completed })).toBe(true);
-    expect(isFinished({ ...alien, progress: { ...completed, completed: false } })).toBe(false);
+    // Watched once and started again: still finished.
+    const again = { ...completed, completed: false, positionMs: 1000, percent: 1 };
+    expect(isFinished({ ...alien, progress: again })).toBe(true);
+    // Completed without watchedAt (never finished as far as the server knows): not finished.
+    const bare = { ...completed };
+    delete bare.watchedAt;
+    expect(isFinished({ ...alien, progress: bare })).toBe(false);
     expect(isFinished({ ...alien, progress: undefined })).toBe(false);
   });
 

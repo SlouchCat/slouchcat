@@ -44,12 +44,14 @@ export const isAudioKind = (kind: ItemRef['kind']): boolean =>
 
 /**
  * A finished title for the check mark on its cover: a series or podcast by `watched` alone (every
- * visible episode completed, contract 1.22.0), every other title by its progress.
+ * visible episode watched, contract 1.22.0), every other title by `progress.watchedAt` (contract
+ * 1.31.0, concept 20 section 6.3): watched once stays watched while it is started again;
+ * `completed` is for what plays next, not for what is shown.
  */
 export const isFinished = (item: ItemRef): boolean =>
   item.kind === 'series' || item.kind === 'podcast'
     ? item.watched === true
-    : item.progress?.completed === true;
+    : item.progress?.watchedAt !== undefined;
 
 export const extraKindLabel = (t: TFunction, kind: ExtraKind | undefined): string =>
   t(`extraKind.${kind ?? 'other'}`);
