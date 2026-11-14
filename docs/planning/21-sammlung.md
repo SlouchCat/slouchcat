@@ -338,7 +338,17 @@ Sie sind Wegwerf-Seiten mit Token-Werten, nicht mit den Bauteilen aus `web/src/u
    «Details» in jeder Zeile fällt weg.
 3. Kopf der Serie und Reihenfolge der Abschnitte bleiben wie heute.
 
-### 8.3 Offene Punkte
+### 8.3 Abweichungen beim Bau (angenommen 14.11.2026)
+
+Beim Bau von Stufe 3 (PR #156) entstanden drei Abweichungen; Marco hat sie angenommen:
+
+1. Bei mehr als zwei Reihen Staffeln hält Pfeil ↓ einmal auf «Alle N Staffeln anzeigen», das nächste ↓
+   führt in die Folgenliste (sonst wäre der Knopf per Fernbedienung nur über ↑ erreichbar).
+2. Auf Geräten ohne Zeiger (Handy, TV) ist der Bleistift immer sichtbar, wie der Merken-Knopf.
+3. Bei `nextUp` «Nochmals ansehen» ist die Folge aufgeklappt, trägt aber keine Markierung; markiert
+   werden wie bisher nur «Als Nächstes» und «Weiterschauen».
+
+### 8.4 Offene Punkte
 
 - **O-11 Tastatur und TV:** Pfeil ↓ aus der Kachelwand landet in der Folgenliste, Enter klappt eine
   Zeile auf, ein zweites Enter spielt ab? Vorschlag so, Playwright-Tastaturtest nach Regel 8.
