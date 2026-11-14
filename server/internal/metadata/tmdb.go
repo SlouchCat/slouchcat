@@ -512,7 +512,7 @@ func statusError(resp *http.Response, what string) error {
 	_ = resp.Body.Close()
 	switch {
 	case resp.StatusCode == http.StatusUnauthorized:
-		return fmt.Errorf("%w: %s: status 401", model.ErrTMDBKeyInvalid, what)
+		return fmt.Errorf("%w: %s: status 401", keyRejected(ProviderTMDB), what)
 	case resp.StatusCode == http.StatusNotFound:
 		return fmt.Errorf("%w: %s", ErrNotFound, what)
 	case resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500:

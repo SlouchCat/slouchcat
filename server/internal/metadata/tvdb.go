@@ -199,7 +199,7 @@ func (p *tvdbProvider) bearer(ctx context.Context, key, pin string, renew bool) 
 		return "", fmt.Errorf("%w: tvdb login decode: %w", model.ErrTMDBUnreachable, err)
 	}
 	if env.Data.Token == "" {
-		return "", fmt.Errorf("%w: tvdb login without token", model.ErrTMDBKeyInvalid)
+		return "", fmt.Errorf("%w: login without token", keyRejected(ProviderTVDB))
 	}
 	p.mu.Lock()
 	p.token, p.tokenFor = env.Data.Token, sum
@@ -222,7 +222,8 @@ func (p *tvdbProvider) send(ctx context.Context, req *http.Request) (*http.Respo
 }
 
 // tvdbStatusError maps a non-2xx answer to an error and closes the body in that case. 401 is
-// model.ErrTMDBKeyInvalid and 5xx/429 model.ErrTMDBUnreachable, each with a "tvdb" message.
+// model.ErrTMDBKeyInvalid ("tvdb key invalid", keyRejected) and 5xx/429 model.ErrTMDBUnreachable,
+// each with a "tvdb" message.
 func tvdbStatusError(resp *http.Response, what string) error {
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		return nil
@@ -231,7 +232,7 @@ func tvdbStatusError(resp *http.Response, what string) error {
 	_ = resp.Body.Close()
 	switch {
 	case resp.StatusCode == http.StatusUnauthorized:
-		return fmt.Errorf("%w: tvdb %s: status 401", model.ErrTMDBKeyInvalid, what)
+		return fmt.Errorf("%w: %s: status 401", keyRejected(ProviderTVDB), what)
 	case resp.StatusCode == http.StatusNotFound:
 		return fmt.Errorf("%w: tvdb %s", ErrNotFound, what)
 	case resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500:

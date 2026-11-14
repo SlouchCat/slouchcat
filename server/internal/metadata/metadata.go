@@ -175,6 +175,8 @@ type Service struct {
 
 	trakt traktConfig // Trakt lists (trakt.go)
 
+	rejected rejectedKeys // keys TMDB or TVDB rejected (key_rejection.go, concept 21 P-2)
+
 	accentMu      sync.Mutex
 	accentRetries map[string]int // per item: queued image checks for a missing accent
 
