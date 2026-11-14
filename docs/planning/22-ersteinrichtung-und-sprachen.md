@@ -1,6 +1,6 @@
 # Konzept 22: Ersteinrichtung und Sprachen
 
-- **Status: Fassung 4 (14. November 2026).**
+- **Status: Fassung 4, freigegeben (14. November 2026, Frage 29).**
   - **Review 1** auf Fassung 1: REVISE, 2 Blocker, 11 Major, 16 Minor. Eingearbeitet in Fassung 2
     (Abschnitt 9).
   - **Offene Punkte:** In Fassung 3 hat Marco alle beantwortet (Abschnitt 8).
