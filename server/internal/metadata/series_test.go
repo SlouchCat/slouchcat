@@ -334,10 +334,11 @@ func (f *fakeTMDB) addTV(t *testing.T, mux *http.ServeMux, auth func(http.Handle
 type fakeTVDB struct {
 	srv *httptest.Server
 
-	mu     sync.Mutex
-	logins int
-	token  string
-	hits   map[string]int
+	mu      sync.Mutex
+	logins  int
+	refused int // logins answered 401
+	token   string
+	hits    map[string]int
 }
 
 func newFakeTVDB(t *testing.T) *fakeTVDB {
@@ -354,6 +355,9 @@ func newFakeTVDB(t *testing.T) *fakeTVDB {
 			PIN    string `json:"pin"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.APIKey != tvdbKey || body.PIN != tvdbPin {
+			f.mu.Lock()
+			f.refused++
+			f.mu.Unlock()
 			w.WriteHeader(http.StatusUnauthorized)
 			writeJSON(w, map[string]any{"status": "failure", "message": "Unauthorized", "data": nil})
 			return
@@ -481,7 +485,7 @@ func (f *fakeTVDB) count(path string) int {
 func (f *fakeTVDB) total() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	n := f.logins
+	n := f.logins + f.refused
 	for _, v := range f.hits {
 		n += v
 	}

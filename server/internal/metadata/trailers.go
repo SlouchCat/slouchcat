@@ -232,6 +232,7 @@ func (s *Service) findTrailers(ctx context.Context, itemID string) error {
 	switch {
 	case errors.Is(err, model.ErrTMDBKeyInvalid):
 		s.log.Warn("tmdb key rejected", "item_id", item.ID)
+		s.rejectKey(ctx, ProviderTMDB)
 		return s.setTrailerState(ctx, item.ID, trailerFailed)
 	case errors.Is(err, errNotConfigured):
 	case err != nil:

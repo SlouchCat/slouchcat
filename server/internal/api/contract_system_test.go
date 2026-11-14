@@ -166,7 +166,7 @@ func TestDashboardOverviewOverHTTP(t *testing.T) {
 		return d, rec.Body.String()
 	}
 	d, body := dashboard()
-	for _, field := range []string{`"active":[]`, `"failedByType":[]`, `"attention":{"abortedScans":[]}`, `"counts":{`} {
+	for _, field := range []string{`"active":[]`, `"failedByType":[]`, `"attention":{"abortedScans":[],"rejectedKeys":[]}`, `"counts":{`} {
 		if !strings.Contains(body, field) {
 			t.Errorf("empty dashboard lacks %s: %s", field, body)
 		}
@@ -295,7 +295,7 @@ func TestAdminSystemShapesAndUpdateNotice(t *testing.T) {
 	var d gen.Dashboard
 	decode(t, rec, &d)
 	if rec.Code != http.StatusOK || len(d.Integrations) != 8 || d.Jobs.RecentFailed == nil || d.Errors == nil || d.Streams == nil ||
-		d.Storage.Cache.TotalBytes <= 0 || !d.Update.Enabled {
+		d.Storage.Cache.TotalBytes <= 0 || !d.Update.Enabled || !strings.Contains(rec.Body.String(), `"rejectedKeys":[]`) {
 		t.Errorf("dashboard = %d %s", rec.Code, rec.Body.String())
 	}
 
@@ -323,6 +323,16 @@ func TestAdminSystemShapesAndUpdateNotice(t *testing.T) {
 	if rec.Code != http.StatusOK || st.Keys.Tvdb.Source != gen.SettingSourceStored || deref(st.Keys.Tvdb.Hint) != "0000" ||
 		deref(st.PublicUrl) != "https://media.example.ch" || strings.Contains(rec.Body.String(), "tvdb-FAKE") {
 		t.Errorf("settings after the update = %d %s", rec.Code, rec.Body.String())
+	}
+	// Concept 21 P-2: the refused TVDB key stays stored and reads as rejected, in the answer and
+	// in the overview; TMDB without key has no rejection.
+	if st.Keys.Tvdb.Rejected == nil || !*st.Keys.Tvdb.Rejected || st.Keys.Tmdb.Rejected != nil || st.Keys.Youtube.Rejected != nil {
+		t.Errorf("rejected after saving a refused TVDB key = %s", rec.Body.String())
+	}
+	rec = send(t, h, http.MethodGet, BasePath+"/admin/dashboard", "p18", "", nil)
+	decode(t, rec, &d)
+	if rec.Code != http.StatusOK || len(d.Attention.RejectedKeys) != 1 || d.Attention.RejectedKeys[0] != "tvdb" {
+		t.Errorf("attention after a rejected key = %d %+v", rec.Code, d.Attention)
 	}
 
 	sessionNotice := func(token string) *gen.UpdateNotice {

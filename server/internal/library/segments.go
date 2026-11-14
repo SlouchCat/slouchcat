@@ -115,6 +115,10 @@ func (s *Service) handleSegments(ctx context.Context, j *jobs.Job) error {
 				return
 			}
 			eps[i].Head, eps[i].Tail, fingerprinted[i] = head, tail, true
+			for _, d := range opts.DiscardOverlong(&eps[i]) {
+				s.log.WarnContext(ctx, "fingerprint longer than its window, discarded", "media_file_id", r.MediaFileID,
+					"item_id", r.ItemID, "part", d.Part, "expected_values", d.Want, "values", d.Got)
+			}
 		}()
 	}
 	wg.Wait()
@@ -122,6 +126,10 @@ func (s *Service) handleSegments(ctx context.Context, j *jobs.Job) error {
 		return err
 	}
 	res := segments.Detect(eps, opts)
+	durations := make(map[string]time.Duration, len(eps))
+	for _, ep := range eps {
+		durations[ep.ID] = ep.Duration
+	}
 
 	state := "none"
 	switch {
@@ -149,9 +157,17 @@ func (s *Service) handleSegments(ctx context.Context, j *jobs.Job) error {
 			if sp == nil {
 				continue
 			}
+			span, ok := storableSpan(*sp, durations[id])
+			if !ok {
+				// An invalid span must not fail the season's transaction (concept 21 P-5).
+				s.log.WarnContext(ctx, "invalid segment dropped", "item_id", id, "kind", kind,
+					"start_ms", sp.Start.Milliseconds(), "end_ms", sp.End.Milliseconds(),
+					"duration_ms", durations[id].Milliseconds())
+				continue
+			}
 			if err := q.InsertSegment(ctx, systemq.InsertSegmentParams{
-				ItemID: id, Kind: kind, StartMs: sp.Start.Milliseconds(), EndMs: sp.End.Milliseconds(), Source: sp.Source,
-				Confidence: sql.NullFloat64{Float64: sp.Confidence, Valid: true}, Now: now.UnixMilli(),
+				ItemID: id, Kind: kind, StartMs: span.Start.Milliseconds(), EndMs: span.End.Milliseconds(), Source: span.Source,
+				Confidence: sql.NullFloat64{Float64: span.Confidence, Valid: true}, Now: now.UnixMilli(),
 			}); err != nil {
 				return fmt.Errorf("insert %s of %s: %w", kind, id, err)
 			}
@@ -179,6 +195,9 @@ func (s *Service) handleSegments(ctx context.Context, j *jobs.Job) error {
 
 // fingerprintEpisode returns the fingerprints of the start and the end of an episode file.
 func (s *Service) fingerprintEpisode(ctx context.Context, r systemq.ListSegmentEpisodesRow, d time.Duration, opts segments.Options) (head, tail []uint32, err error) {
+	if s.fingerprintFn != nil {
+		return s.fingerprintFn(ctx, r, d, opts)
+	}
 	root, err := paths.NewRoot(r.RootPath)
 	if err != nil {
 		return nil, nil, err
@@ -213,4 +232,15 @@ func storedChapters(probe sql.NullString) []segments.Chapter {
 		out = append(out, segments.Chapter{Start: c.Start, End: c.End, Title: c.Title})
 	}
 	return out
+}
+
+// storableSpan returns sp as it may be stored for a file of duration d: 0 <= Start < End <= d
+// (concept 21 P-5). An end past the duration is cut to it first, because a chapter often ends a few
+// milliseconds after the probed duration; a span that starts at or after the end stays invalid. An
+// unknown duration (0) checks only Start and End against each other.
+func storableSpan(sp segments.Span, d time.Duration) (segments.Span, bool) {
+	if d > 0 && sp.End > d {
+		sp.End = d
+	}
+	return sp, sp.Start >= 0 && sp.End > sp.Start
 }

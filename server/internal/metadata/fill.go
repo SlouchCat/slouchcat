@@ -235,9 +235,17 @@ func (s *Service) handleFill(ctx context.Context, j *jobs.Job) error {
 		return err
 	}
 	if p.Images {
-		return s.fillImages(ctx, p.ItemID)
+		err = s.fillImages(ctx, p.ItemID)
+	} else {
+		err = s.fill(ctx, p.ItemID)
 	}
-	return s.fill(ctx, p.ItemID)
+	// A key rejected after the title records were fetched (by a season request): no retry, the
+	// key will not get better by itself (concept 21 P-2).
+	if provider := rejectedBy(err); provider != "" {
+		s.rejectKey(ctx, provider)
+		return jobs.Final(err)
+	}
+	return err
 }
 
 // fill runs the job for one title. Transient provider errors are returned so the queue retries;
@@ -276,6 +284,9 @@ func (s *Service) fillTitle(ctx context.Context, itemID string, images bool) err
 	}
 	if len(order) == 1 && !images {
 		return s.recordIdentifier(ctx, item, order[0])
+	}
+	if s.KeyRejected(ctx, order[0]) {
+		return nil // the identifier's key is rejected: no record to decide with (concept 21 P-2)
 	}
 
 	candidates, anilistID, skipped, err := s.fetchTitleRecords(ctx, item, order)
@@ -325,7 +336,9 @@ type fetchedRecord struct {
 // fetchTitleRecords fetches the record of every provider in the list that is configured and
 // whose id the title carries, in list order; AniList through the mapping list. It returns the
 // records, the AniList id to store (-1 when AniList was not asked, 0 when the list has no entry)
-// and the providers it skipped. A provider that no longer knows the id contributes nothing.
+// and the providers it skipped. A provider that no longer knows the id contributes nothing. A
+// provider whose key is rejected (now or before, KeyRejected) is skipped like one without key
+// (concept 21 P-2).
 func (s *Service) fetchTitleRecords(ctx context.Context, item systemq.Item, order []string) ([]fetchedRecord, int64, []string, error) {
 	var out []fetchedRecord
 	var skipped []string
@@ -341,12 +354,17 @@ func (s *Service) fetchTitleRecords(ctx context.Context, item systemq.Item, orde
 			if !item.TmdbID.Valid || item.TmdbID.Int64 <= 0 {
 				continue
 			}
-			if !s.tmdb.Configured(ctx) {
+			if !s.tmdb.Configured(ctx) || s.KeyRejected(ctx, p) {
 				skipped = append(skipped, p)
 				continue
 			}
 			id := strconv.FormatInt(item.TmdbID.Int64, 10)
 			rec, err := s.titleRecord(ctx, s.tmdb, item.Kind, id, langs)
+			if errors.Is(err, model.ErrTMDBKeyInvalid) {
+				s.rejectKey(ctx, p)
+				skipped = append(skipped, p)
+				continue
+			}
 			if err != nil {
 				return nil, 0, nil, err
 			}
@@ -357,12 +375,17 @@ func (s *Service) fetchTitleRecords(ctx context.Context, item systemq.Item, orde
 			if item.Kind != "series" || !item.TvdbID.Valid || item.TvdbID.Int64 <= 0 {
 				continue
 			}
-			if !s.tvdb.Configured(ctx) {
+			if !s.tvdb.Configured(ctx) || s.KeyRejected(ctx, p) {
 				skipped = append(skipped, p)
 				continue
 			}
 			id := strconv.FormatInt(item.TvdbID.Int64, 10)
 			rec, err := s.titleRecord(ctx, s.tvdb, item.Kind, id, langs)
+			if errors.Is(err, model.ErrTMDBKeyInvalid) {
+				s.rejectKey(ctx, p)
+				skipped = append(skipped, p)
+				continue
+			}
 			if err != nil {
 				return nil, 0, nil, err
 			}
@@ -394,6 +417,9 @@ func (s *Service) fetchTitleRecords(ctx context.Context, item systemq.Item, orde
 		}
 	}
 	for _, p := range skipped {
+		if s.KeyRejected(ctx, p) {
+			continue // rejectKey warned once for the key
+		}
 		s.log.Warn("metadata provider in the list of a title but not configured, skipped",
 			"item_id", item.ID, "provider", p)
 	}
@@ -1008,22 +1034,32 @@ func (s *Service) enqueueFill(ctx context.Context, itemID string) error {
 // QueuePendingFills enqueues metadata.fill for every matched title of the library with more
 // than one provider whose provenance is missing or names a provider that left the list
 // (ListFillItems); QueuePendingMetadata calls it after every scan. It returns the number of
-// jobs queued.
+// jobs queued. A rejected key leaves its provider out like a missing one, and a title whose
+// identifier's key is rejected waits for a new key (acceptKey).
 func (s *Service) QueuePendingFills(ctx context.Context, libraryID int64) (int, error) {
 	rows, err := s.read.ListFillItems(ctx, libraryID)
 	if err != nil {
 		return 0, fmt.Errorf("list titles to fill: %w", err)
 	}
+	// A provider whose key is rejected counts as not configured (concept 21 P-2).
+	rejected := map[string]bool{
+		model.ProviderTMDB: s.KeyRejected(ctx, model.ProviderTMDB), model.ProviderTVDB: s.KeyRejected(ctx, model.ProviderTVDB),
+	}
 	configured := map[string]bool{
-		model.ProviderTMDB: s.tmdb.Configured(ctx), model.ProviderTVDB: s.tvdb.Configured(ctx),
+		model.ProviderTMDB:    s.tmdb.Configured(ctx) && !rejected[model.ProviderTMDB],
+		model.ProviderTVDB:    s.tvdb.Configured(ctx) && !rejected[model.ProviderTVDB],
 		model.ProviderAniList: s.anilist.Configured(ctx), model.ProviderLocal: true,
 	}
 	n := 0
 	for _, r := range rows {
 		// The list a fill would run with now; a title whose last fill ran with it has nothing
 		// to gain (a provider without key is left out on both sides).
+		list := model.ParseProviders(r.Providers)
+		if len(list) > 0 && rejected[list[0]] {
+			continue // the identifier's key is rejected: the fill would record nothing
+		}
 		var effective []string
-		for _, p := range model.ParseProviders(r.Providers) {
+		for _, p := range list {
 			if configured[p] {
 				effective = append(effective, p)
 			}

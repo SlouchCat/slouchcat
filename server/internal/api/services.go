@@ -325,8 +325,9 @@ type AdminService interface {
 	RetryFailedJobs(ctx context.Context, typ string) (model.JobFailedRetry, error)
 	DismissFailedJobs(ctx context.Context, typ string) (int, error)
 	// Settings and integrations (A-2). UpdateSettings checks everything before it stores anything:
-	// *model.ValidationError, *model.EnvWinsError, model.ErrTMDBKeyInvalid, model.ErrTMDBUnreachable,
-	// model.ErrTelegramTokenInvalid, model.ErrTelegramUnreachable.
+	// *model.ValidationError, *model.EnvWinsError, model.ErrTelegramTokenInvalid,
+	// model.ErrTelegramUnreachable; a new TMDB or TVDB key is stored and then checked, its
+	// rejection is KeyState.Rejected (concept 21 P-2).
 	Settings(ctx context.Context) (model.AdminSettings, error)
 	UpdateSettings(ctx context.Context, upd model.AdminSettingsUpdate) (model.AdminSettings, error)
 	// CheckProviderKey asks a provider whether its key holds (concept 20, P-12); the key is

@@ -144,6 +144,9 @@ func (s *Service) Dashboard(ctx context.Context) (model.Dashboard, error) {
 		return model.Dashboard{}, fmt.Errorf("list libraries: %w", err)
 	}
 	d.Attention = dashboardAttention(libs)
+	if d.Attention.RejectedKeys, err = s.rejectedKeys(ctx); err != nil {
+		return model.Dashboard{}, err
+	}
 	if d.Counts, err = s.dashboardCounts(ctx); err != nil {
 		return model.Dashboard{}, err
 	}
@@ -254,7 +257,7 @@ func (s *Service) nextScheduledRun(ctx context.Context) (*model.JobNextRun, erro
 // loss nobody accepted: state aborted, a reason other than cancelled (the administrator's own
 // cancellation) and no loss_accepted_at. The server decides this, the client shows it (rule 12).
 func dashboardAttention(libs []appq.Library) model.DashboardAttention {
-	out := model.DashboardAttention{AbortedScans: []model.AbortedScan{}}
+	out := model.DashboardAttention{AbortedScans: []model.AbortedScan{}, RejectedKeys: []string{}}
 	for _, l := range libs {
 		if l.LastScanState != "aborted" || !l.LastScanError.Valid || l.LastScanError.String == abortCancelled || l.LossAcceptedAt.Valid {
 			continue

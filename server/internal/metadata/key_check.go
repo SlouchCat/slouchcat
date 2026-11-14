@@ -107,7 +107,20 @@ func (s *Service) CheckProviderKey(ctx context.Context, provider string) (model.
 	default:
 		return model.KeyCheck{}, (&model.ValidationError{}).Add("provider", "invalid_value")
 	}
-	return keyCheckResult(parent, ctx, err, secrets)
+	check, cerr := keyCheckResult(parent, ctx, err, secrets)
+	if cerr == nil && (provider == KeyCheckTMDB || provider == KeyCheckTVDB) {
+		// The check decides the rejection of the fills (concept 21 P-2): a passing key lifts it
+		// and queues the titles that waited, a refused one stops the requests with it.
+		switch {
+		case check.OK:
+			if err := s.acceptKey(parent, provider); err != nil {
+				s.log.WarnContext(parent, "queue the fills after a new key", "provider", provider, "err", err)
+			}
+		case check.Problem == model.KeyCheckInvalid:
+			s.rejectKey(parent, provider)
+		}
+	}
+	return check, cerr
 }
 
 // checkWith runs check unless key is empty (errNotConfigured).
@@ -161,7 +174,7 @@ func (s *Service) checkGoogleBooks(ctx context.Context, key string) error {
 	case status >= 200 && status < 300 || status == http.StatusNotFound:
 		return nil
 	case status == http.StatusBadRequest || status == http.StatusUnauthorized || status == http.StatusForbidden:
-		return fmt.Errorf("%w: googlebooks: status %d", model.ErrTMDBKeyInvalid, status)
+		return fmt.Errorf("%w: status %d", keyRejected("googlebooks"), status)
 	case status == http.StatusTooManyRequests || status >= 500:
 		return fmt.Errorf("%w: googlebooks: status %d", model.ErrTMDBUnreachable, status)
 	default:

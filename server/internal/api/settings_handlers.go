@@ -116,7 +116,7 @@ func toAdminSettings(st model.AdminSettings) gen.AdminSettings {
 }
 
 func toKeyState(k model.KeyState) gen.KeyState {
-	return gen.KeyState{Source: settingSource(k.Source), Hint: optString(k.Hint)}
+	return gen.KeyState{Source: settingSource(k.Source), Hint: optString(k.Hint), Rejected: k.Rejected}
 }
 
 // settingSource maps a source; empty reads as none.

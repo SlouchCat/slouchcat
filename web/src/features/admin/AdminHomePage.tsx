@@ -45,6 +45,7 @@ import {
 } from '@/ui/aria';
 import { composeCommand, SYSCTL_COMMAND } from '../shared/SystemState';
 import { useHealth } from '../system/useHealth';
+import { PROVIDERS } from './integrations/ProviderCard';
 import { formatSeconds, typeName } from './jobsFormat';
 import { DASHBOARD_POLL_MS, dashboardQuery, systemQuery } from './queries';
 import { reloadPage, RESTART_POLL_MS, restartedSince } from './restart';
@@ -225,6 +226,18 @@ function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[] {
       tone: 'warning',
       title: t('admin.home.hints.paused', { count: data.jobs.paused ?? 0 }),
       action: toJobs,
+    });
+  }
+  // A provider that rejects its key (concept 21 P-2): one notice instead of a failed fill per title.
+  for (const provider of data.attention.rejectedKeys) {
+    const known = PROVIDERS.find((entry) => entry.id === provider);
+    const name = known ? t(`admin.integrations.providers.${known.id}.name`) : provider;
+    hints.push({
+      key: `key-${provider}`,
+      tone: 'danger',
+      title: t('admin.home.hints.keyRejected', { name }),
+      body: t('admin.home.hints.keyRejectedBody'),
+      action: <TextLink href={paths.adminIntegrations}>{t('admin.home.hints.toKeys')}</TextLink>,
     });
   }
   for (const scan of data.attention.abortedScans) {

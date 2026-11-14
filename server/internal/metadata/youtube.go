@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 	"unicode"
 
 	"github.com/slouchcat/slouchcat/server/internal/ratelimit"
@@ -23,11 +25,14 @@ import (
 const (
 	DefaultYouTubeBase = "https://www.googleapis.com/youtube/v3"
 	youtubeDailyUnits  = 10000 // free daily quota, at most 100 searches
-	youtubeSearchCost  = 100
-	youtubeVideosCost  = 1
-	youtubeMaxResults  = 5
-	minTrailerSeconds  = 60
-	maxTrailerSeconds  = 300
+	// youtubeDailySearches is Google's second daily limit of the search, besides the units
+	// ("Search Queries per day", 100 per project; concept 21 P-3).
+	youtubeDailySearches = 100
+	youtubeSearchCost    = 100
+	youtubeVideosCost    = 1
+	youtubeMaxResults    = 5
+	minTrailerSeconds    = 60
+	maxTrailerSeconds    = 300
 )
 
 var (
@@ -50,6 +55,11 @@ type youtubeTrailers struct {
 	limiter *ratelimit.Limiter
 	quota   *ratelimit.Quota
 	keys    KeySource
+
+	// The searches of the current period of quota, at most youtubeDailySearches (takeSearch).
+	searchMu     sync.Mutex
+	searches     int
+	searchPeriod time.Time
 }
 
 func newYouTubeTrailers(base string, hc *http.Client, quota *ratelimit.Quota, keys KeySource) *youtubeTrailers {
@@ -99,7 +109,7 @@ func (y *youtubeTrailers) find(ctx context.Context, key string, q TrailerQuery, 
 	if lang == "de" {
 		query += " deutsch"
 	}
-	if !y.quota.Take(ctx, youtubeSearchCost) {
+	if !y.takeSearch(ctx) {
 		return TrailerHit{}, false, errQuotaExhausted
 	}
 	var search struct {
@@ -147,6 +157,21 @@ func (y *youtubeTrailers) find(ctx context.Context, key string, q TrailerQuery, 
 	}
 	return TrailerHit{Lang: lang, YouTubeID: best.ID, Title: best.Snippet.Title, Source: sourceYouTube,
 		Official: officialChannel(best, []string{title, q.OriginalTitle})}, true, nil
+}
+
+// takeSearch spends the units of one search and counts it against the searches of the day; false
+// when either budget is spent. Both end with the period of quota.
+func (y *youtubeTrailers) takeSearch(ctx context.Context) bool {
+	y.searchMu.Lock()
+	defer y.searchMu.Unlock()
+	if period := y.quota.ResetAt(); !period.Equal(y.searchPeriod) {
+		y.searchPeriod, y.searches = period, 0
+	}
+	if y.searches >= youtubeDailySearches || !y.quota.Take(ctx, youtubeSearchCost) {
+		return false
+	}
+	y.searches++
+	return true
 }
 
 type youtubeVideo struct {
@@ -263,7 +288,12 @@ func (y *youtubeTrailers) getJSON(ctx context.Context, path string, q url.Values
 		return fmt.Errorf("youtube request %s: %w", path, errors.New("invalid request"))
 	}
 	req.Header.Set("Accept", "application/json")
-	resp, err := y.limiter.Do(ctx, y.http, req)
+	// No retry after a 429 (concept 21 P-3): one answer decides, and the limiter's backoff of up
+	// to a minute per retry kept a worker for minutes on a limit that lasts until the reset.
+	if err := y.limiter.Wait(ctx); err != nil {
+		return err
+	}
+	resp, err := y.http.Do(req)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
@@ -288,11 +318,15 @@ func (y *youtubeTrailers) getJSON(ctx context.Context, path string, q url.Values
 	}
 	var problem struct {
 		Error struct {
-			Errors []struct {
+			Message string `json:"message"`
+			Errors  []struct {
 				Reason string `json:"reason"`
 			} `json:"errors"`
 			Details []struct {
-				Reason string `json:"reason"`
+				Reason   string `json:"reason"`
+				Metadata struct {
+					QuotaUnit string `json:"quota_unit"`
+				} `json:"metadata"`
 			} `json:"details"`
 		} `json:"error"`
 	}
@@ -301,11 +335,16 @@ func (y *youtubeTrailers) getJSON(ctx context.Context, path string, q url.Values
 	for _, e := range problem.Error.Errors {
 		reasons[e.Reason] = true
 	}
+	// A 429 that names a daily limit (quota_unit "1/d/{project}", "Search Queries per day") lasts
+	// until the reset like an empty quota (concept 21 P-3); one per minute is only unavailable.
+	daily := strings.Contains(strings.ToLower(problem.Error.Message), "per day")
 	for _, d := range problem.Error.Details {
 		reasons[d.Reason] = true
+		daily = daily || strings.Contains(d.Metadata.QuotaUnit, "/d/")
 	}
 	switch {
-	case reasons["quotaExceeded"] || reasons["dailyLimitExceeded"]:
+	case reasons["quotaExceeded"] || reasons["dailyLimitExceeded"],
+		resp.StatusCode == http.StatusTooManyRequests && daily:
 		y.quota.Exhaust()
 		return errQuotaExhausted
 	case reasons["keyInvalid"] || reasons["API_KEY_INVALID"] || reasons["accessNotConfigured"] || reasons["forbidden"]:

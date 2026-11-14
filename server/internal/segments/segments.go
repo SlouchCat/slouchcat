@@ -113,8 +113,46 @@ func (o Options) TailRange(d time.Duration) (from, length time.Duration) {
 	return from, d - from
 }
 
+// MaxValues is the most values a fingerprint of length may have: length/Step plus 2 % and
+// edgeWindow values of tolerance. ffmpeg stops a fingerprint after length; one with more values
+// comes from a seek in a damaged file that landed too early, so it also starts at the wrong place
+// (concept 21 P-5).
+func MaxValues(length time.Duration) int {
+	n := int(length / Step)
+	return n + n/50 + edgeWindow
+}
+
+// Overlong is a fingerprint DiscardOverlong dropped: Part "head" or "tail", Want the most values
+// its window allows (MaxValues), Got the values it had.
+type Overlong struct {
+	Part      string
+	Want, Got int
+}
+
+// DiscardOverlong drops the head and the tail fingerprint of e that have more values than their
+// window allows (each part on its own; cutting them would not help, they start at the wrong
+// place): that part of the episode takes part as without a fingerprint. It returns what it
+// dropped.
+func (o Options) DiscardOverlong(e *Episode) []Overlong {
+	var out []Overlong
+	if want := MaxValues(o.HeadLength(e.Duration)); len(e.Head) > want {
+		out = append(out, Overlong{Part: "head", Want: want, Got: len(e.Head)})
+		e.Head = nil
+	}
+	if _, length := o.TailRange(e.Duration); len(e.Tail) > MaxValues(length) {
+		out = append(out, Overlong{Part: "tail", Want: MaxValues(length), Got: len(e.Tail)})
+		e.Tail = nil
+	}
+	return out
+}
+
 // Detect returns the segments of the episodes by ID; episodes without any segment are left out.
+// Overlong fingerprints count as missing (DiscardOverlong); the episodes are not changed.
 func Detect(episodes []Episode, o Options) map[string]Result {
+	episodes = slices.Clone(episodes)
+	for i := range episodes {
+		o.DiscardOverlong(&episodes[i])
+	}
 	n := len(episodes)
 	intros := make([][]Span, n)
 	outros := make([][]Span, n)

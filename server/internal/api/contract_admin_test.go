@@ -277,3 +277,9 @@ func (m contractMetadata) CheckProviderKey(_ context.Context, provider string) (
 		return model.KeyCheck{Problem: model.KeyCheckInvalid, Message: "trakt: status 403"}, nil
 	}
 }
+
+// KeyRejected (concept 21 P-2): TVDB rejects its key, as CheckProviderKey refuses it; package
+// metadata remembers the real rejection (key_rejection_test.go).
+func (contractMetadata) KeyRejected(_ context.Context, provider string) bool {
+	return provider == "tvdb"
+}

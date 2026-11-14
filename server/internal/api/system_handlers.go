@@ -85,8 +85,11 @@ func (s *server) GetDashboard(ctx context.Context, _ gen.GetDashboardRequestObje
 			Total: d.Webhooks.Total, EventsLast24h: d.Webhooks.EventsLast24h,
 			Silent: append([]string{}, d.Webhooks.Silent...),
 		},
-		Browse:    &gen.BrowseHealth{LostSlots: d.Browse.LostSlots, Slots: d.Browse.Slots},
-		Attention: gen.DashboardAttention{AbortedScans: make([]gen.AbortedScan, 0, len(d.Attention.AbortedScans))},
+		Browse: &gen.BrowseHealth{LostSlots: d.Browse.LostSlots, Slots: d.Browse.Slots},
+		Attention: gen.DashboardAttention{
+			AbortedScans: make([]gen.AbortedScan, 0, len(d.Attention.AbortedScans)),
+			RejectedKeys: append([]string{}, d.Attention.RejectedKeys...),
+		},
 		Counts: gen.DashboardCounts{
 			Titles: d.Counts.Titles, Accounts: d.Counts.Accounts, MaintenanceOpen: d.Counts.MaintenanceOpen,
 		},

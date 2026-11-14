@@ -52,6 +52,48 @@ const (
 	fakeVAPIDPriv = "FAKE-vapid-private-key"
 )
 
+// rejectingMeta stands for the key rejection of package metadata (concept 21 P-2): a check refuses
+// the keys in refuse and remembers the provider as rejected, a passing check lifts the rejection.
+type rejectingMeta struct {
+	*fakeMetadata
+	svc      *Service
+	refuse   map[string]bool
+	rejected map[string]bool
+	checks   []string
+}
+
+func (m *rejectingMeta) CheckProviderKey(ctx context.Context, provider string) (model.KeyCheck, error) {
+	m.checks = append(m.checks, provider)
+	key, err := m.svc.TMDBKey(ctx)
+	if provider == "tvdb" {
+		var pin string
+		key, pin, err = m.svc.TVDBKey(ctx)
+		key += "/" + pin
+	}
+	if err != nil {
+		return model.KeyCheck{}, err
+	}
+	if m.refuse[key] {
+		m.rejected[provider] = true
+		return model.KeyCheck{Problem: model.KeyCheckInvalid, Message: provider + " key invalid"}, nil
+	}
+	delete(m.rejected, provider)
+	return model.KeyCheck{OK: true}, nil
+}
+
+func (m *rejectingMeta) KeyRejected(_ context.Context, provider string) bool {
+	return m.rejected[provider]
+}
+
+func newRejectingMeta(f *fixture, refuse ...string) *rejectingMeta {
+	m := &rejectingMeta{fakeMetadata: &fakeMetadata{}, svc: f.svc, refuse: map[string]bool{}, rejected: map[string]bool{}}
+	for _, k := range refuse {
+		m.refuse[k] = true
+	}
+	f.svc.WithMetadata(m)
+	return m
+}
+
 // rawSetting reads a stored value as it is in the database.
 func (f *fixture) rawSetting(t *testing.T, key string) string {
 	t.Helper()
@@ -68,6 +110,7 @@ func TestUpdateSettingsStoresSecretsEncrypted(t *testing.T) {
 	tg := &fakeTelegram{}
 	tr := &fakeTrakt{}
 	f.svc.WithTelegram(tg).WithTrakt(tr)
+	meta := newRejectingMeta(f)
 
 	st, err := f.svc.Settings(ctx)
 	if err != nil {
@@ -91,7 +134,7 @@ func TestUpdateSettingsStoresSecretsEncrypted(t *testing.T) {
 	if st.PublicURL != "https://media.example.ch" || st.PublicURLSource != "stored" {
 		t.Errorf("public URL = %q (%s)", st.PublicURL, st.PublicURLSource)
 	}
-	if st.Keys.TMDB != (model.KeyState{Source: "stored", Hint: fakeKey[len(fakeKey)-4:]}) || st.Keys.TVDBPin != (model.KeyState{Source: "stored"}) ||
+	if st.Keys.TMDB.Source != "stored" || st.Keys.TMDB.Hint != fakeKey[len(fakeKey)-4:] || st.Keys.TVDBPin != (model.KeyState{Source: "stored"}) ||
 		st.Keys.Trakt.Hint != "cdef" || st.Keys.YouTube.Source != "none" {
 		t.Errorf("keys = %+v (a short PIN shows no hint)", st.Keys)
 	}
@@ -101,8 +144,11 @@ func TestUpdateSettingsStoresSecretsEncrypted(t *testing.T) {
 	if st.Telegram != (model.TelegramSettings{Source: "stored", BotUsername: "slouchcat_bot"}) || len(tg.tokens) != 1 || tg.tokens[0] != fakeBotToken {
 		t.Errorf("telegram = %+v, checked %v", st.Telegram, tg.tokens)
 	}
-	if len(f.tmdb.checks) != 1 || f.tmdb.checks[0] != fakeKey {
-		t.Errorf("TMDB checks = %v, want the trimmed key once", f.tmdb.checks)
+	if strings.Join(meta.checks, ",") != "tmdb,tvdb" || len(f.tmdb.checks) != 0 {
+		t.Errorf("checks on save = %v (setup checker %v), want tmdb and tvdb once after storing", meta.checks, f.tmdb.checks)
+	}
+	if r := st.Keys.TMDB.Rejected; r == nil || *r {
+		t.Errorf("tmdb rejected = %v, want false", r)
 	}
 	for _, key := range []string{SettingTMDBKey, SettingTVDBKey, SettingTVDBPin, SettingTraktClientID, SettingSMTPPassword, SettingTelegramBotToken} {
 		if v := f.rawSetting(t, key); !strings.HasPrefix(v, "v1:") {
@@ -199,13 +245,11 @@ func TestUpdateSettingsRefusals(t *testing.T) {
 		"tvdb pin from env": {upd: model.AdminSettingsUpdate{Clear: []string{"tvdbPin"}}, field: "env:keys.tvdbPin"},
 		"email from env":    {upd: model.AdminSettingsUpdate{Email: email}, field: "env:email"},
 		"email clear env":   {upd: model.AdminSettingsUpdate{Clear: []string{"email"}}, field: "env:email"},
-		"tmdb rejected": {upd: model.AdminSettingsUpdate{Keys: model.AdminKeysUpdate{TMDB: ptr(fakeKey)}, UpdateCheckEnabled: ptr(false)},
-			want: model.ErrTMDBKeyInvalid},
 		"telegram rejected": {upd: model.AdminSettingsUpdate{Telegram: &model.TelegramSettingsUpdate{BotToken: fakeBotToken},
 			Keys: model.AdminKeysUpdate{YouTube: ptr("yt-FAKE-key-0000000000")}}, want: model.ErrTelegramTokenInvalid},
 	} {
 		t.Run(name, func(t *testing.T) {
-			f.tmdb.err, tg.err = model.ErrTMDBKeyInvalid, model.ErrTelegramTokenInvalid
+			tg.err = model.ErrTelegramTokenInvalid
 			_, err := f.svc.UpdateSettings(ctx, tc.upd)
 			var verr *model.ValidationError
 			var env *model.EnvWinsError
@@ -236,6 +280,64 @@ func TestUpdateSettingsRefusals(t *testing.T) {
 	}
 	if cfg, ok, _ := f.svc.SMTPConfig(ctx); !ok || cfg.Password != "env-FAKE-pass" {
 		t.Errorf("SMTPConfig from the environment = %+v", cfg)
+	}
+}
+
+// Concept 21 P-2 point 4: a new TMDB or TVDB key (or TVDB PIN) is stored and then checked once; a
+// refused key stays stored and reads as rejected in the settings and the overview, a passing one
+// lifts the rejection. Other keys are not checked on save.
+func TestUpdateSettingsChecksNewKeys(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	const goodTMDB = "FAKE-tmdb-second-token-0987654321"
+	meta := newRejectingMeta(f, fakeKey, fakeTVDBKey+"/")
+
+	st, err := f.svc.UpdateSettings(ctx, model.AdminSettingsUpdate{Keys: model.AdminKeysUpdate{TMDB: ptr(fakeKey), TVDB: ptr(fakeTVDBKey)}})
+	if err != nil {
+		t.Fatalf("a refused key is stored anyway: %v", err)
+	}
+	if got, _ := f.svc.TMDBKey(ctx); got != fakeKey {
+		t.Errorf("TMDBKey = %q, want the refused key stored", got)
+	}
+	for name, ks := range map[string]model.KeyState{"tmdb": st.Keys.TMDB, "tvdb": st.Keys.TVDB} {
+		if ks.Source != "stored" || ks.Rejected == nil || !*ks.Rejected {
+			t.Errorf("%s = %+v, want stored and rejected", name, ks)
+		}
+	}
+	if st.Keys.TVDBPin.Rejected != nil || st.Keys.YouTube.Rejected != nil {
+		t.Errorf("rejected on a key without rejection: pin %v, youtube %v", st.Keys.TVDBPin.Rejected, st.Keys.YouTube.Rejected)
+	}
+	if got, err := f.svc.rejectedKeys(ctx); err != nil || strings.Join(got, ",") != "tmdb,tvdb" {
+		t.Errorf("attention = %v, %v; want tmdb,tvdb", got, err)
+	}
+
+	// A passing key lifts the rejection; a new PIN checks its TVDB key again.
+	if st, err = f.svc.UpdateSettings(ctx, model.AdminSettingsUpdate{Keys: model.AdminKeysUpdate{TMDB: ptr(goodTMDB), TVDBPin: ptr("4321")}}); err != nil {
+		t.Fatal(err)
+	}
+	if r := st.Keys.TMDB.Rejected; r == nil || *r {
+		t.Errorf("tmdb after a passing key: rejected %v", r)
+	}
+	if r := st.Keys.TVDB.Rejected; r == nil || *r {
+		t.Errorf("tvdb after a new PIN that passes: rejected %v", r)
+	}
+	if got, _ := f.svc.rejectedKeys(ctx); len(got) != 0 {
+		t.Errorf("attention after passing keys = %v", got)
+	}
+
+	// Another key is stored without a check; a cleared key has no rejection to show.
+	meta.checks = nil
+	if st, err = f.svc.UpdateSettings(ctx, model.AdminSettingsUpdate{Keys: model.AdminKeysUpdate{YouTube: ptr("yt-FAKE-key-0000000000")},
+		Clear: []string{model.ClearTMDB}}); err != nil {
+		t.Fatal(err)
+	}
+	if len(meta.checks) != 0 || st.Keys.TMDB.Rejected != nil {
+		t.Errorf("checks %v, tmdb %+v; want no check and no rejection without key", meta.checks, st.Keys.TMDB)
+	}
+	for _, secret := range []string{fakeKey, goodTMDB, fakeTVDBKey} {
+		if strings.Contains(f.logs.String(), secret) {
+			t.Errorf("log carries %q", secret)
+		}
 	}
 }
 

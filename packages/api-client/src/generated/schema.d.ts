@@ -3948,8 +3948,12 @@ export interface paths {
          * Change server settings and integrations (A-2)
          * @description Fields left out keep their value; `clear` removes stored values. Secrets are stored encrypted
          *     (plan 3.8 point 3). A value set through the environment cannot be overridden or cleared here
-         *     (`env_wins`, the field in `errors`). A new TMDB key is checked against TMDB, a new Telegram bot
-         *     token with `getMe`, before anything is stored; the whole request then changes nothing.
+         *     (`env_wins`, the field in `errors`). A new Telegram bot token is checked with `getMe` before
+         *     anything is stored; a refused token changes nothing. Since contract 1.32.0 (concept 21 P-2) a new
+         *     TMDB or TVDB key (or TVDB PIN) is stored first and then checked once, as `checkProviderKey` does:
+         *     a key the provider refuses stays stored and the answer says so in `keys.<provider>.rejected`; a
+         *     key that passes lifts an earlier rejection and queues the fills that waited, once. An unreachable
+         *     provider leaves the key stored and not rejected.
          */
         put: operations["updateAdminSettings"];
         post?: never;
@@ -9554,6 +9558,12 @@ export interface components {
              *     last scan state `aborted`, a reason other than `cancelled` and no `lossAcceptedAt`.
              */
             abortedScans: components["schemas"]["AbortedScan"][];
+            /**
+             * @description Since contract 1.32.0 (concept 21 P-2): the metadata providers whose configured key the
+             *     provider rejects now (`KeyState.rejected`), in the order `tmdb`, `tvdb`. One entry instead
+             *     of a failed fill per title.
+             */
+            rejectedKeys: string[];
         };
         AbortedScan: {
             /** Format: int64 */
@@ -10013,6 +10023,14 @@ export interface components {
             source: components["schemas"]["SettingSource"];
             /** @description The last four characters of a stored key; absent for keys from the environment. */
             hint?: string;
+            /**
+             * @description Since contract 1.32.0 (concept 21 P-2), only for `tmdb` and `tvdb` with a key: true while the
+             *     provider rejects the configured key (a fill, a match or a check met the rejection); the
+             *     fills then make no request with it until the key changes or passes a check. The server
+             *     remembers the rejection in memory only, so after a restart it is false until the provider
+             *     rejects the key again. Absent for the other keys and without key.
+             */
+            rejected?: boolean;
         };
         /**
          * @description STARTTLS on the plain port (default), implicit TLS, or no encryption.
@@ -18732,8 +18750,10 @@ export interface operations {
             403: components["responses"]["AdminOnly"];
             /**
              * @description `validation_failed` (see `errors`), `env_wins` (the field named in `errors` comes from the
-             *     environment), `tmdb_key_invalid`, `tmdb_unreachable`, `telegram_token_invalid` (Telegram
-             *     rejected the token), `telegram_unreachable` (Telegram did not answer).
+             *     environment), `telegram_token_invalid` (Telegram rejected the token), `telegram_unreachable`
+             *     (Telegram did not answer). `tmdb_key_invalid` and `tmdb_unreachable` stay defined for clients
+             *     that know them, but since contract 1.32.0 this operation no longer sends them (see
+             *     `keys.<provider>.rejected`).
              */
             422: {
                 headers: {
