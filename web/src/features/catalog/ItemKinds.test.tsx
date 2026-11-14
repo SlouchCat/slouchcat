@@ -338,6 +338,10 @@ describe('detail page: series, season, episode, extra', () => {
     await user.click(doubleLine);
     expect(doubleLine).toHaveAttribute('aria-expanded', 'true');
     expect(pilotLine).toHaveAttribute('aria-expanded', 'false');
+    // A closed line is described by its overview.
+    expect(pilotLine).toHaveAccessibleDescription(
+      'Ein Anruf in der Nacht führt Weber an den Hafen.',
+    );
     await user.click(doubleLine);
     expect(doubleLine).toHaveAttribute('aria-expanded', 'false');
     await user.click(pilotLine);
@@ -367,6 +371,12 @@ describe('detail page: series, season, episode, extra', () => {
         within(list).getByRole('link', { name: 'Abspielen: S01E02 · Die lange Nacht' }),
       ).toHaveFocus(),
     );
+    // Escape (a remote's back key) closes the open row and gives the focus to its line; the page
+    // stays.
+    await user.keyboard('{Escape}');
+    expect(secondLine).toHaveAttribute('aria-expanded', 'false');
+    expect(secondLine).toHaveFocus();
+    expect(router.state.location.pathname).toBe(`/items/${seriesIds.show}`);
 
     await user.click(specials);
     expect(specials).toHaveAttribute('aria-current', 'true');

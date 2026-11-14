@@ -4,7 +4,7 @@ import { SpatialButtonLink } from './Button';
 import styles from './EpisodeListItem.module.css';
 import { Icon } from './Icon';
 import { ProgressBar } from './ProgressBar';
-import { useSpatialItem } from './spatial';
+import { SpatialGroup, useSpatialItem } from './spatial';
 import { VisuallyHidden } from './VisuallyHidden';
 
 interface EpisodeListItemProps {
@@ -27,6 +27,8 @@ interface EpisodeListItemProps {
    * (concept 21 O-11).
    */
   onToggle: (keyboard: boolean) => void;
+  /** Escape or Backspace in an open row (a remote's back key): the row closes, the line has the focus. */
+  onClose: () => void;
   /** The player of the episode, behind the open row's first button. */
   playHref: string;
   /** Visible text of that button ("Abspielen", "Weiterschauen"). */
@@ -77,6 +79,7 @@ export function EpisodeListItem({
   highlight,
   expanded,
   onToggle,
+  onClose,
   playHref,
   playLabel,
   playName,
@@ -94,7 +97,13 @@ export function EpisodeListItem({
 }: EpisodeListItemProps) {
   const panel = useRef<HTMLDivElement>(null);
   const row = useRef<HTMLDivElement>(null);
-  const focusPlayButton = () => panel.current?.querySelector<HTMLElement>('a[href]')?.focus();
+  // Without the browser's own scroll: the spatial navigation brings the focused element into view.
+  const focusPlayButton = () =>
+    panel.current?.querySelector<HTMLElement>('a[href]')?.focus({ preventScroll: true });
+  const focusLine = () =>
+    row.current
+      ?.querySelector<HTMLElement>('button[aria-expanded]')
+      ?.focus({ preventScroll: true });
   // In an open row ↓ goes from the line to «Abspielen» and ↑ from the row's buttons back to the
   // line, whatever the geometry of the still beside them says (concept 21 O-11).
   const { ref, onFocus } = useSpatialItem<HTMLButtonElement>({
@@ -108,9 +117,28 @@ export function EpisodeListItem({
   });
   const upToLine = (direction: string) => {
     if (direction !== 'up') return true;
-    row.current?.querySelector<HTMLElement>('button[aria-expanded]')?.focus();
+    focusLine();
     return false;
   };
+  // The back key closes an open row before it leaves the page (useBackKeys skips a handled key).
+  // A listener on the row's element: a div takes no key handler of React's (jsx-a11y).
+  const close = useRef(onClose);
+  useEffect(() => {
+    close.current = onClose;
+  });
+  useEffect(() => {
+    const node = row.current;
+    if (!expanded || !node) return;
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.key !== 'Escape' && event.key !== 'Backspace') return;
+      event.preventDefault();
+      close.current();
+      focusLine();
+    };
+    node.addEventListener('keydown', onKeyDown);
+    return () => node.removeEventListener('keydown', onKeyDown);
+  }, [expanded]);
   const panelId = useId();
   const overviewId = useId();
   // Set by Enter on the line: once the row is open, the focus moves to its play button (its own
@@ -147,7 +175,7 @@ export function EpisodeListItem({
             }
           }}
         >
-          <span className={styles.number} aria-hidden="true">
+          <span className={styles.number} aria-hidden={code ? true : undefined}>
             {number}
           </span>
           <span className={styles.heading}>
@@ -203,7 +231,8 @@ export function EpisodeListItem({
           <div className={styles.body}>
             {code && <span className={styles.code}>{code}</span>}
             {overview && <p className={styles.overview}>{overview}</p>}
-            <div className={styles.actions}>
+            {/* ← → walk the buttons in order, ↑ leaves the row's buttons towards the line. */}
+            <SpatialGroup className={styles.actions} ordered>
               <SpatialButtonLink
                 focusKey={`${focusKey}-play`}
                 onArrowPress={upToLine}
@@ -226,7 +255,7 @@ export function EpisodeListItem({
                 {detailsLabel}
               </SpatialButtonLink>
               {actions}
-            </div>
+            </SpatialGroup>
           </div>
         </div>
       )}

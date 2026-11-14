@@ -628,7 +628,10 @@ function ItemView({ itemId }: { itemId: string }) {
             <SeasonShelf seasons={item.seasons ?? []} nextUp={item.nextUp} />
           )}
           {item.kind === 'season' && (
-            <section className={styles.block} aria-labelledby="item-episodes-heading">
+            <section
+              className={`${styles.block} ${styles.wide}`}
+              aria-labelledby="item-episodes-heading"
+            >
               <h2 id="item-episodes-heading" className={styles.sectionTitle}>
                 {t('item.episodes.title')}
               </h2>

@@ -1,7 +1,7 @@
 import type { ItemDetail, ItemRef } from '@slouchcat/api-client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
-import { lazy, Suspense, useLayoutEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -75,14 +75,13 @@ export function EpisodeList({
 }) {
   const { t } = useTranslation();
   const playStart = usePlayStart();
-  // undefined: as the page opened, with the nextUp episode open; null: every row closed.
-  const [chosen, setChosen] = useState<string | null>();
+  // The open row: first the nextUp episode, fixed as the list opens (a check set on it moves
+  // nextUp, not the open row); null: every row closed.
+  const [open, setOpen] = useState<string | null>(
+    () => episodes.find((episode) => episode.id === nextUp?.episode.id)?.id ?? null,
+  );
   if (episodes.length === 0) return <p className={styles.muted}>{t('item.episodes.empty')}</p>;
   const marked = nextUp && nextUp.reason !== 'rewatch' ? nextUp.episode.id : undefined;
-  const open =
-    chosen === undefined
-      ? episodes.find((episode) => episode.id === nextUp?.episode.id)?.id
-      : chosen;
   const offline = offlineSupported();
   return (
     <>
@@ -121,7 +120,8 @@ export function EpisodeList({
                     : undefined
                 }
                 expanded={expanded}
-                onToggle={(keyboard) => setChosen(expanded && !keyboard ? null : episode.id)}
+                onToggle={(keyboard) => setOpen(expanded && !keyboard ? null : episode.id)}
+                onClose={() => setOpen(null)}
                 playHref={paths.play(episode.id)}
                 playLabel={t(started ? 'item.nextUp.resume' : 'item.episodes.play')}
                 playName={t(started ? 'item.episodes.resumeTitle' : 'item.episodes.playTitle', {
@@ -252,6 +252,8 @@ export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; 
   const [unfolded, setUnfolded] = useState(false);
   const [columns, setColumns] = useState(0);
   const wall = useRef<HTMLDivElement>(null);
+  const wallId = useId();
+  const hasSeasons = seasons.length > 0;
   // The columns follow the width of the page (auto-fill); measured before the first paint.
   useLayoutEffect(() => {
     const node = wall.current;
@@ -262,7 +264,8 @@ export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; 
     const observer = new ResizeObserver(update);
     observer.observe(node);
     return () => observer.disconnect();
-  }, []);
+    // Again once the seasons are there: without them the wall is not in the page.
+  }, [hasSeasons]);
   const current =
     seasons.find((season) => season.id === chosen) ??
     seasons.find((season) => season.id === nextUp?.episode.parentId) ??
@@ -287,6 +290,7 @@ export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; 
         <SpatialGroup
           focusKey="detail-seasons"
           as="ul"
+          id={wallId}
           className={styles.seasonWall}
           aria-label={t('item.seasons')}
           preferredChildFocusKey={seasonKey(current)}
@@ -346,6 +350,7 @@ export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; 
             variant="secondary"
             icon={unfolded ? 'chevronUp' : 'chevronDown'}
             aria-expanded={unfolded}
+            aria-controls={wallId}
             onPress={() => setUnfolded((value) => !value)}
           >
             {unfolded

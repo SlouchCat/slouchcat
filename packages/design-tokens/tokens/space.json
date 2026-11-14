@@ -111,6 +111,10 @@
   "size": {
     "$type": "dimension",
     "poster": {
+      "xs": {
+        "$value": "6.5rem",
+        "$description": "Smallest cover of a grid on phones: the season wall (concept 21 P-6)."
+      },
       "sm": {
         "$value": "8.5rem",
         "$description": "Poster card width on phones."

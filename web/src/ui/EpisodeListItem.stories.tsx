@@ -14,6 +14,7 @@ function Toggling(props: Props) {
       {...props}
       expanded={expanded}
       onToggle={(keyboard) => setExpanded((open) => keyboard || !open)}
+      onClose={() => setExpanded(false)}
     />
   );
 }
@@ -31,6 +32,7 @@ const meta = {
     caption: '45 min',
     expanded: false,
     onToggle: () => undefined,
+    onClose: () => undefined,
     playHref: '#',
     playLabel: 'Abspielen',
     playName: 'Abspielen: S01E02 · Die lange Nacht',

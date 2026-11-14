@@ -188,10 +188,9 @@ test('O-11: ↓ from the wall into the episodes, Enter opens a line, a second En
     // (A focus by script after the clicks shows no ring yet; the keys below bring it back.)
     await seasonCards(page).first().focus();
     await expect(seasonCards(page).first()).toBeFocused();
-    // ↓ from the wall lands on a line of the episode list.
+    // ↓ from the wall lands on the line of the next episode, S01E01 after the reset.
     await page.keyboard.press('ArrowDown');
-    await expect.poll(() => focusedEpisode(page)).toBeGreaterThanOrEqual(0);
-    await expectVisibleFocus(page);
+    await expectFocusOn(page, line(page, 'S01E01'));
     // Along the lines with ↓ and ↑ while every row is closed.
     const start = await focusedEpisode(page);
     await page.keyboard.press(start < 2 ? 'ArrowDown' : 'ArrowUp');
@@ -201,6 +200,13 @@ test('O-11: ↓ from the wall into the episodes, Enter opens a line, a second En
     await line(page, 'S01E01').focus();
     await page.keyboard.press('Enter');
     await expect(line(page, 'S01E01')).toHaveAttribute('aria-expanded', 'true');
+    await expectFocusOn(page, playIn(page, 'S01E01'));
+    // Escape (a remote's back key) closes the row and stays on the page; Enter opens it again.
+    await page.keyboard.press('Escape');
+    await expect(line(page, 'S01E01')).toHaveAttribute('aria-expanded', 'false');
+    await expectFocusOn(page, line(page, 'S01E01'));
+    await expect(page).toHaveURL(new RegExp(`${series}$`));
+    await page.keyboard.press('Enter');
     await expectFocusOn(page, playIn(page, 'S01E01'));
     // ↑ back to the line, ↓ to the row's play button again.
     await page.keyboard.press('ArrowUp');
@@ -258,7 +264,7 @@ test('a wall of many seasons: two rows, «Alle N Staffeln anzeigen», ↓ over t
     const specials = body.seasons.at(-1)!;
     const extra = Array.from({ length: 12 }, (_, index) => ({
       ...specials,
-      id: `01K21WALL${String(index).padStart(17, '0')}`,
+      id: `01K21ZZZZ${String(index).padStart(17, '0')}`,
       title: `Staffel ${index + 2}`,
       seasonNumber: index + 2,
     }));
@@ -298,15 +304,26 @@ test('a wall of many seasons: two rows, «Alle N Staffeln anzeigen», ↓ over t
     }
     await expectFocusOn(page, toggle);
 
-    // Enter unfolds: every season, the button says «Weniger anzeigen»; again folds.
+    // Enter unfolds: every season, the button says «Weniger anzeigen».
     await toggle.focus();
     await page.keyboard.press('Enter');
     await expect(seasonCards(page)).toHaveCount(14);
     const fold = page.getByRole('button', { name: 'Weniger anzeigen' });
     await expectFocusOn(page, fold);
     await expect(fold).toHaveAttribute('aria-expanded', 'true');
-    await page.keyboard.press('Enter');
+    // Choose the last season, then fold: it stays in the wall, in place of the last cover.
+    const last = seasonCards(page).filter({ hasText: 'Staffel 13' });
+    await last.click();
+    await expect(last).toHaveAttribute('aria-current', 'true');
+    await fold.click();
     await expect(seasonCards(page)).toHaveCount(Math.min(14, columns * 2));
+    await expect(last).toBeVisible();
+    await expect(last).toHaveAttribute('aria-current', 'true');
+    // By keyboard: Enter on the button unfolds and folds again, the focus stays on it.
+    await toggle.focus();
+    await page.keyboard.press('Enter');
+    await expectFocusOn(page, fold);
+    await page.keyboard.press('Enter');
     await expectFocusOn(page, toggle);
     await expectNoFocusTrap(page);
   } finally {
@@ -610,6 +627,20 @@ test('season page by keyboard: the series link, play, the episodes; no focus tra
   await tabTo(page, seriesPlay(page), 2);
   await tabTo(page, lines(page).first(), 6);
   await expectNoFocusTrap(page);
+
+  // Enter opens a line and moves to its play button, the second Enter plays (concept 21 O-11).
+  const id = await firstEpisode(page);
+  await setPosition(page, id, 0);
+  await page.reload();
+  await expect(lines(page).first()).toBeVisible();
+  await closeRows(page);
+  await line(page, 'S01E01').focus();
+  await page.keyboard.press('Enter');
+  await expectFocusOn(page, playIn(page, 'S01E01'));
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(new RegExp(`/play/${id}$`));
+  await page.keyboard.press('Backspace');
+  await expect(page).toHaveURL(new RegExp(`${seasonPath}$`));
 
   // Enter on the series link leads to the series.
   await seriesLink.focus();
