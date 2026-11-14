@@ -1,32 +1,39 @@
 # Konzept 22: Ersteinrichtung und Sprachen
 
-- **Status: Fassung 1 (14. November 2026).** Marco hat am 14. November 2026 sechs Fragen
-  beantwortet (**F-1 bis F-6**, Abschnitt 1), eine davon am klickbaren Mockup (Anhang A). Offen
-  sind die Punkte **O-1 bis O-16** (Abschnitt 8), jeder mit Empfehlung; bis zu Marcos Antwort
-  gilt die Empfehlung. **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
+- **Status: Fassung 2 (14. November 2026).** Ein Kritiker hat Fassung 1 gegen den Code geprüft
+  (REVISE: 2 Blocker, 11 Major, 16 Minor). Alles ist eingearbeitet, der Nachweis steht in
+  Abschnitt 9. Marco hat am 14. November 2026 zehn Fragen beantwortet (**F-1 bis F-10**,
+  Abschnitt 1): sechs vor Fassung 1, vier zu Befunden des Reviews. Offen sind die Punkte
+  **O-1 bis O-19** (Abschnitt 8), jeder mit Empfehlung; bis zu Marcos Antwort gilt die Empfehlung.
+  **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Auslöser:** Marco will einen Installations-Assistenten, der beim ersten Start erscheint und die
   wichtigsten Einstellungen abfragt, und Slouchcat in vielen Sprachen anbieten, «etwa so wie Emby
   und Jellyfin».
 - **Verankert gegen:** `main` **`46d41072`** («Merge pull request #158», Release 1.32.0),
   Vertragsfassung **1.32.0** (`api/openapi.yaml:4`), letzte Migration **`00057_trailer_size.sql`**,
   letzte ADR **`0032`**, letzte Frage im Entscheidungsprotokoll **28**. Daneben offen: Zweig
-  `claude/k21-stufen4-6` mit Vertrag **1.33.0** und Migration **00058**.
-- **Nummern:** Dieses Papier ist **Konzept 22**, reserviert **Frage 29** und **ADR 0033**
-  («Oberflächensprachen und Übersetzung», ersetzt ADR 0018 F-1 in einem Punkt, Abschnitt 6).
-  Vertragsfassungen und Migrationsnummern nennt das Papier **nicht fest**; vergeben wird in
-  Bau-Reihenfolge (goose verlangt lückenlose Nummern, die Regel «Vertrag = Tag» eine aufsteigende
-  Version). Abschnitt 7 sagt je Stufe nur, **ob** sie Vertrag und Migration braucht.
+  `claude/k21-stufen4-6` mit Vertrag **1.33.0** und den Migrationen **00058** und **00059**.
+- **Nummern:** Dieses Papier ist **Konzept 22**. Es reserviert **Frage 29** und **ADR 0033**
+  («Oberflächensprachen, Übersetzung und Metadaten-Sprachen»). ADR 0033 ersetzt ADR 0018 in zwei
+  Punkten (Abschnitt 6).
+  - Vertragsfassungen und Migrationsnummern nennt das Papier **nicht fest**. Vergeben wird in
+    Bau-Reihenfolge: goose verlangt lückenlose Nummern, die Regel «Vertrag = Tag» eine aufsteigende
+    Version.
+  - Abschnitt 7 sagt je Stufe nur, **ob** sie Vertrag und Migration braucht.
 - `:Zeile`-Angaben beziehen sich auf `46d41072`; **nach Namen suchen, nicht nach Zeile.** Pfade
   ohne Präfix liegen unter `server/` (Go) oder `web/src/` (Web-App), wo es eindeutig ist.
 - Massgeblich bleiben `docs/spec/01-anforderungen-v1.md`, `docs/planning/04-entscheidungen.md`
-  und `docs/adr/` (hier vor allem ADR 0005 Konten und Profile, ADR 0018 Sprachen). Bei Widerspruch
-  gilt: **Entscheidungsprotokoll > Plan > Spec** (`CLAUDE.md`).
+  und `docs/adr/` (hier vor allem ADR 0005 Konten und Profile, ADR 0018 Sprachen, ADR 0024
+  Updater). Bei Widerspruch gilt: **Entscheidungsprotokoll > Plan > Spec** (`CLAUDE.md`).
 
 > **Dieses Papier ändert keine Zeile Code.** Es hat zwei Teile, die zusammengehören, aber
-> getrennt gebaut werden: **Teil A** ersetzt den heutigen Ein-Seiten-Assistenten durch einen
-> geführten Assistenten in neun Schritten (Abschnitt 3). **Teil B** macht aus zwei
-> Oberflächensprachen dreiundzwanzig (Abschnitt 4). Abschnitt 7 schneidet beides in vier Stufen
-> mit je einem Release.
+> getrennt gebaut werden:
+> - **Teil A** ersetzt den heutigen Ein-Seiten-Assistenten durch einen geführten Assistenten in
+>   neun Schritten (Abschnitt 3).
+> - **Teil B** macht aus zwei Oberflächensprachen dreiundzwanzig und löst dafür die Bindung der
+>   Metadaten an Deutsch (Abschnitt 4).
+>
+> Abschnitt 7 schneidet beides in vier Stufen mit je einem Release.
 
 ---
 
@@ -34,12 +41,16 @@
 
 | Nr. | Frage | Antwort |
 |---|---|---|
-| **F-1** | Welche Variante des Assistenten (Mockup A «Geführt», B «Zwei Wege», C «Pflicht + Karten»)? | **A «Geführt»:** alle Schritte in einer Leiste links, Pflicht sind Sprache, Konto und Bibliothek, die übrigen lassen sich überspringen; dann gilt die Empfehlung. |
+| **F-1** | Welche Variante des Assistenten (Mockup A «Geführt», B «Zwei Wege», C «Pflicht + Karten»)? | **A «Geführt»:** alle Schritte in einer Leiste links. Pflicht sind Sprache, Konto und Bibliothek, die übrigen lassen sich überspringen; dann gilt die Empfehlung. |
 | **F-2** | Was fragt der Assistent zusätzlich zu Sprache, Konto, erster Bibliothek und TMDB ab? | **Alles:** Region und Metadaten, Haushalt-Profile, weitere Dienste (TVDB, Fanart, YouTube, E-Mail), Server und Wiedergabe (öffentliche Adresse, Grafikchip, Trickplay, Update-Prüfung). |
 | **F-3** | Wie wird Deutsch angeboten? | **Zwei Varianten:** Deutsch (Schweiz) mit ss wie heute und Deutsch (Deutschland) mit ß. |
 | **F-4** | Wie viele Oberflächensprachen im ersten Schritt? | **Rund 22**, und zwar «natürlich und sinnvoll übersetzt», nicht wörtlich. |
 | **F-5** | Wer übersetzt? | **Claude liefert die erste Fassung, Weblate wird für Korrekturen aus der Community geöffnet.** |
-| **F-6** | Schlüssel im Assistenten | Bei jedem Schlüssel steht **der Link, wo man ihn beantragt** (Nachtrag Marco, gleicher Tag). |
+| **F-6** | Schlüssel im Assistenten | Bei jedem Schlüssel steht **der Link, wo man ihn beantragt**. |
+| **F-7** | Muss die Metadaten-Sprachliste des Servers Deutsch enthalten (heute Pflicht, ADR 0018)? | **Nein, Deutsch ist keine Pflicht.** Ein französischer Haushalt lädt Französisch und Englisch, ohne Deutsch. |
+| **F-8** | Was tut der Radio-Schalter im Assistenten? | **Land ins Angebot, keine Sender:** Modus «Nur markierte». Die Sender wählt man später in der Verwaltung. |
+| **F-9** | PIN für weitere Profile im Assistenten | **Man kann eine PIN angeben, sie ist aber optional.** |
+| **F-10** | Grafikchip im Assistenten | **Wählbar, mit Neustart.** Die Wahl wird gespeichert und gilt nach einem Neustart des Containers. |
 
 Die dreiundzwanzig Sprachen aus F-3 und F-4 stehen in Abschnitt 4.1. Rechts nach links (Arabisch,
 Hebräisch, Persisch) ist bewusst nicht dabei (Abschnitt 4.10).
@@ -50,35 +61,44 @@ Hebräisch, Persisch) ist bewusst nicht dabei (Abschnitt 4.10).
 
 ### 2.1 Der Assistent
 
+**Aufbau**
 - `/setup` ist **eine Seite mit vier Blöcken** (`features/setup/SetupPage.tsx:264-427`):
   1. Hauptkonto
   2. erste Bibliothek (`LibraryFields`)
   3. TMDB-Schlüssel, optional
   4. Systemzustand (`SystemState`), nur Anzeige
 - Ein Knopf schickt alles mit einem `POST /setup` (`runSetup`).
-- Ob der Assistent erscheint, entscheidet allein `CountAccounts == 0` (`internal/auth/auth.go:135-141`).
-  Die Weiche liegt in `app/router.tsx:156-160`.
-- `RunSetup` (`internal/admin/admin.go:329-384`) läuft in dieser Reihenfolge:
-  1. Er prüft Pfad und Schlüssel.
-  2. Er legt Konto und Profil in **einer** Transaktion an (`auth.go:181-245`).
-  3. Er speichert den TMDB-Schlüssel.
-  4. Er legt die Bibliothek an.
-  5. Er meldet an.
+- Ob der Assistent erscheint, entscheidet allein `CountAccounts == 0`
+  (`internal/auth/auth.go:135-141`). Die Weiche liegt in `app/router.tsx:156-160`.
+- Ein angemeldeter Benutzer auf `/setup` wird nach `/` geschickt (`:160`).
+
+**Ablauf von `RunSetup`** (`internal/admin/admin.go:329-384`)
+1. Er prüft die Sprache, nur `de`/`en` (`:343`), dann Pfad und Schlüssel.
+2. Er legt Konto und Profil in **einer** Transaktion an (`auth.go:181-245`).
+3. Er speichert den TMDB-Schlüssel.
+4. Er legt die Bibliothek an. Dabei wird der erste Scan schon eingereiht (`admin.go:94,610`).
+5. Er meldet an. Die Sitzung hat dann das Hauptprofil.
+
 - Scheitert die Bibliothek, bleiben Konto und Schlüssel bestehen (`admin.go:371-376`).
 - Das erste Profil heisst wie der Teil der E-Mail vor dem @, hat Freigabe 18, die Sprache der
   Einrichtung und keine Farbe (`auth.go:226-230`).
 - **Die Sprache wird nicht gefragt.** Sie kommt still aus dem Browser (`SetupPage.tsx:246`,
   `i18n/index.ts:13`).
-- Vor einem Konto gibt es nur zwei öffentliche Prüfungen: Pfad (`checkSetupPath`, nur innerhalb
-  von `SLOUCHCAT_BROWSE_ROOTS`) und TMDB (`checkSetupTmdbKey`).
-  - TVDB, Fanart und YouTube prüft nur `checkProviderKey`. Das ist ein Admin-Endpunkt und prüft nur
-    den **gespeicherten** Schlüssel (`internal/admin/settings.go:713-730`).
-  - Die Testmail (`sendTestEmail`) gibt es ebenfalls nur für Admins.
+
+**Prüfungen vor einem Konto**
+- Es gibt nur zwei öffentliche Prüfungen: Pfad (`checkSetupPath`, nur innerhalb von
+  `SLOUCHCAT_BROWSE_ROOTS`) und TMDB (`checkSetupTmdbKey`).
+- TVDB, Fanart und YouTube prüft nur `checkProviderKey`. Das ist ein Admin-Endpunkt und prüft nur
+  den **gespeicherten** Schlüssel (`internal/admin/settings.go:713-730`).
+- Die Testmail (`sendTestEmail`) gibt es ebenfalls nur für Admins.
 - Grenzen: Versuchstopf 10 je Minute und Adresse, gemeinsam mit Anmeldung, PIN und Einladung
-  (`internal/auth/limits.go:15-16`). Dazu die CSRF-Kopfzeile `X-Requested-With`.
+  (`internal/auth/limits.go:15-16`), dazu die CSRF-Kopfzeile `X-Requested-With`.
+
+**Anforderungen**
 - Spec A-1 (`docs/spec/01-anforderungen-v1.md:144`) verlangt Konto, erste Bibliothek,
-  GPU-Erkennung und Metadaten-Schlüssel. Plan 3.4 (`docs/planning/03-plan-v1.md:158-160`)
-  verlangt Warnungen für Netzlaufwerke und das inotify-Limit.
+  GPU-Erkennung und Metadaten-Schlüssel.
+- Plan 3.4 (`docs/planning/03-plan-v1.md:158-160`) verlangt Warnungen für Netzlaufwerke und das
+  inotify-Limit.
 - `docs/INSTALLATION.md:252-271` beschreibt genau diese vier Blöcke. Profile, Freigaben und
   Einladungen kommen dort «später in der Verwaltung».
 
@@ -87,26 +107,34 @@ Hebräisch, Persisch) ist bewusst nicht dabei (Abschnitt 4.10).
 | Thema | Endpunkt heute | Gespeichert | Quelle | Anmerkung |
 |---|---|---|---|---|
 | Oberflächensprache | `createProfile`/`updateProfile` | `profiles.language` | DB | nur `de`/`en`, Abschnitt 2.3 |
-| Freigabeland | `updateMetadataSettings` | `metadata.rating_country` | DB | nur DE, AT, CH, GB, US (`openapi.yaml:13324`) |
-| Metadaten-Sprachen | `updateMetadataSettings` | `metadata.text_langs`, `metadata.image_langs.<art>` | DB | Vorgabe `de`, `en` (`metadata/settings.go:84-99`) |
+| Freigabeland | `updateMetadataSettings` | `metadata.rating_country` | DB | nur DE, AT, CH, GB, US (`openapi.yaml:13327`) |
+| Metadaten-Sprachen | `updateMetadataSettings` | `metadata.text_langs`, `metadata.image_langs.<art>` | DB | Vorgabe `de`, `en`. **Serverliste muss `de` enthalten** (`metadata/settings.go:264`, ADR 0018 F-9). Die Bibliotheksliste braucht `de` oder `en` (`:266`). |
 | Zeitzone | **keiner** | – | nur `TZ` (`deploy/compose.yaml:42`, Vorgabe Europe/Zurich) | Jobs nutzen sie (`jobs/scheduler.go:146`) |
-| Radio-Angebot | `previewRadioOffer`/`applyRadioOffer` | `radio_offer_countries` | DB | Profil-Land: Zeitzone → Freigabeland → DE (`radio/catalog_profile.go:284-299`) |
-| Schlüssel TMDB, TVDB (+PIN), Fanart (+Client), YouTube | `updateAdminSettings.keys` | verschlüsselte Settings | **Umgebung gewinnt** (`env_wins`, `admin/settings.go:509-526`) | Prüfen: `checkProviderKey` |
-| E-Mail (SMTP) | `updateAdminSettings.email` | `smtp_*` | Umgebung gewinnt | Testmail: `sendTestEmail` |
+| Radio-Angebot | `applyRadioOffer` mit `version` und `steps` | `radio_offer_countries` | DB | `chooseCountry` setzt das Land in den Modus «Alle» (`openapi.yaml:19866`). Der Katalog ist bei einer neuen Installation die ersten 10 Minuten leer (`radio/jobs.go:26`). |
+| Schlüssel TMDB, TVDB (+PIN), Fanart (+Client), YouTube | `updateAdminSettings.keys` | verschlüsselte Settings | **Umgebung gewinnt** (`env_wins`, `admin/settings.go:509-526`) | Prüfen mit `checkProviderKey`, nur den gespeicherten Wert |
+| E-Mail (SMTP) | `updateAdminSettings.email` | `smtp_*` | Umgebung gewinnt | Testmail mit `sendTestEmail` |
 | Öffentliche Adresse | `updateAdminSettings.publicUrl` | `public_url` | Umgebung gewinnt (`SLOUCHCAT_PUBLIC_URL`) | |
 | Update-Prüfung | `updateAdminSettings.updateCheckEnabled` | `update_check_enabled` | DB | Vorgabe ein |
-| Grafikchip | **keiner** | – | nur `SLOUCHCAT_HW` (auto/nvenc/qsv/vaapi/software), beim Start gelesen (`cmd/slouchcat/main.go:690`) | auto probiert NVENC, QSV, VA-API (`transcode/backend.go:71-160`) |
+| Grafikchip | **keiner** | – | nur `SLOUCHCAT_HW` (auto/nvenc/qsv/vaapi/software, Vorgabe auto, `config/config.go:208`) | Wird beim Start gelesen (`cmd/slouchcat/main.go:690`). auto probiert NVENC, QSV, VA-API (`transcode/backend.go:71-160`). Ein fest gewähltes Backend, das nicht geht, ist ein Startfehler. |
 | Trickplay | `createLibrary`/`updateLibrary` | `libraries.trickplay_*` | DB | **nur je Bibliothek**, Vorgabe aus |
-| Weitere Profile | `createProfile` | `profiles` | DB | höchstens 10; braucht das aktive Hauptprofil (`auth/profiles.go:101-103`) |
-| Bibliotheken | `createLibrary` | `libraries`, `library_roots` | DB | Arten video, audiobooks, podcasts |
+| Weitere Profile | `createProfile` | `profiles` | DB | höchstens 10; braucht das aktive Hauptprofil (`auth/profiles.go:101-103`); PIN über `ProfileRequest.pin` (4–8 Ziffern) |
+| Bibliotheken | `createLibrary` | `libraries`, `library_roots` | DB | Arten video, audiobooks, podcasts; reiht den ersten Scan ein |
+
+- `MetadataSettingsUpdate` ersetzt **alle** Metadaten-Settings auf einmal (`openapi.yaml:13366`).
+  Wer nur Sprachen ändern will, muss lesen, ändern und das Ganze zurückschreiben.
+- Den Systemzustand liefert `getSystemInfo` (`GET /admin/system`, `openapi.yaml:6926`). Vor dem
+  Konto steht er öffentlich in `SetupStatus.system` (`:10793`).
+- Der Vertrag kennt neben `admin` die Sichtbarkeit **`owner`** (`api/session.go:122`): nur der
+  Eigentümer mit Hauptprofil. `CLAUDE.md` Regel 7 nennt sie noch nicht.
 
 Die Verwaltung hat für alles fertige Bauteile:
-- `features/admin/integrations/`: `ProviderCard`, `EmailForm` mit Testmail, `ServerBlock`, `SourceChip`
+- `features/admin/integrations/`: `ProviderCard`, `EmailForm` mit Testmail, `ServerBlock`,
+  `SourceChip`
 - `features/shared/`: `LibraryFields`, `PathBrowserButton`, `SystemState`
 - `features/admin/libraries/TrickplayFields`
 - `features/profiles/ProfileForm` mit `AccentPicker` und `PinField`
 
-Die Links zum Beantragen der Schlüssel stehen heute schon im Code (F-6):
+Die Links zum Beantragen der Schlüssel stehen schon im Code:
 
 | Dienst | Link |
 |---|---|
@@ -121,52 +149,69 @@ Die Links zum Beantragen der Schlüssel stehen heute schon im Code (F-6):
 - `supportedLanguages = ['de', 'en']`, Vorgabe `de` (`i18n/index.ts:4-6`).
 - Die Erkennung vergleicht nur die Grundsprache. `fr-CH` wird `fr`, ist unbekannt und landet bei
   Deutsch (`:13-19`).
-- Jede Sprache wird erst bei Bedarf geladen (`:23-33`). Rückfall ist `en`.
+- Geladen wird **nur das angefragte Bündel** (`:23-33`). `fallbackLng: 'en'` wirkt nur, wenn
+  Englisch schon geladen ist. Sonst zeigt i18next für einen fehlenden Text den **Schlüssel**.
 - `de.json` und `en.json` haben je **4318 Texte** in 36 Bereichen.
 - Plural im Stil von i18next v4: 187× `_one`, 188× `_other`, 4× `_zero`, kein `_few`/`_many`.
-  Platzhalter wie `{{count}}` stehen 309×.
+  `admin.home.browse.hanging` hat nur `_other`.
 - `locales/locales.test.ts` prüft nur zwei Dinge: gleiche Schlüssel in de und en, und kein `ß`
   in `de.json`.
+- `app/session.ts:48` ruft `setLanguage` mit der Profilsprache ohne Prüfung auf. Ein
+  unbekannter Code wirft dort einen Fehler.
 
-**Datenbank und Vertrag**
+**Datenbank, Vertrag und Prüfstellen**
 - `profiles.language TEXT NOT NULL DEFAULT 'de' CHECK (language IN ('de','en'))`
-  (`migrations/00002_accounts_sessions.sql:32`). Seither wurde die Tabelle nie neu gebaut.
-- Go prüft `de`/`en` an fünf Stellen (`auth/auth.go:188`, `auth/invitations.go:261`,
-  `auth/profiles.go:296`, `model/model.go:192,354`).
+  (`migrations/00002_accounts_sessions.sql:32`).
+  - Spätere Migrationen haben rund zehn Spalten mit eigenem `CHECK` angefügt (`00007`, `00011`,
+    `00013`, `00028`, `00032`).
+  - Die Sicht `visible_items` liest `FROM profiles` (zuletzt `00056_library_deleting.sql`).
+  - Der Trigger `activity_events_profile_deleted` hängt an der Tabelle (`00031`).
+  - Indizes: `profiles_account` und `profiles_primary`.
 - Im Vertrag ist `Language` `enum: [de, en]` (`openapi.yaml:11420`). Er wird an sechs Stellen
   verwendet: Setup, Profil, Profil anlegen/ändern, Einladung annehmen, Offline-Profil.
-- Konten haben keine Sprache. Meldungen ans Konto nehmen die Sprache des Hauptprofils
-  (`queries/system/notify_channels.sql:35-47`).
+- **Diese Stellen kennen nur `de`/`en`:**
+
+| Stelle | Was dort passiert |
+|---|---|
+| `admin/admin.go:343` | `RunSetup` lehnt andere Sprachen ab |
+| `auth/auth.go:191`, `auth/invitations.go:265`, `auth/profiles.go:297` | Prüfung, leer wird `de` |
+| `visibility/visibility.go:53` | Jede andere Sprache wird für die Metadaten **zu `de`** |
+| `notify/texts.go:88-91` | Rückfall auf `de` |
+| `queries/system/notify_channels.sql:36,47` | `COALESCE(…, 'de')` |
+| `auth/playback_prefs.go:57-62` | `initialPrefs` kopiert den Code in Ton- und Untertitelsprachen. `trackpick.Valid` nimmt nur Zweibuchstaben-Codes (`trackpick/languages.go:237-247`). |
+| `web/src/features/admin/item/TrailersTab.tsx:36` | Verzweigung `de`/`en` |
+| `web/src/features/catalog/labels.ts:70` | Verzweigung `de`/`en` |
+| `model/model.go:192,354` | nur Kommentare |
+
+- Konten haben keine Sprache. Meldungen ans Konto nehmen die Sprache des Hauptprofils.
+- Sammlungen haben nur `name` und `name_de` (`visibility/discover.go:231`).
 
 **Server-Texte**
 - Eine Go-Map mit 34 Texten je Sprache in `notify/texts.go:12-92`. Rückfall ist `de`.
 - Die HTML-Mail hat kein `lang`-Attribut (`:124-137`).
 - Ankündigungen schreibt der Admin selbst; sie werden nicht übersetzt.
-- API-Fehler tragen einen festen `code`. Die Web-App übersetzt ihn selbst (`de.json`, Bereich
-  `errors`).
+- API-Fehler tragen einen festen `code`. Die Web-App übersetzt ihn selbst.
 
-**Formate**
-- Alle `Intl`-Aufrufe nehmen die aktuelle Sprache, keiner hat eine feste Locale: 56× NumberFormat,
-  12× DateTimeFormat, 9× DisplayNames, je 2× ListFormat und Collator, 1× RelativeTimeFormat.
-- Nur die Testkonfigurationen setzen `de-CH` fest (`web/playwright.config.ts:136`,
+**Formate und Schrift**
+- Alle `Intl`-Aufrufe nehmen `i18n.language`, also `de`. Das ergibt **deutsche** Zahlen
+  (`1.234.567,5`), nicht schweizerische (`1’234’567.5`).
+- Nur die Testkonfigurationen setzen `de-CH` (`web/playwright.config.ts:136`,
   `web/storybook.config.ts:33`).
-
-**Schrift**
-- Nur der Systemschriftstapel (`packages/design-tokens/tokens/typography.json:5-17`). Keine
-  Webfonts, keine `:lang()`-Regeln.
-- Chinesisch, Japanisch und Koreanisch hängen also an den Schriften des Geräts.
+- Schrift: nur der Systemschriftstapel (`packages/design-tokens/tokens/typography.json:5-17`),
+  keine Webfonts, keine `:lang()`-Regeln. In der CI rendert Storybook mit DejaVu.
 
 **Tests**
 - e2e: 88 von 91 Specs wählen Elemente über deutsche Texte, mit rund 3385 Selektoren.
 - Storybook: 502 Vergleichsbilder.
-- Playwright läuft in `de-CH`, Storybook und die Unit-Tests auf `de`.
+- Der e2e-Aufbau legt den Eigentümer mit einem echten `POST /setup` samt Bibliothek an
+  (`web/e2e/global-setup.ts:302-318`). `web/e2e/setup.spec.ts` prüft die heutige Seite.
 
 **Frühere Entscheide**
-- Spec C-3 (`01-anforderungen-v1.md:139`): Oberfläche Deutsch und Englisch, je Profil
-  umschaltbar.
-- ADR 0018 hat «neue Oberflächensprachen» 2026 ausdrücklich abgelehnt
-  (`docs/adr/0018-…md:60-61`, Konzept 10 F-1 «Nur Metadaten»). Grund war der Aufwand von damals
-  rund 2300 Texten je Sprache.
+- Spec C-3 (`01-anforderungen-v1.md:139`): Oberfläche Deutsch und Englisch.
+- ADR 0018 hat 2026 zwei Dinge festgelegt:
+  - F-1: keine neuen Oberflächensprachen (`docs/adr/0018-…md:60-61`). Grund war der Aufwand von
+    rund 2300 Texten je Sprache.
+  - F-9: die Serverliste der Metadaten-Sprachen muss `de` enthalten (`:85`).
 - `CLAUDE.md` Regel 9 nennt `web/src/locales/{de,en}.json`.
 
 ---
@@ -184,69 +229,72 @@ Weg, über den Fremde Slouchcat externe Dienste abfragen lassen könnten.
 
 1. **Öffentlich, solange es kein Konto gibt:** nur Schritt 1 (Sprache) und Schritt 2 (Konto). Am
    Ende von Schritt 2 legt `POST /setup` Konto und erstes Profil an und meldet an, wie heute.
-2. **Danach mit der Admin-Sitzung:** Die Schritte 3 bis 9 nutzen die **vorhandenen**
-   Admin-Endpunkte aus Abschnitt 2.2. Jeder Schritt speichert beim «Weiter». Prüfen heisst
-   speichern und dann prüfen: `updateAdminSettings`, danach `checkProviderKey`. Für die Mail
-   heisst es speichern und dann `sendTestEmail`.
+2. **Danach als Eigentümer:** Die Schritte 3 bis 9 nutzen die **vorhandenen** Endpunkte aus
+   Abschnitt 2.2. Jeder Schritt speichert beim «Weiter». Prüfen heisst speichern und dann prüfen:
+   `updateAdminSettings`, danach `checkProviderKey`. Für die Mail heisst es speichern und dann
+   `sendTestEmail`.
 
 Was das bringt:
-- **Kein neuer öffentlicher Endpunkt.** Ab Schritt 3 gilt dieselbe Rechteprüfung wie in der
-  Verwaltung.
+- **Nur ein neuer öffentlicher Wert:** die Zeitzone in `SetupStatus.system` (3.5).
+- **Gleiche Rechteprüfung wie in der Verwaltung.** Ab Schritt 3 gilt sie für alles.
 - **Volle Ordnerauswahl.** Ab Schritt 3 darf der Assistent den ganzen Ordner-Browser
   (`PathBrowserButton`) zeigen. Vor dem Konto gibt es nur die Wurzeln, aus Sicherheitsgründen
   (`SetupPage.tsx:28-34`).
-- **Abbruch ist harmlos.** Was gespeichert ist, bleibt. Der Assistent setzt beim nächsten Anmelden
-  dort fort (Abschnitt 3.4).
+- **Abbruch ist harmlos.** Was gespeichert ist, bleibt, auch die Trickplay-Vorgabe (3.4). Der
+  Assistent setzt beim nächsten Anmelden dort fort.
 - **Gleiche Bauteile wie die Verwaltung.** Regel 9 verlangt, dass Admin und Zuschauer dieselben
-  Komponenten nutzen. `ProviderCard`, `EmailForm`, `LibraryFields`, `TrickplayFields` und
-  `ProfileForm` werden eingebettet, nicht nachgebaut.
-- **Umgebungsvariablen werden respektiert.** Ein Schlüssel aus `deploy/.env` erscheint mit dem
-  Hinweis «aus .env» (`SourceChip`) und ist nicht änderbar, wie in der Verwaltung.
+  Komponenten nutzen. `ProviderCard`, `EmailForm`, `LibraryFields`, `TrickplayFields`,
+  `ProfileForm` und `PinField` werden eingebettet, nicht nachgebaut.
+- **Umgebungsvariablen werden respektiert.** Ein Wert aus `deploy/.env` erscheint mit dem Hinweis
+  «aus .env» (`SourceChip`) und ist nicht änderbar, wie in der Verwaltung.
+
+**Wer zuerst kommt, richtet ein.** Das gilt heute schon. Ruft jemand anderes `/setup` zwischen
+Schritt 1 und 2 auf und legt das Konto zuerst an, bekommt Schritt 2 `setup_done`. Der Assistent
+zeigt dann «Slouchcat ist schon eingerichtet» mit dem Weg zur Anmeldung (`ErrSetupDone`). Ein
+Einrichtungs-Token gegen dieses Risiko ist O-17.
 
 ### 3.2 Reihenfolge der Schritte
 
 Die Reihenfolge weicht vom ersten Mockup ab. Das Mockup ist seit Version 3 nachgeführt.
-**Dienste und Wiedergabe kommen vor die Bibliotheken**, damit der erste Scan gleich mit
-Schlüssel, Metadaten-Sprachen und Trickplay-Vorgabe läuft. Sonst würde Slouchcat die Titel
-zuerst ohne TMDB anlegen und später neu abgleichen.
+**Dienste und Wiedergabe kommen vor die Bibliotheken.** `createLibrary` reiht den ersten Scan
+sofort ein, also sollen Schlüssel, Metadaten-Sprachen und Trickplay-Vorgabe dann schon stehen.
 
 | # | Schritt | Pflicht | Phase | Speichert über | Überspringen heisst |
 |---|---|---|---|---|---|
-| 1 | Sprache | ja | öffentlich | nur Browser, dann mit Schritt 2 | – |
+| 1 | Sprache | ja | öffentlich, danach Eigentümer | im Browser; nach Schritt 2 `updateProfile` | – |
 | 2 | Konto | ja | öffentlich | `runSetup` (erweitert, 3.5) | – |
-| 3 | Region | nein | Admin | `updateMetadataSettings`, `applyRadioOffer` | Empfehlung aus der Sprache (Tabelle 4.1) |
-| 4 | Dienste | nein (TMDB empfohlen) | Admin | `updateAdminSettings.keys/.email`, `checkProviderKey`, `sendTestEmail` | keine Schlüssel; Slouchcat zeigt nur Dateinamen |
-| 5 | Wiedergabe | nein | Admin | nur die Trickplay-Vorgabe im Browser | Trickplay aus |
-| 6 | Bibliotheken | ja, mindestens eine | Admin | `createLibrary` | – |
-| 7 | Haushalt | nein | Admin | `createProfile` | nur das eigene Profil |
-| 8 | Zugriff | nein | Admin | `updateAdminSettings.publicUrl/.updateCheckEnabled` | keine Adresse, Update-Prüfung ein |
-| 9 | Zusammenfassung | – | Admin | `finishSetup` (neu, 3.5) | – |
+| 3 | Region | nein | Eigentümer | `updateMetadataSettings` (ganzes Objekt), `applyRadioOffer` | Empfehlung aus der Sprache (Tabelle 4.1) |
+| 4 | Dienste | nein (TMDB empfohlen) | Eigentümer | `updateAdminSettings.keys/.email`, `checkProviderKey`, `sendTestEmail` | keine Schlüssel; Slouchcat zeigt nur Dateinamen |
+| 5 | Wiedergabe | nein | Eigentümer | `updateAdminSettings.transcodeHw` (neu), Trickplay-Vorgabe in `setup_wizard` | automatische Wahl, Trickplay aus |
+| 6 | Bibliotheken | ja, mindestens eine | Eigentümer | `createLibrary` | – |
+| 7 | Haushalt | nein | Eigentümer | `createProfile` | nur das eigene Profil |
+| 8 | Zugriff | nein | Eigentümer | `updateAdminSettings.publicUrl/.updateCheckEnabled` | keine Adresse, Update-Prüfung ein |
+| 9 | Zusammenfassung | – | Eigentümer | `finishSetup` (neu, 3.5) | – |
 
-In der Leiste links ist jeder Schritt anklickbar, sobald Schritt 2 erledigt ist. Vorher sind
-nur 1 und 2 erreichbar. Jeder Schritt hat einen Zustand: offen, erledigt (Haken) oder
-übersprungen (gestrichelter Kreis). Die Zusammenfassung zeigt «Eingerichtet» oder «Empfehlung».
+- In der Leiste links ist jeder Schritt anklickbar, sobald Schritt 2 erledigt ist. Vorher sind nur
+  1 und 2 erreichbar.
+- Jeder Schritt hat einen Zustand: offen, erledigt (Haken) oder übersprungen (gestrichelter
+  Kreis). Die Zusammenfassung zeigt «Eingerichtet» oder «Empfehlung».
 
 ### 3.3 Die Schritte im Einzelnen
 
 **Schritt 1: Sprache.**
-- Ein Raster mit allen 23 Sprachen, jede in **ihrer eigenen Sprache** («Français», «日本語»),
-  darunter der englische Name und der Code.
+- Ein Raster mit allen wählbaren Sprachen (4.4), jede in **ihrer eigenen Sprache** («Français»,
+  «日本語»), darunter der englische Name und der Code.
 - Ein Suchfeld findet beides, also «Japanese» wie «日本語».
 - Vorgewählt ist die erkannte Sprache (4.2). Ein Klick schaltet die ganze Oberfläche sofort um.
-- Darunter eine Vorschau mit echtem Datum und echter Zahl in der gewählten Sprache (`Intl`). Bei
-  de-CH steht zum Beispiel `1’234’567.5`.
+- Darunter eine Vorschau mit echtem Datum und echter Zahl in der gewählten Sprache. Bei Deutsch
+  (Schweiz) steht `1’234’567.5` (4.4, `intlLocale`).
 - Oben rechts steht auf `/setup` und `/login` ein Sprachknopf. Damit lässt sich die Sprache vor
   der Anmeldung wechseln, nicht nur im Assistenten.
 
 **Schritt 2: Konto.**
 - Felder: E-Mail, Passwort zweimal (mindestens 10 Zeichen wie heute), **Name und Farbe des
   ersten Profils**.
-- Heute heisst das Profil wie der Teil der E-Mail vor dem @ und hat keine Farbe. Neu wählt man
-  beides. Die Farbe kommt aus `AccentPicker` mit den 8 Akzent-Tokens.
+- Heute heisst das Profil wie der Teil der E-Mail vor dem @. Neu wählt man beides. Die Farbe kommt
+  aus `AccentPicker` mit den 8 Akzent-Tokens.
 - Die Profilsprache ist die aus Schritt 1.
 - «Weiter» ruft `runSetup` auf. Ab hier ist man angemeldet.
-- Wer danach zu Schritt 1 zurückgeht und die Sprache ändert, ändert sie am Profil
-  (`updateProfile`).
 
 **Schritt 3: Region.**
 - **Land:** Vorschlag aus der Sprache, sonst aus der Zeitzone des Browsers. Es dient als
@@ -254,60 +302,93 @@ nur 1 und 2 erreichbar. Jeder Schritt hat einen Zustand: offen, erledigt (Haken)
 - **Altersfreigaben nach:** nur die fünf Länder, die Slouchcat kennt (DE, AT, CH, GB, US).
   Weitere Länder sind ein eigenes Konzept (O-5).
 - **Sprachen der Metadaten:** geordnete Liste aus `knownLanguages` (ADR 0018), Vorschlag nach
-  Tabelle 4.1. Die Bildsprachen folgen der Textliste nach derselben Regel wie die heutige Vorgabe.
-  Schritt 0 prüft, ob `updateMetadataSettings` dafür eigene Werte braucht.
-- **Zeitzone des Servers:** nur Anzeige. Sie kommt aus `TZ`, und dafür gibt es weder Setting noch
-  Endpunkt. Der Assistent vergleicht sie mit der Zeitzone des Browsers
-  (`Intl.DateTimeFormat().resolvedOptions().timeZone`). Weichen beide ab, zeigt er die Zeile für
-  `deploy/.env` und den Hinweis auf einen Neustart.
-  - Dafür bekommt `SystemInfo` ein neues Feld `timeZone`, die von `admin.ResolveZone` aufgelöste
-    Zone. Die Änderung ist additiv.
-- **Radio-Angebot:** Schalter «Radio-Angebot aus <Land> vorbereiten», Vorgabe ein. Er ruft
-  `applyRadioOffer` mit diesem Land auf. Die Sender wählt man später selbst aus (Konzept 19
-  Teil B).
+  Tabelle 4.1.
+  - **Keine Sprache ist Pflicht (F-7).** Ein französischer Haushalt bekommt `fr → en`.
+  - Die Bildsprachen folgen der Textliste.
+  - Der Assistent liest die Metadaten-Settings, ändert Freigabeland und Sprachen und schreibt das
+    ganze Objekt zurück. Das verlangt `MetadataSettingsUpdate`.
+- **Zeitzone des Servers:** nur Anzeige. Sie kommt aus `TZ`; dafür gibt es weder Setting noch
+  Endpunkt.
+  - Der Assistent vergleicht sie mit der Zeitzone des Browsers
+    (`Intl.DateTimeFormat().resolvedOptions().timeZone`).
+  - Weichen beide ab, zeigt er die Zeile für `deploy/.env` und den Hinweis auf einen Neustart.
+  - Dafür bekommt `SystemInfo` das neue Feld `timeZone`.
+- **Radio-Angebot (F-8):** Schalter «<Land> ins Radio-Angebot aufnehmen», Vorgabe ein.
+  - Er ruft `applyRadioOffer` mit der aktuellen `version` und den Schritten
+    `[chooseCountry, demarkAll]` auf. Das Land steht damit im Modus «Nur markierte», ohne Sender
+    und ohne Logo-Downloads.
+  - Die Sender markiert man später unter Verwaltung › Radio.
+  - Ist der Katalog noch leer (erste 10 Minuten), merkt sich der Assistent den Wunsch in
+    `setup_wizard` und führt ihn bei `finishSetup` aus. Ist der Katalog dann immer noch leer,
+    erscheint in der Verwaltung ein Hinweis.
 
 **Schritt 4: Dienste.**
-- Eine Karte je Dienst: TMDB (Rahmen in Akzentfarbe, «Empfohlen»), TheTVDB mit PIN, Fanart.tv
-  mit optionalem Client-Schlüssel, YouTube für Trailer, mit dem Hinweis «Tageslimit 100 Suchen».
+- Eine Karte je Dienst:
+  - TMDB, mit Rahmen in Akzentfarbe und «Empfohlen»
+  - TheTVDB mit PIN
+  - Fanart.tv mit optionalem Client-Schlüssel
+  - YouTube für Trailer, mit dem Hinweis «Tageslimit 100 Suchen»
 - **Jede Karte trägt den Link zum Beantragen (F-6).** Der Link ist sichtbar, bevor man die Karte
   aufklappt.
-- «Prüfen» speichert den Schlüssel und ruft dann `checkProviderKey` auf. Lehnt der Dienst ab,
-  steht die Meldung neben dem Feld, und der Schlüssel lässt sich mit «Entfernen» wieder löschen.
+- «Prüfen» speichert den Schlüssel und ruft dann `checkProviderKey` auf.
+- **Lehnt der Dienst ab:** Die Meldung steht neben dem Feld. «Weiter» fragt dann «Ungültigen
+  Schlüssel entfernen und weiter?». So bleibt kein falscher Schlüssel gespeichert, ohne dass man
+  es merkt.
 - **E-Mail** als aufklappbarer Block aus `EmailForm`: Server, Port, Verschlüsselung, Benutzer,
   Passwort, Absender und «Testmail an mich senden».
 - Web-Push, Telegram, Trakt und Google Books gehören nicht in den Assistenten (O-11).
 - Jede Karte zeigt «aus .env», wenn die Umgebung den Wert setzt.
 
-**Schritt 5: Wiedergabe.**
-- Anzeige aus `SystemState` (`SetupStatus.system` bzw. `getSystem`): Grafikchip, Backend,
-  Hardware-Kodierung, HDR→SDR, inotify-Limit mit Warnung über 80 %.
-- **Keine Wahl des Backends.** `SLOUCHCAT_HW` wird nur beim Start gelesen, und auto wählt schon
-  das Beste. Der Text erklärt das und nennt `SLOUCHCAT_HW` in `deploy/.env` als Weg für eine
-  andere Wahl.
-- Fehlt der Grafikchip, zeigt `SystemState` heute schon den Befehl mit dem passenden
-  Compose-Override.
+**Schritt 5: Wiedergabe (F-10).**
+- Anzeige aus `SystemState`: Grafikchip, Backend, Hardware-Kodierung, HDR→SDR, inotify-Limit mit
+  Warnung über 80 %.
+- **Wahl des Backends** als Liste von Knöpfen:
+  - «Automatisch (empfohlen)»
+  - jedes Backend, dessen Probe beim Start **gelungen** ist (`SystemInfo.gpu.candidates`, neu,
+    3.5)
+  - «Nur Prozessor»
+  - Backends, deren Probe scheiterte, stehen ausgegraut daneben, mit dem Grund («Gerät
+    /dev/dri fehlt» …). So kann man nichts wählen, was den Start bricht.
+- **Gespeichert** wird die Wahl als neues Setting `transcode_hw` (`updateAdminSettings.transcodeHw`).
+- **Vorrang beim Start:**
+  1. `SLOUCHCAT_HW`, wenn die Umgebung es **ausdrücklich** setzt, dann «aus .env» im Assistenten
+     (`os.LookupEnv`, heute nicht unterscheidbar, weil die Vorgabe `auto` ist)
+  2. das Setting
+  3. `auto`
+- **Sicherung gegen eine Neustart-Schleife:** Scheitert ein über das Setting gewähltes Backend beim
+  Start, nimmt der Server `auto`, schreibt eine Warnung ins Log und zeigt einen Hinweis auf dem
+  Verwaltungs-Dashboard.
+  - Bei einem Wert aus `.env` bleibt es beim heutigen Startfehler. Wer `.env` setzt, will es
+    genau so.
+- **Neustart:** Weicht die Wahl vom laufenden Backend ab, sagt der Schritt «Gilt nach einem
+  Neustart. Slouchcat startet beim Abschliessen einmal neu.»
+  - `finishSetup` antwortet zuerst. Dann beendet sich der Server geordnet, und Docker startet ihn
+    neu (`restart: unless-stopped`, `deploy/compose.yaml:28`).
+  - Die Abschlussseite wartet auf `/api/v1/healthz` und macht dann weiter.
+  - Ohne Restart-Policy kommt nach 60 Sekunden der Hinweis «Container von Hand starten» (O-18).
+- **Die gleiche Wahl** kommt in die Verwaltung (Systemseite), damit das Setting nicht nur im
+  Assistenten änderbar ist.
 - **Trickplay-Vorgabe:** ein Schalter, Vorgabe aus. Er belegt im nächsten Schritt die
-  Trickplay-Felder jeder neuen Video-Bibliothek vor. Ein eigenes Setting gibt es dafür nicht,
-  weil Trickplay je Bibliothek gilt.
+  Trickplay-Felder jeder neuen Video-Bibliothek vor. Gespeichert wird er in `setup_wizard`, damit
+  er einen Abbruch übersteht.
 
 **Schritt 6: Bibliotheken.**
 - Je Bibliothek eine Karte aus `LibraryFields`: Name, Art, Ordner mit `PathBrowserButton` und
   «Ordner prüfen», Freigabe, bei Video `TrickplayFields`.
 - «+ Weitere Bibliothek» fügt eine Karte an.
-- Die Wurzeln aus `SLOUCHCAT_BROWSE_ROOTS` stehen als Knöpfe unter dem Feld wie heute. Die
-  Warnung für Netzlaufwerke (Plan 3.4) bleibt.
-- «Weiter» legt jede neue Karte mit `createLibrary` an. Schritt 0 prüft, ob `createLibrary` den
-  Scan sofort startet. Wenn ja, verschiebt der Assistent den Scan nicht künstlich.
-- Mindestens eine Bibliothek ist Pflicht, wie heute.
+- Die Wurzeln aus `SLOUCHCAT_BROWSE_ROOTS` stehen als Knöpfe unter dem Feld wie heute. Die Warnung
+  für Netzlaufwerke (Plan 3.4) bleibt.
+- «Weiter» legt jede neue Karte mit `createLibrary` an. Das reiht den Scan sofort ein, wie heute.
+- Mindestens eine Bibliothek ist Pflicht. «Weiter» und `finishSetup` lehnen null Bibliotheken ab.
 
 **Schritt 7: Haushalt.**
 - Liste der Profile, oben das eigene.
-- «Profil hinzufügen» mit Name, Altersstufe (0, 6, 12, 16, 18), Farbe und dem Schalter «Wechsel
-  mit PIN schützen». Ist er an, legt das Profil die PIN beim ersten Öffnen selbst fest
-  (`PinSetDialog`).
-- Die Sprache neuer Profile ist die des Administrators. Höchstens 10 Profile.
-- Ein Hinweis nennt «Verwaltung › Konten» für Gäste mit eigenem Konto. Einladungen gehören nicht
-  in den Assistenten.
+- «Profil hinzufügen» mit Name, Altersstufe (0, 6, 12, 16, 18), Farbe und einem **optionalen
+  PIN-Feld** (`PinField`, 4–8 Ziffern, F-9). Die PIN geht mit `ProfileRequest.pin` zusammen mit dem
+  Profil an den Server.
+- Die Sprache neuer Profile ist die des Eigentümers. Höchstens 10 Profile.
+- Ein Hinweis nennt «Verwaltung › Konten» für Gäste mit eigenem Konto. Einladungen gehören nicht in
+  den Assistenten.
 
 **Schritt 8: Zugriff.**
 - Öffentliche Adresse, mit «aus .env», falls gesetzt. Darunter die Adresse, unter der man gerade
@@ -319,73 +400,101 @@ nur 1 und 2 erreichbar. Jeder Schritt hat einen Zustand: offen, erledigt (Haken)
 
 **Schritt 9: Zusammenfassung.**
 - Je Schritt die gewählten Werte und «Ändern».
-- «Einrichtung abschliessen» ruft `finishSetup` auf. Der Assistent zeigt danach eine
-  Abschlussseite mit dem Scan-Fortschritt je Bibliothek aus der Jobliste und den Knopf «Zur
-  Startseite» (O-13).
+- «Einrichtung abschliessen» ruft `finishSetup` auf. Danach kommt eine Abschlussseite mit dem
+  Scan-Fortschritt je Bibliothek aus der Jobliste und dem Knopf «Zur Startseite» (O-13).
+- Ist ein Neustart fällig (Schritt 5), zeigt die Abschlussseite zuerst «Slouchcat startet neu …».
 
 ### 3.4 Fortschritt, Abbruch und bestehende Installationen
 
-- Der Fortschritt liegt auf dem Server, im neuen Setting `setup_wizard`:
+- **Der Fortschritt liegt auf dem Server** im neuen Setting `setup_wizard` (JSON):
   - je Schritt `open`, `done` oder `skipped`
-  - dazu `finishedAt`
+  - die Trickplay-Vorgabe
+  - einen offenen Radio-Wunsch
+  - `finishedAt`
+- **Grundregel: Fehlt `setup_wizard`, gilt die Einrichtung als abgeschlossen.**
+  - `runSetup` **ohne** `library` (neuer Assistent) schreibt ein offenes `setup_wizard`.
+  - `runSetup` **mit** `library` (alte Aufrufer, `e2e/global-setup.ts`) schreibt keins.
+  - Dadurch braucht es **keine Datenmigration**. CT 190 und jede bestehende Installation sehen den
+    Assistenten nie, und der e2e-Aufbau wird nicht in den Assistenten umgeleitet.
 - **Abbruch nach Schritt 2:**
-  - Meldet sich der Administrator an und ist `finishedAt` leer, leitet die Web-App **einmal** auf
-    den ersten offenen Schritt weiter.
+  - `SessionInfo` bekommt `setupPending` (nur für den Eigentümer gesetzt, 3.5).
+  - Ist es wahr, leitet die Web-App **einmal je Sitzung** auf den ersten offenen Schritt weiter. Ob
+    sie das schon getan hat, merkt sie sich in `sessionStorage`.
+  - Offline leitet sie nicht weiter.
   - Danach zeigt `/admin` ein Band «Einrichtung fortsetzen», bis sie abgeschlossen ist.
-  - In der Leiste steht «Später fortsetzen». Der Knopf führt zur Startseite, ohne abzuschliessen
-    (O-3).
-- **Bestehende Installationen:** Die Migration der Stufe 2 schreibt `setup_wizard` mit
-  `finishedAt = jetzt`, wenn schon ein Konto existiert. CT 190 und jede andere Installation sehen
-  den Assistenten also **nie**.
-- **Andere Konten:** Der Assistent gehört dem Administrator. Ein Gast oder ein eingeladenes Konto
-  sieht ihn nie.
+  - «Später fortsetzen» in der Leiste führt jederzeit zur Startseite, ohne abzuschliessen. Ohne
+    Bibliothek steht die Startseite leer, und das Band erklärt, warum (O-3).
+- **Andere Konten:** Der Assistent gehört dem Eigentümer. Ein Gast, ein eingeladenes Konto oder ein
+  weiterer Administrator sieht ihn nie.
 
 ### 3.5 Vertrag und Server
 
-Alle Änderungen sind **additiv**, und eine Vertragsfassung kommt in Stufe 2.
+Alle Änderungen sind **additiv**. Eine Vertragsfassung kommt in Stufe 2.
 
 - **`SetupRequest`:**
   - neu `profileName` (optional, 1–60) und `accent` (optional, Akzent-Token)
-  - `library` wird **optional**. Alte Aufrufer wie `e2e/global-setup.ts:302-318` schicken sie
-    weiter und bekommen das bisherige Verhalten.
+  - `library` wird **optional**. Mit `library` bleibt alles wie heute (3.4).
   - `tmdbApiKey` bleibt optional.
   - `language` folgt dem neuen `Language` aus Teil B.
-- **Neu, `x-visibility: admin`:**
+- **Neu, `x-visibility: owner`** (der Eigentümer mit Hauptprofil):
   - `getSetupProgress` (`GET /admin/setup`)
-  - `updateSetupProgress` (`PUT /admin/setup`, ein Schritt und sein Zustand)
-  - `finishSetup` (`POST /admin/setup/finish`). Er setzt `finishedAt` und reiht für jede
-    Bibliothek ohne abgeschlossenen Scan einen ein.
+  - `updateSetupProgress` (`PUT /admin/setup`): ein Schritt und sein Zustand, dazu die
+    Trickplay-Vorgabe und der Radio-Wunsch
+  - `finishSetup` (`POST /admin/setup/finish`): prüft «mindestens eine Bibliothek»
+    (422 `library_required`), führt einen offenen Radio-Wunsch aus, setzt `finishedAt` und löst bei
+    Bedarf den Neustart aus (Schritt 5)
   - Jede Operation bekommt einen Eintrag im Vertragstest.
-- **`SystemInfo.timeZone`:** neues Feld, nur lesend.
+  - `CLAUDE.md` Regel 7 bekommt `owner` in die Liste.
+- **`SessionInfo.setupPending`:** boolesch, nur beim Eigentümer vorhanden.
+- **`SystemInfo`:**
+  - `timeZone`: die von `admin.ResolveZone` aufgelöste Zone. Sie ist auch vor dem Konto in
+    `SetupStatus.system` lesbar. Das ist vertretbar, weil die Zone nichts Geheimes ist.
+  - `gpu.candidates`: je Backend `{backend, ok, reason}` aus den Proben beim Start.
+- **`AdminSettings` / `AdminSettingsUpdate`:**
+  - `transcodeHw` (`auto`, `nvenc`, `qsv`, `vaapi`, `software`) mit `transcodeHwSource`
+    (`env`/`stored`/`none`)
+  - `env_wins` gilt wie bei den Schlüsseln.
 - **`checkSetupTmdbKey` und `checkSetupPath`:** Der neue Assistent braucht sie nicht mehr. Sie
   bleiben im Vertrag, werden als `deprecated` markiert und fallen erst in einer brechenden
   Fassung weg (O-12).
-- **Migration:** nur Daten, keine Tabelle. Sie fügt `setup_wizard` für bestehende Installationen
-  ein, nach Vorlage.
+- **Keine Migration** für Teil A. `setup_wizard` und `transcode_hw` sind Zeilen in der
+  bestehenden Settings-Tabelle.
 
-### 3.6 Web-App
+### 3.6 Web-App und Tests
 
-- Routen: `/setup` (Schritte 1 und 2, öffentlich) und `/setup/$step` (Schritte 3 bis 9, nur
-  Administrator).
-- Die Weiche in `router.tsx` lernt zusätzlich: angemeldet, Administrator, `finishedAt` leer und
-  noch nicht weitergeleitet, dann auf den ersten offenen Schritt.
+**Routen**
+- `/setup/$step` für alle neun Schritte.
+- Ohne Konto sind nur `language` und `account` erreichbar.
+- Mit Konto ist nur der Eigentümer zugelassen. `/setup/language` ändert dann die Profilsprache.
+- Die heutige Regel «angemeldet auf `/setup` → `/`» (`router.tsx:160`) gilt nur noch, wenn
+  `setupPending` falsch ist.
+
+**Aufbau**
 - Die Leiste ist ein `SideNav`-Muster wie in der Verwaltung. Bei schmaler Breite wird sie zur
   waagrechten Schrittleiste oben, wie im Mockup.
 - Der Fuss hat «Zurück», «Überspringen» (nur bei freiwilligen Schritten) und «Weiter» bzw. im
   letzten Schritt «Einrichtung abschliessen».
-- Jeder Schritt bekommt seinen **Playwright-Tastaturtest** (Regel 8): Tab-Reihenfolge Leiste →
-  Inhalt → Fuss, Enter auf «Weiter», sichtbarer Fokus, keine Fokusfalle.
-- Nach dem Schrittwechsel liegt der Fokus auf der Überschrift.
 - `features/setup/SetupPage.tsx` wird aufgeteilt in `SetupLayout`, je Schritt eine Datei und eine
   gemeinsame Zustandsquelle aus `getSetupProgress`.
 
+**Tests**
+- Jeder Schritt bekommt seinen **Playwright-Tastaturtest** (Regel 8): Tab-Reihenfolge Leiste →
+  Inhalt → Fuss, Enter auf «Weiter», sichtbarer Fokus, keine Fokusfalle. Nach dem
+  Schrittwechsel liegt der Fokus auf der Überschrift.
+- `web/e2e/setup.spec.ts` wird für den neuen Ablauf neu geschrieben.
+- `global-setup.ts` bleibt, wie er ist (3.4).
+- Go-Tests:
+  - `runSetup` mit und ohne `library`
+  - `finishSetup` ohne Bibliothek
+  - Vorrang `SLOUCHCAT_HW` vor Setting vor `auto`
+  - Rückfall auf `auto` bei gescheiterter Probe eines gespeicherten Backends
+
 ### 3.7 Was der Assistent bewusst nicht tut
 
-- Er wählt kein Transcoding-Backend und setzt keine Zeitzone. Beides kommt aus der Umgebung und
-  gilt erst nach einem Neustart.
+- Er setzt keine Zeitzone. Sie kommt aus `TZ` und gilt erst nach einem Neustart; der Assistent
+  zeigt nur die Zeile für `.env`.
 - Er richtet keine Einladungen, kein Web-Push, kein Telegram und kein Trakt ein.
-- Er legt keine Podcasts an und wählt keine Radiosender aus, sondern bereitet nur das Angebot
-  vor.
+- Er legt keine Podcasts an und markiert keine Radiosender.
 - Er ändert nichts an `deploy/.env`. Der Server schreibt diese Datei nicht.
 
 ---
@@ -394,7 +503,7 @@ Alle Änderungen sind **additiv**, und eine Vertragsfassung kommt in Stufe 2.
 
 ### 4.1 Die Sprachen
 
-| Code | Name (eigene Sprache) | Pluralformen (CLDR) | Schrift | Vorschlag Metadaten | Freigabeland |
+| Code | Name (eigene Sprache) | Pluralformen (CLDR) | Schrift | Vorschlag Metadaten (F-7) | Freigabeland |
 |---|---|---|---|---|---|
 | `de` | Deutsch (Schweiz) | one, other | Latein | de → en | CH |
 | `de-DE` | Deutsch (Deutschland) | one, other | Latein | de → en | DE |
@@ -408,7 +517,7 @@ Alle Änderungen sind **additiv**, und eine Vertragsfassung kommt in Stufe 2.
 | `pl` | Polski | one, few, many, other | Latein | pl → en | US |
 | `sv` | Svenska | one, other | Latein | sv → en | US |
 | `da` | Dansk | one, other | Latein | da → en | US |
-| `nb` | Norsk bokmål | one, other | Latein | no → en | US |
+| `nb` | Norsk bokmål | one, other | Latein | nb → en (Schritt 0: `nb` oder `no` bei TMDB) | US |
 | `fi` | Suomi | one, other | Latein | fi → en | US |
 | `cs` | Čeština | one, few, many, other | Latein | cs → en | US |
 | `hu` | Magyar | one, other | Latein | hu → en | US |
@@ -421,93 +530,158 @@ Alle Änderungen sind **additiv**, und eine Vertragsfassung kommt in Stufe 2.
 | `zh-TW` | 繁體中文 | other | CJK traditionell | zh-TW → en | US |
 
 - Die Pluralformen sind die, die `Intl.PluralRules(<code>).resolvedOptions().pluralCategories`
-  liefert. i18next fragt genau diese ab, und Abschnitt 4.9 macht daraus einen Test.
+  liefert. i18next fragt genau diese ab. Fehlt eine, zeigt es den Schlüssel, nicht `_other`.
+  Abschnitt 4.9 macht daraus einen Test.
 - Die vier `_zero`-Texte (`de.json:4131-4151`) gelten als Sonderfall für die Zahl 0 und werden in
   jeder Sprache übersetzt.
-- Bei TMDB heisst Norwegisch Bokmål `no`. Schritt 0 prüft, ob `knownLanguages` `nb` oder `no`
-  führt.
+- `knownLanguages` führt `nb` und `no` (`metadata/languages.go:22`). Welcher Code bei TMDB Texte
+  liefert, prüft Schritt 0 der Stufe 3.
 
-### 4.2 Sprachcodes, Deutsch in zwei Varianten, Erkennung
+### 4.2 Sprachcodes, Deutsch in zwei Varianten, Erkennung, Laden
 
-- **`de` bleibt der Code für Deutsch (Schweiz).** Er ist heute in jeder Datenbank, jedem
-  Offline-Profil und jedem Vertrag gespeichert. Ein Umbenennen in `de-CH` würde den Vertrag
-  brechen und jede Installation migrieren, ohne dass jemand etwas davon hat.
-- **`de-DE` ist eine Überlagerung.** `locales/de-DE.json` enthält **nur** die Texte, die in
-  Deutschland anders lauten. i18next löst `de-DE` von sich aus über `de` auf. Fehlt ein Text in
-  `de-DE.json`, nimmt es den aus `de.json`.
-  - Eine Auszählung am Anker findet rund **185** betroffene Texte: 53 mit ss-Wörtern, die mit ß
-    geschrieben werden («Strasse», «gross», «schliessen» …), und 133 mit «Guillemets», die in
-    Deutschland „so“ stehen.
-  - Ersetzt wird **nicht mechanisch**. «dass», «Klasse» und «Passwort» bleiben. Claude erstellt
-    die Fassung, und ein Test prüft, dass jeder Text in `de-DE.json` sich vom Text in `de.json`
-    unterscheidet.
-- **Erkennung** (`detectLanguage`, neu in dieser Reihenfolge):
-  1. Ganzer Code passt: `pt-BR`, `zh-TW`, `de-DE` …
-  2. Bekannte Zuordnung:
-     - `de-AT`, `de-LU`, `de-BE` → `de-DE`
-     - `de-CH`, `de-LI` → `de`
-     - `pt` → `pt-BR`
-     - `zh-Hant`, `zh-HK`, `zh-MO` → `zh-TW`
-     - `zh-Hans`, `zh`, `zh-SG` → `zh-CN`
-     - `no`, `nn` → `nb`
-  3. Grundsprache passt: `fr-CH` → `fr`, `it-CH` → `it`.
-  4. Sonst `en`. Heute ist der Rückfall `de` (O-2).
-- **Rückfallkette beim Laden:** Sprache → (bei `de-DE` `de`) → `en`. So bleibt ein vergessener
-  Text lesbar. Der Release-Test aus 4.8 verhindert, dass das im Release vorkommt.
+**`de` bleibt der Code für Deutsch (Schweiz).** Er ist heute in jeder Datenbank, jedem
+Offline-Profil und jedem Vertrag gespeichert. Ein Umbenennen in `de-CH` würde den Vertrag brechen
+und jede Installation migrieren, ohne dass jemand etwas davon hat.
 
-### 4.3 Datenbank und Vertrag
+**`de-DE` ist eine Überlagerung.** `locales/de-DE.json` enthält **nur** die Texte, die in
+Deutschland anders lauten. Die Auflösung geht `de-DE` → `de` → `en`; i18next kann das ohne
+`nonExplicitSupportedLngs`.
+- Eine Auszählung am Anker findet rund **185** betroffene Texte: 53 mit ss-Wörtern, die mit ß
+  geschrieben werden («Strasse», «gross», «schliessen» …), und 133 mit «Guillemets», die in
+  Deutschland „so“ stehen.
+- Ersetzt wird **nicht mechanisch**: «dass», «Klasse» und «Passwort» bleiben. Claude erstellt die
+  Fassung, und ein Test prüft, dass jeder Text in `de-DE.json` sich vom Text in `de.json`
+  unterscheidet.
 
-- **Vertrag:** `Language` wird von `enum [de, en]` auf die 23 Codes aus 4.1 erweitert. Für
-  Aufrufer, die eine Sprache **schicken**, ist das additiv. Ein Client, der eine **empfangene**
-  Sprache streng prüft, könnte stolpern; das betrifft nur die eigene Web-App, die mit dem
-  Vertrag zusammen gebaut wird. Neue Minor-Fassung.
-- **Datenbank:** Der `CHECK` auf `profiles.language` muss weg. SQLite kann einen `CHECK` nur durch
-  einen **Neubau der Tabelle** entfernen.
-  - Die Migration folgt der Vorlage: `-- +goose NO TRANSACTION`, `PRAGMA foreign_keys=OFF`, neue
-    Tabelle, Daten kopieren, alte löschen, umbenennen, Indizes und Trigger neu,
-    `PRAGMA foreign_key_check`, `PRAGMA foreign_keys=ON`.
-  - Die Liste der erlaubten Codes lebt danach **an einer Stelle in Go**, in einem neuen
-    `model.UILanguages`. Die fünf Prüfstellen aus 2.3 nutzen sie.
-  - Ein neuer `CHECK` mit 23 Werten würde jede weitere Sprache zu einem Tabellen-Neubau machen.
-    Darum gibt es keinen (O-14).
-  - Der eingefrorene DB-Stand in `testdata/db/` bekommt den Fall «Profil mit `en`» für die
-    Migrationsprüfung.
-- **`profiles.metadata_language`** bleibt, wie es ist (ADR 0018). Neu ist nur, dass NULL («wie
-  Oberfläche») jetzt auch `fr`, `ja` usw. bedeuten kann. Liegt die Sprache nicht in der Liste der
-  Metadaten-Sprachen, greift die bestehende Kette in `visibility/mapping.go:45-58`.
+**Laden der ganzen Kette.** Heute lädt `ensureLanguage` nur das angefragte Bündel (2.3). Neu lädt
+sie **die ganze Kette**: die Sprache, bei `de-DE` zusätzlich `de`, und immer `en`. Sonst sähe
+`de-DE` rund 4130 rohe Schlüssel, und ein fehlender Text in `main` zwischen zwei Releases wäre ein
+Schlüssel statt Englisch.
+- Englisch wird dafür nach dem ersten Bild im Hintergrund geladen, damit der Start nicht langsamer
+  wird.
+
+**Erkennung** (`detectLanguage`, in dieser Reihenfolge):
+1. Ganzer Code passt: `pt-BR`, `zh-TW`, `de-DE` …
+2. Bekannte Zuordnung:
+   - `de-AT`, `de-LU`, `de-BE` → `de-DE`
+   - `de-CH`, `de-LI` → `de`
+   - `pt` → `pt-BR`
+   - `zh-Hant`, `zh-HK`, `zh-MO` → `zh-TW`
+   - `zh-Hans`, `zh`, `zh-SG` → `zh-CN`
+   - `no`, `nn` → `nb`
+3. **Blosses `de`** → `de-DE` (O-6). Schweizer Browser senden fast immer `de-CH`. Ein blosses
+   `de` kommt meist aus Deutschland oder Österreich.
+4. Grundsprache passt: `fr-CH` → `fr`, `it-CH` → `it`.
+5. Sonst `en`. Heute ist der Rückfall `de` (O-2).
+
+Gewählt werden kann nur eine **ausgelieferte** Sprache (4.4). Die Erkennung schlägt nie eine
+andere vor.
+
+### 4.3 Datenbank, Vertrag und die Bindung an Deutsch
+
+**Vertrag: Die Liste wächst mit den Paketen, nicht im Voraus.** `Language` enthält immer genau
+die Sprachen, deren Paket ausgeliefert ist. Grund: Eine zwischengespeicherte alte PWA kennt einen
+neuen Code nicht, und `session.ts:48` wirft dann einen Fehler.
+- **Stufe 1** liefert die Absicherung in `session.ts`: unbekannter Code, also Englisch. Dazu das
+  Gerüst, die Liste bleibt aber `[de, en]`.
+- **Stufe 2** nimmt `de-DE` auf.
+- **Stufe 3** nimmt die 20 übrigen Sprachen auf. Das ist je eine neue Minor-Fassung.
+- So ist ein neuer Code frühestens **ein Release nach** der Absicherung wählbar.
+- Schritt 0 der Stufe 1 prüft, ob die PWA bei einer neuen Serverversion von sich aus neu lädt.
+
+**Prüfung an einer Stelle.**
+- `model.UILanguages` in Go ersetzt alle Prüfstellen aus der Tabelle in 2.3, auch
+  `RunSetup` (`admin.go:343`).
+- Ein Test hält `model.UILanguages` und die Vertragsliste gleich.
+- Die Web-App führt die Liste in `i18n/languages.ts` und prüft sie mit `satisfies` gegen den
+  generierten Typ `Language`. Den Wert zur Laufzeit aus dem Vertrag zu nehmen geht nicht, weil
+  `openapi-typescript` nur Typen erzeugt.
+- Eine Inventur aller festen `'de'`/`"de"` im Code gehört zu Schritt 0 der Stufe 1.
+
+**Datenbank: `CHECK` auf `profiles.language` entfernen.** SQLite kann das nur durch einen
+**Neubau der Tabelle**. Die Migration folgt der Vorlage, ausgeschrieben, weil sie heikel ist:
+1. `-- +goose NO TRANSACTION`, `PRAGMA foreign_keys=OFF`, `BEGIN`.
+2. `DROP VIEW visible_items`, weil sie `FROM profiles` liest. Vorbild ist
+   `00022_account_roles.sql:30,75`.
+3. `CREATE TABLE profiles_new` mit **allen** Spalten in ihrer heutigen Form, auch den später
+   angefügten mit ihren `CHECK` aus `00007`, `00011`, `00013`, `00028` und `00032`. Nur `language`
+   verliert den `CHECK`.
+4. Daten kopieren, `DROP TABLE profiles`, umbenennen.
+5. Indizes `profiles_account` und `profiles_primary` neu, Trigger
+   `activity_events_profile_deleted` neu, `visible_items` neu (Stand nach `00056`).
+6. `PRAGMA foreign_key_check`, `COMMIT`, `PRAGMA foreign_keys=ON`.
+
+Dazu ein **neuer** eingefrorener DB-Stand in `testdata/db/` vor der Migration, mit Profilen,
+Fortschritten, Merkliste und Downloads. Danach prüft der Test `foreign_key_check`, die Sicht und ein
+Profil mit `ja`.
+
+Ein neuer `CHECK` mit 23 Werten würde jede weitere Sprache zu einem Tabellen-Neubau machen. Darum
+gibt es keinen (O-14).
+
+**Bindung der Metadaten an Deutsch lösen (Kritiker B-1, B-2; F-7).**
+- `visibility.Profile` (`visibility.go:52-58`) macht heute aus jeder anderen Oberflächensprache
+  `de`. Neu gilt:
+  - Die **Rückfallsprache** einer Scope ist `de` für `de` und `de-DE`, sonst `en`. Sie ist das
+    zweite Glied der Kette in ADR 0018 und die Sprache für Genres und Sammlungsnamen. Sammlungen
+    haben nur `name`/`name_de` (`discover.go:231`) und bleiben zweisprachig.
+  - Die **Metadaten-Sprache**, wenn `metadata_language` leer ist, kommt aus der neuen Funktion
+    `model.MetadataBase(ui)`:
+    - `de-DE` → `de`
+    - `pt-BR`, `pt-PT`, `zh-CN`, `zh-TW` bleiben
+    - `nb` → `nb` oder `no`, nach Schritt 0
+    - sonst der Code selbst
+  - Liegt diese Sprache nicht in der wirksamen Liste, greift die bestehende Kette: Rückfallsprache,
+    dann Rang. Ein französisches Profil auf einem Server mit `de → en` sieht also Deutsch, wo
+    Englisch fehlt. Wer Französisch will, nimmt es in die Liste auf; der Assistent schlägt das in
+    Schritt 3 vor.
+- **F-9 aus ADR 0018 fällt (F-7).** `settings.go:264-267` verlangt nur noch eine nicht-leere
+  Liste, für Server wie Bibliothek. ADR 0033 hält das fest.
+- Schritt 0 der Stufe 1 prüft, wo der Code sonst noch eine `de`-Zeile voraussetzt (Genres,
+  Sammlungen, Sortierschlüssel).
+- **Ton- und Untertitelsprachen neuer Profile** (Kritiker M-3): `initialPrefs` schickt den Code
+  durch `trackpick.Normalize`. Aus `de-DE` wird `de`, aus `pt-BR` `pt`, aus `zh-TW` `zh`. Sonst
+  speichert jedes neue Profil einen ungültigen Wert, und das nächste Speichern scheitert an
+  `invalid_value`. Ein Test deckt alle 23 Codes ab.
+- `profiles.metadata_language` bleibt, wie es ist (ADR 0018).
 
 ### 4.4 Web-App
 
-- **Laden:**
-  - `loaders` wird aus `import.meta.glob('@/locales/*.json')` gebaut statt von Hand.
-  - `supportedLanguages` kommt aus dem Vertrag (generierter Typ `Language`), damit beide nie
-    auseinanderlaufen.
-  - Jede Sprache bleibt ein eigenes, nur bei Bedarf geladenes Bündel. Der Start lädt wie heute
-    nur eine Sprache.
-- **Sprachwahl:**
-  - `languageOptions` (`features/shared/choices.ts:17`) zeigt die Namen aus der Tabelle 4.1 in
-    der jeweiligen Sprache. Diese Namen stehen als feste Liste im Code, nicht in den
-    Übersetzungen, damit jeder seine Sprache findet.
-  - Verwendet wird die Wahl im Profilformular, bei der Einladung, in Schritt 1 und im neuen
-    Sprachknopf auf `/login`.
-- **Formate:** Nichts zu tun. Alle `Intl`-Aufrufe nehmen schon die aktuelle Sprache. Die
-  `format.*`-Texte für Laufzeiten (`de.json:706-720`) werden mitübersetzt.
-- **Schrift:** Weiter keine Webfonts (Startzeit, Offline-Grösse). Neu kommen `:lang()`-Regeln für
-  die CJK-Stapel. Sonst wählt das Gerät für Japanisch womöglich chinesische Glyphen, ein bekanntes
-  Problem der Han-Vereinheitlichung.
-  - `:lang(ja)`: Hiragino Sans, Yu Gothic UI, Noto Sans JP, sans-serif
+- **Liste der Sprachen:**
+  - `i18n/languages.ts` führt die ausgelieferten Sprachen: Code, Name in der eigenen Sprache,
+    `intlLocale`.
+  - Die eigenen Namen sind **Daten, nicht Oberflächentext**. Jeder soll seine Sprache in der
+    eigenen Schrift finden, egal welche Sprache gerade läuft.
+  - `Intl.DisplayNames` liefert dafür keine brauchbaren Namen («Schweizer Hochdeutsch»). Regel 9
+    bekommt diese Datei als benannte Ausnahme.
+- **Laden:** `loaders` wird aus `import.meta.glob('@/locales/*.json')` gebaut statt von Hand. Jede
+  Sprache bleibt ein eigenes Bündel; zum Laden der Kette siehe 4.2.
+- **Sprachwahl:** `languageOptions` (`features/shared/choices.ts:17`) nimmt die Liste aus
+  `languages.ts`. Sie wird verwendet im Profilformular, bei der Einladung, in Schritt 1 und im
+  neuen Sprachknopf auf `/login`.
+- **Formate:** neue Hilfsfunktion `intlLocale()`. Sie gibt für `de` `de-CH` zurück, sonst den Code.
+  - Jeder `Intl`-Aufruf nimmt sie statt `i18n.language`. Das sind rund 80 Stellen, und eine
+    Lint-Regel verbietet `i18n.language` als `Intl`-Argument.
+  - Erst damit formatiert Deutsch (Schweiz) `1’234’567.5` und Deutsch (Deutschland)
+    `1.234.567,5`.
+  - Die Storybook-Vergleichsbilder ändern sich dadurch (Zahlen) und werden einmal neu erzeugt,
+    auf dem dokumentierten CT-190-Weg.
+  - Die `format.*`-Texte für Laufzeiten werden mitübersetzt.
+- **Schrift:** weiter keine Webfonts (Startzeit, Offline-Grösse). Neu kommen `:lang()`-Stapel als
+  Tokens in `typography.json`. Sonst wählt das Gerät für Japanisch womöglich chinesische Glyphen
+  (Han-Vereinheitlichung).
+  - `:lang(ja)`: Hiragino Sans, Yu Gothic UI, Noto Sans JP
   - `:lang(zh-CN)`: PingFang SC, Microsoft YaHei, Noto Sans SC
   - `:lang(zh-TW)`: PingFang TC, Microsoft JhengHei, Noto Sans TC
-  - `:lang(ko)`: Apple SD Gothic Neo, Malgun Gothic, Noto Sans KR
-  - Die Stapel kommen als Tokens in `typography.json`. Regel 9 gilt auch für Schriften.
-- **Länge:** Finnisch, Deutsch und Französisch sind bis 40 % länger als Englisch. CJK ist kürzer,
-  braucht aber mehr Zeilenhöhe.
-  - Neu ist eine **Pseudo-Sprache** `x-long`, nur in der Entwicklung und in Storybook. Sie
-    verlängert jeden Text um 40 % und setzt ihn in eckige Klammern.
-  - Ein Storybook-Durchlauf in `x-long` zeigt abgeschnittene Texte, bevor eine echte Sprache sie
+  - `:lang(ko)`: Apple SD Gothic Neo, Malgun Gothic, Noto Sans KR; dazu `word-break: keep-all`,
+    damit Wörter nicht mitten im Silbenblock umbrechen
+- **Länge:** Neu ist eine **Pseudo-Sprache `en-XA`**, nur in der Entwicklung und in Storybook.
+  - Sie verlängert jeden Text um 40 % und setzt ihn in eckige Klammern.
+  - `en-XA` ist ein gültiger Locale-Code. `Intl` wirft nicht, anders als bei einem erfundenen
+    Code wie `x-long`.
+  - Ein Storybook-Durchlauf in `en-XA` zeigt abgeschnittene Texte, bevor eine echte Sprache sie
     trifft. Er erzeugt keine eigenen Vergleichsbilder (4.9).
-- **`<html lang>`** wird schon gesetzt (`i18n/index.ts:46-48`). Das Manifest (`vite.config.ts:104`)
-  und `index.html` bleiben bei `de`; der Browser liest sie nur vor dem Start.
+- **`<html lang>`** wird schon gesetzt (`i18n/index.ts:46-48`). Neu kommt `dir="ltr"` dazu
+  (4.10). Manifest und `index.html` bleiben bei `de`.
 
 ### 4.5 Server-Texte
 
@@ -516,14 +690,16 @@ Alle Änderungen sind **additiv**, und eine Vertragsfassung kommt in Stufe 2.
   - Sie haben dasselbe Format wie die Web-App, also i18next v4 mit `{{name}}` statt `%s`, damit
     Weblate beide gleich behandelt.
   - Ein kleines Go-Paket `internal/i18n` lädt sie (`embed`) und setzt Platzhalter ein.
-  - Die Rückfallkette ist dieselbe wie im Web: Sprache → `de` bei `de-DE` → `en`. Heute fällt der
-    Server auf `de` zurück.
+- Die Rückfallkette ist dieselbe wie im Web: Sprache → `de` bei `de-DE` → `en`. Heute fällt der
+  Server auf `de` zurück.
+- `notify_channels.sql:36,47` nimmt `'en'` statt `'de'` als Rückfall, wenn ein Konto kein
+  Hauptprofil hat. Bestehende Konten haben immer eins, also ändert sich für sie nichts.
 - Die HTML-Mail bekommt `lang="<code>"`.
-- Die Sprache des Empfängers wird gewählt wie heute (Profil bzw. Hauptprofil, `events.go:31`).
+- Die Sprache des Empfängers wird gewählt wie heute (Profil bzw. Hauptprofil).
 - Die Go-Tests, die heute deutsche Sätze prüfen (`notify/channels_test.go`, `email_test.go`,
-  `push_test.go`), prüfen danach gegen die JSON-Datei statt gegen einen festen Satz.
-- **Nicht übersetzt** werden Ankündigungen (Text des Admins), Fehlertitel im API (`title` bleibt
-  englisch, die Web-App übersetzt den `code`) und Log-Zeilen.
+  `push_test.go`), prüfen danach gegen die JSON-Datei.
+- **Nicht übersetzt** werden Ankündigungen, Fehlertitel im API (`title` bleibt englisch, die
+  Web-App übersetzt den `code`) und Log-Zeilen.
 
 ### 4.6 Übersetzen: die Erstfassung durch Claude
 
@@ -533,18 +709,15 @@ wie eine gute App in dieser Sprache klingt. Dafür braucht es drei Dinge, die vo
 
 1. **Glossar** `docs/i18n/glossar.md`:
    - rund 80 Begriffe aus Slouchcat («Profil», «Bibliothek», «Merkliste», «Gesehen», «Sammlung»,
-     «Trickplay», «Spotlight», «Freigabe», «Verwaltung» …), je Sprache mit einer festen
-     Übersetzung
-   - Begriffe, die **nicht** übersetzt werden: Slouchcat, TMDB, Trickplay als Fachbegriff, Namen
-     von Diensten
-   - Fachbegriffe richten sich nach dem, was Streamingdienste in der Sprache verwenden. Zum
-     Beispiel heisst die Merkliste bei Netflix auf Französisch «Ma liste».
+     «Spotlight», «Freigabe», «Verwaltung» …), je Sprache mit einer festen Übersetzung
+   - Begriffe, die **nicht** übersetzt werden: Slouchcat, TMDB, Namen von Diensten
+   - Fachbegriffe richten sich nach dem, was Streamingdienste in der Sprache verwenden.
 2. **Stilregeln je Sprache** `docs/i18n/stil/<code>.md`:
    - Anrede (O-1)
    - Anführungszeichen: de «», de-DE „“, fr « » mit schmalem geschütztem Leerzeichen, ja 「」,
      zh-TW 「」, zh-CN “” …
-   - Gross- und Kleinschreibung in Knöpfen (en Title Case oder Sentence case?)
-   - Satzzeichen, Zahlwörter, Datum (kommt aus `Intl`)
+   - Gross- und Kleinschreibung in Knöpfen
+   - Satzzeichen und Zahlwörter
 3. **Kontext je Text:** Ein Hilfsskript `scripts/i18n/context.ts` erzeugt zu jedem Schlüssel die
    Datei und Zeile, an der er verwendet wird, und den Komponentennamen. So weiss die Übersetzung,
    ob «Play» ein Knopf, eine Überschrift oder ein Statustext ist.
@@ -554,28 +727,31 @@ wie eine gute App in dieser Sprache klingt. Dafür braucht es drei Dinge, die vo
    Glossar, Stilregeln und Kontext.
 2. **Prüfung durch einen zweiten Agenten**, der nicht übersetzt hat:
    - Glossartreue
-   - Platzhalter (`{{count}}` …) vollständig und unverändert
+   - Platzhalter vollständig und unverändert
    - Pluralformen nach 4.1
    - Länge: Knöpfe höchstens rund 1,5× Englisch, Warnliste
    - Ton
    - Rückübersetzung von 50 zufälligen Texten ins Deutsche. Weicht der Sinn ab, wird
      nachgebessert.
 3. **Bildprüfung:** Storybook-Durchlauf je Sprache für 20 Kernseiten (Anmeldung, Startseite,
-   Detailseite, Abspielseite, Verwaltung, Assistent), ohne Vergleichsbilder. Ein Agent sucht auf
-   den Bildern abgeschnittene oder überlaufende Texte.
+   Detailseite, Abspielseite, Verwaltung, Assistent), ohne Vergleichsbilder.
+   - Ein Agent sucht auf den Bildern abgeschnittene oder überlaufende Texte.
+   - Der Container für diesen Lauf bekommt `fonts-noto-cjk`. Sonst erscheinen in der CI mit
+     DejaVu für CJK nur Kästchen.
 4. Marco prüft Stichproben in Sprachen, die er liest (O-9).
 
 **Umfang:**
 - 4318 Web-Texte und 34 Server-Texte, für 20 neue Sprachen, also rund **87'000 Texte**.
 - Dazu `de-DE` mit rund 185 Texten.
-- Das ist ein mehrtägiger Agentenlauf und wird in Stufe 3 in Sprachgruppen geschnitten (Abschnitt
-  7).
+- Das ist ein mehrtägiger Agentenlauf und wird in Stufe 3 in Sprachgruppen geschnitten
+  (Abschnitt 7).
 
 ### 4.7 Weblate
 
 - **Gehostetes Weblate, Plan «Libre»:** kostenlos für öffentliche Projekte unter freier Lizenz.
   Slouchcat ist öffentlich (`SlouchCat/slouchcat`) und steht unter AGPL-3.0, erfüllt also beides.
-  Ein selbst betriebenes Weblate wäre ein weiterer Dienst zum Pflegen (O-8).
+  Die Bedingungen prüft Marco beim Antrag (Stufe 4). Ein selbst betriebenes Weblate wäre ein
+  weiterer Dienst zum Pflegen (O-8).
 - **Konto und Antrag macht Marco selbst.** Claude legt keine Konten an.
 - **Zwei Komponenten:**
   - `web` mit `web/src/locales/*.json`
@@ -586,10 +762,11 @@ wie eine gute App in dieser Sprache klingt. Dafür braucht es drei Dinge, die vo
 - **Weg zurück ins Repository:** Weblate committet auf einen eigenen Zweig und öffnet einen
   Pull Request. Die CI prüft ihn wie jeden anderen. Gemergt wird auf Marcos Wort.
 - **Regel gegen Kollisionen:** Ab Stufe 4 ändern Agenten bestehende Übersetzungen der 20 Sprachen
-  **nicht** mehr direkt. Sie füllen nur fehlende Texte nach (4.8). Korrekturen laufen über
-  Weblate.
-- `docs/i18n/README.md` erklärt, wie man mithilft. Das README bekommt eine Weblate-Plakette mit
-  dem Stand je Sprache.
+  **nicht** mehr. Sie füllen nur fehlende Texte nach (4.8), und zwar erst, nachdem offene
+  Weblate-Änderungen gemergt sind. Korrekturen laufen über Weblate.
+- **Kennzeichnung:** Das JSON-Format hat kein «ungeprüft»-Merkmal. Claudes Texte erscheinen in
+  Weblate deshalb als fertig übersetzt. `docs/i18n/README.md` sagt das offen und bittet um
+  Korrekturen. Das README bekommt eine Weblate-Plakette mit dem Stand je Sprache.
 
 ### 4.8 Neue Texte im Alltag
 
@@ -597,37 +774,52 @@ Heute muss jede Änderung `de` und `en` gleichzeitig liefern; `locales.test.ts` 
 Mit 23 Sprachen soll nicht jeder Pull Request zwanzig Übersetzungen tragen.
 
 **Vorschlag (O-7):**
-- **Im Pull Request:** `de` und `en` sind Pflicht wie heute. `de-DE` ist Pflicht, sobald der
-  neue Text ein ss-Wort oder «Guillemets» enthält. Ein Test zeigt die Kandidaten an.
-- **Fehlende Texte der übrigen Sprachen** brechen den Test nicht. `task i18n:status` listet sie.
-- **Vor jedem Release:** Ein neuer Schritt «Übersetzungen nachziehen» im Release-Ablauf. Claude
-  übersetzt die fehlenden Texte nach 4.6. `task i18n:check` muss grün sein, also keine Sprache
-  mit fehlendem Text. Erst dann wird getaggt.
-- So hat jedes Release alle Sprachen vollständig, und zwischen zwei Releases sieht man in `main`
-  höchstens englische Rückfälle.
+- **Im Pull Request:** `de` und `en` sind Pflicht wie heute. `de-DE` ist Pflicht, sobald der neue
+  Text ein ss-Wort oder «Guillemets» enthält. Ein Test zeigt die Kandidaten an.
+- **Fehlende Texte der übrigen Sprachen** brechen den Test in `main` nicht. `task i18n:status`
+  listet sie. Zwischen zwei Releases sieht man dort Englisch, dank der geladenen Kette (4.2).
+- **Vor jedem Release, auch vor einem Patch:** Ein Schritt «Übersetzungen nachziehen» im
+  Release-Ablauf. Claude übersetzt die fehlenden Texte nach 4.6. `task i18n:check` muss grün
+  sein, also keine ausgelieferte Sprache mit fehlendem Text. Erst dann wird getaggt.
+  - Bei Patch-Releases (Versionscommit auf dem Fix-Zweig) läuft der Schritt auf dem Fix-Zweig.
+- Welche Sprachen wählbar sind, steht fest in `languages.ts` und im Vertrag (4.3), nicht in einer
+  Zählung zur Laufzeit. Eine Sprache verschwindet also nie, weil ein Text fehlt.
 
 ### 4.9 Tests
 
-Neu oder geändert:
-- **`locales.test.ts`, je Sprache:**
-  - gleiche Schlüssel wie `de`, abzüglich der Pluralformen
-  - Pluralformen genau nach `Intl.PluralRules`, also bei `ru` `_one`, `_few`, `_many` und
-    `_other`, bei `ja` nur `_other`
-  - gleiche Platzhalter je Text
-  - kein leerer Text
-  - kein Text identisch mit Englisch, ausser auf einer Ausnahmeliste (Markennamen, «OK», Codes)
+**`locales.test.ts`**, je ausgelieferte Sprache. Er läuft in `main` nur für `de`, `de-DE` und `en`
+streng, für die übrigen als Warnung. `task i18n:check` vor dem Release ist für alle streng.
+- gleiche Schlüssel wie `de`, abzüglich der Pluralformen
+- Pluralformen genau nach `Intl.PluralRules`, also bei `ru` `_one`, `_few`, `_many` und `_other`,
+  bei `ja` nur `_other`. Ausnahmeliste für Texte, die nur `_other` haben
+  (`admin.home.browse.hanging`).
+- gleiche Platzhalter je Text
+- kein leerer Text
+- Text identisch mit Englisch: **nur Warnung**. «Film», «Trailer» und «Podcast» sind in nl, sv und
+  da richtig.
 - `de`: weiterhin kein ß. `de-DE`: nur Schlüssel, die es in `de` gibt, und jeder Text weicht ab.
-- **Go:** dieselben Prüfungen für die Server-Texte. Dazu ein Test, dass `model.UILanguages` und
-  die Vertragsliste `Language` gleich sind.
-- **e2e:** bleibt auf `de-CH`. Die 3385 Selektoren werden **nicht** umgebaut.
-  - Neu ist eine Spec `languages.spec.ts`: Für jede der 23 Sprachen meldet sie sich an, öffnet
-    Startseite und Profilformular und prüft `<html lang>` und einen bekannten Text.
-  - Dazu ein Schritt im Assistenten mit Sprachwechsel.
-  - Gestartet wird über `task e2e:quick` wie jede andere Spec.
-- **Storybook-Vergleichsbilder:** bleiben bei `de`, also keine 23 × 502 Bilder. Die Bildprüfung
-  aus 4.6 ist ein einmaliger Lauf je Übersetzungsrunde, kein Gate.
-- **Migration:** Ein eingefrorener DB-Stand vor der Migration, danach `foreign_key_check` und ein
-  Profil mit `ja` speichern.
+
+**Go**
+- dieselben Prüfungen für die Server-Texte
+- `model.UILanguages` gleich der Vertragsliste `Language`
+- `initialPrefs` mit allen Codes (4.3)
+- `visibility.Profile` mit `fr`, `de-DE`, `pt-BR`
+
+**Web**
+- Unit-Test für `ensureLanguage`: Bei `de-DE` sind danach `de-DE`, `de` und `en` geladen.
+- Unit-Test für `intlLocale`.
+
+**e2e**
+- Bleibt auf `de-CH`. Die 3385 Selektoren werden **nicht** umgebaut.
+- Neu ist `languages.spec.ts`: Für jede **ausgelieferte** Sprache meldet sie sich an, öffnet
+  Startseite und Profilformular und prüft `<html lang>` und einen bekannten Text.
+- Dazu ein Schritt im Assistenten mit Sprachwechsel.
+- Gestartet wird über `task e2e:quick` wie jede andere Spec.
+
+**Storybook-Vergleichsbilder:** bleiben bei `de`, also keine 23 × 502 Bilder. Die Bildprüfung aus
+4.6 ist ein einmaliger Lauf je Übersetzungsrunde, kein Gate.
+
+**Migration:** neuer eingefrorener DB-Stand (4.3).
 
 ### 4.10 Bewusst nicht in diesem Konzept
 
@@ -637,11 +829,11 @@ Neu oder geändert:
   - Stufe 1 setzt aber schon `dir="ltr"` am `<html>` und verlangt in stylelint für **neuen** Code
     logische Eigenschaften, damit die Zahl nicht wächst.
 - **Artikel beim Sortieren** (`model/sortkey.go:16-17`): kennt nur «der/die/das» und «the». Titel
-  kommen in der Metadaten-Sprache, nicht in der Oberflächensprache. Gehört in Konzept 10/ADR
-  0018, nicht hierher.
+  kommen in der Metadaten-Sprache. Gehört zu ADR 0018, nicht hierher.
 - **Weitere Freigabeländer** (FR, ES, IT, JP …): Das ist ein eigenes Konzept, weil die
-  Altersstufen der Profile heute nach FSK aufgebaut sind (0/6/12/16/18).
-- **Übersetzte Metadaten:** Die kommen von TMDB, TVDB und anderen und sind ADR 0018.
+  Altersstufen der Profile nach FSK aufgebaut sind (0/6/12/16/18).
+- **Übersetzte Sammlungsnamen und Genres** über Deutsch und Englisch hinaus: Sie bleiben
+  zweisprachig (4.3).
 
 ---
 
@@ -650,12 +842,14 @@ Neu oder geändert:
 | Risiko | Folge | Gegenmittel |
 |---|---|---|
 | Maschinell klingende Übersetzung | Marcos Ziel «natürlich» verfehlt | Glossar, Stilregeln, Kontext, zweiter Prüfagent, Rückübersetzung, Weblate |
-| Abgeschnittene Texte in langen Sprachen | unlesbare Knöpfe | Pseudo-Sprache `x-long`, Bildprüfung je Sprache |
-| Neubau der Tabelle `profiles` | Fremdschlüssel von Fortschritten, Merklisten, Downloads | Vorlage mit `foreign_key_check`, eingefrorener DB-Stand, Sicherung vor Migration (Regel 5) |
+| Abgeschnittene Texte in langen Sprachen | unlesbare Knöpfe | Pseudo-Sprache `en-XA`, Bildprüfung je Sprache |
+| Neubau der Tabelle `profiles` | Fremdschlüssel, Sicht und Trigger brechen | Schritte in 4.3, neuer eingefrorener DB-Stand, `foreign_key_check`, Sicherung vor Migration (Regel 5) |
+| Alte PWA bekommt einen neuen Sprachcode | Absturz beim Anwenden der Sitzung | Absicherung in `session.ts` ein Release vor jedem neuen Code (4.3) |
+| Gewählter Grafikchip geht nach einem Treiberwechsel nicht mehr | Neustart-Schleife | gespeichertes Backend fällt auf `auto` zurück, Hinweis im Dashboard (Schritt 5) |
+| Container ohne Restart-Policy | Slouchcat bleibt nach «Abschliessen» aus | nach 60 Sekunden Hinweis «von Hand starten» (O-18) |
 | Release-Ablauf wird länger | «Übersetzungen nachziehen» kostet bei jedem Release Zeit | Nur neue Texte; typisch 10 bis 50 je Release |
 | Weblate-PR ändert einen Platzhalter | Laufzeitfehler | Weblate-Prüfung «Platzhalter» und `locales.test.ts` in der CI |
-| Assistent verweist auf `.env`, Marco ändert sie | Neustart nötig, Verwirrung | Text sagt «danach neu starten»; Updater-Begleiter startet nicht von selbst |
-| Bestehende Installation sieht plötzlich den Assistenten | Ärger | Migration setzt `finishedAt`, Test mit eingefrorenem DB-Stand |
+| Metadaten ohne Deutsch (F-7) | Code, der stillschweigend eine `de`-Zeile erwartet, zeigt Leeres | Inventur in Schritt 0 der Stufe 1, Tests mit `fr`-Profil auf `fr → en`-Server |
 
 ---
 
@@ -663,16 +857,25 @@ Neu oder geändert:
 
 - **Spec C-3** (Oberfläche Deutsch und Englisch) wird zu «23 Oberflächensprachen nach Konzept 22,
   je Profil wählbar».
-- **ADR 0018, Konzept 10 F-1** («Nur Metadaten», keine neuen Oberflächensprachen) wird in diesem
-  einen Punkt durch **ADR 0033** ersetzt. Der Grund von damals (2300 Texte je Sprache von Hand)
-  entfällt durch die Erstfassung durch Claude und Weblate. Der Rest von ADR 0018 bleibt.
+- **ADR 0018** wird in zwei Punkten durch **ADR 0033** ersetzt:
+  - **F-1** («Nur Metadaten», keine neuen Oberflächensprachen): Der Grund von damals (2300 Texte je
+    Sprache von Hand) entfällt durch die Erstfassung durch Claude und Weblate.
+  - **F-9** («Serverliste muss `de` enthalten»): fällt nach F-7.
+  - Dazu neu: Rückfallsprache `de`/`en` je Oberflächensprache und `model.MetadataBase` (4.3).
+  - Der Rest von ADR 0018 bleibt.
 - **ADR 0001** nennt `{de,en}.json`. Der Satz wird auf `web/src/locales/*.json` geändert.
-- **`CLAUDE.md` Regel 9:** Texte nur aus `web/src/locales/*.json`. Dazu der Satz: «`de` und `en`
-  in jedem Pull Request, die übrigen Sprachen vor dem Release (Konzept 22, 4.8).»
+- **`CLAUDE.md`:**
+  - Regel 7: `owner` in der Liste der Sichtbarkeiten.
+  - Regel 9: Texte nur aus `web/src/locales/*.json`, mit `web/src/i18n/languages.ts` als benannter
+    Ausnahme für die eigenen Sprachnamen. Dazu der Satz: «`de` und `en` in jedem Pull Request, die
+    übrigen Sprachen vor jedem Release (Konzept 22, 4.8).»
 - **Spec A-1, Plan 3.4:** Der Assistent hat neun Schritte statt vier. Die Warnungen aus Plan 3.4
-  bleiben in Schritt 5 und 6.
-- **`docs/INSTALLATION.md` Abschnitt 5** wird für den neuen Ablauf neu geschrieben und nennt
-  `TZ` und `SLOUCHCAT_HW` als die beiden Werte, die nur in `.env` gehen.
+  bleiben in Schritt 5 und 6. Die GPU wird erkannt **und** ist wählbar (F-10).
+- **`docs/INSTALLATION.md` Abschnitt 5** wird für den neuen Ablauf neu geschrieben. Er nennt `TZ`
+  als den einen Wert, der nur in `.env` geht, und erklärt `SLOUCHCAT_HW` als Vorrang vor der Wahl im
+  Assistenten.
+- **Release-Ablauf** (`docs/dev/RELEASE.md` oder wo er steht): neuer Schritt «Übersetzungen
+  nachziehen» (4.8).
 - **Entscheidungsprotokoll:** Frage 29 bekommt eine Zeile, sobald Marco das Konzept freigibt.
 
 ---
@@ -684,20 +887,20 @@ Bau-Reihenfolge nummeriert.
 
 | Stufe | Inhalt | Vertrag | Migration | Sichtbar für Marco |
 |---|---|---|---|---|
-| **1 «Sprachgerüst»** | 4.2 bis 4.5 und 4.9: `Language` mit 23 Codes, Tabellen-Neubau `profiles`, `model.UILanguages`, Erkennung und Rückfall, `de-DE.json` (rund 185 Texte), Server-Texte als JSON, `:lang()`-Schriften, Pseudo-Sprache, neue Tests, Sprachknopf auf `/login`. Wählbar sind nur Sprachen mit vollständigem Paket, also `de`, `de-DE` und `en`. | ja | ja | Deutsch (Deutschland) wählbar |
-| **2 «Assistent»** | Teil A ganz: zwei Phasen, neun Schritte in Variante A, `setup_wizard`, neue Admin-Endpunkte, `SystemInfo.timeZone`, Tastaturtests, Migration für bestehende Installationen, INSTALLATION.md. | ja | ja (nur Daten) | neuer Assistent auf einer frischen Testinstanz |
-| **3 «Übersetzungen»** | 4.6: Glossar, Stilregeln, Kontextskript, dann 20 Sprachen in vier Gruppen (fr/es/it/nl/pt-BR · pt-PT/pl/cs/hu/tr · sv/da/nb/fi · ru/uk/ja/ko/zh-CN/zh-TW), je Gruppe Übersetzen, Prüfen, Bildprüfung. **Ein Release für alle 20** (F-4), die Gruppen sind nur Arbeitspakete. | nein | nein | 23 Sprachen wählbar |
+| **1 «Sprachgerüst»** | 4.2 bis 4.5 und 4.9 ohne neue Sprachen: Absicherung in `session.ts`, Laden der Kette, `languages.ts`, `intlLocale` (neue Storybook-Bilder), Tabellen-Neubau `profiles`, `model.UILanguages`, `MetadataBase` und Rückfallsprache, F-9 fällt, `initialPrefs` normalisiert, Erkennung, Server-Texte als JSON, `:lang()`-Schriften, `en-XA`, neue Tests, Sprachknopf auf `/login`. `de-DE.json` wird erstellt, aber noch nicht wählbar. | ja (F-9-Lockerung) | ja | Zahlen in Schweizer Format; Metadaten-Liste ohne Deutsch möglich |
+| **2 «Assistent»** | Teil A ganz, dazu `de-DE` wählbar (Vertragsliste `[de, de-DE, en]`). Grafikchip-Wahl auch in der Verwaltung. INSTALLATION.md. | ja | nein | neuer Assistent auf einer frischen Testinstanz; Deutsch (Deutschland) |
+| **3 «Übersetzungen»** | 4.6: Glossar, Stilregeln, Kontextskript, dann 20 Sprachen in vier Gruppen (fr/es/it/nl/pt-BR · pt-PT/pl/cs/hu/tr · sv/da/nb/fi · ru/uk/ja/ko/zh-CN/zh-TW), je Gruppe Übersetzen, Prüfen, Bildprüfung. **Ein Release für alle 20** (F-4); die Gruppen sind nur Arbeitspakete. Vertragsliste auf 23. | ja (Liste) | nein | 23 Sprachen wählbar |
 | **4 «Weblate»** | 4.7 und 4.8: Weblate-Projekt (Konto durch Marco), Komponenten, `docs/i18n/README.md`, Plakette, Release-Schritt «Übersetzungen nachziehen», `task i18n:status`/`i18n:check`. | nein | nein | Mitarbeit von aussen möglich |
 
-Stufe 2 hängt nur am neuen `Language` aus Stufe 1. Sie kann auch vor Stufe 3 oder parallel dazu
-laufen (O-10). Stufe 4 braucht Stufe 3.
-
-**Schritt 0 jeder Stufe:** die «Heute»-Angaben aus Abschnitt 2 am dann aktuellen `main`
-nachprüfen. Bekannt offen sind:
-- startet `createLibrary` den Scan sofort?
-- `nb` oder `no` in `knownLanguages`?
-- braucht `updateMetadataSettings` für Bildsprachen eigene Werte?
-- Nummern von Vertrag und Migration nach K21 Stufen 4–6
+- Stufe 2 hängt an Stufe 1 (Liste, Absicherung). Stufe 3 hängt an Stufe 1 und kann parallel zu
+  Stufe 2 übersetzt werden (O-10). Stufe 4 braucht Stufe 3.
+- **Schritt 0 jeder Stufe:** die «Heute»-Angaben aus Abschnitt 2 am dann aktuellen `main`
+  nachprüfen. Bekannt offen sind:
+  - Inventur fester `'de'` im Code
+  - `nb` oder `no` bei TMDB
+  - lädt die PWA bei neuer Serverversion selbst neu?
+  - Nummern von Vertrag und Migration nach K21 Stufen 4–6
+  - wo der Release-Ablauf dokumentiert ist
 
 ---
 
@@ -705,22 +908,65 @@ nachprüfen. Bekannt offen sind:
 
 | Nr. | Frage | Empfehlung |
 |---|---|---|
-| **O-1** | Anrede je Sprache | **Wie die grossen Plattformen in der Sprache:** de du (wie heute), fr vous, es tú, it tu, nl je, pt-BR você, pt-PT você, pl Imperativ ohne Pronomen, cs vy, ru вы, uk ви, tr siz, hu Sie-Form ohne Pronomen, sv/da/nb du, fi sinä ohne Pronomen, ja です/ます, ko 해요체, zh 你. Festgehalten in den Stilregeln. |
-| **O-2** | Rückfall, wenn keine Browsersprache passt | **Englisch** statt Deutsch wie heute. Wer Deutsch spricht, hat einen deutschen Browser. |
-| **O-3** | Abbruch nach Schritt 2 | **Einmal weiterleiten**, danach ein Band in `/admin`, bis abgeschlossen. |
+| **O-1** | Anrede je Sprache | **Wie die grossen Plattformen in der Sprache:** de du (wie heute), fr vous, es tú, it tu, nl je, pt-BR você, pt-PT você, pl Imperativ ohne Pronomen, cs vy, ru вы, uk ви, tr siz, hu Sie-Form ohne Pronomen, sv/da/nb du, fi ohne Pronomen, ja です/ます, ko 해요체, zh 你. Festgehalten in den Stilregeln. |
+| **O-2** | Rückfall, wenn keine Browsersprache passt | **Englisch** statt Deutsch wie heute. |
+| **O-3** | Abbruch nach Schritt 2 | **Einmal je Sitzung weiterleiten**, danach ein Band in `/admin`, bis abgeschlossen (3.4). |
 | **O-4** | «Erreichbarkeit prüfen» für die öffentliche Adresse | **Nicht in Stufe 2.** Der Server müsste sich selbst über das Internet erreichen, und das scheitert an vielen Routern (NAT-Hairpin), obwohl alles stimmt. |
 | **O-5** | Freigabeland für Sprachen ausserhalb DE/AT/CH/GB/US | **US als Vorschlag**, frei wählbar unter den fünf. Weitere Länder in einem eigenen Konzept. |
-| **O-6** | Sprachen mit unvollständiger Übersetzung | **Nicht wählbar.** Die Liste zeigt nur Sprachen ohne fehlenden Text; der Release-Test aus 4.8 hält das ohnehin ein. |
-| **O-7** | Neue Texte: Pflicht im Pull Request oder vor dem Release? | **de und en im Pull Request, der Rest vor dem Release** (4.8). |
+| **O-6** | Blosses `de` im Browser | **`de-DE`**. Schweizer Browser senden `de-CH`. *(Fassung 1: «unvollständige Sprachen»; erledigt durch 4.8, Kritiker M-10.)* |
+| **O-7** | Neue Texte: Pflicht im Pull Request oder vor dem Release? | **de und en im Pull Request, der Rest vor jedem Release** (4.8). |
 | **O-8** | Weblate gehostet oder selbst betrieben? | **Gehostet, Plan «Libre».** Kein weiterer Dienst auf CT 190. |
 | **O-9** | Wer prüft die Qualität? | **Prüfagent je Sprache, Marco Stichproben** in den Sprachen, die er liest (de-DE, en, fr, it?), danach Weblate. |
-| **O-10** | Reihenfolge der Stufen 2 und 3 | **Assistent vor Übersetzungen.** Er ist kleiner, und der Sprachschritt zeigt Stufe 3 danach gleich mit. |
+| **O-10** | Reihenfolge der Stufen 2 und 3 | **Assistent vor Übersetzungen**, Übersetzen darf parallel laufen. |
 | **O-11** | Trakt, Google Books, Web-Push, Telegram im Assistenten? | **Nein.** Trakt ist Sache des Kontos, Google Books nur für Hörbücher. Push und Telegram brauchen ein Gerät bzw. einen Bot. Alles bleibt in der Verwaltung. |
 | **O-12** | Öffentliche Prüf-Endpunkte `checkSetupPath`, `checkSetupTmdbKey` | **Als `deprecated` behalten**, in der nächsten brechenden Fassung entfernen. |
-| **O-13** | Nach «Abschliessen»: Abschlussseite mit Scan-Fortschritt oder direkt Startseite? | **Abschlussseite** wie im Mockup. Eine leere Startseite direkt nach dem Abschluss wirkt kaputt. |
-| **O-14** | `CHECK` mit 23 Werten in der Datenbank? | **Nein**, Prüfung in Go an einer Stelle. Sonst wird jede neue Sprache ein Tabellen-Neubau. |
-| **O-15** | Metadaten-Vorschlag je Sprache wie in Tabelle 4.1 | **Ja**, immer mit Englisch als zweiter Sprache. |
+| **O-13** | Nach «Abschliessen»: Abschlussseite oder direkt Startseite? | **Abschlussseite** mit Scan-Fortschritt wie im Mockup. Eine leere Startseite direkt nach dem Abschluss wirkt kaputt. |
+| **O-14** | `CHECK` mit 23 Werten in der Datenbank? | **Nein**, Prüfung in Go an einer Stelle. |
+| **O-15** | Metadaten-Vorschlag je Sprache wie in Tabelle 4.1 | **Ja**, die Sprache und Englisch, ohne Deutschpflicht (F-7). |
 | **O-16** | Rechts nach links (ar, he, fa) | **Eigenes Konzept nach Stufe 4.** Bis dahin nur logische CSS-Eigenschaften für neuen Code. |
+| **O-17** | Einrichtungs-Token (`SLOUCHCAT_SETUP_TOKEN`), damit niemand Fremdes einen frisch gestarteten Container zuerst einrichtet | **Nicht jetzt.** Das Risiko ist dasselbe wie heute und betrifft nur Container, die vor der Einrichtung offen im Internet stehen. INSTALLATION.md rät, erst nach der Einrichtung freizugeben. |
+| **O-18** | Neustart nach der Grafikchip-Wahl: Server beendet sich selbst, Docker startet neu | **Ja**, mit Hinweis nach 60 Sekunden, falls er nicht zurückkommt. Der Updater-Begleiter (ADR 0024) wird dafür nicht gebraucht. |
+| **O-19** | Grafikchip-Wahl auch in der Verwaltung | **Ja**, auf der Systemseite, gleiche Bauteile wie Schritt 5. Sonst wäre das Setting nach dem Assistenten nicht mehr änderbar. |
+
+---
+
+## 9. Kritiker-Review (Fassung 1 → Fassung 2)
+
+Kritiker (oh-my-claudecode:critic) am 14. November 2026 gegen `b12877cb`: **REVISE**, 2 Blocker,
+11 Major, 16 Minor. Alles ist eingearbeitet.
+
+| Befund | Kern | Eingearbeitet in |
+|---|---|---|
+| B-1 | Serverliste muss `de` enthalten (ADR 0018 F-9); Vorschläge `fr → en` würden abgelehnt | F-7 (Marco: keine Pflicht), 4.3, 6 |
+| B-2 | `visibility.Profile` macht jede Sprache zu `de` | 4.3 Rückfallsprache und `MetadataBase` |
+| M-1 | Lazy Loading lädt die Rückfälle nie; `de-DE` zeigt Schlüssel | 4.2 Laden der Kette, 4.9 |
+| M-2 | Prüfstellen falsch gezählt, `RunSetup` fehlte | 2.3 Tabelle, 4.3 |
+| M-3 | `initialPrefs` speichert ungültige Ton- und Untertitelsprachen | 4.3, 4.9 |
+| M-4 | Tabellen-Neubau ohne Sicht, Trigger, `BEGIN`/`COMMIT` | 4.3 Schritte 1–6 |
+| M-5 | Alte PWA stürzt bei neuem Code ab | 4.3 Liste wächst mit den Paketen, Stufen 1–3 |
+| M-6 | e2e würde in den Assistenten umgeleitet | 3.4 Grundregel «fehlt = abgeschlossen», keine Datenmigration |
+| M-7 | `applyRadioOffer` setzt Modus «Alle», braucht `version` | F-8, Schritt 3 |
+| M-8 | «PIN beim ersten Öffnen» gibt es nicht und wäre unsicher | F-9, Schritt 7 |
+| M-9 | Pseudo-Sprache `x-long` bricht `Intl` | 4.4 `en-XA` |
+| M-10 | O-6, 4.8 und 4.9 widersprachen sich | 4.8 letzter Punkt, 4.9, O-6 neu |
+| M-11 | `de` formatiert deutsche statt Schweizer Zahlen | 4.4 `intlLocale` |
+| m-1 | `getSystemInfo`, Zeitzone öffentlich | 2.2, 3.5 |
+| m-2 | drei Schritt-0-Fragen schon beantwortbar | 2.1, 2.2, 3.3 Schritt 6, 4.1 |
+| m-3 | Sichtbarkeit `owner` statt `admin` | 3.5, 6 |
+| m-4 | Router: Schritt 1 nach dem Konto, «einmal» unklar | 3.4, 3.6 |
+| m-5 | F-2 verlangte Abfrage des Grafikchips | F-10, Schritt 5 |
+| m-6 | Trickplay-Vorgabe nur im Browser; falscher Schlüssel bleibt | 3.4, Schritt 4 |
+| m-7 | Sprachnamen und Regel 9 | 4.4, 6 |
+| m-8 | Liste nicht zur Laufzeit aus dem Vertrag | 4.3 `satisfies` |
+| m-9 | Englisch-gleich nur Warnung; Plural-Ausnahme | 4.9 |
+| m-10 | blosses `de` | 4.2, O-6 |
+| m-11 | CJK in der CI, Koreanisch `keep-all` | 4.4, 4.6 |
+| m-12 | Weblate ohne «ungeprüft»; Patch-Releases | 4.7, 4.8 |
+| m-13 | Meldung bei `ErrSetupDone` | 3.1 |
+| m-14 | «Später» ohne Bibliothek, `finishSetup` ohne Bibliothek | 3.3 Schritt 6, 3.4, 3.5 |
+| m-15 | Zeilenangaben | 2.2, 2.3 |
+| m-16 | Migration 00059 auf K21 | Kopf |
+| Frage | Einrichtungs-Token | O-17 |
 
 ---
 
@@ -729,8 +975,14 @@ nachprüfen. Bekannt offen sind:
 - Klickbarer Prototyp: `docs/planning/mockups/22-ersteinrichtung/prototyp.html`. Gleich als
   Artefakt: https://claude.ai/artifact/5cRAoZpb7Th38TABdVaqzr
 - Drei Varianten zum Umschalten. **Gewählt ist A** (F-1). B und C bleiben zum Vergleich.
-- Seit Version 3 folgt Variante A der Reihenfolge aus 3.2. Hardware und Zeitzone sind dort nur
-  Anzeige, und das Freigabeland ist auf die fünf bekannten Länder beschränkt.
+- Ab Version 4 folgt Variante A Fassung 2:
+  - Reihenfolge aus 3.2
+  - Grafikchip wählbar mit Neustart-Hinweis
+  - optionale PIN
+  - Radio als «Land ohne Sender»
+  - Zeitzone nur Anzeige
+  - fünf Freigabeländer
+  - Metadaten-Vorschlag ohne Deutschpflicht
 - Kopfzeile, Schrittnamen, Knöpfe und Willkommensseite sind im Mockup in de, de-DE, en, fr, es
   und it übersetzt. Die übrigen Sprachen fallen dort auf Englisch zurück. Die Schrittinhalte
   stehen nur auf Deutsch.

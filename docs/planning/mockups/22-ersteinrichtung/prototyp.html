@@ -194,8 +194,8 @@ function fresh(variant){
     email:'',pw:'',pw2:'',pname:'',pcolor:SWATCH[0],
     libs:[{id:1,name:'Filme',kind:'Filme',path:'',check:null,age:'18'}],
     tmdb:'',tmdbState:null,extra:{tvdb:false,fanart:false,youtube:false,smtp:false},
-    hw:'qsv',trickplay:false,
-    profiles:[],newProfile:{name:'',age:'6',pin:false},
+    hw:'auto',trickplay:false,
+    profiles:[],newProfile:{name:'',age:'6',pin:''},
     url:'',urlState:null,updates:true,
     mode:null,hubOpen:null,done:false,scan:0};
 }
@@ -245,8 +245,8 @@ function vRegion(){
   <div class="panel"><div class="ph"><span class="h2">Sprachen der Metadaten</span><span class="sp"></span><span class="muted">in dieser Reihenfolge</span></div>
   <div class="rootchips">${S.metaLangs.map((l,i)=>`<span class="chip ac">${i+1}. ${esc(metaName(l))} <button class="btn ghost sm" style="min-height:22px;padding:0 4px" data-act="rmMeta" data-v="${l}" aria-label="${l} entfernen">×</button></span>`).join('')}
   ${avail.length?`<select class="in" style="width:auto;min-height:34px" data-act="addMeta" aria-label="Sprache hinzufügen"><option value="">+ Sprache</option>${avail.map(l=>`<option value="${l}">${esc(metaName(l))}</option>`).join('')}</select>`:''}</div>
-  <p class="muted" style="margin:0">Fehlt ein Text in der ersten Sprache, kommt der aus der nächsten. Profile wählen aus dieser Liste.</p></div>
-  <button class="toggle" role="switch" aria-checked="${S.radioSame}" data-act="tog" data-v="radioSame"><span class="sw"></span><span>Radio-Angebot aus ${esc(COUNTRIES[S.country])} vorschlagen<br><span class="muted">Die Sender wählst du später unter Radio selbst aus.</span></span></button>`;
+  <p class="muted" style="margin:0">Fehlt ein Text in der ersten Sprache, kommt der aus der nächsten. Keine Sprache ist Pflicht. Profile wählen aus dieser Liste.</p></div>
+  <button class="toggle" role="switch" aria-checked="${S.radioSame}" data-act="tog" data-v="radioSame"><span class="sw"></span><span>${esc(COUNTRIES[S.country])} ins Radio-Angebot aufnehmen<br><span class="muted">Noch ohne Sender. Welche Sender es gibt, markierst du später unter Verwaltung › Radio.</span></span></button>`;
 }
 function vAccount(){
   const bad=S.pw&&S.pw.length<10, mis=S.pw2&&S.pw2!==S.pw;
@@ -311,8 +311,10 @@ function vPlayback(){
   <p class="lead">Kann ein Gerät eine Datei nicht direkt abspielen, wandelt Slouchcat sie um. Mit Grafikchip geht das schneller und braucht weniger Strom.</p>
   <div class="panel"><div class="ph"><span class="h2">Gefunden</span><span class="sp"></span><span class="chip ok">/dev/dri/renderD128</span></div>
   <dl class="kv"><dt>Grafikchip</dt><dd>Intel UHD Graphics 770 (Quick Sync)</dd><dt>Dekodieren</dt><dd>H.264, HEVC 10 bit, VP9, AV1</dd><dt>Kodieren</dt><dd>H.264, HEVC</dd><dt>HDR → SDR</dt><dd>auf dem Grafikchip</dd><dt>Prozessor</dt><dd>12 Kerne</dd><dt>inotify-Limit</dt><dd>524 288 <span class="chip ok">reicht</span></dd></dl></div>
-  <div class="panel"><div class="ph"><span class="h2">Umwandeln mit</span><span class="sp"></span><span class="chip ok">Intel Quick Sync · automatisch erkannt</span></div>
-  <p class="muted" style="margin:0">Slouchcat probiert beim Start NVENC, Quick Sync und VA-API und nimmt den ersten, der funktioniert. Eine andere Wahl geht nur über <code>SLOUCHCAT_HW</code> in <code>deploy/.env</code>. Fehlt der Grafikchip, steht hier der Befehl, der ihn in den Container bringt.</p></div>
+  <div role="radiogroup" aria-label="Umwandeln mit" style="display:flex;flex-direction:column;gap:8px">
+  ${[['auto','Automatisch','Slouchcat nimmt beim Start das Beste, was funktioniert. Heute: Intel Quick Sync.',true,true],['qsv','Intel Quick Sync','Probe gelungen. Schnell und sparsam, bis 2160p.',true],['vaapi','VA-API','Probe gelungen. Allgemeiner Weg für Intel und AMD, weniger Funktionen.',true],['nvenc','NVIDIA NVENC','Nicht verfügbar: kein NVIDIA-Gerät im Container.',false],['software','Nur Prozessor','Funktioniert überall, aber langsam; 4K meist nicht flüssig.',true]].map(([v,t,d,ok,rec])=>`<button class="radio" role="radio" aria-checked="${S.hw===v}" ${ok?`data-act="hw" data-v="${v}"`:'aria-disabled="true" style="opacity:.5;cursor:not-allowed"'}><span class="rb"></span><span><b>${t}</b>${rec?' <span class="chip ac">Empfohlen</span>':''}<small>${d}</small></span></button>`).join('')}</div>
+  ${S.hw!=='auto'?'<div class="msg warn">Gilt nach einem Neustart. Slouchcat startet beim Abschliessen einmal neu (etwa 10 Sekunden).</div>':''}
+  <p class="muted" style="margin:0">Setzt <code>deploy/.env</code> den Wert <code>SLOUCHCAT_HW</code>, gilt dieser, und hier steht «aus .env».</p>
   <button class="toggle" role="switch" aria-checked="${S.trickplay}" data-act="tog" data-v="trickplay"><span class="sw"></span><span>Vorschaubilder beim Spulen (Trickplay)<br><span class="muted">Vorgabe für die Video-Bibliotheken im nächsten Schritt. Braucht Rechenzeit beim ersten Scan und zusätzlichen Speicher; je Bibliothek änderbar.</span></span></button>`;
 }
 function vHousehold(){
@@ -322,13 +324,13 @@ function vHousehold(){
   <p class="lead">Profile für alle, die mit deinem Konto schauen. Jedes Profil hat eigene Fortschritte, eine Merkliste und eine Altersstufe. Eigene Konten für Gäste lädst du später unter Verwaltung › Konten ein.</p>
   <div class="panel">
   <div class="ph"><span class="avatar" style="background:${S.pcolor}">${esc((S.pname||'?').slice(0,1).toUpperCase())}</span><span><b>${esc(S.pname||'Dein Profil')}</b><br><span class="muted">Administrator · alle Inhalte</span></span></div>
-  ${S.profiles.map((p,i)=>`<div class="ph"><span class="avatar" style="background:${SWATCH[(i+3)%SWATCH.length]}">${esc(p.name.slice(0,1).toUpperCase())}</span><span><b>${esc(p.name)}</b><br><span class="muted">Freigabe ab ${p.age}${p.pin?' · PIN gegen Profilwechsel':''}</span></span><span class="sp"></span><button class="btn ghost sm" data-act="rmProfile" data-v="${i}">Entfernen</button></div>`).join('')}
+  ${S.profiles.map((p,i)=>`<div class="ph"><span class="avatar" style="background:${SWATCH[(i+3)%SWATCH.length]}">${esc(p.name.slice(0,1).toUpperCase())}</span><span><b>${esc(p.name)}</b><br><span class="muted">Freigabe ab ${p.age}${p.pin?' · mit PIN':''}</span></span><span class="sp"></span><button class="btn ghost sm" data-act="rmProfile" data-v="${i}">Entfernen</button></div>`).join('')}
   </div>
   <div class="panel"><span class="h2">Profil hinzufügen</span>
   <div class="row"><div class="field"><label for="npn">Name</label><input id="npn" class="in" data-np="name" value="${esc(np.name)}" placeholder="Lena"></div>
   <div class="field" style="flex:0 1 160px"><label for="npa">Altersstufe</label><select id="npa" class="in" data-np="age">${AGES.map(a=>`<option value="${a[0]}"${a[0]===np.age?' selected':''}>${a[1]}</option>`).join('')}</select></div>
   <button class="btn" data-act="addProfile">Hinzufügen</button></div>
-  <button class="toggle" role="switch" aria-checked="${np.pin}" data-act="npPin"><span class="sw"></span><span>Profilwechsel mit PIN schützen<br><span class="muted">Die PIN legt das Profil beim ersten Öffnen selbst fest.</span></span></button></div>`;
+  <div class="row"><div class="field" style="flex:0 1 220px"><label for="npp">PIN (optional)</label><input id="npp" class="in mono" inputmode="numeric" maxlength="8" data-np="pin" value="${esc(np.pin)}" placeholder="4–8 Ziffern"><span class="hint">Schützt den Wechsel in dieses Profil.</span></div></div></div>`;
 }
 function vAccess(){
   const u=S.urlState;
@@ -354,7 +356,7 @@ function vSummary(){
   ${sec('account','Konto',`<dt>E-Mail</dt><dd>${esc(S.email||'– fehlt –')}</dd><dt>Profil</dt><dd>${esc(S.pname||'– fehlt –')}</dd>`)}
   ${sec('libs','Bibliotheken',S.libs.map(l=>`<dt>${esc(l.name)}</dt><dd><code>${esc(l.path||'– kein Ordner –')}</code> · ${esc(l.kind)}</dd>`).join(''))}
   ${sec('services','Dienste',`<dt>TMDB</dt><dd>${S.tmdbState==='ok'?'gültig':'nicht eingerichtet: nur Dateinamen'}</dd><dt>Weitere</dt><dd>${['tvdb','fanart','youtube','smtp'].filter(k=>S.extra[k]).map(k=>({tvdb:'TheTVDB',fanart:'Fanart.tv',youtube:'YouTube',smtp:'E-Mail'})[k]).join(', ')||'keine, später unter Verwaltung › Dienste'}</dd>`)}
-  ${sec('playback','Wiedergabe',`<dt>Umwandeln</dt><dd>Intel Quick Sync (erkannt)</dd><dt>Trickplay</dt><dd>${S.trickplay?'ein':'aus'} für neue Video-Bibliotheken</dd>`)}
+  ${sec('playback','Wiedergabe',`<dt>Umwandeln</dt><dd>${({auto:'Automatisch (heute Intel Quick Sync)',qsv:'Intel Quick Sync, gilt nach Neustart',vaapi:'VA-API, gilt nach Neustart',software:'Nur Prozessor, gilt nach Neustart'})[S.hw]}</dd><dt>Trickplay</dt><dd>${S.trickplay?'ein':'aus'} für neue Video-Bibliotheken</dd>`)}
   ${sec('household','Haushalt',`<dt>Profile</dt><dd>${esc([S.pname||'Dein Profil',...S.profiles.map(p=>p.name+' (ab '+p.age+')')].join(', '))}</dd>`)}
   ${sec('access','Zugriff',`<dt>Adresse</dt><dd>${esc(S.url||'nur im Heimnetz')}</dd><dt>Update-Prüfung</dt><dd>${S.updates?'ein':'aus'}</dd>`)}
   </div>`;
@@ -384,7 +386,7 @@ function vHub(){
 function vDone(){
   const pct=Math.min(100,S.scan);
   return `<div class="eyebrow">${esc(tr().steps.summary)}</div>
-  <h1 class="h1">Slouchcat ist eingerichtet</h1>
+  <h1 class="h1">Slouchcat ist eingerichtet</h1>${S.hw!=='auto'&&S.scan<20?'<div class="msg warn">Slouchcat startet neu, damit der gewählte Grafikchip gilt …</div>':''}
   <p class="lead">Du bist angemeldet. Der erste Scan läuft im Hintergrund; neue Titel erscheinen auf der Startseite, sobald sie erkannt sind.</p>
   <div class="panel">${S.libs.map((l,i)=>{const p=Math.max(0,Math.min(100,pct*1.4-i*30));return `<div class="ph"><span><b>${esc(l.name)}</b> <span class="muted">${esc(l.path||'')}</span></span><span class="sp"></span><span class="muted" style="font-variant-numeric:tabular-nums">${Math.round(p)} %</span></div><div class="bar"><i style="width:${p}%"></i></div>`}).join('')}</div>
   ${S.variant==='C'?'<p class="muted">Offene Punkte der Übersicht bleiben unter Verwaltung › Einrichtung.</p>':''}
@@ -455,7 +457,7 @@ document.addEventListener('click',e=>{
     case'rmLib':S.libs=S.libs.filter(l=>String(l.id)!==v);render();break;
     case'pickRoot':{const l=S.libs.find(x=>String(x.id)===v);l.path=b.dataset.p;l.check=null;render();break}
     case'checkLib':{const l=S.libs.find(x=>String(x.id)===v);const p=l.path.trim();l.check=p.startsWith('/mnt/nas')?'nas':p.startsWith('/media/')?'ok':'bad';render();break}
-    case'addProfile':{const n=S.newProfile.name.trim();if(!n){document.getElementById('npn')?.focus();break}S.profiles.push({...S.newProfile,name:n});S.newProfile={name:'',age:'6',pin:false};render();break}
+    case'addProfile':{const n=S.newProfile.name.trim();if(!n){document.getElementById('npn')?.focus();break}S.profiles.push({...S.newProfile,name:n});S.newProfile={name:'',age:'6',pin:''};render();break}
     case'rmProfile':S.profiles.splice(+v,1);render();break;
   }
 });
