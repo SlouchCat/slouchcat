@@ -188,7 +188,7 @@ func (e *env) runPeopleImages(t *testing.T) (*jobs.Recorder, error) {
 func TestPeopleImagesFetchesOpenSubjects(t *testing.T) {
 	t.Parallel()
 	e, cdn := newPeopleEnv(t)
-	cdn.set("/t/p/w185/p1.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
+	cdn.set("/t/p/w300/p1.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
 	cdn.set("/t/p/w500/c1.jpg", cdnAnswer{data: jpegBytes(t, 500, 750)})
 	e.addPerson(t, 1, "/p1.jpg", itemLive)
 	e.addPerson(t, 2, "/p2.jpg", "")       // no role
@@ -209,16 +209,16 @@ func TestPeopleImagesFetchesOpenSubjects(t *testing.T) {
 		t.Errorf("last progress %+v, want 2 of 2", last)
 	}
 	p := e.personRows(t, 1)
-	if j, w := p["jpeg"], p["webp"]; j.Status != "ok" || j.Source != "/p1.jpg" || j.Size != "w185" || j.RelPath.String != "people/1/w185.jpg" ||
+	if j, w := p["jpeg"], p["webp"]; j.Status != "ok" || j.Source != "/p1.jpg" || j.Size != "w300" || j.RelPath.String != "people/1/w300.jpg" ||
 		j.Width.Int64 != 185 || j.Height.Int64 != 278 || j.MediaType.String != "image/jpeg" || j.FetchedAt != testNow.UnixMilli() ||
-		w.Status != "ok" || w.RelPath.String != "people/1/w185.webp" || w.Width.Int64 != 185 || w.MediaType.String != "image/webp" {
+		w.Status != "ok" || w.RelPath.String != "people/1/w300.webp" || w.Width.Int64 != 185 || w.MediaType.String != "image/webp" {
 		t.Fatalf("person rows %+v", p)
 	}
-	data, err := os.ReadFile(filepath.Join(e.cache, "people", "1", "w185.jpg"))
-	if err != nil || string(data) != string(cdn.answers["/t/p/w185/p1.jpg"].data) {
+	data, err := os.ReadFile(filepath.Join(e.cache, "people", "1", "w300.jpg"))
+	if err != nil || string(data) != string(cdn.answers["/t/p/w300/p1.jpg"].data) {
 		t.Errorf("person JPEG not stored as fetched: %v", err)
 	}
-	if !e.cacheFile("people/1/w185.webp") {
+	if !e.cacheFile("people/1/w300.webp") {
 		t.Error("person WebP missing")
 	}
 	c := e.collectionRows(t, collTMDB)
@@ -258,9 +258,9 @@ func TestPeopleImagesFetchesOpenSubjects(t *testing.T) {
 func TestPeopleImagesChangedPathDeletedFileAndNoPath(t *testing.T) {
 	t.Parallel()
 	e, cdn := newPeopleEnv(t)
-	cdn.set("/t/p/w185/p1.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
-	cdn.set("/t/p/w185/p1b.jpg", cdnAnswer{data: jpegBytes(t, 185, 260)})
-	cdn.set("/t/p/w185/p2.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
+	cdn.set("/t/p/w300/p1.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
+	cdn.set("/t/p/w300/p1b.jpg", cdnAnswer{data: jpegBytes(t, 185, 260)})
+	cdn.set("/t/p/w300/p2.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
 	e.addPerson(t, 1, "/p1.jpg", itemLive)
 	e.addPerson(t, 2, "/p2.jpg", itemLive)
 	if _, err := e.runPeopleImages(t); err != nil {
@@ -268,7 +268,7 @@ func TestPeopleImagesChangedPathDeletedFileAndNoPath(t *testing.T) {
 	}
 
 	mustExec(t, e.db.Write, `UPDATE people SET profile_path = '/p1b.jpg' WHERE id = 1`)
-	if err := os.Remove(filepath.Join(e.cache, "people", "2", "w185.webp")); err != nil {
+	if err := os.Remove(filepath.Join(e.cache, "people", "2", "w300.webp")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := e.runPeopleImages(t); err != nil {
@@ -277,8 +277,8 @@ func TestPeopleImagesChangedPathDeletedFileAndNoPath(t *testing.T) {
 	if p := e.personRows(t, 1); p["jpeg"].Source != "/p1b.jpg" || p["jpeg"].Height.Int64 != 260 || p["webp"].Source != "/p1b.jpg" {
 		t.Errorf("changed path: rows %+v", p)
 	}
-	if n := cdn.count("/t/p/w185/p2.jpg"); n != 2 || !e.cacheFile("people/2/w185.webp") {
-		t.Errorf("deleted file: %d downloads of p2, webp there %v; want 2 and true", n, e.cacheFile("people/2/w185.webp"))
+	if n := cdn.count("/t/p/w300/p2.jpg"); n != 2 || !e.cacheFile("people/2/w300.webp") {
+		t.Errorf("deleted file: %d downloads of p2, webp there %v; want 2 and true", n, e.cacheFile("people/2/w300.webp"))
 	}
 
 	mustExec(t, e.db.Write, `UPDATE people SET profile_path = NULL WHERE id = 1`)
@@ -298,7 +298,7 @@ func TestPeopleImagesChangedPathDeletedFileAndNoPath(t *testing.T) {
 func TestPeopleImagesMissing(t *testing.T) {
 	t.Parallel()
 	e, cdn := newPeopleEnv(t)
-	cdn.set("/t/p/w185/broken.jpg", cdnAnswer{data: []byte("not an image")})
+	cdn.set("/t/p/w300/broken.jpg", cdnAnswer{data: []byte("not an image")})
 	e.addPerson(t, 1, "/gone.jpg", itemLive) // 404
 	e.addPerson(t, 2, "/broken.jpg", itemLive)
 	if _, err := e.runPeopleImages(t); err != nil {
@@ -323,7 +323,7 @@ func TestPeopleImagesMissing(t *testing.T) {
 		t.Fatalf("%d downloads with missing rows of 29 days, want 2", n)
 	}
 	// 31 days: asked again, the image is there now.
-	cdn.set("/t/p/w185/gone.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
+	cdn.set("/t/p/w300/gone.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
 	mustExec(t, e.db.Write, `UPDATE person_images SET fetched_at = ?`, testNow.Add(-31*24*time.Hour).UnixMilli())
 	if _, err := e.runPeopleImages(t); err != nil {
 		t.Fatal(err)
@@ -346,18 +346,18 @@ func TestPeopleImagesFailuresWriteNothing(t *testing.T) {
 	}{
 		{"5xx", func(e *env, cdn *fakeCDN) {
 			for _, p := range []string{"a", "b", "c"} {
-				cdn.set("/t/p/w185/"+p+".jpg", cdnAnswer{status: http.StatusBadGateway})
+				cdn.set("/t/p/w300/"+p+".jpg", cdnAnswer{status: http.StatusBadGateway})
 			}
 		}},
 		{"429", func(e *env, cdn *fakeCDN) {
 			for _, p := range []string{"a", "b", "c"} {
-				cdn.set("/t/p/w185/"+p+".jpg", cdnAnswer{status: http.StatusTooManyRequests})
+				cdn.set("/t/p/w300/"+p+".jpg", cdnAnswer{status: http.StatusTooManyRequests})
 			}
 		}},
 		{"timeout", func(e *env, cdn *fakeCDN) {
 			e.svc.client.http = &http.Client{Timeout: 50 * time.Millisecond}
 			for _, p := range []string{"a", "b", "c"} {
-				cdn.set("/t/p/w185/"+p+".jpg", cdnAnswer{delay: time.Second, data: jpegBytes(t, 185, 278)})
+				cdn.set("/t/p/w300/"+p+".jpg", cdnAnswer{delay: time.Second, data: jpegBytes(t, 185, 278)})
 			}
 		}},
 	} {
@@ -385,10 +385,10 @@ func TestPeopleImagesFailuresWriteNothing(t *testing.T) {
 	t.Run("reset", func(t *testing.T) {
 		t.Parallel()
 		e, cdn := newPeopleEnv(t)
-		cdn.set("/t/p/w185/a.jpg", cdnAnswer{status: http.StatusServiceUnavailable})
-		cdn.set("/t/p/w185/b.jpg", cdnAnswer{status: http.StatusServiceUnavailable})
-		cdn.set("/t/p/w185/c.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
-		cdn.set("/t/p/w185/d.jpg", cdnAnswer{status: http.StatusServiceUnavailable})
+		cdn.set("/t/p/w300/a.jpg", cdnAnswer{status: http.StatusServiceUnavailable})
+		cdn.set("/t/p/w300/b.jpg", cdnAnswer{status: http.StatusServiceUnavailable})
+		cdn.set("/t/p/w300/c.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
+		cdn.set("/t/p/w300/d.jpg", cdnAnswer{status: http.StatusServiceUnavailable})
 		for i, p := range []string{"a", "b", "c", "d"} {
 			e.addPerson(t, int64(i+1), "/"+p+".jpg", itemLive)
 		}
@@ -399,7 +399,7 @@ func TestPeopleImagesFailuresWriteNothing(t *testing.T) {
 			t.Errorf("person 3 rows %+v", p)
 		}
 		// The failed ones are not asked again in further passes of the run.
-		if n := cdn.count("/t/p/w185/a.jpg"); n != 1 {
+		if n := cdn.count("/t/p/w300/a.jpg"); n != 1 {
 			t.Errorf("%d requests of a failed image in one run, want 1", n)
 		}
 	})
@@ -418,19 +418,19 @@ func TestPeopleImagesDeterministicFailuresMissing(t *testing.T) {
 	}{
 		{"4xx", []string{"/a.jpg", "/b.jpg", "/c.jpg"}, 3, func(e *env, cdn *fakeCDN) {
 			for p, status := range map[string]int{"a": http.StatusForbidden, "b": http.StatusBadRequest, "c": http.StatusGone} {
-				cdn.set("/t/p/w185/"+p+".jpg", cdnAnswer{status: status})
+				cdn.set("/t/p/w300/"+p+".jpg", cdnAnswer{status: status})
 			}
 		}},
 		{"oversize", []string{"/a.jpg", "/b.jpg", "/c.jpg"}, 3, func(e *env, cdn *fakeCDN) {
 			big := append(jpegBytes(t, 185, 278), make([]byte, maxImageBytes)...)
 			for _, p := range []string{"a", "b", "c"} {
-				cdn.set("/t/p/w185/"+p+".jpg", cdnAnswer{data: big})
+				cdn.set("/t/p/w300/"+p+".jpg", cdnAnswer{data: big})
 			}
 		}},
 		{"ffmpeg", []string{"/a.jpg", "/b.jpg", "/c.jpg"}, 3, func(e *env, cdn *fakeCDN) {
 			e.svc.runner = transcode.Runner{FFmpegPath: failingFFmpeg(t)}
 			for _, p := range []string{"a", "b", "c"} {
-				cdn.set("/t/p/w185/"+p+".jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
+				cdn.set("/t/p/w300/"+p+".jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
 			}
 		}},
 		{"path", []string{"/a b.jpg", "/a\x01.jpg", "/a\t.jpg"}, 0, func(*env, *fakeCDN) {}},
@@ -500,11 +500,11 @@ func TestPeopleImagesPasses(t *testing.T) {
 	t.Parallel()
 	e, cdn := newPeopleEnv(t)
 	for _, p := range []string{"a", "b", "c", "d"} {
-		cdn.set("/t/p/w185/"+p+".jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
+		cdn.set("/t/p/w300/"+p+".jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
 	}
 	e.addPerson(t, 1, "/a.jpg", itemLive)
 	// Every download changes the path of person 1 again: always open, three passes and done.
-	next := map[string]string{"/t/p/w185/a.jpg": "/b.jpg", "/t/p/w185/b.jpg": "/c.jpg", "/t/p/w185/c.jpg": "/d.jpg", "/t/p/w185/d.jpg": "/a.jpg"}
+	next := map[string]string{"/t/p/w300/a.jpg": "/b.jpg", "/t/p/w300/b.jpg": "/c.jpg", "/t/p/w300/c.jpg": "/d.jpg", "/t/p/w300/d.jpg": "/a.jpg"}
 	cdn.onHit = func(path string) {
 		mustExec(t, e.db.Write, `UPDATE people SET profile_path = ? WHERE id = 1`, next[path])
 	}
@@ -547,15 +547,15 @@ func TestPeopleImagesBackfill(t *testing.T) {
 
 	// During a run: the second person's download triggers the backfill; the first person's fresh
 	// 'missing' row is fetched in the next pass of the same run.
-	cdn.set("/t/p/w185/a.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
+	cdn.set("/t/p/w300/a.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
 	if _, err := e.runPeopleImages(t); err != nil { // both 'missing' again, a fetched
 		t.Fatal(err)
 	}
 	mustExec(t, e.db.Write, `UPDATE people SET profile_path = '/a2.jpg' WHERE id = 1`)
-	cdn.set("/t/p/w185/b.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
+	cdn.set("/t/p/w300/b.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
 	var once sync.Once
 	cdn.onHit = func(path string) {
-		if path == "/t/p/w185/a2.jpg" {
+		if path == "/t/p/w300/a2.jpg" {
 			once.Do(func() {
 				if _, err := e.svc.runPeopleImagesBackfill(context.Background(), e.queue, peopleImagesPriority); err != nil {
 					t.Errorf("backfill during the run: %v", err)
@@ -575,8 +575,8 @@ func TestPeopleImagesBackfill(t *testing.T) {
 func TestPeopleImagesStopsOnCancel(t *testing.T) {
 	t.Parallel()
 	e, cdn := newPeopleEnv(t)
-	cdn.set("/t/p/w185/a.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
-	cdn.set("/t/p/w185/b.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
+	cdn.set("/t/p/w300/a.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
+	cdn.set("/t/p/w300/b.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
 	e.addPerson(t, 1, "/a.jpg", itemLive)
 	e.addPerson(t, 2, "/b.jpg", itemLive)
 	ctx, cancel := context.WithCancel(t.Context())
@@ -585,7 +585,7 @@ func TestPeopleImagesStopsOnCancel(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("run = %v, want context.Canceled", err)
 	}
-	if n := cdn.count("/t/p/w185/b.jpg"); n != 0 {
+	if n := cdn.count("/t/p/w300/b.jpg"); n != 0 {
 		t.Errorf("%d downloads after the cancel, want 0", n)
 	}
 }
@@ -596,7 +596,7 @@ func TestPeopleImagesStopsOnCancel(t *testing.T) {
 func TestPeopleImagesQueuedForLostFiles(t *testing.T) {
 	t.Parallel()
 	e, cdn := newPeopleEnv(t)
-	cdn.set("/t/p/w185/p1.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
+	cdn.set("/t/p/w300/p1.jpg", cdnAnswer{data: jpegBytes(t, 185, 278)})
 	cdn.set("/t/p/w500/c1.jpg", cdnAnswer{data: jpegBytes(t, 500, 750)})
 	e.addPerson(t, 1, "/p1.jpg", itemLive)
 	e.addCollection(t, collTMDB, "tmdb", "/c1.jpg", itemLive)
@@ -615,7 +615,7 @@ func TestPeopleImagesQueuedForLostFiles(t *testing.T) {
 	}{
 		{"cache wiped", ""}, // its content; the directory stays
 		{"collection files gone", "collections"},
-		{"person WebP gone", "people/1/w185.webp"},
+		{"person WebP gone", "people/1/w300.webp"},
 	} {
 		gone := []string{filepath.Join(e.cache, filepath.FromSlash(c.rel))}
 		if c.rel == "" {
@@ -640,7 +640,7 @@ func TestPeopleImagesQueuedForLostFiles(t *testing.T) {
 		if _, err := e.runPeopleImages(t); err != nil {
 			t.Fatal(err)
 		}
-		for _, rel := range []string{"people/1/w185.jpg", "people/1/w185.webp", "collections/" + collTMDB + "/w400.jpg", "collections/" + collTMDB + "/w400.webp"} {
+		for _, rel := range []string{"people/1/w300.jpg", "people/1/w300.webp", "collections/" + collTMDB + "/w400.jpg", "collections/" + collTMDB + "/w400.webp"} {
 			if !e.cacheFile(rel) {
 				t.Errorf("%s: %s not fetched again", c.name, rel)
 			}
@@ -676,7 +676,7 @@ func TestPeopleImagesQueuedByMatch(t *testing.T) {
 	// Nothing open after a match (every portrait and poster has a fresh 'missing' row): no job.
 	mustExec(t, e.db.Write, `DELETE FROM jobs WHERE type = ?`, JobPeopleImages)
 	mustExec(t, e.db.Write, `INSERT INTO person_images (person_id, format, status, source, size, fetched_at)
-		SELECT id, 'jpeg', 'missing', profile_path, 'w185', ? FROM people WHERE profile_path IS NOT NULL`, testNow.UnixMilli())
+		SELECT id, 'jpeg', 'missing', profile_path, 'w300', ? FROM people WHERE profile_path IS NOT NULL`, testNow.UnixMilli())
 	mustExec(t, e.db.Write, `INSERT INTO collection_images (collection_id, format, status, source, size, fetched_at)
 		SELECT id, 'jpeg', 'missing', poster_path, 'w400', ? FROM collections WHERE poster_path IS NOT NULL`, testNow.UnixMilli())
 	if err := e.svc.match(t.Context(), idByTMDB); err != nil {
@@ -758,34 +758,34 @@ func TestDownloadCDNImageRedirects(t *testing.T) {
 	t.Cleanup(other.Close)
 	cdn := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/t/p/w185/real.jpg":
+		case "/t/p/w300/real.jpg":
 			w.Header().Set("Content-Type", "image/jpeg")
 			_, _ = w.Write(jpegBytes(t, 10, 10))
-		case "/t/p/w185/same.jpg":
-			http.Redirect(w, r, "/t/p/w185/real.jpg", http.StatusFound)
-		case "/t/p/w185/other.jpg":
-			http.Redirect(w, r, other.URL+"/t/p/w185/real.jpg", http.StatusFound)
-		case "/t/p/w185/plain.jpg":
-			http.Redirect(w, r, "http://"+r.Host+"/t/p/w185/real.jpg", http.StatusMovedPermanently)
-		case "/t/p/w185/loop.jpg":
-			http.Redirect(w, r, "/t/p/w185/loop.jpg", http.StatusFound)
+		case "/t/p/w300/same.jpg":
+			http.Redirect(w, r, "/t/p/w300/real.jpg", http.StatusFound)
+		case "/t/p/w300/other.jpg":
+			http.Redirect(w, r, other.URL+"/t/p/w300/real.jpg", http.StatusFound)
+		case "/t/p/w300/plain.jpg":
+			http.Redirect(w, r, "http://"+r.Host+"/t/p/w300/real.jpg", http.StatusMovedPermanently)
+		case "/t/p/w300/loop.jpg":
+			http.Redirect(w, r, "/t/p/w300/loop.jpg", http.StatusFound)
 		default:
 			http.NotFound(w, r)
 		}
 	}))
 	t.Cleanup(cdn.Close)
 	c := NewClient(cdn.URL, cdn.URL+"/t/p", cdn.Client())
-	data, mediaType, err := c.DownloadCDNImage(t.Context(), "w185", "/same.jpg")
+	data, mediaType, err := c.DownloadCDNImage(t.Context(), "w300", "/same.jpg")
 	if err != nil || mediaType != "image/jpeg" || len(data) == 0 {
 		t.Fatalf("same-host https redirect = %d bytes, %q, %v; want the image", len(data), mediaType, err)
 	}
 	for _, p := range []string{"/other.jpg", "/plain.jpg", "/loop.jpg"} {
-		data, _, err := c.DownloadCDNImage(t.Context(), "w185", p)
+		data, _, err := c.DownloadCDNImage(t.Context(), "w300", p)
 		if err == nil || errors.Is(err, model.ErrTMDBUnreachable) || errors.Is(err, ErrNotFound) || data != nil {
 			t.Errorf("%s: %d bytes, %v; want a stopped redirect", p, len(data), err)
 		}
 	}
-	if _, hit := otherHits.Load("/t/p/w185/real.jpg"); hit {
+	if _, hit := otherHits.Load("/t/p/w300/real.jpg"); hit {
 		t.Error("redirect to another host followed")
 	}
 }

@@ -4348,6 +4348,12 @@
           "trigger": "After the match of a title with cast or a collection, and after a full scan, which fetches the backlog",
           "progress": "Images checked: {{done}} of {{total}}"
         },
+        "people_details": {
+          "name": "Fetch person facts",
+          "description": "Fetches each person's biography, birthday, place of birth, known-for department and number of titles from TMDB, the English biography when the main language has none.",
+          "trigger": "After the match of a title with cast, after a full scan, and once after the update",
+          "progress": "People checked: {{done}} of {{total}}"
+        },
         "people_images_backfill": {
           "name": "Backfill person and collection images",
           "description": "Tries every person and collection again for which TMDB had no image.",

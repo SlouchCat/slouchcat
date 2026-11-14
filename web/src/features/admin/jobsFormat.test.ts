@@ -30,6 +30,13 @@ describe('person and collection image job types (concept 17 D-5)', () => {
       'Versucht alle Personen und Sammlungen noch einmal, für die TMDB kein Bild hatte.',
     );
   });
+
+  it('names the job of the person facts (concept 21 P-8)', () => {
+    expect(typeName(t, 'people.details')).toBe('Angaben zu Personen holen');
+    expect(t('admin.jobs.types.people_details.progress', { done: 3, total: 10 })).toBe(
+      'Personen geprüft: 3 von 10',
+    );
+  });
 });
 
 describe('one-off dates', () => {

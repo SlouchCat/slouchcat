@@ -971,6 +971,12 @@ func (s *Service) applyTitle(ctx context.Context, snap systemq.Item, rec TitleRe
 			}
 		}
 	}
+	if !locked["cast"] && len(rec.Credits) > 0 {
+		// New people may want their facts (concept 21 P-8); the key makes one job.
+		if _, err := s.QueuePeopleDetails(ctx); err != nil {
+			s.log.Warn("person details after a match: queue failed", "item_id", itemID, "err", err)
+		}
+	}
 	written := cur
 	written.TmdbID, written.TvdbID, written.ImdbID = p.TmdbID, p.TvdbID, p.ImdbID
 	return written, true, nil
@@ -1306,7 +1312,8 @@ const maxUpgradeMatches = 200
 // (QueuePendingTrailers, for example after the YouTube quota ran out). It also starts
 // metadata.vote_backfill once while titles wait for a vote (QueueVoteBackfill, concept 08 4.2; not
 // counted, the job is not one of the library's) and people.images when a person or collection
-// image is open (QueuePeopleImages, ADR 0026; not counted either), and the match of audiobooks in
+// image is open (QueuePeopleImages, ADR 0026; not counted either), people.details when the facts
+// of a person are open (QueuePeopleDetails, concept 21 P-8; not counted), and the match of audiobooks in
 // state error again unless every source of their folder pauses (concept 19 D6.3; counted). The library scan calls it after every complete
 // run, so enrichment converges after aborted scans, failed jobs and the upgrade. It returns the
 // number of jobs queued.
@@ -1351,6 +1358,9 @@ func (s *Service) QueuePendingMetadata(ctx context.Context, libraryID int64) (in
 		return n, err
 	}
 	if _, err := s.QueuePeopleImages(ctx); err != nil {
+		return n, err
+	}
+	if _, err := s.QueuePeopleDetails(ctx); err != nil {
 		return n, err
 	}
 	// Audiobooks whose last match failed at a source try again (concept 19 D6.3 point 6).

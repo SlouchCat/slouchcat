@@ -734,7 +734,7 @@ type CastMember struct {
 	Name      string
 	Role      string // cast, director, writer, creator
 	Character string
-	Image     *Image // the portrait (w185 JPEG row, ADR 0026), nil without one
+	Image     *Image // the portrait (w300 JPEG row, ADR 0026, concept 21 O-12), nil without one
 }
 
 // Trailer is a YouTube trailer of a title in one language (B-8, W-10).
@@ -1038,7 +1038,7 @@ type SearchResult struct {
 type PersonRef struct {
 	ID    int64
 	Name  string
-	Image *Image // the portrait (w185 JPEG row, ADR 0026), nil without one
+	Image *Image // the portrait (w300 JPEG row, ADR 0026, concept 21 O-12), nil without one
 }
 
 // GenreRef is a genre with the number of visible titles.

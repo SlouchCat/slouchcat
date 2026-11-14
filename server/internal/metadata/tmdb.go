@@ -392,6 +392,54 @@ func (c *Client) Videos(ctx context.Context, kind string, id int64, lang string,
 	return res.Results, nil
 }
 
+// PersonDetail is the TMDB person detail of /person/{id} (concept 21 P-8): the fields TMDB has no
+// value for are empty (null decodes to ""). CombinedCredits is set only when it was asked for.
+type PersonDetail struct {
+	ID                 int64  `json:"id"`
+	Biography          string `json:"biography"`
+	Birthday           string `json:"birthday"`
+	Deathday           string `json:"deathday"`
+	PlaceOfBirth       string `json:"place_of_birth"`
+	KnownForDepartment string `json:"known_for_department"`
+	CombinedCredits    *struct {
+		Cast []PersonCreditRef `json:"cast"`
+		Crew []PersonCreditRef `json:"crew"`
+	} `json:"combined_credits"`
+}
+
+// PersonCreditRef is a title of a person's combined_credits: a cast or a crew entry.
+type PersonCreditRef struct {
+	ID        int64  `json:"id"`
+	MediaType string `json:"media_type"` // movie, tv
+}
+
+// TotalCredits returns the number of titles in the combined credits, every title once however many
+// roles the person has in it; ok is false when the credits were not asked for.
+func (d PersonDetail) TotalCredits() (n int, ok bool) {
+	if d.CombinedCredits == nil {
+		return 0, false
+	}
+	seen := map[PersonCreditRef]bool{}
+	for _, list := range [][]PersonCreditRef{d.CombinedCredits.Cast, d.CombinedCredits.Crew} {
+		for _, c := range list {
+			seen[PersonCreditRef{ID: c.ID, MediaType: c.MediaType}] = true
+		}
+	}
+	return len(seen), true
+}
+
+// Person returns the detail of person id in lang (de-DE, en-US), with combined_credits when
+// withCredits is set.
+func (c *Client) Person(ctx context.Context, id int64, lang string, withCredits bool) (PersonDetail, error) {
+	var d PersonDetail
+	q := url.Values{"language": {lang}}
+	if withCredits {
+		q.Set("append_to_response", "combined_credits")
+	}
+	err := c.getJSON(ctx, "/person/"+strconv.FormatInt(id, 10), q, &d)
+	return d, err
+}
+
 // DownloadURL fetches an image (a TMDB original or a TVDB artwork) without credentials. The caller
 // closes body. mediaType comes from the Content-Type of the answer.
 func (c *Client) DownloadURL(ctx context.Context, rawURL string) (body io.ReadCloser, mediaType string, err error) {
@@ -410,7 +458,7 @@ func (c *Client) DownloadURL(ctx context.Context, rawURL string) (body io.ReadCl
 	return limitedBody{io.LimitReader(resp.Body, maxImageBytes+1), resp.Body}, mediaType, nil
 }
 
-// DownloadCDNImage fetches the TMDB image path in size (w185, w500) from the image host without
+// DownloadCDNImage fetches the TMDB image path in size (w300, w500) from the image host without
 // credentials, through the CDN limiter instead of the API limiter (people.images, ADR 0026),
 // following redirects only to https on the same host (cdnRedirect). It
 // reads the whole answer (at most maxImageBytes) and returns it with the media type of its
