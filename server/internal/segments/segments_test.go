@@ -263,3 +263,65 @@ func TestWindows(t *testing.T) {
 		t.Errorf("tail of 100 s = %v+%v", from, length)
 	}
 }
+
+// TestDetectOverlongTail: a damaged file makes ffmpeg's seek to the tail land far too early, so the
+// tail fingerprint is much longer than its window and starts at the wrong place (concept 21 P-5,
+// Dragon Ball Z S02E11). That tail counts as missing: no span with End <= Start, and the other
+// episodes still get their outros.
+func TestDetectOverlongTail(t *testing.T) {
+	s := season{duration: 24 * time.Minute, introLen: 20 * time.Second, outroLen: 40 * time.Second,
+		introAt: []time.Duration{-1, -1, -1, -1, -1}}
+	eps := s.build(t, 7)
+	o := DefaultOptions()
+	f := newFingerprints(8)
+	outro := eps[0].Tail[len(eps[0].Tail)-int(s.outroLen/Step):]
+	// The broken episode's tail covers 244 s to the end of the file instead of the last 6 min.
+	broken := &eps[2]
+	seekedTo := 244 * time.Second
+	broken.Tail = f.noise(broken.Duration - seekedTo)
+	f.put(broken.Tail, outro, broken.Duration-s.outroLen-seekedTo)
+	if _, length := o.TailRange(broken.Duration); len(broken.Tail) < 3*int(length/Step) {
+		t.Fatalf("tail of %d values is not overlong", len(broken.Tail))
+	}
+	res := Detect(eps, o)
+	for _, e := range eps {
+		r := res[e.ID]
+		for _, sp := range []*Span{r.Intro, r.Outro} {
+			if sp != nil && (sp.End <= sp.Start || sp.Start < 0 || sp.End > e.Duration) {
+				t.Errorf("%s: invalid span %+v (duration %v)", e.ID, *sp, e.Duration)
+			}
+		}
+		if e.ID == broken.ID {
+			if r.Outro != nil {
+				t.Errorf("%s: outro %+v from an overlong tail, want none", e.ID, *r.Outro)
+			}
+			continue
+		}
+		if !near(r.Outro, e.Duration-s.outroLen, e.Duration) {
+			t.Errorf("%s: outro %+v, want %v-%v", e.ID, r.Outro, e.Duration-s.outroLen, e.Duration)
+		}
+	}
+}
+
+// TestDiscardOverlong: each part is checked on its own; fingerprints of their window's length (and
+// a little more) are kept.
+func TestDiscardOverlong(t *testing.T) {
+	o := DefaultOptions()
+	d := 24 * time.Minute
+	_, tl := o.TailRange(d)
+	e := Episode{ID: "e", Duration: d, Head: make([]uint32, MaxValues(o.HeadLength(d))), Tail: make([]uint32, 3*int(tl/Step))}
+	if got := o.DiscardOverlong(&e); len(got) != 1 || got[0] != (Overlong{Part: "tail", Want: MaxValues(tl), Got: 3 * int(tl/Step)}) {
+		t.Errorf("DiscardOverlong = %+v, want the tail only", got)
+	}
+	if e.Head == nil || e.Tail != nil {
+		t.Errorf("head kept = %v, tail kept = %v; want head only", e.Head != nil, e.Tail != nil)
+	}
+	e.Head = make([]uint32, MaxValues(o.HeadLength(d))+1)
+	if got := o.DiscardOverlong(&e); len(got) != 1 || got[0].Part != "head" || e.Head != nil {
+		t.Errorf("DiscardOverlong of a long head = %+v", got)
+	}
+	// 2886 values for the 360 s tail of the real episodes (ffmpeg delivers a few less than 360/Step).
+	if MaxValues(6*time.Minute) < 2908 || MaxValues(6*time.Minute) > 3000 {
+		t.Errorf("MaxValues(6 min) = %d", MaxValues(6*time.Minute))
+	}
+}

@@ -23,6 +23,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/mediaindex"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
+	"github.com/slouchcat/slouchcat/server/internal/segments"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
@@ -83,6 +84,9 @@ type Service struct {
 	// removeFileFn replaces paths.Remove in deleteWithFiles (a test seam for a file that fails to
 	// go; nil outside tests).
 	removeFileFn func(root paths.Root, rel string) error
+	// fingerprintFn replaces fingerprintEpisode in segments.detect (a test seam for fingerprints
+	// without ffmpeg; nil outside tests).
+	fingerprintFn func(ctx context.Context, r systemq.ListSegmentEpisodesRow, d time.Duration, opts segments.Options) (head, tail []uint32, err error)
 	// deleting holds the titles a delete works on (WithDeleting); nil: none.
 	deleting *model.DeletingSet
 	// hangingChecks holds the roots whose file check before a delete hangs (fileReason);

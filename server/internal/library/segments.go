@@ -115,6 +115,10 @@ func (s *Service) handleSegments(ctx context.Context, j *jobs.Job) error {
 				return
 			}
 			eps[i].Head, eps[i].Tail, fingerprinted[i] = head, tail, true
+			for _, d := range opts.DiscardOverlong(&eps[i]) {
+				s.log.WarnContext(ctx, "fingerprint longer than its window, discarded", "media_file_id", r.MediaFileID,
+					"item_id", r.ItemID, "part", d.Part, "expected_values", d.Want, "values", d.Got)
+			}
 		}()
 	}
 	wg.Wait()
@@ -122,6 +126,10 @@ func (s *Service) handleSegments(ctx context.Context, j *jobs.Job) error {
 		return err
 	}
 	res := segments.Detect(eps, opts)
+	durations := make(map[string]time.Duration, len(eps))
+	for _, ep := range eps {
+		durations[ep.ID] = ep.Duration
+	}
 
 	state := "none"
 	switch {
@@ -147,6 +155,12 @@ func (s *Service) handleSegments(ctx context.Context, j *jobs.Job) error {
 		}{{"intro", r.Intro}, {"outro", r.Outro}} {
 			kind, sp := seg.kind, seg.sp
 			if sp == nil {
+				continue
+			}
+			if d := durations[id]; sp.Start < 0 || sp.End <= sp.Start || sp.End > d {
+				// An invalid span must not fail the season's transaction (concept 21 P-5).
+				s.log.WarnContext(ctx, "invalid segment dropped", "item_id", id, "kind", kind,
+					"start_ms", sp.Start.Milliseconds(), "end_ms", sp.End.Milliseconds(), "duration_ms", d.Milliseconds())
 				continue
 			}
 			if err := q.InsertSegment(ctx, systemq.InsertSegmentParams{
@@ -179,6 +193,9 @@ func (s *Service) handleSegments(ctx context.Context, j *jobs.Job) error {
 
 // fingerprintEpisode returns the fingerprints of the start and the end of an episode file.
 func (s *Service) fingerprintEpisode(ctx context.Context, r systemq.ListSegmentEpisodesRow, d time.Duration, opts segments.Options) (head, tail []uint32, err error) {
+	if s.fingerprintFn != nil {
+		return s.fingerprintFn(ctx, r, d, opts)
+	}
 	root, err := paths.NewRoot(r.RootPath)
 	if err != nil {
 		return nil, nil, err

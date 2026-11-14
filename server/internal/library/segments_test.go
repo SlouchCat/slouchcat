@@ -1,13 +1,19 @@
 package library
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/segments"
+	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
 // introShow is the intro season of testdata/generate-media.sh: intro start (s) and duration (s)
@@ -275,5 +281,67 @@ func TestSegmentsDetectWithoutFiles(t *testing.T) {
 	}
 	if v := e.str(`SELECT segments_state FROM items WHERE id = ?`, season); v != "failed" {
 		t.Errorf("state when every fingerprint fails = %s, want failed", v)
+	}
+}
+
+// TestSegmentsDetectBrokenEpisode: one damaged episode of a season yields a tail fingerprint far
+// longer than its window (ffmpeg's seek lands too early, concept 21 P-5). The other episodes still
+// get their segments, the broken one gets no invalid span, and the job does not fail.
+func TestSegmentsDetectBrokenEpisode(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	dir := t.TempDir()
+	const episodes = 4
+	for i := range episodes {
+		writeFile(t, dir, fmt.Sprintf("Show (2020)/Season 02/Show (2020) S02E%02d.mkv", i+1), "not a video")
+	}
+	lib := e.createSeries(dir)
+	e.scan(lib.ID)
+	season := e.str(`SELECT id FROM items WHERE kind = 'season'`)
+	const duration = 24 * time.Minute
+	if _, err := e.db.Write.ExecContext(e.ctx, `UPDATE media_files SET probed_at = 1, duration_ms = ?, probe = '{}'`, duration.Milliseconds()); err != nil {
+		t.Fatal(err)
+	}
+	broken := e.str(`SELECT m.id FROM media_files AS m JOIN items AS i ON i.id = m.item_id WHERE i.episode_number = 3`)
+
+	// Synthetic fingerprints: random values with the same 40-s outro block at the end of every file.
+	rng := rand.New(rand.NewPCG(21, 5))
+	noise := func(d time.Duration) []uint32 {
+		v := make([]uint32, int(d/segments.Step))
+		for i := range v {
+			v[i] = rng.Uint32()
+		}
+		return v
+	}
+	const outroLen = 40 * time.Second
+	outro := noise(outroLen)
+	var mu sync.Mutex
+	e.svc.fingerprintFn = func(_ context.Context, r systemq.ListSegmentEpisodesRow, d time.Duration, o segments.Options) ([]uint32, []uint32, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		from, length := o.TailRange(d)
+		if r.MediaFileID == broken {
+			from, length = 244*time.Second, d-244*time.Second // the seek landed at 244 s
+		}
+		tail := noise(length)
+		copy(tail[int((d-outroLen-from)/segments.Step):], outro)
+		return noise(o.HeadLength(d)), tail, nil
+	}
+
+	if err := e.svc.handleSegments(e.ctx, seasonJob(t, season)); err != nil {
+		t.Fatalf("segments.detect with a broken episode: %v", err)
+	}
+	if v := e.str(`SELECT segments_state FROM items WHERE id = ?`, season); v != "done" {
+		t.Errorf("season state = %s, want done", v)
+	}
+	for ep := 1; ep <= episodes; ep++ {
+		n := e.count(`SELECT count(*) FROM media_segments AS g JOIN items AS i ON i.id = g.item_id
+			WHERE i.episode_number = ? AND g.kind = 'outro'`, ep)
+		if want := map[bool]int{true: 0, false: 1}[ep == 3]; n != want {
+			t.Errorf("E%02d outros = %d, want %d", ep, n, want)
+		}
+	}
+	if n := e.count(`SELECT count(*) FROM media_segments WHERE end_ms <= start_ms OR start_ms < 0 OR end_ms > ?`, duration.Milliseconds()); n != 0 {
+		t.Errorf("%d invalid segments stored", n)
 	}
 }
