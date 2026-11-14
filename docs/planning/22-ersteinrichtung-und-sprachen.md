@@ -2,8 +2,8 @@
 
 - **Status: Fassung 3 (14. November 2026).** Fassung 2 hat das Kritiker-Review eingearbeitet
   (REVISE: 2 Blocker, 11 Major, 16 Minor; Abschnitt 9). In Fassung 3 hat Marco alle offenen
-  Punkte beantwortet (Abschnitt 8). Damit sind **F-1 bis F-15** entschieden (Abschnitt 1), und es
-  ist **nichts mehr offen**.
+  Punkte beantwortet (Abschnitt 8), O-20 als letzten. Damit sind **F-1 bis F-16** entschieden
+  (Abschnitt 1), und es ist **nichts mehr offen**.
   - Neu ist **Teil C «Freigabeländer»** (Abschnitt 4.11, F-12): Profile bekommen die Altersstufen
     des gewählten Freigabelands.
   - **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
@@ -60,6 +60,7 @@
 | **F-13** | Weitere Dienste im Assistenten (O-11) | **Ja, alle:** dazu Google Books, Trakt, Web-Push und Telegram. Jede Karte zeigt, ob sie **empfohlen** oder **optional** ist. Empfohlen sind TMDB und E-Mail; über die übrigen durfte Claude entscheiden. |
 | **F-14** | Alte öffentliche Prüf-Endpunkte (O-12) | **Sofort entfernen**, nicht nur als veraltet markieren. |
 | **F-15** | Stichproben der Übersetzung durch Marco (O-9) | **Deutsch (Deutschland) und Englisch.** |
+| **F-16** | Gespeicherte Freigaben nach einem Wechsel des Freigabelands (O-20) | **Automatisch neu lesen:** Wechselt das Freigabeland, liest Slouchcat alle Freigaben neu und darf dabei auch senken. Von Hand gesetzte Freigaben bleiben unberührt. |
 
 Die übrigen offenen Punkte hat Marco nach Empfehlung beantwortet (Abschnitt 8). Die
 dreiundzwanzig Sprachen aus F-3 und F-4 stehen in Abschnitt 4.1. Rechts nach links (Arabisch,
@@ -961,15 +962,23 @@ streng, für die übrigen als Warnung. `task i18n:check` vor dem Release ist fü
 - **Anzeige am Titel:** statt «FSK 12» die Bezeichnung des Freigabelands, also «PG-13», «-12» oder
   «R15+». Ist das Alter keine Stufe des Landes, zeigt sie «ab {{age}}». Die Quelle steht wie heute
   im Detail («Freigabe aus: tmdb:FR»).
-- **Bestehende Titel:** Ihre Werte sind gerundete FSK-Stufen. Für einen deutschen Haushalt bleibt
-  das richtig.
-  - Wechselt ein Haushalt das Land, gelten die gespeicherten Werte weiter. Sie sind eher zu streng,
-    nie zu locker.
-  - In der Verwaltung kommt dafür die Aktion «Freigaben neu lesen» dazu. Sie liest die
-    Freigaben aller Titel neu und darf dabei auch **senken**. Das ändert K-3 («nie senken») genau
-    für diese ausdrückliche Aktion (O-20).
-  - Eine neue Installation stellt das Land im Assistenten vor dem ersten Scan ein und braucht die
-    Aktion nicht.
+- **Wechsel des Freigabelands (F-16):** Ändert sich `metadata.rating_country`, liest Slouchcat alle
+  Freigaben neu und darf dabei auch **senken**. Das ist eine Ausnahme von K-3 («eine gespeicherte
+  Freigabe wird nie gesenkt»).
+  - **Von Hand gesetzte Freigaben** (`own_age`, ehemals `own_rating`) bleiben immer unberührt.
+  - **Damit das ohne TMDB geht**, speichert Stufe 3 alle Freigaben eines Titels je Land in einer
+    neuen Tabelle `item_certifications (item_id, country, certification)`, gefüllt beim
+    Metadaten-Abgleich. Ein Landwechsel rechnet dann nur lokal neu, ohne neue Abrufe.
+  - **Titel aus der Zeit vor Stufe 3** haben diese Zeilen noch nicht. Beim ersten Landwechsel holt
+    ein Hintergrundjob «Freigaben neu lesen» ihre Freigaben einmal von TMDB nach und hält sich an
+    die bestehenden Grenzen der Metadaten-Jobs. Bis er fertig ist, gelten die alten Werte; sie sind
+    eher zu streng, nie zu locker.
+  - **Sichtbar:** Der Speichern-Dialog der Metadaten-Einstellungen sagt vor dem Wechsel «Slouchcat
+    liest danach die Freigaben aller Titel neu. Profile können dadurch Titel sehen, die bisher
+    verborgen waren.» Der Job erscheint in der Jobliste.
+  - **Der automatische Abgleich beim Scan** senkt weiterhin nie (K-3). Nur der Landwechsel tut es.
+  - Eine neue Installation stellt das Land im Assistenten vor dem ersten Scan ein. Der Wechsel
+    betrifft dort also noch keine Titel.
 - **Offline (Regel 12):** Der Server entscheidet weiter. Offline-Pakete tragen die erlaubten Titel
   wie heute, und der Client vergleicht keine Altersstufen.
 - **Tests:**
@@ -992,6 +1001,7 @@ streng, für die übrigen als Warnung. `task i18n:check` vor dem Release ist fü
 | Container ohne Restart-Policy | Slouchcat bleibt nach «Abschliessen» aus | nach 60 Sekunden Hinweis «von Hand starten» (O-18) |
 | Release-Ablauf wird länger | «Übersetzungen nachziehen» kostet bei jedem Release Zeit | Nur neue Texte; typisch 10 bis 50 je Release |
 | Weblate-PR ändert einen Platzhalter | Laufzeitfehler | Weblate-Prüfung «Platzhalter» und `locales.test.ts` in der CI |
+| Landwechsel senkt Freigaben (F-16) | ein Kind sieht danach Titel, die vorher verborgen waren | Hinweis vor dem Speichern; von Hand gesetzte Freigaben bleiben; Test je Land für die Tabelle |
 | Neue Spalten für das Alter in `items` (Teil C) | eine Abfrage liest noch die alte Spalte und filtert falsch | Test verbietet die alten Spalten; `vistest` mit französischem Haushalt; Gleichwertigkeit für deutsche Profile |
 | Metadaten ohne Deutsch (F-7) | Code, der stillschweigend eine `de`-Zeile erwartet, zeigt Leeres | Inventur in Schritt 0 der Stufe 1, Tests mit `fr`-Profil auf `fr → en`-Server |
 
@@ -1009,7 +1019,9 @@ streng, für die übrigen als Warnung. `task i18n:check` vor dem Release ist fü
   - Der Rest von ADR 0018 bleibt.
 - **ADR 0034 (neu), Teil C:** ändert Entscheid 6 und AN-8. Statt der FSK-Rundung wird das
   Mindestalter gespeichert, und die Profile wählen aus den Stufen des Freigabelands. K-3 («eine
-  gespeicherte Freigabe wird nie gesenkt») bekommt die Ausnahme «Freigaben neu lesen».
+  gespeicherte Freigabe wird nie gesenkt») bekommt eine Ausnahme: Ein Wechsel des Freigabelands
+  liest alle Freigaben neu und darf senken (F-16). Von Hand gesetzte Freigaben bleiben davon
+  ausgenommen.
 - **ADR 0001** nennt `{de,en}.json`. Der Satz wird auf `web/src/locales/*.json` geändert.
 - **`CLAUDE.md`:**
   - Regel 7: `owner` in der Liste der Sichtbarkeiten.
@@ -1037,7 +1049,7 @@ Bau-Reihenfolge nummeriert.
 |---|---|---|---|---|
 | **1 «Sprachgerüst»** | 4.2 bis 4.5 und 4.9 ohne neue Sprachen: Absicherung in `session.ts` für Sprache **und Alter**, Laden der Kette, `languages.ts`, `intlLocale` (neue Storybook-Bilder), Tabellen-Neubau `profiles` (ohne `CHECK` auf `language` und `max_rating`), `model.UILanguages`, `MetadataBase` und Rückfallsprache, F-9 fällt, `initialPrefs` normalisiert, Erkennung, Server-Texte als JSON, `:lang()`-Schriften, `en-XA`, neue Tests, Sprachknopf auf `/login`. `de-DE.json` wird erstellt, aber noch nicht wählbar. | ja (F-9-Lockerung) | ja | Zahlen in Schweizer Format; Metadaten-Liste ohne Deutsch möglich |
 | **2 «Assistent»** | Teil A ganz, mit den fünf Freigabeländern von heute. Dazu `de-DE` wählbar (Vertragsliste `[de, de-DE, en]`), Grafikchip-Wahl auch in der Verwaltung (O-19), Wegfall der öffentlichen Prüf-Endpunkte (F-14), INSTALLATION.md. | ja (brechend, F-14) | nein | neuer Assistent auf einer frischen Testinstanz; Deutsch (Deutschland) |
-| **3 «Freigabeländer»** | Teil C (4.11): Mindestalter statt FSK-Stufe, Ländertabelle, `ratingSystem`, Neubau `accounts` und `invitations`, neue Alter-Spalten in `items` und `libraries`, Anzeige am Titel, «Freigaben neu lesen», Assistent mit allen Ländern. | ja | ja | Freigabeland Frankreich mit Stufe 10 im Profil |
+| **3 «Freigabeländer»** | Teil C (4.11): Mindestalter statt FSK-Stufe, Ländertabelle, `ratingSystem`, Neubau `accounts` und `invitations`, neue Alter-Spalten in `items` und `libraries`, Tabelle `item_certifications`, Neuberechnung beim Landwechsel mit Job für ältere Titel (F-16), Anzeige am Titel, Assistent mit allen Ländern. | ja | ja | Freigabeland Frankreich mit Stufe 10 im Profil |
 | **4 «Übersetzungen»** | 4.6: Glossar, Stilregeln, Kontextskript, dann 20 Sprachen in vier Gruppen (fr/es/it/nl/pt-BR · pt-PT/pl/cs/hu/tr · sv/da/nb/fi · ru/uk/ja/ko/zh-CN/zh-TW), je Gruppe Übersetzen, Prüfen, Bildprüfung. **Ein Release für alle 20** (F-4); die Gruppen sind nur Arbeitspakete. Vertragsliste auf 23. | ja (Liste) | nein | 23 Sprachen wählbar |
 | **5 «Weblate»** | 4.7 und 4.8: Weblate-Projekt (Konto durch Marco), Komponenten, `docs/i18n/README.md`, Plakette, Release-Schritt «Übersetzungen nachziehen», `task i18n:status`/`i18n:check`. | nein | nein | Mitarbeit von aussen möglich |
 
@@ -1082,7 +1094,7 @@ in Abschnitt 1.
 | **O-17** | Einrichtungs-Token | **Nein** (Empfehlung). |
 | **O-18** | Neustart nach Grafikchip-Wahl | **Server startet sich selbst neu** (Empfehlung). |
 | **O-19** | Grafikchip-Wahl in der Verwaltung | **Ja** (Empfehlung). |
-| **O-20** | «Freigaben neu lesen» darf senken (neu in Fassung 3, aus F-12) | **Empfehlung: ja, nur als ausdrückliche Aktion in der Verwaltung.** Der automatische Abgleich senkt weiter nie (K-3). Bis zu Marcos Wort gilt die Empfehlung. |
+| **O-20** | Gespeicherte Freigaben nach einem Wechsel des Freigabelands (neu in Fassung 3, aus F-12) | **Automatisch beim Landwechsel neu lesen, auch senken; von Hand gesetzte bleiben** (F-16, abweichend von der Empfehlung «nur als Aktion»). |
 
 ## 9. Kritiker-Review (Fassung 1 → Fassung 2)
 
