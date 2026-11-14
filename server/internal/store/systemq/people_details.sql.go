@@ -10,6 +10,29 @@ import (
 	"database/sql"
 )
 
+const countOpenCollectionDetails = `-- name: CountOpenCollectionDetails :one
+SELECT count(*)
+FROM collections AS c
+WHERE c.source = 'tmdb' AND c.tmdb_id IS NOT NULL
+  AND EXISTS (SELECT 1 FROM collection_items AS ci JOIN items AS i ON i.id = ci.item_id
+              WHERE ci.collection_id = c.id AND i.deleted_at IS NULL)
+  AND (c.details_fetched_at IS NULL OR c.details_fetched_at < CAST(?1 AS INTEGER)
+       OR c.details_lang IS NULL OR c.details_lang <> CAST(?2 AS TEXT))
+`
+
+type CountOpenCollectionDetailsParams struct {
+	StaleBefore int64
+	Lang        string
+}
+
+// The count of ListOpenCollectionDetails without a cursor: part of the total of the job's progress.
+func (q *Queries) CountOpenCollectionDetails(ctx context.Context, arg CountOpenCollectionDetailsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countOpenCollectionDetails, arg.StaleBefore, arg.Lang)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countOpenPersonDetails = `-- name: CountOpenPersonDetails :one
 SELECT count(*)
 FROM people AS p
@@ -31,6 +54,64 @@ func (q *Queries) CountOpenPersonDetails(ctx context.Context, arg CountOpenPerso
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const listOpenCollectionDetails = `-- name: ListOpenCollectionDetails :many
+
+SELECT c.id, c.tmdb_id
+FROM collections AS c
+WHERE c.id > CAST(?1 AS TEXT) AND c.source = 'tmdb' AND c.tmdb_id IS NOT NULL
+  AND EXISTS (SELECT 1 FROM collection_items AS ci JOIN items AS i ON i.id = ci.item_id
+              WHERE ci.collection_id = c.id AND i.deleted_at IS NULL)
+  AND (c.details_fetched_at IS NULL OR c.details_fetched_at < CAST(?2 AS INTEGER)
+       OR c.details_lang IS NULL OR c.details_lang <> CAST(?3 AS TEXT))
+ORDER BY c.id
+LIMIT ?4
+`
+
+type ListOpenCollectionDetailsParams struct {
+	AfterID     string
+	StaleBefore int64
+	Lang        string
+	LimitCount  int64
+}
+
+type ListOpenCollectionDetailsRow struct {
+	ID     string
+	TmdbID sql.NullInt64
+}
+
+// The descriptions of TMDB collections (concept 21 O-18, migration 00060), fetched by the same job
+// after the people. A collection is a candidate when it comes from TMDB and has a member that is
+// not deleted; it is open like a person (never fetched, fetched before @stale_before or in another
+// main language than @lang). Manual collections are never candidates. Keep both queries equal.
+// The open candidates by id after the cursor @after_id, @limit_count at a time.
+func (q *Queries) ListOpenCollectionDetails(ctx context.Context, arg ListOpenCollectionDetailsParams) ([]ListOpenCollectionDetailsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listOpenCollectionDetails,
+		arg.AfterID,
+		arg.StaleBefore,
+		arg.Lang,
+		arg.LimitCount,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListOpenCollectionDetailsRow{}
+	for rows.Next() {
+		var i ListOpenCollectionDetailsRow
+		if err := rows.Scan(&i.ID, &i.TmdbID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listOpenPersonDetails = `-- name: ListOpenPersonDetails :many
@@ -94,6 +175,23 @@ func (q *Queries) ListOpenPersonDetails(ctx context.Context, arg ListOpenPersonD
 	return items, nil
 }
 
+const markCollectionDetailsFetched = `-- name: MarkCollectionDetailsFetched :exec
+UPDATE collections SET details_lang = CAST(?1 AS TEXT), details_fetched_at = CAST(?2 AS INTEGER) WHERE id = ?3
+`
+
+type MarkCollectionDetailsFetchedParams struct {
+	DetailsLang string
+	Now         int64
+	ID          string
+}
+
+// A fetch that would fail the same way again: the description stays, the collection waits for
+// the next refresh.
+func (q *Queries) MarkCollectionDetailsFetched(ctx context.Context, arg MarkCollectionDetailsFetchedParams) error {
+	_, err := q.db.ExecContext(ctx, markCollectionDetailsFetched, arg.DetailsLang, arg.Now, arg.ID)
+	return err
+}
+
 const markPersonDetailsFetched = `-- name: MarkPersonDetailsFetched :exec
 UPDATE people SET details_lang = CAST(?1 AS TEXT), details_fetched_at = CAST(?2 AS INTEGER) WHERE id = ?3
 `
@@ -108,6 +206,33 @@ type MarkPersonDetailsFetchedParams struct {
 // they are and the person waits for the next refresh.
 func (q *Queries) MarkPersonDetailsFetched(ctx context.Context, arg MarkPersonDetailsFetchedParams) error {
 	_, err := q.db.ExecContext(ctx, markPersonDetailsFetched, arg.DetailsLang, arg.Now, arg.ID)
+	return err
+}
+
+const storeCollectionDetails = `-- name: StoreCollectionDetails :exec
+UPDATE collections
+SET description = ?1, description_lang = ?2,
+    details_lang = CAST(?3 AS TEXT), details_fetched_at = CAST(?4 AS INTEGER)
+WHERE id = ?5
+`
+
+type StoreCollectionDetailsParams struct {
+	Description     sql.NullString
+	DescriptionLang sql.NullString
+	DetailsLang     string
+	Now             int64
+	ID              string
+}
+
+// The description of one fetch; NULL when TMDB has none (or does not know the collection).
+func (q *Queries) StoreCollectionDetails(ctx context.Context, arg StoreCollectionDetailsParams) error {
+	_, err := q.db.ExecContext(ctx, storeCollectionDetails,
+		arg.Description,
+		arg.DescriptionLang,
+		arg.DetailsLang,
+		arg.Now,
+		arg.ID,
+	)
 	return err
 }
 

@@ -31,10 +31,10 @@ describe('person and collection image job types (concept 17 D-5)', () => {
     );
   });
 
-  it('names the job of the person facts (concept 21 P-8)', () => {
-    expect(typeName(t, 'people.details')).toBe('Angaben zu Personen holen');
+  it('names the job of the person and collection facts (concept 21 P-8, O-18)', () => {
+    expect(typeName(t, 'people.details')).toBe('Angaben zu Personen und Sammlungen holen');
     expect(t('admin.jobs.types.people_details.progress', { done: 3, total: 10 })).toBe(
-      'Personen geprüft: 3 von 10',
+      'Personen und Sammlungen geprüft: 3 von 10',
     );
   });
 });

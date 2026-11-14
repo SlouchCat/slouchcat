@@ -971,8 +971,9 @@ func (s *Service) applyTitle(ctx context.Context, snap systemq.Item, rec TitleRe
 			}
 		}
 	}
-	if !locked["cast"] && len(rec.Credits) > 0 {
-		// New people may want their facts (concept 21 P-8); the key makes one job.
+	if (!locked["cast"] && len(rec.Credits) > 0) || (cur.Kind == "movie" && rec.Collection != nil && rec.Collection.TMDBID > 0) {
+		// New people may want their facts (concept 21 P-8), a collection its description (O-18);
+		// the key makes one job.
 		if _, err := s.QueuePeopleDetails(ctx); err != nil {
 			s.log.Warn("person details after a match: queue failed", "item_id", itemID, "err", err)
 		}

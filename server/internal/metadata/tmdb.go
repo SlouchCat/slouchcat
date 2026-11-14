@@ -440,6 +440,20 @@ func (c *Client) Person(ctx context.Context, id int64, lang string, withCredits 
 	return d, err
 }
 
+// CollectionDetail is the part of a TMDB /collection answer the collection page uses (concept 21
+// O-18).
+type CollectionDetail struct {
+	ID       int64  `json:"id"`
+	Overview string `json:"overview"`
+}
+
+// Collection returns the detail of collection id in lang (de-DE, en-US).
+func (c *Client) Collection(ctx context.Context, id int64, lang string) (CollectionDetail, error) {
+	var d CollectionDetail
+	err := c.getJSON(ctx, "/collection/"+strconv.FormatInt(id, 10), url.Values{"language": {lang}}, &d)
+	return d, err
+}
+
 // DownloadURL fetches an image (a TMDB original or a TVDB artwork) without credentials. The caller
 // closes body. mediaType comes from the Content-Type of the answer.
 func (c *Client) DownloadURL(ctx context.Context, rawURL string) (body io.ReadCloser, mediaType string, err error) {

@@ -4435,10 +4435,10 @@
           "progress": "Bilder geprüft: {{done}} von {{total}}"
         },
         "people_details": {
-          "name": "Angaben zu Personen holen",
-          "description": "Lädt bei TMDB Biografie, Geburtstag, Geburtsort, Bekannt für und die Zahl der Titel jeder Person; fehlt die Biografie in der Hauptsprache, die englische.",
-          "trigger": "nach der Zuordnung eines Titels mit Besetzung, nach einem vollständigen Scan und einmal nach dem Update",
-          "progress": "Personen geprüft: {{done}} von {{total}}"
+          "name": "Angaben zu Personen und Sammlungen holen",
+          "description": "Lädt bei TMDB Biografie, Geburtstag, Geburtsort, Bekannt für und die Zahl der Titel jeder Person und die Beschreibung jeder TMDB-Sammlung; fehlt ein Text in der Hauptsprache, den englischen.",
+          "trigger": "nach der Zuordnung eines Titels mit Besetzung oder Sammlung, nach einem vollständigen Scan und einmal nach dem Update",
+          "progress": "Personen und Sammlungen geprüft: {{done}} von {{total}}"
         },
         "people_images_backfill": {
           "name": "Personen- und Sammlungsbilder nachholen",

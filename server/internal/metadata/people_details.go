@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,14 +14,17 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
-// The facts of a person for the person page (concept 21 P-8, migration 00058). The job
+// The facts of a person for the person page (concept 21 P-8, migration 00058) and the
+// description of a TMDB collection for the collection page (concept 21 O-18, migration 00060). The job
 // people.details asks TMDB /person/{id} with combined_credits, through the API limiter, for every
 // person with a TMDB id and a role on a title that is not deleted, in the main metadata language
 // (the first text language): the biography, birthday, deathday, place of birth, known-for
 // department and the number of titles of the combined credits (O-14). When the biography is empty
 // in the main language, a second request asks for the English one (O-13), stored with biography_lang
-// en. queries/system/people_details.sql says what is open: never fetched, fetched before
-// peopleDetailsMaxAge, or in another main language.
+// en. After the people it asks TMDB /collection/{id} in the main language for every TMDB collection
+// with a member that is not deleted, and for the English overview when that one is empty, by the
+// same rule (description_lang en). queries/system/people_details.sql says what is open: never
+// fetched, fetched before peopleDetailsMaxAge, or in another main language.
 //
 // Without a TMDB key, or with one TMDB rejected (key_rejection.go, concept 21 P-2), a run asks
 // nothing and ends skipped; a 401 during the run remembers the rejection and ends the run without
@@ -30,7 +34,7 @@ import (
 // an error and the queue retries it after its backoff. After the pass the run starts another while
 // open people are left that did not fail in this run, at most peopleDetailsPasses passes.
 //
-// The job is queued like people.images: after a match that wrote credits, at the end of
+// The job is queued like people.images: after a match that wrote credits or a collection, at the end of
 // QueuePendingMetadata, once at the first start after the update (QueuePeopleRefreshOnce) and when
 // a rejected key passes its check again.
 const (
@@ -57,8 +61,8 @@ func (s *Service) enqueuePeopleDetails(ctx context.Context) error {
 	return nil
 }
 
-// QueuePeopleDetails queues people.details when a person is open and TMDB has a key it does not
-// reject, and reports whether it did.
+// QueuePeopleDetails queues people.details when a person or a TMDB collection is open and TMDB has
+// a key it does not reject, and reports whether it did.
 func (s *Service) QueuePeopleDetails(ctx context.Context) (bool, error) {
 	if !s.tmdb.Configured(ctx) || s.KeyRejected(ctx, ProviderTMDB) {
 		return false, nil
@@ -91,16 +95,29 @@ func (s *Service) detailsStaleBefore() int64 {
 	return s.now().Add(-peopleDetailsMaxAge).UnixMilli()
 }
 
-// peopleDetailsLeft reports whether an open person is left that is not in failed.
-func (s *Service) peopleDetailsLeft(ctx context.Context, lang string, failed map[int64]bool) (bool, error) {
+// peopleDetailsLeft reports whether an open person or collection is left that is not in failed
+// (keys of personKey and collectionKey).
+func (s *Service) peopleDetailsLeft(ctx context.Context, lang string, failed map[string]bool) (bool, error) {
+	limit := int64(len(failed) + 1)
 	ids, err := s.read.ListOpenPersonDetails(ctx, systemq.ListOpenPersonDetailsParams{
-		StaleBefore: s.detailsStaleBefore(), Lang: lang, LimitCount: int64(len(failed) + 1),
+		StaleBefore: s.detailsStaleBefore(), Lang: lang, LimitCount: limit,
 	})
 	if err != nil {
 		return false, fmt.Errorf("list open person details: %w", err)
 	}
 	for _, r := range ids {
-		if !failed[r.ID] {
+		if !failed[personKey(r.ID)] {
+			return true, nil
+		}
+	}
+	colls, err := s.read.ListOpenCollectionDetails(ctx, systemq.ListOpenCollectionDetailsParams{
+		StaleBefore: s.detailsStaleBefore(), Lang: lang, LimitCount: limit,
+	})
+	if err != nil {
+		return false, fmt.Errorf("list open collection details: %w", err)
+	}
+	for _, r := range colls {
+		if !failed[collectionKey(r.ID)] {
 			return true, nil
 		}
 	}
@@ -111,8 +128,8 @@ func (s *Service) peopleDetailsLeft(ctx context.Context, lang string, failed map
 type detailsRun struct {
 	client   *Client
 	lang     string
-	failed   map[int64]bool // people that failed in this run
-	failures int            // failures in a row
+	failed   map[string]bool // people and collections that failed in this run (personKey, collectionKey)
+	failures int             // failures in a row
 	fetched  int
 	rejected bool // TMDB rejected the key: the run stops
 }
@@ -135,7 +152,7 @@ func (s *Service) handlePeopleDetails(ctx context.Context, _ *jobs.Job) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", JobPeopleDetails, err)
 	}
-	run := &detailsRun{client: client, lang: lang, failed: map[int64]bool{}}
+	run := &detailsRun{client: client, lang: lang, failed: map[string]bool{}}
 	for range peopleDetailsPasses {
 		if err := s.peopleDetailsPass(ctx, run); err != nil {
 			return err
@@ -154,18 +171,22 @@ func (s *Service) handlePeopleDetails(ctx context.Context, _ *jobs.Job) error {
 	if run.fetched == 0 && len(run.failed) == 0 {
 		jobs.Skip(ctx)
 	}
-	s.log.InfoContext(ctx, "person details done", "fetched", run.fetched, "failed", len(run.failed), "key_rejected", run.rejected)
+	s.log.InfoContext(ctx, "person and collection details done", "fetched", run.fetched, "failed", len(run.failed), "key_rejected", run.rejected)
 	return nil
 }
 
-// peopleDetailsPass walks the open people once by id.
+// peopleDetailsPass walks the open people once by id, then the open collections.
 func (s *Service) peopleDetailsPass(ctx context.Context, run *detailsRun) error {
 	stale := s.detailsStaleBefore()
-	total, err := s.read.CountOpenPersonDetails(ctx, systemq.CountOpenPersonDetailsParams{StaleBefore: stale, Lang: run.lang})
+	np, err := s.read.CountOpenPersonDetails(ctx, systemq.CountOpenPersonDetailsParams{StaleBefore: stale, Lang: run.lang})
 	if err != nil {
 		return fmt.Errorf("count open person details: %w", err)
 	}
-	done := int64(0)
+	nc, err := s.read.CountOpenCollectionDetails(ctx, systemq.CountOpenCollectionDetailsParams{StaleBefore: stale, Lang: run.lang})
+	if err != nil {
+		return fmt.Errorf("count open collection details: %w", err)
+	}
+	total, done := np+nc, int64(0)
 	var after int64
 	for {
 		rows, err := s.read.ListOpenPersonDetails(ctx, systemq.ListOpenPersonDetailsParams{
@@ -180,8 +201,33 @@ func (s *Service) peopleDetailsPass(ctx context.Context, run *detailsRun) error 
 		for _, r := range rows {
 			after = r.ID
 			jobs.Progress(ctx, done, max(total, done), "")
-			if !run.failed[r.ID] {
+			if !run.failed[personKey(r.ID)] {
 				if err := s.fetchPersonDetails(ctx, run, r.ID, r.TmdbID.Int64); err != nil {
+					return err
+				}
+				if run.rejected {
+					return nil
+				}
+			}
+			done++
+		}
+	}
+	afterColl := ""
+	for {
+		rows, err := s.read.ListOpenCollectionDetails(ctx, systemq.ListOpenCollectionDetailsParams{
+			AfterID: afterColl, StaleBefore: stale, Lang: run.lang, LimitCount: peopleDetailsBatch,
+		})
+		if err != nil {
+			return fmt.Errorf("list open collection details: %w", err)
+		}
+		if len(rows) == 0 {
+			break
+		}
+		for _, r := range rows {
+			afterColl = r.ID
+			jobs.Progress(ctx, done, max(total, done), "")
+			if !run.failed[collectionKey(r.ID)] {
+				if err := s.fetchCollectionDetails(ctx, run, r.ID, r.TmdbID.Int64); err != nil {
 					return err
 				}
 				if run.rejected {
@@ -202,12 +248,63 @@ func (s *Service) fetchPersonDetails(ctx context.Context, run *detailsRun, id, t
 	}
 	now := s.now().UnixMilli()
 	d, bioLang, err := personDetailsIn(ctx, run.client, tmdbID, run.lang)
+	return s.detailsOutcome(ctx, run, err, detailsSubject{
+		key: personKey(id), what: "person " + strconv.FormatInt(id, 10),
+		store: func() error {
+			p := personDetailsRow(d, bioLang)
+			p.DetailsLang, p.Now, p.ID = run.lang, now, id
+			return s.write.StorePersonDetails(ctx, p)
+		},
+		unknown: func() error {
+			return s.write.StorePersonDetails(ctx, systemq.StorePersonDetailsParams{DetailsLang: run.lang, Now: now, ID: id})
+		},
+		mark: func() error {
+			return s.write.MarkPersonDetailsFetched(ctx, systemq.MarkPersonDetailsFetchedParams{DetailsLang: run.lang, Now: now, ID: id})
+		},
+	})
+}
+
+// fetchCollectionDetails fetches and stores the description of one TMDB collection (O-18).
+func (s *Service) fetchCollectionDetails(ctx context.Context, run *detailsRun, id string, tmdbID int64) error {
+	if err := ctx.Err(); err != nil {
+		return err // a pause or a cancel
+	}
+	now := s.now().UnixMilli()
+	overview, lang, err := collectionOverviewIn(ctx, run.client, tmdbID, run.lang)
+	return s.detailsOutcome(ctx, run, err, detailsSubject{
+		key: collectionKey(id), what: "collection " + id,
+		store: func() error {
+			p := systemq.StoreCollectionDetailsParams{Description: nullText(overview), DetailsLang: run.lang, Now: now, ID: id}
+			if p.Description.Valid {
+				p.DescriptionLang = sql.NullString{String: lang, Valid: true}
+			}
+			return s.write.StoreCollectionDetails(ctx, p)
+		},
+		unknown: func() error {
+			return s.write.StoreCollectionDetails(ctx, systemq.StoreCollectionDetailsParams{DetailsLang: run.lang, Now: now, ID: id})
+		},
+		mark: func() error {
+			return s.write.MarkCollectionDetailsFetched(ctx, systemq.MarkCollectionDetailsFetchedParams{DetailsLang: run.lang, Now: now, ID: id})
+		},
+	})
+}
+
+// detailsSubject is one person or collection of a run: its key in detailsRun.failed, its name in
+// logs and errors, and how its outcome is written.
+type detailsSubject struct {
+	key, what string
+	store     func() error // the answer
+	unknown   func() error // TMDB does not know it (any more): no facts
+	mark      func() error // another answer that would come again the same way
+}
+
+// detailsOutcome writes the outcome of one fetch: the answer, no facts for a 404, only the fetch
+// time for another refusal; a rejected key stops the run, a failure of the transport is counted.
+func (s *Service) detailsOutcome(ctx context.Context, run *detailsRun, err error, sub detailsSubject) error {
 	switch {
 	case err == nil:
-		p := personDetailsRow(d, bioLang)
-		p.DetailsLang, p.Now, p.ID = run.lang, now, id
-		if err := s.write.StorePersonDetails(ctx, p); err != nil {
-			return fmt.Errorf("%s: store person %d: %w", JobPeopleDetails, id, err)
+		if err := sub.store(); err != nil {
+			return fmt.Errorf("%s: store %s: %w", JobPeopleDetails, sub.what, err)
 		}
 	case ctx.Err() != nil:
 		return ctx.Err()
@@ -216,23 +313,21 @@ func (s *Service) fetchPersonDetails(ctx context.Context, run *detailsRun, id, t
 		run.rejected = true
 		return nil
 	case errors.Is(err, model.ErrTMDBUnreachable):
-		run.failed[id] = true
+		run.failed[sub.key] = true
 		run.failures++
-		s.log.Warn("person details failed", "person_id", id, "err", err)
+		s.log.Warn("details failed", "subject", sub.what, "err", err)
 		if run.failures >= peopleDetailsFailures {
 			return fmt.Errorf("%s: %d %w in a row: %w", JobPeopleDetails, run.failures, errPeopleDetailsFailures, err)
 		}
 		return nil
 	case errors.Is(err, ErrNotFound):
-		// TMDB does not know the person (any more): no facts.
-		if err := s.write.StorePersonDetails(ctx, systemq.StorePersonDetailsParams{DetailsLang: run.lang, Now: now, ID: id}); err != nil {
-			return fmt.Errorf("%s: store person %d: %w", JobPeopleDetails, id, err)
+		if err := sub.unknown(); err != nil {
+			return fmt.Errorf("%s: store %s: %w", JobPeopleDetails, sub.what, err)
 		}
 	default:
-		// Another answer that would come again the same way: the facts stay, the fetch is marked.
-		s.log.Warn("person details refused", "person_id", id, "err", err)
-		if err := s.write.MarkPersonDetailsFetched(ctx, systemq.MarkPersonDetailsFetchedParams{DetailsLang: run.lang, Now: now, ID: id}); err != nil {
-			return fmt.Errorf("%s: mark person %d: %w", JobPeopleDetails, id, err)
+		s.log.Warn("details refused", "subject", sub.what, "err", err)
+		if err := sub.mark(); err != nil {
+			return fmt.Errorf("%s: mark %s: %w", JobPeopleDetails, sub.what, err)
 		}
 	}
 	run.failures = 0
@@ -257,6 +352,24 @@ func personDetailsIn(ctx context.Context, c *Client, tmdbID int64, lang string) 
 	}
 	d.Biography = en.Biography
 	return d, "en", nil
+}
+
+// collectionOverviewIn asks TMDB for the collection in lang and, when its overview is empty and
+// lang is not English, for the English one (O-18, the rule of O-13). overviewLang is the language
+// of the overview: lang, or en for the fallback.
+func collectionOverviewIn(ctx context.Context, c *Client, tmdbID int64, lang string) (overview, overviewLang string, err error) {
+	d, err := c.Collection(ctx, tmdbID, tmdbLang(lang))
+	if err != nil {
+		return "", "", err
+	}
+	if strings.TrimSpace(d.Overview) != "" || PrimaryLanguage(lang) == "en" {
+		return d.Overview, lang, nil
+	}
+	en, err := c.Collection(ctx, tmdbID, langEN)
+	if err != nil {
+		return "", "", err
+	}
+	return en.Overview, "en", nil
 }
 
 // personDetailsRow maps a TMDB answer to the stored facts: empty texts and dates that are no
