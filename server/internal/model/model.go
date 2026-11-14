@@ -959,6 +959,7 @@ type HomeRow struct {
 	Collections []CollectionRef
 	Genres      []GenreRef
 	Libraries   []LibraryTile      // only in the row libraries
+	Media       []MyMediaTile      // only in the row libraries: every tile of «Meine Medien» (concept 21 P-9)
 	Stations    []RadioHomeStation // only in the row radio («Meine Sender», concept 16 stage 2)
 }
 
@@ -998,6 +999,51 @@ const (
 // of concept 15 P-7 and «Meine Sender» of concept 16.
 var HomeRowKeys = []string{RowSpotlight, RowPicks, RowContinue, RowRecent, RowReleased, RowWatchlist, RowCollections, RowGenres,
 	RowLibraries, RowLibrary, RowRadio}
+
+// Keys of the entries of «Meine Medien» (concept 21 P-11, table my_media).
+const (
+	MyMediaLibrary     = "library"
+	MyMediaRadio       = "radio"
+	MyMediaCollections = "collections"
+	MyMediaPicks       = "picks"
+)
+
+// MyMediaStations is the number of favourite stations whose logos the radio tile shows.
+const MyMediaStations = 4
+
+// MyMediaSetting is the stored place and hiding of one entry of «Meine Medien» (concept 21 P-11,
+// O-21), with what it holds for every profile alike (Count, getMyMedia).
+type MyMediaSetting struct {
+	ID          string // the key, or "library:<id>" for a library
+	Key         string
+	LibraryID   int64  // the library of an entry library, else 0
+	LibraryName string // its name
+	LibraryKind string // its kind
+	Position    int
+	HideSidebar bool
+	HideHome    bool
+	Count       int
+}
+
+// MyMediaEntry is one entry of the side navigation's group «Meine Medien» for a profile
+// (listMyMedia): a library it sees, or radio, collections or picks with their count.
+type MyMediaEntry struct {
+	ID      string
+	Key     string
+	Library *LibraryNav // only on an entry library
+	Count   int
+}
+
+// MyMediaTile is one tile of the start page row «Meine Medien» for a profile (concept 21 P-9): a
+// library tile, or radio (with its first favourite stations for the logos), collections or picks
+// with their count.
+type MyMediaTile struct {
+	ID       string
+	Key      string
+	Library  *LibraryTile // only on a tile library
+	Count    int
+	Stations []RadioStation // only on the tile radio, at most MyMediaStations
+}
 
 // Discover (M7). ---------------------------------------------------------------------------
 

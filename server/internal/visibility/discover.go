@@ -116,6 +116,20 @@ func (r *Reader) AllCollections(ctx context.Context, s Scope) ([]model.Collectio
 	return r.collections(ctx, s, MaxCollections)
 }
 
+// CollectionCount returns the number of collections Collections lists without its cut (the count
+// of «Sammlungen» in «Meine Medien», concept 21 P-9).
+func (r *Reader) CollectionCount(ctx context.Context, s Scope) (int, error) {
+	pid, err := r.profile(ctx, s)
+	if err != nil {
+		return 0, err
+	}
+	n, err := r.q.CountVisibleCollections(ctx, pid)
+	if err != nil {
+		return 0, fmt.Errorf("count collections: %w", err)
+	}
+	return int(n), nil
+}
+
 func (r *Reader) collections(ctx context.Context, s Scope, limit int64) ([]model.CollectionRef, error) {
 	pid, err := r.profile(ctx, s)
 	if err != nil {

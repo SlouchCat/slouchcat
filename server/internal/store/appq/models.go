@@ -526,6 +526,16 @@ type MediaSegment struct {
 	CreatedAt  int64
 }
 
+type MyMedium struct {
+	ID          string
+	Key         string
+	LibraryID   sql.NullInt64
+	Position    int64
+	HideSidebar int64
+	HideHome    int64
+	UpdatedAt   int64
+}
+
 type Notification struct {
 	ID        int64
 	ProfileID int64

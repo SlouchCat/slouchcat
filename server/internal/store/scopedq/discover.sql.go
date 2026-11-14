@@ -11,6 +11,27 @@ import (
 	"strings"
 )
 
+const countVisibleCollections = `-- name: CountVisibleCollections :one
+SELECT count(*) FROM (
+    SELECT c.id
+    FROM collections AS c
+    JOIN collection_items AS ci ON ci.collection_id = c.id
+    JOIN visible_items AS v ON v.item_id = ci.item_id AND v.profile_id = ?1
+    JOIN items AS i ON i.id = ci.item_id
+    GROUP BY c.id
+    HAVING sum(i.kind <> 'audiobook') > 0
+)
+`
+
+// The number of collections ListVisibleCollections lists without its limit: the count of the entry
+// "Sammlungen" of the side navigation (concept 21 P-9).
+func (q *Queries) CountVisibleCollections(ctx context.Context, profileID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countVisibleCollections, profileID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countWatchlist = `-- name: CountWatchlist :one
 SELECT count(*) FROM watchlist AS w
 JOIN visible_items AS v ON v.item_id = w.item_id AND v.profile_id = w.profile_id

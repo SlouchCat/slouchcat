@@ -40,3 +40,19 @@ ORDER BY h.position, h.id;
 
 -- name: SetHomeRow :execrows
 UPDATE home_rows SET position = @position, hidden = @hidden, updated_at = @now WHERE id = @id;
+
+-- "Meine Medien" (concept 21 P-11, migration 00059): one order of the group for the side navigation
+-- and the start page tiles, for every profile, hidden per place. An entry is named by its id:
+-- 'library:<id>' for a library, the key for radio, collections and picks. A library entry carries
+-- the name and kind of its library. The administration rewrites the positions in one transaction.
+
+-- name: ListMyMedia :many
+SELECT m.id, m.key, m.library_id, COALESCE(l.name, '') AS library_name, COALESCE(l.kind, '') AS library_kind,
+       m.position, m.hide_sidebar, m.hide_home
+FROM my_media AS m
+LEFT JOIN libraries AS l ON l.id = m.library_id
+ORDER BY m.position, m.id;
+
+-- name: SetMyMediaEntry :execrows
+UPDATE my_media SET position = @position, hide_sidebar = @hide_sidebar, hide_home = @hide_home, updated_at = @now
+WHERE id = @id;

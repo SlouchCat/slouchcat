@@ -52,6 +52,19 @@ HAVING sum(i.kind <> 'audiobook') > 0
 ORDER BY c.name, c.id
 LIMIT @limit_count;
 
+-- The number of collections ListVisibleCollections lists without its limit: the count of the entry
+-- "Sammlungen" of the side navigation (concept 21 P-9).
+-- name: CountVisibleCollections :one
+SELECT count(*) FROM (
+    SELECT c.id
+    FROM collections AS c
+    JOIN collection_items AS ci ON ci.collection_id = c.id
+    JOIN visible_items AS v ON v.item_id = ci.item_id AND v.profile_id = @profile_id
+    JOIN items AS i ON i.id = ci.item_id
+    GROUP BY c.id
+    HAVING sum(i.kind <> 'audiobook') > 0
+);
+
 -- The collections of the given ids that have a visible member (search results), with count and
 -- cover like ListVisibleCollections; the caller keeps its own order.
 -- name: ListVisibleCollectionsByID :many

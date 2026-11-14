@@ -412,3 +412,12 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   Lauf von `people.images` nach dem Update durch `w300` ersetzt (O-12). Dann `store.Dump`, kein neuer
   Pfad im Stand. `TestFrozenPersonenseiteStateCoversTheStage` prüft, dass jede dieser Datenarten
   vorhanden ist; `TestMigration00058PersonDetails` prüft den Schritt von `trailer-aufloesung.sql` aus.
+- `meine-medien.sql`: Stand nach Migration 00059 «Meine Medien» (Konzept 21 P-9 und P-11, O-20, O-21:
+  `my_media` mit einer Reihenfolge für Seitenleiste und Startseite und je einem Kästchen «Ausblenden» pro
+  Ort). Erzeugt am 14. November 2026 aus `personenseite.sql`: Stand eingespielt, mit `store.Open` migriert,
+  dann per SQL Radio an den Anfang gestellt, «Serien» nur in der Seitenleiste, «Hörbücher» nur auf der
+  Startseite und «Podcasts» an beiden Orten ausgeblendet, «Sammlungen» auch auf der Startseite gezeigt und
+  danach die Bibliothek «Anime» angelegt, die der Trigger sichtbar ans Ende stellt (Stichtag 14. November
+  2026, 12:00 UTC). Dann `store.Dump`, kein neuer Pfad im Stand. `TestFrozenMeineMedienStateCoversTheStage`
+  prüft, dass jede dieser Datenarten vorhanden ist; `TestMigration00059MyMedia` prüft den Schritt von
+  `personenseite.sql` aus.

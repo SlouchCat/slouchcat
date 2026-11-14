@@ -403,6 +403,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/my-media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The group «Meine Medien» of the side navigation (concept 21 P-9, P-11)
+         * @description Since contract 1.33.0. The entries of the side navigation's group «Meine Medien» in the order
+         *     the administration stored (`setMyMedia`, the same for every profile), without the entries
+         *     hidden there: every library the active profile sees (`library`, the `LibraryNav` of
+         *     `listVisibleLibraries`; a library without a visible title is absent), «Radio» (`radio`,
+         *     `count` the profile's favourite stations as `listRadioFavorites` lists them), «Sammlungen»
+         *     (`collections`, `count` the collections of `listVisibleCollections`) and «User-Empfehlungen»
+         *     (`picks`, `count` the `total` of `listPicks`). Hiding takes only the entry out of the side
+         *     navigation: the titles stay in the search and the rows.
+         */
+        get: operations["listMyMedia"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/libraries/{id}/items": {
         parameters: {
             query?: never;
@@ -565,7 +592,9 @@ export interface paths {
          *     `collections` (`collections` instead of `items`, E-6) and `genres` (`genres` instead of
          *     `items`). Since contract 1.15.0 (concept 15 P-7; breaking: new keys, rows named by `id`):
          *     `libraries` («Meine Medien», `libraries` instead of `items`: one tile per library the
-         *     active profile sees, in the order of `listVisibleLibraries`) and one row `library` per
+         *     active profile sees, in the order of `listVisibleLibraries`; since contract 1.33.0 in the
+         *     order of «Meine Medien» without the tiles hidden on the start page, and `media` with every
+         *     tile of the group, libraries, «Radio», «Sammlungen» and «User-Empfehlungen», concept 21 P-9) and one row `library` per
          *     library («Neu in …», `libraryId`, `libraryName`: its newest visible titles, at most 20, in
          *     the order of `listLibraryItems` with `sort=added`; a library the profile does not see has
          *     no row). Since contract 1.19.0 (concept 16 stage 2; breaking: new key): `radio` («Meine
@@ -3440,6 +3469,39 @@ export interface paths {
          *     and its `hidden` flag. At most fifteen rows may be visible (F-12); hidden rows do not count.
          */
         put: operations["setHomeRows"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/my-media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The order and hiding of «Meine Medien» (concept 21 P-11)
+         * @description Since contract 1.33.0. Every entry of «Meine Medien» in display order: one per library, then
+         *     `radio`, `collections` and `picks` as the administration placed them, each with the hiding in
+         *     the side navigation (`hideSidebar`) and on the start page (`hideHome`, the tiles of the row
+         *     `libraries`), separately (O-21). One order serves both places and every profile. A new library
+         *     gets its entry at the end, visible in both places (O-20). `count` is what the entry holds,
+         *     for every profile alike: the top-level titles of a library, the stations in the radio offer,
+         *     the collections with a member that is not an audiobook, the recommended titles.
+         */
+        get: operations["getMyMedia"];
+        /**
+         * Set the order and hiding of «Meine Medien» (concept 21 P-11)
+         * @description Since contract 1.33.0. The entries by `id`: the array order is the display order, and
+         *     `hideSidebar` and `hideHome` of each listed entry are stored; `position`, `count` and the
+         *     library's name and kind are ignored. A stored entry the array leaves out (a library added
+         *     after the page was read) keeps its place in the stored order and its flags.
+         */
+        put: operations["setMyMedia"];
         post?: never;
         delete?: never;
         options?: never;
@@ -6443,8 +6505,18 @@ export interface components {
             libraryId?: number;
             /** @description Only in a row `library`, the name of its library (the row title «Neu in …»). */
             libraryName?: string;
-            /** @description Only in the row `libraries`, whose `items` stay empty. */
+            /**
+             * @description Only in the row `libraries`, whose `items` stay empty. Since contract 1.33.0 in the order of
+             *     «Meine Medien» (`setMyMedia`) and without the libraries hidden on the start page; `media`
+             *     holds these tiles together with the others.
+             */
             libraries?: components["schemas"]["LibraryTile"][];
+            /**
+             * @description Only in the row `libraries` (since contract 1.33.0, concept 21 P-9): every tile of «Meine
+             *     Medien» in the stored order without the entries hidden on the start page, the libraries
+             *     (the same tiles as `libraries`) and «Radio», «Sammlungen» and «User-Empfehlungen».
+             */
+            media?: components["schemas"]["MyMediaTile"][];
             /** @description The titles of the row; empty for `collections` and `genres`. */
             items: components["schemas"]["ItemRef"][];
             /**
@@ -9176,6 +9248,64 @@ export interface components {
             libraryName?: string;
             position: number;
             hidden: boolean;
+        };
+        /**
+         * @description The kinds of entries of «Meine Medien» (contract 1.33.0, concept 21 P-11): a library, «Radio»,
+         *     «Sammlungen» and «User-Empfehlungen».
+         * @enum {string}
+         */
+        MyMediaKey: "library" | "radio" | "collections" | "picks";
+        /** @description The identity of an entry of «Meine Medien»: its key, `library:<libraryId>` for a library. */
+        MyMediaId: string;
+        /** @description One entry of «Meine Medien» in the administration (`getMyMedia`, contract 1.33.0). */
+        MyMediaSetting: {
+            id: components["schemas"]["MyMediaId"];
+            key: components["schemas"]["MyMediaKey"];
+            /**
+             * Format: int64
+             * @description Only on an entry `library`.
+             */
+            libraryId?: number;
+            /** @description Only on an entry `library`, the name of its library; ignored in a request. */
+            libraryName?: string;
+            /** @description Only on an entry `library`, the kind of its library; ignored in a request. */
+            libraryKind?: components["schemas"]["LibraryKind"];
+            position: number;
+            /** @description Not in the side navigation's group «Meine Medien». */
+            hideSidebar: boolean;
+            /** @description No tile in the start page row «Meine Medien». */
+            hideHome: boolean;
+            /** @description What the entry holds, for every profile alike (`getMyMedia`); ignored in a request. */
+            count: number;
+        };
+        /** @description One entry of the side navigation's group «Meine Medien» (`listMyMedia`, contract 1.33.0). */
+        MyMediaEntry: {
+            id: components["schemas"]["MyMediaId"];
+            key: components["schemas"]["MyMediaKey"];
+            /** @description Only on an entry `library`. */
+            library?: components["schemas"]["LibraryNav"];
+            /**
+             * @description A library its visible top-level titles (`LibraryNav.itemCount`), «Radio» the profile's
+             *     favourite stations, «Sammlungen» the visible collections, «User-Empfehlungen» the visible
+             *     picks.
+             */
+            count: number;
+        };
+        /**
+         * @description One tile of the start page row «Meine Medien» (`HomeRow.media`, contract 1.33.0, concept 21
+         *     P-9). A library tile carries its `LibraryTile`; «Radio» the profile's favourite stations for
+         *     the logos (`stations`, the first four; none: the tile invites to discover stations, O-15);
+         *     «Sammlungen» and «User-Empfehlungen» only their `count`.
+         */
+        MyMediaTile: {
+            id: components["schemas"]["MyMediaId"];
+            key: components["schemas"]["MyMediaKey"];
+            /** @description Only on a tile `library`. */
+            library?: components["schemas"]["LibraryTile"];
+            /** @description Like `MyMediaEntry.count`. */
+            count: number;
+            /** @description Only on the tile `radio`, the first favourite stations in the profile's order. */
+            stations?: components["schemas"]["RadioStation"][];
         };
         TraktStatus: {
             /** @description A client id is set (environment or stored setting). */
@@ -12479,6 +12609,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LibraryNav"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    listMyMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The entries shown in the side navigation, in the stored order. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyMediaEntry"][];
                 };
             };
             401: components["responses"]["Unauthenticated"];
@@ -17987,6 +18138,66 @@ export interface operations {
              * @description Validation failed (`validation_failed`; `rows` `invalid_value` for an unknown `id`, an `id`
              *     twice or a `key` that does not match the row; `rows` `too_many_visible` for more than fifteen
              *     visible rows).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getMyMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All entries in display order. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyMediaSetting"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    setMyMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MyMediaSetting"][];
+            };
+        };
+        responses: {
+            /** @description The stored order. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyMediaSetting"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /**
+             * @description Validation failed (`validation_failed`; `rows` `invalid_value` for an unknown `id`, an `id`
+             *     twice or a `key` that does not match the entry).
              */
             422: {
                 headers: {

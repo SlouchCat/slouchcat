@@ -70,13 +70,29 @@ func (s *server) GetHome(ctx context.Context, req gen.GetHomeRequestObject) (gen
 	for _, row := range home.Rows {
 		out := gen.HomeRow{Id: row.ID, Key: gen.HomeRowKey(row.Key), Items: toItemRefList(session.Profile.ID, row.Items)}
 		switch row.Key {
-		case model.RowLibraries: // concept 15 P-7: the tiles of «Meine Medien»
+		case model.RowLibraries: // concept 15 P-7: the tiles of «Meine Medien»; concept 21 P-9: media
 			tiles := make([]gen.LibraryTile, 0, len(row.Libraries))
 			for _, l := range row.Libraries {
-				tiles = append(tiles, gen.LibraryTile{Id: l.ID, Name: l.Name, Kind: gen.LibraryKind(l.Kind), ItemCount: l.ItemCount,
-					Items: toItemRefList(session.Profile.ID, l.Items)})
+				tiles = append(tiles, toLibraryTile(session.Profile.ID, l))
 			}
 			out.Libraries = &tiles
+			media := make([]gen.MyMediaTile, 0, len(row.Media))
+			for _, m := range row.Media {
+				tile := gen.MyMediaTile{Id: m.ID, Key: gen.MyMediaKey(m.Key), Count: m.Count}
+				if m.Library != nil {
+					lib := toLibraryTile(session.Profile.ID, *m.Library)
+					tile.Library = &lib
+				}
+				if m.Key == model.MyMediaRadio {
+					stations := make([]gen.RadioStation, 0, len(m.Stations))
+					for _, st := range m.Stations {
+						stations = append(stations, toRadioStation(st))
+					}
+					tile.Stations = &stations
+				}
+				media = append(media, tile)
+			}
+			out.Media = &media
 		case model.RowLibrary:
 			id, name := row.LibraryID, row.LibraryName
 			out.LibraryId, out.LibraryName = &id, &name
@@ -93,6 +109,12 @@ func (s *server) GetHome(ctx context.Context, req gen.GetHomeRequestObject) (gen
 		page.Rows = append(page.Rows, out)
 	}
 	return gen.GetHome200JSONResponse(page), nil
+}
+
+// toLibraryTile is a tile of «Meine Medien» for a library (concept 15 P-7).
+func toLibraryTile(profileID int64, l model.LibraryTile) gen.LibraryTile {
+	return gen.LibraryTile{Id: l.ID, Name: l.Name, Kind: gen.LibraryKind(l.Kind), ItemCount: l.ItemCount,
+		Items: toItemRefList(profileID, l.Items)}
 }
 
 func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen.GetItemResponseObject, error) {

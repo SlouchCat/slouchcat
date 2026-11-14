@@ -307,6 +307,13 @@ var profileRegistry = map[string]profileCall{
 		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
 			checkVisibleLibraries(t, f, fixtureProfile(f, token), rec)
 		}},
+	// Concept 21 P-9: the side navigation's group «Meine Medien»; the leak check runs over every
+	// answer, checkMyMedia says which libraries each profile gets (contract_my_media_test.go).
+	"listMyMedia": {contract: "GET /my-media", path: "/my-media",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK },
+		check: func(t *testing.T, f *vistest.Fixture, h http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+			checkMyMedia(t, f, h, token, rec)
+		}},
 	"listLibraryItems": {contract: "GET /libraries/{id}/items", path: fmt.Sprintf("/libraries/%d/items?limit=100", fixtureLibrary),
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }, // every profile sees a title of library 1
 		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {

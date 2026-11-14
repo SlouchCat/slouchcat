@@ -67,6 +67,21 @@ func (q *Queries) AdminCleanupState(ctx context.Context, id string) (AdminCleanu
 	return i, err
 }
 
+const adminCollectionCount = `-- name: AdminCollectionCount :one
+SELECT count(*) FROM collections AS c
+WHERE EXISTS (SELECT 1 FROM collection_items AS ci JOIN items AS i ON i.id = ci.item_id
+              WHERE ci.collection_id = c.id AND i.deleted_at IS NULL AND i.kind <> 'audiobook')
+`
+
+// The collections with a member that is not deleted and not an audiobook (audiobook collections
+// stand in their library, like listVisibleCollections).
+func (q *Queries) AdminCollectionCount(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, adminCollectionCount)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const adminCountChildren = `-- name: AdminCountChildren :one
 SELECT
     (SELECT count(*) FROM items AS s WHERE s.parent_id = ?1 AND s.kind = 'season' AND s.deleted_at IS NULL) AS seasons,
@@ -358,6 +373,44 @@ func (q *Queries) AdminGetWidestItemImage(ctx context.Context, arg AdminGetWides
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const adminLibraryTitleCounts = `-- name: AdminLibraryTitleCounts :many
+SELECT library_id, count(*) AS titles
+FROM items
+WHERE kind IN ('movie', 'series', 'audiobook', 'podcast') AND deleted_at IS NULL
+GROUP BY library_id
+`
+
+type AdminLibraryTitleCountsRow struct {
+	LibraryID int64
+	Titles    int64
+}
+
+// "Meine Medien" in the administration (concept 21 P-11): what each entry holds, for every profile
+// alike. A library its top-level titles (films, series, audiobooks, podcasts; never episodes), not
+// deleted.
+func (q *Queries) AdminLibraryTitleCounts(ctx context.Context) ([]AdminLibraryTitleCountsRow, error) {
+	rows, err := q.db.QueryContext(ctx, adminLibraryTitleCounts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AdminLibraryTitleCountsRow{}
+	for rows.Next() {
+		var i AdminLibraryTitleCountsRow
+		if err := rows.Scan(&i.LibraryID, &i.Titles); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const adminListDescendantFiles = `-- name: AdminListDescendantFiles :many
@@ -1750,4 +1803,20 @@ func (q *Queries) AdminTrickplayDurations(ctx context.Context, libraryID int64) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const adminUserPickCount = `-- name: AdminUserPickCount :one
+SELECT count(DISTINCT u.item_id)
+FROM user_picks AS u
+JOIN picks_config AS c ON c.id = 1
+JOIN items AS i ON i.id = u.item_id
+WHERE u.created_at > ?1 - c.retention_days * 86400000 AND i.deleted_at IS NULL
+`
+
+// The titles with a recommendation younger than the retention at @now (AdminListUserPicks).
+func (q *Queries) AdminUserPickCount(ctx context.Context, now int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, adminUserPickCount, now)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }

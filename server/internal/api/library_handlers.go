@@ -33,11 +33,39 @@ func (s *server) ListVisibleLibraries(ctx context.Context, _ gen.ListVisibleLibr
 	}
 	out := make(gen.ListVisibleLibraries200JSONResponse, 0, len(libs))
 	for _, l := range libs {
-		contents := make([]gen.RootContent, 0, len(l.Contents))
-		for _, c := range l.Contents {
-			contents = append(contents, gen.RootContent(c))
+		out = append(out, toLibraryNav(l))
+	}
+	return out, nil
+}
+
+func toLibraryNav(l model.LibraryNav) gen.LibraryNav {
+	contents := make([]gen.RootContent, 0, len(l.Contents))
+	for _, c := range l.Contents {
+		contents = append(contents, gen.RootContent(c))
+	}
+	return gen.LibraryNav{Id: l.ID, Name: l.Name, Kind: gen.LibraryKind(l.Kind), Contents: contents, ItemCount: l.ItemCount}
+}
+
+func (e serviceProblem) VisitListMyMediaResponse(w http.ResponseWriter) error { return e.visit(w) }
+
+// ListMyMedia answers the side navigation's group «Meine Medien» (concept 21 P-9, P-11).
+func (s *server) ListMyMedia(ctx context.Context, _ gen.ListMyMediaRequestObject) (gen.ListMyMediaResponseObject, error) {
+	session, err := s.itemSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := s.opts.Catalog.MyMedia(ctx, session.Profile)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	out := make(gen.ListMyMedia200JSONResponse, 0, len(entries))
+	for _, e := range entries {
+		entry := gen.MyMediaEntry{Id: e.ID, Key: gen.MyMediaKey(e.Key), Count: e.Count}
+		if e.Library != nil {
+			lib := toLibraryNav(*e.Library)
+			entry.Library = &lib
 		}
-		out = append(out, gen.LibraryNav{Id: l.ID, Name: l.Name, Kind: gen.LibraryKind(l.Kind), Contents: contents, ItemCount: l.ItemCount})
+		out = append(out, entry)
 	}
 	return out, nil
 }
