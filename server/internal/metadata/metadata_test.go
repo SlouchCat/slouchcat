@@ -409,7 +409,7 @@ func newEnvWith(t *testing.T, keys KeySource) *env {
 	yt := newFakeYouTube(t)
 	al := newFakeAniList(t)
 	clock := &testClock{t: testNow}
-	quota := ratelimit.NewQuota("youtube", youtubeDailyUnits, ratelimit.MidnightPacific, ratelimit.WithQuotaClock(clock.now))
+	quota := ratelimit.NewQuota("youtube", youtubeDailyUnits, ratelimit.EightUTC, ratelimit.WithQuotaClock(clock.now))
 	cache := t.TempDir()
 	q := jobs.NewQueue(db.Write, nil)
 	svc := New(db, q, keys, cache, transcode.Runner{FFmpegPath: lookFFmpeg()}, log,

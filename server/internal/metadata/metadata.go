@@ -274,8 +274,8 @@ func WithYouTubeBaseURL(api string) Option {
 	return func(o *options) { o.youtubeBase = api }
 }
 
-// WithYouTubeQuota replaces the daily YouTube quota (default 10'000 units, reset at midnight
-// Pacific time); tests pass one with a mock clock.
+// WithYouTubeQuota replaces the daily YouTube quota (default 10'000 units, reset at 08:00 UTC,
+// ratelimit.EightUTC); tests pass one with a mock clock.
 func WithYouTubeQuota(q *ratelimit.Quota) Option {
 	return func(o *options) { o.quota = q }
 }
@@ -378,7 +378,7 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 	client := NewClient(o.apiBase, o.imageBase, o.http)
 	client.log = log
 	if o.quota == nil {
-		o.quota = ratelimit.NewQuota("youtube", youtubeDailyUnits, ratelimit.MidnightPacific)
+		o.quota = ratelimit.NewQuota("youtube", youtubeDailyUnits, ratelimit.EightUTC)
 	}
 	tvdb := newTVDBProvider(o.tvdbBase, o.tvdbArtBase, o.http, keys)
 	fanart := newFanartProvider(o.fanartBase, o.fanartArt, o.http, keys)

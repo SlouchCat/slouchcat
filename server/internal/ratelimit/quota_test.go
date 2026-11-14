@@ -74,3 +74,23 @@ func TestMidnightPacific(t *testing.T) {
 		}
 	}
 }
+
+func TestEightUTC(t *testing.T) {
+	zurich, err := time.LoadLocation("Europe/Zurich")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ now, want time.Time }{
+		{time.Date(2026, 11, 12, 7, 59, 59, 0, time.UTC), time.Date(2026, 11, 12, 8, 0, 0, 0, time.UTC)},
+		{time.Date(2026, 11, 12, 8, 0, 0, 0, time.UTC), time.Date(2026, 11, 13, 8, 0, 0, 0, time.UTC)},
+		{time.Date(2026, 11, 12, 23, 30, 0, 0, time.UTC), time.Date(2026, 11, 13, 8, 0, 0, 0, time.UTC)},
+		{time.Date(2026, 12, 31, 12, 0, 0, 0, time.UTC), time.Date(2027, 1, 1, 8, 0, 0, 0, time.UTC)},
+		// 08:30 in Zurich is 07:30 UTC in winter: the reset comes half an hour later.
+		{time.Date(2026, 11, 12, 8, 30, 0, 0, zurich), time.Date(2026, 11, 12, 8, 0, 0, 0, time.UTC)},
+		{time.Date(2026, 7, 1, 9, 30, 0, 0, zurich), time.Date(2026, 7, 1, 8, 0, 0, 0, time.UTC)},
+	} {
+		if got := EightUTC(c.now); !got.Equal(c.want) {
+			t.Errorf("EightUTC(%v) = %v, want %v", c.now, got, c.want)
+		}
+	}
+}
