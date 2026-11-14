@@ -5,9 +5,11 @@ import {
   formatClock,
   formatDate,
   formatDuration,
+  formatLongDay,
   formatPlayerTime,
   formatRuntime,
   resolutionClass,
+  yearsBetween,
 } from './format';
 
 const t = i18n.t.bind(i18n);
@@ -49,5 +51,19 @@ describe('format', () => {
     expect(resolutionClass(t, 3840, 1600)).toBe('4K');
     expect(resolutionClass(t, 1280, 536)).toBe('720p');
     expect(resolutionClass(t, 720, 576)).toBe('SD');
+  });
+});
+
+describe('days of the person page (concept 21 P-8)', () => {
+  it('writes a day out without moving it by the time zone', () => {
+    expect(formatLongDay('1964-04-25', 'de')).toBe('25. April 1964');
+    expect(formatLongDay('1964-04-25', 'en')).toBe('April 25, 1964');
+  });
+
+  it('counts whole years, the birthday itself included', () => {
+    expect(yearsBetween('1964-04-25', '2026-11-14')).toBe(62);
+    expect(yearsBetween('1964-04-25', '2026-04-24')).toBe(61);
+    expect(yearsBetween('1964-04-25', '2026-04-25')).toBe(62);
+    expect(yearsBetween('1964-12-31', '2026-01-01')).toBe(61);
   });
 });

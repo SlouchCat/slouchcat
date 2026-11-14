@@ -1,28 +1,58 @@
+/* The person page (concept 21 P-8): the band of the blurred portrait (ui/Backdrop) behind the
+   head, the 2:3 portrait beside the name, facts and biography; «Zurück» and the titles below. */
 .page {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-8);
   min-height: 100dvh;
   padding: calc(var(--sc-size-header-height) + var(--sc-space-12)) 0 var(--sc-space-16);
+  isolation: isolate;
 }
 
-.page > :not(.rows) {
+.head,
+.block,
+.credits {
   max-width: var(--sc-size-content-max);
   margin-inline: var(--page-gutter);
 }
 
+/* Portrait left, name and facts beside it, aligned at the bottom of the portrait. */
 .head {
+  display: flex;
+  gap: var(--sc-space-10);
+  align-items: flex-end;
+}
+
+/* The 2:3 portrait cut towards the face, or the initial on the ground the cast cards use. */
+.portrait {
+  --sc-portrait-shadow: 0 var(--sc-space-6) var(--sc-space-16) var(--sc-color-scrim-strong);
+
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--sc-size-portrait-page);
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: var(--sc-radius-xl);
+  background-color: var(--sc-color-surface-3);
+  box-shadow: var(--sc-portrait-shadow);
+  color: var(--sc-color-text-primary);
+  font-size: var(--sc-font-size-3xl);
+  font-weight: var(--sc-font-weight-bold);
+}
+
+.portraitImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+}
+
+.info {
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-4);
-  align-items: flex-start;
-}
-
-/* The portrait left of the name; the name wraps beside it on a narrow screen. */
-.identity {
-  display: flex;
-  gap: var(--sc-space-5);
-  align-items: center;
   min-width: 0;
 }
 
@@ -34,6 +64,78 @@
   letter-spacing: var(--sc-font-letter-spacing-display);
 }
 
-.rows {
-  max-width: var(--sc-size-content-max);
+.biography {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+}
+
+/* As the overview of a title (DetailHeader). */
+.biographyText {
+  max-width: 65ch;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-md);
+  line-height: var(--sc-font-line-height-normal);
+}
+
+.clamped {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.biographyBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  align-items: center;
+}
+
+.hint,
+.muted {
+  color: var(--sc-color-text-muted);
+}
+
+.hint {
+  font-size: var(--sc-font-size-xs);
+}
+
+.credits {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+}
+
+.creditsTitle {
+  font-size: var(--sc-font-size-lg);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+/* On a phone the portrait gets smaller and the facts and the biography go below it. */
+@media (width < 768px) {
+  .head {
+    flex-wrap: wrap;
+    gap: var(--sc-space-4);
+  }
+
+  .portrait {
+    width: var(--sc-size-portrait-page-sm);
+    font-size: var(--sc-font-size-2xl);
+  }
+
+  .info {
+    display: contents;
+  }
+
+  .name {
+    flex: 1 1 0;
+    align-self: flex-end;
+  }
+
+  .info > :not(.name) {
+    flex-basis: 100%;
+  }
 }

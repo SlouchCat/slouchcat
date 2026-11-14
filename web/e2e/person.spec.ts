@@ -50,7 +50,7 @@ test.describe('a person with a portrait', () => {
     'base64',
   );
 
-  test('portrait left of the name; arrows, Tab, Enter and back by keyboard @keyboard', async ({
+  test('portrait left of the name, facts, biography; arrows, Tab, Enter and back by keyboard @keyboard', async ({
     page,
     owner,
   }) => {
@@ -68,7 +68,15 @@ test.describe('a person with a portrait', () => {
     const person = {
       id: 9001,
       name: 'Anna Beispiel',
-      image: { url: '/people/9001/image?v=a&p=1', width: 185, height: 278 },
+      image: { url: '/people/9001/image?v=a&p=1', width: 300, height: 450 },
+      // Long enough that three lines cut it: «Mehr lesen» shows (concept 21 P-8).
+      biography: 'Anna Beispiel is an actress from the test data. '.repeat(30),
+      biographyLang: 'en',
+      biographyFallback: true,
+      knownForDepartment: 'Acting',
+      birthday: '1964-04-25',
+      placeOfBirth: 'Queens, New York',
+      totalCredits: 130,
       credits: [await credit(H264_TITLE), await credit(CHAPTERS_TITLE)],
     };
     await page.route('**/api/v1/people/9001', (route) => route.fulfill({ json: person }));
@@ -78,7 +86,8 @@ test.describe('a person with a portrait', () => {
     await page.goto('/people/9001');
     const heading = page.getByRole('heading', { level: 1, name: 'Anna Beispiel' });
     await expect(heading).toBeVisible();
-    const portrait = page.locator('main img[src*="/people/9001/image"]');
+    // The portrait itself; the band behind the head shows the same image blurred (ui/Backdrop).
+    const portrait = page.locator('main img[src*="/people/9001/image"][width="300"]');
     await expect
       .poll(() => portrait.evaluate((image: HTMLImageElement) => image.naturalWidth))
       .toBeGreaterThan(0);
@@ -86,7 +95,18 @@ test.describe('a person with a portrait', () => {
     const [imageBox, nameBox] = await Promise.all([portrait.boundingBox(), heading.boundingBox()]);
     expect((imageBox?.x ?? 0) + (imageBox?.width ?? 0)).toBeLessThanOrEqual(nameBox?.x ?? 0);
 
-    const credits = page.getByRole('region', { name: 'Filme und Serien' }).getByRole('link');
+    // The facts beside the name and the hint of the English biography.
+    await expect(page.getByText('2 von 130 Titeln')).toBeVisible();
+    await expect(page.getByText('Schauspiel')).toBeVisible();
+    await expect(page.getByText('Biografie von TMDB, nur auf Englisch vorhanden')).toBeVisible();
+    // The portrait is 2:3 (15rem wide on a desktop).
+    const box = await portrait.boundingBox();
+    expect(Math.round(((box?.height ?? 0) / (box?.width ?? 1)) * 100)).toBe(150);
+
+    await expect(
+      page.getByRole('heading', { level: 2, name: 'Filme und Serien · 2' }),
+    ).toBeVisible();
+    const credits = page.getByRole('list', { name: 'Filme und Serien' }).getByRole('link');
     await expect(credits).toHaveCount(2);
     await resetFocus(page);
     await page.keyboard.press('ArrowDown');
@@ -110,9 +130,25 @@ test.describe('a person with a portrait', () => {
     await page.keyboard.press('Shift+Tab');
     await page.keyboard.press('Shift+Tab');
     await expectFocusOn(page, credits.first());
-    // Up leaves the row for the back arrow.
+    // Up leaves the grid for the back arrow, and on up to «Mehr lesen», which Enter opens and
+    // closes again.
+    const back = page.getByRole('button', { name: 'Zurück', exact: true });
     await page.keyboard.press('ArrowUp');
-    await expectFocusOn(page, page.getByRole('button', { name: 'Zurück', exact: true }));
+    await expectFocusOn(page, back);
+    await page.keyboard.press('ArrowUp');
+    const more = page.getByRole('button', { name: 'Mehr lesen' });
+    await expectFocusOn(page, more);
+    const text = page.locator('main p[lang="en"]');
+    const closed = (await text.boundingBox())?.height ?? 0;
+    await page.keyboard.press('Enter');
+    const less = page.getByRole('button', { name: 'Weniger' });
+    await expectFocusOn(page, less);
+    await expect(less).toHaveAttribute('aria-expanded', 'true');
+    expect((await text.boundingBox())?.height ?? 0).toBeGreaterThan(closed);
+    await page.keyboard.press('Enter');
+    await expectFocusOn(page, more);
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, back);
     await page.keyboard.press('ArrowDown');
     await expectFocusOn(page, credits.first());
     await expectNoFocusTrap(page);

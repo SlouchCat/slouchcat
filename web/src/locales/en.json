@@ -4977,7 +4977,41 @@
   },
   "person": {
     "credits": "Films and series",
+    "creditsCount": "· {{count}}",
     "as": "as {{character}}",
+    "facts": {
+      "knownFor": "Known for",
+      "born": "Born",
+      "bornAge": "{{date}} ({{age}})",
+      "birthplace": "Place of birth",
+      "died": "Died",
+      "diedAge": "{{date}} (aged {{age}})",
+      "library": "In your library",
+      "libraryOf_one": "{{shown}} of {{count}} title",
+      "libraryOf_other": "{{shown}} of {{count}} titles",
+      "libraryOnly_one": "{{count}} title",
+      "libraryOnly_other": "{{count}} titles"
+    },
+    "department": {
+      "acting": "Acting",
+      "directing": "Directing",
+      "writing": "Writing",
+      "production": "Production",
+      "sound": "Sound",
+      "camera": "Camera",
+      "editing": "Editing",
+      "art": "Art",
+      "crew": "Crew",
+      "costume": "Costume & Make-Up",
+      "visualEffects": "Visual Effects",
+      "lighting": "Lighting",
+      "creator": "Creator"
+    },
+    "biography": {
+      "more": "Read more",
+      "less": "Less",
+      "fallback": "Biography from TMDB, only available in English"
+    },
     "notFound": {
       "title": "Person not found",
       "body": "There are no titles for this person here."
