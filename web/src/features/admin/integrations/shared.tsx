@@ -38,11 +38,13 @@ export const PUBLIC_URL_DRAFT = 'publicUrl';
 export const EMAIL_DRAFT = 'email';
 
 /** After a part of the settings is stored: the answer is the whole new state of the page. */
-export function useSettingsSaved(onSaved: (body: AdminSettingsUpdate) => void) {
+export function useSettingsSaved(
+  onSaved: (body: AdminSettingsUpdate, settings: AdminSettings) => void,
+) {
   const queryClient = useQueryClient();
   return async (settings: AdminSettings, body: AdminSettingsUpdate) => {
     queryClient.setQueryData(settingsQuery.queryKey, settings);
-    onSaved(body);
+    onSaved(body, settings);
     // The dashboard shows the integrations' state.
     await queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey });
   };
@@ -57,7 +59,9 @@ export function useSettingsUpdate(onSaved: (body: AdminSettingsUpdate) => void) 
  * Stores a part of the settings that may carry a secret (a key, the SMTP password, the bot
  * token): the value never stays in the query client (useTransientMutation).
  */
-export function useSecretUpdate(onSaved: (body: AdminSettingsUpdate) => void) {
+export function useSecretUpdate(
+  onSaved: (body: AdminSettingsUpdate, settings: AdminSettings) => void,
+) {
   return useTransientMutation(updateSettings, useSettingsSaved(onSaved));
 }
 

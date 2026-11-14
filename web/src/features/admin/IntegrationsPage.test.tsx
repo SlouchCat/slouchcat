@@ -223,7 +223,40 @@ describe('integrations (A-2)', () => {
     expect(within(tvdb).queryByText('ungespeichert')).toBeNull();
   });
 
-  it('an invalid TMDB key is reported at its field', async () => {
+  it('a key the provider rejects is stored all the same, and the card says so (concept 21 P-2)', async () => {
+    let current = settings();
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/settings': () => json(current),
+        'PUT /admin/settings': () => {
+          current = settings({
+            keys: { ...current.keys, tvdb: { source: 'stored', hint: '0bad', rejected: true } },
+          });
+          return json(current);
+        },
+      }),
+    );
+    renderApp('/admin/integrations');
+    const user = userEvent.setup();
+    const tvdb = await openCard(user, 'TVDB');
+    expect(within(tvdb).queryByText('abgewiesen')).toBeNull();
+    await fill(user, within(tvdb).getByLabelText('Schlüssel', INPUT), 'tvdb-key-0bad');
+    await user.click(within(tvdb).getByRole('button', { name: 'TVDB speichern' }));
+    expect(
+      await within(tvdb).findByText('TVDB gespeichert, aber der Anbieter weist den Schlüssel ab.'),
+    ).toBeVisible();
+    expect(within(tvdb).queryByText('TVDB gespeichert.')).toBeNull();
+    expect(within(tvdb).getByText('abgewiesen')).toBeVisible();
+    expect(within(tvdb).getByLabelText('Schlüssel', INPUT)).not.toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    expect(puts(calls)).toEqual([{ keys: { tvdb: 'tvdb-key-0bad' } }]);
+    // The other cards show no rejection.
+    expect(within(card('TMDB')).queryByText('abgewiesen')).toBeNull();
+  });
+
+  it('an invalid TMDB key is reported at its field (servers before contract 1.32.0)', async () => {
     mockApi(routes({ 'PUT /admin/settings': () => problem(422, 'tmdb_key_invalid') }));
     renderApp('/admin/integrations');
     const user = userEvent.setup();

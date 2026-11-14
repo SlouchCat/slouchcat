@@ -153,6 +153,11 @@ func (s *Service) Settings(ctx context.Context) (model.AdminSettings, error) {
 			return model.AdminSettings{}, err
 		}
 	}
+	for _, p := range rejectableKeys {
+		ks := states[p]
+		ks.Rejected = s.keyRejected(ctx, ks, p)
+		states[p] = ks
+	}
 	st.Keys = model.AdminKeys{TMDB: states[model.ClearTMDB], TVDB: states[model.ClearTVDB], TVDBPin: states[model.ClearTVDBPin],
 		YouTube: states[model.ClearYouTube], Trakt: states[model.ClearTrakt],
 		Fanart: states[model.ClearFanart], FanartClient: states[model.ClearFanartClient], GoogleBooks: states[model.ClearGoogleBooks]}
@@ -204,6 +209,38 @@ func (s *Service) keyState(ctx context.Context, k providerKey) (model.KeyState, 
 		st.Hint = string(r[len(r)-4:])
 	}
 	return st, nil
+}
+
+// rejectableKeys are the provider keys whose rejection package metadata remembers (concept 21
+// P-2), in the order of the contract; the field names are the providers of checkProviderKey.
+var rejectableKeys = []string{model.ClearTMDB, model.ClearTVDB}
+
+// keyRejected reports whether the provider of rejectableKeys rejects its configured key; nil
+// without key or without package metadata.
+func (s *Service) keyRejected(ctx context.Context, ks model.KeyState, provider string) *bool {
+	if s.meta == nil || ks.Source == model.SourceNone {
+		return nil
+	}
+	r := s.meta.KeyRejected(ctx, provider)
+	return &r
+}
+
+// rejectedKeys lists the providers that reject their configured key now (DashboardAttention).
+func (s *Service) rejectedKeys(ctx context.Context) ([]string, error) {
+	out := []string{}
+	for _, k := range providerKeys {
+		if !slices.Contains(rejectableKeys, k.field) {
+			continue
+		}
+		ks, err := s.keyState(ctx, k)
+		if err != nil {
+			return nil, err
+		}
+		if r := s.keyRejected(ctx, ks, k.field); r != nil && *r {
+			out = append(out, k.field)
+		}
+	}
+	return out, nil
 }
 
 func (s *Service) envSet(name string) bool {
@@ -275,10 +312,12 @@ type settingsChange struct {
 	botToken  string
 }
 
-// UpdateSettings checks the whole request, then the environment, then the new TMDB key and bot
-// token against their services, and only then stores everything in one transaction; any error
-// changes nothing. Errors: *model.ValidationError, *model.EnvWinsError, model.ErrTMDBKeyInvalid,
-// model.ErrTMDBUnreachable, model.ErrTelegramTokenInvalid, model.ErrTelegramUnreachable.
+// UpdateSettings checks the whole request, then the environment, then the new bot token against
+// Telegram, and only then stores everything in one transaction; any error changes nothing. A new
+// TMDB or TVDB key (or TVDB PIN) is stored first and then checked once (checkKeysOnSave, concept
+// 21 P-2): a refused key stays stored, the answer says so in KeyState.Rejected. Errors:
+// *model.ValidationError, *model.EnvWinsError, model.ErrTelegramTokenInvalid,
+// model.ErrTelegramUnreachable.
 func (s *Service) UpdateSettings(ctx context.Context, upd model.AdminSettingsUpdate) (model.AdminSettings, error) {
 	c, verr := validateSettings(upd)
 	if verr != nil {
@@ -286,11 +325,6 @@ func (s *Service) UpdateSettings(ctx context.Context, upd model.AdminSettingsUpd
 	}
 	if err := s.checkEnvWins(c); err != nil {
 		return model.AdminSettings{}, err
-	}
-	if key, ok := c.keys[model.ClearTMDB]; ok {
-		if err := s.tmdb.CheckKey(ctx, key); err != nil {
-			return model.AdminSettings{}, err
-		}
 	}
 	botName := ""
 	if c.botToken != "" {
@@ -312,6 +346,7 @@ func (s *Service) UpdateSettings(ctx context.Context, upd model.AdminSettingsUpd
 		s.syncSchedule(ctx, JobUpdateCheck, jobs.ScheduleUpdate{Enabled: upd.UpdateCheckEnabled})
 	}
 	s.log.InfoContext(ctx, "settings updated", "fields", changed)
+	s.checkKeysOnSave(ctx, c)
 	// A new Trakt client id fills the lists now instead of at the next daily run.
 	if _, ok := c.keys[model.ClearTrakt]; ok && s.trakt != nil {
 		if err := s.trakt.RefreshTrakt(ctx); err != nil {
@@ -319,6 +354,27 @@ func (s *Service) UpdateSettings(ctx context.Context, upd model.AdminSettingsUpd
 		}
 	}
 	return s.Settings(ctx)
+}
+
+// checkKeysOnSave checks a new TMDB or TVDB key (a new TVDB PIN counts for its key) once, as
+// «Prüfen» does: package metadata remembers a refused key as rejected, and a passing one lifts an
+// earlier rejection and queues the fills that waited, once. A check that fails only logs.
+func (s *Service) checkKeysOnSave(ctx context.Context, c settingsChange) {
+	if s.meta == nil {
+		return
+	}
+	_, tvdbPin := c.keys[model.ClearTVDBPin]
+	for _, p := range rejectableKeys {
+		if _, ok := c.keys[p]; !ok && (p != model.ClearTVDB || !tvdbPin) {
+			continue
+		}
+		check, err := s.meta.CheckProviderKey(ctx, p)
+		if err != nil {
+			s.log.WarnContext(ctx, "check the saved provider key", "provider", p, "err", err)
+			continue
+		}
+		s.log.InfoContext(ctx, "saved provider key checked", "provider", p, "ok", check.OK, "problem", check.Problem)
+	}
 }
 
 // validateSettings checks the form of every field; a field may not be set and cleared at once.

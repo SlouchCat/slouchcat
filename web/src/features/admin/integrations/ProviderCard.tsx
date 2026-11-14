@@ -84,9 +84,18 @@ export function ProviderCard({
   const env = source === 'env';
   const stored = provider.keys.filter((keyName) => keys[keyName].source === 'stored');
   const dirty = provider.keys.some((keyName) => drafts.isDirty(keyDraft(keyName)));
-  const save = useSecretUpdate((body: AdminSettingsUpdate) => {
+  // The server checks a new TMDB or TVDB key on saving and remembers a rejection (concept 21 P-2).
+  const rejected = keys[provider.keys[0]].rejected === true;
+  const save = useSecretUpdate((body: AdminSettingsUpdate, settings: AdminSettings) => {
     if (body.clear) for (const keyName of provider.keys) drafts.discard(keyDraft(keyName));
-    setMessage(t(body.clear ? 'admin.integrations.cleared' : 'admin.integrations.saved', { name }));
+    if (!body.clear && settings.keys[provider.keys[0]].rejected === true) {
+      // Stored all the same: the provider refused the key the server asked it about.
+      setMessage(t('admin.integrations.providers.savedRejected', { name }), 'warning');
+    } else {
+      setMessage(
+        t(body.clear ? 'admin.integrations.cleared' : 'admin.integrations.saved', { name }),
+      );
+    }
     // The audiobook sources show the same Google Books key, and the editor offers the source
     // only while it has one.
     if (provider.id === 'googlebooks') {
@@ -159,6 +168,7 @@ export function ProviderCard({
         </span>
         <span className={styles.actions}>
           {dirty && <Chip tone="warning">{t('admin.integrations.unsaved')}</Chip>}
+          {rejected && <Chip tone="danger">{t('admin.integrations.providers.rejected')}</Chip>}
           <Chip tone={sourceTone[source]}>{t(`admin.integrations.source.${source}`)}</Chip>
           <AriaButton
             variant="secondary"

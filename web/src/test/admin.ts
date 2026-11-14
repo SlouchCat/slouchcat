@@ -27,7 +27,7 @@ export const dashboardFixture = (overrides: Partial<Dashboard> = {}): Dashboard 
     updaterConfigured: false,
     updaterAvailable: false,
   },
-  attention: { abortedScans: [] },
+  attention: { abortedScans: [], rejectedKeys: [] },
   counts: { titles: 1200, accounts: 3, maintenanceOpen: 0 },
   activity: [],
   ...overrides,
