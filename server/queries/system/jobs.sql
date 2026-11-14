@@ -417,3 +417,8 @@ SELECT count(*) FROM jobs WHERE type = @type AND state = @state;
 
 -- name: CountPausedJobTypes :one
 SELECT count(*) FROM job_types WHERE paused_at IS NOT NULL;
+
+-- name: DeleteKeyRejectedFailures :execrows
+-- The failed runs of a type that a rejected provider key ended (the last error names the key as
+-- invalid; concept 21 O-4): removed once by DeleteKeyRejectedFillsOnce.
+DELETE FROM jobs WHERE jobs.type = @job_type AND jobs.state = 'failed' AND jobs.last_error LIKE '%key invalid%';

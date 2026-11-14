@@ -240,6 +240,20 @@ func (q *Queries) DeferJob(ctx context.Context, arg DeferJobParams) (int64, erro
 	return result.RowsAffected()
 }
 
+const deleteKeyRejectedFailures = `-- name: DeleteKeyRejectedFailures :execrows
+DELETE FROM jobs WHERE jobs.type = ?1 AND jobs.state = 'failed' AND jobs.last_error LIKE '%key invalid%'
+`
+
+// The failed runs of a type that a rejected provider key ended (the last error names the key as
+// invalid; concept 21 O-4): removed once by DeleteKeyRejectedFillsOnce.
+func (q *Queries) DeleteKeyRejectedFailures(ctx context.Context, jobType string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteKeyRejectedFailures, jobType)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const dismissFailedJobs = `-- name: DismissFailedJobs :execrows
 UPDATE jobs
 SET state = 'cancelled', lease_owner = NULL, lease_until = NULL, updated_at = ?1, finished_at = ?1

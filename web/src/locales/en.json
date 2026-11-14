@@ -3314,6 +3314,9 @@
         "scan": "Scan of the library “{{name}}” aborted",
         "scanOther": "The loss protection aborted the scan.",
         "toLibraries": "To the libraries",
+        "keyRejected": "{{name}} key rejected",
+        "keyRejectedBody": "The provider rejects the key. Until a new key holds, Slouchcat fetches no metadata from it.",
+        "toKeys": "To the keys",
         "storage": "{{path}} is more than {{percent}} % full"
       },
       "errors": {
@@ -3584,7 +3587,9 @@
         "storedHint": "Set, ends in {{hint}}; leave empty to keep it",
         "envNote": "The value comes from deploy/.env and can only be changed there. «Check» asks the provider all the same.",
         "checkAction": "Check",
-        "checkLabel": "Check {{name}}"
+        "checkLabel": "Check {{name}}",
+        "rejected": "rejected",
+        "savedRejected": "{{name}} saved, but the provider rejects the key."
       }
     },
     "accounts": {

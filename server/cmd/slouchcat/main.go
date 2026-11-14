@@ -492,6 +492,10 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		if _, err := metaSvc.TrimImageSizesOnce(ctx); err != nil && ctx.Err() == nil {
 			log.Warn("stored images not trimmed", "err", err)
 		}
+		// The failed fills a rejected provider key left (concept 21 O-4): removed once.
+		if _, err := metaSvc.DeleteKeyRejectedFillsOnce(ctx); err != nil && ctx.Err() == nil {
+			log.Warn("failed fills of a rejected key not removed", "err", err)
+		}
 	})
 	defer func() {
 		stop() // also on error paths, so the workers return before the database closes

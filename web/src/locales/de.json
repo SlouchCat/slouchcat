@@ -3314,6 +3314,9 @@
         "scan": "Scan der Bibliothek «{{name}}» abgebrochen",
         "scanOther": "Der Verlustschutz hat den Scan abgebrochen.",
         "toLibraries": "Zu den Bibliotheken",
+        "keyRejected": "{{name}}-Schlüssel abgewiesen",
+        "keyRejectedBody": "Der Anbieter weist den Schlüssel ab. Bis ein neuer Schlüssel gilt, holt Slouchcat bei ihm keine Metadaten.",
+        "toKeys": "Zu den Schlüsseln",
         "storage": "{{path}} ist zu über {{percent}} % belegt"
       },
       "errors": {
@@ -3584,7 +3587,9 @@
         "storedHint": "Gesetzt, endet auf {{hint}}; leer lassen behält ihn",
         "envNote": "Der Wert kommt aus deploy/.env und lässt sich nur dort ändern. «Prüfen» fragt den Anbieter trotzdem.",
         "checkAction": "Prüfen",
-        "checkLabel": "{{name}} prüfen"
+        "checkLabel": "{{name}} prüfen",
+        "rejected": "abgewiesen",
+        "savedRejected": "{{name}} gespeichert, aber der Anbieter weist den Schlüssel ab."
       }
     },
     "accounts": {

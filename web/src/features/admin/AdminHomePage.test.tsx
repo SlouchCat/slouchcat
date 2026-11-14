@@ -297,6 +297,7 @@ describe('admin overview (concept 11, A-3)', () => {
               jobs: { ...dashboard().jobs, failed: 265, paused: 2 },
               attention: {
                 abortedScans: [{ libraryId: 1, name: 'Filme', reason: 'loss_over_threshold' }],
+                rejectedKeys: ['tvdb'],
               },
               browse: { lostSlots: 1, slots: 4 },
               storage: {
@@ -311,7 +312,7 @@ describe('admin overview (concept 11, A-3)', () => {
     );
     renderApp('/admin');
     const hints = await screen.findByRole('region', { name: 'Hinweise' });
-    await waitFor(() => expect(within(hints).getAllByRole('listitem')).toHaveLength(8));
+    await waitFor(() => expect(within(hints).getAllByRole('listitem')).toHaveLength(9));
     expect(
       within(hints)
         .getAllByRole('listitem')
@@ -319,6 +320,7 @@ describe('admin overview (concept 11, A-3)', () => {
     ).toEqual([
       '265 Hintergrundjobs fehlgeschlagen',
       '2 Jobarten pausiert',
+      'TVDB-Schlüssel abgewiesen',
       'Scan der Bibliothek «Filme» abgebrochen',
       'Ordner-Browser blockiert',
       'Kein Grafikchip erkannt',
@@ -332,6 +334,11 @@ describe('admin overview (concept 11, A-3)', () => {
         .getAllByRole('link', { name: 'Zu den Hintergrundjobs' })
         .map((link) => link.getAttribute('href')),
     ).toEqual(['/admin/jobs?tab=failed', '/admin/jobs']);
+    // A rejected provider key (concept 21 P-2) leads to the keys.
+    expect(within(hints).getByRole('link', { name: 'Zu den Schlüsseln' })).toHaveAttribute(
+      'href',
+      '/admin/integrations',
+    );
     expect(within(hints).getByRole('link', { name: 'Zu den Bibliotheken' })).toHaveAttribute(
       'href',
       '/admin/libraries',
@@ -355,8 +362,8 @@ describe('admin overview (concept 11, A-3)', () => {
     expect(within(hints).queryByText(/Trakt/)).not.toBeInTheDocument();
     expect(within(hints).queryByText(/Sonarr/)).not.toBeInTheDocument();
     // The head's number is the live region (the command blocks have their own for «kopiert»).
-    expect(within(hints).getByText('8 Hinweise').closest('[role="status"]')).toHaveTextContent(
-      '8 Hinweise',
+    expect(within(hints).getByText('9 Hinweise').closest('[role="status"]')).toHaveTextContent(
+      '9 Hinweise',
     );
   });
 

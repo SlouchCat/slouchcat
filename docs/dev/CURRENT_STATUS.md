@@ -28,6 +28,22 @@ ohne Vertrag und Migration. Stufe 1 (Server) läuft gleichzeitig auf einem eigen
   Suche; `Avatar` bleibt für Profile (die Personenseite folgt mit P-8 in Stufe 4).
 - **Offen:** PR, `task ci`, Abnahme durch Marco nach dem Release.
 
+## Konzept 21 Stufe 1: Segmente, abgewiesene Schlüssel, YouTube-Tageslimit (14. November 2026, PR #155 gemergt `8b0e69b4`)
+
+Stufe 1 von `docs/planning/21-sammlung.md` (Abschnitt 14) auf dem Zweig `claude/k21-stufe1`. Vertrag
+**1.32.0** (additiv), keine Migration. Gemergt, noch nicht getaggt, CT 190 nicht umgestellt.
+
+| Punkt | Inhalt |
+|---|---|
+| P-5 | `segments.detect`: ein Fingerprint mit mehr Werten als `length/Step` + Toleranz gilt als fehlend (Anfang und Ende einzeln, WARN mit `media_file_id`, `item_id`, erwarteter und tatsächlicher Wertezahl); jeder Abschnitt wird vor `InsertSegment` geprüft, ein Ende nach der Dateidauer gekürzt, ein leerer Abschnitt verworfen. Eine kaputte Folge lässt die Staffel nicht mehr scheitern. |
+| P-2 | Abgewiesener TMDB- oder TVDB-Schlüssel: kein Wiederholen, kein Neu-Einreihen (im Speicher je Anbieter und Schlüssel), Fehlertext nennt den Anbieter; ein neuer Schlüssel wird beim Speichern gespeichert und dann geprüft (`keys.<p>.rejected`), die Verwaltung zeigt «abgewiesen» und in der Übersicht «TVDB-Schlüssel abgewiesen» (`DashboardAttention.rejectedKeys`); einmalig beim Start werden die alten Fehlschläge mit `key invalid` gelöscht (O-4). |
+| P-3 | YouTube-429 mit Tageslimit = Kontingent leer (Titel bleibt wartend), kein Wiederholen bei 429, höchstens 100 Suchen pro Tag, Zähler setzt um 08:00 UTC zurück. |
+
+- **Abnahme auf CT 190 (erst auf Marcos Wort):** Job «Intro und Abspann erkennen» für Dragon Ball Z · S02
+  (Staffel `01M73QMZJGZ298BJMRNJ0KPBN9`) erneut starten; erwartet Staffel `done`, 34 Folgen mit
+  Segmenten, WARN für S02E11 (`01M73QMZK49DXATATX0ESS7325`).
+- **Parallel:** Stufe 3 (Serienansicht, Besetzung) auf eigenem Zweig.
+
 ## Release 1.31.0: Konzept 20, Bedienung, Löschen und «Gesehen» (12. November 2026)
 
 Alle fünf Stufen von `docs/planning/20-bedienung-und-gesehen.md` sind auf dem Zweig `claude/k20-bau` gebaut,

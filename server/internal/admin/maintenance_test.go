@@ -858,3 +858,4 @@ func (m *fakeMetadata) ChoosableImageKinds(context.Context, string) ([]string, e
 func (m *fakeMetadata) CheckProviderKey(context.Context, string) (model.KeyCheck, error) {
 	return model.KeyCheck{OK: true}, nil
 }
+func (m *fakeMetadata) KeyRejected(context.Context, string) bool { return false }

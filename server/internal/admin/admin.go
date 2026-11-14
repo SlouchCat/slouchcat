@@ -192,6 +192,9 @@ type Metadata interface {
 	// CheckProviderKey asks the provider with its configured key whether it holds (concept 20,
 	// P-12); *model.ValidationError for an unknown provider. Neither answer nor error carries the key.
 	CheckProviderKey(ctx context.Context, provider string) (model.KeyCheck, error)
+	// KeyRejected reports whether TMDB or TVDB rejects its configured key now (concept 21 P-2; in
+	// memory, false after a restart until the provider rejects it again).
+	KeyRejected(ctx context.Context, provider string) bool
 }
 
 // ErrNotConfigured: a maintenance operation needs a collaborator that was not wired

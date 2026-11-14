@@ -7,7 +7,7 @@ import (
 )
 
 // Quota is a budget of units per period for a provider that counts requests by cost instead of by
-// rate (YouTube Data API v3: 10'000 units per day, reset at midnight Pacific time; a search costs
+// rate (YouTube Data API v3: 10'000 units per day, reset at 08:00 UTC (EightUTC); a search costs
 // 100 units, a video lookup 1). Take spends units while some are left; the budget refills at the
 // reset time that next computes. The count lives in memory: after a restart the provider's own
 // answer (quota exceeded) is the backstop, reported through Exhaust. A Quota is safe for
@@ -102,6 +102,18 @@ var pacific = func() *time.Location {
 	}
 	return time.FixedZone("PST", -8*60*60)
 }()
+
+// EightUTC returns the next 08:00 UTC after now: the reset of the YouTube quotas as measured on
+// 12 November 2026 (concept 21 P-3). Midnight Pacific standard time; in summer Google resets an
+// hour earlier, so the count waits an hour longer than needed and never runs ahead of Google's.
+func EightUTC(now time.Time) time.Time {
+	t := now.UTC()
+	reset := time.Date(t.Year(), t.Month(), t.Day(), 8, 0, 0, 0, time.UTC)
+	if !reset.After(t) {
+		reset = reset.AddDate(0, 0, 1)
+	}
+	return reset
+}
 
 // MidnightPacific returns the next midnight in America/Los_Angeles after now, when the daily
 // quotas of Google APIs reset.

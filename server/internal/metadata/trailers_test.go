@@ -21,6 +21,10 @@ import (
 const (
 	ytKey      = "yt-test-api-key-AIzaFAKE"
 	ytQuotaKey = "yt-quota-exceeded-key-FAKE"
+	// The searches of these keys answer 429 for Google's daily search limit and for a limit
+	// per minute (concept 21 P-3).
+	ytDailySearchKey = "yt-daily-search-limit-key-FAKE"
+	ytMinuteKey      = "yt-per-minute-limit-key-FAKE"
 )
 
 // testClock is a settable clock for the YouTube quota.
@@ -77,6 +81,20 @@ func newFakeYouTube(t *testing.T) *fakeYouTube {
 		case ytQuotaKey:
 			writeJSON(w, http.StatusForbidden, map[string]any{"error": map[string]any{"code": 403, "message": "quota",
 				"errors": []any{map[string]any{"domain": "youtube.quota", "reason": "quotaExceeded"}}}})
+		case ytDailySearchKey, ytMinuteKey:
+			// The answer measured on CT 190 on 12 November 2026, and its per-minute twin.
+			metric, unit := "Search Queries per day", "1/d/{project}"
+			if r.URL.Query().Get("key") == ytMinuteKey {
+				metric, unit = "Queries per minute", "1/min/{project}"
+			}
+			w.Header().Set("Retry-After", "1")
+			writeJSON(w, http.StatusTooManyRequests, map[string]any{"error": map[string]any{"code": 429,
+				"message": "Quota exceeded for quota metric 'Search Queries' and limit '" + metric + "' of service 'youtube.googleapis.com'.",
+				"status":  "RESOURCE_EXHAUSTED",
+				"errors":  []any{map[string]any{"domain": "global", "reason": "rateLimitExceeded"}},
+				"details": []any{map[string]any{"@type": "type.googleapis.com/google.rpc.ErrorInfo", "reason": "RATE_LIMIT_EXCEEDED",
+					"domain": "googleapis.com", "metadata": map[string]any{"quota_unit": unit, "quota_limit_value": "100",
+						"quota_metric": "youtube.googleapis.com/search_queries", "service": "youtube.googleapis.com"}}}}})
 		default:
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": map[string]any{"code": 400, "message": "API key not valid.",
 				"errors":  []any{map[string]any{"domain": "global", "reason": "badRequest"}},
@@ -472,4 +490,71 @@ func TestNoSecretsInLogs(t *testing.T) {
 
 func newTestQuota() *ratelimit.Quota {
 	return ratelimit.NewQuota("youtube", youtubeDailyUnits, ratelimit.MidnightPacific)
+}
+
+// TestTrailersYouTubeDailySearchLimit (concept 21 P-3): a 429 that names Google's daily search
+// limit empties the quota and keeps the title pending without a failure, after one request (no
+// retry of the limiter); a 429 per minute stays an error the queue retries, also after one request.
+func TestTrailersYouTubeDailySearchLimit(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	e := newEnvWith(t, testKeys{tmdb: goodToken, youtube: ytDailySearchKey})
+	e.addItem(t, itemSeed{id: idBySearch, title: "Searched Film", year: 2002})
+	if err := e.svc.match(ctx, idBySearch); err != nil {
+		t.Fatal(err)
+	}
+	start := time.Now()
+	if err := e.svc.findTrailers(ctx, idBySearch); err != nil {
+		t.Fatalf("the daily search limit must end the job without error: %v", err)
+	}
+	if d := time.Since(start); d > 5*time.Second {
+		t.Errorf("findTrailers took %v: the limiter waited for a retry", d)
+	}
+	if state, _ := e.trailerState(t, idBySearch); state != "pending" || e.quota.Remaining() != 0 {
+		t.Fatalf("state %s, quota %d; want pending and an exhausted quota", state, e.quota.Remaining())
+	}
+	if n := len(e.yt.searches()); n != 1 {
+		t.Fatalf("%d searches, want 1 (no retry, no second language)", n)
+	}
+
+	m := newEnvWith(t, testKeys{tmdb: goodToken, youtube: ytMinuteKey})
+	m.addItem(t, itemSeed{id: idBySearch, title: "Searched Film", year: 2002})
+	if err := m.svc.match(ctx, idBySearch); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.svc.findTrailers(ctx, idBySearch); !errors.Is(err, errYouTubeUnavailable) {
+		t.Fatalf("a limit per minute: %v, want errYouTubeUnavailable", err)
+	}
+	if n := len(m.yt.searches()); n != 1 || m.quota.Remaining() == 0 {
+		t.Fatalf("%d searches, quota %d; want 1 and a quota left", n, m.quota.Remaining())
+	}
+}
+
+// TestYouTubeSearchBudget (concept 21 P-3): besides the units, the own budget counts 100 searches
+// per day and starts again at the reset (08:00 UTC).
+func TestYouTubeSearchBudget(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	clock := &testClock{t: time.Date(2026, 11, 12, 7, 0, 0, 0, time.UTC)}
+	units := ratelimit.NewQuota("youtube", 1_000_000, ratelimit.EightUTC, ratelimit.WithQuotaClock(clock.now))
+	y := newYouTubeTrailers("http://127.0.0.1:1", nil, units, testKeys{youtube: ytKey})
+	for i := range youtubeDailySearches {
+		if !y.takeSearch(ctx) {
+			t.Fatalf("search %d refused", i+1)
+		}
+	}
+	if y.takeSearch(ctx) {
+		t.Fatal("search 101 of the day allowed")
+	}
+	if got := units.Remaining(); got != 1_000_000-youtubeDailySearches*youtubeSearchCost {
+		t.Errorf("units left %d: a refused search spent units", got)
+	}
+	clock.set(time.Date(2026, 11, 12, 7, 59, 59, 0, time.UTC))
+	if y.takeSearch(ctx) {
+		t.Fatal("search allowed before 08:00 UTC")
+	}
+	clock.set(time.Date(2026, 11, 12, 8, 0, 0, 0, time.UTC))
+	if !y.takeSearch(ctx) {
+		t.Fatal("search refused after the reset at 08:00 UTC")
+	}
 }

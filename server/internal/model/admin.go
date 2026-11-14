@@ -197,6 +197,7 @@ type ActivityEntry struct {
 // DashboardAttention is what needs the administrator's attention (concept 11).
 type DashboardAttention struct {
 	AbortedScans []AbortedScan // scans the loss protection aborted, loss not accepted
+	RejectedKeys []string      // metadata providers that reject their configured key (tmdb, tvdb; concept 21 P-2)
 }
 
 // AbortedScan is a library whose last scan the loss protection aborted.
@@ -477,6 +478,9 @@ const (
 type KeyState struct {
 	Source string
 	Hint   string
+	// Rejected: the provider rejects the configured key (TMDB, TVDB with a key; concept 21 P-2);
+	// nil for the other keys and without key.
+	Rejected *bool
 }
 
 // AdminSettings are the server settings and integrations; secrets are never part of it.

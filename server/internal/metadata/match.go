@@ -152,6 +152,7 @@ func (s *Service) providerFailure(ctx context.Context, item systemq.Item, provid
 	switch {
 	case errors.Is(err, model.ErrTMDBKeyInvalid):
 		s.log.Warn("metadata provider key rejected", "provider", provider, "item_id", item.ID)
+		s.rejectKey(ctx, provider)
 		return s.setState(ctx, item, stateFailed, provider+"_key_invalid")
 	case errors.Is(err, ErrNotFound):
 		return s.setState(ctx, item, stateUnmatched, "")
