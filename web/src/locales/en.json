@@ -603,6 +603,7 @@
     "nextEpisodeLabel": "{{code}} · {{title}}",
     "episodeCode": "S{{season}}E{{episode}}",
     "episodeCodeRange": "S{{season}}E{{episode}}–E{{end}}",
+    "episodeNumberRange": "{{episode}}–{{end}}",
     "episodeOf": "{{code}} · {{series}}",
     "docTitle": {
       "season": "{{title}} – {{series}}",
@@ -620,11 +621,17 @@
       }
     },
     "seasons": "Seasons",
+    "seasonWall": {
+      "showAll": "Show all {{total}} seasons",
+      "showLess": "Show less"
+    },
     "episodes": {
       "title": "Episodes",
       "empty": "No episodes.",
       "play": "Play",
-      "details": "Details: {{title}}"
+      "details": "Details: {{title}}",
+      "playTitle": "Play: {{title}}",
+      "resumeTitle": "Resume: {{title}}"
     },
     "resumeChoice": {
       "bodyEpisode": "You started this episode.",

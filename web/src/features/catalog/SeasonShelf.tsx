@@ -9,7 +9,15 @@ import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import { offlineSupported } from '@/features/offline/support';
 import { formatRuntime } from '@/lib/format';
-import { Button, EpisodeListItem, Notice, PosterCard, RowList, Skeleton, SpatialGroup } from '@/ui';
+import {
+  Button,
+  EpisodeListItem,
+  Notice,
+  PosterCard,
+  Skeleton,
+  SpatialButton,
+  SpatialGroup,
+} from '@/ui';
 import { CoverPen, EditMetadata } from './EditMetadata';
 import { episodeCode } from './labels';
 import { itemQuery } from './queries';
@@ -39,10 +47,24 @@ export function seasonFacts(t: TFunction, season: ItemRef): string[] {
   ].filter((part): part is string => part !== undefined);
 }
 
+/** The number at the start of an episode's line ("2", "3–4"), or undefined without one. */
+function episodeNumber(t: TFunction, episode: ItemRef): string | undefined {
+  if (episode.episodeNumber === undefined) return undefined;
+  if (episode.episodeEnd !== undefined && episode.episodeEnd > episode.episodeNumber) {
+    return t('item.episodeNumberRange', {
+      episode: episode.episodeNumber,
+      end: episode.episodeEnd,
+    });
+  }
+  return String(episode.episodeNumber);
+}
+
 /**
- * The episodes of a season as a list (E-14): the `nextUp` episode marked with "Als Nächstes" or
- * "Weiterschauen" when it is in this list. A click on an episode starts it, a started one asks
- * first whether to resume (concept 20 P-4); «Details» opens its page.
+ * The episodes of a season as a compact list (concept 21 P-6, variant C): one line each, the
+ * `nextUp` episode marked with "Als Nächstes" or "Weiterschauen" when it is in this list and open
+ * when the page opens. A click on a line opens or closes its row, Enter opens it and moves to
+ * «Abspielen» (O-11); one row is open at a time. A started episode asks first whether to resume
+ * (concept 20 P-4); «Details» opens its page; «Herunterladen» where the device can.
  */
 export function EpisodeList({
   episodes,
@@ -53,51 +75,41 @@ export function EpisodeList({
 }) {
   const { t } = useTranslation();
   const playStart = usePlayStart();
+  // undefined: as the page opened, with the nextUp episode open; null: every row closed.
+  const [chosen, setChosen] = useState<string | null>();
   if (episodes.length === 0) return <p className={styles.muted}>{t('item.episodes.empty')}</p>;
   const marked = nextUp && nextUp.reason !== 'rewatch' ? nextUp.episode.id : undefined;
+  const open =
+    chosen === undefined
+      ? episodes.find((episode) => episode.id === nextUp?.episode.id)?.id
+      : chosen;
+  const offline = offlineSupported();
   return (
     <>
       <SpatialGroup
         as="ul"
         className={styles.episodeRows}
         aria-label={t('item.episodes.title')}
-        preferredChildFocusKey={marked ? `episode-${marked}` : undefined}
+        preferredChildFocusKey={`episode-${open ?? marked ?? episodes[0]?.id}`}
       >
         {episodes.map((episode) => {
           const progress = episode.progress;
+          const started = progress && !progress.completed && progress.positionMs > 0;
           const code = episodeCode(t, episode);
           const named = code
             ? t('item.nextUp.episode', { code, title: episode.title })
             : episode.title;
+          const expanded = episode.id === open;
           return (
             <li key={episode.id}>
               <EpisodeListItem
                 focusKey={`episode-${episode.id}`}
-                playHref={paths.play(episode.id)}
-                playLabel={t('item.episodes.play')}
-                onPlay={(event) => playStart.ask({ ...episode, title: named }, event)}
-                detailsHref={paths.item(episode.id)}
-                detailsLabel={t('item.details')}
-                detailsName={t('item.episodes.details', { title: named })}
+                number={episodeNumber(t, episode)}
                 code={code}
                 title={episode.title}
                 overview={episode.overview}
                 caption={
                   episode.runtimeMinutes ? formatRuntime(t, episode.runtimeMinutes) : undefined
-                }
-                stillUrl={imageUrl(episode.images.backdropSmall ?? episode.images.backdrop)}
-                accent={episode.accent}
-                progress={
-                  progress && !progress.completed && progress.positionMs > 0
-                    ? {
-                        percent: progress.percent,
-                        label: t('item.watched', { percent: Math.round(progress.percent) }),
-                      }
-                    : undefined
-                }
-                // Named with the code, as «Details» is ("Gesehen: S01E02 · Die lange Nacht").
-                watchedControl={
-                  <CoverWatched item={{ ...episode, title: named }} appearance="row" />
                 }
                 highlight={
                   episode.id === marked
@@ -107,6 +119,42 @@ export function EpisodeList({
                           : 'item.nextUp.markNext',
                       )
                     : undefined
+                }
+                expanded={expanded}
+                onToggle={(keyboard) => setChosen(expanded && !keyboard ? null : episode.id)}
+                playHref={paths.play(episode.id)}
+                playLabel={t(started ? 'item.nextUp.resume' : 'item.episodes.play')}
+                playName={t(started ? 'item.episodes.resumeTitle' : 'item.episodes.playTitle', {
+                  title: named,
+                })}
+                onPlay={(event) => playStart.ask({ ...episode, title: named }, event)}
+                detailsHref={paths.item(episode.id)}
+                detailsLabel={t('item.details')}
+                detailsName={t('item.episodes.details', { title: named })}
+                actions={
+                  offline && expanded ? (
+                    <Suspense fallback={null}>
+                      <DownloadAction
+                        target={episode}
+                        focusKey={`episode-${episode.id}-download`}
+                        size="md"
+                      />
+                    </Suspense>
+                  ) : undefined
+                }
+                stillUrl={imageUrl(episode.images.backdropSmall ?? episode.images.backdrop)}
+                accent={episode.accent}
+                progress={
+                  started
+                    ? {
+                        percent: progress.percent,
+                        label: t('item.watched', { percent: Math.round(progress.percent) }),
+                      }
+                    : undefined
+                }
+                // Named with the code, as «Details» is ("Gesehen: S01E02 · Die lange Nacht").
+                watchedControl={
+                  <CoverWatched item={{ ...episode, title: named }} appearance="row" />
                 }
               />
             </li>
@@ -159,28 +207,39 @@ function ChosenSeason({ season, nextUp }: { season: ItemRef; nextUp?: NextUp }) 
   );
 }
 
-/**
- * Scrolls the row sideways so the chosen card stands wholly in view, without moving the page (the
- * shelf may still be below the fold) and without taking the focus.
- */
-function revealChosen(scroller: HTMLDivElement | null) {
-  const card = scroller?.querySelector('[aria-current="true"]');
-  if (!scroller || !card) return;
-  const inset = parseFloat(getComputedStyle(scroller).scrollPaddingInlineStart) || 0;
-  const box = scroller.getBoundingClientRect();
-  const place = card.getBoundingClientRect();
-  if (place.left < box.left + inset) scroller.scrollLeft -= box.left + inset - place.left;
-  else if (place.right > box.right - inset)
-    scroller.scrollLeft += place.right - (box.right - inset);
+/** How many tracks the grid has now (auto-fill), or 0 where nothing is laid out (tests). */
+function gridColumns(grid: Element | null | undefined): number {
+  if (!grid) return 0;
+  const tracks = getComputedStyle(grid).gridTemplateColumns.trim();
+  return tracks === '' || tracks === 'none' ? 0 : tracks.split(/\s+/).length;
 }
 
 /**
- * The seasons of a series as a shelf of covers (concept 17 D-1, variant A; E-13): each with
- * "2004 · 24 Folgen", a bar of the watched episodes and the check mark of the season. The chosen
- * season (first the one of the `nextUp` episode) shows its text and episodes underneath. Fixed
- * arrows page the shelf, a mouse drags it, and the chosen season moves into view by itself when
- * the page opens (the season of the next episode may be the ninth) and when it changes (concept 20
- * P-1).
+ * The seasons a wall of `columns` columns shows folded: its first two rows, with the chosen season
+ * in place of the last one when it would lie further down (concept 21 P-6). All of them unfolded,
+ * or while the columns are not known.
+ */
+export function foldedSeasons(
+  seasons: readonly ItemRef[],
+  chosenId: string,
+  columns: number,
+  unfolded: boolean,
+): readonly ItemRef[] {
+  const limit = columns * 2;
+  if (unfolded || limit === 0 || seasons.length <= limit) return seasons;
+  const index = seasons.findIndex((season) => season.id === chosenId);
+  const first = seasons.slice(0, limit);
+  if (index < limit) return first;
+  return [...first.slice(0, limit - 1), seasons[index]!];
+}
+
+/**
+ * The seasons of a series as a wall of covers over the whole width (concept 21 P-6, variant A;
+ * before a shelf, concept 17 D-1): each with "2004 · 24 Folgen", a bar of the watched episodes and
+ * the check mark of the season; the pen shows with the pointer or the focus. First two rows, then
+ * «Alle N Staffeln anzeigen»; the chosen season (first the one of the `nextUp` episode) always
+ * stands in the wall and shows its text and episodes underneath. ↓ from the wall leads to the
+ * episodes (O-11), over the button when there is one.
  */
 export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; nextUp?: NextUp }) {
   const { t } = useTranslation();
@@ -190,17 +249,30 @@ export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; 
   const canManage = session.account.role === 'admin' && session.profile.isPrimary;
   const [editing, setEditing] = useState<ItemRef | null>(null);
   const [chosen, setChosen] = useState<string | null>(null);
-  const scroller = useRef<HTMLDivElement>(null);
+  const [unfolded, setUnfolded] = useState(false);
+  const [columns, setColumns] = useState(0);
+  const wall = useRef<HTMLDivElement>(null);
+  // The columns follow the width of the page (auto-fill); measured before the first paint.
+  useLayoutEffect(() => {
+    const node = wall.current;
+    if (!node) return;
+    const update = () => setColumns(gridColumns(node.firstElementChild));
+    update();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
   const current =
     seasons.find((season) => season.id === chosen) ??
     seasons.find((season) => season.id === nextUp?.episode.parentId) ??
     seasons[0];
-  const currentId = current?.id;
-  useLayoutEffect(() => revealChosen(scroller.current), [currentId]);
   if (!current) return null;
+  const shown = foldedSeasons(seasons, current.id, columns, unfolded);
+  const foldable = columns > 0 && seasons.length > columns * 2;
   return (
-    // One group for shelf and episodes, as wide as the page: ↓ from the actions in the head enters
-    // it at the shelf (by geometry the wider episode list would win over the narrow shelf).
+    // One group for the wall and the episodes, as wide as the page: ↓ from the actions in the head
+    // enters it at the wall (by geometry the episode list could win over the wall).
     <SpatialGroup
       as="section"
       className={styles.shelf}
@@ -211,58 +283,80 @@ export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; 
       <h2 id="item-seasons-heading" className={`${styles.sectionTitle} ${styles.gutter}`}>
         {t('item.seasons')}
       </h2>
-      <RowList
-        focusKey="detail-seasons"
-        aria-label={t('item.seasons')}
-        arrows="always"
-        scrollerRef={scroller}
-        preferredChildFocusKey={seasonKey(current)}
-      >
-        {seasons.map((season) => {
-          const active = season.id === current.id;
-          const total = season.childCount ?? 0;
-          const watched = Math.min(season.watchedCount ?? 0, total);
-          return (
-            <PosterCard
-              key={season.id}
-              focusKey={seasonKey(season)}
-              title={season.title}
-              caption={seasonFacts(t, season).join(t('format.separator'))}
-              posterUrl={imageUrl(season.images.poster)}
-              posterSmallUrl={imageUrl(season.images.posterSmall)}
-              accent={season.accent}
-              onPress={() => setChosen(season.id)}
-              active={active}
-              dimmed={!active}
-              aria-current={active ? 'true' : undefined}
-              tabIndex={active ? 0 : -1}
-              // Only the chosen season is a Tab stop, then its pen and its check (roving
-              // tabindex). The check sets or clears every episode of the season (concept 20 P-5).
-              check={<CoverWatched item={season} excludeFromTabOrder={!active} />}
-              tool={
-                canManage ? (
-                  <CoverPen
-                    item={season}
-                    onEdit={() => setEditing(season)}
-                    excludeFromTabOrder={!active}
-                  />
-                ) : undefined
-              }
-              progress={
-                watched > 0 && watched < total
-                  ? {
-                      percent: (watched / total) * 100,
-                      label: t('item.season.progress', { count: watched, total }),
-                    }
-                  : undefined
-              }
-            />
-          );
-        })}
-      </RowList>
+      <div ref={wall} className={styles.gutter}>
+        <SpatialGroup
+          focusKey="detail-seasons"
+          as="ul"
+          className={styles.seasonWall}
+          aria-label={t('item.seasons')}
+          preferredChildFocusKey={seasonKey(current)}
+          rememberLastChild={false}
+        >
+          {shown.map((season) => {
+            const active = season.id === current.id;
+            const total = season.childCount ?? 0;
+            const watched = Math.min(season.watchedCount ?? 0, total);
+            return (
+              <li key={season.id}>
+                <PosterCard
+                  focusKey={seasonKey(season)}
+                  title={season.title}
+                  caption={seasonFacts(t, season).join(t('format.separator'))}
+                  posterUrl={imageUrl(season.images.poster)}
+                  posterSmallUrl={imageUrl(season.images.posterSmall)}
+                  accent={season.accent}
+                  onPress={() => setChosen(season.id)}
+                  active={active}
+                  dimmed={!active}
+                  aria-current={active ? 'true' : undefined}
+                  tabIndex={active ? 0 : -1}
+                  // Only the chosen season is a Tab stop, then its pen and its check (roving
+                  // tabindex). The check sets or clears every episode of the season (concept 20
+                  // P-5).
+                  check={<CoverWatched item={season} excludeFromTabOrder={!active} />}
+                  tool={
+                    canManage ? (
+                      <CoverPen
+                        item={season}
+                        onEdit={() => setEditing(season)}
+                        excludeFromTabOrder={!active}
+                      />
+                    ) : undefined
+                  }
+                  toolOnHover
+                  progress={
+                    watched > 0 && watched < total
+                      ? {
+                          percent: (watched / total) * 100,
+                          label: t('item.season.progress', { count: watched, total }),
+                        }
+                      : undefined
+                  }
+                />
+              </li>
+            );
+          })}
+        </SpatialGroup>
+      </div>
+      {foldable && (
+        // A group as wide as the page: by geometry ↑ from the episodes reaches it, not the wall.
+        <SpatialGroup className={`${styles.wallToggle} ${styles.gutter}`}>
+          <SpatialButton
+            focusKey="detail-seasons-fold"
+            variant="secondary"
+            icon={unfolded ? 'chevronUp' : 'chevronDown'}
+            aria-expanded={unfolded}
+            onPress={() => setUnfolded((value) => !value)}
+          >
+            {unfolded
+              ? t('item.seasonWall.showLess')
+              : t('item.seasonWall.showAll', { total: seasons.length })}
+          </SpatialButton>
+        </SpatialGroup>
+      )}
       <div className={`${styles.season} ${styles.gutter}`}>
         <ChosenSeason key={current.id} season={current} nextUp={nextUp} />
-        {/* Below the episodes: the arrows from the shelf still land on the episodes. */}
+        {/* Below the episodes: ↓ from the wall still lands on the episodes. */}
         {offlineSupported() && (
           <Suspense fallback={null}>
             <SpatialGroup className={styles.seasonActions}>
@@ -281,7 +375,7 @@ export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; 
           itemId={editing.id}
           onClose={() => {
             setEditing(null);
-            // The shelf's covers come with the series.
+            // The wall's covers come with the series.
             if (editing.parentId) {
               void queryClient.invalidateQueries({ queryKey: ['item', editing.parentId] });
             }
