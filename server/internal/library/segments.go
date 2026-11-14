@@ -157,15 +157,17 @@ func (s *Service) handleSegments(ctx context.Context, j *jobs.Job) error {
 			if sp == nil {
 				continue
 			}
-			if d := durations[id]; sp.Start < 0 || sp.End <= sp.Start || sp.End > d {
+			span, ok := storableSpan(*sp, durations[id])
+			if !ok {
 				// An invalid span must not fail the season's transaction (concept 21 P-5).
 				s.log.WarnContext(ctx, "invalid segment dropped", "item_id", id, "kind", kind,
-					"start_ms", sp.Start.Milliseconds(), "end_ms", sp.End.Milliseconds(), "duration_ms", d.Milliseconds())
+					"start_ms", sp.Start.Milliseconds(), "end_ms", sp.End.Milliseconds(),
+					"duration_ms", durations[id].Milliseconds())
 				continue
 			}
 			if err := q.InsertSegment(ctx, systemq.InsertSegmentParams{
-				ItemID: id, Kind: kind, StartMs: sp.Start.Milliseconds(), EndMs: sp.End.Milliseconds(), Source: sp.Source,
-				Confidence: sql.NullFloat64{Float64: sp.Confidence, Valid: true}, Now: now.UnixMilli(),
+				ItemID: id, Kind: kind, StartMs: span.Start.Milliseconds(), EndMs: span.End.Milliseconds(), Source: span.Source,
+				Confidence: sql.NullFloat64{Float64: span.Confidence, Valid: true}, Now: now.UnixMilli(),
 			}); err != nil {
 				return fmt.Errorf("insert %s of %s: %w", kind, id, err)
 			}
@@ -230,4 +232,15 @@ func storedChapters(probe sql.NullString) []segments.Chapter {
 		out = append(out, segments.Chapter{Start: c.Start, End: c.End, Title: c.Title})
 	}
 	return out
+}
+
+// storableSpan returns sp as it may be stored for a file of duration d: 0 <= Start < End <= d
+// (concept 21 P-5). An end past the duration is cut to it first, because a chapter often ends a few
+// milliseconds after the probed duration; a span that starts at or after the end stays invalid. An
+// unknown duration (0) checks only Start and End against each other.
+func storableSpan(sp segments.Span, d time.Duration) (segments.Span, bool) {
+	if d > 0 && sp.End > d {
+		sp.End = d
+	}
+	return sp, sp.Start >= 0 && sp.End > sp.Start
 }

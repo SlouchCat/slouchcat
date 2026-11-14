@@ -345,3 +345,29 @@ func TestSegmentsDetectBrokenEpisode(t *testing.T) {
 		t.Errorf("%d invalid segments stored", n)
 	}
 }
+
+func TestStorableSpan(t *testing.T) {
+	const d = 24 * time.Minute
+	for _, tc := range []struct {
+		name       string
+		start, end time.Duration
+		wantEnd    time.Duration
+		ok         bool
+	}{
+		{"inside", time.Minute, 2 * time.Minute, 2 * time.Minute, true},
+		{"chapter a few ms past the end is cut", d - time.Minute, d + 3*time.Millisecond, d, true},
+		{"starts after the end", d + time.Second, d + 2*time.Second, 0, false},
+		{"end before start", 2 * time.Minute, time.Minute, 0, false},
+		{"negative start", -time.Second, time.Minute, 0, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := storableSpan(segments.Span{Start: tc.start, End: tc.end}, d)
+			if ok != tc.ok || (ok && got.End != tc.wantEnd) {
+				t.Fatalf("storableSpan(%v, %v) = %v, %v; want end %v, %v", tc.start, tc.end, got, ok, tc.wantEnd, tc.ok)
+			}
+		})
+	}
+	if _, ok := storableSpan(segments.Span{Start: time.Minute, End: 2 * time.Minute}, 0); !ok {
+		t.Fatal("a span without a known duration must stay storable")
+	}
+}
