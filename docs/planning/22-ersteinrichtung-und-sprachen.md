@@ -1,11 +1,12 @@
 # Konzept 22: Ersteinrichtung und Sprachen
 
-- **Status: Fassung 2 (14. November 2026).** Ein Kritiker hat Fassung 1 gegen den Code geprüft
-  (REVISE: 2 Blocker, 11 Major, 16 Minor). Alles ist eingearbeitet, der Nachweis steht in
-  Abschnitt 9. Marco hat am 14. November 2026 zehn Fragen beantwortet (**F-1 bis F-10**,
-  Abschnitt 1): sechs vor Fassung 1, vier zu Befunden des Reviews. Offen sind die Punkte
-  **O-1 bis O-19** (Abschnitt 8), jeder mit Empfehlung; bis zu Marcos Antwort gilt die Empfehlung.
-  **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
+- **Status: Fassung 3 (14. November 2026).** Fassung 2 hat das Kritiker-Review eingearbeitet
+  (REVISE: 2 Blocker, 11 Major, 16 Minor; Abschnitt 9). In Fassung 3 hat Marco alle offenen
+  Punkte beantwortet (Abschnitt 8). Damit sind **F-1 bis F-15** entschieden (Abschnitt 1), und es
+  ist **nichts mehr offen**.
+  - Neu ist **Teil C «Freigabeländer»** (Abschnitt 4.11, F-12): Profile bekommen die Altersstufen
+    des gewählten Freigabelands.
+  - **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Auslöser:** Marco will einen Installations-Assistenten, der beim ersten Start erscheint und die
   wichtigsten Einstellungen abfragt, und Slouchcat in vielen Sprachen anbieten, «etwa so wie Emby
   und Jellyfin».
@@ -13,9 +14,11 @@
   Vertragsfassung **1.32.0** (`api/openapi.yaml:4`), letzte Migration **`00057_trailer_size.sql`**,
   letzte ADR **`0032`**, letzte Frage im Entscheidungsprotokoll **28**. Daneben offen: Zweig
   `claude/k21-stufen4-6` mit Vertrag **1.33.0** und den Migrationen **00058** und **00059**.
-- **Nummern:** Dieses Papier ist **Konzept 22**. Es reserviert **Frage 29** und **ADR 0033**
-  («Oberflächensprachen, Übersetzung und Metadaten-Sprachen»). ADR 0033 ersetzt ADR 0018 in zwei
-  Punkten (Abschnitt 6).
+- **Nummern:** Dieses Papier ist **Konzept 22**. Es reserviert:
+  - **Frage 29**
+  - **ADR 0033** («Oberflächensprachen, Übersetzung und Metadaten-Sprachen»). Sie ersetzt ADR 0018
+    in zwei Punkten (Abschnitt 6).
+  - **ADR 0034** («Freigabeländer und Altersstufen je Land»). Sie ändert Entscheid 6 und AN-8.
   - Vertragsfassungen und Migrationsnummern nennt das Papier **nicht fest**. Vergeben wird in
     Bau-Reihenfolge: goose verlangt lückenlose Nummern, die Regel «Vertrag = Tag» eine aufsteigende
     Version.
@@ -31,9 +34,10 @@
 > - **Teil A** ersetzt den heutigen Ein-Seiten-Assistenten durch einen geführten Assistenten in
 >   neun Schritten (Abschnitt 3).
 > - **Teil B** macht aus zwei Oberflächensprachen dreiundzwanzig und löst dafür die Bindung der
->   Metadaten an Deutsch (Abschnitt 4).
+>   Metadaten an Deutsch (Abschnitt 4.1 bis 4.10).
+> - **Teil C** nimmt die Freigabesysteme der Länder dieser Sprachen auf (Abschnitt 4.11).
 >
-> Abschnitt 7 schneidet beides in vier Stufen mit je einem Release.
+> Abschnitt 7 schneidet alles in fünf Stufen mit je einem Release.
 
 ---
 
@@ -51,8 +55,14 @@
 | **F-8** | Was tut der Radio-Schalter im Assistenten? | **Land ins Angebot, keine Sender:** Modus «Nur markierte». Die Sender wählt man später in der Verwaltung. |
 | **F-9** | PIN für weitere Profile im Assistenten | **Man kann eine PIN angeben, sie ist aber optional.** |
 | **F-10** | Grafikchip im Assistenten | **Wählbar, mit Neustart.** Die Wahl wird gespeichert und gilt nach einem Neustart des Containers. |
+| **F-11** | Abbruch nach Schritt 2 (O-3) | **Immer weiterleiten**, bei jedem Anmelden, bis die Einrichtung abgeschlossen ist. |
+| **F-12** | Freigabeländer (O-5) | **Weitere Länder jetzt**, und zwar alle zu den 23 Sprachen. **Die Profile wählen aus den Stufen des gewählten Landes.** Hat ein Titel keine Freigabe dieses Landes, gilt die deutsche (FSK). |
+| **F-13** | Weitere Dienste im Assistenten (O-11) | **Ja, alle:** dazu Google Books, Trakt, Web-Push und Telegram. Jede Karte zeigt, ob sie **empfohlen** oder **optional** ist. Empfohlen sind TMDB und E-Mail; über die übrigen durfte Claude entscheiden. |
+| **F-14** | Alte öffentliche Prüf-Endpunkte (O-12) | **Sofort entfernen**, nicht nur als veraltet markieren. |
+| **F-15** | Stichproben der Übersetzung durch Marco (O-9) | **Deutsch (Deutschland) und Englisch.** |
 
-Die dreiundzwanzig Sprachen aus F-3 und F-4 stehen in Abschnitt 4.1. Rechts nach links (Arabisch,
+Die übrigen offenen Punkte hat Marco nach Empfehlung beantwortet (Abschnitt 8). Die
+dreiundzwanzig Sprachen aus F-3 und F-4 stehen in Abschnitt 4.1. Rechts nach links (Arabisch,
 Hebräisch, Persisch) ist bewusst nicht dabei (Abschnitt 4.10).
 
 ---
@@ -235,7 +245,8 @@ Weg, über den Fremde Slouchcat externe Dienste abfragen lassen könnten.
    `sendTestEmail`.
 
 Was das bringt:
-- **Nur ein neuer öffentlicher Wert:** die Zeitzone in `SetupStatus.system` (3.5).
+- **Weniger öffentliche Fläche als heute:** `checkSetupPath` und `checkSetupTmdbKey` fallen weg
+  (F-14). Neu öffentlich ist nur die Zeitzone in `SetupStatus.system` (3.5).
 - **Gleiche Rechteprüfung wie in der Verwaltung.** Ab Schritt 3 gilt sie für alles.
 - **Volle Ordnerauswahl.** Ab Schritt 3 darf der Assistent den ganzen Ordner-Browser
   (`PathBrowserButton`) zeigen. Vor dem Konto gibt es nur die Wurzeln, aus Sicherheitsgründen
@@ -251,7 +262,7 @@ Was das bringt:
 **Wer zuerst kommt, richtet ein.** Das gilt heute schon. Ruft jemand anderes `/setup` zwischen
 Schritt 1 und 2 auf und legt das Konto zuerst an, bekommt Schritt 2 `setup_done`. Der Assistent
 zeigt dann «Slouchcat ist schon eingerichtet» mit dem Weg zur Anmeldung (`ErrSetupDone`). Ein
-Einrichtungs-Token gegen dieses Risiko ist O-17.
+Einrichtungs-Token gegen dieses Risiko gibt es bewusst nicht (O-17).
 
 ### 3.2 Reihenfolge der Schritte
 
@@ -264,10 +275,10 @@ sofort ein, also sollen Schlüssel, Metadaten-Sprachen und Trickplay-Vorgabe dan
 | 1 | Sprache | ja | öffentlich, danach Eigentümer | im Browser; nach Schritt 2 `updateProfile` | – |
 | 2 | Konto | ja | öffentlich | `runSetup` (erweitert, 3.5) | – |
 | 3 | Region | nein | Eigentümer | `updateMetadataSettings` (ganzes Objekt), `applyRadioOffer` | Empfehlung aus der Sprache (Tabelle 4.1) |
-| 4 | Dienste | nein (TMDB empfohlen) | Eigentümer | `updateAdminSettings.keys/.email`, `checkProviderKey`, `sendTestEmail` | keine Schlüssel; Slouchcat zeigt nur Dateinamen |
+| 4 | Dienste | nein (TMDB und E-Mail empfohlen) | Eigentümer | `updateAdminSettings.keys/.email/.telegram`, `checkProviderKey`, `sendTestEmail`, Web-Push-Abo des Geräts | keine Schlüssel; Slouchcat zeigt nur Dateinamen |
 | 5 | Wiedergabe | nein | Eigentümer | `updateAdminSettings.transcodeHw` (neu), Trickplay-Vorgabe in `setup_wizard` | automatische Wahl, Trickplay aus |
 | 6 | Bibliotheken | ja, mindestens eine | Eigentümer | `createLibrary` | – |
-| 7 | Haushalt | nein | Eigentümer | `createProfile` | nur das eigene Profil |
+| 7 | Haushalt | nein | Eigentümer | `createProfile` (Altersstufen des Freigabelands, ab Stufe 3) | nur das eigene Profil |
 | 8 | Zugriff | nein | Eigentümer | `updateAdminSettings.publicUrl/.updateCheckEnabled` | keine Adresse, Update-Prüfung ein |
 | 9 | Zusammenfassung | – | Eigentümer | `finishSetup` (neu, 3.5) | – |
 
@@ -299,8 +310,11 @@ sofort ein, also sollen Schlüssel, Metadaten-Sprachen und Trickplay-Vorgabe dan
 **Schritt 3: Region.**
 - **Land:** Vorschlag aus der Sprache, sonst aus der Zeitzone des Browsers. Es dient als
   Vorschlag fürs Radio und für die Metadaten-Sprachen.
-- **Altersfreigaben nach:** nur die fünf Länder, die Slouchcat kennt (DE, AT, CH, GB, US).
-  Weitere Länder sind ein eigenes Konzept (O-5).
+- **Altersfreigaben nach:** das Freigabeland. Vorschlag aus dem Land, sonst Deutschland.
+  - In Stufe 2 sind es die fünf Länder von heute (DE, AT, CH, GB, US).
+  - Ab Stufe 3 sind es alle Länder aus Tabelle 4.11 (F-12).
+  - Unter der Wahl stehen die Altersstufen dieses Landes, so wie sie danach im Schritt Haushalt
+    erscheinen.
 - **Sprachen der Metadaten:** geordnete Liste aus `knownLanguages` (ADR 0018), Vorschlag nach
   Tabelle 4.1.
   - **Keine Sprache ist Pflicht (F-7).** Ein französischer Haushalt bekommt `fr → en`.
@@ -322,22 +336,37 @@ sofort ein, also sollen Schlüssel, Metadaten-Sprachen und Trickplay-Vorgabe dan
     `setup_wizard` und führt ihn bei `finishSetup` aus. Ist der Katalog dann immer noch leer,
     erscheint in der Verwaltung ein Hinweis.
 
-**Schritt 4: Dienste.**
-- Eine Karte je Dienst:
-  - TMDB, mit Rahmen in Akzentfarbe und «Empfohlen»
-  - TheTVDB mit PIN
-  - Fanart.tv mit optionalem Client-Schlüssel
-  - YouTube für Trailer, mit dem Hinweis «Tageslimit 100 Suchen»
-- **Jede Karte trägt den Link zum Beantragen (F-6).** Der Link ist sichtbar, bevor man die Karte
-  aufklappt.
-- «Prüfen» speichert den Schlüssel und ruft dann `checkProviderKey` auf.
+**Schritt 4: Dienste (F-6, F-13).**
+- Acht Karten in zwei Gruppen. Jede Karte trägt ein Schild **«Empfohlen»** oder **«Optional»** und
+  einen Satz, wofür der Dienst gut ist.
+- **Empfohlen:**
+  - **TMDB:** Titel, Beschreibungen, Poster, Besetzung. Ohne TMDB zeigt Slouchcat nur Dateinamen.
+  - **E-Mail:** für Einladungen und «Passwort vergessen». Ein aufklappbarer Block aus `EmailForm`
+    mit Server, Port, Verschlüsselung, Benutzer, Passwort, Absender und «Testmail an mich senden».
+- **Optional** (zugeklappt, ein Klick öffnet die Felder):
+  - **TheTVDB** mit PIN: bessere Staffel- und Folgendaten, vor allem Anime.
+  - **Fanart.tv** mit optionalem Client-Schlüssel: Logos und Hintergründe in höherer Auflösung.
+  - **YouTube:** Trailer, wo TMDB keine liefert, mit dem Hinweis «Tageslimit 100 Suchen».
+  - **Google Books:** Angaben und Cover für Hörbücher.
+  - **Trakt:** der Schlüssel für Listen von Trakt (Spotlight). Ein Trakt-Login bleibt ein
+    Nicht-Ziel.
+  - **Web-Push:** «Meldungen auf diesem Gerät einschalten». Das abonniert den Browser des
+    Eigentümers für Push. Die Schlüssel dafür erzeugt der Server beim ersten Start selbst.
+  - **Telegram:** Bot-Token von @BotFather. Slouchcat prüft es beim Speichern mit Telegram
+    (`getMe`). Das eigene Konto verbindet man danach über den Link aus der Verwaltung.
+- **Links zum Beantragen (F-6)** stehen auf jeder Karte und sind sichtbar, bevor man sie aufklappt.
+  Es sind die Adressen aus `ProviderCard.PROVIDERS`:
+  - Trakt: `https://developer.trakt.tv/apps`
+  - Google Books: `https://console.cloud.google.com/apis/credentials`
+  - Telegram: `https://t.me/BotFather`
+- «Prüfen» speichert den Schlüssel und ruft dann `checkProviderKey` auf. Für Trakt und Google
+  Books gibt es diese Prüfung schon.
 - **Lehnt der Dienst ab:** Die Meldung steht neben dem Feld. «Weiter» fragt dann «Ungültigen
   Schlüssel entfernen und weiter?». So bleibt kein falscher Schlüssel gespeichert, ohne dass man
   es merkt.
-- **E-Mail** als aufklappbarer Block aus `EmailForm`: Server, Port, Verschlüsselung, Benutzer,
-  Passwort, Absender und «Testmail an mich senden».
-- Web-Push, Telegram, Trakt und Google Books gehören nicht in den Assistenten (O-11).
 - Jede Karte zeigt «aus .env», wenn die Umgebung den Wert setzt.
+- Die Karten sind dieselben Bauteile wie unter Verwaltung › Integrationen (`ProviderCard`,
+  `EmailForm`, `TelegramForm`, Push-Schalter aus den Benachrichtigungen).
 
 **Schritt 5: Wiedergabe (F-10).**
 - Anzeige aus `SystemState`: Grafikchip, Backend, Hardware-Kodierung, HDR→SDR, inotify-Limit mit
@@ -383,9 +412,11 @@ sofort ein, also sollen Schlüssel, Metadaten-Sprachen und Trickplay-Vorgabe dan
 
 **Schritt 7: Haushalt.**
 - Liste der Profile, oben das eigene.
-- «Profil hinzufügen» mit Name, Altersstufe (0, 6, 12, 16, 18), Farbe und einem **optionalen
+- «Profil hinzufügen» mit Name, Altersstufe, Farbe und einem **optionalen
   PIN-Feld** (`PinField`, 4–8 Ziffern, F-9). Die PIN geht mit `ProfileRequest.pin` zusammen mit dem
   Profil an den Server.
+- Die Altersstufen sind die des Freigabelands aus Schritt 3: in Stufe 2 0/6/12/16/18, ab Stufe 3
+  die Stufen des Landes (4.11).
 - Die Sprache neuer Profile ist die des Eigentümers. Höchstens 10 Profile.
 - Ein Hinweis nennt «Verwaltung › Konten» für Gäste mit eigenem Konto. Einladungen gehören nicht in
   den Assistenten.
@@ -416,20 +447,19 @@ sofort ein, also sollen Schlüssel, Metadaten-Sprachen und Trickplay-Vorgabe dan
   - `runSetup` **mit** `library` (alte Aufrufer, `e2e/global-setup.ts`) schreibt keins.
   - Dadurch braucht es **keine Datenmigration**. CT 190 und jede bestehende Installation sehen den
     Assistenten nie, und der e2e-Aufbau wird nicht in den Assistenten umgeleitet.
-- **Abbruch nach Schritt 2:**
+- **Abbruch nach Schritt 2 (F-11):**
   - `SessionInfo` bekommt `setupPending` (nur für den Eigentümer gesetzt, 3.5).
-  - Ist es wahr, leitet die Web-App **einmal je Sitzung** auf den ersten offenen Schritt weiter. Ob
-    sie das schon getan hat, merkt sie sich in `sessionStorage`.
-  - Offline leitet sie nicht weiter.
-  - Danach zeigt `/admin` ein Band «Einrichtung fortsetzen», bis sie abgeschlossen ist.
-  - «Später fortsetzen» in der Leiste führt jederzeit zur Startseite, ohne abzuschliessen. Ohne
-    Bibliothek steht die Startseite leer, und das Band erklärt, warum (O-3).
+  - Ist es wahr, leitet die Web-App **bei jedem Anmelden** auf den ersten offenen Schritt weiter,
+    bis die Einrichtung abgeschlossen ist. Offline leitet sie nicht weiter.
+  - «Später fortsetzen» in der Leiste führt für diese Sitzung zur Startseite, ohne abzuschliessen.
+    Bis zum nächsten Anmelden zeigt `/admin` ein Band «Einrichtung fortsetzen».
+  - Ohne Bibliothek steht die Startseite leer, und das Band erklärt, warum.
 - **Andere Konten:** Der Assistent gehört dem Eigentümer. Ein Gast, ein eingeladenes Konto oder ein
   weiterer Administrator sieht ihn nie.
 
 ### 3.5 Vertrag und Server
 
-Alle Änderungen sind **additiv**. Eine Vertragsfassung kommt in Stufe 2.
+Alle Änderungen sind **additiv**, ausser dem Wegfall der öffentlichen Prüf-Endpunkte (F-14). Eine Vertragsfassung kommt in Stufe 2.
 
 - **`SetupRequest`:**
   - neu `profileName` (optional, 1–60) und `accent` (optional, Akzent-Token)
@@ -454,9 +484,17 @@ Alle Änderungen sind **additiv**. Eine Vertragsfassung kommt in Stufe 2.
   - `transcodeHw` (`auto`, `nvenc`, `qsv`, `vaapi`, `software`) mit `transcodeHwSource`
     (`env`/`stored`/`none`)
   - `env_wins` gilt wie bei den Schlüsseln.
-- **`checkSetupTmdbKey` und `checkSetupPath`:** Der neue Assistent braucht sie nicht mehr. Sie
-  bleiben im Vertrag, werden als `deprecated` markiert und fallen erst in einer brechenden
-  Fassung weg (O-12).
+- **`checkSetupTmdbKey` und `checkSetupPath` fallen weg (F-14).** Aus demselben Grund fällt
+  `listSetupRoots` weg; ihn braucht der Assistent ebenfalls nicht mehr.
+  - Der neue Assistent braucht die ersten beiden nicht mehr. Er zeigt die Wurzeln über den
+    Ordner-Browser des Eigentümers.
+  - Das ist eine **brechende** Änderung des Vertrags. Sie trifft aber nur eine Web-App, die noch
+    den alten Assistenten im Cache hat, während der Server neu und uneingerichtet ist. Das kommt
+    praktisch nicht vor, weil eine neue Installation noch keine alte PWA kennt.
+  - Wie bei früheren brechenden Fassungen (1.2.0) bleibt es eine Minor-Fassung mit Vermerk in den
+    Release-Notes.
+  - Gestrichen werden auch die Einträge im Vertragstest und im Ratenlimit-Topf für
+    `/setup/roots`.
 - **Keine Migration** für Teil A. `setup_wizard` und `transcode_hw` sind Zeilen in der
   bestehenden Settings-Tabelle.
 
@@ -482,7 +520,7 @@ Alle Änderungen sind **additiv**. Eine Vertragsfassung kommt in Stufe 2.
   Inhalt → Fuss, Enter auf «Weiter», sichtbarer Fokus, keine Fokusfalle. Nach dem
   Schrittwechsel liegt der Fokus auf der Überschrift.
 - `web/e2e/setup.spec.ts` wird für den neuen Ablauf neu geschrieben.
-- `global-setup.ts` bleibt, wie er ist (3.4).
+- `global-setup.ts` bleibt, wie er ist (3.4). Er ruft nur `POST /setup`.
 - Go-Tests:
   - `runSetup` mit und ohne `library`
   - `finishSetup` ohne Bibliothek
@@ -493,7 +531,7 @@ Alle Änderungen sind **additiv**. Eine Vertragsfassung kommt in Stufe 2.
 
 - Er setzt keine Zeitzone. Sie kommt aus `TZ` und gilt erst nach einem Neustart; der Assistent
   zeigt nur die Zeile für `.env`.
-- Er richtet keine Einladungen, kein Web-Push, kein Telegram und kein Trakt ein.
+- Er richtet keine Einladungen ein und verbindet kein Konto mit Telegram (F-13: nur der Bot).
 - Er legt keine Podcasts an und markiert keine Radiosender.
 - Er ändert nichts an `deploy/.env`. Der Server schreibt diese Datei nicht.
 
@@ -503,31 +541,31 @@ Alle Änderungen sind **additiv**. Eine Vertragsfassung kommt in Stufe 2.
 
 ### 4.1 Die Sprachen
 
-| Code | Name (eigene Sprache) | Pluralformen (CLDR) | Schrift | Vorschlag Metadaten (F-7) | Freigabeland |
+| Code | Name (eigene Sprache) | Pluralformen (CLDR) | Schrift | Vorschlag Metadaten (F-7, O-15) | Freigabeland (Vorschlag, 4.11) |
 |---|---|---|---|---|---|
 | `de` | Deutsch (Schweiz) | one, other | Latein | de → en | CH |
 | `de-DE` | Deutsch (Deutschland) | one, other | Latein | de → en | DE |
 | `en` | English | one, other | Latein | en | US |
-| `fr` | Français | one, many, other | Latein | fr → en | US (O-5) |
-| `es` | Español | one, many, other | Latein | es → en | US |
-| `it` | Italiano | one, many, other | Latein | it → en | US |
-| `nl` | Nederlands | one, other | Latein | nl → en | US |
-| `pt-BR` | Português (Brasil) | one, many, other | Latein | pt-BR → en | US |
-| `pt-PT` | Português (Portugal) | one, many, other | Latein | pt-PT → en | US |
-| `pl` | Polski | one, few, many, other | Latein | pl → en | US |
-| `sv` | Svenska | one, other | Latein | sv → en | US |
-| `da` | Dansk | one, other | Latein | da → en | US |
-| `nb` | Norsk bokmål | one, other | Latein | nb → en (Schritt 0: `nb` oder `no` bei TMDB) | US |
-| `fi` | Suomi | one, other | Latein | fi → en | US |
-| `cs` | Čeština | one, few, many, other | Latein | cs → en | US |
-| `hu` | Magyar | one, other | Latein | hu → en | US |
-| `tr` | Türkçe | one, other | Latein (ı/İ) | tr → en | US |
-| `ru` | Русский | one, few, many, other | Kyrillisch | ru → en | US |
-| `uk` | Українська | one, few, many, other | Kyrillisch | uk → en | US |
-| `ja` | 日本語 | other | CJK | ja → en | US |
-| `ko` | 한국어 | other | Hangul | ko → en | US |
-| `zh-CN` | 简体中文 | other | CJK vereinfacht | zh-CN → en | US |
-| `zh-TW` | 繁體中文 | other | CJK traditionell | zh-TW → en | US |
+| `fr` | Français | one, many, other | Latein | fr → en | FR |
+| `es` | Español | one, many, other | Latein | es → en | ES |
+| `it` | Italiano | one, many, other | Latein | it → en | IT |
+| `nl` | Nederlands | one, other | Latein | nl → en | NL |
+| `pt-BR` | Português (Brasil) | one, many, other | Latein | pt-BR → en | BR |
+| `pt-PT` | Português (Portugal) | one, many, other | Latein | pt-PT → en | PT |
+| `pl` | Polski | one, few, many, other | Latein | pl → en | PL |
+| `sv` | Svenska | one, other | Latein | sv → en | SE |
+| `da` | Dansk | one, other | Latein | da → en | DK |
+| `nb` | Norsk bokmål | one, other | Latein | nb → en (Schritt 0: `nb` oder `no` bei TMDB) | NO |
+| `fi` | Suomi | one, other | Latein | fi → en | FI |
+| `cs` | Čeština | one, few, many, other | Latein | cs → en | CZ |
+| `hu` | Magyar | one, other | Latein | hu → en | HU |
+| `tr` | Türkçe | one, other | Latein (ı/İ) | tr → en | TR |
+| `ru` | Русский | one, few, many, other | Kyrillisch | ru → en | RU |
+| `uk` | Українська | one, few, many, other | Kyrillisch | uk → en | UA |
+| `ja` | 日本語 | other | CJK | ja → en | JP |
+| `ko` | 한국어 | other | Hangul | ko → en | KR |
+| `zh-CN` | 简体中文 | other | CJK vereinfacht | zh-CN → en | DE (China hat kein System) |
+| `zh-TW` | 繁體中文 | other | CJK traditionell | zh-TW → en | TW |
 
 - Die Pluralformen sind die, die `Intl.PluralRules(<code>).resolvedOptions().pluralCategories`
   liefert. i18next fragt genau diese ab. Fehlt eine, zeigt es den Schlüssel, nicht `_other`.
@@ -535,7 +573,7 @@ Alle Änderungen sind **additiv**. Eine Vertragsfassung kommt in Stufe 2.
 - Die vier `_zero`-Texte (`de.json:4131-4151`) gelten als Sonderfall für die Zahl 0 und werden in
   jeder Sprache übersetzt.
 - `knownLanguages` führt `nb` und `no` (`metadata/languages.go:22`). Welcher Code bei TMDB Texte
-  liefert, prüft Schritt 0 der Stufe 3.
+  liefert, prüft Schritt 0 der Stufe 4.
 
 ### 4.2 Sprachcodes, Deutsch in zwei Varianten, Erkennung, Laden
 
@@ -585,7 +623,7 @@ neuen Code nicht, und `session.ts:48` wirft dann einen Fehler.
 - **Stufe 1** liefert die Absicherung in `session.ts`: unbekannter Code, also Englisch. Dazu das
   Gerüst, die Liste bleibt aber `[de, en]`.
 - **Stufe 2** nimmt `de-DE` auf.
-- **Stufe 3** nimmt die 20 übrigen Sprachen auf. Das ist je eine neue Minor-Fassung.
+- **Stufe 4** nimmt die 20 übrigen Sprachen auf. Das ist je eine neue Minor-Fassung.
 - So ist ein neuer Code frühestens **ein Release nach** der Absicherung wählbar.
 - Schritt 0 der Stufe 1 prüft, ob die PWA bei einer neuen Serverversion von sich aus neu lädt.
 
@@ -722,7 +760,7 @@ wie eine gute App in dieser Sprache klingt. Dafür braucht es drei Dinge, die vo
    Datei und Zeile, an der er verwendet wird, und den Komponentennamen. So weiss die Übersetzung,
    ob «Play» ein Knopf, eine Überschrift oder ein Statustext ist.
 
-**Ablauf je Sprache**, als Agentenlauf in Stufe 3:
+**Ablauf je Sprache**, als Agentenlauf in Stufe 4:
 1. Übersetzen in Blöcken je Bereich (36 Bereiche), mit Deutsch **und** Englisch als Quelle,
    Glossar, Stilregeln und Kontext.
 2. **Prüfung durch einen zweiten Agenten**, der nicht übersetzt hat:
@@ -743,14 +781,14 @@ wie eine gute App in dieser Sprache klingt. Dafür braucht es drei Dinge, die vo
 **Umfang:**
 - 4318 Web-Texte und 34 Server-Texte, für 20 neue Sprachen, also rund **87'000 Texte**.
 - Dazu `de-DE` mit rund 185 Texten.
-- Das ist ein mehrtägiger Agentenlauf und wird in Stufe 3 in Sprachgruppen geschnitten
+- Das ist ein mehrtägiger Agentenlauf und wird in Stufe 4 in Sprachgruppen geschnitten
   (Abschnitt 7).
 
 ### 4.7 Weblate
 
 - **Gehostetes Weblate, Plan «Libre»:** kostenlos für öffentliche Projekte unter freier Lizenz.
   Slouchcat ist öffentlich (`SlouchCat/slouchcat`) und steht unter AGPL-3.0, erfüllt also beides.
-  Die Bedingungen prüft Marco beim Antrag (Stufe 4). Ein selbst betriebenes Weblate wäre ein
+  Die Bedingungen prüft Marco beim Antrag (Stufe 5). Ein selbst betriebenes Weblate wäre ein
   weiterer Dienst zum Pflegen (O-8).
 - **Konto und Antrag macht Marco selbst.** Claude legt keine Konten an.
 - **Zwei Komponenten:**
@@ -761,7 +799,7 @@ wie eine gute App in dieser Sprache klingt. Dafür braucht es drei Dinge, die vo
   - Deutsch (`de`, `de-DE`) ist in Weblate gesperrt. Es wird im Repository gepflegt.
 - **Weg zurück ins Repository:** Weblate committet auf einen eigenen Zweig und öffnet einen
   Pull Request. Die CI prüft ihn wie jeden anderen. Gemergt wird auf Marcos Wort.
-- **Regel gegen Kollisionen:** Ab Stufe 4 ändern Agenten bestehende Übersetzungen der 20 Sprachen
+- **Regel gegen Kollisionen:** Ab Stufe 5 ändern Agenten bestehende Übersetzungen der 20 Sprachen
   **nicht** mehr. Sie füllen nur fehlende Texte nach (4.8), und zwar erst, nachdem offene
   Weblate-Änderungen gemergt sind. Korrekturen laufen über Weblate.
 - **Kennzeichnung:** Das JSON-Format hat kein «ungeprüft»-Merkmal. Claudes Texte erscheinen in
@@ -830,10 +868,115 @@ streng, für die übrigen als Warnung. `task i18n:check` vor dem Release ist fü
     logische Eigenschaften, damit die Zahl nicht wächst.
 - **Artikel beim Sortieren** (`model/sortkey.go:16-17`): kennt nur «der/die/das» und «the». Titel
   kommen in der Metadaten-Sprache. Gehört zu ADR 0018, nicht hierher.
-- **Weitere Freigabeländer** (FR, ES, IT, JP …): Das ist ein eigenes Konzept, weil die
-  Altersstufen der Profile nach FSK aufgebaut sind (0/6/12/16/18).
 - **Übersetzte Sammlungsnamen und Genres** über Deutsch und Englisch hinaus: Sie bleiben
   zweisprachig (4.3).
+
+### 4.11 Teil C: Freigabeländer und Altersstufen je Land (F-12)
+
+**Heute** (`metadata/ratings.go:5-37`):
+- Slouchcat liest die TMDB-Freigabe in der Reihenfolge gewähltes Land → DE → AT → CH → GB → US.
+- Es rundet sie auf die **nächsthöhere FSK-Stufe** (0/6/12/16/18). AT 14 wird zum Beispiel FSK 16.
+- Diese Stufen sind an vielen Stellen fest:
+
+| Ort | Stelle |
+|---|---|
+| Vertrag | `Rating` mit `enum [0, 6, 12, 16, 18]`, 25 Verweise |
+| Go | `auth/profiles.go:25` (`ratingLevels`), `admin/admin.go:912-913` (`validRating`) |
+| Datenbank, `CHECK … IN (0, 6, 12, 16, 18)` | `profiles.max_rating` (`00002`), `accounts.max_rating` (`00022`), `invitations.max_rating` (`00007`), `items.own_rating/effective_rating/min_child_rating` (`00003`), `libraries.default_rating` (`00023`) |
+| Web | der Text «FSK {{age}}» (`de.json:704`) |
+
+**Neu (F-12):**
+- **Gespeichert wird das Mindestalter**, nicht mehr die gerundete FSK-Stufe. FR «10» wird 10,
+  US «PG-13» 13, JP «R15+» 15, GB «15» 15.
+- Die Sichtbarkeit vergleicht weiter `Alter des Titels ≤ Stufe des Profils`
+  (`visible_items`, `00056:33-38`).
+- **Für einen deutschen Haushalt ändert sich nichts.** Bei Profilstufen 0/6/12/16/18 ergibt der
+  Vergleich mit dem echten Alter dasselbe wie heute der Vergleich mit dem aufgerundeten Wert:
+  14 ≤ 12 ist falsch, 16 ≤ 12 auch; 14 ≤ 16 ist wahr, 16 ≤ 16 auch.
+- **Profile wählen aus den Stufen des Freigabelands.** Ein französischer Haushalt hat 0, 10, 12,
+  16 und 18. Ein 10-jähriges Kind sieht also, was in Frankreich ab 10 freigegeben ist.
+- **Reihenfolge beim Lesen:** gewähltes Land → **DE** (F-12) → AT → CH → GB → US. Hat ein Titel
+  keine Freigabe des Landes, gilt die deutsche FSK als Alter.
+- **Länder und Stufen.** Dies ist ein Vorschlag. Schritt 0 der Stufe 3 gleicht ihn mit TMDB
+  `/certification/movie/list` und `/certification/tv/list` ab, weil TV-Systeme oft abweichen.
+
+| Land | Stufen (Mindestalter, Bezeichnung) |
+|---|---|
+| DE | 0, 6, 12, 16, 18 (FSK) |
+| AT | 0, 6, 10, 12, 14, 16, 18 (JMK) |
+| CH | 0, 6, 7, 8, 10, 12, 14, 16, 18 |
+| GB | 0 U, 6 PG, 12 12A, 15, 18 (BBFC) |
+| US | 0 G/TV-Y, 6 PG/TV-PG, 13 PG-13, 14 TV-14, 17 R, 18 NC-17/TV-MA |
+| FR | 0 Tous publics, 10, 12, 16, 18 |
+| ES | 0 A, 7, 12, 16, 18 |
+| IT | 0 T, 6+, 14+, 18+ |
+| NL, BE | 0 AL, 6, 9, 12, 14, 16, 18 (Kijkwijzer) |
+| PT | 3 M/3, 6, 12, 14, 16, 18 (M/…) |
+| BR | 0 L, 10, 12, 14, 16, 18 |
+| PL | 0, 7, 12, 16, 18 |
+| SE | 0 Btl, 7, 11, 15 |
+| DK | 0 A, 7, 11, 15 |
+| NO | 0 A, 6, 9, 12, 15, 18 |
+| FI | 0 S, 7, 12, 16, 18 (K-…) |
+| CZ | 0 U, 12, 15, 18 |
+| HU | 0 KN, 6, 12, 16, 18 |
+| TR | 0 Genel, 7+, 13+, 15+, 18+ |
+| RU | 0+, 6+, 12+, 16+, 18+ |
+| UA | 0, 12, 16, 18 |
+| JP | 0 G, 12 PG12, 15 R15+, 18 R18+ |
+| KR | 0 ALL, 12, 15, 18 (TV 19 → 18) |
+| TW | 0+, 6+, 12+, 15+, 18+ |
+
+  China hat kein Freigabesystem. Für `zh-CN` schlägt der Assistent Deutschland vor.
+
+**Was dafür nötig ist:**
+- **Daten statt Text:** Die Stufen und Bezeichnungen je Land stehen als Tabelle in Go
+  (`metadata/ratings.go`, Nachfolger von `fskTables`). Der Server liefert sie in
+  `SessionInfo.ratingSystem` (`{country, steps: [{age, label}]}`).
+  - Wie die Sprachnamen sind das **Daten, keine Oberflächentexte**. Regel 9 bekommt die Tabelle als
+    benannte Ausnahme.
+  - Nur die Wörter um die Stufe herum («ab {{age}}», «Freigabe») kommen aus den Übersetzungen.
+- **Vertrag:**
+  - `Rating` wird `integer`, 0 bis 21.
+  - `ratingCountry` wird auf die Länder der Tabelle erweitert.
+  - neu `SessionInfo.ratingSystem`
+  - Wie bei den Sprachen fängt die Web-App ein unbekanntes Alter ab und zeigt «ab {{age}}». Diese
+    Absicherung kommt in Stufe 1 mit.
+- **Prüfung:** `ratingLevels` und `validRating` prüfen gegen die Stufen des **aktuellen**
+  Freigabelands. Bestehende Profile behalten ihren Wert auch nach einem Wechsel des Landes. Die
+  Auswahl zeigt ihn dann als «ab {{age}}» zusätzlich zu den Stufen des neuen Landes.
+- **Datenbank:**
+  - `profiles` verliert den `CHECK` auf `max_rating` schon beim Neubau in Stufe 1. Das kostet dort
+    nichts.
+  - `accounts` und `invitations` werden in Stufe 3 neu gebaut, nach derselben Anleitung wie
+    `profiles` in 4.3: Sichten und Trigger prüfen, `BEGIN`/`COMMIT`, neuer eingefrorener DB-Stand.
+  - **`items` und `libraries` werden nicht neu gebaut.** `items` ist die grösste Tabelle, mit
+    vielen Sichten, Triggern und angefügten Spalten. Stattdessen kommen neue Spalten ohne `CHECK`
+    dazu:
+    - `items`: `own_age`, `effective_age`, `min_child_age`
+    - `libraries`: `default_age`
+    - Die Migration füllt sie aus den alten Spalten. `visible_items` und alle Abfragen lesen danach
+      nur noch die neuen.
+    - Die alten Spalten bleiben unbenutzt stehen. Ein Test verbietet, sie zu lesen.
+- **Anzeige am Titel:** statt «FSK 12» die Bezeichnung des Freigabelands, also «PG-13», «-12» oder
+  «R15+». Ist das Alter keine Stufe des Landes, zeigt sie «ab {{age}}». Die Quelle steht wie heute
+  im Detail («Freigabe aus: tmdb:FR»).
+- **Bestehende Titel:** Ihre Werte sind gerundete FSK-Stufen. Für einen deutschen Haushalt bleibt
+  das richtig.
+  - Wechselt ein Haushalt das Land, gelten die gespeicherten Werte weiter. Sie sind eher zu streng,
+    nie zu locker.
+  - In der Verwaltung kommt dafür die Aktion «Freigaben neu lesen» dazu. Sie liest die
+    Freigaben aller Titel neu und darf dabei auch **senken**. Das ändert K-3 («nie senken») genau
+    für diese ausdrückliche Aktion (O-20).
+  - Eine neue Installation stellt das Land im Assistenten vor dem ersten Scan ein und braucht die
+    Aktion nicht.
+- **Offline (Regel 12):** Der Server entscheidet weiter. Offline-Pakete tragen die erlaubten Titel
+  wie heute, und der Client vergleicht keine Altersstufen.
+- **Tests:**
+  - Je Land die Tabelle gegen Beispiele aus TMDB.
+  - Die Gleichwertigkeit für deutsche Profile mit allen Stufen gegen alle bisherigen Werte. Die
+    `vistest`-Bausteine bekommen dafür einen französischen Haushalt.
+  - Migration mit eingefrorenem DB-Stand.
 
 ---
 
@@ -849,6 +992,7 @@ streng, für die übrigen als Warnung. `task i18n:check` vor dem Release ist fü
 | Container ohne Restart-Policy | Slouchcat bleibt nach «Abschliessen» aus | nach 60 Sekunden Hinweis «von Hand starten» (O-18) |
 | Release-Ablauf wird länger | «Übersetzungen nachziehen» kostet bei jedem Release Zeit | Nur neue Texte; typisch 10 bis 50 je Release |
 | Weblate-PR ändert einen Platzhalter | Laufzeitfehler | Weblate-Prüfung «Platzhalter» und `locales.test.ts` in der CI |
+| Neue Spalten für das Alter in `items` (Teil C) | eine Abfrage liest noch die alte Spalte und filtert falsch | Test verbietet die alten Spalten; `vistest` mit französischem Haushalt; Gleichwertigkeit für deutsche Profile |
 | Metadaten ohne Deutsch (F-7) | Code, der stillschweigend eine `de`-Zeile erwartet, zeigt Leeres | Inventur in Schritt 0 der Stufe 1, Tests mit `fr`-Profil auf `fr → en`-Server |
 
 ---
@@ -863,11 +1007,15 @@ streng, für die übrigen als Warnung. `task i18n:check` vor dem Release ist fü
   - **F-9** («Serverliste muss `de` enthalten»): fällt nach F-7.
   - Dazu neu: Rückfallsprache `de`/`en` je Oberflächensprache und `model.MetadataBase` (4.3).
   - Der Rest von ADR 0018 bleibt.
+- **ADR 0034 (neu), Teil C:** ändert Entscheid 6 und AN-8. Statt der FSK-Rundung wird das
+  Mindestalter gespeichert, und die Profile wählen aus den Stufen des Freigabelands. K-3 («eine
+  gespeicherte Freigabe wird nie gesenkt») bekommt die Ausnahme «Freigaben neu lesen».
 - **ADR 0001** nennt `{de,en}.json`. Der Satz wird auf `web/src/locales/*.json` geändert.
 - **`CLAUDE.md`:**
   - Regel 7: `owner` in der Liste der Sichtbarkeiten.
-  - Regel 9: Texte nur aus `web/src/locales/*.json`, mit `web/src/i18n/languages.ts` als benannter
-    Ausnahme für die eigenen Sprachnamen. Dazu der Satz: «`de` und `en` in jedem Pull Request, die
+  - Regel 9: Texte nur aus `web/src/locales/*.json`. Benannte Ausnahmen sind
+    `web/src/i18n/languages.ts` (eigene Sprachnamen) und die Freigabetabelle des Servers
+    (Bezeichnungen wie «PG-13»). Dazu der Satz: «`de` und `en` in jedem Pull Request, die
     übrigen Sprachen vor jedem Release (Konzept 22, 4.8).»
 - **Spec A-1, Plan 3.4:** Der Assistent hat neun Schritte statt vier. Die Warnungen aus Plan 3.4
   bleiben in Schritt 5 und 6. Die GPU wird erkannt **und** ist wählbar (F-10).
@@ -887,13 +1035,17 @@ Bau-Reihenfolge nummeriert.
 
 | Stufe | Inhalt | Vertrag | Migration | Sichtbar für Marco |
 |---|---|---|---|---|
-| **1 «Sprachgerüst»** | 4.2 bis 4.5 und 4.9 ohne neue Sprachen: Absicherung in `session.ts`, Laden der Kette, `languages.ts`, `intlLocale` (neue Storybook-Bilder), Tabellen-Neubau `profiles`, `model.UILanguages`, `MetadataBase` und Rückfallsprache, F-9 fällt, `initialPrefs` normalisiert, Erkennung, Server-Texte als JSON, `:lang()`-Schriften, `en-XA`, neue Tests, Sprachknopf auf `/login`. `de-DE.json` wird erstellt, aber noch nicht wählbar. | ja (F-9-Lockerung) | ja | Zahlen in Schweizer Format; Metadaten-Liste ohne Deutsch möglich |
-| **2 «Assistent»** | Teil A ganz, dazu `de-DE` wählbar (Vertragsliste `[de, de-DE, en]`). Grafikchip-Wahl auch in der Verwaltung. INSTALLATION.md. | ja | nein | neuer Assistent auf einer frischen Testinstanz; Deutsch (Deutschland) |
-| **3 «Übersetzungen»** | 4.6: Glossar, Stilregeln, Kontextskript, dann 20 Sprachen in vier Gruppen (fr/es/it/nl/pt-BR · pt-PT/pl/cs/hu/tr · sv/da/nb/fi · ru/uk/ja/ko/zh-CN/zh-TW), je Gruppe Übersetzen, Prüfen, Bildprüfung. **Ein Release für alle 20** (F-4); die Gruppen sind nur Arbeitspakete. Vertragsliste auf 23. | ja (Liste) | nein | 23 Sprachen wählbar |
-| **4 «Weblate»** | 4.7 und 4.8: Weblate-Projekt (Konto durch Marco), Komponenten, `docs/i18n/README.md`, Plakette, Release-Schritt «Übersetzungen nachziehen», `task i18n:status`/`i18n:check`. | nein | nein | Mitarbeit von aussen möglich |
+| **1 «Sprachgerüst»** | 4.2 bis 4.5 und 4.9 ohne neue Sprachen: Absicherung in `session.ts` für Sprache **und Alter**, Laden der Kette, `languages.ts`, `intlLocale` (neue Storybook-Bilder), Tabellen-Neubau `profiles` (ohne `CHECK` auf `language` und `max_rating`), `model.UILanguages`, `MetadataBase` und Rückfallsprache, F-9 fällt, `initialPrefs` normalisiert, Erkennung, Server-Texte als JSON, `:lang()`-Schriften, `en-XA`, neue Tests, Sprachknopf auf `/login`. `de-DE.json` wird erstellt, aber noch nicht wählbar. | ja (F-9-Lockerung) | ja | Zahlen in Schweizer Format; Metadaten-Liste ohne Deutsch möglich |
+| **2 «Assistent»** | Teil A ganz, mit den fünf Freigabeländern von heute. Dazu `de-DE` wählbar (Vertragsliste `[de, de-DE, en]`), Grafikchip-Wahl auch in der Verwaltung (O-19), Wegfall der öffentlichen Prüf-Endpunkte (F-14), INSTALLATION.md. | ja (brechend, F-14) | nein | neuer Assistent auf einer frischen Testinstanz; Deutsch (Deutschland) |
+| **3 «Freigabeländer»** | Teil C (4.11): Mindestalter statt FSK-Stufe, Ländertabelle, `ratingSystem`, Neubau `accounts` und `invitations`, neue Alter-Spalten in `items` und `libraries`, Anzeige am Titel, «Freigaben neu lesen», Assistent mit allen Ländern. | ja | ja | Freigabeland Frankreich mit Stufe 10 im Profil |
+| **4 «Übersetzungen»** | 4.6: Glossar, Stilregeln, Kontextskript, dann 20 Sprachen in vier Gruppen (fr/es/it/nl/pt-BR · pt-PT/pl/cs/hu/tr · sv/da/nb/fi · ru/uk/ja/ko/zh-CN/zh-TW), je Gruppe Übersetzen, Prüfen, Bildprüfung. **Ein Release für alle 20** (F-4); die Gruppen sind nur Arbeitspakete. Vertragsliste auf 23. | ja (Liste) | nein | 23 Sprachen wählbar |
+| **5 «Weblate»** | 4.7 und 4.8: Weblate-Projekt (Konto durch Marco), Komponenten, `docs/i18n/README.md`, Plakette, Release-Schritt «Übersetzungen nachziehen», `task i18n:status`/`i18n:check`. | nein | nein | Mitarbeit von aussen möglich |
 
-- Stufe 2 hängt an Stufe 1 (Liste, Absicherung). Stufe 3 hängt an Stufe 1 und kann parallel zu
-  Stufe 2 übersetzt werden (O-10). Stufe 4 braucht Stufe 3.
+- Stufe 2 hängt an Stufe 1 (Liste, Absicherung).
+- Stufe 3 hängt an Stufe 1 (Neubau `profiles`, Absicherung Alter) und an Stufe 2 (Assistent).
+- Stufe 4 hängt an Stufe 1; übersetzt werden darf parallel zu Stufe 2 und 3 (O-10). Stufe 4 bringt
+  auch die übersetzten Bezeichnungen um die Freigaben mit.
+- Stufe 5 braucht Stufe 4.
 - **Schritt 0 jeder Stufe:** die «Heute»-Angaben aus Abschnitt 2 am dann aktuellen `main`
   nachprüfen. Bekannt offen sind:
   - Inventur fester `'de'` im Code
@@ -904,31 +1056,33 @@ Bau-Reihenfolge nummeriert.
 
 ---
 
-## 8. Offene Punkte (Empfehlung gilt bis zu Marcos Antwort)
+## 8. Offene Punkte: von Marco beantwortet (14. November 2026)
 
-| Nr. | Frage | Empfehlung |
+Alle Punkte sind beantwortet. Wo Marco von der Empfehlung abwich, steht die Antwort auch als F-Nummer
+in Abschnitt 1.
+
+| Nr. | Frage | Antwort |
 |---|---|---|
-| **O-1** | Anrede je Sprache | **Wie die grossen Plattformen in der Sprache:** de du (wie heute), fr vous, es tú, it tu, nl je, pt-BR você, pt-PT você, pl Imperativ ohne Pronomen, cs vy, ru вы, uk ви, tr siz, hu Sie-Form ohne Pronomen, sv/da/nb du, fi ohne Pronomen, ja です/ます, ko 해요체, zh 你. Festgehalten in den Stilregeln. |
-| **O-2** | Rückfall, wenn keine Browsersprache passt | **Englisch** statt Deutsch wie heute. |
-| **O-3** | Abbruch nach Schritt 2 | **Einmal je Sitzung weiterleiten**, danach ein Band in `/admin`, bis abgeschlossen (3.4). |
-| **O-4** | «Erreichbarkeit prüfen» für die öffentliche Adresse | **Nicht in Stufe 2.** Der Server müsste sich selbst über das Internet erreichen, und das scheitert an vielen Routern (NAT-Hairpin), obwohl alles stimmt. |
-| **O-5** | Freigabeland für Sprachen ausserhalb DE/AT/CH/GB/US | **US als Vorschlag**, frei wählbar unter den fünf. Weitere Länder in einem eigenen Konzept. |
-| **O-6** | Blosses `de` im Browser | **`de-DE`**. Schweizer Browser senden `de-CH`. *(Fassung 1: «unvollständige Sprachen»; erledigt durch 4.8, Kritiker M-10.)* |
-| **O-7** | Neue Texte: Pflicht im Pull Request oder vor dem Release? | **de und en im Pull Request, der Rest vor jedem Release** (4.8). |
-| **O-8** | Weblate gehostet oder selbst betrieben? | **Gehostet, Plan «Libre».** Kein weiterer Dienst auf CT 190. |
-| **O-9** | Wer prüft die Qualität? | **Prüfagent je Sprache, Marco Stichproben** in den Sprachen, die er liest (de-DE, en, fr, it?), danach Weblate. |
-| **O-10** | Reihenfolge der Stufen 2 und 3 | **Assistent vor Übersetzungen**, Übersetzen darf parallel laufen. |
-| **O-11** | Trakt, Google Books, Web-Push, Telegram im Assistenten? | **Nein.** Trakt ist Sache des Kontos, Google Books nur für Hörbücher. Push und Telegram brauchen ein Gerät bzw. einen Bot. Alles bleibt in der Verwaltung. |
-| **O-12** | Öffentliche Prüf-Endpunkte `checkSetupPath`, `checkSetupTmdbKey` | **Als `deprecated` behalten**, in der nächsten brechenden Fassung entfernen. |
-| **O-13** | Nach «Abschliessen»: Abschlussseite oder direkt Startseite? | **Abschlussseite** mit Scan-Fortschritt wie im Mockup. Eine leere Startseite direkt nach dem Abschluss wirkt kaputt. |
-| **O-14** | `CHECK` mit 23 Werten in der Datenbank? | **Nein**, Prüfung in Go an einer Stelle. |
-| **O-15** | Metadaten-Vorschlag je Sprache wie in Tabelle 4.1 | **Ja**, die Sprache und Englisch, ohne Deutschpflicht (F-7). |
-| **O-16** | Rechts nach links (ar, he, fa) | **Eigenes Konzept nach Stufe 4.** Bis dahin nur logische CSS-Eigenschaften für neuen Code. |
-| **O-17** | Einrichtungs-Token (`SLOUCHCAT_SETUP_TOKEN`), damit niemand Fremdes einen frisch gestarteten Container zuerst einrichtet | **Nicht jetzt.** Das Risiko ist dasselbe wie heute und betrifft nur Container, die vor der Einrichtung offen im Internet stehen. INSTALLATION.md rät, erst nach der Einrichtung freizugeben. |
-| **O-18** | Neustart nach der Grafikchip-Wahl: Server beendet sich selbst, Docker startet neu | **Ja**, mit Hinweis nach 60 Sekunden, falls er nicht zurückkommt. Der Updater-Begleiter (ADR 0024) wird dafür nicht gebraucht. |
-| **O-19** | Grafikchip-Wahl auch in der Verwaltung | **Ja**, auf der Systemseite, gleiche Bauteile wie Schritt 5. Sonst wäre das Setting nach dem Assistenten nicht mehr änderbar. |
-
----
+| **O-1** | Anrede je Sprache | **Wie üblich je Sprache** (Empfehlung): de du, fr vous, es tú, it tu, nl je, pt-BR você, pt-PT você, pl Imperativ ohne Pronomen, cs vy, ru вы, uk ви, tr siz, hu Sie-Form ohne Pronomen, sv/da/nb du, fi ohne Pronomen, ja です/ます, ko 해요체, zh 你. |
+| **O-2** | Rückfall, wenn keine Browsersprache passt | **Englisch** (Empfehlung). |
+| **O-3** | Abbruch nach Schritt 2 | **Immer weiterleiten**, bis abgeschlossen (F-11, abweichend). |
+| **O-4** | «Erreichbarkeit prüfen» | **Nicht jetzt** (Empfehlung). Nur Formatprüfung `https://…`. |
+| **O-5** | Freigabeländer | **Weitere Länder jetzt, Stufen des Landes, Rückfall DE** (F-12, abweichend; Teil C, 4.11). |
+| **O-6** | Blosses `de` im Browser | **`de-DE`** (Empfehlung). |
+| **O-7** | Neue Texte | **de und en im Pull Request, der Rest vor jedem Release** (Empfehlung). |
+| **O-8** | Weblate | **Gehostet, Plan «Libre»** (Empfehlung). |
+| **O-9** | Stichproben durch Marco | **de-DE und en** (F-15). Alle übrigen Sprachen prüft der Prüfagent, danach Weblate. |
+| **O-10** | Reihenfolge | **Assistent vor Übersetzungen** (Empfehlung). Übersetzen darf parallel laufen. |
+| **O-11** | Weitere Dienste im Assistenten | **Ja, alle, mit «Empfohlen»/«Optional»** (F-13, abweichend). Empfohlen sind TMDB und E-Mail. |
+| **O-12** | Öffentliche Prüf-Endpunkte | **Sofort entfernen** (F-14, abweichend). |
+| **O-13** | Nach «Abschliessen» | **Abschlussseite** mit Scan-Fortschritt (Empfehlung). |
+| **O-14** | `CHECK` mit Sprachliste in der DB | **Nein**, Prüfung in Go (Empfehlung). |
+| **O-15** | Metadaten-Vorschlag | **Sprache → Englisch** (Empfehlung). |
+| **O-16** | Rechts nach links | **Später, eigenes Konzept** (Empfehlung). |
+| **O-17** | Einrichtungs-Token | **Nein** (Empfehlung). |
+| **O-18** | Neustart nach Grafikchip-Wahl | **Server startet sich selbst neu** (Empfehlung). |
+| **O-19** | Grafikchip-Wahl in der Verwaltung | **Ja** (Empfehlung). |
+| **O-20** | «Freigaben neu lesen» darf senken (neu in Fassung 3, aus F-12) | **Empfehlung: ja, nur als ausdrückliche Aktion in der Verwaltung.** Der automatische Abgleich senkt weiter nie (K-3). Bis zu Marcos Wort gilt die Empfehlung. |
 
 ## 9. Kritiker-Review (Fassung 1 → Fassung 2)
 
@@ -975,7 +1129,11 @@ Kritiker (oh-my-claudecode:critic) am 14. November 2026 gegen `b12877cb`: **REVI
 - Klickbarer Prototyp: `docs/planning/mockups/22-ersteinrichtung/prototyp.html`. Gleich als
   Artefakt: https://claude.ai/artifact/5cRAoZpb7Th38TABdVaqzr
 - Drei Varianten zum Umschalten. **Gewählt ist A** (F-1). B und C bleiben zum Vergleich.
-- Ab Version 4 folgt Variante A Fassung 2:
+- Ab Version 5 folgt Variante A Fassung 3:
+  - acht Dienste mit «Empfohlen»/«Optional»
+  - Freigabeländer mit Stufen je Land
+  - Weiterleitung bei jedem Anmelden
+- Ab Version 4 folgte Variante A Fassung 2:
   - Reihenfolge aus 3.2
   - Grafikchip wählbar mit Neustart-Hinweis
   - optionale PIN
