@@ -183,6 +183,12 @@ img {
   background-color: var(--sc-color-surface-1);
 }
 
+/* A tile the shell does not paint (no collage, or behind the last one painted) only holds its place
+   in the grid of «Meine Medien» (concept 21 P-9). */
+#poster-prepaint > .tile:empty {
+  visibility: hidden;
+}
+
 #poster-prepaint > .tile > img {
   width: 100%;
   height: 100%;
@@ -249,6 +255,17 @@ img {
 
   #poster-prepaint > .station {
     width: calc(var(--sc-size-poster-md) + 0.5px);
+  }
+
+  /* «Meine Medien» fills the width from 768 px (concept 21 P-9): the grid of the row's tiles
+     (Row.module.css .tileList), every tile of the row a span, so the tracks are the same. */
+  #poster-prepaint:has(> .tile) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(var(--sc-size-my-media-tile), 1fr));
+  }
+
+  #poster-prepaint:has(> .tile) > .tile {
+    width: auto;
   }
 }
 

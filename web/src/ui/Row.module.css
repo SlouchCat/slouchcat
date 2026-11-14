@@ -157,6 +157,23 @@
 }
 
 /*
+ * «Meine Medien» (concept 21 P-9): from 768 px the tiles fill the width, as many per line as fit
+ * at least --sc-size-my-media-tile wide, further lines below; below 768 px they stay a row to swipe.
+ * #poster-prepaint:has(> .tile) in global.css paints the same grid; change them together.
+ */
+@media (width >= 768px) {
+  .tileList {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(var(--sc-size-my-media-tile), 1fr));
+    width: auto;
+  }
+
+  .tileList > .tile {
+    width: auto;
+  }
+}
+
+/*
  * A row with fixed paging buttons beside it (concept 20 P-1, RowList arrows="always"). From 768 px
  * the buttons stand in the page's gutters and the cards between them keep a small inset for the
  * focus ring and the focus scale. Below, the cards keep the geometry of every other row (three

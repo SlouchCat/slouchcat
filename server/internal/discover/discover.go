@@ -435,7 +435,7 @@ func (s *Service) FirstRow(ctx context.Context, profile model.Profile) (model.Ho
 		if !filled(row) {
 			continue
 		}
-		if row.Key == RowSpotlight || (len(row.Items) == 0 && len(row.Libraries) == 0 && len(row.Stations) == 0) {
+		if row.Key == RowSpotlight || (len(row.Items) == 0 && len(row.Media) == 0 && len(row.Stations) == 0) {
 			return model.HomeRow{}, model.ErrNotFound
 		}
 		stage, err := s.stageBelow(ctx, profile, order, i)

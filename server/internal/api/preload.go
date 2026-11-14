@@ -83,7 +83,8 @@ func startPreloads(start int) []string {
 	return []string{
 		"<" + BasePath + "/auth/session>; rel=preload; as=fetch; crossorigin",
 		"<" + home + ">; rel=preload; as=fetch; crossorigin",
-		"<" + BasePath + "/libraries/visible>; rel=preload; as=fetch; crossorigin",
+		// The side navigation's group «Meine Medien» (concept 21 P-9; /libraries/visible before).
+		"<" + BasePath + "/my-media>; rel=preload; as=fetch; crossorigin",
 	}
 }
 
@@ -160,9 +161,9 @@ func startPagePreload(auth AuthService, picker heroPicker, log *slog.Logger) fun
 						case len(row.Items) > 0:
 							link = posterLink(row.Items[0], session.Profile.ID)
 							prepaint = posterPrepaint(row.Items, session.Profile.ID)
-						case len(row.Libraries) > 0 && len(row.Libraries[0].Items) > 0:
-							link = posterLink(row.Libraries[0].Items[0], session.Profile.ID)
-							prepaint = tilePrepaint(row.Libraries, session.Profile.ID)
+						case len(row.Media) > 0 && row.Media[0].Library != nil && len(row.Media[0].Library.Items) > 0:
+							link = posterLink(row.Media[0].Library.Items[0], session.Profile.ID)
+							prepaint = tilePrepaint(row.Media, session.Profile.ID)
 						case len(row.Stations) > 0 && row.Stations[0].Station.LogoHash != "":
 							// «Meine Sender» (concept 16 section 10.2): the first station logos.
 							link = "<" + stationLogoURL(row.Stations[0].Station) + ">; rel=preload; as=image; fetchpriority=high"
@@ -283,22 +284,25 @@ func posterPrepaint(items []model.ItemSummary, profileID int64) string {
 	return `<div id="poster-prepaint" aria-hidden="true">` + b.String() + `</div>`
 }
 
-// tilePrepaint returns the first tiles of «Meine Medien» as markup for the app shell (concept 15
-// P-7): up to tilePrepaintTiles tiles, each a span with the collage's posters (#poster-prepaint >
-// .tile in web/src/ui/global.css, the geometry of LibraryTile in a row), with the attributes of
-// LibraryTile's images (the first one with priority and sync decoding, like the preload). It stops
-// at the first tile with a title without a poster, like posterPrepaint: the tile shows an empty
-// slice there.
-func tilePrepaint(tiles []model.LibraryTile, profileID int64) string {
+// tilePrepaint returns the tiles of «Meine Medien» as markup for the app shell (concept 15 P-7):
+// the collages of up to tilePrepaintTiles library tiles, each a span with the posters
+// (#poster-prepaint > .tile in web/src/ui/global.css, the geometry of LibraryTile in a row), with
+// the attributes of LibraryTile's images (the first one with priority and sync decoding, like the
+// preload). It stops at the first tile that is no library, has no titles or has a title without a
+// poster, like posterPrepaint: the tile shows an empty slice there. Since concept 21 P-9 the row is
+// a grid from 768 px whose tracks depend on the number of tiles, so every further tile of the row
+// follows as an empty span that only holds its place.
+func tilePrepaint(tiles []model.MyMediaTile, profileID int64) string {
 	var b strings.Builder
 	first := true
+	painted := 0
 tiles:
 	for _, tile := range tiles[:min(len(tiles), tilePrepaintTiles)] {
-		if len(tile.Items) == 0 {
+		if tile.Library == nil || len(tile.Library.Items) == 0 {
 			break
 		}
 		var t strings.Builder
-		for _, item := range tile.Items {
+		for _, item := range tile.Library.Items {
 			attrs := posterAttrs(item, profileID)
 			if attrs == "" {
 				break tiles
@@ -311,10 +315,12 @@ tiles:
 			t.WriteString(">")
 		}
 		b.WriteString(`<span class="tile">` + t.String() + `</span>`)
+		painted++
 	}
-	if b.Len() == 0 {
+	if painted == 0 {
 		return ""
 	}
+	b.WriteString(strings.Repeat(`<span class="tile"></span>`, len(tiles)-painted))
 	return `<div id="poster-prepaint" aria-hidden="true">` + b.String() + `</div>`
 }
 

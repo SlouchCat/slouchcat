@@ -22,8 +22,11 @@ const SideNavDrawer = lazy(() =>
 export interface SideNavEntry extends NavItem {
   /** Icon before the name (concept 17, D-8). */
   icon?: IconName;
-  /** Number after the name, as a pill: the visible titles of a library, the user picks. */
-  count?: number;
+  /**
+   * Number after the name, as a pill: the visible titles of a library, the user picks; or a short
+   * text («3 Sender», concept 21 P-9).
+   */
+  count?: number | string;
   /** Accessible name when it says more than `label` (the count, the update hint). */
   accessibleLabel?: string;
   /** Small badge after the name ("Update"); `accessibleLabel` names it. */

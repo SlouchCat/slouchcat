@@ -146,12 +146,12 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 	plain := []string{
 		"</api/v1/auth/session>; rel=preload; as=fetch; crossorigin",
 		"</api/v1/home>; rel=preload; as=fetch; crossorigin",
-		"</api/v1/libraries/visible>; rel=preload; as=fetch; crossorigin",
+		"</api/v1/my-media>; rel=preload; as=fetch; crossorigin",
 	}
 	want := []string{
 		"</api/v1/auth/session>; rel=preload; as=fetch; crossorigin",
 		"</api/v1/home?start=2>; rel=preload; as=fetch; crossorigin",
-		"</api/v1/libraries/visible>; rel=preload; as=fetch; crossorigin",
+		"</api/v1/my-media>; rel=preload; as=fetch; crossorigin",
 		"<" + small + `>; rel=preload; as=image; imagesrcset="` + small + " 780w, " + large + " 1280w, " + wide +
 			` 1920w"; imagesizes="(width >= 768px) calc(100vw - 15rem), 100vw"; fetchpriority=high`,
 	}
@@ -532,7 +532,8 @@ func TestPosterPrepaint(t *testing.T) {
 
 // Concept 15 P-7: with «Meine Medien» on top the shell paints the collages of at most three tiles
 // (two cards wide each), the first image with priority, and stops at the first title without a
-// poster, like the cards.
+// poster, like the cards; since concept 21 P-9 also at the first tile that is no library, and every
+// tile not painted follows empty.
 func TestTilePrepaint(t *testing.T) {
 	t.Parallel()
 	img := func(size string) *model.Image {
@@ -551,26 +552,35 @@ func TestTilePrepaint(t *testing.T) {
 		first = ` alt="" loading="eager" fetchpriority="high" decoding="sync">`
 		rest  = ` alt="" loading="eager">`
 	)
-	tile := func(ids ...string) model.LibraryTile {
+	tile := func(ids ...string) model.MyMediaTile {
 		t := model.LibraryTile{ID: 1, Name: "Filme"}
 		for _, id := range ids {
 			t.Items = append(t.Items, card(id))
 		}
-		return t
+		return model.MyMediaTile{ID: "library:1", Key: model.MyMediaLibrary, Library: &t}
 	}
+	broken := func(items ...model.ItemSummary) model.MyMediaTile {
+		return model.MyMediaTile{ID: "library:2", Key: model.MyMediaLibrary, Library: &model.LibraryTile{Items: items}}
+	}
+	radio := model.MyMediaTile{ID: "radio", Key: model.MyMediaRadio, Count: 2}
+	const empty = `<span class="tile"></span>`
 	cases := []struct {
 		name  string
-		tiles []model.LibraryTile
+		tiles []model.MyMediaTile
 		want  string
 	}{
-		{"two tiles", []model.LibraryTile{tile("a", "b"), tile("c")},
+		{"two tiles", []model.MyMediaTile{tile("a", "b"), tile("c")},
 			open + `<span class="tile">` + both("a") + first + both("b") + rest + `</span><span class="tile">` + both("c") + rest + `</span></div>`},
-		{"at most three", []model.LibraryTile{tile("a"), tile("b"), tile("c"), tile("d")},
+		// Every further tile holds its place in the grid (concept 21 P-9).
+		{"at most three, the rest held", []model.MyMediaTile{tile("a"), tile("b"), tile("c"), tile("d"), radio},
 			open + `<span class="tile">` + both("a") + first + `</span><span class="tile">` + both("b") + rest +
-				`</span><span class="tile">` + both("c") + rest + `</span></div>`},
-		{"stops at a title without poster", []model.LibraryTile{tile("a"), {Items: []model.ItemSummary{card("b"), {ID: "x"}}}, tile("c")},
-			open + `<span class="tile">` + both("a") + first + `</span></div>`},
-		{"first title without poster", []model.LibraryTile{{Items: []model.ItemSummary{{ID: "x"}}}}, ""},
+				`</span><span class="tile">` + both("c") + rest + `</span>` + empty + empty + `</div>`},
+		{"stops at a title without poster", []model.MyMediaTile{tile("a"), broken(card("b"), model.ItemSummary{ID: "x"}), tile("c")},
+			open + `<span class="tile">` + both("a") + first + `</span>` + empty + empty + `</div>`},
+		{"stops at the radio tile", []model.MyMediaTile{tile("a"), radio, tile("c")},
+			open + `<span class="tile">` + both("a") + first + `</span>` + empty + empty + `</div>`},
+		{"radio first", []model.MyMediaTile{radio, tile("a")}, ""},
+		{"first title without poster", []model.MyMediaTile{broken(model.ItemSummary{ID: "x"})}, ""},
 		{"no tiles", nil, ""},
 	}
 	for _, tc := range cases {

@@ -21,7 +21,8 @@ interface RowProps {
   focusKey?: string;
   /**
    * `chips`: items as wide as their content (genre chips) instead of one poster wide; `tiles`: two
-   * posters wide (the library tiles of «Meine Medien», concept 15 P-7); `people`: one portrait
+   * posters wide (the library tiles of «Meine Medien», concept 15 P-7), from 768 px a grid that
+   * fills the width (concept 21 P-9); `people`: one portrait
    * card wide (CastCard, concept 21 P-7).
    */
   variant?: RowVariant;
@@ -52,6 +53,9 @@ const ITEM_CLASS: Record<RowVariant, string | undefined> = {
   tiles: styles.tile,
   people: styles.person,
 };
+
+/** The list of a kind that lays out its items itself (the grid of «Meine Medien», concept 21 P-9). */
+const LIST_CLASS: Partial<Record<RowVariant, string>> = { tiles: styles.tileList };
 
 /** A pointer move further than this (px) drags the row and is no click on a card. */
 const DRAG_THRESHOLD = 6;
@@ -236,7 +240,7 @@ export function RowList({
       <SpatialGroup
         focusKey={focusKey}
         as="ul"
-        className={styles.list}
+        className={[styles.list, LIST_CLASS[variant]].filter(Boolean).join(' ')}
         rememberLastChild={rememberLastChild}
         preferredChildFocusKey={preferredChildFocusKey}
         {...aria}

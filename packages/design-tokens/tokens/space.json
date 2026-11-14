@@ -156,6 +156,12 @@
         "$description": "Width of the side navigation from 768 px (concept 08); the server's hero sizes repeat it."
       }
     },
+    "my-media": {
+      "tile": {
+        "$value": "13rem",
+        "$description": "Least width of a tile of «Meine Medien» from 768 px, where the tiles fill the width (concept 21 P-9)."
+      }
+    },
     "content": {
       "max": {
         "$value": "90rem",

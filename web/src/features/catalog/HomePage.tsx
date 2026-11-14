@@ -1,4 +1,4 @@
-import type { components, HomeRow, ItemRef } from '@slouchcat/api-client';
+import type { components, HomeRow, ItemRef, MyMediaTile } from '@slouchcat/api-client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
@@ -91,6 +91,7 @@ const hasEntries = (row: HomeRow) =>
   (row.collections?.length ?? 0) > 0 ||
   (row.genres?.length ?? 0) > 0 ||
   (row.libraries?.length ?? 0) > 0 ||
+  (row.media?.length ?? 0) > 0 ||
   (row.stations?.length ?? 0) > 0;
 
 /** Focus key of the first card of a row (the default focus when the stage does not lead). */
@@ -99,8 +100,8 @@ function firstKey(row: HomeRow): string | undefined {
   if (item) return cardKey(row, item);
   const collection = row.collections?.[0];
   if (collection) return `${row.id}-${collection.id}`;
-  const tile = row.libraries?.[0];
-  if (tile) return `${row.id}-${tile.id}`;
+  const tile = row.media?.[0];
+  if (tile) return mediaTileKey(row, tile);
   const station = row.stations?.[0];
   if (station) return `${row.id}-${station.station.id}`;
   const genre = row.genres?.[0];
@@ -108,6 +109,10 @@ function firstKey(row: HomeRow): string | undefined {
 }
 
 type RadioHomeStation = components['schemas']['RadioHomeStation'];
+
+/** Focus key of a tile of «Meine Medien»: a library by its id (concept 15 P-7), the others by theirs. */
+const mediaTileKey = (row: HomeRow, tile: MyMediaTile) =>
+  `${row.id}-${tile.library ? tile.library.id : tile.id}`;
 
 /**
  * The line under a station of «Meine Sender» (concept 16, 10.2): the title its relay plays at the
@@ -231,7 +236,7 @@ export function HomePage() {
   // «Meine Medien» on top paints the collages of its first tiles; its first poster leads.
   const leadCard = home.data?.heroRow
     ? undefined
-    : (leadRow?.items[0] ?? leadRow?.libraries?.[0]?.items[0]);
+    : (leadRow?.items[0] ?? leadRow?.media?.[0]?.library?.items[0]);
   // A series card shows the series poster, which the server paints ahead as well (cardPoster).
   const leadImages = leadRow && leadCard && (seriesOf(leadRow, leadCard) ?? leadCard).images;
   // «Meine Sender» on top paints the logos of its first stations (B3); the first logo leads.
@@ -347,30 +352,79 @@ export function HomePage() {
     const focusKey = `row-${row.id}`;
     const eagerRow = row === firstPosterRow;
     if (row.key === 'libraries') {
-      // «Meine Medien» (concept 15 P-7): a tile per library, which opens the library page.
+      // «Meine Medien» (concept 15 P-7; concept 21 P-9): a tile per library, which opens the library
+      // page, «Radio» with the logos of the favourites (without them an invitation to discover
+      // stations, O-15), «Sammlungen» and «User-Empfehlungen», in the stored order. The tiles fill
+      // the width from 768 px.
       return (
         <Row key={row.id} title={title} focusKey={focusKey} variant="tiles">
-          {(row.libraries ?? []).map((tile, tileIndex) => {
+          {(row.media ?? []).map((tile, tileIndex) => {
             const leads = posterLeads && eagerRow && tileIndex === 0;
-            return (
+            const common = {
+              focusKey: mediaTileKey(row, tile),
+              priority: leads,
+              onImageShown: leads ? () => setPosterShown(true) : undefined,
+              deferImage: heroHasArt && !heroShown,
+            };
+            const { library } = tile;
+            if (library) {
+              return (
+                <LibraryTile
+                  key={tile.id}
+                  {...common}
+                  href={paths.library(library.id)}
+                  name={library.name}
+                  caption={t('library.page.count', {
+                    count: library.itemCount,
+                    noun: t(`library.page.noun.${library.kind}`, { count: library.itemCount }),
+                  })}
+                  covers={library.items.map((item) => ({
+                    posterUrl: imageUrl(item.images.poster),
+                    posterSmallUrl: imageUrl(item.images.posterSmall),
+                  }))}
+                  accent={library.items[0]?.accent}
+                  eager={eagerRow && tileIndex < EAGER_TILES}
+                />
+              );
+            }
+            if (tile.key === 'radio') {
+              const stations = tile.stations ?? [];
+              return (
+                <LibraryTile
+                  key={tile.id}
+                  {...common}
+                  href={paths.radio}
+                  name={t('nav.radio')}
+                  caption={
+                    stations.length > 0
+                      ? t('home.myMedia.stations', { count: tile.count })
+                      : t('home.myMedia.discover')
+                  }
+                  stations={stations.map((station) => ({
+                    name: station.name,
+                    logoUrl: imageUrl(station.logo),
+                  }))}
+                  icon="radio"
+                />
+              );
+            }
+            return tile.key === 'collections' ? (
               <LibraryTile
                 key={tile.id}
-                focusKey={`${row.id}-${tile.id}`}
-                href={paths.library(tile.id)}
-                name={tile.name}
-                caption={t('library.page.count', {
-                  count: tile.itemCount,
-                  noun: t(`library.page.noun.${tile.kind}`, { count: tile.itemCount }),
-                })}
-                covers={tile.items.map((item) => ({
-                  posterUrl: imageUrl(item.images.poster),
-                  posterSmallUrl: imageUrl(item.images.posterSmall),
-                }))}
-                accent={tile.items[0]?.accent}
-                eager={eagerRow && tileIndex < EAGER_TILES}
-                priority={leads}
-                onImageShown={leads ? () => setPosterShown(true) : undefined}
-                deferImage={heroHasArt && !heroShown}
+                {...common}
+                href={paths.collections}
+                name={t('nav.collections')}
+                caption={t('home.myMedia.collections', { count: tile.count })}
+                icon="stack"
+              />
+            ) : (
+              <LibraryTile
+                key={tile.id}
+                {...common}
+                href={paths.picks}
+                name={t('home.picks')}
+                caption={t('home.myMedia.titles', { count: tile.count })}
+                icon="star"
               />
             );
           })}

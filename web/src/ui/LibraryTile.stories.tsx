@@ -54,3 +54,41 @@ export const FewTitles: Story = {
 export const LongName: Story = {
   args: { name: 'Dokumentarfilme aus aller Welt und noch mehr', caption: '87 Titel' },
 };
+
+/** «Radio» (concept 21 P-9): the logos of the favourites; a station without one by its initials. */
+export const Radio: Story = {
+  args: {
+    name: 'Radio',
+    caption: '3 Sender',
+    covers: [],
+    icon: 'radio',
+    stations: [
+      { name: 'Radio Swiss Pop', logoUrl: art.posterMoss },
+      { name: 'Kanal K' },
+      { name: 'Energy Zürich', logoUrl: art.posterEmber },
+    ],
+    accent: undefined,
+  },
+};
+
+/** «Radio» without favourites (O-15): no logos, an invitation to discover stations. */
+export const RadioDiscover: Story = {
+  args: {
+    name: 'Radio',
+    caption: 'Sender entdecken',
+    covers: [],
+    icon: 'radio',
+    accent: undefined,
+  },
+};
+
+/** «Sammlungen» and «User-Empfehlungen»: no collage, a large icon. */
+export const Plain: Story = {
+  args: {
+    name: 'Sammlungen',
+    caption: '333 Sammlungen',
+    covers: [],
+    icon: 'stack',
+    accent: undefined,
+  },
+};

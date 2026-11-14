@@ -1,3 +1,4 @@
+import type { MyMediaEntry } from '@slouchcat/api-client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Outlet, useLocation, useNavigate } from '@tanstack/react-router';
 import {
@@ -11,7 +12,7 @@ import {
   type ComponentType,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { picksCountQuery, visibleLibrariesQuery } from '@/features/catalog/queries';
+import { myMediaQuery } from '@/features/catalog/queries';
 import { notificationsQuery, notificationsSource } from '@/features/discover/queries';
 import { Announcements } from '@/features/notifications/Announcements';
 import type { AdminShellNav as AdminShellNavType } from '@/features/admin/AdminShellNav';
@@ -203,33 +204,59 @@ export function AppLayout() {
     setHidden(value);
   };
 
-  // "Meine Medien" (concept 08): the libraries come from the server and never hold up the shell;
-  // without them (offline, an error) the group says so and points to the downloads.
-  const librariesQuery = useQuery(visibleLibrariesQuery);
-  const picksCount = useQuery(picksCountQuery);
-  const libraries: SideNavProps['libraries'] = librariesQuery.data
-    ? librariesQuery.data.map((library) => ({
+  // "Meine Medien" (concept 08; concept 21 P-9, P-11): the libraries, «Radio», «Sammlungen» and
+  // «User-Empfehlungen» come from the server in the order the administration stored, without what
+  // it hid here, and never hold up the shell; without them (offline, an error) the group says so
+  // and points to the downloads.
+  const myMedia = useQuery(myMediaQuery);
+  const mediaEntry = (entry: MyMediaEntry): SideNavEntry => {
+    const { count } = entry;
+    if (entry.library) {
+      const { library } = entry;
+      return {
         href: paths.library(library.id),
         label: library.name,
         icon: libraryIcon(library),
-        count: library.itemCount,
-        accessibleLabel: t('nav.libraryLabel', { name: library.name, count: library.itemCount }),
+        count,
+        accessibleLabel: t('nav.libraryLabel', { name: library.name, count }),
         current: pathname === paths.library(library.id),
-      }))
-    : librariesQuery.isError
+      };
+    }
+    if (entry.key === 'radio') {
+      // Webradio (concept 16, 10.1), with the number of the profile's favourites.
+      return {
+        href: paths.radio,
+        label: t('nav.radio'),
+        icon: 'radio',
+        count: t('nav.radioCount', { count }),
+        accessibleLabel: t('nav.radioLabel', { name: t('nav.radio'), count }),
+        current: pathname.startsWith(paths.radio),
+      };
+    }
+    if (entry.key === 'collections') {
+      return {
+        href: paths.collections,
+        label: t('nav.collections'),
+        icon: 'stack',
+        count,
+        accessibleLabel: t('nav.collectionsLabel', { name: t('nav.collections'), count }),
+        current: pathname.startsWith(paths.collections),
+      };
+    }
+    return {
+      href: paths.picks,
+      label: t('home.picks'),
+      icon: 'star',
+      count,
+      accessibleLabel: t('nav.libraryLabel', { name: t('home.picks'), count }),
+      current: pathname === paths.picks,
+    };
+  };
+  const libraries: SideNavProps['libraries'] = myMedia.data
+    ? myMedia.data.map(mediaEntry)
+    : myMedia.isError
       ? 'offline'
       : 'loading';
-  const picks: SideNavEntry = {
-    href: paths.picks,
-    label: t('home.picks'),
-    icon: 'star',
-    count: picksCount.data,
-    accessibleLabel:
-      picksCount.data === undefined
-        ? undefined
-        : t('nav.libraryLabel', { name: t('home.picks'), count: picksCount.data }),
-    current: pathname === paths.picks,
-  };
 
   const nav: SideNavEntry[] = [
     { href: paths.home, label: t('nav.home'), icon: 'home', current: pathname === '/' },
@@ -246,15 +273,8 @@ export function AppLayout() {
       icon: 'bookmark',
       current: pathname.startsWith(paths.watchlist),
     },
-    // Webradio (concept 16, 10.1).
-    {
-      href: paths.radio,
-      label: t('nav.radio'),
-      icon: 'radio',
-      current: pathname.startsWith(paths.radio),
-    },
-    // Everything the profile has watched or heard, below «Radio» for every profile (concept 20
-    // P-14).
+    // Everything the profile has watched or heard, below «Merkliste» for every profile (concept
+    // 20 P-14); «Radio» moved into «Meine Medien» (concept 21 P-9).
     {
       href: paths.watched,
       label: t('nav.watched'),
@@ -322,7 +342,6 @@ export function AppLayout() {
     primary: nav,
     librariesLabel: t('nav.libraries'),
     libraries,
-    picks: libraries === 'offline' ? undefined : picks,
     librariesOffline: t('nav.librariesOffline'),
     offlineLink: offlineSupported()
       ? { href: paths.downloads, label: t('nav.librariesOfflineLink') }
@@ -339,7 +358,7 @@ export function AppLayout() {
   // the focus falls to the body. Entering, the admin sidebar takes it on «Übersicht» once it has
   // loaded; leaving, the app column on the current page's entry (or the menu button when the
   // column is hidden). What the sidebar carried from an earlier visit is forgotten either way.
-  const currentEntry = [...nav, ...(typeof libraries === 'string' ? [] : [...libraries, picks])]
+  const currentEntry = [...nav, ...(typeof libraries === 'string' ? [] : libraries)]
     .concat(account)
     .find((entry) => entry.current);
   const returnKey = barShown ? currentEntry && sideNavFocusKey(currentEntry.href) : HEADER_MENU_KEY;

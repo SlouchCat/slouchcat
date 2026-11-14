@@ -41,6 +41,30 @@
   object-fit: cover;
 }
 
+/*
+ * The tile «Radio» (concept 21 P-9): the logos of the favourite stations in four columns along
+ * the top, above the name; fewer logos keep their size and stand on the left.
+ */
+.logos {
+  position: absolute;
+  z-index: 1;
+  top: var(--sc-space-3);
+  right: var(--sc-space-3);
+  left: var(--sc-space-3);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sc-space-2);
+}
+
+/* A tile without pictures: a large icon at the top left (Sammlungen, User-Empfehlungen). */
+.icon {
+  position: absolute;
+  z-index: 1;
+  top: var(--sc-space-3);
+  left: var(--sc-space-3);
+  color: var(--sc-color-text-secondary);
+}
+
 /* The accent tints an empty slice (no poster, or the hero artwork goes first, P-10). */
 span.slice {
   background-color: var(--sc-item-accent, transparent);
