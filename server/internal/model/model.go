@@ -765,7 +765,21 @@ type Person struct {
 	ID      int64
 	Name    string
 	Credits []PersonCredit
-	Image   *Image // the portrait (w185 JPEG row, ADR 0026), nil without one
+	Image   *Image // the portrait (w300 JPEG row, ADR 0026, concept 21 O-12), nil without one
+	Details PersonDetails
+}
+
+// PersonDetails are the facts of the person page from TMDB (concept 21 P-8, migration 00058); a
+// zero field is unknown.
+type PersonDetails struct {
+	Biography     string
+	BiographyLang string // the language of Biography; "" without one
+	// BiographyFallback: Biography is the English one in place of a missing one in the main language.
+	BiographyFallback  bool
+	Birthday, Deathday string // YYYY-MM-DD
+	PlaceOfBirth       string
+	KnownForDepartment string
+	TotalCredits       *int // the films and series TMDB lists for the person; nil before the fetch
 }
 
 // MediaFile describes one playable file of a title.

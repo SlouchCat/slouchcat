@@ -402,3 +402,13 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   `trailer_state = found` (Stichtag 14. November 2026, 12:00 UTC). Dann `store.Dump`, kein neuer Pfad im Stand.
   `TestFrozenTrailerAufloesungStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist;
   `TestMigration00057TrailerSize` prüft den Schritt von `loeschen-job.sql` aus.
+- `personenseite.sql`: Stand nach Migration 00058 «Angaben zu Personen» (Konzept 21 P-8, O-13, O-14:
+  `people.biography` mit `biography_lang`, `birthday`, `deathday`, `place_of_birth`,
+  `known_for_department`, `total_credits`, dazu `details_lang` und `details_fetched_at` des Abrufs).
+  Erzeugt am 14. November 2026 aus `trailer-aufloesung.sql`: Stand eingespielt, mit `store.Open`
+  migriert, dann per SQL der Person 1 eine deutsche Kurzbiografie mit Angaben (abgerufen in `de`) und
+  der Person 2 eine englische als Ersatz (abgerufen in `de`, Biografie `en`) gegeben; Person 3 bleibt
+  ohne Abruf (Stichtag 14. November 2026, 12:00 UTC). Die Porträts stehen noch in `w185`, wie sie der
+  Lauf von `people.images` nach dem Update durch `w300` ersetzt (O-12). Dann `store.Dump`, kein neuer
+  Pfad im Stand. `TestFrozenPersonenseiteStateCoversTheStage` prüft, dass jede dieser Datenarten
+  vorhanden ist; `TestMigration00058PersonDetails` prüft den Schritt von `trailer-aufloesung.sql` aus.

@@ -672,7 +672,12 @@ func (f *Fixture) AddSeries(t testing.TB) {
 	exec(t, f.DB, `INSERT INTO people (id, tmdb_id, name, created_at) VALUES (?, 9001, ?, 1)`, f.Person.ID, f.Person.Name)
 	exec(t, f.DB, `INSERT INTO credits (item_id, person_id, role, character, ord) VALUES (?, ?, 'cast', 'Hero', 0), (?, ?, 'director', NULL, 0)`,
 		m6.ID, f.Person.ID, f.Rated(18).ID, f.Person.ID)
-	f.Person.ImageRel, f.Person.ImageWebPRel = f.addSubjectImage(t, "person_images", "person_id", f.Person.ID, "people/1", "w185", 6, 9)
+	f.Person.ImageRel, f.Person.ImageWebPRel = f.addSubjectImage(t, "person_images", "person_id", f.Person.ID, "people/1", "w300", 6, 9)
+	// The facts of the person page (people.details, concept 21 P-8): the English biography in place
+	// of a missing German one.
+	exec(t, f.DB, `UPDATE people SET biography = 'Pat Example is an actor.', biography_lang = 'en', details_lang = 'de',
+		birthday = '1964-04-25', place_of_birth = 'Queens, New York', known_for_department = 'Acting', total_credits = 42,
+		details_fetched_at = 1 WHERE id = ?`, f.Person.ID)
 
 	// A file the administrator removed (B-9); the scanner skips it.
 	f.IgnoredRelPath = "Broken (2024)/Broken (2024).mkv"

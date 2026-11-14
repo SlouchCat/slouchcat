@@ -239,7 +239,17 @@ func (s *server) GetPerson(ctx context.Context, req gen.GetPersonRequestObject) 
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	out := gen.GetPerson200JSONResponse{Id: p.ID, Name: p.Name, Image: toPersonImageRef(p.ID, session.Profile.ID, p.Image)}
+	d := p.Details
+	out := gen.GetPerson200JSONResponse{Id: p.ID, Name: p.Name, Image: toPersonImageRef(p.ID, session.Profile.ID, p.Image),
+		Biography: optString(d.Biography), PlaceOfBirth: optString(d.PlaceOfBirth),
+		KnownForDepartment: optString(d.KnownForDepartment), TotalCredits: d.TotalCredits,
+		Birthday: optDate(d.Birthday), Deathday: optDate(d.Deathday)}
+	if d.Biography != "" {
+		out.BiographyLang = optString(d.BiographyLang)
+		if d.BiographyFallback {
+			out.BiographyFallback = &d.BiographyFallback
+		}
+	}
 	out.Credits = make([]struct {
 		Character *string               `json:"character,omitempty"`
 		Item      gen.ItemRef           `json:"item"`
@@ -727,6 +737,15 @@ func toMediaFileInfo(f model.MediaFile) gen.MediaFileInfo {
 		out.Tracks = &tracks
 	}
 	return out
+}
+
+// optDate maps a YYYY-MM-DD day; nil for "" or anything else.
+func optDate(s string) *openapi_types.Date {
+	day, err := time.Parse(time.DateOnly, s)
+	if err != nil {
+		return nil
+	}
+	return &openapi_types.Date{Time: day}
 }
 
 func optString(s string) *string {

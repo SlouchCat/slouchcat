@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.32.0
+  version: 1.33.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -1869,7 +1869,8 @@ paths:
       summary: Portrait of a person (binary, contract 1.21.0)
       description: |
         Implemented as an `http.Handler` (CLAUDE.md rule 6, concept 17 section 5.1, ADR 0026). The TMDB
-        portrait in `w185`, fetched by the job `people.images`. The handler checks the scope: a person
+        portrait in `w300` (`w185` before contract 1.33.0, concept 21 O-12), fetched by the job
+        `people.images`. The handler checks the scope: a person
         without a role on a title the active profile may see, or without a stored portrait, answers 404
         (never 403). WebP when the request's `Accept` header lists `image/webp`, JPEG otherwise, with
         `Vary: Accept` and `Cache-Control: private, max-age=31536000, immutable`. `CastMember.image`,
@@ -11931,6 +11932,48 @@ components:
           description: |
             The portrait of the person (since contract 1.21.0, concept 17 section 5). Absent when no
             portrait was fetched yet or TMDB has none.
+        biography:
+          type: string
+          description: |
+            Since contract 1.33.0 (concept 21 P-8): the TMDB biography in the main metadata language of
+            the server (the first text language), or in English when TMDB has none in it (O-13). Absent
+            when TMDB has none in either or the job `people.details` has not fetched the person yet.
+        biographyLang:
+          type: string
+          description: |
+            Since contract 1.33.0: the language of `biography` (the code of the text language, `en` for
+            the English fallback); present exactly when `biography` is.
+        biographyFallback:
+          type: boolean
+          description: |
+            Since contract 1.33.0: true when `biography` is the English text TMDB has in place of a
+            missing one in the main language (the page says «Biografie von TMDB, nur auf Englisch
+            vorhanden»); absent otherwise.
+        birthday:
+          type: string
+          format: date
+          description: Since contract 1.33.0, from TMDB; absent when unknown.
+        deathday:
+          type: string
+          format: date
+          description: Since contract 1.33.0, from TMDB; absent when unknown or the person lives.
+        placeOfBirth:
+          type: string
+          description: Since contract 1.33.0, from TMDB as it names it (not translated); absent when unknown.
+        knownForDepartment:
+          type: string
+          description: |
+            Since contract 1.33.0: the TMDB department the person is known for, as TMDB names it
+            (`Acting`, `Directing`, `Writing`, `Production`, `Sound`, `Camera`, `Editing`, `Art`,
+            `Crew`, `Costume & Make-Up`, `Visual Effects`, `Lighting`, `Creator`); a client shows an
+            unknown value as it comes. Absent when unknown.
+        totalCredits:
+          type: integer
+          minimum: 0
+          description: |
+            Since contract 1.33.0 (O-14): the number of films and series TMDB lists for the person in
+            any role (`combined_credits`, every title once), for «n von m Titeln». Absent when not
+            fetched yet. It counts titles beyond the library and is no visibility statement.
         credits:
           type: array
           items:

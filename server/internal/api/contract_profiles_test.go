@@ -393,9 +393,17 @@ var profileRegistry = map[string]profileCall{
 		},
 		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
 			var person struct {
-				ID      int64  `json:"id"`
-				Name    string `json:"name"`
-				Credits []struct {
+				ID                 int64   `json:"id"`
+				Name               string  `json:"name"`
+				Biography          string  `json:"biography"`
+				BiographyLang      string  `json:"biographyLang"`
+				BiographyFallback  bool    `json:"biographyFallback"`
+				Birthday           string  `json:"birthday"`
+				Deathday           *string `json:"deathday"`
+				PlaceOfBirth       string  `json:"placeOfBirth"`
+				KnownForDepartment string  `json:"knownForDepartment"`
+				TotalCredits       int     `json:"totalCredits"`
+				Credits            []struct {
 					Item struct {
 						ID string `json:"id"`
 					} `json:"item"`
@@ -409,6 +417,12 @@ var profileRegistry = map[string]profileCall{
 			}
 			if want := personCredits(f, fixtureProfile(f, token)); person.ID != f.Person.ID || person.Name != f.Person.Name || !slices.Equal(got, want) {
 				t.Errorf("getPerson for %s = %s, want credits %v", token, rec.Body.String(), want)
+			}
+			// The facts of the person page (contract 1.33.0, concept 21 P-8).
+			if person.Biography != "Pat Example is an actor." || person.BiographyLang != "en" || !person.BiographyFallback ||
+				person.Birthday != "1964-04-25" || person.Deathday != nil || person.PlaceOfBirth != "Queens, New York" ||
+				person.KnownForDepartment != "Acting" || person.TotalCredits != 42 {
+				t.Errorf("getPerson facts for %s = %s", token, rec.Body.String())
 			}
 		}},
 	// ADR 0026: the portrait answers for a profile that sees one of the person's titles (P0 sees

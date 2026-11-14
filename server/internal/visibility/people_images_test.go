@@ -185,3 +185,41 @@ func TestPersonPortraitFields(t *testing.T) {
 		t.Errorf("rows with images %+v, missing %+v, without %+v; want equal", with, missing, without)
 	}
 }
+
+// The facts of the person page (concept 21 P-8): the English biography in place of a German one
+// is the fallback, one in the language it was asked in is not; a person not fetched yet has no
+// facts and no count.
+func TestPersonDetails(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	f.AddSeries(t)
+	r := New(f.DB, vistest.Logger())
+	ctx := t.Context()
+	read := func() model.PersonDetails {
+		t.Helper()
+		p, err := r.Person(ctx, Profile(f.P18), f.Person.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p.Details
+	}
+	d := read()
+	if d.Biography != "Pat Example is an actor." || d.BiographyLang != "en" || !d.BiographyFallback || d.Birthday != "1964-04-25" ||
+		d.Deathday != "" || d.PlaceOfBirth != "Queens, New York" || d.KnownForDepartment != "Acting" || d.TotalCredits == nil || *d.TotalCredits != 42 {
+		t.Errorf("details %+v", d)
+	}
+	if _, err := f.DB.Write.Exec(`UPDATE people SET details_lang = 'en', deathday = '2020-01-02' WHERE id = ?`, f.Person.ID); err != nil {
+		t.Fatal(err)
+	}
+	if d := read(); d.BiographyFallback || d.Deathday != "2020-01-02" {
+		t.Errorf("biography in the language asked: %+v, want no fallback", d)
+	}
+	if _, err := f.DB.Write.Exec(`UPDATE people SET biography = NULL, biography_lang = NULL, details_lang = NULL, birthday = NULL,
+		deathday = NULL, place_of_birth = NULL, known_for_department = NULL, total_credits = NULL, details_fetched_at = NULL WHERE id = ?`,
+		f.Person.ID); err != nil {
+		t.Fatal(err)
+	}
+	if d := read(); d != (model.PersonDetails{}) {
+		t.Errorf("person not fetched: %+v, want no facts", d)
+	}
+}
