@@ -371,6 +371,22 @@ func (s *server) SetItemWatched(ctx context.Context, req gen.SetItemWatchedReque
 	return gen.SetItemWatched204Response{}, nil
 }
 
+// SetCollectionWatched sets or removes the check mark «gesehen» of every part of a collection
+// (concept 21 O-19).
+func (s *server) SetCollectionWatched(ctx context.Context, req gen.SetCollectionWatchedRequestObject) (gen.SetCollectionWatchedResponseObject, error) {
+	session, err := s.itemSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if req.Body == nil {
+		return s.problem(ctx, (&model.ValidationError{}).Add("body", "required")), nil
+	}
+	if err := s.opts.Playback.SetCollectionWatched(ctx, session.Profile, req.Id, req.Body.Watched); err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.SetCollectionWatched204Response{}, nil
+}
+
 // Image kinds and sizes of the contract (M1b image pipeline, plan 3.1): posters in w200, w400 and
 // w800, backdrops in w780, w1280, w1920 and (from an original of 2560 px or more) w3840, each stored
 // as WebP and JPEG.

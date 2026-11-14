@@ -675,6 +675,17 @@ var profileRegistry = map[string]profileCall{
 				t.Errorf("unknown collection for %s: status %d", token, unknown.Code)
 			}
 		}},
+	// Concept 21 O-19 (contract 1.33.0): the check mark of every part answers 204 while the profile
+	// sees a member, else 404. The body removes it, so the fixture's positions stay; the positive
+	// checks are in TestHTTPSetCollectionWatched.
+	"setCollectionWatched": {contract: "PUT /collections/{id}/watched", path: "/collections/" + vistest.MixedCollectionID + "/watched",
+		body: `{"watched":false}`,
+		want: func(f *vistest.Fixture, p model.Profile) int {
+			if len(mixedMembers(f, p)) == 0 {
+				return http.StatusNotFound
+			}
+			return http.StatusNoContent
+		}},
 	"listWatchlist": {contract: "GET /watchlist", path: "/watchlist?limit=200",
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK },
 		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {

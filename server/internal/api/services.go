@@ -555,6 +555,9 @@ type PlaybackService interface {
 	// SetWatched sets or removes the check mark of a visible title, or of every visible episode of
 	// a season, series or podcast (setItemWatched, concept 20 section 6.4), or model.ErrNotFound.
 	SetWatched(ctx context.Context, profile model.Profile, itemID string, watched bool) error
+	// SetCollectionWatched sets or removes the check mark of every visible member of a collection
+	// (setCollectionWatched, concept 21 O-19), or model.ErrNotFound.
+	SetCollectionWatched(ctx context.Context, profile model.Profile, collectionID string, watched bool) error
 	// Tracks returns the audio and subtitle tracks of a media file of a visible title (empty id:
 	// the primary file), or model.ErrNotFound.
 	Tracks(ctx context.Context, profile model.Profile, itemID, mediaFileID string) (model.TrackList, error)

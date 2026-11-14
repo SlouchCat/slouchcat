@@ -421,3 +421,11 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   2026, 12:00 UTC). Dann `store.Dump`, kein neuer Pfad im Stand. `TestFrozenMeineMedienStateCoversTheStage`
   prüft, dass jede dieser Datenarten vorhanden ist; `TestMigration00059MyMedia` prüft den Schritt von
   `personenseite.sql` aus.
+- `sammlungen.sql`: Stand nach Migration 00060 «Beschreibung einer Sammlung» (Konzept 21 P-10, O-18:
+  `collections.description` mit `description_lang`, `details_lang` und `details_fetched_at` des Abrufs
+  durch `people.details`). Erzeugt am 14. November 2026 aus `meine-medien.sql`: Stand eingespielt, mit
+  `store.Open` migriert, dann per SQL der «Slouchcat Test Collection» eine deutsche Beschreibung (auf
+  Deutsch gefragt) und der «Slouchcat Test HDR Collection» die englische als Ersatz (auf Deutsch gefragt)
+  gegeben, Abruf am 14. November 2026, 12:00 UTC. Dann `store.Dump`, kein neuer Pfad im Stand.
+  `TestFrozenSammlungenStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist;
+  `TestMigration00060CollectionDetails` prüft den Schritt von `meine-medien.sql` aus.

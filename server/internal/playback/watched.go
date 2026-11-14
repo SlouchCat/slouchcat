@@ -3,6 +3,7 @@ package playback
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -41,6 +42,35 @@ func (s *Service) SetWatched(ctx context.Context, profile model.Profile, itemID 
 	if err != nil {
 		return err
 	}
+	return s.setTargetsWatched(ctx, profile, targets, watched)
+}
+
+// SetCollectionWatched sets or removes the check mark of every visible member of a collection
+// (setCollectionWatched, concept 21 O-19): the targets of SetWatched of each member in collection
+// order, all in one transaction, so the times rise over the whole collection and the last part is
+// the newest. A collection without a visible member is model.ErrNotFound.
+func (s *Service) SetCollectionWatched(ctx context.Context, profile model.Profile, collectionID string, watched bool) error {
+	scope := visibility.Profile(profile)
+	members, err := s.vis.CollectionMembers(ctx, scope, collectionID)
+	if err != nil {
+		return err
+	}
+	var targets []model.WatchTarget
+	for _, id := range members {
+		t, err := s.vis.WatchTargets(ctx, scope, id)
+		if errors.Is(err, model.ErrNotFound) {
+			continue // gone from sight since the list
+		}
+		if err != nil {
+			return err
+		}
+		targets = append(targets, t...)
+	}
+	return s.setTargetsWatched(ctx, profile, targets, watched)
+}
+
+// setTargetsWatched changes the targets of SetWatched or SetCollectionWatched in one transaction.
+func (s *Service) setTargetsWatched(ctx context.Context, profile model.Profile, targets []model.WatchTarget, watched bool) error {
 	if len(targets) == 0 {
 		return nil
 	}

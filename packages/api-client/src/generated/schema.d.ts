@@ -3020,10 +3020,15 @@ export interface paths {
         /**
          * Every collection with a visible member (E-6, concept 20 O-3)
          * @description Since contract 1.31.0. The page «Sammlungen» behind the title of the start page row
-         *     `collections`: the same collections in the same order as the row (by name, each with the
-         *     number of its visible members and its cover), only without the row's cut to 20, at most 500.
-         *     Audiobook collections stand in the row «Reihen und Sammlungen» of their library and are not
-         *     listed (like the row).
+         *     `collections`: every collection with a visible member by name, each with the number of its
+         *     visible members and its cover, at most 500. Since contract 1.33.0 (concept 21 P-10) each also
+         *     carries its years, total runtime and the progress of the active profile (`seenCount`,
+         *     `started`), so one answer holds what the page searches, filters (by `count`) and sorts (by
+         *     name, by `count`, started first) in the client. The start page row takes from the same
+         *     collections the ones with at least two visible members, started ones first (O-16), cut to
+         *     20. Audiobook collections stand in the row «Reihen und Sammlungen» of their library and are
+         *     not listed (like the row). The entry «Sammlungen» of «Meine Medien» counts the same
+         *     collections.
          */
         get: operations["listVisibleCollections"];
         put?: never;
@@ -3044,10 +3049,37 @@ export interface paths {
         /**
          * A collection with its visible members (E-6)
          * @description A TMDB collection or a manual collection of the admin; the members the active profile may see, in
-         *     collection order (paged). A collection without a visible member answers 404 (10.2).
+         *     collection order (paged). A collection without a visible member answers 404 (10.2). Since
+         *     contract 1.33.0 (concept 21 P-10) with the years, total runtime and progress of all visible
+         *     members, the part to play next (`next`, `nextPart`) and the TMDB description (O-18).
          */
         get: operations["getCollection"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/collections/{id}/watched": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set or remove the check mark «gesehen» of every part of a collection (concept 21 O-19)
+         * @description Since contract 1.33.0 (concept 21 P-10, O-19). Idempotent. Every visible member of the
+         *     collection changes as `setItemWatched` changes it (a series or podcast member: its visible
+         *     episodes), all in one transaction; members the profile may not see stay as they are. With
+         *     `watched: true` the times rise in collection order, so the last part is the newest; a member
+         *     already watched keeps its dates. The page asks before it sends `watched: false` (like for a
+         *     whole series). A collection without a visible member answers 404.
+         */
+        put: operations["setCollectionWatched"];
         post?: never;
         delete?: never;
         options?: never;
@@ -9046,11 +9078,90 @@ export interface components {
              *     `ItemDetail.collections`; `count` says whether there are more.
              */
             members?: components["schemas"]["ItemRef"][];
+            /**
+             * @description Since contract 1.33.0 (concept 21 P-10): the earliest year of the visible members; absent
+             *     when no visible member has a year.
+             */
+            firstYear?: number;
+            /** @description Since contract 1.33.0: the latest year of the visible members; absent like `firstYear`. */
+            lastYear?: number;
+            /**
+             * @description Since contract 1.33.0: the summed `runtimeMinutes` of the visible members («zusammen
+             *     19 h 38 min»); a series or podcast member counts 0 (its runtime is the one of an
+             *     episode). 0 when no visible member has a runtime.
+             */
+            runtimeMinutes?: number;
+            /**
+             * @description Since contract 1.33.0: the visible members the active profile has watched, each by the
+             *     rule of its check mark (concept 20 F-12): a single title by `Progress.watchedAt`, a series
+             *     or podcast by `ItemRef.watched`. «x von `count` gesehen».
+             */
+            seenCount?: number;
+            /**
+             * @description Since contract 1.33.0: true when the active profile has watched a visible member or has a
+             *     running position on one (on a series or podcast member: on one of its visible episodes);
+             *     the progress bar of the overview and the order «Angefangen zuerst».
+             */
+            started?: boolean;
         };
         Collection: {
             id: components["schemas"]["CollectionID"];
             name: string;
+            /**
+             * @description The description of the collection. Since contract 1.33.0 (concept 21 O-18) the TMDB
+             *     overview in the main metadata language of the server (the first text language), or the
+             *     English one when TMDB has none in it, fetched by the job `people.details`; before that
+             *     fetch, and for a collection of the admin, the older text in the profile language, if any.
+             *     Absent without a text.
+             */
             overview?: string;
+            /**
+             * @description Since contract 1.33.0: the language of a fetched `overview` (the code of the text
+             *     language, `en` for the English fallback); absent for the older text and without one.
+             */
+            overviewLang?: string;
+            /**
+             * @description Since contract 1.33.0: true when `overview` is the English text TMDB has in place of a
+             *     missing one in the main language (the page says so); absent otherwise.
+             */
+            overviewFallback?: boolean;
+            /**
+             * @description Since contract 1.33.0 (concept 21 P-10): the earliest year of the visible members; absent
+             *     when no visible member has a year.
+             */
+            firstYear?: number;
+            /** @description Since contract 1.33.0: the latest year of the visible members; absent like `firstYear`. */
+            lastYear?: number;
+            /**
+             * @description Since contract 1.33.0: the summed `runtimeMinutes` of all visible members («zusammen
+             *     19 h 38 min»); a series or podcast member counts 0 (its runtime is the one of an
+             *     episode). 0 when no visible member has a runtime.
+             */
+            runtimeMinutes?: number;
+            /**
+             * @description Since contract 1.33.0: the visible members the active profile has watched, each by the
+             *     rule of its check mark (concept 20 F-12): a single title by `Progress.watchedAt`, a series
+             *     or podcast by `ItemRef.watched`. «x von `total` gesehen».
+             */
+            seenCount?: number;
+            /**
+             * @description Since contract 1.33.0: true when the active profile has watched a visible member or has a
+             *     running position on one (on a series or podcast member: on one of its visible episodes);
+             *     the progress bar of the overview and the order «Angefangen zuerst».
+             */
+            started?: boolean;
+            /**
+             * @description Since contract 1.33.0: the part the big button plays, «Weiterschauen · Teil N»: the first
+             *     visible member in collection order that is not finished (a single title without
+             *     `Progress.completed`, a series or podcast that is not `watched`); the first member when
+             *     every one is finished. Absent only for an empty page beyond the members.
+             */
+            next?: components["schemas"]["ItemRef"];
+            /**
+             * @description Since contract 1.33.0: the place of `next` among the visible members in collection order,
+             *     counted from 1 (the N of «Teil N»); present exactly when `next` is.
+             */
+            nextPart?: number;
             /**
              * @description The TMDB poster of the collection for the head of the collection page (since contract
              *     1.21.0), by the rule of `CollectionRef.image`; absent, the page shows the poster of the
@@ -17312,6 +17423,41 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Collection"];
                 };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown or without a visible member (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setCollectionWatched: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Collection ID (ULID). */
+                id: components["parameters"]["CollectionID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemWatchedRequest"];
+            };
+        };
+        responses: {
+            /** @description The check marks are set or removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["Unauthenticated"];
             /** @description Unknown or without a visible member (`not_found`). */

@@ -97,16 +97,20 @@ type Chapter struct {
 }
 
 type Collection struct {
-	ID         string
-	Source     string
-	TmdbID     sql.NullInt64
-	Name       string
-	NameDe     sql.NullString
-	Overview   sql.NullString
-	OverviewDe sql.NullString
-	PosterPath sql.NullString
-	CreatedAt  int64
-	UpdatedAt  int64
+	ID               string
+	Source           string
+	TmdbID           sql.NullInt64
+	Name             string
+	NameDe           sql.NullString
+	Overview         sql.NullString
+	OverviewDe       sql.NullString
+	PosterPath       sql.NullString
+	CreatedAt        int64
+	UpdatedAt        int64
+	Description      sql.NullString
+	DescriptionLang  sql.NullString
+	DetailsLang      sql.NullString
+	DetailsFetchedAt sql.NullInt64
 }
 
 type CollectionImage struct {

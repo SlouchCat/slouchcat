@@ -23,6 +23,9 @@ func (e serviceProblem) VisitGetCollectionResponse(w http.ResponseWriter) error 
 func (e serviceProblem) VisitListVisibleCollectionsResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
+func (e serviceProblem) VisitSetCollectionWatchedResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
 func (e serviceProblem) VisitListWatchlistResponse(w http.ResponseWriter) error  { return e.visit(w) }
 func (e serviceProblem) VisitAddToWatchlistResponse(w http.ResponseWriter) error { return e.visit(w) }
 func (e serviceProblem) VisitListWatchedResponse(w http.ResponseWriter) error    { return e.visit(w) }
@@ -145,10 +148,42 @@ func (s *server) GetCollection(ctx context.Context, req gen.GetCollectionRequest
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	return gen.GetCollection200JSONResponse(gen.Collection{
-		Id: c.ID, Name: c.Name, Overview: optString(c.Overview), Items: toItemRefList(session.Profile.ID, c.Items),
-		Total: c.Total, Offset: offset, Limit: limit, Image: toCollectionImageRef(c.ID, session.Profile.ID, c.Image),
-	}), nil
+	pid := session.Profile.ID
+	f := toCollectionFacts(c.CollectionFacts)
+	out := gen.Collection{
+		Id: c.ID, Name: c.Name, Overview: optString(c.Overview), Items: toItemRefList(pid, c.Items),
+		Total: c.Total, Offset: offset, Limit: limit, Image: toCollectionImageRef(c.ID, pid, c.Image),
+		FirstYear: f.firstYear, LastYear: f.lastYear, RuntimeMinutes: f.runtime, SeenCount: f.seen, Started: f.started,
+		Next: optItemRef(pid, c.Next),
+	}
+	if c.Overview != "" {
+		out.OverviewLang = optString(c.OverviewLang)
+		if c.OverviewFallback {
+			out.OverviewFallback = &c.OverviewFallback
+		}
+	}
+	if c.Next != nil {
+		out.NextPart = &c.NextPart
+	}
+	return gen.GetCollection200JSONResponse(out), nil
+}
+
+// collectionFacts are the contract fields of model.CollectionFacts: the years only when known,
+// the rest always.
+type collectionFacts struct {
+	firstYear, lastYear, runtime, seen *int
+	started                            *bool
+}
+
+func toCollectionFacts(f model.CollectionFacts) collectionFacts {
+	out := collectionFacts{runtime: &f.RuntimeMinutes, seen: &f.SeenCount, started: &f.Started}
+	if f.FirstYear > 0 {
+		out.firstYear = &f.FirstYear
+	}
+	if f.LastYear > 0 {
+		out.lastYear = &f.LastYear
+	}
+	return out
 }
 
 // getCollectionImage serves the TMDB poster of a collection that is fully visible to the active
@@ -287,8 +322,10 @@ func toGenreRefs(genres []model.GenreRef) []gen.GenreRef {
 // toCollectionRef maps a collection with its visible member count, its cover and, on a title's
 // detail only, its first members.
 func toCollectionRef(profileID int64, c model.CollectionRef) gen.CollectionRef {
+	f := toCollectionFacts(c.CollectionFacts)
 	out := gen.CollectionRef{Id: c.ID, Name: c.Name, Count: c.Count, Cover: optItemRef(profileID, c.Cover),
-		Image: toCollectionImageRef(c.ID, profileID, c.Image)}
+		Image:     toCollectionImageRef(c.ID, profileID, c.Image),
+		FirstYear: f.firstYear, LastYear: f.lastYear, RuntimeMinutes: f.runtime, SeenCount: f.seen, Started: f.started}
 	if c.Members != nil {
 		members := toItemRefList(profileID, c.Members)
 		out.Members = &members

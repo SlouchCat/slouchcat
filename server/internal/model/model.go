@@ -1106,6 +1106,19 @@ type CollectionRef struct {
 	// Image is the TMDB poster (w400 JPEG row, ADR 0026), set only when the profile sees every
 	// live member.
 	Image *Image
+	CollectionFacts
+}
+
+// CollectionFacts are the facts of the visible members of a collection for the active profile
+// (concept 21 P-10, contract 1.33.0).
+type CollectionFacts struct {
+	FirstYear, LastYear int // 0 when no visible member has a year
+	// RuntimeMinutes sums the runtime of the visible members; a series or podcast counts 0.
+	RuntimeMinutes int
+	// SeenCount counts the visible members watched by the rule of their check mark.
+	SeenCount int
+	// Started: a visible member (or an episode of one) is watched or has a running position.
+	Started bool
 }
 
 // Collection is a collection with one page of its visible members.
@@ -1113,9 +1126,18 @@ type Collection struct {
 	ID       string
 	Name     string
 	Overview string
-	Items    []ItemSummary
-	Total    int
-	Image    *Image // the TMDB poster like CollectionRef.Image
+	// OverviewLang is the language of a description fetched from TMDB (concept 21 O-18); "" for
+	// the older text and without one.
+	OverviewLang string
+	// OverviewFallback: Overview is the English one in place of a missing one in the main language.
+	OverviewFallback bool
+	Items            []ItemSummary
+	Total            int
+	Image            *Image // the TMDB poster like CollectionRef.Image
+	CollectionFacts
+	// Next is the part the big button plays and NextPart its place from 1 (concept 21 P-10).
+	Next     *ItemSummary
+	NextPart int
 }
 
 // Notification is one entry of a profile's in-app inbox (E-8).
