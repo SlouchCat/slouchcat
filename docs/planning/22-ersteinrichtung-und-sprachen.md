@@ -1,11 +1,13 @@
 # Konzept 22: Ersteinrichtung und Sprachen
 
-- **Status: Fassung 3 (14. November 2026).** Fassung 2 hat das Kritiker-Review eingearbeitet
-  (REVISE: 2 Blocker, 11 Major, 16 Minor; Abschnitt 9). In Fassung 3 hat Marco alle offenen
-  Punkte beantwortet (Abschnitt 8), O-20 als letzten. Damit sind **F-1 bis F-16** entschieden
-  (Abschnitt 1), und es ist **nichts mehr offen**.
-  - Neu ist **Teil C «Freigabeländer»** (Abschnitt 4.11, F-12): Profile bekommen die Altersstufen
-    des gewählten Freigabelands.
+- **Status: Fassung 4 (14. November 2026).**
+  - **Review 1** auf Fassung 1: REVISE, 2 Blocker, 11 Major, 16 Minor. Eingearbeitet in Fassung 2
+    (Abschnitt 9).
+  - **Offene Punkte:** In Fassung 3 hat Marco alle beantwortet (Abschnitt 8).
+  - **Review 2** auf Fassung 3: REVISE, 2 Blocker, 6 Major, 11 Minor, vor allem in Teil C und beim
+    Neustart. Alles ist in Fassung 4 eingearbeitet (Abschnitt 9.2); Marco hat dazu F-17
+    entschieden.
+  - Entschieden sind **F-1 bis F-17** (Abschnitt 1). Es ist **nichts mehr offen**.
   - **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Auslöser:** Marco will einen Installations-Assistenten, der beim ersten Start erscheint und die
   wichtigsten Einstellungen abfragt, und Slouchcat in vielen Sprachen anbieten, «etwa so wie Emby
@@ -13,7 +15,7 @@
 - **Verankert gegen:** `main` **`46d41072`** («Merge pull request #158», Release 1.32.0),
   Vertragsfassung **1.32.0** (`api/openapi.yaml:4`), letzte Migration **`00057_trailer_size.sql`**,
   letzte ADR **`0032`**, letzte Frage im Entscheidungsprotokoll **28**. Daneben offen: Zweig
-  `claude/k21-stufen4-6` mit Vertrag **1.33.0** und den Migrationen **00058** und **00059**.
+  `claude/k21-stufen4-6` mit Vertrag **1.33.0** und den Migrationen **00058** bis **00060**.
 - **Nummern:** Dieses Papier ist **Konzept 22**. Es reserviert:
   - **Frage 29**
   - **ADR 0033** («Oberflächensprachen, Übersetzung und Metadaten-Sprachen»). Sie ersetzt ADR 0018
@@ -61,6 +63,7 @@
 | **F-14** | Alte öffentliche Prüf-Endpunkte (O-12) | **Sofort entfernen**, nicht nur als veraltet markieren. |
 | **F-15** | Stichproben der Übersetzung durch Marco (O-9) | **Deutsch (Deutschland) und Englisch.** |
 | **F-16** | Gespeicherte Freigaben nach einem Wechsel des Freigabelands (O-20) | **Automatisch neu lesen:** Wechselt das Freigabeland, liest Slouchcat alle Freigaben neu und darf dabei auch senken. Von Hand gesetzte Freigaben bleiben unberührt. |
+| **F-17** | Alterswerte der Freigaben (Review 2, B2-2) | **Echtes Mindestalter überall**, auch für DE, AT, CH, GB und US: PG-13 = 13, R = 17, TV-MA = 17. Strenger als heute; Profile «ab 12» und «ab 16» sehen danach weniger US-Titel. Alle Titel werden einmal neu gelesen. |
 
 Die übrigen offenen Punkte hat Marco nach Empfehlung beantwortet (Abschnitt 8). Die
 dreiundzwanzig Sprachen aus F-3 und F-4 stehen in Abschnitt 4.1. Rechts nach links (Arabisch,
@@ -126,13 +129,18 @@ Hebräisch, Persisch) ist bewusst nicht dabei (Abschnitt 4.10).
 | E-Mail (SMTP) | `updateAdminSettings.email` | `smtp_*` | Umgebung gewinnt | Testmail mit `sendTestEmail` |
 | Öffentliche Adresse | `updateAdminSettings.publicUrl` | `public_url` | Umgebung gewinnt (`SLOUCHCAT_PUBLIC_URL`) | |
 | Update-Prüfung | `updateAdminSettings.updateCheckEnabled` | `update_check_enabled` | DB | Vorgabe ein |
-| Grafikchip | **keiner** | – | nur `SLOUCHCAT_HW` (auto/nvenc/qsv/vaapi/software, Vorgabe auto, `config/config.go:208`) | Wird beim Start gelesen (`cmd/slouchcat/main.go:690`). auto probiert NVENC, QSV, VA-API (`transcode/backend.go:71-160`). Ein fest gewähltes Backend, das nicht geht, ist ein Startfehler. |
+| Grafikchip | **keiner** | – | `--hw`, sonst `SLOUCHCAT_HW` (auto/nvenc/qsv/vaapi/software, Vorgabe auto, `config/config.go:208`) | Wird beim Start gelesen (`cmd/slouchcat/main.go:690`). auto probiert NVENC, QSV, VA-API und **hört beim ersten funktionierenden auf**. Ein fest gewähltes Backend, das nicht geht, wird geloggt und **durch den Prozessor ersetzt** (`transcode/backend.go:63-66,136-147`). |
 | Trickplay | `createLibrary`/`updateLibrary` | `libraries.trickplay_*` | DB | **nur je Bibliothek**, Vorgabe aus |
 | Weitere Profile | `createProfile` | `profiles` | DB | höchstens 10; braucht das aktive Hauptprofil (`auth/profiles.go:101-103`); PIN über `ProfileRequest.pin` (4–8 Ziffern) |
 | Bibliotheken | `createLibrary` | `libraries`, `library_roots` | DB | Arten video, audiobooks, podcasts; reiht den ersten Scan ein |
 
 - `MetadataSettingsUpdate` ersetzt **alle** Metadaten-Settings auf einmal (`openapi.yaml:13366`).
   Wer nur Sprachen ändern will, muss lesen, ändern und das Ganze zurückschreiben.
+- Einen geordneten Selbst-Neustart gibt es schon: `RestartServer` (`POST /admin/server/restart`,
+  ADR 0019, `admin/backup.go:770-799`). Der Server fährt geordnet herunter und startet dieselbe Datei
+  mit `syscall.Exec` neu (`cmd/slouchcat/main.go:202-224`); der Container läuft dabei weiter.
+  - Während einer Sicherung, eines Updates oder eines schon geplanten Neustarts antwortet er mit
+    409.
 - Den Systemzustand liefert `getSystemInfo` (`GET /admin/system`, `openapi.yaml:6926`). Vor dem
   Konto steht er öffentlich in `SetupStatus.system` (`:10793`).
 - Der Vertrag kennt neben `admin` die Sichtbarkeit **`owner`** (`api/session.go:122`): nur der
@@ -247,7 +255,8 @@ Weg, über den Fremde Slouchcat externe Dienste abfragen lassen könnten.
 
 Was das bringt:
 - **Weniger öffentliche Fläche als heute:** `checkSetupPath` und `checkSetupTmdbKey` fallen weg
-  (F-14). Neu öffentlich ist nur die Zeitzone in `SetupStatus.system` (3.5).
+  (F-14). Neu öffentlich sind in `SetupStatus.system` nur die Zeitzone und, je Backend, ob es geht.
+  Die Gründe für ein Scheitern sieht erst der Eigentümer (3.5).
 - **Gleiche Rechteprüfung wie in der Verwaltung.** Ab Schritt 3 gilt sie für alles.
 - **Volle Ordnerauswahl.** Ab Schritt 3 darf der Assistent den ganzen Ordner-Browser
   (`PathBrowserButton`) zeigen. Vor dem Konto gibt es nur die Wurzeln, aus Sicherheitsgründen
@@ -338,7 +347,7 @@ sofort ein, also sollen Schlüssel, Metadaten-Sprachen und Trickplay-Vorgabe dan
     erscheint in der Verwaltung ein Hinweis.
 
 **Schritt 4: Dienste (F-6, F-13).**
-- Acht Karten in zwei Gruppen. Jede Karte trägt ein Schild **«Empfohlen»** oder **«Optional»** und
+- Neun Karten in zwei Gruppen: zwei empfohlene, sieben optionale. Jede Karte trägt ein Schild **«Empfohlen»** oder **«Optional»** und
   einen Satz, wofür der Dienst gut ist.
 - **Empfohlen:**
   - **TMDB:** Titel, Beschreibungen, Poster, Besetzung. Ohne TMDB zeigt Slouchcat nur Dateinamen.
@@ -352,9 +361,15 @@ sofort ein, also sollen Schlüssel, Metadaten-Sprachen und Trickplay-Vorgabe dan
   - **Trakt:** der Schlüssel für Listen von Trakt (Spotlight). Ein Trakt-Login bleibt ein
     Nicht-Ziel.
   - **Web-Push:** «Meldungen auf diesem Gerät einschalten». Das abonniert den Browser des
-    Eigentümers für Push. Die Schlüssel dafür erzeugt der Server beim ersten Start selbst.
+    Eigentümers für Push, über die Endpunkte mit Sichtbarkeit `account`.
+    - Die Schlüssel (VAPID) erzeugt der Server beim ersten Gebrauch selbst
+      (`notify/push.go:24-26`).
+    - Push braucht eine sichere Verbindung (HTTPS oder `localhost`). Läuft die Einrichtung über
+      `http://<IP>:8096`, zeigt die Karte das an, und der Schalter ist aus. Man richtet Push dann
+      später über die öffentliche HTTPS-Adresse ein.
   - **Telegram:** Bot-Token von @BotFather. Slouchcat prüft es beim Speichern mit Telegram
-    (`getMe`). Das eigene Konto verbindet man danach über den Link aus der Verwaltung.
+    (`getMe`). Das eigene Konto verbindet man danach unter Einstellungen › Benachrichtigungen
+    (`/me/channels/telegram/link`).
 - **Links zum Beantragen (F-6)** stehen auf jeder Karte und sind sichtbar, bevor man sie aufklappt.
   Es sind die Adressen aus `ProviderCard.PROVIDERS`:
   - Trakt: `https://developer.trakt.tv/apps`
@@ -372,32 +387,45 @@ sofort ein, also sollen Schlüssel, Metadaten-Sprachen und Trickplay-Vorgabe dan
 **Schritt 5: Wiedergabe (F-10).**
 - Anzeige aus `SystemState`: Grafikchip, Backend, Hardware-Kodierung, HDR→SDR, inotify-Limit mit
   Warnung über 80 %.
+- **Proben beim Start:** Heute hört `auto` beim ersten funktionierenden Backend auf. Neu probiert
+  der Server beim Start **alle drei** Hardware-Backends einmal (NVENC, QSV, VA-API) und merkt sich
+  das Ergebnis in `SystemInfo.gpu.candidates`.
+  - Jede Probe ist eine Ein-Bild-Kodierung mit `testEncodeTimeout`. Ein Backend ohne Gerät
+    scheitert sofort.
+  - Die zusätzliche Startzeit wird in Stufe 2 gemessen und steht in `docs/perf/`.
 - **Wahl des Backends** als Liste von Knöpfen:
   - «Automatisch (empfohlen)»
-  - jedes Backend, dessen Probe beim Start **gelungen** ist (`SystemInfo.gpu.candidates`, neu,
-    3.5)
+  - jedes Backend mit gelungener Probe
   - «Nur Prozessor»
-  - Backends, deren Probe scheiterte, stehen ausgegraut daneben, mit dem Grund («Gerät
-    /dev/dri fehlt» …). So kann man nichts wählen, was den Start bricht.
-- **Gespeichert** wird die Wahl als neues Setting `transcode_hw` (`updateAdminSettings.transcodeHw`).
+  - Backends, deren Probe scheiterte, stehen ausgegraut daneben, mit dem Grund («Gerät /dev/dri
+    fehlt» …).
+- **Gespeichert** wird die Wahl als neues Setting `transcode_hw`
+  (`updateAdminSettings.transcodeHw`).
 - **Vorrang beim Start:**
-  1. `SLOUCHCAT_HW`, wenn die Umgebung es **ausdrücklich** setzt, dann «aus .env» im Assistenten
-     (`os.LookupEnv`, heute nicht unterscheidbar, weil die Vorgabe `auto` ist)
-  2. das Setting
-  3. `auto`
-- **Sicherung gegen eine Neustart-Schleife:** Scheitert ein über das Setting gewähltes Backend beim
-  Start, nimmt der Server `auto`, schreibt eine Warnung ins Log und zeigt einen Hinweis auf dem
-  Verwaltungs-Dashboard.
-  - Bei einem Wert aus `.env` bleibt es beim heutigen Startfehler. Wer `.env` setzt, will es
-    genau so.
-- **Neustart:** Weicht die Wahl vom laufenden Backend ab, sagt der Schritt «Gilt nach einem
+  1. `--hw`
+  2. `SLOUCHCAT_HW`, wenn die Umgebung es **ausdrücklich** setzt (`os.LookupEnv`; heute nicht
+     unterscheidbar, weil die Vorgabe `auto` ist). Dann steht «aus .env» im Assistenten.
+  3. das Setting
+  4. `auto`
+- **Scheitert ein gewähltes Backend später**, etwa nach einem Treiberwechsel:
+  - Heute ersetzt der Server ein fest gewähltes, nicht funktionierendes Backend durch den
+    Prozessor.
+  - Für einen Wert aus dem **Setting** nimmt er neu `auto`, also das beste funktionierende, und
+    zeigt einen Hinweis auf dem Verwaltungs-Dashboard.
+  - Für `--hw` und die Umgebung bleibt es beim heutigen Verhalten.
+  - Eine Neustart-Schleife gibt es in keinem Fall.
+- **Neustart (O-18):** Weicht die Wahl vom laufenden Backend ab, sagt der Schritt «Gilt nach einem
   Neustart. Slouchcat startet beim Abschliessen einmal neu.»
-  - `finishSetup` antwortet zuerst. Dann beendet sich der Server geordnet, und Docker startet ihn
-    neu (`restart: unless-stopped`, `deploy/compose.yaml:28`).
+  - `finishSetup` ruft den **bestehenden** `RestartServer` auf (ADR 0019). Der Server fährt
+    geordnet herunter und startet sich mit `syscall.Exec` selbst neu.
+  - Der Container endet nicht, die Restart-Policy spielt keine Rolle, und der Updater-Begleiter
+    (ADR 0024) sieht keinen Absturz.
+  - Antwortet `RestartServer` mit 409, weil eine Sicherung oder ein Update läuft, sagt die
+    Abschlussseite das. Der Neustart geht dann später über Verwaltung › System.
+  - Die ersten Scans aus Schritt 6 werden dabei unterbrochen und laufen nach dem Neustart weiter,
+    wie bei jedem Neustart.
   - Die Abschlussseite wartet auf `/api/v1/healthz` und macht dann weiter.
-  - Ohne Restart-Policy kommt nach 60 Sekunden der Hinweis «Container von Hand starten» (O-18).
-- **Die gleiche Wahl** kommt in die Verwaltung (Systemseite), damit das Setting nicht nur im
-  Assistenten änderbar ist.
+- **Die gleiche Wahl** kommt in die Verwaltung (Systemseite, O-19), ebenfalls mit `RestartServer`.
 - **Trickplay-Vorgabe:** ein Schalter, Vorgabe aus. Er belegt im nächsten Schritt die
   Trickplay-Felder jeder neuen Video-Bibliothek vor. Gespeichert wird er in `setup_wizard`, damit
   er einen Abbruch übersteht.
@@ -480,7 +508,8 @@ Alle Änderungen sind **additiv**, ausser dem Wegfall der öffentlichen Prüf-En
 - **`SystemInfo`:**
   - `timeZone`: die von `admin.ResolveZone` aufgelöste Zone. Sie ist auch vor dem Konto in
     `SetupStatus.system` lesbar. Das ist vertretbar, weil die Zone nichts Geheimes ist.
-  - `gpu.candidates`: je Backend `{backend, ok, reason}` aus den Proben beim Start.
+  - `gpu.candidates`: je Backend `{backend, ok}` aus den Proben beim Start, dazu `reason` nur für
+    den Eigentümer (`getSystemInfo`). Öffentlich in `SetupStatus.system` steht kein Grund.
 - **`AdminSettings` / `AdminSettingsUpdate`:**
   - `transcodeHw` (`auto`, `nvenc`, `qsv`, `vaapi`, `software`) mit `transcodeHwSource`
     (`env`/`stored`/`none`)
@@ -494,8 +523,14 @@ Alle Änderungen sind **additiv**, ausser dem Wegfall der öffentlichen Prüf-En
     praktisch nicht vor, weil eine neue Installation noch keine alte PWA kennt.
   - Wie bei früheren brechenden Fassungen (1.2.0) bleibt es eine Minor-Fassung mit Vermerk in den
     Release-Notes.
-  - Gestrichen werden auch die Einträge im Vertragstest und im Ratenlimit-Topf für
-    `/setup/roots`.
+  - Wer sie heute nutzt, wird mit umgebaut:
+    - `web/src/features/setup/SetupPage.tsx` und sein Test
+    - `web/src/features/shared/pathBrowser.ts:19-21`
+    - `web/e2e/setup.spec.ts`
+    - `internal/api/contract_access_test.go:486-489`
+    - `internal/admin/browse.go:20,54` mit dem eigenen Ratenlimit-Topf
+    - `internal/admin/setup_checks*.go`
+  - ADR 0012 («browsbare Wurzeln») wird angepasst (Abschnitt 6).
 - **Keine Migration** für Teil A. `setup_wizard` und `transcode_hw` sind Zeilen in der
   bestehenden Settings-Tabelle.
 
@@ -520,7 +555,9 @@ Alle Änderungen sind **additiv**, ausser dem Wegfall der öffentlichen Prüf-En
 - Jeder Schritt bekommt seinen **Playwright-Tastaturtest** (Regel 8): Tab-Reihenfolge Leiste →
   Inhalt → Fuss, Enter auf «Weiter», sichtbarer Fokus, keine Fokusfalle. Nach dem
   Schrittwechsel liegt der Fokus auf der Überschrift.
-- `web/e2e/setup.spec.ts` wird für den neuen Ablauf neu geschrieben.
+- `web/e2e/setup.spec.ts` wird für den neuen Ablauf neu geschrieben. Er ändert Einstellungen des
+  Eigentümers und startet den Server neu. Darum läuft er auf einer **eigenen, frischen Instanz** mit
+  eigenem Port (`E2E_PORT`) und nicht auf dem gemeinsamen e2e-Server.
 - `global-setup.ts` bleibt, wie er ist (3.4). Er ruft nur `POST /setup`.
 - Go-Tests:
   - `runSetup` mit und ohne `library`
@@ -574,7 +611,7 @@ Alle Änderungen sind **additiv**, ausser dem Wegfall der öffentlichen Prüf-En
 - Die vier `_zero`-Texte (`de.json:4131-4151`) gelten als Sonderfall für die Zahl 0 und werden in
   jeder Sprache übersetzt.
 - `knownLanguages` führt `nb` und `no` (`metadata/languages.go:22`). Welcher Code bei TMDB Texte
-  liefert, prüft Schritt 0 der Stufe 4.
+  liefert, prüft Schritt 0 der Stufe 1, weil `MetadataBase` dort gebaut wird.
 
 ### 4.2 Sprachcodes, Deutsch in zwei Varianten, Erkennung, Laden
 
@@ -667,7 +704,7 @@ gibt es keinen (O-14).
     `model.MetadataBase(ui)`:
     - `de-DE` → `de`
     - `pt-BR`, `pt-PT`, `zh-CN`, `zh-TW` bleiben
-    - `nb` → `nb` oder `no`, nach Schritt 0
+    - `nb` → `nb` oder `no`, nach Schritt 0 der Stufe 1
     - sonst der Code selbst
   - Liegt diese Sprache nicht in der wirksamen Liste, greift die bestehende Kette: Rückfallsprache,
     dann Rang. Ein französisches Profil auf einem Server mit `de → en` sieht also Deutsch, wo
@@ -872,45 +909,73 @@ streng, für die übrigen als Warnung. `task i18n:check` vor dem Release ist fü
 - **Übersetzte Sammlungsnamen und Genres** über Deutsch und Englisch hinaus: Sie bleiben
   zweisprachig (4.3).
 
-### 4.11 Teil C: Freigabeländer und Altersstufen je Land (F-12)
+### 4.11 Teil C: Freigabeländer und Altersstufen je Land (F-12, F-16, F-17)
 
 **Heute** (`metadata/ratings.go:5-37`):
-- Slouchcat liest die TMDB-Freigabe in der Reihenfolge gewähltes Land → DE → AT → CH → GB → US.
-- Es rundet sie auf die **nächsthöhere FSK-Stufe** (0/6/12/16/18). AT 14 wird zum Beispiel FSK 16.
-- Diese Stufen sind an vielen Stellen fest:
+- Slouchcat liest die TMDB-Freigabe in der Reihenfolge gewähltes Land → DE → AT → CH → GB → US und
+  rechnet sie auf eine FSK-Stufe um (0/6/12/16/18).
+- Die Umrechnung rundet **nicht immer auf**:
+  - aufgerundet: AT 14 → 16
+  - abgerundet: US PG-13 → 12, R → 16, TV-Y7 → 6
+- `fill` nimmt über alle Anbieter den **strengsten** Wert (`fill.go:33,125`). TVDB kennt nur fünf
+  Länder (`tvdb.go:56`).
+- Was in `own_rating` steht, kommt aus vielen Quellen: TMDB, TVDB, NFO, von Hand, Bibliothek, Tags,
+  Feed.
+  - Ein Anbieter überschreibt nur, wenn das Feld nicht gesperrt ist und die Quelle weder `nfo`
+    noch `manual` ist (`match.go:1104-1105`, `audiobook_write.go:365-366`, `podcast.go:503`).
+  - Die Sperre heisst in `locked_fields` `"own_rating"`.
+- `effective_rating` und `min_child_rating` schreiben **nur Trigger**:
+  - `items_rating_insert` (`00003:197`), `items_rating_update` (`00008:86`)
+  - `items_container_update` und `items_container_delete` (`00010:68,109`)
+  - Die Nachtprüfung `VerifyRatings` (`admin/maintenance.go:153-200`) wiederholt diese Regeln, nach
+    Plan 3.x («abgeleitete Freigaben nur per Trigger»).
+- Die Werte 0/6/12/16/18 sind fest an diesen Stellen:
 
 | Ort | Stelle |
 |---|---|
-| Vertrag | `Rating` mit `enum [0, 6, 12, 16, 18]`, 25 Verweise |
+| Vertrag | `Rating` `enum [0, 6, 12, 16, 18]`, 25 Verweise |
 | Go | `auth/profiles.go:25` (`ratingLevels`), `admin/admin.go:912-913` (`validRating`) |
-| Datenbank, `CHECK … IN (0, 6, 12, 16, 18)` | `profiles.max_rating` (`00002`), `accounts.max_rating` (`00022`), `invitations.max_rating` (`00007`), `items.own_rating/effective_rating/min_child_rating` (`00003`), `libraries.default_rating` (`00023`) |
-| Web | der Text «FSK {{age}}» (`de.json:704`) |
+| Datenbank, `CHECK … IN (0, 6, 12, 16, 18)` | `profiles.max_rating`, `accounts.max_rating` (dazu Tabellen-`CHECK` «Admin = 18», `00022`), `invitations.max_rating`, `items.own_rating/effective_rating/min_child_rating` (`00003`), `libraries.default_rating` (`00023`) |
+| Web | 7 «FSK»-Texte in `de.json`, `ratings`/`ratingOf` in `features/shared/choices.ts:6-27` |
+| Filter, Facetten, Sortierung nach Alter | `visibility/search.go:121`, `visibility/library.go:208,362,452`, `catalog/LibraryPage.tsx`, `discover/SearchPage.tsx` |
 
-**Neu (F-12):**
-- **Gespeichert wird das Mindestalter**, nicht mehr die gerundete FSK-Stufe. FR «10» wird 10,
-  US «PG-13» 13, JP «R15+» 15, GB «15» 15.
-- Die Sichtbarkeit vergleicht weiter `Alter des Titels ≤ Stufe des Profils`
-  (`visible_items`, `00056:33-38`).
-- **Für einen deutschen Haushalt ändert sich nichts.** Bei Profilstufen 0/6/12/16/18 ergibt der
-  Vergleich mit dem echten Alter dasselbe wie heute der Vergleich mit dem aufgerundeten Wert:
-  14 ≤ 12 ist falsch, 16 ≤ 12 auch; 14 ≤ 16 ist wahr, 16 ≤ 16 auch.
-- **Profile wählen aus den Stufen des Freigabelands.** Ein französischer Haushalt hat 0, 10, 12,
-  16 und 18. Ein 10-jähriges Kind sieht also, was in Frankreich ab 10 freigegeben ist.
-- **Reihenfolge beim Lesen:** gewähltes Land → **DE** (F-12) → AT → CH → GB → US. Hat ein Titel
-  keine Freigabe des Landes, gilt die deutsche FSK als Alter.
+**Neu**
+
+- **Gespeichert wird das Mindestalter (F-17)**, nicht mehr die gerundete FSK-Stufe, und zwar für
+  alle Länder, auch DE, AT, CH, GB und US.
+  - Beispiele: US PG-13 = 13, R = 17, TV-MA = 17, TV-14 = 14, TV-Y7 = 7. GB 15 = 15. AT 14 = 14.
+    FR «10» = 10.
+  - Freigaben ohne festes Alter bekommen einen festen Wert aus der Tabelle: US PG und TV-PG 6,
+    GB PG 6, GB 12A 12.
+  - Die Sichtbarkeit vergleicht weiter `Alter des Titels ≤ Stufe des Profils` (`visible_items`,
+    `00056:33-38`). Unbekannt bleibt `NULL` und zählt wie heute als 18 (AN-1).
+  - **Das ist strenger als heute.** In einem deutschen Haushalt sieht ein Profil «ab 12» keinen
+    PG-13-Titel mehr, ein Profil «ab 16» keinen R-Titel. Wer das will, stellt das Profil höher.
+  - Die Release-Notes der Stufe 3 sagen das deutlich, und die Verwaltung zeigt nach dem Update
+    einmal einen Hinweis.
+  - Die Obergrenze bleibt **18**. `Rating` ist im Vertrag `integer` 0–18. Administratoren haben
+    weiter 18 (`00022`), und `COALESCE(…, 18)` bleibt gültig.
+- **Profile wählen aus den Stufen des Freigabelands (F-12).** Ein französischer Haushalt hat 0, 10,
+  12, 16, 18, ein amerikanischer 0, 6, 13, 14, 17, 18.
+  - Bestehende Profile behalten ihren Wert auch nach einem Wechsel des Landes. Die Auswahl zeigt ihn
+    dann als «ab {{age}}» zusätzlich zu den Stufen des neuen Landes.
+- **Reihenfolge beim Lesen:** gewähltes Land → **DE** (F-12) → AT → CH → GB → US.
+  - Über alle Anbieter gilt wie heute der strengste Wert.
+  - TVDB bekommt alle Länder der Tabelle (`tvdbCountries`, heute fünf).
 - **Länder und Stufen.** Dies ist ein Vorschlag. Schritt 0 der Stufe 3 gleicht ihn mit TMDB
-  `/certification/movie/list` und `/certification/tv/list` ab, weil TV-Systeme oft abweichen.
+  `/certification/movie/list` und `/certification/tv/list` ab. Kino- und TV-Freigaben stehen
+  beide in der Tabelle.
 
-| Land | Stufen (Mindestalter, Bezeichnung) |
+| Land | Stufen (Mindestalter Bezeichnung) |
 |---|---|
 | DE | 0, 6, 12, 16, 18 (FSK) |
 | AT | 0, 6, 10, 12, 14, 16, 18 (JMK) |
 | CH | 0, 6, 7, 8, 10, 12, 14, 16, 18 |
-| GB | 0 U, 6 PG, 12 12A, 15, 18 (BBFC) |
-| US | 0 G/TV-Y, 6 PG/TV-PG, 13 PG-13, 14 TV-14, 17 R, 18 NC-17/TV-MA |
+| GB | 0 U, 6 PG, 12 12/12A, 15, 18 18/R18 (BBFC) |
+| US | 0 G/TV-Y/TV-G, 6 PG/TV-PG, 7 TV-Y7, 13 PG-13, 14 TV-14, 17 R/TV-MA, 18 NC-17 |
 | FR | 0 Tous publics, 10, 12, 16, 18 |
 | ES | 0 A, 7, 12, 16, 18 |
-| IT | 0 T, 6+, 14+, 18+ |
+| IT | 0 T, 6 6+, 14 14+/VM14, 18 18+/VM18 |
 | NL, BE | 0 AL, 6, 9, 12, 14, 16, 18 (Kijkwijzer) |
 | PT | 3 M/3, 6, 12, 14, 16, 18 (M/…) |
 | BR | 0 L, 10, 12, 14, 16, 18 |
@@ -925,67 +990,99 @@ streng, für die übrigen als Warnung. `task i18n:check` vor dem Release ist fü
 | RU | 0+, 6+, 12+, 16+, 18+ |
 | UA | 0, 12, 16, 18 |
 | JP | 0 G, 12 PG12, 15 R15+, 18 R18+ |
-| KR | 0 ALL, 12, 15, 18 (TV 19 → 18) |
+| KR | 0 ALL, 7 (TV), 12, 15, 18 (TV 19 → 18) |
 | TW | 0+, 6+, 12+, 15+, 18+ |
 
   China hat kein Freigabesystem. Für `zh-CN` schlägt der Assistent Deutschland vor.
 
-**Was dafür nötig ist:**
-- **Daten statt Text:** Die Stufen und Bezeichnungen je Land stehen als Tabelle in Go
-  (`metadata/ratings.go`, Nachfolger von `fskTables`). Der Server liefert sie in
-  `SessionInfo.ratingSystem` (`{country, steps: [{age, label}]}`).
-  - Wie die Sprachnamen sind das **Daten, keine Oberflächentexte**. Regel 9 bekommt die Tabelle als
-    benannte Ausnahme.
-  - Nur die Wörter um die Stufe herum («ab {{age}}», «Freigabe») kommen aus den Übersetzungen.
-- **Vertrag:**
-  - `Rating` wird `integer`, 0 bis 21.
-  - `ratingCountry` wird auf die Länder der Tabelle erweitert.
-  - neu `SessionInfo.ratingSystem`
-  - Wie bei den Sprachen fängt die Web-App ein unbekanntes Alter ab und zeigt «ab {{age}}». Diese
-    Absicherung kommt in Stufe 1 mit.
-- **Prüfung:** `ratingLevels` und `validRating` prüfen gegen die Stufen des **aktuellen**
-  Freigabelands. Bestehende Profile behalten ihren Wert auch nach einem Wechsel des Landes. Die
-  Auswahl zeigt ihn dann als «ab {{age}}» zusätzlich zu den Stufen des neuen Landes.
-- **Datenbank:**
-  - `profiles` verliert den `CHECK` auf `max_rating` schon beim Neubau in Stufe 1. Das kostet dort
-    nichts.
-  - `accounts` und `invitations` werden in Stufe 3 neu gebaut, nach derselben Anleitung wie
-    `profiles` in 4.3: Sichten und Trigger prüfen, `BEGIN`/`COMMIT`, neuer eingefrorener DB-Stand.
-  - **`items` und `libraries` werden nicht neu gebaut.** `items` ist die grösste Tabelle, mit
-    vielen Sichten, Triggern und angefügten Spalten. Stattdessen kommen neue Spalten ohne `CHECK`
-    dazu:
-    - `items`: `own_age`, `effective_age`, `min_child_age`
-    - `libraries`: `default_age`
-    - Die Migration füllt sie aus den alten Spalten. `visible_items` und alle Abfragen lesen danach
-      nur noch die neuen.
-    - Die alten Spalten bleiben unbenutzt stehen. Ein Test verbietet, sie zu lesen.
-- **Anzeige am Titel:** statt «FSK 12» die Bezeichnung des Freigabelands, also «PG-13», «-12» oder
-  «R15+». Ist das Alter keine Stufe des Landes, zeigt sie «ab {{age}}». Die Quelle steht wie heute
-  im Detail («Freigabe aus: tmdb:FR»).
-- **Wechsel des Freigabelands (F-16):** Ändert sich `metadata.rating_country`, liest Slouchcat alle
-  Freigaben neu und darf dabei auch **senken**. Das ist eine Ausnahme von K-3 («eine gespeicherte
-  Freigabe wird nie gesenkt»).
-  - **Von Hand gesetzte Freigaben** (`own_age`, ehemals `own_rating`) bleiben immer unberührt.
-  - **Damit das ohne TMDB geht**, speichert Stufe 3 alle Freigaben eines Titels je Land in einer
-    neuen Tabelle `item_certifications (item_id, country, certification)`, gefüllt beim
-    Metadaten-Abgleich. Ein Landwechsel rechnet dann nur lokal neu, ohne neue Abrufe.
-  - **Titel aus der Zeit vor Stufe 3** haben diese Zeilen noch nicht. Beim ersten Landwechsel holt
-    ein Hintergrundjob «Freigaben neu lesen» ihre Freigaben einmal von TMDB nach und hält sich an
-    die bestehenden Grenzen der Metadaten-Jobs. Bis er fertig ist, gelten die alten Werte; sie sind
-    eher zu streng, nie zu locker.
-  - **Sichtbar:** Der Speichern-Dialog der Metadaten-Einstellungen sagt vor dem Wechsel «Slouchcat
-    liest danach die Freigaben aller Titel neu. Profile können dadurch Titel sehen, die bisher
-    verborgen waren.» Der Job erscheint in der Jobliste.
-  - **Der automatische Abgleich beim Scan** senkt weiterhin nie (K-3). Nur der Landwechsel tut es.
-  - Eine neue Installation stellt das Land im Assistenten vor dem ersten Scan ein. Der Wechsel
-    betrifft dort also noch keine Titel.
-- **Offline (Regel 12):** Der Server entscheidet weiter. Offline-Pakete tragen die erlaubten Titel
-  wie heute, und der Client vergleicht keine Altersstufen.
-- **Tests:**
-  - Je Land die Tabelle gegen Beispiele aus TMDB.
-  - Die Gleichwertigkeit für deutsche Profile mit allen Stufen gegen alle bisherigen Werte. Die
-    `vistest`-Bausteine bekommen dafür einen französischen Haushalt.
-  - Migration mit eingefrorenem DB-Stand.
+**Datenbank: die Spaltennamen bleiben (Review 2, B2-1).**
+- Die Werte behalten ihre Spalten: `own_rating`, `effective_rating`, `min_child_rating`,
+  `max_rating`, `default_rating`. Nur der `CHECK` fällt, und die Bedeutung wird «Mindestalter».
+  - So bleiben sqlc-Abfragen, Go-Code, Trigger-Logik, `VerifyRatings` und die Sperre
+    `"own_rating"` unverändert.
+  - Es gibt 38 Verweise in `queries/` und 199 im Go-Code, dazu 86 Abfragen mit `SELECT *`. Neue
+    Spalten liessen sich darum nicht sauber durchsetzen.
+- **`items` und `libraries`, ohne Neubau.** SQLite in der mitgelieferten Fassung
+  (`modernc.org/sqlite v1.60.1`) kann `DROP COLUMN` und `RENAME COLUMN`. Je Spalte:
+  1. Temporäre Spalte ohne `CHECK` anfügen und Werte kopieren.
+  2. Betroffene Trigger und `visible_items` löschen:
+     - `items_rating_insert`, `items_rating_update`, `items_container_update`,
+       `items_container_delete`
+     - alle Sichten, die die Spalte nennen
+  3. Alte Spalte löschen (ihr Spalten-`CHECK` geht mit) und temporäre umbenennen.
+  4. Trigger und Sicht unverändert neu anlegen.
+  5. Rahmen der Vorlage: `NO TRANSACTION`, `foreign_keys=OFF`, `BEGIN`, …, `foreign_key_check`,
+     `COMMIT`, `foreign_keys=ON`.
+- **`accounts` und `invitations` werden neu gebaut**, weil `accounts` einen Tabellen-`CHECK` hat.
+  Dazu wird der Trigger `activity_events_account_deleted` (`00031`) neu angelegt.
+- **`profiles`** verliert den `CHECK` auf `max_rating` schon beim Neubau in Stufe 1.
+- Tests:
+  - `triggers_test` mit Werten wie 13, 14 und 17
+  - neuer eingefrorener DB-Stand
+  - `VerifyRatings` mit Werten ausserhalb der FSK-Stufen
+
+**Freigaben je Land speichern.**
+- Neue Tabelle `item_certifications (item_id, provider, country, certification)`. Sie wird beim
+  Metadaten-Abgleich gefüllt, nur für die Länder der Tabelle oben.
+- Mit `provider` lässt sich «strengster Wert über alle Anbieter» lokal nachrechnen.
+- Lesen und schreiben darf die Tabelle nur das Paket `metadata`. `itemsaccess` erfasst sie nicht,
+  darum hält ein eigener depguard-Eintrag das fest.
+
+**Einmal neu lesen nach dem Update (F-17)** und **bei jedem Wechsel des Freigabelands (F-16)**:
+- **Was neu gelesen wird:** nur Werte aus `tmdb:*` und `tvdb:*` **ohne Sperre**. NFO, von Hand,
+  Bibliothek, Tags und Feed bleiben unberührt (Review 2, M2-1).
+- **Wie:**
+  - Gibt es Zeilen in `item_certifications`, rechnet der Job lokal neu.
+  - Sonst holt ein Hintergrundjob «Freigaben neu lesen» die Freigaben einmal von allen Anbietern,
+    die die Bibliothek kennt, nicht nur von TMDB. Er hält sich an die Grenzen der Metadaten-Jobs.
+- **Dürfen senken und erhöhen:** Das ist eine ausdrückliche Ausnahme von Entscheid 13 und 16
+  (Abschnitt 6). Der automatische Abgleich beim Scan senkt weiterhin nie.
+- **Folgen je geändertem Titel:** wie bei jeder Änderung der Freigabe heute die Prüfung der
+  Downloads (`allowed_profile_ids`, Regel 12) und das Leeren des Startseiten-Caches
+  (`match.go:957`). Bei vielen Titeln läuft das gebündelt im Job.
+- **Bis der Job fertig ist**, gelten die alten Werte. Sie können strenger **oder** lockerer sein,
+  zum Beispiel bei einem Wechsel von CH auf DE oder bei US-Titeln. Die Verwaltung zeigt darum einen
+  Fortschritt mit dem Hinweis «Freigaben werden neu gelesen».
+- **Ein Landwechsel ohne Titel** zeigt keinen Dialog und startet keinen Job. Das ist der Fall im
+  Assistenten vor dem ersten Scan.
+- Vor einem Landwechsel mit Titeln sagt der Speichern-Dialog: «Slouchcat liest danach die
+  Freigaben aller Titel neu. Profile können dadurch Titel sehen, die bisher verborgen waren, oder
+  umgekehrt.»
+
+**Daten statt Text**
+- Stufen und Bezeichnungen je Land stehen als Tabelle in Go (`metadata/ratings.go`, Nachfolger
+  von `fskTables`). Der Server liefert sie in `SessionInfo.ratingSystem`
+  (`{country, steps: [{age, label}]}`).
+- Regel 9 bekommt die Tabelle als benannte Ausnahme. Nur die Wörter um die Stufe herum («ab
+  {{age}}», «Freigabe») kommen aus den Übersetzungen.
+- Die 7 «FSK»-Texte und `choices.ts` werden darauf umgestellt.
+
+**Vertrag**
+- `Rating` wird `integer` 0–18.
+- `ratingCountry` wird auf die Länder der Tabelle erweitert.
+- neu `SessionInfo.ratingSystem`
+- Die Web-App fängt ein unbekanntes Alter ab und zeigt «ab {{age}}». Diese Absicherung kommt in
+  Stufe 1 mit.
+
+**Prüfung:** `ratingLevels` und `validRating` prüfen gegen die Stufen des **aktuellen**
+Freigabelands, plus die Werte, die Profile schon haben.
+
+**Anzeige am Titel:** statt «FSK 12» die Bezeichnung des Freigabelands («PG-13», «-12», «R15+»).
+- Ist das Alter keine Stufe des Landes, steht «ab {{age}}».
+- Die Quelle steht wie heute im Detail.
+- **Filter, Facetten und Sortierung nach Alter** zeigen die Stufen des Landes. Ein Filter «bis
+  12» heisst «Alter ≤ 12».
+
+**Offline (Regel 12):** Der Server entscheidet weiter. Offline-Pakete tragen die erlaubten Titel,
+und der Client vergleicht keine Altersstufen.
+
+**Tests**
+- Je Land die Tabelle gegen Beispiele aus TMDB.
+- `vistest` mit einem deutschen und einem französischen Haushalt.
+- Strenger-Fall: ein PG-13-Titel ist für «ab 12» unsichtbar, für «ab 16» sichtbar.
+- Landwechsel senkt nur `tmdb:*`/`tvdb:*` ohne Sperre.
+- Der bisherige Test «Land senkt keine gespeicherte Stufe» (Konzept 10, 6.6) wird umgedreht.
+- Migration mit eingefrorenem DB-Stand.
 
 ---
 
@@ -997,12 +1094,12 @@ streng, für die übrigen als Warnung. `task i18n:check` vor dem Release ist fü
 | Abgeschnittene Texte in langen Sprachen | unlesbare Knöpfe | Pseudo-Sprache `en-XA`, Bildprüfung je Sprache |
 | Neubau der Tabelle `profiles` | Fremdschlüssel, Sicht und Trigger brechen | Schritte in 4.3, neuer eingefrorener DB-Stand, `foreign_key_check`, Sicherung vor Migration (Regel 5) |
 | Alte PWA bekommt einen neuen Sprachcode | Absturz beim Anwenden der Sitzung | Absicherung in `session.ts` ein Release vor jedem neuen Code (4.3) |
-| Gewählter Grafikchip geht nach einem Treiberwechsel nicht mehr | Neustart-Schleife | gespeichertes Backend fällt auf `auto` zurück, Hinweis im Dashboard (Schritt 5) |
-| Container ohne Restart-Policy | Slouchcat bleibt nach «Abschliessen» aus | nach 60 Sekunden Hinweis «von Hand starten» (O-18) |
+| Gewählter Grafikchip geht nach einem Treiberwechsel nicht mehr | langsameres Umwandeln | gespeichertes Backend fällt auf `auto` zurück, Hinweis im Dashboard (Schritt 5) |
+| Strengere Freigaben nach Stufe 3 (F-17) | Kinder- und Jugendprofile sehen weniger US-Titel | Release-Notes, Hinweis in der Verwaltung, Profile höher stellbar |
 | Release-Ablauf wird länger | «Übersetzungen nachziehen» kostet bei jedem Release Zeit | Nur neue Texte; typisch 10 bis 50 je Release |
 | Weblate-PR ändert einen Platzhalter | Laufzeitfehler | Weblate-Prüfung «Platzhalter» und `locales.test.ts` in der CI |
-| Landwechsel senkt Freigaben (F-16) | ein Kind sieht danach Titel, die vorher verborgen waren | Hinweis vor dem Speichern; von Hand gesetzte Freigaben bleiben; Test je Land für die Tabelle |
-| Neue Spalten für das Alter in `items` (Teil C) | eine Abfrage liest noch die alte Spalte und filtert falsch | Test verbietet die alten Spalten; `vistest` mit französischem Haushalt; Gleichwertigkeit für deutsche Profile |
+| Landwechsel ändert Freigaben (F-16) | bis der Job fertig ist, gelten alte Werte, teils lockerer | Fortschritt und Hinweis in der Verwaltung; nur `tmdb:*`/`tvdb:*` ohne Sperre |
+| Spaltenumbau in `items` (Teil C) | Trigger oder Sicht fehlen danach | Spaltennamen bleiben, Trigger und Sicht werden unverändert neu angelegt, `triggers_test`, eingefrorener DB-Stand |
 | Metadaten ohne Deutsch (F-7) | Code, der stillschweigend eine `de`-Zeile erwartet, zeigt Leeres | Inventur in Schritt 0 der Stufe 1, Tests mit `fr`-Profil auf `fr → en`-Server |
 
 ---
@@ -1017,12 +1114,17 @@ streng, für die übrigen als Warnung. `task i18n:check` vor dem Release ist fü
   - **F-9** («Serverliste muss `de` enthalten»): fällt nach F-7.
   - Dazu neu: Rückfallsprache `de`/`en` je Oberflächensprache und `model.MetadataBase` (4.3).
   - Der Rest von ADR 0018 bleibt.
-- **ADR 0034 (neu), Teil C:** ändert Entscheid 6 und AN-8. Statt der FSK-Rundung wird das
-  Mindestalter gespeichert, und die Profile wählen aus den Stufen des Freigabelands. K-3 («eine
-  gespeicherte Freigabe wird nie gesenkt») bekommt eine Ausnahme: Ein Wechsel des Freigabelands
-  liest alle Freigaben neu und darf senken (F-16). Von Hand gesetzte Freigaben bleiben davon
-  ausgenommen.
-- **ADR 0001** nennt `{de,en}.json`. Der Satz wird auf `web/src/locales/*.json` geändert.
+- **ADR 0034 (neu), Teil C:**
+  - ändert Entscheid 6 und AN-8: Mindestalter statt FSK-Stufe, für alle Länder (F-17), und
+    Profilstufen des Freigabelands
+  - ändert **Entscheid 13** («Freigaben nie gesenkt») und **Entscheid 16** (Nachtrag zu Entscheid 6,
+    Konzept 10 Abschnitt 6.6): Das einmalige Neulesen nach Stufe 3 und jeder Wechsel des
+    Freigabelands dürfen Werte aus `tmdb:*`/`tvdb:*` ohne Sperre senken (F-16). Der Scan senkt nie.
+  - Spec K-3 («ein Profil sieht Inhalte über seiner Altersstufe nirgends») bleibt unverändert
+    gültig.
+- **ADR 0012** («browsbare Wurzeln»): Die Zeilen zu `/setup/roots` fallen weg (F-14). Die Wurzeln
+  sieht der Eigentümer über den Ordner-Browser.
+- **ADR 0001**- **ADR 0001** nennt `{de,en}.json`. Der Satz wird auf `web/src/locales/*.json` geändert.
 - **`CLAUDE.md`:**
   - Regel 7: `owner` in der Liste der Sichtbarkeiten.
   - Regel 9: Texte nur aus `web/src/locales/*.json`. Benannte Ausnahmen sind
@@ -1049,7 +1151,7 @@ Bau-Reihenfolge nummeriert.
 |---|---|---|---|---|
 | **1 «Sprachgerüst»** | 4.2 bis 4.5 und 4.9 ohne neue Sprachen: Absicherung in `session.ts` für Sprache **und Alter**, Laden der Kette, `languages.ts`, `intlLocale` (neue Storybook-Bilder), Tabellen-Neubau `profiles` (ohne `CHECK` auf `language` und `max_rating`), `model.UILanguages`, `MetadataBase` und Rückfallsprache, F-9 fällt, `initialPrefs` normalisiert, Erkennung, Server-Texte als JSON, `:lang()`-Schriften, `en-XA`, neue Tests, Sprachknopf auf `/login`. `de-DE.json` wird erstellt, aber noch nicht wählbar. | ja (F-9-Lockerung) | ja | Zahlen in Schweizer Format; Metadaten-Liste ohne Deutsch möglich |
 | **2 «Assistent»** | Teil A ganz, mit den fünf Freigabeländern von heute. Dazu `de-DE` wählbar (Vertragsliste `[de, de-DE, en]`), Grafikchip-Wahl auch in der Verwaltung (O-19), Wegfall der öffentlichen Prüf-Endpunkte (F-14), INSTALLATION.md. | ja (brechend, F-14) | nein | neuer Assistent auf einer frischen Testinstanz; Deutsch (Deutschland) |
-| **3 «Freigabeländer»** | Teil C (4.11): Mindestalter statt FSK-Stufe, Ländertabelle, `ratingSystem`, Neubau `accounts` und `invitations`, neue Alter-Spalten in `items` und `libraries`, Tabelle `item_certifications`, Neuberechnung beim Landwechsel mit Job für ältere Titel (F-16), Anzeige am Titel, Assistent mit allen Ländern. | ja | ja | Freigabeland Frankreich mit Stufe 10 im Profil |
+| **3 «Freigabeländer»** | Teil C (4.11): Mindestalter für alle Länder (F-17), Ländertabelle, `ratingSystem`, Spaltenumbau `items`/`libraries` ohne Neubau, Neubau `accounts`/`invitations`, Tabelle `item_certifications`, TVDB-Länder, Job «Freigaben neu lesen» (einmal nach dem Update und bei jedem Landwechsel), Filter und Anzeige nach Land, Assistent mit allen Ländern. | ja | ja | Freigabeland Frankreich mit Stufe 10; PG-13 jetzt «ab 13» |
 | **4 «Übersetzungen»** | 4.6: Glossar, Stilregeln, Kontextskript, dann 20 Sprachen in vier Gruppen (fr/es/it/nl/pt-BR · pt-PT/pl/cs/hu/tr · sv/da/nb/fi · ru/uk/ja/ko/zh-CN/zh-TW), je Gruppe Übersetzen, Prüfen, Bildprüfung. **Ein Release für alle 20** (F-4); die Gruppen sind nur Arbeitspakete. Vertragsliste auf 23. | ja (Liste) | nein | 23 Sprachen wählbar |
 | **5 «Weblate»** | 4.7 und 4.8: Weblate-Projekt (Konto durch Marco), Komponenten, `docs/i18n/README.md`, Plakette, Release-Schritt «Übersetzungen nachziehen», `task i18n:status`/`i18n:check`. | nein | nein | Mitarbeit von aussen möglich |
 
@@ -1092,11 +1194,13 @@ in Abschnitt 1.
 | **O-15** | Metadaten-Vorschlag | **Sprache → Englisch** (Empfehlung). |
 | **O-16** | Rechts nach links | **Später, eigenes Konzept** (Empfehlung). |
 | **O-17** | Einrichtungs-Token | **Nein** (Empfehlung). |
-| **O-18** | Neustart nach Grafikchip-Wahl | **Server startet sich selbst neu** (Empfehlung). |
+| **O-18** | Neustart nach Grafikchip-Wahl | **Server startet sich selbst neu** (Empfehlung). Seit Fassung 4 über den bestehenden `RestartServer` (Review 2, M2-5). |
 | **O-19** | Grafikchip-Wahl in der Verwaltung | **Ja** (Empfehlung). |
 | **O-20** | Gespeicherte Freigaben nach einem Wechsel des Freigabelands (neu in Fassung 3, aus F-12) | **Automatisch beim Landwechsel neu lesen, auch senken; von Hand gesetzte bleiben** (F-16, abweichend von der Empfehlung «nur als Aktion»). |
 
-## 9. Kritiker-Review (Fassung 1 → Fassung 2)
+## 9. Kritiker-Reviews
+
+### 9.1 Review 1 (Fassung 1 → Fassung 2)
 
 Kritiker (oh-my-claudecode:critic) am 14. November 2026 gegen `b12877cb`: **REVISE**, 2 Blocker,
 11 Major, 16 Minor. Alles ist eingearbeitet.
@@ -1136,12 +1240,48 @@ Kritiker (oh-my-claudecode:critic) am 14. November 2026 gegen `b12877cb`: **REVI
 
 ---
 
+### 9.2 Review 2 (Fassung 3 → Fassung 4)
+
+Kritiker (oh-my-claudecode:critic) am 14. November 2026 gegen `fe3eeae2`: **REVISE**, 2 Blocker,
+6 Major, 11 Minor.
+- Teil A und Teil B halten. Die Korrekturen aus Review 1 sind am Code bestätigt; zusätzlich
+  gefunden wurde der Trigger `activity_events_account_deleted`.
+- Teil C und F-10 beruhten auf falschen Annahmen über den Code. Alles ist eingearbeitet; zu B2-2 hat
+  Marco F-17 entschieden.
+
+| Befund | Kern | Eingearbeitet in |
+|---|---|---|
+| B2-1 | Altersfelder schreiben nur Trigger; neue Spalten würden nie gepflegt; Umfang (38/199/86 Stellen, Sperrschlüssel) | 4.11 «Spaltennamen bleiben», `DROP`/`RENAME COLUMN` |
+| B2-2 | «Für DE ändert sich nichts» falsch: US PG-13 → 12, R → 16 sind abgerundet | F-17 (Marco: echtes Mindestalter überall), 4.11, Risiken |
+| M2-1 | `own_rating` ist nicht «von Hand» | 4.11 nur `tmdb:*`/`tvdb:*` ohne Sperre |
+| M2-2 | `item_certifications` ohne Anbieter; TVDB nur 5 Länder; Nachholen nur TMDB | 4.11 Spalte `provider`, TVDB-Länder, alle Anbieter |
+| M2-3 | «nie zu locker» falsch; Downloads und Startseiten-Cache | 4.11 Folgen je Titel, Fortschritt |
+| M2-4 | K-3 falsch zitiert; Entscheide 13 und 16 | Abschnitt 6 |
+| M2-5 | Selbst-Neustart gibt es schon (`RestartServer`, `syscall.Exec`) | Schritt 5, O-18, Risiken |
+| M2-6 | Proben: gescheitertes Backend → Prozessor, auto hört beim ersten auf, `--hw` | 2.2, Schritt 5, 3.5 |
+| m2-1 | neun statt acht Karten | Schritt 4 |
+| m2-2 | Telegram-Verbindung unter Einstellungen | Schritt 4 |
+| m2-3 | Push braucht HTTPS; VAPID bei erstem Gebrauch | Schritt 4 |
+| m2-4 | Nutzer der entfernten Endpunkte, ADR 0012, öffentliche Gründe | 3.1, 3.5, 6 |
+| m2-5 | `Rating` bis 21 kollidiert mit Admin = 18 | 4.11 Obergrenze 18 |
+| m2-6 | Tabelle: US TV-Y7/TV-G/TV-MA, KR 7, IT VM14/VM18 | 4.11 Tabelle, Mockup |
+| m2-7 | Filter, Facetten, Sortierung; 7 «FSK»-Texte; `choices.ts` | 4.11 |
+| m2-8 | 00060 auf K21; `nb`/`no` in Stufe 1 | Kopf, 4.1, 4.3 |
+| m2-9 | Mockup: `de-CH`, Weiterleitung, Proben | Mockup Version 6 |
+| m2-10 | `setup.spec.ts` braucht eigene Instanz | 3.6 |
+| m2-11 | kein Dialog/Job ohne Titel | 4.11 |
+
 ## Anhang A: Mockup
 
 - Klickbarer Prototyp: `docs/planning/mockups/22-ersteinrichtung/prototyp.html`. Gleich als
   Artefakt: https://claude.ai/artifact/5cRAoZpb7Th38TABdVaqzr
 - Drei Varianten zum Umschalten. **Gewählt ist A** (F-1). B und C bleiben zum Vergleich.
-- Ab Version 5 folgt Variante A Fassung 3:
+- Ab Version 6 folgt Variante A Fassung 4:
+  - Sprachcode `de` statt `de-CH`
+  - Grafikchip mit Proben aller Backends
+  - echte Mindestalter in der Freigabetabelle
+  - Hinweis zur Weiterleitung
+- Ab Version 5 folgte Variante A Fassung 3:
   - acht Dienste mit «Empfohlen»/«Optional»
   - Freigabeländer mit Stufen je Land
   - Weiterleitung bei jedem Anmelden
