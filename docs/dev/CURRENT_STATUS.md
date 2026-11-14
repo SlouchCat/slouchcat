@@ -1,11 +1,13 @@
 # Aktueller Stand
 
-## Release 1.33.0: Konzept 21 Stufen 4 bis 6 (14. November 2026, PR offen)
+## Release 1.33.0: Konzept 21 Stufen 4 bis 6 (15. November 2026, veröffentlicht)
 
 Die Stufen 4 bis 6 von `docs/planning/21-sammlung.md` auf **einem** Zweig `claude/k21-stufen4-6`, **ein** PR
 und **ein** Release **1.33.0** (Entscheid vom 14. November 2026, Frage 28), Versionsstellen im selben PR.
 Vertrag **1.33.0** (additiv), Migrationen **00058** bis **00060**, eingefrorene Stände
-`personenseite.sql`, `meine-medien.sql`, `sammlungen.sql`. Nicht gemergt, nicht getaggt.
+`personenseite.sql`, `meine-medien.sql`, `sammlungen.sql`. PR #160 gemergt (`fb325aa1`), Tag `v1.33.0`
+(Release-Lauf 43654228987 grün). CT 190 läuft auf 1.33.0. **Konzept 21 ist damit gebaut**; offen bleiben
+KinoCheck (O-6) und die Abnahme auf CT 190.
 
 | Stufe | Inhalt | Migration |
 |---|---|---|
@@ -16,9 +18,10 @@ Vertrag **1.33.0** (additiv), Migrationen **00058** bis **00060**, eingefrorene 
 - **Beim ersten Start auf CT 190:** `people.details` fragt TMDB für rund 20 800 Personen ab (etwa 30 Minuten
   oder länger), alle Porträts werden in `w300` neu geladen, danach die Beschreibungen der Sammlungen.
 - **Messung:** `docs/perf/21-sammlungen.md` (alle 333 Sammlungen in einer Antwort, 7,4 ms lokal).
-- **Offen:** Abnahme auf CT 190 durch Marco; Messungen dort.
+- **Offen:** Abnahme auf CT 190 durch Marco (Dragon Ball Z S02 «Intro und Abspann erkennen», erster Lauf
+  `people.details`); Messungen dort.
 
-## Release 1.32.0: Konzept 21 Stufen 1 bis 3 (14. November 2026)
+## Release 1.32.0: Konzept 21 Stufen 1 bis 3 (14. November 2026, veröffentlicht: PR #158 `46d41072`, Tag `v1.32.0`, Lauf 43638374958)
 
 Die Stufen 1 bis 3 von `docs/planning/21-sammlung.md` gehen zusammen als **ein** Release **1.32.0**
 (Entscheid vom 14. November 2026, Entscheidungsprotokoll Frage 28): Stufe 1 PR #155, Stufe 3 PR #156,
