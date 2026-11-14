@@ -257,6 +257,8 @@ interface SpatialGroupProps {
    */
   ordered?: boolean;
   as?: 'div' | 'ul' | 'nav' | 'section';
+  /** For `aria-controls` of a button that changes the group (the season wall's fold button). */
+  id?: string;
   'aria-label'?: string;
   'aria-labelledby'?: string;
   /** -1 keeps a scrolling group out of the Tab order (Firefox makes scroll boxes Tab stops). */

@@ -226,6 +226,29 @@
   left: var(--sc-space-2);
 }
 
+/*
+ * A pen that shows only while the pointer is on the cell or the focus is in it (the season wall,
+ * concept 21 P-6). Screens without hover show it always: nothing else would reveal it there.
+ * Hidden by opacity only, so it stays in the Tab order and shows with its focus.
+ */
+.toolOnHover {
+  transition: opacity var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
+}
+
+@media (hover: hover) {
+  .toolOnHover {
+    opacity: 0;
+  }
+
+  .cell:hover .toolOnHover {
+    opacity: 1;
+  }
+}
+
+.cell:focus-within .toolOnHover {
+  opacity: 1;
+}
+
 /* The check mark «gesehen» over the top right of the cover (concept 20 P-5). */
 .check {
   position: absolute;

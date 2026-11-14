@@ -1,13 +1,13 @@
+/* The card is as wide as its place in the row (RowList variant="people": size.portrait.*). */
 .card {
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-1);
-  align-items: center;
+  align-items: stretch;
   width: 100%;
-  padding: var(--sc-space-3) var(--sc-space-2);
   border-radius: var(--sc-radius-lg);
   color: var(--sc-color-text-secondary);
-  text-align: center;
+  text-align: start;
   text-decoration: none;
   outline-offset: var(--sc-focus-ring-offset);
   transition:
@@ -16,9 +16,30 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* The 2:3 portrait, or the initial on the same ground the round Avatar uses. */
 .portrait {
-  display: inline-flex;
-  margin-bottom: var(--sc-space-2);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  margin-bottom: var(--sc-space-1);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-3);
+  color: var(--sc-color-text-primary);
+  font-size: var(--sc-font-size-3xl);
+  font-weight: var(--sc-font-weight-bold);
+  line-height: 1;
+  aspect-ratio: 2 / 3;
+  transition:
+    background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+/* Cut towards the face: portraits keep the head in their upper part. */
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
 }
 
 .name {
@@ -29,10 +50,17 @@
   overflow-wrap: anywhere;
 }
 
+/* At most two lines of the role. */
 .caption {
+  display: -webkit-box;
+  overflow: hidden;
   color: var(--sc-color-text-muted);
   font-size: var(--sc-font-size-xs);
+  line-height: var(--sc-font-line-height-snug);
   overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 @media (hover: hover) {
@@ -46,6 +74,6 @@
 }
 
 .card:focus-visible .portrait {
-  --avatar-bg: var(--sc-accent);
-  --avatar-fg: var(--sc-on-accent);
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
 }

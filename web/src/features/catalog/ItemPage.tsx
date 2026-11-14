@@ -372,7 +372,7 @@ function Cast({ item }: { item: ItemDetail }) {
   const cast = item.cast ?? [];
   if (cast.length === 0) return null;
   return (
-    <Row title={t('item.cast.title')} focusKey="detail-cast">
+    <Row title={t('item.cast.title')} focusKey="detail-cast" variant="people">
       {cast.map((member) => (
         <CastCard
           key={`${member.personId}-${member.role}`}
@@ -628,7 +628,10 @@ function ItemView({ itemId }: { itemId: string }) {
             <SeasonShelf seasons={item.seasons ?? []} nextUp={item.nextUp} />
           )}
           {item.kind === 'season' && (
-            <section className={styles.block} aria-labelledby="item-episodes-heading">
+            <section
+              className={`${styles.block} ${styles.wide}`}
+              aria-labelledby="item-episodes-heading"
+            >
               <h2 id="item-episodes-heading" className={styles.sectionTitle}>
                 {t('item.episodes.title')}
               </h2>

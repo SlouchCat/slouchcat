@@ -4,7 +4,7 @@ import { Row } from './Row';
 import { art } from './stories/fixtures';
 
 const narrow: Decorator = (Story) => (
-  <div style={{ width: 'var(--sc-size-poster-md)', padding: 'var(--sc-space-6)' }}>
+  <div style={{ width: 'var(--sc-size-portrait-md)', padding: 'var(--sc-space-6)' }}>
     <Story />
   </div>
 );
@@ -25,12 +25,18 @@ export const WithPortrait: Story = { decorators: [narrow], args: { imageUrl: art
 
 export const Focused: Story = { decorators: [narrow], tags: ['press:Tab'] };
 
-/** The cast row of a detail page. */
+/** A long role stops after two lines. */
+export const LongRole: Story = {
+  decorators: [narrow],
+  args: { imageUrl: art.posterDusk, caption: 'als Ellen Ripley, Warrant Officer der Nostromo' },
+};
+
+/** The cast row of a detail page: 2:3 portraits, one without a picture (concept 21 P-7). */
 export const InRow: Story = {
   parameters: { layout: 'fullscreen' },
   render: () => (
     <div style={{ paddingTop: 'var(--sc-space-6)' }}>
-      <Row title="Besetzung">
+      <Row title="Besetzung" variant="people">
         <CastCard
           href="#"
           name="Sigourney Weaver"

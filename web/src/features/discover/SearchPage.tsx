@@ -307,6 +307,7 @@ export function SearchPage() {
               <div className={styles.bleed}>
                 <RowList
                   focusKey="search-people"
+                  variant="people"
                   aria-label={t('search.sections.people')}
                   arrows="always"
                 >
