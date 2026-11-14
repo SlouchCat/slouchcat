@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { itemPath, SHOW_TITLE } from './catalog';
 import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
+import { episodeIds } from './playback';
 
 // The episode page (C-2): code and series above the title, play, "Nächste Folge", "Zur Serie".
 
@@ -15,14 +16,8 @@ const next = (page: Page) => page.getByRole('link', { name: /^Nächste Folge/ })
 test.beforeEach(async ({ page }) => {
   if (!firstEpisode) {
     series = await itemPath(page, SHOW_TITLE);
-    await page.goto(series);
-    // «Details» of the first episode: the row itself plays it (concept 20 P-4).
-    const card = page
-      .getByRole('list', { name: 'Folgen' })
-      .getByRole('link', { name: /^Details: / })
-      .first();
-    await expect(card).toBeVisible();
-    firstEpisode = (await card.getAttribute('href')) ?? '';
+    // The page of the first episode of Season 1.
+    firstEpisode = `/items/${(await episodeIds(page.request, series.split('/').pop() ?? ''))[0]}`;
   }
   await page.goto('/');
   await page.goto(firstEpisode);

@@ -145,6 +145,15 @@ export const WithToolFocused: Story = {
   tags: ['press:Tab+Tab'],
 };
 
+/** The pen of the season wall (concept 21 P-6): hidden until the pointer or the focus comes. */
+export const WithToolOnHover: Story = { args: { ...WithTool.args, toolOnHover: true } };
+
+/** The same card focused: the pen shows. */
+export const WithToolOnHoverFocused: Story = {
+  args: { ...WithTool.args, toolOnHover: true },
+  tags: ['press:Tab'],
+};
+
 /** The watchlist button of a title not marked yet, as `CoverWatchlist` draws it. */
 const unmarked = (
   <Button

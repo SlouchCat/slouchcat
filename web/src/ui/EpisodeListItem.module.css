@@ -1,47 +1,129 @@
-/* The row: the play link (still, text, runtime), «Details» and the check at the far right. */
+/*
+ * One episode of the compact list (concept 21 P-6, variant C): the line (a button and the check
+ * beside it) and, in an open row, the panel under it. The list draws the rules between the rows.
+ */
 .row {
   --sc-item-accent: initial;
 
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: var(--sc-space-4);
-  align-items: center;
-  padding: var(--sc-space-2);
-  border-radius: var(--sc-radius-lg);
+  border-radius: var(--sc-radius-md);
   transition: background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
 }
 
-.row:focus-within {
+.open {
   background-color: var(--sc-color-surface-1);
 }
 
-/* The episode the big button plays. */
-.current {
-  background-color: var(--sc-color-surface-1);
-  outline: 1px solid var(--sc-color-border-subtle);
-}
-
-/* Still and text are one link that starts the episode (concept 20 P-4). */
-.link {
+.line {
   display: grid;
-  grid-template-columns: minmax(7rem, 14rem) minmax(0, 1fr) auto;
-  gap: var(--sc-space-5);
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--sc-space-2);
+  align-items: center;
+  padding-inline-end: var(--sc-space-2);
+}
+
+/* Number, title, one line of text and the runtime: one button that opens the row. */
+.toggle {
+  display: grid;
+  grid-template-columns: 3rem minmax(10rem, 22rem) minmax(0, 1fr) 4.5rem;
+  gap: var(--sc-space-4);
   align-items: center;
   min-width: 0;
+  min-height: var(--sc-space-12);
+  padding: var(--sc-space-2);
+  border: 0;
   border-radius: var(--sc-radius-md);
+  background: none;
   color: inherit;
-  text-decoration: none;
-  outline-offset: var(--sc-focus-ring-offset);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  outline-offset: calc(-1 * var(--sc-focus-ring-width));
   -webkit-tap-highlight-color: transparent;
+}
+
+.number {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-lg);
+  font-weight: var(--sc-font-weight-semibold);
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+/* "Als Nächstes" / "Weiterschauen" under the title. */
+.highlight {
+  color: var(--sc-accent);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
+}
+
+.summary {
+  overflow: hidden;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.caption {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  text-align: end;
+  white-space: nowrap;
+}
+
+/* The check at the far right: WatchedToggle, or the display without it. */
+.mark {
+  display: inline-grid;
+  place-items: center;
+  min-width: var(--sc-space-6);
+}
+
+.check {
+  display: inline-grid;
+  place-items: center;
+  width: var(--sc-space-6);
+  height: var(--sc-space-6);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-state-success);
+  color: var(--sc-color-bg-base);
+}
+
+.empty {
+  border: 1.5px solid var(--sc-color-text-muted);
+  background-color: transparent;
+}
+
+/* The open row: the still beside the code, a longer text and the actions. */
+.panel {
+  display: grid;
+  grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+  gap: var(--sc-space-5);
+  padding: var(--sc-space-1) var(--sc-space-4) var(--sc-space-4)
+    calc(3rem + var(--sc-space-4) + var(--sc-space-2));
 }
 
 .frame {
   position: relative;
   display: block;
   overflow: hidden;
-  aspect-ratio: 16 / 9;
   border-radius: var(--sc-radius-md);
-  background-color: var(--sc-color-surface-1);
+  background-color: var(--sc-color-surface-2);
+  aspect-ratio: 16 / 9;
 }
 
 /* Without a still the frame carries a tint of the accent. */
@@ -60,32 +142,6 @@
   object-fit: cover;
 }
 
-/* The round play button in the middle of the still; in the accent while pointed at or focused. */
-.play {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  display: grid;
-  place-items: center;
-  width: var(--sc-control-height);
-  height: var(--sc-control-height);
-  border: 2px solid var(--sc-color-text-primary);
-  border-radius: var(--sc-radius-full);
-  background-color: var(--sc-color-bg-overlay);
-  color: var(--sc-color-text-primary);
-  transform: translate(-50%, -50%);
-  transition:
-    background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
-    border-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
-    color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
-}
-
-.link:focus-visible .play {
-  border-color: var(--sc-accent);
-  background-color: var(--sc-accent);
-  color: var(--sc-on-accent);
-}
-
 .progress {
   position: absolute;
   right: var(--sc-space-2);
@@ -93,114 +149,66 @@
   left: var(--sc-space-2);
 }
 
-.text {
+.body {
   display: flex;
   flex-direction: column;
-  gap: var(--sc-space-1);
+  gap: var(--sc-space-2);
+  align-items: flex-start;
   min-width: 0;
 }
 
 .code {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 var(--sc-space-3);
   color: var(--sc-color-text-muted);
   font-size: var(--sc-font-size-xs);
   font-weight: var(--sc-font-weight-semibold);
   letter-spacing: var(--sc-font-letter-spacing-caps);
 }
 
-.highlight {
-  color: var(--sc-accent);
-  text-transform: uppercase;
-}
-
-.title {
-  font-size: var(--sc-font-size-md);
-  font-weight: var(--sc-font-weight-semibold);
-  line-height: var(--sc-font-line-height-snug);
-}
-
 .overview {
   display: -webkit-box;
   overflow: hidden;
+  max-width: 65ch;
+  margin: 0;
   color: var(--sc-color-text-secondary);
   font-size: var(--sc-font-size-sm);
   line-height: var(--sc-font-line-height-normal);
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
 }
 
-.caption {
-  color: var(--sc-color-text-muted);
-  font-size: var(--sc-font-size-xs);
-  white-space: nowrap;
-}
-
-/*
- * The check at the far right: the button that sets and clears «gesehen» (concept 20 P-5,
- * WatchedToggle), or the display without it.
- */
-.mark {
-  display: inline-grid;
-  place-items: center;
-  min-width: var(--sc-space-6);
-}
-
-.check {
-  display: inline-grid;
-  place-items: center;
-  width: var(--sc-space-6);
-  height: var(--sc-space-6);
-  border-radius: var(--sc-radius-full);
-  background-color: var(--sc-color-state-success);
-  color: var(--sc-color-bg-base);
-}
-
-/* The box of «Details»: exactly as large as the button in it. */
-.details {
+.actions {
   display: flex;
-}
-
-.open {
-  border: 1.5px solid var(--sc-color-text-muted);
-  background-color: transparent;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  margin-top: var(--sc-space-2);
 }
 
 @media (hover: hover) {
-  .row:hover {
+  .row:not(.open) .line:hover {
+    border-radius: var(--sc-radius-md);
     background-color: var(--sc-color-surface-1);
-  }
-
-  .link:hover .play {
-    border-color: var(--sc-accent);
-    background-color: var(--sc-accent);
-    color: var(--sc-on-accent);
   }
 }
 
-/*
- * Phones: a smaller still, the runtime under the text; «Details» and the check on a line of their
- * own under the link, at the right.
- */
-@media (width < 600px) {
-  .row {
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    gap: var(--sc-space-2) var(--sc-space-3);
-  }
-
-  .link {
-    grid-column: 1 / -1;
-    grid-template-columns: 8rem minmax(0, 1fr);
+/* Below 700 px: no line of text in the closed row, the panel in one column. */
+@media (width < 700px) {
+  .toggle {
+    grid-template-columns: 2rem minmax(0, 1fr) auto;
     gap: var(--sc-space-3);
   }
 
-  .caption {
-    grid-column: 2;
+  .number {
+    font-size: var(--sc-font-size-md);
   }
 
-  .details {
-    grid-column: 2;
+  .summary {
+    display: none;
+  }
+
+  .panel {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sc-space-3);
+    padding: var(--sc-space-1) var(--sc-space-3) var(--sc-space-4);
   }
 }

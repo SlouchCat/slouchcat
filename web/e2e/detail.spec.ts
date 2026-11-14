@@ -167,6 +167,22 @@ test.describe('the cast row with portraits (concept 17 D-5)', () => {
     await expect
       .poll(() => anna.locator('img').evaluate((image: HTMLImageElement) => image.naturalWidth))
       .toBeGreaterThan(0);
+    // A 2:3 portrait, 9.5rem wide from 768 px, the name left aligned under it (concept 21 P-7).
+    const portrait = await anna.locator('img').evaluate((image) => {
+      const frame = image.parentElement!.getBoundingClientRect();
+      const card = image.closest('a')!;
+      return {
+        ratio: frame.height / frame.width,
+        width: card.getBoundingClientRect().width,
+        rem: parseFloat(getComputedStyle(document.documentElement).fontSize),
+        align: getComputedStyle(card).textAlign,
+        position: getComputedStyle(image).objectPosition,
+      };
+    });
+    expect(portrait.ratio).toBeCloseTo(1.5, 1);
+    expect(portrait.width).toBeCloseTo(9.5 * portrait.rem, 0);
+    expect(portrait.align).toBe('start');
+    expect(portrait.position).toBe('50% 20%');
     // No portrait named: the initial, no image.
     const bruno = cast.getByRole('link', { name: /Bruno Muster/ });
     await expect(bruno.locator('img')).toHaveCount(0);

@@ -220,6 +220,9 @@ describe('download on the detail page', () => {
     renderApp(`/items/${seriesIds.show}`);
     // The season of the series page has its own button below the episodes.
     expect(await screen.findByRole('button', { name: 'Staffel herunterladen' })).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'Herunterladen' })).not.toBeInTheDocument();
+    // «Herunterladen» only for the episode of the open row (concept 21 P-6), none for the series.
+    const episodes = screen.getByRole('list', { name: 'Folgen' });
+    const buttons = screen.queryAllByRole('button', { name: 'Herunterladen' });
+    expect(buttons.every((button) => episodes.contains(button))).toBe(true);
   });
 });

@@ -21,9 +21,10 @@ interface RowProps {
   focusKey?: string;
   /**
    * `chips`: items as wide as their content (genre chips) instead of one poster wide; `tiles`: two
-   * posters wide (the library tiles of «Meine Medien», concept 15 P-7).
+   * posters wide (the library tiles of «Meine Medien», concept 15 P-7); `people`: one portrait
+   * card wide (CastCard, concept 21 P-7).
    */
-  variant?: 'cards' | 'chips' | 'tiles';
+  variant?: RowVariant;
   /**
    * The page with all of the row's entries (concept 20 P-7): the title itself becomes the link, with
    * a small arrow after it, a stop of the arrow keys above the cards (↑ from the row) and of Tab.
@@ -42,13 +43,23 @@ interface RowProps {
  */
 export type RowArrows = 'hover' | 'always' | 'none';
 
+/** What a row holds; each kind has its own width per item (Row.module.css). */
+type RowVariant = 'cards' | 'chips' | 'tiles' | 'people';
+
+const ITEM_CLASS: Record<RowVariant, string | undefined> = {
+  cards: styles.item,
+  chips: styles.chip,
+  tiles: styles.tile,
+  people: styles.person,
+};
+
 /** A pointer move further than this (px) drags the row and is no click on a card. */
 const DRAG_THRESHOLD = 6;
 
 interface RowListProps {
   children: ReactNode;
   focusKey?: string;
-  variant?: 'cards' | 'chips' | 'tiles';
+  variant?: RowVariant;
   arrows?: RowArrows;
   /** The row's title block (Row); with `arrows="hover"` the paging buttons close it on the right. */
   header?: ReactNode;
@@ -232,9 +243,7 @@ export function RowList({
       >
         {Children.map(children, (child, position) => (
           <li
-            className={
-              variant === 'chips' ? styles.chip : variant === 'tiles' ? styles.tile : styles.item
-            }
+            className={ITEM_CLASS[variant]}
             style={order && { order: order(position) }}
             aria-posinset={order && position + 1}
             aria-setsize={order && count}

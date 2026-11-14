@@ -17,10 +17,38 @@ nicht getaggt, CT 190 nicht umgestellt.
   «Trailer» bei TMDB-Trailern die Auflösung. YouTube-Treffer bleiben «unbekannt» (die Data API nennt nur
   `hd`/`sd`).
 
-## Konzept 21 Stufe 1: Segmente, abgewiesene Schlüssel, YouTube-Tageslimit (14. November 2026, PR offen)
+## Konzept 21, Stufe 3: Serienansicht und Besetzung (14. November 2026, PR #156 gemergt `78f410c0`)
+
+Stufe 3 von `docs/planning/21-sammlung.md` (P-6, P-7, O-11) auf dem Zweig `claude/k21-stufe3-f3e50f`, nur Web,
+ohne Vertrag und Migration. Stufe 1 (Server) läuft gleichzeitig auf einem eigenen Zweig.
+
+- **P-6 Staffeln:** Kachelwand über die ganze Breite statt Staffelreihe (`SeasonShelf`, Raster
+  `auto-fill` ab `size.poster.md`, Handy ab `size.poster.xs` = 6.5rem). Zuerst zwei Reihen, darunter «Alle N Staffeln
+  anzeigen» / «Weniger anzeigen» (`aria-expanded`); die gewählte Staffel steht immer in der Wand (an
+  Stelle der letzten Kachel, `foldedSeasons`). Der Bleistift erscheint nur mit Zeiger oder Fokus
+  (`PosterCard toolOnHover`); Bildschirme ohne Hover zeigen ihn immer, wie den Merken-Knopf.
+- **P-6 Folgen:** kompakte Liste über die ganze Breite (`EpisodeListItem` neu, `.season` ohne
+  `max-width: 64rem`): Nummer, Titel mit «Als Nächstes»/«Weiterschauen», einzeiliger Text ab 700 px,
+  Dauer, Haken. Die Zeile ist ein Knopf, der die Folge aufklappt (Standbild mit Fortschritt, Code,
+  längerer Text, «Abspielen»/«Weiterschauen», «Details», «Herunterladen»); eine Zeile offen, die
+  `nextUp`-Folge beim Öffnen. Gilt auch auf der Staffelseite.
+- **O-11:** ↓ aus der Wand landet in der Folgenliste (bei vielen Staffeln über «Alle N Staffeln
+  anzeigen»), Enter klappt auf und setzt den Fokus auf «Abspielen», das zweite Enter spielt; ein
+  Klick mit der Maus klappt auf und zu. Escape oder Backspace (Zurück-Taste der Fernbedienung)
+  klappen eine offene Zeile zu, bevor sie die Seite verlassen.
+- **Abweichungen zur Prüfung durch Marco:** Bei mehr als zwei Reihen Staffeln liegt «Alle N Staffeln
+  anzeigen» zwischen Wand und Liste; ↓ hält dort einmal an. Auf Bildschirmen ohne Hover (Handy, TV)
+  ist der Bleistift immer sichtbar, sonst wäre er dort nicht erreichbar.
+- **P-7 Besetzung:** `CastCard` im Hochformat 2:3 (9.5rem, Handy 7rem, neue Tokens
+  `size.portrait.md/sm`, `RowList variant="people"`), Ecken `radius.lg`, Ausschnitt `center 20%`, Name
+  und höchstens zwei Zeilen Rolle linksbündig; ohne Bild die Initiale auf 2:3. Film, Serie, Folge und
+  Suche; `Avatar` bleibt für Profile (die Personenseite folgt mit P-8 in Stufe 4).
+- **Offen:** PR, `task ci`, Abnahme durch Marco nach dem Release.
+
+## Konzept 21 Stufe 1: Segmente, abgewiesene Schlüssel, YouTube-Tageslimit (14. November 2026, PR #155 gemergt `8b0e69b4`)
 
 Stufe 1 von `docs/planning/21-sammlung.md` (Abschnitt 14) auf dem Zweig `claude/k21-stufe1`. Vertrag
-**1.32.0** (additiv), keine Migration. Noch nicht gemergt, nicht getaggt, CT 190 nicht umgestellt.
+**1.32.0** (additiv), keine Migration. Gemergt, noch nicht getaggt, CT 190 nicht umgestellt.
 
 | Punkt | Inhalt |
 |---|---|

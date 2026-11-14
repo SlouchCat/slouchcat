@@ -100,6 +100,11 @@ interface PosterCardProps {
    */
   tool?: ReactNode;
   /**
+   * The tool shows only while the pointer is on the cell or the focus is in it, like the mark (the
+   * season wall, concept 21 P-6); screens without hover show it always.
+   */
+  toolOnHover?: boolean;
+  /**
    * The check mark «gesehen» beside the card's link, over the top right of its cover (concept 20
    * P-5, WatchedToggle): after the pen in the DOM, so Tab goes link, pen, check, mark. With a
    * pointer an empty check shows only while the pointer is on the cell or the focus is in it; a
@@ -151,6 +156,7 @@ export function PosterCard({
   shape = 'poster',
   frame = 'poster',
   tool,
+  toolOnHover = false,
   check,
   mark,
   focusKey,
@@ -286,7 +292,11 @@ export function PosterCard({
         .join(' ')}
     >
       {card}
-      {tool !== undefined && <div className={styles.tool}>{tool}</div>}
+      {tool !== undefined && (
+        <div className={toolOnHover ? `${styles.tool} ${styles.toolOnHover}` : styles.tool}>
+          {tool}
+        </div>
+      )}
       {check !== undefined && <div className={styles.check}>{check}</div>}
       {mark !== undefined && (
         <div className={styles.markArea}>

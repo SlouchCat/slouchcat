@@ -295,37 +295,62 @@ describe('detail page: series, season, episode, extra', () => {
       '-1',
     );
 
-    // The chosen season: its text and the episodes as a list (E-14).
+    // The chosen season: its text and the episodes as a compact list (concept 21 P-6).
     expect(await screen.findByText('Weber übernimmt ihren ersten Fall.')).toBeVisible();
     const list = screen.getByRole('list', { name: 'Folgen' });
-    // Still and text are one link that plays; «Details» opens the episode (concept 20 P-4).
-    const pilot = within(list).getByRole('link', { name: /^Abspielen.*Pilot/ });
+    // One line per episode, a button that opens its row; the nextUp episode is open.
+    const pilotLine = within(list).getByRole('button', { name: /^S01E01 Pilot/ });
+    expect(pilotLine).toHaveAttribute('aria-expanded', 'true');
+    expect(within(pilotLine).getByText('Weiterschauen')).toBeVisible();
+    expect(within(pilotLine).getByText('45 min')).toBeVisible();
+    // The open row: code, text, the progress and its buttons; «Weiterschauen» for a started one.
+    const pilotRow = pilotLine.closest('li') as HTMLElement;
+    // The code: spoken in the line, shown in the open row.
+    expect(within(pilotRow).getAllByText('S01E01')).toHaveLength(2);
+    expect(
+      within(pilotRow).getAllByText('Ein Anruf in der Nacht führt Weber an den Hafen.').length,
+    ).toBeGreaterThan(0);
+    expect(within(pilotRow).getByRole('progressbar', { name: '22 % gesehen' })).toBeVisible();
+    const pilot = within(pilotRow).getByRole('link', { name: 'Weiterschauen: S01E01 · Pilot' });
     expect(pilot).toHaveAttribute('href', `/play/${seriesIds.e1}`);
-    expect(pilot).toHaveAccessibleDescription('Ein Anruf in der Nacht führt Weber an den Hafen.');
-    expect(within(pilot).getByText('S01E01')).toBeVisible();
-    expect(within(pilot).getByText('Weiterschauen')).toBeVisible();
-    expect(within(pilot).getByText('45 min')).toBeVisible();
-    expect(within(pilot).getByRole('progressbar', { name: '22 % gesehen' })).toBeVisible();
-    expect(within(list).getByRole('link', { name: 'Details: S01E01 · Pilot' })).toHaveAttribute(
+    expect(within(pilotRow).getByRole('link', { name: 'Details: S01E01 · Pilot' })).toHaveAttribute(
       'href',
       `/items/${seriesIds.e1}`,
     );
-    // The check stands outside the link, at the far right of the row: a button (concept 20 P-5).
-    const double = within(list).getByRole('link', { name: /^Abspielen.*S01E03–E04/ });
-    expect(within(double).queryByRole('button')).not.toBeInTheDocument();
+    // Closed rows show no buttons but the check; no «Details» per line any more.
+    expect(within(list).getAllByRole('link', { name: /^Details: / })).toHaveLength(1);
+    // The check stands outside the line's button, at the far right (concept 20 P-5).
+    const doubleLine = within(list).getByRole('button', { name: /^S01E03–E04 / });
+    expect(doubleLine).toHaveAttribute('aria-expanded', 'false');
+    expect(within(doubleLine).getByText('3–4')).toBeInTheDocument();
     expect(
-      within(double.closest('li') as HTMLElement).getByRole('button', { name: /^Gesehen: / }),
+      within(doubleLine.closest('li') as HTMLElement).getByRole('button', { name: /^Gesehen: / }),
     ).toHaveAttribute('aria-pressed', 'true');
     expect(within(list).getByRole('button', { name: 'Gesehen: S01E01 · Pilot' })).toHaveAttribute(
       'aria-pressed',
       'false',
     );
     expect(
-      within(list).getByRole('link', { name: /^Abspielen.*Die lange Nacht/ }),
+      within(list).getByRole('button', { name: /^S01E02 Die lange Nacht/ }),
     ).not.toHaveAccessibleDescription();
 
+    // A click on another line opens it and closes the open one; a second click closes it again.
+    await user.click(doubleLine);
+    expect(doubleLine).toHaveAttribute('aria-expanded', 'true');
+    expect(pilotLine).toHaveAttribute('aria-expanded', 'false');
+    // A closed line is described by its overview.
+    expect(pilotLine).toHaveAccessibleDescription(
+      'Ein Anruf in der Nacht führt Weber an den Hafen.',
+    );
+    await user.click(doubleLine);
+    expect(doubleLine).toHaveAttribute('aria-expanded', 'false');
+    await user.click(pilotLine);
+    const resume = within(pilotLine.closest('li') as HTMLElement).getByRole('link', {
+      name: 'Weiterschauen: S01E01 · Pilot',
+    });
+
     // A started episode asks first: resume (focused) or start over; Escape keeps the page.
-    await user.click(pilot);
+    await user.click(resume);
     const choice = await screen.findByRole('dialog', { name: 'S01E01 · Pilot' });
     expect(within(choice).getByText('Du hast diese Folge angefangen.')).toBeVisible();
     await waitFor(() =>
@@ -334,7 +359,24 @@ describe('detail page: series, season, episode, extra', () => {
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(router.state.location.pathname).toBe(`/items/${seriesIds.show}`);
-    await waitFor(() => expect(pilot).toHaveFocus());
+    await waitFor(() => expect(resume).toHaveFocus());
+
+    // Enter on a closed line opens it and moves the focus to its play button (concept 21 O-11).
+    const secondLine = within(list).getByRole('button', { name: /^S01E02 Die lange Nacht/ });
+    secondLine.focus();
+    await user.keyboard('{Enter}');
+    expect(secondLine).toHaveAttribute('aria-expanded', 'true');
+    await waitFor(() =>
+      expect(
+        within(list).getByRole('link', { name: 'Abspielen: S01E02 · Die lange Nacht' }),
+      ).toHaveFocus(),
+    );
+    // Escape (a remote's back key) closes the open row and gives the focus to its line; the page
+    // stays.
+    await user.keyboard('{Escape}');
+    expect(secondLine).toHaveAttribute('aria-expanded', 'false');
+    expect(secondLine).toHaveFocus();
+    expect(router.state.location.pathname).toBe(`/items/${seriesIds.show}`);
 
     await user.click(specials);
     expect(specials).toHaveAttribute('aria-current', 'true');
@@ -409,7 +451,7 @@ describe('detail page: series, season, episode, extra', () => {
     const { router } = renderApp(`/items/${seriesIds.show}`);
     const user = userEvent.setup();
     const list = await screen.findByRole('list', { name: 'Folgen' });
-    await user.click(within(list).getByRole('link', { name: /^Abspielen.*Pilot/ }));
+    await user.click(within(list).getByRole('link', { name: 'Weiterschauen: S01E01 · Pilot' }));
     const choice = await screen.findByRole('dialog', { name: 'S01E01 · Pilot' });
     await user.click(within(choice).getByRole('button', { name: 'Von vorn starten' }));
     await waitFor(() => expect(router.state.location.href).toBe(`/play/${seriesIds.e1}?at=0`));
@@ -420,7 +462,10 @@ describe('detail page: series, season, episode, extra', () => {
     const { router } = renderApp(`/items/${seriesIds.show}`);
     const user = userEvent.setup();
     const list = await screen.findByRole('list', { name: 'Folgen' });
-    await user.click(within(list).getByRole('link', { name: /^Abspielen.*Die lange Nacht/ }));
+    await user.click(within(list).getByRole('button', { name: /^S01E02 Die lange Nacht/ }));
+    await user.click(
+      within(list).getByRole('link', { name: 'Abspielen: S01E02 · Die lange Nacht' }),
+    );
     await waitFor(() => expect(router.state.location.href).toBe(`/play/${seriesIds.e2}`));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
@@ -472,10 +517,16 @@ describe('detail page: series, season, episode, extra', () => {
     // No watchlist for a season (E-15).
     expect(screen.queryByRole('button', { name: 'Merken' })).not.toBeInTheDocument();
     const list = screen.getByRole('list', { name: 'Folgen' });
-    expect(within(list).getByRole('link', { name: /^Abspielen.*S01E02/ })).toHaveAttribute(
-      'href',
-      `/play/${seriesIds.e2}`,
+    // The same compact list as on the series page: the nextUp episode open (concept 21 P-6).
+    expect(within(list).getByRole('button', { name: /^S01E01 Pilot/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
     );
+    const user = userEvent.setup();
+    await user.click(within(list).getByRole('button', { name: /^S01E02 Die lange Nacht/ }));
+    expect(
+      within(list).getByRole('link', { name: 'Abspielen: S01E02 · Die lange Nacht' }),
+    ).toHaveAttribute('href', `/play/${seriesIds.e2}`);
     expect(
       within(list).getByRole('link', { name: 'Details: S01E02 · Die lange Nacht' }),
     ).toHaveAttribute('href', `/items/${seriesIds.e2}`);
