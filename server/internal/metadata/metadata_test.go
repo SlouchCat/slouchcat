@@ -65,6 +65,8 @@ type fakeTMDB struct {
 	tvNoImages         bool
 	// tvOriginalLanguage is original_language of the series 900; "" leaves the field out.
 	tvOriginalLanguage string
+	// videoLangs is include_video_language of every videos request, in order.
+	videoLangs []string
 }
 
 // jpegBytes returns a w×h JPEG: a strong red block in the upper half (the poster's accent) over a

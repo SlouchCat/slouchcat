@@ -181,16 +181,18 @@ type youtubeVideo struct {
 		ChannelTitle string `json:"channelTitle"`
 	} `json:"snippet"`
 	ContentDetails struct {
-		Duration string `json:"duration"`
+		Duration   string `json:"duration"`
+		Definition string `json:"definition"` // hd or sd
 	} `json:"contentDetails"`
 }
 
 // pickYouTubeVideo keeps the videos of 60 to 300 seconds whose title names one of the titles and
-// "trailer", and prefers an official channel, then a video title in the language, then the search
-// rank.
+// "trailer", and prefers definition hd to sd (ranks 11 and 12 of concept 21 section 2.2), then an
+// official channel, then a video title in the language, then the search rank.
 func pickYouTubeVideo(items []youtubeVideo, rank map[string]int, titles []string, lang string) (youtubeVideo, bool) {
 	type scored struct {
 		v     youtubeVideo
+		hd    bool
 		score int
 	}
 	var keep []scored
@@ -211,12 +213,15 @@ func pickYouTubeVideo(items []youtubeVideo, rank map[string]int, titles []string
 		if (lang == "de") == german {
 			score++
 		}
-		keep = append(keep, scored{v, score})
+		keep = append(keep, scored{v, v.ContentDetails.Definition == "hd", score})
 	}
 	if len(keep) == 0 {
 		return youtubeVideo{}, false
 	}
 	sort.SliceStable(keep, func(i, j int) bool {
+		if keep[i].hd != keep[j].hd {
+			return keep[i].hd
+		}
 		if keep[i].score != keep[j].score {
 			return keep[i].score > keep[j].score
 		}

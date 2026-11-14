@@ -51,8 +51,8 @@ func (q *Queries) DeleteTrailer(ctx context.Context, arg DeleteTrailerParams) (i
 }
 
 const insertTrailer = `-- name: InsertTrailer :exec
-INSERT INTO trailers (item_id, lang, youtube_id, title, source, official, created_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+INSERT INTO trailers (item_id, lang, youtube_id, title, source, official, size, created_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
 ON CONFLICT (item_id, lang, youtube_id) DO NOTHING
 `
 
@@ -63,10 +63,12 @@ type InsertTrailerParams struct {
 	Title     sql.NullString
 	Source    string
 	Official  int64
+	Size      sql.NullInt64
 	Now       int64
 }
 
 // An automatic hit equal to a manual row (same language and video) keeps the manual row.
+// size is the TMDB resolution (concept 21 P-1), NULL when unknown.
 func (q *Queries) InsertTrailer(ctx context.Context, arg InsertTrailerParams) error {
 	_, err := q.db.ExecContext(ctx, insertTrailer,
 		arg.ItemID,
@@ -75,6 +77,7 @@ func (q *Queries) InsertTrailer(ctx context.Context, arg InsertTrailerParams) er
 		arg.Title,
 		arg.Source,
 		arg.Official,
+		arg.Size,
 		arg.Now,
 	)
 	return err
@@ -115,8 +118,42 @@ func (q *Queries) ListPendingTrailerItems(ctx context.Context, libraryID int64) 
 	return items, nil
 }
 
+const listTrailerRecheckItems = `-- name: ListTrailerRecheckItems :many
+SELECT i.id FROM items AS i
+WHERE i.deleted_at IS NULL AND i.kind IN ('movie', 'series') AND i.tmdb_id IS NOT NULL
+  AND i.trailer_state = 'found' AND instr(i.locked_fields, '"trailer"') = 0
+  AND EXISTS (SELECT 1 FROM trailers AS t WHERE t.item_id = i.id AND t.source <> 'manual')
+ORDER BY i.id
+`
+
+// Movies and series whose trailers were found and that carry an automatic trailer: the one-time
+// recheck after the update to concept 21 stage 2 picks their trailers by resolution again
+// (QueueTrailerRecheckOnce, O-3). A title with manual trailers only or a locked trailer stays out.
+func (q *Queries) ListTrailerRecheckItems(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listTrailerRecheckItems)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTrailersByItem = `-- name: ListTrailersByItem :many
-SELECT id, item_id, lang, youtube_id, title, source, official, created_at FROM trailers WHERE item_id = ?1 ORDER BY lang, official DESC, id
+SELECT id, item_id, lang, youtube_id, title, source, official, created_at, size FROM trailers WHERE item_id = ?1 ORDER BY lang, official DESC, id
 `
 
 func (q *Queries) ListTrailersByItem(ctx context.Context, itemID string) ([]Trailer, error) {
@@ -137,6 +174,7 @@ func (q *Queries) ListTrailersByItem(ctx context.Context, itemID string) ([]Trai
 			&i.Source,
 			&i.Official,
 			&i.CreatedAt,
+			&i.Size,
 		); err != nil {
 			return nil, err
 		}
@@ -178,7 +216,7 @@ const upsertManualTrailer = `-- name: UpsertManualTrailer :one
 INSERT INTO trailers (item_id, lang, youtube_id, title, source, official, created_at)
 VALUES (?1, ?2, ?3, NULL, 'manual', 0, ?4)
 ON CONFLICT (item_id, lang, youtube_id) DO UPDATE SET source = 'manual'
-RETURNING id, item_id, lang, youtube_id, title, source, official, created_at
+RETURNING id, item_id, lang, youtube_id, title, source, official, created_at, size
 `
 
 type UpsertManualTrailerParams struct {
@@ -206,6 +244,7 @@ func (q *Queries) UpsertManualTrailer(ctx context.Context, arg UpsertManualTrail
 		&i.Source,
 		&i.Official,
 		&i.CreatedAt,
+		&i.Size,
 	)
 	return i, err
 }

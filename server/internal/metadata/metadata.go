@@ -531,12 +531,16 @@ func (s *Service) CheckKey(ctx context.Context, key string) error {
 // Book and Refetch are for audiobooks (concept 19 D6.3): Book asks for the book match whatever the
 // setting auto_match says (match-all, the switch to all, the first run), Refetch fetches the entry
 // of the stored match again (refreshItem with fromProvider).
+//
+// Recheck marks the trailer.find of the one-time run after concept 21 stage 2 (recheckTrailers):
+// TMDB only, no YouTube search.
 type itemPayload struct {
 	ItemID   string `json:"itemId"`
 	Images   bool   `json:"images,omitempty"`
 	NoRelink bool   `json:"noRelink,omitempty"`
 	Book     bool   `json:"book,omitempty"`
 	Refetch  bool   `json:"refetch,omitempty"`
+	Recheck  bool   `json:"recheck,omitempty"`
 }
 
 func parsePayload(j *jobs.Job) (string, error) {

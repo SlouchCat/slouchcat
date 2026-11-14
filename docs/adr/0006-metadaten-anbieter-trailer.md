@@ -6,7 +6,9 @@
   angenommen. Schnittstelle, Serien-Job, Trailer-Kette, Tageskontingent und Schlüsselregel gelten weiter;
   **ergänzt durch ADR 0018** (31. Oktober 2026): Schritt 2 der Trailer-Kette sucht YouTube in den
   primären Untersprachen der wirksamen Metadaten-Sprachliste statt fest in Deutsch und Englisch, und die
-  Redaction-Liste wächst um `fanart_api_key`, `fanart_client_key` und das Query-Muster `client_key`
+  Redaction-Liste wächst um `fanart_api_key`, `fanart_client_key` und das Query-Muster `client_key`;
+  **Nachtrag vom 14. November 2026** (Konzept 21 P-1): Schritt 1 wählt nach Auflösung, Abschnitt
+  «Nachtrag» unten
 - Quelle: `docs/planning/03-plan-v1.md`, Abschnitte 3.1, 3.2, 5.3 und M3; Entscheid 7 in
   `docs/planning/04-entscheidungen.md` (Antwort auf Frage 7); M3-Entwurf, Abschnitte 3.1 und 3.2
 - Betroffene Spec-IDs: B-3, B-6, B-8, W-10, AN-8, AN-15
@@ -71,3 +73,17 @@ mit Staffeln, Folgen und Specials, Besetzung, Trailer und die manuelle Zuordnung
   Anbieter und Land.
 - Die Administration (`AssignMatch`, `Refresh`, `Search`, manuelle Trailer) ruft Funktionen des Pakets
   `metadata`; die Einstellungsseite für Schlüssel folgt in M8.
+
+## Nachtrag vom 14. November 2026 (Konzept 21 P-1, Stufe 2)
+
+Schritt 1 der Trailer-Kette wählt je Sprache nicht mehr «offizielle zuerst, dann die neuesten», sondern
+nach der Rangfolge aus Konzept 21, Abschnitt 2.2 (von Marco am 12. November 2026 bestätigt, O-1): TMDB
+`size` 2160, 1080, 720 offiziell, dann dieselben inoffiziell, dann 480 offiziell, 360 oder unbekannt
+offiziell, 480 inoffiziell, 360 oder unbekannt inoffiziell; bei Gleichstand der neuere (`published_at`).
+Unter 720 verliert ein offizieller Trailer also gegen jeden inoffiziellen ab 720. Schritt 2 (YouTube)
+nimmt `definition = hd` vor `sd`, innerhalb davon wie bisher den offiziellen Kanal zuerst. Die Auflösung
+steht in `trailers.size` (Migration 00057, `NULL` = unbekannt, O-2) und erscheint im Reiter «Trailer»
+der Verwaltung. Einmal nach dem Update wählt `trailer.find` mit `recheck` die Trailer aller Titel mit
+`trailer_state = found` und automatischen Trailern neu, nur über TMDB und ohne YouTube-Suche; eine
+Sprache ohne TMDB-Treffer behält ihre bisherige automatische Zeile, manuelle bleiben (O-3). `size`
+pflegt die TMDB-Community von Hand: der Wert taugt als Reihenfolge, nicht als Garantie.

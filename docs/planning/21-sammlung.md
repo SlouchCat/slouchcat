@@ -511,9 +511,19 @@ und einblenden können.
 
 ## 14. Stufen der Umsetzung (freigegeben 14. November 2026)
 
-Je Stufe ein Zweig ab `main` in eigenem Worktree, ein PR mit Belegen (Stufe 1 der Teststufen je
-Schritt, `task ci` vor dem PR), ein Release. Gemergt und getaggt wird nur auf Marcos Wort; CT 190 hebt
-Marco per Updater.
+Je Stufe ein Zweig ab `main` in eigenem Worktree und ein PR mit Belegen (Stufe 1 der Teststufen je
+Schritt, `task ci` vor dem PR). Gemergt und getaggt wird nur auf Marcos Wort; CT 190 hebt Marco per
+Updater.
+
+**Releases (Entscheide vom 14. November 2026):**
+
+- **1.32.0 = Stufen 1 bis 3.** Stufe 1 (PR #155) und Stufe 3 (PR #156) sind gemergt, aber nicht
+  getaggt («Auf Stufe 2 warten»); Stufe 2 kommt in denselben Vertrag 1.32.0 (Vertrag = Tag). Getaggt
+  wird nach dem Merge von Stufe 2.
+- **1.33.0 = Stufen 4 bis 6** auf **einem** Zweig (z. B. `claude/k21-stufen4-6`, ab `main` nach dem
+  Merge von Stufe 2), Stufen 4 → 5 → 6 nacheinander, ein Commit je Planschritt, je Schritt nur
+  Teststufe 1, `task ci` einmal am Ende, **ein** PR und **ein** Release. Vertrag 1.33.0 für alle drei
+  Stufen, Migrationen fortlaufend ab 00058.
 
 | Stufe | Punkte | Inhalt | Berührt |
 |---|---|---|---|
@@ -525,6 +535,6 @@ Marco per Updater.
 | 6 | P-10 | Sammlungen: Übersicht mit Filter (alle), Startseiten-Reihe ab 2 Titeln (O-16), Seite als nummerierte Liste, Beschreibung (O-18), «Gesehen» für alle (O-19) | Server, Migration, Vertrag, Web |
 
 - Stufe 3 läuft parallel zu Stufe 1 in einer eigenen Session (nur Web, keine Überschneidung).
-- Stufen 2, 4, 5 und 6 ändern Vertrag und Migrationen; sie laufen nacheinander, damit Vertragsfassung
-  und Migrationsnummern eindeutig bleiben.
+- Stufen 2 und 4 bis 6 ändern Vertrag und Migrationen; sie laufen nacheinander, damit Vertragsfassung
+  und Migrationsnummern eindeutig bleiben (Stufe 2: Migration 00057, Vertrag 1.32.0).
 - KinoCheck (O-6) ist in keiner Stufe; die Prüfung folgt später als eigener Abschnitt.

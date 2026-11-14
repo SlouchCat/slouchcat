@@ -2561,7 +2561,7 @@ func (q *Queries) ListVisibleTrailerItems(ctx context.Context, arg ListVisibleTr
 }
 
 const listVisibleTrailers = `-- name: ListVisibleTrailers :many
-SELECT t.id, t.item_id, t.lang, t.youtube_id, t.title, t.source, t.official, t.created_at FROM trailers AS t
+SELECT t.id, t.item_id, t.lang, t.youtube_id, t.title, t.source, t.official, t.created_at, t.size FROM trailers AS t
 JOIN visible_items AS v ON v.item_id = t.item_id AND v.profile_id = ?1
 WHERE t.item_id = ?2
 ORDER BY t.lang, t.official DESC, t.id
@@ -2592,6 +2592,7 @@ func (q *Queries) ListVisibleTrailers(ctx context.Context, arg ListVisibleTraile
 			&i.Source,
 			&i.Official,
 			&i.CreatedAt,
+			&i.Size,
 		); err != nil {
 			return nil, err
 		}

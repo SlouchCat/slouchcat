@@ -394,3 +394,11 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   Warteschlange gelegt, so wie ein Server beide zurücklässt, der mitten im Löschen anhält. Dann `store.Dump`,
   kein neuer Pfad im Stand. `TestFrozenLoeschenJobStateCoversTheStage` prüft, dass jede dieser Datenarten
   vorhanden ist; `TestMigration00056LibraryDeleting` prüft den Schritt von `loeschen.sql` aus.
+- `trailer-aufloesung.sql`: Stand nach Migration 00057 «Auflösung der Trailer» (Konzept 21 P-1, O-2:
+  `trailers.size`, die Auflösung, die TMDB nennt; `NULL` heisst unbekannt). Erzeugt am 14. November 2026 aus
+  `loeschen-job.sql`: Stand eingespielt, mit `store.Open` migriert, dann per SQL dem Film «Slouchcat Test AC3 51»
+  einen TMDB-Trailer (`de`, offiziell, `size` 1080), einen YouTube-Treffer und einen manuellen Trailer (`en`,
+  beide ohne `size`) gegeben und dem Film «Slouchcat Test DTS» nur einen manuellen, beide mit
+  `trailer_state = found` (Stichtag 14. November 2026, 12:00 UTC). Dann `store.Dump`, kein neuer Pfad im Stand.
+  `TestFrozenTrailerAufloesungStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist;
+  `TestMigration00057TrailerSize` prüft den Schritt von `loeschen-job.sql` aus.

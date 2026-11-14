@@ -496,6 +496,11 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		if _, err := metaSvc.DeleteKeyRejectedFillsOnce(ctx); err != nil && ctx.Err() == nil {
 			log.Warn("failed fills of a rejected key not removed", "err", err)
 		}
+		// The trailers found before concept 21 stage 2, chosen again by resolution (O-3): queued
+		// once, TMDB only.
+		if _, err := metaSvc.QueueTrailerRecheckOnce(ctx); err != nil && ctx.Err() == nil {
+			log.Warn("trailer recheck not queued", "err", err)
+		}
 	})
 	defer func() {
 		stop() // also on error paths, so the workers return before the database closes

@@ -9,6 +9,7 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -362,24 +363,29 @@ func (c *Client) Search(ctx context.Context, kind, query string, year *int, incl
 	return res.Results, nil
 }
 
-// Video is one entry of /movie/{id}/videos or /tv/{id}/videos.
+// Video is one entry of /movie/{id}/videos or /tv/{id}/videos. Lang is empty for a video without
+// language (null).
 type Video struct {
 	Lang        string `json:"iso_639_1"`
+	Country     string `json:"iso_3166_1"`
 	Name        string `json:"name"`
 	Key         string `json:"key"`
 	Site        string `json:"site"`
 	Type        string `json:"type"`
 	Official    bool   `json:"official"`
 	PublishedAt string `json:"published_at"`
+	// Size is the resolution TMDB names (360, 480, 720, 1080, 2160), 0 when missing (concept 21 P-1).
+	Size int `json:"size"`
 }
 
-// Videos returns the videos of a movie or series (kind "movie" or "tv") in the de, en and
-// language-less video languages; lang is the request language (de-DE, en-US).
-func (c *Client) Videos(ctx context.Context, kind string, id int64, lang string) ([]Video, error) {
+// Videos returns the videos of a movie or series (kind "movie" or "tv") in the video languages
+// videoLangs (ISO 639-1, the trailer languages of the library) and without language (null,
+// concept 21 P-4); lang is the request language (de-DE, en-US).
+func (c *Client) Videos(ctx context.Context, kind string, id int64, lang string, videoLangs []string) ([]Video, error) {
 	var res struct {
 		Results []Video `json:"results"`
 	}
-	q := url.Values{"language": {lang}, "include_video_language": {"de,en,null"}}
+	q := url.Values{"language": {lang}, "include_video_language": {strings.Join(append(slices.Clone(videoLangs), "null"), ",")}}
 	if err := c.getJSON(ctx, "/"+kind+"/"+strconv.FormatInt(id, 10)+"/videos", q, &res); err != nil {
 		return nil, err
 	}

@@ -217,8 +217,8 @@ func TestManualTrailers(t *testing.T) {
 	if _, err := e.svc.AddManualTrailer(ctx, idNoMatch, "de", "dQw4w9WgXcQ"); !errors.Is(err, model.ErrNotFound) {
 		t.Fatalf("unknown item: %v", err)
 	}
-	mustExec(t, e.db.Write, `INSERT INTO trailers (item_id, lang, youtube_id, title, source, official, created_at)
-	                         VALUES (?, 'en', 'enOfficial1', 'Official Trailer', 'tmdb', 1, 0)`, idByTMDB)
+	mustExec(t, e.db.Write, `INSERT INTO trailers (item_id, lang, youtube_id, title, source, official, size, created_at)
+	                         VALUES (?, 'en', 'enOfficial1', 'Official Trailer', 'tmdb', 1, 1080, 0)`, idByTMDB)
 	added, err := e.svc.AddManualTrailer(ctx, idByTMDB, "de", "dQw4w9WgXcQ")
 	if err != nil {
 		t.Fatal(err)
@@ -231,7 +231,8 @@ func TestManualTrailers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if same.Source != "manual" || same.Title != "Official Trailer" {
+	// The row turned manual keeps the resolution TMDB named (concept 21 P-1).
+	if same.Source != "manual" || same.Title != "Official Trailer" || same.Size != 1080 || added.Size != 0 {
 		t.Fatalf("automatic row not turned manual: %+v", same)
 	}
 	if state, _ := e.trailerState(t, idByTMDB); state != "found" {

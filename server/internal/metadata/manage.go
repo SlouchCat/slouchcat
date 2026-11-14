@@ -399,5 +399,5 @@ func addLocked(raw string, names ...string) string {
 }
 
 func toTrailer(t systemq.Trailer) model.Trailer {
-	return model.Trailer{ID: t.ID, Lang: t.Lang, YouTubeID: t.YoutubeID, Title: t.Title.String, Source: t.Source, Official: t.Official == 1}
+	return model.Trailer{ID: t.ID, Lang: t.Lang, YouTubeID: t.YoutubeID, Title: t.Title.String, Source: t.Source, Official: t.Official == 1, Size: int(t.Size.Int64)}
 }

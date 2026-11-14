@@ -109,6 +109,8 @@ func TestContractAdminItemAndProviderErrors(t *testing.T) {
 		} `json:"mediaFiles"`
 		Trailers []struct {
 			EmbedURL string `json:"embedUrl"`
+			Source   string `json:"source"`
+			Size     *int   `json:"size"`
 		} `json:"trailers"`
 		Children struct {
 			Extras int `json:"extras"`
@@ -120,6 +122,10 @@ func TestContractAdminItemAndProviderErrors(t *testing.T) {
 	if it.ID != m6.ID || it.Kind != "movie" || it.LibraryID != pf.f.LibraryID() || len(it.MediaFiles) != 1 || it.MediaFiles[0].Path != m6.RelPath ||
 		it.MediaFiles[0].RootID != pf.f.RootID() || it.Children.Extras != 2 || len(it.Trailers) != 1 || it.LockedFields == nil {
 		t.Errorf("getAdminItem = %s", rec.Body.String())
+	}
+	// The YouTube hit left has no resolution: size is left out (concept 21 P-1).
+	if len(it.Trailers) == 1 && (it.Trailers[0].Source != "youtube" || it.Trailers[0].Size != nil) {
+		t.Errorf("admin trailer = %+v, want the YouTube one without size", it.Trailers[0])
 	}
 	if rec := send(t, h, http.MethodGet, BasePath+"/admin/items/"+unknownItemID, "p18", "", nil); rec.Code != http.StatusNotFound {
 		t.Errorf("unknown title: %d", rec.Code)

@@ -1,6 +1,23 @@
 # Aktueller Stand
 
-## Konzept 21, Stufe 3: Serienansicht und Besetzung (14. November 2026)
+## Konzept 21 Stufe 2: Trailerwahl nach Auflösung, weitere Sprachen (14. November 2026, PR offen)
+
+Stufe 2 von `docs/planning/21-sammlung.md` (Abschnitt 14) auf dem Zweig `claude/k21-stufe2`. Vertrag
+**1.32.0** (additiv: `Trailer.size`; die Stufen 1 bis 3 gehen zusammen als Release 1.32.0), Migration
+**00057** (`trailers.size`), eingefrorener Stand `testdata/db/trailer-aufloesung.sql`. Noch nicht gemergt,
+nicht getaggt, CT 190 nicht umgestellt.
+
+| Punkt | Inhalt |
+|---|---|
+| P-1 | TMDB-Trailer je Sprache nach der Rangfolge aus 2.2 (2160/1080/720 offiziell, dieselben inoffiziell, dann 480 und 360/unbekannt; Gleichstand: der neuere), YouTube `hd` vor `sd`. `trailers.size` speichert die TMDB-Auflösung (`NULL` = unbekannt, O-2), der Reiter «Trailer» der Verwaltung zeigt die Spalte «Auflösung». Einmal beim ersten Start nach dem Update reiht `QueueTrailerRecheckOnce` alle Titel mit `trailer_state = found` und automatischen Trailern ein (Merker `metadata.trailers_rechecked`, O-3): nur TMDB, keine YouTube-Suche, eine Sprache ohne TMDB-Treffer behält ihre automatische Zeile, manuelle bleiben. |
+| P-4 | `include_video_language` = Trailersprachen der Bibliothek plus `null` statt fest `de,en,null`; ein Trailer aus dem Land einer Regionsvariante (`pt-BR` → `BR`) geht vor (O-8); ein TMDB-Trailer ohne Sprache füllt als letzter Rang nach YouTube eine Sprache ohne Treffer, ausser das YouTube-Kontingent hat sie blockiert (O-7). YouTube sucht weiter je fehlende Sprache (O-5). |
+
+- **Abnahme auf CT 190 (erst auf Marcos Wort):** nach dem Update laufen rund 4 600 `trailer.find` mit
+  `recheck` (je Titel und Sprache eine TMDB-Abfrage, keine YouTube-Suche); danach zeigt der Reiter
+  «Trailer» bei TMDB-Trailern die Auflösung. YouTube-Treffer bleiben «unbekannt» (die Data API nennt nur
+  `hd`/`sd`).
+
+## Konzept 21, Stufe 3: Serienansicht und Besetzung (14. November 2026, PR #156 gemergt `78f410c0`)
 
 Stufe 3 von `docs/planning/21-sammlung.md` (P-6, P-7, O-11) auf dem Zweig `claude/k21-stufe3-f3e50f`, nur Web,
 ohne Vertrag und Migration. Stufe 1 (Server) läuft gleichzeitig auf einem eigenen Zweig.

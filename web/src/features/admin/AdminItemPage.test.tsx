@@ -378,7 +378,7 @@ describe('admin item page', () => {
     expect(calls.some((call) => call.path === `${base}/rating`)).toBe(false);
   });
 
-  it('lists each trailer with its language and marks the official one (TIT-7)', async () => {
+  it('lists each trailer with its language and resolution and marks the official one (TIT-7)', async () => {
     mockApi({
       ...signedIn,
       [`GET ${base}`]: () =>
@@ -394,6 +394,7 @@ describe('admin item page', () => {
               title: 'Official Trailer',
               source: 'tmdb',
               official: true,
+              size: 1080,
             },
             ...item.trailers,
           ],
@@ -410,6 +411,10 @@ describe('admin item page', () => {
     expect(row('abcdefghijk').getByText('DE')).toBeVisible();
     expect(row('abcdefghijk').getByText('Manuell')).toBeVisible();
     expect(row('abcdefghijk').queryByText('Offiziell')).not.toBeInTheDocument();
+    // The resolution TMDB named (concept 21 P-1); a manual trailer has none.
+    expect(within(trailers).getByRole('columnheader', { name: 'Auflösung' })).toBeVisible();
+    expect(row('officialEN1').getByText('1080p')).toBeVisible();
+    expect(row('abcdefghijk').getByText('unbekannt')).toBeVisible();
   });
 
   it('adds a manual trailer from a URL and deletes one after confirmation', async () => {

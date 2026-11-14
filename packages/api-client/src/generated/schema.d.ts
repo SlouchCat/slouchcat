@@ -6317,6 +6317,12 @@ export interface components {
             /** @enum {string} */
             source: "tmdb" | "youtube" | "ai" | "manual";
             official: boolean;
+            /**
+             * @description Since contract 1.32.0 (concept 21 P-1): the resolution TMDB names for the video (`360`, `480`,
+             *     `720`, `1080`, `2160`; the short side in pixels), by which the trailer was chosen. Left out when
+             *     unknown: manual trailers, YouTube hits and trailers stored before the server learned it.
+             */
+            size?: number;
         };
         MediaFileInfo: {
             id: string;

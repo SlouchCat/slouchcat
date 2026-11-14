@@ -283,7 +283,7 @@ func (r *Reader) Trailers(ctx context.Context, s Scope, itemID string) ([]model.
 	slices.SortStableFunc(rows, func(a, b scopedq.Trailer) int { return cmp.Compare(rank(a.Lang), rank(b.Lang)) })
 	out := make([]model.Trailer, 0, len(rows))
 	for _, t := range rows {
-		out = append(out, model.Trailer{ID: t.ID, Lang: t.Lang, YouTubeID: t.YoutubeID, Title: t.Title.String, Source: t.Source, Official: t.Official == 1})
+		out = append(out, model.Trailer{ID: t.ID, Lang: t.Lang, YouTubeID: t.YoutubeID, Title: t.Title.String, Source: t.Source, Official: t.Official == 1, Size: int(t.Size.Int64)})
 	}
 	return out, nil
 }
