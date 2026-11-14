@@ -21,13 +21,16 @@ import (
 // for movies and series with a tmdb_id. The steps run in order, each only for the languages the
 // earlier ones missed:
 //
-//  1. TMDB videos (/movie|tv/{id}/videos in de-DE and en-US, video languages de, en and none):
-//     type Trailer on YouTube, one per video language by the rank of resolution and «official»
-//     (tmdbTrailerRank, concept 21 P-1), the newest on a tie.
+//  1. TMDB videos (/movie|tv/{id}/videos, one request per trailer language, video languages the
+//     trailer languages of the library and none; concept 21 P-4): type Trailer on YouTube, one per
+//     video language, a trailer of a country the language list names first (pt-BR: BR), then by
+//     the rank of resolution and «official» (tmdbTrailerRank, concept 21 P-1), the newest on a tie.
 //  2. YouTube Data API v3 for the primary subtags of the effective metadata language list (E-6,
 //     ADR 0018; youtube.go), within the daily quota. An exhausted quota
 //     leaves the title pending; QueuePendingTrailers queues it again after the next scan.
 //  3. An AITrailerProvider; M3 ships only the nop implementation (SLOUCHCAT_TRAILER_AI=off).
+//  4. The best TMDB trailer without language for every language still missing (concept 21 O-7:
+//     the last rank, after YouTube), unless the YouTube quota blocked a language.
 //
 // The job replaces the automatic rows of the title and keeps the manual ones; trailer_state is
 // found (any row), none, failed (TMDB rejected the key) or stays pending (quota).
@@ -49,12 +52,30 @@ const (
 // trailerLangsOf returns the languages the trailer chain looks for: the primary subtags of the
 // effective text language list of the title's library (pt-BR -> pt; trailers.lang holds two or
 // three letters). The chain of ADR 0006 is unchanged, only the list is no longer fixed to de, en.
-func (s *Service) trailerLangsOf(ctx context.Context, item systemq.Item) ([]string, error) {
-	langs, err := s.textLangsOf(ctx, item)
+// regions holds, per primary subtag, the countries the list names for it in order (pt-BR, pt-PT
+// -> pt: BR, PT), whose trailers go first (concept 21 O-8).
+func (s *Service) trailerLangsOf(ctx context.Context, item systemq.Item) (langs []string, regions map[string][]string, err error) {
+	textLangs, err := s.textLangsOf(ctx, item)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return primaryLanguages(langs), nil
+	return primaryLanguages(textLangs), trailerRegions(textLangs), nil
+}
+
+// trailerRegions maps each primary subtag of langs to the countries its region variants name, in
+// order (upper case, as TMDB's iso_3166_1).
+func trailerRegions(langs []string) map[string][]string {
+	out := map[string][]string{}
+	for _, l := range langs {
+		primary, region, ok := strings.Cut(l, "-")
+		if !ok || region == "" {
+			continue
+		}
+		if region = strings.ToUpper(region); !slices.Contains(out[primary], region) {
+			out[primary] = append(out[primary], region)
+		}
+	}
+	return out
 }
 
 // TrailerQuery describes the title a TrailerProvider looks for.
@@ -64,10 +85,12 @@ type TrailerQuery struct {
 	Titles        map[string]string // per language
 	OriginalTitle string
 	Year          int
-	Langs         []string // languages still without a trailer
+	Langs         []string            // languages still without a trailer
+	Regions       map[string][]string // preferred countries per language (trailerRegions)
 }
 
-// TrailerHit is one trailer found for a language.
+// TrailerHit is one trailer found for a language. The TMDB step also returns its best trailer
+// without language with Lang "", the fallback of the chain's last step.
 type TrailerHit struct {
 	Lang      string
 	YouTubeID string
@@ -131,7 +154,7 @@ func (p *tmdbTrailers) FindTrailers(ctx context.Context, q TrailerQuery) ([]Trai
 	seen := map[string]bool{}
 	var videos []Video
 	for _, l := range q.Langs {
-		vs, err := c.Videos(ctx, kind, q.TMDBID, tmdbLang(l))
+		vs, err := c.Videos(ctx, kind, q.TMDBID, tmdbLang(l), q.Langs)
 		if errors.Is(err, ErrNotFound) {
 			return nil, nil
 		}
@@ -145,7 +168,11 @@ func (p *tmdbTrailers) FindTrailers(ctx context.Context, q TrailerQuery) ([]Trai
 			}
 		}
 	}
-	return pickTMDBTrailers(videos, q.Langs), nil
+	hits := pickTMDBTrailers(videos, q.Langs, q.Regions)
+	if h, ok := pickLanguagelessTrailer(videos); ok {
+		hits = append(hits, h)
+	}
+	return hits, nil
 }
 
 // tmdbTrailerRank is the rank of a TMDB trailer in the table of concept 21 section 2.2 (Marco,
@@ -180,9 +207,10 @@ func tmdbTrailerRank(size int, official bool) int {
 	return rank
 }
 
-// pickTMDBTrailers keeps YouTube trailers in the wanted languages and picks one per language by
-// tmdbTrailerRank, the newest on a tie.
-func pickTMDBTrailers(videos []Video, langs []string) []TrailerHit {
+// pickTMDBTrailers keeps YouTube trailers in the wanted languages and picks one per language: a
+// trailer of a country regions names for the language first, in the order of the list (concept 21
+// O-8), then by tmdbTrailerRank, the newest on a tie.
+func pickTMDBTrailers(videos []Video, langs []string, regions map[string][]string) []TrailerHit {
 	want := map[string]bool{}
 	for _, l := range langs {
 		want[l] = true
@@ -190,12 +218,22 @@ func pickTMDBTrailers(videos []Video, langs []string) []TrailerHit {
 	var keep []Video
 	for _, v := range videos {
 		lang := strings.ToLower(v.Lang)
-		if v.Type == "Trailer" && v.Site == "YouTube" && want[lang] && youtubeid.Valid(v.Key) {
+		if isYouTubeTrailer(v) && want[lang] {
 			v.Lang = lang
 			keep = append(keep, v)
 		}
 	}
+	country := func(v Video) int {
+		list := regions[v.Lang]
+		if i := slices.Index(list, strings.ToUpper(v.Country)); i >= 0 {
+			return i
+		}
+		return len(list)
+	}
 	sort.SliceStable(keep, func(i, j int) bool {
+		if ci, cj := country(keep[i]), country(keep[j]); ci != cj {
+			return ci < cj
+		}
 		ri, rj := tmdbTrailerRank(keep[i].Size, keep[i].Official), tmdbTrailerRank(keep[j].Size, keep[j].Official)
 		if ri != rj {
 			return ri < rj
@@ -212,6 +250,34 @@ func pickTMDBTrailers(videos []Video, langs []string) []TrailerHit {
 		out = append(out, TrailerHit{Lang: v.Lang, YouTubeID: v.Key, Title: v.Name, Source: sourceTMDB, Official: v.Official, Size: v.Size})
 	}
 	return out
+}
+
+func isYouTubeTrailer(v Video) bool {
+	return v.Type == "Trailer" && v.Site == "YouTube" && youtubeid.Valid(v.Key)
+}
+
+// pickLanguagelessTrailer picks the best TMDB trailer without language (iso_639_1 null) by
+// tmdbTrailerRank, the newest on a tie; Lang stays "" (concept 21 O-7).
+func pickLanguagelessTrailer(videos []Video) (TrailerHit, bool) {
+	var best *Video
+	for i := range videos {
+		v := &videos[i]
+		if v.Lang != "" || !isYouTubeTrailer(*v) {
+			continue
+		}
+		if best == nil {
+			best = v
+			continue
+		}
+		rv, rb := tmdbTrailerRank(v.Size, v.Official), tmdbTrailerRank(best.Size, best.Official)
+		if rv < rb || (rv == rb && v.PublishedAt > best.PublishedAt) {
+			best = v
+		}
+	}
+	if best == nil {
+		return TrailerHit{}, false
+	}
+	return TrailerHit{YouTubeID: best.Key, Title: best.Name, Source: sourceTMDB, Official: best.Official, Size: best.Size}, true
 }
 
 func (s *Service) handleTrailerFind(ctx context.Context, j *jobs.Job) error {
@@ -263,10 +329,11 @@ func (s *Service) trailerChain(ctx context.Context, itemID string, recheck bool)
 		q.Year = int(item.Year.Int64)
 	}
 
-	langs, err := s.trailerLangsOf(ctx, item)
+	langs, regions, err := s.trailerLangsOf(ctx, item)
 	if err != nil {
 		return fmt.Errorf("trailer.find %s: %w", item.ID, err)
 	}
+	q.Regions = regions
 	var hits []TrailerHit
 	missing := func() []string {
 		var out []string
@@ -294,7 +361,25 @@ func (s *Service) trailerChain(ctx context.Context, itemID string, recheck bool)
 	case err != nil:
 		return fmt.Errorf("trailer.find %s: %w", item.ID, err)
 	}
-	hits = append(hits, found...)
+	var languageless *TrailerHit
+	for _, h := range found {
+		if h.Lang == "" {
+			languageless = &h
+			continue
+		}
+		hits = append(hits, h)
+	}
+	// The last rank (O-7): the trailer without language for every language still missing.
+	fallback := func() {
+		if languageless == nil {
+			return
+		}
+		for _, l := range missing() {
+			h := *languageless
+			h.Lang = l
+			hits = append(hits, h)
+		}
+	}
 
 	if recheck {
 		rows, err := s.read.ListTrailersByItem(ctx, item.ID)
@@ -307,6 +392,7 @@ func (s *Service) trailerChain(ctx context.Context, itemID string, recheck bool)
 					Official: r.Official == 1, Size: int(r.Size.Int64)})
 			}
 		}
+		fallback()
 		return s.storeTrailers(ctx, item.ID, hits, false)
 	}
 
@@ -331,6 +417,10 @@ func (s *Service) trailerChain(ctx context.Context, itemID string, recheck bool)
 			return fmt.Errorf("trailer.find %s: %w", item.ID, err)
 		}
 		hits = append(hits, found...)
+	}
+	// A language the quota blocked stays pending for YouTube instead of taking the fallback.
+	if !quotaBlocked {
+		fallback()
 	}
 	return s.storeTrailers(ctx, item.ID, hits, quotaBlocked && len(missing()) > 0)
 }

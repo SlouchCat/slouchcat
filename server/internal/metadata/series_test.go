@@ -300,10 +300,17 @@ func (f *fakeTMDB) addTV(t *testing.T, mux *http.ServeMux, auth func(http.Handle
 	// Videos (trailer chain): the same list for every request language, as TMDB answers with
 	// include_video_language.
 	videos := func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("include_video_language") != "de,en,null" {
+		include := r.URL.Query().Get("include_video_language")
+		if !strings.HasSuffix(include, ",null") {
 			t.Errorf("videos without include_video_language: %s", r.URL)
 		}
-		lang(r)
+		f.mu.Lock()
+		f.videoLangs = append(f.videoLangs, include)
+		f.mu.Unlock()
+		// One request per trailer language of the library (any, not only de-DE and en-US).
+		if r.URL.Query().Get("language") == "" {
+			t.Errorf("videos without language: %s", r.URL)
+		}
 		v := func(lang any, key, typ, site string, official bool, published, name string) map[string]any {
 			return map[string]any{"iso_639_1": lang, "iso_3166_1": "US", "key": key, "type": typ, "site": site,
 				"official": official, "published_at": published, "name": name, "size": 1080, "id": key}

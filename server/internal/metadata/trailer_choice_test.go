@@ -66,7 +66,7 @@ func TestPickTMDBTrailersByResolution(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
-			hits := pickTMDBTrailers(c.videos, []string{"de"})
+			hits := pickTMDBTrailers(c.videos, []string{"de"}, nil)
 			if len(hits) != 1 || hits[0].YouTubeID != c.want {
 				t.Fatalf("hits %+v, want %s", hits, c.want)
 			}
