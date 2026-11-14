@@ -25,6 +25,7 @@ export interface AdminSection {
     | 'picks'
     | 'collections'
     | 'homeRows'
+    | 'myMedia'
     | 'announcements'
     | 'jobs'
     | 'integrations'
@@ -58,6 +59,8 @@ export const adminSections: readonly AdminSection[] = [
   { key: 'picks', href: paths.adminPicks, icon: 'star', group: 'curation' },
   { key: 'collections', href: paths.adminCollections, icon: 'stack', group: 'curation' },
   { key: 'homeRows', href: paths.adminHomeRows, icon: 'list', group: 'curation' },
+  // Order and hiding of «Meine Medien», directly after «Startseite» (concept 21 P-11).
+  { key: 'myMedia', href: paths.adminMyMedia, icon: 'grid', group: 'curation' },
   { key: 'announcements', href: paths.adminAnnouncements, icon: 'megaphone', group: 'curation' },
   { key: 'jobs', href: paths.adminJobs, icon: 'refresh', group: 'system' },
   { key: 'integrations', href: paths.adminIntegrations, icon: 'plug', group: 'system' },

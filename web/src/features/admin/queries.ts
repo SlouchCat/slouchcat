@@ -33,6 +33,7 @@ import type {
   JobOverview,
   JobRun,
   JobRunPage,
+  MyMediaSetting,
   JobScheduleUpdate,
   JobTypeWindowUpdate,
   JobSummary,
@@ -305,6 +306,13 @@ export const homeRowsQuery = queryOptions({
     request(api.GET('/admin/home-rows', { signal })),
 });
 
+/** Every entry of «Meine Medien» in display order, hidden per place (concept 21 P-11). */
+export const myMediaQuery = queryOptions({
+  queryKey: ['admin', 'my-media'],
+  queryFn: ({ signal }): Promise<MyMediaSetting[]> =>
+    request(api.GET('/admin/my-media', { signal })),
+});
+
 /** State of the daily Trakt lists (E-7, I-7). */
 export const traktStatusQuery = queryOptions({
   queryKey: ['admin', 'trakt'],
@@ -386,6 +394,9 @@ export const setCollectionItems = (id: string, itemIds: string[]): Promise<Admin
 
 export const setHomeRows = (rows: HomeRowSetting[]): Promise<HomeRowSetting[]> =>
   request(api.PUT('/admin/home-rows', { body: rows }));
+
+export const setMyMedia = (entries: MyMediaSetting[]): Promise<MyMediaSetting[]> =>
+  request(api.PUT('/admin/my-media', { body: entries }));
 
 export const setSpotlightConfig = (body: SpotlightConfigUpdate): Promise<SpotlightConfig> =>
   request(api.PUT('/admin/spotlight', { body }));

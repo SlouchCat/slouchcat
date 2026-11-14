@@ -17,6 +17,8 @@ export const rowPage = {
   spotlight: { href: paths.adminSpotlight, titleKey: 'admin.spotlight.title' },
   picks: { href: paths.adminPicks, titleKey: 'admin.picks.title' },
   collections: { href: paths.adminCollections, titleKey: 'admin.collections.title' },
+  // Concept 21 P-11: which tiles «Meine Medien» shows, in which order.
+  libraries: { href: paths.adminMyMedia, titleKey: 'admin.myMedia.title' },
 } as const satisfies Partial<Record<HomeRowKey, { href: string; titleKey: string }>>;
 
 export const pageOf = (key: HomeRowKey) =>

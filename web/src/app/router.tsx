@@ -437,6 +437,14 @@ const homeRowsRoute = createRoute({
   validateSearch: adminSearch,
   component: lazyRouteComponent(() => import('@/features/admin/HomeRowsPage'), 'HomeRowsPage'),
 });
+
+// «Meine Medien» (concept 21 P-11): `?tab=preview` shows the side navigation and the tiles.
+const myMediaRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/my-media',
+  validateSearch: adminSearch,
+  component: lazyRouteComponent(() => import('@/features/admin/MyMediaPage'), 'MyMediaPage'),
+});
 // end admin M7
 
 // admin M11: the spotlight list of the start page (ADR 0011).
@@ -697,6 +705,7 @@ export const routeTree = rootRoute.addChildren([
           picksRoute,
           collectionsAdminRoute,
           homeRowsRoute,
+          myMediaRoute,
           // admin M11
           spotlightRoute,
           jobsRoute,

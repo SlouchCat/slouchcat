@@ -2853,6 +2853,73 @@
       "lockedNote": "This collection comes from TMDB: its members, name and deletion are locked.",
       "changed": "changed"
     },
+    "myMedia": {
+      "title": "My media",
+      "intro": "Order and visibility of the group «My media»: for the side navigation and the tiles on the start page, for every profile. Hiding only hides the entry; the titles stay in search and rows. Who may see which library is up to the accounts.",
+      "list": "Entries of «My media»",
+      "band": "My media",
+      "tabs": {
+        "label": "View of the entries",
+        "order": "Order",
+        "preview": "Preview"
+      },
+      "count_one": "{{number}} entry",
+      "count_other": "{{number}} entries",
+      "columns": {
+        "position": "Position",
+        "entry": "Entry",
+        "content": "Content",
+        "state": "State",
+        "sidebar": "Side navigation",
+        "home": "Start page"
+      },
+      "kind": {
+        "library": "Library",
+        "radio": "Radio",
+        "collections": "Collections",
+        "picks": "Picks"
+      },
+      "name": {
+        "radio": "Radio",
+        "collections": "Collections",
+        "picks": "User picks"
+      },
+      "content": {
+        "stations_one": "{{number}} station",
+        "stations_other": "{{number}} stations",
+        "collections_one": "{{number}} collection",
+        "collections_other": "{{number}} collections",
+        "titles_one": "{{number}} title",
+        "titles_other": "{{number}} titles"
+      },
+      "state": {
+        "visible": "visible",
+        "sidebarOnly": "side navigation only",
+        "homeOnly": "start page only",
+        "hidden": "hidden"
+      },
+      "hide": "Hide",
+      "hideSidebarLabel": "Hide {{entry}} in the side navigation",
+      "hideHomeLabel": "Hide {{entry}} on the start page",
+      "moved": "{{entry}} is now in position {{position}}. Save to apply it.",
+      "saved": "«My media» is saved.",
+      "discarded": "The changes are discarded.",
+      "discard": {
+        "title": "Discard changes?",
+        "body": "The unsaved order and hiding are lost; what is saved applies again.",
+        "confirm": "Discard"
+      },
+      "preview": {
+        "sidebar": "Side navigation",
+        "home": "Start page, row «My media»",
+        "sidebarLabel": "Preview of the side navigation",
+        "homeLabel": "Preview of the start page",
+        "empty": "Nothing visible: «My media» is missing here.",
+        "note": "In the unsaved order, with the numbers of the administration. Every profile sees only the libraries it may see, and its own stations and picks."
+      },
+      "homeRows": "Where the row «My media» stands on the start page and whether it appears is set under «Start page».",
+      "homeRowsLink": "To the page «Start page»"
+    },
     "homeRows": {
       "title": "Start page",
       "intro": "Order of the start page rows, for every profile. Hidden and empty rows do not appear.",
@@ -2890,7 +2957,7 @@
         "watchlist": "The watchlist of the profile.",
         "collections": "Own collections and those from TMDB.",
         "genres": "The genres of the visible titles.",
-        "libraries": "One tile per library the profile sees, with the number of titles; it opens the library page.",
+        "libraries": "Tiles for the libraries the profile sees, for radio and, when shown, for collections and user picks; the page «My media» sets their order and hiding.",
         "library": "The titles that came into this library most recently; “Show all” opens the library sorted by “Recently added”.",
         "radio": "The favourite stations of the profile as tiles; a station playing through the server right now shows its current title. Without favourites the row is left out."
       },
@@ -3110,6 +3177,9 @@
       },
       "collections": {
         "title": "Collections"
+      },
+      "myMedia": {
+        "title": "My media"
       },
       "homeRows": {
         "title": "Home page"

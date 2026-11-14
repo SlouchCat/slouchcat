@@ -197,6 +197,11 @@ export type CollectionItemsRequest = components['schemas']['CollectionItemsReque
 export type HomeRowSetting = components['schemas']['HomeRowSetting'];
 export type HomeRowKey = components['schemas']['HomeRowKey'];
 export type HomeListKey = components['schemas']['HomeListKey'];
+// «Meine Medien» (concept 21 P-9, P-11, contract 1.33.0).
+export type MyMediaKey = components['schemas']['MyMediaKey'];
+export type MyMediaSetting = components['schemas']['MyMediaSetting'];
+export type MyMediaEntry = components['schemas']['MyMediaEntry'];
+export type MyMediaTile = components['schemas']['MyMediaTile'];
 export type TraktStatus = components['schemas']['TraktStatus'];
 // Administration and notifications (M8).
 export type SetupStatus = components['schemas']['SetupStatus'];
