@@ -1,11 +1,17 @@
 # Aktueller Stand
 
-## Konzept 21 Stufe 2: Trailerwahl nach Auflösung, weitere Sprachen (14. November 2026, PR offen)
+## Release 1.32.0: Konzept 21 Stufen 1 bis 3 (14. November 2026)
+
+Die Stufen 1 bis 3 von `docs/planning/21-sammlung.md` gehen zusammen als **ein** Release **1.32.0**
+(Entscheid vom 14. November 2026, Entscheidungsprotokoll Frage 28): Stufe 1 PR #155, Stufe 3 PR #156,
+Stufe 2 PR #157 (Merge `51ce8471`), Versionsstellen im Release-PR. Vertrag **1.32.0** (additiv),
+Migration **00057**. Die Stufen 4 bis 6 folgen gemeinsam als 1.33.0.
+
+### Stufe 2: Trailerwahl nach Auflösung, weitere Sprachen (PR #157, Merge `51ce8471`)
 
 Stufe 2 von `docs/planning/21-sammlung.md` (Abschnitt 14) auf dem Zweig `claude/k21-stufe2`. Vertrag
 **1.32.0** (additiv: `Trailer.size`; die Stufen 1 bis 3 gehen zusammen als Release 1.32.0), Migration
-**00057** (`trailers.size`), eingefrorener Stand `testdata/db/trailer-aufloesung.sql`. Noch nicht gemergt,
-nicht getaggt, CT 190 nicht umgestellt.
+**00057** (`trailers.size`), eingefrorener Stand `testdata/db/trailer-aufloesung.sql`.
 
 | Punkt | Inhalt |
 |---|---|
@@ -17,7 +23,7 @@ nicht getaggt, CT 190 nicht umgestellt.
   «Trailer» bei TMDB-Trailern die Auflösung. YouTube-Treffer bleiben «unbekannt» (die Data API nennt nur
   `hd`/`sd`).
 
-## Konzept 21, Stufe 3: Serienansicht und Besetzung (14. November 2026, PR #156 gemergt `78f410c0`)
+### Stufe 3: Serienansicht und Besetzung (PR #156, Merge `78f410c0`)
 
 Stufe 3 von `docs/planning/21-sammlung.md` (P-6, P-7, O-11) auf dem Zweig `claude/k21-stufe3-f3e50f`, nur Web,
 ohne Vertrag und Migration. Stufe 1 (Server) läuft gleichzeitig auf einem eigenen Zweig.
@@ -45,10 +51,10 @@ ohne Vertrag und Migration. Stufe 1 (Server) läuft gleichzeitig auf einem eigen
   Suche; `Avatar` bleibt für Profile (die Personenseite folgt mit P-8 in Stufe 4).
 - **Offen:** PR, `task ci`, Abnahme durch Marco nach dem Release.
 
-## Konzept 21 Stufe 1: Segmente, abgewiesene Schlüssel, YouTube-Tageslimit (14. November 2026, PR #155 gemergt `8b0e69b4`)
+### Stufe 1: Segmente, abgewiesene Schlüssel, YouTube-Tageslimit (PR #155, Merge `8b0e69b4`)
 
 Stufe 1 von `docs/planning/21-sammlung.md` (Abschnitt 14) auf dem Zweig `claude/k21-stufe1`. Vertrag
-**1.32.0** (additiv), keine Migration. Gemergt, noch nicht getaggt, CT 190 nicht umgestellt.
+**1.32.0** (additiv), keine Migration. Gemergt.
 
 | Punkt | Inhalt |
 |---|---|

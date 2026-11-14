@@ -1,0 +1,491 @@
+<title>Slouchcat Ersteinrichtung</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: mockup bar on top, one app frame below; variant A = side rail, B = centred card with progress, C = required steps then a hub of cards. Single dark look = the Slouchcat app tokens. */
+:root{
+  --bg:#0b0c10; --bg2:#13151b; --s1:#16181f; --s2:#1d2029; --s3:#262a35;
+  --tx:#f3f3f5; --tx2:#b6b9c4; --tx3:#9095a3; --line:#ffffff1f; --line2:#ffffff3d;
+  --ac:#e8794a; --ac-soft:#e8794a33; --on-ac:#1c0d06; --ac-link:#f3a27f;
+  --ok:#5fcf8f; --warn:#e8b65a; --bad:#f2777a;
+  --font:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:15px;line-height:1.5;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--tx);outline-offset:2px}
+a{color:var(--ac-link)}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1,h2,h3{text-wrap:balance;margin:0}
+
+/* mockup controls */
+.mock{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border:1px dashed var(--line2);border-radius:12px;padding:10px 12px;font-size:13px;color:var(--tx2)}
+.mock b{color:var(--tx);font-weight:600;margin-right:4px}
+.pill{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:18px;border:1px solid var(--line2);background:none;font-size:13px}
+.pill[aria-pressed="true"]{border-color:var(--ac);background:var(--ac-soft)}
+.mock .sp{flex:1}
+.note{font-size:13px;color:var(--tx2);border:1px dashed var(--line2);border-radius:12px;padding:10px 14px}
+
+/* app frame */
+.frame{background:var(--bg);border:1px solid var(--line);border-radius:18px;min-height:640px;display:flex;flex-direction:column;overflow:hidden}
+.top{display:flex;align-items:center;gap:12px;padding:16px 22px;border-bottom:1px solid var(--line)}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:.2px}
+.logo i{width:30px;height:30px;border-radius:9px;background:var(--ac);display:inline-flex;align-items:center;justify-content:center;color:var(--on-ac);font-style:normal;font-size:16px}
+.top .sp{flex:1}
+.langbtn{min-height:36px;padding:0 12px;border-radius:10px;border:1px solid var(--line2);background:var(--s1);font-size:13px}
+.body{flex:1;display:flex;min-height:0}
+.rail{flex:0 0 240px;border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:2px;background:var(--bg2)}
+.rail .st{display:flex;align-items:center;gap:10px;min-height:42px;padding:0 10px;border-radius:10px;border:0;background:none;text-align:left;color:var(--tx2);font-size:14px}
+.rail .st:hover{background:var(--s2)}
+.rail .st[aria-current="step"]{background:var(--ac-soft);color:var(--tx)}
+.dot{flex:0 0 24px;height:24px;border-radius:12px;border:1px solid var(--line2);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-variant-numeric:tabular-nums}
+.st.done .dot{background:var(--ok);border-color:var(--ok);color:var(--bg)}
+.st.skip .dot{border-style:dashed}
+.st[aria-current="step"] .dot{border-color:var(--ac);color:var(--ac)}
+.opt{font-size:11px;color:var(--tx3);margin-left:auto}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.content{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:22px;max-width:780px;width:100%}
+.content.center{margin:0 auto}
+.foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:14px 32px;border-top:1px solid var(--line);background:var(--bg2)}
+.foot .sp{flex:1}
+.prog{height:4px;background:var(--s3)}
+.prog i{display:block;height:100%;background:var(--ac);transition:width .3s}
+.eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--tx3)}
+.lead{color:var(--tx2);max-width:62ch;margin:0}
+.h1{font-size:28px;font-weight:800;line-height:1.15}
+.h2{font-size:17px;font-weight:700}
+
+/* controls */
+.btn{min-height:42px;padding:0 18px;border-radius:10px;border:1px solid var(--line2);background:var(--s2);font-size:14px;display:inline-flex;align-items:center;gap:8px}
+.btn:hover{background:var(--s3)}
+.btn.pri{background:var(--ac);border-color:var(--ac);color:var(--on-ac);font-weight:700}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.ghost{background:none;border-color:transparent;color:var(--tx2)}
+.btn.sm{min-height:34px;padding:0 12px;font-size:13px}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field label{font-size:13px;font-weight:600}
+.field .hint{font-size:12px;color:var(--tx3)}
+.in{min-height:42px;padding:0 12px;border-radius:10px;border:1px solid var(--line2);background:var(--s1);width:100%}
+.in.mono{font-family:var(--mono);font-size:13px}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+.row>.field{flex:1 1 220px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.panel{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.panel.rec{border-color:var(--ac)}
+.ph{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ph .sp{flex:1}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:26px;padding:0 10px;border-radius:13px;font-size:12px;background:var(--s3);color:var(--tx2)}
+.chip.ok{background:#5fcf8f26;color:var(--ok)}
+.chip.warn{background:#e8b65a26;color:var(--warn)}
+.chip.bad{background:#f2777a26;color:var(--bad)}
+.chip.ac{background:var(--ac-soft);color:var(--ac-link)}
+.msg{font-size:13px;border-radius:10px;padding:10px 12px;border:1px solid var(--line)}
+.msg.ok{border-color:#5fcf8f55;color:var(--ok)}
+.msg.warn{border-color:#e8b65a55;color:var(--warn)}
+.msg.bad{border-color:#f2777a55;color:var(--bad)}
+.muted{color:var(--tx3);font-size:13px}
+.kv{display:grid;grid-template-columns:minmax(120px,190px) 1fr;gap:6px 16px;font-size:14px}
+.kv dt{color:var(--tx3)}
+.kv dd{margin:0;min-width:0}
+.toggle{display:flex;align-items:center;gap:12px;border:0;background:none;padding:0;text-align:left}
+.sw{flex:0 0 44px;height:26px;border-radius:13px;background:var(--s3);position:relative;transition:background .2s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:10px;background:var(--tx2);transition:left .2s}
+.toggle[aria-checked="true"] .sw{background:var(--ac)}
+.toggle[aria-checked="true"] .sw::after{left:21px;background:var(--on-ac)}
+.radio{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--s1);text-align:left;width:100%}
+.radio[aria-checked="true"]{border-color:var(--ac);background:var(--ac-soft)}
+.radio .rb{flex:0 0 18px;height:18px;border-radius:9px;border:2px solid var(--tx3);margin-top:2px}
+.radio[aria-checked="true"] .rb{border-color:var(--ac);box-shadow:inset 0 0 0 3px var(--bg),inset 0 0 0 9px var(--ac)}
+.radio small{display:block;color:var(--tx3);font-size:12px}
+
+/* language grid */
+.langs{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.lang{display:flex;flex-direction:column;align-items:flex-start;gap:0;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--s1);text-align:left;min-height:58px}
+.lang:hover{background:var(--s2)}
+.lang[aria-checked="true"]{border-color:var(--ac);background:var(--ac-soft)}
+.lang b{font-weight:600;font-size:14px}
+.lang span{font-size:12px;color:var(--tx3)}
+.lang .tag{font-family:var(--mono);font-size:11px}
+.preview{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--tx2);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.preview b{color:var(--tx);font-weight:600;font-variant-numeric:tabular-nums}
+.swatches{display:flex;gap:8px;flex-wrap:wrap}
+.swatch{width:34px;height:34px;border-radius:17px;border:2px solid transparent}
+.swatch[aria-checked="true"]{border-color:var(--tx)}
+.avatar{width:40px;height:40px;border-radius:20px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;color:var(--bg);flex:0 0 40px}
+.rootchips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.choice{display:flex;flex-direction:column;gap:10px;text-align:left;padding:20px;border-radius:16px;border:1px solid var(--line2);background:var(--s1)}
+.choice:hover{background:var(--s2)}
+.choice.rec{border-color:var(--ac)}
+.choice ul{margin:0;padding-left:18px;color:var(--tx2);font-size:13px}
+.hub{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.card{display:flex;flex-direction:column;gap:8px;text-align:left;padding:16px;border-radius:14px;border:1px solid var(--line);background:var(--s1);min-height:140px}
+.card:hover{background:var(--s2)}
+.card p{margin:0;font-size:13px;color:var(--tx2);flex:1}
+.bar{height:8px;border-radius:4px;background:var(--s3);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ac);transition:width .5s}
+.sumsec{display:flex;flex-direction:column;gap:8px;padding:14px 0;border-top:1px solid var(--line)}
+.sumsec:first-child{border-top:0;padding-top:0}
+@media (max-width:760px){
+  .body{flex-direction:column}
+  .rail{flex:none;flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:8px}
+  .rail .st{flex:0 0 auto}
+  .rail .opt,.rail .lbl-long{display:none}
+  .content{padding:20px 18px}
+  .foot{padding:12px 18px}
+  .kv{grid-template-columns:1fr}
+  .kv dt{margin-top:6px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <div class="mock" role="group" aria-label="Mockup-Steuerung">
+    <b>Variante</b>
+    <button class="pill" data-act="variant" data-v="A">A · Geführt</button>
+    <button class="pill" data-act="variant" data-v="B">B · Zwei Wege</button>
+    <button class="pill" data-act="variant" data-v="C">C · Pflicht + Karten</button>
+    <span class="sp"></span>
+    <button class="pill" data-act="restart">Von vorne</button>
+  </div>
+  <div class="note" id="vnote"></div>
+  <div class="frame" id="app" aria-live="polite"></div>
+  <div class="note">Mockup, keine echten Prüfungen: Pfade unter <code>/media</code> gelten als gültig, <code>/mnt/nas</code> als Netzlaufwerk, alles andere als nicht gefunden. Ein TMDB-Schlüssel mit mehr als 10 Zeichen gilt als gültig. Kopfzeile, Schrittnamen, Knöpfe und die Willkommensseite sind in de-CH, de-DE, en, fr, es und it übersetzt; die übrigen Sprachen fallen im Mockup auf Englisch zurück. Inhalte der Schritte stehen nur auf Deutsch. Datum und Zahl in der Vorschau formatiert der Browser echt für die gewählte Sprache (<code>Intl</code>).</div>
+</div>
+
+<script>
+const LANGS=[
+ ['de-CH','Deutsch (Schweiz)','German, Switzerland',1],['de-DE','Deutsch (Deutschland)','German, Germany',1],
+ ['en','English','English',1],['fr','Français','French',1],['es','Español','Spanish',1],['it','Italiano','Italian',1],
+ ['nl','Nederlands','Dutch',2],['pt-BR','Português (Brasil)','Portuguese, Brazil',2],['pt-PT','Português (Portugal)','Portuguese, Portugal',2],
+ ['pl','Polski','Polish',2],['sv','Svenska','Swedish',2],['da','Dansk','Danish',2],['nb','Norsk bokmål','Norwegian Bokmål',2],
+ ['fi','Suomi','Finnish',2],['cs','Čeština','Czech',2],['ru','Русский','Russian',3],['tr','Türkçe','Turkish',3],
+ ['ja','日本語','Japanese',3],['zh-CN','简体中文','Chinese, Simplified',3],['zh-TW','繁體中文','Chinese, Traditional',3],
+ ['ko','한국어','Korean',3],['uk','Українська','Ukrainian',3],['hu','Magyar','Hungarian',3]
+];
+const T={
+ 'de-CH':{welcome:'Willkommen bei Slouchcat',intro:'Wir richten deinen Medienserver ein. Das dauert etwa fünf Minuten, und du kannst später alles ändern.',next:'Weiter',back:'Zurück',skip:'Überspringen',finish:'Einrichtung abschliessen',optional:'optional',detected:'Von deinem Browser erkannt',search:'Sprache suchen',steps:{lang:'Sprache',region:'Region',account:'Konto',libs:'Bibliotheken',services:'Dienste',playback:'Wiedergabe',household:'Haushalt',access:'Zugriff',summary:'Zusammenfassung',choice:'Weg wählen',hub:'Übersicht'}},
+ 'de-DE':{welcome:'Willkommen bei Slouchcat',intro:'Wir richten deinen Medienserver ein. Das dauert etwa fünf Minuten, und du kannst später alles ändern.',next:'Weiter',back:'Zurück',skip:'Überspringen',finish:'Einrichtung abschließen',optional:'optional',detected:'Von deinem Browser erkannt',search:'Sprache suchen',steps:{lang:'Sprache',region:'Region',account:'Konto',libs:'Bibliotheken',services:'Dienste',playback:'Wiedergabe',household:'Haushalt',access:'Zugriff',summary:'Zusammenfassung',choice:'Weg wählen',hub:'Übersicht'}},
+ en:{welcome:'Welcome to Slouchcat',intro:"Let's set up your media server. It takes about five minutes, and you can change everything later.",next:'Next',back:'Back',skip:'Skip',finish:'Finish setup',optional:'optional',detected:'Detected from your browser',search:'Search languages',steps:{lang:'Language',region:'Region',account:'Account',libs:'Libraries',services:'Services',playback:'Playback',household:'Household',access:'Access',summary:'Summary',choice:'Choose a path',hub:'Overview'}},
+ fr:{welcome:'Bienvenue sur Slouchcat',intro:'Configurons votre serveur multimédia. Cela prend environ cinq minutes, et vous pourrez tout modifier plus tard.',next:'Suivant',back:'Retour',skip:'Passer',finish:'Terminer la configuration',optional:'facultatif',detected:'Détectée par votre navigateur',search:'Rechercher une langue',steps:{lang:'Langue',region:'Région',account:'Compte',libs:'Bibliothèques',services:'Services',playback:'Lecture',household:'Foyer',access:'Accès',summary:'Récapitulatif',choice:'Choisir un parcours',hub:'Vue d’ensemble'}},
+ es:{welcome:'Te damos la bienvenida a Slouchcat',intro:'Vamos a configurar tu servidor multimedia. Tarda unos cinco minutos y podrás cambiarlo todo más adelante.',next:'Siguiente',back:'Atrás',skip:'Omitir',finish:'Finalizar configuración',optional:'opcional',detected:'Detectado en tu navegador',search:'Buscar idioma',steps:{lang:'Idioma',region:'Región',account:'Cuenta',libs:'Bibliotecas',services:'Servicios',playback:'Reproducción',household:'Hogar',access:'Acceso',summary:'Resumen',choice:'Elegir camino',hub:'Resumen general'}},
+ it:{welcome:'Ti diamo il benvenuto in Slouchcat',intro:'Configuriamo il tuo media server. Ci vogliono circa cinque minuti e potrai modificare tutto in seguito.',next:'Avanti',back:'Indietro',skip:'Salta',finish:'Completa la configurazione',optional:'facoltativo',detected:'Rilevata dal browser',search:'Cerca una lingua',steps:{lang:'Lingua',region:'Regione',account:'Account',libs:'Librerie',services:'Servizi',playback:'Riproduzione',household:'Famiglia',access:'Accesso',summary:'Riepilogo',choice:'Scegli il percorso',hub:'Panoramica'}}
+};
+const REGION={ 'de-CH':['CH','Europe/Zurich',['de','en']],'de-DE':['DE','Europe/Berlin',['de','en']],en:['US','America/New_York',['en']],fr:['FR','Europe/Paris',['fr','en']],es:['ES','Europe/Madrid',['es','en']],it:['IT','Europe/Rome',['it','en']],nl:['NL','Europe/Amsterdam',['nl','en']],'pt-BR':['BR','America/Sao_Paulo',['pt-BR','en']],'pt-PT':['PT','Europe/Lisbon',['pt-PT','en']],pl:['PL','Europe/Warsaw',['pl','en']],sv:['SE','Europe/Stockholm',['sv','en']],da:['DK','Europe/Copenhagen',['da','en']],nb:['NO','Europe/Oslo',['nb','en']],fi:['FI','Europe/Helsinki',['fi','en']],cs:['CZ','Europe/Prague',['cs','en']],ru:['RU','Europe/Moscow',['ru','en']],tr:['TR','Europe/Istanbul',['tr','en']],ja:['JP','Asia/Tokyo',['ja','en']],'zh-CN':['CN','Asia/Shanghai',['zh-CN','en']],'zh-TW':['TW','Asia/Taipei',['zh-TW','en']],ko:['KR','Asia/Seoul',['ko','en']],uk:['UA','Europe/Kyiv',['uk','en']],hu:['HU','Europe/Budapest',['hu','en']]};
+const COUNTRIES={BE:'Belgien',CH:'Schweiz',DE:'Deutschland',AT:'Österreich',FR:'Frankreich',IT:'Italien',ES:'Spanien',GB:'Vereinigtes Königreich',US:'Vereinigte Staaten',NL:'Niederlande',BR:'Brasilien',PT:'Portugal',PL:'Polen',SE:'Schweden',DK:'Dänemark',NO:'Norwegen',FI:'Finnland',CZ:'Tschechien',RU:'Russland',TR:'Türkei',JP:'Japan',CN:'China',TW:'Taiwan',KR:'Südkorea',UA:'Ukraine',HU:'Ungarn'};
+const RATING={CH:'Schweiz (ab 0 bis ab 18)',DE:'FSK (0, 6, 12, 16, 18)',AT:'JMK (0, 6, 10, 12, 14, 16)',FR:'CNC (Tous publics, 10, 12, 16, 18)',IT:'MiC (T, 6+, 14+, 18+)',ES:'ICAA (A, 7, 12, 16, 18)',GB:'BBFC (U, PG, 12A, 15, 18)',US:'MPA (G, PG, PG-13, R, NC-17)'};
+const STEPS={DE:[[0,'FSK 0'],[6,'FSK 6'],[12,'FSK 12'],[16,'FSK 16'],[18,'FSK 18']],AT:[[0,'0'],[6,'6'],[10,'10'],[12,'12'],[14,'14'],[16,'16'],[18,'18']],CH:[[0,'0'],[6,'6'],[7,'7'],[8,'8'],[10,'10'],[12,'12'],[14,'14'],[16,'16'],[18,'18']],GB:[[0,'U'],[6,'PG'],[12,'12 / 12A'],[15,'15'],[18,'18 / R18']],US:[[0,'G / TV-G'],[6,'PG / TV-PG'],[7,'TV-Y7'],[13,'PG-13'],[14,'TV-14'],[17,'R / TV-MA'],[18,'NC-17']],FR:[[0,'Tous publics'],[10,'-10'],[12,'-12'],[16,'-16'],[18,'-18']],ES:[[0,'A'],[7,'7'],[12,'12'],[16,'16'],[18,'18']],IT:[[0,'T'],[6,'6+'],[14,'14+ / VM14'],[18,'18+ / VM18']],NL:[[0,'AL'],[6,'6'],[9,'9'],[12,'12'],[14,'14'],[16,'16'],[18,'18']],BE:[[0,'AL'],[6,'6'],[9,'9'],[12,'12'],[14,'14'],[16,'16'],[18,'18']],PT:[[3,'M/3'],[6,'M/6'],[12,'M/12'],[14,'M/14'],[16,'M/16'],[18,'M/18']],BR:[[0,'L'],[10,'10'],[12,'12'],[14,'14'],[16,'16'],[18,'18']],PL:[[0,'0'],[7,'7'],[12,'12'],[16,'16'],[18,'18']],SE:[[0,'Btl'],[7,'7'],[11,'11'],[15,'15']],DK:[[0,'A'],[7,'7'],[11,'11'],[15,'15']],NO:[[0,'A'],[6,'6'],[9,'9'],[12,'12'],[15,'15'],[18,'18']],FI:[[0,'S'],[7,'K-7'],[12,'K-12'],[16,'K-16'],[18,'K-18']],CZ:[[0,'U'],[12,'12'],[15,'15'],[18,'18']],HU:[[0,'KN'],[6,'6'],[12,'12'],[16,'16'],[18,'18']],TR:[[0,'Genel'],[7,'7+'],[13,'13+'],[15,'15+'],[18,'18+']],RU:[[0,'0+'],[6,'6+'],[12,'12+'],[16,'16+'],[18,'18+']],UA:[[0,'0'],[12,'12'],[16,'16'],[18,'18']],JP:[[0,'G'],[12,'PG12'],[15,'R15+'],[18,'R18+']],KR:[[0,'ALL'],[7,'7'],[12,'12'],[15,'15'],[18,'18']],TW:[[0,'0+'],[6,'6+'],[12,'12+'],[15,'15+'],[18,'18+']]};
+const RC=c=>STEPS[c]?c:'DE';
+const SERVER_TZ='Europe/Zurich';
+const SWATCH=['#e8794a','#f0857a','#e3b24f','#a3d465','#45c2b1','#62aef0','#a993f5','#ec77a3'];
+const AGES=[['0','ab 0'],['6','ab 6'],['12','ab 12'],['16','ab 16'],['18','ab 18']];
+const stepsOf=()=>(STEPS[S.rating]||STEPS.DE).map(([a,l])=>[String(a),l+(l.replace(/\D/g,'')===String(a)?'':' (ab '+a+')')]);
+const stepLabel=a=>{const f=(STEPS[S.rating]||STEPS.DE).find(x=>String(x[0])===String(a));return f?f[1]:'ab '+a};
+const META_LANGS=['de','en','fr','it','es','nl','pt-BR','ja'];
+const OPT=new Set(['region','services','playback','household','access']);
+const NOTES={
+ A:'<b>A · Geführt.</b> Alle neun Schritte stehen links in einer Leiste, in der Reihenfolge von Konzept 22: Dienste und Wiedergabe vor den Bibliotheken, damit der erste Scan gleich mit allen Einstellungen läuft. Pflicht sind Sprache, Konto und Bibliothek; die übrigen Schritte lassen sich überspringen, dann gilt die Empfehlung. Jeder Schritt ist jederzeit anklickbar. Nach einem Abbruch leitet Slouchcat bei jedem Anmelden hierher zurück, bis die Einrichtung abgeschlossen ist.',
+ B:'<b>B · Zwei Wege.</b> Nach Sprache, Konto und Bibliothek fragt der Assistent: Empfehlungen übernehmen (fertig in drei Schritten) oder alles selbst einstellen (fünf Schritte mehr). Fortschrittsbalken oben, keine Leiste.',
+ C:'<b>C · Pflicht + Karten.</b> Drei Pflichtschritte, dann eine Übersicht mit Karten. Jede Karte zeigt, ob die Empfehlung gilt oder schon eingerichtet ist; abschliessen geht jederzeit. Die gleiche Übersicht bleibt später in der Verwaltung als Checkliste.'
+};
+const browserLang=(()=>{const n=(navigator.languages||['de-CH'])[0]||'de-CH';const hit=LANGS.find(l=>l[0].toLowerCase()===n.toLowerCase())||LANGS.find(l=>l[0].split('-')[0]===n.split('-')[0].toLowerCase());return hit?hit[0]:'de-CH'})();
+
+function fresh(variant){
+  return {variant,step:'lang',lang:browserLang,q:'',visited:new Set(['lang']),skipped:new Set(),configured:new Set(),
+    country:REGION[browserLang][0],tz:REGION[browserLang][1],rating:RC(REGION[browserLang][0]),metaLangs:[...REGION[browserLang][2]],radioSame:true,
+    email:'',pw:'',pw2:'',pname:'',pcolor:SWATCH[0],
+    libs:[{id:1,name:'Filme',kind:'Filme',path:'',check:null,age:'18'}],
+    tmdb:'',tmdbState:null,extra:{tvdb:false,fanart:false,youtube:false,smtp:true,googlebooks:false,trakt:false,push:false,telegram:false},push:false,
+    hw:'auto',trickplay:false,
+    profiles:[],newProfile:{name:'',age:'6',pin:''},
+    url:'',urlState:null,updates:true,
+    mode:null,hubOpen:null,done:false,scan:0};
+}
+let S=fresh('A');
+try{const v=localStorage.getItem('sc-wiz-variant');if(v&&'ABC'.includes(v))S=fresh(v)}catch(e){}
+
+const tr=()=>T[S.lang]||T.en;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const langName=c=>(LANGS.find(l=>l[0]===c)||[c,c])[1];
+const DN=(()=>{try{return new Intl.DisplayNames(['de'],{type:'language'})}catch(e){return null}})();
+const metaName=c=>{try{return DN?DN.of(c):c}catch(e){return c}};
+
+function flow(){
+  if(S.variant==='A')return['lang','account','region','services','playback','libs','household','access','summary'];
+  if(S.variant==='B'){const base=['lang','account','libs','choice'];return S.mode==='custom'?[...base,'region','services','playback','household','access','summary']:[...base,'summary']}
+  return['lang','account','libs','hub'];
+}
+
+/* ---------- step bodies ---------- */
+function vLang(){
+  const t=tr();const q=S.q.trim().toLowerCase();
+  const list=LANGS.filter(l=>!q||(l[0]+l[1]+l[2]).toLowerCase().includes(q));
+  const d=new Date(2026,10,14,20,15);
+  let date='',num='';
+  try{date=new Intl.DateTimeFormat(S.lang,{dateStyle:'full',timeStyle:'short'}).format(d);num=new Intl.NumberFormat(S.lang).format(1234567.5)}catch(e){}
+  return `<div class="eyebrow">${esc(t.steps.lang)}</div>
+  <h1 class="h1">${esc(t.welcome)}</h1>
+  <p class="lead">${esc(t.intro)}</p>
+  <div class="row"><div class="field" style="flex:1 1 260px"><label for="q">${esc(t.search)}</label><input id="q" class="in" data-bind="q" value="${esc(S.q)}" placeholder="Français, 日本語, pt-BR …"></div>
+  <span class="chip ac">${esc(t.detected)}: ${esc(langName(browserLang))}</span></div>
+  <div class="langs" role="radiogroup" aria-label="${esc(t.steps.lang)}">${list.map(l=>`<button class="lang" role="radio" aria-checked="${l[0]===S.lang}" data-act="lang" data-v="${l[0]}"><b>${esc(l[1])}</b><span>${esc(l[2])} · <span class="tag">${l[0]==='de-CH'?'de':l[0]}</span></span></button>`).join('')||'<p class="muted">Keine Sprache gefunden.</p>'}</div>
+  <div class="preview"><span>Datum: <b>${esc(date)}</b></span><span>Zahl: <b>${esc(num)}</b></span></div>
+  <p class="muted">Diese Sprache gilt für die Einrichtung und als Vorgabe für neue Profile. Jedes Profil wählt später seine eigene. Die Region im nächsten Schritt ist aus der Sprache vorgeschlagen.</p>`;
+}
+function vRegion(){
+  const opts=Object.entries(COUNTRIES).map(([k,v])=>`<option value="${k}"${k===S.country?' selected':''}>${v}</option>`).join('');
+    const avail=META_LANGS.filter(l=>!S.metaLangs.includes(l));
+  return `<div class="eyebrow">Schritt · ${esc(tr().steps.region)}</div>
+  <h1 class="h1">Region und Metadaten</h1>
+  <p class="lead">Daraus folgen Altersfreigaben, die Sprache von Titeln und Beschreibungen, die Zeiten der Hintergrundjobs und das Land fürs Radio-Angebot.</p>
+  <div class="row">
+    <div class="field"><label for="country">Land</label><select id="country" class="in" data-bind="country">${opts}</select></div>
+    <div class="field"><label for="rc">Altersfreigaben nach</label><select id="rc" class="in" data-bind="rating">${Object.keys(STEPS).map(k=>`<option value="${k}"${k===S.rating?' selected':''}>${COUNTRIES[k]||k}</option>`).join('')}</select><span class="hint">Stufen: ${esc((STEPS[S.rating]||[]).map(x=>x[1]).join(' · '))}. Gespeichert wird das echte Mindestalter (PG-13 = 13). Fehlt einem Titel die Freigabe dieses Landes, gilt die deutsche FSK.</span></div>
+  </div>
+  <div class="panel"><div class="ph"><span class="h2">Zeitzone des Servers</span><span class="sp"></span><span class="chip">${SERVER_TZ}</span></div>
+  <p class="muted" style="margin:0">Kommt aus <code>TZ</code> in <code>deploy/.env</code> und gilt für die Zeitpläne der Hintergrundjobs. ${(()=>{let b='';try{b=Intl.DateTimeFormat().resolvedOptions().timeZone}catch(e){}return b&&b!==SERVER_TZ?`<span style="color:var(--warn)">Dein Browser steht auf ${esc(b)}. Stimmt der Server nicht, setze <code>TZ=${esc(b)}</code> in <code>deploy/.env</code> und starte neu.</span>`:'Stimmt mit deinem Browser überein.'})()}</p></div>
+  <div class="panel"><div class="ph"><span class="h2">Sprachen der Metadaten</span><span class="sp"></span><span class="muted">in dieser Reihenfolge</span></div>
+  <div class="rootchips">${S.metaLangs.map((l,i)=>`<span class="chip ac">${i+1}. ${esc(metaName(l))} <button class="btn ghost sm" style="min-height:22px;padding:0 4px" data-act="rmMeta" data-v="${l}" aria-label="${l} entfernen">×</button></span>`).join('')}
+  ${avail.length?`<select class="in" style="width:auto;min-height:34px" data-act="addMeta" aria-label="Sprache hinzufügen"><option value="">+ Sprache</option>${avail.map(l=>`<option value="${l}">${esc(metaName(l))}</option>`).join('')}</select>`:''}</div>
+  <p class="muted" style="margin:0">Fehlt ein Text in der ersten Sprache, kommt der aus der nächsten. Keine Sprache ist Pflicht. Profile wählen aus dieser Liste.</p></div>
+  <button class="toggle" role="switch" aria-checked="${S.radioSame}" data-act="tog" data-v="radioSame"><span class="sw"></span><span>${esc(COUNTRIES[S.country])} ins Radio-Angebot aufnehmen<br><span class="muted">Noch ohne Sender. Welche Sender es gibt, markierst du später unter Verwaltung › Radio.</span></span></button>`;
+}
+function vAccount(){
+  const bad=S.pw&&S.pw.length<10, mis=S.pw2&&S.pw2!==S.pw;
+  return `<div class="eyebrow">Schritt · ${esc(tr().steps.account)}</div>
+  <h1 class="h1">Administrator-Konto</h1>
+  <p class="lead">Mit diesem Konto verwaltest du Slouchcat. Dazu gehört ein erstes Profil zum Schauen.</p>
+  <div class="row"><div class="field"><label for="em">E-Mail</label><input id="em" class="in" type="email" autocomplete="email" data-bind="email" value="${esc(S.email)}" placeholder="name@beispiel.ch"></div></div>
+  <div class="row">
+    <div class="field"><label for="pw">Passwort</label><input id="pw" class="in" type="password" autocomplete="new-password" data-bind="pw" value="${esc(S.pw)}"><span class="hint"${bad?' style="color:var(--bad)"':''}>Mindestens 10 Zeichen.</span></div>
+    <div class="field"><label for="pw2">Passwort wiederholen</label><input id="pw2" class="in" type="password" autocomplete="new-password" data-bind="pw2" value="${esc(S.pw2)}"><span class="hint"${mis?' style="color:var(--bad)"':''}>${mis?'Die Passwörter stimmen nicht überein.':'&nbsp;'}</span></div>
+  </div>
+  <div class="panel"><span class="h2">Dein Profil</span>
+  <div class="row" style="align-items:center"><span class="avatar" style="background:${S.pcolor}">${esc((S.pname||'?').slice(0,1).toUpperCase())}</span>
+  <div class="field" style="flex:1 1 200px"><label for="pn">Name</label><input id="pn" class="in" data-bind="pname" value="${esc(S.pname)}" placeholder="Alex"></div></div>
+  <div class="swatches" role="radiogroup" aria-label="Farbe">${SWATCH.map(c=>`<button class="swatch" role="radio" aria-checked="${c===S.pcolor}" aria-label="Farbe ${c}" style="background:${c}" data-act="color" data-v="${c}"></button>`).join('')}</div>
+  <p class="muted" style="margin:0">Sprache des Profils: ${esc(langName(S.lang))}. Freigabe: alle Inhalte.</p></div>`;
+}
+function libCheckMsg(c){
+  if(!c)return'';
+  if(c==='ok')return'<div class="msg ok">Ordner gefunden · ext4 · Änderungen werden sofort erkannt (inotify) · 1 284 Dateien</div>';
+  if(c==='nas')return'<div class="msg warn">Netzlaufwerk (cifs) · Änderungen werden regelmässig gesucht (poll). Neue Titel erscheinen deshalb mit Verzögerung.</div>';
+  return'<div class="msg bad">Ordner nicht gefunden oder nicht lesbar. Ist er im Container eingebunden?</div>';
+}
+function vLibs(){
+  return `<div class="eyebrow">Schritt · ${esc(tr().steps.libs)}</div>
+  <h1 class="h1">Bibliotheken</h1>
+  <p class="lead">Eine Bibliothek ist ein Ordner mit Filmen, Serien oder Hörbüchern. Mindestens eine braucht es, weitere kannst du hier oder später anlegen.</p>
+  ${S.libs.map((l,i)=>`<div class="panel">
+    <div class="ph"><span class="h2">${esc(l.name||'Bibliothek')}</span><span class="sp"></span>${S.libs.length>1?`<button class="btn ghost sm" data-act="rmLib" data-v="${l.id}">Entfernen</button>`:''}</div>
+    <div class="row">
+      <div class="field"><label for="ln${l.id}">Name</label><input id="ln${l.id}" class="in" data-lib="${l.id}" data-k="name" value="${esc(l.name)}"></div>
+      <div class="field" style="flex:0 1 180px"><label for="lk${l.id}">Inhalt</label><select id="lk${l.id}" class="in" data-lib="${l.id}" data-k="kind">${['Filme','Serien','Hörbücher'].map(k=>`<option${k===l.kind?' selected':''}>${k}</option>`).join('')}</select></div>
+      <div class="field" style="flex:0 1 140px"><label for="la${l.id}">Freigabe bis</label><select id="la${l.id}" class="in" data-lib="${l.id}" data-k="age">${AGES.map(a=>`<option value="${a[0]}"${a[0]===l.age?' selected':''}>${a[1]}</option>`).join('')}</select></div>
+    </div>
+    <div class="row">
+      <div class="field" style="flex:1 1 280px"><label for="lp${l.id}">Ordner im Container</label><input id="lp${l.id}" class="in mono" data-lib="${l.id}" data-k="path" value="${esc(l.path)}" placeholder="/media/filme"></div>
+      <button class="btn" data-act="checkLib" data-v="${l.id}">Ordner prüfen</button>
+    </div>
+    <div class="rootchips"><span class="muted">Eingebunden:</span>${['/media/filme','/media/serien','/mnt/nas/hoerbuecher'].map(p=>`<button class="btn sm" data-act="pickRoot" data-v="${l.id}" data-p="${p}">${p}</button>`).join('')}</div>
+    <div role="status">${libCheckMsg(l.check)}</div>
+  </div>`).join('')}
+  <div><button class="btn" data-act="addLib">+ Weitere Bibliothek</button></div>`;
+}
+function vServices(){
+  const ts=S.tmdbState;
+  const extra=(k,title,desc,fields,rec)=>`<div class="panel${rec?' rec':''}"><div class="ph"><span class="h2">${title}</span>${rec?'<span class="chip ac">Empfohlen</span>':'<span class="chip">Optional</span>'}<span class="sp"></span><button class="btn sm" data-act="extra" data-v="${k}" aria-expanded="${S.extra[k]}">${S.extra[k]?'Ausblenden':'Einrichten'}</button></div><p class="muted" style="margin:0">${desc}</p>${S.extra[k]?fields:''}</div>`;
+  return `<div class="eyebrow">Schritt · ${esc(tr().steps.services)}</div>
+  <h1 class="h1">Dienste</h1>
+  <p class="lead">Woher Poster, Beschreibungen und Trailer kommen und wie Slouchcat dir Meldungen schickt. Schlüssel werden verschlüsselt gespeichert und nie angezeigt.</p>
+  <div class="eyebrow">Empfohlen</div>
+  <div class="panel rec"><div class="ph"><span class="h2">TMDB</span><span class="chip ac">Empfohlen</span><span class="sp"></span>${ts==='ok'?'<span class="chip ok">Gültig</span>':''}</div>
+  <p class="muted" style="margin:0">Filme und Serien: Titel, Beschreibungen, Poster, Besetzung. Ohne TMDB zeigt Slouchcat nur Dateinamen. <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">Schlüssel bei TMDB holen</a></p>
+  <div class="row"><div class="field" style="flex:1 1 280px"><label for="tmdb">Lesezugriffs-Token (v4)</label><input id="tmdb" class="in mono" type="password" autocomplete="off" data-bind="tmdb" value="${esc(S.tmdb)}"></div><button class="btn" data-act="checkTmdb">Prüfen</button></div>
+  <div role="status">${ts==='bad'?'<div class="msg bad">TMDB lehnt den Schlüssel ab. Prüfe, ob du den v4-Token kopiert hast.</div>':''}</div></div>
+  ${extra('smtp','E-Mail','Für Einladungen, «Passwort vergessen» und Meldungen per Mail.','<div class="row"><div class="field"><label>Server</label><input class="in mono" placeholder="smtp.beispiel.ch"></div><div class="field" style="flex:0 1 110px"><label>Port</label><input class="in mono" value="587"></div><div class="field" style="flex:0 1 150px"><label>Verschlüsselung</label><select class="in"><option>STARTTLS</option><option>TLS</option><option>Keine</option></select></div></div><div class="row"><div class="field"><label>Benutzer</label><input class="in"></div><div class="field"><label>Passwort</label><input class="in" type="password"></div><div class="field"><label>Absender</label><input class="in" placeholder="Slouchcat &lt;kino@beispiel.ch&gt;"></div></div><div><button class="btn">Testmail an mich senden</button></div>',true)}
+  <div class="eyebrow" style="margin-top:8px">Optional</div>
+  ${extra('tvdb','TheTVDB','Bessere Staffel- und Folgendaten für Serien, vor allem Anime. <a href="https://thetvdb.com/dashboard/account/apikey" target="_blank" rel="noopener">Schlüssel bei TheTVDB holen</a>','<div class="row"><div class="field"><label>API-Schlüssel</label><input class="in mono" type="password"></div><div class="field"><label>PIN (Abo)</label><input class="in mono"></div><button class="btn">Prüfen</button></div>')}
+  ${extra('fanart','Fanart.tv','Logos, Hintergründe und Disc-Bilder in höherer Auflösung. <a href="https://fanart.tv/get-an-api-key/" target="_blank" rel="noopener">Schlüssel bei Fanart.tv holen</a>','<div class="row"><div class="field"><label>Persönlicher Schlüssel</label><input class="in mono" type="password"></div><button class="btn">Prüfen</button></div>')}
+  ${extra('youtube','YouTube (Trailer)','Findet Trailer in der Sprache des Profils. Ohne Schlüssel gibt es keine Trailer. Tageslimit 100 Suchen. <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Schlüssel in der Google Cloud Console holen</a>','<div class="row"><div class="field"><label>YouTube Data API v3</label><input class="in mono" type="password"></div><button class="btn">Prüfen</button></div>')}
+  ${extra('googlebooks','Google Books','Angaben und Cover für Hörbücher. <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Schlüssel in der Google Cloud Console holen</a>','<div class="row"><div class="field"><label>API-Schlüssel</label><input class="in mono" type="password"></div><button class="btn">Prüfen</button></div>')}
+  ${extra('trakt','Trakt','Öffentliche Listen von Trakt für Spotlight und Startseite. <a href="https://developer.trakt.tv/apps" target="_blank" rel="noopener">App bei Trakt anlegen</a>','<div class="row"><div class="field"><label>Client-ID</label><input class="in mono" type="password"></div><button class="btn">Prüfen</button></div>')}
+  ${extra('push','Web-Push','Meldungen direkt auf dieses Gerät, auch wenn Slouchcat geschlossen ist. Die Schlüssel erzeugt der Server selbst.',`<button class="toggle" role="switch" aria-checked="${S.push}" data-act="tog" data-v="push"><span class="sw"></span><span>Meldungen auf diesem Gerät einschalten<br><span class="muted">Der Browser fragt einmal um Erlaubnis.</span></span></button>`)}
+  ${extra('telegram','Telegram','Meldungen über einen eigenen Telegram-Bot. <a href="https://t.me/BotFather" target="_blank" rel="noopener">Bot bei @BotFather anlegen</a>','<div class="row"><div class="field"><label>Bot-Token</label><input class="in mono" type="password"></div><button class="btn">Speichern und prüfen</button></div><p class="muted" style="margin:0">Dein Konto verbindest du danach unter Einstellungen › Benachrichtigungen.</p>')}`;
+}
+function vPlayback(){
+    return `<div class="eyebrow">Schritt · ${esc(tr().steps.playback)}</div>
+  <h1 class="h1">Wiedergabe</h1>
+  <p class="lead">Kann ein Gerät eine Datei nicht direkt abspielen, wandelt Slouchcat sie um. Mit Grafikchip geht das schneller und braucht weniger Strom.</p>
+  <div class="panel"><div class="ph"><span class="h2">Gefunden</span><span class="sp"></span><span class="chip ok">/dev/dri/renderD128</span></div>
+  <dl class="kv"><dt>Grafikchip</dt><dd>Intel UHD Graphics 770 (Quick Sync)</dd><dt>Dekodieren</dt><dd>H.264, HEVC 10 bit, VP9, AV1</dd><dt>Kodieren</dt><dd>H.264, HEVC</dd><dt>HDR → SDR</dt><dd>auf dem Grafikchip</dd><dt>Prozessor</dt><dd>12 Kerne</dd><dt>inotify-Limit</dt><dd>524 288 <span class="chip ok">reicht</span></dd></dl></div>
+  <div role="radiogroup" aria-label="Umwandeln mit" style="display:flex;flex-direction:column;gap:8px">
+  ${[['auto','Automatisch','Slouchcat nimmt beim Start das Beste, was funktioniert. Heute: Intel Quick Sync.',true,true],['qsv','Intel Quick Sync','Probe gelungen. Schnell und sparsam, bis 2160p.',true],['vaapi','VA-API','Probe gelungen. Allgemeiner Weg für Intel und AMD, weniger Funktionen.',true],['nvenc','NVIDIA NVENC','Nicht verfügbar: kein NVIDIA-Gerät im Container.',false],['software','Nur Prozessor','Funktioniert überall, aber langsam; 4K meist nicht flüssig.',true]].map(([v,t,d,ok,rec])=>`<button class="radio" role="radio" aria-checked="${S.hw===v}" ${ok?`data-act="hw" data-v="${v}"`:'aria-disabled="true" style="opacity:.5;cursor:not-allowed"'}><span class="rb"></span><span><b>${t}</b>${rec?' <span class="chip ac">Empfohlen</span>':''}<small>${d}</small></span></button>`).join('')}</div>
+  ${S.hw!=='auto'?'<div class="msg warn">Gilt nach einem Neustart. Slouchcat startet beim Abschliessen einmal neu (etwa 10 Sekunden).</div>':''}
+  <p class="muted" style="margin:0">Setzt <code>deploy/.env</code> den Wert <code>SLOUCHCAT_HW</code>, gilt dieser, und hier steht «aus .env».</p>
+  <button class="toggle" role="switch" aria-checked="${S.trickplay}" data-act="tog" data-v="trickplay"><span class="sw"></span><span>Vorschaubilder beim Spulen (Trickplay)<br><span class="muted">Vorgabe für die Video-Bibliotheken im nächsten Schritt. Braucht Rechenzeit beim ersten Scan und zusätzlichen Speicher; je Bibliothek änderbar.</span></span></button>`;
+}
+function vHousehold(){
+  const np=S.newProfile;
+  if(!stepsOf().some(a=>a[0]===np.age))np.age=(stepsOf()[1]||stepsOf()[0])[0];
+  return `<div class="eyebrow">Schritt · ${esc(tr().steps.household)}</div>
+  <h1 class="h1">Haushalt</h1>
+  <p class="lead">Profile für alle, die mit deinem Konto schauen. Jedes Profil hat eigene Fortschritte, eine Merkliste und eine Altersstufe. Eigene Konten für Gäste lädst du später unter Verwaltung › Konten ein.</p>
+  <div class="panel">
+  <div class="ph"><span class="avatar" style="background:${S.pcolor}">${esc((S.pname||'?').slice(0,1).toUpperCase())}</span><span><b>${esc(S.pname||'Dein Profil')}</b><br><span class="muted">Administrator · alle Inhalte</span></span></div>
+  ${S.profiles.map((p,i)=>`<div class="ph"><span class="avatar" style="background:${SWATCH[(i+3)%SWATCH.length]}">${esc(p.name.slice(0,1).toUpperCase())}</span><span><b>${esc(p.name)}</b><br><span class="muted">Freigabe ${esc(stepLabel(p.age))}${p.pin?' · mit PIN':''}</span></span><span class="sp"></span><button class="btn ghost sm" data-act="rmProfile" data-v="${i}">Entfernen</button></div>`).join('')}
+  </div>
+  <div class="panel"><span class="h2">Profil hinzufügen</span>
+  <div class="row"><div class="field"><label for="npn">Name</label><input id="npn" class="in" data-np="name" value="${esc(np.name)}" placeholder="Lena"></div>
+  <div class="field" style="flex:0 1 160px"><label for="npa">Altersstufe (${esc(COUNTRIES[S.rating]||S.rating)})</label><select id="npa" class="in" data-np="age">${stepsOf().map(a=>`<option value="${a[0]}"${a[0]===np.age?' selected':''}>${esc(a[1])}</option>`).join('')}</select></div>
+  <button class="btn" data-act="addProfile">Hinzufügen</button></div>
+  <div class="row"><div class="field" style="flex:0 1 220px"><label for="npp">PIN (optional)</label><input id="npp" class="in mono" inputmode="numeric" maxlength="8" data-np="pin" value="${esc(np.pin)}" placeholder="4–8 Ziffern"><span class="hint">Schützt den Wechsel in dieses Profil.</span></div></div></div>`;
+}
+function vAccess(){
+  const u=S.urlState;
+  return `<div class="eyebrow">Schritt · ${esc(tr().steps.access)}</div>
+  <h1 class="h1">Zugriff und Updates</h1>
+  <p class="lead">Unter welcher Adresse Slouchcat von aussen erreichbar ist. Sie steht in Einladungen, E-Mails und Push-Meldungen. Zu Hause geht es auch ohne.</p>
+  <div class="row"><div class="field" style="flex:1 1 300px"><label for="url">Öffentliche Adresse</label><input id="url" class="in mono" data-bind="url" value="${esc(S.url)}" placeholder="https://kino.beispiel.ch"><span class="hint">Erkannt aus dieser Sitzung: http://192.168.1.20:8096</span></div><button class="btn" data-act="checkUrl">Erreichbarkeit prüfen</button></div>
+  <div role="status">${u==='ok'?'<div class="msg ok">Erreichbar · HTTPS-Zertifikat gültig bis 12.02.2027</div>':u==='bad'?'<div class="msg warn">Die Adresse muss mit https:// beginnen. Für HTTPS liegt ein Caddy-Beispiel in <code>deploy/Caddyfile</code>.</div>':''}</div>
+  <button class="toggle" role="switch" aria-checked="${S.updates}" data-act="tog" data-v="updates"><span class="sw"></span><span>Täglich nach neuen Versionen suchen<br><span class="muted">Fragt nur GitHub nach der neuesten Version. Slouchcat sendet keine Nutzungsdaten.</span></span></button>`;
+}
+function stateOf(id){return S.configured.has(id)?'set':S.skipped.has(id)?'skip':'rec'}
+function vSummary(){
+  const st=id=>{const s=stateOf(id);return s==='set'?'<span class="chip ok">Eingerichtet</span>':'<span class="chip">Empfehlung</span>'};
+  const edit=id=>`<button class="btn ghost sm" data-act="goto" data-v="${id}">Ändern</button>`;
+  const sec=(id,title,body)=>`<div class="sumsec"><div class="ph"><span class="h2">${title}</span>${OPT.has(id)?st(id):''}<span class="sp"></span>${edit(id)}</div><dl class="kv">${body}</dl></div>`;
+  const metaNames=S.metaLangs.map(metaName).join(' → ');
+  return `<div class="eyebrow">${esc(tr().steps.summary)}</div>
+  <h1 class="h1">Alles bereit</h1>
+  <p class="lead">Prüfe die Angaben. Nach dem Abschliessen meldet Slouchcat dich an und beginnt mit dem ersten Scan.</p>
+  <div class="panel">
+  ${sec('lang','Sprache',`<dt>Oberfläche</dt><dd>${esc(langName(S.lang))}</dd>`)}
+  ${sec('region','Region',`<dt>Land</dt><dd>${esc(COUNTRIES[S.country])}</dd><dt>Freigaben</dt><dd>${esc(COUNTRIES[S.rating]||S.rating)}: ${esc((STEPS[S.rating]||[]).map(x=>x[1]).join(', '))}</dd><dt>Zeitzone</dt><dd>${SERVER_TZ} (aus TZ)</dd><dt>Metadaten</dt><dd>${esc(metaNames)}</dd>`)}
+  ${sec('account','Konto',`<dt>E-Mail</dt><dd>${esc(S.email||'– fehlt –')}</dd><dt>Profil</dt><dd>${esc(S.pname||'– fehlt –')}</dd>`)}
+  ${sec('libs','Bibliotheken',S.libs.map(l=>`<dt>${esc(l.name)}</dt><dd><code>${esc(l.path||'– kein Ordner –')}</code> · ${esc(l.kind)}</dd>`).join(''))}
+  ${sec('services','Dienste',`<dt>TMDB</dt><dd>${S.tmdbState==='ok'?'gültig':'nicht eingerichtet: nur Dateinamen'}</dd><dt>Weitere</dt><dd>${['tvdb','fanart','youtube','smtp'].filter(k=>S.extra[k]).map(k=>({tvdb:'TheTVDB',fanart:'Fanart.tv',youtube:'YouTube',smtp:'E-Mail'})[k]).join(', ')||'keine, später unter Verwaltung › Dienste'}</dd>`)}
+  ${sec('playback','Wiedergabe',`<dt>Umwandeln</dt><dd>${({auto:'Automatisch (heute Intel Quick Sync)',qsv:'Intel Quick Sync, gilt nach Neustart',vaapi:'VA-API, gilt nach Neustart',software:'Nur Prozessor, gilt nach Neustart'})[S.hw]}</dd><dt>Trickplay</dt><dd>${S.trickplay?'ein':'aus'} für neue Video-Bibliotheken</dd>`)}
+  ${sec('household','Haushalt',`<dt>Profile</dt><dd>${esc([S.pname||'Dein Profil',...S.profiles.map(p=>p.name+' (ab '+p.age+')')].join(', '))}</dd>`)}
+  ${sec('access','Zugriff',`<dt>Adresse</dt><dd>${esc(S.url||'nur im Heimnetz')}</dd><dt>Update-Prüfung</dt><dd>${S.updates?'ein':'aus'}</dd>`)}
+  </div>`;
+}
+function vChoice(){
+  return `<div class="eyebrow">${esc(tr().steps.choice)}</div>
+  <h1 class="h1">Wie geht es weiter?</h1>
+  <p class="lead">Konto und Bibliothek stehen. Den Rest kannst du übernehmen, wie wir ihn für ${esc(COUNTRIES[S.country])} vorschlagen, oder selbst einstellen.</p>
+  <div class="grid2">
+  <button class="choice rec" data-act="mode" data-v="quick"><span class="chip ac" style="align-self:flex-start">Empfohlen</span><span class="h2">Empfehlungen übernehmen</span>
+  <ul><li>Metadaten: ${esc(S.metaLangs.map(metaName).join(' → '))}, Freigaben ${esc(COUNTRIES[S.rating]||S.rating)}</li><li>Umwandeln mit dem erkannten Grafikchip, Trickplay aus</li><li>Update-Prüfung ein, keine weiteren Profile</li></ul>
+  <span class="muted">TMDB fehlt dann noch: Slouchcat zeigt nur Dateinamen, bis du den Schlüssel in der Verwaltung einträgst.</span></button>
+  <button class="choice" data-act="mode" data-v="custom"><span class="chip" style="align-self:flex-start">5 Schritte</span><span class="h2">Selbst einstellen</span>
+  <ul><li>Region und Metadaten</li><li>Dienste: TMDB, TVDB, Fanart, YouTube, E-Mail</li><li>Wiedergabe und Grafikchip</li><li>Haushalt: weitere Profile</li><li>Zugriff und Updates</li></ul></button>
+  </div>`;
+}
+const HUB=[['region','Region und Metadaten','Land, Zeitzone, Freigaben und Sprachen der Metadaten.'],['services','Dienste','TMDB, TVDB, Fanart, YouTube und E-Mail.'],['playback','Wiedergabe','Grafikchip fürs Umwandeln, Trickplay.'],['household','Haushalt','Weitere Profile mit Altersstufe.'],['access','Zugriff und Updates','Öffentliche Adresse, Update-Prüfung.']];
+function vHub(){
+  if(S.hubOpen){return `<div><button class="btn ghost sm" data-act="hubClose">← ${esc(tr().steps.hub)}</button></div>`+VIEWS[S.hubOpen]()}
+  const tmdbMissing=S.tmdbState!=='ok';
+  return `<div class="eyebrow">${esc(tr().steps.hub)}</div>
+  <h1 class="h1">Grundlagen stehen</h1>
+  <p class="lead">Slouchcat läuft schon mit den Empfehlungen. Richte ein, was du willst, und schliesse ab, wann du willst. Diese Übersicht findest du später unter Verwaltung › Einrichtung.</p>
+  ${tmdbMissing?'<div class="msg warn">Ohne TMDB-Schlüssel zeigt Slouchcat nur Dateinamen. Der Schlüssel steht unter «Dienste».</div>':''}
+  <div class="hub">${HUB.map(([id,t,d])=>{const s=stateOf(id);return `<button class="card" data-act="hubOpen" data-v="${id}"><div class="ph"><span class="h2">${t}</span><span class="sp"></span>${s==='set'?'<span class="chip ok">Eingerichtet</span>':(id==='services'&&tmdbMissing?'<span class="chip warn">TMDB fehlt</span>':'<span class="chip">Empfehlung</span>')}</div><p>${d}</p><span class="muted">${s==='set'?'Ändern':'Einrichten'} →</span></button>`}).join('')}</div>`;
+}
+function vDone(){
+  const pct=Math.min(100,S.scan);
+  return `<div class="eyebrow">${esc(tr().steps.summary)}</div>
+  <h1 class="h1">Slouchcat ist eingerichtet</h1>${S.hw!=='auto'&&S.scan<20?'<div class="msg warn">Slouchcat startet neu, damit der gewählte Grafikchip gilt …</div>':''}
+  <p class="lead">Du bist angemeldet. Der erste Scan läuft im Hintergrund; neue Titel erscheinen auf der Startseite, sobald sie erkannt sind.</p>
+  <div class="panel">${S.libs.map((l,i)=>{const p=Math.max(0,Math.min(100,pct*1.4-i*30));return `<div class="ph"><span><b>${esc(l.name)}</b> <span class="muted">${esc(l.path||'')}</span></span><span class="sp"></span><span class="muted" style="font-variant-numeric:tabular-nums">${Math.round(p)} %</span></div><div class="bar"><i style="width:${p}%"></i></div>`}).join('')}</div>
+  ${S.variant==='C'?'<p class="muted">Offene Punkte der Übersicht bleiben unter Verwaltung › Einrichtung.</p>':''}
+  <div><button class="btn pri" data-act="restart">Zur Startseite (Mockup neu starten)</button></div>`;
+}
+const VIEWS={lang:vLang,region:vRegion,account:vAccount,libs:vLibs,services:vServices,playback:vPlayback,household:vHousehold,access:vAccess,summary:vSummary,choice:vChoice,hub:vHub};
+
+/* ---------- frame ---------- */
+function render(){
+  document.querySelectorAll('[data-act="variant"]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===S.variant));
+  document.getElementById('vnote').innerHTML=NOTES[S.variant];
+  document.documentElement.lang=S.lang;
+  const t=tr(),f=flow(),idx=f.indexOf(S.step);
+  const top=`<div class="top"><span class="logo"><i>◐</i>Slouchcat</span><span class="sp"></span><button class="langbtn" data-act="goto" data-v="lang" aria-label="${esc(t.steps.lang)}">${esc(langName(S.lang))}</button></div>`;
+  if(S.done){document.getElementById('app').innerHTML=top+`<div class="body"><div class="main"><div class="content center">${vDone()}</div></div></div>`;return}
+  let rail='',prog='';
+  if(S.variant==='A'){
+    rail=`<nav class="rail" aria-label="Schritte">${f.map((id,i)=>{const cls=S.configured.has(id)||(S.visited.has(id)&&!S.skipped.has(id)&&i<idx)?'done':S.skipped.has(id)?'skip':'';return `<button class="st ${cls}" data-act="goto" data-v="${id}"${id===S.step?' aria-current="step"':''}><span class="dot">${cls==='done'?'✓':i+1}</span><span class="lbl">${esc(t.steps[id])}</span>${OPT.has(id)?`<span class="opt">${esc(t.optional)}</span>`:''}</button>`}).join('')}</nav>`;
+  } else if(!(S.variant==='C'&&S.step==='hub')){
+    const total=f.length;
+    prog=`<div class="prog" role="progressbar" aria-valuemin="1" aria-valuemax="${total}" aria-valuenow="${idx+1}" aria-label="Schritt ${idx+1} von ${total}"><i style="width:${(idx+1)/total*100}%"></i></div>`;
+  }
+  const isLast=S.step==='summary'||(S.variant==='C'&&S.step==='hub'&&!S.hubOpen);
+  const canSkip=OPT.has(S.step)&&!(S.variant==='C');
+  let foot='';
+  if(S.step==='choice'){foot=`<div class="foot"><button class="btn ghost" data-act="back">← ${esc(t.back)}</button></div>`}
+  else if(S.variant==='C'&&S.step==='hub'&&S.hubOpen){foot=`<div class="foot"><span class="sp"></span><button class="btn pri" data-act="hubSave">Übernehmen</button></div>`}
+  else{
+    const stepLbl=S.variant!=='A'&&!(S.variant==='C'&&S.step==='hub')?`<span class="muted" style="font-variant-numeric:tabular-nums">${idx+1} / ${f.length}</span>`:'';
+    foot=`<div class="foot">${idx>0?`<button class="btn ghost" data-act="back">← ${esc(t.back)}</button>`:''}${stepLbl}<span class="sp"></span>${canSkip?`<button class="btn" data-act="skip">${esc(t.skip)}</button>`:''}<button class="btn pri" data-act="${isLast?'finish':'next'}">${esc(isLast?t.finish:t.next)}${isLast?'':' →'}</button></div>`;
+  }
+  const center=S.variant!=='A'?' center':'';
+  document.getElementById('app').innerHTML=top+prog+`<div class="body">${rail}<div class="main"><div class="content${center}">${VIEWS[S.step]()}</div>${foot}</div></div>`;
+}
+function go(id){S.step=id;S.visited.add(id);S.hubOpen=null;render();const c=document.querySelector('.content h1');if(c){c.setAttribute('tabindex','-1');c.focus({preventScroll:false})}}
+function next(skip){
+  const f=flow(),i=f.indexOf(S.step);
+  if(OPT.has(S.step)){if(skip){S.skipped.add(S.step);S.configured.delete(S.step)}else{S.configured.add(S.step);S.skipped.delete(S.step)}}
+  if(i<f.length-1)go(f[i+1]);
+}
+function finish(){S.done=true;S.scan=0;render();const tick=()=>{if(!S.done)return;S.scan+=4;render();if(S.scan<130)setTimeout(tick,180)};setTimeout(tick,300)}
+
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b||b.tagName==='SELECT')return;
+  const a=b.dataset.act,v=b.dataset.v;
+  switch(a){
+    case'variant':S=fresh(v);try{localStorage.setItem('sc-wiz-variant',v)}catch(e){}render();break;
+    case'restart':S=fresh(S.variant);render();window.scrollTo(0,0);break;
+    case'lang':{S.lang=v;const r=REGION[v];S.country=r[0];S.tz=r[1];S.rating=RC(r[0]);S.metaLangs=[...r[2]];render();document.querySelector(`[data-act="lang"][data-v="${v}"]`)?.focus();break}
+    case'next':next(false);break;
+    case'skip':next(true);break;
+    case'back':{const f=flow(),i=f.indexOf(S.step);if(S.step==='summary'&&S.variant==='B'&&S.mode==='quick'){go('choice');break}if(i>0)go(f[i-1]);break}
+    case'goto':if(S.variant==='C'&&HUB.some(h=>h[0]===v)){S.step='hub';S.hubOpen=v;render();break}if(S.variant==='B'&&!flow().includes(v)){S.mode='custom'}go(v);break;
+    case'finish':finish();break;
+    case'mode':S.mode=v;go(v==='quick'?'summary':'region');break;
+    case'hubOpen':S.hubOpen=v;render();window.scrollTo(0,0);break;
+    case'hubClose':S.hubOpen=null;render();break;
+    case'hubSave':S.configured.add(S.hubOpen);S.hubOpen=null;render();break;
+    case'tog':S[v]=!S[v];render();break;
+    case'npPin':S.newProfile.pin=!S.newProfile.pin;render();break;
+    case'color':S.pcolor=v;render();break;
+    case'hw':S.hw=v;render();break;
+    case'rmMeta':if(S.metaLangs.length>1)S.metaLangs=S.metaLangs.filter(l=>l!==v);render();break;
+    case'extra':S.extra[v]=!S.extra[v];render();break;
+    case'checkTmdb':S.tmdbState=S.tmdb.trim().length>10?'ok':'bad';render();break;
+    case'checkUrl':S.urlState=/^https:\/\/.+\..+/.test(S.url.trim())?'ok':'bad';render();break;
+    case'addLib':{const id=Date.now();S.libs.push({id,name:'Serien',kind:'Serien',path:'',check:null,age:'18'});render();document.getElementById('lp'+id)?.focus();break}
+    case'rmLib':S.libs=S.libs.filter(l=>String(l.id)!==v);render();break;
+    case'pickRoot':{const l=S.libs.find(x=>String(x.id)===v);l.path=b.dataset.p;l.check=null;render();break}
+    case'checkLib':{const l=S.libs.find(x=>String(x.id)===v);const p=l.path.trim();l.check=p.startsWith('/mnt/nas')?'nas':p.startsWith('/media/')?'ok':'bad';render();break}
+    case'addProfile':{const n=S.newProfile.name.trim();if(!n){document.getElementById('npn')?.focus();break}S.profiles.push({...S.newProfile,name:n});S.newProfile={name:'',age:'6',pin:''};render();break}
+    case'rmProfile':S.profiles.splice(+v,1);render();break;
+  }
+});
+document.addEventListener('input',e=>{
+  const el=e.target;
+  if(el.dataset.bind){S[el.dataset.bind]=el.value;if(el.dataset.bind==='q'){const pos=el.selectionStart;render();const q=document.getElementById('q');q.focus();q.setSelectionRange(pos,pos)}
+    if(el.dataset.bind==='tmdb')S.tmdbState=null;if(el.dataset.bind==='url')S.urlState=null;
+  }
+  if(el.dataset.lib){const l=S.libs.find(x=>String(x.id)===el.dataset.lib);l[el.dataset.k]=el.value;if(el.dataset.k==='path')l.check=null}
+  if(el.dataset.np)S.newProfile[el.dataset.np]=el.value;
+});
+document.addEventListener('change',e=>{
+  const el=e.target;
+  if(el.dataset.bind==='country'){S.country=el.value;render()}
+  else if(el.dataset.bind==='rating'){S.rating=el.value;render()}
+  else if(el.dataset.act==='addMeta'&&el.value){S.metaLangs.push(el.value);render()}
+  else if(el.dataset.lib&&el.tagName==='SELECT'){render()}
+  else if(['pw','pw2','pname'].includes(el.dataset.bind)){render()}
+});
+render();
+</script>
