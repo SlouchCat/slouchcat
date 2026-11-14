@@ -1576,7 +1576,8 @@ func TestContractChildProfiles(t *testing.T) {
 	// Positive checks on the start page come first, before reportProgress changes progress and the
 	// watchlist operations change the watchlists.
 	t.Run("home", func(t *testing.T) {
-		all := []string{"picks", "continue", "recent", "watchlist", "collections", "genres"}
+		// P6 sees one member of the mixed collection only: no collections row (concept 21 O-16).
+		all := []string{"picks", "continue", "recent", "watchlist", "genres"}
 		keys, rows := homeRows(t, send(t, h, http.MethodGet, BasePath+"/home", "p6", "", nil))
 		if !slices.Equal(keys, all) {
 			t.Errorf("P6 rows = %v, want %v", keys, all)
@@ -1598,8 +1599,8 @@ func TestContractChildProfiles(t *testing.T) {
 			t.Errorf("P0 recent = %v lacks the 0-rated movie", rows["recent"])
 		}
 		keys, rows = homeRows(t, send(t, h, http.MethodGet, BasePath+"/home", "p18", "", nil))
-		if !slices.Equal(keys, all) {
-			t.Errorf("P18 rows = %v, want %v", keys, all)
+		if want := []string{"picks", "continue", "recent", "watchlist", "collections", "genres"}; !slices.Equal(keys, want) {
+			t.Errorf("P18 rows = %v, want %v", keys, want)
 		}
 		for _, m := range []vistest.Movie{f.Rated(18), f.Unrated()} {
 			if !slices.Contains(rows["recent"], m.ID) {
@@ -1655,14 +1656,15 @@ func TestContractChildProfiles(t *testing.T) {
 			picks[0].Note != "" || picks[1].Note != "" || picks[2].Note != "" {
 			t.Errorf("P12 picks = %+v, want the films rated 6, 12 and X0, without a note", picks)
 		}
-		// E-6: the collections row counts visible members only, with a visible cover.
+		// E-6: the collections row counts visible members only, with a visible cover; since concept
+		// 21 O-16 it holds only collections with at least two of them (the manual one has one).
 		for _, tc := range []struct {
 			token string
 			want  map[string]int
 		}{
-			{"p6", map[string]int{vistest.MixedCollectionID: 1}},
+			{"p6", map[string]int{}},
 			{"p12", map[string]int{vistest.MixedCollectionID: 2}},
-			{"p18", map[string]int{vistest.MixedCollectionID: 3, vistest.ManualCollectionID: 1}},
+			{"p18", map[string]int{vistest.MixedCollectionID: 3}},
 		} {
 			page := homePage(t, send(t, h, http.MethodGet, BasePath+"/home", tc.token, "", nil))
 			got := map[string]int{}

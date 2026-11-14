@@ -6555,7 +6555,9 @@ export interface components {
              * @description Only in the row `collections` (E-6). Since contract 1.25.0 without the audiobook
              *     collections, whose visible members are all audiobooks (concept 19 D4.1); they appear in
              *     the row «Reihen und Sammlungen» of their library (`listAudioGroups`), on the detail page
-             *     and in the search.
+             *     and in the search. Since contract 1.33.0 (concept 21 O-16) only collections with at least
+             *     two visible members, the started ones (`started`) first, each group by name; the page
+             *     `listVisibleCollections` keeps every collection.
              */
             collections?: components["schemas"]["CollectionRef"][];
             /** @description Only in the row `genres`; each links to the search filtered by that genre. */

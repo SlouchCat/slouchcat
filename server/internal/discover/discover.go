@@ -341,7 +341,7 @@ func (s *Service) row(ctx context.Context, profile model.Profile, setting model.
 	case RowWatchlist:
 		row.Items, err = s.vis.WatchlistRow(ctx, scope, visibility.MaxRowItems)
 	case RowCollections:
-		row.Collections, err = s.vis.Collections(ctx, scope, visibility.MaxRowItems)
+		row.Collections, err = s.vis.HomeCollections(ctx, scope, visibility.MaxRowItems)
 	case RowGenres:
 		row.Genres, err = s.vis.Genres(ctx, scope, visibility.MaxRowItems)
 	case RowReleased:

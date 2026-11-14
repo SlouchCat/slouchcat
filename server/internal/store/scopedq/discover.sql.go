@@ -292,6 +292,103 @@ func (q *Queries) ListCollectionsOfItem(ctx context.Context, arg ListCollections
 	return items, nil
 }
 
+const listHomeCollections = `-- name: ListHomeCollections :many
+SELECT c.id, c.name, c.name_de, count(*) AS member_count,
+       CAST((SELECT ci2.item_id FROM collection_items AS ci2
+             JOIN items AS i2 ON i2.id = ci2.item_id
+             JOIN visible_items AS v2 ON v2.item_id = ci2.item_id AND v2.profile_id = ?1
+             WHERE ci2.collection_id = c.id
+             ORDER BY ci2.position, i2.release_date IS NULL, i2.release_date, i2.id
+             LIMIT 1) AS TEXT) AS cover_id,
+       CAST(COALESCE(min(i.year), 0) AS INTEGER) AS first_year,
+       CAST(COALESCE(max(i.year), 0) AS INTEGER) AS last_year,
+       CAST(COALESCE(sum(CASE WHEN i.kind IN ('series', 'podcast') THEN 0 ELSE i.runtime_minutes END), 0) AS INTEGER) AS runtime_minutes,
+       CAST(COALESCE(sum(CASE WHEN i.kind IN ('series', 'podcast') THEN
+                EXISTS (SELECT 1 FROM items AS se
+                        CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+                        CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+                        WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season')) AND +e.library_id = i.library_id)
+                AND NOT EXISTS (SELECT 1 FROM items AS se
+                        CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+                        CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+                        WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season')) AND +e.library_id = i.library_id
+                          AND NOT EXISTS (SELECT 1 FROM progress AS pe WHERE pe.profile_id = ?1 AND pe.item_id = e.id AND pe.watched_at IS NOT NULL))
+            ELSE EXISTS (SELECT 1 FROM progress AS p WHERE p.profile_id = ?1 AND p.item_id = i.id AND p.watched_at IS NOT NULL)
+            END), 0) AS INTEGER) AS seen_count,
+       CAST(COALESCE(max(CASE WHEN i.kind IN ('series', 'podcast') THEN
+                EXISTS (SELECT 1 FROM items AS se
+                        CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+                        CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+                        CROSS JOIN progress AS pe ON pe.profile_id = ?1 AND pe.item_id = e.id
+                        WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season')) AND +e.library_id = i.library_id
+                          AND (pe.watched_at IS NOT NULL OR pe.position_ms > 0))
+            ELSE EXISTS (SELECT 1 FROM progress AS p WHERE p.profile_id = ?1 AND p.item_id = i.id
+                         AND (p.watched_at IS NOT NULL OR p.position_ms > 0))
+            END), 0) AS INTEGER) AS started
+FROM collections AS c
+JOIN collection_items AS ci ON ci.collection_id = c.id
+JOIN visible_items AS v ON v.item_id = ci.item_id AND v.profile_id = ?1
+JOIN items AS i ON i.id = ci.item_id
+GROUP BY c.id
+HAVING sum(i.kind <> 'audiobook') > 0 AND count(*) >= 2
+ORDER BY started DESC, c.name, c.id
+LIMIT ?2
+`
+
+type ListHomeCollectionsParams struct {
+	ProfileID  int64
+	LimitCount int64
+}
+
+type ListHomeCollectionsRow struct {
+	ID             string
+	Name           string
+	NameDe         sql.NullString
+	MemberCount    int64
+	CoverID        string
+	FirstYear      int64
+	LastYear       int64
+	RuntimeMinutes int64
+	SeenCount      int64
+	Started        int64
+}
+
+// The start page row "Sammlungen" (concept 21 O-16): the collections of ListVisibleCollections with
+// at least two visible members, the started ones first, each group by name; the same columns.
+func (q *Queries) ListHomeCollections(ctx context.Context, arg ListHomeCollectionsParams) ([]ListHomeCollectionsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listHomeCollections, arg.ProfileID, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListHomeCollectionsRow{}
+	for rows.Next() {
+		var i ListHomeCollectionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.NameDe,
+			&i.MemberCount,
+			&i.CoverID,
+			&i.FirstYear,
+			&i.LastYear,
+			&i.RuntimeMinutes,
+			&i.SeenCount,
+			&i.Started,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listVisibleCollectionItems = `-- name: ListVisibleCollectionItems :many
 SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at FROM collection_items AS ci
 JOIN items AS i ON i.id = ci.item_id

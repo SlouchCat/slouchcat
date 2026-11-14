@@ -2,6 +2,7 @@ package visibility
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -167,5 +168,56 @@ func TestCollectionDescription(t *testing.T) {
 	exec(t, f, `UPDATE collections SET description = NULL, description_lang = NULL WHERE id = ?`, vistest.MixedCollectionID)
 	if c, err := r.Collection(ctx, Profile(f.P12), vistest.MixedCollectionID, 0, 0); err != nil || c.Overview != older || c.OverviewLang != "" {
 		t.Errorf("without a description: %q %q (%v), want the older text %q", c.Overview, c.OverviewLang, err, older)
+	}
+}
+
+// Concept 21 O-16: the start page row holds the collections with at least two visible members,
+// the started ones first, each group by name; the page «Sammlungen» keeps every collection by
+// name. P12 sees two members of the mixed collection, one of the manual one (none: rated 18).
+func TestHomeCollectionsTwoTitlesStartedFirst(t *testing.T) {
+	t.Parallel()
+	f := discoverFixture(t)
+	ctx := context.Background()
+	r := New(f.DB, vistest.Logger())
+	add := func(id, name string, members ...string) {
+		t.Helper()
+		exec(t, f, `INSERT INTO collections (id, source, name, created_at, updated_at) VALUES (?, 'manual', ?, 1, 1)`, id, name)
+		for i, m := range members {
+			exec(t, f, `INSERT INTO collection_items (collection_id, item_id, position, created_at) VALUES (?, ?, ?, 1)`, id, m, i)
+		}
+	}
+	const pair, started, single = "01J9000000000000000000CMA1", "01J9000000000000000000CMB1", "01J9000000000000000000CMC1"
+	add(pair, "AAA pair", f.Rated(0).ID, f.Rated(6).ID)
+	add(started, "ZZZ started", f.Rated(0).ID, f.Rated(12).ID)
+	add(single, "BBB single", f.Rated(6).ID)
+	exec(t, f, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at) VALUES (?, ?, 3000, 10000, 0, 5000)`,
+		f.P12.ID, f.Rated(12).ID)
+	names := func(refs []model.CollectionRef) []string {
+		out := make([]string, 0, len(refs))
+		for _, c := range refs {
+			out = append(out, c.Name)
+		}
+		return out
+	}
+	row, err := r.HomeCollections(ctx, Profile(f.P12), MaxRowItems)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The film rated 12 is in the mixed collection and in ZZZ: both started, by name.
+	if want := []string{vistest.MixedCollectionDe, "ZZZ started", "AAA pair"}; !slices.Equal(names(row), want) {
+		t.Errorf("P12 home row = %v, want %v", names(row), want)
+	}
+	all, err := r.AllCollections(ctx, Profile(f.P12))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"AAA pair", "BBB single", vistest.MixedCollectionDe, "ZZZ started"}; !slices.Equal(names(all), want) {
+		t.Errorf("P12 page = %v, want %v", names(all), want)
+	}
+	if n, err := r.CollectionCount(ctx, Profile(f.P12)); err != nil || n != len(all) {
+		t.Errorf("P12 count «Sammlungen» = %d (%v), want %d like the page", n, err, len(all))
+	}
+	if row, err := r.HomeCollections(ctx, Profile(f.P12), 1); err != nil || len(row) != 1 || row[0].Name != vistest.MixedCollectionDe {
+		t.Errorf("P12 home row cut to 1 = %v (%v)", names(row), err)
 	}
 }

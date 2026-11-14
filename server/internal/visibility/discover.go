@@ -111,6 +111,25 @@ func (r *Reader) Collections(ctx context.Context, s Scope, limit int) ([]model.C
 	return r.collections(ctx, s, clamp(limit))
 }
 
+// HomeCollections returns the start page row «Sammlungen» (concept 21 O-16): the collections of
+// Collections with at least two visible members, the started ones first, each group by name, at
+// most limit (clamped to 1..MaxRowItems).
+func (r *Reader) HomeCollections(ctx context.Context, s Scope, limit int) ([]model.CollectionRef, error) {
+	pid, err := r.profile(ctx, s)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.q.ListHomeCollections(ctx, scopedq.ListHomeCollectionsParams{ProfileID: pid, LimitCount: clamp(limit)})
+	if err != nil {
+		return nil, fmt.Errorf("list home collections: %w", err)
+	}
+	refs := make([]collectionRow, 0, len(rows))
+	for _, c := range rows {
+		refs = append(refs, collectionRow(c))
+	}
+	return r.collectionRefs(ctx, s, pid, refs)
+}
+
 // AllCollections returns the same collections as Collections without the cut to MaxRowItems, at
 // most MaxCollections (the page «Sammlungen», concept 20 O-3).
 func (r *Reader) AllCollections(ctx context.Context, s Scope) ([]model.CollectionRef, error) {
