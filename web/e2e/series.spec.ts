@@ -56,18 +56,28 @@ const focusedEpisode = (page: Page) =>
     buttons.indexOf(document.activeElement as HTMLButtonElement),
   );
 
-/** Closes every open row by pointer (a click on an open line closes it). */
+/**
+ * Closes every open row by keyboard (Escape on its line): a click would leave the pointer as the
+ * last input, and Firefox then draws no ring for the focus the next arrow key moves.
+ */
 async function closeRows(page: Page): Promise<void> {
   await expect(lines(page).first()).toBeVisible();
   const open = episodes(page).locator('button[aria-expanded="true"]');
-  while ((await open.count()) > 0) await open.first().click();
+  for (let count = await open.count(); count > 0; count -= 1) {
+    await open.first().focus();
+    await page.keyboard.press('Escape');
+    await expect(open).toHaveCount(count - 1);
+  }
 }
 
-/** Opens the row of `code` by pointer, if it is not open yet. */
+/** Opens the row of `code` by keyboard (Enter on its line), if it is not open yet. */
 async function openRow(page: Page, code: string): Promise<void> {
   const target = line(page, code);
   await expect(target).toBeVisible();
-  if ((await target.getAttribute('aria-expanded')) !== 'true') await target.click();
+  if ((await target.getAttribute('aria-expanded')) !== 'true') {
+    await target.focus();
+    await page.keyboard.press('Enter');
+  }
   await expect(target).toHaveAttribute('aria-expanded', 'true');
 }
 
@@ -313,17 +323,14 @@ test('a wall of many seasons: two rows, «Alle N Staffeln anzeigen», ↓ over t
     await expect(fold).toHaveAttribute('aria-expanded', 'true');
     // Choose the last season, then fold: it stays in the wall, in place of the last cover.
     const last = seasonCards(page).filter({ hasText: 'Staffel 13' });
-    await last.click();
+    await last.focus();
+    await page.keyboard.press('Enter');
     await expect(last).toHaveAttribute('aria-current', 'true');
-    await fold.click();
+    await fold.focus();
+    await page.keyboard.press('Enter');
     await expect(seasonCards(page)).toHaveCount(Math.min(14, columns * 2));
     await expect(last).toBeVisible();
     await expect(last).toHaveAttribute('aria-current', 'true');
-    // By keyboard: Enter on the button unfolds and folds again, the focus stays on it.
-    await toggle.focus();
-    await page.keyboard.press('Enter');
-    await expectFocusOn(page, fold);
-    await page.keyboard.press('Enter');
     await expectFocusOn(page, toggle);
     await expectNoFocusTrap(page);
   } finally {
@@ -639,6 +646,10 @@ test('season page by keyboard: the series link, play, the episodes; no focus tra
   await expectFocusOn(page, playIn(page, 'S01E01'));
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(new RegExp(`/play/${id}$`));
+  await expect(page.getByRole('main', { name: 'Videoplayer' })).toHaveAttribute(
+    'data-start-ms',
+    /\d+/,
+  );
   await page.keyboard.press('Backspace');
   await expect(page).toHaveURL(new RegExp(`${seasonPath}$`));
 
