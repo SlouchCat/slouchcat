@@ -1,8 +1,11 @@
-# Konzept 21: Sammlung (Arbeitstitel)
+# Konzept 21: Sammlung
 
-- **Status: Fassung 1, freigegeben (14. November 2026).** Elf Punkte P-1 bis P-11, alle offenen
-  Fragen O-1 bis O-21 beantwortet (O-6 KinoCheck: Prüfung folgt später). Marco hat am
-  14. November 2026 die Umsetzung in sechs Stufen freigegeben (Abschnitt 14), **ohne Kritiker-Review**.
+- **Status: gebaut und veröffentlicht (15. November 2026).** Elf Punkte P-1 bis P-11, alle offenen
+  Fragen O-1 bis O-21 beantwortet. Stufen 1 bis 3 = Release **1.32.0** (PR #155, #156, #157, #158;
+  Tag `v1.32.0`, Lauf 43638374958), Stufen 4 bis 6 = Release **1.33.0** (PR #160, Merge `fb325aa1`;
+  Tag `v1.33.0`, Lauf 43654228987). CT 190 läuft auf 1.33.0. **Offen:** KinoCheck (O-6, Prüfung
+  folgt später, in keiner Stufe) und die Abnahme auf CT 190 (Abschnitt 6.4 Punkt 7). Freigabe am
+  14. November 2026 **ohne Kritiker-Review**.
 - **Verankert gegen:** `main` **`c96c7f72`** («Merge pull request #153», Konzept 20 gebaut,
   Release 1.31.0), Vertragsfassung **1.31.0** (`api/openapi.yaml:4`), letzte Migration
   **`00056_library_deleting.sql`**, letzte ADR **`0032`**, letzte Frage **27**. Die nächste freie
@@ -19,19 +22,18 @@
 
 | Nr. | Marcos Wunsch (sinngemäss) | Datum | Abschnitt |
 |---|---|---|---|
-| P-1 | Einige deutsche Trailer haben schlechte Qualität. Die Trailerwahl soll die Auflösung berücksichtigen. | 12.11.2026 | 2 |
-| P-2 | Fehler aus der Analyse der 5 235 Fehlschläge auf CT 190 korrigieren: ungültiger Schlüssel. | 12.11.2026 | 3 |
-| P-3 | Dito: YouTube-Tageslimit für Suchen wird nicht erkannt. | 12.11.2026 | 4 |
-| P-4 | Dito: Trailer in weiteren Sprachen (Slouchcat soll Open Source und mehrsprachig sein). | 12.11.2026 | 5 |
-| P-5 | Eine beschädigte Folge lässt «Intro und Abspann erkennen» für die ganze Staffel scheitern. O-9/O-10 beantwortet, Bauauftrag steht (6.4), Bau zurückgestellt. | 14.11.2026 | 6 |
-| P-6 | Serienansicht: Staffeln und Folgen nutzen nicht die volle Breite. Entschieden: Kachelwand und kompakte Liste. | 14.11.2026 | 8 |
-| P-7 | Besetzungsbilder überall grösser. Entschieden: Hochformat 2:3. | 14.11.2026 | 9 |
-| P-8 | Personenseite: grösseres Bild und Angaben zur Person. Entschieden: Farbband, Porträt 2:3, Angaben aus TMDB. | 14.11.2026 | 10 |
-| P-9 | Radio (und Sammlungen) in «Meine Medien». | 14.11.2026 | 11 |
-| P-10 | Vorschlag für die Sammlungen. Entschieden: Raster mit Filter (standardmässig alle), Sammlung als nummerierte Liste. | 14.11.2026 | 12 |
-| P-11 | Reihenfolge von «Meine Medien» in der Verwaltung ändern, Einträge ausblenden. Entschieden: eigene Seite. | 14.11.2026 | 13 |
+| P-1 | Einige deutsche Trailer haben schlechte Qualität. Die Trailerwahl soll die Auflösung berücksichtigen. **Gebaut: Stufe 2, 1.32.0.** | 12.11.2026 | 2 |
+| P-2 | Fehler aus der Analyse der 5 235 Fehlschläge auf CT 190 korrigieren: ungültiger Schlüssel. **Gebaut: Stufe 1, 1.32.0.** | 12.11.2026 | 3 |
+| P-3 | Dito: YouTube-Tageslimit für Suchen wird nicht erkannt. **Gebaut: Stufe 1, 1.32.0.** | 12.11.2026 | 4 |
+| P-4 | Dito: Trailer in weiteren Sprachen (Slouchcat soll Open Source und mehrsprachig sein). **Gebaut: Stufe 2, 1.32.0 (KinoCheck O-6 offen).** | 12.11.2026 | 5 |
+| P-5 | Eine beschädigte Folge lässt «Intro und Abspann erkennen» für die ganze Staffel scheitern. O-9/O-10 beantwortet. **Gebaut: Stufe 1, 1.32.0.** | 14.11.2026 | 6 |
+| P-6 | Serienansicht: Staffeln und Folgen nutzen nicht die volle Breite. Entschieden: Kachelwand und kompakte Liste. **Gebaut: Stufe 3, 1.32.0.** | 14.11.2026 | 8 |
+| P-7 | Besetzungsbilder überall grösser. Entschieden: Hochformat 2:3. **Gebaut: Stufe 3, 1.32.0.** | 14.11.2026 | 9 |
+| P-8 | Personenseite: grösseres Bild und Angaben zur Person. Entschieden: Farbband, Porträt 2:3, Angaben aus TMDB. **Gebaut: Stufe 4, 1.33.0.** | 14.11.2026 | 10 |
+| P-9 | Radio (und Sammlungen) in «Meine Medien». **Gebaut: Stufe 5, 1.33.0.** | 14.11.2026 | 11 |
+| P-10 | Vorschlag für die Sammlungen. Entschieden: Raster mit Filter (standardmässig alle), Sammlung als nummerierte Liste. **Gebaut: Stufe 6, 1.33.0.** | 14.11.2026 | 12 |
+| P-11 | Reihenfolge von «Meine Medien» in der Verwaltung ändern, Einträge ausblenden. Entschieden: eigene Seite. **Gebaut: Stufe 5, 1.33.0.** | 14.11.2026 | 13 |
 
-Weitere Punkte folgen.
 
 ## 2. P-1 Trailerwahl nach Auflösung
 
@@ -299,7 +301,7 @@ dass du das mit ins Konzept aufnimmst. Keine Umsetzung.» Wenn er ihn freigibt, 
    Abspann erkennen» für Dragon Ball Z · S02 (Staffel `01M73QMZJGZ298BJMRNJ0KPBN9`) erneut
    starten. Erwartet: Staffel `done`, 34 Folgen mit Segmenten, WARN für S02E11
    (`01M73QMZK49DXATATX0ESS7325`).
-8. Nach dem Bau P-5 hier als «gebaut» markieren.
+8. ~~Nach dem Bau P-5 hier als «gebaut» markieren.~~ Gebaut in Stufe 1 (PR #155), veröffentlicht mit 1.32.0.
 
 ## 7. Mockups vom 14. November 2026 (P-6 bis P-11)
 
