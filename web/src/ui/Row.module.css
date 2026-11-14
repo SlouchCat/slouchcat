@@ -136,6 +136,19 @@
   scroll-snap-align: start;
 }
 
+/* A person (CastCard, concept 21 P-7): a 2:3 portrait card of its own width. */
+.person {
+  flex: none;
+  width: var(--sc-size-portrait-sm);
+  scroll-snap-align: start;
+}
+
+@media (width >= 768px) {
+  .person {
+    width: var(--sc-size-portrait-md);
+  }
+}
+
 /* A library tile (LibraryTile): two cards and the gap between them; #poster-prepaint > .tile. */
 .tile {
   flex: none;

@@ -372,7 +372,7 @@ function Cast({ item }: { item: ItemDetail }) {
   const cast = item.cast ?? [];
   if (cast.length === 0) return null;
   return (
-    <Row title={t('item.cast.title')} focusKey="detail-cast">
+    <Row title={t('item.cast.title')} focusKey="detail-cast" variant="people">
       {cast.map((member) => (
         <CastCard
           key={`${member.personId}-${member.role}`}

@@ -123,6 +123,16 @@
         "$description": "Poster card width on large screens."
       }
     },
+    "portrait": {
+      "sm": {
+        "$value": "7rem",
+        "$description": "Width of a person's 2:3 portrait card (cast, search) on phones (concept 21 P-7)."
+      },
+      "md": {
+        "$value": "9.5rem",
+        "$description": "Width of a person's 2:3 portrait card from 768 px (concept 21 P-7)."
+      }
+    },
     "header": {
       "height": {
         "$value": "4rem"
