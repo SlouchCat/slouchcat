@@ -33,6 +33,13 @@
     "libraries": "My media",
     "libraryLabel_one": "{{name}}, {{count}} title",
     "libraryLabel_other": "{{name}}, {{count}} titles",
+    "radioCount_one": "{{count}} station",
+    "radioCount_other": "{{count}} stations",
+    "radioLabel_one": "{{name}}, {{count}} station",
+    "radioLabel_other": "{{name}}, {{count}} stations",
+    "collections": "Collections",
+    "collectionsLabel_one": "{{name}}, {{count}} collection",
+    "collectionsLabel_other": "{{name}}, {{count}} collections",
     "librariesOffline": "Offline: libraries not available",
     "librariesOfflineLink": "Go to downloads",
     "hideSidebar": "Hide sidebar",
@@ -472,6 +479,15 @@
     },
     "title": "Home",
     "picks": "User picks",
+    "myMedia": {
+      "stations_one": "{{count}} station",
+      "stations_other": "{{count}} stations",
+      "discover": "Discover stations",
+      "collections_one": "{{count}} collection",
+      "collections_other": "{{count}} collections",
+      "titles_one": "{{count}} title",
+      "titles_other": "{{count}} titles"
+    },
     "rows": {
       "continue": "Continue watching",
       "recent": "Recently added",
@@ -2853,6 +2869,73 @@
       "lockedNote": "This collection comes from TMDB: its members, name and deletion are locked.",
       "changed": "changed"
     },
+    "myMedia": {
+      "title": "My media",
+      "intro": "Order and visibility of the group «My media»: for the side navigation and the tiles on the start page, for every profile. Hiding only hides the entry; the titles stay in search and rows. Who may see which library is up to the accounts.",
+      "list": "Entries of «My media»",
+      "band": "My media",
+      "tabs": {
+        "label": "View of the entries",
+        "order": "Order",
+        "preview": "Preview"
+      },
+      "count_one": "{{number}} entry",
+      "count_other": "{{number}} entries",
+      "columns": {
+        "position": "Position",
+        "entry": "Entry",
+        "content": "Content",
+        "state": "State",
+        "sidebar": "Side navigation",
+        "home": "Start page"
+      },
+      "kind": {
+        "library": "Library",
+        "radio": "Radio",
+        "collections": "Collections",
+        "picks": "Picks"
+      },
+      "name": {
+        "radio": "Radio",
+        "collections": "Collections",
+        "picks": "User picks"
+      },
+      "content": {
+        "stations_one": "{{number}} station",
+        "stations_other": "{{number}} stations",
+        "collections_one": "{{number}} collection",
+        "collections_other": "{{number}} collections",
+        "titles_one": "{{number}} title",
+        "titles_other": "{{number}} titles"
+      },
+      "state": {
+        "visible": "visible",
+        "sidebarOnly": "side navigation only",
+        "homeOnly": "start page only",
+        "hidden": "hidden"
+      },
+      "hide": "Hide",
+      "hideSidebarLabel": "Hide {{entry}} in the side navigation",
+      "hideHomeLabel": "Hide {{entry}} on the start page",
+      "moved": "{{entry}} is now in position {{position}}. Save to apply it.",
+      "saved": "«My media» is saved.",
+      "discarded": "The changes are discarded.",
+      "discard": {
+        "title": "Discard changes?",
+        "body": "The unsaved order and hiding are lost; what is saved applies again.",
+        "confirm": "Discard"
+      },
+      "preview": {
+        "sidebar": "Side navigation",
+        "home": "Start page, row «My media»",
+        "sidebarLabel": "Preview of the side navigation",
+        "homeLabel": "Preview of the start page",
+        "empty": "Nothing visible: «My media» is missing here.",
+        "note": "In the unsaved order, with the numbers of the administration. Every profile sees only the libraries it may see, and its own stations and picks."
+      },
+      "homeRows": "Where the row «My media» stands on the start page and whether it appears is set under «Start page».",
+      "homeRowsLink": "To the page «Start page»"
+    },
     "homeRows": {
       "title": "Start page",
       "intro": "Order of the start page rows, for every profile. Hidden and empty rows do not appear.",
@@ -2890,7 +2973,7 @@
         "watchlist": "The watchlist of the profile.",
         "collections": "Own collections and those from TMDB.",
         "genres": "The genres of the visible titles.",
-        "libraries": "One tile per library the profile sees, with the number of titles; it opens the library page.",
+        "libraries": "Tiles for the libraries the profile sees, for radio and, when shown, for collections and user picks; the page «My media» sets their order and hiding.",
         "library": "The titles that came into this library most recently; “Show all” opens the library sorted by “Recently added”.",
         "radio": "The favourite stations of the profile as tiles; a station playing through the server right now shows its current title. Without favourites the row is left out."
       },
@@ -3110,6 +3193,9 @@
       },
       "collections": {
         "title": "Collections"
+      },
+      "myMedia": {
+        "title": "My media"
       },
       "homeRows": {
         "title": "Home page"
@@ -4348,6 +4434,12 @@
           "trigger": "After the match of a title with cast or a collection, and after a full scan, which fetches the backlog",
           "progress": "Images checked: {{done}} of {{total}}"
         },
+        "people_details": {
+          "name": "Fetch person and collection facts",
+          "description": "Fetches each person's biography, birthday, place of birth, known-for department and number of titles and each TMDB collection's description from TMDB, the English text when the main language has none.",
+          "trigger": "After the match of a title with cast or a collection, after a full scan, and once after the update",
+          "progress": "People and collections checked: {{done}} of {{total}}"
+        },
         "people_images_backfill": {
           "name": "Backfill person and collection images",
           "description": "Tries every person and collection again for which TMDB had no image.",
@@ -4971,7 +5063,41 @@
   },
   "person": {
     "credits": "Films and series",
+    "creditsCount": "· {{count}}",
     "as": "as {{character}}",
+    "facts": {
+      "knownFor": "Known for",
+      "born": "Born",
+      "bornAge": "{{date}} ({{age}})",
+      "birthplace": "Place of birth",
+      "died": "Died",
+      "diedAge": "{{date}} (aged {{age}})",
+      "library": "In your library",
+      "libraryOf_one": "{{shown}} of {{count}} title",
+      "libraryOf_other": "{{shown}} of {{count}} titles",
+      "libraryOnly_one": "{{count}} title",
+      "libraryOnly_other": "{{count}} titles"
+    },
+    "department": {
+      "acting": "Acting",
+      "directing": "Directing",
+      "writing": "Writing",
+      "production": "Production",
+      "sound": "Sound",
+      "camera": "Camera",
+      "editing": "Editing",
+      "art": "Art",
+      "crew": "Crew",
+      "costume": "Costume & Make-Up",
+      "visualEffects": "Visual Effects",
+      "lighting": "Lighting",
+      "creator": "Creator"
+    },
+    "biography": {
+      "more": "Read more",
+      "less": "Less",
+      "fallback": "Biography from TMDB, only available in English"
+    },
     "notFound": {
       "title": "Person not found",
       "body": "There are no titles for this person here."
@@ -5206,11 +5332,53 @@
       "title": "Collections",
       "count_one": "{{count}} collection",
       "count_other": "{{count}} collections",
-      "empty": "There is no collection for this profile yet."
+      "shown_one": "{{count}} of {{total}} collections",
+      "shown_other": "{{count}} of {{total}} collections",
+      "empty": "There is no collection for this profile yet.",
+      "noMatch": "No collection matches the search and filter.",
+      "filters": "Filters",
+      "search": "Search collections",
+      "size": "Size",
+      "sizes": {
+        "all": "All",
+        "2": "2 titles or more",
+        "3": "3 or more",
+        "5": "5 or more"
+      },
+      "sort": "Sort",
+      "sorts": {
+        "name": "Name A–Z",
+        "count": "Most titles",
+        "started": "Started first"
+      }
     },
     "count_one": "{{count}} title",
     "count_other": "{{count}} titles",
+    "films_one": "{{count}} film",
+    "films_other": "{{count}} films",
+    "years": "{{first}}–{{last}}",
+    "together": "{{duration}} in all",
+    "seen_one": "{{count}} of {{total}} watched",
+    "seen_other": "{{count}} of {{total}} watched",
     "members": "Titles",
+    "parts": "In order",
+    "part": "Part {{part}}: {{title}}",
+    "playPart": "Play: {{title}}",
+    "play": "Play · part {{part}}",
+    "resume": "Continue · part {{part}}",
+    "rewatch": "Watch again · part {{part}}",
+    "watchlist": {
+      "add": "Add all to watchlist",
+      "added": "All on watchlist"
+    },
+    "overviewFallback": "Description from TMDB, only available in English",
+    "ask": {
+      "removeBody_one": "{{count}} title loses its check mark. This cannot be undone.",
+      "removeBody_other": "{{count}} titles lose their check mark. This cannot be undone.",
+      "halfBody_one": "{{count}} of {{total}} titles carries the check mark. Mark every title or remove every check mark? Removing cannot be undone.",
+      "halfBody_other": "{{count}} of {{total}} titles carry the check mark. Mark every title or remove every check mark? Removing cannot be undone.",
+      "markAll": "Mark every title as watched"
+    },
     "notFound": {
       "title": "Collection not found",
       "body": "This collection does not exist or holds no title for this profile."

@@ -33,6 +33,13 @@
     "libraries": "Meine Medien",
     "libraryLabel_one": "{{name}}, {{count}} Titel",
     "libraryLabel_other": "{{name}}, {{count}} Titel",
+    "radioCount_one": "{{count}} Sender",
+    "radioCount_other": "{{count}} Sender",
+    "radioLabel_one": "{{name}}, {{count}} Sender",
+    "radioLabel_other": "{{name}}, {{count}} Sender",
+    "collections": "Sammlungen",
+    "collectionsLabel_one": "{{name}}, {{count}} Sammlung",
+    "collectionsLabel_other": "{{name}}, {{count}} Sammlungen",
     "librariesOffline": "Offline: Bibliotheken nicht verfügbar",
     "librariesOfflineLink": "Zu den Downloads",
     "hideSidebar": "Seitenleiste ausblenden",
@@ -472,6 +479,15 @@
     },
     "title": "Startseite",
     "picks": "User-Empfehlungen",
+    "myMedia": {
+      "stations_one": "{{count}} Sender",
+      "stations_other": "{{count}} Sender",
+      "discover": "Sender entdecken",
+      "collections_one": "{{count}} Sammlung",
+      "collections_other": "{{count}} Sammlungen",
+      "titles_one": "{{count}} Titel",
+      "titles_other": "{{count}} Titel"
+    },
     "rows": {
       "continue": "Weiterschauen",
       "recent": "Neu hinzugefügt",
@@ -2853,6 +2869,73 @@
       "lockedNote": "Diese Sammlung kommt von TMDB: Mitglieder, Name und Löschen sind darum gesperrt.",
       "changed": "geändert"
     },
+    "myMedia": {
+      "title": "Meine Medien",
+      "intro": "Reihenfolge und Sichtbarkeit der Gruppe «Meine Medien»: gilt für die Seitenleiste und die Kacheln auf der Startseite, für alle Profile. Ausblenden versteckt nur den Eintrag; die Titel bleiben in Suche und Reihen. Wer welche Bibliothek sehen darf, regeln die Konten.",
+      "list": "Einträge von «Meine Medien»",
+      "band": "Meine Medien",
+      "tabs": {
+        "label": "Ansicht der Einträge",
+        "order": "Reihenfolge",
+        "preview": "Vorschau"
+      },
+      "count_one": "{{number}} Eintrag",
+      "count_other": "{{number}} Einträge",
+      "columns": {
+        "position": "Platz",
+        "entry": "Eintrag",
+        "content": "Inhalt",
+        "state": "Zustand",
+        "sidebar": "Seitenleiste",
+        "home": "Startseite"
+      },
+      "kind": {
+        "library": "Bibliothek",
+        "radio": "Radio",
+        "collections": "Sammlungen",
+        "picks": "Empfehlungen"
+      },
+      "name": {
+        "radio": "Radio",
+        "collections": "Sammlungen",
+        "picks": "User-Empfehlungen"
+      },
+      "content": {
+        "stations_one": "{{number}} Sender",
+        "stations_other": "{{number}} Sender",
+        "collections_one": "{{number}} Sammlung",
+        "collections_other": "{{number}} Sammlungen",
+        "titles_one": "{{number}} Titel",
+        "titles_other": "{{number}} Titel"
+      },
+      "state": {
+        "visible": "sichtbar",
+        "sidebarOnly": "nur Seitenleiste",
+        "homeOnly": "nur Startseite",
+        "hidden": "ausgeblendet"
+      },
+      "hide": "Ausblenden",
+      "hideSidebarLabel": "{{entry}} in der Seitenleiste ausblenden",
+      "hideHomeLabel": "{{entry}} auf der Startseite ausblenden",
+      "moved": "{{entry}} steht jetzt auf Platz {{position}}. Speichere, damit es gilt.",
+      "saved": "«Meine Medien» ist gespeichert.",
+      "discarded": "Die Änderungen sind verworfen.",
+      "discard": {
+        "title": "Änderungen verwerfen?",
+        "body": "Die ungespeicherte Reihenfolge und das Ausblenden gehen verloren; es gilt wieder, was gespeichert ist.",
+        "confirm": "Verwerfen"
+      },
+      "preview": {
+        "sidebar": "Seitenleiste",
+        "home": "Startseite, Reihe «Meine Medien»",
+        "sidebarLabel": "Vorschau der Seitenleiste",
+        "homeLabel": "Vorschau der Startseite",
+        "empty": "Nichts sichtbar: hier fehlt «Meine Medien».",
+        "note": "In der ungespeicherten Reihenfolge, mit den Zahlen der Verwaltung. Jedes Profil sieht nur die Bibliotheken, die es sehen darf, und seine eigenen Sender und Empfehlungen."
+      },
+      "homeRows": "Wo die Reihe «Meine Medien» auf der Startseite steht und ob sie erscheint, regelt «Startseite».",
+      "homeRowsLink": "Zur Seite «Startseite»"
+    },
     "homeRows": {
       "title": "Startseite",
       "intro": "Reihenfolge der Reihen auf der Startseite, für alle Profile. Ausgeblendete und leere Reihen erscheinen nicht.",
@@ -2890,7 +2973,7 @@
         "watchlist": "Die Merkliste des Profils.",
         "collections": "Eigene Sammlungen und die von TMDB.",
         "genres": "Die Genres der sichtbaren Titel.",
-        "libraries": "Eine Kachel je Bibliothek, die das Profil sieht, mit der Zahl der Titel; führt zur Bibliotheksseite.",
+        "libraries": "Kacheln für die Bibliotheken, die das Profil sieht, für Radio und, wenn eingeblendet, für Sammlungen und User-Empfehlungen; Reihenfolge und Ausblenden regelt die Seite «Meine Medien».",
         "library": "Die zuletzt in diese Bibliothek gekommenen Titel; «Alle anzeigen» führt zur Bibliothek, sortiert nach «Zuletzt hinzugefügt».",
         "radio": "Die Lieblingssender des Profils als Kacheln; läuft ein Sender gerade über den Server, mit seinem aktuellen Titel. Ohne Favoriten fehlt die Reihe."
       },
@@ -3110,6 +3193,9 @@
       },
       "collections": {
         "title": "Sammlungen"
+      },
+      "myMedia": {
+        "title": "Meine Medien"
       },
       "homeRows": {
         "title": "Startseite"
@@ -4348,6 +4434,12 @@
           "trigger": "nach der Zuordnung eines Titels mit Besetzung oder Sammlung und nach einem vollständigen Scan, der den Bestand holt",
           "progress": "Bilder geprüft: {{done}} von {{total}}"
         },
+        "people_details": {
+          "name": "Angaben zu Personen und Sammlungen holen",
+          "description": "Lädt bei TMDB Biografie, Geburtstag, Geburtsort, Bekannt für und die Zahl der Titel jeder Person und die Beschreibung jeder TMDB-Sammlung; fehlt ein Text in der Hauptsprache, den englischen.",
+          "trigger": "nach der Zuordnung eines Titels mit Besetzung oder Sammlung, nach einem vollständigen Scan und einmal nach dem Update",
+          "progress": "Personen und Sammlungen geprüft: {{done}} von {{total}}"
+        },
         "people_images_backfill": {
           "name": "Personen- und Sammlungsbilder nachholen",
           "description": "Versucht alle Personen und Sammlungen noch einmal, für die TMDB kein Bild hatte.",
@@ -4971,7 +5063,41 @@
   },
   "person": {
     "credits": "Filme und Serien",
+    "creditsCount": "· {{count}}",
     "as": "als {{character}}",
+    "facts": {
+      "knownFor": "Bekannt für",
+      "born": "Geboren",
+      "bornAge": "{{date}} ({{age}})",
+      "birthplace": "Geburtsort",
+      "died": "Gestorben",
+      "diedAge": "{{date}} (mit {{age}})",
+      "library": "In deiner Bibliothek",
+      "libraryOf_one": "{{shown}} von {{count}} Titel",
+      "libraryOf_other": "{{shown}} von {{count}} Titeln",
+      "libraryOnly_one": "{{count}} Titel",
+      "libraryOnly_other": "{{count}} Titel"
+    },
+    "department": {
+      "acting": "Schauspiel",
+      "directing": "Regie",
+      "writing": "Drehbuch",
+      "production": "Produktion",
+      "sound": "Ton",
+      "camera": "Kamera",
+      "editing": "Schnitt",
+      "art": "Szenenbild",
+      "crew": "Crew",
+      "costume": "Kostüm und Maske",
+      "visualEffects": "Visuelle Effekte",
+      "lighting": "Licht",
+      "creator": "Idee"
+    },
+    "biography": {
+      "more": "Mehr lesen",
+      "less": "Weniger",
+      "fallback": "Biografie von TMDB, nur auf Englisch vorhanden"
+    },
     "notFound": {
       "title": "Person nicht gefunden",
       "body": "Zu dieser Person gibt es hier keine Titel."
@@ -5206,11 +5332,53 @@
       "title": "Sammlungen",
       "count_one": "{{count}} Sammlung",
       "count_other": "{{count}} Sammlungen",
-      "empty": "Für dieses Profil gibt es noch keine Sammlung."
+      "shown_one": "{{count}} von {{total}} Sammlungen",
+      "shown_other": "{{count}} von {{total}} Sammlungen",
+      "empty": "Für dieses Profil gibt es noch keine Sammlung.",
+      "noMatch": "Keine Sammlung passt zu Suche und Filter.",
+      "filters": "Filter",
+      "search": "Sammlung suchen",
+      "size": "Grösse",
+      "sizes": {
+        "all": "Alle",
+        "2": "Ab 2 Titeln",
+        "3": "Ab 3",
+        "5": "Ab 5"
+      },
+      "sort": "Sortierung",
+      "sorts": {
+        "name": "Name A–Z",
+        "count": "Meiste Titel",
+        "started": "Angefangen zuerst"
+      }
     },
     "count_one": "{{count}} Titel",
     "count_other": "{{count}} Titel",
+    "films_one": "{{count}} Film",
+    "films_other": "{{count}} Filme",
+    "years": "{{first}}–{{last}}",
+    "together": "zusammen {{duration}}",
+    "seen_one": "{{count}} von {{total}} gesehen",
+    "seen_other": "{{count}} von {{total}} gesehen",
     "members": "Titel",
+    "parts": "In Reihenfolge",
+    "part": "Teil {{part}}: {{title}}",
+    "playPart": "Abspielen: {{title}}",
+    "play": "Abspielen · Teil {{part}}",
+    "resume": "Weiterschauen · Teil {{part}}",
+    "rewatch": "Nochmals ansehen · Teil {{part}}",
+    "watchlist": {
+      "add": "Alle merken",
+      "added": "Alle gemerkt"
+    },
+    "overviewFallback": "Beschreibung von TMDB, nur auf Englisch vorhanden",
+    "ask": {
+      "removeBody_one": "Bei {{count}} Titel fällt der Haken. Das lässt sich nicht rückgängig machen.",
+      "removeBody_other": "Bei {{count}} Titeln fällt der Haken. Das lässt sich nicht rückgängig machen.",
+      "halfBody_one": "{{count}} von {{total}} Titeln trägt den Haken. Alle Titel markieren oder alle Haken entfernen? Das Entfernen lässt sich nicht rückgängig machen.",
+      "halfBody_other": "{{count}} von {{total}} Titeln tragen den Haken. Alle Titel markieren oder alle Haken entfernen? Das Entfernen lässt sich nicht rückgängig machen.",
+      "markAll": "Alle Titel als gesehen markieren"
+    },
     "notFound": {
       "title": "Sammlung nicht gefunden",
       "body": "Diese Sammlung gibt es nicht, oder sie enthält keinen Titel für dieses Profil."

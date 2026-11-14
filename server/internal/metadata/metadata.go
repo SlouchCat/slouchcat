@@ -481,6 +481,8 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 // by default, so later runs start by hand or by its schedule. people.images (an event type with a
 // time window of its own) fetches the person and collection images; people.images_backfill is
 // its schedule type without a handler, off by default (people_images.go, ADR 0026).
+// people.details (an event type with a time window of its own) fetches the facts of the person
+// page from TMDB (people_details.go, concept 21 P-8).
 func (s *Service) RegisterTypes(r *jobs.Registry) {
 	atStart := time.Duration(0)
 	r.Register(jobs.Type{Name: JobMatch, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: matchPriority, Handler: s.handleMatch})
@@ -503,6 +505,10 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 	r.Register(jobs.Type{
 		Name: JobPeopleImages, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent,
 		Priority: peopleImagesPriority, Handler: s.handlePeopleImages, Windowable: true,
+	})
+	r.Register(jobs.Type{
+		Name: JobPeopleDetails, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent,
+		Priority: peopleDetailsPriority, Handler: s.handlePeopleDetails, Windowable: true,
 	})
 	r.Register(jobs.Type{
 		Name: JobPeopleImagesBackfill, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,

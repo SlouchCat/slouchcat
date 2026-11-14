@@ -109,10 +109,12 @@ export function useRadioFavorite() {
         ? request(api.PUT('/radio/favorites/{stationId}', { params: { path: { stationId } } }))
         : request(api.DELETE('/radio/favorites/{stationId}', { params: { path: { stationId } } })),
     onSuccess: (_data, { stationId, favorite }) => markFavorite(stationId, favorite),
-    // The mark changes «Meine Sender», the station lists and the counts of their filter only.
+    // The mark changes «Meine Sender», the station lists and the counts of their filter, and the
+    // count of «Radio» in the side navigation (concept 21 P-9).
     onSettled: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: [...radioKeys.all, 'favorites'] }),
+        queryClient.invalidateQueries({ queryKey: ['my-media'] }),
         queryClient.invalidateQueries({ queryKey: [...radioKeys.all, 'stations'] }),
         queryClient.invalidateQueries({ queryKey: [...radioKeys.all, 'facets', { fav: true }] }),
       ]),

@@ -112,6 +112,62 @@ func (q *Queries) ListHomeRows(ctx context.Context) ([]ListHomeRowsRow, error) {
 	return items, nil
 }
 
+const listMyMedia = `-- name: ListMyMedia :many
+
+SELECT m.id, m.key, m.library_id, COALESCE(l.name, '') AS library_name, COALESCE(l.kind, '') AS library_kind,
+       m.position, m.hide_sidebar, m.hide_home
+FROM my_media AS m
+LEFT JOIN libraries AS l ON l.id = m.library_id
+ORDER BY m.position, m.id
+`
+
+type ListMyMediaRow struct {
+	ID          string
+	Key         string
+	LibraryID   sql.NullInt64
+	LibraryName string
+	LibraryKind string
+	Position    int64
+	HideSidebar int64
+	HideHome    int64
+}
+
+// "Meine Medien" (concept 21 P-11, migration 00059): one order of the group for the side navigation
+// and the start page tiles, for every profile, hidden per place. An entry is named by its id:
+// 'library:<id>' for a library, the key for radio, collections and picks. A library entry carries
+// the name and kind of its library. The administration rewrites the positions in one transaction.
+func (q *Queries) ListMyMedia(ctx context.Context) ([]ListMyMediaRow, error) {
+	rows, err := q.db.QueryContext(ctx, listMyMedia)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMyMediaRow{}
+	for rows.Next() {
+		var i ListMyMediaRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
+			&i.LibraryID,
+			&i.LibraryName,
+			&i.LibraryKind,
+			&i.Position,
+			&i.HideSidebar,
+			&i.HideHome,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const removeWatchlist = `-- name: RemoveWatchlist :exec
 DELETE FROM watchlist WHERE profile_id = ?1 AND item_id = ?2
 `
@@ -141,6 +197,33 @@ func (q *Queries) SetHomeRow(ctx context.Context, arg SetHomeRowParams) (int64, 
 	result, err := q.db.ExecContext(ctx, setHomeRow,
 		arg.Position,
 		arg.Hidden,
+		arg.Now,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const setMyMediaEntry = `-- name: SetMyMediaEntry :execrows
+UPDATE my_media SET position = ?1, hide_sidebar = ?2, hide_home = ?3, updated_at = ?4
+WHERE id = ?5
+`
+
+type SetMyMediaEntryParams struct {
+	Position    int64
+	HideSidebar int64
+	HideHome    int64
+	Now         int64
+	ID          string
+}
+
+func (q *Queries) SetMyMediaEntry(ctx context.Context, arg SetMyMediaEntryParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setMyMediaEntry,
+		arg.Position,
+		arg.HideSidebar,
+		arg.HideHome,
 		arg.Now,
 		arg.ID,
 	)

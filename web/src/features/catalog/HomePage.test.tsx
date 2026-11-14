@@ -1223,15 +1223,21 @@ describe('start page', () => {
   describe('the library rows (concept 15 P-7)', () => {
     afterEach(() => document.getElementById('poster-prepaint')?.remove());
 
+    const films = { id: 1, name: 'Filme', kind: 'video', itemCount: 1234, items: [alien, heat] };
+    const books = { id: 3, name: 'Hörbücher', kind: 'audiobooks', itemCount: 1, items: [arrival] };
     const libraryHome = {
       rows: [
         {
           id: 'libraries',
           key: 'libraries',
           items: [],
-          libraries: [
-            { id: 1, name: 'Filme', kind: 'video', itemCount: 1234, items: [alien, heat] },
-            { id: 3, name: 'Hörbücher', kind: 'audiobooks', itemCount: 1, items: [arrival] },
+          libraries: [films, books],
+          // Concept 21 P-9: every tile in the stored order, the libraries among them.
+          media: [
+            { id: 'library:1', key: 'library', count: 1234, library: films },
+            { id: 'library:3', key: 'library', count: 1, library: books },
+            { id: 'radio', key: 'radio', count: 0, stations: [] },
+            { id: 'collections', key: 'collections', count: 333 },
           ],
         },
         {
@@ -1259,10 +1265,16 @@ describe('start page', () => {
       expect(tiles.map((tile) => tile.getAttribute('href'))).toEqual([
         '/libraries/1',
         '/libraries/3',
+        '/radio',
+        '/collections',
       ]);
       expect(tiles[0]).toHaveAccessibleName(/Filme.*1.?234 Titel/);
       expect(tiles[1]).toHaveAccessibleName(/Hörbücher.*1 Hörbuch/);
       expect(tiles[0]!.querySelectorAll('img')).toHaveLength(2);
+      // Radio without favourites invites to discover stations, without logos (O-15).
+      expect(tiles[2]).toHaveAccessibleName(/Radio.*Sender entdecken/);
+      expect(tiles[2]!.querySelectorAll('img')).toHaveLength(0);
+      expect(tiles[3]).toHaveAccessibleName(/Sammlungen.*333 Sammlungen/);
 
       const films = screen.getByRole('region', { name: 'Neu in Filme' });
       expect(within(films).getByRole('link', { name: 'Neu in Filme' })).toHaveAttribute(
@@ -1284,6 +1296,61 @@ describe('start page', () => {
           .focus(),
       );
       await waitFor(() => expect(spatialFocusKey()).toBe(`library:3-${ids.arrival}`));
+    });
+
+    it('shows the radio tile with the logos of the favourites and the picks tile (concept 21 P-9)', async () => {
+      const favourite = (id: number, name: string, logo: boolean) => ({
+        id,
+        name,
+        languages: [],
+        genres: [],
+        kinds: [],
+        moods: [],
+        hls: false,
+        showsTitles: false,
+        favorite: true,
+        recommended: false,
+        state: 'ok' as const,
+        ...(logo ? { logo: { url: `/radio/images/${id}/logo/w256?v=h${id}` } } : {}),
+      });
+      mockApi({
+        ...signedIn,
+        'GET /home': () =>
+          json({
+            rows: [
+              {
+                id: 'libraries',
+                key: 'libraries',
+                items: [],
+                libraries: [],
+                media: [
+                  {
+                    id: 'radio',
+                    key: 'radio',
+                    count: 5,
+                    stations: [
+                      favourite(7, 'Radio Swiss Pop', true),
+                      favourite(8, 'Kanal K', false),
+                    ],
+                  },
+                  { id: 'picks', key: 'picks', count: 1 },
+                ],
+              },
+            ],
+          }),
+      });
+      renderApp('/');
+      const mine = await screen.findByRole('region', { name: 'Meine Medien' });
+      const [radio, picks] = within(mine).getAllByRole('link');
+      expect(radio).toHaveAttribute('href', '/radio');
+      expect(radio).toHaveAccessibleName(/Radio.*5 Sender/);
+      // One logo, the station without one by its initials.
+      const logos = radio!.querySelectorAll('img');
+      expect(logos).toHaveLength(1);
+      expect(logos[0]).toHaveAttribute('src', '/api/v1/radio/images/7/logo/w256?v=h7');
+      expect(radio).toHaveTextContent('KK');
+      expect(picks).toHaveAttribute('href', '/picks');
+      expect(picks).toHaveAccessibleName(/User-Empfehlungen.*1 Titel/);
     });
 
     it("fetches the first tile's first poster with high priority and lets the prepaint go after it", async () => {

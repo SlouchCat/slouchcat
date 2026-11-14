@@ -289,6 +289,20 @@ func (r *Reader) PicksPage(ctx context.Context, s Scope, offset, limit int) ([]m
 	return items, int(total), nil
 }
 
+// PicksCount returns the number of visible picks of PicksPage (the count of «User-Empfehlungen» in
+// «Meine Medien», concept 21 P-9).
+func (r *Reader) PicksCount(ctx context.Context, s Scope) (int, error) {
+	pid, err := r.profile(ctx, s)
+	if err != nil {
+		return 0, err
+	}
+	total, err := r.q.CountUserPicks(ctx, scopedq.CountUserPicksParams{ProfileID: pid, Now: r.now().UnixMilli()})
+	if err != nil {
+		return 0, fmt.Errorf("count user picks: %w", err)
+	}
+	return int(total), nil
+}
+
 func (r *Reader) picksPage(ctx context.Context, s Scope, pid int64, offset, limit int) ([]model.ItemSummary, error) {
 	rows, err := r.q.ListUserPicks(ctx, scopedq.ListUserPicksParams{
 		ProfileID: pid, Now: r.now().UnixMilli(), LimitCount: int64(limit), OffsetCount: int64(offset),

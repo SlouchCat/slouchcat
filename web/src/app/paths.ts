@@ -68,6 +68,8 @@ export const paths = {
   adminPicks: '/admin/picks',
   adminCollections: '/admin/collections',
   adminHomeRows: '/admin/home-rows',
+  /** «Meine Medien»: order and hiding of the group in the side navigation and on the start page (concept 21 P-11). */
+  adminMyMedia: '/admin/my-media',
   /** The spotlight list of the start page (M11, ADR 0011). */
   adminSpotlight: '/admin/spotlight',
   person: (id: number) => `/people/${id}`,

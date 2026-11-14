@@ -83,6 +83,25 @@ export function formatDate(iso: string, language: string): string {
   return new Intl.DateTimeFormat(language, { dateStyle: 'medium' }).format(new Date(iso));
 }
 
+/**
+ * A calendar day (`YYYY-MM-DD`) written out ("25. April 1964" in de, "April 25, 1964" in en), read
+ * in UTC so the day never moves with the time zone: a birthday on the person page.
+ */
+export function formatLongDay(day: string, language: string): string {
+  return new Intl.DateTimeFormat(language, { dateStyle: 'long', timeZone: 'UTC' }).format(
+    new Date(`${day}T00:00:00Z`),
+  );
+}
+
+/** Whole years from the day `from` to the day `to` (both `YYYY-MM-DD`): an age. */
+export function yearsBetween(from: string, to: string): number {
+  const [fy, fm, fd] = from.split('-').map(Number);
+  const [ty, tm, td] = to.split('-').map(Number);
+  if (fy === undefined || fm === undefined || fd === undefined) return 0;
+  if (ty === undefined || tm === undefined || td === undefined) return 0;
+  return ty - fy - (tm < fm || (tm === fm && td < fd) ? 1 : 0);
+}
+
 /** Day and month without the year ("8. Nov." in de, "Nov 8" in en): the page «Gesehen». */
 export function formatDayMonth(iso: string, language: string): string {
   return new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short' }).format(

@@ -201,6 +201,66 @@ func toAdminCollection(c model.AdminCollection) gen.AdminCollection {
 	}
 }
 
+func (e serviceProblem) VisitGetMyMediaResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitSetMyMediaResponse(w http.ResponseWriter) error { return e.visit(w) }
+
+// GetMyMedia answers every entry of «Meine Medien» (concept 21 P-11); radio counts the stations of
+// the offer.
+func (s *server) GetMyMedia(ctx context.Context, _ gen.GetMyMediaRequestObject) (gen.GetMyMediaResponseObject, error) {
+	entries, err := s.opts.Admin.MyMedia(ctx)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	out, err := s.toMyMediaSettings(ctx, entries)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.GetMyMedia200JSONResponse(out), nil
+}
+
+func (s *server) SetMyMedia(ctx context.Context, req gen.SetMyMediaRequestObject) (gen.SetMyMediaResponseObject, error) {
+	var in []model.MyMediaSetting
+	if req.Body != nil {
+		for _, e := range *req.Body {
+			in = append(in, model.MyMediaSetting{ID: e.Id, Key: string(e.Key), HideSidebar: e.HideSidebar, HideHome: e.HideHome})
+		}
+	}
+	entries, err := s.opts.Admin.SetMyMedia(ctx, in)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	out, err := s.toMyMediaSettings(ctx, entries)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.SetMyMedia200JSONResponse(out), nil
+}
+
+// toMyMediaSettings converts the entries; radio takes the number of stations in the offer (0
+// without a radio service).
+func (s *server) toMyMediaSettings(ctx context.Context, entries []model.MyMediaSetting) ([]gen.MyMediaSetting, error) {
+	out := make([]gen.MyMediaSetting, 0, len(entries))
+	for _, e := range entries {
+		row := gen.MyMediaSetting{Id: e.ID, Key: gen.MyMediaKey(e.Key), Position: e.Position, HideSidebar: e.HideSidebar,
+			HideHome: e.HideHome, Count: e.Count}
+		switch e.Key {
+		case model.MyMediaLibrary:
+			id, name, kind := e.LibraryID, e.LibraryName, gen.LibraryKind(e.LibraryKind)
+			row.LibraryId, row.LibraryName, row.LibraryKind = &id, &name, &kind
+		case model.MyMediaRadio:
+			if s.opts.Radio != nil {
+				offer, err := s.opts.Radio.Offer(ctx)
+				if err != nil {
+					return nil, err
+				}
+				row.Count = offer.Totals.Offered
+			}
+		}
+		out = append(out, row)
+	}
+	return out, nil
+}
+
 func toHomeRowSettings(rows []model.HomeRowSetting) []gen.HomeRowSetting {
 	out := make([]gen.HomeRowSetting, 0, len(rows))
 	for _, r := range rows {

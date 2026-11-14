@@ -18,14 +18,15 @@ test('a manual collection: page, start page row and detail page (E-6)', async ({
   try {
     await page.goto(`/collections/${id}`);
     await expect(page.getByRole('heading', { level: 1, name: NAME })).toBeVisible();
-    await expect(page.getByText('2 Titel')).toBeVisible();
+    // The facts of the head (concept 21 P-10): two films with their years and length.
+    await expect(page.getByText(/^2 Filme · \d{4}(–\d{4})?/)).toBeVisible();
     // The head of a detail page (concept 17 E-16): the round back arrow.
     await expect(page.getByRole('button', { name: 'Zurück', exact: true })).toBeVisible();
-    const members = page.getByRole('list', { name: 'Titel' }).getByRole('link');
-    // The admin's order.
-    await expect(members).toHaveCount(2);
-    await expect(members.first()).toContainText(H264_TITLE);
-    await expect(members.nth(1)).toContainText(CHAPTERS_TITLE);
+    const parts = page.getByRole('list', { name: 'In Reihenfolge' });
+    // The admin's order, numbered.
+    await expect(parts.getByRole('listitem')).toHaveCount(2);
+    await expect(parts.getByRole('link', { name: `Teil 1: ${H264_TITLE}` })).toBeVisible();
+    await expect(parts.getByRole('link', { name: `Teil 2: ${CHAPTERS_TITLE}` })).toBeVisible();
     await expect(page).toHaveTitle(`${NAME} · Slouchcat`);
 
     await page.goto('/');
@@ -54,34 +55,75 @@ test('a manual collection: page, start page row and detail page (E-6)', async ({
   await expect(page.getByText('Sammlung nicht gefunden')).toBeVisible();
 });
 
-test('collection by keyboard: arrows, Enter, back; no focus trap @keyboard', async ({
+test('collection by keyboard: play button, round buttons, parts, Enter, back; no focus trap @keyboard', async ({
   page,
   owner,
 }) => {
-  const { id } = await createCollection(owner, NAME, [
-    await itemIdByTitle(owner, H264_TITLE),
-    await itemIdByTitle(owner, CHAPTERS_TITLE),
-  ]);
+  // A profile of its own: «Gesehen» and «Alle merken» change only this test's state.
+  await useFreshProfile(page, owner, 'E2E Sammlung Tastatur');
+  const h264 = await itemIdByTitle(owner, H264_TITLE);
+  const chapters = await itemIdByTitle(owner, CHAPTERS_TITLE);
+  const { id } = await createCollection(owner, NAME, [h264, chapters]);
   try {
     await page.goto(`/collections/${id}`);
-    const members = page.getByRole('list', { name: 'Titel' }).getByRole('link');
-    await expect(members).toHaveCount(2);
+    const parts = page.getByRole('list', { name: 'In Reihenfolge' });
+    const first = parts.getByRole('link', { name: `Teil 1: ${H264_TITLE}` });
+    const second = parts.getByRole('link', { name: `Teil 2: ${CHAPTERS_TITLE}` });
+    await expect(parts.getByRole('listitem')).toHaveCount(2);
+    // Nothing watched: part 1 is next.
+    await expect(first).toContainText('Als Nächstes');
+
+    // The first arrow lands on the big button (the page's start focus).
     await resetFocus(page);
     await page.keyboard.press('ArrowDown');
-    await expectFocusOn(page, members.first());
-    await page.keyboard.press('ArrowRight');
-    await expectFocusOn(page, members.nth(1));
-    await page.keyboard.press('ArrowLeft');
-    await expectFocusOn(page, members.first());
-    // Up from the first column leaves the grid for the back arrow over the head.
-    await page.keyboard.press('ArrowUp');
-    await expectFocusOn(page, page.getByRole('button', { name: 'Zurück', exact: true }));
-    await page.keyboard.press('ArrowDown');
-    await expectVisibleFocus(page);
+    const play = page.getByRole('link', { name: 'Abspielen · Teil 1' });
+    await expectFocusOn(page, play);
+    await expect(play).toHaveAttribute('href', `/play/${h264}`);
 
-    await members.first().focus();
+    // The round buttons by Tab: «Alle merken», then «Gesehen» (every part, O-19).
+    await page.keyboard.press('Tab');
+    const watchlist = page.getByRole('button', { name: 'Alle merken' });
+    await expectFocusOn(page, watchlist);
     await page.keyboard.press('Enter');
-    await expect(page).toHaveURL(/\/items\//);
+    await expect(page.getByRole('button', { name: 'Alle gemerkt' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await page.keyboard.press('Tab');
+    const watched = page.getByRole('button', { name: 'Gesehen', exact: true });
+    await expectFocusOn(page, watched);
+    await page.keyboard.press('Enter');
+    await expect(watched).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByText('2 von 2 gesehen', { exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Nochmals ansehen · Teil 1' })).toBeVisible();
+    // Pressed again it asks; Escape keeps the marks and returns to the button.
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('alertdialog');
+    await expect(dialog).toContainText(`«${NAME}» als ungesehen markieren?`);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expectFocusOn(page, watched);
+    // Taken back by the dialog's button.
+    await page.keyboard.press('Enter');
+    const removeAll = page.getByRole('button', { name: 'Alle Haken entfernen' });
+    await removeAll.focus();
+    await page.keyboard.press('Enter');
+    await expect(watched).toHaveAttribute('aria-pressed', 'false');
+
+    // The parts: ↓ walks them, → reaches the play button of the row.
+    await first.focus();
+    await expectVisibleFocus(page);
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, second);
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, parts.getByRole('link', { name: `Abspielen: ${CHAPTERS_TITLE}` }));
+    await page.keyboard.press('ArrowLeft');
+    await expectFocusOn(page, second);
+    await page.keyboard.press('ArrowUp');
+    await expectFocusOn(page, first);
+
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(new RegExp(`/items/${h264}$`));
     await page.goBack();
     await expect(page.getByRole('heading', { level: 1, name: NAME })).toBeVisible();
     await expectNoFocusTrap(page);
@@ -113,7 +155,12 @@ test('the page «Sammlungen» by keyboard: arrows, Enter, back; no focus trap @k
     const cardA = grid.getByRole('link', { name: new RegExp(`${NAME} A`) });
     const cardB = grid.getByRole('link', { name: new RegExp(`${NAME} B`) });
     await expect(cardA).toHaveAttribute('href', `/collections/${first.id}`);
-    await expect(cardB).toContainText('2 Titel');
+    await expect(cardB).toContainText(/2 Titel · \d{4}/);
+    // «Alle» is preset (concept 21 P-10): the collection of one title stands in the list.
+    await expect(page.getByRole('button', { name: 'Alle', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     // By name: A stands right before B.
     const names = await grid.getByRole('link').allTextContents();
     const at = names.findIndex((text) => text.includes(`${NAME} A`));
@@ -132,10 +179,31 @@ test('the page «Sammlungen» by keyboard: arrows, Enter, back; no focus trap @k
     await expect(page.getByRole('heading', { level: 1, name: 'Sammlungen' })).toBeVisible();
     await expectNoFocusTrap(page);
 
-    // Up from the first row leaves the grid for «Zurück»; Backspace goes back (the start page).
+    // Up from the first row leaves the grid for the chips of the order; Shift+Tab goes back to
+    // the chips of the size, ← walks them.
     await grid.getByRole('link').first().focus();
     await page.keyboard.press('ArrowUp');
+    await expectFocusOn(page, page.getByRole('button', { name: 'Name A–Z' }));
+    await page.keyboard.press('Shift+Tab');
+    await expectFocusOn(page, page.getByRole('button', { name: 'Ab 5' }));
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowLeft');
+    // «Ab 2 Titeln» by Enter: A (one title) leaves, the address keeps the filter.
+    await expectFocusOn(page, page.getByRole('button', { name: 'Ab 2 Titeln' }));
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/[?&]min=2/);
+    await expect(cardA).toHaveCount(0);
+    await expect(cardB).toBeVisible();
+    // The search field above: typing narrows the grid and goes into the address.
+    await page.keyboard.press('ArrowUp');
+    const search = page.getByRole('searchbox', { name: 'Sammlung suchen' });
+    await expectFocusOn(page, search);
+    await page.keyboard.type(`${NAME} B`);
+    await expect(grid.getByRole('link')).toHaveCount(1);
+    await expect(page).toHaveURL(/[?&]q=/);
+    await page.keyboard.press('ArrowUp');
     await expectFocusOn(page, page.getByRole('button', { name: 'Zurück', exact: true }));
+    // Backspace goes back (the start page).
     await resetFocus(page);
     await page.keyboard.press('Backspace');
     await expect(page).toHaveURL((url) => url.pathname === '/');
@@ -189,14 +257,14 @@ test('a series in a collection carries the check once every episode is watched (
   expect(episodes.length).toBeGreaterThanOrEqual(4);
   const { id } = await createCollection(owner, NAME, [h264, series]);
   try {
-    const seriesCard = (list: Locator) => list.getByRole('link', { name: new RegExp(SHOW_TITLE) });
+    const seriesCard = (list: Locator) => list.getByRole('link', { name: `Teil 2: ${SHOW_TITLE}` });
     // The check mark beside the card (concept 20 P-5): half while some episodes are watched.
     const check = (list: Locator) =>
       list.getByRole('button', { name: `Gesehen: ${SHOW_TITLE}`, exact: true });
     // Every episode but the last (the special comes last) watched: a half check.
     for (const episode of episodes.slice(0, -1)) await finish(page.request, episode);
     await page.goto(`/collections/${id}`);
-    const members = page.getByRole('list', { name: 'Titel' });
+    const members = page.getByRole('list', { name: 'In Reihenfolge' });
     await expect(seriesCard(members)).toBeVisible();
     await expect(check(members)).toHaveAttribute('aria-pressed', 'mixed');
 
@@ -229,7 +297,11 @@ test.describe('the TMDB poster of a collection (concept 17 D-5)', () => {
     page,
     owner,
   }) => {
-    const { id } = await createCollection(owner, NAME, [await itemIdByTitle(owner, H264_TITLE)]);
+    // Two titles: the start page row holds collections from two titles on (concept 21 O-16).
+    const { id } = await createCollection(owner, NAME, [
+      await itemIdByTitle(owner, H264_TITLE),
+      await itemIdByTitle(owner, CHAPTERS_TITLE),
+    ]);
     try {
       // The e2e server has no TMDB key, so a manual collection has no poster: name one in the
       // answers of the start page, the search and the collection page.

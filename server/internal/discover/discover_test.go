@@ -188,8 +188,9 @@ func TestHomeStoredOrderAndSpotlightRow(t *testing.T) {
 	if got := rowOf(rows, RowWatchlist).Items; !slices.Equal(itemIDs(got), []string{f.Rated(18).ID}) {
 		t.Errorf("P18 watchlist row = %v", itemIDs(got))
 	}
-	if got := rowOf(rows, RowCollections); len(got.Items) != 0 || len(got.Collections) != 2 {
-		t.Errorf("P18 collections row = %+v", got)
+	// Concept 21 O-16: only collections with at least two visible members; the manual one holds one.
+	if got := rowOf(rows, RowCollections); len(got.Items) != 0 || len(got.Collections) != 1 || got.Collections[0].ID != vistest.MixedCollectionID {
+		t.Errorf("P18 collections row = %+v, want the mixed collection only", got)
 	}
 	if got := rowOf(rows, RowGenres); len(got.Items) != 0 || len(got.Genres) != 1 || got.Genres[0].Name != "Abenteuer" {
 		t.Errorf("P18 genres row = %+v", got)

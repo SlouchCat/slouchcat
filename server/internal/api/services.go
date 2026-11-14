@@ -266,6 +266,10 @@ type AdminService interface {
 	// Start page rows (E-9): all eight keys exactly once (*model.ValidationError).
 	HomeRows(ctx context.Context) ([]model.HomeRowSetting, error)
 	SetHomeRows(ctx context.Context, rows []model.HomeRowSetting) ([]model.HomeRowSetting, error)
+	// «Meine Medien» (concept 21 P-11): every entry with its hiding per place and its count (radio
+	// 0, the handler takes the offer's); SetMyMedia stores the order by id (*model.ValidationError).
+	MyMedia(ctx context.Context) ([]model.MyMediaSetting, error)
+	SetMyMedia(ctx context.Context, entries []model.MyMediaSetting) ([]model.MyMediaSetting, error)
 	// Trakt (E-7, I-7): the state of the daily lists and a refresh out of schedule
 	// (model.ErrProviderNotConfigured without a client id).
 	TraktStatus(ctx context.Context) (model.TraktStatus, error)
@@ -441,6 +445,9 @@ type CatalogService interface {
 	// (model.ErrNotFound for a library without a visible title, *model.ValidationError for an
 	// invalid query); PicksPage pages the user picks with their total.
 	VisibleLibraries(ctx context.Context, profile model.Profile) ([]model.LibraryNav, error)
+	// MyMedia lists the side navigation's group «Meine Medien» (listMyMedia, concept 21 P-9): the
+	// stored order without the entries hidden there, the libraries the profile sees.
+	MyMedia(ctx context.Context, profile model.Profile) ([]model.MyMediaEntry, error)
 	LibraryItems(ctx context.Context, profile model.Profile, libraryID int64, q model.LibraryQuery) (model.LibraryPage, error)
 	PicksPage(ctx context.Context, profile model.Profile, offset, limit int) ([]model.ItemSummary, int, error)
 	// HomeList pages the list behind a row title of the start page (listHomeRow, concept 20 P-7):
@@ -548,6 +555,9 @@ type PlaybackService interface {
 	// SetWatched sets or removes the check mark of a visible title, or of every visible episode of
 	// a season, series or podcast (setItemWatched, concept 20 section 6.4), or model.ErrNotFound.
 	SetWatched(ctx context.Context, profile model.Profile, itemID string, watched bool) error
+	// SetCollectionWatched sets or removes the check mark of every visible member of a collection
+	// (setCollectionWatched, concept 21 O-19), or model.ErrNotFound.
+	SetCollectionWatched(ctx context.Context, profile model.Profile, collectionID string, watched bool) error
 	// Tracks returns the audio and subtitle tracks of a media file of a visible title (empty id:
 	// the primary file), or model.ErrNotFound.
 	Tracks(ctx context.Context, profile model.Profile, itemID, mediaFileID string) (model.TrackList, error)

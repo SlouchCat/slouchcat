@@ -403,6 +403,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/my-media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The group «Meine Medien» of the side navigation (concept 21 P-9, P-11)
+         * @description Since contract 1.33.0. The entries of the side navigation's group «Meine Medien» in the order
+         *     the administration stored (`setMyMedia`, the same for every profile), without the entries
+         *     hidden there: every library the active profile sees (`library`, the `LibraryNav` of
+         *     `listVisibleLibraries`; a library without a visible title is absent), «Radio» (`radio`,
+         *     `count` the profile's favourite stations as `listRadioFavorites` lists them), «Sammlungen»
+         *     (`collections`, `count` the collections of `listVisibleCollections`) and «User-Empfehlungen»
+         *     (`picks`, `count` the `total` of `listPicks`). Hiding takes only the entry out of the side
+         *     navigation: the titles stay in the search and the rows.
+         */
+        get: operations["listMyMedia"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/libraries/{id}/items": {
         parameters: {
             query?: never;
@@ -565,7 +592,9 @@ export interface paths {
          *     `collections` (`collections` instead of `items`, E-6) and `genres` (`genres` instead of
          *     `items`). Since contract 1.15.0 (concept 15 P-7; breaking: new keys, rows named by `id`):
          *     `libraries` («Meine Medien», `libraries` instead of `items`: one tile per library the
-         *     active profile sees, in the order of `listVisibleLibraries`) and one row `library` per
+         *     active profile sees, in the order of `listVisibleLibraries`; since contract 1.33.0 in the
+         *     order of «Meine Medien» without the tiles hidden on the start page, and `media` with every
+         *     tile of the group, libraries, «Radio», «Sammlungen» and «User-Empfehlungen», concept 21 P-9) and one row `library` per
          *     library («Neu in …», `libraryId`, `libraryName`: its newest visible titles, at most 20, in
          *     the order of `listLibraryItems` with `sort=added`; a library the profile does not see has
          *     no row). Since contract 1.19.0 (concept 16 stage 2; breaking: new key): `radio` («Meine
@@ -852,7 +881,8 @@ export interface paths {
         /**
          * Portrait of a person (binary, contract 1.21.0)
          * @description Implemented as an `http.Handler` (CLAUDE.md rule 6, concept 17 section 5.1, ADR 0026). The TMDB
-         *     portrait in `w185`, fetched by the job `people.images`. The handler checks the scope: a person
+         *     portrait in `w300` (`w185` before contract 1.33.0, concept 21 O-12), fetched by the job
+         *     `people.images`. The handler checks the scope: a person
          *     without a role on a title the active profile may see, or without a stored portrait, answers 404
          *     (never 403). WebP when the request's `Accept` header lists `image/webp`, JPEG otherwise, with
          *     `Vary: Accept` and `Cache-Control: private, max-age=31536000, immutable`. `CastMember.image`,
@@ -2990,10 +3020,15 @@ export interface paths {
         /**
          * Every collection with a visible member (E-6, concept 20 O-3)
          * @description Since contract 1.31.0. The page «Sammlungen» behind the title of the start page row
-         *     `collections`: the same collections in the same order as the row (by name, each with the
-         *     number of its visible members and its cover), only without the row's cut to 20, at most 500.
-         *     Audiobook collections stand in the row «Reihen und Sammlungen» of their library and are not
-         *     listed (like the row).
+         *     `collections`: every collection with a visible member by name, each with the number of its
+         *     visible members and its cover, at most 500. Since contract 1.33.0 (concept 21 P-10) each also
+         *     carries its years, total runtime and the progress of the active profile (`seenCount`,
+         *     `started`), so one answer holds what the page searches, filters (by `count`) and sorts (by
+         *     name, by `count`, started first) in the client. The start page row takes from the same
+         *     collections the ones with at least two visible members, started ones first (O-16), cut to
+         *     20. Audiobook collections stand in the row «Reihen und Sammlungen» of their library and are
+         *     not listed (like the row). The entry «Sammlungen» of «Meine Medien» counts the same
+         *     collections.
          */
         get: operations["listVisibleCollections"];
         put?: never;
@@ -3014,10 +3049,37 @@ export interface paths {
         /**
          * A collection with its visible members (E-6)
          * @description A TMDB collection or a manual collection of the admin; the members the active profile may see, in
-         *     collection order (paged). A collection without a visible member answers 404 (10.2).
+         *     collection order (paged). A collection without a visible member answers 404 (10.2). Since
+         *     contract 1.33.0 (concept 21 P-10) with the years, total runtime and progress of all visible
+         *     members, the part to play next (`next`, `nextPart`) and the TMDB description (O-18).
          */
         get: operations["getCollection"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/collections/{id}/watched": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set or remove the check mark «gesehen» of every part of a collection (concept 21 O-19)
+         * @description Since contract 1.33.0 (concept 21 P-10, O-19). Idempotent. Every visible member of the
+         *     collection changes as `setItemWatched` changes it (a series or podcast member: its visible
+         *     episodes), all in one transaction; members the profile may not see stay as they are. With
+         *     `watched: true` the times rise in collection order, so the last part is the newest; a member
+         *     already watched keeps its dates. The page asks before it sends `watched: false` (like for a
+         *     whole series). A collection without a visible member answers 404.
+         */
+        put: operations["setCollectionWatched"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3439,6 +3501,39 @@ export interface paths {
          *     and its `hidden` flag. At most fifteen rows may be visible (F-12); hidden rows do not count.
          */
         put: operations["setHomeRows"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/my-media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The order and hiding of «Meine Medien» (concept 21 P-11)
+         * @description Since contract 1.33.0. Every entry of «Meine Medien» in display order: one per library, then
+         *     `radio`, `collections` and `picks` as the administration placed them, each with the hiding in
+         *     the side navigation (`hideSidebar`) and on the start page (`hideHome`, the tiles of the row
+         *     `libraries`), separately (O-21). One order serves both places and every profile. A new library
+         *     gets its entry at the end, visible in both places (O-20). `count` is what the entry holds,
+         *     for every profile alike: the top-level titles of a library, the stations in the radio offer,
+         *     the collections with a member that is not an audiobook, the recommended titles.
+         */
+        get: operations["getMyMedia"];
+        /**
+         * Set the order and hiding of «Meine Medien» (concept 21 P-11)
+         * @description Since contract 1.33.0. The entries by `id`: the array order is the display order, and
+         *     `hideSidebar` and `hideHome` of each listed entry are stored; `position`, `count` and the
+         *     library's name and kind are ignored. A stored entry the array leaves out (a library added
+         *     after the page was read) keeps its place in the stored order and its flags.
+         */
+        put: operations["setMyMedia"];
         post?: never;
         delete?: never;
         options?: never;
@@ -6295,6 +6390,48 @@ export interface components {
              *     portrait was fetched yet or TMDB has none.
              */
             image?: components["schemas"]["ImageRef"];
+            /**
+             * @description Since contract 1.33.0 (concept 21 P-8): the TMDB biography in the main metadata language of
+             *     the server (the first text language), or in English when TMDB has none in it (O-13). Absent
+             *     when TMDB has none in either or the job `people.details` has not fetched the person yet.
+             */
+            biography?: string;
+            /**
+             * @description Since contract 1.33.0: the language of `biography` (the code of the text language, `en` for
+             *     the English fallback); present exactly when `biography` is.
+             */
+            biographyLang?: string;
+            /**
+             * @description Since contract 1.33.0: true when `biography` is the English text TMDB has in place of a
+             *     missing one in the main language (the page says «Biografie von TMDB, nur auf Englisch
+             *     vorhanden»); absent otherwise.
+             */
+            biographyFallback?: boolean;
+            /**
+             * Format: date
+             * @description Since contract 1.33.0, from TMDB; absent when unknown.
+             */
+            birthday?: string;
+            /**
+             * Format: date
+             * @description Since contract 1.33.0, from TMDB; absent when unknown or the person lives.
+             */
+            deathday?: string;
+            /** @description Since contract 1.33.0, from TMDB as it names it (not translated); absent when unknown. */
+            placeOfBirth?: string;
+            /**
+             * @description Since contract 1.33.0: the TMDB department the person is known for, as TMDB names it
+             *     (`Acting`, `Directing`, `Writing`, `Production`, `Sound`, `Camera`, `Editing`, `Art`,
+             *     `Crew`, `Costume & Make-Up`, `Visual Effects`, `Lighting`, `Creator`); a client shows an
+             *     unknown value as it comes. Absent when unknown.
+             */
+            knownForDepartment?: string;
+            /**
+             * @description Since contract 1.33.0 (O-14): the number of films and series TMDB lists for the person in
+             *     any role (`combined_credits`, every title once), for «n von m Titeln». Absent when not
+             *     fetched yet. It counts titles beyond the library and is no visibility statement.
+             */
+            totalCredits?: number;
             credits: {
                 item: components["schemas"]["ItemRef"];
                 /** @enum {string} */
@@ -6400,15 +6537,27 @@ export interface components {
             libraryId?: number;
             /** @description Only in a row `library`, the name of its library (the row title «Neu in …»). */
             libraryName?: string;
-            /** @description Only in the row `libraries`, whose `items` stay empty. */
+            /**
+             * @description Only in the row `libraries`, whose `items` stay empty. Since contract 1.33.0 in the order of
+             *     «Meine Medien» (`setMyMedia`) and without the libraries hidden on the start page; `media`
+             *     holds these tiles together with the others.
+             */
             libraries?: components["schemas"]["LibraryTile"][];
+            /**
+             * @description Only in the row `libraries` (since contract 1.33.0, concept 21 P-9): every tile of «Meine
+             *     Medien» in the stored order without the entries hidden on the start page, the libraries
+             *     (the same tiles as `libraries`) and «Radio», «Sammlungen» and «User-Empfehlungen».
+             */
+            media?: components["schemas"]["MyMediaTile"][];
             /** @description The titles of the row; empty for `collections` and `genres`. */
             items: components["schemas"]["ItemRef"][];
             /**
              * @description Only in the row `collections` (E-6). Since contract 1.25.0 without the audiobook
              *     collections, whose visible members are all audiobooks (concept 19 D4.1); they appear in
              *     the row «Reihen und Sammlungen» of their library (`listAudioGroups`), on the detail page
-             *     and in the search.
+             *     and in the search. Since contract 1.33.0 (concept 21 O-16) only collections with at least
+             *     two visible members, the started ones (`started`) first, each group by name; the page
+             *     `listVisibleCollections` keeps every collection.
              */
             collections?: components["schemas"]["CollectionRef"][];
             /** @description Only in the row `genres`; each links to the search filtered by that genre. */
@@ -8931,11 +9080,90 @@ export interface components {
              *     `ItemDetail.collections`; `count` says whether there are more.
              */
             members?: components["schemas"]["ItemRef"][];
+            /**
+             * @description Since contract 1.33.0 (concept 21 P-10): the earliest year of the visible members; absent
+             *     when no visible member has a year.
+             */
+            firstYear?: number;
+            /** @description Since contract 1.33.0: the latest year of the visible members; absent like `firstYear`. */
+            lastYear?: number;
+            /**
+             * @description Since contract 1.33.0: the summed `runtimeMinutes` of the visible members («zusammen
+             *     19 h 38 min»); a series or podcast member counts 0 (its runtime is the one of an
+             *     episode). 0 when no visible member has a runtime.
+             */
+            runtimeMinutes?: number;
+            /**
+             * @description Since contract 1.33.0: the visible members the active profile has watched, each by the
+             *     rule of its check mark (concept 20 F-12): a single title by `Progress.watchedAt`, a series
+             *     or podcast by `ItemRef.watched`. «x von `count` gesehen».
+             */
+            seenCount?: number;
+            /**
+             * @description Since contract 1.33.0: true when the active profile has watched a visible member or has a
+             *     running position on one (on a series or podcast member: on one of its visible episodes);
+             *     the progress bar of the overview and the order «Angefangen zuerst».
+             */
+            started?: boolean;
         };
         Collection: {
             id: components["schemas"]["CollectionID"];
             name: string;
+            /**
+             * @description The description of the collection. Since contract 1.33.0 (concept 21 O-18) the TMDB
+             *     overview in the main metadata language of the server (the first text language), or the
+             *     English one when TMDB has none in it, fetched by the job `people.details`; before that
+             *     fetch, and for a collection of the admin, the older text in the profile language, if any.
+             *     Absent without a text.
+             */
             overview?: string;
+            /**
+             * @description Since contract 1.33.0: the language of a fetched `overview` (the code of the text
+             *     language, `en` for the English fallback); absent for the older text and without one.
+             */
+            overviewLang?: string;
+            /**
+             * @description Since contract 1.33.0: true when `overview` is the English text TMDB has in place of a
+             *     missing one in the main language (the page says so); absent otherwise.
+             */
+            overviewFallback?: boolean;
+            /**
+             * @description Since contract 1.33.0 (concept 21 P-10): the earliest year of the visible members; absent
+             *     when no visible member has a year.
+             */
+            firstYear?: number;
+            /** @description Since contract 1.33.0: the latest year of the visible members; absent like `firstYear`. */
+            lastYear?: number;
+            /**
+             * @description Since contract 1.33.0: the summed `runtimeMinutes` of all visible members («zusammen
+             *     19 h 38 min»); a series or podcast member counts 0 (its runtime is the one of an
+             *     episode). 0 when no visible member has a runtime.
+             */
+            runtimeMinutes?: number;
+            /**
+             * @description Since contract 1.33.0: the visible members the active profile has watched, each by the
+             *     rule of its check mark (concept 20 F-12): a single title by `Progress.watchedAt`, a series
+             *     or podcast by `ItemRef.watched`. «x von `total` gesehen».
+             */
+            seenCount?: number;
+            /**
+             * @description Since contract 1.33.0: true when the active profile has watched a visible member or has a
+             *     running position on one (on a series or podcast member: on one of its visible episodes);
+             *     the progress bar of the overview and the order «Angefangen zuerst».
+             */
+            started?: boolean;
+            /**
+             * @description Since contract 1.33.0: the part the big button plays, «Weiterschauen · Teil N»: the first
+             *     visible member in collection order that is not finished (a single title without
+             *     `Progress.completed`, a series or podcast that is not `watched`); the first member when
+             *     every one is finished. Absent only for an empty page beyond the members.
+             */
+            next?: components["schemas"]["ItemRef"];
+            /**
+             * @description Since contract 1.33.0: the place of `next` among the visible members in collection order,
+             *     counted from 1 (the N of «Teil N»); present exactly when `next` is.
+             */
+            nextPart?: number;
             /**
              * @description The TMDB poster of the collection for the head of the collection page (since contract
              *     1.21.0), by the rule of `CollectionRef.image`; absent, the page shows the poster of the
@@ -9133,6 +9361,64 @@ export interface components {
             libraryName?: string;
             position: number;
             hidden: boolean;
+        };
+        /**
+         * @description The kinds of entries of «Meine Medien» (contract 1.33.0, concept 21 P-11): a library, «Radio»,
+         *     «Sammlungen» and «User-Empfehlungen».
+         * @enum {string}
+         */
+        MyMediaKey: "library" | "radio" | "collections" | "picks";
+        /** @description The identity of an entry of «Meine Medien»: its key, `library:<libraryId>` for a library. */
+        MyMediaId: string;
+        /** @description One entry of «Meine Medien» in the administration (`getMyMedia`, contract 1.33.0). */
+        MyMediaSetting: {
+            id: components["schemas"]["MyMediaId"];
+            key: components["schemas"]["MyMediaKey"];
+            /**
+             * Format: int64
+             * @description Only on an entry `library`.
+             */
+            libraryId?: number;
+            /** @description Only on an entry `library`, the name of its library; ignored in a request. */
+            libraryName?: string;
+            /** @description Only on an entry `library`, the kind of its library; ignored in a request. */
+            libraryKind?: components["schemas"]["LibraryKind"];
+            position: number;
+            /** @description Not in the side navigation's group «Meine Medien». */
+            hideSidebar: boolean;
+            /** @description No tile in the start page row «Meine Medien». */
+            hideHome: boolean;
+            /** @description What the entry holds, for every profile alike (`getMyMedia`); ignored in a request. */
+            count: number;
+        };
+        /** @description One entry of the side navigation's group «Meine Medien» (`listMyMedia`, contract 1.33.0). */
+        MyMediaEntry: {
+            id: components["schemas"]["MyMediaId"];
+            key: components["schemas"]["MyMediaKey"];
+            /** @description Only on an entry `library`. */
+            library?: components["schemas"]["LibraryNav"];
+            /**
+             * @description A library its visible top-level titles (`LibraryNav.itemCount`), «Radio» the profile's
+             *     favourite stations, «Sammlungen» the visible collections, «User-Empfehlungen» the visible
+             *     picks.
+             */
+            count: number;
+        };
+        /**
+         * @description One tile of the start page row «Meine Medien» (`HomeRow.media`, contract 1.33.0, concept 21
+         *     P-9). A library tile carries its `LibraryTile`; «Radio» the profile's favourite stations for
+         *     the logos (`stations`, the first four; none: the tile invites to discover stations, O-15);
+         *     «Sammlungen» and «User-Empfehlungen» only their `count`.
+         */
+        MyMediaTile: {
+            id: components["schemas"]["MyMediaId"];
+            key: components["schemas"]["MyMediaKey"];
+            /** @description Only on a tile `library`. */
+            library?: components["schemas"]["LibraryTile"];
+            /** @description Like `MyMediaEntry.count`. */
+            count: number;
+            /** @description Only on the tile `radio`, the first favourite stations in the profile's order. */
+            stations?: components["schemas"]["RadioStation"][];
         };
         TraktStatus: {
             /** @description A client id is set (environment or stored setting). */
@@ -12436,6 +12722,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LibraryNav"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    listMyMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The entries shown in the side navigation, in the stored order. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyMediaEntry"][];
                 };
             };
             401: components["responses"]["Unauthenticated"];
@@ -17131,6 +17438,41 @@ export interface operations {
             };
         };
     };
+    setCollectionWatched: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Collection ID (ULID). */
+                id: components["parameters"]["CollectionID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemWatchedRequest"];
+            };
+        };
+        responses: {
+            /** @description The check marks are set or removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown or without a visible member (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getCollectionImage: {
         parameters: {
             query?: {
@@ -17944,6 +18286,66 @@ export interface operations {
              * @description Validation failed (`validation_failed`; `rows` `invalid_value` for an unknown `id`, an `id`
              *     twice or a `key` that does not match the row; `rows` `too_many_visible` for more than fifteen
              *     visible rows).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getMyMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All entries in display order. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyMediaSetting"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    setMyMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MyMediaSetting"][];
+            };
+        };
+        responses: {
+            /** @description The stored order. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyMediaSetting"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /**
+             * @description Validation failed (`validation_failed`; `rows` `invalid_value` for an unknown `id`, an `id`
+             *     twice or a `key` that does not match the entry).
              */
             422: {
                 headers: {

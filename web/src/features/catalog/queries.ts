@@ -5,6 +5,7 @@ import type {
   ItemDetail,
   ItemPage,
   ItemRef,
+  MyMediaEntry,
   RootContent,
   Person,
   PodcastEpisodes,
@@ -99,11 +100,14 @@ export const visibleLibrariesQuery = queryOptions({
   staleTime: 60_000,
 });
 
-/** How many user picks the active profile sees: the side navigation's count. */
-export const picksCountQuery = queryOptions({
-  queryKey: ['picks', 'count'],
-  queryFn: async ({ signal }): Promise<number> =>
-    (await request(api.GET('/picks', { params: { query: { limit: 1 } }, signal }))).total,
+/**
+ * The side navigation's group «Meine Medien» (concept 21 P-9, P-11): the libraries the profile
+ * sees, «Radio», «Sammlungen» and «User-Empfehlungen» with their counts, in the stored order and
+ * without what the administration hid there.
+ */
+export const myMediaQuery = queryOptions({
+  queryKey: ['my-media'],
+  queryFn: ({ signal }): Promise<MyMediaEntry[]> => request(api.GET('/my-media', { signal })),
   staleTime: 60_000,
 });
 

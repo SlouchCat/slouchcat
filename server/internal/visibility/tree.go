@@ -310,8 +310,19 @@ func (r *Reader) Person(ctx context.Context, s Scope, personID int64) (model.Per
 	if err != nil {
 		return model.Person{}, err
 	}
-	out := model.Person{ID: personID, Name: rows[0].PersonName, Credits: make([]model.PersonCredit, 0, len(rows)),
-		Image: portrait(rows[0].ImageHash, rows[0].ImageWidth, rows[0].ImageHeight)}
+	first := rows[0]
+	out := model.Person{ID: personID, Name: first.PersonName, Credits: make([]model.PersonCredit, 0, len(rows)),
+		Image: portrait(first.ImageHash, first.ImageWidth, first.ImageHeight),
+		Details: model.PersonDetails{
+			Biography: first.Biography.String, BiographyLang: first.BiographyLang.String,
+			BiographyFallback: first.Biography.Valid && first.BiographyLang.String != first.DetailsLang.String,
+			Birthday:          first.Birthday.String, Deathday: first.Deathday.String, PlaceOfBirth: first.PlaceOfBirth.String,
+			KnownForDepartment: first.KnownForDepartment.String,
+		}}
+	if first.TotalCredits.Valid {
+		n := int(first.TotalCredits.Int64)
+		out.Details.TotalCredits = &n
+	}
 	for i, row := range rows {
 		out.Credits = append(out.Credits, model.PersonCredit{Item: sums[i], Role: row.Role, Character: row.Character.String})
 	}

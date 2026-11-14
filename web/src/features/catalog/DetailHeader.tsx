@@ -68,6 +68,8 @@ interface DetailHeaderProps {
   /** Links to the neighbours of an episode, an extra or a podcast episode. */
   related?: ReactNode;
   overview?: string;
+  /** A short note under the overview: where it comes from («nur auf Englisch vorhanden»). */
+  overviewNote?: string;
 }
 
 /**
@@ -95,6 +97,7 @@ export function DetailHeader({
   actions,
   related,
   overview,
+  overviewNote,
 }: DetailHeaderProps) {
   const { t } = useTranslation();
   const still = images.backdropSmall ?? images.backdrop;
@@ -216,6 +219,7 @@ export function DetailHeader({
           {actions}
           {related}
           {overview && <p className={styles.overview}>{overview}</p>}
+          {overview && overviewNote && <p className={styles.overviewNote}>{overviewNote}</p>}
         </div>
       </div>
     </div>

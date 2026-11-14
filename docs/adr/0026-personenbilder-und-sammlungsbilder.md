@@ -113,3 +113,15 @@ Historie und ohne dass ein Sammlungsposter einem Kinderprofil einen verborgenen 
 - **Spalten an `people` und `collections`**: die Tabellen müssten umgebaut werden, und Fehlschläge und
   zwei Formate passten schlecht in Spalten.
 - **Die geteilte API-Drossel**: ein Massen-Download nähme den Abgleichen die Anfragen.
+
+## Nachtrag vom 14. November 2026 (Konzept 21 P-8, Stufe 4)
+
+Das Porträt einer Person kommt in TMDB `w300` statt `w185` (O-12): eine Grösse für Besetzung und
+Personenseite, die das Porträt bis 15rem breit zeigt. Dateien unter `people/<id>/w300.{jpg,webp}`. Eine
+Zeile in `person_images` mit einer anderen Grösse gilt als offen (`size <> 'w300'` in der Offen-Bedingung
+von `queries/system/people_images.sql`); der Lauf von `people.images` holt `w300`, schreibt die Zeilen
+neu und löscht danach die Dateien der alten Grösse, so dass bis zum Ersatz das alte Bild ausgeliefert
+wird. Einmal beim ersten Start nach dem Update reiht `QueuePeopleRefreshOnce` (Einstellung
+`metadata.people_refreshed`) `people.images` und den neuen Auftrag `people.details` ein, der die
+Angaben der Personenseite über die API-Drossel von TMDB holt (`/person/{id}` mit `combined_credits`,
+fehlt die Biografie in der Hauptsprache, die englische, O-13).

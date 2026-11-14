@@ -1,12 +1,22 @@
+import { useEffect } from 'react';
 import { AppLink } from './AppLink';
 import { itemAccentStyle } from './accent';
+import { Icon, type IconName } from './Icon';
 import styles from './LibraryTile.module.css';
 import { useSpatialItem } from './spatial';
+import { StationLogo } from './StationLogo';
 
 // The posters of the collage come in the srcset of a poster card (CARD_SIZES in PosterCard.tsx):
 // a slice is as tall as the tile, so the cover it shows is about as wide as a card. The server's
 // prepaint of «Meine Medien» copies these attributes (tilePrepaint in api/preload.go).
 const CARD_SIZES = '(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, calc(33vw - 1.5rem)';
+
+/** One station of the tile «Radio» (concept 21 P-9): its name and logo. */
+export interface LibraryTileStation {
+  name: string;
+  /** Logo (w256), or undefined: the station's initials show. */
+  logoUrl?: string;
+}
 
 /** One poster of the collage. */
 export interface LibraryTileCover {
@@ -23,7 +33,14 @@ interface LibraryTileProps {
   /** The number of its titles ("1234 Titel"). */
   caption: string;
   /** The newest titles, at most four, side by side. */
-  covers: readonly LibraryTileCover[];
+  covers?: readonly LibraryTileCover[];
+  /**
+   * In place of the collage, the logos of stations side by side (the tile «Radio» of «Meine
+   * Medien», concept 21 P-9), at most four.
+   */
+  stations?: readonly LibraryTileStation[];
+  /** In place of the collage, a large icon (Sammlungen, User-Empfehlungen, Radio without logos). */
+  icon?: IconName;
   /** Accent of the newest title: glow and the tint of the empty slices. */
   accent?: string;
   /** Load the images eagerly (the first tiles of the first row). */
@@ -38,15 +55,19 @@ interface LibraryTileProps {
 }
 
 /**
- * A library on the start page (concept 15 P-7, «Meine Medien»): a collage of the posters of its
- * newest titles, two cards wide, with the name (26 px, concept 18 C-2) and the number of titles
- * on the darkened collage. One link to the library page; focus and hover behave like a PosterCard.
+ * A tile of «Meine Medien» on the start page (concept 15 P-7): for a library a collage of the
+ * posters of its newest titles, with the name (26 px, concept 18 C-2) and the number of titles on
+ * the darkened collage. Since concept 21 P-9 also «Radio» with the logos of the favourite stations
+ * and, without pictures, a tile with a large icon («Sammlungen», «User-Empfehlungen», «Radio»
+ * without favourites). One link; focus and hover behave like a PosterCard.
  */
 export function LibraryTile({
   href,
   name,
   caption,
-  covers,
+  covers = [],
+  stations = [],
+  icon,
   accent,
   eager = false,
   priority = false,
@@ -55,6 +76,12 @@ export function LibraryTile({
   focusKey,
 }: LibraryTileProps) {
   const { ref, onFocus } = useSpatialItem<HTMLAnchorElement>({ focusKey });
+  const logos = stations.length > 0;
+  const plain = !logos && covers.length === 0;
+  // A tile without an image to wait for is on screen as it renders.
+  useEffect(() => {
+    if (plain) onImageShown?.();
+  }, [plain, onImageShown]);
   return (
     <AppLink
       ref={ref}
@@ -63,6 +90,25 @@ export function LibraryTile({
       style={itemAccentStyle(accent)}
       onFocus={onFocus}
     >
+      {logos && (
+        <span className={styles.logos} aria-hidden="true">
+          {stations.map((station, index) => (
+            <StationLogo
+              key={index}
+              name={station.name}
+              src={deferImage ? undefined : station.logoUrl}
+              size="fill"
+              priority={priority && index === 0}
+              onShown={index === 0 ? onImageShown : undefined}
+            />
+          ))}
+        </span>
+      )}
+      {plain && icon && (
+        <span className={styles.icon} aria-hidden="true">
+          <Icon name={icon} size="lg" />
+        </span>
+      )}
       <span className={styles.collage} aria-hidden="true">
         {covers.map((cover, index) => {
           const source = cover.posterUrl ?? cover.posterSmallUrl;

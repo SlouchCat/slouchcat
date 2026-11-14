@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -110,10 +111,43 @@ func (r *Reader) Collections(ctx context.Context, s Scope, limit int) ([]model.C
 	return r.collections(ctx, s, clamp(limit))
 }
 
+// HomeCollections returns the start page row «Sammlungen» (concept 21 O-16): the collections of
+// Collections with at least two visible members, the started ones first, each group by name, at
+// most limit (clamped to 1..MaxRowItems).
+func (r *Reader) HomeCollections(ctx context.Context, s Scope, limit int) ([]model.CollectionRef, error) {
+	pid, err := r.profile(ctx, s)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.q.ListHomeCollections(ctx, scopedq.ListHomeCollectionsParams{ProfileID: pid, LimitCount: clamp(limit)})
+	if err != nil {
+		return nil, fmt.Errorf("list home collections: %w", err)
+	}
+	refs := make([]collectionRow, 0, len(rows))
+	for _, c := range rows {
+		refs = append(refs, collectionRow(c))
+	}
+	return r.collectionRefs(ctx, s, pid, refs)
+}
+
 // AllCollections returns the same collections as Collections without the cut to MaxRowItems, at
 // most MaxCollections (the page «Sammlungen», concept 20 O-3).
 func (r *Reader) AllCollections(ctx context.Context, s Scope) ([]model.CollectionRef, error) {
 	return r.collections(ctx, s, MaxCollections)
+}
+
+// CollectionCount returns the number of collections Collections lists without its cut (the count
+// of «Sammlungen» in «Meine Medien», concept 21 P-9).
+func (r *Reader) CollectionCount(ctx context.Context, s Scope) (int, error) {
+	pid, err := r.profile(ctx, s)
+	if err != nil {
+		return 0, err
+	}
+	n, err := r.q.CountVisibleCollections(ctx, pid)
+	if err != nil {
+		return 0, fmt.Errorf("count collections: %w", err)
+	}
+	return int(n), nil
 }
 
 func (r *Reader) collections(ctx context.Context, s Scope, limit int64) ([]model.CollectionRef, error) {
@@ -181,11 +215,22 @@ func (r *Reader) collectionsOf(ctx context.Context, s Scope, pid int64, itemID s
 
 // collectionRow is the common shape of the collection list queries.
 type collectionRow struct {
-	ID          string
-	Name        string
-	NameDe      sql.NullString
-	MemberCount int64
-	CoverID     string
+	ID             string
+	Name           string
+	NameDe         sql.NullString
+	MemberCount    int64
+	CoverID        string
+	FirstYear      int64
+	LastYear       int64
+	RuntimeMinutes int64
+	SeenCount      int64
+	Started        int64
+}
+
+// collectionFacts maps the facts columns of the collection queries.
+func collectionFacts(firstYear, lastYear, runtime, seen, started int64) model.CollectionFacts {
+	return model.CollectionFacts{FirstYear: int(firstYear), LastYear: int(lastYear), RuntimeMinutes: int(runtime),
+		SeenCount: int(seen), Started: started != 0}
 }
 
 // collectionRefs names the collections in the profile language and adds their covers.
@@ -216,7 +261,8 @@ func (r *Reader) collectionRefs(ctx context.Context, s Scope, pid int64, rows []
 	}
 	out := make([]model.CollectionRef, 0, len(rows))
 	for _, c := range rows {
-		ref := model.CollectionRef{ID: c.ID, Name: localized(s.language, c.Name, c.NameDe), Count: int(c.MemberCount), Image: images[c.ID]}
+		ref := model.CollectionRef{ID: c.ID, Name: localized(s.language, c.Name, c.NameDe), Count: int(c.MemberCount), Image: images[c.ID],
+			CollectionFacts: collectionFacts(c.FirstYear, c.LastYear, c.RuntimeMinutes, c.SeenCount, c.Started)}
 		if cover, ok := covers[c.CoverID]; ok {
 			ref.Cover = &cover
 		}
@@ -257,14 +303,67 @@ func (r *Reader) Collection(ctx context.Context, s Scope, id string, offset, lim
 	if err != nil {
 		return model.Collection{}, err
 	}
-	return model.Collection{
-		ID:       c.ID,
-		Name:     localized(s.language, c.Name, c.NameDe),
-		Overview: localized(s.language, c.Overview.String, c.OverviewDe),
-		Items:    items,
-		Total:    int(c.MemberCount),
-		Image:    images[c.ID],
-	}, nil
+	out := model.Collection{
+		ID:              c.ID,
+		Name:            localized(s.language, c.Name, c.NameDe),
+		Overview:        localized(s.language, c.Overview.String, c.OverviewDe),
+		Items:           items,
+		Total:           int(c.MemberCount),
+		Image:           images[c.ID],
+		CollectionFacts: collectionFacts(c.FirstYear, c.LastYear, c.RuntimeMinutes, c.SeenCount, c.Started),
+	}
+	// The description of TMDB (concept 21 O-18) before the older text; a fallback is the English
+	// one in place of the main language it was asked in.
+	if c.Description.Valid {
+		out.Overview, out.OverviewLang = c.Description.String, c.DescriptionLang.String
+		out.OverviewFallback = c.DescriptionLang.String != c.DetailsLang.String
+	}
+	out.Next, out.NextPart, err = r.collectionNext(ctx, s, pid, id)
+	if err != nil {
+		return model.Collection{}, err
+	}
+	return out, nil
+}
+
+// collectionNext returns the part of a collection the big button plays and its place from 1: the
+// first visible member that is not finished, else the first member (concept 21 P-10).
+func (r *Reader) collectionNext(ctx context.Context, s Scope, pid int64, id string) (*model.ItemSummary, int, error) {
+	next, err := r.q.GetVisibleCollectionNext(ctx, scopedq.GetVisibleCollectionNextParams{ProfileID: pid, CollectionID: id})
+	if errors.Is(err, sql.ErrNoRows) {
+		first, err := r.list(ctx, s, pid, "collection first part")(r.q.ListVisibleCollectionItems(ctx, scopedq.ListVisibleCollectionItemsParams{
+			ProfileID: pid, CollectionID: id, LimitCount: 1, OffsetCount: 0,
+		}))
+		if err != nil || len(first) == 0 {
+			return nil, 0, err
+		}
+		return &first[0], 1, nil
+	}
+	if err != nil {
+		return nil, 0, fmt.Errorf("collection next part: %w", err)
+	}
+	items, err := r.list(ctx, s, pid, "collection next part")(r.q.ListVisibleItems(ctx, scopedq.ListVisibleItemsParams{ProfileID: pid, ItemIds: []string{next.ID}}))
+	if err != nil || len(items) == 0 {
+		return nil, 0, err
+	}
+	return &items[0], int(next.Part), nil
+}
+
+// CollectionMembers returns the ids of the visible members of a collection in collection order
+// (setCollectionWatched, concept 21 O-19); a collection without a visible member is
+// model.ErrNotFound.
+func (r *Reader) CollectionMembers(ctx context.Context, s Scope, id string) ([]string, error) {
+	pid, err := r.profile(ctx, s)
+	if err != nil {
+		return nil, err
+	}
+	ids, err := r.q.ListVisibleCollectionMemberIDs(ctx, scopedq.ListVisibleCollectionMemberIDsParams{ProfileID: pid, CollectionID: id})
+	if err != nil {
+		return nil, fmt.Errorf("list collection members: %w", err)
+	}
+	if len(ids) == 0 {
+		return nil, model.ErrNotFound
+	}
+	return ids, nil
 }
 
 // SpotlightRow returns the visible library titles of the configured spotlight list

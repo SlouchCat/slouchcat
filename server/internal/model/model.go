@@ -734,7 +734,7 @@ type CastMember struct {
 	Name      string
 	Role      string // cast, director, writer, creator
 	Character string
-	Image     *Image // the portrait (w185 JPEG row, ADR 0026), nil without one
+	Image     *Image // the portrait (w300 JPEG row, ADR 0026, concept 21 O-12), nil without one
 }
 
 // Trailer is a YouTube trailer of a title in one language (B-8, W-10).
@@ -765,7 +765,21 @@ type Person struct {
 	ID      int64
 	Name    string
 	Credits []PersonCredit
-	Image   *Image // the portrait (w185 JPEG row, ADR 0026), nil without one
+	Image   *Image // the portrait (w300 JPEG row, ADR 0026, concept 21 O-12), nil without one
+	Details PersonDetails
+}
+
+// PersonDetails are the facts of the person page from TMDB (concept 21 P-8, migration 00058); a
+// zero field is unknown.
+type PersonDetails struct {
+	Biography     string
+	BiographyLang string // the language of Biography; "" without one
+	// BiographyFallback: Biography is the English one in place of a missing one in the main language.
+	BiographyFallback  bool
+	Birthday, Deathday string // YYYY-MM-DD
+	PlaceOfBirth       string
+	KnownForDepartment string
+	TotalCredits       *int // the films and series TMDB lists for the person; nil before the fetch
 }
 
 // MediaFile describes one playable file of a title.
@@ -945,6 +959,7 @@ type HomeRow struct {
 	Collections []CollectionRef
 	Genres      []GenreRef
 	Libraries   []LibraryTile      // only in the row libraries
+	Media       []MyMediaTile      // only in the row libraries: every tile of «Meine Medien» (concept 21 P-9)
 	Stations    []RadioHomeStation // only in the row radio («Meine Sender», concept 16 stage 2)
 }
 
@@ -985,6 +1000,51 @@ const (
 var HomeRowKeys = []string{RowSpotlight, RowPicks, RowContinue, RowRecent, RowReleased, RowWatchlist, RowCollections, RowGenres,
 	RowLibraries, RowLibrary, RowRadio}
 
+// Keys of the entries of «Meine Medien» (concept 21 P-11, table my_media).
+const (
+	MyMediaLibrary     = "library"
+	MyMediaRadio       = "radio"
+	MyMediaCollections = "collections"
+	MyMediaPicks       = "picks"
+)
+
+// MyMediaStations is the number of favourite stations whose logos the radio tile shows.
+const MyMediaStations = 4
+
+// MyMediaSetting is the stored place and hiding of one entry of «Meine Medien» (concept 21 P-11,
+// O-21), with what it holds for every profile alike (Count, getMyMedia).
+type MyMediaSetting struct {
+	ID          string // the key, or "library:<id>" for a library
+	Key         string
+	LibraryID   int64  // the library of an entry library, else 0
+	LibraryName string // its name
+	LibraryKind string // its kind
+	Position    int
+	HideSidebar bool
+	HideHome    bool
+	Count       int
+}
+
+// MyMediaEntry is one entry of the side navigation's group «Meine Medien» for a profile
+// (listMyMedia): a library it sees, or radio, collections or picks with their count.
+type MyMediaEntry struct {
+	ID      string
+	Key     string
+	Library *LibraryNav // only on an entry library
+	Count   int
+}
+
+// MyMediaTile is one tile of the start page row «Meine Medien» for a profile (concept 21 P-9): a
+// library tile, or radio (with its first favourite stations for the logos), collections or picks
+// with their count.
+type MyMediaTile struct {
+	ID       string
+	Key      string
+	Library  *LibraryTile // only on a tile library
+	Count    int
+	Stations []RadioStation // only on the tile radio, at most MyMediaStations
+}
+
 // Discover (M7). ---------------------------------------------------------------------------
 
 // HomeRowSetting is the stored order and visibility of one start page row (E-9).
@@ -1024,7 +1084,7 @@ type SearchResult struct {
 type PersonRef struct {
 	ID    int64
 	Name  string
-	Image *Image // the portrait (w185 JPEG row, ADR 0026), nil without one
+	Image *Image // the portrait (w300 JPEG row, ADR 0026, concept 21 O-12), nil without one
 }
 
 // GenreRef is a genre with the number of visible titles.
@@ -1046,6 +1106,19 @@ type CollectionRef struct {
 	// Image is the TMDB poster (w400 JPEG row, ADR 0026), set only when the profile sees every
 	// live member.
 	Image *Image
+	CollectionFacts
+}
+
+// CollectionFacts are the facts of the visible members of a collection for the active profile
+// (concept 21 P-10, contract 1.33.0).
+type CollectionFacts struct {
+	FirstYear, LastYear int // 0 when no visible member has a year
+	// RuntimeMinutes sums the runtime of the visible members; a series or podcast counts 0.
+	RuntimeMinutes int
+	// SeenCount counts the visible members watched by the rule of their check mark.
+	SeenCount int
+	// Started: a visible member (or an episode of one) is watched or has a running position.
+	Started bool
 }
 
 // Collection is a collection with one page of its visible members.
@@ -1053,9 +1126,18 @@ type Collection struct {
 	ID       string
 	Name     string
 	Overview string
-	Items    []ItemSummary
-	Total    int
-	Image    *Image // the TMDB poster like CollectionRef.Image
+	// OverviewLang is the language of a description fetched from TMDB (concept 21 O-18); "" for
+	// the older text and without one.
+	OverviewLang string
+	// OverviewFallback: Overview is the English one in place of a missing one in the main language.
+	OverviewFallback bool
+	Items            []ItemSummary
+	Total            int
+	Image            *Image // the TMDB poster like CollectionRef.Image
+	CollectionFacts
+	// Next is the part the big button plays and NextPart its place from 1 (concept 21 P-10).
+	Next     *ItemSummary
+	NextPart int
 }
 
 // Notification is one entry of a profile's in-app inbox (E-8).

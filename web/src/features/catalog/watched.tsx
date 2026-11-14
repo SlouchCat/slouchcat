@@ -205,6 +205,7 @@ const SHOWS_CHECKS = new Set([
   'watchlist',
   'search',
   'collection',
+  'collections',
   'person',
   'picks',
 ]);
@@ -403,6 +404,100 @@ export function useWatchedToggle(
     buttonLabel: t(texts.button),
     hint: t(state === 'none' ? texts.set : state === 'half' ? texts.half : texts.remove),
     stateLabel: t(state === 'half' ? texts.partly : texts.full),
+    press,
+    dialog,
+    error: mutation.isError ? problemMessage(t, mutation.error) : null,
+  };
+}
+
+/** What the check mark of a collection reads (concept 21 O-19): the server's counts. */
+export interface WatchedCollection {
+  id: string;
+  name: string;
+  /** The visible members. */
+  total: number;
+  /** The visible members watched (`Collection.seenCount`). */
+  seenCount?: number;
+}
+
+/** Every check mark of a collection shares this key. */
+const COLLECTION_WATCHED_KEY = ['watched', 'collection'] as const;
+
+/**
+ * «Gesehen» of a whole collection (setCollectionWatched, concept 21 O-19), like the check mark of
+ * a series: setting it never asks; removing it asks («Bei 8 Titeln fällt der Haken …»); a half
+ * check asks «Alle Titel als gesehen markieren» or «Alle Haken entfernen». Every query that shows
+ * check marks is read again afterwards. Offline it is a display only.
+ */
+export function useCollectionWatchedToggle(collection: WatchedCollection): WatchedToggleModel {
+  const { t } = useTranslation();
+  const online = useOnline();
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationKey: COLLECTION_WATCHED_KEY,
+    mutationFn: (on: boolean) =>
+      request(
+        api.PUT('/collections/{id}/watched', {
+          params: { path: { id: collection.id } },
+          body: { watched: on },
+        }),
+      ),
+    onSettled: () =>
+      queryClient.invalidateQueries({ predicate: (query) => showsChecks(query.queryKey) }),
+  });
+  const [asking, setAsking] = useState<'remove' | 'half' | null>(null);
+  const [open, setOpen] = useState(false);
+  const seen = collection.seenCount ?? 0;
+  const state: WatchedState =
+    collection.total > 0 && seen >= collection.total ? 'full' : seen > 0 ? 'half' : 'none';
+
+  const { isError, reset } = mutation;
+  useEffect(() => {
+    if (!isError) return;
+    const timer = window.setTimeout(reset, ERROR_SHOWN_MS);
+    return () => window.clearTimeout(timer);
+  }, [isError, reset]);
+
+  const busy = mutation.isPending;
+  const press = () => {
+    if (busy || !online) return;
+    reset();
+    if (state === 'none') {
+      mutation.mutate(true);
+      return;
+    }
+    setAsking(state === 'half' ? 'half' : 'remove');
+    setOpen(true);
+  };
+
+  const dialog = asking && (
+    <Suspense fallback={null}>
+      <WatchedChoice
+        isOpen={open}
+        onOpenChange={setOpen}
+        title={t(asking === 'half' ? SEEN.halfTitle : SEEN.removeTitle, { title: collection.name })}
+        body={
+          asking === 'half'
+            ? t('collection.ask.halfBody', { count: seen, total: collection.total })
+            : t('collection.ask.removeBody', { count: seen })
+        }
+        cancelLabel={t('common.cancel')}
+        removeLabel={t('watched.ask.removeAll')}
+        onRemove={() => mutation.mutate(false)}
+        markAllLabel={asking === 'half' ? t('collection.ask.markAll') : undefined}
+        onMarkAll={asking === 'half' ? () => mutation.mutate(true) : undefined}
+      />
+    </Suspense>
+  );
+
+  return {
+    state,
+    readOnly: !online,
+    busy,
+    label: t(SEEN.label, { title: collection.name }),
+    buttonLabel: t(SEEN.button),
+    hint: t(state === 'none' ? SEEN.set : state === 'half' ? SEEN.half : SEEN.remove),
+    stateLabel: t(state === 'half' ? SEEN.partly : SEEN.full),
     press,
     dialog,
     error: mutation.isError ? problemMessage(t, mutation.error) : null,

@@ -10,7 +10,7 @@ import {
 } from './keyboard';
 
 // The administration (concept 11, A-2, A-3): the app column has one entry "Verwaltung"; on every
-// /admin page the administration's sidebar stands in its place (20 entries, one Tab stop,
+// /admin page the administration's sidebar stands in its place (21 entries, one Tab stop,
 // ↑ ↓ Home End, wrapping), on a phone a button opens it as a sheet. The overview shows eight
 // cards of the real server (polled every 5 s) and the server log collapsed below them.
 
@@ -41,6 +41,7 @@ const NAV_ENTRIES = [
   ['User-Empfehlungen', '/admin/picks'],
   ['Sammlungen', '/admin/collections'],
   ['Startseite', '/admin/home-rows'],
+  ['Meine Medien', '/admin/my-media'],
   ['Ankündigungen', '/admin/announcements'],
   ['Hintergrundjobs', '/admin/jobs'],
   ['Integrationen', '/admin/integrations'],
@@ -128,7 +129,7 @@ test('the focus stays on «Übersicht» after entering the administration with E
   await expectFocusOn(page, entry(page, 'Zurück zur App'));
 });
 
-test('admin sidebar: 20 entries, one Tab stop, ↑ ↓ Home End, Enter follows, Back returns', async ({
+test('admin sidebar: 21 entries, one Tab stop, ↑ ↓ Home End, Enter follows, Back returns', async ({
   page,
 }) => {
   await page.goto('/admin/devices');

@@ -135,6 +135,14 @@
       "md": {
         "$value": "9.5rem",
         "$description": "Width of a person's 2:3 portrait card from 768 px (concept 21 P-7)."
+      },
+      "page-sm": {
+        "$value": "8.5rem",
+        "$description": "Width of the 2:3 portrait on the person page on phones (concept 21 P-8)."
+      },
+      "page": {
+        "$value": "15rem",
+        "$description": "Width of the 2:3 portrait on the person page from 768 px (concept 21 P-8)."
       }
     },
     "header": {
@@ -146,6 +154,12 @@
       "width": {
         "$value": "15rem",
         "$description": "Width of the side navigation from 768 px (concept 08); the server's hero sizes repeat it."
+      }
+    },
+    "my-media": {
+      "tile": {
+        "$value": "13rem",
+        "$description": "Least width of a tile of «Meine Medien» from 768 px, where the tiles fill the width (concept 21 P-9)."
       }
     },
     "content": {

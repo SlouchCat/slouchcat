@@ -1,0 +1,95 @@
+/* «Meine Medien» (concept 21 P-11): the preview of both places beside each other; the table's
+   cells use HomeRows.module.css like the start page rows. */
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
+
+.places {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--sc-space-4);
+  align-items: start;
+}
+
+/* One place, framed like a screen (HomeRows .frame). */
+.place {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  margin: 0;
+  padding: var(--sc-space-3);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-bg-base);
+}
+
+.placeTitle {
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  text-transform: uppercase;
+}
+
+.navList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* An entry of the side navigation: its name, its count on the right. */
+.navEntry {
+  display: flex;
+  gap: var(--sc-space-2);
+  justify-content: space-between;
+  padding: var(--sc-space-1) var(--sc-space-2);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+  font-size: var(--sc-font-size-sm);
+}
+
+.navCount {
+  color: var(--sc-color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The tiles fill the width, like the row on the start page. */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--sc-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  justify-content: flex-end;
+  aspect-ratio: 16 / 9;
+  padding: var(--sc-space-2);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-2);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+}
+
+.tileCount {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-regular);
+}
+
+.empty {
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}

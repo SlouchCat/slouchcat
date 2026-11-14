@@ -340,6 +340,10 @@ var adminRegistry = map[string]adminCall{
 	"getHomeRows":         {contract: "GET /admin/home-rows", path: "/admin/home-rows", ownerStatus: http.StatusOK},
 	"setHomeRows": {contract: "PUT /admin/home-rows", path: "/admin/home-rows", ownerStatus: http.StatusOK,
 		body: `[{"id":"spotlight","key":"spotlight","position":0,"hidden":false}]`},
+	// Concept 21 P-11: «Meine Medien»; TestContractMyMedia checks order, hiding and the delivery.
+	"getMyMedia": {contract: "GET /admin/my-media", path: "/admin/my-media", ownerStatus: http.StatusOK},
+	"setMyMedia": {contract: "PUT /admin/my-media", path: "/admin/my-media", ownerStatus: http.StatusOK,
+		body: `[{"id":"radio","key":"radio","position":0,"hideSidebar":false,"hideHome":false,"count":0}]`},
 	"getTraktStatus": {contract: "GET /admin/trakt", path: "/admin/trakt", ownerStatus: http.StatusOK},
 	// M11 spotlight: the fixture's list has no entry 4242, and it has no Trakt client id (422
 	// provider_not_configured).

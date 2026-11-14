@@ -20,6 +20,10 @@ interface VolumeRowProps {
   caption?: string;
   /** Same-origin square cover (posterSmall), or undefined for the lettered tile. */
   coverUrl?: string;
+  /** `square` for an audiobook volume, `poster` 2:3 for a part of a film collection (concept 21 P-10). */
+  shape?: 'square' | 'poster';
+  /** A short label over the title in the accent («Als Nächstes», «Weiterschauen»). */
+  marker?: string;
   accent?: string;
   /** Listening progress 0 … 100 with its accessible label. */
   progress?: { percent: number; label: string };
@@ -47,7 +51,8 @@ interface VolumeRowProps {
 }
 
 /**
- * A volume in the list of an audiobook series (concept 19 D4.3): number, square cover, title, a
+ * A volume in the list of an audiobook series (concept 19 D4.3), or a part of a film collection
+ * with a 2:3 cover (concept 21 P-10): number, cover, a marker, title, a
  * line under it and the progress as one link to the volume, then its length, a play button of its
  * own, the pen and the check mark. ← and → move between link and play button, ↑ and ↓ between the volumes.
  */
@@ -58,6 +63,8 @@ export function VolumeRow({
   title,
   caption,
   coverUrl,
+  shape = 'square',
+  marker,
   accent,
   progress,
   watchedLabel,
@@ -75,14 +82,22 @@ export function VolumeRow({
         <span className={styles.number} aria-hidden={label ? 'true' : undefined}>
           {number}
         </span>
-        <span className={watchedLabel ? `${styles.cover} ${styles.heard}` : styles.cover}>
+        <span
+          className={[
+            styles.cover,
+            shape === 'poster' && styles.poster,
+            watchedLabel && styles.heard,
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
           {coverUrl ? (
             <img
               className={styles.image}
               src={coverUrl}
               alt=""
               width={200}
-              height={200}
+              height={shape === 'poster' ? 300 : 200}
               loading="lazy"
               decoding="async"
               draggable={false}
@@ -97,6 +112,7 @@ export function VolumeRow({
           )}
         </span>
         <span className={styles.text}>
+          {marker && <span className={styles.marker}>{marker}</span>}
           <span className={styles.title}>{title}</span>
           {caption && <span className={styles.caption}>{caption}</span>}
           {progress && (

@@ -2206,7 +2206,9 @@ func (q *Queries) ListVisibleParents(ctx context.Context, arg ListVisibleParents
 
 const listVisiblePersonCredits = `-- name: ListVisiblePersonCredits :many
 SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at, p.name AS person_name, c.role, c.character,
-       pi.content_hash AS image_hash, pi.width AS image_width, pi.height AS image_height
+       pi.content_hash AS image_hash, pi.width AS image_width, pi.height AS image_height,
+       p.biography, p.biography_lang, p.details_lang, p.birthday, p.deathday, p.place_of_birth,
+       p.known_for_department, p.total_credits
 FROM credits AS c
 JOIN people AS p ON p.id = c.person_id
 JOIN items AS i ON i.id = c.item_id
@@ -2222,17 +2224,26 @@ type ListVisiblePersonCreditsParams struct {
 }
 
 type ListVisiblePersonCreditsRow struct {
-	Item        Item
-	PersonName  string
-	Role        string
-	Character   sql.NullString
-	ImageHash   sql.NullString
-	ImageWidth  sql.NullInt64
-	ImageHeight sql.NullInt64
+	Item               Item
+	PersonName         string
+	Role               string
+	Character          sql.NullString
+	ImageHash          sql.NullString
+	ImageWidth         sql.NullInt64
+	ImageHeight        sql.NullInt64
+	Biography          sql.NullString
+	BiographyLang      sql.NullString
+	DetailsLang        sql.NullString
+	Birthday           sql.NullString
+	Deathday           sql.NullString
+	PlaceOfBirth       sql.NullString
+	KnownForDepartment sql.NullString
+	TotalCredits       sql.NullInt64
 }
 
 // Credits of a person on visible titles only (a person without one does not exist for the profile).
-// The portrait comes along like in ListVisibleCredits (ADR 0026).
+// The portrait comes along like in ListVisibleCredits (ADR 0026), and the facts of the person page
+// (migration 00058, concept 21 P-8) on every row.
 func (q *Queries) ListVisiblePersonCredits(ctx context.Context, arg ListVisiblePersonCreditsParams) ([]ListVisiblePersonCreditsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listVisiblePersonCredits, arg.ProfileID, arg.PersonID)
 	if err != nil {
@@ -2324,6 +2335,14 @@ func (q *Queries) ListVisiblePersonCredits(ctx context.Context, arg ListVisibleP
 			&i.ImageHash,
 			&i.ImageWidth,
 			&i.ImageHeight,
+			&i.Biography,
+			&i.BiographyLang,
+			&i.DetailsLang,
+			&i.Birthday,
+			&i.Deathday,
+			&i.PlaceOfBirth,
+			&i.KnownForDepartment,
+			&i.TotalCredits,
 		); err != nil {
 			return nil, err
 		}

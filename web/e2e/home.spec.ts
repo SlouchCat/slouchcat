@@ -5,8 +5,10 @@ import {
   DEFAULT_HOME_ROWS,
   deletePick,
   listHomeRows,
+  listMyMedia,
   recommendItem,
   setHomeRows,
+  setMyMedia,
 } from './curation';
 import { homeRowKeys, refreshSpotlight, ROW_TITLES, traktMockStatus } from './discover';
 import { expect, test } from './fixtures';
@@ -1073,7 +1075,15 @@ test('«Meine Medien» and «Neu in …»: tiles by arrow keys and Tab, Enter op
   if (!films) throw new Error('the e2e library «Filme» is missing');
   const row = (await listHomeRows(owner)).find((entry) => entry.libraryId === films.id);
   if (!row) throw new Error('the row «Neu in Filme» is missing');
+  // The libraries first in «Meine Medien», then radio (concept 21 P-11); collections and picks stay
+  // off the start page as the migration set them.
+  const media = await listMyMedia(owner);
+  const libraryFirst = [
+    ...media.filter((entry) => entry.key === 'library'),
+    ...media.filter((entry) => entry.key !== 'library'),
+  ];
   try {
+    await setMyMedia(owner, libraryFirst);
     // «Meine Medien» first, «Neu in Filme» second, the spotlight band further down.
     await setHomeRows(owner, ['libraries', row.id, ...DEFAULT_HOME_ROWS]);
     await page.goto('/');
@@ -1081,15 +1091,27 @@ test('«Meine Medien» and «Neu in …»: tiles by arrow keys and Tab, Enter op
     const tiles = mine.getByRole('link');
     await expect(sections(page).nth(0)).toHaveAccessibleName('Meine Medien');
     await expect(sections(page).nth(1)).toHaveAccessibleName('Neu in Filme');
-    // A tile per library the profile sees, in the order of the side navigation, with its count.
-    await expect(tiles).toHaveCount(libraries.length);
+    // A tile per library the profile sees, in the order of the side navigation, with its count,
+    // then the radio tile (concept 21 P-9; without favourites «Sender entdecken», O-15).
+    await expect(tiles).toHaveCount(libraries.length + 1);
     for (const [index, library] of libraries.entries()) {
       await expect(tiles.nth(index)).toHaveAttribute('href', `/libraries/${library.id}`);
       await expect(tiles.nth(index)).toHaveAccessibleName(new RegExp(`^${library.name}\\s*\\d`));
     }
-    // 16:9, two cards wide (Row.module.css .tile).
+    const radio = tiles.nth(libraries.length);
+    await expect(radio).toHaveAttribute('href', '/radio');
+    await expect(radio).toHaveAccessibleName(/^Radio\s*(\d+ Sender|Sender entdecken)$/);
+    // 16:9 (Row.module.css .tile); from 768 px the tiles fill the width of the row (concept 21 P-9).
     const box = await tiles.first().boundingBox();
     expect(box && Math.abs(box.width / box.height - 16 / 9)).toBeLessThan(0.02);
+    const lastBox = await radio.boundingBox();
+    const rowBox = await mine.getByRole('list').boundingBox();
+    if (box && lastBox && rowBox && lastBox.y === box.y) {
+      // On one line the tiles reach from gutter to gutter.
+      expect(
+        Math.abs(lastBox.x + lastBox.width - (rowBox.x + rowBox.width - (box.x - rowBox.x))),
+      ).toBeLessThan(2);
+    }
 
     // The page starts on the first tile (no stage on top); the arrow keys move along the tiles.
     await resetFocus(page);
@@ -1109,21 +1131,25 @@ test('«Meine Medien» and «Neu in …»: tiles by arrow keys and Tab, Enter op
       await expect.poll(inTiles).toBe(0);
     }
     // Down into the cards of «Neu in Filme», up onto its title (concept 20 P-7), up again back to
-    // the tiles.
+    // the tiles. From 768 px the tiles fill the width and may take a second line (concept 21
+    // P-9): ↓ and ↑ pass it in the first tile's column.
     const filmRow = page.getByRole('region', { name: 'Neu in Filme' });
     const filmTitle = filmRow.getByRole('link', { name: 'Neu in Filme' });
     const filmCards = filmRow.getByRole('list').getByRole('link');
-    await page.keyboard.press('ArrowDown');
-    await expect
-      .poll(() =>
-        filmCards.evaluateAll((links) =>
-          links.includes(document.activeElement as HTMLAnchorElement),
-        ),
-      )
-      .toBe(true);
+    const inFilmCards = () =>
+      filmCards.evaluateAll((links) => links.includes(document.activeElement as HTMLAnchorElement));
+    for (let presses = 0; presses < 3 && !(await inFilmCards()); presses += 1) {
+      await page.keyboard.press('ArrowDown');
+      await expectVisibleFocus(page);
+    }
+    expect(await inFilmCards()).toBe(true);
     await page.keyboard.press('ArrowUp');
     await expectFocusOn(page, filmTitle);
     await page.keyboard.press('ArrowUp');
+    await expect.poll(inTiles).toBeGreaterThanOrEqual(0);
+    for (let presses = 0; presses < 2 && (await inTiles()) !== 0; presses += 1) {
+      await page.keyboard.press('ArrowUp');
+    }
     await expect.poll(inTiles).toBe(0);
 
     // Enter opens the library page, browser back returns to the start page.
@@ -1141,7 +1167,7 @@ test('«Meine Medien» and «Neu in …»: tiles by arrow keys and Tab, Enter op
     await tabTo(page, tiles.first(), 3);
     const all = filmTitle;
     await expect(all).toHaveAttribute('href', `/libraries/${films.id}?sort=added`);
-    await tabTo(page, all, libraries.length + 2);
+    await tabTo(page, all, libraries.length + 3);
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(new RegExp(`/libraries/${films.id}\\?sort=added$`));
     await expect(page.getByRole('heading', { level: 1, name: 'Filme' })).toBeVisible();
@@ -1151,6 +1177,7 @@ test('«Meine Medien» and «Neu in …»: tiles by arrow keys and Tab, Enter op
     await expectNoFocusTrap(page, 160);
   } finally {
     await setHomeRows(owner, DEFAULT_HOME_ROWS);
+    await setMyMedia(owner, media);
   }
 });
 

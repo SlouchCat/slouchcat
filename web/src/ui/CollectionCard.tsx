@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AppLink } from './AppLink';
 import { itemAccentStyle } from './accent';
 import { Chip } from './Chip';
+import type { IconName } from './Icon';
 import styles from './CollectionCard.module.css';
 import { PosterFallback } from './PosterFallback';
 import { ProgressBar } from './ProgressBar';
@@ -36,6 +37,8 @@ interface CollectionCardProps {
   shape?: 'poster' | 'square';
   /** Small label over the cover's top left ("6 Bände", "2 von 6 Bänden"). */
   badge?: string;
+  /** An icon before the badge's text: the stack of a film collection with its count (concept 21 P-10). */
+  badgeIcon?: IconName;
   /** Share of the members the profile has finished, 0 … 100, with its accessible label. */
   progress?: { percent: number; label: string };
   focusKey?: string;
@@ -61,6 +64,7 @@ export function CollectionCard({
   deferImage = false,
   shape = 'poster',
   badge,
+  badgeIcon,
   progress,
   focusKey,
 }: CollectionCardProps) {
@@ -100,7 +104,7 @@ export function CollectionCard({
           )}
           {badge && (
             <span className={styles.badge}>
-              <Chip>{badge}</Chip>
+              <Chip icon={badgeIcon}>{badge}</Chip>
             </span>
           )}
           {progress && (

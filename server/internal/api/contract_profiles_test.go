@@ -307,6 +307,13 @@ var profileRegistry = map[string]profileCall{
 		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
 			checkVisibleLibraries(t, f, fixtureProfile(f, token), rec)
 		}},
+	// Concept 21 P-9: the side navigation's group «Meine Medien»; the leak check runs over every
+	// answer, checkMyMedia says which libraries each profile gets (contract_my_media_test.go).
+	"listMyMedia": {contract: "GET /my-media", path: "/my-media",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK },
+		check: func(t *testing.T, f *vistest.Fixture, h http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+			checkMyMedia(t, f, h, token, rec)
+		}},
 	"listLibraryItems": {contract: "GET /libraries/{id}/items", path: fmt.Sprintf("/libraries/%d/items?limit=100", fixtureLibrary),
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }, // every profile sees a title of library 1
 		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
@@ -393,9 +400,17 @@ var profileRegistry = map[string]profileCall{
 		},
 		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
 			var person struct {
-				ID      int64  `json:"id"`
-				Name    string `json:"name"`
-				Credits []struct {
+				ID                 int64   `json:"id"`
+				Name               string  `json:"name"`
+				Biography          string  `json:"biography"`
+				BiographyLang      string  `json:"biographyLang"`
+				BiographyFallback  bool    `json:"biographyFallback"`
+				Birthday           string  `json:"birthday"`
+				Deathday           *string `json:"deathday"`
+				PlaceOfBirth       string  `json:"placeOfBirth"`
+				KnownForDepartment string  `json:"knownForDepartment"`
+				TotalCredits       int     `json:"totalCredits"`
+				Credits            []struct {
 					Item struct {
 						ID string `json:"id"`
 					} `json:"item"`
@@ -409,6 +424,12 @@ var profileRegistry = map[string]profileCall{
 			}
 			if want := personCredits(f, fixtureProfile(f, token)); person.ID != f.Person.ID || person.Name != f.Person.Name || !slices.Equal(got, want) {
 				t.Errorf("getPerson for %s = %s, want credits %v", token, rec.Body.String(), want)
+			}
+			// The facts of the person page (contract 1.33.0, concept 21 P-8).
+			if person.Biography != "Pat Example is an actor." || person.BiographyLang != "en" || !person.BiographyFallback ||
+				person.Birthday != "1964-04-25" || person.Deathday != nil || person.PlaceOfBirth != "Queens, New York" ||
+				person.KnownForDepartment != "Acting" || person.TotalCredits != 42 {
+				t.Errorf("getPerson facts for %s = %s", token, rec.Body.String())
 			}
 		}},
 	// ADR 0026: the portrait answers for a profile that sees one of the person's titles (P0 sees
@@ -653,6 +674,17 @@ var profileRegistry = map[string]profileCall{
 			if unknown := send(t, h, http.MethodGet, BasePath+"/collections/01J9000000000000000000CM00", token, "", nil); unknown.Code != http.StatusNotFound {
 				t.Errorf("unknown collection for %s: status %d", token, unknown.Code)
 			}
+		}},
+	// Concept 21 O-19 (contract 1.33.0): the check mark of every part answers 204 while the profile
+	// sees a member, else 404. The body removes it, so the fixture's positions stay; the positive
+	// checks are in TestHTTPSetCollectionWatched.
+	"setCollectionWatched": {contract: "PUT /collections/{id}/watched", path: "/collections/" + vistest.MixedCollectionID + "/watched",
+		body: `{"watched":false}`,
+		want: func(f *vistest.Fixture, p model.Profile) int {
+			if len(mixedMembers(f, p)) == 0 {
+				return http.StatusNotFound
+			}
+			return http.StatusNoContent
 		}},
 	"listWatchlist": {contract: "GET /watchlist", path: "/watchlist?limit=200",
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK },
@@ -1544,7 +1576,8 @@ func TestContractChildProfiles(t *testing.T) {
 	// Positive checks on the start page come first, before reportProgress changes progress and the
 	// watchlist operations change the watchlists.
 	t.Run("home", func(t *testing.T) {
-		all := []string{"picks", "continue", "recent", "watchlist", "collections", "genres"}
+		// P6 sees one member of the mixed collection only: no collections row (concept 21 O-16).
+		all := []string{"picks", "continue", "recent", "watchlist", "genres"}
 		keys, rows := homeRows(t, send(t, h, http.MethodGet, BasePath+"/home", "p6", "", nil))
 		if !slices.Equal(keys, all) {
 			t.Errorf("P6 rows = %v, want %v", keys, all)
@@ -1566,8 +1599,8 @@ func TestContractChildProfiles(t *testing.T) {
 			t.Errorf("P0 recent = %v lacks the 0-rated movie", rows["recent"])
 		}
 		keys, rows = homeRows(t, send(t, h, http.MethodGet, BasePath+"/home", "p18", "", nil))
-		if !slices.Equal(keys, all) {
-			t.Errorf("P18 rows = %v, want %v", keys, all)
+		if want := []string{"picks", "continue", "recent", "watchlist", "collections", "genres"}; !slices.Equal(keys, want) {
+			t.Errorf("P18 rows = %v, want %v", keys, want)
 		}
 		for _, m := range []vistest.Movie{f.Rated(18), f.Unrated()} {
 			if !slices.Contains(rows["recent"], m.ID) {
@@ -1623,14 +1656,15 @@ func TestContractChildProfiles(t *testing.T) {
 			picks[0].Note != "" || picks[1].Note != "" || picks[2].Note != "" {
 			t.Errorf("P12 picks = %+v, want the films rated 6, 12 and X0, without a note", picks)
 		}
-		// E-6: the collections row counts visible members only, with a visible cover.
+		// E-6: the collections row counts visible members only, with a visible cover; since concept
+		// 21 O-16 it holds only collections with at least two of them (the manual one has one).
 		for _, tc := range []struct {
 			token string
 			want  map[string]int
 		}{
-			{"p6", map[string]int{vistest.MixedCollectionID: 1}},
+			{"p6", map[string]int{}},
 			{"p12", map[string]int{vistest.MixedCollectionID: 2}},
-			{"p18", map[string]int{vistest.MixedCollectionID: 3, vistest.ManualCollectionID: 1}},
+			{"p18", map[string]int{vistest.MixedCollectionID: 3}},
 		} {
 			page := homePage(t, send(t, h, http.MethodGet, BasePath+"/home", tc.token, "", nil))
 			got := map[string]int{}

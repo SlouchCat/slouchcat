@@ -24,9 +24,11 @@ import (
 
 // Person and collection images (concept 17 stage 3, sections 5.1 and 5.2, ADR 0026). The job
 // people.images fetches the TMDB portrait of every person with a role on a title that is not
-// deleted (w185, kept as fetched in JPEG, WebP derived through ffmpeg) and the TMDB poster of every
-// TMDB collection with a member that is not deleted (w500 fetched, w400 derived as JPEG and WebP)
-// into the cache directory: people/<id>/w185.{jpg,webp} and collections/<id>/w400.{jpg,webp}. The
+// deleted (w300 since concept 21 O-12, w185 before; kept as fetched in JPEG, WebP derived through
+// ffmpeg) and the TMDB poster of every TMDB collection with a member that is not deleted (w500
+// fetched, w400 derived as JPEG and WebP) into the cache directory: people/<id>/w300.{jpg,webp}
+// and collections/<id>/w400.{jpg,webp}. A portrait row of another size is open: the run replaces
+// it and removes the files of the old size (processSubject). The
 // rows live in person_images and collection_images (migration 00040); the downloads go through
 // the CDN limiter of the client (Client.DownloadCDNImage), not the API limiter.
 //
@@ -68,7 +70,7 @@ const (
 
 	peopleImagesDir      = "people"
 	collectionImagesDir  = "collections"
-	personImageSize      = "w185"
+	personImageSize      = "w300"
 	collectionFetchSize  = "w500"
 	collectionImageSize  = "w400"
 	collectionImageWidth = 400
@@ -229,7 +231,7 @@ func (s *Service) missingBefore() int64 {
 func (s *Service) peopleImagesLeft(ctx context.Context, failed map[string]bool) (bool, error) {
 	// Among len(failed)+1 open subjects of a table at least one did not fail, if there is one.
 	limit := int64(len(failed) + 1)
-	people, err := s.read.ListOpenPersonImages(ctx, systemq.ListOpenPersonImagesParams{MissingBefore: s.missingBefore(), LimitCount: limit})
+	people, err := s.read.ListOpenPersonImages(ctx, systemq.ListOpenPersonImagesParams{Size: personImageSize, MissingBefore: s.missingBefore(), LimitCount: limit})
 	if err != nil {
 		return false, fmt.Errorf("list open person images: %w", err)
 	}
@@ -268,7 +270,7 @@ func (s *Service) peopleImagesPass(ctx context.Context, root *os.Root, run *imag
 	cutoff := s.missingBefore()
 	var afterPerson int64
 	for {
-		rows, err := s.read.ListPersonImageCandidates(ctx, systemq.ListPersonImageCandidatesParams{MissingBefore: cutoff, AfterID: afterPerson, LimitCount: peopleImagesBatch})
+		rows, err := s.read.ListPersonImageCandidates(ctx, systemq.ListPersonImageCandidatesParams{Size: personImageSize, MissingBefore: cutoff, AfterID: afterPerson, LimitCount: peopleImagesBatch})
 		if err != nil {
 			return fmt.Errorf("list person image candidates: %w", err)
 		}
@@ -306,7 +308,7 @@ func (s *Service) peopleImagesPass(ctx context.Context, root *os.Root, run *imag
 	return nil
 }
 
-// personSubject describes a person row: portrait w185, JPEG as fetched.
+// personSubject describes a person row: portrait w300, JPEG as fetched.
 func (s *Service) personSubject(r systemq.ListPersonImageCandidatesRow) imageSubject {
 	id := r.ID
 	return imageSubject{
@@ -420,6 +422,15 @@ func (s *Service) processSubject(ctx context.Context, root *os.Root, run *images
 	}
 	if err := sub.upsert(ctx, string(transcode.ImageWebP), "ok", webp); err != nil {
 		return fmt.Errorf("%s: store webp row of %s: %w", JobPeopleImages, sub.key, err)
+	}
+	// The files of an older size (w185 before concept 21 O-12) go once the rows name the new ones.
+	for _, old := range [...]string{sub.jpegRel, sub.webpRel} {
+		if old == "" || old == jpeg.rel || old == webp.rel {
+			continue
+		}
+		if err := root.Remove(old); err != nil && !errors.Is(err, os.ErrNotExist) { //nolint:forbidigo // the cache root (people images), never a library root (ADR 0032)
+			s.log.Warn("remove image of an older size", "subject", sub.key, "err", err)
+		}
 	}
 	run.failures = 0
 	run.fetched++

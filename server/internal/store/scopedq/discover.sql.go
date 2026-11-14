@@ -11,6 +11,27 @@ import (
 	"strings"
 )
 
+const countVisibleCollections = `-- name: CountVisibleCollections :one
+SELECT count(*) FROM (
+    SELECT c.id
+    FROM collections AS c
+    JOIN collection_items AS ci ON ci.collection_id = c.id
+    JOIN visible_items AS v ON v.item_id = ci.item_id AND v.profile_id = ?1
+    JOIN items AS i ON i.id = ci.item_id
+    GROUP BY c.id
+    HAVING sum(i.kind <> 'audiobook') > 0
+)
+`
+
+// The number of collections ListVisibleCollections lists without its limit: the count of the entry
+// "Sammlungen" of the side navigation (concept 21 P-9).
+func (q *Queries) CountVisibleCollections(ctx context.Context, profileID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countVisibleCollections, profileID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countWatchlist = `-- name: CountWatchlist :one
 SELECT count(*) FROM watchlist AS w
 JOIN visible_items AS v ON v.item_id = w.item_id AND v.profile_id = w.profile_id
@@ -25,10 +46,37 @@ func (q *Queries) CountWatchlist(ctx context.Context, profileID int64) (int64, e
 }
 
 const getVisibleCollection = `-- name: GetVisibleCollection :one
-SELECT c.id, c.name, c.name_de, c.overview, c.overview_de, count(*) AS member_count
+SELECT c.id, c.name, c.name_de, c.overview, c.overview_de, c.description, c.description_lang, c.details_lang,
+       count(*) AS member_count,
+       CAST(COALESCE(min(i.year), 0) AS INTEGER) AS first_year,
+       CAST(COALESCE(max(i.year), 0) AS INTEGER) AS last_year,
+       CAST(COALESCE(sum(CASE WHEN i.kind IN ('series', 'podcast') THEN 0 ELSE i.runtime_minutes END), 0) AS INTEGER) AS runtime_minutes,
+       CAST(COALESCE(sum(CASE WHEN i.kind IN ('series', 'podcast') THEN
+                EXISTS (SELECT 1 FROM items AS se
+                        CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+                        CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+                        WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season')) AND +e.library_id = i.library_id)
+                AND NOT EXISTS (SELECT 1 FROM items AS se
+                        CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+                        CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+                        WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season')) AND +e.library_id = i.library_id
+                          AND NOT EXISTS (SELECT 1 FROM progress AS pe WHERE pe.profile_id = ?1 AND pe.item_id = e.id AND pe.watched_at IS NOT NULL))
+            ELSE EXISTS (SELECT 1 FROM progress AS p WHERE p.profile_id = ?1 AND p.item_id = i.id AND p.watched_at IS NOT NULL)
+            END), 0) AS INTEGER) AS seen_count,
+       CAST(COALESCE(max(CASE WHEN i.kind IN ('series', 'podcast') THEN
+                EXISTS (SELECT 1 FROM items AS se
+                        CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+                        CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+                        CROSS JOIN progress AS pe ON pe.profile_id = ?1 AND pe.item_id = e.id
+                        WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season')) AND +e.library_id = i.library_id
+                          AND (pe.watched_at IS NOT NULL OR pe.position_ms > 0))
+            ELSE EXISTS (SELECT 1 FROM progress AS p WHERE p.profile_id = ?1 AND p.item_id = i.id
+                         AND (p.watched_at IS NOT NULL OR p.position_ms > 0))
+            END), 0) AS INTEGER) AS started
 FROM collections AS c
 JOIN collection_items AS ci ON ci.collection_id = c.id
 JOIN visible_items AS v ON v.item_id = ci.item_id AND v.profile_id = ?1
+JOIN items AS i ON i.id = ci.item_id
 WHERE c.id = ?2
 GROUP BY c.id
 `
@@ -39,15 +87,25 @@ type GetVisibleCollectionParams struct {
 }
 
 type GetVisibleCollectionRow struct {
-	ID          string
-	Name        string
-	NameDe      sql.NullString
-	Overview    sql.NullString
-	OverviewDe  sql.NullString
-	MemberCount int64
+	ID              string
+	Name            string
+	NameDe          sql.NullString
+	Overview        sql.NullString
+	OverviewDe      sql.NullString
+	Description     sql.NullString
+	DescriptionLang sql.NullString
+	DetailsLang     sql.NullString
+	MemberCount     int64
+	FirstYear       int64
+	LastYear        int64
+	RuntimeMinutes  int64
+	SeenCount       int64
+	Started         int64
 }
 
-// A collection with at least one visible member: names, overviews and the number of visible members.
+// A collection with at least one visible member: names, overviews, the description of TMDB with
+// its language and the main language it was asked in (concept 21 O-18), the number of visible
+// members and their facts by the rule of the collection lists.
 func (q *Queries) GetVisibleCollection(ctx context.Context, arg GetVisibleCollectionParams) (GetVisibleCollectionRow, error) {
 	row := q.db.QueryRowContext(ctx, getVisibleCollection, arg.ProfileID, arg.CollectionID)
 	var i GetVisibleCollectionRow
@@ -57,8 +115,64 @@ func (q *Queries) GetVisibleCollection(ctx context.Context, arg GetVisibleCollec
 		&i.NameDe,
 		&i.Overview,
 		&i.OverviewDe,
+		&i.Description,
+		&i.DescriptionLang,
+		&i.DetailsLang,
 		&i.MemberCount,
+		&i.FirstYear,
+		&i.LastYear,
+		&i.RuntimeMinutes,
+		&i.SeenCount,
+		&i.Started,
 	)
+	return i, err
+}
+
+const getVisibleCollectionNext = `-- name: GetVisibleCollectionNext :one
+WITH members AS (
+    SELECT i.id, i.kind, i.library_id,
+           row_number() OVER (ORDER BY ci.position, i.release_date IS NULL, i.release_date, i.id) AS part
+    FROM collection_items AS ci
+    JOIN items AS i ON i.id = ci.item_id
+    JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+    WHERE ci.collection_id = ?2
+)
+SELECT m.id, CAST(m.part AS INTEGER) AS part
+FROM members AS m
+WHERE CASE WHEN m.kind IN ('series', 'podcast') THEN
+          NOT EXISTS (SELECT 1 FROM items AS se
+                      CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+                      CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+                      WHERE (se.id = m.id OR (se.parent_id = m.id AND se.kind = 'season')) AND +e.library_id = m.library_id)
+          OR EXISTS (SELECT 1 FROM items AS se
+                     CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+                     CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+                     WHERE (se.id = m.id OR (se.parent_id = m.id AND se.kind = 'season')) AND +e.library_id = m.library_id
+                       AND NOT EXISTS (SELECT 1 FROM progress AS pe WHERE pe.profile_id = ?1 AND pe.item_id = e.id AND pe.watched_at IS NOT NULL))
+      ELSE NOT EXISTS (SELECT 1 FROM progress AS p WHERE p.profile_id = ?1 AND p.item_id = m.id AND p.completed = 1)
+      END
+ORDER BY m.part
+LIMIT 1
+`
+
+type GetVisibleCollectionNextParams struct {
+	ProfileID    int64
+	CollectionID string
+}
+
+type GetVisibleCollectionNextRow struct {
+	ID   string
+	Part int64
+}
+
+// The part of a collection the big button plays (concept 21 P-10): the first visible member in
+// collection order that is not finished (a single title without progress.completed, a series or
+// podcast that is not watched by the rule of seen_count), with its place counted from 1. No row when
+// every member is finished (the page then plays the first part again).
+func (q *Queries) GetVisibleCollectionNext(ctx context.Context, arg GetVisibleCollectionNextParams) (GetVisibleCollectionNextRow, error) {
+	row := q.db.QueryRowContext(ctx, getVisibleCollectionNext, arg.ProfileID, arg.CollectionID)
+	var i GetVisibleCollectionNextRow
+	err := row.Scan(&i.ID, &i.Part)
 	return i, err
 }
 
@@ -88,10 +202,36 @@ SELECT c.id, c.name, c.name_de, count(*) AS member_count,
              JOIN visible_items AS v2 ON v2.item_id = ci2.item_id AND v2.profile_id = ?1
              WHERE ci2.collection_id = c.id
              ORDER BY ci2.position, i2.release_date IS NULL, i2.release_date, i2.id
-             LIMIT 1) AS TEXT) AS cover_id
+             LIMIT 1) AS TEXT) AS cover_id,
+       CAST(COALESCE(min(i.year), 0) AS INTEGER) AS first_year,
+       CAST(COALESCE(max(i.year), 0) AS INTEGER) AS last_year,
+       CAST(COALESCE(sum(CASE WHEN i.kind IN ('series', 'podcast') THEN 0 ELSE i.runtime_minutes END), 0) AS INTEGER) AS runtime_minutes,
+       CAST(COALESCE(sum(CASE WHEN i.kind IN ('series', 'podcast') THEN
+                EXISTS (SELECT 1 FROM items AS se
+                        CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+                        CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+                        WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season')) AND +e.library_id = i.library_id)
+                AND NOT EXISTS (SELECT 1 FROM items AS se
+                        CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+                        CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+                        WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season')) AND +e.library_id = i.library_id
+                          AND NOT EXISTS (SELECT 1 FROM progress AS pe WHERE pe.profile_id = ?1 AND pe.item_id = e.id AND pe.watched_at IS NOT NULL))
+            ELSE EXISTS (SELECT 1 FROM progress AS p WHERE p.profile_id = ?1 AND p.item_id = i.id AND p.watched_at IS NOT NULL)
+            END), 0) AS INTEGER) AS seen_count,
+       CAST(COALESCE(max(CASE WHEN i.kind IN ('series', 'podcast') THEN
+                EXISTS (SELECT 1 FROM items AS se
+                        CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+                        CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+                        CROSS JOIN progress AS pe ON pe.profile_id = ?1 AND pe.item_id = e.id
+                        WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season')) AND +e.library_id = i.library_id
+                          AND (pe.watched_at IS NOT NULL OR pe.position_ms > 0))
+            ELSE EXISTS (SELECT 1 FROM progress AS p WHERE p.profile_id = ?1 AND p.item_id = i.id
+                         AND (p.watched_at IS NOT NULL OR p.position_ms > 0))
+            END), 0) AS INTEGER) AS started
 FROM collections AS c
 JOIN collection_items AS ci ON ci.collection_id = c.id
 JOIN visible_items AS v ON v.item_id = ci.item_id AND v.profile_id = ?1
+JOIN items AS i ON i.id = ci.item_id
 WHERE c.id IN (SELECT m.collection_id FROM collection_items AS m
                JOIN visible_items AS vm ON vm.item_id = m.item_id AND vm.profile_id = ?1
                WHERE m.item_id = ?2)
@@ -105,11 +245,16 @@ type ListCollectionsOfItemParams struct {
 }
 
 type ListCollectionsOfItemRow struct {
-	ID          string
-	Name        string
-	NameDe      sql.NullString
-	MemberCount int64
-	CoverID     string
+	ID             string
+	Name           string
+	NameDe         sql.NullString
+	MemberCount    int64
+	CoverID        string
+	FirstYear      int64
+	LastYear       int64
+	RuntimeMinutes int64
+	SeenCount      int64
+	Started        int64
 }
 
 // The collections a visible title belongs to (detail page), by name, with count and cover.
@@ -128,6 +273,108 @@ func (q *Queries) ListCollectionsOfItem(ctx context.Context, arg ListCollections
 			&i.NameDe,
 			&i.MemberCount,
 			&i.CoverID,
+			&i.FirstYear,
+			&i.LastYear,
+			&i.RuntimeMinutes,
+			&i.SeenCount,
+			&i.Started,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listHomeCollections = `-- name: ListHomeCollections :many
+SELECT c.id, c.name, c.name_de, count(*) AS member_count,
+       CAST((SELECT ci2.item_id FROM collection_items AS ci2
+             JOIN items AS i2 ON i2.id = ci2.item_id
+             JOIN visible_items AS v2 ON v2.item_id = ci2.item_id AND v2.profile_id = ?1
+             WHERE ci2.collection_id = c.id
+             ORDER BY ci2.position, i2.release_date IS NULL, i2.release_date, i2.id
+             LIMIT 1) AS TEXT) AS cover_id,
+       CAST(COALESCE(min(i.year), 0) AS INTEGER) AS first_year,
+       CAST(COALESCE(max(i.year), 0) AS INTEGER) AS last_year,
+       CAST(COALESCE(sum(CASE WHEN i.kind IN ('series', 'podcast') THEN 0 ELSE i.runtime_minutes END), 0) AS INTEGER) AS runtime_minutes,
+       CAST(COALESCE(sum(CASE WHEN i.kind IN ('series', 'podcast') THEN
+                EXISTS (SELECT 1 FROM items AS se
+                        CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+                        CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+                        WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season')) AND +e.library_id = i.library_id)
+                AND NOT EXISTS (SELECT 1 FROM items AS se
+                        CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+                        CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+                        WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season')) AND +e.library_id = i.library_id
+                          AND NOT EXISTS (SELECT 1 FROM progress AS pe WHERE pe.profile_id = ?1 AND pe.item_id = e.id AND pe.watched_at IS NOT NULL))
+            ELSE EXISTS (SELECT 1 FROM progress AS p WHERE p.profile_id = ?1 AND p.item_id = i.id AND p.watched_at IS NOT NULL)
+            END), 0) AS INTEGER) AS seen_count,
+       CAST(COALESCE(max(CASE WHEN i.kind IN ('series', 'podcast') THEN
+                EXISTS (SELECT 1 FROM items AS se
+                        CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+                        CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+                        CROSS JOIN progress AS pe ON pe.profile_id = ?1 AND pe.item_id = e.id
+                        WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season')) AND +e.library_id = i.library_id
+                          AND (pe.watched_at IS NOT NULL OR pe.position_ms > 0))
+            ELSE EXISTS (SELECT 1 FROM progress AS p WHERE p.profile_id = ?1 AND p.item_id = i.id
+                         AND (p.watched_at IS NOT NULL OR p.position_ms > 0))
+            END), 0) AS INTEGER) AS started
+FROM collections AS c
+JOIN collection_items AS ci ON ci.collection_id = c.id
+JOIN visible_items AS v ON v.item_id = ci.item_id AND v.profile_id = ?1
+JOIN items AS i ON i.id = ci.item_id
+GROUP BY c.id
+HAVING sum(i.kind <> 'audiobook') > 0 AND count(*) >= 2
+ORDER BY started DESC, c.name, c.id
+LIMIT ?2
+`
+
+type ListHomeCollectionsParams struct {
+	ProfileID  int64
+	LimitCount int64
+}
+
+type ListHomeCollectionsRow struct {
+	ID             string
+	Name           string
+	NameDe         sql.NullString
+	MemberCount    int64
+	CoverID        string
+	FirstYear      int64
+	LastYear       int64
+	RuntimeMinutes int64
+	SeenCount      int64
+	Started        int64
+}
+
+// The start page row "Sammlungen" (concept 21 O-16): the collections of ListVisibleCollections with
+// at least two visible members, the started ones first, each group by name; the same columns.
+func (q *Queries) ListHomeCollections(ctx context.Context, arg ListHomeCollectionsParams) ([]ListHomeCollectionsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listHomeCollections, arg.ProfileID, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListHomeCollectionsRow{}
+	for rows.Next() {
+		var i ListHomeCollectionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.NameDe,
+			&i.MemberCount,
+			&i.CoverID,
+			&i.FirstYear,
+			&i.LastYear,
+			&i.RuntimeMinutes,
+			&i.SeenCount,
+			&i.Started,
 		); err != nil {
 			return nil, err
 		}
@@ -263,6 +510,44 @@ func (q *Queries) ListVisibleCollectionItems(ctx context.Context, arg ListVisibl
 	return items, nil
 }
 
+const listVisibleCollectionMemberIDs = `-- name: ListVisibleCollectionMemberIDs :many
+SELECT i.id FROM collection_items AS ci
+JOIN items AS i ON i.id = ci.item_id
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+WHERE ci.collection_id = ?2
+ORDER BY ci.position, i.release_date IS NULL, i.release_date, i.id
+`
+
+type ListVisibleCollectionMemberIDsParams struct {
+	ProfileID    int64
+	CollectionID string
+}
+
+// The visible members of a collection in collection order, ids only: the titles setCollectionWatched
+// changes (concept 21 O-19).
+func (q *Queries) ListVisibleCollectionMemberIDs(ctx context.Context, arg ListVisibleCollectionMemberIDsParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listVisibleCollectionMemberIDs, arg.ProfileID, arg.CollectionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listVisibleCollections = `-- name: ListVisibleCollections :many
 SELECT c.id, c.name, c.name_de, count(*) AS member_count,
        CAST((SELECT ci2.item_id FROM collection_items AS ci2
@@ -270,7 +555,32 @@ SELECT c.id, c.name, c.name_de, count(*) AS member_count,
              JOIN visible_items AS v2 ON v2.item_id = ci2.item_id AND v2.profile_id = ?1
              WHERE ci2.collection_id = c.id
              ORDER BY ci2.position, i2.release_date IS NULL, i2.release_date, i2.id
-             LIMIT 1) AS TEXT) AS cover_id
+             LIMIT 1) AS TEXT) AS cover_id,
+       CAST(COALESCE(min(i.year), 0) AS INTEGER) AS first_year,
+       CAST(COALESCE(max(i.year), 0) AS INTEGER) AS last_year,
+       CAST(COALESCE(sum(CASE WHEN i.kind IN ('series', 'podcast') THEN 0 ELSE i.runtime_minutes END), 0) AS INTEGER) AS runtime_minutes,
+       CAST(COALESCE(sum(CASE WHEN i.kind IN ('series', 'podcast') THEN
+                EXISTS (SELECT 1 FROM items AS se
+                        CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+                        CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+                        WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season')) AND +e.library_id = i.library_id)
+                AND NOT EXISTS (SELECT 1 FROM items AS se
+                        CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+                        CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+                        WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season')) AND +e.library_id = i.library_id
+                          AND NOT EXISTS (SELECT 1 FROM progress AS pe WHERE pe.profile_id = ?1 AND pe.item_id = e.id AND pe.watched_at IS NOT NULL))
+            ELSE EXISTS (SELECT 1 FROM progress AS p WHERE p.profile_id = ?1 AND p.item_id = i.id AND p.watched_at IS NOT NULL)
+            END), 0) AS INTEGER) AS seen_count,
+       CAST(COALESCE(max(CASE WHEN i.kind IN ('series', 'podcast') THEN
+                EXISTS (SELECT 1 FROM items AS se
+                        CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+                        CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+                        CROSS JOIN progress AS pe ON pe.profile_id = ?1 AND pe.item_id = e.id
+                        WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season')) AND +e.library_id = i.library_id
+                          AND (pe.watched_at IS NOT NULL OR pe.position_ms > 0))
+            ELSE EXISTS (SELECT 1 FROM progress AS p WHERE p.profile_id = ?1 AND p.item_id = i.id
+                         AND (p.watched_at IS NOT NULL OR p.position_ms > 0))
+            END), 0) AS INTEGER) AS started
 FROM collections AS c
 JOIN collection_items AS ci ON ci.collection_id = c.id
 JOIN visible_items AS v ON v.item_id = ci.item_id AND v.profile_id = ?1
@@ -287,17 +597,29 @@ type ListVisibleCollectionsParams struct {
 }
 
 type ListVisibleCollectionsRow struct {
-	ID          string
-	Name        string
-	NameDe      sql.NullString
-	MemberCount int64
-	CoverID     string
+	ID             string
+	Name           string
+	NameDe         sql.NullString
+	MemberCount    int64
+	CoverID        string
+	FirstYear      int64
+	LastYear       int64
+	RuntimeMinutes int64
+	SeenCount      int64
+	Started        int64
 }
 
 // Collections with at least one visible member (E-6), by name: the number of visible members and
 // the cover, the visible member first in collection order (position, then release date). Since
 // 1.25.0 without the audiobook collections, whose visible members are all audiobooks (concept 19
 // D4.1): they stand in the row "Reihen und Sammlungen" of their library (ListVisibleAudioCollections).
+// Since 1.33.0 (concept 21 P-10) every collection list also carries the facts of its visible
+// members (the same columns in ListVisibleCollections, ListVisibleCollectionsByID and
+// ListCollectionsOfItem, keep them equal): the first and last year (0 without one), the summed
+// runtime (a series or podcast counts 0), seen_count by the rule of the check mark (a single title
+// by progress.watched_at, a series or podcast when it has visible episodes and every one is
+// watched, the episodes of ListVisibleEpisodeCounts) and started (1 when a member, or an episode
+// of one, is watched or has a running position).
 func (q *Queries) ListVisibleCollections(ctx context.Context, arg ListVisibleCollectionsParams) ([]ListVisibleCollectionsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listVisibleCollections, arg.ProfileID, arg.LimitCount)
 	if err != nil {
@@ -313,6 +635,11 @@ func (q *Queries) ListVisibleCollections(ctx context.Context, arg ListVisibleCol
 			&i.NameDe,
 			&i.MemberCount,
 			&i.CoverID,
+			&i.FirstYear,
+			&i.LastYear,
+			&i.RuntimeMinutes,
+			&i.SeenCount,
+			&i.Started,
 		); err != nil {
 			return nil, err
 		}
@@ -334,10 +661,36 @@ SELECT c.id, c.name, c.name_de, count(*) AS member_count,
              JOIN visible_items AS v2 ON v2.item_id = ci2.item_id AND v2.profile_id = ?1
              WHERE ci2.collection_id = c.id
              ORDER BY ci2.position, i2.release_date IS NULL, i2.release_date, i2.id
-             LIMIT 1) AS TEXT) AS cover_id
+             LIMIT 1) AS TEXT) AS cover_id,
+       CAST(COALESCE(min(i.year), 0) AS INTEGER) AS first_year,
+       CAST(COALESCE(max(i.year), 0) AS INTEGER) AS last_year,
+       CAST(COALESCE(sum(CASE WHEN i.kind IN ('series', 'podcast') THEN 0 ELSE i.runtime_minutes END), 0) AS INTEGER) AS runtime_minutes,
+       CAST(COALESCE(sum(CASE WHEN i.kind IN ('series', 'podcast') THEN
+                EXISTS (SELECT 1 FROM items AS se
+                        CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+                        CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+                        WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season')) AND +e.library_id = i.library_id)
+                AND NOT EXISTS (SELECT 1 FROM items AS se
+                        CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+                        CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+                        WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season')) AND +e.library_id = i.library_id
+                          AND NOT EXISTS (SELECT 1 FROM progress AS pe WHERE pe.profile_id = ?1 AND pe.item_id = e.id AND pe.watched_at IS NOT NULL))
+            ELSE EXISTS (SELECT 1 FROM progress AS p WHERE p.profile_id = ?1 AND p.item_id = i.id AND p.watched_at IS NOT NULL)
+            END), 0) AS INTEGER) AS seen_count,
+       CAST(COALESCE(max(CASE WHEN i.kind IN ('series', 'podcast') THEN
+                EXISTS (SELECT 1 FROM items AS se
+                        CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind IN ('episode', 'podcast_episode')
+                        CROSS JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+                        CROSS JOIN progress AS pe ON pe.profile_id = ?1 AND pe.item_id = e.id
+                        WHERE (se.id = i.id OR (se.parent_id = i.id AND se.kind = 'season')) AND +e.library_id = i.library_id
+                          AND (pe.watched_at IS NOT NULL OR pe.position_ms > 0))
+            ELSE EXISTS (SELECT 1 FROM progress AS p WHERE p.profile_id = ?1 AND p.item_id = i.id
+                         AND (p.watched_at IS NOT NULL OR p.position_ms > 0))
+            END), 0) AS INTEGER) AS started
 FROM collections AS c
 JOIN collection_items AS ci ON ci.collection_id = c.id
 JOIN visible_items AS v ON v.item_id = ci.item_id AND v.profile_id = ?1
+JOIN items AS i ON i.id = ci.item_id
 WHERE c.id IN (/*SLICE:collection_ids*/?)
 GROUP BY c.id
 `
@@ -348,11 +701,16 @@ type ListVisibleCollectionsByIDParams struct {
 }
 
 type ListVisibleCollectionsByIDRow struct {
-	ID          string
-	Name        string
-	NameDe      sql.NullString
-	MemberCount int64
-	CoverID     string
+	ID             string
+	Name           string
+	NameDe         sql.NullString
+	MemberCount    int64
+	CoverID        string
+	FirstYear      int64
+	LastYear       int64
+	RuntimeMinutes int64
+	SeenCount      int64
+	Started        int64
 }
 
 // The collections of the given ids that have a visible member (search results), with count and
@@ -383,6 +741,11 @@ func (q *Queries) ListVisibleCollectionsByID(ctx context.Context, arg ListVisibl
 			&i.NameDe,
 			&i.MemberCount,
 			&i.CoverID,
+			&i.FirstYear,
+			&i.LastYear,
+			&i.RuntimeMinutes,
+			&i.SeenCount,
+			&i.Started,
 		); err != nil {
 			return nil, err
 		}

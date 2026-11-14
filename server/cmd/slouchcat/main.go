@@ -501,6 +501,11 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		if _, err := metaSvc.QueueTrailerRecheckOnce(ctx); err != nil && ctx.Err() == nil {
 			log.Warn("trailer recheck not queued", "err", err)
 		}
+		// The portraits in w300 instead of w185 and the facts of the person page (concept 21 O-12,
+		// P-8): people.images and people.details queued once.
+		if _, err := metaSvc.QueuePeopleRefreshOnce(ctx); err != nil && ctx.Err() == nil {
+			log.Warn("person portraits and facts not queued", "err", err)
+		}
 	})
 	defer func() {
 		stop() // also on error paths, so the workers return before the database closes

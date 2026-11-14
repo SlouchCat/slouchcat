@@ -24,8 +24,9 @@ const (
 	backdropLargeSize = "w1920"
 	backdropUhdSize   = "w3840"
 	logoSize          = "w400"
-	// portraitSize is the one size of a person's portrait (people.images, ADR 0026).
-	portraitSize = "w185"
+	// portraitSize is the one size of a person's portrait (people.images, ADR 0026; w185 before
+	// concept 21 O-12, the rows of that size are replaced by the job).
+	portraitSize = "w300"
 )
 
 // derivedSizes are the sizes of the pipeline per kind. One the pipeline left out for a title (no

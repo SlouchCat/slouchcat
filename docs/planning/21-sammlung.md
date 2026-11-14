@@ -504,6 +504,9 @@ und einblenden können.
 
 - **O-20 Neue Bibliothek:** wird am Ende eingereiht und ist sichtbar?
   **Beantwortet 14.11.2026:** am Ende eingereiht und sichtbar (Seitenleiste und Startseite).
+  **Geändert 14.11.2026 (beim Bau von Stufe 5):** Marco: «hinter Bibliotheken». Eine neue Bibliothek kommt
+  direkt hinter die letzte vorhandene Bibliothek (Radio, Sammlungen und User-Empfehlungen rücken nach), sichtbar
+  an beiden Orten. Bei einer neuen Installation stehen so die Bibliotheken zuerst.
 - **O-21 Getrennt ausblenden:** ~~ein Kästchen für beides oder je eines?~~ **Beantwortet 14.11.2026:**
   getrennt. Die Tabelle hat statt «Ausblenden» die Spalten «Seitenleiste» und «Startseite» mit je
   einem Kästchen «Ausblenden»; der Zustand zeigt «sichtbar», «nur Seitenleiste», «nur Startseite»

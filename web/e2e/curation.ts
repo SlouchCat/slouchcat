@@ -144,6 +144,31 @@ export async function setHomeRows(
   await ok(await api.put('/api/v1/admin/home-rows', { headers: CSRF, data }), [200]);
 }
 
+/** One entry of «Meine Medien» as the administration lists it (concept 21 P-11). */
+export interface MyMediaData {
+  id: string;
+  key: 'library' | 'radio' | 'collections' | 'picks';
+  libraryId?: number;
+  libraryName?: string;
+  position: number;
+  hideSidebar: boolean;
+  hideHome: boolean;
+  count: number;
+}
+
+export async function listMyMedia(api: APIRequestContext): Promise<MyMediaData[]> {
+  return ok<MyMediaData[]>(await api.get('/api/v1/admin/my-media'), [200]);
+}
+
+/** Stores these entries of «Meine Medien» as they are, in this order. */
+export async function setMyMedia(
+  api: APIRequestContext,
+  entries: readonly MyMediaData[],
+): Promise<void> {
+  const data = entries.map((entry, position) => ({ ...entry, position }));
+  await ok(await api.put('/api/v1/admin/my-media', { headers: CSRF, data }), [200]);
+}
+
 /**
  * Leaves the curation as the global setup made it: only the baseline pick, no manual
  * collection, the start page rows in their default order with none hidden. TMDB collections

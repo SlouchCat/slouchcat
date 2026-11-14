@@ -85,6 +85,14 @@ func TestFrozenStatesMigrate(t *testing.T) {
 			if r := slices.Index(order, "recent"); r < 0 || slices.Index(order, "released") != r+1 {
 				t.Errorf("home_rows order %v, want released directly behind recent", order)
 			}
+			// «Meine Medien» (migration 00059): every library once, radio, collections and picks.
+			var media, mediaLibraries int
+			if err := db.Read.QueryRow(`SELECT count(*), count(DISTINCT library_id) FROM my_media`).Scan(&media, &mediaLibraries); err != nil {
+				t.Fatal(err)
+			}
+			if media != libraries+3 || mediaLibraries != libraries {
+				t.Errorf("my_media holds %d entries for %d libraries, want one per library and radio, collections, picks", media, mediaLibraries)
+			}
 		})
 	}
 }

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Button } from './Button';
-import { accents } from './stories/fixtures';
+import { accents, art } from './stories/fixtures';
 import { VolumeRow } from './VolumeRow';
 import { WatchedToggle } from './WatchedToggle';
 
@@ -82,3 +82,17 @@ export const WithToggle: Story = {
 
 /** Tab after the play button reaches the check. */
 export const ToggleFocused: Story = { ...WithToggle, tags: ['press:Tab+Tab+Tab'] };
+
+/** A part of a film collection (concept 21 P-10): the 2:3 poster, the part the big button plays. */
+export const CollectionPart: Story = {
+  args: {
+    number: '2',
+    title: 'Die Dämmerung kehrt zurück',
+    caption: '2013',
+    coverUrl: art.posterDusk,
+    shape: 'poster',
+    marker: 'Als Nächstes',
+    duration: '2 h 4 min',
+    playLabel: 'Abspielen: Die Dämmerung kehrt zurück',
+  },
+};

@@ -1,5 +1,23 @@
 # Aktueller Stand
 
+## Release 1.33.0: Konzept 21 Stufen 4 bis 6 (14. November 2026, PR offen)
+
+Die Stufen 4 bis 6 von `docs/planning/21-sammlung.md` auf **einem** Zweig `claude/k21-stufen4-6`, **ein** PR
+und **ein** Release **1.33.0** (Entscheid vom 14. November 2026, Frage 28), Versionsstellen im selben PR.
+Vertrag **1.33.0** (additiv), Migrationen **00058** bis **00060**, eingefrorene Stände
+`personenseite.sql`, `meine-medien.sql`, `sammlungen.sql`. Nicht gemergt, nicht getaggt.
+
+| Stufe | Inhalt | Migration |
+|---|---|---|
+| 4 (P-8) | Personenseite: Farbband aus dem Porträt, Porträt 2:3 (15rem), Angaben aus TMDB (Bekannt für, Geboren mit Alter, Geburtsort, Gestorben, «n von m Titeln»), Biografie mit «Mehr lesen» und englischem Ersatz (O-13, O-14); neuer Job `people.details` («Angaben zu Personen und Sammlungen holen»); Porträts in `w300` statt `w185` mit einmaligem Neuladen (O-12) | 00058 |
+| 5 (P-9, P-11) | Verwaltungsseite «Meine Medien» (Kuratierung, nach «Startseite»): Platz, Ausblenden getrennt für Seitenleiste und Startseite (O-21), Vorschau; Radio und Sammlungen in der Gruppe «Meine Medien»; Kacheln füllen die Breite, Radio-Kachel mit Favoriten-Logos oder «Sender entdecken» (O-15); neue Bibliothek hinter der letzten Bibliothek (O-20, geändert) | 00059 |
+| 6 (P-10) | Sammlungen: Übersicht mit Suche, Grösse (Alle vorgewählt), Sortierung, Stapel-Zeichen und Fortschritt; Reihe auf der Startseite ab 2 Titeln, angefangene zuerst (O-16); Seite als nummerierte Liste mit Jahren, Gesamtdauer, Fortschritt, «Weiterschauen · Teil N», «Alle merken», «Gesehen» für alle Teile (O-19), Beschreibung von TMDB (O-18) | 00060 |
+
+- **Beim ersten Start auf CT 190:** `people.details` fragt TMDB für rund 20 800 Personen ab (etwa 30 Minuten
+  oder länger), alle Porträts werden in `w300` neu geladen, danach die Beschreibungen der Sammlungen.
+- **Messung:** `docs/perf/21-sammlungen.md` (alle 333 Sammlungen in einer Antwort, 7,4 ms lokal).
+- **Offen:** Abnahme auf CT 190 durch Marco; Messungen dort.
+
 ## Release 1.32.0: Konzept 21 Stufen 1 bis 3 (14. November 2026)
 
 Die Stufen 1 bis 3 von `docs/planning/21-sammlung.md` gehen zusammen als **ein** Release **1.32.0**

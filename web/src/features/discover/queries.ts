@@ -250,6 +250,8 @@ export function useRecommendMutation() {
         queryClient.invalidateQueries({ queryKey: ['item', id], exact: true }),
         queryClient.invalidateQueries({ queryKey: ['home'] }),
         queryClient.invalidateQueries({ queryKey: ['picks'] }),
+        // The count of «User-Empfehlungen» in the side navigation (concept 21 P-9).
+        queryClient.invalidateQueries({ queryKey: ['my-media'] }),
       ]),
   });
 }

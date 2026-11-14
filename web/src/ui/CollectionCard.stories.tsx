@@ -58,3 +58,13 @@ export const SquareFiltered: Story = {
     badge: '2 von 6 Bänden',
   },
 };
+
+/** A started film collection on «Sammlungen» (concept 21 P-10): stack and count, the bar seen. */
+export const FilmsStarted: Story = {
+  args: {
+    caption: '3 Titel · 2011–2015',
+    badge: '3',
+    badgeIcon: 'stack',
+    progress: { percent: 33, label: '1 von 3 gesehen' },
+  },
+};

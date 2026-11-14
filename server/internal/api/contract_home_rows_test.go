@@ -168,6 +168,8 @@ func TestHomeLibraryRowsOverHTTP(t *testing.T) {
 	for _, q := range []string{
 		`UPDATE home_rows SET hidden = 1`,
 		`UPDATE home_rows SET hidden = 0 WHERE key IN ('libraries', 'library')`,
+		// The library tile first in «Meine Medien» (concept 21 P-11), the radio tile behind it.
+		`UPDATE my_media SET position = CASE WHEN key = 'library' THEN 0 ELSE position + 1 END`,
 	} {
 		if _, err := f.DB.Write.ExecContext(ctx, q); err != nil {
 			t.Fatalf("%s: %v", q, err)
@@ -227,9 +229,11 @@ func TestHomeLibraryRowsOverHTTP(t *testing.T) {
 	esc := func(u string) string { return strings.ReplaceAll(u, "&", "&amp;") }
 	small := tile.Items[0].Images.PosterSmall.URL
 	body := shell.Body.String()
+	// The radio tile follows as an empty span that holds its place in the grid (concept 21 P-9).
 	if !strings.Contains(body, `<div id="poster-prepaint" aria-hidden="true"><span class="tile"><img src="`+esc(small)+`"`) ||
-		strings.Count(body, "<img ") != 4 || strings.Count(body, `fetchpriority="high"`) != 1 {
-		t.Errorf("shell %q, want the collage of the one tile painted ahead", body)
+		strings.Count(body, "<img ") != 4 || strings.Count(body, `fetchpriority="high"`) != 1 ||
+		!strings.Contains(body, `</span><span class="tile"></span></div>`) {
+		t.Errorf("shell %q, want the collage of the one tile painted ahead and the radio tile's place", body)
 	}
 	if links := shell.Header().Values("Link"); !slices.ContainsFunc(links, func(l string) bool { return strings.HasPrefix(l, "<"+small+">; rel=preload; as=image") }) {
 		t.Errorf("Link = %q, want the first tile's first poster preloaded", links)

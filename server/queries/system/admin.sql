@@ -468,3 +468,27 @@ JOIN items AS i ON i.id = m.item_id
 WHERE i.library_id = @library_id AND i.kind IN ('movie', 'episode') AND i.deleted_at IS NULL
   AND m.missing_since IS NULL
 GROUP BY i.kind;
+
+-- "Meine Medien" in the administration (concept 21 P-11): what each entry holds, for every profile
+-- alike. A library its top-level titles (films, series, audiobooks, podcasts; never episodes), not
+-- deleted.
+-- name: AdminLibraryTitleCounts :many
+SELECT library_id, count(*) AS titles
+FROM items
+WHERE kind IN ('movie', 'series', 'audiobook', 'podcast') AND deleted_at IS NULL
+GROUP BY library_id;
+
+-- The collections with a member that is not deleted and not an audiobook (audiobook collections
+-- stand in their library, like listVisibleCollections).
+-- name: AdminCollectionCount :one
+SELECT count(*) FROM collections AS c
+WHERE EXISTS (SELECT 1 FROM collection_items AS ci JOIN items AS i ON i.id = ci.item_id
+              WHERE ci.collection_id = c.id AND i.deleted_at IS NULL AND i.kind <> 'audiobook');
+
+-- The titles with a recommendation younger than the retention at @now (AdminListUserPicks).
+-- name: AdminUserPickCount :one
+SELECT count(DISTINCT u.item_id)
+FROM user_picks AS u
+JOIN picks_config AS c ON c.id = 1
+JOIN items AS i ON i.id = u.item_id
+WHERE u.created_at > @now - c.retention_days * 86400000 AND i.deleted_at IS NULL;

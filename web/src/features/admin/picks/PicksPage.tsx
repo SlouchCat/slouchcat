@@ -77,6 +77,7 @@ function PicksContent() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'picks'] }),
       queryClient.invalidateQueries({ queryKey: ['home'] }),
       queryClient.invalidateQueries({ queryKey: ['picks'] }),
+      queryClient.invalidateQueries({ queryKey: ['my-media'] }),
       queryClient.invalidateQueries({ queryKey: ['item'] }),
     ]);
 

@@ -235,14 +235,15 @@ WHERE ((p.profile_path IS NOT NULL
                     WHERE c.person_id = p.id AND i.deleted_at IS NULL))
        OR (p.profile_path IS NULL AND (pj.person_id IS NOT NULL OR pw.person_id IS NOT NULL)))
   AND (p.profile_path IS NULL
-       OR pj.person_id IS NULL OR pj.source <> p.profile_path
-       OR (pj.status = 'missing' AND pj.fetched_at < ?1)
+       OR pj.person_id IS NULL OR pj.source <> p.profile_path OR pj.size <> ?1
+       OR (pj.status = 'missing' AND pj.fetched_at < ?2)
        OR (pj.status = 'ok' AND (pw.person_id IS NULL OR pw.source <> p.profile_path)))
 ORDER BY p.id
-LIMIT ?2
+LIMIT ?3
 `
 
 type ListOpenPersonImagesParams struct {
+	Size          string
 	MissingBefore int64
 	LimitCount    int64
 }
@@ -250,7 +251,7 @@ type ListOpenPersonImagesParams struct {
 // The open candidates by id, at most @limit_count (QueuePendingMetadata asks for one, a run for
 // one more than it saw fail).
 func (q *Queries) ListOpenPersonImages(ctx context.Context, arg ListOpenPersonImagesParams) ([]int64, error) {
-	rows, err := q.db.QueryContext(ctx, listOpenPersonImages, arg.MissingBefore, arg.LimitCount)
+	rows, err := q.db.QueryContext(ctx, listOpenPersonImages, arg.Size, arg.MissingBefore, arg.LimitCount)
 	if err != nil {
 		return nil, err
 	}
@@ -278,22 +279,23 @@ SELECT p.id, p.profile_path,
        pj.status AS jpeg_status, pj.rel_path AS jpeg_rel_path,
        pw.rel_path AS webp_rel_path,
        CAST(p.profile_path IS NULL
-            OR pj.person_id IS NULL OR pj.source <> p.profile_path
-            OR (pj.status = 'missing' AND pj.fetched_at < ?1)
+            OR pj.person_id IS NULL OR pj.source <> p.profile_path OR pj.size <> ?1
+            OR (pj.status = 'missing' AND pj.fetched_at < ?2)
             OR (pj.status = 'ok' AND (pw.person_id IS NULL OR pw.source <> p.profile_path)) AS INTEGER) AS is_open
 FROM people AS p
 LEFT JOIN person_images AS pj ON pj.person_id = p.id AND pj.format = 'jpeg'
 LEFT JOIN person_images AS pw ON pw.person_id = p.id AND pw.format = 'webp'
-WHERE p.id > ?2
+WHERE p.id > ?3
   AND ((p.profile_path IS NOT NULL
         AND EXISTS (SELECT 1 FROM credits AS c JOIN items AS i ON i.id = c.item_id
                     WHERE c.person_id = p.id AND i.deleted_at IS NULL))
        OR (p.profile_path IS NULL AND (pj.person_id IS NOT NULL OR pw.person_id IS NOT NULL)))
 ORDER BY p.id
-LIMIT ?3
+LIMIT ?4
 `
 
 type ListPersonImageCandidatesParams struct {
+	Size          string
 	MissingBefore int64
 	AfterID       int64
 	LimitCount    int64
@@ -316,14 +318,20 @@ type ListPersonImageCandidatesRow struct {
 // is a candidate when it is a TMDB collection with a poster_path and at least one member that is
 // not deleted, or when it has rows but no poster_path. A candidate is open when it has no path
 // (rows to drop), no JPEG row of the current path, a 'missing' row older than @missing_before, or
-// an 'ok' JPEG row without a WebP row of the same path. An 'ok' row whose file is gone is open as
-// well; the job sees that through the file system, not here (QueuePeopleImages samples the files
-// through SampleStored*Images). The open condition is written out in
+// an 'ok' JPEG row without a WebP row of the same path. A person is open as well when its JPEG
+// row is of another size than @size (the w185 rows before concept 21 O-12, replaced by w300).
+// An 'ok' row whose file is gone is open as well; the job sees that through the file system, not
+// here (QueuePeopleImages samples the files through SampleStored*Images). The open condition is written out in
 // both the candidate listing (column is_open) and the open listing; keep them equal.
 // The candidates by id after the cursor @after_id, @limit_count at a time, with the JPEG and WebP
 // rows they have.
 func (q *Queries) ListPersonImageCandidates(ctx context.Context, arg ListPersonImageCandidatesParams) ([]ListPersonImageCandidatesRow, error) {
-	rows, err := q.db.QueryContext(ctx, listPersonImageCandidates, arg.MissingBefore, arg.AfterID, arg.LimitCount)
+	rows, err := q.db.QueryContext(ctx, listPersonImageCandidates,
+		arg.Size,
+		arg.MissingBefore,
+		arg.AfterID,
+		arg.LimitCount,
+	)
 	if err != nil {
 		return nil, err
 	}

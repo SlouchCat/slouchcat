@@ -70,13 +70,29 @@ func (s *server) GetHome(ctx context.Context, req gen.GetHomeRequestObject) (gen
 	for _, row := range home.Rows {
 		out := gen.HomeRow{Id: row.ID, Key: gen.HomeRowKey(row.Key), Items: toItemRefList(session.Profile.ID, row.Items)}
 		switch row.Key {
-		case model.RowLibraries: // concept 15 P-7: the tiles of «Meine Medien»
+		case model.RowLibraries: // concept 15 P-7: the tiles of «Meine Medien»; concept 21 P-9: media
 			tiles := make([]gen.LibraryTile, 0, len(row.Libraries))
 			for _, l := range row.Libraries {
-				tiles = append(tiles, gen.LibraryTile{Id: l.ID, Name: l.Name, Kind: gen.LibraryKind(l.Kind), ItemCount: l.ItemCount,
-					Items: toItemRefList(session.Profile.ID, l.Items)})
+				tiles = append(tiles, toLibraryTile(session.Profile.ID, l))
 			}
 			out.Libraries = &tiles
+			media := make([]gen.MyMediaTile, 0, len(row.Media))
+			for _, m := range row.Media {
+				tile := gen.MyMediaTile{Id: m.ID, Key: gen.MyMediaKey(m.Key), Count: m.Count}
+				if m.Library != nil {
+					lib := toLibraryTile(session.Profile.ID, *m.Library)
+					tile.Library = &lib
+				}
+				if m.Key == model.MyMediaRadio {
+					stations := make([]gen.RadioStation, 0, len(m.Stations))
+					for _, st := range m.Stations {
+						stations = append(stations, toRadioStation(st))
+					}
+					tile.Stations = &stations
+				}
+				media = append(media, tile)
+			}
+			out.Media = &media
 		case model.RowLibrary:
 			id, name := row.LibraryID, row.LibraryName
 			out.LibraryId, out.LibraryName = &id, &name
@@ -93,6 +109,12 @@ func (s *server) GetHome(ctx context.Context, req gen.GetHomeRequestObject) (gen
 		page.Rows = append(page.Rows, out)
 	}
 	return gen.GetHome200JSONResponse(page), nil
+}
+
+// toLibraryTile is a tile of «Meine Medien» for a library (concept 15 P-7).
+func toLibraryTile(profileID int64, l model.LibraryTile) gen.LibraryTile {
+	return gen.LibraryTile{Id: l.ID, Name: l.Name, Kind: gen.LibraryKind(l.Kind), ItemCount: l.ItemCount,
+		Items: toItemRefList(profileID, l.Items)}
 }
 
 func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen.GetItemResponseObject, error) {
@@ -239,7 +261,17 @@ func (s *server) GetPerson(ctx context.Context, req gen.GetPersonRequestObject) 
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	out := gen.GetPerson200JSONResponse{Id: p.ID, Name: p.Name, Image: toPersonImageRef(p.ID, session.Profile.ID, p.Image)}
+	d := p.Details
+	out := gen.GetPerson200JSONResponse{Id: p.ID, Name: p.Name, Image: toPersonImageRef(p.ID, session.Profile.ID, p.Image),
+		Biography: optString(d.Biography), PlaceOfBirth: optString(d.PlaceOfBirth),
+		KnownForDepartment: optString(d.KnownForDepartment), TotalCredits: d.TotalCredits,
+		Birthday: optDate(d.Birthday), Deathday: optDate(d.Deathday)}
+	if d.Biography != "" {
+		out.BiographyLang = optString(d.BiographyLang)
+		if d.BiographyFallback {
+			out.BiographyFallback = &d.BiographyFallback
+		}
+	}
 	out.Credits = make([]struct {
 		Character *string               `json:"character,omitempty"`
 		Item      gen.ItemRef           `json:"item"`
@@ -337,6 +369,22 @@ func (s *server) SetItemWatched(ctx context.Context, req gen.SetItemWatchedReque
 		return s.problem(ctx, err), nil
 	}
 	return gen.SetItemWatched204Response{}, nil
+}
+
+// SetCollectionWatched sets or removes the check mark «gesehen» of every part of a collection
+// (concept 21 O-19).
+func (s *server) SetCollectionWatched(ctx context.Context, req gen.SetCollectionWatchedRequestObject) (gen.SetCollectionWatchedResponseObject, error) {
+	session, err := s.itemSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if req.Body == nil {
+		return s.problem(ctx, (&model.ValidationError{}).Add("body", "required")), nil
+	}
+	if err := s.opts.Playback.SetCollectionWatched(ctx, session.Profile, req.Id, req.Body.Watched); err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.SetCollectionWatched204Response{}, nil
 }
 
 // Image kinds and sizes of the contract (M1b image pipeline, plan 3.1): posters in w200, w400 and
@@ -727,6 +775,15 @@ func toMediaFileInfo(f model.MediaFile) gen.MediaFileInfo {
 		out.Tracks = &tracks
 	}
 	return out
+}
+
+// optDate maps a YYYY-MM-DD day; nil for "" or anything else.
+func optDate(s string) *openapi_types.Date {
+	day, err := time.Parse(time.DateOnly, s)
+	if err != nil {
+		return nil
+	}
+	return &openapi_types.Date{Time: day}
 }
 
 func optString(s string) *string {

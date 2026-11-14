@@ -7,7 +7,8 @@
 // picks of the profiles, concept 18 part B), continue (continue watching), recent (recently
 // added), released (by release date within twelve months, a series by its newest visible
 // episode, S-5, S-6), watchlist,
-// collections, genres, libraries («Meine Medien», one tile per visible library), one row
+// collections, genres, libraries («Meine Medien», one tile per visible library, since concept 21
+// P-9 with radio, collections and picks in the order of table my_media, mymedia.go), one row
 // library («Neu in …») per library and radio («Meine Sender», the profile's favourite stations,
 // concept 16 section 10.2, through HomeRadio), in the order the administration stored (table
 // home_rows, a row named by its id); hidden and empty rows are omitted, the
@@ -280,10 +281,11 @@ func (s *Service) safeRow(ctx context.Context, profile model.Profile, setting mo
 	return s.loadRow(ctx, profile, setting)
 }
 
-// filled reports whether a row goes on the page: «Meine Medien» counts its tiles (8.3), «Meine
-// Sender» its stations, the other rows their entries.
+// filled reports whether a row goes on the page: «Meine Medien» counts its tiles (8.3, since
+// concept 21 P-9 also radio, collections and picks), «Meine Sender» its stations, the other rows
+// their entries.
 func filled(row model.HomeRow) bool {
-	return len(row.Items) > 0 || len(row.Collections) > 0 || len(row.Genres) > 0 || len(row.Libraries) > 0 ||
+	return len(row.Items) > 0 || len(row.Collections) > 0 || len(row.Genres) > 0 || len(row.Media) > 0 ||
 		len(row.Stations) > 0
 }
 
@@ -339,7 +341,7 @@ func (s *Service) row(ctx context.Context, profile model.Profile, setting model.
 	case RowWatchlist:
 		row.Items, err = s.vis.WatchlistRow(ctx, scope, visibility.MaxRowItems)
 	case RowCollections:
-		row.Collections, err = s.vis.Collections(ctx, scope, visibility.MaxRowItems)
+		row.Collections, err = s.vis.HomeCollections(ctx, scope, visibility.MaxRowItems)
 	case RowGenres:
 		row.Genres, err = s.vis.Genres(ctx, scope, visibility.MaxRowItems)
 	case RowReleased:
@@ -347,7 +349,7 @@ func (s *Service) row(ctx context.Context, profile model.Profile, setting model.
 	case RowSpotlight:
 		row.Items, err = s.spotlightRow(ctx, scope)
 	case RowLibraries:
-		row.Libraries, err = s.vis.LibraryTiles(ctx, scope)
+		row.Media, row.Libraries, err = s.mediaTiles(ctx, profile)
 	case RowLibrary:
 		row.LibraryID, row.LibraryName = setting.LibraryID, setting.LibraryName
 		row.Items, err = s.vis.LibraryNewest(ctx, scope, setting.LibraryID, visibility.MaxRowItems)
@@ -433,7 +435,7 @@ func (s *Service) FirstRow(ctx context.Context, profile model.Profile) (model.Ho
 		if !filled(row) {
 			continue
 		}
-		if row.Key == RowSpotlight || (len(row.Items) == 0 && len(row.Libraries) == 0 && len(row.Stations) == 0) {
+		if row.Key == RowSpotlight || (len(row.Items) == 0 && len(row.Media) == 0 && len(row.Stations) == 0) {
 			return model.HomeRow{}, model.ErrNotFound
 		}
 		stage, err := s.stageBelow(ctx, profile, order, i)

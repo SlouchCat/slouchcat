@@ -99,7 +99,8 @@ func (s *Service) KeyRejected(ctx context.Context, provider string) bool {
 }
 
 // acceptKey lifts a remembered rejection of the provider after its key passed a check and queues
-// the fills of every library once (the titles that waited for the key).
+// the fills of every library once (the titles that waited for the key), for TMDB also
+// people.details.
 func (s *Service) acceptKey(ctx context.Context, provider string) error {
 	s.rejected.mu.Lock()
 	_, had := s.rejected.m[provider]
@@ -121,6 +122,12 @@ func (s *Service) acceptKey(ctx context.Context, provider string) error {
 		}
 	}
 	s.log.InfoContext(ctx, "metadata provider takes its key again, fills queued", "provider", provider, "fills", queued)
+	if provider == ProviderTMDB {
+		// The facts of the people that waited for the key (concept 21 P-8).
+		if _, err := s.QueuePeopleDetails(ctx); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

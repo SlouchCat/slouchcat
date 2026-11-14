@@ -67,8 +67,9 @@ test('the column at 1280 px: its entries, arrows between them, Enter, into the c
   await expect(switchLink(nav(page))).toHaveAttribute('href', '/profiles');
   await expect(switchLink(nav(page))).toHaveText('Wechseln');
 
-  // «Gesehen» below «Radio» (concept 20 P-14).
-  const entries = ['Start', 'Suche', 'Merkliste', 'Radio', 'Gesehen', 'Downloads'];
+  // «Gesehen» below «Merkliste» (concept 20 P-14); «Radio» moved into «Meine Medien» (concept 21
+  // P-9).
+  const entries = ['Start', 'Suche', 'Merkliste', 'Gesehen', 'Downloads'];
   for (const name of entries) {
     await expect(nav(page).getByRole('link', { name, exact: true })).toBeVisible();
   }
@@ -106,6 +107,19 @@ test('the column at 1280 px: its entries, arrows between them, Enter, into the c
       exact: true,
     }),
   ).toHaveAttribute('href', '/picks');
+  // Concept 21 P-9: «Radio» with the number of favourites and «Sammlungen» in the group, in the
+  // stored order of «Meine Medien» (GET /my-media), nothing of it in the top group.
+  await expect(media.getByRole('link', { name: /^Radio, \d+ Sender$/ })).toHaveAttribute(
+    'href',
+    '/radio',
+  );
+  await expect(media.getByRole('link', { name: /^Sammlungen, \d+ Sammlung/ })).toHaveAttribute(
+    'href',
+    '/collections',
+  );
+  const order = (await (await owner.get('/api/v1/my-media')).json()) as { id: string }[];
+  expect(await media.getByRole('link').count()).toBe(order.length);
+  await expect(nav(page).getByRole('link', { name: 'Radio', exact: true })).toHaveCount(0);
   const account = nav(page).getByRole('list', { name: 'Konto' });
   await expect(account.getByRole('link', { name: 'Verwaltung' })).toHaveAttribute('href', '/admin');
   await expect(account.getByRole('link', { name: 'Profile', exact: true })).toBeVisible();
@@ -289,7 +303,7 @@ test.describe('without the libraries', () => {
   test.use({ serviceWorkers: 'block' });
 
   test('the group says so, links the downloads, and the rest stands', async ({ page }) => {
-    await page.route('**/api/v1/libraries/visible', (route) => route.abort());
+    await page.route('**/api/v1/my-media', (route) => route.abort());
     await page.goto('/');
     await expect(recentRow(page).getByRole('link').first()).toBeVisible();
     await expect(nav(page).getByText('Offline: Bibliotheken nicht verfügbar')).toBeVisible();
@@ -422,10 +436,13 @@ test('the prepaint of «Meine Medien» lies on the first tiles, column shown and
       const mine = page.getByRole('region', { name: 'Meine Medien' });
       await expect(mine.getByRole('link').first()).toBeVisible();
       const slices = `<img src="${PIXEL}" alt="" loading="eager"><img src="${PIXEL}" alt="" loading="eager">`;
-      await insertPrepaint(
-        page,
-        `<div id="poster-prepaint" aria-hidden="true"><span class="tile">${slices}</span><span class="tile">${slices}</span></div>`,
-      );
+      // From 768 px the row is a grid whose tracks follow the number of tiles (concept 21 P-9):
+      // like the server, one span per tile, the ones not painted empty.
+      const count = await mine.getByRole('link').count();
+      const spans = Array.from({ length: count }, (_, index) =>
+        index < 2 ? `<span class="tile">${slices}</span>` : '<span class="tile"></span>',
+      ).join('');
+      await insertPrepaint(page, `<div id="poster-prepaint" aria-hidden="true">${spans}</div>`);
       const tile = 'main section[aria-labelledby] ul li:first-child a';
       await expect
         .poll(() =>

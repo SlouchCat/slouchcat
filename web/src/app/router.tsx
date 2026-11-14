@@ -15,6 +15,7 @@ import { homeQuery } from '@/features/catalog/queries';
 import { isStatsDays } from '@/features/admin/statsDays';
 import { validateLibraryParams } from '@/features/catalog/libraryParams';
 import { validateHomeListSearch } from '@/features/catalog/homeListParams';
+import { validateCollectionsParams } from '@/features/discover/collectionsParams';
 import { validateSearchParams } from '@/features/discover/searchParams';
 import { validateWatchedParams } from '@/features/discover/watchedParams';
 import { validateRadioSearch } from '@/features/radio/filters';
@@ -437,6 +438,14 @@ const homeRowsRoute = createRoute({
   validateSearch: adminSearch,
   component: lazyRouteComponent(() => import('@/features/admin/HomeRowsPage'), 'HomeRowsPage'),
 });
+
+// «Meine Medien» (concept 21 P-11): `?tab=preview` shows the side navigation and the tiles.
+const myMediaRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/my-media',
+  validateSearch: adminSearch,
+  component: lazyRouteComponent(() => import('@/features/admin/MyMediaPage'), 'MyMediaPage'),
+});
 // end admin M7
 
 // admin M11: the spotlight list of the start page (ADR 0011).
@@ -591,6 +600,8 @@ const homeListRoute = createRoute({
 const collectionsRoute = createRoute({
   getParentRoute: () => chromeRoute,
   path: '/collections',
+  // q, min, sort (concept 21 P-10); anything else is dropped.
+  validateSearch: validateCollectionsParams,
   component: lazyRouteComponent(
     () => import('@/features/discover/CollectionsPage'),
     'CollectionsPage',
@@ -697,6 +708,7 @@ export const routeTree = rootRoute.addChildren([
           picksRoute,
           collectionsAdminRoute,
           homeRowsRoute,
+          myMediaRoute,
           // admin M11
           spotlightRoute,
           jobsRoute,

@@ -372,10 +372,13 @@ WHERE t.item_id = @item_id
 ORDER BY t.lang, t.official DESC, t.id;
 
 -- Credits of a person on visible titles only (a person without one does not exist for the profile).
--- The portrait comes along like in ListVisibleCredits (ADR 0026).
+-- The portrait comes along like in ListVisibleCredits (ADR 0026), and the facts of the person page
+-- (migration 00058, concept 21 P-8) on every row.
 -- name: ListVisiblePersonCredits :many
 SELECT sqlc.embed(i), p.name AS person_name, c.role, c.character,
-       pi.content_hash AS image_hash, pi.width AS image_width, pi.height AS image_height
+       pi.content_hash AS image_hash, pi.width AS image_width, pi.height AS image_height,
+       p.biography, p.biography_lang, p.details_lang, p.birthday, p.deathday, p.place_of_birth,
+       p.known_for_department, p.total_credits
 FROM credits AS c
 JOIN people AS p ON p.id = c.person_id
 JOIN items AS i ON i.id = c.item_id
