@@ -5332,11 +5332,53 @@
       "title": "Collections",
       "count_one": "{{count}} collection",
       "count_other": "{{count}} collections",
-      "empty": "There is no collection for this profile yet."
+      "shown_one": "{{count}} of {{total}} collections",
+      "shown_other": "{{count}} of {{total}} collections",
+      "empty": "There is no collection for this profile yet.",
+      "noMatch": "No collection matches the search and filter.",
+      "filters": "Filters",
+      "search": "Search collections",
+      "size": "Size",
+      "sizes": {
+        "all": "All",
+        "2": "2 titles or more",
+        "3": "3 or more",
+        "5": "5 or more"
+      },
+      "sort": "Sort",
+      "sorts": {
+        "name": "Name A–Z",
+        "count": "Most titles",
+        "started": "Started first"
+      }
     },
     "count_one": "{{count}} title",
     "count_other": "{{count}} titles",
+    "films_one": "{{count}} film",
+    "films_other": "{{count}} films",
+    "years": "{{first}}–{{last}}",
+    "together": "{{duration}} in all",
+    "seen_one": "{{count}} of {{total}} watched",
+    "seen_other": "{{count}} of {{total}} watched",
     "members": "Titles",
+    "parts": "In order",
+    "part": "Part {{part}}: {{title}}",
+    "playPart": "Play: {{title}}",
+    "play": "Play · part {{part}}",
+    "resume": "Continue · part {{part}}",
+    "rewatch": "Watch again · part {{part}}",
+    "watchlist": {
+      "add": "Add all to watchlist",
+      "added": "All on watchlist"
+    },
+    "overviewFallback": "Description from TMDB, only available in English",
+    "ask": {
+      "removeBody_one": "{{count}} title loses its check mark. This cannot be undone.",
+      "removeBody_other": "{{count}} titles lose their check mark. This cannot be undone.",
+      "halfBody_one": "{{count}} of {{total}} titles carries the check mark. Mark every title or remove every check mark? Removing cannot be undone.",
+      "halfBody_other": "{{count}} of {{total}} titles carry the check mark. Mark every title or remove every check mark? Removing cannot be undone.",
+      "markAll": "Mark every title as watched"
+    },
     "notFound": {
       "title": "Collection not found",
       "body": "This collection does not exist or holds no title for this profile."

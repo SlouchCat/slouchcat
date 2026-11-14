@@ -51,6 +51,29 @@
   gap: var(--sc-space-4);
 }
 
+/* «3 von 8 gesehen» under the facts of a collection, with its bar. */
+.seenLine {
+  display: flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+.seenBar {
+  width: 10rem;
+}
+
+/* The parts of a collection, one row each in collection order (concept 21 P-10). */
+.parts {
+  display: flex;
+  flex-direction: column;
+  max-width: var(--sc-size-content-max);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 /* The members of a collection under its DetailHeader, which leaves the gutter to them. */
 .members {
   display: flex;

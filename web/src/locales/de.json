@@ -5332,11 +5332,53 @@
       "title": "Sammlungen",
       "count_one": "{{count}} Sammlung",
       "count_other": "{{count}} Sammlungen",
-      "empty": "Für dieses Profil gibt es noch keine Sammlung."
+      "shown_one": "{{count}} von {{total}} Sammlungen",
+      "shown_other": "{{count}} von {{total}} Sammlungen",
+      "empty": "Für dieses Profil gibt es noch keine Sammlung.",
+      "noMatch": "Keine Sammlung passt zu Suche und Filter.",
+      "filters": "Filter",
+      "search": "Sammlung suchen",
+      "size": "Grösse",
+      "sizes": {
+        "all": "Alle",
+        "2": "Ab 2 Titeln",
+        "3": "Ab 3",
+        "5": "Ab 5"
+      },
+      "sort": "Sortierung",
+      "sorts": {
+        "name": "Name A–Z",
+        "count": "Meiste Titel",
+        "started": "Angefangen zuerst"
+      }
     },
     "count_one": "{{count}} Titel",
     "count_other": "{{count}} Titel",
+    "films_one": "{{count}} Film",
+    "films_other": "{{count}} Filme",
+    "years": "{{first}}–{{last}}",
+    "together": "zusammen {{duration}}",
+    "seen_one": "{{count}} von {{total}} gesehen",
+    "seen_other": "{{count}} von {{total}} gesehen",
     "members": "Titel",
+    "parts": "In Reihenfolge",
+    "part": "Teil {{part}}: {{title}}",
+    "playPart": "Abspielen: {{title}}",
+    "play": "Abspielen · Teil {{part}}",
+    "resume": "Weiterschauen · Teil {{part}}",
+    "rewatch": "Nochmals ansehen · Teil {{part}}",
+    "watchlist": {
+      "add": "Alle merken",
+      "added": "Alle gemerkt"
+    },
+    "overviewFallback": "Beschreibung von TMDB, nur auf Englisch vorhanden",
+    "ask": {
+      "removeBody_one": "Bei {{count}} Titel fällt der Haken. Das lässt sich nicht rückgängig machen.",
+      "removeBody_other": "Bei {{count}} Titeln fällt der Haken. Das lässt sich nicht rückgängig machen.",
+      "halfBody_one": "{{count}} von {{total}} Titeln trägt den Haken. Alle Titel markieren oder alle Haken entfernen? Das Entfernen lässt sich nicht rückgängig machen.",
+      "halfBody_other": "{{count}} von {{total}} Titeln tragen den Haken. Alle Titel markieren oder alle Haken entfernen? Das Entfernen lässt sich nicht rückgängig machen.",
+      "markAll": "Alle Titel als gesehen markieren"
+    },
     "notFound": {
       "title": "Sammlung nicht gefunden",
       "body": "Diese Sammlung gibt es nicht, oder sie enthält keinen Titel für dieses Profil."

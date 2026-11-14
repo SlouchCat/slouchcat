@@ -15,6 +15,7 @@ import { homeQuery } from '@/features/catalog/queries';
 import { isStatsDays } from '@/features/admin/statsDays';
 import { validateLibraryParams } from '@/features/catalog/libraryParams';
 import { validateHomeListSearch } from '@/features/catalog/homeListParams';
+import { validateCollectionsParams } from '@/features/discover/collectionsParams';
 import { validateSearchParams } from '@/features/discover/searchParams';
 import { validateWatchedParams } from '@/features/discover/watchedParams';
 import { validateRadioSearch } from '@/features/radio/filters';
@@ -599,6 +600,8 @@ const homeListRoute = createRoute({
 const collectionsRoute = createRoute({
   getParentRoute: () => chromeRoute,
   path: '/collections',
+  // q, min, sort (concept 21 P-10); anything else is dropped.
+  validateSearch: validateCollectionsParams,
   component: lazyRouteComponent(
     () => import('@/features/discover/CollectionsPage'),
     'CollectionsPage',

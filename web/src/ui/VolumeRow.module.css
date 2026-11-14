@@ -70,6 +70,11 @@
   object-fit: cover;
 }
 
+/* A part of a film collection (concept 21 P-10): the 2:3 poster in the same width. */
+.poster {
+  aspect-ratio: 2 / 3;
+}
+
 /* A finished volume: the cover at reduced strength under its check mark. */
 .heard .image {
   opacity: 0.55;
@@ -106,6 +111,15 @@
 .caption {
   color: var(--sc-color-text-muted);
   font-size: var(--sc-font-size-xs);
+}
+
+/* «Als Nächstes», «Weiterschauen»: the part the big button plays. */
+.marker {
+  color: var(--sc-accent);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-bold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
 }
 
 .progress {

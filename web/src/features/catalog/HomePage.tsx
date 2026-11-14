@@ -33,6 +33,7 @@ import {
   VisuallyHidden,
   type HeroSlide,
 } from '@/ui';
+import { collectionCaption, collectionProgress } from '@/features/discover/collectionFacts';
 import { CoverWatchlist, WATCHLIST_KINDS } from '@/features/discover/CoverWatchlist';
 import {
   continueEdited,
@@ -498,7 +499,10 @@ export function HomePage() {
               focusKey={`${row.id}-${collection.id}`}
               href={paths.collection(collection.id)}
               name={collection.name}
-              caption={t('collection.count', { count: collection.count })}
+              caption={collectionCaption(t, collection)}
+              badge={String(collection.count)}
+              badgeIcon="stack"
+              progress={collectionProgress(t, collection)}
               imageUrl={imageUrl(collection.image)}
               posterUrl={imageUrl(collection.cover?.images.poster)}
               posterSmallUrl={imageUrl(collection.cover?.images.posterSmall)}

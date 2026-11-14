@@ -178,6 +178,12 @@
   line-height: var(--sc-font-line-height-normal);
 }
 
+/* Where the overview comes from (a collection's English fallback, concept 21 O-18). */
+.overviewNote {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+}
+
 /* Rows (ui/Row) bring their own gutter; the other sections add it themselves. */
 .body {
   display: flex;
