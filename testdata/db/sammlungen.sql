@@ -2748,6 +2748,9 @@ WHERE (p.all_libraries = 1
 CREATE INDEX my_media_library ON my_media (library_id) WHERE library_id IS NOT NULL;
 CREATE TRIGGER my_media_library_added AFTER INSERT ON libraries
 BEGIN
+    UPDATE my_media SET position = position + 1
+    WHERE position >= (SELECT COALESCE(max(position) + 1, 0) FROM my_media WHERE key = 'library');
     INSERT INTO my_media (id, key, library_id, position, hide_sidebar, hide_home, updated_at)
-    VALUES ('library:' || NEW.id, 'library', NEW.id, (SELECT COALESCE(max(position), -1) + 1 FROM my_media), 0, 0, NEW.created_at);
+    VALUES ('library:' || NEW.id, 'library', NEW.id,
+            (SELECT COALESCE(max(position) + 1, 0) FROM my_media WHERE key = 'library'), 0, 0, NEW.created_at);
 END;

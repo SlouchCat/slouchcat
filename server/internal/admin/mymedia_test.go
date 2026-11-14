@@ -28,7 +28,9 @@ func TestMyMedia(t *testing.T) {
 		t.Fatal(err)
 	}
 	lib := fmt.Sprintf("library:%d", c.f.LibraryID())
-	if want := []string{model.MyMediaRadio, model.MyMediaCollections, model.MyMediaPicks, lib}; !slices.Equal(myMediaIDs(entries), want) {
+	// The fixture's library comes after migration 00059 on an empty database: behind the last library,
+	// that is in front of Radio, Sammlungen and User-Empfehlungen (O-20).
+	if want := []string{lib, model.MyMediaRadio, model.MyMediaCollections, model.MyMediaPicks}; !slices.Equal(myMediaIDs(entries), want) {
 		t.Fatalf("default order %v, want %v", myMediaIDs(entries), want)
 	}
 	var titles int
@@ -36,11 +38,11 @@ func TestMyMedia(t *testing.T) {
 		AND kind IN ('movie', 'series', 'audiobook', 'podcast')`, c.f.LibraryID()).Scan(&titles); err != nil {
 		t.Fatal(err)
 	}
-	if e := entries[3]; e.Key != model.MyMediaLibrary || e.LibraryID != c.f.LibraryID() || e.LibraryName != "Filme" ||
+	if e := entries[0]; e.Key != model.MyMediaLibrary || e.LibraryID != c.f.LibraryID() || e.LibraryName != "Filme" ||
 		e.LibraryKind != "video" || e.Count != titles || titles == 0 || e.HideSidebar || e.HideHome {
 		t.Errorf("library entry %+v, want Filme with its %d titles, shown", e, titles)
 	}
-	for _, e := range entries[:3] {
+	for _, e := range entries[1:] {
 		if e.HideSidebar || e.HideHome != (e.Key != model.MyMediaRadio) || e.LibraryID != 0 {
 			t.Errorf("entry %+v, want in the side navigation, on the start page only radio", e)
 		}
@@ -106,25 +108,28 @@ func TestMyMediaNewLibrary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := append(myMediaIDs(before), added); !slices.Equal(myMediaIDs(entries), want) {
+	// Behind the last library (O-20, «hinter Bibliotheken»): before is the old library, radio,
+	// collections, picks.
+	if want := []string{myMediaIDs(before)[0], added, before[1].ID, before[2].ID, before[3].ID}; !slices.Equal(myMediaIDs(entries), want) {
 		t.Fatalf("entries after a new library %v, want %v", myMediaIDs(entries), want)
 	}
-	if e := entries[len(entries)-1]; e.HideSidebar || e.HideHome || e.LibraryName != "Anime" || e.Count != 0 {
+	if e := entries[1]; e.HideSidebar || e.HideHome || e.LibraryName != "Anime" || e.Count != 0 {
 		t.Errorf("new library %+v, want visible in both places, without titles", e)
 	}
 
-	// The page knew only the first four entries: it moves the old library to the front and hides
-	// picks in the side navigation (before: radio, collections, picks, the library).
-	in := []model.MyMediaSetting{before[3], before[0], before[1], before[2]}
+	// The page knew only the four entries from before: it moves radio to the front and hides picks in
+	// the side navigation (before: the library, radio, collections, picks).
+	in := []model.MyMediaSetting{before[1], before[0], before[2], before[3]}
 	in[3].HideSidebar = true
 	out, err := c.svc.SetMyMedia(c.ctx, in)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := append(myMediaIDs(in), added); !slices.Equal(myMediaIDs(out), want) {
-		t.Errorf("stored %v, want the new library behind the list %v", myMediaIDs(out), want)
+	// The left-out new library keeps its place (index 1).
+	if want := []string{in[0].ID, added, in[1].ID, in[2].ID, in[3].ID}; !slices.Equal(myMediaIDs(out), want) {
+		t.Errorf("stored %v, want the left-out library at its place %v", myMediaIDs(out), want)
 	}
-	if e := out[4]; e.HideSidebar || e.HideHome || e.Position != 4 {
+	if e := out[1]; e.HideSidebar || e.HideHome || e.Position != 1 {
 		t.Errorf("left-out library %+v lost its place or flags", e)
 	}
 }

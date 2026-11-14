@@ -43,12 +43,15 @@ func checkMyMedia(t *testing.T, f *vistest.Fixture, h http.Handler, token string
 	p := fixtureProfile(f, token)
 	var entries []myMediaEntryJSON
 	decode(t, rec, &entries)
-	want := []string{"radio", "collections", "picks"}
+	// Libraries created after migration 00059 come behind the last library, in front of radio,
+	// collections and picks (O-20).
+	var want []string
 	for _, id := range []int64{f.LibraryID(), f.OtherLibraryID(), f.Audio.AudiobookLibraryID, f.Audio.PodcastLibraryID} {
 		if len(topLevelTitles(f, p, id)) > 0 {
 			want = append(want, fmt.Sprintf("library:%d", id))
 		}
 	}
+	want = append(want, "radio", "collections", "picks")
 	var got []string
 	for _, e := range entries {
 		got = append(got, e.ID)
@@ -101,7 +104,7 @@ func TestContractMyMedia(t *testing.T) {
 	}
 	stored := get()
 	lib := fmt.Sprintf("library:%d", pf.f.LibraryID())
-	if len(stored) < 4 || ids(stored)[0] != "radio" || ids(stored)[1] != "collections" || ids(stored)[2] != "picks" || !slices.Contains(ids(stored), lib) {
+	if n := len(stored); n < 4 || !slices.Equal(ids(stored)[n-3:], []string{"radio", "collections", "picks"}) || !slices.Contains(ids(stored), lib) {
 		t.Fatalf("default entries %v", ids(stored))
 	}
 	for i, e := range stored {
@@ -127,6 +130,12 @@ func TestContractMyMedia(t *testing.T) {
 		}
 		parts = append(parts, fmt.Sprintf(`{"id":%q,"key":%q,"position":%d,"hideSidebar":%t,"hideHome":%t,"count":0}`,
 			id, key, 9-i, id == lib, id == "radio" || id == "picks"))
+	}
+	// The other libraries follow in their stored order (since O-20 they stand in front of radio).
+	for _, e := range stored {
+		if !slices.Contains(order, e.Id) {
+			parts = append(parts, fmt.Sprintf(`{"id":%q,"key":"library","position":0,"hideSidebar":false,"hideHome":false,"count":0}`, e.Id))
+		}
 	}
 	rec := send(t, h, http.MethodPut, BasePath+"/admin/my-media", "p18", "["+strings.Join(parts, ",")+"]", nil)
 	adminCurationAnswer(t, rec, http.StatusOK)

@@ -17,8 +17,9 @@
 -- order (the order of the side navigation until now), then Radio (moving from the top of the side
 -- navigation into the group, with a tile on the start page), Sammlungen and User-Empfehlungen
 -- (shown in the side navigation; on the start page hidden, since both have rows of their own). The
--- trigger my_media_library_added gives every library created later its entry at the end, visible in
--- both places (O-20).
+-- trigger my_media_library_added gives every library created later its entry directly behind the last
+-- library (Radio, Sammlungen and User-Empfehlungen move one place down), visible in both places (O-20,
+-- Marco 14 November 2026: «hinter Bibliotheken»).
 
 -- +goose Up
 -- +goose NO TRANSACTION
@@ -49,12 +50,16 @@ SELECT 'collections', 'collections', NULL, count(*) + 1, 0, 1, 0 FROM libraries
 UNION ALL
 SELECT 'picks', 'picks', NULL, count(*) + 2, 0, 1, 0 FROM libraries;
 
--- A new library at the end, visible in the side navigation and on the start page (O-20).
+-- A new library directly behind the last library (first place without one), visible in the side
+-- navigation and on the start page (O-20). The entries behind it move one place down.
 -- +goose StatementBegin
 CREATE TRIGGER my_media_library_added AFTER INSERT ON libraries
 BEGIN
+    UPDATE my_media SET position = position + 1
+    WHERE position >= (SELECT COALESCE(max(position) + 1, 0) FROM my_media WHERE key = 'library');
     INSERT INTO my_media (id, key, library_id, position, hide_sidebar, hide_home, updated_at)
-    VALUES ('library:' || NEW.id, 'library', NEW.id, (SELECT COALESCE(max(position), -1) + 1 FROM my_media), 0, 0, NEW.created_at);
+    VALUES ('library:' || NEW.id, 'library', NEW.id,
+            (SELECT COALESCE(max(position) + 1, 0) FROM my_media WHERE key = 'library'), 0, 0, NEW.created_at);
 END;
 -- +goose StatementEnd
 

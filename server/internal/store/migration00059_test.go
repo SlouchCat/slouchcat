@@ -62,14 +62,23 @@ func TestMigration00059MyMedia(t *testing.T) {
 	if _, err := db.Write.ExecContext(ctx, `INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (9, 'Neu', 'video', 5, 5)`); err != nil {
 		t.Fatal(err)
 	}
-	if got := entries(); len(got) != 8 || got[7] != (entry{"library:9", 7, 0, 0}) {
-		t.Errorf("after a new library my_media = %v, want library:9 last and visible", got)
+	added := []entry{{"library:1", 0, 0, 0}, {"library:2", 1, 0, 0}, {"library:3", 2, 0, 0}, {"library:4", 3, 0, 0},
+		{"library:9", 4, 0, 0}, {"radio", 5, 0, 0}, {"collections", 6, 0, 1}, {"picks", 7, 0, 1}}
+	if got := entries(); !slices.Equal(got, added) {
+		t.Errorf("after a new library my_media = %v, want library:9 behind the last library and visible: %v", got, added)
 	}
 	if _, err := db.Write.ExecContext(ctx, `DELETE FROM libraries WHERE id = 9`); err != nil {
 		t.Fatal(err)
 	}
-	if got := entries(); !slices.Equal(got, want) {
-		t.Errorf("after deleting the library my_media = %v, want %v", got, want)
+	ids := func(es []entry) []string {
+		out := make([]string, len(es))
+		for i, e := range es {
+			out[i] = e.id
+		}
+		return out
+	}
+	if got := entries(); !slices.Equal(ids(got), ids(want)) {
+		t.Errorf("after deleting the library my_media = %v, want the order %v", got, ids(want))
 	}
 
 	for what, query := range map[string]string{
