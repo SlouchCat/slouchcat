@@ -259,7 +259,7 @@ func (s *server) GetPerson(ctx context.Context, req gen.GetPersonRequestObject) 
 func toTrailer(t model.Trailer) gen.Trailer {
 	return gen.Trailer{
 		Id: t.ID, Lang: t.Lang, YoutubeId: t.YouTubeID, EmbedUrl: t.EmbedURL(), Title: optString(t.Title),
-		Source: gen.TrailerSource(t.Source), Official: t.Official,
+		Source: gen.TrailerSource(t.Source), Official: t.Official, Size: optPositive(t.Size),
 	}
 }
 

@@ -647,20 +647,22 @@ func (f *Fixture) AddSeries(t testing.TB) {
 	               VALUES (?, ?, ?, ?, ?, 1, 'mp4', 'h264', 'aac', 1280, 720, ?, 2, 2, 2)`,
 		f.Version2FileID, m12.ID, f.rootID, rel, FileSize, DurationMs)
 
-	// Trailers (B-8): de and en of the film rated 6 and of the series, one of the film rated 18.
+	// Trailers (B-8): de and en of the film rated 6 and of the series, one of the film rated 18. The
+	// TMDB trailers carry their resolution (concept 21 P-1), the others none.
 	f.Trailers = map[string]int{}
 	for _, tr := range []struct {
 		itemID, lang, youtubeID, source string
 		official                        int
+		size                            any
 	}{
-		{m6.ID, "en", "EnTrailer06", "tmdb", 1},
-		{m6.ID, "de", "DeTrailer06", "youtube", 0},
-		{series.ID, "de", "DeTrailerSS", "manual", 0},
-		{series.ID, "en", "EnTrailerSS", "tmdb", 1},
-		{f.Rated(18).ID, "en", "EnTrailer18", "tmdb", 1},
+		{m6.ID, "en", "EnTrailer06", "tmdb", 1, 1080},
+		{m6.ID, "de", "DeTrailer06", "youtube", 0, nil},
+		{series.ID, "de", "DeTrailerSS", "manual", 0, nil},
+		{series.ID, "en", "EnTrailerSS", "tmdb", 1, 720},
+		{f.Rated(18).ID, "en", "EnTrailer18", "tmdb", 1, 2160},
 	} {
-		exec(t, f.DB, `INSERT INTO trailers (item_id, lang, youtube_id, title, source, official, created_at) VALUES (?, ?, ?, ?, ?, ?, 1)`,
-			tr.itemID, tr.lang, tr.youtubeID, "Trailer "+tr.lang, tr.source, tr.official)
+		exec(t, f.DB, `INSERT INTO trailers (item_id, lang, youtube_id, title, source, official, size, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+			tr.itemID, tr.lang, tr.youtubeID, "Trailer "+tr.lang, tr.source, tr.official, tr.size)
 		f.Trailers[tr.itemID]++
 	}
 	exec(t, f.DB, `UPDATE items SET trailer_state = 'found' WHERE id IN (?, ?, ?)`, m6.ID, series.ID, f.Rated(18).ID)

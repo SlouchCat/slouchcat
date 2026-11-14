@@ -745,6 +745,7 @@ type Trailer struct {
 	Title     string
 	Source    string // tmdb, youtube, ai, manual
 	Official  bool
+	Size      int // TMDB resolution (360 … 2160), 0 when unknown (concept 21 P-1)
 }
 
 // EmbedURL is the IFrame player URL of the trailer (youtube-nocookie.com, plan 5.3).

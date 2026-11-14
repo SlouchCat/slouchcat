@@ -979,6 +979,7 @@ type Trailer struct {
 	Source    string
 	Official  int64
 	CreatedAt int64
+	Size      sql.NullInt64
 }
 
 type UserPick struct {

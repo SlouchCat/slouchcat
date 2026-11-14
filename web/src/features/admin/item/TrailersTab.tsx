@@ -103,7 +103,8 @@ function TrailerForm({
 }
 
 /**
- * The tab «Trailer» (TIT-7): the search state, the trailers with language, source and «Offiziell»,
+ * The tab «Trailer» (TIT-7): the search state, the trailers with language, resolution (concept 21
+ * P-1, «unbekannt» without one), source and «Offiziell»,
  * «Hinzufügen» in a dialog. «Löschen» asks through the page's own confirmation, so a row that goes
  * meanwhile cannot take the question with it.
  */
@@ -135,6 +136,16 @@ export function TrailersTab({
       key: 'lang',
       header: t('admin.item.trailers.lang'),
       cell: (trailer) => <Chip tone="outline">{trailer.lang.toUpperCase()}</Chip>,
+    },
+    {
+      key: 'size',
+      header: t('admin.item.trailers.columns.size'),
+      cell: (trailer) =>
+        trailer.size ? (
+          t('admin.item.trailers.size', { size: trailer.size })
+        ) : (
+          <span className={styles.muted}>{t('admin.item.trailers.sizeUnknown')}</span>
+        ),
     },
     {
       key: 'source',

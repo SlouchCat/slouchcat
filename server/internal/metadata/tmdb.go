@@ -371,6 +371,8 @@ type Video struct {
 	Type        string `json:"type"`
 	Official    bool   `json:"official"`
 	PublishedAt string `json:"published_at"`
+	// Size is the resolution TMDB names (360, 480, 720, 1080, 2160), 0 when missing (concept 21 P-1).
+	Size int `json:"size"`
 }
 
 // Videos returns the videos of a movie or series (kind "movie" or "tv") in the de, en and

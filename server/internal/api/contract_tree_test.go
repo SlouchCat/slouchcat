@@ -159,15 +159,22 @@ func TestContractSeriesTree(t *testing.T) {
 		t.Errorf("extra detail = %+v", d.treeRef)
 	}
 
-	// Trailers in the profile language first: P6 (en) and P12 (de) on the 6-rated film.
+	// Trailers in the profile language first: P6 (en) and P12 (de) on the 6-rated film; the TMDB
+	// trailer names its resolution, the YouTube hit leaves it out (concept 21 P-1).
 	for token, first := range map[string]string{"p6": "en", "p12": "de"} {
 		var list []struct {
 			Lang   string `json:"lang"`
 			Source string `json:"source"`
+			Size   *int   `json:"size"`
 		}
 		decode(t, send(t, h, http.MethodGet, BasePath+"/items/"+m6.ID+"/trailers", token, "", nil), &list)
 		if len(list) != 2 || list[0].Lang != first {
 			t.Errorf("%s trailers = %+v, want %s first", token, list, first)
+		}
+		for _, tr := range list {
+			if (tr.Source == "tmdb") != (tr.Size != nil && *tr.Size == 1080) {
+				t.Errorf("%s trailer %+v: want size 1080 on the TMDB one only", token, tr)
+			}
 		}
 	}
 	if rec := send(t, h, http.MethodGet, BasePath+"/items/"+f.Rated(18).ID+"/trailers", "p6", "", nil); rec.Code != http.StatusNotFound {

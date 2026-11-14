@@ -134,6 +134,9 @@ test('add a manual trailer by keyboard, then delete it after confirmation', asyn
   await expect(dialog).toHaveCount(0);
   await expect(trailers(page).getByText('dQw4w9WgXcQ')).toBeVisible();
   await expect(trailers(page).getByText('Manuell')).toBeVisible();
+  // The resolution column (concept 21 P-1): a manual trailer has none.
+  await expect(trailers(page).getByRole('columnheader', { name: 'Auflösung' })).toBeVisible();
+  await expect(trailers(page).getByText('unbekannt')).toBeVisible();
   await expect(page.getByText('Trailer hinzugefügt.')).toBeVisible();
   await expect(tabList(page).getByRole('tab', { selected: true })).toHaveText(/^Trailer\s*1/);
 

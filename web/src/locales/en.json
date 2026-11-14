@@ -2153,6 +2153,8 @@
         },
         "empty": "No trailers.",
         "official": "Official",
+        "size": "{{size}}p",
+        "sizeUnknown": "unknown",
         "source": {
           "tmdb": "TMDB",
           "youtube": "YouTube",
@@ -2177,6 +2179,7 @@
         },
         "columns": {
           "video": "Video",
+          "size": "Resolution",
           "source": "Source",
           "actions": "Actions"
         },
