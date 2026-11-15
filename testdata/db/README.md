@@ -440,3 +440,15 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   `TestFrozenSprachgeruestStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist;
   `TestMigration00061ProfilesOpenLanguage` prüft den Neubau von diesem Stand aus (Fremdschlüssel, Sicht,
   Indizes, Trigger, ein Profil mit `ja` und Stufe 13, alle übrigen `CHECK`).
+- `freigabelaender.sql`: Stand **vor** den Migrationen von Konzept 22 Stufe 3 «Freigabeländer» (ab 00062,
+  ADR 0034: Mindestalter statt FSK-Stufe, Spaltenumbau von `items` und `libraries`, Neubau von `accounts`
+  und `invitations`). Erzeugt am 15. November 2026 aus `sprachgeruest.sql` nach Migration 00061: Stand
+  eingespielt und migriert, dann per SQL Freigaben jeder Herkunft gesetzt (TMDB aus DE 12, aus US 16 und 12,
+  aus GB 0, TVDB aus US 16 an der «Slouchcat Test Show» samt abgeleiteten Stufen von Staffel und Folgen, von
+  Hand 6 mit Sperre, aus der NFO 16, TMDB 18 unter einer Sperre, «Slouchcat Test Unrated» ohne Freigabe),
+  Standardfreigabe 6 der Hörbuch-Bibliothek, ein Gastkonto `frozen-guest@example.test` (Obergrenze 12, nur
+  Bibliothek 1, Grenzen für Bitrate, Höhe und Streams) mit Hauptprofil «Gast», eine eingelöste und eine
+  offene Einladung (Stufe 6, Bibliotheken 1 und 2), ein Ereignis des Gastkontos im Aktivitätsprotokoll und
+  das Freigabeland CH (Stichtag 15. November 2026, 12:00 UTC). Dann `store.Dump`, kein neuer Pfad im Stand.
+  `TestFrozenFreigabelaenderStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist; die
+  Migrationstests der Stufe 3 prüfen den Umbau von diesem Stand aus.
