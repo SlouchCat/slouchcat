@@ -1,6 +1,7 @@
 # Konzept: Player-Bedienung – nächste Folge, Menüs ohne X, Besetzung mit Bildern
 
-- **Status: Fassung 3 (15. November 2026): alle Fragen beantwortet** (Abschnitt 9), mit Nachtrag
+- **Status: abgeschlossen (15. November 2026).** Gebaut und als **1.38.0** veröffentlicht (PR #170,
+  Tag `v1.38.0`), von Marco abgenommen. Fassung 3: **alle Fragen beantwortet** (Abschnitt 9), mit Nachtrag
   P-4 «Countdown-Karte» vom selben Tag (Abschnitte 2.4 und 5a). Marco hat F-1
   am Mockup beantwortet (Variante B) und F-2 bis F-5 über AskUserQuestion; **F-3 und F-5 gegen die
   Empfehlung:** Es gibt einen eigenen Knopf «Vorherige Folge», und bei Podcasts geht er zur älteren,

@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## Release 1.38.0: Konzept 23 «Player-Bedienung» (15. November 2026)
+## Release 1.38.0: Konzept 23 «Player-Bedienung» (15. November 2026, veröffentlicht: PR #170 `7234ea0d`, Tag `v1.38.0`, abgenommen)
 
 Konzept 23 (`docs/planning/23-player-bedienung.md`, Frage 30) ganz gebaut, alle drei Stufen in einem
 Release, autonom auf Marcos Auftrag vom 15. November 2026 («Baue alles selbständig in einem Schritt …
@@ -28,7 +28,9 @@ Es gibt lediglich ein Release»). Zweig `claude/k23-bau`. Vertrag **1.38.0** (ad
 - **Bewusst nicht in 1.38.0:** Folgenknöpfe im Offline-Audioplayer (Podcast, Hörbuch); die
   Detailseite einer Podcast-Folge zeigt die nächste Folge weiterhin nicht. Downloads von vor 1.38.0
   bekommen ihre Nachbarn mit dem nächsten Abgleich; bis dahin «Nicht auf diesem Gerät».
-- **Offen bei Marco:** CT 190 per Updater auf 1.38.0 heben und ansehen.
+- **Abgenommen** von Marco am 15. November 2026 («Sieht gut aus. Abgenommen.»). Release-Lauf
+  `43714123419` erfolgreich, `manifest.json` meldet 1.38.0. Zweige und Worktrees bereinigt. Konzept 23
+  ist abgeschlossen; nichts offen.
 
 ## Patch 1.37.1: alle Sprachen offline (15. November 2026)
 
