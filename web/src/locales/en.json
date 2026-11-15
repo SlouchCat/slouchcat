@@ -4688,7 +4688,6 @@
       "errors": {
         "langs_empty": "At least one language.",
         "lang_unknown": "Unknown language code.",
-        "ui_lang_required": "The default needs German; a library German or English.",
         "chain_duplicate": "Every language once.",
         "country_unknown": "Unknown country.",
         "source_unknown": "This image source is not a candidate of the title."

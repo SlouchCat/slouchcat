@@ -172,31 +172,22 @@ function useLanguageName(): (code: string) => string {
 }
 
 /**
- * The rule of a text language list (MET-2, as the server checks it in
- * `metadata/settings.go`): the default needs German, a library German or English.
- */
-const satisfiesDefault = (list: readonly string[]) => list.includes('de');
-const satisfiesLibrary = (list: readonly string[]) => list.includes('de') || list.includes('en');
-
-/**
  * An ordered list of language codes as fixed places (concept 12, 10.2): «1. Sprache», «2.
  * Sprache» … each with a select of every known language; picking one that sits on another place
- * swaps the two. «Weitere Sprache» appends a place, «×» removes one. `satisfies` is the rule of
- * the list: choices and removals that would break it are off; a chain offers "" (no text).
+ * swaps the two. «Weitere Sprache» appends a place, «×» removes one, except the last one; a chain
+ * offers "" (no text). No list has to hold German or English (concept 22 F-7, ADR 0033).
  */
 function LanguageRanks({
   value,
   onChange,
   known,
   allowNoText,
-  satisfies,
   disabled,
 }: {
   value: string[];
   onChange: (value: string[]) => void;
   known: readonly string[];
   allowNoText?: boolean;
-  satisfies?: (list: readonly string[]) => boolean;
   disabled?: boolean;
 }) {
   const { t } = useTranslation();
@@ -214,7 +205,6 @@ function LanguageRanks({
       onChange={onChange}
       rankLabel={(index) => t('admin.metadata.languages.rank', { position: index + 1 })}
       addLabel={t('admin.metadata.languages.more')}
-      isAllowed={satisfies}
       isDisabled={disabled}
     />
   );
@@ -737,7 +727,6 @@ export function MetadataPage() {
             value={textLangs}
             onChange={setTextLangs}
             known={known}
-            satisfies={inLibrary ? satisfiesLibrary : satisfiesDefault}
             disabled={!textsEditable}
           />
         </SettingRow>

@@ -19,7 +19,7 @@ interface RankedChoiceListProps {
   /** The button that appends a place with a free choice («Weitere Sprache»). */
   addLabel: string;
   /**
-   * The page's rule for a whole list («Der Standard braucht Deutsch»): a choice that would break
+   * The page's rule for a whole list (for example «Deutsch must stay»): a choice that would break
    * it is disabled in the select (the arrow keys skip it), and «×» is off where removing would.
    * The last place goes only with `allowEmpty`.
    */

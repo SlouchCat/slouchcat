@@ -4688,7 +4688,6 @@
       "errors": {
         "langs_empty": "Mindestens eine Sprache.",
         "lang_unknown": "Unbekannter Sprachcode.",
-        "ui_lang_required": "Der Standard braucht Deutsch; eine Bibliothek Deutsch oder Englisch.",
         "chain_duplicate": "Jede Sprache nur einmal.",
         "country_unknown": "Unbekanntes Land.",
         "source_unknown": "Diese Bildquelle ist kein Kandidat des Titels."

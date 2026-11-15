@@ -2495,8 +2495,8 @@ export interface paths {
         /**
          * Change the server's metadata settings
          * @description All at once: the body replaces every setting. 422 `validation_failed` with the field errors
-         *     `langs_empty`, `lang_unknown`, `ui_lang_required` (the server's list must hold `de`),
-         *     `chain_duplicate`, `country_unknown`, `invalid_value`. Nothing is queued (F-8): the answer
+         *     `langs_empty`, `lang_unknown`, `chain_duplicate`, `country_unknown`, `invalid_value`. The
+         *     list need not hold `de` (contract 1.34.0, ADR 0033; `ui_lang_required` is gone). Nothing is queued (F-8): the answer
          *     names the matched titles the change affects (`affectedTitles`) and the interface offers
          *     `applyMetadata`.
          */
@@ -2526,7 +2526,8 @@ export interface paths {
         /**
          * Change the metadata deviation of a library
          * @description `textLangs` and `images` replace the stored deviation; `null` (or a field left out) means
-         *     "like the server". A library's language list must hold `de` or `en` (`ui_lang_required`).
+         *     "like the server". A library's language list need not hold `de` or `en` (contract 1.34.0,
+         *     ADR 0033; `ui_lang_required` is gone).
          *     Nothing is queued (F-8); the answer names the affected titles of the library.
          */
         put: operations["updateLibraryMetadata"];
@@ -5740,7 +5741,7 @@ export interface components {
              */
             image?: string;
             maxRating: components["schemas"]["Rating"];
-            /** @description The language of the interface (de, en); also the language of the metadata while `metadataLanguage` is unset. */
+            /** @description The language of the interface (de, en); while `metadataLanguage` is unset, the metadata are read in this language (de-DE reads `de`, nb reads `no`; ADR 0033). */
             language: components["schemas"]["Language"];
             /**
              * @description The language the profile reads titles, descriptions and genres in (ADR 0018), one of

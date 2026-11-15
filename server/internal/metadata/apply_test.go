@@ -42,13 +42,12 @@ func TestEffectiveSettingsWithLibraryDeviation(t *testing.T) {
 	if err != nil || !slices.Equal(avail, []string{"de", "en", "ja"}) {
 		t.Errorf("available = %v, %v", avail, err)
 	}
-	// A library without de and en is refused (E-9); an unknown kind too.
-	bad := []string{"ja"}
-	err = e.svc.UpdateLibraryDeviation(ctx, 2, LibraryDeviation{TextLangs: &bad})
-	var verr *model.ValidationError
-	if !errors.As(err, &verr) || !hasFieldError(verr.Fields, "textLangs", "ui_lang_required") {
+	// A library reading Japanese only is fine (concept 22 F-7); an unknown kind is refused.
+	jaOnly := []string{"ja"}
+	if err := e.svc.UpdateLibraryDeviation(ctx, 2, LibraryDeviation{TextLangs: &jaOnly}); err != nil {
 		t.Errorf("ja only: %v", err)
 	}
+	var verr *model.ValidationError
 	err = e.svc.UpdateLibraryDeviation(ctx, 2, LibraryDeviation{Images: &LibraryImages{Kinds: []string{"thumb"}}})
 	if !errors.As(err, &verr) || !hasFieldError(verr.Fields, "images.kinds", "invalid_value") {
 		t.Errorf("thumb: %v", err)
@@ -80,10 +79,13 @@ func TestEffectiveSettingsWithLibraryDeviation(t *testing.T) {
 	if err != nil || !slices.Equal(st.TextLangs, []string{"de", "en", "es"}) || st.RatingCountry != "CH" || st.ImageMinWidth["poster"] != 1000 || !st.FanartEnabled {
 		t.Errorf("stored settings: %+v %v", st, err)
 	}
-	m.TextLangs = []string{"en", "es"}
-	_, err = e.svc.UpdateMetadataSettings(ctx, m)
-	if !errors.As(err, &verr) || !hasFieldError(verr.Fields, "textLangs", "ui_lang_required") {
+	// The server's list needs no German any more (concept 22 F-7): French and English only.
+	m.TextLangs = []string{"fr", "en"}
+	if _, err := e.svc.UpdateMetadataSettings(ctx, m); err != nil {
 		t.Errorf("server list without de: %v", err)
+	}
+	if st, err := e.svc.Settings(ctx); err != nil || !slices.Equal(st.TextLangs, []string{"fr", "en"}) {
+		t.Errorf("stored list without de: %+v %v", st.TextLangs, err)
 	}
 }
 
