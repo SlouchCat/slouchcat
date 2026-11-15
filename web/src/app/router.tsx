@@ -177,7 +177,10 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
     }
     // Only the owner's primary profile runs the wizard (its endpoints are x-visibility owner):
     // without a chosen profile the picker comes first, another profile never sees it.
-    const leads = session?.setupPending === true && session.profile?.isPrimary === true;
+    const leads =
+      session?.setupPending === true &&
+      session.account.isOwner &&
+      session.profile?.isPrimary === true;
     if (
       leads &&
       session &&

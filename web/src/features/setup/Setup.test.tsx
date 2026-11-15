@@ -229,6 +229,16 @@ describe('the owner of an unfinished wizard', () => {
     expect(calls.some((call) => call.path === '/admin/setup')).toBe(false);
   });
 
+  it('the overview asks for the wizard only for the owner (review of stage 2)', async () => {
+    const admin = { ...pending, account: { ...pending.account, isOwner: false } };
+    sessionStorage.clear();
+    const { calls } = mockApi(owner({ 'GET /auth/session': () => json(admin) }));
+    renderApp('/admin');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+    expect(screen.queryByText('Einrichtung nicht abgeschlossen')).toBeNull();
+    expect(calls.some((call) => call.path === '/admin/setup')).toBe(false);
+  });
+
   it('stores the region: rating country, languages, the country in the radio without stations', async () => {
     const { calls } = mockApi(
       owner({
