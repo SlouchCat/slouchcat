@@ -1,9 +1,11 @@
 # Konzept: Player-Bedienung – nächste Folge, Menüs ohne X, Besetzung mit Bildern
 
-- **Status: Fassung 2 (15. November 2026): Kritiker-Review eingearbeitet** (REVISE, 0 Blocker,
-  3 Major, 8 Minor; Abschnitt 11). Marco hat F-1 am Mockup beantwortet (Variante B, Abschnitt 9).
-  Offen sind **F-2 bis F-5**, jede mit Empfehlung; bis zu Marcos Antwort gilt die Empfehlung.
-  **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
+- **Status: Fassung 3 (15. November 2026): alle Fragen beantwortet** (Abschnitt 9). Marco hat F-1
+  am Mockup beantwortet (Variante B) und F-2 bis F-5 über AskUserQuestion; **F-3 und F-5 gegen die
+  Empfehlung:** Es gibt einen eigenen Knopf «Vorherige Folge», und bei Podcasts geht er zur älteren,
+  der Folgenknopf zur neueren Folge. Fassung 2 hatte das Kritiker-Review eingearbeitet (REVISE,
+  0 Blocker, 3 Major, 8 Minor; Abschnitt 11). **Die Umsetzung beginnt erst auf Marcos
+  ausdrückliches Wort.**
 - **Auslöser:** Marco am 15. November 2026 mit zwei Bildern aus dem Player (Knopfreihe, Panel
   «Einstellungen») und einem dritten aus dem Reiter «Besetzung»:
   «Ich möchte noch ein Icon, welches bei den Serien auf die nächste Folge springt. […] Es soll
@@ -14,8 +16,9 @@
   **1.37.0** (`api/openapi.yaml:4`), letzte Migration **`00064_item_certifications.sql`**, letzte
   ADR **`0034`**, letzte Frage im Entscheidungsprotokoll **29**.
 - **Nummern:** Dieses Papier ist **Konzept 23** und reserviert **Frage 30**. Eine ADR braucht es
-  nicht (keine Architekturfrage). Stufe 1 braucht weder Vertrag noch Migration; die Stufen 2 und 3
-  ändern den Vertrag additiv (Abschnitt 7), die Versionsnummern vergibt der Bau.
+  nicht (keine Architekturfrage). Alle drei Stufen ändern den Vertrag additiv (Stufe 1:
+  `PlaybackInfo.previousEpisode`, Abschnitt 3.3), keine braucht eine Migration; die
+  Versionsnummern vergibt der Bau.
 - Pfade ohne Präfix liegen unter `web/src/` oder `server/`. **Nach Namen suchen, nicht nach
   Zeile**; Zeilen beziehen sich auf den Anker.
 - Massgeblich bleiben `docs/spec/01-anforderungen-v1.md`, `docs/planning/04-entscheidungen.md`
@@ -23,8 +26,9 @@
   Dieses Papier ändert zwei Punkte aus Konzept 13 (Abschnitt 8).
 
 > **Dieses Papier ändert keine Zeile Code.** Es beschreibt drei Wünsche, sagt je Wunsch, was der
-> Code heute tut, und schlägt eine Lösung vor. Stufe 1 ist reine Web-App; der Folgenknopf im
-> Offline-Player (Stufe 2) und für Podcasts (Stufe 3) braucht den Server.
+> Code heute tut, und schlägt eine Lösung vor. Stufe 1 ist vor allem Web-App, dazu liefert der
+> Server die vorherige Folge; die Folgenknöpfe im Offline-Player (Stufe 2) und für Podcasts
+> (Stufe 3) brauchen weitere Felder vom Server.
 
 ## 1. Was Marco will
 
@@ -108,6 +112,7 @@ dieselbe Spaltenbreite (`PlayerChrome.module.css`, `.cards`: `minmax(10rem, 14re
 |---|---|---|---|
 | Kapitel zurück | **neu:** Bogen nach links über zwei Marken | an den Anfang des Kapitels; in den ersten 3 s zum vorherigen Kapitel | ⇧← |
 | Kapitel vor | **neu:** Bogen nach rechts über zwei Marken | zum nächsten Kapitel | ⇧→ |
+| Vorherige Folge | **heutiges** Strich mit Dreieck (`previous`) | startet die vorherige Folge | P |
 | Nächste Folge | **heutiges** Dreieck mit Strich (`next`) | startet die nächste Folge | N |
 
 - **Kapitelknöpfe wechseln nie mehr den Titel.** Am ersten Kapitel bleibt «zurück» beim Anfang des
@@ -122,8 +127,11 @@ dieselbe Spaltenbreite (`PlayerChrome.module.css`, `.cards`: `minmax(10rem, 14re
   react-aria-Knopf zeigt weder Hinweis noch Fokus. Wird der fokussierte Knopf ausgegraut («Kapitel
   vor» ins letzte Kapitel), **bleibt der Fokus auf ihm**; heute fiele er auf `body`.
 - Ausnahme: Während eines Wechsels (`transportDisabled`) bleiben die Knöpfe wie heute `disabled`.
-- **«Vorherige Folge» entfällt als Knopf** (F-3). Die Folgen der Staffel stehen im Reiter
-  «Als Nächstes»; dort lässt sich jede Folge starten.
+- **«Vorherige Folge» bekommt einen eigenen Knopf** (F-3), gespiegelt zum Folgenknopf: ganz links
+  in der Reihe, durch einen Trennstrich von den Kapitelknöpfen abgesetzt. Die Reihe heisst damit:
+  vorherige Folge | Kapitel zurück · zurückspulen · Play · vorspulen · Kapitel vor | nächste Folge.
+  Taste **P** (frei in `keymap.ts`; YouTube nutzt ⇧P, Slouchcat bleibt ohne Umschalttaste wie
+  bei N).
 - Die Symbole folgen dem verbreiteten Brauch: Dreieck mit Strich heisst bei Netflix und YouTube
   «nächster Titel». Die Kapitel bekommen ein eigenes Zeichen, das an die Marken der Zeitleiste
   erinnert. Beide neuen Symbole kommen nach `ui/Icon.tsx` (`chapterPrevious`, `chapterNext`,
@@ -151,20 +159,39 @@ dieselbe Spaltenbreite (`PlayerChrome.module.css`, `.cards`: `minmax(10rem, 14re
 - **Während des Countdowns** am Ende bleibt alles wie heute; der Knopf tut dasselbe wie
   «Jetzt abspielen».
 
+### 3.2a Der Knopf «Vorherige Folge»
+
+- Gleiche Regeln wie der Folgenknopf, gespiegelt: **da** bei Folgen, **ausgegraut** ohne vorherige
+  Folge («Keine frühere Folge»), **Vorschaukarte** mit «Vorherige Folge», Code, Titel, Laufzeit,
+  Name für Bildschirmleser «Vorherige Folge: S01E03 · Das Echo».
+- **Über die Staffelgrenze:** vor S02E01 kommt die letzte Folge von Staffel 1; Specials nur vor
+  Specials. Heute springt «Folge zurück» nur innerhalb der Staffel (Konzept 13, Baunotiz
+  Schritt 5) und nimmt die Folge aus der Folgenliste der Staffel im Client. Neu liefert der
+  **Server** die vorherige Folge (Regel 12, gleiche Regel wie `NextEpisode`, gespiegelt; siehe 3.3).
+
 ### 3.3 Überall gleich
 
 | Player | Kapitelknöpfe | Folgenknopf |
 |---|---|---|
 | Video, Computer und Tablet | in der Leiste | in der Leiste, mit Vorschaukarte |
-| Video, Handy | keine (wie heute; Kapitel über die Zeitleiste) | **Knopf mit Text** «Nächste Folge» über der Zeitleiste, links von Zeit, Bild-in-Bild und Vollbild; keine Karte |
-| Offline-Player | in der Leiste | **Stufe 2:** in der Leiste, wenn die nächste Folge auf dem Gerät liegt; sonst ausgegraut, Hinweis «Nicht auf diesem Gerät». In Stufe 1 keiner. |
-| Audioplayer, Hörbuch | in der Reihe (neues Symbol) | keiner (F-4) |
-| Audioplayer, Podcast-Folge | in der Reihe; ohne Kapitel ausgegraut (heute ausgeblendet) | **Stufe 3:** in der Reihe, Karte mit Titel, Datum, Länge (F-5) |
+| Video, Handy | keine (wie heute; Kapitel über die Zeitleiste) | **in der Mitte**, links und rechts neben −10 · Play · +10, kleiner als diese; keine Karte. Am Handy gibt es keine Reiter, darum braucht es hier beide Knöpfe. |
+| Offline-Player | in der Leiste | **Stufe 2:** beide in der Leiste, wenn die Folge auf dem Gerät liegt; sonst ausgegraut, Hinweis «Nicht auf diesem Gerät». In Stufe 1 keine. |
+| Audioplayer, Hörbuch | in der Reihe (neues Symbol) | keine (F-4) |
+| Audioplayer, Podcast-Folge | in der Reihe; ohne Kapitel ausgegraut (heute ausgeblendet) | **Stufe 3:** in der Reihe; «Vorherige Folge» = nächstältere, «Nächste Folge» = nächstneuere Folge desselben Podcasts (F-5); Karte mit Titel, Datum, Länge |
+
+**Vorherige Folge im Server (Stufe 1):** Neue Abfrage `GetPreviousVisibleEpisode` in
+`server/queries/scoped/items.sql` (mit `visible_items`, Regel 2), gespiegelt zu
+`GetNextVisibleEpisode`: niedrigere Nummer derselben Staffel (vor dem ersten Teil einer
+Mehrfachfolge), sonst die letzte Folge der nächstfrüheren Staffel; Specials nur vor Specials.
+`visibility.Reader.PreviousEpisode` und `episodeChain` füllen `previousEpisode`; der Vertrag
+bekommt `PlaybackInfo.previousEpisode` (`ItemRef`, optional, `x-visibility: scoped` wie
+`nextEpisode`). `ItemDetail` bekommt das Feld nicht (die Detailseite braucht es nicht).
 
 **Offline (Stufe 2):** Der Client darf die Folgenregel nicht selbst nachbauen (Regel 12; Specials,
-Staffelgrenze). Darum bekommt `DownloadState` ein Feld `nextEpisodeId`, das
-`server/internal/offline/sync.go` beim Abgleich füllt (es ruft `vis.NextEpisode` dort schon auf).
-Der Client speichert es mit dem Download in `StoredDownload` und schaut nur nach, ob dieser Titel
+Staffelgrenze). Darum bekommt `DownloadState` die Felder `nextEpisodeId` und `previousEpisodeId`,
+die
+`server/internal/offline/sync.go` beim Abgleich füllt (es ruft `vis.NextEpisode` dort schon auf,
+`vis.PreviousEpisode` kommt aus Stufe 1). Der Client speichert sie mit dem Download in `StoredDownload` und schaut nur nach, ob der Titel
 fertig auf dem Gerät liegt. `OfflineVideo` bekommt dazu einen Weg zum Wechsel auf einen anderen
 Download (heute fehlt er).
 
@@ -244,31 +271,33 @@ Download (heute fehlt er).
 
 | Stufe | Inhalt | Server, Vertrag, Migration |
 |---|---|---|
-| **1** | P-1 im Video-Player (Folgenknopf, neue Kapitelsymbole, `aria-disabled`), neue Kapitelsymbole auch im Offline- und Audioplayer; P-2; P-3 | nein, nein, nein |
-| **2** | Folgenknopf im Offline-Player (3.3) | `DownloadState.nextEpisodeId`, gefüllt in `offline/sync.go`; Minor-Version. Keine Migration (IndexedDB-Schema des Clients bekommt ein Feld). |
-| **3** | Folgenknopf für Podcast-Folgen (F-5) | eigene Regel, siehe unten; Minor-Version. Keine Migration. |
+| **1** | P-1 im Video-Player (beide Folgenknöpfe, neue Kapitelsymbole, `aria-disabled`), neue Kapitelsymbole auch im Offline- und Audioplayer; P-2; P-3 | `GetPreviousVisibleEpisode`, `PlaybackInfo.previousEpisode` (3.3); Minor-Version. Keine Migration. |
+| **2** | Folgenknöpfe im Offline-Player (3.3) | `DownloadState.nextEpisodeId` und `previousEpisodeId`, gefüllt in `offline/sync.go`; Minor-Version. Keine Migration (IndexedDB-Schema des Clients bekommt zwei Felder). |
+| **3** | Folgenknöpfe für Podcast-Folgen (F-5) | eigene Regel, siehe unten; Minor-Version. Keine Migration. |
 
 **Stufe 3 im Einzelnen** (`episodeChain` passt nicht, er verlangt eine Staffel):
 
-- Neue Regel im Paket `visibility` für `podcast_episode`: die nächstneuere sichtbare Folge
-  desselben Podcasts nach `published_at`, die das Profil noch nicht fertig gehört hat. Ohne
-  `published_at` gilt die Reihenfolge des Feeds (Einfügezeitpunkt). `NextPodcastEpisodes`
-  (`podcast.go`) sortiert umgekehrt (neueste zuerst) und taugt nicht unverändert.
+- Neue Regel im Paket `visibility` für `podcast_episode` (F-5): **nächste Folge** = die
+  nächstneuere sichtbare Folge desselben Podcasts nach `published_at`, **vorherige Folge** = die
+  nächstältere. Ob das Profil sie schon gehört hat, spielt keine Rolle (Marcos Antwort nennt nur
+  die Richtung). Ohne `published_at` gilt die Reihenfolge des Feeds (Einfügezeitpunkt), bei
+  Gleichstand die Kennung. `NextPodcastEpisodes` (`podcast.go`) beantwortet eine andere Frage
+  (neue Folgen der Merkliste) und taugt nicht.
 - Aufruf auch im Enclosure-Weg (`playback/enclosure.go`), denn die meisten Podcast-Folgen haben
   keine eigene Datei.
-- `ItemDetail.nextEpisode` und `PlaybackInfo.nextEpisode`: Beschreibung «same series» im Vertrag
-  erweitern. Die Detailseite (`features/catalog/ItemPage.tsx`, heute nur `kind === 'episode'`)
+- `ItemDetail.nextEpisode`, `PlaybackInfo.nextEpisode` und `PlaybackInfo.previousEpisode`:
+  Beschreibung «same series» im Vertrag um «or the same podcast» erweitern. Die Detailseite (`features/catalog/ItemPage.tsx`, heute nur `kind === 'episode'`)
   bleibt, wie sie ist, oder zeigt die nächste Folge auch beim Podcast; das entscheidet der Bau mit
   Marco.
 
-Stufe 3 braucht zuerst F-5. F-4 (Hörbuch-Reihen) wäre eine eigene Stufe und ist nicht
-vorgesehen, solange F-4 nicht «ja» heisst.
+Hörbuch-Reihen bekommen keinen Folgenknopf (F-4).
 
 ## 8. Änderungen an früheren Entscheiden
 
 | Früher | Neu |
 |---|---|
-| Konzept 13 V-2 und 11.2: «vor» nach dem letzten Kapitel = nächste Folge; «zurück» am Anfang = vorherige Folge | Kapitelknöpfe nur Kapitel; eigener Folgenknopf; keine «vorherige Folge» als Knopf |
+| Konzept 13 V-2 und 11.2: «vor» nach dem letzten Kapitel = nächste Folge; «zurück» am Anfang = vorherige Folge | Kapitelknöpfe nur Kapitel; je ein eigener Knopf für die nächste und die vorherige Folge |
+| Konzept 13, Baunotiz Schritt 5: «Folge zurück» nur innerhalb der Staffel, aus der Folgenliste im Client | über die Staffelgrenze, vom Server (`PlaybackInfo.previousEpisode`) |
 | Konzept 13: Titel ohne Kapitel ohne Kapitelknöpfe; Podcast-Folge ohne Kapitel ohne Kapitelknöpfe | ausgegraut an ihrem Platz (F-2) |
 | Konzept 13 11.2: Panels rechts über die ganze Höhe, mit X | Menü über dem Knopf in Inhaltshöhe, ohne X, schliesst beim Klick daneben |
 
@@ -279,10 +308,12 @@ Beides kommt beim Bau als Nachtrag unter **Frage 30** ins Entscheidungsprotokoll
 | Nr. | Frage | Empfehlung | Antwort |
 |---|---|---|---|
 | F-1 | Symbole: **B** (Dreieck mit Strich = Folge, neues Bogen-Symbol für Kapitel) oder **A** (Dreieck mit Strich = Kapitel, neues Stapel-Symbol für die Folge)? | B | **B** (Marco, 15. November 2026) |
-| F-2 | Kapitelknöpfe ohne Kapitel: ausgegraut an ihrem Platz oder ausgeblendet? | ausgegraut (fester Platz, nichts verrutscht) | offen |
-| F-3 | Eigener Knopf «Vorherige Folge»? | nein, über den Reiter «Als Nächstes» | offen |
-| F-4 | Hörbuch in einer Reihe: derselbe Knopf springt zum nächsten Band? | nein (ein Band ist ein eigenes Buch; die Reihe steht auf der Detailseite) | offen |
-| F-5 | Podcast: «nächste Folge» = die nächstneuere Folge desselben Podcasts oder die nächste auf der Merkliste? | die nächstneuere Folge desselben Podcasts, die noch nicht fertig gehört ist | offen |
+| F-2 | Kapitelknöpfe ohne Kapitel: ausgegraut an ihrem Platz oder ausgeblendet? | ausgegraut (fester Platz, nichts verrutscht) | **ausgegraut** (wie empfohlen) |
+| F-3 | Eigener Knopf «Vorherige Folge»? | nein, über den Reiter «Als Nächstes» | **eigener Knopf** (gegen die Empfehlung; 3.1, 3.2a) |
+| F-4 | Hörbuch in einer Reihe: derselbe Knopf springt zum nächsten Band? | nein (ein Band ist ein eigenes Buch; die Reihe steht auf der Detailseite) | **nein** (wie empfohlen) |
+| F-5 | Podcast: Was ist die «nächste Folge»? | die nächstneuere Folge desselben Podcasts, die noch nicht fertig gehört ist | **«Zurück: ältere Folge, vorwärts: neuere Folge»** (Marco); ohne Filter auf Gehörtes (7) |
+
+Antworten zu F-2 bis F-5 von Marco am 15. November 2026 über AskUserQuestion.
 
 ## 10. Prüfung beim Bau
 
@@ -291,8 +322,11 @@ Beides kommt beim Bau als Nachtrag unter **Frage 30** ins Entscheidungsprotokoll
   nicht beim Öffner, Fokus zum Öffner nach Klick aufs Bild, verborgener Schliessen-Knopf),
   `PlayerCard.test.tsx` (Bild 2:3, Buchstabe ohne Bild, `onError`), `usePhoneTap`-Test (Tipp, der
   nur schliesst, spielt nicht ab), `keymap.test.ts` unverändert.
-- **Bestehende Tests, die sich ändern:** `PlayerKeys.test.tsx` (Knopf «Nächste Folge» heisst jetzt
-  «Nächste Folge: …»; Knopf «Vorherige Folge» entfällt), `e2e/podcast.spec.ts` (Kapitelknöpfe ohne
+- **Server:** Test für `GetPreviousVisibleEpisode` neben dem von `GetNextVisibleEpisode`
+  (Staffelgrenze, Mehrfachfolge, Specials, unsichtbare Folge übersprungen), Vertragstest
+  (`TestContractCoversEveryOperation` unverändert, neues Feld im Schema-Test).
+- **Bestehende Tests, die sich ändern:** `PlayerKeys.test.tsx` (die Knöpfe heissen jetzt
+  «Nächste Folge: …» und «Vorherige Folge: …»; «Vorherige Folge» springt über die Staffelgrenze), `e2e/podcast.spec.ts` (Kapitelknöpfe ohne
   Kapitel jetzt ausgegraut statt fehlend), `e2e/chapters.spec.ts` und
   `e2e/offline-chapters.spec.ts` («Kapitel vor» am letzten Kapitel startet **keine** Folge mehr,
   der Fokus bleibt auf dem Knopf).
@@ -302,11 +336,12 @@ Beides kommt beim Bau als Nachtrag unter **Frage 30** ins Entscheidungsprotokoll
 - **Storybook-Baselines** für `PlayerChrome`, `PlayerPanel`, `PlayerCard`, `AudioPlayer`, `Icon`
   (neue Symbole) werden neu aufgenommen (`task storybook:test`).
 - **Texte:** neue Schlüssel (`player.chrome.noChapters`, `player.chrome.lastChapter`,
-  `player.chrome.noNextEpisode`, `player.chrome.nextEpisodeNamed`, `player.chrome.nextEpisodeCard`,
-  `player.panel.close`; Stufe 2 `player.chrome.notOnDevice`) in `de.json` und `en.json`, die
-  übrigen Sprachen über den Übersetzungsweg von Konzept 22. `player.chrome.previousEpisode` fällt
-  in allen Sprachdateien weg (`locales.test.ts` prüft die Schlüssel streng). Die Tastenhilfe
-  (`ShortcutHelp`) nennt «Nächste Folge» und «Kapitel» schon und bleibt.
+  `player.chrome.noNextEpisode`, `player.chrome.noPreviousEpisode`, `player.chrome.nextEpisodeNamed`,
+  `player.chrome.previousEpisodeNamed`, `player.chrome.nextEpisodeCard`,
+  `player.chrome.previousEpisodeCard`, `player.panel.close`, Tastenhilfe für P; Stufe 2
+  `player.chrome.notOnDevice`) in `de.json` und `en.json`, die übrigen Sprachen über den
+  Übersetzungsweg von Konzept 22 (`locales.test.ts` prüft die Schlüssel streng).
+  `player.chrome.previousEpisode` bleibt.
 
 ## Anhang A. Mockup
 
@@ -316,7 +351,7 @@ Farbflächen stehen für echte Bilder; alle Titel und Namen sind erfunden.
 
 Oben umschaltbar: was läuft (Serienfolge, ohne Kapitel, letzte der Staffel, letzte der Serie, Film,
 Podcast-Folge, Hörbuch), Gerät (Computer/Tablet, Handy), Symbole (B, A). Zu sehen: Folgenknopf mit
-Vorschaukarte und Wechsel über die Staffelgrenze, Kapitelknöpfe mit neuem Symbol, Menüs über dem
+Vorschaukarte und Wechsel über die Staffelgrenze in beide Richtungen, Knopf «Vorherige Folge», Kapitelknöpfe mit neuem Symbol, Menüs über dem
 Knopf, die sich beim Klick daneben schliessen (Video läuft weiter), Blatt am Handy, Reiter
 «Besetzung» mit Bildern im Hochformat. Wo der Text dieses Papiers genauer ist als das Mockup, gilt
 der Text.

@@ -105,7 +105,10 @@ button:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--focus)
   min-width: 40px; height: 40px; padding: 0 9px; justify-content: center; cursor: pointer;
 }
 .ib:hover:not(:disabled) { background: rgba(255,255,255,.1); }
-.ib:disabled { color: rgba(243,243,245,.32); cursor: default; }
+.ib:disabled, .ib[aria-disabled="true"] { color: rgba(243,243,245,.32); cursor: default; }
+.ib[aria-disabled="true"]:hover { background: none; }
+.ib.mid .i { width: 26px; height: 26px; }
+.card.left { transform: translateX(-20%); }
 .ib[aria-expanded="true"] { background: rgba(255,255,255,.14); }
 .ib.lg { min-width: 64px; height: 64px; }
 .ib.lg .i { width: 34px; height: 34px; }
@@ -272,6 +275,7 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
     <symbol id="i-chapPrev" viewBox="0 0 24 24"><g transform="matrix(-1 0 0 1 24 0)"><path d="M3 18.5h18M6.5 15.5v6M17.5 15.5v6" fill="none"/><path d="M6.5 12.5C8 6.8 16 6.8 17.5 12.5" fill="none"/><path d="M14.7 11.4l2.8 1.1 1.1-2.8" fill="none"/></g></symbol>
     <!-- New (variant A): next episode = a stack of episodes with play -->
     <symbol id="i-epStack" viewBox="0 0 24 24"><path d="M7.5 4.5h10a2.5 2.5 0 0 1 2.5 2.5v8.5" fill="none"/><rect x="3.5" y="8" width="13" height="11" rx="2" fill="none"/><path d="M8.5 11v5l4.2-2.5Z"/></symbol>
+    <symbol id="i-epStackPrev" viewBox="0 0 24 24"><g transform="matrix(-1 0 0 1 24 0)"><path d="M7.5 4.5h10a2.5 2.5 0 0 1 2.5 2.5v8.5" fill="none"/><rect x="3.5" y="8" width="13" height="11" rx="2" fill="none"/><path d="M8.5 11v5l4.2-2.5Z"/></g></symbol>
     <symbol id="i-volume" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 19V5L7.5 9.5H4Z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none"/></symbol>
     <symbol id="i-subtitles" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="none"/><path d="M7 12h3M12.5 12H17M7 15.5h6.5M16 15.5h1" fill="none"/></symbol>
     <symbol id="i-audioTrack" viewBox="0 0 24 24"><path d="M4 10.5v3M8 7.5v9M12 4.5v15M16 8v8M20 10.5v3" fill="none"/></symbol>
@@ -289,8 +293,8 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
 
 <div class="wrap">
   <header>
-    <div class="eyebrow">Konzept 23 · Vorschlag · Klick-Mockup</div>
-    <h1>Player: eigener Knopf für die nächste Folge, Menüs ohne X</h1>
+    <div class="eyebrow">Konzept 23 · Fassung 3 · Klick-Mockup</div>
+    <h1>Player: eigene Knöpfe für die Folgen, Menüs ohne X</h1>
     <p class="lead">Alles im Bild ist anklickbar. Oben wählst du, was gerade läuft und auf welchem Gerät. Fahre über die Knöpfe neben Play, öffne das Zahnrad und klicke dann irgendwo daneben.</p>
   </header>
 
@@ -327,22 +331,22 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
     <section class="box">
       <h2>Was sich ändert</h2>
       <ol>
-        <li><b>Zwei Knöpfe, je eine Bedeutung.</b> Heute springt <svg class="i mini" aria-hidden="true"><use href="#i-skipNext"/></svg> zum nächsten Kapitel und nach dem letzten Kapitel zur nächsten Folge, <svg class="i mini" aria-hidden="true"><use href="#i-skipPrev"/></svg> in den ersten Sekunden zur vorherigen Folge. Neu: Kapitelknöpfe springen nur innerhalb des Titels, der Folgenknopf wechselt nur die Folge.</li>
-        <li><b>Folgenknopf mit Vorschau.</b> Beim Zeigen oder mit dem Fokus erscheint eine Karte mit Bild, «S01E05 · Titel» und Laufzeit. Über die Staffelgrenze hinweg geht es zu «S02E01». Taste <kbd>N</kbd> bleibt.</li>
-        <li><b>Gleicher Platz überall.</b> Video, Offline-Player und Audioplayer (Podcast, Hörbuch) haben dieselbe Reihenfolge: Kapitel zurück · zurückspulen · Play · vorspulen · Kapitel vor | nächste Folge. Am Handy steht «Nächste Folge» als Knopf mit Text über der Zeitleiste.</li>
+        <li><b>Je ein Knopf, je eine Bedeutung.</b> Heute springt <svg class="i mini" aria-hidden="true"><use href="#i-skipNext"/></svg> zum nächsten Kapitel und nach dem letzten Kapitel zur nächsten Folge, <svg class="i mini" aria-hidden="true"><use href="#i-skipPrev"/></svg> in den ersten Sekunden zur vorherigen Folge. Neu: Kapitelknöpfe springen nur innerhalb des Titels; links davon «Vorherige Folge», rechts «Nächste Folge», beide auch über die Staffelgrenze.</li>
+        <li><b>Folgenknopf mit Vorschau.</b> Beim Zeigen oder mit dem Fokus erscheint eine Karte mit Bild, «S01E05 · Titel» und Laufzeit. Über die Staffelgrenze hinweg geht es zu «S02E01». Tasten <kbd>N</kbd> und neu <kbd>P</kbd>.</li>
+        <li><b>Gleicher Platz überall.</b> Video, Offline-Player und Audioplayer (Podcast, Hörbuch) haben dieselbe Reihenfolge: vorherige Folge | Kapitel zurück · zurückspulen · Play · vorspulen · Kapitel vor | nächste Folge. Am Handy stehen die beiden Folgenknöpfe in der Mitte neben −10 · Play · +10.</li>
         <li><b>Menüs schliessen sich von selbst.</b> Einstellungen, Ton und Untertitel öffnen als Menü in Inhaltshöhe direkt über ihrem Knopf statt als Leiste über die ganze Höhe. Es schliesst sich mit einem Klick daneben, einem zweiten Klick aufs Symbol oder mit <kbd>Esc</kbd>. Das X fällt weg. Am Handy kommt ein Blatt von unten: Tippen aufs Bild darüber oder auf den Griff schliesst es.</li>
         <li><b>Besetzung mit Bildern.</b> Der Reiter «Besetzung» zeigt heute nur runde Anfangsbuchstaben, auch wenn es ein Foto gibt. Neu: Hochformat 2:3 mit abgerundeten Ecken wie auf der Detailseite, links ausgerichtet, Name und Rolle darunter. Ohne Foto bleibt der Buchstabe, aber eckig.</li>
         <li><b>Klick daneben pausiert nicht.</b> Klickst du bei offenem Menü aufs Bild, schliesst nur das Menü und das Video läuft weiter. Ein Klick auf einen anderen Knopf der Leiste schliesst das Menü und führt den Knopf aus.</li>
       </ol>
     </section>
     <section class="box">
-      <h2>Offene Fragen</h2>
+      <h2>Entscheide</h2>
       <ol class="qs">
-        <li><b>F-1 Symbole:</b> B gibt <svg class="i mini" aria-hidden="true"><use href="#i-skipNext"/></svg> der Folge (wie bei Netflix und YouTube) und den Kapiteln ein neues Bogen-Symbol. A lässt <svg class="i mini" aria-hidden="true"><use href="#i-skipNext"/></svg> bei den Kapiteln (wie in Hörbuch-Apps) und gibt der Folge ein neues Stapel-Symbol. Empfehlung: B.</li>
-        <li><b>F-2 Ohne Kapitel:</b> Kapitelknöpfe ausgegraut an ihrem Platz lassen (im Mockup so, nichts verschiebt sich) oder ganz ausblenden?</li>
-        <li><b>F-3 Vorherige Folge:</b> eigener Knopf oder nur über den Reiter «Als Nächstes» (Vorschlag: nur Reiter)?</li>
-        <li><b>F-4 Hörbuch in einer Reihe:</b> soll derselbe Knopf zum nächsten Band springen? Im Mockup hat das Hörbuch keinen.</li>
-        <li><b>F-5 Podcast:</b> «nächste Folge» heisst die nächstneuere Folge (Vorschlag) oder die nächste in der Liste der Merkliste?</li>
+        <li><b>F-1 Symbole:</b> Variante B. Dreieck mit Strich steht für die Folge, die Kapitel bekommen das Bogen-Symbol.</li>
+        <li><b>F-2 Ohne Kapitel:</b> Kapitelknöpfe bleiben ausgegraut an ihrem Platz.</li>
+        <li><b>F-3 Vorherige Folge:</b> eigener Knopf, ganz links, Taste <kbd>P</kbd>.</li>
+        <li><b>F-4 Hörbuch in einer Reihe:</b> kein Folgenknopf.</li>
+        <li><b>F-5 Podcast:</b> zurück zur älteren Folge, vorwärts zur neueren.</li>
       </ol>
     </section>
   </div>
@@ -400,7 +404,8 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
     if (c === 'podcast') {
       return { kind: 'audio', pod: true, title: 'Hintergrund am Abend', author: 'Folge 41 · Wasser als Ressource', dur: 2_310_000,
         chapters: [['Einstieg', 0], ['Gletscher', 420], ['Landwirtschaft', 1150], ['Ausblick', 1890]].map(([n, s]) => ({ n, ms: s * 1000 })),
-        next: { label: 'Folge 42', title: 'Wie Städte kühler werden', meta: '41 Min. · 12. Nov.' } };
+        next: { label: 'Folge 42', title: 'Wie Städte kühler werden', meta: '41 Min. · 12. Nov.' },
+        prev: { label: 'Folge 40', title: 'Die Zukunft der Bahn', meta: '37 Min. · 29. Okt.' } };
     }
     if (c === 'book') {
       const len = 41_000;
@@ -411,12 +416,14 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
     const ep = EPISODES[state.epIdx];
     const withCh = c !== 'epNoCh';
     const nextEp = EPISODES[state.epIdx + 1];
+    const prevEp = EPISODES[state.epIdx - 1];
     return {
       kind: 'video', title: 'Nordlicht', detail: `${code(ep)} · ${ep.t}`, ep, dur: ep.min * 60_000,
       chapters: withCh ? EP_CHAPTERS.map(([n, s]) => ({ n, ms: s * 1000 })).filter((x) => x.ms < ep.min * 60_000) : [],
       intro: withCh ? [0, 95_000] : null,
       next: nextEp ? { label: (nextEp.s !== ep.s ? `Staffel ${nextEp.s} · ` : '') + code(nextEp), title: nextEp.t, meta: `${nextEp.min} Min.`, idx: state.epIdx + 1 } : null,
-      nextNote: 'Letzte Folge der Serie',
+      prev: prevEp ? { label: (prevEp.s !== ep.s ? `Staffel ${prevEp.s} · ` : '') + code(prevEp), title: prevEp.t, meta: `${prevEp.min} Min.`, idx: state.epIdx - 1 } : null,
+      nextNote: 'Keine weitere Folge',
     };
   }
 
@@ -429,6 +436,7 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
   /* ---------- Buttons ---------- */
   const chapIcons = () => state.icons === 'B' ? ['chapPrev', 'chapNext'] : ['skipPrev', 'skipNext'];
   const epIcon = () => state.icons === 'B' ? 'skipNext' : 'epStack';
+  const epIconPrev = () => state.icons === 'B' ? 'skipPrev' : 'epStackPrev';
 
   function stepButtons(m) {
     const [p, n] = chapIcons();
@@ -438,24 +446,31 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
     const nextOk = has && i < m.chapters.length - 1;
     const tipNo = 'Keine Kapitel';
     return {
-      prev: `<button class="ib" data-act="chapPrev" ${prevOk ? '' : 'disabled'} aria-label="Vorheriges Kapitel">${icon(p)}<span class="tip">${has ? 'Vorheriges Kapitel<kbd>⇧←</kbd>' : tipNo}</span></button>`,
-      next: `<button class="ib" data-act="chapNext" ${nextOk ? '' : 'disabled'} aria-label="Nächstes Kapitel">${icon(n)}<span class="tip">${has ? (nextOk ? 'Nächstes Kapitel<kbd>⇧→</kbd>' : 'Letztes Kapitel') : tipNo}</span></button>`,
+      prev: `<button class="ib" data-act="${prevOk ? 'chapPrev' : 'none'}" ${prevOk ? '' : 'aria-disabled="true"'} aria-label="Vorheriges Kapitel">${icon(p)}<span class="tip">${has ? 'Vorheriges Kapitel<kbd>⇧←</kbd>' : tipNo}</span></button>`,
+      next: `<button class="ib" data-act="${nextOk ? 'chapNext' : 'none'}" ${nextOk ? '' : 'aria-disabled="true"'} aria-label="Nächstes Kapitel">${icon(n)}<span class="tip">${has ? (nextOk ? 'Nächstes Kapitel<kbd>⇧→</kbd>' : 'Letztes Kapitel') : tipNo}</span></button>`,
     };
   }
 
-  function epButton(m, phone) {
+  /** dir 1: next episode (after the chapter buttons), -1: previous episode (before them). */
+  function epButton(m, phone, dir = 1) {
     const isSeries = m.ep !== undefined || m.pod;
     if (!isSeries) return '';
-    if (!m.next) {
-      return phone
-        ? `<button class="ib pill" disabled aria-label="Keine nächste Folge">${icon(epIcon())}<span class="txt">Letzte Folge</span></button>`
-        : `<span class="sep"></span><button class="ib" disabled aria-label="Keine nächste Folge">${icon(epIcon())}<span class="tip">${m.nextNote}</span></button>`;
+    const target = dir > 0 ? m.next : m.prev;
+    const ic = dir > 0 ? epIcon() : epIconPrev();
+    const word = dir > 0 ? 'Nächste Folge' : 'Vorherige Folge';
+    const key = dir > 0 ? 'N' : 'P';
+    const act = dir > 0 ? 'nextEp' : 'prevEp';
+    const sep = phone ? '' : '<span class="sep"></span>';
+    const wrap = (inner) => dir > 0 ? sep + inner : inner + sep;
+    if (!target) {
+      const none = dir > 0 ? 'Keine weitere Folge' : 'Keine frühere Folge';
+      return wrap(`<button class="ib ${phone ? 'mid' : ''}" aria-disabled="true" data-act="none" aria-label="${word}" title="${phone ? none : ''}">${icon(ic)}${phone ? '' : `<span class="tip">${none}</span>`}</button>`);
     }
-    const card = `<div class="card" role="tooltip"><div class="img"><span>Bild der nächsten Folge</span></div><div class="b"><span class="e">Nächste Folge</span><span class="n">${m.next.label} · ${m.next.title}</span><span class="m">${m.next.meta}<kbd>N</kbd></span></div></div>`;
     if (phone) {
-      return `<button class="ib pill" data-act="nextEp" aria-label="Nächste Folge: ${m.next.label} ${m.next.title}">${icon(epIcon())}<span class="txt">Nächste Folge</span></button>`;
+      return `<button class="ib mid" data-act="${act}" aria-label="${word}: ${target.label} ${target.title}">${icon(ic)}</button>`;
     }
-    return `<span class="sep"></span><span class="epwrap"><button class="ib" data-act="nextEp" aria-label="Nächste Folge: ${m.next.label} ${m.next.title}">${icon(epIcon())}</button>${card}</span>`;
+    const card = `<div class="card ${dir < 0 ? 'left' : ''}" role="tooltip"><div class="img"><span>Bild der Folge</span></div><div class="b"><span class="e">${word}</span><span class="n">${target.label} · ${target.title}</span><span class="m">${target.meta}<kbd>${key}</kbd></span></div></div>`;
+    return wrap(`<span class="epwrap"><button class="ib" data-act="${act}" aria-label="${word}: ${target.label} ${target.title}">${icon(ic)}</button>${card}</span>`);
   }
 
   const playBtn = (lg) => `<button class="ib ${lg ? 'lg' : ''}" data-act="play" aria-label="${state.playing ? 'Pause' : 'Abspielen'}">${icon(state.playing ? 'pause' : 'play')}</button>`;
@@ -550,7 +565,7 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
             <div class="line"><span class="lbl"></span><span class="right"><button class="timebtn" data-time></button></span></div>
             ${seekBar(m)}
             <div class="abar">
-              <div class="grp">${st.prev}${skipBtn(-1, 15)}${playBtn()}${skipBtn(1, 30)}${st.next}${epButton(m, false)}</div>
+              <div class="grp">${epButton(m, false, -1)}${st.prev}${skipBtn(-1, 15)}${playBtn()}${skipBtn(1, 30)}${st.next}${epButton(m, false)}</div>
               <div class="grp">
                 <button class="ib" data-opens="speed" aria-haspopup="dialog" aria-expanded="${state.panel === 'speed'}" aria-label="Geschwindigkeit"><span class="txt" style="color:var(--text-primary)">${speedText(state.speed)}</span></button>
                 <button class="ib" aria-label="Kapitel">${icon('list')}<span class="tip">Kapitel</span></button>
@@ -576,10 +591,10 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
             </div>
             <div class="heading"><p class="t">${m.title}</p><p class="d">${m.detail}</p></div>
           </div>
-          <div class="center">${skipBtn(-1, 10, true)}${playBtn(true)}${skipBtn(1, 10, true)}</div>
+          <div class="center">${epButton(m, true, -1)}${skipBtn(-1, 10, true)}${playBtn(true)}${skipBtn(1, 10, true)}${epButton(m, true)}</div>
           <div class="bottom">
             <div class="line"><span class="lbl">${ci >= 0 ? m.chapters[ci].n : ''}</span>
-              <span class="right">${epButton(m, true)}<button class="timebtn" data-time></button><button class="ib" aria-label="Bild in Bild">${icon('pip')}</button><button class="ib" aria-label="Vollbild">${icon('full')}</button></span></div>
+              <span class="right"><button class="timebtn" data-time></button><button class="ib" aria-label="Bild in Bild">${icon('pip')}</button><button class="ib" aria-label="Vollbild">${icon('full')}</button></span></div>
             ${seekBar(m)}
           </div>
         </div>
@@ -600,7 +615,7 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
             <div class="line"><span class="lbl">${lineLabel}</span><button class="timebtn" data-time></button></div>
             ${seekBar(m)}
             <div class="bar">
-              <div class="grp">${st.prev}${skipBtn(-1, 10)}${playBtn()}${skipBtn(1, 30)}${st.next}${epButton(m, false)}
+              <div class="grp">${epButton(m, false, -1)}${st.prev}${skipBtn(-1, 10)}${playBtn()}${skipBtn(1, 30)}${st.next}${epButton(m, false)}
                 <span class="vol"><button class="ib" aria-label="Stumm">${icon('volume')}</button><span class="slider"></span></span></div>
               <div class="grp">
                 ${panelBtn('subs', 'subtitles', 'Untertitel', state.sub === 'off' ? 'Aus' : state.sub === 'en' ? 'Englisch' : 'Deutsch')}
@@ -720,6 +735,17 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
     toast(`Kapitel ${to + 1} · ${m.chapters[to].n}`);
   }
 
+  function prevEpisode() {
+    const m = media();
+    if (!m.prev) { toast('Keine frühere Folge'); return; }
+    if (m.pod) { toast(`Wechselt zu ${m.prev.label} · ${m.prev.title}`); return; }
+    state.epIdx = m.prev.idx;
+    state.t = 0;
+    state.playing = true;
+    render();
+    toast(`${m.prev.label} · ${m.prev.title}`);
+  }
+
   function nextEpisode() {
     const m = media();
     if (!m.next) { toast(m.nextNote || 'Keine nächste Folge'); return; }
@@ -801,6 +827,8 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
       case 'chapPrev': jumpChapter(-1); break;
       case 'chapNext': jumpChapter(1); break;
       case 'nextEp': nextEpisode(); break;
+      case 'prevEp': prevEpisode(); break;
+      case 'chapPrev': case 'chapNext': break;
     }
   });
 
@@ -817,6 +845,7 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
     if (e.key === 'Escape' && state.panel) { e.preventDefault(); if (state.panel === 'settings' && state.page !== 'main') { state.page = 'main'; render(); } else closePanel(); return; }
     if (e.target.closest && e.target.closest('#knobs')) return;
     if (e.key === 'n' || e.key === 'N') { nextEpisode(); return; }
+    if (e.key === 'p' || e.key === 'P') { prevEpisode(); return; }
     if (e.shiftKey && e.key === 'ArrowRight') { e.preventDefault(); jumpChapter(1); return; }
     if (e.shiftKey && e.key === 'ArrowLeft') { e.preventDefault(); jumpChapter(-1); return; }
     if (e.key === 'k' || (e.key === ' ' && !(e.target.closest && e.target.closest('button')))) { e.preventDefault(); togglePlay(); }
@@ -854,11 +883,11 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
     const phoneCol = state.view === 'phone' && m.kind === 'video';
     const rows = [
       [`<span class="ic">${icon(cp)}</span><span class="ic">${icon(cn)}</span>Kapitel`, 'da, wenn Kapitel', 'da, wenn Kapitel', 'da, wenn Kapitel', 'immer', 'nur über die Zeitleiste'],
-      ['Ohne Kapitel', 'ausgegraut (F-2)', 'ausgegraut (F-2)', 'ausgegraut (F-2)', '–', '–'],
-      [`<span class="ic">${icon(epIcon())}</span>Nächste Folge`, '– (kein Knopf)', 'da, auch über die Staffelgrenze', 'da (F-5)', '– (F-4)', 'Knopf mit Text über der Zeitleiste'],
-      ['Letzte Folge', '–', 'ausgegraut, «Letzte Folge der Serie»', 'ausgegraut', '–', 'ausgegraut'],
+      ['Ohne Kapitel', 'ausgegraut', 'ausgegraut', 'ausgegraut', '–', '–'],
+      [`<span class="ic">${icon(epIconPrev())}</span><span class="ic">${icon(epIcon())}</span>Vorherige / nächste Folge`, '– (kein Knopf)', 'da, auch über die Staffelgrenze', 'ältere / neuere Folge', '– (F-4)', 'in der Mitte neben −10 · Play · +10'],
+      ['Keine weitere Folge', '–', 'ausgegraut mit Hinweis', 'ausgegraut mit Hinweis', '–', 'ausgegraut'],
       ['Vorschau beim Zeigen', '–', 'Bild, Code, Titel, Laufzeit', 'Titel, Datum, Länge', '–', 'keine (kein Zeigen)'],
-      ['Tasten', '<kbd>⇧←</kbd><kbd>⇧→</kbd>', '<kbd>⇧←</kbd><kbd>⇧→</kbd><kbd>N</kbd>', '<kbd>⇧←</kbd><kbd>⇧→</kbd><kbd>N</kbd>', '<kbd>⇧←</kbd><kbd>⇧→</kbd>', '–'],
+      ['Tasten', '<kbd>⇧←</kbd><kbd>⇧→</kbd>', '<kbd>⇧←</kbd><kbd>⇧→</kbd><kbd>P</kbd><kbd>N</kbd>', '<kbd>⇧←</kbd><kbd>⇧→</kbd><kbd>P</kbd><kbd>N</kbd>', '<kbd>⇧←</kbd><kbd>⇧→</kbd>', '–'],
       ['Einstellungen, Ton, Untertitel', 'Menü über dem Knopf', 'Menü über dem Knopf', 'Menü über dem Knopf', 'Menü über dem Knopf', 'Blatt von unten'],
     ];
     const head = ['', 'Film', 'Serienfolge', 'Podcast', 'Hörbuch', 'Handy'];
@@ -868,9 +897,9 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
   function renderTry(m) {
     const t = [];
     if (m.kind === 'video' && state.view === 'desktop') t.push('Reiter «Besetzung» öffnen', 'über den Folgenknopf fahren', 'Zahnrad öffnen, dann aufs Bild klicken', 'Zahnrad öffnen, dann auf «Untertitel» klicken');
-    if (m.kind === 'video' && state.view === 'phone') t.push('Zahnrad antippen, dann aufs Bild darüber tippen', '«Nächste Folge» antippen');
+    if (m.kind === 'video' && state.view === 'phone') t.push('Zahnrad antippen, dann aufs Bild darüber tippen', 'Folgenknöpfe neben −10 und +10 antippen');
     if (m.kind === 'audio') t.push('«1×» öffnen, dann daneben klicken', m.next ? 'Folgenknopf zeigen' : 'Hörbuch: kein Folgenknopf (F-4)');
-    t.push('Taste N, ⇧← / ⇧→, Esc');
+    t.push('Tasten P und N, ⇧← / ⇧→, Esc');
     $('#try').innerHTML = t.map((x) => `<span>${x}</span>`).join('');
   }
 
