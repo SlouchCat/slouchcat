@@ -2,6 +2,7 @@ import type { GPUInfo, SystemInfo } from '@slouchcat/api-client';
 import { useTranslation } from 'react-i18next';
 import { FactList, Notice, Stack, Text } from '@/ui';
 import { CodeBlock } from '@/ui/aria';
+import { intlLocale } from '@/i18n';
 
 type ComposeOverride = NonNullable<GPUInfo['composeOverride']>;
 
@@ -44,7 +45,7 @@ interface SystemStateProps {
 export function SystemState({ system, showUsage = false, facts = [] }: SystemStateProps) {
   const { t, i18n } = useTranslation();
   const { gpu, inotify } = system;
-  const number = (value: number) => new Intl.NumberFormat(i18n.language).format(value);
+  const number = (value: number) => new Intl.NumberFormat(intlLocale(i18n.language)).format(value);
   const limit =
     inotify.maxUserWatches > 0 ? number(inotify.maxUserWatches) : t('system.inotify.unknown');
   const fs = (type: string) => (type && type !== 'unknown' ? type : t('system.fs.unknown'));

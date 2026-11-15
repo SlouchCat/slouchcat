@@ -209,19 +209,15 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
         .getAllByRole('option')
         .map((option) => option.textContent),
     ).toEqual(['Deutsch', 'Englisch', 'Französisch', 'Japanisch', 'Spanisch']);
-    // The default needs Deutsch (MET-2, as the server checks it): it cannot go, Englisch can.
+    // The default needs no Deutsch any more (concept 22 F-7): each place may go, every choice is
+    // open.
     expect(
       within(list).getByRole('button', { name: '1. Sprache (Deutsch) entfernen' }),
-    ).toBeDisabled();
+    ).toBeEnabled();
     expect(
       within(list).getByRole('button', { name: '2. Sprache (Englisch) entfernen' }),
     ).toBeEnabled();
-    // Place 1 may only swap Deutsch to place 2; every other language would drop it.
-    expect(disabledOf(within(list).getByRole('combobox', { name: '1. Sprache' }))).toEqual([
-      'Französisch',
-      'Japanisch',
-      'Spanisch',
-    ]);
+    expect(disabledOf(within(list).getByRole('combobox', { name: '1. Sprache' }))).toEqual([]);
     expect(disabledOf(within(list).getByRole('combobox', { name: '2. Sprache' }))).toEqual([]);
     // No up and down buttons any more (S-16).
     expect(within(list).queryByRole('button', { name: /nach vorne|nach hinten/ })).toBeNull();
@@ -392,7 +388,7 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
       routes({
         'PUT /admin/settings/metadata': () =>
           problem(422, 'validation_failed', {
-            errors: [{ field: 'textLangs', code: 'ui_lang_required' }],
+            errors: [{ field: 'textLangs', code: 'lang_unknown' }],
           }),
       }),
     );
@@ -400,18 +396,15 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     const languages = await screen.findByRole('region', { name: 'Sprachen' });
     const user = userEvent.setup();
     const list = within(languages).getByRole('group', { name: 'Metadaten-Sprachen' });
-    // The page keeps Deutsch itself; here the server refuses the list all the same.
-    await user.click(within(list).getByRole('button', { name: '2. Sprache (Englisch) entfernen' }));
-    expect(placesOf(list)).toEqual(['de']);
+    // A list without Deutsch is fine on the page (concept 22 F-7); here the server refuses it.
+    await user.click(within(list).getByRole('button', { name: '1. Sprache (Deutsch) entfernen' }));
+    expect(placesOf(list)).toEqual(['en']);
+    // The last place cannot go.
     expect(
-      within(list).getByRole('button', { name: '1. Sprache (Deutsch) entfernen' }),
+      within(list).getByRole('button', { name: '1. Sprache (Englisch) entfernen' }),
     ).toBeDisabled();
     await user.click(within(saveBar()).getByRole('button', { name: 'Speichern' }));
-    expect(
-      await within(languages).findByText(
-        'Der Standard braucht Deutsch; eine Bibliothek Deutsch oder Englisch.',
-      ),
-    ).toBeVisible();
+    expect(await within(languages).findByText('Unbekannter Sprachcode.')).toBeVisible();
     expect(screen.getByText(/^«Standard» wurde nicht gespeichert: /)).toBeVisible();
     expect(within(list).getAllByRole('listitem')).toHaveLength(1);
     expect(within(saveBar()).getByText('Ungespeicherte Änderungen')).toBeVisible();
@@ -439,22 +432,18 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
 
     await user.click(screen.getByRole('switch', { name: 'Sprachen abweichend' }));
     expect(within(languages).queryByText('wie Server')).toBeNull();
-    // A library needs Deutsch or Englisch: with both there, each may go, every choice is open.
+    // A library needs neither Deutsch nor Englisch: each place may go, every choice is open.
     expect(
       within(list).getByRole('button', { name: '1. Sprache (Deutsch) entfernen' }),
     ).toBeEnabled();
     expect(disabledOf(within(list).getByRole('combobox', { name: '1. Sprache' }))).toEqual([]);
     await user.click(within(list).getByRole('button', { name: '2. Sprache (Englisch) entfernen' }));
     expect(placesOf(list)).toEqual(['de']);
-    // The last entry cannot go; place 1 may hold Deutsch or Englisch only.
+    // The last entry cannot go; place 1 may hold any language (concept 22 F-7).
     expect(
       within(list).getByRole('button', { name: '1. Sprache (Deutsch) entfernen' }),
     ).toBeDisabled();
-    expect(disabledOf(within(list).getByRole('combobox', { name: '1. Sprache' }))).toEqual([
-      'Französisch',
-      'Japanisch',
-      'Spanisch',
-    ]);
+    expect(disabledOf(within(list).getByRole('combobox', { name: '1. Sprache' }))).toEqual([]);
     await user.click(within(saveBar()).getByRole('button', { name: 'Speichern' }));
     await waitFor(() => expect(puts(calls, '/admin/libraries/2/metadata')).toHaveLength(1));
     expect(puts(calls, '/admin/libraries/2/metadata')[0]).toEqual({

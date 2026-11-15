@@ -6,6 +6,7 @@ import { FactList, Text } from '@/ui';
 import { AriaButton, FormDialog } from '@/ui/aria';
 import type { AdminRadioStation } from '../queries';
 import styles from './Radio.module.css';
+import { intlLocale } from '@/i18n';
 
 type Source = NonNullable<AdminRadioStation['sources']['name']>;
 type Field =
@@ -48,7 +49,7 @@ interface StationDetailsDialogProps {
  */
 export function StationDetailsDialog({ station, onClose }: StationDetailsDialogProps) {
   const { t, i18n } = useTranslation();
-  const language = i18n.language;
+  const language = intlLocale(i18n.language);
   const sources = station.sources;
   const wikidata = station.wikidata;
 

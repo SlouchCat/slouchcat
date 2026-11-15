@@ -49,6 +49,7 @@ import { CoverWatched, WATCHED_KINDS } from './watched';
 import { homeQuery } from './queries';
 import { usePlayStart } from './usePlayStart';
 import styles from './HomePage.module.css';
+import { intlLocale } from '@/i18n';
 
 const authed = getRouteApi('/_authed/_active');
 
@@ -446,7 +447,7 @@ export function HomePage() {
                 focusKey={`${row.id}-${station.id}`}
                 name={station.name}
                 logoUrl={imageUrl(station.logo)}
-                caption={stationCaption(t, i18n.language, tile)}
+                caption={stationCaption(t, intlLocale(i18n.language), tile)}
                 state={state}
                 stateLabel={state && t(`radio.page.${state}`)}
                 playLabel={

@@ -260,9 +260,9 @@ func (s *Service) AcceptInvitation(ctx context.Context, in model.AcceptInvitatio
 	}
 	lang := in.Language
 	if lang == "" {
-		lang = "de"
+		lang = model.DefaultUILanguage
 	}
-	if lang != "de" && lang != "en" {
+	if !model.IsUILanguage(lang) {
 		verr = verr.Add("language", "invalid_value")
 	}
 	if verr != nil {

@@ -65,6 +65,7 @@ import {
   useSaveRadioPreferences,
 } from './queries';
 import styles from './RadioPage.module.css';
+import { intlLocale } from '@/i18n';
 
 type RadioStation = components['schemas']['RadioStation'];
 type RadioFacets = components['schemas']['RadioFacets'];
@@ -134,7 +135,7 @@ function facetOptions(
  */
 export function RadioPage() {
   const { t, i18n } = useTranslation();
-  const language = i18n.language;
+  const language = intlLocale(i18n.language);
   useDocumentTitle(t('radio.page.title'));
   const search = route.useSearch();
   const navigate = route.useNavigate();

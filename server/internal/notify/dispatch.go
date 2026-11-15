@@ -54,7 +54,7 @@ func (s *Service) Dispatch(ctx context.Context, n model.Notification, p model.Pr
 	}
 	return s.Emit(ctx, model.Event{
 		Type: model.EventNewContent, AccountID: p.AccountID, ProfileID: p.ID,
-		Subject: text(p.Language, key, parent), Body: body, Link: "/items/" + n.Item.ID, ItemID: n.Item.ID,
+		Subject: text(p.Language, key, vars{"title": parent}), Body: body, Link: "/items/" + n.Item.ID, ItemID: n.Item.ID,
 	})
 }
 

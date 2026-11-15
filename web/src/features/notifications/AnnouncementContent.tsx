@@ -2,6 +2,7 @@ import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { formatDate } from '@/lib/format';
 import { MessageContent } from '@/ui/aria';
+import { intlLocale } from '@/i18n';
 
 /** What a profile reads of an announcement. */
 export interface AnnouncementText {
@@ -31,5 +32,5 @@ export function announcementMessage(t: TFunction, language: string, text: Announ
  */
 export function AnnouncementContent(text: AnnouncementText) {
   const { t, i18n } = useTranslation();
-  return <MessageContent {...announcementMessage(t, i18n.language, text)} preview />;
+  return <MessageContent {...announcementMessage(t, intlLocale(i18n.language), text)} preview />;
 }

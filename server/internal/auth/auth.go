@@ -186,9 +186,9 @@ func validEmail(email string) bool {
 func (s *Service) CreateOwner(ctx context.Context, email, password, language string) (model.Account, model.Profile, error) {
 	email, verr := ValidateOwner(email, password)
 	if language == "" {
-		language = "de"
+		language = model.DefaultUILanguage
 	}
-	if language != "de" && language != "en" {
+	if !model.IsUILanguage(language) {
 		verr = verr.Add("language", "invalid_value")
 	}
 	if verr != nil {

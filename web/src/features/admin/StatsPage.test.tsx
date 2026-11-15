@@ -160,10 +160,10 @@ describe('admin statistics (A-8)', () => {
       'Transcode',
       'Transcode auf dem Grafikchip',
     ]);
-    expect(tiles[0]?.[1]).toMatch(/2 Wiedergaben50\s%\saller Wiedergaben$/);
-    expect(tiles[1]?.[1]).toMatch(/1 Wiedergabe25\s%\saller Wiedergaben$/);
-    expect(tiles[2]?.[1]).toMatch(/1 Wiedergabe25\s%\saller Wiedergaben$/);
-    expect(tiles[3]?.[1]).toMatch(/100\s%Anteil der Transcodes$/);
+    expect(tiles[0]?.[1]).toMatch(/2 Wiedergaben50%\saller Wiedergaben$/);
+    expect(tiles[1]?.[1]).toMatch(/1 Wiedergabe25%\saller Wiedergaben$/);
+    expect(tiles[2]?.[1]).toMatch(/1 Wiedergabe25%\saller Wiedergaben$/);
+    expect(tiles[3]?.[1]).toMatch(/100%Anteil der Transcodes$/);
 
     // «Meistgesehen»: places 1 to 3 as tiles, each title a link to its administration page.
     const top = screen.getByRole('region', { name: 'Meistgesehen' });
@@ -382,7 +382,7 @@ describe('admin statistics (A-8)', () => {
     expect(screen.getByText('Kein Profil hat in diesem Zeitraum geschaut.')).toBeVisible();
     expect(screen.getByText('Kein Gerät hat in diesem Zeitraum geschaut.')).toBeVisible();
     const playback = screen.getByRole('group', { name: 'Wiedergabe' });
-    expect(playback).toHaveTextContent(/^Direct Play0 Wiedergaben0\s%\saller Wiedergaben/);
+    expect(playback).toHaveTextContent(/^Direct Play0 Wiedergaben0%\saller Wiedergaben/);
     const when = screen.getByRole('region', { name: 'Wann geschaut wird' });
     expect(within(when).getByText('Aus den letzten 4 Wochen')).toBeVisible();
     expect(within(when).getByText('In diesen Wochen wurde nichts geschaut.')).toBeVisible();

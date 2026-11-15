@@ -4,6 +4,7 @@ import { formatBitrate, formatResolution } from '@/lib/format';
 import { FactList } from '@/ui';
 import { qualityName, reasonText, selectedAudio, selectedSubtitle, trackLabel } from './labels';
 import styles from './Player.module.css';
+import { intlLocale } from '@/i18n';
 
 /**
  * "Stream-Info" overlay of the player (B-5, W-4, W-8): how the server delivers this playback, in
@@ -50,7 +51,7 @@ export function StreamInfo({ info }: { info: PlaybackInfo }) {
     if (transcoding.bitrate) {
       rows.push([
         t('player.streamInfo.bitrate'),
-        formatBitrate(transcoding.bitrate, i18n.language),
+        formatBitrate(transcoding.bitrate, intlLocale(i18n.language)),
       ]);
     }
   } else {
@@ -63,12 +64,17 @@ export function StreamInfo({ info }: { info: PlaybackInfo }) {
   rows.push(
     [
       t('player.streamInfo.audioTrack'),
-      audio ? trackLabel(t, audio, audioIndex, i18n.language) : none,
+      audio ? trackLabel(t, audio, audioIndex, intlLocale(i18n.language)) : none,
     ],
     [
       t('player.streamInfo.subtitle'),
       subtitle
-        ? trackLabel(t, subtitle, info.tracks.subtitles.indexOf(subtitle), i18n.language)
+        ? trackLabel(
+            t,
+            subtitle,
+            info.tracks.subtitles.indexOf(subtitle),
+            intlLocale(i18n.language),
+          )
         : t('player.tracks.off'),
     ],
   );

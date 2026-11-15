@@ -17,6 +17,7 @@ import {
 import { relinkQuery } from '../queries';
 import { pairKey, titleWithYear, userDataSummary } from './shared';
 import styles from './Maintenance.module.css';
+import { intlLocale } from '@/i18n';
 
 interface RelinkTabProps {
   outcome: StatusMessage | undefined;
@@ -43,7 +44,7 @@ export function RelinkTab({
   onRelink,
 }: RelinkTabProps) {
   const { t, i18n } = useTranslation();
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   const relink = useQuery({ ...relinkQuery, refetchOnWindowFocus: !hold });
   const pairs = useMemo(() => relink.data?.pairs ?? [], [relink.data]);
   const total = relink.data?.total ?? 0;
@@ -60,7 +61,7 @@ export function RelinkTab({
     const values = {
       copy: titleWithYear(t, pair.title, pair.year),
       library: pair.libraryName || t('admin.maintenance.library', { id: pair.libraryId }),
-      date: formatDate(pair.deletedAt, i18n.language),
+      date: formatDate(pair.deletedAt, intlLocale(i18n.language)),
     };
     const rows = copiesOf(pair);
     return rows.length > 1
@@ -141,7 +142,7 @@ export function RelinkTab({
       key: 'deletedAt',
       width: '11%',
       header: t('admin.maintenance.relink.columns.deletedAt'),
-      cell: (pair) => formatDate(pair.deletedAt, i18n.language),
+      cell: (pair) => formatDate(pair.deletedAt, intlLocale(i18n.language)),
     },
     {
       key: 'userData',

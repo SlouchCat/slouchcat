@@ -26,6 +26,7 @@ import {
 } from './audio';
 import { hasShortcutModifier } from './keymap';
 import { volumeIsReadOnly } from './layout';
+import { intlLocale } from '@/i18n';
 
 /** ←/→ jump this far; the −15 s button as well. */
 export const AUDIO_SEEK_S = 15;
@@ -163,7 +164,9 @@ export function useAudioControls({
   const rateText = useCallback(
     (value: number) =>
       t('player.audio.rate', {
-        rate: new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }).format(value),
+        rate: new Intl.NumberFormat(intlLocale(i18n.language), { maximumFractionDigits: 2 }).format(
+          value,
+        ),
       }),
     [i18n.language, t],
   );

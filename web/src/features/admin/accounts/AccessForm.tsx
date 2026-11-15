@@ -105,7 +105,7 @@ export function AccessForm({
                 label={t('admin.accounts.access.rating')}
                 value={value.rating}
                 onChange={(rating) => set({ rating })}
-                options={ratingOptions(t)}
+                options={ratingOptions(t, 18, account.maxRating)}
               />
               <LibraryChoice
                 label={t('admin.accounts.access.libraries')}

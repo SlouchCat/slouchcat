@@ -25,6 +25,7 @@ import {
   type RadioRelays,
 } from '../queries';
 import styles from './Radio.module.css';
+import { intlLocale } from '@/i18n';
 
 type Relay = RadioRelays['relays'][number];
 type Listener = Relay['listeners'][number];
@@ -62,7 +63,7 @@ export function OverviewTab({
   onConfirmOpenChange,
 }: OverviewTabProps) {
   const { t, i18n } = useTranslation();
-  const language = i18n.language;
+  const language = intlLocale(i18n.language);
   const number = useMemo(() => new Intl.NumberFormat(language), [language]);
   const queryClient = useQueryClient();
   const [message, setMessage] = useStatusMessage();

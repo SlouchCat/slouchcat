@@ -5,6 +5,7 @@ import { formatDateTime } from '@/lib/format';
 import { Chip } from '@/ui';
 import type { DataColumn } from '@/ui/aria';
 import styles from './Accounts.module.css';
+import { ratingLabel } from '../../shared/choices';
 
 /** The profile names of an account, the primary one marked, as one line. */
 export const profileNames = (t: TFunction, account: AdminAccount) =>
@@ -44,9 +45,7 @@ export function accountColumns(
     {
       key: 'rating',
       header: t('admin.accounts.columns.rating'),
-      cell: (account) => (
-        <span className={styles.nowrap}>{t('rating.fsk', { age: account.maxRating })}</span>
-      ),
+      cell: (account) => <span className={styles.nowrap}>{ratingLabel(t, account.maxRating)}</span>,
     },
     {
       key: 'libraries',

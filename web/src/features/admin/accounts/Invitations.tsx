@@ -18,7 +18,7 @@ import {
   TextField,
   type DataColumn,
 } from '@/ui/aria';
-import { ratingOf, ratingOptions } from '../../shared/choices';
+import { ratingLabel, ratingOf, ratingOptions } from '../../shared/choices';
 import { LibraryChoice, type LibrarySelection } from '../../shared/LibraryChoice';
 import {
   describeLibraries,
@@ -27,6 +27,7 @@ import {
 } from '../../shared/useLibraryOptions';
 import { invitationsQuery } from '../queries';
 import styles from './Accounts.module.css';
+import { intlLocale } from '@/i18n';
 
 const stateTone = {
   open: 'success',
@@ -243,7 +244,7 @@ export function InvitationsTable({
       key: 'rating',
       header: t('admin.accounts.invitations.columns.rating'),
       cell: (invitation) => (
-        <span className={styles.nowrap}>{t('rating.fsk', { age: invitation.maxRating })}</span>
+        <span className={styles.nowrap}>{ratingLabel(t, invitation.maxRating)}</span>
       ),
     },
     {
@@ -258,7 +259,7 @@ export function InvitationsTable({
         invitation.state === 'used' && invitation.usedByEmail
           ? t('admin.accounts.invitations.usedBy', { email: invitation.usedByEmail })
           : t('admin.accounts.invitations.expires', {
-              date: formatDateTime(invitation.expiresAt, i18n.language),
+              date: formatDateTime(invitation.expiresAt, intlLocale(i18n.language)),
             }),
     },
     {

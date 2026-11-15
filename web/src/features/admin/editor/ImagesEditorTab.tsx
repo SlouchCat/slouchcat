@@ -34,6 +34,7 @@ import {
   type CandidateFilter,
 } from './editorModel';
 import styles from './MetadataEditor.module.css';
+import { intlLocale } from '@/i18n';
 
 type ItemImageUpload = components['schemas']['ItemImageUpload'];
 
@@ -228,8 +229,9 @@ function KindPanel({
   const filtered = filterCandidates(list, filter);
   const book = item.kind === 'audiobook';
   const tiles: ImageCandidateTile[] = filtered.slice(0, shown).map((c) => {
-    const lang = (book ? bookLabel(t, c) : undefined) ?? languageLabel(t, i18n.language, c.lang);
-    const detail = candidateDetail(t, i18n.language, c);
+    const lang =
+      (book ? bookLabel(t, c) : undefined) ?? languageLabel(t, intlLocale(i18n.language), c.lang);
+    const detail = candidateDetail(t, intlLocale(i18n.language), c);
     return {
       id: `${c.provider}|${c.source}`,
       previewUrl: c.previewUrl,
@@ -242,7 +244,7 @@ function KindPanel({
   const current = image?.provider
     ? [
         providerLabel(t, image.provider),
-        image.lang ? languageLabel(t, i18n.language, image.lang) : '',
+        image.lang ? languageLabel(t, intlLocale(i18n.language), image.lang) : '',
       ]
         .filter(Boolean)
         .join(t('format.separator'))
@@ -363,7 +365,7 @@ function KindPanel({
                     { value: ALL, label: t('admin.editor.images.filter.all') },
                     ...facets.langs.map((l) => ({
                       value: l,
-                      label: languageLabel(t, i18n.language, l),
+                      label: languageLabel(t, intlLocale(i18n.language), l),
                     })),
                   ]}
                 />

@@ -41,7 +41,7 @@ describe('detail page', () => {
     expect(within(file).getByText('MP4')).toBeVisible();
     expect(within(file).getByText('1920 × 1080 · 1080p')).toBeVisible();
     expect(within(file).getByText('H264')).toBeVisible();
-    expect(within(file).getByText('4,2 GB')).toBeVisible();
+    expect(within(file).getByText('4.2 GB')).toBeVisible();
   });
 
   it('offers "Abspielen" without progress and marks unavailable files', async () => {

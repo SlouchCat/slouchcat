@@ -2,6 +2,7 @@ import type { ItemRef } from '@slouchcat/api-client';
 import { useTranslation } from 'react-i18next';
 import { formatDate, formatDuration, formatRuntime } from '@/lib/format';
 import styles from './ItemMeta.module.css';
+import { intlLocale } from '@/i18n';
 
 /**
  * Year · runtime, as shown under titles in the hero and on the detail page. A podcast episode has
@@ -12,7 +13,7 @@ export function ItemMeta({ item }: { item: ItemRef }) {
   const { t, i18n } = useTranslation();
   const parts = [
     item.publishedAt
-      ? formatDate(item.publishedAt, i18n.language)
+      ? formatDate(item.publishedAt, intlLocale(i18n.language))
       : item.year !== undefined
         ? String(item.year)
         : null,

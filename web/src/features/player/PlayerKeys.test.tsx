@@ -307,7 +307,7 @@ describe('video player controls (concept 13, step 3)', () => {
     const { video } = await start();
     key(document.body, ']');
     expect(video.playbackRate).toBe(1.25);
-    expect(screen.getByRole('status')).toHaveTextContent('Geschwindigkeit 1,25×');
+    expect(screen.getByRole('status')).toHaveTextContent('Geschwindigkeit 1.25×');
     for (let presses = 0; presses < 6; presses += 1) key(document.body, ']');
     expect(video.playbackRate).toBe(2);
     for (let presses = 0; presses < 10; presses += 1) key(document.body, '[');
@@ -370,9 +370,9 @@ describe('video player controls (concept 13, step 3)', () => {
     await user.keyboard('{ArrowDown}{Enter}');
     const speed = await screen.findByRole('dialog', { name: 'Geschwindigkeit' });
     await waitFor(() => expect(within(speed).getByRole('option', { name: '1×' })).toHaveFocus());
-    await user.click(within(speed).getByRole('option', { name: '1,5×' }));
+    await user.click(within(speed).getByRole('option', { name: '1.5×' }));
     expect(video.playbackRate).toBe(1.5);
-    expect(within(speed).getByRole('option', { name: '1,5×' })).toHaveAttribute(
+    expect(within(speed).getByRole('option', { name: '1.5×' })).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -381,7 +381,7 @@ describe('video player controls (concept 13, step 3)', () => {
     const main = await screen.findByRole('dialog', { name: 'Einstellungen' });
     expect(
       within(main).getByRole('option', { name: 'Geschwindigkeit' }),
-    ).toHaveAccessibleDescription('1,5×');
+    ).toHaveAccessibleDescription('1.5×');
     await user.click(within(main).getByRole('option', { name: 'Geschwindigkeit' }));
     await user.click(
       within(await screen.findByRole('dialog', { name: 'Geschwindigkeit' })).getByRole('button', {
@@ -556,7 +556,7 @@ describe('video player controls (concept 13, step 3)', () => {
     expect(within(quality).queryByRole('button', { name: 'Zurück' })).toBeNull();
     // The bit rate and the data per hour the client estimates from it (11.5).
     expect(within(quality).getByRole('option', { name: '1080p' })).toHaveAccessibleDescription(
-      `${formatBitrate(8_000_000, 'de')} · ca. ${formatBytes(3_600_000_000, 'de')} pro Stunde`,
+      `${formatBitrate(8_000_000, 'de-CH')} · ca. ${formatBytes(3_600_000_000, 'de-CH')} pro Stunde`,
     );
     await waitFor(() =>
       expect(within(quality).getByRole('option', { selected: true })).toHaveFocus(),
@@ -1000,10 +1000,10 @@ describe('video player tabs, pause view, phone and slow connection (concept 13, 
     );
     player.expectAvailable(player.option(list, 'Original'));
     expect(player.option(list, '2160p')).toHaveAccessibleDescription(
-      `${formatBitrate(40_000_000, 'de')} · ca. ${formatBytes(18_000_000_000, 'de')} pro Stunde`,
+      `${formatBitrate(40_000_000, 'de-CH')} · ca. ${formatBytes(18_000_000_000, 'de-CH')} pro Stunde`,
     );
     expect(player.option(list, '720p')).toHaveAccessibleDescription(
-      `${formatBitrate(4_000_000, 'de')} · ca. ${formatBytes(1_800_000_000, 'de')} pro Stunde`,
+      `${formatBitrate(4_000_000, 'de-CH')} · ca. ${formatBytes(1_800_000_000, 'de-CH')} pro Stunde`,
     );
   });
 

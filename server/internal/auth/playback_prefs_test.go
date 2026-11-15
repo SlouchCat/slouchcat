@@ -188,3 +188,32 @@ func TestNewProfileStartsWithItsLanguage(t *testing.T) {
 		t.Errorf("guest profile = %+v / %+v, %v", guest.Profile.Prefs, got, err)
 	}
 }
+
+// The playback languages of a new profile come from its interface code through
+// trackpick.Normalize (concept 22 section 4.3): every one of the 23 interface languages of
+// concept 22 yields a list the next save accepts (validLanguages), so no profile stores a region
+// code or a code the track choice maps onto another one.
+func TestInitialPrefsNormaliseEveryInterfaceLanguage(t *testing.T) {
+	t.Parallel()
+	want := map[string]string{
+		"de": "de", "de-DE": "de", "en": "en", "fr": "fr", "es": "es", "it": "it", "nl": "nl",
+		"pt-BR": "pt", "pt-PT": "pt", "pl": "pl", "sv": "sv", "da": "da", "nb": "no", "fi": "fi",
+		"cs": "cs", "hu": "hu", "tr": "tr", "ru": "ru", "uk": "uk", "ja": "ja", "ko": "ko",
+		"zh-CN": "zh", "zh-TW": "zh",
+	}
+	if len(want) != 23 {
+		t.Fatalf("%d codes, want the 23 of concept 22", len(want))
+	}
+	for ui, code := range want {
+		prefs := initialPrefs(ui)
+		if !slices.Equal(prefs.AudioLanguages, []string{code}) || !slices.Equal(prefs.SubtitleLanguages, []string{code}) {
+			t.Errorf("initialPrefs(%q) = %+v, want %q in both lists", ui, prefs, code)
+		}
+		if verr := validLanguages("audioLanguages", prefs.AudioLanguages, nil); verr != nil {
+			t.Errorf("initialPrefs(%q) stores %v, which the next save refuses: %v", ui, prefs.AudioLanguages, verr)
+		}
+	}
+	if prefs := initialPrefs(""); len(prefs.AudioLanguages) != 0 || len(prefs.SubtitleLanguages) != 0 {
+		t.Errorf("initialPrefs without a language = %+v, want empty lists", prefs)
+	}
+}

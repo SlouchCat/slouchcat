@@ -294,7 +294,7 @@ func applyInput(acc model.Account, name *string, maxRating *int64, language *str
 		}
 	}
 	if in.Language != nil {
-		if *in.Language != "de" && *in.Language != "en" {
+		if !model.IsUILanguage(*in.Language) {
 			verr = verr.Add("language", "invalid_value")
 		} else {
 			*language = *in.Language

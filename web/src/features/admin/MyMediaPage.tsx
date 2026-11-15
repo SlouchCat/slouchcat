@@ -42,6 +42,7 @@ import {
 import { MyMediaPreview } from './mymedia/MyMediaPreview';
 import { myMediaQuery, setMyMedia } from './queries';
 import styles from './homerows/HomeRows.module.css';
+import { intlLocale } from '@/i18n';
 
 /** The tabs in the band: the order (the default, no `?tab=`) and the preview. */
 const ORDER = 'order';
@@ -87,7 +88,7 @@ export function MyMediaPage() {
 function MyMediaContent() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const hintId = useId();
 

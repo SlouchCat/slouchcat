@@ -10,6 +10,7 @@ import { AriaButton, FormDialog, RadioGroup, TextField } from '@/ui/aria';
 import { fullPath } from '../maintenance/shared';
 import { itemDeletionQuery } from '../queries';
 import styles from './DeleteItemDialog.module.css';
+import { intlLocale } from '@/i18n';
 
 /** The kinds whose files the dialog names by folder (series, season, podcast, section 10.2). */
 const FOLDER_KINDS = new Set(['series', 'season', 'podcast']);
@@ -71,7 +72,7 @@ export function DeleteItemDialog({
   const doneMessage = (result: ItemDeletionResult) => {
     const title = data?.confirmTitle ?? '';
     if (mode === 'library') return t('admin.itemDelete.done.library', { title });
-    const size = formatBytes(result.deletedBytes, i18n.language);
+    const size = formatBytes(result.deletedBytes, intlLocale(i18n.language));
     const main = result.titleDeleted
       ? t('admin.itemDelete.done.files', { title, count: result.deletedFiles, size })
       : t('admin.itemDelete.done.kept', { title, count: result.deletedFiles, size });
@@ -91,7 +92,7 @@ export function DeleteItemDialog({
   const playing = data?.playingProfiles ?? [];
   const matches =
     !data?.typeTitle || typed.trim().toLowerCase() === data.confirmTitle.trim().toLowerCase();
-  const size = formatBytes(data?.totalBytes ?? 0, i18n.language);
+  const size = formatBytes(data?.totalBytes ?? 0, intlLocale(i18n.language));
   const byFolder = data !== undefined && FOLDER_KINDS.has(data.kind) && data.folder !== undefined;
 
   return (
@@ -170,7 +171,7 @@ export function DeleteItemDialog({
                     <li key={`${file.rootPath}/${file.path}`} className={styles.file}>
                       <span className={styles.path}>{fullPath(file.rootPath, file.path)}</span>
                       <span className={styles.muted}>
-                        {formatBytes(file.sizeBytes, i18n.language)}
+                        {formatBytes(file.sizeBytes, intlLocale(i18n.language))}
                         {file.reason && ` · ${reason(file.reason)}`}
                       </span>
                     </li>

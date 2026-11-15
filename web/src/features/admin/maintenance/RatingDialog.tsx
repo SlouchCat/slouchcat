@@ -6,7 +6,7 @@ import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { Notice } from '@/ui';
 import { AriaButton, Form, FormDialog, RadioGroup } from '@/ui/aria';
-import { ratingOptions, titleRatingOf } from '../../shared/choices';
+import { ratingLabel, ratingOptions, titleRatingOf } from '../../shared/choices';
 import type { Outcome } from './shared';
 import styles from './Maintenance.module.css';
 
@@ -60,7 +60,7 @@ export function RatingDialog({
           {chosen !== undefined &&
             t('admin.maintenance.rating.summary', {
               count: itemIds.length,
-              rating: t('rating.fsk', { age: chosen }),
+              rating: ratingLabel(t, chosen),
             })}
         </p>
         <div className={styles.dialogActions}>

@@ -59,6 +59,30 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/*
+ * Han unification (concept 22, 4.4): the same code point has a Japanese, a simplified and a
+ * traditional Chinese and a Korean form. Without a stack per language the device may pick the
+ * wrong one. No web fonts: the system fonts of each script, then the stack above.
+ */
+html:lang(ja) body {
+  font-family: var(--sc-font-family-ja);
+}
+
+html:lang(zh-CN) body {
+  font-family: var(--sc-font-family-zh-cn);
+}
+
+html:lang(zh-TW) body {
+  font-family: var(--sc-font-family-zh-tw);
+}
+
+html:lang(ko) body {
+  font-family: var(--sc-font-family-ko);
+
+  /* Korean breaks between words, never inside a syllable block. */
+  word-break: keep-all;
+}
+
 h1,
 h2,
 h3,

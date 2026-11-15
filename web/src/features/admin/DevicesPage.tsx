@@ -24,6 +24,7 @@ import {
 import { capabilityColumns, deviceColumns, deviceName } from './devices/columns';
 import { devicesQuery } from './queries';
 import styles from './devices/Devices.module.css';
+import { intlLocale } from '@/i18n';
 
 /** The tabs in the band: the list (the default, no `?tab=`) and the capability profiles. */
 const DEVICES = 'devices';
@@ -79,7 +80,7 @@ export function DevicesPage() {
 function DevicesContent() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   const titleRef = useRef<HTMLHeadingElement>(null);
 
   const [forgetting, setForgetting] = useState<AdminDevice | null>(null);
@@ -141,7 +142,7 @@ function DevicesContent() {
 
   const columns = useMemo(
     () => ({
-      [DEVICES]: deviceColumns(t, i18n.language, number, askForget),
+      [DEVICES]: deviceColumns(t, intlLocale(i18n.language), number, askForget),
       [CAPABILITIES]: capabilityColumns(t),
     }),
     [t, i18n.language, number, askForget],

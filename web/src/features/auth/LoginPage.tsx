@@ -8,7 +8,8 @@ import { formErrors } from '@/api/errors';
 import { adoptSession } from '@/app/session';
 import { formText } from '@/lib/form';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { Logo, Notice, Page, Panel, Stack, Text } from '@/ui';
+import { currentLanguage, languages, setLanguage } from '@/i18n';
+import { Logo, MenuButton, Notice, Page, Panel, Stack, Text } from '@/ui';
 import { AriaButton, Form, TextField } from '@/ui/aria';
 import { ServerStatus } from '@/features/system/ServerStatus';
 import styles from './AuthPage.module.css';
@@ -74,7 +75,30 @@ export function LoginPage() {
           </Form>
         </Panel>
         <ServerStatus />
+        <LanguageButton />
       </Stack>
     </Page>
+  );
+}
+
+/**
+ * The language of the login page (concept 22 section 4.4): a menu of the shipped languages, each
+ * named in its own language, for a browser whose language the detection did not match. The
+ * profile's language takes over after the login.
+ */
+function LanguageButton() {
+  const { t } = useTranslation();
+  const current = currentLanguage();
+  const name = languages.find((language) => language.code === current)?.name ?? current;
+  return (
+    <div className={styles.language}>
+      <MenuButton
+        label={name}
+        buttonLabel={t('login.language', { name })}
+        options={languages.map((language) => ({ id: language.code, label: language.name }))}
+        selectedKey={current}
+        onSelect={(code) => void setLanguage(code)}
+      />
+    </div>
   );
 }

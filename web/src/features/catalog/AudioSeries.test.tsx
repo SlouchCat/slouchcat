@@ -238,7 +238,7 @@ describe('the page of a series (PD-7)', () => {
       [`GET /libraries/5/series/${SERIES}`]: () => json(answer),
     });
 
-  it('shows the head and the volumes in the server’s order, 0,5 first and without a number last', async () => {
+  it('shows the head and the volumes in the server’s order, 0.5 first and without a number last', async () => {
     mockSeries();
     renderApp(`/libraries/5/series/${SERIES}`);
     expect(await screen.findByRole('heading', { level: 1, name: 'Bodyguard' })).toBeVisible();
@@ -253,7 +253,7 @@ describe('the page of a series (PD-7)', () => {
       [prequel, first, second, radioPlay, unnumbered].map((item) => `/items/${item.id}`),
     );
     expect(
-      within(rows[0]!).getByRole('link', { name: 'Band 0,5: Die Vorgeschichte' }),
+      within(rows[0]!).getByRole('link', { name: 'Band 0.5: Die Vorgeschichte' }),
     ).toBeVisible();
     // Two books with number 2, told apart by the narrator.
     expect(within(rows[2]!).getByText('Philipp Oehme · noch 5 h 36 min')).toBeVisible();

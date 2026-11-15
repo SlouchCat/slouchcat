@@ -31,6 +31,7 @@ import { adminCollectionQuery, collectionsQuery, deleteCollection } from '../que
 import { ManualMembers, TmdbMembers, type Member } from './CollectionDetail';
 import { collectionColumns } from './columns';
 import { NameDialog } from './NameDialog';
+import { intlLocale } from '@/i18n';
 
 /** The filter tabs: every collection (the default, no `?tab=`), the manual ones, TMDB's. */
 const ALL = 'all';
@@ -95,7 +96,7 @@ export function CollectionsPage() {
 function CollectionsContent() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const createButton = useRef<HTMLButtonElement>(null);
 

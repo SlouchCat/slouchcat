@@ -18,6 +18,7 @@ import {
 import { createTelegramLink, deleteTelegramLink } from '../queries';
 import { LINK_POLL_MS, useRefreshChannels, useStoreChannel, type Ask } from './shared';
 import styles from './channels.module.css';
+import { intlLocale } from '@/i18n';
 
 interface TelegramLinkProps {
   setting: ChannelSetting;
@@ -157,7 +158,7 @@ export function TelegramLink({
           {telegram?.linkExpiresAt && (
             <Text tone="muted" variant="caption">
               {t('settings.notifications.telegram.expires', {
-                time: formatDateTime(telegram.linkExpiresAt, i18n.language),
+                time: formatDateTime(telegram.linkExpiresAt, intlLocale(i18n.language)),
               })}
             </Text>
           )}

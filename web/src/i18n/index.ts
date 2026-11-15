@@ -1,62 +1,164 @@
+import type { Language } from '@slouchcat/api-client';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import {
+  detectLanguage as detectFrom,
+  fallbackLanguage,
+  intlLocale,
+  isLanguage,
+} from './languages';
 
-export const supportedLanguages = ['de', 'en'] as const;
-export type Language = (typeof supportedLanguages)[number];
-export const defaultLanguage: Language = 'de';
+export {
+  fallbackLanguage,
+  intlLocale,
+  isLanguage,
+  languageName,
+  languages,
+  supportedLanguages,
+} from './languages';
+export type { Language } from '@slouchcat/api-client';
 
-/** True for a language the UI has texts for. */
-export const isLanguage = (value: string | undefined): value is Language =>
-  value !== undefined && (supportedLanguages as readonly string[]).includes(value);
+type Bundle = Record<string, unknown>;
 
-/** Picks the first supported language from the browser preferences; German otherwise. */
-export function detectLanguage(preferences: readonly string[] = navigator.languages): Language {
-  for (const tag of preferences) {
-    const base = tag.toLowerCase().split('-')[0] ?? '';
-    if (isLanguage(base)) return base;
-  }
-  return defaultLanguage;
+// One chunk per language file of src/locales (concept 22 section 4.4): a language pack is a file,
+// not a line here. Only the chain of the language that runs is part of the start.
+const loaders: Record<string, () => Promise<Bundle>> = Object.fromEntries(
+  Object.entries(import.meta.glob<Bundle>('../locales/*.json', { import: 'default' })).map(
+    ([path, load]) => [path.replace(/^.*\/(.+)\.json$/, '$1'), load],
+  ),
+);
+
+/** The codes there is a language file for (de-DE too, though it is not selectable yet). */
+export const bundledLanguages = (): string[] => Object.keys(loaders).sort();
+
+/**
+ * The order the texts of `language` are looked up in (concept 22 section 4.2): the language, then
+ * German for de-DE (an overlay holding only the texts that differ), then English. i18next walks
+ * the same order (de-DE, de, then fallbackLng).
+ */
+export function languageChain(language: string): string[] {
+  const chain = [language];
+  if (language === 'de-DE') chain.push('de');
+  chain.push(fallbackLanguage);
+  return [...new Set(chain)];
 }
 
-// Only the language the browser asks for is part of the start; the other one is fetched when a
-// profile (or a form) first needs it.
-const loaders: Record<Language, () => Promise<{ default: object }>> = {
-  de: () => import('@/locales/de.json'),
-  en: () => import('@/locales/en.json'),
-};
-
-/** Makes the texts of `language` available (loads them once). */
-export async function ensureLanguage(language: Language): Promise<void> {
-  if (i18n.hasResourceBundle(language, 'translation')) return;
-  const bundle = await loaders[language]();
-  i18n.addResourceBundle(language, 'translation', bundle.default, true, true);
+/** Adds the bundle of one language file once; an unknown code adds nothing. */
+async function loadBundle(language: string): Promise<void> {
+  const load = loaders[language];
+  if (!load || i18n.hasResourceBundle(language, 'translation')) return;
+  const bundle = await load();
+  i18n.addResourceBundle(language, 'translation', bundle, true, true);
 }
 
-/** Switches the UI language, loading its texts first. */
-export async function setLanguage(language: Language): Promise<void> {
-  await ensureLanguage(language);
-  if (i18n.resolvedLanguage !== language) await i18n.changeLanguage(language);
+/** Runs `task` once the browser painted the next frame and is idle. */
+function afterFirstPaint(task: () => void): void {
+  requestAnimationFrame(() => {
+    if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(task);
+    else window.setTimeout(task, 0);
+  });
 }
 
-/** The language the UI shows now, as a supported one (German when none is set yet). */
+interface EnsureOptions {
+  /**
+   * English, the last link of the chain, comes after the first paint instead of before the texts
+   * are used: the start does not wait for a second bundle. Until it is there, a text the chain
+   * lacks shows its key.
+   */
+  englishLater?: boolean;
+}
+
+/** Makes the texts of `language` and of its whole chain available (each file loads once). */
+export async function ensureLanguage(
+  language: string,
+  { englishLater = false }: EnsureOptions = {},
+): Promise<void> {
+  const chain = languageChain(language);
+  const now =
+    englishLater && language !== fallbackLanguage
+      ? chain.filter((code) => code !== fallbackLanguage)
+      : chain;
+  await Promise.all(now.map(loadBundle));
+  if (now.length < chain.length) afterFirstPaint(() => void loadBundle(fallbackLanguage));
+}
+
+// Counts the switches: two quick ones may finish loading in the other order, and only the latest
+// may change the language.
+let latestSwitch = 0;
+
+/** Switches the UI language, loading its texts first; a newer switch wins over an older one. */
+async function switchTo(language: string): Promise<void> {
+  const request = ++latestSwitch;
+  await ensureLanguage(language, { englishLater: true });
+  if (request !== latestSwitch) return;
+  if (i18n.language !== language) await i18n.changeLanguage(language);
+}
+
+// A language that is not shipped, set by setUnlistedLanguage; it outlives every setLanguage.
+let pinned: string | undefined;
+
+/**
+ * The shipped language that stands in for `code`: the first shipped entry of its chain (de for
+ * de-DE, as the server falls back), English for any other code (concept 22 section 4.3).
+ */
+export function shippedLanguageFor(code: string): Language {
+  return languageChain(code).find(isLanguage) ?? fallbackLanguage;
+}
+
+/**
+ * Switches the UI to a shipped language. Any other code (a language a newer server knows, before
+ * this app ships its pack) shows the first shipped language of its chain instead of failing.
+ */
+export async function setLanguage(language: string): Promise<void> {
+  await switchTo(pinned ?? shippedLanguageFor(language));
+}
+
+/**
+ * Switches to a bundle that is not a shipped language and keeps it while profiles change: the
+ * pseudo language en-XA of development and Storybook (i18n/pseudo.ts); clearUnlistedLanguage ends it.
+ */
+export async function setUnlistedLanguage(language: string, bundle: Bundle): Promise<void> {
+  if (!i18n.hasResourceBundle(language, 'translation'))
+    i18n.addResourceBundle(language, 'translation', bundle, true, true);
+  pinned = language;
+  await switchTo(language);
+}
+
+/** Ends setUnlistedLanguage: setLanguage chooses again. */
+export function clearUnlistedLanguage(): void {
+  pinned = undefined;
+}
+
+/** The language the UI shows now, as a shipped one (English when none is set yet). */
 export function currentLanguage(): Language {
-  return isLanguage(i18n.resolvedLanguage) ? i18n.resolvedLanguage : defaultLanguage;
+  return isLanguage(i18n.language) ? i18n.language : fallbackLanguage;
 }
+
+/** The shipped language for the browser's preferences (concept 22 section 4.2). */
+export const detectLanguage = (preferences: readonly string[] = navigator.languages): Language =>
+  detectFrom(preferences);
 
 i18n.on('languageChanged', (language) => {
   document.documentElement.lang = language;
+  // No right-to-left language yet (concept 22 section 4.10); set with the language for when one
+  // comes.
+  document.documentElement.dir = 'ltr';
 });
 
 const initial = detectLanguage();
-const initialBundle = await loaders[initial]();
 
 await i18n.use(initReactI18next).init({
-  resources: { [initial]: { translation: initialBundle.default } },
+  resources: {},
   lng: initial,
-  fallbackLng: 'en',
-  supportedLngs: supportedLanguages,
+  fallbackLng: fallbackLanguage,
   interpolation: { escapeValue: false },
   initAsync: false,
 });
+// `{{count, number}}` in a text formats like every Intl call of the app: Swiss for de.
+i18n.services.formatter?.addCached('number', (language, options: Intl.NumberFormatOptions) => {
+  const format = new Intl.NumberFormat(intlLocale(language ?? initial), options);
+  return (value: number) => format.format(value);
+});
+await switchTo(initial);
 
 export default i18n;

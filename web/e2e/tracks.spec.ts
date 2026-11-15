@@ -186,7 +186,7 @@ test('the subtitle style by keyboard: size and colour on the layer, the offset s
   await page.keyboard.press('ArrowRight');
   await expectFocusOn(page, style.getByRole('button', { name: '0,1 s später' }));
   for (let presses = 0; presses < 10; presses += 1) await page.keyboard.press('Enter');
-  await expect(style.getByText('+1,0 s')).toBeVisible();
+  await expect(style.getByText('+1.0 s')).toBeVisible();
   await expect
     .poll(async () => (await layer.count()) === 0 || (await layer.textContent()))
     .not.toBe(shown);

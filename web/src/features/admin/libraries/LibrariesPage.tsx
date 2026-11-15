@@ -33,6 +33,8 @@ import { LibraryFoldersDialog } from './LibraryFoldersDialog';
 import { RenameLibraryDialog } from './RenameLibraryDialog';
 import { TrickplayDialog } from './TrickplayDialog';
 import styles from './Libraries.module.css';
+import { ratingLabel } from '../../shared/choices';
+import { intlLocale } from '@/i18n';
 
 /** The filter tabs by kind (Bib-C): all libraries, then one per kind. */
 const TABS = ['all', 'video', 'audiobooks', 'podcasts'] as const;
@@ -90,7 +92,7 @@ function LibrariesContent() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const titleRef = useRef<HTMLHeadingElement>(null);
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
 
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -536,7 +538,7 @@ function LibrariesContent() {
               setMessage(
                 t('admin.libraries.changeRating.saved', {
                   name: updated.name,
-                  rating: t('rating.fsk', { age: updated.defaultRating }),
+                  rating: ratingLabel(t, updated.defaultRating),
                 }),
               );
             }

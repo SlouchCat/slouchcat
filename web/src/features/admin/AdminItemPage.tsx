@@ -37,6 +37,7 @@ import { TrailersTab } from './item/TrailersTab';
 import { MatchDialog } from './MatchDialog';
 import { adminItemQuery, maintenanceKey, metadataSettingsQuery } from './queries';
 import styles from './item/AdminItem.module.css';
+import { intlLocale } from '@/i18n';
 
 const route = getRouteApi('/_authed/_active/_chrome/admin/items/$itemId');
 
@@ -58,7 +59,7 @@ function AdminItemView({ itemId }: { itemId: string }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const titleRef = useRef<HTMLHeadingElement>(null);
-  const number = new Intl.NumberFormat(i18n.language);
+  const number = new Intl.NumberFormat(intlLocale(i18n.language));
 
   // The draft needs what the server holds before the query knows whether to pause for it: a
   // passive observer reads the same cache entry without fetching.

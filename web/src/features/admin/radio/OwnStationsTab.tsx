@@ -25,6 +25,7 @@ import {
 } from '../queries';
 import { CreateStationDialog } from './CreateStationDialog';
 import styles from './Radio.module.css';
+import { intlLocale } from '@/i18n';
 
 /** Every own station, in the offer or not (contract 1.19.0, `source=own`). */
 const OWN = { source: 'own', offered: false } as const;
@@ -43,7 +44,7 @@ interface OwnStationsTabProps {
  */
 export function OwnStationsTab({ onEdit, titleRef }: OwnStationsTabProps) {
   const { t, i18n } = useTranslation();
-  const language = i18n.language;
+  const language = intlLocale(i18n.language);
   const queryClient = useQueryClient();
   const [message, setMessage] = useStatusMessage();
   // Every own station, read page by page as the table scrolls; always virtual like «Sender»

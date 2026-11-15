@@ -165,11 +165,11 @@ test('panels and the gear by keyboard: open, arrows, a page and back, Escape; no
   await expect(speed.getByRole('button', { name: 'Zurück' })).toBeVisible();
   await expectFocusOn(page, speed.getByRole('option', { name: '1×' }));
   await page.keyboard.press('ArrowDown');
-  await expectFocusOn(page, speed.getByRole('option', { name: '1,25×' }));
+  await expectFocusOn(page, speed.getByRole('option', { name: '1.25×' }));
   await page.keyboard.press('Enter');
   await expect.poll(rate).toBe(1.25);
   await page.keyboard.press('Backspace');
-  await expect(speedRow).toHaveAccessibleDescription('1,25×');
+  await expect(speedRow).toHaveAccessibleDescription('1.25×');
   await expectVisibleFocus(page);
 
   // The sound options: Space switches night mode on (Web Audio, Chromium and Firefox).
@@ -221,7 +221,7 @@ test('the subtitle panel and its style page by the arrows alone: a remote has no
   const later = style.getByRole('button', { name: '0,1 s später' });
   await expectFocusOn(page, later);
   await page.keyboard.press('Enter');
-  await expect(style.getByText('+0,1 s')).toBeVisible();
+  await expect(style.getByText('+0.1 s')).toBeVisible();
   await expectFocusOn(page, later);
   // ↑ goes back up into the lists; Backspace up to the subtitle panel, Escape closes it.
   await page.keyboard.press('ArrowUp');

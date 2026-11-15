@@ -40,6 +40,7 @@ import { PodcastDetail } from './podcasts/PodcastDetail';
 import { SubscribeDialog } from './podcasts/SubscribeDialog';
 import styles from './podcasts/Podcasts.module.css';
 import { librariesQuery, podcastDownloadsQuery, podcastsQuery } from './queries';
+import { intlLocale } from '@/i18n';
 
 /** After "Jetzt abrufen" the list asks again this often for a while, until the fetch shows. */
 const REFRESH_POLL_MS = 2000;
@@ -85,7 +86,7 @@ export function PodcastsPage() {
 function PodcastsContent() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const subscribeButton = useRef<HTMLButtonElement>(null);
 
@@ -173,7 +174,7 @@ function PodcastsContent() {
   const [filter, setFilter] = useState<PodcastFilter>('all');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<PodcastSort>('title');
-  const collator = useMemo(() => new Intl.Collator(i18n.language), [i18n.language]);
+  const collator = useMemo(() => new Intl.Collator(intlLocale(i18n.language)), [i18n.language]);
   const [message, setMessage] = useStatusMessage();
   const [failure, setFailure] = useState<unknown>(null);
   const invalidate = () => queryClient.invalidateQueries({ queryKey: podcastsQuery.queryKey });
@@ -236,7 +237,7 @@ function PodcastsContent() {
     [fetching],
   );
   const columns = useMemo(
-    () => podcastColumns(t, i18n.language, number, isFetching),
+    () => podcastColumns(t, intlLocale(i18n.language), number, isFetching),
     [t, i18n.language, number, isFetching],
   );
   const detail = (podcast: AdminPodcast) => (
@@ -287,7 +288,8 @@ function PodcastsContent() {
     const shown = sortPodcasts(
       rows.filter(
         (podcast) =>
-          matchesFilter(podcast, filter) && matchesSearch(podcast, search, i18n.language),
+          matchesFilter(podcast, filter) &&
+          matchesSearch(podcast, search, intlLocale(i18n.language)),
       ),
       sort,
       collator,
@@ -347,7 +349,7 @@ function PodcastsContent() {
         {
           key: 'stored',
           label: t('admin.podcasts.kpi.stored'),
-          value: formatBytes(storedBytes, i18n.language),
+          value: formatBytes(storedBytes, intlLocale(i18n.language)),
         },
         {
           key: 'queue',

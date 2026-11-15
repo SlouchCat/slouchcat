@@ -30,6 +30,7 @@ import {
 import { PageRetry } from './ItemGrid';
 import { notificationsSource, useMarkAllReadMutation, useMarkReadMutation } from './queries';
 import styles from './Discover.module.css';
+import { intlLocale } from '@/i18n';
 
 const BACK_KEY = 'notifications-back';
 const READ_ALL_KEY = 'notifications-read-all';
@@ -158,9 +159,9 @@ export function NotificationsPage() {
                   href={paths.item(entry.item.id)}
                   title={entryTitle(t, entry)}
                   context={entryContext(t, entry)}
-                  time={formatDateTime(entry.createdAt, i18n.language)}
+                  time={formatDateTime(entry.createdAt, intlLocale(i18n.language))}
                   unread={!entry.readAt}
-                  label={entryLabel(t, entry, i18n.language)}
+                  label={entryLabel(t, entry, intlLocale(i18n.language))}
                   onOpen={() => {
                     if (!entry.readAt) markRead.mutate(entry.id);
                   }}

@@ -412,6 +412,23 @@ func (q *Queries) DeliveryInsert(ctx context.Context, arg DeliveryInsertParams) 
 	return id, err
 }
 
+const deliveryLanguage = `-- name: DeliveryLanguage :one
+SELECT CAST(COALESCE((SELECT p.language FROM profiles AS p WHERE p.id = d.profile_id),
+                     (SELECT p.language FROM profiles AS p WHERE p.account_id = d.account_id
+                      ORDER BY p.is_default DESC, p.id LIMIT 1), 'en') AS TEXT) AS language
+FROM deliveries AS d
+WHERE d.id = ?1
+`
+
+// The language a queued delivery was written in, for the lang attribute of its HTML mail: the
+// profile's for an event of a profile, else the primary profile's, English without one.
+func (q *Queries) DeliveryLanguage(ctx context.Context, id int64) (string, error) {
+	row := q.db.QueryRowContext(ctx, deliveryLanguage, id)
+	var language string
+	err := row.Scan(&language)
+	return language, err
+}
+
 const deliveryRecentExists = `-- name: DeliveryRecentExists :one
 SELECT EXISTS (
     SELECT 1 FROM deliveries WHERE event = ?1 AND source = ?2 AND created_at >= ?3
@@ -476,7 +493,7 @@ func (q *Queries) DeliverySkipped(ctx context.Context, arg DeliverySkippedParams
 const notifyAccount = `-- name: NotifyAccount :one
 SELECT a.id, a.email, a.role,
        CAST(COALESCE((SELECT p.language FROM profiles AS p WHERE p.account_id = a.id
-                      ORDER BY p.is_default DESC, p.id LIMIT 1), 'de') AS TEXT) AS language
+                      ORDER BY p.is_default DESC, p.id LIMIT 1), 'en') AS TEXT) AS language
 FROM accounts AS a
 WHERE a.id = ?1
 `
@@ -488,7 +505,8 @@ type NotifyAccountRow struct {
 	Language string
 }
 
-// An account with the language of its primary profile, for the texts of its messages.
+// An account with the language of its primary profile, for the texts of its messages; English
+// for an account without a profile (concept 22 section 4.5, the last link of the text chain).
 func (q *Queries) NotifyAccount(ctx context.Context, id int64) (NotifyAccountRow, error) {
 	row := q.db.QueryRowContext(ctx, notifyAccount, id)
 	var i NotifyAccountRow
@@ -504,7 +522,7 @@ func (q *Queries) NotifyAccount(ctx context.Context, id int64) (NotifyAccountRow
 const notifyOwner = `-- name: NotifyOwner :one
 SELECT a.id, a.email,
        CAST(COALESCE((SELECT p.language FROM profiles AS p WHERE p.account_id = a.id
-                      ORDER BY p.is_default DESC, p.id LIMIT 1), 'de') AS TEXT) AS language
+                      ORDER BY p.is_default DESC, p.id LIMIT 1), 'en') AS TEXT) AS language
 FROM accounts AS a
 WHERE a.is_owner = 1
 ORDER BY a.id

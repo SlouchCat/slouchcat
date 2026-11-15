@@ -55,6 +55,7 @@ import { useProgressReporter } from './useProgressReporter';
 import { lowerQuality, useSlowConnection } from './useSlowConnection';
 import { useWheelVolume } from './useWheelVolume';
 import styles from './Player.module.css';
+import { intlLocale } from '@/i18n';
 
 export { CONTROLS_HIDE_MS } from './useControlsVisibility';
 /** The track menu asks for new tracks this often while it is open (I-5). */
@@ -514,7 +515,9 @@ export function VideoPlayer({
     (delta: number) => {
       const next = stepPlaybackRate(video.current?.playbackRate ?? 1, delta);
       setRate(next);
-      const shown = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }).format(next);
+      const shown = new Intl.NumberFormat(intlLocale(i18n.language), {
+        maximumFractionDigits: 2,
+      }).format(next);
       showOsd(t('player.chrome.rate', { rate: shown }));
     },
     [i18n.language, showOsd, t],
@@ -910,7 +913,7 @@ export function VideoPlayer({
     };
   });
 
-  const language = i18n.language;
+  const language = intlLocale(i18n.language);
   const subtitle = selectedSubtitle(info);
   const audioIndex =
     info.selection.audioTrack ?? tracks.audio.find((track) => track.default)?.index;

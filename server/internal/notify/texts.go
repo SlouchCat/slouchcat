@@ -1,110 +1,61 @@
 package notify
 
 import (
-	"fmt"
+	"embed"
 	"html"
+	"io/fs"
 	"strings"
+
+	"github.com/slouchcat/slouchcat/server/internal/i18n"
 )
 
-// Texts of the messages the server writes itself, in the two languages of the profiles (German in
-// Swiss spelling and English). The language is the profile's for an event of a profile and the
-// primary profile's for an event of an account. Announcements carry the main user's own words.
-var texts = map[string]map[string]string{
-	"de": {
-		"new_episode":                  "Neue Folge: %s",
-		"new_podcast_episode":          "Neue Episode: %s",
-		"invitation_subject":           "Einladung angenommen",
-		"invitation_body":              "%s hat deine Einladung angenommen und ein Konto erstellt.",
-		"job_failed_subject":           "Fehler: Job %s",
-		"job_failed_body":              "Der Job %s ist nach %d Versuchen fehlgeschlagen.\n\n%s",
-		"scan_aborted_subject":         "Scan abgebrochen: %s",
-		"scan_aborted_body":            "Der Scan der Bibliothek %s wurde abgebrochen, nichts wurde geändert.\n\n%s",
-		"root_removed_subject":         "Ordner entfernt: %s",
-		"root_content_changed_subject": "Inhalt eines Ordners geändert: %s",
-		"root_content_changed_body":    "Der Ordner %s der Bibliothek %s liest jetzt %s statt %s. Wie beim Entfernen sind dadurch %d Titel aus den Listen verschwunden und %d Dateien nicht mehr registriert; der Scan legt die Titel neu an. Fortschritt und Merkliste bleiben an den alten Titeln; ihre Offline-Downloads auf den Geräten sind gelöscht.",
-		"content_movie":                "Filme",
-		"content_series":               "Serien",
-		"content_audiobook":            "Hörbücher",
-		"content_podcast":              "Podcasts",
-		"root_removed_body":            "Der Ordner %s wurde aus der Bibliothek %s entfernt. %d Titel sind dadurch aus den Listen verschwunden, %d Dateien sind nicht mehr registriert. Fortschritt und Merkliste bleiben an den Titeln; ihre Offline-Downloads auf den Geräten sind gelöscht.",
-		"root_missing":                 "Ein Ordner der Bibliothek fehlt (Laufwerk oder Freigabe nicht verbunden).",
-		"root_empty":                   "Ein Ordner der Bibliothek ist leer, obwohl Dateien darin bekannt sind (nicht eingehängt?).",
-		"loss_over_threshold":          "Mehr als 20 % der bekannten Dateien wären verschwunden. Unter Verwaltung › Bibliotheken lässt sich der Verlust bestätigen.",
-		"test_subject":                 "Slouchcat: Testnachricht",
-		"test_body":                    "Diese Nachricht bestätigt, dass der Kanal %s funktioniert.",
-		"telegram_linked":              "Slouchcat: Dieser Chat ist jetzt mit dem Konto %s verknüpft.",
-		"channel_email":                "E-Mail",
-		"channel_push":                 "Push",
-		"channel_telegram":             "Telegram",
-		"update_rolled_back_subject":   "Update auf %s zurückgenommen",
-		"update_rolled_back_body":      "Das Update von %s auf %s ist gescheitert. Der Updater hat die alte Version wieder gestartet.",
-		"update_failed_subject":        "Update auf %s fehlgeschlagen",
-		"update_failed_body":           "Das Update von %s auf %s ist fehlgeschlagen.",
-		"update_code":                  "Grund: %s",
-		"update_migrated":              "Die Datenbank wurde bereits migriert; der Updater hat darum nichts zurückgenommen.",
-		"update_migrated_backup":       "Die Datenbank wurde bereits migriert; der Updater hat darum nichts zurückgenommen. Zurück geht es nur mit der Sicherung %s.",
-		"update_version_unknown":       "(unbekannt)",
-	},
-	"en": {
-		"new_episode":                  "New episode: %s",
-		"new_podcast_episode":          "New episode: %s",
-		"invitation_subject":           "Invitation accepted",
-		"invitation_body":              "%s accepted your invitation and created an account.",
-		"job_failed_subject":           "Error: job %s",
-		"job_failed_body":              "The job %s failed after %d attempts.\n\n%s",
-		"scan_aborted_subject":         "Scan aborted: %s",
-		"scan_aborted_body":            "The scan of the library %s was aborted; nothing was changed.\n\n%s",
-		"root_removed_subject":         "Folder removed: %s",
-		"root_content_changed_subject": "Folder content changed: %s",
-		"root_content_changed_body":    "The folder %s of the library %s now reads %s instead of %s. As with a removal, %d titles left the lists and %d files are no longer registered; the scan creates the titles anew. Progress and watchlist entries stay with the old titles; their offline downloads on the devices are deleted.",
-		"content_movie":                "films",
-		"content_series":               "series",
-		"content_audiobook":            "audiobooks",
-		"content_podcast":              "podcasts",
-		"root_removed_body":            "The folder %s was removed from the library %s. %d titles left the lists with it and %d files are no longer registered. Progress and watchlist entries stay with the titles; their offline downloads on the devices are deleted.",
-		"root_missing":                 "A folder of the library is missing (disk or share not attached).",
-		"root_empty":                   "A folder of the library is empty although files in it are known (not mounted?).",
-		"loss_over_threshold":          "More than 20 % of the known files would have disappeared. Administration › Libraries can accept the loss.",
-		"test_subject":                 "Slouchcat: test message",
-		"test_body":                    "This message confirms that the channel %s works.",
-		"telegram_linked":              "Slouchcat: this chat is now linked to the account %s.",
-		"channel_email":                "e-mail",
-		"channel_push":                 "push",
-		"channel_telegram":             "Telegram",
-		"update_rolled_back_subject":   "Update to %s rolled back",
-		"update_rolled_back_body":      "The update from %s to %s failed. The updater started the old version again.",
-		"update_failed_subject":        "Update to %s failed",
-		"update_failed_body":           "The update from %s to %s failed.",
-		"update_code":                  "Reason: %s",
-		"update_migrated":              "The database was migrated already, so the updater rolled nothing back.",
-		"update_migrated_backup":       "The database was migrated already, so the updater rolled nothing back. Only the backup %s leads back.",
-		"update_version_unknown":       "(unknown)",
-	},
+// Texts of the messages the server writes itself (concept 22 section 4.5): embedded i18next JSON
+// files, one per language (German in Swiss spelling, English), with {{name}} placeholders. The
+// language is the profile's for an event of a profile and the primary profile's for an event of an
+// account; a text the language lacks comes from German for de-DE, then from English (i18n.Chain).
+// Announcements carry the main user's own words and are not translated.
+//
+//go:embed locales/*.json
+var localeFiles embed.FS
+
+var texts = mustLoadTexts()
+
+func mustLoadTexts() *i18n.Bundle {
+	sub, err := fs.Sub(localeFiles, "locales")
+	if err != nil {
+		panic(err)
+	}
+	b, err := i18n.Load(sub)
+	if err != nil {
+		panic(err) // the files are embedded; TestServerTexts reads them in every test run
+	}
+	return b
 }
 
-// text formats the text key in lang (German for an unknown language); a key without text returns
-// the key, so an unknown reason code still says something.
-func text(lang, key string, args ...any) string {
-	t, ok := texts[lang]
-	if !ok {
-		t = texts["de"]
+// vars are the values of the {{name}} placeholders of a text.
+type vars = map[string]any
+
+// text returns the text key in lang with the placeholders filled in from v; a key without text
+// returns the key, so an unknown reason code still says something.
+func text(lang, key string, v ...vars) string {
+	var values vars
+	if len(v) > 0 {
+		values = v[0]
 	}
-	format, ok := t[key]
-	if !ok {
-		return key
+	if t, ok := texts.Text(lang, key, values); ok {
+		return t
 	}
-	if len(args) == 0 {
-		return format
-	}
-	return fmt.Sprintf(format, args...)
+	return key
 }
 
 // message is what a channel sends: subject (title of a push message, first line of a Telegram
-// message), plain text body and an optional link (a path of the web app or an absolute URL).
+// message), plain text body, an optional link (a path of the web app or an absolute URL) and the
+// language it is written in (the lang attribute of the HTML mail; none when unknown).
 type message struct {
 	Subject string
 	Body    string
 	Link    string
+	Lang    string
 }
 
 // absolute returns the link as an absolute URL on the public address, "" without one.
@@ -125,7 +76,11 @@ func emailBodies(m message, publicURL string) (string, string) {
 	link := absolute(m.Link, publicURL)
 	plain := m.Body
 	var h strings.Builder
-	h.WriteString(`<!doctype html><html><body><p>`)
+	h.WriteString(`<!doctype html><html`)
+	if m.Lang != "" {
+		h.WriteString(` lang="` + html.EscapeString(m.Lang) + `"`)
+	}
+	h.WriteString(`><body><p>`)
 	h.WriteString(strings.ReplaceAll(html.EscapeString(m.Body), "\n", "<br>"))
 	h.WriteString(`</p>`)
 	if link != "" {

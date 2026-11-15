@@ -32,6 +32,7 @@ import {
   type NewAnnouncement,
 } from './announcements/AnnouncementDetail';
 import { adminAnnouncementsQuery } from './queries';
+import { intlLocale } from '@/i18n';
 
 /** The item of the new announcement while it is not saved: a stable id of its own (`?item=new`). */
 const NEW = 'new';
@@ -371,7 +372,7 @@ function AnnouncementsContent() {
         : isChanged(String(entry.id))
           ? t('admin.announcements.item.changed')
           : t('admin.announcements.item.created', {
-              date: formatDate(entry.createdAt, i18n.language),
+              date: formatDate(entry.createdAt, intlLocale(i18n.language)),
             }),
       section: entry.publishedAt ? section.published : section.drafts,
     })),

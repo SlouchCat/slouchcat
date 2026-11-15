@@ -7,6 +7,8 @@ import { Chip, StatusDot, VisuallyHidden, type StatusDotState } from '@/ui';
 import { type DataColumn } from '@/ui/aria';
 import { libraryMetadataQuery } from '../queries';
 import styles from './Libraries.module.css';
+import { ratingLabel } from '../../shared/choices';
+import { intlLocale } from '@/i18n';
 
 const dotOf: Record<Library['scan']['state'], StatusDotState> = {
   never: 'pending',
@@ -78,7 +80,7 @@ function StateCell({ library }: { library: Library }) {
       {scan.finishedAt && (
         <span className={styles.muted}>
           {t('admin.libraries.finishedAt', {
-            date: formatDateTime(scan.finishedAt, i18n.language),
+            date: formatDateTime(scan.finishedAt, intlLocale(i18n.language)),
           })}
         </span>
       )}
@@ -168,7 +170,7 @@ export function libraryColumns(t: TFunction, hold: boolean): DataColumn<Library>
             <span>
               <Chip tone="outline">
                 {t('admin.libraries.defaultRating', {
-                  rating: t('rating.fsk', { age: library.defaultRating }),
+                  rating: ratingLabel(t, library.defaultRating),
                 })}
               </Chip>
             </span>

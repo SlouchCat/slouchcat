@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.33.0
+  version: 1.34.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -5003,8 +5003,8 @@ paths:
       summary: Change the server's metadata settings
       description: |
         All at once: the body replaces every setting. 422 `validation_failed` with the field errors
-        `langs_empty`, `lang_unknown`, `ui_lang_required` (the server's list must hold `de`),
-        `chain_duplicate`, `country_unknown`, `invalid_value`. Nothing is queued (F-8): the answer
+        `langs_empty`, `lang_unknown`, `chain_duplicate`, `country_unknown`, `invalid_value`. The
+        list need not hold `de` (contract 1.34.0, ADR 0033; `ui_lang_required` is gone). Nothing is queued (F-8): the answer
         names the matched titles the change affects (`affectedTitles`) and the interface offers
         `applyMetadata`.
       tags: [admin]
@@ -5071,7 +5071,8 @@ paths:
       summary: Change the metadata deviation of a library
       description: |
         `textLangs` and `images` replace the stored deviation; `null` (or a field left out) means
-        "like the server". A library's language list must hold `de` or `en` (`ui_lang_required`).
+        "like the server". A library's language list need not hold `de` or `en` (contract 1.34.0,
+        ADR 0033; `ui_lang_required` is gone).
         Nothing is queued (F-8); the answer names the affected titles of the library.
       tags: [admin]
       x-visibility: admin
@@ -11050,7 +11051,7 @@ components:
           $ref: "#/components/schemas/Rating"
         language:
           $ref: "#/components/schemas/Language"
-          description: The language of the interface (de, en); also the language of the metadata while `metadataLanguage` is unset.
+          description: The language of the interface (de, en); while `metadataLanguage` is unset, the metadata are read in this language (de-DE reads `de`, nb reads `no`; ADR 0033).
         metadataLanguage:
           $ref: "#/components/schemas/MetadataLanguage"
           description: |

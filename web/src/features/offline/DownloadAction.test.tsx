@@ -50,7 +50,7 @@ beforeEach(() => {
 
 afterEach(() => vi.restoreAllMocks());
 
-const size = (bytes: number) => formatBytes(bytes, 'de');
+const size = (bytes: number) => formatBytes(bytes, 'de-CH');
 
 describe('download on the detail page', () => {
   it('offers the three profiles with their size and the audio track, and creates the download', async () => {

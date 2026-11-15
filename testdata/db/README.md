@@ -429,3 +429,14 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   gegeben, Abruf am 14. November 2026, 12:00 UTC. Dann `store.Dump`, kein neuer Pfad im Stand.
   `TestFrozenSammlungenStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist;
   `TestMigration00060CollectionDetails` prüft den Schritt von `meine-medien.sql` aus.
+- `sprachgeruest.sql`: Stand **vor** Migration 00061 «Profile ohne festen Sprachcode» (Konzept 22 Stufe 1,
+  ADR 0033: der Neubau von `profiles` ohne `CHECK` auf `language` und `max_rating`). Erzeugt am
+  15. November 2026 aus `sammlungen.sql` (Stand nach 00060): Stand eingespielt, ohne Migration, dann per SQL
+  ein drittes Profil «Kind» angelegt, das jede Spalte von `profiles` nutzt (PIN, Offline-PIN, Stufe 6,
+  Limits, Akzent, eigene Metadaten-Sprache `en`, Ton- und Untertitelsprachen, nur Bibliothek 1), dazu ein
+  Fortschritt, ein Merklisten-Eintrag, zwei Downloads (einer des Hauptprofils, einer von «Kind»), eine
+  Auto-Download-Regel, das zweite Gerät auf «Kind» und ein Ereignis im Aktivitätsprotokoll (Stichtag
+  15. November 2026, 12:00 UTC). Dann `store.Dump`, kein neuer Pfad im Stand.
+  `TestFrozenSprachgeruestStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist;
+  `TestMigration00061ProfilesOpenLanguage` prüft den Neubau von diesem Stand aus (Fremdschlüssel, Sicht,
+  Indizes, Trigger, ein Profil mit `ja` und Stufe 13, alle übrigen `CHECK`).

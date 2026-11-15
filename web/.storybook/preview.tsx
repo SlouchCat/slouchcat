@@ -4,7 +4,8 @@ import '@/ui/global.css';
 import '@/ui/density.css';
 import '@/i18n';
 import type { Preview } from '@storybook/react-vite';
-import { setLanguage } from '@/i18n';
+import { clearUnlistedLanguage, setLanguage } from '@/i18n';
+import { setPseudoLanguage } from '@/i18n/pseudo';
 import { loadSpatialNavigation } from '@/ui';
 // Straight from its module: the '@/ui/aria' barrel would load every stylesheet before the stories
 // and change the order of the cascade.
@@ -28,8 +29,14 @@ const preview: Preview = {
       description: 'Density of the administration (ADR 0020)',
       toolbar: { items: ['default', 'compact'] },
     },
+    // en-XA is the pseudo language (concept 22 section 4.4): every text 40 % longer and in
+    // brackets, to find cut-off texts. The screenshot baselines stay German.
+    locale: {
+      description: 'Language of the story',
+      toolbar: { items: ['de', 'en-XA'] },
+    },
   },
-  initialGlobals: { density: 'default' },
+  initialGlobals: { density: 'default', locale: 'de' },
   decorators: [
     (Story, context) => {
       const compact = context.globals.density === 'compact';
@@ -47,9 +54,14 @@ const preview: Preview = {
     },
   ],
   loaders: [
-    async () => {
-      // German like the e2e suite; spatial components need norigin before they render.
-      await setLanguage('de');
+    async (context) => {
+      // German like the e2e suite unless the toolbar asks for en-XA; spatial components need
+      // norigin before they render.
+      if (context.globals.locale === 'en-XA') await setPseudoLanguage();
+      else {
+        clearUnlistedLanguage();
+        await setLanguage('de');
+      }
       await loadSpatialNavigation();
       return {};
     },

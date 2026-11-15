@@ -5,6 +5,7 @@ import { formatDuration } from '@/lib/format';
 import { Text } from '@/ui';
 import { BarChart, DataTable, type DataColumn } from '@/ui/aria';
 import styles from './Stats.module.css';
+import { intlLocale } from '@/i18n';
 
 const deviceType = (t: TFunction, type: StatDevice['type']) =>
   type === 'unknown' ? t('admin.stats.devices.unknown') : t(`admin.devices.types.${type}`);
@@ -12,7 +13,7 @@ const deviceType = (t: TFunction, type: StatDevice['type']) =>
 /** «Schauzeit je Profil» (STA-2): a chart of the watch time and the table with plays and time. */
 export function WatchTime({ profiles }: { profiles: StatProfile[] }) {
   const { t, i18n } = useTranslation();
-  const number = new Intl.NumberFormat(i18n.language);
+  const number = new Intl.NumberFormat(intlLocale(i18n.language));
   if (profiles.length === 0) {
     return <Text tone="secondary">{t('admin.stats.profiles.empty')}</Text>;
   }
@@ -77,7 +78,7 @@ export function WatchTime({ profiles }: { profiles: StatProfile[] }) {
 /** «Geräte» (STA-2): the watch time per device type as a chart and the table with the counts. */
 export function Devices({ devices }: { devices: StatDevice[] }) {
   const { t, i18n } = useTranslation();
-  const number = new Intl.NumberFormat(i18n.language);
+  const number = new Intl.NumberFormat(intlLocale(i18n.language));
   if (devices.length === 0) {
     return <Text tone="secondary">{t('admin.stats.devices.empty')}</Text>;
   }

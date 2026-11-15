@@ -76,30 +76,29 @@ func TestSettingsDefaultsParseAndValidate(t *testing.T) {
 		t.Errorf("round trip: %+v", back)
 	}
 
-	// Validation (9.5): the server's list needs de (F-9), a library's list de or en (E-9).
+	// Validation (9.5): a list that is not empty, of known codes, without duplicates. Neither
+	// the server's list nor a library's has to hold German or English (concept 22 F-7, ADR 0033).
 	cases := []struct {
-		field  string
-		langs  []string
-		server bool
-		want   string
+		langs []string
+		want  string
 	}{
-		{"textLangs", nil, true, "langs_empty"},
-		{"textLangs", []string{"en", "xx-YY"}, true, "lang_unknown"},
-		{"textLangs", []string{"de", "de"}, true, "chain_duplicate"},
-		{"textLangs", []string{"en", "es"}, true, "ui_lang_required"},
-		{"textLangs", []string{"ja", "es"}, false, "ui_lang_required"},
-		{"textLangs", []string{"ja", "en"}, false, ""},
+		{nil, "langs_empty"},
+		{[]string{"en", "xx-YY"}, "lang_unknown"},
+		{[]string{"de", "de"}, "chain_duplicate"},
+		{[]string{"en", "es"}, ""},
+		{[]string{"fr", "en"}, ""},
+		{[]string{"ja", "es"}, ""},
 	}
 	for _, c := range cases {
-		verr := ValidateTextLangs(c.field, c.langs, c.server)
+		verr := ValidateTextLangs("textLangs", c.langs)
 		if c.want == "" {
 			if verr != nil {
-				t.Errorf("%v server=%v: unexpected %v", c.langs, c.server, verr)
+				t.Errorf("%v: unexpected %v", c.langs, verr)
 			}
 			continue
 		}
-		if verr == nil || !hasFieldError(verr.Fields, c.field, c.want) {
-			t.Errorf("%v server=%v: got %v, want %s", c.langs, c.server, verr, c.want)
+		if verr == nil || !hasFieldError(verr.Fields, "textLangs", c.want) {
+			t.Errorf("%v: got %v, want %s", c.langs, verr, c.want)
 		}
 	}
 	bad := DefaultSettings()

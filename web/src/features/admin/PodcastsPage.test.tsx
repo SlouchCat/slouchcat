@@ -552,7 +552,7 @@ describe('admin podcasts page: stored episodes (concept 19 part A)', () => {
     await renderAdminPage('/admin/podcasts');
     const user = userEvent.setup();
     const band = await openBand(user);
-    expect(await within(band).findByText('beschreibbar · 2,1 TB frei')).toBeVisible();
+    expect(await within(band).findByText('beschreibbar · 2.1 TB frei')).toBeVisible();
     const save = within(within(band).getByRole('radiogroup', { name: 'Neue Folgen' })).getByRole(
       'radio',
       { name: 'Speichern' },
@@ -587,7 +587,7 @@ describe('admin podcasts page: stored episodes (concept 19 part A)', () => {
     const scope = within(band).getByRole('radiogroup', { name: 'Umfang' });
     await user.click(within(scope).getByRole('radio', { name: 'Alle Folgen' }));
     const estimate = await within(band).findByText(
-      /^Das lädt einmalig rund 1’?\.?894 Folgen, etwa 52 GB\. Frei: 2,1 TB\.$/,
+      /^Das lädt einmalig rund 1['’]894 Folgen, etwa 52 GB\. Frei: 2\.1 TB\.$/,
     );
     expect(estimate).toBeVisible();
     expect(

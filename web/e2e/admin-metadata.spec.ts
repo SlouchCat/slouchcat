@@ -216,8 +216,8 @@ test('the default scope lists the areas and the languages, the save bar is clean
   await expect(list.getByRole('listitem')).toHaveCount(before.textLangs.length);
   // Fixed places, each a select of the languages (10.2).
   await expect(place(list, 1)).toHaveValue('de');
-  // The default needs Deutsch (MET-2): its «×» is off.
-  await expect(list.getByRole('button', { name: '1. Sprache (Deutsch) entfernen' })).toBeDisabled();
+  // The default needs no Deutsch any more (concept 22 F-7): its «×» is on.
+  await expect(list.getByRole('button', { name: '1. Sprache (Deutsch) entfernen' })).toBeEnabled();
   await expect(saveBar(page).getByText('Gespeichert', { exact: true })).toBeVisible();
   // Nothing changed: «Speichern» stays usable and «Verwerfen» is not there (decision 18).
   await expect(saveBar(page).getByRole('button', { name: 'Speichern' })).toBeEnabled();
@@ -393,7 +393,7 @@ test('a library deviates in its languages; the libraries page says so', async ({
     await expect(deviate).toBeChecked();
     await expect(languages.getByText('wie Server')).toHaveCount(0);
     await expect(place(list, 2)).toHaveValue('en');
-    // A library needs Deutsch or Englisch: with both there, Englisch may go.
+    // Any place of a library's list may go (concept 22 F-7), here Englisch.
     const remove = list.getByRole('button', { name: '2. Sprache (Englisch) entfernen' });
     await expect(remove).toBeEnabled();
     await tabToFromTop(page, remove);
@@ -401,7 +401,7 @@ test('a library deviates in its languages; the libraries page says so', async ({
     await expect(list.getByRole('listitem')).toHaveCount(1);
     // The focus moves to the remaining place.
     await expectFocusOn(page, place(list, 1));
-    // Deutsch is the last place now: it cannot go (E-9).
+    // Deutsch is the last place now: it cannot go (a list keeps one place).
     await expect(
       list.getByRole('button', { name: '1. Sprache (Deutsch) entfernen' }),
     ).toBeDisabled();

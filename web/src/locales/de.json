@@ -303,7 +303,8 @@
     "email": "E-Mail-Adresse",
     "password": "Passwort",
     "submit": "Anmelden",
-    "submitting": "Wird angemeldet …"
+    "submitting": "Wird angemeldet …",
+    "language": "Sprache: {{name}}"
   },
   "library": {
     "groups": {
@@ -380,7 +381,7 @@
       "moveUpLabel": "{{provider}} nach oben",
       "moveDownLabel": "{{provider}} nach unten",
       "noKey": "kein Schlüssel hinterlegt",
-      "noGerman": "liefert kein Deutsch",
+      "missingLanguages": "liefert kein {{languages}}",
       "fillOnly": "nur Auffüller",
       "hint": "Der erste Eintrag erkennt den Titel, die weiteren füllen nur auf. Reihenfolge mit den Pfeilen oder den Pfeiltasten.",
       "hintRank": "Der erste Eintrag erkennt den Titel, die weiteren füllen nur auf. Die Reihenfolge wählst du mit dem Platz.",
@@ -717,7 +718,8 @@
     }
   },
   "rating": {
-    "fsk": "FSK {{age}}"
+    "fsk": "FSK {{age}}",
+    "age": "ab {{age}}"
   },
   "format": {
     "hours": "{{hours}} h",
@@ -4585,11 +4587,11 @@
       },
       "languages": {
         "title": "Sprachen",
-        "intro": "Jede Sprache hier wird für jeden Titel geholt; Profile wählen daraus die Sprache ihrer Beschreibungen. Die Oberfläche bleibt Deutsch oder Englisch. Jede weitere Sprache kostet eine Anfrage je Titel und Staffel.",
+        "intro": "Jede Sprache hier wird für jeden Titel geholt; Profile wählen daraus die Sprache ihrer Beschreibungen. Die Oberfläche wählt jedes Profil für sich. Jede weitere Sprache kostet eine Anfrage je Titel und Staffel.",
         "list": "Metadaten-Sprachen",
         "rank": "{{position}}. Sprache",
         "more": "Weitere Sprache",
-        "fallback": "Reihenfolge = Rückfall: fehlt ein Text in der Sprache des Profils, zeigt Slouchcat die erste vorhandene der Liste, dann den Dateinamen. Der Standard braucht Deutsch; eine Bibliothek braucht Deutsch oder Englisch.",
+        "fallback": "Reihenfolge = Rückfall: fehlt ein Text in der Sprache des Profils, zeigt Slouchcat die erste vorhandene der Liste, dann den Dateinamen. Die Liste braucht mindestens eine Sprache.",
         "unknownAt": "{{provider}} kennt nicht: {{languages}}",
         "youtube": "{{count}} Sprachen: bis zu {{titles}} Titel am Tag mit YouTube-Trailersuche (Kontingent 10'000)."
       },
@@ -4688,7 +4690,6 @@
       "errors": {
         "langs_empty": "Mindestens eine Sprache.",
         "lang_unknown": "Unbekannter Sprachcode.",
-        "ui_lang_required": "Der Standard braucht Deutsch; eine Bibliothek Deutsch oder Englisch.",
         "chain_duplicate": "Jede Sprache nur einmal.",
         "country_unknown": "Unbekanntes Land.",
         "source_unknown": "Diese Bildquelle ist kein Kandidat des Titels."

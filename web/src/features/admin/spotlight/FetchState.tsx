@@ -7,6 +7,7 @@ import { formatDateTime } from '@/lib/format';
 import { Chip, Notice, Skeleton, StatusDot, TextLink, type StatusDotState } from '@/ui';
 import type { SpotlightConfig, SpotlightEntries } from '../queries';
 import styles from './Spotlight.module.css';
+import { intlLocale } from '@/i18n';
 
 /** Whether the row reaches the start page, and if not, why (SPO-1a, plan 7.1). */
 export interface RowState {
@@ -77,7 +78,7 @@ export function FetchState({
     ? t('admin.spotlight.state.failed', { reason: reason(status.lastError) })
     : status.lastSuccess
       ? t('admin.spotlight.state.fetched', {
-          date: formatDateTime(status.lastSuccess, i18n.language),
+          date: formatDateTime(status.lastSuccess, intlLocale(i18n.language)),
         })
       : t('admin.spotlight.state.never');
   const separator = <span aria-hidden="true">{t('admin.spotlight.state.separator')}</span>;

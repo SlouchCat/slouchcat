@@ -2,6 +2,7 @@ import type { EffectiveLimits, PlaybackLimits } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { RadioGroup, TextField } from '@/ui/aria';
+import { intlLocale } from '@/i18n';
 
 /**
  * Output heights a limit can name, lowest first. The output never exceeds 1080p (AN-17), so the
@@ -92,7 +93,7 @@ interface LimitFieldsProps {
  */
 export function LimitFields({ value, onChange, withWatch = true }: LimitFieldsProps) {
   const { t, i18n } = useTranslation();
-  const numbers = new Intl.NumberFormat(i18n.language);
+  const numbers = new Intl.NumberFormat(intlLocale(i18n.language));
   const range = (key: NumberLimit) => ({
     min: numbers.format(ranges[key].min),
     max: numbers.format(ranges[key].max),

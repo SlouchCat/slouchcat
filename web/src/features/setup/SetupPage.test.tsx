@@ -5,6 +5,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { homePage } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, session, type Routes } from '@/test/api';
 
+// Swiss numbers as the app formats German (de-CH; concept 22 section 4.4).
+const swiss = (value: number) => new Intl.NumberFormat('de-CH').format(value);
+
 /** The state of a server without GPU in the container and a tight inotify limit. */
 const system = (overrides: Partial<SystemInfo> = {}): SystemInfo => ({
   version: '0.9.0+abc1234',
@@ -266,7 +269,7 @@ describe('setup wizard', () => {
     const step = await screen.findByRole('region', { name: /Grafikchip und Dateisystem/ });
     expect(within(step).getByText('Kein Grafikchip erkannt')).toBeVisible();
     expect(within(step).getByText('Prozessor (Software)')).toBeVisible();
-    expect(within(step).getByText('8.192')).toBeVisible();
+    expect(within(step).getByText(swiss(8192))).toBeVisible();
     expect(within(step).getByText('tmpfs')).toBeVisible();
     const compose = within(step).getByRole('group', { name: 'Compose-Befehl für NVIDIA' });
     expect(compose).toHaveTextContent(

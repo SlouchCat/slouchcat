@@ -31,6 +31,7 @@ import {
 } from '../queries';
 import { languageCodes } from './languages';
 import styles from './Radio.module.css';
+import { intlLocale } from '@/i18n';
 
 type LockField = components['schemas']['RadioLockField'];
 
@@ -128,7 +129,7 @@ export function StationEditor({ stationId, onClose }: StationEditorProps) {
     <EditorDialog
       onClose={onClose}
       title={data?.name ?? t('common.loading')}
-      subtitle={data ? stationPlace(t, i18n.language, data) : undefined}
+      subtitle={data ? stationPlace(t, intlLocale(i18n.language), data) : undefined}
       imageUrl={imageUrl(data?.logo)}
       imageShape="portrait"
       closeLabel={t('admin.radio.editor.close')}
@@ -146,7 +147,7 @@ export function StationEditor({ stationId, onClose }: StationEditorProps) {
 
 function EditorForm({ station }: { station: AdminRadioStation }) {
   const { t, i18n } = useTranslation();
-  const language = i18n.language;
+  const language = intlLocale(i18n.language);
   const queryClient = useQueryClient();
   const [message, setMessage] = useStatusMessage();
   const [draft, setDraft] = useState(() => draftOf(station));
