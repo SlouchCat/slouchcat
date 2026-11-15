@@ -15,6 +15,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/store/certq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
@@ -915,7 +916,13 @@ func (s *Service) applyTitle(ctx context.Context, snap systemq.Item, rec TitleRe
 		return snap, false, fmt.Errorf("metadata.match: update item %s: %w", itemID, err)
 	}
 	// The certificates of every rating country, so a change of the country reads the ratings
-	// anew without asking the provider (concept 22 section 4.11).
+	// anew without asking the provider (concept 22 section 4.11). Another title at a provider
+	// makes every stored certificate worthless, those of the other providers too.
+	if p.TmdbID != cur.TmdbID || p.TvdbID != cur.TvdbID {
+		if err := certq.New(tx).DeleteAllItemCertifications(ctx, itemID); err != nil {
+			return snap, false, fmt.Errorf("metadata.match: delete certificates of %s: %w", itemID, err)
+		}
+	}
 	if err := storeCertifications(ctx, tx, itemID, rec.Provider, rec.Certifications, now); err != nil {
 		return snap, false, fmt.Errorf("metadata.match: %w", err)
 	}

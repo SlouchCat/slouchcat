@@ -9,6 +9,16 @@ import (
 	"context"
 )
 
+const deleteAllItemCertifications = `-- name: DeleteAllItemCertifications :exec
+DELETE FROM item_certifications WHERE item_id = ?1
+`
+
+// Every certificate of a title: the match found another title at a provider.
+func (q *Queries) DeleteAllItemCertifications(ctx context.Context, itemID string) error {
+	_, err := q.db.ExecContext(ctx, deleteAllItemCertifications, itemID)
+	return err
+}
+
 const deleteItemCertifications = `-- name: DeleteItemCertifications :exec
 
 DELETE FROM item_certifications WHERE item_id = ?1 AND provider = ?2

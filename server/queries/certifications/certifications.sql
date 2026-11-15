@@ -12,3 +12,7 @@ VALUES (@item_id, @provider, @country, @certification, @now);
 SELECT provider, country, certification FROM item_certifications
 WHERE item_id = @item_id
 ORDER BY provider, country;
+
+-- name: DeleteAllItemCertifications :exec
+-- Every certificate of a title: the match found another title at a provider.
+DELETE FROM item_certifications WHERE item_id = @item_id;

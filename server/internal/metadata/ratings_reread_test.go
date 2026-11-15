@@ -343,3 +343,40 @@ func TestRatingsRereadPendingAfterALostChain(t *testing.T) {
 		t.Errorf("saving after the finished chain queued %v", got)
 	}
 }
+
+// Another title at a provider makes every stored certificate worthless (review of stage 3): a
+// manual assignment and a match that finds another title delete the certificates of every
+// provider; the match stores the new title's.
+func TestAnotherTitleDropsTheCertificates(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First Film", tmdbID: 550})
+	if err := e.svc.match(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	mustExec(t, e.db.Write, `INSERT INTO item_certifications VALUES (?, 'tvdb', 'US', 'TV-MA', 1)`, idByTMDB)
+	if err := e.svc.AssignMatch(ctx, idByTMDB, "tmdb", "601"); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.certRows(t, idByTMDB); len(got) != 0 {
+		t.Fatalf("certificates after the assignment = %v, want none", got)
+	}
+	if err := e.svc.match(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.certRows(t, idByTMDB); len(got) != 1 || got["tmdb:US"] != "PG-13" {
+		t.Fatalf("certificates after the match = %v, want only 601's PG-13", got)
+	}
+
+	// A match that finds another title by itself (a search, the title had no TMDB id): the rows
+	// of the old title, TVDB's too, go as well.
+	e.addItem(t, itemSeed{id: idBySearch, title: "Searched Film", year: 2001})
+	mustExec(t, e.db.Write, `INSERT INTO item_certifications VALUES (?, 'tvdb', 'US', 'TV-MA', 1), (?, 'tmdb', 'DE', '12', 1)`, idBySearch, idBySearch)
+	if err := e.svc.match(ctx, idBySearch); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.certRows(t, idBySearch); len(got) != 1 || got["tmdb:US"] != "PG-13" {
+		t.Errorf("certificates after the match = %v, want only the new title's PG-13", got)
+	}
+}
