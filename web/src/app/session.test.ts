@@ -55,10 +55,10 @@ describe('applyProfileLanguage (concept 22 section 4.3)', () => {
     }
   });
 
-  it('shows German for de-DE while de-DE is not shipped, as the server falls back', async () => {
+  it('shows German (Germany) for a de-DE profile', async () => {
     await setLanguage('en');
     await applyProfileLanguage(withLanguage('de-DE'));
-    expect(i18n.language).toBe('de');
+    expect(i18n.language).toBe('de-DE');
   });
 
   it('keeps the language without a profile', async () => {

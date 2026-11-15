@@ -14,7 +14,7 @@ describe('detectLanguage aliases before their language ships', () => {
 
 describe('languageName', () => {
   it('names a shipped language in its own language, any other one in the UI language', () => {
-    expect(languageName('de', 'en')).toBe('Deutsch');
+    expect(languageName('de', 'en')).toBe('Deutsch (Schweiz)');
     expect(languageName('en', 'de')).toBe('English');
     expect(languageName('ja', 'de')).toBe('Japanisch');
     expect(languageName('ja', 'en')).toBe('Japanese');

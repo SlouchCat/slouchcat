@@ -117,12 +117,12 @@ describe('loading', () => {
     expect(currentLanguage()).toBe('de');
   });
 
-  it('stands in de for de-DE and English for any other code without a pack', async () => {
-    expect(shippedLanguageFor('de-DE')).toBe('de');
+  it('keeps a shipped code and stands in English for any other code without a pack', async () => {
+    expect(shippedLanguageFor('de-DE')).toBe('de-DE');
     expect(shippedLanguageFor('fr')).toBe('en');
     expect(shippedLanguageFor('de')).toBe('de');
     await setLanguage('de-DE');
-    expect(i18n.language).toBe('de');
+    expect(i18n.language).toBe('de-DE');
   });
 
   it('shows English for a code it ships no pack for, and never throws', async () => {
