@@ -31,13 +31,20 @@ func localeText(t *testing.T, lang, key string, v vars) string {
 	return i18n.Interpolate(text, v)
 }
 
+// strictTexts are the languages whose server texts must be complete in every commit (concept 22
+// section 4.8): de and en in each pull request (de-DE is an overlay). The other languages are
+// completed before each release («Übersetzungen nachziehen»); until then a missing text is a log
+// line here and English along the chain at run time.
+var strictTexts = map[string]bool{"de": true, "en": true}
+
 // The server texts (concept 22 sections 4.5 and 4.9): one i18next v4 file per interface language,
-// flat keys with text values only; every language has exactly the keys of English with the same
-// placeholders, no text is empty, German writes ss, never ß.
+// flat keys with text values only; every language has the keys of English (de and en strictly,
+// the others warn), no key English lacks, the same placeholders, no empty text, German writes ss,
+// never ß.
 func TestServerTexts(t *testing.T) {
 	t.Parallel()
-	if got := texts.Languages(); !slices.Equal(got, model.UILanguages) {
-		t.Errorf("server text files %v, want one per interface language %v", got, model.UILanguages)
+	if got, want := texts.Languages(), slices.Sorted(slices.Values(model.UILanguages)); !slices.Equal(got, want) {
+		t.Errorf("server text files %v, want one per interface language %v", got, want)
 	}
 	reference := texts.Keys(i18n.Fallback)
 	if len(reference) == 0 {
@@ -46,8 +53,19 @@ func TestServerTexts(t *testing.T) {
 	for _, lang := range texts.Languages() {
 		// de-DE is an overlay (ADR 0033): only the texts that read differently in Germany (ß,
 		// „…“), each one different from de; the rest comes from de along the chain.
-		if keys := texts.Keys(lang); lang != "de-DE" && !slices.Equal(keys, reference) {
-			t.Errorf("%s: keys %v, want those of en %v", lang, keys, reference)
+		if lang != "de-DE" {
+			var missing []string
+			for _, key := range reference {
+				if _, ok := texts.Raw(lang, key); !ok {
+					missing = append(missing, key)
+				}
+			}
+			switch {
+			case len(missing) > 0 && strictTexts[lang]:
+				t.Errorf("%s: missing %v", lang, missing)
+			case len(missing) > 0:
+				t.Logf("warning: %s misses %d texts (before the release: «Übersetzungen nachziehen»): %v", lang, len(missing), missing)
+			}
 		}
 		for _, key := range texts.Keys(lang) {
 			text, _ := texts.Raw(lang, key)
@@ -79,7 +97,7 @@ func TestServerTexts(t *testing.T) {
 func TestTextFallsBackAlongTheChain(t *testing.T) {
 	t.Parallel()
 	want := localeText(t, "en", "invitation_body", vars{"email": "a@b.test"})
-	for _, lang := range []string{"fr", "ja", "", "xx"} {
+	for _, lang := range []string{"ar", "", "xx"} {
 		if got := text(lang, "invitation_body", vars{"email": "a@b.test"}); got != want {
 			t.Errorf("text(%q) = %q, want English %q", lang, got, want)
 		}
