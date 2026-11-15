@@ -3,6 +3,7 @@ import type { TFunction } from 'i18next';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
+import { useRatingSystem } from '@/app/session';
 import { LANGUAGE_CODES, NO_LANGUAGE } from '@/features/player/labels';
 import { Chip, FactList, Notice, Panel, SelectField, Text } from '@/ui';
 import { AriaButton, DisclosureGroup, RadioGroup } from '@/ui/aria';
@@ -116,8 +117,10 @@ export function MetadataTab({
   language,
 }: MetadataTabProps) {
   const { t, i18n } = useTranslation();
+  const ratingSystem = useRatingSystem();
   const none = t('admin.item.facts.none');
-  const fsk = (age: number | undefined) => (age !== undefined ? ratingLabel(t, age) : none);
+  const fsk = (age: number | undefined) =>
+    age !== undefined ? ratingLabel(t, age, ratingSystem) : none;
   const number = new Intl.NumberFormat(intlLocale(i18n.language));
   const sources = item.fieldSources.length;
   return (
@@ -174,7 +177,7 @@ export function MetadataTab({
               onChange={onRatingChange}
               options={[
                 { value: FROM_METADATA, label: t('admin.item.rating.fromMetadata') },
-                ...ratingOptions(t),
+                ...ratingOptions(t, ratingSystem, 18, item.ownRating),
               ]}
             />
             <AriaButton variant="primary" isPending={ratingSaving} onPress={onRatingSave}>

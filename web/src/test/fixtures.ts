@@ -10,8 +10,59 @@ import type {
   PlaybackInfo,
   Profile,
   ProfileSummary,
+  RatingSystem,
   TrackList,
 } from '@slouchcat/api-client';
+
+/**
+ * Rating systems as the server's table sends them (model/ratings.go, concept 22 section 4.11): a
+ * few countries, enough for the labels and the steps of the tests.
+ */
+export const ratingSystems: RatingSystem[] = [
+  {
+    country: 'DE',
+    name: 'FSK',
+    steps: [
+      { age: 0, label: 'FSK 0' },
+      { age: 6, label: 'FSK 6' },
+      { age: 12, label: 'FSK 12' },
+      { age: 16, label: 'FSK 16' },
+      { age: 18, label: 'FSK 18' },
+    ],
+  },
+  {
+    country: 'CH',
+    steps: [0, 6, 7, 8, 10, 12, 14, 16, 18].map((age) => ({ age })),
+  },
+  {
+    country: 'US',
+    name: 'MPA',
+    steps: [
+      { age: 0, label: 'G / TV-G' },
+      { age: 6, label: 'PG / TV-PG' },
+      { age: 7, label: 'TV-Y7' },
+      { age: 13, label: 'PG-13' },
+      { age: 14, label: 'TV-14' },
+      { age: 17, label: 'R / TV-MA' },
+      { age: 18, label: 'NC-17' },
+    ],
+  },
+  {
+    country: 'FR',
+    name: 'CNC',
+    steps: [
+      { age: 0, label: 'Tous publics' },
+      { age: 10, label: '-10' },
+      { age: 12, label: '-12' },
+      { age: 16, label: '-16' },
+      { age: 18, label: '-18' },
+    ],
+  },
+];
+
+/** The rating system of a country of `ratingSystems`. */
+export const ratingSystemOf = (country: string): RatingSystem =>
+  ratingSystems.find((rs) => rs.country === country) ?? ratingSystems[0]!;
 
 // Contract-shaped fixtures (api/openapi.yaml). IDs are valid ULIDs.
 export const ids = {

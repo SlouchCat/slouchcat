@@ -293,6 +293,42 @@ describe('admin overview (concept 11, A-3)', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('says once that ratings are minimum ages now and closes the hint on «Verstanden» (concept 22)', async () => {
+    let notice = true;
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/dashboard': () =>
+          json(
+            dashboard({
+              attention: {
+                abortedScans: [],
+                rejectedKeys: [],
+                ...(notice ? { minimumAgeNotice: true } : {}),
+                ratingsRereading: true,
+              },
+            }),
+          ),
+        'DELETE /admin/dashboard/minimum-age-notice': () => {
+          notice = false;
+          return new Response(null, { status: 204 });
+        },
+      }),
+    );
+    renderApp('/admin');
+    const hints = await screen.findByRole('region', { name: 'Hinweise' });
+    expect(await within(hints).findByText('Freigaben sind jetzt Mindestalter')).toBeVisible();
+    expect(within(hints).getByText(/PG-13 ist «ab 13» statt FSK 12/)).toBeVisible();
+    expect(within(hints).getByText('Freigaben werden neu gelesen')).toBeVisible();
+    const user = userEvent.setup();
+    await user.click(within(hints).getByRole('button', { name: 'Verstanden' }));
+    await waitFor(() =>
+      expect(within(hints).queryByText('Freigaben sind jetzt Mindestalter')).toBeNull(),
+    );
+    expect(calls.filter((call) => call.method === 'DELETE')).toHaveLength(1);
+    // The reading goes on: its hint stays until the job is done.
+    expect(within(hints).getByText('Freigaben werden neu gelesen')).toBeVisible();
+  });
+
   it('lists what needs doing, most urgent first, and announces only their number', async () => {
     mockApi(
       routes({

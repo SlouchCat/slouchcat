@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
-import { useActiveSession } from '@/app/session';
+import { useActiveSession, useRatingSystem } from '@/app/session';
 import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Notice, Skeleton, Text, VisuallyHidden } from '@/ui';
@@ -84,6 +84,7 @@ export function AccountsPage() {
 function AccountsContent() {
   const { t, i18n } = useTranslation();
   const session = useActiveSession();
+  const ratingSystem = useRatingSystem();
   const ownId = String(session.account.id);
   const isOwner = session.account.isOwner;
   const queryClient = useQueryClient();
@@ -347,8 +348,8 @@ function AccountsContent() {
     [ownId, isOwner, t, askRole, askRemove],
   );
   const columns = useMemo(
-    () => accountColumns(t, intlLocale(i18n.language), actionsOf),
-    [t, i18n.language, actionsOf],
+    () => accountColumns(t, intlLocale(i18n.language), actionsOf, ratingSystem),
+    [t, i18n.language, actionsOf, ratingSystem],
   );
   const detail = (account: AdminAccount) => {
     const id = String(account.id);

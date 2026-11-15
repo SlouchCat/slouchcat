@@ -8,7 +8,7 @@ import type {
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { library } from '@/test/fixtures';
+import { library, ratingSystems } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn, type Call, type Routes } from '@/test/api';
 
 // The page "Metadaten" (concept 10, 7.1; layout concept 12 Met-B): the scope in the header, the
@@ -24,6 +24,7 @@ const settings = (overrides: Partial<MetadataSettings> = {}): MetadataSettings =
   imageByVote: true,
   localImages: true,
   ratingCountry: 'DE',
+  ratingSystems,
   tmdbIncludeAdult: false,
   fanartEnabled: false,
   knownLanguages: ['de', 'en', 'es', 'fr', 'ja'],
@@ -282,7 +283,7 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     ).toBeVisible();
 
     const rating = await openArea(user, 'Altersfreigabe');
-    expect(within(rating).getByRole('radio', { name: 'Deutschland (DE)' })).toBeChecked();
+    expect(within(rating).getByRole('combobox', { name: 'Land' })).toHaveValue('DE');
     expect(within(saveBar()).getByText('Gespeichert')).toBeVisible();
     // Nothing changed: «Speichern» stays, «Verwerfen» is not there (decision 18, addendum 3).
     expect(within(saveBar()).getByRole('button', { name: 'Speichern' })).toBeEnabled();
@@ -531,7 +532,7 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
       ),
     );
     await openArea(user, 'Altersfreigabe');
-    await user.click(screen.getByRole('radio', { name: 'Schweiz (CH)' }));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Land' }), 'CH');
 
     // To the library Serien: its own change.
     await user.selectOptions(scopeSelect(), 'Serien');
@@ -548,10 +549,10 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     // Back to the default: its area is selected again, and both its changes are still there.
     await user.selectOptions(scopeSelect(), 'Standard (geändert)');
     const rating = await screen.findByRole('region', { name: 'Altersfreigabe' });
-    expect(within(rating).getByRole('radio', { name: 'Schweiz (CH)' })).toBeChecked();
+    expect(within(rating).getByRole('combobox', { name: 'Land' })).toHaveValue('CH');
     expect(
       within(areas()).getByRole('option', { name: 'Altersfreigabe' }),
-    ).toHaveAccessibleDescription('Geändert · Schweiz (CH)');
+    ).toHaveAccessibleDescription('Geändert · Schweiz');
     const back = await openArea(user, 'Sprachen');
     expect(
       within(within(back).getByRole('group', { name: 'Metadaten-Sprachen' })).getAllByRole(
@@ -578,7 +579,7 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     const { calls } = mockApi(statefulRoutes({ failLibrary: 1 }));
     renderApp('/admin/metadata?item=rating');
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('radio', { name: 'Schweiz (CH)' }));
+    await user.selectOptions(await screen.findByRole('combobox', { name: 'Land' }), 'CH');
     // Serien first, then Filme: the save goes by the list order, not by the order of the edits.
     await user.selectOptions(scopeSelect(), 'Serien');
     await user.click(await screen.findByRole('switch', { name: 'Sprachen abweichend' }));
@@ -587,6 +588,12 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     await user.click(await screen.findByRole('switch', { name: 'Sprachen abweichend' }));
 
     await user.click(within(saveBar()).getByRole('button', { name: 'Speichern' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog', { name: 'Freigabeland wechseln?' })).getByRole(
+        'button',
+        { name: 'Wechseln und neu lesen' },
+      ),
+    );
     expect(await screen.findByText(/^«Filme» wurde nicht gespeichert: /)).toBeVisible();
     const order = calls.filter((call) => call.method === 'PUT').map((call) => call.path);
     expect(order).toEqual(['/admin/settings/metadata', '/admin/libraries/1/metadata']);
@@ -618,18 +625,24 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     );
     renderApp('/admin/metadata?item=rating');
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('radio', { name: 'Schweiz (CH)' }));
+    await user.selectOptions(await screen.findByRole('combobox', { name: 'Land' }), 'CH');
     await user.click(within(saveBar()).getByRole('button', { name: 'Speichern' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog', { name: 'Freigabeland wechseln?' })).getByRole(
+        'button',
+        { name: 'Wechseln und neu lesen' },
+      ),
+    );
     await waitFor(() => expect(puts(calls, '/admin/settings/metadata')).toHaveLength(1));
     // Typed while the server has not answered yet.
-    await user.click(screen.getByRole('radio', { name: 'Österreich (AT)' }));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Land' }), 'FR');
     release();
     expect(
       await screen.findByText('Gespeichert für Standard. 1234 Titel betroffen – jetzt anwenden?'),
     ).toBeVisible();
     expect(puts(calls, '/admin/settings/metadata')[0]).toMatchObject({ ratingCountry: 'CH' });
     // The newer value stays, still unsaved.
-    expect(screen.getByRole('radio', { name: 'Österreich (AT)' })).toBeChecked();
+    expect(screen.getByRole('combobox', { name: 'Land' })).toHaveValue('FR');
     expect(within(saveBar()).getByText('Ungespeicherte Änderungen')).toBeVisible();
     expect(screen.getByRole('option', { name: 'Standard (geändert)' })).toBeInTheDocument();
   });
@@ -652,19 +665,23 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     );
     renderApp('/admin/metadata?item=rating');
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('radio', { name: 'Schweiz (CH)' }));
+    await user.selectOptions(await screen.findByRole('combobox', { name: 'Land' }), 'CH');
     await user.click(within(saveBar()).getByRole('button', { name: 'Speichern' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog', { name: 'Freigabeland wechseln?' })).getByRole(
+        'button',
+        { name: 'Wechseln und neu lesen' },
+      ),
+    );
     await waitFor(() => expect(puts(calls, '/admin/settings/metadata')).toHaveLength(1));
     // Back to the value the server held before: no draft any more until the save lands.
-    await user.click(screen.getByRole('radio', { name: 'Deutschland (DE)' }));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Land' }), 'DE');
     release();
     expect(
       await screen.findByText('Gespeichert für Standard. 1234 Titel betroffen – jetzt anwenden?'),
     ).toBeVisible();
     // The server holds CH now; DE is what was chosen last and stays, unsaved.
-    await waitFor(() =>
-      expect(screen.getByRole('radio', { name: 'Deutschland (DE)' })).toBeChecked(),
-    );
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Land' })).toHaveValue('DE'));
     expect(within(saveBar()).getByText('Ungespeicherte Änderungen')).toBeVisible();
   });
 
@@ -672,7 +689,7 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     const { calls } = mockApi(statefulRoutes());
     renderApp('/admin/metadata?item=rating');
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('radio', { name: 'Schweiz (CH)' }));
+    await user.selectOptions(await screen.findByRole('combobox', { name: 'Land' }), 'CH');
     await user.selectOptions(scopeSelect(), 'Serien');
     await user.click(await screen.findByRole('switch', { name: 'Sprachen abweichend' }));
 
@@ -694,7 +711,7 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     expect(screen.getByRole('option', { name: 'Standard' })).toBeInTheDocument();
     await user.selectOptions(scopeSelect(), 'Standard');
     const rating = await openArea(user, 'Altersfreigabe');
-    expect(within(rating).getByRole('radio', { name: 'Deutschland (DE)' })).toBeChecked();
+    expect(within(rating).getByRole('combobox', { name: 'Land' })).toHaveValue('DE');
     expect(calls.some((call) => call.method === 'PUT')).toBe(false);
   });
 
@@ -754,5 +771,28 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     renderApp('/admin/metadata');
     expect(await screen.findByText('Nur für Administratoren')).toBeVisible();
     expect(calls.some((call) => call.path === '/admin/settings/metadata')).toBe(false);
+  });
+
+  it('names the rating countries by Intl, shows the steps of the choice and asks before a change (concept 22 F-16)', async () => {
+    const { calls } = mockApi(statefulRoutes());
+    renderApp('/admin/metadata?item=rating');
+    const user = userEvent.setup();
+    const country = await screen.findByRole('combobox', { name: 'Land' });
+    expect(within(country).getByRole('option', { name: 'Frankreich (CNC)' })).toBeInTheDocument();
+    expect(within(country).getByRole('option', { name: 'Schweiz' })).toBeInTheDocument();
+    expect(
+      screen.getByText('Stufen der Profile: FSK 0 · FSK 6 · FSK 12 · FSK 16 · FSK 18'),
+    ).toBeVisible();
+    await user.selectOptions(country, 'FR');
+    expect(
+      screen.getByText('Stufen der Profile: Tous publics · -10 · -12 · -16 · -18'),
+    ).toBeVisible();
+    // 1234 titles: saving asks first, cancelling sends nothing.
+    await user.click(within(saveBar()).getByRole('button', { name: 'Speichern' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Freigabeland wechseln?' });
+    expect(dialog).toHaveTextContent('Slouchcat liest danach die Freigaben aller Titel neu.');
+    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false);
+    expect(within(saveBar()).getByText('Ungespeicherte Änderungen')).toBeVisible();
   });
 });

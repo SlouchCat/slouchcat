@@ -287,7 +287,8 @@
         }
       },
       "hints": {
-        "scan": "Scan der Bibliothek „{{name}}“ abgebrochen"
+        "scan": "Scan der Bibliothek „{{name}}“ abgebrochen",
+        "minimumAgeBody": "Slouchcat speichert seit diesem Update das echte Mindestalter jeder Freigabe: PG-13 ist „ab 13“ statt FSK 12, R ist „ab 17“ statt FSK 16. Profile „ab 12“ und „ab 16“ sehen dadurch weniger amerikanische Titel. Wer das nicht will, stellt das Profil höher."
       }
     },
     "integrations": {
@@ -329,11 +330,16 @@
     },
     "accounts": {
       "access": {
-        "adminHint": "Ein Administrator hat immer FSK 18 und alle Bibliotheken; „Zugriff“ gibt es nur für Konten ohne Verwaltung."
+        "adminHint": "Ein Administrator hat immer die Stufe „ab 18“ und alle Bibliotheken; „Zugriff“ gibt es nur für Konten ohne Verwaltung."
       },
       "invitations": {
         "revoke": {
           "done": "Einladung „{{note}}“ widerrufen."
+        }
+      },
+      "role": {
+        "promote": {
+          "body": "Das Konto verwaltet danach Server, Bibliotheken und Einstellungen. Seine Altersstufe steigt auf „ab 18“ und alle Bibliotheken; die Profile des Kontos behalten ihre eigenen Stufen."
         }
       }
     },
@@ -450,9 +456,7 @@
         "intro": "Gilt für alle Bibliotheken. Die ausgelieferten Größen (Poster 200/400/800, Hintergrund 780/1280/1920, Logo 400/800) sind fest."
       },
       "rating": {
-        "countries": {
-          "GB": "Großbritannien (GB)"
-        }
+        "hint": "Gespeichert wird das Mindestalter der Freigabe, zum Beispiel PG-13 als „ab 13“. Nach einem Wechsel des Landes liest Slouchcat die Freigaben aller Titel neu und kann sie dabei senken oder erhöhen; Freigaben von Hand, aus NFO-Dateien und gesperrte bleiben."
       },
       "save": {
         "failed": "„{{name}}“ wurde nicht gespeichert: {{reason}}"

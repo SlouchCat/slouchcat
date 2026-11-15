@@ -1,6 +1,7 @@
 import type { LibraryRequest, MetadataProviderInfo } from '@slouchcat/api-client';
 import type { ReactNode, RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useRatingSystem } from '@/app/session';
 import { Text } from '@/ui';
 import { FolderList, RadioGroup, newFolderEntry, type FolderEntry } from '@/ui/aria';
 import { ratingOptions, titleRatingOf } from './choices';
@@ -92,6 +93,7 @@ export function LibraryFields({
   ordering,
 }: LibraryFieldsProps) {
   const { t } = useTranslation();
+  const ratingSystem = useRatingSystem();
   return (
     <>
       <RadioGroup
@@ -124,7 +126,7 @@ export function LibraryFields({
           description={t('library.defaultRatingHint')}
           value={rating}
           onChange={onRatingChange}
-          options={ratingOptions(t)}
+          options={ratingOptions(t, ratingSystem)}
         />
       )}
     </>

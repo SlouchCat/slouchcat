@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
-import { useActiveSession } from '@/app/session';
+import { useActiveSession, useRatingSystem } from '@/app/session';
 import { intlLocale, languageName } from '@/i18n';
 import { Chip, Notice, Panel, ProfileAvatar, Skeleton, Text } from '@/ui';
 import {
@@ -72,6 +72,7 @@ export function ProfileList({
   children,
 }: ProfileListProps) {
   const { t, i18n } = useTranslation();
+  const ratingSystem = useRatingSystem();
   const session = useActiveSession();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Editing>(null);
@@ -218,11 +219,11 @@ export function ProfileList({
                       )}
                       <Chip tone="outline">
                         {profile.maxRating > session.account.maxRating
-                          ? t('profiles.settings.ratingAboveAccount', {
-                              age: profile.maxRating,
-                              max: session.account.maxRating,
+                          ? t('profiles.settings.ratingAboveCeiling', {
+                              rating: ratingLabel(t, profile.maxRating, ratingSystem),
+                              max: ratingLabel(t, session.account.maxRating, ratingSystem),
                             })
-                          : ratingLabel(t, profile.maxRating)}
+                          : ratingLabel(t, profile.maxRating, ratingSystem)}
                       </Chip>
                       <Chip tone="info">{languageName(profile.language, i18n.language)}</Chip>
                       {profile.metadataLanguage && (

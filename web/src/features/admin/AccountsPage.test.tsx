@@ -279,10 +279,12 @@ describe('admin accounts (A-2, KP-1)', { timeout: 15_000 }, () => {
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
 
-    // Another administrator: no access form (fixed at FSK 18 and all libraries), the hint instead.
+    // Another administrator: no access form (fixed at 18 and all libraries), the hint instead.
     const admin = await openRow(user, 'admin2@example.test');
     expect(within(admin).queryByRole('region', { name: /^Zugriff von/ })).toBeNull();
-    expect(within(admin).getByText(/hat immer FSK 18 und alle Bibliotheken/)).toBeVisible();
+    expect(
+      within(admin).getByText(/hat immer die Stufe «ab 18» und alle Bibliotheken/),
+    ).toBeVisible();
     expect(within(admin).getByText('Sandra (Hauptprofil)')).toBeVisible();
     expect(within(admin).getByText('Kino')).toBeVisible();
     menu = await openMenu(user, 'admin2@example.test');
@@ -430,7 +432,7 @@ describe('admin accounts (A-2, KP-1)', { timeout: 15_000 }, () => {
     const confirm = await screen.findByRole('alertdialog', {
       name: 'gast@example.test zum Administrator ernennen?',
     });
-    expect(confirm).toHaveTextContent('FSK 18');
+    expect(confirm).toHaveTextContent('«ab 18»');
     await user.click(within(confirm).getByRole('button', { name: 'Ernennen' }));
     await waitFor(() =>
       expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ role: 'admin' }),

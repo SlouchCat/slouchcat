@@ -330,20 +330,23 @@ test('a language is added, put on its place with several arrow steps, saved and 
   }
 });
 
-test('the rating country changes with the arrow keys; "Verwerfen" asks and drops the change unsaved', async ({
+test('the rating country is chosen in the list with its steps; "Verwerfen" asks and drops the change unsaved', async ({
   page,
   owner,
 }) => {
   const before = await settingsOf(owner);
   await openMetadata(page, '?item=rating');
   const rating = region(page, 'Altersfreigabe');
-  const group = rating.getByRole('radiogroup', { name: 'Land' });
-  const current = group.getByRole('radio', { checked: true });
-  await expect(current).toHaveAccessibleName(new RegExp(`\\(${before.ratingCountry}\\)`));
-  await tabToFromTop(page, current);
-  await page.keyboard.press(before.ratingCountry === 'US' ? 'ArrowLeft' : 'ArrowRight');
-  await expect(group.getByRole('radio', { checked: true })).not.toHaveAccessibleName(
-    new RegExp(`\\(${before.ratingCountry}\\)`),
+  // Every rating country of the server's table (concept 22 stage 3), named by Intl.
+  const country = rating.getByRole('combobox', { name: 'Land' });
+  await expect(country).toHaveValue(before.ratingCountry);
+  await expect(country.getByRole('option')).toHaveCount(25);
+  await tabToFromTop(page, country);
+  const other = before.ratingCountry === 'FR' ? 'JP' : 'FR';
+  await country.selectOption(other);
+  await expect(country).toHaveValue(other);
+  await expect(rating.getByText(/^Stufen der Profile: /)).toContainText(
+    other === 'FR' ? 'Tous publics · -10 · -12 · -16 · -18' : 'G · PG12 · R15+ · R18+',
   );
   await expect(saveBar(page).getByText('Ungespeicherte Änderungen')).toBeVisible();
   await expect(areas(page).getByRole('option', { name: 'Altersfreigabe' })).toContainText(
@@ -363,9 +366,39 @@ test('the rating country changes with the arrow keys; "Verwerfen" asks and drops
   await expect(saveBar(page).getByText('Gespeichert', { exact: true })).toBeVisible();
   // «Verwerfen» went with the changes: the focus waits on the page head (ALL-2).
   await expect(page.getByRole('heading', { level: 1, name: 'Metadaten' })).toBeFocused();
-  await expect(group.getByRole('radio', { checked: true })).toHaveAccessibleName(
-    new RegExp(`\\(${before.ratingCountry}\\)`),
-  );
+  await expect(country).toHaveValue(before.ratingCountry);
+  expect((await settingsOf(owner)).ratingCountry).toBe(before.ratingCountry);
+});
+
+test('a new rating country with titles asks before saving; Escape keeps the change unsaved @keyboard', async ({
+  page,
+  owner,
+}) => {
+  const before = await settingsOf(owner);
+  // The question comes only when titles would be read anew (concept 22 F-16): the answer of the
+  // settings says there are some, whatever the e2e library holds.
+  await page.route('**/api/v1/admin/settings/metadata', async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    const response = await route.fetch();
+    const stored = (await response.json()) as Settings;
+    await route.fulfill({ response, json: { ...stored, affectedTitles: 5 } });
+  });
+  await openMetadata(page, '?item=rating');
+  const country = region(page, 'Altersfreigabe').getByRole('combobox', { name: 'Land' });
+  await tabToFromTop(page, country);
+  await country.selectOption(before.ratingCountry === 'US' ? 'DE' : 'US');
+  const save = saveBar(page).getByRole('button', { name: 'Speichern' });
+  await tabToFromTop(page, save);
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('alertdialog', { name: 'Freigabeland wechseln?' });
+  await expect(dialog).toContainText('Slouchcat liest danach die Freigaben aller Titel neu.');
+  await expectFocusOn(page, dialog.getByRole('button', { name: 'Abbrechen' }));
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, dialog.getByRole('button', { name: 'Wechseln und neu lesen' }));
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expectFocusOn(page, save);
+  await expect(saveBar(page).getByText('Ungespeicherte Änderungen')).toBeVisible();
   expect((await settingsOf(owner)).ratingCountry).toBe(before.ratingCountry);
 });
 
@@ -574,9 +607,9 @@ test('«Anwenden» polls the jobs every 10 s, and pauses while changes are unsav
   const rating = areas(page).getByRole('option', { name: 'Altersfreigabe' });
   await arrowTo(page, areas(page).getByRole('option', { name: 'Anwenden' }), rating, 'ArrowUp');
   await page.keyboard.press('Enter');
-  const current = region(page, 'Altersfreigabe').getByRole('radio', { checked: true });
-  await tabToFromTop(page, current);
-  await page.keyboard.press('ArrowRight');
+  const country = region(page, 'Altersfreigabe').getByRole('combobox', { name: 'Land' });
+  await tabToFromTop(page, country);
+  await country.selectOption((await country.inputValue()) === 'FR' ? 'JP' : 'FR');
   await expect(saveBar(page).getByText('Ungespeicherte Änderungen')).toBeVisible();
   await tabToFromTop(page, areas(page).getByRole('option', { name: 'Altersfreigabe' }));
   await page.keyboard.press('ArrowDown');

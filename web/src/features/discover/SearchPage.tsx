@@ -1,4 +1,3 @@
-import type { Rating } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -6,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
+import { useRatingSystem } from '@/app/session';
 import { useBackKeys } from '@/lib/useBackKeys';
 import { rangeBySize, usePagedList, type PlaceRange } from '@/lib/pagedList';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
@@ -23,6 +23,7 @@ import {
   SpatialPage,
 } from '@/ui';
 import { useCoverPens } from '@/features/catalog/EditMetadata';
+import { ratingAges, ratingFilterLabel } from '@/features/shared/choices';
 import { PageRetry } from './ItemGrid';
 import { PagedItemGrid } from './PagedItemGrid';
 import { genresQuery, searchSource } from './queries';
@@ -32,7 +33,6 @@ import {
   hasFilter,
   MEDIA_TYPES,
   mediaTypesOf,
-  RATINGS,
   searchRequest,
   type SearchParams,
 } from './searchParams';
@@ -52,6 +52,7 @@ const DEBOUNCE_MS = 200;
  */
 export function SearchPage() {
   const { t } = useTranslation();
+  const ratingSystem = useRatingSystem();
   const pens = useCoverPens();
   useDocumentTitle(t('search.title'));
   const params = route.useSearch();
@@ -203,13 +204,13 @@ export function SearchPage() {
                 focusKey="filter-rating"
                 value={params.rating === undefined ? '' : String(params.rating)}
                 onChange={(rating) =>
-                  update({ rating: rating === '' ? undefined : (Number(rating) as Rating) })
+                  update({ rating: rating === '' ? undefined : Number(rating) })
                 }
                 options={[
                   { value: '', label: t('search.filters.anyRating') },
-                  ...RATINGS.map((age) => ({
+                  ...ratingAges(ratingSystem).map((age) => ({
                     value: String(age),
-                    label: t('rating.fsk', { age }),
+                    label: ratingFilterLabel(t, age, ratingSystem),
                   })),
                 ]}
               />

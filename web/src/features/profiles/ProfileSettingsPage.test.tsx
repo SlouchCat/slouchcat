@@ -125,6 +125,7 @@ describe('profile settings page', () => {
             libraryIds: [3],
           },
           profile: session.profile,
+          ratingSystem: session.ratingSystem,
         }),
       'GET /libraries': () => json([{ id: 3, name: 'Kinder', kind: 'video' }]),
     });
@@ -316,6 +317,7 @@ describe('profile settings page', () => {
             allLibraries: true,
           },
           profile: session.profile,
+          ratingSystem: session.ratingSystem,
         }),
       // The raw value (18) is above the guest ceiling (12): the server caps it in the view.
       'GET /profiles': () => json([profiles[0]]),

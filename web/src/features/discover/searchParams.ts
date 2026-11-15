@@ -6,7 +6,12 @@ import type { Rating, SearchRequest } from '@slouchcat/api-client';
 
 export const MEDIA_TYPES = ['movie', 'series', 'audiobook', 'podcast'] as const;
 export const AVAILABILITY = ['local', 'download'] as const;
-export const RATINGS = [0, 6, 12, 16, 18] as const satisfies readonly Rating[];
+/**
+ * An age of the rating filter: a whole number from 0 to 18 (the minimum ages of every rating
+ * country, concept 22 section 4.11; the server checks the same bounds).
+ */
+export const isRatingAge = (value: number): value is Rating =>
+  Number.isInteger(value) && value >= 0 && value <= 18;
 
 export type MediaType = (typeof MEDIA_TYPES)[number];
 export type Availability = (typeof AVAILABILITY)[number];
@@ -48,9 +53,7 @@ export function validateSearchParams(search: Record<string, unknown>): SearchPar
     typeof search.rating === 'number' || (typeof search.rating === 'string' && search.rating !== '')
       ? Number(search.rating)
       : undefined;
-  if (rating !== undefined && (RATINGS as readonly number[]).includes(rating)) {
-    params.rating = rating as Rating;
-  }
+  if (rating !== undefined && isRatingAge(rating)) params.rating = rating;
   const types = list(search.type, MEDIA_TYPES);
   if (types.length > 0) params.type = types.join(',');
   const avail = list(search.avail, AVAILABILITY);

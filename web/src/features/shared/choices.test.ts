@@ -1,34 +1,53 @@
 import { describe, expect, it } from 'vitest';
 import i18n from '@/i18n';
-import { languageOptions, ratingLabel, ratingOf, ratingOptions } from './choices';
+import { ratingSystemOf } from '@/test/fixtures';
+import { languageOptions, ratingLabel, ratingOf, ratingOptions, titleRatingOf } from './choices';
 
 const t = i18n.t.bind(i18n);
 
-describe('ratings (concept 22 stage 1: an age outside the FSK steps)', () => {
-  it('names an FSK step «FSK n» and any other age «ab n»', () => {
-    expect(ratingLabel(t, 12)).toBe('FSK 12');
-    expect(ratingLabel(t, 0)).toBe('FSK 0');
-    expect(ratingLabel(t, 13)).toBe('ab 13');
-    expect(ratingLabel(t, 17)).toBe('ab 17');
+describe('ratings (concept 22 stage 3: the steps of the rating country)', () => {
+  const de = ratingSystemOf('DE');
+  const us = ratingSystemOf('US');
+  const fr = ratingSystemOf('FR');
+
+  it('names a step by the certificate of the country and any other age «ab n»', () => {
+    expect(ratingLabel(t, 12, de)).toBe('FSK 12');
+    expect(ratingLabel(t, 13, de)).toBe('ab 13');
+    expect(ratingLabel(t, 13, us)).toBe('PG-13');
+    expect(ratingLabel(t, 17, us)).toBe('R / TV-MA');
+    expect(ratingLabel(t, 12, fr)).toBe('-12');
+    expect(ratingLabel(t, 10, ratingSystemOf('CH'))).toBe('ab 10');
+    // Without a rating system (an older server) every age reads «ab n».
+    expect(ratingLabel(t, 12)).toBe('ab 12');
   });
 
-  it('offers a current age outside the steps, in order, so saving keeps it', () => {
-    expect(ratingOptions(t, 18, 13).map((o) => o.label)).toEqual([
-      'FSK 0',
-      'FSK 6',
-      'FSK 12',
-      'ab 13',
-      'FSK 16',
-      'FSK 18',
+  it('offers the steps of the country and keeps a current age outside them', () => {
+    expect(ratingOptions(t, fr).map((o) => o.value)).toEqual(['0', '10', '12', '16', '18']);
+    expect(ratingOptions(t, us, 18, 12).map((o) => o.label)).toEqual([
+      'G / TV-G',
+      'PG / TV-PG',
+      'TV-Y7',
+      'ab 12',
+      'PG-13',
+      'TV-14',
+      'R / TV-MA',
+      'NC-17',
     ]);
-    expect(ratingOptions(t, 12, 13).find((o) => o.value === '13')?.isDisabled).toBe(true);
-    expect(ratingOptions(t, 18, 12)).toHaveLength(5);
+    expect(ratingOptions(t, us, 12).find((o) => o.value === '13')?.isDisabled).toBe(true);
+    expect(ratingOptions(t, de, 18, 12)).toHaveLength(5);
+    expect(ratingOptions(t, undefined).map((o) => o.value)).toEqual(['0', '6', '12', '16', '18']);
     expect(ratingOf('13')).toBe(13);
     expect(ratingOf('16')).toBe(16);
   });
 
   it('falls back to 0 for a value that is no age', () => {
     for (const value of ['', 'x', '-1', '19', '1.5']) expect(ratingOf(value)).toBe(0);
+  });
+
+  it('takes a title rating only for an age', () => {
+    expect(titleRatingOf('13')).toBe(13);
+    expect(titleRatingOf('0')).toBe(0);
+    for (const value of ['', 'x', '19']) expect(titleRatingOf(value)).toBeUndefined();
   });
 });
 

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { formErrors } from '@/api/errors';
+import { useRatingSystem } from '@/app/session';
 import { Notice } from '@/ui';
 import { AriaButton, Form, FormDialog, RadioGroup } from '@/ui/aria';
 import { ratingOptions, titleRatingOf } from '../../shared/choices';
@@ -28,6 +29,7 @@ export function DefaultRatingDialog({
   onSaved,
 }: DefaultRatingDialogProps) {
   const { t } = useTranslation();
+  const ratingSystem = useRatingSystem();
   const [rating, setRating] = useState(String(library.defaultRating ?? 0));
   const save = useMutation({
     mutationFn: (defaultRating: Rating): Promise<Library> =>
@@ -62,7 +64,7 @@ export function DefaultRatingDialog({
           label={t('library.defaultRating')}
           value={rating}
           onChange={setRating}
-          options={ratingOptions(t)}
+          options={ratingOptions(t, ratingSystem, 18, library.defaultRating)}
         />
         <div className={styles.dialogActions}>
           <AriaButton variant="ghost" onPress={() => onOpenChange(false)}>

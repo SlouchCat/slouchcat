@@ -51,7 +51,9 @@ function Summary({ invitation }: { invitation: InvitationPreview }) {
         <div className={styles.fact}>
           <dt>{t('invite.rating')}</dt>
           <dd>
-            <Chip tone="outline">{ratingLabel(t, invitation.maxRating)}</Chip>
+            <Chip tone="outline">
+              {ratingLabel(t, invitation.maxRating, invitation.ratingSystem)}
+            </Chip>
           </dd>
         </div>
         <div className={styles.fact}>

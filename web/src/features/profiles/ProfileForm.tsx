@@ -5,7 +5,7 @@ import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { formErrors } from '@/api/errors';
-import { refreshSession, type ActiveSession } from '@/app/session';
+import { type ActiveSession, refreshSession, useRatingSystem } from '@/app/session';
 import { currentLanguage, isLanguage, type Language } from '@/i18n';
 import { formText } from '@/lib/form';
 import { useTransientMutation } from '@/lib/useTransientMutation';
@@ -53,6 +53,7 @@ export function ProfileForm({
   onClose,
 }: ProfileFormProps) {
   const { t } = useTranslation();
+  const ratingSystem = useRatingSystem();
   const queryClient = useQueryClient();
   const accountMax = session.account.maxRating;
 
@@ -161,7 +162,7 @@ export function ProfileForm({
         description={t('profiles.settings.form.ratingHint')}
         value={rating}
         onChange={setRating}
-        options={ratingOptions(t, accountMax, profile?.maxRating)}
+        options={ratingOptions(t, ratingSystem, accountMax, profile?.maxRating)}
       />
       <RadioGroup
         name="language"

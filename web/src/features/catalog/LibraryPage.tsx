@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { isApiError } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
-import { useActiveSession } from '@/app/session';
+import { useActiveSession, useRatingSystem } from '@/app/session';
 import { cardKey } from '@/features/discover/ItemGrid';
 import { YearField } from '@/features/discover/YearField';
 import { useBackKeys } from '@/lib/useBackKeys';
@@ -39,6 +39,7 @@ import {
   type LibraryParams,
   type LibrarySort,
 } from './libraryParams';
+import { ratingFilterLabel } from '../shared/choices';
 import { AudioGroupsRow } from './AudioGroupsRow';
 import { CoverPen, EDITABLE_KINDS, EditMetadata } from './EditMetadata';
 import { LibraryGrid, type LibraryGridHandle } from './LibraryGrid';
@@ -86,6 +87,7 @@ export function LibraryPage() {
 
 function LibraryView({ id }: { id: number | null }) {
   const { t } = useTranslation();
+  const ratingSystem = useRatingSystem();
   const params = route.useSearch();
   const navigate = route.useNavigate();
   const goBack = useGoBack(paths.home);
@@ -421,13 +423,13 @@ function LibraryView({ id }: { id: number | null }) {
                   focusKey="library-rating"
                   value={params.rating === undefined ? '' : String(params.rating)}
                   onChange={(rating) =>
-                    update({ rating: rating === '' ? undefined : (Number(rating) as Rating) })
+                    update({ rating: rating === '' ? undefined : Number(rating) })
                   }
                   options={[
                     { value: '', label: t('library.filters.anyRating') },
                     ...ratings.map((age) => ({
                       value: String(age),
-                      label: t('library.filters.upTo', { age }),
+                      label: ratingFilterLabel(t, age, ratingSystem),
                     })),
                   ]}
                 />
