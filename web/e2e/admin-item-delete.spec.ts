@@ -85,10 +85,22 @@ test.beforeAll(() => {
 
 test.afterAll(async ({ request }) => {
   if (libraryId === 0) return;
-  await request.post(`/api/v1/admin/libraries/${libraryId}/deletion`, {
+  const queued = await request.post(`/api/v1/admin/libraries/${libraryId}/deletion`, {
     headers: CSRF,
     data: { confirmName: NAME },
   });
+  expect(queued.status()).toBe(202);
+  // The deletion is a job that ends after the 202. Without waiting, the next spec of the shard
+  // read the library in its «before» and then lost it under its hands (admin-my-media.spec:
+  // 422 on putting the entries back).
+  await expect
+    .poll(async () => {
+      const list = (await (await request.get('/api/v1/admin/libraries')).json()) as {
+        id: number;
+      }[];
+      return list.some((library) => library.id === libraryId);
+    })
+    .toBe(false);
 });
 
 test('a title is taken out of Slouchcat and back in, by keyboard @keyboard', async ({ page }) => {

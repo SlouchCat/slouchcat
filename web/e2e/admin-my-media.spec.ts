@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { listMyMedia, setMyMedia } from './curation';
+import { listMyMedia, restoreMyMedia } from './curation';
 import { expect, test } from './fixtures';
 import {
   expectFocusOn,
@@ -100,7 +100,7 @@ test('«Meine Medien» by keyboard: placing and hiding per place reach the side 
       hideHome: false,
     });
   } finally {
-    await setMyMedia(owner, before);
+    await restoreMyMedia(owner, before);
   }
 });
 
