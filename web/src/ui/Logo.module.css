@@ -28,6 +28,7 @@
   display: inline-flex;
   flex-direction: column;
   line-height: var(--sc-font-line-height-tight);
+  white-space: nowrap;
 }
 
 .tagline {

@@ -34,9 +34,12 @@
   text-decoration: none;
 }
 
+/* Shrinks before the header's tools; the padding leaves room for a link's focus ring. */
 .breadcrumb {
   display: none;
+  overflow: hidden;
   min-width: 0;
+  padding: var(--sc-space-1);
 }
 
 .crumbs {
@@ -224,5 +227,19 @@
 
   .inner {
     gap: var(--sc-space-3);
+  }
+}
+
+/* In the administration the profile's name stays on one line next to the breadcrumb. */
+.header[data-admin] .profile {
+  white-space: nowrap;
+}
+
+/* Up to 1024 px the administration's tools show their icons only (the finder its shortcut too),
+   so the breadcrumb keeps its room; their accessible names stay. */
+@media (width < 1024px) {
+  .header[data-admin] .text,
+  .header[data-admin] .profileName {
+    display: none;
   }
 }
