@@ -30,3 +30,4 @@ gehen. Gemessen wurde, was das an Startzeit kostet.
 - Ungünstigster Fall: ein Gerät, das hängt. Jede Probe ist durch `testEncodeTimeout` (5 s) begrenzt,
   die Listen von ffmpeg durch `detectDeadline`; `TestDetectBoundsHangingTestEncode` hält das fest.
 - Der Server schreibt die Dauer der Erkennung neu in die Zeile «transcode ready» (`detect_ms`).
+- Mit `--hw software` oder `SLOUCHCAT_HW=software` probiert der Server keinen Grafikchip (0 ms).

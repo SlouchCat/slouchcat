@@ -115,6 +115,10 @@ fünf Stufen. Diese ADR hält die Entscheide fest; Stufe 1 baut das Gerüst ohne
   jetzt «Deutsch (Schweiz)». Die Erkennung brauchte keine Änderung: blosses `de`, `de-AT`, `de-LU` und
   `de-BE` landen jetzt von selbst bei `de-DE`; die Ersatzregel aus Stufe 1 ist entfernt.
 - Die Profilliste zeigt den Sprachnamen aus `languages.ts` statt eines Texts `language.<code>`.
+- Grafikchip (Teil A, F-10, im selben Release): Der Server probiert beim Start alle drei Hardware-Backends,
+  ausser wenn `--hw software` oder `SLOUCHCAT_HW=software` den Prozessor erzwingt. Dann ist die Wahl in
+  der Oberfläche ohnehin gesperrt, und ein hängendes Gerät kostete bis zu 3 × 5 s Startzeit. Eine in der
+  Verwaltung gespeicherte Wahl «Nur Prozessor» probiert weiter, damit die übrigen wählbar bleiben.
 - `server/internal/notify/locales/de-DE.json` ist leer (`{}`): Kein Server-Text enthält ein ss-Wort mit
   langem Vokal oder «Guillemets». `TestServerTexts` prüft die Überlagerung wie die Web-App (nur
   vorhandene Schlüssel, jeder anders als `de`).
