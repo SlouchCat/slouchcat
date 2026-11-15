@@ -174,6 +174,8 @@ test('step 6, libraries: none is refused, the dialog adds one @keyboard', async 
   await expect(page.getByText(/Noch keine Bibliothek/)).toBeVisible();
   await expectFocusOn(page, page.getByRole('button', { name: 'Weiter', exact: true }));
 
+  // «Weiter» is the last element; headless Firefox stays there on Tab, so start from the top.
+  await resetFocus(page);
   await tabTo(page, page.getByRole('button', { name: 'Bibliothek hinzufügen' }));
   await page.keyboard.press('Enter');
   const dialog = page.getByRole('dialog', { name: 'Bibliothek hinzufügen' });
