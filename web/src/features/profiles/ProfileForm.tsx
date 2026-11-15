@@ -60,7 +60,9 @@ export function ProfileForm({
   const firstFreeAccent: AccentName =
     accentNames.find((name) => !profiles.some((other) => other.accent === name)) ?? accentNames[0];
   // The stored values, as they are: the form never rewrites a rating (the server decides what is
-  // allowed, and answers `above_account_limit` for a value over the account's ceiling).
+  // allowed, and answers `above_account_limit` for a value over the account's ceiling). A new
+  // profile starts at the account's ceiling, which the options offer even when it is no step of
+  // the rating country (a guest «ab 12» in the US).
   const [rating, setRating] = useState(String(profile?.maxRating ?? accountMax));
   const [language, setLanguage] = useState<Language>(profile?.language ?? currentLanguage());
   const [metadataLanguage, setMetadataLanguage] = useState(profile?.metadataLanguage ?? '');
@@ -162,7 +164,7 @@ export function ProfileForm({
         description={t('profiles.settings.form.ratingHint')}
         value={rating}
         onChange={setRating}
-        options={ratingOptions(t, ratingSystem, accountMax, profile?.maxRating)}
+        options={ratingOptions(t, ratingSystem, accountMax, [profile?.maxRating, accountMax])}
       />
       <RadioGroup
         name="language"

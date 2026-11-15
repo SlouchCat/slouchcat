@@ -37,16 +37,21 @@ export function ratingFilterLabel(t: TFunction, age: number, system?: RatingSyst
  * Rating radio options: the steps of the rating country; ratings above `max` (the ceiling of a
  * guest account) are shown but off. A `current` value outside the steps (a profile from before a
  * change of the rating country, or an age a newer server stored) is offered too, as «ab n», so
- * saving the form keeps it instead of turning it into another one.
+ * saving the form keeps it instead of turning it into another one; `current` may list several
+ * such values (the profile's own and the account's ceiling).
  */
 export function ratingOptions(
   t: TFunction,
   system: RatingSystem | undefined,
   max: number = 18,
-  current?: number,
+  current?: number | readonly (number | undefined)[],
 ) {
   const ages = ratingAges(system);
-  if (current !== undefined && !ages.includes(current)) ages.push(current);
+  const kept: readonly (number | undefined)[] =
+    typeof current === 'number' || current === undefined ? [current] : current;
+  for (const age of kept) {
+    if (age !== undefined && !ages.includes(age)) ages.push(age);
+  }
   return ages
     .sort((a, b) => a - b)
     .map((age) => ({
