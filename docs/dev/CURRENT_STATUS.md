@@ -1,6 +1,24 @@
 # Aktueller Stand
 
-## Release 1.36.0: Konzept 22 Stufe 3 «Freigabeländer» (15. November 2026)
+## Release 1.37.0: Konzept 22 Stufe 4 «Übersetzungen» (15. November 2026)
+
+Stufe 4 von `docs/planning/22-ersteinrichtung-und-sprachen.md` (Abschnitte 4.1, 4.6, 4.8, 4.9) auf dem
+Zweig `claude/k22-stufe4`, gebaut autonom auf Marcos Auftrag vom 15. November 2026. Vertrag **1.37.0**
+(Liste `Language` mit 23 Sprachen), keine Migration.
+
+- **20 neue Oberflächensprachen:** fr, es, it, nl, pt-BR, pt-PT, pl, cs, hu, tr, sv, da, nb, fi, ru, uk,
+  ja, ko, zh-CN, zh-TW, dazu `de`, `de-DE` und `en`. Web-Texte und Server-Texte (E-Mail, Push) in jeder
+  Sprache.
+- **Weg der Übersetzung (4.6):** Glossar `docs/i18n/glossar.md`, Stilregeln `docs/i18n/stil/<code>.md`,
+  Kontext je Schlüssel (`scripts/i18n/context.ts`), Erstfassung je Sprache, Zweitprüfung durch einen
+  anderen Agenten (Glossar, Rückübersetzung von 60 Texten je Sprache, Anrede, Satzzeichen), danach die
+  Texte der Stufen 1 bis 3 nachgezogen. Bildprüfung in sieben Sprachen: `docs/perf/22-uebersetzungen.md`.
+- **Prüfung:** `task i18n:check` vor jedem Release (alle Sprachen streng), `task i18n:status` listet
+  fehlende Texte; in `main` brechen fehlende Texte der 20 Sprachen den Test nicht (4.8).
+- **Offen für Marco:** Stichproben in Deutsch (Deutschland) und Englisch (F-15); Weblate (Stufe 5) braucht
+  sein Konto.
+
+## Release 1.36.0: Konzept 22 Stufe 3 «Freigabeländer» (15. November 2026, veröffentlicht: PR #164 `c04704e8`, Tag `v1.36.0`, Lauf 43673988407)
 
 Stufe 3 von `docs/planning/22-ersteinrichtung-und-sprachen.md` (Teil C, Abschnitt 4.11) auf dem Zweig
 `claude/k22-stufe3`, gebaut autonom auf Marcos Auftrag vom 15. November 2026. Vertrag **1.36.0**,
