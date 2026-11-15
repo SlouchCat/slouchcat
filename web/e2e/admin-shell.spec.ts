@@ -61,6 +61,7 @@ const AREAS: readonly (readonly [string, readonly (readonly [string, string, str
     [
       ['Statistiken', '/admin/stats', 'Statistiken'],
       ['Sicherung', '/admin/backup', 'Sicherung'],
+      ['Server', '/admin/server', 'Server'],
     ],
   ],
 ];
@@ -107,9 +108,9 @@ test('the sidebar: back, the overview and five areas; one Tab stop and the arrow
   await expectNoFocusTrap(page, 120);
 });
 
-test('the area tabs reach every one of the 20 pages by keyboard', async ({ page }) => {
+test('the area tabs reach every one of the 21 pages by keyboard', async ({ page }) => {
   test.setTimeout(150_000);
-  expect(PAGES).toHaveLength(20);
+  expect(PAGES).toHaveLength(21);
   for (const [area, pages] of AREAS) {
     const [first] = pages;
     if (!first) throw new Error(`no page in ${area}`);
@@ -145,7 +146,7 @@ test('the overview has no area tabs; the line over each title names area and pag
   page,
 }) => {
   await page.goto('/admin');
-  await expect(h1(page, 'Verwaltung')).toBeVisible();
+  await expect(h1(page, 'Alles im Blick')).toBeVisible();
   await expect(areaTabs(page)).toHaveCount(0);
   await page.goto('/admin/backup');
   await expect(h1(page, 'Sicherung')).toBeVisible();
@@ -176,7 +177,7 @@ test('the breadcrumb in the header: Verwaltung › area / page, by keyboard', as
   await tabTo(page, crumbs.getByRole('link', { name: 'Verwaltung' }), 10);
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/admin$/);
-  await expect(h1(page, 'Verwaltung')).toBeVisible();
+  await expect(h1(page, 'Alles im Blick')).toBeVisible();
   // On the overview: «Verwaltung › Übersicht».
   await expect(crumbs.getByText('Übersicht', { exact: true })).toHaveAttribute(
     'aria-current',
@@ -197,8 +198,8 @@ test('the palette: the button and Ctrl+K open it, typing filters, Enter opens, E
   await page.keyboard.press('Enter');
   await expect(palette(page)).toBeVisible();
   await expectFocusOn(page, paletteField(page));
-  // Overview, five areas, 20 pages, back to the app and the media search.
-  await expect(palette(page).getByRole('option')).toHaveCount(28);
+  // Overview, five areas, 21 pages, back to the app and the media search.
+  await expect(palette(page).getByRole('option')).toHaveCount(29);
   // The focus stays inside while it is open.
   for (const key of ['Tab', 'Tab', 'Shift+Tab']) {
     await page.keyboard.press(key);
@@ -288,7 +289,7 @@ test.describe('on a phone', () => {
   test('the sheet reaches every page; the tabs stand above the page and wrap', async ({ page }) => {
     test.setTimeout(150_000);
     await page.goto('/admin');
-    await expect(h1(page, 'Verwaltung')).toBeVisible();
+    await expect(h1(page, 'Alles im Blick')).toBeVisible();
     for (const [area, name, path, heading] of PAGES) {
       const button = page.getByRole('button', { name: /^Verwaltung · / });
       await resetFocus(page);
@@ -296,11 +297,11 @@ test.describe('on a phone', () => {
       await page.keyboard.press('Enter');
       const sheet = page.getByRole('dialog', { name: 'Seiten der Verwaltung' });
       await expect(sheet).toBeVisible();
-      await expect(sheet.getByRole('link')).toHaveCount(22);
+      await expect(sheet.getByRole('link')).toHaveCount(23);
       const link = sheet
         .getByRole('list', { name: area })
         .getByRole('link', { name: new RegExp(`^${name}(,|$)`) });
-      for (let presses = 0; presses < 22; presses += 1) {
+      for (let presses = 0; presses < 23; presses += 1) {
         if (await link.evaluate((element) => element === document.activeElement)) break;
         await page.keyboard.press('ArrowDown');
       }

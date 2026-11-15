@@ -417,7 +417,7 @@ test('a newer release in the manifest shows the update badge; switching the chec
     // Switching the daily check off forgets the known release: no badge, no notice.
     await putSettings(owner, { updateCheckEnabled: false });
     await page.reload();
-    await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Alles im Blick' })).toBeVisible();
     await expect(page.getByRole('link', { name: /Update auf Version/ })).toHaveCount(0);
   } finally {
     await setUpdateManifest(null);
@@ -428,7 +428,7 @@ test('a newer release in the manifest shows the update badge; switching the chec
 
 test('browser back leaves the page for the overview', async ({ page }) => {
   await page.goto('/admin');
-  await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Alles im Blick' })).toBeVisible();
   // Straight from the overview to the page: the search palette of the header (build plan 2.4).
   await page.getByRole('button', { name: 'Bereich suchen' }).click();
   await page.getByRole('combobox', { name: 'Bereich der Verwaltung suchen' }).fill('Integrationen');

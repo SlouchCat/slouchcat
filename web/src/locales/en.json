@@ -75,7 +75,7 @@
           "test_failed": "probe failed at start"
         },
         "saved": "Saved: {{name}}",
-        "restartAdmin": "Applies after the server restarts (Overview › Restart)."
+        "restartAdmin": "Applies after the server restarts (System › Server › Restart)."
       },
       "fallback": {
         "title": "The chosen graphics chip does not work",
@@ -3323,6 +3323,7 @@
       "tabs": "Pages in {{area}}",
       "back": "Back to the app",
       "updateLabel": "Overview, update to version {{version}} available",
+      "updateBadge": "{{name}}, update to version {{version}} available",
       "sheet": {
         "label": "Administration pages",
         "close": "Close administration pages"
@@ -3406,7 +3407,16 @@
       },
       "audiobookSources": {
         "title": "Audiobook sources"
+      },
+      "server": {
+        "title": "Server"
       }
+    },
+    "server": {
+      "intro": "Version, updates, restart, storage and the error log in one place.",
+      "state": "Server state",
+      "updates": "Updates & restart",
+      "toIntegrations": "Graphics chip, public address and update check: Integrations"
     },
     "home": {
       "setupBand": {
@@ -3418,6 +3428,40 @@
       "title": "Administration",
       "live": "Live, every 5 seconds",
       "liveFailed": "No answer, trying again every 5 seconds",
+      "heading": "Everything at a glance",
+      "intro": "What matters first. Everything else is in the areas.",
+      "refresh": "Refresh",
+      "attention": {
+        "title": "What needs attention?",
+        "band_one": "{{count}} item needs attention",
+        "band_other": "{{count}} items need attention",
+        "show": "Show",
+        "none": "All is well."
+      },
+      "metrics": {
+        "label": "Key figures",
+        "streams": "Active streams",
+        "streamsNote": "Connected right now",
+        "jobs": "Running jobs",
+        "jobsNote": "{{queued}} waiting",
+        "jobsNotePaused": "{{queued}} waiting · {{paused}} paused",
+        "maintenance": "Titles to maintain",
+        "maintenanceNote": "Open cases in maintenance",
+        "storage": "Storage",
+        "storageValue": "{{config}} % · {{cache}} %",
+        "storageNote": "Used: configuration · cache"
+      },
+      "active": {
+        "title": "Active right now"
+      },
+      "quick": {
+        "title": "Straight to your tasks"
+      },
+      "summary": {
+        "title": "Server & recent activity",
+        "details": "Server details",
+        "log": "Open the server log"
+      },
       "update": {
         "title": "Version {{version}} is available",
         "body": "You are running {{current}}. Slouchcat installs nothing itself: get the new image with docker compose pull and restart with docker compose up -d.",

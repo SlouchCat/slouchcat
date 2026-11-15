@@ -58,10 +58,12 @@ export function useAdminNav(): AdminNav {
   const { t, i18n } = useTranslation();
   const session = useActiveSession();
   const { pathname } = useLocation();
-  // The overview asks every 5 s itself (and not at all while the server restarts).
+  // The overview and the page «Server» ask every 5 s themselves (and not at all while the server
+  // restarts or an update installs).
   const dashboard = useQuery({
     ...dashboardQuery,
-    refetchInterval: pathname === paths.admin ? false : SHELL_POLL_MS,
+    refetchInterval:
+      pathname === paths.admin || pathname === paths.adminServer ? false : SHELL_POLL_MS,
   });
   const number = new Intl.NumberFormat(intlLocale(i18n.language));
 
@@ -147,14 +149,21 @@ export function useAdminNav(): AdminNav {
   const current = currentSection(pathname);
   const areaName = (area: AdminArea) => t(`admin.nav.areas.${area}`);
   const pageName = (section: AdminSection) => t(`admin.sections.${section.key}.title`);
+  const update = session.updateAvailable;
+  /** The badge «Update» with its spoken name (A-5): on «Übersicht», «System» and «Server». */
+  const updateBadge = (name: string, version: string) => ({
+    badge: t('nav.update'),
+    accessibleLabel: t('admin.nav.updateBadge', { name, version }),
+  });
   const pageEntry = (section: AdminSection): AdminSideNavEntry => {
     const label = pageName(section);
     const link = { href: section.href, label, icon: section.icon, current: section === current };
+    if (section.key === 'server' && update)
+      return { ...link, ...updateBadge(label, update.version) };
     const numbers = dashboard.data && figure(section.key, label, dashboard.data);
     return numbers ? { ...link, ...numbers } : link;
   };
 
-  const update = session.updateAvailable;
   const overviewLink = {
     href: paths.admin,
     label: t('admin.nav.overview'),
@@ -177,6 +186,7 @@ export function useAdminNav(): AdminNav {
       icon: adminAreaIcons[area],
       current: current?.area === area,
     };
+    if (area === 'system' && update) return { ...link, ...updateBadge(label, update.version) };
     const numbers = dashboard.data && areaFigure(area, label, dashboard.data);
     return numbers ? { ...link, ...numbers } : link;
   });

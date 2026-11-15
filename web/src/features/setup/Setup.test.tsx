@@ -244,7 +244,7 @@ describe('the owner of an unfinished wizard', () => {
     localStorage.removeItem('slouchcat.setupLater');
     const { calls } = mockApi(owner({ 'GET /auth/session': () => json(admin) }));
     renderApp('/admin');
-    expect(await screen.findByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Alles im Blick' })).toBeVisible();
     expect(screen.queryByText('Einrichtung nicht abgeschlossen')).toBeNull();
     expect(calls.some((call) => call.path === '/admin/setup')).toBe(false);
   });

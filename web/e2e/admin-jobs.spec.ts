@@ -132,13 +132,13 @@ test('background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and 
   await resumeAll(owner);
   await restoreSweep(owner);
 
-  // From the overview through the admin sidebar's «Automatisierung»; the card «Aufgaben» links
-  // the page.
+  // From the overview through the admin sidebar's «Automatisierung»; the card «Gerade aktiv»
+  // links the page.
   await page.goto('/admin');
-  await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Alles im Blick' })).toBeVisible();
   await expect(
     page
-      .getByRole('region', { name: 'Aufgaben', exact: true })
+      .getByRole('region', { name: 'Gerade aktiv', exact: true })
       .getByRole('link', { name: 'Hintergrundjobs' }),
   ).toHaveAttribute('href', '/admin/jobs');
   const nav = page.getByRole('navigation', { name: 'Verwaltung' });
@@ -280,7 +280,7 @@ test('background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and 
   // Browser back returns to the overview.
   await page.goBack();
   await expect(page).toHaveURL(/\/admin$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Alles im Blick' })).toBeVisible();
 });
 
 test('background jobs by keyboard: the menu cancels waiting runs after asking; a cancelled run hands the focus to the h1 @keyboard', async ({
@@ -619,10 +619,10 @@ test.describe('failures', () => {
       await route.fulfill({ json: { dismissed } });
     });
 
-    // The overview's card «Aufgaben» links the tab.
+    // The overview's card «Gerade aktiv» links the tab.
     await page.goto('/admin');
     const failuresLink = page
-      .getByRole('region', { name: 'Aufgaben', exact: true })
+      .getByRole('region', { name: 'Gerade aktiv', exact: true })
       .getByRole('link', { name: 'Fehlschläge ansehen' });
     await expect(failuresLink).toHaveAttribute('href', '/admin/jobs?tab=failed');
     await resetFocus(page);

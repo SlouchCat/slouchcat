@@ -19,7 +19,7 @@ const section = (key: AdminSection['key']): AdminSection => {
 const current = (pathname: string) => currentSection(pathname)?.key;
 
 describe('the areas (build plan section 1)', () => {
-  it('holds the 20 pages in the order of the plan', () => {
+  it('holds the 21 pages in the order of the plan', () => {
     expect(
       Object.fromEntries(adminAreas.map((area) => [area, sectionsOf(area).map((s) => s.key)])),
     ).toEqual({
@@ -27,9 +27,9 @@ describe('the areas (build plan section 1)', () => {
       people: ['accounts', 'devices', 'streams'],
       home: ['homeRows', 'spotlight', 'picks', 'collections', 'myMedia', 'announcements'],
       automation: ['jobs', 'integrations', 'notifications'],
-      system: ['stats', 'backup'],
+      system: ['stats', 'backup', 'server'],
     });
-    expect(adminSections).toHaveLength(20);
+    expect(adminSections).toHaveLength(21);
     // The sections are listed area by area, so the sheet and the palette keep the plan's order.
     expect(adminSections.map((entry) => entry.key)).toEqual(
       adminAreas.flatMap((area) => sectionsOf(area).map((entry) => entry.key)),

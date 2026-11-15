@@ -52,7 +52,7 @@ test('radio administration by keyboard: tabs in the URL, stations table, editor,
   expect(config.bufferMode).toBe('tmpfs');
   // Reached from the overview through «Medien», so Back has a page to return to.
   await page.goto('/admin');
-  await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Alles im Blick' })).toBeVisible();
   await adminEntry(page, 'Medien').click();
   await expect(page.getByRole('heading', { level: 1, name: 'Bibliotheken' })).toBeVisible();
   const navLink = areaTab(page, 'Radio');

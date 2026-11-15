@@ -1,26 +1,18 @@
-import type { Dashboard, SystemInfo, UpdateInstallStatus } from '@slouchcat/api-client';
+import type { Dashboard, SystemInfo } from '@slouchcat/api-client';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import i18n from '@/i18n';
 import { json, mockApi, problem, renderApp, session, signedIn, type Routes } from '@/test/api';
 import { dashboardFixture, renderAdminPage } from '@/test/admin';
-import { activitySentence } from './AdminHomePage';
-import { reloadPage } from './restart';
 
 // Swiss numbers as the app formats German (de-CH; concept 22 section 4.4).
 const swiss = (value: number) => new Intl.NumberFormat('de-CH').format(value);
 
-// A restart that went through reloads the page; the test only notes it.
-vi.mock('./restart', async (original) => ({
-  ...(await original<typeof import('./restart')>()),
-  reloadPage: vi.fn(),
-}));
-
-// The administration (concept 11, A-2, A-3): the sidebar in the shell's column on every /admin
-// page (21 entries, numbers after F-7, one Tab stop, ↑ ↓ Home End), the sheet on a phone, and the
-// overview with eight equal cards asked every 5 s, the hints, the collapsed server log and the
-// restart.
+// The administration (concept 11, A-2, A-3; redesign, build plan 1 to 3): the sidebar in the
+// shell's column on every /admin page (numbers after F-7, one Tab stop, ↑ ↓ Home End), the sheet
+// on a phone, and the overview asked every 5 s: the band, four key figures, what needs attention,
+// what is active, the areas and the server in short. The server's functions in full are tested on
+// System › Server (ServerPage.test.tsx).
 
 const dashboard = (overrides: Partial<Dashboard> = {}): Dashboard =>
   dashboardFixture({
@@ -120,6 +112,10 @@ const quiet = (overrides: Partial<Dashboard> = {}): Dashboard =>
   dashboard({
     streams: [],
     jobs: { queued: 0, running: 0, failed: 0, recentFailed: [], active: [], failedByType: [] },
+    integrations: [
+      { key: 'tmdb', state: 'configured' },
+      { key: 'email', state: 'missing' },
+    ],
     webhooks: { total: 0, eventsLast24h: 0, silent: [] },
     errors: [],
     update: {
@@ -160,71 +156,81 @@ const routes = (extra: Routes = {}): Routes => ({
   ...extra,
 });
 
-/** The cards of the overview by their headings, in the order of the grid. */
-const cardTitles = () =>
-  screen
-    .getAllByRole('heading', { level: 2 })
-    .map((heading) => heading.textContent)
-    .filter((title) => title !== 'Server-Protokoll');
+/** The attention card of the overview. */
+const attentionCard = () => screen.findByRole('region', { name: 'Was benötigt Aufmerksamkeit?' });
+
+/** The titles of the hints in a region, in their order (not the failures listed under one). */
+const hintTitles = (region: HTMLElement) =>
+  Array.from(region.querySelectorAll('li > span:first-child > span:last-child')).map(
+    (title) => title.textContent,
+  );
 
 const termsOf = (region: HTMLElement) =>
   within(region)
     .getAllByRole('term')
     .map((term) => [term.textContent, term.nextElementSibling?.textContent]);
 
-describe('admin overview (concept 11, A-3)', () => {
+describe('admin overview (concept 11, A-3; build plan 3)', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
-  it('shows eight cards in two columns: server, streams, tasks, activity, integrations, webhooks, storage, hints', async () => {
+  it('shows the band, four key figures, what needs attention, what is active, the areas and the server in short', async () => {
     mockApi(routes());
     renderApp('/admin');
-    expect(await screen.findByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Alles im Blick' })).toBeVisible();
+    expect(screen.getByText('Übersicht', { selector: 'p' })).toBeVisible();
+    expect(
+      screen.getByText('Wichtiges zuerst. Alles Weitere erreichst du über die Bereiche.'),
+    ).toBeVisible();
     expect(screen.getByText('Live, alle 5 Sekunden')).toBeVisible();
-    const server = await screen.findByRole('region', { name: 'Server' });
-    expect(cardTitles()).toEqual([
-      'Server',
-      'Jetzt läuft',
-      'Aufgaben',
-      'Letzte Aktivität',
-      'Integrationen',
-      'Webhooks',
-      'Speicher',
-      'Hinweise',
-    ]);
+    // The overview has no area tabs.
+    expect(screen.queryByRole('navigation', { name: /^Seiten im Bereich/ })).toBeNull();
 
-    expect(await within(server).findByText('0.9.0+abc1234')).toBeVisible();
-    expect(within(server).getByText('Intel Quick Sync (QSV)')).toBeVisible();
-    expect(within(server).getByText(`${swiss(58982)} von ${swiss(65536)} (90 %)`)).toBeVisible();
-    expect(within(server).getByText('Version 0.9.1 verfügbar')).toBeVisible();
-    expect(within(server).getByRole('button', { name: 'Nach Updates suchen' })).toBeVisible();
-    expect(within(server).getByRole('button', { name: 'Neu starten' })).toBeVisible();
-    // The warnings with their commands moved to the hints.
-    expect(within(server).queryByText('Das inotify-Limit ist knapp')).not.toBeInTheDocument();
-
-    const streams = screen.getByRole('region', { name: 'Jetzt läuft' });
-    expect(within(streams).getByText('Heat')).toBeVisible();
-    expect(within(streams).getByText('Marco · Wohnzimmer')).toBeVisible();
-    expect(within(streams).getByText('Transcode (HW)')).toBeVisible();
-    expect(within(streams).getByRole('progressbar', { name: 'Fortschritt Heat' })).toHaveAttribute(
-      'aria-valuenow',
-      '25',
+    // What needs attention, most urgent first: the failed jobs with their types, the integration
+    // with its reason, the silent webhook, the warning of the system, the new version.
+    const attention = await attentionCard();
+    await waitFor(() =>
+      expect(hintTitles(attention)).toEqual([
+        '1 Hintergrundjob fehlgeschlagen',
+        'Trakt: Fehler',
+        'Seit sieben Tagen ohne Meldung: Sonarr',
+        'Das inotify-Limit ist knapp',
+        'Version 0.9.1 ist verfügbar',
+      ]),
     );
-    expect(within(streams).getByText('0:30:00 / 2:00:00')).toBeVisible();
-    expect(within(streams).getByRole('link', { name: 'Alle Streams' })).toHaveAttribute(
+    expect(screen.getByText('5 Punkte benötigen Aufmerksamkeit')).toBeVisible();
+    const failed = within(attention).getByRole('list', { name: 'Fehlgeschlagen je Jobart' });
+    expect(within(failed).getByText('Titel zuordnen: 1 fehlgeschlagen')).toBeVisible();
+    expect(within(failed).getByText('tmdb: HTTP 503')).toBeVisible();
+    expect(within(attention).getByText('HTTP 503')).toBeVisible();
+    expect(
+      within(attention).getByRole('link', { name: 'Integrationen einrichten' }),
+    ).toHaveAttribute('href', '/admin/integrations');
+    expect(within(attention).getByRole('link', { name: 'Webhooks verwalten' })).toHaveAttribute(
       'href',
-      '/admin/streams',
+      '/admin/integrations',
     );
+    expect(
+      within(attention).getByRole('group', { name: 'Befehl für das inotify-Limit' }),
+    ).toHaveTextContent('sysctl fs.inotify.max_user_watches=524288');
 
-    const tasks = screen.getByRole('region', { name: 'Aufgaben' });
-    expect(termsOf(tasks)).toEqual([
-      ['Wartend', '12'],
-      ['Laufend', '1'],
-      ['Fehlgeschlagen', '1'],
+    // Four key figures, each a link to its page; storage with both paths (F-4).
+    const metrics = screen.getByRole('region', { name: 'Kennzahlen' });
+    expect(
+      within(metrics)
+        .getAllByRole('link')
+        .map((link) => [link.textContent, link.getAttribute('href')]),
+    ).toEqual([
+      ['Aktive Streams1Gerade verbunden', '/admin/streams'],
+      ['Laufende Jobs112 wartend', '/admin/jobs'],
+      ['Titel zur Pflege4Offene Fälle in der Pflege', '/admin/maintenance'],
+      ['Speicherplatz40 % · 10 %Belegt: Konfiguration · Cache', '/admin/server'],
     ]);
-    const running = within(tasks).getByRole('list', { name: 'Laufende Aufgaben' });
+
+    const active = screen.getByRole('region', { name: 'Gerade aktiv' });
+    const running = within(active).getByRole('list', { name: 'Laufende Aufgaben' });
     expect(
       within(running).getByText('Keyframe-Index (ganze Datei lesen) · Oppenheimer (2023)'),
     ).toBeVisible();
@@ -235,62 +241,117 @@ describe('admin overview (concept 11, A-3)', () => {
     ).toHaveAttribute('aria-valuenow', '30');
     expect(within(running).getByText('12 von 40')).toBeVisible();
     expect(within(running).getByText('noch ca. 3 min')).toBeVisible();
-    const failed = within(tasks).getByRole('list', { name: 'Fehlgeschlagen je Jobart' });
-    expect(within(failed).getByText('Titel zuordnen: 1 fehlgeschlagen')).toBeVisible();
-    expect(within(failed).getByText('tmdb: HTTP 503')).toBeVisible();
-    expect(within(tasks).getByRole('link', { name: 'Hintergrundjobs' })).toHaveAttribute(
+    const streams = within(active).getByRole('list', { name: 'Jetzt läuft' });
+    expect(within(streams).getByText('Heat')).toBeVisible();
+    expect(within(streams).getByText('Marco · Wohnzimmer')).toBeVisible();
+    expect(within(streams).getByText('Transcode (HW)')).toBeVisible();
+    expect(within(streams).getByRole('progressbar', { name: 'Fortschritt Heat' })).toHaveAttribute(
+      'aria-valuenow',
+      '25',
+    );
+    expect(within(streams).getByText('0:30:00 / 2:00:00')).toBeVisible();
+    expect(within(active).getByRole('link', { name: 'Hintergrundjobs' })).toHaveAttribute(
       'href',
       '/admin/jobs',
     );
     // Concept 12 (JOB-8, 11.5 point 11): the failures of every type are a tab of the jobs page.
-    expect(within(tasks).getByRole('link', { name: 'Fehlschläge ansehen' })).toHaveAttribute(
+    expect(within(active).getByRole('link', { name: 'Fehlschläge ansehen' })).toHaveAttribute(
       'href',
       '/admin/jobs?tab=failed',
     );
-    // F-2: no table with «Erneut» and «Abbrechen» on the overview any more.
+    expect(within(active).getByRole('link', { name: 'Alle Streams' })).toHaveAttribute(
+      'href',
+      '/admin/streams',
+    );
+    // F-2: no table with «Erneut» and «Abbrechen» on the overview.
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
 
-    const activity = screen.getByRole('list', { name: 'Letzte Aktivität' });
+    // The areas, each to its first page.
+    const quick = screen.getByRole('region', { name: 'Direkt zu deinen Aufgaben' });
+    expect(
+      within(quick)
+        .getAllByRole('link')
+        .map((link) => link.getAttribute('href')),
+    ).toEqual([
+      '/admin/libraries',
+      '/admin/accounts',
+      '/admin/home-rows',
+      '/admin/jobs',
+      '/admin/stats',
+    ]);
+    expect(within(quick).getByRole('link', { name: 'System' })).toHaveAccessibleDescription(
+      'Statistiken, Sicherung, Server',
+    );
+
+    // The server in short; everything in full on System › Server.
+    const summary = screen.getByRole('region', { name: 'Server & letzte Aktivitäten' });
+    expect(within(summary).getAllByRole('link', { name: 'Serverdetails' })[0]).toHaveAttribute(
+      'href',
+      '/admin/server',
+    );
+    const state = within(summary).getByRole('region', { name: 'Serverzustand' });
+    await waitFor(() =>
+      expect(termsOf(state)).toEqual([
+        ['Version', '0.9.0+abc1234'],
+        ['Läuft seit', expect.any(String)],
+        ['Updates', 'Version 0.9.1 verfügbar'],
+        ['Integrationen', '1 von 4 eingerichtet'],
+        ['Webhooks', '3 Meldungen im Protokoll der letzten 24 Stunden, von 2 Integrationen.'],
+        ['Server-Protokoll', '2 Fehler'],
+      ]),
+    );
+    expect(within(state).getByRole('link', { name: 'Server-Protokoll ansehen' })).toHaveAttribute(
+      'href',
+      '/admin/server',
+    );
+    const activity = within(summary).getByRole('list', { name: 'Letzte Aktivität' });
     expect(within(activity).getByRole('listitem')).toHaveTextContent('Marco hat «Alien» gestartet');
+    // The server's functions are not on the overview any more.
+    expect(screen.queryByRole('button', { name: 'Neu starten' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Nach Updates suchen' })).not.toBeInTheDocument();
+  });
 
-    const integrations = screen.getByRole('region', { name: 'Integrationen' });
-    expect(within(integrations).getByText('1 von 4 eingerichtet')).toBeInTheDocument();
-    expect(within(integrations).getByText('TMDB: Eingerichtet')).toBeVisible();
-    expect(within(integrations).getByText('Trakt: Fehler')).toBeVisible();
-    expect(within(integrations).getByText('HTTP 503')).toBeVisible();
-    expect(within(integrations).getByText('E-Mail: Nicht eingerichtet')).toBeVisible();
-    expect(within(integrations).getByText('Update-Prüfung: Ausgeschaltet')).toBeVisible();
-    expect(
-      within(integrations).getByRole('link', { name: 'Integrationen einrichten' }),
-    ).toHaveAttribute('href', '/admin/integrations');
+  it('«Ansehen» in the band moves the focus to what needs attention', async () => {
+    mockApi(routes());
+    renderApp('/admin');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Ansehen' }));
+    expect(screen.getByRole('group', { name: 'Was benötigt Aufmerksamkeit?' })).toHaveFocus();
+  });
 
-    const webhooks = screen.getByRole('region', { name: 'Webhooks' });
-    expect(
-      within(webhooks).getByText(
-        '3 Meldungen im Protokoll der letzten 24 Stunden, von 2 Integrationen.',
-      ),
-    ).toBeVisible();
-    expect(within(webhooks).getByText('Seit sieben Tagen ohne Meldung: Sonarr')).toBeVisible();
-    expect(within(webhooks).getByRole('link', { name: 'Webhooks verwalten' })).toBeVisible();
+  it('«Aktualisieren» asks the dashboard again at once', async () => {
+    const { calls } = mockApi(routes());
+    renderApp('/admin');
+    await attentionCard();
+    const polls = () => calls.filter((call) => call.path === '/admin/dashboard').length;
+    const before = polls();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Aktualisieren' }));
+    await waitFor(() => expect(polls()).toBeGreaterThan(before));
+  });
 
-    const storage = screen.getByRole('region', { name: 'Speicher' });
-    const config = within(storage).getByRole('meter', { name: 'Konfiguration (/config)' });
-    expect(config).toHaveAttribute('aria-valuenow', '40');
-    // Intl puts a no-break space between number and unit.
-    expect(config).toHaveAttribute(
-      'aria-valuetext',
-      expect.stringMatching(/^40\sGB von 100\sGB belegt$/),
+  it('a running update install is a point of attention that leads to the server', async () => {
+    mockApi(
+      routes({
+        'GET /admin/dashboard': () =>
+          json(
+            quiet({
+              update: {
+                ...quiet().update,
+                install: { phase: 'pulling', from: '0.9.0', to: '0.9.1', migrated: false },
+              },
+            }),
+          ),
+        'GET /admin/system': () => json({ ...system, inotify: { ...system.inotify, warn: false } }),
+      }),
     );
-    expect(within(storage).getByRole('meter', { name: 'Cache (/cache)' })).toHaveAttribute(
-      'aria-valuenow',
-      '10',
+    renderApp('/admin');
+    const attention = await attentionCard();
+    await waitFor(() => expect(hintTitles(attention)).toEqual(['Update auf 0.9.1 läuft']));
+    expect(within(attention).getByRole('link', { name: 'Serverdetails' })).toHaveAttribute(
+      'href',
+      '/admin/server',
     );
-
-    // The old overview's parts are gone: intro, cards of every page.
-    expect(screen.queryByText(/an einem Ort/)).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('region', { name: 'Alle Verwaltungsseiten' }),
-    ).not.toBeInTheDocument();
   });
 
   it('says once that ratings are minimum ages now and closes the hint on «Verstanden» (concept 22)', async () => {
@@ -315,7 +376,7 @@ describe('admin overview (concept 11, A-3)', () => {
       }),
     );
     renderApp('/admin');
-    const hints = await screen.findByRole('region', { name: 'Hinweise' });
+    const hints = await attentionCard();
     expect(await within(hints).findByText('Freigaben sind jetzt Mindestalter')).toBeVisible();
     expect(within(hints).getByText(/PG-13 ist «ab 13» statt FSK 12/)).toBeVisible();
     expect(within(hints).getByText('Freigaben werden neu gelesen')).toBeVisible();
@@ -352,16 +413,14 @@ describe('admin overview (concept 11, A-3)', () => {
       }),
     );
     renderApp('/admin');
-    const hints = await screen.findByRole('region', { name: 'Hinweise' });
-    await waitFor(() => expect(within(hints).getAllByRole('listitem')).toHaveLength(9));
-    expect(
-      within(hints)
-        .getAllByRole('listitem')
-        .map((item) => item.querySelector('span > span:last-child')?.textContent),
-    ).toEqual([
+    const hints = await attentionCard();
+    await waitFor(() => expect(hintTitles(hints)).toHaveLength(11));
+    expect(hintTitles(hints)).toEqual([
       '265 Hintergrundjobs fehlgeschlagen',
       '2 Jobarten pausiert',
       'TVDB-Schlüssel abgewiesen',
+      'Trakt: Fehler',
+      'Seit sieben Tagen ohne Meldung: Sonarr',
       'Scan der Bibliothek «Filme» abgebrochen',
       'Ordner-Browser blockiert',
       'Kein Grafikchip erkannt',
@@ -369,6 +428,7 @@ describe('admin overview (concept 11, A-3)', () => {
       '/config ist zu über 90 % belegt',
       'Version 0.9.1 ist verfügbar',
     ]);
+    expect(screen.getByText('11 Punkte benötigen Aufmerksamkeit')).toBeVisible();
     // The failures hint opens the tab «Fehlschläge», the paused hint the page.
     expect(
       within(hints)
@@ -399,12 +459,9 @@ describe('admin overview (concept 11, A-3)', () => {
       'href',
       'https://github.com/SlouchCat/slouchcat-releases/releases/tag/v0.9.1',
     );
-    // Integration errors and silent webhooks stay in their own cards (G-8).
-    expect(within(hints).queryByText(/Trakt/)).not.toBeInTheDocument();
-    expect(within(hints).queryByText(/Sonarr/)).not.toBeInTheDocument();
     // The head's number is the live region (the command blocks have their own for «kopiert»).
-    expect(within(hints).getByText('9 Hinweise').closest('[role="status"]')).toHaveTextContent(
-      '9 Hinweise',
+    expect(within(hints).getByText('11 Hinweise').closest('[role="status"]')).toHaveTextContent(
+      '11 Hinweise',
     );
   });
 
@@ -429,7 +486,7 @@ describe('admin overview (concept 11, A-3)', () => {
       }),
     );
     renderApp('/admin');
-    const hints = await screen.findByRole('region', { name: 'Hinweise' });
+    const hints = await attentionCard();
     expect(await within(hints).findByText('Du verwendest einen Entwicklungsstand')).toBeVisible();
     expect(hints).toHaveTextContent(
       'spotlight-marker-f92c09f ist kein veröffentlichtes Release, darum gibt es keinen Vergleich und keinen Update-Hinweis. Zuletzt veröffentlicht: 1.1.0.',
@@ -440,11 +497,11 @@ describe('admin overview (concept 11, A-3)', () => {
     );
     expect(screen.queryByText(/ist verfügbar/)).not.toBeInTheDocument();
     expect(
-      within(screen.getByRole('region', { name: 'Server' })).getByText('Entwicklungsstand'),
+      within(screen.getByRole('region', { name: 'Serverzustand' })).getByText('Entwicklungsstand'),
     ).toBeVisible();
   });
 
-  it('when all is quiet: nothing plays, the next run, no hints, no errors, no activity', async () => {
+  it('when all is quiet: nothing plays, the next run, all is well, no errors, no activity', async () => {
     mockApi(
       routes({
         'GET /admin/dashboard': () =>
@@ -471,318 +528,12 @@ describe('admin overview (concept 11, A-3)', () => {
     ).toBeVisible();
     expect(screen.getByText('Noch keine Aktivität.')).toBeVisible();
     expect(screen.getByText('Kein Webhook eingerichtet.')).toBeVisible();
-    const hints = screen.getByRole('region', { name: 'Hinweise' });
-    await waitFor(() => expect(within(hints).getByText('Keine Hinweise.')).toBeVisible());
+    expect(screen.getByText('keine Fehler')).toBeVisible();
+    const hints = await attentionCard();
+    await waitFor(() => expect(within(hints).getByText('Alles in Ordnung.')).toBeVisible());
     expect(within(hints).getByRole('status')).toHaveTextContent('0 Hinweise');
-    const log = screen.getByRole('region', { name: 'Server-Protokoll' });
-    expect(log).toHaveTextContent('Server-Protokoll · keine Fehler');
-    expect(within(log).getByText('Keine Fehler seit dem Start.')).not.toBeVisible();
-    // The live region of the count is there before the first error comes.
-    expect(within(log).getByRole('status')).toBeEmptyDOMElement();
-  });
-
-  it('builds a sentence for every kind of the activity log, and a general one for a new kind', async () => {
-    const at = '2026-10-21T09:00:00Z';
-    mockApi(
-      routes({
-        'GET /admin/dashboard': () =>
-          json(
-            quiet({
-              activity: [
-                {
-                  id: 1,
-                  at,
-                  kind: 'playback_completed',
-                  profileName: 'Lena',
-                  itemTitle: 'Dune',
-                  detail: {},
-                },
-                {
-                  id: 2,
-                  at,
-                  kind: 'playback_stopped',
-                  profileName: 'Lena',
-                  itemTitle: 'Dune',
-                  detail: { by: 'revoked' },
-                },
-                { id: 3, at, kind: 'scan_done', libraryName: 'Filme', detail: { newTitles: 3 } },
-                {
-                  id: 4,
-                  at,
-                  kind: 'scan_aborted',
-                  libraryName: 'Serien',
-                  detail: { reason: 'cancelled' },
-                },
-                { id: 5, at, kind: 'job_failed', detail: { jobType: 'probe.keyframes', count: 4 } },
-                { id: 6, at, kind: 'telescope_aligned', detail: {} },
-              ],
-            }),
-          ),
-      }),
-    );
-    renderApp('/admin');
-    const feed = await screen.findByRole('list', { name: 'Letzte Aktivität' });
-    expect(
-      within(feed)
-        .getAllByRole('listitem')
-        .map((item) => item.firstElementChild?.nextElementSibling?.textContent),
-    ).toEqual([
-      'Lena hat «Dune» fertig geschaut',
-      'Wiedergabe von «Dune» (Lena) beendet, Gerät vergessen',
-      'Scan von «Filme» fertig: 3 neue Titel',
-      'Scan von «Serien» von Hand abgebrochen',
-      'Keyframe-Index (ganze Datei lesen): 4 Jobs fehlgeschlagen',
-      'Ereignis auf dem Server',
-    ]);
-    expect(within(feed).getAllByRole('listitem')[0]!.querySelector('time')).toHaveAttribute(
-      'datetime',
-      at,
-    );
-  });
-
-  it('builds the sentence of every kind and branch from the locale', () => {
-    const t = i18n.t.bind(i18n);
-    const at = '2026-10-21T09:00:00Z';
-    const sentence = (kind: string, fields: Partial<Dashboard['activity'][number]> = {}) =>
-      activitySentence(t, { id: 1, at, kind, detail: {}, ...fields }, 'de');
-    const viewer = { profileName: 'Lena', itemTitle: 'Dune' };
-    expect(sentence('playback_started', viewer)).toBe('Lena hat «Dune» gestartet');
-    expect(sentence('playback_completed', viewer)).toBe('Lena hat «Dune» fertig geschaut');
-    expect(sentence('playback_stopped', { ...viewer, detail: { by: 'admin' } })).toBe(
-      'Wiedergabe von «Dune» (Lena) beendet',
-    );
-    expect(sentence('playback_stopped', { ...viewer, detail: { by: 'revoked' } })).toBe(
-      'Wiedergabe von «Dune» (Lena) beendet, Gerät vergessen',
-    );
-    // A deleted profile or title keeps the sentence whole.
-    expect(sentence('playback_started')).toBe('Ein Profil hat «einen Titel» gestartet');
-    const library = { libraryName: 'Filme' };
-    expect(sentence('scan_started', { ...library, detail: { trigger: 'manual' } })).toBe(
-      'Scan von «Filme» gestartet',
-    );
-    expect(sentence('scan_done', { ...library, detail: { newTitles: 1 } })).toBe(
-      'Scan von «Filme» fertig: 1 neuer Titel',
-    );
-    expect(sentence('scan_done', library)).toBe('Scan von «Filme» fertig: 0 neue Titel');
-    expect(sentence('scan_failed', { ...library, detail: { reason: 'error' } })).toBe(
-      'Scan von «Filme» fehlgeschlagen',
-    );
-    expect(sentence('scan_aborted', { ...library, detail: { reason: 'root_missing' } })).toBe(
-      'Scan von «Filme» vom Verlustschutz abgebrochen',
-    );
-    expect(sentence('scan_aborted', { ...library, detail: { reason: 'cancelled' } })).toBe(
-      'Scan von «Filme» von Hand abgebrochen',
-    );
-    expect(sentence('scan_started')).toBe('Scan von «eine Bibliothek» gestartet');
-    expect(sentence('job_failed', { detail: { jobType: 'probe.keyframes', count: 1 } })).toBe(
-      'Keyframe-Index (ganze Datei lesen): 1 Job fehlgeschlagen',
-    );
-    expect(sentence('job_failed', { detail: { jobType: 'new.kind', count: 2 } })).toBe(
-      'new.kind: 2 Jobs fehlgeschlagen',
-    );
-    expect(sentence('backup_created')).toBe('Sicherung erstellt');
-    expect(sentence('backup_created', { detail: { sizeBytes: 2e9 } })).toMatch(
-      /^Sicherung erstellt \(2\sGB\)$/,
-    );
-    expect(sentence('backup_restored')).toBe('Sicherung zurückgeholt');
-    expect(sentence('server_started')).toBe('Server gestartet');
-    expect(sentence('server_started', { detail: { version: '1.7.0' } })).toBe(
-      'Server gestartet, Version 1.7.0',
-    );
-    expect(sentence('server_restart')).toBe('Server neu gestartet');
-    expect(sentence('server_restart', { accountEmail: 'owner@example.test' })).toBe(
-      'Neustart durch owner@example.test',
-    );
-    // Concept 20 stage 5: a deleted library and a deleted title, with and without the files.
-    const owner = { accountEmail: 'owner@example.test' };
-    expect(sentence('library_deleted', { ...owner, ...library, detail: { count: 318 } })).toBe(
-      'Bibliothek «Filme» von owner@example.test gelöscht (318 Titel)',
-    );
-    expect(
-      sentence('item_deleted', { ...owner, itemTitle: 'Alien', detail: { mode: 'library' } }),
-    ).toBe('«Alien» von owner@example.test aus Slouchcat entfernt');
-    expect(
-      sentence('item_deleted', {
-        ...owner,
-        itemTitle: 'Alien',
-        detail: { mode: 'files', count: 2, sizeBytes: 2e9 },
-      }),
-    ).toMatch(/^«Alien» von owner@example.test samt 2 Dateien gelöscht \(2\sGB\)$/);
-    expect(sentence('telescope_aligned', viewer)).toBe('Ereignis auf dem Server');
-  });
-
-  it('keeps the server log collapsed; a poll every 5 s announces new errors as a count', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    const older = { at: '2026-10-21T09:20:00Z', source: 'library', message: 'scan aborted' };
-    let current = quiet();
-    const { calls } = mockApi(routes({ 'GET /admin/dashboard': () => json(current) }));
-    renderApp('/admin');
-    const log = await screen.findByRole('region', { name: 'Server-Protokoll' });
-    const status = within(log).getByRole('status');
-    const polls = () => calls.filter((call) => call.path === '/admin/dashboard').length;
-    await waitFor(() => expect(polls()).toBeGreaterThanOrEqual(1));
-    const before = polls();
-    current = quiet({ errors: [older] });
-    await act(() => vi.advanceTimersByTimeAsync(5000));
-    await waitFor(() => expect(polls()).toBeGreaterThan(before));
-    const errors = within(log).getByRole('list', {
-      hidden: true,
-      name: 'Fehler aus dem Server-Log',
-    });
-    const first = await within(errors).findByText('scan aborted');
-    // Collapsed: the list is there but not shown; its count is read out all the same.
-    expect(first).not.toBeVisible();
-    expect(status).toHaveTextContent(/^1 neuer Fehler$/);
-    expect(log).toHaveTextContent('Server-Protokoll · 1 Fehler');
-
-    // Two more on top (newest first): the older entry keeps its node, only the count is read.
-    current = quiet({
-      errors: [
-        { at: '2026-10-21T09:22:00Z', source: 'transcode', message: 'ffmpeg exited' },
-        { at: '2026-10-21T09:21:00Z', source: 'library', message: 'scan aborted' },
-        older,
-      ],
-    });
-    await act(() => vi.advanceTimersByTimeAsync(5000));
-    await waitFor(() => expect(errors.querySelectorAll('li')).toHaveLength(3));
-    expect(status).toHaveTextContent(/^2 neue Fehler$/);
-    expect(errors.querySelectorAll('li')[2]).toContainElement(first);
-
-    // Opened, the list shows; the list itself is not live.
-    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
-    await user.click(within(log).getByText('Server-Protokoll'));
-    expect(first).toBeVisible();
-    expect(errors).not.toHaveAttribute('aria-live');
-    expect(errors.querySelectorAll('li')[0]).toHaveTextContent('ffmpeg exited');
-  });
-
-  it('restart: the dialog names the streams; «Abbrechen» keeps the server running', async () => {
-    const { calls } = mockApi(routes());
-    renderApp('/admin');
-    const user = userEvent.setup();
-    const server = await screen.findByRole('region', { name: 'Server' });
-    const restart = within(server).getByRole('button', { name: 'Neu starten' });
-    act(() => restart.focus());
-    await user.keyboard('{Enter}');
-    const dialog = await screen.findByRole('alertdialog', { name: 'Server neu starten?' });
-    // The overview opens its own AdminDensityScope, so its dialog is compact too (ADR 0020).
-    expect(dialog.closest('[data-density]')).toHaveAttribute('data-density', 'compact');
-    expect(dialog).toHaveTextContent(
-      '1 laufender Stream bricht ab. Laufende Downloads für unterwegs werden unterbrochen.',
-    );
-    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
-    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
-    await waitFor(() => expect(restart).toHaveFocus());
-    expect(calls.some((call) => call.path === '/admin/server/restart')).toBe(false);
-  });
-
-  it('restart without streams: the waiting panel replaces the cards, title and sidebar stay', async () => {
-    const { calls } = mockApi(
-      routes({
-        'GET /admin/dashboard': () => json(quiet()),
-        'POST /admin/server/restart': () => json({ restartAt: '2026-10-21T09:30:01Z' }, 202),
-        // The old process still answers: the panel keeps waiting.
-        'GET /healthz': () => json({ status: 'ok', version: '0.9.0', uptimeSeconds: 99_999 }),
-      }),
-    );
-    renderApp('/admin');
-    const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Neu starten' }));
-    const dialog = await screen.findByRole('alertdialog', { name: 'Server neu starten?' });
-    expect(dialog).toHaveTextContent(
-      'Gerade läuft nichts. Laufende Downloads für unterwegs werden unterbrochen.',
-    );
-    await user.click(within(dialog).getByRole('button', { name: 'Neu starten' }));
-
-    const heading = await screen.findByRole('heading', { level: 2, name: 'Server startet neu' });
-    await waitFor(() => expect(heading).toHaveFocus());
-    expect(
-      calls.filter((call) => call.method === 'POST' && call.path === '/admin/server/restart'),
-    ).toHaveLength(1);
-    expect(screen.getByRole('status')).toHaveTextContent('Warte auf den Server …');
-    expect(screen.queryByRole('region', { name: 'Server' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Hinweise' })).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
-    expect(screen.getByRole('navigation', { name: 'Verwaltung' })).toBeVisible();
-  });
-
-  it('a restart that went through reloads the page once the new server answers', async () => {
-    vi.mocked(reloadPage).mockClear();
-    let restarted = false;
-    let answers = 0;
-    mockApi(
-      routes({
-        'GET /admin/dashboard': () => json(quiet()),
-        'POST /admin/server/restart': () => {
-          restarted = true;
-          return json({ restartAt: '2026-10-21T09:30:01Z' }, 202);
-        },
-        // Before the restart and right after the 202 the old process answers; then the new one.
-        'GET /healthz': () => {
-          if (restarted) answers += 1;
-          const old = !restarted || answers === 1;
-          return json({ status: 'ok', version: '0.9.0', uptimeSeconds: old ? 99_999 : 0 });
-        },
-      }),
-    );
-    renderApp('/admin');
-    const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Neu starten' }));
-    const dialog = await screen.findByRole('alertdialog', { name: 'Server neu starten?' });
-    await user.click(within(dialog).getByRole('button', { name: 'Neu starten' }));
-    expect(await screen.findByRole('heading', { name: 'Server startet neu' })).toBeVisible();
-    expect(reloadPage).not.toHaveBeenCalled();
-    await waitFor(() => expect(reloadPage).toHaveBeenCalledTimes(1), { timeout: 5000 });
-    expect(screen.getByRole('status')).toHaveTextContent('Der Server ist zurück.');
-  });
-
-  it('a restart already on its way shows the waiting panel instead of an error', async () => {
-    mockApi(routes({ 'POST /admin/server/restart': () => problem(409, 'restart_pending') }));
-    renderApp('/admin');
-    const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Neu starten' }));
-    const dialog = await screen.findByRole('alertdialog', { name: 'Server neu starten?' });
-    await user.click(within(dialog).getByRole('button', { name: 'Neu starten' }));
-    expect(await screen.findByRole('heading', { name: 'Server startet neu' })).toBeVisible();
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Server' })).not.toBeInTheDocument();
-  });
-
-  it('a refused restart says why and keeps the cards', async () => {
-    mockApi(routes({ 'POST /admin/server/restart': () => problem(409, 'backup_busy') }));
-    renderApp('/admin');
-    const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Neu starten' }));
-    const dialog = await screen.findByRole('alertdialog', { name: 'Server neu starten?' });
-    await user.click(within(dialog).getByRole('button', { name: 'Neu starten' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Gerade läuft eine Sicherung oder Wiederherstellung.',
-    );
-    expect(screen.getByRole('region', { name: 'Server' })).toBeVisible();
-  });
-
-  it('«Nach Updates suchen» asks the server and reads the dashboard again; a refusal shows', async () => {
-    let enabled = true;
-    const { calls } = mockApi(
-      routes({
-        'POST /admin/update/check': () =>
-          enabled ? json(dashboard().update) : problem(422, 'update_check_disabled'),
-      }),
-    );
-    renderApp('/admin');
-    const user = userEvent.setup();
-    const check = await screen.findByRole('button', { name: 'Nach Updates suchen' });
-    const polls = () => calls.filter((call) => call.path === '/admin/dashboard').length;
-    const before = polls();
-    await user.click(check);
-    expect(await screen.findByText('Nach Updates gesucht.')).toBeVisible();
-    await waitFor(() => expect(polls()).toBeGreaterThan(before));
-    enabled = false;
-    await user.click(check);
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Die Update-Prüfung ist ausgeschaltet.',
-    );
-    expect(screen.queryByText('Nach Updates gesucht.')).not.toBeInTheDocument();
+    expect(screen.queryByText(/benötigen? Aufmerksamkeit$/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ansehen' })).not.toBeInTheDocument();
   });
 
   it('a failing dashboard request offers a retry', async () => {
@@ -800,732 +551,7 @@ describe('admin overview (concept 11, A-3)', () => {
     expect(screen.queryByText('Live, alle 5 Sekunden')).not.toBeInTheDocument();
     fail = false;
     await user.click(screen.getByRole('button', { name: 'Erneut versuchen' }));
-    expect(await screen.findByRole('region', { name: 'Aufgaben' })).toBeVisible();
-  });
-});
-
-/** The update state of a newer release 0.9.1 the server can install through the companion. */
-const installable = (overrides: Partial<Dashboard['update']> = {}): Dashboard['update'] => ({
-  enabled: true,
-  currentVersion: '0.9.0',
-  latestVersion: '0.9.1',
-  development: false,
-  available: true,
-  url: 'https://github.com/SlouchCat/slouchcat/releases/tag/v0.9.1',
-  notes: 'Neu: Update per Knopf.\n\n<b>Behoben</b>: die Prüfung nach einem Aussetzer.',
-  updaterConfigured: true,
-  updaterAvailable: true,
-  // A companion of 1.18.0 or later reports its version and follows the server on its own.
-  updaterVersion: '1.18.0',
-  ...overrides,
-});
-
-const install = (overrides: Partial<UpdateInstallStatus> = {}): UpdateInstallStatus => ({
-  phase: 'backing_up',
-  from: '0.9.0',
-  to: '0.9.1',
-  startedAt: '2026-11-07T09:00:00Z',
-  migrated: false,
-  ...overrides,
-});
-
-/** Routes of an overview whose dashboard carries `update`. */
-const updateRoutes = (update: Dashboard['update'], extra: Routes = {}): Routes =>
-  routes({ 'GET /admin/dashboard': () => json(quiet({ update })), ...extra });
-
-const serverCard = () => screen.findByRole('region', { name: 'Server' });
-
-/** The steps of a running install with the state each one announces. */
-const stepsOf = (card: HTMLElement) =>
-  within(card)
-    .getAllByRole('listitem')
-    .map((step) => [step.textContent, step.getAttribute('aria-current')]);
-
-describe('update install on the server card (concept 15 P-8, ADR 0024)', () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.mocked(reloadPage).mockClear();
-  });
-
-  it('offers nothing without a newer version', async () => {
-    mockApi(updateRoutes(installable({ available: false, latestVersion: '0.9.0' })));
-    renderApp('/admin');
-    const card = await serverCard();
-    expect(within(card).getByText('Aktuell')).toBeVisible();
-    expect(within(card).queryByRole('button', { name: /installieren/ })).not.toBeInTheDocument();
-    expect(within(card).queryByText(/SLOUCHCAT_VERSION/)).not.toBeInTheDocument();
-  });
-
-  it('the button opens the confirmation with the notes as plain text; Escape returns to it', async () => {
-    const { calls } = mockApi(updateRoutes(installable()));
-    renderApp('/admin');
-    const user = userEvent.setup();
-    const card = await serverCard();
-    const button = within(card).getByRole('button', { name: 'Update auf 0.9.1 installieren' });
-    act(() => button.focus());
-    await user.keyboard('{Enter}');
-    const dialog = await screen.findByRole('alertdialog', {
-      name: 'Update auf 0.9.1 installieren?',
-    });
-    expect(dialog).toHaveTextContent(
-      'Der Server startet neu; laufende Wiedergaben brechen ab. Vor einer Datenbankänderung sichert er die Datenbank.',
-    );
-    const notes = within(dialog).getByRole('region', { name: 'Release-Notizen' });
-    // The manifest's text stays text: no markup from it reaches the page.
-    expect(notes.textContent).toBe(
-      'Neu: Update per Knopf.\n\n<b>Behoben</b>: die Prüfung nach einem Aussetzer.',
-    );
-    expect(notes.querySelector('b')).toBeNull();
-    expect(notes).toHaveAttribute('tabindex', '0');
-    await waitFor(() =>
-      expect(within(dialog).getByRole('button', { name: 'Installieren' })).toHaveFocus(),
-    );
-    await user.keyboard('{Escape}');
-    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
-    await waitFor(() => expect(button).toHaveFocus());
-    expect(calls.some((call) => call.path === '/admin/update/install')).toBe(false);
-  });
-
-  it('a confirmed install shows the phases the companion reports, polled from the status', async () => {
-    const phases: UpdateInstallStatus['phase'][] = ['pulling', 'restarting'];
-    const { calls } = mockApi(
-      updateRoutes(installable(), {
-        'POST /admin/update/install': () => json(install({ phase: 'backing_up' }), 202),
-        'GET /admin/update/status': () => json(install({ phase: phases.shift() ?? 'restarting' })),
-        // The old process still answers.
-        'GET /healthz': () => json({ status: 'ok', version: '0.9.0', uptimeSeconds: 99_999 }),
-      }),
-    );
-    renderApp('/admin');
-    const user = userEvent.setup();
-    const card = await serverCard();
-    await user.click(within(card).getByRole('button', { name: 'Update auf 0.9.1 installieren' }));
-    const dialog = await screen.findByRole('alertdialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Installieren' }));
-
-    const state = await within(card).findByRole('status');
-    await waitFor(() => expect(state).toHaveTextContent('Update auf 0.9.1 läuft'));
-    expect(within(state).getByRole('list', { name: 'Schritte des Updates' })).toBeVisible();
-    expect(stepsOf(state)).toEqual([
-      ['Herunterladen · läuft', 'step'],
-      ['Neustart · ausstehend', null],
-      ['Gesundheitsprüfung · ausstehend', null],
-    ]);
-    expect(state).toHaveTextContent('Der Updater sichert .env und trägt die neue Version ein.');
-    // While it runs there is no button to start another one.
-    expect(within(card).queryByRole('button', { name: /installieren/ })).not.toBeInTheDocument();
-    await waitFor(
-      () => expect(state).toHaveTextContent('Der Updater lädt das neue Image herunter.'),
-      { timeout: 5000 },
-    );
-    await waitFor(
-      () => expect(state).toHaveTextContent('Der Server startet mit der neuen Version neu.'),
-      { timeout: 5000 },
-    );
-    expect(stepsOf(state)).toEqual([
-      ['Herunterladen · erledigt', null],
-      ['Neustart · läuft', 'step'],
-      ['Gesundheitsprüfung · ausstehend', null],
-    ]);
-    expect(
-      calls.filter((call) => call.method === 'POST' && call.path === '/admin/update/install'),
-    ).toHaveLength(1);
-    expect(reloadPage).not.toHaveBeenCalled();
-  }, 15_000);
-
-  it.each([
-    ['checking', 0, 'Der Updater prüft das Release.'],
-    ['backing_up', 0, 'Der Updater sichert .env und trägt die neue Version ein.'],
-    ['pulling', 0, 'Der Updater lädt das neue Image herunter.'],
-    ['verifying', 0, 'Der Updater prüft den Fingerabdruck des Images.'],
-    ['restarting', 1, 'Der Server startet mit der neuen Version neu.'],
-    ['waiting', 2, 'Der Updater wartet, bis der neue Server gesund ist (höchstens 10 Minuten).'],
-  ] as const)(
-    'phase %s: step %i is the current one (also after a reload, from the dashboard)',
-    async (phase, step, sentence) => {
-      mockApi(
-        updateRoutes(installable({ install: install({ phase }) }), {
-          'GET /admin/update/status': () => json(install({ phase })),
-          // The page joins the install and asks the health check as well; the old server answers.
-          'GET /healthz': () => json({ status: 'ok', version: '0.9.0', uptimeSeconds: 99_999 }),
-        }),
-      );
-      renderApp('/admin');
-      const card = await serverCard();
-      const state = within(card).getByRole('status');
-      expect(state).toHaveTextContent(sentence);
-      const current = stepsOf(state).findIndex(([, aria]) => aria === 'step');
-      expect(current).toBe(step);
-    },
-  );
-
-  it('reloads the page once the new version answers the health check', async () => {
-    let installed = false;
-    mockApi(
-      updateRoutes(installable(), {
-        'POST /admin/update/install': () => {
-          installed = true;
-          return json(install({ phase: 'backing_up' }), 202);
-        },
-        'GET /admin/update/status': () => json(install({ phase: 'waiting' })),
-        // The new process answers with the new version (it is not «done» yet).
-        'GET /healthz': () =>
-          installed
-            ? json({ status: 'ok', version: '0.9.1', uptimeSeconds: 0 })
-            : json({ status: 'ok', version: '0.9.0', uptimeSeconds: 99_999 }),
-      }),
-    );
-    renderApp('/admin');
-    const user = userEvent.setup();
-    const card = await serverCard();
-    await user.click(within(card).getByRole('button', { name: 'Update auf 0.9.1 installieren' }));
-    await user.click(
-      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Installieren' }),
-    );
-    await waitFor(() => expect(reloadPage).toHaveBeenCalledTimes(1), { timeout: 5000 });
-  });
-
-  it('reloads when the companion reports done; a rollback shows its result without one', async () => {
-    let result: UpdateInstallStatus['phase'] = 'done';
-    // What the companion last reported, in the dashboard too once it asks again.
-    let reported: UpdateInstallStatus | undefined;
-    const { calls } = mockApi(
-      updateRoutes(installable(), {
-        'GET /admin/dashboard': () => json(quiet({ update: installable({ install: reported }) })),
-        'POST /admin/update/install': () => json(install({ phase: 'backing_up' }), 202),
-        'GET /admin/update/status': () => {
-          reported = install({ phase: result, finishedAt: '2026-11-07T09:05:00Z' });
-          return json(reported);
-        },
-        'GET /healthz': () => json({ status: 'ok', version: '0.9.0', uptimeSeconds: 99_999 }),
-      }),
-    );
-    const startInstall = async () => {
-      const user = userEvent.setup();
-      const card = await serverCard();
-      await user.click(within(card).getByRole('button', { name: 'Update auf 0.9.1 installieren' }));
-      await user.click(
-        within(await screen.findByRole('alertdialog')).getByRole('button', {
-          name: 'Installieren',
-        }),
-      );
-      return card;
-    };
-    const first = renderApp('/admin');
-    await startInstall();
-    await waitFor(() => expect(reloadPage).toHaveBeenCalledTimes(1), { timeout: 5000 });
-    first.unmount();
-
-    vi.mocked(reloadPage).mockClear();
-    result = 'rolled_back';
-    reported = undefined;
-    renderApp('/admin');
-    const card = await startInstall();
-    const before = calls.filter((call) => call.path === '/admin/dashboard').length;
-    expect(
-      await within(card).findByText(
-        'Update auf 0.9.1 fehlgeschlagen, Version 0.9.0 läuft wieder.',
-        {},
-        { timeout: 5000 },
-      ),
-    ).toBeVisible();
-    // The dashboard asks again once the install ended.
-    await waitFor(() =>
-      expect(calls.filter((call) => call.path === '/admin/dashboard').length).toBeGreaterThan(
-        before,
-      ),
-    );
-    expect(reloadPage).not.toHaveBeenCalled();
-  }, 15_000);
-
-  it('while the server is away the card says so and asks only the health check', async () => {
-    let installed = false;
-    const { calls } = mockApi(
-      updateRoutes(installable(), {
-        'POST /admin/update/install': () => {
-          installed = true;
-          return json(install({ phase: 'restarting' }), 202);
-        },
-        'GET /admin/update/status': () => json(install({ phase: 'restarting' })),
-        'GET /healthz': () =>
-          installed
-            ? Promise.reject(new TypeError('Failed to fetch'))
-            : json({ status: 'ok', version: '0.9.0', uptimeSeconds: 99_999 }),
-      }),
-    );
-    renderApp('/admin');
-    const user = userEvent.setup();
-    const card = await serverCard();
-    await user.click(within(card).getByRole('button', { name: 'Update auf 0.9.1 installieren' }));
-    await user.click(
-      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Installieren' }),
-    );
-    const state = await within(card).findByRole('status');
-    await waitFor(() =>
-      expect(state).toHaveTextContent('Der Server antwortet gerade nicht. Warte auf ihn …'),
-    );
-    // The dashboard waits meanwhile: no request of it after the install started.
-    const started = calls.findIndex((call) => call.path === '/admin/update/install');
-    expect(calls.slice(started + 1).some((call) => call.path === '/admin/dashboard')).toBe(false);
-    expect(screen.queryByText('Keine Antwort, neuer Versuch alle 5 Sekunden')).toBeNull();
-    expect(reloadPage).not.toHaveBeenCalled();
-  });
-
-  it('a rolled back install: the new version failed, the old one runs again; the button stays', async () => {
-    mockApi(
-      updateRoutes(
-        installable({
-          install: install({
-            phase: 'rolled_back',
-            code: 'unhealthy',
-            message: 'new server did not become healthy within 10m0s',
-            finishedAt: '2026-11-07T09:12:00Z',
-          }),
-        }),
-      ),
-    );
-    renderApp('/admin');
-    const card = await serverCard();
-    const state = within(card).getByRole('status');
-    expect(state).toHaveTextContent('Update auf 0.9.1 fehlgeschlagen, Version 0.9.0 läuft wieder.');
-    expect(state).toHaveTextContent('new server did not become healthy within 10m0s');
-    expect(state).toHaveTextContent('Beendet: 07.11.2026');
-    // A rolled back result is old news on the next load: not an alert.
-    expect(within(card).queryByRole('alert')).not.toBeInTheDocument();
-    expect(
-      within(card).getByRole('button', { name: 'Update auf 0.9.1 installieren' }),
-    ).toBeVisible();
-  });
-
-  it('a failed install after a migration names the backup; without one a general sentence', async () => {
-    mockApi(
-      updateRoutes(
-        installable({
-          install: install({
-            phase: 'failed',
-            migrated: true,
-            backup: 'pre-migration-20261107T091000Z.db',
-            code: 'migrated_no_rollback',
-            message: 'the new server migrated the database and did not become healthy',
-          }),
-        }),
-      ),
-    );
-    renderApp('/admin');
-    const card = await serverCard();
-    const state = within(card).getByRole('status');
-    expect(state).toHaveTextContent('Update auf 0.9.1 fehlgeschlagen');
-    expect(state).toHaveTextContent(
-      'Migration gelaufen, zurück nur mit der Sicherung pre-migration-20261107T091000Z.db.',
-    );
-    expect(state).toHaveTextContent('the new server migrated the database');
-  });
-
-  it('a failed install without a code shows the message; an unknown code changes nothing', async () => {
-    mockApi(
-      updateRoutes(
-        installable({
-          install: install({ phase: 'failed', code: 'brand_new_reason', message: 'disk full' }),
-        }),
-      ),
-    );
-    renderApp('/admin');
-    const card = await serverCard();
-    const state = within(card).getByRole('status');
-    expect(state).toHaveTextContent('Update auf 0.9.1 fehlgeschlagen');
-    expect(state).toHaveTextContent('disk full');
-    expect(state).not.toHaveTextContent('Migration');
-  });
-
-  it.each([
-    [
-      'disk_full',
-      'Auf dem Server ist kein Platz für das neue Image. Platz schaffen und erneut versuchen.',
-    ],
-    [
-      'deploy_files',
-      'Die Compose-Dateien des Releases liessen sich nicht laden oder schreiben; das Update wurde abgebrochen.',
-    ],
-  ])('a failed install with the code %s says why in its own words', async (code, text) => {
-    mockApi(
-      updateRoutes(
-        installable({ install: install({ phase: 'failed', code, message: `companion: ${code}` }) }),
-      ),
-    );
-    renderApp('/admin');
-    const card = await serverCard();
-    const state = within(card).getByRole('status');
-    expect(state).toHaveTextContent('Update auf 0.9.1 fehlgeschlagen');
-    expect(state).toHaveTextContent(text);
-    expect(state).toHaveTextContent(`companion: ${code}`);
-  });
-
-  it('a failed check keeps the known update, its button and when it last succeeded', async () => {
-    mockApi(
-      updateRoutes(
-        installable({
-          checkedAt: '2026-11-08T09:00:00Z',
-          lastSuccessAt: '2026-11-07T09:00:00Z',
-          error: 'release manifest: status 504',
-        }),
-      ),
-    );
-    renderApp('/admin');
-    const card = await serverCard();
-    expect(within(card).getByText('Version 0.9.1 verfügbar')).toBeVisible();
-    expect(within(card).getByText(/^Zuletzt geprüft: 08\.11\.2026/)).toBeVisible();
-    expect(within(card).getByText(/^Zuletzt erfolgreich geprüft: 07\.11\.2026/)).toBeVisible();
-    expect(
-      within(card).getByRole('button', { name: 'Update auf 0.9.1 installieren' }),
-    ).toBeVisible();
-  });
-
-  it('a check that went through shows no second date', async () => {
-    mockApi(
-      updateRoutes(
-        installable({ checkedAt: '2026-11-08T09:00:00Z', lastSuccessAt: '2026-11-08T09:00:00Z' }),
-      ),
-    );
-    renderApp('/admin');
-    const card = await serverCard();
-    expect(within(card).getByText(/^Zuletzt geprüft: 08\.11\.2026/)).toBeVisible();
-    expect(within(card).queryByText(/Zuletzt erfolgreich geprüft/)).not.toBeInTheDocument();
-  });
-
-  it('names the version of the companion; one that does not answer says so', async () => {
-    mockApi(updateRoutes(installable()));
-    const first = renderApp('/admin');
-    let card = await serverCard();
-    await waitFor(() => expect(termsOf(card)).toContainEqual(['Updater', '1.18.0']));
-    expect(within(card).queryByText(/Der Updater ist veraltet/)).not.toBeInTheDocument();
-    first.unmount();
-    mockApi(updateRoutes(installable({ updaterAvailable: false })));
-    renderApp('/admin');
-    card = await serverCard();
-    await waitFor(() => expect(termsOf(card)).toContainEqual(['Updater', 'Antwortet nicht']));
-  });
-
-  it.each([
-    ['without a version (before 1.18.0)', undefined],
-    ['with a release before 1.18.0', '1.17.0'],
-  ])(
-    'a companion %s: the card asks to lift it once, with the command to copy',
-    async (_, updaterVersion) => {
-      mockApi(updateRoutes(installable({ updaterVersion })));
-      renderApp('/admin');
-      const card = await serverCard();
-      expect(
-        within(card).getByText(
-          'Der Updater ist veraltet und aktualisiert sich ab Version 1.18.0 selbst. Einmal von Hand heben:',
-        ),
-      ).toBeVisible();
-      const command = within(card).getByRole('group', { name: 'Im deploy-Ordner ausführen' });
-      expect(command).toHaveTextContent(
-        "cd <deploy-ordner> && (grep -q '^SLOUCHCAT_UPDATER_VERSION=' .env && sed -i 's/^SLOUCHCAT_UPDATER_VERSION=.*/SLOUCHCAT_UPDATER_VERSION=0.9.0/' .env || echo 'SLOUCHCAT_UPDATER_VERSION=0.9.0' >> .env) && docker compose up -d updater",
-      );
-      expect(within(command).getByRole('button', { name: 'Kopieren' })).toBeVisible();
-      expect(
-        within(card).getByText(
-          'Wer die Compose-Dateien mit -f aufzählt statt mit COMPOSE_FILE, hängt dieselbe -f-Liste an.',
-        ),
-      ).toBeVisible();
-      // The update itself stays on offer.
-      expect(
-        within(card).getByRole('button', { name: 'Update auf 0.9.1 installieren' }),
-      ).toBeVisible();
-    },
-  );
-
-  it.each([
-    ['of 1.18.0', { updaterVersion: '1.18.0' }],
-    ['newer than 1.18.0', { updaterVersion: '1.20.1' }],
-    // From 1.18.0 on it lifts itself shortly after the server: only the version line.
-    ['of 1.18.0 behind the server', { currentVersion: '1.19.0', updaterVersion: '1.18.0' }],
-    ['that is a development build', { updaterVersion: '1.17.0-3-gabc1234' }],
-    [
-      'next to a development build',
-      { currentVersion: 'dev', development: true, available: false, updaterVersion: undefined },
-    ],
-    ['that does not answer', { updaterAvailable: false, updaterVersion: undefined }],
-  ] as const)('a companion %s needs no lifting', async (_, overrides) => {
-    mockApi(updateRoutes(installable(overrides)));
-    renderApp('/admin');
-    const card = await serverCard();
-    await waitFor(() => expect(termsOf(card).length).toBeGreaterThan(0));
-    expect(within(card).queryByText(/Der Updater ist veraltet/)).not.toBeInTheDocument();
-  });
-
-  it('a done install is one short line', async () => {
-    mockApi(
-      updateRoutes(
-        installable({
-          available: false,
-          currentVersion: '0.9.1',
-          install: install({ phase: 'done', finishedAt: '2026-11-07T09:05:00Z' }),
-        }),
-      ),
-    );
-    renderApp('/admin');
-    const card = await serverCard();
-    expect(within(card).getByRole('status')).toHaveTextContent('Update auf 0.9.1 installiert.');
-    expect(within(card).queryByRole('button', { name: /installieren/ })).not.toBeInTheDocument();
-  });
-
-  it.each([
-    ['not_newer', 'Die neueste Version ist nicht neuer als die laufende.'],
-    ['no_digest', 'Das Release-Manifest nennt keinen Fingerabdruck (Digest) des Images.'],
-    ['no_compose_labels', 'Der Server wurde nicht mit Docker Compose gestartet'],
-    [
-      'outside_deploy_dir',
-      'Eine Compose-Datei des Servers liegt ausserhalb von SLOUCHCAT_DEPLOY_DIR.',
-    ],
-    ['manifest_invalid', 'Das Release-Manifest ist ungültig.'],
-    ['manifest_unreachable', 'Das Release-Manifest ist nicht erreichbar.'],
-    ['something_new', 'Der Updater hat abgelehnt, ohne bekannten Grund.'],
-  ])(
-    'a refusal %s is shown inline with its detail, not as the install state',
-    async (code, text) => {
-      const { calls } = mockApi(
-        updateRoutes(
-          // The previous install failed long ago; state.json keeps it after the refusal.
-          installable({
-            install: install({
-              phase: 'failed',
-              message: 'old failure',
-              finishedAt: '2026-10-01T08:00:00Z',
-            }),
-          }),
-          {
-            'POST /admin/update/install': () =>
-              problem(422, code, { detail: `companion: ${code}` }),
-          },
-        ),
-      );
-      renderApp('/admin');
-      const user = userEvent.setup();
-      const card = await serverCard();
-      await user.click(within(card).getByRole('button', { name: 'Update auf 0.9.1 installieren' }));
-      await user.click(
-        within(await screen.findByRole('alertdialog')).getByRole('button', {
-          name: 'Installieren',
-        }),
-      );
-      const alert = await within(card).findByRole('alert');
-      expect(alert).toHaveTextContent('Der Updater hat das Update nicht gestartet');
-      expect(alert).toHaveTextContent(text);
-      expect(alert).toHaveTextContent(`companion: ${code}`);
-      // No watch began: the old result stays as it was, with its date, and nobody asks the status.
-      expect(within(card).getByText(/^Beendet: 01\.10\.2026/)).toBeVisible();
-      expect(calls.some((call) => call.path === '/admin/update/status')).toBe(false);
-      expect(within(card).queryByText('Schritte des Updates')).not.toBeInTheDocument();
-    },
-  );
-
-  it('an install already running (409) shows that install', async () => {
-    mockApi(
-      updateRoutes(installable(), {
-        'POST /admin/update/install': () => problem(409, 'update_running'),
-        'GET /admin/update/status': () => json(install({ phase: 'pulling' })),
-        'GET /healthz': () => json({ status: 'ok', version: '0.9.0', uptimeSeconds: 99_999 }),
-      }),
-    );
-    renderApp('/admin');
-    const user = userEvent.setup();
-    const card = await serverCard();
-    await user.click(within(card).getByRole('button', { name: 'Update auf 0.9.1 installieren' }));
-    await user.click(
-      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Installieren' }),
-    );
-    expect(
-      await within(card).findByText('Der Updater lädt das neue Image herunter.'),
-    ).toBeVisible();
-    expect(within(card).queryByRole('alert')).not.toBeInTheDocument();
-  });
-
-  it('without a companion the card shows the manual steps with copy buttons and the guide', async () => {
-    mockApi(updateRoutes(installable({ updaterConfigured: false, updaterAvailable: false })));
-    renderApp('/admin');
-    const card = await serverCard();
-    expect(within(card).queryByRole('button', { name: /installieren/ })).not.toBeInTheDocument();
-    expect(within(card).getByText(/^Ohne Updater-Begleiter installierst du/)).toBeVisible();
-    expect(within(card).getByText('SLOUCHCAT_VERSION=0.9.1')).toBeVisible();
-    expect(within(card).getByText('docker compose pull')).toBeVisible();
-    expect(within(card).getByText('docker compose up -d')).toBeVisible();
-    expect(within(card).getAllByRole('button', { name: 'Kopieren' })).toHaveLength(3);
-    expect(within(card).getByText(/Nimm dieselben -f-Dateien wie beim Start/)).toBeVisible();
-    expect(within(card).getByRole('link', { name: /Anleitung: Update per Knopf/ })).toHaveAttribute(
-      'href',
-      'https://github.com/SlouchCat/slouchcat/blob/main/docs/INSTALLATION.md#update-per-knopf-der-updater-begleiter-freiwillig',
-    );
-  });
-
-  it('a companion that does not answer (503) leads to the manual steps', async () => {
-    mockApi(
-      updateRoutes(installable(), {
-        'POST /admin/update/install': () => problem(503, 'updater_unavailable'),
-      }),
-    );
-    renderApp('/admin');
-    const user = userEvent.setup();
-    const card = await serverCard();
-    await user.click(within(card).getByRole('button', { name: 'Update auf 0.9.1 installieren' }));
-    await user.click(
-      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Installieren' }),
-    );
-    expect(
-      await within(card).findByText(
-        'Der Updater-Begleiter antwortet nicht. Installiere das Update von Hand.',
-      ),
-    ).toBeVisible();
-    expect(within(card).getByText('SLOUCHCAT_VERSION=0.9.1')).toBeVisible();
-    expect(within(card).getByText(/^Von Hand installierst du/)).toBeVisible();
-    expect(within(card).queryByRole('button', { name: /installieren/ })).not.toBeInTheDocument();
-    // The button had the focus and went away: the focus moves to the manual steps and the warning.
-    await waitFor(() =>
-      expect(document.activeElement).toContainElement(
-        within(card).getByText(
-          'Der Updater-Begleiter antwortet nicht. Installiere das Update von Hand.',
-        ),
-      ),
-    );
-  });
-
-  it('a companion that is set up but does not answer: says so, then the manual steps', async () => {
-    mockApi(updateRoutes(installable({ updaterConfigured: true, updaterAvailable: false })));
-    renderApp('/admin');
-    const card = await serverCard();
-    expect(
-      within(card).getByText(
-        'Der Updater-Begleiter antwortet nicht. Installiere das Update von Hand.',
-      ),
-    ).toBeVisible();
-    expect(within(card).getByText(/^Von Hand installierst du/)).toBeVisible();
-    expect(within(card).queryByText(/^Ohne Updater-Begleiter/)).not.toBeInTheDocument();
-    expect(within(card).getByText('SLOUCHCAT_VERSION=0.9.1')).toBeVisible();
-    expect(within(card).queryByRole('button', { name: /installieren/ })).not.toBeInTheDocument();
-  });
-
-  it.each(['no_compose_labels', 'outside_deploy_dir'])(
-    'a refusal %s that says «by hand» shows the manual steps and moves the focus there',
-    async (code) => {
-      mockApi(
-        updateRoutes(installable(), {
-          'POST /admin/update/install': () => problem(422, code, { detail: `companion: ${code}` }),
-        }),
-      );
-      renderApp('/admin');
-      const user = userEvent.setup();
-      const card = await serverCard();
-      await user.click(within(card).getByRole('button', { name: 'Update auf 0.9.1 installieren' }));
-      await user.click(
-        within(await screen.findByRole('alertdialog')).getByRole('button', {
-          name: 'Installieren',
-        }),
-      );
-      expect(await within(card).findByRole('alert')).toHaveTextContent(
-        'Der Updater hat das Update nicht gestartet',
-      );
-      const steps = within(card).getByText(/^Von Hand installierst du/);
-      expect(steps).toBeVisible();
-      expect(within(card).getByText('SLOUCHCAT_VERSION=0.9.1')).toBeVisible();
-      expect(within(card).queryByRole('button', { name: /installieren/ })).not.toBeInTheDocument();
-      await waitFor(() => expect(document.activeElement).toContainElement(steps));
-    },
-  );
-
-  it('a page that joins a running install (a reload) follows it and reloads for the new version', async () => {
-    let healthCalls = 0;
-    mockApi(
-      updateRoutes(installable({ install: install({ phase: 'pulling' }) }), {
-        'GET /admin/update/status': () => json(install({ phase: 'waiting' })),
-        // The old process answers first, then the new one with the new version.
-        'GET /healthz': () =>
-          healthCalls++ < 1
-            ? json({ status: 'ok', version: '0.9.0', uptimeSeconds: 99_999 })
-            : json({ status: 'ok', version: '0.9.1', uptimeSeconds: 0 }),
-      }),
-    );
-    renderApp('/admin');
-    const card = await serverCard();
-    expect(within(card).getByRole('status')).toHaveTextContent('Update auf 0.9.1 läuft');
-    // «Neu starten» would cut the install off: the card does not offer it meanwhile.
-    expect(within(card).queryByRole('button', { name: 'Neu starten' })).not.toBeInTheDocument();
-    await waitFor(() => expect(reloadPage).toHaveBeenCalledTimes(1), { timeout: 8000 });
-  }, 15_000);
-
-  it('a server away for more than 70 minutes: the card gives up waiting and links the guide', async () => {
-    let clock = Date.parse('2026-11-07T09:00:00Z');
-    // A clock that moves on a little with every look, and far when the test says so.
-    vi.spyOn(Date, 'now').mockImplementation(() => (clock += 1));
-    let installed = false;
-    mockApi(
-      updateRoutes(installable(), {
-        'POST /admin/update/install': () => {
-          installed = true;
-          return json(install({ phase: 'restarting' }), 202);
-        },
-        'GET /admin/update/status': () => json(install({ phase: 'restarting' })),
-        'GET /healthz': () =>
-          installed
-            ? Promise.reject(new TypeError('Failed to fetch'))
-            : json({ status: 'ok', version: '0.9.0', uptimeSeconds: 99_999 }),
-      }),
-    );
-    try {
-      renderApp('/admin');
-      const user = userEvent.setup();
-      const card = await serverCard();
-      expect(within(card).getByRole('button', { name: 'Neu starten' })).toBeVisible();
-      await user.click(within(card).getByRole('button', { name: 'Update auf 0.9.1 installieren' }));
-      await user.click(
-        within(await screen.findByRole('alertdialog')).getByRole('button', {
-          name: 'Installieren',
-        }),
-      );
-      const state = await within(card).findByRole('status');
-      await waitFor(() =>
-        expect(state).toHaveTextContent('Der Server antwortet gerade nicht. Warte auf ihn …'),
-      );
-      expect(within(state).queryByText(/seit über 70 Minuten/)).not.toBeInTheDocument();
-      expect(within(card).queryByRole('button', { name: 'Neu starten' })).not.toBeInTheDocument();
-      clock += 71 * 60_000;
-      expect(
-        await within(state).findByText(
-          'Der Server antwortet seit über 70 Minuten nicht',
-          {},
-          { timeout: 5000 },
-        ),
-      ).toBeVisible();
-      expect(
-        within(state).getByRole('link', { name: /Anleitung: Update per Knopf/ }),
-      ).toBeVisible();
-      expect(reloadPage).not.toHaveBeenCalled();
-    } finally {
-      vi.mocked(Date.now).mockRestore();
-    }
-  }, 15_000);
-
-  it('an install refused because a backup runs (409 backup_busy) says so', async () => {
-    mockApi(
-      updateRoutes(installable(), {
-        'POST /admin/update/install': () => problem(409, 'backup_busy'),
-      }),
-    );
-    renderApp('/admin');
-    const user = userEvent.setup();
-    const card = await serverCard();
-    await user.click(within(card).getByRole('button', { name: 'Update auf 0.9.1 installieren' }));
-    await user.click(
-      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Installieren' }),
-    );
-    expect(
-      await within(card).findByText(
-        'Gerade läuft eine Sicherung oder Wiederherstellung. Versuche es wieder, sobald sie fertig ist.',
-      ),
-    ).toBeVisible();
-    expect(
-      within(card).queryByRole('list', { name: 'Schritte des Updates' }),
-    ).not.toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Gerade aktiv' })).toBeVisible();
   });
 });
 
@@ -1568,6 +594,7 @@ const SHEET = [
   ['Benachrichtigungen', '/admin/notifications'],
   ['Statistiken', '/admin/stats'],
   ['Sicherung', '/admin/backup'],
+  ['Server', '/admin/server'],
 ] as const;
 
 /** The tabs of the page's area (build plan 2.5). */
@@ -1704,8 +731,8 @@ describe('admin sidebar (A-2, concept 11; build plan 1, 2)', () => {
       await within(sheet).findByRole('link', { name: 'Hintergrundjobs, 2 laufen' }),
     ).toHaveTextContent('2');
     expect(
-      within(sheet).getByRole('link', { name: 'Integrationen, 1 von 4 eingerichtet' }),
-    ).toHaveTextContent('1 / 4');
+      within(sheet).getByRole('link', { name: 'Integrationen, 1 von 2 eingerichtet' }),
+    ).toHaveTextContent('1 / 2');
     expect(within(sheet).getByRole('link', { name: 'Pflege' })).toBeVisible();
     expect(within(sheet).getByRole('link', { name: 'Streams' })).toBeVisible();
   });
@@ -1841,8 +868,27 @@ describe('update badge (A-5)', () => {
       name: 'Übersicht, Update auf Version 0.9.1 verfügbar',
     });
     expect(badge).toHaveTextContent('Update');
+    // The same badge on the area «System» and its tab «Server» (build plan 1).
+    expect(
+      within(nav).getByRole('link', { name: 'System, Update auf Version 0.9.1 verfügbar' }),
+    ).toHaveTextContent('Update');
     await user.click(badge);
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin'));
+  });
+
+  it('puts the badge on the tab «Server» of the area «System»', async () => {
+    mockApi({
+      ...routes(),
+      'GET /auth/session': () =>
+        json({ ...session, updateAvailable: { version: '0.9.1', url: 'https://example.test' } }),
+    });
+    renderApp('/admin/server');
+    const tabs = await screen.findByRole('navigation', { name: 'Seiten im Bereich System' });
+    const server = within(tabs).getByRole('link', {
+      name: 'Server, Update auf Version 0.9.1 verfügbar',
+    });
+    expect(server).toHaveAttribute('href', '/admin/server');
+    expect(server).toHaveTextContent('Update');
   });
 
   it("outside the administration the app column's «Verwaltung» keeps the badge", async () => {

@@ -93,7 +93,7 @@ test('spotlight by keyboard: bands, source, fetch, hide, pin and note an entry @
     // From the overview through the admin sidebar's «Startseite» and the area's tabs; Back
     // returns to «Startseite» at the end.
     await page.goto('/admin');
-    await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Alles im Blick' })).toBeVisible();
     await tabToFromTop(page, adminEntry(page, 'Übersicht'));
     await arrowTo(page, adminEntry(page, 'Startseite'), 'ArrowDown', 10);
     await page.keyboard.press('Enter');

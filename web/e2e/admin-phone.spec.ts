@@ -31,6 +31,7 @@ const PAGES = [
   '/admin/integrations',
   '/admin/stats',
   '/admin/backup',
+  '/admin/server',
   '/admin/notifications',
   '/settings/notifications',
   '/settings/profiles',

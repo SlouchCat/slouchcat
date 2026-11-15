@@ -75,7 +75,7 @@
           "test_failed": "Probe beim Start gescheitert"
         },
         "saved": "Gespeichert: {{name}}",
-        "restartAdmin": "Gilt nach einem Neustart des Servers (Übersicht › Neu starten)."
+        "restartAdmin": "Gilt nach einem Neustart des Servers (System › Server › Neu starten)."
       },
       "fallback": {
         "title": "Gewählter Grafikchip geht nicht",
@@ -3323,6 +3323,7 @@
       "tabs": "Seiten im Bereich {{area}}",
       "back": "Zurück zur App",
       "updateLabel": "Übersicht, Update auf Version {{version}} verfügbar",
+      "updateBadge": "{{name}}, Update auf Version {{version}} verfügbar",
       "sheet": {
         "label": "Seiten der Verwaltung",
         "close": "Seiten der Verwaltung schliessen"
@@ -3406,7 +3407,16 @@
       },
       "audiobookSources": {
         "title": "Hörbuch-Quellen"
+      },
+      "server": {
+        "title": "Server"
       }
+    },
+    "server": {
+      "intro": "Version, Updates, Neustart, Speicher und Fehlerprotokoll an einem Ort.",
+      "state": "Serverzustand",
+      "updates": "Updates & Neustart",
+      "toIntegrations": "Grafikchip, öffentliche Adresse und Update-Prüfung: Integrationen"
     },
     "home": {
       "setupBand": {
@@ -3418,6 +3428,40 @@
       "title": "Verwaltung",
       "live": "Live, alle 5 Sekunden",
       "liveFailed": "Keine Antwort, neuer Versuch alle 5 Sekunden",
+      "heading": "Alles im Blick",
+      "intro": "Wichtiges zuerst. Alles Weitere erreichst du über die Bereiche.",
+      "refresh": "Aktualisieren",
+      "attention": {
+        "title": "Was benötigt Aufmerksamkeit?",
+        "band_one": "{{count}} Punkt benötigt Aufmerksamkeit",
+        "band_other": "{{count}} Punkte benötigen Aufmerksamkeit",
+        "show": "Ansehen",
+        "none": "Alles in Ordnung."
+      },
+      "metrics": {
+        "label": "Kennzahlen",
+        "streams": "Aktive Streams",
+        "streamsNote": "Gerade verbunden",
+        "jobs": "Laufende Jobs",
+        "jobsNote": "{{queued}} wartend",
+        "jobsNotePaused": "{{queued}} wartend · {{paused}} pausiert",
+        "maintenance": "Titel zur Pflege",
+        "maintenanceNote": "Offene Fälle in der Pflege",
+        "storage": "Speicherplatz",
+        "storageValue": "{{config}} % · {{cache}} %",
+        "storageNote": "Belegt: Konfiguration · Cache"
+      },
+      "active": {
+        "title": "Gerade aktiv"
+      },
+      "quick": {
+        "title": "Direkt zu deinen Aufgaben"
+      },
+      "summary": {
+        "title": "Server & letzte Aktivitäten",
+        "details": "Serverdetails",
+        "log": "Server-Protokoll ansehen"
+      },
       "update": {
         "title": "Version {{version}} ist verfügbar",
         "body": "Du verwendest {{current}}. Slouchcat installiert nichts selbst: Hole das neue Image mit docker compose pull und starte mit docker compose up -d neu.",

@@ -363,7 +363,7 @@ test('renewing and deleting ask first; Escape keeps everything', async ({ page, 
   }
 });
 
-test('the dashboard tile counts the reports of the last 24 hours', async ({
+test('the overview counts the reports of the last 24 hours in the server summary', async ({
   page,
   owner,
   request,
@@ -375,9 +375,9 @@ test('the dashboard tile counts the reports of the last 24 hours', async ({
     expect(hook.status(), await hook.text()).toBe(200);
 
     await page.goto('/admin');
-    await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
-    const tile = page.getByRole('region', { name: 'Webhooks', exact: true });
-    // One webhook arrived above, so the tile names it and the single integration it came from.
+    await expect(page.getByRole('heading', { level: 1, name: 'Alles im Blick' })).toBeVisible();
+    const tile = page.getByRole('region', { name: 'Serverzustand', exact: true });
+    // One webhook arrived above, so the summary names it and the single integration it came from.
     await expect(tile).toContainText('1 Meldung im Protokoll der letzten 24 Stunden');
     const manage = tile.getByRole('link', { name: 'Webhooks verwalten' });
     await manage.focus();
@@ -386,10 +386,10 @@ test('the dashboard tile counts the reports of the last 24 hours', async ({
     await expect(page).toHaveURL(/\/admin\/integrations$/);
     await expect(region(page, 'Webhooks von Radarr und Sonarr')).toBeVisible();
 
-    // Browser back returns to the overview the tile sits on.
+    // Browser back returns to the overview the summary sits on.
     await page.goBack();
     await expect(page).toHaveURL(/\/admin$/);
-    await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Alles im Blick' })).toBeVisible();
   } finally {
     await removeIntegrations(owner, name);
   }

@@ -63,13 +63,11 @@ test.describe('with a mouse from 768 px', () => {
     expect(await height(entry)).toBeGreaterThanOrEqual(44);
   });
 
-  test('the overview keeps its 24 px page title (until step 2 of the redesign)', async ({
-    page,
-  }) => {
+  test('the overview has the 30 px page title of the admin frame', async ({ page }) => {
     await page.goto('/admin');
-    const heading = page.getByRole('heading', { level: 1, name: 'Verwaltung' });
+    const heading = page.getByRole('heading', { level: 1, name: 'Alles im Blick' });
     await expect(heading).toBeVisible();
-    expect(await fontSize(heading)).toBe('24px');
+    expect(await fontSize(heading)).toBe('30px');
   });
 
   test('a table row is 40 px high (S-5)', async ({ page }) => {

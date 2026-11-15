@@ -46,7 +46,8 @@ export interface AdminSection {
     | 'integrations'
     | 'notifications'
     | 'stats'
-    | 'backup';
+    | 'backup'
+    | 'server';
   href: string;
   icon: IconName;
   area: AdminArea;
@@ -85,6 +86,8 @@ export const adminSections: readonly AdminSection[] = [
   { key: 'notifications', href: paths.adminNotifications, icon: 'bell', area: 'automation' },
   { key: 'stats', href: paths.adminStats, icon: 'chart', area: 'system' },
   { key: 'backup', href: paths.adminBackup, icon: 'archive', area: 'system' },
+  // The server's functions of the former overview (redesign, build plan 4).
+  { key: 'server', href: paths.adminServer, icon: 'server', area: 'system' },
 ];
 
 const under = (pathname: string, prefix: string) =>

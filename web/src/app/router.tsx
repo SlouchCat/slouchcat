@@ -581,6 +581,13 @@ const statsRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/admin/StatsPage'), 'StatsPage'),
 });
 
+/** System › Server (redesign, build plan 4): the server's functions of the former overview. */
+const serverRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/server',
+  component: lazyRouteComponent(() => import('@/features/admin/ServerPage'), 'ServerPage'),
+});
+
 const announcementsRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/announcements',
@@ -787,6 +794,7 @@ export const routeTree = rootRoute.addChildren([
           accountsRoute,
           backupRoute,
           statsRoute,
+          serverRoute,
           announcementsRoute,
           adminNotificationsRoute,
         ]),
