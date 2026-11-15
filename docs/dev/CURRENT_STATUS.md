@@ -1,6 +1,19 @@
 # Aktueller Stand
 
-## Release 1.37.0: Konzept 22 Stufe 4 «Übersetzungen» (15. November 2026)
+## Konzept 22 abgeschlossen: Stufe 5 «Weblate» (15. November 2026, ohne Release)
+
+Konzept 22 (`docs/planning/22-ersteinrichtung-und-sprachen.md`) ist gebaut: Stufe 1 = 1.34.0, Stufe 2 =
+1.35.0, Stufe 3 = 1.36.0, Stufe 4 = 1.37.0, alle am 15. November 2026 autonom auf Marcos Auftrag
+gebaut, geprüft (Review je Stufe, `task ci`, GitHub-CI) und veröffentlicht. Stufe 5 bringt nur die
+Anleitung `docs/i18n/weblate.md`.
+
+- **Offen bei Marco:** Weblate-Konto und Antrag für den Plan «Libre» (Stufe 5), danach die Plakette;
+  Stichproben in Deutsch (Deutschland) und Englisch (F-15); CT 190 per Updater auf 1.37.0 heben (die
+  Migrationen 00061 bis 00064 laufen dabei, der Job «Freigaben neu lesen» einmal).
+- **Hinweis zu den Freigaben:** Nach 1.36.0 sehen Profile «ab 12» keine PG-13-Titel mehr und Profile
+  «ab 16» keine R-Titel (F-17). Die Übersicht der Verwaltung sagt das einmal.
+
+## Release 1.37.0: Konzept 22 Stufe 4 «Übersetzungen» (15. November 2026, veröffentlicht: PR #165 `c8d7dca7`, Tag `v1.37.0`)
 
 Stufe 4 von `docs/planning/22-ersteinrichtung-und-sprachen.md` (Abschnitte 4.1, 4.6, 4.8, 4.9) auf dem
 Zweig `claude/k22-stufe4`, gebaut autonom auf Marcos Auftrag vom 15. November 2026. Vertrag **1.37.0**

@@ -8,7 +8,10 @@
     Neustart. Alles ist in Fassung 4 eingearbeitet (Abschnitt 9.2); Marco hat dazu F-17
     entschieden.
   - Entschieden sind **F-1 bis F-17** (Abschnitt 1). Es ist **nichts mehr offen**.
-  - **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
+  - **Umgesetzt am 15. November 2026**, autonom auf Marcos Auftrag vom gleichen Tag: Stufe 1 = 1.34.0
+    (PR #162), Stufe 2 = 1.35.0 (PR #163), Stufe 3 = 1.36.0 (PR #164), Stufe 4 = 1.37.0 (PR #165),
+    Stufe 5 ohne Release (Anleitung `docs/i18n/weblate.md`). **Offen bei Marco:** Weblate-Konto und
+    Antrag (Stufe 5), Stichproben in Deutsch (Deutschland) und Englisch (F-15).
 - **Auslöser:** Marco will einen Installations-Assistenten, der beim ersten Start erscheint und die
   wichtigsten Einstellungen abfragt, und Slouchcat in vielen Sprachen anbieten, «etwa so wie Emby
   und Jellyfin».
