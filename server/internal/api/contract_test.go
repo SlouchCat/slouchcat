@@ -133,6 +133,7 @@ func TestContractOpenAPI(t *testing.T) {
 		t.Error(p)
 	}
 	checkAdminTileFields(t, doc)
+	checkPlayerControlFields(t, doc)
 }
 
 func TestContractRejectsViolations(t *testing.T) {
