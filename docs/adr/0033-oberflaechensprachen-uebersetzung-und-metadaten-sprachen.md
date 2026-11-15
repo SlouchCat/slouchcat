@@ -84,6 +84,11 @@ fünf Stufen. Diese ADR hält die Entscheide fest; Stufe 1 baut das Gerüst ohne
   Erkennung nimmt dann Deutsch (Schweiz) statt Englisch; ab Stufe 2 greift die Zuordnung von selbst.
 - **Sprachname «Deutsch»** statt «Deutsch (Schweiz)», solange es nur ein Deutsch gibt.
 - **`ui_lang_required` entfernt**, im Server, im Vertragstext, in der Fehlerzuordnung und den Texten.
+- **Geänderte Texte (Delta für die Übersetzung):** neu `rating.age` und `login.language`; geändert
+  `admin.metadata.languages.intro` und `admin.metadata.languages.fallback`; `library.providers.noGerman`
+  heisst jetzt `library.providers.missingLanguages` («liefert kein {{languages}}»: die Sprachen der
+  Serverliste, die die anderen Quellen liefern und diese nicht); entfernt
+  `admin.metadata.errors.ui_lang_required`.
 - **Fehler im Text `root_content_changed_body` behoben:** Er nannte den alten Inhalt, wo der neue hingehört
   («liest jetzt <alt> statt <neu>»); mit benannten Platzhaltern steht jetzt «liest jetzt {{to}} statt
   {{from}}».
