@@ -6,6 +6,7 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
+import { TABS_TO_PAGE_ACTION } from './admin';
 
 // Keyboard test of the folder browser in the library form (CLAUDE.md rule 8, idea 02 steps 10
 // and 13a): arrow keys move and mark, Enter and the right arrow go down, Backspace comes back
@@ -39,7 +40,11 @@ async function arrowDownTo(page: Page, row: Locator, max = 12) {
 /** Opens «Bibliothek hinzufügen» from the page's head by keyboard, unless it is open. */
 async function openForm(page: Page) {
   if ((await form(page).count()) > 0) return;
-  await tabTo(page, page.getByRole('button', { name: 'Bibliothek hinzufügen' }), 10);
+  await tabTo(
+    page,
+    page.getByRole('button', { name: 'Bibliothek hinzufügen' }),
+    TABS_TO_PAGE_ACTION,
+  );
   await page.keyboard.press('Enter');
   await expectFocusOn(page, form(page).getByLabel('Name', { exact: true }));
 }

@@ -6,7 +6,7 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
-import { adminEntry } from './admin';
+import { adminEntry, TABS_TO_PAGE_ACTION } from './admin';
 
 // The kept draft of «Bibliothek hinzufügen» on the page "Bibliotheken" (concept 20, P-11, 13.2;
 // CLAUDE.md rule 8). Step 0 retraces Marco's sequence: a name typed in the add dialog, the dialog
@@ -95,7 +95,7 @@ test('«Abbrechen» asks, the band goes on or discards, all by keyboard (13.2) @
   page,
 }) => {
   // Open, type, Tab to «Abbrechen», Enter: the question starts on «Entwurf behalten».
-  await tabTo(page, addButton(page), 10);
+  await tabTo(page, addButton(page), TABS_TO_PAGE_ACTION);
   await page.keyboard.press('Enter');
   const name = addDialog(page).getByLabel('Name', { exact: true });
   await expectFocusOn(page, name);

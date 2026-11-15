@@ -7,7 +7,7 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
-import { adminEntry, areaTab } from './admin';
+import { adminEntry, areaTab, TABS_TO_PAGE_ACTION } from './admin';
 
 // Keyboard test of the page "Bibliotheken" (CLAUDE.md rule 8; concept 12, variant C, Bib-C): the
 // filter tabs by kind with the arrow keys, a library's row that folds out with Enter, its actions
@@ -42,7 +42,7 @@ async function openRow(page: Page, name: string): Promise<void> {
 
 /** Opens «Bibliothek hinzufügen» from the head with the keyboard; the name field has the focus. */
 async function openAdd(page: Page): Promise<void> {
-  await tabTo(page, addButton(page), 10);
+  await tabTo(page, addButton(page), TABS_TO_PAGE_ACTION);
   await page.keyboard.press('Enter');
   await expect(addDialog(page)).toBeVisible();
   await expectFocusOn(page, addDialog(page).getByLabel('Name', { exact: true }));
