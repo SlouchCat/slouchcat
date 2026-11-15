@@ -218,7 +218,12 @@ describe('admin streams (W-6)', () => {
     mockApi(routes(() => mixed));
     renderApp('/admin/streams');
     // The counters stand right below the header (redesign, mockup .statrow), named by the group.
-    expect(await screen.findByRole('group', { name: 'Serverlast' })).toBeVisible();
+    const load = await screen.findByRole('group', { name: 'Serverlast' });
+    expect(load).toBeVisible();
+    // The heading of the section before the redesign stays for screen readers and the heading
+    // navigation (STR-004): a level 2 heading that names the group.
+    const heading = screen.getByRole('heading', { level: 2, name: 'Serverlast' });
+    expect(load).toHaveAttribute('aria-labelledby', heading.id);
     // The panel stands from the start, with «–» until the playbacks are there.
     await waitFor(() =>
       expect(within(loadOf('Transcode HW')).getAllByRole('definition')[0]).toHaveTextContent('1'),

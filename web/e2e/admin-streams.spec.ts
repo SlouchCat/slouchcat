@@ -148,6 +148,8 @@ test('two streams listed; the admin ends one, its player stops within 5 s', asyn
     // «Serverlast»: the four counters hold at least these two streams, the bandwidth is a rate.
     // The counters stand right below the header (redesign, mockup .statrow), named by the group.
     await expect(overview.getByRole('group', { name: 'Serverlast' })).toBeVisible();
+    // Its heading is there for screen readers only (STR-004).
+    await expect(overview.getByRole('heading', { level: 2, name: 'Serverlast' })).toHaveCount(1);
     const counted = await Promise.all(
       ['Transcode HW', 'Transcode SW', 'Remux', 'Direct'].map((label) =>
         loadCount(overview, label),

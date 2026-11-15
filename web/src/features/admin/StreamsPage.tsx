@@ -455,10 +455,12 @@ function StreamsContent() {
   const empty =
     !pending && shown.length === 0 && (filter === 'all' ? groups : [filter]).every(known);
 
-  // «Serverlast»: the mockup's counters right below the header, as on the other pages.
+  // «Serverlast»: the mockup's counters right below the header, as on the other pages. The
+  // section had a heading before the redesign: it stays for screen readers (STR-004).
   const serverLoad = (
     <StatusStrip
       label={t('admin.streams.load.title')}
+      heading
       tiles={[
         ...streamLoads.map((load) => ({
           key: load,
