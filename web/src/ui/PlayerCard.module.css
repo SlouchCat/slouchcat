@@ -27,18 +27,6 @@
   background-color: var(--sc-color-surface-2);
 }
 
-/* A person: a round initial, centred above the name. */
-.card[data-shape='person'] {
-  align-items: center;
-  text-align: center;
-}
-
-.card[data-shape='person'] .frame {
-  width: var(--sc-space-16);
-  aspect-ratio: 1;
-  border-radius: var(--sc-radius-full);
-}
-
 /* The episode that plays now: a frame in the accent, over the image. */
 .card[aria-current] .frame::after {
   position: absolute;
@@ -101,4 +89,39 @@
 .caption {
   color: var(--sc-color-text-muted);
   font-size: var(--sc-font-size-xs);
+}
+
+/*
+ * A person: a 2:3 portrait like CastCard, left aligned (concept 23 P-3); without one the initial
+ * on a neutral ground. Round pictures stay for profiles.
+ */
+.card[data-shape='person'] {
+  border-radius: var(--sc-radius-lg);
+}
+
+.card[data-shape='person'] .frame {
+  aspect-ratio: 2 / 3;
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-3);
+}
+
+/* Cut towards the face: portraits keep the head in their upper part. */
+.card[data-shape='person'] .image {
+  object-position: center 20%;
+}
+
+.card[data-shape='person'] .initial {
+  color: var(--sc-color-text-primary);
+  font-size: var(--sc-font-size-3xl);
+}
+
+/* At most two lines of the role. */
+.card[data-shape='person'] .caption {
+  display: -webkit-box;
+  overflow: hidden;
+  line-height: var(--sc-font-line-height-snug);
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }

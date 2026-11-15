@@ -3,6 +3,10 @@ import { H264_TITLE, itemPath } from './catalog';
 import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus, tabTo } from './keyboard';
 import { arrowTo, recordEndedReason, startOf, videoState } from './playback';
 
+/** A 2×3 pixel PNG: a person's portrait in the tab «Besetzung» (concept 23 P-3). */
+const PORTRAIT_PNG =
+  'iVBORw0KGgoAAAANSUhEUgAAAAIAAAADCAIAAAA2iEnWAAAADklEQVR4nGNoAAMGFAoAXpUJAdY1eq0AAAAASUVORK5CYII=';
+
 /** DoD M1a: direct play starts in under 2 s in Chrome and Firefox. */
 const START_BUDGET_MS = 2000;
 
@@ -573,16 +577,31 @@ test.describe('the tab «Besetzung»', () => {
   test('↓ to the tabs, Enter, ↓, Enter opens the person; back returns to the player (review step 5)', async ({
     page,
   }) => {
-    // The e2e server has no TMDB key, so no title has a cast: the title's details get one here.
+    // The e2e server has no TMDB key, so no title has a cast: the title's details get one here,
+    // with a portrait (a 2×3 PNG) for the first person and none for the second.
     const itemId = detail.split('/').pop()!;
     await page.route(`**/api/v1/items/${itemId}`, async (route) => {
       const response = await route.fetch();
       const body = (await response.json()) as Record<string, unknown>;
       await route.fulfill({
         response,
-        json: { ...body, cast: [{ personId: 1, name: 'Ellen Ripley', role: 'cast' }] },
+        json: {
+          ...body,
+          cast: [
+            {
+              personId: 1,
+              name: 'Ellen Ripley',
+              role: 'cast',
+              image: { url: '/images/e2e-portrait.png', width: 2, height: 3 },
+            },
+            { personId: 2, name: 'Dallas', role: 'cast' },
+          ],
+        },
       });
     });
+    await page.route('**/api/v1/images/e2e-portrait.png', (route) =>
+      route.fulfill({ contentType: 'image/png', body: Buffer.from(PORTRAIT_PNG, 'base64') }),
+    );
     const first = await startOf(page, async () => {
       await page.keyboard.press('ArrowDown');
       await page.keyboard.press('Enter');
@@ -603,6 +622,21 @@ test.describe('the tab «Besetzung»', () => {
       name: /Ellen Ripley/,
     });
     await expectFocusOn(page, person);
+    // Concept 23 P-3: a 2:3 portrait in a column of 7rem, left aligned; without one the initial
+    // on a square-cornered ground.
+    const portrait = person.locator('img');
+    await expect(portrait).toBeVisible();
+    expect(await portrait.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(2);
+    const card = (await person.boundingBox())!;
+    const frame = (await person.locator('span[aria-hidden="true"]').first().boundingBox())!;
+    expect(Math.round(card.width)).toBe(112);
+    expect(Math.round(frame.height)).toBe(168);
+    expect(Math.round(frame.x)).toBe(Math.round(card.x));
+    const other = page.getByRole('list', { name: 'Besetzung' }).getByRole('button', {
+      name: /Dallas/,
+    });
+    await expect(other.locator('img')).toHaveCount(0);
+    await expect(other).toHaveText(/^D/);
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/people\/1$/);
     // Without TMDB nobody has a credit: the person's page is the not-found notice (person.spec).

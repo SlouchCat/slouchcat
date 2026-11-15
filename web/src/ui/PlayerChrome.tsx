@@ -84,6 +84,8 @@ export interface PlayerChromeTab {
   cards?: {
     count: number;
     current?: number;
+    /** `portrait`: narrower columns for 2:3 portraits (the cast, concept 23 P-3). */
+    variant?: 'portrait';
     render: (index: number, excluded: boolean) => ReactNode;
     /**
      * Moves the focus to the current card whenever it changes (C opens the chapters on the chapter
@@ -305,6 +307,7 @@ function CardRow({
     <ul
       ref={list}
       className={styles.cards}
+      data-variant={cards.variant}
       aria-label={label}
       onKeyDown={onKeyDown}
       onFocus={(event) => {

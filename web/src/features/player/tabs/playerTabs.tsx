@@ -148,6 +148,7 @@ export function usePlayerTabs({
       label: t('item.cast.title'),
       cards: {
         count: cast.length,
+        variant: 'portrait',
         render: (index, excluded) => {
           const member = cast[index]!;
           return (
@@ -155,6 +156,7 @@ export function usePlayerTabs({
               shape="person"
               title={member.name}
               caption={creditCaption(t, member)}
+              imageUrl={imageUrl(member.image)}
               onPress={() => onPerson?.(member.personId)}
               excludeFromTabOrder={excluded}
             />
