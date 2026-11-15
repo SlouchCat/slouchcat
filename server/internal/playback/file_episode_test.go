@@ -51,9 +51,7 @@ func TestPodcastEpisodeNeighboursOnStart(t *testing.T) {
 	q0, q6, qc := a.Episodes[0], a.Episodes[1], a.Episodes[2]
 	// The episode without a file moves between Q0 (2 October) and Q6 (3 October).
 	between := time.Date(2026, 10, 2, 18, 0, 0, 0, time.UTC).UnixMilli()
-	if _, err := f.DB.Write.ExecContext(ctx, `UPDATE items SET published_at = ? WHERE id = ?`, between, a.EnclosureOnly.ID); err != nil {
-		t.Fatal(err)
-	}
+	f.SetPublishedAt(t, a.EnclosureOnly.ID, between)
 	session := browserSession(t, f, f.P12)
 	for _, tc := range []struct {
 		name           string

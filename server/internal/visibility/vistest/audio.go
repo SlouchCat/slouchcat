@@ -257,6 +257,12 @@ func (f *Fixture) SetEnclosureType(t testing.TB, itemID, mime string) {
 	exec(t, f.DB, `UPDATE items SET enclosure_type = NULLIF(?, '') WHERE id = ?`, mime, itemID)
 }
 
+// SetPublishedAt sets the publication time of a podcast episode (Unix milliseconds).
+func (f *Fixture) SetPublishedAt(t testing.TB, itemID string, publishedAtMs int64) {
+	t.Helper()
+	exec(t, f.DB, `UPDATE items SET published_at = ? WHERE id = ?`, publishedAtMs, itemID)
+}
+
 // SetFeedURL points a podcast at another feed URL (its host decides whether enclosures and covers
 // may lie in the local network, package netguard).
 func (f *Fixture) SetFeedURL(t testing.TB, podcastID, feedURL string) {
