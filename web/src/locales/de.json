@@ -4324,7 +4324,8 @@
         "planned": "Geplant",
         "paused": "Pausiert",
         "failed": "Fehlgeschlagen",
-        "label": "Zusammenfassung"
+        "label": "Zusammenfassung",
+        "plannedNote": "{{number}} geplant"
       },
       "pools": {
         "title": "Arbeiter",
@@ -4790,7 +4791,15 @@
       },
       "separator": " · ",
       "none": "–",
-      "livePaused": "Aktualisierung pausiert"
+      "livePaused": "Aktualisierung pausiert",
+      "filter": {
+        "label": "Jobarten nach Zustand filtern",
+        "all": "Alle",
+        "running": "Läuft",
+        "failed": "Fehler",
+        "paused": "Pausiert",
+        "empty": "Keine Jobart dieser Gruppe in diesem Zustand."
+      }
     },
     "metadata": {
       "title": "Metadaten",

@@ -4324,7 +4324,8 @@
         "planned": "Planned",
         "paused": "Paused",
         "failed": "Failed",
-        "label": "Summary"
+        "label": "Summary",
+        "plannedNote": "{{number}} planned"
       },
       "pools": {
         "title": "Workers",
@@ -4790,7 +4791,15 @@
       },
       "separator": " · ",
       "none": "–",
-      "livePaused": "Updates paused"
+      "livePaused": "Updates paused",
+      "filter": {
+        "label": "Filter job types by state",
+        "all": "All",
+        "running": "Running",
+        "failed": "Failed",
+        "paused": "Paused",
+        "empty": "No job type of this group in this state."
+      }
     },
     "metadata": {
       "title": "Metadata",

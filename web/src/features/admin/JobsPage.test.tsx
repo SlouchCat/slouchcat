@@ -186,19 +186,65 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     vi.unstubAllGlobals();
   });
 
+  it('filters the types of a group by state; the filter stays across the group tabs', async () => {
+    mockApi(routes());
+    renderApp('/admin/jobs?tab=metadata');
+    const user = userEvent.setup();
+    const toolbar = await within(await screen.findByRole('tabpanel')).findByRole('toolbar', {
+      name: 'Jobarten nach Zustand filtern',
+    });
+    const button = (name: RegExp) => within(toolbar).getByRole('button', { name });
+    expect(
+      within(toolbar)
+        .getAllByRole('button')
+        .map((option) => option.textContent),
+    ).toEqual([
+      'Alle 22 Jobarten',
+      'Läuft 00 Jobarten',
+      'Fehler 11 Jobart',
+      'Pausiert 00 Jobarten',
+    ]);
+    expect(button(/^Alle/)).toHaveAttribute('aria-pressed', 'true');
+    const table = () =>
+      within(groupPanel()).getByRole('table', { name: 'Jobs der Gruppe Metadaten' });
+    expect(within(table()).getAllByRole('row').slice(1)).toHaveLength(2);
+
+    await user.click(button(/^Fehler/));
+    expect(button(/^Fehler/)).toHaveAttribute('aria-pressed', 'true');
+    const rows = within(table()).getAllByRole('row').slice(1);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveAccessibleName(/^Titel zuordnen/);
+
+    await user.click(button(/^Pausiert/));
+    expect(within(groupPanel()).queryByRole('table')).toBeNull();
+    expect(
+      within(groupPanel()).getByText('Keine Jobart dieser Gruppe in diesem Zustand.'),
+    ).toBeVisible();
+
+    // Another group keeps the filter: «System» with its failed type.
+    await user.click(button(/^Fehler/));
+    await user.click(screen.getByRole('tab', { name: /^System/ }));
+    const system = within(groupPanel()).getByRole('table', { name: 'Jobs der Gruppe System' });
+    expect(within(system).getAllByRole('row').slice(1)).toHaveLength(1);
+    expect(
+      within(groupPanel()).getByRole('button', { name: /^Fehler/, pressed: true }),
+    ).toBeVisible();
+  });
+
   it('shows counters, pools, running runs and one row per type in its group', async () => {
     mockApi(routes());
     renderApp('/admin/jobs');
     expect(await screen.findByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeVisible();
     const strip = await screen.findByRole('group', { name: 'Zusammenfassung' });
+    // The mockup's four counters; the planned runs stand below the queued ones.
     const terms = within(strip).getAllByRole('term');
     expect(terms.map((term) => [term.textContent, term.nextElementSibling?.textContent])).toEqual([
       ['Laufend', '2'],
       ['Wartend', '239'],
-      ['Geplant', '2'],
-      ['Pausiert', '0'],
       ['Fehlgeschlagen', '2'],
+      ['Pausiert', '0'],
     ]);
+    expect(within(strip).getByText('2 geplant')).toBeVisible();
     const pools = screen.getByRole('list', { name: 'Arbeiter' });
     expect(within(pools).getByText(/Allgemein: 4 Arbeiter · Stau ca. 3 h 10 min/)).toBeVisible();
     expect(within(pools).getByText(/Downloads: 1 Arbeiter · frei/)).toBeVisible();

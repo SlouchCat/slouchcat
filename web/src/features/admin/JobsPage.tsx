@@ -52,6 +52,7 @@ import {
   Switch,
   Tabs,
   TextField,
+  ToggleToolbar,
   afterDialogsClosed,
   focusTitleIfLost,
   useDrafts,
@@ -68,10 +69,13 @@ import {
   formatMinute,
   formatOnce,
   formatSeconds,
+  matchesTypeFilter,
+  TYPE_FILTERS,
   typeDescription,
   typeName,
   typeKey,
   typeState,
+  type TypeFilter,
   type TypeState,
 } from './jobsFormat';
 import {
@@ -488,6 +492,8 @@ function JobsContent() {
 
   // An unknown `?tab=` shows the first tab; the address says so too.
   const [tab, selectTab] = useSearchSelection('tab', TABS, 'library', { normalise: true });
+  // The filter by state above a group's table (mockup): the page's, so a change of tab keeps it.
+  const [filter, setFilter] = useState<TypeFilter>('all');
 
   const overview = useQuery({
     ...jobTypesQuery,
@@ -521,6 +527,8 @@ function JobsContent() {
   if (askedInfo && openedItem !== askedInfo.type) {
     setOpenedItem(askedInfo.type);
     setExpanded((current) => new Set(current).add(askedInfo.type));
+    // The asked row shows whatever the filter says.
+    setFilter('all');
   } else if (askedItem === undefined && openedItem !== undefined) {
     setOpenedItem(undefined);
   }
@@ -815,6 +823,7 @@ function JobsContent() {
             )}
         </Notice>
       )}
+      {/* The mockup's four counters: running, queued (the planned ones below it), failed, paused. */}
       <StatusStrip
         label={t('admin.jobs.counts.label')}
         tiles={[
@@ -828,23 +837,19 @@ function JobsContent() {
             key: 'queued',
             label: t('admin.jobs.counts.queued'),
             value: number.format(totals.queued),
-          },
-          {
-            key: 'planned',
-            label: t('admin.jobs.counts.planned'),
-            value: number.format(totals.planned),
-          },
-          {
-            key: 'paused',
-            label: t('admin.jobs.counts.paused'),
-            value: number.format(data.paused),
-            tone: data.paused > 0 ? 'warning' : 'neutral',
+            note: t('admin.jobs.counts.plannedNote', { number: number.format(totals.planned) }),
           },
           {
             key: 'failed',
             label: t('admin.jobs.counts.failed'),
             value: number.format(totals.failed),
             tone: totals.failed > 0 ? 'danger' : 'neutral',
+          },
+          {
+            key: 'paused',
+            label: t('admin.jobs.counts.paused'),
+            value: number.format(data.paused),
+            tone: data.paused > 0 ? 'warning' : 'neutral',
           },
         ]}
       />
@@ -922,6 +927,7 @@ function JobsContent() {
             tabs={[
               ...GROUPS.map((group) => {
                 const types = data.types.filter((info) => info.group === group);
+                const shown = types.filter((info) => matchesTypeFilter(info, filter));
                 const groupName = t(`admin.jobs.groups.${group}`);
                 return {
                   id: group,
@@ -931,13 +937,33 @@ function JobsContent() {
                   content: (
                     <div className={styles.tabBody}>
                       <VisuallyHidden as="h2">{groupName}</VisuallyHidden>
+                      {types.length > 0 && (
+                        <ToggleToolbar
+                          label={t('admin.jobs.filter.label')}
+                          value={filter}
+                          onChange={(value) => setFilter(value as TypeFilter)}
+                          options={TYPE_FILTERS.map((value) => {
+                            const count = types.filter((info) =>
+                              matchesTypeFilter(info, value),
+                            ).length;
+                            return {
+                              value,
+                              label: t(`admin.jobs.filter.${value}`),
+                              count: number.format(count),
+                              countLabel: t('admin.jobs.tabs.types', { count }),
+                            };
+                          })}
+                        />
+                      )}
                       {types.length === 0 ? (
                         <Text tone="secondary">{t('admin.jobs.tabs.empty')}</Text>
+                      ) : shown.length === 0 ? (
+                        <Text tone="secondary">{t('admin.jobs.filter.empty')}</Text>
                       ) : (
                         <DataTable
                           caption={t('admin.jobs.tabs.caption', { group: groupName })}
                           columns={columns}
-                          rows={types}
+                          rows={shown}
                           rowKey={(info) => info.type}
                           expand={{ render: detail, expandedKeys: expanded, onExpandedChange }}
                           layout="fixed"
