@@ -1,0 +1,123 @@
+/* A chapter or episode button with its hint or card above it (concept 23, 3.1 and 3.2). */
+.step {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Greyed in place: still focusable, its fill does not answer the pointer. */
+.step > button[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.45;
+}
+
+@media (hover: hover) {
+  .step > button[aria-disabled='true']:hover {
+    background-color: transparent;
+  }
+}
+
+.hint,
+.card {
+  position: absolute;
+  bottom: calc(100% + var(--sc-space-2));
+  z-index: var(--sc-z-raised);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-bg-overlay);
+  color: var(--sc-color-text-primary);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.hint {
+  inset-inline-start: 50%;
+  padding: var(--sc-space-1) var(--sc-space-3);
+  font-size: var(--sc-font-size-sm);
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+/* The episode card: picture, «Nächste Folge», code and title, length and key. */
+.card {
+  display: flex;
+  flex-direction: column;
+  width: 17.5rem;
+  overflow: hidden;
+  border-radius: var(--sc-radius-lg);
+}
+
+.card[data-align='center'] {
+  inset-inline-start: 50%;
+  transform: translateX(-30%);
+}
+
+.card[data-align='start'] {
+  inset-inline-start: 0;
+}
+
+.step:has(:focus-visible) .hint,
+.step:has(:focus-visible) .card {
+  opacity: 1;
+}
+
+@media (hover: hover) {
+  .step:hover .hint,
+  .step:hover .card {
+    opacity: 1;
+  }
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  background-color: var(--sc-color-surface-2);
+  object-fit: cover;
+}
+
+.body {
+  display: grid;
+  gap: var(--sc-space-1);
+  padding: var(--sc-space-3);
+}
+
+.heading {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
+}
+
+.name {
+  display: -webkit-box;
+  overflow: hidden;
+  font-weight: var(--sc-font-weight-semibold);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.detail {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+.keys {
+  padding: 0 var(--sc-space-1);
+  border-radius: var(--sc-radius-sm);
+  background-color: var(--sc-color-surface-3);
+  font-family: var(--sc-font-family-mono);
+  font-size: var(--sc-font-size-xs);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hint,
+  .card {
+    transition: none;
+  }
+}

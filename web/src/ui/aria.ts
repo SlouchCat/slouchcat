@@ -82,12 +82,14 @@ export {
   PlayerChrome,
   playerEndTime,
   playerRemainingMs,
+  type PlayerChromeEpisode,
   type PlayerChromePanelButton,
   type PlayerChromeLayout,
   type PlayerChromeStep,
   type PlayerChromeTab,
 } from './PlayerChrome';
 export { PlayerPanel } from './PlayerPanel';
+export type { PlayerStepCard } from './PlayerStep';
 export {
   SeekBar,
   type SeekBarChapter,

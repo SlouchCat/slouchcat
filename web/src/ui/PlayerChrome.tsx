@@ -15,6 +15,7 @@ import { AriaButton } from './AriaButton';
 import { focusLost } from './focusAfter';
 import type { IconName } from './Icon';
 import styles from './PlayerChrome.module.css';
+import { PlayerStep, type PlayerStepCard } from './PlayerStep';
 import {
   SeekBar,
   type SeekBarChapter,
@@ -61,11 +62,23 @@ export interface PlayerChromePanelButton {
   isDisabled?: boolean;
 }
 
-/** A step of the transport: chapter or episode back or forward. */
+/** A chapter step of the transport (concept 23, 3.1): it never switches the title. */
 export interface PlayerChromeStep {
   label: string;
   onPress: () => void;
-  isDisabled?: boolean;
+  /**
+   * Greyed in place with this hint («Keine Kapitel», «Letztes Kapitel»): focusable and in the
+   * row's arrow order, a press does nothing (`aria-disabled`, the hint as its description).
+   */
+  unavailable?: string;
+}
+
+/**
+ * The button of the previous or the next episode (concept 23, 3.2 and 3.2a): named after the
+ * episode («Nächste Folge: S01E05 · Die Brücke»), with a card on hover and focus (not on a phone).
+ */
+export interface PlayerChromeEpisode extends PlayerChromeStep {
+  card?: PlayerStepCard;
 }
 
 /**
@@ -103,11 +116,13 @@ export interface PlayerChromeTab {
 export type PlayerChromeLayout = 'desktop' | 'phone';
 
 type RowKey =
-  | 'previous'
+  | 'previousEpisode'
+  | 'previousChapter'
   | 'back'
   | 'play'
   | 'forward'
-  | 'next'
+  | 'nextChapter'
+  | 'nextEpisode'
   | 'mute'
   | 'subtitles'
   | 'audio'
@@ -121,6 +136,8 @@ interface RowEntry {
   key: RowKey;
   disabled: boolean;
   render: (excluded: boolean) => ReactNode;
+  /** A fine line sets the entry apart from its neighbour (the episode buttons, concept 23). */
+  separator?: 'before' | 'after';
 }
 
 const modified = (event: KeyboardEvent) =>
@@ -240,7 +257,9 @@ function Toolbar({
               data-row-key={entry.key}
               data-stop={entry.key === stop || undefined}
             >
+              {entry.separator === 'before' && <span className={styles.separator} />}
               {entry.render(entry.key !== stop)}
+              {entry.separator === 'after' && <span className={styles.separator} />}
             </span>
           ))}
         </span>
@@ -369,10 +388,18 @@ interface PlayerChromeProps {
   onSkip: (seconds: number) => void;
   /** A stable ref: the player gives its first focus through it (focusOnMount). */
   playButtonRef?: Ref<HTMLButtonElement>;
-  /** Chapter or episode back; none without either. Not on a phone. */
-  previous?: PlayerChromeStep;
-  /** Chapter forward, or the next episode after the last chapter. Not on a phone. */
-  next?: PlayerChromeStep;
+  /**
+   * Chapter back and forward (concept 23, 3.1); greyed without chapters, not on a phone (the
+   * timeline has the chapters there). Absent: no chapter buttons.
+   */
+  previousChapter?: PlayerChromeStep;
+  nextChapter?: PlayerChromeStep;
+  /**
+   * The previous and the next episode (concept 23, 3.2): at the ends of the row, set apart by a
+   * line; on a phone beside −10 s, play and +10 s, without a card. Absent: not an episode.
+   */
+  previousEpisode?: PlayerChromeEpisode;
+  nextEpisode?: PlayerChromeEpisode;
   /** Play, pause and the steps are off (a switch is on its way, the server ended the playback). */
   transportDisabled?: boolean;
 
@@ -453,8 +480,10 @@ export function PlayerChrome({
   onTogglePlay,
   onSkip,
   playButtonRef,
-  previous,
-  next,
+  previousChapter,
+  nextChapter,
+  previousEpisode,
+  nextEpisode,
   transportDisabled = false,
   volume,
   muted,
@@ -546,29 +575,42 @@ export function PlayerChrome({
           },
         ]
       : [];
-  const step = (key: 'previous' | 'next', config: PlayerChromeStep | undefined) =>
-    config && !phone
+  const step = (
+    key: RowKey,
+    icon: IconName,
+    config: PlayerChromeEpisode | undefined,
+    cardAlign: 'start' | 'center' = 'center',
+    separator?: 'before' | 'after',
+  ): RowEntry[] =>
+    config
       ? [
           {
             key,
-            disabled: transportDisabled || config.isDisabled === true,
+            separator: phone ? undefined : separator,
+            // A greyed step stays in the arrow order (aria-disabled); only a switch takes it out.
+            disabled: transportDisabled,
             render: (excluded: boolean) => (
-              <AriaButton
-                variant="ghost"
-                icon={key}
-                iconOnly
-                aria-label={config.label}
+              <PlayerStep
+                icon={icon}
+                label={config.label}
                 onPress={config.onPress}
-                isDisabled={transportDisabled || config.isDisabled}
+                unavailable={config.unavailable}
+                card={phone ? undefined : config.card}
+                cardAlign={cardAlign}
+                isDisabled={transportDisabled}
                 excludeFromTabOrder={excluded}
               />
             ),
           },
         ]
       : [];
+  // The chapter steps are not on a phone; the episode buttons are, in the middle.
+  const chapterStep = (key: RowKey, icon: IconName, config: PlayerChromeStep | undefined) =>
+    phone ? [] : step(key, icon, config);
   const size = phone ? 'lg' : undefined;
   const transport: RowEntry[] = [
-    ...step('previous', previous),
+    ...step('previousEpisode', 'previous', previousEpisode, 'start', 'after'),
+    ...chapterStep('previousChapter', 'chapterPrevious', previousChapter),
     {
       key: 'back',
       disabled: transportDisabled,
@@ -618,7 +660,8 @@ export function PlayerChrome({
         />
       ),
     },
-    ...step('next', next),
+    ...chapterStep('nextChapter', 'chapterNext', nextChapter),
+    ...step('nextEpisode', 'next', nextEpisode, 'center', 'before'),
   ];
   const mute: RowEntry = {
     key: 'mute',

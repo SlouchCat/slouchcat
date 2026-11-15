@@ -1127,7 +1127,17 @@
       "options": "Options",
       "view": "Time and view",
       "tapBack": "−{{seconds}} s",
-      "tapForward": "+{{seconds}} s"
+      "tapForward": "+{{seconds}} s",
+      "noChapters": "No chapters",
+      "lastChapter": "Last chapter",
+      "noNextEpisode": "No further episode",
+      "noPreviousEpisode": "No earlier episode",
+      "nextEpisodeNamed": "Next episode: {{name}}",
+      "previousEpisodeNamed": "Previous episode: {{name}}",
+      "nextEpisodeCard": "Next episode",
+      "previousEpisodeCard": "Previous episode",
+      "cardSeason": "Season {{season}} · {{name}}",
+      "notOnDevice": "Not on this device"
     },
     "tabs": { "label": "More about the title", "next": "Up next", "info": "Info" },
     "pauseView": { "label": "Paused", "paused": "Paused", "chapter": "Chapter: {{chapter}}" },
@@ -1203,6 +1213,10 @@
         "next": {
           "keys": "N",
           "action": "Next episode"
+        },
+        "previous": {
+          "keys": "P",
+          "action": "Previous episode"
         },
         "help": {
           "keys": "?",

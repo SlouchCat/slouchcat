@@ -126,6 +126,14 @@
   display: contents;
 }
 
+/* The line between the episode buttons and the chapter buttons (concept 23, 3.1). */
+.separator {
+  align-self: center;
+  width: 1px;
+  height: var(--sc-space-6);
+  background-color: var(--sc-color-state-track);
+}
+
 /* The tabs under the bar (11.2): a strip of tabs, and the open one's row of cards or its text
    slides in from below over the picture; the video does not move aside. */
 .tabs {

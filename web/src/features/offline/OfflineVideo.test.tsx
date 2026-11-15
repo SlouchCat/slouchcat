@@ -109,8 +109,15 @@ describe('offline video player on PlayerChrome (F-15)', () => {
     expect(screen.getByRole('toolbar', { name: 'Wiedergabe' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Ton: Englisch' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Untertitel: Aus' })).toBeVisible();
-    // Without chapters: no chapter steps and no tabs; no picture in picture (W5).
-    expect(screen.queryByRole('button', { name: 'Vorheriges Kapitel' })).toBeNull();
+    // Without chapters: the chapter steps greyed in place (concept 23, F-2), no tabs; no picture
+    // in picture (W5).
+    expect(screen.getByRole('button', { name: 'Vorheriges Kapitel' })).toHaveAccessibleDescription(
+      'Keine Kapitel',
+    );
+    expect(screen.getByRole('button', { name: 'Nächstes Kapitel' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
     expect(screen.queryByRole('toolbar', { name: 'Reiter' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Bild in Bild' })).toBeNull();
 

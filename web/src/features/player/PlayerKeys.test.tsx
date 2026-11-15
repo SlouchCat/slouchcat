@@ -603,8 +603,13 @@ describe('video player controls (concept 13, step 3)', () => {
       video.dispatchEvent(new Event('timeupdate'));
     });
     expect(screen.getByText('Alien · Kapitel 3')).toBeVisible();
-    // In the last chapter there is no forward step (a film has no next episode).
-    expect(screen.queryByRole('button', { name: 'Nächstes Kapitel' })).toBeNull();
+    // In the last chapter forward is greyed and switches no title (concept 23, 3.1); a film has
+    // no episode buttons.
+    expect(button('Nächstes Kapitel')).toHaveAttribute('aria-disabled', 'true');
+    expect(button('Nächstes Kapitel')).toHaveAccessibleDescription('Letztes Kapitel');
+    await user.click(button('Nächstes Kapitel'));
+    expect(media.currentTime).toBe(300);
+    expect(screen.queryByRole('button', { name: /Folge/ })).toBeNull();
     await user.click(button('Vorheriges Kapitel'));
     expect(media.currentTime).toBe(120);
   });
@@ -637,8 +642,14 @@ describe('video player controls (concept 13, step 3)', () => {
       'src',
       expect.stringContaining('/images/logo/w400'),
     );
+    // Without chapters both chapter buttons are greyed in place; no previous episode from the
+    // server: «Vorherige Folge» is greyed as well (concept 23, F-2 and 3.2a).
+    expect(button('Vorheriges Kapitel')).toHaveAccessibleDescription('Keine Kapitel');
+    expect(button('Nächstes Kapitel')).toHaveAccessibleDescription('Keine Kapitel');
+    expect(button('Vorherige Folge')).toHaveAttribute('aria-disabled', 'true');
+    expect(button('Vorherige Folge')).toHaveAccessibleDescription('Keine frühere Folge');
     const { user } = playerDriver();
-    await user.click(button('Nächste Folge'));
+    await user.click(button('Nächste Folge: S01E03–E04 · Episode 3'));
     await waitFor(() => expect(router.state.location.pathname).toBe(`/play/${episodes.e34.id}`));
   });
 
@@ -883,14 +894,37 @@ describe('video player tabs, pause view, phone and slow connection (concept 13, 
     await waitFor(() => expect(seasonCalls()).toBeGreaterThan(1));
   });
 
-  it('back is «Vorherige Folge» without chapters, and in the first seconds of the first chapter', async () => {
+  it('«Vorherige Folge» plays the episode the server names, across the season boundary (concept 23, 3.2a)', async () => {
+    // S02E01 in the middle of a chapter: the previous episode is the last one of season 1.
     const { router } = await start(
-      { ...episode, chapters: [], resumePositionMs: 0 },
+      {
+        ...episode,
+        item: { ...episodes.e2, seasonNumber: 2, episodeNumber: 1 },
+        previousEpisode: { ...episodes.e1, episodeNumber: 6 },
+        resumePositionMs: 200_000,
+      },
       episodeRoutes(),
     );
+    const previous = button('Vorherige Folge: S01E06 · Pilot');
+    // The chapter buttons only go from chapter to chapter.
+    expect(button('Vorheriges Kapitel')).not.toHaveAttribute('aria-disabled');
+    const card = previous.parentElement?.querySelector(':scope > [aria-hidden="true"]');
+    expect(card).toHaveTextContent('Staffel 1 · S01E06 · Pilot');
     const { user } = playerDriver();
-    await user.click(await screen.findByRole('button', { name: 'Vorherige Folge' }));
+    await user.click(previous);
     await waitFor(() => expect(router.state.location.pathname).toBe(`/play/${episodes.e1.id}`));
+  });
+
+  it('without a previous episode from the server «Vorherige Folge» is greyed, whatever the season lists (rule 12)', async () => {
+    const { router } = await start({ ...episode, resumePositionMs: 0 }, episodeRoutes());
+    const { user } = playerDriver();
+    // The season (with S01E01 before this episode) has loaded for «Als Nächstes».
+    await user.click(await within(strip()).findByRole('button', { name: 'Als Nächstes' }));
+    expect(button('Vorherige Folge')).toHaveAccessibleDescription('Keine frühere Folge');
+    await user.click(button('Vorherige Folge'));
+    // At the start of the first chapter the chapter button stays in the title as well.
+    await user.click(button('Vorheriges Kapitel'));
+    expect(router.state.location.pathname).toBe(`/play/${episodes.e2.id}`);
   });
 
   it('a slow connection suggests the rung below; the switch is not remembered (V-17, V-18)', async () => {

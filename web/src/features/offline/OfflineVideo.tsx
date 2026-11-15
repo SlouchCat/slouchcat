@@ -409,16 +409,21 @@ export function OfflineVideo({
         onSkip={seekBy}
         // The first focus goes to play/pause (focusOnMount, not react-aria's autoFocus: 11.13).
         playButtonRef={focusOnMount}
-        previous={
-          hasChapters
-            ? { label: t('player.chrome.previousChapter'), onPress: previousChapter }
-            : undefined
-        }
-        next={
-          nextChapterStart(chapters, currentMs) !== null
-            ? { label: t('player.chrome.nextChapter'), onPress: nextChapter }
-            : undefined
-        }
+        // Only chapters (concept 23, 3.1); without chapters greyed in place.
+        previousChapter={{
+          label: t('player.chrome.previousChapter'),
+          onPress: previousChapter,
+          unavailable: hasChapters ? undefined : t('player.chrome.noChapters'),
+        }}
+        nextChapter={{
+          label: t('player.chrome.nextChapter'),
+          onPress: nextChapter,
+          unavailable: !hasChapters
+            ? t('player.chrome.noChapters')
+            : nextChapterStart(chapters, currentMs) === null
+              ? t('player.chrome.lastChapter')
+              : undefined,
+        }}
         transportDisabled={limitReached}
         volume={volume.volume}
         muted={volume.muted}
