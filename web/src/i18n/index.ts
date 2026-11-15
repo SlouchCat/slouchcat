@@ -140,7 +140,7 @@ await i18n.use(initReactI18next).init({
   initAsync: false,
 });
 // `{{count, number}}` in a text formats like every Intl call of the app: Swiss for de.
-i18n.services.formatter?.addCached('number', (language, options) => {
+i18n.services.formatter?.addCached('number', (language, options: Intl.NumberFormatOptions) => {
   const format = new Intl.NumberFormat(intlLocale(language ?? initial), options);
   return (value: number) => format.format(value);
 });
