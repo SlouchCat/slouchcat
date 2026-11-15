@@ -340,7 +340,7 @@ func (s *Service) RunSetup(ctx context.Context, req model.SetupRequest, userAgen
 	}
 
 	_, verr := auth.ValidateOwner(req.Email, req.Password)
-	if req.Language != "" && req.Language != "de" && req.Language != "en" {
+	if req.Language != "" && !model.IsUILanguage(req.Language) {
 		verr = verr.Add("language", "invalid_value")
 	}
 	verr = validateLibrary(verr, "library.", req.Library)
