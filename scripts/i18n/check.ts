@@ -18,6 +18,7 @@
 // every text must differ from de.json.
 import { readdirSync } from 'node:fs';
 import { basename } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   flatten,
   groups,
@@ -213,7 +214,8 @@ function missingKeys(code: string, file?: string): string[] {
   return code === 'de-DE' ? [] : checkLocale(code, load(code, file)).missing;
 }
 
-if (import.meta.main) {
+// Run as a script, not when another module imports this one.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const { flags, positional } = parseArgs(process.argv.slice(2), ['file']);
   const file = flags.get('file');
   const path = typeof file === 'string' ? file : undefined;

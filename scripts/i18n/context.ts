@@ -10,6 +10,7 @@
 // The counts go to stderr.
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { flatten, localePath, parseArgs, readJson, repoRoot, splitPlural } from './lib.ts';
 
 export type Use = { file: string; line: number; component: string; dynamic?: true };
@@ -117,7 +118,8 @@ export function collectUsage(): Map<string, Use[]> {
   return usage;
 }
 
-if (import.meta.main) {
+// Run as a script, not when another module imports this one.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const { flags } = parseArgs(process.argv.slice(2), ['out']);
   const usage = collectUsage();
   let exact = 0;

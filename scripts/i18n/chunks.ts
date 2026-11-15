@@ -16,6 +16,7 @@
 // Keys en.json does not have, or plural forms the language lacks, stop the merge.
 import { mkdirSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import * as prettier from 'prettier';
 import { collectUsage, type Use } from './context.ts';
 import {
@@ -247,7 +248,8 @@ async function merge(code: string, dir: string, out: string, fresh: boolean) {
   );
 }
 
-if (import.meta.main) {
+// Run as a script, not when another module imports this one.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const { flags, positional } = parseArgs(process.argv.slice(2), ['lang', 'max', 'out']);
   const [command, ...rest] = positional;
   const value = (name: string) => {
