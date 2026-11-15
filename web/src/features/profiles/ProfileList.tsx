@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
+import { intlLocale, languageName } from '@/i18n';
 import { Chip, Notice, Panel, ProfileAvatar, Skeleton, Text } from '@/ui';
 import {
   ActionMenu,
@@ -70,7 +71,7 @@ export function ProfileList({
   onChanged,
   children,
 }: ProfileListProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const session = useActiveSession();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Editing>(null);
@@ -223,14 +224,14 @@ export function ProfileList({
                             })
                           : ratingLabel(t, profile.maxRating)}
                       </Chip>
-                      <Chip tone="info">{t(`language.${profile.language}`)}</Chip>
+                      <Chip tone="info">{languageName(profile.language, i18n.language)}</Chip>
                       {profile.metadataLanguage && (
                         <Chip tone="outline">
                           {t('profiles.settings.metadataLanguageChip', {
                             language:
-                              new Intl.DisplayNames([profile.language], { type: 'language' }).of(
-                                profile.metadataLanguage,
-                              ) ?? profile.metadataLanguage,
+                              new Intl.DisplayNames([intlLocale(i18n.language)], {
+                                type: 'language',
+                              }).of(profile.metadataLanguage) ?? profile.metadataLanguage,
                           })}
                         </Chip>
                       )}

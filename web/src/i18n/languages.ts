@@ -53,6 +53,20 @@ export function intlLocale(language: string): string {
 }
 
 /**
+ * The name of an interface language for a profile: the own name of a shipped language, else the
+ * name Intl gives in the UI language (a code a newer server knows), else the code itself.
+ */
+export function languageName(code: string, uiLanguage: string): string {
+  const shippedName = languages.find((entry) => entry.code === code)?.name;
+  if (shippedName) return shippedName;
+  try {
+    return new Intl.DisplayNames([intlLocale(uiLanguage)], { type: 'language' }).of(code) ?? code;
+  } catch {
+    return code; // not a well-formed language code
+  }
+}
+
+/**
  * Codes that name a language under another code (concept 22 section 4.2, step 2 and 3 of the
  * detection), keyed by the lower-case tag or its leading subtags. A bare `de` mostly comes from
  * Germany or Austria (Swiss browsers send de-CH).

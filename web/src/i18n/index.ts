@@ -12,6 +12,7 @@ export {
   fallbackLanguage,
   intlLocale,
   isLanguage,
+  languageName,
   languages,
   supportedLanguages,
 } from './languages';
