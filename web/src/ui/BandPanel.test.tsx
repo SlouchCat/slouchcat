@@ -124,4 +124,12 @@ describe('band contrast for every profile accent (concept 11 F-9, at 12 %)', () 
     // band passes 4.5:1 at 16 %, so it does at 12 % as well.
     expect(contrast(accent, band)).toBeGreaterThanOrEqual(4.5);
   });
+
+  // The administration's look (admin-look.css, the mockup's .cardhead) drops the tint: the band
+  // stands on the card's own ground, so title and icon must read there too.
+  it.each(accentNames)('%s: on the untinted band of the administration as well', (name) => {
+    const accent = channels(tokens.color.accent[name].base);
+    expect(contrast(textPrimary, ground)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(accent, ground)).toBeGreaterThanOrEqual(3);
+  });
 });
