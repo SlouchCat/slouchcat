@@ -2,8 +2,8 @@
 //
 //   node scripts/i18n/check.ts <code> [--file <path>] [--strict] [--verbose]
 //   node scripts/i18n/check.ts <code> --missing      list the keys still to translate
-//   node scripts/i18n/check.ts --all [--strict]      every locale file next to en.json
-//   node scripts/i18n/check.ts --all --missing       missing count per locale
+//   node scripts/i18n/check.ts --all [--strict]      every shipped language but en (languages.ts)
+//   node scripts/i18n/check.ts --all --missing       missing count per shipped language
 //
 // Errors (exit 1): keys en.json does not have, plural forms that are not exactly the language's
 // categories (Intl.PluralRules, plus `_zero` where en has it), placeholders, `$t()` nestings or
@@ -16,9 +16,10 @@
 //
 // `de` is checked like any language. `de-DE` is an overlay (4.2): only keys de.json has, and
 // every text must differ from de.json.
-import { readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { supportedLanguages } from '../../web/src/i18n/languages.ts';
 import {
   flatten,
   groups,
@@ -219,12 +220,24 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const { flags, positional } = parseArgs(process.argv.slice(2), ['file']);
   const file = flags.get('file');
   const path = typeof file === 'string' ? file : undefined;
+  // --all checks what the app ships (web/src/i18n/languages.ts), not what happens to lie in the
+  // folder: a shipped language without its file is an error, a file of no shipped language a note.
   const codes = flags.has('all')
-    ? readdirSync(localesDir)
-        .filter((name) => name.endsWith('.json') && name !== 'en.json')
-        .map((name) => basename(name, '.json'))
-        .sort()
+    ? supportedLanguages.filter((code) => code !== 'en')
     : positional.slice(0, 1);
+  if (flags.has('all')) {
+    const unshipped = readdirSync(localesDir)
+      .filter((name) => name.endsWith('.json'))
+      .map((name) => basename(name, '.json'))
+      .filter((code) => !(supportedLanguages as readonly string[]).includes(code));
+    if (unshipped.length > 0) console.log(`not shipped, not checked: ${unshipped.join(', ')}`);
+    const absent = codes.filter((code) => !existsSync(localePath(code)));
+    if (absent.length > 0) {
+      for (const code of absent)
+        console.error(`${code}: shipped, but web/src/locales/${code}.json is missing`);
+      process.exit(1);
+    }
+  }
   if (codes.length === 0) {
     console.error(
       'usage: check.ts <code> [--file <path>] [--strict] [--missing] [--verbose] | --all',
