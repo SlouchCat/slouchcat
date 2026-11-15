@@ -404,6 +404,33 @@ describe('radio administration', () => {
     );
   });
 
+  it("adds an own station from the head on any tab (the page's main action)", async () => {
+    mockApi(
+      radioRoutes({
+        'POST /admin/radio/stations': () => json(own, 201),
+      }),
+    );
+    const { router } = await renderAdminPage('/admin/radio');
+    const user = userEvent.setup();
+    // One button only, in the head: the tab «Eigene Sender» no longer has its own.
+    expect(
+      await screen.findAllByRole('button', { name: 'Eigenen Sender hinzufügen' }),
+    ).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: 'Eigenen Sender hinzufügen' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Eigenen Sender hinzufügen' });
+    await user.type(
+      within(dialog).getByRole('textbox', { name: 'Name' }),
+      'Quartierradio Lorraine',
+    );
+    await user.type(
+      within(dialog).getByRole('textbox', { name: 'Stream-Adresse' }),
+      'https://203.0.113.10/live.mp3',
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Hinzufügen' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ item: '9' }));
+    expect(await screen.findByText('Quartierradio Lorraine ist hinzugefügt.')).toBeInTheDocument();
+  });
+
   it('changes the fields of an own station without a lock; what stays the same is not sent', async () => {
     const { calls } = mockApi(
       radioRoutes({

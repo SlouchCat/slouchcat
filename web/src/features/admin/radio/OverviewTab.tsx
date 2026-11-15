@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { formatBitrate, formatBytes, formatDateTime } from '@/lib/format';
-import { FactList, Notice, Skeleton, StatusDot, Text, TextLink } from '@/ui';
+import { Chip, FactList, Notice, Skeleton, Text, TextLink } from '@/ui';
 import {
   AriaButton,
   BandPanel,
@@ -42,11 +42,12 @@ interface OverviewTabProps {
 
 const isoOf = (ms: number) => new Date(ms).toISOString();
 
+/** The state of a relay as a badge in its tone (redesign, build plan 2.7). */
 const relayTone = {
-  connecting: 'pending',
+  connecting: 'info',
   live: 'success',
   reconnecting: 'warning',
-  ending: 'pending',
+  ending: 'outline',
   failed: 'danger',
 } as const;
 
@@ -199,11 +200,10 @@ export function OverviewTab({
             {relays.data?.relays.map((relay) => (
               <li key={`${relay.stationId}:${relay.startedAt}`} className={styles.relay}>
                 <div className={styles.relayHead}>
-                  <StatusDot state={relayTone[relay.state]} />
                   <span className={styles.relayName}>{relay.name}</span>
-                  <span className={styles.muted}>
+                  <Chip tone={relayTone[relay.state]}>
                     {t(`admin.radio.relays.state.${relay.state}`)}
-                  </span>
+                  </Chip>
                 </div>
                 <p className={styles.muted}>
                   {[

@@ -1408,6 +1408,8 @@
       },
       "settings": {
         "title": "Einstellungen",
+        "relaysCard": "Puffer und Weiterleitungen",
+        "coverCard": "Cover und externe Daten",
         "buffer": "Zeitversatz",
         "bufferHelp": "Wie weit Hörer zurückspulen können. 60 Minuten halbieren die Zahl der Sender, wenn das Budget gleich bleibt.",
         "minutes_one": "{{count}} Minute",

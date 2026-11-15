@@ -1408,6 +1408,8 @@
       },
       "settings": {
         "title": "Settings",
+        "relaysCard": "Buffers and relays",
+        "coverCard": "Covers and external data",
         "buffer": "Time shift",
         "bufferHelp": "How far listeners can go back. 60 minutes halve the number of stations while the budget stays.",
         "minutes_one": "{{count}} minute",

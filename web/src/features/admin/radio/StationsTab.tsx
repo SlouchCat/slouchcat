@@ -6,7 +6,7 @@ import { problemMessage } from '@/api/errors';
 import { countryName, stationPlace } from '@/app/radio/labels';
 import { radioKeys } from '@/app/radio/queries';
 import { usePagedList, type PlaceRange } from '@/lib/pagedList';
-import { Notice, SelectField, Skeleton, StationLogo, StatusDot, Text } from '@/ui';
+import { Chip, Notice, SelectField, Skeleton, StationLogo, Text } from '@/ui';
 import {
   AriaButton,
   DataTable,
@@ -39,11 +39,11 @@ type StateFilter = (typeof STATES)[number];
 const SORTS = ['popularity', 'name'] as const;
 type Sort = (typeof SORTS)[number];
 
-/** The state of a station as one word and its dot. */
+/** The state of a station as one word and the tone of its badge (redesign, build plan 2.7). */
 function stationState(station: AdminRadioStation) {
-  if (station.state === 'missing') return { key: 'missing', dot: 'warning' } as const;
-  if (station.state === 'broken') return { key: 'broken', dot: 'danger' } as const;
-  return { key: 'ok', dot: 'success' } as const;
+  if (station.state === 'missing') return { key: 'missing', tone: 'warning' } as const;
+  if (station.state === 'broken') return { key: 'broken', tone: 'danger' } as const;
+  return { key: 'ok', tone: 'success' } as const;
 }
 
 interface StationsTabProps {
@@ -179,17 +179,21 @@ export function StationsTab({ onEdit, titleRef }: StationsTabProps) {
       header: t('admin.radio.stations.columns.provider'),
       cell: (station) =>
         station.provider ? (
-          <AriaButton
-            variant="ghost"
-            size="sm"
-            aria-label={t('admin.radio.stations.providerFilter', { provider: station.provider })}
-            onPress={() => {
-              setProviderText(station.provider ?? '');
-              setProvider(station.provider ?? '');
-            }}
-          >
-            {station.provider}
-          </AriaButton>
+          // A long provider is cut at its column instead of running over the next one; the
+          // button's name keeps it whole.
+          <span className={styles.provider}>
+            <AriaButton
+              variant="ghost"
+              size="sm"
+              aria-label={t('admin.radio.stations.providerFilter', { provider: station.provider })}
+              onPress={() => {
+                setProviderText(station.provider ?? '');
+                setProvider(station.provider ?? '');
+              }}
+            >
+              <span className={styles.clip}>{station.provider}</span>
+            </AriaButton>
+          </span>
         ) : (
           '–'
         ),
@@ -202,12 +206,7 @@ export function StationsTab({ onEdit, titleRef }: StationsTabProps) {
         const shown = stationState(station);
         // One line, as every row of the virtual table (its rows are measured); whether the
         // station is in the offer says its button «Aus dem Angebot nehmen» / «Ins Angebot nehmen».
-        return (
-          <span className={styles.stateCell}>
-            <StatusDot state={shown.dot} />
-            {t(`admin.radio.stations.stateText.${shown.key}`)}
-          </span>
-        );
+        return <Chip tone={shown.tone}>{t(`admin.radio.stations.stateText.${shown.key}`)}</Chip>;
       },
     },
     {

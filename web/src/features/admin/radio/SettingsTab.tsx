@@ -5,6 +5,7 @@ import { problemMessage } from '@/api/errors';
 import { Notice, Skeleton, Text } from '@/ui';
 import {
   afterRender,
+  BandPanel,
   focusTitleIfLost,
   RadioGroup,
   SaveBar,
@@ -115,87 +116,93 @@ function SettingsForm({
   return (
     <div className={styles.tab}>
       <StatusRegion message={message} />
-      <SettingRow
-        label={t('admin.radio.settings.buffer')}
-        help={`${t('admin.radio.settings.bufferHelp')} ${newRelays}`}
-      >
-        <RadioGroup
+      {/* The mockup's two cards «Puffer & Relays» and «Cover & externe Daten» (D027, D028); the
+          save bar follows them, because a card clips and the bar sticks to the page's bottom. */}
+      <BandPanel title={t('admin.radio.settings.relaysCard')} icon="activity">
+        <SettingRow
           label={t('admin.radio.settings.buffer')}
-          hideLabel
-          options={BUFFERS.map((minutes) => ({
-            value: String(minutes),
-            label: t('admin.radio.settings.minutes', { count: minutes }),
-          }))}
-          value={String(draft.bufferMinutes)}
-          onChange={(value) => set('bufferMinutes', Number(value) as BufferMinutes)}
-        />
-      </SettingRow>
-      <SettingRow
-        label={t('admin.radio.settings.budget')}
-        help={`${t('admin.radio.settings.budgetHelp')} ${newRelays}`}
-      >
-        <TextField
+          help={`${t('admin.radio.settings.bufferHelp')} ${newRelays}`}
+        >
+          <RadioGroup
+            label={t('admin.radio.settings.buffer')}
+            hideLabel
+            options={BUFFERS.map((minutes) => ({
+              value: String(minutes),
+              label: t('admin.radio.settings.minutes', { count: minutes }),
+            }))}
+            value={String(draft.bufferMinutes)}
+            onChange={(value) => set('bufferMinutes', Number(value) as BufferMinutes)}
+          />
+        </SettingRow>
+        <SettingRow
           label={t('admin.radio.settings.budget')}
-          hideLabel
-          inputMode="numeric"
-          value={draft.budgetMb}
-          onChange={(value) => set('budgetMb', value)}
-        />
-      </SettingRow>
-      <SettingRow
-        label={t('admin.radio.settings.maxRelays')}
-        help={`${t('admin.radio.settings.maxRelaysHelp', { count: config.maxRelaysByBudget })} ${newRelays}`}
-      >
-        <TextField
+          help={`${t('admin.radio.settings.budgetHelp')} ${newRelays}`}
+        >
+          <TextField
+            label={t('admin.radio.settings.budget')}
+            hideLabel
+            inputMode="numeric"
+            value={draft.budgetMb}
+            onChange={(value) => set('budgetMb', value)}
+          />
+        </SettingRow>
+        <SettingRow
           label={t('admin.radio.settings.maxRelays')}
-          hideLabel
-          inputMode="numeric"
-          value={draft.maxRelays}
-          onChange={(value) => set('maxRelays', value)}
-        />
-      </SettingRow>
-      <SettingRow
-        label={t('admin.radio.settings.grace')}
-        help={t('admin.radio.settings.graceHelp')}
-      >
-        <TextField
+          help={`${t('admin.radio.settings.maxRelaysHelp', { count: config.maxRelaysByBudget })} ${newRelays}`}
+        >
+          <TextField
+            label={t('admin.radio.settings.maxRelays')}
+            hideLabel
+            inputMode="numeric"
+            value={draft.maxRelays}
+            onChange={(value) => set('maxRelays', value)}
+          />
+        </SettingRow>
+        <SettingRow
           label={t('admin.radio.settings.grace')}
-          hideLabel
-          inputMode="numeric"
-          value={draft.graceSeconds}
-          onChange={(value) => set('graceSeconds', value)}
-        />
-      </SettingRow>
-      <SettingRow
-        label={t('admin.radio.settings.coverMusicbrainz')}
-        help={t('admin.radio.settings.coverMusicbrainzHelp')}
-      >
-        <Switch
-          isSelected={draft.coverMusicbrainz}
-          onChange={(value) => set('coverMusicbrainz', value)}
+          help={t('admin.radio.settings.graceHelp')}
         >
-          {t('admin.radio.settings.coverMusicbrainz')}
-        </Switch>
-      </SettingRow>
-      <SettingRow
-        label={t('admin.radio.settings.coverItunes')}
-        help={t('admin.radio.settings.coverItunesHelp')}
-      >
-        <Switch isSelected={draft.coverItunes} onChange={(value) => set('coverItunes', value)}>
-          {t('admin.radio.settings.coverItunes')}
-        </Switch>
-      </SettingRow>
-      <SettingRow
-        label={t('admin.radio.settings.wikidata')}
-        help={t('admin.radio.settings.wikidataHelp')}
-      >
-        <Switch
-          isSelected={draft.wikidataEnabled}
-          onChange={(value) => set('wikidataEnabled', value)}
+          <TextField
+            label={t('admin.radio.settings.grace')}
+            hideLabel
+            inputMode="numeric"
+            value={draft.graceSeconds}
+            onChange={(value) => set('graceSeconds', value)}
+          />
+        </SettingRow>
+      </BandPanel>
+      <BandPanel title={t('admin.radio.settings.coverCard')} icon="image">
+        <SettingRow
+          label={t('admin.radio.settings.coverMusicbrainz')}
+          help={t('admin.radio.settings.coverMusicbrainzHelp')}
         >
-          {t('admin.radio.settings.wikidata')}
-        </Switch>
-      </SettingRow>
+          <Switch
+            isSelected={draft.coverMusicbrainz}
+            onChange={(value) => set('coverMusicbrainz', value)}
+          >
+            {t('admin.radio.settings.coverMusicbrainz')}
+          </Switch>
+        </SettingRow>
+        <SettingRow
+          label={t('admin.radio.settings.coverItunes')}
+          help={t('admin.radio.settings.coverItunesHelp')}
+        >
+          <Switch isSelected={draft.coverItunes} onChange={(value) => set('coverItunes', value)}>
+            {t('admin.radio.settings.coverItunes')}
+          </Switch>
+        </SettingRow>
+        <SettingRow
+          label={t('admin.radio.settings.wikidata')}
+          help={t('admin.radio.settings.wikidataHelp')}
+        >
+          <Switch
+            isSelected={draft.wikidataEnabled}
+            onChange={(value) => set('wikidataEnabled', value)}
+          >
+            {t('admin.radio.settings.wikidata')}
+          </Switch>
+        </SettingRow>
+      </BandPanel>
       <Text tone="secondary">{t('admin.radio.settings.rights')}</Text>
       <SaveBar
         dirty={dirty}

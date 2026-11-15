@@ -8,9 +8,9 @@ import { usePagedList, type PlaceRange } from '@/lib/pagedList';
 import { Notice, Skeleton, StationLogo, Text } from '@/ui';
 import {
   AriaButton,
+  BandPanel,
   ConfirmDialog,
   DataTable,
-  SectionHeader,
   StatusRegion,
   afterDialogsClosed,
   focusTitleIfLost,
@@ -23,7 +23,6 @@ import {
   radioAdminKeys,
   type AdminRadioStation,
 } from '../queries';
-import { CreateStationDialog } from './CreateStationDialog';
 import styles from './Radio.module.css';
 import { intlLocale } from '@/i18n';
 
@@ -38,9 +37,9 @@ interface OwnStationsTabProps {
 
 /**
  * «Eigene Sender» (concept 16, 5.6 and 11): the stations the administration added because the
- * catalog lacks them. «Eigenen Sender hinzufügen» opens the form; after it the editor opens for
- * the logo. Two row actions: «Bearbeiten» and «Löschen» (after a confirmation; a catalog station
- * can only be hidden).
+ * catalog lacks them. «Eigenen Sender hinzufügen» is the page's main action in its head
+ * (RadioAdminPage). Two row actions: «Bearbeiten» and «Löschen» (after a confirmation; a catalog
+ * station can only be hidden).
  */
 export function OwnStationsTab({ onEdit, titleRef }: OwnStationsTabProps) {
   const { t, i18n } = useTranslation();
@@ -52,7 +51,6 @@ export function OwnStationsTab({ onEdit, titleRef }: OwnStationsTabProps) {
   const [span, setSpan] = useState<PlaceRange>({ start: 0, end: 0 });
   const paged = usePagedList(adminRadioStationsSource(OWN), span);
   const stations = paged.first;
-  const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<AdminRadioStation | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -74,11 +72,6 @@ export function OwnStationsTab({ onEdit, titleRef }: OwnStationsTabProps) {
   });
 
   const total = paged.total;
-  const add = (
-    <AriaButton variant="primary" icon="plus" onPress={() => setCreating(true)}>
-      {t('admin.radio.own.add')}
-    </AriaButton>
-  );
 
   const columns: DataColumn<AdminRadioStation>[] = [
     {
@@ -147,20 +140,13 @@ export function OwnStationsTab({ onEdit, titleRef }: OwnStationsTabProps) {
     <div className={styles.tab}>
       <StatusRegion message={message} />
       {remove.error && <Notice tone="danger">{problemMessage(t, remove.error)}</Notice>}
-      <section className={styles.section}>
-        <SectionHeader
-          title={t('admin.radio.own.title')}
-          description={t('admin.radio.own.help')}
-          actions={total > 0 ? add : undefined}
-        />
+      <BandPanel title={t('admin.radio.own.title')} icon="radio">
+        <p className={styles.intro}>{t('admin.radio.own.help')}</p>
         {stations.isError && <Notice tone="danger" title={problemMessage(t, stations.error)} />}
         {stations.isPending ? (
           <Skeleton shape="block" />
         ) : total === 0 ? (
-          <div className={styles.actions}>
-            <Text tone="secondary">{t('admin.radio.own.empty')}</Text>
-            {add}
-          </div>
+          <Text tone="secondary">{t('admin.radio.own.empty')}</Text>
         ) : (
           <>
             <DataTable
@@ -185,19 +171,7 @@ export function OwnStationsTab({ onEdit, titleRef }: OwnStationsTabProps) {
             )}
           </>
         )}
-      </section>
-      {creating && (
-        <CreateStationDialog
-          onClose={() => setCreating(false)}
-          onCreated={(station) => {
-            setCreating(false);
-            setMessage(t('admin.radio.own.created', { name: station.name }));
-            void queryClient.invalidateQueries({ queryKey: radioAdminKeys.all });
-            // The logo comes through the editor's upload (or the homepage's icon).
-            onEdit(station.id);
-          }}
-        />
-      )}
+      </BandPanel>
       {deleting && (
         <ConfirmDialog
           isOpen={confirmOpen}
