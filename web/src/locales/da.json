@@ -3318,12 +3318,6 @@
     "nav": {
       "label": "Administration",
       "overview": "Overblik",
-      "groups": {
-        "library": "Bibliotek",
-        "accounts": "Konti",
-        "curation": "Kuratering",
-        "system": "System"
-      },
       "back": "Tilbage til appen",
       "updateLabel": "Overblik, opdatering til version {{version}} er tilgængelig",
       "sheet": {

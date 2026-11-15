@@ -3318,12 +3318,6 @@
     "nav": {
       "label": "Adminisztráció",
       "overview": "Áttekintés",
-      "groups": {
-        "library": "Könyvtár",
-        "accounts": "Fiókok",
-        "curation": "Válogatás",
-        "system": "Rendszer"
-      },
       "back": "Vissza az alkalmazáshoz",
       "updateLabel": "Áttekintés, elérhető frissítés: {{version}} verzió",
       "sheet": {

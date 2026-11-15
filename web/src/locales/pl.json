@@ -3560,12 +3560,6 @@
     "nav": {
       "label": "Administracja",
       "overview": "Przegląd",
-      "groups": {
-        "library": "Biblioteka",
-        "accounts": "Konta",
-        "curation": "Kuracja treści",
-        "system": "System"
-      },
       "back": "Wróć do aplikacji",
       "updateLabel": "Przegląd, dostępna aktualizacja do wersji {{version}}",
       "sheet": {

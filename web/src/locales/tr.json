@@ -3318,12 +3318,6 @@
     "nav": {
       "label": "Yönetim",
       "overview": "Genel bakış",
-      "groups": {
-        "library": "Kitaplık",
-        "accounts": "Hesaplar",
-        "curation": "Küratörlük",
-        "system": "Sistem"
-      },
       "back": "Uygulamaya dön",
       "updateLabel": "Genel bakış, {{version}} sürümüne güncelleme var",
       "sheet": {

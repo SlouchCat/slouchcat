@@ -1,0 +1,97 @@
+/*
+ * The tab bar of an administration area (build plan 2.5, mockup .tabs): a rounded box on the
+ * first surface, the current page raised on the third. It wraps on narrow screens.
+ */
+.nav {
+  max-width: 100%;
+}
+
+.list {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1);
+  max-width: 100%;
+  margin: 0;
+  padding: var(--sc-space-1);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-1);
+  list-style: none;
+}
+
+.tab {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  min-height: var(--sc-control-height);
+  padding: 0 var(--sc-space-3);
+  border-radius: var(--sc-radius-md);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.tab:focus-visible {
+  color: var(--sc-color-text-primary);
+}
+
+@media (hover: hover) {
+  .tab:hover {
+    background-color: var(--sc-color-surface-2);
+    color: var(--sc-color-text-primary);
+  }
+}
+
+.tab[aria-current='page'] {
+  --sc-tab-raise: 0 1px var(--sc-space-1) var(--sc-color-scrim-medium);
+
+  background-color: var(--sc-color-surface-3);
+  box-shadow: var(--sc-tab-raise);
+  color: var(--sc-color-text-primary);
+}
+
+.count {
+  color: var(--sc-color-text-muted);
+  font-weight: var(--sc-font-weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The update badge, as on the sidebar. */
+.badge {
+  padding: 0 var(--sc-space-2);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
+  font-weight: var(--sc-font-weight-bold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+}
+
+/* An alarm pill: the tone at 16 % behind the number in the tone (F-7), as on the sidebar. */
+.pill {
+  --sc-pill-tone: var(--sc-accent);
+  --sc-pill-tint: color-mix(in srgb, var(--sc-pill-tone) 16%, transparent);
+
+  padding: 0 var(--sc-space-2);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-pill-tint);
+  color: var(--sc-pill-tone);
+  line-height: calc(var(--sc-space-5) + 2px);
+  font-variant-numeric: tabular-nums;
+}
+
+.warning {
+  --sc-pill-tone: var(--sc-color-state-warning);
+}
+
+.danger {
+  --sc-pill-tone: var(--sc-color-state-danger);
+}
+
+.accent {
+  --sc-pill-tone: var(--sc-accent);
+}

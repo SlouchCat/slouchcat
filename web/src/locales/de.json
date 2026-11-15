@@ -3293,15 +3293,32 @@
       "rowSettings": "Wo die Reihe auf der Startseite steht und ob sie erscheint, stellst du unter «Startseite» ein.",
       "rowSettingsLink": "Zur Seite «Startseite»"
     },
+    "finder": {
+      "button": "Bereich suchen",
+      "shortcut": "Strg K",
+      "shortcutMac": "⌘ K",
+      "label": "Bereich der Verwaltung suchen",
+      "placeholder": "Bibliotheken, Jobs, Sicherung …",
+      "results": "Treffer",
+      "empty": "Nichts gefunden",
+      "area": "Bereich",
+      "search": "Mediensuche",
+      "hint": "Pfeiltasten wählen, Enter öffnet, Esc schliesst"
+    },
     "nav": {
       "label": "Verwaltung",
       "overview": "Übersicht",
-      "groups": {
-        "library": "Bibliothek",
-        "accounts": "Konten",
-        "curation": "Kuratierung",
+      "areas": {
+        "media": "Medien",
+        "people": "Nutzer & Geräte",
+        "home": "Startseite",
+        "automation": "Automatisierung",
         "system": "System"
       },
+      "tagline": "Control Center",
+      "trail": "{{area}} / {{page}}",
+      "breadcrumb": "Pfad",
+      "tabs": "Seiten im Bereich {{area}}",
       "back": "Zurück zur App",
       "updateLabel": "Übersicht, Update auf Version {{version}} verfügbar",
       "sheet": {
@@ -3384,6 +3401,9 @@
       },
       "metadata": {
         "title": "Metadaten"
+      },
+      "audiobookSources": {
+        "title": "Hörbuch-Quellen"
       }
     },
     "home": {

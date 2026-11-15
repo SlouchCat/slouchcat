@@ -3197,12 +3197,6 @@
     "nav": {
       "label": "管理",
       "overview": "總覽",
-      "groups": {
-        "library": "媒體庫",
-        "accounts": "帳戶",
-        "curation": "內容策展",
-        "system": "系統"
-      },
       "back": "返回應用程式",
       "updateLabel": "總覽，有可用的更新：版本 {{version}}",
       "sheet": {

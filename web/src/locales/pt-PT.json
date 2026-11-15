@@ -3439,12 +3439,6 @@
     "nav": {
       "label": "Administração",
       "overview": "Visão geral",
-      "groups": {
-        "library": "Biblioteca",
-        "accounts": "Contas",
-        "curation": "Curadoria",
-        "system": "Sistema"
-      },
       "back": "Voltar à aplicação",
       "updateLabel": "Visão geral, atualização para a versão {{version}} disponível",
       "sheet": {

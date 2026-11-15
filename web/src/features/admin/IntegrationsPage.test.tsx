@@ -924,14 +924,13 @@ describe('integrations (A-2)', () => {
     expect(puts(calls)).toEqual([{ keys: { youtube: 'yt-key-0001' } }]);
   });
 
-  it('keeps the intro behind the help button; six blocks start open and fold by keyboard', async () => {
+  it('shows the intro open below the title; six blocks start open and fold by keyboard', async () => {
     mockApi(routes());
     renderApp('/admin/integrations');
     const user = userEvent.setup();
     expect(await screen.findByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
-    const help = screen.getByRole('button', { name: 'Hilfe zu dieser Seite' });
-    expect(screen.getByText(/Geheime Werte speichert Slouchcat verschlüsselt/)).not.toBeVisible();
-    await user.click(help);
+    // Build plan 2.6: the intro stands open, the help button is gone.
+    expect(screen.queryByRole('button', { name: 'Hilfe zu dieser Seite' })).toBeNull();
     expect(screen.getByText(/Geheime Werte speichert Slouchcat verschlüsselt/)).toBeVisible();
 
     await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });

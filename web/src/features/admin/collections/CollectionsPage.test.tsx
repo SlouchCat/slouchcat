@@ -5,7 +5,7 @@ import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ids } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, session, signedIn } from '@/test/api';
-import { adminShell, renderAdminPage } from '@/test/admin';
+import { adminShell, findAdminTabs, renderAdminPage } from '@/test/admin';
 
 // Collections (M7, E-6; concept 12, variant C, Sam-C): filter tabs «Alle», «Manuell», «TMDB»;
 // each collection a row that folds out into its members. A manual one is filled from the title
@@ -126,9 +126,12 @@ describe('admin collections page (M7, E-6; concept 12, Sam-C)', () => {
     expect(within(rows[1]!).getByText('nicht änderbar')).toBeVisible();
     expect(within(rows[2]!).getByText('Manuell')).toBeVisible();
     expect(within(rows[2]!).queryByText('nicht änderbar')).toBeNull();
-    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Sammlungen');
-    // The intro is behind the help button (S-2).
-    expect(screen.getByText(/entstehen beim Abgleich/)).not.toBeVisible();
+    expect((await findAdminTabs()).querySelector('[aria-current="page"]')).toHaveTextContent(
+      'Sammlungen',
+    );
+    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Startseite');
+    // The intro stands open below the title (build plan 2.6).
+    expect(screen.getByText(/entstehen beim Abgleich/)).toBeVisible();
 
     const region = await openRow(user, 'Alien Collection');
     expect(toggleOf('Alien Collection')).toHaveAttribute('aria-expanded', 'true');
@@ -441,7 +444,7 @@ describe('admin collections page (M7, E-6; concept 12, Sam-C)', () => {
     // Leaving the page with the draft asks; staying keeps it.
     await user.click(
       within(await screen.findByRole('navigation', { name: 'Verwaltung' })).getByRole('link', {
-        name: /^Integrationen/,
+        name: /^Automatisierung/,
       }),
     );
     const leave = await screen.findByRole('alertdialog', {
@@ -616,7 +619,7 @@ describe('admin collections page (M7, E-6; concept 12, Sam-C)', () => {
       // The leave question holds the page too, also for a folded draft.
       await user.click(
         within(await screen.findByRole('navigation', { name: 'Verwaltung' })).getByRole('link', {
-          name: /^Integrationen/,
+          name: /^Automatisierung/,
         }),
       );
       const leave = await screen.findByRole('alertdialog', {

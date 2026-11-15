@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { createRef } from 'react';
 import { describe, expect, it } from 'vitest';
 import { ActionMenu } from './ActionMenu';
+import { AdminFrame } from './adminFrame';
 import { AdminPage } from './AdminPage';
 import { ConfirmDialog, FormDialog } from './Dialog';
 
@@ -49,6 +50,64 @@ describe('AdminPage (concept 12, S-2)', () => {
     render(<AdminPage title="Sicherung">Inhalt</AdminPage>);
     expect(screen.queryByRole('button', { name: 'Hilfe zu dieser Seite' })).toBeNull();
     expect(screen.queryByText(/^Live/)).toBeNull();
+  });
+});
+
+describe('AdminPage inside the administration’s frame (build plan 2.5, 2.6)', () => {
+  const frame = {
+    eyebrow: 'Automatisierung / Hintergrundjobs',
+    tabs: {
+      label: 'Seiten im Bereich Automatisierung',
+      tabs: [
+        { href: '/admin/jobs', label: 'Hintergrundjobs', current: true },
+        { href: '/admin/integrations', label: 'Integrationen' },
+      ],
+    },
+  };
+
+  it('shows the area’s tabs, the line over the title and the intro open; no help button', () => {
+    const title = createRef<HTMLHeadingElement>();
+    render(
+      <AdminFrame value={frame}>
+        <AdminPage
+          title="Hintergrundjobs"
+          help="Alles, was der Server im Hintergrund tut."
+          liveSeconds={5}
+          titleRef={title}
+          actions={<button type="button">Erneut versuchen</button>}
+        >
+          <p>Inhalt</p>
+        </AdminPage>
+      </AdminFrame>,
+    );
+    const tabs = screen.getByRole('navigation', { name: 'Seiten im Bereich Automatisierung' });
+    expect(within(tabs).getByRole('link', { name: 'Hintergrundjobs' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    const heading = screen.getByRole('heading', { level: 1, name: 'Hintergrundjobs' });
+    expect(heading).toHaveAttribute('tabindex', '-1');
+    expect(title.current).toBe(heading);
+    // The tabs come before the header, the line over the title before the h1.
+    expect(tabs.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const eyebrow = screen.getByText('Automatisierung / Hintergrundjobs');
+    expect(
+      eyebrow.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getByText('Alles, was der Server im Hintergrund tut.')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Hilfe zu dieser Seite' })).toBeNull();
+    expect(screen.getByText('Live, alle 5 Sekunden')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Erneut versuchen' })).toBeVisible();
+  });
+
+  it('shows no tabs where the frame has none', () => {
+    render(
+      <AdminFrame value={{ eyebrow: 'Übersicht' }}>
+        <AdminPage title="Sicherung">Inhalt</AdminPage>
+      </AdminFrame>,
+    );
+    expect(screen.queryByRole('navigation')).toBeNull();
+    expect(screen.getByText('Übersicht')).toBeVisible();
   });
 });
 

@@ -10,7 +10,7 @@ import sheet from './SideNav.module.css';
 export interface AdminSideNavMenuProps extends Omit<AdminSideNavProps, 'focusCarry'> {
   /** First part of the button ("Verwaltung"). */
   buttonLabel: string;
-  /** The current page's name after it ("Bibliotheken"). */
+  /** Where the page stands after it ("Medien / Bibliotheken", "Übersicht"). */
   pageLabel: string;
   /** Accessible name of the sheet ("Verwaltung, Seiten") and of its close button. */
   menuLabel: string;
@@ -18,8 +18,9 @@ export interface AdminSideNavMenuProps extends Omit<AdminSideNavProps, 'focusCar
 }
 
 /**
- * The administration's sidebar on a phone (concept 11, 11.1): a button "Verwaltung · page" that
- * opens the same entries as a modal sheet from the left, built like SideNavDrawer and with its
+ * The administration's sidebar on a phone (concept 11, 11.1; build plan 2.3): a button in the
+ * look of the mockup's breadcrumb line, "Verwaltung › area / page", that opens the entries as a
+ * modal sheet from the left (every page of every area, so each is one tap away), built like SideNavDrawer and with its
  * styles. While it is open the focus stays inside (react-aria), Escape, the close button and a
  * press on the scrim close it, and the focus returns to the button. Following an entry closes it
  * as well. Only the column carries the focus over between pages (`focusCarry`), not the sheet.
@@ -68,15 +69,14 @@ export function AdminSideNavMenu({
         aria-controls={open ? id : undefined}
         onClick={() => setOpen(true)}
       >
+        {/* The breadcrumb line of the mockup on a phone: «Verwaltung › Medien / Bibliotheken». */}
         <span className={styles.triggerLabel}>
-          <Icon name="grid" />
-          {buttonLabel}
-          <span className={styles.page}>
-            {t('format.separator')}
-            {pageLabel}
-          </span>
+          <Icon name="menu" size="sm" />
+          <span className={styles.root}>{buttonLabel}</span>
+          <Icon name="chevronRight" size="sm" />
+          <span className={styles.page}>{pageLabel}</span>
         </span>
-        <Icon name="chevronDown" />
+        <Icon name="chevronDown" size="sm" />
       </button>
       <ModalOverlay className={sheet.scrim} isOpen={open} isDismissable onOpenChange={setOpen}>
         <Modal className={sheet.drawer}>

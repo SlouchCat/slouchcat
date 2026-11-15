@@ -651,8 +651,8 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     await waitFor(() =>
       expect(screen.getByRole('heading', { level: 1, name: 'Bibliotheken' })).toHaveFocus(),
     );
-    await user.click(within(nav()).getByRole('link', { name: /^Integrationen/ }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
+    await user.click(within(nav()).getByRole('link', { name: /^Automatisierung/ }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeVisible();
   });
 
   it('a single folder card without a path is no draft, whatever its content (concept 20, 13.2)', async () => {
@@ -1063,16 +1063,16 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     let dialog = await openAdd(user);
     await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    await user.click(within(nav()).getByRole('link', { name: /^Integrationen/ }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
-    await user.click(within(nav()).getByRole('link', { name: /^Bibliotheken/ }));
+    await user.click(within(nav()).getByRole('link', { name: /^Automatisierung/ }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeVisible();
+    await user.click(within(nav()).getByRole('link', { name: /^Medien/ }));
 
     // A typed name is a draft: leaving asks, staying keeps it.
     dialog = await openAdd(user);
     await user.type(within(dialog).getByLabelText('Name'), 'Dokus');
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    await user.click(within(nav()).getByRole('link', { name: /^Integrationen/ }));
+    await user.click(within(nav()).getByRole('link', { name: /^Automatisierung/ }));
     const leave = await screen.findByRole('alertdialog', {
       name: 'Seite mit ungespeicherten Änderungen verlassen?',
     });
@@ -1086,8 +1086,8 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     await user.clear(within(dialog).getByLabelText('Name'));
     await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    await user.click(within(nav()).getByRole('link', { name: /^Integrationen/ }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
+    await user.click(within(nav()).getByRole('link', { name: /^Automatisierung/ }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeVisible();
   });
 
   it('walks the menu with the arrow keys; Escape returns to its button', async () => {

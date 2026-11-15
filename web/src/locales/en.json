@@ -3293,15 +3293,32 @@
       "rowSettings": "Where the row stands on the start page and whether it appears is set under “Start page”.",
       "rowSettingsLink": "Go to “Start page”"
     },
+    "finder": {
+      "button": "Find a section",
+      "shortcut": "Ctrl K",
+      "shortcutMac": "⌘ K",
+      "label": "Find a section of the administration",
+      "placeholder": "Libraries, jobs, backup …",
+      "results": "Results",
+      "empty": "Nothing found",
+      "area": "Area",
+      "search": "Media search",
+      "hint": "Arrow keys choose, Enter opens, Esc closes"
+    },
     "nav": {
       "label": "Administration",
       "overview": "Overview",
-      "groups": {
-        "library": "Library",
-        "accounts": "Accounts",
-        "curation": "Curation",
+      "areas": {
+        "media": "Media",
+        "people": "Users & devices",
+        "home": "Home page",
+        "automation": "Automation",
         "system": "System"
       },
+      "tagline": "Control Center",
+      "trail": "{{area}} / {{page}}",
+      "breadcrumb": "Breadcrumb",
+      "tabs": "Pages in {{area}}",
       "back": "Back to the app",
       "updateLabel": "Overview, update to version {{version}} available",
       "sheet": {
@@ -3384,6 +3401,9 @@
       },
       "metadata": {
         "title": "Metadata"
+      },
+      "audiobookSources": {
+        "title": "Audiobook sources"
       }
     },
     "home": {

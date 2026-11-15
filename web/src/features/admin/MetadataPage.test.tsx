@@ -178,8 +178,8 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     mockApi(routes());
     renderApp('/admin/metadata');
     expect(await screen.findByRole('heading', { level: 1, name: 'Metadaten' })).toBeVisible();
-    // The intro sits behind the help button (S-2).
-    expect(screen.getByRole('button', { name: 'Hilfe zu dieser Seite' })).toBeVisible();
+    // The intro stands open below the title (build plan 2.6), no help button.
+    expect(screen.queryByRole('button', { name: 'Hilfe zu dieser Seite' })).toBeNull();
 
     const languages = await screen.findByRole('region', { name: 'Sprachen' });
     expect(

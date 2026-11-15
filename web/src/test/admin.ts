@@ -36,6 +36,9 @@ export const dashboardFixture = (overrides: Partial<Dashboard> = {}): Dashboard 
 /** The dashboard behind the admin sidebar's numbers (AdminShellNav), for a page test's routes. */
 export const adminShell: Routes = { 'GET /admin/dashboard': () => json(dashboardFixture()) };
 
+/** The tabs of the open admin page's area, above its header (build plan 2.5). */
+export const findAdminTabs = () => screen.findByRole('navigation', { name: /^Seiten im Bereich / });
+
 /**
  * Renders an admin page in the whole app (router, shell, page) and waits for the shell's admin
  * sidebar, which loads lazily (AppLayout).

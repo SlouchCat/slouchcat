@@ -5,6 +5,9 @@ export { isAccentName, itemAccentStyle, swatchStyle } from './accent';
 export {
   AppHeader,
   HEADER_MENU_KEY,
+  type HeaderAdmin,
+  type HeaderCrumb,
+  type HeaderFinder,
   type HeaderMenu,
   type HeaderNotifications,
   type HeaderSearch,

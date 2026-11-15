@@ -3439,12 +3439,6 @@
     "nav": {
       "label": "Administración",
       "overview": "Resumen",
-      "groups": {
-        "library": "Biblioteca",
-        "accounts": "Cuentas",
-        "curation": "Curaduría",
-        "system": "Sistema"
-      },
       "back": "Volver a la app",
       "updateLabel": "Resumen, actualización a la versión {{version}} disponible",
       "sheet": {

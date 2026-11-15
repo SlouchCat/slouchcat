@@ -23,7 +23,23 @@
   letter-spacing: var(--sc-font-letter-spacing-display);
 }
 
+/* The name with the administration's line below it («Control Center», build plan 2.1). */
+.words {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: var(--sc-font-line-height-tight);
+}
+
+.tagline {
+  color: var(--sc-color-text-muted);
+  font-size: calc(var(--sc-font-size-xs) * 0.875);
+  font-weight: var(--sc-font-weight-bold);
+  letter-spacing: calc(2.5 * var(--sc-font-letter-spacing-caps));
+  text-transform: uppercase;
+}
+
 @media (width < 480px) {
+  .words,
   .name {
     position: absolute;
     overflow: hidden;

@@ -3560,12 +3560,6 @@
     "nav": {
       "label": "Správa",
       "overview": "Přehled",
-      "groups": {
-        "library": "Knihovna",
-        "accounts": "Účty",
-        "curation": "Výběr obsahu",
-        "system": "Systém"
-      },
       "back": "Zpět do aplikace",
       "updateLabel": "Přehled, k dispozici aktualizace na verzi {{version}}",
       "sheet": {

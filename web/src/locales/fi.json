@@ -3318,12 +3318,6 @@
     "nav": {
       "label": "Hallinta",
       "overview": "Yleiskuva",
-      "groups": {
-        "library": "Kirjasto",
-        "accounts": "Tilit",
-        "curation": "Kuratointi",
-        "system": "Järjestelmä"
-      },
       "back": "Takaisin sovellukseen",
       "updateLabel": "Yleiskuva, versio {{version}} on päivitettävissä",
       "sheet": {

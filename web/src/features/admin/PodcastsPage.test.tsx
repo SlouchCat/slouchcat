@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { adminPodcast, audioIds, library } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
-import { adminShell, renderAdminPage } from '@/test/admin';
+import { adminShell, findAdminTabs, renderAdminPage } from '@/test/admin';
 
 // /admin/podcasts (M6, H-2; concept 12, variant C): tabs «Alle» and one per podcast library,
 // each podcast a row that folds out into author, feed address, library, the whole error and
@@ -107,7 +107,10 @@ describe('admin podcasts page (M6, H-2; concept 12)', () => {
     expect(within(brokenDetail).getByText('HTTP 404')).toBeVisible();
     expect(within(brokenDetail).getByText('Noch nie')).toBeVisible();
     expect(within(brokenDetail).queryByText('Autor')).not.toBeInTheDocument();
-    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Podcasts');
+    expect((await findAdminTabs()).querySelector('[aria-current="page"]')).toHaveTextContent(
+      'Podcasts',
+    );
+    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Medien');
   });
 
   it('marks podcasts from folders and keeps their feed, which the folder decides', async () => {

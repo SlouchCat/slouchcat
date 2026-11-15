@@ -3318,12 +3318,6 @@
     "nav": {
       "label": "Administrasjon",
       "overview": "Oversikt",
-      "groups": {
-        "library": "Bibliotek",
-        "accounts": "Kontoer",
-        "curation": "Kuratering",
-        "system": "System"
-      },
       "back": "Tilbake til appen",
       "updateLabel": "Oversikt, oppdatering til versjon {{version}} er tilgjengelig",
       "sheet": {

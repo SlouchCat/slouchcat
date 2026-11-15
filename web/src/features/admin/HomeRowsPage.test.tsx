@@ -505,15 +505,12 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     expect(calls.some((call) => call.path === '/admin/trakt')).toBe(false);
   });
 
-  it('keeps the intro behind the help button', async () => {
+  it('shows the intro open below the title (build plan 2.6)', async () => {
     mockApi(storingRoutes());
     renderApp('/admin/home-rows');
-    const user = userEvent.setup();
     await screen.findByRole('table', { name: 'Reihen der Startseite' });
-    const intro = screen.getByText(/Ausgeblendete und leere Reihen erscheinen nicht/);
-    expect(intro).not.toBeVisible();
-    await user.click(screen.getByRole('button', { name: 'Hilfe zu dieser Seite' }));
-    expect(intro).toBeVisible();
+    expect(screen.getByText(/Ausgeblendete und leere Reihen erscheinen nicht/)).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Hilfe zu dieser Seite' })).toBeNull();
   });
 
   it('lists «Meine Medien» and a row per library, tagged «Bibliothek», and sends them by id', async () => {

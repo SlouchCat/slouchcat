@@ -3197,12 +3197,6 @@
     "nav": {
       "label": "管理",
       "overview": "概要",
-      "groups": {
-        "library": "ライブラリ",
-        "accounts": "アカウント",
-        "curation": "キュレーション",
-        "system": "システム"
-      },
       "back": "アプリに戻る",
       "updateLabel": "概要、バージョン{{version}}へのアップデートがあります",
       "sheet": {

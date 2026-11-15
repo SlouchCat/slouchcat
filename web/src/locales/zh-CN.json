@@ -3197,12 +3197,6 @@
     "nav": {
       "label": "管理",
       "overview": "概览",
-      "groups": {
-        "library": "媒体库",
-        "accounts": "账户",
-        "curation": "内容策展",
-        "system": "系统"
-      },
       "back": "返回应用",
       "updateLabel": "概览，有可用更新：版本 {{version}}",
       "sheet": {

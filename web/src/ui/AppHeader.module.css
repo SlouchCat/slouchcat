@@ -14,6 +14,12 @@
   backdrop-filter: blur(var(--sc-space-4));
 }
 
+/* Inside the administration (build plan 2.1): a solid bar with a line below, as in the mockup. */
+.header[data-admin] {
+  border-bottom: 1px solid var(--sc-color-border-subtle);
+  background-color: var(--sc-color-bg-base);
+}
+
 .inner {
   display: flex;
   gap: var(--sc-space-6);
@@ -26,6 +32,71 @@
   border-radius: var(--sc-radius-md);
   color: var(--sc-color-text-primary);
   text-decoration: none;
+}
+
+.breadcrumb {
+  display: none;
+  min-width: 0;
+}
+
+.crumbs {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-medium);
+  list-style: none;
+}
+
+.crumb {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.crumb > svg {
+  flex: none;
+  color: var(--sc-color-text-muted);
+}
+
+.slash {
+  color: var(--sc-color-text-muted);
+}
+
+.crumbLink {
+  border-radius: var(--sc-radius-sm);
+  color: inherit;
+  text-decoration: none;
+  transition: color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.crumbLink:focus-visible {
+  color: var(--sc-color-text-primary);
+}
+
+@media (hover: hover) {
+  .crumbLink:hover {
+    color: var(--sc-color-text-primary);
+  }
+}
+
+.crumbCurrent {
+  overflow: hidden;
+  color: var(--sc-color-text-primary);
+  text-overflow: ellipsis;
+}
+
+/* Below 768 px the breadcrumb is the button at the top of the page (AdminSideNavMenu). */
+@media (width >= 768px) {
+  .breadcrumb {
+    display: block;
+  }
 }
 
 .account {
@@ -58,6 +129,47 @@
   .inbox:hover {
     color: var(--sc-color-text-primary);
   }
+}
+
+/* «Bereich suchen» with its shortcut (build plan 2.1, mockup .search-btn). */
+.finder {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  min-height: var(--sc-space-8);
+  padding: 0 var(--sc-space-3);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+  color: var(--sc-color-text-secondary);
+  font: inherit;
+  font-size: var(--sc-font-size-xs);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.finder:focus-visible,
+.finder[aria-expanded='true'] {
+  color: var(--sc-color-text-primary);
+}
+
+@media (hover: hover) {
+  .finder:hover {
+    background-color: var(--sc-color-surface-3);
+    color: var(--sc-color-text-primary);
+  }
+}
+
+.kbd {
+  padding: 0 var(--sc-space-1);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-sm);
+  color: var(--sc-color-text-muted);
+  font-family: var(--sc-font-family-mono);
+  font-size: calc(var(--sc-font-size-xs) * 0.875);
 }
 
 .profile {
@@ -96,7 +208,8 @@
 
 @media (width < 640px) {
   .profileName,
-  .text {
+  .text,
+  .kbd {
     display: none;
   }
 

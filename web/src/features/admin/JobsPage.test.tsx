@@ -8,7 +8,7 @@ import type {
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { dashboardFixture } from '@/test/admin';
+import { dashboardFixture, findAdminTabs } from '@/test/admin';
 import { json, mockApi, problem, renderApp, session, signedIn, type Routes } from '@/test/api';
 import { afterDialogsClosed } from '@/ui/aria';
 
@@ -578,11 +578,7 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     expect(within(scan).getByRole('combobox', { name: 'Takt' })).toHaveValue('7200');
 
     // Leaving the page with the draft asks; staying keeps it.
-    await user.click(
-      within(screen.getByRole('navigation', { name: 'Verwaltung' })).getByRole('link', {
-        name: /^Integrationen/,
-      }),
-    );
+    await user.click(within(await findAdminTabs()).getByRole('link', { name: /^Integrationen/ }));
     const leave = await screen.findByRole('alertdialog', {
       name: 'Seite mit ungespeicherten Änderungen verlassen?',
     });

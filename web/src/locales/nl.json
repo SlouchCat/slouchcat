@@ -3318,12 +3318,6 @@
     "nav": {
       "label": "Beheer",
       "overview": "Overzicht",
-      "groups": {
-        "library": "Bibliotheek",
-        "accounts": "Accounts",
-        "curation": "Curatie",
-        "system": "Systeem"
-      },
       "back": "Terug naar de app",
       "updateLabel": "Overzicht, update naar versie {{version}} beschikbaar",
       "sheet": {

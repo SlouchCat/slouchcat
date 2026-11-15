@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import de from '@/locales/de.json';
 import { json, mockApi, problem, renderApp, session, signedIn, type Call } from '@/test/api';
-import { adminShell, renderAdminPage } from '@/test/admin';
+import { adminShell, findAdminTabs, renderAdminPage } from '@/test/admin';
 
 // /admin/spotlight (M11, ADR 0011; concept 12, variant A, mockup Spo-A): three bands that fold
 // away, «Quelle» with the switch and one «Speichern» (SPO-1, SPO-1a, SPO-2), «Einträge der Liste»
@@ -146,15 +146,16 @@ describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
   it('shows the source with the switch and the state of the fetch, and the entries', async () => {
     spotlightApi();
     const { nav } = await renderAdminPage('/admin/spotlight');
-    const user = userEvent.setup();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Spotlight' })).toBeVisible();
-    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Spotlight');
-    // S-2: the intro sits behind the help button of the title.
+    expect((await findAdminTabs()).querySelector('[aria-current="page"]')).toHaveTextContent(
+      'Spotlight',
+    );
+    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Startseite');
+    // Build plan 2.6: the intro stands open below the title, without a help button.
     const intro = screen.getByText(/Eine öffentliche Trakt-Liste als Reihe der Startseite/);
-    expect(intro).not.toBeVisible();
-    await user.click(screen.getByRole('button', { name: 'Hilfe zu dieser Seite' }));
     expect(intro).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Hilfe zu dieser Seite' })).toBeNull();
 
     const card = await source();
     // SPO-1: the switch stays in its form, as a setting row that says it is stored with it.

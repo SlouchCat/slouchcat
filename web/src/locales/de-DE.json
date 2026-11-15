@@ -75,6 +75,9 @@
     }
   },
   "admin": {
+    "finder": {
+      "hint": "Pfeiltasten wählen, Enter öffnet, Esc schließt"
+    },
     "radio": {
       "stations": {
         "removeUnreachableHelp": "Nimmt alle zurzeit nicht erreichbaren Sender aus dem Angebot, außer Favoriten und eigenen Sendern. Sie kommen nicht von selbst zurück.",

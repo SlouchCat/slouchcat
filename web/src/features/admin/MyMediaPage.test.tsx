@@ -3,7 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, session, signedIn } from '@/test/api';
-import { adminShell, renderAdminPage } from '@/test/admin';
+import { adminShell, findAdminTabs, renderAdminPage } from '@/test/admin';
 
 // «Meine Medien» (concept 21 P-11, variant A; O-20, O-21): built like the start page rows: a
 // position per entry, what it holds, its state and one box «Ausblenden» for the side navigation and
@@ -89,7 +89,10 @@ describe('admin «Meine Medien» (concept 21 P-11)', () => {
 
     await screen.findByRole('table', { name: 'Einträge von «Meine Medien»' });
     expect(screen.getByRole('heading', { level: 1, name: 'Meine Medien' })).toBeVisible();
-    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Meine Medien');
+    expect((await findAdminTabs()).querySelector('[aria-current="page"]')).toHaveTextContent(
+      'Meine Medien',
+    );
+    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Startseite');
     expect(rowNames()).toEqual(names);
     expect(
       within(table())

@@ -17,10 +17,21 @@ export {
   AdminSideNavContent,
   type AdminSideNavEntry,
   type AdminSideNavGroup,
+  type AdminSideNavProfile,
   type AdminSideNavProps,
   type AdminSideNavTone,
 } from './AdminSideNav';
 export { AdminSideNavMenu, type AdminSideNavMenuProps } from './AdminSideNavMenu';
+// The frame of the administration's pages (redesign, build plan 2.5, 2.6): the area's tabs and the
+// context AdminPage reads them from; the search palette of the header's «Bereich suchen».
+export { AdminFrame, useAdminFrame, type AdminFrameValue } from './adminFrame';
+export { AreaTabs, type AreaTab, type AreaTabsProps } from './AreaTabs';
+export {
+  CommandPalette,
+  filterCommandItems,
+  type CommandPaletteItem,
+  type CommandPaletteProps,
+} from './CommandPalette';
 export { BarChart, type BarDatum } from './BarChart';
 export { CheckboxGroup } from './CheckboxGroup';
 export { CodeBlock } from './CodeBlock';

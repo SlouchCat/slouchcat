@@ -8,16 +8,40 @@ import { describe, expect, it, vi } from 'vitest';
 import { AdminSideNav, type AdminSideNavEntry, type AdminSideNavProps } from './AdminSideNav';
 import { LinkRouterProvider } from './AppLink';
 
+/** The column (build plan 2.2): back, the heading «Verwaltung» with the overview and the areas. */
 const props = (overrides: Partial<AdminSideNavProps> = {}): AdminSideNavProps => ({
   label: 'Verwaltung',
+  top: [{ href: '/', label: 'Zurück zur App', icon: 'back' }],
+  heading: 'Verwaltung',
+  entries: [
+    { href: '/admin', label: 'Übersicht', icon: 'grid' },
+    {
+      href: '/admin/libraries',
+      label: 'Medien',
+      icon: 'folder',
+      current: true,
+      alarm: { value: '12', tone: 'warning' },
+      accessibleLabel: 'Medien, 12 Titel brauchen Pflege',
+    },
+    { href: '/admin/jobs', label: 'Automatisierung', icon: 'refresh' },
+    { href: '/admin/stats', label: 'System', icon: 'server' },
+  ],
+  profile: { name: 'Marco', role: 'Server-Admin' },
+  ...overrides,
+});
+
+/** The sheet's shape: the areas as bands with their pages. */
+const grouped: Partial<AdminSideNavProps> = {
   top: [
     { href: '/', label: 'Zurück zur App', icon: 'back' },
     { href: '/admin', label: 'Übersicht', icon: 'grid' },
   ],
+  heading: undefined,
+  entries: undefined,
   groups: [
     {
-      label: 'Bibliothek',
-      icon: 'film',
+      label: 'Medien',
+      icon: 'folder',
       entries: [
         {
           href: '/admin/libraries',
@@ -40,47 +64,68 @@ const props = (overrides: Partial<AdminSideNavProps> = {}): AdminSideNavProps =>
       label: 'System',
       icon: 'server',
       entries: [
-        { href: '/admin/jobs', label: 'Hintergrundjobs', icon: 'refresh' },
+        { href: '/admin/stats', label: 'Statistiken', icon: 'chart' },
         { href: '/admin/backup', label: 'Sicherung', icon: 'archive' },
       ],
     },
   ],
-  ...overrides,
-});
+};
 
 const nav = () => screen.getByRole('navigation', { name: 'Verwaltung' });
 const links = () => within(nav()).getAllByRole('link');
 
-describe('admin sidebar (concept 11, 11.6)', () => {
-  it('names the groups by their bands, without headings, and marks the current page', () => {
+describe('admin sidebar (concept 11, 11.6; build plan 2.2)', () => {
+  it('lists back, then the overview and the areas under the heading, without headings', () => {
     render(<AdminSideNav {...props()} />);
     expect(within(nav()).queryAllByRole('heading')).toEqual([]);
-    const library = within(nav()).getByRole('list', { name: 'Bibliothek' });
-    const band = document.getElementById(library.getAttribute('aria-labelledby') ?? '');
-    expect(band?.tagName).toBe('SPAN');
+    const main = within(nav()).getByRole('list', { name: 'Verwaltung' });
+    const heading = document.getElementById(main.getAttribute('aria-labelledby') ?? '');
+    expect(heading?.tagName).toBe('SPAN');
     expect(
-      within(library)
+      within(main)
         .getAllByRole('link')
         .map((link) => link.textContent),
-    ).toEqual(['Bibliotheken2.318', 'Pflege12']);
-    expect(within(nav()).getByRole('list', { name: 'System' })).toBeVisible();
-
+    ).toEqual(['Übersicht', 'Medien12', 'Automatisierung', 'System']);
     expect(links().map((link) => link.getAttribute('aria-label') ?? link.textContent)).toEqual([
       'Zurück zur App',
       'Übersicht',
-      'Bibliotheken, 2.318 Titel',
-      'Pflege, 12 Titel brauchen Pflege',
-      'Hintergrundjobs',
-      'Sicherung',
+      'Medien, 12 Titel brauchen Pflege',
+      'Automatisierung',
+      'System',
     ]);
-    expect(screen.getByRole('link', { name: 'Pflege, 12 Titel brauchen Pflege' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Medien, 12 Titel brauchen Pflege' })).toHaveAttribute(
       'aria-current',
       'page',
     );
     expect(links().filter((link) => link.hasAttribute('aria-current'))).toHaveLength(1);
   });
 
-  it('is a single Tab stop on the current page; Tab leaves the column', async () => {
+  it('shows the active profile with its role at the foot, outside the navigation', () => {
+    render(<AdminSideNav {...props()} />);
+    expect(screen.getByText('Marco')).toBeVisible();
+    expect(screen.getByText('Server-Admin')).toBeVisible();
+    expect(nav()).not.toContainElement(screen.getByText('Marco'));
+  });
+
+  it('names the groups of the sheet by their bands and marks the current page', () => {
+    render(<AdminSideNav {...props(grouped)} />);
+    expect(within(nav()).queryAllByRole('heading')).toEqual([]);
+    const media = within(nav()).getByRole('list', { name: 'Medien' });
+    const band = document.getElementById(media.getAttribute('aria-labelledby') ?? '');
+    expect(band?.tagName).toBe('SPAN');
+    expect(
+      within(media)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(['Bibliotheken2.318', 'Pflege12']);
+    expect(within(nav()).getByRole('list', { name: 'System' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Pflege, 12 Titel brauchen Pflege' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
+
+  it('is a single Tab stop on the current entry; Tab leaves the column', async () => {
     const user = userEvent.setup();
     render(
       <>
@@ -89,36 +134,47 @@ describe('admin sidebar (concept 11, 11.6)', () => {
       </>,
     );
     expect(links().filter((link) => link.tabIndex === 0)).toEqual([
-      screen.getByRole('link', { name: /^Pflege/ }),
+      screen.getByRole('link', { name: /^Medien/ }),
     ]);
     await user.tab();
-    expect(screen.getByRole('link', { name: /^Pflege/ })).toHaveFocus();
+    expect(screen.getByRole('link', { name: /^Medien/ })).toHaveFocus();
     await user.tab();
     expect(screen.getByRole('button', { name: 'Inhalt' })).toHaveFocus();
     await user.tab({ shift: true });
-    expect(screen.getByRole('link', { name: /^Pflege/ })).toHaveFocus();
+    expect(screen.getByRole('link', { name: /^Medien/ })).toHaveFocus();
   });
 
-  it('moves with ArrowDown and ArrowUp across the bands, wrapping, and with Home and End', async () => {
+  it('moves with ArrowDown and ArrowUp across the heading, wrapping, and with Home and End', async () => {
     const user = userEvent.setup();
     render(<AdminSideNav {...props()} />);
     await user.tab();
     await user.keyboard('{ArrowDown}');
-    expect(screen.getByRole('link', { name: 'Hintergrundjobs' })).toHaveFocus();
-    await user.keyboard('{ArrowUp}{ArrowUp}');
-    expect(screen.getByRole('link', { name: /^Bibliotheken/ })).toHaveFocus();
-    await user.keyboard('{Home}');
+    expect(screen.getByRole('link', { name: 'Automatisierung' })).toHaveFocus();
+    await user.keyboard('{ArrowUp}{ArrowUp}{ArrowUp}');
     expect(screen.getByRole('link', { name: 'Zurück zur App' })).toHaveFocus();
     await user.keyboard('{ArrowUp}');
-    expect(screen.getByRole('link', { name: 'Sicherung' })).toHaveFocus();
+    expect(screen.getByRole('link', { name: 'System' })).toHaveFocus();
     await user.keyboard('{ArrowDown}');
     expect(screen.getByRole('link', { name: 'Zurück zur App' })).toHaveFocus();
     await user.keyboard('{End}');
-    expect(screen.getByRole('link', { name: 'Sicherung' })).toHaveFocus();
+    expect(screen.getByRole('link', { name: 'System' })).toHaveFocus();
+    await user.keyboard('{Home}');
+    expect(screen.getByRole('link', { name: 'Zurück zur App' })).toHaveFocus();
     // The moved focus carries the Tab stop; leaving the column puts it back on the current page.
     expect(links().filter((link) => link.tabIndex === 0)).toHaveLength(1);
     await user.tab();
-    expect(screen.getByRole('link', { name: /^Pflege/ })).toHaveAttribute('tabindex', '0');
+    expect(screen.getByRole('link', { name: /^Medien/ })).toHaveAttribute('tabindex', '0');
+  });
+
+  it('moves across the bands of the sheet in the same way', async () => {
+    const user = userEvent.setup();
+    render(<AdminSideNav {...props(grouped)} />);
+    await user.tab();
+    expect(screen.getByRole('link', { name: /^Pflege/ })).toHaveFocus();
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByRole('link', { name: 'Statistiken' })).toHaveFocus();
+    await user.keyboard('{ArrowUp}{ArrowUp}{ArrowUp}');
+    expect(screen.getByRole('link', { name: 'Übersicht' })).toHaveFocus();
   });
 
   it('follows the focused link with Enter', async () => {
@@ -141,9 +197,9 @@ describe('admin sidebar (concept 11, 11.6)', () => {
     await user.tab();
     await user.keyboard('{ArrowDown}');
     unmount();
-    expect(focusCarry.current).toBe(4);
+    expect(focusCarry.current).toBe(3);
     render(<AdminSideNav {...props({ focusCarry })} />);
-    expect(screen.getByRole('link', { name: 'Hintergrundjobs' })).toHaveFocus();
+    expect(screen.getByRole('link', { name: 'Automatisierung' })).toHaveFocus();
     expect(focusCarry.current).toBeNull();
   });
 
@@ -151,7 +207,7 @@ describe('admin sidebar (concept 11, 11.6)', () => {
     const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
     render(<AdminSideNav {...props()} />);
     expect(scroll).toHaveBeenCalledOnce();
-    expect(scroll.mock.contexts[0]).toBe(screen.getByRole('link', { name: /^Pflege/ }));
+    expect(scroll.mock.contexts[0]).toBe(screen.getByRole('link', { name: /^Medien/ }));
     expect(scroll).toHaveBeenCalledWith({ block: 'nearest' });
     scroll.mockRestore();
   });
@@ -166,7 +222,11 @@ describe('admin sidebar (concept 11, 11.6)', () => {
   });
 
   it('puts the Tab stop on the first entry when no page is current', () => {
-    render(<AdminSideNav {...props({ groups: [] })} />);
+    render(
+      <AdminSideNav
+        {...props({ entries: [{ href: '/admin', label: 'Übersicht', icon: 'grid' }] })}
+      />,
+    );
     expect(screen.getByRole('link', { name: 'Zurück zur App' })).toHaveAttribute('tabindex', '0');
     expect(screen.getByRole('link', { name: 'Übersicht' })).toHaveAttribute('tabindex', '-1');
   });
@@ -211,6 +271,8 @@ const tintOf = (variable: string, tone: string) =>
 
 const BAND_TINT = tintOf('--sc-band-tint', '--sc-accent');
 const PILL_TINT = tintOf('--sc-pill-tint', '--sc-pill-tone');
+const CURRENT_TINT = tintOf('--sc-current-tint', '--sc-accent');
+const AVATAR_TINT = tintOf('--sc-avatar-tint', '--sc-accent');
 
 /**
  * Accents whose own colour is too weak on its band: the band would take text-primary for them.
@@ -221,6 +283,8 @@ const PILL_TINT = tintOf('--sc-pill-tint', '--sc-pill-tone');
 const PRIMARY_TEXT: readonly AccentName[] = [];
 
 const MIN_RATIO = 4.5;
+/** Non-text contrast (WCAG 1.4.11): the current entry's icon and arrow in the accent. */
+const MIN_ICON_RATIO = 3;
 
 const ground = channels(tokens.color.bg.elevated);
 
@@ -241,14 +305,43 @@ const cases: [string, readonly number[], readonly number[], number][] = [
   }),
 ];
 
-describe('band and pill contrast for every profile accent (F-9, F-7)', () => {
+/** The current entry (build plan 2.2): primary text on the accent's tint over the column. */
+const currentCases: [string, readonly number[], readonly number[], number][] = accentNames.map(
+  (name): [string, number[], number[], number] => [
+    `current entry ${name}`,
+    channels(tokens.color.text.primary),
+    channels(tokens.color.accent[name].base),
+    CURRENT_TINT,
+  ],
+);
+
+/** The initial of the profile at the foot: the accent on its tint. */
+const avatarCases: [string, readonly number[], readonly number[], number][] = accentNames.map(
+  (name): [string, number[], number[], number] => {
+    const accent = channels(tokens.color.accent[name].base);
+    return [`profile initial ${name}`, accent, accent, AVATAR_TINT];
+  },
+);
+
+describe('band, pill and current entry contrast for every profile accent (F-9, F-7)', () => {
   it('reads the tints from the stylesheet', () => {
     expect(BAND_TINT).toBe(16);
     expect(PILL_TINT).toBe(16);
+    expect(CURRENT_TINT).toBe(12);
+    expect(AVATAR_TINT).toBe(16);
   });
 
-  it.each(cases)('%s meets 4.5:1 over bg-elevated', (_, text, tone, percent) => {
-    const ratio = contrast(text, tint(tone, percent, ground));
-    expect(ratio, `${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(MIN_RATIO);
+  it.each([...cases, ...currentCases, ...avatarCases])(
+    '%s meets 4.5:1 over bg-elevated',
+    (_, text, tone, percent) => {
+      const ratio = contrast(text, tint(tone, percent, ground));
+      expect(ratio, `${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(MIN_RATIO);
+    },
+  );
+
+  it.each(accentNames)('the current entry’s icon in %s meets 3:1 on its tint', (name) => {
+    const accent = channels(tokens.color.accent[name].base);
+    const ratio = contrast(accent, tint(accent, CURRENT_TINT, ground));
+    expect(ratio, `${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(MIN_ICON_RATIO);
   });
 });

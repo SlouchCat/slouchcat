@@ -3197,12 +3197,6 @@
     "nav": {
       "label": "관리",
       "overview": "개요",
-      "groups": {
-        "library": "라이브러리",
-        "accounts": "계정",
-        "curation": "큐레이션",
-        "system": "시스템"
-      },
       "back": "앱으로 돌아가기",
       "updateLabel": "개요, 버전 {{version}} 업데이트 가능",
       "sheet": {

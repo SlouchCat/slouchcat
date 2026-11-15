@@ -84,3 +84,67 @@
   color: var(--sc-color-text-secondary);
   font-size: var(--sc-font-size-sm);
 }
+
+/*
+ * Inside the administration's frame (build plan 2.6, mockup .heading): the line over the title,
+ * a large title, the intro sentence open below; the actions at the end, at the foot of the text,
+ * or below it when the line wraps. As tight as the mockup, so the page's first working line does
+ * not move further down than needed.
+ */
+.framed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3) var(--sc-space-4);
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.heading {
+  display: flex;
+  flex: 1 1 30rem;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  min-width: 0;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--sc-accent);
+  font-size: var(--sc-admin-eyebrow-size);
+  font-weight: var(--sc-font-weight-bold);
+  line-height: var(--sc-font-line-height-tight);
+  letter-spacing: calc(2.5 * var(--sc-font-letter-spacing-caps));
+  text-transform: uppercase;
+}
+
+.framedTitle {
+  min-width: 0;
+  margin: 0;
+  font-size: var(--sc-admin-title-size-narrow);
+  font-weight: var(--sc-font-weight-bold);
+  line-height: var(--sc-font-line-height-tight);
+  letter-spacing: var(--sc-admin-title-tracking);
+  overflow-wrap: anywhere;
+  outline: none;
+}
+
+.framedIntro {
+  max-width: 40rem;
+  margin: 0;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-admin-intro-size);
+  line-height: var(--sc-font-line-height-normal);
+}
+
+.framedActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+@media (width >= 768px) {
+  .framedTitle {
+    font-size: var(--sc-admin-title-size);
+  }
+}
