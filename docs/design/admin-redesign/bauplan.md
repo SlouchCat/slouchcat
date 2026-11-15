@@ -201,7 +201,9 @@ Jeder Schritt ist ein eigener Commit mit `task check:fast` und den gezielten Tes
 Gemeinsame Bauteile ändert nur Schritt 1; braucht ein Seitenschritt ein neues gemeinsames Bauteil,
 meldet er es dem Koordinator.
 
-## 7. Abweichungen vom Mockup (laufend ergänzt)
+## 7. Abweichungen vom Mockup
+
+Die vollständige Liste nach dem Bau steht in `abweichungen.md`; hier die Grundsätze.
 
 | Punkt | Mockup | Umsetzung | Grund |
 |---|---|---|---|
@@ -255,4 +257,4 @@ Kopf der Übersicht.
 
 Das Redesign ist ein eigener Zweig und ein eigenes Image. Es enthält keine Migration; der Wechsel
 zurück auf das bisherige Erscheinungsbild ist auf CT 190 das Zurücksetzen des Image-Tags
-(`.env`-Sicherung daneben) und kostet keine Daten.
+(`.env`-Sicherung daneben, Skripte `design-alt.sh` und `design-neu.sh`) und kostet keine Daten.
