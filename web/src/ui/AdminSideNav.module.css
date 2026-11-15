@@ -71,7 +71,7 @@
   align-items: center;
   width: 100%;
   min-height: var(--sc-size-control-height);
-  padding: 0 var(--sc-space-3);
+  padding: var(--sc-space-1) var(--sc-space-3);
   border-radius: var(--sc-radius-md);
   color: var(--sc-color-text-secondary);
   font-size: var(--sc-font-size-sm);
@@ -113,11 +113,13 @@
   color: var(--sc-accent);
 }
 
+/*
+ * A long label wraps onto a second line rather than losing its end («Tarefas em segundo plano»
+ * in pt-BR): the entry grows, its icon stays centred.
+ */
 .label {
-  overflow: hidden;
   min-width: 0;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
 }
 
 .count {
