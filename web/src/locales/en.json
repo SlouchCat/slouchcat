@@ -303,7 +303,8 @@
     "email": "E-mail address",
     "password": "Password",
     "submit": "Sign in",
-    "submitting": "Signing in …"
+    "submitting": "Signing in …",
+    "language": "Language: {{name}}"
   },
   "library": {
     "groups": {
