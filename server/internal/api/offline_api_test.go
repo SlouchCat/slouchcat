@@ -124,6 +124,8 @@ type syncAnswer struct {
 		Item              *struct {
 			ID string `json:"id"`
 		} `json:"item"`
+		NextEpisodeID     *string `json:"nextEpisodeId"`
+		PreviousEpisodeID *string `json:"previousEpisodeId"`
 	} `json:"downloads"`
 	Revoked  []string `json:"revoked"`
 	Profiles []struct {
@@ -236,6 +238,11 @@ func TestOfflineDownloadFlow(t *testing.T) {
 	s, _ := syncDevice(t, h, "p12", `{"held":[]}`)
 	if len(s.Downloads) != 1 || s.Downloads[0].State != "ready" || s.Downloads[0].Item == nil || s.Downloads[0].SizeBytes == 0 {
 		t.Fatalf("sync after the preparation = %+v", s.Downloads)
+	}
+	// Concept 23 section 3.3: the neighbours of the episode for P12 (E2 is rated 16), the first
+	// episode without a previous one.
+	if d := s.Downloads[0]; d.NextEpisodeID == nil || *d.NextEpisodeID != f.Show.E3.ID || d.PreviousEpisodeID != nil {
+		t.Errorf("neighbours of E1 for P12 = %v, %v", d.NextEpisodeID, d.PreviousEpisodeID)
 	}
 	rec = send(t, h, http.MethodGet, BasePath+"/downloads/"+id+"/manifest", "p12", "", nil)
 	var man struct {
