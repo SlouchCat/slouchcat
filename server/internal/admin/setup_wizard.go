@@ -178,27 +178,32 @@ func (s *Service) FinishSetup(ctx context.Context, accountID int64) (model.Setup
 	if err != nil {
 		return model.SetupFinished{}, err
 	}
+	// The restart first: a wizard is finished only together with its restart (scheduled, or left to
+	// the administration while something keeps it off). Any other failure leaves the wizard open,
+	// so «Einrichtung abschliessen» can be pressed again and the choice is not lost.
+	done := model.SetupFinished{Restart: model.SetupRestartNone}
+	if restart {
+		accepted, err := s.RestartServer(ctx, accountID)
+		switch {
+		case err == nil:
+			done = model.SetupFinished{Restart: model.SetupRestartScheduled, RestartAt: accepted.RestartAt}
+		case errors.Is(err, model.ErrRestartPending), errors.Is(err, model.ErrBackupBusy), errors.Is(err, model.ErrUpdateRunning),
+			errors.Is(err, ErrNotConfigured):
+			s.log.InfoContext(ctx, "setup wizard: restart for the transcode choice left to the administration", "err", err)
+			done = model.SetupFinished{Restart: model.SetupRestartBusy}
+		default:
+			return model.SetupFinished{}, err
+		}
+	}
 	if w.Steps == nil {
 		w.Steps = map[string]string{}
 	}
 	w.Steps["summary"] = model.SetupDone
+	// RestartServer shuts down only after restartDelay: the wizard is stored well before.
 	w.FinishedAt = s.now().UnixMilli()
 	if err := s.storeWizard(ctx, w); err != nil {
 		return model.SetupFinished{}, err
 	}
-	s.log.InfoContext(ctx, "setup wizard finished", "account_id", accountID, "restart", restart)
-	if !restart {
-		return model.SetupFinished{Restart: model.SetupRestartNone}, nil
-	}
-	accepted, err := s.RestartServer(ctx, accountID)
-	switch {
-	case err == nil:
-		return model.SetupFinished{Restart: model.SetupRestartScheduled, RestartAt: accepted.RestartAt}, nil
-	case errors.Is(err, model.ErrRestartPending), errors.Is(err, model.ErrBackupBusy), errors.Is(err, model.ErrUpdateRunning),
-		errors.Is(err, ErrNotConfigured):
-		s.log.InfoContext(ctx, "setup wizard: restart for the transcode choice left to the administration", "err", err)
-		return model.SetupFinished{Restart: model.SetupRestartBusy}, nil
-	default:
-		return model.SetupFinished{}, err
-	}
+	s.log.InfoContext(ctx, "setup wizard finished", "account_id", accountID, "restart", done.Restart)
+	return done, nil
 }
