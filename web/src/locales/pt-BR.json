@@ -383,7 +383,7 @@
     },
     "providers": {
       "title": "Fontes de metadados",
-      "chain": "›",
+      "chain": " › ",
       "identifies": "identifica títulos",
       "fills": "complementa",
       "cannotIdentifyChip": "não identifica",
@@ -753,10 +753,10 @@
     "hd": "720p",
     "sd": "SD",
     "height": "{{height}}p",
-    "separator": "·",
+    "separator": " · ",
     "seconds": "{{seconds}} s",
-    "or": "ou",
-    "listSeparator": ",",
+    "or": " ou ",
+    "listSeparator": ", ",
     "bookLength": "{{hours}} h {{minutes}} min"
   },
   "player": {
@@ -3186,7 +3186,7 @@
         "hits": "{{hits}} de {{entries}} títulos na biblioteca",
         "keySet": "Chave configurada",
         "noKey": "Sem chave",
-        "separator": "·"
+        "separator": " · "
       },
       "missing": {
         "noKey": "Sem uma chave do Trakt, a fileira não aparece na página inicial.",
@@ -3861,7 +3861,7 @@
       "libraries_many": "{{count}} de bibliotecas",
       "libraries_other": "{{count}} bibliotecas",
       "primaryProfile": "{{name}} (perfil principal)",
-      "listSeparator": ",",
+      "listSeparator": ", ",
       "neverSeen": "Nunca",
       "noChannels": "Nenhum",
       "channels": {
@@ -4726,7 +4726,7 @@
         "dismissAll": "Excluir todas…",
         "deleteLabel": "Excluir a execução {{id}} de {{name}}"
       },
-      "separator": "·",
+      "separator": " · ",
       "none": "–",
       "livePaused": "Atualizações pausadas"
     },
@@ -4754,7 +4754,7 @@
           "tmdbAdult": "TMDB com conteúdo adulto",
           "none": "Só as fontes das pastas"
         },
-        "separator": "›"
+        "separator": " › "
       },
       "scope": {
         "label": "Vale para",
