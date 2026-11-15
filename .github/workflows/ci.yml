@@ -19,6 +19,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  # Once a week main is checked in full whatever happened, and the -race build cache that only main
+  # saves is renewed: a push to main skips the heavy jobs when a pull-request run already checked
+  # its exact content (job "changes", ADR 0013 addendum of 15 November 2026).
+  schedule:
+    - cron: '23 2 * * 1'
 
 # One run per pull request branch: a new push replaces the run of the commit it supersedes. On main
 # every commit gets a run of its own: the runs record whether what was merged is sound, so none of
@@ -40,7 +45,9 @@ jobs:
   # run (about 18 minutes). The heavy jobs below therefore skip when this job answers "docs only",
   # and the gate counts a skipped job as green only then. What counts as documentation, and the
   # Markdown files that do not (prettier and the image read them), is .github/scripts/docs-only.sh.
-  # A push to main and a run by hand always check everything: main is the record of what is merged.
+  # A run by hand and the weekly run always check everything: main is the record of what is merged.
+  # A push to main skips the heavy jobs only when a green pull-request run already checked exactly
+  # the merged content (.github/scripts/already-tested.sh); the gate then names that run.
   # No third-party action: the merge commit of a pull request has the base as its first parent,
   # so `git diff HEAD^1 HEAD` is the pull request's change and a checkout two commits deep is enough.
   # ---------------------------------------------------------------------------------------------
@@ -48,8 +55,13 @@ jobs:
     name: changes (docs only?)
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
     outputs:
       docs_only: ${{ steps.diff.outputs.docs_only }}
+      tested: ${{ steps.tested.outputs.tested }}
+      tested_run: ${{ steps.tested.outputs.run }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -72,6 +84,21 @@ jobs:
           echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
           echo "Documentation only: $docs_only"
 
+      - id: tested
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = push ] && [ "$REF" = refs/heads/main ]; then
+            tested=$(.github/scripts/already-tested.sh)
+          else
+            tested=false
+          fi
+          echo "tested=$tested" >> "$GITHUB_OUTPUT"
+          echo "Already checked by its pull-request run: $tested"
+
   # ---------------------------------------------------------------------------------------------
   # Server: the generators with their drift check and the linters, then the tests in parallel
   # groups. Split in two because the linters take about 90 seconds and the tests about 19 minutes:
@@ -81,7 +108,7 @@ jobs:
   server-lint:
     name: server (generators, linters)
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -105,7 +132,7 @@ jobs:
   server-groups:
     name: server test groups
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -123,7 +150,7 @@ jobs:
   server-test:
     name: server tests (${{ matrix.group }})
     needs: [changes, server-groups]
-    if: needs.changes.outputs.docs_only != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     strategy:
@@ -181,7 +208,7 @@ jobs:
 
       # Also after red tests: what was compiled is valid either way.
       - name: Save the -race build cache
-        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/go-build
@@ -197,7 +224,7 @@ jobs:
   web:
     name: web (generators, linters, unit tests)
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -212,7 +239,7 @@ jobs:
   storybook:
     name: web (Storybook screenshots)
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -243,7 +270,7 @@ jobs:
   build:
     name: build (server binary with the web assets)
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -286,7 +313,7 @@ jobs:
   e2e:
     name: e2e (shard ${{ matrix.shard }})
     needs: [changes, build]
-    if: needs.changes.outputs.docs_only != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
@@ -371,7 +398,7 @@ jobs:
   image:
     name: image (amd64, arm64)
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -518,22 +545,31 @@ jobs:
       # A job added to this workflow has to be added here and to `needs:` above, or the gate does
       # not watch it. That is the price of naming them; ADR 0013 carries it as a standing rule.
       #
-      # "skipped" is green in exactly one case: the job "changes" itself succeeded and found
-      # nothing but documentation in the pull request. Any other skip -- a job that never ran
-      # because something before it broke, or a skip on main, where `changes` always answers
-      # false -- stays red, as before.
+      # "skipped" is green in exactly two cases, both decided by the job "changes" that itself
+      # succeeded: it found nothing but documentation in the pull request, or (a push to main) a
+      # green pull-request run already checked exactly this content in full. Any other skip -- a
+      # job that never ran because something before it broke -- stays red, as before.
       - name: Every job of this workflow must be green
         env:
           CHANGES: ${{ needs.changes.result }}
           DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
+          TESTED: ${{ needs.changes.outputs.tested }}
+          TESTED_RUN: ${{ needs.changes.outputs.tested_run }}
         run: |
           set -eu
           status=0
           skip_ok=false
-          if [ "$CHANGES" = success ] && [ "$DOCS_ONLY" = true ]; then skip_ok=true; fi
+          reason=
+          if [ "$CHANGES" = success ] && [ "$DOCS_ONLY" = true ]; then
+            skip_ok=true
+            reason="documentation only"
+          elif [ "$CHANGES" = success ] && [ "$TESTED" = true ]; then
+            skip_ok=true
+            reason="checked by pull-request run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN"
+          fi
           check() {
             if [ "$2" = skipped ] && [ "$skip_ok" = true ]; then
-              printf '%-14s %s\n' "$1" "skipped (documentation only)"
+              printf '%-14s %s\n' "$1" "skipped ($reason)"
               return
             fi
             printf '%-14s %s\n' "$1" "$2"

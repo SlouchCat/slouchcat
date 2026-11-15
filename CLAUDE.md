@@ -72,8 +72,9 @@ sind `docs/spec/01-anforderungen-v1.md` (Spec), `docs/planning/03-plan-v1.md` (P
   2. **Vor dem Pull Request, einmal auf dem fertigen Zweig:** `task ci` grün, Belege in den PR,
      `docs/dev/CURRENT_STATUS.md` aktualisieren. Spätere Korrekturen: `task check:fast` plus
      gezielte Tests; die CI prüft den neuen Stand vollständig.
-  3. **GitHub CI:** prüft jeden PR und jeden Commit auf main vollständig; gemergt wird nur mit grünem
-     Gate `ci`.
+  3. **GitHub CI:** prüft jeden PR vollständig; gemergt wird nur mit grünem Gate `ci`. Ein Commit auf
+     main, dessen Inhalt ein grüner PR-Lauf schon vollständig geprüft hat, übernimmt dieses Ergebnis
+     (ADR 0013, Nachtrag 15. November 2026); sonst und einmal pro Woche prüft die CI main vollständig.
 - Messwerte nach `docs/perf/<Mx>.md`; neue Architekturentscheide als ADR in `docs/adr/`.
 - Platzhalter wie TODO ohne Umsetzung, übersprungene Tests oder Stub-Tests gelten als Blocker, nicht als
   Fortschritt.
