@@ -34,14 +34,15 @@ func TestUpdateInstallFailed(t *testing.T) {
 	for _, m := range mails {
 		bySubject[m.subject] = m.text
 	}
-	rolled, ok := bySubject["Update auf 1.16.0 zurückgenommen"]
-	if !ok || !strings.Contains(rolled, "von 1.15.0 auf 1.16.0") || !strings.Contains(rolled, "Grund: unhealthy") ||
-		!strings.Contains(rolled, "did not become healthy") || strings.Contains(rolled, "migriert") {
+	rolled, ok := bySubject[localeText(t, "de", "update_rolled_back_subject", vars{"to": "1.16.0"})]
+	if !ok || !strings.Contains(rolled, localeText(t, "de", "update_rolled_back_body", vars{"from": "1.15.0", "to": "1.16.0"})) ||
+		!strings.Contains(rolled, localeText(t, "de", "update_code", vars{"code": "unhealthy"})) ||
+		!strings.Contains(rolled, "did not become healthy") || strings.Contains(rolled, localeText(t, "de", "update_migrated", nil)) {
 		t.Errorf("rolled back mail = %q (subjects %v)", rolled, mails)
 	}
-	failed, ok := bySubject["Update auf 1.16.1 fehlgeschlagen"]
-	if !ok || !strings.Contains(failed, "Grund: migrated_no_rollback") ||
-		!strings.Contains(failed, "Sicherung pre-migration-1.16.1-20261107T100200.000Z.db") {
+	failed, ok := bySubject[localeText(t, "de", "update_failed_subject", vars{"to": "1.16.1"})]
+	if !ok || !strings.Contains(failed, localeText(t, "de", "update_code", vars{"code": "migrated_no_rollback"})) ||
+		!strings.Contains(failed, localeText(t, "de", "update_migrated_backup", vars{"backup": "pre-migration-1.16.1-20261107T100200.000Z.db"})) {
 		t.Errorf("failed mail = %q", failed)
 	}
 	for _, d := range e.deliveries(t) {
@@ -57,12 +58,12 @@ func TestUpdateInstallTexts(t *testing.T) {
 	for _, key := range []string{"update_rolled_back_subject", "update_rolled_back_body", "update_failed_subject", "update_failed_body",
 		"update_code", "update_migrated", "update_migrated_backup", "update_version_unknown"} {
 		for _, lang := range []string{"de", "en"} {
-			if _, ok := texts[lang][key]; !ok {
+			if _, ok := texts.Raw(lang, key); !ok {
 				t.Errorf("%s: no text %q", lang, key)
 			}
 		}
 	}
-	if got := text("en", "update_failed_body", orUnknown("en", ""), "1.16.0"); got != "The update from (unknown) to 1.16.0 failed." {
+	if got := text("en", "update_failed_body", vars{"from": orUnknown("en", ""), "to": "1.16.0"}); got != "The update from (unknown) to 1.16.0 failed." {
 		t.Errorf("en body = %q", got)
 	}
 }

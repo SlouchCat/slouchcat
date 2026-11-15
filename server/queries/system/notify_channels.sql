@@ -30,10 +30,11 @@ FROM accounts AS a
 JOIN (SELECT 'email' AS channel UNION ALL SELECT 'push' UNION ALL SELECT 'telegram') AS c;
 
 -- name: NotifyAccount :one
--- An account with the language of its primary profile, for the texts of its messages.
+-- An account with the language of its primary profile, for the texts of its messages; English
+-- for an account without a profile (concept 22 section 4.5, the last link of the text chain).
 SELECT a.id, a.email, a.role,
        CAST(COALESCE((SELECT p.language FROM profiles AS p WHERE p.account_id = a.id
-                      ORDER BY p.is_default DESC, p.id LIMIT 1), 'de') AS TEXT) AS language
+                      ORDER BY p.is_default DESC, p.id LIMIT 1), 'en') AS TEXT) AS language
 FROM accounts AS a
 WHERE a.id = @id;
 
@@ -44,11 +45,20 @@ WHERE a.id = @id;
 -- happens to sort first - so this asks for the owner badge (ADR 0014).
 SELECT a.id, a.email,
        CAST(COALESCE((SELECT p.language FROM profiles AS p WHERE p.account_id = a.id
-                      ORDER BY p.is_default DESC, p.id LIMIT 1), 'de') AS TEXT) AS language
+                      ORDER BY p.is_default DESC, p.id LIMIT 1), 'en') AS TEXT) AS language
 FROM accounts AS a
 WHERE a.is_owner = 1
 ORDER BY a.id
 LIMIT 1;
+
+-- name: DeliveryLanguage :one
+-- The language a queued delivery was written in, for the lang attribute of its HTML mail: the
+-- profile's for an event of a profile, else the primary profile's, English without one.
+SELECT CAST(COALESCE((SELECT p.language FROM profiles AS p WHERE p.id = d.profile_id),
+                     (SELECT p.language FROM profiles AS p WHERE p.account_id = d.account_id
+                      ORDER BY p.is_default DESC, p.id LIMIT 1), 'en') AS TEXT) AS language
+FROM deliveries AS d
+WHERE d.id = @id;
 
 -- name: NotifyProfileName :one
 SELECT name FROM profiles WHERE id = @id;

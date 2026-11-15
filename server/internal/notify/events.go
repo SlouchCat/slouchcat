@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/i18n"
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
@@ -29,7 +30,7 @@ func (s *Service) InvitationAccepted(ctx context.Context, inviterAccountID int64
 	}
 	return s.Emit(ctx, model.Event{
 		Type: model.EventInvitations, AccountID: acc.ID, Subject: text(acc.Language, "invitation_subject"),
-		Body: text(acc.Language, "invitation_body", guestEmail), Link: "/admin/access",
+		Body: text(acc.Language, "invitation_body", vars{"email": guestEmail}), Link: "/admin/access",
 	})
 }
 
@@ -46,8 +47,8 @@ func (s *Service) JobFailed(ctx context.Context, j jobs.Job, cause error) {
 		reason = errorText(cause)
 	}
 	if err := s.Emit(ctx, model.Event{
-		Type: model.EventErrors, Source: "job:" + j.Type, Subject: text(lang, "job_failed_subject", j.Type),
-		Body: text(lang, "job_failed_body", j.Type, j.Attempts, reason), Link: "/admin",
+		Type: model.EventErrors, Source: "job:" + j.Type, Subject: text(lang, "job_failed_subject", vars{"job": j.Type}),
+		Body: text(lang, "job_failed_body", vars{"job": j.Type, "attempts": j.Attempts, "reason": reason}), Link: "/admin",
 	}); err != nil {
 		s.log.WarnContext(ctx, "notify job failure", "job_id", j.ID, "job_type", j.Type, "err", err)
 	}
@@ -59,8 +60,8 @@ func (s *Service) JobFailed(ctx context.Context, j jobs.Job, cause error) {
 func (s *Service) ScanAborted(ctx context.Context, libraryName, reason string) error {
 	lang := s.ownerLanguage(ctx)
 	return s.Emit(ctx, model.Event{
-		Type: model.EventErrors, Source: "scan:" + libraryName, Subject: text(lang, "scan_aborted_subject", libraryName),
-		Body: text(lang, "scan_aborted_body", libraryName, text(lang, reason)), Link: "/admin/libraries",
+		Type: model.EventErrors, Source: "scan:" + libraryName, Subject: text(lang, "scan_aborted_subject", vars{"library": libraryName}),
+		Body: text(lang, "scan_aborted_body", vars{"library": libraryName, "reason": text(lang, reason)}), Link: "/admin/libraries",
 	})
 }
 
@@ -71,8 +72,8 @@ func (s *Service) ScanAborted(ctx context.Context, libraryName, reason string) e
 func (s *Service) RootRemoved(ctx context.Context, libraryName, path string, items, files int64) error {
 	lang := s.ownerLanguage(ctx)
 	return s.Emit(ctx, model.Event{
-		Type: model.EventErrors, Source: "library:" + libraryName, Subject: text(lang, "root_removed_subject", libraryName),
-		Body: text(lang, "root_removed_body", path, libraryName, items, files), Link: "/admin/libraries",
+		Type: model.EventErrors, Source: "library:" + libraryName, Subject: text(lang, "root_removed_subject", vars{"library": libraryName}),
+		Body: text(lang, "root_removed_body", vars{"path": path, "library": libraryName, "items": items, "files": files}), Link: "/admin/libraries",
 	})
 }
 
@@ -82,8 +83,10 @@ func (s *Service) RootRemoved(ctx context.Context, libraryName, path string, ite
 func (s *Service) RootContentChanged(ctx context.Context, libraryName, path, from, to string, items, files int64) error {
 	lang := s.ownerLanguage(ctx)
 	return s.Emit(ctx, model.Event{
-		Type: model.EventErrors, Source: "library:" + libraryName, Subject: text(lang, "root_content_changed_subject", libraryName),
-		Body: text(lang, "root_content_changed_body", path, libraryName, text(lang, "content_"+from), text(lang, "content_"+to), items, files),
+		Type: model.EventErrors, Source: "library:" + libraryName, Subject: text(lang, "root_content_changed_subject", vars{"library": libraryName}),
+		Body: text(lang, "root_content_changed_body", vars{
+			"path": path, "library": libraryName, "from": text(lang, "content_"+from), "to": text(lang, "content_"+to), "items": items, "files": files,
+		}),
 		Link: "/admin/libraries",
 	})
 }
@@ -101,21 +104,21 @@ func (s *Service) UpdateInstallFailed(ctx context.Context, in model.UpdateInstal
 		outcome = "update_rolled_back"
 	}
 	from, to := orUnknown(lang, in.From), orUnknown(lang, in.To)
-	parts := []string{text(lang, outcome+"_body", from, to)}
+	parts := []string{text(lang, outcome+"_body", vars{"from": from, "to": to})}
 	if in.Code != "" {
-		parts = append(parts, text(lang, "update_code", in.Code))
+		parts = append(parts, text(lang, "update_code", vars{"code": in.Code}))
 	}
 	if in.Message != "" {
 		parts = append(parts, in.Message)
 	}
 	switch {
 	case in.Migrated && in.Backup != "":
-		parts = append(parts, text(lang, "update_migrated_backup", in.Backup))
+		parts = append(parts, text(lang, "update_migrated_backup", vars{"backup": in.Backup}))
 	case in.Migrated:
 		parts = append(parts, text(lang, "update_migrated"))
 	}
 	return s.Emit(ctx, model.Event{
-		Type: model.EventErrors, Source: updateSource(in), Subject: text(lang, outcome+"_subject", to),
+		Type: model.EventErrors, Source: updateSource(in), Subject: text(lang, outcome+"_subject", vars{"to": to}),
 		Body: strings.Join(parts, "\n\n"), Link: "/admin",
 	})
 }
@@ -136,13 +139,14 @@ func orUnknown(lang, version string) string {
 	return version
 }
 
-// ownerLanguage is the language of the owner's primary profile (German without one). The texts of
+// ownerLanguage is the language of the owner's primary profile (English without one, the last
+// link of the text chain; concept 22 section 4.5). The texts of
 // the event errors are written in one language, and with several administrators that language has
 // to be a particular one, so it follows the owner (ADR 0014).
 func (s *Service) ownerLanguage(ctx context.Context) string {
 	owner, err := s.write.NotifyOwner(ctx)
 	if err != nil {
-		return "de"
+		return i18n.Fallback
 	}
 	return owner.Language
 }

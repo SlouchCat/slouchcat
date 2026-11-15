@@ -188,12 +188,16 @@ func TestNewContentByEmail(t *testing.T) {
 		t.Fatalf("mails = %+v", mails)
 	}
 	m := mails[0]
-	if m.to != e.f.Account.Email || m.subject != "[P12] Neue Folge: Film SS" || m.smtp.Password != fakeSMTPPassword {
+	if m.to != e.f.Account.Email || m.subject != "[P12] "+localeText(t, "de", "new_episode", vars{"title": "Film SS"}) || m.smtp.Password != fakeSMTPPassword {
 		t.Errorf("mail = %+v", m)
 	}
 	if !strings.Contains(m.text, "S01E09 · Episode A2") || !strings.Contains(m.text, "https://slouchcat.example.test/items/"+ep2) ||
 		!strings.Contains(m.html, `href="https://slouchcat.example.test/items/`+ep2+`"`) {
 		t.Errorf("mail body = %q / %q", m.text, m.html)
+	}
+	// The HTML part names the profile's language (concept 22 section 4.5).
+	if !strings.HasPrefix(m.html, `<!doctype html><html lang="de">`) {
+		t.Errorf("mail html without the profile's language: %q", m.html)
 	}
 	d := e.deliveries(t)
 	if len(d) != 1 || d[0].profile.Int64 != e.f.P12.ID || d[0].state != "sent" || d[0].event != model.EventNewContent || d[0].attempts != 1 {
@@ -350,7 +354,7 @@ func TestErrorsReachEveryAdministratorWithDedupe(t *testing.T) {
 	for _, m := range mails {
 		bySubject[m.subject] = append(bySubject[m.subject], m.to)
 	}
-	for _, subject := range []string{"Fehler: Job metadata.match", "Scan abgebrochen: Filme"} {
+	for _, subject := range []string{localeText(t, "de", "job_failed_subject", vars{"job": "metadata.match"}), localeText(t, "de", "scan_aborted_subject", vars{"library": "Filme"})} {
 		got := bySubject[subject]
 		sort.Strings(got)
 		want := []string{e.f.Account.Email, e.f.Admin2.Email}
@@ -362,7 +366,7 @@ func TestErrorsReachEveryAdministratorWithDedupe(t *testing.T) {
 	if !strings.Contains(mails[0].text, "fake failure") && !strings.Contains(mails[1].text, "fake failure") {
 		t.Errorf("no job mail carries the reason: %+v", mails)
 	}
-	if msgs[0].chat != 4242 || msgs[0].token != testBotToken || !strings.HasPrefix(msgs[0].text, "Fehler: Job metadata.match\n\n") {
+	if msgs[0].chat != 4242 || msgs[0].token != testBotToken || !strings.HasPrefix(msgs[0].text, localeText(t, "de", "job_failed_subject", vars{"job": "metadata.match"})+"\n\n") {
 		t.Errorf("telegram = %+v", msgs[0])
 	}
 	for _, d := range e.deliveries(t) {
@@ -410,7 +414,8 @@ func TestPushGoneAndSkipped(t *testing.T) {
 	if len(pushes) != 1 || pushes[0].endpoint != "https://push.example.test/live" || pushes[0].ttl != pushTTL {
 		t.Fatalf("pushes = %+v", pushes)
 	}
-	want := `{"title":"Einladung angenommen","body":"gast@example.test hat deine Einladung angenommen und ein Konto erstellt.","url":"https://slouchcat.example.test/admin/access"}`
+	want := `{"title":"` + localeText(t, "de", "invitation_subject", nil) + `","body":"` +
+		localeText(t, "de", "invitation_body", vars{"email": "gast@example.test"}) + `","url":"https://slouchcat.example.test/admin/access"}`
 	if pushes[0].payload != want {
 		t.Errorf("payload = %s", pushes[0].payload)
 	}
@@ -515,7 +520,7 @@ func TestTestChannel(t *testing.T) {
 	if err := e.svc.TestChannel(ctx, e.guest(), model.ChannelEmail); err != nil {
 		t.Fatal(err)
 	}
-	if mails := e.mailer.sent(); len(mails) != 1 || mails[0].to != e.f.Guest.Email || mails[0].subject != "Slouchcat: test message" {
+	if mails := e.mailer.sent(); len(mails) != 1 || mails[0].to != e.f.Guest.Email || mails[0].subject != localeText(t, "en", "test_subject", nil) {
 		t.Errorf("mails = %+v", mails)
 	}
 	// The cause stays in the log: a guest learns nothing about the mail server (review M-11).
@@ -634,7 +639,7 @@ func TestSendTestEmail(t *testing.T) {
 		t.Fatal(err)
 	}
 	mails := e.mailer.sent()
-	if len(mails) != 2 || mails[0].to != e.f.Account.Email || mails[1].to != "other@example.test" || mails[0].subject != "Slouchcat: Testnachricht" {
+	if len(mails) != 2 || mails[0].to != e.f.Account.Email || mails[1].to != "other@example.test" || mails[0].subject != localeText(t, "de", "test_subject", nil) {
 		t.Errorf("mails = %+v", mails)
 	}
 	e.mailer.fail(errors.New("smtp authentication: 535 rejected"))
