@@ -41,6 +41,9 @@ import (
 // lower the strictest. A title whose providers were all read but know no certificate becomes
 // unrated (NULL, AN-1).
 //
+// A title whose read fails (a provider error) keeps its value, is logged and counted as passed;
+// the batch goes on.
+//
 // One run takes a batch of ratingsRereadBatch titles in id order after the cursor of its payload
 // and queues its successor with the cursor (key ratings_reread:<last id>), so a restart goes on
 // where the last batch stopped. After a batch that changed a rating the open streams are checked
@@ -50,8 +53,9 @@ const (
 	JobRatingsReread   = model.JobRatingsReread
 	ratingsRereadKey   = "ratings_reread"
 	ratingsRereadBatch = 200
-	// SettingRatingsRereadQueued marks that the chain was queued once after migration 00064.
-	SettingRatingsRereadQueued = "metadata.ratings_reread_queued"
+	// SettingRatingsRereadDone marks that a chain read every title to the end (written by its last
+	// batch); until then the first start after migration 00064 queues the chain again.
+	SettingRatingsRereadDone = "metadata.ratings_reread_done"
 )
 
 // certificationProviders are the providers whose certificates the table keeps.
@@ -65,25 +69,30 @@ type ratingsRereadPayload struct {
 	Total int64  `json:"total,omitempty"`
 }
 
-// QueueRatingsRereadOnce queues the chain at the first start after migration 00064 when a title
-// waits, and remembers in the settings that it did; later starts queue nothing. It reports
-// whether it queued.
+// QueueRatingsRereadOnce queues the chain at a start after migration 00064 until one chain has
+// read every title (SettingRatingsRereadDone, written by its last batch): a chain that failed or
+// was cancelled starts again at the next start. A chain that is still queued or running is not
+// doubled. It reports whether it queued.
 func (s *Service) QueueRatingsRereadOnce(ctx context.Context) (bool, error) {
-	if _, err := s.read.GetSystemSetting(ctx, SettingRatingsRereadQueued); err == nil {
+	if _, err := s.read.GetSystemSetting(ctx, SettingRatingsRereadDone); err == nil {
 		return false, nil
 	} else if !errors.Is(err, sql.ErrNoRows) {
-		return false, fmt.Errorf("read %s: %w", SettingRatingsRereadQueued, err)
+		return false, fmt.Errorf("read %s: %w", SettingRatingsRereadDone, err)
 	}
-	queued, err := s.QueueRatingsReread(ctx)
-	if err != nil {
+	if running, err := s.RatingsRereading(ctx); err != nil || running {
 		return false, err
 	}
+	return s.QueueRatingsReread(ctx)
+}
+
+// markRatingsRereadDone remembers that a chain read every title.
+func (s *Service) markRatingsRereadDone(ctx context.Context) error {
 	if err := s.write.UpsertSystemSetting(ctx, systemq.UpsertSystemSettingParams{
-		Key: SettingRatingsRereadQueued, Value: "1", Now: s.now().UnixMilli(),
+		Key: SettingRatingsRereadDone, Value: "1", Now: s.now().UnixMilli(),
 	}); err != nil {
-		return queued, fmt.Errorf("write %s: %w", SettingRatingsRereadQueued, err)
+		return fmt.Errorf("write %s: %w", SettingRatingsRereadDone, err)
 	}
-	return queued, nil
+	return nil
 }
 
 // QueueRatingsReread starts the chain from the first title when a title waits (a change of the
@@ -96,7 +105,7 @@ func (s *Service) QueueRatingsReread(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("count titles to read anew: %w", err)
 	}
 	if total == 0 {
-		return false, nil
+		return false, s.markRatingsRereadDone(ctx) // nothing to read: every title is read
 	}
 	return true, s.enqueueRatingsReread(ctx, ratingsRereadPayload{Total: total})
 }
@@ -169,8 +178,14 @@ func (s *Service) ratingsReread(ctx context.Context, p ratingsRereadPayload) (*r
 			return nil, err
 		}
 		out, err := s.rereadItem(ctx, item, settings)
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		if err != nil {
-			return nil, err
+			// One title the provider keeps failing (an error answer, a broken record) must not stop
+			// the chain: it keeps its value and is read again by the next run.
+			s.log.Warn("rating not read anew", "item_id", item.ID, "err", err)
+			out = rereadPassed
 		}
 		switch out {
 		case rereadChanged:
@@ -192,7 +207,7 @@ func (s *Service) ratingsReread(ctx context.Context, p ratingsRereadPayload) (*r
 	}
 	if len(rows) < ratingsRereadBatch {
 		s.log.Info("ratings read anew: finished")
-		return nil, nil
+		return nil, s.markRatingsRereadDone(ctx)
 	}
 	return &ratingsRereadPayload{After: rows[len(rows)-1].ID, Done: p.Done + int64(len(rows)), Total: p.Total}, nil
 }

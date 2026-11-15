@@ -177,7 +177,7 @@ func TestRatingsRereadOnceAndOnlyWithTitles(t *testing.T) {
 	if ok, err := e.svc.QueueRatingsRereadOnce(ctx); err != nil || ok {
 		t.Fatalf("once after the mark = %v, %v; want nothing queued", ok, err)
 	}
-	mustExec(t, e.db.Write, `DELETE FROM settings WHERE key = ?`, SettingRatingsRereadQueued)
+	mustExec(t, e.db.Write, `DELETE FROM settings WHERE key = ?`, SettingRatingsRereadDone)
 	if ok, err := e.svc.QueueRatingsRereadOnce(ctx); err != nil || !ok {
 		t.Fatalf("once with a title = %v, %v; want queued", ok, err)
 	}
@@ -240,5 +240,30 @@ func TestRatingsRereadUnratedDropsTheSource(t *testing.T) {
 	}
 	if n != 0 {
 		t.Errorf("%d provenance rows of own_rating left on an unrated title", n)
+	}
+}
+
+// One title the provider keeps failing (TMDB answers 503 for film 503) does not stop the chain
+// (review of stage 3): it keeps its value, the other titles are read, and the chain marks itself
+// done, so the next start does not queue it again.
+func TestRatingsRereadGoesOnAfterAFailingTitle(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "Down", tmdbID: 503, ownRating: 12, ratingSource: "tmdb:DE"})
+	e.addItem(t, itemSeed{id: idBySearch, title: "First Film", tmdbID: 550, ownRating: 16, ratingSource: "tmdb:US"})
+	mustExec(t, e.db.Write, `INSERT INTO item_certifications VALUES (?, 'tmdb', 'US', 'R', 1), (?, 'tmdb', 'DE', '12', 1)`, idBySearch, idBySearch)
+	e.rereadAll(t)
+	if r := e.item(t, idByTMDB); r.Rating.Int64 != 12 || r.Source.String != "tmdb:DE" {
+		t.Errorf("failing title: %v %v, want 12 tmdb:DE kept", r.Rating, r.Source)
+	}
+	if r := e.item(t, idBySearch); r.Rating.Int64 != 12 || r.Source.String != "tmdb:DE" {
+		t.Errorf("readable title: %v %v, want 12 tmdb:DE", r.Rating, r.Source)
+	}
+	if _, err := e.svc.read.GetSystemSetting(ctx, SettingRatingsRereadDone); err != nil {
+		t.Errorf("the finished chain left no done mark: %v", err)
+	}
+	if ok, err := e.svc.QueueRatingsRereadOnce(ctx); err != nil || ok {
+		t.Errorf("a start after the finished chain = %v, %v; want nothing queued", ok, err)
 	}
 }
