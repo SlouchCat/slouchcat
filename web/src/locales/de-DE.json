@@ -520,7 +520,7 @@
     },
     "itemDelete": {
       "title": "„{{title}}“ löschen?",
-      "libraryHint": "Die Dateien bleiben auf der Platte. Der Titel bleibt entfernt, auch wenn neue Dateien dazukommen; unter „Wartung › Entfernte Titel“ lässt er sich mit Fortschritt, Haken und Merkliste wieder aufnehmen.",
+      "libraryHint": "Die Dateien bleiben auf der Platte. Der Titel bleibt entfernt, auch wenn neue Dateien dazukommen; unter „Pflege › Entfernte Titel“ lässt er sich mit Fortschritt, Haken und Merkliste wieder aufnehmen.",
       "typeHint": "Tippe {{title}} ab (Groß- und Kleinschreibung egal), dann wird der Knopf aktiv.",
       "done": {
         "library": "„{{title}}“ ist aus Slouchcat entfernt. Die Dateien liegen noch da.",

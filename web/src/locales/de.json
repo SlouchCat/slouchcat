@@ -5046,7 +5046,7 @@
         "library": "Nur aus Slouchcat entfernen",
         "files": "Auch die Dateien löschen"
       },
-      "libraryHint": "Die Dateien bleiben auf der Platte. Der Titel bleibt entfernt, auch wenn neue Dateien dazukommen; unter «Wartung › Entfernte Titel» lässt er sich mit Fortschritt, Haken und Merkliste wieder aufnehmen.",
+      "libraryHint": "Die Dateien bleiben auf der Platte. Der Titel bleibt entfernt, auch wenn neue Dateien dazukommen; unter «Pflege › Entfernte Titel» lässt er sich mit Fortschritt, Haken und Merkliste wieder aufnehmen.",
       "everywhere": "Der Titel verschwindet für alle Profile aus allen Listen, Downloads auf den Geräten werden entfernt.",
       "arr": "Radarr und Sonarr erfahren davon nichts.",
       "affected_one": "Betroffen: {{count}} Datei · {{size}}",
