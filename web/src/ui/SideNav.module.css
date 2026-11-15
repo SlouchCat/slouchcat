@@ -74,8 +74,13 @@
   white-space: nowrap;
 }
 
-/* A longer role wraps instead of being cut: the column is narrow and "Wechseln" takes room. */
+/*
+ * A longer role wraps instead of being cut: the column is narrow and "Wechseln" takes room. A word
+ * wider than the column («Администратор») is hyphenated in the language of the page, else broken.
+ */
 .profileRole {
+  overflow-wrap: break-word;
+  hyphens: auto;
   color: var(--sc-color-text-muted);
   font-size: var(--sc-font-size-xs);
   line-height: var(--sc-font-line-height-snug);

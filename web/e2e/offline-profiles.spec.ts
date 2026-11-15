@@ -55,7 +55,22 @@ test('P6 does not see the download of P18, online and offline (O-7)', async ({
       downloadsTable(page).getByRole('rowheader', { name: new RegExp(H264_TITLE) }),
     ).toBeVisible();
 
-    // Storage: the panel shows the browser's estimate (±5 %).
+    // Storage: the panel shows the browser's estimate (±5 %). The panel asks once, on mount. The
+    // reload above is the first page the worker controls, and Chromium stores the V8 code cache of
+    // the scripts the worker served next to them in Cache Storage within ~100 ms after load
+    // (caches 3.0 -> 5.0 MB, same 183 entries); its last write (~350 KB) can land after the panel
+    // asked. Wait until the estimate holds still and load the page once more, so the panel asks a
+    // settled estimate.
+    await expect
+      .poll(() =>
+        page.evaluate(async () => {
+          const before = (await navigator.storage.estimate()).usage;
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          return (await navigator.storage.estimate()).usage === before;
+        }),
+      )
+      .toBe(true);
+    await page.reload();
     const panel = page.getByRole('region', { name: 'Speicher' });
     await expect(page.getByRole('meter', { name: 'Speicherbelegung' })).toBeVisible();
     const shown = Number(await panel.getAttribute('data-usage-bytes'));

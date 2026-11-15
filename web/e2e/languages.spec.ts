@@ -7,9 +7,9 @@ import { choose } from './controls';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, tabTo } from './keyboard';
 
-// Concept 22 section 4.9: every shipped language once through the start page and the profile
-// form, and the language button of the login page by keyboard (rule 8). The texts come from the
-// language files, so a new shipped language joins the loop without a new line here.
+// Concept 22 section 4.9: every shipped language once through the login page, the start page and
+// the profile form, and the language button of the login page by keyboard (rule 8). The texts come
+// from the language files, so a new shipped language joins the loop without a new line here.
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
@@ -30,9 +30,12 @@ function own(code: string, key: string): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
-/** The text `key` of `code` along its chain: de-DE overlays de (concept 22 section 4.2). */
+/**
+ * The text `key` of `code` along its chain (concept 22 section 4.2): de-DE overlays de, and
+ * English stands in for a text a language lacks between two releases (4.8).
+ */
 function text(code: string, key: string): string {
-  const value = own(code, key) ?? (code === 'de-DE' ? own('de', key) : undefined);
+  const value = own(code, key) ?? (code === 'de-DE' ? own('de', key) : undefined) ?? own('en', key);
   if (value === undefined) throw new Error(`${code}.json has no text ${key}`);
   return value;
 }
@@ -45,54 +48,64 @@ async function openProfiles(page: Page, code: string) {
   ).toBeVisible();
 }
 
-test('every shipped language: start page and profile form in that language', async ({ page }) => {
-  await loginOwner(page.request);
-  const primary = (await listMyProfiles(page.request)).find((profile) => profile.isPrimary);
-  if (!primary) throw new Error('no primary profile');
-  try {
-    let shown = 'de';
-    await openProfiles(page, shown);
-    for (const { code, name } of languages) {
-      // The profile form of the primary profile switches it to `code`, in the language shown now.
-      await page
-        .getByRole('button', { name: text(shown, 'profiles.settings.edit') })
-        .first()
-        .click();
-      const form = page.getByRole('dialog', {
-        name: text(shown, 'profiles.settings.form.editTitle'),
-      });
-      await choose(form, 'radio', name);
-      await form.getByRole('button', { name: text(shown, 'profiles.settings.form.save') }).click();
-      await expect(form).toBeHidden();
-      shown = code;
-      await expect(page.locator('html')).toHaveAttribute('lang', code);
-      await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+for (const { code, name } of languages) {
+  test.describe(code, () => {
+    // The browser asks for the language (a Swiss browser sends de-CH; a bare de is Germany's).
+    test.use({ locale: code === 'de' ? 'de-CH' : code });
 
-      // The start page in `code`.
-      await page.goto('/');
+    test(`${code}: login page, start page and profile form in that language`, async ({ page }) => {
+      // The login page in the language the browser asks for.
+      await page.goto('/login');
       await expect(
-        page.getByRole('heading', { level: 2, name: text(code, 'home.rows.recent') }),
+        page.getByRole('heading', { level: 1, name: text(code, 'login.title') }),
       ).toBeVisible();
       await expect(page.locator('html')).toHaveAttribute('lang', code);
 
-      // The form in `code`: its title, and the profile's language named in its own language.
-      await openProfiles(page, code);
-      await page.getByRole('button', { name: text(code, 'profiles.settings.add') }).click();
-      const create = page.getByRole('dialog', {
-        name: text(code, 'profiles.settings.form.createTitle'),
-      });
-      await expect(create.getByRole('radio', { name, exact: true })).toBeChecked();
-      await page.keyboard.press('Escape');
-      await expect(create).toBeHidden();
-    }
-  } finally {
-    const reset = await page.request.patch(`/api/v1/profiles/${primary.id}`, {
-      headers: CSRF,
-      data: { language: 'de' },
+      await loginOwner(page.request);
+      const primary = (await listMyProfiles(page.request)).find((profile) => profile.isPrimary);
+      if (!primary) throw new Error('no primary profile');
+      try {
+        // The profile form of the primary profile, in German, switches it to `code`.
+        await openProfiles(page, 'de');
+        await page
+          .getByRole('button', { name: text('de', 'profiles.settings.edit') })
+          .first()
+          .click();
+        const form = page.getByRole('dialog', {
+          name: text('de', 'profiles.settings.form.editTitle'),
+        });
+        await choose(form, 'radio', name);
+        await form.getByRole('button', { name: text('de', 'profiles.settings.form.save') }).click();
+        await expect(form).toBeHidden();
+        await expect(page.locator('html')).toHaveAttribute('lang', code);
+        await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+
+        // The start page in `code`.
+        await page.goto('/');
+        await expect(
+          page.getByRole('heading', { level: 2, name: text(code, 'home.rows.recent') }),
+        ).toBeVisible();
+        await expect(page.locator('html')).toHaveAttribute('lang', code);
+
+        // The form in `code`: its title, and the profile's language named in its own language.
+        await openProfiles(page, code);
+        await page.getByRole('button', { name: text(code, 'profiles.settings.add') }).click();
+        const create = page.getByRole('dialog', {
+          name: text(code, 'profiles.settings.form.createTitle'),
+        });
+        await expect(create.getByRole('radio', { name, exact: true })).toBeChecked();
+        await page.keyboard.press('Escape');
+        await expect(create).toBeHidden();
+      } finally {
+        const reset = await page.request.patch(`/api/v1/profiles/${primary.id}`, {
+          headers: CSRF,
+          data: { language: 'de' },
+        });
+        expect(reset.status()).toBe(200);
+      }
     });
-    expect(reset.status()).toBe(200);
-  }
-});
+  });
+}
 
 test('the language button of the login page: Tab, Enter, arrows, Enter; no focus trap @keyboard', async ({
   page,

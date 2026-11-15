@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.36.0
+  version: 1.37.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -11610,10 +11610,13 @@ components:
 
     Language:
       type: string
-      enum: [de, de-DE, en]
+      enum: [de, de-DE, en, fr, es, it, nl, pt-BR, pt-PT, pl, sv, da, nb, fi, cs, hu, tr, ru, uk, ja, ko, zh-CN, zh-TW]
       description: |
         An interface language; exactly the language packs the web app ships (concept 22, ADR 0033):
-        `de` German (Switzerland), `de-DE` German (Germany, since contract 1.35.0), `en` English.
+        `de` German (Switzerland), `de-DE` German (Germany, since contract 1.35.0), `en` English, and
+        since contract 1.37.0 French, Spanish, Italian, Dutch, Portuguese (Brazil, Portugal), Polish,
+        Swedish, Danish, Norwegian Bokmål, Finnish, Czech, Hungarian, Turkish, Russian, Ukrainian,
+        Japanese, Korean and Chinese (Simplified, Traditional).
 
     MetadataLanguage:
       type: string

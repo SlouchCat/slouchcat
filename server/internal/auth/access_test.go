@@ -352,7 +352,7 @@ func TestProfileRules(t *testing.T) {
 		"blank":          {model.ProfileInput{Name: str("  ")}, []string{"name:required"}},
 		"long":           {model.ProfileInput{Name: str(strings.Repeat("ä", 61))}, []string{"name:too_long"}},
 		"rating":         {model.ProfileInput{Name: str("x"), MaxRating: num(7)}, []string{"maxRating:invalid_value"}},
-		"language":       {model.ProfileInput{Name: str("x"), Language: str("fr")}, []string{"language:invalid_value"}},
+		"language":       {model.ProfileInput{Name: str("x"), Language: str("ar")}, []string{"language:invalid_value"}},
 		"accent":         {model.ProfileInput{Name: str("x"), Accent: str("pink")}, []string{"accent:invalid_value"}},
 		"pin":            {model.ProfileInput{Name: str("x"), PIN: str("12")}, []string{"pin:invalid_pin"}},
 		"unknown lib":    {model.ProfileInput{Name: str("x"), AllLibraries: boolPtr(false), LibraryIDs: &[]int64{libA, 999}}, []string{"libraryIds:unknown_library"}},
@@ -636,7 +636,7 @@ func TestInvitationLifecycle(t *testing.T) {
 	}
 
 	// Validation errors leave the link open.
-	bad := model.AcceptInvitation{Token: inv.Token, Email: "nope", Password: "short", ProfileName: "", Language: "fr"}
+	bad := model.AcceptInvitation{Token: inv.Token, Email: "nope", Password: "short", ProfileName: "", Language: "ar"}
 	if _, _, err := s.AcceptInvitation(fresh(), bad, "ua"); !slices.Equal(validationCodes(err), []string{"email:invalid_email", "password:too_short", "profileName:required", "language:invalid_value"}) {
 		t.Errorf("validation: %v", err)
 	}

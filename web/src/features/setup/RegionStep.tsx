@@ -54,16 +54,41 @@ const COUNTRIES = [
   'JP',
   'KR',
   'TW',
+  'RU',
+  'CN',
 ];
 
 /**
- * The country and metadata languages a language suggests (table 4.1, O-15); the rating country is
- * that country when the server's table knows it, else Germany (F-12; China has no system).
+ * The country and metadata languages a language suggests (table 4.1, O-15): the language, then
+ * English. The rating country is that country when the server's table knows it, else Germany
+ * (F-12; China has no system). A code this app does not know (a newer server's language, before
+ * the app is reloaded) gets the suggestion of English, the language the app then shows.
  */
 const SUGGESTIONS: Record<Language, { country: string; langs: string[] }> = {
   de: { country: 'CH', langs: ['de', 'en'] },
   'de-DE': { country: 'DE', langs: ['de', 'en'] },
   en: { country: 'US', langs: ['en'] },
+  fr: { country: 'FR', langs: ['fr', 'en'] },
+  es: { country: 'ES', langs: ['es', 'en'] },
+  it: { country: 'IT', langs: ['it', 'en'] },
+  nl: { country: 'NL', langs: ['nl', 'en'] },
+  'pt-BR': { country: 'BR', langs: ['pt-BR', 'en'] },
+  'pt-PT': { country: 'PT', langs: ['pt-PT', 'en'] },
+  pl: { country: 'PL', langs: ['pl', 'en'] },
+  sv: { country: 'SE', langs: ['sv', 'en'] },
+  da: { country: 'DK', langs: ['da', 'en'] },
+  // TMDB keeps Norwegian under no (ADR 0033), like model.MetadataBase
+  nb: { country: 'NO', langs: ['no', 'en'] },
+  fi: { country: 'FI', langs: ['fi', 'en'] },
+  cs: { country: 'CZ', langs: ['cs', 'en'] },
+  hu: { country: 'HU', langs: ['hu', 'en'] },
+  tr: { country: 'TR', langs: ['tr', 'en'] },
+  ru: { country: 'RU', langs: ['ru', 'en'] },
+  uk: { country: 'UA', langs: ['uk', 'en'] },
+  ja: { country: 'JP', langs: ['ja', 'en'] },
+  ko: { country: 'KR', langs: ['ko', 'en'] },
+  'zh-CN': { country: 'CN', langs: ['zh-CN', 'en'] },
+  'zh-TW': { country: 'TW', langs: ['zh-TW', 'en'] },
 };
 
 /** The update of the metadata settings with the step's choices; image languages follow the text. */
@@ -100,7 +125,10 @@ function RegionForm({ settings }: { settings: MetadataSettings }) {
   const progress = useQuery(setupProgressQuery).data;
   const system = useQuery(systemQuery).data;
   const offer = useQuery(radioOfferQuery).data;
-  const suggestion = SUGGESTIONS[session.profile.language];
+  const suggestion =
+    (SUGGESTIONS as Partial<Record<string, (typeof SUGGESTIONS)[Language]>>)[
+      session.profile.language
+    ] ?? SUGGESTIONS.en;
   // A step done before shows what was stored; an open one the suggestion of the language.
   const fresh = stepState(progress, 'region') === 'open';
   const [country, setCountry] = useState(suggestion.country);

@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { setLanguage } from '@/i18n';
+import { languages, setLanguage } from '@/i18n';
 import { homePage } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, session } from '@/test/api';
 
@@ -76,7 +76,8 @@ describe('login page', () => {
     const menu = await screen.findByRole('menu', { name: 'Sprache: Deutsch (Schweiz)' });
     // Every shipped language in its own language; the current one is checked.
     const items = within(menu).getAllByRole('menuitemradio');
-    expect(items.map((item) => item.textContent)).toEqual([
+    expect(items.map((item) => item.textContent)).toEqual(languages.map(({ name }) => name));
+    expect(items.slice(0, 3).map((item) => item.textContent)).toEqual([
       'Deutsch (Schweiz)',
       'Deutsch (Deutschland)',
       'English',

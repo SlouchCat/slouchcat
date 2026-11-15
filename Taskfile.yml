@@ -149,6 +149,10 @@ tasks:
       - task: web:gen:check
       - task: web:lint
       - task: web:test
+      # The structure of every shipped language file (concept 22, 4.9): plural forms, placeholders
+      # ({{count}} in ru `_many`, ja `_other`), `$t()`, markup, white space at the edges. Missing
+      # texts are counted, not errors; `task i18n:check` before a release is strict.
+      - node scripts/i18n/check.ts --all --quiet
       # The e2e shard plan's self-test (3 s): every test in exactly one CI shard. Here and not in
       # the e2e job, so a broken plan is red before the shards start; each shard counts its own
       # list again (web:e2e with SHARD).
@@ -190,6 +194,20 @@ tasks:
     desc: Self-test of scripts/heavy-slot.sh, the slot lock heavy local runs wait for
     cmds:
       - scripts/heavy-slot.test.sh
+
+  # Translation tools of concept 22 (scripts/i18n, Node type stripping, no build step).
+  # i18n:check is the release gate of 4.8: every locale file complete and consistent with en.json,
+  # the server texts too (TestServerTexts, strict for every language with SLOUCHCAT_I18N_STRICT).
+  i18n:check:
+    desc: Check every locale file of the web app and the server texts, missing texts included
+    cmds:
+      - node scripts/i18n/check.ts --all --strict
+      - cd server && SLOUCHCAT_I18N_STRICT=1 go test ./internal/notify -run '^TestServerTexts$' -count=1
+
+  i18n:status:
+    desc: Count the missing texts per locale file (details with `node scripts/i18n/check.ts <code> --missing`)
+    cmds:
+      - node scripts/i18n/check.ts --all --missing
 
   storybook:test:
     desc: Storybook screenshot checks of web/src/ui against the committed baselines (needs Docker)

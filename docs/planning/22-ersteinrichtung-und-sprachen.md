@@ -1188,6 +1188,12 @@ Bau-Reihenfolge nummeriert.
   Abweichungen vom Konzept (Spalten-`CHECK` 0 bis 18, jedes Land endet mit 18, Titel ohne Freigabe werden mit
   gelesen, der Match senkt bei einem anderen Land, das Freigabeland auf der Einladungsseite) und die Dauer des
   Jobs stehen in ADR 0034 und `docs/perf/22-freigabelaender.md`.
+- **Stufe 4 gebaut (15. November 2026, Vertrag 1.37.0, keine Migration):** Die 20 Sprachen sind wählbar,
+  mit Vorschlägen des Assistenten je Sprache, Tests nach 4.9 (streng für `de`, `de-DE`, `en`, sonst
+  Warnung bei fehlenden Texten) und dem Release-Schritt «Übersetzungen nachziehen» in
+  `docs/dev/HANDOVER.md` und `docs/i18n/README.md` (aus Stufe 5 vorgezogen, ohne Weblate). Befunde und
+  Abweichungen stehen in ADR 0033, Abschnitt «Stufe 4», die Bildprüfung in
+  `docs/perf/22-uebersetzungen.md`.
 
 ---
 

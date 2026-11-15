@@ -57,6 +57,15 @@ const startLoader = (srcs: string[]) => `(function () {
   setTimeout(start, 2500);
 })();`;
 
+/**
+ * The locale chunks every device precaches (concept 22 section 4.4: offline size): German in both
+ * variants and English, the end of every chain. The other 20 come with a CacheFirst rule below once
+ * a device uses them, so ~4.5 MB of languages nobody there reads stay off every device.
+ */
+const PRECACHED_LOCALES = new Set(['de', 'de-DE', 'en']);
+/** A locale chunk (see chunkFileNames): `assets/locale-<code>.<hash>.js`. */
+const localeChunk = /(?:^|\/)assets\/locale-([^./]+)\.[^./]+\.js$/;
+
 const startScriptTags = /<script type="module" crossorigin src="([^"]+)"><\/script>\n?/g;
 
 /** Replaces every module script tag of the built shell with the inline loader (see startLoader). */
@@ -126,9 +135,19 @@ export default defineConfig({
         // (C-1). `autoUpdate` brings skipWaiting only.
         clientsClaim: true,
         // Precache the app shell only (built JS, CSS, HTML, icons); never media or API answers.
-        // That includes every lazy chunk (the offline library, its player, the OPFS worker and
-        // the locale files), so the app starts and plays downloads without network (C-1, M5).
+        // That includes every lazy chunk (the offline library, its player, the OPFS worker), so
+        // the app starts and plays downloads without network (C-1, M5). Of the locale files only
+        // de, de-DE and en; the others are cached when used (runtimeCaching below).
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+        manifestTransforms: [
+          (entries) => ({
+            manifest: entries.filter((entry) => {
+              const locale = localeChunk.exec(entry.url)?.[1];
+              return locale === undefined || PRECACHED_LOCALES.has(locale);
+            }),
+            warnings: [],
+          }),
+        ],
         globIgnores: ['**/node_modules/**/*', 'sw.js', 'workbox-*.js', 'push-sw.js', 'spike/**'],
         // Web Push (M8): the `push` and `notificationclick` listeners of public/push-sw.js run in
         // this worker; generateSW loads the file, the browser checks it for updates like sw.js.
@@ -139,6 +158,18 @@ export default defineConfig({
         // The API and the offline spike page are never answered with the app shell.
         navigateFallbackDenylist: [/^\/api\//, /^\/spike\//],
         runtimeCaching: [
+          {
+            // The locale chunks outside the precache: hashed, so never stale. A device keeps the
+            // language it uses offline after its first online start (app/serviceWorker.ts fetches
+            // the chunks the page loaded before the worker controlled it).
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && localeChunk.test(url.pathname),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'slouchcat-locales',
+              expiration: { maxEntries: 10 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
           {
             // Posters and backdrops, the portraits of people and the posters of collections:
             // immutable per content hash (`v`), served with the session.
@@ -179,6 +210,12 @@ export default defineConfig({
     emptyOutDir: true,
     rolldownOptions: {
       output: {
+        // A locale file is a chunk of its own with a name the service worker recognises
+        // (localeChunk): `assets/locale-fr.<hash>.js`; the hash has no dot, the code no dot either.
+        chunkFileNames: (chunk) =>
+          chunk.facadeModuleId?.includes('/src/locales/')
+            ? 'assets/locale-[name].[hash].js'
+            : 'assets/[name]-[hash].js',
         // Everything the start page loads statically goes into one JS and one CSS file instead of
         // an entry, a shared chunk and the runtime: fewer requests before the hero (P-10). The
         // form pages, the player and react-aria stay separate chunks.

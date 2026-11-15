@@ -137,6 +137,8 @@ tasks:
         pnpm exec tsc --noEmit -p tsconfig.json
         pnpm exec tsc --noEmit -p tsconfig.node.json
         if [ -n "$src" ]; then pnpm exec vitest related --run $src; fi
+        # The structure of the shipped language files (1 s); missing texts are only counted.
+        node ../scripts/i18n/check.ts --all --quiet
 
   # Self-test of the shard plan: every test in exactly one shard, as Playwright reads the lists.
   e2e:shards:check:

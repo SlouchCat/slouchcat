@@ -10,7 +10,7 @@ import type {
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { setLanguage } from '@/i18n';
+import i18n, { setLanguage, shippedLanguageFor } from '@/i18n';
 import { dashboardFixture } from '@/test/admin';
 import { ratingSystems } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, session, type Call, type Routes } from '@/test/api';
@@ -302,6 +302,44 @@ describe('the owner of an unfinished wizard', () => {
       state: 'done',
     });
   });
+
+  // Table 4.1: every language suggests its country and itself, then English, as metadata
+  // languages; a country without a rating system (China) rates by Germany (F-12).
+  it.each([
+    ['fr', 'FR', 'FR', ['fr', 'en']],
+    ['zh-CN', 'CN', 'DE', ['zh-CN', 'en']],
+    // A code a newer server knows and this app not: English, as the app shows it (ADR 0033).
+    ['ar', 'US', 'US', ['en']],
+  ] as const)(
+    'suggests by the language %s: %s, ratings of %s, %j',
+    async (language, country, rating, textLangs) => {
+      const { calls } = mockApi(
+        owner({
+          'GET /auth/session': () =>
+            json({ ...pending, profile: { ...pending.profile, language } }),
+          'PUT /admin/settings/metadata': (call: Call) =>
+            json({ ...metadata, ...(call.body as object) }),
+          'POST /admin/radio/offer/apply': () =>
+            json({ offer: { version: 4, countries: [] }, queuedLogos: 0, demarkedStationIds: [] }),
+        }),
+      );
+      renderApp('/setup/region');
+      await waitFor(() => expect(document.documentElement.lang).toBe(shippedLanguageFor(language)));
+      const [countrySelect, ratingSelect] = await screen.findAllByRole('combobox');
+      expect(countrySelect).toHaveValue(country);
+      expect(ratingSelect).toHaveValue(rating);
+      // The suggestion is what the step stores.
+      await userEvent
+        .setup()
+        .click(screen.getByRole('button', { name: i18n.t('setup.actions.next') }));
+      await waitFor(() =>
+        expect(
+          calls.find((call) => call.method === 'PUT' && call.path === '/admin/settings/metadata')
+            ?.body,
+        ).toMatchObject({ ratingCountry: rating, textLangs }),
+      );
+    },
+  );
 
   it('cannot leave the libraries without one', async () => {
     const { calls } = mockApi(owner());

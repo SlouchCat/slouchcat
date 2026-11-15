@@ -1,0 +1,5846 @@
+{
+  "app": {
+    "name": "Slouchcat",
+    "tagline": "為你的家庭準備的電影、影集、有聲書和 Podcast。"
+  },
+  "common": {
+    "back": "返回",
+    "retry": "重試",
+    "cancel": "取消",
+    "loading": "載入中…",
+    "close": "關閉",
+    "save": "儲存",
+    "saving": "儲存中…"
+  },
+  "nav": {
+    "main": "主導覽",
+    "home": "首頁",
+    "logout": "登出",
+    "skip": "跳至內容",
+    "profiles": "個人資料",
+    "playback": "設定",
+    "switchProfile": "切換個人資料，目前為 {{name}}",
+    "downloads": "下載",
+    "search": "搜尋",
+    "watchlist": "我的片單",
+    "notifications": "通知",
+    "admin": "管理",
+    "update": "更新",
+    "adminUpdateLabel": "管理，有可用的更新：版本 {{version}}",
+    "searchOpen": "開啟搜尋",
+    "menu": "選單",
+    "menuClose": "關閉選單",
+    "libraries": "我的媒體",
+    "libraryLabel_other": "{{name}}，{{count}} 部作品",
+    "radioCount_other": "{{count}} 個電台",
+    "radioLabel_other": "{{name}}，{{count}} 個電台",
+    "collections": "合集",
+    "collectionsLabel_other": "{{name}}，{{count}} 個合集",
+    "librariesOffline": "離線：無法使用媒體庫",
+    "librariesOfflineLink": "前往下載",
+    "hideSidebar": "隱藏側邊欄",
+    "showSidebar": "顯示側邊欄",
+    "radio": "廣播",
+    "watched": "已觀看",
+    "account": "帳戶",
+    "switchProfileShort": "切換",
+    "switchProfileCard": "切換個人資料，目前為 {{name}}",
+    "profileRole": {
+      "other": "其他個人資料",
+      "primary": "主個人資料",
+      "admin": "伺服器管理員"
+    }
+  },
+  "system": {
+    "server": {
+      "checking": "正在檢查與伺服器的連線…",
+      "online": "可連線至伺服器",
+      "offline": "無法連線至伺服器",
+      "version": "版本 {{version}}"
+    },
+    "gpu": {
+      "choice": {
+        "label": "用於轉碼的顯示晶片",
+        "hint": "重新啟動伺服器後生效。",
+        "auto": "自動（建議）",
+        "software": "僅使用處理器",
+        "unavailable": "{{name}}（{{reason}}）",
+        "reason": {
+          "not_in_build": "此 ffmpeg 不支援",
+          "no_device": "容器中缺少裝置",
+          "test_failed": "啟動時檢查失敗"
+        },
+        "saved": "已儲存：{{name}}",
+        "restartAdmin": "重新啟動伺服器後生效（總覽 › 重新啟動）。"
+      },
+      "fallback": {
+        "title": "所選的顯示晶片無法運作",
+        "body": "{{name}} 未通過啟動時的檢查。Slouchcat 暫時改用自動選擇進行轉碼。"
+      },
+      "encoder": "影片編碼",
+      "tonemap": "HDR 轉 SDR",
+      "ffmpeg": "ffmpeg",
+      "backend": {
+        "nvenc": "NVIDIA NVENC",
+        "qsv": "Intel Quick Sync (QSV)",
+        "vaapi": "VA-API",
+        "software": "處理器（軟體）"
+      },
+      "tonemapper": {
+        "cuda": "顯示晶片上的 CUDA",
+        "placebo": "顯示晶片上的 libplacebo",
+        "vpp_qsv": "顯示晶片上的 Intel VPP",
+        "vaapi": "顯示晶片上的 VA-API",
+        "cpu": "處理器"
+      },
+      "detected": "已偵測到顯示晶片：Slouchcat 會使用顯示晶片轉換影片。",
+      "none": {
+        "title": "未偵測到顯示晶片",
+        "body": "Slouchcat 目前使用處理器轉換影片。如果主機有顯示晶片，請使用對應的 Compose 檔案將它傳入容器，然後重新啟動 Slouchcat：",
+        "unknown": "容器內看不到任何顯示晶片。如果主機有顯示晶片，請使用其製造商的 Compose 檔案將它傳入容器，然後重新啟動 Slouchcat："
+      },
+      "vendor": {
+        "nvidia": "NVIDIA",
+        "intel": "Intel",
+        "amd": "AMD"
+      },
+      "command": "{{vendor}} 的 Compose 指令"
+    },
+    "fs": {
+      "config": "檔案系統 /config",
+      "cache": "檔案系統 /cache",
+      "unknown": "未知"
+    },
+    "inotify": {
+      "limit": "inotify 上限",
+      "usage": "監看的資料夾",
+      "usageValue": "{{used}} / {{limit}}（{{percent}}%）",
+      "unknown": "未知",
+      "warn": {
+        "title": "inotify 上限即將不足",
+        "body": "Slouchcat 會監看媒體庫中的每個資料夾。請在主機上提高上限，而不是在容器內。若要在重新啟動後保留設定，請一併將該值寫入 /etc/sysctl.d/。"
+      },
+      "command": "inotify 上限的指令"
+    },
+    "copy": {
+      "action": "複製",
+      "done": "已複製指令。",
+      "failed": "無法複製。指令已選取，請按 Ctrl+C 複製。"
+    }
+  },
+  "errors": {
+    "page": {
+      "title": "目前無法連線至 Slouchcat",
+      "body": "伺服器沒有回應。請確認容器正在執行，然後再試一次。",
+      "offline": "開啟離線媒體庫"
+    },
+    "code": {
+      "invalid_credentials": "電子郵件地址或密碼錯誤。",
+      "library_path_invalid": "伺服器上沒有這個資料夾，或無法讀取。請輸入容器內的絕對路徑。",
+      "path_not_browsable": "這個資料夾未開放。只能使用已開放的媒體資料夾（SLOUCHCAT_BROWSE_ROOTS）底下的資料夾。",
+      "path_unreachable": "資料夾沒有回應。請檢查網路共用資料夾是否仍已掛載。",
+      "browse_busy": "資料夾瀏覽器目前忙碌中，請稍後再試。",
+      "tmdb_key_invalid": "TMDB 拒絕了這個金鑰。請檢查讀取存取權杖。",
+      "tmdb_unreachable": "目前無法連線至 TMDB。請再試一次，或將欄位留空。",
+      "setup_done": "Slouchcat 已完成設定，請登入。",
+      "not_found": "找不到。",
+      "unauthenticated": "你的工作階段已過期，請重新登入。",
+      "forbidden": "這個帳戶沒有執行此操作的權限。",
+      "csrf_header_missing": "基於安全理由，要求已遭拒絕。請重新載入頁面。",
+      "validation_failed": "請檢查標示的欄位。",
+      "channel_unavailable": "伺服器上尚未設定這個管道。",
+      "channel_disabled": "這個管道已關閉或尚未連線。",
+      "event_not_allowed": "只有主要使用者會收到錯誤通知。",
+      "send_failed": "訊息未送出：服務拒絕了訊息或沒有回應。",
+      "push_unavailable": "伺服器上尚未設定 Web Push。",
+      "network": "無法連線至伺服器。",
+      "unknown": "發生錯誤，請再試一次。",
+      "transcode_busy": "伺服器忙碌中，請稍後再試。",
+      "pin_required": "這個個人資料受 PIN 碼保護。",
+      "pin_invalid": "PIN 碼錯誤。",
+      "pin_locked": "PIN 碼錯誤次數過多，請稍後再試。",
+      "profile_required": "請先選擇個人資料。",
+      "primary_profile_required": "只有這個帳戶的主個人資料可以執行此操作。",
+      "primary_profile": "無法刪除主個人資料。",
+      "invitation_gone": "這個邀請連結已失效。",
+      "too_many_attempts": "嘗試次數過多，請稍候再試。",
+      "too_many_requests": "這份清單在不到一分鐘前才擷取過，請稍候再試。",
+      "provider_not_configured": "尚未設定這個提供者。請在伺服器設定中加入它的金鑰。",
+      "watch_limit_reached": "這個個人資料今天的觀看時長已用完。",
+      "stream_limit_reached": "這個個人資料正在播放的串流已達上限。",
+      "device_required": "這個工作階段無法辨識此裝置，請重新登入。",
+      "not_downloadable": "這部作品無法下載。",
+      "download_not_ready": "伺服器仍在準備下載內容。",
+      "download_evicted": "準備好的檔案已不在伺服器上，正在重新準備。",
+      "feed_unreachable": "無法連線至訂閱源。請檢查網址後再試一次。",
+      "feed_invalid": "這個網址沒有 RSS Podcast 訂閱源。",
+      "feed_exists": "這個媒體庫已訂閱此訂閱源。",
+      "rating_below_library_default": "年齡分級不得低於媒體庫的預設值。",
+      "not_listable": "季和花絮無法加入我的片單。",
+      "not_editable": "來自 TMDB 的合集無法變更。",
+      "env_wins": "這個值是在 deploy/.env 中設定的，只能在那裡變更。",
+      "telegram_token_invalid": "Telegram 拒絕了這個權杖。請檢查 @BotFather 提供的權杖。",
+      "telegram_unreachable": "目前無法連線至 Telegram，請再試一次。",
+      "email_not_configured": "尚未設定電子郵件伺服器。",
+      "email_send_failed": "郵件伺服器沒有接受這封郵件。",
+      "job_not_failed": "這項工作並未失敗。",
+      "update_check_disabled": "更新檢查已關閉。",
+      "rank_taken": "清單中已有其他項目佔用這個位置。",
+      "radio_capacity": "伺服器轉送的電台數量已達上限。請收聽已在播放的電台，或稍後再試。",
+      "radio_unreachable": "目前無法連線至這個電台。",
+      "radio_not_audio": "這個電台沒有提供 Slouchcat 可播放的聲音。",
+      "radio_catalog_loading": "電台目錄正在載入，馬上就好。",
+      "email_taken": "這個電子郵件地址已屬於其他帳戶。",
+      "passphrase_required": "請輸入密碼短語。",
+      "passphrase_too_short": "密碼短語太短：至少需要 12 個字元。",
+      "passphrase_wrong": "密碼短語錯誤。",
+      "backup_invalid": "這個檔案不是有效的 Slouchcat 備份，或已損毀。",
+      "backup_newer_than_server": "這份備份來自較新版本的 Slouchcat。請先更新伺服器。",
+      "restart_pending": "伺服器即將重新啟動。請等候它再次回應。",
+      "backup_busy": "正在進行備份或還原。完成後再試一次。",
+      "update_running": "正在安裝更新，請等候完成。",
+      "announcement_published": "公告已發布，無法再變更。",
+      "scan_running": "這個媒體庫正在掃描。請等候掃描完成，或取消掃描。",
+      "confirm_mismatch": "你輸入的內容與要移除的項目不符。未刪除任何內容。",
+      "owner_required": "只有擁有者可以執行此操作。",
+      "owner_protected": "擁有者的帳戶無法移除，也無法降級。",
+      "last_admin": "這是最後一位管理員。請先指派另一位管理員。",
+      "admin_limits_fixed": "管理員一律可以看到所有媒體庫和所有作品，不受年齡限制。請先移除管理員角色。",
+      "job_type_not_runnable": "這項工作無法手動執行，它由事件觸發。",
+      "job_type_paused": "這項工作已暫停，請先繼續執行。",
+      "job_type_not_scheduled": "這項工作沒有排程。",
+      "job_type_not_windowable": "這項工作沒有時段設定。",
+      "provider_unreachable": "目前無法連線至這個來源，請稍後再試。",
+      "provider_paused": "來源多次拒絕要求，目前暫停中。請稍後再試。",
+      "offer_conflict": "電台清單在此期間已變更，請再套用一次。",
+      "root_not_writable": "Podcast 資料夾未通過資料夾檢查，Slouchcat 無法在其中儲存單集。",
+      "root_required": "這個媒體庫沒有可供 Slouchcat 儲存單集的 Podcast 資料夾。",
+      "playing": "目前有人正在播放其中一部作品。播放結束後才能刪除。",
+      "playing_named": "{{names}} 目前正在播放其中一部作品。播放結束後才能刪除，未刪除任何內容。",
+      "files_not_deletable": "這部作品有檔案無法刪除。未刪除任何內容。",
+      "not_deletable": "這部作品無法刪除。",
+      "deleting": "正在刪除中。",
+      "changed": "內容在此期間已變更，請重新檢查。"
+    },
+    "field": {
+      "required": "必填。",
+      "too_short": "太短。",
+      "too_long": "太長。",
+      "invalid_email": "電子郵件地址無效。",
+      "invalid": "值無效。",
+      "not_absolute": "請輸入以 / 開頭的絕對路徑。",
+      "password_too_short": "至少 10 個字元。",
+      "password_mismatch": "密碼不一致。",
+      "above_account_limit": "高於這個帳戶的上限。",
+      "unknown_library": "這個媒體庫不存在。",
+      "too_many_profiles": "每個帳戶最多只能有 10 個個人資料。",
+      "already_exists": "這個電子郵件地址已被使用。",
+      "pin_format": "PIN 碼為 4 到 8 位數字。",
+      "not_burnable": "這個字幕軌無法燒錄進影片。",
+      "invalid_url": "請輸入以 http:// 或 https:// 開頭的網址。",
+      "library_kind": "請選擇 Podcast 媒體庫。",
+      "unknown_item": "這部作品不存在。",
+      "root_overlap": "這個資料夾與其他資料夾重疊。",
+      "path_with_content": "變更路徑時無法同時變更內容類型。",
+      "root_files_missing": "新路徑下找不到原有的任何檔案。",
+      "content_not_allowed": "這個內容不符合媒體庫的類型。",
+      "providers_not_allowed": "這份中繼資料來源清單不適用於此內容。",
+      "roots_required": "至少需要一個資料夾。",
+      "provider_not_searchable": "無法在這裡搜尋此來源。",
+      "local_address": "這個網址位於區域網路中。自訂電台也必須來自網際網路。",
+      "not_own": "只有自訂電台可以變更此項。",
+      "not_matched": "這本有聲書尚未與任何來源比對。",
+      "not_found": "來源中沒有這個項目。"
+    }
+  },
+  "setup": {
+    "documentTitle": "初始設定：{{step}}",
+    "position": "第 {{position}} 步，共 {{count}} 步",
+    "nav": {
+      "label": "初始設定",
+      "group": "步驟",
+      "menu": "初始設定，步驟",
+      "close": "關閉步驟",
+      "state": {
+        "open": "{{position}}. {{name}}",
+        "done": "{{position}}. {{name}}，已完成",
+        "skipped": "{{position}}. {{name}}，已跳過"
+      }
+    },
+    "actions": {
+      "back": "返回",
+      "skip": "跳過",
+      "next": "下一步",
+      "finish": "完成設定",
+      "finishing": "完成中…",
+      "later": "稍後繼續"
+    },
+    "steps": {
+      "language": {
+        "nav": "語言",
+        "title": "選擇語言",
+        "intro": "Slouchcat 要使用哪種語言？選擇會立即生效，之後也可隨時變更。"
+      },
+      "account": {
+        "nav": "帳戶",
+        "title": "建立帳戶",
+        "intro": "你會用這個帳戶管理 Slouchcat，你的第一個個人資料也會一併建立。"
+      },
+      "region": {
+        "nav": "地區",
+        "title": "地區和中繼資料",
+        "intro": "國家、年齡分級，以及 Slouchcat 載入標題和簡介時使用的語言。"
+      },
+      "services": {
+        "nav": "服務",
+        "title": "連結服務",
+        "intro": "用於中繼資料的金鑰和傳送通知的方式。建議設定 TMDB 和電子郵件，其他項目可稍後在「管理 › 整合」中新增。"
+      },
+      "playback": {
+        "nav": "播放",
+        "title": "播放",
+        "intro": "Slouchcat 在容器中找到的項目，以及用來轉碼影片的方式。"
+      },
+      "libraries": {
+        "nav": "媒體庫",
+        "title": "媒體庫",
+        "intro": "至少需要一個媒體庫。新增後 Slouchcat 會立即讀取。"
+      },
+      "household": {
+        "nav": "家庭",
+        "title": "家庭",
+        "intro": "為家庭成員新增更多個人資料，每個都有自己的年齡分級和顏色，並可視需要設定 PIN 碼。"
+      },
+      "access": {
+        "nav": "存取",
+        "title": "存取",
+        "intro": "可透過哪個位址存取 Slouchcat，以及是否檢查新版本。"
+      },
+      "summary": {
+        "nav": "摘要",
+        "title": "摘要",
+        "intro": "請檢查你的選擇。跳過的步驟會套用建議值。"
+      }
+    },
+    "language": {
+      "search": "搜尋語言",
+      "choice": "語言",
+      "option": "{{name}} · {{english}} · {{code}}",
+      "none": "沒有符合搜尋的語言。",
+      "preview": "預覽",
+      "previewDate": "日期",
+      "previewNumber": "數字"
+    },
+    "account": {
+      "email": "電子郵件地址",
+      "password": "密碼",
+      "passwordHint": "至少 10 個字元。",
+      "passwordRepeat": "再次輸入密碼",
+      "profileName": "個人資料名稱",
+      "profileHint": "你的個人資料在選擇個人資料畫面中會以此名稱顯示。",
+      "taken": {
+        "title": "Slouchcat 已完成設定",
+        "body": "剛剛有人建立了帳戶。請使用該帳戶登入。",
+        "action": "前往登入"
+      }
+    },
+    "region": {
+      "country": "國家",
+      "ratingCountry": "分級國家",
+      "ratingSteps": "個人資料的級別：{{steps}}",
+      "languages": "中繼資料語言",
+      "languagesIntro": "Slouchcat 會依此順序載入文字和圖片。沒有必選的語言。",
+      "timeZone": "伺服器時區",
+      "serverZone": "時區",
+      "zoneDiffers": {
+        "title": "你的瀏覽器使用不同的時區",
+        "body": "瀏覽器回報的時區為 {{browser}}。伺服器時區需在 deploy/.env 中設定，並在重新啟動容器後生效。",
+        "command": "deploy/.env 的設定行"
+      },
+      "radio": "網路電台",
+      "radioToggle": "將 {{country}} 加入電台清單",
+      "radioHint": "該國家加入清單時不含任何電台。電台可稍後在「管理 › 廣播」中勾選。"
+    },
+    "services": {
+      "recommended": "建議",
+      "optional": "選用",
+      "recommendedTitle": "建議",
+      "optionalTitle": "選用",
+      "email": {
+        "purpose": "用於邀請和「忘記密碼」。"
+      },
+      "push": {
+        "name": "Web Push",
+        "purpose": "即使沒有開啟 Slouchcat，也能在這部裝置上收到通知。",
+        "insecure": "推播需要安全連線（HTTPS 或 localhost）。請稍後透過公開的 HTTPS 位址設定推播。"
+      },
+      "telegram": {
+        "purpose": "透過 Telegram 機器人傳送通知。之後可在「設定 › 通知」中連結你的帳戶。"
+      },
+      "rejected": {
+        "title": "要移除無效的金鑰並繼續嗎？",
+        "body": "服務拒絕了這個金鑰：{{names}}。Slouchcat 會將其移除，避免儲存錯誤的金鑰。",
+        "confirm": "移除並繼續"
+      }
+    },
+    "playback": {
+      "restart": "重新啟動後生效。完成設定時 Slouchcat 會重新啟動一次。",
+      "trickplay": "新影片媒體庫的拖曳預覽",
+      "trickplayHint": "會在下一步中預先套用到每個新影片媒體庫的設定。預覽圖片會佔用儲存空間和運算時間。"
+    },
+    "libraries": {
+      "add": "新增媒體庫",
+      "addMore": "再新增一個媒體庫",
+      "none": "還沒有媒體庫。請至少新增一個，Slouchcat 才有內容可以顯示。",
+      "folder": "資料夾 {{position}}"
+    },
+    "household": {
+      "accounts": "擁有自己帳戶的訪客，可稍後在「管理 › 帳戶」中邀請。"
+    },
+    "access": {
+      "here": "你目前透過 {{url}} 存取。",
+      "useHere": "使用這個位址",
+      "noUsageData": "Slouchcat 不會傳送使用資料。"
+    },
+    "summary": {
+      "done": "已設定",
+      "recommended": "建議值",
+      "change": "變更 {{step}}",
+      "region": "{{country}} 的分級，語言：{{languages}}",
+      "services_other": "已設定 {{count}} 項服務",
+      "playback": "{{hw}}，拖曳預覽：{{trickplay}}",
+      "on": "開啟",
+      "off": "關閉",
+      "noAddress": "沒有公開位址",
+      "profiles_other": "{{count}} 個個人資料"
+    },
+    "finish": {
+      "title": "Slouchcat 設定完成",
+      "restartTitle": "Slouchcat 正在重新啟動…",
+      "restartBody": "顯示晶片的選擇會在重新啟動後生效。首次掃描之後會繼續進行。",
+      "busy": "因為目前正在進行備份或更新，Slouchcat 無法重新啟動。顯示晶片的選擇會在下次重新啟動後生效（管理 › 總覽）。",
+      "scanProgress": "{{state}}：{{seen}} / {{total}} 個檔案",
+      "home": "前往首頁"
+    },
+    "library": {
+      "name": "名稱",
+      "kind": "內容",
+      "path": "資料夾",
+      "pathPlaceholder": "/media/Movies",
+      "warning": {
+        "network_share": {
+          "title": "偵測到網路共用資料夾",
+          "body": "Slouchcat 無法立即察覺這個資料夾中的變更，而是透過定期同步來更新。若要讓新作品即時出現，建議使用 Radarr 和 Sonarr 的 Webhook。"
+        },
+        "fuse_unknown": {
+          "title": "未知的檔案系統",
+          "body": "FUSE 檔案系統（例如 mergerfs 或 Unraid）不會回報每一項變更。Slouchcat 會監看這個資料夾，並另外定期同步。"
+        }
+      }
+    }
+  },
+  "login": {
+    "title": "登入",
+    "intro": "使用你的 Slouchcat 帳戶登入。",
+    "email": "電子郵件地址",
+    "password": "密碼",
+    "submit": "登入",
+    "submitting": "登入中…",
+    "language": "語言：{{name}}"
+  },
+  "library": {
+    "groups": {
+      "title": "系列和合集",
+      "series_other": "{{count}} 個系列",
+      "collections_other": "{{count}} 個合集",
+      "volumes_other": "{{count}} 冊",
+      "matchingVolumes_other": "{{matching}} / {{count}} 冊",
+      "books_other": "{{count}} 本有聲書",
+      "matchingBooks_other": "{{matching}} / {{count}} 本有聲書",
+      "collection": "合集",
+      "heard": "已收聽 {{completed}} / {{count}}"
+    },
+    "editMetadata": "{{title}}：編輯中繼資料",
+    "kind": {
+      "video": "影片",
+      "audiobooks": "有聲書",
+      "podcasts": "Podcast"
+    },
+    "defaultRating": "預設年齡分級",
+    "defaultRatingHint": "適用於這個媒體庫中的所有作品。之後只能將個別作品設為更嚴格的分級。",
+    "podcastsHint": "資料夾為選用：你也可以在「Podcast」中訂閱不需資料夾的訂閱源。",
+    "browse": {
+      "title": "選擇資料夾",
+      "open": "瀏覽…",
+      "apply": "OK",
+      "list": "此目錄中的資料夾",
+      "upOneLevel": "上一層",
+      "roots": "已開放的資料夾",
+      "empty": "這個資料夾沒有子資料夾。",
+      "emptyRoots": "沒有任何已開放的資料夾。請將 {{name}} 設為容器的媒體資料夾，然後重新啟動伺服器。",
+      "truncated": "這個資料夾的項目非常多，只顯示前 50,000 個。輸入路徑即可前往其餘項目。",
+      "symlink": "符號連結，不會掃描",
+      "closedRoot": "未開放，僅供顯示",
+      "notReadable": "無法讀取這個資料夾。請檢查容器內的權限。",
+      "notDirectory": "這不是資料夾。",
+      "inLibrary": "屬於媒體庫 {{name}}",
+      "folder": "資料夾",
+      "goTo": "前往",
+      "notUnderRoot": "這個路徑不在任何可瀏覽的資料夾底下，因此清單不會移動。「OK」仍會採用這個路徑，送出表單時由伺服器判斷是否可用。可瀏覽的資料夾由 {{name}} 設定。"
+    },
+    "provider": {
+      "tmdb": "TMDB",
+      "tvdb": "TVDB",
+      "anilist": "AniList",
+      "local": "本機檔案",
+      "audible": "Audible",
+      "dnb": "德國國家圖書館",
+      "applebooks": "Apple Books",
+      "openlibrary": "Open Library",
+      "googlebooks": "Google Books"
+    },
+    "content": {
+      "title": "內容",
+      "hint": "電影為單一檔案，影集依季分資料夾。",
+      "movie": "電影",
+      "series": "影集",
+      "audiobook": "有聲書",
+      "podcast": "Podcast",
+      "all": "全部"
+    },
+    "providers": {
+      "title": "中繼資料來源",
+      "chain": " › ",
+      "identifies": "辨識作品",
+      "fills": "補充資料",
+      "cannotIdentifyChip": "無法辨識",
+      "moveUpLabel": "將 {{provider}} 上移",
+      "moveDownLabel": "將 {{provider}} 下移",
+      "noKey": "未設定金鑰",
+      "missingLanguages": "不提供 {{languages}} 文字",
+      "fillOnly": "僅補充資料",
+      "hint": "第一個項目負責辨識作品，其他項目只補充資料。使用箭頭按鈕或方向鍵調整順序。",
+      "hintRank": "第一個項目負責辨識作品，其他項目只補充資料。透過位置選擇順序。",
+      "required": "請至少勾選一個來源。",
+      "cannotIdentify": "{{provider}} 無法辨識作品。請將 {{identifiers}} 放在第一位。",
+      "fixedHint": "這類內容目前只有這個來源。",
+      "defaultHint": "這是預設值，完成初始設定後可在「媒體庫」中變更清單。"
+    },
+    "roots": {
+      "title": "資料夾",
+      "number": "資料夾 {{number}}",
+      "addFirst": "新增資料夾",
+      "addMore": "再新增資料夾",
+      "remove": "移除",
+      "removeLabel": "移除資料夾 {{number}}",
+      "empty": "尚無資料夾。",
+      "emptyPodcasts": "尚無資料夾。Podcast 媒體庫可以沒有資料夾，作品會來自訂閱的訂閱源。",
+      "overlap": "資料夾 {{number}} 與上方的資料夾重疊。",
+      "providers": "資料夾 {{number}}：{{message}}",
+      "submit_other": "新增含 {{count}} 個資料夾的媒體庫",
+      "submitNone": "新增不含資料夾的媒體庫",
+      "addSubmit_other": "新增 {{count}} 個資料夾"
+    },
+    "videoHint": "這個媒體庫的資料夾可以包含電影或影集，也可以混合存放。",
+    "page": {
+      "count_other": "{{count}} {{noun}}",
+      "filtered": "{{text}} · 已篩選",
+      "sort": "排序",
+      "direction": "順序：",
+      "ascending": "↑ 遞增",
+      "descending": "↓ 遞減",
+      "filter": "篩選",
+      "filterCount": "篩選（{{count}}）",
+      "apply": "套用",
+      "clear": "重設",
+      "emptyFilters": "沒有符合這些篩選條件的內容",
+      "pageFailed": "清單有部分內容無法載入。",
+      "noun": {
+        "video_other": "部作品",
+        "audiobooks_other": "本有聲書",
+        "podcasts_other": "個 Podcast"
+      }
+    },
+    "sort": {
+      "title": "標題",
+      "added": "最近新增",
+      "released": "發行年份",
+      "vote": "評分",
+      "runtime": "片長",
+      "age": "年齡分級",
+      "played": "最近觀看",
+      "author": "作者"
+    },
+    "status": {
+      "unwatched": "未觀看",
+      "started": "看到一半",
+      "watched": "已觀看",
+      "unheard": "未收聽",
+      "heard": "已收聽"
+    },
+    "letters": {
+      "label": "首字母",
+      "other": "數字或符號"
+    },
+    "filters": {
+      "genre": "類型",
+      "allGenres": "所有類型",
+      "status": "狀態",
+      "year": "年份",
+      "yearFrom": "起始年份",
+      "yearTo": "結束年份",
+      "rating": "年齡分級",
+      "anyRating": "個人資料上限"
+    },
+    "notFound": {
+      "title": "找不到媒體庫",
+      "body": "這個媒體庫不存在，或對此個人資料沒有任何作品。"
+    }
+  },
+  "home": {
+    "list": {
+      "count_other": "{{count}} 部作品",
+      "empty": "這個選集中沒有作品。",
+      "notFound": {
+        "title": "找不到清單",
+        "body": "這份清單目前不存在，可能是因為焦點推薦已關閉。"
+      }
+    },
+    "title": "首頁",
+    "picks": "使用者推薦",
+    "myMedia": {
+      "stations_other": "{{count}} 個電台",
+      "discover": "探索電台",
+      "collections_other": "{{count}} 個合集",
+      "titles_other": "{{count}} 部作品"
+    },
+    "rows": {
+      "continue": "繼續觀看",
+      "recent": "最近新增",
+      "watchlist": "我的片單",
+      "collections": "合集",
+      "genres": "類型",
+      "spotlight": "焦點推薦",
+      "released": "近期發行",
+      "libraries": "我的媒體",
+      "library": "{{library}} 最新內容",
+      "radio": "我的電台"
+    },
+    "remaining": "剩餘 {{time}}",
+    "continue": {
+      "episode": "S{{season}} · E{{episode}}",
+      "episodeRange": "S{{season}} · E{{episode}}–E{{end}}",
+      "new": "新內容"
+    },
+    "empty": {
+      "title": "這裡還沒有內容",
+      "body": "媒體庫掃描完成後，你的電影就會顯示在這裡。",
+      "action": "查看媒體庫"
+    },
+    "spotlight": {
+      "row": "焦點推薦作品",
+      "pause": "暫停",
+      "resume": "繼續"
+    }
+  },
+  "ui": {
+    "carousel": {
+      "roledescription": "輪播",
+      "slide": "投影片",
+      "position": "第 {{index}} 個，共 {{count}} 個"
+    },
+    "row": {
+      "previous": "向前捲動",
+      "next": "向後捲動"
+    },
+    "adminPage": {
+      "help": "此頁面的說明",
+      "live_other": "即時，每 {{count}} 秒更新"
+    },
+    "actionMenu": {
+      "label": "{{name}} 的更多動作",
+      "danger": "危險"
+    },
+    "rank": {
+      "label": "{{name}} 的位置",
+      "option": "第 {{position}} 位",
+      "hintMove": "其他項目會依序移動。",
+      "hintSwap": "所選位置上的項目會與此項目互換。"
+    },
+    "rankedChoice": {
+      "hint": "如果選取的項目已在其他位置，兩者會互換位置。",
+      "swapped": "{{a}} 和 {{b}} 已互換位置。",
+      "remove": "移除 {{rank}}（{{choice}}）"
+    },
+    "saveBar": {
+      "dirty": "有未儲存的變更",
+      "clean": "已儲存",
+      "save": "儲存",
+      "saving": "儲存中…",
+      "discard": "捨棄"
+    },
+    "unsaved": {
+      "title": "要在變更未儲存的情況下離開頁面嗎？",
+      "body": "這個頁面上有尚未儲存的變更。離開頁面後，這些變更將會遺失。",
+      "leave": "捨棄並離開",
+      "stay": "留在此頁"
+    },
+    "weekdays": {
+      "short": {
+        "mon": "週一",
+        "tue": "週二",
+        "wed": "週三",
+        "thu": "週四",
+        "fri": "週五",
+        "sat": "週六",
+        "sun": "週日"
+      },
+      "long": {
+        "mon": "星期一",
+        "tue": "星期二",
+        "wed": "星期三",
+        "thu": "星期四",
+        "fri": "星期五",
+        "sat": "星期六",
+        "sun": "星期日"
+      }
+    },
+    "heatGrid": {
+      "day": "星期",
+      "hour": "{{hour}}:00",
+      "less": "較少",
+      "more": "較多",
+      "none": "無",
+      "noneShown": "–"
+    }
+  },
+  "item": {
+    "editMetadata": "編輯中繼資料",
+    "play": "播放",
+    "details": "詳細資料",
+    "watched": "已觀看 {{percent}}%",
+    "originalTitle": "原始標題：{{title}}",
+    "notFound": {
+      "title": "找不到作品",
+      "body": "這部作品不存在或已不存在。",
+      "action": "前往首頁"
+    },
+    "file": {
+      "title": "檔案",
+      "container": "容器格式",
+      "resolution": "解析度",
+      "video": "影像",
+      "audio": "音訊",
+      "size": "大小",
+      "version": "版本",
+      "unavailable": "無法使用",
+      "none": "這部作品目前沒有可用的檔案。"
+    },
+    "manage": "管理",
+    "trailer": "預告片",
+    "seriesLink": "前往影集",
+    "parentLink": "前往主作品",
+    "nextEpisode": "下一集",
+    "nextEpisodeLabel": "{{code}} · {{title}}",
+    "episodeCode": "S{{season}}E{{episode}}",
+    "episodeCodeRange": "S{{season}}E{{episode}}–E{{end}}",
+    "episodeNumberRange": "{{episode}}–{{end}}",
+    "episodeOf": "{{code}} · {{series}}",
+    "docTitle": {
+      "season": "{{title}} – {{series}}",
+      "episode": "{{code}} {{title}} – {{series}}",
+      "podcastEpisode": "{{title}} – {{podcast}}"
+    },
+    "versions": "版本",
+    "extras": "花絮",
+    "cast": {
+      "title": "演員",
+      "role": {
+        "director": "導演",
+        "writer": "編劇",
+        "creator": "原創"
+      }
+    },
+    "seasons": "季",
+    "seasonWall": {
+      "showAll": "顯示全部 {{total}} 季",
+      "showLess": "顯示較少"
+    },
+    "episodes": {
+      "title": "單集",
+      "empty": "沒有單集。",
+      "play": "播放",
+      "details": "詳細資料：{{title}}",
+      "playTitle": "播放：{{title}}",
+      "resumeTitle": "繼續觀看：{{title}}"
+    },
+    "resumeChoice": {
+      "bodyEpisode": "你已開始觀看這一集。",
+      "bodyPodcastEpisode": "你已開始收聽這一集。",
+      "bodyMovie": "你已開始觀看這部電影。",
+      "resume": "從 {{time}} 繼續觀看",
+      "resumeListening": "從 {{time}} 繼續收聽",
+      "restart": "從頭播放"
+    },
+    "listened": "已收聽 {{percent}}%",
+    "audio": {
+      "by": "作者：{{author}}",
+      "narratedBy": "朗讀者：{{narrator}}",
+      "volume": "{{series}} · 第 {{volume, number}} 冊",
+      "chapters": "章節",
+      "chapterPlay": "從 {{time}} 播放「{{title}}」"
+    },
+    "podcast": {
+      "episodes": "單集",
+      "empty": "沒有單集。",
+      "link": "前往 Podcast",
+      "play": "播放「{{title}}」"
+    },
+    "watchlist": {
+      "add": "加入我的片單",
+      "added": "已在我的片單"
+    },
+    "recommend": {
+      "add": "推薦",
+      "done": "已推薦 ✓",
+      "hint": "推薦給所有可觀看這部作品的個人資料，不會顯示你的名字",
+      "added_other": "已加入使用者推薦，將保留 {{count}} 天。",
+      "removed": "已撤回推薦。"
+    },
+    "logoAlt": "{{title}}",
+    "action": {
+      "resume": "繼續",
+      "resumeListening": "繼續收聽",
+      "again": "重新觀看",
+      "againListening": "重新收聽",
+      "resumeAt": "{{time}} · 剩餘 {{left}}",
+      "watchedOn": "{{date}} 已觀看",
+      "listenedOn": "{{date}} 已收聽",
+      "restart": "從頭播放"
+    },
+    "nextUp": {
+      "start": "播放",
+      "resume": "繼續觀看",
+      "next": "下一集",
+      "rewatch": "重新觀看",
+      "episode": "{{code}} · {{title}}",
+      "left": "{{episode}} · 剩餘 {{left}}",
+      "rewatchFrom": "全部已觀看 · 從 {{episode}} 開始",
+      "markNext": "即將播放",
+      "markResume": "繼續觀看"
+    },
+    "season": {
+      "episodes_other": "{{count}} 集",
+      "watched": "已觀看 {{count}} 集",
+      "progress": "已觀看 {{count}} / {{total}} 集"
+    },
+    "collection": {
+      "showAll": "顯示全部",
+      "showAllLabel": "顯示全部：{{name}}"
+    }
+  },
+  "rating": {
+    "age": "{{age}} 歲以上",
+    "upTo": "{{rating}} 及以下",
+    "system": "{{country}}（{{name}}）"
+  },
+  "format": {
+    "hours": "{{hours}} 小時",
+    "minutes": "{{minutes}} 分鐘",
+    "hoursMinutes": "{{hours}} 小時 {{minutes}} 分鐘",
+    "resolution": "{{width}} × {{height}}",
+    "resolutionWithClass": "{{resolution}} · {{class}}",
+    "uhd": "4K",
+    "fhd": "1080p",
+    "hd": "720p",
+    "sd": "SD",
+    "height": "{{height}}p",
+    "separator": " · ",
+    "seconds": "{{seconds}} 秒",
+    "or": " 或 ",
+    "listSeparator": "、",
+    "bookLength": "{{hours}} 小時 {{minutes}} 分鐘"
+  },
+  "player": {
+    "region": "影片播放器",
+    "loading": "載入中…",
+    "busy": {
+      "title": "伺服器忙碌中",
+      "body": "即將重試…"
+    },
+    "play": "播放",
+    "pause": "暫停",
+    "fullscreen": "全螢幕",
+    "exitFullscreen": "結束全螢幕",
+    "back": "返回",
+    "seek": "播放位置",
+    "time": "{{elapsed}} / {{total}}",
+    "volume": "音量 {{percent}}%",
+    "unsupported": {
+      "title": "無法播放此格式",
+      "body": "這個瀏覽器無法播放此格式。",
+      "details": "檔案：{{container}}，影像 {{video}}，音訊 {{audio}}"
+    },
+    "error": {
+      "title": "無法播放",
+      "body": "無法載入檔案。"
+    },
+    "switching": "切換中…",
+    "streamInfo": {
+      "title": "串流資訊",
+      "mode": "模式",
+      "modeDirect": "直接",
+      "modeHls": "HLS",
+      "transcoding": "轉換",
+      "remux": "Remux",
+      "transcode": "轉碼",
+      "reason": "原因",
+      "reasons": {
+        "container": "容器格式",
+        "video_codec": "影像編解碼器",
+        "audio_codec": "音訊編解碼器",
+        "hdr": "HDR 影片",
+        "pixel_format": "像素格式（10 位元、4:2:2 或 4:4:4）",
+        "keyframes_pending": "尚未建立關鍵影格索引",
+        "keyframes_unavailable": "無法建立關鍵影格索引",
+        "dolby_vision": "Dolby Vision（設定檔 5 或 7）",
+        "bandwidth": "頻寬限制",
+        "max_height": "畫質限制",
+        "quality": "所選畫質",
+        "audio_track": "所選音軌",
+        "subtitle_burn": "燒錄字幕",
+        "budget_lowered": "伺服器忙碌，已降低畫質"
+      },
+      "mediaFile": "檔案 ID",
+      "version": "版本",
+      "container": "容器格式",
+      "video": "影像",
+      "audio": "音訊",
+      "resolution": "解析度",
+      "none": "–",
+      "encoder": "編碼器",
+      "hardware": "硬體（{{backend}}）",
+      "software": "軟體",
+      "tonemap": "色調映射",
+      "yes": "是",
+      "no": "否",
+      "quality": "畫質",
+      "original": "原始",
+      "output": "輸出",
+      "bitrate": "位元率",
+      "audioTrack": "音軌",
+      "subtitle": "字幕",
+      "delivery": "字幕形式",
+      "deliveryText": "文字（WebVTT）",
+      "deliveryBurn": "燒錄"
+    },
+    "tracks": {
+      "audio": "音訊",
+      "subtitles": "字幕",
+      "off": "關閉",
+      "unknown": "音軌 {{n}}",
+      "forced": "強制",
+      "external": "外部",
+      "rememberSeries": "記住此影集的設定",
+      "makeDefault": "設為此個人資料的預設值",
+      "isDefault": "{{language}} 是此個人資料的預設值。",
+      "madeDefault": "{{language}} 已設為此個人資料的預設值。",
+      "forcedBitmap": "有強制字幕可用（將燒錄進影片）"
+    },
+    "quality": {
+      "auto": "自動",
+      "autoWith": "自動（{{quality}}）",
+      "autoOriginal": "自動 · 目前為原始畫質",
+      "original": "原始畫質",
+      "detail": "{{bitrate}} · 每小時約 {{size}}",
+      "unavailableBurn": "字幕將燒錄進影片",
+      "unavailableIndex": "尚未建立索引",
+      "unavailableNoIndex": "無法建立索引",
+      "unavailableTranscode": "只能轉換後播放",
+      "remembered": "已記住：{{quality}}",
+      "rememberedNote": "高於 {{quality}} 的作品將會轉碼。",
+      "reset": "重設"
+    },
+    "chapters": {
+      "button": "章節",
+      "untitled": "第 {{n}} 章",
+      "item": "{{title}} · {{time}}",
+      "auto": "自動",
+      "progress": "已觀看 {{percent}}%"
+    },
+    "skipIntro": "跳過片頭",
+    "skipOutro": "跳過片尾",
+    "next": {
+      "title": "下一集",
+      "countdown_other": "{{count}} 秒後開始",
+      "play": "立即觀看",
+      "cancel": "取消",
+      "announce_other": "下一集：{{name}}。{{count}} 秒後開始。"
+    },
+    "watchLimit": {
+      "title": "今天的觀看時長已用完",
+      "body_other": "這個個人資料每天可觀看 {{count}} 分鐘。明天見。",
+      "bodyUnknown": "這個個人資料已達每日上限。明天見。",
+      "used_other": "今天已觀看：{{count}} 分鐘。"
+    },
+    "streamLimit": {
+      "title": "同時播放的串流過多",
+      "body_other": "這個個人資料最多可同時播放 {{count}} 個串流。請停止其他播放後再試一次。",
+      "bodyUnknown": "這個個人資料正在播放的串流已達上限。請停止其他播放後再試一次。",
+      "active_other": "目前有 {{count}} 個串流正在播放。"
+    },
+    "ended": {
+      "title": "播放已結束",
+      "body": "播放已結束。"
+    },
+    "audioRegion": "音訊播放器",
+    "audio": {
+      "back15": "倒轉 15 秒",
+      "forward30": "快轉 30 秒",
+      "previousChapter": "上一章",
+      "nextChapter": "下一章",
+      "chapterLine": "{{title}} · {{position}} / {{length}}",
+      "rate": "{{rate}}×",
+      "rateOsd": "速度 {{rate}}",
+      "speedButton": "速度：{{rate}}",
+      "slower": "減速",
+      "faster": "加速",
+      "minus": "−0.1",
+      "plus": "+0.1",
+      "sleep": {
+        "button": "睡眠定時器",
+        "buttonActive": "睡眠定時器：剩餘 {{left}}",
+        "short": "睡眠定時",
+        "off": "關閉",
+        "minutes_other": "{{count}} 分鐘",
+        "chapter": "本章結束時",
+        "end": "作品結束時",
+        "set": "睡眠定時器：{{label}}",
+        "cancelled": "睡眠定時器已關閉",
+        "done": "睡眠定時器已結束"
+      }
+    },
+    "volumeControl": {
+      "mute": "靜音",
+      "slider": "音量",
+      "boosted": "音量 {{percent}}%，已增強，可能失真",
+      "percent": "{{percent}}%"
+    },
+    "option": {
+      "default": "預設",
+      "forced": "強制",
+      "sdh": "SDH",
+      "burnIn": "圖像字幕，將燒錄進影片",
+      "convert": "將重建串流"
+    },
+    "subtitleStyle": {
+      "title": "字幕樣式",
+      "size": {
+        "title": "大小",
+        "s": "小",
+        "m": "中",
+        "l": "大",
+        "xl": "特大"
+      },
+      "background": {
+        "title": "背景",
+        "none": "無",
+        "shadow": "陰影",
+        "translucent": "半透明",
+        "box": "方框"
+      },
+      "color": {
+        "title": "顏色",
+        "white": "白色",
+        "yellow": "黃色"
+      },
+      "position": {
+        "title": "位置",
+        "bottom": "底部",
+        "raised": "稍高一點"
+      },
+      "offset": {
+        "title": "時間偏移",
+        "earlier": "提前 0.1 秒",
+        "later": "延後 0.1 秒",
+        "value": "{{seconds}} 秒",
+        "reset": "重設"
+      }
+    },
+    "settings": {
+      "title": "設定",
+      "quality": "畫質",
+      "version": "版本",
+      "speed": "速度",
+      "subtitleStyle": "字幕樣式",
+      "sound": "聲音選項",
+      "nightMode": "夜間模式",
+      "nightModeOn": "夜間模式已開啟",
+      "nightModeHint": "小聲的段落變大聲，大聲的段落變小聲，適合深夜觀看。",
+      "rateValue": "{{rate}}×",
+      "streamInfo": "串流資訊",
+      "chapters": "章節",
+      "buttonWithQuality": "設定 · {{quality}}"
+    },
+    "panel": {
+      "audioButton": "音訊：{{language}}",
+      "subtitleButton": "字幕：{{language}}",
+      "moreLanguages": "更多語言（{{count}}）"
+    },
+    "chrome": {
+      "toolbar": "播放",
+      "previousChapter": "上一章",
+      "nextChapter": "下一章",
+      "nextEpisode": "下一集",
+      "back10": "倒轉 10 秒",
+      "forward30": "快轉 30 秒",
+      "pictureInPicture": "子母畫面",
+      "exitPictureInPicture": "結束子母畫面",
+      "help": "鍵盤快速鍵",
+      "timeElapsed": "{{elapsed}} / {{total}}",
+      "timeRemaining": "−{{remaining}} · {{end}} 結束",
+      "lineChapter": "{{title}} · {{chapter}}",
+      "episodeLine": "{{code}} · {{title}}",
+      "filmLine": "{{year}} · {{genres}}",
+      "rate": "速度 {{rate}}×",
+      "muted": "已靜音",
+      "previousEpisode": "上一集",
+      "forward10": "快轉 10 秒",
+      "options": "選項",
+      "view": "時間和檢視",
+      "tapBack": "−{{seconds}} 秒",
+      "tapForward": "+{{seconds}} 秒"
+    },
+    "tabs": {
+      "label": "作品詳情",
+      "next": "即將播放",
+      "info": "資訊"
+    },
+    "pauseView": {
+      "label": "已暫停",
+      "paused": "已暫停",
+      "chapter": "章節：{{chapter}}"
+    },
+    "slow": {
+      "label": "連線速度緩慢",
+      "text": "連線速度緩慢，要切換至 {{quality}} 嗎？",
+      "switch": "切換至 {{quality}}",
+      "dismiss": "暫時不要"
+    },
+    "help": {
+      "title": "鍵盤快速鍵",
+      "rows": {
+        "play": {
+          "keys": "Space, K, Enter",
+          "action": "播放或暫停"
+        },
+        "seek": {
+          "keys": "← →",
+          "action": "倒轉或快轉 10 秒"
+        },
+        "chapter": {
+          "keys": "⇧← ⇧→",
+          "action": "上一章或下一章"
+        },
+        "volume": {
+          "keys": "↑ ↓",
+          "action": "調高或調低音量"
+        },
+        "zones": {
+          "keys": "↑ ↓（控制列中）",
+          "action": "在時間軸、按鈕列和分頁之間移動；← → 可在按鈕、分頁和卡片之間逐一移動"
+        },
+        "mute": {
+          "keys": "M",
+          "action": "靜音或取消靜音"
+        },
+        "jump": {
+          "keys": "0–9",
+          "action": "跳至 0% 到 90%"
+        },
+        "speed": {
+          "keys": "[ ]",
+          "action": "減速或加速（0.5× 至 2×）"
+        },
+        "tracks": {
+          "keys": "T",
+          "action": "音訊"
+        },
+        "subtitles": {
+          "keys": "U",
+          "action": "字幕"
+        },
+        "chapters": {
+          "keys": "C",
+          "action": "章節分頁"
+        },
+        "quality": {
+          "keys": "Q",
+          "action": "畫質"
+        },
+        "fullscreen": {
+          "keys": "F",
+          "action": "全螢幕"
+        },
+        "info": {
+          "keys": "I",
+          "action": "串流資訊"
+        },
+        "skip": {
+          "keys": "S",
+          "action": "跳過片頭"
+        },
+        "next": {
+          "keys": "N",
+          "action": "下一集"
+        },
+        "help": {
+          "keys": "?",
+          "action": "這份說明"
+        },
+        "back": {
+          "keys": "Escape, Backspace",
+          "action": "關閉面板、說明和串流資訊（在齒輪選單中：返回上一層），否則返回詳細資料頁",
+          "actionOfflineDownloads": "關閉面板、說明和分頁（在齒輪選單中：返回上一層），否則返回下載",
+          "actionOfflineLibrary": "關閉面板、說明和分頁（在齒輪選單中：返回上一層），否則返回離線媒體庫"
+        }
+      }
+    }
+  },
+  "admin": {
+    "radio": {
+      "title": "廣播",
+      "intro": "網路電台的電台目錄、執行中的轉送和設定。電台看到的是 Slouchcat 伺服器而不是裝置，因此以伺服器所在地為準。Slouchcat 只會將聲音轉送給此安裝中已登入的個人資料；這對某個電台是否合法，由安裝的營運者負責。",
+      "strip": {
+        "label": "摘要",
+        "catalog": "目錄中",
+        "catalogNote_other": "來自 {{count}} 個項目",
+        "reachable": "可連線",
+        "reachableNote": "目錄項目中",
+        "live": "正在直播",
+        "liveValue": "{{relays}} · {{listeners}}",
+        "liveNote": "電台 · 聽眾",
+        "offer": "電台清單中",
+        "offerValue": "{{stations}} · {{countries}}",
+        "offerNote": "電台 · 國家"
+      },
+      "memory": {
+        "title": "沒有 RAM 緩衝區",
+        "body": "沒有 RAM 緩衝區：廣播只能即時播放，無法時間平移。容器需要 Compose 檔案中的 tmpfs 才能使用緩衝區。"
+      },
+      "tabs": {
+        "label": "區段",
+        "overview": "總覽",
+        "stations": "電台",
+        "settings": "設定",
+        "own": "自訂電台",
+        "offer": "電台清單"
+      },
+      "catalog": {
+        "title": "目錄",
+        "source": "來源",
+        "sourceValue": "Radio Browser (radio-browser.info)",
+        "lastSync": "上次同步",
+        "never": "從未",
+        "lastSyncValue": "{{date}}：{{entries}} 個項目，{{reachable}} 個可連線，{{added}} 個新增，{{removed}} 個移除",
+        "stations": "合併後的電台",
+        "error": "上次同步的錯誤",
+        "failures_other": "連續失敗 {{count}} 次",
+        "nextRun": "下次執行",
+        "notPlanned": "未排程",
+        "running": "同步已排入佇列或正在執行。",
+        "sync": "立即同步",
+        "syncQueued": "同步已排入佇列。",
+        "jobs": "前往背景工作"
+      },
+      "relays": {
+        "title": "即時轉送",
+        "empty": "目前沒有執行中的轉送。",
+        "transcoded": "已轉碼",
+        "copied": "已重新封裝",
+        "buffer": "緩衝 {{time}}",
+        "since": "自 {{time}} 起",
+        "listeners": "聽眾",
+        "noListeners": "已沒有聽眾，將再執行片刻。",
+        "paused": "已暫停",
+        "playing": "收聽中",
+        "state": {
+          "connecting": "連線中",
+          "live": "直播中",
+          "reconnecting": "重新連線中",
+          "ending": "即將結束",
+          "failed": "轉送失敗"
+        },
+        "stop": {
+          "label": "停止 {{profile}} 的收聽",
+          "action": "停止",
+          "title": "要停止 {{profile}} 的收聽嗎？",
+          "body": "這個個人資料的 {{station}} 播放將立即結束。",
+          "confirm": "停止"
+        },
+        "stopped": "已停止 {{profile}} 的收聽。"
+      },
+      "load": {
+        "title": "伺服器負載",
+        "relays": "電台",
+        "relaysValue": "{{count}} / {{max}}",
+        "upload": "上傳",
+        "buffer": "緩衝區",
+        "bufferValue": "{{used}} / {{budget}}"
+      },
+      "stations": {
+        "caption": "電台",
+        "search": "搜尋電台",
+        "country": "國家",
+        "state": "狀態",
+        "allCountries": "所有國家",
+        "anyState": "全部",
+        "states": {
+          "reachable": "可連線",
+          "broken": "無法連線",
+          "noLogo": "沒有標誌"
+        },
+        "columns": {
+          "station": "電台",
+          "place": "國家",
+          "genres": "類型",
+          "state": "狀態",
+          "marks": "例外",
+          "actions": "動作",
+          "provider": "提供者"
+        },
+        "stateText": {
+          "ok": "可連線",
+          "broken": "無法連線",
+          "missing": "已不在目錄中"
+        },
+        "locked_other": "{{count}} 個欄位為手動設定",
+        "recommended": "建議",
+        "edit": "編輯",
+        "editLabel": "編輯 {{name}}",
+        "empty": "找不到電台。",
+        "count_other": "{{count}} 個電台",
+        "provider": "提供者",
+        "providerFilter": "依提供者 {{provider}} 篩選",
+        "sort": "排序",
+        "sorts": {
+          "popularity": "熱門程度",
+          "name": "名稱 A–Z"
+        },
+        "wholeCatalog": "顯示完整目錄",
+        "removeUnreachable_other": "移除無法連線的電台（{{n}}）",
+        "removeUnreachableHelp": "將電台清單中目前無法連線的電台全部移除，但最愛和自訂電台除外。這些電台不會自動回來。",
+        "removedUnreachable_other": "已從電台清單移除 {{count}} 個無法連線的電台。",
+        "undo": "復原",
+        "undone": "這些電台已回到電台清單。",
+        "takeOut": "從清單移除",
+        "takeOutLabel": "將 {{name}} 從電台清單移除",
+        "takeIn": "加入清單",
+        "takeInLabel": "將 {{name}} 加入電台清單",
+        "takenOut": "{{name}} 已不在電台清單中。",
+        "takenIn": "{{name}} 已加入電台清單。",
+        "streamsEmpty": "沒有串流。",
+        "streamPreferred": "偏好",
+        "streamUnreachable": "無法連線",
+        "streamHls": "HLS",
+        "providerHelp": "完整網域，例如 srg-ssr.ch。",
+        "details": {
+          "action": "詳細資料",
+          "label": "{{name}} 的詳細資料",
+          "title": "{{name}} 的詳細資料",
+          "source": "來源：{{source}}",
+          "fields": {
+            "name": "名稱",
+            "country": "國家",
+            "region": "地區",
+            "languages": "語言",
+            "homepage": "網站",
+            "logo": "標誌",
+            "provider": "提供者",
+            "owner": "擁有者",
+            "founded": "成立",
+            "wikidataId": "Wikidata ID"
+          },
+          "sources": {
+            "catalog": "目錄（Radio Browser）",
+            "own": "自訂電台",
+            "admin": "手動設定",
+            "stream": "串流",
+            "website": "電台網站",
+            "wikidata": "Wikidata"
+          },
+          "logoPresent": "已有",
+          "noWikidata": "Wikidata 中找不到與此電台唯一相符的項目：沒有擁有者，也沒有成立日期。",
+          "wikidataOfferOnly": "Wikidata 只會為電台清單中的電台補充資料。",
+          "streams": "串流",
+          "close": "關閉"
+        }
+      },
+      "settings": {
+        "title": "設定",
+        "buffer": "時間平移",
+        "bufferHelp": "聽眾可以倒轉多久。在預算不變的情況下，60 分鐘會讓可用電台數量減半。",
+        "minutes_other": "{{count}} 分鐘",
+        "newRelays": "適用於從現在起開始的轉送。",
+        "budget": "緩衝區預算（MB）",
+        "budgetHelp": "所有緩衝區合計使用的記憶體。",
+        "maxRelays": "電台數上限",
+        "maxRelaysHelp_other": "以目前的時間平移，預算可支援 {{count}} 個電台。",
+        "grace": "無聽眾時的延續時間（秒）",
+        "graceHelp": "最後一位聽眾離開後，轉送還會持續多久。",
+        "rights": "電台看到的是 Slouchcat 伺服器而不是裝置，因此以伺服器所在地為準。Slouchcat 只會將聲音轉送給此安裝中已登入的個人資料；這對某個電台是否合法，由安裝的營運者負責。",
+        "saved": "設定已儲存。",
+        "coverMusicbrainz": "從 MusicBrainz 查詢封面",
+        "coverMusicbrainzHelp": "在 MusicBrainz 和 Cover Art Archive 查詢正在播放曲目的封面，只在執行中電台的曲目變更時查詢，且每秒最多一次。",
+        "coverItunes": "從 iTunes 查詢封面",
+        "coverItunesHelp": "MusicBrainz 找不到時改用 iTunes 搜尋；每分鐘最多 20 次要求。電台本身傳送的圖片一律優先。",
+        "wikidata": "使用 Wikidata",
+        "wikidataHelp": "每週一次從 Wikidata 為電台清單中的電台補充擁有者和成立日期；擁有者會成為提供者。關閉後，伺服器會立即刪除這些資料。"
+      },
+      "editor": {
+        "close": "關閉",
+        "name": "名稱",
+        "logo": "標誌",
+        "logoUpload": "上傳自訂標誌",
+        "logoReset": "改回目錄或網站提供的標誌",
+        "logoTooLarge": "檔案大於 20 MB。",
+        "logoState": {
+          "none": "尚未搜尋",
+          "queued": "搜尋中",
+          "catalog": "來自目錄",
+          "website": "來自網站",
+          "own": "自訂標誌",
+          "failed": "找不到標誌，改用縮寫"
+        },
+        "region": "地區",
+        "regionHelp": "ISO 代碼，例如 CH-ZH。留空：不指定地區。",
+        "stream": "串流",
+        "streamAuto": "自動（最佳串流）",
+        "unreachable": "無法連線",
+        "probe": "檢查串流",
+        "probeResult": "{{codec}}，{{bitrate}} kbit/s，{{sampleRate}} Hz，{{channels}} 聲道，{{ms}} ms 後回應",
+        "probeTitles": "曲目資訊：有",
+        "probeNoTitles": "曲目資訊：無",
+        "probeTitle": "目前曲目：{{title}}",
+        "recommended": "建議",
+        "recommendedHelp": "在所屬國家中排在前面（排序「熱門」）。",
+        "tags": "目錄中的標籤",
+        "lock": "鎖定 {{field}}",
+        "locked": "已鎖定",
+        "free": "未鎖定",
+        "lockHelp": "每日同步絕不會覆寫已鎖定的欄位。",
+        "save": "儲存",
+        "saved": "{{name}} 已儲存。"
+      },
+      "own": {
+        "title": "自訂電台",
+        "help": "目錄中沒有的電台，例如社區或球場電台。同步絕不會變更這些電台。",
+        "add": "新增自訂電台",
+        "empty": "尚無自訂電台。",
+        "created": "已新增 {{name}}。",
+        "deleted": "已刪除 {{name}}。",
+        "delete": "刪除",
+        "deleteLabel": "刪除 {{name}}",
+        "deleteTitle": "要刪除 {{name}} 嗎？",
+        "deleteBody": "這個電台將從所有個人資料中消失，包括「我的電台」。正在收聽的人會被中斷。",
+        "editorHelp": "自訂電台：可以在這裡變更串流網址、網站、國家和語言。",
+        "columns": {
+          "stream": "串流網址"
+        },
+        "fields": {
+          "name": "名稱",
+          "streamUrl": "串流網址",
+          "streamUrlHelp": "直接網址或播放清單（.pls、.m3u）；由伺服器解析。不允許使用區域網路中的網址。",
+          "homepage": "網站",
+          "homepageHelp": "選用；伺服器會從那裡取得標誌。",
+          "country": "國家",
+          "countryHelp": "ISO 代碼，例如 CH。留空：不指定國家。",
+          "languages": "語言",
+          "languagesHelp": "ISO 代碼，以逗號分隔，例如 de, fr。",
+          "none": "無"
+        },
+        "create": {
+          "title": "新增自訂電台",
+          "description": "目錄中沒有的電台。可以像其他電台一樣篩選。",
+          "submit": "新增"
+        }
+      },
+      "empty": {
+        "title": "電台清單中還沒有電台",
+        "body": "在「電台清單」分頁中選擇並套用國家之前，廣播頁面不會顯示任何電台。",
+        "action": "前往電台清單"
+      },
+      "offerFacts": {
+        "title": "電台清單",
+        "open": "編輯電台清單",
+        "countries": "已選國家",
+        "stations": "清單中的電台",
+        "unreachable": "其中無法連線",
+        "withLogo": "有標誌"
+      },
+      "offer": {
+        "countries": {
+          "title": "國家",
+          "note_other": "已選 {{chosen}} / {{total}} 個國家"
+        },
+        "search": "搜尋國家",
+        "searchHelp": "名稱或國家代碼，例如 Switzerland 或 CH。",
+        "noHits": "找不到國家。",
+        "hits_other": "{{count}} 個結果",
+        "hitsCaption": "找到的國家",
+        "continents": {
+          "label": "依洲別列出所有國家。點選洲別會展開其國家；再按一次或按 Escape 即可收合。",
+          "heading": "依洲別"
+        },
+        "continent": {
+          "europe": "歐洲",
+          "northAmerica": "北美洲和中美洲",
+          "southAmerica": "南美洲",
+          "asia": "亞洲",
+          "africa": "非洲",
+          "oceania": "大洋洲"
+        },
+        "continentCountries_other": "{{count}} 個國家",
+        "continentStations_other": "{{n}} 個電台",
+        "continentChosen_other": "已選 {{count}} 個",
+        "countryCaption": "{{continent}}的國家",
+        "chooseAll": "全選",
+        "removeAll": "全部取消",
+        "chooseCountry": "選擇 {{country}}",
+        "columns": {
+          "choose": "已選",
+          "tick": "列入清單",
+          "country": "國家",
+          "stations": "電台",
+          "actions": "動作"
+        },
+        "chosen": {
+          "title": "已選國家",
+          "empty": "尚未選擇國家。請在上方搜尋國家，或展開洲別。",
+          "count": "{{offered}} / {{total}} 個電台",
+          "open": "選擇電台",
+          "close": "收合電台",
+          "openLabel": "選擇 {{country}} 的電台",
+          "closeLabel": "收合 {{country}} 的電台",
+          "remove": "移除國家",
+          "removeLabel": "移除 {{country}}"
+        },
+        "stations": {
+          "title": "{{country}} 的電台",
+          "count": "{{offered}} / {{total}} 個已列入清單",
+          "modeAll": "除了取消標記的電台外，這個國家的所有電台都在電台清單中。這個國家的新電台會自動加入。",
+          "modeMarked": "只有已標記的電台在電台清單中。這個國家的新電台不會自動加入。",
+          "search": "搜尋電台",
+          "markAll": "全部標記",
+          "demarkAll": "全部取消標記",
+          "markShown_other": "標記顯示的電台（{{count}}）",
+          "demarkShown_other": "取消標記顯示的電台（{{count}}）",
+          "mark": "{{name}} 列入清單",
+          "broken": "無法連線",
+          "empty": "找不到電台。"
+        },
+        "summary": {
+          "title": "電台清單中",
+          "offered": "清單中的電台",
+          "unreachable": "其中無法連線",
+          "countries": "已選國家",
+          "marked": "已標記的電台",
+          "hideBroken": "略過無法連線的電台",
+          "hideBrokenHelp": "無法連線的電台不會出現在應用程式的清單中。電台恢復回應後就會回來；設為最愛的電台則會保留。"
+        },
+        "bar": {
+          "label": "套用電台清單",
+          "clean": "電台清單沒有變更。",
+          "same": "選擇已變更，但電台數量不變。",
+          "added_other": "將加入 {{n}} 個電台。",
+          "removed_other": "將移除 {{n}} 個電台。",
+          "conflict": "電台清單在此期間已變更。預覽已重新計算，請檢查後再套用一次。",
+          "applied": "已套用。廣播頁面會立即顯示新的電台清單。伺服器正在背景載入標誌和其他資料。",
+          "discard": "捨棄",
+          "apply": "套用",
+          "applying": "套用中…",
+          "computing": "正在計算預覽…",
+          "previewFailed": "無法計算預覽。"
+        },
+        "limit": "草稿已達 {{max}} 個步驟的上限。請先套用或捨棄，再繼續變更。"
+      }
+    },
+    "editor": {
+      "close": "關閉",
+      "openAdmin": "在管理中開啟",
+      "discard": {
+        "title": "要捨棄未儲存的變更嗎？",
+        "body": "你對中繼資料的變更尚未儲存。關閉編輯器後，這些變更將會遺失。",
+        "confirm": "捨棄並關閉",
+        "cancel": "繼續編輯"
+      },
+      "subtitle": "{{kind}} · {{library}}",
+      "notFound": "這部作品不存在或已被移除。",
+      "tabs": {
+        "label": "編輯器區段",
+        "images": "圖片",
+        "cover": "封面",
+        "metadata": "中繼資料",
+        "match": "比對",
+        "refresh": "重新整理"
+      },
+      "images": {
+        "kinds": "圖片類型",
+        "kindName": {
+          "still": "單集劇照",
+          "cover": "封面"
+        },
+        "state": {
+          "auto": "自動 · {{provider}}",
+          "locked": "已選擇 · 已鎖定",
+          "missing": "缺少"
+        },
+        "kindState": "{{kind}}，{{state}}",
+        "current": "目前：{{source}}",
+        "currentNone": "目前：沒有圖片",
+        "own": "自訂圖片",
+        "embedded": "內嵌圖片",
+        "upload": {
+          "action": "上傳自訂圖片",
+          "hint": "JPEG、PNG 或 WebP，最大 20 MB。伺服器會自行產生各種尺寸，且不會重新擷取已上傳的圖片。",
+          "done": "{{kind}}：已上傳並鎖定自訂圖片。",
+          "failed": "上傳失敗",
+          "error": {
+            "tooLarge": "檔案大於 20 MB。",
+            "format": "這不是 JPEG、PNG 或 WebP 圖片，或檔案已損毀。",
+            "pixels": "圖片超過 5,000 萬像素。",
+            "missing": "未收到檔案，請重新選擇。",
+            "kind": "這部作品無法上傳此類型的圖片。"
+          }
+        },
+        "automatic": "改回自動",
+        "candidates": "提供者的建議",
+        "candidatesBook": "資料夾和檔案中的圖片",
+        "filter": {
+          "provider": "提供者",
+          "lang": "語言",
+          "all": "全部"
+        },
+        "count_other": "{{count}} 張圖片",
+        "chooseHint": "點一下即可選擇圖片：會立即套用並保持鎖定，直到你改回自動為止。",
+        "stillsOff": "這個媒體庫已關閉單集劇照。可以在管理的「中繼資料」中開啟。",
+        "stillsOffLink": "前往中繼資料設定",
+        "noKinds": "這部作品沒有可用的圖片類型。"
+      },
+      "metadata": {
+        "intro": "在這裡變更的欄位會被鎖定：「重新整理」不會再覆寫它。按一下鎖頭即可解除鎖定。",
+        "lang": "文字適用於 {{language}}；其他語言仍由伺服器從提供者取得。",
+        "langBook": "文字適用於此書的每個語言列。",
+        "field": {
+          "title": "標題",
+          "originalTitle": "原始標題",
+          "sortTitle": "排序標題",
+          "year": "年份",
+          "releaseDate": "發行日期",
+          "tagline": "標語",
+          "subtitle": "副標題",
+          "overview": "簡介",
+          "genres": "類型",
+          "rating": "年齡分級",
+          "language": "原始語言",
+          "author": "作者",
+          "narrator": "朗讀者",
+          "seriesName": "系列",
+          "seriesIndex": "冊數",
+          "publisher": "出版社",
+          "isbn": "ISBN",
+          "asin": "ASIN"
+        },
+        "source": "來自 {{provider}}",
+        "fromFiles": "來自檔案",
+        "manual": "手動設定",
+        "lock": {
+          "label": "鎖定 {{field}}",
+          "locked": "已鎖定",
+          "free": "未鎖定"
+        },
+        "genreAdd": "新增類型",
+        "genreAddAction": "新增",
+        "genreRemove": "移除 {{genre}}",
+        "genresNone": "沒有類型。",
+        "discard": "捨棄",
+        "saved": "已儲存中繼資料。",
+        "unchanged": "沒有任何變更。"
+      },
+      "match": {
+        "intro": "搜尋並選擇結果：伺服器會儲存比對結果並重新載入作品。",
+        "notMatchable": "伺服器會透過所屬影集比對季和單集。"
+      },
+      "refresh": {
+        "body": "「立即重新整理」會重新載入所有未鎖定的欄位和自動選擇的圖片。已鎖定的欄位和選擇的圖片會保留。",
+        "options": "重新整理前",
+        "unlockAll": "先解除這部作品的所有鎖定",
+        "unlockAllHint": "之後將再次以提供者的資料為準。手動比對和自訂分級會保留。",
+        "run": "立即重新整理",
+        "hint": "以高優先順序的工作執行；完成後就會顯示新的值。",
+        "book": {
+          "body": "已鎖定的欄位和選擇的封面會保留，除非你先解除鎖定。",
+          "unlockAll": "同時解除所有鎖定",
+          "unlockAllHint": "先解除這本書的所有鎖定，包括你在「比對」中從來源採用的欄位鎖定：之後將再次以檔案和提供者的資料為準。比對本身和自訂分級會保留。",
+          "run": "重新讀取",
+          "filesTitle": "重新讀取檔案",
+          "filesHint": "重新讀取 metadata.json、標籤和資料夾名稱。",
+          "providerTitle": "重新從提供者擷取",
+          "providerHint": "重新從 {{source}} 擷取資料。",
+          "providerNone": "請先在「比對」中選擇結果。",
+          "providerRun": "重新擷取",
+          "refetched": "正在重新從 {{source}} 擷取資料。"
+        }
+      },
+      "bookMatch": {
+        "intro": "依標題和作者，或依 ASIN 或 ISBN 搜尋來源並選擇結果。要採用哪些欄位，由你逐一決定。",
+        "noSources": "這本書的資料夾沒有列出任何已設定的書籍來源。資料夾的來源可在其媒體庫中設定。",
+        "matched": "已比對：{{source}}",
+        "unmatched": "未比對：資料僅來自檔案",
+        "source": "來源",
+        "audible": {
+          "de": "Audible 德國",
+          "com": "Audible USA",
+          "couk": "Audible 英國",
+          "other": "Audible ({{domain}})"
+        },
+        "title": "標題",
+        "author": "作者",
+        "asin": "ASIN",
+        "isbn": "ISBN",
+        "idHint": "輸入 ASIN 或 ISBN 時，來源會依該 ID 搜尋。",
+        "needQuery": "請輸入標題、ASIN 或 ISBN。",
+        "asinInvalid": "ASIN 由十個字母或數字組成。",
+        "isbnInvalid": "ISBN 為 10 或 13 位數字，可包含連字號。",
+        "sorted": "依評分排序：先比對長度，再比對標題，最後比對作者。",
+        "filesLength": "檔案長度：{{length}}",
+        "lengthUnknown": "長度不明",
+        "lengthFits": "{{length}}，相符",
+        "people": "{{authors}} · 朗讀者：{{narrators}}",
+        "asinId": "ASIN {{id}}",
+        "isbnId": "ISBN {{id}}",
+        "choose": "選擇「{{title}}」（{{length}}）",
+        "preview": {
+          "title": "要採用的內容",
+          "entry": "{{source}} 上的「{{title}}」",
+          "caption": "{{source}} 的欄位，目前值與新值",
+          "field": "欄位",
+          "today": "目前",
+          "new": "新值",
+          "take": "採用",
+          "takeLabel": "採用{{field}}",
+          "locked": "已鎖定",
+          "noValue": "來源沒有提供值",
+          "empty": "–",
+          "cover": "來源的封面",
+          "coverToday": "已有",
+          "hint": "採用的欄位會被鎖定。已鎖定的欄位會保留。之後執行「重新從提供者擷取」時也會使用這個比對結果。",
+          "same": "來源提供的內容與目前相同。",
+          "apply_other": "採用 {{count}} 個欄位",
+          "assignOnly": "僅比對",
+          "applied_other": "已從 {{source}} 採用並鎖定 {{count}} 個欄位。",
+          "assigned": "已與 {{source}} 比對，未採用任何欄位。"
+        }
+      }
+    },
+    "libraries": {
+      "title": "媒體庫",
+      "intro": "Slouchcat 監看的資料夾及其掃描狀態。",
+      "empty": "尚無媒體庫。",
+      "tabs": {
+        "label": "依類型分類的媒體庫",
+        "all": "全部",
+        "count_other": "{{count}} 個媒體庫",
+        "empty": "沒有這個類型的媒體庫。",
+        "caption": "媒體庫：{{tab}}"
+      },
+      "columns": {
+        "library": "媒體庫",
+        "kind": "類型",
+        "state": "狀態",
+        "counts": "作品 · 檔案",
+        "folders": "資料夾",
+        "metadata": "中繼資料"
+      },
+      "none": "–",
+      "noMetadata": "沒有中繼資料範圍",
+      "roots": "資料夾",
+      "fsType": "檔案系統 {{type}}",
+      "watch": {
+        "inotify": "可立即偵測變更",
+        "poll": "定期輪詢變更",
+        "inotify_poll": "立即偵測，並另外定期輪詢"
+      },
+      "warning": {
+        "network_share": "網路共用資料夾"
+      },
+      "state": {
+        "never": "從未掃描",
+        "queued": "等待掃描",
+        "running": "掃描中",
+        "done": "已是最新",
+        "failed": "掃描失敗",
+        "aborted": "掃描已停止"
+      },
+      "counts": "作品：{{items}} · 檔案：{{files}}",
+      "progress": "{{seen}} / {{total}} 個檔案",
+      "finishedAt": "上次掃描：{{date}}",
+      "keyframes": {
+        "summary": "關鍵影格索引：{{indexed}} / {{videoFiles}} 個影片檔案 · {{pending}} 個待處理 · {{unavailable}} 個無法建立",
+        "complete": "關鍵影格索引已完成",
+        "backfill": "在「背景工作」頁面補建"
+      },
+      "error": {
+        "root_missing": "找不到資料夾。磁碟機是否已掛載？未刪除任何內容。",
+        "root_empty": "資料夾是空的。未刪除任何內容。",
+        "loss_over_threshold": "超過 20% 的檔案遺失。為安全起見，未刪除任何內容。",
+        "other": "上次錯誤：{{message}}",
+        "cancelled": "掃描已取消。下次掃描會正常執行。"
+      },
+      "rescan": "重新掃描",
+      "acceptLoss": {
+        "action": "接受遺失",
+        "title": "要移除遺失的檔案嗎？",
+        "body": "下次掃描會將遺失的作品從媒體庫中移除，這些作品的進度也會一併遺失。請只在檔案是刻意刪除時才這麼做。",
+        "confirm": "移除並掃描"
+      },
+      "add": {
+        "title": "新增媒體庫",
+        "submitting": "新增中…",
+        "created": "已新增媒體庫 {{name}}。",
+        "draft": {
+          "band": "新媒體庫的草稿尚未儲存。",
+          "continue": "繼續編輯",
+          "discard": "捨棄草稿",
+          "discarded": "已捨棄新媒體庫的草稿。",
+          "question": {
+            "title": "要保留還是捨棄草稿？",
+            "body": "你已開始建立新媒體庫。保留草稿後，可以從頁面上的橫幅繼續編輯。",
+            "keep": "保留草稿",
+            "discard": "捨棄草稿"
+          }
+        }
+      },
+      "cancel": "取消掃描",
+      "scanStarted": "已開始掃描 {{name}}。",
+      "scanCancelled": "已取消掃描 {{name}}。",
+      "scanFailed": "{{name}} 掃描失敗。",
+      "scanAborted": "已停止掃描 {{name}}。",
+      "defaultRating": "預設：{{rating}}",
+      "noRoots": "沒有資料夾：作品來自訂閱的訂閱源。",
+      "feedsOnly": "來自訂閱源的作品",
+      "changeRating": {
+        "action": "變更預設分級",
+        "title": "{{name}} 的預設分級",
+        "description": "所有分級來自媒體庫的作品都會立即跟著變更。手動設定的分級會保留。",
+        "submit": "儲存",
+        "saved": "{{name}} 的預設分級現在是 {{rating}}。"
+      },
+      "folders": {
+        "title": "{{name}} 的資料夾",
+        "description": "一個媒體庫可以包含多個資料夾。掃描和監看會立即納入新資料夾。",
+        "none": "這個媒體庫沒有資料夾。新增資料夾之前不會掃描任何內容。",
+        "content": "作品：{{items}} · 檔案：{{files}}",
+        "remove": {
+          "action": "移除",
+          "label": "移除資料夾 {{path}}",
+          "title": "確定要移除這個資料夾嗎？",
+          "inputLabel": "輸入路徑以確認",
+          "mismatch": "請完整輸入 {{path}}，按鈕才會啟用。",
+          "confirm": "移除資料夾",
+          "lead_other": "你即將從媒體庫 {{name}} 移除 <path>{{path}}</path>。最多 {{count}} 部作品會因此從所有清單中消失。這代表：",
+          "soft": "這些作品會被軟刪除：它們會從所有清單中消失，但進度、我的片單項目和推薦仍會保留。如果作品在此媒體庫的其他資料夾中還有檔案，就會繼續顯示。",
+          "downloads": "離線下載會真正刪除：已下載其中任何作品的裝置，會在下次同步時刪除該下載包。",
+          "playback": "從此資料夾進行中的播放會中途中斷。",
+          "webhooks": "之後 Radarr 和 Sonarr 的路徑對應表中這個路徑將不再指向任何地方；相關通知會被拒絕。",
+          "relink": "如果這些作品之後再次出現，即使是透過其他資料夾，Slouchcat 也會依 TMDB、TVDB 或 IMDb ID 找到它們，並將進度和清單重新連結。如果只是搬移資料夾，請使用「變更路徑」而不是「移除」。",
+          "oneWay": "如果資料夾位於可瀏覽的資料夾（SLOUCHCAT_BROWSE_ROOTS）之外，不變更設定就無法再次新增。",
+          "last": "這是最後一個資料夾：{{name}} 會保留，但之後沒有任何資料夾，也不會掃描任何內容。"
+        },
+        "new": "新資料夾",
+        "change": {
+          "action": "變更",
+          "label": "變更資料夾 {{path}}",
+          "title": "變更資料夾",
+          "description": "{{path}} 的內容和中繼資料來源。",
+          "submit": "儲存",
+          "identifier": "辨識來源將變更：季和單集的文字會依 {{provider}} 重新對應。單集本身會保留，進度和我的片單也仍與它們相連。",
+          "fillers": "只有補充來源會變更：作品會重新補充資料，不會刪除任何內容。",
+          "content": "內容類型將變更：效果等同於移除資料夾後再重新新增。此資料夾的作品會被軟刪除並重新建立，離線下載包會消失，進度和我的片單則留在舊作品上。",
+          "confirmTitle": "確定要變更內容類型嗎？",
+          "confirm": "變更內容類型",
+          "saved": "已變更資料夾 {{path}}。"
+        },
+        "move": {
+          "action": "變更路徑",
+          "label": "變更 {{path}} 的路徑",
+          "title": "要變更路徑嗎？",
+          "body": "舊路徑：{{old}} · 新路徑：{{new}}。只要檔案以相同名稱位於新路徑，作品和使用者資料都會保留。之後會重新讀取資料夾。",
+          "confirm": "變更",
+          "saved": "資料夾現在位於 {{path}}，正在重新讀取。"
+        },
+        "readOnly": "唯讀",
+        "writable": "可寫入"
+      },
+      "openFolders": "資料夾",
+      "openFoldersLabel": "編輯 {{name}} 的資料夾",
+      "rootCount_other": "{{count}} 個資料夾",
+      "noFolder": "沒有資料夾：在「資料夾」中新增資料夾之前，不會掃描任何內容。",
+      "rootSummary_other": "{{content}}：{{count}}",
+      "metadata": {
+        "like": "與伺服器相同",
+        "texts": "語言不同",
+        "images": "圖片不同",
+        "both": "語言和圖片不同",
+        "link": "媒體庫的中繼資料",
+        "audiobooksLink": "有聲書的來源"
+      },
+      "trickplay": {
+        "action": "拖曳預覽",
+        "actionLabel": "{{name}} 的拖曳預覽",
+        "title": "拖曳預覽：{{name}}",
+        "description": "時間軸上方的小圖，每 10 秒一張。電影和影集分開設定，即使在同時包含兩者的媒體庫中也是如此。",
+        "movies": "電影",
+        "series": "影集",
+        "mode": {
+          "ahead": "預先產生",
+          "on_start": "開始時",
+          "series_start": "開始時，所有單集",
+          "off": "關閉"
+        },
+        "keep": "保留",
+        "keepHint": "從第二次播放起立即可用。不保留的話，預覽會在播放結束後刪除。",
+        "scope": {
+          "label": "範圍",
+          "series": "整部影集",
+          "season_rest": "本季其餘單集",
+          "next_episode": "下一集"
+        },
+        "facts": {
+          "ahead": {
+            "movie": "新電影會在匯入時產生預覽；現有電影可透過「立即產生」或「背景工作」中的排程補建。如果播放時缺少預覽，會在 20 到 45 秒內產生並保留。",
+            "episode": "新單集會在匯入時產生預覽；現有單集可透過「立即產生」或「背景工作」中的排程補建。如果播放時缺少預覽，會在 20 到 45 秒內產生並保留。"
+          },
+          "onStartKeep": "第一次播放時，預覽會在 20 到 45 秒內產生，第一張圖約需 5 到 10 秒，並會保留下來。沒人看的作品不佔空間。",
+          "onStart": "每次播放都會在 20 到 45 秒內重新產生預覽；播放結束 10 分鐘後刪除。每次播放都會耗費運算時間，並從 NAS 讀取數百 MB。",
+          "seriesStart": {
+            "series": "單集開始播放時會立即產生其預覽，接著在背景產生該影集所有其他單集的預覽。全部都會保留。",
+            "season_rest": "單集開始播放時會立即產生其預覽，接著在背景產生本季其他單集的預覽（播放最後一集時則產生下一季的預覽）。全部都會保留。",
+            "next_episode": "單集開始播放時會立即產生其預覽，接著在背景產生下一集的預覽。全部都會保留。"
+          },
+          "off": "不產生預覽。時間軸會照常顯示章節名稱和章節圖片。"
+        },
+        "estimate": {
+          "counts": {
+            "movies_other": "{{count}} 部電影，{{hours}} 小時",
+            "series_other": "{{count}} 集，{{hours}} 小時"
+          },
+          "approx": "≈ {{size}}",
+          "zero": "0 MB",
+          "perMovie": "每部電影",
+          "perMoviePlaying": "每部電影，僅在播放期間",
+          "perEpisode": "每集",
+          "perEpisodePlaying": "每集，僅在播放期間",
+          "library": "整個媒體庫",
+          "libraryAtMost": "整個媒體庫，最多",
+          "basis": "依作品片長估算的儲存空間，每小時影片約 1.5 MB。",
+          "stored": "目前已使用：電影 {{movies}} · 影集 {{series}}",
+          "free": "快取的可用空間：{{size}}",
+          "unavailable": "目前無法估算儲存空間。"
+        },
+        "drop": {
+          "movies": "儲存後，已保留的電影預覽會被刪除（{{size}}）。進行中的播放會保留預覽直到結束。",
+          "series": "儲存後，已保留的影集預覽會被刪除（{{size}}）。進行中的播放會保留預覽直到結束。",
+          "both": "儲存後，已保留的預覽會被刪除：電影（{{movies}}）和影集（{{series}}）。進行中的播放會保留預覽直到結束。"
+        },
+        "generate": {
+          "action": "立即產生",
+          "hint": "為所有設為「預先產生」的媒體庫補建缺少的預覽，與「背景工作」中的「補建拖曳預覽」相同。",
+          "queued": "預覽補建已排入佇列。"
+        },
+        "submit": "儲存",
+        "saved": "已儲存 {{name}} 的拖曳預覽。",
+        "summary": "拖曳預覽：電影 {{movies}} · 影集 {{series}}",
+        "summaryNoKeep": "開始時，不保留"
+      },
+      "delete": {
+        "action": "刪除媒體庫…",
+        "title": "要刪除媒體庫「{{name}}」嗎？",
+        "lead_other": "{{roots}}和 {{formatted}} 部作品將從 Slouchcat 移除，連同進度、觀看標記、我的片單、推薦、自訂圖片和文字、首頁欄目「{{name}} 最新內容」、個人資料的存取權限，以及裝置上的下載內容。",
+        "files": "磁碟上的檔案不會受到影響。如果這個媒體庫正在掃描，Slouchcat 會先取消掃描。",
+        "backup": "在此之前，Slouchcat 會備份資料庫（管理 › 備份）。還原這份備份會讓一切回到刪除前的狀態，包括此後所有個人資料的進度。",
+        "final": "除此之外無法復原：重新掃描相同的資料夾會重新建立作品，但不含進度。",
+        "inputLabel": "輸入名稱以確認",
+        "mismatch": "請完整輸入 {{name}}，按鈕才會啟用。",
+        "confirm": "刪除媒體庫",
+        "queued": "正在背景刪除媒體庫「{{name}}」。",
+        "jobs": "前往工作",
+        "done": "已刪除媒體庫「{{name}}」。",
+        "notDone": "媒體庫「{{name}}」未刪除。原因請參閱工作。"
+      },
+      "rename": {
+        "action": "重新命名…",
+        "title": "重新命名媒體庫「{{name}}」",
+        "label": "名稱",
+        "saved": "媒體庫現在名為「{{name}}」。"
+      }
+    },
+    "access": {
+      "notAllowed": {
+        "title": "僅限管理員",
+        "body": "此區域由管理員帳戶的主個人資料管理。"
+      }
+    },
+    "maintenance": {
+      "title": "維護",
+      "intro": "需要注意的作品和檔案。",
+      "tabs": "問題類型",
+      "tab": {
+        "unmatched": "未比對",
+        "no_images": "沒有圖片",
+        "unrated": "缺少年齡分級",
+        "orphaned": "孤立項目",
+        "unplayable": "無法播放",
+        "rating_mismatch": "分級不一致",
+        "duplicates": "重複項目",
+        "relink": "孤立的使用者資料",
+        "removed": "已移除的作品"
+      },
+      "hint": {
+        "unmatched": "未比對的作品沒有簡介、圖片和分級。請比對或重新整理作品。",
+        "no_images": "已比對但沒有海報的作品。重新整理會重新載入圖片。",
+        "unrated": "沒有分級的作品只會對「18 歲以上」的個人資料顯示。請指定分級以開放觀看。",
+        "orphaned": "沒有檔案或檔案遺失的作品，以及空的季和影集。",
+        "unplayable": "無法讀取的檔案。請重新檢查，或將其從媒體庫中移除。",
+        "rating_mismatch": "儲存的分級與計算出的分級不同。變更分級或下次掃描時會自動修正。這裡沒有可選取的項目。",
+        "duplicates": "重複出現的作品。選擇要保留的作品，然後將其他作品合併到它。",
+        "relink": "已刪除但以新副本重新出現在媒體庫中的作品。進度、紀錄和清單仍連結在已刪除的作品上。「重新連結」會將副本合併到已刪除的作品，舊作品會保留。",
+        "removed": "已從 Slouchcat 移除的作品；它們的檔案仍然存在。「重新加入」會帶回同一部作品，連同單集、進度、觀看標記和我的片單。"
+      },
+      "empty": "沒有待處理的項目。",
+      "selection": "選取",
+      "selectItem": "選取 {{title}}",
+      "selected": "已選取 {{count}} 個",
+      "selectedOfLoaded": "已選取 {{count}} 個（共載入 {{loaded}} 個）",
+      "selectAll": "全選",
+      "selectNone": "取消選取",
+      "shown": "{{shown}} / {{total}}",
+      "entries_other": "{{count}} 個項目",
+      "library": "媒體庫 {{id}}",
+      "caption": "{{library}} 中的{{kind}}",
+      "columns": {
+        "title": "標題",
+        "kind": "類型",
+        "path": "路徑",
+        "detail": "問題"
+      },
+      "none": "–",
+      "noneSpoken": "未提供",
+      "titleCount_other": "{{count}} 部作品",
+      "fileCount_other": "{{count}} 個檔案",
+      "action": {
+        "match": "比對",
+        "refresh": "重新整理",
+        "rating": "指派分級",
+        "cleanup": "清理",
+        "recheck": "重新檢查",
+        "remove": "移除"
+      },
+      "done": {
+        "refresh_other": "正在重新整理 {{count}} 部作品。",
+        "refreshFailed_other": "{{count}} 部作品中有 {{failed}} 部未能重新整理：{{error}}",
+        "rating_other": "已為 {{count}} 部作品設定分級。",
+        "cleanup": "已移除：{{items}}、{{files}}。",
+        "merge": "已合併作品。",
+        "match": "已儲存比對結果，正在載入中繼資料。",
+        "relink": "已重新連結：{{titles}}。",
+        "relinkStopped_other": "已重新連結 {{count}} 個。目前正在掃描，掃描完成後請再次執行「重新連結」以處理其餘項目。",
+        "relinkSkipped_other": "已略過 {{count}} 個：這組項目已不存在，例如已經合併過。"
+      },
+      "cleanup": {
+        "title": "要清理作品嗎？",
+        "body_other": "選取的 {{count}} 部作品將從媒體庫中移除。磁碟上的檔案不會受到影響。",
+        "confirm": "清理"
+      },
+      "remove": {
+        "title": "要移除檔案嗎？",
+        "body_other": "選取的 {{count}} 個檔案將從媒體庫中移除，之後的掃描也會略過它們。檔案仍會保留在磁碟上。",
+        "confirm": "移除"
+      },
+      "rating": {
+        "title": "指派分級",
+        "description_other": "套用至選取的 {{count}} 部作品。",
+        "label": "年齡分級",
+        "summary_other": "{{count}} 部作品將設為 {{rating}}。",
+        "submit": "指派",
+        "submitting": "指派中…"
+      },
+      "duplicates": {
+        "reason": {
+          "provider_id": "相同的提供者 ID",
+          "title_year": "相同的標題和年份",
+          "file_hash": "相同的檔案內容",
+          "file_and_feed": "同一單集的檔案和訂閱源"
+        },
+        "group": "第 {{index}} 組",
+        "target": "保留",
+        "option": "{{index}}：{{title}}",
+        "merge": "合併",
+        "confirmTitle": "要合併作品嗎？",
+        "confirmBody_other": "其他 {{count}} 部作品的檔案、花絮、預告片和進度將移至「{{title}}」。其他作品會被刪除。",
+        "empty": "找不到重複項目。",
+        "groups_other": "{{count}} 組",
+        "meta_other": "{{reason}} · {{title}} · {{count}} 部作品",
+        "keep": "保留",
+        "noFiles": "沒有檔案",
+        "containerPaths": "這些是容器內的路徑（/media/…），不是 NAS 上的路徑；每個路徑旁都標示了所屬媒體庫。",
+        "library": "媒體庫「{{name}}」",
+        "folderFiles_other": "{{n}} 個檔案 · {{size}}"
+      },
+      "relink": {
+        "empty": "沒有孤立的使用者資料。",
+        "action": "重新連結",
+        "noUserData": "沒有使用者資料",
+        "columns": {
+          "library": "媒體庫",
+          "deletedAt": "刪除日期",
+          "userData": "使用者資料",
+          "deleted": "已刪除的作品",
+          "copy": "副本"
+        },
+        "confirmTitle": "要重新連結使用者資料嗎？",
+        "data": {
+          "progress_other": "{{count}} 筆進度",
+          "progressEvents_other": "{{count}} 筆播放事件",
+          "progressDays_other": "{{count}} 筆每日統計",
+          "playbackSessions_other": "{{count}} 次播放",
+          "watchlist_other": "{{count}} 個我的片單項目",
+          "collectionItems_other": "{{count}} 個合集項目",
+          "notifications_other": "{{count}} 則通知",
+          "userPicks_other": "{{count}} 個使用者推薦",
+          "downloads_other": "{{count}} 個下載",
+          "activityEvents_other": "{{count}} 筆活動"
+        },
+        "copies_other": "{{count}} 個副本",
+        "selectPair": "選取 {{copy}}（{{library}}，刪除於 {{date}}）",
+        "selectPairOf": "選取 {{copy}}（{{library}}，刪除於 {{date}}，第 {{index}} 個副本，共 {{copies}} 個）",
+        "confirmMerge_other": "{{count}} 個副本將合併到其已刪除的作品。舊作品會回來並保留原本的網址。",
+        "confirmKept": "將保留：{{data}}。",
+        "confirmNoData_other": "已刪除的作品沒有使用者資料。",
+        "confirmRemoved_other": "副本將被永久移除。",
+        "confirmExtra_other": "同一作品的另外 {{count}} 個副本將被略過，之後會列在「重複項目」中。"
+      },
+      "removed": {
+        "empty": "沒有已移除的作品。",
+        "columns": {
+          "title": "標題",
+          "library": "媒體庫",
+          "folder": "資料夾",
+          "removedAt": "移除日期",
+          "action": "動作"
+        },
+        "restore": "重新加入",
+        "restoreLabel": "重新加入 {{title}}",
+        "restored_other": "「{{title}}」已還原（{{count}} 部作品）。",
+        "noFolder": "沒有檔案"
+      }
+    },
+    "item": {
+      "title": "管理作品",
+      "notAllowed": {
+        "title": "僅限管理員",
+        "body": "作品由管理員帳戶的主個人資料管理。"
+      },
+      "notFound": "這部作品不存在或已不存在。",
+      "view": "開啟詳細資料頁",
+      "facts": {
+        "kind": "類型",
+        "id": "ID",
+        "library": "媒體庫",
+        "season": "季",
+        "episode": "單集",
+        "metadata": "中繼資料",
+        "metadataError": "錯誤",
+        "matchedAt": "比對時間",
+        "tmdb": "TMDB",
+        "tvdb": "TVDB",
+        "imdb": "IMDb",
+        "providers": "中繼資料來源",
+        "locked": "已鎖定的欄位",
+        "children": "內容",
+        "childCounts": "季：{{seasons}} · 單集：{{episodes}} · 花絮：{{extras}}",
+        "none": "–",
+        "episodeRange": "{{from}}–{{to}}"
+      },
+      "sources": {
+        "title": "各欄位的來源",
+        "union": "所有來源的聯集",
+        "field": {
+          "title": "標題",
+          "overview": "簡介",
+          "tagline": "標語",
+          "original_title": "原始標題",
+          "author": "作者",
+          "narrator": "朗讀者",
+          "series_name": "系列",
+          "series_index": "冊數",
+          "publisher": "出版社",
+          "isbn": "ISBN",
+          "asin": "ASIN",
+          "genres": "類型",
+          "runtime_minutes": "片長",
+          "release_date": "發行日期",
+          "year": "年份",
+          "own_rating": "分級",
+          "poster": "海報",
+          "backdrop": "背景圖",
+          "original_language": "原始語言"
+        },
+        "fieldLang": "{{field}}（{{lang}}）",
+        "count_other": "{{count}} 個欄位",
+        "providerCount": "{{provider}} {{count}}"
+      },
+      "state": {
+        "pending": "待處理",
+        "matched": "已比對",
+        "unmatched": "未比對",
+        "failed": "失敗",
+        "skipped": "已略過"
+      },
+      "rating": {
+        "title": "分級",
+        "own": "自訂分級",
+        "effective": "生效分級",
+        "source": "來源",
+        "label": "設定自訂分級",
+        "fromMetadata": "取自中繼資料",
+        "saved": "已儲存分級。",
+        "unsaved": "未儲存",
+        "summary": "生效 {{effective}} · 自訂 {{own}} · 來源 {{source}}"
+      },
+      "language": {
+        "title": "原始語言",
+        "current": "原始語言",
+        "source": "來源",
+        "label": "設定原始語言",
+        "fromMetadata": "取自中繼資料",
+        "unknown": "未知",
+        "notLooked": "尚未查詢",
+        "manual": "手動設定（已鎖定）",
+        "saved": "已儲存原始語言。",
+        "unsaved": "未儲存",
+        "summary": "{{language}} · 來源 {{source}}",
+        "hint": "選擇的語言或「未知」會被鎖定。「取自中繼資料」會解除鎖定，下次比對時會再次查詢來源。",
+        "knownFailed": "無法載入語言清單。"
+      },
+      "files": {
+        "title": "檔案",
+        "probedAt": "檢查時間：{{date}}",
+        "probeError": "檢查錯誤",
+        "none": "沒有檔案。",
+        "columns": {
+          "name": "檔案",
+          "version": "版本",
+          "size": "大小",
+          "state": "狀態"
+        }
+      },
+      "refreshed": "重新整理已排入佇列。",
+      "trailers": {
+        "title": "預告片",
+        "state": {
+          "pending": "等待搜尋",
+          "found": "已找到",
+          "none": "找不到",
+          "failed": "搜尋失敗"
+        },
+        "empty": "沒有預告片。",
+        "official": "官方",
+        "size": "{{size}}p",
+        "sizeUnknown": "未知",
+        "source": {
+          "tmdb": "TMDB",
+          "youtube": "YouTube",
+          "ai": "AI",
+          "manual": "手動"
+        },
+        "add": "新增",
+        "addTitle": "新增預告片",
+        "url": "YouTube 連結或影片 ID",
+        "urlHint": "youtube.com/watch?v=…、youtu.be/… 或影片 ID。",
+        "lang": "語言",
+        "langOther": "其他",
+        "langCode": "語言代碼",
+        "langCodeHint": "兩到三個小寫字母，例如 fr。",
+        "submit": "新增",
+        "submitting": "新增中…",
+        "delete": {
+          "action": "刪除",
+          "title": "要刪除預告片嗎？",
+          "body": "預告片將被移除。自動找到的預告片可能會在下次重新整理時再次出現。",
+          "confirm": "刪除"
+        },
+        "columns": {
+          "video": "影片",
+          "size": "解析度",
+          "source": "來源",
+          "actions": "動作"
+        },
+        "deleted": "已刪除預告片。",
+        "added": "已新增預告片。"
+      },
+      "images": {
+        "title": "圖片",
+        "intro": "各類型所選的圖片，以及其來源和語言。自行選擇會鎖定該類型；「套用」和「重新整理」都會保留你的選擇。",
+        "none": "沒有圖片",
+        "chosen": "手動選擇",
+        "locked": "已鎖定",
+        "lockedNoChoice": "已鎖定但未選擇",
+        "pick": "選擇其他圖片",
+        "unlock": "解除鎖定",
+        "pickTitle": "選擇{{kind}}",
+        "candidates": "{{kind}}的候選圖片",
+        "chooseOne": "選擇 {{label}}，{{detail}}",
+        "empty": "沒有候選圖片。作品是否已比對，來源是否已設定？",
+        "current": "目前",
+        "more_other": "再顯示 {{count}} 張",
+        "reload": "重新查詢",
+        "unavailable": "無法連線：{{providers}}。清單會顯示其他來源。",
+        "size": "{{width}} × {{height}}",
+        "score": "評分 {{score}}",
+        "chosenSaved": "已選擇並鎖定{{kind}}；正在擷取圖片。",
+        "unlocked": "已解除{{kind}}的鎖定；正在自動選擇。",
+        "provider": {
+          "local": "本機檔案",
+          "embedded": "內嵌",
+          "tmdb": "TMDB",
+          "tvdb": "TVDB",
+          "anilist": "AniList",
+          "fanart": "Fanart.tv"
+        },
+        "columns": {
+          "kind": "類型",
+          "source": "來源",
+          "state": "狀態",
+          "actions": "動作"
+        },
+        "unlockFailed": "未能解除{{kind}}的鎖定。"
+      },
+      "tabs": {
+        "label": "作品區段",
+        "imageKinds_other": "{{count}} 種圖片類型",
+        "files_other": "{{count}} 個檔案",
+        "trailers_other": "{{count}} 部預告片",
+        "unsavedMark": "•"
+      }
+    },
+    "match": {
+      "title": "比對作品",
+      "description": "在 TMDB 或 TVDB 搜尋作品，並選擇正確的項目。",
+      "provider": "提供者",
+      "kind": "類型",
+      "query": "搜尋字詞",
+      "year": "年份（選用）",
+      "search": "搜尋",
+      "searching": "搜尋中…",
+      "results": "結果",
+      "none": "沒有結果。",
+      "choose": "比對為「{{title}}」",
+      "yearInvalid": "請輸入 1800 到 2100 之間的年份。"
+    },
+    "titleYear": "{{title}}（{{year}}）",
+    "devices": {
+      "title": "裝置",
+      "intro": "已登入的瀏覽器和裝置，以及其上次開始播放時的功能設定檔。",
+      "list": "裝置",
+      "tabs": {
+        "label": "裝置檢視",
+        "devices": "裝置",
+        "capabilities": "功能"
+      },
+      "hint": {
+        "devices": "依類型分組。功能列在旁邊的分頁中。",
+        "capabilities": "每部裝置上次開始播放時的功能設定檔。"
+      },
+      "caption": "{{view}}：{{type}}",
+      "count_other": "{{number}} 部裝置",
+      "profiled_other": "{{number}} 部裝置有功能設定檔",
+      "streamCount_other": "{{number}} 個串流",
+      "empty": "尚無裝置。",
+      "columns": {
+        "name": "裝置",
+        "owner": "擁有者",
+        "lastSeen": "上次連線",
+        "containers": "容器格式",
+        "video": "影像",
+        "audio": "音訊",
+        "resolution": "最高解析度",
+        "hdr": "HDR",
+        "streams": "串流",
+        "actions": "動作"
+      },
+      "unnamed": "未知裝置",
+      "owner": "{{email}} · {{profile}}",
+      "noOwner": "尚未播放",
+      "noProfile": "{{name}}，尚無功能設定檔",
+      "types": {
+        "desktop": "電腦",
+        "phone": "手機",
+        "tablet": "平板",
+        "tv": "電視",
+        "other": "其他",
+        "unknown": "未知"
+      },
+      "forget": {
+        "action": "移除裝置",
+        "label": "移除裝置 {{name}}",
+        "title": "要移除裝置「{{name}}」嗎？",
+        "body": "進行中的串流會結束，該裝置的工作階段會被登出。如果這就是你目前使用的裝置，你會立即在這裡登出。",
+        "confirm": "移除裝置"
+      },
+      "forgotten": "已移除裝置「{{name}}」。",
+      "yes": "是",
+      "no": "否",
+      "unknown": "–",
+      "unknownSpoken": "未知"
+    },
+    "streams": {
+      "title": "串流",
+      "intro": "目前正在播放的所有內容。清單每 5 秒更新一次。",
+      "list": "正在播放",
+      "listHelp": "最新的在前，廣播也在同一份清單中。",
+      "tileLabel": "{{profile}}：{{title}}",
+      "empty": "目前沒有任何播放。",
+      "emptyKind": "目前沒有這個類型的播放。",
+      "filter": {
+        "label": "依類型篩選",
+        "all": "全部",
+        "video": "影片",
+        "audiobook": "有聲書",
+        "podcast": "Podcast",
+        "radio": "廣播",
+        "unknown": "數量不明"
+      },
+      "kinds": {
+        "movie": "電影",
+        "episode": "影集",
+        "extra": "花絮",
+        "audiobook": "有聲書",
+        "podcast": "Podcast",
+        "radio": "廣播"
+      },
+      "partial": {
+        "streams": "在要求再次成功之前，清單中會缺少部分播放。",
+        "radio": "在要求再次成功之前，清單中會缺少廣播聽眾。"
+      },
+      "facts": {
+        "device": "裝置",
+        "quality": "畫質",
+        "reason": "原因",
+        "format": "格式",
+        "source": "來源",
+        "listeners": "聽眾"
+      },
+      "unknownDevice": "未知裝置",
+      "original": "原始畫質",
+      "source": {
+        "file": "檔案",
+        "feed": "訂閱源"
+      },
+      "parts_other": "{{count}} 個部分",
+      "qualityValue": "{{quality}} · {{bitrate}}",
+      "modes": {
+        "direct": "直接播放",
+        "remux": "Remux",
+        "transcode": "轉碼（{{encoder}}）"
+      },
+      "hw": "硬體",
+      "sw": "軟體",
+      "position": "{{position}} / {{duration}}",
+      "progress": "{{title}} 的進度",
+      "stop": {
+        "action": "停止",
+        "label": "停止 {{profile}} 的串流",
+        "title": "要停止 {{profile}} 的串流嗎？",
+        "body": "「{{title}}」的播放會在幾秒內於裝置上停止。",
+        "confirm": "停止串流"
+      },
+      "stopped": "已停止 {{profile}} 的串流。",
+      "since": "自 {{time}} 起",
+      "noPosition": "–",
+      "noFormat": "–",
+      "load": {
+        "title": "伺服器負載",
+        "hw": {
+          "label": "硬體轉碼",
+          "note": "顯示卡"
+        },
+        "sw": {
+          "label": "軟體轉碼",
+          "note": "處理器"
+        },
+        "remux": {
+          "label": "Remux",
+          "note": "僅重新封裝"
+        },
+        "direct": {
+          "label": "直接播放",
+          "note": "無負載"
+        },
+        "bandwidth": {
+          "label": "總頻寬",
+          "note": "位元率總和",
+          "notePartial": "已知位元率的總和"
+        },
+        "radio": {
+          "label": "廣播",
+          "note": "聽眾，不轉碼"
+        }
+      },
+      "radio": {
+        "playing": "收聽中",
+        "paused": "已暫停",
+        "failed": "轉送失敗",
+        "transcoded": "已轉碼",
+        "copied": "已重新封裝",
+        "listeners_other": "此電台有 {{count}} 位聽眾",
+        "stopLabel": "停止 {{profile}} 的廣播",
+        "stopTitle": "要停止 {{profile}} 的廣播嗎？",
+        "stopBody": "「{{station}}」的播放會在幾秒內於裝置上停止。",
+        "stopConfirm": "停止廣播",
+        "stopped": "已停止 {{profile}} 的廣播。"
+      }
+    },
+    "podcasts": {
+      "title": "Podcast",
+      "intro": "已訂閱的訂閱源，以及來自資料夾的 Podcast。背景工作「檢查 Podcast 訂閱源」會擷取到期的訂閱並新增新單集。",
+      "empty": "尚未訂閱任何 Podcast。",
+      "emptyLibrary": "這個媒體庫還沒有 Podcast。",
+      "list": "已訂閱的 Podcast",
+      "listOf": "{{library}} 中已訂閱的 Podcast",
+      "noLibrary": "請先新增一個 Podcast 類型的媒體庫。",
+      "librariesLink": "前往媒體庫",
+      "never": "從未",
+      "noError": "–",
+      "explicit": "兒少不宜",
+      "fromFolder": "來自資料夾",
+      "localEpisodes_other": "{{number}} 個本機",
+      "columns": {
+        "title": "標題",
+        "episodes": "單集",
+        "stored": "儲存空間",
+        "lastFetch": "上次擷取",
+        "error": "錯誤",
+        "newest": "最新單集",
+        "state": "狀態",
+        "open": "頁面"
+      },
+      "tabs": {
+        "label": "依媒體庫分類的 Podcast",
+        "all": "全部",
+        "count_other": "{{number}} 個 Podcast"
+      },
+      "detail": {
+        "author": "作者",
+        "feedUrl": "訂閱源網址",
+        "noFeed": "沒有訂閱源。",
+        "noFeedFolder": "沒有訂閱源，單集來自資料夾。",
+        "library": "媒體庫",
+        "folderNote": "這個 Podcast 來自資料夾。每次掃描都會再出現；只能在「媒體庫」中連同資料夾一起移除。"
+      },
+      "subscribe": {
+        "action": "訂閱訂閱源",
+        "title": "訂閱訂閱源",
+        "description": "Slouchcat 會立即擷取訂閱源，並新增 Podcast 及其單集。",
+        "library": "媒體庫",
+        "url": "訂閱源網址",
+        "urlHint": "Podcast 的 RSS 訂閱源，例如 https://example.org/feed.xml。",
+        "submit": "訂閱",
+        "submitting": "正在擷取訂閱源…",
+        "done": "已訂閱 {{title}}。",
+        "loads": {
+          "new": "這個媒體庫會儲存新單集。Slouchcat 不會從第一次擷取中下載任何內容，只會下載之後推出的單集。",
+          "last_n": "這個媒體庫會儲存單集：訂閱後，Slouchcat 會將最新的 {{n}} 集下載為檔案。",
+          "all": "這個媒體庫會儲存所有單集：訂閱後，Slouchcat 會將整個訂閱源下載為檔案（最多 2000 集）。"
+        },
+        "load": {
+          "label": "下載單集",
+          "hint": "「僅訂閱」不會從訂閱源下載任何內容；之後 Podcast 只會儲存新推出的單集。",
+          "yes": "訂閱並下載",
+          "no": "僅訂閱",
+          "required": "請選擇 Slouchcat 是否要下載單集。"
+        }
+      },
+      "refresh": {
+        "action": "立即擷取",
+        "label": "立即擷取 {{title}}",
+        "queued": "正在擷取 {{title}}。",
+        "running": "擷取中"
+      },
+      "remove": {
+        "action": "取消訂閱",
+        "label": "取消訂閱 {{title}}",
+        "title": "要取消訂閱 {{title}} 嗎？",
+        "body": "這個 Podcast 及其單集會從媒體庫中消失。單集的下載內容會在下次同步時移除。",
+        "confirm": "取消訂閱",
+        "done": "已取消訂閱 {{title}}。"
+      },
+      "stored": {
+        "save": "儲存檔案",
+        "link": "僅連結",
+        "own": "自訂設定",
+        "loading": "正在下載 {{number}} 集",
+        "failed": "{{number}} 集失敗"
+      },
+      "downloads": {
+        "title": "新單集",
+        "titleOf": "新單集：{{library}}",
+        "summary": {
+          "save": "儲存 · {{scope}} · 同時 {{parallel}} 個",
+          "link": "僅連結 · 不儲存任何內容"
+        },
+        "saved": "已儲存。",
+        "mode": {
+          "label": "新單集",
+          "save": "儲存",
+          "link": "僅連結"
+        },
+        "scope": {
+          "label": "範圍",
+          "new": "僅新單集",
+          "last_n": "新單集 + 最近 N 集",
+          "all": "所有單集",
+          "lastNOf": "新單集 + 最近 {{n}} 集"
+        },
+        "hint": {
+          "link": "新單集保持為連結，播放時從主機串流。現有檔案會保留。",
+          "new": "只下載從現在起推出的單集。沒有檔案的舊單集仍為連結。",
+          "last_n": "新單集，以及每個 Podcast 訂閱源中缺少的最近 {{n}} 集。",
+          "all": "整個訂閱源（每個 Podcast 最多 2000 集）和每個新單集。可能佔用大量空間。"
+        },
+        "lastN": {
+          "label": "單集數量（N）",
+          "hint": "1 到 {{max}}",
+          "apply": "套用"
+        },
+        "estimating": "正在計算估計值…",
+        "confirm": {
+          "text_other": "這會一次下載約 {{number}} 集，大約 {{size}}。可用空間：{{free}}。",
+          "load": "下載"
+        },
+        "folder": {
+          "label": "資料夾",
+          "target": "新訂閱的資料夾",
+          "writable": "可寫入 · 可用 {{free}}",
+          "writableUnknown": "可寫入",
+          "checking": "正在檢查資料夾…",
+          "none": "這個媒體庫沒有 Podcast 資料夾。請在「媒體庫」中新增一個，Slouchcat 才能儲存單集。",
+          "locked": "資料夾通過檢查之前，「儲存」會被鎖定。",
+          "guide": "安裝指南：儲存 Podcast 單集",
+          "problem": {
+            "read_only": "以唯讀方式掛載",
+            "not_mounted": "資料夾未掛載",
+            "no_hard_links": "檔案系統無法建立硬連結",
+            "permissions": "新檔案沒有取得所需的權限"
+          }
+        },
+        "parallel": {
+          "label": "同時下載",
+          "hint": "Slouchcat 一次只會從同一個主機下載一集。"
+        }
+      },
+      "setting": {
+        "saved": "已儲存。",
+        "effective": {
+          "save": "套用：儲存 · {{scope}}",
+          "link": "套用：僅連結"
+        },
+        "notSavable": "這個 Podcast 的資料夾未通過資料夾檢查；「儲存」已鎖定。",
+        "mode": {
+          "label": "這個 Podcast 的新單集",
+          "inherit": "與媒體庫相同",
+          "save": "儲存",
+          "link": "僅連結"
+        },
+        "scope": {
+          "label": "這個 Podcast 的範圍",
+          "inherit": "與媒體庫相同",
+          "new": "僅新單集",
+          "last_n": "新單集 + 最近 N 集",
+          "all": "所有單集"
+        },
+        "unclear_other": "有 {{number}} 集狀態不明：資料夾中的某個檔案可能已包含這些單集。Slouchcat 不會自動下載。",
+        "missing": {
+          "action": "下載缺少的單集",
+          "label": "下載 {{title}} 缺少的單集",
+          "none": "沒有 Slouchcat 會下載的缺少單集。",
+          "queued_other": "正在下載 {{number}} 集。"
+        }
+      },
+      "share": {
+        "none": "未儲存任何單集",
+        "all": "已全部儲存",
+        "some": "已儲存 {{stored}} 集 · {{missing}} 集僅連結",
+        "someNoFeed": "已儲存 {{stored}} 集 · {{missing}} 集沒有檔案",
+        "label": "已儲存 {{stored}} / {{total}} 集"
+      },
+      "state": {
+        "fetching": "擷取中",
+        "loading": "正在下載 {{number}} 集",
+        "feedError": "訂閱源錯誤",
+        "notSavable": "無法儲存",
+        "current": "已是最新"
+      },
+      "openPage": {
+        "action": "單集",
+        "label": "查看 {{title}} 的單集"
+      },
+      "filter": {
+        "label": "篩選 Podcast",
+        "all": "全部",
+        "save": "儲存檔案",
+        "link": "僅連結",
+        "loading": "下載中",
+        "error": "錯誤"
+      },
+      "search": {
+        "label": "搜尋 Podcast",
+        "placeholder": "標題或作者"
+      },
+      "sort": {
+        "label": "排序",
+        "title": "標題",
+        "newest": "最新單集",
+        "size": "儲存空間",
+        "episodes": "單集數量"
+      },
+      "noMatch": "沒有符合篩選條件和搜尋的 Podcast。",
+      "kpi": {
+        "label": "摘要",
+        "podcasts": "Podcast",
+        "mode": "新單集",
+        "saving": "{{number}} 個儲存",
+        "linking": "{{number}} 個僅連結",
+        "stored": "已使用",
+        "queue": "下載",
+        "queueEmpty": "無",
+        "queueRunning": "{{number}} 個進行中",
+        "queueWaiting": "{{number}} 個等待中",
+        "queuePaused": "已暫停"
+      },
+      "queue": {
+        "title": "下載",
+        "empty": "佇列是空的",
+        "summary_other": "佇列中有 {{number}} 個 · {{running}} 個進行中",
+        "none": "所有單集都已下載。佇列是空的。",
+        "pause": "暫停",
+        "resume": "繼續",
+        "paused": "下載已暫停。",
+        "resumed": "下載已繼續。",
+        "pausedHint": "已暫停：在你繼續之前不會下載任何內容。已開始的下載之後會接著進行。",
+        "cancelled": "已取消 {{title}} 的下載。",
+        "cancel": "取消：{{title}}",
+        "ofPodcastSize": "{{podcast}} · {{size}}",
+        "more": "已顯示 {{shown}} / {{total}} 個。",
+        "columns": {
+          "episode": "單集",
+          "progress": "進度",
+          "cancel": "取消"
+        },
+        "state": {
+          "queued": "等待中",
+          "paused": "已暫停",
+          "running": "下載中",
+          "runningShare": "下載中 · {{share}}%",
+          "runningBytes": "下載中 · {{size}}"
+        }
+      },
+      "page": {
+        "missing": "找不到 Podcast",
+        "missingBody": "這個 Podcast 不存在或已不存在。",
+        "back": "所有 Podcast",
+        "counters": "這個 Podcast 的數據",
+        "episodes": "單集",
+        "stored": "已儲存",
+        "missingCount": "{{number}} 集沒有檔案",
+        "bytes": "已使用",
+        "newest": "最新單集",
+        "library": "媒體庫「{{library}}」",
+        "setting": "設定"
+      },
+      "episodes": {
+        "title": "單集",
+        "caption": "{{title}} 的單集",
+        "empty": "這個檢視中沒有單集。",
+        "shown": "已顯示 {{shown}} / {{total}} 集。",
+        "more": "顯示更多",
+        "loadQueued": "正在下載 {{title}}。",
+        "loadNone": "不會下載 {{title}}：這一集已經有檔案。",
+        "filter": {
+          "label": "篩選單集",
+          "all": "全部",
+          "with_file": "已儲存",
+          "without_file": "沒有檔案"
+        },
+        "columns": {
+          "date": "日期",
+          "title": "單集",
+          "state": "狀態",
+          "action": "動作"
+        },
+        "state": {
+          "file": "已儲存",
+          "link": "僅連結",
+          "queued": "等待中",
+          "running": "下載中",
+          "failed": "失敗",
+          "removed": "已移除",
+          "unclear": "不明"
+        },
+        "action": {
+          "load": "下載",
+          "loadLabel": "下載：{{title}}",
+          "retry": "重試",
+          "retryLabel": "重新下載：{{title}}",
+          "cancel": "取消",
+          "cancelLabel": "取消：{{title}}"
+        },
+        "meta": {
+          "link": "從提供者串流",
+          "retryAt": "下次嘗試時間：{{at}} 起",
+          "noRetry": "不會自動重試",
+          "removedFile": "缺少檔案 {{file}}，Slouchcat 不會自動下載",
+          "removed": "缺少檔案，Slouchcat 不會自動下載",
+          "unclear": "資料夾中的某個檔案可能已包含這一集"
+        },
+        "error": {
+          "enclosure_unavailable": "提供者沒有回應",
+          "too_large": "檔案大於 2 GiB",
+          "not_audio": "不是音訊",
+          "no_space": "空間不足",
+          "root_not_writable": "資料夾無法寫入",
+          "root_missing": "找不到資料夾",
+          "unsupported_format": "不儲存此格式"
+        }
+      }
+    },
+    "picks": {
+      "title": "使用者推薦",
+      "intro": "擁有者帳戶的個人資料可以在作品頁面上按星號推薦作品；其他帳戶只能看到清單。名字不會顯示，每部作品只會列出一次。",
+      "retention": {
+        "title": "到期",
+        "label": "推薦保留",
+        "unit": "天",
+        "help": "7 到 365 天，預設為 60 天。同一作品每次獲得新推薦都會重新計算期限。縮短期限會立即生效。",
+        "saved_other": "推薦現在會保留 {{count}} 天。"
+      },
+      "list": "目前的推薦",
+      "count_other": "{{number}} 部作品",
+      "empty": "目前沒有任何個人資料推薦作品。沒有推薦時，首頁不會顯示「使用者推薦」欄目。",
+      "anonymous": "管理介面只會看到作品獲得的推薦數，永遠看不到是哪個個人資料推薦的。",
+      "homeRowsHint": "欄目在首頁上的位置以及是否顯示，可在 <page>首頁</page> 中設定。",
+      "columns": {
+        "title": "標題",
+        "picked": "上次推薦日期",
+        "expires": "到期",
+        "count": "數量",
+        "actions": "動作"
+      },
+      "expiresIn_other": "{{count}} 天後",
+      "countValue_other": "{{count}} 個推薦",
+      "remove": {
+        "action": "移除",
+        "label": "移除 {{title}}",
+        "title": "要從使用者推薦中移除 {{title}} 嗎？",
+        "body": "這部作品的所有推薦都會移除。作品本身仍會保留在媒體庫中。",
+        "confirm": "移除",
+        "done": "{{title}} 已不再列為推薦。"
+      }
+    },
+    "collections": {
+      "title": "合集",
+      "intro": "來自 TMDB 的合集會在比對作品時自動產生，且無法變更。你可以在這裡建立自己的合集。",
+      "list": "合集",
+      "empty": "尚無合集。",
+      "columns": {
+        "name": "名稱",
+        "source": "來源",
+        "count": "作品",
+        "state": "狀態"
+      },
+      "source": {
+        "tmdb": "TMDB",
+        "manual": "手動"
+      },
+      "form": {
+        "name": "名稱"
+      },
+      "create": {
+        "action": "新增合集",
+        "title": "新增合集",
+        "submit": "建立",
+        "done": "已建立合集 {{name}}。"
+      },
+      "rename": {
+        "action": "重新命名",
+        "label": "重新命名 {{name}}",
+        "title": "重新命名 {{name}}",
+        "done": "合集現在名為 {{name}}。"
+      },
+      "remove": {
+        "action": "刪除",
+        "label": "刪除合集 {{name}}",
+        "title": "要刪除合集 {{name}} 嗎？",
+        "body": "作品會保留在媒體庫中，只會刪除合集。",
+        "confirm": "刪除合集",
+        "done": "已刪除合集 {{name}}。"
+      },
+      "members": {
+        "title": "{{name}} 的成員",
+        "list": "合集中的作品",
+        "empty": "這個合集還沒有作品。",
+        "add": "新增",
+        "addLabel": "新增 {{title}}",
+        "remove": "移除",
+        "removeLabel": "移除 {{title}}",
+        "done": "已儲存 {{name}} 的成員。",
+        "search": {
+          "label": "搜尋作品",
+          "hint": "至少兩個字元：電影、影集、有聲書和 Podcast。",
+          "empty": "找不到相符的作品。",
+          "results": "找到的作品"
+        },
+        "count_other": "{{number}} 部作品",
+        "meta": "{{kind}} · {{year}}",
+        "unsaved": "有未儲存的變更",
+        "discard": "捨棄",
+        "discarded": "已捨棄對 {{name}} 的變更。"
+      },
+      "tabs": {
+        "label": "依來源分類的合集",
+        "all": "全部",
+        "count_other": "{{number}} 個合集"
+      },
+      "listManual": "手動合集",
+      "listTmdb": "來自 TMDB 的合集",
+      "emptyTab": "這個分頁中沒有合集。",
+      "locked": "無法編輯",
+      "lockedNote": "這個合集來自 TMDB：成員、名稱和刪除功能都已鎖定。",
+      "changed": "已變更"
+    },
+    "myMedia": {
+      "title": "我的媒體",
+      "intro": "「我的媒體」群組的順序和顯示方式：套用於所有個人資料的側邊欄和首頁上的圖塊。隱藏只會隱藏項目；作品仍會出現在搜尋和欄目中。誰能看到哪個媒體庫由帳戶設定決定。",
+      "list": "「我的媒體」的項目",
+      "band": "我的媒體",
+      "tabs": {
+        "label": "項目檢視",
+        "order": "順序",
+        "preview": "預覽"
+      },
+      "count_other": "{{number}} 個項目",
+      "columns": {
+        "position": "位置",
+        "entry": "項目",
+        "content": "內容",
+        "state": "狀態",
+        "sidebar": "側邊欄",
+        "home": "首頁"
+      },
+      "kind": {
+        "library": "媒體庫",
+        "radio": "廣播",
+        "collections": "合集",
+        "picks": "推薦"
+      },
+      "name": {
+        "radio": "廣播",
+        "collections": "合集",
+        "picks": "使用者推薦"
+      },
+      "content": {
+        "stations_other": "{{number}} 個電台",
+        "collections_other": "{{number}} 個合集",
+        "titles_other": "{{number}} 部作品"
+      },
+      "state": {
+        "visible": "顯示",
+        "sidebarOnly": "僅側邊欄",
+        "homeOnly": "僅首頁",
+        "hidden": "隱藏"
+      },
+      "hide": "隱藏",
+      "hideSidebarLabel": "在側邊欄隱藏 {{entry}}",
+      "hideHomeLabel": "在首頁隱藏 {{entry}}",
+      "moved": "{{entry}} 現在位於第 {{position}} 位。儲存後才會生效。",
+      "saved": "已儲存「我的媒體」。",
+      "discarded": "已捨棄變更。",
+      "discard": {
+        "title": "要捨棄變更嗎？",
+        "body": "未儲存的順序和隱藏設定將會遺失；將恢復為已儲存的設定。",
+        "confirm": "捨棄"
+      },
+      "preview": {
+        "sidebar": "側邊欄",
+        "home": "首頁，「我的媒體」欄目",
+        "sidebarLabel": "側邊欄預覽",
+        "homeLabel": "首頁預覽",
+        "empty": "沒有可顯示的內容：這裡缺少「我的媒體」。",
+        "note": "依未儲存的順序顯示，數字為管理介面中的數字。每個個人資料只會看到其有權觀看的媒體庫，以及自己的電台和推薦。"
+      },
+      "homeRows": "「我的媒體」欄目在首頁上的位置以及是否顯示，由「首頁」設定。",
+      "homeRowsLink": "前往「首頁」頁面"
+    },
+    "homeRows": {
+      "title": "首頁",
+      "intro": "首頁欄目的順序，套用於所有個人資料。隱藏和空白的欄目不會顯示。",
+      "list": "首頁的欄目",
+      "band": "欄目",
+      "tabs": {
+        "label": "欄目檢視",
+        "order": "順序",
+        "preview": "預覽"
+      },
+      "count_other": "{{number}} 個欄目",
+      "visibleCount_other": "{{number}} 個顯示",
+      "columns": {
+        "position": "位置",
+        "row": "欄目",
+        "state": "狀態",
+        "hidden": "隱藏"
+      },
+      "state": {
+        "visible": "顯示",
+        "hidden": "隱藏"
+      },
+      "hide": "隱藏",
+      "hideLabel": "隱藏 {{row}}",
+      "libraryTag": "媒體庫",
+      "tooMany": "已有 {{count}} 個欄目顯示。請先隱藏其他欄目。",
+      "rows": {
+        "spotlight": "Trakt 清單與媒體庫的交集。在其位置以帶背景圖的大型展示區呈現；相符作品少於最低數量時不會顯示。",
+        "picks": "擁有者帳戶的個人資料推薦的作品；最新的在前，並有到期時間。",
+        "continue": "個人資料已開始觀看的作品。",
+        "recent": "最近加入媒體庫的作品。",
+        "released": "依過去十二個月內的發行日期排列；影集依其最新單集排列。",
+        "watchlist": "個人資料的我的片單。",
+        "collections": "自訂合集和來自 TMDB 的合集。",
+        "genres": "可見作品的類型。",
+        "libraries": "個人資料可看到的媒體庫、廣播，以及（若已顯示）合集和使用者推薦的圖塊；其順序和隱藏設定由「我的媒體」頁面決定。",
+        "library": "最近加入這個媒體庫的作品；「顯示全部」會開啟依「最近新增」排序的媒體庫。",
+        "radio": "以圖塊顯示個人資料最愛的電台；目前透過伺服器播放的電台會顯示正在播放的曲目。沒有最愛電台時不會顯示這個欄目。"
+      },
+      "pageLink": "前往「{{page}}」",
+      "moved": "{{row}} 現在位於第 {{position}} 位。儲存後才會生效。",
+      "saved": "已儲存首頁。",
+      "discarded": "已捨棄變更。",
+      "discard": {
+        "title": "要捨棄變更嗎？",
+        "body": "未儲存的順序和隱藏設定將會遺失；將恢復為已儲存的設定。",
+        "confirm": "捨棄"
+      },
+      "preview": {
+        "label": "首頁預覽",
+        "row": "{{position}}. {{row}}",
+        "note": "以預留位置示意，依未儲存的順序排列。實際的首頁不會顯示隱藏的欄目，空白的欄目也會略過（例如空的我的片單）。"
+      },
+      "spotlight": "焦點推薦顯示哪份 Trakt 清單、上次擷取時間，以及 Trakt 是否已設定，請參閱「焦點推薦」。",
+      "spotlightLink": "前往「焦點推薦」"
+    },
+    "spotlight": {
+      "title": "焦點推薦",
+      "intro": "將一份公開的 Trakt 清單作為首頁的欄目。只會顯示自己媒體庫中有的作品；每個個人資料只會看到其年齡分級允許的內容。",
+      "enabled": "在首頁顯示",
+      "enabledHint": "按下「儲存」後才會與來源一起生效。",
+      "unsaved": "有未儲存的變更",
+      "row": {
+        "shown": "已在首頁",
+        "missing": "未在首頁顯示"
+      },
+      "lists": {
+        "trending": "Trakt 熱門趨勢",
+        "popular": "Trakt 人氣作品",
+        "watched_weekly": "最多人觀看（上週）",
+        "collected_monthly": "最多人收藏（上個月）",
+        "anticipated": "最受期待",
+        "boxoffice": "票房排行",
+        "url": "依網址指定公開清單"
+      },
+      "media": {
+        "movie": "僅電影",
+        "show": "僅影集",
+        "both": "電影和影集"
+      },
+      "source": {
+        "title": "來源",
+        "list": "Trakt 清單",
+        "listHint": "公開清單，不需要 Trakt 登入。",
+        "listHintLink": "金鑰設定在「整合」中",
+        "listUrl": "清單網址",
+        "listUrlHint": "trakt.tv 上的公開清單，例如 https://trakt.tv/users/name/lists/name-of-the-list。不支援片單（Watchlist）。",
+        "media": "媒體類型",
+        "mediaFixed": "這份清單已決定媒體類型。",
+        "mediaFilters": "這份清單混合了電影和影集：擷取後會依媒體類型篩選項目。",
+        "itemCount": "作品數上限",
+        "itemCountHint": "每個個人資料在欄目中顯示的作品數（5–20）",
+        "minHits": "隱藏門檻",
+        "minHitsHint": "媒體庫中相符作品少於此數時隱藏，依個人資料計算（0–10）",
+        "intervalHours": "擷取間隔（小時）",
+        "intervalHoursHint": "6 到 48 小時",
+        "rotation": "焦點推薦輪播間隔",
+        "rotationHint": "3 到 15 秒",
+        "refresh": "立即擷取",
+        "queued": "正在擷取清單。",
+        "saved": "已儲存焦點推薦。"
+      },
+      "state": {
+        "fetched": "上次擷取：{{date}}",
+        "never": "從未擷取",
+        "failed": "上次擷取失敗：{{reason}}",
+        "hits": "媒體庫中有 {{hits}} / {{entries}} 部作品",
+        "keySet": "已設定金鑰",
+        "noKey": "沒有金鑰",
+        "separator": " · "
+      },
+      "missing": {
+        "noKey": "沒有 Trakt 金鑰時，首頁不會顯示這個欄目。",
+        "disabled": "焦點推薦已關閉：首頁不會顯示這個欄目。",
+        "failed": "擷取成功之前，首頁不會顯示這個欄目。",
+        "empty": "清單是空的：首頁不會顯示這個欄目。",
+        "belowMinHits": "媒體庫中只有 {{hits}} 部相符作品，少於所需的 {{min}} 部：首頁不會顯示這個欄目。可見作品較少的個人資料，即使在其他情況下也可能看不到。"
+      },
+      "entries": {
+        "title": "清單項目",
+        "intro": "順序來自 Trakt；你自己的變更在下次擷取時仍會保留。",
+        "empty": "尚無項目。設定好 Trakt 後即可擷取清單。",
+        "columns": {
+          "rank": "排名",
+          "title": "標題",
+          "status": "狀態",
+          "note": "自訂備註",
+          "actions": "動作"
+        },
+        "media": {
+          "movie": "電影",
+          "show": "影集"
+        },
+        "meta": "{{media}} · {{year}}",
+        "untitled": "TMDB {{id}}",
+        "state": {
+          "visible": "顯示",
+          "hidden": "隱藏",
+          "missing": "不在媒體庫中"
+        },
+        "pinned": "已釘選在第 {{rank}} 位",
+        "quoted": "「{{note}}」",
+        "none": "–",
+        "notInLibrary": "不在媒體庫中，不會出現在首頁",
+        "hide": "隱藏",
+        "hideLabel": "隱藏 {{title}}",
+        "show": "顯示",
+        "showLabel": "顯示 {{title}}",
+        "hidden": "已隱藏 {{title}}。",
+        "shown": "已重新顯示 {{title}}。",
+        "count_other": "{{count}} 個項目"
+      },
+      "pin": {
+        "action": "釘選",
+        "label": "釘選 {{title}}",
+        "title": "釘選 {{title}}",
+        "rank": "在欄目中的位置",
+        "rankHint": "1 代表第一位。位置以整份清單為準；相符作品較少的個人資料會更早看到這部作品。",
+        "done": "已將 {{title}} 釘選在第 {{rank}} 位。",
+        "taken": "{{hint}} 已佔用：{{places}}。",
+        "takenPlace": "第 {{rank}} 位（{{title}}）",
+        "allTaken": "所有位置都已佔用；請先取消釘選一個。"
+      },
+      "unpin": {
+        "action": "取消釘選",
+        "label": "取消釘選 {{title}}",
+        "done": "已取消釘選 {{title}}。"
+      },
+      "note": {
+        "action": "備註",
+        "label": "{{title}} 的備註",
+        "title": "{{title}} 的備註",
+        "field": "備註",
+        "hint": "最多 {{max}} 個字元。留空即可移除備註。",
+        "saved": "已儲存 {{title}} 的備註。",
+        "removed": "已移除 {{title}} 的備註。"
+      },
+      "orphans": {
+        "title": "孤立的自訂調整",
+        "intro": "對已不在清單中之作品的自訂調整。只有在作品回到清單時才會再次生效。",
+        "override": "自訂調整",
+        "remove": "移除",
+        "removeLabel": "移除 {{title}} 的自訂調整",
+        "removed": "已移除 {{title}} 的自訂調整。",
+        "count_other": "{{count}} 個自訂調整"
+      },
+      "rowSettings": "欄目在首頁上的位置以及是否顯示，可在「首頁」中設定。",
+      "rowSettingsLink": "前往「首頁」"
+    },
+    "nav": {
+      "label": "管理",
+      "overview": "總覽",
+      "groups": {
+        "library": "媒體庫",
+        "accounts": "帳戶",
+        "curation": "內容策展",
+        "system": "系統"
+      },
+      "back": "返回應用程式",
+      "updateLabel": "總覽，有可用的更新：版本 {{version}}",
+      "sheet": {
+        "label": "管理頁面",
+        "close": "關閉管理頁面"
+      },
+      "counts": {
+        "titles_other": "{{name}}，{{formatted}} 部作品",
+        "maintenance_other": "{{name}}，{{formatted}} 部作品需要維護",
+        "accounts_other": "{{name}}，{{formatted}} 個帳戶",
+        "streams_other": "{{name}}，{{formatted}} 個正在播放",
+        "jobsRunning_other": "{{name}}，{{formatted}} 個執行中",
+        "jobsFailed_other": "{{name}}，{{formatted}} 個失敗",
+        "silent_other": "{{name}}，{{formatted}} 個 Webhook 沒有動靜",
+        "integrations": "{{name}}，已設定 {{configured}} / {{total}} 個",
+        "ofTotal": "{{count}} / {{total}}"
+      }
+    },
+    "sections": {
+      "radio": {
+        "title": "廣播"
+      },
+      "libraries": {
+        "title": "媒體庫"
+      },
+      "podcasts": {
+        "title": "Podcast"
+      },
+      "maintenance": {
+        "title": "維護"
+      },
+      "accounts": {
+        "title": "帳戶"
+      },
+      "devices": {
+        "title": "裝置"
+      },
+      "streams": {
+        "title": "串流"
+      },
+      "spotlight": {
+        "title": "焦點推薦"
+      },
+      "picks": {
+        "title": "使用者推薦"
+      },
+      "collections": {
+        "title": "合集"
+      },
+      "myMedia": {
+        "title": "我的媒體"
+      },
+      "homeRows": {
+        "title": "首頁"
+      },
+      "announcements": {
+        "title": "公告"
+      },
+      "jobs": {
+        "title": "背景工作"
+      },
+      "integrations": {
+        "title": "整合"
+      },
+      "notifications": {
+        "title": "通知"
+      },
+      "stats": {
+        "title": "統計"
+      },
+      "backup": {
+        "title": "備份"
+      },
+      "metadata": {
+        "title": "中繼資料"
+      }
+    },
+    "home": {
+      "setupBand": {
+        "title": "初始設定尚未完成",
+        "body": "初始設定還有幾個步驟未完成。",
+        "noLibrary": "目前還沒有媒體庫，因此首頁會是空的。",
+        "action": "繼續設定"
+      },
+      "title": "管理",
+      "live": "即時，每 5 秒更新",
+      "liveFailed": "沒有回應，每 5 秒重試一次",
+      "update": {
+        "title": "已推出版本 {{version}}",
+        "body": "你目前使用的是 {{current}}。Slouchcat 不會自行安裝任何內容：請使用 docker compose pull 取得新映像檔，並以 docker compose up -d 重新啟動。",
+        "notes": "版本資訊",
+        "development": {
+          "title": "你正在使用開發版本",
+          "body": "{{current}} 不是正式發布的版本，因此無法比較，也不會顯示更新提示。最新版本：{{latest}}。",
+          "bodyUnknown": "{{current}} 不是正式發布的版本，因此無法比較，也不會顯示更新提示。"
+        }
+      },
+      "streams": {
+        "title": "正在播放",
+        "empty": "目前沒有任何播放。",
+        "all": "所有串流",
+        "progress": "{{title}} 的進度"
+      },
+      "jobs": {
+        "title": "工作",
+        "queued": "佇列中",
+        "running": "執行中",
+        "failed": "失敗",
+        "paused": "已暫停",
+        "all": "背景工作",
+        "toFailed": "查看失敗項目",
+        "active": "執行中的工作",
+        "progress": "{{name}} 的進度",
+        "next": "目前沒有執行中的工作。下一項：{{type}}，{{date}}",
+        "idle": "目前沒有執行中的工作。",
+        "failedByType": "依工作類型列出的失敗",
+        "failedType_other": "{{type}}：{{count}} 個失敗",
+        "attempts": "{{attempts}} / {{max}}"
+      },
+      "storage": {
+        "title": "儲存空間",
+        "config": "設定（{{path}}）",
+        "cache": "快取（{{path}}）",
+        "used": "已使用 {{used}} / {{total}}",
+        "part": "已使用：{{size}}",
+        "free": "可用：{{free}} / {{total}}"
+      },
+      "integrations": {
+        "title": "整合",
+        "state": {
+          "configured": "已設定",
+          "missing": "未設定",
+          "error": "錯誤",
+          "disabled": "已關閉"
+        },
+        "entry": "{{name}}：{{state}}",
+        "manage": "設定整合",
+        "count": "已設定 {{count}} / {{total}} 個"
+      },
+      "webhooks": {
+        "title": "Webhook",
+        "none": "尚未設定 Webhook。",
+        "count_other": "過去 24 小時的紀錄中有 {{count}} 則通知，來自 {{total}} 個整合。",
+        "silent": "七天內沒有任何通知：{{names}}",
+        "manage": "管理 Webhook"
+      },
+      "server": {
+        "title": "伺服器",
+        "version": "版本",
+        "uptime": "已執行",
+        "update": "更新",
+        "updateCurrent": "已是最新版本",
+        "updateAvailable": "有可用的版本 {{version}}",
+        "updateDevelopment": "開發版本",
+        "updateFailed": "上次檢查失敗",
+        "updateOff": "已關閉檢查",
+        "updater": "更新程式",
+        "updaterUnknown": "版本不明",
+        "updaterDown": "沒有回應",
+        "checked": "上次檢查：{{date}}",
+        "lastSuccess": "上次成功檢查：{{date}}",
+        "check": "檢查更新",
+        "checkedNow": "已檢查更新。"
+      },
+      "restart": {
+        "action": "重新啟動",
+        "title": "要重新啟動伺服器嗎？",
+        "streams_other": "{{count}} 個進行中的串流將會中斷。進行中的離線下載也會中斷。",
+        "idle": "目前沒有任何播放。進行中的離線下載會中斷。",
+        "confirm": "重新啟動",
+        "waitTitle": "伺服器正在重新啟動",
+        "waitBody": "Slouchcat 會依序關閉後重新啟動。伺服器一有回應，頁面就會重新載入。"
+      },
+      "install": {
+        "action": "安裝 {{version}} 更新",
+        "title": "要安裝 {{version}} 更新嗎？",
+        "body": "伺服器會重新啟動；進行中的播放將會中斷。變更資料庫之前，伺服器會先備份資料庫。",
+        "notes": "版本資訊",
+        "confirm": "安裝",
+        "running": "正在更新至 {{version}}",
+        "runningNoVersion": "正在更新",
+        "stepsLabel": "更新步驟",
+        "steps": {
+          "download": "下載",
+          "restart": "重新啟動",
+          "health": "健康檢查"
+        },
+        "stepState": {
+          "done": "完成",
+          "current": "進行中",
+          "pending": "等待中"
+        },
+        "phase": {
+          "checking": "更新程式正在檢查版本。",
+          "backing_up": "更新程式正在備份 .env 並寫入新版本。",
+          "pulling": "更新程式正在下載新映像檔。",
+          "verifying": "更新程式正在檢查映像檔的指紋。",
+          "restarting": "伺服器正在以新版本重新啟動。",
+          "waiting": "更新程式正在等候新伺服器狀態正常（最多 10 分鐘）。"
+        },
+        "down": "伺服器目前沒有回應，正在等候…",
+        "silent": {
+          "title": "伺服器已超過 70 分鐘沒有回應",
+          "body": "更新不會花這麼久。請在主機上使用 docker compose ps 和 docker compose logs 檢查伺服器和更新程式是否正在執行。"
+        },
+        "done": "已安裝 {{version}} 更新。",
+        "rolledBack": "更新至 {{to}} 失敗，已恢復執行版本 {{from}}。",
+        "rolledBackNoVersion": "更新失敗，已恢復執行先前的版本。",
+        "failed": "更新至 {{version}} 失敗",
+        "failedNoVersion": "更新失敗",
+        "migrated": "資料庫已遷移；只能使用備份 {{backup}} 還原。",
+        "migratedNoBackup": "資料庫已遷移；只能使用遷移前建立的備份還原。",
+        "failure": {
+          "disk_full": "伺服器沒有空間存放新映像檔。請釋出空間後再試一次。",
+          "deploy_files": "無法擷取或寫入此版本的 Compose 檔案；更新已中止。"
+        },
+        "finished": "完成時間：{{date}}",
+        "refused": {
+          "title": "更新程式沒有開始更新",
+          "not_newer": "最新版本沒有比目前執行的版本新。",
+          "no_digest": "版本資訊清單沒有列出映像檔的指紋（digest）。",
+          "no_compose_labels": "伺服器不是以 Docker Compose 啟動的，因此更新程式不知道如何重新啟動它。請手動安裝更新。",
+          "outside_deploy_dir": "伺服器的某個 Compose 檔案位於 SLOUCHCAT_DEPLOY_DIR 之外。",
+          "manifest_invalid": "版本資訊清單無效。",
+          "manifest_unreachable": "無法連線至版本資訊清單，請稍後再試。",
+          "other": "更新程式因不明原因拒絕了更新。"
+        },
+        "manual": {
+          "unavailable": "更新程式沒有回應。請手動安裝更新。",
+          "intro": "沒有更新程式時，請在主機上包含 compose.yaml 和 .env 的資料夾中安裝更新：",
+          "introByHand": "手動安裝更新時，請在主機上包含 compose.yaml 和 .env 的資料夾中執行：",
+          "env": ".env 中的這一行",
+          "pull": "取得新映像檔",
+          "up": "以新版本啟動",
+          "files": "請使用與啟動時相同的 -f 檔案（例如 docker compose -f compose.yaml -f compose.intel.yaml pull），否則更新後會缺少這些檔案。",
+          "docs": "指南：使用更新程式一鍵更新"
+        },
+        "outdated": {
+          "title": "更新程式版本過舊；從 1.18.0 版起會自行更新。請手動升級一次：",
+          "command": "在 deploy 資料夾中執行",
+          "deployDir": "<deploy 資料夾>",
+          "files": "如果你是用 -f 而非 COMPOSE_FILE 列出 Compose 檔案，請附加相同的 -f 清單。"
+        }
+      },
+      "activity": {
+        "title": "最近活動",
+        "empty": "尚無活動。"
+      },
+      "hints": {
+        "title": "提示",
+        "count_other": "{{count}} 則提示",
+        "none": "沒有提示。",
+        "failed_other": "{{formatted}} 個背景工作失敗",
+        "paused_other": "{{count}} 個工作類型已暫停",
+        "toJobs": "前往背景工作",
+        "scan": "媒體庫「{{name}}」的掃描已中止",
+        "scanOther": "遺失保護機制中止了掃描。",
+        "toLibraries": "前往媒體庫",
+        "keyRejected": "{{name}} 金鑰遭拒",
+        "keyRejectedBody": "提供者拒絕了這個金鑰。在新金鑰生效之前，Slouchcat 不會從該提供者擷取中繼資料。",
+        "toKeys": "前往金鑰",
+        "ratingsReread": "正在重新讀取分級",
+        "ratingsRereadBody": "在工作完成前，仍會沿用先前的分級，可能較嚴格，也可能較寬鬆。",
+        "minimumAge": "分級現在代表最低年齡",
+        "minimumAgeBody": "自這次更新起，Slouchcat 會儲存每個分級的實際最低年齡：PG-13 為「13 歲以上」而非 FSK 12，R 為「17 歲以上」而非 FSK 16。因此，「12 歲以上」和「16 歲以上」的個人資料會看到較少美國作品。如果不希望如此，請調高個人資料的級別。",
+        "minimumAgeDismiss": "知道了",
+        "storage": "{{path}} 的使用量已超過 {{percent}}%"
+      },
+      "errors": {
+        "title": "伺服器記錄",
+        "intro": "伺服器記錄中最近 50 筆錯誤，最新的在前。",
+        "list": "伺服器記錄中的錯誤",
+        "empty": "啟動以來沒有任何錯誤。",
+        "job": "工作 {{id}}（{{type}}）",
+        "new_other": "{{count}} 筆新錯誤",
+        "none": "沒有錯誤",
+        "count_other": "{{count}} 筆錯誤"
+      },
+      "browse": {
+        "title": "資料夾瀏覽器已被阻塞",
+        "hanging_other": "有個掛載點停止回應：{{count}} 個列出作業卡在核心中，無法取消。資料夾瀏覽器仍可使用，但可用的作業位置較少。重新啟動即可釋放。",
+        "off": "資料夾瀏覽器的所有作業位置都卡在一個停止回應的掛載點上。在伺服器重新啟動之前無法瀏覽任何資料夾；仍可手動輸入路徑。"
+      }
+    },
+    "integrations": {
+      "title": "整合",
+      "intro": "提供者金鑰、通知的傳送方式和更新檢查。Slouchcat 會加密儲存機密值，且不會再次顯示。",
+      "names": {
+        "tmdb": "TMDB",
+        "tvdb": "TVDB",
+        "youtube": "YouTube",
+        "trakt": "Trakt",
+        "email": "電子郵件",
+        "push": "Web Push",
+        "telegram": "Telegram",
+        "updateCheck": "更新檢查"
+      },
+      "source": {
+        "env": "在 deploy/.env 中設定",
+        "stored": "已儲存",
+        "storedHint": "已儲存，結尾為 {{hint}}",
+        "none": "未設定"
+      },
+      "envHint": "已在 deploy/.env 中設定。只能在那裡變更此值。",
+      "save": "儲存",
+      "saveLabel": "儲存 {{name}}",
+      "saving": "儲存中…",
+      "discard": "捨棄",
+      "clear": {
+        "action": "刪除…",
+        "label": "刪除 {{name}}",
+        "title": "要刪除 {{name}} 嗎？",
+        "body": "儲存的值將被移除。需要它的功能將無法運作。",
+        "confirm": "刪除"
+      },
+      "saved": "已儲存 {{name}}。",
+      "cleared": "已刪除 {{name}}。",
+      "unsaved": "未儲存",
+      "notificationsLink": "前往通知管道",
+      "keys": {
+        "title": "提供者金鑰",
+        "intro": "Slouchcat 會用這些金鑰擷取文字、圖片和預告片。沒有金鑰時，該提供者會保持關閉。",
+        "count": "已設定 {{set}} / {{total}} 個提供者",
+        "newValue": "留空即可保留儲存的值。輸入新值會取代原有的值。"
+      },
+      "webhooks": {
+        "title": "來自 Radarr 和 Sonarr 的 Webhook",
+        "intro": "Radarr 和 Sonarr 會將變更的檔案通知到這裡，讓新作品立即出現。Slouchcat 本身絕不會主動呼叫這些服務。",
+        "empty": "尚未設定任何整合。",
+        "caption": "Webhook 整合",
+        "count_other": "{{count}} 個整合",
+        "tail": "…{{tail}}",
+        "columns": {
+          "name": "名稱",
+          "kind": "服務",
+          "address": "網址",
+          "lastSeen": "上次通知",
+          "actions": "動作"
+        },
+        "neverSeen": "從未傳送過任何通知。",
+        "kind": {
+          "radarr": "Radarr",
+          "sonarr": "Sonarr"
+        },
+        "form": {
+          "title": "新增整合",
+          "name": "名稱",
+          "nameHint": "可自由命名，只用來區分此清單中的項目。",
+          "kind": "服務",
+          "submit": "建立整合"
+        },
+        "created": {
+          "title": "「{{name}}」的網址",
+          "once": "請立即複製，這個網址不會再次顯示。",
+          "label": "完整網址",
+          "copy": "複製網址",
+          "copied": "已複製網址。",
+          "copyFailed": "複製失敗；網址已選取，請按 Ctrl+C。",
+          "dismiss": "隱藏"
+        },
+        "pathMap": {
+          "intro": "轉換 Radarr 或 Sonarr 回報的路徑。當同一個儲存空間在兩端的掛載方式不同時就需要設定，例如服務中是「/mnt/medien/Filme」，這裡是「/media/Filme」。以最長的相符開頭為準；沒有項目時，直接使用回報的路徑。兩個路徑都必須是以「/」開頭的絕對路徑。",
+          "from": "服務中的路徑",
+          "to": "此伺服器上的路徑",
+          "add": "新增一列",
+          "remove": "移除 {{from}} 的那一列",
+          "removeAction": "移除",
+          "elsewhere": "其他人在此期間變更了這個整合的路徑對應。你的列仍保留在這裡，儲存時會一併寫入。",
+          "takeOver": "改用另一個版本",
+          "elsewhereChip": "已在他處變更",
+          "saveLabel": "儲存 {{name}} 的路徑對應",
+          "saved": "已儲存路徑對應。"
+        },
+        "log": {
+          "caption": "來自 {{name}} 的通知",
+          "empty": "尚無通知。",
+          "at": "時間",
+          "event": "事件",
+          "reported": "回報的路徑",
+          "resolved": "對應後的路徑",
+          "result": "結果"
+        },
+        "result": {
+          "scan_queued": "正在讀取目錄",
+          "acknowledged": "已確認測試",
+          "ignored": "無影響",
+          "outside_roots": "在媒體庫之外",
+          "invalid_payload": "沒有路徑"
+        },
+        "renew": {
+          "action": "更新權杖",
+          "label": "更新 {{name}} 的權杖",
+          "title": "要更新「{{name}}」的權杖嗎？",
+          "body": "目前的網址會立即失效。新網址只會顯示一次，必須重新輸入到 Radarr 或 Sonarr 中。",
+          "confirm": "更新"
+        },
+        "delete": {
+          "action": "刪除",
+          "label": "刪除 {{name}}",
+          "title": "要刪除「{{name}}」嗎？",
+          "body": "網址會立即失效，通知紀錄也會一併刪除。",
+          "confirm": "刪除"
+        }
+      },
+      "email": {
+        "title": "電子郵件伺服器",
+        "intro": "用於以電子郵件傳送通知、邀請和公告。",
+        "name": "電子郵件伺服器",
+        "hostPort": "伺服器和連接埠",
+        "port": "連接埠",
+        "user": "使用者",
+        "userHint": "電子郵件伺服器的登入名稱（如有需要）。",
+        "password": "密碼",
+        "passwordHint": "會加密儲存，且不會再次顯示。",
+        "passwordKeep": "留空即可保留儲存的密碼。",
+        "from": "寄件者",
+        "fromHint": "例如 Slouchcat <media@example.ch>。",
+        "tls": "加密",
+        "tlsHint": "連接埠 587 使用 STARTTLS，連接埠 465 使用 TLS。",
+        "tlsOptions": {
+          "starttls": "STARTTLS",
+          "tls": "TLS",
+          "none": "無"
+        },
+        "test": "傳送測試郵件",
+        "testTo": "測試郵件會寄到 {{email}}。",
+        "testSent": "已將測試郵件寄到 {{email}}。",
+        "testFailed": "測試郵件未送達：{{detail}}"
+      },
+      "telegram": {
+        "title": "Telegram 機器人",
+        "name": "Telegram 機器人",
+        "botLabel": "機器人",
+        "botHelp": "Slouchcat 會透過權杖找到它。",
+        "token": "機器人權杖",
+        "setPlaceholder": "已設定權杖",
+        "tokenHelp": "用於透過 Telegram 傳送通知。權杖來自 @BotFather；Slouchcat 會向 Telegram 驗證。",
+        "tokenReplace": "新權杖會取代已儲存的權杖。",
+        "bot": "機器人：@{{name}}",
+        "noBot": "尚未設定機器人。"
+      },
+      "push": {
+        "title": "Web Push",
+        "intro": "在瀏覽器和已安裝的應用程式中顯示通知。",
+        "configured": "已有金鑰組。",
+        "notConfigured": "尚無金鑰組。只要有裝置開啟 Web Push 就會建立。",
+        "publicKey": "公開金鑰",
+        "rotate": {
+          "action": "建立新金鑰",
+          "title": "要建立新的 Web Push 金鑰嗎？",
+          "body": "所有裝置都會失去訂閱，必須在設定中重新開啟 Web Push。",
+          "confirm": "建立新金鑰"
+        },
+        "rotated": "已建立新金鑰。裝置必須重新開啟 Web Push。"
+      },
+      "update": {
+        "title": "更新檢查",
+        "intro": "Slouchcat 每天會讀取一次公開的版本資訊清單，有新版本時顯示提示。不會安裝任何內容。",
+        "toggle": "每天檢查新版本",
+        "on": "已開啟更新檢查。",
+        "off": "已關閉更新檢查。"
+      },
+      "server": {
+        "title": "伺服器"
+      },
+      "publicUrl": {
+        "title": "公開網址",
+        "intro": "電子郵件和訊息中的連結會透過這個網址連到伺服器。",
+        "name": "公開網址",
+        "label": "網址",
+        "hint": "例如 https://media.example.ch"
+      },
+      "providers": {
+        "fields": {
+          "tmdb": "存取權杖（v4）",
+          "tvdb": "金鑰",
+          "tvdbPin": "訂閱者 PIN 碼（僅限訂閱金鑰）",
+          "fanart": "專案金鑰",
+          "fanartClient": "個人金鑰（選用）",
+          "youtube": "金鑰",
+          "trakt": "用戶端 ID",
+          "googleBooks": "金鑰"
+        },
+        "open": {
+          "setup": "設定",
+          "edit": "編輯",
+          "view": "查看"
+        },
+        "check": {
+          "ok": "{{name}}：提供者已回應，金鑰有效。",
+          "not_configured": "{{name}}：未設定金鑰。",
+          "invalid": "{{name}}：提供者拒絕了這個金鑰（{{message}}）。",
+          "unreachable": "{{name}}：無法連線至提供者（{{message}}）。",
+          "failed": "{{name}}：檢查失敗（{{message}}）。"
+        },
+        "tmdb": {
+          "name": "TMDB",
+          "purpose": "電影和影集的文字、海報和預告片。影片媒體庫必須設定。",
+          "help": "可在 TMDB 帳戶的「API」中免費取得：讀取存取權杖（v4）。"
+        },
+        "tvdb": {
+          "name": "TVDB",
+          "purpose": "影集和動畫的第二個來源：季和單集標題。",
+          "help": "金鑰和 PIN 碼都在 TVDB 帳戶中。沒有訂閱時，PIN 碼請留空。"
+        },
+        "fanart": {
+          "name": "Fanart.tv",
+          "purpose": "標誌、背景圖和光碟圖片；此來源需在「中繼資料」中開啟。",
+          "help": "使用個人金鑰時，新圖片會在兩天後出現，否則需要七天。"
+        },
+        "youtube": {
+          "name": "YouTube",
+          "purpose": "尋找 TMDB 沒有的預告片。",
+          "help": "Google Cloud Console 中「YouTube Data API v3」的金鑰。"
+        },
+        "trakt": {
+          "name": "Trakt",
+          "purpose": "焦點推薦和首頁欄目所用的清單。",
+          "help": "你自己的 Trakt 應用程式的用戶端 ID。清單狀態會顯示在「焦點推薦」頁面上。"
+        },
+        "googlebooks": {
+          "name": "Google Books",
+          "purpose": "有聲書的書籍資料；沒有金鑰時，Slouchcat 絕不會查詢 Google Books。",
+          "help": "Google Cloud Console 中「Books API」的金鑰。哪個資料夾使用此來源，可在「有聲書：來源」中設定。"
+        },
+        "close": "收合",
+        "toggleLabel": "{{action}}：{{name}}",
+        "link": "從 {{name}} 取得金鑰",
+        "stored": "已設定；留空即可保留",
+        "storedHint": "已設定，結尾為 {{hint}}；留空即可保留",
+        "envNote": "此值來自 deploy/.env，只能在那裡變更。「檢查」仍會詢問提供者。",
+        "checkAction": "檢查",
+        "checkLabel": "檢查 {{name}}",
+        "rejected": "遭拒",
+        "savedRejected": "已儲存 {{name}}，但提供者拒絕了這個金鑰。"
+      }
+    },
+    "accounts": {
+      "title": "帳戶",
+      "intro": "所有帳戶及其角色、分級、媒體庫、個人資料，以及接收通知的管道。新帳戶需透過邀請建立。你可以在這裡管理自己帳戶的個人資料；其他帳戶則各自管理自己的個人資料。",
+      "list": "帳戶",
+      "columns": {
+        "email": "電子郵件",
+        "role": "角色",
+        "rating": "分級",
+        "libraries": "媒體庫",
+        "profiles": "個人資料",
+        "lastSeen": "上次上線",
+        "channels": "管道",
+        "actions": "動作"
+      },
+      "roles": {
+        "admin": "管理員",
+        "user": "一般帳戶"
+      },
+      "libraries_other": "{{count}} 個媒體庫",
+      "primaryProfile": "{{name}}（主個人資料）",
+      "listSeparator": "、",
+      "neverSeen": "從未",
+      "noChannels": "無",
+      "channels": {
+        "email": "電子郵件",
+        "push": "Web Push",
+        "telegram": "Telegram"
+      },
+      "edit": {
+        "title": "變更帳戶",
+        "intro": "你帳戶的電子郵件地址和密碼。每次變更都需要輸入目前的密碼。",
+        "email": "電子郵件地址",
+        "newPassword": "新密碼",
+        "newPasswordHint": "留空即可保留密碼。否則至少需要 10 個字元。",
+        "newPasswordRepeat": "再次輸入新密碼",
+        "currentPassword": "目前的密碼",
+        "currentPasswordHint": "用來確認是你本人。",
+        "wrongPassword": "目前的密碼錯誤。",
+        "unchanged": "請變更電子郵件地址或輸入新密碼。",
+        "saved": "已儲存你的帳戶。"
+      },
+      "ownerBadge": "擁有者",
+      "access": {
+        "title": "{{email}} 的存取權限",
+        "rating": "最高分級",
+        "libraries": "媒體庫",
+        "limitsHint": "套用於這個帳戶的所有個人資料。",
+        "heading": "存取權限",
+        "save": "儲存存取權限",
+        "saved": "已儲存 {{email}} 的存取權限。",
+        "adminHint": "管理員一律擁有「18 歲以上」級別和所有媒體庫；「存取權限」只適用於沒有管理權限的帳戶。"
+      },
+      "role": {
+        "promote": {
+          "action": "設為管理員",
+          "title": "要將 {{email}} 設為管理員嗎？",
+          "body": "此帳戶之後會管理伺服器、媒體庫和設定。其級別會提高到「18 歲以上」並可存取所有媒體庫；帳戶的個人資料會保留各自的級別。",
+          "confirm": "指派",
+          "done": "{{email}} 現在是管理員。"
+        },
+        "demote": {
+          "action": "移除管理員角色",
+          "title": "要移除 {{email}} 的管理員角色嗎？",
+          "body": "此帳戶之後只能管理自己的個人資料，並會在所有裝置上登出。分級和媒體庫維持不變；請之後再自行重新設定。",
+          "confirm": "移除",
+          "done": "{{email}} 現在是沒有管理權限的帳戶。"
+        }
+      },
+      "remove": {
+        "action": "移除帳戶",
+        "title": "要移除帳戶 {{email}} 嗎？",
+        "body": "帳戶、其個人資料和進度都會被刪除。進行中的工作階段和播放會立即結束。帳戶裝置上的下載內容會在下次連線到伺服器時消失。永遠不再上線的裝置會保留這些內容。",
+        "confirm": "移除帳戶",
+        "done": "已移除帳戶 {{email}}。"
+      },
+      "invitations": {
+        "intro": "連結只能使用一次，有效期限為七天。開啟連結的人可以建立自己的帳戶。",
+        "note": "這個連結要給誰？",
+        "noteHint": "例如名字。受邀者也會看到這則備註。",
+        "create": "建立邀請",
+        "creating": "建立中…",
+        "form": {
+          "rating": "最高分級",
+          "libraries": "媒體庫"
+        },
+        "created": {
+          "once": "請立即複製連結：它只會顯示這一次。",
+          "label": "邀請連結",
+          "copy": "複製連結",
+          "copied": "已複製連結。",
+          "copyFailed": "無法複製。連結已選取，請按 Ctrl+C 複製。",
+          "dismiss": "完成"
+        },
+        "list": "現有邀請",
+        "empty": "尚未建立任何邀請。",
+        "noNote": "沒有備註",
+        "state": {
+          "open": "未使用",
+          "used": "已使用",
+          "expired": "已過期",
+          "revoked": "已撤銷"
+        },
+        "expires": "有效期限至 {{date}}",
+        "usedBy": "已由 {{email}} 接受",
+        "revoke": {
+          "action": "撤銷",
+          "title": "要撤銷邀請嗎？",
+          "body": "連結將會失效。",
+          "confirm": "撤銷",
+          "done": "已撤銷邀請「{{note}}」。"
+        },
+        "invite": "邀請帳戶",
+        "columns": {
+          "note": "備註",
+          "state": "狀態",
+          "rating": "分級",
+          "libraries": "媒體庫",
+          "detail": "有效期限 / 已接受",
+          "actions": "動作"
+        }
+      },
+      "discard": "捨棄",
+      "status": {
+        "label": "摘要",
+        "accounts": "帳戶",
+        "admins": "管理員",
+        "owners_other": "其中 {{number}} 位擁有者",
+        "profiles": "個人資料",
+        "ownProfiles_other": "{{number}} 個屬於你",
+        "openInvitations": "未使用的邀請",
+        "nextExpiry": "最近一個有效至 {{date}}"
+      },
+      "tabs": {
+        "label": "帳戶區段",
+        "accounts": "帳戶",
+        "invitations": "邀請",
+        "accountsCount_other": "{{number}} 個帳戶",
+        "open": "{{number}} 個未使用"
+      },
+      "profiles": {
+        "mine": "我的個人資料",
+        "of": "{{email}} 的個人資料",
+        "readOnly": "每個帳戶各自管理自己的個人資料。"
+      }
+    },
+    "backup": {
+      "title": "備份",
+      "intro": "備份和還原資料庫及設定。媒體檔案絕不會包含在備份中。",
+      "list": "備份",
+      "empty": "尚無備份。",
+      "count_other": "{{number}} 份備份",
+      "caption": "備份：{{kind}}",
+      "new": "新",
+      "tabs": {
+        "label": "備份頁面區段",
+        "list": "備份",
+        "create": "新增備份",
+        "upload": "從檔案還原"
+      },
+      "groups": {
+        "encrypted": "{{number}} 份已加密",
+        "newest": "最新 {{date}}",
+        "autoHint": "伺服器會在資料庫遷移前（更新時）和還原前自動建立備份。"
+      },
+      "columns": {
+        "name": "檔案",
+        "created": "建立時間",
+        "size": "大小",
+        "secrets": "金鑰",
+        "encrypted": "已加密",
+        "actions": "動作"
+      },
+      "kinds": {
+        "manual": "手動",
+        "auto": "自動"
+      },
+      "yes": "是",
+      "no": "否",
+      "created": "已建立備份「{{name}}」。",
+      "deleted": "已刪除備份「{{name}}」。",
+      "create": {
+        "intro": "備份包含資料庫，其中有帳戶、個人資料、進度和設定。媒體檔案絕不會包含在內。",
+        "scope": "範圍",
+        "without": "不含金鑰（建議）",
+        "with": "包含金鑰",
+        "withoutHint": "不包含 TMDB 和 Trakt 金鑰、電子郵件伺服器、Telegram 機器人和 Web Push 金鑰等憑證。還原後需重新輸入。私人 Podcast 訂閱源的網址及其存取碼會保留，讓訂閱在還原後繼續運作。",
+        "withHint": "備份中也包含憑證的金鑰。因此整個封存檔都會以密碼短語加密（至少 {{min}} 個字元）。沒有密碼短語就無法還原。",
+        "passphrase": "密碼短語",
+        "passphraseHint": "至少 {{min}} 個字元。請與備份分開保管。",
+        "passphraseRepeat": "再次輸入密碼短語",
+        "passphraseTooShort": "至少 {{min}} 個字元。",
+        "passphraseMismatch": "密碼短語不一致。",
+        "submit": "建立備份",
+        "creating": "建立中…"
+      },
+      "download": {
+        "action": "下載",
+        "label": "下載 {{name}}"
+      },
+      "delete": {
+        "action": "刪除…",
+        "title": "要刪除備份「{{name}}」嗎？",
+        "body": "檔案將從伺服器的備份資料夾中刪除。已下載的副本會保留。",
+        "confirm": "刪除備份"
+      },
+      "restore": {
+        "action": "還原",
+        "menu": "還原…",
+        "titleNamed": "還原「{{name}}」",
+        "warning": "還原會以備份的狀態取代此伺服器的所有資料。之後伺服器會重新啟動，所有人都會被登出。",
+        "file": "備份檔案",
+        "fileHint": "檔案 slouchcat-backup-….tar.gz，或包含金鑰時為 ….tar.gz.age。",
+        "passphrase": "密碼短語",
+        "passphraseHint": "這份備份已加密。",
+        "passphraseUploadHint": "僅限加密的備份（….tar.gz.age）。",
+        "running": "檢查中…",
+        "confirmTitle": "要取代所有資料嗎？",
+        "confirmBodyNamed": "帳戶、個人資料、進度和設定將被「{{name}}」的狀態取代。之後伺服器會重新啟動，所有人都會被登出。",
+        "confirm": "取代並重新啟動"
+      },
+      "restart": {
+        "title": "伺服器正在重新啟動",
+        "body": "備份（版本 {{version}}）已通過檢查，將在啟動時匯入。伺服器再次回應後，就會開啟登入畫面。",
+        "noSecrets": "這份備份不含憑證：之後請在「整合」中重新輸入金鑰、電子郵件伺服器和 Telegram 機器人。"
+      }
+    },
+    "restart": {
+      "waiting": "正在等候伺服器…",
+      "back": "伺服器已恢復。",
+      "silent": "已經 {{seconds}} 秒沒有新的伺服器回應。",
+      "slow": {
+        "title": "伺服器沒有恢復",
+        "body": "重新啟動所花的時間異常地長。請查看容器的記錄（docker logs slouchcat），並在伺服器執行後重新載入此頁面。",
+        "retry": "重新檢查"
+      }
+    },
+    "stats": {
+      "title": "統計",
+      "intro": "所有帳戶和個人資料最近觀看的內容。",
+      "period": "期間",
+      "days_other": "{{count}} 天",
+      "columns": {
+        "plays": "播放次數",
+        "watched": "觀看時長"
+      },
+      "tooltip": "{{label}}：{{value}}",
+      "top": {
+        "title": "最多人觀看",
+        "empty": "這段期間沒有觀看任何內容。",
+        "columns": {
+          "title": "標題",
+          "kind": "類型",
+          "rank": "名次"
+        },
+        "count_other": "{{count, number}} 部作品",
+        "podium": "第 1 到第 3 名",
+        "rest": "第 4 名起的最多觀看",
+        "rank": "{{rank}}",
+        "meta": "{{kind}} · {{plays}} · {{watched}}",
+        "full": "前 {{count, number}} 名",
+        "plays_other": "{{count, number}} 次播放"
+      },
+      "profiles": {
+        "title": "各個人資料的觀看時長",
+        "chart": "各個人資料觀看時長的圖表",
+        "label": "{{profile}}（{{email}}）",
+        "empty": "這段期間沒有任何個人資料觀看內容。",
+        "columns": {
+          "profile": "個人資料"
+        },
+        "summary_other": "{{count, number}} 個個人資料 · {{watched}}"
+      },
+      "playback": {
+        "title": "播放",
+        "direct": "直接播放",
+        "remux": "Remux",
+        "transcode": "轉碼",
+        "sessions_other": "{{count, number}} 次播放",
+        "share": "佔所有播放的 {{share}}",
+        "hardware": "在顯示晶片上轉碼",
+        "hardwareNote": "佔轉碼的比例"
+      },
+      "devices": {
+        "title": "裝置",
+        "chart": "各裝置類型觀看時長的圖表",
+        "empty": "這段期間沒有任何裝置播放內容。",
+        "unknown": "未知",
+        "columns": {
+          "type": "裝置類型",
+          "count": "裝置"
+        },
+        "summary_other": "{{count, number}} 部裝置 · {{watched}}"
+      },
+      "loaded": "已載入 {{period}} 的數據。",
+      "when": {
+        "title": "觀看時段",
+        "window_other": "過去 {{count, number}} 週",
+        "empty": "這幾週沒有觀看任何內容。",
+        "byHour": "依時段",
+        "byWeekday": "依星期",
+        "columns": {
+          "hour": "小時",
+          "day": "星期"
+        },
+        "hourSpan": "{{from}}:00–{{to}}:00",
+        "topHour": "最常在 {{hour}}",
+        "topDay": "最常在{{day}}",
+        "zone": "時間以伺服器的時區（{{zone}}）為準。",
+        "grid": "星期和時段",
+        "gridChart": "依星期和時段的觀看時長",
+        "peak": "高峰：{{day}}，{{hour}}"
+      }
+    },
+    "announcements": {
+      "title": "公告",
+      "intro": "給所有人的消息：每個個人資料會在下次啟動時看到已發布的公告，帳戶也會透過其管道收到公告。",
+      "list": "公告",
+      "empty": "尚無公告。",
+      "create": "新增公告",
+      "sections": {
+        "drafts": "草稿 {{number}}",
+        "published": "已發布 {{number}}"
+      },
+      "item": {
+        "new": "未儲存",
+        "changed": "有未儲存的變更",
+        "created": "建立於 {{date}}",
+        "read": "已讀 {{acknowledged}} / {{total}}"
+      },
+      "facts": {
+        "created": "建立時間",
+        "published": "發布時間",
+        "acknowledged": "已讀"
+      },
+      "draft": "草稿",
+      "notSent": "尚未傳送",
+      "acknowledged": "{{acknowledged}} / {{total}} 個個人資料",
+      "published": "已發布「{{title}}」。",
+      "saved": "已將「{{title}}」儲存為草稿。",
+      "deleted": "已刪除「{{title}}」。",
+      "form": {
+        "title": "新增公告",
+        "editTitle": "編輯草稿",
+        "titleLabel": "標題",
+        "titleCount": "{{length}} / {{max}}",
+        "body": "內文",
+        "bodyHint": "最多 {{max}} 個字元。會保留換行。",
+        "publishLabel": "發布",
+        "publishNow": "立即發布",
+        "save": "儲存為草稿"
+      },
+      "preview": {
+        "title": "個人資料看到的樣子",
+        "noTitle": "公告標題",
+        "noBody": "內文會以個人資料看到的樣子顯示在這裡。"
+      },
+      "discard": {
+        "action": "捨棄",
+        "title": "要捨棄變更嗎？",
+        "body": "對「{{title}}」未儲存的變更將會遺失。",
+        "newTitle": "要捨棄新公告嗎？",
+        "newBody": "新公告尚未儲存。標題和內文將會遺失。",
+        "confirm": "捨棄"
+      },
+      "publish": {
+        "action": "發布",
+        "label": "發布「{{title}}」",
+        "title": "要發布「{{title}}」嗎？",
+        "body": "每個個人資料都會在下次啟動時看到這則公告。公告會傳送到所有選擇接收公告之帳戶的管道；訪客預設會透過電子郵件收到。發布後無法再變更。",
+        "confirm": "發布",
+        "reach": "每個個人資料都會在下次啟動時看到，並會傳送到所有選擇接收公告之帳戶的管道。訪客預設會透過電子郵件收到。",
+        "later": "發布時：{{reach}}發布後無法再變更。"
+      },
+      "delete": {
+        "action": "刪除",
+        "label": "刪除「{{title}}」",
+        "title": "要刪除「{{title}}」嗎？",
+        "body": "公告及其已讀紀錄將被刪除。已傳送的訊息仍會保留在收件者那裡。",
+        "confirm": "刪除公告"
+      }
+    },
+    "jobs": {
+      "title": "背景工作",
+      "intro": "伺服器在背景執行的工作：哪些工作正在執行、從何時開始、還需要多久，以及下次執行的時間。每項工作都可以立即執行、暫停，或取消其執行。",
+      "counts": {
+        "running": "執行中",
+        "queued": "佇列中",
+        "planned": "已排程",
+        "paused": "已暫停",
+        "failed": "失敗",
+        "label": "摘要"
+      },
+      "pools": {
+        "title": "工作執行緒",
+        "general": "一般",
+        "download": "下載",
+        "notify": "通知",
+        "index": "關鍵影格索引",
+        "trickplay": "拖曳預覽",
+        "podcast": "Podcast 單集",
+        "workers": "{{count}} 個執行緒",
+        "backlog": "待處理約 {{duration}}",
+        "free": "閒置",
+        "noEstimate": "無法估計",
+        "line": "{{pool}}：{{workers}} · {{state}}"
+      },
+      "pausedBanner": {
+        "title_other": "{{count}} 項工作已暫停",
+        "body": "在你繼續之前，已暫停的工作不會開始執行：{{types}}。",
+        "playbackOverride": "{{name}} 的播放要求仍會執行。"
+      },
+      "running": {
+        "title": "正在執行",
+        "empty": "目前沒有執行中的項目。",
+        "since": "已執行 {{duration}}",
+        "overridesPause": "為了播放，不受暫停影響",
+        "overridesWindow": "為了播放",
+        "progress": "{{done}} / {{total}}",
+        "progressLabel": "{{name}}：{{percent}}%",
+        "pause": "暫停執行",
+        "pauseLabel": "暫停 {{name}}（會停止此項及該工作所有執行中的項目）",
+        "cancel": "取消",
+        "cancelLabel": "取消 {{name}} 的執行 {{id}}",
+        "count_other": "{{count}} 次執行",
+        "columns": {
+          "job": "工作",
+          "subject": "對象",
+          "progress": "進度",
+          "since": "開始於",
+          "left": "剩餘"
+        }
+      },
+      "estimate": {
+        "left": "剩餘約 {{duration}}",
+        "computing": "計算中",
+        "longer": "比平常久"
+      },
+      "state": {
+        "idle": "閒置",
+        "queued": "等待中",
+        "running": "執行中",
+        "paused": "已暫停",
+        "stopping": "停止中",
+        "unknown": "未知"
+      },
+      "groups": {
+        "library": "媒體庫",
+        "metadata": "中繼資料",
+        "delivery": "傳送",
+        "system": "系統"
+      },
+      "card": {
+        "queued": "佇列中",
+        "queuedValue": "{{count}}",
+        "queuedEstimate": "約 {{duration}} 後輪到",
+        "planned": "已排程 {{count}}",
+        "lastRun": "上次執行",
+        "never": "從未",
+        "ago": "{{duration}}前",
+        "lastOk": "OK",
+        "lastFailed": "錯誤：{{error}}",
+        "lastCancelled": "已取消",
+        "lastSkipped": "無須處理",
+        "nextRun": "下次執行",
+        "in": "{{duration}}後",
+        "every": "每 {{duration}}",
+        "window": "{{start}}–{{end}}",
+        "once": "單次：{{date}}",
+        "off": "關閉",
+        "automatic": "自動",
+        "pausedNext": "已暫停",
+        "waitsUntil": "等候至 {{time}}",
+        "trigger": "觸發方式",
+        "triggerEvent": "自動，由伺服器中的事件觸發",
+        "triggerManual": "手動",
+        "unknown": "這個伺服器已不認得這項工作（舊版本）。",
+        "median": "通常需要 {{duration}}"
+      },
+      "actions": {
+        "run": "立即執行",
+        "runLabel": "立即執行 {{name}}",
+        "pause": "暫停",
+        "pauseLabel": "暫停 {{name}}",
+        "resume": "繼續",
+        "resumeLabel": "繼續 {{name}}",
+        "cancelQueued": "取消佇列中的項目（{{count}}）",
+        "cancelAll": "取消所有執行",
+        "resumeNamed": "繼續：{{name}}"
+      },
+      "confirm": {
+        "cancelQueuedTitle": "要取消 {{name}} 佇列中的執行嗎？",
+        "cancelQueuedBody_other": "{{count}} 個佇列中的執行將被取消，且不會補做。",
+        "cancelAllTitle": "要取消 {{name}} 的所有執行嗎？",
+        "cancelAllBody": "{{queued}} 個佇列中和 {{running}} 個執行中的項目會立即結束。取消後無法復原。",
+        "cancelRunTitle": "要取消 {{name}} 的一次執行嗎？",
+        "cancelRunBody": "這次執行會立即結束，且不會補做。",
+        "notifyWarning": "取消的傳送將不會送達。",
+        "scanWarning": "媒體庫會以「已中止」結束；下次掃描時會補上。",
+        "downloadWarning": "下載會以「失敗」結束，且不會重新準備。",
+        "confirm": "取消執行",
+        "keep": "保留",
+        "deleteRunTitle": "要刪除 {{name}} 失敗的執行嗎？",
+        "deleteRunBody": "Slouchcat 不會再嘗試這次執行。之後它會在「執行」中顯示為「已取消」，直到稍後被清理移除。",
+        "deleteRunConfirm": "刪除",
+        "retryFailedTitle_other": "要重試全部 {{count}} 個失敗的執行嗎？",
+        "retryFailedTypeTitle_other": "要重試 {{name}} 全部 {{count}} 個失敗的執行嗎？",
+        "retryFailedBody": "這些執行會重設嘗試次數並回到佇列。如果相同的工作已在等待或執行中，該執行會維持失敗；重複的執行只有最新的一個會回來。",
+        "retryFailedConfirm": "全部重試",
+        "dismissFailedTitle_other": "要刪除全部 {{count}} 個失敗的執行嗎？",
+        "dismissFailedTypeTitle_other": "要刪除 {{name}} 全部 {{count}} 個失敗的執行嗎？",
+        "dismissFailedBody": "Slouchcat 不會再嘗試這些執行。之後它們會在「執行」中顯示為「已取消」，直到稍後被清理移除。",
+        "dismissFailedConfirm": "全部刪除"
+      },
+      "messages": {
+        "ran_zero": "{{name}}：沒有要排入佇列的項目。",
+        "ran_other": "{{name}}：已排入 {{count}} 次執行。",
+        "paused": "已暫停 {{name}}；執行中的項目會停止並回到佇列。",
+        "resumed": "已繼續 {{name}}。",
+        "cancelled_zero": "{{name}}：沒有要取消的項目。",
+        "cancelled_other": "{{name}}：已取消 {{count}} 次執行。",
+        "runCancelled": "已取消執行 {{id}}。",
+        "runRetried": "執行 {{id}} 已重新排入佇列。",
+        "scheduleSaved": "已儲存 {{name}} 的排程。",
+        "windowSaved": "已儲存 {{name}} 的時段。",
+        "runDeleted": "已刪除執行 {{id}}。",
+        "failedRetried_zero": "沒有排入任何執行。",
+        "failedRetried_other": "{{count}} 次執行已重新等待中。",
+        "failedSkipped_other": "{{count}} 次維持失敗，因為相同的工作已在等待或執行中。",
+        "failedMerged_other": "已捨棄 {{count}} 個重複的執行。",
+        "failedDismissed_zero": "沒有要刪除的執行。",
+        "failedDismissed_other": "已刪除 {{count}} 個失敗的執行。"
+      },
+      "runs": {
+        "title": "{{name}} 的執行",
+        "tabs": "依狀態分類的執行",
+        "tab": {
+          "running": "執行中",
+          "queued": "佇列中",
+          "planned": "已排程",
+          "failed": "失敗",
+          "done": "已完成",
+          "cancelled": "已取消"
+        },
+        "empty": "沒有處於此狀態的執行。",
+        "total": "共 {{count}} 個，顯示最新的 {{shown}} 個",
+        "columns": {
+          "subject": "對象",
+          "priority": "優先",
+          "started": "開始",
+          "duration": "時長",
+          "attempts": "嘗試次數",
+          "error": "錯誤",
+          "actions": "動作"
+        },
+        "noSubject": "#{{id}}",
+        "retry": "重試",
+        "retryLabel": "將執行 {{id}} 重新排入佇列",
+        "cancel": "取消",
+        "cancelLabel": "取消執行 {{id}}",
+        "runAfter": "不早於 {{time}}",
+        "heading": "執行",
+        "delete": "刪除",
+        "deleteLabel": "刪除執行 {{id}}",
+        "retryAllLabel": "重試 {{name}} 所有失敗的執行",
+        "dismissAllLabel": "刪除 {{name}} 所有失敗的執行"
+      },
+      "schedule": {
+        "title": "{{name}} 的排程",
+        "description": "間隔、時段和開關。下次執行會依此重新調整；「立即執行」會忽略時段。",
+        "enabled": "開啟排程",
+        "every": "間隔",
+        "everyOptions": {
+          "m5": "每 5 分鐘",
+          "m15": "每 15 分鐘",
+          "m30": "每 30 分鐘",
+          "h1": "每小時",
+          "h2": "每 2 小時",
+          "h6": "每 6 小時",
+          "h12": "每 12 小時",
+          "h24": "每天",
+          "h48": "每 2 天",
+          "d7": "每週"
+        },
+        "window": "僅限特定時段",
+        "windowStart": "從",
+        "windowEnd": "到",
+        "windowHint": "伺服器時區：{{zone}}。時段可以跨越午夜。",
+        "traktHint": "間隔和開關與焦點推薦頁面上的設定相同。",
+        "updateHint": "開關與設定中的更新檢查是同一個設定。",
+        "save": "儲存",
+        "heading": "排程",
+        "eventNote": "沒有排程：如「觸發方式」所述，只要有工作要做就會自動執行。",
+        "discard": "捨棄",
+        "once": "單次時間",
+        "onceHint": "伺服器時區：{{zone}}。除了定期間隔外，會在此時間額外執行一次，即使在時段之外也會執行。",
+        "clearOnce": "移除時間",
+        "onceRange": "時間必須介於現在到一年後之間。",
+        "onceInvalid": "時間無效。",
+        "windowTitle": "{{name}} 的時段",
+        "windowWaits": "在時段之外，新的執行會等待；執行中的項目會執行完畢。播放和下載仍會立即開始。"
+      },
+      "duration": {
+        "seconds": "{{count}} 秒",
+        "minutes": "{{count}} 分鐘",
+        "hours": "{{count}} 小時",
+        "hoursMinutes": "{{hours}} 小時 {{minutes}} 分鐘",
+        "days": "{{count}} 天",
+        "overDay": "超過 1 天"
+      },
+      "types": {
+        "radio_catalog_sync": {
+          "name": "同步電台目錄",
+          "description": "從 Radio Browser 擷取電台目錄，將項目合併為電台並分類到篩選條件中。",
+          "trigger": "每天 04:30 起、「廣播」頁面上的「立即同步」、沒有目錄時的第一次啟動"
+        },
+        "radio_logo_fetch": {
+          "name": "擷取電台標誌",
+          "description": "從目錄或電台網站擷取電台標誌，並以正方形儲存。",
+          "trigger": "應用程式清單中沒有標誌的電台、已重設的標誌"
+        },
+        "radio_wikidata_sync": {
+          "name": "來自 Wikidata 的電台資料",
+          "description": "透過網站將電台清單中的電台與 Wikidata 比對，唯一相符時採用擁有者和成立日期。",
+          "trigger": "每週 06:30 起、加入新電台後按「套用」（每天最多一次）、開啟「使用 Wikidata」時"
+        },
+        "scan_library": {
+          "name": "媒體庫掃描",
+          "description": "在所有媒體庫中尋找新增、變更和遺失的檔案。",
+          "trigger": "每 6 小時的排程和伺服器啟動、媒體庫頁面上的「掃描」、Webhook、檔案監看"
+        },
+        "scan_path": {
+          "name": "資料夾掃描",
+          "description": "單一資料夾中有任何變更時，立即重新讀取該資料夾。",
+          "trigger": "檔案監看偵測到變更、Webhook"
+        },
+        "probe_file": {
+          "name": "檢查檔案",
+          "description": "讀取新檔案或變更檔案的音軌、長度和格式。",
+          "trigger": "掃描時每個新檔案、維護中的「檢查檔案」"
+        },
+        "probe_keyframes": {
+          "name": "關鍵影格索引（讀取整個檔案）",
+          "description": "檔案缺少用於拖曳的索引時，讀取整個檔案。",
+          "trigger": "匯入時僅在容器中沒有索引時、補建時、播放前（暫停時也是）以及離線下載時"
+        },
+        "keyframes_backfill": {
+          "name": "補建關鍵影格索引",
+          "description": "將所有沒有關鍵影格索引的檔案排入佇列。",
+          "trigger": "排程（預設關閉，每週）或單次時間、「立即執行」：從容器中讀取所有尚無索引之影片檔案的索引",
+          "progress": "已檢查檔案：{{done}} / {{total}}"
+        },
+        "library_sweep": {
+          "name": "清除遺失的作品",
+          "description": "移除檔案遺失超過寬限期的作品。",
+          "trigger": "每小時的排程和伺服器啟動"
+        },
+        "segments_detect": {
+          "name": "偵測片頭和片尾",
+          "description": "找出單集的片頭和片尾，以供「跳過片頭」使用。",
+          "trigger": "掃描時每個影集的每一季"
+        },
+        "chapters_images": {
+          "name": "建立章節圖片",
+          "description": "為檔案的章節建立預覽圖片。",
+          "trigger": "每個檔案在播放結束 10 分鐘後；新檔案則在完整掃描和重新檢查後"
+        },
+        "chapters_images_backfill": {
+          "name": "補建章節圖片",
+          "description": "將所有沒有章節圖片的檔案排入佇列以建立圖片。",
+          "trigger": "排程（預設關閉，每週）或單次時間、「立即執行」：適用於所有沒有章節圖片的電影和單集"
+        },
+        "trickplay_generate": {
+          "name": "建立拖曳預覽",
+          "description": "逐張為檔案的時間軸建立預覽圖片。",
+          "trigger": "電影或單集開始播放時、設為「預先產生」的新檔案、補建時、影集預先處理時以及離線下載時"
+        },
+        "trickplay_series": {
+          "name": "其他單集的預覽",
+          "description": "將影集其他單集的預覽排入佇列，接下來的兩集優先。",
+          "trigger": "單集開始播放且媒體庫設為「開始時，所有單集」時"
+        },
+        "trickplay_backfill": {
+          "name": "補建拖曳預覽",
+          "description": "將所有沒有完整預覽的電影和單集排入佇列以建立預覽。",
+          "trigger": "排程（預設關閉，每週）或單次時間、「立即執行」：適用於設為「預先產生」的媒體庫",
+          "progress": "已檢查檔案：{{done}} / {{total}}"
+        },
+        "library_relink": {
+          "name": "重新連結已刪除的作品",
+          "description": "將搬移過的檔案連結回原本的作品和觀看狀態。",
+          "trigger": "比對到有已刪除分身的作品之後"
+        },
+        "metadata_match": {
+          "name": "比對作品",
+          "description": "為新作品尋找相符的 TMDB 或 TVDB 項目。",
+          "trigger": "掃描時、手動比對、變更資料夾"
+        },
+        "library_author_display": {
+          "name": "統一作者名稱",
+          "description": "將所有有聲書中同一作者的不同寫法合併為一個顯示名稱。",
+          "trigger": "掃描後、比對後、「統一作者名稱」開關"
+        },
+        "metadata_fill": {
+          "name": "補充中繼資料",
+          "description": "擷取作品的文字、類型、分級、演員和圖片。",
+          "trigger": "比對後、資料夾清單變更時"
+        },
+        "metadata_vote_backfill": {
+          "name": "補建評分票數",
+          "description": "擷取缺少的評分票數，用於選擇圖片。",
+          "trigger": "每次完整掃描後，只要仍有作品等待評分"
+        },
+        "metadata_ratings_reread": {
+          "name": "重新讀取分級",
+          "description": "依分級國家重新讀取電影和影集的年齡分級；手動設定、來自 NFO 檔案以及已鎖定的分級會保留。",
+          "trigger": "更新後執行一次，並在每次變更分級國家時執行",
+          "progress": "已讀取作品：{{done}} / {{total}}"
+        },
+        "metadata_original_language_backfill": {
+          "name": "補建原始語言",
+          "description": "為所有作品補上原始語言，以便選擇音軌。",
+          "trigger": "更新後第一次啟動時執行一次，之後依排程（預設關閉，每週）、單次時間或「立即執行」"
+        },
+        "image_fetch": {
+          "name": "擷取圖片",
+          "description": "下載作品所選的圖片並產生各種尺寸。",
+          "trigger": "比對後、啟動時補建"
+        },
+        "people_images": {
+          "name": "擷取人物和合集圖片",
+          "description": "下載人物照片和 TMDB 合集的海報，並產生各種尺寸。",
+          "trigger": "比對到有演員或合集的作品之後，以及完整掃描後（會擷取現有的項目）",
+          "progress": "已檢查圖片：{{done}} / {{total}}"
+        },
+        "people_details": {
+          "name": "擷取人物和合集資料",
+          "description": "從 TMDB 擷取每位人物的生平、生日、出生地、知名領域和作品數，以及每個 TMDB 合集的簡介；主要語言沒有文字時則使用英文。",
+          "trigger": "比對到有演員或合集的作品之後、完整掃描後，以及更新後執行一次",
+          "progress": "已檢查人物和合集：{{done}} / {{total}}"
+        },
+        "people_images_backfill": {
+          "name": "補建人物和合集圖片",
+          "description": "重新嘗試所有 TMDB 之前沒有圖片的人物和合集。",
+          "trigger": "排程（預設關閉，每週）或單次時間、「立即執行」：忘記先前的失敗並將執行排入佇列",
+          "progress": "已檢查圖片：{{done}} / {{total}}"
+        },
+        "metadata_apply": {
+          "name": "套用中繼資料",
+          "description": "將變更後的中繼資料設定套用到媒體庫。",
+          "trigger": "「中繼資料」頁面上的「立即套用」"
+        },
+        "trailer_find": {
+          "name": "尋找預告片",
+          "description": "在 TMDB、YouTube 或透過 AI 搜尋尋找預告片。",
+          "trigger": "比對後"
+        },
+        "podcast_fetch": {
+          "name": "擷取 Podcast 訂閱源",
+          "description": "讀取單一 Podcast 訂閱源及其新單集。",
+          "trigger": "訂閱源輪詢時每個到期的訂閱、每個 Podcast 的「重新整理」、新訂閱"
+        },
+        "podcast_poll": {
+          "name": "檢查 Podcast 訂閱源",
+          "description": "檢查所有 Podcast 訂閱源是否有新單集。",
+          "trigger": "每 5 分鐘的排程：擷取到期的訂閱"
+        },
+        "podcast_sync": {
+          "name": "規劃 Podcast 單集",
+          "description": "依 Podcast 的設定選擇要下載為檔案的單集，並取消不再需要的下載。",
+          "trigger": "擷取到有新單集的訂閱源後、新訂閱和設定變更時"
+        },
+        "podcast_sync_all": {
+          "name": "補建 Podcast 單集",
+          "description": "重新規劃所有設為「儲存」的 Podcast，並重試失敗的下載。",
+          "trigger": "每 6 小時的排程"
+        },
+        "podcast_download": {
+          "name": "儲存 Podcast 單集",
+          "description": "從主機下載單集，並以檔案形式存放到其 Podcast 的資料夾。",
+          "trigger": "由規劃程式在「儲存」、「下載缺少的單集」和每集「下載」時排入；每個主機一次一集",
+          "progress": "位元組：{{done}} / {{total}}"
+        },
+        "trakt_refresh": {
+          "name": "擷取焦點推薦清單",
+          "description": "擷取焦點推薦取用作品的 Trakt 清單。",
+          "trigger": "依焦點推薦頁面設定之間隔的排程、「立即擷取」"
+        },
+        "update_check": {
+          "name": "更新檢查",
+          "description": "檢查是否有更新版本的 Slouchcat。",
+          "trigger": "每天的排程、啟動後 60 秒、「立即檢查」"
+        },
+        "download_prepare": {
+          "name": "準備下載",
+          "description": "準備供離線播放的下載內容。",
+          "trigger": "個人資料的下載；每 10 分鐘的同步會將未完成的重新排入佇列"
+        },
+        "notify_deliver": {
+          "name": "傳送通知",
+          "description": "透過電子郵件、Telegram 或 Web Push 傳送通知。",
+          "trigger": "每個有管道的事件（電子郵件、Web Push、Telegram）"
+        },
+        "jobs_prune": {
+          "name": "清理紀錄",
+          "description": "從紀錄中刪除舊的執行和失敗。",
+          "trigger": "每天的排程：超過 30 天的已完成執行"
+        },
+        "library_delete": {
+          "name": "刪除媒體庫",
+          "description": "刪除媒體庫及其作品和所有相關資料，但絕不刪除檔案；會先備份資料庫。",
+          "trigger": "管理中的「刪除媒體庫…」；如果執行失敗，媒體庫會恢復"
+        }
+      },
+      "tabs": {
+        "label": "依群組分類的工作",
+        "types_other": "{{count}} 個工作類型",
+        "caption": "{{group}} 群組的工作",
+        "failed": "失敗",
+        "empty": "這個群組沒有工作。"
+      },
+      "columns": {
+        "job": "工作",
+        "description": "說明",
+        "state": "狀態"
+      },
+      "failed": {
+        "title": "失敗（所有類型）",
+        "count_other": "{{count}} 個失敗",
+        "empty": "沒有失敗。",
+        "shown": "已載入 {{shown}} / {{total}} 個",
+        "columns": {
+          "type": "工作類型",
+          "at": "時間"
+        },
+        "retryLabel": "將 {{name}} 的執行 {{id}} 重新排入佇列",
+        "retryAll": "全部重試",
+        "dismissAll": "全部刪除…",
+        "deleteLabel": "刪除 {{name}} 的執行 {{id}}"
+      },
+      "separator": " · ",
+      "none": "–",
+      "livePaused": "已暫停更新"
+    },
+    "metadata": {
+      "title": "中繼資料",
+      "intro": "中繼資料來源提供哪些語言、哪些圖片使用哪種語言和畫質，以及由哪個國家優先決定年齡分級。預設值適用於所有媒體庫；媒體庫可以在語言和圖片方面另行設定。",
+      "links": {
+        "roots": "來源的順序可在「媒體庫」中依資料夾設定。",
+        "jobs": "排程位於「背景工作」中。",
+        "keys": "金鑰設定在「整合」中"
+      },
+      "audiobooks": {
+        "title": "有聲書：來源",
+        "body": "Slouchcat 從哪裡取得有聲書的資料、長度和封面，以及自動比對和「待檢查」清單。",
+        "open": "開啟來源"
+      },
+      "areas": {
+        "label": "區域",
+        "changed": "已變更 · {{summary}}",
+        "scoped": "{{state}} · {{summary}}",
+        "quality": "海報 {{poster}}，背景圖 {{backdrop}}",
+        "sources": {
+          "local": "本機檔案",
+          "fanart": "Fanart.tv",
+          "tmdbAdult": "TMDB 含成人內容",
+          "none": "僅限資料夾的來源"
+        },
+        "separator": " › "
+      },
+      "scope": {
+        "label": "適用於",
+        "server": "預設",
+        "serverHint": "適用於所有沒有另行設定的媒體庫。",
+        "libraryHint": "{{name}} 使用預設值。開啟「另行設定」即可只為這個媒體庫變更語言或圖片。",
+        "deviates": "另行設定",
+        "textsDeviate": "語言另行設定",
+        "imagesDeviate": "圖片另行設定",
+        "likeServer": "與伺服器相同",
+        "changed": "{{name}}（已變更）",
+        "serverDirty": "預設值有未儲存的變更；這裡顯示的是已儲存的狀態。"
+      },
+      "languages": {
+        "title": "語言",
+        "intro": "這裡的每種語言都會為每部作品擷取；個人資料可從中選擇簡介語言。介面語言由每個個人資料各自選擇。每多一種語言，每部作品和每一季就會多一次請求。",
+        "list": "中繼資料語言",
+        "rank": "語言 {{position}}",
+        "more": "其他語言",
+        "fallback": "順序即備援順序：如果個人資料的語言缺少文字，Slouchcat 會顯示清單中第一個可用的語言，再來是檔案名稱。清單至少需要一種語言。",
+        "unknownAt": "{{provider}} 不支援：{{languages}}",
+        "youtube": "{{count}} 種語言：使用 YouTube 預告片搜尋時，每天最多 {{titles}} 部作品（配額 10,000）。"
+      },
+      "images": {
+        "title": "圖片",
+        "intro": "要擷取哪些圖片類型，以及使用哪種語言。電影旁的圖片檔案（poster.jpg、fanart.jpg、logo.png）只要夠寬就會優先使用；其次是資料夾的來源，最後是 Fanart.tv。",
+        "kinds": "圖片類型",
+        "kind": {
+          "poster": "海報",
+          "backdrop": "背景圖",
+          "logo": "標誌",
+          "season_poster": "季海報",
+          "episode_still": "單集劇照"
+        },
+        "kindHint": {
+          "poster": "電影、影集、有聲書、Podcast",
+          "backdrop": "電影、影集",
+          "logo": "在詳細資料頁和焦點推薦中以標題標誌取代文字標題",
+          "season_poster": "否則使用影集海報",
+          "episode_still": "每集一張劇照；40,000 集約需 12 GB 快取"
+        },
+        "always": "一律",
+        "notBuilt": "刻意不提供 Art、橫幅和光碟圖片：沒有任何頁面會顯示它們。",
+        "chains": "圖片語言",
+        "chainsIntro": "選擇圖片時的順序。「無文字」是指沒有文字的圖片。同一種語言中，評分最高的圖片優先。",
+        "noText": "無文字",
+        "chainOf": "{{kind}}的圖片語言"
+      },
+      "quality": {
+        "title": "圖片畫質",
+        "intro": "適用於所有媒體庫。提供的尺寸（海報 200/400/800、背景圖 780/1280/1920、標誌 400/800）是固定的。",
+        "minPoster": "海報最小寬度",
+        "minBackdrop": "背景圖最小寬度",
+        "any": "不限",
+        "px": "{{width}} px",
+        "byVote": "依評分選擇",
+        "byVoteHint": "選擇該語言中評分最高的圖片，而不是第一個結果。",
+        "fallback": "沒有達到最小寬度的圖片時，Slouchcat 會選擇最好的較小圖片；圖片類型絕不會只因標準太高而留空。"
+      },
+      "sources": {
+        "title": "來源",
+        "intro": "中繼資料來源的順序可在「媒體庫」中依資料夾設定；金鑰在「整合」中設定。這裡只設定來源的特殊功能。",
+        "tmdbAdult": "TMDB：搜尋時包含成人內容",
+        "tmdbAdultHint": "否則成人內容絕不會出現在比對中。",
+        "local": "使用本機檔案作為來源",
+        "localHint": "作品旁的 poster.jpg、fanart.jpg、logo.png、seasonNN-poster.jpg；只要夠寬就優先於所有提供者。",
+        "localCount_other": "{{count}} 部作品有圖片檔案",
+        "localSmall": "太小或已關閉的檔案，仍會作為各作品圖片選擇中的候選項目。",
+        "fanart": "使用 Fanart.tv 作為圖片來源",
+        "fanartHint": "高畫質的標誌和海報，排在資料夾的來源之後。需要在「整合」中設定金鑰；沒有金鑰時絕不會查詢。"
+      },
+      "rating": {
+        "title": "年齡分級",
+        "intro": "以哪個國家的年齡分級為準。作品若在該國沒有分級，會改用德國分級（FSK），接著依序為 AT、CH、GB 和 US。個人資料可從此國家的級別中選擇。",
+        "country": "國家",
+        "steps": "個人資料的級別：{{steps}}",
+        "hint": "Slouchcat 會儲存分級的最低年齡，例如將 PG-13 儲存為「13 歲以上」。變更國家後，Slouchcat 會重新讀取所有作品的分級，分級可能因此降低或提高；手動設定、來自 NFO 檔案以及已鎖定的分級會保留。",
+        "confirm": {
+          "title": "要變更分級國家嗎？",
+          "body": "之後 Slouchcat 會重新讀取所有作品的分級。個人資料可能會看到先前隱藏的作品，反之亦然。",
+          "confirm": "變更並重新讀取"
+        }
+      },
+      "apply": {
+        "title": "套用到現有作品",
+        "short": "套用",
+        "intro": "新作品會立即使用這些設定。現有作品會維持不變，直到你開始執行；執行會出現在「背景工作」中，並可查看進度、暫停和取消。",
+        "what": "內容",
+        "both": "文字和圖片",
+        "texts": "僅文字",
+        "images": "僅圖片",
+        "where": "範圍",
+        "all": "所有媒體庫",
+        "titles_other": "{{count}} 部作品",
+        "run": "立即套用",
+        "running": "正在排入佇列…",
+        "queued": "執行 {{id}} 已排入佇列：{{count}} 部作品。進度請見「背景工作」。",
+        "waiting": "仍在等待：{{matches}} 個比對、{{images}} 張圖片。",
+        "jobsLink": "前往背景工作",
+        "lastRun": "上次執行：{{when}}，{{state}}。",
+        "noRun": "尚未執行。"
+      },
+      "save": {
+        "savedScope_other": "已為 {{name}} 儲存。有 {{count}} 部作品受影響，要立即套用嗎？",
+        "failed": "「{{name}}」未儲存：{{reason}}"
+      },
+      "discard": {
+        "title": "要捨棄變更嗎？",
+        "body": "對 {{names}} 未儲存的變更將會遺失。",
+        "confirm": "捨棄"
+      },
+      "errors": {
+        "langs_empty": "至少需要一種語言。",
+        "lang_unknown": "未知的語言代碼。",
+        "chain_duplicate": "每種語言只能出現一次。",
+        "country_unknown": "未知的國家。",
+        "source_unknown": "這個圖片來源不是此作品的候選項目。"
+      }
+    },
+    "activity": {
+      "someone": "某個個人資料",
+      "someTitle": "某部作品",
+      "someLibrary": "某個媒體庫",
+      "playbackStarted": "{{profile}} 開始播放「{{title}}」",
+      "playbackCompleted": "{{profile}} 看完了「{{title}}」",
+      "playbackStopped": "「{{title}}」（{{profile}}）的播放已停止",
+      "playbackRevoked": "「{{title}}」（{{profile}}）的播放已停止，裝置已移除",
+      "scanStarted": "已開始掃描「{{library}}」",
+      "scanDone_other": "「{{library}}」掃描完成：{{count}} 部新作品",
+      "scanFailed": "「{{library}}」掃描失敗",
+      "scanAborted": "「{{library}}」的掃描已被遺失保護機制中止",
+      "scanCancelled": "「{{library}}」的掃描已手動取消",
+      "jobFailed_other": "{{type}}：{{count}} 項工作失敗",
+      "backupCreated": "已建立備份",
+      "backupCreatedSize": "已建立備份（{{size}}）",
+      "backupRestored": "已還原備份",
+      "serverStarted": "伺服器已啟動",
+      "serverStartedVersion": "伺服器已啟動，版本 {{version}}",
+      "serverRestart": "伺服器已重新啟動",
+      "serverRestartBy": "由 {{account}} 重新啟動",
+      "unknown": "伺服器上的事件",
+      "libraryDeleted_other": "媒體庫「{{library}}」已由 {{account}} 刪除（{{count}} 部作品）",
+      "itemRemoved": "「{{title}}」已由 {{account}} 從 Slouchcat 移除",
+      "itemFilesDeleted_other": "「{{title}}」已由 {{account}} 連同 {{count}} 個檔案一起刪除（{{size}}）"
+    },
+    "audiobookSources": {
+      "title": "有聲書：來源",
+      "intro": "Slouchcat 從哪裡取得有聲書的資料和封面。檔案一律優先；提供者只會補充缺少的資料，且絕不會補充已鎖定的欄位。",
+      "folders": {
+        "title": "各資料夾的順序",
+        "intro": "每個欄位以較上方的來源為準。順序和要使用哪些來源，可在資料夾的對話框中變更。",
+        "empty": "還沒有有聲書資料夾。",
+        "edit": "變更來源",
+        "editLabel": "變更 {{path}} 的來源",
+        "library": "媒體庫 {{name}}"
+      },
+      "settings": {
+        "title": "設定",
+        "saved": "已儲存有聲書設定。"
+      },
+      "region": {
+        "label": "Audible 地區",
+        "help": "優先搜尋的 Audible 目錄。英文書籍也會在美國和英國搜尋。",
+        "de": "德國（audible.de）",
+        "com": "美國（audible.com）",
+        "couk": "英國（audible.co.uk）",
+        "fr": "法國（audible.fr）",
+        "it": "義大利（audible.it）",
+        "es": "西班牙（audible.es）",
+        "ca": "加拿大（audible.ca）",
+        "comau": "澳洲（audible.com.au）",
+        "in": "印度（audible.in）",
+        "cojp": "日本（audible.co.jp）"
+      },
+      "audnexus": {
+        "label": "Audnexus 網址",
+        "help": "Audnexus 會提供 Audible 結果的詳細資料：簡介、類型、系列、ISBN 和封面。可以使用區域網路中自己的執行個體。",
+        "invalid": "請輸入以 http:// 或 https:// 開頭的網址。"
+      },
+      "googleBooks": {
+        "name": "Google Books 金鑰",
+        "description": "Google Books 金鑰現在與其他提供者放在一起。",
+        "link": "在「整合」中設定"
+      },
+      "auto": {
+        "label": "自動比對",
+        "off": "關閉",
+        "offHint": "只能透過鉛筆圖示手動比對。",
+        "new": "新的有聲書",
+        "newHint": "掃描時，針對尚未比對的有聲書。",
+        "all": "所有未比對的",
+        "allHint": "對整個媒體庫執行一次，之後與「新的有聲書」相同。"
+      },
+      "tolerance": {
+        "label": "長度可相差",
+        "option": "{{count}}%",
+        "help": "只會比對唯一的結果：相同作者、相似標題、相符長度。否則有聲書會保留檔案中的資料，並出現在「待檢查」中。可設定 1% 到 10%。"
+      },
+      "normalize": {
+        "title": "統一",
+        "authors": "統一作者名稱",
+        "authorsHint": "「J R R Tolkien」、「J.R.R. Tolkien」和「J. R. R. Tolkien」會合併為同一人。",
+        "series": "統一系列名稱",
+        "seriesHint": "「Bodyguard - Band」會變成「Bodyguard」，「Der Herr Der Ringe - Band」會變成「Der Herr der Ringe」。"
+      },
+      "terms": "Audible 的使用條款禁止自動讀取其目錄。Slouchcat 每秒最多查詢一次，多次遭拒後會暫停該來源。不想這樣做的人，可以將 Audible 從資料夾的清單中移除。",
+      "sources": {
+        "title": "來源狀態",
+        "ready": "就緒",
+        "notConfigured": "沒有金鑰，已關閉",
+        "paused": "暫停至 {{time}}"
+      },
+      "stats": {
+        "title": "媒體庫狀態",
+        "total": "有聲書",
+        "matched": "已比對",
+        "review": "待檢查",
+        "none": "沒有結果",
+        "error": "失敗",
+        "pending": "待處理",
+        "running": "有比對正在執行或等待中。"
+      },
+      "matchAll": {
+        "run": "立即比對所有未比對的有聲書",
+        "queued_other": "已將 {{count}} 本有聲書排入佇列。",
+        "jobs": "前往背景工作"
+      },
+      "review": {
+        "title": "待檢查",
+        "intro": "有多個候選項目、長度超出容許範圍或來源發生錯誤的有聲書。按鉛筆圖示即可開啟編輯器。",
+        "empty": "沒有需要檢查的項目。",
+        "caption": "待檢查的有聲書",
+        "column": {
+          "title": "標題",
+          "author": "作者",
+          "length": "長度",
+          "state": "狀態",
+          "candidates": "候選項目",
+          "actions": "編輯"
+        },
+        "state": {
+          "review": "待檢查",
+          "error": "失敗"
+        },
+        "reason": {
+          "paused": "{{source}} 多次遭拒後已暫停。",
+          "blocked": "{{source}} 拒絕了要求。",
+          "notConfigured": "尚未設定 {{source}}。",
+          "region": "{{source}} 不支援所選的市集。",
+          "unreachable": "無法連線至 {{source}}。",
+          "unknown": "{{source}} 回報了錯誤。"
+        },
+        "candidate": "{{source}}：{{title}} · {{length}}",
+        "noCandidates": "無",
+        "edit": "編輯 {{title}}"
+      }
+    },
+    "itemDelete": {
+      "action": "刪除",
+      "editorAction": "刪除…",
+      "title": "要刪除「{{title}}」嗎？",
+      "loading": "刪除作品",
+      "choice": "要如何處理？",
+      "mode": {
+        "library": "只從 Slouchcat 移除",
+        "files": "同時刪除檔案"
+      },
+      "libraryHint": "檔案會保留在磁碟上。即使有新檔案加入，作品也會維持移除狀態；可以在「維護 › 已移除的作品」中連同進度、觀看標記和我的片單重新加入。",
+      "everywhere": "作品會從所有個人資料的所有清單中消失；裝置上的下載內容會被移除。",
+      "arr": "Radarr 和 Sonarr 不會收到任何通知。",
+      "affected_other": "受影響：{{count}} 個檔案 · {{size}}",
+      "noFiles": "沒有記錄任何檔案。",
+      "folder": "資料夾",
+      "files": "檔案",
+      "playing": "{{names}} 目前正在播放。播放結束後才能刪除。",
+      "typeLabel": "輸入標題以確認",
+      "typeHint": "輸入 {{title}}（不分大小寫）即可啟用按鈕。",
+      "confirm": {
+        "library": "從 Slouchcat 移除",
+        "files": "永久刪除"
+      },
+      "done": {
+        "library": "已將「{{title}}」從 Slouchcat 移除。檔案仍然存在。",
+        "files_other": "已刪除「{{title}}」，{{count}} 個檔案（{{size}}）。",
+        "kept_other": "「{{title}}」：已刪除 {{count}} 個檔案（{{size}}）；作品會與無法刪除的檔案一起保留。",
+        "left_other": "資料夾中仍有 {{count}} 個 Slouchcat 不認得的檔案。"
+      },
+      "filesHint": "檔案會被永久刪除，沒有資源回收筒。沒有剩下任何檔案時，作品會連同進度、觀看標記和我的片單永久消失。如果 Radarr 或 Sonarr 之後再次下載，它會以新作品出現。",
+      "notDeletable": "無法執行：{{reason}}",
+      "leftover": "保留：{{path}}（{{reason}}）",
+      "reason": {
+        "read_only": "資料夾以唯讀方式掛載",
+        "no_permission": "Slouchcat 沒有寫入此資料夾的權限",
+        "shared": "這個檔案也屬於其他作品",
+        "not_regular": "不是一般檔案",
+        "unreachable": "無法存取資料夾",
+        "missing": "已經不存在（視為已刪除）",
+        "failed": "刪除失敗",
+        "no_files": "沒有記錄任何檔案",
+        "changed": "該路徑現在已是另一個檔案"
+      },
+      "changed": "內容在此期間已變更，請重新檢查。下方清單已重新讀取；未刪除任何內容。"
+    }
+  },
+  "language": {
+    "de": "Deutsch",
+    "en": "English"
+  },
+  "accent": {
+    "label": "顏色",
+    "ember": "橘紅",
+    "coral": "珊瑚紅",
+    "amber": "琥珀黃",
+    "lime": "萊姆綠",
+    "teal": "青綠",
+    "sky": "天藍",
+    "violet": "紫羅蘭",
+    "rose": "玫瑰粉"
+  },
+  "libraries": {
+    "all": "所有媒體庫",
+    "none": "沒有媒體庫",
+    "choose": "選擇媒體庫",
+    "named": "媒體庫 {{id}}",
+    "modeAll": "全部",
+    "modeSome": "自選",
+    "needOne": "請至少選擇一個媒體庫。",
+    "loadFailed": "無法載入媒體庫。"
+  },
+  "profiles": {
+    "picker": {
+      "title": "誰在觀看？",
+      "intro": "選擇你的個人資料。",
+      "list": "個人資料",
+      "manage": "管理個人資料",
+      "active": "使用中",
+      "locked": "受 PIN 碼保護",
+      "primary": "主個人資料",
+      "loadFailed": "無法載入個人資料。",
+      "primaryActive": "主個人資料 · 使用中"
+    },
+    "pin": {
+      "title": "{{name}} 的 PIN 碼",
+      "intro": "這個個人資料受 PIN 碼保護。",
+      "label": "PIN 碼",
+      "hint": "4 到 8 位數字。",
+      "submit": "開啟",
+      "submitting": "檢查中…",
+      "invalid": "PIN 碼錯誤，請再試一次。",
+      "locked": "錯誤次數過多。可重試的倒數時間：",
+      "time": "{{minutes}}:{{seconds}}",
+      "lockedFor": "已鎖定 {{seconds}} 秒。"
+    },
+    "settings": {
+      "title": "個人資料",
+      "intro": "家庭中的每個人都能擁有自己的個人資料，包含年齡分級、語言、顏色和媒體庫。",
+      "onlyPrimary": {
+        "title": "僅限主個人資料",
+        "body": "個人資料需在此帳戶的主個人資料中管理。請切換至主個人資料以新增或變更個人資料。",
+        "action": "切換個人資料"
+      },
+      "add": "新增個人資料",
+      "list": "此帳戶的個人資料",
+      "edit": "編輯",
+      "primary": "主個人資料",
+      "ratingAboveCeiling": "{{rating}} · 帳戶最高 {{max}}",
+      "hasPin": "PIN 碼",
+      "delete": {
+        "action": "刪除",
+        "title": "要刪除個人資料「{{name}}」嗎？",
+        "body": "這個個人資料的進度和設定將會遺失。此操作無法復原。",
+        "confirm": "刪除個人資料"
+      },
+      "pin": {
+        "set": "設定 PIN",
+        "change": "變更 PIN 碼",
+        "title": "{{name}} 的 PIN 碼",
+        "label": "新 PIN 碼",
+        "hint": "4 到 8 位數字。沒有 PIN 碼就無法開啟此個人資料。",
+        "save": "儲存 PIN 碼",
+        "saving": "儲存中…",
+        "remove": {
+          "action": "移除 PIN 碼",
+          "title": "要移除 {{name}} 的 PIN 碼嗎？",
+          "body": "之後任何人都能不輸入 PIN 碼就開啟這個個人資料。",
+          "confirm": "移除 PIN 碼"
+        }
+      },
+      "form": {
+        "createTitle": "新增個人資料",
+        "editTitle": "編輯個人資料",
+        "name": "名稱",
+        "rating": "年齡分級",
+        "ratingHint": "分級較高的作品不會對此個人資料顯示。",
+        "language": "語言",
+        "libraries": "媒體庫",
+        "pin": "PIN 碼（選用）",
+        "create": "新增個人資料",
+        "creating": "新增中…",
+        "save": "儲存",
+        "saving": "儲存中…",
+        "metadataLanguage": "簡介語言",
+        "metadataLanguageHint": "標題、簡介和類型；介面會使用上方的語言。",
+        "likeUi": "與介面相同",
+        "playback": "播放"
+      },
+      "report": {
+        "show": "顯示觀看時長",
+        "hide": "隱藏觀看時長",
+        "title": "{{name}} 的觀看時長",
+        "intro": "過去 30 天每天的分鐘數。",
+        "chart": "每天的觀看時長",
+        "date": "日期",
+        "minutes": "分鐘",
+        "value": "{{count}} 分鐘",
+        "today": "今天：{{count}} 分鐘",
+        "limit": "上限：每天 {{count}} 分鐘",
+        "total": "總計：{{count}} 分鐘",
+        "tooltip": "{{date}}：{{value}}"
+      },
+      "metadataLanguageChip": "簡介語言：{{language}}"
+    }
+  },
+  "invite": {
+    "title": "Slouchcat 邀請",
+    "intro": "建立帳戶後就能立即開始使用。",
+    "for": "給：{{note}}",
+    "rating": "年齡分級上限",
+    "libraries": "媒體庫",
+    "expires": "連結有效期限至 {{date}}。",
+    "form": {
+      "email": "電子郵件地址",
+      "password": "密碼",
+      "passwordHint": "至少 10 個字元。",
+      "profileName": "個人資料名稱",
+      "profileNameHint": "你的個人資料名稱，例如你的名字。",
+      "language": "語言",
+      "submit": "建立帳戶",
+      "submitting": "建立中…"
+    },
+    "gone": {
+      "title": "連結已失效",
+      "body": "這個連結已被使用、已過期或已撤回。請向邀請你的人索取新連結。",
+      "action": "前往登入"
+    },
+    "notFound": {
+      "title": "找不到連結",
+      "body": "這個邀請連結不存在。請確認你已完整複製連結。"
+    }
+  },
+  "kind": {
+    "movie": "電影",
+    "series": "影集",
+    "season": "季",
+    "episode": "單集",
+    "extra": "花絮",
+    "audiobook": "有聲書",
+    "podcast": "Podcast",
+    "podcast_episode": "Podcast 單集"
+  },
+  "extraKind": {
+    "trailer": "預告片",
+    "featurette": "特輯",
+    "deleted_scene": "刪除片段",
+    "behind_the_scenes": "幕後花絮",
+    "interview": "訪談",
+    "scene": "片段",
+    "short": "短片",
+    "other": "花絮"
+  },
+  "trailer": {
+    "title": "預告片：{{title}}",
+    "language": "語言",
+    "frame": "{{title}} 的預告片（YouTube）",
+    "none": "沒有可用的預告片。",
+    "privacy": "預告片由 YouTube 播放（youtube-nocookie.com）。"
+  },
+  "person": {
+    "credits": "電影和影集",
+    "creditsCount": "· {{count}}",
+    "as": "飾演 {{character}}",
+    "facts": {
+      "knownFor": "知名領域",
+      "born": "出生",
+      "bornAge": "{{date}}（{{age}} 歲）",
+      "birthplace": "出生地",
+      "died": "逝世",
+      "diedAge": "{{date}}（享年 {{age}} 歲）",
+      "library": "在你的媒體庫中",
+      "libraryOf_other": "{{shown}} / {{count}} 部作品",
+      "libraryOnly_other": "{{count}} 部作品"
+    },
+    "department": {
+      "acting": "演出",
+      "directing": "導演",
+      "writing": "編劇",
+      "production": "製作",
+      "sound": "音效",
+      "camera": "攝影",
+      "editing": "剪輯",
+      "art": "美術",
+      "crew": "劇組",
+      "costume": "服裝與化妝",
+      "visualEffects": "視覺效果",
+      "lighting": "燈光",
+      "creator": "原創"
+    },
+    "biography": {
+      "more": "閱讀更多",
+      "less": "收合",
+      "fallback": "來自 TMDB 的生平，僅提供英文版"
+    },
+    "notFound": {
+      "title": "找不到此人物",
+      "body": "這裡沒有這位人物的作品。"
+    }
+  },
+  "limits": {
+    "title": "播放限制",
+    "maxHeight": "最高畫質",
+    "none": "無限制",
+    "bitrate": "頻寬（kbit/s）",
+    "hint": "{{min}} 到 {{max}}。留空表示無限制。",
+    "streams": "同時串流數",
+    "watch": "每日觀看時長（分鐘）",
+    "range": "允許範圍為 {{min}} 到 {{max}}。",
+    "height": "最高 {{height}}p",
+    "bitrateValue": "{{value}} kbit/s",
+    "streamsValue_other": "{{count}} 個串流",
+    "watchValue": "每天 {{count}} 分鐘",
+    "capped": "帳戶限制了這個個人資料：{{summary}}。"
+  },
+  "offline": {
+    "unknownTitle": "未知作品",
+    "episodeTitle": "{{code}} · {{title}} · {{series}}",
+    "quality": {
+      "high": "高",
+      "medium": "中",
+      "low": "低"
+    },
+    "state": {
+      "deleting": "刪除中",
+      "complete": "已在此裝置上",
+      "quota": "儲存空間已滿",
+      "storage": "儲存失敗",
+      "network": "下載中斷，即將重試",
+      "range": "伺服器無法分段傳送檔案（請檢查代理伺服器）",
+      "gone": "已無法取得",
+      "evicted": "正在重新準備",
+      "wifi": "等待 Wi-Fi",
+      "fetching": "下載中（{{percent}}%）",
+      "preparing": "準備中（{{percent}}%）",
+      "budgetFull": "等待伺服器空出空間",
+      "queued": "等待伺服器",
+      "paused": "已暫停，伺服器正在串流",
+      "failed": "準備失敗"
+    },
+    "downloads": {
+      "title": "下載",
+      "intro": "{{name}} 儲存在此裝置上的作品。沒有網路也能播放。",
+      "unsupported": {
+        "title": "無法在此下載",
+        "body": "這個瀏覽器無法儲存作品。下載需要安全連線（HTTPS）和最新版的瀏覽器。"
+      },
+      "list": "在此裝置上",
+      "empty": "此裝置上還沒有下載內容。你可以在電影、單集和整季的詳細資料頁下載。",
+      "columns": {
+        "title": "標題",
+        "state": "狀態",
+        "size": "大小",
+        "actions": "動作"
+      },
+      "auto": "自動",
+      "sizeOf": "{{done}} / {{total}}",
+      "play": "播放",
+      "playLabel": "播放 {{title}}",
+      "delete": {
+        "action": "刪除",
+        "label": "刪除 {{title}}",
+        "title": "要刪除下載的 {{title}} 嗎？",
+        "body": "檔案將從此裝置移除。你之後可以再次下載這部作品。",
+        "confirm": "刪除下載"
+      },
+      "removed": "已刪除 {{title}}。",
+      "offline": "無法連線至伺服器。已儲存的作品仍可播放；變更會在下次連線時傳送到伺服器。",
+      "pinHint": {
+        "title": "離線使用的 PIN 碼",
+        "body": "若要讓 {{name}} 也能在此裝置上離線開啟，請在這裡輸入一次個人資料的 PIN 碼。",
+        "action": "輸入 PIN 碼"
+      }
+    },
+    "storage": {
+      "title": "儲存空間",
+      "meter": "儲存空間使用量",
+      "downloads": "下載：{{size}}",
+      "other": "其他資料：{{size}}",
+      "used": "已使用 {{used}} / {{quota}}",
+      "free": "可用：{{free}} / {{quota}}",
+      "unknown": "下載：{{size}}。這個瀏覽器不會提供可用儲存空間的資訊。",
+      "persisted": "瀏覽器會永久保留下載內容。",
+      "notPersisted": "儲存空間不足時，瀏覽器可能會刪除下載內容。",
+      "apple": {
+        "title": "iPhone、iPad 和 Safari 注意事項",
+        "body": "Safari 會刪除一段時間沒有開啟之網頁應用程式的資料。請定期開啟 Slouchcat 以保留下載內容；加入主畫面作為應用程式時保護效果更好。"
+      }
+    },
+    "rules": {
+      "title": "自動下載",
+      "intro": "將 {{name}} 過去 60 天內看過之每部影集的下一集下載到此裝置，以及 {{name}} 我的片單中 Podcast 的新單集。",
+      "options": "設定",
+      "enabled": "在此裝置上自動下載",
+      "nextEpisodes": "已開始觀看之影集的下一集",
+      "wifiOnly": "僅限 Wi-Fi",
+      "wifiIos": "iPhone 和 iPad 不會告訴瀏覽器是否正在使用 Wi-Fi。在這些裝置上，自動下載會在應用程式開啟時進行。",
+      "maxCount": "未觀看單集的數量上限",
+      "maxCountHint": "{{min}} 到 {{max}}",
+      "maxCountInvalid": "請輸入 {{min}} 到 {{max}} 之間的數字。",
+      "quality": "畫質",
+      "save": "儲存規則",
+      "saved": "已儲存。規則會從下次同步起生效。",
+      "newPodcastEpisodes": "我的片單中 Podcast 的新單集"
+    },
+    "dialog": {
+      "button": "下載",
+      "seasonButton": "下載整季",
+      "title": "下載 {{title}}",
+      "intro": "這部作品會儲存在此裝置上，沒有網路也能播放。",
+      "seasonIntro_other": "這一季的全部 {{count}} 集都會儲存在此裝置上。",
+      "quality": "畫質",
+      "option": "{{quality}} · {{height}}p · 約 {{size}}",
+      "audio": "音軌",
+      "subtitles": "字幕：{{list}}",
+      "noSubtitles": "沒有文字字幕。",
+      "submit": "下載",
+      "submitting": "開始中…",
+      "started_other": "已開始 {{count}} 個下載。可在「下載」中查看狀態。",
+      "audioOption": "{{quality}} · {{kbps}} kbit/s · 約 {{size}}",
+      "audioCopy": "{{quality}} · 直接複製 AAC · 約 {{size}}"
+    },
+    "status": {
+      "open": "前往下載",
+      "season": "此裝置上有 {{done}} / {{total}} 集"
+    },
+    "library": {
+      "title": "離線媒體庫",
+      "intro": "誰在觀看？這些個人資料在此裝置上有下載內容。",
+      "toApp": "開啟應用程式",
+      "offline": "離線",
+      "profiles": "個人資料",
+      "empty": {
+        "title": "此裝置上沒有下載內容",
+        "body": "無法連線至伺服器時，只能播放已下載的作品。",
+        "hint": "在連線時下載作品後，即使沒有網路也能在這裡找到它們。"
+      },
+      "locked": {
+        "title": "下載內容已鎖定",
+        "body": "此裝置的帳戶已登出。下載內容仍會保留，同一個帳戶再次登入後就會重新開放。"
+      },
+      "downloadsOf": "{{name}} 的下載",
+      "switchProfile": "切換個人資料",
+      "list": "已下載的作品",
+      "video": "電影和影集",
+      "audio": "有聲書和 Podcast",
+      "noneReady": "此裝置上還沒有完整下載的作品。",
+      "pending": "尚未完成"
+    },
+    "pin": {
+      "introOffline": "這個個人資料有專屬的離線 PIN 碼。",
+      "offlineLabel": "離線 PIN 碼",
+      "offlineHint": "6 到 12 位數字。",
+      "offlineFormat": "離線 PIN 碼為 6 到 12 位數字。",
+      "unavailable": {
+        "title": "離線時已鎖定",
+        "body": "請在此裝置連線時輸入一次這個個人資料的 PIN 碼，之後離線也能開啟。"
+      }
+    },
+    "player": {
+      "failed": "無法播放已儲存的檔案。",
+      "missing": {
+        "title": "無法使用此下載",
+        "body": "此裝置上沒有（或已不再有）這個下載內容、下載尚未完成，或尚未開放給此個人資料。"
+      }
+    }
+  },
+  "search": {
+    "title": "搜尋",
+    "label": "搜尋字詞",
+    "placeholder": "作品、人物、合集",
+    "start": "搜尋作品、人物和合集，或選擇篩選條件。",
+    "tooShort": "請至少輸入兩個字元。",
+    "filters": {
+      "label": "篩選條件",
+      "genre": "類型",
+      "allGenres": "所有類型",
+      "yearFrom": "起始年份",
+      "yearTo": "結束年份",
+      "rating": "年齡分級上限",
+      "anyRating": "全部",
+      "type": "媒體類型",
+      "types": {
+        "movie": "電影",
+        "series": "影集",
+        "audiobook": "有聲書",
+        "podcast": "Podcast"
+      },
+      "availability": "可用性",
+      "avail": {
+        "local": "在伺服器上",
+        "download": "在此裝置上"
+      },
+      "reset": "重設篩選條件"
+    },
+    "sections": {
+      "titles": "作品",
+      "people": "人物",
+      "collections": "合集"
+    },
+    "results_other": "找到 {{count}} 部作品",
+    "empty": {
+      "title": "找不到任何結果",
+      "body": "試試其他字詞或減少篩選條件。"
+    }
+  },
+  "watchlist": {
+    "title": "我的片單",
+    "remove": "移除",
+    "removeLabel": "從我的片單移除 {{title}}",
+    "cover": {
+      "add": "將 {{title}} 加入我的片單",
+      "remove": "從我的片單移除 {{title}}"
+    },
+    "empty": {
+      "title": "你的片單是空的",
+      "body": "在作品的詳細資料頁按「加入我的片單」，就能留著之後看。",
+      "action": "前往搜尋"
+    }
+  },
+  "collection": {
+    "all": {
+      "title": "合集",
+      "count_other": "{{count}} 個合集",
+      "shown_other": "{{count}} / {{total}} 個合集",
+      "empty": "這個個人資料還沒有任何合集。",
+      "noMatch": "沒有符合搜尋和篩選條件的合集。",
+      "filters": "篩選條件",
+      "search": "搜尋合集",
+      "size": "大小",
+      "sizes": {
+        "2": "2 部作品以上",
+        "3": "3 部以上",
+        "5": "5 部以上",
+        "all": "全部"
+      },
+      "sort": "排序",
+      "sorts": {
+        "name": "名稱 A–Z",
+        "count": "作品最多",
+        "started": "已開始觀看的優先"
+      }
+    },
+    "count_other": "{{count}} 部作品",
+    "films_other": "{{count}} 部電影",
+    "years": "{{first}}–{{last}}",
+    "together": "共 {{duration}}",
+    "seen_other": "已觀看 {{count}} / {{total}}",
+    "members": "作品",
+    "parts": "依序觀看",
+    "part": "第 {{part}} 部：{{title}}",
+    "playPart": "播放：{{title}}",
+    "play": "播放 · 第 {{part}} 部",
+    "resume": "繼續觀看 · 第 {{part}} 部",
+    "rewatch": "重新觀看 · 第 {{part}} 部",
+    "watchlist": {
+      "add": "全部加入我的片單",
+      "added": "全部已在我的片單"
+    },
+    "overviewFallback": "來自 TMDB 的簡介，僅提供英文版",
+    "ask": {
+      "removeBody_other": "{{count}} 部作品的觀看標記將被移除。此操作無法復原。",
+      "halfBody_other": "{{total}} 部作品中有 {{count}} 部已標記為已觀看。要標記所有作品，還是移除所有標記？移除後無法復原。",
+      "markAll": "將所有作品標記為已觀看"
+    },
+    "notFound": {
+      "title": "找不到合集",
+      "body": "這個合集不存在，或對此個人資料沒有任何作品。"
+    }
+  },
+  "notifications": {
+    "title": "通知",
+    "unreadLabel_other": "通知，{{count}} 則未讀",
+    "badgeMax": "{{max}}+",
+    "markAllRead": "全部標為已讀",
+    "entryLabel": "{{title}}，{{source}}，{{time}}",
+    "entryLabelUnread": "未讀：{{title}}，{{source}}，{{time}}",
+    "newEpisode": "{{parent}} 推出新單集",
+    "newEpisodeAlone": "新單集",
+    "summary_other": "{{count}} 則未讀",
+    "empty": {
+      "title": "沒有通知",
+      "body": "將影集或 Podcast 加入我的片單，就能在這裡得知新單集的消息。"
+    }
+  },
+  "settings": {
+    "playback": {
+      "title": "設定",
+      "intro": "個人資料 {{name}} 在所有裝置上的聲音和字幕設定。你在播放器中手動選擇的設定優先。",
+      "languages": "語言和字幕",
+      "audio": {
+        "legend": "音訊語言",
+        "hint": "作品會以此清單中第一個可用的語言播放。如果都沒有，則播放原始語言。",
+        "rank": "第 {{position}} 音訊語言",
+        "more": "其他音訊語言",
+        "none": "目前沒有音訊語言：將播放原始語言。"
+      },
+      "subtitleMode": {
+        "label": "字幕",
+        "off": "關閉",
+        "forced": "僅強制字幕（預設）",
+        "foreign": "外語時顯示",
+        "always": "一律顯示",
+        "offHint": "在你於播放器中開啟之前不顯示字幕。",
+        "forcedHint": "只顯示其他語言的部分，例如招牌或外語對白，並以聲音的語言顯示。",
+        "foreignHint": "與「僅強制字幕」相同。當聲音不是你的任何音訊語言時，以第一字幕語言顯示完整字幕。",
+        "alwaysHint": "一律以第一字幕語言顯示完整字幕；沒有的話則與「僅強制字幕」相同。"
+      },
+      "subtitles": {
+        "legend": "字幕語言",
+        "hint": "用於完整字幕，優先使用第一個可用的語言。",
+        "rank": "第 {{position}} 字幕語言",
+        "more": "其他字幕語言",
+        "none": "目前沒有字幕語言：只會顯示強制字幕。"
+      },
+      "limit": "最多 {{count}} 種語言；請先移除一種才能新增其他語言。",
+      "saved": "已儲存。",
+      "series": {
+        "title": "影集記憶",
+        "body": "當你在某一集中手動選擇聲音或字幕時，Slouchcat 會為整部影集記住該語言。",
+        "reset": "重設影集記憶",
+        "confirmTitle": "要重設影集記憶嗎？",
+        "confirmBody": "之後所有影集都會再次依照你上方的語言和字幕設定播放。此操作無法復原。",
+        "confirm": "重設",
+        "done": "已重設影集記憶。"
+      },
+      "notifications": {
+        "title": "通知",
+        "body": "新單集、邀請和公告是否也透過電子郵件、Web Push 或 Telegram 傳送，可在專屬頁面中為整個帳戶設定。",
+        "link": "前往通知管道"
+      }
+    },
+    "notifications": {
+      "title": "通知管道",
+      "intro": "我的片單中影集和 Podcast 的新單集、邀請和公告，除了應用程式的收件匣外，也會傳送到這裡。設定適用於整個帳戶及其所有個人資料；與某個個人資料有關的訊息會以其名稱開頭。",
+      "link": "設定管道",
+      "serverChannels": "設定伺服器的管道 → 整合",
+      "list": "管道",
+      "onlyPrimary": {
+        "title": "僅限主個人資料",
+        "body": "管道適用於整個帳戶，需在主個人資料中變更。請切換至主個人資料以開啟或關閉管道。",
+        "action": "切換個人資料"
+      },
+      "channel": {
+        "email": "電子郵件",
+        "push": "Web Push",
+        "telegram": "Telegram"
+      },
+      "state": {
+        "on": "開啟",
+        "off": "關閉",
+        "unavailable": "未設定"
+      },
+      "enabled": "開啟",
+      "events": {
+        "label": "事件",
+        "new_content": "新內容",
+        "errors": "錯誤",
+        "invitations": "邀請",
+        "announcements": "公告",
+        "help": "要針對哪些事件傳送訊息。",
+        "helpAdmin": "要針對哪些事件傳送訊息。「錯誤」僅限管理員。"
+      },
+      "unavailable": {
+        "body": "主要使用者需在管理的「整合」中設定這個管道。",
+        "action": "開啟整合"
+      },
+      "email": {
+        "address": "電子郵件地址",
+        "description": "預設為你帳戶的地址。"
+      },
+      "telegram": {
+        "linked": "已連結",
+        "linkedChat": "已連結至聊天 {{chat}}",
+        "notLinked": "未連結",
+        "instruction": "傳送訊息 /start {{code}} 給機器人 @{{bot}}",
+        "expires": "代碼有效期限至 {{time}}。",
+        "open": "在 Telegram 中開啟",
+        "link": "連結",
+        "renew": "新代碼",
+        "unlink": "取消連結",
+        "unlinked": "已取消連結。",
+        "instructionNoBot": "傳送訊息 /start {{code}} 給 Slouchcat 機器人",
+        "noBot": "缺少機器人名稱：主要使用者必須先在「整合」中輸入機器人權杖。",
+        "label": "連結",
+        "help": "將帳戶與你和機器人的聊天連結起來。",
+        "codeOpen": "代碼待使用",
+        "waiting_other": "正在等待訊息，每 {{count}} 秒檢查一次。",
+        "paused": "有未儲存的變更或待回答的問題時，會暫停檢查。",
+        "unlinkConfirm": {
+          "title": "要取消連結 Telegram 嗎？",
+          "body": "Telegram 訊息將不再傳送到已連結的聊天。你隨時可以使用新代碼重新連結。"
+        },
+        "discardConfirm": {
+          "title": "要捨棄代碼嗎？",
+          "body": "待使用的代碼會立即失效。你隨時可以使用新代碼重新連結。",
+          "confirm": "捨棄代碼"
+        }
+      },
+      "push": {
+        "devices": "已註冊的裝置",
+        "none": "尚未註冊任何裝置。",
+        "thisDevice": "此裝置",
+        "unknownDevice": "未知裝置",
+        "created": "註冊於 {{date}}",
+        "subscribe": "在此裝置上開啟",
+        "subscribed": "此裝置現在會接收推播訊息。",
+        "remove": "移除",
+        "removeLabel": "移除 {{device}}",
+        "removed": "已移除裝置。",
+        "unsupported": "這個瀏覽器無法在此接收推播訊息。需要最新版的瀏覽器和 HTTPS 連線。",
+        "ios": "在 iPhone 和 iPad 上，Web Push 只能在已安裝的應用程式中使用：請在分享選單中選擇「加入主畫面」，然後從主畫面開啟 Slouchcat。",
+        "denied": "Slouchcat 的通知已遭封鎖。請在瀏覽器設定中允許通知。",
+        "noWorker": "Service Worker 尚未執行。請重新載入頁面後再試一次。",
+        "failed": "瀏覽器無法向其推播服務註冊。",
+        "count_other": "{{count}} 部裝置"
+      },
+      "saved": "已儲存。",
+      "test": "測試訊息",
+      "testSent": "已傳送測試訊息。",
+      "unsaved": "有未儲存的變更",
+      "enabledHelp": "適用於整個帳戶及其所有個人資料。",
+      "noEvents": "無"
+    }
+  },
+  "announcements": {
+    "kicker": "公告",
+    "published": "發布於 {{date}}",
+    "counter": "{{index}} / {{count}}",
+    "acknowledge": "知道了",
+    "later": "稍後"
+  },
+  "picks": {
+    "page": {
+      "title": "使用者推薦",
+      "intro": "這個家庭的個人資料所推薦的作品，最新推薦的在前。",
+      "count_other": "{{count}} 部作品"
+    }
+  },
+  "radio": {
+    "page": {
+      "title": "廣播",
+      "intro": "透過你的 Slouchcat 伺服器收聽世界各地的電台",
+      "searchLabel": "搜尋電台",
+      "searchPlaceholder": "電台、地點或類型",
+      "quick": {
+        "label": "快速選擇",
+        "myCountry": "我的國家：{{country}}",
+        "favorites": "我的電台",
+        "popular": "熱門"
+      },
+      "myCountry": "我的國家",
+      "filters": {
+        "label": "篩選條件",
+        "country": "國家",
+        "region": "地區",
+        "language": "語言",
+        "genre": "類型",
+        "kind": "節目",
+        "mood": "心情",
+        "quality": "音質",
+        "titles": "僅限有曲目資訊",
+        "clear": "清除選擇",
+        "done": "完成",
+        "none": "沒有可選擇的值",
+        "close": "關閉篩選條件",
+        "show_other": "顯示 {{count}} 個電台",
+        "active": "使用中的篩選條件",
+        "remove": "移除篩選條件 {{label}}",
+        "reset": "重設所有篩選條件",
+        "search": "「{{q}}」"
+      },
+      "sort": {
+        "label": "排序",
+        "popular": "熱門",
+        "name": "名稱 A–Z",
+        "quality": "音質",
+        "new": "目錄中的新電台"
+      },
+      "count_other": "{{count}} 個電台",
+      "rows": {
+        "favorites": "我的電台",
+        "popularIn": "{{country}} 熱門電台",
+        "all": "{{country}} 所有電台",
+        "byGenre": "依類型",
+        "byMood": "依心情",
+        "stations_other": "{{count}} 個電台",
+        "noFavorites": "尚未儲存任何電台。點一下電台的愛心，它就會顯示在這裡，只有你的個人資料看得到。",
+        "popular": "熱門"
+      },
+      "results": "結果",
+      "allStations": "所有電台",
+      "empty": {
+        "title": "找不到電台",
+        "body": "沒有符合這些篩選條件的電台。請移除一個篩選條件或全部重設。"
+      },
+      "loading": {
+        "title": "正在載入電台目錄",
+        "body": "Slouchcat 正在首次擷取電台。頁面稍後會自動重試。"
+      },
+      "play": "播放 {{name}}",
+      "pause": "暫停 {{name}}",
+      "resume": "繼續播放 {{name}}",
+      "playing": "播放中",
+      "paused": "已暫停",
+      "missing": "已不在目錄中，將於 {{date}} 移除",
+      "broken": "目前無法使用",
+      "order": {
+        "toggle": "變更順序",
+        "done": "完成",
+        "label": "「我的電台」的順序"
+      },
+      "offerEmpty": {
+        "title": "尚未選擇任何電台",
+        "body": "管理員尚未為廣播選擇任何電台。",
+        "bodyAdmin": "請在管理中選擇廣播要提供的國家和電台。",
+        "action": "選擇電台"
+      }
+    },
+    "genre": {
+      "pop": "流行",
+      "rock": "搖滾",
+      "jazz": "爵士",
+      "classical": "古典",
+      "electronic": "電子",
+      "hiphop": "嘻哈",
+      "schlager": "德語流行",
+      "folk": "民謠",
+      "alternative": "另類",
+      "oldies": "經典老歌",
+      "chillout": "放鬆音樂",
+      "world": "世界音樂",
+      "country": "鄉村",
+      "metal": "金屬",
+      "mixed": "綜合",
+      "blues": "藍調",
+      "soul": "靈魂樂",
+      "rnb": "R&B",
+      "latin": "拉丁",
+      "reggae": "雷鬼",
+      "dance": "舞曲",
+      "indie": "獨立",
+      "religious": "宗教",
+      "soundtrack": "原聲帶",
+      "kids": "兒童"
+    },
+    "kind": {
+      "music": "音樂",
+      "news": "新聞",
+      "talk": "談話",
+      "sport": "體育",
+      "culture": "文化"
+    },
+    "mood": {
+      "chill": "放鬆",
+      "party": "派對",
+      "focus": "專注",
+      "sleep": "睡眠",
+      "workout": "運動"
+    },
+    "quality": {
+      "high": "高",
+      "good": "良好",
+      "basic": "基本"
+    },
+    "region": {
+      "CH-AG": "阿爾高",
+      "CH-AI": "內阿彭策爾",
+      "CH-AR": "外阿彭策爾",
+      "CH-BE": "伯恩",
+      "CH-BL": "巴塞爾鄉村",
+      "CH-BS": "巴塞爾城市",
+      "CH-FR": "弗里堡",
+      "CH-GE": "日內瓦",
+      "CH-GL": "格拉魯斯",
+      "CH-GR": "格勞賓登",
+      "CH-JU": "汝拉",
+      "CH-LU": "琉森",
+      "CH-NE": "納沙泰爾",
+      "CH-NW": "下瓦爾登",
+      "CH-OW": "上瓦爾登",
+      "CH-SG": "聖加侖",
+      "CH-SH": "沙夫豪森",
+      "CH-SO": "索洛圖恩",
+      "CH-SZ": "施維茨",
+      "CH-TG": "圖爾高",
+      "CH-TI": "提契諾",
+      "CH-UR": "烏里",
+      "CH-VD": "沃州",
+      "CH-VS": "瓦萊",
+      "CH-ZG": "楚格",
+      "CH-ZH": "蘇黎世"
+    },
+    "player": {
+      "region": "廣播播放",
+      "open": "開啟正在播放：{{name}}",
+      "nowPlaying": "正在播放",
+      "close": "關閉正在播放",
+      "play": "播放",
+      "pause": "暫停",
+      "retry": "重試",
+      "stop": "停止廣播",
+      "live": "直播",
+      "paused": "已暫停",
+      "starting": "連線中…",
+      "toLive": "直播",
+      "artistTitle": "{{artist}} – {{title}}",
+      "programme": "直播節目",
+      "noTitles": "電台未提供曲目資訊",
+      "favorite": "{{name}} 在我的電台中",
+      "serverHint": "透過 Slouchcat，以伺服器所在地收聽",
+      "shift": {
+        "label": "時間平移，最多可倒轉 {{minutes}} 分鐘",
+        "behind": "−{{time}}",
+        "back": "倒轉 {{time}}",
+        "minutes_other": "{{count}} 分鐘",
+        "seconds_other": "{{count}} 秒"
+      },
+      "longPause": "暫停超過 {{minutes}} 分鐘。將從最早的位置繼續播放。",
+      "played": {
+        "heading": "先前播放",
+        "empty": "電台尚未公布這首曲目之前播放的曲目。"
+      },
+      "ended": "播放已結束。",
+      "failed": "無法在這個瀏覽器中播放此電台。",
+      "kbps_other": "{{count}} kbit/s",
+      "facts": {
+        "quality": "音質",
+        "genre": "類型",
+        "kind": "節目",
+        "language": "語言"
+      }
+    }
+  },
+  "audioSeries": {
+    "kicker": "系列",
+    "narratedBy": "朗讀者：{{narrator}}",
+    "volumes_other": "{{count}} 冊",
+    "continue": "繼續收聽：第 {{volume, number}} 冊",
+    "continueTitle": "繼續收聽：{{title}}",
+    "edit": "編輯系列",
+    "list": "書籍",
+    "number": "{{value, number}}",
+    "volumeLabel": "第 {{volume, number}} 冊：{{title}}",
+    "play": "播放：{{title}}",
+    "left": "剩餘 {{left}}",
+    "hint": {
+      "title": "僅限管理員",
+      "spellings": "檔案中這個系列有多種名稱：{{names}}。Slouchcat 會將其顯示為同一個系列。",
+      "spelling_other": "「{{name}}」（{{count}} 冊）",
+      "duplicates": "這些冊數出現了不只一次：{{volumes}}。這些書籍的朗讀者不同；錯誤的冊數請在該書中變更。",
+      "dismiss": "知道了"
+    },
+    "notFound": {
+      "title": "找不到系列",
+      "body": "這個系列不存在，或對此個人資料只有不到兩冊。",
+      "action": "前往媒體庫"
+    },
+    "dialog": {
+      "title": "編輯系列",
+      "name": "系列名稱",
+      "nameHint": "變更顯示名稱並將其鎖定；各冊書籍維持不變。",
+      "options": "書籍",
+      "writeToVolumes": "寫入所有書籍",
+      "writeToVolumesHint": "將此名稱設為每冊書籍的系列並鎖定。名稱和作者相同的系列會合併為一個。"
+    }
+  },
+  "watched": {
+    "heard": {
+      "label": "已收聽：{{title}}",
+      "button": "已收聽",
+      "hint": {
+        "set": "標記為已收聽",
+        "half": "部分已收聽：全部標記或移除所有標記"
+      },
+      "state": {
+        "full": "已收聽",
+        "half": "部分已收聽"
+      },
+      "ask": {
+        "removeTitle": "要將「{{title}}」標記為未收聽嗎？",
+        "halfTitle": "「{{title}}」只聽了一部分",
+        "markAll": "將所有單集標記為已收聽"
+      }
+    },
+    "page": {
+      "title": "已觀看",
+      "count_other": "{{count}} 部作品",
+      "filters": "篩選條件",
+      "content": "類型",
+      "contents": {
+        "all": "全部",
+        "movie": "電影",
+        "series": "影集",
+        "audiobook": "有聲書",
+        "podcast": "Podcast"
+      },
+      "sort": "排序",
+      "sorts": {
+        "watched": "最近觀看",
+        "title": "標題 A–Z"
+      },
+      "watchedOn": "{{date}} 已觀看",
+      "heardOn": "{{date}} 已收聽",
+      "episodes_other": "{{count}} / {{total}} 集 · 最近 {{date}}",
+      "emptyKind": "「{{kind}}」中還沒有已觀看的內容。",
+      "empty": {
+        "title": "還沒有觀看任何內容。",
+        "body": "你看完或聽完的內容會顯示在這裡。"
+      }
+    },
+    "label": "已觀看：{{title}}",
+    "button": "已觀看",
+    "hint": {
+      "set": "標記為已觀看",
+      "remove": "移除觀看標記",
+      "half": "部分已觀看：全部標記或移除所有標記"
+    },
+    "state": {
+      "full": "已觀看",
+      "half": "部分已觀看"
+    },
+    "ask": {
+      "removeTitle": "要將「{{title}}」標記為未觀看嗎？",
+      "removeBody_other": "{{count}} 集的觀看標記將被移除。此操作無法復原。",
+      "removeBodyAll": "所有單集的觀看標記都將被移除。此操作無法復原。",
+      "halfTitle": "「{{title}}」只看了一部分",
+      "halfBody_other": "有 {{count}} 集已標記為已觀看。要標記所有單集，還是移除所有標記？移除後無法復原。",
+      "markAll": "將所有單集標記為已觀看",
+      "removeAll": "移除所有標記"
+    }
+  }
+}

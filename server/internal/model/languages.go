@@ -6,8 +6,13 @@ import "slices"
 // web app ships and the enum Language of the contract (concept 22 section 4.3, ADR 0033). It is
 // the one place the server checks a profile language against; TestUILanguagesMatchContract keeps
 // it equal to the contract. A new code is added together with its language pack, one release
-// after the web app learnt to fall back to English for an unknown code.
-var UILanguages = []string{"de", "de-DE", "en"}
+// after the web app learnt to fall back to English for an unknown code. The order is the one of
+// the language choice (concept 22 table 4.1): German in two variants, English, then the twenty
+// languages of stage 4.
+var UILanguages = []string{
+	"de", "de-DE", "en", "fr", "es", "it", "nl", "pt-BR", "pt-PT", "pl", "sv", "da",
+	"nb", "fi", "cs", "hu", "tr", "ru", "uk", "ja", "ko", "zh-CN", "zh-TW",
+}
 
 // DefaultUILanguage is the language of a new profile when the request names none.
 const DefaultUILanguage = "de"

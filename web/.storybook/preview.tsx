@@ -4,7 +4,7 @@ import '@/ui/global.css';
 import '@/ui/density.css';
 import '@/i18n';
 import type { Preview } from '@storybook/react-vite';
-import { clearUnlistedLanguage, setLanguage } from '@/i18n';
+import { clearUnlistedLanguage, setLanguage, supportedLanguages } from '@/i18n';
 import { setPseudoLanguage } from '@/i18n/pseudo';
 import { loadSpatialNavigation } from '@/ui';
 // Straight from its module: the '@/ui/aria' barrel would load every stylesheet before the stories
@@ -29,11 +29,12 @@ const preview: Preview = {
       description: 'Density of the administration (ADR 0020)',
       toolbar: { items: ['default', 'compact'] },
     },
-    // en-XA is the pseudo language (concept 22 section 4.4): every text 40 % longer and in
-    // brackets, to find cut-off texts. The screenshot baselines stay German.
+    // Every shipped language for the visual check of a translation round (concept 22 section
+    // 4.6, step 3; `?globals=locale:fi`), and en-XA, the pseudo language (section 4.4): every text
+    // 40 % longer and in brackets, to find cut-off texts. The screenshot baselines stay German.
     locale: {
       description: 'Language of the story',
-      toolbar: { items: ['de', 'en-XA'] },
+      toolbar: { items: [...supportedLanguages, 'en-XA'] },
     },
   },
   initialGlobals: { density: 'default', locale: 'de' },
@@ -55,12 +56,13 @@ const preview: Preview = {
   ],
   loaders: [
     async (context) => {
-      // German like the e2e suite unless the toolbar asks for en-XA; spatial components need
-      // norigin before they render.
-      if (context.globals.locale === 'en-XA') await setPseudoLanguage();
+      // German like the e2e suite unless the toolbar asks for another language; spatial
+      // components need norigin before they render.
+      const locale = String(context.globals.locale ?? 'de');
+      if (locale === 'en-XA') await setPseudoLanguage();
       else {
         clearUnlistedLanguage();
-        await setLanguage('de');
+        await setLanguage(locale);
       }
       await loadSpatialNavigation();
       return {};
