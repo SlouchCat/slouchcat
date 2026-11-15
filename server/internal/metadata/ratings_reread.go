@@ -276,6 +276,9 @@ func (s *Service) rereadItem(ctx context.Context, item systemq.Item, settings Se
 		}); err != nil {
 			return rereadPassed, fmt.Errorf("%s: write source of %s: %w", JobRatingsReread, cur.ID, err)
 		}
+	} else if err := q.DeleteItemFieldSource(ctx, systemq.DeleteItemFieldSourceParams{ItemID: cur.ID, Field: "own_rating"}); err != nil {
+		// Unrated now: no provider gave the rating, so none is its source.
+		return rereadPassed, fmt.Errorf("%s: delete source of %s: %w", JobRatingsReread, cur.ID, err)
 	}
 	if err := tx.Commit(); err != nil {
 		return rereadPassed, fmt.Errorf("%s: commit %s: %w", JobRatingsReread, cur.ID, err)

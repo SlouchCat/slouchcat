@@ -221,3 +221,24 @@ func TestRatingsRereadKeepsTheValueWhenAProviderIsNotRead(t *testing.T) {
 		t.Errorf("with both providers read: %v %v, want 12 tmdb:DE", r, src)
 	}
 }
+
+// A title whose providers know no certificate becomes unrated, and the provenance of own_rating
+// goes with the value (review of stage 3): no provider is the source of an unknown rating.
+func TestRatingsRereadUnratedDropsTheSource(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, goodToken)
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First Film", tmdbID: 550, ownRating: 12, ratingSource: "tmdb:DE"})
+	mustExec(t, e.db.Write, `INSERT INTO item_field_sources (item_id, field, provider) VALUES (?, 'own_rating', 'tmdb')`, idByTMDB)
+	mustExec(t, e.db.Write, `INSERT INTO item_certifications VALUES (?, 'tmdb', '', '', 1)`, idByTMDB)
+	e.rereadAll(t)
+	if r := e.item(t, idByTMDB); r.Rating.Valid || r.Source.Valid {
+		t.Fatalf("rating %v %v, want unrated", r.Rating, r.Source)
+	}
+	var n int
+	if err := e.db.Read.QueryRow(`SELECT count(*) FROM item_field_sources WHERE item_id = ? AND field = 'own_rating'`, idByTMDB).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Errorf("%d provenance rows of own_rating left on an unrated title", n)
+	}
+}
