@@ -1137,6 +1137,16 @@
       "rate": "Hastighet {{rate}}×",
       "muted": "Dempet",
       "previousEpisode": "Forrige episode",
+      "noChapters": "Ingen kapitler",
+      "lastChapter": "Siste kapittel",
+      "noNextEpisode": "Ingen flere episoder",
+      "noPreviousEpisode": "Ingen tidligere episode",
+      "nextEpisodeNamed": "Neste episode: {{name}}",
+      "previousEpisodeNamed": "Forrige episode: {{name}}",
+      "nextEpisodeCard": "Neste episode",
+      "previousEpisodeCard": "Forrige episode",
+      "cardSeason": "Sesong {{season}} · {{name}}",
+      "notOnDevice": "Ikke på denne enheten",
       "forward10": "Frem 10 sekunder",
       "options": "Alternativer",
       "view": "Tid og visning",
@@ -1225,6 +1235,10 @@
         "next": {
           "keys": "N",
           "action": "Neste episode"
+        },
+        "previous": {
+          "keys": "P",
+          "action": "Forrige episode"
         },
         "help": {
           "keys": "?",

@@ -87,6 +87,9 @@ type m4Info struct {
 	NextEpisode *struct {
 		ID string `json:"id"`
 	} `json:"nextEpisode"`
+	PreviousEpisode *struct {
+		ID string `json:"id"`
+	} `json:"previousEpisode"`
 }
 
 func play(t *testing.T, h http.Handler, token, itemID, body string) (m4Info, int, m4Problem) {
@@ -343,6 +346,14 @@ func TestHTTPSubtitles(t *testing.T) {
 	info, code, _ = play(t, h, "p18", f.Show.E1.ID, `{}`)
 	if code != http.StatusOK || info.Segments.Intro == nil || info.Segments.Intro.StartMs != 5_000 || info.NextEpisode == nil || info.NextEpisode.ID != f.Show.E2.ID {
 		t.Errorf("episode = %d %+v %+v", code, info.Segments, info.NextEpisode)
+	}
+	if info.PreviousEpisode != nil {
+		t.Errorf("previousEpisode of the first episode = %+v", info.PreviousEpisode)
+	}
+	// The previous episode of the second (concept 23 section 3.2a).
+	info, code, _ = play(t, h, "p18", f.Show.E2.ID, `{}`)
+	if code != http.StatusOK || info.PreviousEpisode == nil || info.PreviousEpisode.ID != f.Show.E1.ID {
+		t.Errorf("episode 2 = %d %+v", code, info.PreviousEpisode)
 	}
 }
 

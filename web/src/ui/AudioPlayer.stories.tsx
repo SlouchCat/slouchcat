@@ -80,6 +80,28 @@ export const EpisodeWithoutCover: Story = {
   },
 };
 
+/**
+ * A podcast episode between an older and a newer one (concept 23, 3.3): both episode buttons at
+ * the ends of the transport, the chapter buttons greyed without chapters.
+ */
+export const PodcastEpisode: Story = {
+  args: {
+    ...EpisodeWithoutCover.args,
+    muted: false,
+    previousEpisode: {
+      label: 'Vorherige Folge: Folge 11: Der Morgen danach',
+      onPress: noop,
+      card: {
+        heading: 'Vorherige Folge',
+        name: 'Folge 11: Der Morgen danach',
+        detail: '6. Okt. 2025 · 38 Min.',
+        keys: 'P',
+      },
+    },
+    nextEpisode: { label: 'Nächste Folge', onPress: noop, unavailable: 'Keine weitere Folge' },
+  },
+};
+
 /** The server ended the playback: a notice over the player, the controls are off. */
 export const Ended: Story = {
   args: {

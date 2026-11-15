@@ -188,6 +188,56 @@ func TestSyncHidesTitlesOfOtherProfiles(t *testing.T) {
 	}
 }
 
+// Concept 23 section 3.3: a download of an episode carries the ids of its visible neighbours for
+// the active profile, so the offline player never applies the episode rule itself (rule 12).
+func TestSyncEpisodeNeighbours(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	f := e.f
+	show := f.Show
+	e1 := e.create(f.P18, e.devA, show.E1.ID, model.DownloadHigh)
+	e2 := e.create(f.P18, e.devA, show.E2.ID, model.DownloadHigh)
+	e3 := e.create(f.P18, e.devA, show.E3.ID, model.DownloadHigh)
+	film := e.create(f.P18, e.devA, f.Rated(6).ID, model.DownloadHigh)
+	m18 := e.create(f.P18, e.devA, f.Rated(18).ID, model.DownloadHigh)
+
+	// Still being prepared: nothing the device could play, so no neighbours (and no queries).
+	s := e.sync(f.P18, e.devA)
+	if got := stateOf(s, e1.ID); got == nil || got.State != model.DownloadQueued || got.Item == nil || got.NextEpisodeID != "" {
+		t.Errorf("P18 E1 queued: %+v", got)
+	}
+	e.runJobs()
+	s = e.sync(f.P18, e.devA)
+	for _, tc := range []struct {
+		name, id, next, previous string
+	}{
+		{"first episode", e1.ID, show.E2.ID, ""},
+		{"middle episode", e2.ID, show.E3.ID, show.E1.ID},
+		{"multi-episode file", e3.ID, "", show.E2.ID},
+		{"film", film.ID, "", ""},
+	} {
+		got := stateOf(s, tc.id)
+		if got == nil || got.Item == nil || got.NextEpisodeID != tc.next || got.PreviousEpisodeID != tc.previous {
+			t.Errorf("P18 %s: %+v, want next %q previous %q", tc.name, got, tc.next, tc.previous)
+		}
+	}
+	// P12 does not see E2 (rated 16): its neighbours skip it.
+	s = e.sync(f.P12, e.devA)
+	if got := stateOf(s, e1.ID); got == nil || got.NextEpisodeID != show.E3.ID || got.PreviousEpisodeID != "" {
+		t.Errorf("P12 E1: %+v", got)
+	}
+	if got := stateOf(s, e3.ID); got == nil || got.NextEpisodeID != "" || got.PreviousEpisodeID != show.E1.ID {
+		t.Errorf("P12 E3: %+v", got)
+	}
+	// A download without the title for the active profile carries no neighbour either.
+	if got := stateOf(s, e2.ID); got == nil || got.Item != nil || got.NextEpisodeID != "" || got.PreviousEpisodeID != "" {
+		t.Errorf("P12 E2 (not allowed): %+v", got)
+	}
+	if got := stateOf(s, m18.ID); got == nil || got.Item != nil || got.NextEpisodeID != "" {
+		t.Errorf("P12 film 18: %+v", got)
+	}
+}
+
 // Plan 10.2: the series goes from 12 to 16; at the next sync P12 drops out of the allowed
 // profiles of its episode download and its sync no longer carries the title.
 func TestAllowedProfilesAfterRatingChange(t *testing.T) {

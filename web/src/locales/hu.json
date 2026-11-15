@@ -1137,6 +1137,16 @@
       "rate": "Sebesség: {{rate}}×",
       "muted": "Némítva",
       "previousEpisode": "Előző epizód",
+      "noChapters": "Nincs fejezet",
+      "lastChapter": "Utolsó fejezet",
+      "noNextEpisode": "Nincs következő epizód",
+      "noPreviousEpisode": "Nincs előző epizód",
+      "nextEpisodeNamed": "Következő epizód: {{name}}",
+      "previousEpisodeNamed": "Előző epizód: {{name}}",
+      "nextEpisodeCard": "Következő epizód",
+      "previousEpisodeCard": "Előző epizód",
+      "cardSeason": "{{season}}. évad · {{name}}",
+      "notOnDevice": "Nincs ezen az eszközön",
       "forward10": "10 másodperc előre",
       "options": "Beállítások",
       "view": "Idő és nézet",
@@ -1225,6 +1235,10 @@
         "next": {
           "keys": "N",
           "action": "Következő epizód"
+        },
+        "previous": {
+          "keys": "P",
+          "action": "Előző epizód"
         },
         "help": {
           "keys": "?",

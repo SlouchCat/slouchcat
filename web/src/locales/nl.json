@@ -1137,6 +1137,16 @@
       "rate": "Snelheid {{rate}}×",
       "muted": "Gedempt",
       "previousEpisode": "Vorige aflevering",
+      "noChapters": "Geen hoofdstukken",
+      "lastChapter": "Laatste hoofdstuk",
+      "noNextEpisode": "Geen volgende aflevering",
+      "noPreviousEpisode": "Geen vorige aflevering",
+      "nextEpisodeNamed": "Volgende aflevering: {{name}}",
+      "previousEpisodeNamed": "Vorige aflevering: {{name}}",
+      "nextEpisodeCard": "Volgende aflevering",
+      "previousEpisodeCard": "Vorige aflevering",
+      "cardSeason": "Seizoen {{season}} · {{name}}",
+      "notOnDevice": "Niet op dit apparaat",
       "forward10": "10 seconden vooruit",
       "options": "Opties",
       "view": "Tijd en weergave",
@@ -1225,6 +1235,10 @@
         "next": {
           "keys": "N",
           "action": "Volgende aflevering"
+        },
+        "previous": {
+          "keys": "P",
+          "action": "Vorige aflevering"
         },
         "help": {
           "keys": "?",

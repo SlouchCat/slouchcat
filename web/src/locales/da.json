@@ -1137,6 +1137,16 @@
       "rate": "Hastighed {{rate}}×",
       "muted": "Lyden er slået fra",
       "previousEpisode": "Forrige afsnit",
+      "noChapters": "Ingen kapitler",
+      "lastChapter": "Sidste kapitel",
+      "noNextEpisode": "Ikke flere afsnit",
+      "noPreviousEpisode": "Intet tidligere afsnit",
+      "nextEpisodeNamed": "Næste afsnit: {{name}}",
+      "previousEpisodeNamed": "Forrige afsnit: {{name}}",
+      "nextEpisodeCard": "Næste afsnit",
+      "previousEpisodeCard": "Forrige afsnit",
+      "cardSeason": "Sæson {{season}} · {{name}}",
+      "notOnDevice": "Ikke på denne enhed",
       "forward10": "10 sekunder frem",
       "options": "Muligheder",
       "view": "Tid og visning",
@@ -1225,6 +1235,10 @@
         "next": {
           "keys": "N",
           "action": "Næste afsnit"
+        },
+        "previous": {
+          "keys": "P",
+          "action": "Forrige afsnit"
         },
         "help": {
           "keys": "?",

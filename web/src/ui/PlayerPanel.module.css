@@ -1,13 +1,25 @@
-/* On the right over the video, inside the player (its nearest positioned ancestor). */
+/*
+ * A menu right above its button in the bar (concept 23 P-2), inside the player (its nearest
+ * positioned ancestor). PlayerPanel sets --anchor-right and --anchor-bottom from the button; without
+ * one the menu sits at the bottom right. As tall as its content, at most up to 12 px under the top of
+ * the player; the body scrolls beyond. Never wider than the player, never beyond its left edge.
+ */
 .panel {
+  --menu-width: min(var(--sc-size-panel-menu), calc(100% - 2 * var(--sc-space-4)));
+  --menu-bottom: calc(var(--anchor-bottom, var(--sc-space-2)) + var(--sc-space-2));
+
   position: absolute;
   z-index: var(--sc-z-raised);
-  top: var(--sc-space-4);
-  right: var(--sc-space-4);
-  bottom: var(--sc-space-4);
+  right: clamp(
+    var(--sc-space-3),
+    var(--anchor-right, var(--sc-space-4)),
+    calc(100% - var(--menu-width) - var(--sc-space-3))
+  );
+  bottom: var(--menu-bottom);
   display: flex;
   flex-direction: column;
-  width: min(24rem, calc(100% - 2 * var(--sc-space-4)));
+  width: var(--menu-width);
+  max-height: calc(100% - var(--menu-bottom) - var(--sc-space-3));
   overflow: hidden;
   border-radius: var(--sc-radius-lg);
   background-color: var(--sc-color-bg-elevated);
@@ -16,16 +28,6 @@
 
 .panel:focus-visible {
   outline-offset: calc(-1 * var(--sc-focus-ring-width));
-}
-
-/* A sheet from the bottom on a phone: narrow, or held sideways (concept 13, 11.2). */
-@media (width < 768px), (pointer: coarse) and (height <= 500px) {
-  .panel {
-    inset: auto 0 0;
-    width: auto;
-    max-height: 85%;
-    border-radius: var(--sc-radius-lg) var(--sc-radius-lg) 0 0;
-  }
 }
 
 .header {
@@ -48,9 +50,84 @@
 }
 
 .body {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
   padding: 0 var(--sc-space-3) var(--sc-space-4);
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+/*
+ * The close button, last in the panel. On a computer it is for screen readers and shows only
+ * while it has the keyboard focus (Tab from the last control), as a row under the body.
+ */
+.close {
+  flex: none;
+  margin: 0 var(--sc-space-3) var(--sc-space-3);
+  padding: var(--sc-space-2) var(--sc-space-3);
+  border: 0;
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-2);
+  color: var(--sc-color-text-primary);
+  font: inherit;
+  font-size: var(--sc-font-size-sm);
+  cursor: pointer;
+  outline-offset: var(--sc-focus-ring-offset);
+}
+
+.close:not([data-focus-visible]) {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* A sheet from the bottom on a phone: narrow, or held sideways (concept 13, 11.2). */
+@media (width < 768px), (pointer: coarse) and (height <= 500px) {
+  .panel {
+    inset: auto 0 0;
+    width: auto;
+    max-height: 85%;
+    border-radius: var(--sc-radius-lg) var(--sc-radius-lg) 0 0;
+  }
+
+  /* The close button is the grab handle at the top of the sheet: a short bar, its name spoken. */
+  .close,
+  .close:not([data-focus-visible]) {
+    position: relative;
+    order: -1;
+    overflow: visible;
+    align-self: center;
+    width: var(--sc-space-12);
+    height: var(--sc-space-6);
+    margin: var(--sc-space-1) auto 0;
+    padding: 0;
+    clip-path: none;
+    background: none;
+  }
+
+  .close::after {
+    position: absolute;
+    top: 50%;
+    right: var(--sc-space-1);
+    left: var(--sc-space-1);
+    height: var(--sc-space-1);
+    border-radius: var(--sc-radius-full);
+    background-color: var(--sc-color-surface-3);
+    content: '';
+    transform: translateY(-50%);
+  }
+
+  .closeText {
+    position: absolute;
+    overflow: hidden;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }

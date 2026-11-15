@@ -142,9 +142,18 @@ func (s *Service) Sync(ctx context.Context, session model.Session, req model.Off
 	if err != nil {
 		return model.OfflineSync{}, err
 	}
+	scope := visibility.Profile(session.Profile)
 	for i, row := range rows {
 		if it, ok := items[row.ItemID]; ok && slices.Contains(out.Downloads[i].AllowedProfileIDs, active) {
 			out.Downloads[i].Item = &it
+			// Two queries per episode download (docs/perf/23-player.md): only for a copy the
+			// device can play now or after its fetch, never for one still being prepared.
+			if !playable(row, complete) {
+				continue
+			}
+			if err := s.neighbours(ctx, scope, &out.Downloads[i]); err != nil {
+				return model.OfflineSync{}, err
+			}
 		}
 	}
 	if out.Profiles, err = s.offlineProfiles(ctx, account, profiles, wanted, pinned, now); err != nil {
@@ -154,6 +163,43 @@ func (s *Service) Sync(ctx context.Context, session model.Session, req model.Off
 		return model.OfflineSync{}, err
 	}
 	return out, nil
+}
+
+// playable says whether the device can play the download: a ready copy (fetched or about to be),
+// an evicted one the device holds, or one it reported complete. Queued, preparing, paused and
+// failed ones have no file the device could play.
+func playable(row systemq.Download, complete map[string]bool) bool {
+	return row.State == model.DownloadReady || row.State == model.DownloadEvicted || complete[row.ID]
+}
+
+// neighbours sets the next and the previous episode of the title of a download with its Item
+// (concept 23 section 3.3; for a podcast episode the newer and the older one, F-5). The server decides them (rule 12); the offline player only looks up
+// whether such a title lies on the device. A title hidden since the summary has none.
+func (s *Service) neighbours(ctx context.Context, scope visibility.Scope, st *model.DownloadState) error {
+	if st.Item.Kind != "episode" && st.Item.Kind != "podcast_episode" {
+		return nil
+	}
+	next, err := s.vis.NextEpisode(ctx, scope, st.Item.ID)
+	if errors.Is(err, model.ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	prev, err := s.vis.PreviousEpisode(ctx, scope, st.Item.ID)
+	if errors.Is(err, model.ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if next != nil {
+		st.NextEpisodeID = next.ID
+	}
+	if prev != nil {
+		st.PreviousEpisodeID = prev.ID
+	}
+	return nil
 }
 
 // tombstones returns the reported ids that have a tombstone of the device.

@@ -81,6 +81,12 @@ interface AudioControlsOptions {
   onBack: () => void;
   /** Every change of the speed (the offline player stores it per download). */
   onRateChange?: (rate: number) => void;
+  /**
+   * N and P: the newer and the older episode of a podcast (concept 23, 3.3); absent: the key does
+   * nothing (an audiobook, the first or the last episode).
+   */
+  playNext?: () => void;
+  playPrevious?: () => void;
 }
 
 // The element belongs to the page: the hook reads it and sets its speed and volume through these
@@ -115,7 +121,8 @@ const inMenu = (target: EventTarget | null) =>
  * of everything heard on this device (lib/audioVolume, concept 19 E3; on the iPhone only a mute),
  * the sleep timer (pauses the element, which reports the progress), the menus and the key map:
  * Space/Enter/K play-pause, ←/→ 15 s, Shift+←/→ chapters, ↑/↓ volume, M mute, [ and ] speed,
- * C chapters, T sleep timer, Escape/Backspace back.
+ * C chapters, T sleep timer, N and P the next and the previous episode of a podcast,
+ * Escape/Backspace back.
  */
 export function useAudioControls({
   media,
@@ -130,6 +137,8 @@ export function useAudioControls({
   togglePlay,
   onBack,
   onRateChange,
+  playNext,
+  playPrevious,
 }: AudioControlsOptions): AudioControlProps {
   const { t, i18n } = useTranslation();
   const [rate, setRate] = useState(() => clampRate(initialRate));
@@ -149,9 +158,11 @@ export function useAudioControls({
   const osdTimer = useRef<number | undefined>(undefined);
   const position = useRef(positionOf);
   const rateChanged = useRef(onRateChange);
+  const episodes = useRef({ playNext, playPrevious });
   useEffect(() => {
     position.current = positionOf;
     rateChanged.current = onRateChange;
+    episodes.current = { playNext, playPrevious };
   });
 
   const showOsd = useCallback((text: string) => {
@@ -382,6 +393,15 @@ export function useAudioControls({
         case 't':
           open('sleep', true, event);
           return;
+        case 'n':
+        case 'p': {
+          const play = key === 'n' ? episodes.current.playNext : episodes.current.playPrevious;
+          if (!play) return;
+          event.preventDefault();
+          // A held key plays one episode, not one per repeat.
+          if (!event.repeat) play();
+          return;
+        }
         case 'Escape':
         case 'Backspace':
           event.preventDefault();

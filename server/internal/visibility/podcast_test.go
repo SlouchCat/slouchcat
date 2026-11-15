@@ -134,3 +134,93 @@ func TestPodcastsAndAudioVisibility(t *testing.T) {
 		t.Errorf("recent lacks audio: %v", err)
 	}
 }
+
+// Concept 23 F-5: the next episode of a podcast episode is the nearest newer visible episode of
+// the same podcast, the previous one the nearest older, whether heard or not. Episodes without a
+// date are older than the dated ones and follow the order of the feed (creation), ties by id: the
+// order of the episode list reversed.
+func TestPodcastEpisodeNeighbours(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	f.AddAudio(t)
+	r := New(f.DB, vistest.Logger())
+	ctx := context.Background()
+	a := f.Audio
+	// By date: FileOnlyExplicit (18), Q0, Q6, QC (12), QG (16), Explicit (18), EnclosureOnly (0).
+	q0, q6, qc, qg := a.Episodes[0], a.Episodes[1], a.Episodes[2], a.Episodes[3]
+	neighbours := func(p model.Profile, id string) (string, string) {
+		t.Helper()
+		next, err := r.NextEpisode(ctx, Profile(p), id)
+		if err != nil {
+			t.Fatalf("next of %s: %v", id, err)
+		}
+		prev, err := r.PreviousEpisode(ctx, Profile(p), id)
+		if err != nil {
+			t.Fatalf("previous of %s: %v", id, err)
+		}
+		var n, pr string
+		if next != nil {
+			n = next.ID
+		}
+		if prev != nil {
+			pr = prev.ID
+		}
+		return n, pr
+	}
+	// Heard or not does not count: Q6 is completed for P18.
+	run(t, f, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, watched_at, updated_at) VALUES (?, ?, 1, 1, 1, 1, 1)`, f.P18.ID, q6.ID)
+	for _, tc := range []struct {
+		name           string
+		p              model.Profile
+		item           vistest.Movie
+		next, previous string
+	}{
+		{"middle", f.P18, q6, qc.ID, q0.ID},
+		{"invisible episodes skipped", f.P6, q6, a.EnclosureOnly.ID, q0.ID},
+		{"newest", f.P18, a.EnclosureOnly, "", a.Explicit.ID},
+		{"oldest", f.P18, a.FileOnlyExplicit, q0.ID, ""},
+		{"oldest visible", f.P6, q0, q6.ID, ""},
+		{"completed episode is a neighbour", f.P18, q0, q6.ID, a.FileOnlyExplicit.ID},
+	} {
+		if n, pr := neighbours(tc.p, tc.item.ID); n != tc.next || pr != tc.previous {
+			t.Errorf("%s: next %q previous %q, want %q %q", tc.name, n, pr, tc.next, tc.previous)
+		}
+	}
+	// The detail of a podcast episode names its next episode too.
+	if d, err := r.Item(ctx, Profile(f.P6), q6.ID); err != nil || d.NextEpisode == nil || d.NextEpisode.ID != a.EnclosureOnly.ID {
+		t.Errorf("detail next of Q6 for P6 = %+v, %v", d.NextEpisode, err)
+	}
+	// An episode of another podcast is never a neighbour.
+	if n, pr := neighbours(f.P18, a.ExplicitPodcastEpisode.ID); n != "" || pr != "" {
+		t.Errorf("only episode of its podcast: next %q previous %q", n, pr)
+	}
+
+	// Without a date: older than every dated episode, by creation, ties by id.
+	run(t, f, `UPDATE items SET published_at = NULL, created_at = 5 WHERE id = ?`, qc.ID)
+	run(t, f, `UPDATE items SET published_at = NULL, created_at = 3 WHERE id = ?`, qg.ID)
+	for _, tc := range []struct {
+		name           string
+		item           vistest.Movie
+		next, previous string
+	}{
+		{"undated by creation", qg, qc.ID, ""},
+		{"undated before the dated", qc, a.FileOnlyExplicit.ID, qg.ID},
+		{"dated after the undated", a.FileOnlyExplicit, q0.ID, qc.ID},
+		{"dated neighbours close the gap", q6, a.Explicit.ID, q0.ID},
+	} {
+		if n, pr := neighbours(f.P18, tc.item.ID); n != tc.next || pr != tc.previous {
+			t.Errorf("%s: next %q previous %q, want %q %q", tc.name, n, pr, tc.next, tc.previous)
+		}
+	}
+	run(t, f, `UPDATE items SET created_at = 3 WHERE id = ?`, qc.ID)
+	lo, hi := qc.ID, qg.ID
+	if hi < lo {
+		lo, hi = hi, lo
+	}
+	if n, pr := neighbours(f.P18, lo); n != hi || pr != "" {
+		t.Errorf("tie by id, lower: next %q previous %q, want %q", n, pr, hi)
+	}
+	if n, pr := neighbours(f.P18, hi); n != a.FileOnlyExplicit.ID || pr != lo {
+		t.Errorf("tie by id, higher: next %q previous %q, want %q %q", n, pr, a.FileOnlyExplicit.ID, lo)
+	}
+}

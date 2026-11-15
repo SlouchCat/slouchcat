@@ -1105,6 +1105,16 @@
       "rate": "速度 {{rate}}×",
       "muted": "已靜音",
       "previousEpisode": "上一集",
+      "noChapters": "無章節",
+      "lastChapter": "已是最後一章",
+      "noNextEpisode": "沒有下一集",
+      "noPreviousEpisode": "沒有上一集",
+      "nextEpisodeNamed": "下一集：{{name}}",
+      "previousEpisodeNamed": "上一集：{{name}}",
+      "nextEpisodeCard": "下一集",
+      "previousEpisodeCard": "上一集",
+      "cardSeason": "第 {{season}} 季 · {{name}}",
+      "notOnDevice": "不在這部裝置上",
       "forward10": "快轉 10 秒",
       "options": "選項",
       "view": "時間和檢視",
@@ -1193,6 +1203,10 @@
         "next": {
           "keys": "N",
           "action": "下一集"
+        },
+        "previous": {
+          "keys": "P",
+          "action": "上一集"
         },
         "help": {
           "keys": "?",

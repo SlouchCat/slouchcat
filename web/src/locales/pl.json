@@ -1201,6 +1201,16 @@
       "rate": "Prędkość {{rate}}×",
       "muted": "Wyciszono",
       "previousEpisode": "Poprzedni odcinek",
+      "noChapters": "Brak rozdziałów",
+      "lastChapter": "Ostatni rozdział",
+      "noNextEpisode": "Brak następnego odcinka",
+      "noPreviousEpisode": "Brak poprzedniego odcinka",
+      "nextEpisodeNamed": "Następny odcinek: {{name}}",
+      "previousEpisodeNamed": "Poprzedni odcinek: {{name}}",
+      "nextEpisodeCard": "Następny odcinek",
+      "previousEpisodeCard": "Poprzedni odcinek",
+      "cardSeason": "Sezon {{season}} · {{name}}",
+      "notOnDevice": "Brak na tym urządzeniu",
       "forward10": "Do przodu o 10 sekund",
       "options": "Opcje",
       "view": "Czas i widok",
@@ -1289,6 +1299,10 @@
         "next": {
           "keys": "N",
           "action": "Następny odcinek"
+        },
+        "previous": {
+          "keys": "P",
+          "action": "Poprzedni odcinek"
         },
         "help": {
           "keys": "?",

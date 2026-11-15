@@ -6,7 +6,8 @@
   Empfehlung:** Es gibt einen eigenen Knopf «Vorherige Folge», und bei Podcasts geht er zur älteren,
   der Folgenknopf zur neueren Folge. Fassung 2 hatte das Kritiker-Review eingearbeitet (REVISE,
   0 Blocker, 3 Major, 8 Minor; Abschnitt 11). **Am 15. November 2026 von Marco
-  freigegeben (Frage 30).** **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
+  freigegeben (Frage 30) und am selben Tag ganz gebaut: Release 1.38.0** (Entscheide beim Bau im
+  Nachtrag zu Frage 30).
 - **Auslöser:** Marco am 15. November 2026 mit zwei Bildern aus dem Player (Knopfreihe, Panel
   «Einstellungen») und einem dritten aus dem Reiter «Besetzung»:
   «Ich möchte noch ein Icon, welches bei den Serien auf die nächste Folge springt. […] Es soll

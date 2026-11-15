@@ -223,7 +223,7 @@ let autoNextTarget: string | null = null;
 
 /**
  * What the player hands on to the next title it plays itself (auto-next, an episode of «Als
- * Nächstes», «Folge zurück»): night mode and the volume, a boost above 100 % included. Web Audio
+ * Nächstes», «Vorherige Folge»): night mode and the volume, a boost above 100 % included. Web Audio
  * stays on until the viewer leaves the player (11.10); mute and speed start afresh with a new
  * title. Taken by the player of that title; reset when the player route closes.
  */
@@ -476,6 +476,7 @@ function PlayerView({
         onBack={goBack}
         startPositionMs={startMs}
         detail={detail.data}
+        onPlayEpisode={playEpisode}
       />
     );
   }

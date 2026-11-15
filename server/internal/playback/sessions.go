@@ -169,6 +169,10 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	if err != nil {
 		return model.PlaybackInfo{}, err
 	}
+	previous, err := s.vis.PreviousEpisode(ctx, scope, item.ID)
+	if err != nil {
+		return model.PlaybackInfo{}, err
+	}
 	limits := session.Profile.Effective
 	watch, slot, err := s.admit(ctx, session, item.ID, limits, s.now())
 	if err != nil {
@@ -325,12 +329,13 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		Tracks:            tracks,
 		Selection: model.TrackSelection{AudioTrack: d.AudioStream, SubtitleTrack: d.SubtitleTrack, SubtitleDelivery: d.SubtitleDelivery,
 			AudioReason: audioReason, SubtitleReason: subtitleReason},
-		Qualities:   QualityOptions(d, src, originalAvailable(d, file, probe, dreq), req.Quality),
-		Chapters:    bookChapters,
-		WatchTime:   watch,
-		Device:      device,
-		Segments:    segments,
-		NextEpisode: next,
+		Qualities:       QualityOptions(d, src, originalAvailable(d, file, probe, dreq), req.Quality),
+		Chapters:        bookChapters,
+		WatchTime:       watch,
+		Device:          device,
+		Segments:        segments,
+		NextEpisode:     next,
+		PreviousEpisode: previous,
 	}
 	if mediaKind == model.MediaKindVideo {
 		// The preview tiles never fail a start: without them the seek bar shows the chapter image.

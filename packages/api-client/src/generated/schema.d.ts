@@ -6428,7 +6428,11 @@ export interface components {
             chapters?: components["schemas"]["Chapter"][];
             /** @description Visible extras of a film, series or season (B-7). */
             extras?: components["schemas"]["ItemRef"][];
-            /** @description The next visible episode of the same series after this episode. */
+            /**
+             * @description The next visible episode of the same series after this episode, or for a podcast
+             *     episode the next newer visible episode of the same podcast (since contract 1.38.0,
+             *     concept 23 F-5).
+             */
             nextEpisode?: components["schemas"]["ItemRef"];
             /**
              * @description The episode the big button of a series plays (since contract 1.20.0, concept 17
@@ -6986,8 +6990,20 @@ export interface components {
              */
             chapters: components["schemas"]["Chapter"][];
             segments: components["schemas"]["Segments"];
-            /** @description The next visible episode of the same series (auto-next, W-9). */
+            /**
+             * @description The next visible episode of the same series (auto-next, W-9), or for a podcast episode
+             *     the next newer visible episode of the same podcast, heard or not (since contract 1.38.0,
+             *     concept 23 F-5; also when it plays from its enclosure).
+             */
             nextEpisode?: components["schemas"]["ItemRef"];
+            /**
+             * @description The previous visible episode of the same series (since contract 1.38.0, concept 23
+             *     section 3.2a), the mirror of `nextEpisode`: a lower number in the same season, else the
+             *     last episode of the nearest earlier season; specials only precede a special. For a
+             *     podcast episode the next older visible episode of the same podcast, heard or not (F-5).
+             *     Absent for the first episode and for other kinds.
+             */
+            previousEpisode?: components["schemas"]["ItemRef"];
             /**
              * @description Preview tiles of the seek bar (since contract 1.23.0, concept 18 part A). Present for every
              *     film and episode with video whose library setting for its kind is not `off`; absent for
@@ -8808,6 +8824,21 @@ export interface components {
             /** Format: date-time */
             readyAt?: string;
             item?: components["schemas"]["ItemRef"];
+            /**
+             * @description The next visible episode after this title by the rule of `PlaybackInfo.nextEpisode`
+             *     (since contract 1.38.0, concept 23 section 3.3), for the active profile of the sync;
+             *     filled by `syncOffline` only when `item` is present and the device can play the
+             *     download (state `ready` or `evicted`, or reported complete in `held`). The offline
+             *     player only looks up whether that title lies on the device; it never applies the
+             *     episode rule itself.
+             */
+            nextEpisodeId?: components["schemas"]["ItemID"];
+            /**
+             * @description The previous visible episode before this title by the rule of
+             *     `PlaybackInfo.previousEpisode` (since contract 1.38.0, concept 23 section 3.3), filled
+             *     like `nextEpisodeId`.
+             */
+            previousEpisodeId?: components["schemas"]["ItemID"];
         };
         DownloadList: {
             downloads: components["schemas"]["DownloadState"][];

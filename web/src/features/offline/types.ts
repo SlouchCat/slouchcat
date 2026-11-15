@@ -53,6 +53,14 @@ export interface StoredDownload {
   readyAt?: string;
   /** Title data from the last answer that carried it. */
   item?: ItemRef;
+  /**
+   * The next and the previous episode per profile, as the server named them in the last sync made
+   * with that profile active (DownloadState, contract 1.38.0, concept 23 section 3.3): the server
+   * decides them for one profile (rule 12), so the offline player looks up only the entry of the
+   * profile that plays, and only whether those titles lie on the device. An entry without an id:
+   * the server named none for that profile. No entry: no sync of that profile carried them yet.
+   */
+  episodeNeighbours?: Record<string, { next?: string; previous?: string }>;
   /** Fragment index, codecs, subtitles and file URL (with the download token). */
   manifest?: DownloadManifest;
   /** Bytes of media.mp4 that are durably written, from offset 0. */

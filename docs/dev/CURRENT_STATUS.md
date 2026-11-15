@@ -1,5 +1,35 @@
 # Aktueller Stand
 
+## Release 1.38.0: Konzept 23 «Player-Bedienung» (15. November 2026)
+
+Konzept 23 (`docs/planning/23-player-bedienung.md`, Frage 30) ganz gebaut, alle drei Stufen in einem
+Release, autonom auf Marcos Auftrag vom 15. November 2026 («Baue alles selbständig in einem Schritt …
+Es gibt lediglich ein Release»). Zweig `claude/k23-bau`. Vertrag **1.38.0** (additiv), keine Migration.
+
+- **P-1 Folgenknöpfe:** Reihe «vorherige Folge | Kapitel zurück · −10 · Play · +30 · Kapitel vor |
+  nächste Folge» in Video-, Offline- und Audioplayer; Kapitelknöpfe nur noch Kapitel (neue
+  Bogen-Symbole), ohne Kapitel ausgegraut (`aria-disabled` mit Hinweis, neues Bauteil `ui/PlayerStep`).
+  Folgenknöpfe mit Vorschaukarte, über die Staffelgrenze; Taste P neu, N bleibt; am Handy beide in der
+  Mitte. Server: `PlaybackInfo.previousEpisode` (`GetPreviousVisibleEpisode`).
+- **P-2 Menüs ohne X:** Einstellungen, Ton, Untertitel, Hilfe als Menü über ihrem Knopf
+  (`size.panel.menu` 20 rem); Klick daneben schliesst, ein Klick aufs Bild pausiert dabei nicht;
+  verborgener Knopf «Schliessen» für Bildschirmleser, am Handy Griff.
+- **P-3 Besetzung:** Hochformat 2:3 mit Bild im Player-Reiter.
+- **P-4 Countdown:** Karte «Nächste Folge» und «Intro überspringen» 12 px über der gemessenen
+  Zeitzeile (`--player-chrome-top`); ein offener Reiter schliesst beim Countdown.
+- **Stufe 2 Offline:** `DownloadState.nextEpisodeId`/`previousEpisodeId`, je Profil gespeichert
+  (`StoredDownload.episodeNeighbours`), nur für abspielbare Downloads berechnet (`docs/perf/23-player.md`).
+- **Stufe 3 Podcasts:** vorwärts die neuere, zurück die ältere Folge desselben Podcasts (F-5), auch im
+  Enclosure-Weg; im Audioplayer mit P/N.
+- **Übersetzt:** 12 neue Texte in allen 23 Sprachen (`check.ts --all --strict` 0 Fehler, 0 fehlend).
+- **Geprüft:** je Schritt `task check:fast`, gezielte Go-Tests, e2e `player`, `chapters`, `podcast`,
+  `offline-chapters`, `offline-playback`, `tracks` (43 passed auf dem zusammengeführten Stand),
+  Storybook 535 passed; Code-Review (1 Major: Offline-Nachbarn je Profil, 7 Minor) behoben.
+- **Bewusst nicht in 1.38.0:** Folgenknöpfe im Offline-Audioplayer (Podcast, Hörbuch); die
+  Detailseite einer Podcast-Folge zeigt die nächste Folge weiterhin nicht. Downloads von vor 1.38.0
+  bekommen ihre Nachbarn mit dem nächsten Abgleich; bis dahin «Nicht auf diesem Gerät».
+- **Offen bei Marco:** CT 190 per Updater auf 1.38.0 heben und ansehen.
+
 ## Patch 1.37.1: alle Sprachen offline (15. November 2026)
 
 Auf Marcos Wunsch legt der Service Worker wieder **alle 23 Sprachbündel** vorab ab (rund 7,5 MB statt

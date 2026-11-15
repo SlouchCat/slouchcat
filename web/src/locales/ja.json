@@ -1105,6 +1105,16 @@
       "rate": "再生速度 {{rate}}×",
       "muted": "ミュート中",
       "previousEpisode": "前のエピソード",
+      "noChapters": "チャプターなし",
+      "lastChapter": "最後のチャプター",
+      "noNextEpisode": "次のエピソードなし",
+      "noPreviousEpisode": "前のエピソードなし",
+      "nextEpisodeNamed": "次のエピソード：{{name}}",
+      "previousEpisodeNamed": "前のエピソード：{{name}}",
+      "nextEpisodeCard": "次のエピソード",
+      "previousEpisodeCard": "前のエピソード",
+      "cardSeason": "シーズン{{season}} · {{name}}",
+      "notOnDevice": "このデバイスにはありません",
       "forward10": "10秒進む",
       "options": "オプション",
       "view": "時間と表示",
@@ -1193,6 +1203,10 @@
         "next": {
           "keys": "N",
           "action": "次のエピソード"
+        },
+        "previous": {
+          "keys": "P",
+          "action": "前のエピソード"
         },
         "help": {
           "keys": "?",

@@ -58,8 +58,8 @@ function renderChrome(props: Partial<Props> = {}) {
       volume={0.5}
       muted={false}
       fullscreen={false}
-      previous={{ label: 'Vorheriges Kapitel', onPress: vi.fn() }}
-      next={{ label: 'Nächstes Kapitel', onPress: vi.fn() }}
+      previousChapter={{ label: 'Vorheriges Kapitel', onPress: vi.fn() }}
+      nextChapter={{ label: 'Nächstes Kapitel', onPress: vi.fn() }}
       subtitles={panel('Untertitel: Aus', 'Aus')}
       audio={panel('Ton: Deutsch', 'Deutsch')}
       settings={panel('Einstellungen')}
@@ -292,6 +292,136 @@ describe('PlayerChrome (concept 13, 11.2)', () => {
       expect(button('Ton aus')).not.toHaveAttribute('tabindex', '-1');
       expect(button('Einstellungen')).toHaveAttribute('tabindex', '-1');
     });
+  });
+});
+
+describe('PlayerChrome: chapter and episode buttons (concept 23, 3.1 to 3.3)', () => {
+  const episodes = () => ({
+    previousEpisode: {
+      label: 'Vorherige Folge: S01E03 · Das Echo',
+      onPress: vi.fn(),
+      card: { heading: 'Vorherige Folge', name: 'S01E03 · Das Echo', detail: '41 Min.', keys: 'P' },
+    },
+    nextEpisode: {
+      label: 'Nächste Folge: S01E05 · Die Brücke',
+      onPress: vi.fn(),
+      card: {
+        imageUrl: '/still.webp',
+        heading: 'Nächste Folge',
+        name: 'S01E05 · Die Brücke',
+        detail: '44 Min.',
+        keys: 'N',
+      },
+    },
+  });
+  const rowNames = (name: string) =>
+    within(screen.getByRole('toolbar', { name }))
+      .getAllByRole('button')
+      .map((b) => b.getAttribute('aria-label'));
+
+  it('orders the row: previous episode | chapter back · −10 · play · +30 · chapter forward | next episode', () => {
+    renderChrome(episodes());
+    expect(rowNames('Wiedergabe').slice(0, 8)).toEqual([
+      'Vorherige Folge: S01E03 · Das Echo',
+      'Vorheriges Kapitel',
+      '10 Sekunden zurück',
+      'Abspielen',
+      '30 Sekunden vor',
+      'Nächstes Kapitel',
+      'Nächste Folge: S01E05 · Die Brücke',
+      'Ton aus',
+    ]);
+  });
+
+  it('shows the card of an episode over its button, hidden from the accessibility tree', async () => {
+    const { nextEpisode, previousEpisode } = episodes();
+    renderChrome({ nextEpisode, previousEpisode });
+    const next = button('Nächste Folge: S01E05 · Die Brücke');
+    const card = next.parentElement?.querySelector(':scope > [aria-hidden="true"]') as HTMLElement;
+    expect(card).toHaveTextContent('Nächste Folge');
+    expect(card).toHaveTextContent('S01E05 · Die Brücke');
+    expect(card).toHaveTextContent('44 Min.');
+    expect(card).toHaveTextContent('N');
+    expect(card.querySelector('img')).toHaveAttribute('src', '/still.webp');
+    await userEvent.click(next);
+    expect(nextEpisode.onPress).toHaveBeenCalledTimes(1);
+    await userEvent.click(button('Vorherige Folge: S01E03 · Das Echo'));
+    expect(previousEpisode.onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('greys a step in place: focusable, in the arrow order, its hint as description, a press does nothing', async () => {
+    const onPress = vi.fn();
+    renderChrome({
+      previousChapter: { label: 'Vorheriges Kapitel', onPress, unavailable: 'Keine Kapitel' },
+      nextChapter: { label: 'Nächstes Kapitel', onPress, unavailable: 'Keine Kapitel' },
+      nextEpisode: { label: 'Nächste Folge', onPress, unavailable: 'Keine weitere Folge' },
+    });
+    const forward = button('Nächstes Kapitel');
+    expect(forward).toHaveAttribute('aria-disabled', 'true');
+    expect(forward).not.toBeDisabled();
+    expect(forward).toHaveAccessibleDescription('Keine Kapitel');
+    expect(button('Nächste Folge')).toHaveAccessibleDescription('Keine weitere Folge');
+    button('Abspielen').focus();
+    await userEvent.keyboard('{ArrowRight}{ArrowRight}');
+    expect(forward).toHaveFocus();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(button('Nächste Folge')).toHaveFocus();
+    // A greyed step can be the row's Tab stop.
+    expect(button('Nächste Folge')).not.toHaveAttribute('tabindex', '-1');
+    await userEvent.keyboard('{Enter}');
+    await userEvent.click(forward);
+    await userEvent.click(button('Vorheriges Kapitel'));
+    expect(onPress).not.toHaveBeenCalled();
+  });
+
+  it('keeps the focus on a button that becomes greyed (into the last chapter)', () => {
+    const props = (unavailable?: string) => ({
+      title: 'Silo',
+      lineLabel: 'Silo',
+      currentMs: 0,
+      durationMs: 600_000,
+      buffered: [] as const,
+      timeDisplay: 'elapsed' as const,
+      onTimeDisplayChange: vi.fn(),
+      onSeek: vi.fn(),
+      playing: true,
+      onTogglePlay: vi.fn(),
+      onSkip: vi.fn(),
+      volume: 1,
+      muted: false,
+      onVolumeChange: vi.fn(),
+      onToggleMute: vi.fn(),
+      fullscreen: false,
+      onToggleFullscreen: vi.fn(),
+      onBack: vi.fn(),
+      nextChapter: { label: 'Nächstes Kapitel', onPress: vi.fn(), unavailable },
+    });
+    const { rerender } = render(<PlayerChrome {...props()} />);
+    button('Nächstes Kapitel').focus();
+    rerender(<PlayerChrome {...props('Letztes Kapitel')} />);
+    expect(button('Nächstes Kapitel')).toHaveFocus();
+    expect(button('Nächstes Kapitel')).toHaveAccessibleDescription('Letztes Kapitel');
+  });
+
+  it('turns the steps off for real during a switch', () => {
+    renderChrome({ ...episodes(), transportDisabled: true });
+    expect(button('Nächstes Kapitel')).toBeDisabled();
+    expect(button('Nächste Folge: S01E05 · Die Brücke')).toBeDisabled();
+    expect(button('Nächste Folge: S01E05 · Die Brücke')).not.toHaveAttribute('aria-disabled');
+  });
+
+  it('a phone: both episode buttons beside −10, play and +10; no chapter buttons, no card', () => {
+    renderChrome({ ...episodes(), layout: 'phone' });
+    expect(rowNames('Wiedergabe')).toEqual([
+      'Vorherige Folge: S01E03 · Das Echo',
+      '10 Sekunden zurück',
+      'Abspielen',
+      '10 Sekunden vor',
+      'Nächste Folge: S01E05 · Die Brücke',
+    ]);
+    expect(
+      button('Nächste Folge: S01E05 · Die Brücke').parentElement?.querySelector('img'),
+    ).toBeNull();
   });
 });
 

@@ -73,7 +73,31 @@ test('the chapter tab by keyboard jumps to the chapter start (±1 s); Escape clo
   await expectFocusOn(page, tab);
   await expect(tab).toHaveAttribute('aria-expanded', 'true');
   await page.keyboard.press('ArrowUp');
-  await expect(page.getByRole('toolbar', { name: 'Wiedergabe' }).locator(':focus')).toHaveCount(1);
+  const row = page.getByRole('toolbar', { name: 'Wiedergabe' });
+  await expect(row.locator(':focus')).toHaveCount(1);
+
+  // Concept 23, 3.1: «Nächstes Kapitel» goes to the last chapter; there it is greyed, keeps the
+  // focus and switches no title. A film has no episode buttons.
+  await expect(row.getByRole('button', { name: /Folge/ })).toHaveCount(0);
+  const forward = row.getByRole('button', { name: 'Nächstes Kapitel' });
+  await arrowTo(page, forward, 'ArrowRight');
+  await expectVisibleFocus(page);
+  await page.keyboard.press('Enter');
+  await expect.poll(() => time(page)).toBeGreaterThanOrEqual(third - 1);
+  await expect(forward).toHaveAttribute('aria-disabled', 'true');
+  await expect(forward).toHaveAccessibleDescription('Letztes Kapitel');
+  await expectFocusOn(page, forward);
+  await expectVisibleFocus(page);
+  const atLast = await time(page);
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(500);
+  expect(Math.abs((await time(page)) - atLast)).toBeLessThan(0.5);
+  await expectFocusOn(page, forward);
+  await expect(page).toHaveURL(new RegExp(`/play/${itemId}`));
+  // «Vorheriges Kapitel» stays an ordinary button.
+  await expect(row.getByRole('button', { name: 'Vorheriges Kapitel' })).not.toHaveAttribute(
+    'aria-disabled',
+  );
 
   // Escape closes the tab only, the focus on its tab; the player stays.
   await page.keyboard.press('c');

@@ -303,6 +303,7 @@ func toPlaybackInfo(profileID int64, info model.PlaybackInfo) gen.PlaybackInfo {
 		SubtitleUrl:       optString(info.SubtitleURL),
 		Qualities:         make([]gen.QualityOption, 0, len(info.Qualities)),
 		NextEpisode:       optItemRef(profileID, info.NextEpisode),
+		PreviousEpisode:   optItemRef(profileID, info.PreviousEpisode),
 		WatchTime:         toWatchTime(info.WatchTime),
 	}
 	if info.Tracks.MediaFileID == "" {

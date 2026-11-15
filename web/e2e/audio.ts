@@ -133,7 +133,13 @@ export async function playAudio(
   page: Page,
   itemId: string,
   search = '',
-): Promise<{ mediaKind: string; streamUrl: string; chapters: ChapterData[] }> {
+): Promise<{
+  mediaKind: string;
+  streamUrl: string;
+  chapters: ChapterData[];
+  previousEpisode?: { id: string };
+  nextEpisode?: { id: string };
+}> {
   const start = page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&
@@ -145,6 +151,8 @@ export async function playAudio(
     mediaKind: string;
     streamUrl: string;
     chapters: ChapterData[];
+    previousEpisode?: { id: string };
+    nextEpisode?: { id: string };
   };
   expect(answer.status(), JSON.stringify(body)).toBe(200);
   expect(body.mediaKind).toBe('audio');

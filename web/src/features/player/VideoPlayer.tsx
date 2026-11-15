@@ -18,9 +18,10 @@ import { episodeCode } from '@/features/catalog/labels';
 import { formatRuntime } from '@/lib/format';
 import { itemQuery } from '@/features/catalog/queries';
 import { VisuallyHidden } from '@/ui';
-import { AriaButton, focusOnMount, PlayerChrome } from '@/ui/aria';
-import { nextChapterStart, previousChapterStart, RESTART_CHAPTER_MS } from './audio';
+import { AriaButton, focusOnMount, PlayerChrome, PlayerPanelAnchor } from '@/ui/aria';
+import { nextChapterStart, previousChapterStart } from './audio';
 import { playbackCapabilities, type PlaybackEngine } from './capabilities';
+import { episodeButton, hasEpisodeButtons } from './episodeButtons';
 import { stepPlaybackRate } from './keymap';
 import { usePlayerLayout, volumeIsReadOnly } from './layout';
 import {
@@ -122,7 +123,7 @@ interface VideoPlayerProps {
   sourceRestarted?: boolean;
   /** Plays the next episode (auto-next, W-9). */
   onNextEpisode?: (next: ItemRef) => void;
-  /** Plays an episode the viewer chose: «Folge zurück», a card of «Als Nächstes» (V-2, V-11). */
+  /** Plays an episode the viewer chose: «Vorherige Folge», a card of «Als Nächstes» (V-11). */
   onPlayEpisode?: (episode: ItemRef) => void;
   /** Opens a person of «Besetzung» (V-11); leaves the player. */
   onOpenPerson?: (personId: number) => void;
@@ -252,6 +253,8 @@ export function VideoPlayer({
     setSettingsView,
     openSettings,
     panelButton,
+    anchors,
+    anchor,
   } = usePlayerPanels();
   const helpOpen = panel === 'help';
   // Auto-next (W-9): the end of the countdown, or null; cancelled stays for this session.
@@ -604,6 +607,8 @@ export function VideoPlayer({
         const start = Date.now();
         setNow(start);
         setCountdownEnd(start + AUTO_NEXT_SECONDS * 1000);
+        // An open tab closes: the card needs the room over the controls (concept 23, P-4).
+        setTab(null);
       }
     };
   });
@@ -705,6 +710,12 @@ export function VideoPlayer({
           : undefined,
       skipIntro: inIntro ? skipIntro : undefined,
       playNext: next && onNextEpisode && available ? playNext : undefined,
+      playPrevious:
+        info.previousEpisode && onPlayEpisode && available
+          ? () => {
+              if (info.previousEpisode) playEpisode(info.previousEpisode);
+            }
+          : undefined,
       toggleHelp: () => togglePanel('help'),
       closeOpen: () => {
         if (panel !== null) closePanel();
@@ -1000,9 +1011,9 @@ export function VideoPlayer({
     closePanel,
   });
 
-  // The episodes of the season for «Als Nächstes» and «Folge zurück»: the season's details, which
-  // the detail page loads as well (11.10); no new endpoint. Every switch and episode is a new
-  // player: for 30 s it takes them from the cache (PlayerPage invalidates them when it closes).
+  // The episodes of the season for «Als Nächstes»: the season's details, which the detail page
+  // loads as well (11.10); no new endpoint. Every switch and episode is a new player: for 30 s it
+  // takes them from the cache (PlayerPage invalidates them when it closes).
   const seasonId = info.item.kind === 'episode' ? detail?.season?.id : undefined;
   const season = useQuery({
     ...itemQuery(seasonId ?? ''),
@@ -1010,36 +1021,52 @@ export function VideoPlayer({
     staleTime: 30_000,
   });
   const seasonEpisodes = season.data?.episodes;
-  const episodeIndex = seasonEpisodes?.findIndex((entry) => entry.id === info.item.id) ?? -1;
-  const previousEpisode = episodeIndex > 0 ? seasonEpisodes?.[episodeIndex - 1] : undefined;
   const playEpisode = (target: ItemRef) => {
     if (!onPlayEpisode || ended !== null) return;
     setCountdownEnd(null);
     onPlayEpisode(target);
   };
 
-  // Back: the previous chapter; in the first seconds of the first chapter, or without chapters,
-  // the previous episode of the season (V-2).
-  const atStart =
-    chapterIndex <= 0 && currentMs - (chapters[0]?.startMs ?? 0) <= RESTART_CHAPTER_MS;
-  const backStep =
-    previousEpisode && onPlayEpisode && (!hasChapters || atStart)
-      ? {
-          label: t('player.chrome.previousEpisode'),
-          onPress: () => playEpisode(previousEpisode),
-          isDisabled: ended !== null,
-        }
-      : hasChapters
-        ? { label: t('player.chrome.previousChapter'), onPress: previousChapter }
-        : undefined;
+  // Chapter back and forward (concept 23, 3.1): only chapters, never another title. Without
+  // chapters both are greyed in place, at the last chapter forward is.
+  const noChapters = hasChapters ? undefined : t('player.chrome.noChapters');
+  const previousChapterStep = {
+    label: t('player.chrome.previousChapter'),
+    onPress: previousChapter,
+    unavailable: noChapters,
+  };
+  const nextChapterStep = {
+    label: t('player.chrome.nextChapter'),
+    onPress: nextChapter,
+    unavailable:
+      noChapters ??
+      (nextChapterStart(chapters, currentMs) === null ? t('player.chrome.lastChapter') : undefined),
+  };
 
-  // Forward: the next chapter, after the last one the next episode (V-2).
-  const forwardStep =
-    nextChapterStart(chapters, currentMs) !== null
-      ? { label: t('player.chrome.nextChapter'), onPress: nextChapter }
-      : next && onNextEpisode
-        ? { label: t('player.chrome.nextEpisode'), onPress: playNext, isDisabled: ended !== null }
-        : undefined;
+  // The previous and the next episode as the server names them (concept 23, 3.2 and 3.2a; rule
+  // 12): across the season boundary, for a podcast episode the older and the newer one (F-5).
+  const previous = info.previousEpisode;
+  const episodeSteps = hasEpisodeButtons(info.item) && onPlayEpisode && onNextEpisode;
+  const previousEpisodeStep = episodeSteps
+    ? episodeButton(t, {
+        direction: 'previous',
+        target: previous,
+        current: info.item,
+        language,
+        onPress: () => {
+          if (previous) playEpisode(previous);
+        },
+      })
+    : undefined;
+  const nextEpisodeStep = episodeSteps
+    ? episodeButton(t, {
+        direction: 'next',
+        target: next,
+        current: info.item,
+        language,
+        onPress: playNext,
+      })
+    : undefined;
 
   // Head and the line above the timeline (V-1): an episode shows its series with the episode
   // under it, a film its year and genres.
@@ -1269,8 +1296,10 @@ export function VideoPlayer({
         onTogglePlay={togglePlay}
         onSkip={seekBy}
         playButtonRef={playRef}
-        previous={backStep}
-        next={forwardStep}
+        previousChapter={previousChapterStep}
+        nextChapter={nextChapterStep}
+        previousEpisode={previousEpisodeStep}
+        nextEpisode={nextEpisodeStep}
         transportDisabled={switching || ended !== null}
         volume={volume.volume}
         muted={volume.muted}
@@ -1313,6 +1342,7 @@ export function VideoPlayer({
           text: gearQuality,
           expanded: panel === 'settings',
           controls: PANEL_IDS.settings,
+          ref: anchors.settings,
           onPress: () => (panel === 'settings' ? closePanel() : openSettings('main', false)),
           isDisabled: ended !== null,
         }}
@@ -1321,52 +1351,56 @@ export function VideoPlayer({
         onOpenTab={openTab}
         helpOpen={helpOpen}
         onToggleHelp={() => togglePanel('help')}
+        helpRef={anchors.help}
+        helpControls={PANEL_IDS.help}
       />
-      {helpOpen && <ShortcutHelp onClose={closePanel} />}
-      {panel === 'settings' && (
-        <SettingsPanel
-          page={settingsView.page}
-          direct={settingsView.direct}
-          onPage={(page) => setSettingsView({ page, direct: false })}
-          onClose={closePanel}
-          quality={hasQualities && !switching ? qualityChoice : undefined}
-          version={hasVersions && !switching ? versionChoice : undefined}
-          chapters={phone && hasChapters ? chapterChoice : undefined}
-          rate={rate}
-          onRate={setRate}
-          streamInfo={onToggleInfo ? { open: infoOpen, onToggle: onToggleInfo } : undefined}
-          subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
-          nightMode={webAudio ? { on: nightMode, onChange: setNightMode } : undefined}
-        />
-      )}
-      {panel === 'audio' && (
-        <AudioPanel
-          tracks={tracks.audio}
-          profileLanguage={profileLanguage}
-          selectedIndex={audioIndex}
-          converts={converts}
-          onSelect={(index) =>
-            switchPlayback({ audioTrack: index, rememberForSeries: rememberSeries?.on })
-          }
-          onClose={closePanel}
-          remember={rememberSeries}
-          profileDefault
-        />
-      )}
-      {panel === 'subtitle' && (
-        <SubtitlePanel
-          tracks={tracks.subtitles}
-          profileLanguage={profileLanguage}
-          selectedId={info.selection.subtitleTrack}
-          onSelect={(id) =>
-            switchPlayback({ subtitleTrack: id ?? 'off', rememberForSeries: rememberSeries?.on })
-          }
-          onClose={closePanel}
-          subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
-          remember={rememberSeries}
-          forcedBitmap={info.selection.subtitleReason === 'forced_bitmap_available'}
-        />
-      )}
+      <PlayerPanelAnchor value={anchor}>
+        {helpOpen && <ShortcutHelp onClose={closePanel} />}
+        {panel === 'settings' && (
+          <SettingsPanel
+            page={settingsView.page}
+            direct={settingsView.direct}
+            onPage={(page) => setSettingsView({ page, direct: false })}
+            onClose={closePanel}
+            quality={hasQualities && !switching ? qualityChoice : undefined}
+            version={hasVersions && !switching ? versionChoice : undefined}
+            chapters={phone && hasChapters ? chapterChoice : undefined}
+            rate={rate}
+            onRate={setRate}
+            streamInfo={onToggleInfo ? { open: infoOpen, onToggle: onToggleInfo } : undefined}
+            subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
+            nightMode={webAudio ? { on: nightMode, onChange: setNightMode } : undefined}
+          />
+        )}
+        {panel === 'audio' && (
+          <AudioPanel
+            tracks={tracks.audio}
+            profileLanguage={profileLanguage}
+            selectedIndex={audioIndex}
+            converts={converts}
+            onSelect={(index) =>
+              switchPlayback({ audioTrack: index, rememberForSeries: rememberSeries?.on })
+            }
+            onClose={closePanel}
+            remember={rememberSeries}
+            profileDefault
+          />
+        )}
+        {panel === 'subtitle' && (
+          <SubtitlePanel
+            tracks={tracks.subtitles}
+            profileLanguage={profileLanguage}
+            selectedId={info.selection.subtitleTrack}
+            onSelect={(id) =>
+              switchPlayback({ subtitleTrack: id ?? 'off', rememberForSeries: rememberSeries?.on })
+            }
+            onClose={closePanel}
+            subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
+            remember={rememberSeries}
+            forcedBitmap={info.selection.subtitleReason === 'forced_bitmap_available'}
+          />
+        )}
+      </PlayerPanelAnchor>
 
       {inIntro && ended === null && (
         <div className={styles.skip}>

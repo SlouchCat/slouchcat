@@ -15,6 +15,7 @@ import { AriaButton } from './AriaButton';
 import { focusLost } from './focusAfter';
 import type { IconName } from './Icon';
 import styles from './PlayerChrome.module.css';
+import { PlayerStep, type PlayerStepCard } from './PlayerStep';
 import {
   SeekBar,
   type SeekBarChapter,
@@ -57,15 +58,29 @@ export interface PlayerChromePanelButton {
   expanded: boolean;
   /** The id of the panel (PlayerPanel `id`), for `aria-controls` while it is open. */
   controls?: string;
+  /** The button itself: its panel opens above it (concept 23 P-2, PlayerPanelAnchor). */
+  ref?: Ref<HTMLButtonElement>;
   onPress: () => void;
   isDisabled?: boolean;
 }
 
-/** A step of the transport: chapter or episode back or forward. */
+/** A chapter step of the transport (concept 23, 3.1): it never switches the title. */
 export interface PlayerChromeStep {
   label: string;
   onPress: () => void;
-  isDisabled?: boolean;
+  /**
+   * Greyed in place with this hint («Keine Kapitel», «Letztes Kapitel»): focusable and in the
+   * row's arrow order, a press does nothing (`aria-disabled`, the hint as its description).
+   */
+  unavailable?: string;
+}
+
+/**
+ * The button of the previous or the next episode (concept 23, 3.2 and 3.2a): named after the
+ * episode («Nächste Folge: S01E05 · Die Brücke»), with a card on hover and focus (not on a phone).
+ */
+export interface PlayerChromeEpisode extends PlayerChromeStep {
+  card?: PlayerStepCard;
 }
 
 /**
@@ -82,6 +97,8 @@ export interface PlayerChromeTab {
   cards?: {
     count: number;
     current?: number;
+    /** `portrait`: narrower columns for 2:3 portraits (the cast, concept 23 P-3). */
+    variant?: 'portrait';
     render: (index: number, excluded: boolean) => ReactNode;
     /**
      * Moves the focus to the current card whenever it changes (C opens the chapters on the chapter
@@ -103,11 +120,13 @@ export interface PlayerChromeTab {
 export type PlayerChromeLayout = 'desktop' | 'phone';
 
 type RowKey =
-  | 'previous'
+  | 'previousEpisode'
+  | 'previousChapter'
   | 'back'
   | 'play'
   | 'forward'
-  | 'next'
+  | 'nextChapter'
+  | 'nextEpisode'
   | 'mute'
   | 'subtitles'
   | 'audio'
@@ -121,6 +140,8 @@ interface RowEntry {
   key: RowKey;
   disabled: boolean;
   render: (excluded: boolean) => ReactNode;
+  /** A fine line sets the entry apart from its neighbour (the episode buttons, concept 23). */
+  separator?: 'before' | 'after';
 }
 
 const modified = (event: KeyboardEvent) =>
@@ -240,7 +261,9 @@ function Toolbar({
               data-row-key={entry.key}
               data-stop={entry.key === stop || undefined}
             >
+              {entry.separator === 'before' && <span className={styles.separator} />}
               {entry.render(entry.key !== stop)}
+              {entry.separator === 'after' && <span className={styles.separator} />}
             </span>
           ))}
         </span>
@@ -303,6 +326,7 @@ function CardRow({
     <ul
       ref={list}
       className={styles.cards}
+      data-variant={cards.variant}
       aria-label={label}
       onKeyDown={onKeyDown}
       onFocus={(event) => {
@@ -369,10 +393,18 @@ interface PlayerChromeProps {
   onSkip: (seconds: number) => void;
   /** A stable ref: the player gives its first focus through it (focusOnMount). */
   playButtonRef?: Ref<HTMLButtonElement>;
-  /** Chapter or episode back; none without either. Not on a phone. */
-  previous?: PlayerChromeStep;
-  /** Chapter forward, or the next episode after the last chapter. Not on a phone. */
-  next?: PlayerChromeStep;
+  /**
+   * Chapter back and forward (concept 23, 3.1); greyed without chapters, not on a phone (the
+   * timeline has the chapters there). Absent: no chapter buttons.
+   */
+  previousChapter?: PlayerChromeStep;
+  nextChapter?: PlayerChromeStep;
+  /**
+   * The previous and the next episode (concept 23, 3.2): at the ends of the row, set apart by a
+   * line; on a phone beside −10 s, play and +10 s, without a card. Absent: not an episode.
+   */
+  previousEpisode?: PlayerChromeEpisode;
+  nextEpisode?: PlayerChromeEpisode;
   /** Play, pause and the steps are off (a switch is on its way, the server ended the playback). */
   transportDisabled?: boolean;
 
@@ -402,6 +434,9 @@ interface PlayerChromeProps {
   helpOpen?: boolean;
   /** The shortcut help; not on a phone. */
   onToggleHelp?: () => void;
+  /** The help button, which its panel opens above, and the panel's id for `aria-controls`. */
+  helpRef?: Ref<HTMLButtonElement>;
+  helpControls?: string;
   /** The tabs under the bar (not on a phone): ↓ from the buttons goes there, ↑ comes back. */
   tabs?: readonly PlayerChromeTab[];
   /** The open tab, or null. */
@@ -453,8 +488,10 @@ export function PlayerChrome({
   onTogglePlay,
   onSkip,
   playButtonRef,
-  previous,
-  next,
+  previousChapter,
+  nextChapter,
+  previousEpisode,
+  nextEpisode,
   transportDisabled = false,
   volume,
   muted,
@@ -470,6 +507,8 @@ export function PlayerChrome({
   settings,
   helpOpen = false,
   onToggleHelp,
+  helpRef,
+  helpControls,
   tabs = [],
   openTab = null,
   onOpenTab,
@@ -481,6 +520,9 @@ export function PlayerChrome({
   const view = useRef<HTMLDivElement>(null);
   const seekZone = useRef<HTMLDivElement>(null);
   const tabsZone = useRef<HTMLDivElement>(null);
+  const chromeZone = useRef<HTMLDivElement>(null);
+  const bottomZone = useRef<HTMLDivElement>(null);
+  const lineZone = useRef<HTMLDivElement>(null);
   const [now, setNow] = useState(() => Date.now());
   const [activeTab, setActiveTab] = useState<string | null>(null);
 
@@ -504,6 +546,31 @@ export function PlayerChrome({
         })
       : t('player.chrome.timeElapsed', { elapsed, total });
 
+  // The countdown card and the skip buttons stand 12 px over the line with the title and the time
+  // (concept 23, P-4): its distance from the bottom of the player, measured whenever the bottom
+  // zone changes its size (a tab, the phone layout, the window), as `--player-chrome-top` on the
+  // player. Layout offsets, not the fade's transform.
+  useLayoutEffect(() => {
+    const bottom = bottomZone.current;
+    const lineElement = lineZone.current;
+    const player = chromeZone.current?.parentElement;
+    if (!bottom || !lineElement || !player) return;
+    const measure = () => {
+      const offset = lineElement.getBoundingClientRect().top - bottom.getBoundingClientRect().top;
+      player.style.setProperty(
+        '--player-chrome-top',
+        `${Math.round(bottom.offsetHeight - offset)}px`,
+      );
+    };
+    measure();
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : undefined;
+    observer?.observe(bottom);
+    return () => {
+      observer?.disconnect();
+      player.style.removeProperty('--player-chrome-top');
+    };
+  }, [layout]);
+
   const shownTabs = phone ? [] : tabs;
   const open = shownTabs.find((tab) => tab.id === openTab);
   const tabStop = shownTabs.find((tab) => tab.id === activeTab)?.id ?? open?.id ?? shownTabs[0]?.id;
@@ -526,6 +593,7 @@ export function PlayerChrome({
             disabled: config.isDisabled ?? false,
             render: (excluded: boolean) => (
               <AriaButton
+                ref={config.ref}
                 variant="ghost"
                 icon={icon}
                 // On a phone the buttons at the top right are icons only.
@@ -546,29 +614,42 @@ export function PlayerChrome({
           },
         ]
       : [];
-  const step = (key: 'previous' | 'next', config: PlayerChromeStep | undefined) =>
-    config && !phone
+  const step = (
+    key: RowKey,
+    icon: IconName,
+    config: PlayerChromeEpisode | undefined,
+    cardAlign: 'start' | 'center' = 'center',
+    separator?: 'before' | 'after',
+  ): RowEntry[] =>
+    config
       ? [
           {
             key,
-            disabled: transportDisabled || config.isDisabled === true,
+            separator: phone ? undefined : separator,
+            // A greyed step stays in the arrow order (aria-disabled); only a switch takes it out.
+            disabled: transportDisabled,
             render: (excluded: boolean) => (
-              <AriaButton
-                variant="ghost"
-                icon={key}
-                iconOnly
-                aria-label={config.label}
+              <PlayerStep
+                icon={icon}
+                label={config.label}
                 onPress={config.onPress}
-                isDisabled={transportDisabled || config.isDisabled}
+                unavailable={config.unavailable}
+                card={phone ? undefined : config.card}
+                cardAlign={cardAlign}
+                isDisabled={transportDisabled}
                 excludeFromTabOrder={excluded}
               />
             ),
           },
         ]
       : [];
+  // The chapter steps are not on a phone; the episode buttons are, in the middle.
+  const chapterStep = (key: RowKey, icon: IconName, config: PlayerChromeStep | undefined) =>
+    phone ? [] : step(key, icon, config);
   const size = phone ? 'lg' : undefined;
   const transport: RowEntry[] = [
-    ...step('previous', previous),
+    ...step('previousEpisode', 'previous', previousEpisode, 'start', 'after'),
+    ...chapterStep('previousChapter', 'chapterPrevious', previousChapter),
     {
       key: 'back',
       disabled: transportDisabled,
@@ -618,7 +699,8 @@ export function PlayerChrome({
         />
       ),
     },
-    ...step('next', next),
+    ...chapterStep('nextChapter', 'chapterNext', nextChapter),
+    ...step('nextEpisode', 'next', nextEpisode, 'center', 'before'),
   ];
   const mute: RowEntry = {
     key: 'mute',
@@ -648,12 +730,14 @@ export function PlayerChrome({
             disabled: false,
             render: (excluded) => (
               <AriaButton
+                ref={helpRef}
                 variant="ghost"
                 icon="help"
                 iconOnly
                 aria-label={t('player.chrome.help')}
                 aria-expanded={helpOpen}
                 aria-haspopup="dialog"
+                aria-controls={helpOpen ? helpControls : undefined}
                 onPress={onToggleHelp}
                 excludeFromTabOrder={excluded}
               />
@@ -802,7 +886,7 @@ export function PlayerChrome({
   ];
 
   const line = (
-    <div className={styles.line}>
+    <div ref={lineZone} className={styles.line}>
       <span className={styles.lineLabel}>{lineLabel}</span>
       {phone ? (
         <Toolbar
@@ -821,7 +905,12 @@ export function PlayerChrome({
   );
 
   return (
-    <div className={styles.chrome} data-hidden={hidden || undefined} data-layout={layout}>
+    <div
+      ref={chromeZone}
+      className={styles.chrome}
+      data-hidden={hidden || undefined}
+      data-layout={layout}
+    >
       <div className={styles.top}>
         <AriaButton
           variant="ghost"
@@ -863,7 +952,7 @@ export function PlayerChrome({
         />
       )}
 
-      <div className={styles.bottom}>
+      <div ref={bottomZone} className={styles.bottom}>
         {line}
         {timeline}
         {!phone && (

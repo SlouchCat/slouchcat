@@ -62,7 +62,17 @@ func httpScheme(u *url.URL) bool { return u.Scheme == "http" || u.Scheme == "htt
 // direct playback without media file whose stream URL is the proxy (MediaKind audio, duration
 // from items.duration_ms). An episode without enclosure is model.ErrNotFound.
 func (s *Service) startEnclosure(ctx context.Context, session model.Session, item model.ItemSummary, req model.PlaybackRequest) (model.PlaybackInfo, error) {
-	enc, err := s.vis.Enclosure(ctx, visibility.Profile(session.Profile), item.ID)
+	scope := visibility.Profile(session.Profile)
+	enc, err := s.vis.Enclosure(ctx, scope, item.ID)
+	if err != nil {
+		return model.PlaybackInfo{}, err
+	}
+	// The neighbours of the episode in its podcast (concept 23 F-5), read before anything starts.
+	next, err := s.vis.NextEpisode(ctx, scope, item.ID)
+	if err != nil {
+		return model.PlaybackInfo{}, err
+	}
+	previous, err := s.vis.PreviousEpisode(ctx, scope, item.ID)
 	if err != nil {
 		return model.PlaybackInfo{}, err
 	}
@@ -128,6 +138,8 @@ func (s *Service) startEnclosure(ctx context.Context, session model.Session, ite
 		Chapters:          []model.Chapter{},
 		WatchTime:         watch,
 		Device:            device,
+		NextEpisode:       next,
+		PreviousEpisode:   previous,
 	}
 	s.log.InfoContext(ctx, "playback started", "playback_id", id, "item_id", item.ID, "mode", ModeDirect, "source", "enclosure")
 	return info, nil

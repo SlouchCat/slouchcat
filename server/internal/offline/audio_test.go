@@ -459,3 +459,20 @@ func TestAudioEstimates(t *testing.T) {
 		t.Errorf("book with an unprobed part: %d ms %v, want %d", o.DurationMs, err, 3*vistest.DurationMs)
 	}
 }
+
+// Concept 23 F-5: a downloaded podcast episode names its older and newer visible neighbours of the
+// same podcast for the active profile, like PlaybackInfo.
+func TestSyncPodcastEpisodeNeighbours(t *testing.T) {
+	t.Parallel()
+	e := newAudioEnv(t)
+	a := e.f.Audio
+	q0, q6, qc := a.Episodes[0], a.Episodes[1], a.Episodes[2]
+	st := e.create(e.f.P6, e.devA, q6.ID, model.DownloadMedium)
+	e.runJobs()
+	if got := stateOf(e.sync(e.f.P6, e.devA), st.ID); got == nil || got.State != model.DownloadReady || got.NextEpisodeID != a.EnclosureOnly.ID || got.PreviousEpisodeID != q0.ID {
+		t.Errorf("P6: %+v", got)
+	}
+	if got := stateOf(e.sync(e.f.P12, e.devA), st.ID); got == nil || got.NextEpisodeID != qc.ID || got.PreviousEpisodeID != q0.ID {
+		t.Errorf("P12: %+v", got)
+	}
+}

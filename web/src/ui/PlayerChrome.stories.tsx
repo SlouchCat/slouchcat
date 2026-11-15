@@ -63,8 +63,8 @@ const meta = {
     playing: true,
     onTogglePlay: noop,
     onSkip: noop,
-    previous: { label: 'Vorheriges Kapitel', onPress: noop },
-    next: { label: 'Nächstes Kapitel', onPress: noop },
+    previousChapter: { label: 'Vorheriges Kapitel', onPress: noop },
+    nextChapter: { label: 'Nächstes Kapitel', onPress: noop },
     volume: 0.6,
     muted: false,
     onVolumeChange: noop,
@@ -104,18 +104,52 @@ type Story = StoryObj<typeof meta>;
 /** A film: head with year and genres, the line with chapter and time, timeline and buttons. */
 export const Default: Story = {};
 
-/** An episode: the series in the head, the episode under it; forward goes to the next episode. */
+// The episode buttons of an episode (concept 23, 3.2): the card names the episode, its length
+// and the key; the picture is an empty frame here.
+const previousEpisode = {
+  label: 'Vorherige Folge: S01E03 · Machiavelli',
+  onPress: noop,
+  card: { heading: 'Vorherige Folge', name: 'S01E03 · Machiavelli', detail: '49 Min.', keys: 'P' },
+};
+const nextEpisode = {
+  label: 'Nächste Folge: S01E05 · Die Flamme',
+  onPress: noop,
+  card: { heading: 'Nächste Folge', name: 'S01E05 · Die Flamme', detail: '52 Min.', keys: 'N' },
+};
+
+/**
+ * An episode without chapters: the series in the head, the episode under it; the chapter buttons
+ * greyed in place, the episode buttons at both ends of the row.
+ */
 export const Episode: Story = {
   args: {
     title: 'Silo',
     headingDetail: 'S01E04 · Wahrheit',
     lineLabel: 'Silo',
     chapters: [],
-    previous: undefined,
-    next: { label: 'Nächste Folge', onPress: noop },
+    previousChapter: { label: 'Vorheriges Kapitel', onPress: noop, unavailable: 'Keine Kapitel' },
+    nextChapter: { label: 'Nächstes Kapitel', onPress: noop, unavailable: 'Keine Kapitel' },
+    previousEpisode,
+    nextEpisode,
     pictureInPicture: undefined,
     tabs: [],
   },
+};
+
+/** The focus on «Nächste Folge» (from play/pause → → →): its card over the button. */
+export const EpisodeCard: Story = {
+  args: { ...Episode.args, playing: false },
+  tags: ['press:Tab+Tab+Tab+Tab+Tab+ArrowRight+ArrowRight+ArrowRight'],
+};
+
+/** The last episode: «Nächste Folge» greyed, its hint «Keine weitere Folge» on focus. */
+export const LastEpisode: Story = {
+  args: {
+    ...Episode.args,
+    playing: false,
+    nextEpisode: { label: 'Nächste Folge', onPress: noop, unavailable: 'Keine weitere Folge' },
+  },
+  tags: ['press:Tab+Tab+Tab+Tab+Tab+ArrowRight+ArrowRight+ArrowRight'],
 };
 
 /** The time switched to the remaining time and the end time (V-4). */
@@ -154,5 +188,11 @@ export const InfoTab: Story = { args: { playing: false, openTab: 'info' } };
  */
 export const Phone: Story = {
   args: { layout: 'phone', muteOnly: true, playing: false },
+  parameters: { frame: { width: '24rem', height: '44rem' } },
+};
+
+/** An episode on a phone: both episode buttons beside −10 s, play and +10 s, no chapter buttons. */
+export const PhoneEpisode: Story = {
+  args: { ...Episode.args, layout: 'phone', muteOnly: true, playing: false },
   parameters: { frame: { width: '24rem', height: '44rem' } },
 };

@@ -97,18 +97,20 @@
   letter-spacing: var(--sc-font-letter-spacing-caps);
 }
 
-/* "Intro überspringen" / "Abspann überspringen" (W-9), above the control bar on the right. */
+/* "Intro überspringen" / "Abspann überspringen" (W-9), above the control bar on the right: 12 px
+   over the line with the title and the time (concept 23, P-4), which PlayerChrome measures into
+   --player-chrome-top; the fallback holds until the first measurement. */
 .skip {
   position: absolute;
   right: var(--page-gutter);
-  bottom: calc(var(--sc-space-24) + var(--sc-space-8));
+  bottom: calc(var(--player-chrome-top, 128px) + var(--sc-space-3));
 }
 
-/* Next-episode countdown (W-9), bottom right above the control bar. */
+/* Next-episode countdown (W-9), bottom right above the control bar, placed like .skip. */
 .next {
   position: absolute;
   right: var(--page-gutter);
-  bottom: calc(var(--sc-space-24) + var(--sc-space-8));
+  bottom: calc(var(--player-chrome-top, 128px) + var(--sc-space-3));
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-2);

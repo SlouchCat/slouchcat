@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { createRef, type ComponentProps } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CONTROLS_HIDE_MS } from '@/features/player/useControlsVisibility';
+import { episodes } from '@/test/fixtures';
 import { OfflineVideo } from './OfflineVideo';
 
 type Props = ComponentProps<typeof OfflineVideo>;
@@ -109,8 +110,15 @@ describe('offline video player on PlayerChrome (F-15)', () => {
     expect(screen.getByRole('toolbar', { name: 'Wiedergabe' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Ton: Englisch' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Untertitel: Aus' })).toBeVisible();
-    // Without chapters: no chapter steps and no tabs; no picture in picture (W5).
-    expect(screen.queryByRole('button', { name: 'Vorheriges Kapitel' })).toBeNull();
+    // Without chapters: the chapter steps greyed in place (concept 23, F-2), no tabs; no picture
+    // in picture (W5).
+    expect(screen.getByRole('button', { name: 'Vorheriges Kapitel' })).toHaveAccessibleDescription(
+      'Keine Kapitel',
+    );
+    expect(screen.getByRole('button', { name: 'Nächstes Kapitel' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
     expect(screen.queryByRole('toolbar', { name: 'Reiter' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Bild in Bild' })).toBeNull();
 
@@ -149,6 +157,26 @@ describe('offline video player on PlayerChrome (F-15)', () => {
     // Nothing open: Escape leaves the player.
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('a panel is a menu: the help names it, a click on the picture only closes it (concept 23 P-2)', () => {
+    const { container, togglePlay } = renderVideo();
+    const help = screen.getByRole('button', { name: 'Tastenkürzel' });
+    fireEvent.click(help);
+    const panel = screen.getByRole('dialog', { name: 'Tastenkürzel' });
+    expect(help).toHaveAttribute('aria-controls', panel.id);
+    expect(within(panel).queryByRole('button', { name: 'Schliessen' })).not.toBeNull();
+    const video = videoElement(container);
+    act(() => {
+      fireEvent.pointerDown(video, { button: 0, pointerType: 'mouse' });
+      fireEvent.pointerUp(video, { button: 0, pointerType: 'mouse' });
+    });
+    expect(screen.queryByRole('dialog', { name: 'Tastenkürzel' })).toBeNull();
+    expect(togglePlay).not.toHaveBeenCalled();
+    // With nothing open a click plays, as before.
+    fireEvent.pointerDown(video, { button: 0, pointerType: 'mouse' });
+    fireEvent.pointerUp(video, { button: 0, pointerType: 'mouse' });
+    expect(togglePlay).toHaveBeenCalledTimes(1);
   });
 
   it('plays, seeks and changes the volume through the shared key map', () => {
@@ -333,5 +361,61 @@ describe('offline video player on PlayerChrome (F-15)', () => {
       tap('mouse');
       expect(togglePlay).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('offline episode buttons (concept 23, stage 2)', () => {
+  const button = (name: string) => screen.getByRole('button', { name });
+
+  it('plays the neighbour episodes that lie on this device, by button and by N and P', () => {
+    const next = vi.fn();
+    const previous = vi.fn();
+    renderVideo({
+      episodes: {
+        item: episodes.e2,
+        previous: { item: episodes.e1, play: previous },
+        next: { item: episodes.e34, play: next },
+      },
+    });
+    const row = screen.getByRole('toolbar', { name: 'Wiedergabe' });
+    const names = within(row)
+      .getAllByRole('button')
+      .map((entry) => entry.getAttribute('aria-label'));
+    expect(names.slice(0, 7)).toEqual([
+      'Vorherige Folge: S01E01 · Pilot',
+      'Vorheriges Kapitel',
+      '10 Sekunden zurück',
+      'Abspielen',
+      '30 Sekunden vor',
+      'Nächstes Kapitel',
+      'Nächste Folge: S01E03–E04 · Episode 3',
+    ]);
+    // Offline the card has no picture: nothing comes from the network.
+    const card = button('Nächste Folge: S01E03–E04 · Episode 3').parentElement;
+    expect(card?.querySelector('img')).toBeNull();
+    fireEvent.click(button('Nächste Folge: S01E03–E04 · Episode 3'));
+    expect(next).toHaveBeenCalledTimes(1);
+    fireEvent.click(button('Vorherige Folge: S01E01 · Pilot'));
+    expect(previous).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(document.body, { key: 'n' });
+    fireEvent.keyDown(document.body, { key: 'p' });
+    expect(next).toHaveBeenCalledTimes(2);
+    expect(previous).toHaveBeenCalledTimes(2);
+    fireEvent.keyDown(window, { key: '?' });
+    const help = screen.getByRole('dialog', { name: 'Tastenkürzel' });
+    expect(within(help).getByText('Nächste Folge')).toBeVisible();
+    expect(within(help).getByText('Vorherige Folge')).toBeVisible();
+  });
+
+  it('greys an episode that is not on this device, and one the server did not name', () => {
+    renderVideo({ episodes: { item: episodes.e2, next: {} } });
+    expect(button('Nächste Folge')).toHaveAttribute('aria-disabled', 'true');
+    expect(button('Nächste Folge')).toHaveAccessibleDescription('Nicht auf diesem Gerät');
+    expect(button('Vorherige Folge')).toHaveAccessibleDescription('Keine frühere Folge');
+  });
+
+  it('a film download has no episode buttons', () => {
+    renderVideo();
+    expect(screen.queryByRole('button', { name: /Folge/ })).toBeNull();
   });
 });

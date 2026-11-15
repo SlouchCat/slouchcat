@@ -1,7 +1,8 @@
-import type { Chapter, Track } from '@slouchcat/api-client';
+import type { Chapter, ItemRef, Track } from '@slouchcat/api-client';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { nextChapterStart, previousChapterStart } from '@/features/player/audio';
+import { episodeButton, type EpisodeDirection } from '@/features/player/episodeButtons';
 import { stepPlaybackRate } from '@/features/player/keymap';
 import { chapterAt, languageName, trackLabel } from '@/features/player/labels';
 import { usePlayerLayout, volumeIsReadOnly } from '@/features/player/layout';
@@ -21,7 +22,13 @@ import { usePhoneTap } from '@/features/player/usePhoneTap';
 import { usePlayerKeys } from '@/features/player/usePlayerKeys';
 import { usePlayerPrefs } from '@/features/player/usePlayerPrefs';
 import { useSubtitleStyle } from '@/features/player/useSubtitleStyle';
-import { AriaButton, focusOnMount, PlayerChrome, type SeekBarTrickplay } from '@/ui/aria';
+import {
+  AriaButton,
+  focusOnMount,
+  PlayerChrome,
+  PlayerPanelAnchor,
+  type SeekBarTrickplay,
+} from '@/ui/aria';
 import styles from '@/features/player/Player.module.css';
 import { intlLocale } from '@/i18n';
 
@@ -36,6 +43,27 @@ function applyRate(element: HTMLMediaElement, rate: number): void {
   // A new source falls back to the default rate; both keep the speed.
   element.defaultPlaybackRate = rate;
   element.playbackRate = rate;
+}
+
+/**
+ * An episode the server named next to the download for the profile that plays
+ * (DownloadState.nextEpisodeId and previousEpisodeId, concept 23, 3.3): `play` and `item` only
+ * when it lies complete on this device for the profile, from that download. Without either the
+ * button is greyed with «Nicht auf diesem Gerät», also when no sync of this profile named the
+ * neighbours yet.
+ */
+export interface OfflineEpisodeLink {
+  item?: ItemRef;
+  play?: () => void;
+}
+
+/** The episode buttons of a download of an episode; absent for a film. */
+export interface OfflineEpisodes {
+  /** The title of the download playing. */
+  item: ItemRef;
+  /** Absent: the server named none («Keine frühere Folge», «Keine weitere Folge»). */
+  previous?: OfflineEpisodeLink;
+  next?: OfflineEpisodeLink;
 }
 
 interface OfflineVideoProps {
@@ -75,6 +103,8 @@ interface OfflineVideoProps {
   backTo: 'downloads' | 'library';
   /** The `data-*` attributes of the player region (engine, download, start and seek times). */
   data: Record<`data-${string}`, string | number | undefined>;
+  /** The previous and the next episode (concept 23, stage 2); absent: not an episode. */
+  episodes?: OfflineEpisodes;
 }
 
 /**
@@ -109,6 +139,7 @@ export function OfflineVideo({
   onBack,
   backTo,
   data,
+  episodes,
 }: OfflineVideoProps) {
   const { t, i18n } = useTranslation();
   const language = intlLocale(i18n.language);
@@ -122,6 +153,8 @@ export function OfflineVideo({
     setSettingsView,
     openSettings,
     panelButton,
+    anchors,
+    anchor,
   } = usePlayerPanels();
   // The chapter tab is open; C counts `focusChapter` up, so the chapter playing takes the focus.
   const [tab, setTab] = useState<{ focusChapter?: number } | null>(null);
@@ -188,6 +221,27 @@ export function OfflineVideo({
     closePanel,
   });
 
+  // ---------- the previous and the next episode, where they lie on this device ----------
+
+  const episodeStep = (direction: EpisodeDirection) => {
+    if (!episodes) return undefined;
+    const link = episodes[direction];
+    const play = link?.play;
+    return episodeButton(t, {
+      direction,
+      target: play ? link.item : undefined,
+      current: episodes.item,
+      language,
+      onPress: () => play?.(),
+      // Named by the server, but not (fully) on this device, or not known for this profile here.
+      unavailable: link && !play ? t('player.chrome.notOnDevice') : undefined,
+      // Offline nothing comes from the network: the card without the episode's picture.
+      image: false,
+    });
+  };
+  const previousEpisodeStep = episodeStep('previous');
+  const nextEpisodeStep = episodeStep('next');
+
   // ---------- subtitles: the stored WebVTT files, drawn by the subtitle layer ----------
 
   // The download's default subtitle until the viewer picks one; null is «Aus».
@@ -247,6 +301,9 @@ export function OfflineVideo({
             ? () => openSettings('chapters', true)
             : () => setTab((current) => ({ focusChapter: (current?.focusChapter ?? 0) + 1 }))
           : undefined,
+      // N and P: the neighbour episode, when it lies on this device.
+      playNext: available ? episodes?.next?.play : undefined,
+      playPrevious: available ? episodes?.previous?.play : undefined,
       toggleHelp: () => togglePanel('help'),
       closeOpen: () => {
         if (panel !== null) closePanel();
@@ -284,14 +341,17 @@ export function OfflineVideo({
   });
   const tabs = phone || limitReached ? [] : allTabs;
 
-  // The help lists only what this player does: no quality, stream info, intro or next episode.
+  // The help lists only what this player does: no quality, stream info or intro; the episode keys
+  // only for an episode.
   const helpRows = SHORTCUT_ROWS.filter((row) => {
     switch (row) {
       case 'quality':
       case 'info':
       case 'skip':
-      case 'next':
         return false;
+      case 'next':
+      case 'previous':
+        return episodes !== undefined;
       case 'chapter':
       case 'chapters':
         return hasChapters;
@@ -409,16 +469,23 @@ export function OfflineVideo({
         onSkip={seekBy}
         // The first focus goes to play/pause (focusOnMount, not react-aria's autoFocus: 11.13).
         playButtonRef={focusOnMount}
-        previous={
-          hasChapters
-            ? { label: t('player.chrome.previousChapter'), onPress: previousChapter }
-            : undefined
-        }
-        next={
-          nextChapterStart(chapters, currentMs) !== null
-            ? { label: t('player.chrome.nextChapter'), onPress: nextChapter }
-            : undefined
-        }
+        // Only chapters (concept 23, 3.1); without chapters greyed in place.
+        previousChapter={{
+          label: t('player.chrome.previousChapter'),
+          onPress: previousChapter,
+          unavailable: hasChapters ? undefined : t('player.chrome.noChapters'),
+        }}
+        nextChapter={{
+          label: t('player.chrome.nextChapter'),
+          onPress: nextChapter,
+          unavailable: !hasChapters
+            ? t('player.chrome.noChapters')
+            : nextChapterStart(chapters, currentMs) === null
+              ? t('player.chrome.lastChapter')
+              : undefined,
+        }}
+        previousEpisode={previousEpisodeStep}
+        nextEpisode={nextEpisodeStep}
         transportDisabled={limitReached}
         volume={volume.volume}
         muted={volume.muted}
@@ -452,6 +519,7 @@ export function OfflineVideo({
           label: t('player.settings.title'),
           expanded: panel === 'settings',
           controls: PANEL_IDS.settings,
+          ref: anchors.settings,
           onPress: () => (panel === 'settings' ? closePanel() : openSettings('main', false)),
           isDisabled: limitReached,
         }}
@@ -460,58 +528,62 @@ export function OfflineVideo({
         onOpenTab={(id) => setTab(id === null ? null : {})}
         helpOpen={panel === 'help'}
         onToggleHelp={() => togglePanel('help')}
+        helpRef={anchors.help}
+        helpControls={PANEL_IDS.help}
       />
-      {panel === 'help' && (
-        // Escape leaves for the downloads or the offline library, not a detail page (review step 6).
-        <ShortcutHelp
-          onClose={closePanel}
-          rows={helpRows}
-          backAction={
-            backTo === 'downloads'
-              ? t('player.help.rows.back.actionOfflineDownloads')
-              : t('player.help.rows.back.actionOfflineLibrary')
-          }
-        />
-      )}
-      {panel === 'settings' && (
-        <SettingsPanel
-          page={settingsView.page}
-          direct={settingsView.direct}
-          onPage={(page) => setSettingsView({ page, direct: false })}
-          onClose={closePanel}
-          chapters={phone && hasChapters ? chapterChoice : undefined}
-          rate={rate}
-          onRate={setRate}
-          subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
-          nightMode={webAudio ? { on: nightMode, onChange: setNightMode } : undefined}
-        />
-      )}
-      {panel === 'audio' && audioTrack && (
-        <AudioPanel
-          tracks={[audioTrack]}
-          profileLanguage={profileLanguage}
-          selectedIndex={audioTrack.index}
-          converts={() => false}
-          // The download has this one track: choosing it changes nothing.
-          onSelect={closePanel}
-          onClose={closePanel}
-        />
-      )}
-      {panel === 'subtitle' && (
-        <SubtitlePanel
-          tracks={subtitles.map((entry) => entry.track)}
-          profileLanguage={profileLanguage}
-          selectedId={subtitle?.track.id}
-          // Local: the stored files, no new session (rule 12: the server chose them at download).
-          // The panel closes with the choice, as online, where a choice starts a new session.
-          onSelect={(id) => {
-            setPicked(id);
-            closePanel();
-          }}
-          onClose={closePanel}
-          subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
-        />
-      )}
+      <PlayerPanelAnchor value={anchor}>
+        {panel === 'help' && (
+          // Escape leaves for the downloads or the offline library, not a detail page (review step 6).
+          <ShortcutHelp
+            onClose={closePanel}
+            rows={helpRows}
+            backAction={
+              backTo === 'downloads'
+                ? t('player.help.rows.back.actionOfflineDownloads')
+                : t('player.help.rows.back.actionOfflineLibrary')
+            }
+          />
+        )}
+        {panel === 'settings' && (
+          <SettingsPanel
+            page={settingsView.page}
+            direct={settingsView.direct}
+            onPage={(page) => setSettingsView({ page, direct: false })}
+            onClose={closePanel}
+            chapters={phone && hasChapters ? chapterChoice : undefined}
+            rate={rate}
+            onRate={setRate}
+            subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
+            nightMode={webAudio ? { on: nightMode, onChange: setNightMode } : undefined}
+          />
+        )}
+        {panel === 'audio' && audioTrack && (
+          <AudioPanel
+            tracks={[audioTrack]}
+            profileLanguage={profileLanguage}
+            selectedIndex={audioTrack.index}
+            converts={() => false}
+            // The download has this one track: choosing it changes nothing.
+            onSelect={closePanel}
+            onClose={closePanel}
+          />
+        )}
+        {panel === 'subtitle' && (
+          <SubtitlePanel
+            tracks={subtitles.map((entry) => entry.track)}
+            profileLanguage={profileLanguage}
+            selectedId={subtitle?.track.id}
+            // Local: the stored files, no new session (rule 12: the server chose them at download).
+            // The panel closes with the choice, as online, where a choice starts a new session.
+            onSelect={(id) => {
+              setPicked(id);
+              closePanel();
+            }}
+            onClose={closePanel}
+            subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
+          />
+        )}
+      </PlayerPanelAnchor>
     </main>
   );
 }

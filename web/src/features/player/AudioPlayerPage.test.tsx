@@ -3,7 +3,13 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AUDIO_VOLUME_KEY, writeAudioVolume } from '@/lib/audioVolume';
-import { audioIds, audioPlayback, audiobookDetail, podcastEpisodeDetail } from '@/test/fixtures';
+import {
+  audioIds,
+  audioPlayback,
+  audiobookDetail,
+  podcastEpisodeDetail,
+  podcastEpisodes,
+} from '@/test/fixtures';
 import { json, mockApi, renderApp, signedIn, type Call } from '@/test/api';
 
 // hls.js is not needed: the M4B book plays directly. jsdom has no media pipeline, so the element
@@ -456,18 +462,95 @@ describe('audio player (M6)', () => {
     expect(media.currentTime).toBe(45);
   });
 
-  it('an episode: the podcast as byline, no chapter controls; Escape goes back', async () => {
+  it('an episode: the podcast as byline, chapter buttons greyed; Escape goes back', async () => {
     stubMedia();
     mockApi(routes());
     const { region, router } = await start(`/play/${audioIds.ep2}`);
     expect(within(region).getByRole('heading', { name: 'Slouchcat Test Episode 2' }));
     await waitFor(() => expect(within(region).getByText('Slouchcat Test Podcast')).toBeVisible());
+    // Without chapters greyed in place (concept 23, F-2); the chapter list stays away.
+    const forward = within(region).getByRole('button', { name: 'Nächstes Kapitel' });
+    expect(forward).toHaveAttribute('aria-disabled', 'true');
+    expect(forward).toHaveAccessibleDescription('Keine Kapitel');
+    // The server named no other episode: both episode buttons greyed.
     expect(
-      within(region).queryByRole('button', { name: 'Nächstes Kapitel' }),
-    ).not.toBeInTheDocument();
+      within(region).getByRole('button', { name: 'Nächste Folge' }),
+    ).toHaveAccessibleDescription('Keine weitere Folge');
     expect(within(region).queryByRole('button', { name: 'Kapitel' })).not.toBeInTheDocument();
     fireEvent.keyDown(window, { key: 'Escape' });
     await waitFor(() => expect(router.state.location.pathname).toBe(`/items/${audioIds.ep2}`));
+  });
+
+  it('a podcast episode: the older and the newer episode by button and by P and N (concept 23, F-5)', async () => {
+    stubMedia();
+    const episode = (id: string) => () =>
+      json({
+        ...audioPlayback,
+        item: { ...podcastEpisodeDetail, id },
+        chapters: [],
+        streamUrl: `/items/${id}/stream?st=ps-${id}.token`,
+        playbackSessionId: `ps-${id}`,
+        resumePositionMs: 0,
+      });
+    mockApi({
+      ...routes(),
+      [`POST /items/${audioIds.ep2}/play`]: () =>
+        json({
+          ...audioPlayback,
+          item: podcastEpisodeDetail,
+          chapters: [],
+          streamUrl: `/items/${audioIds.ep2}/stream?st=ps-e.token`,
+          playbackSessionId: 'ps-e',
+          resumePositionMs: 0,
+          previousEpisode: podcastEpisodes.ep1,
+          nextEpisode: podcastEpisodes.ep3,
+        }),
+      [`POST /items/${audioIds.ep1}/play`]: episode(audioIds.ep1),
+      [`POST /items/${audioIds.ep3}/play`]: episode(audioIds.ep3),
+      [`GET /items/${audioIds.ep1}`]: () => json({ ...podcastEpisodeDetail, id: audioIds.ep1 }),
+      [`GET /items/${audioIds.ep3}`]: () => json({ ...podcastEpisodeDetail, id: audioIds.ep3 }),
+    });
+    const { region, router } = await start(`/play/${audioIds.ep2}`);
+    const transport = within(region)
+      .getAllByRole('button')
+      .map((entry) => entry.getAttribute('aria-label'));
+    const at = transport.indexOf('Vorherige Folge: Slouchcat Test Episode 1');
+    expect(transport.slice(at, at + 7)).toEqual([
+      'Vorherige Folge: Slouchcat Test Episode 1',
+      'Vorheriges Kapitel',
+      '15 Sekunden zurück',
+      'Pause',
+      '30 Sekunden vor',
+      'Nächstes Kapitel',
+      'Nächste Folge: Slouchcat Test Episode 3',
+    ]);
+    // The card: title, date and length.
+    const next = within(region).getByRole('button', {
+      name: 'Nächste Folge: Slouchcat Test Episode 3',
+    });
+    expect(next.parentElement?.querySelector(':scope > [aria-hidden="true"]')).toHaveTextContent(
+      '20.10.2025',
+    );
+    // A held N (key repeat) plays nothing on its own.
+    fireEvent.keyDown(window, { key: 'n', repeat: true });
+    expect(router.state.location.pathname).toBe(`/play/${audioIds.ep2}`);
+    fireEvent.keyDown(window, { key: 'n' });
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/play/${audioIds.ep3}`));
+    await act(() => router.navigate({ to: '/play/$itemId', params: { itemId: audioIds.ep2 } }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Vorherige Folge: Slouchcat Test Episode 1' }),
+    );
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/play/${audioIds.ep1}`));
+  });
+
+  it('an audiobook has no episode buttons (F-4)', async () => {
+    stubMedia();
+    mockApi(routes());
+    const { region } = await start();
+    expect(within(region).queryByRole('button', { name: /Folge/ })).toBeNull();
+    expect(within(region).getByRole('button', { name: 'Nächstes Kapitel' })).not.toHaveAttribute(
+      'aria-disabled',
+    );
   });
 
   describe('volume (concept 19 E2, E3)', () => {

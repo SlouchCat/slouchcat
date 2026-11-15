@@ -83,7 +83,8 @@ const paths = {
       fill="none"
     />
   ),
-  // Audio player (M6): chapter back and forward, −15 s and +30 s, chapter list, sleep timer.
+  // Audio player (M6): episode back and forward (concept 23), −15 s and +30 s, chapter list, sleep
+  // timer.
   previous: (
     <>
       <path d="M18 6.5v11a1 1 0 0 1-1.5.86L8.4 13.3a1.5 1.5 0 0 1 0-2.6l8.1-5.06A1 1 0 0 1 18 6.5Z" />
@@ -94,6 +95,22 @@ const paths = {
     <>
       <path d="M6 6.5v11a1 1 0 0 0 1.5.86l8.1-5.06a1.5 1.5 0 0 0 0-2.6L7.5 5.64A1 1 0 0 0 6 6.5Z" />
       <path d="M18 5.5v13" fill="none" />
+    </>
+  ),
+  // Chapter back and forward (concept 23, F-1 variant B): an arc over two marks of the timeline.
+  // `previous` and `next` stay the episode buttons.
+  chapterPrevious: (
+    <>
+      <path d="M3 18.5h18M6.5 15.5v6M17.5 15.5v6" fill="none" />
+      <path d="M17.5 12.5C16 6.8 8 6.8 6.5 12.5" fill="none" />
+      <path d="M9.3 11.4l-2.8 1.1-1.1-2.8" fill="none" />
+    </>
+  ),
+  chapterNext: (
+    <>
+      <path d="M3 18.5h18M6.5 15.5v6M17.5 15.5v6" fill="none" />
+      <path d="M6.5 12.5C8 6.8 16 6.8 17.5 12.5" fill="none" />
+      <path d="M14.7 11.4l2.8 1.1 1.1-2.8" fill="none" />
     </>
   ),
   // Video player (concept 13): picture in picture, the shortcut help.

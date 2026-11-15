@@ -1325,6 +1325,7 @@ type PlaybackInfo struct {
 	Chapters          []Chapter
 	Segments          Segments
 	NextEpisode       *ItemSummary
+	PreviousEpisode   *ItemSummary // mirror of NextEpisode (concept 23 section 3.2a)
 	WatchTime         *WatchTime
 	Device            *DeviceRef
 	// Trickplay are the preview tiles of the seek bar (concept 18 part A); nil for audio titles,

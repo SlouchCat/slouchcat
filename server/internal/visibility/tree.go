@@ -228,27 +228,73 @@ func (r *Reader) episodeChain(ctx context.Context, s Scope, pid int64, it scoped
 		return nil
 	}
 	d.Series = &sums[1]
+	d.NextEpisode, err = r.adjacentEpisode(ctx, s, pid, it, season, false)
+	return err
+}
+
+// episodeSeason returns the visible season of a visible episode whose series the profile sees too
+// (what episodeChain needs for the next episode); ok is false otherwise.
+func (r *Reader) episodeSeason(ctx context.Context, pid int64, it scopedq.Item) (season scopedq.Item, ok bool, err error) {
+	if !it.ParentID.Valid {
+		return season, false, nil
+	}
+	seasons, err := r.q.ListVisibleItems(ctx, scopedq.ListVisibleItemsParams{ProfileID: pid, ItemIds: []string{it.ParentID.String}})
+	if err != nil {
+		return season, false, fmt.Errorf("get season: %w", err)
+	}
+	if len(seasons) != 1 || seasons[0].Kind != "season" || !seasons[0].ParentID.Valid {
+		return season, false, nil
+	}
+	series, err := r.q.ListVisibleItems(ctx, scopedq.ListVisibleItemsParams{ProfileID: pid, ItemIds: []string{seasons[0].ParentID.String}})
+	if err != nil {
+		return season, false, fmt.Errorf("get series: %w", err)
+	}
+	if len(series) != 1 || series[0].Kind != "series" {
+		return season, false, nil
+	}
+	return seasons[0], true, nil
+}
+
+// adjacentEpisode returns the next visible episode of the series of an episode in season (after the
+// last episode of a multi-episode file), or with previous the previous one (before its first
+// episode, concept 23 section 3.3); nil when there is none.
+func (r *Reader) adjacentEpisode(ctx context.Context, s Scope, pid int64, it, season scopedq.Item, previous bool) (*model.ItemSummary, error) {
 	// A NULL column scans as the zero NullInt64, so cmp.Or picks the first set value.
 	seasonNumber := cmp.Or(it.SeasonNumber, season.SeasonNumber)
-	last := cmp.Or(it.EpisodeEnd, it.EpisodeNumber)
-	if !seasonNumber.Valid || !last.Valid {
-		return nil
+	if !seasonNumber.Valid {
+		return nil, nil
 	}
-	next, err := r.q.GetNextVisibleEpisode(ctx, scopedq.GetNextVisibleEpisodeParams{
-		ProfileID: pid, SeriesID: season.ParentID, ItemID: it.ID, SeasonNumber: seasonNumber, LastEpisode: last,
-	})
+	var adj scopedq.Item
+	var err error
+	what := "next episode"
+	if previous {
+		if !it.EpisodeNumber.Valid {
+			return nil, nil
+		}
+		what = "previous episode"
+		adj, err = r.q.GetPreviousVisibleEpisode(ctx, scopedq.GetPreviousVisibleEpisodeParams{
+			ProfileID: pid, SeriesID: season.ParentID, ItemID: it.ID, SeasonNumber: seasonNumber, FirstEpisode: it.EpisodeNumber,
+		})
+	} else {
+		last := cmp.Or(it.EpisodeEnd, it.EpisodeNumber)
+		if !last.Valid {
+			return nil, nil
+		}
+		adj, err = r.q.GetNextVisibleEpisode(ctx, scopedq.GetNextVisibleEpisodeParams{
+			ProfileID: pid, SeriesID: season.ParentID, ItemID: it.ID, SeasonNumber: seasonNumber, LastEpisode: last,
+		})
+	}
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil
+		return nil, nil
 	}
 	if err != nil {
-		return fmt.Errorf("next episode: %w", err)
+		return nil, fmt.Errorf("%s: %w", what, err)
 	}
-	sum, err := r.summaries(ctx, s, pid, []scopedq.Item{next})
+	sum, err := r.summaries(ctx, s, pid, []scopedq.Item{adj})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	d.NextEpisode = &sum[0]
-	return nil
+	return &sum[0], nil
 }
 
 // Trailers returns the trailers of a visible title: the profile language first, then English, then

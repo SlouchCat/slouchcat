@@ -3,7 +3,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isUlid } from '@/lib/ulid';
 import { mockApi, renderApp, signedIn } from '@/test/api';
-import { audiobook, bookChapters, ids } from '@/test/fixtures';
+import { audiobook, bookChapters, episodes, ids } from '@/test/fixtures';
 import { resetOfflineFiles, seedFile } from '@/test/offlineFiles';
 import {
   downloadIds,
@@ -418,6 +418,96 @@ describe('offline player', () => {
     expect(second?.playbackId).not.toBe(first?.playbackId);
     expect(second?.seq).toBe(1);
     expect(media.paused).toBe(true);
+  });
+
+  it('the episode buttons open the neighbour download on this device (concept 23, stage 2)', async () => {
+    stubMedia();
+    await putDownloads([
+      episodeDownload('e1', { episodeNeighbours: { '1': { next: episodes.e2.id } } }),
+      // S01E02 is on the device, but not complete yet.
+      episodeDownload('e2', {
+        complete: false,
+        episodeNeighbours: { '1': { previous: episodes.e1.id } },
+      }),
+    ]);
+    seedFile(downloadIds.e1, 'media.mp4', new Uint8Array(9000));
+    seedFile(downloadIds.e2, 'media.mp4', new Uint8Array(9000));
+    mockApi({});
+    const { router } = renderApp(`/offline/play/${downloadIds.e1}`);
+    await player();
+    const next = await screen.findByRole('button', { name: 'Nächste Folge' });
+    expect(next).toHaveAccessibleDescription('Nicht auf diesem Gerät');
+    expect(screen.getByRole('button', { name: 'Vorherige Folge' })).toHaveAccessibleDescription(
+      'Keine frühere Folge',
+    );
+    // Complete now: the button names it and opens it in the offline player.
+    await putDownloads([
+      episodeDownload('e2', { episodeNeighbours: { '1': { previous: episodes.e1.id } } }),
+    ]);
+    await act(() =>
+      router.navigate({ to: '/offline/play/$downloadId', params: { downloadId: downloadIds.e2 } }),
+    );
+    let region = await player();
+    await waitFor(() => expect(region).toHaveAttribute('data-download-id', downloadIds.e2));
+    fireEvent.click(await screen.findByRole('button', { name: 'Vorherige Folge: S01E01 · Pilot' }));
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(`/offline/play/${downloadIds.e1}`),
+    );
+    region = await player();
+    await waitFor(() => expect(region).toHaveAttribute('data-download-id', downloadIds.e1));
+    expect(
+      await screen.findByRole('button', { name: 'Nächste Folge: S01E02 · Die lange Nacht' }),
+    ).not.toHaveAttribute('aria-disabled');
+  });
+
+  it('neighbours the server named for another profile never count (rule 12, concept 23)', async () => {
+    stubMedia();
+    // Synced under profile 1: E2 follows E1 for profile 1, and profile 2 sees both episodes.
+    await putProfiles([storedProfile({ snapshot: offlineProfile({ id: 2, name: 'Lea' }) })]);
+    await putDownloads([
+      episodeDownload('e1', {
+        allowedProfileIds: [1, 2],
+        episodeNeighbours: { '1': { next: episodes.e2.id } },
+      }),
+      episodeDownload('e2', {
+        allowedProfileIds: [1, 2],
+        episodeNeighbours: { '1': { previous: episodes.e1.id } },
+      }),
+    ]);
+    seedFile(downloadIds.e1, 'media.mp4', new Uint8Array(9000));
+    seedFile(downloadIds.e2, 'media.mp4', new Uint8Array(9000));
+    // Profile 2 plays: no sync of it named neighbours, so both stay greyed, neither «Keine …».
+    chooseOfflineProfile({ accountId: 1, profileId: 2 });
+    mockApi({});
+    const { router } = renderApp(`/offline/play/${downloadIds.e1}`);
+    const region = await player();
+    await waitFor(() => expect(region).toHaveAttribute('data-profile-id', '2'));
+    const next = await screen.findByRole('button', { name: 'Nächste Folge' });
+    expect(next).toHaveAttribute('aria-disabled', 'true');
+    expect(next).toHaveAccessibleDescription('Nicht auf diesem Gerät');
+    expect(screen.getByRole('button', { name: 'Vorherige Folge' })).toHaveAccessibleDescription(
+      'Nicht auf diesem Gerät',
+    );
+    fireEvent.click(next);
+    expect(router.state.location.pathname).toBe(`/offline/play/${downloadIds.e1}`);
+    // A sync of profile 2 said E1 is its last episode: «Keine weitere Folge» for profile 2.
+    await putDownloads([
+      episodeDownload('e1', {
+        allowedProfileIds: [1, 2],
+        episodeNeighbours: { '1': { next: episodes.e2.id }, '2': {} },
+      }),
+    ]);
+    await act(() =>
+      router.navigate({ to: '/offline/play/$downloadId', params: { downloadId: downloadIds.e2 } }),
+    );
+    await act(() =>
+      router.navigate({ to: '/offline/play/$downloadId', params: { downloadId: downloadIds.e1 } }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Nächste Folge' })).toHaveAccessibleDescription(
+        'Keine weitere Folge',
+      ),
+    );
   });
 
   it('from /downloads it plays for the session’s profile, not the library’s choice (W1)', async () => {

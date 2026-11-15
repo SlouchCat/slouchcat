@@ -67,8 +67,24 @@ func (r *Reader) Segments(ctx context.Context, s Scope, itemID string) (model.Se
 
 // NextEpisode returns the next visible episode after a visible episode (the rule of the detail
 // page: a higher number in the same season, else the first episode of a later season; specials
-// only follow a special), or nil for the last episode and for other kinds.
+// only follow a special), for a podcast episode the nearest newer visible episode of the same
+// podcast (concept 23 F-5), or nil for the last episode and for other kinds.
 func (r *Reader) NextEpisode(ctx context.Context, s Scope, itemID string) (*model.ItemSummary, error) {
+	return r.adjacent(ctx, s, itemID, false)
+}
+
+// PreviousEpisode returns the previous visible episode before a visible episode, the mirror of
+// NextEpisode (concept 23 section 3.3): a lower number in the same season, else the last episode
+// of the nearest earlier season; specials only precede a special. For a podcast episode the
+// nearest older visible episode of the same podcast (F-5). Nil for the first episode and for
+// other kinds.
+func (r *Reader) PreviousEpisode(ctx context.Context, s Scope, itemID string) (*model.ItemSummary, error) {
+	return r.adjacent(ctx, s, itemID, true)
+}
+
+// adjacent is NextEpisode, or with previous PreviousEpisode; model.ErrNotFound for an invisible
+// title.
+func (r *Reader) adjacent(ctx context.Context, s Scope, itemID string, previous bool) (*model.ItemSummary, error) {
 	pid, err := r.profile(ctx, s)
 	if err != nil {
 		return nil, err
@@ -77,14 +93,17 @@ func (r *Reader) NextEpisode(ctx context.Context, s Scope, itemID string) (*mode
 	if err != nil {
 		return nil, notFound(err)
 	}
-	if it.Kind != "episode" {
-		return nil, nil
+	switch it.Kind {
+	case "episode":
+		season, ok, err := r.episodeSeason(ctx, pid, it)
+		if err != nil || !ok {
+			return nil, err
+		}
+		return r.adjacentEpisode(ctx, s, pid, it, season, previous)
+	case "podcast_episode":
+		return r.adjacentPodcastEpisode(ctx, s, pid, it.ID, previous)
 	}
-	var d model.ItemDetail
-	if err := r.episodeChain(ctx, s, pid, it, &d); err != nil {
-		return nil, err
-	}
-	return d.NextEpisode, nil
+	return nil, nil
 }
 
 // fileDetails completes the media files of a detail with their tracks, bit rate and HDR format.

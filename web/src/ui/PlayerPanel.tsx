@@ -1,4 +1,16 @@
-import { useCallback, useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react';
+import { Button } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { AriaButton } from './AriaButton';
 import { focusOnMount } from './focusOnMount';
@@ -113,12 +125,28 @@ function targetIn(body: HTMLElement): HTMLElement | null {
  */
 let handedOver: HTMLElement | null = null;
 
+/**
+ * The button of the bar the open panel belongs to (concept 23 P-2): the panel opens as a menu
+ * right above it, also when a key opened it, and a press on it is no press outside. The player
+ * provides it (usePlayerPanels holds one per panel); without it the panel sits at the bottom right.
+ */
+export const PlayerPanelAnchor = createContext<RefObject<HTMLElement | null> | null>(null);
+
+/** The pointerdown events that closed a panel, for the picture under them (pressClosedPanel). */
+const closingPresses = new WeakSet<Event>();
+
+/**
+ * Whether this pointerdown closed a panel (a press outside it, concept 23 P-2). The press then
+ * only closes: the picture under it neither plays, pauses nor goes full screen (usePhoneTap).
+ */
+export const pressClosedPanel = (event: Event) => closingPresses.has(event);
+
 interface PlayerPanelProps {
   /** Heading of the panel and its spoken name: «Ton», «Untertitel», «Einstellungen». */
   title: string;
   /** The id the button that opens it names in `aria-controls`. */
   id?: string;
-  /** Escape, Backspace or the close button. The page unmounts the panel. */
+  /** Escape, Backspace, the close button or a press outside. The page unmounts the panel. */
   onClose: () => void;
   /**
    * A level up, for the pages inside the gear panel (quality, speed …): a back button in the head,
@@ -129,8 +157,16 @@ interface PlayerPanelProps {
 }
 
 /**
- * A panel of the player (concept 13, 11.2): on the right over the video, a sheet from the bottom
- * below 768 px and on phones held sideways. The video keeps playing beside it.
+ * A panel of the player (concept 23 P-2): a menu right above its button in the bar (the
+ * PlayerPanelAnchor), as tall as its content and at most up to near the top of the player, where
+ * it scrolls; a sheet from the bottom below 768 px and on phones held sideways (concept 13, 11.2),
+ * with a grab handle that closes it. The video keeps playing beside it.
+ *
+ * A pointerdown outside the panel and its button closes it (in the capture phase). Unlike a
+ * react-aria popover the control under the pointer still gets its press, and the focus goes there;
+ * a press on the picture only closes (pressClosedPanel), with the focus back on the opener. There
+ * is no visible close button on a computer: a visually hidden one, last in the panel, is there for
+ * screen readers (a touch tablet gets the menu, too).
  *
  * Mounted, it moves the focus to the chosen row (or to the first thing to focus) with
  * focusOnMount, not react-aria's autoFocus, which can wait 500 ms for a transition (11.13). When
@@ -146,7 +182,13 @@ interface PlayerPanelProps {
 export function PlayerPanel({ id, title, onClose, onBack, children }: PlayerPanelProps) {
   const { t } = useTranslation();
   const headingId = useId();
+  const anchor = useContext(PlayerPanelAnchor);
+  const self = useRef<HTMLElement | null>(null);
   const opener = useRef<HTMLElement | null>(null);
+  const closeNow = useRef(onClose);
+  useLayoutEffect(() => {
+    closeNow.current = onClose;
+  });
   // Whether the focus is in the panel: only then does a swap of the content move it.
   const inside = useRef(false);
 
@@ -154,6 +196,7 @@ export function PlayerPanel({ id, title, onClose, onBack, children }: PlayerPane
   // now is the one to return to. Its cleanup runs when the panel goes, before it leaves the page.
   const enter = useCallback((panel: HTMLElement | null) => {
     if (!panel) return;
+    self.current = panel;
     const active = document.activeElement;
     opener.current =
       active instanceof HTMLElement && active !== document.body && active.isConnected
@@ -189,6 +232,44 @@ export function PlayerPanel({ id, title, onClose, onBack, children }: PlayerPane
       });
     };
   }, []);
+
+  // Right above the anchor, as far up as its place in the bar: the bar moves up when a tab opens
+  // under it, and the player changes size; so every box from the button to the player is watched.
+  useLayoutEffect(() => {
+    const panel = self.current;
+    const button = anchor?.current;
+    const player = panel?.offsetParent;
+    if (!panel || !button || !(player instanceof HTMLElement)) return;
+    const place = () => {
+      const outer = player.getBoundingClientRect();
+      const at = button.getBoundingClientRect();
+      panel.style.setProperty('--anchor-right', `${outer.right - at.right}px`);
+      panel.style.setProperty('--anchor-bottom', `${outer.bottom - at.top}px`);
+    };
+    place();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(place);
+    for (let box: HTMLElement | null = button; box; box = box.parentElement) {
+      observer.observe(box);
+      if (box === player) break;
+    }
+    return () => observer.disconnect();
+  }, [anchor]);
+
+  // A press outside the panel and its button closes it. The capture phase sees it before the
+  // control under the pointer, which still gets it: the panel is gone by its press (React renders
+  // in the microtask after this listener), and the focus moves there.
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (self.current?.contains(target) || anchor?.current?.contains(target)) return;
+      closingPresses.add(event);
+      closeNow.current();
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  }, [anchor]);
 
   const close = () => {
     const target = opener.current;
@@ -259,17 +340,15 @@ export function PlayerPanel({ id, title, onClose, onBack, children }: PlayerPane
         <h2 id={headingId} className={styles.title}>
           {title}
         </h2>
-        <AriaButton
-          variant="ghost"
-          icon="close"
-          iconOnly
-          aria-label={t('common.close')}
-          onPress={close}
-        />
       </header>
       <div className={styles.body} data-panel-body="">
         {children}
       </div>
+      {/* Last in the panel: hidden on a computer until it has the keyboard focus, the grab handle
+          at the top of the sheet on a phone. */}
+      <Button className={styles.close} onPress={close}>
+        <span className={styles.closeText}>{t('common.close')}</span>
+      </Button>
     </section>
   );
 }

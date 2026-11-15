@@ -1137,6 +1137,16 @@
       "rate": "Nopeus {{rate}}×",
       "muted": "Mykistetty",
       "previousEpisode": "Edellinen jakso",
+      "noChapters": "Ei lukuja",
+      "lastChapter": "Viimeinen luku",
+      "noNextEpisode": "Ei seuraavaa jaksoa",
+      "noPreviousEpisode": "Ei edellistä jaksoa",
+      "nextEpisodeNamed": "Seuraava jakso: {{name}}",
+      "previousEpisodeNamed": "Edellinen jakso: {{name}}",
+      "nextEpisodeCard": "Seuraava jakso",
+      "previousEpisodeCard": "Edellinen jakso",
+      "cardSeason": "Kausi {{season}} · {{name}}",
+      "notOnDevice": "Ei tällä laitteella",
       "forward10": "Eteenpäin 10 sekuntia",
       "options": "Valinnat",
       "view": "Aika ja näkymä",
@@ -1225,6 +1235,10 @@
         "next": {
           "keys": "N",
           "action": "Seuraava jakso"
+        },
+        "previous": {
+          "keys": "P",
+          "action": "Edellinen jakso"
         },
         "help": {
           "keys": "?",

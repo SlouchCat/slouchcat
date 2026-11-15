@@ -1201,6 +1201,16 @@
       "rate": "Скорость {{rate}}×",
       "muted": "Звук выключен",
       "previousEpisode": "Предыдущая серия",
+      "noChapters": "Нет глав",
+      "lastChapter": "Последняя глава",
+      "noNextEpisode": "Следующей серии нет",
+      "noPreviousEpisode": "Предыдущей серии нет",
+      "nextEpisodeNamed": "Следующая серия: {{name}}",
+      "previousEpisodeNamed": "Предыдущая серия: {{name}}",
+      "nextEpisodeCard": "Следующая серия",
+      "previousEpisodeCard": "Предыдущая серия",
+      "cardSeason": "Сезон {{season}} · {{name}}",
+      "notOnDevice": "Нет на этом устройстве",
       "forward10": "Вперед на 10 секунд",
       "options": "Параметры",
       "view": "Время и вид",
@@ -1289,6 +1299,10 @@
         "next": {
           "keys": "N",
           "action": "Следующая серия"
+        },
+        "previous": {
+          "keys": "P",
+          "action": "Предыдущая серия"
         },
         "help": {
           "keys": "?",

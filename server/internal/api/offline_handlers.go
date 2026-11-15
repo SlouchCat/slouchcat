@@ -243,7 +243,7 @@ func toDownloadState(profileID int64, st model.DownloadState) gen.DownloadState 
 		Id: st.ID, State: gen.DownloadStateValue(st.State), Quality: gen.DownloadQuality(st.Quality), Auto: st.Auto,
 		AllowedProfileIds: nonNil(st.AllowedProfileIDs), EstimatedBytes: st.EstimatedBytes, SegmentsDone: st.SegmentsDone,
 		SegmentsTotal: optPositive(st.SegmentsTotal), Error: optString(st.Error), CreatedAt: st.CreatedAt.UTC(),
-		Item: optItemRef(profileID, st.Item),
+		Item: optItemRef(profileID, st.Item), NextEpisodeId: optString(st.NextEpisodeID), PreviousEpisodeId: optString(st.PreviousEpisodeID),
 	}
 	if !st.ReadyAt.IsZero() {
 		at := st.ReadyAt.UTC()
