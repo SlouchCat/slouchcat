@@ -1,0 +1,5683 @@
+{
+  "app": {
+    "name": "Slouchcat",
+    "tagline": "世帯で楽しむ映画、TV番組、オーディオブック、ポッドキャスト。"
+  },
+  "common": {
+    "back": "戻る",
+    "retry": "再試行",
+    "cancel": "キャンセル",
+    "loading": "読み込み中…",
+    "close": "閉じる",
+    "save": "保存",
+    "saving": "保存中…"
+  },
+  "nav": {
+    "main": "メインナビゲーション",
+    "home": "ホーム",
+    "logout": "ログアウト",
+    "skip": "コンテンツへスキップ",
+    "profiles": "プロフィール",
+    "playback": "設定",
+    "switchProfile": "プロフィールを切り替え（現在：{{name}}）",
+    "downloads": "ダウンロード",
+    "search": "検索",
+    "watchlist": "マイリスト",
+    "notifications": "通知",
+    "admin": "管理",
+    "update": "アップデート",
+    "adminUpdateLabel": "管理、バージョン{{version}}へのアップデートがあります",
+    "searchOpen": "検索を開く",
+    "menu": "メニュー",
+    "menuClose": "メニューを閉じる",
+    "libraries": "マイメディア",
+    "libraryLabel_other": "{{name}}、{{count}}作品",
+    "radioCount_other": "{{count}}局",
+    "radioLabel_other": "{{name}}、{{count}}局",
+    "collections": "コレクション",
+    "collectionsLabel_other": "{{name}}、{{count}}件のコレクション",
+    "librariesOffline": "オフライン：ライブラリは利用できません",
+    "librariesOfflineLink": "ダウンロードへ",
+    "hideSidebar": "サイドバーを隠す",
+    "showSidebar": "サイドバーを表示",
+    "radio": "ラジオ",
+    "watched": "視聴済み",
+    "account": "アカウント",
+    "switchProfileShort": "切り替え",
+    "switchProfileCard": "プロフィールを切り替え（現在：{{name}}）",
+    "profileRole": {
+      "other": "追加プロフィール",
+      "primary": "メインプロフィール",
+      "admin": "サーバー管理者"
+    }
+  },
+  "system": {
+    "server": {
+      "checking": "サーバーへの接続を確認中…",
+      "online": "サーバーに接続できます",
+      "offline": "サーバーに接続できません",
+      "version": "バージョン{{version}}"
+    },
+    "gpu": {
+      "encoder": "動画エンコード",
+      "tonemap": "HDRからSDRへ",
+      "ffmpeg": "ffmpeg",
+      "backend": {
+        "nvenc": "NVIDIA NVENC",
+        "qsv": "Intel Quick Sync (QSV)",
+        "vaapi": "VA-API",
+        "software": "プロセッサー（ソフトウェア）"
+      },
+      "tonemapper": {
+        "cuda": "GPU上のCUDA",
+        "placebo": "GPU上のlibplacebo",
+        "vpp_qsv": "GPU上のIntel VPP",
+        "vaapi": "GPU上のVA-API",
+        "cpu": "プロセッサー"
+      },
+      "detected": "GPUを検出しました。SlouchcatはGPUで動画を変換します。",
+      "none": {
+        "title": "GPUが検出されません",
+        "body": "Slouchcatはプロセッサーで動画を変換します。マシンにGPUがある場合は、対応するComposeファイルでコンテナーに渡し、Slouchcatを再起動してください：",
+        "unknown": "コンテナー内にGPUが見えません。マシンにGPUがある場合は、そのメーカー用のComposeファイルでコンテナーに渡し、Slouchcatを再起動してください："
+      },
+      "vendor": {
+        "nvidia": "NVIDIA",
+        "intel": "Intel",
+        "amd": "AMD"
+      },
+      "command": "{{vendor}}用のComposeコマンド"
+    },
+    "fs": {
+      "config": "ファイルシステム /config",
+      "cache": "ファイルシステム /cache",
+      "unknown": "不明"
+    },
+    "inotify": {
+      "limit": "inotifyの上限",
+      "usage": "監視中のフォルダー",
+      "usageValue": "{{used}} / {{limit}}（{{percent}}%）",
+      "unknown": "不明",
+      "warn": {
+        "title": "inotifyの上限に余裕がありません",
+        "body": "Slouchcatはライブラリのすべてのフォルダーを監視します。上限はコンテナー内ではなくホスト側で引き上げてください。再起動後も維持するには、値を/etc/sysctl.d/にも書き込んでください。"
+      },
+      "command": "inotifyの上限を変更するコマンド"
+    },
+    "copy": {
+      "action": "コピー",
+      "done": "コマンドをコピーしました。",
+      "failed": "コピーできません。コマンドは選択済みなので、Ctrl+Cでコピーしてください。"
+    }
+  },
+  "errors": {
+    "page": {
+      "title": "現在Slouchcatに接続できません",
+      "body": "サーバーが応答しません。コンテナーが起動していることを確認してから、もう一度お試しください。",
+      "offline": "オフラインライブラリを開く"
+    },
+    "code": {
+      "invalid_credentials": "メールアドレスまたはパスワードが正しくありません。",
+      "library_path_invalid": "このフォルダーはサーバー上に存在しないか、読み取れません。コンテナー内の絶対パスを入力してください。",
+      "path_not_browsable": "このフォルダーは許可されていません。許可されたメディアフォルダー（SLOUCHCAT_BROWSE_ROOTS）以下のフォルダーのみ使用できます。",
+      "path_unreachable": "フォルダーが応答しません。ネットワーク共有がまだマウントされているか確認してください。",
+      "browse_busy": "フォルダーブラウザーは現在混み合っています。少し待ってからもう一度お試しください。",
+      "tmdb_key_invalid": "TMDBがキーを拒否しました。読み取りアクセストークンを確認してください。",
+      "tmdb_unreachable": "現在TMDBに接続できません。もう一度試すか、欄を空のままにしてください。",
+      "setup_done": "Slouchcatはすでにセットアップ済みです。ログインしてください。",
+      "not_found": "見つかりません。",
+      "unauthenticated": "セッションの有効期限が切れました。もう一度ログインしてください。",
+      "forbidden": "このアカウントにはその操作の権限がありません。",
+      "csrf_header_missing": "セキュリティ上の理由でリクエストが拒否されました。ページを再読み込みしてください。",
+      "validation_failed": "強調表示された項目を確認してください。",
+      "channel_unavailable": "このチャンネルはサーバーでセットアップされていません。",
+      "channel_disabled": "このチャンネルはオフになっているか、まだ接続されていません。",
+      "event_not_allowed": "エラー通知を受け取れるのはメインユーザーのみです。",
+      "send_failed": "メッセージを送信できませんでした。サービスが拒否したか、応答しませんでした。",
+      "push_unavailable": "Web Pushはサーバーでセットアップされていません。",
+      "network": "サーバーに接続できません。",
+      "unknown": "問題が発生しました。もう一度お試しください。",
+      "transcode_busy": "サーバーが混み合っています。しばらくしてからもう一度お試しください。",
+      "pin_required": "このプロフィールはPINで保護されています。",
+      "pin_invalid": "PINが正しくありません。",
+      "pin_locked": "PINの誤入力が多すぎます。しばらくしてからもう一度お試しください。",
+      "profile_required": "先にプロフィールを選択してください。",
+      "primary_profile_required": "この操作ができるのは、このアカウントのメインプロフィールのみです。",
+      "primary_profile": "メインプロフィールは削除できません。",
+      "invitation_gone": "この招待リンクは無効になっています。",
+      "too_many_attempts": "試行回数が多すぎます。少し待ってからもう一度お試しください。",
+      "too_many_requests": "リストは1分以内に取得されたばかりです。少し待ってからもう一度お試しください。",
+      "provider_not_configured": "このプロバイダーはセットアップされていません。サーバーの設定にキーを登録してください。",
+      "watch_limit_reached": "このプロフィールの今日の視聴時間は上限に達しました。",
+      "stream_limit_reached": "このプロフィールは、許可されている数のストリームをすでに再生しています。",
+      "device_required": "このデバイスはセッションに登録されていません。もう一度ログインしてください。",
+      "not_downloadable": "この作品はダウンロードできません。",
+      "download_not_ready": "ダウンロードはサーバーでまだ準備中です。",
+      "download_evicted": "準備済みのファイルはサーバーから削除されています。もう一度準備しています。",
+      "feed_unreachable": "フィードに接続できません。アドレスを確認して、もう一度お試しください。",
+      "feed_invalid": "このアドレスにRSSのポッドキャストフィードはありません。",
+      "feed_exists": "このライブラリはすでにこのフィードを登録しています。",
+      "rating_below_library_default": "年齢区分をライブラリの既定値より低くすることはできません。",
+      "not_listable": "シーズンと特典映像はマイリストに追加できません。",
+      "not_editable": "TMDBのコレクションは変更できません。",
+      "env_wins": "この値はdeploy/.envで設定されているため、そこでのみ変更できます。",
+      "telegram_token_invalid": "Telegramがトークンを拒否しました。@BotFatherから受け取ったトークンを確認してください。",
+      "telegram_unreachable": "現在Telegramに接続できません。もう一度お試しください。",
+      "email_not_configured": "メールサーバーがセットアップされていません。",
+      "email_send_failed": "メールサーバーがメールを受け付けませんでした。",
+      "job_not_failed": "このジョブは失敗していません。",
+      "update_check_disabled": "アップデートの確認はオフになっています。",
+      "rank_taken": "この順位はリスト内の別の項目がすでに使用しています。",
+      "radio_capacity": "サーバーが中継できるラジオ局の数が上限に達しています。すでに再生中のラジオ局を聴くか、しばらくしてからもう一度お試しください。",
+      "radio_unreachable": "現在このラジオ局に接続できません。",
+      "radio_not_audio": "このラジオ局はSlouchcatで再生できる音声を配信していません。",
+      "radio_catalog_loading": "ラジオ局のカタログを読み込んでいます。まもなく利用できます。",
+      "email_taken": "このメールアドレスはすでに別のアカウントで使われています。",
+      "passphrase_required": "パスフレーズを入力してください。",
+      "passphrase_too_short": "パスフレーズが短すぎます。12文字以上にしてください。",
+      "passphrase_wrong": "パスフレーズが正しくありません。",
+      "backup_invalid": "このファイルはSlouchcatの有効なバックアップではないか、破損しています。",
+      "backup_newer_than_server": "このバックアップは新しいバージョンのSlouchcatで作成されています。先にサーバーをアップデートしてください。",
+      "restart_pending": "まもなくサーバーが再起動します。再び応答するまでお待ちください。",
+      "backup_busy": "バックアップまたは復元を実行中です。完了してからもう一度お試しください。",
+      "update_running": "アップデートをインストール中です。完了するまでお待ちください。",
+      "announcement_published": "このお知らせはすでに公開されているため、変更できません。",
+      "scan_running": "このライブラリのスキャンを実行中です。完了を待つか、キャンセルしてください。",
+      "confirm_mismatch": "入力内容が削除対象と一致しません。何も削除されていません。",
+      "owner_required": "この操作ができるのはオーナーのみです。",
+      "owner_protected": "オーナーのアカウントは削除も降格もできません。",
+      "last_admin": "これが最後の管理者です。先に別の管理者を任命してください。",
+      "admin_limits_fixed": "管理者は常に、区分18までのすべてのライブラリを閲覧できます。先に管理者の役割を外してください。",
+      "job_type_not_runnable": "このジョブは手動で実行できません。イベントによって実行されます。",
+      "job_type_paused": "このジョブは一時停止中です。先に再開してください。",
+      "job_type_not_scheduled": "このジョブにはスケジュールがありません。",
+      "job_type_not_windowable": "このジョブには時間枠がありません。",
+      "provider_unreachable": "現在このソースに接続できません。しばらくしてからもう一度お試しください。",
+      "provider_paused": "拒否が続いたため、このソースは一時停止しています。しばらくしてからもう一度お試しください。",
+      "offer_conflict": "その間にラジオのラインナップが変更されました。もう一度適用してください。",
+      "root_not_writable": "ポッドキャストのフォルダーがフォルダーチェックに合格しないため、Slouchcatはそこにエピソードを保存できません。",
+      "root_required": "このライブラリには、Slouchcatがエピソードを保存できるポッドキャストのフォルダーがありません。",
+      "playing": "現在、これらの作品のいずれかが再生中です。再生が終わると削除できます。",
+      "playing_named": "現在、これらの作品のいずれかを{{names}}が再生中です。再生が終わると削除できます。何も削除されていません。",
+      "files_not_deletable": "この作品のファイルを削除できません。何も削除されていません。",
+      "not_deletable": "この作品は削除できません。",
+      "deleting": "現在削除中です。",
+      "changed": "その間に変更がありました。もう一度確認してください。"
+    },
+    "field": {
+      "required": "必須項目です。",
+      "too_short": "短すぎます。",
+      "too_long": "長すぎます。",
+      "invalid_email": "有効なメールアドレスではありません。",
+      "invalid": "無効な値です。",
+      "not_absolute": "絶対パスを入力してください。/で始まります。",
+      "password_too_short": "10文字以上にしてください。",
+      "password_mismatch": "パスワードが一致しません。",
+      "above_account_limit": "このアカウントの上限を超えています。",
+      "unknown_library": "このライブラリは存在しません。",
+      "too_many_profiles": "1つのアカウントに作成できるプロフィールは10個までです。",
+      "already_exists": "このメールアドレスはすでに使われています。",
+      "pin_format": "PINは4〜8桁の数字です。",
+      "not_burnable": "この字幕トラックは焼き込みできません。",
+      "invalid_url": "http://またはhttps://で始まるアドレスを入力してください。",
+      "library_kind": "ポッドキャストのライブラリを選択してください。",
+      "unknown_item": "この作品は存在しません。",
+      "root_overlap": "このフォルダーは別のフォルダーと重なっています。",
+      "path_with_content": "新しいパスとコンテンツの変更は同時に行えません。",
+      "root_files_missing": "新しいパスには、このフォルダーのファイルが1つもありません。",
+      "content_not_allowed": "このコンテンツはライブラリの種類に合いません。",
+      "providers_not_allowed": "このメタデータソースの組み合わせは、このコンテンツには使用できません。",
+      "roots_required": "フォルダーが少なくとも1つ必要です。",
+      "provider_not_searchable": "このソースはここでは検索できません。",
+      "local_address": "このアドレスはローカルネットワーク内にあります。独自のラジオ局もインターネット上のものである必要があります。",
+      "not_own": "これは独自のラジオ局でのみ変更できます。",
+      "not_matched": "このオーディオブックはソースと照合されていません。",
+      "not_found": "ソースにそのような項目はありません。"
+    }
+  },
+  "setup": {
+    "title": "Slouchcatへようこそ",
+    "intro": "4つの簡単なステップの後、Slouchcatが最初のライブラリをスキャンします。",
+    "step": "ステップ{{step}}",
+    "account": {
+      "title": "管理者アカウント",
+      "description": "このアカウントでSlouchcatを管理します。",
+      "email": "メールアドレス",
+      "password": "パスワード",
+      "passwordHint": "10文字以上。",
+      "passwordRepeat": "パスワード（確認）"
+    },
+    "library": {
+      "title": "最初のライブラリ",
+      "description": "ライブラリは後から追加できます。",
+      "name": "名前",
+      "defaultName": "映画",
+      "kind": "コンテンツ",
+      "path": "フォルダー",
+      "pathPlaceholder": "/media/Movies",
+      "roots": "許可されたフォルダー：",
+      "check": "フォルダーを確認",
+      "checking": "確認中…",
+      "warning": {
+        "network_share": {
+          "title": "ネットワーク共有を検出しました",
+          "body": "このフォルダーの変更はすぐには検出されず、定期的な同期で反映されます。新しい作品をすぐに表示するには、RadarrとSonarrのWebhookをおすすめします。"
+        },
+        "fuse_unknown": {
+          "title": "不明なファイルシステム",
+          "body": "FUSEファイルシステム（mergerfsやUnraidなど）はすべての変更を通知しません。Slouchcatはフォルダーを監視するとともに、定期的に同期します。"
+        }
+      },
+      "content": "コンテンツ",
+      "providers": "メタデータソース"
+    },
+    "tmdb": {
+      "title": "TMDBのメタデータ（任意）",
+      "description": "themoviedb.orgの読み取りアクセストークンがあれば、Slouchcatはあらすじ、ポスター、年齢区分を取得します。キーがない場合、タイトルはファイル名から取得されます。",
+      "link": "themoviedb.orgでトークンを作成",
+      "label": "APIの読み取りアクセストークン",
+      "hint": "暗号化して保存され、二度と表示されません。",
+      "check": "キーを確認",
+      "checking": "確認中…",
+      "result": {
+        "valid": "有効：TMDBがキーを受け付けました。",
+        "invalid": "無効：TMDBがキーを拒否しました。読み取りアクセストークンを確認してください。",
+        "unreachable": "接続不可：現在TMDBが応答しません。もう一度試すか、欄を空のままにしてください。"
+      }
+    },
+    "submit": "セットアップを完了",
+    "submitting": "セットアップ中…",
+    "system": {
+      "title": "GPUとファイルシステム",
+      "description": "Slouchcatがコンテナー内で検出した内容です。ここで入力するものはありません。ヒントはホスト向けです。",
+      "missing": "サーバーからハードウェアの情報が届いていません。"
+    }
+  },
+  "login": {
+    "title": "ログイン",
+    "intro": "Slouchcatアカウントでログインしてください。",
+    "email": "メールアドレス",
+    "password": "パスワード",
+    "submit": "ログイン",
+    "submitting": "ログイン中…"
+  },
+  "library": {
+    "groups": {
+      "title": "シリーズとコレクション",
+      "series_other": "{{count}}シリーズ",
+      "collections_other": "{{count}}件のコレクション",
+      "volumes_other": "{{count}}冊",
+      "matchingVolumes_other": "{{count}}冊中{{matching}}冊",
+      "books_other": "{{count}}冊",
+      "matchingBooks_other": "{{count}}冊中{{matching}}冊",
+      "collection": "コレクション",
+      "heard": "{{count}}冊中{{completed}}冊を再生済み"
+    },
+    "editMetadata": "{{title}}：メタデータを編集",
+    "kind": {
+      "video": "ビデオ",
+      "audiobooks": "オーディオブック",
+      "podcasts": "ポッドキャスト"
+    },
+    "defaultRating": "既定の年齢区分",
+    "defaultRatingHint": "このライブラリのすべての作品に適用されます。個々の作品は、後からより厳しい区分にのみ変更できます。",
+    "podcastsHint": "フォルダーは任意です。フォルダーがなくても、「ポッドキャスト」でフィードを登録できます。",
+    "browse": {
+      "title": "フォルダーを選択",
+      "open": "参照…",
+      "apply": "OK",
+      "list": "このディレクトリ内のフォルダー",
+      "upOneLevel": "1つ上の階層へ",
+      "roots": "許可されたフォルダー",
+      "empty": "このフォルダーにサブフォルダーはありません。",
+      "emptyRoots": "許可されたフォルダーがありません。{{name}}にコンテナーのメディアフォルダーを設定し、サーバーを再起動してください。",
+      "truncated": "このフォルダーには非常に多くの項目があります。最初の50,000件を表示しています。それ以外はパスを入力して開いてください。",
+      "symlink": "シンボリックリンク（スキャン対象外）",
+      "closedRoot": "許可されていません（表示のみ）",
+      "notReadable": "このフォルダーを読み取れません。コンテナー内の権限を確認してください。",
+      "notDirectory": "これはフォルダーではありません。",
+      "inLibrary": "ライブラリ「{{name}}」に属しています",
+      "folder": "フォルダー",
+      "goTo": "移動",
+      "notUnderRoot": "このパスは許可されたフォルダーのどれにも含まれないため、リストは移動しません。「OK」を押せばそのまま引き継がれ、使えるかどうかは送信時にサーバーが判断します。許可するフォルダーは{{name}}で設定します。"
+    },
+    "provider": {
+      "tmdb": "TMDB",
+      "tvdb": "TVDB",
+      "anilist": "AniList",
+      "local": "ローカルファイル",
+      "audible": "Audible",
+      "dnb": "ドイツ国立図書館",
+      "applebooks": "Apple Books",
+      "openlibrary": "Open Library",
+      "googlebooks": "Google Books"
+    },
+    "content": {
+      "title": "コンテンツ",
+      "hint": "映画は個別のファイルで、TV番組はシーズンごとのフォルダーで。",
+      "movie": "映画",
+      "series": "TV番組",
+      "audiobook": "オーディオブック",
+      "podcast": "ポッドキャスト",
+      "all": "すべて"
+    },
+    "providers": {
+      "title": "メタデータソース",
+      "chain": " › ",
+      "identifies": "作品を識別",
+      "fills": "情報を補完",
+      "cannotIdentifyChip": "識別不可",
+      "moveUpLabel": "{{provider}}を上へ移動",
+      "moveDownLabel": "{{provider}}を下へ移動",
+      "noKey": "キー未設定",
+      "noGerman": "ドイツ語のテキストなし",
+      "fillOnly": "補完のみ",
+      "hint": "先頭の項目が作品を識別し、残りは情報を補完するだけです。矢印ボタンまたは矢印キーで並べ替えます。",
+      "hintRank": "先頭の項目が作品を識別し、残りは情報を補完するだけです。順番は順位で選びます。",
+      "required": "ソースを少なくとも1つ選択してください。",
+      "cannotIdentify": "{{provider}}は作品を識別できません。{{identifiers}}を先頭にしてください。",
+      "fixedHint": "このコンテンツで現在使えるソースはこれだけです。",
+      "defaultHint": "既定の設定です。リストはセットアップ後に「ライブラリ」で変更できます。"
+    },
+    "roots": {
+      "title": "フォルダー",
+      "number": "フォルダー{{number}}",
+      "addFirst": "フォルダーを追加",
+      "addMore": "フォルダーをさらに追加",
+      "remove": "外す",
+      "removeLabel": "フォルダー{{number}}を外す",
+      "empty": "フォルダーはまだありません。",
+      "emptyPodcasts": "フォルダーはまだありません。ポッドキャストのライブラリはフォルダーなしでもかまいません。その場合、作品は登録したフィードから取得されます。",
+      "overlap": "フォルダー{{number}}は上のフォルダーと重なっています。",
+      "providers": "フォルダー{{number}}：{{message}}",
+      "submit_other": "{{count}}個のフォルダーでライブラリを追加",
+      "submitNone": "フォルダーなしでライブラリを追加",
+      "addSubmit_other": "{{count}}個のフォルダーを追加"
+    },
+    "videoHint": "このライブラリのフォルダーには、映画とTV番組のどちらも入れられます。混在してもかまいません。",
+    "page": {
+      "count_other": "{{count}}{{noun}}",
+      "filtered": "{{text}} · 絞り込み中",
+      "sort": "並べ替え",
+      "direction": "順序：",
+      "ascending": "↑ 昇順",
+      "descending": "↓ 降順",
+      "filter": "絞り込み",
+      "filterCount": "絞り込み（{{count}}）",
+      "apply": "適用",
+      "clear": "リセット",
+      "emptyFilters": "条件に一致する作品はありません",
+      "pageFailed": "リストの一部を読み込めませんでした。",
+      "noun": {
+        "video_other": "作品",
+        "audiobooks_other": "冊",
+        "podcasts_other": "番組"
+      }
+    },
+    "sort": {
+      "title": "タイトル",
+      "added": "最近追加",
+      "released": "公開年",
+      "vote": "評価",
+      "runtime": "再生時間",
+      "age": "年齢区分",
+      "played": "最近視聴",
+      "author": "著者"
+    },
+    "status": {
+      "unwatched": "未視聴",
+      "started": "視聴中",
+      "watched": "視聴済み",
+      "unheard": "未再生",
+      "heard": "再生済み"
+    },
+    "letters": {
+      "label": "頭文字",
+      "other": "数字・記号"
+    },
+    "filters": {
+      "genre": "ジャンル",
+      "allGenres": "すべてのジャンル",
+      "status": "ステータス",
+      "year": "年",
+      "yearFrom": "開始年",
+      "yearTo": "終了年",
+      "rating": "年齢区分",
+      "anyRating": "プロフィールの上限",
+      "upTo": "{{age}}まで"
+    },
+    "notFound": {
+      "title": "ライブラリが見つかりません",
+      "body": "このライブラリは存在しないか、このプロフィールで見られる作品がありません。"
+    }
+  },
+  "home": {
+    "list": {
+      "count_other": "{{count}}作品",
+      "empty": "この一覧に作品はありません。",
+      "notFound": {
+        "title": "リストが見つかりません",
+        "body": "このリストは現在ありません。スポットライトがオフになっている場合などです。"
+      }
+    },
+    "title": "ホーム",
+    "picks": "ユーザーのおすすめ",
+    "myMedia": {
+      "stations_other": "{{count}}局",
+      "discover": "ラジオ局を探す",
+      "collections_other": "{{count}}件のコレクション",
+      "titles_other": "{{count}}作品"
+    },
+    "rows": {
+      "continue": "続きを見る",
+      "recent": "最近追加",
+      "watchlist": "マイリスト",
+      "collections": "コレクション",
+      "genres": "ジャンル",
+      "spotlight": "スポットライト",
+      "released": "最新リリース",
+      "libraries": "マイメディア",
+      "library": "{{library}}の新着",
+      "radio": "マイラジオ局"
+    },
+    "remaining": "残り{{time}}",
+    "continue": {
+      "episode": "S{{season}} · E{{episode}}",
+      "episodeRange": "S{{season}} · E{{episode}}–E{{end}}",
+      "new": "新着"
+    },
+    "empty": {
+      "title": "まだ何もありません",
+      "body": "ライブラリのスキャンが終わると、ここに映画が表示されます。",
+      "action": "ライブラリを見る"
+    },
+    "spotlight": {
+      "row": "スポットライトの作品",
+      "pause": "一時停止",
+      "resume": "再開"
+    }
+  },
+  "ui": {
+    "carousel": {
+      "roledescription": "カルーセル",
+      "slide": "スライド",
+      "position": "{{index}} / {{count}}"
+    },
+    "row": {
+      "previous": "前へスクロール",
+      "next": "次へスクロール"
+    },
+    "adminPage": {
+      "help": "このページのヘルプ",
+      "live_other": "ライブ、{{count}}秒ごとに更新"
+    },
+    "actionMenu": {
+      "label": "{{name}}のその他の操作",
+      "danger": "危険な操作"
+    },
+    "rank": {
+      "label": "{{name}}の順位",
+      "option": "{{position}}位",
+      "hintMove": "ほかの項目は順に移動します。",
+      "hintSwap": "選んだ順位の項目とこの項目が入れ替わります。"
+    },
+    "rankedChoice": {
+      "hint": "別の順位にある項目を選ぶと、2つが入れ替わります。",
+      "swapped": "{{a}}と{{b}}の順位を入れ替えました。",
+      "remove": "{{rank}}（{{choice}}）を外す"
+    },
+    "saveBar": {
+      "dirty": "未保存の変更があります",
+      "clean": "保存済み",
+      "save": "保存",
+      "saving": "保存中…",
+      "discard": "破棄"
+    },
+    "unsaved": {
+      "title": "変更を保存せずにページを離れますか？",
+      "body": "このページにはまだ保存していない変更があります。ページを離れると、変更は失われます。",
+      "leave": "破棄して移動",
+      "stay": "このページに残る"
+    },
+    "weekdays": {
+      "short": {
+        "mon": "月",
+        "tue": "火",
+        "wed": "水",
+        "thu": "木",
+        "fri": "金",
+        "sat": "土",
+        "sun": "日"
+      },
+      "long": {
+        "mon": "月曜日",
+        "tue": "火曜日",
+        "wed": "水曜日",
+        "thu": "木曜日",
+        "fri": "金曜日",
+        "sat": "土曜日",
+        "sun": "日曜日"
+      }
+    },
+    "heatGrid": {
+      "day": "曜日",
+      "hour": "{{hour}}時",
+      "less": "少",
+      "more": "多",
+      "none": "なし",
+      "noneShown": "–"
+    }
+  },
+  "item": {
+    "editMetadata": "メタデータを編集",
+    "play": "再生",
+    "details": "詳細",
+    "watched": "{{percent}}%視聴済み",
+    "originalTitle": "原題：{{title}}",
+    "notFound": {
+      "title": "作品が見つかりません",
+      "body": "この作品は存在しないか、すでに削除されています。",
+      "action": "ホームへ"
+    },
+    "file": {
+      "title": "ファイル",
+      "container": "コンテナー",
+      "resolution": "解像度",
+      "video": "映像",
+      "audio": "音声",
+      "size": "サイズ",
+      "version": "バージョン",
+      "unavailable": "利用不可",
+      "none": "現在、この作品で利用できるファイルはありません。"
+    },
+    "manage": "管理",
+    "trailer": "予告編",
+    "seriesLink": "TV番組へ",
+    "parentLink": "メインの作品へ",
+    "nextEpisode": "次のエピソード",
+    "nextEpisodeLabel": "{{code}} · {{title}}",
+    "episodeCode": "S{{season}}E{{episode}}",
+    "episodeCodeRange": "S{{season}}E{{episode}}–E{{end}}",
+    "episodeNumberRange": "{{episode}}–{{end}}",
+    "episodeOf": "{{code}} · {{series}}",
+    "docTitle": {
+      "season": "{{title}} – {{series}}",
+      "episode": "{{code}} {{title}} – {{series}}",
+      "podcastEpisode": "{{title}} – {{podcast}}"
+    },
+    "versions": "バージョン",
+    "extras": "特典映像",
+    "cast": {
+      "title": "キャスト",
+      "role": {
+        "director": "監督",
+        "writer": "脚本",
+        "creator": "原案"
+      }
+    },
+    "seasons": "シーズン",
+    "seasonWall": {
+      "showAll": "全{{total}}シーズンを表示",
+      "showLess": "表示を減らす"
+    },
+    "episodes": {
+      "title": "エピソード",
+      "empty": "エピソードはありません。",
+      "play": "再生",
+      "details": "詳細：{{title}}",
+      "playTitle": "再生：{{title}}",
+      "resumeTitle": "続きを見る：{{title}}"
+    },
+    "resumeChoice": {
+      "bodyEpisode": "このエピソードは途中まで視聴済みです。",
+      "bodyPodcastEpisode": "このエピソードは途中まで再生済みです。",
+      "bodyMovie": "この映画は途中まで視聴済みです。",
+      "resume": "{{time}}から続きを見る",
+      "resumeListening": "{{time}}から続きを聴く",
+      "restart": "最初から再生"
+    },
+    "listened": "{{percent}}%再生済み",
+    "audio": {
+      "by": "著者：{{author}}",
+      "narratedBy": "ナレーター：{{narrator}}",
+      "volume": "{{series}} · 第{{volume, number}}巻",
+      "chapters": "チャプター",
+      "chapterPlay": "{{title}}を{{time}}から再生"
+    },
+    "podcast": {
+      "episodes": "エピソード",
+      "empty": "エピソードはありません。",
+      "link": "ポッドキャストへ",
+      "play": "{{title}}を再生"
+    },
+    "watchlist": {
+      "add": "マイリストに追加",
+      "added": "マイリストに追加済み"
+    },
+    "recommend": {
+      "add": "おすすめする",
+      "done": "おすすめ済み ✓",
+      "hint": "この作品を見られるすべてのプロフィールに、名前を出さずにおすすめします",
+      "added_other": "ユーザーのおすすめに追加しました。{{count}}日間表示されます。",
+      "removed": "おすすめを取り消しました。"
+    },
+    "logoAlt": "{{title}}",
+    "action": {
+      "resume": "再開",
+      "resumeListening": "続きを聴く",
+      "again": "もう一度見る",
+      "againListening": "もう一度聴く",
+      "resumeAt": "{{time}}から · 残り{{left}}",
+      "watchedOn": "{{date}}に視聴済み",
+      "listenedOn": "{{date}}に再生済み",
+      "restart": "最初から"
+    },
+    "nextUp": {
+      "start": "再生",
+      "resume": "続きを見る",
+      "next": "次のエピソード",
+      "rewatch": "もう一度見る",
+      "episode": "{{code}} · {{title}}",
+      "left": "{{episode}} · 残り{{left}}",
+      "rewatchFrom": "すべて視聴済み · {{episode}}から",
+      "markNext": "次に再生",
+      "markResume": "続きを見る"
+    },
+    "season": {
+      "episodes_other": "{{count}}話",
+      "watched": "{{count}}話視聴済み",
+      "progress": "{{total}}話中{{count}}話を視聴済み"
+    },
+    "collection": {
+      "showAll": "すべて表示",
+      "showAllLabel": "すべて表示：{{name}}"
+    }
+  },
+  "rating": {
+    "fsk": "FSK {{age}}"
+  },
+  "format": {
+    "hours": "{{hours}}時間",
+    "minutes": "{{minutes}}分",
+    "hoursMinutes": "{{hours}}時間{{minutes}}分",
+    "resolution": "{{width}} × {{height}}",
+    "resolutionWithClass": "{{resolution}} · {{class}}",
+    "uhd": "4K",
+    "fhd": "1080p",
+    "hd": "720p",
+    "sd": "SD",
+    "height": "{{height}}p",
+    "separator": " · ",
+    "seconds": "{{seconds}}秒",
+    "or": "または",
+    "listSeparator": "、",
+    "bookLength": "{{hours}}時間{{minutes}}分"
+  },
+  "player": {
+    "region": "ビデオプレーヤー",
+    "loading": "読み込み中…",
+    "busy": {
+      "title": "サーバーが混雑中",
+      "body": "まもなく再試行します…"
+    },
+    "play": "再生",
+    "pause": "一時停止",
+    "fullscreen": "全画面",
+    "exitFullscreen": "全画面を終了",
+    "back": "戻る",
+    "seek": "再生位置",
+    "time": "{{elapsed}} / {{total}}",
+    "volume": "音量 {{percent}}%",
+    "unsupported": {
+      "title": "この形式は再生できません",
+      "body": "このブラウザーはこの形式を再生できません。",
+      "details": "ファイル：{{container}}、映像{{video}}、音声{{audio}}"
+    },
+    "error": {
+      "title": "再生できません",
+      "body": "ファイルを読み込めませんでした。"
+    },
+    "switching": "切り替え中…",
+    "streamInfo": {
+      "title": "ストリーム情報",
+      "mode": "モード",
+      "modeDirect": "ダイレクト",
+      "modeHls": "HLS",
+      "transcoding": "変換",
+      "remux": "Remux",
+      "transcode": "トランスコード",
+      "reason": "理由",
+      "reasons": {
+        "container": "コンテナー",
+        "video_codec": "映像コーデック",
+        "audio_codec": "音声コーデック",
+        "hdr": "HDR映像",
+        "pixel_format": "ピクセル形式（10ビット、4:2:2または4:4:4）",
+        "keyframes_pending": "キーフレームインデックスが未作成",
+        "keyframes_unavailable": "キーフレームインデックスを作成できません",
+        "dolby_vision": "Dolby Vision（プロファイル5または7）",
+        "bandwidth": "帯域幅の上限",
+        "max_height": "画質の上限",
+        "quality": "選択した画質",
+        "audio_track": "選択した音声トラック",
+        "subtitle_burn": "焼き込み字幕",
+        "budget_lowered": "サーバー混雑のため画質を低下"
+      },
+      "mediaFile": "ファイルID",
+      "version": "バージョン",
+      "container": "コンテナー",
+      "video": "映像",
+      "audio": "音声",
+      "resolution": "解像度",
+      "none": "–",
+      "encoder": "エンコーダー",
+      "hardware": "ハードウェア（{{backend}}）",
+      "software": "ソフトウェア",
+      "tonemap": "トーンマッピング",
+      "yes": "はい",
+      "no": "いいえ",
+      "quality": "画質",
+      "original": "オリジナル",
+      "output": "出力",
+      "bitrate": "ビットレート",
+      "audioTrack": "音声トラック",
+      "subtitle": "字幕",
+      "delivery": "字幕の形式",
+      "deliveryText": "テキスト（WebVTT）",
+      "deliveryBurn": "焼き込み"
+    },
+    "tracks": {
+      "audio": "音声",
+      "subtitles": "字幕",
+      "off": "オフ",
+      "unknown": "トラック{{n}}",
+      "forced": "強制",
+      "external": "外部",
+      "rememberSeries": "このTV番組で記憶する",
+      "makeDefault": "このプロフィールの既定にする",
+      "isDefault": "{{language}}がこのプロフィールの既定です。",
+      "madeDefault": "{{language}}をこのプロフィールの既定にしました。",
+      "forcedBitmap": "強制字幕があります（焼き込み）"
+    },
+    "quality": {
+      "auto": "自動",
+      "autoWith": "自動（{{quality}}）",
+      "autoOriginal": "自動 · 現在はオリジナル",
+      "original": "オリジナル",
+      "detail": "{{bitrate}} · 1時間あたり約{{size}}",
+      "unavailableBurn": "字幕を焼き込みます",
+      "unavailableIndex": "インデックスが未作成",
+      "unavailableNoIndex": "インデックスを作成できません",
+      "unavailableTranscode": "変換した場合のみ再生可能",
+      "remembered": "記憶済み：{{quality}}",
+      "rememberedNote": "{{quality}}を超える作品は変換されます。",
+      "reset": "リセット"
+    },
+    "chapters": {
+      "button": "チャプター",
+      "untitled": "チャプター{{n}}",
+      "item": "{{title}} · {{time}}",
+      "auto": "自動",
+      "progress": "{{percent}}%視聴済み"
+    },
+    "skipIntro": "イントロをスキップ",
+    "skipOutro": "エンディングをスキップ",
+    "next": {
+      "title": "次のエピソード",
+      "countdown_other": "{{count}}秒後に再生",
+      "play": "今すぐ見る",
+      "cancel": "キャンセル",
+      "announce_other": "次のエピソード：{{name}}。{{count}}秒後に再生します。"
+    },
+    "watchLimit": {
+      "title": "今日の視聴時間は終了しました",
+      "body_other": "このプロフィールの視聴時間は1日{{count}}分までです。また明日お楽しみください。",
+      "bodyUnknown": "このプロフィールは1日の上限に達しました。また明日お楽しみください。",
+      "used_other": "今日の視聴：{{count}}分。"
+    },
+    "streamLimit": {
+      "title": "同時ストリーム数が多すぎます",
+      "body_other": "このプロフィールが同時に再生できるストリームは{{count}}件までです。ほかの再生を停止してから、もう一度お試しください。",
+      "bodyUnknown": "このプロフィールは、許可されている数のストリームをすでに再生しています。ほかの再生を停止してから、もう一度お試しください。",
+      "active_other": "{{count}}件のストリームを再生中です。"
+    },
+    "ended": {
+      "title": "再生終了",
+      "body": "再生が終了しました。"
+    },
+    "audioRegion": "オーディオプレーヤー",
+    "audio": {
+      "back15": "15秒戻る",
+      "forward30": "30秒進む",
+      "previousChapter": "前のチャプター",
+      "nextChapter": "次のチャプター",
+      "chapterLine": "{{title}} · {{position}} / {{length}}",
+      "rate": "{{rate}}×",
+      "rateOsd": "再生速度 {{rate}}",
+      "speedButton": "再生速度：{{rate}}",
+      "slower": "遅く",
+      "faster": "速く",
+      "minus": "−0.1",
+      "plus": "+0.1",
+      "sleep": {
+        "button": "スリープタイマー",
+        "buttonActive": "スリープタイマー：残り{{left}}",
+        "short": "スリープタイマー",
+        "off": "オフ",
+        "minutes_other": "{{count}}分",
+        "chapter": "チャプターの終わり",
+        "end": "作品の終わり",
+        "set": "スリープタイマー：{{label}}",
+        "cancelled": "スリープタイマーをオフにしました",
+        "done": "スリープタイマーが終了しました"
+      }
+    },
+    "volumeControl": {
+      "mute": "ミュート",
+      "slider": "音量",
+      "boosted": "音量 {{percent}}%、増幅中、音が歪む場合があります",
+      "percent": "{{percent}}%"
+    },
+    "option": {
+      "default": "既定",
+      "forced": "強制",
+      "sdh": "SDH",
+      "burnIn": "画像字幕、焼き込み",
+      "convert": "ストリームを再構築"
+    },
+    "subtitleStyle": {
+      "title": "字幕のスタイル",
+      "size": {
+        "title": "サイズ",
+        "s": "小",
+        "m": "中",
+        "l": "大",
+        "xl": "特大"
+      },
+      "background": {
+        "title": "背景",
+        "none": "なし",
+        "shadow": "影",
+        "translucent": "半透明",
+        "box": "ボックス"
+      },
+      "color": {
+        "title": "色",
+        "white": "白",
+        "yellow": "黄"
+      },
+      "position": {
+        "title": "位置",
+        "bottom": "下",
+        "raised": "少し上"
+      },
+      "offset": {
+        "title": "タイミング調整",
+        "earlier": "0.1秒早く",
+        "later": "0.1秒遅く",
+        "value": "{{seconds}}秒",
+        "reset": "リセット"
+      }
+    },
+    "settings": {
+      "title": "設定",
+      "quality": "画質",
+      "version": "バージョン",
+      "speed": "再生速度",
+      "subtitleStyle": "字幕のスタイル",
+      "sound": "サウンドオプション",
+      "nightMode": "ナイトモード",
+      "nightModeOn": "ナイトモード オン",
+      "nightModeHint": "小さい音を大きく、大きい音を小さく。夜遅くの視聴に。",
+      "rateValue": "{{rate}}×",
+      "streamInfo": "ストリーム情報",
+      "chapters": "チャプター",
+      "buttonWithQuality": "設定 · {{quality}}"
+    },
+    "panel": {
+      "audioButton": "音声：{{language}}",
+      "subtitleButton": "字幕：{{language}}",
+      "moreLanguages": "その他の言語（{{count}}）"
+    },
+    "chrome": {
+      "toolbar": "再生",
+      "previousChapter": "前のチャプター",
+      "nextChapter": "次のチャプター",
+      "nextEpisode": "次のエピソード",
+      "back10": "10秒戻る",
+      "forward30": "30秒進む",
+      "pictureInPicture": "ピクチャーインピクチャー",
+      "exitPictureInPicture": "ピクチャーインピクチャーを終了",
+      "help": "キーボードショートカット",
+      "timeElapsed": "{{elapsed}} / {{total}}",
+      "timeRemaining": "−{{remaining}} · {{end}}に終了",
+      "lineChapter": "{{title}} · {{chapter}}",
+      "episodeLine": "{{code}} · {{title}}",
+      "filmLine": "{{year}} · {{genres}}",
+      "rate": "再生速度 {{rate}}×",
+      "muted": "ミュート中",
+      "previousEpisode": "前のエピソード",
+      "forward10": "10秒進む",
+      "options": "オプション",
+      "view": "時間と表示",
+      "tapBack": "−{{seconds}}秒",
+      "tapForward": "+{{seconds}}秒"
+    },
+    "tabs": {
+      "label": "作品の詳細",
+      "next": "次に再生",
+      "info": "情報"
+    },
+    "pauseView": {
+      "label": "一時停止中",
+      "paused": "一時停止中",
+      "chapter": "チャプター：{{chapter}}"
+    },
+    "slow": {
+      "label": "接続が遅い",
+      "text": "接続が遅くなっています。{{quality}}に切り替えますか？",
+      "switch": "{{quality}}に切り替え",
+      "dismiss": "今はしない"
+    },
+    "help": {
+      "title": "キーボードショートカット",
+      "rows": {
+        "play": {
+          "keys": "Space, K, Enter",
+          "action": "再生または一時停止"
+        },
+        "seek": {
+          "keys": "← →",
+          "action": "10秒戻る／進む"
+        },
+        "chapter": {
+          "keys": "⇧← ⇧→",
+          "action": "前／次のチャプター"
+        },
+        "volume": {
+          "keys": "↑ ↓",
+          "action": "音量を上げる／下げる"
+        },
+        "zones": {
+          "keys": "↑ ↓（バー内）",
+          "action": "タイムライン、ボタン、タブの間を移動します。← →でボタン間、タブ間、カード間を移動します"
+        },
+        "mute": {
+          "keys": "M",
+          "action": "ミュート／ミュート解除"
+        },
+        "jump": {
+          "keys": "0–9",
+          "action": "0〜90%の位置へジャンプ"
+        },
+        "speed": {
+          "keys": "[ ]",
+          "action": "遅く／速く（0.5×〜2×）"
+        },
+        "tracks": {
+          "keys": "T",
+          "action": "音声"
+        },
+        "subtitles": {
+          "keys": "U",
+          "action": "字幕"
+        },
+        "chapters": {
+          "keys": "C",
+          "action": "チャプタータブ"
+        },
+        "quality": {
+          "keys": "Q",
+          "action": "画質"
+        },
+        "fullscreen": {
+          "keys": "F",
+          "action": "全画面"
+        },
+        "info": {
+          "keys": "I",
+          "action": "ストリーム情報"
+        },
+        "skip": {
+          "keys": "S",
+          "action": "イントロをスキップ"
+        },
+        "next": {
+          "keys": "N",
+          "action": "次のエピソード"
+        },
+        "help": {
+          "keys": "?",
+          "action": "このヘルプ"
+        },
+        "back": {
+          "keys": "Escape, Backspace",
+          "action": "パネル、ヘルプ、ストリーム情報を閉じます（歯車メニュー内では1つ上の階層へ）。それ以外の場合は詳細ページに戻ります",
+          "actionOfflineDownloads": "パネル、ヘルプ、タブを閉じます（歯車メニュー内では1つ上の階層へ）。それ以外の場合はダウンロードに戻ります",
+          "actionOfflineLibrary": "パネル、ヘルプ、タブを閉じます（歯車メニュー内では1つ上の階層へ）。それ以外の場合はオフラインライブラリに戻ります"
+        }
+      }
+    }
+  },
+  "admin": {
+    "radio": {
+      "title": "ラジオ",
+      "intro": "ラジオ局のカタログ、実行中の中継、インターネットラジオの設定です。ラジオ局から見えるのはデバイスではなくSlouchcatサーバーなので、サーバーの所在地が基準になります。Slouchcatは、このインストールでログインしているプロフィールにのみ音声を中継します。それがラジオ局にとって許されるかどうかは、インストールの運営者の責任です。",
+      "strip": {
+        "label": "概要",
+        "catalog": "カタログ内",
+        "catalogNote_other": "{{count}}件の項目から",
+        "reachable": "接続可能",
+        "reachableNote": "カタログの項目のうち",
+        "live": "現在ライブ",
+        "liveValue": "{{relays}} · {{listeners}}",
+        "liveNote": "局 · リスナー",
+        "offer": "ラインナップ",
+        "offerValue": "{{stations}} · {{countries}}",
+        "offerNote": "局 · 国"
+      },
+      "memory": {
+        "title": "RAMバッファーなし",
+        "body": "RAMバッファーがないため、ラジオはタイムシフトなしのライブでのみ再生されます。バッファーを使うには、コンテナーにComposeファイルのtmpfsが必要です。"
+      },
+      "tabs": {
+        "label": "セクション",
+        "overview": "概要",
+        "stations": "ラジオ局",
+        "settings": "設定",
+        "own": "独自のラジオ局",
+        "offer": "ラインナップ"
+      },
+      "catalog": {
+        "title": "カタログ",
+        "source": "ソース",
+        "sourceValue": "Radio Browser (radio-browser.info)",
+        "lastSync": "前回の同期",
+        "never": "未実行",
+        "lastSyncValue": "{{date}}：{{entries}}件、接続可能{{reachable}}件、新規{{added}}件、削除{{removed}}件",
+        "stations": "統合後のラジオ局",
+        "error": "前回の同期のエラー",
+        "failures_other": "{{count}}回連続で失敗",
+        "nextRun": "次回の実行",
+        "notPlanned": "予定なし",
+        "running": "同期が待機中または実行中です。",
+        "sync": "今すぐ同期",
+        "syncQueued": "同期を待機列に追加しました。",
+        "jobs": "バックグラウンドジョブへ"
+      },
+      "relays": {
+        "title": "ライブ中継",
+        "empty": "実行中の中継はありません。",
+        "transcoded": "変換",
+        "copied": "再パッケージ",
+        "buffer": "バッファー{{time}}",
+        "since": "{{time}}から",
+        "listeners": "リスナー",
+        "noListeners": "リスナーがいなくなりました。少しの間実行を続けます。",
+        "paused": "一時停止中",
+        "playing": "再生中",
+        "state": {
+          "connecting": "接続中",
+          "live": "ライブ",
+          "reconnecting": "再接続中",
+          "ending": "終了中",
+          "failed": "中継エラー"
+        },
+        "stop": {
+          "label": "{{profile}}の再生を停止",
+          "action": "停止",
+          "title": "{{profile}}の再生を停止しますか？",
+          "body": "このプロフィールで再生中の{{station}}はすぐに停止します。",
+          "confirm": "停止"
+        },
+        "stopped": "{{profile}}の再生を停止しました。"
+      },
+      "load": {
+        "title": "サーバー負荷",
+        "relays": "ラジオ局",
+        "relaysValue": "{{count}} / {{max}}",
+        "upload": "アップロード",
+        "buffer": "バッファー",
+        "bufferValue": "{{used}} / {{budget}}"
+      },
+      "stations": {
+        "caption": "ラジオ局",
+        "search": "ラジオ局を検索",
+        "country": "国",
+        "state": "状態",
+        "allCountries": "すべての国",
+        "anyState": "すべて",
+        "states": {
+          "reachable": "接続可能",
+          "broken": "接続不可",
+          "noLogo": "ロゴなし"
+        },
+        "columns": {
+          "station": "ラジオ局",
+          "place": "国",
+          "genres": "ジャンル",
+          "state": "状態",
+          "marks": "例外",
+          "actions": "操作",
+          "provider": "運営元"
+        },
+        "stateText": {
+          "ok": "接続可能",
+          "broken": "接続不可",
+          "missing": "カタログから削除済み"
+        },
+        "locked_other": "{{count}}項目を手動設定",
+        "recommended": "おすすめ",
+        "edit": "編集",
+        "editLabel": "{{name}}を編集",
+        "empty": "ラジオ局が見つかりません。",
+        "count_other": "{{count}}局",
+        "provider": "運営元",
+        "providerFilter": "運営元{{provider}}で絞り込む",
+        "sort": "並べ替え",
+        "sorts": {
+          "popularity": "人気順",
+          "name": "名前（A–Z）"
+        },
+        "wholeCatalog": "カタログ全体を表示",
+        "removeUnreachable_other": "接続不可の局を外す（{{n}}）",
+        "removeUnreachableHelp": "現在接続できないラジオ局をすべてラインナップから外します。お気に入りと独自のラジオ局は除きます。外した局は自動では戻りません。",
+        "removedUnreachable_other": "接続できない{{count}}局をラインナップから外しました。",
+        "undo": "元に戻す",
+        "undone": "ラジオ局をラインナップに戻しました。",
+        "takeOut": "ラインナップから外す",
+        "takeOutLabel": "{{name}}をラインナップから外す",
+        "takeIn": "ラインナップに追加",
+        "takeInLabel": "{{name}}をラインナップに追加",
+        "takenOut": "{{name}}をラインナップから外しました。",
+        "takenIn": "{{name}}をラインナップに追加しました。",
+        "streamsEmpty": "ストリームはありません。",
+        "streamPreferred": "優先",
+        "streamUnreachable": "接続不可",
+        "streamHls": "HLS",
+        "providerHelp": "正確なドメイン（例：srg-ssr.ch）。",
+        "details": {
+          "action": "詳細",
+          "label": "{{name}}の詳細",
+          "title": "{{name}}の詳細",
+          "source": "出典：{{source}}",
+          "fields": {
+            "name": "名前",
+            "country": "国",
+            "region": "地域",
+            "languages": "言語",
+            "homepage": "ウェブサイト",
+            "logo": "ロゴ",
+            "provider": "運営元",
+            "owner": "所有者",
+            "founded": "設立",
+            "wikidataId": "Wikidata ID"
+          },
+          "sources": {
+            "catalog": "カタログ（Radio Browser）",
+            "own": "独自のラジオ局",
+            "admin": "手動設定",
+            "stream": "ストリーム",
+            "website": "ラジオ局のウェブサイト",
+            "wikidata": "Wikidata"
+          },
+          "logoPresent": "あり",
+          "noWikidata": "Wikidataにはこのラジオ局と一致する項目が特定できません。所有者と設立の情報はありません。",
+          "wikidataOfferOnly": "Wikidataが情報を補完するのは、ラインナップにあるラジオ局のみです。",
+          "streams": "ストリーム",
+          "close": "閉じる"
+        }
+      },
+      "settings": {
+        "title": "設定",
+        "buffer": "タイムシフト",
+        "bufferHelp": "リスナーがどこまで巻き戻せるかを指定します。予算が同じ場合、60分にするとラジオ局の数は半分になります。",
+        "minutes_other": "{{count}}分",
+        "newRelays": "これから開始する中継に適用されます。",
+        "budget": "バッファーの予算（MB）",
+        "budgetHelp": "すべてのバッファーの合計メモリ。",
+        "maxRelays": "ラジオ局の最大数",
+        "maxRelaysHelp_other": "現在のタイムシフトでは、予算内で{{count}}局まで中継できます。",
+        "grace": "リスナー不在時の継続時間（秒）",
+        "graceHelp": "最後のリスナーがいなくなった後、中継を続ける時間です。",
+        "rights": "ラジオ局から見えるのはデバイスではなくSlouchcatサーバーなので、サーバーの所在地が基準になります。Slouchcatは、このインストールでログインしているプロフィールにのみ音声を中継します。それがラジオ局にとって許されるかどうかは、インストールの運営者の責任です。",
+        "saved": "設定を保存しました。",
+        "coverMusicbrainz": "MusicBrainzでカバーを検索",
+        "coverMusicbrainzHelp": "再生中の曲のカバーをMusicBrainzとCover Art Archiveで検索します。検索するのは再生中のラジオ局で曲が変わったときのみで、最大で1秒に1回です。",
+        "coverItunes": "iTunesでカバーを検索",
+        "coverItunesHelp": "MusicBrainzで見つからない場合にiTunes検索を使います。最大で1分に20回です。ラジオ局自体が送る画像は常に優先されます。",
+        "wikidata": "Wikidataを使用",
+        "wikidataHelp": "週に1回、ラインナップのラジオ局にWikidataの所有者と設立年を追加します。所有者は運営元として扱われます。オフにすると、サーバーはこれらの情報をすぐに破棄します。"
+      },
+      "editor": {
+        "close": "閉じる",
+        "name": "名前",
+        "logo": "ロゴ",
+        "logoUpload": "独自のロゴをアップロード",
+        "logoReset": "カタログまたはウェブサイトのロゴに戻す",
+        "logoTooLarge": "ファイルが20MBを超えています。",
+        "logoState": {
+          "none": "未検索",
+          "queued": "検索中",
+          "catalog": "カタログから取得",
+          "website": "ウェブサイトから取得",
+          "own": "独自のロゴ",
+          "failed": "ロゴが見つからないため頭文字を表示"
+        },
+        "region": "地域",
+        "regionHelp": "ISOコード（例：CH-ZH）。空欄の場合は地域なし。",
+        "stream": "ストリーム",
+        "streamAuto": "自動（最適なストリーム）",
+        "unreachable": "接続不可",
+        "probe": "ストリームを確認",
+        "probeResult": "{{codec}}、{{bitrate}} kbit/s、{{sampleRate}} Hz、{{channels}}チャンネル、応答まで{{ms}} ms",
+        "probeTitles": "曲情報：あり",
+        "probeNoTitles": "曲情報：なし",
+        "probeTitle": "再生中の曲：{{title}}",
+        "recommended": "おすすめ",
+        "recommendedHelp": "その国の一覧で上位に表示されます（並べ替え「人気順」）。",
+        "tags": "カタログのタグ",
+        "lock": "{{field}}をロック",
+        "locked": "ロック中",
+        "free": "ロックなし",
+        "lockHelp": "ロック中の項目は、毎日の同期で上書きされません。",
+        "save": "保存",
+        "saved": "{{name}}を保存しました。"
+      },
+      "own": {
+        "title": "独自のラジオ局",
+        "help": "カタログにないラジオ局（地域ラジオやスタジアムラジオなど）です。同期で変更されることはありません。",
+        "add": "独自のラジオ局を追加",
+        "empty": "独自のラジオ局はまだありません。",
+        "created": "{{name}}を追加しました。",
+        "deleted": "{{name}}を削除しました。",
+        "delete": "削除",
+        "deleteLabel": "{{name}}を削除",
+        "deleteTitle": "{{name}}を削除しますか？",
+        "deleteBody": "このラジオ局はすべてのプロフィールから、「マイラジオ局」からも削除されます。現在聴いているリスナーの接続は切断されます。",
+        "editorHelp": "独自のラジオ局：ストリームのアドレス、ウェブサイト、国、言語をここで変更できます。",
+        "columns": {
+          "stream": "ストリームのアドレス"
+        },
+        "fields": {
+          "name": "名前",
+          "streamUrl": "ストリームのアドレス",
+          "streamUrlHelp": "直接のアドレスまたはプレイリスト（.pls、.m3u）。サーバーが解決します。ローカルネットワーク内のアドレスは使用できません。",
+          "homepage": "ウェブサイト",
+          "homepageHelp": "任意。サーバーはここからロゴを取得します。",
+          "country": "国",
+          "countryHelp": "ISOコード（例：CH）。空欄の場合は国なし。",
+          "languages": "言語",
+          "languagesHelp": "ISOコードをカンマ区切りで入力（例：de, fr）。",
+          "none": "なし"
+        },
+        "create": {
+          "title": "独自のラジオ局を追加",
+          "description": "カタログにないラジオ局です。ほかのラジオ局と同じように絞り込めます。",
+          "submit": "追加"
+        }
+      },
+      "empty": {
+        "title": "ラインナップにラジオ局がまだありません",
+        "body": "「ラインナップ」タブで国を選んで適用するまで、ラジオのページにラジオ局は表示されません。",
+        "action": "ラインナップへ"
+      },
+      "offerFacts": {
+        "title": "ラインナップ",
+        "open": "ラインナップを編集",
+        "countries": "選択した国",
+        "stations": "ラインナップのラジオ局",
+        "unreachable": "うち接続不可",
+        "withLogo": "ロゴあり"
+      },
+      "offer": {
+        "countries": {
+          "title": "国",
+          "note_other": "{{total}}か国中{{chosen}}か国を選択"
+        },
+        "search": "国を検索",
+        "searchHelp": "国名または国コード（例：スイス、CH）。",
+        "noHits": "国が見つかりません。",
+        "hits_other": "{{count}}件",
+        "hitsCaption": "見つかった国",
+        "continents": {
+          "label": "大陸別のすべての国。大陸を押すとその国が表示され、もう一度押すかEscapeで閉じます。",
+          "heading": "大陸別"
+        },
+        "continent": {
+          "europe": "ヨーロッパ",
+          "northAmerica": "北米・中米",
+          "southAmerica": "南米",
+          "asia": "アジア",
+          "africa": "アフリカ",
+          "oceania": "オセアニア"
+        },
+        "continentCountries_other": "{{count}}か国",
+        "continentStations_other": "{{n}}局",
+        "continentChosen_other": "{{count}}か国を選択",
+        "countryCaption": "{{continent}}の国",
+        "chooseAll": "すべて選択",
+        "removeAll": "すべて解除",
+        "chooseCountry": "{{country}}を選択",
+        "columns": {
+          "choose": "選択",
+          "tick": "ラインナップ",
+          "country": "国",
+          "stations": "ラジオ局",
+          "actions": "操作"
+        },
+        "chosen": {
+          "title": "選択した国",
+          "empty": "国はまだ選択されていません。上で国を検索するか、大陸を開いてください。",
+          "count": "{{total}}局中{{offered}}局",
+          "open": "ラジオ局を選択",
+          "close": "ラジオ局を閉じる",
+          "openLabel": "{{country}}のラジオ局を選択",
+          "closeLabel": "{{country}}のラジオ局を閉じる",
+          "remove": "国を外す",
+          "removeLabel": "{{country}}を外す"
+        },
+        "stations": {
+          "title": "{{country}}のラジオ局",
+          "count": "{{total}}局中{{offered}}局がラインナップに含まれています",
+          "modeAll": "マークを外した局を除き、この国のすべてのラジオ局がラインナップに含まれます。この国の新しいラジオ局は自動的に追加されます。",
+          "modeMarked": "マークした局のみがラインナップに含まれます。この国の新しいラジオ局は自動的には追加されません。",
+          "search": "ラジオ局を検索",
+          "markAll": "すべてマーク",
+          "demarkAll": "すべてのマークを外す",
+          "markShown_other": "表示中の局をマーク（{{count}}）",
+          "demarkShown_other": "表示中の局のマークを外す（{{count}}）",
+          "mark": "{{name}}をラインナップに含める",
+          "broken": "接続不可",
+          "empty": "ラジオ局が見つかりません。"
+        },
+        "summary": {
+          "title": "ラインナップ",
+          "offered": "ラインナップのラジオ局",
+          "unreachable": "うち接続不可",
+          "countries": "選択した国",
+          "marked": "マークしたラジオ局",
+          "hideBroken": "接続できない局を除外",
+          "hideBrokenHelp": "接続できないラジオ局はアプリの一覧に表示されません。再び応答すると表示されます。お気に入りに登録した局は残ります。"
+        },
+        "bar": {
+          "label": "ラインナップを適用",
+          "clean": "ラインナップに変更はありません。",
+          "same": "選択は変わりますが、ラジオ局の数は変わりません。",
+          "added_other": "{{n}}局が追加されます。",
+          "removed_other": "{{n}}局が外れます。",
+          "conflict": "その間にラインナップが変更されました。プレビューを再計算したので、確認してもう一度適用してください。",
+          "applied": "適用しました。ラジオのページにはすぐに新しいラインナップが表示されます。ロゴなどの情報は、サーバーがバックグラウンドで読み込みます。",
+          "discard": "破棄",
+          "apply": "適用",
+          "applying": "適用中…",
+          "computing": "プレビューを計算中…",
+          "previewFailed": "プレビューを計算できませんでした。"
+        },
+        "limit": "下書きの変更が上限の{{max}}ステップに達しました。続けて変更する前に、適用するか破棄してください。"
+      }
+    },
+    "editor": {
+      "close": "閉じる",
+      "openAdmin": "管理画面で開く",
+      "discard": {
+        "title": "保存していない変更を破棄しますか？",
+        "body": "メタデータの変更はまだ保存されていません。エディターを閉じると、変更は失われます。",
+        "confirm": "破棄して閉じる",
+        "cancel": "編集を続ける"
+      },
+      "subtitle": "{{kind}} · {{library}}",
+      "notFound": "この作品は存在しないか、すでに削除されています。",
+      "tabs": {
+        "label": "エディターのセクション",
+        "images": "画像",
+        "cover": "カバー",
+        "metadata": "メタデータ",
+        "match": "照合",
+        "refresh": "更新"
+      },
+      "images": {
+        "kinds": "画像の種類",
+        "kindName": {
+          "still": "エピソード画像",
+          "cover": "カバー"
+        },
+        "state": {
+          "auto": "自動 · {{provider}}",
+          "locked": "選択済み · ロック中",
+          "missing": "なし"
+        },
+        "kindState": "{{kind}}、{{state}}",
+        "current": "現在：{{source}}",
+        "currentNone": "現在：画像なし",
+        "own": "独自の画像",
+        "embedded": "埋め込み画像",
+        "upload": {
+          "action": "独自の画像をアップロード",
+          "hint": "20MBまでのJPEG、PNG、WebP。サイズはサーバーが自動で生成します。アップロードした画像が再取得されることはありません。",
+          "done": "{{kind}}：独自の画像をアップロードしてロックしました。",
+          "failed": "アップロードに失敗しました",
+          "error": {
+            "tooLarge": "ファイルが20MBを超えています。",
+            "format": "JPEG、PNG、WebPの画像ではないか、ファイルが破損しています。",
+            "pixels": "画像が50メガピクセルを超えています。",
+            "missing": "ファイルが届きませんでした。もう一度選択してください。",
+            "kind": "この作品では、この種類の画像はアップロードできません。"
+          }
+        },
+        "automatic": "自動に戻す",
+        "candidates": "プロバイダーの候補",
+        "candidatesBook": "フォルダー内とファイル内の画像",
+        "filter": {
+          "provider": "プロバイダー",
+          "lang": "言語",
+          "all": "すべて"
+        },
+        "count_other": "{{count}}枚の画像",
+        "chooseHint": "クリックで画像を選択します。すぐに適用され、自動に戻すまでロックされます。",
+        "stillsOff": "このライブラリではエピソード画像がオフになっています。管理画面の「メタデータ」でオンにできます。",
+        "stillsOffLink": "メタデータの設定へ",
+        "noKinds": "この作品には画像の種類がありません。"
+      },
+      "metadata": {
+        "intro": "ここで変更した項目はロックされ、「更新」で上書きされなくなります。鍵アイコンでロックを解除できます。",
+        "lang": "テキストは{{language}}に適用されます。ほかの言語は引き続きサーバーがプロバイダーから取得します。",
+        "langBook": "テキストはこの本のすべての言語に適用されます。",
+        "field": {
+          "title": "タイトル",
+          "originalTitle": "原題",
+          "sortTitle": "並べ替え用タイトル",
+          "year": "年",
+          "releaseDate": "公開日",
+          "tagline": "キャッチコピー",
+          "subtitle": "サブタイトル",
+          "overview": "あらすじ",
+          "genres": "ジャンル",
+          "rating": "年齢区分",
+          "language": "オリジナル言語",
+          "author": "著者",
+          "narrator": "ナレーター",
+          "seriesName": "シリーズ",
+          "seriesIndex": "巻",
+          "publisher": "出版社",
+          "isbn": "ISBN",
+          "asin": "ASIN"
+        },
+        "source": "{{provider}}から取得",
+        "fromFiles": "ファイルから取得",
+        "manual": "手動設定",
+        "lock": {
+          "label": "{{field}}をロック",
+          "locked": "ロック中",
+          "free": "ロックなし"
+        },
+        "genreAdd": "ジャンルを追加",
+        "genreAddAction": "追加",
+        "genreRemove": "{{genre}}を外す",
+        "genresNone": "ジャンルはありません。",
+        "discard": "破棄",
+        "saved": "メタデータを保存しました。",
+        "unchanged": "変更はありません。"
+      },
+      "match": {
+        "intro": "検索して候補を選択してください。サーバーが照合結果を保存し、作品を再読み込みします。",
+        "notMatchable": "シーズンとエピソードは、サーバーがTV番組を通じて照合します。"
+      },
+      "refresh": {
+        "body": "「今すぐ更新」を押すと、ロックされていない項目と自動で選ばれた画像がすべて再読み込みされます。ロック中の項目と選択済みの画像はそのまま残ります。",
+        "options": "更新の前に",
+        "unlockAll": "先にこの作品のロックをすべて解除する",
+        "unlockAllHint": "解除後は、プロバイダーの情報が再び適用されます。手動の照合と独自の年齢区分はそのまま残ります。",
+        "run": "今すぐ更新",
+        "hint": "優先度の高いジョブとして実行され、完了すると新しい値が表示されます。",
+        "book": {
+          "body": "先にロックを解除しない限り、ロック中の項目と選択済みのカバーはそのまま残ります。",
+          "unlockAll": "ロックもすべて解除する",
+          "unlockAllHint": "先にこの本のロックをすべて解除します。「照合」でソースから取り込んだ項目のロックも含みます。解除後は、ファイルとプロバイダーの情報が再び適用されます。照合そのものと独自の年齢区分はそのまま残ります。",
+          "run": "再読み込み",
+          "filesTitle": "ファイルから再読み込み",
+          "filesHint": "metadata.json、タグ、フォルダー名をもう一度読み込みます。",
+          "providerTitle": "プロバイダーから再取得",
+          "providerHint": "{{source}}から情報をもう一度取得します。",
+          "providerNone": "先に「照合」で候補を選択してください。",
+          "providerRun": "再取得",
+          "refetched": "{{source}}から情報を再取得しています。"
+        }
+      },
+      "bookMatch": {
+        "intro": "タイトルと著者、またはASINやISBNでソースを検索し、候補を選択してください。どの項目を取り込むかは、項目ごとに決められます。",
+        "noSources": "この本のフォルダーには、セットアップ済みの書籍ソースがありません。フォルダーのソースはそのライブラリで設定します。",
+        "matched": "照合済み：{{source}}",
+        "unmatched": "未照合：ファイルの情報のみ",
+        "source": "ソース",
+        "audible": {
+          "de": "Audible ドイツ",
+          "com": "Audible USA",
+          "couk": "Audible イギリス",
+          "other": "Audible ({{domain}})"
+        },
+        "title": "タイトル",
+        "author": "著者",
+        "asin": "ASIN",
+        "isbn": "ISBN",
+        "idHint": "ASINまたはISBNを入力すると、ソースはそのIDで検索します。",
+        "needQuery": "タイトル、ASIN、ISBNのいずれかを入力してください。",
+        "asinInvalid": "ASINは10文字の英数字です。",
+        "isbnInvalid": "ISBNは10桁または13桁の数字です。ハイフンも使用できます。",
+        "sorted": "一致度順：長さの一致、タイトル、著者の順に並べています。",
+        "filesLength": "ファイルの長さ：{{length}}",
+        "lengthUnknown": "長さ不明",
+        "lengthFits": "{{length}}、一致",
+        "people": "{{authors}} · ナレーター：{{narrators}}",
+        "asinId": "ASIN {{id}}",
+        "isbnId": "ISBN {{id}}",
+        "choose": "{{title}}（{{length}}）を選択",
+        "preview": {
+          "title": "取り込む内容",
+          "entry": "{{source}}の{{title}}",
+          "caption": "{{source}}の項目（現在と新規）",
+          "field": "項目",
+          "today": "現在",
+          "new": "新規",
+          "take": "取り込む",
+          "takeLabel": "{{field}}を取り込む",
+          "locked": "ロック中",
+          "noValue": "ソースに値がありません",
+          "empty": "–",
+          "cover": "ソースのカバー",
+          "coverToday": "あり",
+          "hint": "取り込んだ項目はロックされます。ロック中の項目はそのまま残ります。照合結果は、後で行う「プロバイダーから再取得」にも適用されます。",
+          "same": "ソースには現在と異なる情報がありません。",
+          "apply_other": "{{count}}項目を取り込む",
+          "assignOnly": "照合のみ",
+          "applied_other": "{{source}}から{{count}}項目を取り込み、ロックしました。",
+          "assigned": "{{source}}と照合しました。取り込んだ項目はありません。"
+        }
+      }
+    },
+    "libraries": {
+      "title": "ライブラリ",
+      "intro": "Slouchcatが監視するフォルダーと、そのスキャンの状況です。",
+      "empty": "ライブラリはまだありません。",
+      "tabs": {
+        "label": "種類別のライブラリ",
+        "all": "すべて",
+        "count_other": "{{count}}件のライブラリ",
+        "empty": "この種類のライブラリはありません。",
+        "caption": "ライブラリ：{{tab}}"
+      },
+      "columns": {
+        "library": "ライブラリ",
+        "kind": "種類",
+        "state": "状態",
+        "counts": "作品 · ファイル",
+        "folders": "フォルダー",
+        "metadata": "メタデータ"
+      },
+      "none": "–",
+      "noMetadata": "メタデータの適用範囲なし",
+      "roots": "フォルダー",
+      "fsType": "ファイルシステム {{type}}",
+      "watch": {
+        "inotify": "変更はすぐに検出されます",
+        "poll": "変更は定期的に確認されます",
+        "inotify_poll": "すぐに検出され、定期的にも確認されます"
+      },
+      "warning": {
+        "network_share": "ネットワーク共有"
+      },
+      "state": {
+        "never": "未スキャン",
+        "queued": "スキャン待ち",
+        "running": "スキャン中",
+        "done": "最新",
+        "failed": "スキャン失敗",
+        "aborted": "スキャン停止"
+      },
+      "counts": "作品：{{items}} · ファイル：{{files}}",
+      "progress": "{{total}}ファイル中{{seen}}ファイル",
+      "finishedAt": "前回のスキャン：{{date}}",
+      "keyframes": {
+        "summary": "キーフレームインデックス：{{videoFiles}}本の動画ファイル中{{indexed}}本 · 保留{{pending}}本 · 作成不可{{unavailable}}本",
+        "complete": "キーフレームインデックス完成",
+        "backfill": "「バックグラウンドジョブ」ページで後から作成"
+      },
+      "error": {
+        "root_missing": "フォルダーが見つかりません。ドライブはマウントされていますか？何も削除されていません。",
+        "root_empty": "フォルダーが空です。何も削除されていません。",
+        "loss_over_threshold": "20%を超えるファイルが見つかりません。安全のため、何も削除していません。",
+        "other": "前回のエラー：{{message}}",
+        "cancelled": "スキャンはキャンセルされました。次回のスキャンは通常どおり実行されます。"
+      },
+      "rescan": "再スキャン",
+      "acceptLoss": {
+        "action": "欠落を承認",
+        "title": "見つからないファイルを削除しますか？",
+        "body": "次回のスキャンで、見つからない作品がライブラリから削除されます。これらの作品の視聴状況は失われます。ファイルを意図的に削除した場合にのみ実行してください。",
+        "confirm": "削除してスキャン"
+      },
+      "add": {
+        "title": "ライブラリを追加",
+        "submitting": "追加中…",
+        "created": "ライブラリ「{{name}}」を追加しました。",
+        "draft": {
+          "band": "新しいライブラリの下書きはまだ保存されていません。",
+          "continue": "編集を続ける",
+          "discard": "下書きを破棄",
+          "discarded": "新しいライブラリの下書きを破棄しました。",
+          "question": {
+            "title": "下書きを残しますか、破棄しますか？",
+            "body": "新しいライブラリの作成を始めています。下書きを残すと、ページ上のバナーから編集を続けられます。",
+            "keep": "下書きを残す",
+            "discard": "下書きを破棄"
+          }
+        }
+      },
+      "cancel": "スキャンをキャンセル",
+      "scanStarted": "{{name}}のスキャンを開始しました。",
+      "scanCancelled": "{{name}}のスキャンをキャンセルしました。",
+      "scanFailed": "{{name}}のスキャンに失敗しました。",
+      "scanAborted": "{{name}}のスキャンが停止しました。",
+      "defaultRating": "既定：{{rating}}",
+      "noRoots": "フォルダーなし：作品は登録したフィードから取得されます。",
+      "feedsOnly": "フィードの作品",
+      "changeRating": {
+        "action": "既定の区分を変更",
+        "title": "{{name}}の既定の区分",
+        "description": "ライブラリの区分を使っている作品にはすぐに反映されます。手動で設定した区分はそのまま残ります。",
+        "submit": "保存",
+        "saved": "{{name}}の既定の区分を{{rating}}にしました。"
+      },
+      "folders": {
+        "title": "{{name}}のフォルダー",
+        "description": "1つのライブラリに複数のフォルダーを登録できます。新しいフォルダーはすぐにスキャンと監視の対象になります。",
+        "none": "このライブラリにはフォルダーがありません。フォルダーを追加するまで、何もスキャンされません。",
+        "content": "作品：{{items}} · ファイル：{{files}}",
+        "remove": {
+          "action": "外す",
+          "label": "フォルダー{{path}}を外す",
+          "title": "このフォルダーを外しますか？",
+          "inputLabel": "確認のためパスを入力",
+          "mismatch": "{{path}}を正確に入力すると、ボタンが有効になります。",
+          "confirm": "フォルダーを外す",
+          "lead_other": "ライブラリ「{{name}}」から<path>{{path}}</path>を外します。これにより、最大{{count}}作品がすべての一覧から消えます。その影響は次のとおりです：",
+          "soft": "作品はソフト削除されます。すべての一覧から消えますが、視聴状況、マイリスト、おすすめは作品に紐付いたまま残ります。このライブラリの別のフォルダーにファイルがある作品は、引き続き表示されます。",
+          "downloads": "オフラインのダウンロードは完全に削除されます。これらの作品を保存しているデバイスでは、次回の同期時にパッケージが削除されます。",
+          "playback": "このフォルダーから再生中のものは、途中で中断されます。",
+          "webhooks": "以後、RadarrとSonarrのパス変換表はこのパスに対して無効になり、関連する通知は拒否されます。",
+          "relink": "後で作品が再び追加された場合は、別のフォルダー経由でも、SlouchcatがTMDB、TVDB、IMDbのIDで作品を見つけ、視聴状況とリストを引き継ぎます。フォルダーを移動するだけなら、「外す」ではなく「パスを変更」を使ってください。",
+          "oneWay": "フォルダーが許可されたフォルダー（SLOUCHCAT_BROWSE_ROOTS）の外にある場合、設定を変更しない限り再追加はできません。",
+          "last": "これは最後のフォルダーです。{{name}}は残りますが、フォルダーがなくなるため何もスキャンされません。"
+        },
+        "new": "新しいフォルダー",
+        "change": {
+          "action": "変更",
+          "label": "フォルダー{{path}}を変更",
+          "title": "フォルダーを変更",
+          "description": "{{path}}のコンテンツとメタデータソース。",
+          "submit": "保存",
+          "identifier": "識別に使うソースが変わります。シーズンとエピソードのテキストは{{provider}}に従って再び割り当てられます。エピソード自体は残り、視聴状況とマイリストも引き継がれます。",
+          "fillers": "補完に使うソースだけが変わります。作品の情報が再び補完され、何も削除されません。",
+          "content": "コンテンツが変わります。これはフォルダーを外して再追加するのと同じです。このフォルダーの作品はソフト削除されて作り直され、オフラインパッケージは削除されます。視聴状況とマイリストは古い作品に残ります。",
+          "confirmTitle": "コンテンツを変更しますか？",
+          "confirm": "コンテンツを変更",
+          "saved": "フォルダー{{path}}を変更しました。"
+        },
+        "move": {
+          "action": "パスを変更",
+          "label": "{{path}}のパスを変更",
+          "title": "パスを変更しますか？",
+          "body": "現在のパス：{{old}} · 新しいパス：{{new}}。ファイルが同じ名前で置かれていれば、作品とユーザーデータはそのまま残ります。その後、フォルダーが再読み込みされます。",
+          "confirm": "変更",
+          "saved": "フォルダーを{{path}}に変更し、再読み込みしています。"
+        },
+        "readOnly": "読み取り専用",
+        "writable": "書き込み可能"
+      },
+      "openFolders": "フォルダー",
+      "openFoldersLabel": "{{name}}のフォルダーを編集",
+      "rootCount_other": "{{count}}個のフォルダー",
+      "noFolder": "フォルダーなし：「フォルダー」で追加するまで、何もスキャンされません。",
+      "rootSummary_other": "{{content}}：{{count}}",
+      "metadata": {
+        "like": "サーバーと同じ",
+        "texts": "言語が異なる",
+        "images": "画像が異なる",
+        "both": "言語と画像が異なる",
+        "link": "ライブラリのメタデータ",
+        "audiobooksLink": "オーディオブックのソース"
+      },
+      "trickplay": {
+        "action": "シークプレビュー",
+        "actionLabel": "{{name}}のシークプレビュー",
+        "title": "シークプレビュー：{{name}}",
+        "description": "タイムラインの上に表示される小さな画像で、10秒ごとに1枚です。映画とTV番組は、両方を含むライブラリでも別々に設定します。",
+        "movies": "映画",
+        "series": "TV番組",
+        "mode": {
+          "ahead": "事前に作成",
+          "on_start": "再生開始時",
+          "series_start": "再生開始時に全エピソード",
+          "off": "オフ"
+        },
+        "keep": "保存",
+        "keepHint": "2回目の再生からはすぐに表示されます。保存しない場合、プレビューは再生後に削除されます。",
+        "scope": {
+          "label": "範囲",
+          "series": "TV番組全体",
+          "season_rest": "シーズンの残り",
+          "next_episode": "次のエピソード"
+        },
+        "facts": {
+          "ahead": {
+            "movie": "新しい映画は取り込み時にプレビューが作成されます。既存の作品は「今すぐ作成」または「バックグラウンドジョブ」のスケジュールで作成されます。再生開始時にない場合は20〜45秒で作成され、保存されます。",
+            "episode": "新しいエピソードは取り込み時にプレビューが作成されます。既存の作品は「今すぐ作成」または「バックグラウンドジョブ」のスケジュールで作成されます。再生開始時にない場合は20〜45秒で作成され、保存されます。"
+          },
+          "onStartKeep": "初回の再生時に、プレビューは20〜45秒（最初のシートは5〜10秒）で作成され、保存されます。誰も見ない作品は容量を使いません。",
+          "onStart": "再生するたびに、プレビューが20〜45秒で作り直され、終了の10分後に削除されます。再生のたびに処理時間と、NASから数百MBの読み込みが発生します。",
+          "seriesStart": {
+            "series": "エピソードを再生すると、そのプレビューがすぐに作成され、続いてTV番組のほかのすべてのエピソードのプレビューがバックグラウンドで作成されます。すべて保存されます。",
+            "season_rest": "エピソードを再生すると、そのプレビューがすぐに作成され、続いて同じシーズンのほかのエピソード（最終エピソードの場合は次のシーズン）のプレビューがバックグラウンドで作成されます。すべて保存されます。",
+            "next_episode": "エピソードを再生すると、そのプレビューがすぐに作成され、続いて次のエピソードのプレビューがバックグラウンドで作成されます。すべて保存されます。"
+          },
+          "off": "プレビューなし。タイムラインには、これまでどおりチャプター名とチャプター画像が表示されます。"
+        },
+        "estimate": {
+          "counts": {
+            "movies_other": "{{count}}本の映画、{{hours}}時間",
+            "series_other": "{{count}}話のエピソード、{{hours}}時間"
+          },
+          "approx": "≈ {{size}}",
+          "zero": "0 MB",
+          "perMovie": "映画1本あたり",
+          "perMoviePlaying": "映画1本あたり（再生中のみ）",
+          "perEpisode": "1エピソードあたり",
+          "perEpisodePlaying": "1エピソードあたり（再生中のみ）",
+          "library": "ライブラリ全体",
+          "libraryAtMost": "ライブラリ全体（最大）",
+          "basis": "作品の再生時間から見積もった容量で、動画1時間あたり約1.5MBです。",
+          "stored": "現在の使用量：映画{{movies}} · TV番組{{series}}",
+          "free": "キャッシュの空き容量：{{size}}",
+          "unavailable": "現在、必要な容量の見積もりは利用できません。"
+        },
+        "drop": {
+          "movies": "保存すると、映画の保存済みプレビューが削除されます（{{size}}）。再生中のものは終了するまで保持されます。",
+          "series": "保存すると、TV番組の保存済みプレビューが削除されます（{{size}}）。再生中のものは終了するまで保持されます。",
+          "both": "保存すると、保存済みプレビューが削除されます：映画（{{movies}}）とTV番組（{{series}}）。再生中のものは終了するまで保持されます。"
+        },
+        "generate": {
+          "action": "今すぐ作成",
+          "hint": "「事前に作成」のすべてのライブラリで不足しているプレビューを作成します。「バックグラウンドジョブ」の「シークプレビューを後から作成」と同じです。",
+          "queued": "プレビューの作成を待機列に追加しました。"
+        },
+        "submit": "保存",
+        "saved": "{{name}}のシークプレビューを保存しました。",
+        "summary": "シークプレビュー：映画{{movies}} · TV番組{{series}}",
+        "summaryNoKeep": "再生開始時、保存なし"
+      },
+      "delete": {
+        "action": "ライブラリを削除…",
+        "title": "ライブラリ「{{name}}」を削除しますか？",
+        "lead_other": "{{roots}}と{{formatted}}作品がSlouchcatから削除されます。視聴状況、視聴済みマーク、マイリスト、おすすめ、独自の画像とテキスト、ホームの行「{{name}}の新着」、プロフィールへのアクセス許可、デバイス上のダウンロードも削除されます。",
+        "files": "ディスク上のファイルには影響しません。このライブラリのスキャンが実行中の場合、Slouchcatは先にそれをキャンセルします。",
+        "backup": "その前に、Slouchcatはデータベースのバックアップを作成します（管理 › バックアップ）。このバックアップを復元すると、削除前の状態にすべて戻ります。その後のすべてのプロフィールの視聴状況も元に戻ります。",
+        "final": "それ以外の方法では元に戻せません。同じフォルダーを再スキャンすると作品は再作成されますが、視聴状況はありません。",
+        "inputLabel": "確認のため名前を入力",
+        "mismatch": "{{name}}を正確に入力すると、ボタンが有効になります。",
+        "confirm": "ライブラリを削除",
+        "queued": "ライブラリ「{{name}}」をバックグラウンドで削除しています。",
+        "jobs": "ジョブへ",
+        "done": "ライブラリ「{{name}}」を削除しました。",
+        "notDone": "ライブラリ「{{name}}」は削除されませんでした。理由はジョブで確認できます。"
+      },
+      "rename": {
+        "action": "名前を変更…",
+        "title": "ライブラリ「{{name}}」の名前を変更",
+        "label": "名前",
+        "saved": "ライブラリの名前を「{{name}}」に変更しました。"
+      }
+    },
+    "access": {
+      "notAllowed": {
+        "title": "管理者専用",
+        "body": "このエリアは、管理者アカウントのメインプロフィールで管理します。"
+      }
+    },
+    "maintenance": {
+      "title": "メンテナンス",
+      "intro": "対応が必要な作品とファイルです。",
+      "tabs": "問題の種類",
+      "tab": {
+        "unmatched": "未照合",
+        "no_images": "画像なし",
+        "unrated": "年齢区分なし",
+        "orphaned": "孤立",
+        "unplayable": "再生不可",
+        "rating_mismatch": "区分の不一致",
+        "duplicates": "重複",
+        "relink": "孤立したユーザーデータ",
+        "removed": "削除した作品"
+      },
+      "hint": {
+        "unmatched": "照合されていない作品には、あらすじ、画像、年齢区分がありません。作品を照合するか、更新してください。",
+        "no_images": "照合済みでポスターがない作品です。更新すると画像が再読み込みされます。",
+        "unrated": "年齢区分のない作品は、区分18のプロフィールでしか見られません。区分を割り当てると公開されます。",
+        "orphaned": "ファイルがない、またはファイルが見つからない作品と、空のシーズンやTV番組です。",
+        "unplayable": "読み取れないファイルです。もう一度確認するか、ライブラリから外してください。",
+        "rating_mismatch": "保存されている区分が計算上の区分と異なります。区分を変更するか、次回のスキャンで修正されます。ここで選択するものはありません。",
+        "duplicates": "重複している作品です。残す作品を選び、ほかの作品をそこに統合してください。",
+        "relink": "削除された後、新しいコピーとしてライブラリに戻ってきた作品です。視聴状況、履歴、リストはまだ削除された作品に紐付いています。「再リンク」でコピーを統合します。古い作品は残ります。",
+        "removed": "Slouchcatから外された作品です。ファイルはまだ残っています。「元に戻す」で、エピソード、視聴状況、視聴済みマーク、マイリストとともに同じ作品が戻ります。"
+      },
+      "empty": "対応が必要なものはありません。",
+      "selection": "選択",
+      "selectItem": "{{title}}を選択",
+      "selected": "{{count}}件を選択中",
+      "selectedOfLoaded": "読み込み済み{{loaded}}件中{{count}}件を選択中",
+      "selectAll": "すべて選択",
+      "selectNone": "選択を解除",
+      "shown": "{{shown}} / {{total}}",
+      "entries_other": "{{count}}件",
+      "library": "ライブラリ{{id}}",
+      "caption": "{{library}}の{{kind}}",
+      "columns": {
+        "title": "タイトル",
+        "kind": "種類",
+        "path": "パス",
+        "detail": "検出内容"
+      },
+      "none": "–",
+      "noneSpoken": "指定なし",
+      "titleCount_other": "{{count}}作品",
+      "fileCount_other": "{{count}}ファイル",
+      "action": {
+        "match": "照合",
+        "refresh": "更新",
+        "rating": "区分を割り当て",
+        "cleanup": "クリーンアップ",
+        "recheck": "再確認",
+        "remove": "外す"
+      },
+      "done": {
+        "refresh_other": "{{count}}作品を更新しています。",
+        "refreshFailed_other": "{{count}}作品中{{failed}}作品を更新できませんでした：{{error}}",
+        "rating_other": "{{count}}作品に区分を設定しました。",
+        "cleanup": "削除しました：{{items}}、{{files}}。",
+        "merge": "作品を統合しました。",
+        "match": "照合を保存しました。メタデータを読み込んでいます。",
+        "relink": "再リンクしました：{{titles}}。",
+        "relinkStopped_other": "{{count}}件を再リンクしました。スキャンを実行中です。残りはスキャン後にもう一度「再リンク」を実行してください。",
+        "relinkSkipped_other": "{{count}}件をスキップしました。統合済みなどの理由で、組み合わせがもう存在しません。"
+      },
+      "cleanup": {
+        "title": "作品をクリーンアップしますか？",
+        "body_other": "選択した{{count}}作品をライブラリから外します。ディスク上のファイルには影響しません。",
+        "confirm": "クリーンアップ"
+      },
+      "remove": {
+        "title": "ファイルを外しますか？",
+        "body_other": "選択した{{count}}ファイルをライブラリから外し、今後のスキャンでもスキップします。ファイルはディスク上に残ります。",
+        "confirm": "外す"
+      },
+      "rating": {
+        "title": "区分を割り当て",
+        "description_other": "選択した{{count}}作品に適用されます。",
+        "label": "年齢区分",
+        "summary_other": "{{count}}作品が{{rating}}になります。",
+        "submit": "割り当て",
+        "submitting": "割り当て中…"
+      },
+      "duplicates": {
+        "reason": {
+          "provider_id": "同じプロバイダーID",
+          "title_year": "同じタイトルと年",
+          "file_hash": "同じファイル内容",
+          "file_and_feed": "同じエピソードのファイルとフィード"
+        },
+        "group": "グループ{{index}}",
+        "target": "残す作品",
+        "option": "{{index}}：{{title}}",
+        "merge": "統合",
+        "confirmTitle": "作品を統合しますか？",
+        "confirmBody_other": "ほかの{{count}}作品のファイル、特典映像、予告編、視聴状況は「{{title}}」に移動します。ほかの作品は削除されます。",
+        "empty": "重複は見つかりません。",
+        "groups_other": "{{count}}グループ",
+        "meta_other": "{{reason}} · {{title}} · {{count}}作品",
+        "keep": "残す",
+        "noFiles": "ファイルなし",
+        "containerPaths": "パスはNAS上ではなくコンテナー内（/media/…）のものです。それぞれ横にライブラリを表示しています。",
+        "library": "ライブラリ「{{name}}」",
+        "folderFiles_other": "{{n}}ファイル · {{size}}"
+      },
+      "relink": {
+        "empty": "孤立したユーザーデータはありません。",
+        "action": "再リンク",
+        "noUserData": "ユーザーデータなし",
+        "columns": {
+          "library": "ライブラリ",
+          "deletedAt": "削除日",
+          "userData": "ユーザーデータ",
+          "deleted": "削除された作品",
+          "copy": "コピー"
+        },
+        "confirmTitle": "ユーザーデータを再リンクしますか？",
+        "data": {
+          "progress_other": "視聴状況{{count}}件",
+          "progressEvents_other": "再生イベント{{count}}件",
+          "progressDays_other": "日別統計{{count}}件",
+          "playbackSessions_other": "再生{{count}}件",
+          "watchlist_other": "マイリストの項目{{count}}件",
+          "collectionItems_other": "コレクションの項目{{count}}件",
+          "notifications_other": "通知{{count}}件",
+          "userPicks_other": "ユーザーのおすすめ{{count}}件",
+          "downloads_other": "ダウンロード{{count}}件",
+          "activityEvents_other": "アクティビティ{{count}}件"
+        },
+        "copies_other": "コピー{{count}}件",
+        "selectPair": "{{copy}}を選択（{{library}}、{{date}}に削除）",
+        "selectPairOf": "{{copy}}を選択（{{library}}、{{date}}に削除、コピー{{copies}}件中{{index}}件目）",
+        "confirmMerge_other": "{{count}}件のコピーを、削除された元の作品に統合します。古い作品は元のアドレスのまま戻ります。",
+        "confirmKept": "引き継がれるデータ：{{data}}。",
+        "confirmNoData_other": "削除された作品にユーザーデータはありません。",
+        "confirmRemoved_other": "コピーは完全に削除されます。",
+        "confirmExtra_other": "同じ作品の残り{{count}}件のコピーはスキップされ、その後「重複」に表示されます。"
+      },
+      "removed": {
+        "empty": "削除した作品はありません。",
+        "columns": {
+          "title": "タイトル",
+          "library": "ライブラリ",
+          "folder": "フォルダー",
+          "removedAt": "削除日",
+          "action": "操作"
+        },
+        "restore": "元に戻す",
+        "restoreLabel": "{{title}}を元に戻す",
+        "restored_other": "「{{title}}」が戻りました（{{count}}作品）。",
+        "noFolder": "ファイルなし"
+      }
+    },
+    "item": {
+      "title": "作品を管理",
+      "notAllowed": {
+        "title": "管理者専用",
+        "body": "作品は、管理者アカウントのメインプロフィールで管理します。"
+      },
+      "notFound": "この作品は存在しないか、すでに削除されています。",
+      "view": "詳細ページへ",
+      "facts": {
+        "kind": "種類",
+        "id": "ID",
+        "library": "ライブラリ",
+        "season": "シーズン",
+        "episode": "エピソード",
+        "metadata": "メタデータ",
+        "metadataError": "エラー",
+        "matchedAt": "照合日時",
+        "tmdb": "TMDB",
+        "tvdb": "TVDB",
+        "imdb": "IMDb",
+        "providers": "メタデータソース",
+        "locked": "ロック中の項目",
+        "children": "内容",
+        "childCounts": "シーズン：{{seasons}} · エピソード：{{episodes}} · 特典映像：{{extras}}",
+        "none": "–",
+        "episodeRange": "{{from}}–{{to}}"
+      },
+      "sources": {
+        "title": "項目ごとの取得元",
+        "union": "すべてのソースの統合",
+        "field": {
+          "title": "タイトル",
+          "overview": "あらすじ",
+          "tagline": "キャッチコピー",
+          "original_title": "原題",
+          "author": "著者",
+          "narrator": "ナレーター",
+          "series_name": "シリーズ",
+          "series_index": "巻",
+          "publisher": "出版社",
+          "isbn": "ISBN",
+          "asin": "ASIN",
+          "genres": "ジャンル",
+          "runtime_minutes": "再生時間",
+          "release_date": "公開日",
+          "year": "年",
+          "own_rating": "年齢区分",
+          "poster": "ポスター",
+          "backdrop": "背景画像",
+          "original_language": "オリジナル言語"
+        },
+        "fieldLang": "{{field}}（{{lang}}）",
+        "count_other": "{{count}}項目",
+        "providerCount": "{{provider}} {{count}}"
+      },
+      "state": {
+        "pending": "保留中",
+        "matched": "照合済み",
+        "unmatched": "未照合",
+        "failed": "失敗",
+        "skipped": "スキップ"
+      },
+      "rating": {
+        "title": "年齢区分",
+        "own": "独自の区分",
+        "effective": "適用中の区分",
+        "source": "ソース",
+        "label": "独自の区分を設定",
+        "fromMetadata": "メタデータから",
+        "saved": "年齢区分を保存しました。",
+        "unsaved": "未保存",
+        "summary": "適用中{{effective}} · 独自{{own}} · ソース{{source}}"
+      },
+      "language": {
+        "title": "オリジナル言語",
+        "current": "オリジナル言語",
+        "source": "ソース",
+        "label": "オリジナル言語を設定",
+        "fromMetadata": "メタデータから",
+        "unknown": "不明",
+        "notLooked": "未取得",
+        "manual": "手動（ロック中）",
+        "saved": "オリジナル言語を保存しました。",
+        "unsaved": "未保存",
+        "summary": "{{language}} · ソース{{source}}",
+        "hint": "選択した言語または「不明」はロックされます。「メタデータから」を選ぶとロックが解除され、次回の照合でソースに再度問い合わせます。",
+        "knownFailed": "言語のリストを読み込めませんでした。"
+      },
+      "files": {
+        "title": "ファイル",
+        "probedAt": "{{date}}に確認",
+        "probeError": "確認エラー",
+        "none": "ファイルはありません。",
+        "columns": {
+          "name": "ファイル",
+          "version": "バージョン",
+          "size": "サイズ",
+          "state": "状態"
+        }
+      },
+      "refreshed": "更新を待機列に追加しました。",
+      "trailers": {
+        "title": "予告編",
+        "state": {
+          "pending": "検索待ち",
+          "found": "検出済み",
+          "none": "見つかりません",
+          "failed": "検索失敗"
+        },
+        "empty": "予告編はありません。",
+        "official": "公式",
+        "size": "{{size}}p",
+        "sizeUnknown": "不明",
+        "source": {
+          "tmdb": "TMDB",
+          "youtube": "YouTube",
+          "ai": "AI",
+          "manual": "手動"
+        },
+        "add": "追加",
+        "addTitle": "予告編を追加",
+        "url": "YouTubeのリンクまたは動画ID",
+        "urlHint": "youtube.com/watch?v=…、youtu.be/…、または動画ID。",
+        "lang": "言語",
+        "langOther": "その他",
+        "langCode": "言語コード",
+        "langCodeHint": "小文字2〜3文字（例：fr）。",
+        "submit": "追加",
+        "submitting": "追加中…",
+        "delete": {
+          "action": "削除",
+          "title": "予告編を削除しますか？",
+          "body": "予告編は削除されます。自動で見つかった予告編は、次回の更新で再び追加される場合があります。",
+          "confirm": "削除"
+        },
+        "columns": {
+          "video": "動画",
+          "size": "解像度",
+          "source": "ソース",
+          "actions": "操作"
+        },
+        "deleted": "予告編を削除しました。",
+        "added": "予告編を追加しました。"
+      },
+      "images": {
+        "title": "画像",
+        "intro": "種類ごとに、選択された画像とそのソースおよび言語を表示します。自分で選んだ種類はロックされ、「適用」や「更新」でも維持されます。",
+        "none": "画像なし",
+        "chosen": "手動で選択",
+        "locked": "ロック中",
+        "lockedNoChoice": "選択なしでロック",
+        "pick": "別の画像を選択",
+        "unlock": "ロックを解除",
+        "pickTitle": "{{kind}}を選択",
+        "candidates": "{{kind}}の候補",
+        "chooseOne": "{{label}}（{{detail}}）を選択",
+        "empty": "候補がありません。作品は照合済みで、ソースはセットアップされていますか？",
+        "current": "現在",
+        "more_other": "さらに{{count}}件を表示",
+        "reload": "再取得",
+        "unavailable": "接続できません：{{providers}}。リストにはほかのソースを表示しています。",
+        "size": "{{width}} × {{height}}",
+        "score": "評価 {{score}}",
+        "chosenSaved": "{{kind}}を選択してロックしました。画像を取得しています。",
+        "unlocked": "{{kind}}のロックを解除しました。自動選択を実行しています。",
+        "provider": {
+          "local": "ローカルファイル",
+          "embedded": "埋め込み",
+          "tmdb": "TMDB",
+          "tvdb": "TVDB",
+          "anilist": "AniList",
+          "fanart": "Fanart.tv"
+        },
+        "columns": {
+          "kind": "種類",
+          "source": "ソース",
+          "state": "状態",
+          "actions": "操作"
+        },
+        "unlockFailed": "{{kind}}のロックを解除できませんでした。"
+      },
+      "tabs": {
+        "label": "作品のセクション",
+        "imageKinds_other": "{{count}}種類の画像",
+        "files_other": "{{count}}ファイル",
+        "trailers_other": "{{count}}件の予告編",
+        "unsavedMark": "•"
+      }
+    },
+    "match": {
+      "title": "作品を照合",
+      "description": "TMDBまたはTVDBで作品を検索し、正しい項目を選択してください。",
+      "provider": "プロバイダー",
+      "kind": "種類",
+      "query": "検索キーワード",
+      "year": "年（任意）",
+      "search": "検索",
+      "searching": "検索中…",
+      "results": "検索結果",
+      "none": "結果はありません。",
+      "choose": "{{title}}と照合",
+      "yearInvalid": "1800〜2100の年を入力してください。"
+    },
+    "titleYear": "{{title}}（{{year}}）",
+    "devices": {
+      "title": "デバイス",
+      "intro": "ログインしたブラウザーとデバイスです。最後に再生を開始したときの対応機能プロファイルも表示します。",
+      "list": "デバイス",
+      "tabs": {
+        "label": "デバイスの表示",
+        "devices": "デバイス",
+        "capabilities": "対応機能"
+      },
+      "hint": {
+        "devices": "種類別にまとめています。対応機能は隣のタブにあります。",
+        "capabilities": "各デバイスで最後に再生を開始したときの対応機能プロファイルです。"
+      },
+      "caption": "{{view}}：{{type}}",
+      "count_other": "{{number}}台のデバイス",
+      "profiled_other": "対応機能プロファイルのあるデバイス{{number}}台",
+      "streamCount_other": "{{number}}件のストリーム",
+      "empty": "デバイスはまだありません。",
+      "columns": {
+        "name": "デバイス",
+        "owner": "所有者",
+        "lastSeen": "最終接続",
+        "containers": "コンテナー",
+        "video": "映像",
+        "audio": "音声",
+        "resolution": "最大解像度",
+        "hdr": "HDR",
+        "streams": "ストリーム",
+        "actions": "操作"
+      },
+      "unnamed": "不明なデバイス",
+      "owner": "{{email}} · {{profile}}",
+      "noOwner": "再生履歴なし",
+      "noProfile": "{{name}}、対応機能プロファイルなし",
+      "types": {
+        "desktop": "パソコン",
+        "phone": "スマートフォン",
+        "tablet": "タブレット",
+        "tv": "テレビ",
+        "other": "その他",
+        "unknown": "不明"
+      },
+      "forget": {
+        "action": "登録解除",
+        "label": "{{name}}の登録を解除",
+        "title": "デバイス「{{name}}」の登録を解除しますか？",
+        "body": "再生中のストリームは終了し、このデバイスのセッションはログアウトされます。現在使用中のデバイスの場合は、すぐにここでログアウトされます。",
+        "confirm": "デバイスの登録を解除"
+      },
+      "forgotten": "デバイス「{{name}}」の登録を解除しました。",
+      "yes": "はい",
+      "no": "いいえ",
+      "unknown": "–",
+      "unknownSpoken": "不明"
+    },
+    "streams": {
+      "title": "ストリーム",
+      "intro": "現在再生中のすべてのものです。リストは5秒ごとに更新されます。",
+      "list": "再生中",
+      "listHelp": "新しい順。ラジオも同じリストに表示されます。",
+      "tileLabel": "{{profile}}：{{title}}",
+      "empty": "現在再生中のものはありません。",
+      "emptyKind": "この種類で再生中のものはありません。",
+      "filter": {
+        "label": "種類で絞り込む",
+        "all": "すべて",
+        "video": "ビデオ",
+        "audiobook": "オーディオブック",
+        "podcast": "ポッドキャスト",
+        "radio": "ラジオ",
+        "unknown": "件数不明"
+      },
+      "kinds": {
+        "movie": "映画",
+        "episode": "TV番組",
+        "extra": "特典映像",
+        "audiobook": "オーディオブック",
+        "podcast": "ポッドキャスト",
+        "radio": "ラジオ"
+      },
+      "partial": {
+        "streams": "リクエストが再び成功するまで、一部の再生はリストに表示されません。",
+        "radio": "リクエストが再び成功するまで、ラジオのリスナーはリストに表示されません。"
+      },
+      "facts": {
+        "device": "デバイス",
+        "quality": "画質",
+        "reason": "理由",
+        "format": "形式",
+        "source": "ソース",
+        "listeners": "リスナー"
+      },
+      "unknownDevice": "不明なデバイス",
+      "original": "オリジナル",
+      "source": {
+        "file": "ファイル",
+        "feed": "フィード"
+      },
+      "parts_other": "{{count}}パート",
+      "qualityValue": "{{quality}} · {{bitrate}}",
+      "modes": {
+        "direct": "ダイレクト",
+        "remux": "Remux",
+        "transcode": "トランスコード（{{encoder}}）"
+      },
+      "hw": "HW",
+      "sw": "SW",
+      "position": "{{position}} / {{duration}}",
+      "progress": "{{title}}の進行状況",
+      "stop": {
+        "action": "停止",
+        "label": "{{profile}}のストリームを停止",
+        "title": "{{profile}}のストリームを停止しますか？",
+        "body": "デバイスでの「{{title}}」の再生は数秒以内に停止します。",
+        "confirm": "ストリームを停止"
+      },
+      "stopped": "{{profile}}のストリームを停止しました。",
+      "since": "{{time}}から",
+      "noPosition": "–",
+      "noFormat": "–",
+      "load": {
+        "title": "サーバー負荷",
+        "hw": {
+          "label": "トランスコード HW",
+          "note": "GPU"
+        },
+        "sw": {
+          "label": "トランスコード SW",
+          "note": "プロセッサー"
+        },
+        "remux": {
+          "label": "Remux",
+          "note": "再パッケージのみ"
+        },
+        "direct": {
+          "label": "ダイレクト",
+          "note": "負荷なし"
+        },
+        "bandwidth": {
+          "label": "合計帯域幅",
+          "note": "ビットレートの合計",
+          "notePartial": "判明しているビットレートの合計"
+        },
+        "radio": {
+          "label": "ラジオ",
+          "note": "リスナー、トランスコードなし"
+        }
+      },
+      "radio": {
+        "playing": "再生中",
+        "paused": "一時停止中",
+        "failed": "中継エラー",
+        "transcoded": "変換",
+        "copied": "再パッケージ",
+        "listeners_other": "このラジオ局のリスナー{{count}}人",
+        "stopLabel": "{{profile}}のラジオを停止",
+        "stopTitle": "{{profile}}のラジオを停止しますか？",
+        "stopBody": "デバイスでの「{{station}}」の再生は数秒以内に停止します。",
+        "stopConfirm": "ラジオを停止",
+        "stopped": "{{profile}}のラジオを停止しました。"
+      }
+    },
+    "podcasts": {
+      "title": "ポッドキャスト",
+      "intro": "登録済みのフィードと、フォルダー内のポッドキャストです。バックグラウンドジョブ「ポッドキャストのフィードを確認」が、時期になった登録を取得し、新しいエピソードを追加します。",
+      "empty": "登録済みのポッドキャストはまだありません。",
+      "emptyLibrary": "このライブラリにはまだポッドキャストがありません。",
+      "list": "登録済みのポッドキャスト",
+      "listOf": "{{library}}の登録済みポッドキャスト",
+      "noLibrary": "先に「ポッドキャスト」の種類のライブラリを追加してください。",
+      "librariesLink": "ライブラリへ",
+      "never": "未実行",
+      "noError": "–",
+      "explicit": "成人向け",
+      "fromFolder": "フォルダーから",
+      "localEpisodes_other": "ローカル{{number}}件",
+      "columns": {
+        "title": "タイトル",
+        "episodes": "エピソード",
+        "stored": "保存容量",
+        "lastFetch": "前回の取得",
+        "error": "エラー",
+        "newest": "最新のエピソード",
+        "state": "状態",
+        "open": "ページ"
+      },
+      "tabs": {
+        "label": "ライブラリ別のポッドキャスト",
+        "all": "すべて",
+        "count_other": "{{number}}番組"
+      },
+      "detail": {
+        "author": "著者",
+        "feedUrl": "フィードのアドレス",
+        "noFeed": "フィードはありません。",
+        "noFeedFolder": "フィードはありません。エピソードはフォルダーから取得されます。",
+        "library": "ライブラリ",
+        "folderNote": "このポッドキャストはフォルダーにあります。スキャンのたびに戻ってくるため、「ライブラリ」でフォルダーごと外す以外に削除する方法はありません。"
+      },
+      "subscribe": {
+        "action": "フィードを登録",
+        "title": "フィードを登録",
+        "description": "Slouchcatはすぐにフィードを取得し、ポッドキャストをエピソードとともに追加します。",
+        "library": "ライブラリ",
+        "url": "フィードのアドレス",
+        "urlHint": "ポッドキャストのRSSフィード（例：https://example.org/feed.xml）。",
+        "submit": "登録",
+        "submitting": "フィードを取得中…",
+        "done": "{{title}}を登録しました。",
+        "loads": {
+          "new": "このライブラリは新しいエピソードを保存します。初回の取得分は読み込まず、それ以降に公開されたものだけを読み込みます。",
+          "last_n": "このライブラリは保存します。登録後、Slouchcatは最新{{n}}件のエピソードをファイルとして読み込みます。",
+          "all": "このライブラリはすべてのエピソードを保存します。登録後、Slouchcatはフィード全体をファイルとして読み込みます（最大2000エピソード）。"
+        },
+        "load": {
+          "label": "エピソードを読み込む",
+          "hint": "「登録のみ」ではフィードから何も読み込みません。その場合、ポッドキャストには今後公開されるエピソードだけが保存されます。",
+          "yes": "登録して読み込む",
+          "no": "登録のみ",
+          "required": "Slouchcatでエピソードを読み込むかどうか選択してください。"
+        }
+      },
+      "refresh": {
+        "action": "今すぐ取得",
+        "label": "{{title}}を今すぐ取得",
+        "queued": "{{title}}を取得しています。",
+        "running": "取得中"
+      },
+      "remove": {
+        "action": "登録を解除",
+        "label": "{{title}}の登録を解除",
+        "title": "{{title}}の登録を解除しますか？",
+        "body": "ポッドキャストとそのエピソードはライブラリから消えます。エピソードのダウンロードは次回の同期時に削除されます。",
+        "confirm": "登録を解除",
+        "done": "{{title}}の登録を解除しました。"
+      },
+      "stored": {
+        "save": "保存する",
+        "link": "リンクのみ",
+        "own": "個別設定",
+        "loading": "{{number}}件を読み込み中",
+        "failed": "{{number}}件が失敗"
+      },
+      "downloads": {
+        "title": "新しいエピソード",
+        "titleOf": "新しいエピソード：{{library}}",
+        "summary": {
+          "save": "保存 · {{scope}} · 同時に{{parallel}}件",
+          "link": "リンクのみ · 何も保存しません"
+        },
+        "saved": "保存しました。",
+        "mode": {
+          "label": "新しいエピソード",
+          "save": "保存",
+          "link": "リンクのみ"
+        },
+        "scope": {
+          "label": "範囲",
+          "new": "新しいエピソードのみ",
+          "last_n": "新規＋最新N件",
+          "all": "すべてのエピソード",
+          "lastNOf": "新規＋最新{{n}}件"
+        },
+        "hint": {
+          "link": "新しいエピソードはリンクのままで、再生時に配信元からストリーミングされます。既存のファイルは残ります。",
+          "new": "今後公開されるものだけを読み込みます。ファイルのない古いエピソードはリンクのままです。",
+          "last_n": "新しいエピソードと、ポッドキャストごとにフィードの最新{{n}}件のうち不足しているエピソードです。",
+          "all": "フィード全体（ポッドキャストごとに最大2000エピソード）と、すべての新しいエピソードです。非常に多くの容量が必要になる場合があります。"
+        },
+        "lastN": {
+          "label": "エピソード数（N）",
+          "hint": "1〜{{max}}",
+          "apply": "適用"
+        },
+        "estimating": "見積もりを計算中…",
+        "confirm": {
+          "text_other": "約{{number}}件のエピソード（約{{size}}）を1回だけ読み込みます。空き容量：{{free}}。",
+          "load": "読み込む"
+        },
+        "folder": {
+          "label": "フォルダー",
+          "target": "新しい登録の保存先フォルダー",
+          "writable": "書き込み可能 · 空き{{free}}",
+          "writableUnknown": "書き込み可能",
+          "checking": "フォルダーを確認中…",
+          "none": "このライブラリにはポッドキャストのフォルダーがありません。Slouchcatがエピソードを保存できるよう、「ライブラリ」でフォルダーを追加してください。",
+          "locked": "フォルダーがチェックに合格するまで、「保存」はロックされています。",
+          "guide": "インストールガイド：ポッドキャストのエピソードを保存する",
+          "problem": {
+            "read_only": "読み取り専用でマウントされています",
+            "not_mounted": "フォルダーがマウントされていません",
+            "no_hard_links": "ファイルシステムがハードリンクに対応していません",
+            "permissions": "新しいファイルに必要な権限が付与されません"
+          }
+        },
+        "parallel": {
+          "label": "同時読み込み数",
+          "hint": "Slouchcatは、同じ配信元からは一度に1件ずつしか読み込みません。"
+        }
+      },
+      "setting": {
+        "saved": "保存しました。",
+        "effective": {
+          "save": "適用中：保存 · {{scope}}",
+          "link": "適用中：リンクのみ"
+        },
+        "notSavable": "このポッドキャストのフォルダーがフォルダーチェックに合格しないため、「保存」はロックされています。",
+        "mode": {
+          "label": "このポッドキャストの新しいエピソード",
+          "inherit": "ライブラリと同じ",
+          "save": "保存",
+          "link": "リンクのみ"
+        },
+        "scope": {
+          "label": "このポッドキャストの範囲",
+          "inherit": "ライブラリと同じ",
+          "new": "新しいエピソードのみ",
+          "last_n": "新規＋最新N件",
+          "all": "すべてのエピソード"
+        },
+        "unclear_other": "{{number}}件のエピソードが不明です。フォルダー内のファイルにすでに含まれている可能性があるため、Slouchcatは自動では読み込みません。",
+        "missing": {
+          "action": "不足分を読み込む",
+          "label": "{{title}}の不足しているエピソードを読み込む",
+          "none": "Slouchcatが読み込む対象の不足エピソードはありません。",
+          "queued_other": "{{number}}件のエピソードを読み込んでいます。"
+        }
+      },
+      "share": {
+        "none": "保存なし",
+        "all": "すべて保存済み",
+        "some": "保存済み{{stored}}件 · リンクのみ{{missing}}件",
+        "someNoFeed": "保存済み{{stored}}件 · ファイルなし{{missing}}件",
+        "label": "{{total}}件中{{stored}}件のエピソードを保存済み"
+      },
+      "state": {
+        "fetching": "取得中",
+        "loading": "{{number}}件を読み込み中",
+        "feedError": "フィードのエラー",
+        "notSavable": "保存不可",
+        "current": "最新"
+      },
+      "openPage": {
+        "action": "エピソード",
+        "label": "{{title}}のエピソードを表示"
+      },
+      "filter": {
+        "label": "ポッドキャストを絞り込む",
+        "all": "すべて",
+        "save": "保存する",
+        "link": "リンクのみ",
+        "loading": "読み込み中",
+        "error": "エラー"
+      },
+      "search": {
+        "label": "ポッドキャストを検索",
+        "placeholder": "タイトルまたは著者"
+      },
+      "sort": {
+        "label": "並べ替え",
+        "title": "タイトル",
+        "newest": "最新のエピソード",
+        "size": "保存容量",
+        "episodes": "エピソード数"
+      },
+      "noMatch": "絞り込みと検索に一致するポッドキャストはありません。",
+      "kpi": {
+        "label": "概要",
+        "podcasts": "ポッドキャスト",
+        "mode": "新しいエピソード",
+        "saving": "保存{{number}}件",
+        "linking": "リンクのみ{{number}}件",
+        "stored": "使用量",
+        "queue": "ダウンロード",
+        "queueEmpty": "なし",
+        "queueRunning": "実行中{{number}}件",
+        "queueWaiting": "待機中{{number}}件",
+        "queuePaused": "一時停止中"
+      },
+      "queue": {
+        "title": "ダウンロード",
+        "empty": "待機列は空です",
+        "summary_other": "待機列{{number}}件 · 実行中{{running}}件",
+        "none": "すべてのエピソードを読み込みました。待機列は空です。",
+        "pause": "一時停止",
+        "resume": "再開",
+        "paused": "ダウンロードを一時停止しました。",
+        "resumed": "ダウンロードを再開しました。",
+        "pausedHint": "一時停止中：再開するまで何も読み込みません。開始済みのダウンロードは、再開後に続きから読み込みます。",
+        "cancelled": "{{title}}のダウンロードをキャンセルしました。",
+        "cancel": "キャンセル：{{title}}",
+        "ofPodcastSize": "{{podcast}} · {{size}}",
+        "more": "{{total}}件中{{shown}}件を表示しています。",
+        "columns": {
+          "episode": "エピソード",
+          "progress": "進行状況",
+          "cancel": "キャンセル"
+        },
+        "state": {
+          "queued": "待機中",
+          "paused": "一時停止中",
+          "running": "読み込み中",
+          "runningShare": "読み込み中 · {{share}}%",
+          "runningBytes": "読み込み中 · {{size}}"
+        }
+      },
+      "page": {
+        "missing": "ポッドキャストが見つかりません",
+        "missingBody": "このポッドキャストは存在しないか、すでに削除されています。",
+        "back": "すべてのポッドキャスト",
+        "counters": "このポッドキャストの数値",
+        "episodes": "エピソード",
+        "stored": "保存済み",
+        "missingCount": "ファイルなし{{number}}件",
+        "bytes": "使用量",
+        "newest": "最新のエピソード",
+        "library": "ライブラリ「{{library}}」",
+        "setting": "設定"
+      },
+      "episodes": {
+        "title": "エピソード",
+        "caption": "{{title}}のエピソード",
+        "empty": "この表示にエピソードはありません。",
+        "shown": "{{total}}件中{{shown}}件のエピソードを表示しています。",
+        "more": "さらに表示",
+        "loadQueued": "{{title}}を読み込んでいます。",
+        "loadNone": "{{title}}は読み込みません。このエピソードにはすでにファイルがあります。",
+        "filter": {
+          "label": "エピソードを絞り込む",
+          "all": "すべて",
+          "with_file": "保存済み",
+          "without_file": "ファイルなし"
+        },
+        "columns": {
+          "date": "日付",
+          "title": "エピソード",
+          "state": "状態",
+          "action": "操作"
+        },
+        "state": {
+          "file": "保存済み",
+          "link": "リンクのみ",
+          "queued": "待機中",
+          "running": "読み込み中",
+          "failed": "失敗",
+          "removed": "削除済み",
+          "unclear": "不明"
+        },
+        "action": {
+          "load": "読み込む",
+          "loadLabel": "読み込む：{{title}}",
+          "retry": "再試行",
+          "retryLabel": "再読み込み：{{title}}",
+          "cancel": "キャンセル",
+          "cancelLabel": "キャンセル：{{title}}"
+        },
+        "meta": {
+          "link": "配信元からストリーミング",
+          "retryAt": "{{at}}以降に再試行",
+          "noRetry": "自動では再試行しません",
+          "removedFile": "ファイル{{file}}が見つかりません。Slouchcatは自動では読み込みません",
+          "removed": "ファイルが見つかりません。Slouchcatは自動では読み込みません",
+          "unclear": "フォルダー内のファイルにこのエピソードが含まれている可能性があります"
+        },
+        "error": {
+          "enclosure_unavailable": "配信元が応答しませんでした",
+          "too_large": "ファイルが2 GiBを超えています",
+          "not_audio": "音声ではありません",
+          "no_space": "空き容量が不足しています",
+          "root_not_writable": "フォルダーに書き込めません",
+          "root_missing": "フォルダーが見つかりません",
+          "unsupported_format": "この形式は保存されません"
+        }
+      }
+    },
+    "picks": {
+      "title": "ユーザーのおすすめ",
+      "intro": "オーナーのアカウントのプロフィールは、作品ページの星アイコンで作品をおすすめできます。ほかのアカウントはリストを見るだけです。名前は表示されず、各作品はリストに1回だけ表示されます。",
+      "retention": {
+        "title": "有効期限",
+        "label": "おすすめの表示期間",
+        "unit": "日間リストに表示",
+        "help": "7〜365日、既定は60日です。同じ作品が新たにおすすめされるたびに、期間がリセットされます。期間を短くするとすぐに適用されます。",
+        "saved_other": "おすすめは{{count}}日間表示されるようになりました。"
+      },
+      "list": "現在のおすすめ",
+      "count_other": "{{number}}作品",
+      "empty": "現在、作品をおすすめしているプロフィールはありません。おすすめがない場合、ホームに「ユーザーのおすすめ」の行は表示されません。",
+      "anonymous": "管理画面ではおすすめの数はわかりますが、どのプロフィールがおすすめしたかはわかりません。",
+      "homeRowsHint": "ホームのどこに行を表示するか、また表示するかどうかは<page>ホーム</page>で設定します。",
+      "columns": {
+        "title": "タイトル",
+        "picked": "最終おすすめ日",
+        "expires": "有効期限",
+        "count": "件数",
+        "actions": "操作"
+      },
+      "expiresIn_other": "{{count}}日後",
+      "countValue_other": "おすすめ{{count}}件",
+      "remove": {
+        "action": "外す",
+        "label": "{{title}}を外す",
+        "title": "{{title}}をユーザーのおすすめから外しますか？",
+        "body": "この作品へのおすすめはすべて削除されます。作品はライブラリに残ります。",
+        "confirm": "外す",
+        "done": "{{title}}をおすすめから外しました。"
+      }
+    },
+    "collections": {
+      "title": "コレクション",
+      "intro": "TMDBのコレクションは作品の照合時に自動で作成され、変更できません。独自のコレクションはここで作成します。",
+      "list": "コレクション",
+      "empty": "コレクションはまだありません。",
+      "columns": {
+        "name": "名前",
+        "source": "ソース",
+        "count": "作品数",
+        "state": "状態"
+      },
+      "source": {
+        "tmdb": "TMDB",
+        "manual": "手動"
+      },
+      "form": {
+        "name": "名前"
+      },
+      "create": {
+        "action": "新しいコレクション",
+        "title": "新しいコレクション",
+        "submit": "作成",
+        "done": "コレクション「{{name}}」を作成しました。"
+      },
+      "rename": {
+        "action": "名前を変更",
+        "label": "{{name}}の名前を変更",
+        "title": "{{name}}の名前を変更",
+        "done": "コレクションの名前を「{{name}}」に変更しました。"
+      },
+      "remove": {
+        "action": "削除",
+        "label": "コレクション「{{name}}」を削除",
+        "title": "コレクション「{{name}}」を削除しますか？",
+        "body": "作品はライブラリに残り、コレクションだけが削除されます。",
+        "confirm": "コレクションを削除",
+        "done": "コレクション「{{name}}」を削除しました。"
+      },
+      "members": {
+        "title": "{{name}}の作品",
+        "list": "コレクションの作品",
+        "empty": "このコレクションにはまだ作品がありません。",
+        "add": "追加",
+        "addLabel": "{{title}}を追加",
+        "remove": "外す",
+        "removeLabel": "{{title}}を外す",
+        "done": "{{name}}の作品を保存しました。",
+        "search": {
+          "label": "作品を検索",
+          "hint": "2文字以上：映画、TV番組、オーディオブック、ポッドキャスト。",
+          "empty": "一致する作品は見つかりません。",
+          "results": "見つかった作品"
+        },
+        "count_other": "{{number}}作品",
+        "meta": "{{kind}} · {{year}}",
+        "unsaved": "未保存の変更があります",
+        "discard": "破棄",
+        "discarded": "{{name}}への変更を破棄しました。"
+      },
+      "tabs": {
+        "label": "ソース別のコレクション",
+        "all": "すべて",
+        "count_other": "{{number}}件のコレクション"
+      },
+      "listManual": "手動のコレクション",
+      "listTmdb": "TMDBのコレクション",
+      "emptyTab": "このタブにコレクションはありません。",
+      "locked": "変更不可",
+      "lockedNote": "このコレクションはTMDBのものなので、作品、名前、削除はロックされています。",
+      "changed": "変更あり"
+    },
+    "myMedia": {
+      "title": "マイメディア",
+      "intro": "「マイメディア」グループの順番と表示です。サイドナビゲーションとホームのタイルに、すべてのプロフィールで適用されます。非表示にしても項目が隠れるだけで、作品は検索や行に引き続き表示されます。どのライブラリを誰が見られるかは、アカウントで設定します。",
+      "list": "「マイメディア」の項目",
+      "band": "マイメディア",
+      "tabs": {
+        "label": "項目の表示",
+        "order": "順番",
+        "preview": "プレビュー"
+      },
+      "count_other": "{{number}}項目",
+      "columns": {
+        "position": "順位",
+        "entry": "項目",
+        "content": "内容",
+        "state": "状態",
+        "sidebar": "サイドナビゲーション",
+        "home": "ホーム"
+      },
+      "kind": {
+        "library": "ライブラリ",
+        "radio": "ラジオ",
+        "collections": "コレクション",
+        "picks": "おすすめ"
+      },
+      "name": {
+        "radio": "ラジオ",
+        "collections": "コレクション",
+        "picks": "ユーザーのおすすめ"
+      },
+      "content": {
+        "stations_other": "{{number}}局",
+        "collections_other": "{{number}}件のコレクション",
+        "titles_other": "{{number}}作品"
+      },
+      "state": {
+        "visible": "表示",
+        "sidebarOnly": "サイドナビゲーションのみ",
+        "homeOnly": "ホームのみ",
+        "hidden": "非表示"
+      },
+      "hide": "非表示",
+      "hideSidebarLabel": "サイドナビゲーションで{{entry}}を非表示",
+      "hideHomeLabel": "ホームで{{entry}}を非表示",
+      "moved": "{{entry}}は{{position}}番目になりました。適用するには保存してください。",
+      "saved": "「マイメディア」を保存しました。",
+      "discarded": "変更を破棄しました。",
+      "discard": {
+        "title": "変更を破棄しますか？",
+        "body": "保存していない順番と非表示の設定は失われ、保存済みの設定に戻ります。",
+        "confirm": "破棄"
+      },
+      "preview": {
+        "sidebar": "サイドナビゲーション",
+        "home": "ホーム、「マイメディア」の行",
+        "sidebarLabel": "サイドナビゲーションのプレビュー",
+        "homeLabel": "ホームのプレビュー",
+        "empty": "何も表示されません。ここには「マイメディア」がありません。",
+        "note": "保存前の順番で、管理画面の数値を使って表示しています。各プロフィールには、見ることが許可されたライブラリと、自分のラジオ局とおすすめだけが表示されます。"
+      },
+      "homeRows": "ホームのどこに「マイメディア」の行を表示するか、また表示するかどうかは「ホーム」で設定します。",
+      "homeRowsLink": "「ホーム」ページへ"
+    },
+    "homeRows": {
+      "title": "ホーム",
+      "intro": "ホームの行の順番で、すべてのプロフィールに適用されます。非表示の行と空の行は表示されません。",
+      "list": "ホームの行",
+      "band": "行",
+      "tabs": {
+        "label": "行の表示",
+        "order": "順番",
+        "preview": "プレビュー"
+      },
+      "count_other": "{{number}}行",
+      "visibleCount_other": "{{number}}行を表示中",
+      "columns": {
+        "position": "順位",
+        "row": "行",
+        "state": "状態",
+        "hidden": "非表示"
+      },
+      "state": {
+        "visible": "表示",
+        "hidden": "非表示"
+      },
+      "hide": "非表示",
+      "hideLabel": "{{row}}を非表示",
+      "libraryTag": "ライブラリ",
+      "tooMany": "すでに{{count}}行が表示されています。先に別の行を非表示にしてください。",
+      "rows": {
+        "spotlight": "Traktのリストのうち、ライブラリにある作品です。この位置に背景画像付きのステージとして表示されます。一致する作品が最小数に満たない場合は表示されません。",
+        "picks": "オーナーのアカウントのプロフィールがおすすめする作品です。新しい順で、有効期限があります。",
+        "continue": "プロフィールが視聴を始めた作品です。",
+        "recent": "最近ライブラリに追加された作品です。",
+        "released": "過去12か月の公開日順です。TV番組は最新エピソードの日付で並びます。",
+        "watchlist": "プロフィールのマイリストです。",
+        "collections": "独自のコレクションとTMDBのコレクションです。",
+        "genres": "表示可能な作品のジャンルです。",
+        "libraries": "プロフィールが見られるライブラリ、ラジオ、および表示設定時のコレクションとユーザーのおすすめのタイルです。順番と非表示は「マイメディア」ページで設定します。",
+        "library": "このライブラリに最近追加された作品です。「すべて表示」を押すと、「最近追加」順に並べたライブラリが開きます。",
+        "radio": "プロフィールのお気に入りのラジオ局をタイルで表示します。サーバー経由で再生中のラジオ局には、再生中の曲が表示されます。お気に入りがない場合、この行は表示されません。"
+      },
+      "pageLink": "「{{page}}」へ",
+      "moved": "{{row}}は{{position}}番目になりました。適用するには保存してください。",
+      "saved": "ホームを保存しました。",
+      "discarded": "変更を破棄しました。",
+      "discard": {
+        "title": "変更を破棄しますか？",
+        "body": "保存していない順番と非表示の設定は失われ、保存済みの設定に戻ります。",
+        "confirm": "破棄"
+      },
+      "preview": {
+        "label": "ホームのプレビュー",
+        "row": "{{position}}. {{row}}",
+        "note": "保存前の順番による、プレースホルダーを使った概略図です。実際のホームでは非表示の行は表示されず、空の行（空のマイリストなど）も省かれます。"
+      },
+      "spotlight": "スポットライトに表示するTraktのリスト、前回の取得日時、Traktのセットアップ状況は「スポットライト」で確認できます。",
+      "spotlightLink": "「スポットライト」へ"
+    },
+    "spotlight": {
+      "title": "スポットライト",
+      "intro": "公開されているTraktのリストをホームの行として表示します。表示されるのは自分のライブラリにある作品のみで、各プロフィールには年齢区分で許可された作品だけが表示されます。",
+      "enabled": "ホームに表示",
+      "enabledHint": "ソースとあわせて「保存」したときに適用されます。",
+      "unsaved": "未保存の変更があります",
+      "row": {
+        "shown": "ホームに表示中",
+        "missing": "ホームに表示されていません"
+      },
+      "lists": {
+        "trending": "Traktのトレンド",
+        "popular": "Traktの人気作品",
+        "watched_weekly": "最も視聴された作品（先週）",
+        "collected_monthly": "最もコレクションされた作品（先月）",
+        "anticipated": "最も期待されている作品",
+        "boxoffice": "興行収入ランキング",
+        "url": "アドレスで指定する公開リスト"
+      },
+      "media": {
+        "movie": "映画のみ",
+        "show": "TV番組のみ",
+        "both": "映画とTV番組"
+      },
+      "source": {
+        "title": "ソース",
+        "list": "Traktのリスト",
+        "listHint": "公開リストのみ。Traktへのログインは不要です。",
+        "listHintLink": "キーは「連携」で設定",
+        "listUrl": "リストのアドレス",
+        "listUrlHint": "trakt.tvの公開リスト（例：https://trakt.tv/users/name/lists/name-of-the-list）。ウォッチリストは使用できません。",
+        "media": "メディアの種類",
+        "mediaFixed": "このリストではメディアの種類が決まっています。",
+        "mediaFilters": "このリストには映画とTV番組が混在しています。取得後、メディアの種類で項目を絞り込みます。",
+        "itemCount": "最大",
+        "itemCountHint": "行に表示する作品数（プロフィールごと、5〜20）",
+        "minHits": "非表示にする下限",
+        "minHitsHint": "ライブラリ内の一致数（プロフィールごと、0〜10）",
+        "intervalHours": "取得間隔（時間）",
+        "intervalHoursHint": "6〜48時間",
+        "rotation": "スポットライトの切り替え間隔",
+        "rotationHint": "3〜15秒",
+        "refresh": "今すぐ取得",
+        "queued": "リストを取得しています。",
+        "saved": "スポットライトを保存しました。"
+      },
+      "state": {
+        "fetched": "前回の取得：{{date}}",
+        "never": "未取得",
+        "failed": "前回の取得に失敗しました：{{reason}}",
+        "hits": "{{entries}}作品中{{hits}}作品がライブラリにあります",
+        "keySet": "キー設定済み",
+        "noKey": "キーなし",
+        "separator": " · "
+      },
+      "missing": {
+        "noKey": "Traktのキーがないため、ホームにこの行は表示されません。",
+        "disabled": "スポットライトはオフになっているため、ホームにこの行は表示されません。",
+        "failed": "取得に成功するまで、ホームにこの行は表示されません。",
+        "empty": "リストが空のため、ホームにこの行は表示されません。",
+        "belowMinHits": "ライブラリ内の一致は{{hits}}件で、必要な{{min}}件に足りないため、ホームにこの行は表示されません。見られる作品が少ないプロフィールでは、それ以外の場合でも表示されないことがあります。"
+      },
+      "entries": {
+        "title": "リストの項目",
+        "intro": "順番はTraktのものです。独自の変更は次回の取得後も維持されます。",
+        "empty": "項目はまだありません。Traktをセットアップしたら、リストを取得してください。",
+        "columns": {
+          "rank": "順位",
+          "title": "タイトル",
+          "status": "ステータス",
+          "note": "独自のメモ",
+          "actions": "操作"
+        },
+        "media": {
+          "movie": "映画",
+          "show": "TV番組"
+        },
+        "meta": "{{media}} · {{year}}",
+        "untitled": "TMDB {{id}}",
+        "state": {
+          "visible": "表示",
+          "hidden": "非表示",
+          "missing": "ライブラリにありません"
+        },
+        "pinned": "{{rank}}位に固定",
+        "quoted": "「{{note}}」",
+        "none": "–",
+        "notInLibrary": "ライブラリにないため、ホームには表示されません",
+        "hide": "非表示",
+        "hideLabel": "{{title}}を非表示",
+        "show": "表示",
+        "showLabel": "{{title}}を表示",
+        "hidden": "{{title}}を非表示にしました。",
+        "shown": "{{title}}を再び表示しました。",
+        "count_other": "{{count}}件"
+      },
+      "pin": {
+        "action": "固定",
+        "label": "{{title}}を固定",
+        "title": "{{title}}を固定",
+        "rank": "行内の順位",
+        "rankHint": "1が先頭です。順位はリスト全体に適用されるため、一致数が少ないプロフィールではその作品が前の方に表示されます。",
+        "done": "{{title}}を{{rank}}位に固定しました。",
+        "taken": "{{hint}} 使用中：{{places}}。",
+        "takenPlace": "{{rank}}位（{{title}}）",
+        "allTaken": "すべての順位が使用中です。先にどれかの固定を解除してください。"
+      },
+      "unpin": {
+        "action": "固定を解除",
+        "label": "{{title}}の固定を解除",
+        "done": "{{title}}の固定を解除しました。"
+      },
+      "note": {
+        "action": "メモ",
+        "label": "{{title}}のメモ",
+        "title": "{{title}}のメモ",
+        "field": "メモ",
+        "hint": "最大{{max}}文字。空にするとメモが削除されます。",
+        "saved": "{{title}}のメモを保存しました。",
+        "removed": "{{title}}のメモを削除しました。"
+      },
+      "orphans": {
+        "title": "孤立した調整",
+        "intro": "リストにもうない作品に対する調整です。作品がリストに戻ったときに再び有効になります。",
+        "override": "調整",
+        "remove": "削除",
+        "removeLabel": "{{title}}の調整を削除",
+        "removed": "{{title}}の調整を削除しました。",
+        "count_other": "{{count}}件の調整"
+      },
+      "rowSettings": "ホームのどこにこの行を表示するか、また表示するかどうかは「ホーム」で設定します。",
+      "rowSettingsLink": "「ホーム」へ"
+    },
+    "nav": {
+      "label": "管理",
+      "overview": "概要",
+      "groups": {
+        "library": "ライブラリ",
+        "accounts": "アカウント",
+        "curation": "キュレーション",
+        "system": "システム"
+      },
+      "back": "アプリに戻る",
+      "updateLabel": "概要、バージョン{{version}}へのアップデートがあります",
+      "sheet": {
+        "label": "管理ページ",
+        "close": "管理ページを閉じる"
+      },
+      "counts": {
+        "titles_other": "{{name}}、{{formatted}}作品",
+        "maintenance_other": "{{name}}、{{formatted}}作品が要メンテナンス",
+        "accounts_other": "{{name}}、{{formatted}}件のアカウント",
+        "streams_other": "{{name}}、{{formatted}}件を再生中",
+        "jobsRunning_other": "{{name}}、{{formatted}}件を実行中",
+        "jobsFailed_other": "{{name}}、{{formatted}}件が失敗",
+        "silent_other": "{{name}}、{{formatted}}件のWebhookが無応答",
+        "integrations": "{{name}}、{{total}}件中{{configured}}件をセットアップ済み",
+        "ofTotal": "{{count}} / {{total}}"
+      }
+    },
+    "sections": {
+      "radio": {
+        "title": "ラジオ"
+      },
+      "libraries": {
+        "title": "ライブラリ"
+      },
+      "podcasts": {
+        "title": "ポッドキャスト"
+      },
+      "maintenance": {
+        "title": "メンテナンス"
+      },
+      "accounts": {
+        "title": "アカウント"
+      },
+      "devices": {
+        "title": "デバイス"
+      },
+      "streams": {
+        "title": "ストリーム"
+      },
+      "spotlight": {
+        "title": "スポットライト"
+      },
+      "picks": {
+        "title": "ユーザーのおすすめ"
+      },
+      "collections": {
+        "title": "コレクション"
+      },
+      "myMedia": {
+        "title": "マイメディア"
+      },
+      "homeRows": {
+        "title": "ホーム"
+      },
+      "announcements": {
+        "title": "お知らせ"
+      },
+      "jobs": {
+        "title": "バックグラウンドジョブ"
+      },
+      "integrations": {
+        "title": "連携"
+      },
+      "notifications": {
+        "title": "通知"
+      },
+      "stats": {
+        "title": "統計"
+      },
+      "backup": {
+        "title": "バックアップ"
+      },
+      "metadata": {
+        "title": "メタデータ"
+      }
+    },
+    "home": {
+      "title": "管理",
+      "live": "ライブ、5秒ごとに更新",
+      "liveFailed": "応答なし。5秒ごとに再試行しています",
+      "update": {
+        "title": "バージョン{{version}}が利用可能です",
+        "body": "現在のバージョンは{{current}}です。Slouchcatは自動ではインストールしません。docker compose pullで新しいイメージを取得し、docker compose up -dで再起動してください。",
+        "notes": "リリースノート",
+        "development": {
+          "title": "開発版を使用しています",
+          "body": "{{current}}は公開されたリリースではないため、比較もアップデートの案内も行いません。最新のリリース：{{latest}}。",
+          "bodyUnknown": "{{current}}は公開されたリリースではないため、比較もアップデートの案内も行いません。"
+        }
+      },
+      "streams": {
+        "title": "再生中",
+        "empty": "現在再生中のものはありません。",
+        "all": "すべてのストリーム",
+        "progress": "{{title}}の進行状況"
+      },
+      "jobs": {
+        "title": "タスク",
+        "queued": "待機中",
+        "running": "実行中",
+        "failed": "失敗",
+        "paused": "一時停止中",
+        "all": "バックグラウンドジョブ",
+        "toFailed": "失敗を表示",
+        "active": "実行中のタスク",
+        "progress": "{{name}}の進行状況",
+        "next": "実行中のタスクはありません。次回：{{type}}、{{date}}",
+        "idle": "実行中のタスクはありません。",
+        "failedByType": "ジョブの種類別の失敗",
+        "failedType_other": "{{type}}：{{count}}件が失敗",
+        "attempts": "{{attempts}} / {{max}}"
+      },
+      "storage": {
+        "title": "ストレージ",
+        "config": "設定（{{path}}）",
+        "cache": "キャッシュ（{{path}}）",
+        "used": "{{total}}中{{used}}を使用",
+        "part": "使用量：{{size}}",
+        "free": "空き：{{free}} / {{total}}"
+      },
+      "integrations": {
+        "title": "連携",
+        "state": {
+          "configured": "設定済み",
+          "missing": "未セットアップ",
+          "error": "エラー",
+          "disabled": "オフ"
+        },
+        "entry": "{{name}}：{{state}}",
+        "manage": "連携をセットアップ",
+        "count": "{{total}}件中{{count}}件をセットアップ済み"
+      },
+      "webhooks": {
+        "title": "Webhook",
+        "none": "Webhookはセットアップされていません。",
+        "count_other": "過去24時間のログに{{count}}件の通知があります（{{total}}件の連携から）。",
+        "silent": "7日間通知なし：{{names}}",
+        "manage": "Webhookを管理"
+      },
+      "server": {
+        "title": "サーバー",
+        "version": "バージョン",
+        "uptime": "稼働時間",
+        "update": "アップデート",
+        "updateCurrent": "最新",
+        "updateAvailable": "バージョン{{version}}が利用可能",
+        "updateDevelopment": "開発版",
+        "updateFailed": "前回の確認に失敗",
+        "updateOff": "確認はオフ",
+        "updater": "アップデーター",
+        "updaterUnknown": "バージョン不明",
+        "updaterDown": "応答なし",
+        "checked": "前回の確認：{{date}}",
+        "lastSuccess": "前回成功した確認：{{date}}",
+        "check": "アップデートを確認",
+        "checkedNow": "アップデートを確認しました。"
+      },
+      "restart": {
+        "action": "再起動",
+        "title": "サーバーを再起動しますか？",
+        "streams_other": "再生中の{{count}}件のストリームが停止します。実行中の外出先用ダウンロードは中断されます。",
+        "idle": "現在再生中のものはありません。実行中の外出先用ダウンロードは中断されます。",
+        "confirm": "再起動",
+        "waitTitle": "サーバーを再起動しています",
+        "waitBody": "Slouchcatは正常にシャットダウンしてから再起動します。サーバーが応答すると、ページが再読み込みされます。"
+      },
+      "install": {
+        "action": "{{version}}へのアップデートをインストール",
+        "title": "{{version}}へのアップデートをインストールしますか？",
+        "body": "サーバーが再起動し、再生中のものは停止します。データベースの変更前には、データベースをバックアップします。",
+        "notes": "リリースノート",
+        "confirm": "インストール",
+        "running": "{{version}}へのアップデートを実行中",
+        "runningNoVersion": "アップデートを実行中",
+        "stepsLabel": "アップデートのステップ",
+        "steps": {
+          "download": "ダウンロード",
+          "restart": "再起動",
+          "health": "ヘルスチェック"
+        },
+        "stepState": {
+          "done": "完了",
+          "current": "実行中",
+          "pending": "保留中"
+        },
+        "phase": {
+          "checking": "アップデーターがリリースを確認しています。",
+          "backing_up": "アップデーターが.envをバックアップし、新しいバージョンを書き込んでいます。",
+          "pulling": "アップデーターが新しいイメージをダウンロードしています。",
+          "verifying": "アップデーターがイメージのフィンガープリントを確認しています。",
+          "restarting": "サーバーが新しいバージョンで再起動しています。",
+          "waiting": "アップデーターは、新しいサーバーが正常に動作するまで待機しています（最大10分）。"
+        },
+        "down": "現在サーバーが応答しません。応答を待っています…",
+        "silent": {
+          "title": "サーバーが70分以上応答していません",
+          "body": "アップデートにこれほど時間はかかりません。ホストでdocker compose psとdocker compose logsを使い、サーバーとアップデーターのコンパニオンが動作しているか確認してください。"
+        },
+        "done": "{{version}}へのアップデートをインストールしました。",
+        "rolledBack": "{{to}}へのアップデートに失敗しました。バージョン{{from}}が再び動作しています。",
+        "rolledBackNoVersion": "アップデートに失敗しました。以前のバージョンが再び動作しています。",
+        "failed": "{{version}}へのアップデートに失敗しました",
+        "failedNoVersion": "アップデートに失敗しました",
+        "migrated": "マイグレーションが実行されました。元に戻すにはバックアップ{{backup}}が必要です。",
+        "migratedNoBackup": "マイグレーションが実行されました。元に戻すには、その前に作成されたバックアップが必要です。",
+        "failure": {
+          "disk_full": "サーバーに新しいイメージ用の空き容量がありません。容量を空けてから、もう一度お試しください。",
+          "deploy_files": "リリースのComposeファイルを取得または書き込みできなかったため、アップデートを中止しました。"
+        },
+        "finished": "完了：{{date}}",
+        "refused": {
+          "title": "アップデーターはアップデートを開始しませんでした",
+          "not_newer": "最新のバージョンは、実行中のバージョンより新しくありません。",
+          "no_digest": "リリースマニフェストにイメージのフィンガープリント（ダイジェスト）がありません。",
+          "no_compose_labels": "サーバーがDocker Composeで起動されていないため、アップデーターは再起動の方法がわかりません。手動でアップデートをインストールしてください。",
+          "outside_deploy_dir": "サーバーのComposeファイルがSLOUCHCAT_DEPLOY_DIRの外にあります。",
+          "manifest_invalid": "リリースマニフェストが無効です。",
+          "manifest_unreachable": "リリースマニフェストに接続できません。しばらくしてからもう一度お試しください。",
+          "other": "アップデーターは、このアプリが認識できない理由で拒否しました。"
+        },
+        "manual": {
+          "unavailable": "アップデーターのコンパニオンが応答しません。手動でアップデートをインストールしてください。",
+          "intro": "アップデーターのコンパニオンを使わない場合は、ホストのcompose.yamlと.envがあるフォルダーでアップデートをインストールします：",
+          "introByHand": "手動の場合は、ホストのcompose.yamlと.envがあるフォルダーでアップデートをインストールします：",
+          "env": ".envの行",
+          "pull": "新しいイメージを取得",
+          "up": "新しいバージョンで起動",
+          "files": "起動時と同じ-fファイルを指定してください（例：docker compose -f compose.yaml -f compose.intel.yaml pull）。指定しないと、アップデート後にそれらが欠落します。",
+          "docs": "ガイド：アップデーターのコンパニオンでボタン1つでアップデート"
+        },
+        "outdated": {
+          "title": "アップデーターが古くなっています。バージョン1.18.0以降は自動でアップデートされます。一度だけ手動でアップデートしてください：",
+          "command": "deployフォルダーで実行",
+          "deployDir": "<deploy-folder>",
+          "files": "COMPOSE_FILEではなく-fでComposeファイルを指定している場合は、同じ-fのリストを追加してください。"
+        }
+      },
+      "activity": {
+        "title": "最近のアクティビティ",
+        "empty": "アクティビティはまだありません。"
+      },
+      "hints": {
+        "title": "お知らせ事項",
+        "count_other": "{{count}}件のお知らせ事項",
+        "none": "お知らせ事項はありません。",
+        "failed_other": "{{formatted}}件のバックグラウンドジョブが失敗しました",
+        "paused_other": "{{count}}種類のジョブが一時停止中です",
+        "toJobs": "バックグラウンドジョブへ",
+        "scan": "ライブラリ「{{name}}」のスキャンが中止されました",
+        "scanOther": "欠落保護機能によりスキャンが中止されました。",
+        "toLibraries": "ライブラリへ",
+        "keyRejected": "{{name}}のキーが拒否されました",
+        "keyRejectedBody": "プロバイダーがキーを拒否しています。新しいキーが有効になるまで、Slouchcatはそこからメタデータを取得しません。",
+        "toKeys": "キーへ",
+        "storage": "{{path}}の使用率が{{percent}}%を超えています"
+      },
+      "errors": {
+        "title": "サーバーログ",
+        "intro": "サーバーログの直近50件のエラーです（新しい順）。",
+        "list": "サーバーログのエラー",
+        "empty": "起動以降エラーはありません。",
+        "job": "ジョブ{{id}}（{{type}}）",
+        "new_other": "新しいエラー{{count}}件",
+        "none": "エラーなし",
+        "count_other": "{{count}}件のエラー"
+      },
+      "browse": {
+        "title": "フォルダーブラウザーがブロック中",
+        "hanging_other": "マウントが応答しなくなりました。{{count}}件の一覧取得がカーネル内で停止しており、キャンセルできません。フォルダーブラウザーは引き続き使えますが、利用できる枠が減っています。再起動すると解放されます。",
+        "off": "フォルダーブラウザーのすべての枠が、応答しなくなったマウントで停止しています。サーバーを再起動するまでフォルダーを参照できません。パスを手動で入力することはできます。"
+      }
+    },
+    "integrations": {
+      "title": "連携",
+      "intro": "プロバイダーのキー、通知の送信、アップデートの確認です。Slouchcatは秘密の値を暗号化して保存し、二度と表示しません。",
+      "names": {
+        "tmdb": "TMDB",
+        "tvdb": "TVDB",
+        "youtube": "YouTube",
+        "trakt": "Trakt",
+        "email": "メール",
+        "push": "Web Push",
+        "telegram": "Telegram",
+        "updateCheck": "アップデートの確認"
+      },
+      "source": {
+        "env": "deploy/.envで設定",
+        "stored": "保存済み",
+        "storedHint": "保存済み、末尾は{{hint}}",
+        "none": "未設定"
+      },
+      "envHint": "deploy/.envで設定されています。値はそこでのみ変更できます。",
+      "save": "保存",
+      "saveLabel": "{{name}}を保存",
+      "saving": "保存中…",
+      "discard": "破棄",
+      "clear": {
+        "action": "削除…",
+        "label": "{{name}}を削除",
+        "title": "{{name}}を削除しますか？",
+        "body": "保存されている値が削除されます。この値を使う機能は動作しなくなります。",
+        "confirm": "削除"
+      },
+      "saved": "{{name}}を保存しました。",
+      "cleared": "{{name}}を削除しました。",
+      "unsaved": "未保存",
+      "notificationsLink": "通知チャンネルへ",
+      "keys": {
+        "title": "プロバイダーのキー",
+        "intro": "Slouchcatはこれらを使ってテキスト、画像、予告編を取得します。キーがない場合、そのプロバイダーは使用されません。",
+        "count": "{{total}}件中{{set}}件のプロバイダーをセットアップ済み",
+        "newValue": "保存済みの値を維持するには空欄のままにしてください。新しい値を入力すると置き換えられます。"
+      },
+      "webhooks": {
+        "title": "RadarrとSonarrのWebhook",
+        "intro": "RadarrとSonarrが変更されたファイルをここに通知するため、新しい作品がすぐに表示されます。Slouchcatからこれらのサービスに問い合わせることはありません。",
+        "empty": "連携はまだセットアップされていません。",
+        "caption": "Webhookの連携",
+        "count_other": "{{count}}件の連携",
+        "tail": "…{{tail}}",
+        "columns": {
+          "name": "名前",
+          "kind": "サービス",
+          "address": "アドレス",
+          "lastSeen": "最終通知",
+          "actions": "操作"
+        },
+        "neverSeen": "まだ通知はありません。",
+        "kind": {
+          "radarr": "Radarr",
+          "sonarr": "Sonarr"
+        },
+        "form": {
+          "title": "新しい連携",
+          "name": "名前",
+          "nameHint": "自由に付けられます。このリストで区別するためだけに使います。",
+          "kind": "サービス",
+          "submit": "連携を作成"
+        },
+        "created": {
+          "title": "「{{name}}」のアドレス",
+          "once": "今すぐコピーしてください。このアドレスは二度と表示されません。",
+          "label": "完全なアドレス",
+          "copy": "アドレスをコピー",
+          "copied": "アドレスをコピーしました。",
+          "copyFailed": "コピーできませんでした。アドレスは選択済みなので、Ctrl+Cを押してください。",
+          "dismiss": "非表示"
+        },
+        "pathMap": {
+          "intro": "RadarrまたはSonarrが通知するパスを変換します。同じストレージが双方で異なる場所にマウントされている場合（例：サービス側は「/mnt/medien/Filme」、ここでは「/media/Filme」）に必要です。最も長く一致する先頭部分が優先され、項目がない場合は通知されたパスがそのまま使われます。どちらのパスも「/」で始まる絶対パスにしてください。",
+          "from": "サービス側のパス",
+          "to": "このサーバーのパス",
+          "add": "行を追加",
+          "remove": "{{from}}の行を削除",
+          "removeAction": "削除",
+          "elsewhere": "その間に、別のユーザーがこの連携のパス変換を変更しました。入力した行はここに残っており、保存すると適用されます。",
+          "takeOver": "別のバージョンを採用",
+          "elsewhereChip": "他所で変更済み",
+          "saveLabel": "{{name}}のパス変換を保存",
+          "saved": "パス変換を保存しました。"
+        },
+        "log": {
+          "caption": "{{name}}からの通知",
+          "empty": "通知はまだありません。",
+          "at": "時刻",
+          "event": "イベント",
+          "reported": "通知されたパス",
+          "resolved": "変換後のパス",
+          "result": "結果"
+        },
+        "result": {
+          "scan_queued": "フォルダーを読み込み中",
+          "acknowledged": "テストを確認",
+          "ignored": "影響なし",
+          "outside_roots": "ライブラリ外",
+          "invalid_payload": "パスなし"
+        },
+        "renew": {
+          "action": "トークンを更新",
+          "label": "{{name}}のトークンを更新",
+          "title": "「{{name}}」のトークンを更新しますか？",
+          "body": "現在のアドレスはすぐに使えなくなります。新しいアドレスは一度だけ表示されるので、RadarrまたはSonarrに入力し直してください。",
+          "confirm": "更新"
+        },
+        "delete": {
+          "action": "削除",
+          "label": "{{name}}を削除",
+          "title": "「{{name}}」を削除しますか？",
+          "body": "アドレスはすぐに使えなくなり、通知のログも削除されます。",
+          "confirm": "削除"
+        }
+      },
+      "email": {
+        "title": "メールサーバー",
+        "intro": "メールでの通知、招待、お知らせに使用します。",
+        "name": "メールサーバー",
+        "hostPort": "サーバーとポート",
+        "port": "ポート",
+        "user": "ユーザー",
+        "userHint": "必要な場合、メールサーバーのログイン名。",
+        "password": "パスワード",
+        "passwordHint": "暗号化して保存され、二度と表示されません。",
+        "passwordKeep": "保存済みのパスワードを維持するには空欄のままにしてください。",
+        "from": "送信者",
+        "fromHint": "例：Slouchcat <media@example.ch>",
+        "tls": "暗号化",
+        "tlsHint": "ポート587はSTARTTLS、ポート465はTLS。",
+        "tlsOptions": {
+          "starttls": "STARTTLS",
+          "tls": "TLS",
+          "none": "なし"
+        },
+        "test": "テストメールを送信",
+        "testTo": "テストメールは{{email}}に送信されます。",
+        "testSent": "{{email}}にテストメールを送信しました。",
+        "testFailed": "テストメールが届きませんでした：{{detail}}"
+      },
+      "telegram": {
+        "title": "Telegramボット",
+        "name": "Telegramボット",
+        "botLabel": "ボット",
+        "botHelp": "Slouchcatはトークンからボットを見つけます。",
+        "token": "ボットトークン",
+        "setPlaceholder": "トークン設定済み",
+        "tokenHelp": "Telegramでの通知に使用します。トークンは@BotFatherから取得し、SlouchcatがTelegramで確認します。",
+        "tokenReplace": "新しいトークンを入力すると、保存済みのものが置き換えられます。",
+        "bot": "ボット：@{{name}}",
+        "noBot": "ボットはセットアップされていません。"
+      },
+      "push": {
+        "title": "Web Push",
+        "intro": "ブラウザーとインストールしたアプリでの通知です。",
+        "configured": "キーペアがあります。",
+        "notConfigured": "キーペアはまだありません。デバイスでWeb Pushをオンにすると作成されます。",
+        "publicKey": "公開鍵",
+        "rotate": {
+          "action": "新しいキーを作成",
+          "title": "Web Pushの新しいキーを作成しますか？",
+          "body": "すべてのデバイスで登録が解除されるため、設定でWeb Pushを再度オンにする必要があります。",
+          "confirm": "新しいキーを作成"
+        },
+        "rotated": "新しいキーを作成しました。各デバイスでWeb Pushを再度オンにする必要があります。"
+      },
+      "update": {
+        "title": "アップデートの確認",
+        "intro": "Slouchcatは1日に1回、公開されているリリースマニフェストを読み込み、新しいバージョンがあればお知らせします。インストールは行いません。",
+        "toggle": "毎日新しいバージョンを確認する",
+        "on": "アップデートの確認をオンにしました。",
+        "off": "アップデートの確認をオフにしました。"
+      },
+      "server": {
+        "title": "サーバー"
+      },
+      "publicUrl": {
+        "title": "公開アドレス",
+        "intro": "メールやメッセージ内のリンクは、このアドレスでサーバーにつながります。",
+        "name": "公開アドレス",
+        "label": "アドレス",
+        "hint": "例：https://media.example.ch"
+      },
+      "providers": {
+        "fields": {
+          "tmdb": "アクセストークン（v4）",
+          "tvdb": "キー",
+          "tvdbPin": "購読者PIN（購読キーの場合のみ）",
+          "fanart": "プロジェクトキー",
+          "fanartClient": "個人キー（任意）",
+          "youtube": "キー",
+          "trakt": "クライアントID",
+          "googleBooks": "キー"
+        },
+        "open": {
+          "setup": "セットアップ",
+          "edit": "編集",
+          "view": "表示"
+        },
+        "check": {
+          "ok": "{{name}}：プロバイダーが応答しました。キーは有効です。",
+          "not_configured": "{{name}}：キーが設定されていません。",
+          "invalid": "{{name}}：プロバイダーがキーを拒否しました（{{message}}）。",
+          "unreachable": "{{name}}：プロバイダーに接続できません（{{message}}）。",
+          "failed": "{{name}}：確認に失敗しました（{{message}}）。"
+        },
+        "tmdb": {
+          "name": "TMDB",
+          "purpose": "映画とTV番組のテキスト、ポスター、予告編。ビデオライブラリには必須です。",
+          "help": "TMDBアカウントの「API」で無料で取得できる読み取りアクセストークン（v4）です。"
+        },
+        "tvdb": {
+          "name": "TVDB",
+          "purpose": "TV番組とアニメの2つ目のソース：シーズンとエピソードのタイトル。",
+          "help": "キーとPINはTVDBアカウントにあります。購読していない場合、PINは空欄のままにしてください。"
+        },
+        "fanart": {
+          "name": "Fanart.tv",
+          "purpose": "ロゴ、背景、ディスク画像。ソースは「メタデータ」でオンにします。",
+          "help": "個人キーがあれば新しい画像は2日後、ない場合は7日後に表示されます。"
+        },
+        "youtube": {
+          "name": "YouTube",
+          "purpose": "TMDBにない予告編を探します。",
+          "help": "Google Cloud Consoleで取得する「YouTube Data API v3」のキーです。"
+        },
+        "trakt": {
+          "name": "Trakt",
+          "purpose": "スポットライトとホームの行に使うリスト。",
+          "help": "自分で作成したTraktアプリのクライアントIDです。リストの状況は「スポットライト」ページで確認できます。"
+        },
+        "googlebooks": {
+          "name": "Google Books",
+          "purpose": "オーディオブックの書籍データ。キーがない場合、SlouchcatはGoogle Booksに問い合わせません。",
+          "help": "Google Cloud Consoleで取得する「Books API」のキーです。どのフォルダーがこのソースを使うかは「オーディオブック：ソース」で設定します。"
+        },
+        "close": "閉じる",
+        "toggleLabel": "{{action}}：{{name}}",
+        "link": "{{name}}でキーを取得",
+        "stored": "設定済み。空欄のままにすると維持されます",
+        "storedHint": "設定済み、末尾は{{hint}}。空欄のままにすると維持されます",
+        "envNote": "この値はdeploy/.envから読み込まれ、そこでのみ変更できます。「確認」を押すと、それでもプロバイダーに問い合わせます。",
+        "checkAction": "確認",
+        "checkLabel": "{{name}}を確認",
+        "rejected": "拒否",
+        "savedRejected": "{{name}}を保存しましたが、プロバイダーがキーを拒否しています。"
+      }
+    },
+    "accounts": {
+      "title": "アカウント",
+      "intro": "すべてのアカウントと、その役割、年齢区分、ライブラリ、プロフィール、通知を受け取るチャンネルです。新しいアカウントは招待から作成されます。ここで管理できるのは自分のアカウントのプロフィールで、ほかのアカウントのプロフィールは各アカウントが管理します。",
+      "list": "アカウント",
+      "columns": {
+        "email": "メール",
+        "role": "役割",
+        "rating": "年齢区分",
+        "libraries": "ライブラリ",
+        "profiles": "プロフィール",
+        "lastSeen": "最終利用",
+        "channels": "チャンネル",
+        "actions": "操作"
+      },
+      "roles": {
+        "admin": "管理者",
+        "user": "アカウント"
+      },
+      "libraries_other": "{{count}}件のライブラリ",
+      "primaryProfile": "{{name}}（メインプロフィール）",
+      "listSeparator": "、",
+      "neverSeen": "未利用",
+      "noChannels": "なし",
+      "channels": {
+        "email": "メール",
+        "push": "Web Push",
+        "telegram": "Telegram"
+      },
+      "edit": {
+        "title": "アカウントを変更",
+        "intro": "アカウントのメールアドレスとパスワードです。変更するには、現在のパスワードが必要です。",
+        "email": "メールアドレス",
+        "newPassword": "新しいパスワード",
+        "newPasswordHint": "パスワードを変更しない場合は空欄のままにしてください。変更する場合は10文字以上にしてください。",
+        "newPasswordRepeat": "新しいパスワード（確認）",
+        "currentPassword": "現在のパスワード",
+        "currentPasswordHint": "本人確認に使用します。",
+        "wrongPassword": "現在のパスワードが正しくありません。",
+        "unchanged": "メールアドレスを変更するか、新しいパスワードを入力してください。",
+        "saved": "アカウントを保存しました。"
+      },
+      "ownerBadge": "オーナー",
+      "access": {
+        "title": "{{email}}のアクセス権",
+        "rating": "最高の年齢区分",
+        "libraries": "ライブラリ",
+        "limitsHint": "このアカウントのすべてのプロフィールに適用されます。",
+        "heading": "アクセス権",
+        "save": "アクセス権を保存",
+        "saved": "{{email}}のアクセス権を保存しました。",
+        "adminHint": "管理者は常に区分18ですべてのライブラリを利用できます。「アクセス権」は管理者以外のアカウントにのみあります。"
+      },
+      "role": {
+        "promote": {
+          "action": "管理者にする",
+          "title": "{{email}}を管理者にしますか？",
+          "body": "このアカウントは、サーバー、ライブラリ、設定を管理できるようになります。年齢区分は18に、ライブラリはすべてに引き上げられます。アカウントのプロフィールはそれぞれの区分を維持します。",
+          "confirm": "任命",
+          "done": "{{email}}を管理者にしました。"
+        },
+        "demote": {
+          "action": "役割を外す",
+          "title": "{{email}}から管理者の役割を外しますか？",
+          "body": "このアカウントは自分のプロフィールのみを管理できるようになり、すべてのデバイスでログアウトされます。年齢区分とライブラリはそのまま残るので、改めて設定し直してください。",
+          "confirm": "外す",
+          "done": "{{email}}は管理権限のないアカウントになりました。"
+        }
+      },
+      "remove": {
+        "action": "アカウントを削除",
+        "title": "アカウント{{email}}を削除しますか？",
+        "body": "アカウント、そのプロフィール、視聴状況が削除されます。実行中のセッションと再生はすぐに終了します。アカウントのデバイス上のダウンロードは、次にサーバーに接続したときに消えます。二度とオンラインにならないデバイスには残ります。",
+        "confirm": "アカウントを削除",
+        "done": "アカウント{{email}}を削除しました。"
+      },
+      "invitations": {
+        "intro": "リンクは1回だけ、7日間有効です。リンクを開いた人が自分のアカウントを作成します。",
+        "note": "リンクの送り先",
+        "noteHint": "名前など。メモは招待された人にも表示されます。",
+        "create": "招待を作成",
+        "creating": "作成中…",
+        "form": {
+          "rating": "最高の年齢区分",
+          "libraries": "ライブラリ"
+        },
+        "created": {
+          "once": "今すぐリンクをコピーしてください。表示されるのはこの1回だけです。",
+          "label": "招待リンク",
+          "copy": "リンクをコピー",
+          "copied": "リンクをコピーしました。",
+          "copyFailed": "コピーできません。リンクは選択済みなので、Ctrl+Cでコピーしてください。",
+          "dismiss": "完了"
+        },
+        "list": "作成済みの招待",
+        "empty": "招待はまだ作成されていません。",
+        "noNote": "メモなし",
+        "state": {
+          "open": "未使用",
+          "used": "使用済み",
+          "expired": "期限切れ",
+          "revoked": "取り消し済み"
+        },
+        "expires": "{{date}}まで有効",
+        "usedBy": "{{email}}が承諾",
+        "revoke": {
+          "action": "取り消す",
+          "title": "招待を取り消しますか？",
+          "body": "リンクは使えなくなります。",
+          "confirm": "取り消す",
+          "done": "招待「{{note}}」を取り消しました。"
+        },
+        "invite": "アカウントを招待",
+        "columns": {
+          "note": "メモ",
+          "state": "状態",
+          "rating": "年齢区分",
+          "libraries": "ライブラリ",
+          "detail": "有効期限／承諾",
+          "actions": "操作"
+        }
+      },
+      "discard": "破棄",
+      "status": {
+        "label": "概要",
+        "accounts": "アカウント",
+        "admins": "管理者",
+        "owners_other": "うちオーナー{{number}}人",
+        "profiles": "プロフィール",
+        "ownProfiles_other": "うち自分のもの{{number}}件",
+        "openInvitations": "未使用の招待",
+        "nextExpiry": "次の期限：{{date}}"
+      },
+      "tabs": {
+        "label": "アカウントのセクション",
+        "accounts": "アカウント",
+        "invitations": "招待",
+        "accountsCount_other": "{{number}}件のアカウント",
+        "open": "未使用{{number}}件"
+      },
+      "profiles": {
+        "mine": "自分のプロフィール",
+        "of": "{{email}}のプロフィール",
+        "readOnly": "プロフィールは各アカウントが管理します。"
+      }
+    },
+    "backup": {
+      "title": "バックアップ",
+      "intro": "データベースと設定のバックアップと復元です。メディアはバックアップに含まれません。",
+      "list": "バックアップ",
+      "empty": "バックアップはまだありません。",
+      "count_other": "{{number}}件のバックアップ",
+      "caption": "バックアップ：{{kind}}",
+      "new": "新規",
+      "tabs": {
+        "label": "バックアップページのセクション",
+        "list": "バックアップ",
+        "create": "新しいバックアップ",
+        "upload": "ファイルから復元"
+      },
+      "groups": {
+        "encrypted": "暗号化済み{{number}}件",
+        "newest": "最新：{{date}}",
+        "autoHint": "サーバーは、データベースのマイグレーション（アップデート時）の前と、復元の前に自動バックアップを作成します。"
+      },
+      "columns": {
+        "name": "ファイル",
+        "created": "作成日時",
+        "size": "サイズ",
+        "secrets": "キー",
+        "encrypted": "暗号化",
+        "actions": "操作"
+      },
+      "kinds": {
+        "manual": "手動",
+        "auto": "自動"
+      },
+      "yes": "はい",
+      "no": "いいえ",
+      "created": "バックアップ「{{name}}」を作成しました。",
+      "deleted": "バックアップ「{{name}}」を削除しました。",
+      "create": {
+        "intro": "バックアップには、アカウント、プロフィール、視聴状況、設定を含むデータベースが保存されます。メディアは含まれません。",
+        "scope": "範囲",
+        "without": "キーなし（推奨）",
+        "with": "キーあり",
+        "withoutHint": "TMDBやTraktのキー、メールサーバー、Telegramボット、Web Pushのキーなどの認証情報は含まれません。復元後に入力し直してください。非公開のポッドキャストフィードのアドレスはアクセスコードとともに含まれるため、復元後も登録はそのまま続きます。",
+        "withHint": "バックアップには認証情報の鍵も含まれます。そのため、アーカイブ全体をパスフレーズ（{{min}}文字以上）で暗号化します。パスフレーズがないと復元できません。",
+        "passphrase": "パスフレーズ",
+        "passphraseHint": "{{min}}文字以上。バックアップとは別の場所に保管してください。",
+        "passphraseRepeat": "パスフレーズ（確認）",
+        "passphraseTooShort": "{{min}}文字以上にしてください。",
+        "passphraseMismatch": "パスフレーズが一致しません。",
+        "submit": "バックアップを作成",
+        "creating": "作成中…"
+      },
+      "download": {
+        "action": "ダウンロード",
+        "label": "{{name}}をダウンロード"
+      },
+      "delete": {
+        "action": "削除…",
+        "title": "バックアップ「{{name}}」を削除しますか？",
+        "body": "ファイルはサーバーのバックアップフォルダーから削除されます。ダウンロード済みのコピーは残ります。",
+        "confirm": "バックアップを削除"
+      },
+      "restore": {
+        "action": "復元",
+        "menu": "復元…",
+        "titleNamed": "「{{name}}」を復元",
+        "warning": "復元すると、このサーバーのすべてのデータがバックアップの状態に置き換えられます。その後サーバーが再起動し、全員がログアウトされます。",
+        "file": "バックアップファイル",
+        "fileHint": "slouchcat-backup-….tar.gzファイル、またはキーありの場合は….tar.gz.ageファイル。",
+        "passphrase": "パスフレーズ",
+        "passphraseHint": "このバックアップは暗号化されています。",
+        "passphraseUploadHint": "暗号化されたバックアップ（….tar.gz.age）の場合のみ。",
+        "running": "確認中…",
+        "confirmTitle": "すべてのデータを置き換えますか？",
+        "confirmBodyNamed": "アカウント、プロフィール、視聴状況、設定が「{{name}}」の状態に置き換えられます。その後サーバーが再起動し、全員がログアウトされます。",
+        "confirm": "置き換えて再起動"
+      },
+      "restart": {
+        "title": "サーバーを再起動しています",
+        "body": "バックアップ（バージョン{{version}}）は確認済みで、起動時に読み込まれます。サーバーが再び応答すると、ログイン画面が開きます。",
+        "noSecrets": "このバックアップには認証情報が含まれていません。復元後、「連携」でキー、メールサーバー、Telegramボットを入力し直してください。"
+      }
+    },
+    "restart": {
+      "waiting": "サーバーを待っています…",
+      "back": "サーバーが復帰しました。",
+      "silent": "{{seconds}}秒間、新しいサーバーから応答がありません。",
+      "slow": {
+        "title": "サーバーが復帰しません",
+        "body": "再起動に通常より時間がかかっています。コンテナーのログ（docker logs slouchcat）を確認し、サーバーが動作したらこのページを再読み込みしてください。",
+        "retry": "再確認"
+      }
+    },
+    "stats": {
+      "title": "統計",
+      "intro": "すべてのアカウントとプロフィールで最近視聴されたものです。",
+      "period": "期間",
+      "days_other": "{{count}}日間",
+      "columns": {
+        "plays": "再生回数",
+        "watched": "視聴時間"
+      },
+      "tooltip": "{{label}}：{{value}}",
+      "top": {
+        "title": "最も視聴された作品",
+        "empty": "この期間に視聴されたものはありません。",
+        "columns": {
+          "title": "タイトル",
+          "kind": "種類",
+          "rank": "順位"
+        },
+        "count_other": "{{count, number}}作品",
+        "podium": "1〜3位",
+        "rest": "4位以下の最も視聴された作品",
+        "rank": "{{rank}}位",
+        "meta": "{{kind}} · {{plays}} · {{watched}}",
+        "full": "トップ{{count, number}}",
+        "plays_other": "{{count, number}}回再生"
+      },
+      "profiles": {
+        "title": "プロフィール別の視聴時間",
+        "chart": "プロフィール別の視聴時間のグラフ",
+        "label": "{{profile}}（{{email}}）",
+        "empty": "この期間に視聴したプロフィールはありません。",
+        "columns": {
+          "profile": "プロフィール"
+        },
+        "summary_other": "{{count, number}}件のプロフィール · {{watched}}"
+      },
+      "playback": {
+        "title": "再生",
+        "direct": "ダイレクト再生",
+        "remux": "Remux",
+        "transcode": "トランスコード",
+        "sessions_other": "{{count, number}}回再生",
+        "share": "全再生の{{share}}",
+        "hardware": "GPUでのトランスコード",
+        "hardwareNote": "トランスコードに占める割合"
+      },
+      "devices": {
+        "title": "デバイス",
+        "chart": "デバイスの種類別の視聴時間のグラフ",
+        "empty": "この期間に再生したデバイスはありません。",
+        "unknown": "不明",
+        "columns": {
+          "type": "デバイスの種類",
+          "count": "デバイス"
+        },
+        "summary_other": "{{count, number}}台のデバイス · {{watched}}"
+      },
+      "loaded": "{{period}}の数値を読み込みました。",
+      "when": {
+        "title": "視聴される時間帯",
+        "window_other": "過去{{count, number}}週間",
+        "empty": "この期間に視聴されたものはありません。",
+        "byHour": "時間帯別",
+        "byWeekday": "曜日別",
+        "columns": {
+          "hour": "時間",
+          "day": "曜日"
+        },
+        "hourSpan": "{{from}}時〜{{to}}時",
+        "topHour": "最多：{{hour}}",
+        "topDay": "最多：{{day}}",
+        "zone": "時間はサーバーのタイムゾーン（{{zone}}）です。",
+        "grid": "曜日と時間",
+        "gridChart": "曜日と時間別の視聴時間",
+        "peak": "ピーク：{{day}}、{{hour}}"
+      }
+    },
+    "announcements": {
+      "title": "お知らせ",
+      "intro": "全員へのお知らせです。公開したお知らせは、各プロフィールの次回起動時に表示され、各アカウントのチャンネルにも届きます。",
+      "list": "お知らせ",
+      "empty": "お知らせはまだありません。",
+      "create": "新しいお知らせ",
+      "sections": {
+        "drafts": "下書き {{number}}",
+        "published": "公開済み {{number}}"
+      },
+      "item": {
+        "new": "未保存",
+        "changed": "未保存の変更があります",
+        "created": "{{date}}に作成",
+        "read": "{{total}}件中{{acknowledged}}件が既読"
+      },
+      "facts": {
+        "created": "作成日",
+        "published": "公開日",
+        "acknowledged": "既読"
+      },
+      "draft": "下書き",
+      "notSent": "未送信",
+      "acknowledged": "{{total}}件中{{acknowledged}}件のプロフィール",
+      "published": "「{{title}}」を公開しました。",
+      "saved": "「{{title}}」を下書きとして保存しました。",
+      "deleted": "「{{title}}」を削除しました。",
+      "form": {
+        "title": "新しいお知らせ",
+        "editTitle": "下書きを編集",
+        "titleLabel": "タイトル",
+        "titleCount": "{{length}} / {{max}}",
+        "body": "本文",
+        "bodyHint": "最大{{max}}文字。改行はそのまま保持されます。",
+        "publishLabel": "公開",
+        "publishNow": "今すぐ公開",
+        "save": "下書きとして保存"
+      },
+      "preview": {
+        "title": "プロフィールでの表示",
+        "noTitle": "お知らせのタイトル",
+        "noBody": "ここに本文が、プロフィールでの表示どおりに表示されます。"
+      },
+      "discard": {
+        "action": "破棄",
+        "title": "変更を破棄しますか？",
+        "body": "「{{title}}」への保存していない変更は失われます。",
+        "newTitle": "新しいお知らせを破棄しますか？",
+        "newBody": "新しいお知らせはまだ保存されていません。タイトルと本文は失われます。",
+        "confirm": "破棄"
+      },
+      "publish": {
+        "action": "公開",
+        "label": "「{{title}}」を公開",
+        "title": "「{{title}}」を公開しますか？",
+        "body": "各プロフィールの次回起動時にお知らせが表示されます。お知らせの受け取りを選んだすべてのアカウントのチャンネルにも送信され、ゲストには既定でメールが届きます。公開後は変更できません。",
+        "confirm": "公開",
+        "reach": "各プロフィールの次回起動時に表示され、お知らせの受け取りを選んだすべてのアカウントのチャンネルにも送信されます。ゲストには既定でメールが届きます。",
+        "later": "公開時：{{reach}} 公開後は変更できません。"
+      },
+      "delete": {
+        "action": "削除",
+        "label": "「{{title}}」を削除",
+        "title": "「{{title}}」を削除しますか？",
+        "body": "お知らせとその既読情報が削除されます。送信済みのメッセージは受信者の手元に残ります。",
+        "confirm": "お知らせを削除"
+      }
+    },
+    "jobs": {
+      "title": "バックグラウンドジョブ",
+      "intro": "サーバーがバックグラウンドで行っている処理です。どのジョブがいつから実行中か、あとどれくらいかかるか、次回の実行はいつかを表示します。どのジョブも今すぐ実行、一時停止、実行のキャンセルができます。",
+      "counts": {
+        "running": "実行中",
+        "queued": "待機中",
+        "planned": "予定",
+        "paused": "一時停止中",
+        "failed": "失敗",
+        "label": "概要"
+      },
+      "pools": {
+        "title": "ワーカー",
+        "general": "一般",
+        "download": "ダウンロード",
+        "notify": "通知",
+        "index": "キーフレームインデックス",
+        "trickplay": "シークプレビュー",
+        "podcast": "ポッドキャストのエピソード",
+        "workers": "{{count}}ワーカー",
+        "backlog": "滞留 約{{duration}}",
+        "free": "空き",
+        "noEstimate": "見積もりなし",
+        "line": "{{pool}}：{{workers}} · {{state}}"
+      },
+      "pausedBanner": {
+        "title_other": "{{count}}件のジョブが一時停止中",
+        "body": "一時停止中のジョブは、再開するまで実行されません：{{types}}。",
+        "playbackOverride": "{{name}}の再生リクエストはそれでも実行されます。"
+      },
+      "running": {
+        "title": "実行中",
+        "empty": "現在実行中のものはありません。",
+        "since": "{{duration}}経過",
+        "overridesPause": "再生用、一時停止中でも実行",
+        "overridesWindow": "再生用",
+        "progress": "{{done}} / {{total}}",
+        "progressLabel": "{{name}}：{{percent}}%",
+        "pause": "実行を一時停止",
+        "pauseLabel": "{{name}}を一時停止（この実行とジョブの実行中のものをすべて停止）",
+        "cancel": "キャンセル",
+        "cancelLabel": "{{name}}の実行{{id}}をキャンセル",
+        "count_other": "{{count}}件の実行",
+        "columns": {
+          "job": "ジョブ",
+          "subject": "対象",
+          "progress": "進行状況",
+          "since": "開始",
+          "left": "残り時間"
+        }
+      },
+      "estimate": {
+        "left": "残り約{{duration}}",
+        "computing": "計算中",
+        "longer": "通常より長くかかっています"
+      },
+      "state": {
+        "idle": "待機",
+        "queued": "待機中",
+        "running": "実行中",
+        "paused": "一時停止中",
+        "stopping": "停止中",
+        "unknown": "不明"
+      },
+      "groups": {
+        "library": "ライブラリ",
+        "metadata": "メタデータ",
+        "delivery": "配信",
+        "system": "システム"
+      },
+      "card": {
+        "queued": "待機中",
+        "queuedValue": "{{count}}",
+        "queuedEstimate": "約{{duration}}後に実行",
+        "planned": "予定 {{count}}",
+        "lastRun": "前回の実行",
+        "never": "未実行",
+        "ago": "{{duration}}前",
+        "lastOk": "OK",
+        "lastFailed": "エラー：{{error}}",
+        "lastCancelled": "キャンセル済み",
+        "lastSkipped": "処理なし",
+        "nextRun": "次回の実行",
+        "in": "{{duration}}後",
+        "every": "{{duration}}ごと",
+        "window": "{{start}}–{{end}}",
+        "once": "1回のみ：{{date}}",
+        "off": "オフ",
+        "automatic": "自動",
+        "pausedNext": "一時停止中",
+        "waitsUntil": "{{time}}まで待機",
+        "trigger": "実行のきっかけ",
+        "triggerEvent": "サーバー内のイベントにより自動で実行",
+        "triggerManual": "手動",
+        "unknown": "このサーバーはこのジョブを認識しなくなりました（古いビルド）。",
+        "median": "通常{{duration}}"
+      },
+      "actions": {
+        "run": "今すぐ実行",
+        "runLabel": "{{name}}を今すぐ実行",
+        "pause": "一時停止",
+        "pauseLabel": "{{name}}を一時停止",
+        "resume": "再開",
+        "resumeLabel": "{{name}}を再開",
+        "cancelQueued": "待機中をキャンセル（{{count}}）",
+        "cancelAll": "すべての実行をキャンセル",
+        "resumeNamed": "再開：{{name}}"
+      },
+      "confirm": {
+        "cancelQueuedTitle": "{{name}}の待機中の実行をキャンセルしますか？",
+        "cancelQueuedBody_other": "待機中の{{count}}件の実行がキャンセルされ、後から実行されることはありません。",
+        "cancelAllTitle": "{{name}}のすべての実行をキャンセルしますか？",
+        "cancelAllBody": "待機中の{{queued}}件と実行中の{{running}}件がすぐに終了します。キャンセルは取り消せません。",
+        "cancelRunTitle": "{{name}}の実行をキャンセルしますか？",
+        "cancelRunBody": "実行はすぐに終了し、後から実行されることはありません。",
+        "notifyWarning": "キャンセルした配信は届きません。",
+        "scanWarning": "ライブラリは「中止」として終了し、次回のスキャンで補われます。",
+        "downloadWarning": "ダウンロードは「失敗」として終了し、再度準備されることはありません。",
+        "confirm": "キャンセル",
+        "keep": "維持",
+        "deleteRunTitle": "{{name}}の失敗した実行を削除しますか？",
+        "deleteRunBody": "Slouchcatはこの実行を再試行しなくなります。後でクリーンアップで削除されるまで、「実行」には「キャンセル済み」と表示されます。",
+        "deleteRunConfirm": "削除",
+        "retryFailedTitle_other": "失敗した{{count}}件の実行をすべて再試行しますか？",
+        "retryFailedTypeTitle_other": "{{name}}の失敗した{{count}}件の実行をすべて再試行しますか？",
+        "retryFailedBody": "実行は試行回数がリセットされて待機列に戻ります。同じ処理がすでに待機中または実行中の場合、その実行は失敗のまま残ります。重複した実行は最新のものだけが戻ります。",
+        "retryFailedConfirm": "すべて再試行",
+        "dismissFailedTitle_other": "失敗した{{count}}件の実行をすべて削除しますか？",
+        "dismissFailedTypeTitle_other": "{{name}}の失敗した{{count}}件の実行をすべて削除しますか？",
+        "dismissFailedBody": "Slouchcatはこれらを再試行しなくなります。後でクリーンアップで削除されるまで、「実行」には「キャンセル済み」と表示されます。",
+        "dismissFailedConfirm": "すべて削除"
+      },
+      "messages": {
+        "ran_zero": "{{name}}：待機列に追加するものはありません。",
+        "ran_other": "{{name}}：{{count}}件の実行を待機列に追加しました。",
+        "paused": "{{name}}を一時停止しました。実行中のものは停止し、待機列に戻ります。",
+        "resumed": "{{name}}を再開しました。",
+        "cancelled_zero": "{{name}}：キャンセルするものはありません。",
+        "cancelled_other": "{{name}}：{{count}}件の実行をキャンセルしました。",
+        "runCancelled": "実行{{id}}をキャンセルしました。",
+        "runRetried": "実行{{id}}を再び待機列に追加しました。",
+        "scheduleSaved": "{{name}}のスケジュールを保存しました。",
+        "windowSaved": "{{name}}の時間枠を保存しました。",
+        "runDeleted": "実行{{id}}を削除しました。",
+        "failedRetried_zero": "待機列に追加された実行はありません。",
+        "failedRetried_other": "{{count}}件の実行が再び待機中です。",
+        "failedSkipped_other": "同じ処理がすでに待機中または実行中のため、{{count}}件は失敗のままです。",
+        "failedMerged_other": "重複した{{count}}件の実行を破棄しました。",
+        "failedDismissed_zero": "削除する実行はありません。",
+        "failedDismissed_other": "失敗した{{count}}件の実行を削除しました。"
+      },
+      "runs": {
+        "title": "{{name}}の実行",
+        "tabs": "状態別の実行",
+        "tab": {
+          "running": "実行中",
+          "queued": "待機中",
+          "planned": "予定",
+          "failed": "失敗",
+          "done": "完了",
+          "cancelled": "キャンセル済み"
+        },
+        "empty": "この状態の実行はありません。",
+        "total": "合計{{count}}件、新しい{{shown}}件を表示",
+        "columns": {
+          "subject": "対象",
+          "priority": "優先度",
+          "started": "開始",
+          "duration": "所要時間",
+          "attempts": "試行回数",
+          "error": "エラー",
+          "actions": "操作"
+        },
+        "noSubject": "#{{id}}",
+        "retry": "再試行",
+        "retryLabel": "実行{{id}}を再び待機列に追加",
+        "cancel": "キャンセル",
+        "cancelLabel": "実行{{id}}をキャンセル",
+        "runAfter": "{{time}}以降",
+        "heading": "実行",
+        "delete": "削除",
+        "deleteLabel": "実行{{id}}を削除",
+        "retryAllLabel": "{{name}}の失敗した実行をすべて再試行",
+        "dismissAllLabel": "{{name}}の失敗した実行をすべて削除"
+      },
+      "schedule": {
+        "title": "{{name}}のスケジュール",
+        "description": "間隔、時間枠、オン／オフ。次回の実行はこれに合わせて調整されます。「今すぐ実行」は時間枠を無視します。",
+        "enabled": "スケジュール オン",
+        "every": "間隔",
+        "everyOptions": {
+          "m5": "5分ごと",
+          "m15": "15分ごと",
+          "m30": "30分ごと",
+          "h1": "1時間ごと",
+          "h2": "2時間ごと",
+          "h6": "6時間ごと",
+          "h12": "12時間ごと",
+          "h24": "毎日",
+          "h48": "2日ごと",
+          "d7": "毎週"
+        },
+        "window": "時間枠内のみ",
+        "windowStart": "開始",
+        "windowEnd": "終了",
+        "windowHint": "サーバーのタイムゾーン：{{zone}}。時間枠は深夜0時をまたいでもかまいません。",
+        "traktHint": "間隔とオン／オフは、スポットライトページと同じ設定です。",
+        "updateHint": "オン／オフは、設定のアップデートの確認と同じ設定です。",
+        "save": "保存",
+        "heading": "スケジュール",
+        "eventNote": "スケジュールなし：「実行のきっかけ」に記載のとおり、処理が発生すると自動で実行されます。",
+        "discard": "破棄",
+        "once": "1回のみ実行",
+        "onceHint": "サーバーのタイムゾーン：{{zone}}。この日時には、間隔とは別に1回実行されます。時間枠の外でも実行されます。",
+        "clearOnce": "日時を削除",
+        "onceRange": "日時は現在から1年以内にしてください。",
+        "onceInvalid": "有効な日時ではありません。",
+        "windowTitle": "{{name}}の時間枠",
+        "windowWaits": "時間枠の外では新しい実行は待機し、実行中のものは最後まで実行されます。再生とダウンロードはそれでもすぐに開始されます。"
+      },
+      "duration": {
+        "seconds": "{{count}}秒",
+        "minutes": "{{count}}分",
+        "hours": "{{count}}時間",
+        "hoursMinutes": "{{hours}}時間{{minutes}}分",
+        "days": "{{count}}日",
+        "overDay": "1日以上"
+      },
+      "types": {
+        "radio_catalog_sync": {
+          "name": "ラジオカタログを同期",
+          "description": "Radio Browserからラジオ局のカタログを取得し、項目をラジオ局に統合してフィルターに振り分けます。",
+          "trigger": "毎日04:30以降、ラジオページの「今すぐ同期」、カタログがない状態での初回起動時"
+        },
+        "radio_logo_fetch": {
+          "name": "ラジオ局のロゴを取得",
+          "description": "ラジオ局のロゴをカタログまたはウェブサイトから取得し、正方形で保存します。",
+          "trigger": "アプリの一覧にロゴのないラジオ局がある場合、ロゴがリセットされた場合"
+        },
+        "radio_wikidata_sync": {
+          "name": "Wikidataからラジオ局の情報を取得",
+          "description": "ラインナップのラジオ局をウェブサイトを手がかりにWikidataと照合し、一致が1件に特定できた場合に所有者と設立年を取り込みます。",
+          "trigger": "毎週06:30以降、新しいラジオ局を含む「適用」の後（最大1日1回）、「Wikidataを使用」をオンにしたとき"
+        },
+        "scan_library": {
+          "name": "ライブラリのスキャン",
+          "description": "すべてのライブラリで、新規、変更、欠落したファイルを探します。",
+          "trigger": "6時間ごとのスケジュールとサーバー起動時、ライブラリページの「スキャン」、Webhook、ファイル監視"
+        },
+        "scan_path": {
+          "name": "フォルダーのスキャン",
+          "description": "1つのフォルダーで変更があると、すぐに再読み込みします。",
+          "trigger": "変更時のファイル監視、Webhook"
+        },
+        "probe_file": {
+          "name": "ファイルを確認",
+          "description": "新規または変更されたファイルのトラック、長さ、形式を読み取ります。",
+          "trigger": "スキャンから新規ファイルごと、メンテナンスの「ファイルを確認」"
+        },
+        "probe_keyframes": {
+          "name": "キーフレームインデックス（ファイル全体を読み込み）",
+          "description": "シーク用のインデックスがないファイルを、全体を読み込んで作成します。",
+          "trigger": "取り込み時（コンテナーにインデックスがない場合のみ）、後からの作成時、再生前（一時停止中も）、オフラインダウンロード時"
+        },
+        "keyframes_backfill": {
+          "name": "キーフレームインデックスを後から作成",
+          "description": "キーフレームインデックスのないファイルをすべて待機列に追加します。",
+          "trigger": "スケジュール（既定はオフ、毎週）または指定日時、「今すぐ実行」：インデックスのないすべての動画ファイルについて、コンテナーからインデックスを読み取ります",
+          "progress": "確認済みファイル：{{done}} / {{total}}"
+        },
+        "library_sweep": {
+          "name": "欠落した作品の整理",
+          "description": "猶予期間を過ぎてもファイルが見つからない作品を削除します。",
+          "trigger": "1時間ごとのスケジュールとサーバー起動時"
+        },
+        "segments_detect": {
+          "name": "イントロとエンディングを検出",
+          "description": "「イントロをスキップ」のために、エピソードのイントロとエンディングを検出します。",
+          "trigger": "スキャンからシーズンごと"
+        },
+        "chapters_images": {
+          "name": "チャプター画像を作成",
+          "description": "ファイルのチャプターのプレビュー画像を作成します。",
+          "trigger": "ファイルごとに再生終了の10分後、新規ファイルは完全スキャン後と再確認後"
+        },
+        "chapters_images_backfill": {
+          "name": "チャプター画像を後から作成",
+          "description": "チャプター画像のないファイルをすべて作成の待機列に追加します。",
+          "trigger": "スケジュール（既定はオフ、毎週）または指定日時、「今すぐ実行」：チャプター画像のないすべての映画とエピソード"
+        },
+        "trickplay_generate": {
+          "name": "シークプレビューを作成",
+          "description": "ファイルのシークバー用プレビュー画像を、シートごとに作成します。",
+          "trigger": "映画またはエピソードの再生開始時、「事前に作成」の新規ファイル、後からの作成時、TV番組の先読み時、オフラインダウンロード時"
+        },
+        "trickplay_series": {
+          "name": "ほかのエピソードのプレビュー",
+          "description": "TV番組のほかのエピソードのプレビューを、次の2話を優先して待機列に追加します。",
+          "trigger": "ライブラリが「再生開始時に全エピソード」に設定されていて、エピソードの再生を開始したとき"
+        },
+        "trickplay_backfill": {
+          "name": "シークプレビューを後から作成",
+          "description": "プレビューが完成していないすべての映画とエピソードを作成の待機列に追加します。",
+          "trigger": "スケジュール（既定はオフ、毎週）または指定日時、「今すぐ実行」：「事前に作成」に設定されたライブラリ",
+          "progress": "確認済みファイル：{{done}} / {{total}}"
+        },
+        "library_relink": {
+          "name": "削除された作品を再リンク",
+          "description": "移動されたファイルを、元の作品と視聴状況に紐付けます。",
+          "trigger": "削除された同一作品がある作品の照合後"
+        },
+        "metadata_match": {
+          "name": "作品を照合",
+          "description": "新しい作品に一致するTMDBまたはTVDBの項目を探します。",
+          "trigger": "スキャン、手動の照合、フォルダーの変更"
+        },
+        "library_author_display": {
+          "name": "著者名を統一",
+          "description": "すべてのオーディオブックで、同じ著者の異なる表記を1つの表示名にまとめます。",
+          "trigger": "スキャン後、照合後、「著者名を統一」スイッチ"
+        },
+        "metadata_fill": {
+          "name": "メタデータを補完",
+          "description": "作品のテキスト、ジャンル、年齢区分、キャスト、画像を取得します。",
+          "trigger": "照合後、フォルダーのリスト変更時"
+        },
+        "metadata_vote_backfill": {
+          "name": "評価数を後から取得",
+          "description": "画像の選択に使う、不足している評価数を取得します。",
+          "trigger": "評価のない作品がある間、完全スキャンのたびに"
+        },
+        "metadata_original_language_backfill": {
+          "name": "オリジナル言語を後から取得",
+          "description": "音声の選択のために、すべての作品にオリジナル言語を追加します。",
+          "trigger": "アップデート後の初回起動時に1回、以降はスケジュール（既定はオフ、毎週）、指定日時、または「今すぐ実行」"
+        },
+        "image_fetch": {
+          "name": "画像を取得",
+          "description": "作品の選択された画像をダウンロードし、各サイズを生成します。",
+          "trigger": "照合後、起動時の後から取得"
+        },
+        "people_images": {
+          "name": "人物とコレクションの画像を取得",
+          "description": "人物のポートレートとTMDBコレクションのポスターをダウンロードし、各サイズを生成します。",
+          "trigger": "キャストまたはコレクションのある作品の照合後、および完全スキャン後（未取得分を取得）",
+          "progress": "確認済み画像：{{done}} / {{total}}"
+        },
+        "people_details": {
+          "name": "人物とコレクションの情報を取得",
+          "description": "TMDBから、各人物の経歴、誕生日、出生地、主な活動分野、作品数と、各TMDBコレクションの説明を取得します。メイン言語のテキストがない場合は英語のテキストを取得します。",
+          "trigger": "キャストまたはコレクションのある作品の照合後、完全スキャン後、アップデート後に1回",
+          "progress": "確認済みの人物とコレクション：{{done}} / {{total}}"
+        },
+        "people_images_backfill": {
+          "name": "人物とコレクションの画像を後から取得",
+          "description": "TMDBに画像がなかったすべての人物とコレクションについて、もう一度試します。",
+          "trigger": "スケジュール（既定はオフ、毎週）または指定日時、「今すぐ実行」：失敗の記録を消去して実行を待機列に追加します",
+          "progress": "確認済み画像：{{done}} / {{total}}"
+        },
+        "metadata_apply": {
+          "name": "メタデータを適用",
+          "description": "変更されたメタデータの設定をライブラリに適用します。",
+          "trigger": "メタデータページの「今すぐ適用」"
+        },
+        "trailer_find": {
+          "name": "予告編を検索",
+          "description": "TMDB、YouTube、またはAI検索で予告編を探します。",
+          "trigger": "照合後"
+        },
+        "podcast_fetch": {
+          "name": "ポッドキャストのフィードを取得",
+          "description": "1つのポッドキャストのフィードと新しいエピソードを読み込みます。",
+          "trigger": "フィードの定期確認で時期になった登録ごと、ポッドキャストごとの「更新」、新しい登録"
+        },
+        "podcast_poll": {
+          "name": "ポッドキャストのフィードを確認",
+          "description": "すべてのポッドキャストのフィードで新しいエピソードを確認します。",
+          "trigger": "5分ごとのスケジュール：時期になった登録を取得します"
+        },
+        "podcast_sync": {
+          "name": "ポッドキャストのエピソードを計画",
+          "description": "ポッドキャストの設定に従ってファイルとして読み込むエピソードを選び、不要になったダウンロードをキャンセルします。",
+          "trigger": "新しいエピソードがあったフィードの取得後、新しい登録時、設定の変更時"
+        },
+        "podcast_sync_all": {
+          "name": "ポッドキャストのエピソードを後から取得",
+          "description": "「保存」に設定されたすべてのポッドキャストを再計画し、失敗したダウンロードを再試行します。",
+          "trigger": "6時間ごとのスケジュール"
+        },
+        "podcast_download": {
+          "name": "ポッドキャストのエピソードを保存",
+          "description": "エピソードを配信元から読み込み、ファイルとしてポッドキャストのフォルダーに保存します。",
+          "trigger": "「保存」設定時の計画、「不足分を読み込む」、エピソードごとの「読み込む」から。配信元ごとに一度に1件",
+          "progress": "バイト：{{done}} / {{total}}"
+        },
+        "trakt_refresh": {
+          "name": "スポットライトのリストを取得",
+          "description": "スポットライトが作品を選ぶTraktのリストを取得します。",
+          "trigger": "スポットライトページの間隔に従うスケジュール、「今すぐ取得」"
+        },
+        "update_check": {
+          "name": "アップデートの確認",
+          "description": "Slouchcatの新しいバージョンがあるか確認します。",
+          "trigger": "毎日のスケジュール、起動の60秒後、「今すぐ確認」"
+        },
+        "download_prepare": {
+          "name": "ダウンロードを準備",
+          "description": "オフライン再生用のダウンロードを準備します。",
+          "trigger": "プロフィールのダウンロード。10分ごとの照合で、未完了のものを再び待機列に追加します"
+        },
+        "notify_deliver": {
+          "name": "通知を配信",
+          "description": "メール、Telegram、またはWeb Pushで通知を送信します。",
+          "trigger": "チャンネル（メール、Web Push、Telegram）のあるすべてのイベント"
+        },
+        "jobs_prune": {
+          "name": "履歴を整理",
+          "description": "古い実行と失敗を履歴から削除します。",
+          "trigger": "毎日のスケジュール：30日より前に完了した実行"
+        },
+        "library_delete": {
+          "name": "ライブラリを削除",
+          "description": "ライブラリを、その作品と関連するすべてのデータとともに削除します。ファイルは削除しません。先にデータベースをバックアップします。",
+          "trigger": "管理画面の「ライブラリを削除…」。実行に失敗した場合、ライブラリは元に戻ります"
+        }
+      },
+      "tabs": {
+        "label": "グループ別のジョブ",
+        "types_other": "{{count}}種類のジョブ",
+        "caption": "グループ「{{group}}」のジョブ",
+        "failed": "失敗",
+        "empty": "このグループにジョブはありません。"
+      },
+      "columns": {
+        "job": "ジョブ",
+        "description": "説明",
+        "state": "状態"
+      },
+      "failed": {
+        "title": "失敗（すべての種類）",
+        "count_other": "{{count}}件が失敗",
+        "empty": "失敗はありません。",
+        "shown": "{{total}}件中{{shown}}件を読み込み済み",
+        "columns": {
+          "type": "ジョブの種類",
+          "at": "時刻"
+        },
+        "retryLabel": "{{name}}の実行{{id}}を再び待機列に追加",
+        "retryAll": "すべて再試行",
+        "dismissAll": "すべて削除…",
+        "deleteLabel": "{{name}}の実行{{id}}を削除"
+      },
+      "separator": " · ",
+      "none": "–",
+      "livePaused": "更新を一時停止中"
+    },
+    "metadata": {
+      "title": "メタデータ",
+      "intro": "メタデータソースから取得する言語、取得する画像とその言語および画質、年齢区分を最初に決める国を設定します。既定の設定はすべてのライブラリに適用されます。言語と画像については、ライブラリごとに変更できます。",
+      "links": {
+        "roots": "ソースの順番は「ライブラリ」でフォルダーごとに設定します。",
+        "jobs": "スケジュールは「バックグラウンドジョブ」にあります。",
+        "keys": "キーは「連携」で設定"
+      },
+      "audiobooks": {
+        "title": "オーディオブック：ソース",
+        "body": "Slouchcatがオーディオブックの情報、長さ、カバーを取得する場所、自動照合、「確認」リストです。",
+        "open": "ソースを開く"
+      },
+      "areas": {
+        "label": "エリア",
+        "changed": "変更あり · {{summary}}",
+        "scoped": "{{state}} · {{summary}}",
+        "quality": "ポスター{{poster}}、背景{{backdrop}}",
+        "sources": {
+          "local": "ローカルファイル",
+          "fanart": "Fanart.tv",
+          "tmdbAdult": "成人向けコンテンツを含むTMDB",
+          "none": "フォルダーのソースのみ"
+        },
+        "separator": " › "
+      },
+      "scope": {
+        "label": "適用先",
+        "server": "既定",
+        "serverHint": "独自の設定がないすべてのライブラリに適用されます。",
+        "libraryHint": "{{name}}は既定の設定を使用しています。このライブラリだけ言語や画像を変更するには、「個別設定」をオンにしてください。",
+        "deviates": "個別設定",
+        "textsDeviate": "言語が異なる",
+        "imagesDeviate": "画像が異なる",
+        "likeServer": "サーバーと同じ",
+        "changed": "{{name}}（変更あり）",
+        "serverDirty": "既定の設定に未保存の変更があります。ここには保存済みの内容が表示されています。"
+      },
+      "languages": {
+        "title": "言語",
+        "intro": "ここに追加した言語は、すべての作品について取得されます。各プロフィールは、その中からあらすじなどの言語を選びます。アプリの表示言語はこの設定に左右されません。言語を1つ追加するごとに、作品とシーズンごとにリクエストが1回増えます。",
+        "list": "メタデータの言語",
+        "rank": "言語{{position}}",
+        "more": "言語を追加",
+        "fallback": "順番＝代替の順：プロフィールの言語のテキストがない場合、Slouchcatはリストの中で最初に見つかった言語を表示し、それもなければファイル名を表示します。アプリの表示言語はこの設定に左右されません。既定の設定にはドイツ語が、ライブラリにはドイツ語または英語が必要です。",
+        "unknownAt": "{{provider}}が対応していない言語：{{languages}}",
+        "youtube": "{{count}}言語：YouTubeの予告編検索を使う場合、1日に最大{{titles}}作品（割り当て10,000）。"
+      },
+      "images": {
+        "title": "画像",
+        "intro": "取得する画像の種類と言語です。映画と同じ場所にある画像ファイル（poster.jpg、fanart.jpg、logo.png）は、幅が十分であれば優先されます。次にフォルダーのソース、最後にFanart.tvの順です。",
+        "kinds": "画像の種類",
+        "kind": {
+          "poster": "ポスター",
+          "backdrop": "背景",
+          "logo": "ロゴ",
+          "season_poster": "シーズンのポスター",
+          "episode_still": "エピソード画像"
+        },
+        "kindHint": {
+          "poster": "映画、TV番組、オーディオブック、ポッドキャスト",
+          "backdrop": "映画、TV番組",
+          "logo": "詳細ページとスポットライトで、テキストのタイトルの代わりに表示するタイトルロゴ",
+          "season_poster": "ない場合はTV番組のポスター",
+          "episode_still": "エピソードごとの静止画。40,000エピソードでキャッシュ約12GB"
+        },
+        "always": "常に",
+        "notBuilt": "アート、バナー、ディスクは意図的に対象外です。これらを表示するページはありません。",
+        "chains": "画像の言語",
+        "chainsIntro": "画像を選ぶ順番です。「テキストなし」は文字の入っていない画像です。同じ言語の中では、最も評価の高い画像が選ばれます。",
+        "noText": "テキストなし",
+        "chainOf": "画像の言語：{{kind}}"
+      },
+      "quality": {
+        "title": "画質",
+        "intro": "すべてのライブラリに適用されます。配信されるサイズ（ポスター200/400/800、背景780/1280/1920、ロゴ400/800）は固定です。",
+        "minPoster": "ポスターの最小幅",
+        "minBackdrop": "背景の最小幅",
+        "any": "指定なし",
+        "px": "{{width}}px",
+        "byVote": "評価で選ぶ",
+        "byVoteHint": "最初に見つかった画像ではなく、その言語で最も評価の高い画像を選びます。",
+        "fallback": "最小幅の画像がない場合、Slouchcatはそれより小さい中で最良の画像を使います。基準が高すぎるという理由で画像が空になることはありません。"
+      },
+      "sources": {
+        "title": "ソース",
+        "intro": "メタデータソースの順番は「ライブラリ」でフォルダーごとに、キーは「連携」で設定します。ここでは、ソースごとの追加設定だけを行います。",
+        "tmdbAdult": "TMDB：検索に成人向けコンテンツを含める",
+        "tmdbAdultHint": "オフの場合、照合に表示されることはありません。",
+        "local": "ローカルファイルをソースとして使う",
+        "localHint": "作品と同じ場所にあるposter.jpg、fanart.jpg、logo.png、seasonNN-poster.jpg。幅が十分であれば、どのプロバイダーよりも優先されます。",
+        "localCount_other": "画像ファイルのある{{count}}作品",
+        "localSmall": "小さすぎるファイルやオフにしたファイルも、作品ごとの画像選択では候補として残ります。",
+        "fanart": "Fanart.tvを画像ソースとして使う",
+        "fanartHint": "高画質のロゴとポスター。フォルダーのソースの後に使われます。「連携」でキーを設定する必要があり、キーがない場合は問い合わせません。"
+      },
+      "rating": {
+        "title": "年齢区分",
+        "intro": "最初に参照する国です。その後はこれまでどおりDE、AT、CH、GB、USの順です。区分はFSK 0/6/12/16/18のままです。",
+        "country": "国",
+        "countries": {
+          "DE": "ドイツ（DE）",
+          "AT": "オーストリア（AT）",
+          "CH": "スイス（CH）",
+          "GB": "イギリス（GB）",
+          "US": "アメリカ（US）"
+        },
+        "hint": "新しい作品には、最初に参照した国の区分が適用されます。保存済みの区分は、ほかの国によっても下げられることはありません。下げる場合は、メンテナンスで作品ごとに行います。"
+      },
+      "apply": {
+        "title": "既存の作品に適用",
+        "short": "適用",
+        "intro": "新しい作品にはすぐに設定が適用されます。既存の作品は、実行を開始するまでそのままです。実行は「バックグラウンドジョブ」に表示され、進行状況の確認、一時停止、キャンセルができます。",
+        "what": "対象",
+        "both": "テキストと画像",
+        "texts": "テキストのみ",
+        "images": "画像のみ",
+        "where": "範囲",
+        "all": "すべてのライブラリ",
+        "titles_other": "{{count}}作品",
+        "run": "今すぐ適用",
+        "running": "待機列に追加中…",
+        "queued": "実行{{id}}を待機列に追加しました：{{count}}作品。進行状況は「バックグラウンドジョブ」で確認できます。",
+        "waiting": "待機中：照合{{matches}}件、画像{{images}}件。",
+        "jobsLink": "バックグラウンドジョブへ",
+        "lastRun": "前回の実行：{{when}}、{{state}}。",
+        "noRun": "まだ実行していません。"
+      },
+      "save": {
+        "savedScope_other": "{{name}}に保存しました。{{count}}作品が対象です。今すぐ適用しますか？",
+        "failed": "「{{name}}」は保存されませんでした：{{reason}}"
+      },
+      "discard": {
+        "title": "変更を破棄しますか？",
+        "body": "{{names}}への保存していない変更は失われます。",
+        "confirm": "破棄"
+      },
+      "errors": {
+        "langs_empty": "少なくとも1つの言語が必要です。",
+        "lang_unknown": "不明な言語コードです。",
+        "ui_lang_required": "既定の設定にはドイツ語が、ライブラリにはドイツ語または英語が必要です。",
+        "chain_duplicate": "各言語は1回だけ指定してください。",
+        "country_unknown": "不明な国です。",
+        "source_unknown": "この画像ソースは、この作品の候補ではありません。"
+      }
+    },
+    "activity": {
+      "someone": "プロフィール",
+      "someTitle": "作品",
+      "someLibrary": "ライブラリ",
+      "playbackStarted": "{{profile}}が「{{title}}」の再生を開始しました",
+      "playbackCompleted": "{{profile}}が「{{title}}」を最後まで視聴しました",
+      "playbackStopped": "「{{title}}」（{{profile}}）の再生を停止しました",
+      "playbackRevoked": "「{{title}}」（{{profile}}）の再生を停止し、デバイスの登録を解除しました",
+      "scanStarted": "「{{library}}」のスキャンを開始しました",
+      "scanDone_other": "「{{library}}」のスキャンが完了しました：新しい作品{{count}}件",
+      "scanFailed": "「{{library}}」のスキャンに失敗しました",
+      "scanAborted": "「{{library}}」のスキャンが欠落保護機能により中止されました",
+      "scanCancelled": "「{{library}}」のスキャンが手動でキャンセルされました",
+      "jobFailed_other": "{{type}}：{{count}}件のジョブが失敗しました",
+      "backupCreated": "バックアップを作成しました",
+      "backupCreatedSize": "バックアップを作成しました（{{size}}）",
+      "backupRestored": "バックアップを復元しました",
+      "serverStarted": "サーバーが起動しました",
+      "serverStartedVersion": "サーバーが起動しました（バージョン{{version}}）",
+      "serverRestart": "サーバーが再起動しました",
+      "serverRestartBy": "{{account}}による再起動",
+      "unknown": "サーバーでのイベント",
+      "libraryDeleted_other": "ライブラリ「{{library}}」が{{account}}により削除されました（{{count}}作品）",
+      "itemRemoved": "「{{title}}」が{{account}}によりSlouchcatから外されました",
+      "itemFilesDeleted_other": "「{{title}}」が{{account}}により{{count}}件のファイルとともに削除されました（{{size}}）"
+    },
+    "audiobookSources": {
+      "title": "オーディオブック：ソース",
+      "intro": "Slouchcatがオーディオブックの情報とカバーを取得する場所です。常にファイルが最優先です。プロバイダーは不足している情報だけを補完し、ロック中の項目は変更しません。",
+      "folders": {
+        "title": "フォルダーごとの順番",
+        "intro": "項目ごとに、上にあるソースが優先されます。順番と使用するソースは、フォルダーのダイアログで変更します。",
+        "empty": "オーディオブックのフォルダーはまだありません。",
+        "edit": "ソースを変更",
+        "editLabel": "{{path}}のソースを変更",
+        "library": "ライブラリ{{name}}"
+      },
+      "settings": {
+        "title": "設定",
+        "saved": "オーディオブックの設定を保存しました。"
+      },
+      "region": {
+        "label": "Audibleの地域",
+        "help": "最初に検索するAudibleのカタログです。英語の本はアメリカとイギリスでも検索します。",
+        "de": "ドイツ（audible.de）",
+        "com": "アメリカ（audible.com）",
+        "couk": "イギリス（audible.co.uk）",
+        "fr": "フランス（audible.fr）",
+        "it": "イタリア（audible.it）",
+        "es": "スペイン（audible.es）",
+        "ca": "カナダ（audible.ca）",
+        "comau": "オーストラリア（audible.com.au）",
+        "in": "インド（audible.in）",
+        "cojp": "日本（audible.co.jp）"
+      },
+      "audnexus": {
+        "label": "Audnexusのアドレス",
+        "help": "AudnexusはAudibleの検索結果の詳細（説明、ジャンル、シリーズ、ISBN、カバー）を提供します。ローカルネットワーク内の独自のインスタンスも使用できます。",
+        "invalid": "http://またはhttps://で始まるアドレスを入力してください。"
+      },
+      "googleBooks": {
+        "name": "Google Booksのキー",
+        "description": "Google Booksのキーは、ほかのプロバイダーと同じ場所に移動しました。",
+        "link": "「連携」でセットアップ"
+      },
+      "auto": {
+        "label": "自動で照合",
+        "off": "オフ",
+        "offHint": "鉛筆アイコンから手動でのみ照合します。",
+        "new": "新しいオーディオブック",
+        "newHint": "スキャン時に、未照合のオーディオブックを照合します。",
+        "all": "未照合のものすべて",
+        "allHint": "ライブラリ全体に1回実行し、以降は「新しいオーディオブック」と同じです。"
+      },
+      "tolerance": {
+        "label": "長さの許容差",
+        "option": "{{count}}%",
+        "help": "一致が1件に特定できた場合のみ照合します（著者が同じ、タイトルが類似、長さが一致）。それ以外の場合、オーディオブックはファイルの情報のままで、「確認」に表示されます。1〜10%を指定できます。"
+      },
+      "normalize": {
+        "title": "統一",
+        "authors": "著者名を統一",
+        "authorsHint": "「J R R Tolkien」「J.R.R. Tolkien」「J. R. R. Tolkien」を同一人物として扱います。",
+        "series": "シリーズ名を統一",
+        "seriesHint": "「Bodyguard - Band」は「Bodyguard」に、「Der Herr Der Ringe - Band」は「Der Herr der Ringe」になります。"
+      },
+      "terms": "Audibleの利用規約では、カタログの自動読み取りが禁止されています。Slouchcatの問い合わせは最大で1秒に1回で、拒否が続くとこのソースを一時停止します。これを望まない場合は、フォルダーのリストからAudibleを外してください。",
+      "sources": {
+        "title": "ソースの状態",
+        "ready": "準備完了",
+        "notConfigured": "キーがないためオフ",
+        "paused": "{{time}}まで一時停止中"
+      },
+      "stats": {
+        "title": "ライブラリの状況",
+        "total": "オーディオブック",
+        "matched": "照合済み",
+        "review": "要確認",
+        "none": "該当なし",
+        "error": "エラー",
+        "pending": "保留中",
+        "running": "照合が実行中または待機中です。"
+      },
+      "matchAll": {
+        "run": "未照合のものを今すぐすべて照合",
+        "queued_other": "{{count}}件のオーディオブックを待機列に追加しました。",
+        "jobs": "バックグラウンドジョブへ"
+      },
+      "review": {
+        "title": "確認",
+        "intro": "候補が複数ある、長さが許容範囲外、またはソースにエラーがあるオーディオブックです。鉛筆アイコンでエディターが開きます。",
+        "empty": "確認するものはありません。",
+        "caption": "確認が必要なオーディオブック",
+        "column": {
+          "title": "タイトル",
+          "author": "著者",
+          "length": "長さ",
+          "state": "状態",
+          "candidates": "候補",
+          "actions": "編集"
+        },
+        "state": {
+          "review": "要確認",
+          "error": "エラー"
+        },
+        "reason": {
+          "paused": "拒否が続いたため、{{source}}は一時停止しています。",
+          "blocked": "{{source}}がリクエストを拒否しました。",
+          "notConfigured": "{{source}}はセットアップされていません。",
+          "region": "{{source}}は設定されたマーケットプレイスに対応していません。",
+          "unreachable": "{{source}}に接続できませんでした。",
+          "unknown": "{{source}}がエラーを報告しました。"
+        },
+        "candidate": "{{source}}：{{title}} · {{length}}",
+        "noCandidates": "なし",
+        "edit": "{{title}}を編集"
+      }
+    },
+    "itemDelete": {
+      "action": "削除",
+      "editorAction": "削除…",
+      "title": "「{{title}}」を削除しますか？",
+      "loading": "作品を削除",
+      "choice": "どうしますか？",
+      "mode": {
+        "library": "Slouchcatから外すだけ",
+        "files": "ファイルも削除"
+      },
+      "libraryHint": "ファイルはディスク上に残ります。新しいファイルが追加されても、作品は外されたままです。「メンテナンス › 削除した作品」から、視聴状況、視聴済みマーク、マイリストとともに元に戻せます。",
+      "everywhere": "作品はすべてのプロフィールのすべての一覧から消え、デバイス上のダウンロードも削除されます。",
+      "arr": "RadarrとSonarrには通知されません。",
+      "affected_other": "対象：{{count}}ファイル · {{size}}",
+      "noFiles": "記録されているファイルはありません。",
+      "folder": "フォルダー",
+      "files": "ファイル",
+      "playing": "現在{{names}}が再生中です。再生が終わると削除できます。",
+      "typeLabel": "確認のためタイトルを入力",
+      "typeHint": "{{title}}を入力すると（大文字・小文字は区別しません）、ボタンが有効になります。",
+      "confirm": {
+        "library": "Slouchcatから外す",
+        "files": "完全に削除"
+      },
+      "done": {
+        "library": "「{{title}}」をSlouchcatから外しました。ファイルはまだ残っています。",
+        "files_other": "「{{title}}」を削除しました（{{count}}ファイル、{{size}}）。",
+        "kept_other": "「{{title}}」：{{count}}ファイルを削除しました（{{size}}）。削除できなかったファイルとともに、作品は残ります。",
+        "left_other": "Slouchcatが認識していない{{count}}ファイルはフォルダーに残ります。"
+      },
+      "filesHint": "ファイルは完全に削除され、ゴミ箱はありません。ファイルが1つも残らない場合、作品は視聴状況、視聴済みマーク、マイリストとともに完全に削除されます。後でRadarrまたはSonarrが再び読み込んだ場合は、新しい作品として表示されます。",
+      "notDeletable": "削除できません：{{reason}}",
+      "leftover": "残ったもの：{{path}}（{{reason}}）",
+      "reason": {
+        "read_only": "フォルダーが読み取り専用でマウントされています",
+        "no_permission": "Slouchcatにフォルダーへの書き込み権限がありません",
+        "shared": "このファイルは別の作品にも属しています",
+        "not_regular": "通常のファイルではありません",
+        "unreachable": "フォルダーに接続できません",
+        "missing": "すでにありません（削除済みとして扱います）",
+        "failed": "削除に失敗しました",
+        "no_files": "記録されたファイルなし",
+        "changed": "このパスには現在、別のファイルがあります"
+      },
+      "changed": "その間に変更がありました。もう一度確認してください。下のリストを再読み込みしました。何も削除されていません。"
+    }
+  },
+  "language": {
+    "de": "Deutsch",
+    "en": "English"
+  },
+  "accent": {
+    "label": "カラー",
+    "ember": "エンバー",
+    "coral": "コーラル",
+    "amber": "アンバー",
+    "lime": "ライム",
+    "teal": "ティール",
+    "sky": "スカイ",
+    "violet": "バイオレット",
+    "rose": "ローズ"
+  },
+  "libraries": {
+    "all": "すべてのライブラリ",
+    "none": "ライブラリなし",
+    "choose": "ライブラリを選択",
+    "named": "ライブラリ{{id}}",
+    "modeAll": "すべて",
+    "modeSome": "選択",
+    "needOne": "ライブラリを少なくとも1つ選択してください。",
+    "loadFailed": "ライブラリを読み込めませんでした。"
+  },
+  "profiles": {
+    "picker": {
+      "title": "視聴するのは誰ですか？",
+      "intro": "プロフィールを選択してください。",
+      "list": "プロフィール",
+      "manage": "プロフィールを管理",
+      "active": "使用中",
+      "locked": "PINで保護",
+      "primary": "メインプロフィール",
+      "loadFailed": "プロフィールを読み込めませんでした。",
+      "primaryActive": "メインプロフィール · 使用中"
+    },
+    "pin": {
+      "title": "{{name}}のPIN",
+      "intro": "このプロフィールはPINで保護されています。",
+      "label": "PIN",
+      "hint": "4〜8桁の数字。",
+      "submit": "開く",
+      "submitting": "確認中…",
+      "invalid": "PINが正しくありません。もう一度お試しください。",
+      "locked": "誤入力が多すぎます。次に試せるまで：",
+      "time": "{{minutes}}:{{seconds}}",
+      "lockedFor": "{{seconds}}秒間ロックされています。"
+    },
+    "settings": {
+      "title": "プロフィール",
+      "intro": "世帯の一人ひとりが、年齢区分、言語、カラー、ライブラリを設定した自分専用のプロフィールを持てます。",
+      "onlyPrimary": {
+        "title": "メインプロフィールのみ",
+        "body": "プロフィールは、このアカウントのメインプロフィールで管理します。プロフィールを追加または変更するには、メインプロフィールに切り替えてください。",
+        "action": "プロフィールを切り替え"
+      },
+      "add": "プロフィールを追加",
+      "list": "このアカウントのプロフィール",
+      "edit": "編集",
+      "primary": "メインプロフィール",
+      "hasPin": "PIN",
+      "delete": {
+        "action": "削除",
+        "title": "プロフィール「{{name}}」を削除しますか？",
+        "body": "このプロフィールの視聴状況と設定は失われます。この操作は元に戻せません。",
+        "confirm": "プロフィールを削除"
+      },
+      "pin": {
+        "set": "PINを設定",
+        "change": "PINを変更",
+        "title": "{{name}}のPIN",
+        "label": "新しいPIN",
+        "hint": "4〜8桁の数字。PINがないとプロフィールを開けません。",
+        "save": "PINを保存",
+        "saving": "保存中…",
+        "remove": {
+          "action": "PINを削除",
+          "title": "{{name}}のPINを削除しますか？",
+          "body": "削除すると、誰でもPINなしでこのプロフィールを開けるようになります。",
+          "confirm": "PINを削除"
+        }
+      },
+      "form": {
+        "createTitle": "新しいプロフィール",
+        "editTitle": "プロフィールを編集",
+        "name": "名前",
+        "rating": "年齢区分",
+        "ratingHint": "これより高い区分の作品は、このプロフィールには表示されません。",
+        "language": "言語",
+        "libraries": "ライブラリ",
+        "pin": "PIN（任意）",
+        "create": "プロフィールを追加",
+        "creating": "追加中…",
+        "save": "保存",
+        "saving": "保存中…",
+        "metadataLanguage": "あらすじの言語",
+        "metadataLanguageHint": "タイトル、あらすじ、ジャンルに使われます。アプリの表示は上の言語に従います。",
+        "likeUi": "表示言語と同じ",
+        "playback": "再生"
+      },
+      "ratingAboveAccount": "FSK {{age}} · アカウントの上限はFSK {{max}}",
+      "report": {
+        "show": "視聴時間を表示",
+        "hide": "視聴時間を非表示",
+        "title": "{{name}}の視聴時間",
+        "intro": "過去30日間の1日あたりの分数です。",
+        "chart": "1日あたりの視聴時間",
+        "date": "日付",
+        "minutes": "分",
+        "value": "{{count}}分",
+        "today": "今日：{{count}}分",
+        "limit": "上限：1日{{count}}分",
+        "total": "合計：{{count}}分",
+        "tooltip": "{{date}}：{{value}}"
+      },
+      "metadataLanguageChip": "あらすじの言語：{{language}}"
+    }
+  },
+  "invite": {
+    "title": "Slouchcatへの招待",
+    "intro": "アカウントを作成すると、すぐに使い始められます。",
+    "for": "宛先：{{note}}",
+    "rating": "年齢区分の上限",
+    "libraries": "ライブラリ",
+    "expires": "このリンクは{{date}}まで有効です。",
+    "form": {
+      "email": "メールアドレス",
+      "password": "パスワード",
+      "passwordHint": "10文字以上。",
+      "profileName": "プロフィール名",
+      "profileNameHint": "プロフィールの名前です（例：下の名前）。",
+      "language": "言語",
+      "submit": "アカウントを作成",
+      "submitting": "作成中…"
+    },
+    "gone": {
+      "title": "リンクは無効です",
+      "body": "このリンクはすでに使用されたか、有効期限が切れたか、取り消されました。招待した人に新しいリンクを依頼してください。",
+      "action": "ログインへ"
+    },
+    "notFound": {
+      "title": "リンクが見つかりません",
+      "body": "この招待リンクは存在しません。リンクをすべてコピーしたか確認してください。"
+    }
+  },
+  "kind": {
+    "movie": "映画",
+    "series": "TV番組",
+    "season": "シーズン",
+    "episode": "エピソード",
+    "extra": "特典映像",
+    "audiobook": "オーディオブック",
+    "podcast": "ポッドキャスト",
+    "podcast_episode": "ポッドキャストのエピソード"
+  },
+  "extraKind": {
+    "trailer": "予告編",
+    "featurette": "特集映像",
+    "deleted_scene": "未公開シーン",
+    "behind_the_scenes": "メイキング",
+    "interview": "インタビュー",
+    "scene": "シーン",
+    "short": "短編",
+    "other": "特典映像"
+  },
+  "trailer": {
+    "title": "予告編：{{title}}",
+    "language": "言語",
+    "frame": "{{title}}の予告編（YouTube）",
+    "none": "予告編はありません。",
+    "privacy": "予告編はYouTube（youtube-nocookie.com）で再生されます。"
+  },
+  "person": {
+    "credits": "映画とTV番組",
+    "creditsCount": "· {{count}}",
+    "as": "{{character}}役",
+    "facts": {
+      "knownFor": "主な活動分野",
+      "born": "生年月日",
+      "bornAge": "{{date}}（{{age}}歳）",
+      "birthplace": "出生地",
+      "died": "死去",
+      "diedAge": "{{date}}（享年{{age}}）",
+      "library": "ライブラリ内",
+      "libraryOf_other": "{{count}}作品中{{shown}}作品",
+      "libraryOnly_other": "{{count}}作品"
+    },
+    "department": {
+      "acting": "出演",
+      "directing": "監督",
+      "writing": "脚本",
+      "production": "製作",
+      "sound": "音響",
+      "camera": "撮影",
+      "editing": "編集",
+      "art": "美術",
+      "crew": "スタッフ",
+      "costume": "衣装・メイク",
+      "visualEffects": "視覚効果",
+      "lighting": "照明",
+      "creator": "原案"
+    },
+    "biography": {
+      "more": "続きを読む",
+      "less": "閉じる",
+      "fallback": "TMDBの経歴（英語のみ）"
+    },
+    "notFound": {
+      "title": "人物が見つかりません",
+      "body": "この人物の作品はここにはありません。"
+    }
+  },
+  "limits": {
+    "title": "再生の制限",
+    "maxHeight": "最高画質",
+    "none": "制限なし",
+    "bitrate": "帯域幅（kbit/s）",
+    "hint": "{{min}}〜{{max}}。空欄の場合は制限なし。",
+    "streams": "同時ストリーム数",
+    "watch": "1日の視聴時間（分）",
+    "range": "{{min}}〜{{max}}を指定できます。",
+    "height": "{{height}}pまで",
+    "bitrateValue": "{{value}} kbit/s",
+    "streamsValue_other": "{{count}}ストリーム",
+    "watchValue": "1日{{count}}分",
+    "capped": "このプロフィールはアカウントにより制限されています：{{summary}}。"
+  },
+  "offline": {
+    "unknownTitle": "不明な作品",
+    "episodeTitle": "{{code}} · {{title}} · {{series}}",
+    "quality": {
+      "high": "高",
+      "medium": "中",
+      "low": "低"
+    },
+    "state": {
+      "deleting": "削除中",
+      "complete": "このデバイスに保存済み",
+      "quota": "空き容量なし",
+      "storage": "保存に失敗しました",
+      "network": "ダウンロードが中断されました。まもなく再試行します",
+      "range": "サーバーがファイルを分割して送信しません（プロキシを確認してください）",
+      "gone": "利用できなくなりました",
+      "evicted": "再準備中",
+      "wifi": "Wi-Fiを待機中",
+      "fetching": "ダウンロード中（{{percent}}%）",
+      "preparing": "準備中（{{percent}}%）",
+      "budgetFull": "サーバーの空きを待機中",
+      "queued": "サーバーを待機中",
+      "paused": "一時停止中（サーバーがストリーミング中）",
+      "failed": "準備に失敗しました"
+    },
+    "downloads": {
+      "title": "ダウンロード",
+      "intro": "{{name}}がこのデバイスに保存した作品です。ネットワークがなくても再生できます。",
+      "unsupported": {
+        "title": "ここではダウンロードできません",
+        "body": "このブラウザーは作品を保存できません。ダウンロードには安全な接続（HTTPS）と最新のブラウザーが必要です。"
+      },
+      "list": "このデバイス",
+      "empty": "このデバイスにはまだダウンロードがありません。映画、エピソード、シーズン全体は、それぞれの詳細ページからダウンロードできます。",
+      "columns": {
+        "title": "タイトル",
+        "state": "状態",
+        "size": "サイズ",
+        "actions": "操作"
+      },
+      "auto": "自動",
+      "sizeOf": "{{done}} / {{total}}",
+      "play": "再生",
+      "playLabel": "{{title}}を再生",
+      "delete": {
+        "action": "削除",
+        "label": "{{title}}を削除",
+        "title": "ダウンロードした{{title}}を削除しますか？",
+        "body": "このデバイスからファイルが削除されます。作品は後で再びダウンロードできます。",
+        "confirm": "ダウンロードを削除"
+      },
+      "removed": "{{title}}を削除しました。",
+      "offline": "サーバーに接続できません。保存済みの作品は再生できます。変更内容は次にサーバーに接続したときに送信されます。",
+      "pinHint": {
+        "title": "オフライン用のPIN",
+        "body": "このデバイスでオフラインでも{{name}}を開けるように、ここでプロフィールのPINを一度入力してください。",
+        "action": "PINを入力"
+      }
+    },
+    "storage": {
+      "title": "ストレージ",
+      "meter": "ストレージの使用量",
+      "downloads": "ダウンロード：{{size}}",
+      "other": "その他のデータ：{{size}}",
+      "used": "{{quota}}中{{used}}を使用",
+      "free": "空き：{{free}} / {{quota}}",
+      "unknown": "ダウンロード：{{size}}。このブラウザーは利用可能なストレージ容量を表示しません。",
+      "persisted": "ブラウザーはダウンロードを永続的に保持します。",
+      "notPersisted": "ストレージが不足すると、ブラウザーがダウンロードを削除することがあります。",
+      "apple": {
+        "title": "iPhone、iPad、Safariをお使いの方へ",
+        "body": "Safariは、しばらく開いていないWebアプリのデータを削除します。ダウンロードを保持するには、Slouchcatを定期的に開いてください。ホーム画面に追加したアプリとして使うと、より確実に保護されます。"
+      }
+    },
+    "rules": {
+      "title": "自動ダウンロード",
+      "intro": "{{name}}が過去60日間に視聴したすべてのTV番組の次のエピソードと、{{name}}のマイリストにあるポッドキャストの新しいエピソードを、このデバイスにダウンロードします。",
+      "options": "設定",
+      "enabled": "このデバイスで自動ダウンロード",
+      "nextEpisodes": "視聴中のTV番組の次のエピソード",
+      "wifiOnly": "Wi-Fi接続時のみ",
+      "wifiIos": "iPhoneとiPadは、Wi-Fiに接続しているかどうかをブラウザーに知らせません。そのため、アプリを開いている間に自動ダウンロードが行われます。",
+      "maxCount": "未視聴エピソードの最大数",
+      "maxCountHint": "{{min}}〜{{max}}",
+      "maxCountInvalid": "{{min}}〜{{max}}の数値を入力してください。",
+      "quality": "画質",
+      "save": "ルールを保存",
+      "saved": "保存しました。ルールは次回の同期から適用されます。",
+      "newPodcastEpisodes": "マイリストにあるポッドキャストの新しいエピソード"
+    },
+    "dialog": {
+      "button": "ダウンロード",
+      "seasonButton": "シーズンをダウンロード",
+      "title": "{{title}}をダウンロード",
+      "intro": "作品はこのデバイスに保存され、ネットワークがなくても再生できます。",
+      "seasonIntro_other": "このシーズンの全{{count}}エピソードをこのデバイスに保存します。",
+      "quality": "画質",
+      "option": "{{quality}} · {{height}}p · 約{{size}}",
+      "audio": "音声トラック",
+      "subtitles": "字幕：{{list}}",
+      "noSubtitles": "テキスト字幕はありません。",
+      "submit": "ダウンロード",
+      "submitting": "開始中…",
+      "started_other": "{{count}}件のダウンロードを開始しました。状況は「ダウンロード」で確認できます。",
+      "audioOption": "{{quality}} · {{kbps}} kbit/s · 約{{size}}",
+      "audioCopy": "{{quality}} · AACをそのままコピー · 約{{size}}"
+    },
+    "status": {
+      "open": "ダウンロードへ",
+      "season": "{{total}}エピソード中{{done}}エピソードがこのデバイスにあります"
+    },
+    "library": {
+      "title": "オフラインライブラリ",
+      "intro": "視聴するのは誰ですか？これらのプロフィールには、このデバイスにダウンロードがあります。",
+      "toApp": "アプリを開く",
+      "offline": "オフライン",
+      "profiles": "プロフィール",
+      "empty": {
+        "title": "このデバイスにダウンロードはありません",
+        "body": "サーバーに接続していない間は、ダウンロード済みの作品のみ再生できます。",
+        "hint": "オンラインで作品をダウンロードすると、ネットワークがなくてもここで見つけられます。"
+      },
+      "locked": {
+        "title": "ダウンロードはロック中",
+        "body": "このデバイスのアカウントはログアウトしました。ダウンロードは保存されたままで、同じアカウントでログインすると再び開けます。"
+      },
+      "downloadsOf": "{{name}}のダウンロード",
+      "switchProfile": "プロフィールを切り替え",
+      "list": "ダウンロード済みの作品",
+      "video": "映画とTV番組",
+      "audio": "オーディオブックとポッドキャスト",
+      "noneReady": "このデバイスに完全に保存された作品はまだありません。",
+      "pending": "未完了"
+    },
+    "pin": {
+      "introOffline": "このプロフィールには専用のオフラインPINがあります。",
+      "offlineLabel": "オフラインPIN",
+      "offlineHint": "6〜12桁の数字。",
+      "offlineFormat": "オフラインPINは6〜12桁の数字です。",
+      "unavailable": {
+        "title": "オフラインではロック中",
+        "body": "このデバイスでオンライン時に一度このプロフィールのPINを入力すると、オフラインでも開けるようになります。"
+      }
+    },
+    "player": {
+      "failed": "保存されたファイルを再生できません。",
+      "missing": {
+        "title": "ダウンロードを利用できません",
+        "body": "このダウンロードはこのデバイスにない（またはなくなった）か、まだ完了していないか、このプロフィールでは許可されていません。"
+      }
+    }
+  },
+  "search": {
+    "title": "検索",
+    "label": "検索キーワード",
+    "placeholder": "作品、人物、コレクション",
+    "start": "作品、人物、コレクションを検索するか、絞り込み条件を選んでください。",
+    "tooShort": "2文字以上入力してください。",
+    "filters": {
+      "label": "絞り込み",
+      "genre": "ジャンル",
+      "allGenres": "すべてのジャンル",
+      "yearFrom": "開始年",
+      "yearTo": "終了年",
+      "rating": "年齢区分の上限",
+      "anyRating": "すべて",
+      "type": "メディアの種類",
+      "types": {
+        "movie": "映画",
+        "series": "TV番組",
+        "audiobook": "オーディオブック",
+        "podcast": "ポッドキャスト"
+      },
+      "availability": "利用可能な場所",
+      "avail": {
+        "local": "サーバー上",
+        "download": "このデバイス"
+      },
+      "reset": "絞り込みをリセット"
+    },
+    "sections": {
+      "titles": "作品",
+      "people": "人物",
+      "collections": "コレクション"
+    },
+    "results_other": "{{count}}件の作品が見つかりました",
+    "empty": {
+      "title": "見つかりませんでした",
+      "body": "別のキーワードを試すか、絞り込み条件を減らしてください。"
+    }
+  },
+  "watchlist": {
+    "title": "マイリスト",
+    "remove": "外す",
+    "removeLabel": "{{title}}をマイリストから外す",
+    "cover": {
+      "add": "{{title}}をマイリストに追加",
+      "remove": "{{title}}をマイリストから外す"
+    },
+    "empty": {
+      "title": "マイリストは空です",
+      "body": "後で見たい作品は、詳細ページの「マイリストに追加」で保存できます。",
+      "action": "検索へ"
+    }
+  },
+  "collection": {
+    "all": {
+      "title": "コレクション",
+      "count_other": "{{count}}件のコレクション",
+      "shown_other": "{{total}}件中{{count}}件のコレクション",
+      "empty": "このプロフィールで見られるコレクションはまだありません。",
+      "noMatch": "検索と絞り込みに一致するコレクションはありません。",
+      "filters": "絞り込み",
+      "search": "コレクションを検索",
+      "size": "作品数",
+      "sizes": {
+        "2": "2作品以上",
+        "3": "3作品以上",
+        "5": "5作品以上",
+        "all": "すべて"
+      },
+      "sort": "並べ替え",
+      "sorts": {
+        "name": "名前（A–Z）",
+        "count": "作品数の多い順",
+        "started": "視聴中を優先"
+      }
+    },
+    "count_other": "{{count}}作品",
+    "films_other": "{{count}}本の映画",
+    "years": "{{first}}–{{last}}",
+    "together": "合計{{duration}}",
+    "seen_other": "{{total}}作品中{{count}}作品を視聴済み",
+    "members": "作品",
+    "parts": "順番に見る",
+    "part": "パート{{part}}：{{title}}",
+    "playPart": "再生：{{title}}",
+    "play": "再生 · パート{{part}}",
+    "resume": "続きを見る · パート{{part}}",
+    "rewatch": "もう一度見る · パート{{part}}",
+    "watchlist": {
+      "add": "すべてマイリストに追加",
+      "added": "すべてマイリストに追加済み"
+    },
+    "overviewFallback": "TMDBの説明（英語のみ）",
+    "ask": {
+      "removeBody_other": "{{count}}作品の視聴済みマークが外れます。この操作は元に戻せません。",
+      "halfBody_other": "{{total}}作品中{{count}}作品に視聴済みマークが付いています。すべての作品にマークを付けますか、それともすべてのマークを外しますか？マークを外す操作は元に戻せません。",
+      "markAll": "すべての作品を視聴済みにする"
+    },
+    "notFound": {
+      "title": "コレクションが見つかりません",
+      "body": "このコレクションは存在しないか、このプロフィールで見られる作品がありません。"
+    }
+  },
+  "notifications": {
+    "title": "通知",
+    "unreadLabel_other": "通知、未読{{count}}件",
+    "badgeMax": "{{max}}+",
+    "markAllRead": "すべて既読にする",
+    "entryLabel": "{{title}}、{{source}}、{{time}}",
+    "entryLabelUnread": "未読：{{title}}、{{source}}、{{time}}",
+    "newEpisode": "{{parent}}の新しいエピソード",
+    "newEpisodeAlone": "新しいエピソード",
+    "summary_other": "未読{{count}}件",
+    "empty": {
+      "title": "通知はありません",
+      "body": "TV番組やポッドキャストをマイリストに追加すると、新しいエピソードがここで通知されます。"
+    }
+  },
+  "settings": {
+    "playback": {
+      "title": "設定",
+      "intro": "プロフィール「{{name}}」の音声と字幕の設定で、すべてのデバイスに適用されます。プレーヤーで手動で選んだものが優先されます。",
+      "languages": "言語と字幕",
+      "audio": {
+        "legend": "音声の言語",
+        "hint": "作品は、このリストのうち作品にある最初の言語で再生されます。どれもない場合は、オリジナル言語で再生されます。",
+        "rank": "音声の言語{{position}}",
+        "more": "音声の言語を追加",
+        "none": "現在、音声の言語は設定されていません。オリジナル言語で再生されます。"
+      },
+      "subtitleMode": {
+        "label": "字幕",
+        "off": "オフ",
+        "forced": "強制字幕のみ（既定）",
+        "foreign": "外国語の場合",
+        "always": "常に表示",
+        "offHint": "プレーヤーでオンにするまで、字幕は表示されません。",
+        "forcedHint": "看板や外国語のせりふなど、別の言語の部分だけを音声の言語で表示します。",
+        "foreignHint": "「強制字幕のみ」と同じです。音声が設定した音声の言語のいずれでもない場合は、最初の字幕の言語ですべての字幕を表示します。",
+        "alwaysHint": "常に最初の字幕の言語ですべての字幕を表示します。ない場合は「強制字幕のみ」と同じです。"
+      },
+      "subtitles": {
+        "legend": "字幕の言語",
+        "hint": "すべての字幕を表示する場合に、利用できる最初の言語を優先します。",
+        "rank": "字幕の言語{{position}}",
+        "more": "字幕の言語を追加",
+        "none": "現在、字幕の言語は設定されていません。強制字幕のみ表示されます。"
+      },
+      "limit": "言語は{{count}}つまでです。別の言語を追加するには、どれかを外してください。",
+      "saved": "保存しました。",
+      "series": {
+        "title": "TV番組ごとの記憶",
+        "body": "エピソードで音声や字幕を手動で選ぶと、Slouchcatはその言語をTV番組全体で記憶します。",
+        "reset": "TV番組ごとの記憶をリセット",
+        "confirmTitle": "TV番組ごとの記憶をリセットしますか？",
+        "confirmBody": "すべてのTV番組が、上で設定した言語と字幕で再生されるようになります。この操作は元に戻せません。",
+        "confirm": "リセット",
+        "done": "TV番組ごとの記憶をリセットしました。"
+      },
+      "notifications": {
+        "title": "通知",
+        "body": "新しいエピソード、招待、お知らせをメール、Web Push、Telegramでも受け取るかどうかは、アカウント全体に対して専用のページで設定します。",
+        "link": "通知チャンネルへ"
+      }
+    },
+    "notifications": {
+      "title": "通知チャンネル",
+      "intro": "マイリストにあるTV番組やポッドキャストの新しいエピソード、招待、お知らせは、アプリの受信箱に加えてここで設定したチャンネルにも届きます。設定はアカウント全体（すべてのプロフィール）に適用されます。プロフィールに関するメッセージは、そのプロフィール名から始まります。",
+      "link": "チャンネルを設定",
+      "serverChannels": "サーバーのチャンネルをセットアップ → 連携",
+      "list": "チャンネル",
+      "onlyPrimary": {
+        "title": "メインプロフィールのみ",
+        "body": "チャンネルはアカウント全体に適用され、メインプロフィールで変更します。チャンネルのオン／オフを切り替えるには、メインプロフィールに切り替えてください。",
+        "action": "プロフィールを切り替え"
+      },
+      "channel": {
+        "email": "メール",
+        "push": "Web Push",
+        "telegram": "Telegram"
+      },
+      "state": {
+        "on": "オン",
+        "off": "オフ",
+        "unavailable": "未セットアップ"
+      },
+      "enabled": "オン",
+      "events": {
+        "label": "イベント",
+        "new_content": "新しいコンテンツ",
+        "errors": "エラー",
+        "invitations": "招待",
+        "announcements": "お知らせ",
+        "help": "メッセージを送信するイベントです。",
+        "helpAdmin": "メッセージを送信するイベントです。「エラー」は管理者のみが対象です。"
+      },
+      "unavailable": {
+        "body": "このチャンネルは、メインユーザーが管理画面の「連携」でセットアップします。",
+        "action": "連携を開く"
+      },
+      "email": {
+        "address": "メールアドレス",
+        "description": "既定はアカウントのアドレスです。"
+      },
+      "telegram": {
+        "linked": "連携済み",
+        "linkedChat": "チャット{{chat}}と連携済み",
+        "notLinked": "未連携",
+        "instruction": "ボット@{{bot}}にメッセージ「/start {{code}}」を送信してください",
+        "expires": "このコードは{{time}}まで有効です。",
+        "open": "Telegramで開く",
+        "link": "連携",
+        "renew": "新しいコード",
+        "unlink": "連携を解除",
+        "unlinked": "連携を解除しました。",
+        "instructionNoBot": "Slouchcatのボットにメッセージ「/start {{code}}」を送信してください",
+        "noBot": "ボットの名前がありません。先にメインユーザーが「連携」でボットトークンを入力する必要があります。",
+        "label": "連携",
+        "help": "アカウントとボットとのチャットを連携します。",
+        "codeOpen": "コード有効",
+        "waiting_other": "メッセージを待っています。{{count}}秒ごとに確認しています。",
+        "paused": "未保存の変更や確認中の質問がある間は、確認を一時停止します。",
+        "unlinkConfirm": {
+          "title": "Telegramとの連携を解除しますか？",
+          "body": "Telegramのメッセージは連携済みのチャットに届かなくなります。新しいコードでいつでも再連携できます。"
+        },
+        "discardConfirm": {
+          "title": "コードを破棄しますか？",
+          "body": "有効なコードはすぐに使えなくなります。新しいコードでいつでも再連携できます。",
+          "confirm": "コードを破棄"
+        }
+      },
+      "push": {
+        "devices": "登録済みのデバイス",
+        "none": "登録済みのデバイスはまだありません。",
+        "thisDevice": "このデバイス",
+        "unknownDevice": "不明なデバイス",
+        "created": "{{date}}に登録",
+        "subscribe": "このデバイスでオンにする",
+        "subscribed": "このデバイスでプッシュ通知を受け取れるようになりました。",
+        "remove": "外す",
+        "removeLabel": "{{device}}を外す",
+        "removed": "デバイスを外しました。",
+        "unsupported": "このブラウザーでは、ここでプッシュ通知を受け取れません。最新のブラウザーとHTTPS接続が必要です。",
+        "ios": "iPhoneとiPadでは、Web Pushはインストールしたアプリでのみ使えます。共有メニューで「ホーム画面に追加」を選び、そこからSlouchcatを開いてください。",
+        "denied": "Slouchcatの通知はブロックされています。ブラウザーの設定で許可してください。",
+        "noWorker": "Service Workerがまだ動作していません。ページを再読み込みして、もう一度お試しください。",
+        "failed": "ブラウザーがプッシュサービスに登録できませんでした。",
+        "count_other": "{{count}}台のデバイス"
+      },
+      "saved": "保存しました。",
+      "test": "テストメッセージ",
+      "testSent": "テストメッセージを送信しました。",
+      "unsaved": "未保存の変更があります",
+      "enabledHelp": "アカウント全体（すべてのプロフィール）に適用されます。",
+      "noEvents": "なし"
+    }
+  },
+  "announcements": {
+    "kicker": "お知らせ",
+    "published": "{{date}}に公開",
+    "counter": "{{index}} / {{count}}",
+    "acknowledge": "了解",
+    "later": "後で"
+  },
+  "picks": {
+    "page": {
+      "title": "ユーザーのおすすめ",
+      "intro": "この世帯のプロフィールがおすすめする作品です。新しいおすすめ順に並んでいます。",
+      "count_other": "{{count}}作品"
+    }
+  },
+  "radio": {
+    "page": {
+      "title": "ラジオ",
+      "intro": "世界中のラジオ局を、あなたのSlouchcatサーバー経由で",
+      "searchLabel": "ラジオ局を検索",
+      "searchPlaceholder": "ラジオ局、地域、ジャンル",
+      "quick": {
+        "label": "クイック選択",
+        "myCountry": "自分の国：{{country}}",
+        "favorites": "マイラジオ局",
+        "popular": "人気"
+      },
+      "myCountry": "自分の国",
+      "filters": {
+        "label": "絞り込み",
+        "country": "国",
+        "region": "地域",
+        "language": "言語",
+        "genre": "ジャンル",
+        "kind": "番組の種類",
+        "mood": "ムード",
+        "quality": "音質",
+        "titles": "曲情報ありのみ",
+        "clear": "選択を解除",
+        "done": "完了",
+        "none": "選択できる値はありません",
+        "close": "絞り込みを閉じる",
+        "show_other": "{{count}}局を表示",
+        "active": "適用中の絞り込み",
+        "remove": "絞り込み「{{label}}」を外す",
+        "reset": "すべての絞り込みをリセット",
+        "search": "「{{q}}」"
+      },
+      "sort": {
+        "label": "並べ替え",
+        "popular": "人気順",
+        "name": "名前（A–Z）",
+        "quality": "音質",
+        "new": "カタログの新着"
+      },
+      "count_other": "{{count}}局",
+      "rows": {
+        "favorites": "マイラジオ局",
+        "popularIn": "{{country}}で人気",
+        "all": "{{country}}のすべて",
+        "byGenre": "ジャンル別",
+        "byMood": "ムード別",
+        "stations_other": "{{count}}局",
+        "noFavorites": "保存したラジオ局はまだありません。ラジオ局のハートをタップすると、ここに表示されます（自分のプロフィールのみ）。",
+        "popular": "人気"
+      },
+      "results": "検索結果",
+      "allStations": "すべてのラジオ局",
+      "empty": {
+        "title": "ラジオ局が見つかりません",
+        "body": "この絞り込みに一致するラジオ局はありません。絞り込みを外すか、すべてリセットしてください。"
+      },
+      "loading": {
+        "title": "ラジオ局のカタログを読み込んでいます",
+        "body": "Slouchcatが初めてラジオ局を取得しています。まもなくページが再試行します。"
+      },
+      "play": "{{name}}を再生",
+      "pause": "{{name}}を一時停止",
+      "resume": "{{name}}を再開",
+      "playing": "再生中",
+      "paused": "一時停止中",
+      "missing": "カタログから削除済み。{{date}}に消えます",
+      "broken": "現在エラー",
+      "order": {
+        "toggle": "順番を変更",
+        "done": "完了",
+        "label": "マイラジオ局の順番"
+      },
+      "offerEmpty": {
+        "title": "ラジオ局はまだ選ばれていません",
+        "body": "管理者がまだラジオ局を選んでいません。",
+        "bodyAdmin": "ラジオで提供する国とラジオ局を管理画面で選んでください。",
+        "action": "ラジオ局を選ぶ"
+      }
+    },
+    "genre": {
+      "pop": "ポップ",
+      "rock": "ロック",
+      "jazz": "ジャズ",
+      "classical": "クラシック",
+      "electronic": "エレクトロニック",
+      "hiphop": "ヒップホップ",
+      "schlager": "シュラーガー",
+      "folk": "フォーク",
+      "alternative": "オルタナティブ",
+      "oldies": "オールディーズ",
+      "chillout": "チルアウト",
+      "world": "ワールド",
+      "country": "カントリー",
+      "metal": "メタル",
+      "mixed": "ミックス",
+      "blues": "ブルース",
+      "soul": "ソウル",
+      "rnb": "R&B",
+      "latin": "ラテン",
+      "reggae": "レゲエ",
+      "dance": "ダンス",
+      "indie": "インディー",
+      "religious": "宗教",
+      "soundtrack": "サウンドトラック",
+      "kids": "キッズ"
+    },
+    "kind": {
+      "music": "音楽",
+      "news": "ニュース",
+      "talk": "トーク",
+      "sport": "スポーツ",
+      "culture": "カルチャー"
+    },
+    "mood": {
+      "chill": "チル",
+      "party": "パーティー",
+      "focus": "集中",
+      "sleep": "睡眠",
+      "workout": "ワークアウト"
+    },
+    "quality": {
+      "high": "高",
+      "good": "良",
+      "basic": "標準"
+    },
+    "region": {
+      "CH-AG": "アールガウ",
+      "CH-AI": "アッペンツェル・インナーローデン",
+      "CH-AR": "アッペンツェル・アウサーローデン",
+      "CH-BE": "ベルン",
+      "CH-BL": "バーゼル＝ラント",
+      "CH-BS": "バーゼル＝シュタット",
+      "CH-FR": "フリブール",
+      "CH-GE": "ジュネーヴ",
+      "CH-GL": "グラールス",
+      "CH-GR": "グラウビュンデン",
+      "CH-JU": "ジュラ",
+      "CH-LU": "ルツェルン",
+      "CH-NE": "ヌーシャテル",
+      "CH-NW": "ニトヴァルデン",
+      "CH-OW": "オプヴァルデン",
+      "CH-SG": "ザンクト・ガレン",
+      "CH-SH": "シャフハウゼン",
+      "CH-SO": "ゾロトゥルン",
+      "CH-SZ": "シュヴィーツ",
+      "CH-TG": "トゥールガウ",
+      "CH-TI": "ティチーノ",
+      "CH-UR": "ウーリ",
+      "CH-VD": "ヴォー",
+      "CH-VS": "ヴァレー",
+      "CH-ZG": "ツーク",
+      "CH-ZH": "チューリッヒ"
+    },
+    "player": {
+      "region": "ラジオの再生",
+      "open": "再生中の画面を開く：{{name}}",
+      "nowPlaying": "再生中",
+      "close": "再生中の画面を閉じる",
+      "play": "再生",
+      "pause": "一時停止",
+      "retry": "再試行",
+      "stop": "ラジオを停止",
+      "live": "ライブ",
+      "paused": "一時停止中",
+      "starting": "接続中…",
+      "toLive": "ライブ",
+      "artistTitle": "{{artist}} – {{title}}",
+      "programme": "ライブ番組",
+      "noTitles": "このラジオ局は曲情報を送信していません",
+      "favorite": "{{name}}をマイラジオ局に",
+      "serverHint": "Slouchcat経由（サーバーの所在地から）",
+      "shift": {
+        "label": "タイムシフト、最大{{minutes}}分前まで",
+        "behind": "−{{time}}",
+        "back": "{{time}}前",
+        "minutes_other": "{{count}}分",
+        "seconds_other": "{{count}}秒"
+      },
+      "longPause": "一時停止が{{minutes}}分を超えました。最も古い位置から再生を続けます。",
+      "played": {
+        "heading": "これまでに流れた曲",
+        "empty": "このラジオ局は、この曲より前の曲情報をまだ送信していません。"
+      },
+      "ended": "再生が終了しました。",
+      "failed": "このラジオ局はこのブラウザーでは再生できません。",
+      "kbps_other": "{{count}} kbit/s",
+      "facts": {
+        "quality": "音質",
+        "genre": "ジャンル",
+        "kind": "番組の種類",
+        "language": "言語"
+      }
+    }
+  },
+  "audioSeries": {
+    "kicker": "シリーズ",
+    "narratedBy": "ナレーター：{{narrator}}",
+    "volumes_other": "{{count}}冊",
+    "continue": "続きを聴く：第{{volume, number}}巻",
+    "continueTitle": "続きを聴く：{{title}}",
+    "edit": "シリーズを編集",
+    "list": "巻",
+    "number": "{{value, number}}",
+    "volumeLabel": "第{{volume, number}}巻：{{title}}",
+    "play": "再生：{{title}}",
+    "left": "残り{{left}}",
+    "hint": {
+      "title": "管理者のみ",
+      "spellings": "ファイルではこのシリーズが複数の名前で記載されています：{{names}}。Slouchcatはこれを1つのシリーズとして表示します。",
+      "spelling_other": "「{{name}}」（{{count}}冊）",
+      "duplicates": "次の番号が重複しています：{{volumes}}。これらの巻はナレーターが異なります。誤った番号は各巻で修正してください。",
+      "dismiss": "了解"
+    },
+    "notFound": {
+      "title": "シリーズが見つかりません",
+      "body": "このシリーズは存在しないか、このプロフィールで見られる巻が2冊未満です。",
+      "action": "ライブラリへ"
+    },
+    "dialog": {
+      "title": "シリーズを編集",
+      "name": "シリーズ名",
+      "nameHint": "表示名を変更してロックします。各巻はそのままです。",
+      "options": "巻",
+      "writeToVolumes": "すべての巻に書き込む",
+      "writeToVolumesHint": "この名前を各巻のシリーズとして設定し、ロックします。同じ名前で同じ著者のシリーズは1つにまとめられます。"
+    }
+  },
+  "watched": {
+    "heard": {
+      "label": "再生済み：{{title}}",
+      "button": "再生済み",
+      "hint": {
+        "set": "再生済みにする",
+        "half": "一部再生済み：すべてにマークを付けるか、すべてのマークを外します"
+      },
+      "state": {
+        "full": "再生済み",
+        "half": "一部再生済み"
+      },
+      "ask": {
+        "removeTitle": "「{{title}}」を未再生にしますか？",
+        "halfTitle": "「{{title}}」は一部再生済みです",
+        "markAll": "すべてのエピソードを再生済みにする"
+      }
+    },
+    "page": {
+      "title": "視聴済み",
+      "count_other": "{{count}}作品",
+      "filters": "絞り込み",
+      "content": "種類",
+      "contents": {
+        "all": "すべて",
+        "movie": "映画",
+        "series": "TV番組",
+        "audiobook": "オーディオブック",
+        "podcast": "ポッドキャスト"
+      },
+      "sort": "並べ替え",
+      "sorts": {
+        "watched": "最近視聴した順",
+        "title": "タイトル（A–Z）"
+      },
+      "watchedOn": "{{date}}に視聴",
+      "heardOn": "{{date}}に再生",
+      "episodes_other": "{{total}}話中{{count}}話 · 最終{{date}}",
+      "emptyKind": "「{{kind}}」で視聴済みのものはまだありません。",
+      "empty": {
+        "title": "視聴済みのものはまだありません。",
+        "body": "最後まで視聴または再生したものがここに表示されます。"
+      }
+    },
+    "label": "視聴済み：{{title}}",
+    "button": "視聴済み",
+    "hint": {
+      "set": "視聴済みにする",
+      "remove": "視聴済みマークを外す",
+      "half": "一部視聴済み：すべてにマークを付けるか、すべてのマークを外します"
+    },
+    "state": {
+      "full": "視聴済み",
+      "half": "一部視聴済み"
+    },
+    "ask": {
+      "removeTitle": "「{{title}}」を未視聴にしますか？",
+      "removeBody_other": "{{count}}話のエピソードの視聴済みマークが外れます。この操作は元に戻せません。",
+      "removeBodyAll": "すべてのエピソードの視聴済みマークが外れます。この操作は元に戻せません。",
+      "halfTitle": "「{{title}}」は一部視聴済みです",
+      "halfBody_other": "{{count}}話のエピソードに視聴済みマークが付いています。すべてのエピソードにマークを付けますか、それともすべてのマークを外しますか？マークを外す操作は元に戻せません。",
+      "markAll": "すべてのエピソードを視聴済みにする",
+      "removeAll": "すべてのマークを外す"
+    }
+  }
+}
