@@ -55,8 +55,10 @@ const (
 	JobRatingsReread   = model.JobRatingsReread
 	ratingsRereadKey   = "ratings_reread"
 	ratingsRereadBatch = 200
-	// SettingRatingsRereadDone marks that a chain read every title to the end (written by its last
-	// batch); until then the first start after migration 00064 queues the chain again.
+	// SettingRatingsRereadDone is the rating country the last complete chain read every title for
+	// (written by its last batch). While it differs from metadata.rating_country (after the update
+	// to minimum ages, after a change whose chain could not be queued or did not finish), a start
+	// or the next save of the settings queues the chain again.
 	SettingRatingsRereadDone = "metadata.ratings_reread_done"
 )
 
@@ -74,15 +76,22 @@ type ratingsRereadPayload struct {
 	Total   int64  `json:"total,omitempty"`
 }
 
-// QueueRatingsRereadOnce queues the chain at a start after migration 00064 until one chain has
-// read every title (SettingRatingsRereadDone, written by its last batch): a chain that failed or
-// was cancelled starts again at the next start. A chain that is still queued or running is not
-// doubled. It reports whether it queued.
-func (s *Service) QueueRatingsRereadOnce(ctx context.Context) (bool, error) {
-	if _, err := s.read.GetSystemSetting(ctx, SettingRatingsRereadDone); err == nil {
-		return false, nil
-	} else if !errors.Is(err, sql.ErrNoRows) {
+// QueueRatingsRereadPending queues the chain when no complete chain read the titles for the
+// current rating country yet (SettingRatingsRereadDone): at the first start after migration
+// 00064, and after a change of the country whose chain could not be queued, failed or was
+// cancelled. A chain that is still queued or running is not doubled. The server calls it at every
+// start. It reports whether it queued.
+func (s *Service) QueueRatingsRereadPending(ctx context.Context) (bool, error) {
+	settings, err := s.Settings(ctx)
+	if err != nil {
+		return false, fmt.Errorf("%s: %w", JobRatingsReread, err)
+	}
+	done, err := s.read.GetSystemSetting(ctx, SettingRatingsRereadDone)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return false, fmt.Errorf("read %s: %w", SettingRatingsRereadDone, err)
+	}
+	if err == nil && done == settings.RatingCountry {
+		return false, nil
 	}
 	if running, err := s.RatingsRereading(ctx); err != nil || running {
 		return false, err
@@ -90,10 +99,10 @@ func (s *Service) QueueRatingsRereadOnce(ctx context.Context) (bool, error) {
 	return s.QueueRatingsReread(ctx)
 }
 
-// markRatingsRereadDone remembers that a chain read every title.
-func (s *Service) markRatingsRereadDone(ctx context.Context) error {
+// markRatingsRereadDone remembers that every title is read for country.
+func (s *Service) markRatingsRereadDone(ctx context.Context, country string) error {
 	if err := s.write.UpsertSystemSetting(ctx, systemq.UpsertSystemSettingParams{
-		Key: SettingRatingsRereadDone, Value: "1", Now: s.now().UnixMilli(),
+		Key: SettingRatingsRereadDone, Value: country, Now: s.now().UnixMilli(),
 	}); err != nil {
 		return fmt.Errorf("write %s: %w", SettingRatingsRereadDone, err)
 	}
@@ -109,12 +118,13 @@ func (s *Service) QueueRatingsReread(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("count titles to read anew: %w", err)
 	}
-	if total == 0 {
-		return false, s.markRatingsRereadDone(ctx) // nothing to read: every title is read
-	}
 	settings, err := s.Settings(ctx)
 	if err != nil {
 		return false, fmt.Errorf("%s: %w", JobRatingsReread, err)
+	}
+	if total == 0 {
+		// Nothing to read: every title is read for this country.
+		return false, s.markRatingsRereadDone(ctx, settings.RatingCountry)
 	}
 	return true, s.enqueueRatingsReread(ctx, ratingsRereadPayload{Country: settings.RatingCountry, Total: total})
 }
@@ -228,7 +238,7 @@ func (s *Service) ratingsReread(ctx context.Context, p ratingsRereadPayload) (*r
 	}
 	if len(rows) < ratingsRereadBatch {
 		s.log.Info("ratings read anew: finished")
-		return nil, s.markRatingsRereadDone(ctx)
+		return nil, s.markRatingsRereadDone(ctx, p.Country)
 	}
 	return &ratingsRereadPayload{Country: p.Country, After: rows[len(rows)-1].ID, Done: p.Done + int64(len(rows)), Total: p.Total}, nil
 }

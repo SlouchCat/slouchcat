@@ -173,18 +173,18 @@ func TestRatingsRereadOnceAndOnlyWithTitles(t *testing.T) {
 	if got := e.jobList(t, JobRatingsReread); len(got) != 0 {
 		t.Fatalf("a change of the country without titles queued %v", got)
 	}
-	if ok, err := e.svc.QueueRatingsRereadOnce(ctx); err != nil || ok {
+	if ok, err := e.svc.QueueRatingsRereadPending(ctx); err != nil || ok {
 		t.Fatalf("once without titles = %v, %v", ok, err)
 	}
 	e.addItem(t, itemSeed{id: idByTMDB, title: "First Film", tmdbID: 550, ownRating: 12, ratingSource: "tmdb:DE"})
-	if ok, err := e.svc.QueueRatingsRereadOnce(ctx); err != nil || ok {
+	if ok, err := e.svc.QueueRatingsRereadPending(ctx); err != nil || ok {
 		t.Fatalf("once after the mark = %v, %v; want nothing queued", ok, err)
 	}
 	mustExec(t, e.db.Write, `DELETE FROM settings WHERE key = ?`, SettingRatingsRereadDone)
-	if ok, err := e.svc.QueueRatingsRereadOnce(ctx); err != nil || !ok {
+	if ok, err := e.svc.QueueRatingsRereadPending(ctx); err != nil || !ok {
 		t.Fatalf("once with a title = %v, %v; want queued", ok, err)
 	}
-	if ok, err := e.svc.QueueRatingsRereadOnce(ctx); err != nil || ok {
+	if ok, err := e.svc.QueueRatingsRereadPending(ctx); err != nil || ok {
 		t.Fatalf("a second start = %v, %v; want nothing", ok, err)
 	}
 	if rereading, err := e.svc.RatingsRereading(ctx); err != nil || !rereading {
@@ -266,7 +266,7 @@ func TestRatingsRereadGoesOnAfterAFailingTitle(t *testing.T) {
 	if _, err := e.svc.read.GetSystemSetting(ctx, SettingRatingsRereadDone); err != nil {
 		t.Errorf("the finished chain left no done mark: %v", err)
 	}
-	if ok, err := e.svc.QueueRatingsRereadOnce(ctx); err != nil || ok {
+	if ok, err := e.svc.QueueRatingsRereadPending(ctx); err != nil || ok {
 		t.Errorf("a start after the finished chain = %v, %v; want nothing queued", ok, err)
 	}
 }
@@ -308,5 +308,38 @@ func TestRatingsRereadStartsAgainAfterACountryChangeMidChain(t *testing.T) {
 	}
 	if old != 0 {
 		t.Errorf("%d titles kept an age of the old country", old)
+	}
+}
+
+// A change of the rating country whose chain is lost (not queued, failed, cancelled; here: the
+// queue forgets it) is not lost for good (review of stage 3): until a chain finished for the new
+// country, saving the settings again or the next start queues it; after it finished, neither does.
+func TestRatingsRereadPendingAfterALostChain(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First Film", tmdbID: 550, ownRating: 12, ratingSource: "tmdb:DE"})
+	mustExec(t, e.db.Write, `INSERT INTO item_certifications VALUES (?, 'tmdb', 'US', 'R', 1)`, idByTMDB)
+	e.setRatingCountry(t, "US")
+	mustExec(t, e.db.Write, `DELETE FROM jobs WHERE type = ?`, JobRatingsReread)
+	e.setRatingCountry(t, "US") // the same country, saved again
+	if got := e.jobList(t, JobRatingsReread); len(got) != 1 {
+		t.Fatalf("saving again after a lost chain queued %v, want the chain", got)
+	}
+	mustExec(t, e.db.Write, `DELETE FROM jobs WHERE type = ?`, JobRatingsReread)
+	if ok, err := e.svc.QueueRatingsRereadPending(ctx); err != nil || !ok {
+		t.Fatalf("a start after a lost chain = %v, %v; want queued", ok, err)
+	}
+	mustExec(t, e.db.Write, `DELETE FROM jobs WHERE type = ?`, JobRatingsReread)
+	e.rereadAll(t)
+	if r := e.item(t, idByTMDB); r.Rating.Int64 != 17 {
+		t.Fatalf("after the chain: %v, want 17", r.Rating)
+	}
+	if ok, err := e.svc.QueueRatingsRereadPending(ctx); err != nil || ok {
+		t.Errorf("a start after the finished chain = %v, %v; want nothing", ok, err)
+	}
+	e.setRatingCountry(t, "US")
+	if got := e.jobList(t, JobRatingsReread); len(got) != 0 {
+		t.Errorf("saving after the finished chain queued %v", got)
 	}
 }
