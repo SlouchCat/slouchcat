@@ -14,8 +14,8 @@ import { areaTab } from './admin';
 
 // /admin/home-rows (M7, E-9; concept 12, variant C) by keyboard (rule 8): the position of
 // "Neu hinzugefügt" by ↑ on its select changes the start page's order, a hidden row is gone from
-// it; a row folds out by Enter with its description; the tabs «Reihenfolge» and «Vorschau» by
-// ←/→; leaving with unsaved changes asks; the Trakt line leads to the spotlight page. ↑/↓
+// it; a row folds out by Enter with its description; the preview next to the editor follows the
+// unsaved order (redesign, build plan 5); leaving with unsaved changes asks; the Trakt line leads to the spotlight page. ↑/↓
 // between the rows, Tab, Enter and Space, browser back, no trap. Behind the eight fixed rows the
 // page lists «Meine Medien» and a row per library (concept 15 P-7), hidden; the Tab limits count
 // their stops too.
@@ -139,7 +139,7 @@ test('start page rows by keyboard: placing and hiding change the start page @key
   }
 });
 
-test('the preview by ←/→ shows the unsaved order; leaving asks, «Verwerfen» restores', async ({
+test('the preview next to the editor shows the unsaved order; leaving asks, «Verwerfen» restores', async ({
   page,
   owner,
 }) => {
@@ -158,22 +158,16 @@ test('the preview by ←/→ shows the unsaved order; leaving asks, «Verwerfen�
   await expect(table.getByRole('rowheader').nth(6)).toHaveText(last);
   await expectFocusOn(page, rank);
 
-  // ←/→ in the tab list: «Vorschau» shows the order on the page, saved or not.
-  const order = page.getByRole('tab', { name: /^Reihenfolge/ });
-  const preview = page.getByRole('tab', { name: /^Vorschau/ });
-  await resetFocus(page);
-  await tabTo(page, order, 60);
-  await page.keyboard.press('ArrowRight');
-  await expectFocusOn(page, preview);
-  await expect(preview).toHaveAttribute('aria-selected', 'true');
-  await expect(page).toHaveURL(/[?&]tab=preview/);
+  // The preview stands next to the editor and shows the order on the page, saved or not; at
+  // this width both halves fit side by side.
   const sketch = page.getByRole('list', { name: 'Vorschau der Startseite' });
   await expect(sketch.getByRole('listitem').nth(6)).toContainText(`7. ${last}`);
+  await expect(page.getByRole('tab')).toHaveCount(0);
+  const editorBox = await page.getByRole('region', { name: 'Reihen' }).boundingBox();
+  const previewBox = await page.getByRole('region', { name: 'Vorschau' }).boundingBox();
+  expect(previewBox!.x).toBeGreaterThan(editorBox!.x + editorBox!.width - 1);
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
-  await page.keyboard.press('ArrowLeft');
-  await expectFocusOn(page, order);
   await expect(page).toHaveURL(/\/admin\/home-rows$/);
-  await expect(table.getByRole('rowheader').nth(6)).toHaveText(last);
 
   // The tab link waits for the question; it starts on «Auf der Seite bleiben», Escape stays.
   // Tab reaches the area's tabs at the current page, → walks them to «Spotlight».
