@@ -381,7 +381,7 @@
       "moveUpLabel": "Move {{provider}} up",
       "moveDownLabel": "Move {{provider}} down",
       "noKey": "no key configured",
-      "noGerman": "no German texts",
+      "missingLanguages": "no {{languages}} texts",
       "fillOnly": "fills in only",
       "hint": "The first entry identifies the title, the others only fill in. Reorder with the arrows or the arrow keys.",
       "hintRank": "The first entry identifies the title, the others only fill in. Choose the order with the position.",
@@ -4587,11 +4587,11 @@
       },
       "languages": {
         "title": "Languages",
-        "intro": "Every language here is fetched for every title; profiles pick the language of their descriptions from it. The interface stays German or English. Every further language costs one request per title and season.",
+        "intro": "Every language here is fetched for every title; profiles pick the language of their descriptions from it. Each profile chooses its own interface language. Every further language costs one request per title and season.",
         "list": "Metadata languages",
         "rank": "Language {{position}}",
         "more": "Another language",
-        "fallback": "Order = fallback: when a text is missing in the profile's language, Slouchcat shows the first one of the list, then the file name. The default needs German; a library needs German or English.",
+        "fallback": "Order = fallback: when a text is missing in the profile's language, Slouchcat shows the first one of the list, then the file name. The list needs at least one language.",
         "unknownAt": "{{provider}} does not know: {{languages}}",
         "youtube": "{{count}} languages: up to {{titles}} titles a day with the YouTube trailer search (quota 10,000)."
       },

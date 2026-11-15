@@ -3,6 +3,7 @@ import type { TFunction } from 'i18next';
 import { useId, useLayoutEffect, useRef } from 'react';
 import { Checkbox } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
+import { intlLocale } from '@/i18n';
 import { AriaButton } from './AriaButton';
 import { Chip } from './Chip';
 import { Icon } from './Icon';
@@ -106,7 +107,7 @@ interface ProviderListProps {
 /**
  * «Metadatenquellen» of a folder (ADR 0015, concept 7): one row per provider the content allows,
  * with a checkbox, the name, what the entry does («erkennt Titel» for the first ticked one,
- * «füllt auf» for the others), a hint («kein Schlüssel hinterlegt», «liefert kein Deutsch», «nur
+ * «füllt auf» for the others), a hint («kein Schlüssel hinterlegt», «liefert kein Französisch»: a language of the server's list it lacks, «nur
  * Auffüller») and two arrow buttons («TMDB nach oben» / «TMDB nach unten», icon only). The order
  * is changed with those buttons or with the arrow keys on a focused one, like the rows of the
  * start page: rule 8 asks for the keyboard, not for drag and drop. The focus stays on the pressed
@@ -125,8 +126,21 @@ export function ProviderList({
   error,
   ordering = 'arrows',
 }: ProviderListProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const rankHint = useId();
+  // The text languages any provider delivers out of the server's list, in its order; a provider
+  // that lacks some says which (concept 22 F-7: the list need not hold German).
+  const offered = [...new Set((infos ?? []).flatMap((info) => info.languages))];
+  const locale = intlLocale(i18n.language);
+  const missingLanguages = (info: MetadataProviderInfo) => {
+    const missing = offered.filter((code) => !info.languages.includes(code));
+    if (missing.length === 0) return undefined;
+    const names = new Intl.DisplayNames([locale], { type: 'language' });
+    const list = new Intl.ListFormat(locale, { type: 'conjunction' });
+    return t('library.providers.missingLanguages', {
+      languages: list.format(missing.map((code) => names.of(code) ?? code)),
+    });
+  };
   const providers = allowedProviders(content, value, infos);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   const pending = useRef<{ id: MetadataProvider; delta: -1 | 1 } | null>(null);
@@ -196,7 +210,7 @@ export function ProviderList({
           const providerName = t(`library.provider.${id}`);
           const hints = [
             info && !info.configured && t('library.providers.noKey'),
-            info && !info.languages.includes('de') && t('library.providers.noGerman'),
+            info && missingLanguages(info),
             !identifies && t('library.providers.fillOnly'),
           ].filter(Boolean);
           return (

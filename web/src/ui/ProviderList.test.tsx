@@ -71,6 +71,7 @@ describe('ProviderList', () => {
     expect(screen.getByText('erkennt Titel')).toBeVisible();
     expect(screen.getByText('füllt auf')).toBeVisible();
     expect(screen.getByText(/kein Schlüssel hinterlegt/)).toBeVisible();
+    // AniList lacks German, the first language the other providers deliver (concept 22 F-7).
     expect(screen.getByText(/liefert kein Deutsch/)).toBeVisible();
     expect(screen.getByText(/nur Auffüller/)).toBeVisible();
   });
