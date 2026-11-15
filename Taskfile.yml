@@ -192,11 +192,13 @@ tasks:
       - scripts/heavy-slot.test.sh
 
   # Translation tools of concept 22 (scripts/i18n, Node type stripping, no build step).
-  # i18n:check is the release gate of 4.8: every locale file complete and consistent with en.json.
+  # i18n:check is the release gate of 4.8: every locale file complete and consistent with en.json,
+  # the server texts too (TestServerTexts, strict for every language with SLOUCHCAT_I18N_STRICT).
   i18n:check:
-    desc: Check every locale file in web/src/locales against en.json, missing texts included
+    desc: Check every locale file of the web app and the server texts, missing texts included
     cmds:
       - node scripts/i18n/check.ts --all --strict
+      - cd server && SLOUCHCAT_I18N_STRICT=1 go test ./internal/notify -run '^TestServerTexts$' -count=1
 
   i18n:status:
     desc: Count the missing texts per locale file (details with `node scripts/i18n/check.ts <code> --missing`)

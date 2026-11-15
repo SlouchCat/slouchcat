@@ -34,7 +34,8 @@ func localeText(t *testing.T, lang, key string, v vars) string {
 // strictTexts are the languages whose server texts must be complete in every commit (concept 22
 // section 4.8): de and en in each pull request (de-DE is an overlay). The other languages are
 // completed before each release («Übersetzungen nachziehen»); until then a missing text is a log
-// line here and English along the chain at run time.
+// line here and English along the chain at run time. `task i18n:check`, the release gate, sets
+// SLOUCHCAT_I18N_STRICT and makes every language strict.
 var strictTexts = map[string]bool{"de": true, "en": true}
 
 // The server texts (concept 22 sections 4.5 and 4.9): one i18next v4 file per interface language,
@@ -61,7 +62,7 @@ func TestServerTexts(t *testing.T) {
 				}
 			}
 			switch {
-			case len(missing) > 0 && strictTexts[lang]:
+			case len(missing) > 0 && (strictTexts[lang] || os.Getenv("SLOUCHCAT_I18N_STRICT") != ""):
 				t.Errorf("%s: missing %v", lang, missing)
 			case len(missing) > 0:
 				t.Logf("warning: %s misses %d texts (before the release: «Übersetzungen nachziehen»): %v", lang, len(missing), missing)
