@@ -55,8 +55,8 @@ Was sich an den Funktionen geändert hat (Spalte «Aenderung» der Matrix):
 | `functional-inventory.csv` | Bestand vor dem Umbau: 876 Zeilen, je Funktion Route, Komponente, Bedingung, API, Zustände, Tests, Entsprechung im Mockup |
 | `inventory/<teil>.md`, `.csv` | die vier Teile der Aufnahme mit Aufbau, Suchparametern, Abfragen, Fallen und dem Abgleich jeder Mockup-Zeile D001 bis D069 |
 | `funktionsabdeckung.csv` | die Matrix: je Funktion alte Stelle, neue Stelle, Art der Änderung, Testbeleg, Status |
-| `abdeckung/<teil>.csv`, `.md` | Befunde der vier Prüfer am Stand `850a31b6` |
-| `abdeckung/nachpruefung.md` | Nachprüfung der Befunde und des Deltas am Stand `c7e9b88a` |
+| `abdeckung/<teil>.csv`, `.md` | Befunde der vier Prüfer am Stand `4251cf7a` |
+| `abdeckung/nachpruefung.md` | Nachprüfung der Befunde und des Deltas am Stand `7dd1562f` |
 | `abdeckung/vorpruefung.py`, `zusammenfuehren.py` | maschinelle Vorprüfung (Dateien und Tests je Zeile seit dem Ausgangsstand) und Zusammenführung zur Matrix |
 | `abweichungen.md` | Abweichungen vom Mockup mit Grund |
 | `screenshots/` | 55 Bilder: 25 Seiten und die Suchpalette in 1440×900 und 390×844, drei Seiten in 768×1024 |
@@ -74,7 +74,7 @@ Was sich an den Funktionen geändert hat (Spalte «Aenderung» der Matrix):
    jeder Seite auf Verluste ohne Inventarzeile durchsucht (gestrichene oder gelockerte Prüfungen,
    entfernte Texte, entfernte `aria`-Angaben). Ergebnis: keine Funktion fehlt; vier Stellen waren
    schlechter als vorher, zwei Tests fehlten.
-4. **Korrektur.** Behoben in den Commits `e608af6b` bis `c7e9b88a`:
+4. **Korrektur.** Behoben in den Commits `b5a4b56b` bis `7dd1562f`:
    - Verweise auf die Schlüssel der Anbieter (Metadaten, Hörbuch-Quellen, Spotlight) landeten auf der
      Kachelliste der Integrationen statt bei den Schlüsseln; sie führen jetzt in die Ansicht
      `?item=keys`. Der Hinweis eines Integrationsfehlers führt zum betroffenen Dienst.
@@ -84,8 +84,8 @@ Was sich an den Funktionen geändert hat (Spalte «Aenderung» der Matrix):
    - Radio: Ein Sender, der über den Seitenkopf angelegt wird, öffnet den Reiter «Eigene Sender».
    - Neue Tests: leeres Server-Protokoll, Kopfknopf «Neue Sicherung», Editor und Vorschau der
      Startseite neben- und untereinander, Zahl am Bereichsreiter «Pflege».
-5. **Nachprüfung.** Ein fünfter Prüfer hat jeden Befund am Stand `c7e9b88a` nachvollzogen und den
-   Unterschied seit `850a31b6` (Feinschliff und Korrektur) auf neue Verluste durchsucht: keiner.
+5. **Nachprüfung.** Ein fünfter Prüfer hat jeden Befund am Stand `7dd1562f` nachvollzogen und den
+   Unterschied seit `4251cf7a` (Feinschliff und Korrektur) auf neue Verluste durchsucht: keiner.
 
 ## Offen und Grenzen
 

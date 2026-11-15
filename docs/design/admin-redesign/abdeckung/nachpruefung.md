@@ -1,7 +1,7 @@
 # Nachprüfung der Funktionsabdeckung
 
-Prüfstand: `c7e9b88a6ab58717081e5cd1b4239d2a2be87614` (HEAD von `claude/admin-redesign`). Ich habe
-die Befunde vom Stand `850a31b6` nachgeprüft und das Delta `850a31b6..HEAD` gelesen (12 Commits unter
+Prüfstand: `7dd1562f6ab58717081e5cd1b4239d2a2be87614` (HEAD von `claude/admin-redesign`). Ich habe
+die Befunde vom Stand `4251cf7a` nachgeprüft und das Delta `4251cf7a..HEAD` gelesen (12 Commits unter
 `web`). Massgeblich war der Code, nicht die Berichte. Nachgeführt sind die Zeilen in
 `medien1.csv`, `medien2-nutzer.csv`, `startseite-system.csv` und `automatisierung-shell.csv`.
 `funktionsabdeckung.csv` ist mit `zusammenfuehren.py` neu geschrieben.
@@ -23,14 +23,14 @@ Kein e2e und kein Storybook (Auftrag). Die e2e-Belege beruhen auf dem Lesen der 
 
 ## Aufgabe 1: Befunde
 
-| ID | Befund 850a31b6 | Behoben | Commit | Code heute | Test |
+| ID | Befund 4251cf7a | Behoben | Commit | Code heute | Test |
 |---|---|---|---|---|---|
-| MET-027 | LÜCKE | ja | `e608af6b` | `MetadataPage.tsx:909` `serviceHref('keys')` | `MetadataPage.test.tsx:177`, Zeile 284 prüft href `/admin/integrations?item=keys` |
-| ABS-009 | LÜCKE | ja | `e608af6b` | `AudiobookSourcesPage.tsx:430` `serviceHref('keys')` | `AudiobookSourcesPage.test.tsx:246` (href genau); `e2e/audiobook-sources.spec.ts:120-123` |
-| INT-051 | LÜCKE | ja | `e608af6b` | `spotlight/FetchState.tsx:100`, `spotlight/SourceForm.tsx:195` `serviceHref('keys')`; Fehlerhinweis `server/parts.tsx:336` `integrationHref` | `SpotlightPage.test.tsx:190`, `:693`, `:699`; `e2e/admin-spotlight.spec.ts:136`; `integrations/services.test.ts` |
-| LIB-047 | LÜCKE | ja | `36bbbfff` | `de.json` `admin.libraries.delete.backup` «(Verwaltung › System › Sicherung)», `en` «(Administration › System › Backup)», `de-DE` erbt | `LibrariesPage.test.tsx:900` im Test `:839` |
-| OVW-063 | LÜCKE Test | ja | `c7e9b88a` | `server/parts.tsx:1061-1123`, leer `:1090` | `ServerPage.test.tsx:399` prüft «Server-Protokoll · keine Fehler», den zugeklappten Satz «Keine Fehler seit dem Start.» und die leere Live-Region |
-| HOM-021 | LÜCKE Test | ja, mit Einschränkung | `c7e9b88a` | `homerows/HomeRows.module.css:160-188` (unverändert) | `e2e/admin-home-rows.spec.ts:297`: 1440 px nebeneinander, Tabelle ≥ 36rem; 900 px untereinander, keine waagrechte Seitenrolle |
+| MET-027 | LÜCKE | ja | `b5a4b56b` | `MetadataPage.tsx:909` `serviceHref('keys')` | `MetadataPage.test.tsx:177`, Zeile 284 prüft href `/admin/integrations?item=keys` |
+| ABS-009 | LÜCKE | ja | `b5a4b56b` | `AudiobookSourcesPage.tsx:430` `serviceHref('keys')` | `AudiobookSourcesPage.test.tsx:246` (href genau); `e2e/audiobook-sources.spec.ts:120-123` |
+| INT-051 | LÜCKE | ja | `b5a4b56b` | `spotlight/FetchState.tsx:100`, `spotlight/SourceForm.tsx:195` `serviceHref('keys')`; Fehlerhinweis `server/parts.tsx:336` `integrationHref` | `SpotlightPage.test.tsx:190`, `:693`, `:699`; `e2e/admin-spotlight.spec.ts:136`; `integrations/services.test.ts` |
+| LIB-047 | LÜCKE | ja | `1fe6eb79` | `de.json` `admin.libraries.delete.backup` «(Verwaltung › System › Sicherung)», `en` «(Administration › System › Backup)», `de-DE` erbt | `LibrariesPage.test.tsx:900` im Test `:839` |
+| OVW-063 | LÜCKE Test | ja | `7dd1562f` | `server/parts.tsx:1061-1123`, leer `:1090` | `ServerPage.test.tsx:399` prüft «Server-Protokoll · keine Fehler», den zugeklappten Satz «Keine Fehler seit dem Start.» und die leere Live-Region |
+| HOM-021 | LÜCKE Test | ja, mit Einschränkung | `7dd1562f` | `homerows/HomeRows.module.css:160-188` (unverändert) | `e2e/admin-home-rows.spec.ts:297`: 1440 px nebeneinander, Tabelle ≥ 36rem; 900 px untereinander, keine waagrechte Seitenrolle |
 
 Zu HOM-021: Der Test prüft «≥ 36rem». Das gilt auch bei der alten Grenze von 48rem. Dass die
 Mindestbreite neben der Vorschau genau auf 36rem sinkt, belegt er also nicht. Die Lage nebeneinander
@@ -41,17 +41,17 @@ Hinweise ohne Status:
 
 | Punkt | Behoben | Commit | Code heute | Test |
 |---|---|---|---|---|
-| STR-004 Überschrift «Serverlast» | ja | `8e0b399a` | `StreamsPage.tsx:463` `heading`; `ui/StatusStrip.tsx:24-38`: verborgene h2, die Gruppe ist per `aria-labelledby` nach ihr benannt | `StreamsPage.test.tsx:217`; `StatusStrip.test.tsx` (beide Fälle); `e2e/admin-streams.spec.ts:152` |
-| RAD-064 Sender aus dem Kopf | ja | `76ce1e25` | `RadioAdminPage.tsx:246-252`: eine Navigation mit `tab: 'eigene'` und `item` (replace wie bei `openEditor`) | `RadioAdminPage.test.tsx:407`: von «Übersicht» aus angelegt, danach Escape, dann ist «Eigene Sender» gewählt und die Zeile steht in der Tabelle |
-| MNT-006 Zahl am Reiter «Pflege» | ja | `c7e9b88a` | `AdminShellNav.tsx:92-95` | `AdminHomePage.test.tsx:756`: Name «Pflege, 4 Titel brauchen Pflege», href, sichtbare Zahl |
-| Kopfknopf «Neue Sicherung» (BKP-004) | ja | `c7e9b88a` | `BackupPage.tsx:357-374`, `:361` `!restart` | `BackupPage.test.tsx:612` (öffnet `?tab=create`); `:578` (gesperrt während der Wiederherstellung, fehlt auf der Neustart-Tafel) |
-| Integrationsfehler führt zum Dienst (OVW-043) | ja | `e608af6b` | `server/parts.tsx:336` `integrationHref(integration.key)` | `AdminHomePage.test.tsx:179` (Trakt → `?item=keys`); `services.test.ts` (alle acht Schlüssel) |
-| Linktext Grafikchip (OVW-056, Fund 5) | ja | `fc56826e` | `server/parts.tsx:413` «Zur Grafikchip-Wahl» → `?item=server` | `AdminHomePage.test.tsx:476`; die Zeile stand vorher auf `ok, ohne Test` |
+| STR-004 Überschrift «Serverlast» | ja | `c99afbec` | `StreamsPage.tsx:463` `heading`; `ui/StatusStrip.tsx:24-38`: verborgene h2, die Gruppe ist per `aria-labelledby` nach ihr benannt | `StreamsPage.test.tsx:217`; `StatusStrip.test.tsx` (beide Fälle); `e2e/admin-streams.spec.ts:152` |
+| RAD-064 Sender aus dem Kopf | ja | `de8919dc` | `RadioAdminPage.tsx:246-252`: eine Navigation mit `tab: 'eigene'` und `item` (replace wie bei `openEditor`) | `RadioAdminPage.test.tsx:407`: von «Übersicht» aus angelegt, danach Escape, dann ist «Eigene Sender» gewählt und die Zeile steht in der Tabelle |
+| MNT-006 Zahl am Reiter «Pflege» | ja | `7dd1562f` | `AdminShellNav.tsx:92-95` | `AdminHomePage.test.tsx:756`: Name «Pflege, 4 Titel brauchen Pflege», href, sichtbare Zahl |
+| Kopfknopf «Neue Sicherung» (BKP-004) | ja | `7dd1562f` | `BackupPage.tsx:357-374`, `:361` `!restart` | `BackupPage.test.tsx:612` (öffnet `?tab=create`); `:578` (gesperrt während der Wiederherstellung, fehlt auf der Neustart-Tafel) |
+| Integrationsfehler führt zum Dienst (OVW-043) | ja | `b5a4b56b` | `server/parts.tsx:336` `integrationHref(integration.key)` | `AdminHomePage.test.tsx:179` (Trakt → `?item=keys`); `services.test.ts` (alle acht Schlüssel) |
+| Linktext Grafikchip (OVW-056, Fund 5) | ja | `27dd9c63` | `server/parts.tsx:413` «Zur Grafikchip-Wahl» → `?item=server` | `AdminHomePage.test.tsx:476`; die Zeile stand vorher auf `ok, ohne Test` |
 
 Die Hinweiszeilen sind mit Beleg und Bemerkung nachgeführt: STR-004, RAD-064, MNT-006, BKP-004,
 OVW-043, OVW-056, dazu OVW-032 und OVW-036 wegen «Gerade aktiv».
 
-## Aufgabe 2: Delta `850a31b6..HEAD`
+## Aufgabe 2: Delta `4251cf7a..HEAD`
 
 Ich habe keinen neuen Verlust gefunden. Keine Inventarzeile ist auf `LÜCKE` gesetzt.
 
@@ -91,7 +91,7 @@ Ich habe keinen neuen Verlust gefunden. Keine Inventarzeile ist auf `LÜCKE` ges
 
    Geprüft habe ich so:
    - Jeden Schlüssel mit `git grep` in `'…'` und `"…"` in `web/src` (ohne `locales`): kein
-     Treffer, weder heute noch in `850a31b6`. Die Treffer in `850a31b6` waren nur Präfixe
+     Treffer, weder heute noch in `4251cf7a`. Die Treffer in `4251cf7a` waren nur Präfixe
      (`liveFailed`, `failedByType`, `failedType`, `plannedNote`), und diese Schlüssel bestehen weiter.
    - Zusammengesetzte Aufrufe mit `` `admin.(home|homeRows|jobs).…${` ``: Keiner führt auf einen
      entfernten Schlüssel. `admin.jobs.counts.*` und `admin.homeRows.tabs.*` werden nirgends
@@ -119,7 +119,7 @@ Ich habe keinen neuen Verlust gefunden. Keine Inventarzeile ist auf `LÜCKE` ges
      - `{ tab: 'eigene', item: '9' }` statt `{ item: '9' }`
      - Gruppe und h2 statt nur der Gruppe
    - Kein `.skip` und kein `.only`. Kein Timeout geändert oder neu gesetzt.
-7. **Geänderte Ortsangaben in Texten** (`fc56826e`, `36bbbfff`). Diese Texte nennen jetzt den neuen
+7. **Geänderte Ortsangaben in Texten** (`27dd9c63`, `1fe6eb79`). Diese Texte nennen jetzt den neuen
    Ort: `setup.…radioHint` («Medien › Radio»), `household.accounts` («Nutzer & Geräte › Konten»)
    und `done.busy` («System › Server»). Das ist eine Berichtigung, kein Verlust. Einen eigenen Test
    haben diese Einrichtungstexte nicht, vorher auch nicht.
@@ -154,7 +154,7 @@ Ich habe keinen neuen Verlust gefunden. Keine Inventarzeile ist auf `LÜCKE` ges
 | NOT | 24 | 23 | 1 |
 | **zusammen** | **876** | **759** | **117** |
 
-`LÜCKE`, `LÜCKE Test` und `unklar`: 0. Vorher, in `850a31b6`, waren es 4 `LÜCKE` und 2
+`LÜCKE`, `LÜCKE Test` und `unklar`: 0. Vorher, in `4251cf7a`, waren es 4 `LÜCKE` und 2
 `LÜCKE Test`. OVW-056 ist von `ok, ohne Test` auf `ok` gestiegen.
 
 ## Offen
@@ -174,5 +174,5 @@ Ich habe keinen neuen Verlust gefunden. Keine Inventarzeile ist auf `LÜCKE` ges
   belegen will, prüft neben der Vorschau eine Tabellenbreite unter 48rem oder den Wert von
   `--sc-table-fixed-min-width`.
 - Die Berichte der vier Teile (`medien1.md`, `medien2-nutzer.md`, `startseite-system.md`,
-  `automatisierung-shell.md`) zeigen weiter den Stand `850a31b6`. Massgeblich für heute sind diese
+  `automatisierung-shell.md`) zeigen weiter den Stand `4251cf7a`. Massgeblich für heute sind diese
   Datei und die CSV-Zeilen.

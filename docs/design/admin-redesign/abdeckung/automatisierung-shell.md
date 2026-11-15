@@ -1,6 +1,6 @@
 # Funktionsprüfung Teil «automatisierung-shell»
 
-Geprüfter Stand: Commit `850a31b6` auf `claude/admin-redesign`, verglichen mit `55b72c9a`. Nur gelesen,
+Geprüfter Stand: Commit `4251cf7a` auf `claude/admin-redesign`, verglichen mit `55b72c9a`. Nur gelesen,
 nichts ausgeführt (kein Vitest, kein e2e). Zeilenliste: `automatisierung-shell.csv` (216 Zeilen,
 Kürzel NAV, OVW, JOB, INT, NOT).
 
@@ -54,7 +54,7 @@ Protokoll ergänzen, der diese drei Aussagen prüft.
 
 1. **e2e-Erwartung veraltet (wird rot).** `web/e2e/admin-server.spec.ts:46-51` erwartet für
    «Grafikchip, öffentliche Adresse und Update-Prüfung: Integrationen» `href` genau
-   `/admin/integrations`. Seit `850a31b6` verlinkt `ServerPage.tsx:108` aber
+   `/admin/integrations`. Seit `4251cf7a` verlinkt `ServerPage.tsx:108` aber
    `/admin/integrations?item=server`, und `ServerPage.test.tsx` erwartet das auch. `toHaveAttribute`
    mit Zeichenkette vergleicht genau, darum schlägt der Test fehl. Zu tun: die Erwartung auf
    `/admin/integrations?item=server` setzen.

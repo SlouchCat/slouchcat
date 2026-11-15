@@ -1,6 +1,6 @@
 # Funktionsprüfung `startseite-system` (HOM, SPT, PCK, COL, MYM, ANN, STA, BKP)
 
-Geprüfter Stand: `850a31b6` gegen `55b72c9a`. Zeilen: 170, Ergebnis in `startseite-system.csv`.
+Geprüfter Stand: `4251cf7a` gegen `55b72c9a`. Zeilen: 170, Ergebnis in `startseite-system.csv`.
 Quelle ist der Code; Berichte der Executor sind nicht eingeflossen.
 
 ## Vorgehen

@@ -1,6 +1,6 @@
 # Funktionsprüfung Teil `medien2-nutzer`
 
-Geprüfter Stand: `850a31b6` gegen `55b72c9a`. Kürzel `POD`, `PDP`, `RAD`, `ACC`, `DEV`, `STR`
+Geprüfter Stand: `4251cf7a` gegen `55b72c9a`. Kürzel `POD`, `PDP`, `RAD`, `ACC`, `DEV`, `STR`
 (224 Zeilen). Einzelheiten je Zeile: `medien2-nutzer.csv`.
 
 ## Ergebnis

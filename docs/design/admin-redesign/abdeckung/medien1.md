@@ -1,6 +1,6 @@
 # Funktionsprüfung Teil `medien1` (LIB, MET, ABS, MNT, ITM)
 
-Geprüfter Stand: `850a31b6` (Zweig `claude/admin-redesign`), verglichen mit `55b72c9a`.
+Geprüfter Stand: `4251cf7a` (Zweig `claude/admin-redesign`), verglichen mit `55b72c9a`.
 Zeilen: 266 in `medien1.csv`. Geprüft wurde am Code, nicht an den Berichten der Executor.
 
 ## Ergebnis in Kürze
@@ -22,7 +22,7 @@ Zeilen: 266 in `medien1.csv`. Geprüft wurde am Code, nicht an den Berichten der
 
 | ID | Status | Befund |
 |---|---|---|
-| MET-027 | LÜCKE | Der Link «Schlüssel unter Integrationen» (`MetadataPage.tsx:908`) zeigt weiter auf `/admin/integrations`. In `55b72c9a` standen dort alle Bänder mit den Anbieterschlüsseln auf einer Seite. Heute zeigt die Adresse ohne `?item=` nur die Kacheln der Dienste (`integrations/services.tsx:8-16`); die Schlüssel kommen erst nach einem weiteren Schritt (`?item=keys`). Das ist ein Umweg. Zu tun: `serviceHref('keys')` verwenden, wie es `850a31b6` schon für Übersicht und Server macht, und in `MetadataPage.test.tsx:282` das `href` prüfen. |
+| MET-027 | LÜCKE | Der Link «Schlüssel unter Integrationen» (`MetadataPage.tsx:908`) zeigt weiter auf `/admin/integrations`. In `55b72c9a` standen dort alle Bänder mit den Anbieterschlüsseln auf einer Seite. Heute zeigt die Adresse ohne `?item=` nur die Kacheln der Dienste (`integrations/services.tsx:8-16`); die Schlüssel kommen erst nach einem weiteren Schritt (`?item=keys`). Das ist ein Umweg. Zu tun: `serviceHref('keys')` verwenden, wie es `4251cf7a` schon für Übersicht und Server macht, und in `MetadataPage.test.tsx:282` das `href` prüfen. |
 | ABS-009 | LÜCKE | Gleicher Befund für «Unter «Integrationen» einrichten» (Schlüssel für Google Books, `AudiobookSourcesPage.tsx:429`). Der Test `AudiobookSourcesPage.test.tsx:246` sichert das alte Ziel `/admin/integrations` ab und bleibt deshalb grün. Zu tun: Link auf `/admin/integrations?item=keys` setzen und den Test anpassen. |
 | LIB-047 | LÜCKE | Der Dialog «Bibliothek löschen» sagt in `admin.libraries.delete.backup`: «Vorher legt Slouchcat eine Sicherung der Datenbank an (Verwaltung › Sicherung).» (`en`: «Administration › Backup»). Die Seite «Sicherung» steht jetzt unter «System» (Brotkrumen «Verwaltung › System / Sicherung»). Der Text war vor dem Umbau richtig und ist jetzt veraltet. Zu tun: wie in Bauplan 7.2 («Übersicht › Neu starten» wurde «System › Server») auf «System › Sicherung» ändern, in `de`, `de-DE`, `en` und den übrigen Sprachen. |
 
@@ -65,7 +65,7 @@ Schwächere Stellen ohne eigenen Status (die Zeile ist trotzdem `ok`):
   - `admin-phone.spec.ts` prüft neu auch `/admin/metadata/audiobooks` (ABS-025).
 - **Übersetzungen (`de.json`):** In diesem Teil ist kein Text entfallen.
   - `admin.itemDelete.libraryHint` ist berichtigt: «Pflege › Entfernte Titel» statt «Wartung ›
-    Entfernte Titel» (ITM-064, Commit `34fe29f3`).
+    Entfernte Titel» (ITM-064, Commit `f420914b`).
   - Ausserhalb dieses Teils ist `admin.jobs.livePaused` («Aktualisierung pausiert») entfallen. Das
     gehört zum Teil «Automatisierung» und ist dort zu prüfen.
 - **aria-Angaben:** `AudiobookSourcesPage` ersetzt `section aria-labelledby` mit `SectionHeader` durch
