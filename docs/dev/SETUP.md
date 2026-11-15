@@ -105,7 +105,7 @@ CI prüft weiterhin alles.
 |---|---|---|
 | 1. Arbeiten | nach Änderungen, vor jedem Commit eines Planschritts | `task check:fast`, dazu die Tests, die der Schritt anfasst: `go test ./internal/<paket> -run <Test>`, `task e2e:quick -- <spec>`, `task storybook:test` bei geänderten Bauteilen in `web/src/ui`. Belege (Befehl und Ausgabe) je Schritt |
 | 2. Vor dem Pull Request | einmal, auf dem fertigen Zweig, durch den Koordinator | `task ci` grün, Belege in den PR, `docs/dev/CURRENT_STATUS.md` aktualisieren |
-| 3. GitHub CI | jeder PR, jeder Commit auf main | alles (`.github/workflows/ci.yml`), Merge nur mit grünem Gate `ci` |
+| 3. GitHub CI | jeder PR, jeder Commit auf main, wöchentlich main | alles (`.github/workflows/ci.yml`), Merge nur mit grünem Gate `ci`; ein Commit auf main, den ein grüner PR-Lauf schon vollständig geprüft hat, übernimmt dessen Ergebnis (ADR 0013) |
 
 - Nach `task ci` folgende Korrekturen brauchen kein zweites `task ci`. `task check:fast` und die
   gezielten Tests genügen, weil die CI den neuen Stand vollständig prüft.

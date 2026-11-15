@@ -240,3 +240,36 @@ Umsetzung:
 - Der Web-Job (8 bis 10 Minuten: Lint 1,7, Vitest 3,5, Storybook 3,6) ist zwei Jobs: **`web`**
   (`task ci:web`: Generatoren, Drift, Linter, Vitest) und **`storybook`** (`task ci:storybook`:
   Bildvergleich im Playwright-Image). `task ci` ruft beide auf; der Gate-Job nennt beide.
+
+## Nachtrag vom 15. November 2026: main übernimmt das Ergebnis des PR-Laufs
+
+**Anlass:** Marco sah nach dem Merge von #167 einen zweiten, vollen Lauf auf `main` für genau den
+Stand, den der PR-Lauf schon grün geprüft hatte. Das ist bei fast jedem Merge so: Die Zweige
+übernehmen `main` vor dem Merge, und der Merge-Commit hat dann den Baum des PR-Kopfs. Marco: «Ja,
+einbauen».
+
+**Entscheid:** Ein Push auf `main` überspringt die schweren Jobs, wenn ein grüner PR-Lauf genau
+diesen Inhalt schon vollständig geprüft hat. Das entscheidet der Job `changes` mit
+`.github/scripts/already-tested.sh`. Alle vier Bedingungen müssen gelten, sonst läuft alles wie bisher:
+
+1. Der neue Commit auf `main` ist ein Merge-Commit mit zwei Eltern: `main` davor (P1) und der Kopf
+   des Pull Requests (P2). Squash- und Rebase-Merges laufen voll.
+2. P2 enthält P1 (GitHub-Vergleich: P2 liegt nicht hinter P1). Der PR-Lauf hat den Merge von P2 mit
+   dem `main` seiner Zeit geprüft; jenes `main` ist in P1 enthalten und damit in P2, also hat er den
+   Baum von P2 geprüft.
+3. Der Merge-Commit hat genau den Baum von P2.
+4. Ein Lauf dieses Workflows mit Ereignis `pull_request` für P2 endete mit Erfolg, und **jeder** seiner
+   Jobs war grün, keiner übersprungen. Ein reiner Doku-PR überspringt seine schweren Jobs; sein Merge
+   läuft auf `main` deshalb weiter voll (`docs-only.sh` wird nicht zweimal vertraut).
+
+Der Gate-Job `ci` zählt die übersprungenen Jobs dann als grün und nennt den PR-Lauf mit Link. Jeder
+Fehler beim Abfragen der GitHub-API ergibt «nicht geprüft», also einen vollen Lauf.
+
+**Wöchentlicher Lauf:** Einmal pro Woche (Montag 02:23 UTC, `schedule`) prüft die CI `main` vollständig,
+egal was vorher geschah. Er ersetzt das Sicherheitsnetz der vollen `main`-Läufe und frischt den
+Build-Cache für `-race` auf, den nur `main` speichert.
+
+**Gewinn:** Bei einem Merge, dessen Zweig `main` enthält, endet der `main`-Lauf nach rund einer
+Minute statt nach rund 15. Geprüft an den Merges der Nacht vom 15. November (#158, #162 bis #165,
+#167: übernommen; #166 Doku: voll; ein Zweig hinter `main`: voll).
+
