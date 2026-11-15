@@ -1,13 +1,15 @@
-import type { ItemDetail, PlaybackInfo, Progress, WatchTime } from '@slouchcat/api-client';
+import type { ItemDetail, ItemRef, PlaybackInfo, Progress, WatchTime } from '@slouchcat/api-client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiUrl, imageUrl } from '@/api/client';
 import { AriaButton, AudioPlayer, focusOnMount } from '@/ui/aria';
 import type { PlaybackEngine } from './capabilities';
+import { episodeButton } from './episodeButtons';
 import { useAudioControls } from './useAudioControls';
 import { usePlaybackStopWatch } from './usePlaybackStopWatch';
 import { useProgressReporter } from './useProgressReporter';
 import { resumeSeconds, streamRevoked, type EndedReason } from './VideoPlayer';
+import { intlLocale } from '@/i18n';
 
 interface AudioPlayerPageProps {
   /** startPlayback's answer with `mediaKind` `audio`. */
@@ -21,6 +23,8 @@ interface AudioPlayerPageProps {
   startPositionMs?: number;
   /** The title's detail: the podcast of an episode, and the speed if the start had none. */
   detail?: ItemDetail;
+  /** Plays another episode of the podcast in this player (concept 23, 3.3). */
+  onPlayEpisode?: (episode: ItemRef) => void;
 }
 
 /**
@@ -45,8 +49,9 @@ export function AudioPlayerPage({
   onBack,
   startPositionMs,
   detail,
+  onPlayEpisode,
 }: AudioPlayerPageProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   // Fixed for the life of this player (one playback session).
   const [resumeMs] = useState(() => startPositionMs ?? info.resumePositionMs);
   const [explicitStart] = useState(() => startPositionMs !== undefined);
@@ -139,6 +144,24 @@ export function AudioPlayerPage({
     setCurrentMs(element.currentTime * 1000);
   }, []);
 
+  // A podcast episode: the older and the newer episode as the server names them (concept 23, 3.3,
+  // F-5; rule 12); an audiobook has no episode buttons (F-4).
+  const podcastEpisode = info.item.kind === 'podcast_episode' && onPlayEpisode !== undefined;
+  const play = (target: ItemRef | undefined) =>
+    podcastEpisode && target && ended === null ? () => onPlayEpisode(target) : undefined;
+  const playPrevious = play(info.previousEpisode);
+  const playNext = play(info.nextEpisode);
+  const episodeStep = (direction: 'previous' | 'next') =>
+    podcastEpisode
+      ? episodeButton(t, {
+          direction,
+          target: direction === 'next' ? info.nextEpisode : info.previousEpisode,
+          current: info.item,
+          language: intlLocale(i18n.language),
+          onPress: () => (direction === 'next' ? playNext : playPrevious)?.(),
+        })
+      : undefined;
+
   const controls = useAudioControls({
     media: audio,
     chapters: info.chapters,
@@ -151,6 +174,8 @@ export function AudioPlayerPage({
     seekTo,
     togglePlay,
     onBack,
+    playNext,
+    playPrevious,
   });
   // hls.js (Chromium, Firefox) for a multi-part book: loaded as its own chunk, from the resume
   // position, as in the video player.
@@ -283,6 +308,8 @@ export function AudioPlayerPage({
       coverUrl={imageUrl(item.images.posterLarge ?? item.images.poster)}
       accent={item.accent}
       chapters={info.chapters}
+      previousEpisode={episodeStep('previous')}
+      nextEpisode={episodeStep('next')}
       currentMs={currentMs}
       durationMs={durationMs}
       playing={playing}

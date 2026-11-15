@@ -13,6 +13,8 @@ import { AriaButton } from './AriaButton';
 import styles from './AudioPlayer.module.css';
 import { focusOnMount } from './focusOnMount';
 import { MenuButton } from './Menu';
+import type { PlayerChromeEpisode } from './PlayerChrome';
+import { PlayerStep } from './PlayerStep';
 import { PosterFallback } from './PosterFallback';
 import { VolumeControl } from './VolumeControl';
 import { intlLocale } from '@/i18n';
@@ -64,6 +66,12 @@ interface AudioPlayerProps extends Omit<HTMLAttributes<HTMLElement>, 'title' | '
   onSkip: (seconds: number) => void;
   onPreviousChapter: () => void;
   onNextChapter: () => void;
+  /**
+   * A podcast episode: the older and the newer episode of the podcast (concept 23, 3.3, F-5),
+   * at both ends of the transport; an audiobook has none (F-4).
+   */
+  previousEpisode?: PlayerChromeEpisode;
+  nextEpisode?: PlayerChromeEpisode;
   onRate: (rate: number) => void;
   onSleep: (choice: string) => void;
   onVolume: (volume: number) => void;
@@ -219,6 +227,8 @@ export function AudioPlayer({
   onSkip,
   onPreviousChapter,
   onNextChapter,
+  previousEpisode,
+  nextEpisode,
   onRate,
   onSleep,
   onVolume,
@@ -330,17 +340,31 @@ export function AudioPlayer({
             </div>
           </div>
 
+          {/* Previous episode | chapter back, −15 s, play, +30 s, chapter forward | next episode,
+              as in the video player (concept 23, 3.3); the chapter buttons greyed without
+              chapters (F-2). */}
           <div className={styles.transport}>
-            {hasChapters && (
-              <AriaButton
-                variant="ghost"
-                icon="previous"
-                iconOnly
-                aria-label={t('player.audio.previousChapter')}
-                onPress={onPreviousChapter}
-                isDisabled={isDisabled}
-              />
+            {previousEpisode && (
+              <>
+                <PlayerStep
+                  icon="previous"
+                  label={previousEpisode.label}
+                  onPress={previousEpisode.onPress}
+                  unavailable={previousEpisode.unavailable}
+                  card={previousEpisode.card}
+                  cardAlign="start"
+                  isDisabled={isDisabled}
+                />
+                <span className={styles.separator} />
+              </>
             )}
+            <PlayerStep
+              icon="chapterPrevious"
+              label={t('player.audio.previousChapter')}
+              onPress={onPreviousChapter}
+              unavailable={hasChapters ? undefined : t('player.chrome.noChapters')}
+              isDisabled={isDisabled}
+            />
             <AriaButton
               variant="ghost"
               icon="replay"
@@ -367,15 +391,31 @@ export function AudioPlayer({
               onPress={() => onSkip(30)}
               isDisabled={isDisabled}
             />
-            {hasChapters && (
-              <AriaButton
-                variant="ghost"
-                icon="next"
-                iconOnly
-                aria-label={t('player.audio.nextChapter')}
-                onPress={onNextChapter}
-                isDisabled={isDisabled || chapter.index >= chapters.length - 1}
-              />
+            <PlayerStep
+              icon="chapterNext"
+              label={t('player.audio.nextChapter')}
+              onPress={onNextChapter}
+              unavailable={
+                !hasChapters
+                  ? t('player.chrome.noChapters')
+                  : chapter.index >= chapters.length - 1
+                    ? t('player.chrome.lastChapter')
+                    : undefined
+              }
+              isDisabled={isDisabled}
+            />
+            {nextEpisode && (
+              <>
+                <span className={styles.separator} />
+                <PlayerStep
+                  icon="next"
+                  label={nextEpisode.label}
+                  onPress={nextEpisode.onPress}
+                  unavailable={nextEpisode.unavailable}
+                  card={nextEpisode.card}
+                  isDisabled={isDisabled}
+                />
+              </>
             )}
           </div>
 

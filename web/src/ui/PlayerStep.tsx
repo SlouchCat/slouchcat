@@ -9,7 +9,7 @@ import styles from './PlayerStep.module.css';
  * keyboard focus; the button's name says the same to a screen reader.
  */
 export interface PlayerStepCard {
-  /** backdropSmall, else backdrop of the episode; none: an empty frame. */
+  /** backdropSmall, else backdrop of the episode; none: the card without a picture. */
   imageUrl?: string;
   /** «Nächste Folge», «Vorherige Folge». */
   heading: string;
@@ -81,7 +81,7 @@ export function PlayerStep({
       )}
       {card && !greyed && !isDisabled && (
         <span className={styles.card} data-align={cardAlign} aria-hidden="true">
-          {card.imageUrl ? (
+          {card.imageUrl && (
             <img
               className={styles.image}
               src={card.imageUrl}
@@ -91,8 +91,6 @@ export function PlayerStep({
               decoding="async"
               draggable={false}
             />
-          ) : (
-            <span className={styles.image} />
           )}
           <span className={styles.body}>
             <span className={styles.heading}>{card.heading}</span>

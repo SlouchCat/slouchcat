@@ -476,6 +476,7 @@ function PlayerView({
         onBack={goBack}
         startPositionMs={startMs}
         detail={detail.data}
+        onPlayEpisode={playEpisode}
       />
     );
   }
