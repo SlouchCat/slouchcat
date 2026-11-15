@@ -29,6 +29,16 @@ const PLURAL = /_(zero|one|two|few|many|other)$/;
 /** The key without its plural suffix. */
 const baseOf = (key: string) => key.replace(PLURAL, '');
 
+/**
+ * True when the `one` category of a language covers more than the number 1 (fr: 0; ru: 21, 31 …):
+ * its `_one` text must then show {{count}} (scripts/i18n/lib.ts, oneCoversMore).
+ */
+function oneCoversMore(code: string): boolean {
+  const rules = new Intl.PluralRules(code);
+  for (let n = 0; n <= 1000; n++) if (n !== 1 && rules.select(n) === 'one') return true;
+  return false;
+}
+
 /** The {{placeholders}} and <tags> of a text, sorted, each once. */
 function markers(text: string): string[] {
   const found = [
@@ -84,14 +94,23 @@ describe.each(supportedLanguages)('locales/%s.json', (code) => {
     const stale: string[] = [];
     for (const [key, text] of Object.entries(own)) {
       expect(text.trim(), key).not.toBe('');
-      const source = reference[key] ?? reference[`${baseOf(key)}_other`] ?? reference[baseOf(key)];
+      // The plural form of the key; de's bare singular (admin.home.browse.hanging) is `one`.
+      const form =
+        PLURAL.exec(key)?.[1] ?? (reference[`${key}_other`] !== undefined ? 'one' : undefined);
+      // Only `_zero` and a `_one` that means exactly 1 may say the number in words ("Ein Titel");
+      // every other form shows {{count}} like German `_other` (ru `_many`, ja `_other`, fr `_one`).
+      const mayDropCount = form === 'zero' || (form === 'one' && !oneCoversMore(code));
+      const source =
+        form !== undefined && !mayDropCount
+          ? reference[`${baseOf(key)}_other`]
+          : (reference[key] ?? reference[`${baseOf(key)}_other`] ?? reference[baseOf(key)]);
       if (source === undefined && !STRICT.has(code)) {
         stale.push(key); // a text de dropped; i18next never asks for it
         continue;
       }
       expect(source, `${key} has no German source`).toBeDefined();
-      // A plural form may leave out {{count}} ("Ein Titel"), the other markers stay.
-      const strip = (list: string[]) => list.filter((m) => m !== '{{count}}');
+      const strip = (list: string[]) =>
+        mayDropCount ? list.filter((m) => m !== '{{count}}') : list;
       expect(strip(markers(text)), key).toEqual(strip(markers(source!)));
     }
     if (stale.length > 0)

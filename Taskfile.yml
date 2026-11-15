@@ -149,6 +149,10 @@ tasks:
       - task: web:gen:check
       - task: web:lint
       - task: web:test
+      # The structure of every shipped language file (concept 22, 4.9): plural forms, placeholders
+      # ({{count}} in ru `_many`, ja `_other`), `$t()`, markup, white space at the edges. Missing
+      # texts are counted, not errors; `task i18n:check` before a release is strict.
+      - node scripts/i18n/check.ts --all --quiet
       # The e2e shard plan's self-test (3 s): every test in exactly one CI shard. Here and not in
       # the e2e job, so a broken plan is red before the shards start; each shard counts its own
       # list again (web:e2e with SHARD).

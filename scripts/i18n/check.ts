@@ -3,6 +3,8 @@
 //   node scripts/i18n/check.ts <code> [--file <path>] [--strict] [--verbose]
 //   node scripts/i18n/check.ts <code> --missing      list the keys still to translate
 //   node scripts/i18n/check.ts --all [--strict]      every shipped language but en (languages.ts)
+//   node scripts/i18n/check.ts --all --quiet         errors only (CI and check:fast): structure
+//                                                    errors fail, missing texts are counted
 //   node scripts/i18n/check.ts --all --missing       missing count per shipped language
 //
 // Errors (exit 1): keys en.json does not have, plural forms that are not exactly the language's
@@ -187,7 +189,13 @@ function load(code: string, file?: string): Map<string, string> {
   return new Map(flatten(readJson(file ?? localePath(code))));
 }
 
-function run(code: string, file: string | undefined, strict: boolean, verbose: boolean): boolean {
+function run(
+  code: string,
+  file: string | undefined,
+  strict: boolean,
+  verbose: boolean,
+  quiet: boolean,
+): boolean {
   const target = load(code, file);
   const report = code === 'de-DE' ? checkOverlay(target) : checkLocale(code, target);
   if (code === 'de' && [...target.values()].some((text) => text.includes('ß'))) {
@@ -203,6 +211,13 @@ function run(code: string, file: string | undefined, strict: boolean, verbose: b
     for (const item of items.slice(0, limit)) console.log(`    ${item}`);
     if (items.length > limit) console.log(`    … ${items.length - limit} more (--verbose)`);
   };
+  if (quiet) {
+    const missing = strict ? '' : `, ${report.missing.length} missing`;
+    if (errors.length > 0 || report.missing.length > 0)
+      console.log(`${code}: ${errors.length} errors${missing}`);
+    list('errors', errors);
+    return errors.length === 0;
+  }
   console.log(`${code}: ${target.size} texts, ${errors.length} errors`);
   list('errors', errors);
   if (!strict) list('missing (warning)', report.missing);
@@ -262,7 +277,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   let ok = true;
   for (const code of codes) {
-    ok = run(code, path, flags.has('strict'), flags.has('verbose')) && ok;
+    ok = run(code, path, flags.has('strict'), flags.has('verbose'), flags.has('quiet')) && ok;
   }
+  if (flags.has('quiet') && ok) console.log(`i18n: ${codes.length} language files, no errors`);
   process.exit(ok ? 0 : 1);
 }
