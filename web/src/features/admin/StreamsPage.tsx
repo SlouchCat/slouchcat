@@ -12,7 +12,6 @@ import { Notice, Skeleton, Text } from '@/ui';
 import {
   AdminPage,
   AriaButton,
-  BandPanel,
   ConfirmDialog,
   StatusRegion,
   StatusStrip,
@@ -456,48 +455,49 @@ function StreamsContent() {
   const empty =
     !pending && shown.length === 0 && (filter === 'all' ? groups : [filter]).every(known);
 
+  // «Serverlast»: the mockup's counters right below the header, as on the other pages.
+  const serverLoad = (
+    <StatusStrip
+      label={t('admin.streams.load.title')}
+      tiles={[
+        ...streamLoads.map((load) => ({
+          key: load,
+          label: t(`admin.streams.load.${load}.label`),
+          value: count(load),
+          note: t(`admin.streams.load.${load}.note`),
+          tone: loadTone[load],
+        })),
+        // Radio listeners cost no transcoding: one relay per station, whoever listens.
+        {
+          key: 'radio',
+          label: t('admin.streams.load.radio.label'),
+          value: radio ? number.format(listeners) : '–',
+          note: t('admin.streams.load.radio.note'),
+        },
+        {
+          key: 'bandwidth',
+          label: t('admin.streams.load.bandwidth.label'),
+          value: running ? formatBitrate(totalBitrate(running), intlLocale(i18n.language)) : '–',
+          // Direct play reports no bit rate: then the sum covers only the known ones.
+          note:
+            running && !running.every((stream) => stream.bitrate !== undefined)
+              ? t('admin.streams.load.bandwidth.notePartial')
+              : t('admin.streams.load.bandwidth.note'),
+        },
+      ]}
+    />
+  );
+
   return (
     <AdminPage
       title={t('admin.streams.title')}
       help={t('admin.streams.intro')}
       liveSeconds={confirmOpen ? undefined : STREAMS_POLL_MS / 1000}
       titleRef={titleRef}
+      status={serverLoad}
     >
       {stop.error && <Notice tone="danger">{problemMessage(t, stop.error)}</Notice>}
       <StatusRegion message={!stop.error ? message : null} />
-      <BandPanel title={t('admin.streams.load.title')} icon="server">
-        <StatusStrip
-          label={t('admin.streams.load.title')}
-          tiles={[
-            ...streamLoads.map((load) => ({
-              key: load,
-              label: t(`admin.streams.load.${load}.label`),
-              value: count(load),
-              note: t(`admin.streams.load.${load}.note`),
-              tone: loadTone[load],
-            })),
-            // Radio listeners cost no transcoding: one relay per station, whoever listens.
-            {
-              key: 'radio',
-              label: t('admin.streams.load.radio.label'),
-              value: radio ? number.format(listeners) : '–',
-              note: t('admin.streams.load.radio.note'),
-            },
-            {
-              key: 'bandwidth',
-              label: t('admin.streams.load.bandwidth.label'),
-              value: running
-                ? formatBitrate(totalBitrate(running), intlLocale(i18n.language))
-                : '–',
-              // Direct play reports no bit rate: then the sum covers only the known ones.
-              note:
-                running && !running.every((stream) => stream.bitrate !== undefined)
-                  ? t('admin.streams.load.bandwidth.notePartial')
-                  : t('admin.streams.load.bandwidth.note'),
-            },
-          ]}
-        />
-      </BandPanel>
       <section aria-labelledby={listHeading} aria-busy={pending}>
         <SectionHeader
           id={listHeading}
