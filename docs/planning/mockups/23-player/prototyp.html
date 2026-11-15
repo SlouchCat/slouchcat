@@ -217,6 +217,21 @@ button:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--focus)
   background: var(--scrim-strong); border-radius: 8px; padding: 8px 10px; color: var(--text-secondary); pointer-events: none;
 }
 
+.countdown {
+  position: absolute; right: 16px; z-index: 12; width: min(18rem, calc(100% - 32px));
+  display: grid; gap: 6px; padding: 12px 14px 14px; border-radius: var(--radius-lg);
+  background: var(--scrim-strong); box-shadow: 0 10px 30px rgba(0,0,0,.5); animation: pop .2s ease-out;
+}
+.countdown .img { aspect-ratio: 16/9; border-radius: var(--radius-md); background: radial-gradient(ellipse 70% 60% at 30% 40%, rgba(150,190,230,.35), transparent), linear-gradient(160deg, #23324a, #0d121a); }
+.countdown .e { font-size: .72rem; letter-spacing: .07em; text-transform: uppercase; color: var(--text-secondary); font-weight: 600; }
+.countdown .n { font-weight: 600; font-size: 1.05rem; }
+.countdown .c { font-size: .85rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.countdown .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.countdown .acts button { font: inherit; font-weight: 600; border: 0; border-radius: 20px; padding: 7px 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.countdown .acts .go { background: var(--text-primary); color: var(--bg-base); }
+.countdown .acts .go .i { width: 16px; height: 16px; }
+.countdown .acts .no { background: none; color: var(--text-primary); }
+.countdown .gap { font-size: .72rem; color: var(--new); }
 .toast {
   position: absolute; left: 50%; top: 22%; transform: translateX(-50%); z-index: 30;
   background: var(--bg-elevated); color: var(--text-primary); padding: 8px 14px; border-radius: 20px; font-size: .88rem;
@@ -305,6 +320,7 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
         <button data-v="epNoCh">Folge ohne Kapitel</button>
         <button data-v="seasonEnd">Letzte der Staffel</button>
         <button data-v="seriesEnd">Letzte der Serie</button>
+        <button data-v="ending">Folge endet</button>
         <button data-v="film">Film</button>
         <button data-v="podcast">Podcast-Folge</button>
         <button data-v="book">Hörbuch</button>
@@ -336,6 +352,7 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
         <li><b>Gleicher Platz überall.</b> Video, Offline-Player und Audioplayer (Podcast, Hörbuch) haben dieselbe Reihenfolge: vorherige Folge | Kapitel zurück · zurückspulen · Play · vorspulen · Kapitel vor | nächste Folge. Am Handy stehen die beiden Folgenknöpfe in der Mitte neben −10 · Play · +10.</li>
         <li><b>Menüs schliessen sich von selbst.</b> Einstellungen, Ton und Untertitel öffnen als Menü in Inhaltshöhe direkt über ihrem Knopf statt als Leiste über die ganze Höhe. Es schliesst sich mit einem Klick daneben, einem zweiten Klick aufs Symbol oder mit <kbd>Esc</kbd>. Das X fällt weg. Am Handy kommt ein Blatt von unten: Tippen aufs Bild darüber oder auf den Griff schliesst es.</li>
         <li><b>Besetzung mit Bildern.</b> Der Reiter «Besetzung» zeigt heute nur runde Anfangsbuchstaben, auch wenn es ein Foto gibt. Neu: Hochformat 2:3 mit abgerundeten Ecken wie auf der Detailseite, links ausgerichtet, Name und Rolle darunter. Ohne Foto bleibt der Buchstabe, aber eckig.</li>
+        <li><b>Countdown über der Bedienung.</b> Die Karte «Nächste Folge» am Ende und «Intro überspringen» stehen heute 128 px über dem Rand und verdecken Zeitleiste und Zeit. Neu stehen sie immer 12 px über der Zeile mit Titel und Zeit, Startet der Countdown, schliesst ein offener Reiter. Umschalter «Folge endet».</li>
         <li><b>Klick daneben pausiert nicht.</b> Klickst du bei offenem Menü aufs Bild, schliesst nur das Menü und das Video läuft weiter. Ein Klick auf einen anderen Knopf der Leiste schliesst das Menü und führt den Knopf aus.</li>
       </ol>
     </section>
@@ -370,7 +387,7 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
   const EP_CHAPTERS = [
     ['Vorspann', 0], ['Ankunft am Hafen', 95], ['Das Verhör', 600], ['Im Archiv', 1220], ['Der Anruf', 1900], ['Abspann', 2560],
   ];
-  const START = { ep: 3, epNoCh: 1, seasonEnd: 5, seriesEnd: 11 };
+  const START = { ep: 3, epNoCh: 1, seasonEnd: 5, seriesEnd: 11, ending: 3 };
 
   const state = {
     ctx: 'ep', view: 'desktop', icons: 'B',
@@ -628,10 +645,12 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
             ${state.tab === 'Besetzung' ? castRow() : ''}
           </div>
         </div>
+        ${countdownHtml(m)}
         ${panelHtml(false)}
         <div class="toast" id="toast"></div>`;
     }
     placePanel();
+    placeCountdown();
     tick();
     renderKnobs();
     renderRules(m);
@@ -649,6 +668,28 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
       const [a, b] = TONES[i % TONES.length];
       return `<button class="person" role="listitem" data-person="${n}"><span class="por ${img ? 'img' : ''}" style="--p1:${a};--p2:${b}">${img ? '' : n[0]}</span><span class="nm">${n}</span><span class="rl">${r}</span></button>`;
     }).join('')}</div>`;
+  }
+
+  let countdownOff = false;
+  const countdownLeft = (m) => Math.ceil((m.dur - state.t) / 1000);
+  function countdownHtml(m) {
+    if (m.kind !== 'video' || !m.next || countdownOff || m.dur - state.t > 20_000) return '';
+    return `<section class="countdown" data-countdown aria-label="Nächste Folge">
+      <div class="img"></div>
+      <span class="e">Nächste Folge</span>
+      <span class="n">${m.next.label} · ${m.next.title}</span>
+      <span class="c" data-cd>Startet in ${countdownLeft(m)} Sekunden</span>
+      <div class="acts"><button class="go" data-act="nextEp">${icon('play')}Jetzt ansehen</button><button class="no" data-act="cdOff">Abbrechen</button></div>
+      <span class="gap">Steht immer 12 px über der Zeitzeile</span>
+    </section>`;
+  }
+  /** The card sits above the bottom controls, however tall they are (open tab, phone). */
+  function placeCountdown() {
+    const card = stage.querySelector('[data-countdown]');
+    const line = stage.querySelector('.bottom .line');
+    if (!card || !line) return;
+    const top = line.getBoundingClientRect().top - stage.getBoundingClientRect().top;
+    card.style.bottom = `${stage.clientHeight - top + 12}px`;
   }
 
   function streamInfo() {
@@ -688,6 +729,11 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
     });
     const thumb = stage.querySelector('.thumb');
     if (thumb) thumb.style.left = `${(state.t / m.dur) * 100}%`;
+    const cd = stage.querySelector('[data-cd]');
+    if (cd) cd.textContent = `Startet in ${countdownLeft(m)} Sekunden`;
+    const wantCd = m.kind === 'video' && m.next && !countdownOff && m.dur - state.t <= 20_000;
+    if (wantCd !== !!stage.querySelector('[data-countdown]') && !state.panel) { if (wantCd) state.tab = null; render(); return; }
+    if (m.kind === 'video' && m.next && state.t >= m.dur && !countdownOff) { nextEpisode(); return; }
     const chl = stage.querySelector('[data-chline]');
     if (chl) {
       const i = chapterAt(m, state.t);
@@ -752,6 +798,7 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
     if (m.pod) { toast(`Wechselt zu ${m.next.label} · ${m.next.title}`); return; }
     state.epIdx = m.next.idx;
     state.t = 0;
+    countdownOff = false;
     state.playing = true;
     render();
     toast(`${m.next.label} · ${m.next.title}`);
@@ -828,6 +875,7 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
       case 'chapNext': jumpChapter(1); break;
       case 'nextEp': nextEpisode(); break;
       case 'prevEp': prevEpisode(); break;
+      case 'cdOff': countdownOff = true; render(); break;
       case 'chapPrev': case 'chapNext': break;
     }
   });
@@ -863,7 +911,8 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
       if (k === 'ctx') {
         state.panel = null;
         if (START[state.ctx] !== undefined) state.epIdx = START[state.ctx];
-        state.t = state.ctx === 'seasonEnd' || state.ctx === 'seriesEnd' ? 2_400_000 : state.ctx === 'book' ? 11_200_000 : 54_000;
+        state.t = state.ctx === 'seasonEnd' || state.ctx === 'seriesEnd' ? 2_400_000 : state.ctx === 'book' ? 11_200_000 : state.ctx === 'ending' ? 44 * 60_000 - 22_000 : 54_000;
+        countdownOff = false;
         state.playing = true;
       }
       if (k === 'view') state.panel = null;
@@ -896,6 +945,7 @@ table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-wid
 
   function renderTry(m) {
     const t = [];
+    if (state.ctx === 'ending') t.push('Countdown-Karte 12 px über der Zeitzeile, ein offener Reiter schliesst');
     if (m.kind === 'video' && state.view === 'desktop') t.push('Reiter «Besetzung» öffnen', 'über den Folgenknopf fahren', 'Zahnrad öffnen, dann aufs Bild klicken', 'Zahnrad öffnen, dann auf «Untertitel» klicken');
     if (m.kind === 'video' && state.view === 'phone') t.push('Zahnrad antippen, dann aufs Bild darüber tippen', 'Folgenknöpfe neben −10 und +10 antippen');
     if (m.kind === 'audio') t.push('«1×» öffnen, dann daneben klicken', m.next ? 'Folgenknopf zeigen' : 'Hörbuch: kein Folgenknopf (F-4)');

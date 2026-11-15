@@ -1,6 +1,7 @@
 # Konzept: Player-Bedienung – nächste Folge, Menüs ohne X, Besetzung mit Bildern
 
-- **Status: Fassung 3 (15. November 2026): alle Fragen beantwortet** (Abschnitt 9). Marco hat F-1
+- **Status: Fassung 3 (15. November 2026): alle Fragen beantwortet** (Abschnitt 9), mit Nachtrag
+  P-4 «Countdown-Karte» vom selben Tag (Abschnitte 2.4 und 5a). Marco hat F-1
   am Mockup beantwortet (Variante B) und F-2 bis F-5 über AskUserQuestion; **F-3 und F-5 gegen die
   Empfehlung:** Es gibt einen eigenen Knopf «Vorherige Folge», und bei Podcasts geht er zur älteren,
   der Folgenknopf zur neueren Folge. Fassung 2 hatte das Kritiker-Review eingearbeitet (REVISE,
@@ -25,7 +26,7 @@
   und `docs/adr/`. Bei Widerspruch gilt: **Entscheidungsprotokoll > Plan > Spec** (`CLAUDE.md`).
   Dieses Papier ändert zwei Punkte aus Konzept 13 (Abschnitt 8).
 
-> **Dieses Papier ändert keine Zeile Code.** Es beschreibt drei Wünsche, sagt je Wunsch, was der
+> **Dieses Papier ändert keine Zeile Code.** Es beschreibt vier Wünsche, sagt je Wunsch, was der
 > Code heute tut, und schlägt eine Lösung vor. Stufe 1 ist vor allem Web-App, dazu liefert der
 > Server die vorherige Folge; die Folgenknöpfe im Offline-Player (Stufe 2) und für Podcasts
 > (Stufe 3) brauchen weitere Felder vom Server.
@@ -37,6 +38,7 @@
 | P-1 | Ein eigener Knopf, der bei Serien zur nächsten Folge springt. Der Kapitelknopf bleibt. Überall einheitlich. | 3 |
 | P-2 | Das Panel «Einstellungen» soll sich nicht nur über das X schliessen lassen. | 4 |
 | P-3 | Im Reiter «Besetzung» Bilder zeigen, nicht rund. | 5 |
+| P-4 | Die Karte «Nächste Folge» am Ende verdeckt den Fortschrittsbalken; sie soll etwas höher stehen. | 5a |
 
 ## 2. Heute
 
@@ -103,6 +105,19 @@ Kapitel ungewollt in der nächsten Folge; wer die nächste Folge will, muss erst
 Konzept 13 (Schritt 5: `CastCard` ist ein Link der räumlichen Navigation, die auf der Player-Route
 nicht geladen ist). **Fehler** ist nur, dass `PlayerCard` das Bild nicht zeigt. Alle Reiter teilen
 dieselbe Spaltenbreite (`PlayerChrome.module.css`, `.cards`: `minmax(10rem, 14rem)`).
+
+### 2.4 Countdown-Karte am Ende (P-4)
+
+- Die Karte «Nächste Folge» (`VideoPlayer.tsx`, `styles.next`) und der Knopf «Intro/Abspann
+  überspringen» (`styles.skip`) stehen mit **festem Abstand** über dem unteren Rand:
+  `bottom: calc(var(--sc-space-24) + var(--sc-space-8))` = **128 px**
+  (`features/player/Player.module.css`).
+- Die untere Bedienung (`PlayerChrome`, `.bottom`) ist seit Konzept 13 höher: Verlauf oben
+  (`--sc-space-16`), Zeile mit Titel und Zeit, Zeitleiste, Knopfreihe, Reiterleiste, Abstand unten
+  (`--sc-space-6`), zusammen rund 220 px, mit offenem Reiter deutlich mehr. Die Karte liegt darum
+  **über Zeitleiste und Zeit** (Bild von Marco vom 15. November 2026: «43:54 / 43:54» scheint
+  durch die Karte, der Balken ist unter ihr abgeschnitten).
+- Während des Countdowns bleibt die Bedienung sichtbar (`hidden` verlangt `!countdownActive`).
 
 ## 3. P-1: Ein Knopf je Bedeutung
 
@@ -260,6 +275,25 @@ Download (heute fehlt er).
   Karten (10–14 rem).
 - Klick auf eine Person öffnet wie heute ihre Seite.
 
+## 5a. P-4: Countdown-Karte über der Bedienung
+
+- Die Karte «Nächste Folge» und «Intro/Abspann überspringen» stehen **immer 12 px über der Zeile
+  mit Titel und Zeit**, der obersten sichtbaren Zeile der unteren Bedienung, statt 128 px über dem
+  Rand. Zeitleiste, Zeit und Knopfreihe bleiben frei.
+- **Messen statt schätzen:** `PlayerChrome` misst die Oberkante dieser Zeile mit einem
+  `ResizeObserver` und setzt den Abstand zum unteren Rand des Players als CSS-Variable
+  `--player-chrome-top` auf das Element des Players. `.next` und `.skip` rechnen
+  `bottom: calc(var(--player-chrome-top, 128px) + var(--sc-space-3))`. Der Ersatzwert gilt nur,
+  bis die erste Messung da ist. Ändert sich die Höhe (Reiter, Handy, Fenstergrösse), rückt die
+  Karte mit.
+- **Offener Reiter:** Startet der Countdown, **schliesst ein offener Reiter**. Sonst reicht der
+  Platz über der Bedienung in kleinen Fenstern nicht für die Karte. Öffnet man während des
+  Countdowns einen Reiter, rückt die Karte mit nach oben.
+- **Handy:** Die gleiche Regel; die Zeile mit Zeit, Bild-in-Bild und Vollbild ist dort die oberste
+  Zeile der unteren Bedienung.
+- **Offline-Player:** Hat keinen Countdown (kein Folgenwechsel in Stufe 1); `.skip` gilt dort
+  gleich.
+
 ## 6. Was gleich bleibt
 
 - −10 s und +30 s (Audio −15 s, +30 s), Pfeiltasten ±10 s, Zeitleiste, Countdown am Ende,
@@ -271,7 +305,7 @@ Download (heute fehlt er).
 
 | Stufe | Inhalt | Server, Vertrag, Migration |
 |---|---|---|
-| **1** | P-1 im Video-Player (beide Folgenknöpfe, neue Kapitelsymbole, `aria-disabled`), neue Kapitelsymbole auch im Offline- und Audioplayer; P-2; P-3 | `GetPreviousVisibleEpisode`, `PlaybackInfo.previousEpisode` (3.3); Minor-Version. Keine Migration. |
+| **1** | P-1 im Video-Player (beide Folgenknöpfe, neue Kapitelsymbole, `aria-disabled`), neue Kapitelsymbole auch im Offline- und Audioplayer; P-2; P-3; P-4 | `GetPreviousVisibleEpisode`, `PlaybackInfo.previousEpisode` (3.3); Minor-Version. Keine Migration. |
 | **2** | Folgenknöpfe im Offline-Player (3.3) | `DownloadState.nextEpisodeId` und `previousEpisodeId`, gefüllt in `offline/sync.go`; Minor-Version. Keine Migration (IndexedDB-Schema des Clients bekommt zwei Felder). |
 | **3** | Folgenknöpfe für Podcast-Folgen (F-5) | eigene Regel, siehe unten; Minor-Version. Keine Migration. |
 
@@ -325,6 +359,9 @@ Antworten zu F-2 bis F-5 von Marco am 15. November 2026 über AskUserQuestion.
 - **Server:** Test für `GetPreviousVisibleEpisode` neben dem von `GetNextVisibleEpisode`
   (Staffelgrenze, Mehrfachfolge, Specials, unsichtbare Folge übersprungen), Vertragstest
   (`TestContractCoversEveryOperation` unverändert, neues Feld im Schema-Test).
+- **P-4:** e2e in `e2e/player.spec.ts`: am Ende einer Folge liegt die Unterkante der Karte über
+  der Oberkante der Zeitzeile (Boxen vergleichen, nicht Pixel), auch mit offenem Reiter (der
+  schliesst) und in der Handy-Ansicht; dasselbe für «Intro überspringen».
 - **Bestehende Tests, die sich ändern:** `PlayerKeys.test.tsx` (die Knöpfe heissen jetzt
   «Nächste Folge: …» und «Vorherige Folge: …»; «Vorherige Folge» springt über die Staffelgrenze), `e2e/podcast.spec.ts` (Kapitelknöpfe ohne
   Kapitel jetzt ausgegraut statt fehlend), `e2e/chapters.spec.ts` und
@@ -352,7 +389,8 @@ Farbflächen stehen für echte Bilder; alle Titel und Namen sind erfunden.
 Oben umschaltbar: was läuft (Serienfolge, ohne Kapitel, letzte der Staffel, letzte der Serie, Film,
 Podcast-Folge, Hörbuch), Gerät (Computer/Tablet, Handy), Symbole (B, A). Zu sehen: Folgenknopf mit
 Vorschaukarte und Wechsel über die Staffelgrenze in beide Richtungen, Knopf «Vorherige Folge», Kapitelknöpfe mit neuem Symbol, Menüs über dem
-Knopf, die sich beim Klick daneben schliessen (Video läuft weiter), Blatt am Handy, Reiter
+Knopf, die sich beim Klick daneben schliessen (Video läuft weiter), Blatt am Handy, Countdown-Karte
+über der Zeitzeile (Umschalter «Folge endet»), Reiter
 «Besetzung» mit Bildern im Hochformat. Wo der Text dieses Papiers genauer ist als das Mockup, gilt
 der Text.
 
