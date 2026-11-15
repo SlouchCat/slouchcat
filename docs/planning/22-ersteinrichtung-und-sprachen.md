@@ -1167,6 +1167,9 @@ Bau-Reihenfolge nummeriert.
   - lädt die PWA bei neuer Serverversion selbst neu?
   - Nummern von Vertrag und Migration nach K21 Stufen 4–6
   - wo der Release-Ablauf dokumentiert ist
+- **Stufe 1 gebaut (15. November 2026, Vertrag 1.34.0, Migration 00061):** Die Befunde von Schritt 0 und
+  die Abweichungen (blosses `de` → `de`, solange `de-DE` nicht wählbar ist; Name «Deutsch» bis Stufe 2)
+  stehen in ADR 0033, Abschnitte «Schritt 0 der Stufe 1» und «Abweichungen vom Konzept in Stufe 1».
 
 ---
 
