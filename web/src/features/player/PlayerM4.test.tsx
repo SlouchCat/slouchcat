@@ -497,6 +497,33 @@ describe('player M4', () => {
     expect(region()).toHaveAttribute('data-playback-session-id', 'ps-next');
   });
 
+  it('closes an open tab when the countdown starts; the card sits over the measured controls (concept 23, P-4)', async () => {
+    const media = stubMedia();
+    const withNext: PlaybackInfo = {
+      ...playback,
+      resumePositionMs: 0,
+      chapters: [
+        { startMs: 0, endMs: 3_000_000, title: 'Anfang' },
+        { startMs: 3_000_000, endMs: 7_020_000, title: 'Ende' },
+      ],
+      segments: { outro: { startMs: 6_900_000, endMs: 7_020_000, source: 'fingerprint' } },
+      nextEpisode: episodes.e2,
+    };
+    mockApi(routes(withNext));
+    renderApp(`/play/${ids.alien}`);
+    const video = await startPlayer(document.body);
+    // PlayerChrome hands the height of its bottom zone to the player for the card's place.
+    expect(region().style.getPropertyValue('--player-chrome-top')).toMatch(/^\d+px$/);
+    fireEvent.keyDown(document.body, { key: 'c' });
+    expect(await screen.findByRole('list', { name: 'Kapitel' })).toBeVisible();
+    media.currentTime = 6901;
+    act(() => {
+      video.dispatchEvent(new Event('timeupdate'));
+    });
+    expect(screen.getByRole('region', { name: 'Nächste Folge' })).toBeVisible();
+    expect(screen.queryByRole('list', { name: 'Kapitel' })).toBeNull();
+  });
+
   it('cancels the countdown with Escape (or any key) without leaving the player', async () => {
     const media = stubMedia();
     const withNext: PlaybackInfo = { ...playback, resumePositionMs: 0, nextEpisode: episodes.e2 };

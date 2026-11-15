@@ -510,6 +510,9 @@ export function PlayerChrome({
   const view = useRef<HTMLDivElement>(null);
   const seekZone = useRef<HTMLDivElement>(null);
   const tabsZone = useRef<HTMLDivElement>(null);
+  const chromeZone = useRef<HTMLDivElement>(null);
+  const bottomZone = useRef<HTMLDivElement>(null);
+  const lineZone = useRef<HTMLDivElement>(null);
   const [now, setNow] = useState(() => Date.now());
   const [activeTab, setActiveTab] = useState<string | null>(null);
 
@@ -532,6 +535,31 @@ export function PlayerChrome({
           }).format(playerEndTime(now, currentMs, durationMs, rate)),
         })
       : t('player.chrome.timeElapsed', { elapsed, total });
+
+  // The countdown card and the skip buttons stand 12 px over the line with the title and the time
+  // (concept 23, P-4): its distance from the bottom of the player, measured whenever the bottom
+  // zone changes its size (a tab, the phone layout, the window), as `--player-chrome-top` on the
+  // player. Layout offsets, not the fade's transform.
+  useLayoutEffect(() => {
+    const bottom = bottomZone.current;
+    const lineElement = lineZone.current;
+    const player = chromeZone.current?.parentElement;
+    if (!bottom || !lineElement || !player) return;
+    const measure = () => {
+      const offset = lineElement.getBoundingClientRect().top - bottom.getBoundingClientRect().top;
+      player.style.setProperty(
+        '--player-chrome-top',
+        `${Math.round(bottom.offsetHeight - offset)}px`,
+      );
+    };
+    measure();
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : undefined;
+    observer?.observe(bottom);
+    return () => {
+      observer?.disconnect();
+      player.style.removeProperty('--player-chrome-top');
+    };
+  }, [layout]);
 
   const shownTabs = phone ? [] : tabs;
   const open = shownTabs.find((tab) => tab.id === openTab);
@@ -845,7 +873,7 @@ export function PlayerChrome({
   ];
 
   const line = (
-    <div className={styles.line}>
+    <div ref={lineZone} className={styles.line}>
       <span className={styles.lineLabel}>{lineLabel}</span>
       {phone ? (
         <Toolbar
@@ -864,7 +892,12 @@ export function PlayerChrome({
   );
 
   return (
-    <div className={styles.chrome} data-hidden={hidden || undefined} data-layout={layout}>
+    <div
+      ref={chromeZone}
+      className={styles.chrome}
+      data-hidden={hidden || undefined}
+      data-layout={layout}
+    >
       <div className={styles.top}>
         <AriaButton
           variant="ghost"
@@ -906,7 +939,7 @@ export function PlayerChrome({
         />
       )}
 
-      <div className={styles.bottom}>
+      <div ref={bottomZone} className={styles.bottom}>
         {line}
         {timeline}
         {!phone && (

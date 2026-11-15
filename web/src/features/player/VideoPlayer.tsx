@@ -605,6 +605,8 @@ export function VideoPlayer({
         const start = Date.now();
         setNow(start);
         setCountdownEnd(start + AUTO_NEXT_SECONDS * 1000);
+        // An open tab closes: the card needs the room over the controls (concept 23, P-4).
+        setTab(null);
       }
     };
   });
