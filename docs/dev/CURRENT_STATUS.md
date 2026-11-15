@@ -1,5 +1,12 @@
 # Aktueller Stand
 
+## Patch 1.37.1: alle Sprachen offline (15. November 2026)
+
+Auf Marcos Wunsch legt der Service Worker wieder **alle 23 Sprachbündel** vorab ab (rund 7,5 MB statt
+2,9 MB), damit jede Sprache von Anfang an auch offline geht. 1.37.0 hatte nur `de`, `de-DE` und `en`
+vorab. Vertrag bleibt 1.37.0, keine Migration. ADR 0033 und `docs/perf/22-uebersetzungen.md` halten den
+Entscheid fest.
+
 ## Konzept 22 abgeschlossen: Stufe 5 «Weblate» (15. November 2026, ohne Release)
 
 Konzept 22 (`docs/planning/22-ersteinrichtung-und-sprachen.md`) ist gebaut: Stufe 1 = 1.34.0, Stufe 2 =
