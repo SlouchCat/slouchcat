@@ -435,3 +435,29 @@ SELECT id FROM items;
 -- while a row names it (SweepOrphanImages, RemoveItemImages).
 SELECT DISTINCT rel_path FROM images
 WHERE substr(rel_path, 1, length('images/' || item_id || '/')) <> 'images/' || item_id || '/';
+
+-- name: ListRatingRereadItems :many
+-- One batch of metadata.ratings_reread (concept 22 section 4.11, F-16, F-17): the films and series
+-- whose rating a provider gave (rating_source tmdb:* or tvdb:*) or that have none at all, without
+-- the lock own_rating, in id order after @after_id. Ratings from an NFO, by hand, from the library,
+-- the tags, the feed or AniList stay untouched (review 2, M2-1).
+SELECT * FROM items
+WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND id > @after_id
+  AND (rating_source LIKE 'tmdb:%' OR rating_source LIKE 'tvdb:%' OR (rating_source IS NULL AND own_rating IS NULL))
+  AND (tmdb_id IS NOT NULL OR tvdb_id IS NOT NULL)
+  AND instr(locked_fields, '"own_rating"') = 0
+ORDER BY id
+LIMIT @limit_count;
+
+-- name: CountRatingRereadItems :one
+-- How many titles metadata.ratings_reread reads (the same filter as ListRatingRereadItems).
+SELECT count(*) FROM items
+WHERE deleted_at IS NULL AND kind IN ('movie', 'series')
+  AND (rating_source LIKE 'tmdb:%' OR rating_source LIKE 'tvdb:%' OR (rating_source IS NULL AND own_rating IS NULL))
+  AND (tmdb_id IS NOT NULL OR tvdb_id IS NOT NULL)
+  AND instr(locked_fields, '"own_rating"') = 0;
+
+-- name: SetItemProviderRating :exec
+-- The rating metadata.ratings_reread computed: own_rating and rating_source (NULL and NULL when no
+-- provider has a known certificate); the triggers derive the rest.
+UPDATE items SET own_rating = @own_rating, rating_source = @rating_source, updated_at = @now WHERE id = @id;

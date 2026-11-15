@@ -367,8 +367,11 @@ var adminRegistry = map[string]adminCall{
 	// email_not_configured), checks a mock manifest and writes backups into a temporary directory.
 	"getSystemInfo": {contract: "GET /admin/system", path: "/admin/system", ownerStatus: http.StatusOK},
 	"getDashboard":  {contract: "GET /admin/dashboard", path: "/admin/dashboard", ownerStatus: http.StatusOK},
-	"retryJob":      {contract: "POST /admin/jobs/{id}/retry", path: "/admin/jobs/9999/retry", ownerStatus: http.StatusNotFound},
-	"cancelJob":     {contract: "DELETE /admin/jobs/{id}", path: "/admin/jobs/9999", ownerStatus: http.StatusNotFound},
+	// Concept 22 stage 3 (contract 1.36.0): closing the one-time hint is idempotent (204 again).
+	"dismissMinimumAgeNotice": {contract: "DELETE /admin/dashboard/minimum-age-notice", path: "/admin/dashboard/minimum-age-notice",
+		ownerStatus: http.StatusNoContent},
+	"retryJob":  {contract: "POST /admin/jobs/{id}/retry", path: "/admin/jobs/9999/retry", ownerStatus: http.StatusNotFound},
+	"cancelJob": {contract: "DELETE /admin/jobs/{id}", path: "/admin/jobs/9999", ownerStatus: http.StatusNotFound},
 	// Concept 20 P-6 (contract 1.31.0): the bulk actions on failed runs; the fixture has none
 	// (TestFailedJobsOverHTTP covers the counts, the type filter and the pages).
 	"retryFailedJobs":   {contract: "POST /admin/jobs/failed/retry", path: "/admin/jobs/failed/retry", ownerStatus: http.StatusOK},

@@ -71,7 +71,8 @@ type providerFields struct {
 	genres       map[string][]string
 	images       []ImageCandidate // the provider's posters, backdrops and logos (ADR 0018)
 	rating       *int
-	ratingSource string // rating_source when this provider's rating wins ("tmdb:DE", "anilist")
+	ratingSource string            // rating_source when this provider's rating wins ("tmdb:DE", "anilist")
+	certs        map[string]string // the certificates per country (TMDB, TVDB; item_certifications)
 }
 
 func (pf *providerFields) set(field, lang, value string) {
@@ -122,7 +123,8 @@ func titleFields(rec TitleRecord, country string) providerFields {
 			pf.genres[lang] = names
 		}
 	}
-	if rating, from := fskFromCertificationsFirst(rec.Certifications, country); rating != nil {
+	pf.certs = rec.Certifications
+	if rating, from := ageFromCertifications(rec.Certifications, country); rating != nil {
 		pf.rating, pf.ratingSource = rating, rec.Provider+":"+from
 	}
 	return pf
@@ -510,6 +512,13 @@ func (s *Service) applyFill(ctx context.Context, snap systemq.Item, order []stri
 	changedImages, err := s.writeFill(ctx, q, cur, order, candidates, true, anilistID, filled, langs)
 	if err != nil {
 		return false, err
+	}
+	for _, r := range recs {
+		// A record without certificates is stored as «asked, nothing» (storeCertifications skips
+		// every provider but TMDB and TVDB, whose fields are the only ones that carry them).
+		if err := storeCertifications(ctx, tx, cur.ID, r.provider, r.fields.certs, s.now().UnixMilli()); err != nil {
+			return false, fmt.Errorf("metadata.fill: %w", err)
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return false, fmt.Errorf("metadata.fill: commit %s: %w", snap.ID, err)

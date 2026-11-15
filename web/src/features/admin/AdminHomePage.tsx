@@ -200,6 +200,24 @@ function Command({ code, label }: { code: string; label: string }) {
   );
 }
 
+/**
+ * «Verstanden» under the one-time hint that ratings are minimum ages now (concept 22 section
+ * 4.11): the server forgets the hint, the next poll shows the overview without it.
+ */
+function DismissMinimumAge() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const dismiss = useMutation({
+    mutationFn: () => request(api.DELETE('/admin/dashboard/minimum-age-notice')),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey }),
+  });
+  return (
+    <AriaButton variant="secondary" onPress={() => dismiss.mutate()} isDisabled={dismiss.isPending}>
+      {t('admin.home.hints.minimumAgeDismiss')}
+    </AriaButton>
+  );
+}
+
 /** The tab «Fehlschläge» of the jobs page (concept 12, JOB-8, 11.5 point 11). */
 const jobsFailed = `${paths.adminJobs}?tab=failed`;
 
@@ -229,6 +247,26 @@ function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[] {
       tone: 'warning',
       title: t('admin.home.hints.paused', { count: data.jobs.paused ?? 0 }),
       action: toJobs,
+    });
+  }
+  // The ratings are read anew (concept 22 F-16, F-17): until the job is done the old ones apply.
+  if (data.attention.ratingsRereading) {
+    hints.push({
+      key: 'ratings-reread',
+      tone: 'active',
+      title: t('admin.home.hints.ratingsReread'),
+      body: t('admin.home.hints.ratingsRereadBody'),
+      action: toJobs,
+    });
+  }
+  // Once after the update to minimum ages: PG-13 is «ab 13» now, stricter than FSK 12 before.
+  if (data.attention.minimumAgeNotice) {
+    hints.push({
+      key: 'minimum-age',
+      tone: 'warning',
+      title: t('admin.home.hints.minimumAge'),
+      body: t('admin.home.hints.minimumAgeBody'),
+      action: <DismissMinimumAge />,
     });
   }
   // A provider that rejects its key (concept 21 P-2): one notice instead of a failed fill per title.

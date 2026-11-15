@@ -1,4 +1,4 @@
-import type { Library } from '@slouchcat/api-client';
+import type { Library, RatingSystem } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -152,7 +152,11 @@ function MetadataCell({ library, hold }: { library: Library; hold: boolean }) {
 }
 
 /** The columns of a library table: the row folds out on the name (Bib-C). */
-export function libraryColumns(t: TFunction, hold: boolean): DataColumn<Library>[] {
+export function libraryColumns(
+  t: TFunction,
+  hold: boolean,
+  ratingSystem?: RatingSystem,
+): DataColumn<Library>[] {
   return [
     {
       key: 'name',
@@ -170,7 +174,7 @@ export function libraryColumns(t: TFunction, hold: boolean): DataColumn<Library>
             <span>
               <Chip tone="outline">
                 {t('admin.libraries.defaultRating', {
-                  rating: ratingLabel(t, library.defaultRating),
+                  rating: ratingLabel(t, library.defaultRating, ratingSystem),
                 })}
               </Chip>
             </span>

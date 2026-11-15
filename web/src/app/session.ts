@@ -1,4 +1,4 @@
-import type { components, Profile, SessionInfo } from '@slouchcat/api-client';
+import type { components, Profile, RatingSystem, SessionInfo } from '@slouchcat/api-client';
 import {
   queryOptions,
   useMutation,
@@ -136,6 +136,14 @@ export function useActiveSession(): ActiveSession {
   const { session: fromRoute } = activeRoute.useRouteContext();
   const live = useQuery(sessionQuery).data;
   return live?.profile ? { ...live, profile: live.profile } : fromRoute;
+}
+
+/**
+ * The rating country of the server with its age steps (`SessionInfo.ratingSystem`, concept 22
+ * section 4.11), undefined without a session or from an older server (labels then read «ab n»).
+ */
+export function useRatingSystem(): RatingSystem | undefined {
+  return useQuery(sessionQuery).data?.ratingSystem;
 }
 
 /** How long a logout waits for the push cleanup of this browser before it goes on. */

@@ -50,7 +50,8 @@ sind `docs/spec/01-anforderungen-v1.md` (Spec), `docs/planning/03-plan-v1.md` (P
 9. **Keine Farbe und kein Text hart im Code.** Farben nur aus Tokens (`stylelint`: `color-no-hex`,
    `declaration-strict-value`), Texte nur aus `web/src/locales/*.json` (`eslint-plugin-i18next`;
    neue Texte in `de` und `en`, `de-DE` bei ss-Wörtern und «Guillemets», ADR 0033). Benannte Ausnahme:
-   die Sprachnamen in `web/src/i18n/languages.ts` sind Daten. Admin und Zuschauer nutzen dieselben Komponenten aus `web/src/ui`.
+   die Sprachnamen in `web/src/i18n/languages.ts` und die Freigabebezeichnungen in
+   `server/internal/model/ratings.go` sind Daten (ADR 0033, ADR 0034). Admin und Zuschauer nutzen dieselben Komponenten aus `web/src/ui`.
 10. **Keine Secrets in Logs.** Nur `slog` über den Redaction-Handler aus `internal/logging`; neue
     Schlüsselnamen mit Secrets in die Redaction-Liste und in den Test.
 11. **Keine Nicht-Ziele bauen** (Spec "Non-Goals": Musik (ausser Live-Webradio, Frage 23), Fotos, Live-TV, TV-Apps, native Apps, Plugins,

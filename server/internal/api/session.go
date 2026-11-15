@@ -260,6 +260,39 @@ func isTLS(r *http.Request) bool {
 func sessionExpiry(now time.Time) time.Time { return now.Add(sessionCookieDays * 24 * time.Hour) }
 
 // toSessionInfo maps a session to the contract type; the profile is absent until one is chosen.
+// toRatingSystem maps a rating country with its steps (concept 22 section 4.11).
+func toRatingSystem(rs model.RatingSystem) gen.RatingSystem {
+	out := gen.RatingSystem{Country: rs.Country, Steps: make([]gen.RatingStep, 0, len(rs.Steps))}
+	if rs.Name != "" {
+		name := rs.Name
+		out.Name = &name
+	}
+	for _, st := range rs.Steps {
+		step := gen.RatingStep{Age: st.Age}
+		if st.Label != "" {
+			label := st.Label
+			step.Label = &label
+		}
+		out.Steps = append(out.Steps, step)
+	}
+	return out
+}
+
+// ratingSystem is SessionInfo.ratingSystem; nil without a profile service and when the rating
+// country cannot be read (the app then prints every age as «ab N»).
+func (s *server) ratingSystem(ctx context.Context) *gen.RatingSystem {
+	if s.opts.Profiles == nil {
+		return nil
+	}
+	rs, err := s.opts.Profiles.RatingSystem(ctx)
+	if err != nil {
+		s.p.log.WarnContext(ctx, "read the rating country", "err", err)
+		return nil
+	}
+	out := toRatingSystem(rs)
+	return &out
+}
+
 func toSessionInfo(s model.Session) gen.SessionInfo {
 	info := gen.SessionInfo{Account: toAccount(s.Account)}
 	if s.HasProfile() {
@@ -275,14 +308,14 @@ func toAccount(a model.Account) gen.Account {
 		role = gen.AccountRoleAdmin
 	}
 	return gen.Account{
-		Id: a.ID, Email: types.Email(a.Email), Role: role, IsOwner: a.IsOwner, MaxRating: gen.Rating(a.MaxRating),
+		Id: a.ID, Email: types.Email(a.Email), Role: role, IsOwner: a.IsOwner, MaxRating: a.MaxRating,
 		AllLibraries: a.AllLibraries, LibraryIds: nonNil(a.LibraryIDs),
 	}
 }
 
 func toProfile(p model.Profile) gen.Profile {
 	out := gen.Profile{
-		Id: p.ID, Name: p.Name, MaxRating: gen.Rating(p.MaxRating), Language: gen.Language(p.Language),
+		Id: p.ID, Name: p.Name, MaxRating: p.MaxRating, Language: gen.Language(p.Language),
 		AllLibraries: p.AllLibraries, LibraryIds: nonNil(p.LibraryIDs), HasPin: p.HasPin, HasOfflinePin: p.HasOfflinePin,
 		IsPrimary: p.IsPrimary, Limits: toPlaybackLimits(p.Limits), EffectiveLimits: toEffectiveLimits(p.Effective),
 		AudioLanguages: nonNilStrings(p.Prefs.AudioLanguages), SubtitleMode: gen.SubtitleMode(p.Prefs.SubtitleMode),

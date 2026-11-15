@@ -209,7 +209,7 @@
       "owner_required": "Das darf nur der Besitzer.",
       "owner_protected": "Das Besitzerkonto lässt sich weder entfernen noch degradieren.",
       "last_admin": "Das ist der letzte Administrator. Ernenne zuerst einen zweiten.",
-      "admin_limits_fixed": "Ein Administrator sieht immer alle Bibliotheken bis FSK 18. Entziehe zuerst die Rolle.",
+      "admin_limits_fixed": "Ein Administrator sieht immer alle Bibliotheken und alle Titel, ohne Altersgrenze. Entziehe zuerst die Rolle.",
       "job_type_not_runnable": "Dieser Job hat keinen manuellen Lauf; seine Läufe kommen von Ereignissen.",
       "job_type_paused": "Der Job ist pausiert; setze ihn zuerst fort.",
       "job_type_not_scheduled": "Dieser Job hat keinen Zeitplan.",
@@ -608,8 +608,7 @@
       "yearFrom": "Jahr von",
       "yearTo": "Jahr bis",
       "rating": "Altersfreigabe",
-      "anyRating": "Profilgrenze",
-      "upTo": "bis {{age}}"
+      "anyRating": "Profilgrenze"
     },
     "notFound": {
       "title": "Bibliothek nicht gefunden",
@@ -866,8 +865,9 @@
     }
   },
   "rating": {
-    "fsk": "FSK {{age}}",
-    "age": "ab {{age}}"
+    "age": "ab {{age}}",
+    "upTo": "bis {{rating}}",
+    "system": "{{country}} ({{name}})"
   },
   "format": {
     "hours": "{{hours}} h",
@@ -2046,7 +2046,7 @@
       "hint": {
         "unmatched": "Ohne Zuordnung fehlen Beschreibung, Bilder und Freigabe. Ordne den Titel zu oder aktualisiere ihn.",
         "no_images": "Zugeordnete Titel ohne Poster. Eine Aktualisierung lädt die Bilder neu.",
-        "unrated": "Titel ohne Freigabe sehen nur Profile mit FSK 18. Weise eine Freigabe zu, um sie freizugeben.",
+        "unrated": "Titel ohne Freigabe sehen nur Profile ab 18. Weise eine Freigabe zu, um sie freizugeben.",
         "orphaned": "Titel ohne Datei oder mit fehlenden Dateien, leere Staffeln und Serien.",
         "unplayable": "Dateien, die sich nicht lesen lassen. Prüfe sie erneut oder entferne sie aus der Bibliothek.",
         "rating_mismatch": "Die gespeicherte Freigabe weicht von der berechneten ab. Eine Freigabe-Änderung oder der nächste Scan korrigiert sie. Hier gibt es nichts auszuwählen.",
@@ -3562,6 +3562,11 @@
         "keyRejected": "{{name}}-Schlüssel abgewiesen",
         "keyRejectedBody": "Der Anbieter weist den Schlüssel ab. Bis ein neuer Schlüssel gilt, holt Slouchcat bei ihm keine Metadaten.",
         "toKeys": "Zu den Schlüsseln",
+        "ratingsReread": "Freigaben werden neu gelesen",
+        "ratingsRereadBody": "Bis der Job fertig ist, gelten die bisherigen Freigaben, strenger oder lockerer.",
+        "minimumAge": "Freigaben sind jetzt Mindestalter",
+        "minimumAgeBody": "Slouchcat speichert seit diesem Update das echte Mindestalter jeder Freigabe: PG-13 ist «ab 13» statt FSK 12, R ist «ab 17» statt FSK 16. Profile «ab 12» und «ab 16» sehen dadurch weniger amerikanische Titel. Wer das nicht will, stellt das Profil höher.",
+        "minimumAgeDismiss": "Verstanden",
         "storage": "{{path}} ist zu über {{percent}} % belegt"
       },
       "errors": {
@@ -3888,13 +3893,13 @@
         "heading": "Zugriff",
         "save": "Zugriff speichern",
         "saved": "Zugriff von {{email}} gespeichert.",
-        "adminHint": "Ein Administrator hat immer FSK 18 und alle Bibliotheken; «Zugriff» gibt es nur für Konten ohne Verwaltung."
+        "adminHint": "Ein Administrator hat immer die Stufe «ab 18» und alle Bibliotheken; «Zugriff» gibt es nur für Konten ohne Verwaltung."
       },
       "role": {
         "promote": {
           "action": "Zum Administrator ernennen",
           "title": "{{email}} zum Administrator ernennen?",
-          "body": "Das Konto verwaltet danach Server, Bibliotheken und Einstellungen. Seine Altersstufe steigt auf FSK 18 und alle Bibliotheken; die Profile des Kontos behalten ihre eigenen Stufen.",
+          "body": "Das Konto verwaltet danach Server, Bibliotheken und Einstellungen. Seine Altersstufe steigt auf «ab 18» und alle Bibliotheken; die Profile des Kontos behalten ihre eigenen Stufen.",
           "confirm": "Ernennen",
           "done": "{{email}} ist jetzt Administrator."
         },
@@ -4574,6 +4579,12 @@
           "description": "Holt fehlende Stimmenzahlen für die Auswahl der Bilder.",
           "trigger": "nach jedem vollständigen Scan, solange Titel ohne Wertung warten"
         },
+        "metadata_ratings_reread": {
+          "name": "Freigaben neu lesen",
+          "description": "Liest die Altersfreigaben der Filme und Serien für das Freigabeland neu; Freigaben von Hand, aus NFO-Dateien und gesperrte bleiben.",
+          "trigger": "einmal nach dem Update und bei jedem Wechsel des Freigabelands",
+          "progress": "Titel gelesen: {{done}} von {{total}}"
+        },
         "metadata_original_language_backfill": {
           "name": "Originalsprachen nachholen",
           "description": "Ergänzt bei allen Titeln die Originalsprache für die Tonwahl.",
@@ -4800,16 +4811,15 @@
       },
       "rating": {
         "title": "Altersfreigabe",
-        "intro": "Welches Land zuerst gelesen wird; danach DE, AT, CH, GB, US wie bisher. Die Stufen bleiben FSK 0/6/12/16/18.",
+        "intro": "Das Land, dessen Altersfreigaben zählen. Hat ein Titel dort keine, gilt die deutsche (FSK), danach AT, CH, GB und US. Die Profile wählen aus den Stufen dieses Landes.",
         "country": "Land",
-        "countries": {
-          "DE": "Deutschland (DE)",
-          "AT": "Österreich (AT)",
-          "CH": "Schweiz (CH)",
-          "GB": "Grossbritannien (GB)",
-          "US": "USA (US)"
-        },
-        "hint": "Ein neuer Titel bekommt die Stufe des zuerst gelesenen Landes. Eine gespeicherte Stufe wird nie gesenkt, auch nicht durch ein anderes Land; senken geht nur je Titel in der Pflege."
+        "steps": "Stufen der Profile: {{steps}}",
+        "hint": "Gespeichert wird das Mindestalter der Freigabe, zum Beispiel PG-13 als «ab 13». Nach einem Wechsel des Landes liest Slouchcat die Freigaben aller Titel neu und kann sie dabei senken oder erhöhen; Freigaben von Hand, aus NFO-Dateien und gesperrte bleiben.",
+        "confirm": {
+          "title": "Freigabeland wechseln?",
+          "body": "Slouchcat liest danach die Freigaben aller Titel neu. Profile können dadurch Titel sehen, die bisher verborgen waren, oder umgekehrt.",
+          "confirm": "Wechseln und neu lesen"
+        }
       },
       "apply": {
         "title": "Auf bestehende Titel anwenden",
@@ -5104,6 +5114,7 @@
       "list": "Profile dieses Kontos",
       "edit": "Bearbeiten",
       "primary": "Hauptprofil",
+      "ratingAboveCeiling": "{{rating}} · Konto höchstens {{max}}",
       "hasPin": "PIN",
       "delete": {
         "action": "Löschen",
@@ -5144,7 +5155,6 @@
         "likeUi": "Wie Oberfläche",
         "playback": "Wiedergabe"
       },
-      "ratingAboveAccount": "FSK {{age}} · Konto höchstens FSK {{max}}",
       "report": {
         "show": "Schauzeit anzeigen",
         "hide": "Schauzeit ausblenden",

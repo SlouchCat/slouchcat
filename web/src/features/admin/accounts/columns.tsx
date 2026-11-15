@@ -1,4 +1,4 @@
-import type { AdminAccount } from '@slouchcat/api-client';
+import type { AdminAccount, RatingSystem } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
 import type { ReactNode } from 'react';
 import { formatDateTime } from '@/lib/format';
@@ -24,6 +24,7 @@ export function accountColumns(
   t: TFunction,
   language: string,
   actions: (account: AdminAccount) => ReactNode,
+  ratingSystem?: RatingSystem,
 ): DataColumn<AdminAccount>[] {
   return [
     {
@@ -45,7 +46,9 @@ export function accountColumns(
     {
       key: 'rating',
       header: t('admin.accounts.columns.rating'),
-      cell: (account) => <span className={styles.nowrap}>{ratingLabel(t, account.maxRating)}</span>,
+      cell: (account) => (
+        <span className={styles.nowrap}>{ratingLabel(t, account.maxRating, ratingSystem)}</span>
+      ),
     },
     {
       key: 'libraries',

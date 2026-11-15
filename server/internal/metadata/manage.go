@@ -13,6 +13,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/store/certq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 	"github.com/slouchcat/slouchcat/server/internal/youtubeid"
 )
@@ -145,6 +146,10 @@ func (s *Service) AssignMatch(ctx context.Context, itemID, provider, providerID 
 	}
 	if err := q.DeleteItemFieldSources(ctx, item.ID); err != nil {
 		return fmt.Errorf("assign match %s: delete sources: %w", item.ID, err)
+	}
+	// The certificates of the old title (concept 22 section 4.11); the match stores the new ones.
+	if err := certq.New(tx).DeleteAllItemCertifications(ctx, item.ID); err != nil {
+		return fmt.Errorf("assign match %s: delete certificates: %w", item.ID, err)
 	}
 	if err := q.DeleteAutoTrailers(ctx, item.ID); err != nil {
 		return fmt.Errorf("assign match %s: delete trailers: %w", item.ID, err)

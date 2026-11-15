@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
-import { useActiveSession } from '@/app/session';
+import { useActiveSession, useRatingSystem } from '@/app/session';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Notice, Page, Skeleton, Text, TextLink, VisuallyHidden } from '@/ui';
 import {
@@ -90,6 +90,7 @@ export function LibrariesPage() {
 
 function LibrariesContent() {
   const { t, i18n } = useTranslation();
+  const ratingSystem = useRatingSystem();
   const queryClient = useQueryClient();
   const titleRef = useRef<HTMLHeadingElement>(null);
   const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
@@ -378,7 +379,7 @@ function LibrariesContent() {
     [scanMutate, cancelMutate, acceptLossMutate, ask, t],
   );
 
-  const columns = useMemo(() => libraryColumns(t, hold), [t, hold]);
+  const columns = useMemo(() => libraryColumns(t, hold, ratingSystem), [t, hold, ratingSystem]);
   const detail = (library: Library) => (
     <LibraryDetail
       library={library}
@@ -538,7 +539,7 @@ function LibrariesContent() {
               setMessage(
                 t('admin.libraries.changeRating.saved', {
                   name: updated.name,
-                  rating: ratingLabel(t, updated.defaultRating),
+                  rating: ratingLabel(t, updated.defaultRating, ratingSystem),
                 }),
               );
             }

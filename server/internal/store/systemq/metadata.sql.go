@@ -125,6 +125,22 @@ func (q *Queries) CountLibraryItemsForApply(ctx context.Context, libraryID int64
 	return count, err
 }
 
+const countRatingRereadItems = `-- name: CountRatingRereadItems :one
+SELECT count(*) FROM items
+WHERE deleted_at IS NULL AND kind IN ('movie', 'series')
+  AND (rating_source LIKE 'tmdb:%' OR rating_source LIKE 'tvdb:%' OR (rating_source IS NULL AND own_rating IS NULL))
+  AND (tmdb_id IS NOT NULL OR tvdb_id IS NOT NULL)
+  AND instr(locked_fields, '"own_rating"') = 0
+`
+
+// How many titles metadata.ratings_reread reads (the same filter as ListRatingRereadItems).
+func (q *Queries) CountRatingRereadItems(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countRatingRereadItems)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteImage = `-- name: DeleteImage :exec
 DELETE FROM images WHERE id = ?1
 `
@@ -329,7 +345,7 @@ func (q *Queries) ListApplyItems(ctx context.Context, libraryID int64) ([]ListAp
 }
 
 const listChildItems = `-- name: ListChildItems :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at FROM items
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at, own_rating, effective_rating, min_child_rating FROM items
 WHERE parent_id = ?1 AND deleted_at IS NULL
 ORDER BY season_number, episode_number, id
 `
@@ -358,9 +374,6 @@ func (q *Queries) ListChildItems(ctx context.Context, parentID sql.NullString) (
 			&i.Genres,
 			&i.TmdbID,
 			&i.ImdbID,
-			&i.OwnRating,
-			&i.EffectiveRating,
-			&i.MinChildRating,
 			&i.Available,
 			&i.RatingSource,
 			&i.EnclosureUrl,
@@ -420,6 +433,9 @@ func (q *Queries) ListChildItems(ctx context.Context, parentID sql.NullString) (
 			&i.BookMatchError,
 			&i.BookMatchManual,
 			&i.RemovedAt,
+			&i.OwnRating,
+			&i.EffectiveRating,
+			&i.MinChildRating,
 		); err != nil {
 			return nil, err
 		}
@@ -1017,7 +1033,7 @@ func (q *Queries) ListMediaFileIDsByItem(ctx context.Context, itemID string) ([]
 }
 
 const listOriginalLanguageBackfillItems = `-- name: ListOriginalLanguageBackfillItems :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at FROM items
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at, own_rating, effective_rating, min_child_rating FROM items
 WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
   AND original_language IS NULL AND id > ?1
   AND instr(locked_fields, '"original_language"') = 0
@@ -1056,9 +1072,6 @@ func (q *Queries) ListOriginalLanguageBackfillItems(ctx context.Context, arg Lis
 			&i.Genres,
 			&i.TmdbID,
 			&i.ImdbID,
-			&i.OwnRating,
-			&i.EffectiveRating,
-			&i.MinChildRating,
 			&i.Available,
 			&i.RatingSource,
 			&i.EnclosureUrl,
@@ -1118,6 +1131,9 @@ func (q *Queries) ListOriginalLanguageBackfillItems(ctx context.Context, arg Lis
 			&i.BookMatchError,
 			&i.BookMatchManual,
 			&i.RemovedAt,
+			&i.OwnRating,
+			&i.EffectiveRating,
+			&i.MinChildRating,
 		); err != nil {
 			return nil, err
 		}
@@ -1194,6 +1210,124 @@ func (q *Queries) ListPodcastEpisodeIDs(ctx context.Context) ([]string, error) {
 			return nil, err
 		}
 		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRatingRereadItems = `-- name: ListRatingRereadItems :many
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at, own_rating, effective_rating, min_child_rating FROM items
+WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND id > ?1
+  AND (rating_source LIKE 'tmdb:%' OR rating_source LIKE 'tvdb:%' OR (rating_source IS NULL AND own_rating IS NULL))
+  AND (tmdb_id IS NOT NULL OR tvdb_id IS NOT NULL)
+  AND instr(locked_fields, '"own_rating"') = 0
+ORDER BY id
+LIMIT ?2
+`
+
+type ListRatingRereadItemsParams struct {
+	AfterID    string
+	LimitCount int64
+}
+
+// One batch of metadata.ratings_reread (concept 22 section 4.11, F-16, F-17): the films and series
+// whose rating a provider gave (rating_source tmdb:* or tvdb:*) or that have none at all, without
+// the lock own_rating, in id order after @after_id. Ratings from an NFO, by hand, from the library,
+// the tags, the feed or AniList stay untouched (review 2, M2-1).
+func (q *Queries) ListRatingRereadItems(ctx context.Context, arg ListRatingRereadItemsParams) ([]Item, error) {
+	rows, err := q.db.QueryContext(ctx, listRatingRereadItems, arg.AfterID, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Item{}
+	for rows.Next() {
+		var i Item
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.ParentID,
+			&i.LibraryID,
+			&i.Title,
+			&i.SortTitle,
+			&i.OriginalTitle,
+			&i.Year,
+			&i.ReleaseDate,
+			&i.RuntimeMinutes,
+			&i.Genres,
+			&i.TmdbID,
+			&i.ImdbID,
+			&i.Available,
+			&i.RatingSource,
+			&i.EnclosureUrl,
+			&i.LockedFields,
+			&i.MetadataState,
+			&i.MetadataError,
+			&i.MatchedAt,
+			&i.AddedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.SeasonNumber,
+			&i.EpisodeNumber,
+			&i.EpisodeEnd,
+			&i.TvdbID,
+			&i.ExtraKind,
+			&i.TmdbPosterPath,
+			&i.TmdbBackdropPath,
+			&i.TrailerState,
+			&i.TrailerCheckedAt,
+			&i.SegmentsState,
+			&i.SegmentsCheckedAt,
+			&i.Author,
+			&i.Narrator,
+			&i.SeriesName,
+			&i.SeriesIndex,
+			&i.Explicit,
+			&i.DurationMs,
+			&i.CoverUrl,
+			&i.CoverPath,
+			&i.FeedUrl,
+			&i.FeedEtag,
+			&i.FeedModified,
+			&i.FeedCheckedAt,
+			&i.FeedError,
+			&i.Guid,
+			&i.PublishedAt,
+			&i.EnclosureType,
+			&i.EnclosureLength,
+			&i.Providers,
+			&i.AnilistID,
+			&i.FeedOrigin,
+			&i.FilledProviders,
+			&i.VoteAverage,
+			&i.OriginalLanguage,
+			&i.Publisher,
+			&i.Isbn,
+			&i.Asin,
+			&i.AudioSeriesID,
+			&i.AuthorDisplay,
+			&i.BookMatchState,
+			&i.BookMatchProvider,
+			&i.BookMatchID,
+			&i.BookMatchRegion,
+			&i.BookMatchedAt,
+			&i.BookMatchScore,
+			&i.BookMatchError,
+			&i.BookMatchManual,
+			&i.RemovedAt,
+			&i.OwnRating,
+			&i.EffectiveRating,
+			&i.MinChildRating,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -1283,7 +1417,7 @@ func (q *Queries) ListUpgradeMatchItems(ctx context.Context, arg ListUpgradeMatc
 }
 
 const listVoteBackfillItems = `-- name: ListVoteBackfillItems :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at FROM items
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at, own_rating, effective_rating, min_child_rating FROM items
 WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
   AND vote_average IS NULL AND id > ?1
   AND (instr(providers, '"tmdb"') > 0 OR instr(providers, '"anilist"') > 0)
@@ -1327,9 +1461,6 @@ func (q *Queries) ListVoteBackfillItems(ctx context.Context, arg ListVoteBackfil
 			&i.Genres,
 			&i.TmdbID,
 			&i.ImdbID,
-			&i.OwnRating,
-			&i.EffectiveRating,
-			&i.MinChildRating,
 			&i.Available,
 			&i.RatingSource,
 			&i.EnclosureUrl,
@@ -1389,6 +1520,9 @@ func (q *Queries) ListVoteBackfillItems(ctx context.Context, arg ListVoteBackfil
 			&i.BookMatchError,
 			&i.BookMatchManual,
 			&i.RemovedAt,
+			&i.OwnRating,
+			&i.EffectiveRating,
+			&i.MinChildRating,
 		); err != nil {
 			return nil, err
 		}
@@ -1497,6 +1631,29 @@ func (q *Queries) SetItemOriginalLanguageOverride(ctx context.Context, arg SetIt
 	_, err := q.db.ExecContext(ctx, setItemOriginalLanguageOverride,
 		arg.OriginalLanguage,
 		arg.LockedFields,
+		arg.Now,
+		arg.ID,
+	)
+	return err
+}
+
+const setItemProviderRating = `-- name: SetItemProviderRating :exec
+UPDATE items SET own_rating = ?1, rating_source = ?2, updated_at = ?3 WHERE id = ?4
+`
+
+type SetItemProviderRatingParams struct {
+	OwnRating    sql.NullInt64
+	RatingSource sql.NullString
+	Now          int64
+	ID           string
+}
+
+// The rating metadata.ratings_reread computed: own_rating and rating_source (NULL and NULL when no
+// provider has a known certificate); the triggers derive the rest.
+func (q *Queries) SetItemProviderRating(ctx context.Context, arg SetItemProviderRatingParams) error {
+	_, err := q.db.ExecContext(ctx, setItemProviderRating,
+		arg.OwnRating,
+		arg.RatingSource,
 		arg.Now,
 		arg.ID,
 	)

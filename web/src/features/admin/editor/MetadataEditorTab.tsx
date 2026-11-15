@@ -5,6 +5,7 @@ import { useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { fieldMessage, formErrors } from '@/api/errors';
+import { useRatingSystem } from '@/app/session';
 import { Chip, Notice, SelectField, Text } from '@/ui';
 import { AriaButton, Form, LockToggle, TextField } from '@/ui/aria';
 import { ratingOptions, titleRatingOf } from '../../shared/choices';
@@ -80,6 +81,7 @@ export function MetadataEditorTab({
   onChanged,
 }: MetadataEditorTabProps) {
   const { t, i18n } = useTranslation();
+  const ratingSystem = useRatingSystem();
   const server = useMemo(() => serverValues(item, meta), [item, meta]);
   const genres = useQuery(genresQuery);
   const languages = useQuery({ ...metadataSettingsQuery, enabled: hasOriginalLanguage(item) });
@@ -316,7 +318,10 @@ export function MetadataEditorTab({
         onChange={(next) => set('rating', next)}
         options={[
           { value: FROM_METADATA, label: t('admin.item.rating.fromMetadata') },
-          ...ratingOptions(t).map(({ value: age, label }) => ({ value: age, label })),
+          ...ratingOptions(t, ratingSystem, 18, item.ownRating).map(({ value: age, label }) => ({
+            value: age,
+            label,
+          })),
         ]}
       />
       {ratingError && <p className={styles.fieldError}>{ratingError}</p>}

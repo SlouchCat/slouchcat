@@ -3653,6 +3653,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/dashboard/minimum-age-notice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Close the one-time hint that ratings are minimum ages now (concept 22, 4.11)
+         * @description Since contract 1.36.0: `DashboardAttention.minimumAgeNotice` is false from now on. Idempotent:
+         *     closing a closed hint answers 204 as well.
+         */
+        delete: operations["dismissMinimumAgeNotice"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/jobs/{id}/retry": {
         parameters: {
             query?: never;
@@ -5738,6 +5759,12 @@ export interface components {
              *     `finishSetup` ran.
              */
             setupPending?: boolean;
+            /**
+             * @description Since contract 1.36.0 (concept 22 section 4.11): the server's rating country with its steps;
+             *     the client labels ages and offers ceilings from it. Absent in answers of older servers (then
+             *     the client prints every age as «ab N»).
+             */
+            ratingSystem?: components["schemas"]["RatingSystem"];
         };
         Account: {
             /** Format: int64 */
@@ -6019,6 +6046,11 @@ export interface components {
             }[];
             /** Format: date-time */
             expiresAt: string;
+            /**
+             * @description Since contract 1.36.0: the rating country of the server, so the page names the ceiling as
+             *     the household does («FSK 12», «PG-13»); absent from older servers.
+             */
+            ratingSystem?: components["schemas"]["RatingSystem"];
         };
         AcceptInvitationRequest: {
             /** Format: email */
@@ -6069,10 +6101,34 @@ export interface components {
         /** @description A metadata language, BCP-47 with an optional region (`de`, `en`, `pt-BR`, `zh-TW`; ADR 0018). */
         MetadataLanguage: string;
         /**
-         * @description FSK age rating.
-         * @enum {integer}
+         * @description Minimum age (concept 22, ADR 0034). Since contract 1.36.0 the real minimum age of the
+         *     certificate for every country (PG-13 = 13, R = 17, TV-MA = 17, AT 14 = 14), no longer the FSK
+         *     step it was rounded to (0, 6, 12, 16, 18 before). A ceiling of a profile, account or invitation
+         *     is a step of the rating country (`SessionInfo.ratingSystem`) or a value it already had. 18 is
+         *     the highest value: unknown counts as 18 (AN-1), an administrator always has 18.
          */
-        Rating: 0 | 6 | 12 | 16 | 18;
+        Rating: number;
+        /**
+         * @description Since contract 1.36.0 (concept 22 section 4.11): a rating country with the body that rates and
+         *     its age steps, lowest first, always ending with 18. Labels and names are data of the server's
+         *     table, not translated texts; a step without `label` is printed with the words of the interface
+         *     («ab 12»).
+         */
+        RatingSystem: {
+            /**
+             * @description ISO 3166-1 alpha-2 code of the rating country.
+             * @example DE
+             */
+            country: string;
+            /** @description The rating body (`FSK`, `BBFC`, `MPA`, `CNC`); absent when there is none to name. */
+            name?: string;
+            steps: components["schemas"]["RatingStep"][];
+        };
+        RatingStep: {
+            age: components["schemas"]["Rating"];
+            /** @description The certificate as the country prints it (`FSK 12`, `PG-13`, `-12`, `R15+`); absent for a bare number. */
+            label?: string;
+        };
         /** @description ULID of an item. */
         ItemID: string;
         /** @enum {string} */
@@ -6240,7 +6296,7 @@ export interface components {
              */
             watched?: boolean;
             runtimeMinutes?: number;
-            /** @description Effective FSK rating; omitted when unknown (then hidden from profiles under 18). */
+            /** @description Effective minimum age (concept 22, ADR 0034); omitted when unknown (then hidden from profiles under 18). */
             rating?: components["schemas"]["Rating"];
             images: components["schemas"]["ItemImages"];
             /**
@@ -7446,10 +7502,15 @@ export interface components {
             /** @description Image files next to the media as the first source (F-5). */
             localImages: boolean;
             /**
-             * @description The country whose certification is read first (F-7, decision 6); the rest follows in DE, AT, CH, GB, US order.
+             * @description The country whose certification is read first (F-7, decision 6); a title without one takes
+             *     the German (FSK), then AT, CH, GB, US (concept 22 F-12). Since contract 1.36.0 every country of
+             *     `ratingSystems` (before: DE, AT, CH, GB, US). Profiles pick their ceiling from its steps. A
+             *     change reads every rating anew (job `metadata.ratings_reread`, F-16), when there are titles.
              * @enum {string}
              */
-            ratingCountry: "DE" | "AT" | "CH" | "GB" | "US";
+            ratingCountry: "DE" | "AT" | "CH" | "GB" | "US" | "FR" | "ES" | "IT" | "NL" | "BE" | "PT" | "BR" | "PL" | "SE" | "DK" | "NO" | "FI" | "CZ" | "HU" | "TR" | "RU" | "UA" | "JP" | "KR" | "TW";
+            /** @description Since contract 1.36.0 every rating country with its steps, in the order of the table (the choice and its preview). */
+            ratingSystems: components["schemas"]["RatingSystem"][];
             tmdbIncludeAdult: boolean;
             fanartEnabled: boolean;
             /** @description Every language code the server accepts (the static list, E-10). */
@@ -8947,7 +9008,7 @@ export interface components {
             genre?: string;
             yearFrom?: number;
             yearTo?: number;
-            /** @description Only titles rated at most this FSK level (an unknown rating never passes). */
+            /** @description Only titles with a minimum age of at most this value (an unknown rating never passes). */
             maxRating?: components["schemas"]["Rating"];
             /** @description Media types to include; `series` covers series and episodes, `podcast` podcasts and episodes. Absent = all. */
             mediaTypes?: ("movie" | "series" | "audiobook" | "podcast")[];
@@ -9878,6 +9939,17 @@ export interface components {
          *     12); the client only shows it. Every list is empty instead of absent.
          */
         DashboardAttention: {
+            /**
+             * @description Since contract 1.36.0 (concept 22 section 4.11): show once that ratings are minimum ages now
+             *     (PG-13 «ab 13» instead of FSK 12, stricter than before). True after the update of a database
+             *     that held ratings of a provider, until `dismissMinimumAgeNotice`; absent otherwise.
+             */
+            minimumAgeNotice?: boolean;
+            /**
+             * @description Since contract 1.36.0: the job «Freigaben neu lesen» (`metadata.ratings_reread`) is queued or
+             *     running; until it is done the old ratings apply, stricter or looser. Absent otherwise.
+             */
+            ratingsRereading?: boolean;
             /**
              * @description Libraries whose last scan the loss protection aborted and whose loss nobody accepted yet:
              *     last scan state `aborted`, a reason other than `cancelled` and no `lossAcceptedAt`.
@@ -17230,7 +17302,7 @@ export interface operations {
             /**
              * @description Validation failed (`validation_failed`; `query` `too_short` (one character), `too_long`, or
              *     `required` when neither a query nor a filter is given; `maxRating` `invalid_value` outside
-             *     0/6/12/16/18; `yearFrom`/`yearTo` `invalid_value` outside 1870..2100; `genre` `too_long` over 80
+             *     0..18; `yearFrom`/`yearTo` `invalid_value` outside 1870..2100; `genre` `too_long` over 80
              *     characters).
              */
             422: {
@@ -18474,6 +18546,26 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Dashboard"];
                 };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    dismissMinimumAgeNotice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The hint is closed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];

@@ -65,6 +65,7 @@ import {
   updateLibraryMetadata,
   updateMetadataSettings,
 } from './queries';
+import { ratingCountryOptions, ratingStepsText } from '../shared/choices';
 import styles from './metadata/Metadata.module.css';
 import { intlLocale } from '@/i18n';
 
@@ -83,8 +84,6 @@ type Switchable = (typeof SWITCHABLE)[number];
 
 const POSTER_WIDTHS = [0, 500, 1000, 1500, 2000] as const;
 const BACKDROP_WIDTHS = [0, 1280, 1920, 3840] as const;
-const COUNTRIES = ['DE', 'AT', 'CH', 'GB', 'US'] as const;
-type Country = (typeof COUNTRIES)[number];
 
 /** The YouTube quota: 10'000 units a day, a search costs 100 (ADR 0006). */
 const YOUTUBE_SEARCHES_PER_DAY = 100;
@@ -448,6 +447,8 @@ export function MetadataPage() {
   const [savedMessages, setSavedMessages] = useState<{ scope: string; text: string }[]>([]);
   const [failure, setFailure] = useState<{ scope: string; error: unknown } | null>(null);
   const [discardOpen, setDiscardOpen] = useState(false);
+  // A new rating country reads every rating anew (concept 22 F-16): ask first when there are titles.
+  const [countryConfirmOpen, setCountryConfirmOpen] = useState(false);
   // The last deviating lists of a library whose «abweichend» was switched off, so switching it on
   // again brings them back (S-13).
   const [parked, setParked] = useState<
@@ -531,6 +532,10 @@ export function MetadataPage() {
   const serverDraft = drafts.valueOf(SERVER) as ServerValues | undefined;
   const libraryDraft = inLibrary ? (drafts.valueOf(scope) as LibraryValues | undefined) : undefined;
   const known = settings.data?.knownLanguages ?? [];
+  const ratingCountries = useMemo(
+    () => ratingCountryOptions(t, intlLocale(i18n.language), settings.data?.ratingSystems ?? []),
+    [t, i18n.language, settings.data?.ratingSystems],
+  );
 
   const setServer = (change: (values: ServerValues) => ServerValues) =>
     drafts.set(SERVER, (values) => change(values as ServerValues));
@@ -642,7 +647,9 @@ export function MetadataPage() {
       summary = on.length > 0 ? listOf(on) : t('admin.metadata.areas.sources.none');
     }
     if (id === 'rating' && serverDraft)
-      summary = t(`admin.metadata.rating.countries.${serverDraft.ratingCountry as Country}`);
+      summary =
+        ratingCountries.find((option) => option.value === serverDraft.ratingCountry)?.label ??
+        serverDraft.ratingCountry;
     if (summary !== undefined && inLibrary) {
       const deviates = id === 'languages' ? textsEditable : imagesEditable;
       summary = t('admin.metadata.areas.scoped', {
@@ -913,18 +920,25 @@ export function MetadataPage() {
       </AreaPanel>
     );
   } else if (area === 'rating' && serverDraft) {
+    const chosen = settings.data?.ratingSystems.find(
+      (rs) => rs.country === serverDraft.ratingCountry,
+    );
     detail = (
       <AreaPanel title={t('admin.metadata.rating.title')} intro={t('admin.metadata.rating.intro')}>
-        <RadioGroup
-          name="ratingCountry"
-          label={t('admin.metadata.rating.country')}
-          value={serverDraft.ratingCountry}
-          onChange={(value) => setServer((values) => ({ ...values, ratingCountry: value }))}
-          options={COUNTRIES.map((country: Country) => ({
-            value: country,
-            label: t(`admin.metadata.rating.countries.${country}`),
-          }))}
-        />
+        <SettingRow label={t('admin.metadata.rating.country')}>
+          <SelectField
+            label={t('admin.metadata.rating.country')}
+            hideLabel
+            value={serverDraft.ratingCountry}
+            onChange={(value) => setServer((values) => ({ ...values, ratingCountry: value }))}
+            options={ratingCountries}
+          />
+        </SettingRow>
+        {chosen && (
+          <Text tone="secondary">
+            {t('admin.metadata.rating.steps', { steps: ratingStepsText(t, chosen) })}
+          </Text>
+        )}
         {ratingCountryError && <Notice tone="danger">{ratingCountryError}</Notice>}
         <Text tone="secondary" variant="caption">
           {t('admin.metadata.rating.hint')}
@@ -1022,7 +1036,17 @@ export function MetadataPage() {
           <SaveBar
             dirty={drafts.dirty}
             saving={saving}
-            onSave={() => void onSave()}
+            onSave={() => {
+              const country = drafts.valueOf(SERVER) as ServerValues | undefined;
+              if (
+                settings.data &&
+                settings.data.affectedTitles > 0 &&
+                country &&
+                country.ratingCountry !== settings.data.ratingCountry
+              )
+                setCountryConfirmOpen(true);
+              else void onSave();
+            }}
             onDiscard={() => setDiscardOpen(true)}
           />
           {failure && errors ? (
@@ -1050,6 +1074,16 @@ export function MetadataPage() {
             tone="danger"
             defaultFocus="cancel"
             onConfirm={onDiscard}
+          />
+          <ConfirmDialog
+            isOpen={countryConfirmOpen}
+            onOpenChange={setCountryConfirmOpen}
+            title={t('admin.metadata.rating.confirm.title')}
+            body={t('admin.metadata.rating.confirm.body')}
+            confirmLabel={t('admin.metadata.rating.confirm.confirm')}
+            cancelLabel={t('common.cancel')}
+            defaultFocus="cancel"
+            onConfirm={() => void onSave()}
           />
           <ConfirmDialog {...unsaved.dialog} />
         </>

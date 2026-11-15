@@ -157,7 +157,7 @@ describe('search page', () => {
     );
     await user.click(
       within(screen.getByRole('group', { name: 'Altersfreigabe höchstens' })).getByRole('button', {
-        name: 'FSK 6',
+        name: 'bis FSK 6',
       }),
     );
     await user.type(screen.getByRole('textbox', { name: 'Jahr bis' }), '2010');

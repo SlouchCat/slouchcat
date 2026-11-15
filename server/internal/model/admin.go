@@ -239,6 +239,10 @@ type ActivityEntry struct {
 type DashboardAttention struct {
 	AbortedScans []AbortedScan // scans the loss protection aborted, loss not accepted
 	RejectedKeys []string      // metadata providers that reject their configured key (tmdb, tvdb; concept 21 P-2)
+	// MinimumAgeNotice: show once that ratings are minimum ages now (concept 22 section 4.11).
+	MinimumAgeNotice bool
+	// RatingsRereading: the job «Freigaben neu lesen» is queued or running (concept 22 F-16).
+	RatingsRereading bool
 }
 
 // AbortedScan is a library whose last scan the loss protection aborted.

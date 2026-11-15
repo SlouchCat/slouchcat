@@ -39,7 +39,7 @@ func (s *server) UpdateLibrary(ctx context.Context, req gen.UpdateLibraryRequest
 			Parallel: d.Parallel, RootID: d.RootId}
 	}
 	if body.DefaultRating != nil {
-		r := int(*body.DefaultRating)
+		r := *body.DefaultRating
 		upd.DefaultRating = &r
 	}
 	lib, err := s.opts.Admin.UpdateLibrary(ctx, req.Id, upd)

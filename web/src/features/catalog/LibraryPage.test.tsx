@@ -194,7 +194,7 @@ describe('library page', () => {
 
     await user.click(within(panel).getByRole('button', { name: 'Drama' }));
     await user.click(within(panel).getByRole('button', { name: 'Ungesehen' }));
-    await user.click(within(panel).getByRole('button', { name: 'bis 12' }));
+    await user.click(within(panel).getByRole('button', { name: 'bis FSK 12' }));
     await waitFor(() =>
       expect(router.state.location.search).toEqual({
         genre: 'Drama',

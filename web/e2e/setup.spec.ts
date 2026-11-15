@@ -91,7 +91,7 @@ test('step 2, account: the fields in order, Enter creates the owner @keyboard', 
   await expect(page.getByRole('button', { name: 'Später fortsetzen' })).toBeVisible();
 });
 
-test('step 3, region: country, rating country by arrows, languages, radio @keyboard', async () => {
+test('step 3, region: country, rating country with its steps, languages, radio @keyboard', async () => {
   await resetFocus(page);
   await page.keyboard.press('Tab');
   await expectFocusOn(page, stepLink(/^3\. Region$/));
@@ -101,11 +101,20 @@ test('step 3, region: country, rating country by arrows, languages, radio @keybo
   await expectFocusOn(page, page.getByRole('combobox', { name: 'Land' }));
   await expect(page.getByRole('combobox', { name: 'Land' })).toHaveValue('CH');
   await page.keyboard.press('Tab');
-  const rating = page.getByRole('radiogroup', { name: 'Altersfreigaben nach' });
-  await expectFocusOn(page, rating.getByRole('radio', { name: 'Schweiz' }));
-  await page.keyboard.press('ArrowUp');
-  await expectFocusOn(page, rating.getByRole('radio', { name: 'Österreich' }));
-  await expect(rating.getByRole('radio', { name: 'Österreich' })).toBeChecked();
+  // Every rating country of the server's table (concept 22 stage 3), Switzerland suggested; the
+  // steps of the choice stand below it, as the household step offers them.
+  const rating = page.getByRole('combobox', { name: 'Altersfreigaben nach' });
+  await expectFocusOn(page, rating);
+  await expect(rating).toHaveValue('CH');
+  await expect(rating.getByRole('option')).toHaveCount(25);
+  await expect(
+    page.getByText(/^Altersstufen der Profile: ab 0 · ab 6 · ab 7 · ab 8/),
+  ).toBeVisible();
+  await rating.selectOption('FR');
+  await expect(
+    page.getByText('Altersstufen der Profile: Tous publics · -10 · -12 · -16 · -18'),
+  ).toBeVisible();
+  await expectFocusOn(page, rating);
   await expect(
     page.getByRole('switch', { name: 'Schweiz ins Radio-Angebot aufnehmen' }),
   ).toBeChecked();
@@ -188,13 +197,18 @@ test('step 6, libraries: none is refused, the dialog adds one @keyboard', async 
   await next('Haushalt');
 });
 
-test('step 7, household: the own profile, «Profil hinzufügen» adds one, then on @keyboard', async () => {
+test('step 7, household: the own profile, «Profil hinzufügen» with the French steps adds one @keyboard', async () => {
   await expect(page.getByText(OWNER.profile).first()).toBeVisible();
   await tabTo(page, page.getByRole('button', { name: 'Profil hinzufügen' }));
   await expectVisibleFocus(page);
+  // The ages are those of the rating country of step 3 (France, F-12).
   await page.keyboard.press('Enter');
   const dialog = page.getByRole('dialog', { name: 'Neues Profil' });
   await expect(dialog).toBeVisible();
+  const ages = dialog.getByRole('radiogroup', { name: 'Altersfreigabe' });
+  await expect(ages.getByRole('radio')).toHaveCount(5);
+  await expect(ages.getByRole('radio', { name: '-12' })).toBeVisible();
+  await expect(ages.getByRole('radio', { name: 'Tous publics' })).toBeVisible();
   await dialog.getByLabel('Name', { exact: true }).fill('Kind');
   await dialog.getByRole('button', { name: 'Profil anlegen' }).press('Enter');
   await expect(dialog).toBeHidden();

@@ -347,7 +347,11 @@ func (s *Service) RunSetup(ctx context.Context, req model.SetupRequest, userAgen
 		verr = verr.Add("language", "invalid_value")
 	}
 	if req.Library != nil {
-		verr = validateLibrary(verr, "library.", *req.Library)
+		rs, err := s.auth.RatingSystem(ctx)
+		if err != nil {
+			return model.Session{}, "", err
+		}
+		verr = validateLibrary(verr, rs, "library.", *req.Library)
 	}
 	key := strings.TrimSpace(req.TMDBKey)
 	if len(key) > maxTMDBKeyLen {
@@ -404,7 +408,7 @@ func (s *Service) RunSetup(ctx context.Context, req model.SetupRequest, userAgen
 // validateLibrary checks name, kind and the shape of the folder list; prefix names the fields
 // ("library."). The folder rules themselves (family, provider list, path, overlap) are applied
 // by package library, which answers with the index of the folder that broke one.
-func validateLibrary(verr *model.ValidationError, prefix string, req model.LibraryRequest) *model.ValidationError {
+func validateLibrary(verr *model.ValidationError, rs model.RatingSystem, prefix string, req model.LibraryRequest) *model.ValidationError {
 	name := strings.TrimSpace(req.Name)
 	switch {
 	case name == "":
@@ -426,7 +430,7 @@ func validateLibrary(verr *model.ValidationError, prefix string, req model.Libra
 		switch {
 		case req.Kind != "" && !model.AudioLibraryKind(req.Kind):
 			verr = verr.Add(prefix+"defaultRating", "not_allowed")
-		case !validRating(req.DefaultRating):
+		case !validRating(rs, req.DefaultRating):
 			verr = verr.Add(prefix+"defaultRating", "invalid_value")
 		}
 	}
@@ -628,7 +632,11 @@ func (s *Service) withKeyframeIndex(ctx context.Context) func(model.Library, err
 // CreateLibrary validates the request and creates the library, which queues its first scan.
 func (s *Service) CreateLibrary(ctx context.Context, req model.LibraryRequest) (model.Library, error) {
 	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
-	if verr := validateLibrary(nil, "", req); verr != nil {
+	rs, err := s.auth.RatingSystem(ctx)
+	if err != nil {
+		return model.Library{}, err
+	}
+	if verr := validateLibrary(nil, rs, "", req); verr != nil {
 		return model.Library{}, verr
 	}
 	return s.withKeyframeIndex(ctx)(s.libraries.Create(ctx, req))
@@ -818,7 +826,15 @@ const ratingLockField = "own_rating"
 // rating. The result is the unfiltered administration view. model.ErrNotFound for an unknown title.
 func (s *Service) SetItemRating(ctx context.Context, itemID string, rating *int) (model.ItemRating, error) {
 	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
-	if !validRating(rating) {
+	rs, err := s.auth.RatingSystem(ctx)
+	if err != nil {
+		return model.ItemRating{}, err
+	}
+	var keep []int
+	if item, err := s.sys.GetItemSystem(ctx, itemID); err == nil && item.OwnRating.Valid {
+		keep = append(keep, int(item.OwnRating.Int64)) // the stored age stays possible
+	}
+	if !validRating(rs, rating, keep...) {
 		return model.ItemRating{}, (&model.ValidationError{}).Add("rating", "invalid_value")
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -862,7 +878,11 @@ func (s *Service) SetItemsRating(ctx context.Context, itemIDs []string, rating *
 	case len(itemIDs) > maxRatingItems:
 		verr = verr.Add("itemIds", "too_long")
 	}
-	if !validRating(rating) {
+	rs, err := s.auth.RatingSystem(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if !validRating(rs, rating) {
 		verr = verr.Add("rating", "invalid_value")
 	}
 	if verr != nil {
@@ -927,8 +947,10 @@ func (s *Service) rateBatch(ctx context.Context, ids []string, rating *int) (don
 	return done, refresh, nil
 }
 
-func validRating(rating *int) bool {
-	return rating == nil || slices.Contains([]int{0, 6, 12, 16, 18}, *rating)
+// validRating reports whether a rating may be stored: none, a step of the rating country rs, or
+// a value the row already has (keep; concept 22 section 4.11, «Prüfung»).
+func validRating(rs model.RatingSystem, rating *int, keep ...int) bool {
+	return rating == nil || rs.Allows(*rating, keep...)
 }
 
 // applyRating writes the override (or its removal) of one title inside the caller's transaction;
@@ -990,4 +1012,24 @@ func explicitSource(kind string) string {
 		return "tags"
 	}
 	return "feed"
+}
+
+// keptRating is the stored value a rating may keep: none for NULL (a library without a default
+// would otherwise keep 0, which is no step in Portugal).
+func keptRating(v sql.NullInt64) []int {
+	if !v.Valid {
+		return nil
+	}
+	return []int{int(v.Int64)}
+}
+
+// ratingSystem is the rating system of the server's rating country; DE when the setting cannot
+// be read (the check then offers the German steps, as before concept 22 stage 3).
+func (s *Service) ratingSystem(ctx context.Context) model.RatingSystem {
+	rs, err := s.auth.RatingSystem(ctx)
+	if err != nil {
+		s.log.WarnContext(ctx, "read the rating country", "err", err)
+		return model.RatingSystemOf(model.DefaultRatingCountry)
+	}
+	return rs
 }

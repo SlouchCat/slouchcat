@@ -18,6 +18,7 @@ func (s Settings) toModel() model.MetadataSettings {
 		TextLangs: slices.Clone(s.TextLangs), ImageLangs: map[string][]string{}, ImageKinds: slices.Clone(nonNil(s.ImageKinds)),
 		ImageMinWidth: map[string]int{}, ImageByVote: s.ImageByVote, LocalImages: s.LocalImages, RatingCountry: s.RatingCountry,
 		TMDBIncludeAdult: s.TMDBIncludeAdult, FanartEnabled: s.FanartEnabled, KnownLanguages: KnownLanguages(),
+		RatingSystems: model.RatingSystems(),
 	}
 	for _, k := range ChainImageKinds {
 		out.ImageLangs[k] = slices.Clone(nonNil(s.ImageLangs[k]))
@@ -70,9 +71,25 @@ func (s *Service) withCounts(ctx context.Context, m model.MetadataSettings, libr
 }
 
 // UpdateMetadataSettings validates and stores the server's settings (*model.ValidationError) and
-// returns the stored view; nothing is queued (F-8).
+// returns the stored view. Nothing is queued (F-8), except for the rating country: after a change
+// metadata.ratings_reread reads every rating anew (concept 22 F-16), when there are titles. A
+// chain that could not be queued is not lost: the titles count as unread for the new country
+// (SettingRatingsRereadDone) until a chain finishes, so the next save or the next start queues
+// it (QueueRatingsRereadPending).
 func (s *Service) UpdateMetadataSettings(ctx context.Context, m model.MetadataSettings) (model.MetadataSettings, error) {
+	before, err := s.Settings(ctx)
+	if err != nil {
+		return model.MetadataSettings{}, err
+	}
 	if err := s.UpdateSettings(ctx, settingsFromModel(m)); err != nil {
+		return model.MetadataSettings{}, err
+	}
+	if before.RatingCountry != m.RatingCountry {
+		_, err = s.QueueRatingsReread(ctx)
+	} else {
+		_, err = s.QueueRatingsRereadPending(ctx)
+	}
+	if err != nil {
 		return model.MetadataSettings{}, err
 	}
 	return s.MetadataSettings(ctx)

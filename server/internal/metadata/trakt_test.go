@@ -404,8 +404,8 @@ func TestRegisterTypesSchedules(t *testing.T) {
 	}
 	w := jobs.NewWorker(e.queue, "w", slog.New(slog.DiscardHandler))
 	r.Attach(w, jobs.PoolGeneral)
-	if len(w.Handlers()) != 12 {
-		t.Errorf("handlers attached = %v, want the eleven metadata types with a handler plus jobs.prune", w.Handlers())
+	if len(w.Handlers()) != 13 {
+		t.Errorf("handlers attached = %v, want the twelve metadata types (metadata.ratings_reread since concept 22) with a handler plus jobs.prune", w.Handlers())
 	}
 }
 

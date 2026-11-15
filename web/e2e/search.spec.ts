@@ -71,7 +71,7 @@ test('every filter narrows the result and lives in the URL', async ({ page }) =>
   await expect(card(page, H264_TITLE)).toHaveCount(0);
   await expect(
     page.getByRole('group', { name: 'Altersfreigabe höchstens' }).getByRole('button', {
-      name: 'FSK 0',
+      name: 'bis FSK 0',
     }),
   ).toHaveAttribute('aria-pressed', 'true');
 
@@ -97,7 +97,7 @@ test('every filter narrows the result and lives in the URL', async ({ page }) =>
   await expect(card(page, H264_TITLE)).toHaveCount(0);
   for (const [group, name] of [
     ['Medientyp', 'Hörbücher'],
-    ['Altersfreigabe höchstens', 'FSK 0'],
+    ['Altersfreigabe höchstens', 'bis FSK 0'],
     ['Verfügbarkeit', 'Auf dem Server'],
   ] as const) {
     await expect(

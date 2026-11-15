@@ -2,7 +2,7 @@ import type { InvitationPreview } from '@slouchcat/api-client';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { homePage } from '@/test/fixtures';
+import { homePage, ratingSystemOf } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, session, type Routes } from '@/test/api';
 
 const TOKEN = 'k7Qm2xV9aBcD4eFgH5iJ6lMnOpRsTuVw8xYz0AbCdEf';
@@ -16,6 +16,7 @@ const preview: InvitationPreview = {
     { id: 2, name: 'Serien' },
   ],
   expiresAt: '2026-10-26T12:00:00Z',
+  ratingSystem: ratingSystemOf('DE'),
 };
 
 // A visitor without a session: the guard asks `/setup` only after a 401.

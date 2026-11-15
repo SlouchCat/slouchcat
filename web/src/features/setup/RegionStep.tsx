@@ -4,10 +4,10 @@ import { useNavigate } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
-import { useActiveSession } from '@/app/session';
+import { sessionQuery, useActiveSession } from '@/app/session';
 import { intlLocale } from '@/i18n';
 import { FactList, Notice, Skeleton, Text } from '@/ui';
-import { CodeBlock, RadioGroup, Switch } from '@/ui/aria';
+import { CodeBlock, Switch } from '@/ui/aria';
 import { LanguageRanks } from '../admin/MetadataPage';
 import {
   applyRadioOfferNow,
@@ -16,17 +16,10 @@ import {
   systemQuery,
   updateMetadataSettings,
 } from '../admin/queries';
-import { ratingLabel } from '../shared/choices';
+import { ratingCountryOptions, ratingStepsText } from '../shared/choices';
 import { setupPath, setupProgressQuery, stepState, updateSetupProgress } from './setupState';
 import { SetupLayout } from './SetupLayout';
 import styles from './SetupLayout.module.css';
-
-/** The rating countries of stage 2: the five of today (concept 22, 3.3; more come with stage 3). */
-const RATING_COUNTRIES = ['DE', 'AT', 'CH', 'GB', 'US'] as const;
-type RatingCountry = (typeof RATING_COUNTRIES)[number];
-
-/** The age steps of every rating country in stage 2 (FSK steps). */
-const RATING_STEPS = [0, 6, 12, 16, 18];
 
 /**
  * The countries the step offers before the radio catalog knows any: those of the rating systems
@@ -63,15 +56,15 @@ const COUNTRIES = [
   'TW',
 ];
 
-/** The country, metadata languages and rating country a language suggests (table 4.1, O-15). */
+/**
+ * The country and metadata languages a language suggests (table 4.1, O-15); the rating country is
+ * that country when the server's table knows it, else Germany (F-12; China has no system).
+ */
 const SUGGESTIONS: Record<Language, { country: string; langs: string[] }> = {
   de: { country: 'CH', langs: ['de', 'en'] },
   'de-DE': { country: 'DE', langs: ['de', 'en'] },
   en: { country: 'US', langs: ['en'] },
 };
-
-const isRatingCountry = (code: string): code is RatingCountry =>
-  (RATING_COUNTRIES as readonly string[]).includes(code);
 
 /** The update of the metadata settings with the step's choices; image languages follow the text. */
 export function regionUpdate(
@@ -111,6 +104,8 @@ function RegionForm({ settings }: { settings: MetadataSettings }) {
   // A step done before shows what was stored; an open one the suggestion of the language.
   const fresh = stepState(progress, 'region') === 'open';
   const [country, setCountry] = useState(suggestion.country);
+  const isRatingCountry = (code: string) =>
+    settings.ratingSystems.some((rs) => rs.country === code);
   const [ratingCountry, setRatingCountry] = useState<string>(
     fresh
       ? isRatingCountry(suggestion.country)
@@ -118,6 +113,7 @@ function RegionForm({ settings }: { settings: MetadataSettings }) {
         : 'DE'
       : settings.ratingCountry,
   );
+  const ratingSystem = settings.ratingSystems.find((rs) => rs.country === ratingCountry);
   const [langs, setLangs] = useState<string[]>(fresh ? suggestion.langs : settings.textLangs);
   const [radio, setRadio] = useState(true);
   const regions = useMemo(
@@ -138,6 +134,8 @@ function RegionForm({ settings }: { settings: MetadataSettings }) {
     mutationFn: async () => {
       const stored = await updateMetadataSettings(regionUpdate(settings, ratingCountry, langs));
       queryClient.setQueryData(metadataSettingsQuery.queryKey, stored);
+      // The household step offers the steps of the new rating country (SessionInfo.ratingSystem).
+      await queryClient.invalidateQueries({ queryKey: sessionQuery.queryKey });
       // F-8: the country without a station («Nur markierte»); one already chosen stays as it is.
       if (radio && !offer?.countries.some((entry) => entry.code === country && entry.mode)) {
         await applyRadioOfferNow([
@@ -190,16 +188,29 @@ function RegionForm({ settings }: { settings: MetadataSettings }) {
           ))}
         </select>
       </label>
-      <RadioGroup
-        label={t('setup.region.ratingCountry')}
-        description={t('setup.region.ratingSteps', {
-          steps: RATING_STEPS.map((age) => ratingLabel(t, age)).join(t('format.separator')),
-        })}
-        orientation="vertical"
-        value={ratingCountry}
-        onChange={setRatingCountry}
-        options={RATING_COUNTRIES.map((code) => ({ value: code, label: nameOf(code) }))}
-      />
+      <label className={styles.stack}>
+        <Text as="span" variant="caption" tone="secondary">
+          {t('setup.region.ratingCountry')}
+        </Text>
+        <select
+          className={styles.select}
+          value={ratingCountry}
+          onChange={(event) => setRatingCountry(event.target.value)}
+        >
+          {ratingCountryOptions(t, intlLocale(i18n.language), settings.ratingSystems).map(
+            (option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ),
+          )}
+        </select>
+      </label>
+      {ratingSystem && (
+        <Text tone="secondary">
+          {t('setup.region.ratingSteps', { steps: ratingStepsText(t, ratingSystem) })}
+        </Text>
+      )}
       <section className={styles.section} aria-labelledby="setup-metadata-languages">
         <h2 id="setup-metadata-languages" className={styles.sectionTitle}>
           {t('setup.region.languages')}

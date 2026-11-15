@@ -15,6 +15,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/store/certq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
@@ -914,6 +915,17 @@ func (s *Service) applyTitle(ctx context.Context, snap systemq.Item, rec TitleRe
 	if err := q.UpdateItemMatch(ctx, p); err != nil {
 		return snap, false, fmt.Errorf("metadata.match: update item %s: %w", itemID, err)
 	}
+	// The certificates of every rating country, so a change of the country reads the ratings
+	// anew without asking the provider (concept 22 section 4.11). Another title at a provider
+	// makes every stored certificate worthless, those of the other providers too.
+	if p.TmdbID != cur.TmdbID || p.TvdbID != cur.TvdbID {
+		if err := certq.New(tx).DeleteAllItemCertifications(ctx, itemID); err != nil {
+			return snap, false, fmt.Errorf("metadata.match: delete certificates of %s: %w", itemID, err)
+		}
+	}
+	if err := storeCertifications(ctx, tx, itemID, rec.Provider, rec.Certifications, now); err != nil {
+		return snap, false, fmt.Errorf("metadata.match: %w", err)
+	}
 	if err := s.matchImages(ctx, q, cur, rec.Provider, rec.Images, rec.Fanart, locked, now); err != nil {
 		return snap, false, err
 	}
@@ -1110,22 +1122,18 @@ func titleUpdate(cur systemq.Item, locked map[string]bool, rec TitleRecord, lang
 	}
 	src := cur.RatingSource.String
 	if !locked["own_rating"] && src != "nfo" && src != "manual" {
-		rating, country := fskFromCertificationsFirst(rec.Certifications, ratingCountry)
+		rating, country := ageFromCertifications(rec.Certifications, ratingCountry)
 		// A rating another provider gave (a filler's isAdult, the other provider's
 		// certification) is never lowered by a match of the same title (K-3): only the provider
 		// that gave it may revise it, and another title at the provider starts afresh.
 		sameTitle := p.TmdbID == cur.TmdbID && p.TvdbID == cur.TvdbID
 		ownRating := strings.HasPrefix(src, rec.Provider+":")
 		lower := rating == nil || int64(*rating) <= cur.OwnRating.Int64
+		// The same provider may revise its own value, also from another country: since concept 22
+		// (F-16, ADR 0034) a change of metadata.rating_country reads every rating anew and may
+		// lower it, so the match gives the value the job «Freigaben neu lesen» gives (concept 10
+		// 6.6 kept a stored step instead).
 		keep := cur.OwnRating.Valid && sameTitle && !ownRating && lower
-		// The same provider read from another country (metadata.rating_country changed, concept
-		// 10 6.6): a stored step is never lowered by a country change; a revision of the provider
-		// in the same country stays possible, and an equal step takes the new country's label
-		// (nothing is lowered, the source names the country that was read).
-		strictlyLower := rating != nil && int64(*rating) < cur.OwnRating.Int64
-		if cur.OwnRating.Valid && sameTitle && ownRating && strictlyLower && src != rec.Provider+":"+country {
-			keep = true
-		}
 		if !keep {
 			p.OwnRating, p.RatingSource = sql.NullInt64{}, sql.NullString{}
 			if rating != nil {

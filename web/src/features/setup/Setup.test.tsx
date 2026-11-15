@@ -12,6 +12,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { setLanguage } from '@/i18n';
 import { dashboardFixture } from '@/test/admin';
+import { ratingSystems } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, session, type Call, type Routes } from '@/test/api';
 import { fill } from '@/test/fill';
 import { SETUP_STEPS } from './setupState';
@@ -61,6 +62,7 @@ const metadata: MetadataSettings = {
   imageByVote: true,
   localImages: true,
   ratingCountry: 'DE',
+  ratingSystems,
   tmdbIncludeAdult: false,
   fanartEnabled: false,
   knownLanguages: ['de', 'en', 'fr'],
@@ -258,16 +260,30 @@ describe('the owner of an unfinished wizard', () => {
     );
     const { router } = renderApp('/setup/region');
     await screen.findByRole('heading', { level: 1, name: 'Region und Metadaten' });
-    // Swiss German suggests Switzerland.
-    expect(await screen.findByRole('radio', { name: 'Schweiz' })).toBeChecked();
+    // Swiss German suggests Switzerland, with its steps as the household step offers them.
+    const ratingCountry = await screen.findByRole('combobox', { name: 'Altersfreigaben nach' });
+    expect(ratingCountry).toHaveValue('CH');
+    expect(
+      screen.getByText(
+        'Altersstufen der Profile: ab 0 · ab 6 · ab 7 · ab 8 · ab 10 · ab 12 · ab 14 · ab 16 · ab 18',
+      ),
+    ).toBeVisible();
+    // Every country of the server's table (concept 22 stage 3), named with its rating body.
     const user = userEvent.setup();
+    await user.selectOptions(ratingCountry, 'FR');
+    expect(
+      within(ratingCountry).getByRole('option', { name: 'Frankreich (CNC)' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Altersstufen der Profile: Tous publics · -10 · -12 · -16 · -18'),
+    ).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Weiter' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/setup/services'));
     const update = calls.find(
       (call) => call.method === 'PUT' && call.path === '/admin/settings/metadata',
     );
     expect(update?.body).toMatchObject({
-      ratingCountry: 'CH',
+      ratingCountry: 'FR',
       textLangs: ['de', 'en'],
       imageLangs: { poster: ['de', 'en', ''], backdrop: ['', 'de', 'en'], logo: ['de', 'en'] },
     });

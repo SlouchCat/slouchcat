@@ -5,6 +5,7 @@ import { render } from '@testing-library/react';
 import { beforeAll, vi } from 'vitest';
 import { App } from '@/app/App';
 import { createAppRouter } from '@/app/router';
+import { ratingSystemOf } from './fixtures';
 
 // Every page of the app is reached through lazyRouteComponent(() => import(...)) in the router, so
 // the first render in a worker waits for Vite to transform that module graph. That wait falls
@@ -78,6 +79,7 @@ export const session: SessionInfo = {
     subtitleMode: 'forced',
     subtitleLanguages: ['de'],
   },
+  ratingSystem: ratingSystemOf('DE'),
 };
 
 /** Default answers for the guard: logged in (the guard asks `/setup` only without a session). */

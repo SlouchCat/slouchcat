@@ -66,12 +66,13 @@ type sessionStarted struct {
 	token   string
 	update  *gen.UpdateNotice // SessionInfo.updateAvailable (updateNotice)
 	pending *bool             // SessionInfo.setupPending (setupPending)
+	rating  *gen.RatingSystem // SessionInfo.ratingSystem (ratingSystem)
 }
 
 func (s sessionStarted) visit(w http.ResponseWriter) error {
 	var buf bytes.Buffer
 	info := toSessionInfo(s.session)
-	info.UpdateAvailable, info.SetupPending = s.update, s.pending
+	info.UpdateAvailable, info.SetupPending, info.RatingSystem = s.update, s.pending, s.rating
 	if err := json.NewEncoder(&buf).Encode(info); err != nil {
 		return err
 	}
@@ -96,12 +97,13 @@ type sessionSwitched struct {
 	session model.Session
 	update  *gen.UpdateNotice // SessionInfo.updateAvailable (updateNotice)
 	pending *bool             // SessionInfo.setupPending (setupPending)
+	rating  *gen.RatingSystem // SessionInfo.ratingSystem (ratingSystem)
 }
 
 func (s sessionSwitched) VisitSelectProfileResponse(w http.ResponseWriter) error {
 	var buf bytes.Buffer
 	info := toSessionInfo(s.session)
-	info.UpdateAvailable, info.SetupPending = s.update, s.pending
+	info.UpdateAvailable, info.SetupPending, info.RatingSystem = s.update, s.pending, s.rating
 	if err := json.NewEncoder(&buf).Encode(info); err != nil {
 		return err
 	}
@@ -181,7 +183,8 @@ func (s *server) RunSetup(ctx context.Context, req gen.RunSetupRequestObject) (g
 		return s.problem(ctx, err), nil
 	}
 	return sessionStarted{status: http.StatusCreated, r: requestFrom(ctx), session: session, token: token,
-		update: s.updateNotice(ctx, session), pending: s.setupPending(ctx, session)}, nil
+		update: s.updateNotice(ctx, session), pending: s.setupPending(ctx, session),
+		rating: s.ratingSystem(ctx)}, nil
 }
 
 func (s *server) Login(ctx context.Context, req gen.LoginRequestObject) (gen.LoginResponseObject, error) {
@@ -191,7 +194,8 @@ func (s *server) Login(ctx context.Context, req gen.LoginRequestObject) (gen.Log
 		return s.problem(ctx, err), nil
 	}
 	return sessionStarted{status: http.StatusOK, r: requestFrom(ctx), session: session, token: token,
-		update: s.updateNotice(ctx, session), pending: s.setupPending(ctx, session)}, nil
+		update: s.updateNotice(ctx, session), pending: s.setupPending(ctx, session),
+		rating: s.ratingSystem(ctx)}, nil
 }
 
 func (s *server) Logout(ctx context.Context, _ gen.LogoutRequestObject) (gen.LogoutResponseObject, error) {
@@ -225,6 +229,7 @@ func (s *server) GetSession(ctx context.Context, _ gen.GetSessionRequestObject) 
 	info := toSessionInfo(session)
 	info.UpdateAvailable = s.updateNotice(ctx, session)
 	info.SetupPending = s.setupPending(ctx, session)
+	info.RatingSystem = s.ratingSystem(ctx)
 	if s.opts.Profiles != nil {
 		// The metadata languages a profile may choose (ADR 0018), for the profile page of every
 		// account (the page is an account operation, so the list rides on the session).

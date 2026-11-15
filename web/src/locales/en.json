@@ -209,7 +209,7 @@
       "owner_required": "Only the owner may do this.",
       "owner_protected": "The owner's account can be neither removed nor demoted.",
       "last_admin": "This is the last administrator. Appoint a second one first.",
-      "admin_limits_fixed": "An administrator always sees every library up to rating 18. Take the role away first.",
+      "admin_limits_fixed": "An administrator always sees every library and every title, without an age limit. Take the role away first.",
       "job_type_not_runnable": "This job has no manual run; its runs come from events.",
       "job_type_paused": "The job is paused; resume it first.",
       "job_type_not_scheduled": "This job has no schedule.",
@@ -608,8 +608,7 @@
       "yearFrom": "Year from",
       "yearTo": "Year to",
       "rating": "Age rating",
-      "anyRating": "Profile limit",
-      "upTo": "up to {{age}}"
+      "anyRating": "Profile limit"
     },
     "notFound": {
       "title": "Library not found",
@@ -866,8 +865,9 @@
     }
   },
   "rating": {
-    "fsk": "FSK {{age}}",
-    "age": "Ages {{age}}+"
+    "age": "Ages {{age}}+",
+    "upTo": "up to {{rating}}",
+    "system": "{{country}} ({{name}})"
   },
   "format": {
     "hours": "{{hours}} h",
@@ -3562,6 +3562,11 @@
         "keyRejected": "{{name}} key rejected",
         "keyRejectedBody": "The provider rejects the key. Until a new key holds, Slouchcat fetches no metadata from it.",
         "toKeys": "To the keys",
+        "ratingsReread": "Ratings are being read again",
+        "ratingsRereadBody": "Until the job is done, the previous ratings apply, stricter or looser.",
+        "minimumAge": "Ratings are minimum ages now",
+        "minimumAgeBody": "Since this update Slouchcat stores the real minimum age of every rating: PG-13 is «Ages 13+» instead of FSK 12, R is «Ages 17+» instead of FSK 16. Profiles «Ages 12+» and «Ages 16+» therefore see fewer American titles. If that is not what you want, set the profile higher.",
+        "minimumAgeDismiss": "Got it",
         "storage": "{{path}} is more than {{percent}} % full"
       },
       "errors": {
@@ -4574,6 +4579,12 @@
           "description": "Fetches missing vote counts for choosing the images.",
           "trigger": "After every full scan while titles wait for a vote"
         },
+        "metadata_ratings_reread": {
+          "name": "Read ratings again",
+          "description": "Reads the age ratings of films and series again for the rating country; ratings set by hand, from NFO files and locked ones stay.",
+          "trigger": "once after the update and at every change of the rating country",
+          "progress": "Titles read: {{done}} of {{total}}"
+        },
         "metadata_original_language_backfill": {
           "name": "Backfill original languages",
           "description": "Adds the original language to every title for the audio choice.",
@@ -4800,16 +4811,15 @@
       },
       "rating": {
         "title": "Age rating",
-        "intro": "Which country is read first; then DE, AT, CH, GB, US as before. The steps stay FSK 0/6/12/16/18.",
+        "intro": "The country whose age ratings count. A title without one there takes the German rating (FSK), then AT, CH, GB and US. Profiles choose from the steps of this country.",
         "country": "Country",
-        "countries": {
-          "DE": "Germany (DE)",
-          "AT": "Austria (AT)",
-          "CH": "Switzerland (CH)",
-          "GB": "United Kingdom (GB)",
-          "US": "USA (US)"
-        },
-        "hint": "A new title gets the step of the country read first. A stored step is never lowered, not even by another country; lowering is done per title in maintenance."
+        "steps": "Steps of the profiles: {{steps}}",
+        "hint": "Slouchcat stores the minimum age of the rating, PG-13 for example as «Ages 13+». After a change of the country Slouchcat reads the ratings of every title again and may lower or raise them; ratings set by hand, from NFO files and locked ones stay.",
+        "confirm": {
+          "title": "Change the rating country?",
+          "body": "Slouchcat then reads the ratings of every title again. Profiles may see titles that were hidden so far, or the other way round.",
+          "confirm": "Change and read again"
+        }
       },
       "apply": {
         "title": "Apply to existing titles",
@@ -5104,6 +5114,7 @@
       "list": "Profiles of this account",
       "edit": "Edit",
       "primary": "Primary profile",
+      "ratingAboveCeiling": "{{rating}} · Account at most {{max}}",
       "hasPin": "PIN",
       "delete": {
         "action": "Delete",
@@ -5144,7 +5155,6 @@
         "likeUi": "Like the interface",
         "playback": "Playback"
       },
-      "ratingAboveAccount": "FSK {{age}} · Account at most FSK {{max}}",
       "report": {
         "show": "Show watch time",
         "hide": "Hide watch time",

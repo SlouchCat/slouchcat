@@ -1,6 +1,25 @@
 # Aktueller Stand
 
-## Release 1.35.0: Konzept 22 Stufe 2 «Assistent» (15. November 2026)
+## Release 1.36.0: Konzept 22 Stufe 3 «Freigabeländer» (15. November 2026)
+
+Stufe 3 von `docs/planning/22-ersteinrichtung-und-sprachen.md` (Teil C, Abschnitt 4.11) auf dem Zweig
+`claude/k22-stufe3`, gebaut autonom auf Marcos Auftrag vom 15. November 2026. Vertrag **1.36.0**,
+Migrationen **00062** bis **00064**, eingefrorener Stand `testdata/db/freigabelaender.sql`, ADR **0034**,
+Entscheid 6 geändert.
+
+- **Echtes Mindestalter (F-17):** Gespeichert wird das Alter der Freigabe, nicht mehr die gerundete
+  FSK-Stufe: PG-13 = 13, R = 17, TV-MA = 17. Das ist strenger als bisher; Profile «ab 12» und «ab 16»
+  sehen weniger US-Titel. Die Übersicht sagt das einmal.
+- **25 Freigabeländer** mit ihren eigenen Stufen für Profile, Einladungen und Bezeichnungen (F-12). Fehlt
+  einem Titel die Freigabe des Landes, gilt die deutsche.
+- **Freigaben neu lesen (F-16):** Job `metadata.ratings_reread` einmal nach dem Update und bei jedem
+  Wechsel des Freigabelands; von Hand gesetzte, NFO- und gesperrte Freigaben bleiben. Gemessen: lokal
+  rund 4 s für 10 000 Titel, beim ersten Lauf mit TMDB rund 9 Minuten für 10 000 Filme und 1000 Serien
+  (`docs/perf/22-freigabelaender.md`).
+- **Assistent:** Schritt 3 bietet alle Länder mit ihren Stufen an, Schritt 7 die Stufen des gewählten
+  Landes.
+
+## Release 1.35.0: Konzept 22 Stufe 2 «Assistent» (15. November 2026, veröffentlicht: PR #163 `6ec1e755`, Tag `v1.35.0`, Lauf 43669536022)
 
 Stufe 2 von `docs/planning/22-ersteinrichtung-und-sprachen.md` (Teil A, Abschnitt 3) auf dem Zweig
 `claude/k22-stufe2`, gebaut autonom auf Marcos Auftrag vom 15. November 2026. Vertrag **1.35.0**

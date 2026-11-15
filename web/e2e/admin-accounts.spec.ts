@@ -280,7 +280,7 @@ test('ADR 0014: appoint and demote by keyboard, with the confirmation and no foc
     const confirm = page.getByRole('alertdialog', {
       name: `${GUEST.email} zum Administrator ernennen?`,
     });
-    await expect(confirm).toContainText('FSK 18');
+    await expect(confirm).toContainText('«ab 18»');
     await expectFocusOn(page, confirm.getByRole('button', { name: 'Ernennen' }));
     await page.keyboard.press('Escape');
     await expect(confirm).toBeHidden();
@@ -300,7 +300,7 @@ test('ADR 0014: appoint and demote by keyboard, with the confirmation and no foc
     await expect(page.getByText(`${GUEST.email} ist jetzt Administrator.`)).toBeVisible();
     // An administrator has no access limits any more, so the form is gone (ADR 0014).
     await expect(detail.getByRole('region', { name: /^Zugriff von/ })).toHaveCount(0);
-    await expect(detail).toContainText('hat immer FSK 18 und alle Bibliotheken');
+    await expect(detail).toContainText('hat immer die Stufe «ab 18» und alle Bibliotheken');
 
     // And back: the demotion signs the account out everywhere. The confirmation gave the focus
     // back to the menu button, whose first item now takes the role away.
