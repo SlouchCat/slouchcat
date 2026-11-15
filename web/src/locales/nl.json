@@ -63,6 +63,24 @@
       "version": "Versie {{version}}"
     },
     "gpu": {
+      "choice": {
+        "label": "Grafische chip voor transcoderen",
+        "hint": "Geldt na een herstart van de server.",
+        "auto": "Automatisch (aanbevolen)",
+        "software": "Alleen processor",
+        "unavailable": "{{name}} – {{reason}}",
+        "reason": {
+          "not_in_build": "niet in deze ffmpeg",
+          "no_device": "apparaat ontbreekt in de container",
+          "test_failed": "test bij het starten mislukt"
+        },
+        "saved": "Opgeslagen: {{name}}",
+        "restartAdmin": "Geldt na een herstart van de server (Overzicht › Opnieuw starten)."
+      },
+      "fallback": {
+        "title": "De gekozen grafische chip werkt niet",
+        "body": "{{name}} is bij het starten niet door de test gekomen. Slouchcat transcodeert voorlopig met de automatische keuze."
+      },
       "encoder": "Video-encodering",
       "tonemap": "HDR naar SDR",
       "ffmpeg": "ffmpeg",
@@ -191,7 +209,7 @@
       "owner_required": "Alleen de eigenaar mag dit.",
       "owner_protected": "Het account van de eigenaar kan niet worden verwijderd of teruggezet.",
       "last_admin": "Dit is de laatste beheerder. Benoem eerst een tweede.",
-      "admin_limits_fixed": "Een beheerder ziet altijd alle bibliotheken tot en met FSK 18. Haal eerst de rol weg.",
+      "admin_limits_fixed": "Een beheerder ziet altijd alle bibliotheken en alle titels, zonder leeftijdsgrens. Neem eerst de rol af.",
       "job_type_not_runnable": "Deze taak kan niet handmatig worden gestart; hij draait naar aanleiding van gebeurtenissen.",
       "job_type_paused": "De taak is gepauzeerd; hervat hem eerst.",
       "job_type_not_scheduled": "Deze taak heeft geen schema.",
@@ -240,28 +258,181 @@
     }
   },
   "setup": {
-    "title": "Welkom bij Slouchcat",
-    "intro": "Vier korte stappen, daarna scant Slouchcat je eerste bibliotheek.",
-    "step": "Stap {{step}}",
+    "documentTitle": "Configuratie: {{step}}",
+    "position": "Stap {{position}} van {{count}}",
+    "nav": {
+      "label": "Configuratie",
+      "group": "Stappen",
+      "menu": "Configuratie, stappen",
+      "close": "Stappen sluiten",
+      "state": {
+        "open": "{{position}}. {{name}}",
+        "done": "{{position}}. {{name}}, voltooid",
+        "skipped": "{{position}}. {{name}}, overgeslagen"
+      }
+    },
+    "actions": {
+      "back": "Terug",
+      "skip": "Overslaan",
+      "next": "Volgende",
+      "finish": "Configuratie voltooien",
+      "finishing": "Voltooien…",
+      "later": "Later verdergaan"
+    },
+    "steps": {
+      "language": {
+        "nav": "Taal",
+        "title": "Kies een taal",
+        "intro": "In welke taal moet Slouchcat met je praten? De keuze geldt meteen en kun je altijd wijzigen."
+      },
+      "account": {
+        "nav": "Account",
+        "title": "Maak je account aan",
+        "intro": "Met dit account beheer je Slouchcat. Je eerste profiel hoort erbij."
+      },
+      "region": {
+        "nav": "Regio",
+        "title": "Regio en metadata",
+        "intro": "Land, leeftijdsclassificaties en de talen waarin Slouchcat titels en beschrijvingen laadt."
+      },
+      "services": {
+        "nav": "Diensten",
+        "title": "Diensten koppelen",
+        "intro": "Sleutels voor metadata en kanalen voor meldingen. TMDB en e-mail worden aanbevolen; de rest kun je later toevoegen onder Beheer › Integraties."
+      },
+      "playback": {
+        "nav": "Afspelen",
+        "title": "Afspelen",
+        "intro": "Wat Slouchcat in de container aantreft en waarmee het video’s transcodeert."
+      },
+      "libraries": {
+        "nav": "Bibliotheken",
+        "title": "Bibliotheken",
+        "intro": "Er is minstens één bibliotheek nodig. Slouchcat scant die direct na het toevoegen."
+      },
+      "household": {
+        "nav": "Huishouden",
+        "title": "Huishouden",
+        "intro": "Meer profielen voor het huishouden, elk met een eigen classificatieniveau, een eigen kleur en desgewenst een pincode."
+      },
+      "access": {
+        "nav": "Toegang",
+        "title": "Toegang",
+        "intro": "Op welk adres Slouchcat bereikbaar is en of het naar nieuwe versies zoekt."
+      },
+      "summary": {
+        "nav": "Samenvatting",
+        "title": "Samenvatting",
+        "intro": "Controleer je keuzes. Wat je hebt overgeslagen, krijgt de aanbevolen instelling."
+      }
+    },
+    "language": {
+      "search": "Taal zoeken",
+      "choice": "Taal",
+      "option": "{{name}} · {{english}} · {{code}}",
+      "none": "Geen taal komt overeen met de zoekopdracht.",
+      "preview": "Voorbeeld",
+      "previewDate": "Datum",
+      "previewNumber": "Getal"
+    },
     "account": {
-      "title": "Beheerdersaccount",
-      "description": "Met dit account beheer je Slouchcat.",
       "email": "E-mailadres",
       "password": "Wachtwoord",
       "passwordHint": "Minimaal 10 tekens.",
-      "passwordRepeat": "Wachtwoord herhalen"
+      "passwordRepeat": "Wachtwoord herhalen",
+      "profileName": "Profielnaam",
+      "profileHint": "Zo heet je profiel in de profielkeuze.",
+      "taken": {
+        "title": "Slouchcat is al ingesteld",
+        "body": "Iemand heeft het account zojuist aangemaakt. Log in met dat account.",
+        "action": "Naar inloggen"
+      }
+    },
+    "region": {
+      "country": "Land",
+      "ratingCountry": "Classificatieland",
+      "ratingSteps": "Niveaus van de profielen: {{steps}}",
+      "languages": "Metadatatalen",
+      "languagesIntro": "Slouchcat laadt teksten en afbeeldingen in deze volgorde. Geen enkele taal is verplicht.",
+      "timeZone": "Tijdzone van de server",
+      "serverZone": "Tijdzone",
+      "zoneDiffers": {
+        "title": "Je browser gebruikt een andere tijdzone",
+        "body": "De browser meldt {{browser}}. De tijdzone van de server stel je in deploy/.env in; die geldt na een herstart van de container.",
+        "command": "Regel voor deploy/.env"
+      },
+      "radio": "Internetradio",
+      "radioToggle": "{{country}} aan het radioaanbod toevoegen",
+      "radioHint": "Het land komt zonder zenders in het aanbod. De zenders markeer je later onder Beheer › Radio."
+    },
+    "services": {
+      "recommended": "Aanbevolen",
+      "optional": "Optioneel",
+      "recommendedTitle": "Aanbevolen",
+      "optionalTitle": "Optioneel",
+      "email": {
+        "purpose": "Voor uitnodigingen en “Wachtwoord vergeten”."
+      },
+      "push": {
+        "name": "Web Push",
+        "purpose": "Meldingen op dit apparaat, ook als Slouchcat niet open is.",
+        "insecure": "Push vereist een beveiligde verbinding (HTTPS of localhost). Stel push later in via het openbare HTTPS-adres."
+      },
+      "telegram": {
+        "purpose": "Meldingen via een Telegram-bot. Je account koppel je daarna onder Instellingen › Meldingen."
+      },
+      "rejected": {
+        "title": "Ongeldige sleutel weghalen en doorgaan?",
+        "body": "De dienst heeft deze sleutel geweigerd: {{names}}. Slouchcat haalt hem weg, zodat er geen verkeerde sleutel opgeslagen blijft.",
+        "confirm": "Weghalen en doorgaan"
+      }
+    },
+    "playback": {
+      "restart": "Geldt na een herstart. Slouchcat start bij het voltooien één keer opnieuw op.",
+      "trickplay": "Voorbeeldminiaturen voor nieuwe videobibliotheken",
+      "trickplayHint": "Vult deze instelling bij elke nieuwe videobibliotheek in de volgende stap alvast in. De voorbeeldminiaturen kosten ruimte en rekentijd."
+    },
+    "libraries": {
+      "add": "Bibliotheek toevoegen",
+      "addMore": "Nog een bibliotheek",
+      "none": "Nog geen bibliotheek. Voeg er minstens één toe, zodat Slouchcat iets kan tonen.",
+      "folder": "Map {{position}}"
+    },
+    "household": {
+      "accounts": "Gasten met een eigen account nodig je later uit onder Beheer › Accounts."
+    },
+    "access": {
+      "here": "Je gebruikt nu {{url}}.",
+      "useHere": "Dit adres gebruiken",
+      "noUsageData": "Slouchcat verstuurt geen gebruiksgegevens."
+    },
+    "summary": {
+      "done": "Ingesteld",
+      "recommended": "Aanbeveling",
+      "change": "{{step}} wijzigen",
+      "region": "Classificaties van {{country}}, talen: {{languages}}",
+      "services_one": "{{count}} dienst ingesteld",
+      "services_other": "{{count}} diensten ingesteld",
+      "playback": "{{hw}}, voorbeeldminiaturen {{trickplay}}",
+      "on": "aan",
+      "off": "uit",
+      "noAddress": "geen openbaar adres",
+      "profiles_one": "{{count}} profiel",
+      "profiles_other": "{{count}} profielen"
+    },
+    "finish": {
+      "title": "Slouchcat is ingesteld",
+      "restartTitle": "Slouchcat start opnieuw op…",
+      "restartBody": "De keuze van de grafische chip geldt na de herstart. Daarna lopen de eerste scans verder.",
+      "busy": "Slouchcat kon niet opnieuw starten, omdat er een back-up of een update loopt. De keuze van de grafische chip geldt na de volgende herstart (Beheer › Overzicht).",
+      "scanProgress": "{{state}}: {{seen}} van {{total}} bestanden",
+      "home": "Naar de startpagina"
     },
     "library": {
-      "title": "Eerste bibliotheek",
-      "description": "Andere bibliotheken kun je later toevoegen.",
       "name": "Naam",
-      "defaultName": "Films",
       "kind": "Inhoud",
       "path": "Map",
       "pathPlaceholder": "/media/Films",
-      "roots": "Vrijgegeven mappen:",
-      "check": "Map controleren",
-      "checking": "Controleren…",
       "warning": {
         "network_share": {
           "title": "Netwerkshare gevonden",
@@ -271,30 +442,7 @@
           "title": "Onbekend bestandssysteem",
           "body": "Een FUSE-bestandssysteem (bijvoorbeeld mergerfs of Unraid) meldt niet elke wijziging. Slouchcat volgt de map en synchroniseert hem ook regelmatig."
         }
-      },
-      "content": "Inhoud",
-      "providers": "Metadatabronnen"
-    },
-    "tmdb": {
-      "title": "Metadata van TMDB (optioneel)",
-      "description": "Met een leestoken van themoviedb.org haalt Slouchcat beschrijvingen, posters en leeftijdsclassificaties op. Zonder sleutel komen de titels uit de bestandsnamen.",
-      "link": "Token aanmaken op themoviedb.org",
-      "label": "API-leestoken",
-      "hint": "Wordt versleuteld opgeslagen en nooit meer getoond.",
-      "check": "Sleutel controleren",
-      "checking": "Controleren…",
-      "result": {
-        "valid": "Geldig: TMDB heeft de sleutel geaccepteerd.",
-        "invalid": "Ongeldig: TMDB heeft de sleutel geweigerd. Controleer de leestoken.",
-        "unreachable": "Niet bereikbaar: TMDB reageert nu niet. Probeer het opnieuw of laat het veld leeg."
       }
-    },
-    "submit": "Configuratie voltooien",
-    "submitting": "Instellen…",
-    "system": {
-      "title": "Grafische chip en bestandssysteem",
-      "description": "Wat Slouchcat in de container aantreft. Hier hoef je niets in te vullen; de tips gelden voor de host.",
-      "missing": "De server heeft geen gegevens over de hardware doorgegeven."
     }
   },
   "login": {
@@ -303,7 +451,8 @@
     "email": "E-mailadres",
     "password": "Wachtwoord",
     "submit": "Inloggen",
-    "submitting": "Inloggen…"
+    "submitting": "Inloggen…",
+    "language": "Taal: {{name}}"
   },
   "library": {
     "groups": {
@@ -380,7 +529,7 @@
       "moveUpLabel": "{{provider}} omhoog",
       "moveDownLabel": "{{provider}} omlaag",
       "noKey": "geen sleutel ingesteld",
-      "noGerman": "geen Duitse teksten",
+      "missingLanguages": "geen teksten in het {{languages}}",
       "fillOnly": "vult alleen aan",
       "hint": "Het eerste item herkent de titel, de andere vullen alleen aan. Wijzig de volgorde met de pijlen of de pijltjestoetsen.",
       "hintRank": "Het eerste item herkent de titel, de andere vullen alleen aan. Kies de volgorde met de positie.",
@@ -459,8 +608,7 @@
       "yearFrom": "Jaar vanaf",
       "yearTo": "Jaar tot",
       "rating": "Leeftijdsclassificatie",
-      "anyRating": "Profielgrens",
-      "upTo": "tot {{age}}"
+      "anyRating": "Profielgrens"
     },
     "notFound": {
       "title": "Bibliotheek niet gevonden",
@@ -717,7 +865,9 @@
     }
   },
   "rating": {
-    "fsk": "FSK {{age}}"
+    "age": "Vanaf {{age}} jaar",
+    "upTo": "tot en met {{rating}}",
+    "system": "{{country}} ({{name}})"
   },
   "format": {
     "hours": "{{hours}} u",
@@ -1918,7 +2068,7 @@
       "hint": {
         "unmatched": "Zonder koppeling is er geen beschrijving, artwork of classificatie. Koppel de titel of vernieuw hem.",
         "no_images": "Gekoppelde titels zonder poster. Vernieuwen laadt het artwork opnieuw.",
-        "unrated": "Titels zonder classificatie zijn alleen zichtbaar voor profielen met 18+. Wijs een classificatie toe om ze vrij te geven.",
+        "unrated": "Titels zonder classificatie zijn alleen zichtbaar voor profielen “Vanaf 18 jaar”. Wijs een classificatie toe om ze vrij te geven.",
         "orphaned": "Titels zonder bestand of met ontbrekende bestanden, lege seizoenen en series.",
         "unplayable": "Bestanden die niet kunnen worden gelezen. Controleer ze opnieuw of haal ze uit de bibliotheek.",
         "rating_mismatch": "De opgeslagen classificatie wijkt af van de berekende. Een wijziging van de classificatie of de volgende scan corrigeert dit. Hier valt niets te selecteren.",
@@ -3245,6 +3395,12 @@
       }
     },
     "home": {
+      "setupBand": {
+        "title": "Configuratie niet voltooid",
+        "body": "Er staan nog een paar stappen van de configuratie open.",
+        "noLibrary": "Er is nog geen bibliotheek, dus de startpagina blijft leeg.",
+        "action": "Configuratie voortzetten"
+      },
       "title": "Beheer",
       "live": "Live, elke 5 seconden",
       "liveFailed": "Geen antwoord, elke 5 seconden opnieuw proberen",
@@ -3428,6 +3584,11 @@
         "keyRejected": "Sleutel van {{name}} geweigerd",
         "keyRejectedBody": "De aanbieder weigert de sleutel. Totdat een nieuwe sleutel werkt, haalt Slouchcat daar geen metadata op.",
         "toKeys": "Naar de sleutels",
+        "ratingsReread": "Classificaties worden opnieuw gelezen",
+        "ratingsRereadBody": "Tot de taak klaar is, gelden de vorige classificaties, of die nu strenger of soepeler zijn.",
+        "minimumAge": "Classificaties zijn nu minimumleeftijden",
+        "minimumAgeBody": "Sinds deze update slaat Slouchcat de echte minimumleeftijd van elke classificatie op: PG-13 is “Vanaf 13 jaar” in plaats van FSK 12, R is “Vanaf 17 jaar” in plaats van FSK 16. Profielen “Vanaf 12 jaar” en “Vanaf 16 jaar” zien daardoor minder Amerikaanse titels. Wil je dat niet, zet het profiel dan hoger.",
+        "minimumAgeDismiss": "Begrepen",
         "storage": "{{path}} is meer dan {{percent}}% vol"
       },
       "errors": {
@@ -3754,13 +3915,13 @@
         "heading": "Toegang",
         "save": "Toegang opslaan",
         "saved": "Toegang van {{email}} opgeslagen.",
-        "adminHint": "Een beheerder heeft altijd classificatie 18 en alle bibliotheken; “Toegang” bestaat alleen voor accounts zonder beheer."
+        "adminHint": "Een beheerder heeft altijd het niveau “Vanaf 18 jaar” en alle bibliotheken; “Toegang” bestaat alleen voor accounts zonder beheerrechten."
       },
       "role": {
         "promote": {
           "action": "Beheerder maken",
           "title": "{{email}} beheerder maken?",
-          "body": "Het account gaat de server, de bibliotheken en de instellingen beheren. De classificatie stijgt naar 18 en het account krijgt alle bibliotheken; de profielen van het account houden hun eigen niveaus.",
+          "body": "Het account beheert daarna de server, de bibliotheken en de instellingen. Het niveau stijgt naar “Vanaf 18 jaar”, met alle bibliotheken; de profielen van het account houden hun eigen niveaus.",
           "confirm": "Benoemen",
           "done": "{{email}} is nu beheerder."
         },
@@ -4440,6 +4601,12 @@
           "description": "Haalt ontbrekende aantallen stemmen op voor het kiezen van de afbeeldingen.",
           "trigger": "Na elke volledige scan zolang titels op een stemmenaantal wachten"
         },
+        "metadata_ratings_reread": {
+          "name": "Classificaties opnieuw lezen",
+          "description": "Leest de leeftijdsclassificaties van films en series opnieuw voor het classificatieland; handmatig ingestelde, uit NFO-bestanden overgenomen en vergrendelde classificaties blijven behouden.",
+          "trigger": "eenmalig na de update en bij elke wijziging van het classificatieland",
+          "progress": "Titels gelezen: {{done}} van {{total}}"
+        },
         "metadata_original_language_backfill": {
           "name": "Oorspronkelijke talen aanvullen",
           "description": "Voegt de oorspronkelijke taal toe aan elke titel voor de audiokeuze.",
@@ -4607,11 +4774,11 @@
       },
       "languages": {
         "title": "Talen",
-        "intro": "Elke taal hier wordt voor elke titel opgehaald; profielen kiezen daaruit de taal van hun beschrijvingen. De taal van de interface staat hier los van. Elke extra taal kost één verzoek per titel en seizoen.",
+        "intro": "Elke taal hier wordt voor elke titel opgehaald; profielen kiezen daaruit de taal van hun beschrijvingen. De interfacetaal kiest elk profiel zelf. Elke extra taal kost één verzoek per titel en seizoen.",
         "list": "Metadatatalen",
         "rank": "Taal {{position}}",
         "more": "Nog een taal",
-        "fallback": "Volgorde = terugval: ontbreekt een tekst in de taal van het profiel, dan toont Slouchcat de eerste uit de lijst, daarna de bestandsnaam. Geen enkele taal is verplicht, maar de standaard en elke bibliotheek hebben er minstens één nodig.",
+        "fallback": "Volgorde = terugval: ontbreekt een tekst in de taal van het profiel, dan toont Slouchcat de eerste beschikbare uit de lijst en daarna de bestandsnaam. De lijst heeft minstens één taal nodig.",
         "unknownAt": "{{provider}} kent niet: {{languages}}",
         "youtube": "{{count}} talen: maximaal {{titles}} titels per dag met de YouTube-trailerzoekopdracht (quotum 10.000)."
       },
@@ -4666,16 +4833,15 @@
       },
       "rating": {
         "title": "Leeftijdsclassificatie",
-        "intro": "Welk land als eerste wordt gelezen; daarna DE, AT, CH, GB, US zoals voorheen. De niveaus blijven FSK 0/6/12/16/18.",
+        "intro": "Het land waarvan de leeftijdsclassificaties gelden. Heeft een titel daar geen, dan geldt de Duitse (FSK), daarna die van AT, CH, GB en US. De profielen kiezen uit de niveaus van dit land.",
         "country": "Land",
-        "countries": {
-          "DE": "Duitsland (DE)",
-          "AT": "Oostenrijk (AT)",
-          "CH": "Zwitserland (CH)",
-          "GB": "Verenigd Koninkrijk (GB)",
-          "US": "VS (US)"
-        },
-        "hint": "Een nieuwe titel krijgt het niveau van het land dat als eerste wordt gelezen. Een opgeslagen niveau wordt nooit verlaagd, ook niet door een ander land; verlagen doe je per titel bij onderhoud."
+        "steps": "Niveaus van de profielen: {{steps}}",
+        "hint": "Slouchcat slaat de minimumleeftijd van de classificatie op, PG-13 bijvoorbeeld als “Vanaf 13 jaar”. Na een wijziging van het land leest Slouchcat de classificaties van alle titels opnieuw en kan ze daarbij verlagen of verhogen; handmatig ingestelde, uit NFO-bestanden overgenomen en vergrendelde classificaties blijven behouden.",
+        "confirm": {
+          "title": "Classificatieland wijzigen?",
+          "body": "Slouchcat leest daarna de classificaties van alle titels opnieuw. Profielen kunnen daardoor titels zien die tot nu toe verborgen waren, of andersom.",
+          "confirm": "Wijzigen en opnieuw lezen"
+        }
       },
       "apply": {
         "title": "Toepassen op bestaande titels",
@@ -4710,7 +4876,6 @@
       "errors": {
         "langs_empty": "Minimaal één taal.",
         "lang_unknown": "Onbekende taalcode.",
-        "ui_lang_required": "De standaard heeft Duits nodig; een bibliotheek Duits of Engels.",
         "chain_duplicate": "Elke taal één keer.",
         "country_unknown": "Onbekend land.",
         "source_unknown": "Deze afbeeldingsbron is geen kandidaat van de titel."
@@ -4971,6 +5136,7 @@
       "list": "Profielen van dit account",
       "edit": "Bewerken",
       "primary": "Hoofdprofiel",
+      "ratingAboveCeiling": "{{rating}} · Account hoogstens {{max}}",
       "hasPin": "Pincode",
       "delete": {
         "action": "Verwijderen",
@@ -5011,7 +5177,6 @@
         "likeUi": "Zoals de interface",
         "playback": "Afspelen"
       },
-      "ratingAboveAccount": "FSK {{age}} · Account maximaal FSK {{max}}",
       "report": {
         "show": "Kijktijd tonen",
         "hide": "Kijktijd verbergen",

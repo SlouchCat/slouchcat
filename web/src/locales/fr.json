@@ -67,6 +67,24 @@
       "version": "Version {{version}}"
     },
     "gpu": {
+      "choice": {
+        "label": "Processeur graphique pour le transcodage",
+        "hint": "S’applique après le redémarrage du serveur.",
+        "auto": "Automatique (recommandé)",
+        "software": "Processeur uniquement",
+        "unavailable": "{{name}} – {{reason}}",
+        "reason": {
+          "not_in_build": "absent de ce ffmpeg",
+          "no_device": "appareil absent du conteneur",
+          "test_failed": "échec du test au démarrage"
+        },
+        "saved": "Enregistré : {{name}}",
+        "restartAdmin": "S’applique après le redémarrage du serveur (Vue d’ensemble › Redémarrer)."
+      },
+      "fallback": {
+        "title": "Le processeur graphique choisi ne fonctionne pas",
+        "body": "{{name}} a échoué au test de démarrage. Pour l’instant, Slouchcat transcode avec le choix automatique."
+      },
       "encoder": "Encodage vidéo",
       "tonemap": "HDR vers SDR",
       "ffmpeg": "ffmpeg",
@@ -195,7 +213,7 @@
       "owner_required": "Seul le propriétaire peut faire cela.",
       "owner_protected": "Le compte du propriétaire ne peut être ni supprimé ni rétrogradé.",
       "last_admin": "C’est le dernier administrateur. Nommez d’abord un deuxième administrateur.",
-      "admin_limits_fixed": "Un administrateur voit toujours toutes les bibliothèques, jusqu’à la classification 18. Retirez d’abord le rôle.",
+      "admin_limits_fixed": "Un administrateur voit toujours toutes les bibliothèques et tous les titres, sans limite d’âge. Retirez-lui d’abord ce rôle.",
       "job_type_not_runnable": "Cette tâche n’a pas de lancement manuel ; elle s’exécute à la suite d’événements.",
       "job_type_paused": "La tâche est en pause ; reprenez-la d’abord.",
       "job_type_not_scheduled": "Cette tâche n’a pas de planification.",
@@ -244,28 +262,183 @@
     }
   },
   "setup": {
-    "title": "Bienvenue dans Slouchcat",
-    "intro": "Quatre étapes rapides, puis Slouchcat analyse votre première bibliothèque.",
-    "step": "Étape {{step}}",
+    "documentTitle": "Configuration : {{step}}",
+    "position": "Étape {{position}} sur {{count}}",
+    "nav": {
+      "label": "Configuration",
+      "group": "Étapes",
+      "menu": "Configuration, étapes",
+      "close": "Fermer les étapes",
+      "state": {
+        "open": "{{position}}. {{name}}",
+        "done": "{{position}}. {{name}}, étape terminée",
+        "skipped": "{{position}}. {{name}}, étape passée"
+      }
+    },
+    "actions": {
+      "back": "Retour",
+      "skip": "Passer",
+      "next": "Suivant",
+      "finish": "Terminer la configuration",
+      "finishing": "Finalisation…",
+      "later": "Continuer plus tard"
+    },
+    "steps": {
+      "language": {
+        "nav": "Langue",
+        "title": "Choisir la langue",
+        "intro": "Dans quelle langue Slouchcat doit-il s’adresser à vous ? Le choix s’applique immédiatement et peut être modifié à tout moment."
+      },
+      "account": {
+        "nav": "Compte",
+        "title": "Créer votre compte",
+        "intro": "Ce compte vous permet de gérer Slouchcat. Votre premier profil y est rattaché."
+      },
+      "region": {
+        "nav": "Région",
+        "title": "Région et métadonnées",
+        "intro": "Le pays, les classifications et les langues dans lesquelles Slouchcat charge les titres et les descriptions."
+      },
+      "services": {
+        "nav": "Services",
+        "title": "Connecter des services",
+        "intro": "Des clés pour les métadonnées et des canaux pour les notifications. TMDB et l’e-mail sont recommandés ; vous pourrez ajouter le reste plus tard sous Administration › Intégrations."
+      },
+      "playback": {
+        "nav": "Lecture",
+        "title": "Lecture",
+        "intro": "Ce que Slouchcat trouve dans le conteneur et ce qu’il utilise pour transcoder les vidéos."
+      },
+      "libraries": {
+        "nav": "Bibliothèques",
+        "title": "Bibliothèques",
+        "intro": "Au moins une bibliothèque est nécessaire. Slouchcat l’analyse dès que vous l’avez ajoutée."
+      },
+      "household": {
+        "nav": "Foyer",
+        "title": "Foyer",
+        "intro": "D’autres profils pour le foyer, chacun avec son propre niveau de classification, sa couleur et, si vous le souhaitez, un code PIN."
+      },
+      "access": {
+        "nav": "Accès",
+        "title": "Accès",
+        "intro": "L’adresse à laquelle Slouchcat est joignable et s’il recherche les nouvelles versions."
+      },
+      "summary": {
+        "nav": "Récapitulatif",
+        "title": "Récapitulatif",
+        "intro": "Vérifiez vos choix. Pour tout ce que vous avez passé, la recommandation s’applique."
+      }
+    },
+    "language": {
+      "search": "Rechercher une langue",
+      "choice": "Langue",
+      "option": "{{name}} · {{english}} · {{code}}",
+      "none": "Aucune langue ne correspond à la recherche.",
+      "preview": "Aperçu",
+      "previewDate": "Date",
+      "previewNumber": "Nombre"
+    },
     "account": {
-      "title": "Compte administrateur",
-      "description": "Ce compte vous permet de gérer Slouchcat.",
       "email": "Adresse e-mail",
       "password": "Mot de passe",
       "passwordHint": "10 caractères minimum.",
-      "passwordRepeat": "Confirmer le mot de passe"
+      "passwordRepeat": "Confirmer le mot de passe",
+      "profileName": "Nom du profil",
+      "profileHint": "C’est sous ce nom que votre profil apparaît dans le choix des profils.",
+      "taken": {
+        "title": "Slouchcat est déjà configuré",
+        "body": "Quelqu’un vient de créer le compte. Connectez-vous avec ce compte.",
+        "action": "Aller à la connexion"
+      }
+    },
+    "region": {
+      "country": "Pays",
+      "ratingCountry": "Pays de classification",
+      "ratingSteps": "Niveaux des profils : {{steps}}",
+      "languages": "Langues des métadonnées",
+      "languagesIntro": "Slouchcat charge les textes et les images dans cet ordre. Aucune langue n’est obligatoire.",
+      "timeZone": "Fuseau horaire du serveur",
+      "serverZone": "Fuseau horaire",
+      "zoneDiffers": {
+        "title": "Votre navigateur utilise un autre fuseau horaire",
+        "body": "Le navigateur indique {{browser}}. Le fuseau horaire du serveur se règle dans deploy/.env ; il s’applique après le redémarrage du conteneur.",
+        "command": "Ligne pour deploy/.env"
+      },
+      "radio": "Webradio",
+      "radioToggle": "Ajouter le pays {{country}} à l’offre radio",
+      "radioHint": "Le pays rejoint l’offre sans stations. Vous choisirez les stations plus tard sous Administration › Radio."
+    },
+    "services": {
+      "recommended": "Recommandé",
+      "optional": "Facultatif",
+      "recommendedTitle": "Recommandés",
+      "optionalTitle": "Facultatifs",
+      "email": {
+        "purpose": "Pour les invitations et « Mot de passe oublié »."
+      },
+      "push": {
+        "name": "Web Push",
+        "purpose": "Des notifications sur cet appareil, même lorsque Slouchcat n’est pas ouvert.",
+        "insecure": "Les notifications push nécessitent une connexion sécurisée (HTTPS ou localhost). Configurez-les plus tard via l’adresse HTTPS publique."
+      },
+      "telegram": {
+        "purpose": "Des notifications via un bot Telegram. Vous associerez ensuite votre compte sous Paramètres › Notifications."
+      },
+      "rejected": {
+        "title": "Retirer la clé non valide et continuer ?",
+        "body": "Le service a refusé cette clé : {{names}}. Slouchcat la retire pour qu’aucune clé erronée ne reste enregistrée.",
+        "confirm": "Retirer et continuer"
+      }
+    },
+    "playback": {
+      "restart": "S’applique après un redémarrage. Slouchcat redémarre une fois à la fin de la configuration.",
+      "trickplay": "Vignettes d’aperçu pour les nouvelles bibliothèques vidéo",
+      "trickplayHint": "Prérègle ce paramètre pour chaque nouvelle bibliothèque vidéo à l’étape suivante. Les vignettes prennent de la place et du temps de calcul."
+    },
+    "libraries": {
+      "add": "Ajouter une bibliothèque",
+      "addMore": "Autre bibliothèque",
+      "none": "Aucune bibliothèque pour l’instant. Ajoutez-en au moins une pour que Slouchcat ait quelque chose à afficher.",
+      "folder": "Dossier {{position}}"
+    },
+    "household": {
+      "accounts": "Les invités disposant de leur propre compte s’invitent plus tard sous Administration › Comptes."
+    },
+    "access": {
+      "here": "Vous utilisez actuellement {{url}}.",
+      "useHere": "Utiliser cette adresse",
+      "noUsageData": "Slouchcat n’envoie aucune donnée d’utilisation."
+    },
+    "summary": {
+      "done": "Configuré",
+      "recommended": "Recommandation",
+      "change": "Modifier l’étape {{step}}",
+      "region": "Classifications : {{country}}, langues : {{languages}}",
+      "services_one": "{{count}} service configuré",
+      "services_many": "{{count}} de services configurés",
+      "services_other": "{{count}} services configurés",
+      "playback": "{{hw}}, vignettes d’aperçu {{trickplay}}",
+      "on": "activées",
+      "off": "désactivées",
+      "noAddress": "aucune adresse publique",
+      "profiles_one": "{{count}} profil",
+      "profiles_many": "{{count}} de profils",
+      "profiles_other": "{{count}} profils"
+    },
+    "finish": {
+      "title": "Slouchcat est configuré",
+      "restartTitle": "Slouchcat redémarre…",
+      "restartBody": "Le choix du processeur graphique s’applique après le redémarrage. Les premières analyses se poursuivent ensuite.",
+      "busy": "Slouchcat n’a pas pu redémarrer, car une sauvegarde ou une mise à jour est en cours. Le choix du processeur graphique s’appliquera au prochain redémarrage (Administration › Vue d’ensemble).",
+      "scanProgress": "{{state}} : {{seen}} fichiers sur {{total}}",
+      "home": "Aller à l’accueil"
     },
     "library": {
-      "title": "Première bibliothèque",
-      "description": "Vous pourrez ajouter d’autres bibliothèques plus tard.",
       "name": "Nom",
-      "defaultName": "Films",
       "kind": "Contenu",
       "path": "Dossier",
       "pathPlaceholder": "/media/Films",
-      "roots": "Dossiers autorisés :",
-      "check": "Vérifier le dossier",
-      "checking": "Vérification…",
       "warning": {
         "network_share": {
           "title": "Partage réseau détecté",
@@ -275,30 +448,7 @@
           "title": "Système de fichiers inconnu",
           "body": "Un système de fichiers FUSE (par exemple mergerfs ou Unraid) ne signale pas toutes les modifications. Slouchcat surveille le dossier et le synchronise en plus régulièrement."
         }
-      },
-      "content": "Contenu",
-      "providers": "Sources de métadonnées"
-    },
-    "tmdb": {
-      "title": "Métadonnées de TMDB (facultatif)",
-      "description": "Avec un jeton d’accès en lecture de themoviedb.org, Slouchcat récupère les synopsis, les affiches et les classifications. Sans clé, les titres proviennent des noms de fichiers.",
-      "link": "Créer un jeton sur themoviedb.org",
-      "label": "Jeton d’accès API en lecture",
-      "hint": "Stocké chiffré et plus jamais affiché.",
-      "check": "Vérifier la clé",
-      "checking": "Vérification…",
-      "result": {
-        "valid": "Valide : TMDB a accepté la clé.",
-        "invalid": "Non valide : TMDB a refusé la clé. Vérifiez le jeton d’accès en lecture.",
-        "unreachable": "Injoignable : TMDB ne répond pas pour le moment. Réessayez ou laissez le champ vide."
       }
-    },
-    "submit": "Terminer la configuration",
-    "submitting": "Configuration…",
-    "system": {
-      "title": "Processeur graphique et système de fichiers",
-      "description": "Ce que Slouchcat trouve dans le conteneur. Il n’y a rien à saisir ici ; les conseils concernent l’hôte.",
-      "missing": "Le serveur n’a transmis aucune information sur le matériel."
     }
   },
   "login": {
@@ -307,7 +457,8 @@
     "email": "Adresse e-mail",
     "password": "Mot de passe",
     "submit": "Se connecter",
-    "submitting": "Connexion…"
+    "submitting": "Connexion…",
+    "language": "Langue : {{name}}"
   },
   "library": {
     "groups": {
@@ -390,7 +541,7 @@
       "moveUpLabel": "Monter {{provider}}",
       "moveDownLabel": "Descendre {{provider}}",
       "noKey": "aucune clé configurée",
-      "noGerman": "pas de textes en allemand",
+      "missingLanguages": "aucun texte en {{languages}}",
       "fillOnly": "complète uniquement",
       "hint": "La première entrée identifie le titre, les autres ne font que compléter. Réorganisez avec les flèches ou les touches fléchées.",
       "hintRank": "La première entrée identifie le titre, les autres ne font que compléter. Choisissez l’ordre avec la position.",
@@ -475,8 +626,7 @@
       "yearFrom": "Année de début",
       "yearTo": "Année de fin",
       "rating": "Classification",
-      "anyRating": "Limite du profil",
-      "upTo": "jusqu’à {{age}}"
+      "anyRating": "Limite du profil"
     },
     "notFound": {
       "title": "Bibliothèque introuvable",
@@ -740,7 +890,9 @@
     }
   },
   "rating": {
-    "fsk": "FSK {{age}}"
+    "age": "Dès {{age}} ans",
+    "upTo": "jusqu’à {{rating}}",
+    "system": "{{country}} ({{name}})"
   },
   "format": {
     "hours": "{{hours}} h",
@@ -1975,7 +2127,7 @@
       "hint": {
         "unmatched": "Sans association, il n’y a ni synopsis, ni visuels, ni classification. Associez le titre ou actualisez-le.",
         "no_images": "Titres associés sans affiche. Une actualisation recharge les visuels.",
-        "unrated": "Les titres sans classification ne sont visibles que par les profils classés 18. Attribuez une classification pour les rendre accessibles.",
+        "unrated": "Les titres sans classification ne sont visibles que pour les profils « Dès 18 ans ». Attribuez-leur une classification pour les rendre visibles.",
         "orphaned": "Titres sans fichier ou avec des fichiers manquants, saisons et séries vides.",
         "unplayable": "Fichiers qui ne peuvent pas être lus. Vérifiez-les de nouveau ou retirez-les de la bibliothèque.",
         "rating_mismatch": "La classification enregistrée diffère de celle qui est calculée. Une modification de classification ou la prochaine analyse la corrige. Il n’y a rien à sélectionner ici.",
@@ -3371,6 +3523,12 @@
       }
     },
     "home": {
+      "setupBand": {
+        "title": "Configuration inachevée",
+        "body": "Quelques étapes de la configuration restent à faire.",
+        "noLibrary": "Il n’y a encore aucune bibliothèque, l’accueil reste donc vide.",
+        "action": "Reprendre la configuration"
+      },
       "title": "Administration",
       "live": "En direct, toutes les 5 secondes",
       "liveFailed": "Pas de réponse, nouvelle tentative toutes les 5 secondes",
@@ -3560,6 +3718,11 @@
         "keyRejected": "Clé {{name}} refusée",
         "keyRejectedBody": "Le fournisseur refuse la clé. Tant qu’aucune nouvelle clé valide n’est en place, Slouchcat ne récupère aucune métadonnée auprès de lui.",
         "toKeys": "Aller aux clés",
+        "ratingsReread": "Relecture des classifications en cours",
+        "ratingsRereadBody": "Jusqu’à la fin de la tâche, les classifications précédentes s’appliquent, qu’elles soient plus strictes ou plus souples.",
+        "minimumAge": "Les classifications indiquent désormais un âge minimal",
+        "minimumAgeBody": "Depuis cette mise à jour, Slouchcat enregistre l’âge minimal réel de chaque classification : PG-13 correspond à « Dès 13 ans » au lieu de FSK 12, R à « Dès 17 ans » au lieu de FSK 16. Les profils « Dès 12 ans » et « Dès 16 ans » voient donc moins de titres américains. Si cela ne vous convient pas, choisissez un niveau plus élevé pour le profil.",
+        "minimumAgeDismiss": "J’ai compris",
         "storage": "{{path}} est rempli à plus de {{percent}} %"
       },
       "errors": {
@@ -3891,13 +4054,13 @@
         "heading": "Accès",
         "save": "Enregistrer l’accès",
         "saved": "Accès de {{email}} enregistré.",
-        "adminHint": "Un administrateur a toujours la classification 18 et toutes les bibliothèques ; « Accès » n’existe que pour les comptes sans administration."
+        "adminHint": "Un administrateur a toujours le niveau « Dès 18 ans » et toutes les bibliothèques ; « Accès » n’existe que pour les comptes sans droits d’administration."
       },
       "role": {
         "promote": {
           "action": "Nommer administrateur",
           "title": "Nommer {{email}} administrateur ?",
-          "body": "Le compte gérera ensuite le serveur, les bibliothèques et les paramètres. Sa classification passe à 18 et il obtient toutes les bibliothèques ; les profils du compte conservent leurs propres niveaux.",
+          "body": "Le compte gérera alors le serveur, les bibliothèques et les paramètres. Son niveau passe à « Dès 18 ans », avec toutes les bibliothèques ; les profils du compte gardent leurs propres niveaux.",
           "confirm": "Nommer",
           "done": "{{email}} est maintenant administrateur."
         },
@@ -4601,6 +4764,12 @@
           "description": "Récupère les nombres de votes manquants pour choisir les images.",
           "trigger": "Après chaque analyse complète tant que des titres attendent une note"
         },
+        "metadata_ratings_reread": {
+          "name": "Relire les classifications",
+          "description": "Relit les classifications des films et des séries pour le pays de classification ; les classifications saisies à la main, issues de fichiers NFO ou verrouillées sont conservées.",
+          "trigger": "une fois après la mise à jour et à chaque changement de pays de classification",
+          "progress": "Titres lus : {{done}} sur {{total}}"
+        },
         "metadata_original_language_backfill": {
           "name": "Rattraper les langues d’origine",
           "description": "Ajoute la langue d’origine à tous les titres pour le choix de la piste audio.",
@@ -4770,11 +4939,11 @@
       },
       "languages": {
         "title": "Langues",
-        "intro": "Chaque langue listée ici est récupérée pour chaque titre ; les profils y choisissent la langue de leurs synopsis. La langue de l’interface n’en dépend pas. Chaque langue supplémentaire coûte une requête par titre et par saison.",
+        "intro": "Chaque langue indiquée ici est récupérée pour chaque titre ; les profils y choisissent la langue de leurs descriptions. Chaque profil choisit lui-même la langue de son interface. Chaque langue supplémentaire coûte une requête par titre et par saison.",
         "list": "Langues des métadonnées",
         "rank": "Langue {{position}}",
         "more": "Autre langue",
-        "fallback": "Ordre = repli : lorsqu’un texte manque dans la langue du profil, Slouchcat affiche le premier disponible de la liste, puis le nom du fichier. Aucune langue n’est obligatoire, mais le réglage par défaut et chaque bibliothèque en demandent au moins une.",
+        "fallback": "Ordre = repli : si un texte manque dans la langue du profil, Slouchcat affiche la première langue disponible de la liste, puis le nom du fichier. La liste doit contenir au moins une langue.",
         "unknownAt": "{{provider}} ne connaît pas : {{languages}}",
         "youtube": "{{count}} langues : jusqu’à {{titles}} titres par jour avec la recherche de bandes-annonces YouTube (quota de 10 000)."
       },
@@ -4830,16 +4999,15 @@
       },
       "rating": {
         "title": "Classification",
-        "intro": "Quel pays est lu en premier ; ensuite DE, AT, CH, GB, US comme auparavant. Les niveaux restent FSK 0/6/12/16/18.",
+        "intro": "Le pays dont les classifications font foi. Si un titre n’en a pas dans ce pays, la classification allemande (FSK) s’applique, puis celles de AT, CH, GB et US. Les profils choisissent parmi les niveaux de ce pays.",
         "country": "Pays",
-        "countries": {
-          "DE": "Allemagne (DE)",
-          "AT": "Autriche (AT)",
-          "CH": "Suisse (CH)",
-          "GB": "Royaume-Uni (GB)",
-          "US": "États-Unis (US)"
-        },
-        "hint": "Un nouveau titre reçoit le niveau du pays lu en premier. Un niveau enregistré n’est jamais abaissé, pas même par un autre pays ; l’abaissement se fait uniquement par titre, dans la maintenance."
+        "steps": "Niveaux des profils : {{steps}}",
+        "hint": "Slouchcat enregistre l’âge minimal de la classification, par exemple PG-13 sous la forme « Dès 13 ans ». Après un changement de pays, Slouchcat relit les classifications de tous les titres et peut les abaisser ou les relever ; les classifications saisies à la main, issues de fichiers NFO ou verrouillées sont conservées.",
+        "confirm": {
+          "title": "Changer de pays de classification ?",
+          "body": "Slouchcat relit ensuite les classifications de tous les titres. Des profils peuvent alors voir des titres jusque-là masqués, ou l’inverse.",
+          "confirm": "Changer et relire"
+        }
       },
       "apply": {
         "title": "Appliquer aux titres existants",
@@ -4876,7 +5044,6 @@
       "errors": {
         "langs_empty": "Au moins une langue.",
         "lang_unknown": "Code de langue inconnu.",
-        "ui_lang_required": "Le réglage par défaut exige l’allemand ; une bibliothèque, l’allemand ou l’anglais.",
         "chain_duplicate": "Chaque langue une seule fois.",
         "country_unknown": "Pays inconnu.",
         "source_unknown": "Cette source d’images n’est pas un candidat du titre."
@@ -5146,6 +5313,7 @@
       "list": "Profils de ce compte",
       "edit": "Modifier",
       "primary": "Profil principal",
+      "ratingAboveCeiling": "{{rating}} · Compte limité à {{max}}",
       "hasPin": "Code PIN",
       "delete": {
         "action": "Supprimer",
@@ -5186,7 +5354,6 @@
         "likeUi": "Comme l’interface",
         "playback": "Lecture"
       },
-      "ratingAboveAccount": "FSK {{age}} · Compte : FSK {{max}} au maximum",
       "report": {
         "show": "Afficher le temps de visionnage",
         "hide": "Masquer le temps de visionnage",
