@@ -3128,8 +3128,6 @@
       "list": "Startsidens rækker",
       "band": "Rækker",
       "tabs": {
-        "label": "Visning af rækkerne",
-        "order": "Rækkefølge",
         "preview": "Forhåndsvisning"
       },
       "count_one": "{{number}} række",
@@ -3410,7 +3408,6 @@
         "action": "Fortsæt opsætningen"
       },
       "title": "Administration",
-      "live": "Live, hvert 5. sekund",
       "liveFailed": "Intet svar, prøver igen hvert 5. sekund",
       "update": {
         "title": "Version {{version}} er tilgængelig",
@@ -3430,10 +3427,6 @@
       },
       "jobs": {
         "title": "Opgaver",
-        "queued": "Venter",
-        "running": "Kører",
-        "failed": "Mislykkede",
-        "paused": "På pause",
         "all": "Baggrundsjob",
         "toFailed": "Se fejl",
         "active": "Kørende opgaver",
@@ -3474,7 +3467,6 @@
         "manage": "Administrer webhooks"
       },
       "server": {
-        "title": "Server",
         "version": "Version",
         "uptime": "Kører siden",
         "update": "Opdateringer",
@@ -3577,10 +3569,8 @@
         "empty": "Ingen aktivitet endnu."
       },
       "hints": {
-        "title": "Bemærkninger",
         "count_one": "{{count}} bemærkning",
         "count_other": "{{count}} bemærkninger",
-        "none": "Ingen bemærkninger.",
         "failed_one": "{{formatted}} baggrundsjob mislykkedes",
         "failed_other": "{{formatted}} baggrundsjob mislykkedes",
         "paused_one": "{{count}} jobtype på pause",
@@ -4271,7 +4261,6 @@
       "counts": {
         "running": "Kører",
         "queued": "Venter",
-        "planned": "Planlagt",
         "paused": "På pause",
         "failed": "Mislykkede",
         "label": "Oversigt"

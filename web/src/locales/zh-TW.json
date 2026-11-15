@@ -3011,8 +3011,6 @@
       "list": "首頁的欄目",
       "band": "欄目",
       "tabs": {
-        "label": "欄目檢視",
-        "order": "順序",
         "preview": "預覽"
       },
       "count_other": "{{number}} 個欄目",
@@ -3282,7 +3280,6 @@
         "action": "繼續設定"
       },
       "title": "管理",
-      "live": "即時，每 5 秒更新",
       "liveFailed": "沒有回應，每 5 秒重試一次",
       "update": {
         "title": "已推出版本 {{version}}",
@@ -3302,10 +3299,6 @@
       },
       "jobs": {
         "title": "工作",
-        "queued": "佇列中",
-        "running": "執行中",
-        "failed": "失敗",
-        "paused": "已暫停",
         "all": "背景工作",
         "toFailed": "查看失敗項目",
         "active": "執行中的工作",
@@ -3344,7 +3337,6 @@
         "manage": "管理 Webhook"
       },
       "server": {
-        "title": "伺服器",
         "version": "版本",
         "uptime": "已執行",
         "update": "更新",
@@ -3446,9 +3438,7 @@
         "empty": "尚無活動。"
       },
       "hints": {
-        "title": "提示",
         "count_other": "{{count}} 則提示",
-        "none": "沒有提示。",
         "failed_other": "{{formatted}} 個背景工作失敗",
         "paused_other": "{{count}} 個工作類型已暫停",
         "toJobs": "前往背景工作",
@@ -4121,7 +4111,6 @@
       "counts": {
         "running": "執行中",
         "queued": "佇列中",
-        "planned": "已排程",
         "paused": "已暫停",
         "failed": "失敗",
         "label": "摘要"

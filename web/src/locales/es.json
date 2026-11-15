@@ -3245,8 +3245,6 @@
       "list": "Filas de la página de inicio",
       "band": "Filas",
       "tabs": {
-        "label": "Vista de las filas",
-        "order": "Orden",
         "preview": "Vista previa"
       },
       "count_one": "{{number}} fila",
@@ -3538,7 +3536,6 @@
         "action": "Continuar la configuración"
       },
       "title": "Administración",
-      "live": "En directo, cada 5 segundos",
       "liveFailed": "Sin respuesta, se reintenta cada 5 segundos",
       "update": {
         "title": "La versión {{version}} está disponible",
@@ -3558,10 +3555,6 @@
       },
       "jobs": {
         "title": "Tareas",
-        "queued": "En cola",
-        "running": "En curso",
-        "failed": "Fallidas",
-        "paused": "En pausa",
         "all": "Tareas en segundo plano",
         "toFailed": "Ver fallos",
         "active": "Tareas en curso",
@@ -3604,7 +3597,6 @@
         "manage": "Gestionar webhooks"
       },
       "server": {
-        "title": "Servidor",
         "version": "Versión",
         "uptime": "En marcha desde hace",
         "update": "Actualizaciones",
@@ -3708,11 +3700,9 @@
         "empty": "Todavía no hay actividad."
       },
       "hints": {
-        "title": "Avisos",
         "count_one": "{{count}} aviso",
         "count_many": "{{count}} de avisos",
         "count_other": "{{count}} avisos",
-        "none": "Sin avisos.",
         "failed_one": "{{formatted}} tarea en segundo plano ha fallado",
         "failed_many": "{{formatted}} de tareas en segundo plano han fallado",
         "failed_other": "{{formatted}} tareas en segundo plano han fallado",
@@ -4421,7 +4411,6 @@
       "counts": {
         "running": "En curso",
         "queued": "En cola",
-        "planned": "Programadas",
         "paused": "En pausa",
         "failed": "Fallidas",
         "label": "Resumen"

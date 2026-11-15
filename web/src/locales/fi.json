@@ -3128,8 +3128,6 @@
       "list": "Etusivun rivit",
       "band": "Rivit",
       "tabs": {
-        "label": "Rivien näkymä",
-        "order": "Järjestys",
         "preview": "Esikatselu"
       },
       "count_one": "{{number}} rivi",
@@ -3410,7 +3408,6 @@
         "action": "Jatka käyttöönottoa"
       },
       "title": "Hallinta",
-      "live": "Live, 5 sekunnin välein",
       "liveFailed": "Ei vastausta, yritetään uudelleen 5 sekunnin välein",
       "update": {
         "title": "Versio {{version}} on saatavilla",
@@ -3430,10 +3427,6 @@
       },
       "jobs": {
         "title": "Tehtävät",
-        "queued": "Jonossa",
-        "running": "Käynnissä",
-        "failed": "Epäonnistuneet",
-        "paused": "Tauolla",
         "all": "Taustatyöt",
         "toFailed": "Näytä virheet",
         "active": "Käynnissä olevat tehtävät",
@@ -3474,7 +3467,6 @@
         "manage": "Hallinnoi webhookeja"
       },
       "server": {
-        "title": "Palvelin",
         "version": "Versio",
         "uptime": "Käynnissä",
         "update": "Päivitykset",
@@ -3577,10 +3569,8 @@
         "empty": "Ei vielä toimintaa."
       },
       "hints": {
-        "title": "Huomautukset",
         "count_one": "{{count}} huomautus",
         "count_other": "{{count}} huomautusta",
-        "none": "Ei huomautuksia.",
         "failed_one": "{{formatted}} taustatyö epäonnistui",
         "failed_other": "{{formatted}} taustatyötä epäonnistui",
         "paused_one": "{{count}} työtyyppi tauolla",
@@ -4271,7 +4261,6 @@
       "counts": {
         "running": "Käynnissä",
         "queued": "Jonossa",
-        "planned": "Suunniteltu",
         "paused": "Tauolla",
         "failed": "Epäonnistuneet",
         "label": "Yhteenveto"

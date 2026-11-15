@@ -3011,8 +3011,6 @@
       "list": "ホームの行",
       "band": "行",
       "tabs": {
-        "label": "行の表示",
-        "order": "順番",
         "preview": "プレビュー"
       },
       "count_other": "{{number}}行",
@@ -3282,7 +3280,6 @@
         "action": "セットアップを続ける"
       },
       "title": "管理",
-      "live": "ライブ、5秒ごとに更新",
       "liveFailed": "応答なし。5秒ごとに再試行しています",
       "update": {
         "title": "バージョン{{version}}が利用可能です",
@@ -3302,10 +3299,6 @@
       },
       "jobs": {
         "title": "タスク",
-        "queued": "待機中",
-        "running": "実行中",
-        "failed": "失敗",
-        "paused": "一時停止中",
         "all": "バックグラウンドジョブ",
         "toFailed": "失敗を表示",
         "active": "実行中のタスク",
@@ -3344,7 +3337,6 @@
         "manage": "Webhookを管理"
       },
       "server": {
-        "title": "サーバー",
         "version": "バージョン",
         "uptime": "稼働時間",
         "update": "アップデート",
@@ -3446,9 +3438,7 @@
         "empty": "アクティビティはまだありません。"
       },
       "hints": {
-        "title": "確認事項",
         "count_other": "{{count}}件の確認事項",
-        "none": "確認事項はありません。",
         "failed_other": "{{formatted}}件のバックグラウンドジョブが失敗しました",
         "paused_other": "{{count}}種類のジョブが一時停止中です",
         "toJobs": "バックグラウンドジョブへ",
@@ -4121,7 +4111,6 @@
       "counts": {
         "running": "実行中",
         "queued": "待機中",
-        "planned": "予定",
         "paused": "一時停止中",
         "failed": "失敗",
         "label": "概要"

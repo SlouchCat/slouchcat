@@ -3128,8 +3128,6 @@
       "list": "Radene på startsiden",
       "band": "Rader",
       "tabs": {
-        "label": "Visning av radene",
-        "order": "Rekkefølge",
         "preview": "Forhåndsvisning"
       },
       "count_one": "{{number}} rad",
@@ -3410,7 +3408,6 @@
         "action": "Fortsett oppsettet"
       },
       "title": "Administrasjon",
-      "live": "Live, hvert 5. sekund",
       "liveFailed": "Ikke noe svar, prøver igjen hvert 5. sekund",
       "update": {
         "title": "Versjon {{version}} er tilgjengelig",
@@ -3430,10 +3427,6 @@
       },
       "jobs": {
         "title": "Oppgaver",
-        "queued": "I kø",
-        "running": "Pågår",
-        "failed": "Feilet",
-        "paused": "På pause",
         "all": "Bakgrunnsjobber",
         "toFailed": "Se feilene",
         "active": "Pågående oppgaver",
@@ -3474,7 +3467,6 @@
         "manage": "Administrer webhooks"
       },
       "server": {
-        "title": "Server",
         "version": "Versjon",
         "uptime": "Oppetid",
         "update": "Oppdateringer",
@@ -3577,10 +3569,8 @@
         "empty": "Ingen aktivitet ennå."
       },
       "hints": {
-        "title": "Merknader",
         "count_one": "{{count}} merknad",
         "count_other": "{{count}} merknader",
-        "none": "Ingen merknader.",
         "failed_one": "{{formatted}} bakgrunnsjobb feilet",
         "failed_other": "{{formatted}} bakgrunnsjobber feilet",
         "paused_one": "{{count}} jobbtype på pause",
@@ -4271,7 +4261,6 @@
       "counts": {
         "running": "Pågår",
         "queued": "I kø",
-        "planned": "Planlagt",
         "paused": "På pause",
         "failed": "Feilet",
         "label": "Oppsummering"

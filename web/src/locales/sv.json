@@ -3128,8 +3128,6 @@
       "list": "Rader på startsidan",
       "band": "Rader",
       "tabs": {
-        "label": "Vy över raderna",
-        "order": "Ordning",
         "preview": "Förhandsgranskning"
       },
       "count_one": "{{number}} rad",
@@ -3410,7 +3408,6 @@
         "action": "Fortsätt konfigurationen"
       },
       "title": "Administration",
-      "live": "Live, var 5:e sekund",
       "liveFailed": "Inget svar, försöker igen var 5:e sekund",
       "update": {
         "title": "Version {{version}} finns",
@@ -3430,10 +3427,6 @@
       },
       "jobs": {
         "title": "Uppgifter",
-        "queued": "I kö",
-        "running": "Pågår",
-        "failed": "Misslyckade",
-        "paused": "Pausade",
         "all": "Bakgrundsjobb",
         "toFailed": "Visa misslyckade",
         "active": "Pågående uppgifter",
@@ -3474,7 +3467,6 @@
         "manage": "Hantera webhooks"
       },
       "server": {
-        "title": "Server",
         "version": "Version",
         "uptime": "Drifttid",
         "update": "Uppdateringar",
@@ -3577,10 +3569,8 @@
         "empty": "Ingen aktivitet än."
       },
       "hints": {
-        "title": "Meddelanden",
         "count_one": "{{count}} meddelande",
         "count_other": "{{count}} meddelanden",
-        "none": "Inga meddelanden.",
         "failed_one": "{{formatted}} bakgrundsjobb misslyckades",
         "failed_other": "{{formatted}} bakgrundsjobb misslyckades",
         "paused_one": "{{count}} jobbtyp pausad",
@@ -4271,7 +4261,6 @@
       "counts": {
         "running": "Pågår",
         "queued": "I kö",
-        "planned": "Planerade",
         "paused": "Pausade",
         "failed": "Misslyckade",
         "label": "Sammanfattning"

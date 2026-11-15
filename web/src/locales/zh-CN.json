@@ -3011,8 +3011,6 @@
       "list": "首页栏目",
       "band": "栏目",
       "tabs": {
-        "label": "栏目视图",
-        "order": "顺序",
         "preview": "预览"
       },
       "count_other": "{{number}} 个栏目",
@@ -3282,7 +3280,6 @@
         "action": "继续设置"
       },
       "title": "管理",
-      "live": "实时，每 5 秒更新",
       "liveFailed": "没有响应，每 5 秒重试一次",
       "update": {
         "title": "版本 {{version}} 现已推出",
@@ -3302,10 +3299,6 @@
       },
       "jobs": {
         "title": "任务",
-        "queued": "等待中",
-        "running": "运行中",
-        "failed": "失败",
-        "paused": "已暂停",
         "all": "后台任务",
         "toFailed": "查看失败项",
         "active": "运行中的任务",
@@ -3344,7 +3337,6 @@
         "manage": "管理 Webhook"
       },
       "server": {
-        "title": "服务器",
         "version": "版本",
         "uptime": "已运行",
         "update": "更新",
@@ -3446,9 +3438,7 @@
         "empty": "还没有活动。"
       },
       "hints": {
-        "title": "提示",
         "count_other": "{{count}} 条提示",
-        "none": "没有提示。",
         "failed_other": "{{formatted}} 个后台任务失败",
         "paused_other": "{{count}} 种任务类型已暂停",
         "toJobs": "前往后台任务",
@@ -4121,7 +4111,6 @@
       "counts": {
         "running": "运行中",
         "queued": "等待中",
-        "planned": "已计划",
         "paused": "已暂停",
         "failed": "失败",
         "label": "概览"

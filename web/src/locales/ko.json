@@ -3011,8 +3011,6 @@
       "list": "홈 줄",
       "band": "줄",
       "tabs": {
-        "label": "줄 보기",
-        "order": "순서",
         "preview": "미리보기"
       },
       "count_other": "줄 {{number}}개",
@@ -3282,7 +3280,6 @@
         "action": "초기 설정 계속"
       },
       "title": "관리",
-      "live": "실시간, 5초마다",
       "liveFailed": "응답 없음, 5초마다 다시 시도",
       "update": {
         "title": "버전 {{version}}을(를) 사용할 수 있어요",
@@ -3302,10 +3299,6 @@
       },
       "jobs": {
         "title": "작업",
-        "queued": "대기 중",
-        "running": "실행 중",
-        "failed": "실패",
-        "paused": "일시정지",
         "all": "백그라운드 작업",
         "toFailed": "실패 항목 보기",
         "active": "실행 중인 작업",
@@ -3344,7 +3337,6 @@
         "manage": "Webhook 관리"
       },
       "server": {
-        "title": "서버",
         "version": "버전",
         "uptime": "실행 시간",
         "update": "업데이트",
@@ -3446,9 +3438,7 @@
         "empty": "아직 활동이 없어요."
       },
       "hints": {
-        "title": "안내 사항",
         "count_other": "안내 사항 {{count}}개",
-        "none": "안내 사항이 없어요.",
         "failed_other": "백그라운드 작업 {{formatted}}개 실패",
         "paused_other": "작업 유형 {{count}}개 일시정지됨",
         "toJobs": "백그라운드 작업으로 이동",
@@ -4121,7 +4111,6 @@
       "counts": {
         "running": "실행 중",
         "queued": "대기 중",
-        "planned": "예정됨",
         "paused": "일시정지",
         "failed": "실패",
         "label": "요약"

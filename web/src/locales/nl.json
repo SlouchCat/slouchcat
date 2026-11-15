@@ -3128,8 +3128,6 @@
       "list": "Rijen van de startpagina",
       "band": "Rijen",
       "tabs": {
-        "label": "Weergave van de rijen",
-        "order": "Volgorde",
         "preview": "Voorbeeld"
       },
       "count_one": "{{number}} rij",
@@ -3410,7 +3408,6 @@
         "action": "Configuratie voortzetten"
       },
       "title": "Beheer",
-      "live": "Live, elke 5 seconden",
       "liveFailed": "Geen antwoord, elke 5 seconden opnieuw proberen",
       "update": {
         "title": "Versie {{version}} is beschikbaar",
@@ -3430,10 +3427,6 @@
       },
       "jobs": {
         "title": "Taken",
-        "queued": "In de wachtrij",
-        "running": "Bezig",
-        "failed": "Mislukt",
-        "paused": "Gepauzeerd",
         "all": "Achtergrondtaken",
         "toFailed": "Fouten bekijken",
         "active": "Lopende taken",
@@ -3474,7 +3467,6 @@
         "manage": "Webhooks beheren"
       },
       "server": {
-        "title": "Server",
         "version": "Versie",
         "uptime": "Draait al",
         "update": "Updates",
@@ -3577,10 +3569,8 @@
         "empty": "Nog geen activiteit."
       },
       "hints": {
-        "title": "Meldingen",
         "count_one": "{{count}} melding",
         "count_other": "{{count}} meldingen",
-        "none": "Geen meldingen.",
         "failed_one": "{{formatted}} achtergrondtaak mislukt",
         "failed_other": "{{formatted}} achtergrondtaken mislukt",
         "paused_one": "{{count}} taaktype gepauzeerd",
@@ -4271,7 +4261,6 @@
       "counts": {
         "running": "Bezig",
         "queued": "In de wachtrij",
-        "planned": "Gepland",
         "paused": "Gepauzeerd",
         "failed": "Mislukt",
         "label": "Overzicht"

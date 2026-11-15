@@ -3128,8 +3128,6 @@
       "list": "Ana sayfanın sıraları",
       "band": "Sıralar",
       "tabs": {
-        "label": "Sıraların görünümü",
-        "order": "Sıra",
         "preview": "Önizleme"
       },
       "count_one": "{{number}} sıra",
@@ -3410,7 +3408,6 @@
         "action": "Kuruluma devam et"
       },
       "title": "Yönetim",
-      "live": "Canlı, her 5 saniyede bir",
       "liveFailed": "Yanıt yok, her 5 saniyede bir yeniden deneniyor",
       "update": {
         "title": "{{version}} sürümü kullanılabilir",
@@ -3430,10 +3427,6 @@
       },
       "jobs": {
         "title": "Görevler",
-        "queued": "Bekleyen",
-        "running": "Çalışan",
-        "failed": "Başarısız",
-        "paused": "Duraklatılan",
         "all": "Arka plan görevleri",
         "toFailed": "Başarısızları göster",
         "active": "Çalışan görevler",
@@ -3474,7 +3467,6 @@
         "manage": "Webhook’ları yönet"
       },
       "server": {
-        "title": "Sunucu",
         "version": "Sürüm",
         "uptime": "Çalışma süresi",
         "update": "Güncellemeler",
@@ -3577,10 +3569,8 @@
         "empty": "Henüz etkinlik yok."
       },
       "hints": {
-        "title": "Uyarılar",
         "count_one": "{{count}} uyarı",
         "count_other": "{{count}} uyarı",
-        "none": "Uyarı yok.",
         "failed_one": "{{formatted}} arka plan görevi başarısız oldu",
         "failed_other": "{{formatted}} arka plan görevi başarısız oldu",
         "paused_one": "{{count}} görev türü duraklatıldı",
@@ -4271,7 +4261,6 @@
       "counts": {
         "running": "Çalışan",
         "queued": "Bekleyen",
-        "planned": "Planlanan",
         "paused": "Duraklatılan",
         "failed": "Başarısız",
         "label": "Özet"

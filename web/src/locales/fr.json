@@ -3245,8 +3245,6 @@
       "list": "Rangées de l’accueil",
       "band": "Rangées",
       "tabs": {
-        "label": "Affichage des rangées",
-        "order": "Ordre",
         "preview": "Aperçu"
       },
       "count_one": "{{number}} rangée",
@@ -3538,7 +3536,6 @@
         "action": "Reprendre la configuration"
       },
       "title": "Administration",
-      "live": "En direct, toutes les 5 secondes",
       "liveFailed": "Pas de réponse, nouvelle tentative toutes les 5 secondes",
       "update": {
         "title": "La version {{version}} est disponible",
@@ -3558,10 +3555,6 @@
       },
       "jobs": {
         "title": "Tâches",
-        "queued": "En attente",
-        "running": "En cours",
-        "failed": "En échec",
-        "paused": "En pause",
         "all": "Tâches en arrière-plan",
         "toFailed": "Voir les échecs",
         "active": "Tâches en cours",
@@ -3604,7 +3597,6 @@
         "manage": "Gérer les webhooks"
       },
       "server": {
-        "title": "Serveur",
         "version": "Version",
         "uptime": "En marche depuis",
         "update": "Mises à jour",
@@ -3708,11 +3700,9 @@
         "empty": "Aucune activité pour le moment."
       },
       "hints": {
-        "title": "Avis",
         "count_one": "{{count}} avis",
         "count_many": "{{count}} d’avis",
         "count_other": "{{count}} avis",
-        "none": "Aucun avis.",
         "failed_one": "{{formatted}} tâche en arrière-plan en échec",
         "failed_many": "{{formatted}} de tâches en arrière-plan en échec",
         "failed_other": "{{formatted}} tâches en arrière-plan en échec",
@@ -4421,7 +4411,6 @@
       "counts": {
         "running": "En cours",
         "queued": "En attente",
-        "planned": "Planifiées",
         "paused": "En pause",
         "failed": "En échec",
         "label": "Résumé"

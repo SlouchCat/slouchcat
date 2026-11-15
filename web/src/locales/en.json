@@ -3110,8 +3110,6 @@
       "list": "Rows of the start page",
       "band": "Rows",
       "tabs": {
-        "label": "View of the rows",
-        "order": "Order",
         "preview": "Preview"
       },
       "count_one": "{{number}} row",
@@ -3428,7 +3426,6 @@
         "action": "Continue setup"
       },
       "title": "Administration",
-      "live": "Live, every 5 seconds",
       "liveFailed": "No answer, trying again every 5 seconds",
       "heading": "Everything at a glance",
       "intro": "What matters first. Everything else is in the areas.",
@@ -3482,10 +3479,6 @@
       },
       "jobs": {
         "title": "Tasks",
-        "queued": "Queued",
-        "running": "Running",
-        "failed": "Failed",
-        "paused": "Paused",
         "all": "Background jobs",
         "toFailed": "View failures",
         "active": "Running tasks",
@@ -3526,7 +3519,6 @@
         "manage": "Manage webhooks"
       },
       "server": {
-        "title": "Server",
         "version": "Version",
         "uptime": "Running for",
         "update": "Updates",
@@ -3629,10 +3621,8 @@
         "empty": "No activity yet."
       },
       "hints": {
-        "title": "Notices",
         "count_one": "{{count}} notice",
         "count_other": "{{count}} notices",
-        "none": "No notices.",
         "failed_one": "{{formatted}} background job failed",
         "failed_other": "{{formatted}} background jobs failed",
         "paused_one": "{{count}} job type paused",
@@ -4334,7 +4324,6 @@
       "counts": {
         "running": "Running",
         "queued": "Queued",
-        "planned": "Planned",
         "paused": "Paused",
         "failed": "Failed",
         "label": "Summary",

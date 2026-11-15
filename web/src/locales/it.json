@@ -3245,8 +3245,6 @@
       "list": "Righe della home",
       "band": "Righe",
       "tabs": {
-        "label": "Vista delle righe",
-        "order": "Ordine",
         "preview": "Anteprima"
       },
       "count_one": "{{number}} riga",
@@ -3538,7 +3536,6 @@
         "action": "Continua la configurazione"
       },
       "title": "Amministrazione",
-      "live": "Live, ogni 5 secondi",
       "liveFailed": "Nessuna risposta, nuovo tentativo ogni 5 secondi",
       "update": {
         "title": "È disponibile la versione {{version}}",
@@ -3558,10 +3555,6 @@
       },
       "jobs": {
         "title": "Operazioni",
-        "queued": "In coda",
-        "running": "In corso",
-        "failed": "Non riuscite",
-        "paused": "In pausa",
         "all": "Attività in background",
         "toFailed": "Vedi gli errori",
         "active": "Operazioni in corso",
@@ -3604,7 +3597,6 @@
         "manage": "Gestisci i webhook"
       },
       "server": {
-        "title": "Server",
         "version": "Versione",
         "uptime": "In esecuzione da",
         "update": "Aggiornamenti",
@@ -3708,11 +3700,9 @@
         "empty": "Ancora nessuna attività."
       },
       "hints": {
-        "title": "Avvisi",
         "count_one": "{{count}} avviso",
         "count_many": "{{count}} di avvisi",
         "count_other": "{{count}} avvisi",
-        "none": "Nessun avviso.",
         "failed_one": "{{formatted}} attività in background non riuscita",
         "failed_many": "{{formatted}} di attività in background non riuscite",
         "failed_other": "{{formatted}} attività in background non riuscite",
@@ -4421,7 +4411,6 @@
       "counts": {
         "running": "In corso",
         "queued": "In coda",
-        "planned": "Pianificate",
         "paused": "In pausa",
         "failed": "Non riuscite",
         "label": "Riepilogo"

@@ -3110,8 +3110,6 @@
       "list": "Reihen der Startseite",
       "band": "Reihen",
       "tabs": {
-        "label": "Ansicht der Reihen",
-        "order": "Reihenfolge",
         "preview": "Vorschau"
       },
       "count_one": "{{number}} Reihe",
@@ -3428,7 +3426,6 @@
         "action": "Einrichtung fortsetzen"
       },
       "title": "Verwaltung",
-      "live": "Live, alle 5 Sekunden",
       "liveFailed": "Keine Antwort, neuer Versuch alle 5 Sekunden",
       "heading": "Alles im Blick",
       "intro": "Wichtiges zuerst. Alles Weitere erreichst du über die Bereiche.",
@@ -3482,10 +3479,6 @@
       },
       "jobs": {
         "title": "Aufgaben",
-        "queued": "Wartend",
-        "running": "Laufend",
-        "failed": "Fehlgeschlagen",
-        "paused": "Pausiert",
         "all": "Hintergrundjobs",
         "toFailed": "Fehlschläge ansehen",
         "active": "Laufende Aufgaben",
@@ -3526,7 +3519,6 @@
         "manage": "Webhooks verwalten"
       },
       "server": {
-        "title": "Server",
         "version": "Version",
         "uptime": "Läuft seit",
         "update": "Updates",
@@ -3629,10 +3621,8 @@
         "empty": "Noch keine Aktivität."
       },
       "hints": {
-        "title": "Hinweise",
         "count_one": "{{count}} Hinweis",
         "count_other": "{{count}} Hinweise",
-        "none": "Keine Hinweise.",
         "failed_one": "{{formatted}} Hintergrundjob fehlgeschlagen",
         "failed_other": "{{formatted}} Hintergrundjobs fehlgeschlagen",
         "paused_one": "{{count}} Jobart pausiert",
@@ -4334,7 +4324,6 @@
       "counts": {
         "running": "Laufend",
         "queued": "Wartend",
-        "planned": "Geplant",
         "paused": "Pausiert",
         "failed": "Fehlgeschlagen",
         "label": "Zusammenfassung",
