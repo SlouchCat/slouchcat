@@ -90,15 +90,22 @@ test.afterAll(async ({ request }) => {
     data: { confirmName: NAME },
   });
   expect(queued.status()).toBe(202);
-  // The deletion is a job that ends after the 202. Without waiting, the next spec of the shard
-  // read the library in its «before» and then lost it under its hands (admin-my-media.spec:
-  // 422 on putting the entries back).
+  // The deletion is a job that ends after the 202. The library leaves the list of libraries at
+  // once, but its entry of «Meine Medien» only when the job is done. Without waiting for that,
+  // the next spec of the shard read the entry in its «before» and then lost it under its hands
+  // (admin-my-media.spec: 422 on putting the entries back, or one row fewer than read).
   await expect
     .poll(async () => {
       const list = (await (await request.get('/api/v1/admin/libraries')).json()) as {
         id: number;
       }[];
-      return list.some((library) => library.id === libraryId);
+      const media = (await (await request.get('/api/v1/admin/my-media')).json()) as {
+        libraryId?: number;
+      }[];
+      return (
+        list.some((library) => library.id === libraryId) ||
+        media.some((entry) => entry.libraryId === libraryId)
+      );
     })
     .toBe(false);
 });
