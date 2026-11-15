@@ -63,6 +63,24 @@
       "version": "Versjon {{version}}"
     },
     "gpu": {
+      "choice": {
+        "label": "Grafikkbrikke for omkoding",
+        "hint": "Gjelder etter at serveren er startet på nytt.",
+        "auto": "Automatisk (anbefalt)",
+        "software": "Bare prosessor",
+        "unavailable": "{{name}} – {{reason}}",
+        "reason": {
+          "not_in_build": "finnes ikke i denne ffmpeg",
+          "no_device": "enheten mangler i containeren",
+          "test_failed": "testen feilet ved oppstart"
+        },
+        "saved": "Lagret: {{name}}",
+        "restartAdmin": "Gjelder etter at serveren er startet på nytt (Oversikt › Start på nytt)."
+      },
+      "fallback": {
+        "title": "Den valgte grafikkbrikken fungerer ikke",
+        "body": "{{name}} besto ikke testen ved oppstart. Slouchcat omkoder inntil videre med det automatiske valget."
+      },
       "encoder": "Videokoding",
       "tonemap": "HDR til SDR",
       "ffmpeg": "ffmpeg",
@@ -191,7 +209,7 @@
       "owner_required": "Bare eieren kan gjøre dette.",
       "owner_protected": "Eierens konto kan verken fjernes eller nedgraderes.",
       "last_admin": "Dette er den siste administratoren. Utnevn en annen først.",
-      "admin_limits_fixed": "En administrator ser alltid alle bibliotek opp til aldersgrense 18. Ta bort rollen først.",
+      "admin_limits_fixed": "En administrator ser alltid alle bibliotek og alle titler, uten aldersgrense. Fjern rollen først.",
       "job_type_not_runnable": "Denne jobben kan ikke kjøres manuelt; kjøringene kommer fra hendelser.",
       "job_type_paused": "Jobben er satt på pause; gjenoppta den først.",
       "job_type_not_scheduled": "Denne jobben har ingen tidsplan.",
@@ -240,28 +258,181 @@
     }
   },
   "setup": {
-    "title": "Velkommen til Slouchcat",
-    "intro": "Fire korte trinn, så skanner Slouchcat det første biblioteket ditt.",
-    "step": "Trinn {{step}}",
+    "documentTitle": "Oppsett: {{step}}",
+    "position": "Trinn {{position}} av {{count}}",
+    "nav": {
+      "label": "Oppsett",
+      "group": "Trinn",
+      "menu": "Oppsett, trinn",
+      "close": "Lukk trinnene",
+      "state": {
+        "open": "{{position}}. {{name}}",
+        "done": "{{position}}. {{name}}, fullført",
+        "skipped": "{{position}}. {{name}}, hoppet over"
+      }
+    },
+    "actions": {
+      "back": "Tilbake",
+      "skip": "Hopp over",
+      "next": "Neste",
+      "finish": "Fullfør oppsettet",
+      "finishing": "Fullfører…",
+      "later": "Fortsett senere"
+    },
+    "steps": {
+      "language": {
+        "nav": "Språk",
+        "title": "Velg språk",
+        "intro": "Hvilket språk skal Slouchcat snakke med deg? Valget gjelder med en gang og kan endres når som helst."
+      },
+      "account": {
+        "nav": "Konto",
+        "title": "Opprett kontoen din",
+        "intro": "Med denne kontoen administrerer du Slouchcat. Den første profilen din følger med."
+      },
+      "region": {
+        "nav": "Region",
+        "title": "Region og metadata",
+        "intro": "Land, aldersgrenser og språkene Slouchcat henter titler og beskrivelser på."
+      },
+      "services": {
+        "nav": "Tjenester",
+        "title": "Koble til tjenester",
+        "intro": "Nøkler for metadata og måter å sende varsler på. TMDB og e-post anbefales; resten kan du legge til senere under Administrasjon › Integrasjoner."
+      },
+      "playback": {
+        "nav": "Avspilling",
+        "title": "Avspilling",
+        "intro": "Hva Slouchcat finner i containeren, og hva videoene omkodes med."
+      },
+      "libraries": {
+        "nav": "Bibliotek",
+        "title": "Bibliotek",
+        "intro": "Minst ett bibliotek trengs. Slouchcat leser det inn rett etter at du har lagt det til."
+      },
+      "household": {
+        "nav": "Husstand",
+        "title": "Husstand",
+        "intro": "Flere profiler for husstanden, hver med egen aldersgrense, farge og, om du vil, en PIN-kode."
+      },
+      "access": {
+        "nav": "Tilgang",
+        "title": "Tilgang",
+        "intro": "Hvilken adresse Slouchcat kan nås på, og om den ser etter nye versjoner."
+      },
+      "summary": {
+        "nav": "Oppsummering",
+        "title": "Oppsummering",
+        "intro": "Sjekk valgene dine. Det du hoppet over, får den anbefalte innstillingen."
+      }
+    },
+    "language": {
+      "search": "Søk etter språk",
+      "choice": "Språk",
+      "option": "{{name}} · {{english}} · {{code}}",
+      "none": "Ingen språk passer til søket.",
+      "preview": "Forhåndsvisning",
+      "previewDate": "Dato",
+      "previewNumber": "Tall"
+    },
     "account": {
-      "title": "Administratorkonto",
-      "description": "Med denne kontoen administrerer du Slouchcat.",
       "email": "E-postadresse",
       "password": "Passord",
       "passwordHint": "Minst 10 tegn.",
-      "passwordRepeat": "Gjenta passordet"
+      "passwordRepeat": "Gjenta passordet",
+      "profileName": "Profilnavn",
+      "profileHint": "Med dette navnet vises profilen din i profilvalget.",
+      "taken": {
+        "title": "Slouchcat er allerede satt opp",
+        "body": "Noen opprettet kontoen akkurat nå. Logg inn med den kontoen.",
+        "action": "Gå til innlogging"
+      }
+    },
+    "region": {
+      "country": "Land",
+      "ratingCountry": "Aldersgrenser etter",
+      "ratingSteps": "Profilenes nivåer: {{steps}}",
+      "languages": "Metadataspråk",
+      "languagesIntro": "Slouchcat henter tekster og bilder i denne rekkefølgen. Ingen språk er påkrevd.",
+      "timeZone": "Serverens tidssone",
+      "serverZone": "Tidssone",
+      "zoneDiffers": {
+        "title": "Nettleseren din bruker en annen tidssone",
+        "body": "Nettleseren oppgir {{browser}}. Serverens tidssone stiller du inn i deploy/.env; den gjelder etter at containeren er startet på nytt.",
+        "command": "Linje for deploy/.env"
+      },
+      "radio": "Nettradio",
+      "radioToggle": "Legg til {{country}} i radiotilbudet",
+      "radioHint": "Landet kommer inn i tilbudet uten stasjoner. Stasjonene velger du senere under Administrasjon › Radio."
+    },
+    "services": {
+      "recommended": "Anbefalt",
+      "optional": "Valgfritt",
+      "recommendedTitle": "Anbefalt",
+      "optionalTitle": "Valgfritt",
+      "email": {
+        "purpose": "For invitasjoner og «Glemt passord»."
+      },
+      "push": {
+        "name": "Web Push",
+        "purpose": "Varsler på denne enheten, også når Slouchcat ikke er åpen.",
+        "insecure": "Push krever en sikker tilkobling (HTTPS eller localhost). Sett opp push senere via den offentlige HTTPS-adressen."
+      },
+      "telegram": {
+        "purpose": "Varsler via en Telegram-bot. Kontoen din kobler du til etterpå under Innstillinger › Varsler."
+      },
+      "rejected": {
+        "title": "Fjerne den ugyldige nøkkelen og fortsette?",
+        "body": "Tjenesten avviste denne nøkkelen: {{names}}. Slouchcat fjerner den, slik at ingen feil nøkkel blir liggende lagret.",
+        "confirm": "Fjern og fortsett"
+      }
+    },
+    "playback": {
+      "restart": "Gjelder etter en omstart. Slouchcat starter på nytt én gang når du fullfører.",
+      "trickplay": "Forhåndsvisninger for nye videobibliotek",
+      "trickplayHint": "Fyller ut innstillingen for hvert nytt videobibliotek på forhånd i neste trinn. Forhåndsvisningene tar plass og regnetid."
+    },
+    "libraries": {
+      "add": "Legg til bibliotek",
+      "addMore": "Et bibliotek til",
+      "none": "Ingen bibliotek ennå. Legg til minst ett, slik at Slouchcat har noe å vise.",
+      "folder": "Mappe {{position}}"
+    },
+    "household": {
+      "accounts": "Gjester med egen konto inviterer du senere under Administrasjon › Kontoer."
+    },
+    "access": {
+      "here": "Du bruker {{url}} akkurat nå.",
+      "useHere": "Bruk denne adressen",
+      "noUsageData": "Slouchcat sender ingen bruksdata."
+    },
+    "summary": {
+      "done": "Satt opp",
+      "recommended": "Anbefaling",
+      "change": "Endre {{step}}",
+      "region": "Aldersgrenser etter {{country}}, språk {{languages}}",
+      "services_one": "{{count}} tjeneste satt opp",
+      "services_other": "{{count}} tjenester satt opp",
+      "playback": "{{hw}}, forhåndsvisninger {{trickplay}}",
+      "on": "på",
+      "off": "av",
+      "noAddress": "ingen offentlig adresse",
+      "profiles_one": "{{count}} profil",
+      "profiles_other": "{{count}} profiler"
+    },
+    "finish": {
+      "title": "Slouchcat er satt opp",
+      "restartTitle": "Slouchcat starter på nytt…",
+      "restartBody": "Valget av grafikkbrikke gjelder etter omstarten. De første skanningene fortsetter etterpå.",
+      "busy": "Slouchcat kunne ikke starte på nytt fordi en sikkerhetskopiering eller en oppdatering pågår. Valget av grafikkbrikke gjelder etter neste omstart (Administrasjon › Oversikt).",
+      "scanProgress": "{{state}}: {{seen}} av {{total}} filer",
+      "home": "Gå til startsiden"
     },
     "library": {
-      "title": "Første bibliotek",
-      "description": "Du kan legge til flere bibliotek senere.",
       "name": "Navn",
-      "defaultName": "Filmer",
       "kind": "Innhold",
       "path": "Mappe",
       "pathPlaceholder": "/media/Movies",
-      "roots": "Frigitte mapper:",
-      "check": "Sjekk mappen",
-      "checking": "Sjekker…",
       "warning": {
         "network_share": {
           "title": "Nettverksressurs funnet",
@@ -271,30 +442,7 @@
           "title": "Ukjent filsystem",
           "body": "Et FUSE-filsystem (for eksempel mergerfs eller Unraid) melder ikke fra om alle endringer. Slouchcat overvåker mappen og synkroniserer den også jevnlig."
         }
-      },
-      "content": "Innhold",
-      "providers": "Metadatakilder"
-    },
-    "tmdb": {
-      "title": "Metadata fra TMDB (valgfritt)",
-      "description": "Med et lesetilgangstoken fra themoviedb.org henter Slouchcat sammendrag, plakater og aldersgrenser. Uten nøkkel hentes titlene fra filnavnene.",
-      "link": "Opprett et token på themoviedb.org",
-      "label": "API-lesetilgangstoken",
-      "hint": "Lagres kryptert og vises aldri igjen.",
-      "check": "Sjekk nøkkelen",
-      "checking": "Sjekker…",
-      "result": {
-        "valid": "Gyldig: TMDB godtok nøkkelen.",
-        "invalid": "Ugyldig: TMDB avviste nøkkelen. Sjekk lesetilgangstokenet.",
-        "unreachable": "Ikke tilgjengelig: TMDB svarer ikke akkurat nå. Prøv igjen, eller la feltet stå tomt."
       }
-    },
-    "submit": "Fullfør oppsettet",
-    "submitting": "Setter opp…",
-    "system": {
-      "title": "Grafikkbrikke og filsystem",
-      "description": "Dette finner Slouchcat inne i containeren. Her er det ingenting å fylle ut; tipsene gjelder verten.",
-      "missing": "Serveren sendte ingen opplysninger om maskinvaren."
     }
   },
   "login": {
@@ -303,7 +451,8 @@
     "email": "E-postadresse",
     "password": "Passord",
     "submit": "Logg inn",
-    "submitting": "Logger inn…"
+    "submitting": "Logger inn…",
+    "language": "Språk: {{name}}"
   },
   "library": {
     "groups": {
@@ -380,7 +529,7 @@
       "moveUpLabel": "Flytt {{provider}} opp",
       "moveDownLabel": "Flytt {{provider}} ned",
       "noKey": "ingen nøkkel satt opp",
-      "noGerman": "ingen tyske tekster",
+      "missingLanguages": "ingen tekster på {{languages}}",
       "fillOnly": "fyller bare ut",
       "hint": "Den første oppføringen identifiserer tittelen, de andre fyller bare ut. Endre rekkefølgen med pilene eller piltastene.",
       "hintRank": "Den første oppføringen identifiserer tittelen, de andre fyller bare ut. Velg rekkefølgen med plasseringen.",
@@ -459,8 +608,7 @@
       "yearFrom": "År fra",
       "yearTo": "År til",
       "rating": "Aldersgrense",
-      "anyRating": "Profilgrense",
-      "upTo": "opptil {{age}}"
+      "anyRating": "Profilgrense"
     },
     "notFound": {
       "title": "Biblioteket ble ikke funnet",
@@ -717,7 +865,9 @@
     }
   },
   "rating": {
-    "fsk": "FSK {{age}}"
+    "age": "Fra {{age}} år",
+    "upTo": "opptil {{rating}}",
+    "system": "{{country}} ({{name}})"
   },
   "format": {
     "hours": "{{hours}} t",
@@ -1918,7 +2068,7 @@
       "hint": {
         "unmatched": "Uten treff finnes det verken beskrivelse, bilder eller aldersgrense. Tilordne tittelen, eller oppdater den.",
         "no_images": "Tilordnede titler uten plakat. En oppdatering laster bildene inn på nytt.",
-        "unrated": "Titler uten aldersgrense ses bare av profiler med aldersgrense 18. Tildel en aldersgrense for å frigi dem.",
+        "unrated": "Titler uten aldersgrense vises bare for profiler med «Fra 18 år». Gi dem en aldersgrense for å frigi dem.",
         "orphaned": "Titler uten fil eller med manglende filer, tomme sesonger og serier.",
         "unplayable": "Filer som ikke kan leses. Sjekk dem på nytt, eller fjern dem fra biblioteket.",
         "rating_mismatch": "Den lagrede aldersgrensen avviker fra den beregnede. En endring av aldersgrensen eller neste skanning retter det opp. Her er det ingenting å velge.",
@@ -3245,6 +3395,12 @@
       }
     },
     "home": {
+      "setupBand": {
+        "title": "Oppsettet er ikke fullført",
+        "body": "Noen trinn i oppsettet gjenstår fortsatt.",
+        "noLibrary": "Det finnes ingen bibliotek ennå, så startsiden forblir tom.",
+        "action": "Fortsett oppsettet"
+      },
       "title": "Administrasjon",
       "live": "Live, hvert 5. sekund",
       "liveFailed": "Ikke noe svar, prøver igjen hvert 5. sekund",
@@ -3428,6 +3584,11 @@
         "keyRejected": "Nøkkelen for {{name}} ble avvist",
         "keyRejectedBody": "Leverandøren avviser nøkkelen. Til en ny nøkkel fungerer, henter Slouchcat ingen metadata derfra.",
         "toKeys": "Til nøklene",
+        "ratingsReread": "Aldersgrensene leses inn på nytt",
+        "ratingsRereadBody": "Til jobben er ferdig, gjelder de tidligere aldersgrensene, enten de er strengere eller mildere.",
+        "minimumAge": "Aldersgrenser er nå minstealder",
+        "minimumAgeBody": "Siden denne oppdateringen lagrer Slouchcat den faktiske minstealderen for hver aldersgrense: PG-13 er «Fra 13 år» i stedet for FSK 12, R er «Fra 17 år» i stedet for FSK 16. Profiler med «Fra 12 år» og «Fra 16 år» ser derfor færre amerikanske titler. Vil du ikke det, kan du sette profilen høyere.",
+        "minimumAgeDismiss": "Forstått",
         "storage": "{{path}} er mer enn {{percent}} % full"
       },
       "errors": {
@@ -3754,13 +3915,13 @@
         "heading": "Tilgang",
         "save": "Lagre tilgangen",
         "saved": "Tilgangen for {{email}} er lagret.",
-        "adminHint": "En administrator har alltid nivå 18 og alle bibliotek; «Tilgang» finnes bare for kontoer uten administrasjon."
+        "adminHint": "En administrator har alltid nivået «Fra 18 år» og alle bibliotek; «Tilgang» finnes bare for kontoer uten administrasjon."
       },
       "role": {
         "promote": {
           "action": "Gjør til administrator",
           "title": "Gjøre {{email}} til administrator?",
-          "body": "Kontoen får administrere serveren, bibliotekene og innstillingene. Nivået stiger til 18 og alle bibliotek; profilene på kontoen beholder sine egne nivåer.",
+          "body": "Kontoen kommer til å administrere serveren, bibliotekene og innstillingene. Nivået stiger til «Fra 18 år», og kontoen får alle bibliotek; profilene til kontoen beholder sine egne nivåer.",
           "confirm": "Utnevn",
           "done": "{{email}} er nå administrator."
         },
@@ -4440,6 +4601,12 @@
           "description": "Henter manglende stemmetall for valg av bilder.",
           "trigger": "Etter hver fullstendige skanning mens titler venter på en stemme"
         },
+        "metadata_ratings_reread": {
+          "name": "Les inn aldersgrenser på nytt",
+          "description": "Leser inn aldersgrensene for filmer og serier på nytt for landet for aldersgrense; aldersgrenser satt manuelt, fra NFO-filer og låste blir stående.",
+          "trigger": "én gang etter oppdateringen og ved hvert bytte av land for aldersgrense",
+          "progress": "Titler lest inn: {{done}} av {{total}}"
+        },
         "metadata_original_language_backfill": {
           "name": "Etterfyll originalspråk",
           "description": "Legger til originalspråket for hver tittel, til bruk ved valg av lyd.",
@@ -4607,11 +4774,11 @@
       },
       "languages": {
         "title": "Språk",
-        "intro": "Hvert språk her hentes for hver tittel; profilene velger språket for beskrivelsene sine blant dem. Grensesnittspråket er uavhengig av dette. Hvert ekstra språk koster én forespørsel per tittel og sesong.",
+        "intro": "Hvert språk her hentes for hver tittel; profilene velger språket for beskrivelsene sine blant dem. Språket i grensesnittet velger hver profil selv. Hvert ekstra språk koster én forespørsel per tittel og sesong.",
         "list": "Metadataspråk",
         "rank": "Språk {{position}}",
         "more": "Et språk til",
-        "fallback": "Rekkefølge = reserve: når en tekst mangler på språket til profilen, viser Slouchcat den første i listen, deretter filnavnet. Ingen språk er påkrevd, men standarden og hvert bibliotek trenger minst ett.",
+        "fallback": "Rekkefølge = reserve: Mangler en tekst på profilens språk, viser Slouchcat den første tilgjengelige i listen, deretter filnavnet. Listen må ha minst ett språk.",
         "unknownAt": "{{provider}} kjenner ikke: {{languages}}",
         "youtube": "{{count}} språk: opptil {{titles}} titler i døgnet med YouTube-trailersøket (kvote 10 000)."
       },
@@ -4666,16 +4833,15 @@
       },
       "rating": {
         "title": "Aldersgrense",
-        "intro": "Hvilket land som leses først; deretter DE, AT, CH, GB, US som før. Trinnene forblir FSK 0/6/12/16/18.",
+        "intro": "Landet som har aldersgrensene som gjelder. Har en tittel ingen der, gjelder den tyske (FSK), deretter AT, CH, GB og US. Profilene velger blant nivåene i dette landet.",
         "country": "Land",
-        "countries": {
-          "DE": "Tyskland (DE)",
-          "AT": "Østerrike (AT)",
-          "CH": "Sveits (CH)",
-          "GB": "Storbritannia (GB)",
-          "US": "USA (US)"
-        },
-        "hint": "En ny tittel får trinnet fra landet som leses først. Et lagret trinn senkes aldri, heller ikke av et annet land; senking gjøres per tittel under vedlikehold."
+        "steps": "Profilenes nivåer: {{steps}}",
+        "hint": "Slouchcat lagrer minstealderen for aldersgrensen, for eksempel PG-13 som «Fra 13 år». Etter et bytte av land leser Slouchcat inn aldersgrensene for alle titler på nytt og kan senke eller heve dem; aldersgrenser satt manuelt, fra NFO-filer og låste blir stående.",
+        "confirm": {
+          "title": "Bytte land for aldersgrense?",
+          "body": "Slouchcat leser deretter inn aldersgrensene for alle titler på nytt. Profiler kan da se titler som har vært skjult hittil, eller omvendt.",
+          "confirm": "Bytt og les inn på nytt"
+        }
       },
       "apply": {
         "title": "Ta i bruk for eksisterende titler",
@@ -4710,7 +4876,6 @@
       "errors": {
         "langs_empty": "Minst ett språk.",
         "lang_unknown": "Ukjent språkkode.",
-        "ui_lang_required": "Standarden trenger tysk; et bibliotek tysk eller engelsk.",
         "chain_duplicate": "Hvert språk én gang.",
         "country_unknown": "Ukjent land.",
         "source_unknown": "Denne bildekilden er ikke en kandidat for tittelen."
@@ -4971,6 +5136,7 @@
       "list": "Profiler på denne kontoen",
       "edit": "Rediger",
       "primary": "Hovedprofil",
+      "ratingAboveCeiling": "{{rating}} · Konto høyst {{max}}",
       "hasPin": "PIN-kode",
       "delete": {
         "action": "Slett",
@@ -5011,7 +5177,6 @@
         "likeUi": "Som grensesnittet",
         "playback": "Avspilling"
       },
-      "ratingAboveAccount": "FSK {{age}} · Kontoen høyst FSK {{max}}",
       "report": {
         "show": "Vis seertid",
         "hide": "Skjul seertid",

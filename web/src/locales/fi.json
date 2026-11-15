@@ -63,6 +63,24 @@
       "version": "Versio {{version}}"
     },
     "gpu": {
+      "choice": {
+        "label": "Näytönohjain muuntamiseen",
+        "hint": "Tulee voimaan, kun palvelin käynnistetään uudelleen.",
+        "auto": "Automaattinen (suositeltu)",
+        "software": "Vain suoritin",
+        "unavailable": "{{name}} – {{reason}}",
+        "reason": {
+          "not_in_build": "ei tässä ffmpeg-versiossa",
+          "no_device": "laite puuttuu kontista",
+          "test_failed": "testi epäonnistui käynnistyksessä"
+        },
+        "saved": "Tallennettu: {{name}}",
+        "restartAdmin": "Tulee voimaan, kun palvelin käynnistetään uudelleen (Yleiskuva › Käynnistä uudelleen)."
+      },
+      "fallback": {
+        "title": "Valittu näytönohjain ei toimi",
+        "body": "{{name}} ei läpäissyt testiä käynnistyksessä. Slouchcat muuntaa toistaiseksi automaattisella valinnalla."
+      },
       "encoder": "Videon koodaus",
       "tonemap": "HDR SDR:ksi",
       "ffmpeg": "ffmpeg",
@@ -191,7 +209,7 @@
       "owner_required": "Vain omistaja saa tehdä tämän.",
       "owner_protected": "Omistajan tiliä ei voi poistaa eikä alentaa.",
       "last_admin": "Tämä on viimeinen ylläpitäjä. Nimitä ensin toinen.",
-      "admin_limits_fixed": "Ylläpitäjä näkee aina kaikki kirjastot ikärajaan 18 asti. Poista rooli ensin.",
+      "admin_limits_fixed": "Ylläpitäjä näkee aina kaikki kirjastot ja kaikki nimikkeet ilman ikärajaa. Poista rooli ensin.",
       "job_type_not_runnable": "Tätä työtä ei voi ajaa käsin; sen ajot käynnistyvät tapahtumista.",
       "job_type_paused": "Työ on keskeytetty; jatka sitä ensin.",
       "job_type_not_scheduled": "Tällä työllä ei ole aikataulua.",
@@ -240,28 +258,181 @@
     }
   },
   "setup": {
-    "title": "Tervetuloa Slouchcatiin",
-    "intro": "Neljä lyhyttä vaihetta, ja sitten Slouchcat skannaa ensimmäisen kirjastosi.",
-    "step": "Vaihe {{step}}",
+    "documentTitle": "Käyttöönotto: {{step}}",
+    "position": "Vaihe {{position}}/{{count}}",
+    "nav": {
+      "label": "Käyttöönotto",
+      "group": "Vaiheet",
+      "menu": "Käyttöönotto, vaiheet",
+      "close": "Sulje vaiheet",
+      "state": {
+        "open": "{{position}}. {{name}}",
+        "done": "{{position}}. {{name}}, valmis",
+        "skipped": "{{position}}. {{name}}, ohitettu"
+      }
+    },
+    "actions": {
+      "back": "Takaisin",
+      "skip": "Ohita",
+      "next": "Seuraava",
+      "finish": "Viimeistele käyttöönotto",
+      "finishing": "Viimeistellään…",
+      "later": "Jatka myöhemmin"
+    },
+    "steps": {
+      "language": {
+        "nav": "Kieli",
+        "title": "Valitse kieli",
+        "intro": "Millä kielellä Slouchcat puhuu? Valinta tulee voimaan heti, ja sitä voi muuttaa milloin tahansa."
+      },
+      "account": {
+        "nav": "Tili",
+        "title": "Luo tili",
+        "intro": "Tällä tilillä hallinnoidaan Slouchcatia. Tiliin kuuluu ensimmäinen profiili."
+      },
+      "region": {
+        "nav": "Alue",
+        "title": "Alue ja metatiedot",
+        "intro": "Maa, ikärajat ja kielet, joilla Slouchcat hakee nimet ja kuvaukset."
+      },
+      "services": {
+        "nav": "Palvelut",
+        "title": "Yhdistä palvelut",
+        "intro": "Avaimet metatietoja varten ja tavat lähettää ilmoituksia. TMDB ja sähköposti ovat suositeltuja; muut voi lisätä myöhemmin kohdassa Hallinta › Integraatiot."
+      },
+      "playback": {
+        "nav": "Toisto",
+        "title": "Toisto",
+        "intro": "Mitä Slouchcat löytää kontista ja millä se muuntaa videot."
+      },
+      "libraries": {
+        "nav": "Kirjastot",
+        "title": "Kirjastot",
+        "intro": "Vähintään yksi kirjasto tarvitaan. Slouchcat lukee sen heti lisäämisen jälkeen."
+      },
+      "household": {
+        "nav": "Kotitalous",
+        "title": "Kotitalous",
+        "intro": "Lisää profiileja kotitaloudelle, kullakin oma ikäraja, väri ja halutessa PIN-koodi."
+      },
+      "access": {
+        "nav": "Pääsy",
+        "title": "Pääsy",
+        "intro": "Missä osoitteessa Slouchcat on tavoitettavissa ja etsiikö se uusia versioita."
+      },
+      "summary": {
+        "nav": "Yhteenveto",
+        "title": "Yhteenveto",
+        "intro": "Tarkista valinnat. Ohitetuissa kohdissa käytetään suositusta."
+      }
+    },
+    "language": {
+      "search": "Hae kieltä",
+      "choice": "Kieli",
+      "option": "{{name}} · {{english}} · {{code}}",
+      "none": "Haulla ei löytynyt kieltä.",
+      "preview": "Esikatselu",
+      "previewDate": "Päivämäärä",
+      "previewNumber": "Luku"
+    },
     "account": {
-      "title": "Ylläpitäjän tili",
-      "description": "Hallitset Slouchcatia tällä tilillä.",
       "email": "Sähköpostiosoite",
       "password": "Salasana",
       "passwordHint": "Vähintään 10 merkkiä.",
-      "passwordRepeat": "Toista salasana"
+      "passwordRepeat": "Toista salasana",
+      "profileName": "Profiilin nimi",
+      "profileHint": "Tällä nimellä profiili näkyy profiilin valinnassa.",
+      "taken": {
+        "title": "Slouchcat on jo otettu käyttöön",
+        "body": "Joku loi tilin juuri äsken. Kirjaudu sisään sillä tilillä.",
+        "action": "Siirry kirjautumiseen"
+      }
+    },
+    "region": {
+      "country": "Maa",
+      "ratingCountry": "Ikärajojen maa",
+      "ratingSteps": "Profiilien tasot: {{steps}}",
+      "languages": "Metatietojen kielet",
+      "languagesIntro": "Slouchcat hakee tekstit ja kuvat tässä järjestyksessä. Mikään kieli ei ole pakollinen.",
+      "timeZone": "Palvelimen aikavyöhyke",
+      "serverZone": "Aikavyöhyke",
+      "zoneDiffers": {
+        "title": "Selain käyttää eri aikavyöhykettä",
+        "body": "Selaimen aikavyöhyke on {{browser}}. Palvelimen aikavyöhyke asetetaan tiedostossa deploy/.env; se tulee voimaan, kun kontti käynnistetään uudelleen.",
+        "command": "Rivi tiedostoon deploy/.env"
+      },
+      "radio": "Nettiradio",
+      "radioToggle": "Lisää {{country}} radiotarjontaan",
+      "radioHint": "Maa lisätään tarjontaan ilman asemia. Asemat valitaan myöhemmin kohdassa Hallinta › Radio."
+    },
+    "services": {
+      "recommended": "Suositeltu",
+      "optional": "Valinnainen",
+      "recommendedTitle": "Suositellut",
+      "optionalTitle": "Valinnaiset",
+      "email": {
+        "purpose": "Kutsuja ja ”Unohtunut salasana” -toimintoa varten."
+      },
+      "push": {
+        "name": "Web Push",
+        "purpose": "Ilmoitukset tälle laitteelle, myös kun Slouchcat ei ole auki.",
+        "insecure": "Push vaatii suojatun yhteyden (HTTPS tai localhost). Ota push käyttöön myöhemmin julkisen HTTPS-osoitteen kautta."
+      },
+      "telegram": {
+        "purpose": "Ilmoitukset Telegram-botin kautta. Tili yhdistetään sen jälkeen kohdassa Asetukset › Ilmoitukset."
+      },
+      "rejected": {
+        "title": "Poistetaanko virheellinen avain ja jatketaan?",
+        "body": "Palvelu hylkäsi tämän avaimen: {{names}}. Slouchcat poistaa sen, jottei väärää avainta jää tallennetuksi.",
+        "confirm": "Poista ja jatka"
+      }
+    },
+    "playback": {
+      "restart": "Tulee voimaan uudelleenkäynnistyksen jälkeen. Slouchcat käynnistyy kerran uudelleen, kun käyttöönotto viimeistellään.",
+      "trickplay": "Esikatselukuvat uusille videokirjastoille",
+      "trickplayHint": "Esitäyttää asetuksen jokaiselle uudelle videokirjastolle seuraavassa vaiheessa. Esikatselukuvat vievät tilaa ja laskenta-aikaa."
+    },
+    "libraries": {
+      "add": "Lisää kirjasto",
+      "addMore": "Vielä yksi kirjasto",
+      "none": "Kirjastoja ei vielä ole. Lisää vähintään yksi, jotta Slouchcatilla on jotain näytettävää.",
+      "folder": "Kansio {{position}}"
+    },
+    "household": {
+      "accounts": "Vieraat, joilla on oma tili, kutsutaan myöhemmin kohdassa Hallinta › Tilit."
+    },
+    "access": {
+      "here": "Käytössä on nyt osoite {{url}}.",
+      "useHere": "Käytä tätä osoitetta",
+      "noUsageData": "Slouchcat ei lähetä käyttötietoja."
+    },
+    "summary": {
+      "done": "Otettu käyttöön",
+      "recommended": "Suositus",
+      "change": "Muuta: {{step}}",
+      "region": "Ikärajat: {{country}}, kielet: {{languages}}",
+      "services_one": "{{count}} palvelu otettu käyttöön",
+      "services_other": "{{count}} palvelua otettu käyttöön",
+      "playback": "{{hw}}, esikatselukuvat: {{trickplay}}",
+      "on": "päällä",
+      "off": "pois",
+      "noAddress": "ei julkista osoitetta",
+      "profiles_one": "{{count}} profiili",
+      "profiles_other": "{{count}} profiilia"
+    },
+    "finish": {
+      "title": "Slouchcat on otettu käyttöön",
+      "restartTitle": "Slouchcat käynnistyy uudelleen…",
+      "restartBody": "Näytönohjaimen valinta tulee voimaan uudelleenkäynnistyksen jälkeen. Ensimmäiset skannaukset jatkuvat sen jälkeen.",
+      "busy": "Slouchcat ei voinut käynnistyä uudelleen, koska varmuuskopiointi tai päivitys on käynnissä. Näytönohjaimen valinta tulee voimaan seuraavan uudelleenkäynnistyksen jälkeen (Hallinta › Yleiskuva).",
+      "scanProgress": "{{state}}: {{seen}}/{{total}} tiedostoa",
+      "home": "Siirry etusivulle"
     },
     "library": {
-      "title": "Ensimmäinen kirjasto",
-      "description": "Lisää kirjastoja voi lisätä myöhemmin.",
       "name": "Nimi",
-      "defaultName": "Elokuvat",
       "kind": "Sisältö",
       "path": "Kansio",
       "pathPlaceholder": "/media/Movies",
-      "roots": "Vapautetut kansiot:",
-      "check": "Tarkista kansio",
-      "checking": "Tarkistetaan…",
       "warning": {
         "network_share": {
           "title": "Verkkolevy havaittu",
@@ -271,30 +442,7 @@
           "title": "Tuntematon tiedostojärjestelmä",
           "body": "FUSE-tiedostojärjestelmä (esimerkiksi mergerfs tai Unraid) ei ilmoita kaikista muutoksista. Slouchcat tarkkailee kansiota ja synkronoi sen lisäksi säännöllisesti."
         }
-      },
-      "content": "Sisältö",
-      "providers": "Metatietolähteet"
-    },
-    "tmdb": {
-      "title": "Metatiedot TMDB:stä (valinnainen)",
-      "description": "themoviedb.org-palvelun lukuoikeuden tunnuksella Slouchcat hakee kuvaukset, julisteet ja ikärajat. Ilman avainta nimikkeet muodostetaan tiedostonimistä.",
-      "link": "Luo tunnus osoitteessa themoviedb.org",
-      "label": "API:n lukuoikeuden tunnus",
-      "hint": "Tallennetaan salattuna, eikä näytetä enää uudelleen.",
-      "check": "Tarkista avain",
-      "checking": "Tarkistetaan…",
-      "result": {
-        "valid": "Kelvollinen: TMDB hyväksyi avaimen.",
-        "invalid": "Virheellinen: TMDB hylkäsi avaimen. Tarkista lukuoikeuden tunnus.",
-        "unreachable": "Ei tavoitettavissa: TMDB ei vastaa juuri nyt. Yritä uudelleen tai jätä kenttä tyhjäksi."
       }
-    },
-    "submit": "Viimeistele käyttöönotto",
-    "submitting": "Otetaan käyttöön…",
-    "system": {
-      "title": "Näytönohjain ja tiedostojärjestelmä",
-      "description": "Tämän Slouchcat löytää kontin sisältä. Tässä ei tarvitse syöttää mitään; vihjeet koskevat isäntäkonetta.",
-      "missing": "Palvelin ei lähettänyt tietoja laitteistosta."
     }
   },
   "login": {
@@ -303,7 +451,8 @@
     "email": "Sähköpostiosoite",
     "password": "Salasana",
     "submit": "Kirjaudu sisään",
-    "submitting": "Kirjaudutaan…"
+    "submitting": "Kirjaudutaan…",
+    "language": "Kieli: {{name}}"
   },
   "library": {
     "groups": {
@@ -380,7 +529,7 @@
       "moveUpLabel": "Siirrä {{provider}} ylös",
       "moveDownLabel": "Siirrä {{provider}} alas",
       "noKey": "avainta ei ole asetettu",
-      "noGerman": "ei saksankielisiä tekstejä",
+      "missingLanguages": "ei tekstejä: {{languages}}",
       "fillOnly": "vain täydentää",
       "hint": "Ensimmäinen kohde tunnistaa nimikkeen, muut vain täydentävät tietoja. Muuta järjestystä nuolilla tai nuolinäppäimillä.",
       "hintRank": "Ensimmäinen kohde tunnistaa nimikkeen, muut vain täydentävät tietoja. Valitse järjestys sijan avulla.",
@@ -459,8 +608,7 @@
       "yearFrom": "Vuodesta",
       "yearTo": "Vuoteen",
       "rating": "Ikäraja",
-      "anyRating": "Profiilin raja",
-      "upTo": "enintään {{age}}"
+      "anyRating": "Profiilin raja"
     },
     "notFound": {
       "title": "Kirjastoa ei löytynyt",
@@ -717,7 +865,9 @@
     }
   },
   "rating": {
-    "fsk": "FSK {{age}}"
+    "age": "{{age}}+",
+    "upTo": "enintään {{rating}}",
+    "system": "{{country}} ({{name}})"
   },
   "format": {
     "hours": "{{hours}} h",
@@ -1918,7 +2068,7 @@
       "hint": {
         "unmatched": "Ilman kohdistusta ei ole kuvausta, kuvitusta eikä ikärajaa. Kohdista nimike tai päivitä se.",
         "no_images": "Kohdistetut nimikkeet ilman julistetta. Päivitys lataa kuvituksen uudelleen.",
-        "unrated": "Nimikkeet ilman ikärajaa näkyvät vain profiileille, joiden ikäraja on 18. Aseta ikäraja, niin ne vapautuvat.",
+        "unrated": "Nimikkeet ilman ikärajaa näkyvät vain profiileille, joiden ikäraja on 18+. Määritä ikäraja, niin ne tulevat näkyviin.",
         "orphaned": "Nimikkeet ilman tiedostoa tai puuttuvilla tiedostoilla, tyhjät kaudet ja sarjat.",
         "unplayable": "Tiedostot, joita ei voi lukea. Tarkista ne uudelleen tai poista ne kirjastosta.",
         "rating_mismatch": "Tallennettu ikäraja poikkeaa lasketusta. Ikärajan muutos tai seuraava skannaus korjaa sen. Tässä ei ole mitään valittavaa.",
@@ -3245,6 +3395,12 @@
       }
     },
     "home": {
+      "setupBand": {
+        "title": "Käyttöönotto on kesken",
+        "body": "Muutama käyttöönoton vaihe on vielä tekemättä.",
+        "noLibrary": "Kirjastoja ei vielä ole, joten etusivu pysyy tyhjänä.",
+        "action": "Jatka käyttöönottoa"
+      },
       "title": "Hallinta",
       "live": "Live, 5 sekunnin välein",
       "liveFailed": "Ei vastausta, yritetään uudelleen 5 sekunnin välein",
@@ -3428,6 +3584,11 @@
         "keyRejected": "{{name}}: avain hylätty",
         "keyRejectedBody": "Lähde hylkää avaimen. Kunnes uusi avain kelpaa, Slouchcat ei hae sieltä metatietoja.",
         "toKeys": "Avaimiin",
+        "ratingsReread": "Ikärajoja luetaan uudelleen",
+        "ratingsRereadBody": "Kunnes työ on valmis, voimassa ovat aiemmat ikärajat, olivat ne tiukempia tai väljempiä.",
+        "minimumAge": "Ikärajat ovat nyt vähimmäisikiä",
+        "minimumAgeBody": "Tästä päivityksestä alkaen Slouchcat tallentaa jokaisen ikärajan todellisen vähimmäisiän: PG-13 on ”13+” eikä FSK 12, R on ”17+” eikä FSK 16. Profiilit ”12+” ja ”16+” näkevät siksi vähemmän amerikkalaisia nimikkeitä. Jos tämä ei ole toivottua, nosta profiilin ikärajaa.",
+        "minimumAgeDismiss": "Selvä",
         "storage": "{{path}} on yli {{percent}} % täynnä"
       },
       "errors": {
@@ -3754,13 +3915,13 @@
         "heading": "Käyttöoikeudet",
         "save": "Tallenna käyttöoikeudet",
         "saved": "Käyttöoikeudet tallennettu: {{email}}.",
-        "adminHint": "Ylläpitäjällä on aina ikäraja 18 ja kaikki kirjastot; ”Käyttöoikeudet” on vain tileillä, joilla ei ole ylläpitäjän oikeuksia."
+        "adminHint": "Ylläpitäjällä on aina taso 18+ ja kaikki kirjastot; ”Käyttöoikeudet” on vain tileillä, joilla ei ole hallintaoikeuksia."
       },
       "role": {
         "promote": {
           "action": "Tee ylläpitäjäksi",
           "title": "Tehdäänkö {{email}} ylläpitäjäksi?",
-          "body": "Tili hallinnoi palvelinta, kirjastoja ja asetuksia. Sen ikäraja nousee tasolle 18 ja se saa kaikki kirjastot; tilin profiilit säilyttävät omat tasonsa.",
+          "body": "Tili hallinnoi sen jälkeen palvelinta, kirjastoja ja asetuksia. Sen tasoksi tulee 18+ ja käyttöön kaikki kirjastot; tilin profiilit säilyttävät omat tasonsa.",
           "confirm": "Nimitä",
           "done": "{{email}} on nyt ylläpitäjä."
         },
@@ -4440,6 +4601,12 @@
           "description": "Hakee puuttuvat äänimäärät kuvien valintaa varten.",
           "trigger": "Jokaisen täydellisen skannauksen jälkeen, kun nimikkeet odottavat äänimäärää"
         },
+        "metadata_ratings_reread": {
+          "name": "Lue ikärajat uudelleen",
+          "description": "Lukee elokuvien ja sarjojen ikärajat uudelleen ikärajojen maan mukaan; käsin asetetut, NFO-tiedostoista tulevat ja lukitut ikärajat säilyvät.",
+          "trigger": "kerran päivityksen jälkeen ja aina, kun ikärajojen maa vaihtuu",
+          "progress": "Nimikkeitä luettu: {{done}}/{{total}}"
+        },
         "metadata_original_language_backfill": {
           "name": "Täydennä alkuperäiset kielet",
           "description": "Lisää jokaiselle nimikkeelle alkuperäisen kielen äänen valintaa varten.",
@@ -4607,11 +4774,11 @@
       },
       "languages": {
         "title": "Kielet",
-        "intro": "Jokainen tässä oleva kieli haetaan jokaiselle nimikkeelle; profiilit valitsevat siitä kuvaustensa kielen. Käyttöliittymän kieli ei riipu tästä. Jokainen lisäkieli vaatii yhden pyynnön nimikettä ja kautta kohti.",
+        "intro": "Jokainen tässä oleva kieli haetaan jokaiselle nimikkeelle; profiilit valitsevat niistä kuvaustensa kielen. Käyttöliittymän kielen kukin profiili valitsee itse. Jokainen lisäkieli maksaa yhden pyynnön nimikettä ja kautta kohden.",
         "list": "Metatietojen kielet",
         "rank": "Kieli {{position}}",
         "more": "Toinen kieli",
-        "fallback": "Järjestys = varakieli: kun tekstiä ei ole profiilin kielellä, Slouchcat näyttää listan ensimmäisen saatavilla olevan, sitten tiedostonimen. Mikään kieli ei ole pakollinen, mutta oletuksessa ja jokaisessa kirjastossa on oltava vähintään yksi.",
+        "fallback": "Järjestys = varakielet: jos tekstiä ei ole profiilin kielellä, Slouchcat näyttää luettelon ensimmäisen saatavilla olevan ja sen jälkeen tiedostonimen. Luettelossa on oltava vähintään yksi kieli.",
         "unknownAt": "{{provider}} ei tunne: {{languages}}",
         "youtube": "{{count}} kieltä: enintään {{titles}} nimikettä päivässä YouTube-trailerihaulla (kiintiö 10 000)."
       },
@@ -4666,16 +4833,15 @@
       },
       "rating": {
         "title": "Ikäraja",
-        "intro": "Mikä maa luetaan ensin; sitten DE, AT, CH, GB, US kuten ennenkin. Portaat pysyvät FSK 0/6/12/16/18.",
+        "intro": "Maa, jonka ikärajat ratkaisevat. Jos nimikkeellä ei ole siellä ikärajaa, käytetään Saksan ikärajaa (FSK), sitten AT, CH, GB ja US. Profiilit valitsevat tämän maan tasoista.",
         "country": "Maa",
-        "countries": {
-          "DE": "Saksa (DE)",
-          "AT": "Itävalta (AT)",
-          "CH": "Sveitsi (CH)",
-          "GB": "Iso-Britannia (GB)",
-          "US": "USA (US)"
-        },
-        "hint": "Uusi nimike saa ensin luetun maan portaan. Tallennettua porrasta ei koskaan lasketa, ei edes toisen maan perusteella; laskeminen tehdään nimikekohtaisesti ylläpidossa."
+        "steps": "Profiilien tasot: {{steps}}",
+        "hint": "Slouchcat tallentaa ikärajan vähimmäisiän, esimerkiksi PG-13:n muodossa ”13+”. Kun maa vaihtuu, Slouchcat lukee kaikkien nimikkeiden ikärajat uudelleen ja voi samalla laskea tai nostaa niitä; käsin asetetut, NFO-tiedostoista tulevat ja lukitut ikärajat säilyvät.",
+        "confirm": {
+          "title": "Vaihdetaanko ikärajojen maa?",
+          "body": "Slouchcat lukee sen jälkeen kaikkien nimikkeiden ikärajat uudelleen. Profiilit voivat siksi nähdä nimikkeitä, jotka olivat tähän asti piilossa, tai päinvastoin.",
+          "confirm": "Vaihda ja lue uudelleen"
+        }
       },
       "apply": {
         "title": "Ota käyttöön olemassa oleville nimikkeille",
@@ -4710,7 +4876,6 @@
       "errors": {
         "langs_empty": "Vähintään yksi kieli.",
         "lang_unknown": "Tuntematon kielikoodi.",
-        "ui_lang_required": "Oletukselta vaaditaan saksa; kirjastolta saksa tai englanti.",
         "chain_duplicate": "Jokainen kieli kerran.",
         "country_unknown": "Tuntematon maa.",
         "source_unknown": "Tämä kuvalähde ei ole nimikkeen ehdokas."
@@ -4971,6 +5136,7 @@
       "list": "Tämän tilin profiilit",
       "edit": "Muokkaa",
       "primary": "Pääprofiili",
+      "ratingAboveCeiling": "{{rating}} · Tili enintään {{max}}",
       "hasPin": "PIN-koodi",
       "delete": {
         "action": "Poista",
@@ -5011,7 +5177,6 @@
         "likeUi": "Kuten käyttöliittymä",
         "playback": "Toisto"
       },
-      "ratingAboveAccount": "FSK {{age}} · Tilin enimmäisraja FSK {{max}}",
       "report": {
         "show": "Näytä katseluaika",
         "hide": "Piilota katseluaika",
