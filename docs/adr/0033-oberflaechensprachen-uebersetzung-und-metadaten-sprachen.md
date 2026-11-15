@@ -1,6 +1,7 @@
 # ADR 0033: Oberflächensprachen, Übersetzung und Metadaten-Sprachen
 
-- Status: angenommen (15. November 2026, Stufe 1 «Sprachgerüst» gebaut); **ersetzt ADR 0018 in zwei
+- Status: angenommen (15. November 2026, Stufe 1 «Sprachgerüst» gebaut, Stufe 4 «Übersetzungen» mit
+  Vertrag 1.37.0); **ersetzt ADR 0018 in zwei
   Punkten**: F-1 («keine neuen Oberflächensprachen») und F-9 («die Serverliste der Metadaten-Sprachen
   muss `de` enthalten»). Alles Übrige von ADR 0018 bleibt (Abschnitt «Was von ADR 0018 bleibt»).
 - Quelle: Konzept `docs/planning/22-ersteinrichtung-und-sprachen.md` (Fassung 4), Abschnitte 4.1 bis 4.10,
@@ -46,7 +47,7 @@ fünf Stufen. Diese ADR hält die Entscheide fest; Stufe 1 baut das Gerüst ohne
 | **Schrift** | Keine Webfonts. Für `ja`, `zh-CN`, `zh-TW` und `ko` gibt es eigene Schriftstapel als Tokens (`font.family.*` in `typography.json`), gesetzt unter `html:lang(…)`, damit das Gerät die richtige Form eines vereinheitlichten Han-Zeichens wählt; Koreanisch bricht mit `word-break: keep-all`. |
 | **Länge** | Die Pseudo-Sprache `en-XA` (jeder Text 40 % länger, in eckigen Klammern) gibt es nur in der Entwicklung (`/?lng=en-XA`) und in Storybook (Werkzeugleiste «locale»). Sie ist nie ausgeliefert und nie im Vertrag. Die Vergleichsbilder bleiben Deutsch. |
 | **Rechts nach links** | Nicht in diesem Konzept (O-16). `<html dir="ltr">` ist gesetzt. stylelint verlangt für neues CSS logische Eigenschaften; die 49 Dateien, die heute 144 physische Angaben haben, stehen als Ausnahmen in `web/stylelint.config.js`, und keine Datei kommt dazu. |
-| **Neue Texte im Alltag** | `de` und `en` sind in jedem Pull Request Pflicht, `de-DE` sobald ein Text ein ss-Wort oder «Guillemets» enthält; die übrigen Sprachen vor jedem Release (Konzept 22, 4.8; der Release-Schritt kommt mit Stufe 5). |
+| **Neue Texte im Alltag** | `de` und `en` sind in jedem Pull Request Pflicht, `de-DE` sobald ein Text ein ss-Wort oder «Guillemets» enthält; die übrigen Sprachen vor jedem Release (Konzept 22, 4.8). Der Release-Schritt «Übersetzungen nachziehen» steht seit Stufe 4 in `docs/dev/HANDOVER.md` (Abschnitt 5) und `docs/i18n/README.md`. |
 | **Übersetzung (F-1 von ADR 0018 fällt)** | Die Erstfassung der 20 weiteren Sprachen liefert Claude mit Glossar, Stilregeln und Kontext, geprüft von einem zweiten Agenten; danach öffnet Weblate «Libre» für Korrekturen (Stufen 4 und 5). |
 
 ## Schritt 0 der Stufe 1: Befunde
@@ -135,6 +136,40 @@ fünf Stufen. Diese ADR hält die Entscheide fest; Stufe 1 baut das Gerüst ohne
   `system.gpu.fallback.*`, `admin.home.setupBand.*`; entfernt `setup.title`, `setup.intro`, `setup.step`,
   `setup.account.{title,description}`, `setup.library.{title,description,defaultName,roots,check,
   checking,content,providers}`, `setup.tmdb.*`, `setup.submit`, `setup.submitting`, `setup.system.*`.
+
+## Stufe 4: zwanzig weitere Sprachen wählbar
+
+- Vertrag **1.37.0**, keine Migration: `languages.ts`, `model.UILanguages` und die Vertragsliste `Language`
+  führen die 23 Sprachen in der Reihenfolge der Tabelle 4.1 des Konzepts, jede mit ihrem Namen in der
+  eigenen Sprache und ihrem eigenen Code als `intlLocale` (`Intl` kennt `nb`, `pt-BR` und `zh-TW` so).
+- Die Erkennung brauchte keine Änderung: Die Zuordnungen von Stufe 1 (`pt` → `pt-BR`, `zh-Hant`/`HK`/`MO`
+  → `zh-TW`, `zh`/`zh-Hans`/`SG` → `zh-CN`, `no`/`nn` → `nb`) und der Abgleich über die Grundsprache
+  (`fr-CH` → `fr`) greifen jetzt, weil die Ziele ausgeliefert sind.
+- **Vorschläge des Assistenten (Schritt «Region und Metadaten»):** Jede Sprache schlägt ihr Land und die
+  Metadaten-Sprachen «die Sprache, dann Englisch» vor (Tabelle 4.1). `nb` schlägt `no` vor, wie
+  `MetadataBase`. Das Freigabeland ist das Land, wenn die Ländertabelle es kennt, sonst Deutschland
+  (`zh-CN`: China hat kein System, F-12). Russland und China stehen neu in der Länderliste, die der
+  Schritt zeigt, bevor der Radiokatalog Länder kennt.
+- **Tests (4.9):** `locales.test.ts` prüft `de`, `de-DE` und `en` streng. Für die übrigen zwanzig sind ein
+  fehlender Text und ein Text, den `de.json` nicht mehr hat, eine Warnung; Pluralformen, Platzhalter,
+  Markup und leere Texte brechen den Test für jede Sprache. Der Sonderfall `admin.home.browse.hanging`
+  («nur `_other`») ist weg: Die blosse Einzahl von `de` und `en` zählt als `one`, wie in
+  `scripts/i18n/check.ts`. `TestServerTexts` verlangt eine Datei je Sprache, `de` und `en` vollständig,
+  die übrigen melden Fehlendes im Log; `task i18n:check` macht mit `SLOUCHCAT_I18N_STRICT` alle streng.
+  `e2e/languages.spec.ts` hat einen Test je Sprache: Anmeldeseite in der Sprache des Browsers,
+  Profilformular, Startseite, `<html lang>`.
+- **Leerraum an den Rändern:** `scripts/i18n/check.ts` meldet einen Text als Fehler, dessen Leerraum am
+  Anfang oder Ende von Englisch abweicht (`" · "`, `" or "`). Zwei Sprachen hatten die Leerzeichen um die
+  Trenner verloren. Japanisch, Koreanisch und Chinesisch sind ausgenommen, ihre Trenner stehen ohne
+  Leerzeichen (`"、"`); leer darf der Text auch dort nicht sein.
+- **Storybook:** Die Werkzeugleiste «locale» bietet jede ausgelieferte Sprache und `en-XA`
+  (`?globals=locale:fi`), für die Bildprüfung je Übersetzungsrunde. Die Vergleichsbilder bleiben Deutsch.
+- **Release-Schritt:** Ein eigenes `docs/dev/RELEASE.md` (Schritt 0 von Stufe 1) gibt es nicht. Der
+  Schritt «Übersetzungen nachziehen» steht bei den übrigen Release-Regeln in `docs/dev/HANDOVER.md`,
+  Abschnitt 5, und in `docs/i18n/README.md`. Das README sagt auch offen, dass Claudes Texte in Weblate als
+  fertig erscheinen, und bittet um Korrekturen; Weblate selbst bleibt Stufe 5.
+- **Schriften:** Die `:lang()`-Stapel von Stufe 1 greifen mit den ausgelieferten Codes; das Ergebnis der
+  Bildprüfung steht in `docs/perf/22-uebersetzungen.md`.
 
 ## Was von ADR 0018 bleibt
 

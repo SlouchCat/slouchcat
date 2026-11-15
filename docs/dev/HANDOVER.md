@@ -124,7 +124,14 @@ cd /mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slouchcat && git fetch origin && W=/tm
   `docs/INSTALLATION.md` und der Update-Hinweis auf einen Stand, den es nicht gibt. Vorher die
   Versionsstellen prüfen (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`,
   `docs/INSTALLATION.md`, dieser Abschnitt). Den Tag pusht Marco selbst (der Auto-Modus einer
-  Session legt keine öffentliche Oberfläche an):
+  Session legt keine öffentliche Oberfläche an).
+- **Übersetzungen nachziehen, vor jedem Release, auch vor einem Patch** (Konzept 22, Abschnitt 4.8;
+  `docs/i18n/README.md`): Zwischen zwei Releases dürfen den zwanzig Sprachen ausser `de`, `de-DE` und
+  `en` Texte fehlen. Vor dem Tag listet `task i18n:status` sie, Claude übersetzt sie nach dem Ablauf in
+  `docs/i18n/README.md` (Glossar, Stilregeln, Kontext, Prüfung durch einen zweiten Agenten), auch die
+  Server-Texte in `server/internal/notify/locales/`. Erst wenn `task i18n:check` grün ist, wird
+  getaggt. Bei einem Patch-Release (Versionscommit auf dem Fix-Zweig) läuft der Schritt auf dem
+  Fix-Zweig. Der Tag selbst:
 
 ```bash
 git tag -a v1.36.0 -F /pfad/zu/release-notes-1.36.0.txt <merge-commit> && git push origin v1.36.0
