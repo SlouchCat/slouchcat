@@ -185,6 +185,20 @@
   flex-wrap: wrap;
   gap: var(--sc-space-2);
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* On a phone an action is never wider than the page: a long label (in any language) wraps inside
+   its button. From 768 px the buttons keep their one line. */
+@media (width < 768px) {
+  .framedActions > :is(a, button) {
+    max-width: 100%;
+    padding-block: var(--sc-space-2);
+    line-height: var(--sc-font-line-height-tight);
+    text-align: center;
+    white-space: normal;
+  }
 }
 
 @media (width >= 768px) {
