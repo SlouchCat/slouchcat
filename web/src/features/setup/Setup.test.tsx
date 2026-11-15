@@ -215,6 +215,20 @@ describe('the owner of an unfinished wizard', () => {
     );
   });
 
+  it('is not led into the wizard before choosing the primary profile (review of stage 2)', async () => {
+    const other = { ...session.profile, id: 2, name: 'Kind', isPrimary: false };
+    const { calls } = mockApi(
+      owner({
+        'GET /auth/session': () => json({ account: pending.account, setupPending: true }),
+        'GET /auth/profiles': () => json([session.profile, other]),
+      }),
+    );
+    const { router } = renderApp('/');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/profiles'));
+    expect(await screen.findByRole('button', { name: /^Kind/ })).toBeVisible();
+    expect(calls.some((call) => call.path === '/admin/setup')).toBe(false);
+  });
+
   it('stores the region: rating country, languages, the country in the radio without stations', async () => {
     const { calls } = mockApi(
       owner({

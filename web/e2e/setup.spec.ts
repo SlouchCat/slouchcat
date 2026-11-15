@@ -186,13 +186,52 @@ test('step 6, libraries: none is refused, the dialog adds one @keyboard', async 
   await next('Haushalt');
 });
 
-test('step 7, household: the own profile, «Profil hinzufügen», then skip @keyboard', async () => {
+test('step 7, household: the own profile, «Profil hinzufügen» adds one, then on @keyboard', async () => {
   await expect(page.getByText(OWNER.profile).first()).toBeVisible();
   await tabTo(page, page.getByRole('button', { name: 'Profil hinzufügen' }));
   await expectVisibleFocus(page);
-  await tabTo(page, page.getByRole('button', { name: 'Überspringen' }));
   await page.keyboard.press('Enter');
-  await expectFocusOn(page, heading('Zugriff'));
+  const dialog = page.getByRole('dialog', { name: 'Neues Profil' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel('Name', { exact: true }).fill('Kind');
+  await dialog.getByRole('button', { name: 'Profil anlegen' }).press('Enter');
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText('Kind').first()).toBeVisible();
+  await next('Zugriff');
+});
+
+// Review of stage 2: with two profiles a sign-in starts at the picker. Another profile never sees
+// the wizard (its endpoints are the owner's primary profile's); the primary one goes on with it.
+test('F-11 with two profiles: the picker first, the wizard only for the primary profile', async ({
+  browser,
+}) => {
+  const signIn = async () => {
+    const other = await browser.newPage({ locale: 'de-CH' });
+    await other.goto(`${server.url}/login`);
+    await other.getByLabel(/^E-Mail-Adresse/).fill(OWNER.email);
+    await other.getByLabel(/^Passwort/).fill(OWNER.password);
+    await other.getByRole('button', { name: 'Anmelden' }).press('Enter');
+    await expect(other).toHaveURL(/\/profiles/);
+    return other;
+  };
+  const tile = (other: Page, name: string) =>
+    other
+      .getByRole('list', { name: 'Profile' })
+      .getByRole('button', { name: new RegExp(`^${name}`) });
+
+  const child = await signIn();
+  await tile(child, 'Kind').press('Enter');
+  await expect(child).toHaveURL(`${server.url}/`);
+  await expect(child.getByRole('heading', { level: 1, name: 'Zugriff' })).toHaveCount(0);
+  await child.goto(`${server.url}/setup/access`);
+  await expect(child).toHaveURL(`${server.url}/`);
+  await child.close();
+
+  const primary = await signIn();
+  await tile(primary, OWNER.profile).press('Enter');
+  await expect(primary).toHaveURL(/\/setup\/access$/);
+  await expect(primary.getByRole('heading', { level: 1, name: 'Zugriff' })).toBeVisible();
+  await primary.close();
 });
 
 test('step 8, access: the address of this browser as the suggestion, the update check @keyboard', async () => {

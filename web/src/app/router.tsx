@@ -175,15 +175,20 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
       if (!step || !PUBLIC_STEPS.includes(step)) throw redirect({ to: setupPath('language') });
       return;
     }
+    // Only the owner's primary profile runs the wizard (its endpoints are x-visibility owner):
+    // without a chosen profile the picker comes first, another profile never sees it.
+    const leads = session?.setupPending === true && session.profile?.isPrimary === true;
     if (
-      session?.setupPending &&
+      leads &&
+      session &&
       !setupDeferred(session) &&
+      pathname !== paths.profiles &&
       (!onSetup || pathname === paths.setup)
     ) {
       const progress = await queryClient.ensureQueryData(setupProgressQuery);
       throw redirect({ to: setupPath(firstOpenStep(progress)) });
     }
-    if (onSetup && !session?.setupPending) throw redirect({ to: '/' });
+    if (onSetup && !leads) throw redirect({ to: '/' });
   },
   component: RootLayout,
   errorComponent: RootError,
