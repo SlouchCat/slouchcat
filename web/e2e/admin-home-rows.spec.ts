@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { CSRF } from './catalog';
 import { DEFAULT_HOME_ROWS, listHomeRows, setHomeRows, titleId } from './curation';
 import { expect, test } from './fixtures';
@@ -278,4 +278,55 @@ test('ticking «Ausblenden» leaves the columns where they are (K12-9)', async (
     .click();
   await expect(saveBar(page).getByText('Gespeichert', { exact: true })).toBeVisible();
   await expect(hide).not.toBeChecked();
+});
+
+/** The boxes of the cards «Reihen» and «Vorschau» and of the rows table. */
+const halves = async (page: Page) => {
+  const box = async (locator: Locator) => {
+    const found = await locator.boundingBox();
+    if (!found) throw new Error('not laid out');
+    return found;
+  };
+  return {
+    rows: await box(page.getByRole('region', { name: 'Reihen', exact: true })),
+    preview: await box(page.getByRole('region', { name: 'Vorschau', exact: true })),
+    table: await box(rowsTable(page)),
+  };
+};
+
+test('the preview stands next to the rows on a wide window and below them on a narrow one (HOM-021)', async ({
+  page,
+  owner,
+}) => {
+  await setHomeRows(owner, DEFAULT_HOME_ROWS);
+
+  // 1440 px: the container is at least 58rem wide, the two cards stand side by side and the
+  // table keeps its minimum of 36rem next to the preview.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/admin/home-rows');
+  await expect(rowsTable(page).getByRole('rowheader')).toHaveCount(
+    (await listHomeRows(owner)).length,
+  );
+  const wide = await halves(page);
+  expect(wide.preview.x, 'preview right of the rows').toBeGreaterThanOrEqual(
+    wide.rows.x + wide.rows.width - 1,
+  );
+  expect(Math.abs(wide.preview.y - wide.rows.y), 'both on one line').toBeLessThanOrEqual(1);
+  expect(wide.table.width, 'table at least 36rem').toBeGreaterThanOrEqual(36 * 16 - 1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1440);
+
+  // 900 px: under 58rem the preview goes below the editor; the page stays as wide as the window
+  // (the table may scroll in itself).
+  await page.setViewportSize({ width: 900, height: 900 });
+  await expect
+    .poll(async () => {
+      const narrow = await halves(page);
+      return narrow.preview.y >= narrow.rows.y + narrow.rows.height - 1;
+    }, 'preview below the rows')
+    .toBe(true);
+  const narrow = await halves(page);
+  expect(Math.abs(narrow.preview.x - narrow.rows.x), 'one column').toBeLessThanOrEqual(1);
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth))
+    .toBeLessThanOrEqual(900);
 });

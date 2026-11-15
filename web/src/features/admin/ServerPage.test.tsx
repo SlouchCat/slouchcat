@@ -396,6 +396,17 @@ describe('System › Server (build plan 4; concept 11, A-3)', () => {
     expect(sentence('telescope_aligned', viewer)).toBe('Ereignis auf dem Server');
   });
 
+  it('when all is quiet the server log says so, its live region empty (OVW-063)', async () => {
+    mockApi(routes({ 'GET /admin/dashboard': () => json(quiet()) }));
+    renderApp(SERVER);
+    const log = await screen.findByRole('region', { name: 'Server-Protokoll' });
+    await waitFor(() => expect(log).toHaveTextContent('Server-Protokoll · keine Fehler'));
+    // Collapsed: the sentence is there for when it opens, not shown.
+    expect(within(log).getByText('Keine Fehler seit dem Start.')).not.toBeVisible();
+    // The live region of the count is there before the first error comes.
+    expect(within(log).getByRole('status')).toBeEmptyDOMElement();
+  });
+
   it('keeps the server log collapsed; a poll every 5 s announces new errors as a count', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const older = { at: '2026-10-21T09:20:00Z', source: 'library', message: 'scan aborted' };

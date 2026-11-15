@@ -753,6 +753,21 @@ describe('admin sidebar (A-2, concept 11; build plan 1, 2)', () => {
     expect(within(crumbs).getByText('Geräte')).toHaveAttribute('aria-current', 'page');
   });
 
+  it('the tab «Pflege» carries the open cases with their spoken name (MNT-006)', async () => {
+    mockApi(routes({ 'GET /admin/libraries': () => json([]) }));
+    await renderAdminPage('/admin/libraries');
+    const tabs = areaTabs('Medien');
+    const maintenance = await within(tabs).findByRole('link', {
+      name: 'Pflege, 4 Titel brauchen Pflege',
+    });
+    expect(maintenance).toHaveAttribute('href', '/admin/maintenance');
+    expect(maintenance).toHaveTextContent('Pflege4');
+    expect(within(tabs).getByRole('link', { name: /^Bibliotheken/ })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
+
   it('shows the entries without numbers while the dashboard cannot be read', async () => {
     const { calls } = mockApi({ ...signedIn, 'GET /admin/devices': () => json([]) });
     const { nav, queryClient } = await renderAdminPage('/admin/devices');
