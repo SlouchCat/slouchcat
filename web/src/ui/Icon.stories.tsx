@@ -26,6 +26,8 @@ const names: IconName[] = [
   'trash',
   'previous',
   'next',
+  'chapterPrevious',
+  'chapterNext',
   'replay',
   'forward',
   'list',
