@@ -140,7 +140,7 @@ async function sessionWithin(queryClient: QueryClient): Promise<SessionInfo | nu
 // is asked only when there is none (401). Without an account only the public steps of the wizard
 // are reachable (language, account; concept 22, 3.6); the owner of an unfinished wizard goes to its
 // first open step at every sign-in until it is finished, unless «Später fortsetzen» was chosen in
-// this tab (F-11); a finished wizard is gone. On the start page its data is requested in parallel with the session
+// this browser since the last sign-in (F-11); a finished wizard is gone. On the start page its data is requested in parallel with the session
 // instead of after the guard (P-10: two round trips less before the hero image). The prefetch is
 // not awaited, so the page renders its skeleton as soon as the session is known.
 // Offline start (C-1): where the browser can keep downloads, an app whose session request fails

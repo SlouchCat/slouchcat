@@ -116,7 +116,7 @@ const owner = (extra: Routes = {}, states: Parameters<typeof progress>[0] = {}):
 });
 
 beforeEach(async () => {
-  sessionStorage.clear();
+  localStorage.removeItem('slouchcat.setupLater');
   await setLanguage('de');
 });
 
@@ -215,6 +215,14 @@ describe('the owner of an unfinished wizard', () => {
     );
   });
 
+  it('«Später fortsetzen» outlives a new tab or a reopened app until the next sign-in', async () => {
+    localStorage.setItem('slouchcat.setupLater', String(session.account.id));
+    mockApi(owner());
+    const { router } = renderApp('/admin');
+    expect(await screen.findByText('Einrichtung nicht abgeschlossen')).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin');
+  });
+
   it('is not led into the wizard before choosing the primary profile (review of stage 2)', async () => {
     const other = { ...session.profile, id: 2, name: 'Kind', isPrimary: false };
     const { calls } = mockApi(
@@ -231,7 +239,7 @@ describe('the owner of an unfinished wizard', () => {
 
   it('the overview asks for the wizard only for the owner (review of stage 2)', async () => {
     const admin = { ...pending, account: { ...pending.account, isOwner: false } };
-    sessionStorage.clear();
+    localStorage.removeItem('slouchcat.setupLater');
     const { calls } = mockApi(owner({ 'GET /auth/session': () => json(admin) }));
     renderApp('/admin');
     expect(await screen.findByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();

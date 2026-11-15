@@ -80,14 +80,15 @@ export function firstOpenStep(progress: SetupProgress): SetupStep {
 export const previousStep = (step: SetupStep): SetupStep | undefined =>
   SETUP_STEPS[SETUP_STEPS.indexOf(step) - 1];
 
-// «Später fortsetzen» (3.4, F-11): the owner goes to the start page for this sign-in; the next
-// sign-in leads into the wizard again. The browser tab keeps the choice, the account names it.
+// «Später fortsetzen» (3.4, F-11): the owner goes to the start page until the next sign-in, which
+// leads into the wizard again. The browser keeps the choice (localStorage, so a new tab and a
+// reopened PWA keep it too) for the account; the login page clears it (clearSetupDeferral).
 const LATER_KEY = 'slouchcat.setupLater';
 
-/** «Später fortsetzen» was chosen in this browser tab since the account's last sign-in. */
+/** «Später fortsetzen» was chosen in this browser since the account's last sign-in here. */
 export function setupDeferred(session: SessionInfo): boolean {
   try {
-    return sessionStorage.getItem(LATER_KEY) === String(session.account.id);
+    return localStorage.getItem(LATER_KEY) === String(session.account.id);
   } catch {
     return false;
   }
@@ -95,7 +96,7 @@ export function setupDeferred(session: SessionInfo): boolean {
 
 export function deferSetup(session: SessionInfo): void {
   try {
-    sessionStorage.setItem(LATER_KEY, String(session.account.id));
+    localStorage.setItem(LATER_KEY, String(session.account.id));
   } catch {
     // Without storage the next navigation leads into the wizard again; nothing is lost.
   }
@@ -104,7 +105,7 @@ export function deferSetup(session: SessionInfo): void {
 /** A new sign-in ends «Später fortsetzen» (adoptSession). */
 export function clearSetupDeferral(): void {
   try {
-    sessionStorage.removeItem(LATER_KEY);
+    localStorage.removeItem(LATER_KEY);
   } catch {
     // Nothing stored, nothing to clear.
   }
