@@ -100,7 +100,9 @@ fünf Stufen. Diese ADR hält die Entscheide fest; Stufe 1 baut das Gerüst ohne
     Sprache des Eigentümers geschrieben. Ändert jemand dazwischen die Sprache, passt `lang` nicht zum Text.
   - Für die Meldung «Neue Folge» baut `notify.go` das Profil ohne `metadata_language`: Der Titel kommt
     in `MetadataBase` der Oberflächensprache, auch wenn das Profil eine eigene Metadaten-Sprache hat.
-  - `profiles.settings.ratingAboveAccount` nennt fest «FSK»; das ändert Stufe 3.
+  - `profiles.settings.ratingAboveAccount` nennt fest «FSK»; das ändert Stufe 3. *Erledigt in Stufe 3:* der
+    Schlüssel heisst jetzt `profiles.settings.ratingAboveCeiling` und nennt die Stufen des Freigabelands
+    (ADR 0034).
   - Die festen Texte der Schrittweite im Player («−0,1», «0,1 s früher») schreiben ein Komma, während
     `intlLocale` in `de` jetzt einen Punkt formatiert («1.25×»). Gehört zur Durchsicht der Texte.
 - **Fallen beim Bauen:** Der Dateicache von Vitest (`node_modules/.vitest-cache`) übersieht eine neue Datei

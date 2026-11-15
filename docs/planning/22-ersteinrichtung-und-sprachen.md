@@ -1183,6 +1183,11 @@ Bau-Reihenfolge nummeriert.
     Verwaltung (`AdminSideNavContent`, auf dem Handy dasselbe Blatt) statt einer waagrechten Leiste.
     Schritt 6 nutzt den Dialog «Bibliothek hinzufügen» der Verwaltung mit dem Ordner-Browser. Ein Neustart
     ist fällig, wenn die Wahl weder der beim Start angewandten noch dem laufenden Backend entspricht.
+- **Stufe 3 gebaut (15. November 2026, Vertrag 1.36.0, Migrationen 00062 bis 00064):** Schritt 0 hat die
+  «Heute»-Angaben von 4.11 am Code bestätigt, mit kleinen Abweichungen bei den Fundstellen. Befunde, die
+  Abweichungen vom Konzept (Spalten-`CHECK` 0 bis 18, jedes Land endet mit 18, Titel ohne Freigabe werden mit
+  gelesen, der Match senkt bei einem anderen Land, das Freigabeland auf der Einladungsseite) und die Dauer des
+  Jobs stehen in ADR 0034 und `docs/perf/22-freigabelaender.md`.
 
 ---
 
