@@ -418,7 +418,7 @@
       "filter": "Filter",
       "filterCount": "Filter ({{count}})",
       "apply": "Toepassen",
-      "clear": "Herstellen",
+      "clear": "Resetten",
       "emptyFilters": "Niets komt overeen met deze filters",
       "pageFailed": "Een deel van de lijst kon niet worden geladen.",
       "noun": {
@@ -834,7 +834,7 @@
       "unavailableTranscode": "Alleen omgezet af te spelen",
       "remembered": "Onthouden: {{quality}}",
       "rememberedNote": "Titels boven {{quality}} worden dan omgezet.",
-      "reset": "Herstellen"
+      "reset": "Resetten"
     },
     "chapters": {
       "button": "Hoofdstukken",
@@ -946,7 +946,7 @@
         "earlier": "0,1 s eerder",
         "later": "0,1 s later",
         "value": "{{seconds}} s",
-        "reset": "Herstellen"
+        "reset": "Resetten"
       }
     },
     "settings": {
@@ -1013,7 +1013,7 @@
       "title": "Sneltoetsen",
       "rows": {
         "play": {
-          "keys": "Space, K, Enter",
+          "keys": "Spatie, K, Enter",
           "action": "Afspelen of pauzeren"
         },
         "seek": {
@@ -1081,7 +1081,7 @@
           "action": "Deze hulp"
         },
         "back": {
-          "keys": "Escape, Backspace",
+          "keys": "Esc, Backspace",
           "action": "Sluit een paneel, de hulp en de streaminfo (in het tandwiel: een niveau terug), anders terug naar de detailpagina",
           "actionOfflineDownloads": "Sluit een paneel, de hulp en het tabblad (in het tandwiel: een niveau terug), anders terug naar de downloads",
           "actionOfflineLibrary": "Sluit een paneel, de hulp en het tabblad (in het tandwiel: een niveau terug), anders terug naar de offline bibliotheek"
@@ -1381,7 +1381,7 @@
         "hits_other": "{{count}} resultaten",
         "hitsCaption": "Gevonden landen",
         "continents": {
-          "label": "Alle landen per continent. Een continent klapt zijn landen open; nogmaals indrukken of Escape sluit ze.",
+          "label": "Alle landen per continent. Een continent klapt zijn landen open; nogmaals indrukken of Esc sluit ze.",
           "heading": "Per continent"
         },
         "continent": {
@@ -3992,7 +3992,7 @@
         "sessions_one": "{{count, number}} keer afgespeeld",
         "sessions_other": "{{count, number}} keer afgespeeld",
         "share": "{{share}} van alle weergaven",
-        "hardware": "Transcoderen op de GPU",
+        "hardware": "Transcoderen op de grafische chip",
         "hardwareNote": "Aandeel van de transcoderingen"
       },
       "devices": {
@@ -4607,11 +4607,11 @@
       },
       "languages": {
         "title": "Talen",
-        "intro": "Elke taal hier wordt voor elke titel opgehaald; profielen kiezen daaruit de taal van hun beschrijvingen. De interface blijft Duits of Engels. Elke extra taal kost één verzoek per titel en seizoen.",
+        "intro": "Elke taal hier wordt voor elke titel opgehaald; profielen kiezen daaruit de taal van hun beschrijvingen. De taal van de interface staat hier los van. Elke extra taal kost één verzoek per titel en seizoen.",
         "list": "Metadatatalen",
         "rank": "Taal {{position}}",
         "more": "Nog een taal",
-        "fallback": "Volgorde = terugval: ontbreekt een tekst in de taal van het profiel, dan toont Slouchcat de eerste uit de lijst, daarna de bestandsnaam. De standaard heeft Duits nodig; een bibliotheek heeft Duits of Engels nodig.",
+        "fallback": "Volgorde = terugval: ontbreekt een tekst in de taal van het profiel, dan toont Slouchcat de eerste uit de lijst, daarna de bestandsnaam. Geen enkele taal is verplicht, maar de standaard en elke bibliotheek hebben er minstens één nodig.",
         "unknownAt": "{{provider}} kent niet: {{languages}}",
         "youtube": "{{count}} talen: maximaal {{titles}} titels per dag met de YouTube-trailerzoekopdracht (quotum 10.000)."
       },
@@ -5321,7 +5321,7 @@
         "local": "Op de server",
         "download": "Op dit apparaat"
       },
-      "reset": "Filters herstellen"
+      "reset": "Filters wissen"
     },
     "sections": {
       "titles": "Titels",
@@ -5611,7 +5611,7 @@
         "show_other": "{{count}} zenders tonen",
         "active": "Actieve filters",
         "remove": "Filter {{label}} weghalen",
-        "reset": "Alle filters herstellen",
+        "reset": "Alle filters wissen",
         "search": "“{{q}}”"
       },
       "sort": {
@@ -5638,7 +5638,7 @@
       "allStations": "Alle zenders",
       "empty": {
         "title": "Geen zenders gevonden",
-        "body": "Geen zender komt overeen met deze filters. Haal een filter weg of herstel ze allemaal."
+        "body": "Geen zender komt overeen met deze filters. Haal een filter weg of wis ze allemaal."
       },
       "loading": {
         "title": "De zenderlijst wordt geladen",

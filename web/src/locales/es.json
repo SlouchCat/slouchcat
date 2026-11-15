@@ -881,10 +881,10 @@
     },
     "watchLimit": {
       "title": "Tiempo de visualización de hoy agotado",
-      "body_one": "Este perfil puede ver {{count}} minuto al día. Hasta mañana.",
-      "body_many": "Este perfil puede ver {{count}} de minutos al día. Hasta mañana.",
-      "body_other": "Este perfil puede ver {{count}} minutos al día. Hasta mañana.",
-      "bodyUnknown": "Este perfil ha alcanzado su límite diario. Hasta mañana.",
+      "body_one": "Este perfil puede ver {{count}} minuto al día. Mañana podrás seguir viendo.",
+      "body_many": "Este perfil puede ver {{count}} de minutos al día. Mañana podrás seguir viendo.",
+      "body_other": "Este perfil puede ver {{count}} minutos al día. Mañana podrás seguir viendo.",
+      "bodyUnknown": "Este perfil ha alcanzado su límite diario. Mañana podrás seguir viendo.",
       "used_one": "Visto hoy: {{count}} minuto.",
       "used_many": "Visto hoy: {{count}} de minutos.",
       "used_other": "Visto hoy: {{count}} minutos."
@@ -1043,7 +1043,7 @@
       "title": "Atajos de teclado",
       "rows": {
         "play": {
-          "keys": "Espacio, K, Enter",
+          "keys": "Espacio, K, Intro",
           "action": "Reproducir o pausar"
         },
         "seek": {
@@ -1111,7 +1111,7 @@
           "action": "Esta ayuda"
         },
         "back": {
-          "keys": "Escape, Retroceso",
+          "keys": "Esc, Retroceso",
           "action": "Cierra un panel, la ayuda y los datos de transmisión (en el engranaje: un nivel atrás); si no, vuelve a la página de detalles",
           "actionOfflineDownloads": "Cierra un panel, la ayuda y la pestaña (en el engranaje: un nivel atrás); si no, vuelve a Descargas",
           "actionOfflineLibrary": "Cierra un panel, la ayuda y la pestaña (en el engranaje: un nivel atrás); si no, vuelve a la biblioteca sin conexión"
@@ -1421,7 +1421,7 @@
         "hits_other": "{{count}} resultados",
         "hitsCaption": "Países encontrados",
         "continents": {
-          "label": "Todos los países por continente. Un continente abre sus países; al pulsarlo de nuevo o con Escape se cierran.",
+          "label": "Todos los países por continente. Un continente abre sus países; al pulsarlo de nuevo o con Esc se cierran.",
           "heading": "Por continente"
         },
         "continent": {
@@ -1629,7 +1629,7 @@
         "book": {
           "body": "Los campos con candado y una portada elegida se mantienen, salvo que quites antes los bloqueos.",
           "unlockAll": "Quitar también todos los bloqueos",
-          "unlockAllHint": "Quita antes todos los bloqueos de este libro, también los de los campos que tomaste de una fuente en «Asociar»: después vuelve a valer lo que digan los archivos y el proveedor. La asociación en sí y una clasificación propia se mantienen.",
+          "unlockAllHint": "Quita antes todos los bloqueos de este libro, también los de los campos que importaste de una fuente en «Asociar»: después vuelve a valer lo que digan los archivos y el proveedor. La asociación en sí y una clasificación propia se mantienen.",
           "run": "Leer de nuevo",
           "filesTitle": "Leer de nuevo los archivos",
           "filesHint": "Vuelve a leer metadata.json, las etiquetas y los nombres de carpeta.",
@@ -1641,7 +1641,7 @@
         }
       },
       "bookMatch": {
-        "intro": "Busca en una fuente por título y autor, o por ASIN o ISBN, y elige un resultado. Tú decides campo por campo qué se toma.",
+        "intro": "Busca en una fuente por título y autor, o por ASIN o ISBN, y elige un resultado. Tú decides campo por campo qué se importa.",
         "noSources": "La carpeta de este libro no indica ninguna fuente de libros configurada. Las fuentes de una carpeta se definen en su biblioteca.",
         "matched": "Asociado: {{source}}",
         "unmatched": "Sin asociar: datos solo de los archivos",
@@ -1669,29 +1669,29 @@
         "isbnId": "ISBN {{id}}",
         "choose": "Elegir {{title}} ({{length}})",
         "preview": {
-          "title": "Qué se toma",
+          "title": "Qué se importa",
           "entry": "{{title}} en {{source}}",
           "caption": "Campos de {{source}}, actuales y nuevos",
           "field": "Campo",
           "today": "Actual",
           "new": "Nuevo",
-          "take": "Tomar",
-          "takeLabel": "Tomar {{field}}",
+          "take": "Importar",
+          "takeLabel": "Importar {{field}}",
           "locked": "bloqueado",
           "noValue": "La fuente no tiene ningún valor",
           "empty": "–",
           "cover": "Portada de la fuente",
           "coverToday": "presente",
-          "hint": "Los campos tomados quedan con candado. Los campos con candado se mantienen. La asociación también vale para un «Obtener de nuevo del proveedor» posterior.",
+          "hint": "Los campos importados quedan con candado. Los campos con candado se mantienen. La asociación también vale para un «Obtener de nuevo del proveedor» posterior.",
           "same": "La fuente no entrega nada que se diferencie de lo actual.",
-          "apply_one": "Tomar {{count}} campo",
-          "apply_many": "Tomar {{count}} de campos",
-          "apply_other": "Tomar {{count}} campos",
+          "apply_one": "Importar {{count}} campo",
+          "apply_many": "Importar {{count}} de campos",
+          "apply_other": "Importar {{count}} campos",
           "assignOnly": "Solo asociar",
-          "applied_one": "{{count}} campo tomado de {{source}} y bloqueado.",
-          "applied_many": "{{count}} de campos tomados de {{source}} y bloqueados.",
-          "applied_other": "{{count}} campos tomados de {{source}} y bloqueados.",
-          "assigned": "Asociado con {{source}}, sin tomar ningún campo."
+          "applied_one": "{{count}} campo importado de {{source}} y bloqueado.",
+          "applied_many": "{{count}} de campos importados de {{source}} y bloqueados.",
+          "applied_other": "{{count}} campos importados de {{source}} y bloqueados.",
+          "assigned": "Asociado con {{source}}, no se importó ningún campo."
         }
       }
     },
@@ -3385,7 +3385,7 @@
         }
       },
       "streams": {
-        "title": "Reproduciéndose ahora",
+        "title": "En reproducción",
         "empty": "Ahora mismo no se está reproduciendo nada.",
         "all": "Todas las transmisiones",
         "progress": "Progreso de {{title}}"
@@ -3685,7 +3685,7 @@
           "result": "Resultado"
         },
         "result": {
-          "scan_queued": "Se lee el directorio",
+          "scan_queued": "Leyendo la carpeta",
           "acknowledged": "Prueba confirmada",
           "ignored": "Sin efecto",
           "outside_roots": "Fuera de las bibliotecas",
@@ -4138,7 +4138,7 @@
         "sessions_many": "{{count, number}} de reproducciones",
         "sessions_other": "{{count, number}} reproducciones",
         "share": "{{share}} de todas las reproducciones",
-        "hardware": "Transcodificación en la GPU",
+        "hardware": "Transcodificación en el procesador gráfico",
         "hardwareNote": "Proporción de las transcodificaciones"
       },
       "devices": {
@@ -4770,11 +4770,11 @@
       },
       "languages": {
         "title": "Idiomas",
-        "intro": "Cada idioma de aquí se obtiene para cada título; los perfiles eligen entre ellos el idioma de sus sinopsis. La interfaz sigue en alemán o inglés. Cada idioma adicional cuesta una solicitud por título y temporada.",
+        "intro": "Cada idioma de aquí se obtiene para cada título; los perfiles eligen entre ellos el idioma de sus sinopsis. El idioma de la interfaz no depende de esto. Cada idioma adicional cuesta una solicitud por título y temporada.",
         "list": "Idiomas de metadatos",
         "rank": "Idioma {{position}}",
         "more": "Otro idioma",
-        "fallback": "Orden = alternativa: si falta un texto en el idioma del perfil, Slouchcat muestra el primero disponible de la lista y, después, el nombre de archivo. El valor predeterminado necesita alemán; una biblioteca necesita alemán o inglés.",
+        "fallback": "Orden = alternativa: si falta un texto en el idioma del perfil, Slouchcat muestra el primero disponible de la lista y, después, el nombre de archivo. Ningún idioma es obligatorio, pero el valor predeterminado y cada biblioteca necesitan al menos uno.",
         "unknownAt": "{{provider}} no conoce: {{languages}}",
         "youtube": "{{count}} idiomas: hasta {{titles}} títulos al día con la búsqueda de tráilers de YouTube (cuota de 10.000)."
       },
@@ -5512,7 +5512,7 @@
     "results_many": "{{count}} de títulos encontrados",
     "results_other": "{{count}} títulos encontrados",
     "empty": {
-      "title": "No se ha encontrado nada",
+      "title": "Sin resultados",
       "body": "Prueba con otro término o con menos filtros."
     }
   },
@@ -5833,7 +5833,7 @@
       "results": "Resultados",
       "allStations": "Todas las emisoras",
       "empty": {
-        "title": "No se ha encontrado ninguna emisora",
+        "title": "No se encontraron emisoras",
         "body": "Ninguna emisora coincide con estos filtros. Quita un filtro o restablécelos todos."
       },
       "loading": {
@@ -5936,7 +5936,7 @@
     "player": {
       "region": "Reproducción de radio",
       "open": "Abrir el reproductor: {{name}}",
-      "nowPlaying": "Reproduciéndose ahora",
+      "nowPlaying": "En reproducción",
       "close": "Cerrar el reproductor",
       "play": "Reanudar",
       "pause": "Pausa",

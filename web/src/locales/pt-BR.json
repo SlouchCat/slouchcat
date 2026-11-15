@@ -156,7 +156,7 @@
       "too_many_attempts": "Muitas tentativas. Aguarde um momento e tente novamente.",
       "too_many_requests": "A lista foi obtida há menos de um minuto. Aguarde um momento e tente novamente.",
       "provider_not_configured": "Este provedor não está configurado. Adicione a chave dele à configuração do servidor.",
-      "watch_limit_reached": "Este perfil já usou o tempo de exibição de hoje.",
+      "watch_limit_reached": "Este perfil já esgotou o tempo assistido de hoje.",
       "stream_limit_reached": "Este perfil já está reproduzindo o máximo de transmissões permitido.",
       "device_required": "Este dispositivo não é conhecido para a sessão. Faça login novamente.",
       "not_downloadable": "Este título não pode ser baixado.",
@@ -166,7 +166,7 @@
       "feed_invalid": "Não há um feed RSS de podcast neste endereço.",
       "feed_exists": "Esta biblioteca já assina o feed.",
       "rating_below_library_default": "A classificação indicativa não pode ser menor que o padrão da biblioteca.",
-      "not_listable": "Temporadas e extras não podem ser adicionados à lista.",
+      "not_listable": "Temporadas e extras não podem ser adicionados à minha lista.",
       "not_editable": "As coleções do TMDB não podem ser alteradas.",
       "env_wins": "Este valor está definido em deploy/.env e só pode ser alterado lá.",
       "telegram_token_invalid": "O Telegram recusou o token. Verifique o token do @BotFather.",
@@ -528,7 +528,7 @@
     },
     "empty": {
       "title": "Nada por aqui ainda",
-      "body": "Seus filmes aparecem aqui assim que uma biblioteca for verificada.",
+      "body": "Seus filmes aparecem aqui assim que uma biblioteca for escaneada.",
       "action": "Ver bibliotecas"
     },
     "spotlight": {
@@ -880,7 +880,7 @@
       "announce_other": "Próximo episódio: {{name}}. Começa em {{count}} segundos."
     },
     "watchLimit": {
-      "title": "O tempo de exibição de hoje acabou",
+      "title": "O tempo assistido de hoje acabou",
       "body_one": "Este perfil pode assistir por {{count}} minuto por dia. Até amanhã.",
       "body_many": "Este perfil pode assistir por {{count}} de minutos por dia. Até amanhã.",
       "body_other": "Este perfil pode assistir por {{count}} minutos por dia. Até amanhã.",
@@ -1043,7 +1043,7 @@
       "title": "Atalhos de teclado",
       "rows": {
         "play": {
-          "keys": "Space, K, Enter",
+          "keys": "Espaço, K, Enter",
           "action": "Reproduzir ou pausar"
         },
         "seek": {
@@ -1111,7 +1111,7 @@
           "action": "Esta ajuda"
         },
         "back": {
-          "keys": "Escape, Backspace",
+          "keys": "Esc, Backspace",
           "action": "Fecha um painel, a ajuda e as informações da transmissão (na engrenagem: um nível acima); caso contrário, volta à página de detalhes",
           "actionOfflineDownloads": "Fecha um painel, a ajuda e a aba (na engrenagem: um nível acima); caso contrário, volta aos downloads",
           "actionOfflineLibrary": "Fecha um painel, a ajuda e a aba (na engrenagem: um nível acima); caso contrário, volta à biblioteca offline"
@@ -1351,7 +1351,7 @@
         "probeNoTitles": "Títulos: não",
         "probeTitle": "Título atual: {{title}}",
         "recommended": "Recomendada",
-        "recommendedHelp": "Aparece primeiro no seu país (ordenação «Popular»).",
+        "recommendedHelp": "Aparece primeiro no seu país (ordenação “Popular”).",
         "tags": "Tags do catálogo",
         "lock": "Bloquear {{field}}",
         "locked": "bloqueado",
@@ -1395,7 +1395,7 @@
       },
       "empty": {
         "title": "Ainda não há estações na oferta",
-        "body": "A página de rádio não mostra nenhuma estação até que países sejam escolhidos e aplicados na aba «Oferta».",
+        "body": "A página de rádio não mostra nenhuma estação até que países sejam escolhidos e aplicados na aba “Oferta”.",
         "action": "Ir para a oferta"
       },
       "offerFacts": {
@@ -1421,7 +1421,7 @@
         "hits_other": "{{count}} resultados",
         "hitsCaption": "Países encontrados",
         "continents": {
-          "label": "Todos os países por continente. Um continente abre seus países; pressioná-lo de novo ou Escape os fecha.",
+          "label": "Todos os países por continente. Um continente abre seus países; pressioná-lo de novo ou Esc os fecha.",
           "heading": "Por continente"
         },
         "continent": {
@@ -1484,7 +1484,7 @@
         "summary": {
           "title": "Na oferta",
           "offered": "Estações na oferta",
-          "unreachable": "Inacessíveis entre elas",
+          "unreachable": "Destas, inacessíveis",
           "countries": "Países escolhidos",
           "marked": "Estações marcadas",
           "hideBroken": "Omitir estações inacessíveis",
@@ -1576,7 +1576,7 @@
         "noKinds": "Este título não tem tipos de imagem."
       },
       "metadata": {
-        "intro": "O que você altera aqui bloqueia o campo: «Atualizar» não o sobrescreve mais. O bloqueio pode ser removido.",
+        "intro": "O que você altera aqui bloqueia o campo: “Atualizar” não o sobrescreve mais. O bloqueio pode ser removido.",
         "lang": "Os textos valem para o idioma {{language}}; o servidor continua buscando os outros idiomas nos provedores.",
         "langBook": "Os textos valem para todas as linhas de idioma do livro.",
         "field": {
@@ -1620,7 +1620,7 @@
         "notMatchable": "O servidor associa temporadas e episódios por meio da série."
       },
       "refresh": {
-        "body": "«Atualizar agora» recarrega todos os campos livres e todas as imagens escolhidas automaticamente. Campos bloqueados e imagens escolhidas permanecem.",
+        "body": "“Atualizar agora” recarrega todos os campos livres e todas as imagens escolhidas automaticamente. Campos bloqueados e imagens escolhidas permanecem.",
         "options": "Antes de atualizar",
         "unlockAll": "Remover antes todos os bloqueios deste título",
         "unlockAllHint": "Depois, vale de novo o que os provedores fornecem. Uma correspondência manual e uma classificação própria permanecem.",
@@ -1629,19 +1629,19 @@
         "book": {
           "body": "Campos bloqueados e uma capa escolhida permanecem, a menos que você remova antes os bloqueios.",
           "unlockAll": "Remover também todos os bloqueios",
-          "unlockAllHint": "Remove antes todos os bloqueios deste livro, inclusive os dos campos que você tomou de uma fonte em «Correspondência»: depois, vale de novo o que os arquivos e o provedor informam. A correspondência em si e uma classificação própria permanecem.",
+          "unlockAllHint": "Remove antes todos os bloqueios deste livro, inclusive os dos campos que você importou de uma fonte em “Correspondência”: depois, vale de novo o que os arquivos e o provedor informam. A correspondência em si e uma classificação própria permanecem.",
           "run": "Ler novamente",
           "filesTitle": "Ler os arquivos novamente",
           "filesHint": "Lê mais uma vez o metadata.json, as tags e os nomes das pastas.",
           "providerTitle": "Buscar no provedor novamente",
           "providerHint": "Busca mais uma vez os detalhes em {{source}}.",
-          "providerNone": "Escolha antes um resultado em «Correspondência».",
+          "providerNone": "Escolha antes um resultado em “Correspondência”.",
           "providerRun": "Buscar novamente",
           "refetched": "Os detalhes de {{source}} foram buscados novamente."
         }
       },
       "bookMatch": {
-        "intro": "Busque numa fonte por título e autor ou por ASIN ou ISBN e escolha um resultado. Você decide campo a campo o que será adotado.",
+        "intro": "Busque numa fonte por título e autor ou por ASIN ou ISBN e escolha um resultado. Você decide campo a campo o que será importado.",
         "noSources": "A pasta deste livro não lista nenhuma fonte de livros configurada. As fontes de uma pasta são escolhidas na biblioteca dela.",
         "matched": "Associado: {{source}}",
         "unmatched": "Não associado: detalhes só dos arquivos",
@@ -1669,29 +1669,29 @@
         "isbnId": "ISBN {{id}}",
         "choose": "Escolher {{title}} ({{length}})",
         "preview": {
-          "title": "O que será adotado",
+          "title": "O que será importado",
           "entry": "{{title}} em {{source}}",
           "caption": "Campos de {{source}}, atuais e novos",
           "field": "Campo",
           "today": "Atual",
           "new": "Novo",
-          "take": "Adotar",
-          "takeLabel": "Adotar {{field}}",
+          "take": "Importar",
+          "takeLabel": "Importar {{field}}",
           "locked": "bloqueado",
           "noValue": "A fonte não tem valor",
           "empty": "–",
           "cover": "Capa da fonte",
           "coverToday": "presente",
-          "hint": "Campos adotados são bloqueados. Campos bloqueados permanecem. A correspondência também vale para uma busca posterior em «Buscar no provedor novamente».",
+          "hint": "Campos importados são bloqueados. Campos bloqueados permanecem. A correspondência também vale para uma busca posterior em “Buscar no provedor novamente”.",
           "same": "A fonte não traz nada diferente do que existe hoje.",
-          "apply_one": "Adotar {{count}} campo",
-          "apply_many": "Adotar {{count}} de campos",
-          "apply_other": "Adotar {{count}} campos",
+          "apply_one": "Importar {{count}} campo",
+          "apply_many": "Importar {{count}} de campos",
+          "apply_other": "Importar {{count}} campos",
           "assignOnly": "Só associar",
-          "applied_one": "{{count}} campo adotado de {{source}} e bloqueado.",
-          "applied_many": "{{count}} de campos adotados de {{source}} e bloqueados.",
-          "applied_other": "{{count}} campos adotados de {{source}} e bloqueados.",
-          "assigned": "Associado a {{source}}, nenhum campo adotado."
+          "applied_one": "{{count}} campo importado de {{source}} e bloqueado.",
+          "applied_many": "{{count}} de campos importados de {{source}} e bloqueados.",
+          "applied_other": "{{count}} campos importados de {{source}} e bloqueados.",
+          "assigned": "Associado a {{source}}, nenhum campo importado."
         }
       }
     },
@@ -1729,9 +1729,9 @@
         "network_share": "Compartilhamento de rede"
       },
       "state": {
-        "never": "Nunca verificada",
+        "never": "Nunca escaneada",
         "queued": "Aguardando varredura",
-        "running": "Verificando",
+        "running": "Escaneando",
         "done": "Atualizada",
         "failed": "Varredura falhou",
         "aborted": "Varredura interrompida"
@@ -1751,12 +1751,12 @@
         "other": "Último erro: {{message}}",
         "cancelled": "A varredura foi cancelada. A próxima varredura roda normalmente de novo."
       },
-      "rescan": "Verificar novamente",
+      "rescan": "Escanear de novo",
       "acceptLoss": {
         "action": "Aceitar perda",
         "title": "Remover arquivos ausentes?",
         "body": "A próxima varredura remove da biblioteca os títulos ausentes; o progresso desses títulos é perdido. Faça isso só se os arquivos foram apagados de propósito.",
-        "confirm": "Remover e verificar"
+        "confirm": "Remover e escanear"
       },
       "add": {
         "title": "Adicionar biblioteca",
@@ -1793,7 +1793,7 @@
       "folders": {
         "title": "Pastas de {{name}}",
         "description": "Uma biblioteca pode ter várias pastas. A varredura e o monitoramento passam a incluir uma nova pasta de imediato.",
-        "none": "Esta biblioteca não tem pasta. Nada é verificado até você adicionar uma.",
+        "none": "Esta biblioteca não tem pasta. Nada é escaneado até você adicionar uma.",
         "content": "Títulos: {{items}} · arquivos: {{files}}",
         "remove": {
           "action": "Remover",
@@ -1805,13 +1805,13 @@
           "lead_one": "Você está removendo <path>{{path}}</path> da biblioteca {{name}}. Até {{count}} título sai de todas as listas com ela. O que isso significa:",
           "lead_many": "Você está removendo <path>{{path}}</path> da biblioteca {{name}}. Até {{count}} de títulos saem de todas as listas com ela. O que isso significa:",
           "lead_other": "Você está removendo <path>{{path}}</path> da biblioteca {{name}}. Até {{count}} títulos saem de todas as listas com ela. O que isso significa:",
-          "soft": "Os títulos são excluídos de forma reversível: somem de todas as listas, mas o progresso, os itens da lista e as escolhas continuam ligados a eles. Um título com arquivo em outra pasta desta biblioteca continua visível.",
+          "soft": "Os títulos são excluídos de forma reversível: somem de todas as listas, mas o progresso, os itens da Minha lista e as escolhas continuam ligados a eles. Um título com arquivo em outra pasta desta biblioteca continua visível.",
           "downloads": "Os downloads offline somem de verdade: dispositivos que têm um destes títulos excluem o pacote na próxima sincronização.",
           "playback": "Uma reprodução em andamento a partir desta pasta é interrompida no meio.",
           "webhooks": "Depois disso, o mapa de caminhos do Radarr e do Sonarr não aponta para lugar nenhum para este caminho; avisos sobre ele são recusados.",
-          "relink": "Se os títulos voltarem mais tarde, mesmo por outra pasta, o Slouchcat os encontra pelo ID do TMDB, TVDB ou IMDb e traz de volta o progresso e as listas. Se você só mover a pasta, use «Alterar caminho» em vez de «Remover».",
+          "relink": "Se os títulos voltarem mais tarde, mesmo por outra pasta, o Slouchcat os encontra pelo ID do TMDB, TVDB ou IMDb e traz de volta o progresso e as listas. Se você só mover a pasta, use “Alterar caminho” em vez de “Remover”.",
           "oneWay": "Se a pasta estiver fora das pastas navegáveis (SLOUCHCAT_BROWSE_ROOTS), ela não poderá ser adicionada de novo sem alterar a configuração.",
-          "last": "É a última pasta: {{name}} continua existindo, mas depois não terá pasta e não verificará nada."
+          "last": "É a última pasta: {{name}} continua existindo, mas depois não terá pasta e não escaneará nada."
         },
         "new": "Novas pastas",
         "change": {
@@ -1820,9 +1820,9 @@
           "title": "Alterar pasta",
           "description": "Conteúdo e fontes de metadados de {{path}}.",
           "submit": "Salvar",
-          "identifier": "O identificador muda: os textos de temporadas e episódios são atribuídos de novo após {{provider}}. Os episódios em si permanecem, e o progresso e a lista continuam ligados a eles.",
+          "identifier": "O identificador muda: os textos de temporadas e episódios são atribuídos de novo de acordo com {{provider}}. Os episódios em si permanecem, e o progresso e a Minha lista continuam ligados a eles.",
           "fillers": "Só os complementos mudam: os títulos são preenchidos de novo, nada é excluído.",
-          "content": "O conteúdo muda: isso equivale a remover a pasta e adicioná-la de novo. Os títulos desta pasta são excluídos de forma reversível e criados novamente, os pacotes offline somem, e o progresso e a lista ficam com os títulos antigos.",
+          "content": "O conteúdo muda: isso equivale a remover a pasta e adicioná-la de novo. Os títulos desta pasta são excluídos de forma reversível e criados novamente, os pacotes offline somem, e o progresso e a Minha lista ficam com os títulos antigos.",
           "confirmTitle": "Alterar mesmo o conteúdo?",
           "confirm": "Alterar conteúdo",
           "saved": "A pasta {{path}} foi alterada."
@@ -1843,7 +1843,7 @@
       "rootCount_one": "{{count}} pasta",
       "rootCount_many": "{{count}} de pastas",
       "rootCount_other": "{{count}} pastas",
-      "noFolder": "Nenhuma pasta: nada é verificado até você adicionar uma em “Pastas”.",
+      "noFolder": "Nenhuma pasta: nada é escaneado até você adicionar uma em “Pastas”.",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_many": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
@@ -1878,8 +1878,8 @@
         },
         "facts": {
           "ahead": {
-            "movie": "Filmes novos recebem as miniaturas ao serem importados; «Gerar agora» ou o agendamento em «Tarefas em segundo plano» cuidam do restante. Se faltarem ao iniciar, levam de 20 a 45 segundos e são mantidas.",
-            "episode": "Episódios novos recebem as miniaturas ao serem importados; «Gerar agora» ou o agendamento em «Tarefas em segundo plano» cuidam do restante. Se faltarem ao iniciar, levam de 20 a 45 segundos e são mantidas."
+            "movie": "Filmes novos recebem as miniaturas ao serem importados; “Gerar agora” ou o agendamento em “Tarefas em segundo plano” cuidam do restante. Se faltarem ao iniciar, levam de 20 a 45 segundos e são mantidas.",
+            "episode": "Episódios novos recebem as miniaturas ao serem importados; “Gerar agora” ou o agendamento em “Tarefas em segundo plano” cuidam do restante. Se faltarem ao iniciar, levam de 20 a 45 segundos e são mantidas."
           },
           "onStartKeep": "Na primeira reprodução, as miniaturas levam de 20 a 45 segundos, a primeira folha de 5 a 10 segundos, e são mantidas. Títulos que ninguém assiste não ocupam espaço.",
           "onStart": "Cada reprodução gera as miniaturas de novo em 20 a 45 segundos; elas são excluídas 10 minutos após o fim. Cada início custa tempo de processamento e algumas centenas de MB do NAS.",
@@ -1919,7 +1919,7 @@
         },
         "generate": {
           "action": "Gerar agora",
-          "hint": "Completa as miniaturas ausentes de todas as bibliotecas em «Antecipadas», como «Completar miniaturas de pré-visualização» em «Tarefas em segundo plano».",
+          "hint": "Completa as miniaturas ausentes de todas as bibliotecas em “Antecipadas”, como “Completar miniaturas de pré-visualização” em “Tarefas em segundo plano”.",
           "queued": "A geração das miniaturas foi colocada na fila."
         },
         "submit": "Salvar",
@@ -1980,8 +1980,8 @@
         "unplayable": "Arquivos que não podem ser lidos. Verifique-os de novo ou remova-os da biblioteca.",
         "rating_mismatch": "A classificação armazenada difere da calculada. Uma alteração de classificação ou a próxima varredura a corrige. Não há nada para selecionar aqui.",
         "duplicates": "Títulos que existem em dobro. Escolha o título a manter e una os demais a ele.",
-        "relink": "Títulos excluídos que voltaram à biblioteca como uma nova cópia. Progresso, histórico e listas ainda estão ligados ao título excluído. «Religar» une a cópia a ele; o título antigo permanece.",
-        "removed": "Títulos retirados do Slouchcat; seus arquivos ainda estão lá. “Restaurar” traz de volta o mesmo título, com seus episódios, progresso, marcas de assistido e lista."
+        "relink": "Títulos excluídos que voltaram à biblioteca como uma nova cópia. Progresso, histórico e listas ainda estão ligados ao título excluído. “Religar” une a cópia a ele; o título antigo permanece.",
+        "removed": "Títulos retirados do Slouchcat; seus arquivos ainda estão lá. “Restaurar” traz de volta o mesmo título, com seus episódios, progresso, marcas de assistido e Minha lista."
       },
       "empty": "Nada a fazer.",
       "selection": "Seleção",
@@ -2032,9 +2032,9 @@
         "merge": "Títulos unidos.",
         "match": "Correspondência salva; os metadados estão sendo carregados.",
         "relink": "Religados: {{titles}}.",
-        "relinkStopped_one": "{{count}} religado. Uma varredura está em andamento. Inicie «Religar» de novo após a varredura para o restante.",
-        "relinkStopped_many": "{{count}} de religados. Uma varredura está em andamento. Inicie «Religar» de novo após a varredura para o restante.",
-        "relinkStopped_other": "{{count}} religados. Uma varredura está em andamento. Inicie «Religar» de novo após a varredura para o restante.",
+        "relinkStopped_one": "{{count}} religado. Uma varredura está em andamento. Inicie “Religar” de novo após a varredura para o restante.",
+        "relinkStopped_many": "{{count}} de religados. Uma varredura está em andamento. Inicie “Religar” de novo após a varredura para o restante.",
+        "relinkStopped_other": "{{count}} religados. Uma varredura está em andamento. Inicie “Religar” de novo após a varredura para o restante.",
         "relinkSkipped_one": "{{count}} ignorado: o par não existe mais, por exemplo porque já foi unido.",
         "relinkSkipped_many": "{{count}} de ignorados: o par não existe mais, por exemplo porque já foi unido.",
         "relinkSkipped_other": "{{count}} ignorados: o par não existe mais, por exemplo porque já foi unido."
@@ -2090,7 +2090,7 @@
         "keep": "permanece",
         "noFiles": "Nenhum arquivo",
         "containerPaths": "Os caminhos são os do contêiner (/media/…), não os do NAS; cada um indica sua biblioteca.",
-        "library": "Biblioteca «{{name}}»",
+        "library": "Biblioteca “{{name}}”",
         "folderFiles_one": "{{n}} arquivo · {{size}}",
         "folderFiles_many": "{{n}} de arquivos · {{size}}",
         "folderFiles_other": "{{n}} arquivos · {{size}}"
@@ -2120,9 +2120,9 @@
           "playbackSessions_one": "{{count}} reprodução",
           "playbackSessions_many": "{{count}} de reproduções",
           "playbackSessions_other": "{{count}} reproduções",
-          "watchlist_one": "{{count}} item da lista",
-          "watchlist_many": "{{count}} de itens da lista",
-          "watchlist_other": "{{count}} itens da lista",
+          "watchlist_one": "{{count}} item da Minha lista",
+          "watchlist_many": "{{count}} de itens da Minha lista",
+          "watchlist_other": "{{count}} itens da Minha lista",
           "collectionItems_one": "{{count}} item de coleção",
           "collectionItems_many": "{{count}} de itens de coleção",
           "collectionItems_other": "{{count}} itens de coleção",
@@ -2154,9 +2154,9 @@
         "confirmRemoved_one": "A cópia é removida em definitivo.",
         "confirmRemoved_many": "As cópias são removidas em definitivo.",
         "confirmRemoved_other": "As cópias são removidas em definitivo.",
-        "confirmExtra_one": "Mais {{count}} cópia do mesmo título é ignorada e passa a aparecer em «Duplicados».",
-        "confirmExtra_many": "Mais {{count}} de cópias dos mesmos títulos são ignoradas e passam a aparecer em «Duplicados».",
-        "confirmExtra_other": "Mais {{count}} cópias dos mesmos títulos são ignoradas e passam a aparecer em «Duplicados»."
+        "confirmExtra_one": "Mais {{count}} cópia do mesmo título é ignorada e passa a aparecer em “Duplicados”.",
+        "confirmExtra_many": "Mais {{count}} de cópias dos mesmos títulos são ignoradas e passam a aparecer em “Duplicados”.",
+        "confirmExtra_other": "Mais {{count}} cópias dos mesmos títulos são ignoradas e passam a aparecer em “Duplicados”."
       },
       "removed": {
         "empty": "Nenhum título removido.",
@@ -2262,7 +2262,7 @@
         "saved": "Idioma original salvo.",
         "unsaved": "não salvo",
         "summary": "{{language}} · Fonte {{source}}",
-        "hint": "Um idioma escolhido ou «Desconhecido» fica bloqueado. «Dos metadados» remove o bloqueio, e a próxima associação consulta as fontes de novo.",
+        "hint": "Um idioma escolhido ou “Desconhecido” fica bloqueado. “Dos metadados” remove o bloqueio, e a próxima associação consulta as fontes de novo.",
         "knownFailed": "Não foi possível carregar a lista de idiomas."
       },
       "files": {
@@ -2323,7 +2323,7 @@
       },
       "images": {
         "title": "Imagens",
-        "intro": "Por tipo, a imagem escolhida com fonte e idioma. Uma escolha sua bloqueia o tipo; \"Aplicar\" e \"Atualizar\" o mantêm.",
+        "intro": "Por tipo, a imagem escolhida com fonte e idioma. Uma escolha sua bloqueia o tipo; “Aplicar” e “Atualizar” o mantêm.",
         "none": "Nenhuma imagem",
         "chosen": "escolhida manualmente",
         "locked": "bloqueado",
@@ -2619,7 +2619,7 @@
         },
         "load": {
           "label": "Baixar episódios",
-          "hint": "«Só assinar» não baixa nada do feed; o podcast armazena então apenas os episódios que aparecerem depois.",
+          "hint": "“Só assinar” não baixa nada do feed; o podcast armazena então apenas os episódios que aparecerem depois.",
           "yes": "Assinar e baixar",
           "no": "Só assinar",
           "required": "Escolha se o Slouchcat deve baixar os episódios."
@@ -2827,7 +2827,7 @@
         "missingCount": "{{number}} sem arquivo",
         "bytes": "Em uso",
         "newest": "Episódio mais recente",
-        "library": "Biblioteca «{{library}}»",
+        "library": "Biblioteca “{{library}}”",
         "setting": "Configuração"
       },
       "episodes": {
@@ -2902,7 +2902,7 @@
       "count_one": "{{number}} título",
       "count_many": "{{number}} de títulos",
       "count_other": "{{number}} títulos",
-      "empty": "Nenhum perfil recomenda um título no momento. Sem escolhas, a página inicial não mostra a fileira «Escolhas dos usuários».",
+      "empty": "Nenhum perfil recomenda um título no momento. Sem escolhas, a página inicial não mostra a fileira “Escolhas dos usuários”.",
       "anonymous": "A administração vê quantas escolhas um título tem, nunca qual perfil o escolheu.",
       "homeRowsHint": "Onde a fileira fica na página inicial e se ela aparece é definido em <page>Página inicial</page>.",
       "columns": {
@@ -3004,8 +3004,8 @@
     },
     "myMedia": {
       "title": "Minhas mídias",
-      "intro": "Ordem e visibilidade do grupo «Minhas mídias»: para a navegação lateral e os blocos da página inicial, de todos os perfis. Ocultar só oculta a entrada; os títulos continuam na busca e nas fileiras. Quem pode ver qual biblioteca é definido nas contas.",
-      "list": "Entradas de «Minhas mídias»",
+      "intro": "Ordem e visibilidade do grupo “Minhas mídias”: para a navegação lateral e os blocos da página inicial, de todos os perfis. Ocultar só oculta a entrada; os títulos continuam na busca e nas fileiras. Quem pode ver qual biblioteca é definido nas contas.",
+      "list": "Entradas de “Minhas mídias”",
       "band": "Minhas mídias",
       "tabs": {
         "label": "Exibição das entradas",
@@ -3055,7 +3055,7 @@
       "hideSidebarLabel": "Ocultar {{entry}} na navegação lateral",
       "hideHomeLabel": "Ocultar {{entry}} na página inicial",
       "moved": "{{entry}} agora está na posição {{position}}. Salve para aplicar.",
-      "saved": "«Minhas mídias» foi salvo.",
+      "saved": "“Minhas mídias” foi salvo.",
       "discarded": "As alterações foram descartadas.",
       "discard": {
         "title": "Descartar alterações?",
@@ -3064,14 +3064,14 @@
       },
       "preview": {
         "sidebar": "Navegação lateral",
-        "home": "Página inicial, fileira «Minhas mídias»",
+        "home": "Página inicial, fileira “Minhas mídias”",
         "sidebarLabel": "Prévia da navegação lateral",
         "homeLabel": "Prévia da página inicial",
-        "empty": "Nada visível: «Minhas mídias» não aparece aqui.",
+        "empty": "Nada visível: “Minhas mídias” não aparece aqui.",
         "note": "Na ordem não salva, com os números da administração. Cada perfil vê apenas as bibliotecas que pode ver, além de suas próprias estações e escolhas."
       },
-      "homeRows": "Onde a fileira «Minhas mídias» fica na página inicial e se ela aparece é definido em «Página inicial».",
-      "homeRowsLink": "Ir para a página «Página inicial»"
+      "homeRows": "Onde a fileira “Minhas mídias” fica na página inicial e se ela aparece é definido em “Página inicial”.",
+      "homeRowsLink": "Ir para a página “Página inicial”"
     },
     "homeRows": {
       "title": "Página inicial",
@@ -3109,10 +3109,10 @@
         "continue": "Títulos que o perfil já começou.",
         "recent": "Os títulos que entraram mais recentemente numa biblioteca.",
         "released": "Por data de lançamento nos últimos doze meses; uma série, pelo episódio mais recente.",
-        "watchlist": "A lista do perfil.",
+        "watchlist": "A Minha lista do perfil.",
         "collections": "Coleções próprias e as do TMDB.",
         "genres": "Os gêneros dos títulos visíveis.",
-        "libraries": "Blocos das bibliotecas que o perfil vê, do rádio e, quando exibidas, das coleções e das escolhas dos usuários; a página «Minhas mídias» define a ordem e a ocultação deles.",
+        "libraries": "Blocos das bibliotecas que o perfil vê, do rádio e, quando exibidas, das coleções e das escolhas dos usuários; a página “Minhas mídias” define a ordem e a ocultação deles.",
         "library": "Os títulos que entraram mais recentemente nesta biblioteca; “Mostrar tudo” abre a biblioteca ordenada por “Adicionados recentemente”.",
         "radio": "As estações favoritas do perfil em blocos; uma estação tocando agora pelo servidor mostra o título atual. Sem favoritas, a fileira fica de fora."
       },
@@ -3461,7 +3461,7 @@
         "streams_one": "{{count}} transmissão em andamento será interrompida. Downloads em andamento para uso em trânsito são interrompidos.",
         "streams_many": "{{count}} de transmissões em andamento serão interrompidas. Downloads em andamento para uso em trânsito são interrompidos.",
         "streams_other": "{{count}} transmissões em andamento serão interrompidas. Downloads em andamento para uso em trânsito são interrompidos.",
-        "idle": "Nada está sendo reproduzido no momento. Downloads em andamento para uso em trânsito são interrompidos.",
+        "idle": "Nada está sendo reproduzido no momento. Downloads offline em andamento são interrompidos.",
         "confirm": "Reiniciar",
         "waitTitle": "O servidor está reiniciando",
         "waitBody": "O Slouchcat é encerrado de forma ordenada e inicia de novo. Assim que o servidor responder, a página é recarregada."
@@ -3685,7 +3685,7 @@
           "result": "Resultado"
         },
         "result": {
-          "scan_queued": "Diretório é lido",
+          "scan_queued": "Lendo a pasta",
           "acknowledged": "Teste confirmado",
           "ignored": "Sem efeito",
           "outside_roots": "Fora das bibliotecas",
@@ -3800,7 +3800,7 @@
         "tmdb": {
           "name": "TMDB",
           "purpose": "Textos, pôsteres e trailers de filmes e séries. Necessário para bibliotecas de vídeo.",
-          "help": "Gratuito na conta do TMDB, em «API»: o token de acesso de leitura (v4)."
+          "help": "Gratuito na conta do TMDB, em “API”: o token de acesso de leitura (v4)."
         },
         "tvdb": {
           "name": "TVDB",
@@ -3809,30 +3809,30 @@
         },
         "fanart": {
           "name": "Fanart.tv",
-          "purpose": "Logos, planos de fundo e imagens de disco; a fonte é ativada em «Metadados».",
+          "purpose": "Logos, planos de fundo e imagens de disco; a fonte é ativada em “Metadados”.",
           "help": "Com uma chave pessoal, imagens novas aparecem após dois dias; sem ela, após sete."
         },
         "youtube": {
           "name": "YouTube",
           "purpose": "Encontra trailers que o TMDB não conhece.",
-          "help": "Uma chave da «YouTube Data API v3» do Google Cloud Console."
+          "help": "Uma chave da “YouTube Data API v3” do Google Cloud Console."
         },
         "trakt": {
           "name": "Trakt",
           "purpose": "Listas para o Spotlight e para as fileiras da página inicial.",
-          "help": "O ID do cliente do seu próprio app do Trakt. A página «Spotlight» mostra o estado das listas."
+          "help": "O ID do cliente do seu próprio app do Trakt. A página “Spotlight” mostra o estado das listas."
         },
         "googlebooks": {
           "name": "Google Books",
           "purpose": "Dados de livros para audiolivros; sem chave, o Slouchcat nunca consulta o Google Books.",
-          "help": "Uma chave da «Books API» do Google Cloud Console. Qual pasta usa a fonte é definido em «Audiolivros: fontes»."
+          "help": "Uma chave da “Books API” do Google Cloud Console. Qual pasta usa a fonte é definido em “Audiolivros: fontes”."
         },
         "close": "Recolher",
         "toggleLabel": "{{action}}: {{name}}",
         "link": "Obter uma chave do {{name}}",
         "stored": "Definida; deixe vazio para mantê-la",
         "storedHint": "Definida, termina em {{hint}}; deixe vazio para mantê-la",
-        "envNote": "O valor vem de deploy/.env e só pode ser alterado lá. Mesmo assim, «Verificar» consulta o provedor.",
+        "envNote": "O valor vem de deploy/.env e só pode ser alterado lá. Mesmo assim, “Verificar” consulta o provedor.",
         "checkAction": "Verificar",
         "checkLabel": "Verificar {{name}}",
         "rejected": "recusada",
@@ -3849,7 +3849,7 @@
         "rating": "Classificação",
         "libraries": "Bibliotecas",
         "profiles": "Perfis",
-        "lastSeen": "Visto por último",
+        "lastSeen": "Último acesso",
         "channels": "Canais",
         "actions": "Ações"
       },
@@ -3891,7 +3891,7 @@
         "heading": "Acesso",
         "save": "Salvar acesso",
         "saved": "Acesso de {{email}} salvo.",
-        "adminHint": "Um administrador sempre tem classificação 18 e todas as bibliotecas; «Acesso» existe só para contas sem administração."
+        "adminHint": "Um administrador sempre tem classificação 18 e todas as bibliotecas; “Acesso” existe só para contas sem administração."
       },
       "role": {
         "promote": {
@@ -3950,7 +3950,7 @@
           "title": "Revogar convite?",
           "body": "O link deixa de funcionar.",
           "confirm": "Revogar",
-          "done": "Convite «{{note}}» revogado."
+          "done": "Convite “{{note}}” revogado."
         },
         "invite": "Convidar uma conta",
         "columns": {
@@ -4138,7 +4138,7 @@
         "sessions_many": "{{count, number}} de reproduções",
         "sessions_other": "{{count, number}} reproduções",
         "share": "{{share}} de todas as reproduções",
-        "hardware": "Transcodificação na GPU",
+        "hardware": "Transcodificação no chip gráfico",
         "hardwareNote": "Parcela das transcodificações"
       },
       "devices": {
@@ -4371,7 +4371,7 @@
         "confirm": "Cancelar",
         "keep": "Manter",
         "deleteRunTitle": "Excluir a execução com falha de {{name}}?",
-        "deleteRunBody": "O Slouchcat não tenta mais esta execução. Em «Execuções», ela aparece como «cancelada» até a limpeza removê-la mais tarde.",
+        "deleteRunBody": "O Slouchcat não tenta mais esta execução. Em “Execuções”, ela aparece como “cancelada” até a limpeza removê-la mais tarde.",
         "deleteRunConfirm": "Excluir",
         "retryFailedTitle_one": "Tentar de novo {{count}} execução com falha?",
         "retryFailedTitle_many": "Tentar de novo todas as {{count}} de execuções com falha?",
@@ -4387,7 +4387,7 @@
         "dismissFailedTypeTitle_one": "Excluir {{count}} execução com falha de {{name}}?",
         "dismissFailedTypeTitle_many": "Excluir todas as {{count}} de execuções com falha de {{name}}?",
         "dismissFailedTypeTitle_other": "Excluir todas as {{count}} execuções com falha de {{name}}?",
-        "dismissFailedBody": "O Slouchcat não tenta mais essas execuções. Em «Execuções», elas aparecem como «canceladas» até a limpeza removê-las mais tarde.",
+        "dismissFailedBody": "O Slouchcat não tenta mais essas execuções. Em “Execuções”, elas aparecem como “canceladas” até a limpeza removê-las mais tarde.",
         "dismissFailedConfirm": "Excluir todas"
       },
       "messages": {
@@ -4502,7 +4502,7 @@
         "radio_catalog_sync": {
           "name": "Sincronizar catálogo de rádio",
           "description": "Busca o catálogo de estações do Radio Browser, mescla as entradas em estações e as distribui nos filtros.",
-          "trigger": "diariamente a partir das 04:30, «Sincronizar agora» na página Rádio, na primeira inicialização sem catálogo"
+          "trigger": "diariamente a partir das 04:30, “Sincronizar agora” na página Rádio, na primeira inicialização sem catálogo"
         },
         "radio_logo_fetch": {
           "name": "Buscar logo da estação",
@@ -4512,12 +4512,12 @@
         "radio_wikidata_sync": {
           "name": "Detalhes de estações do Wikidata",
           "description": "Associa as estações da oferta ao Wikidata pelo site delas e toma proprietário e data de fundação de uma correspondência única.",
-          "trigger": "semanalmente a partir das 06:30, após «Aplicar» com novas estações (no máximo uma vez por dia), quando «Usar o Wikidata» está ativado"
+          "trigger": "semanalmente a partir das 06:30, após “Aplicar” com novas estações (no máximo uma vez por dia), quando “Usar o Wikidata” está ativado"
         },
         "scan_library": {
           "name": "Varredura de biblioteca",
           "description": "Procura arquivos novos, alterados e ausentes em todas as bibliotecas.",
-          "trigger": "Agendamento a cada 6 h e inicialização do servidor, “Verificar” na página de bibliotecas, webhook, monitoramento de arquivos"
+          "trigger": "Agendamento a cada 6 h e inicialização do servidor, “Escanear” na página de bibliotecas, webhook, monitoramento de arquivos"
         },
         "scan_path": {
           "name": "Varredura de pasta",
@@ -4589,7 +4589,7 @@
         "library_author_display": {
           "name": "Unificar nomes de autores",
           "description": "Reúne as grafias de um autor em todos os audiolivros num único nome de exibição.",
-          "trigger": "Após uma varredura, após uma associação, pela chave «Unificar nomes de autores»"
+          "trigger": "Após uma varredura, após uma associação, pela chave “Unificar nomes de autores”"
         },
         "metadata_fill": {
           "name": "Preencher metadados",
@@ -4632,7 +4632,7 @@
         "metadata_apply": {
           "name": "Aplicar metadados",
           "description": "Aplica a uma biblioteca as configurações de metadados alteradas.",
-          "trigger": "«Aplicar agora» na página Metadados"
+          "trigger": "“Aplicar agora” na página Metadados"
         },
         "trailer_find": {
           "name": "Encontrar trailer",
@@ -4740,7 +4740,7 @@
       },
       "audiobooks": {
         "title": "Audiolivros: fontes",
-        "body": "De onde o Slouchcat obtém detalhes, duração e capas dos audiolivros, a associação automática e a lista «Revisão».",
+        "body": "De onde o Slouchcat obtém detalhes, duração e capas dos audiolivros, a associação automática e a lista “Revisão”.",
         "open": "Abrir fontes"
       },
       "areas": {
@@ -4760,10 +4760,10 @@
         "label": "Vale para",
         "server": "Padrão",
         "serverHint": "Vale para todas as bibliotecas sem divergência própria.",
-        "libraryHint": "{{name}} usa o padrão. Ative «diverge» para alterar idiomas ou imagens só desta biblioteca.",
-        "deviates": "diverge",
-        "textsDeviate": "Idiomas divergem",
-        "imagesDeviate": "Imagens divergem",
+        "libraryHint": "{{name}} usa o padrão. Ative “Idiomas personalizados” ou “Imagens personalizadas” para alterar idiomas ou imagens só desta biblioteca.",
+        "deviates": "personalizado",
+        "textsDeviate": "Idiomas personalizados",
+        "imagesDeviate": "Imagens personalizadas",
         "likeServer": "como o servidor",
         "changed": "{{name}} (alterado)",
         "serverDirty": "O padrão tem alterações não salvas; aqui aparece o que está salvo."
@@ -4774,7 +4774,7 @@
         "list": "Idiomas dos metadados",
         "rank": "Idioma {{position}}",
         "more": "Outro idioma",
-        "fallback": "Ordem = alternativa: quando falta um texto no idioma do perfil, o Slouchcat mostra o primeiro da lista e, depois, o nome do arquivo. O padrão precisa do alemão; uma biblioteca precisa do alemão ou do inglês.",
+        "fallback": "Ordem = alternativa: quando falta um texto no idioma do perfil, o Slouchcat mostra o primeiro da lista e, depois, o nome do arquivo. Nenhum idioma é obrigatório, mas o padrão e cada biblioteca precisam de pelo menos um.",
         "unknownAt": "{{provider}} não conhece: {{languages}}",
         "youtube": "{{count}} idiomas: até {{titles}} títulos por dia com a busca de trailers do YouTube (cota de 10.000)."
       },
@@ -4799,7 +4799,7 @@
         "always": "sempre",
         "notBuilt": "Arte, banner e disco ficam de fora de propósito: nenhuma página os exibe.",
         "chains": "Idioma da imagem",
-        "chainsIntro": "A ordem em que uma imagem é escolhida. «Sem texto» é uma imagem sem letreiros. Dentro de um idioma, vence a imagem mais votada.",
+        "chainsIntro": "A ordem em que uma imagem é escolhida. “Sem texto” é uma imagem sem letreiros. Dentro de um idioma, vence a imagem mais votada.",
         "noText": "Sem texto",
         "chainOf": "Idioma da imagem {{kind}}"
       },
@@ -4886,7 +4886,7 @@
       "someone": "Um perfil",
       "someTitle": "um título",
       "someLibrary": "uma biblioteca",
-      "playbackStarted": "{{profile}} começou “{{title}}”",
+      "playbackStarted": "{{profile}} iniciou “{{title}}”",
       "playbackCompleted": "{{profile}} terminou “{{title}}”",
       "playbackStopped": "Reprodução de “{{title}}” ({{profile}}) interrompida",
       "playbackRevoked": "Reprodução de “{{title}}” ({{profile}}) interrompida, dispositivo esquecido",
@@ -4953,7 +4953,7 @@
       "googleBooks": {
         "name": "Chave do Google Books",
         "description": "A chave do Google Books agora fica junto com os outros provedores.",
-        "link": "Configure em «Integrações»"
+        "link": "Configure em “Integrações”"
       },
       "auto": {
         "label": "Associar automaticamente",
@@ -4962,19 +4962,19 @@
         "new": "Audiolivros novos",
         "newHint": "Numa varredura, para audiolivros sem associação.",
         "all": "Todos sem associação",
-        "allHint": "Uma vez para a biblioteca inteira; depois, como «Audiolivros novos»."
+        "allHint": "Uma vez para a biblioteca inteira; depois, como “Audiolivros novos”."
       },
       "tolerance": {
         "label": "A duração pode diferir em",
         "option": "{{count}}%",
-        "help": "Só um resultado único é associado: mesmo autor, título parecido, duração compatível. Caso contrário, o audiolivro mantém os detalhes dos arquivos e aparece em «Revisão». São permitidos de 1 a 10%."
+        "help": "Só um resultado único é associado: mesmo autor, título parecido, duração compatível. Caso contrário, o audiolivro mantém os detalhes dos arquivos e aparece em “Revisão”. São permitidos de 1 a 10%."
       },
       "normalize": {
         "title": "Unificar",
         "authors": "Unificar nomes de autores",
-        "authorsHint": "«J R R Tolkien», «J.R.R. Tolkien» e «J. R. R. Tolkien» viram uma só pessoa.",
+        "authorsHint": "“J R R Tolkien”, “J.R.R. Tolkien” e “J. R. R. Tolkien” viram uma só pessoa.",
         "series": "Unificar nomes de séries",
-        "seriesHint": "«Bodyguard - Band» vira «Bodyguard», «Der Herr Der Ringe - Band» vira «Der Herr der Ringe»."
+        "seriesHint": "“Bodyguard - Band” vira “Bodyguard”, “Der Herr Der Ringe - Band” vira “Der Herr der Ringe”."
       },
       "terms": "Os termos de uso do Audible proíbem a leitura automática do catálogo. O Slouchcat consulta no máximo uma vez por segundo e deixa a fonte em repouso após recusas repetidas. Quem não quiser isso retira o Audible da lista da pasta.",
       "sources": {
@@ -5040,7 +5040,7 @@
         "library": "Só retirar do Slouchcat",
         "files": "Excluir também os arquivos"
       },
-      "libraryHint": "Os arquivos permanecem no disco. O título continua de fora mesmo quando chegam novos arquivos; em “Manutenção › Títulos removidos”, ele pode ser restaurado com progresso, marcas de assistido e lista.",
+      "libraryHint": "Os arquivos permanecem no disco. O título continua de fora mesmo quando chegam novos arquivos; em “Manutenção › Títulos removidos”, ele pode ser restaurado com progresso, marcas de assistido e Minha lista.",
       "everywhere": "O título sai de todas as listas de todos os perfis; os downloads nos dispositivos são removidos.",
       "arr": "O Radarr e o Sonarr não ficam sabendo de nada.",
       "affected_one": "Afetado: {{count}} arquivo · {{size}}",
@@ -5068,7 +5068,7 @@
         "left_many": "{{count}} de arquivos que o Slouchcat não conhece permanecem na pasta.",
         "left_other": "{{count}} arquivos que o Slouchcat não conhece permanecem na pasta."
       },
-      "filesHint": "Os arquivos são excluídos em definitivo; não há lixeira. Quando não sobra nenhum arquivo, o título some de vez, com progresso, marcas de assistido e lista. Se o Radarr ou o Sonarr o baixarem de novo mais tarde, ele aparece como um título novo.",
+      "filesHint": "Os arquivos são excluídos em definitivo; não há lixeira. Quando não sobra nenhum arquivo, o título some de vez, com progresso, marcas de assistido e Minha lista. Se o Radarr ou o Sonarr o baixarem de novo mais tarde, ele aparece como um título novo.",
       "notDeletable": "Não é possível: {{reason}}",
       "leftover": "Permaneceu: {{path}} ({{reason}})",
       "reason": {
@@ -5149,7 +5149,7 @@
       "hasPin": "PIN",
       "delete": {
         "action": "Excluir",
-        "title": "Excluir o perfil \"{{name}}\"?",
+        "title": "Excluir o perfil “{{name}}”?",
         "body": "O progresso e as configurações deste perfil serão perdidos. Isso não pode ser desfeito.",
         "confirm": "Excluir perfil"
       },
@@ -5407,7 +5407,7 @@
       "quality": "Qualidade",
       "save": "Salvar regra",
       "saved": "Salvo. A regra vale a partir da próxima sincronização.",
-      "newPodcastEpisodes": "Novos episódios dos podcasts da lista"
+      "newPodcastEpisodes": "Novos episódios dos podcasts da minha lista"
     },
     "dialog": {
       "button": "Baixar",
@@ -5610,7 +5610,7 @@
     "summary_other": "{{count}} não lidas",
     "empty": {
       "title": "Nenhuma notificação",
-      "body": "Coloque séries ou podcasts na sua lista para saber aqui sobre novos episódios."
+      "body": "Coloque séries ou podcasts na minha lista para saber aqui sobre novos episódios."
     }
   },
   "settings": {
@@ -5633,8 +5633,8 @@
         "always": "Sempre",
         "offHint": "Sem legendas até você ativá-las no player.",
         "forcedHint": "Só os trechos em outro idioma, como placas ou falas estrangeiras, no idioma do som.",
-        "foreignHint": "Como «Só forçadas». Quando o som não está em nenhum dos seus idiomas de áudio, legendas completas no primeiro idioma de legenda.",
-        "alwaysHint": "Sempre legendas completas no primeiro idioma de legenda; sem elas, como «Só forçadas»."
+        "foreignHint": "Como “Só forçadas”. Quando o som não está em nenhum dos seus idiomas de áudio, legendas completas no primeiro idioma de legenda.",
+        "alwaysHint": "Sempre legendas completas no primeiro idioma de legenda; sem elas, como “Só forçadas”."
       },
       "subtitles": {
         "legend": "Idiomas de legenda",
@@ -5662,7 +5662,7 @@
     },
     "notifications": {
       "title": "Canais de notificação",
-      "intro": "Novos episódios das séries e dos podcasts da sua lista, convites e comunicados chegam aqui, além da caixa de entrada do app. As configurações valem para a conta inteira, com todos os perfis; uma mensagem sobre um perfil começa com o nome dele.",
+      "intro": "Novos episódios das séries e dos podcasts da minha lista, convites e comunicados chegam aqui, além da caixa de entrada do app. As configurações valem para a conta inteira, com todos os perfis; uma mensagem sobre um perfil começa com o nome dele.",
       "link": "Configurar canais",
       "serverChannels": "Configurar os canais do servidor → Integrações",
       "list": "Canais",
@@ -5795,7 +5795,7 @@
         "kind": "Programação",
         "mood": "Clima",
         "quality": "Qualidade",
-        "titles": "Só com títulos",
+        "titles": "Só com título da música",
         "clear": "Limpar seleção",
         "done": "Concluir",
         "none": "Nenhum valor para escolher",
@@ -6030,8 +6030,8 @@
         "half": "Parcialmente ouvido"
       },
       "ask": {
-        "removeTitle": "Marcar «{{title}}» como não ouvido?",
-        "halfTitle": "«{{title}}» está parcialmente ouvido",
+        "removeTitle": "Marcar “{{title}}” como não ouvido?",
+        "halfTitle": "“{{title}}” está parcialmente ouvido",
         "markAll": "Marcar todos os episódios como ouvidos"
       }
     },
@@ -6059,7 +6059,7 @@
       "episodes_one": "{{count}} de {{total}} episódios · último em {{date}}",
       "episodes_many": "{{count}} de {{total}} de episódios · último em {{date}}",
       "episodes_other": "{{count}} de {{total}} episódios · último em {{date}}",
-      "emptyKind": "Nada assistido em «{{kind}}» ainda.",
+      "emptyKind": "Nada assistido em “{{kind}}” ainda.",
       "empty": {
         "title": "Nada assistido ainda.",
         "body": "O que você assiste ou ouve até o fim aparece aqui."
@@ -6077,12 +6077,12 @@
       "half": "Parcialmente assistido"
     },
     "ask": {
-      "removeTitle": "Marcar «{{title}}» como não assistido?",
+      "removeTitle": "Marcar “{{title}}” como não assistido?",
       "removeBody_one": "{{count}} episódio perde a marca de assistido. Isso não pode ser desfeito.",
       "removeBody_many": "{{count}} de episódios perdem a marca de assistido. Isso não pode ser desfeito.",
       "removeBody_other": "{{count}} episódios perdem a marca de assistido. Isso não pode ser desfeito.",
       "removeBodyAll": "Todos os episódios perdem a marca de assistido. Isso não pode ser desfeito.",
-      "halfTitle": "«{{title}}» está parcialmente assistido",
+      "halfTitle": "“{{title}}” está parcialmente assistido",
       "halfBody_one": "{{count}} episódio tem a marca de assistido. Marcar todos os episódios ou remover todas as marcas? Remover não pode ser desfeito.",
       "halfBody_many": "{{count}} de episódios têm a marca de assistido. Marcar todos os episódios ou remover todas as marcas? Remover não pode ser desfeito.",
       "halfBody_other": "{{count}} episódios têm a marca de assistido. Marcar todos os episódios ou remover todas as marcas? Remover não pode ser desfeito.",

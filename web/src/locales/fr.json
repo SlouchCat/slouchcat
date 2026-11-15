@@ -1623,13 +1623,13 @@
         "body": "« Actualiser maintenant » recharge tous les champs libres et toutes les images choisies automatiquement. Les champs verrouillés et les images choisies sont conservés.",
         "options": "Avant l’actualisation",
         "unlockAll": "Commencer par lever tous les verrous de ce titre",
-        "unlockAllHint": "Ensuite, ce que fournissent les fournisseurs s’applique de nouveau. Une association manuelle et une classification personnelle sont conservées.",
+        "unlockAllHint": "Ensuite, les données des fournisseurs s’appliquent de nouveau. Une association manuelle et une classification personnelle sont conservées.",
         "run": "Actualiser maintenant",
         "hint": "S’exécute comme une tâche à priorité élevée ; les nouvelles valeurs apparaissent une fois qu’elle est terminée.",
         "book": {
           "body": "Les champs verrouillés et la couverture choisie sont conservés, sauf si vous levez d’abord les verrous.",
           "unlockAll": "Lever aussi tous les verrous",
-          "unlockAllHint": "Commencer par lever tous les verrous de ce livre, y compris ceux des champs repris d’une source sous « Association » : ensuite, ce que disent les fichiers et le fournisseur s’applique de nouveau. L’association elle-même et une classification personnelle sont conservées.",
+          "unlockAllHint": "Commencer par lever tous les verrous de ce livre, y compris ceux des champs importés d’une source sous « Association » : ensuite, ce que disent les fichiers et le fournisseur s’applique de nouveau. L’association elle-même et une classification personnelle sont conservées.",
           "run": "Relire",
           "filesTitle": "Relire les fichiers",
           "filesHint": "Relit metadata.json, les balises et les noms de dossiers.",
@@ -1641,7 +1641,7 @@
         }
       },
       "bookMatch": {
-        "intro": "Interrogez une source par titre et auteur, ou par ASIN ou ISBN, puis choisissez un résultat. Vous décidez champ par champ de ce qui est repris.",
+        "intro": "Interrogez une source par titre et auteur, ou par ASIN ou ISBN, puis choisissez un résultat. Vous décidez champ par champ de ce qui est importé.",
         "noSources": "Le dossier de ce livre ne mentionne aucune source de livres configurée. Les sources d’un dossier se définissent dans sa bibliothèque.",
         "matched": "Associé : {{source}}",
         "unmatched": "Non associé : informations issues uniquement des fichiers",
@@ -1669,29 +1669,29 @@
         "isbnId": "ISBN {{id}}",
         "choose": "Choisir {{title}} ({{length}})",
         "preview": {
-          "title": "Ce qui est repris",
+          "title": "Ce qui sera importé",
           "entry": "{{title}} chez {{source}}",
           "caption": "Champs de {{source}}, actuels et nouveaux",
           "field": "Champ",
           "today": "Actuel",
           "new": "Nouveau",
-          "take": "Reprendre",
-          "takeLabel": "Reprendre {{field}}",
+          "take": "Importer",
+          "takeLabel": "Importer {{field}}",
           "locked": "verrouillé",
           "noValue": "La source ne fournit aucune valeur",
           "empty": "–",
           "cover": "Couverture de la source",
           "coverToday": "présente",
-          "hint": "Les champs repris sont verrouillés. Les champs verrouillés sont conservés. L’association vaut aussi pour une future action « Récupérer de nouveau auprès du fournisseur ».",
+          "hint": "Les champs importés sont verrouillés. Les champs verrouillés sont conservés. L’association vaut aussi pour une future action « Récupérer de nouveau auprès du fournisseur ».",
           "same": "La source ne fournit rien qui diffère de l’existant.",
-          "apply_one": "Reprendre {{count}} champ",
-          "apply_many": "Reprendre {{count}} de champs",
-          "apply_other": "Reprendre {{count}} champs",
+          "apply_one": "Importer {{count}} champ",
+          "apply_many": "Importer {{count}} de champs",
+          "apply_other": "Importer {{count}} champs",
           "assignOnly": "Associer seulement",
-          "applied_one": "{{count}} champ repris de {{source}} et verrouillé.",
-          "applied_many": "{{count}} de champs repris de {{source}} et verrouillés.",
-          "applied_other": "{{count}} champs repris de {{source}} et verrouillés.",
-          "assigned": "Associé à {{source}}, aucun champ repris."
+          "applied_one": "{{count}} champ importé de {{source}} et verrouillé.",
+          "applied_many": "{{count}} de champs importés de {{source}} et verrouillés.",
+          "applied_other": "{{count}} champs importés de {{source}} et verrouillés.",
+          "assigned": "Associé à {{source}}, aucun champ importé."
         }
       }
     },
@@ -2760,7 +2760,7 @@
         "all": "Tous",
         "save": "Stockent",
         "link": "Lien uniquement",
-        "loading": "Téléchargement en cours",
+        "loading": "En téléchargement",
         "error": "Erreurs"
       },
       "search": {
@@ -4770,11 +4770,11 @@
       },
       "languages": {
         "title": "Langues",
-        "intro": "Chaque langue listée ici est récupérée pour chaque titre ; les profils y choisissent la langue de leurs synopsis. L’interface reste en allemand ou en anglais. Chaque langue supplémentaire coûte une requête par titre et par saison.",
+        "intro": "Chaque langue listée ici est récupérée pour chaque titre ; les profils y choisissent la langue de leurs synopsis. La langue de l’interface n’en dépend pas. Chaque langue supplémentaire coûte une requête par titre et par saison.",
         "list": "Langues des métadonnées",
         "rank": "Langue {{position}}",
         "more": "Autre langue",
-        "fallback": "Ordre = repli : lorsqu’un texte manque dans la langue du profil, Slouchcat affiche le premier disponible de la liste, puis le nom du fichier. Le réglage par défaut exige l’allemand ; une bibliothèque exige l’allemand ou l’anglais.",
+        "fallback": "Ordre = repli : lorsqu’un texte manque dans la langue du profil, Slouchcat affiche le premier disponible de la liste, puis le nom du fichier. Aucune langue n’est obligatoire, mais le réglage par défaut et chaque bibliothèque en demandent au moins une.",
         "unknownAt": "{{provider}} ne connaît pas : {{languages}}",
         "youtube": "{{count}} langues : jusqu’à {{titles}} titres par jour avec la recherche de bandes-annonces YouTube (quota de 10 000)."
       },
@@ -5501,7 +5501,7 @@
         "local": "Sur le serveur",
         "download": "Sur cet appareil"
       },
-      "reset": "Réinitialiser les filtres"
+      "reset": "Effacer les filtres"
     },
     "sections": {
       "titles": "Titres",
@@ -5795,7 +5795,7 @@
         "kind": "Type d’émission",
         "mood": "Ambiance",
         "quality": "Qualité",
-        "titles": "Avec infos de titre uniquement",
+        "titles": "Avec titre affiché",
         "clear": "Effacer la sélection",
         "done": "Terminé",
         "none": "Aucune valeur à choisir",
@@ -5805,7 +5805,7 @@
         "show_other": "Afficher {{count}} stations",
         "active": "Filtres actifs",
         "remove": "Retirer le filtre {{label}}",
-        "reset": "Réinitialiser tous les filtres",
+        "reset": "Effacer tous les filtres",
         "search": "« {{q}} »"
       },
       "sort": {
@@ -5843,7 +5843,7 @@
       "play": "Lire {{name}}",
       "pause": "Mettre {{name}} en pause",
       "resume": "Reprendre {{name}}",
-      "playing": "En cours de lecture",
+      "playing": "En lecture",
       "paused": "En pause",
       "missing": "Plus dans le catalogue, retirée le {{date}}",
       "broken": "Actuellement en panne",
@@ -5936,7 +5936,7 @@
     "player": {
       "region": "Lecture radio",
       "open": "Ouvrir la lecture en cours : {{name}}",
-      "nowPlaying": "En cours de lecture",
+      "nowPlaying": "En lecture",
       "close": "Fermer la lecture en cours",
       "play": "Lecture",
       "pause": "Pause",

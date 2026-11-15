@@ -166,7 +166,7 @@
       "feed_invalid": "A questo indirizzo non c’è alcun feed RSS di podcast.",
       "feed_exists": "Questa libreria è già iscritta al feed.",
       "rating_below_library_default": "La classificazione per età non può essere inferiore a quella predefinita della libreria.",
-      "not_listable": "Stagioni ed extra non possono essere aggiunti alla lista.",
+      "not_listable": "Stagioni ed extra non possono essere aggiunti a La mia lista.",
       "not_editable": "Le collezioni di TMDB non possono essere modificate.",
       "env_wins": "Questo valore è impostato in deploy/.env e può essere modificato solo lì.",
       "telegram_token_invalid": "Telegram ha rifiutato il token. Controlla il token di @BotFather.",
@@ -693,8 +693,8 @@
       "play": "Riproduci {{title}}"
     },
     "watchlist": {
-      "add": "Aggiungi alla lista",
-      "added": "Nella lista"
+      "add": "Aggiungi a La mia lista",
+      "added": "Nella mia lista"
     },
     "recommend": {
       "add": "Consiglia",
@@ -1043,7 +1043,7 @@
       "title": "Scorciatoie da tastiera",
       "rows": {
         "play": {
-          "keys": "Space, K, Enter",
+          "keys": "Spazio, K, Invio",
           "action": "Riproduci o pausa"
         },
         "seek": {
@@ -1060,7 +1060,7 @@
         },
         "zones": {
           "keys": "↑ ↓ nella barra",
-          "action": "Spostati tra la barra di avanzamento, i pulsanti e le schede; ← → passano da un pulsante all’altro, da una scheda all’altra e da una carta all’altra"
+          "action": "Spostati tra la barra di avanzamento, i pulsanti e le schede; ← → passano da un pulsante all’altro, da una scheda all’altra e da un riquadro all’altro"
         },
         "mute": {
           "keys": "M",
@@ -1111,7 +1111,7 @@
           "action": "Questa guida"
         },
         "back": {
-          "keys": "Escape, Backspace",
+          "keys": "Esc, Backspace",
           "action": "Chiude un pannello, la guida e le info stream (nell’ingranaggio: un livello indietro), altrimenti torna alla pagina di dettaglio",
           "actionOfflineDownloads": "Chiude un pannello, la guida e la scheda (nell’ingranaggio: un livello indietro), altrimenti torna ai download",
           "actionOfflineLibrary": "Chiude un pannello, la guida e la scheda (nell’ingranaggio: un livello indietro), altrimenti torna alla libreria offline"
@@ -1629,7 +1629,7 @@
         "book": {
           "body": "I campi con lucchetto e una copertina scelta restano, a meno che tu non rimuova prima i blocchi.",
           "unlockAll": "Rimuovi anche tutti i blocchi",
-          "unlockAllHint": "Rimuovi prima tutti i blocchi di questo libro, anche quelli dei campi che hai preso da una fonte in «Associa»: dopo varrà di nuovo ciò che dicono i file e il fornitore. L’associazione stessa e una classificazione personale restano.",
+          "unlockAllHint": "Rimuovi prima tutti i blocchi di questo libro, anche quelli dei campi che hai importato da una fonte in «Associa»: dopo varrà di nuovo ciò che dicono i file e il fornitore. L’associazione stessa e una classificazione personale restano.",
           "run": "Rileggi",
           "filesTitle": "Rileggi dai file",
           "filesHint": "Rilegge metadata.json, i tag e i nomi delle cartelle.",
@@ -1641,7 +1641,7 @@
         }
       },
       "bookMatch": {
-        "intro": "Cerca in una fonte per titolo e autore oppure per ASIN o ISBN e scegli un risultato. Decidi tu, campo per campo, cosa prendere.",
+        "intro": "Cerca in una fonte per titolo e autore oppure per ASIN o ISBN e scegli un risultato. Decidi tu, campo per campo, cosa importare.",
         "noSources": "La cartella di questo libro non indica alcuna fonte di libri configurata. Le fonti di una cartella si stabiliscono nella sua libreria.",
         "matched": "Associato: {{source}}",
         "unmatched": "Non associato: dettagli solo dai file",
@@ -1669,29 +1669,29 @@
         "isbnId": "ISBN {{id}}",
         "choose": "Scegli {{title}} ({{length}})",
         "preview": {
-          "title": "Cosa viene preso",
+          "title": "Cosa viene importato",
           "entry": "{{title}} su {{source}}",
           "caption": "Campi di {{source}}, attuali e nuovi",
           "field": "Campo",
           "today": "Attuale",
           "new": "Nuovo",
-          "take": "Prendi",
-          "takeLabel": "Prendi {{field}}",
+          "take": "Importa",
+          "takeLabel": "Importa {{field}}",
           "locked": "bloccato",
           "noValue": "La fonte non fornisce alcun valore",
           "empty": "–",
           "cover": "Copertina della fonte",
           "coverToday": "presente",
-          "hint": "I campi presi vengono bloccati. I campi bloccati restano. L’associazione vale anche per un successivo «Scarica di nuovo dal fornitore».",
+          "hint": "I campi importati vengono bloccati. I campi bloccati restano. L’associazione vale anche per un successivo «Scarica di nuovo dal fornitore».",
           "same": "La fonte non fornisce nulla di diverso da ciò che c’è ora.",
-          "apply_one": "Prendi {{count}} campo",
-          "apply_many": "Prendi {{count}} di campi",
-          "apply_other": "Prendi {{count}} campi",
+          "apply_one": "Importa {{count}} campo",
+          "apply_many": "Importa {{count}} di campi",
+          "apply_other": "Importa {{count}} campi",
           "assignOnly": "Solo associa",
-          "applied_one": "{{count}} campo preso da {{source}} e bloccato.",
-          "applied_many": "{{count}} di campi presi da {{source}} e bloccati.",
-          "applied_other": "{{count}} campi presi da {{source}} e bloccati.",
-          "assigned": "Associato con {{source}}, nessun campo preso."
+          "applied_one": "{{count}} campo importato da {{source}} e bloccato.",
+          "applied_many": "{{count}} di campi importati da {{source}} e bloccati.",
+          "applied_other": "{{count}} campi importati da {{source}} e bloccati.",
+          "assigned": "Associato con {{source}}, nessun campo importato."
         }
       }
     },
@@ -1805,7 +1805,7 @@
           "lead_one": "Stai rimuovendo <path>{{path}}</path> dalla libreria {{name}}. Fino a {{count}} titolo esce con essa da ogni elenco. Cosa significa:",
           "lead_many": "Stai rimuovendo <path>{{path}}</path> dalla libreria {{name}}. Fino a {{count}} di titoli escono con essa da ogni elenco. Cosa significa:",
           "lead_other": "Stai rimuovendo <path>{{path}}</path> dalla libreria {{name}}. Fino a {{count}} titoli escono con essa da ogni elenco. Cosa significa:",
-          "soft": "I titoli vengono eliminati in modo reversibile: spariscono da tutti gli elenchi, ma progressi, voci della lista e consigli restano associati a loro. Un titolo con un file in un’altra cartella di questa libreria resta visibile.",
+          "soft": "I titoli vengono eliminati in modo reversibile: spariscono da tutti gli elenchi, ma progressi, voci di La mia lista e consigli restano associati a loro. Un titolo con un file in un’altra cartella di questa libreria resta visibile.",
           "downloads": "Spariscono davvero i download offline: i dispositivi che hanno scaricato uno di questi titoli eliminano il pacchetto alla sincronizzazione successiva.",
           "playback": "Una riproduzione in corso da questa cartella si interrompe a metà.",
           "webhooks": "La tabella dei percorsi di Radarr e Sonarr dopo non porta più da nessuna parte per questo percorso; le segnalazioni che lo riguardano vengono rifiutate.",
@@ -1820,9 +1820,9 @@
           "title": "Modifica cartella",
           "description": "Contenuto e fonti di metadati di {{path}}.",
           "submit": "Salva",
-          "identifier": "Cambia la fonte di riconoscimento: i testi di stagioni ed episodi vengono riassegnati da {{provider}}. Gli episodi restano, progressi e lista restano associati a loro.",
+          "identifier": "Cambia la fonte di riconoscimento: i testi di stagioni ed episodi vengono riassegnati da {{provider}}. Gli episodi restano, progressi e La mia lista restano associati a loro.",
           "fillers": "Cambiano solo le fonti di integrazione: i titoli vengono integrati di nuovo, non viene eliminato nulla.",
-          "content": "Cambia il contenuto: equivale a rimuovere la cartella e aggiungerla di nuovo. I titoli di questa cartella vengono eliminati in modo reversibile e ricreati, i pacchetti offline spariscono, progressi e lista restano associati ai vecchi titoli.",
+          "content": "Cambia il contenuto: equivale a rimuovere la cartella e aggiungerla di nuovo. I titoli di questa cartella vengono eliminati in modo reversibile e ricreati, i pacchetti offline spariscono, progressi e La mia lista restano associati ai vecchi titoli.",
           "confirmTitle": "Cambiare davvero il contenuto?",
           "confirm": "Cambia contenuto",
           "saved": "La cartella {{path}} è stata modificata."
@@ -1930,9 +1930,9 @@
       "delete": {
         "action": "Elimina libreria…",
         "title": "Eliminare la libreria «{{name}}»?",
-        "lead_one": "{{roots}} e {{formatted}} titolo escono da Slouchcat, con progressi, segni di visione, lista, consigli, immagini e testi personali, la riga della home «Novità in {{name}}», le autorizzazioni dei profili e i download sui dispositivi.",
-        "lead_many": "{{roots}} e {{formatted}} di titoli escono da Slouchcat, con progressi, segni di visione, lista, consigli, immagini e testi personali, la riga della home «Novità in {{name}}», le autorizzazioni dei profili e i download sui dispositivi.",
-        "lead_other": "{{roots}} e {{formatted}} titoli escono da Slouchcat, con progressi, segni di visione, lista, consigli, immagini e testi personali, la riga della home «Novità in {{name}}», le autorizzazioni dei profili e i download sui dispositivi.",
+        "lead_one": "{{roots}} e {{formatted}} titolo escono da Slouchcat, con progressi, segni di visione, La mia lista, consigli, immagini e testi personali, la riga della home «Novità in {{name}}», le autorizzazioni dei profili e i download sui dispositivi.",
+        "lead_many": "{{roots}} e {{formatted}} di titoli escono da Slouchcat, con progressi, segni di visione, La mia lista, consigli, immagini e testi personali, la riga della home «Novità in {{name}}», le autorizzazioni dei profili e i download sui dispositivi.",
+        "lead_other": "{{roots}} e {{formatted}} titoli escono da Slouchcat, con progressi, segni di visione, La mia lista, consigli, immagini e testi personali, la riga della home «Novità in {{name}}», le autorizzazioni dei profili e i download sui dispositivi.",
         "files": "I file sul disco non vengono toccati. Se è in corso una scansione di questa libreria, Slouchcat la annulla prima.",
         "backup": "Prima di procedere, Slouchcat crea un backup del database (Amministrazione › Backup). Chi ripristina questo backup riporta tutto allo stato precedente all’eliminazione, compresi i progressi di tutti i profili da allora.",
         "final": "Altrimenti non si può annullare: una nuova scansione delle stesse cartelle ricrea i titoli, senza progressi.",
@@ -1981,7 +1981,7 @@
         "rating_mismatch": "La classificazione salvata è diversa da quella calcolata. La corregge una modifica della classificazione o la scansione successiva. Qui non c’è nulla da selezionare.",
         "duplicates": "Titoli presenti due volte. Scegli il titolo da tenere e unisci gli altri a esso.",
         "relink": "Titoli eliminati che sono tornati nella libreria come nuova copia. Progressi, cronologia ed elenchi sono ancora associati al titolo eliminato. «Riassocia» unisce la copia a esso; il vecchio titolo resta.",
-        "removed": "Titoli tolti da Slouchcat; i loro file sono ancora lì. «Ripristina» riporta lo stesso titolo, con episodi, progressi, segni di visione e lista."
+        "removed": "Titoli tolti da Slouchcat; i loro file sono ancora lì. «Ripristina» riporta lo stesso titolo, con episodi, progressi, segni di visione e La mia lista."
       },
       "empty": "Nulla da fare.",
       "selection": "Selezione",
@@ -2120,9 +2120,9 @@
           "playbackSessions_one": "{{count}} riproduzione",
           "playbackSessions_many": "{{count}} di riproduzioni",
           "playbackSessions_other": "{{count}} riproduzioni",
-          "watchlist_one": "{{count}} voce della lista",
-          "watchlist_many": "{{count}} di voci della lista",
-          "watchlist_other": "{{count}} voci della lista",
+          "watchlist_one": "{{count}} voce di La mia lista",
+          "watchlist_many": "{{count}} di voci di La mia lista",
+          "watchlist_other": "{{count}} voci di La mia lista",
           "collectionItems_one": "{{count}} voce di collezione",
           "collectionItems_many": "{{count}} di voci di collezione",
           "collectionItems_other": "{{count}} voci di collezione",
@@ -2533,7 +2533,7 @@
         },
         "direct": {
           "label": "Diretta",
-          "note": "nessun carico"
+          "note": "senza carico"
         },
         "bandwidth": {
           "label": "Banda totale",
@@ -3109,7 +3109,7 @@
         "continue": "Titoli iniziati dal profilo.",
         "recent": "I titoli entrati più di recente in una libreria.",
         "released": "Per data di uscita negli ultimi dodici mesi; una serie in base al suo episodio più recente.",
-        "watchlist": "La lista del profilo.",
+        "watchlist": "La mia lista del profilo.",
         "collections": "Collezioni personali e quelle di TMDB.",
         "genres": "I generi dei titoli visibili.",
         "libraries": "Tessere per le librerie che il profilo vede, per la radio e, se mostrate, per le collezioni e Scelti dagli utenti; ordine e visibilità si impostano nella pagina «I miei contenuti».",
@@ -3385,7 +3385,7 @@
         }
       },
       "streams": {
-        "title": "In riproduzione ora",
+        "title": "In riproduzione",
         "empty": "Al momento non è in riproduzione nulla.",
         "all": "Tutti gli stream",
         "progress": "Avanzamento {{title}}"
@@ -3578,7 +3578,7 @@
       },
       "browse": {
         "title": "Browser delle cartelle bloccato",
-        "hanging_one": "Un mount ha smesso di rispondere: {{count}} elenco è bloccato nel kernel e non si può annullare. Il browser delle cartelle funziona ancora, con meno slot. Un riavvio li libera.",
+        "hanging_one": "Un mount ha smesso di rispondere: {{count}} elenco è bloccato nel kernel e non si può annullare. Il browser delle cartelle funziona ancora, con meno slot. Un riavvio lo libera.",
         "hanging_many": "Un mount ha smesso di rispondere: {{count}} di elenchi sono bloccati nel kernel e non si possono annullare. Il browser delle cartelle funziona ancora, con meno slot. Un riavvio li libera.",
         "hanging_other": "Un mount ha smesso di rispondere: {{count}} elenchi sono bloccati nel kernel e non si possono annullare. Il browser delle cartelle funziona ancora, con meno slot. Un riavvio li libera.",
         "off": "Tutti gli slot del browser delle cartelle sono bloccati su un mount che ha smesso di rispondere. Fino al riavvio del server non si può sfogliare alcuna cartella; digitare un percorso a mano funziona ancora."
@@ -4770,11 +4770,11 @@
       },
       "languages": {
         "title": "Lingue",
-        "intro": "Ogni lingua qui indicata viene scaricata per ogni titolo; i profili scelgono tra queste la lingua delle proprie descrizioni. L’interfaccia resta in tedesco o in inglese. Ogni lingua in più costa una richiesta per titolo e per stagione.",
+        "intro": "Ogni lingua qui indicata viene scaricata per ogni titolo; i profili scelgono tra queste la lingua delle proprie descrizioni. La lingua dell’interfaccia non dipende da questo. Ogni lingua in più costa una richiesta per titolo e per stagione.",
         "list": "Lingue dei metadati",
         "rank": "Lingua {{position}}",
         "more": "Un’altra lingua",
-        "fallback": "Ordine = ripiego: se manca un testo nella lingua del profilo, Slouchcat mostra il primo disponibile dell’elenco, poi il nome del file. L’impostazione predefinita richiede il tedesco; una libreria richiede il tedesco o l’inglese.",
+        "fallback": "Ordine = ripiego: se manca un testo nella lingua del profilo, Slouchcat mostra il primo disponibile dell’elenco, poi il nome del file. Nessuna lingua è obbligatoria, ma l’impostazione predefinita e ogni libreria ne richiedono almeno una.",
         "unknownAt": "{{provider}} non conosce: {{languages}}",
         "youtube": "{{count}} lingue: fino a {{titles}} titoli al giorno con la ricerca dei trailer su YouTube (quota 10.000)."
       },
@@ -4957,7 +4957,7 @@
       },
       "auto": {
         "label": "Associa automaticamente",
-        "off": "No",
+        "off": "Disattivata",
         "offHint": "Solo a mano con la matita.",
         "new": "Nuovi audiolibri",
         "newHint": "Durante la scansione, per gli audiolibri senza associazione.",
@@ -5040,7 +5040,7 @@
         "library": "Rimuovi solo da Slouchcat",
         "files": "Elimina anche i file"
       },
-      "libraryHint": "I file restano sul disco. Il titolo resta rimosso anche se arrivano nuovi file; in «Manutenzione › Titoli rimossi» si può ripristinare con progressi, segni di visione e lista.",
+      "libraryHint": "I file restano sul disco. Il titolo resta rimosso anche se arrivano nuovi file; in «Manutenzione › Titoli rimossi» si può ripristinare con progressi, segni di visione e La mia lista.",
       "everywhere": "Il titolo sparisce da tutti gli elenchi di tutti i profili; i download sui dispositivi vengono rimossi.",
       "arr": "Radarr e Sonarr non ne sanno nulla.",
       "affected_one": "Interessati: {{count}} file · {{size}}",
@@ -5068,7 +5068,7 @@
         "left_many": "{{count}} di file che Slouchcat non conosce restano nella cartella.",
         "left_other": "{{count}} file che Slouchcat non conosce restano nella cartella."
       },
-      "filesHint": "I file vengono eliminati definitivamente; non c’è un cestino. Se dopo non resta alcun file, il titolo sparisce per sempre insieme a progressi, segni di visione e lista. Se Radarr o Sonarr lo scarica di nuovo più tardi, compare come un nuovo titolo.",
+      "filesHint": "I file vengono eliminati definitivamente; non c’è un cestino. Se dopo non resta alcun file, il titolo sparisce per sempre insieme a progressi, segni di visione e La mia lista. Se Radarr o Sonarr lo scarica di nuovo più tardi, compare come un nuovo titolo.",
       "notDeletable": "Non è possibile: {{reason}}",
       "leftover": "Rimasto: {{path}} ({{reason}})",
       "reason": {
@@ -5407,7 +5407,7 @@
       "quality": "Qualità",
       "save": "Salva regola",
       "saved": "Salvato. La regola vale dalla prossima sincronizzazione.",
-      "newPodcastEpisodes": "Nuovi episodi dei podcast nella lista"
+      "newPodcastEpisodes": "Nuovi episodi dei podcast in La mia lista"
     },
     "dialog": {
       "button": "Scarica",
@@ -5519,14 +5519,14 @@
   "watchlist": {
     "title": "La mia lista",
     "remove": "Rimuovi",
-    "removeLabel": "Rimuovi {{title}} dalla lista",
+    "removeLabel": "Rimuovi {{title}} da La mia lista",
     "cover": {
-      "add": "Aggiungi {{title}} alla lista",
-      "remove": "Togli {{title}} dalla lista"
+      "add": "Aggiungi {{title}} a La mia lista",
+      "remove": "Togli {{title}} da La mia lista"
     },
     "empty": {
       "title": "La tua lista è vuota",
-      "body": "Tieni da parte i titoli per dopo con «Aggiungi alla lista» nella loro pagina di dettaglio.",
+      "body": "Tieni da parte i titoli per dopo con «Aggiungi a La mia lista» nella loro pagina di dettaglio.",
       "action": "Vai alla ricerca"
     }
   },
@@ -5576,8 +5576,8 @@
     "resume": "Continua · parte {{part}}",
     "rewatch": "Guarda di nuovo · parte {{part}}",
     "watchlist": {
-      "add": "Aggiungi tutti alla lista",
-      "added": "Tutti nella lista"
+      "add": "Aggiungi tutti a La mia lista",
+      "added": "Tutti nella mia lista"
     },
     "overviewFallback": "Descrizione da TMDB, disponibile solo in inglese",
     "ask": {
@@ -5610,7 +5610,7 @@
     "summary_other": "{{count}} non lette",
     "empty": {
       "title": "Nessuna notifica",
-      "body": "Aggiungi serie TV o podcast alla tua lista per sapere qui dei nuovi episodi."
+      "body": "Aggiungi serie TV o podcast a La mia lista per sapere qui dei nuovi episodi."
     }
   },
   "settings": {
@@ -5662,7 +5662,7 @@
     },
     "notifications": {
       "title": "Canali di notifica",
-      "intro": "I nuovi episodi delle serie TV e dei podcast nella tua lista, gli inviti e gli annunci arrivano qui in aggiunta alla casella dell’app. Le impostazioni valgono per l’intero account con tutti i profili; un messaggio relativo a un profilo inizia con il suo nome.",
+      "intro": "I nuovi episodi delle serie TV e dei podcast in La mia lista, gli inviti e gli annunci arrivano qui in aggiunta alla casella dell’app. Le impostazioni valgono per l’intero account con tutti i profili; un messaggio relativo a un profilo inizia con il suo nome.",
       "link": "Imposta i canali",
       "serverChannels": "Configura i canali del server → Integrazioni",
       "list": "Canali",
@@ -5941,7 +5941,7 @@
       "play": "Riprendi",
       "pause": "Pausa",
       "retry": "Riprova",
-      "stop": "Interrompi la radio",
+      "stop": "Ferma la radio",
       "live": "In diretta",
       "paused": "In pausa",
       "starting": "Connessione…",
