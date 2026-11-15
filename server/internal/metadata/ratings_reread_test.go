@@ -192,3 +192,32 @@ func TestRatingsRereadOnceAndOnlyWithTitles(t *testing.T) {
 		t.Errorf("jobs after saving the same country = %v, want the one chain", got)
 	}
 }
+
+// A partial read keeps the value (review of stage 3): a series rated by TVDB (US 16) whose TVDB
+// is not readable now (no key, no stored certificates) keeps 16 although TMDB says DE 12; once
+// TVDB's answer is stored too («asked, nothing»), the strictest over both providers is TMDB's 12.
+func TestRatingsRereadKeepsTheValueWhenAProviderIsNotRead(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, goodToken) // TMDB only: TVDB has no key
+	e.addNode(t, node{id: idSeries, kind: "series", title: "Both Providers", tmdbID: 900, tvdbID: 424242})
+	mustExec(t, e.db.Write, `UPDATE items SET providers = '["tmdb","tvdb"]', own_rating = 16, rating_source = 'tvdb:US' WHERE id = ?`, idSeries)
+	mustExec(t, e.db.Write, `INSERT INTO item_certifications VALUES (?, 'tmdb', 'DE', '12', 1)`, idSeries)
+	rating := func() (sql.NullInt64, sql.NullString) {
+		t.Helper()
+		var r sql.NullInt64
+		var src sql.NullString
+		if err := e.db.Read.QueryRow(`SELECT own_rating, rating_source FROM items WHERE id = ?`, idSeries).Scan(&r, &src); err != nil {
+			t.Fatal(err)
+		}
+		return r, src
+	}
+	e.rereadAll(t)
+	if r, src := rating(); r.Int64 != 16 || src.String != "tvdb:US" {
+		t.Fatalf("with TVDB unread: %v %v, want 16 tvdb:US kept", r, src)
+	}
+	mustExec(t, e.db.Write, `INSERT INTO item_certifications VALUES (?, 'tvdb', '', '', 1)`, idSeries)
+	e.rereadAll(t)
+	if r, src := rating(); r.Int64 != 12 || src.String != "tmdb:DE" {
+		t.Errorf("with both providers read: %v %v, want 12 tmdb:DE", r, src)
+	}
+}

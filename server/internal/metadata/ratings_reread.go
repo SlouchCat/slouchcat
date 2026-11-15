@@ -26,14 +26,20 @@ import (
 // at all, without the lock own_rating (ListRatingRereadItems). Ratings from an NFO, by hand, from
 // the library, the tags, the feed or AniList stay as they are (review 2, M2-1).
 //
+// Every provider of the list that has the title's id must be read; when one of them is not
+// readable (no key, a rejected key, no stored certificates), the title keeps its value: the
+// strictest over the providers is unknown, and the readable rest could only lower it.
+//
 // How: per title and provider of its list (TMDB, TVDB) the job takes the certificates stored in
 // item_certifications. A provider without rows is asked once (one request with the first text
 // language; the rate limiters of the providers apply), and what it delivers is stored, an empty
-// answer as the row "asked, nothing", so the next run computes locally. A provider without key
-// or with a rejected key is passed over. The age of each provider follows ageFromCertifications
-// (rating country first, then DE, AT, CH, GB, US); the strictest over the providers wins, as in
-// the fill. A title none of whose providers could be read keeps its value; one whose providers
-// were read but know no certificate becomes unrated (NULL, AN-1).
+// answer as the row "asked, nothing", so the next run computes locally. A provider without the
+// title's id does not count. The age of each provider follows ageFromCertifications (rating
+// country first, then DE, AT, CH, GB, US); the strictest over the providers wins, as in the fill.
+// Every provider with the title's id must be read: when one is not readable (no key, a rejected
+// key, no stored certificates), the title keeps its value, because the readable rest could only
+// lower the strictest. A title whose providers were all read but know no certificate becomes
+// unrated (NULL, AN-1).
 //
 // One run takes a batch of ratingsRereadBatch titles in id order after the cursor of its payload
 // and queues its successor with the cursor (key ratings_reread:<last id>), so a restart goes on
@@ -213,13 +219,19 @@ func (s *Service) rereadItem(ctx context.Context, item systemq.Item, settings Se
 		}
 		certs, ok := stored[provider]
 		if !ok {
+			if !certificationApplies(item, provider) {
+				continue // no id at this provider: it cannot rate the title
+			}
 			certs, ok, err = s.fetchCertifications(ctx, item, provider, settings.TextLangs)
 			if err != nil {
 				return rereadPassed, err
 			}
 		}
 		if !ok {
-			continue
+			// A provider that could rate the title is not readable now (no key, a rejected key):
+			// the strictest value over the providers cannot be known, so the title keeps its
+			// value rather than lowering it from the rest of the list.
+			return rereadPassed, nil
 		}
 		read = true
 		if age, country := ageFromCertifications(certs, settings.RatingCountry); age != nil && (best == nil || *age > best.age) {
@@ -270,6 +282,18 @@ func (s *Service) rereadItem(ctx context.Context, item systemq.Item, settings Se
 	}
 	s.log.Debug("rating read anew", "item_id", cur.ID, "rating_source", source.String)
 	return rereadChanged, nil
+}
+
+// certificationApplies reports whether provider can rate the title: it has the title's id (TVDB
+// for series only, as in the fill).
+func certificationApplies(item systemq.Item, provider string) bool {
+	switch provider {
+	case model.ProviderTMDB:
+		return item.TmdbID.Valid && item.TmdbID.Int64 > 0
+	case model.ProviderTVDB:
+		return item.Kind == "series" && item.TvdbID.Valid && item.TvdbID.Int64 > 0
+	}
+	return false
 }
 
 // certificationsOf returns the stored certificates of a title per provider; a provider with the
