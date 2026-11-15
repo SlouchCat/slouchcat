@@ -363,7 +363,7 @@
       },
       "radio": "Webradio",
       "radioToggle": "{{country}} ins Radio-Angebot aufnehmen",
-      "radioHint": "Das Land kommt ohne Sender ins Angebot. Die Sender markierst du später unter Verwaltung › Radio."
+      "radioHint": "Das Land kommt ohne Sender ins Angebot. Die Sender markierst du später unter Verwaltung › Medien › Radio."
     },
     "services": {
       "recommended": "Empfohlen",
@@ -399,7 +399,7 @@
       "folder": "Ordner {{position}}"
     },
     "household": {
-      "accounts": "Gäste mit eigenem Konto lädst du später unter Verwaltung › Konten ein."
+      "accounts": "Gäste mit eigenem Konto lädst du später unter Verwaltung › Nutzer & Geräte › Konten ein."
     },
     "access": {
       "here": "Du greifst gerade über {{url}} zu.",
@@ -2023,7 +2023,7 @@
         "lead_one": "{{roots}} und {{formatted}} Titel verschwinden aus Slouchcat, samt Fortschritt, Haken, Merkliste, Empfehlungen, eigenen Bildern und Texten, der Startseitenreihe «Neu in {{name}}», den Freigaben der Profile und den Downloads auf den Geräten.",
         "lead_other": "{{roots}} und {{formatted}} Titel verschwinden aus Slouchcat, samt Fortschritt, Haken, Merkliste, Empfehlungen, eigenen Bildern und Texten, der Startseitenreihe «Neu in {{name}}», den Freigaben der Profile und den Downloads auf den Geräten.",
         "files": "Die Dateien auf der Platte bleiben unberührt. Läuft gerade ein Scan dieser Bibliothek, bricht Slouchcat ihn zuerst ab.",
-        "backup": "Vorher legt Slouchcat eine Sicherung der Datenbank an (Verwaltung › Sicherung). Wer diese Sicherung zurückspielt, setzt alles auf den Stand vor dem Löschen zurück, auch den Fortschritt aller Profile seither.",
+        "backup": "Vorher legt Slouchcat eine Sicherung der Datenbank an (Verwaltung › System › Sicherung). Wer diese Sicherung zurückspielt, setzt alles auf den Stand vor dem Löschen zurück, auch den Fortschritt aller Profile seither.",
         "final": "Sonst lässt es sich nicht rückgängig machen: Ein neuer Scan derselben Ordner legt die Titel ohne Fortschritt wieder an.",
         "inputLabel": "Zur Bestätigung den Namen eintippen",
         "mismatch": "Tippe {{name}} genau so ab, dann wird der Knopf aktiv.",

@@ -13,7 +13,7 @@ import styles from './SetupLayout.module.css';
  * Step 7 (concept 22, 3.3, F-9): the profiles of the household, the own one first, as under
  * Einstellungen › Profile: «Profil hinzufügen» with name, age step, colour and an optional PIN. New
  * profiles speak the owner's language; guests with an account of their own come later through
- * Verwaltung › Konten.
+ * Verwaltung › Nutzer & Geräte › Konten.
  */
 export function HouseholdStep() {
   const { t } = useTranslation();

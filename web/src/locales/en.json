@@ -363,7 +363,7 @@
       },
       "radio": "Web radio",
       "radioToggle": "Add {{country}} to the radio offer",
-      "radioHint": "The country joins the offer without stations. You pick the stations later under Administration › Radio."
+      "radioHint": "The country joins the offer without stations. You pick the stations later under Administration › Media › Radio."
     },
     "services": {
       "recommended": "Recommended",
@@ -399,7 +399,7 @@
       "folder": "Folder {{position}}"
     },
     "household": {
-      "accounts": "You invite guests with an account of their own later under Administration › Accounts."
+      "accounts": "You invite guests with an account of their own later under Administration › Users & devices › Accounts."
     },
     "access": {
       "here": "You are using {{url}} right now.",
@@ -2023,7 +2023,7 @@
         "lead_one": "{{roots}} and {{formatted}} title leave Slouchcat, with progress, check marks, watchlist, picks, own images and texts, the home row “New in {{name}}”, the grants of the profiles and the downloads on the devices.",
         "lead_other": "{{roots}} and {{formatted}} titles leave Slouchcat, with progress, check marks, watchlist, picks, own images and texts, the home row “New in {{name}}”, the grants of the profiles and the downloads on the devices.",
         "files": "The files on the disk stay untouched. If a scan of this library is running, Slouchcat cancels it first.",
-        "backup": "Before that, Slouchcat backs the database up (Administration › Backup). Restoring this backup puts everything back to the state before the delete, the progress of every profile since included.",
+        "backup": "Before that, Slouchcat backs the database up (Administration › System › Backup). Restoring this backup puts everything back to the state before the delete, the progress of every profile since included.",
         "final": "Otherwise it cannot be undone: a new scan of the same folders creates the titles again, without progress.",
         "inputLabel": "Type the name to confirm",
         "mismatch": "Type {{name}} exactly like this to enable the button.",

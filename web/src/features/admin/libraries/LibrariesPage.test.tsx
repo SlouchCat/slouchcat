@@ -896,6 +896,8 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     expect(
       within(dialog).getByText(/setzt alles auf den Stand vor dem Löschen zurück/),
     ).toBeVisible();
+    // The backup's page by its place since the redesign: under «System».
+    expect(within(dialog).getByText(/\(Verwaltung › System › Sicherung\)/)).toBeVisible();
     const confirm = within(dialog).getByRole('button', { name: 'Bibliothek löschen' });
     expect(confirm).toBeDisabled();
     await user.type(within(dialog).getByLabelText('Zur Bestätigung den Namen eintippen'), 'filme');
