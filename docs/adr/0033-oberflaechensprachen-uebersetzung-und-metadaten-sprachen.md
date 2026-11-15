@@ -160,8 +160,9 @@ fünf Stufen. Diese ADR hält die Entscheide fest; Stufe 1 baut das Gerüst ohne
   Profilformular, Startseite, `<html lang>`.
 - **Leerraum an den Rändern:** `scripts/i18n/check.ts` meldet einen Text als Fehler, dessen Leerraum am
   Anfang oder Ende von Englisch abweicht (`" · "`, `" or "`). Zwei Sprachen hatten die Leerzeichen um die
-  Trenner verloren. Japanisch, Koreanisch und Chinesisch sind ausgenommen, ihre Trenner stehen ohne
-  Leerzeichen (`"、"`); leer darf der Text auch dort nicht sein.
+  Trenner verloren. Japanisch und Chinesisch sind ausgenommen, ihre Trenner stehen ohne Leerzeichen
+  (`"、"`); leer darf der Text auch dort nicht sein. Koreanisch schreibt Leerzeichen zwischen den Wörtern
+  und wird geprüft wie die übrigen Sprachen.
 - **Storybook:** Die Werkzeugleiste «locale» bietet jede ausgelieferte Sprache und `en-XA`
   (`?globals=locale:fi`), für die Bildprüfung je Übersetzungsrunde. Die Vergleichsbilder bleiben Deutsch.
 - **Release-Schritt:** Ein eigenes `docs/dev/RELEASE.md` (Schritt 0 von Stufe 1) gibt es nicht. Der

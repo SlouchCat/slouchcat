@@ -9,7 +9,8 @@
 // categories (Intl.PluralRules, plus `_zero` where en has it), placeholders, `$t()` nestings or
 // <Trans> markup that differ from English, empty texts, and a missing number in a plural form
 // that covers more than 1, and leading or trailing white space that differs from English (" · ",
-// " or "; ja, ko, zh-CN and zh-TW are exempt, their separators go without spaces: "、"). Missing
+// " or "; ja, zh-CN and zh-TW are exempt, their separators go without spaces: "、"; Korean writes
+// spaces between words and is not). Missing
 // keys are warnings, errors with --strict (the release gate).
 // Warnings: text identical to English, labels longer than 1.5× English.
 //
@@ -50,7 +51,7 @@ function sameList(a: string[], b: string[]): boolean {
 }
 
 /** Languages whose separators and joining words go without spaces around them ("、", "または"). */
-const ownSpacing = new Set(['ja', 'ko', 'zh-CN', 'zh-TW']);
+const ownSpacing = new Set(['ja', 'zh-CN', 'zh-TW']);
 
 /** Whether the text starts and ends with white space like English (" · ", ", ", " › "). */
 function sameEdges(text: string, en: string): boolean {
@@ -70,7 +71,7 @@ function compareText(
   enForPlaceholders = en,
   why = '',
 ) {
-  // In ja, ko, zh-CN and zh-TW " · " may lose its spaces, never its mark (an empty text).
+  // In ja, zh-CN and zh-TW " · " may lose its spaces, never its mark (an empty text).
   if (text.trim() === '') {
     report.errors.push(`${key}: empty text`);
     return;

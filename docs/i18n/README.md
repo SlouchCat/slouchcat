@@ -71,9 +71,9 @@ Nicht jeder Pull Request soll zwanzig Übersetzungen tragen (Konzept 22, Abschni
 `check.ts` meldet als **Fehler**: Schlüssel, die `en.json` nicht hat, Pluralformen, die nicht genau den
 Kategorien der Sprache entsprechen (`Intl.PluralRules`), abweichende Platzhalter, `$t()`-Verweise oder
 Markup, leere Texte, eine fehlende Zahl in einer Pluralform, die mehr als 1 abdeckt, und Leerraum am
-Anfang oder Ende, der von Englisch abweicht (`" · "`, `" oder "`). Japanisch, Koreanisch und Chinesisch
-sind von der letzten Regel ausgenommen, weil ihre Trenner ohne Leerzeichen stehen (`"、"`); leer darf
-der Text auch dort nicht sein. Als **Warnung** meldet es Texte, die gleich wie Englisch lauten («Trailer»
+Anfang oder Ende, der von Englisch abweicht (`" · "`, `" oder "`). Japanisch und Chinesisch sind von
+der letzten Regel ausgenommen, weil ihre Trenner ohne Leerzeichen stehen (`"、"`); leer darf der Text
+auch dort nicht sein. Koreanisch schreibt Leerzeichen zwischen den Wörtern und hält sich an die Regel. Als **Warnung** meldet es Texte, die gleich wie Englisch lauten («Trailer»
 ist in vielen Sprachen richtig), und Beschriftungen, die mehr als 1,5× so lang sind wie Englisch.
 
 In der CI prüfen `web/src/locales/locales.test.ts` (Web-App) und `TestServerTexts` (Server) bei jedem
