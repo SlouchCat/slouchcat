@@ -8,8 +8,9 @@ import { MEDIA_DIR, PORT } from './env';
 /**
  * A server of its own for a spec that needs a server without an account (the guided wizard,
  * concept 22, 3.6): the same binary as the run's (start-server.mjs), with fresh temporary config
- * and cache directories, on a port 300 above the run's (8397 next to 8097), so it never meets
- * the shared server or a run on another port. It stops and removes its directories at the end.
+ * and cache directories, on a port 5 above the run's (8102 next to 8097). A run owns its port and
+ * the ten below it (the mocks, env.ts); parallel shards are 20 apart (e2e/parallel.mjs), so the
+ * five above stay inside the run's own range and never meet another shard or its mocks. It stops and removes its directories at the end.
  */
 export interface FreshServer {
   url: string;
@@ -18,8 +19,8 @@ export interface FreshServer {
 
 const binary = fileURLToPath(new URL('../../server/bin/slouchcat-e2e', import.meta.url));
 
-/** The port of the fresh server: SLOUCHCAT_E2E_FRESH_PORT, else 300 above the run's. */
-export const FRESH_PORT = Number(process.env.SLOUCHCAT_E2E_FRESH_PORT ?? PORT + 300);
+/** The port of the fresh server: SLOUCHCAT_E2E_FRESH_PORT, else 5 above the run's. */
+export const FRESH_PORT = Number(process.env.SLOUCHCAT_E2E_FRESH_PORT ?? PORT + 5);
 
 async function healthy(url: string, deadline: number): Promise<void> {
   for (;;) {
