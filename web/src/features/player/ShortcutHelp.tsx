@@ -21,6 +21,7 @@ export const SHORTCUT_ROWS = [
   'info',
   'skip',
   'next',
+  'previous',
   'help',
   'back',
 ] as const;

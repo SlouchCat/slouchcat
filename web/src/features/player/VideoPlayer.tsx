@@ -706,6 +706,12 @@ export function VideoPlayer({
           : undefined,
       skipIntro: inIntro ? skipIntro : undefined,
       playNext: next && onNextEpisode && available ? playNext : undefined,
+      playPrevious:
+        info.previousEpisode && onPlayEpisode && available
+          ? () => {
+              if (info.previousEpisode) playEpisode(info.previousEpisode);
+            }
+          : undefined,
       toggleHelp: () => togglePanel('help'),
       closeOpen: () => {
         if (panel !== null) closePanel();

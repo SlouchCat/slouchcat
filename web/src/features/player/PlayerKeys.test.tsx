@@ -906,6 +906,11 @@ describe('video player tabs, pause view, phone and slow connection (concept 13, 
       episodeRoutes(),
     );
     const previous = button('Vorherige Folge: S01E06 · Pilot');
+    // P names the previous episode in the help (concept 23, 3.1).
+    key(document.body, '?');
+    const help = screen.getByRole('dialog', { name: 'Tastenkürzel' });
+    expect(within(help).getByText('P').closest('div')).toHaveTextContent('Vorherige Folge');
+    key(document.body, 'Escape');
     // The chapter buttons only go from chapter to chapter.
     expect(button('Vorheriges Kapitel')).not.toHaveAttribute('aria-disabled');
     const card = previous.parentElement?.querySelector(':scope > [aria-hidden="true"]');
@@ -913,6 +918,18 @@ describe('video player tabs, pause view, phone and slow connection (concept 13, 
     const { user } = playerDriver();
     await user.click(previous);
     await waitFor(() => expect(router.state.location.pathname).toBe(`/play/${episodes.e1.id}`));
+  });
+
+  it('P plays the previous episode; without one it does nothing (concept 23, 3.1)', async () => {
+    const { router } = await start({ ...episode, previousEpisode: episodes.e1 }, episodeRoutes());
+    key(document.body, 'p');
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/play/${episodes.e1.id}`));
+    expect(await screen.findByRole('button', { name: 'Vorherige Folge' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    key(document.body, 'p');
+    expect(router.state.location.pathname).toBe(`/play/${episodes.e1.id}`);
   });
 
   it('without a previous episode from the server «Vorherige Folge» is greyed, whatever the season lists (rule 12)', async () => {

@@ -291,6 +291,7 @@ export function OfflineVideo({
       case 'info':
       case 'skip':
       case 'next':
+      case 'previous':
         return false;
       case 'chapter':
       case 'chapters':

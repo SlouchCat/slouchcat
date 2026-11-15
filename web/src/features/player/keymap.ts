@@ -28,6 +28,7 @@ export type PlayerKeyAction =
         | 'info'
         | 'skipIntro'
         | 'nextEpisode'
+        | 'previousEpisode'
         | 'help'
         | 'back';
     };
@@ -68,6 +69,8 @@ const letters: Record<string, PlayerKeyAction> = {
   i: { kind: 'info' },
   s: { kind: 'skipIntro' },
   n: { kind: 'nextEpisode' },
+  // P: the previous episode (concept 23, 3.1), without Shift like N.
+  p: { kind: 'previousEpisode' },
   '?': { kind: 'help' },
   '[': { kind: 'rate', delta: -RATE_STEP },
   ']': { kind: 'rate', delta: RATE_STEP },

@@ -27,6 +27,7 @@ describe('playerKeyAction (concept 13, 11.2)', () => {
     expect(press('i')).toEqual({ kind: 'info' });
     expect(press('s')).toEqual({ kind: 'skipIntro' });
     expect(press('n')).toEqual({ kind: 'nextEpisode' });
+    expect(press('p')).toEqual({ kind: 'previousEpisode' });
     expect(press('?')).toEqual({ kind: 'help' });
     expect(press('Escape')).toEqual({ kind: 'back' });
     expect(press('Backspace')).toEqual({ kind: 'back' });

@@ -39,6 +39,8 @@ export interface PlayerKeyActions {
   skipIntro?: () => void;
   /** N. */
   playNext?: () => void;
+  /** P (concept 23, 3.1). */
+  playPrevious?: () => void;
   /** ?. */
   toggleHelp: () => void;
   /**
@@ -88,7 +90,8 @@ interface PlayerKeysOptions {
  *
  * Bubble phase, the keys no zone kept for itself: Space/Enter/K play and pause, ←/→ 10 s (with
  * Shift a chapter), ↑/↓ volume, M mute, T sound, U subtitles, C chapters, Q quality, [ ] speed,
- * 0–9 jump to 0–90 %, F full screen, I stream info, S skip the intro, N next episode, ? help,
+ * 0–9 jump to 0–90 %, F full screen, I stream info, S skip the intro, N next episode, P previous
+ * episode, ? help,
  * Escape/Backspace close what is open, else back to the detail page.
  *
  * While a navigation away is loading (`leaving`) only Escape and Backspace act, and they go back.
@@ -208,6 +211,9 @@ export function usePlayerKeys(options: PlayerKeysOptions): void {
           return;
         case 'nextEpisode':
           act(actions.playNext);
+          return;
+        case 'previousEpisode':
+          act(actions.playPrevious);
           return;
         case 'help':
           act(actions.toggleHelp);
