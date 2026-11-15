@@ -10,7 +10,7 @@ import type {
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
-import i18n, { setLanguage } from '@/i18n';
+import i18n, { setLanguage, shippedLanguageFor } from '@/i18n';
 import { dashboardFixture } from '@/test/admin';
 import { ratingSystems } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, session, type Call, type Routes } from '@/test/api';
@@ -308,6 +308,8 @@ describe('the owner of an unfinished wizard', () => {
   it.each([
     ['fr', 'FR', 'FR', ['fr', 'en']],
     ['zh-CN', 'CN', 'DE', ['zh-CN', 'en']],
+    // A code a newer server knows and this app not: English, as the app shows it (ADR 0033).
+    ['ar', 'US', 'US', ['en']],
   ] as const)(
     'suggests by the language %s: %s, ratings of %s, %j',
     async (language, country, rating, textLangs) => {
@@ -322,7 +324,7 @@ describe('the owner of an unfinished wizard', () => {
         }),
       );
       renderApp('/setup/region');
-      await waitFor(() => expect(document.documentElement.lang).toBe(language));
+      await waitFor(() => expect(document.documentElement.lang).toBe(shippedLanguageFor(language)));
       const [countrySelect, ratingSelect] = await screen.findAllByRole('combobox');
       expect(countrySelect).toHaveValue(country);
       expect(ratingSelect).toHaveValue(rating);

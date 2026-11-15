@@ -61,7 +61,8 @@ const COUNTRIES = [
 /**
  * The country and metadata languages a language suggests (table 4.1, O-15): the language, then
  * English. The rating country is that country when the server's table knows it, else Germany
- * (F-12; China has no system).
+ * (F-12; China has no system). A code this app does not know (a newer server's language, before
+ * the app is reloaded) gets the suggestion of English, the language the app then shows.
  */
 const SUGGESTIONS: Record<Language, { country: string; langs: string[] }> = {
   de: { country: 'CH', langs: ['de', 'en'] },
@@ -124,7 +125,10 @@ function RegionForm({ settings }: { settings: MetadataSettings }) {
   const progress = useQuery(setupProgressQuery).data;
   const system = useQuery(systemQuery).data;
   const offer = useQuery(radioOfferQuery).data;
-  const suggestion = SUGGESTIONS[session.profile.language];
+  const suggestion =
+    (SUGGESTIONS as Partial<Record<string, (typeof SUGGESTIONS)[Language]>>)[
+      session.profile.language
+    ] ?? SUGGESTIONS.en;
   // A step done before shows what was stored; an open one the suggestion of the language.
   const fresh = stepState(progress, 'region') === 'open';
   const [country, setCountry] = useState(suggestion.country);
