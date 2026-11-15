@@ -380,3 +380,23 @@ func TestAnotherTitleDropsTheCertificates(t *testing.T) {
 		t.Errorf("certificates after the match = %v, want only the new title's PG-13", got)
 	}
 }
+
+// A TMDB or TVDB record of the fill without certificates (nil) is stored as «asked, nothing»
+// (review of stage 3), so the job «Freigaben neu lesen» does not ask the provider again.
+func TestFillStoresARecordWithoutCertificates(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First Film", tmdbID: 550})
+	item, ok, err := reloadItem(ctx, e.svc.write, idByTMDB)
+	if err != nil || !ok {
+		t.Fatalf("reload: %v %v", ok, err)
+	}
+	recs := []fetchedRecord{{provider: "tmdb", id: "550", fields: providerFields{provider: "tmdb", values: fieldValues{}}}}
+	if _, err := e.svc.applyFill(ctx, item, []string{"tmdb"}, recs, -1, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.certRows(t, idByTMDB); len(got) != 1 || got["tmdb:"] != "" {
+		t.Errorf("certificates after a fill without any = %v, want the row asked, nothing", got)
+	}
+}

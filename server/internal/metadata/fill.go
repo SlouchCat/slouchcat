@@ -514,9 +514,8 @@ func (s *Service) applyFill(ctx context.Context, snap systemq.Item, order []stri
 		return false, err
 	}
 	for _, r := range recs {
-		if r.fields.certs == nil {
-			continue
-		}
+		// A record without certificates is stored as «asked, nothing» (storeCertifications skips
+		// every provider but TMDB and TVDB, whose fields are the only ones that carry them).
 		if err := storeCertifications(ctx, tx, cur.ID, r.provider, r.fields.certs, s.now().UnixMilli()); err != nil {
 			return false, fmt.Errorf("metadata.fill: %w", err)
 		}
