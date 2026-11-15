@@ -281,7 +281,7 @@
       "link": "Skapa en token på themoviedb.org",
       "label": "API-åtkomsttoken för läsning",
       "hint": "Lagras krypterat och visas aldrig igen.",
-      "check": "Kontrollera nyckeln",
+      "check": "Testa nyckeln",
       "checking": "Kontrollerar…",
       "result": {
         "valid": "Giltig: TMDB godkände nyckeln.",
@@ -418,7 +418,7 @@
       "filter": "Filter",
       "filterCount": "Filter ({{count}})",
       "apply": "Använd",
-      "clear": "Återställ",
+      "clear": "Nollställ",
       "emptyFilters": "Inget matchar de här filtren",
       "pageFailed": "En del av listan kunde inte läsas in.",
       "noun": {
@@ -834,7 +834,7 @@
       "unavailableTranscode": "Spelas bara upp omvandlad",
       "remembered": "Ihågkommen: {{quality}}",
       "rememberedNote": "Titlar över {{quality}} omvandlas då.",
-      "reset": "Återställ"
+      "reset": "Nollställ"
     },
     "chapters": {
       "button": "Kapitel",
@@ -946,7 +946,7 @@
         "earlier": "0,1 s tidigare",
         "later": "0,1 s senare",
         "value": "{{seconds}} s",
-        "reset": "Återställ"
+        "reset": "Nollställ"
       }
     },
     "settings": {
@@ -1013,7 +1013,7 @@
       "title": "Kortkommandon",
       "rows": {
         "play": {
-          "keys": "Space, K, Enter",
+          "keys": "Blanksteg, K, Enter",
           "action": "Spela upp eller pausa"
         },
         "seek": {
@@ -1081,7 +1081,7 @@
           "action": "Den här hjälpen"
         },
         "back": {
-          "keys": "Escape, Backspace",
+          "keys": "Esc, Backsteg",
           "action": "Stänger en panel, hjälpen och strömningsinfon (i kugghjulet: en nivå upp), annars tillbaka till detaljsidan",
           "actionOfflineDownloads": "Stänger en panel, hjälpen och fliken (i kugghjulet: en nivå upp), annars tillbaka till nedladdningar",
           "actionOfflineLibrary": "Stänger en panel, hjälpen och fliken (i kugghjulet: en nivå upp), annars tillbaka till offlinebiblioteket"
@@ -1123,7 +1123,7 @@
         "title": "Katalog",
         "source": "Källa",
         "sourceValue": "Radio Browser (radio-browser.info)",
-        "lastSync": "Senaste synkronisering",
+        "lastSync": "Senast synkad",
         "never": "Aldrig",
         "lastSyncValue": "{{date}}: {{entries}} poster, {{reachable}} nåbara, {{added}} nya, {{removed}} borttagna",
         "stations": "Stationer efter sammanslagning",
@@ -1313,7 +1313,7 @@
         "probeNoTitles": "Titlar: nej",
         "probeTitle": "Aktuell titel: {{title}}",
         "recommended": "Rekommenderas",
-        "recommendedHelp": "Kommer först i sitt land (sortering ”Popularitet”).",
+        "recommendedHelp": "Kommer först i sitt land (sortering ”Populärt”).",
         "tags": "Taggar från katalogen",
         "lock": "Lås {{field}}",
         "locked": "låst",
@@ -1381,7 +1381,7 @@
         "hits_other": "{{count}} träffar",
         "hitsCaption": "Hittade länder",
         "continents": {
-          "label": "Alla länder per världsdel. En världsdel öppnar sina länder. Tryck på den igen eller på Escape för att stänga dem.",
+          "label": "Alla länder per världsdel. En världsdel öppnar sina länder. Tryck på den igen eller på Esc för att stänga dem.",
           "heading": "Per världsdel"
         },
         "continent": {
@@ -3549,7 +3549,7 @@
           "result": "Resultat"
         },
         "result": {
-          "scan_queued": "Katalogen läses",
+          "scan_queued": "Mappen läses in",
           "acknowledged": "Test bekräftat",
           "ignored": "Ingen effekt",
           "outside_roots": "Utanför biblioteken",
@@ -3833,8 +3833,8 @@
         "owners_one": "{{number}} av dem ägare",
         "owners_other": "{{number}} av dem ägare",
         "profiles": "Profiler",
-        "ownProfiles_one": "{{number}} din egen",
-        "ownProfiles_other": "{{number}} dina egna",
+        "ownProfiles_one": "{{number}} egen",
+        "ownProfiles_other": "{{number}} egna",
         "openInvitations": "Öppna inbjudningar",
         "nextExpiry": "Nästa går ut {{date}}"
       },
@@ -3992,7 +3992,7 @@
         "sessions_one": "{{count, number}} uppspelning",
         "sessions_other": "{{count, number}} uppspelningar",
         "share": "{{share}} av alla uppspelningar",
-        "hardware": "Omkodning på GPU:n",
+        "hardware": "Omkodning på grafikkretsen",
         "hardwareNote": "Andel av omkodningarna"
       },
       "devices": {
@@ -4227,7 +4227,7 @@
         "retryFailedTypeTitle_one": "Försöka igen med {{count}} misslyckad körning av {{name}}?",
         "retryFailedTypeTitle_other": "Försöka igen med alla {{count}} misslyckade körningar av {{name}}?",
         "retryFailedBody": "Körningarna går tillbaka till kön med nollställda försök. När samma arbete redan väntar eller pågår förblir en körning misslyckad. Av dubblettkörningar kommer bara den nyaste tillbaka.",
-        "retryFailedConfirm": "Försök igen med alla",
+        "retryFailedConfirm": "Försök alla igen",
         "dismissFailedTitle_one": "Ta bort {{count}} misslyckad körning?",
         "dismissFailedTitle_other": "Ta bort alla {{count}} misslyckade körningar?",
         "dismissFailedTypeTitle_one": "Ta bort {{count}} misslyckad körning av {{name}}?",
@@ -4346,12 +4346,12 @@
         "radio_logo_fetch": {
           "name": "Hämta stationslogotyp",
           "description": "Hämtar en stations logotyp från katalogen eller dess webbplats och lagrar den kvadratisk.",
-          "trigger": "en station utan logotyp i en lista i appen, en återställd logotyp"
+          "trigger": "en station utan logotyp i en lista i appen, en nollställd logotyp"
         },
         "radio_wikidata_sync": {
           "name": "Stationsdetaljer från Wikidata",
           "description": "Matchar stationerna i utbudet mot Wikidata via deras webbplats och tar ägare och grundningsdatum från en entydig träff.",
-          "trigger": "varje vecka från 06:30, efter ”Tillämpa” med nya stationer (högst en gång per dag), när ”Använd Wikidata” är på"
+          "trigger": "varje vecka från 06:30, efter ”Tillämpa” med nya stationer (högst en gång per dag), när ”Använd Wikidata” slås på"
         },
         "scan_library": {
           "name": "Biblioteksgenomsökning",
@@ -4559,7 +4559,7 @@
           "at": "Tid"
         },
         "retryLabel": "Köa körning {{id}} av {{name}} igen",
-        "retryAll": "Försök igen med alla",
+        "retryAll": "Försök alla igen",
         "dismissAll": "Ta bort alla…",
         "deleteLabel": "Ta bort körning {{id}} av {{name}}"
       },
@@ -4611,7 +4611,7 @@
         "list": "Metadataspråk",
         "rank": "Språk {{position}}",
         "more": "Ytterligare ett språk",
-        "fallback": "Ordning = reservval: när en text saknas på profilens språk visar Slouchcat den första i listan, sedan filnamnet. Gränssnittets språk påverkas inte av detta.",
+        "fallback": "Ordning = reservval: när en text saknas på profilens språk visar Slouchcat den första i listan, sedan filnamnet. Inget språk är obligatoriskt, men standardlistan och varje bibliotek behöver minst ett.",
         "unknownAt": "{{provider}} känner inte till: {{languages}}",
         "youtube": "{{count}} språk: upp till {{titles}} titlar per dag med YouTubes trailersökning (kvot 10 000)."
       },
@@ -5321,7 +5321,7 @@
         "local": "På servern",
         "download": "På den här enheten"
       },
-      "reset": "Återställ filter"
+      "reset": "Rensa filter"
     },
     "sections": {
       "titles": "Titlar",
@@ -5458,11 +5458,11 @@
       "series": {
         "title": "Serieminne",
         "body": "När du väljer ljud eller undertexter för ett avsnitt manuellt kommer Slouchcat ihåg språket för hela serien.",
-        "reset": "Återställ serieminnet",
-        "confirmTitle": "Återställa serieminnet?",
+        "reset": "Nollställ serieminnet",
+        "confirmTitle": "Nollställa serieminnet?",
         "confirmBody": "Varje serie spelas då upp enligt dina språk och undertexter ovan igen. Det kan inte ångras.",
-        "confirm": "Återställ",
-        "done": "Serieminnet har återställts."
+        "confirm": "Nollställ",
+        "done": "Serieminnet har nollställts."
       },
       "notifications": {
         "title": "Aviseringar",
@@ -5611,7 +5611,7 @@
         "show_other": "Visa {{count}} stationer",
         "active": "Aktiva filter",
         "remove": "Ta bort filtret {{label}}",
-        "reset": "Återställ alla filter",
+        "reset": "Rensa alla filter",
         "search": "”{{q}}”"
       },
       "sort": {
@@ -5638,7 +5638,7 @@
       "allStations": "Alla stationer",
       "empty": {
         "title": "Inga stationer hittades",
-        "body": "Ingen station matchar de här filtren. Ta bort ett filter eller återställ alla."
+        "body": "Ingen station matchar de här filtren. Ta bort ett filter eller rensa alla."
       },
       "loading": {
         "title": "Stationskatalogen läses in",

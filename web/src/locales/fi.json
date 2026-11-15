@@ -307,7 +307,7 @@
   },
   "library": {
     "groups": {
-      "title": "Sarjat ja kokoelmat",
+      "title": "Kirjasarjat ja kokoelmat",
       "series_one": "{{count}} kirjasarja",
       "series_other": "{{count}} kirjasarjaa",
       "collections_one": "{{count}} kokoelma",
@@ -1013,7 +1013,7 @@
       "title": "Pikanäppäimet",
       "rows": {
         "play": {
-          "keys": "Space, K, Enter",
+          "keys": "Välilyönti, K, Enter",
           "action": "Toista tai tauota"
         },
         "seek": {
@@ -1081,7 +1081,7 @@
           "action": "Tämä ohje"
         },
         "back": {
-          "keys": "Escape, Backspace",
+          "keys": "Esc, Askelpalautin",
           "action": "Sulkee paneelin, ohjeen ja suoratoiston tiedot (rataskuvakkeessa: yksi taso ylös), muuten takaisin tietosivulle",
           "actionOfflineDownloads": "Sulkee paneelin, ohjeen ja välilehden (rataskuvakkeessa: yksi taso ylös), muuten takaisin latauksiin",
           "actionOfflineLibrary": "Sulkee paneelin, ohjeen ja välilehden (rataskuvakkeessa: yksi taso ylös), muuten takaisin offline-kirjastoon"
@@ -1381,7 +1381,7 @@
         "hits_other": "{{count}} osumaa",
         "hitsCaption": "Löytyneet maat",
         "continents": {
-          "label": "Kaikki maat maanosittain. Maanosa avaa maansa; uusi painallus tai Escape sulkee ne.",
+          "label": "Kaikki maat maanosittain. Maanosa avaa maansa; uusi painallus tai Esc sulkee ne.",
           "heading": "Maanosittain"
         },
         "continent": {
@@ -1427,7 +1427,7 @@
           "modeMarked": "Vain merkityt asemat ovat tarjonnassa. Maan uudet asemat eivät lisäänny itsestään.",
           "search": "Hae asemia",
           "markAll": "Merkitse kaikki",
-          "demarkAll": "Poista kaikkien merkintä",
+          "demarkAll": "Poista merkinnät",
           "markShown_one": "Merkitse näkyvä ({{count}})",
           "markShown_other": "Merkitse näkyvät ({{count}})",
           "demarkShown_one": "Poista näkyvän merkintä ({{count}})",
@@ -2344,7 +2344,7 @@
         "action": "Unohda",
         "label": "Unohda {{name}}",
         "title": "Unohdetaanko laite ”{{name}}”?",
-        "body": "Käynnissä olevat suoratoistot päättyvät ja laitteen istunnot kirjataan ulos. Jos kyseessä on laite, jota käytät juuri nyt, sinut kirjataan ulos täällä heti.",
+        "body": "Käynnissä olevat suoratoistot päättyvät ja laitteen istunnot kirjataan ulos. Jos kyseessä on tällä hetkellä käytössä oleva laite, uloskirjautuminen tapahtuu heti.",
         "confirm": "Unohda laite"
       },
       "forgotten": "Laite ”{{name}}” unohdettu.",
@@ -2600,7 +2600,7 @@
         },
         "parallel": {
           "label": "Lataus yhtä aikaa",
-          "hint": "Slouchcat lataa samalta palvelimelta vain yhden jakson kerrallaan."
+          "hint": "Slouchcat lataa samalta julkaisijalta vain yhden jakson kerrallaan."
         }
       },
       "setting": {
@@ -3549,7 +3549,7 @@
           "result": "Tulos"
         },
         "result": {
-          "scan_queued": "Hakemisto luetaan",
+          "scan_queued": "Kansio luetaan",
           "acknowledged": "Testi kuitattu",
           "ignored": "Ei vaikutusta",
           "outside_roots": "Kirjastojen ulkopuolella",
@@ -3740,7 +3740,7 @@
         "newPasswordHint": "Jätä tyhjäksi, jos haluat säilyttää salasanan. Muuten vähintään 10 merkkiä.",
         "newPasswordRepeat": "Toista uusi salasana",
         "currentPassword": "Nykyinen salasana",
-        "currentPasswordHint": "Vahvistaa, että se olet sinä.",
+        "currentPasswordHint": "Vahvistaa henkilöllisyyden.",
         "wrongPassword": "Nykyinen salasana on väärä.",
         "unchanged": "Muuta sähköpostiosoitetta tai anna uusi salasana.",
         "saved": "Tilisi on tallennettu."
@@ -3754,7 +3754,7 @@
         "heading": "Käyttöoikeudet",
         "save": "Tallenna käyttöoikeudet",
         "saved": "Käyttöoikeudet tallennettu: {{email}}.",
-        "adminHint": "Ylläpitäjällä on aina ikäraja 18 ja kaikki kirjastot; ”Käyttöoikeudet” on olemassa vain tileille ilman ylläpitoa."
+        "adminHint": "Ylläpitäjällä on aina ikäraja 18 ja kaikki kirjastot; ”Käyttöoikeudet” on vain tileillä, joilla ei ole ylläpitäjän oikeuksia."
       },
       "role": {
         "promote": {
@@ -3769,7 +3769,7 @@
           "title": "Poistetaanko ylläpitäjän rooli tililtä {{email}}?",
           "body": "Tili hallinnoi jatkossa vain omia profiilejaan, ja se kirjataan ulos kaikkialta. Ikäraja ja kirjastot säilyvät ennallaan; aseta ne uudelleen harkiten.",
           "confirm": "Poista",
-          "done": "{{email}} on nyt tili ilman ylläpitoa."
+          "done": "{{email}} on nyt tili ilman ylläpitäjän oikeuksia."
         }
       },
       "remove": {
@@ -3833,8 +3833,8 @@
         "owners_one": "{{number}} heistä omistaja",
         "owners_other": "{{number}} heistä omistajia",
         "profiles": "Profiilit",
-        "ownProfiles_one": "{{number}} omasi",
-        "ownProfiles_other": "{{number}} omaasi",
+        "ownProfiles_one": "{{number}} oma",
+        "ownProfiles_other": "{{number}} omaa",
         "openInvitations": "Avoimet kutsut",
         "nextExpiry": "Seuraava voimassa {{date}} asti"
       },
@@ -4351,7 +4351,7 @@
         "radio_wikidata_sync": {
           "name": "Aseman tiedot Wikidatasta",
           "description": "Yhdistää tarjonnassa olevat asemat Wikidataan niiden verkkosivuston perusteella ja ottaa omistajan ja perustamispäivän yksiselitteisestä osumasta.",
-          "trigger": "viikoittain klo 06:30 alkaen, kohdan ”Ota käyttöön” jälkeen uusilla asemilla (enintään kerran päivässä), kun ”Käytä Wikidataa” on päällä"
+          "trigger": "viikoittain klo 06:30 alkaen, kohdan ”Ota käyttöön” jälkeen uusilla asemilla (enintään kerran päivässä), kun ”Käytä Wikidataa” otetaan käyttöön"
         },
         "scan_library": {
           "name": "Kirjaston skannaus",
@@ -4501,7 +4501,7 @@
         "podcast_download": {
           "name": "Tallenna podcast-jakso",
           "description": "Lataa jakson julkaisijalta ja sijoittaa sen tiedostona podcastin kansioon.",
-          "trigger": "Suunnittelijalta asetuksella ”Tallenna”, ”Lataa puuttuvat” ja ”Lataa” jaksoa kohti; yksi palvelinta kohti kerrallaan",
+          "trigger": "Suunnittelijalta asetuksella ”Tallenna”, ”Lataa puuttuvat” ja ”Lataa” jaksoa kohti; yksi julkaisijaa kohti kerrallaan",
           "progress": "Tavuja: {{done}} / {{total}}"
         },
         "trakt_refresh": {
@@ -4611,7 +4611,7 @@
         "list": "Metatietojen kielet",
         "rank": "Kieli {{position}}",
         "more": "Toinen kieli",
-        "fallback": "Järjestys = varakieli: kun tekstiä ei ole profiilin kielellä, Slouchcat näyttää listan ensimmäisen, sitten tiedostonimen. Käyttöliittymän kieli ei riipu tästä.",
+        "fallback": "Järjestys = varakieli: kun tekstiä ei ole profiilin kielellä, Slouchcat näyttää listan ensimmäisen saatavilla olevan, sitten tiedostonimen. Mikään kieli ei ole pakollinen, mutta oletuksessa ja jokaisessa kirjastossa on oltava vähintään yksi.",
         "unknownAt": "{{provider}} ei tunne: {{languages}}",
         "youtube": "{{count}} kieltä: enintään {{titles}} nimikettä päivässä YouTube-trailerihaulla (kiintiö 10 000)."
       },
@@ -4777,7 +4777,7 @@
       },
       "audnexus": {
         "label": "Audnexusin osoite",
-        "help": "Audnexus toimittaa Audible-osuman tiedot: kuvauksen, lajityypit, sarjan, ISBN-tunnuksen ja kansikuvan. Oma instanssi paikallisessa verkossa on sallittu.",
+        "help": "Audnexus toimittaa Audible-osuman tiedot: kuvauksen, lajityypit, kirjasarjan, ISBN-tunnuksen ja kansikuvan. Oma instanssi paikallisessa verkossa on sallittu.",
         "invalid": "Anna osoite, jossa on http:// tai https://."
       },
       "googleBooks": {
@@ -5631,7 +5631,7 @@
         "byMood": "Tunnelman mukaan",
         "stations_one": "{{count}} asema",
         "stations_other": "{{count}} asemaa",
-        "noFavorites": "Ei vielä tallennettuja asemia. Napauta aseman sydäntä, niin se näkyy tässä, vain sinun profiilillesi.",
+        "noFavorites": "Ei vielä tallennettuja asemia. Napauta aseman sydäntä, niin se näkyy tässä, vain omassa profiilissa.",
         "popular": "Suositut"
       },
       "results": "Tulokset",

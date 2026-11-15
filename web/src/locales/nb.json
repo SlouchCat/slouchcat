@@ -307,7 +307,7 @@
   },
   "library": {
     "groups": {
-      "title": "Serier og samlinger",
+      "title": "Bokserier og samlinger",
       "series_one": "{{count}} bokserie",
       "series_other": "{{count}} bokserier",
       "collections_one": "{{count}} samling",
@@ -777,7 +777,7 @@
         "hdr": "HDR-video",
         "pixel_format": "Pikselformat (10 bit, 4:2:2 eller 4:4:4)",
         "keyframes_pending": "Nøkkelbildeindeksen er ikke bygd ennå",
-        "keyframes_unavailable": "Ingen nøkkelbildeindeks mulig",
+        "keyframes_unavailable": "Nøkkelbildeindeks er ikke mulig",
         "dolby_vision": "Dolby Vision (profil 5 eller 7)",
         "bandwidth": "Båndbreddegrense",
         "max_height": "Kvalitetsgrense",
@@ -1013,7 +1013,7 @@
       "title": "Hurtigtaster",
       "rows": {
         "play": {
-          "keys": "Space, K, Enter",
+          "keys": "Mellomrom, K, Enter",
           "action": "Spill av eller pause"
         },
         "seek": {
@@ -1081,7 +1081,7 @@
           "action": "Denne hjelpen"
         },
         "back": {
-          "keys": "Escape, Backspace",
+          "keys": "Esc, Backspace",
           "action": "Lukker et panel, hjelpen og strøminfoen (i tannhjulet: ett nivå opp), ellers tilbake til detaljsiden",
           "actionOfflineDownloads": "Lukker et panel, hjelpen og fanen (i tannhjulet: ett nivå opp), ellers tilbake til nedlastingene",
           "actionOfflineLibrary": "Lukker et panel, hjelpen og fanen (i tannhjulet: ett nivå opp), ellers tilbake til det frakoblede biblioteket"
@@ -1381,7 +1381,7 @@
         "hits_other": "{{count}} treff",
         "hitsCaption": "Land funnet",
         "continents": {
-          "label": "Alle land etter kontinent. Et kontinent åpner landene sine; trykk på det igjen eller på Escape for å lukke dem.",
+          "label": "Alle land etter kontinent. Et kontinent åpner landene sine; trykk på det igjen eller på Esc for å lukke dem.",
           "heading": "Etter kontinent"
         },
         "continent": {
@@ -1427,7 +1427,7 @@
           "modeMarked": "Bare de merkede stasjonene er i tilbudet. Nye stasjoner i dette landet kommer ikke med av seg selv.",
           "search": "Søk etter stasjoner",
           "markAll": "Merk alle",
-          "demarkAll": "Fjern merking på alle",
+          "demarkAll": "Fjern alle merker",
           "markShown_one": "Merk den viste ({{count}})",
           "markShown_other": "Merk de viste ({{count}})",
           "demarkShown_one": "Fjern merking på den viste ({{count}})",
@@ -1545,7 +1545,7 @@
           "language": "Originalspråk",
           "author": "Forfatter",
           "narrator": "Oppleser",
-          "seriesName": "Serie",
+          "seriesName": "Bokserie",
           "seriesIndex": "Bind",
           "publisher": "Forlag",
           "isbn": "ISBN",
@@ -2123,7 +2123,7 @@
           "original_title": "Originaltittel",
           "author": "Forfatter",
           "narrator": "Oppleser",
-          "series_name": "Serie",
+          "series_name": "Bokserie",
           "series_index": "Bind",
           "publisher": "Forlag",
           "isbn": "ISBN",
@@ -3046,7 +3046,7 @@
         "listHint": "Offentlige lister, ingen Trakt-innlogging.",
         "listHintLink": "Nøkkel under Integrasjoner",
         "listUrl": "Adressen til listen",
-        "listUrlHint": "En offentlig liste på trakt.tv, for eksempel https://trakt.tv/users/name/lists/name-of-the-list. Lister over det man vil se (Watchlists) er ikke mulig.",
+        "listUrlHint": "En offentlig liste på trakt.tv, for eksempel https://trakt.tv/users/name/lists/name-of-the-list. Watchlists støttes ikke.",
         "media": "Medier",
         "mediaFixed": "Denne listen bestemmer mediene.",
         "mediaFilters": "Listen blander filmer og serier: mediene filtrerer oppføringene etter at listen er hentet.",
@@ -3549,7 +3549,7 @@
           "result": "Resultat"
         },
         "result": {
-          "scan_queued": "Katalogen leses",
+          "scan_queued": "Mappen leses",
           "acknowledged": "Test bekreftet",
           "ignored": "Ingen virkning",
           "outside_roots": "Utenfor bibliotekene",
@@ -3833,8 +3833,8 @@
         "owners_one": "{{number}} av dem eier",
         "owners_other": "{{number}} av dem eiere",
         "profiles": "Profiler",
-        "ownProfiles_one": "{{number}} din egen",
-        "ownProfiles_other": "{{number}} dine egne",
+        "ownProfiles_one": "{{number}} egen",
+        "ownProfiles_other": "{{number}} egne",
         "openInvitations": "Åpne invitasjoner",
         "nextExpiry": "Neste gyldig til {{date}}"
       },
@@ -3992,7 +3992,7 @@
         "sessions_one": "{{count, number}} avspilling",
         "sessions_other": "{{count, number}} avspillinger",
         "share": "{{share}} av alle avspillinger",
-        "hardware": "Omkoding på GPU-en",
+        "hardware": "Omkoding på grafikkbrikken",
         "hardwareNote": "Andel av omkodingene"
       },
       "devices": {
@@ -4135,7 +4135,7 @@
         "overridesWindow": "for avspilling",
         "progress": "{{done}} av {{total}}",
         "progressLabel": "{{name}}: {{percent}} %",
-        "pause": "Sett kjøringen på pause",
+        "pause": "Sett på pause",
         "pauseLabel": "Sett {{name}} på pause (stopper denne og alle pågående kjøringer av jobben)",
         "cancel": "Avbryt",
         "cancelLabel": "Avbryt kjøring {{id}} av {{name}}",
@@ -4351,7 +4351,7 @@
         "radio_wikidata_sync": {
           "name": "Stasjonsdetaljer fra Wikidata",
           "description": "Sammenligner stasjonene i tilbudet med Wikidata via nettstedet deres og henter eier og grunnleggelsesdato fra et entydig treff.",
-          "trigger": "ukentlig fra 06:30, etter «Ta i bruk» med nye stasjoner (høyst én gang i døgnet), når «Bruk Wikidata» er slått på"
+          "trigger": "ukentlig fra 06:30, etter «Ta i bruk» med nye stasjoner (høyst én gang i døgnet), når «Bruk Wikidata» slås på"
         },
         "scan_library": {
           "name": "Biblioteksskanning",
@@ -4611,7 +4611,7 @@
         "list": "Metadataspråk",
         "rank": "Språk {{position}}",
         "more": "Et språk til",
-        "fallback": "Rekkefølge = reserve: når en tekst mangler på språket til profilen, viser Slouchcat den første i listen, deretter filnavnet. Grensesnittspråket er uavhengig av dette.",
+        "fallback": "Rekkefølge = reserve: når en tekst mangler på språket til profilen, viser Slouchcat den første i listen, deretter filnavnet. Ingen språk er påkrevd, men standarden og hvert bibliotek trenger minst ett.",
         "unknownAt": "{{provider}} kjenner ikke: {{languages}}",
         "youtube": "{{count}} språk: opptil {{titles}} titler i døgnet med YouTube-trailersøket (kvote 10 000)."
       },
@@ -4777,7 +4777,7 @@
       },
       "audnexus": {
         "label": "Audnexus-adresse",
-        "help": "Audnexus leverer detaljene for et Audible-treff: beskrivelse, sjangere, serie, ISBN og omslag. En egen instans i det lokale nettverket er tillatt.",
+        "help": "Audnexus leverer detaljene for et Audible-treff: beskrivelse, sjangere, bokserie, ISBN og omslag. En egen instans i det lokale nettverket er tillatt.",
         "invalid": "Oppgi en adresse med http:// eller https://."
       },
       "googleBooks": {
@@ -5068,7 +5068,7 @@
   },
   "extraKind": {
     "trailer": "Trailer",
-    "featurette": "Dokumentar om innspillingen",
+    "featurette": "Featurette",
     "deleted_scene": "Slettet scene",
     "behind_the_scenes": "Bak kulissene",
     "interview": "Intervju",
@@ -5788,7 +5788,7 @@
     "volumes_other": "{{count}} bøker",
     "continue": "Fortsett: bok {{volume, number}}",
     "continueTitle": "Fortsett: {{title}}",
-    "edit": "Rediger serien",
+    "edit": "Rediger bokserien",
     "list": "Bøker",
     "number": "{{value, number}}",
     "volumeLabel": "Bok {{volume, number}}: {{title}}",
@@ -5796,24 +5796,24 @@
     "left": "{{left}} igjen",
     "hint": {
       "title": "Bare for administratorer",
-      "spellings": "Filene navngir denne serien på flere måter: {{names}}. Slouchcat viser den som én serie.",
+      "spellings": "Filene navngir denne bokserien på flere måter: {{names}}. Slouchcat viser den som én bokserie.",
       "spelling_one": "«{{name}}» ({{count}} bok)",
       "spelling_other": "«{{name}}» ({{count}} bøker)",
       "duplicates": "Disse tallene forekommer mer enn én gang: {{volumes}}. Bøkene skiller seg på opplesere; endre et feil tall på boken.",
       "dismiss": "Forstått"
     },
     "notFound": {
-      "title": "Serien ble ikke funnet",
-      "body": "Denne serien finnes ikke, eller den har færre enn to bøker for denne profilen.",
+      "title": "Fant ikke bokserien",
+      "body": "Denne bokserien finnes ikke, eller den har færre enn to bøker for denne profilen.",
       "action": "Til biblioteket"
     },
     "dialog": {
-      "title": "Rediger serien",
-      "name": "Serienavn",
+      "title": "Rediger bokserien",
+      "name": "Navn på bokserien",
       "nameHint": "Endrer visningsnavnet og låser det; bøkene blir som de er.",
       "options": "Bøker",
       "writeToVolumes": "Skriv til alle bøker",
-      "writeToVolumesHint": "Setter navnet som serie for hver bok og låser det. Serier med samme navn og samme forfatter blir til én."
+      "writeToVolumesHint": "Setter navnet som bokserie for hver bok og låser det. Bokserier med samme navn og samme forfatter blir slått sammen til én."
     }
   },
   "watched": {

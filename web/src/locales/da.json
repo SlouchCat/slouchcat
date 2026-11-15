@@ -307,7 +307,7 @@
   },
   "library": {
     "groups": {
-      "title": "Serier og samlinger",
+      "title": "Bogserier og samlinger",
       "series_one": "{{count}} bogserie",
       "series_other": "{{count}} bogserier",
       "collections_one": "{{count}} samling",
@@ -1013,7 +1013,7 @@
       "title": "Tastaturgenveje",
       "rows": {
         "play": {
-          "keys": "Space, K, Enter",
+          "keys": "Mellemrum, K, Enter",
           "action": "Afspil eller pause"
         },
         "seek": {
@@ -1081,7 +1081,7 @@
           "action": "Denne hjælp"
         },
         "back": {
-          "keys": "Escape, Backspace",
+          "keys": "Esc, Backspace",
           "action": "Lukker et panel, hjælpen og streaminfoen (i tandhjulet: ét niveau op), ellers tilbage til detaljesiden",
           "actionOfflineDownloads": "Lukker et panel, hjælpen og fanen (i tandhjulet: ét niveau op), ellers tilbage til downloads",
           "actionOfflineLibrary": "Lukker et panel, hjælpen og fanen (i tandhjulet: ét niveau op), ellers tilbage til offlinebiblioteket"
@@ -1156,9 +1156,9 @@
           "failed": "Videresendelsen fejlede"
         },
         "stop": {
-          "label": "Stop {{profile}}s lytning",
+          "label": "Stop lytningen for {{profile}}",
           "action": "Stop",
-          "title": "Stoppe {{profile}}s lytning?",
+          "title": "Stoppe lytningen for {{profile}}?",
           "body": "Afspilningen af {{station}} slutter med det samme for denne profil.",
           "confirm": "Stop"
         },
@@ -1313,7 +1313,7 @@
         "probeNoTitles": "Titeloplysninger: nej",
         "probeTitle": "Aktuel titel: {{title}}",
         "recommended": "Anbefalet",
-        "recommendedHelp": "Står øverst i sit land (sortering »Popularitet«).",
+        "recommendedHelp": "Står øverst i sit land (sortering »Populære«).",
         "tags": "Nøgleord fra kataloget",
         "lock": "Lås {{field}}",
         "locked": "låst",
@@ -1381,7 +1381,7 @@
         "hits_other": "{{count}} resultater",
         "hitsCaption": "Fundne lande",
         "continents": {
-          "label": "Alle lande efter kontinent. Et kontinent åbner sine lande; tryk igen eller på Escape for at lukke dem.",
+          "label": "Alle lande efter kontinent. Et kontinent åbner sine lande; tryk igen eller på Esc for at lukke dem.",
           "heading": "Efter kontinent"
         },
         "continent": {
@@ -1528,7 +1528,7 @@
         "noKinds": "Til denne titel findes der ingen billedtyper."
       },
       "metadata": {
-        "intro": "Det, du ændrer her, låser feltet: »Opdatér« overskriver det ikke længere. Låsen ophæver låsen igen.",
+        "intro": "Det, du ændrer her, låser feltet: »Opdatér« overskriver det ikke længere. Med låseikonet ophæver du låsen igen.",
         "lang": "Tekster gælder for sproget {{language}}; de øvrige sprog bliver serveren ved med at hente fra udbyderne.",
         "langBook": "Tekster gælder for hver sproglinje i bogen.",
         "field": {
@@ -1691,7 +1691,7 @@
       "keyframes": {
         "summary": "Keyframe-indeks: {{indexed}} af {{videoFiles}} videofiler · {{pending}} afventer · {{unavailable}} ikke muligt",
         "complete": "Keyframe-indeks komplet",
-        "backfill": "Efterhent på siden Baggrundsjob"
+        "backfill": "Hent det manglende på siden Baggrundsjob"
       },
       "error": {
         "root_missing": "Mappen mangler. Er drevet monteret? Intet blev slettet.",
@@ -1824,8 +1824,8 @@
         },
         "facts": {
           "ahead": {
-            "movie": "Nye film får forhåndsvisningen, når de indlæses; bestanden efterhentes med »Opret nu« eller tidsplanen under »Baggrundsjob«. Mangler den ved en start, tager den 20 til 45 sekunder og gemmes.",
-            "episode": "Nye afsnit får forhåndsvisningen, når de indlæses; bestanden efterhentes med »Opret nu« eller tidsplanen under »Baggrundsjob«. Mangler den ved en start, tager den 20 til 45 sekunder og gemmes."
+            "movie": "Nye film får forhåndsvisningen, når de indlæses; de eksisterende film får den med »Opret nu« eller tidsplanen under »Baggrundsjob«. Mangler den ved en start, tager den 20 til 45 sekunder og gemmes.",
+            "episode": "Nye afsnit får forhåndsvisningen, når de indlæses; de eksisterende afsnit får den med »Opret nu« eller tidsplanen under »Baggrundsjob«. Mangler den ved en start, tager den 20 til 45 sekunder og gemmes."
           },
           "onStartKeep": "Ved første start tager forhåndsvisningen 20 til 45 sekunder, det første ark 5 til 10 sekunder, og den gemmes. Titler, ingen ser, fylder ikke noget.",
           "onStart": "Ved hver start oprettes forhåndsvisningen påny på 20 til 45 sekunder; den slettes 10 minutter efter slutningen. Det koster regnetid ved hver start og nogle hundrede MB fra NAS'en.",
@@ -1863,8 +1863,8 @@
         },
         "generate": {
           "action": "Opret nu",
-          "hint": "Efterhenter de manglende forhåndsvisninger i alle biblioteker med »På forhånd«, som »Efterhent forhåndsvisninger« under »Baggrundsjob«.",
-          "queued": "Efterhentningen af forhåndsvisningerne er sat i kø."
+          "hint": "Opretter de manglende forhåndsvisninger i alle biblioteker med »På forhånd«, ligesom »Opret manglende forhåndsvisninger« under »Baggrundsjob«.",
+          "queued": "De manglende forhåndsvisninger er sat i kø."
         },
         "submit": "Gem",
         "saved": "Forhåndsvisningerne for {{name}} er gemt.",
@@ -1874,8 +1874,8 @@
       "delete": {
         "action": "Slet bibliotek…",
         "title": "Slette biblioteket »{{name}}«?",
-        "lead_one": "{{roots}} og {{formatted}} titel forsvinder fra Slouchcat, sammen med fremskridt, afkrydsninger, Min liste, anbefalinger, egne billeder og tekster, startsiderækken »Nyt i {{name}}«, profilernes frigivelser og downloads på enhederne.",
-        "lead_other": "{{roots}} og {{formatted}} titler forsvinder fra Slouchcat, sammen med fremskridt, afkrydsninger, Min liste, anbefalinger, egne billeder og tekster, startsiderækken »Nyt i {{name}}«, profilernes frigivelser og downloads på enhederne.",
+        "lead_one": "{{roots}} og {{formatted}} titel forsvinder fra Slouchcat, sammen med fremskridt, afkrydsninger, Min liste, anbefalinger, egne billeder og tekster, startsiderækken »Nyt i {{name}}«, profilernes adgang og downloads på enhederne.",
+        "lead_other": "{{roots}} og {{formatted}} titler forsvinder fra Slouchcat, sammen med fremskridt, afkrydsninger, Min liste, anbefalinger, egne billeder og tekster, startsiderækken »Nyt i {{name}}«, profilernes adgang og downloads på enhederne.",
         "files": "Filerne på disken forbliver uberørte. Kører der netop en scanning af dette bibliotek, afbryder Slouchcat den først.",
         "backup": "Før det laver Slouchcat en sikkerhedskopi af databasen (Administration › Sikkerhedskopi). Den, der gendanner denne sikkerhedskopi, sætter alt tilbage til tilstanden før sletningen, også alle profilers fremskridt siden.",
         "final": "Ellers kan det ikke fortrydes: En ny scanning af de samme mapper opretter titlerne igen, uden fremskridt.",
@@ -2410,12 +2410,12 @@
       "progress": "Fremskridt {{title}}",
       "stop": {
         "action": "Stop",
-        "label": "Stop {{profile}}s stream",
-        "title": "Stoppe {{profile}}s stream?",
+        "label": "Stop stream for {{profile}}",
+        "title": "Stoppe stream for {{profile}}?",
         "body": "Afspilningen af »{{title}}« stopper på enheden i løbet af få sekunder.",
         "confirm": "Stop stream"
       },
-      "stopped": "{{profile}}s stream er stoppet.",
+      "stopped": "Stream for {{profile}} er stoppet.",
       "since": "Siden {{time}}",
       "noPosition": "–",
       "noFormat": "–",
@@ -2455,11 +2455,11 @@
         "copied": "ompakket",
         "listeners_one": "{{count}} lytter til denne station",
         "listeners_other": "{{count}} lyttere til denne station",
-        "stopLabel": "Stop {{profile}}s radio",
-        "stopTitle": "Stoppe {{profile}}s radio?",
+        "stopLabel": "Stop radio for {{profile}}",
+        "stopTitle": "Stoppe radio for {{profile}}?",
         "stopBody": "Afspilningen af »{{station}}« stopper på enheden i løbet af få sekunder.",
         "stopConfirm": "Stop radioen",
-        "stopped": "{{profile}}s radio er stoppet."
+        "stopped": "Radio for {{profile}} er stoppet."
       }
     },
     "podcasts": {
@@ -3046,7 +3046,7 @@
         "listHint": "Offentlige lister, intet Trakt-login.",
         "listHintLink": "Nøgle under Integrationer",
         "listUrl": "Listens adresse",
-        "listUrlHint": "En offentlig liste på trakt.tv, for eksempel https://trakt.tv/users/name/lists/name-of-the-list. Watchlists er ikke mulige.",
+        "listUrlHint": "En offentlig liste på trakt.tv, for eksempel https://trakt.tv/users/name/lists/name-of-the-list. Watchlists understøttes ikke.",
         "media": "Medietype",
         "mediaFixed": "Denne liste fastlægger medietypen.",
         "mediaFilters": "Listen blander film og serier: Medietypen filtrerer dens poster efter hentningen.",
@@ -3392,14 +3392,14 @@
           "other": "Updateren afviste af en grund, som denne app ikke kender."
         },
         "manual": {
-          "unavailable": "Updater-companion svarer ikke. Installér opdateringen manuelt.",
-          "intro": "Uden updater-companion installerer du opdateringen på værten, i mappen med compose.yaml og .env:",
+          "unavailable": "Updateren svarer ikke. Installér opdateringen manuelt.",
+          "intro": "Uden updateren installerer du opdateringen på værten, i mappen med compose.yaml og .env:",
           "introByHand": "Manuelt installerer du opdateringen på værten, i mappen med compose.yaml og .env:",
           "env": "Linje i .env",
           "pull": "Hent det nye image",
           "up": "Start med den nye version",
           "files": "Brug de samme -f-filer som ved start (for eksempel docker compose -f compose.yaml -f compose.intel.yaml pull), ellers mangler de efter opdateringen.",
-          "docs": "Vejledning: opdatering med et tryk på en knap via updater-companion"
+          "docs": "Vejledning: opdatering med et tryk på en knap via updateren"
         },
         "outdated": {
           "title": "Updateren er forældet og opdaterer sig selv fra version 1.18.0. Løft den manuelt én gang:",
@@ -3833,13 +3833,13 @@
         "owners_one": "heraf {{number}} ejer",
         "owners_other": "heraf {{number}} ejere",
         "profiles": "Profiler",
-        "ownProfiles_one": "{{number}} din egen",
-        "ownProfiles_other": "{{number}} dine egne",
+        "ownProfiles_one": "{{number}} egen",
+        "ownProfiles_other": "{{number}} egne",
         "openInvitations": "Åbne invitationer",
         "nextExpiry": "Næste gyldig til {{date}}"
       },
       "tabs": {
-        "label": "Kontiens områder",
+        "label": "Områder for konti",
         "accounts": "Konti",
         "invitations": "Invitationer",
         "accountsCount_one": "{{number}} konto",
@@ -4135,7 +4135,7 @@
         "overridesWindow": "til afspilning",
         "progress": "{{done}} af {{total}}",
         "progressLabel": "{{name}}: {{percent}} %",
-        "pause": "Sæt kørslen på pause",
+        "pause": "Sæt på pause",
         "pauseLabel": "Sæt {{name}} på pause (standser denne og alle kørende kørsler af jobbet)",
         "cancel": "Annuller",
         "cancelLabel": "Annuller kørsel {{id}} af {{name}}",
@@ -4371,10 +4371,10 @@
         "probe_keyframes": {
           "name": "Keyframe-indeks (læs hele filen)",
           "description": "Læser en fil helt, når den mangler indekset til spoling.",
-          "trigger": "Ved indlæsning kun uden indeks fra containeren, ved efterhentning, før en afspilning (også på pause) og til offline-downloads"
+          "trigger": "Ved indlæsning kun uden indeks fra containeren, når manglende indeks hentes, før en afspilning (også på pause) og til offline-downloads"
         },
         "keyframes_backfill": {
-          "name": "Efterhent keyframe-indeks",
+          "name": "Opret manglende keyframe-indeks",
           "description": "Sætter alle filer uden keyframe-indeks i kø.",
           "trigger": "Tidsplan (som standard slået fra, ugentligt) eller en engangsdato, »Kør nu«: læser indekset fra containeren for alle videofiler, der endnu ikke har et",
           "progress": "Filer kontrolleret: {{done}} af {{total}}"
@@ -4395,14 +4395,14 @@
           "trigger": "Pr. fil 10 minutter efter en afspilning er slut, for nye filer efter en komplet scanning og efter en ny kontrol"
         },
         "chapters_images_backfill": {
-          "name": "Efterhent kapitelbilleder",
+          "name": "Opret manglende kapitelbilleder",
           "description": "Sætter alle filer uden kapitelbilleder i kø til oprettelse.",
           "trigger": "Tidsplan (som standard slået fra, ugentligt) eller en engangsdato, »Kør nu«: for alle film og afsnit uden kapitelbilleder"
         },
         "trickplay_generate": {
           "name": "Opret forhåndsvisninger",
           "description": "Opretter billederne til tidslinjens forhåndsvisning for en fil, ark for ark.",
-          "trigger": "når en film eller et afsnit starter, for nye filer med »På forhånd«, ved efterhentning, ved seriens forhåndsindlæsning og til offline-downloads"
+          "trigger": "når en film eller et afsnit starter, for nye filer med »På forhånd«, når manglende forhåndsvisninger oprettes, ved seriens forhåndsindlæsning og til offline-downloads"
         },
         "trickplay_series": {
           "name": "Forhåndsvisninger til de øvrige afsnit",
@@ -4410,7 +4410,7 @@
           "trigger": "når et afsnit starter, og biblioteket er sat til »Ved start, alle afsnit«"
         },
         "trickplay_backfill": {
-          "name": "Efterhent forhåndsvisninger",
+          "name": "Opret manglende forhåndsvisninger",
           "description": "Sætter alle film og afsnit uden en færdig forhåndsvisning i kø til oprettelse.",
           "trigger": "Tidsplan (som standard slået fra, ugentligt) eller en engangsdato, »Kør nu«: for biblioteker sat til »På forhånd«",
           "progress": "Filer kontrolleret: {{done}} af {{total}}"
@@ -4436,24 +4436,24 @@
           "trigger": "efter tilknytningen, listeændring i en mappe"
         },
         "metadata_vote_backfill": {
-          "name": "Efterhent bedømmelser",
+          "name": "Hent manglende bedømmelser",
           "description": "Henter manglende stemmetal til valget af billeder.",
           "trigger": "efter hver komplet scanning, så længe titler venter på en bedømmelse"
         },
         "metadata_original_language_backfill": {
-          "name": "Efterhent originalsprog",
+          "name": "Hent manglende originalsprog",
           "description": "Tilføjer originalsproget til alle titler til lydvalget.",
           "trigger": "Én gang ved første start efter opdateringen, derefter tidsplanen (som standard slået fra, ugentligt), en engangsdato eller »Kør nu«"
         },
         "image_fetch": {
           "name": "Hent billeder",
           "description": "Henter en titels valgte billeder og beregner deres størrelser.",
-          "trigger": "efter tilknytningen, efterhentning ved start"
+          "trigger": "efter tilknytningen, manglende billeder ved start"
         },
         "people_images": {
           "name": "Hent person- og samlingsbilleder",
           "description": "Henter personernes portrætter og TMDB-samlingernes plakater og beregner deres størrelser.",
-          "trigger": "efter tilknytning af en titel med medvirkende eller en samling, og efter en komplet scanning, der henter bestanden",
+          "trigger": "efter tilknytning af en titel med medvirkende eller en samling, og efter en komplet scanning, der henter alle titler",
           "progress": "Billeder kontrolleret: {{done}} af {{total}}"
         },
         "people_details": {
@@ -4463,7 +4463,7 @@
           "progress": "Personer og samlinger kontrolleret: {{done}} af {{total}}"
         },
         "people_images_backfill": {
-          "name": "Efterhent person- og samlingsbilleder",
+          "name": "Hent manglende person- og samlingsbilleder",
           "description": "Prøver igen alle personer og samlinger, som TMDB ikke havde noget billede til.",
           "trigger": "Tidsplan (som standard slået fra, ugentligt) eller en engangsdato, »Kør nu«: glemmer fejlene og sætter kørslen i kø",
           "progress": "Billeder kontrolleret: {{done}} af {{total}}"
@@ -4494,7 +4494,7 @@
           "trigger": "efter en feedhentning med nye afsnit, et nyt abonnement og en ændret indstilling"
         },
         "podcast_sync_all": {
-          "name": "Efterhent podcastafsnit",
+          "name": "Hent manglende podcastafsnit",
           "description": "Planlægger alle podcasts, der er sat til »Gem«, påny og prøver mislykkede downloads igen.",
           "trigger": "Tidsplan hver 6. time"
         },
@@ -4611,7 +4611,7 @@
         "list": "Metadatasprog",
         "rank": "Sprog {{position}}",
         "more": "Endnu et sprog",
-        "fallback": "Rækkefølge = reserve: Mangler en tekst på profilens sprog, viser Slouchcat den første eksisterende på listen, så filnavnet. Grænsefladens sprog afhænger ikke af dette.",
+        "fallback": "Rækkefølge = reserve: Mangler en tekst på profilens sprog, viser Slouchcat den første, der findes på listen, og derefter filnavnet. Intet sprog er påkrævet, men standarden og hvert bibliotek skal have mindst ét.",
         "unknownAt": "{{provider}} kender ikke: {{languages}}",
         "youtube": "{{count}} sprog: op til {{titles}} titler om dagen med YouTube-trailersøgningen (kvote 10.000)."
       },
@@ -5217,7 +5217,7 @@
     },
     "rules": {
       "title": "Automatiske downloads",
-      "intro": "Henter til denne enhed det næste afsnit af hver serie, {{name}} har set inden for de seneste 60 dage, og nye afsnit af podcasts på {{name}}s Min liste.",
+      "intro": "Henter til denne enhed det næste afsnit af hver serie, {{name}} har set inden for de seneste 60 dage, og nye afsnit af podcasts på Min liste for {{name}}.",
       "options": "Indstillinger",
       "enabled": "Automatiske downloads på denne enhed",
       "nextEpisodes": "Næste afsnit af påbegyndte serier",
@@ -5472,7 +5472,7 @@
     },
     "notifications": {
       "title": "Notifikationskanaler",
-      "intro": "Nye afsnit af serierne og podcasts på din Min liste, invitationer og meddelelser kommer her ud over appens indbakke. Indstillingerne gælder for hele kontoen med alle profiler; en besked om en profil begynder med dens navn.",
+      "intro": "Nye afsnit af serier og podcasts på Min liste, invitationer og meddelelser kommer her ud over appens indbakke. Indstillingerne gælder for hele kontoen med alle profiler; en besked om en profil begynder med dens navn.",
       "link": "Indstil kanaler",
       "serverChannels": "Opsæt serverens kanaler → Integrationer",
       "list": "Kanaler",
