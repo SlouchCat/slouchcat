@@ -932,6 +932,23 @@ describe('video player tabs, pause view, phone and slow connection (concept 13, 
     expect(router.state.location.pathname).toBe(`/play/${episodes.e1.id}`);
   });
 
+  it('P during the next-episode countdown plays the previous episode, like the button (concept 23)', async () => {
+    const { video, router } = await start(
+      { ...episode, resumePositionMs: 0, previousEpisode: episodes.e1 },
+      episodeRoutes(),
+    );
+    act(() => {
+      video.pause();
+      video.dispatchEvent(new Event('ended'));
+    });
+    expect(screen.getByRole('region', { name: 'Nächste Folge' })).toBeVisible();
+    // A held P (key repeat) plays nothing on its own.
+    key(document.body, 'p', { repeat: true });
+    expect(router.state.location.pathname).toBe(`/play/${episodes.e2.id}`);
+    key(document.body, 'p');
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/play/${episodes.e1.id}`));
+  });
+
   it('without a previous episode from the server «Vorherige Folge» is greyed, whatever the season lists (rule 12)', async () => {
     const { router } = await start({ ...episode, resumePositionMs: 0 }, episodeRoutes());
     const { user } = playerDriver();

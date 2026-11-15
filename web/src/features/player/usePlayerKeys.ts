@@ -83,7 +83,7 @@ interface PlayerKeysOptions {
  * - Every key shows the controls, also one that a control keeps to itself (the button row, the
  *   volume slider).
  * - During the next-episode countdown any key but Tab cancels it and does nothing else; N plays
- *   the next episode. Enter and Space on a focused button (play/pause on the remote's OK) still
+ *   the next episode, P the previous one (without one P only cancels). Enter and Space on a focused button (play/pause on the remote's OK) still
  *   press it, on the countdown's own buttons without cancelling.
  * - With the controls faded out there is no zone: the arrows seek and change the volume and
  *   Enter, Space and K play and pause whatever has the focus, and the bar comes back.
@@ -91,7 +91,7 @@ interface PlayerKeysOptions {
  * Bubble phase, the keys no zone kept for itself: Space/Enter/K play and pause, ←/→ 10 s (with
  * Shift a chapter), ↑/↓ volume, M mute, T sound, U subtitles, C chapters, Q quality, [ ] speed,
  * 0–9 jump to 0–90 %, F full screen, I stream info, S skip the intro, N next episode, P previous
- * episode, ? help,
+ * episode (a held N or P plays one), ? help,
  * Escape/Backspace close what is open, else back to the detail page.
  *
  * While a navigation away is loading (`leaving`) only Escape and Backspace act, and they go back.
@@ -115,9 +115,13 @@ export function usePlayerKeys(options: PlayerKeysOptions): void {
       };
       if (countdown) {
         const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
-        if (key === 'n') {
+        if (key === 'n' || key === 'p') {
           consume();
-          countdown.playNext();
+          // A held key plays one episode, not one per repeat.
+          if (event.repeat) return;
+          if (key === 'n') countdown.playNext();
+          else if (actions.playPrevious) actions.playPrevious();
+          else countdown.cancel();
           return;
         }
         // Tab moves between the controls; modifier keys alone do nothing.
@@ -210,11 +214,17 @@ export function usePlayerKeys(options: PlayerKeysOptions): void {
           act(actions.skipIntro);
           return;
         case 'nextEpisode':
-          act(actions.playNext);
+        case 'previousEpisode': {
+          const play = action.kind === 'nextEpisode' ? actions.playNext : actions.playPrevious;
+          // A held key plays one episode, not one per repeat.
+          act(
+            play &&
+              (() => {
+                if (!event.repeat) play();
+              }),
+          );
           return;
-        case 'previousEpisode':
-          act(actions.playPrevious);
-          return;
+        }
         case 'help':
           act(actions.toggleHelp);
           return;

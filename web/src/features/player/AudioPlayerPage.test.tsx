@@ -531,6 +531,9 @@ describe('audio player (M6)', () => {
     expect(next.parentElement?.querySelector(':scope > [aria-hidden="true"]')).toHaveTextContent(
       '20.10.2025',
     );
+    // A held N (key repeat) plays nothing on its own.
+    fireEvent.keyDown(window, { key: 'n', repeat: true });
+    expect(router.state.location.pathname).toBe(`/play/${audioIds.ep2}`);
     fireEvent.keyDown(window, { key: 'n' });
     await waitFor(() => expect(router.state.location.pathname).toBe(`/play/${audioIds.ep3}`));
     await act(() => router.navigate({ to: '/play/$itemId', params: { itemId: audioIds.ep2 } }));

@@ -398,7 +398,8 @@ export function useAudioControls({
           const play = key === 'n' ? episodes.current.playNext : episodes.current.playPrevious;
           if (!play) return;
           event.preventDefault();
-          play();
+          // A held key plays one episode, not one per repeat.
+          if (!event.repeat) play();
           return;
         }
         case 'Escape':

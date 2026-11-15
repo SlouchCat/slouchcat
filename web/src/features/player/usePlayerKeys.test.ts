@@ -102,6 +102,54 @@ describe('usePlayerKeys (11.2, shared with the offline player)', () => {
     expect(map.seekBy).not.toHaveBeenCalled();
   });
 
+  it('N and P play the next and the previous episode once, also during the countdown (concept 23)', () => {
+    const map = actions({ playNext: vi.fn(), playPrevious: vi.fn() });
+    const cancel = vi.fn();
+    const playNext = vi.fn();
+    const hook = renderHook(
+      ({ countdown }) =>
+        usePlayerKeys({
+          hidden: false,
+          countdown: countdown ? { panel: { current: null }, cancel, playNext } : undefined,
+          durationMs: 600_000,
+          onKey: vi.fn(),
+          actions: map,
+        }),
+      { initialProps: { countdown: false } },
+    );
+    // A held key repeats: one episode, not one per repeat.
+    expect(press('n')).toBe(true);
+    expect(press('n', document.body, { repeat: true })).toBe(true);
+    expect(press('p')).toBe(true);
+    expect(press('p', document.body, { repeat: true })).toBe(true);
+    expect(map.playNext).toHaveBeenCalledTimes(1);
+    expect(map.playPrevious).toHaveBeenCalledTimes(1);
+    hook.rerender({ countdown: true });
+    expect(press('p')).toBe(true);
+    expect(press('p', document.body, { repeat: true })).toBe(true);
+    expect(press('n', document.body, { repeat: true })).toBe(true);
+    expect(map.playPrevious).toHaveBeenCalledTimes(2);
+    expect(playNext).not.toHaveBeenCalled();
+    expect(cancel).not.toHaveBeenCalled();
+    expect(press('n')).toBe(true);
+    expect(playNext).toHaveBeenCalledTimes(1);
+  });
+
+  it('without a previous episode P during the countdown only cancels it', () => {
+    const cancel = vi.fn();
+    renderHook(() =>
+      usePlayerKeys({
+        hidden: false,
+        countdown: { panel: { current: null }, cancel, playNext: vi.fn() },
+        durationMs: 600_000,
+        onKey: vi.fn(),
+        actions: actions(),
+      }),
+    );
+    expect(press('p')).toBe(true);
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
   it('while a navigation away loads, only Escape and Backspace act: back, not closing a tab', () => {
     const map = actions({ closeOpen: vi.fn(() => true), playNext: vi.fn() });
     const onKey = vi.fn();
