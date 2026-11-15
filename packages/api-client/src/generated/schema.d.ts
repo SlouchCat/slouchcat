@@ -8826,9 +8826,11 @@ export interface components {
             item?: components["schemas"]["ItemRef"];
             /**
              * @description The next visible episode after this title by the rule of `PlaybackInfo.nextEpisode`
-             *     (since contract 1.38.0, concept 23 section 3.3), filled by `syncOffline` only when `item`
-             *     is present. The offline player only looks up whether that title lies on the device; it
-             *     never applies the episode rule itself.
+             *     (since contract 1.38.0, concept 23 section 3.3), for the active profile of the sync;
+             *     filled by `syncOffline` only when `item` is present and the device can play the
+             *     download (state `ready` or `evicted`, or reported complete in `held`). The offline
+             *     player only looks up whether that title lies on the device; it never applies the
+             *     episode rule itself.
              */
             nextEpisodeId?: components["schemas"]["ItemID"];
             /**

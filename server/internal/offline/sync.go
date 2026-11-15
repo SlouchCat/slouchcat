@@ -146,6 +146,11 @@ func (s *Service) Sync(ctx context.Context, session model.Session, req model.Off
 	for i, row := range rows {
 		if it, ok := items[row.ItemID]; ok && slices.Contains(out.Downloads[i].AllowedProfileIDs, active) {
 			out.Downloads[i].Item = &it
+			// Two queries per episode download (docs/perf/23-player.md): only for a copy the
+			// device can play now or after its fetch, never for one still being prepared.
+			if !playable(row, complete) {
+				continue
+			}
 			if err := s.neighbours(ctx, scope, &out.Downloads[i]); err != nil {
 				return model.OfflineSync{}, err
 			}
@@ -158,6 +163,13 @@ func (s *Service) Sync(ctx context.Context, session model.Session, req model.Off
 		return model.OfflineSync{}, err
 	}
 	return out, nil
+}
+
+// playable says whether the device can play the download: a ready copy (fetched or about to be),
+// an evicted one the device holds, or one it reported complete. Queued, preparing, paused and
+// failed ones have no file the device could play.
+func playable(row systemq.Download, complete map[string]bool) bool {
+	return row.State == model.DownloadReady || row.State == model.DownloadEvicted || complete[row.ID]
 }
 
 // neighbours sets the next and the previous episode of the title of a download with its Item

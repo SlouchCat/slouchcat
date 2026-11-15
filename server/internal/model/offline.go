@@ -126,7 +126,8 @@ type DownloadState struct {
 	ReadyAt           time.Time // zero while not ready
 	Item              *ItemSummary
 	// NextEpisodeID and PreviousEpisodeID are the visible neighbours of the title for the active
-	// profile (concept 23 section 3.3), set only by Sync and only with Item; empty for none.
+	// profile (concept 23 section 3.3), set only by Sync, only with Item and only for a download
+	// the device can play (ready, evicted or reported complete); empty for none.
 	NextEpisodeID     string
 	PreviousEpisodeID string
 }

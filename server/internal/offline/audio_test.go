@@ -468,7 +468,8 @@ func TestSyncPodcastEpisodeNeighbours(t *testing.T) {
 	a := e.f.Audio
 	q0, q6, qc := a.Episodes[0], a.Episodes[1], a.Episodes[2]
 	st := e.create(e.f.P6, e.devA, q6.ID, model.DownloadMedium)
-	if got := stateOf(e.sync(e.f.P6, e.devA), st.ID); got == nil || got.NextEpisodeID != a.EnclosureOnly.ID || got.PreviousEpisodeID != q0.ID {
+	e.runJobs()
+	if got := stateOf(e.sync(e.f.P6, e.devA), st.ID); got == nil || got.State != model.DownloadReady || got.NextEpisodeID != a.EnclosureOnly.ID || got.PreviousEpisodeID != q0.ID {
 		t.Errorf("P6: %+v", got)
 	}
 	if got := stateOf(e.sync(e.f.P12, e.devA), st.ID); got == nil || got.NextEpisodeID != qc.ID || got.PreviousEpisodeID != q0.ID {
