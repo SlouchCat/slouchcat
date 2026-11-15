@@ -111,25 +111,54 @@ describe('applySync', () => {
     expect(merged.allowedProfileIds).toEqual([1, 2]);
   });
 
-  it('stores the neighbour episodes the server names with the title data, keeps them without (concept 23)', () => {
+  it('stores the neighbour episodes per profile of the sync, keeps them without the title data (concept 23)', () => {
+    const asProfile = (profileId: number) => ({ profileId, offsetMs: 0 });
     const named = mergeDownload(
       storedDownload(),
       downloadState({ nextEpisodeId: 'next-1', previousEpisodeId: 'previous-1' }),
       1,
       NOW,
+      asProfile(1),
     );
-    expect(named).toMatchObject({ nextEpisodeId: 'next-1', previousEpisodeId: 'previous-1' });
+    expect(named.episodeNeighbours).toEqual({ '1': { next: 'next-1', previous: 'previous-1' } });
     // Another profile is active: no title data, no neighbours; the stored ones stay.
-    const kept = mergeDownload(named, downloadState({ item: undefined }), 1, NOW);
-    expect(kept).toMatchObject({ nextEpisodeId: 'next-1', previousEpisodeId: 'previous-1' });
-    // With the title data and without a neighbour: the last episode now has none.
-    const last = mergeDownload(named, downloadState({ previousEpisodeId: 'previous-1' }), 1, NOW);
-    expect(last.nextEpisodeId).toBeUndefined();
-    expect(last.previousEpisodeId).toBe('previous-1');
+    const kept = mergeDownload(named, downloadState({ item: undefined }), 1, NOW, asProfile(2));
+    expect(kept.episodeNeighbours).toEqual(named.episodeNeighbours);
+    // A copy prepared again: the server names no neighbours for it, the stored ones stay.
+    expect(
+      mergeDownload(named, downloadState({ state: 'preparing' }), 1, NOW, asProfile(1))
+        .episodeNeighbours,
+    ).toEqual(named.episodeNeighbours);
+    // A download created on this device (no active profile): the stored ones stay.
+    expect(mergeDownload(named, downloadState(), 1, NOW).episodeNeighbours).toEqual(
+      named.episodeNeighbours,
+    );
+    // Profile 2 sees the title too: its own neighbours, next to those of profile 1.
+    const both = mergeDownload(
+      named,
+      downloadState({ nextEpisodeId: 'next-2' }),
+      1,
+      NOW,
+      asProfile(2),
+    );
+    expect(both.episodeNeighbours).toEqual({
+      '1': { next: 'next-1', previous: 'previous-1' },
+      '2': { next: 'next-2' },
+    });
+    // With the title data and without a neighbour: the last episode now has none for profile 1.
+    const last = mergeDownload(
+      both,
+      downloadState({ previousEpisodeId: 'previous-1' }),
+      1,
+      NOW,
+      asProfile(1),
+    );
+    expect(last.episodeNeighbours?.['1']).toEqual({ previous: 'previous-1' });
+    expect(last.episodeNeighbours?.['2']).toEqual({ next: 'next-2' });
     const created = applySync(
       input({ answer: answer({ downloads: [downloadState({ id: 'new', nextEpisodeId: 'n' })] }) }),
     ).put.find((download) => download.id === 'new');
-    expect(created?.nextEpisodeId).toBe('n');
+    expect(created?.episodeNeighbours).toEqual({ '1': { next: 'n' } });
   });
 
   it('stores new downloads (created by a rule or another tab) with nothing fetched yet', () => {

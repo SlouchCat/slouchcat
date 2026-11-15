@@ -62,8 +62,6 @@ export function newDownload(state: DownloadState, accountId: number, now: number
     createdAt: state.createdAt,
     readyAt: state.readyAt,
     item: state.item,
-    nextEpisodeId: state.nextEpisodeId,
-    previousEpisodeId: state.previousEpisodeId,
     bytesWritten: 0,
     subtitlesStored: [],
     posterStored: false,
@@ -107,10 +105,33 @@ function mergeServerPositions(
 }
 
 /**
+ * The neighbour episodes per profile after an answer: the server names them only with the title
+ * data of a copy the device can play (ready or evicted), decided for the sync's active profile
+ * (rule 12), so they replace that profile's entry; otherwise (another profile active, a copy being
+ * prepared, a download just created without a sync) the stored ones stay.
+ */
+function mergeNeighbours(
+  stored: StoredDownload['episodeNeighbours'],
+  state: DownloadState,
+  active: SyncProfile | undefined,
+): StoredDownload['episodeNeighbours'] {
+  const named = state.state === 'ready' || state.state === 'evicted';
+  if (!active || !state.item || !named) return stored;
+  return {
+    ...stored,
+    [String(active.profileId)]: {
+      ...(state.nextEpisodeId !== undefined ? { next: state.nextEpisodeId } : {}),
+      ...(state.previousEpisodeId !== undefined ? { previous: state.previousEpisodeId } : {}),
+    },
+  };
+}
+
+/**
  * The server's state of a download merged into what the device keeps: the server owns state,
  * sizes and `allowedProfileIds`; the device keeps its manifest, its progress in bytes and the
  * title data when the answer has none (another profile is active, DownloadState.item). With the
- * sync's active profile, its server progress is stored as well (W-5, O-5).
+ * sync's active profile, its server progress and its neighbour episodes are stored as well
+ * (W-5, O-5, concept 23 section 3.3).
  */
 export function mergeDownload(
   local: StoredDownload | undefined,
@@ -121,14 +142,19 @@ export function mergeDownload(
 ): StoredDownload {
   const fresh = newDownload(state, accountId, now);
   const serverPositions = mergeServerPositions(local?.serverPositions, state, active);
-  if (!local) return serverPositions ? { ...fresh, serverPositions } : fresh;
+  const episodeNeighbours = mergeNeighbours(local?.episodeNeighbours, state, active);
+  if (!local) {
+    return {
+      ...fresh,
+      ...(serverPositions ? { serverPositions } : {}),
+      ...(episodeNeighbours ? { episodeNeighbours } : {}),
+    };
+  }
   return {
     ...local,
     ...fresh,
     item: state.item ?? local.item,
-    // The server names the neighbours only with the title data (another profile active: neither).
-    nextEpisodeId: state.item ? state.nextEpisodeId : local.nextEpisodeId,
-    previousEpisodeId: state.item ? state.previousEpisodeId : local.previousEpisodeId,
+    episodeNeighbours,
     manifest: local.manifest,
     bytesWritten: local.bytesWritten,
     subtitlesStored: local.subtitlesStored,

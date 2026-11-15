@@ -67,19 +67,30 @@ const playableBy = (download: StoredDownload, who: OfflineChoice) =>
   download.accountId === who.accountId &&
   download.allowedProfileIds.includes(who.profileId);
 
+/** A video download of an episode: the offline video player shows the episode buttons. */
+const hasEpisodes = (download: StoredDownload) =>
+  download.item !== undefined &&
+  hasEpisodeButtons(download.item) &&
+  download.manifest?.mimeType.startsWith('audio/') === false;
+
 /**
- * The neighbour the server named (rule 12: the device only looks it up), and its download where
- * the profile can play it on this device.
+ * The neighbour the server named for the profile that plays (rule 12: the device only looks it
+ * up), and its download where that profile can play it on this device. Neighbours the server named
+ * for another profile never count: without an entry for this profile (no sync of it carried them
+ * yet) the button is greyed with «Nicht auf diesem Gerät», never «Keine weitere Folge», which only
+ * the server may say.
  */
 function neighbour(
   downloads: readonly StoredDownload[],
-  itemId: string | undefined,
+  download: StoredDownload,
+  direction: 'previous' | 'next',
   who: OfflineChoice,
 ): Neighbour | undefined {
+  const named = download.episodeNeighbours?.[String(who.profileId)];
+  if (!named) return {};
+  const itemId = named[direction];
   if (itemId === undefined) return undefined;
-  const found = downloads.find(
-    (download) => download.item?.id === itemId && playableBy(download, who),
-  );
+  const found = downloads.find((other) => other.item?.id === itemId && playableBy(other, who));
   return found ? { downloadId: found.id, item: found.item } : {};
 }
 
@@ -92,7 +103,8 @@ async function load(id: string, who: OfflineChoice, fromSession: boolean): Promi
   const download = await getDownload(id);
   // Only the server's decision counts: the profile must be in allowedProfileIds (O-7).
   if (!download?.manifest || !playableBy(download, who)) return { status: 'missing' };
-  const episode = download.item !== undefined && hasEpisodeButtons(download.item);
+  // Only the video player has the episode buttons (offline audio has none in this release).
+  const episode = hasEpisodes(download);
   const [media, profile, offset, downloads] = await Promise.all([
     readFile(id, MEDIA_FILE),
     getProfile(who.profileId),
@@ -103,8 +115,12 @@ async function load(id: string, who: OfflineChoice, fromSession: boolean): Promi
   return {
     status: 'ready',
     download: { ...download, manifest: download.manifest },
-    previous: neighbour(downloads, download.previousEpisodeId, who),
-    next: neighbour(downloads, download.nextEpisodeId, who),
+    ...(episode
+      ? {
+          previous: neighbour(downloads, download, 'previous', who),
+          next: neighbour(downloads, download, 'next', who),
+        }
+      : {}),
     media,
     watch: profile?.accountId === who.accountId ? profile.watch : undefined,
     profileLanguage: profile?.accountId === who.accountId ? profile.snapshot.language : undefined,
@@ -212,7 +228,7 @@ function OfflinePlayback({
         accent={download.item?.accent}
         initialRate={resumeRate(download, profileId)}
         episodes={
-          download.item && hasEpisodeButtons(download.item)
+          download.item && hasEpisodes(download)
             ? {
                 item: download.item,
                 previous: state.previous && link(state.previous),

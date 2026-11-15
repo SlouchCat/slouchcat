@@ -46,9 +46,11 @@ function applyRate(element: HTMLMediaElement, rate: number): void {
 }
 
 /**
- * An episode the server named next to the download (DownloadState.nextEpisodeId and
- * previousEpisodeId, concept 23, 3.3): `play` only when it lies complete on this device for the
- * profile, with its title data from that download.
+ * An episode the server named next to the download for the profile that plays
+ * (DownloadState.nextEpisodeId and previousEpisodeId, concept 23, 3.3): `play` and `item` only
+ * when it lies complete on this device for the profile, from that download. Without either the
+ * button is greyed with «Nicht auf diesem Gerät», also when no sync of this profile named the
+ * neighbours yet.
  */
 export interface OfflineEpisodeLink {
   item?: ItemRef;
@@ -225,19 +227,17 @@ export function OfflineVideo({
     if (!episodes) return undefined;
     const link = episodes[direction];
     const play = link?.play;
-    const step = episodeButton(t, {
+    return episodeButton(t, {
       direction,
       target: play ? link.item : undefined,
       current: episodes.item,
       language,
       onPress: () => play?.(),
-      // Named by the server, but not (fully) on this device.
+      // Named by the server, but not (fully) on this device, or not known for this profile here.
       unavailable: link && !play ? t('player.chrome.notOnDevice') : undefined,
       // Offline nothing comes from the network: the card without the episode's picture.
       image: false,
     });
-    // On the device without its title data: it plays, under the plain name.
-    return play && !link.item ? { label: step.label, onPress: play } : step;
   };
   const previousEpisodeStep = episodeStep('previous');
   const nextEpisodeStep = episodeStep('next');
