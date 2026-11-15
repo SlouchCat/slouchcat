@@ -243,8 +243,13 @@ function RadioAdminContent() {
             setCreating(false);
             setMessage(t('admin.radio.own.created', { name: station.name }));
             void queryClient.invalidateQueries({ queryKey: radioAdminKeys.all });
-            // The logo comes through the editor's upload (or the homepage's icon).
-            openEditor(station.id);
+            // The logo comes through the editor's upload (or the homepage's icon). The page goes
+            // to «Eigene Sender», so the station stands in the list once the editor closes, from
+            // whichever tab it was added (RAD-064). One navigation for both parameters.
+            void navigate({
+              search: (previous) => ({ ...previous, tab: 'eigene', item: String(station.id) }),
+              replace: true,
+            });
           }}
         />
       )}

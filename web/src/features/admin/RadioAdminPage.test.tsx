@@ -405,9 +405,16 @@ describe('radio administration', () => {
   });
 
   it("adds an own station from the head on any tab (the page's main action)", async () => {
+    let added = false;
     mockApi(
       radioRoutes({
-        'POST /admin/radio/stations': () => json(own, 201),
+        'GET /admin/radio/stations': () =>
+          json(added ? { items: [own], total: 1, offset: 0 } : { items: [], total: 0, offset: 0 }),
+        'POST /admin/radio/stations': () => {
+          added = true;
+          return json(own, 201);
+        },
+        'GET /admin/radio/stations/9': () => json(own),
       }),
     );
     const { router } = await renderAdminPage('/admin/radio');
@@ -427,8 +434,20 @@ describe('radio administration', () => {
       'https://203.0.113.10/live.mp3',
     );
     await user.click(within(dialog).getByRole('button', { name: 'Hinzufügen' }));
-    await waitFor(() => expect(router.state.location.search).toEqual({ item: '9' }));
+    // Added from «Übersicht», the page goes to «Eigene Sender» with the new station's editor
+    // (RAD-064), so the station stands in the list once the editor closes.
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'eigene', item: '9' }));
     expect(await screen.findByText('Quartierradio Lorraine ist hinzugefügt.')).toBeInTheDocument();
+    const editor = await screen.findByRole('dialog', { name: /Quartierradio Lorraine/ });
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(editor).not.toBeInTheDocument());
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'eigene' }));
+    expect(screen.getByRole('tab', { name: 'Eigene Sender' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    const table = await screen.findByRole('table', { name: 'Eigene Sender' });
+    expect(within(table).getByRole('rowheader', { name: /Quartierradio Lorraine/ })).toBeVisible();
   });
 
   it('changes the fields of an own station without a lock; what stays the same is not sent', async () => {
