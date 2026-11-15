@@ -99,6 +99,23 @@
   }
 }
 
+/* «Gerade aktiv»: jobs and streams, each under a small heading. */
+.activeGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.activeTitle {
+  margin: 0;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-tight);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
+}
+
 .rows {
   display: flex;
   flex-direction: column;

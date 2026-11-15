@@ -231,6 +231,12 @@ describe('admin overview (concept 11, A-3; build plan 3)', () => {
     ]);
 
     const active = screen.getByRole('region', { name: 'Gerade aktiv' });
+    // Jobs and streams under their own small heading, in this order.
+    expect(
+      within(active)
+        .getAllByRole('heading', { level: 3 })
+        .map((heading) => heading.textContent),
+    ).toEqual(['Aufgaben', 'Streams']);
     const running = within(active).getByRole('list', { name: 'Laufende Aufgaben' });
     expect(
       within(running).getByText('Keyframe-Index (ganze Datei lesen) · Oppenheimer (2023)'),
@@ -527,6 +533,13 @@ describe('admin overview (concept 11, A-3; build plan 3)', () => {
     expect(
       screen.getByText(/^Gerade läuft keine Aufgabe\. Als Nächstes: Podcast-Feeds prüfen, /),
     ).toBeVisible();
+    // Each empty state stands under its own heading.
+    expect(screen.getByText('Gerade läuft nichts.').parentElement).toContainElement(
+      screen.getByRole('heading', { level: 3, name: 'Streams' }),
+    );
+    expect(screen.getByText(/^Gerade läuft keine Aufgabe\./).parentElement).toContainElement(
+      screen.getByRole('heading', { level: 3, name: 'Aufgaben' }),
+    );
     expect(screen.getByText('Noch keine Aktivität.')).toBeVisible();
     expect(screen.getByText('Kein Webhook eingerichtet.')).toBeVisible();
     expect(screen.getByText('keine Fehler')).toBeVisible();
@@ -535,6 +548,23 @@ describe('admin overview (concept 11, A-3; build plan 3)', () => {
     expect(within(hints).getByRole('status')).toHaveTextContent('0 Hinweise');
     expect(screen.queryByText(/benötigen? Aufmerksamkeit$/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Ansehen' })).not.toBeInTheDocument();
+  });
+
+  it('a running job without a playback: the empty streams stand under their own heading', async () => {
+    mockApi(routes({ 'GET /admin/dashboard': () => json(dashboard({ streams: [] })) }));
+    renderApp('/admin');
+    const active = await screen.findByRole('region', { name: 'Gerade aktiv' });
+    const running = within(active).getByRole('list', { name: 'Laufende Aufgaben' });
+    const jobs = within(active).getByRole('heading', { level: 3, name: 'Aufgaben' });
+    const streams = within(active).getByRole('heading', { level: 3, name: 'Streams' });
+    const empty = within(active).getByText('Gerade läuft nichts.');
+    // Jobs heading, the running job; then the streams heading and its empty state.
+    expect(running.parentElement).toContainElement(jobs);
+    expect(running.parentElement).not.toContainElement(empty);
+    expect(empty.parentElement).toContainElement(streams);
+    expect(
+      running.compareDocumentPosition(streams) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it('a failing dashboard request offers a retry', async () => {

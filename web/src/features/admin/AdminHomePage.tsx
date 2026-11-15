@@ -92,7 +92,8 @@ function Metrics({ data }: { data: Dashboard }) {
 
 /**
  * «Gerade aktiv»: the running jobs with their progress, the running playbacks (at most three
- * each, G-4) and, while no job runs, the next planned one.
+ * each, G-4) and, while no job runs, the next planned one. Jobs and streams under their own small
+ * heading, so the empty state of one does not read as the state of the other.
  */
 function ActiveCard({ data }: { data: Dashboard }) {
   const { t, i18n } = useTranslation();
@@ -111,73 +112,79 @@ function ActiveCard({ data }: { data: Dashboard }) {
         </>
       }
     >
-      {jobs.active.length > 0 ? (
-        <ul className={styles.rows} aria-label={t('admin.home.jobs.active')}>
-          {jobs.active.slice(0, ROWS).map((run) => {
-            const name = typeName(t, run.type);
-            const total = run.progress?.total ?? 0;
-            const done = run.progress?.done ?? 0;
-            return (
-              <li key={run.id}>
-                <TaskRow
-                  type={name}
-                  subject={run.subject}
-                  progress={percentOf(done, total)}
-                  progressLabel={t('admin.home.jobs.progress', { name })}
-                  progressText={
-                    total > 0 ? t('admin.jobs.running.progress', { done, total }) : undefined
-                  }
-                  remaining={
-                    run.estimatedSecondsLeft === undefined
-                      ? undefined
-                      : t('admin.jobs.estimate.left', {
-                          duration: formatSeconds(t, run.estimatedSecondsLeft),
-                        })
-                  }
-                />
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <Text tone="secondary" variant="caption">
-          {jobs.nextRun
-            ? t('admin.home.jobs.next', {
-                type: typeName(t, jobs.nextRun.type),
-                date: formatDateTime(jobs.nextRun.at, intlLocale(i18n.language)),
-              })
-            : t('admin.home.jobs.idle')}
-        </Text>
-      )}
-      {streams.length === 0 ? (
-        <Text tone="secondary" variant="caption">
-          {t('admin.home.streams.empty')}
-        </Text>
-      ) : (
-        <ul className={styles.rows} aria-label={t('admin.home.streams.title')}>
-          {streams.slice(0, ROWS).map((stream) => {
-            const progress = streamProgress(stream);
-            return (
-              <li key={stream.id}>
-                <StreamRow
-                  title={stream.itemTitle}
-                  posterUrl={stream.posterUrl}
-                  profile={stream.profileName}
-                  device={stream.device?.name ?? t('admin.streams.unknownDevice')}
-                  mode={
-                    stream.quality && stream.quality !== 'auto'
-                      ? [streamMode(t, stream), stream.quality].join(t('format.separator'))
-                      : streamMode(t, stream)
-                  }
-                  progress={progress.percent}
-                  progressLabel={t('admin.home.streams.progress', { title: stream.itemTitle })}
-                  progressText={progress.text}
-                />
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <div className={styles.activeGroup}>
+        <h3 className={styles.activeTitle}>{t('admin.home.jobs.title')}</h3>
+        {jobs.active.length > 0 ? (
+          <ul className={styles.rows} aria-label={t('admin.home.jobs.active')}>
+            {jobs.active.slice(0, ROWS).map((run) => {
+              const name = typeName(t, run.type);
+              const total = run.progress?.total ?? 0;
+              const done = run.progress?.done ?? 0;
+              return (
+                <li key={run.id}>
+                  <TaskRow
+                    type={name}
+                    subject={run.subject}
+                    progress={percentOf(done, total)}
+                    progressLabel={t('admin.home.jobs.progress', { name })}
+                    progressText={
+                      total > 0 ? t('admin.jobs.running.progress', { done, total }) : undefined
+                    }
+                    remaining={
+                      run.estimatedSecondsLeft === undefined
+                        ? undefined
+                        : t('admin.jobs.estimate.left', {
+                            duration: formatSeconds(t, run.estimatedSecondsLeft),
+                          })
+                    }
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <Text tone="secondary" variant="caption">
+            {jobs.nextRun
+              ? t('admin.home.jobs.next', {
+                  type: typeName(t, jobs.nextRun.type),
+                  date: formatDateTime(jobs.nextRun.at, intlLocale(i18n.language)),
+                })
+              : t('admin.home.jobs.idle')}
+          </Text>
+        )}
+      </div>
+      <div className={styles.activeGroup}>
+        <h3 className={styles.activeTitle}>{t('admin.sections.streams.title')}</h3>
+        {streams.length === 0 ? (
+          <Text tone="secondary" variant="caption">
+            {t('admin.home.streams.empty')}
+          </Text>
+        ) : (
+          <ul className={styles.rows} aria-label={t('admin.home.streams.title')}>
+            {streams.slice(0, ROWS).map((stream) => {
+              const progress = streamProgress(stream);
+              return (
+                <li key={stream.id}>
+                  <StreamRow
+                    title={stream.itemTitle}
+                    posterUrl={stream.posterUrl}
+                    profile={stream.profileName}
+                    device={stream.device?.name ?? t('admin.streams.unknownDevice')}
+                    mode={
+                      stream.quality && stream.quality !== 'auto'
+                        ? [streamMode(t, stream), stream.quality].join(t('format.separator'))
+                        : streamMode(t, stream)
+                    }
+                    progress={progress.percent}
+                    progressLabel={t('admin.home.streams.progress', { title: stream.itemTitle })}
+                    progressText={progress.text}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
     </DashCard>
   );
 }
