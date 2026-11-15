@@ -47,12 +47,18 @@ describe('applyProfileLanguage (concept 22 section 4.3)', () => {
   });
 
   it('shows English for a code a newer server knows and this app ships no pack for', async () => {
-    for (const code of ['ja', 'de-DE', 'pt-BR', 'xx']) {
+    for (const code of ['ja', 'pt-BR', 'xx']) {
       await setLanguage('de');
       await expect(applyProfileLanguage(withLanguage(code))).resolves.toBeUndefined();
       expect(i18n.language).toBe('en');
       expect(document.documentElement.lang).toBe('en');
     }
+  });
+
+  it('shows German for de-DE while de-DE is not shipped, as the server falls back', async () => {
+    await setLanguage('en');
+    await applyProfileLanguage(withLanguage('de-DE'));
+    expect(i18n.language).toBe('de');
   });
 
   it('keeps the language without a profile', async () => {

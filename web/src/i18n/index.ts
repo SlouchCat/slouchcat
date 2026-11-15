@@ -92,11 +92,19 @@ async function switchTo(language: string): Promise<void> {
 let pinned: string | undefined;
 
 /**
+ * The shipped language that stands in for `code`: the first shipped entry of its chain (de for
+ * de-DE, as the server falls back), English for any other code (concept 22 section 4.3).
+ */
+export function shippedLanguageFor(code: string): Language {
+  return languageChain(code).find(isLanguage) ?? fallbackLanguage;
+}
+
+/**
  * Switches the UI to a shipped language. Any other code (a language a newer server knows, before
- * this app ships its pack) shows English instead of failing (concept 22 section 4.3).
+ * this app ships its pack) shows the first shipped language of its chain instead of failing.
  */
 export async function setLanguage(language: string): Promise<void> {
-  await switchTo(pinned ?? (isLanguage(language) ? language : fallbackLanguage));
+  await switchTo(pinned ?? shippedLanguageFor(language));
 }
 
 /**
