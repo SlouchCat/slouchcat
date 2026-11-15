@@ -48,7 +48,7 @@ test('the server page: state, updates with the restart, both storage paths, acti
     state.getByRole('link', {
       name: 'Grafikchip, öffentliche Adresse und Update-Prüfung: Integrationen',
     }),
-  ).toHaveAttribute('href', '/admin/integrations');
+  ).toHaveAttribute('href', '/admin/integrations?item=server');
   await expect(updates(page).getByText('Updates', { exact: true })).toBeVisible();
   await expect(updates(page).getByRole('button', { name: 'Neu starten' })).toBeVisible();
   const storage = card(page, 'Speicher');
