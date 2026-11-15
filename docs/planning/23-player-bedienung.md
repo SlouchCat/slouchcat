@@ -5,8 +5,8 @@
   am Mockup beantwortet (Variante B) und F-2 bis F-5 über AskUserQuestion; **F-3 und F-5 gegen die
   Empfehlung:** Es gibt einen eigenen Knopf «Vorherige Folge», und bei Podcasts geht er zur älteren,
   der Folgenknopf zur neueren Folge. Fassung 2 hatte das Kritiker-Review eingearbeitet (REVISE,
-  0 Blocker, 3 Major, 8 Minor; Abschnitt 11). **Die Umsetzung beginnt erst auf Marcos
-  ausdrückliches Wort.**
+  0 Blocker, 3 Major, 8 Minor; Abschnitt 11). **Am 15. November 2026 von Marco
+  freigegeben (Frage 30).** **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Auslöser:** Marco am 15. November 2026 mit zwei Bildern aus dem Player (Knopfreihe, Panel
   «Einstellungen») und einem dritten aus dem Reiter «Besetzung»:
   «Ich möchte noch ein Icon, welches bei den Serien auf die nächste Folge springt. […] Es soll
