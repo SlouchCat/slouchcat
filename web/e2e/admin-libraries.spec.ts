@@ -7,6 +7,7 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
+import { adminEntry, areaTab } from './admin';
 
 // Keyboard test of the page "Bibliotheken" (CLAUDE.md rule 8; concept 12, variant C, Bib-C): the
 // filter tabs by kind with the arrow keys, a library's row that folds out with Enter, its actions
@@ -160,16 +161,12 @@ test('tabs by kind with the arrow keys, counts and the tab in the address', asyn
 test('Tab reaches header, the add dialog and its fields in order; no focus trap @keyboard', async ({
   page,
 }) => {
-  // The admin sidebar is one Tab stop: its current page.
-  await tabTo(
-    page,
-    page
-      .getByRole('navigation', { name: 'Verwaltung' })
-      .getByRole('link', { name: /^Bibliotheken(,|$)/ }),
-  );
-  // Then the head: help, the main action.
+  // The admin sidebar is one Tab stop: its current area.
+  await tabTo(page, adminEntry(page, 'Medien'));
+  // Then the area's tabs, one Tab stop on the current page (build plan 2.5).
   await page.keyboard.press('Tab');
-  await expectFocusOn(page, page.getByRole('button', { name: 'Hilfe zu dieser Seite' }));
+  await expectFocusOn(page, areaTab(page, 'Bibliotheken'));
+  // Then the head: the intro stands open, no help button (build plan 2.6); the main action.
   await page.keyboard.press('Tab');
   await expectFocusOn(page, addButton(page));
   await page.keyboard.press('Enter');

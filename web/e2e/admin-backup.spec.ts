@@ -9,6 +9,7 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
+import { areaTab } from './admin';
 
 // /admin/backup (A-4; concept 12, variant C) by keyboard (rule 8): the tabs «Sicherungen», «Neue
 // Sicherung» and «Aus Datei wiederherstellen» with the arrow keys; a backup without secrets is
@@ -237,19 +238,13 @@ test('A-4: a backup with secrets needs a passphrase of 12 characters and is encr
     // The passphrase dialog let the focus go: Tab runs on to the end of the page.
     await expectNoFocusTrap(page, TAB_MAX);
 
-    // Back (rule 8): from «Neue Sicherung» the sidebar leads to «Statistiken», the browser's Back
-    // returns to the tab of the address.
+    // Back (rule 8): from «Neue Sicherung» the area's tabs lead to «Statistiken», the browser's
+    // Back returns to the tab of the address.
     await selectTab(page, 'Neue Sicherung', 1);
     await expect(page).toHaveURL(/\/admin\/backup\?tab=create$/);
     await resetFocus(page);
-    await tabTo(
-      page,
-      page
-        .getByRole('navigation', { name: 'Verwaltung' })
-        .getByRole('link', { name: /^Sicherung(,|$)/ }),
-      TAB_MAX,
-    );
-    await page.keyboard.press('ArrowUp');
+    await tabTo(page, areaTab(page, 'Sicherung'), TAB_MAX);
+    await page.keyboard.press('ArrowLeft');
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/admin\/stats/);
     await page.goBack();

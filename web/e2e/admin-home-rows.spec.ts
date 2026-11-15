@@ -10,6 +10,7 @@ import {
   tabTo,
 } from './keyboard';
 import { arrowTo, resetProgress } from './playback';
+import { areaTab } from './admin';
 
 // /admin/home-rows (M7, E-9; concept 12, variant C) by keyboard (rule 8): the position of
 // "Neu hinzugefügt" by ↑ on its select changes the start page's order, a hidden row is gone from
@@ -68,11 +69,7 @@ test('start page rows by keyboard: placing and hiding change the start page @key
 
     await page.goto('/admin/home-rows');
     await expect(page.getByRole('heading', { level: 1, name: 'Startseite' })).toBeVisible();
-    await expect(
-      page
-        .getByRole('navigation', { name: 'Verwaltung' })
-        .getByRole('link', { name: 'Startseite' }),
-    ).toHaveAttribute('aria-current', 'page');
+    await expect(areaTab(page, 'Startseite')).toHaveAttribute('aria-current', 'page');
     const table = rowsTable(page);
     await expect(table.getByRole('rowheader')).toHaveCount((await listHomeRows(owner)).length);
     // No arrow buttons any more (S-16): a position to choose per row.
@@ -178,14 +175,13 @@ test('the preview by ←/→ shows the unsaved order; leaving asks, «Verwerfen�
   await expect(page).toHaveURL(/\/admin\/home-rows$/);
   await expect(table.getByRole('rowheader').nth(6)).toHaveText(last);
 
-  // The sidebar link waits for the question; it starts on «Auf der Seite bleiben», Escape stays.
-  // Tab reaches the sidebar at its current entry, ↑ walks it to «Spotlight».
-  const sidebar = page.getByRole('navigation', { name: 'Verwaltung' });
-  const spotlight = sidebar.getByRole('link', { name: 'Spotlight' });
+  // The tab link waits for the question; it starts on «Auf der Seite bleiben», Escape stays.
+  // Tab reaches the area's tabs at the current page, → walks them to «Spotlight».
+  const spotlight = areaTab(page, 'Spotlight');
   const toSpotlight = async () => {
     await resetFocus(page);
-    await tabTo(page, sidebar.getByRole('link', { name: 'Startseite' }), 40);
-    await arrowTo(page, spotlight, 'ArrowUp');
+    await tabTo(page, areaTab(page, 'Startseite'), 40);
+    await arrowTo(page, spotlight, 'ArrowRight');
     await expectVisibleFocus(page);
   };
   await toSpotlight();
@@ -229,7 +225,7 @@ test('the preview by ←/→ shows the unsaved order; leaving asks, «Verwerfen�
   await expect(table.getByRole('rowheader').first()).toHaveText(first ?? '');
   await expect(table.getByRole('rowheader').nth(7)).toHaveText(last);
 
-  // Nothing unsaved: the sidebar link goes at once.
+  // Nothing unsaved: the tab goes at once.
   await toSpotlight();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/admin\/spotlight$/);

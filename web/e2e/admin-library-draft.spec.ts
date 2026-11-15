@@ -6,6 +6,7 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
+import { adminEntry } from './admin';
 
 // The kept draft of «Bibliothek hinzufügen» on the page "Bibliotheken" (concept 20, P-11, 13.2;
 // CLAUDE.md rule 8). Step 0 retraces Marco's sequence: a name typed in the add dialog, the dialog
@@ -33,10 +34,8 @@ const leaveQuestion = (page: Page) =>
 const band = (page: Page) => page.getByText(BAND);
 const continueButton = (page: Page) => page.getByRole('button', { name: 'Weiter bearbeiten' });
 const discardButton = (page: Page) => page.getByRole('button', { name: 'Entwurf verwerfen' });
-const jobsLink = (page: Page) =>
-  page
-    .getByRole('navigation', { name: 'Verwaltung' })
-    .getByRole('link', { name: /^Hintergrundjobs(,|$)/ });
+/** The sidebar's «Automatisierung»: it leads to «Hintergrundjobs». */
+const jobsLink = (page: Page) => adminEntry(page, 'Automatisierung');
 
 /** Opens «Ordner von Filme», puts a card into «Neue Ordner», takes it out and closes. */
 async function touchFolders(page: Page): Promise<void> {

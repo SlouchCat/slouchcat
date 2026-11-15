@@ -2,6 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
 import { deleteAnnouncements } from './mocks';
+import { adminEntry } from './admin';
 
 // /admin/announcements (A-7; concept 12, variant B) by keyboard (rule 8): write a draft in place,
 // change it, publish it (the active profile then has it among its unread announcements), move
@@ -253,15 +254,10 @@ test('A-7: a new announcement can go out at once @keyboard', async ({ page }) =>
   // h1, below the sidebar, and headless Firefox does not wrap around to it.
   await expect(heading(page)).toBeFocused();
 
-  // Back (rule 8): the sidebar leads to «Hintergrundjobs», the browser's Back returns to the
-  // announcement in the address.
+  // Back (rule 8): the sidebar's «Automatisierung» leads to «Hintergrundjobs», the browser's Back
+  // returns to the announcement in the address.
   const here = page.url();
-  const sidebar = page.getByRole('navigation', { name: 'Verwaltung' });
-  await arrowTo(
-    page,
-    sidebar.getByRole('link', { name: 'Ankündigungen' }),
-    sidebar.getByRole('link', { name: 'Hintergrundjobs' }),
-  );
+  await arrowTo(page, adminEntry(page, 'Startseite'), adminEntry(page, 'Automatisierung'));
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/admin\/jobs$/);
   await page.goBack();
@@ -281,9 +277,8 @@ test('A-7: leaving with an unsaved text asks first', async ({ page, owner }) => 
   await page.keyboard.type('Kinoabend');
 
   // The sidebar link waits for the question; Escape stays on the page with the text.
-  const sidebar = page.getByRole('navigation', { name: 'Verwaltung' });
-  const current = sidebar.getByRole('link', { name: 'Ankündigungen' });
-  const jobs = sidebar.getByRole('link', { name: 'Hintergrundjobs' });
+  const current = adminEntry(page, 'Startseite');
+  const jobs = adminEntry(page, 'Automatisierung');
   await arrowTo(page, current, jobs);
   await page.keyboard.press('Enter');
   const leave = page.getByRole('alertdialog', {

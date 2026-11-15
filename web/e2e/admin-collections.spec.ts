@@ -8,6 +8,7 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
+import { areaTab } from './admin';
 import { arrowTo } from './playback';
 
 // /admin/collections (M7, E-6; concept 12, variant C) by keyboard (rule 8): create a manual
@@ -37,11 +38,7 @@ test('collections page by keyboard: create, fill, order, show on the start page,
     await page.goto('/admin/collections');
     const heading = page.getByRole('heading', { level: 1, name: 'Sammlungen' });
     await expect(heading).toBeVisible();
-    await expect(
-      page
-        .getByRole('navigation', { name: 'Verwaltung' })
-        .getByRole('link', { name: 'Sammlungen' }),
-    ).toHaveAttribute('aria-current', 'page');
+    await expect(areaTab(page, 'Sammlungen')).toHaveAttribute('aria-current', 'page');
 
     // «Sammlung anlegen»: name, Enter; the focus returns to the button.
     await resetFocus(page);
@@ -117,11 +114,10 @@ test('collections page by keyboard: create, fill, order, show on the start page,
     await expect(place).toHaveValue('0');
 
     // Leaving with unsaved members asks; «Auf der Seite bleiben» (the default) keeps them.
-    // The sidebar is one Tab stop on its current entry; ↑ moves to «Spotlight».
-    const sidebar = page.getByRole('navigation', { name: 'Verwaltung' });
+    // The area's tabs are one Tab stop on the current page; ← moves to «Spotlight».
     await resetFocus(page);
-    await tabTo(page, sidebar.getByRole('link', { name: 'Sammlungen' }));
-    await arrowTo(page, sidebar.getByRole('link', { name: 'Spotlight' }), 'ArrowUp');
+    await tabTo(page, areaTab(page, 'Sammlungen'));
+    await arrowTo(page, areaTab(page, 'Spotlight'), 'ArrowLeft');
     await expectVisibleFocus(page);
     await page.keyboard.press('Enter');
     const leave = page.getByRole('alertdialog', {
@@ -233,15 +229,14 @@ test('collections page: tabs replace the address, browser back leaves; «Entfern
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole('heading', { level: 2, name: 'Neu hinzugefügt' })).toBeVisible();
 
-    // Back with a draft needs a step inside the app: from «Spotlight» through the sidebar (one
-    // Tab stop, ↓ to «Sammlungen»), then «Manuell» again.
+    // Back with a draft needs a step inside the app: from «Spotlight» through the area's tabs
+    // (one Tab stop, → to «Sammlungen»), then «Manuell» again.
     await page.goto('/admin/spotlight');
-    const sidebar = page.getByRole('navigation', { name: 'Verwaltung' });
-    const spotlight = sidebar.getByRole('link', { name: 'Spotlight' });
+    const spotlight = areaTab(page, 'Spotlight');
     await expect(spotlight).toHaveAttribute('aria-current', 'page');
     await resetFocus(page);
     await tabTo(page, spotlight);
-    await arrowTo(page, sidebar.getByRole('link', { name: 'Sammlungen' }));
+    await arrowTo(page, areaTab(page, 'Sammlungen'), 'ArrowRight');
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/admin\/collections$/);
     await resetFocus(page);

@@ -10,6 +10,7 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
+import { areaTab } from './admin';
 
 // Integrations (A-2; concept 12, variant A) against the real server: six blocks that fold away by
 // their band, provider cards with their state (the e2e server sets the Trakt client id in its
@@ -95,11 +96,8 @@ test('the six blocks start open and fold by keyboard from their band @keyboard',
   await expect(band).toHaveAttribute('aria-expanded', 'true');
   await expect(field).toBeVisible();
 
-  // The intro sentence sits behind the help button of the title (S-2).
-  const help = page.getByRole('button', { name: 'Hilfe zu dieser Seite' });
-  await expect(page.getByText(/Geheime Werte speichert Slouchcat verschlüsselt/)).toBeHidden();
-  await help.focus();
-  await page.keyboard.press('Enter');
+  // The intro sentence stands open below the title (build plan 2.6); no help button any more.
+  await expect(page.getByRole('button', { name: 'Hilfe zu dieser Seite' })).toHaveCount(0);
   await expect(page.getByText(/Geheime Werte speichert Slouchcat verschlüsselt/)).toBeVisible();
   await expectNoFocusTrap(page, 200);
 });
@@ -122,10 +120,8 @@ test('unsaved input survives a folded block; leaving asks first', async ({ page,
   await page.keyboard.press('Enter');
   await expect(field).toHaveValue('unsaved-key');
 
-  // The sidebar link waits for the question, which takes the focus; Escape stays on the page.
-  const jobs = page
-    .getByRole('navigation', { name: 'Verwaltung' })
-    .getByRole('link', { name: /^Hintergrundjobs(,|$)/ });
+  // The tab link waits for the question, which takes the focus; Escape stays on the page.
+  const jobs = areaTab(page, 'Hintergrundjobs');
   await jobs.focus();
   await page.keyboard.press('Enter');
   const question = page.getByRole('alertdialog', {
@@ -167,11 +163,7 @@ test('provider cards show their state; the Trakt id from the environment is read
   page,
 }) => {
   await openIntegrations(page);
-  await expect(
-    page
-      .getByRole('navigation', { name: 'Verwaltung' })
-      .getByRole('link', { name: 'Integrationen' }),
-  ).toHaveAttribute('aria-current', 'page');
+  await expect(areaTab(page, 'Integrationen')).toHaveAttribute('aria-current', 'page');
   const keys = region(page, 'Schlüssel der Anbieter');
   // Six cards, folded; the e2e server runs with the Trakt id from its environment, without TMDB.
   await expect(keys.getByRole('heading', { level: 3 })).toHaveText([
@@ -404,7 +396,7 @@ test('a newer release in the manifest shows the update badge; switching the chec
     expect(((await checked.json()) as { available: boolean }).available).toBe(true);
 
     // On the admin pages the badge sits on the sidebar's «Übersicht» (concept 11), whose one Tab
-    // stop is the current page: the arrows go up to it.
+    // stop is the current area: the arrows go up to it.
     await page.goto('/admin/integrations');
     const nav = page.getByRole('navigation', { name: 'Verwaltung' });
     const badge = nav.getByRole('link', {
@@ -414,7 +406,7 @@ test('a newer release in the manifest shows the update badge; switching the chec
     await expect(badge).toHaveText(/Update/);
     await expect(badge).toHaveAttribute('href', '/admin');
     await resetFocus(page);
-    await tabTo(page, nav.getByRole('link', { name: /^Integrationen(,|$)/ }), 20);
+    await tabTo(page, nav.getByRole('link', { name: /^Automatisierung(,|$)/ }), 20);
     await page.keyboard.press('Home');
     await page.keyboard.press('ArrowDown');
     await expectFocusOn(page, badge);
@@ -437,10 +429,10 @@ test('a newer release in the manifest shows the update badge; switching the chec
 test('browser back leaves the page for the overview', async ({ page }) => {
   await page.goto('/admin');
   await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
-  await page
-    .getByRole('navigation', { name: 'Verwaltung' })
-    .getByRole('link', { name: 'Integrationen' })
-    .click();
+  // Straight from the overview to the page: the search palette of the header (build plan 2.4).
+  await page.getByRole('button', { name: 'Bereich suchen' }).click();
+  await page.getByRole('combobox', { name: 'Bereich der Verwaltung suchen' }).fill('Integrationen');
+  await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/\/admin$/);

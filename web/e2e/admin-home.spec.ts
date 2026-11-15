@@ -9,9 +9,10 @@ import {
   tabTo,
 } from './keyboard';
 
-// The administration (concept 11, A-2, A-3): the app column has one entry "Verwaltung"; on every
-// /admin page the administration's sidebar stands in its place (21 entries, one Tab stop,
-// ↑ ↓ Home End, wrapping), on a phone a button opens it as a sheet. The overview shows eight
+// The administration (concept 11, A-2, A-3; redesign, build plan 2): the app column has one entry
+// "Verwaltung"; on every /admin page the administration's sidebar stands in its place (back, the
+// overview and the five areas: one Tab stop, ↑ ↓ Home End, wrapping), on a phone a button opens
+// every page as a sheet. The pages of an area are tabs above each of its pages (admin-shell.spec). The overview shows eight
 // cards of the real server (polled every 5 s) and the server log collapsed below them.
 
 interface TraktData {
@@ -25,30 +26,31 @@ const serverLog = (page: Page) => card(page, 'Server-Protokoll');
 const errorList = (page: Page) =>
   serverLog(page).getByRole('list', { name: 'Fehler aus dem Server-Log', includeHidden: true });
 
-/** Every entry of the sidebar, in its order, with its path (11.1: 19 entries; concept 16 adds «Radio»). */
+/** The sidebar's entries, in their order, with their paths: back, the overview, the areas. */
 const NAV_ENTRIES = [
   ['Zurück zur App', '/'],
   ['Übersicht', '/admin'],
-  ['Bibliotheken', '/admin/libraries'],
-  ['Podcasts', '/admin/podcasts'],
-  ['Radio', '/admin/radio'],
-  ['Pflege', '/admin/maintenance'],
-  ['Metadaten', '/admin/metadata'],
-  ['Konten', '/admin/accounts'],
-  ['Geräte', '/admin/devices'],
-  ['Streams', '/admin/streams'],
-  ['Spotlight', '/admin/spotlight'],
-  ['User-Empfehlungen', '/admin/picks'],
-  ['Sammlungen', '/admin/collections'],
+  ['Medien', '/admin/libraries'],
+  ['Nutzer & Geräte', '/admin/accounts'],
   ['Startseite', '/admin/home-rows'],
-  ['Meine Medien', '/admin/my-media'],
-  ['Ankündigungen', '/admin/announcements'],
-  ['Hintergrundjobs', '/admin/jobs'],
-  ['Integrationen', '/admin/integrations'],
-  ['Benachrichtigungen', '/admin/notifications'],
-  ['Statistiken', '/admin/stats'],
-  ['Sicherung', '/admin/backup'],
+  ['Automatisierung', '/admin/jobs'],
+  ['System', '/admin/stats'],
 ] as const;
+
+/** The first page of every area: the heading its sidebar entry leads to. */
+const AREA_HEADINGS: Record<string, string> = {
+  Medien: 'Bibliotheken',
+  'Nutzer & Geräte': 'Konten',
+  Startseite: 'Startseite',
+  Automatisierung: 'Hintergrundjobs',
+  System: 'Statistiken',
+};
+
+/**
+ * The sheet on a phone: back, the overview and every page of the five areas (11.1: 19 pages;
+ * concept 16 adds «Radio», concept 21 «Meine Medien», the redesign «Hörbuch-Quellen»).
+ */
+const SHEET_LINKS = 22;
 
 /** An entry of the sidebar by its label; numbers and pills may follow in its spoken name. */
 const entry = (page: Page, name: string) =>
@@ -129,54 +131,56 @@ test('the focus stays on «Übersicht» after entering the administration with E
   await expectFocusOn(page, entry(page, 'Zurück zur App'));
 });
 
-test('admin sidebar: 21 entries, one Tab stop, ↑ ↓ Home End, Enter follows, Back returns', async ({
+test('admin sidebar: 7 entries, one Tab stop, ↑ ↓ Home End, Enter follows, Back returns', async ({
   page,
 }) => {
   await page.goto('/admin/devices');
   await expect(page.getByRole('heading', { level: 1, name: 'Geräte' })).toBeVisible();
   const nav = adminNav(page);
   await expect.poll(() => shownEntries(nav)).toEqual(NAV_ENTRIES.map((pair) => [...pair]));
-  const devices = entry(page, 'Geräte');
-  await expect(devices).toHaveAttribute('aria-current', 'page');
+  // The area of the open page is current.
+  const people = entry(page, 'Nutzer & Geräte');
+  await expect(people).toHaveAttribute('aria-current', 'page');
 
-  // From the top: the header, then the sidebar's current page.
+  // From the top: the header, then the sidebar's current area.
   await resetFocus(page);
-  await tabTo(page, devices);
+  await tabTo(page, people);
   await page.keyboard.press('ArrowDown');
-  await expectFocusOn(page, entry(page, 'Streams'));
+  await expectFocusOn(page, entry(page, 'Startseite'));
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('ArrowUp');
-  await expectFocusOn(page, entry(page, 'Konten'));
+  await expectFocusOn(page, entry(page, 'Medien'));
   await page.keyboard.press('End');
-  await expectFocusOn(page, entry(page, 'Sicherung'));
+  await expectFocusOn(page, entry(page, 'System'));
   // The arrows wrap around.
   await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, entry(page, 'Zurück zur App'));
   await page.keyboard.press('ArrowUp');
-  await expectFocusOn(page, entry(page, 'Sicherung'));
+  await expectFocusOn(page, entry(page, 'System'));
   await page.keyboard.press('Home');
   await expectFocusOn(page, entry(page, 'Zurück zur App'));
 
-  // Tab leaves the sidebar at once (one Tab stop), Shift+Tab comes back to the current page.
+  // Tab leaves the sidebar at once (one Tab stop), Shift+Tab comes back to the current area.
   await page.keyboard.press('Tab');
   await expect(nav.locator(':focus')).toHaveCount(0);
   await page.keyboard.press('Shift+Tab');
-  await expectFocusOn(page, devices);
+  await expectFocusOn(page, people);
 
-  // Enter follows a link; the sidebar stays and keeps the focus; the browser's Back returns.
+  // Enter follows a link to the area's first page; the sidebar stays and keeps the focus; the
+  // browser's Back returns.
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/admin\/streams$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Streams' })).toBeVisible();
-  await expect(entry(page, 'Streams')).toHaveAttribute('aria-current', 'page');
-  await expectFocusOn(page, entry(page, 'Streams'));
+  await expect(page).toHaveURL(/\/admin\/home-rows$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Startseite' })).toBeVisible();
+  await expect(entry(page, 'Startseite')).toHaveAttribute('aria-current', 'page');
+  await expectFocusOn(page, entry(page, 'Startseite'));
   await page.goBack();
   await expect(page).toHaveURL(/\/admin\/devices$/);
-  await expect(devices).toHaveAttribute('aria-current', 'page');
+  await expect(people).toHaveAttribute('aria-current', 'page');
   await expectNoFocusTrap(page);
 });
 
-test('every admin page is reached through the sidebar (A-2)', async ({ page }) => {
+test('every area is reached through the sidebar (A-2)', async ({ page }) => {
   test.setTimeout(90_000);
   await openOverview(page);
   await resetFocus(page);
@@ -186,10 +190,10 @@ test('every admin page is reached through the sidebar (A-2)', async ({ page }) =
     await arrowTo(page, link);
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(new RegExp(`${path}$`));
-    // Every page has the heading of its entry; the sidebar keeps the focus on the followed link.
-    // «Benachrichtigungen» opens the account's page, whose heading is «Benachrichtigungskanäle».
-    const heading = name === 'Benachrichtigungen' ? 'Benachrichtigungskanäle' : name;
-    await expect(page.getByRole('heading', { level: 1, name: heading, exact: true })).toBeVisible();
+    // Every area opens its first page; the sidebar keeps the focus on the followed link.
+    await expect(
+      page.getByRole('heading', { level: 1, name: AREA_HEADINGS[name], exact: true }),
+    ).toBeVisible();
     await expect(link).toHaveAttribute('aria-current', 'page');
     await expectFocusOn(page, link);
   }
@@ -467,7 +471,7 @@ test.describe('update card (concept 15 P-8)', () => {
   });
 });
 
-test('on a phone: «Verwaltung · Übersicht» opens the sidebar as a sheet, Escape returns', async ({
+test('on a phone: «Verwaltung · Übersicht» opens every page as a sheet, Escape returns', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -482,7 +486,7 @@ test('on a phone: «Verwaltung · Übersicht» opens the sidebar as a sheet, Esc
   await page.keyboard.press('Enter');
   const sheet = page.getByRole('dialog', { name: 'Seiten der Verwaltung' });
   await expect(sheet).toBeVisible();
-  await expect(sheet.getByRole('link')).toHaveCount(NAV_ENTRIES.length);
+  await expect(sheet.getByRole('link')).toHaveCount(SHEET_LINKS);
   // The current page has the focus; the arrows move; the focus stays inside while it is open.
   await expectFocusOn(page, entry(page, 'Übersicht'));
   await page.keyboard.press('ArrowDown');
@@ -506,7 +510,9 @@ test('on a phone: «Verwaltung · Übersicht» opens the sidebar as a sheet, Esc
   await expect(page).toHaveURL(/\/admin\/libraries$/);
   await expect(sheet).toHaveCount(0);
   await expect(page.getByRole('heading', { level: 1, name: 'Bibliotheken' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Verwaltung · Bibliotheken' })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Verwaltung · Medien / Bibliotheken' }),
+  ).toBeVisible();
   await resetFocus(page);
   await expectNoFocusTrap(page, 120);
 });

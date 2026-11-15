@@ -9,6 +9,7 @@ import {
   tabTo,
 } from './keyboard';
 import { arrowTo } from './playback';
+import { adminEntry, areaTab } from './admin';
 
 // /admin/spotlight (M11, ADR 0011; concept 12, variant A, mockup Spo-A) by keyboard (rule 8): the
 // page is reached through the admin navigation; the three bands fold by Enter on their title; in
@@ -59,9 +60,6 @@ const answer = (page: Page, method: string, path: string) =>
   );
 
 const region = (page: Page, name: string) => page.getByRole('region', { name, exact: true });
-const sidebar = (page: Page) => page.getByRole('navigation', { name: 'Verwaltung' });
-const sidebarLink = (page: Page, name: string) =>
-  sidebar(page).getByRole('link', { name: new RegExp(`^${name}(,|$)`) });
 
 /** Tab from the top of the page to `target`. */
 async function tabToFromTop(page: Page, target: Locator) {
@@ -69,11 +67,14 @@ async function tabToFromTop(page: Page, target: Locator) {
   await tabTo(page, target, TAB_MAX);
 }
 
-/** The sidebar is one Tab stop: Tab to its current entry, then ↓ until `name` has the focus. */
+/**
+ * The area's tabs are one Tab stop: Tab to the current page's tab, then → until `name` has the
+ * focus (build plan 2.5).
+ */
 async function navTo(page: Page, current: string, name: string): Promise<void> {
-  await tabToFromTop(page, sidebarLink(page, current));
-  await arrowTo(page, sidebarLink(page, name), 'ArrowDown', 30);
-  await expectFocusOn(page, sidebarLink(page, name));
+  await tabToFromTop(page, areaTab(page, current));
+  await arrowTo(page, areaTab(page, name), 'ArrowRight', 10);
+  await expectFocusOn(page, areaTab(page, name));
 }
 
 async function openSpotlight(page: Page) {
@@ -89,23 +90,26 @@ test('spotlight by keyboard: bands, source, fetch, hide, pin and note an entry @
   test.setTimeout(120_000);
   const settings = await storedSettings(owner);
   try {
-    // From the overview through the admin sidebar; Back returns there at the end.
+    // From the overview through the admin sidebar's «Startseite» and the area's tabs; Back
+    // returns to «Startseite» at the end.
     await page.goto('/admin');
     await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
-    await navTo(page, 'Übersicht', 'Spotlight');
+    await tabToFromTop(page, adminEntry(page, 'Übersicht'));
+    await arrowTo(page, adminEntry(page, 'Startseite'), 'ArrowDown', 10);
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/admin\/home-rows$/);
+    await navTo(page, 'Startseite', 'Spotlight');
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/admin\/spotlight$/);
     await expect(page.getByRole('heading', { level: 1, name: 'Spotlight' })).toBeVisible();
-    await expect(
-      sidebar(page).getByRole('link', { name: 'Spotlight', exact: true }),
-    ).toHaveAttribute('aria-current', 'page');
+    await expect(areaTab(page, 'Spotlight')).toHaveAttribute('aria-current', 'page');
 
-    // The intro sits behind the help button of the title (S-2).
+    // The intro stands open below the title (build plan 2.6); there is no help button. The next
+    // Tab stop after the area's tabs is the page's first band.
     const intro = page.getByText(/Eine öffentliche Trakt-Liste als Reihe der Startseite/);
-    await expect(intro).toBeHidden();
-    await tabToFromTop(page, page.getByRole('button', { name: 'Hilfe zu dieser Seite' }));
-    await page.keyboard.press('Enter');
     await expect(intro).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Hilfe zu dieser Seite' })).toHaveCount(0);
+    await tabToFromTop(page, areaTab(page, 'Spotlight'));
 
     // The band «Quelle» folds by Enter and opens by Space; folded, the next Tab stop is the next
     // band.
@@ -319,9 +323,10 @@ test('spotlight by keyboard: bands, source, fetch, hide, pin and note an entry @
     );
     await expectNoFocusTrap(page, TAB_MAX);
 
+    // Back returns to «Startseite», the page the area's tabs led here from.
     await page.goBack();
-    await expect(page).toHaveURL(/\/admin$/);
-    await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+    await expect(page).toHaveURL(/\/admin\/home-rows$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Startseite' })).toBeVisible();
   } finally {
     // The settings as before and no override left on the film.
     await restore(owner, settings);

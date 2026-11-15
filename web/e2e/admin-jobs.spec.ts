@@ -132,7 +132,8 @@ test('background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and 
   await resumeAll(owner);
   await restoreSweep(owner);
 
-  // From the overview through the admin sidebar; the card «Aufgaben» links the page.
+  // From the overview through the admin sidebar's «Automatisierung»; the card «Aufgaben» links
+  // the page.
   await page.goto('/admin');
   await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
   await expect(
@@ -143,7 +144,7 @@ test('background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and 
   const nav = page.getByRole('navigation', { name: 'Verwaltung' });
   await resetFocus(page);
   await tabTo(page, nav.getByRole('link', { name: 'Übersicht' }), TAB_MAX);
-  await navTo(page, 'Hintergrundjobs');
+  await navTo(page, 'Automatisierung');
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/admin\/jobs$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeVisible();
