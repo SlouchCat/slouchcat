@@ -59,6 +59,24 @@
       "version": "版本 {{version}}"
     },
     "gpu": {
+      "choice": {
+        "label": "用于转码的 GPU",
+        "hint": "重启服务器后生效。",
+        "auto": "自动（推荐）",
+        "software": "仅处理器",
+        "unavailable": "{{name}}（{{reason}}）",
+        "reason": {
+          "not_in_build": "此 ffmpeg 不支持",
+          "no_device": "容器中缺少设备",
+          "test_failed": "启动时检查失败"
+        },
+        "saved": "已保存：{{name}}",
+        "restartAdmin": "重启服务器后生效（概览 › 重启）。"
+      },
+      "fallback": {
+        "title": "所选 GPU 无法使用",
+        "body": "{{name}} 未通过启动时的检查。Slouchcat 暂时使用自动选择进行转码。"
+      },
       "encoder": "视频编码",
       "tonemap": "HDR 转 SDR",
       "ffmpeg": "ffmpeg",
@@ -187,7 +205,7 @@
       "owner_required": "只有所有者可以执行此操作。",
       "owner_protected": "所有者的账户既不能移除，也不能降级。",
       "last_admin": "这是最后一位管理员。请先任命另一位。",
-      "admin_limits_fixed": "管理员始终可以看到所有媒体库中最高 18 岁分级的内容。请先撤销该角色。",
+      "admin_limits_fixed": "管理员始终可以看到所有媒体库和所有作品，不受年龄限制。请先撤销管理员角色。",
       "job_type_not_runnable": "此任务不能手动运行，它由事件触发。",
       "job_type_paused": "此任务已暂停，请先恢复。",
       "job_type_not_scheduled": "此任务没有计划。",
@@ -236,28 +254,179 @@
     }
   },
   "setup": {
-    "title": "欢迎使用 Slouchcat",
-    "intro": "只需四个简单步骤，Slouchcat 就会扫描你的第一个媒体库。",
-    "step": "第 {{step}} 步",
+    "documentTitle": "初始设置：{{step}}",
+    "position": "第 {{position}} 步，共 {{count}} 步",
+    "nav": {
+      "label": "初始设置",
+      "group": "步骤",
+      "menu": "初始设置，步骤",
+      "close": "关闭步骤",
+      "state": {
+        "open": "{{position}}. {{name}}",
+        "done": "{{position}}. {{name}}，已完成",
+        "skipped": "{{position}}. {{name}}，已跳过"
+      }
+    },
+    "actions": {
+      "back": "返回",
+      "skip": "跳过",
+      "next": "下一步",
+      "finish": "完成设置",
+      "finishing": "正在完成…",
+      "later": "稍后继续"
+    },
+    "steps": {
+      "language": {
+        "nav": "语言",
+        "title": "选择语言",
+        "intro": "Slouchcat 应使用哪种语言？选择会立即生效，并可随时更改。"
+      },
+      "account": {
+        "nav": "账户",
+        "title": "创建账户",
+        "intro": "你将用此账户管理 Slouchcat，你的第一个个人资料也会随之创建。"
+      },
+      "region": {
+        "nav": "地区",
+        "title": "地区和元数据",
+        "intro": "国家、年龄分级，以及 Slouchcat 加载标题和简介所用的语言。"
+      },
+      "services": {
+        "nav": "服务",
+        "title": "连接服务",
+        "intro": "用于元数据的密钥和发送通知的方式。推荐设置 TMDB 和电子邮件，其余可稍后在“管理 › 集成”中添加。"
+      },
+      "playback": {
+        "nav": "播放",
+        "title": "播放",
+        "intro": "Slouchcat 在容器中找到了什么，以及用什么转码视频。"
+      },
+      "libraries": {
+        "nav": "媒体库",
+        "title": "媒体库",
+        "intro": "至少需要一个媒体库。添加后 Slouchcat 会立即读取。"
+      },
+      "household": {
+        "nav": "家庭",
+        "title": "家庭",
+        "intro": "为家庭成员添加更多个人资料，每个都有自己的年龄分级和颜色，还可按需设置 PIN 码。"
+      },
+      "access": {
+        "nav": "访问",
+        "title": "访问",
+        "intro": "通过哪个地址访问 Slouchcat，以及是否检查新版本。"
+      },
+      "summary": {
+        "nav": "摘要",
+        "title": "摘要",
+        "intro": "请检查你的选择。跳过的步骤将采用推荐设置。"
+      }
+    },
+    "language": {
+      "search": "搜索语言",
+      "choice": "语言",
+      "option": "{{name}} · {{english}} · {{code}}",
+      "none": "没有与搜索匹配的语言。",
+      "preview": "预览",
+      "previewDate": "日期",
+      "previewNumber": "数字"
+    },
     "account": {
-      "title": "管理员账户",
-      "description": "你将用此账户管理 Slouchcat。",
       "email": "电子邮件地址",
       "password": "密码",
       "passwordHint": "至少 10 个字符。",
-      "passwordRepeat": "再次输入密码"
+      "passwordRepeat": "再次输入密码",
+      "profileName": "个人资料名称",
+      "profileHint": "你的个人资料在选择个人资料时以此名称显示。",
+      "taken": {
+        "title": "Slouchcat 已完成设置",
+        "body": "刚刚有人创建了账户。请使用该账户登录。",
+        "action": "前往登录"
+      }
+    },
+    "region": {
+      "country": "国家",
+      "ratingCountry": "分级国家",
+      "ratingSteps": "个人资料的级别：{{steps}}",
+      "languages": "元数据语言",
+      "languagesIntro": "Slouchcat 按此顺序加载文本和图片。没有必选语言。",
+      "timeZone": "服务器时区",
+      "serverZone": "时区",
+      "zoneDiffers": {
+        "title": "你的浏览器使用的时区不同",
+        "body": "浏览器报告的时区为 {{browser}}。服务器时区在 deploy/.env 中设置，重启容器后生效。",
+        "command": "用于 deploy/.env 的行"
+      },
+      "radio": "网络电台",
+      "radioToggle": "将 {{country}} 加入广播上架",
+      "radioHint": "该国家上架时不含电台。电台可稍后在“管理 › 广播”中勾选。"
+    },
+    "services": {
+      "recommended": "推荐",
+      "optional": "可选",
+      "recommendedTitle": "推荐",
+      "optionalTitle": "可选",
+      "email": {
+        "purpose": "用于邀请和“忘记密码”。"
+      },
+      "push": {
+        "name": "Web Push",
+        "purpose": "即使未打开 Slouchcat，也能在此设备上收到通知。",
+        "insecure": "推送需要安全连接（HTTPS 或 localhost）。请稍后通过公开的 HTTPS 地址设置推送。"
+      },
+      "telegram": {
+        "purpose": "通过 Telegram 机器人发送通知。之后可在“设置 › 通知”中关联你的账户。"
+      },
+      "rejected": {
+        "title": "移除无效密钥并继续？",
+        "body": "服务拒绝了此密钥：{{names}}。Slouchcat 会将其移除，以免保存错误的密钥。",
+        "confirm": "移除并继续"
+      }
+    },
+    "playback": {
+      "restart": "重启后生效。完成设置时 Slouchcat 会重启一次。",
+      "trickplay": "新视频媒体库的拖动预览",
+      "trickplayHint": "在下一步中为每个新视频媒体库预设此选项。预览图会占用存储空间和计算时间。"
+    },
+    "libraries": {
+      "add": "添加媒体库",
+      "addMore": "再添加一个媒体库",
+      "none": "还没有媒体库。请至少添加一个，Slouchcat 才有内容可显示。",
+      "folder": "文件夹 {{position}}"
+    },
+    "household": {
+      "accounts": "拥有自己账户的访客可稍后在“管理 › 账户”中邀请。"
+    },
+    "access": {
+      "here": "你当前通过 {{url}} 访问。",
+      "useHere": "使用此地址",
+      "noUsageData": "Slouchcat 不发送使用数据。"
+    },
+    "summary": {
+      "done": "已设置",
+      "recommended": "推荐",
+      "change": "更改 {{step}}",
+      "region": "{{country}} 的分级，语言：{{languages}}",
+      "services_other": "已设置 {{count}} 项服务",
+      "playback": "{{hw}}，拖动预览：{{trickplay}}",
+      "on": "开启",
+      "off": "关闭",
+      "noAddress": "无公开地址",
+      "profiles_other": "{{count}} 个个人资料"
+    },
+    "finish": {
+      "title": "Slouchcat 设置完成",
+      "restartTitle": "Slouchcat 正在重启…",
+      "restartBody": "GPU 选择将在重启后生效。首次扫描随后会继续进行。",
+      "busy": "由于正在进行备份或更新，Slouchcat 无法重启。GPU 选择将在下次重启后生效（管理 › 概览）。",
+      "scanProgress": "{{state}}：{{seen}} / {{total}} 个文件",
+      "home": "前往首页"
     },
     "library": {
-      "title": "第一个媒体库",
-      "description": "之后可以添加更多媒体库。",
       "name": "名称",
-      "defaultName": "电影",
       "kind": "内容",
       "path": "文件夹",
       "pathPlaceholder": "/media/电影",
-      "roots": "已开放的文件夹：",
-      "check": "检查文件夹",
-      "checking": "正在检查…",
       "warning": {
         "network_share": {
           "title": "检测到网络共享",
@@ -267,30 +436,7 @@
           "title": "未知的文件系统",
           "body": "FUSE 文件系统（例如 mergerfs 或 Unraid）不会报告所有更改。Slouchcat 会监视该文件夹，并定期同步。"
         }
-      },
-      "content": "内容",
-      "providers": "元数据来源"
-    },
-    "tmdb": {
-      "title": "来自 TMDB 的元数据（可选）",
-      "description": "使用 themoviedb.org 的读取访问令牌，Slouchcat 可以获取简介、海报和年龄分级。没有密钥时，标题取自文件名。",
-      "link": "在 themoviedb.org 上创建令牌",
-      "label": "API 读取访问令牌",
-      "hint": "加密存储，之后不再显示。",
-      "check": "检查密钥",
-      "checking": "正在检查…",
-      "result": {
-        "valid": "有效：TMDB 已接受此密钥。",
-        "invalid": "无效：TMDB 拒绝了此密钥。请检查读取访问令牌。",
-        "unreachable": "无法访问：TMDB 暂时没有响应。请重试，或将此字段留空。"
       }
-    },
-    "submit": "完成设置",
-    "submitting": "正在设置…",
-    "system": {
-      "title": "GPU 和文件系统",
-      "description": "Slouchcat 在容器内检测到的情况。此处无需输入，提示针对的是宿主机。",
-      "missing": "服务器未提供硬件信息。"
     }
   },
   "login": {
@@ -299,7 +445,8 @@
     "email": "电子邮件地址",
     "password": "密码",
     "submit": "登录",
-    "submitting": "正在登录…"
+    "submitting": "正在登录…",
+    "language": "语言：{{name}}"
   },
   "library": {
     "groups": {
@@ -370,7 +517,7 @@
       "moveUpLabel": "上移 {{provider}}",
       "moveDownLabel": "下移 {{provider}}",
       "noKey": "未配置密钥",
-      "noGerman": "不提供德语文本",
+      "missingLanguages": "不提供 {{languages}} 文本",
       "fillOnly": "仅补充",
       "hint": "第一项用于识别作品，其余各项仅作补充。可用箭头按钮或方向键调整顺序。",
       "hintRank": "第一项用于识别作品，其余各项仅作补充。通过位置选择顺序。",
@@ -443,8 +590,7 @@
       "yearFrom": "起始年份",
       "yearTo": "结束年份",
       "rating": "年龄分级",
-      "anyRating": "个人资料上限",
-      "upTo": "最高 {{age}}"
+      "anyRating": "个人资料上限"
     },
     "notFound": {
       "title": "未找到媒体库",
@@ -694,7 +840,9 @@
     }
   },
   "rating": {
-    "fsk": "FSK {{age}}"
+    "age": "{{age}} 岁以上",
+    "upTo": "{{rating}} 及以下",
+    "system": "{{country}}（{{name}}）"
   },
   "format": {
     "hours": "{{hours}} 小时",
@@ -1861,7 +2009,7 @@
       "hint": {
         "unmatched": "未匹配的作品没有简介、图片和分级。请匹配或刷新此作品。",
         "no_images": "已匹配但没有海报的作品。刷新可重新加载图片。",
-        "unrated": "没有分级的作品只有 18 岁分级的个人资料才能看到。请指定分级以开放这些作品。",
+        "unrated": "没有分级的作品仅对“18 岁以上”的个人资料可见。请为其指定分级以开放观看。",
         "orphaned": "没有文件或文件缺失的作品，以及空的季和剧集。",
         "unplayable": "无法读取的文件。请重新检查，或将其从媒体库中移除。",
         "rating_mismatch": "存储的分级与计算出的分级不一致。更改分级或下次扫描时会自动修正。此处无需选择。",
@@ -3119,6 +3267,12 @@
       }
     },
     "home": {
+      "setupBand": {
+        "title": "初始设置尚未完成",
+        "body": "初始设置还有几个步骤未完成。",
+        "noLibrary": "还没有媒体库，因此首页仍为空。",
+        "action": "继续设置"
+      },
       "title": "管理",
       "live": "实时，每 5 秒更新",
       "liveFailed": "没有响应，每 5 秒重试一次",
@@ -3296,6 +3450,11 @@
         "keyRejected": "{{name}} 密钥被拒绝",
         "keyRejectedBody": "提供商拒绝了此密钥。在新密钥生效之前，Slouchcat 不会从它获取元数据。",
         "toKeys": "前往密钥",
+        "ratingsReread": "正在重新读取分级",
+        "ratingsRereadBody": "任务完成前仍沿用之前的分级，可能更严格，也可能更宽松。",
+        "minimumAge": "分级现为最低年龄",
+        "minimumAgeBody": "自此次更新起，Slouchcat 会保存每个分级的实际最低年龄：PG-13 为“13 岁以上”而非 FSK 12，R 为“17 岁以上”而非 FSK 16。因此，“12 岁以上”和“16 岁以上”的个人资料能看到的美国作品会变少。如果不希望这样，请调高个人资料的级别。",
+        "minimumAgeDismiss": "知道了",
         "storage": "{{path}} 的占用已超过 {{percent}}%"
       },
       "errors": {
@@ -3617,13 +3776,13 @@
         "heading": "访问权限",
         "save": "保存访问权限",
         "saved": "已保存 {{email}} 的访问权限。",
-        "adminHint": "管理员始终拥有 18 岁分级和所有媒体库；“访问权限”仅适用于没有管理权限的账户。"
+        "adminHint": "管理员始终拥有“18 岁以上”级别和所有媒体库；“访问权限”仅适用于没有管理权限的账户。"
       },
       "role": {
         "promote": {
           "action": "设为管理员",
           "title": "要将 {{email}} 设为管理员吗？",
-          "body": "此账户将可以管理服务器、媒体库和设置。其分级将提升至 18 岁并可访问所有媒体库；该账户的个人资料保留各自的级别。",
+          "body": "此账户将管理服务器、媒体库和设置。其级别会提升至“18 岁以上”，并可访问所有媒体库；该账户的个人资料保留各自的级别。",
           "confirm": "任命",
           "done": "{{email}} 现在是管理员。"
         },
@@ -4279,6 +4438,12 @@
           "description": "获取缺失的票数，用于选择图片。",
           "trigger": "每次完整扫描后，只要仍有作品等待评分"
         },
+        "metadata_ratings_reread": {
+          "name": "重新读取分级",
+          "description": "按分级国家重新读取电影和剧集的年龄分级；手动设置的、来自 NFO 文件的以及已锁定的分级保持不变。",
+          "trigger": "更新后运行一次，并在每次更改分级国家时运行",
+          "progress": "已读取作品：{{done}} / {{total}}"
+        },
         "metadata_original_language_backfill": {
           "name": "补充原始语言",
           "description": "为所有作品补充原始语言，用于选择音轨。",
@@ -4444,11 +4609,11 @@
       },
       "languages": {
         "title": "语言",
-        "intro": "此处的每种语言都会为每部作品获取；个人资料从中选择简介的语言。界面语言不受此设置影响。每增加一种语言，每部作品和每季都会多一次请求。",
+        "intro": "此处的每种语言都会为每部作品获取；个人资料从中选择简介语言。界面语言由每个个人资料自行选择。每增加一种语言，每部作品和每一季就多一次请求。",
         "list": "元数据语言",
         "rank": "第 {{position}} 语言",
         "more": "其他语言",
-        "fallback": "顺序即回退顺序：如果个人资料的语言缺少文本，Slouchcat 会显示列表中第一种可用的语言，最后显示文件名。没有必选的语言，但默认设置和每个媒体库都至少需要一种语言。",
+        "fallback": "顺序即后备顺序：如果个人资料的语言缺少文本，Slouchcat 会显示列表中第一个可用的语言，然后是文件名。列表至少需要一种语言。",
         "unknownAt": "{{provider}} 不支持：{{languages}}",
         "youtube": "{{count}} 种语言：使用 YouTube 预告片搜索时，每天最多 {{titles}} 部作品（配额 10,000）。"
       },
@@ -4502,16 +4667,15 @@
       },
       "rating": {
         "title": "年龄分级",
-        "intro": "优先读取哪个国家；之后照旧依次为 DE、AT、CH、GB、US。级别仍为 FSK 0/6/12/16/18。",
+        "intro": "以哪个国家的年龄分级为准。作品若在该国没有分级，则采用德国分级（FSK），然后依次为 AT、CH、GB 和 US。个人资料从该国家的级别中选择。",
         "country": "国家",
-        "countries": {
-          "DE": "德国（DE）",
-          "AT": "奥地利（AT）",
-          "CH": "瑞士（CH）",
-          "GB": "英国（GB）",
-          "US": "美国（US）"
-        },
-        "hint": "新作品采用优先读取的国家的级别。已保存的级别永远不会被降低，即使其他国家的级别更低；只能在维护中逐部作品降低。"
+        "steps": "个人资料的级别：{{steps}}",
+        "hint": "Slouchcat 保存分级的最低年龄，例如将 PG-13 保存为“13 岁以上”。更改国家后，Slouchcat 会重新读取所有作品的分级，分级可能因此降低或提高；手动设置的、来自 NFO 文件的以及已锁定的分级保持不变。",
+        "confirm": {
+          "title": "要更改分级国家吗？",
+          "body": "之后 Slouchcat 会重新读取所有作品的分级。个人资料可能会看到此前隐藏的作品，反之亦然。",
+          "confirm": "更改并重新读取"
+        }
       },
       "apply": {
         "title": "应用到现有作品",
@@ -4544,7 +4708,6 @@
       "errors": {
         "langs_empty": "至少需要一种语言。",
         "lang_unknown": "未知的语言代码。",
-        "ui_lang_required": "默认设置需要包含德语；媒体库需要包含德语或英语。",
         "chain_duplicate": "每种语言只能出现一次。",
         "country_unknown": "未知的国家。",
         "source_unknown": "此图片来源不是该作品的候选来源。"
@@ -4796,6 +4959,7 @@
       "list": "此账户的个人资料",
       "edit": "编辑",
       "primary": "主个人资料",
+      "ratingAboveCeiling": "{{rating}} · 账户最高 {{max}}",
       "hasPin": "PIN 码",
       "delete": {
         "action": "删除",
@@ -4836,7 +5000,6 @@
         "likeUi": "与界面相同",
         "playback": "播放"
       },
-      "ratingAboveAccount": "FSK {{age}} · 账户最高 FSK {{max}}",
       "report": {
         "show": "显示观看时长",
         "hide": "隐藏观看时长",
