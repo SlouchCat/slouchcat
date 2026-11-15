@@ -102,7 +102,8 @@ export function ChannelPanel({
         <Notice
           actions={
             isAdmin && (
-              <ButtonLink href={paths.adminIntegrations} variant="secondary">
+              // Straight to the channel's service on the integrations page (`?item=`).
+              <ButtonLink href={`${paths.adminIntegrations}?item=${channel}`} variant="secondary">
                 {t('settings.notifications.unavailable.action')}
               </ButtonLink>
             )
@@ -168,7 +169,7 @@ export function ChannelPanel({
         {test.isError && <Notice tone="danger">{problemMessage(t, test.error)}</Notice>}
         <StatusRegion message={message} />
         {/* As in the mockup: the test first, the main action «Speichern» last. */}
-        <div className={styles.actions}>
+        <div className={`${styles.actions} ${styles.footer}`}>
           <AriaButton
             isDisabled={!available}
             isPending={test.isPending}

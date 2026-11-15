@@ -7,7 +7,7 @@ import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { ButtonLink, Chip, Notice, Skeleton, TextLink } from '@/ui';
+import { ButtonLink, Chip, Notice, Skeleton } from '@/ui';
 import {
   AdminPage,
   AriaButton,
@@ -141,10 +141,11 @@ export function ChannelSettingsPage({ inAdmin = false }: { inAdmin?: boolean } =
       titleRef={titleRef}
       liveSeconds={polls && linkOpen(channels.data) ? LINK_POLL_MS / 1000 : undefined}
       actions={
+        // The header's action as in the mockup: a secondary button on the title's line.
         inAdmin && isAdmin ? (
-          <TextLink href={paths.adminIntegrations}>
+          <ButtonLink href={paths.adminIntegrations} variant="secondary">
             {t('settings.notifications.serverChannels')}
-          </TextLink>
+          </ButtonLink>
         ) : undefined
       }
     >

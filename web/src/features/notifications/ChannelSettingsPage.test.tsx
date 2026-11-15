@@ -368,9 +368,10 @@ describe('notification channels page', () => {
     const bot = await block('Telegram');
     expect(within(bot).getByText('Nicht eingerichtet')).toBeVisible();
     expect(within(bot).getByText(/richtet diesen Kanal in der Verwaltung/)).toBeVisible();
+    // Straight to the Telegram bot's view on the integrations page.
     expect(within(bot).getByRole('link', { name: 'Integrationen öffnen' })).toHaveAttribute(
       'href',
-      '/admin/integrations',
+      '/admin/integrations?item=telegram',
     );
     expect(within(bot).getByRole('switch', { name: 'Aktiv' })).toBeDisabled();
     expect(within(bot).getByRole('button', { name: 'Speichern' })).toBeDisabled();

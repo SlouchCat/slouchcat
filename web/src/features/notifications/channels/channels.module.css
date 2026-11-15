@@ -98,3 +98,10 @@
   gap: var(--sc-space-2) var(--sc-space-4);
   align-items: center;
 }
+
+/* In the administration only (admin redesign, mockup «Benachrichtigungen»): the buttons stand as
+   the card's foot, below a line; under /settings nothing changes. */
+:global(:root[data-shell='admin']) .footer {
+  padding-top: var(--sc-space-3);
+  border-top: 1px solid var(--sc-color-border-subtle);
+}
