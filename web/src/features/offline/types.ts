@@ -53,6 +53,13 @@ export interface StoredDownload {
   readyAt?: string;
   /** Title data from the last answer that carried it. */
   item?: ItemRef;
+  /**
+   * The next and the previous episode the server named with that answer (DownloadState, contract
+   * 1.38.0, concept 23 section 3.3): the offline player only looks up whether those titles lie on
+   * the device. Absent in downloads stored before, until their next sync with the title data.
+   */
+  nextEpisodeId?: string;
+  previousEpisodeId?: string;
   /** Fragment index, codecs, subtitles and file URL (with the download token). */
   manifest?: DownloadManifest;
   /** Bytes of media.mp4 that are durably written, from offset 0. */

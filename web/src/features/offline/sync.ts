@@ -62,6 +62,8 @@ export function newDownload(state: DownloadState, accountId: number, now: number
     createdAt: state.createdAt,
     readyAt: state.readyAt,
     item: state.item,
+    nextEpisodeId: state.nextEpisodeId,
+    previousEpisodeId: state.previousEpisodeId,
     bytesWritten: 0,
     subtitlesStored: [],
     posterStored: false,
@@ -124,6 +126,9 @@ export function mergeDownload(
     ...local,
     ...fresh,
     item: state.item ?? local.item,
+    // The server names the neighbours only with the title data (another profile active: neither).
+    nextEpisodeId: state.item ? state.nextEpisodeId : local.nextEpisodeId,
+    previousEpisodeId: state.item ? state.previousEpisodeId : local.previousEpisodeId,
     manifest: local.manifest,
     bytesWritten: local.bytesWritten,
     subtitlesStored: local.subtitlesStored,

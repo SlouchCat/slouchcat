@@ -1,10 +1,11 @@
-import type { SessionInfo } from '@slouchcat/api-client';
+import type { ItemRef, SessionInfo } from '@slouchcat/api-client';
 import { useQueryClient } from '@tanstack/react-query';
-import { getRouteApi } from '@tanstack/react-router';
+import { getRouteApi, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { paths } from '@/app/paths';
 import { sessionQuery } from '@/app/session';
+import { hasEpisodeButtons } from '@/features/player/episodeButtons';
 import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
@@ -16,15 +17,26 @@ import { useOfflineChoice, type OfflineChoice } from './offlineSession';
 import { MEDIA_FILE, readFile } from './opfs';
 import { OfflinePlayer } from './OfflinePlayer';
 import { resumePosition, resumeRate } from './playback';
-import { getDownload, getMeta, getProfile } from './store';
+import { getDownload, getMeta, getProfile, listDownloads } from './store';
 import type { StoredDownload, StoredWatchTime } from './types';
 import { usePosterUrl } from './usePosterUrl';
 import styles from '@/features/player/Player.module.css';
 
 const route = getRouteApi('/offline/play/$downloadId');
 
+/**
+ * An episode the server named next to the download (concept 23, 3.3), and the download of it when
+ * it lies complete on this device for the profile.
+ */
+interface Neighbour {
+  downloadId?: string;
+  item?: ItemRef;
+}
+
 interface Loaded {
   download: StoredDownload & { manifest: NonNullable<StoredDownload['manifest']> };
+  previous?: Neighbour;
+  next?: Neighbour;
   media: File;
   watch: StoredWatchTime | undefined;
   /** The profile's language (its last sync), for the order of the panels. */
@@ -47,6 +59,30 @@ function usePlayer(fromSession: boolean): OfflineChoice | null {
   return session?.profile ? { accountId: session.account.id, profileId: session.profile.id } : null;
 }
 
+/** The download is complete on the device and the server lets the profile see it (O-7). */
+const playableBy = (download: StoredDownload, who: OfflineChoice) =>
+  !download.pendingDelete &&
+  download.complete &&
+  download.manifest !== undefined &&
+  download.accountId === who.accountId &&
+  download.allowedProfileIds.includes(who.profileId);
+
+/**
+ * The neighbour the server named (rule 12: the device only looks it up), and its download where
+ * the profile can play it on this device.
+ */
+function neighbour(
+  downloads: readonly StoredDownload[],
+  itemId: string | undefined,
+  who: OfflineChoice,
+): Neighbour | undefined {
+  if (itemId === undefined) return undefined;
+  const found = downloads.find(
+    (download) => download.item?.id === itemId && playableBy(download, who),
+  );
+  return found ? { downloadId: found.id, item: found.item } : {};
+}
+
 async function load(id: string, who: OfflineChoice, fromSession: boolean): Promise<LoadState> {
   if (!fromSession) {
     // The library's choice counts only for the device's account while it is signed in (W2).
@@ -55,25 +91,20 @@ async function load(id: string, who: OfflineChoice, fromSession: boolean): Promi
   }
   const download = await getDownload(id);
   // Only the server's decision counts: the profile must be in allowedProfileIds (O-7).
-  if (
-    !download ||
-    download.pendingDelete ||
-    !download.complete ||
-    !download.manifest ||
-    download.accountId !== who.accountId ||
-    !download.allowedProfileIds.includes(who.profileId)
-  ) {
-    return { status: 'missing' };
-  }
-  const [media, profile, offset] = await Promise.all([
+  if (!download?.manifest || !playableBy(download, who)) return { status: 'missing' };
+  const episode = download.item !== undefined && hasEpisodeButtons(download.item);
+  const [media, profile, offset, downloads] = await Promise.all([
     readFile(id, MEDIA_FILE),
     getProfile(who.profileId),
     getMeta('serverOffsetMs'),
+    episode ? listDownloads() : Promise.resolve([]),
   ]);
   if (!media || media.size !== download.manifest.sizeBytes) return { status: 'missing' };
   return {
     status: 'ready',
     download: { ...download, manifest: download.manifest },
+    previous: neighbour(downloads, download.previousEpisodeId, who),
+    next: neighbour(downloads, download.nextEpisodeId, who),
     media,
     watch: profile?.accountId === who.accountId ? profile.watch : undefined,
     profileLanguage: profile?.accountId === who.accountId ? profile.snapshot.language : undefined,
@@ -101,6 +132,7 @@ function OfflinePlayback({
   const who = usePlayer(fromSession);
   const { t, i18n } = useTranslation();
   const goBack = useGoBack(fromSession ? paths.downloads : paths.offline);
+  const navigate = useNavigate();
   // One playback per mount (OfflineEvent.playbackId).
   const [playbackId] = useState(() => ulid());
   const accountId = who?.accountId;
@@ -138,6 +170,22 @@ function OfflinePlayback({
   if (state.status === 'ready' && accountId !== undefined && profileId !== undefined) {
     const { download } = state;
     const resume = resumePosition(download, profileId);
+    // Another episode on the device replaces this playback in the history, as online (W-9).
+    const link = (target: Neighbour | undefined) => {
+      const downloadId = target?.downloadId;
+      return {
+        item: target?.item,
+        play: downloadId
+          ? () =>
+              void navigate({
+                to: '/offline/play/$downloadId',
+                params: { downloadId },
+                search: fromSession ? { as: 'session' } : {},
+                replace: true,
+              })
+          : undefined,
+      };
+    };
     return (
       <OfflinePlayer
         title={title ?? ''}
@@ -163,6 +211,15 @@ function OfflinePlayback({
         byline={download.item?.author}
         accent={download.item?.accent}
         initialRate={resumeRate(download, profileId)}
+        episodes={
+          download.item && hasEpisodeButtons(download.item)
+            ? {
+                item: download.item,
+                previous: state.previous && link(state.previous),
+                next: state.next && link(state.next),
+              }
+            : undefined
+        }
       />
     );
   }

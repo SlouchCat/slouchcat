@@ -1,7 +1,8 @@
-import type { Chapter, Track } from '@slouchcat/api-client';
+import type { Chapter, ItemRef, Track } from '@slouchcat/api-client';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { nextChapterStart, previousChapterStart } from '@/features/player/audio';
+import { episodeButton, type EpisodeDirection } from '@/features/player/episodeButtons';
 import { stepPlaybackRate } from '@/features/player/keymap';
 import { chapterAt, languageName, trackLabel } from '@/features/player/labels';
 import { usePlayerLayout, volumeIsReadOnly } from '@/features/player/layout';
@@ -36,6 +37,25 @@ function applyRate(element: HTMLMediaElement, rate: number): void {
   // A new source falls back to the default rate; both keep the speed.
   element.defaultPlaybackRate = rate;
   element.playbackRate = rate;
+}
+
+/**
+ * An episode the server named next to the download (DownloadState.nextEpisodeId and
+ * previousEpisodeId, concept 23, 3.3): `play` only when it lies complete on this device for the
+ * profile, with its title data from that download.
+ */
+export interface OfflineEpisodeLink {
+  item?: ItemRef;
+  play?: () => void;
+}
+
+/** The episode buttons of a download of an episode; absent for a film. */
+export interface OfflineEpisodes {
+  /** The title of the download playing. */
+  item: ItemRef;
+  /** Absent: the server named none («Keine frühere Folge», «Keine weitere Folge»). */
+  previous?: OfflineEpisodeLink;
+  next?: OfflineEpisodeLink;
 }
 
 interface OfflineVideoProps {
@@ -75,6 +95,8 @@ interface OfflineVideoProps {
   backTo: 'downloads' | 'library';
   /** The `data-*` attributes of the player region (engine, download, start and seek times). */
   data: Record<`data-${string}`, string | number | undefined>;
+  /** The previous and the next episode (concept 23, stage 2); absent: not an episode. */
+  episodes?: OfflineEpisodes;
 }
 
 /**
@@ -109,6 +131,7 @@ export function OfflineVideo({
   onBack,
   backTo,
   data,
+  episodes,
 }: OfflineVideoProps) {
   const { t, i18n } = useTranslation();
   const language = intlLocale(i18n.language);
@@ -188,6 +211,29 @@ export function OfflineVideo({
     closePanel,
   });
 
+  // ---------- the previous and the next episode, where they lie on this device ----------
+
+  const episodeStep = (direction: EpisodeDirection) => {
+    if (!episodes) return undefined;
+    const link = episodes[direction];
+    const play = link?.play;
+    const step = episodeButton(t, {
+      direction,
+      target: play ? link.item : undefined,
+      current: episodes.item,
+      language,
+      onPress: () => play?.(),
+      // Named by the server, but not (fully) on this device.
+      unavailable: link && !play ? t('player.chrome.notOnDevice') : undefined,
+      // Offline nothing comes from the network: the card without the episode's picture.
+      image: false,
+    });
+    // On the device without its title data: it plays, under the plain name.
+    return play && !link.item ? { label: step.label, onPress: play } : step;
+  };
+  const previousEpisodeStep = episodeStep('previous');
+  const nextEpisodeStep = episodeStep('next');
+
   // ---------- subtitles: the stored WebVTT files, drawn by the subtitle layer ----------
 
   // The download's default subtitle until the viewer picks one; null is «Aus».
@@ -247,6 +293,9 @@ export function OfflineVideo({
             ? () => openSettings('chapters', true)
             : () => setTab((current) => ({ focusChapter: (current?.focusChapter ?? 0) + 1 }))
           : undefined,
+      // N and P: the neighbour episode, when it lies on this device.
+      playNext: available ? episodes?.next?.play : undefined,
+      playPrevious: available ? episodes?.previous?.play : undefined,
       toggleHelp: () => togglePanel('help'),
       closeOpen: () => {
         if (panel !== null) closePanel();
@@ -284,15 +333,17 @@ export function OfflineVideo({
   });
   const tabs = phone || limitReached ? [] : allTabs;
 
-  // The help lists only what this player does: no quality, stream info, intro or next episode.
+  // The help lists only what this player does: no quality, stream info or intro; the episode keys
+  // only for an episode.
   const helpRows = SHORTCUT_ROWS.filter((row) => {
     switch (row) {
       case 'quality':
       case 'info':
       case 'skip':
+        return false;
       case 'next':
       case 'previous':
-        return false;
+        return episodes !== undefined;
       case 'chapter':
       case 'chapters':
         return hasChapters;
@@ -425,6 +476,8 @@ export function OfflineVideo({
               ? t('player.chrome.lastChapter')
               : undefined,
         }}
+        previousEpisode={previousEpisodeStep}
+        nextEpisode={nextEpisodeStep}
         transportDisabled={limitReached}
         volume={volume.volume}
         muted={volume.muted}

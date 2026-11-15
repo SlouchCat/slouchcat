@@ -26,10 +26,10 @@ interface EpisodeButtonOptions {
   /** The UI language (intlLocale), for the date of a podcast episode. */
   language: string;
   onPress: () => void;
-  /** Why the button is greyed although the server named an episode («Nicht auf diesem Gerät»). */
+  /** Without a target: the hint instead of «Keine weitere Folge» («Nicht auf diesem Gerät»). */
   unavailable?: string;
-  /** The picture of the card; default: the episode's backdrop from the server. */
-  cardImageUrl?: string;
+  /** False: the card without the episode's picture (offline: nothing from the network). */
+  image?: boolean;
 }
 
 /**
@@ -46,7 +46,7 @@ export function episodeButton(
     language,
     onPress,
     unavailable,
-    cardImageUrl,
+    image = true,
   }: EpisodeButtonOptions,
 ): PlayerChromeEpisode {
   const next = direction === 'next';
@@ -54,7 +54,9 @@ export function episodeButton(
     return {
       label: next ? t('player.chrome.nextEpisode') : t('player.chrome.previousEpisode'),
       onPress,
-      unavailable: next ? t('player.chrome.noNextEpisode') : t('player.chrome.noPreviousEpisode'),
+      unavailable:
+        unavailable ??
+        (next ? t('player.chrome.noNextEpisode') : t('player.chrome.noPreviousEpisode')),
     };
   }
   const name = episodeName(t, target);
@@ -79,9 +81,8 @@ export function episodeButton(
       ? t('player.chrome.nextEpisodeNamed', { name })
       : t('player.chrome.previousEpisodeNamed', { name }),
     onPress,
-    unavailable,
     card: {
-      imageUrl: cardImageUrl ?? imageUrl(target.images.backdropSmall ?? target.images.backdrop),
+      imageUrl: image ? imageUrl(target.images.backdropSmall ?? target.images.backdrop) : undefined,
       heading: next ? t('player.chrome.nextEpisodeCard') : t('player.chrome.previousEpisodeCard'),
       name: otherSeason
         ? t('player.chrome.cardSeason', { season: target.seasonNumber, name })

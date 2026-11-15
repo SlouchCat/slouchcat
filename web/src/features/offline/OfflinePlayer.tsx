@@ -5,7 +5,7 @@ import { useAudioControls } from '@/features/player/useAudioControls';
 import { seekBarTrickplay } from '@/features/player/useTrickplay';
 import { AriaButton, AudioPlayer, focusOnMount, type SeekBarTrickplay } from '@/ui/aria';
 import { offlineLoader } from './loader';
-import { OfflineVideo, type StoredSubtitle } from './OfflineVideo';
+import { OfflineVideo, type OfflineEpisodes, type StoredSubtitle } from './OfflineVideo';
 import { readFile, subtitleFile, trickplayFile } from './opfs';
 import { recordPlayback, storeRate, type OfflinePlayback, type PlaybackSample } from './playback';
 import { buildPlaylist } from './playlist';
@@ -55,6 +55,8 @@ interface OfflinePlayerProps {
   accent?: string;
   /** Audio downloads: the profile's speed to start with (resumeRate). */
   initialRate?: number;
+  /** Video downloads of an episode: the previous and the next episode (concept 23, stage 2). */
+  episodes?: OfflineEpisodes;
 }
 
 /**
@@ -111,6 +113,7 @@ export function OfflinePlayer({
   byline,
   accent,
   initialRate = 1,
+  episodes,
 }: OfflinePlayerProps) {
   const { t } = useTranslation();
   const audio = manifest.mimeType.startsWith('audio/');
@@ -629,6 +632,7 @@ export function OfflinePlayer({
       seekBy={seekBy}
       onBack={onBack}
       backTo={backTo}
+      episodes={episodes}
       data={{
         'data-engine': engine ?? undefined,
         'data-download-id': playback.downloadId,
