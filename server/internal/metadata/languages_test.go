@@ -103,7 +103,7 @@ func TestSettingsDefaultsParseAndValidate(t *testing.T) {
 	}
 	bad := DefaultSettings()
 	bad.ImageLangs["logo"] = []string{"de", "de"}
-	bad.RatingCountry = "FR"
+	bad.RatingCountry = "XX" // FR is a rating country since concept 22 stage 3
 	verr := bad.Validate()
 	if verr == nil || !hasFieldError(verr.Fields, "imageLangs.logo", "chain_duplicate") || !hasFieldError(verr.Fields, "ratingCountry", "country_unknown") {
 		t.Errorf("validate: %v", verr)

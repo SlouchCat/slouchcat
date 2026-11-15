@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -145,6 +146,9 @@ func (s *Service) Dashboard(ctx context.Context) (model.Dashboard, error) {
 	}
 	d.Attention = dashboardAttention(libs)
 	if d.Attention.RejectedKeys, err = s.rejectedKeys(ctx); err != nil {
+		return model.Dashboard{}, err
+	}
+	if err := s.ratingAttention(ctx, &d.Attention); err != nil {
 		return model.Dashboard{}, err
 	}
 	if d.Counts, err = s.dashboardCounts(ctx); err != nil {
@@ -508,4 +512,30 @@ func utcOrZero(t time.Time) time.Time {
 		return time.Time{}
 	}
 	return t.UTC()
+}
+
+// ratingAttention adds the two hints of concept 22 section 4.11: the one-time note that ratings
+// are minimum ages now (the setting migration 00064 leaves, until DismissMinimumAgeNotice) and
+// that the job «Freigaben neu lesen» is queued or running.
+func (s *Service) ratingAttention(ctx context.Context, a *model.DashboardAttention) error {
+	if _, err := s.read.GetSetting(ctx, model.SettingMinimumAgeNotice); err == nil {
+		a.MinimumAgeNotice = true
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("read %s: %w", model.SettingMinimumAgeNotice, err)
+	}
+	if _, err := s.sys.GetActiveJobIDByType(ctx, model.JobRatingsReread); err == nil {
+		a.RatingsRereading = true
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("check %s: %w", model.JobRatingsReread, err)
+	}
+	return nil
+}
+
+// DismissMinimumAgeNotice closes the one-time hint that ratings are minimum ages now (concept 22
+// section 4.11); closing it again is no error.
+func (s *Service) DismissMinimumAgeNotice(ctx context.Context) error {
+	if err := s.write.DeleteSetting(ctx, model.SettingMinimumAgeNotice); err != nil {
+		return fmt.Errorf("delete %s: %w", model.SettingMinimumAgeNotice, err)
+	}
+	return nil
 }

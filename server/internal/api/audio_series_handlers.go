@@ -30,7 +30,7 @@ func (s *server) ListAudioGroups(ctx context.Context, req gen.ListAudioGroupsReq
 	}
 	q := model.LibraryQuery{Genre: deref(p.Genre), YearFrom: deref(p.YearFrom), YearTo: deref(p.YearTo), MaxRating: -1}
 	if p.MaxRating != nil {
-		q.MaxRating = int(*p.MaxRating)
+		q.MaxRating = *p.MaxRating
 	}
 	for _, st := range deref(p.Status) {
 		q.Status = append(q.Status, string(st))

@@ -140,7 +140,7 @@ func TestAssignMatchAndRefresh(t *testing.T) {
 		t.Fatal(err)
 	}
 	r = e.item(t, idByTMDB)
-	if r.State != "matched" || r.TMDB.Int64 != 601 || r.IMDB.Valid || r.Rating.Int64 != 12 || r.Source.String != "tmdb:US" {
+	if r.State != "matched" || r.TMDB.Int64 != 601 || r.IMDB.Valid || r.Rating.Int64 != 13 || r.Source.String != "tmdb:US" {
 		t.Fatalf("after refresh %+v", r)
 	}
 	if tx := e.texts(t, idByTMDB); tx["en"].Overview.String != "English overview of Searched Film" || tx["en"].Title != "First" {

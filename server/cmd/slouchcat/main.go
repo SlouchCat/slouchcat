@@ -476,6 +476,11 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		if _, err := metaSvc.QueueOriginalLanguageBackfillOnce(ctx); err != nil && ctx.Err() == nil {
 			log.Warn("original language backfill not queued", "err", err)
 		}
+		// The ratings as minimum ages (concept 22 F-17, migration 00064): read anew once at the
+		// first start after the update; later every change of the rating country queues it.
+		if _, err := metaSvc.QueueRatingsRereadOnce(ctx); err != nil && ctx.Err() == nil {
+			log.Warn("ratings reread not queued", "err", err)
+		}
 		// Every audiobook without match once, at the first start with the automatic match on all
 		// (concept 19 D6.3, OD-4).
 		if _, err := metaSvc.QueueFirstBookMatches(ctx); err != nil && ctx.Err() == nil {

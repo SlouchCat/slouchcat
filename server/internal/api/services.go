@@ -46,6 +46,9 @@ type ProfileService interface {
 	UpdateProfile(ctx context.Context, session model.Session, id int64, in model.ProfileInput) (model.Profile, error)
 	// AvailableMetadataLanguages are the metadata languages a profile may choose (ADR 0018).
 	AvailableMetadataLanguages(ctx context.Context) ([]string, error)
+	// RatingSystem is the server's rating country with its steps (SessionInfo.ratingSystem,
+	// concept 22 section 4.11).
+	RatingSystem(ctx context.Context) (model.RatingSystem, error)
 	// DeleteProfile deletes a non-primary profile; end runs after the checks, before the delete.
 	DeleteProfile(ctx context.Context, session model.Session, id int64, end func(ctx context.Context, profileID int64) error) error
 	SetProfilePIN(ctx context.Context, session model.Session, id int64, pin string) error
@@ -293,6 +296,9 @@ type AdminService interface {
 	// FinishSetup: model.ErrLibraryRequired; the restart for a new transcode choice runs through
 	// RestartServer with accountID.
 	SetupPending(ctx context.Context) (bool, error)
+	// DismissMinimumAgeNotice closes the one-time hint that ratings are minimum ages now
+	// (concept 22 section 4.11).
+	DismissMinimumAgeNotice(ctx context.Context) error
 	SetupProgress(ctx context.Context) (model.SetupProgress, error)
 	UpdateSetupProgress(ctx context.Context, upd model.SetupProgressUpdate) (model.SetupProgress, error)
 	FinishSetup(ctx context.Context, accountID int64) (model.SetupFinished, error)

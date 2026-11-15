@@ -103,6 +103,7 @@ func toMetadataSettings(st model.MetadataSettings) gen.MetadataSettings {
 		}{Backdrop: st.ImageMinWidth["backdrop"], Poster: st.ImageMinWidth["poster"]},
 		ImageByVote: st.ImageByVote, LocalImages: st.LocalImages, RatingCountry: gen.MetadataSettingsRatingCountry(st.RatingCountry),
 		TmdbIncludeAdult: st.TMDBIncludeAdult, FanartEnabled: st.FanartEnabled, KnownLanguages: strs(st.KnownLanguages),
+		RatingSystems:  toRatingSystems(st.RatingSystems),
 		AffectedTitles: st.AffectedTitles, LocalImageTitles: st.LocalImageTitles,
 	}
 }
@@ -137,4 +138,12 @@ func strs(v []string) []string {
 		return []string{}
 	}
 	return v
+}
+
+func toRatingSystems(list []model.RatingSystem) []gen.RatingSystem {
+	out := make([]gen.RatingSystem, 0, len(list))
+	for _, rs := range list {
+		out = append(out, toRatingSystem(rs))
+	}
+	return out
 }

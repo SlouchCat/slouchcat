@@ -52,8 +52,14 @@ var tvdbStaticLangs = map[string]string{
 	"ca": "cat", "eu": "eus", "gl": "glg", "fa": "fas", "hi": "hin", "ta": "tam", "ms": "msa", "tl": "tgl",
 }
 
-// tvdbCountries maps TVDB's ISO 3166-1 alpha-3 rating countries to the AN-8 countries.
-var tvdbCountries = map[string]string{"deu": "DE", "aut": "AT", "che": "CH", "gbr": "GB", "usa": "US"}
+// tvdbCountries maps TVDB's ISO 3166-1 alpha-3 rating countries to every rating country of
+// model.RatingSystems (concept 22 section 4.11; before stage 3 the five of AN-8).
+var tvdbCountries = map[string]string{
+	"deu": "DE", "aut": "AT", "che": "CH", "gbr": "GB", "usa": "US", "fra": "FR", "esp": "ES", "ita": "IT",
+	"nld": "NL", "bel": "BE", "prt": "PT", "bra": "BR", "pol": "PL", "swe": "SE", "dnk": "DK", "nor": "NO",
+	"fin": "FI", "cze": "CZ", "hun": "HU", "tur": "TR", "rus": "RU", "ukr": "UA", "jpn": "JP", "kor": "KR",
+	"twn": "TW",
+}
 
 // tvdbProvider talks to the TVDB API v4. The API key (and the optional subscriber PIN) is sent
 // only in the body of POST /login; the returned bearer token is cached per key and renewed after

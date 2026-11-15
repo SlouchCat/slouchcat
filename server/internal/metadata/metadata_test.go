@@ -760,8 +760,8 @@ func TestMatchBySearchWithEnglishFallback(t *testing.T) {
 	if r.State != "matched" || r.TMDB.Int64 != 601 {
 		t.Fatalf("state %s tmdb %v, want matched 601 (first result within ±1 year)", r.State, r.TMDB)
 	}
-	if r.Rating.Int64 != 12 || r.Source.String != "tmdb:US" {
-		t.Fatalf("rating %v %v, want 12 tmdb:US", r.Rating, r.Source)
+	if r.Rating.Int64 != 13 || r.Source.String != "tmdb:US" {
+		t.Fatalf("rating %v %v, want 13 tmdb:US (PG-13, F-17)", r.Rating, r.Source)
 	}
 	de := e.texts(t, idBySearch)["de"]
 	if de.Title != "Searched Film" || de.Overview.String != "English overview of Searched Film" {

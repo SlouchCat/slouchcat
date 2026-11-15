@@ -93,7 +93,7 @@ func (s *server) ListLibraryItems(ctx context.Context, req gen.ListLibraryItemsR
 		q.Order = string(*p.Order)
 	}
 	if p.MaxRating != nil {
-		q.MaxRating = int(*p.MaxRating)
+		q.MaxRating = *p.MaxRating
 	}
 	for _, st := range deref(p.Status) {
 		q.Status = append(q.Status, string(st))
@@ -109,10 +109,7 @@ func (s *server) ListLibraryItems(ctx context.Context, req gen.ListLibraryItemsR
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	ratings := make([]gen.Rating, 0, len(page.Facets.Ratings))
-	for _, r := range page.Facets.Ratings {
-		ratings = append(ratings, gen.Rating(r))
-	}
+	ratings := append(make([]gen.Rating, 0, len(page.Facets.Ratings)), page.Facets.Ratings...)
 	letters := page.Facets.Letters
 	if letters == nil {
 		letters = []string{}
@@ -145,7 +142,7 @@ func libraryFilterProblems(genre *string, yearFrom, yearTo *int, maxRating *gen.
 	if y := yearTo; y != nil && (*y < minSearchYear || *y > maxSearchYear) {
 		verr = verr.Add("yearTo", "invalid_value")
 	}
-	if maxRating != nil && !maxRating.Valid() {
+	if maxRating != nil && !validAge(*maxRating) {
 		verr = verr.Add("maxRating", "invalid_value")
 	}
 	return verr
@@ -196,3 +193,7 @@ func (s *server) ListHomeRow(ctx context.Context, req gen.ListHomeRowRequestObje
 	}
 	return gen.ListHomeRow200JSONResponse(gen.ItemPage{Items: toItemRefList(session.Profile.ID, items), Total: total, Offset: offset, Limit: limit}), nil
 }
+
+// validAge reports whether a filter age lies within 0 to 18 (Rating, concept 22: the minimum ages
+// of every rating country, no longer the FSK steps alone).
+func validAge(age gen.Rating) bool { return age >= 0 && age <= model.MaxRatingAge }

@@ -29,7 +29,7 @@ const (
 	SettingImageMinPrefix   = "metadata.image_min_width."   // + poster|backdrop: number, 0 = any
 	SettingImageByVote      = "metadata.image_by_vote"      // "1"/"0"
 	SettingLocalImages      = "metadata.local_images"       // "1"/"0"
-	SettingRatingCountry    = "metadata.rating_country"     // DE, AT, CH, GB, US
+	SettingRatingCountry    = model.SettingRatingCountry    // a country of model.RatingCountries
 	SettingTMDBIncludeAdult = "metadata.tmdb_include_adult" // "1"/"0"
 	SettingFanartEnabled    = "metadata.fanart_enabled"     // "1"/"0"
 
@@ -169,7 +169,7 @@ func parseSettings(rows settingRows) (Settings, error) {
 	flag(SettingTMDBIncludeAdult, &s.TMDBIncludeAdult)
 	flag(SettingFanartEnabled, &s.FanartEnabled)
 	if raw, ok := rows[SettingRatingCountry]; ok {
-		if _, known := fskTables[raw]; known {
+		if model.IsRatingCountry(raw) {
 			s.RatingCountry = raw
 		} else {
 			errs = append(errs, fmt.Errorf("%s: unknown country %q", SettingRatingCountry, raw))
@@ -234,7 +234,7 @@ func (s Settings) Validate() *model.ValidationError {
 			verr = verr.Add("imageMinWidth."+k, "invalid_value")
 		}
 	}
-	if _, ok := fskTables[s.RatingCountry]; !ok {
+	if !model.IsRatingCountry(s.RatingCountry) {
 		verr = verr.Add("ratingCountry", "country_unknown")
 	}
 	return verr

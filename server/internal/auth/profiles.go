@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -22,7 +23,19 @@ const MaxProfiles = 10
 // tokens/color.json); the API schema Accent lists the same names.
 var Accents = []string{"ember", "coral", "amber", "lime", "teal", "sky", "violet", "rose"}
 
-var ratingLevels = []int{0, 6, 12, 16, 18}
+// RatingSystem returns the rating system of the server's rating country (concept 22 section
+// 4.11): profiles, accounts and invitations pick their ceiling from its steps. DE without the
+// setting.
+func (s *Service) RatingSystem(ctx context.Context) (model.RatingSystem, error) {
+	v, err := s.read.GetSetting(ctx, model.SettingRatingCountry)
+	if errors.Is(err, sql.ErrNoRows) {
+		return model.RatingSystemOf(model.DefaultRatingCountry), nil
+	}
+	if err != nil {
+		return model.RatingSystem{}, fmt.Errorf("read rating country: %w", err)
+	}
+	return model.RatingSystemOf(v), nil
+}
 
 func requirePrimary(session model.Session) error {
 	if !session.IsPrimary() {
@@ -104,7 +117,11 @@ func (s *Service) CreateProfile(ctx context.Context, session model.Session, in m
 	}
 	acc := session.Account
 	p := appq.InsertProfileParams{AccountID: acc.ID, MaxRating: int64(min(18, acc.MaxRating)), Language: session.Profile.Language, AllLibraries: 1}
-	verr := applyInput(acc, &p.Name, &p.MaxRating, &p.Language, &p.Accent, &p.AllLibraries, in)
+	rs, err := s.RatingSystem(ctx)
+	if err != nil {
+		return model.Profile{}, err
+	}
+	verr := applyInput(acc, rs, &p.Name, &p.MaxRating, &p.Language, &p.Accent, &p.AllLibraries, in)
 	libs, verr, err := s.libraryChoice(ctx, acc, p.AllLibraries == 1, in.LibraryIDs, verr)
 	if err != nil {
 		return model.Profile{}, err
@@ -197,7 +214,11 @@ func (s *Service) UpdateProfile(ctx context.Context, session model.Session, id i
 		Accent: row.Accent, AllLibraries: row.AllLibraries,
 		MaxBitrateKbps: row.MaxBitrateKbps, MaxHeight: row.MaxHeight, MaxStreams: row.MaxStreams, WatchLimitMinutes: row.WatchLimitMinutes,
 	}
-	verr := applyInput(acc, &p.Name, &p.MaxRating, &p.Language, &p.Accent, &p.AllLibraries, in)
+	rs, err := s.RatingSystem(ctx)
+	if err != nil {
+		return model.Profile{}, err
+	}
+	verr := applyInput(acc, rs, &p.Name, &p.MaxRating, &p.Language, &p.Accent, &p.AllLibraries, in)
 	prefs := prefsOf(row)
 	verr = applyPrefs(&prefs, in, verr)
 	p.AudioLanguages, p.SubtitleMode, p.SubtitleLanguages = prefColumns(prefs)
@@ -268,7 +289,10 @@ func (s *Service) UpdateProfile(ctx context.Context, session model.Session, id i
 
 // applyInput validates the scalar fields of in and writes the accepted values through the
 // pointers.
-func applyInput(acc model.Account, name *string, maxRating *int64, language *string,
+//
+// A ceiling is a step of the rating country rs, the profile's stored value or the account's
+// ceiling (section 4.11, «Prüfung»: a profile keeps its «ab 12» after a change of the country).
+func applyInput(acc model.Account, rs model.RatingSystem, name *string, maxRating *int64, language *string,
 	accent *sql.NullString, allLibraries *int64, in model.ProfileInput,
 ) *model.ValidationError {
 	var verr *model.ValidationError
@@ -285,7 +309,7 @@ func applyInput(acc model.Account, name *string, maxRating *int64, language *str
 	}
 	if in.MaxRating != nil {
 		switch {
-		case !slices.Contains(ratingLevels, *in.MaxRating):
+		case !rs.Allows(*in.MaxRating, int(*maxRating), acc.MaxRating):
 			verr = verr.Add("maxRating", "invalid_value")
 		case *in.MaxRating > acc.MaxRating:
 			verr = verr.Add("maxRating", "above_account_limit")

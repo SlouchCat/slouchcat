@@ -42,7 +42,7 @@ func (s *server) GetInvitation(ctx context.Context, req gen.GetInvitationRequest
 		return s.problem(ctx, err), nil
 	}
 	out := gen.InvitationPreview{
-		Note: optString(prev.Note), MaxRating: gen.Rating(prev.MaxRating), AllLibraries: prev.AllLibraries,
+		Note: optString(prev.Note), MaxRating: prev.MaxRating, AllLibraries: prev.AllLibraries,
 		ExpiresAt: prev.ExpiresAt.UTC(),
 		Libraries: make([]struct {
 			Id   int64  `json:"id"`
@@ -103,7 +103,7 @@ func (s *server) CreateInvitation(ctx context.Context, req gen.CreateInvitationR
 	}
 	b := deref(req.Body)
 	inv, err := svc.CreateInvitation(ctx, session.Account, model.InvitationRequest{
-		Note: deref(b.Note), MaxRating: int(b.MaxRating), AllLibraries: b.AllLibraries, LibraryIDs: deref(b.LibraryIds),
+		Note: deref(b.Note), MaxRating: b.MaxRating, AllLibraries: b.AllLibraries, LibraryIDs: deref(b.LibraryIds),
 	})
 	if err != nil {
 		return s.problem(ctx, err), nil
@@ -140,7 +140,7 @@ func (s *server) RevokeInvitation(ctx context.Context, req gen.RevokeInvitationR
 
 func toInvitation(inv model.Invitation) gen.Invitation {
 	out := gen.Invitation{
-		Id: inv.ID, Note: optString(inv.Note), State: gen.InvitationState(inv.State), MaxRating: gen.Rating(inv.MaxRating),
+		Id: inv.ID, Note: optString(inv.Note), State: gen.InvitationState(inv.State), MaxRating: inv.MaxRating,
 		AllLibraries: inv.AllLibraries, LibraryIds: nonNil(inv.LibraryIDs),
 		CreatedAt: inv.CreatedAt.UTC(), ExpiresAt: inv.ExpiresAt.UTC(), UsedAt: utc(inv.UsedAt),
 	}

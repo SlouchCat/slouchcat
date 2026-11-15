@@ -191,7 +191,7 @@ type Profile struct {
 	ID        int64
 	AccountID int64
 	Name      string
-	MaxRating int    // 0, 6, 12, 16, 18
+	MaxRating int    // minimum age 0 to 18, a step of the rating country (concept 22 section 4.11)
 	Language  string // de, en: the interface language
 	// MetadataLanguage is the language of the metadata the profile reads (ADR 0018), one of the
 	// server's available metadata languages; empty = like Language.
@@ -1609,6 +1609,7 @@ type MetadataSettings struct {
 	TMDBIncludeAdult bool
 	FanartEnabled    bool
 	KnownLanguages   []string
+	RatingSystems    []RatingSystem // every rating country with its steps (concept 22 section 4.11)
 	AffectedTitles   int
 	LocalImageTitles int
 }

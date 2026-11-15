@@ -12,8 +12,11 @@ import (
 // section 1). The admin service does the work; these handlers map between the
 // contract and the model.
 
-func (e serviceProblem) VisitGetSystemInfoResponse(w http.ResponseWriter) error  { return e.visit(w) }
-func (e serviceProblem) VisitGetDashboardResponse(w http.ResponseWriter) error   { return e.visit(w) }
+func (e serviceProblem) VisitGetSystemInfoResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitGetDashboardResponse(w http.ResponseWriter) error  { return e.visit(w) }
+func (e serviceProblem) VisitDismissMinimumAgeNoticeResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
 func (e serviceProblem) VisitRetryJobResponse(w http.ResponseWriter) error       { return e.visit(w) }
 func (e serviceProblem) VisitCancelJobResponse(w http.ResponseWriter) error      { return e.visit(w) }
 func (e serviceProblem) VisitGetUpdateStateResponse(w http.ResponseWriter) error { return e.visit(w) }
@@ -49,8 +52,10 @@ func (s *server) GetDashboard(ctx context.Context, _ gen.GetDashboardRequestObje
 		},
 		Browse: &gen.BrowseHealth{LostSlots: d.Browse.LostSlots, Slots: d.Browse.Slots},
 		Attention: gen.DashboardAttention{
-			AbortedScans: make([]gen.AbortedScan, 0, len(d.Attention.AbortedScans)),
-			RejectedKeys: append([]string{}, d.Attention.RejectedKeys...),
+			AbortedScans:     make([]gen.AbortedScan, 0, len(d.Attention.AbortedScans)),
+			RejectedKeys:     append([]string{}, d.Attention.RejectedKeys...),
+			MinimumAgeNotice: trueOrNil(d.Attention.MinimumAgeNotice),
+			RatingsRereading: trueOrNil(d.Attention.RatingsRereading),
 		},
 		Counts: gen.DashboardCounts{
 			Titles: d.Counts.Titles, Accounts: d.Counts.Accounts, MaintenanceOpen: d.Counts.MaintenanceOpen,
@@ -241,4 +246,19 @@ func toUpdateInstall(in model.UpdateInstall) gen.UpdateInstallStatus {
 		StartedAt: utc(in.StartedAt), FinishedAt: utc(in.FinishedAt), Migrated: in.Migrated,
 		Backup: optString(in.Backup), Code: optString(in.Code), Message: optString(in.Message),
 	}
+}
+
+func (s *server) DismissMinimumAgeNotice(ctx context.Context, _ gen.DismissMinimumAgeNoticeRequestObject) (gen.DismissMinimumAgeNoticeResponseObject, error) {
+	if err := s.opts.Admin.DismissMinimumAgeNotice(ctx); err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.DismissMinimumAgeNotice204Response{}, nil
+}
+
+// trueOrNil is a flag that the contract leaves out while it is false.
+func trueOrNil(v bool) *bool {
+	if !v {
+		return nil
+	}
+	return &v
 }

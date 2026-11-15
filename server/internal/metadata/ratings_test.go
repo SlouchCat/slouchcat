@@ -1,6 +1,10 @@
 package metadata
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/slouchcat/slouchcat/server/internal/model"
+)
 
 func rd(countries ...CountryReleases) ReleaseDates { return ReleaseDates{Results: countries} }
 
@@ -10,34 +14,110 @@ func country(code string, releases ...Release) CountryReleases {
 
 func theatrical(cert string) Release { return Release{Certification: cert, Type: 3} }
 
-// TestFSKTables checks every row of the AN-8 mapping, including the rounding up to the next
-// higher FSK step.
-func TestFSKTables(t *testing.T) {
+// TestCertificationAges checks every certificate string of every rating country (concept 22
+// section 4.11, F-17): the real minimum age, never rounded to an FSK step, with the spellings
+// TMDB and TVDB deliver ("FSK 16", "-12", "16+", "R15+", lower case, blanks).
+func TestCertificationAges(t *testing.T) {
 	t.Parallel()
-	cases := []struct {
-		country, cert string
-		want          int
-	}{
-		{"DE", "0", 0}, {"DE", "6", 6}, {"DE", "12", 12}, {"DE", "16", 16}, {"DE", "18", 18},
-		{"AT", "0", 0}, {"AT", "6", 6}, {"AT", "10", 12}, {"AT", "12", 12}, {"AT", "14", 16},
-		{"AT", "16", 16}, {"AT", "18", 18},
-		{"CH", "0", 0}, {"CH", "6", 6}, {"CH", "7", 12}, {"CH", "8", 12}, {"CH", "10", 12},
-		{"CH", "12", 12}, {"CH", "14", 16}, {"CH", "16", 16}, {"CH", "18", 18},
-		{"GB", "U", 0}, {"GB", "PG", 6}, {"GB", "12", 12}, {"GB", "12A", 12}, {"GB", "15", 16},
-		{"GB", "18", 18}, {"GB", "R18", 18},
-		{"US", "G", 0}, {"US", "PG", 6}, {"US", "PG-13", 12}, {"US", "R", 16}, {"US", "NC-17", 18},
-		{"US", "TV-Y", 0}, {"US", "TV-G", 0}, {"US", "TV-Y7", 6}, {"US", "TV-PG", 6},
-		{"US", "TV-14", 16}, {"US", "TV-MA", 18},
+	cases := map[string]map[string]int{
+		"DE": {"0": 0, "6": 6, "12": 12, "16": 16, "18": 18, "FSK 16": 16, "FSK-12": 12, "fsk 6": 6},
+		"AT": {"0": 0, "6": 6, "10": 10, "12": 12, "14": 14, "16": 16, "18": 18},
+		"CH": {"0": 0, "6": 6, "7": 7, "8": 8, "10": 10, "12": 12, "14": 14, "16": 16, "18": 18},
+		"GB": {"U": 0, "UC": 0, "PG": 6, "12": 12, "12A": 12, "15": 15, "18": 18, "R18": 18},
+		"US": {
+			"G": 0, "PG": 6, "PG-13": 13, "R": 17, "NC-17": 18,
+			"TV-Y": 0, "TV-G": 0, "TV-Y7": 7, "TV-Y7-FV": 7, "TV-PG": 6, "TV-14": 14, "TV-MA": 17, " pg-13 ": 13,
+		},
+		"FR": {"U": 0, "TP": 0, "Tous publics": 0, "10": 10, "12": 12, "16": 16, "18": 18, "-10": 10, "-12": 12, "-16": 16, "-18": 18},
+		"ES": {"A": 0, "APTA": 0, "TP": 0, "I": 0, "7": 7, "10": 10, "12": 12, "13": 13, "16": 16, "18": 18, "X": 18},
+		"IT": {"T": 0, "BA": 6, "6+": 6, "12": 12, "14+": 14, "VM14": 14, "18+": 18, "VM18": 18},
+		"NL": {"AL": 0, "6": 6, "9": 9, "12": 12, "14": 14, "16": 16, "18": 18},
+		"BE": {"AL": 0, "KT": 0, "EA": 0, "KT/EA": 0, "6": 6, "9": 9, "12": 12, "14": 14, "16": 16, "18": 18, "KNT": 16, "ENA": 16, "KNT/ENA": 16},
+		"PT": {
+			"Públicos": 0, "T": 0, "M/3": 3, "M/4": 4, "M/6": 6, "M/12": 12, "M/14": 14, "M/16": 16, "M/18": 18, "P": 18,
+			"10AP": 10, "12AP": 12, "16": 16, "18": 18,
+		},
+		"BR": {"L": 0, "AL": 0, "10": 10, "12": 12, "14": 14, "16": 16, "18": 18},
+		"PL": {"0": 0, "AL": 0, "BO": 0, "7": 7, "12": 12, "15": 15, "16": 16, "18": 18, "21": 18},
+		"SE": {"Btl": 0, "7": 7, "11": 11, "15": 15},
+		"DK": {"A": 0, "7": 7, "11": 11, "15": 15, "F": 15},
+		"NO": {"A": 0, "6": 6, "7": 7, "9": 9, "11": 11, "12": 12, "15": 15, "18": 18},
+		"FI": {"S": 0, "T": 0, "K-7": 7, "K7": 7, "K-12": 12, "K12": 12, "K-16": 16, "K16": 16, "K-18": 18, "K18": 18, "KK": 18},
+		"CZ": {"U": 0, "0+": 0, "12": 12, "12+": 12, "15": 15, "15+": 15, "18": 18, "18+": 18},
+		"HU": {"KN": 0, "Korhatár nélkül": 0, "6": 6, "12": 12, "16": 16, "18": 18, "X": 18},
+		"TR": {
+			"Genel İzleyici Kitlesi": 0, "Genel İzleyici": 0, "6A": 6, "7+": 7, "10A": 10, "13A": 13, "13+": 13,
+			"15+": 15, "16+": 16, "18+": 18,
+		},
+		"RU": {"0+": 0, "6+": 6, "12+": 12, "16+": 16, "18+": 18},
+		"UA": {"0": 0, "ЗА": 0, "12": 12, "16": 16, "18": 18},
+		"JP": {"G": 0, "PG12": 12, "R15+": 15, "R18+": 18},
+		"KR": {"All": 0, "ALL": 0, "7": 7, "12": 12, "15": 15, "18": 18, "19": 18, "Restricted Screening": 18},
+		"TW": {"0+": 0, "6+": 6, "12+": 12, "15+": 15, "18+": 18},
 	}
-	for _, tc := range cases {
-		got, src := FSKFromReleaseDates(rd(country(tc.country, theatrical(tc.cert))))
-		if got == nil || *got != tc.want || src != "tmdb:"+tc.country {
-			t.Errorf("%s %q = %v, %q; want %d, tmdb:%s", tc.country, tc.cert, deref(got), src, tc.want, tc.country)
+	if len(cases) != len(model.RatingCountries()) {
+		t.Fatalf("the test covers %d countries, the table has %d", len(cases), len(model.RatingCountries()))
+	}
+	for c, certs := range cases {
+		for cert, want := range certs {
+			got, from := ageFromCertifications(map[string]string{c: cert}, c)
+			if got == nil || *got != want || from != c {
+				t.Errorf("%s %q = %v from %q; want %d", c, cert, deref(got), from, want)
+			}
 		}
+	}
+	// TMDB's release dates of one country give its age and the source.
+	if got, src := AgeFromReleaseDates(rd(country("US", theatrical("PG-13")))); got == nil || *got != 13 || src != "tmdb:US" {
+		t.Errorf("US PG-13 from the release dates = %v %q, want 13 (F-17: no longer 12)", deref(got), src)
 	}
 }
 
-func TestFSKCountryOrderAndFallbacks(t *testing.T) {
+// Every rating country has a mapping, every mapped age lies within 0 to 18, every step of a
+// country but the ceiling 18 is reached by one of its certificates, and the steps rise.
+func TestRatingTableMatchesTheSystems(t *testing.T) {
+	t.Parallel()
+	if len(certificationAges) != len(model.RatingCountries()) {
+		t.Errorf("mapping for %d countries, %d rating systems", len(certificationAges), len(model.RatingCountries()))
+	}
+	for _, rs := range model.RatingSystems() {
+		ages, ok := certificationAges[rs.Country]
+		if !ok {
+			t.Errorf("%s has no certificate mapping", rs.Country)
+			continue
+		}
+		reached := map[int]bool{}
+		for cert, age := range ages {
+			if age < 0 || age > model.MaxRatingAge {
+				t.Errorf("%s %q = %d, outside 0..18", rs.Country, cert, age)
+			}
+			if cert != normalizeCertification(cert) {
+				t.Errorf("%s key %q is not normalised", rs.Country, cert)
+			}
+			reached[age] = true
+		}
+		for i, st := range rs.Steps {
+			if i > 0 && st.Age <= rs.Steps[i-1].Age {
+				t.Errorf("%s steps do not rise at %d", rs.Country, st.Age)
+			}
+			if st.Age != model.MaxRatingAge && !reached[st.Age] {
+				t.Errorf("%s step %d is reached by no certificate", rs.Country, st.Age)
+			}
+		}
+		if last := rs.Steps[len(rs.Steps)-1].Age; last != model.MaxRatingAge {
+			t.Errorf("%s ends with %d, not 18", rs.Country, last)
+		}
+	}
+	for alpha3, c := range tvdbCountries {
+		if !model.IsRatingCountry(c) {
+			t.Errorf("TVDB country %s maps to %s, no rating country", alpha3, c)
+		}
+	}
+	if len(tvdbCountries) != len(model.RatingCountries()) {
+		t.Errorf("TVDB knows %d countries, the table has %d", len(tvdbCountries), len(model.RatingCountries()))
+	}
+}
+
+func TestRatingCountryOrderAndFallbacks(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name    string
@@ -53,17 +133,17 @@ func TestFSKCountryOrderAndFallbacks(t *testing.T) {
 		{
 			name: "AT before CH, GB and US",
 			in:   rd(country("US", theatrical("G")), country("CH", theatrical("16")), country("AT", theatrical("14"))),
-			want: ptr(16), wantSrc: "tmdb:AT",
+			want: ptr(14), wantSrc: "tmdb:AT",
 		},
 		{
-			name: "CH 7 rounds up when DE and AT are missing",
+			name: "CH 7 stays 7 when DE and AT are missing (no rounding, F-17)",
 			in:   rd(country("CH", theatrical("7")), country("GB", theatrical("U"))),
-			want: ptr(12), wantSrc: "tmdb:CH",
+			want: ptr(7), wantSrc: "tmdb:CH",
 		},
 		{
 			name: "GB before US",
 			in:   rd(country("US", theatrical("PG-13")), country("GB", theatrical("15"))),
-			want: ptr(16), wantSrc: "tmdb:GB",
+			want: ptr(15), wantSrc: "tmdb:GB",
 		},
 		{
 			name: "unknown DE value skips to the next country",
@@ -86,7 +166,7 @@ func TestFSKCountryOrderAndFallbacks(t *testing.T) {
 			want: ptr(6), wantSrc: "tmdb:DE",
 		},
 		{
-			name: "countries outside the order are ignored",
+			name: "countries outside the fallback order are ignored when not chosen",
 			in:   rd(country("FR", theatrical("12")), country("NL", theatrical("6"))),
 			want: nil, wantSrc: "",
 		},
@@ -99,12 +179,12 @@ func TestFSKCountryOrderAndFallbacks(t *testing.T) {
 		{
 			name: "case and blanks are normalised",
 			in:   rd(country("us", theatrical(" pg-13 "))),
-			want: ptr(12), wantSrc: "tmdb:US",
+			want: ptr(13), wantSrc: "tmdb:US",
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, src := FSKFromReleaseDates(tc.in)
+			got, src := AgeFromReleaseDates(tc.in)
 			if deref(got) != deref(tc.want) || (got == nil) != (tc.want == nil) || src != tc.wantSrc {
 				t.Fatalf("got %v, %q; want %v, %q", deref(got), src, deref(tc.want), tc.wantSrc)
 			}

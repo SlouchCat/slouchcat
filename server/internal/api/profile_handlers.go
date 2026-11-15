@@ -87,7 +87,8 @@ func (s *server) SelectProfile(ctx context.Context, req gen.SelectProfileRequest
 			return s.problem(ctx, err), nil
 		}
 	}
-	return sessionSwitched{session: switched, update: s.updateNotice(ctx, switched), pending: s.setupPending(ctx, switched)}, nil
+	return sessionSwitched{session: switched, update: s.updateNotice(ctx, switched), pending: s.setupPending(ctx, switched),
+		rating: s.ratingSystem(ctx)}, nil
 }
 
 func (s *server) ListProfiles(ctx context.Context, _ gen.ListProfilesRequestObject) (gen.ListProfilesResponseObject, error) {
@@ -241,7 +242,7 @@ func ratingPtr(r *gen.Rating) *int {
 	if r == nil {
 		return nil
 	}
-	v := int(*r)
+	v := *r
 	return &v
 }
 

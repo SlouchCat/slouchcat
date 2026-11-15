@@ -13,6 +13,9 @@ export type ProfileUpdate = components['schemas']['ProfileUpdate'];
 export type Accent = components['schemas']['Accent'];
 export type Language = components['schemas']['Language'];
 export type Rating = components['schemas']['Rating'];
+// The rating country with its age steps (concept 22 section 4.11, contract 1.36.0).
+export type RatingSystem = components['schemas']['RatingSystem'];
+export type RatingStep = components['schemas']['RatingStep'];
 export type Integration = components['schemas']['Integration'];
 export type IntegrationCreated = components['schemas']['IntegrationCreated'];
 export type IntegrationEvent = components['schemas']['IntegrationEvent'];

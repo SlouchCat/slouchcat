@@ -685,7 +685,7 @@ func toItemRef(profileID int64, it model.ItemSummary) gen.ItemRef {
 		ref.Accent = &it.Accent
 	}
 	if it.Rating != nil {
-		r := gen.Rating(*it.Rating)
+		r := *it.Rating
 		ref.Rating = &r
 	}
 	if it.Progress != nil {
