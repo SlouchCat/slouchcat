@@ -1,0 +1,5683 @@
+{
+  "app": {
+    "name": "Slouchcat",
+    "tagline": "为你的家庭提供电影、剧集、有声书和播客。"
+  },
+  "common": {
+    "back": "返回",
+    "retry": "重试",
+    "cancel": "取消",
+    "loading": "正在加载…",
+    "close": "关闭",
+    "save": "保存",
+    "saving": "正在保存…"
+  },
+  "nav": {
+    "main": "主导航",
+    "home": "首页",
+    "logout": "退出登录",
+    "skip": "跳到内容",
+    "profiles": "个人资料",
+    "playback": "设置",
+    "switchProfile": "切换个人资料，当前为 {{name}}",
+    "downloads": "下载",
+    "search": "搜索",
+    "watchlist": "我的片单",
+    "notifications": "通知",
+    "admin": "管理",
+    "update": "更新",
+    "adminUpdateLabel": "管理，有可用更新：版本 {{version}}",
+    "searchOpen": "打开搜索",
+    "menu": "菜单",
+    "menuClose": "关闭菜单",
+    "libraries": "我的媒体",
+    "libraryLabel_other": "{{name}}，{{count}} 部作品",
+    "radioCount_other": "{{count}} 个电台",
+    "radioLabel_other": "{{name}}，{{count}} 个电台",
+    "collections": "合集",
+    "collectionsLabel_other": "{{name}}，{{count}} 个合集",
+    "librariesOffline": "离线：媒体库不可用",
+    "librariesOfflineLink": "前往下载",
+    "hideSidebar": "隐藏侧边栏",
+    "showSidebar": "显示侧边栏",
+    "radio": "广播",
+    "watched": "已观看",
+    "account": "账户",
+    "switchProfileShort": "切换",
+    "switchProfileCard": "切换个人资料，当前为 {{name}}",
+    "profileRole": {
+      "other": "其他个人资料",
+      "primary": "主个人资料",
+      "admin": "服务器管理员"
+    }
+  },
+  "system": {
+    "server": {
+      "checking": "正在检查与服务器的连接…",
+      "online": "服务器可访问",
+      "offline": "无法访问服务器",
+      "version": "版本 {{version}}"
+    },
+    "gpu": {
+      "encoder": "视频编码",
+      "tonemap": "HDR 转 SDR",
+      "ffmpeg": "ffmpeg",
+      "backend": {
+        "nvenc": "NVIDIA NVENC",
+        "qsv": "Intel Quick Sync (QSV)",
+        "vaapi": "VA-API",
+        "software": "处理器（软件）"
+      },
+      "tonemapper": {
+        "cuda": "GPU 上的 CUDA",
+        "placebo": "GPU 上的 libplacebo",
+        "vpp_qsv": "GPU 上的 Intel VPP",
+        "vaapi": "GPU 上的 VA-API",
+        "cpu": "处理器"
+      },
+      "detected": "已检测到 GPU：Slouchcat 使用 GPU 转码视频。",
+      "none": {
+        "title": "未检测到 GPU",
+        "body": "Slouchcat 使用处理器转码视频。如果主机有 GPU，请用对应的 Compose 文件将其传入容器，然后重启 Slouchcat：",
+        "unknown": "容器内看不到 GPU。如果主机有 GPU，请用其厂商对应的 Compose 文件将其传入容器，然后重启 Slouchcat："
+      },
+      "vendor": {
+        "nvidia": "NVIDIA",
+        "intel": "Intel",
+        "amd": "AMD"
+      },
+      "command": "{{vendor}} 的 Compose 命令"
+    },
+    "fs": {
+      "config": "文件系统 /config",
+      "cache": "文件系统 /cache",
+      "unknown": "未知"
+    },
+    "inotify": {
+      "limit": "inotify 上限",
+      "usage": "监视的文件夹",
+      "usageValue": "{{used}} / {{limit}}（{{percent}}%）",
+      "unknown": "未知",
+      "warn": {
+        "title": "inotify 上限不足",
+        "body": "Slouchcat 会监视媒体库的每个文件夹。请在宿主机上提高上限，而不是在容器内。要让设置在重启后保留，还需将该值写入 /etc/sysctl.d/。"
+      },
+      "command": "inotify 上限命令"
+    },
+    "copy": {
+      "action": "复制",
+      "done": "命令已复制。",
+      "failed": "无法复制。命令已选中，请按 Ctrl+C 复制。"
+    }
+  },
+  "errors": {
+    "page": {
+      "title": "暂时无法访问 Slouchcat",
+      "body": "服务器没有响应。请检查容器是否在运行，然后重试。",
+      "offline": "打开离线媒体库"
+    },
+    "code": {
+      "invalid_credentials": "电子邮件地址或密码错误。",
+      "library_path_invalid": "服务器上不存在此文件夹，或无法读取。请输入容器内的绝对路径。",
+      "path_not_browsable": "此文件夹未开放。只能使用已开放的媒体文件夹（SLOUCHCAT_BROWSE_ROOTS）下的文件夹。",
+      "path_unreachable": "文件夹没有响应。请检查网络共享是否仍已挂载。",
+      "browse_busy": "文件夹浏览器正忙，请稍后重试。",
+      "tmdb_key_invalid": "TMDB 拒绝了此密钥。请检查读取访问令牌。",
+      "tmdb_unreachable": "暂时无法访问 TMDB。请重试，或将此字段留空。",
+      "setup_done": "Slouchcat 已完成初始设置，请登录。",
+      "not_found": "未找到。",
+      "unauthenticated": "会话已过期，请重新登录。",
+      "forbidden": "此账户无权执行此操作。",
+      "csrf_header_missing": "出于安全原因，请求被拒绝。请刷新页面。",
+      "validation_failed": "请检查标出的字段。",
+      "channel_unavailable": "服务器上未设置此渠道。",
+      "channel_disabled": "此渠道已关闭或尚未连接。",
+      "event_not_allowed": "只有主用户会收到错误报告。",
+      "send_failed": "消息未发送：服务拒绝了它或没有响应。",
+      "push_unavailable": "服务器上未设置 Web Push。",
+      "network": "无法访问服务器。",
+      "unknown": "出了点问题，请重试。",
+      "transcode_busy": "服务器繁忙，请稍后重试。",
+      "pin_required": "此个人资料受 PIN 码保护。",
+      "pin_invalid": "PIN 码错误。",
+      "pin_locked": "PIN 码错误次数过多，请稍后重试。",
+      "profile_required": "请先选择个人资料。",
+      "primary_profile_required": "只有此账户的主个人资料可以执行此操作。",
+      "primary_profile": "无法删除主个人资料。",
+      "invitation_gone": "此邀请链接已失效。",
+      "too_many_attempts": "尝试次数过多。请稍等片刻再试。",
+      "too_many_requests": "列表在一分钟内刚获取过。请稍等片刻再试。",
+      "provider_not_configured": "此提供商尚未设置。请在服务器配置中添加其密钥。",
+      "watch_limit_reached": "此个人资料今天的观看时长已用完。",
+      "stream_limit_reached": "此个人资料的串流数量已达上限。",
+      "device_required": "此会话无法识别该设备，请重新登录。",
+      "not_downloadable": "此作品无法下载。",
+      "download_not_ready": "服务器仍在准备下载。",
+      "download_evicted": "准备好的文件已不在服务器上，正在重新准备。",
+      "feed_unreachable": "无法访问订阅源。请检查地址后重试。",
+      "feed_invalid": "此地址没有 RSS 播客订阅源。",
+      "feed_exists": "此媒体库已订阅该订阅源。",
+      "rating_below_library_default": "年龄分级不能低于媒体库的默认值。",
+      "not_listable": "季和花絮无法加入我的片单。",
+      "not_editable": "来自 TMDB 的合集无法更改。",
+      "env_wins": "此值已在 deploy/.env 中设置，只能在那里更改。",
+      "telegram_token_invalid": "Telegram 拒绝了此令牌。请检查 @BotFather 提供的令牌。",
+      "telegram_unreachable": "暂时无法访问 Telegram，请重试。",
+      "email_not_configured": "尚未设置电子邮件服务器。",
+      "email_send_failed": "邮件服务器未接受此邮件。",
+      "job_not_failed": "此任务并未失败。",
+      "update_check_disabled": "更新检查已关闭。",
+      "rank_taken": "列表中已有其他条目占用此位置。",
+      "radio_capacity": "服务器转发的电台数量已达上限。请收听已在播放的电台，或稍后再试。",
+      "radio_unreachable": "暂时无法访问此电台。",
+      "radio_not_audio": "此电台没有 Slouchcat 可以播放的音频。",
+      "radio_catalog_loading": "电台目录正在加载，马上就好。",
+      "email_taken": "此电子邮件地址已属于其他账户。",
+      "passphrase_required": "请输入密码短语。",
+      "passphrase_too_short": "密码短语太短：至少 12 个字符。",
+      "passphrase_wrong": "密码短语错误。",
+      "backup_invalid": "此文件不是有效的 Slouchcat 备份，或已损坏。",
+      "backup_newer_than_server": "此备份来自更新版本的 Slouchcat。请先更新服务器。",
+      "restart_pending": "服务器即将重启。请等待它再次响应。",
+      "backup_busy": "正在进行备份或恢复。完成后请重试。",
+      "update_running": "正在安装更新，请等待完成。",
+      "announcement_published": "此公告已发布，无法再更改。",
+      "scan_running": "此媒体库正在扫描。请等待扫描完成，或将其取消。",
+      "confirm_mismatch": "输入内容与要移除的内容不符。未删除任何内容。",
+      "owner_required": "只有所有者可以执行此操作。",
+      "owner_protected": "所有者的账户既不能移除，也不能降级。",
+      "last_admin": "这是最后一位管理员。请先任命另一位。",
+      "admin_limits_fixed": "管理员始终可以看到所有媒体库中最高 18 岁分级的内容。请先撤销该角色。",
+      "job_type_not_runnable": "此任务不能手动运行，它由事件触发。",
+      "job_type_paused": "此任务已暂停，请先恢复。",
+      "job_type_not_scheduled": "此任务没有计划。",
+      "job_type_not_windowable": "此任务没有时间窗口。",
+      "provider_unreachable": "暂时无法访问该来源，请稍后重试。",
+      "provider_paused": "该来源多次拒绝请求，已暂停。请稍后重试。",
+      "offer_conflict": "上架电台在此期间已更改，请重新应用。",
+      "root_not_writable": "播客文件夹未通过文件夹检查，Slouchcat 无法在其中保存单集。",
+      "root_required": "此媒体库没有可供 Slouchcat 保存单集的播客文件夹。",
+      "playing": "有人正在播放其中一部作品。播放结束后才能删除。",
+      "playing_named": "{{names}} 正在播放其中一部作品。播放结束后才能删除，未删除任何内容。",
+      "files_not_deletable": "此作品的某个文件无法删除。未删除任何内容。",
+      "not_deletable": "此作品无法删除。",
+      "deleting": "正在删除。",
+      "changed": "内容在此期间有变化，请重新检查。"
+    },
+    "field": {
+      "required": "必填。",
+      "too_short": "太短。",
+      "too_long": "太长。",
+      "invalid_email": "不是有效的电子邮件地址。",
+      "invalid": "无效的值。",
+      "not_absolute": "请输入绝对路径，以 / 开头。",
+      "password_too_short": "至少 10 个字符。",
+      "password_mismatch": "两次输入的密码不一致。",
+      "above_account_limit": "超出此账户的上限。",
+      "unknown_library": "此媒体库不存在。",
+      "too_many_profiles": "每个账户最多 10 个个人资料。",
+      "already_exists": "此电子邮件地址已被使用。",
+      "pin_format": "PIN 码为 4 到 8 位数字。",
+      "not_burnable": "此字幕轨道无法烧录。",
+      "invalid_url": "请输入以 http:// 或 https:// 开头的地址。",
+      "library_kind": "请选择播客媒体库。",
+      "unknown_item": "此作品不存在。",
+      "root_overlap": "此文件夹与另一个文件夹重叠。",
+      "path_with_content": "新路径不能与内容类型更改同时进行。",
+      "root_files_missing": "新路径下找不到该文件夹原有的任何文件。",
+      "content_not_allowed": "此内容与媒体库类型不符。",
+      "providers_not_allowed": "此内容不允许使用这组元数据来源。",
+      "roots_required": "至少需要一个文件夹。",
+      "provider_not_searchable": "此处无法搜索该来源。",
+      "local_address": "此地址位于局域网。自定义电台也必须来自互联网。",
+      "not_own": "只有自定义电台才能更改此项。",
+      "not_matched": "此有声书未匹配到任何来源。",
+      "not_found": "该来源中没有此条目。"
+    }
+  },
+  "setup": {
+    "title": "欢迎使用 Slouchcat",
+    "intro": "只需四个简单步骤，Slouchcat 就会扫描你的第一个媒体库。",
+    "step": "第 {{step}} 步",
+    "account": {
+      "title": "管理员账户",
+      "description": "你将用此账户管理 Slouchcat。",
+      "email": "电子邮件地址",
+      "password": "密码",
+      "passwordHint": "至少 10 个字符。",
+      "passwordRepeat": "再次输入密码"
+    },
+    "library": {
+      "title": "第一个媒体库",
+      "description": "之后可以添加更多媒体库。",
+      "name": "名称",
+      "defaultName": "电影",
+      "kind": "内容",
+      "path": "文件夹",
+      "pathPlaceholder": "/media/电影",
+      "roots": "已开放的文件夹：",
+      "check": "检查文件夹",
+      "checking": "正在检查…",
+      "warning": {
+        "network_share": {
+          "title": "检测到网络共享",
+          "body": "Slouchcat 无法立即发现此文件夹中的更改，而是通过定期同步来获取。若要新作品立即出现，建议使用来自 Radarr 和 Sonarr 的 Webhook。"
+        },
+        "fuse_unknown": {
+          "title": "未知的文件系统",
+          "body": "FUSE 文件系统（例如 mergerfs 或 Unraid）不会报告所有更改。Slouchcat 会监视该文件夹，并定期同步。"
+        }
+      },
+      "content": "内容",
+      "providers": "元数据来源"
+    },
+    "tmdb": {
+      "title": "来自 TMDB 的元数据（可选）",
+      "description": "使用 themoviedb.org 的读取访问令牌，Slouchcat 可以获取简介、海报和年龄分级。没有密钥时，标题取自文件名。",
+      "link": "在 themoviedb.org 上创建令牌",
+      "label": "API 读取访问令牌",
+      "hint": "加密存储，之后不再显示。",
+      "check": "检查密钥",
+      "checking": "正在检查…",
+      "result": {
+        "valid": "有效：TMDB 已接受此密钥。",
+        "invalid": "无效：TMDB 拒绝了此密钥。请检查读取访问令牌。",
+        "unreachable": "无法访问：TMDB 暂时没有响应。请重试，或将此字段留空。"
+      }
+    },
+    "submit": "完成设置",
+    "submitting": "正在设置…",
+    "system": {
+      "title": "GPU 和文件系统",
+      "description": "Slouchcat 在容器内检测到的情况。此处无需输入，提示针对的是宿主机。",
+      "missing": "服务器未提供硬件信息。"
+    }
+  },
+  "login": {
+    "title": "登录",
+    "intro": "使用你的 Slouchcat 账户登录。",
+    "email": "电子邮件地址",
+    "password": "密码",
+    "submit": "登录",
+    "submitting": "正在登录…"
+  },
+  "library": {
+    "groups": {
+      "title": "系列和合集",
+      "series_other": "{{count}} 个系列",
+      "collections_other": "{{count}} 个合集",
+      "volumes_other": "{{count}} 册",
+      "matchingVolumes_other": "{{matching}} / {{count}} 册",
+      "books_other": "{{count}} 部有声书",
+      "matchingBooks_other": "{{matching}} / {{count}} 部有声书",
+      "collection": "合集",
+      "heard": "已收听 {{completed}} / {{count}}"
+    },
+    "editMetadata": "{{title}}：编辑元数据",
+    "kind": {
+      "video": "视频",
+      "audiobooks": "有声书",
+      "podcasts": "播客"
+    },
+    "defaultRating": "默认年龄分级",
+    "defaultRatingHint": "适用于此媒体库中的所有作品。之后只能为单个作品设置更严格的分级。",
+    "podcastsHint": "文件夹可选：也可以在“播客”中订阅不带文件夹的订阅源。",
+    "browse": {
+      "title": "选择文件夹",
+      "open": "浏览…",
+      "apply": "OK",
+      "list": "此目录中的文件夹",
+      "upOneLevel": "上一级",
+      "roots": "已开放的文件夹",
+      "empty": "此文件夹没有子文件夹。",
+      "emptyRoots": "没有已开放的文件夹。请将 {{name}} 设为容器的媒体文件夹，然后重启服务器。",
+      "truncated": "此文件夹中的条目非常多。仅显示前 50,000 个，其余的请直接输入路径访问。",
+      "symlink": "符号链接，不扫描",
+      "closedRoot": "未开放，仅显示",
+      "notReadable": "无法读取此文件夹。请检查容器内的权限。",
+      "notDirectory": "这不是文件夹。",
+      "inLibrary": "属于媒体库 {{name}}",
+      "folder": "文件夹",
+      "goTo": "前往",
+      "notUnderRoot": "此路径不在任何可浏览的文件夹下，因此列表保持不变。点击“OK”仍会采用它；提交表单时由服务器判断是否可用。可浏览的文件夹由 {{name}} 决定。"
+    },
+    "provider": {
+      "tmdb": "TMDB",
+      "tvdb": "TVDB",
+      "anilist": "AniList",
+      "local": "本地文件",
+      "audible": "Audible",
+      "dnb": "德国国家图书馆",
+      "applebooks": "Apple Books",
+      "openlibrary": "Open Library",
+      "googlebooks": "Google Books"
+    },
+    "content": {
+      "title": "内容",
+      "hint": "电影为单个文件，剧集放在季文件夹中。",
+      "movie": "电影",
+      "series": "剧集",
+      "audiobook": "有声书",
+      "podcast": "播客",
+      "all": "全部"
+    },
+    "providers": {
+      "title": "元数据来源",
+      "chain": " › ",
+      "identifies": "识别作品",
+      "fills": "补充",
+      "cannotIdentifyChip": "无法识别",
+      "moveUpLabel": "上移 {{provider}}",
+      "moveDownLabel": "下移 {{provider}}",
+      "noKey": "未配置密钥",
+      "noGerman": "不提供德语文本",
+      "fillOnly": "仅补充",
+      "hint": "第一项用于识别作品，其余各项仅作补充。可用箭头按钮或方向键调整顺序。",
+      "hintRank": "第一项用于识别作品，其余各项仅作补充。通过位置选择顺序。",
+      "required": "请至少勾选一个来源。",
+      "cannotIdentify": "{{provider}} 无法识别作品。请将 {{identifiers}} 放在首位。",
+      "fixedHint": "此内容目前只有这一个来源。",
+      "defaultHint": "默认设置；初始设置完成后，可在“媒体库”中更改此列表。"
+    },
+    "roots": {
+      "title": "文件夹",
+      "number": "文件夹 {{number}}",
+      "addFirst": "添加文件夹",
+      "addMore": "再添加一个文件夹",
+      "remove": "移除",
+      "removeLabel": "移除文件夹 {{number}}",
+      "empty": "还没有文件夹。",
+      "emptyPodcasts": "还没有文件夹。播客媒体库可以不设文件夹，其作品将来自订阅源。",
+      "overlap": "文件夹 {{number}} 与上方的某个文件夹重叠。",
+      "providers": "文件夹 {{number}}：{{message}}",
+      "submit_other": "添加媒体库（{{count}} 个文件夹）",
+      "submitNone": "添加媒体库（无文件夹）",
+      "addSubmit_other": "添加 {{count}} 个文件夹"
+    },
+    "videoHint": "此媒体库的文件夹可以包含电影或剧集，也可以混合存放。",
+    "page": {
+      "count_other": "{{count}} {{noun}}",
+      "filtered": "{{text}} · 已筛选",
+      "sort": "排序",
+      "direction": "顺序：",
+      "ascending": "↑ 升序",
+      "descending": "↓ 降序",
+      "filter": "筛选",
+      "filterCount": "筛选（{{count}}）",
+      "apply": "应用",
+      "clear": "重置",
+      "emptyFilters": "没有符合这些筛选条件的内容",
+      "pageFailed": "部分列表无法加载。",
+      "noun": {
+        "video_other": "部作品",
+        "audiobooks_other": "部有声书",
+        "podcasts_other": "个播客"
+      }
+    },
+    "sort": {
+      "title": "标题",
+      "added": "最近添加",
+      "released": "发行年份",
+      "vote": "评分",
+      "runtime": "时长",
+      "age": "年龄分级",
+      "played": "最近观看",
+      "author": "作者"
+    },
+    "status": {
+      "unwatched": "未观看",
+      "started": "已开始",
+      "watched": "已观看",
+      "unheard": "未收听",
+      "heard": "已收听"
+    },
+    "letters": {
+      "label": "首字母",
+      "other": "数字或符号"
+    },
+    "filters": {
+      "genre": "类型",
+      "allGenres": "所有类型",
+      "status": "状态",
+      "year": "年份",
+      "yearFrom": "起始年份",
+      "yearTo": "结束年份",
+      "rating": "年龄分级",
+      "anyRating": "个人资料上限",
+      "upTo": "最高 {{age}}"
+    },
+    "notFound": {
+      "title": "未找到媒体库",
+      "body": "此媒体库不存在，或没有适合此个人资料的作品。"
+    }
+  },
+  "home": {
+    "list": {
+      "count_other": "{{count}} 部作品",
+      "empty": "此列表中没有作品。",
+      "notFound": {
+        "title": "未找到列表",
+        "body": "此列表目前不存在，例如因为焦点推荐已关闭。"
+      }
+    },
+    "title": "首页",
+    "picks": "用户推荐",
+    "myMedia": {
+      "stations_other": "{{count}} 个电台",
+      "discover": "发现电台",
+      "collections_other": "{{count}} 个合集",
+      "titles_other": "{{count}} 部作品"
+    },
+    "rows": {
+      "continue": "继续观看",
+      "recent": "最近添加",
+      "watchlist": "我的片单",
+      "collections": "合集",
+      "genres": "类型",
+      "spotlight": "焦点推荐",
+      "released": "最新上映",
+      "libraries": "我的媒体",
+      "library": "{{library}} 新增",
+      "radio": "我的电台"
+    },
+    "remaining": "剩余 {{time}}",
+    "continue": {
+      "episode": "第 {{season}} 季 第 {{episode}} 集",
+      "episodeRange": "第 {{season}} 季 第 {{episode}}–{{end}} 集",
+      "new": "新"
+    },
+    "empty": {
+      "title": "这里还没有内容",
+      "body": "媒体库扫描完成后，你的电影就会显示在这里。",
+      "action": "查看媒体库"
+    },
+    "spotlight": {
+      "row": "焦点推荐作品",
+      "pause": "暂停",
+      "resume": "继续"
+    }
+  },
+  "ui": {
+    "carousel": {
+      "roledescription": "轮播",
+      "slide": "幻灯片",
+      "position": "第 {{index}} 个，共 {{count}} 个"
+    },
+    "row": {
+      "previous": "向后翻",
+      "next": "向前翻"
+    },
+    "adminPage": {
+      "help": "此页面的帮助",
+      "live_other": "实时，每 {{count}} 秒更新"
+    },
+    "actionMenu": {
+      "label": "{{name}} 的更多操作",
+      "danger": "危险操作"
+    },
+    "rank": {
+      "label": "{{name}} 的位置",
+      "option": "第 {{position}} 位",
+      "hintMove": "其他条目会依次顺移。",
+      "hintSwap": "所选位置上的条目将与此条目互换。"
+    },
+    "rankedChoice": {
+      "hint": "选择已在其他位置的条目时，两者会互换位置。",
+      "swapped": "{{a}} 和 {{b}} 已互换位置。",
+      "remove": "移除 {{rank}}（{{choice}}）"
+    },
+    "saveBar": {
+      "dirty": "有未保存的更改",
+      "clean": "已保存",
+      "save": "保存",
+      "saving": "正在保存…",
+      "discard": "放弃"
+    },
+    "unsaved": {
+      "title": "要离开有未保存更改的页面吗？",
+      "body": "此页面上有尚未保存的更改。离开页面后，这些更改将会丢失。",
+      "leave": "放弃并离开",
+      "stay": "留在此页"
+    },
+    "weekdays": {
+      "short": {
+        "mon": "周一",
+        "tue": "周二",
+        "wed": "周三",
+        "thu": "周四",
+        "fri": "周五",
+        "sat": "周六",
+        "sun": "周日"
+      },
+      "long": {
+        "mon": "星期一",
+        "tue": "星期二",
+        "wed": "星期三",
+        "thu": "星期四",
+        "fri": "星期五",
+        "sat": "星期六",
+        "sun": "星期日"
+      }
+    },
+    "heatGrid": {
+      "day": "星期",
+      "hour": "{{hour}}:00",
+      "less": "少",
+      "more": "多",
+      "none": "无",
+      "noneShown": "–"
+    }
+  },
+  "item": {
+    "editMetadata": "编辑元数据",
+    "play": "播放",
+    "details": "详情",
+    "watched": "已观看 {{percent}}%",
+    "originalTitle": "原标题：{{title}}",
+    "notFound": {
+      "title": "未找到作品",
+      "body": "此作品不存在或已被移除。",
+      "action": "返回首页"
+    },
+    "file": {
+      "title": "文件",
+      "container": "容器",
+      "resolution": "分辨率",
+      "video": "视频",
+      "audio": "音频",
+      "size": "大小",
+      "version": "版本",
+      "unavailable": "不可用",
+      "none": "此作品目前没有可用的文件。"
+    },
+    "manage": "管理",
+    "trailer": "预告片",
+    "seriesLink": "前往剧集",
+    "parentLink": "前往主作品",
+    "nextEpisode": "下一集",
+    "nextEpisodeLabel": "{{code}} · {{title}}",
+    "episodeCode": "S{{season}}E{{episode}}",
+    "episodeCodeRange": "S{{season}}E{{episode}}–E{{end}}",
+    "episodeNumberRange": "{{episode}}–{{end}}",
+    "episodeOf": "{{code}} · {{series}}",
+    "docTitle": {
+      "season": "{{title}} – {{series}}",
+      "episode": "{{code}} {{title}} – {{series}}",
+      "podcastEpisode": "{{title}} – {{podcast}}"
+    },
+    "versions": "版本",
+    "extras": "花絮",
+    "cast": {
+      "title": "演员",
+      "role": {
+        "director": "导演",
+        "writer": "编剧",
+        "creator": "创作者"
+      }
+    },
+    "seasons": "季",
+    "seasonWall": {
+      "showAll": "显示全部 {{total}} 季",
+      "showLess": "收起"
+    },
+    "episodes": {
+      "title": "剧集列表",
+      "empty": "没有单集。",
+      "play": "播放",
+      "details": "详情：{{title}}",
+      "playTitle": "播放：{{title}}",
+      "resumeTitle": "继续观看：{{title}}"
+    },
+    "resumeChoice": {
+      "bodyEpisode": "你已开始观看这一集。",
+      "bodyPodcastEpisode": "你已开始收听这一集。",
+      "bodyMovie": "你已开始观看这部电影。",
+      "resume": "从 {{time}} 继续观看",
+      "resumeListening": "从 {{time}} 继续收听",
+      "restart": "从头播放"
+    },
+    "listened": "已收听 {{percent}}%",
+    "audio": {
+      "by": "作者：{{author}}",
+      "narratedBy": "演播：{{narrator}}",
+      "volume": "{{series}} · 第 {{volume, number}} 册",
+      "chapters": "章节",
+      "chapterPlay": "从 {{time}} 播放 {{title}}"
+    },
+    "podcast": {
+      "episodes": "单集",
+      "empty": "没有单集。",
+      "link": "前往播客",
+      "play": "播放 {{title}}"
+    },
+    "watchlist": {
+      "add": "加入片单",
+      "added": "已在片单中"
+    },
+    "recommend": {
+      "add": "推荐",
+      "done": "已推荐 ✓",
+      "hint": "面向所有可以观看此作品的个人资料，不显示你的名字",
+      "added_other": "已加入用户推荐，保留 {{count}} 天。",
+      "removed": "已撤回推荐。"
+    },
+    "logoAlt": "{{title}}",
+    "action": {
+      "resume": "继续",
+      "resumeListening": "继续收听",
+      "again": "重新观看",
+      "againListening": "重新收听",
+      "resumeAt": "播放至 {{time}} · 剩余 {{left}}",
+      "watchedOn": "观看于 {{date}}",
+      "listenedOn": "收听于 {{date}}",
+      "restart": "从头播放"
+    },
+    "nextUp": {
+      "start": "播放",
+      "resume": "继续观看",
+      "next": "下一集",
+      "rewatch": "重新观看",
+      "episode": "{{code}} · {{title}}",
+      "left": "{{episode}} · 剩余 {{left}}",
+      "rewatchFrom": "已全部看完 · 从 {{episode}} 开始",
+      "markNext": "接下来",
+      "markResume": "继续观看"
+    },
+    "season": {
+      "episodes_other": "{{count}} 集",
+      "watched": "已看 {{count}} 集",
+      "progress": "已看 {{count}} / {{total}} 集"
+    },
+    "collection": {
+      "showAll": "显示全部",
+      "showAllLabel": "显示全部：{{name}}"
+    }
+  },
+  "rating": {
+    "fsk": "FSK {{age}}"
+  },
+  "format": {
+    "hours": "{{hours}} 小时",
+    "minutes": "{{minutes}} 分钟",
+    "hoursMinutes": "{{hours}} 小时 {{minutes}} 分钟",
+    "resolution": "{{width}} × {{height}}",
+    "resolutionWithClass": "{{resolution}} · {{class}}",
+    "uhd": "4K",
+    "fhd": "1080p",
+    "hd": "720p",
+    "sd": "SD",
+    "height": "{{height}}p",
+    "separator": " · ",
+    "seconds": "{{seconds}} 秒",
+    "or": " 或 ",
+    "listSeparator": "、",
+    "bookLength": "{{hours}} 小时 {{minutes}} 分钟"
+  },
+  "player": {
+    "region": "视频播放器",
+    "loading": "正在加载…",
+    "busy": {
+      "title": "服务器繁忙",
+      "body": "即将重试…"
+    },
+    "play": "播放",
+    "pause": "暂停",
+    "fullscreen": "全屏",
+    "exitFullscreen": "退出全屏",
+    "back": "返回",
+    "seek": "播放进度",
+    "time": "{{elapsed}} / {{total}}",
+    "volume": "音量 {{percent}}%",
+    "unsupported": {
+      "title": "无法播放此格式",
+      "body": "此浏览器无法播放该格式。",
+      "details": "文件：{{container}}，视频 {{video}}，音频 {{audio}}"
+    },
+    "error": {
+      "title": "无法播放",
+      "body": "无法加载文件。"
+    },
+    "switching": "正在切换…",
+    "streamInfo": {
+      "title": "串流信息",
+      "mode": "模式",
+      "modeDirect": "直接",
+      "modeHls": "HLS",
+      "transcoding": "转换",
+      "remux": "Remux",
+      "transcode": "转码",
+      "reason": "原因",
+      "reasons": {
+        "container": "容器",
+        "video_codec": "视频编解码器",
+        "audio_codec": "音频编解码器",
+        "hdr": "HDR 视频",
+        "pixel_format": "像素格式（10 位、4:2:2 或 4:4:4）",
+        "keyframes_pending": "关键帧索引尚未建立",
+        "keyframes_unavailable": "无法建立关键帧索引",
+        "dolby_vision": "Dolby Vision（配置文件 5 或 7）",
+        "bandwidth": "带宽限制",
+        "max_height": "画质限制",
+        "quality": "所选画质",
+        "audio_track": "所选音轨",
+        "subtitle_burn": "烧录字幕",
+        "budget_lowered": "服务器繁忙，已降低画质"
+      },
+      "mediaFile": "文件 ID",
+      "version": "版本",
+      "container": "容器",
+      "video": "视频",
+      "audio": "音频",
+      "resolution": "分辨率",
+      "none": "–",
+      "encoder": "编码器",
+      "hardware": "硬件（{{backend}}）",
+      "software": "软件",
+      "tonemap": "色调映射",
+      "yes": "是",
+      "no": "否",
+      "quality": "画质",
+      "original": "原画",
+      "output": "输出",
+      "bitrate": "码率",
+      "audioTrack": "音轨",
+      "subtitle": "字幕",
+      "delivery": "字幕方式",
+      "deliveryText": "文本（WebVTT）",
+      "deliveryBurn": "烧录"
+    },
+    "tracks": {
+      "audio": "音频",
+      "subtitles": "字幕",
+      "off": "关闭",
+      "unknown": "轨道 {{n}}",
+      "forced": "强制",
+      "external": "外部",
+      "rememberSeries": "为此剧集记住",
+      "makeDefault": "设为此个人资料的默认值",
+      "isDefault": "{{language}} 是此个人资料的默认语言。",
+      "madeDefault": "{{language}} 已设为此个人资料的默认语言。",
+      "forcedBitmap": "有强制字幕（将烧录）"
+    },
+    "quality": {
+      "auto": "自动",
+      "autoWith": "自动（{{quality}}）",
+      "autoOriginal": "自动 · 当前为原画",
+      "original": "原画",
+      "detail": "{{bitrate}} · 每小时约 {{size}}",
+      "unavailableBurn": "字幕将烧录",
+      "unavailableIndex": "索引尚未建立",
+      "unavailableNoIndex": "无法建立索引",
+      "unavailableTranscode": "只能转码播放",
+      "remembered": "已记住：{{quality}}",
+      "rememberedNote": "高于 {{quality}} 的作品将被转码。",
+      "reset": "重置"
+    },
+    "chapters": {
+      "button": "章节",
+      "untitled": "第 {{n}} 章",
+      "item": "{{title}} · {{time}}",
+      "auto": "自动",
+      "progress": "已观看 {{percent}}%"
+    },
+    "skipIntro": "跳过片头",
+    "skipOutro": "跳过片尾",
+    "next": {
+      "title": "下一集",
+      "countdown_other": "{{count}} 秒后开始",
+      "play": "立即观看",
+      "cancel": "取消",
+      "announce_other": "下一集：{{name}}。{{count}} 秒后开始。"
+    },
+    "watchLimit": {
+      "title": "今天的观看时长已用完",
+      "body_other": "此个人资料每天可观看 {{count}} 分钟。明天见。",
+      "bodyUnknown": "此个人资料已达到每日上限。明天见。",
+      "used_other": "今天已观看：{{count}} 分钟。"
+    },
+    "streamLimit": {
+      "title": "同时播放的串流过多",
+      "body_other": "此个人资料最多可同时播放 {{count}} 个串流。请停止其他播放后重试。",
+      "bodyUnknown": "此个人资料的串流数量已达上限。请停止其他播放后重试。",
+      "active_other": "正在播放 {{count}} 个串流。"
+    },
+    "ended": {
+      "title": "播放已结束",
+      "body": "播放已被结束。"
+    },
+    "audioRegion": "音频播放器",
+    "audio": {
+      "back15": "后退 15 秒",
+      "forward30": "前进 30 秒",
+      "previousChapter": "上一章",
+      "nextChapter": "下一章",
+      "chapterLine": "{{title}} · {{position}} / {{length}}",
+      "rate": "{{rate}}×",
+      "rateOsd": "速度 {{rate}}",
+      "speedButton": "速度：{{rate}}",
+      "slower": "减速",
+      "faster": "加速",
+      "minus": "−0.1",
+      "plus": "+0.1",
+      "sleep": {
+        "button": "睡眠定时",
+        "buttonActive": "睡眠定时：剩余 {{left}}",
+        "short": "定时",
+        "off": "关闭",
+        "minutes_other": "{{count}} 分钟",
+        "chapter": "本章结束时",
+        "end": "作品结束时",
+        "set": "睡眠定时：{{label}}",
+        "cancelled": "睡眠定时已关闭",
+        "done": "睡眠定时已结束"
+      }
+    },
+    "volumeControl": {
+      "mute": "静音",
+      "slider": "音量",
+      "boosted": "音量 {{percent}}%，已增强，可能失真",
+      "percent": "{{percent}}%"
+    },
+    "option": {
+      "default": "默认",
+      "forced": "强制",
+      "sdh": "SDH",
+      "burnIn": "图形字幕，将烧录",
+      "convert": "串流将重建"
+    },
+    "subtitleStyle": {
+      "title": "字幕样式",
+      "size": {
+        "title": "大小",
+        "s": "小",
+        "m": "中",
+        "l": "大",
+        "xl": "特大"
+      },
+      "background": {
+        "title": "背景",
+        "none": "无",
+        "shadow": "阴影",
+        "translucent": "半透明",
+        "box": "底框"
+      },
+      "color": {
+        "title": "颜色",
+        "white": "白色",
+        "yellow": "黄色"
+      },
+      "position": {
+        "title": "位置",
+        "bottom": "底部",
+        "raised": "稍高"
+      },
+      "offset": {
+        "title": "偏移",
+        "earlier": "提前 0.1 秒",
+        "later": "延后 0.1 秒",
+        "value": "{{seconds}} 秒",
+        "reset": "重置"
+      }
+    },
+    "settings": {
+      "title": "设置",
+      "quality": "画质",
+      "version": "版本",
+      "speed": "速度",
+      "subtitleStyle": "字幕样式",
+      "sound": "声音选项",
+      "nightMode": "夜间模式",
+      "nightModeOn": "夜间模式已开启",
+      "nightModeHint": "小声处更响，大声处更轻：适合深夜观看。",
+      "rateValue": "{{rate}}×",
+      "streamInfo": "串流信息",
+      "chapters": "章节",
+      "buttonWithQuality": "设置 · {{quality}}"
+    },
+    "panel": {
+      "audioButton": "音频：{{language}}",
+      "subtitleButton": "字幕：{{language}}",
+      "moreLanguages": "更多语言（{{count}}）"
+    },
+    "chrome": {
+      "toolbar": "播放",
+      "previousChapter": "上一章",
+      "nextChapter": "下一章",
+      "nextEpisode": "下一集",
+      "back10": "后退 10 秒",
+      "forward30": "前进 30 秒",
+      "pictureInPicture": "画中画",
+      "exitPictureInPicture": "退出画中画",
+      "help": "键盘快捷键",
+      "timeElapsed": "{{elapsed}} / {{total}}",
+      "timeRemaining": "−{{remaining}} · {{end}} 结束",
+      "lineChapter": "{{title}} · {{chapter}}",
+      "episodeLine": "{{code}} · {{title}}",
+      "filmLine": "{{year}} · {{genres}}",
+      "rate": "速度 {{rate}}×",
+      "muted": "已静音",
+      "previousEpisode": "上一集",
+      "forward10": "前进 10 秒",
+      "options": "选项",
+      "view": "时间和视图",
+      "tapBack": "−{{seconds}} 秒",
+      "tapForward": "+{{seconds}} 秒"
+    },
+    "tabs": {
+      "label": "关于此作品",
+      "next": "接下来",
+      "info": "信息"
+    },
+    "pauseView": {
+      "label": "已暂停",
+      "paused": "已暂停",
+      "chapter": "章节：{{chapter}}"
+    },
+    "slow": {
+      "label": "网络较慢",
+      "text": "网络较慢，要切换到 {{quality}} 吗？",
+      "switch": "切换到 {{quality}}",
+      "dismiss": "暂不"
+    },
+    "help": {
+      "title": "键盘快捷键",
+      "rows": {
+        "play": {
+          "keys": "Space, K, Enter",
+          "action": "播放或暂停"
+        },
+        "seek": {
+          "keys": "← →",
+          "action": "后退或前进 10 秒"
+        },
+        "chapter": {
+          "keys": "⇧← ⇧→",
+          "action": "上一章或下一章"
+        },
+        "volume": {
+          "keys": "↑ ↓",
+          "action": "调高或调低音量"
+        },
+        "zones": {
+          "keys": "↑ ↓（在控制栏中）",
+          "action": "在进度条、按钮行和标签页之间切换；← → 在按钮、标签页和卡片之间逐个移动"
+        },
+        "mute": {
+          "keys": "M",
+          "action": "静音或取消静音"
+        },
+        "jump": {
+          "keys": "0–9",
+          "action": "跳转到 0% 至 90%"
+        },
+        "speed": {
+          "keys": "[ ]",
+          "action": "减速或加速（0.5× 至 2×）"
+        },
+        "tracks": {
+          "keys": "T",
+          "action": "音频"
+        },
+        "subtitles": {
+          "keys": "U",
+          "action": "字幕"
+        },
+        "chapters": {
+          "keys": "C",
+          "action": "章节标签页"
+        },
+        "quality": {
+          "keys": "Q",
+          "action": "画质"
+        },
+        "fullscreen": {
+          "keys": "F",
+          "action": "全屏"
+        },
+        "info": {
+          "keys": "I",
+          "action": "串流信息"
+        },
+        "skip": {
+          "keys": "S",
+          "action": "跳过片头"
+        },
+        "next": {
+          "keys": "N",
+          "action": "下一集"
+        },
+        "help": {
+          "keys": "?",
+          "action": "此帮助"
+        },
+        "back": {
+          "keys": "Escape, Backspace",
+          "action": "关闭面板、帮助和串流信息（在齿轮菜单中：返回上一级），否则返回详情页",
+          "actionOfflineDownloads": "关闭面板、帮助和标签页（在齿轮菜单中：返回上一级），否则返回下载",
+          "actionOfflineLibrary": "关闭面板、帮助和标签页（在齿轮菜单中：返回上一级），否则返回离线媒体库"
+        }
+      }
+    }
+  },
+  "admin": {
+    "radio": {
+      "title": "广播",
+      "intro": "网络电台的电台目录、正在进行的转发和设置。电台看到的是 Slouchcat 服务器而不是设备，因此以服务器所在地为准。Slouchcat 只会将音频转发给此安装中已登录的个人资料；对某个电台而言这样做是否允许，由此安装的运营者负责。",
+      "strip": {
+        "label": "概览",
+        "catalog": "目录中",
+        "catalogNote_other": "共 {{count}} 个条目",
+        "reachable": "可访问",
+        "reachableNote": "占目录条目",
+        "live": "正在直播",
+        "liveValue": "{{relays}} · {{listeners}}",
+        "liveNote": "电台 · 听众",
+        "offer": "已上架",
+        "offerValue": "{{stations}} · {{countries}}",
+        "offerNote": "电台 · 国家"
+      },
+      "memory": {
+        "title": "没有内存缓冲",
+        "body": "没有内存缓冲：广播只能直播，无法时移。缓冲需要在容器中使用 Compose 文件中的 tmpfs。"
+      },
+      "tabs": {
+        "label": "分区",
+        "overview": "概览",
+        "stations": "电台",
+        "settings": "设置",
+        "own": "自定义电台",
+        "offer": "上架"
+      },
+      "catalog": {
+        "title": "目录",
+        "source": "来源",
+        "sourceValue": "Radio Browser (radio-browser.info)",
+        "lastSync": "上次同步",
+        "never": "从未",
+        "lastSyncValue": "{{date}}：{{entries}} 个条目，{{reachable}} 个可访问，{{added}} 个新增，{{removed}} 个已移除",
+        "stations": "合并后的电台",
+        "error": "上次同步的错误",
+        "failures_other": "连续失败 {{count}} 次",
+        "nextRun": "下次运行",
+        "notPlanned": "未计划",
+        "running": "同步已排队或正在进行。",
+        "sync": "立即同步",
+        "syncQueued": "同步已排队。",
+        "jobs": "前往后台任务"
+      },
+      "relays": {
+        "title": "直播转发",
+        "empty": "当前没有转发。",
+        "transcoded": "已转码",
+        "copied": "已重新封装",
+        "buffer": "缓冲 {{time}}",
+        "since": "自 {{time}} 起",
+        "listeners": "听众",
+        "noListeners": "已无听众，将短暂继续运行。",
+        "paused": "已暂停",
+        "playing": "正在收听",
+        "state": {
+          "connecting": "正在连接",
+          "live": "直播中",
+          "reconnecting": "正在重新连接",
+          "ending": "正在结束",
+          "failed": "转发故障"
+        },
+        "stop": {
+          "label": "停止 {{profile}} 的收听",
+          "action": "停止",
+          "title": "要停止 {{profile}} 的收听吗？",
+          "body": "此个人资料对 {{station}} 的播放将立即结束。",
+          "confirm": "停止"
+        },
+        "stopped": "{{profile}} 的收听已停止。"
+      },
+      "load": {
+        "title": "服务器负载",
+        "relays": "电台",
+        "relaysValue": "{{count}} / {{max}}",
+        "upload": "上传",
+        "buffer": "缓冲",
+        "bufferValue": "{{used}} / {{budget}}"
+      },
+      "stations": {
+        "caption": "电台",
+        "search": "搜索电台",
+        "country": "国家",
+        "state": "状态",
+        "allCountries": "所有国家",
+        "anyState": "全部",
+        "states": {
+          "reachable": "可访问",
+          "broken": "无法访问",
+          "noLogo": "无台标"
+        },
+        "columns": {
+          "station": "电台",
+          "place": "国家",
+          "genres": "类型",
+          "state": "状态",
+          "marks": "例外",
+          "actions": "操作",
+          "provider": "提供商"
+        },
+        "stateText": {
+          "ok": "可访问",
+          "broken": "无法访问",
+          "missing": "已不在目录中"
+        },
+        "locked_other": "{{count}} 个字段为手动设置",
+        "recommended": "推荐",
+        "edit": "编辑",
+        "editLabel": "编辑 {{name}}",
+        "empty": "未找到电台。",
+        "count_other": "{{count}} 个电台",
+        "provider": "提供商",
+        "providerFilter": "按提供商 {{provider}} 筛选",
+        "sort": "排序",
+        "sorts": {
+          "popularity": "热度",
+          "name": "名称 A–Z"
+        },
+        "wholeCatalog": "显示完整目录",
+        "removeUnreachable_other": "移除无法访问的电台（{{n}}）",
+        "removeUnreachableHelp": "将当前所有无法访问的电台下架，收藏和自定义电台除外。它们不会自动恢复。",
+        "removedUnreachable_other": "{{count}} 个无法访问的电台已下架。",
+        "undo": "撤销",
+        "undone": "这些电台已重新上架。",
+        "takeOut": "下架",
+        "takeOutLabel": "下架 {{name}}",
+        "takeIn": "上架",
+        "takeInLabel": "上架 {{name}}",
+        "takenOut": "{{name}} 已下架。",
+        "takenIn": "{{name}} 已上架。",
+        "streamsEmpty": "没有串流。",
+        "streamPreferred": "首选",
+        "streamUnreachable": "无法访问",
+        "streamHls": "HLS",
+        "providerHelp": "完整域名，例如 srg-ssr.ch。",
+        "details": {
+          "action": "信息",
+          "label": "{{name}} 的信息",
+          "title": "{{name}} 的信息",
+          "source": "来源：{{source}}",
+          "fields": {
+            "name": "名称",
+            "country": "国家",
+            "region": "地区",
+            "languages": "语言",
+            "homepage": "网站",
+            "logo": "台标",
+            "provider": "提供商",
+            "owner": "所有者",
+            "founded": "成立时间",
+            "wikidataId": "Wikidata ID"
+          },
+          "sources": {
+            "catalog": "目录（Radio Browser）",
+            "own": "自定义电台",
+            "admin": "手动设置",
+            "stream": "串流",
+            "website": "电台网站",
+            "wikidata": "Wikidata"
+          },
+          "logoPresent": "已有",
+          "noWikidata": "Wikidata 中没有与此电台唯一匹配的条目：无所有者、无成立时间。",
+          "wikidataOfferOnly": "Wikidata 只为已上架的电台补充信息。",
+          "streams": "串流",
+          "close": "关闭"
+        }
+      },
+      "settings": {
+        "title": "设置",
+        "buffer": "时移",
+        "bufferHelp": "听众最多可以回退多久。预算不变时，60 分钟会使电台数量减半。",
+        "minutes_other": "{{count}} 分钟",
+        "newRelays": "适用于此后新启动的转发。",
+        "budget": "缓冲预算（MB）",
+        "budgetHelp": "所有缓冲共用的内存。",
+        "maxRelays": "电台上限",
+        "maxRelaysHelp_other": "按当前时移设置，预算可支持 {{count}} 个电台。",
+        "grace": "无听众时继续运行（秒）",
+        "graceHelp": "最后一位听众离开后，转发继续运行的时长。",
+        "rights": "电台看到的是 Slouchcat 服务器而不是设备，因此以服务器所在地为准。Slouchcat 只会将音频转发给此安装中已登录的个人资料；对某个电台而言这样做是否允许，由此安装的运营者负责。",
+        "saved": "设置已保存。",
+        "coverMusicbrainz": "通过 MusicBrainz 查找封面",
+        "coverMusicbrainzHelp": "在 MusicBrainz 和 Cover Art Archive 中查找正在播放曲目的封面，仅在正在播放的电台切换曲目时进行，且每秒最多一次。",
+        "coverItunes": "通过 iTunes 查找封面",
+        "coverItunesHelp": "MusicBrainz 找不到时查询 iTunes 搜索，每分钟最多 20 次请求。电台自身发送的图片始终优先。",
+        "wikidata": "使用 Wikidata",
+        "wikidataHelp": "每周一次从 Wikidata 为已上架的电台补充所有者和成立时间，所有者将作为提供商。关闭后，服务器会立即删除这些信息。"
+      },
+      "editor": {
+        "close": "关闭",
+        "name": "名称",
+        "logo": "台标",
+        "logoUpload": "上传自定义台标",
+        "logoReset": "恢复使用目录或网站的台标",
+        "logoTooLarge": "文件大于 20 MB。",
+        "logoState": {
+          "none": "尚未查找",
+          "queued": "正在查找",
+          "catalog": "来自目录",
+          "website": "来自网站",
+          "own": "自定义台标",
+          "failed": "未找到台标，使用首字母"
+        },
+        "region": "地区",
+        "regionHelp": "ISO 代码，例如 CH-ZH。留空：无地区。",
+        "stream": "串流",
+        "streamAuto": "自动（最佳串流）",
+        "unreachable": "无法访问",
+        "probe": "检查串流",
+        "probeResult": "{{codec}}，{{bitrate}} kbit/s，{{sampleRate}} Hz，{{channels}} 声道，{{ms}} ms 后响应",
+        "probeTitles": "曲目信息：有",
+        "probeNoTitles": "曲目信息：无",
+        "probeTitle": "当前曲目：{{title}}",
+        "recommended": "推荐",
+        "recommendedHelp": "在所属国家中排在前面（“热门”排序）。",
+        "tags": "来自目录的标签",
+        "lock": "锁定 {{field}}",
+        "locked": "已锁定",
+        "free": "未锁定",
+        "lockHelp": "每日同步不会覆盖已锁定的字段。",
+        "save": "保存",
+        "saved": "{{name}} 已保存。"
+      },
+      "own": {
+        "title": "自定义电台",
+        "help": "目录中没有的电台，例如社区电台或体育场电台。同步不会更改它们。",
+        "add": "添加自定义电台",
+        "empty": "还没有自定义电台。",
+        "created": "已添加 {{name}}。",
+        "deleted": "已删除 {{name}}。",
+        "delete": "删除",
+        "deleteLabel": "删除 {{name}}",
+        "deleteTitle": "要删除 {{name}} 吗？",
+        "deleteBody": "此电台将从所有个人资料中消失，包括“我的电台”。正在收听的人会被断开。",
+        "editorHelp": "自定义电台：可在此更改串流地址、网站、国家和语言。",
+        "columns": {
+          "stream": "串流地址"
+        },
+        "fields": {
+          "name": "名称",
+          "streamUrl": "串流地址",
+          "streamUrlHelp": "直接地址或播放列表（.pls、.m3u），由服务器解析。不允许使用局域网地址。",
+          "homepage": "网站",
+          "homepageHelp": "可选；服务器会从那里获取台标。",
+          "country": "国家",
+          "countryHelp": "ISO 代码，例如 CH。留空：无国家。",
+          "languages": "语言",
+          "languagesHelp": "ISO 代码，用逗号分隔，例如 de, fr。",
+          "none": "无"
+        },
+        "create": {
+          "title": "添加自定义电台",
+          "description": "目录中没有的电台。可以像其他电台一样筛选。",
+          "submit": "添加"
+        }
+      },
+      "empty": {
+        "title": "还没有上架的电台",
+        "body": "在“上架”标签页中选择并应用国家之前，广播页面不会显示任何电台。",
+        "action": "前往上架"
+      },
+      "offerFacts": {
+        "title": "上架",
+        "open": "编辑上架电台",
+        "countries": "已选国家",
+        "stations": "已上架电台",
+        "unreachable": "其中无法访问",
+        "withLogo": "有台标"
+      },
+      "offer": {
+        "countries": {
+          "title": "国家",
+          "note_other": "已选 {{chosen}} / {{total}} 个国家"
+        },
+        "search": "搜索国家",
+        "searchHelp": "名称或国家代码，例如“瑞士”或 CH。",
+        "noHits": "未找到国家。",
+        "hits_other": "{{count}} 个结果",
+        "hitsCaption": "找到的国家",
+        "continents": {
+          "label": "按大洲列出所有国家。点击大洲可展开其国家；再次点击或按 Escape 可收起。",
+          "heading": "按大洲"
+        },
+        "continent": {
+          "europe": "欧洲",
+          "northAmerica": "北美洲和中美洲",
+          "southAmerica": "南美洲",
+          "asia": "亚洲",
+          "africa": "非洲",
+          "oceania": "大洋洲"
+        },
+        "continentCountries_other": "{{count}} 个国家",
+        "continentStations_other": "{{n}} 个电台",
+        "continentChosen_other": "已选 {{count}} 个",
+        "countryCaption": "{{continent}}的国家",
+        "chooseAll": "全选",
+        "removeAll": "全部取消",
+        "chooseCountry": "选择 {{country}}",
+        "columns": {
+          "choose": "已选",
+          "tick": "已上架",
+          "country": "国家",
+          "stations": "电台",
+          "actions": "操作"
+        },
+        "chosen": {
+          "title": "已选国家",
+          "empty": "还没有选择国家。请在上方搜索国家或展开一个大洲。",
+          "count": "{{offered}} / {{total}} 个电台",
+          "open": "选择电台",
+          "close": "收起电台",
+          "openLabel": "选择 {{country}} 的电台",
+          "closeLabel": "收起 {{country}} 的电台",
+          "remove": "移除国家",
+          "removeLabel": "移除 {{country}}"
+        },
+        "stations": {
+          "title": "{{country}} 的电台",
+          "count": "已上架 {{offered}} / {{total}} 个",
+          "modeAll": "此国家的所有电台均已上架，取消标记的除外。此国家的新电台会自动加入。",
+          "modeMarked": "只有已标记的电台会上架。此国家的新电台不会自动加入。",
+          "search": "搜索电台",
+          "markAll": "全部标记",
+          "demarkAll": "全部取消标记",
+          "markShown_other": "标记显示的电台（{{count}}）",
+          "demarkShown_other": "取消标记显示的电台（{{count}}）",
+          "mark": "上架 {{name}}",
+          "broken": "无法访问",
+          "empty": "未找到电台。"
+        },
+        "summary": {
+          "title": "已上架",
+          "offered": "已上架电台",
+          "unreachable": "其中无法访问",
+          "countries": "已选国家",
+          "marked": "已标记电台",
+          "hideBroken": "不显示无法访问的电台",
+          "hideBrokenHelp": "无法访问的电台不会出现在应用的列表中。一旦它们恢复响应就会重新出现；已收藏的电台会保留。"
+        },
+        "bar": {
+          "label": "应用上架设置",
+          "clean": "上架电台没有更改。",
+          "same": "选择有变化，电台数量不变。",
+          "added_other": "将新增 {{n}} 个电台。",
+          "removed_other": "将减少 {{n}} 个电台。",
+          "conflict": "上架电台在此期间已更改。预览已重新计算，请检查后再次应用。",
+          "applied": "已应用。广播页面会立即显示新的上架电台。服务器正在后台加载台标和其他信息。",
+          "discard": "放弃",
+          "apply": "应用",
+          "applying": "正在应用…",
+          "computing": "正在计算预览…",
+          "previewFailed": "无法计算预览。"
+        },
+        "limit": "草稿已达到 {{max}} 步的上限。请先应用或放弃，再继续更改。"
+      }
+    },
+    "editor": {
+      "close": "关闭",
+      "openAdmin": "在管理中打开",
+      "discard": {
+        "title": "要放弃未保存的更改吗？",
+        "body": "你对元数据的更改尚未保存。关闭编辑器后，这些更改将会丢失。",
+        "confirm": "放弃并关闭",
+        "cancel": "继续编辑"
+      },
+      "subtitle": "{{kind}} · {{library}}",
+      "notFound": "此作品不存在或已被移除。",
+      "tabs": {
+        "label": "编辑器分区",
+        "images": "图片",
+        "cover": "封面",
+        "metadata": "元数据",
+        "match": "匹配",
+        "refresh": "刷新"
+      },
+      "images": {
+        "kinds": "图片类型",
+        "kindName": {
+          "still": "单集剧照",
+          "cover": "封面"
+        },
+        "state": {
+          "auto": "自动 · {{provider}}",
+          "locked": "已选择 · 已锁定",
+          "missing": "缺失"
+        },
+        "kindState": "{{kind}}，{{state}}",
+        "current": "当前：{{source}}",
+        "currentNone": "当前：无图片",
+        "own": "自定义图片",
+        "embedded": "内嵌图片",
+        "upload": {
+          "action": "上传自定义图片",
+          "hint": "JPEG、PNG 或 WebP，最大 20 MB。服务器会自动生成各种尺寸，且不会重新获取已上传的图片。",
+          "done": "{{kind}}：自定义图片已上传并锁定。",
+          "failed": "上传失败",
+          "error": {
+            "tooLarge": "文件大于 20 MB。",
+            "format": "这不是 JPEG、PNG 或 WebP 图片，或文件已损坏。",
+            "pixels": "图片超过 5000 万像素。",
+            "missing": "未收到文件，请重新选择。",
+            "kind": "无法为此作品上传这种类型的图片。"
+          }
+        },
+        "automatic": "恢复自动",
+        "candidates": "提供商的建议",
+        "candidatesBook": "文件夹和文件中的图片",
+        "filter": {
+          "provider": "提供商",
+          "lang": "语言",
+          "all": "全部"
+        },
+        "count_other": "{{count}} 张图片",
+        "chooseHint": "点击即可选择图片：立即生效，并保持锁定，直到你将其恢复为自动。",
+        "stillsOff": "此媒体库已关闭单集剧照。可在管理中的“元数据”下开启。",
+        "stillsOffLink": "前往元数据设置",
+        "noKinds": "此作品没有可用的图片类型。"
+      },
+      "metadata": {
+        "intro": "在此更改的内容会锁定该字段：“刷新”将不再覆盖它。点击锁图标即可解除锁定。",
+        "lang": "文本适用于 {{language}}；其他语言仍由服务器从提供商获取。",
+        "langBook": "文本适用于此书的所有语言行。",
+        "field": {
+          "title": "标题",
+          "originalTitle": "原标题",
+          "sortTitle": "排序标题",
+          "year": "年份",
+          "releaseDate": "发行日期",
+          "tagline": "宣传语",
+          "subtitle": "副标题",
+          "overview": "简介",
+          "genres": "类型",
+          "rating": "年龄分级",
+          "language": "原始语言",
+          "author": "作者",
+          "narrator": "演播者",
+          "seriesName": "系列",
+          "seriesIndex": "册",
+          "publisher": "出版社",
+          "isbn": "ISBN",
+          "asin": "ASIN"
+        },
+        "source": "来自 {{provider}}",
+        "fromFiles": "来自文件",
+        "manual": "手动设置",
+        "lock": {
+          "label": "锁定 {{field}}",
+          "locked": "已锁定",
+          "free": "未锁定"
+        },
+        "genreAdd": "添加类型",
+        "genreAddAction": "添加",
+        "genreRemove": "移除 {{genre}}",
+        "genresNone": "没有类型。",
+        "discard": "放弃",
+        "saved": "元数据已保存。",
+        "unchanged": "没有更改。"
+      },
+      "match": {
+        "intro": "搜索并选择一个结果：服务器会保存匹配并重新加载此作品。",
+        "notMatchable": "服务器通过所属剧集来匹配季和单集。"
+      },
+      "refresh": {
+        "body": "“立即刷新”会重新加载所有未锁定的字段和自动选择的图片。已锁定的字段和已选择的图片保持不变。",
+        "options": "刷新前",
+        "unlockAll": "先解除此作品的所有锁定",
+        "unlockAllHint": "之后将重新采用提供商的数据。手动匹配和自定义分级保持不变。",
+        "run": "立即刷新",
+        "hint": "作为高优先级任务运行；完成后显示新值。",
+        "book": {
+          "body": "已锁定的字段和已选择的封面保持不变，除非你先解除锁定。",
+          "unlockAll": "同时解除所有锁定",
+          "unlockAllHint": "先解除此书的所有锁定，包括你在“匹配”中从来源采用的字段的锁定：之后将重新采用文件和提供商的数据。匹配本身和自定义分级保持不变。",
+          "run": "重新读取",
+          "filesTitle": "重新读取文件",
+          "filesHint": "重新读取 metadata.json、标签和文件夹名称。",
+          "providerTitle": "重新从提供商获取",
+          "providerHint": "重新从 {{source}} 获取信息。",
+          "providerNone": "请先在“匹配”中选择一个结果。",
+          "providerRun": "重新获取",
+          "refetched": "正在重新从 {{source}} 获取信息。"
+        }
+      },
+      "bookMatch": {
+        "intro": "按标题和作者，或按 ASIN 或 ISBN 搜索来源，然后选择一个结果。逐个字段决定要采用哪些内容。",
+        "noSources": "此书所在的文件夹没有已设置的图书来源。文件夹的来源在其所属媒体库中设置。",
+        "matched": "已匹配：{{source}}",
+        "unmatched": "未匹配：信息仅来自文件",
+        "source": "来源",
+        "audible": {
+          "de": "Audible 德国",
+          "com": "Audible USA",
+          "couk": "Audible 英国",
+          "other": "Audible ({{domain}})"
+        },
+        "title": "标题",
+        "author": "作者",
+        "asin": "ASIN",
+        "isbn": "ISBN",
+        "idHint": "输入 ASIN 或 ISBN 时，来源会按该 ID 搜索。",
+        "needQuery": "请输入标题、ASIN 或 ISBN。",
+        "asinInvalid": "ASIN 由 10 个字母或数字组成。",
+        "isbnInvalid": "ISBN 为 10 位或 13 位数字，可以包含连字符。",
+        "sorted": "按匹配度排序：先看时长是否一致，再看标题，最后看作者。",
+        "filesLength": "文件时长：{{length}}",
+        "lengthUnknown": "时长未知",
+        "lengthFits": "{{length}}，一致",
+        "people": "{{authors}} · 演播：{{narrators}}",
+        "asinId": "ASIN {{id}}",
+        "isbnId": "ISBN {{id}}",
+        "choose": "选择 {{title}}（{{length}}）",
+        "preview": {
+          "title": "将采用的内容",
+          "entry": "{{source}} 上的 {{title}}",
+          "caption": "{{source}} 的字段：当前与新值",
+          "field": "字段",
+          "today": "当前",
+          "new": "新值",
+          "take": "采用",
+          "takeLabel": "采用 {{field}}",
+          "locked": "已锁定",
+          "noValue": "来源未提供值",
+          "empty": "–",
+          "cover": "来源的封面",
+          "coverToday": "已有",
+          "hint": "采用的字段会被锁定。已锁定的字段保持不变。此匹配也适用于之后的“重新从提供商获取”。",
+          "same": "来源提供的内容与当前没有差别。",
+          "apply_other": "采用 {{count}} 个字段",
+          "assignOnly": "仅匹配",
+          "applied_other": "已从 {{source}} 采用并锁定 {{count}} 个字段。",
+          "assigned": "已与 {{source}} 匹配，未采用任何字段。"
+        }
+      }
+    },
+    "libraries": {
+      "title": "媒体库",
+      "intro": "Slouchcat 监视的文件夹及其扫描状态。",
+      "empty": "还没有媒体库。",
+      "tabs": {
+        "label": "按类型分类的媒体库",
+        "all": "全部",
+        "count_other": "{{count}} 个媒体库",
+        "empty": "没有此类型的媒体库。",
+        "caption": "媒体库：{{tab}}"
+      },
+      "columns": {
+        "library": "媒体库",
+        "kind": "类型",
+        "state": "状态",
+        "counts": "作品 · 文件",
+        "folders": "文件夹",
+        "metadata": "元数据"
+      },
+      "none": "–",
+      "noMetadata": "无元数据设置",
+      "roots": "文件夹",
+      "fsType": "文件系统 {{type}}",
+      "watch": {
+        "inotify": "可立即发现更改",
+        "poll": "定期检查更改",
+        "inotify_poll": "立即发现，并定期检查"
+      },
+      "warning": {
+        "network_share": "网络共享"
+      },
+      "state": {
+        "never": "从未扫描",
+        "queued": "等待扫描",
+        "running": "正在扫描",
+        "done": "已是最新",
+        "failed": "扫描失败",
+        "aborted": "扫描已停止"
+      },
+      "counts": "作品：{{items}} · 文件：{{files}}",
+      "progress": "{{seen}} / {{total}} 个文件",
+      "finishedAt": "上次扫描：{{date}}",
+      "keyframes": {
+        "summary": "关键帧索引：{{indexed}} / {{videoFiles}} 个视频文件 · {{pending}} 个待处理 · {{unavailable}} 个无法建立",
+        "complete": "关键帧索引已完成",
+        "backfill": "在“后台任务”页面补建"
+      },
+      "error": {
+        "root_missing": "文件夹不存在。驱动器是否已挂载？未删除任何内容。",
+        "root_empty": "文件夹是空的。未删除任何内容。",
+        "loss_over_threshold": "超过 20% 的文件缺失。为安全起见，未删除任何内容。",
+        "other": "上次错误：{{message}}",
+        "cancelled": "扫描已取消。下次扫描将正常进行。"
+      },
+      "rescan": "重新扫描",
+      "acceptLoss": {
+        "action": "接受缺失",
+        "title": "要移除缺失的文件吗？",
+        "body": "下次扫描会将缺失的作品从媒体库中移除，这些作品的播放进度将会丢失。仅在文件是有意删除时才这样做。",
+        "confirm": "移除并扫描"
+      },
+      "add": {
+        "title": "添加媒体库",
+        "submitting": "正在添加…",
+        "created": "已添加媒体库 {{name}}。",
+        "draft": {
+          "band": "新媒体库的草稿尚未保存。",
+          "continue": "继续编辑",
+          "discard": "放弃草稿",
+          "discarded": "已放弃新媒体库的草稿。",
+          "question": {
+            "title": "保留还是放弃草稿？",
+            "body": "你已开始创建新媒体库。如果保留草稿，可以通过页面上的横幅继续编辑。",
+            "keep": "保留草稿",
+            "discard": "放弃草稿"
+          }
+        }
+      },
+      "cancel": "取消扫描",
+      "scanStarted": "已开始扫描 {{name}}。",
+      "scanCancelled": "已取消扫描 {{name}}。",
+      "scanFailed": "扫描 {{name}} 失败。",
+      "scanAborted": "已停止扫描 {{name}}。",
+      "defaultRating": "默认：{{rating}}",
+      "noRoots": "无文件夹：作品来自已订阅的订阅源。",
+      "feedsOnly": "作品来自订阅源",
+      "changeRating": {
+        "action": "更改默认分级",
+        "title": "{{name}} 的默认分级",
+        "description": "分级来自媒体库的所有作品会立即跟随更改。手动设置的分级保持不变。",
+        "submit": "保存",
+        "saved": "{{name}} 的默认分级现为 {{rating}}。"
+      },
+      "folders": {
+        "title": "{{name}} 的文件夹",
+        "description": "一个媒体库可以包含多个文件夹。扫描和监视会立即纳入新文件夹。",
+        "none": "此媒体库没有文件夹。添加文件夹之前不会扫描任何内容。",
+        "content": "作品：{{items}} · 文件：{{files}}",
+        "remove": {
+          "action": "移除",
+          "label": "移除文件夹 {{path}}",
+          "title": "确定要移除此文件夹吗？",
+          "inputLabel": "输入路径以确认",
+          "mismatch": "请准确输入 {{path}}，按钮才会启用。",
+          "confirm": "移除文件夹",
+          "lead_other": "你将从媒体库 {{name}} 中移除 <path>{{path}}</path>。最多 {{count}} 部作品会因此从所有列表中消失。这意味着：",
+          "soft": "这些作品会被软删除：它们会从所有列表中消失，但播放进度、片单条目和推荐仍会保留。如果某部作品在此媒体库的其他文件夹中还有文件，它将继续显示。",
+          "downloads": "离线下载会被真正删除：下载过这些作品的设备会在下次同步时删除对应的下载包。",
+          "playback": "正在从此文件夹播放的内容会中途断开。",
+          "webhooks": "之后 Radarr 和 Sonarr 的路径映射中此路径将无处可指，相关通知会被拒绝。",
+          "relink": "如果这些作品以后重新出现，即使是通过其他文件夹，Slouchcat 也会根据其 TMDB、TVDB 或 IMDb ID 找到它们，并恢复播放进度和列表。如果只是移动文件夹，请使用“更改路径”而不是“移除”。",
+          "oneWay": "如果文件夹位于可浏览的文件夹（SLOUCHCAT_BROWSE_ROOTS）之外，不更改配置就无法再次添加。",
+          "last": "这是最后一个文件夹：{{name}} 会保留，但之后不再有文件夹，也不会扫描任何内容。"
+        },
+        "new": "新文件夹",
+        "change": {
+          "action": "更改",
+          "label": "更改文件夹 {{path}}",
+          "title": "更改文件夹",
+          "description": "{{path}} 的内容和元数据来源。",
+          "submit": "保存",
+          "identifier": "识别来源将更改：季和单集的文本将按 {{provider}} 重新匹配。单集本身保持不变，播放进度和片单仍与之关联。",
+          "fillers": "只更改补充来源：作品信息会重新补充，不会删除任何内容。",
+          "content": "内容类型将更改：效果相当于移除文件夹后重新添加。此文件夹中的作品会被软删除并重新创建，离线下载包会被删除，播放进度和片单仍与旧作品关联。",
+          "confirmTitle": "确定要更改内容类型吗？",
+          "confirm": "更改内容类型",
+          "saved": "文件夹 {{path}} 已更改。"
+        },
+        "move": {
+          "action": "更改路径",
+          "label": "更改 {{path}} 的路径",
+          "title": "要更改路径吗？",
+          "body": "旧路径：{{old}} · 新路径：{{new}}。如果文件在新路径下的名称相同，作品和用户数据都会保留。之后会重新读取该文件夹。",
+          "confirm": "更改",
+          "saved": "文件夹现位于 {{path}}，正在重新读取。"
+        },
+        "readOnly": "只读",
+        "writable": "可写"
+      },
+      "openFolders": "文件夹",
+      "openFoldersLabel": "编辑 {{name}} 的文件夹",
+      "rootCount_other": "{{count}} 个文件夹",
+      "noFolder": "无文件夹：在“文件夹”中添加文件夹之前，不会扫描任何内容。",
+      "rootSummary_other": "{{content}}：{{count}}",
+      "metadata": {
+        "like": "与服务器相同",
+        "texts": "语言不同",
+        "images": "图片不同",
+        "both": "语言和图片不同",
+        "link": "媒体库的元数据",
+        "audiobooksLink": "有声书来源"
+      },
+      "trickplay": {
+        "action": "拖动预览",
+        "actionLabel": "{{name}} 的拖动预览",
+        "title": "拖动预览：{{name}}",
+        "description": "进度条上方的小图，每 10 秒一张。电影和剧集分别设置，在同时包含两者的媒体库中也是如此。",
+        "movies": "电影",
+        "series": "剧集",
+        "mode": {
+          "ahead": "提前生成",
+          "on_start": "播放时生成",
+          "series_start": "播放时生成全部单集",
+          "off": "关闭"
+        },
+        "keep": "保留",
+        "keepHint": "从第二次播放起立即可用。不保留时，预览会在播放后删除。",
+        "scope": {
+          "label": "范围",
+          "series": "整部剧集",
+          "season_rest": "本季剩余单集",
+          "next_episode": "下一集"
+        },
+        "facts": {
+          "ahead": {
+            "movie": "新电影在导入时生成预览；现有电影由“立即生成”或“后台任务”中的计划补建。如果播放时缺少预览，将在 20 到 45 秒内生成并保留。",
+            "episode": "新单集在导入时生成预览；现有单集由“立即生成”或“后台任务”中的计划补建。如果播放时缺少预览，将在 20 到 45 秒内生成并保留。"
+          },
+          "onStartKeep": "首次播放时，预览在 20 到 45 秒内生成，第一页在 5 到 10 秒后可用，并会保留。从未观看的作品不占空间。",
+          "onStart": "每次播放都会在 20 到 45 秒内重新生成预览，播放结束 10 分钟后删除。每次播放都会消耗处理时间，并从 NAS 读取数百 MB 数据。",
+          "seriesStart": {
+            "series": "某一集开始播放时会立即生成其预览，随后在后台生成该剧集其余所有单集的预览。全部保留。",
+            "season_rest": "某一集开始播放时会立即生成其预览，随后在后台生成本季其余单集的预览（若为最后一集，则生成下一季的）。全部保留。",
+            "next_episode": "某一集开始播放时会立即生成其预览，随后在后台生成下一集的预览。全部保留。"
+          },
+          "off": "无预览。进度条像以前一样显示章节名称和章节图片。"
+        },
+        "estimate": {
+          "counts": {
+            "movies_other": "{{count}} 部电影，{{hours}} 小时",
+            "series_other": "{{count}} 集，{{hours}} 小时"
+          },
+          "approx": "≈ {{size}}",
+          "zero": "0 MB",
+          "perMovie": "每部电影",
+          "perMoviePlaying": "每部电影，仅在播放期间",
+          "perEpisode": "每集",
+          "perEpisodePlaying": "每集，仅在播放期间",
+          "library": "整个媒体库",
+          "libraryAtMost": "整个媒体库，最多",
+          "basis": "根据作品时长估算的存储空间，每小时视频约 1.5 MB。",
+          "stored": "当前占用：电影 {{movies}} · 剧集 {{series}}",
+          "free": "缓存可用空间：{{size}}",
+          "unavailable": "暂时无法估算所需存储空间。"
+        },
+        "drop": {
+          "movies": "保存后，已保留的电影预览将被删除（{{size}}）。正在进行的播放会保留它们直到结束。",
+          "series": "保存后，已保留的剧集预览将被删除（{{size}}）。正在进行的播放会保留它们直到结束。",
+          "both": "保存后，已保留的预览将被删除：电影（{{movies}}）和剧集（{{series}}）。正在进行的播放会保留它们直到结束。"
+        },
+        "generate": {
+          "action": "立即生成",
+          "hint": "为所有设为“提前生成”的媒体库补建缺失的预览，与“后台任务”中的“补建拖动预览”相同。",
+          "queued": "补建预览已排队。"
+        },
+        "submit": "保存",
+        "saved": "{{name}} 的拖动预览设置已保存。",
+        "summary": "拖动预览：电影 {{movies}} · 剧集 {{series}}",
+        "summaryNoKeep": "播放时生成，不保留"
+      },
+      "delete": {
+        "action": "删除媒体库…",
+        "title": "要删除媒体库“{{name}}”吗？",
+        "lead_other": "{{roots}}和 {{formatted}} 部作品将从 Slouchcat 中移除，连同播放进度、已看标记、片单、推荐、自定义图片和文本、首页栏目“{{name}} 新增”、个人资料的访问权限以及设备上的下载。",
+        "files": "磁盘上的文件不受影响。如果此媒体库正在扫描，Slouchcat 会先将其取消。",
+        "backup": "删除前，Slouchcat 会备份数据库（管理 › 备份）。恢复此备份会将一切还原到删除前的状态，包括所有个人资料此后的播放进度。",
+        "final": "除此之外无法撤销：重新扫描相同的文件夹会重新创建这些作品，但没有播放进度。",
+        "inputLabel": "输入名称以确认",
+        "mismatch": "请准确输入 {{name}}，按钮才会启用。",
+        "confirm": "删除媒体库",
+        "queued": "媒体库“{{name}}”正在后台删除。",
+        "jobs": "前往任务",
+        "done": "已删除媒体库“{{name}}”。",
+        "notDone": "媒体库“{{name}}”未被删除。原因请查看任务。"
+      },
+      "rename": {
+        "action": "重命名…",
+        "title": "重命名媒体库“{{name}}”",
+        "label": "名称",
+        "saved": "媒体库现名为“{{name}}”。"
+      }
+    },
+    "access": {
+      "notAllowed": {
+        "title": "仅限管理员",
+        "body": "此区域由管理员账户的主个人资料管理。"
+      }
+    },
+    "maintenance": {
+      "title": "维护",
+      "intro": "需要处理的作品和文件。",
+      "tabs": "问题类型",
+      "tab": {
+        "unmatched": "未匹配",
+        "no_images": "无图片",
+        "unrated": "缺少年龄分级",
+        "orphaned": "孤立项",
+        "unplayable": "无法播放",
+        "rating_mismatch": "分级不一致",
+        "duplicates": "重复项",
+        "relink": "孤立的用户数据",
+        "removed": "已移除的作品"
+      },
+      "hint": {
+        "unmatched": "未匹配的作品没有简介、图片和分级。请匹配或刷新此作品。",
+        "no_images": "已匹配但没有海报的作品。刷新可重新加载图片。",
+        "unrated": "没有分级的作品只有 18 岁分级的个人资料才能看到。请指定分级以开放这些作品。",
+        "orphaned": "没有文件或文件缺失的作品，以及空的季和剧集。",
+        "unplayable": "无法读取的文件。请重新检查，或将其从媒体库中移除。",
+        "rating_mismatch": "存储的分级与计算出的分级不一致。更改分级或下次扫描时会自动修正。此处无需选择。",
+        "duplicates": "重复出现的作品。请选择要保留的作品，并将其他作品合并到其中。",
+        "relink": "已删除但又以新副本形式回到媒体库的作品。播放进度、历史记录和列表仍关联在已删除的作品上。“重新关联”会将副本合并到其中，旧作品保留。",
+        "removed": "已从 Slouchcat 中移除的作品，其文件仍然存在。“恢复”可找回同一部作品，连同单集、播放进度、已看标记和片单。"
+      },
+      "empty": "没有需要处理的内容。",
+      "selection": "选择",
+      "selectItem": "选择 {{title}}",
+      "selected": "已选 {{count}} 项",
+      "selectedOfLoaded": "已加载 {{loaded}} 项，已选 {{count}} 项",
+      "selectAll": "全选",
+      "selectNone": "取消选择",
+      "shown": "{{shown}} / {{total}}",
+      "entries_other": "{{count}} 个条目",
+      "library": "媒体库 {{id}}",
+      "caption": "{{library}} 中的{{kind}}",
+      "columns": {
+        "title": "标题",
+        "kind": "类型",
+        "path": "路径",
+        "detail": "检查结果"
+      },
+      "none": "–",
+      "noneSpoken": "未提供",
+      "titleCount_other": "{{count}} 部作品",
+      "fileCount_other": "{{count}} 个文件",
+      "action": {
+        "match": "匹配",
+        "refresh": "刷新",
+        "rating": "指定分级",
+        "cleanup": "清理",
+        "recheck": "重新检查",
+        "remove": "移除"
+      },
+      "done": {
+        "refresh_other": "正在刷新 {{count}} 部作品。",
+        "refreshFailed_other": "{{count}} 部作品中有 {{failed}} 部未刷新：{{error}}",
+        "rating_other": "已为 {{count}} 部作品设置分级。",
+        "cleanup": "已移除：{{items}}，{{files}}。",
+        "merge": "作品已合并。",
+        "match": "匹配已保存，正在加载元数据。",
+        "relink": "已重新关联：{{titles}}。",
+        "relinkStopped_other": "已重新关联 {{count}} 项。当前正在扫描，请在扫描结束后再次运行“重新关联”处理其余部分。",
+        "relinkSkipped_other": "已跳过 {{count}} 项：该组合已不存在，例如因为已被合并。"
+      },
+      "cleanup": {
+        "title": "要清理作品吗？",
+        "body_other": "所选的 {{count}} 部作品将从媒体库中移除。磁盘上的文件不受影响。",
+        "confirm": "清理"
+      },
+      "remove": {
+        "title": "要移除文件吗？",
+        "body_other": "所选的 {{count}} 个文件将从媒体库中移除，以后扫描时也会跳过。它们仍保留在磁盘上。",
+        "confirm": "移除"
+      },
+      "rating": {
+        "title": "指定分级",
+        "description_other": "适用于所选的 {{count}} 部作品。",
+        "label": "年龄分级",
+        "summary_other": "{{count}} 部作品将设为 {{rating}}。",
+        "submit": "指定",
+        "submitting": "正在指定…"
+      },
+      "duplicates": {
+        "reason": {
+          "provider_id": "相同的提供商 ID",
+          "title_year": "标题和年份相同",
+          "file_hash": "文件内容相同",
+          "file_and_feed": "同一单集的文件和订阅源"
+        },
+        "group": "第 {{index}} 组",
+        "target": "保留",
+        "option": "{{index}}：{{title}}",
+        "merge": "合并",
+        "confirmTitle": "要合并作品吗？",
+        "confirmBody_other": "其他 {{count}} 部作品的文件、花絮、预告片和播放进度将移至“{{title}}”。其他作品将被删除。",
+        "empty": "未发现重复项。",
+        "groups_other": "{{count}} 组",
+        "meta_other": "{{reason}} · {{title}} · {{count}} 部作品",
+        "keep": "保留",
+        "noFiles": "无文件",
+        "containerPaths": "这些是容器内的路径（/media/…），而非 NAS 上的路径；每条旁边标有所属媒体库。",
+        "library": "媒体库“{{name}}”",
+        "folderFiles_other": "{{n}} 个文件 · {{size}}"
+      },
+      "relink": {
+        "empty": "没有孤立的用户数据。",
+        "action": "重新关联",
+        "noUserData": "无用户数据",
+        "columns": {
+          "library": "媒体库",
+          "deletedAt": "删除日期",
+          "userData": "用户数据",
+          "deleted": "已删除的作品",
+          "copy": "副本"
+        },
+        "confirmTitle": "要重新关联用户数据吗？",
+        "data": {
+          "progress_other": "{{count}} 条播放进度",
+          "progressEvents_other": "{{count}} 个播放事件",
+          "progressDays_other": "{{count}} 条每日统计",
+          "playbackSessions_other": "{{count}} 次播放",
+          "watchlist_other": "{{count}} 个片单条目",
+          "collectionItems_other": "{{count}} 个合集条目",
+          "notifications_other": "{{count}} 条通知",
+          "userPicks_other": "{{count}} 条用户推荐",
+          "downloads_other": "{{count}} 个下载",
+          "activityEvents_other": "{{count}} 条活动"
+        },
+        "copies_other": "{{count}} 个副本",
+        "selectPair": "选择 {{copy}}（{{library}}，删除于 {{date}}）",
+        "selectPairOf": "选择 {{copy}}（{{library}}，删除于 {{date}}，第 {{index}} 个副本，共 {{copies}} 个）",
+        "confirmMerge_other": "{{count}} 个副本将合并到对应的已删除作品中。旧作品会恢复，并保留原有地址。",
+        "confirmKept": "将保留：{{data}}。",
+        "confirmNoData_other": "已删除的作品没有用户数据。",
+        "confirmRemoved_other": "副本将被永久移除。",
+        "confirmExtra_other": "同一作品的另外 {{count}} 个副本将被跳过，之后会列在“重复项”中。"
+      },
+      "removed": {
+        "empty": "没有已移除的作品。",
+        "columns": {
+          "title": "标题",
+          "library": "媒体库",
+          "folder": "文件夹",
+          "removedAt": "移除日期",
+          "action": "操作"
+        },
+        "restore": "恢复",
+        "restoreLabel": "恢复 {{title}}",
+        "restored_other": "“{{title}}”已恢复（{{count}} 部作品）。",
+        "noFolder": "无文件"
+      }
+    },
+    "item": {
+      "title": "管理作品",
+      "notAllowed": {
+        "title": "仅限管理员",
+        "body": "作品由管理员账户的主个人资料管理。"
+      },
+      "notFound": "此作品不存在或已被移除。",
+      "view": "打开详情页",
+      "facts": {
+        "kind": "类型",
+        "id": "ID",
+        "library": "媒体库",
+        "season": "季",
+        "episode": "单集",
+        "metadata": "元数据",
+        "metadataError": "错误",
+        "matchedAt": "匹配时间",
+        "tmdb": "TMDB",
+        "tvdb": "TVDB",
+        "imdb": "IMDb",
+        "providers": "元数据来源",
+        "locked": "已锁定字段",
+        "children": "内容",
+        "childCounts": "季：{{seasons}} · 单集：{{episodes}} · 花絮：{{extras}}",
+        "none": "–",
+        "episodeRange": "{{from}}–{{to}}"
+      },
+      "sources": {
+        "title": "各字段来源",
+        "union": "所有来源的合集",
+        "field": {
+          "title": "标题",
+          "overview": "简介",
+          "tagline": "宣传语",
+          "original_title": "原标题",
+          "author": "作者",
+          "narrator": "演播者",
+          "series_name": "系列",
+          "series_index": "册",
+          "publisher": "出版社",
+          "isbn": "ISBN",
+          "asin": "ASIN",
+          "genres": "类型",
+          "runtime_minutes": "时长",
+          "release_date": "发行日期",
+          "year": "年份",
+          "own_rating": "分级",
+          "poster": "海报",
+          "backdrop": "背景图",
+          "original_language": "原始语言"
+        },
+        "fieldLang": "{{field}}（{{lang}}）",
+        "count_other": "{{count}} 个字段",
+        "providerCount": "{{provider}} {{count}}"
+      },
+      "state": {
+        "pending": "待处理",
+        "matched": "已匹配",
+        "unmatched": "未匹配",
+        "failed": "失败",
+        "skipped": "已跳过"
+      },
+      "rating": {
+        "title": "分级",
+        "own": "自定义分级",
+        "effective": "生效分级",
+        "source": "来源",
+        "label": "设置自定义分级",
+        "fromMetadata": "采用元数据",
+        "saved": "分级已保存。",
+        "unsaved": "未保存",
+        "summary": "生效 {{effective}} · 自定义 {{own}} · 来源 {{source}}"
+      },
+      "language": {
+        "title": "原始语言",
+        "current": "原始语言",
+        "source": "来源",
+        "label": "设置原始语言",
+        "fromMetadata": "采用元数据",
+        "unknown": "未知",
+        "notLooked": "尚未查询",
+        "manual": "手动设置（已锁定）",
+        "saved": "原始语言已保存。",
+        "unsaved": "未保存",
+        "summary": "{{language}} · 来源 {{source}}",
+        "hint": "选定的语言或“未知”会被锁定。“采用元数据”会解除锁定，下次匹配时将重新查询各来源。",
+        "knownFailed": "无法加载语言列表。"
+      },
+      "files": {
+        "title": "文件",
+        "probedAt": "检查于 {{date}}",
+        "probeError": "检查错误",
+        "none": "没有文件。",
+        "columns": {
+          "name": "文件",
+          "version": "版本",
+          "size": "大小",
+          "state": "状态"
+        }
+      },
+      "refreshed": "刷新已排队。",
+      "trailers": {
+        "title": "预告片",
+        "state": {
+          "pending": "等待搜索",
+          "found": "已找到",
+          "none": "未找到",
+          "failed": "搜索失败"
+        },
+        "empty": "没有预告片。",
+        "official": "官方",
+        "size": "{{size}}p",
+        "sizeUnknown": "未知",
+        "source": {
+          "tmdb": "TMDB",
+          "youtube": "YouTube",
+          "ai": "AI",
+          "manual": "手动"
+        },
+        "add": "添加",
+        "addTitle": "添加预告片",
+        "url": "YouTube 链接或视频 ID",
+        "urlHint": "youtube.com/watch?v=…、youtu.be/… 或视频 ID。",
+        "lang": "语言",
+        "langOther": "其他",
+        "langCode": "语言代码",
+        "langCodeHint": "两到三个小写字母，例如 fr。",
+        "submit": "添加",
+        "submitting": "正在添加…",
+        "delete": {
+          "action": "删除",
+          "title": "要删除预告片吗？",
+          "body": "预告片将被移除。自动找到的预告片可能会在下次刷新时重新出现。",
+          "confirm": "删除"
+        },
+        "columns": {
+          "video": "视频",
+          "size": "分辨率",
+          "source": "来源",
+          "actions": "操作"
+        },
+        "deleted": "预告片已删除。",
+        "added": "预告片已添加。"
+      },
+      "images": {
+        "title": "图片",
+        "intro": "每种类型所选的图片及其来源和语言。自行选择会锁定该类型；“应用”和“刷新”不会更改它。",
+        "none": "无图片",
+        "chosen": "手动选择",
+        "locked": "已锁定",
+        "lockedNoChoice": "已锁定但未选择",
+        "pick": "另选",
+        "unlock": "解除锁定",
+        "pickTitle": "选择{{kind}}",
+        "candidates": "{{kind}}的候选图片",
+        "chooseOne": "选择 {{label}}，{{detail}}",
+        "empty": "没有候选图片。此作品是否已匹配，来源是否已设置？",
+        "current": "当前",
+        "more_other": "再显示 {{count}} 张",
+        "reload": "重新查询",
+        "unavailable": "无法访问：{{providers}}。列表显示其余来源。",
+        "size": "{{width}} × {{height}}",
+        "score": "评分 {{score}}",
+        "chosenSaved": "已选择并锁定{{kind}}，正在获取图片。",
+        "unlocked": "已解除{{kind}}的锁定，正在自动选择。",
+        "provider": {
+          "local": "本地文件",
+          "embedded": "内嵌",
+          "tmdb": "TMDB",
+          "tvdb": "TVDB",
+          "anilist": "AniList",
+          "fanart": "Fanart.tv"
+        },
+        "columns": {
+          "kind": "类型",
+          "source": "来源",
+          "state": "状态",
+          "actions": "操作"
+        },
+        "unlockFailed": "未能解除{{kind}}的锁定。"
+      },
+      "tabs": {
+        "label": "作品分区",
+        "imageKinds_other": "{{count}} 种图片",
+        "files_other": "{{count}} 个文件",
+        "trailers_other": "{{count}} 个预告片",
+        "unsavedMark": "•"
+      }
+    },
+    "match": {
+      "title": "匹配作品",
+      "description": "在 TMDB 或 TVDB 中搜索此作品，并选择正确的条目。",
+      "provider": "提供商",
+      "kind": "类型",
+      "query": "搜索词",
+      "year": "年份（可选）",
+      "search": "搜索",
+      "searching": "正在搜索…",
+      "results": "结果",
+      "none": "没有结果。",
+      "choose": "匹配 {{title}}",
+      "yearInvalid": "请输入 1800 到 2100 之间的年份。"
+    },
+    "titleYear": "{{title}}（{{year}}）",
+    "devices": {
+      "title": "设备",
+      "intro": "已登录的浏览器和设备，以及它们最近一次开始播放时的能力配置。",
+      "list": "设备",
+      "tabs": {
+        "label": "设备视图",
+        "devices": "设备",
+        "capabilities": "能力"
+      },
+      "hint": {
+        "devices": "按类型分组。能力信息在旁边的标签页中。",
+        "capabilities": "每台设备最近一次开始播放时的能力配置。"
+      },
+      "caption": "{{view}}：{{type}}",
+      "count_other": "{{number}} 台设备",
+      "profiled_other": "{{number}} 台设备有能力配置",
+      "streamCount_other": "{{number}} 个串流",
+      "empty": "还没有设备。",
+      "columns": {
+        "name": "设备",
+        "owner": "所有者",
+        "lastSeen": "最后联系",
+        "containers": "容器",
+        "video": "视频",
+        "audio": "音频",
+        "resolution": "最高分辨率",
+        "hdr": "HDR",
+        "streams": "串流",
+        "actions": "操作"
+      },
+      "unnamed": "未知设备",
+      "owner": "{{email}} · {{profile}}",
+      "noOwner": "尚未播放",
+      "noProfile": "{{name}}，尚无能力配置",
+      "types": {
+        "desktop": "电脑",
+        "phone": "手机",
+        "tablet": "平板",
+        "tv": "电视",
+        "other": "其他",
+        "unknown": "未知"
+      },
+      "forget": {
+        "action": "忘记",
+        "label": "忘记 {{name}}",
+        "title": "要忘记设备“{{name}}”吗？",
+        "body": "正在进行的串流将结束，该设备的会话将被退出登录。如果这是你当前使用的设备，你会立即在此退出登录。",
+        "confirm": "忘记设备"
+      },
+      "forgotten": "已忘记设备“{{name}}”。",
+      "yes": "是",
+      "no": "否",
+      "unknown": "–",
+      "unknownSpoken": "未知"
+    },
+    "streams": {
+      "title": "串流",
+      "intro": "当前正在播放的所有内容。列表每 5 秒刷新一次。",
+      "list": "正在播放",
+      "listHelp": "最新的在前，广播也在同一列表中。",
+      "tileLabel": "{{profile}}：{{title}}",
+      "empty": "当前没有正在播放的内容。",
+      "emptyKind": "当前没有正在播放的此类内容。",
+      "filter": {
+        "label": "按类型筛选",
+        "all": "全部",
+        "video": "视频",
+        "audiobook": "有声书",
+        "podcast": "播客",
+        "radio": "广播",
+        "unknown": "数量未知"
+      },
+      "kinds": {
+        "movie": "电影",
+        "episode": "剧集",
+        "extra": "花絮",
+        "audiobook": "有声书",
+        "podcast": "播客",
+        "radio": "广播"
+      },
+      "partial": {
+        "streams": "在请求再次成功之前，列表中会缺少部分播放。",
+        "radio": "在请求再次成功之前，列表中会缺少广播听众。"
+      },
+      "facts": {
+        "device": "设备",
+        "quality": "画质",
+        "reason": "原因",
+        "format": "格式",
+        "source": "来源",
+        "listeners": "听众"
+      },
+      "unknownDevice": "未知设备",
+      "original": "原画",
+      "source": {
+        "file": "文件",
+        "feed": "订阅源"
+      },
+      "parts_other": "{{count}} 个部分",
+      "qualityValue": "{{quality}} · {{bitrate}}",
+      "modes": {
+        "direct": "直接播放",
+        "remux": "Remux",
+        "transcode": "转码（{{encoder}}）"
+      },
+      "hw": "硬件",
+      "sw": "软件",
+      "position": "{{position}} / {{duration}}",
+      "progress": "{{title}} 的进度",
+      "stop": {
+        "action": "停止",
+        "label": "停止 {{profile}} 的串流",
+        "title": "要停止 {{profile}} 的串流吗？",
+        "body": "“{{title}}”的播放将在几秒内在设备上停止。",
+        "confirm": "停止串流"
+      },
+      "stopped": "已停止 {{profile}} 的串流。",
+      "since": "自 {{time}} 起",
+      "noPosition": "–",
+      "noFormat": "–",
+      "load": {
+        "title": "服务器负载",
+        "hw": {
+          "label": "硬件转码",
+          "note": "显卡"
+        },
+        "sw": {
+          "label": "软件转码",
+          "note": "处理器"
+        },
+        "remux": {
+          "label": "Remux",
+          "note": "仅重新封装"
+        },
+        "direct": {
+          "label": "直接播放",
+          "note": "无负载"
+        },
+        "bandwidth": {
+          "label": "总带宽",
+          "note": "码率总和",
+          "notePartial": "已知码率总和"
+        },
+        "radio": {
+          "label": "广播",
+          "note": "听众，无转码"
+        }
+      },
+      "radio": {
+        "playing": "正在收听",
+        "paused": "已暂停",
+        "failed": "转发故障",
+        "transcoded": "已转码",
+        "copied": "已重新封装",
+        "listeners_other": "此电台有 {{count}} 位听众",
+        "stopLabel": "停止 {{profile}} 的广播",
+        "stopTitle": "要停止 {{profile}} 的广播吗？",
+        "stopBody": "“{{station}}”的播放将在几秒内在设备上停止。",
+        "stopConfirm": "停止广播",
+        "stopped": "已停止 {{profile}} 的广播。"
+      }
+    },
+    "podcasts": {
+      "title": "播客",
+      "intro": "已订阅的订阅源和来自文件夹的播客。后台任务“检查播客订阅源”会获取到期的订阅并添加新单集。",
+      "empty": "还没有订阅播客。",
+      "emptyLibrary": "此媒体库中还没有播客。",
+      "list": "已订阅的播客",
+      "listOf": "{{library}} 中已订阅的播客",
+      "noLibrary": "请先添加一个类型为“播客”的媒体库。",
+      "librariesLink": "前往媒体库",
+      "never": "从未",
+      "noError": "–",
+      "explicit": "含露骨内容",
+      "fromFolder": "来自文件夹",
+      "localEpisodes_other": "本地 {{number}} 集",
+      "columns": {
+        "title": "标题",
+        "episodes": "单集",
+        "stored": "存储",
+        "lastFetch": "上次获取",
+        "error": "错误",
+        "newest": "最新单集",
+        "state": "状态",
+        "open": "页面"
+      },
+      "tabs": {
+        "label": "按媒体库分类的播客",
+        "all": "全部",
+        "count_other": "{{number}} 个播客"
+      },
+      "detail": {
+        "author": "作者",
+        "feedUrl": "订阅源地址",
+        "noFeed": "无订阅源。",
+        "noFeedFolder": "无订阅源，单集来自文件夹。",
+        "library": "媒体库",
+        "folderNote": "此播客来自一个文件夹。每次扫描时都会重新出现；只能在“媒体库”中连同文件夹一起移除。"
+      },
+      "subscribe": {
+        "action": "订阅订阅源",
+        "title": "订阅订阅源",
+        "description": "Slouchcat 会立即获取订阅源，并添加播客及其单集。",
+        "library": "媒体库",
+        "url": "订阅源地址",
+        "urlHint": "播客的 RSS 订阅源，例如 https://example.org/feed.xml。",
+        "submit": "订阅",
+        "submitting": "正在获取订阅源…",
+        "done": "已订阅 {{title}}。",
+        "loads": {
+          "new": "此媒体库会存储新单集。首次获取时 Slouchcat 不下载任何内容，只下载此后发布的单集。",
+          "last_n": "此媒体库会存储单集：订阅后，Slouchcat 会将最新的 {{n}} 集下载为文件。",
+          "all": "此媒体库会存储所有单集：订阅后，Slouchcat 会将整个订阅源下载为文件（最多 2000 集）。"
+        },
+        "load": {
+          "label": "下载单集",
+          "hint": "“仅订阅”不会从订阅源下载任何内容，之后该播客只存储此后发布的单集。",
+          "yes": "订阅并下载",
+          "no": "仅订阅",
+          "required": "请选择 Slouchcat 是否下载单集。"
+        }
+      },
+      "refresh": {
+        "action": "立即获取",
+        "label": "立即获取 {{title}}",
+        "queued": "正在获取 {{title}}。",
+        "running": "正在获取"
+      },
+      "remove": {
+        "action": "取消订阅",
+        "label": "取消订阅 {{title}}",
+        "title": "要取消订阅 {{title}} 吗？",
+        "body": "此播客及其单集将从媒体库中消失。单集的下载会在下次同步时移除。",
+        "confirm": "取消订阅",
+        "done": "已取消订阅 {{title}}。"
+      },
+      "stored": {
+        "save": "存储",
+        "link": "仅链接",
+        "own": "单独设置",
+        "loading": "正在下载 {{number}} 集",
+        "failed": "{{number}} 集失败"
+      },
+      "downloads": {
+        "title": "新单集",
+        "titleOf": "新单集：{{library}}",
+        "summary": {
+          "save": "存储 · {{scope}} · 同时 {{parallel}} 个",
+          "link": "仅链接 · 不存储任何内容"
+        },
+        "saved": "已保存。",
+        "mode": {
+          "label": "新单集",
+          "save": "存储",
+          "link": "仅链接"
+        },
+        "scope": {
+          "label": "范围",
+          "new": "仅新单集",
+          "last_n": "新单集 + 最近 N 集",
+          "all": "所有单集",
+          "lastNOf": "新单集 + 最近 {{n}} 集"
+        },
+        "hint": {
+          "link": "新单集保持为链接，播放时从提供方串流。已有文件保留。",
+          "new": "只下载从现在起发布的单集。没有文件的旧单集仍为链接。",
+          "last_n": "新单集，以及每个播客订阅源中缺失的最近 {{n}} 集。",
+          "all": "整个订阅源（每个播客最多 2000 集）以及所有新单集。可能占用大量空间。"
+        },
+        "lastN": {
+          "label": "单集数量（N）",
+          "hint": "1 到 {{max}}",
+          "apply": "应用"
+        },
+        "estimating": "正在估算…",
+        "confirm": {
+          "text_other": "这将一次性下载约 {{number}} 集，约 {{size}}。可用空间：{{free}}。",
+          "load": "下载"
+        },
+        "folder": {
+          "label": "文件夹",
+          "target": "新订阅的文件夹",
+          "writable": "可写 · 可用 {{free}}",
+          "writableUnknown": "可写",
+          "checking": "正在检查文件夹…",
+          "none": "此媒体库没有播客文件夹。请在“媒体库”中添加一个，Slouchcat 才能存储单集。",
+          "locked": "文件夹通过检查之前，“存储”不可用。",
+          "guide": "安装指南：存储播客单集",
+          "problem": {
+            "read_only": "以只读方式挂载",
+            "not_mounted": "文件夹未挂载",
+            "no_hard_links": "文件系统不支持硬链接",
+            "permissions": "新文件无法获得所需权限"
+          }
+        },
+        "parallel": {
+          "label": "同时下载",
+          "hint": "对于同一提供方，Slouchcat 每次只下载一集。"
+        }
+      },
+      "setting": {
+        "saved": "已保存。",
+        "effective": {
+          "save": "生效：存储 · {{scope}}",
+          "link": "生效：仅链接"
+        },
+        "notSavable": "此播客的文件夹未通过文件夹检查，“存储”不可用。",
+        "mode": {
+          "label": "此播客的新单集",
+          "inherit": "与媒体库相同",
+          "save": "存储",
+          "link": "仅链接"
+        },
+        "scope": {
+          "label": "此播客的范围",
+          "inherit": "与媒体库相同",
+          "new": "仅新单集",
+          "last_n": "新单集 + 最近 N 集",
+          "all": "所有单集"
+        },
+        "unclear_other": "{{number}} 集状态不明：文件夹中的某个文件可能已包含它们。Slouchcat 不会自动下载。",
+        "missing": {
+          "action": "下载缺失单集",
+          "label": "下载 {{title}} 缺失的单集",
+          "none": "没有 Slouchcat 需要下载的缺失单集。",
+          "queued_other": "正在下载 {{number}} 集。"
+        }
+      },
+      "share": {
+        "none": "均未存储",
+        "all": "全部已存储",
+        "some": "已存储 {{stored}} · 仅链接 {{missing}}",
+        "someNoFeed": "已存储 {{stored}} · 无文件 {{missing}}",
+        "label": "已存储 {{stored}} / {{total}} 集"
+      },
+      "state": {
+        "fetching": "正在获取",
+        "loading": "正在下载 {{number}} 集",
+        "feedError": "订阅源错误",
+        "notSavable": "无法存储",
+        "current": "已是最新"
+      },
+      "openPage": {
+        "action": "单集",
+        "label": "查看 {{title}} 的单集"
+      },
+      "filter": {
+        "label": "筛选播客",
+        "all": "全部",
+        "save": "存储",
+        "link": "仅链接",
+        "loading": "正在下载",
+        "error": "错误"
+      },
+      "search": {
+        "label": "搜索播客",
+        "placeholder": "标题或作者"
+      },
+      "sort": {
+        "label": "排序",
+        "title": "标题",
+        "newest": "最新单集",
+        "size": "存储",
+        "episodes": "单集数量"
+      },
+      "noMatch": "没有符合筛选和搜索条件的播客。",
+      "kpi": {
+        "label": "概览",
+        "podcasts": "播客",
+        "mode": "新单集",
+        "saving": "{{number}} 个存储",
+        "linking": "{{number}} 个仅链接",
+        "stored": "已占用",
+        "queue": "下载",
+        "queueEmpty": "无",
+        "queueRunning": "{{number}} 个进行中",
+        "queueWaiting": "{{number}} 个等待中",
+        "queuePaused": "已暂停"
+      },
+      "queue": {
+        "title": "下载",
+        "empty": "队列为空",
+        "summary_other": "队列中 {{number}} 个 · {{running}} 个进行中",
+        "none": "所有单集都已下载，队列为空。",
+        "pause": "暂停",
+        "resume": "继续",
+        "paused": "下载已暂停。",
+        "resumed": "下载已继续。",
+        "pausedHint": "已暂停：继续之前不会下载任何内容。之后已开始的下载会接着进行。",
+        "cancelled": "已取消 {{title}} 的下载。",
+        "cancel": "取消：{{title}}",
+        "ofPodcastSize": "{{podcast}} · {{size}}",
+        "more": "已显示 {{shown}} / {{total}} 个。",
+        "columns": {
+          "episode": "单集",
+          "progress": "进度",
+          "cancel": "取消"
+        },
+        "state": {
+          "queued": "等待中",
+          "paused": "已暂停",
+          "running": "正在下载",
+          "runningShare": "正在下载 · {{share}}%",
+          "runningBytes": "正在下载 · {{size}}"
+        }
+      },
+      "page": {
+        "missing": "未找到播客",
+        "missingBody": "此播客不存在或已被移除。",
+        "back": "所有播客",
+        "counters": "此播客的数据",
+        "episodes": "单集",
+        "stored": "已存储",
+        "missingCount": "{{number}} 集无文件",
+        "bytes": "已占用",
+        "newest": "最新单集",
+        "library": "媒体库“{{library}}”",
+        "setting": "设置"
+      },
+      "episodes": {
+        "title": "单集",
+        "caption": "{{title}} 的单集",
+        "empty": "此视图中没有单集。",
+        "shown": "已显示 {{shown}} / {{total}} 集。",
+        "more": "显示更多",
+        "loadQueued": "正在下载 {{title}}。",
+        "loadNone": "不会下载 {{title}}：此单集已有文件。",
+        "filter": {
+          "label": "筛选单集",
+          "all": "全部",
+          "with_file": "已存储",
+          "without_file": "无文件"
+        },
+        "columns": {
+          "date": "日期",
+          "title": "单集",
+          "state": "状态",
+          "action": "操作"
+        },
+        "state": {
+          "file": "已存储",
+          "link": "仅链接",
+          "queued": "等待中",
+          "running": "正在下载",
+          "failed": "失败",
+          "removed": "已移除",
+          "unclear": "不明"
+        },
+        "action": {
+          "load": "下载",
+          "loadLabel": "下载：{{title}}",
+          "retry": "重试",
+          "retryLabel": "重新下载：{{title}}",
+          "cancel": "取消",
+          "cancelLabel": "取消：{{title}}"
+        },
+        "meta": {
+          "link": "从提供方串流",
+          "retryAt": "下次尝试：{{at}} 起",
+          "noRetry": "不会自动重试",
+          "removedFile": "文件 {{file}} 缺失，Slouchcat 不会自动下载",
+          "removed": "文件缺失，Slouchcat 不会自动下载",
+          "unclear": "文件夹中的某个文件可能包含此单集"
+        },
+        "error": {
+          "enclosure_unavailable": "提供方没有响应",
+          "too_large": "文件大于 2 GiB",
+          "not_audio": "不是音频",
+          "no_space": "空间不足",
+          "root_not_writable": "文件夹不可写",
+          "root_missing": "文件夹缺失",
+          "unsupported_format": "不存储此格式"
+        }
+      }
+    },
+    "picks": {
+      "title": "用户推荐",
+      "intro": "所有者账户的个人资料可以通过作品页上的星标推荐作品；其他账户只能查看列表。名字不会显示，每部作品只列出一次。",
+      "retention": {
+        "title": "有效期",
+        "label": "推荐保留",
+        "unit": "天",
+        "help": "7 到 365 天，默认 60 天。同一作品每次被重新推荐都会重新计时。缩短的期限立即生效。",
+        "saved_other": "推荐现在保留 {{count}} 天。"
+      },
+      "list": "当前推荐",
+      "count_other": "{{number}} 部作品",
+      "empty": "目前没有个人资料推荐作品。没有推荐时，首页不会显示“用户推荐”栏目。",
+      "anonymous": "管理端只能看到作品被推荐的次数，永远看不到是哪个个人资料推荐的。",
+      "homeRowsHint": "该栏目在首页的位置以及是否显示，可在<page>首页</page>中设置。",
+      "columns": {
+        "title": "标题",
+        "picked": "最近推荐于",
+        "expires": "到期",
+        "count": "次数",
+        "actions": "操作"
+      },
+      "expiresIn_other": "{{count}} 天后",
+      "countValue_other": "{{count}} 次推荐",
+      "remove": {
+        "action": "移除",
+        "label": "移除 {{title}}",
+        "title": "要从用户推荐中移除 {{title}} 吗？",
+        "body": "此作品的所有推荐都将消失。作品仍保留在媒体库中。",
+        "confirm": "移除",
+        "done": "{{title}} 已不再被推荐。"
+      }
+    },
+    "collections": {
+      "title": "合集",
+      "intro": "来自 TMDB 的合集在匹配作品时自动生成，无法更改。你可以在此创建自己的合集。",
+      "list": "合集",
+      "empty": "还没有合集。",
+      "columns": {
+        "name": "名称",
+        "source": "来源",
+        "count": "作品",
+        "state": "状态"
+      },
+      "source": {
+        "tmdb": "TMDB",
+        "manual": "手动"
+      },
+      "form": {
+        "name": "名称"
+      },
+      "create": {
+        "action": "新建合集",
+        "title": "新建合集",
+        "submit": "创建",
+        "done": "已创建合集 {{name}}。"
+      },
+      "rename": {
+        "action": "重命名",
+        "label": "重命名 {{name}}",
+        "title": "重命名 {{name}}",
+        "done": "合集现名为 {{name}}。"
+      },
+      "remove": {
+        "action": "删除",
+        "label": "删除合集 {{name}}",
+        "title": "要删除合集 {{name}} 吗？",
+        "body": "作品仍保留在媒体库中，只删除合集。",
+        "confirm": "删除合集",
+        "done": "已删除合集 {{name}}。"
+      },
+      "members": {
+        "title": "{{name}} 的作品",
+        "list": "合集中的作品",
+        "empty": "此合集中还没有作品。",
+        "add": "添加",
+        "addLabel": "添加 {{title}}",
+        "remove": "移除",
+        "removeLabel": "移除 {{title}}",
+        "done": "{{name}} 的作品已保存。",
+        "search": {
+          "label": "搜索作品",
+          "hint": "至少两个字符：电影、剧集、有声书和播客。",
+          "empty": "未找到匹配的作品。",
+          "results": "找到的作品"
+        },
+        "count_other": "{{number}} 部作品",
+        "meta": "{{kind}} · {{year}}",
+        "unsaved": "有未保存的更改",
+        "discard": "放弃",
+        "discarded": "已放弃对 {{name}} 的更改。"
+      },
+      "tabs": {
+        "label": "按来源分类的合集",
+        "all": "全部",
+        "count_other": "{{number}} 个合集"
+      },
+      "listManual": "手动合集",
+      "listTmdb": "来自 TMDB 的合集",
+      "emptyTab": "此标签页中没有合集。",
+      "locked": "不可编辑",
+      "lockedNote": "此合集来自 TMDB：其作品、名称和删除均已锁定。",
+      "changed": "已更改"
+    },
+    "myMedia": {
+      "title": "我的媒体",
+      "intro": "“我的媒体”分组的顺序和可见性：适用于所有个人资料的侧边导航和首页磁贴。隐藏只会隐藏入口，作品仍会出现在搜索和栏目中。谁能看到哪个媒体库由账户设置决定。",
+      "list": "“我的媒体”的条目",
+      "band": "我的媒体",
+      "tabs": {
+        "label": "条目视图",
+        "order": "顺序",
+        "preview": "预览"
+      },
+      "count_other": "{{number}} 个条目",
+      "columns": {
+        "position": "位置",
+        "entry": "条目",
+        "content": "内容",
+        "state": "状态",
+        "sidebar": "侧边导航",
+        "home": "首页"
+      },
+      "kind": {
+        "library": "媒体库",
+        "radio": "广播",
+        "collections": "合集",
+        "picks": "推荐"
+      },
+      "name": {
+        "radio": "广播",
+        "collections": "合集",
+        "picks": "用户推荐"
+      },
+      "content": {
+        "stations_other": "{{number}} 个电台",
+        "collections_other": "{{number}} 个合集",
+        "titles_other": "{{number}} 部作品"
+      },
+      "state": {
+        "visible": "可见",
+        "sidebarOnly": "仅侧边导航",
+        "homeOnly": "仅首页",
+        "hidden": "已隐藏"
+      },
+      "hide": "隐藏",
+      "hideSidebarLabel": "在侧边导航中隐藏 {{entry}}",
+      "hideHomeLabel": "在首页隐藏 {{entry}}",
+      "moved": "{{entry}} 现位于第 {{position}} 位。保存后生效。",
+      "saved": "“我的媒体”已保存。",
+      "discarded": "已放弃更改。",
+      "discard": {
+        "title": "要放弃更改吗？",
+        "body": "未保存的顺序和隐藏设置将丢失，恢复为已保存的设置。",
+        "confirm": "放弃"
+      },
+      "preview": {
+        "sidebar": "侧边导航",
+        "home": "首页的“我的媒体”栏目",
+        "sidebarLabel": "侧边导航预览",
+        "homeLabel": "首页预览",
+        "empty": "没有可见内容：此处不显示“我的媒体”。",
+        "note": "按未保存的顺序显示，数字为管理端视角。每个个人资料只能看到自己有权查看的媒体库，以及自己的电台和推荐。"
+      },
+      "homeRows": "“我的媒体”栏目在首页的位置以及是否显示，由“首页”设置决定。",
+      "homeRowsLink": "前往“首页”页面"
+    },
+    "homeRows": {
+      "title": "首页",
+      "intro": "首页栏目的顺序，适用于所有个人资料。已隐藏和空的栏目不会显示。",
+      "list": "首页栏目",
+      "band": "栏目",
+      "tabs": {
+        "label": "栏目视图",
+        "order": "顺序",
+        "preview": "预览"
+      },
+      "count_other": "{{number}} 个栏目",
+      "visibleCount_other": "{{number}} 个可见",
+      "columns": {
+        "position": "位置",
+        "row": "栏目",
+        "state": "状态",
+        "hidden": "隐藏"
+      },
+      "state": {
+        "visible": "可见",
+        "hidden": "已隐藏"
+      },
+      "hide": "隐藏",
+      "hideLabel": "隐藏 {{row}}",
+      "libraryTag": "媒体库",
+      "tooMany": "已有 {{count}} 个栏目可见。请先隐藏其他栏目。",
+      "rows": {
+        "spotlight": "Trakt 列表与媒体库的交集。以带背景图的大幅展示区形式出现在其位置；匹配数量低于最低值时不显示。",
+        "picks": "所有者账户的个人资料推荐的作品；最新的在前，有到期时间。",
+        "continue": "此个人资料已开始观看的作品。",
+        "recent": "最近加入媒体库的作品。",
+        "released": "按过去十二个月内的发行日期排序；剧集以最新一集为准。",
+        "watchlist": "此个人资料的片单。",
+        "collections": "自建合集和来自 TMDB 的合集。",
+        "genres": "可见作品的类型。",
+        "libraries": "此个人资料可见的媒体库、广播，以及（显示时）合集和用户推荐的磁贴；顺序和隐藏由“我的媒体”页面设置。",
+        "library": "最近加入此媒体库的作品；“显示全部”会打开按“最近添加”排序的媒体库。",
+        "radio": "此个人资料收藏的电台磁贴；正在通过服务器播放的电台会显示当前曲目。没有收藏时不显示此栏目。"
+      },
+      "pageLink": "前往“{{page}}”",
+      "moved": "{{row}} 现位于第 {{position}} 位。保存后生效。",
+      "saved": "首页已保存。",
+      "discarded": "已放弃更改。",
+      "discard": {
+        "title": "要放弃更改吗？",
+        "body": "未保存的顺序和隐藏设置将丢失，恢复为已保存的设置。",
+        "confirm": "放弃"
+      },
+      "preview": {
+        "label": "首页预览",
+        "row": "{{position}}. {{row}}",
+        "note": "按未保存的顺序显示的占位示意图。在实际首页上，已隐藏的栏目不会显示，空栏目（例如空的片单）也会省略。"
+      },
+      "spotlight": "焦点推荐显示哪个 Trakt 列表、上次获取时间以及 Trakt 是否已设置，请在“焦点推荐”中查看。",
+      "spotlightLink": "前往“焦点推荐”"
+    },
+    "spotlight": {
+      "title": "焦点推荐",
+      "intro": "将一个公开的 Trakt 列表作为首页栏目。只显示你自己媒体库中已有的作品；每个个人资料只能看到其年龄分级允许的内容。",
+      "enabled": "在首页显示",
+      "enabledHint": "点击“保存”后与来源一起生效。",
+      "unsaved": "有未保存的更改",
+      "row": {
+        "shown": "已在首页显示",
+        "missing": "未在首页显示"
+      },
+      "lists": {
+        "trending": "Trakt 趋势",
+        "popular": "Trakt 热门",
+        "watched_weekly": "观看最多（上周）",
+        "collected_monthly": "收藏最多（上月）",
+        "anticipated": "最受期待",
+        "boxoffice": "票房榜",
+        "url": "按地址指定的公开列表"
+      },
+      "media": {
+        "movie": "仅电影",
+        "show": "仅剧集",
+        "both": "电影和剧集"
+      },
+      "source": {
+        "title": "来源",
+        "list": "Trakt 列表",
+        "listHint": "公开列表，无需登录 Trakt。",
+        "listHintLink": "密钥在“集成”中设置",
+        "listUrl": "列表地址",
+        "listUrlHint": "trakt.tv 上的公开列表，例如 https://trakt.tv/users/name/lists/name-of-the-list。不支持观看列表（Watchlist）。",
+        "media": "媒体类型",
+        "mediaFixed": "此列表已指定媒体类型。",
+        "mediaFilters": "此列表混合了电影和剧集：获取后按媒体类型筛选条目。",
+        "itemCount": "最多",
+        "itemCountHint": "部作品显示在栏目中，每个个人资料（5–20）",
+        "minHits": "低于时隐藏",
+        "minHitsHint": "个媒体库匹配项，每个个人资料（0–10）",
+        "intervalHours": "每隔几小时获取",
+        "intervalHoursHint": "6 到 48 小时",
+        "rotation": "焦点推荐轮播间隔",
+        "rotationHint": "3 到 15 秒",
+        "refresh": "立即获取",
+        "queued": "正在获取列表。",
+        "saved": "焦点推荐已保存。"
+      },
+      "state": {
+        "fetched": "上次获取：{{date}}",
+        "never": "从未获取",
+        "failed": "上次获取失败：{{reason}}",
+        "hits": "媒体库中有 {{hits}} / {{entries}} 部作品",
+        "keySet": "已设置密钥",
+        "noKey": "无密钥",
+        "separator": " · "
+      },
+      "missing": {
+        "noKey": "没有 Trakt 密钥时，首页不会显示此栏目。",
+        "disabled": "焦点推荐已关闭：首页不会显示此栏目。",
+        "failed": "获取成功之前，首页不会显示此栏目。",
+        "empty": "列表为空：首页不会显示此栏目。",
+        "belowMinHits": "媒体库中只有 {{hits}} 个匹配项，少于要求的 {{min}} 个：首页不会显示此栏目。可见作品较少的个人资料即使在其他情况下也可能看不到它。"
+      },
+      "entries": {
+        "title": "列表条目",
+        "intro": "顺序来自 Trakt；你的更改在下次获取后仍会保留。",
+        "empty": "还没有条目。设置好 Trakt 后请获取列表。",
+        "columns": {
+          "rank": "排名",
+          "title": "标题",
+          "status": "状态",
+          "note": "备注",
+          "actions": "操作"
+        },
+        "media": {
+          "movie": "电影",
+          "show": "剧集"
+        },
+        "meta": "{{media}} · {{year}}",
+        "untitled": "TMDB {{id}}",
+        "state": {
+          "visible": "可见",
+          "hidden": "已隐藏",
+          "missing": "不在媒体库中"
+        },
+        "pinned": "已固定在第 {{rank}} 位",
+        "quoted": "“{{note}}”",
+        "none": "–",
+        "notInLibrary": "不在媒体库中，不会出现在首页",
+        "hide": "隐藏",
+        "hideLabel": "隐藏 {{title}}",
+        "show": "显示",
+        "showLabel": "显示 {{title}}",
+        "hidden": "已隐藏 {{title}}。",
+        "shown": "已重新显示 {{title}}。",
+        "count_other": "{{count}} 个条目"
+      },
+      "pin": {
+        "action": "固定",
+        "label": "固定 {{title}}",
+        "title": "固定 {{title}}",
+        "rank": "在栏目中的位置",
+        "rankHint": "1 为第一位。此位置针对整个列表；匹配项较少的个人资料会更早看到此作品。",
+        "done": "{{title}} 已固定在第 {{rank}} 位。",
+        "taken": "{{hint}}已占用：{{places}}。",
+        "takenPlace": "第 {{rank}} 位（{{title}}）",
+        "allTaken": "所有位置均已占用，请先取消固定一个。"
+      },
+      "unpin": {
+        "action": "取消固定",
+        "label": "取消固定 {{title}}",
+        "done": "{{title}} 已取消固定。"
+      },
+      "note": {
+        "action": "备注",
+        "label": "{{title}} 的备注",
+        "title": "{{title}} 的备注",
+        "field": "备注",
+        "hint": "最多 {{max}} 个字符。留空即删除备注。",
+        "saved": "{{title}} 的备注已保存。",
+        "removed": "{{title}} 的备注已删除。"
+      },
+      "orphans": {
+        "title": "孤立的调整",
+        "intro": "针对已不在列表中的作品所做的调整。只有在作品重新出现时才会再次生效。",
+        "override": "调整",
+        "remove": "移除",
+        "removeLabel": "移除 {{title}} 的调整",
+        "removed": "已移除 {{title}} 的调整。",
+        "count_other": "{{count}} 项调整"
+      },
+      "rowSettings": "该栏目在首页的位置以及是否显示，可在“首页”中设置。",
+      "rowSettingsLink": "前往“首页”"
+    },
+    "nav": {
+      "label": "管理",
+      "overview": "概览",
+      "groups": {
+        "library": "媒体库",
+        "accounts": "账户",
+        "curation": "内容策展",
+        "system": "系统"
+      },
+      "back": "返回应用",
+      "updateLabel": "概览，有可用更新：版本 {{version}}",
+      "sheet": {
+        "label": "管理页面",
+        "close": "关闭管理页面"
+      },
+      "counts": {
+        "titles_other": "{{name}}，{{formatted}} 部作品",
+        "maintenance_other": "{{name}}，{{formatted}} 部作品需要维护",
+        "accounts_other": "{{name}}，{{formatted}} 个账户",
+        "streams_other": "{{name}}，{{formatted}} 个正在播放",
+        "jobsRunning_other": "{{name}}，{{formatted}} 个正在运行",
+        "jobsFailed_other": "{{name}}，{{formatted}} 个失败",
+        "silent_other": "{{name}}，{{formatted}} 个 Webhook 无消息",
+        "integrations": "{{name}}，已设置 {{configured}} / {{total}} 个",
+        "ofTotal": "{{count}} / {{total}}"
+      }
+    },
+    "sections": {
+      "radio": {
+        "title": "广播"
+      },
+      "libraries": {
+        "title": "媒体库"
+      },
+      "podcasts": {
+        "title": "播客"
+      },
+      "maintenance": {
+        "title": "维护"
+      },
+      "accounts": {
+        "title": "账户"
+      },
+      "devices": {
+        "title": "设备"
+      },
+      "streams": {
+        "title": "串流"
+      },
+      "spotlight": {
+        "title": "焦点推荐"
+      },
+      "picks": {
+        "title": "用户推荐"
+      },
+      "collections": {
+        "title": "合集"
+      },
+      "myMedia": {
+        "title": "我的媒体"
+      },
+      "homeRows": {
+        "title": "首页"
+      },
+      "announcements": {
+        "title": "公告"
+      },
+      "jobs": {
+        "title": "后台任务"
+      },
+      "integrations": {
+        "title": "集成"
+      },
+      "notifications": {
+        "title": "通知"
+      },
+      "stats": {
+        "title": "统计"
+      },
+      "backup": {
+        "title": "备份"
+      },
+      "metadata": {
+        "title": "元数据"
+      }
+    },
+    "home": {
+      "title": "管理",
+      "live": "实时，每 5 秒更新",
+      "liveFailed": "没有响应，每 5 秒重试一次",
+      "update": {
+        "title": "版本 {{version}} 现已推出",
+        "body": "你当前运行的是 {{current}}。Slouchcat 不会自动安装：请用 docker compose pull 获取新镜像，然后用 docker compose up -d 重启。",
+        "notes": "版本说明",
+        "development": {
+          "title": "你正在运行开发版本",
+          "body": "{{current}} 不是正式发布的版本，因此无法比较，也没有更新提示。最新发布版本：{{latest}}。",
+          "bodyUnknown": "{{current}} 不是正式发布的版本，因此无法比较，也没有更新提示。"
+        }
+      },
+      "streams": {
+        "title": "正在播放",
+        "empty": "当前没有正在播放的内容。",
+        "all": "所有串流",
+        "progress": "{{title}} 的进度"
+      },
+      "jobs": {
+        "title": "任务",
+        "queued": "等待中",
+        "running": "运行中",
+        "failed": "失败",
+        "paused": "已暂停",
+        "all": "后台任务",
+        "toFailed": "查看失败项",
+        "active": "运行中的任务",
+        "progress": "{{name}} 的进度",
+        "next": "当前没有运行中的任务。下一个：{{type}}，{{date}}",
+        "idle": "当前没有运行中的任务。",
+        "failedByType": "按任务类型统计失败",
+        "failedType_other": "{{type}}：{{count}} 个失败",
+        "attempts": "{{attempts}} / {{max}}"
+      },
+      "storage": {
+        "title": "存储",
+        "config": "配置（{{path}}）",
+        "cache": "缓存（{{path}}）",
+        "used": "已用 {{used}} / {{total}}",
+        "part": "已用：{{size}}",
+        "free": "可用：{{free}} / {{total}}"
+      },
+      "integrations": {
+        "title": "集成",
+        "state": {
+          "configured": "已设置",
+          "missing": "未设置",
+          "error": "错误",
+          "disabled": "已关闭"
+        },
+        "entry": "{{name}}：{{state}}",
+        "manage": "设置集成",
+        "count": "已设置 {{count}} / {{total}} 个"
+      },
+      "webhooks": {
+        "title": "Webhook",
+        "none": "未设置 Webhook。",
+        "count_other": "过去 24 小时的日志中有 {{count}} 条通知，来自 {{total}} 个集成。",
+        "silent": "七天内没有通知：{{names}}",
+        "manage": "管理 Webhook"
+      },
+      "server": {
+        "title": "服务器",
+        "version": "版本",
+        "uptime": "已运行",
+        "update": "更新",
+        "updateCurrent": "已是最新",
+        "updateAvailable": "版本 {{version}} 可用",
+        "updateDevelopment": "开发版本",
+        "updateFailed": "上次检查失败",
+        "updateOff": "检查已关闭",
+        "updater": "更新程序",
+        "updaterUnknown": "版本未知",
+        "updaterDown": "没有响应",
+        "checked": "上次检查：{{date}}",
+        "lastSuccess": "上次成功检查：{{date}}",
+        "check": "检查更新",
+        "checkedNow": "已检查更新。"
+      },
+      "restart": {
+        "action": "重启",
+        "title": "要重启服务器吗？",
+        "streams_other": "{{count}} 个正在播放的串流将中断。正在进行的离线下载也会中断。",
+        "idle": "当前没有正在播放的内容。正在进行的离线下载会中断。",
+        "confirm": "重启",
+        "waitTitle": "服务器正在重启",
+        "waitBody": "Slouchcat 正在有序关闭并重新启动。服务器一响应，页面就会重新加载。"
+      },
+      "install": {
+        "action": "安装 {{version}} 更新",
+        "title": "要安装 {{version}} 更新吗？",
+        "body": "服务器将重启，正在进行的播放会中断。更改数据库前会先备份数据库。",
+        "notes": "版本说明",
+        "confirm": "安装",
+        "running": "正在更新到 {{version}}",
+        "runningNoVersion": "正在更新",
+        "stepsLabel": "更新步骤",
+        "steps": {
+          "download": "下载",
+          "restart": "重启",
+          "health": "健康检查"
+        },
+        "stepState": {
+          "done": "已完成",
+          "current": "进行中",
+          "pending": "待处理"
+        },
+        "phase": {
+          "checking": "更新程序正在检查发布版本。",
+          "backing_up": "更新程序正在备份 .env 并写入新版本。",
+          "pulling": "更新程序正在下载新镜像。",
+          "verifying": "更新程序正在校验镜像指纹。",
+          "restarting": "服务器正在以新版本重启。",
+          "waiting": "更新程序正在等待新服务器恢复正常（最多 10 分钟）。"
+        },
+        "down": "服务器暂时没有响应。正在等待…",
+        "silent": {
+          "title": "服务器已超过 70 分钟没有响应",
+          "body": "更新不会花这么长时间。请在宿主机上用 docker compose ps 和 docker compose logs 检查服务器和更新程序配套容器是否在运行。"
+        },
+        "done": "已安装 {{version}} 更新。",
+        "rolledBack": "更新到 {{to}} 失败，已恢复运行版本 {{from}}。",
+        "rolledBackNoVersion": "更新失败，已恢复运行之前的版本。",
+        "failed": "更新到 {{version}} 失败",
+        "failedNoVersion": "更新失败",
+        "migrated": "迁移已执行；只能通过备份 {{backup}} 回退。",
+        "migratedNoBackup": "迁移已执行；只能通过迁移前的备份回退。",
+        "failure": {
+          "disk_full": "服务器没有空间存放新镜像。请释放一些空间后重试。",
+          "deploy_files": "无法获取或写入此发布版本的 Compose 文件，更新已中止。"
+        },
+        "finished": "完成于：{{date}}",
+        "refused": {
+          "title": "更新程序没有开始更新",
+          "not_newer": "最新版本并不比当前运行的版本更新。",
+          "no_digest": "发布清单中没有镜像的指纹（digest）。",
+          "no_compose_labels": "服务器不是通过 Docker Compose 启动的，因此更新程序不知道如何重启它。请手动安装更新。",
+          "outside_deploy_dir": "服务器的某个 Compose 文件位于 SLOUCHCAT_DEPLOY_DIR 之外。",
+          "manifest_invalid": "发布清单无效。",
+          "manifest_unreachable": "无法访问发布清单，请稍后重试。",
+          "other": "更新程序以本应用无法识别的原因拒绝了更新。"
+        },
+        "manual": {
+          "unavailable": "更新程序配套容器没有响应。请手动安装更新。",
+          "intro": "没有更新程序配套容器时，请在宿主机上包含 compose.yaml 和 .env 的文件夹中安装更新：",
+          "introByHand": "手动安装时，请在宿主机上包含 compose.yaml 和 .env 的文件夹中安装更新：",
+          "env": ".env 中的行",
+          "pull": "获取新镜像",
+          "up": "以新版本启动",
+          "files": "请使用与启动时相同的 -f 文件（例如 docker compose -f compose.yaml -f compose.intel.yaml pull），否则更新后它们会缺失。",
+          "docs": "指南：通过更新程序配套容器一键更新"
+        },
+        "outdated": {
+          "title": "更新程序版本过旧；从 1.18.0 版本起它会自动更新。请手动升级一次：",
+          "command": "在 deploy 文件夹中运行",
+          "deployDir": "<deploy 文件夹>",
+          "files": "如果你用 -f 而不是 COMPOSE_FILE 列出 Compose 文件，请附加相同的 -f 列表。"
+        }
+      },
+      "activity": {
+        "title": "最近活动",
+        "empty": "还没有活动。"
+      },
+      "hints": {
+        "title": "提示",
+        "count_other": "{{count}} 条提示",
+        "none": "没有提示。",
+        "failed_other": "{{formatted}} 个后台任务失败",
+        "paused_other": "{{count}} 种任务类型已暂停",
+        "toJobs": "前往后台任务",
+        "scan": "媒体库“{{name}}”的扫描已中止",
+        "scanOther": "丢失保护中止了扫描。",
+        "toLibraries": "前往媒体库",
+        "keyRejected": "{{name}} 密钥被拒绝",
+        "keyRejectedBody": "提供商拒绝了此密钥。在新密钥生效之前，Slouchcat 不会从它获取元数据。",
+        "toKeys": "前往密钥",
+        "storage": "{{path}} 的占用已超过 {{percent}}%"
+      },
+      "errors": {
+        "title": "服务器日志",
+        "intro": "服务器日志中最近 50 条错误，最新的在前。",
+        "list": "服务器日志中的错误",
+        "empty": "启动以来没有错误。",
+        "job": "任务 {{id}}（{{type}}）",
+        "new_other": "{{count}} 个新错误",
+        "none": "无错误",
+        "count_other": "{{count}} 个错误"
+      },
+      "browse": {
+        "title": "文件夹浏览器被阻塞",
+        "hanging_other": "某个挂载点已停止响应：{{count}} 个列目录操作卡在内核中，无法取消。文件夹浏览器仍可使用，但可用位置减少。重启可释放它们。",
+        "off": "文件夹浏览器的所有位置都卡在一个已停止响应的挂载点上。服务器重启之前无法浏览任何文件夹；仍可手动输入路径。"
+      }
+    },
+    "integrations": {
+      "title": "集成",
+      "intro": "提供商密钥、通知发送和更新检查。Slouchcat 会加密存储机密值，且不再显示。",
+      "names": {
+        "tmdb": "TMDB",
+        "tvdb": "TVDB",
+        "youtube": "YouTube",
+        "trakt": "Trakt",
+        "email": "电子邮件",
+        "push": "Web Push",
+        "telegram": "Telegram",
+        "updateCheck": "更新检查"
+      },
+      "source": {
+        "env": "已在 deploy/.env 中设置",
+        "stored": "已保存",
+        "storedHint": "已保存，结尾为 {{hint}}",
+        "none": "未设置"
+      },
+      "envHint": "已在 deploy/.env 中设置。此值只能在那里更改。",
+      "save": "保存",
+      "saveLabel": "保存 {{name}}",
+      "saving": "正在保存…",
+      "discard": "放弃",
+      "clear": {
+        "action": "删除…",
+        "label": "删除 {{name}}",
+        "title": "要删除 {{name}} 吗？",
+        "body": "已保存的值将被移除。依赖它的功能将无法使用。",
+        "confirm": "删除"
+      },
+      "saved": "{{name}} 已保存。",
+      "cleared": "{{name}} 已删除。",
+      "unsaved": "未保存",
+      "notificationsLink": "前往通知渠道",
+      "keys": {
+        "title": "提供商密钥",
+        "intro": "Slouchcat 用这些密钥获取文本、图片和预告片。没有密钥时，该提供商不会启用。",
+        "count": "已设置 {{set}} / {{total}} 个提供商",
+        "newValue": "留空则保留已保存的值。输入新值将替换它。"
+      },
+      "webhooks": {
+        "title": "来自 Radarr 和 Sonarr 的 Webhook",
+        "intro": "Radarr 和 Sonarr 会将更改的文件报告到这里，新作品就能立即出现。Slouchcat 从不主动调用这些服务。",
+        "empty": "还没有设置集成。",
+        "caption": "Webhook 集成",
+        "count_other": "{{count}} 个集成",
+        "tail": "…{{tail}}",
+        "columns": {
+          "name": "名称",
+          "kind": "服务",
+          "address": "地址",
+          "lastSeen": "最近通知",
+          "actions": "操作"
+        },
+        "neverSeen": "从未发送过通知。",
+        "kind": {
+          "radarr": "Radarr",
+          "sonarr": "Sonarr"
+        },
+        "form": {
+          "title": "新集成",
+          "name": "名称",
+          "nameHint": "可自由填写，仅用于区分此列表中的条目。",
+          "kind": "服务",
+          "submit": "创建集成"
+        },
+        "created": {
+          "title": "“{{name}}”的地址",
+          "once": "请立即复制——此地址不会再次显示。",
+          "label": "完整地址",
+          "copy": "复制地址",
+          "copied": "地址已复制。",
+          "copyFailed": "复制失败；地址已选中，请按 Ctrl+C。",
+          "dismiss": "隐藏"
+        },
+        "pathMap": {
+          "intro": "转换 Radarr 或 Sonarr 报告的路径。当同一存储在两端的挂载位置不同时需要设置，例如服务中为“/mnt/medien/Filme”，此处为“/media/Filme”。匹配最长的前缀优先；没有条目时直接使用报告的路径。两个路径都必须是以“/”开头的绝对路径。",
+          "from": "服务中的路径",
+          "to": "此服务器上的路径",
+          "add": "添加行",
+          "remove": "移除 {{from}} 的行",
+          "removeAction": "移除",
+          "elsewhere": "在此期间，他人已更改此集成的路径映射。你的行仍在这里，保存时会被采用。",
+          "takeOver": "采用另一版本",
+          "elsewhereChip": "已在别处更改",
+          "saveLabel": "保存 {{name}} 的路径映射",
+          "saved": "路径映射已保存。"
+        },
+        "log": {
+          "caption": "来自 {{name}} 的通知",
+          "empty": "还没有通知。",
+          "at": "时间",
+          "event": "事件",
+          "reported": "报告的路径",
+          "resolved": "映射后的路径",
+          "result": "结果"
+        },
+        "result": {
+          "scan_queued": "正在读取文件夹",
+          "acknowledged": "已确认测试",
+          "ignored": "无影响",
+          "outside_roots": "不在媒体库中",
+          "invalid_payload": "无路径"
+        },
+        "renew": {
+          "action": "更新令牌",
+          "label": "更新 {{name}} 的令牌",
+          "title": "要更新“{{name}}”的令牌吗？",
+          "body": "当前地址将立即失效。新地址只显示一次，需要重新填入 Radarr 或 Sonarr。",
+          "confirm": "更新"
+        },
+        "delete": {
+          "action": "删除",
+          "label": "删除 {{name}}",
+          "title": "要删除“{{name}}”吗？",
+          "body": "该地址将立即失效，通知日志也会一并删除。",
+          "confirm": "删除"
+        }
+      },
+      "email": {
+        "title": "电子邮件服务器",
+        "intro": "用于通过电子邮件发送通知、邀请和公告。",
+        "name": "电子邮件服务器",
+        "hostPort": "服务器和端口",
+        "port": "端口",
+        "user": "用户名",
+        "userHint": "电子邮件服务器的登录名（如需要）。",
+        "password": "密码",
+        "passwordHint": "加密存储，之后不再显示。",
+        "passwordKeep": "留空则保留已保存的密码。",
+        "from": "发件人",
+        "fromHint": "例如 Slouchcat <media@example.ch>。",
+        "tls": "加密",
+        "tlsHint": "端口 587 使用 STARTTLS，端口 465 使用 TLS。",
+        "tlsOptions": {
+          "starttls": "STARTTLS",
+          "tls": "TLS",
+          "none": "无"
+        },
+        "test": "发送测试邮件",
+        "testTo": "测试邮件将发送至 {{email}}。",
+        "testSent": "已向 {{email}} 发送测试邮件。",
+        "testFailed": "测试邮件未送达：{{detail}}"
+      },
+      "telegram": {
+        "title": "Telegram 机器人",
+        "name": "Telegram 机器人",
+        "botLabel": "机器人",
+        "botHelp": "Slouchcat 通过令牌找到它。",
+        "token": "机器人令牌",
+        "setPlaceholder": "已设置令牌",
+        "tokenHelp": "用于通过 Telegram 发送通知。令牌来自 @BotFather，Slouchcat 会向 Telegram 验证。",
+        "tokenReplace": "新令牌将替换已保存的令牌。",
+        "bot": "机器人：@{{name}}",
+        "noBot": "未设置机器人。"
+      },
+      "push": {
+        "title": "Web Push",
+        "intro": "浏览器和已安装应用中的通知。",
+        "configured": "已有密钥对。",
+        "notConfigured": "还没有密钥对。设备开启 Web Push 时会自动创建。",
+        "publicKey": "公钥",
+        "rotate": {
+          "action": "生成新密钥",
+          "title": "要生成新的 Web Push 密钥吗？",
+          "body": "所有设备都会失去订阅，需要在设置中重新开启 Web Push。",
+          "confirm": "生成新密钥"
+        },
+        "rotated": "已生成新密钥。设备需要重新开启 Web Push。"
+      },
+      "update": {
+        "title": "更新检查",
+        "intro": "Slouchcat 每天读取一次公开的发布清单，有新版本时会显示提示。不会安装任何内容。",
+        "toggle": "每天检查新版本",
+        "on": "更新检查已开启。",
+        "off": "更新检查已关闭。"
+      },
+      "server": {
+        "title": "服务器"
+      },
+      "publicUrl": {
+        "title": "公开地址",
+        "intro": "电子邮件和消息中的链接通过此地址指向服务器。",
+        "name": "公开地址",
+        "label": "地址",
+        "hint": "例如 https://media.example.ch"
+      },
+      "providers": {
+        "fields": {
+          "tmdb": "访问令牌（v4）",
+          "tvdb": "密钥",
+          "tvdbPin": "订阅者 PIN 码（仅限订阅密钥）",
+          "fanart": "项目密钥",
+          "fanartClient": "个人密钥（可选）",
+          "youtube": "密钥",
+          "trakt": "Client ID",
+          "googleBooks": "密钥"
+        },
+        "open": {
+          "setup": "设置",
+          "edit": "编辑",
+          "view": "查看"
+        },
+        "check": {
+          "ok": "{{name}}：提供商已响应，密钥有效。",
+          "not_configured": "{{name}}：未设置密钥。",
+          "invalid": "{{name}}：提供商拒绝了此密钥（{{message}}）。",
+          "unreachable": "{{name}}：无法访问提供商（{{message}}）。",
+          "failed": "{{name}}：检查失败（{{message}}）。"
+        },
+        "tmdb": {
+          "name": "TMDB",
+          "purpose": "电影和剧集的文本、海报和预告片。视频媒体库必需。",
+          "help": "在 TMDB 账户的“API”下免费获取：读取访问令牌（v4）。"
+        },
+        "tvdb": {
+          "name": "TVDB",
+          "purpose": "剧集和动漫的第二来源：季和单集标题。",
+          "help": "密钥和 PIN 码在 TVDB 账户中。没有订阅时 PIN 码留空。"
+        },
+        "fanart": {
+          "name": "Fanart.tv",
+          "purpose": "台标、背景和光盘图片；需在“元数据”中开启此来源。",
+          "help": "使用个人密钥时，新图片两天后可用，否则需七天。"
+        },
+        "youtube": {
+          "name": "YouTube",
+          "purpose": "查找 TMDB 没有的预告片。",
+          "help": "Google Cloud Console 中“YouTube Data API v3”的密钥。"
+        },
+        "trakt": {
+          "name": "Trakt",
+          "purpose": "用于焦点推荐和首页栏目的列表。",
+          "help": "你自己的 Trakt 应用的 Client ID。列表状态显示在“焦点推荐”页面。"
+        },
+        "googlebooks": {
+          "name": "Google Books",
+          "purpose": "有声书的图书数据；没有密钥时 Slouchcat 从不查询 Google Books。",
+          "help": "Google Cloud Console 中“Books API”的密钥。哪个文件夹使用此来源，请在“有声书：来源”中设置。"
+        },
+        "close": "收起",
+        "toggleLabel": "{{action}}：{{name}}",
+        "link": "从 {{name}} 获取密钥",
+        "stored": "已设置；留空则保留",
+        "storedHint": "已设置，结尾为 {{hint}}；留空则保留",
+        "envNote": "此值来自 deploy/.env，只能在那里更改。“检查”仍会询问提供商。",
+        "checkAction": "检查",
+        "checkLabel": "检查 {{name}}",
+        "rejected": "已被拒绝",
+        "savedRejected": "{{name}} 已保存，但提供商拒绝了此密钥。"
+      }
+    },
+    "accounts": {
+      "title": "账户",
+      "intro": "所有账户及其角色、分级、媒体库、个人资料和接收通知的渠道。新账户通过邀请创建。你可以在此管理自己账户的个人资料；其他账户各自管理自己的个人资料。",
+      "list": "账户",
+      "columns": {
+        "email": "电子邮件",
+        "role": "角色",
+        "rating": "分级",
+        "libraries": "媒体库",
+        "profiles": "个人资料",
+        "lastSeen": "最近活动",
+        "channels": "渠道",
+        "actions": "操作"
+      },
+      "roles": {
+        "admin": "管理员",
+        "user": "账户"
+      },
+      "libraries_other": "{{count}} 个媒体库",
+      "primaryProfile": "{{name}}（主个人资料）",
+      "listSeparator": "、",
+      "neverSeen": "从未",
+      "noChannels": "无",
+      "channels": {
+        "email": "电子邮件",
+        "push": "Web Push",
+        "telegram": "Telegram"
+      },
+      "edit": {
+        "title": "更改账户",
+        "intro": "你账户的电子邮件地址和密码。每次更改都需要输入当前密码。",
+        "email": "电子邮件地址",
+        "newPassword": "新密码",
+        "newPasswordHint": "留空则保留原密码，否则至少 10 个字符。",
+        "newPasswordRepeat": "再次输入新密码",
+        "currentPassword": "当前密码",
+        "currentPasswordHint": "用于确认是你本人。",
+        "wrongPassword": "当前密码错误。",
+        "unchanged": "请更改电子邮件地址或输入新密码。",
+        "saved": "你的账户已保存。"
+      },
+      "ownerBadge": "所有者",
+      "access": {
+        "title": "{{email}} 的访问权限",
+        "rating": "最高年龄分级",
+        "libraries": "媒体库",
+        "limitsHint": "适用于此账户的所有个人资料。",
+        "heading": "访问权限",
+        "save": "保存访问权限",
+        "saved": "已保存 {{email}} 的访问权限。",
+        "adminHint": "管理员始终拥有 18 岁分级和所有媒体库；“访问权限”仅适用于没有管理权限的账户。"
+      },
+      "role": {
+        "promote": {
+          "action": "设为管理员",
+          "title": "要将 {{email}} 设为管理员吗？",
+          "body": "此账户将可以管理服务器、媒体库和设置。其分级将提升至 18 岁并可访问所有媒体库；该账户的个人资料保留各自的级别。",
+          "confirm": "任命",
+          "done": "{{email}} 现在是管理员。"
+        },
+        "demote": {
+          "action": "撤销角色",
+          "title": "要撤销 {{email}} 的管理员角色吗？",
+          "body": "此账户将只能管理自己的个人资料，并会在所有设备上退出登录。分级和媒体库保持不变，请之后有意识地重新设置。",
+          "confirm": "撤销",
+          "done": "{{email}} 现在是没有管理权限的账户。"
+        }
+      },
+      "remove": {
+        "action": "移除账户",
+        "title": "要移除账户 {{email}} 吗？",
+        "body": "此账户及其个人资料和播放进度将被删除。正在进行的会话和播放会立即结束。该账户设备上的下载会在设备下次连接服务器时消失。永远不再联网的设备会保留它们。",
+        "confirm": "移除账户",
+        "done": "已移除账户 {{email}}。"
+      },
+      "invitations": {
+        "intro": "每个链接只能使用一次，有效期七天。打开链接的人将创建自己的账户。",
+        "note": "此链接给谁？",
+        "noteHint": "例如填写名字。被邀请者也能看到此备注。",
+        "create": "创建邀请",
+        "creating": "正在创建…",
+        "form": {
+          "rating": "最高年龄分级",
+          "libraries": "媒体库"
+        },
+        "created": {
+          "once": "请立即复制链接：它只显示这一次。",
+          "label": "邀请链接",
+          "copy": "复制链接",
+          "copied": "链接已复制。",
+          "copyFailed": "无法复制。链接已选中，请按 Ctrl+C 复制。",
+          "dismiss": "完成"
+        },
+        "list": "现有邀请",
+        "empty": "还没有创建邀请。",
+        "noNote": "无备注",
+        "state": {
+          "open": "未使用",
+          "used": "已使用",
+          "expired": "已过期",
+          "revoked": "已撤销"
+        },
+        "expires": "有效期至 {{date}}",
+        "usedBy": "已由 {{email}} 接受",
+        "revoke": {
+          "action": "撤销",
+          "title": "要撤销邀请吗？",
+          "body": "该链接将失效。",
+          "confirm": "撤销",
+          "done": "已撤销邀请“{{note}}”。"
+        },
+        "invite": "邀请账户",
+        "columns": {
+          "note": "备注",
+          "state": "状态",
+          "rating": "分级",
+          "libraries": "媒体库",
+          "detail": "有效期至 / 已接受",
+          "actions": "操作"
+        }
+      },
+      "discard": "放弃",
+      "status": {
+        "label": "概览",
+        "accounts": "账户",
+        "admins": "管理员",
+        "owners_other": "其中 {{number}} 位所有者",
+        "profiles": "个人资料",
+        "ownProfiles_other": "{{number}} 个属于你",
+        "openInvitations": "未使用的邀请",
+        "nextExpiry": "最早于 {{date}} 到期"
+      },
+      "tabs": {
+        "label": "账户分区",
+        "accounts": "账户",
+        "invitations": "邀请",
+        "accountsCount_other": "{{number}} 个账户",
+        "open": "{{number}} 个未使用"
+      },
+      "profiles": {
+        "mine": "我的个人资料",
+        "of": "{{email}} 的个人资料",
+        "readOnly": "每个账户各自管理自己的个人资料。"
+      }
+    },
+    "backup": {
+      "title": "备份",
+      "intro": "备份和恢复数据库及设置。媒体文件永远不包含在备份中。",
+      "list": "备份",
+      "empty": "还没有备份。",
+      "count_other": "{{number}} 个备份",
+      "caption": "备份：{{kind}}",
+      "new": "新",
+      "tabs": {
+        "label": "备份页面分区",
+        "list": "备份",
+        "create": "新建备份",
+        "upload": "从文件恢复"
+      },
+      "groups": {
+        "encrypted": "{{number}} 个已加密",
+        "newest": "最新：{{date}}",
+        "autoHint": "服务器会在数据库迁移前（更新时）和恢复前自动创建备份。"
+      },
+      "columns": {
+        "name": "文件",
+        "created": "创建时间",
+        "size": "大小",
+        "secrets": "密钥",
+        "encrypted": "已加密",
+        "actions": "操作"
+      },
+      "kinds": {
+        "manual": "手动",
+        "auto": "自动"
+      },
+      "yes": "是",
+      "no": "否",
+      "created": "已创建备份“{{name}}”。",
+      "deleted": "已删除备份“{{name}}”。",
+      "create": {
+        "intro": "备份包含数据库，其中有账户、个人资料、播放进度和设置。媒体文件永远不包含在内。",
+        "scope": "范围",
+        "without": "不含密钥（推荐）",
+        "with": "包含密钥",
+        "withoutHint": "TMDB 和 Trakt 密钥、电子邮件服务器、Telegram 机器人和 Web Push 密钥等凭据不会包含在内。恢复后需要重新输入。私有播客订阅源的地址及其访问码会保留，以便订阅之后继续有效。",
+        "withHint": "备份还包含凭据的密钥。因此整个存档会用密码短语加密（至少 {{min}} 个字符）。没有密码短语就无法恢复。",
+        "passphrase": "密码短语",
+        "passphraseHint": "至少 {{min}} 个字符。请与备份分开保管。",
+        "passphraseRepeat": "再次输入密码短语",
+        "passphraseTooShort": "至少 {{min}} 个字符。",
+        "passphraseMismatch": "两次输入的密码短语不一致。",
+        "submit": "创建备份",
+        "creating": "正在创建…"
+      },
+      "download": {
+        "action": "下载",
+        "label": "下载 {{name}}"
+      },
+      "delete": {
+        "action": "删除…",
+        "title": "要删除备份“{{name}}”吗？",
+        "body": "该文件将从服务器的备份文件夹中删除。已下载的副本不受影响。",
+        "confirm": "删除备份"
+      },
+      "restore": {
+        "action": "恢复",
+        "menu": "恢复…",
+        "titleNamed": "恢复“{{name}}”",
+        "warning": "恢复会用备份的状态替换此服务器上的所有数据。之后服务器将重启，所有人都会退出登录。",
+        "file": "备份文件",
+        "fileHint": "slouchcat-backup-….tar.gz 文件，或包含密钥的 ….tar.gz.age 文件。",
+        "passphrase": "密码短语",
+        "passphraseHint": "此备份已加密。",
+        "passphraseUploadHint": "仅适用于加密的备份（….tar.gz.age）。",
+        "running": "正在检查…",
+        "confirmTitle": "要替换所有数据吗？",
+        "confirmBodyNamed": "账户、个人资料、播放进度和设置将被替换为“{{name}}”中的状态。之后服务器将重启，所有人都会退出登录。",
+        "confirm": "替换并重启"
+      },
+      "restart": {
+        "title": "服务器正在重启",
+        "body": "备份（版本 {{version}}）已检查完毕，将在启动时导入。服务器再次响应后，将打开登录页面。",
+        "noSecrets": "此备份不包含凭据：之后请在“集成”中重新输入密钥、电子邮件服务器和 Telegram 机器人。"
+      }
+    },
+    "restart": {
+      "waiting": "正在等待服务器…",
+      "back": "服务器已恢复。",
+      "silent": "已有 {{seconds}} 秒没有新服务器响应。",
+      "slow": {
+        "title": "服务器没有恢复",
+        "body": "重启时间异常长。请查看容器日志（docker logs slouchcat），待服务器运行后重新加载此页面。",
+        "retry": "重新检查"
+      }
+    },
+    "stats": {
+      "title": "统计",
+      "intro": "近期的观看情况，涵盖所有账户和个人资料。",
+      "period": "时间段",
+      "days_other": "{{count}} 天",
+      "columns": {
+        "plays": "播放次数",
+        "watched": "观看时长"
+      },
+      "tooltip": "{{label}}：{{value}}",
+      "top": {
+        "title": "观看最多",
+        "empty": "此时间段内没有观看记录。",
+        "columns": {
+          "title": "标题",
+          "kind": "类型",
+          "rank": "名次"
+        },
+        "count_other": "{{count, number}} 部作品",
+        "podium": "第 1 至 3 名",
+        "rest": "第 4 名起观看最多的作品",
+        "rank": "{{rank}}",
+        "meta": "{{kind}} · {{plays}} · {{watched}}",
+        "full": "前 {{count, number}} 名",
+        "plays_other": "{{count, number}} 次播放"
+      },
+      "profiles": {
+        "title": "各个人资料的观看时长",
+        "chart": "各个人资料观看时长图表",
+        "label": "{{profile}}（{{email}}）",
+        "empty": "此时间段内没有个人资料观看任何内容。",
+        "columns": {
+          "profile": "个人资料"
+        },
+        "summary_other": "{{count, number}} 个个人资料 · {{watched}}"
+      },
+      "playback": {
+        "title": "播放",
+        "direct": "直接播放",
+        "remux": "Remux",
+        "transcode": "转码",
+        "sessions_other": "{{count, number}} 次播放",
+        "share": "占所有播放的 {{share}}",
+        "hardware": "GPU 转码",
+        "hardwareNote": "占转码的比例"
+      },
+      "devices": {
+        "title": "设备",
+        "chart": "各设备类型观看时长图表",
+        "empty": "此时间段内没有设备播放任何内容。",
+        "unknown": "未知",
+        "columns": {
+          "type": "设备类型",
+          "count": "设备"
+        },
+        "summary_other": "{{count, number}} 台设备 · {{watched}}"
+      },
+      "loaded": "已加载 {{period}} 的数据。",
+      "when": {
+        "title": "观看时间分布",
+        "window_other": "来自最近 {{count, number}} 周",
+        "empty": "这几周内没有观看记录。",
+        "byHour": "按时段",
+        "byWeekday": "按星期",
+        "columns": {
+          "hour": "小时",
+          "day": "星期"
+        },
+        "hourSpan": "{{from}}:00–{{to}}:00",
+        "topHour": "最多在 {{hour}}",
+        "topDay": "最多在{{day}}",
+        "zone": "按服务器时区（{{zone}}）显示的小时。",
+        "grid": "星期和小时",
+        "gridChart": "按星期和小时统计的观看时长",
+        "peak": "高峰：{{day}}，{{hour}}"
+      }
+    },
+    "announcements": {
+      "title": "公告",
+      "intro": "面向所有人的消息：每个个人资料会在下次启动时看到已发布的公告，各账户也会通过其渠道收到。",
+      "list": "公告",
+      "empty": "还没有公告。",
+      "create": "新建公告",
+      "sections": {
+        "drafts": "草稿 {{number}}",
+        "published": "已发布 {{number}}"
+      },
+      "item": {
+        "new": "未保存",
+        "changed": "有未保存的更改",
+        "created": "创建于 {{date}}",
+        "read": "已读 {{acknowledged}} / {{total}}"
+      },
+      "facts": {
+        "created": "创建时间",
+        "published": "发布时间",
+        "acknowledged": "已读"
+      },
+      "draft": "草稿",
+      "notSent": "尚未发送",
+      "acknowledged": "{{acknowledged}} / {{total}} 个个人资料",
+      "published": "“{{title}}”已发布。",
+      "saved": "“{{title}}”已保存为草稿。",
+      "deleted": "“{{title}}”已删除。",
+      "form": {
+        "title": "新建公告",
+        "editTitle": "编辑草稿",
+        "titleLabel": "标题",
+        "titleCount": "{{length}} / {{max}}",
+        "body": "正文",
+        "bodyHint": "最多 {{max}} 个字符。换行会保留。",
+        "publishLabel": "发布",
+        "publishNow": "立即发布",
+        "save": "保存为草稿"
+      },
+      "preview": {
+        "title": "个人资料看到的效果",
+        "noTitle": "公告标题",
+        "noBody": "正文将显示在这里，与个人资料看到的一样。"
+      },
+      "discard": {
+        "action": "放弃",
+        "title": "要放弃更改吗？",
+        "body": "对“{{title}}”未保存的更改将丢失。",
+        "newTitle": "要放弃新公告吗？",
+        "newBody": "新公告尚未保存，其标题和正文将丢失。",
+        "confirm": "放弃"
+      },
+      "publish": {
+        "action": "发布",
+        "label": "发布“{{title}}”",
+        "title": "要发布“{{title}}”吗？",
+        "body": "每个个人资料会在下次启动时看到此公告。它会发送到所有选择接收公告的账户的渠道；访客默认通过电子邮件接收。发布后无法再更改。",
+        "confirm": "发布",
+        "reach": "每个个人资料会在下次启动时看到它，并会发送到所有选择接收公告的账户的渠道。访客默认通过电子邮件接收。",
+        "later": "发布时：{{reach}}发布后无法再更改。"
+      },
+      "delete": {
+        "action": "删除",
+        "label": "删除“{{title}}”",
+        "title": "要删除“{{title}}”吗？",
+        "body": "公告及其已读回执将被删除。已发送的消息仍保留在收件人处。",
+        "confirm": "删除公告"
+      }
+    },
+    "jobs": {
+      "title": "后台任务",
+      "intro": "服务器在后台执行的工作：哪些任务正在运行、从何时开始、还需多久，以及下次运行时间。每个任务都可以立即运行、暂停或取消其运行。",
+      "counts": {
+        "running": "运行中",
+        "queued": "等待中",
+        "planned": "已计划",
+        "paused": "已暂停",
+        "failed": "失败",
+        "label": "概览"
+      },
+      "pools": {
+        "title": "工作线程",
+        "general": "通用",
+        "download": "下载",
+        "notify": "通知",
+        "index": "关键帧索引",
+        "trickplay": "拖动预览",
+        "podcast": "播客单集",
+        "workers": "{{count}} 个工作线程",
+        "backlog": "积压约 {{duration}}",
+        "free": "空闲",
+        "noEstimate": "无法估算",
+        "line": "{{pool}}：{{workers}} · {{state}}"
+      },
+      "pausedBanner": {
+        "title_other": "{{count}} 个任务已暂停",
+        "body": "已暂停的任务在恢复之前不会开始运行：{{types}}。",
+        "playbackOverride": "{{name}} 的播放请求仍会运行。"
+      },
+      "running": {
+        "title": "正在运行",
+        "empty": "当前没有正在运行的任务。",
+        "since": "已运行 {{duration}}",
+        "overridesPause": "用于播放，不受暂停影响",
+        "overridesWindow": "用于播放",
+        "progress": "{{done}} / {{total}}",
+        "progressLabel": "{{name}}：{{percent}}%",
+        "pause": "暂停运行",
+        "pauseLabel": "暂停 {{name}}（停止此次及该任务所有正在进行的运行）",
+        "cancel": "取消",
+        "cancelLabel": "取消 {{name}} 的运行 {{id}}",
+        "count_other": "{{count}} 次运行",
+        "columns": {
+          "job": "任务",
+          "subject": "对象",
+          "progress": "进度",
+          "since": "开始时间",
+          "left": "剩余时间"
+        }
+      },
+      "estimate": {
+        "left": "剩余约 {{duration}}",
+        "computing": "正在计算",
+        "longer": "比平时更久"
+      },
+      "state": {
+        "idle": "空闲",
+        "queued": "等待中",
+        "running": "运行中",
+        "paused": "已暂停",
+        "stopping": "正在停止",
+        "unknown": "未知"
+      },
+      "groups": {
+        "library": "媒体库",
+        "metadata": "元数据",
+        "delivery": "发送",
+        "system": "系统"
+      },
+      "card": {
+        "queued": "等待中",
+        "queuedValue": "{{count}}",
+        "queuedEstimate": "约 {{duration}} 后轮到",
+        "planned": "已计划 {{count}}",
+        "lastRun": "上次运行",
+        "never": "从未",
+        "ago": "{{duration}}前",
+        "lastOk": "OK",
+        "lastFailed": "错误：{{error}}",
+        "lastCancelled": "已取消",
+        "lastSkipped": "无事可做",
+        "nextRun": "下次运行",
+        "in": "{{duration}}后",
+        "every": "每 {{duration}}",
+        "window": "{{start}}–{{end}}",
+        "once": "单次：{{date}}",
+        "off": "关闭",
+        "automatic": "自动",
+        "pausedNext": "已暂停",
+        "waitsUntil": "等待至 {{time}}",
+        "trigger": "触发方式",
+        "triggerEvent": "由服务器中的事件自动触发",
+        "triggerManual": "手动",
+        "unknown": "此服务器已不再识别该任务（旧版本）。",
+        "median": "通常需要 {{duration}}"
+      },
+      "actions": {
+        "run": "立即运行",
+        "runLabel": "立即运行 {{name}}",
+        "pause": "暂停",
+        "pauseLabel": "暂停 {{name}}",
+        "resume": "恢复",
+        "resumeLabel": "恢复 {{name}}",
+        "cancelQueued": "取消等待中的运行（{{count}}）",
+        "cancelAll": "取消所有运行",
+        "resumeNamed": "恢复：{{name}}"
+      },
+      "confirm": {
+        "cancelQueuedTitle": "要取消 {{name}} 等待中的运行吗？",
+        "cancelQueuedBody_other": "{{count}} 次等待中的运行将被取消，且不会补做。",
+        "cancelAllTitle": "要取消 {{name}} 的所有运行吗？",
+        "cancelAllBody": "{{queued}} 次等待中和 {{running}} 次正在进行的运行将立即结束。取消后无法撤销。",
+        "cancelRunTitle": "要取消 {{name}} 的一次运行吗？",
+        "cancelRunBody": "此次运行将立即结束，且不会补做。",
+        "notifyWarning": "取消的发送将不会送达。",
+        "scanWarning": "该媒体库将标记为“已中止”；下次扫描时会补上。",
+        "downloadWarning": "这些下载将标记为“失败”，且不会重新准备。",
+        "confirm": "取消运行",
+        "keep": "保留",
+        "deleteRunTitle": "要删除 {{name}} 失败的运行吗？",
+        "deleteRunBody": "Slouchcat 将不再尝试此次运行。之后它会在“运行记录”中显示为“已取消”，直到稍后被清理。",
+        "deleteRunConfirm": "删除",
+        "retryFailedTitle_other": "要重试全部 {{count}} 次失败的运行吗？",
+        "retryFailedTypeTitle_other": "要重试 {{name}} 全部 {{count}} 次失败的运行吗？",
+        "retryFailedBody": "这些运行将重置尝试次数并重新排队。如果相同的工作已在等待或运行，该次运行仍保持失败；重复的运行只有最新的一次会恢复。",
+        "retryFailedConfirm": "全部重试",
+        "dismissFailedTitle_other": "要删除全部 {{count}} 次失败的运行吗？",
+        "dismissFailedTypeTitle_other": "要删除 {{name}} 全部 {{count}} 次失败的运行吗？",
+        "dismissFailedBody": "Slouchcat 将不再尝试它们。之后它们会在“运行记录”中显示为“已取消”，直到稍后被清理。",
+        "dismissFailedConfirm": "全部删除"
+      },
+      "messages": {
+        "ran_zero": "{{name}}：没有可排队的内容。",
+        "ran_other": "{{name}}：已排队 {{count}} 次运行。",
+        "paused": "{{name}} 已暂停；正在进行的运行将停止并返回队列。",
+        "resumed": "{{name}} 已恢复。",
+        "cancelled_zero": "{{name}}：没有可取消的内容。",
+        "cancelled_other": "{{name}}：已取消 {{count}} 次运行。",
+        "runCancelled": "已取消运行 {{id}}。",
+        "runRetried": "运行 {{id}} 已重新排队。",
+        "scheduleSaved": "已保存 {{name}} 的计划。",
+        "windowSaved": "已保存 {{name}} 的时间窗口。",
+        "runDeleted": "已删除运行 {{id}}。",
+        "failedRetried_zero": "没有运行被排队。",
+        "failedRetried_other": "{{count}} 次运行已重新等待。",
+        "failedSkipped_other": "{{count}} 次运行仍为失败，因为相同的工作已在等待或运行。",
+        "failedMerged_other": "已丢弃 {{count}} 次重复的运行。",
+        "failedDismissed_zero": "没有可删除的运行。",
+        "failedDismissed_other": "已删除 {{count}} 次失败的运行。"
+      },
+      "runs": {
+        "title": "{{name}} 的运行记录",
+        "tabs": "按状态分类",
+        "tab": {
+          "running": "运行中",
+          "queued": "等待中",
+          "planned": "已计划",
+          "failed": "失败",
+          "done": "已完成",
+          "cancelled": "已取消"
+        },
+        "empty": "没有此状态的运行。",
+        "total": "共 {{count}} 次，显示最新的 {{shown}} 次",
+        "columns": {
+          "subject": "对象",
+          "priority": "优先级",
+          "started": "开始",
+          "duration": "时长",
+          "attempts": "尝试次数",
+          "error": "错误",
+          "actions": "操作"
+        },
+        "noSubject": "#{{id}}",
+        "retry": "重试",
+        "retryLabel": "将运行 {{id}} 重新排队",
+        "cancel": "取消",
+        "cancelLabel": "取消运行 {{id}}",
+        "runAfter": "最早 {{time}}",
+        "heading": "运行",
+        "delete": "删除",
+        "deleteLabel": "删除运行 {{id}}",
+        "retryAllLabel": "重试 {{name}} 所有失败的运行",
+        "dismissAllLabel": "删除 {{name}} 所有失败的运行"
+      },
+      "schedule": {
+        "title": "{{name}} 的计划",
+        "description": "间隔、时间窗口和开关。下次运行将据此重新安排；“立即运行”不受时间窗口限制。",
+        "enabled": "启用计划",
+        "every": "间隔",
+        "everyOptions": {
+          "m5": "每 5 分钟",
+          "m15": "每 15 分钟",
+          "m30": "每 30 分钟",
+          "h1": "每小时",
+          "h2": "每 2 小时",
+          "h6": "每 6 小时",
+          "h12": "每 12 小时",
+          "h24": "每天",
+          "h48": "每 2 天",
+          "d7": "每周"
+        },
+        "window": "仅在时间窗口内",
+        "windowStart": "从",
+        "windowEnd": "至",
+        "windowHint": "服务器时区：{{zone}}。时间窗口可以跨越午夜。",
+        "traktHint": "间隔和开关与“焦点推荐”页面上的设置相同。",
+        "updateHint": "开关与设置中的更新检查相同。",
+        "save": "保存",
+        "heading": "计划",
+        "eventNote": "无计划：一旦有工作就会自动运行，详见“触发方式”。",
+        "discard": "放弃",
+        "once": "单次运行于",
+        "onceHint": "服务器时区：{{zone}}。此日期会在间隔之外额外运行一次，即使不在时间窗口内。",
+        "clearOnce": "移除日期",
+        "onceRange": "日期必须在现在到一年后之间。",
+        "onceInvalid": "不是有效的日期。",
+        "windowTitle": "{{name}} 的时间窗口",
+        "windowWaits": "在时间窗口之外，新的运行会等待；正在进行的会运行完毕。播放和下载仍会立即开始。"
+      },
+      "duration": {
+        "seconds": "{{count}} 秒",
+        "minutes": "{{count}} 分钟",
+        "hours": "{{count}} 小时",
+        "hoursMinutes": "{{hours}} 小时 {{minutes}} 分钟",
+        "days": "{{count}} 天",
+        "overDay": "超过 1 天"
+      },
+      "types": {
+        "radio_catalog_sync": {
+          "name": "同步电台目录",
+          "description": "从 Radio Browser 获取电台目录，将条目合并为电台并归入各筛选项。",
+          "trigger": "每天 04:30 起、广播页面上的“立即同步”、首次启动且没有目录时"
+        },
+        "radio_logo_fetch": {
+          "name": "获取电台台标",
+          "description": "从目录或电台网站获取台标，并以正方形存储。",
+          "trigger": "应用列表中出现没有台标的电台、台标被重置时"
+        },
+        "radio_wikidata_sync": {
+          "name": "从 Wikidata 获取电台信息",
+          "description": "通过网站将已上架的电台与 Wikidata 比对，在唯一匹配时采用所有者和成立时间。",
+          "trigger": "每周 06:30 起、带有新电台的“应用”之后（每天最多一次）、开启“使用 Wikidata”时"
+        },
+        "scan_library": {
+          "name": "媒体库扫描",
+          "description": "在所有媒体库中查找新增、更改和缺失的文件。",
+          "trigger": "每 6 小时的计划和服务器启动、媒体库页面上的“扫描”、Webhook、文件监视"
+        },
+        "scan_path": {
+          "name": "文件夹扫描",
+          "description": "某个文件夹中有变化时重新读取该文件夹。",
+          "trigger": "文件监视发现更改、Webhook"
+        },
+        "probe_file": {
+          "name": "检查文件",
+          "description": "读取新文件或已更改文件的轨道、时长和格式。",
+          "trigger": "扫描时每个新文件、维护中的“检查文件”"
+        },
+        "probe_keyframes": {
+          "name": "关键帧索引（读取整个文件）",
+          "description": "文件缺少拖动所需的索引时读取整个文件。",
+          "trigger": "导入时（仅当容器中没有索引）、补建时、播放前（暂停时也会）以及离线下载时"
+        },
+        "keyframes_backfill": {
+          "name": "补建关键帧索引",
+          "description": "将所有没有关键帧索引的文件加入队列。",
+          "trigger": "计划（默认关闭，每周）或单次日期、“立即运行”：从所有尚无索引的视频文件的容器中读取索引",
+          "progress": "已检查文件：{{done}} / {{total}}"
+        },
+        "library_sweep": {
+          "name": "清理缺失的作品",
+          "description": "移除文件缺失超过宽限期的作品。",
+          "trigger": "每小时的计划和服务器启动"
+        },
+        "segments_detect": {
+          "name": "识别片头和片尾",
+          "description": "为“跳过片头”查找单集的片头和片尾。",
+          "trigger": "扫描时按剧集的每一季"
+        },
+        "chapters_images": {
+          "name": "生成章节图片",
+          "description": "生成文件各章节的预览图。",
+          "trigger": "每个文件在播放结束 10 分钟后、新文件在完整扫描后及重新检查后"
+        },
+        "chapters_images_backfill": {
+          "name": "补建章节图片",
+          "description": "将所有没有章节图片的文件加入生成队列。",
+          "trigger": "计划（默认关闭，每周）或单次日期、“立即运行”：针对所有没有章节图片的电影和单集"
+        },
+        "trickplay_generate": {
+          "name": "生成拖动预览",
+          "description": "逐页生成文件进度条的预览图。",
+          "trigger": "电影或单集开始播放时、设为“提前生成”的新文件、补建时、剧集预生成时以及离线下载时"
+        },
+        "trickplay_series": {
+          "name": "其余单集的预览",
+          "description": "将剧集其余单集的预览加入队列，先处理接下来的两集。",
+          "trigger": "单集开始播放且媒体库设为“播放时生成全部单集”时"
+        },
+        "trickplay_backfill": {
+          "name": "补建拖动预览",
+          "description": "将所有没有完整预览的电影和单集加入生成队列。",
+          "trigger": "计划（默认关闭，每周）或单次日期、“立即运行”：针对设为“提前生成”的媒体库",
+          "progress": "已检查文件：{{done}} / {{total}}"
+        },
+        "library_relink": {
+          "name": "重新关联已删除的作品",
+          "description": "将移动过的文件关联回其原有作品和观看状态。",
+          "trigger": "匹配到一部有已删除副本的作品之后"
+        },
+        "metadata_match": {
+          "name": "匹配作品",
+          "description": "为新作品查找对应的 TMDB 或 TVDB 条目。",
+          "trigger": "扫描时、手动匹配、更改文件夹"
+        },
+        "library_author_display": {
+          "name": "统一作者名称",
+          "description": "将所有有声书中同一作者的不同写法合并为一个显示名称。",
+          "trigger": "扫描后、匹配后、“统一作者名称”开关"
+        },
+        "metadata_fill": {
+          "name": "补充元数据",
+          "description": "获取作品的文本、类型、分级、演员和图片。",
+          "trigger": "匹配后、文件夹的来源列表更改后"
+        },
+        "metadata_vote_backfill": {
+          "name": "补充评分票数",
+          "description": "获取缺失的票数，用于选择图片。",
+          "trigger": "每次完整扫描后，只要仍有作品等待评分"
+        },
+        "metadata_original_language_backfill": {
+          "name": "补充原始语言",
+          "description": "为所有作品补充原始语言，用于选择音轨。",
+          "trigger": "更新后首次启动时运行一次，之后按计划（默认关闭，每周）、单次日期或“立即运行”"
+        },
+        "image_fetch": {
+          "name": "获取图片",
+          "description": "下载作品所选的图片并生成各种尺寸。",
+          "trigger": "匹配后、启动时补做"
+        },
+        "people_images": {
+          "name": "获取人物和合集图片",
+          "description": "下载人物肖像和 TMDB 合集的海报，并生成各种尺寸。",
+          "trigger": "匹配到带有演员或合集的作品后，以及完整扫描后（获取存量）",
+          "progress": "已检查图片：{{done}} / {{total}}"
+        },
+        "people_details": {
+          "name": "获取人物和合集信息",
+          "description": "从 TMDB 获取每位人物的简介、生日、出生地、知名领域和作品数量，以及每个 TMDB 合集的简介；主语言没有文本时使用英文。",
+          "trigger": "匹配到带有演员或合集的作品后、完整扫描后，以及更新后运行一次",
+          "progress": "已检查人物和合集：{{done}} / {{total}}"
+        },
+        "people_images_backfill": {
+          "name": "补建人物和合集图片",
+          "description": "重新尝试 TMDB 之前没有图片的所有人物和合集。",
+          "trigger": "计划（默认关闭，每周）或单次日期、“立即运行”：清除失败记录并将运行加入队列",
+          "progress": "已检查图片：{{done}} / {{total}}"
+        },
+        "metadata_apply": {
+          "name": "应用元数据",
+          "description": "将更改后的元数据设置应用到媒体库。",
+          "trigger": "元数据页面上的“立即应用”"
+        },
+        "trailer_find": {
+          "name": "查找预告片",
+          "description": "在 TMDB、YouTube 或通过 AI 搜索查找预告片。",
+          "trigger": "匹配后"
+        },
+        "podcast_fetch": {
+          "name": "获取播客订阅源",
+          "description": "读取单个播客订阅源及其新单集。",
+          "trigger": "订阅源轮询时每个到期的订阅、每个播客的“刷新”、新订阅"
+        },
+        "podcast_poll": {
+          "name": "检查播客订阅源",
+          "description": "检查所有播客订阅源是否有新单集。",
+          "trigger": "每 5 分钟的计划：获取到期的订阅"
+        },
+        "podcast_sync": {
+          "name": "规划播客单集",
+          "description": "按播客的设置选出要下载为文件的单集，并取消不再需要的下载。",
+          "trigger": "获取到新单集的订阅源后、新订阅后以及设置更改后"
+        },
+        "podcast_sync_all": {
+          "name": "补下播客单集",
+          "description": "重新规划所有设为“存储”的播客，并重试失败的下载。",
+          "trigger": "每 6 小时的计划"
+        },
+        "podcast_download": {
+          "name": "存储播客单集",
+          "description": "从提供方下载单集，并作为文件放入其播客的文件夹。",
+          "trigger": "由规划器在“存储”、“下载缺失单集”和每集的“下载”时触发；每个提供方同时只下载一集",
+          "progress": "字节：{{done}} / {{total}}"
+        },
+        "trakt_refresh": {
+          "name": "获取焦点推荐列表",
+          "description": "获取焦点推荐所用作品的 Trakt 列表。",
+          "trigger": "按焦点推荐页面设置的间隔计划、“立即获取”"
+        },
+        "update_check": {
+          "name": "更新检查",
+          "description": "检查是否有更新的 Slouchcat 版本。",
+          "trigger": "每天的计划、启动后 60 秒、“立即检查”"
+        },
+        "download_prepare": {
+          "name": "准备下载",
+          "description": "为离线播放准备下载。",
+          "trigger": "个人资料发起下载；每 10 分钟的同步会将未完成的重新排队"
+        },
+        "notify_deliver": {
+          "name": "发送通知",
+          "description": "通过电子邮件、Telegram 或 Web Push 发送通知。",
+          "trigger": "每个带有渠道的事件（电子邮件、Web Push、Telegram）"
+        },
+        "jobs_prune": {
+          "name": "清理历史记录",
+          "description": "从历史记录中删除旧的运行和失败记录。",
+          "trigger": "每天的计划：超过 30 天的已完成运行"
+        },
+        "library_delete": {
+          "name": "删除媒体库",
+          "description": "删除媒体库及其所有作品和相关数据，但从不删除文件；删除前先备份数据库。",
+          "trigger": "管理中的“删除媒体库…”；如果运行失败，媒体库会恢复"
+        }
+      },
+      "tabs": {
+        "label": "按分组分类的任务",
+        "types_other": "{{count}} 种任务类型",
+        "caption": "{{group}}分组的任务",
+        "failed": "失败记录",
+        "empty": "此分组中没有任务。"
+      },
+      "columns": {
+        "job": "任务",
+        "description": "说明",
+        "state": "状态"
+      },
+      "failed": {
+        "title": "失败记录（所有类型）",
+        "count_other": "{{count}} 个失败",
+        "empty": "没有失败记录。",
+        "shown": "已加载 {{shown}} / {{total}}",
+        "columns": {
+          "type": "任务类型",
+          "at": "时间"
+        },
+        "retryLabel": "将 {{name}} 的运行 {{id}} 重新排队",
+        "retryAll": "全部重试",
+        "dismissAll": "全部删除…",
+        "deleteLabel": "删除 {{name}} 的运行 {{id}}"
+      },
+      "separator": " · ",
+      "none": "–",
+      "livePaused": "实时更新已暂停"
+    },
+    "metadata": {
+      "title": "元数据",
+      "intro": "元数据来源提供哪些语言，获取哪些语言和质量的图片，以及优先由哪个国家决定年龄分级。默认设置适用于所有媒体库；单个媒体库可以在语言和图片方面另行设置。",
+      "links": {
+        "roots": "来源的顺序按文件夹在“媒体库”中设置。",
+        "jobs": "计划在“后台任务”中设置。",
+        "keys": "密钥在“集成”中设置"
+      },
+      "audiobooks": {
+        "title": "有声书：来源",
+        "body": "Slouchcat 从何处获取有声书的信息、时长和封面，以及自动匹配和“待审核”列表。",
+        "open": "打开来源"
+      },
+      "areas": {
+        "label": "分区",
+        "changed": "已更改 · {{summary}}",
+        "scoped": "{{state}} · {{summary}}",
+        "quality": "海报 {{poster}}，背景图 {{backdrop}}",
+        "sources": {
+          "local": "本地文件",
+          "fanart": "Fanart.tv",
+          "tmdbAdult": "TMDB（含成人内容）",
+          "none": "仅文件夹的来源"
+        },
+        "separator": " › "
+      },
+      "scope": {
+        "label": "适用范围",
+        "server": "默认",
+        "serverHint": "适用于所有没有单独设置的媒体库。",
+        "libraryHint": "{{name}} 使用默认设置。开启“单独设置”即可仅为此媒体库更改语言或图片。",
+        "deviates": "单独设置",
+        "textsDeviate": "语言单独设置",
+        "imagesDeviate": "图片单独设置",
+        "likeServer": "与服务器相同",
+        "changed": "{{name}}（已更改）",
+        "serverDirty": "默认设置有未保存的更改；此处显示的是已保存的状态。"
+      },
+      "languages": {
+        "title": "语言",
+        "intro": "此处的每种语言都会为每部作品获取；个人资料从中选择简介的语言。界面语言不受此设置影响。每增加一种语言，每部作品和每季都会多一次请求。",
+        "list": "元数据语言",
+        "rank": "第 {{position}} 语言",
+        "more": "其他语言",
+        "fallback": "顺序即回退顺序：如果个人资料的语言缺少文本，Slouchcat 会显示列表中第一种可用的语言，最后显示文件名。默认设置需要包含德语，媒体库需要包含德语或英语；界面语言不受此影响。",
+        "unknownAt": "{{provider}} 不支持：{{languages}}",
+        "youtube": "{{count}} 种语言：使用 YouTube 预告片搜索时，每天最多 {{titles}} 部作品（配额 10,000）。"
+      },
+      "images": {
+        "title": "图片",
+        "intro": "获取哪些图片类型以及使用哪种语言。电影旁的图片文件（poster.jpg、fanart.jpg、logo.png）只要宽度足够就优先使用；其次是文件夹的来源，最后是 Fanart.tv。",
+        "kinds": "图片类型",
+        "kind": {
+          "poster": "海报",
+          "backdrop": "背景图",
+          "logo": "标志",
+          "season_poster": "季海报",
+          "episode_still": "单集剧照"
+        },
+        "kindHint": {
+          "poster": "电影、剧集、有声书、播客",
+          "backdrop": "电影、剧集",
+          "logo": "在详情页和焦点推荐中代替文字标题的标题标志",
+          "season_poster": "否则使用剧集海报",
+          "episode_still": "每集一张剧照；40,000 集约占 12 GB 缓存"
+        },
+        "always": "始终",
+        "notBuilt": "艺术图、横幅和光盘图片是有意不获取的：没有页面会显示它们。",
+        "chains": "图片语言",
+        "chainsIntro": "选择图片的顺序。“无文字”指不带文字的图片。同一语言内，评分最高的图片优先。",
+        "noText": "无文字",
+        "chainOf": "{{kind}}的图片语言"
+      },
+      "quality": {
+        "title": "图片质量",
+        "intro": "适用于所有媒体库。提供的尺寸（海报 200/400/800，背景图 780/1280/1920，标志 400/800）是固定的。",
+        "minPoster": "海报最小宽度",
+        "minBackdrop": "背景图最小宽度",
+        "any": "不限",
+        "px": "{{width}} px",
+        "byVote": "按评分选择",
+        "byVoteHint": "选择该语言中评分最高的图片，而不是第一个结果。",
+        "fallback": "没有达到最小宽度的图片时，Slouchcat 会选择较小图片中最好的一张；图片类型不会仅因要求过高而留空。"
+      },
+      "sources": {
+        "title": "来源",
+        "intro": "元数据来源的顺序按文件夹在“媒体库”中设置，密钥在“集成”中设置。此处仅设置某个来源的特殊选项。",
+        "tmdbAdult": "TMDB：搜索时包含成人内容",
+        "tmdbAdultHint": "否则它们永远不会出现在匹配中。",
+        "local": "使用本地文件作为来源",
+        "localHint": "作品旁的 poster.jpg、fanart.jpg、logo.png、seasonNN-poster.jpg；宽度足够时优先于所有提供商。",
+        "localCount_other": "{{count}} 部作品有图片文件",
+        "localSmall": "过小或已关闭的文件仍会作为候选出现在每部作品的图片选择中。",
+        "fanart": "使用 Fanart.tv 作为图片来源",
+        "fanartHint": "高质量的标志和海报，排在文件夹的来源之后。需要在“集成”中设置密钥；没有密钥时不会查询。"
+      },
+      "rating": {
+        "title": "年龄分级",
+        "intro": "优先读取哪个国家；之后照旧依次为 DE、AT、CH、GB、US。级别仍为 FSK 0/6/12/16/18。",
+        "country": "国家",
+        "countries": {
+          "DE": "德国（DE）",
+          "AT": "奥地利（AT）",
+          "CH": "瑞士（CH）",
+          "GB": "英国（GB）",
+          "US": "美国（US）"
+        },
+        "hint": "新作品采用优先读取的国家的级别。已保存的级别永远不会被降低，即使其他国家的级别更低；只能在维护中逐部作品降低。"
+      },
+      "apply": {
+        "title": "应用到现有作品",
+        "short": "应用",
+        "intro": "新作品会立即使用这些设置。现有作品保持不变，直到你开始运行；运行会出现在“后台任务”中，可查看进度、暂停和取消。",
+        "what": "内容",
+        "both": "文本和图片",
+        "texts": "仅文本",
+        "images": "仅图片",
+        "where": "范围",
+        "all": "所有媒体库",
+        "titles_other": "{{count}} 部作品",
+        "run": "立即应用",
+        "running": "正在排队…",
+        "queued": "运行 {{id}} 已排队：{{count}} 部作品。进度见“后台任务”。",
+        "waiting": "仍在等待：{{matches}} 个匹配，{{images}} 张图片。",
+        "jobsLink": "前往后台任务",
+        "lastRun": "上次运行：{{when}}，{{state}}。",
+        "noRun": "还没有运行过。"
+      },
+      "save": {
+        "savedScope_other": "已为 {{name}} 保存。影响 {{count}} 部作品，要立即应用吗？",
+        "failed": "“{{name}}”未保存：{{reason}}"
+      },
+      "discard": {
+        "title": "要放弃更改吗？",
+        "body": "对 {{names}} 未保存的更改将丢失。",
+        "confirm": "放弃"
+      },
+      "errors": {
+        "langs_empty": "至少需要一种语言。",
+        "lang_unknown": "未知的语言代码。",
+        "ui_lang_required": "默认设置需要包含德语；媒体库需要包含德语或英语。",
+        "chain_duplicate": "每种语言只能出现一次。",
+        "country_unknown": "未知的国家。",
+        "source_unknown": "此图片来源不是该作品的候选来源。"
+      }
+    },
+    "activity": {
+      "someone": "某个个人资料",
+      "someTitle": "某部作品",
+      "someLibrary": "某个媒体库",
+      "playbackStarted": "{{profile}} 开始播放“{{title}}”",
+      "playbackCompleted": "{{profile}} 看完了“{{title}}”",
+      "playbackStopped": "“{{title}}”的播放（{{profile}}）已停止",
+      "playbackRevoked": "“{{title}}”的播放（{{profile}}）已停止，设备已被忘记",
+      "scanStarted": "已开始扫描“{{library}}”",
+      "scanDone_other": "“{{library}}”扫描完成：{{count}} 部新作品",
+      "scanFailed": "“{{library}}”扫描失败",
+      "scanAborted": "“{{library}}”的扫描被丢失保护中止",
+      "scanCancelled": "“{{library}}”的扫描已被手动取消",
+      "jobFailed_other": "{{type}}：{{count}} 个任务失败",
+      "backupCreated": "已创建备份",
+      "backupCreatedSize": "已创建备份（{{size}}）",
+      "backupRestored": "已恢复备份",
+      "serverStarted": "服务器已启动",
+      "serverStartedVersion": "服务器已启动，版本 {{version}}",
+      "serverRestart": "服务器已重启",
+      "serverRestartBy": "由 {{account}} 重启",
+      "unknown": "服务器上的事件",
+      "libraryDeleted_other": "媒体库“{{library}}”已被 {{account}} 删除（{{count}} 部作品）",
+      "itemRemoved": "“{{title}}”已被 {{account}} 从 Slouchcat 中移除",
+      "itemFilesDeleted_other": "“{{title}}”已被 {{account}} 删除，连同 {{count}} 个文件（{{size}}）"
+    },
+    "audiobookSources": {
+      "title": "有声书：来源",
+      "intro": "Slouchcat 从何处获取有声书的信息和封面。文件始终优先；提供商只补充缺失的内容，且从不覆盖已锁定的字段。",
+      "folders": {
+        "title": "各文件夹的顺序",
+        "intro": "每个字段以排在上方的来源为准。顺序和参与的来源可在文件夹的对话框中更改。",
+        "empty": "还没有有声书文件夹。",
+        "edit": "更改来源",
+        "editLabel": "更改 {{path}} 的来源",
+        "library": "媒体库 {{name}}"
+      },
+      "settings": {
+        "title": "设置",
+        "saved": "有声书设置已保存。"
+      },
+      "region": {
+        "label": "Audible 地区",
+        "help": "优先搜索的 Audible 目录。英文书还会在美国和英国搜索。",
+        "de": "德国（audible.de）",
+        "com": "美国（audible.com）",
+        "couk": "英国（audible.co.uk）",
+        "fr": "法国（audible.fr）",
+        "it": "意大利（audible.it）",
+        "es": "西班牙（audible.es）",
+        "ca": "加拿大（audible.ca）",
+        "comau": "澳大利亚（audible.com.au）",
+        "in": "印度（audible.in）",
+        "cojp": "日本（audible.co.jp）"
+      },
+      "audnexus": {
+        "label": "Audnexus 地址",
+        "help": "Audnexus 提供 Audible 结果的详细信息：简介、类型、系列、ISBN 和封面。允许使用局域网中的自建实例。",
+        "invalid": "请输入以 http:// 或 https:// 开头的地址。"
+      },
+      "googleBooks": {
+        "name": "Google Books 密钥",
+        "description": "Google Books 密钥现在与其他提供商放在一起。",
+        "link": "在“集成”中设置"
+      },
+      "auto": {
+        "label": "自动匹配",
+        "off": "关闭",
+        "offHint": "只能通过铅笔图标手动匹配。",
+        "new": "新有声书",
+        "newHint": "扫描时，针对未匹配的有声书。",
+        "all": "所有未匹配的",
+        "allHint": "对整个媒体库执行一次，之后与“新有声书”相同。"
+      },
+      "tolerance": {
+        "label": "时长允许偏差",
+        "option": "{{count}}%",
+        "help": "只匹配唯一的结果：作者相同、标题相似、时长一致。否则有声书保留其文件中的信息，并出现在“待审核”中。允许 1% 到 10%。"
+      },
+      "normalize": {
+        "title": "统一",
+        "authors": "统一作者名称",
+        "authorsHint": "“J R R Tolkien”、“J.R.R. Tolkien”和“J. R. R. Tolkien”将合并为同一人。",
+        "series": "统一系列名称",
+        "seriesHint": "“Bodyguard - Band”变为“Bodyguard”，“Der Herr Der Ringe - Band”变为“Der Herr der Ringe”。"
+      },
+      "terms": "Audible 的使用条款禁止自动读取其目录。Slouchcat 每秒最多查询一次，多次被拒绝后会暂停该来源。如果不希望这样，请将 Audible 从文件夹的来源列表中移除。",
+      "sources": {
+        "title": "来源状态",
+        "ready": "就绪",
+        "notConfigured": "无密钥，已关闭",
+        "paused": "暂停至 {{time}}"
+      },
+      "stats": {
+        "title": "媒体库状态",
+        "total": "有声书",
+        "matched": "已匹配",
+        "review": "待审核",
+        "none": "无结果",
+        "error": "出错",
+        "pending": "待处理",
+        "running": "有匹配正在运行或等待中。"
+      },
+      "matchAll": {
+        "run": "立即匹配所有未匹配的有声书",
+        "queued_other": "已将 {{count}} 部有声书加入队列。",
+        "jobs": "前往后台任务"
+      },
+      "review": {
+        "title": "待审核",
+        "intro": "有多个候选项、时长超出允许偏差或来源出错的有声书。点击铅笔图标可打开编辑器。",
+        "empty": "没有需要审核的内容。",
+        "caption": "待审核的有声书",
+        "column": {
+          "title": "标题",
+          "author": "作者",
+          "length": "时长",
+          "state": "状态",
+          "candidates": "候选项",
+          "actions": "编辑"
+        },
+        "state": {
+          "review": "待审核",
+          "error": "出错"
+        },
+        "reason": {
+          "paused": "{{source}} 多次被拒绝后已暂停。",
+          "blocked": "{{source}} 拒绝了请求。",
+          "notConfigured": "{{source}} 尚未设置。",
+          "region": "{{source}} 不支持所选的商店地区。",
+          "unreachable": "无法访问 {{source}}。",
+          "unknown": "{{source}} 报告了一个错误。"
+        },
+        "candidate": "{{source}}：{{title}} · {{length}}",
+        "noCandidates": "无",
+        "edit": "编辑 {{title}}"
+      }
+    },
+    "itemDelete": {
+      "action": "删除",
+      "editorAction": "删除…",
+      "title": "要删除“{{title}}”吗？",
+      "loading": "删除作品",
+      "choice": "要执行什么操作？",
+      "mode": {
+        "library": "仅从 Slouchcat 中移除",
+        "files": "同时删除文件"
+      },
+      "libraryHint": "文件保留在磁盘上。即使有新文件加入，此作品也会保持移除状态；可在“维护 › 已移除的作品”中连同播放进度、已看标记和片单一起恢复。",
+      "everywhere": "此作品将从所有个人资料的所有列表中消失，设备上的下载也会被移除。",
+      "arr": "Radarr 和 Sonarr 不会收到任何通知。",
+      "affected_other": "受影响：{{count}} 个文件 · {{size}}",
+      "noFiles": "没有记录的文件。",
+      "folder": "文件夹",
+      "files": "文件",
+      "playing": "{{names}} 正在播放。播放结束后才能删除。",
+      "typeLabel": "输入标题以确认",
+      "typeHint": "输入 {{title}}（不区分大小写），按钮才会启用。",
+      "confirm": {
+        "library": "从 Slouchcat 中移除",
+        "files": "永久删除"
+      },
+      "done": {
+        "library": "“{{title}}”已从 Slouchcat 中移除。文件仍然存在。",
+        "files_other": "“{{title}}”已删除，共 {{count}} 个文件（{{size}}）。",
+        "kept_other": "“{{title}}”：已删除 {{count}} 个文件（{{size}}）；此作品连同无法删除的文件一起保留。",
+        "left_other": "{{count}} 个 Slouchcat 无法识别的文件仍留在文件夹中。"
+      },
+      "filesHint": "文件将被永久删除，没有回收站。如果之后不再有任何文件，此作品连同播放进度、已看标记和片单都会永久消失。如果 Radarr 或 Sonarr 之后重新下载它，它将作为新作品出现。",
+      "notDeletable": "无法执行：{{reason}}",
+      "leftover": "保留：{{path}}（{{reason}}）",
+      "reason": {
+        "read_only": "文件夹以只读方式挂载",
+        "no_permission": "Slouchcat 无权写入该文件夹",
+        "shared": "该文件也属于另一部作品",
+        "not_regular": "不是普通文件",
+        "unreachable": "无法访问该文件夹",
+        "missing": "已不存在（视为已删除）",
+        "failed": "删除失败",
+        "no_files": "没有记录的文件",
+        "changed": "该路径下现在是另一个文件"
+      },
+      "changed": "内容在此期间有变化，请重新检查。下方列表已重新读取，未删除任何内容。"
+    }
+  },
+  "language": {
+    "de": "Deutsch",
+    "en": "English"
+  },
+  "accent": {
+    "label": "颜色",
+    "ember": "余烬",
+    "coral": "珊瑚",
+    "amber": "琥珀",
+    "lime": "青柠",
+    "teal": "青绿",
+    "sky": "天蓝",
+    "violet": "紫罗兰",
+    "rose": "玫瑰"
+  },
+  "libraries": {
+    "all": "所有媒体库",
+    "none": "无媒体库",
+    "choose": "选择媒体库",
+    "named": "媒体库 {{id}}",
+    "modeAll": "全部",
+    "modeSome": "部分",
+    "needOne": "请至少选择一个媒体库。",
+    "loadFailed": "无法加载媒体库。"
+  },
+  "profiles": {
+    "picker": {
+      "title": "谁在观看？",
+      "intro": "选择你的个人资料。",
+      "list": "个人资料",
+      "manage": "管理个人资料",
+      "active": "当前使用",
+      "locked": "受 PIN 码保护",
+      "primary": "主个人资料",
+      "loadFailed": "无法加载个人资料。",
+      "primaryActive": "主个人资料 · 当前使用"
+    },
+    "pin": {
+      "title": "{{name}} 的 PIN 码",
+      "intro": "此个人资料受 PIN 码保护。",
+      "label": "PIN 码",
+      "hint": "4 到 8 位数字。",
+      "submit": "打开",
+      "submitting": "正在检查…",
+      "invalid": "PIN 码错误，请重试。",
+      "locked": "错误次数过多。可再次尝试的剩余时间：",
+      "time": "{{minutes}}:{{seconds}}",
+      "lockedFor": "已锁定 {{seconds}} 秒。"
+    },
+    "settings": {
+      "title": "个人资料",
+      "intro": "家庭中的每个人都有自己的个人资料，包括年龄分级、语言、颜色和媒体库。",
+      "onlyPrimary": {
+        "title": "仅限主个人资料",
+        "body": "个人资料需在此账户的主个人资料中管理。请切换到主个人资料来添加或更改个人资料。",
+        "action": "切换个人资料"
+      },
+      "add": "添加个人资料",
+      "list": "此账户的个人资料",
+      "edit": "编辑",
+      "primary": "主个人资料",
+      "hasPin": "PIN 码",
+      "delete": {
+        "action": "删除",
+        "title": "要删除个人资料“{{name}}”吗？",
+        "body": "此个人资料的播放进度和设置将会丢失。此操作无法撤销。",
+        "confirm": "删除个人资料"
+      },
+      "pin": {
+        "set": "设置 PIN",
+        "change": "更改 PIN 码",
+        "title": "{{name}} 的 PIN 码",
+        "label": "新 PIN 码",
+        "hint": "4 到 8 位数字。没有 PIN 码就无法打开此个人资料。",
+        "save": "保存 PIN 码",
+        "saving": "正在保存…",
+        "remove": {
+          "action": "移除 PIN 码",
+          "title": "要移除 {{name}} 的 PIN 码吗？",
+          "body": "之后任何人都可以不输入 PIN 码打开此个人资料。",
+          "confirm": "移除 PIN 码"
+        }
+      },
+      "form": {
+        "createTitle": "新个人资料",
+        "editTitle": "编辑个人资料",
+        "name": "名称",
+        "rating": "年龄分级",
+        "ratingHint": "分级更高的作品对此个人资料不可见。",
+        "language": "语言",
+        "libraries": "媒体库",
+        "pin": "PIN 码（可选）",
+        "create": "添加个人资料",
+        "creating": "正在添加…",
+        "save": "保存",
+        "saving": "正在保存…",
+        "metadataLanguage": "简介语言",
+        "metadataLanguageHint": "标题、简介和类型；界面使用上方选择的语言。",
+        "likeUi": "与界面相同",
+        "playback": "播放"
+      },
+      "ratingAboveAccount": "FSK {{age}} · 账户最高 FSK {{max}}",
+      "report": {
+        "show": "显示观看时长",
+        "hide": "隐藏观看时长",
+        "title": "{{name}} 的观看时长",
+        "intro": "过去 30 天每天的分钟数。",
+        "chart": "每天的观看时长",
+        "date": "日期",
+        "minutes": "分钟",
+        "value": "{{count}} 分钟",
+        "today": "今天：{{count}} 分钟",
+        "limit": "上限：每天 {{count}} 分钟",
+        "total": "合计：{{count}} 分钟",
+        "tooltip": "{{date}}：{{value}}"
+      },
+      "metadataLanguageChip": "简介语言：{{language}}"
+    }
+  },
+  "invite": {
+    "title": "Slouchcat 邀请",
+    "intro": "创建你的账户，即可立即开始使用。",
+    "for": "给：{{note}}",
+    "rating": "年龄分级最高为",
+    "libraries": "媒体库",
+    "expires": "此链接有效期至 {{date}}。",
+    "form": {
+      "email": "电子邮件地址",
+      "password": "密码",
+      "passwordHint": "至少 10 个字符。",
+      "profileName": "个人资料名称",
+      "profileNameHint": "你的个人资料名称，例如你的名字。",
+      "language": "语言",
+      "submit": "创建账户",
+      "submitting": "正在创建…"
+    },
+    "gone": {
+      "title": "链接已失效",
+      "body": "此链接已被使用、已过期或已被撤回。请向邀请你的人索取新链接。",
+      "action": "前往登录"
+    },
+    "notFound": {
+      "title": "未找到链接",
+      "body": "此邀请链接不存在。请检查是否完整复制了链接。"
+    }
+  },
+  "kind": {
+    "movie": "电影",
+    "series": "剧集",
+    "season": "季",
+    "episode": "单集",
+    "extra": "花絮",
+    "audiobook": "有声书",
+    "podcast": "播客",
+    "podcast_episode": "播客单集"
+  },
+  "extraKind": {
+    "trailer": "预告片",
+    "featurette": "特辑",
+    "deleted_scene": "删减片段",
+    "behind_the_scenes": "幕后花絮",
+    "interview": "访谈",
+    "scene": "片段",
+    "short": "短片",
+    "other": "花絮"
+  },
+  "trailer": {
+    "title": "预告片：{{title}}",
+    "language": "语言",
+    "frame": "{{title}} 的预告片（YouTube）",
+    "none": "没有可用的预告片。",
+    "privacy": "预告片由 YouTube 播放（youtube-nocookie.com）。"
+  },
+  "person": {
+    "credits": "电影和剧集",
+    "creditsCount": "· {{count}}",
+    "as": "饰 {{character}}",
+    "facts": {
+      "knownFor": "知名领域",
+      "born": "出生",
+      "bornAge": "{{date}}（{{age}} 岁）",
+      "birthplace": "出生地",
+      "died": "逝世",
+      "diedAge": "{{date}}（享年 {{age}} 岁）",
+      "library": "在你的媒体库中",
+      "libraryOf_other": "{{shown}} / {{count}} 部作品",
+      "libraryOnly_other": "{{count}} 部作品"
+    },
+    "department": {
+      "acting": "表演",
+      "directing": "导演",
+      "writing": "编剧",
+      "production": "制作",
+      "sound": "声音",
+      "camera": "摄影",
+      "editing": "剪辑",
+      "art": "美术",
+      "crew": "剧组",
+      "costume": "服装与化妆",
+      "visualEffects": "视觉效果",
+      "lighting": "灯光",
+      "creator": "创作者"
+    },
+    "biography": {
+      "more": "展开",
+      "less": "收起",
+      "fallback": "简介来自 TMDB，仅有英文版本"
+    },
+    "notFound": {
+      "title": "未找到人物",
+      "body": "这里没有此人物的作品。"
+    }
+  },
+  "limits": {
+    "title": "播放限制",
+    "maxHeight": "最高画质",
+    "none": "无限制",
+    "bitrate": "带宽（kbit/s）",
+    "hint": "{{min}} 到 {{max}}。留空表示无限制。",
+    "streams": "同时串流数",
+    "watch": "每日观看时长（分钟）",
+    "range": "允许范围为 {{min}} 到 {{max}}。",
+    "height": "最高 {{height}}p",
+    "bitrateValue": "{{value}} kbit/s",
+    "streamsValue_other": "{{count}} 个串流",
+    "watchValue": "每天 {{count}} 分钟",
+    "capped": "此个人资料受账户限制：{{summary}}。"
+  },
+  "offline": {
+    "unknownTitle": "未知作品",
+    "episodeTitle": "{{code}} · {{title}} · {{series}}",
+    "quality": {
+      "high": "高",
+      "medium": "中",
+      "low": "低"
+    },
+    "state": {
+      "deleting": "正在删除",
+      "complete": "已在此设备上",
+      "quota": "存储空间已满",
+      "storage": "保存失败",
+      "network": "下载中断，即将重试",
+      "range": "服务器不支持分段传输文件（请检查代理）",
+      "gone": "已不可用",
+      "evicted": "正在重新准备",
+      "wifi": "等待 Wi-Fi",
+      "fetching": "正在下载（{{percent}}%）",
+      "preparing": "正在准备（{{percent}}%）",
+      "budgetFull": "等待服务器空出空间",
+      "queued": "等待服务器",
+      "paused": "已暂停，服务器正在串流",
+      "failed": "准备失败"
+    },
+    "downloads": {
+      "title": "下载",
+      "intro": "{{name}} 保存在此设备上的作品。没有网络也能播放。",
+      "unsupported": {
+        "title": "此处无法下载",
+        "body": "此浏览器无法保存作品。下载需要安全连接（HTTPS）和最新版浏览器。"
+      },
+      "list": "此设备上",
+      "empty": "此设备上还没有下载。可在详情页下载电影、单集和整季。",
+      "columns": {
+        "title": "标题",
+        "state": "状态",
+        "size": "大小",
+        "actions": "操作"
+      },
+      "auto": "自动",
+      "sizeOf": "{{done}} / {{total}}",
+      "play": "播放",
+      "playLabel": "播放 {{title}}",
+      "delete": {
+        "action": "删除",
+        "label": "删除 {{title}}",
+        "title": "要删除下载的 {{title}} 吗？",
+        "body": "文件将从此设备中移除。之后可以重新下载此作品。",
+        "confirm": "删除下载"
+      },
+      "removed": "已删除 {{title}}。",
+      "offline": "无法连接到服务器。已保存的作品仍可播放；更改会在下次连接时同步到服务器。",
+      "pinHint": {
+        "title": "离线使用的 PIN 码",
+        "body": "为了让 {{name}} 在此设备上也能离线打开，请在此输入一次该个人资料的 PIN 码。",
+        "action": "输入 PIN 码"
+      }
+    },
+    "storage": {
+      "title": "存储",
+      "meter": "存储占用",
+      "downloads": "下载：{{size}}",
+      "other": "其他数据：{{size}}",
+      "used": "已用 {{used}} / {{quota}}",
+      "free": "可用：{{free}} / {{quota}}",
+      "unknown": "下载：{{size}}。此浏览器不提供可用存储空间信息。",
+      "persisted": "浏览器会永久保留这些下载。",
+      "notPersisted": "存储空间不足时，浏览器可能会删除这些下载。",
+      "apple": {
+        "title": "iPhone、iPad 和 Safari 用户须知",
+        "body": "Safari 会删除较长时间未打开的网页应用的数据。请定期打开 Slouchcat 以保留下载；添加到主屏幕后作为应用使用，下载会受到更好的保护。"
+      }
+    },
+    "rules": {
+      "title": "自动下载",
+      "intro": "在此设备上下载 {{name}} 过去 60 天内观看过的每部剧集的下一集，以及 {{name}} 片单中播客的新单集。",
+      "options": "设置",
+      "enabled": "在此设备上自动下载",
+      "nextEpisodes": "已开始观看剧集的下一集",
+      "wifiOnly": "仅限 Wi-Fi",
+      "wifiIos": "iPhone 和 iPad 不会告诉浏览器是否连接了 Wi-Fi。在这些设备上，自动下载会在应用打开期间进行。",
+      "maxCount": "未观看单集的最大数量",
+      "maxCountHint": "{{min}} 到 {{max}}",
+      "maxCountInvalid": "请输入 {{min}} 到 {{max}} 之间的数字。",
+      "quality": "画质",
+      "save": "保存规则",
+      "saved": "已保存。此规则从下次同步起生效。",
+      "newPodcastEpisodes": "片单中播客的新单集"
+    },
+    "dialog": {
+      "button": "下载",
+      "seasonButton": "下载整季",
+      "title": "下载 {{title}}",
+      "intro": "此作品将保存在此设备上，没有网络也能播放。",
+      "seasonIntro_other": "本季全部 {{count}} 集都将保存在此设备上。",
+      "quality": "画质",
+      "option": "{{quality}} · {{height}}p · 约 {{size}}",
+      "audio": "音轨",
+      "subtitles": "字幕：{{list}}",
+      "noSubtitles": "没有文本字幕。",
+      "submit": "下载",
+      "submitting": "正在开始…",
+      "started_other": "已开始 {{count}} 个下载。可在“下载”中查看进度。",
+      "audioOption": "{{quality}} · {{kbps}} kbit/s · 约 {{size}}",
+      "audioCopy": "{{quality}} · 直接复制 AAC · 约 {{size}}"
+    },
+    "status": {
+      "open": "前往下载",
+      "season": "此设备上已有 {{done}} / {{total}} 集"
+    },
+    "library": {
+      "title": "离线媒体库",
+      "intro": "谁在观看？这些个人资料在此设备上有下载。",
+      "toApp": "打开应用",
+      "offline": "离线",
+      "profiles": "个人资料",
+      "empty": {
+        "title": "此设备上没有下载",
+        "body": "未连接服务器时，只能播放已下载的作品。",
+        "hint": "在线下载作品后，没有网络时也能在这里找到它们。"
+      },
+      "locked": {
+        "title": "下载已锁定",
+        "body": "此设备上的账户已退出登录。下载仍会保留，同一账户再次登录后即可重新打开。"
+      },
+      "downloadsOf": "{{name}} 的下载",
+      "switchProfile": "切换个人资料",
+      "list": "已下载的作品",
+      "video": "电影和剧集",
+      "audio": "有声书和播客",
+      "noneReady": "还没有作品完整下载到此设备上。",
+      "pending": "尚未完成"
+    },
+    "pin": {
+      "introOffline": "此个人资料有单独的离线 PIN 码。",
+      "offlineLabel": "离线 PIN 码",
+      "offlineHint": "6 到 12 位数字。",
+      "offlineFormat": "离线 PIN 码为 6 到 12 位数字。",
+      "unavailable": {
+        "title": "离线时已锁定",
+        "body": "请在此设备上联网时输入一次该个人资料的 PIN 码，之后离线也能打开。"
+      }
+    },
+    "player": {
+      "failed": "无法播放已保存的文件。",
+      "missing": {
+        "title": "下载不可用",
+        "body": "此设备上没有（或不再有）此下载，下载尚未完成，或此个人资料无权访问。"
+      }
+    }
+  },
+  "search": {
+    "title": "搜索",
+    "label": "搜索词",
+    "placeholder": "作品、人物、合集",
+    "start": "搜索作品、人物和合集，或选择一个筛选条件。",
+    "tooShort": "请至少输入两个字符。",
+    "filters": {
+      "label": "筛选",
+      "genre": "类型",
+      "allGenres": "所有类型",
+      "yearFrom": "起始年份",
+      "yearTo": "结束年份",
+      "rating": "最高年龄分级",
+      "anyRating": "全部",
+      "type": "媒体类型",
+      "types": {
+        "movie": "电影",
+        "series": "剧集",
+        "audiobook": "有声书",
+        "podcast": "播客"
+      },
+      "availability": "可用性",
+      "avail": {
+        "local": "在服务器上",
+        "download": "在此设备上"
+      },
+      "reset": "重置筛选"
+    },
+    "sections": {
+      "titles": "作品",
+      "people": "人物",
+      "collections": "合集"
+    },
+    "results_other": "找到 {{count}} 部作品",
+    "empty": {
+      "title": "未找到结果",
+      "body": "请尝试其他搜索词或减少筛选条件。"
+    }
+  },
+  "watchlist": {
+    "title": "我的片单",
+    "remove": "移除",
+    "removeLabel": "从片单中移除 {{title}}",
+    "cover": {
+      "add": "将 {{title}} 加入片单",
+      "remove": "将 {{title}} 移出片单"
+    },
+    "empty": {
+      "title": "你的片单是空的",
+      "body": "在作品详情页点击“加入片单”，即可留待以后观看。",
+      "action": "前往搜索"
+    }
+  },
+  "collection": {
+    "all": {
+      "title": "合集",
+      "count_other": "{{count}} 个合集",
+      "shown_other": "{{count}} / {{total}} 个合集",
+      "empty": "此个人资料还没有合集。",
+      "noMatch": "没有符合搜索和筛选条件的合集。",
+      "filters": "筛选",
+      "search": "搜索合集",
+      "size": "大小",
+      "sizes": {
+        "2": "2 部作品及以上",
+        "3": "3 部及以上",
+        "5": "5 部及以上",
+        "all": "全部"
+      },
+      "sort": "排序",
+      "sorts": {
+        "name": "名称 A–Z",
+        "count": "作品最多",
+        "started": "已开始的优先"
+      }
+    },
+    "count_other": "{{count}} 部作品",
+    "films_other": "{{count}} 部电影",
+    "years": "{{first}}–{{last}}",
+    "together": "共 {{duration}}",
+    "seen_other": "已看 {{count}} / {{total}}",
+    "members": "作品",
+    "parts": "按顺序",
+    "part": "第 {{part}} 部：{{title}}",
+    "playPart": "播放：{{title}}",
+    "play": "播放 · 第 {{part}} 部",
+    "resume": "继续观看 · 第 {{part}} 部",
+    "rewatch": "重新观看 · 第 {{part}} 部",
+    "watchlist": {
+      "add": "全部加入片单",
+      "added": "已全部加入片单"
+    },
+    "overviewFallback": "简介来自 TMDB，仅有英文版本",
+    "ask": {
+      "removeBody_other": "{{count}} 部作品将失去已看标记。此操作无法撤销。",
+      "halfBody_other": "{{total}} 部作品中有 {{count}} 部带有已看标记。要标记所有作品，还是移除所有已看标记？移除后无法撤销。",
+      "markAll": "将所有作品标记为已观看"
+    },
+    "notFound": {
+      "title": "未找到合集",
+      "body": "此合集不存在，或没有适合此个人资料的作品。"
+    }
+  },
+  "notifications": {
+    "title": "通知",
+    "unreadLabel_other": "通知，{{count}} 条未读",
+    "badgeMax": "{{max}}+",
+    "markAllRead": "全部标为已读",
+    "entryLabel": "{{title}}，{{source}}，{{time}}",
+    "entryLabelUnread": "未读：{{title}}，{{source}}，{{time}}",
+    "newEpisode": "{{parent}} 有新单集",
+    "newEpisodeAlone": "新单集",
+    "summary_other": "{{count}} 条未读",
+    "empty": {
+      "title": "没有通知",
+      "body": "将剧集或播客加入片单，有新单集时就会在这里收到通知。"
+    }
+  },
+  "settings": {
+    "playback": {
+      "title": "设置",
+      "intro": "个人资料 {{name}} 在所有设备上的音频和字幕设置。你在播放器中手动选择的内容优先。",
+      "languages": "语言和字幕",
+      "audio": {
+        "legend": "音频语言",
+        "hint": "作品会使用此列表中它拥有的第一种语言播放。如果一种都没有，则播放原始语言。",
+        "rank": "第 {{position}} 音频语言",
+        "more": "其他音频语言",
+        "none": "目前没有音频语言：将播放原始语言。"
+      },
+      "subtitleMode": {
+        "label": "字幕",
+        "off": "关闭",
+        "forced": "仅强制字幕（默认）",
+        "foreign": "外语时显示",
+        "always": "始终显示",
+        "offHint": "不显示字幕，除非你在播放器中开启。",
+        "forcedHint": "只显示其他语言的部分，例如标牌或外语对白，字幕语言与音频语言相同。",
+        "foreignHint": "与“仅强制字幕”相同。当音频不是你的任何一种音频语言时，以第一种字幕语言显示完整字幕。",
+        "alwaysHint": "始终以第一种字幕语言显示完整字幕；没有时与“仅强制字幕”相同。"
+      },
+      "subtitles": {
+        "legend": "字幕语言",
+        "hint": "用于完整字幕，优先使用第一种可用的语言。",
+        "rank": "第 {{position}} 字幕语言",
+        "more": "其他字幕语言",
+        "none": "目前没有字幕语言：只显示强制字幕。"
+      },
+      "limit": "最多 {{count}} 种语言；请先移除一种再添加其他语言。",
+      "saved": "已保存。",
+      "series": {
+        "title": "剧集记忆",
+        "body": "在某一集中手动选择音频或字幕时，Slouchcat 会为整部剧集记住该语言。",
+        "reset": "重置剧集记忆",
+        "confirmTitle": "要重置剧集记忆吗？",
+        "confirmBody": "之后所有剧集将重新按照上方的语言和字幕设置播放。此操作无法撤销。",
+        "confirm": "重置",
+        "done": "剧集记忆已重置。"
+      },
+      "notifications": {
+        "title": "通知",
+        "body": "新单集、邀请和公告是否也通过电子邮件、Web Push 或 Telegram 发送，可在单独的页面中为整个账户设置。",
+        "link": "前往通知渠道"
+      }
+    },
+    "notifications": {
+      "title": "通知渠道",
+      "intro": "除了应用内的收件箱，片单中剧集和播客的新单集、邀请和公告也会通过这里的渠道送达。这些设置适用于整个账户及其所有个人资料；与某个个人资料相关的消息会以其名称开头。",
+      "link": "设置渠道",
+      "serverChannels": "设置服务器的渠道 → 集成",
+      "list": "渠道",
+      "onlyPrimary": {
+        "title": "仅限主个人资料",
+        "body": "渠道适用于整个账户，只能在主个人资料中更改。请切换到主个人资料来开启或关闭渠道。",
+        "action": "切换个人资料"
+      },
+      "channel": {
+        "email": "电子邮件",
+        "push": "Web Push",
+        "telegram": "Telegram"
+      },
+      "state": {
+        "on": "已开启",
+        "off": "已关闭",
+        "unavailable": "未设置"
+      },
+      "enabled": "开启",
+      "events": {
+        "label": "事件",
+        "new_content": "新内容",
+        "errors": "错误",
+        "invitations": "邀请",
+        "announcements": "公告",
+        "help": "在哪些情况下发送消息。",
+        "helpAdmin": "在哪些情况下发送消息。“错误”仅适用于管理员。"
+      },
+      "unavailable": {
+        "body": "此渠道由主用户在管理中的“集成”下设置。",
+        "action": "打开集成"
+      },
+      "email": {
+        "address": "电子邮件地址",
+        "description": "默认为你账户的地址。"
+      },
+      "telegram": {
+        "linked": "已关联",
+        "linkedChat": "已关联聊天 {{chat}}",
+        "notLinked": "未关联",
+        "instruction": "向机器人 @{{bot}} 发送消息 /start {{code}}",
+        "expires": "此代码有效期至 {{time}}。",
+        "open": "在 Telegram 中打开",
+        "link": "关联",
+        "renew": "新代码",
+        "unlink": "取消关联",
+        "unlinked": "已取消关联。",
+        "instructionNoBot": "向 Slouchcat 机器人发送消息 /start {{code}}",
+        "noBot": "缺少机器人名称：主用户需要先在“集成”中输入机器人令牌。",
+        "label": "关联",
+        "help": "将账户与你和机器人的聊天关联起来。",
+        "codeOpen": "代码待使用",
+        "waiting_other": "正在等待消息，每 {{count}} 秒检查一次。",
+        "paused": "有未保存的更改或待确认的问题时，检查会暂停。",
+        "unlinkConfirm": {
+          "title": "要取消关联 Telegram 吗？",
+          "body": "Telegram 消息将不再发送到已关联的聊天。你可以随时用新代码重新关联。"
+        },
+        "discardConfirm": {
+          "title": "要放弃此代码吗？",
+          "body": "待使用的代码将立即失效。你可以随时用新代码重新关联。",
+          "confirm": "放弃代码"
+        }
+      },
+      "push": {
+        "devices": "已注册的设备",
+        "none": "还没有注册设备。",
+        "thisDevice": "此设备",
+        "unknownDevice": "未知设备",
+        "created": "注册于 {{date}}",
+        "subscribe": "在此设备上开启",
+        "subscribed": "此设备现在会接收推送消息。",
+        "remove": "移除",
+        "removeLabel": "移除 {{device}}",
+        "removed": "设备已移除。",
+        "unsupported": "此浏览器无法在此接收推送消息。需要最新版浏览器和 HTTPS 连接。",
+        "ios": "在 iPhone 和 iPad 上，Web Push 仅在已安装的应用中可用：在分享菜单中选择“添加到主屏幕”，然后从主屏幕打开 Slouchcat。",
+        "denied": "Slouchcat 的通知已被阻止。请在浏览器设置中允许通知。",
+        "noWorker": "Service Worker 尚未运行。请刷新页面后重试。",
+        "failed": "浏览器无法在其推送服务中注册。",
+        "count_other": "{{count}} 台设备"
+      },
+      "saved": "已保存。",
+      "test": "测试消息",
+      "testSent": "测试消息已发送。",
+      "unsaved": "有未保存的更改",
+      "enabledHelp": "适用于整个账户及其所有个人资料。",
+      "noEvents": "无"
+    }
+  },
+  "announcements": {
+    "kicker": "公告",
+    "published": "发布于 {{date}}",
+    "counter": "{{index}} / {{count}}",
+    "acknowledge": "知道了",
+    "later": "稍后"
+  },
+  "picks": {
+    "page": {
+      "title": "用户推荐",
+      "intro": "此家庭的个人资料推荐的作品，最新推荐在前。",
+      "count_other": "{{count}} 部作品"
+    }
+  },
+  "radio": {
+    "page": {
+      "title": "广播",
+      "intro": "来自世界各地的电台，经由你的 Slouchcat 服务器播放",
+      "searchLabel": "搜索电台",
+      "searchPlaceholder": "电台、地点或类型",
+      "quick": {
+        "label": "快速选择",
+        "myCountry": "我的国家：{{country}}",
+        "favorites": "我的电台",
+        "popular": "热门"
+      },
+      "myCountry": "我的国家",
+      "filters": {
+        "label": "筛选",
+        "country": "国家",
+        "region": "地区",
+        "language": "语言",
+        "genre": "类型",
+        "kind": "节目类型",
+        "mood": "心情",
+        "quality": "音质",
+        "titles": "仅显示有曲目信息的",
+        "clear": "清除选择",
+        "done": "完成",
+        "none": "没有可选的值",
+        "close": "关闭筛选",
+        "show_other": "显示 {{count}} 个电台",
+        "active": "已启用的筛选",
+        "remove": "移除筛选 {{label}}",
+        "reset": "重置所有筛选",
+        "search": "“{{q}}”"
+      },
+      "sort": {
+        "label": "排序",
+        "popular": "热门",
+        "name": "名称 A–Z",
+        "quality": "音质",
+        "new": "新加入目录"
+      },
+      "count_other": "{{count}} 个电台",
+      "rows": {
+        "favorites": "我的电台",
+        "popularIn": "{{country}}热门",
+        "all": "{{country}}全部电台",
+        "byGenre": "按类型",
+        "byMood": "按心情",
+        "stations_other": "{{count}} 个电台",
+        "noFavorites": "还没有收藏电台。点击电台的心形图标，它就会出现在这里，仅对你的个人资料可见。",
+        "popular": "热门"
+      },
+      "results": "结果",
+      "allStations": "所有电台",
+      "empty": {
+        "title": "未找到电台",
+        "body": "没有符合这些筛选条件的电台。请移除一个筛选条件或全部重置。"
+      },
+      "loading": {
+        "title": "电台目录正在加载",
+        "body": "Slouchcat 正在首次获取电台。页面稍后会自动重试。"
+      },
+      "play": "播放 {{name}}",
+      "pause": "暂停 {{name}}",
+      "resume": "继续播放 {{name}}",
+      "playing": "正在播放",
+      "paused": "已暂停",
+      "missing": "已不在目录中，将于 {{date}} 移除",
+      "broken": "暂时故障",
+      "order": {
+        "toggle": "更改顺序",
+        "done": "完成",
+        "label": "“我的电台”的顺序"
+      },
+      "offerEmpty": {
+        "title": "还没有选择电台",
+        "body": "管理员还没有为广播选择任何电台。",
+        "bodyAdmin": "请在管理中选择广播提供的国家和电台。",
+        "action": "选择电台"
+      }
+    },
+    "genre": {
+      "pop": "流行",
+      "rock": "摇滚",
+      "jazz": "爵士",
+      "classical": "古典",
+      "electronic": "电子",
+      "hiphop": "嘻哈",
+      "schlager": "德式流行",
+      "folk": "民谣",
+      "alternative": "另类",
+      "oldies": "怀旧金曲",
+      "chillout": "轻松",
+      "world": "世界音乐",
+      "country": "乡村",
+      "metal": "金属",
+      "mixed": "综合",
+      "blues": "蓝调",
+      "soul": "灵魂乐",
+      "rnb": "R&B",
+      "latin": "拉丁",
+      "reggae": "雷鬼",
+      "dance": "舞曲",
+      "indie": "独立",
+      "religious": "宗教",
+      "soundtrack": "影视原声",
+      "kids": "儿童"
+    },
+    "kind": {
+      "music": "音乐",
+      "news": "新闻",
+      "talk": "谈话",
+      "sport": "体育",
+      "culture": "文化"
+    },
+    "mood": {
+      "chill": "放松",
+      "party": "派对",
+      "focus": "专注",
+      "sleep": "睡眠",
+      "workout": "健身"
+    },
+    "quality": {
+      "high": "高",
+      "good": "良好",
+      "basic": "基础"
+    },
+    "region": {
+      "CH-AG": "阿尔高州",
+      "CH-AI": "内阿彭策尔州",
+      "CH-AR": "外阿彭策尔州",
+      "CH-BE": "伯尔尼州",
+      "CH-BL": "巴塞尔乡村州",
+      "CH-BS": "巴塞尔城市州",
+      "CH-FR": "弗里堡州",
+      "CH-GE": "日内瓦州",
+      "CH-GL": "格拉鲁斯州",
+      "CH-GR": "格劳宾登州",
+      "CH-JU": "汝拉州",
+      "CH-LU": "卢塞恩州",
+      "CH-NE": "纳沙泰尔州",
+      "CH-NW": "下瓦尔登州",
+      "CH-OW": "上瓦尔登州",
+      "CH-SG": "圣加仑州",
+      "CH-SH": "沙夫豪森州",
+      "CH-SO": "索洛图恩州",
+      "CH-SZ": "施维茨州",
+      "CH-TG": "图尔高州",
+      "CH-TI": "提契诺州",
+      "CH-UR": "乌里州",
+      "CH-VD": "沃州",
+      "CH-VS": "瓦莱州",
+      "CH-ZG": "楚格州",
+      "CH-ZH": "苏黎世州"
+    },
+    "player": {
+      "region": "广播播放",
+      "open": "打开正在播放：{{name}}",
+      "nowPlaying": "正在播放",
+      "close": "关闭正在播放",
+      "play": "播放",
+      "pause": "暂停",
+      "retry": "重试",
+      "stop": "停止广播",
+      "live": "直播",
+      "paused": "已暂停",
+      "starting": "正在连接…",
+      "toLive": "直播",
+      "artistTitle": "{{artist}} – {{title}}",
+      "programme": "直播节目",
+      "noTitles": "电台未提供曲目信息",
+      "favorite": "将 {{name}} 加入我的电台",
+      "serverHint": "经由 Slouchcat，以服务器所在地为准",
+      "shift": {
+        "label": "时移，最多回退 {{minutes}} 分钟",
+        "behind": "−{{time}}",
+        "back": "回退 {{time}}",
+        "minutes_other": "{{count}} 分钟",
+        "seconds_other": "{{count}} 秒"
+      },
+      "longPause": "暂停时间超过 {{minutes}} 分钟。将从最早的位置继续播放。",
+      "played": {
+        "heading": "之前播放过",
+        "empty": "电台尚未报告此曲目之前的任何曲目。"
+      },
+      "ended": "播放已结束。",
+      "failed": "此电台无法在此浏览器中播放。",
+      "kbps_other": "{{count}} kbit/s",
+      "facts": {
+        "quality": "音质",
+        "genre": "类型",
+        "kind": "节目类型",
+        "language": "语言"
+      }
+    }
+  },
+  "audioSeries": {
+    "kicker": "系列",
+    "narratedBy": "演播：{{narrator}}",
+    "volumes_other": "{{count}} 册",
+    "continue": "继续收听：第 {{volume, number}} 册",
+    "continueTitle": "继续收听：{{title}}",
+    "edit": "编辑系列",
+    "list": "分册",
+    "number": "{{value, number}}",
+    "volumeLabel": "第 {{volume, number}} 册：{{title}}",
+    "play": "播放：{{title}}",
+    "left": "剩余 {{left}}",
+    "hint": {
+      "title": "仅管理员可见",
+      "spellings": "文件中此系列有多种名称：{{names}}。Slouchcat 将其显示为同一系列。",
+      "spelling_other": "“{{name}}”（{{count}} 册）",
+      "duplicates": "以下编号出现了多次：{{volumes}}。这些分册的演播者不同；编号有误时请在对应分册中修改。",
+      "dismiss": "知道了"
+    },
+    "notFound": {
+      "title": "未找到系列",
+      "body": "此系列不存在，或对此个人资料而言少于两册。",
+      "action": "前往媒体库"
+    },
+    "dialog": {
+      "title": "编辑系列",
+      "name": "系列名称",
+      "nameHint": "更改显示的名称并将其锁定；各分册保持不变。",
+      "options": "分册",
+      "writeToVolumes": "写入所有分册",
+      "writeToVolumesHint": "将此名称设为每一册的系列名并锁定。名称和作者都相同的系列将合并为一个。"
+    }
+  },
+  "watched": {
+    "heard": {
+      "label": "已收听：{{title}}",
+      "button": "已收听",
+      "hint": {
+        "set": "标记为已收听",
+        "half": "部分已收听：全部标记或移除所有标记"
+      },
+      "state": {
+        "full": "已收听",
+        "half": "部分已收听"
+      },
+      "ask": {
+        "removeTitle": "要将“{{title}}”标记为未收听吗？",
+        "halfTitle": "“{{title}}”已部分收听",
+        "markAll": "将所有单集标记为已收听"
+      }
+    },
+    "page": {
+      "title": "已观看",
+      "count_other": "{{count}} 部作品",
+      "filters": "筛选",
+      "content": "类型",
+      "contents": {
+        "all": "全部",
+        "movie": "电影",
+        "series": "剧集",
+        "audiobook": "有声书",
+        "podcast": "播客"
+      },
+      "sort": "排序",
+      "sorts": {
+        "watched": "最近观看",
+        "title": "标题 A–Z"
+      },
+      "watchedOn": "观看于 {{date}}",
+      "heardOn": "收听于 {{date}}",
+      "episodes_other": "{{count}} / {{total}} 集 · 最近 {{date}}",
+      "emptyKind": "“{{kind}}”中还没有观看过的内容。",
+      "empty": {
+        "title": "还没有观看过任何内容。",
+        "body": "你看完或听完的内容会显示在这里。"
+      }
+    },
+    "label": "已观看：{{title}}",
+    "button": "已观看",
+    "hint": {
+      "set": "标记为已观看",
+      "remove": "移除已看标记",
+      "half": "部分已观看：全部标记或移除所有标记"
+    },
+    "state": {
+      "full": "已观看",
+      "half": "部分已观看"
+    },
+    "ask": {
+      "removeTitle": "要将“{{title}}”标记为未观看吗？",
+      "removeBody_other": "{{count}} 集将失去已看标记。此操作无法撤销。",
+      "removeBodyAll": "所有单集都将失去已看标记。此操作无法撤销。",
+      "halfTitle": "“{{title}}”已部分观看",
+      "halfBody_other": "{{count}} 集带有已看标记。要标记所有单集，还是移除所有已看标记？移除后无法撤销。",
+      "markAll": "将所有单集标记为已观看",
+      "removeAll": "移除所有已看标记"
+    }
+  }
+}
