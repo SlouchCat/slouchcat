@@ -457,7 +457,7 @@
       "empty": "這個選集中沒有作品。",
       "notFound": {
         "title": "找不到清單",
-        "body": "這份清單目前不存在，例如因為焦點推薦已關閉。"
+        "body": "這份清單目前不存在，可能是因為焦點推薦已關閉。"
       }
     },
     "title": "首頁",
@@ -475,7 +475,7 @@
       "collections": "合集",
       "genres": "類型",
       "spotlight": "焦點推薦",
-      "released": "最新上映",
+      "released": "近期發行",
       "libraries": "我的媒體",
       "library": "{{library}} 最新內容",
       "radio": "我的電台"
@@ -810,7 +810,7 @@
       "unavailableNoIndex": "無法建立索引",
       "unavailableTranscode": "只能轉換後播放",
       "remembered": "已記住：{{quality}}",
-      "rememberedNote": "高於 {{quality}} 的作品將會轉換。",
+      "rememberedNote": "高於 {{quality}} 的作品將會轉碼。",
       "reset": "重設"
     },
     "chapters": {
@@ -1427,7 +1427,7 @@
         "cancel": "繼續編輯"
       },
       "subtitle": "{{kind}} · {{library}}",
-      "notFound": "這部作品不存在或已不存在。",
+      "notFound": "這部作品不存在或已被移除。",
       "tabs": {
         "label": "編輯器區段",
         "images": "圖片",
@@ -1993,7 +1993,7 @@
         },
         "restore": "重新加入",
         "restoreLabel": "重新加入 {{title}}",
-        "restored_other": "「{{title}}」已回來（{{count}} 部作品）。",
+        "restored_other": "「{{title}}」已還原（{{count}} 部作品）。",
         "noFolder": "沒有檔案"
       }
     },
@@ -4448,7 +4448,7 @@
         "list": "中繼資料語言",
         "rank": "語言 {{position}}",
         "more": "其他語言",
-        "fallback": "順序即備援順序：個人資料的語言缺少文字時，Slouchcat 會顯示清單中第一個有的語言，再來是檔案名稱。介面語言不受此設定影響。預設值需要德文；媒體庫需要德文或英文。",
+        "fallback": "順序即備援順序：個人資料的語言缺少文字時，Slouchcat 會顯示清單中第一個有的語言，再來是檔案名稱。沒有必選的語言，但預設值和每個媒體庫都至少需要一種語言。",
         "unknownAt": "{{provider}} 不支援：{{languages}}",
         "youtube": "{{count}} 種語言：使用 YouTube 預告片搜尋時，每天最多 {{titles}} 部作品（配額 10,000）。"
       },
@@ -4741,12 +4741,12 @@
   },
   "accent": {
     "label": "顏色",
-    "ember": "餘燼橘",
+    "ember": "橘紅",
     "coral": "珊瑚紅",
     "amber": "琥珀黃",
     "lime": "萊姆綠",
     "teal": "青綠",
-    "sky": "天空藍",
+    "sky": "天藍",
     "violet": "紫羅蘭",
     "rose": "玫瑰粉"
   },
@@ -5629,7 +5629,7 @@
       },
       "ask": {
         "removeTitle": "要將「{{title}}」標記為未收聽嗎？",
-        "halfTitle": "「{{title}}」部分已收聽",
+        "halfTitle": "「{{title}}」只聽了一部分",
         "markAll": "將所有單集標記為已收聽"
       }
     },
@@ -5674,7 +5674,7 @@
       "removeTitle": "要將「{{title}}」標記為未觀看嗎？",
       "removeBody_other": "{{count}} 集的觀看標記將被移除。此操作無法復原。",
       "removeBodyAll": "所有單集的觀看標記都將被移除。此操作無法復原。",
-      "halfTitle": "「{{title}}」部分已觀看",
+      "halfTitle": "「{{title}}」只看了一部分",
       "halfBody_other": "有 {{count}} 集已標記為已觀看。要標記所有單集，還是移除所有標記？移除後無法復原。",
       "markAll": "將所有單集標記為已觀看",
       "removeAll": "移除所有標記"

@@ -475,7 +475,7 @@
       "collections": "合集",
       "genres": "类型",
       "spotlight": "焦点推荐",
-      "released": "最新上映",
+      "released": "近期发行",
       "libraries": "我的媒体",
       "library": "{{library}} 新增",
       "radio": "我的电台"
@@ -621,7 +621,7 @@
       "showLess": "收起"
     },
     "episodes": {
-      "title": "剧集列表",
+      "title": "单集",
       "empty": "没有单集。",
       "play": "播放",
       "details": "详情：{{title}}",
@@ -651,8 +651,8 @@
       "play": "播放 {{title}}"
     },
     "watchlist": {
-      "add": "加入片单",
-      "added": "已在片单中"
+      "add": "加入我的片单",
+      "added": "已在我的片单中"
     },
     "recommend": {
       "add": "推荐",
@@ -685,8 +685,8 @@
     },
     "season": {
       "episodes_other": "{{count}} 集",
-      "watched": "已看 {{count}} 集",
-      "progress": "已看 {{count}} / {{total}} 集"
+      "watched": "已观看 {{count}} 集",
+      "progress": "已观看 {{count}} / {{total}} 集"
     },
     "collection": {
       "showAll": "显示全部",
@@ -1818,7 +1818,7 @@
       "delete": {
         "action": "删除媒体库…",
         "title": "要删除媒体库“{{name}}”吗？",
-        "lead_other": "{{roots}}和 {{formatted}} 部作品将从 Slouchcat 中移除，连同播放进度、已看标记、片单、推荐、自定义图片和文本、首页栏目“{{name}} 新增”、个人资料的访问权限以及设备上的下载。",
+        "lead_other": "{{roots}}和 {{formatted}} 部作品将从 Slouchcat 中移除，连同播放进度、已观看标记、片单、推荐、自定义图片和文本、首页栏目“{{name}} 新增”、个人资料的访问权限以及设备上的下载。",
         "files": "磁盘上的文件不受影响。如果此媒体库正在扫描，Slouchcat 会先将其取消。",
         "backup": "删除前，Slouchcat 会备份数据库（管理 › 备份）。恢复此备份会将一切还原到删除前的状态，包括所有个人资料此后的播放进度。",
         "final": "除此之外无法撤销：重新扫描相同的文件夹会重新创建这些作品，但没有播放进度。",
@@ -1867,7 +1867,7 @@
         "rating_mismatch": "存储的分级与计算出的分级不一致。更改分级或下次扫描时会自动修正。此处无需选择。",
         "duplicates": "重复出现的作品。请选择要保留的作品，并将其他作品合并到其中。",
         "relink": "已删除但又以新副本形式回到媒体库的作品。播放进度、历史记录和列表仍关联在已删除的作品上。“重新关联”会将副本合并到其中，旧作品保留。",
-        "removed": "已从 Slouchcat 中移除的作品，其文件仍然存在。“恢复”可找回同一部作品，连同单集、播放进度、已看标记和片单。"
+        "removed": "已从 Slouchcat 中移除的作品，其文件仍然存在。“恢复”可找回同一部作品，连同单集、播放进度、已观看标记和片单。"
       },
       "empty": "没有需要处理的内容。",
       "selection": "选择",
@@ -3537,7 +3537,7 @@
         },
         "fanart": {
           "name": "Fanart.tv",
-          "purpose": "台标、背景和光盘图片；需在“元数据”中开启此来源。",
+          "purpose": "台标、背景图和光盘图片；需在“元数据”中开启此来源。",
           "help": "使用个人密钥时，新图片两天后可用，否则需七天。"
         },
         "youtube": {
@@ -3863,7 +3863,7 @@
       "loaded": "已加载 {{period}} 的数据。",
       "when": {
         "title": "观看时间分布",
-        "window_other": "来自最近 {{count, number}} 周",
+        "window_other": "最近 {{count, number}} 周的数据",
         "empty": "这几周内没有观看记录。",
         "byHour": "按时段",
         "byWeekday": "按星期",
@@ -4448,7 +4448,7 @@
         "list": "元数据语言",
         "rank": "第 {{position}} 语言",
         "more": "其他语言",
-        "fallback": "顺序即回退顺序：如果个人资料的语言缺少文本，Slouchcat 会显示列表中第一种可用的语言，最后显示文件名。默认设置需要包含德语，媒体库需要包含德语或英语；界面语言不受此影响。",
+        "fallback": "顺序即回退顺序：如果个人资料的语言缺少文本，Slouchcat 会显示列表中第一种可用的语言，最后显示文件名。没有必选的语言，但默认设置和每个媒体库都至少需要一种语言。",
         "unknownAt": "{{provider}} 不支持：{{languages}}",
         "youtube": "{{count}} 种语言：使用 YouTube 预告片搜索时，每天最多 {{titles}} 部作品（配额 10,000）。"
       },
@@ -4698,11 +4698,11 @@
         "library": "仅从 Slouchcat 中移除",
         "files": "同时删除文件"
       },
-      "libraryHint": "文件保留在磁盘上。即使有新文件加入，此作品也会保持移除状态；可在“维护 › 已移除的作品”中连同播放进度、已看标记和片单一起恢复。",
+      "libraryHint": "文件保留在磁盘上。即使有新文件加入，此作品也会保持移除状态；可在“维护 › 已移除的作品”中连同播放进度、已观看标记和片单一起恢复。",
       "everywhere": "此作品将从所有个人资料的所有列表中消失，设备上的下载也会被移除。",
       "arr": "Radarr 和 Sonarr 不会收到任何通知。",
       "affected_other": "受影响：{{count}} 个文件 · {{size}}",
-      "noFiles": "没有记录的文件。",
+      "noFiles": "未记录任何文件。",
       "folder": "文件夹",
       "files": "文件",
       "playing": "{{names}} 正在播放。播放结束后才能删除。",
@@ -4718,7 +4718,7 @@
         "kept_other": "“{{title}}”：已删除 {{count}} 个文件（{{size}}）；此作品连同无法删除的文件一起保留。",
         "left_other": "{{count}} 个 Slouchcat 无法识别的文件仍留在文件夹中。"
       },
-      "filesHint": "文件将被永久删除，没有回收站。如果之后不再有任何文件，此作品连同播放进度、已看标记和片单都会永久消失。如果 Radarr 或 Sonarr 之后重新下载它，它将作为新作品出现。",
+      "filesHint": "文件将被永久删除，没有回收站。如果之后不再有任何文件，此作品连同播放进度、已观看标记和片单都会永久消失。如果 Radarr 或 Sonarr 之后重新下载它，它将作为新作品出现。",
       "notDeletable": "无法执行：{{reason}}",
       "leftover": "保留：{{path}}（{{reason}}）",
       "reason": {
@@ -4741,14 +4741,14 @@
   },
   "accent": {
     "label": "颜色",
-    "ember": "余烬",
-    "coral": "珊瑚",
-    "amber": "琥珀",
-    "lime": "青柠",
+    "ember": "橙红",
+    "coral": "珊瑚红",
+    "amber": "琥珀黄",
+    "lime": "青柠绿",
     "teal": "青绿",
     "sky": "天蓝",
     "violet": "紫罗兰",
-    "rose": "玫瑰"
+    "rose": "玫瑰粉"
   },
   "libraries": {
     "all": "所有媒体库",
@@ -5157,14 +5157,14 @@
   "watchlist": {
     "title": "我的片单",
     "remove": "移除",
-    "removeLabel": "从片单中移除 {{title}}",
+    "removeLabel": "从我的片单中移除 {{title}}",
     "cover": {
-      "add": "将 {{title}} 加入片单",
-      "remove": "将 {{title}} 移出片单"
+      "add": "将 {{title}} 加入我的片单",
+      "remove": "将 {{title}} 移出我的片单"
     },
     "empty": {
       "title": "你的片单是空的",
-      "body": "在作品详情页点击“加入片单”，即可留待以后观看。",
+      "body": "在作品详情页点击“加入我的片单”，即可留待以后观看。",
       "action": "前往搜索"
     }
   },
@@ -5195,7 +5195,7 @@
     "films_other": "{{count}} 部电影",
     "years": "{{first}}–{{last}}",
     "together": "共 {{duration}}",
-    "seen_other": "已看 {{count}} / {{total}}",
+    "seen_other": "已观看 {{count}} / {{total}}",
     "members": "作品",
     "parts": "按顺序",
     "part": "第 {{part}} 部：{{title}}",
@@ -5204,13 +5204,13 @@
     "resume": "继续观看 · 第 {{part}} 部",
     "rewatch": "重新观看 · 第 {{part}} 部",
     "watchlist": {
-      "add": "全部加入片单",
-      "added": "已全部加入片单"
+      "add": "全部加入我的片单",
+      "added": "已全部加入我的片单"
     },
     "overviewFallback": "简介来自 TMDB，仅有英文版本",
     "ask": {
-      "removeBody_other": "{{count}} 部作品将失去已看标记。此操作无法撤销。",
-      "halfBody_other": "{{total}} 部作品中有 {{count}} 部带有已看标记。要标记所有作品，还是移除所有已看标记？移除后无法撤销。",
+      "removeBody_other": "{{count}} 部作品将失去已观看标记。此操作无法撤销。",
+      "halfBody_other": "{{total}} 部作品中有 {{count}} 部带有已观看标记。要标记所有作品，还是移除所有已观看标记？移除后无法撤销。",
       "markAll": "将所有作品标记为已观看"
     },
     "notFound": {
@@ -5230,7 +5230,7 @@
     "summary_other": "{{count}} 条未读",
     "empty": {
       "title": "没有通知",
-      "body": "将剧集或播客加入片单，有新单集时就会在这里收到通知。"
+      "body": "将剧集或播客加入我的片单，有新单集时就会在这里收到通知。"
     }
   },
   "settings": {
@@ -5409,7 +5409,7 @@
         "kind": "节目类型",
         "mood": "心情",
         "quality": "音质",
-        "titles": "仅显示有曲目信息的",
+        "titles": "仅显示有曲目信息的电台",
         "clear": "清除选择",
         "done": "完成",
         "none": "没有可选的值",
@@ -5663,7 +5663,7 @@
     "button": "已观看",
     "hint": {
       "set": "标记为已观看",
-      "remove": "移除已看标记",
+      "remove": "移除已观看标记",
       "half": "部分已观看：全部标记或移除所有标记"
     },
     "state": {
@@ -5672,12 +5672,12 @@
     },
     "ask": {
       "removeTitle": "要将“{{title}}”标记为未观看吗？",
-      "removeBody_other": "{{count}} 集将失去已看标记。此操作无法撤销。",
-      "removeBodyAll": "所有单集都将失去已看标记。此操作无法撤销。",
+      "removeBody_other": "{{count}} 集将失去已观看标记。此操作无法撤销。",
+      "removeBodyAll": "所有单集都将失去已观看标记。此操作无法撤销。",
       "halfTitle": "“{{title}}”已部分观看",
-      "halfBody_other": "{{count}} 集带有已看标记。要标记所有单集，还是移除所有已看标记？移除后无法撤销。",
+      "halfBody_other": "{{count}} 集带有已观看标记。要标记所有单集，还是移除所有已观看标记？移除后无法撤销。",
       "markAll": "将所有单集标记为已观看",
-      "removeAll": "移除所有已看标记"
+      "removeAll": "移除所有已观看标记"
     }
   }
 }
