@@ -14,6 +14,7 @@ const PAGES = [
   '/admin/podcasts',
   '/admin/maintenance',
   '/admin/metadata',
+  '/admin/metadata/audiobooks',
   '/admin/radio',
   '/admin/accounts',
   '/admin/accounts?item=me#meine-profile',

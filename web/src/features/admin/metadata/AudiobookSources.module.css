@@ -2,14 +2,15 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: var(--sc-space-8);
+  gap: var(--sc-space-6);
 }
 
-.section {
+/* The folder rows: a path has no spaces, so it may break anywhere (390 px phone, A-3a). */
+.folders {
   display: flex;
   flex-direction: column;
-  gap: var(--sc-space-3);
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .inline {
