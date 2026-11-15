@@ -41,7 +41,7 @@ var certificationAges = map[string]map[string]int{
 		"TV-Y": 0, "TV-G": 0, "TV-Y7": 7, "TV-Y7-FV": 7, "TV-PG": 6, "TV-14": 14, "TV-MA": 17, // TV parental guidelines
 	},
 	"FR": {"U": 0, "TP": 0, "TOUS PUBLICS": 0, "10": 10, "12": 12, "16": 16, "18": 18},
-	"ES": {"A": 0, "APTA": 0, "TP": 0, "I": 0, "7": 7, "10": 10, "12": 12, "13": 13, "16": 16, "18": 18, "X": 18},
+	"ES": {"A": 0, "AI": 0, "APTA": 0, "TP": 0, "I": 0, "7": 7, "10": 10, "12": 12, "13": 13, "16": 16, "18": 18, "X": 18},
 	"IT": {"T": 0, "BA": 6, "6": 6, "12": 12, "14": 14, "VM14": 14, "18": 18, "VM18": 18},
 	"NL": {"AL": 0, "6": 6, "9": 9, "12": 12, "14": 14, "16": 16, "18": 18},
 	"BE": {
@@ -63,8 +63,8 @@ var certificationAges = map[string]map[string]int{
 	"CZ": {"U": 0, "0": 0, "12": 12, "15": 15, "18": 18},
 	"HU": {"KN": 0, "KORHATÁR NÉLKÜL": 0, "6": 6, "12": 12, "16": 16, "18": 18, "X": 18},
 	"TR": {
-		"GENEL İZLEYICI KITLESI": 0, "GENEL İZLEYICI": 0, "GENEL": 0, "6A": 6, "7": 7, "10A": 10, "13A": 13, "13": 13,
-		"15": 15, "16": 16, "18": 18,
+		"GENEL İZLEYICI KITLESI": 0, "GENEL İZLEYICI": 0, "GENEL": 0, "6": 6, "6A": 6, "7": 7, "10": 10, "10A": 10,
+		"13A": 13, "13": 13, "15": 15, "15A": 15, "16": 16, "18": 18,
 	},
 	"RU": {"0": 0, "6": 6, "12": 12, "16": 16, "18": 18},
 	"UA": {"0": 0, "ЗА": 0, "12": 12, "16": 16, "18": 18},
@@ -123,11 +123,13 @@ func ageFromCertifications(certs map[string]string, first string) (rating *int, 
 	return nil, ""
 }
 
-// normalizeCertification upper-cases a certification and strips "FSK", blanks and a trailing "+".
+// normalizeCertification upper-cases a certification and strips "FSK", blanks, a leading "-" and a
+// leading or trailing "+".
 func normalizeCertification(v string) string {
 	v = strings.ToUpper(strings.TrimSpace(v))
 	v = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(v, "FSK"), "-"))
-	return strings.TrimSuffix(v, "+")
+	// "+6" and "6+" are the same certificate (TMDB lists both spellings in some countries).
+	return strings.TrimSuffix(strings.TrimPrefix(v, "+"), "+")
 }
 
 // certification returns the first non-empty certification of a main release, else the first
