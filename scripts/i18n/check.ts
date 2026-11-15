@@ -8,7 +8,9 @@
 // Errors (exit 1): keys en.json does not have, plural forms that are not exactly the language's
 // categories (Intl.PluralRules, plus `_zero` where en has it), placeholders, `$t()` nestings or
 // <Trans> markup that differ from English, empty texts, and a missing number in a plural form
-// that covers more than 1. Missing keys are warnings, errors with --strict (the release gate).
+// that covers more than 1, and leading or trailing white space that differs from English (" · ",
+// " or "; ja, ko, zh-CN and zh-TW are exempt, their separators go without spaces: "、"). Missing
+// keys are warnings, errors with --strict (the release gate).
 // Warnings: text identical to English, labels longer than 1.5× English.
 //
 // `de` is checked like any language. `de-DE` is an overlay (4.2): only keys de.json has, and
@@ -47,11 +49,20 @@ function sameList(a: string[], b: string[]): boolean {
   return a.length === b.length && a.every((value, i) => value === b[i]);
 }
 
+/** Languages whose separators and joining words go without spaces around them ("、", "または"). */
+const ownSpacing = new Set(['ja', 'ko', 'zh-CN', 'zh-TW']);
+
+/** Whether the text starts and ends with white space like English (" · ", ", ", " › "). */
+function sameEdges(text: string, en: string): boolean {
+  return /^\s/.test(text) === /^\s/.test(en) && /\s$/.test(text) === /\s$/.test(en);
+}
+
 function sameMarkup(a: Map<string, number>, b: Map<string, number>): boolean {
   return a.size === b.size && [...a].every(([name, n]) => b.get(name) === n);
 }
 
 function compareText(
+  code: string,
   key: string,
   text: string,
   en: string,
@@ -59,9 +70,15 @@ function compareText(
   enForPlaceholders = en,
   why = '',
 ) {
+  // In ja, ko, zh-CN and zh-TW " · " may lose its spaces, never its mark (an empty text).
   if (text.trim() === '') {
     report.errors.push(`${key}: empty text`);
     return;
+  }
+  if (!ownSpacing.has(code) && !sameEdges(text, en)) {
+    report.errors.push(
+      `${key}: white space at the start or end differs from English (${JSON.stringify(text)}, English ${JSON.stringify(en)})`,
+    );
   }
   const want = placeholders(enForPlaceholders);
   const got = placeholders(text);
@@ -102,7 +119,7 @@ export function checkLocale(code: string, target: Map<string, string>): Report {
       seen.add(group.base);
       const text = target.get(group.base);
       if (text === undefined) report.missing.push(group.base);
-      else compareText(group.base, text, group.text!, report);
+      else compareText(code, group.base, text, group.text!, report);
       continue;
     }
     const required = requiredForms(code, group.forms);
@@ -131,7 +148,7 @@ export function checkLocale(code: string, target: Map<string, string>): Report {
       const source = placeholderSource(code, group, form);
       const why =
         source !== en ? ` ("${form}" covers more than 1 in ${code}: like en "other")` : '';
-      compareText(key, text, en, report, source, why);
+      compareText(code, key, text, en, report, source, why);
     }
     for (const key of target.keys()) {
       const { base, form } = splitPlural(key);
@@ -157,7 +174,7 @@ function checkOverlay(target: Map<string, string>): Report {
     if (base === undefined) report.errors.push(`${key}: not in de.json`);
     else if (text === base)
       report.errors.push(`${key}: same as de.json (drop it from the overlay)`);
-    else compareText(key, text, base, report);
+    else compareText('de-DE', key, text, base, report);
   }
   report.identical = [];
   return report;
