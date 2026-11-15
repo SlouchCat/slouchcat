@@ -75,7 +75,7 @@
           "test_failed": "az indításkori teszt sikertelen"
         },
         "saved": "Mentve: {{name}}",
-        "restartAdmin": "A kiszolgáló újraindítása után lép érvénybe (Áttekintés › Újraindítás)."
+        "restartAdmin": "A kiszolgáló újraindítása után lép érvénybe (Rendszer › Kiszolgáló › Újraindítás)."
       },
       "fallback": {
         "title": "A kiválasztott grafikus chip nem működik",
@@ -363,7 +363,7 @@
       },
       "radio": "Internetes rádió",
       "radioToggle": "{{country}} felvétele a rádiókínálatba",
-      "radioHint": "Az ország adók nélkül kerül a kínálatba. Az adókat később jelölheti ki az Adminisztráció › Rádió részben."
+      "radioHint": "Az ország állomások nélkül kerül a kínálatba. Az állomásokat később jelölheti ki: Adminisztráció › Média › Rádió."
     },
     "services": {
       "recommended": "Ajánlott",
@@ -399,7 +399,7 @@
       "folder": "{{position}}. mappa"
     },
     "household": {
-      "accounts": "Saját fiókkal rendelkező vendégeket később hívhat meg az Adminisztráció › Fiókok részben."
+      "accounts": "A saját fiókkal rendelkező vendégeket később hívhatja meg: Adminisztráció › Felhasználók és eszközök › Fiókok."
     },
     "access": {
       "here": "Jelenleg ezen a címen éri el: {{url}}.",
@@ -424,7 +424,7 @@
       "title": "A Slouchcat be van állítva",
       "restartTitle": "A Slouchcat újraindul…",
       "restartBody": "A grafikus chip választása az újraindítás után lép érvénybe. Az első beolvasások utána folytatódnak.",
-      "busy": "A Slouchcat nem tudott újraindulni, mert éppen biztonsági mentés vagy frissítés fut. A grafikus chip választása a következő újraindítás után lép érvénybe (Adminisztráció › Áttekintés).",
+      "busy": "A Slouchcat nem tudott újraindulni, mert éppen biztonsági mentés vagy frissítés fut. A grafikus chip választása a következő újraindítás után lép érvénybe (Adminisztráció › Rendszer › Kiszolgáló).",
       "scanProgress": "{{state}}: {{seen}}/{{total}} fájl",
       "home": "Tovább a kezdőlapra"
     },
@@ -677,6 +677,8 @@
     },
     "adminPage": {
       "help": "Súgó ehhez az oldalhoz",
+      "less": "Kevesebb",
+      "more": "Több",
       "live_one": "Élő, másodpercenként",
       "live_other": "Élő, {{count}} másodpercenként"
     },
@@ -1137,6 +1139,11 @@
       "rate": "Sebesség: {{rate}}×",
       "muted": "Némítva",
       "previousEpisode": "Előző epizód",
+      "forward10": "10 másodperc előre",
+      "options": "Beállítások",
+      "view": "Idő és nézet",
+      "tapBack": "−{{seconds}} mp",
+      "tapForward": "+{{seconds}} mp",
       "noChapters": "Nincs fejezet",
       "lastChapter": "Utolsó fejezet",
       "noNextEpisode": "Nincs következő epizód",
@@ -1146,12 +1153,7 @@
       "nextEpisodeCard": "Következő epizód",
       "previousEpisodeCard": "Előző epizód",
       "cardSeason": "{{season}}. évad · {{name}}",
-      "notOnDevice": "Nincs ezen az eszközön",
-      "forward10": "10 másodperc előre",
-      "options": "Beállítások",
-      "view": "Idő és nézet",
-      "tapBack": "−{{seconds}} mp",
-      "tapForward": "+{{seconds}} mp"
+      "notOnDevice": "Nincs ezen az eszközön"
     },
     "tabs": {
       "label": "További információ a címről",
@@ -1430,6 +1432,8 @@
       },
       "settings": {
         "title": "Beállítások",
+        "relaysCard": "Pufferek és továbbítások",
+        "coverCard": "Borítók és külső adatok",
         "buffer": "Időeltolás",
         "bufferHelp": "Mennyire tekerhetnek vissza a hallgatók. 60 perc felezi az adók számát, ha a keret változatlan.",
         "minutes_one": "{{count}} perc",
@@ -2041,7 +2045,7 @@
         "lead_one": "{{roots}} és {{formatted}} cím kikerül a Slouchcatből, az előrehaladással, a pipákkal, a saját listával, az ajánlásokkal, a saját képekkel és szövegekkel, a „Újdonságok: {{name}}” kezdőlapi sorral, a profilok engedélyeivel és az eszközökön lévő letöltésekkel együtt.",
         "lead_other": "{{roots}} és {{formatted}} cím kikerül a Slouchcatből, az előrehaladással, a pipákkal, a saját listával, az ajánlásokkal, a saját képekkel és szövegekkel, a „Újdonságok: {{name}}” kezdőlapi sorral, a profilok engedélyeivel és az eszközökön lévő letöltésekkel együtt.",
         "files": "A lemezen lévő fájlok érintetlenek maradnak. Ha a könyvtár beolvasása éppen fut, a Slouchcat előbb megszakítja.",
-        "backup": "Előtte a Slouchcat biztonsági mentést készít az adatbázisról (Adminisztráció › Biztonsági mentés). Ennek a mentésnek a visszaállítása mindent a törlés előtti állapotba hoz vissza, beleértve minden profil azóta elért előrehaladását is.",
+        "backup": "Előtte a Slouchcat biztonsági mentést készít az adatbázisról (Adminisztráció › Rendszer › Biztonsági mentés). A mentés visszaállítása mindent a törlés előtti állapotra állít vissza, a profilok azóta elért előrehaladását is beleértve.",
         "final": "Egyébként nem vonható vissza: ugyanazon mappák új beolvasása újra létrehozza a címeket, előrehaladás nélkül.",
         "inputLabel": "A megerősítéshez írja be a nevet",
         "mismatch": "Pontosan ezt írja be: {{name}}, hogy a gomb aktívvá váljon.",
@@ -3313,11 +3317,35 @@
       "rowSettings": "Hogy a sor hol áll a kezdőlapon, és megjelenik-e, a „Kezdőlap” alatt állítható.",
       "rowSettingsLink": "Ugrás ide: „Kezdőlap”"
     },
+    "finder": {
+      "button": "Terület keresése",
+      "shortcut": "Ctrl K",
+      "shortcutMac": "⌘ K",
+      "label": "Az adminisztráció területeinek keresése",
+      "placeholder": "Könyvtárak, feladatok, biztonsági mentés…",
+      "results": "Találatok",
+      "empty": "Nincs találat",
+      "area": "Terület",
+      "search": "Médiakeresés",
+      "hint": "A nyilak választanak, az Enter megnyit, az Esc bezár"
+    },
     "nav": {
       "label": "Adminisztráció",
       "overview": "Áttekintés",
+      "areas": {
+        "media": "Média",
+        "people": "Felhasználók és eszközök",
+        "home": "Kezdőlap",
+        "automation": "Automatizálás",
+        "system": "Rendszer"
+      },
+      "tagline": "Control Center",
+      "trail": "{{area}} / {{page}}",
+      "breadcrumb": "Elérési út",
+      "tabs": "Oldalak: {{area}}",
       "back": "Vissza az alkalmazáshoz",
       "updateLabel": "Áttekintés, elérhető frissítés: {{version}} verzió",
+      "updateBadge": "{{name}}, elérhető frissítés: {{version}} verzió",
       "sheet": {
         "label": "Adminisztrációs oldalak",
         "close": "Adminisztrációs oldalak bezárása"
@@ -3398,7 +3426,19 @@
       },
       "metadata": {
         "title": "Metaadatok"
+      },
+      "audiobookSources": {
+        "title": "Hangoskönyvek: források"
+      },
+      "server": {
+        "title": "Kiszolgáló"
       }
+    },
+    "server": {
+      "intro": "Verzió, frissítések, újraindítás, tárhely és hibanapló egy helyen.",
+      "state": "A kiszolgáló állapota",
+      "updates": "Frissítések és újraindítás",
+      "toIntegrations": "Grafikus chip, nyilvános cím és frissítésellenőrzés: Integrációk"
     },
     "home": {
       "setupBand": {
@@ -3409,6 +3449,40 @@
       },
       "title": "Adminisztráció",
       "liveFailed": "Nincs válasz, újrapróbálkozás 5 másodpercenként",
+      "heading": "Minden egy pillantásra",
+      "intro": "Elöl a legfontosabb. Minden más a területeken érhető el.",
+      "refresh": "Frissítés",
+      "attention": {
+        "title": "Mi igényel figyelmet?",
+        "band_one": "{{count}} elem igényel figyelmet",
+        "band_other": "{{count}} elem igényel figyelmet",
+        "show": "Megtekintés",
+        "none": "Minden rendben."
+      },
+      "metrics": {
+        "label": "Kulcsmutatók",
+        "streams": "Aktív streamek",
+        "streamsNote": "Jelenleg csatlakozva",
+        "jobs": "Futó feladatok",
+        "jobsNote": "{{queued}} sorban áll",
+        "jobsNotePaused": "{{queued}} sorban áll · {{paused}} szünetel",
+        "maintenance": "Karbantartandó címek",
+        "maintenanceNote": "Nyitott esetek a karbantartásban",
+        "storage": "Tárhely",
+        "storageValue": "{{config}}% · {{cache}}%",
+        "storageNote": "Foglalt: konfiguráció · gyorsítótár"
+      },
+      "active": {
+        "title": "Most aktív"
+      },
+      "quick": {
+        "title": "Közvetlenül a feladatokhoz"
+      },
+      "summary": {
+        "title": "Kiszolgáló és legutóbbi tevékenység",
+        "details": "Kiszolgáló részletei",
+        "log": "Kiszolgálónapló megnyitása"
+      },
       "update": {
         "title": "Elérhető a(z) {{version}} verzió",
         "body": "Jelenleg ez fut: {{current}}. A Slouchcat maga nem telepít semmit: az új image-et a docker compose pull paranccsal töltse le, és a docker compose up -d paranccsal indítsa újra.",
@@ -3582,6 +3656,7 @@
         "keyRejected": "A(z) {{name}} kulcsát elutasították",
         "keyRejectedBody": "A szolgáltató elutasítja a kulcsot. Amíg nincs új, érvényes kulcs, a Slouchcat nem tölt le róla metaadatokat.",
         "toKeys": "A kulcsokhoz",
+        "toGpu": "A grafikus chip kiválasztásához",
         "ratingsReread": "A korhatárok újraolvasása folyamatban",
         "ratingsRereadBody": "Amíg a feladat be nem fejeződik, a korábbi korhatárok érvényesek, akár szigorúbbak, akár enyhébbek.",
         "minimumAge": "A korhatár mostantól minimális életkor",
@@ -3643,6 +3718,16 @@
       "cleared": "{{name}} törölve.",
       "unsaved": "nincs mentve",
       "notificationsLink": "Az értesítési csatornákhoz",
+      "services": {
+        "label": "Szolgáltatások",
+        "back": "Összes integráció",
+        "keys": "TMDB, TVDB, Fanart.tv, YouTube, Trakt és Google Books.",
+        "webhooks": "A Radarr és a Sonarr jelzi az új és módosult fájlokat.",
+        "email": "Kiszolgáló az e-mailes értesítésekhez, meghívókhoz és közleményekhez.",
+        "telegram": "Bot a Telegramon küldött értesítésekhez.",
+        "push": "Értesítések a böngészőben és a telepített alkalmazásban.",
+        "server": "Frissítésellenőrzés, nyilvános cím és grafikus chip."
+      },
       "keys": {
         "title": "Szolgáltatói kulcsok",
         "intro": "A Slouchcat ezekkel tölti le a szövegeket, képeket és előzeteseket. Kulcs nélkül a szolgáltató ki van kapcsolva.",
@@ -4263,7 +4348,8 @@
         "queued": "Sorban áll",
         "paused": "Szünetel",
         "failed": "Meghiúsult",
-        "label": "Összegzés"
+        "label": "Összegzés",
+        "plannedNote": "{{number}} tervezett"
       },
       "pools": {
         "title": "Munkavégzők",
@@ -4729,7 +4815,15 @@
       },
       "separator": " · ",
       "none": "–",
-      "livePaused": "A frissítés szünetel"
+      "livePaused": "A frissítés szünetel",
+      "filter": {
+        "label": "Feladattípusok szűrése állapot szerint",
+        "all": "Mind",
+        "running": "Fut",
+        "failed": "Meghiúsult",
+        "paused": "Szünetel",
+        "empty": "Ebben a csoportban nincs ilyen állapotú feladattípus."
+      }
     },
     "metadata": {
       "title": "Metaadatok",
@@ -5031,7 +5125,7 @@
         "library": "Csak kivétel a Slouchcatből",
         "files": "A fájlok törlése is"
       },
-      "libraryHint": "A fájlok a lemezen maradnak. A cím akkor is kívül marad, ha új fájlok érkeznek; a „Karbantartás › Eltávolított címek” alatt az előrehaladással, pipákkal és saját listával együtt visszavehető.",
+      "libraryHint": "A fájlok a lemezen maradnak. A cím akkor is eltávolítva marad, ha új fájlok érkeznek; a „Karbantartás › Eltávolított címek” alatt az előrehaladással, a megtekintési jelekkel és a Saját listával együtt visszavehető.",
       "everywhere": "A cím minden profil minden listájáról eltűnik; az eszközökön lévő letöltések törlődnek.",
       "arr": "A Radarr és a Sonarr nem tud erről.",
       "affected_one": "Érintett: {{count}} fájl · {{size}}",

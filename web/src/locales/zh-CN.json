@@ -71,7 +71,7 @@
           "test_failed": "启动时检查失败"
         },
         "saved": "已保存：{{name}}",
-        "restartAdmin": "重启服务器后生效（概览 › 重启）。"
+        "restartAdmin": "重启服务器后生效（系统 › 服务器 › 重启）。"
       },
       "fallback": {
         "title": "所选 GPU 无法使用",
@@ -359,7 +359,7 @@
       },
       "radio": "网络电台",
       "radioToggle": "将 {{country}} 加入广播上架",
-      "radioHint": "该国家上架时不含电台。电台可稍后在“管理 › 广播”中勾选。"
+      "radioHint": "该国家加入时不含电台。之后可在“管理 › 媒体 › 广播”中选择电台。"
     },
     "services": {
       "recommended": "推荐",
@@ -395,7 +395,7 @@
       "folder": "文件夹 {{position}}"
     },
     "household": {
-      "accounts": "拥有自己账户的访客可稍后在“管理 › 账户”中邀请。"
+      "accounts": "拥有自己账户的访客，之后可在“管理 › 用户与设备 › 账户”中邀请。"
     },
     "access": {
       "here": "你当前通过 {{url}} 访问。",
@@ -418,7 +418,7 @@
       "title": "Slouchcat 设置完成",
       "restartTitle": "Slouchcat 正在重启…",
       "restartBody": "GPU 选择将在重启后生效。首次扫描随后会继续进行。",
-      "busy": "由于正在进行备份或更新，Slouchcat 无法重启。GPU 选择将在下次重启后生效（管理 › 概览）。",
+      "busy": "正在进行备份或更新，Slouchcat 无法重启。GPU 选择将在下次重启后生效（管理 › 系统 › 服务器）。",
       "scanProgress": "{{state}}：{{seen}} / {{total}} 个文件",
       "home": "前往首页"
     },
@@ -655,6 +655,8 @@
     },
     "adminPage": {
       "help": "此页面的帮助",
+      "less": "收起",
+      "more": "展开",
       "live_other": "实时，每 {{count}} 秒更新"
     },
     "actionMenu": {
@@ -1105,6 +1107,11 @@
       "rate": "速度 {{rate}}×",
       "muted": "已静音",
       "previousEpisode": "上一集",
+      "forward10": "前进 10 秒",
+      "options": "选项",
+      "view": "时间和视图",
+      "tapBack": "−{{seconds}} 秒",
+      "tapForward": "+{{seconds}} 秒",
       "noChapters": "无章节",
       "lastChapter": "已是最后一章",
       "noNextEpisode": "没有下一集",
@@ -1114,12 +1121,7 @@
       "nextEpisodeCard": "下一集",
       "previousEpisodeCard": "上一集",
       "cardSeason": "第 {{season}} 季 · {{name}}",
-      "notOnDevice": "不在此设备上",
-      "forward10": "前进 10 秒",
-      "options": "选项",
-      "view": "时间和视图",
-      "tapBack": "−{{seconds}} 秒",
-      "tapForward": "+{{seconds}} 秒"
+      "notOnDevice": "不在此设备上"
     },
     "tabs": {
       "label": "关于此作品",
@@ -1392,6 +1394,8 @@
       },
       "settings": {
         "title": "设置",
+        "relaysCard": "缓冲与转发",
+        "coverCard": "封面与外部数据",
         "buffer": "时移",
         "bufferHelp": "听众最多可以回退多久。预算不变时，60 分钟会使电台数量减半。",
         "minutes_other": "{{count}} 分钟",
@@ -1982,7 +1986,7 @@
         "title": "要删除媒体库“{{name}}”吗？",
         "lead_other": "{{roots}}和 {{formatted}} 部作品将从 Slouchcat 中移除，连同播放进度、已观看标记、片单、推荐、自定义图片和文本、首页栏目“{{name}} 新增”、个人资料的访问权限以及设备上的下载。",
         "files": "磁盘上的文件不受影响。如果此媒体库正在扫描，Slouchcat 会先将其取消。",
-        "backup": "删除前，Slouchcat 会备份数据库（管理 › 备份）。恢复此备份会将一切还原到删除前的状态，包括所有个人资料此后的播放进度。",
+        "backup": "在此之前，Slouchcat 会备份数据库（管理 › 系统 › 备份）。恢复此备份会将一切还原到删除前的状态，包括此后所有个人资料的进度。",
         "final": "除此之外无法撤销：重新扫描相同的文件夹会重新创建这些作品，但没有播放进度。",
         "inputLabel": "输入名称以确认",
         "mismatch": "请准确输入 {{name}}，按钮才会启用。",
@@ -3192,11 +3196,35 @@
       "rowSettings": "该栏目在首页的位置以及是否显示，可在“首页”中设置。",
       "rowSettingsLink": "前往“首页”"
     },
+    "finder": {
+      "button": "搜索分区",
+      "shortcut": "Ctrl K",
+      "shortcutMac": "⌘ K",
+      "label": "搜索管理分区",
+      "placeholder": "媒体库、任务、备份…",
+      "results": "搜索结果",
+      "empty": "未找到结果",
+      "area": "分区",
+      "search": "媒体搜索",
+      "hint": "方向键选择，Enter 打开，Esc 关闭"
+    },
     "nav": {
       "label": "管理",
       "overview": "概览",
+      "areas": {
+        "media": "媒体",
+        "people": "用户与设备",
+        "home": "首页",
+        "automation": "自动化",
+        "system": "系统"
+      },
+      "tagline": "Control Center",
+      "trail": "{{area}} / {{page}}",
+      "breadcrumb": "导航路径",
+      "tabs": "{{area}} 中的页面",
       "back": "返回应用",
       "updateLabel": "概览，有可用更新：版本 {{version}}",
+      "updateBadge": "{{name}}，有可用更新：版本 {{version}}",
       "sheet": {
         "label": "管理页面",
         "close": "关闭管理页面"
@@ -3270,7 +3298,19 @@
       },
       "metadata": {
         "title": "元数据"
+      },
+      "audiobookSources": {
+        "title": "有声书来源"
+      },
+      "server": {
+        "title": "服务器"
       }
+    },
+    "server": {
+      "intro": "版本、更新、重启、存储和错误日志集中在一处。",
+      "state": "服务器状态",
+      "updates": "更新与重启",
+      "toIntegrations": "GPU、公开地址和更新检查：集成"
     },
     "home": {
       "setupBand": {
@@ -3281,6 +3321,39 @@
       },
       "title": "管理",
       "liveFailed": "没有响应，每 5 秒重试一次",
+      "heading": "全局一览",
+      "intro": "重要事项优先显示，其他内容可通过各分区查看。",
+      "refresh": "刷新",
+      "attention": {
+        "title": "需要关注的事项",
+        "band_other": "{{count}} 项需要关注",
+        "show": "查看",
+        "none": "一切正常。"
+      },
+      "metrics": {
+        "label": "关键指标",
+        "streams": "活动串流",
+        "streamsNote": "当前已连接",
+        "jobs": "运行中的任务",
+        "jobsNote": "{{queued}} 个等待中",
+        "jobsNotePaused": "{{queued}} 个等待中 · {{paused}} 个已暂停",
+        "maintenance": "待维护作品",
+        "maintenanceNote": "维护中的待处理项",
+        "storage": "存储空间",
+        "storageValue": "{{config}}% · {{cache}}%",
+        "storageNote": "已用：配置 · 缓存"
+      },
+      "active": {
+        "title": "当前活动"
+      },
+      "quick": {
+        "title": "快速前往"
+      },
+      "summary": {
+        "title": "服务器与最近活动",
+        "details": "服务器详情",
+        "log": "查看服务器日志"
+      },
       "update": {
         "title": "版本 {{version}} 现已推出",
         "body": "你当前运行的是 {{current}}。Slouchcat 不会自动安装：请用 docker compose pull 获取新镜像，然后用 docker compose up -d 重启。",
@@ -3448,6 +3521,7 @@
         "keyRejected": "{{name}} 密钥被拒绝",
         "keyRejectedBody": "提供商拒绝了此密钥。在新密钥生效之前，Slouchcat 不会从它获取元数据。",
         "toKeys": "前往密钥",
+        "toGpu": "前往 GPU 选择",
         "ratingsReread": "正在重新读取分级",
         "ratingsRereadBody": "任务完成前仍沿用之前的分级，可能更严格，也可能更宽松。",
         "minimumAge": "分级现为最低年龄",
@@ -3506,6 +3580,16 @@
       "cleared": "{{name}} 已删除。",
       "unsaved": "未保存",
       "notificationsLink": "前往通知渠道",
+      "services": {
+        "label": "服务",
+        "back": "所有集成",
+        "keys": "TMDB、TVDB、Fanart.tv、YouTube、Trakt 和 Google Books。",
+        "webhooks": "Radarr 和 Sonarr 会报告新增和更改的文件。",
+        "email": "用于通过电子邮件发送通知、邀请和公告的服务器。",
+        "telegram": "通过 Telegram 发送通知的机器人。",
+        "push": "在浏览器和已安装的应用中显示通知。",
+        "server": "更新检查、公开地址和 GPU。"
+      },
       "keys": {
         "title": "提供商密钥",
         "intro": "Slouchcat 用这些密钥获取文本、图片和预告片。没有密钥时，该提供商不会启用。",
@@ -4113,7 +4197,8 @@
         "queued": "等待中",
         "paused": "已暂停",
         "failed": "失败",
-        "label": "概览"
+        "label": "概览",
+        "plannedNote": "{{number}} 个已计划"
       },
       "pools": {
         "title": "工作线程",
@@ -4564,7 +4649,15 @@
       },
       "separator": " · ",
       "none": "–",
-      "livePaused": "实时更新已暂停"
+      "livePaused": "实时更新已暂停",
+      "filter": {
+        "label": "按状态筛选任务类型",
+        "all": "全部",
+        "running": "运行中",
+        "failed": "失败",
+        "paused": "已暂停",
+        "empty": "此分组中没有处于该状态的任务类型。"
+      }
     },
     "metadata": {
       "title": "元数据",
@@ -4858,7 +4951,7 @@
         "library": "仅从 Slouchcat 中移除",
         "files": "同时删除文件"
       },
-      "libraryHint": "文件保留在磁盘上。即使有新文件加入，此作品也会保持移除状态；可在“维护 › 已移除的作品”中连同播放进度、已观看标记和片单一起恢复。",
+      "libraryHint": "文件仍保留在磁盘上。即使有新文件加入，该作品仍保持移除状态；可在“维护 › 已移除的作品”中重新加入，进度、观看标记和“我的片单”都会保留。",
       "everywhere": "此作品将从所有个人资料的所有列表中消失，设备上的下载也会被移除。",
       "arr": "Radarr 和 Sonarr 不会收到任何通知。",
       "affected_other": "受影响：{{count}} 个文件 · {{size}}",

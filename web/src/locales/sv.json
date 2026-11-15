@@ -75,7 +75,7 @@
           "test_failed": "testet misslyckades vid start"
         },
         "saved": "Sparat: {{name}}",
-        "restartAdmin": "Gäller efter att servern har startats om (Översikt › Starta om)."
+        "restartAdmin": "Gäller efter att servern har startats om (System › Server › Starta om)."
       },
       "fallback": {
         "title": "Den valda grafikkretsen fungerar inte",
@@ -363,7 +363,7 @@
       },
       "radio": "Webbradio",
       "radioToggle": "Lägg till {{country}} i radioutbudet",
-      "radioHint": "Landet läggs till i utbudet utan stationer. Stationerna väljer du senare under Administration › Radio."
+      "radioHint": "Landet läggs till utan stationer. Stationerna väljer du senare under Administration › Medier › Radio."
     },
     "services": {
       "recommended": "Rekommenderas",
@@ -399,7 +399,7 @@
       "folder": "Mapp {{position}}"
     },
     "household": {
-      "accounts": "Gäster med eget konto bjuder du in senare under Administration › Konton."
+      "accounts": "Gäster med eget konto bjuder du in senare under Administration › Användare & enheter › Konton."
     },
     "access": {
       "here": "Du använder {{url}} just nu.",
@@ -424,7 +424,7 @@
       "title": "Slouchcat är konfigurerat",
       "restartTitle": "Slouchcat startar om…",
       "restartBody": "Valet av grafikkrets gäller efter omstarten. De första genomsökningarna fortsätter sedan.",
-      "busy": "Slouchcat kunde inte starta om eftersom en säkerhetskopiering eller en uppdatering pågår. Valet av grafikkrets gäller efter nästa omstart (Administration › Översikt).",
+      "busy": "Slouchcat kunde inte starta om eftersom en säkerhetskopiering eller en uppdatering pågår. Valet av grafikkrets gäller efter nästa omstart (Administration › System › Server).",
       "scanProgress": "{{state}}: {{seen}} av {{total}} filer",
       "home": "Gå till startsidan"
     },
@@ -677,6 +677,8 @@
     },
     "adminPage": {
       "help": "Hjälp för den här sidan",
+      "less": "Mindre",
+      "more": "Mer",
       "live_one": "Live, varje sekund",
       "live_other": "Live, var {{count}}:e sekund"
     },
@@ -1137,6 +1139,11 @@
       "rate": "Hastighet {{rate}}×",
       "muted": "Ljud av",
       "previousEpisode": "Föregående avsnitt",
+      "forward10": "Framåt 10 sekunder",
+      "options": "Alternativ",
+      "view": "Tid och vy",
+      "tapBack": "−{{seconds}} s",
+      "tapForward": "+{{seconds}} s",
       "noChapters": "Inga kapitel",
       "lastChapter": "Sista kapitlet",
       "noNextEpisode": "Inga fler avsnitt",
@@ -1146,12 +1153,7 @@
       "nextEpisodeCard": "Nästa avsnitt",
       "previousEpisodeCard": "Föregående avsnitt",
       "cardSeason": "Säsong {{season}} · {{name}}",
-      "notOnDevice": "Inte på den här enheten",
-      "forward10": "Framåt 10 sekunder",
-      "options": "Alternativ",
-      "view": "Tid och vy",
-      "tapBack": "−{{seconds}} s",
-      "tapForward": "+{{seconds}} s"
+      "notOnDevice": "Inte på den här enheten"
     },
     "tabs": {
       "label": "Mer om titeln",
@@ -1430,6 +1432,8 @@
       },
       "settings": {
         "title": "Inställningar",
+        "relaysCard": "Buffertar och vidaresändningar",
+        "coverCard": "Omslag och externa data",
         "buffer": "Tidsförskjutning",
         "bufferHelp": "Hur långt tillbaka lyssnarna kan gå. 60 minuter halverar antalet stationer när budgeten är oförändrad.",
         "minutes_one": "{{count}} minut",
@@ -2041,7 +2045,7 @@
         "lead_one": "{{roots}} och {{formatted}} titel försvinner från Slouchcat, med framsteg, markeringar, Min lista, tips, egna bilder och texter, hemraden ”Nytt i {{name}}”, profilernas behörigheter och nedladdningarna på enheterna.",
         "lead_other": "{{roots}} och {{formatted}} titlar försvinner från Slouchcat, med framsteg, markeringar, Min lista, tips, egna bilder och texter, hemraden ”Nytt i {{name}}”, profilernas behörigheter och nedladdningarna på enheterna.",
         "files": "Filerna på disken berörs inte. Om en genomsökning av det här biblioteket pågår avbryter Slouchcat den först.",
-        "backup": "Innan dess säkerhetskopierar Slouchcat databasen (Administration › Säkerhetskopia). Om du återställer den säkerhetskopian blir allt som före borttagningen, inklusive varje profils framsteg sedan dess.",
+        "backup": "Innan dess säkerhetskopierar Slouchcat databasen (Administration › System › Säkerhetskopia). Den som återställer den säkerhetskopian sätter tillbaka allt till läget före borttagningen, även alla profilers framsteg sedan dess.",
         "final": "Annars kan det inte ångras: en ny genomsökning av samma mappar skapar titlarna igen, utan framsteg.",
         "inputLabel": "Skriv namnet för att bekräfta",
         "mismatch": "Skriv {{name}} exakt så här för att aktivera knappen.",
@@ -3313,11 +3317,35 @@
       "rowSettings": "Var raden står på startsidan och om den visas ställs in under ”Startsida”.",
       "rowSettingsLink": "Gå till ”Startsida”"
     },
+    "finder": {
+      "button": "Sök område",
+      "shortcut": "Ctrl K",
+      "shortcutMac": "⌘ K",
+      "label": "Sök efter ett område i administrationen",
+      "placeholder": "Bibliotek, jobb, säkerhetskopia…",
+      "results": "Träffar",
+      "empty": "Inga träffar",
+      "area": "Område",
+      "search": "Mediesökning",
+      "hint": "Piltangenter väljer, Enter öppnar, Esc stänger"
+    },
     "nav": {
       "label": "Administration",
       "overview": "Översikt",
+      "areas": {
+        "media": "Medier",
+        "people": "Användare & enheter",
+        "home": "Startsida",
+        "automation": "Automatisering",
+        "system": "System"
+      },
+      "tagline": "Control Center",
+      "trail": "{{area}} / {{page}}",
+      "breadcrumb": "Sökväg",
+      "tabs": "Sidor i {{area}}",
       "back": "Tillbaka till appen",
       "updateLabel": "Översikt, uppdatering till version {{version}} finns",
+      "updateBadge": "{{name}}, uppdatering till version {{version}} finns",
       "sheet": {
         "label": "Administrationssidor",
         "close": "Stäng administrationssidorna"
@@ -3398,7 +3426,19 @@
       },
       "metadata": {
         "title": "Metadata"
+      },
+      "audiobookSources": {
+        "title": "Källor för ljudböcker"
+      },
+      "server": {
+        "title": "Server"
       }
+    },
+    "server": {
+      "intro": "Version, uppdateringar, omstart, lagring och felloggen på ett ställe.",
+      "state": "Serverstatus",
+      "updates": "Uppdateringar & omstart",
+      "toIntegrations": "Grafikkrets, publik adress och uppdateringskontroll: Integrationer"
     },
     "home": {
       "setupBand": {
@@ -3409,6 +3449,40 @@
       },
       "title": "Administration",
       "liveFailed": "Inget svar, försöker igen var 5:e sekund",
+      "heading": "Allt på en blick",
+      "intro": "Det viktigaste först. Resten når du via områdena.",
+      "refresh": "Uppdatera",
+      "attention": {
+        "title": "Vad behöver uppmärksammas?",
+        "band_one": "{{count}} punkt behöver uppmärksammas",
+        "band_other": "{{count}} punkter behöver uppmärksammas",
+        "show": "Visa",
+        "none": "Allt är i ordning."
+      },
+      "metrics": {
+        "label": "Nyckeltal",
+        "streams": "Aktiva strömmar",
+        "streamsNote": "Anslutna just nu",
+        "jobs": "Pågående jobb",
+        "jobsNote": "{{queued}} väntar",
+        "jobsNotePaused": "{{queued}} väntar · {{paused}} pausade",
+        "maintenance": "Titlar att underhålla",
+        "maintenanceNote": "Öppna ärenden i underhållet",
+        "storage": "Lagringsutrymme",
+        "storageValue": "{{config}} % · {{cache}} %",
+        "storageNote": "Använt: konfiguration · cache"
+      },
+      "active": {
+        "title": "Aktivt just nu"
+      },
+      "quick": {
+        "title": "Direkt till dina uppgifter"
+      },
+      "summary": {
+        "title": "Server & senaste aktivitet",
+        "details": "Serverdetaljer",
+        "log": "Öppna serverloggen"
+      },
       "update": {
         "title": "Version {{version}} finns",
         "body": "Du kör {{current}}. Slouchcat installerar ingenting själv: hämta den nya avbilden med docker compose pull och starta om med docker compose up -d.",
@@ -3582,6 +3656,7 @@
         "keyRejected": "Nyckeln för {{name}} avvisades",
         "keyRejectedBody": "Leverantören avvisar nyckeln. Tills en ny nyckel fungerar hämtar Slouchcat ingen metadata därifrån.",
         "toKeys": "Till nycklarna",
+        "toGpu": "Till valet av grafikkrets",
         "ratingsReread": "Åldersgränserna läses in igen",
         "ratingsRereadBody": "Tills jobbet är klart gäller de tidigare åldersgränserna, oavsett om de är strängare eller mildare.",
         "minimumAge": "Åldersgränser är nu minimiåldrar",
@@ -3643,6 +3718,16 @@
       "cleared": "{{name}} har tagits bort.",
       "unsaved": "osparad",
       "notificationsLink": "Gå till aviseringskanalerna",
+      "services": {
+        "label": "Tjänster",
+        "back": "Alla integrationer",
+        "keys": "TMDB, TVDB, Fanart.tv, YouTube, Trakt och Google Books.",
+        "webhooks": "Radarr och Sonarr rapporterar nya och ändrade filer.",
+        "email": "Server för aviseringar, inbjudningar och meddelanden via e-post.",
+        "telegram": "Bot för aviseringar via Telegram.",
+        "push": "Aviseringar i webbläsaren och i den installerade appen.",
+        "server": "Uppdateringskontroll, publik adress och grafikkrets."
+      },
       "keys": {
         "title": "Leverantörsnycklar",
         "intro": "Med dem hämtar Slouchcat texter, bilder och trailers. Utan nyckel förblir leverantören avstängd.",
@@ -4263,7 +4348,8 @@
         "queued": "I kö",
         "paused": "Pausade",
         "failed": "Misslyckade",
-        "label": "Sammanfattning"
+        "label": "Sammanfattning",
+        "plannedNote": "{{number}} planerade"
       },
       "pools": {
         "title": "Arbetare",
@@ -4729,7 +4815,15 @@
       },
       "separator": " · ",
       "none": "–",
-      "livePaused": "Uppdateringarna är pausade"
+      "livePaused": "Uppdateringarna är pausade",
+      "filter": {
+        "label": "Filtrera jobbtyper efter tillstånd",
+        "all": "Alla",
+        "running": "Pågår",
+        "failed": "Fel",
+        "paused": "Pausade",
+        "empty": "Ingen jobbtyp i den här gruppen har det tillståndet."
+      }
     },
     "metadata": {
       "title": "Metadata",
@@ -5031,7 +5125,7 @@
         "library": "Ta bara bort den från Slouchcat",
         "files": "Ta bort filerna också"
       },
-      "libraryHint": "Filerna finns kvar på disken. Titeln förblir borta även när nya filer kommer. Under ”Underhåll › Borttagna titlar” kan den tas tillbaka med framsteg, markeringar och Min lista.",
+      "libraryHint": "Filerna finns kvar på disken. Titeln förblir borttagen även när nya filer kommer till; under ”Underhåll › Borttagna titlar” kan den tas tillbaka med framsteg, bockar och Min lista.",
       "everywhere": "Titeln försvinner från alla listor för alla profiler. Nedladdningar på enheterna tas bort.",
       "arr": "Radarr och Sonarr får inte veta något om det.",
       "affected_one": "Berörs: {{count}} fil · {{size}}",

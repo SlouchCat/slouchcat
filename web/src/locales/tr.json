@@ -75,7 +75,7 @@
           "test_failed": "başlangıç testi başarısız"
         },
         "saved": "Kaydedildi: {{name}}",
-        "restartAdmin": "Sunucu yeniden başlatıldıktan sonra geçerli olur (Genel bakış › Yeniden başlat)."
+        "restartAdmin": "Sunucu yeniden başlatıldıktan sonra geçerli olur (Sistem › Sunucu › Yeniden başlat)."
       },
       "fallback": {
         "title": "Seçilen grafik yongası çalışmıyor",
@@ -363,7 +363,7 @@
       },
       "radio": "İnternet radyosu",
       "radioToggle": "Radyo seçkisine ekle: {{country}}",
-      "radioHint": "Ülke seçkiye istasyonsuz eklenir. İstasyonları daha sonra Yönetim › Radyo bölümünden işaretlersiniz."
+      "radioHint": "Ülke istasyonsuz seçkiye eklenir. İstasyonları daha sonra Yönetim › Medya › Radyo altında seçebilirsiniz."
     },
     "services": {
       "recommended": "Önerilen",
@@ -399,7 +399,7 @@
       "folder": "Klasör {{position}}"
     },
     "household": {
-      "accounts": "Kendi hesabı olan konukları daha sonra Yönetim › Hesaplar bölümünden davet edersiniz."
+      "accounts": "Kendi hesabı olan misafirleri daha sonra Yönetim › Kullanıcılar ve cihazlar › Hesaplar altında davet edebilirsiniz."
     },
     "access": {
       "here": "Şu anda {{url}} adresini kullanıyorsunuz.",
@@ -424,7 +424,7 @@
       "title": "Slouchcat kuruldu",
       "restartTitle": "Slouchcat yeniden başlıyor…",
       "restartBody": "Grafik yongası seçimi yeniden başlatmadan sonra geçerli olur. İlk taramalar ardından devam eder.",
-      "busy": "Şu anda bir yedekleme veya güncelleme çalıştığı için Slouchcat yeniden başlatılamadı. Grafik yongası seçimi bir sonraki yeniden başlatmadan sonra geçerli olur (Yönetim › Genel bakış).",
+      "busy": "Slouchcat yeniden başlatılamadı, çünkü şu anda bir yedekleme veya güncelleme sürüyor. Grafik yongası seçimi bir sonraki yeniden başlatmadan sonra geçerli olur (Yönetim › Sistem › Sunucu).",
       "scanProgress": "{{state}}: {{seen}}/{{total}} dosya",
       "home": "Ana sayfaya git"
     },
@@ -677,6 +677,8 @@
     },
     "adminPage": {
       "help": "Bu sayfa için yardım",
+      "less": "Daha az",
+      "more": "Daha fazla",
       "live_one": "Canlı, her saniye",
       "live_other": "Canlı, her {{count}} saniyede bir"
     },
@@ -1137,6 +1139,11 @@
       "rate": "Hız {{rate}}×",
       "muted": "Ses kapalı",
       "previousEpisode": "Önceki bölüm",
+      "forward10": "10 saniye ileri",
+      "options": "Seçenekler",
+      "view": "Süre ve görünüm",
+      "tapBack": "−{{seconds}} sn",
+      "tapForward": "+{{seconds}} sn",
       "noChapters": "Kısım yok",
       "lastChapter": "Son kısım",
       "noNextEpisode": "Sonraki bölüm yok",
@@ -1146,12 +1153,7 @@
       "nextEpisodeCard": "Sonraki bölüm",
       "previousEpisodeCard": "Önceki bölüm",
       "cardSeason": "{{season}}. Sezon · {{name}}",
-      "notOnDevice": "Bu cihazda yok",
-      "forward10": "10 saniye ileri",
-      "options": "Seçenekler",
-      "view": "Süre ve görünüm",
-      "tapBack": "−{{seconds}} sn",
-      "tapForward": "+{{seconds}} sn"
+      "notOnDevice": "Bu cihazda yok"
     },
     "tabs": {
       "label": "İçerik hakkında daha fazlası",
@@ -1430,6 +1432,8 @@
       },
       "settings": {
         "title": "Ayarlar",
+        "relaysCard": "Ara bellekler ve aktarımlar",
+        "coverCard": "Kapaklar ve harici veriler",
         "buffer": "Zaman kaydırma",
         "bufferHelp": "Dinleyicilerin ne kadar geriye gidebileceği. 60 dakika, bütçe aynı kalırken istasyon sayısını yarıya indirir.",
         "minutes_one": "{{count}} dakika",
@@ -2041,7 +2045,7 @@
         "lead_one": "{{roots}} ve {{formatted}} içerik; ilerleme, izlendi işaretleri, liste, öneriler, kendi görselleri ve metinleri, “{{name}} kitaplığında yeni” ana sayfa sırası, profillerin izinleri ve cihazlardaki indirmelerle birlikte Slouchcat’ten kalkar.",
         "lead_other": "{{roots}} ve {{formatted}} içerik; ilerleme, izlendi işaretleri, liste, öneriler, kendi görselleri ve metinleri, “{{name}} kitaplığında yeni” ana sayfa sırası, profillerin izinleri ve cihazlardaki indirmelerle birlikte Slouchcat’ten kalkar.",
         "files": "Diskteki dosyalara dokunulmaz. Bu kitaplığın taraması sürüyorsa Slouchcat önce onu iptal eder.",
-        "backup": "Bundan önce Slouchcat veritabanını yedekler (Yönetim › Yedek). Bu yedeği geri yüklemek her şeyi silmeden önceki duruma döndürür; o zamandan beri her profilin ilerlemesi dahil.",
+        "backup": "Bundan önce Slouchcat veritabanının yedeğini alır (Yönetim › Sistem › Yedek). Bu yedeği geri yüklemek her şeyi silmeden önceki duruma döndürür; bu süre içindeki tüm profillerin ilerlemesi de buna dahildir.",
         "final": "Aksi halde geri alınamaz: aynı klasörlerin yeni bir taraması içerikleri ilerleme olmadan yeniden oluşturur.",
         "inputLabel": "Onaylamak için adı yazın",
         "mismatch": "Düğmeyi etkinleştirmek için {{name}} değerini aynen yazın.",
@@ -3313,11 +3317,35 @@
       "rowSettings": "Sıranın ana sayfada nerede durduğu ve görünüp görünmediği “Ana Sayfa” altında ayarlanır.",
       "rowSettingsLink": "“Ana Sayfa” sayfasına git"
     },
+    "finder": {
+      "button": "Bölüm ara",
+      "shortcut": "Ctrl K",
+      "shortcutMac": "⌘ K",
+      "label": "Yönetimde bölüm ara",
+      "placeholder": "Kitaplıklar, görevler, yedek…",
+      "results": "Sonuçlar",
+      "empty": "Hiçbir şey bulunamadı",
+      "area": "Bölüm",
+      "search": "Medya araması",
+      "hint": "Ok tuşları seçer, Enter açar, Esc kapatır"
+    },
     "nav": {
       "label": "Yönetim",
       "overview": "Genel bakış",
+      "areas": {
+        "media": "Medya",
+        "people": "Kullanıcılar ve cihazlar",
+        "home": "Ana Sayfa",
+        "automation": "Otomasyon",
+        "system": "Sistem"
+      },
+      "tagline": "Control Center",
+      "trail": "{{area}} / {{page}}",
+      "breadcrumb": "Yol",
+      "tabs": "{{area}} sayfaları",
       "back": "Uygulamaya dön",
       "updateLabel": "Genel bakış, {{version}} sürümüne güncelleme var",
+      "updateBadge": "{{name}}, {{version}} sürümüne güncelleme var",
       "sheet": {
         "label": "Yönetim sayfaları",
         "close": "Yönetim sayfalarını kapat"
@@ -3398,7 +3426,19 @@
       },
       "metadata": {
         "title": "Meta veri"
+      },
+      "audiobookSources": {
+        "title": "Sesli kitaplar: kaynaklar"
+      },
+      "server": {
+        "title": "Sunucu"
       }
+    },
+    "server": {
+      "intro": "Sürüm, güncellemeler, yeniden başlatma, depolama ve hata günlüğü tek yerde.",
+      "state": "Sunucu durumu",
+      "updates": "Güncellemeler ve yeniden başlatma",
+      "toIntegrations": "Grafik yongası, herkese açık adres ve güncelleme denetimi: Entegrasyonlar"
     },
     "home": {
       "setupBand": {
@@ -3409,6 +3449,40 @@
       },
       "title": "Yönetim",
       "liveFailed": "Yanıt yok, her 5 saniyede bir yeniden deneniyor",
+      "heading": "Her şey bir bakışta",
+      "intro": "Önemli olanlar önce. Gerisine bölümlerden ulaşabilirsiniz.",
+      "refresh": "Yenile",
+      "attention": {
+        "title": "Neler dikkat gerektiriyor?",
+        "band_one": "{{count}} öğe dikkat gerektiriyor",
+        "band_other": "{{count}} öğe dikkat gerektiriyor",
+        "show": "Göster",
+        "none": "Her şey yolunda."
+      },
+      "metrics": {
+        "label": "Temel göstergeler",
+        "streams": "Etkin yayınlar",
+        "streamsNote": "Şu an bağlı",
+        "jobs": "Çalışan görevler",
+        "jobsNote": "{{queued}} bekliyor",
+        "jobsNotePaused": "{{queued}} bekliyor · {{paused}} duraklatıldı",
+        "maintenance": "Bakım bekleyen içerikler",
+        "maintenanceNote": "Bakımda açık durumlar",
+        "storage": "Depolama",
+        "storageValue": "%{{config}} · %{{cache}}",
+        "storageNote": "Kullanılan: yapılandırma · önbellek"
+      },
+      "active": {
+        "title": "Şu an etkin"
+      },
+      "quick": {
+        "title": "Doğrudan görevlerinize"
+      },
+      "summary": {
+        "title": "Sunucu ve son etkinlik",
+        "details": "Sunucu ayrıntıları",
+        "log": "Sunucu günlüğünü aç"
+      },
       "update": {
         "title": "{{version}} sürümü kullanılabilir",
         "body": "{{current}} sürümünü çalıştırıyorsunuz. Slouchcat kendi kendine bir şey kurmaz: yeni imajı docker compose pull ile alın ve docker compose up -d ile yeniden başlatın.",
@@ -3582,6 +3656,7 @@
         "keyRejected": "{{name}} anahtarı reddedildi",
         "keyRejectedBody": "Sağlayıcı anahtarı reddediyor. Yeni bir anahtar geçerli olana kadar Slouchcat ondan meta veri getirmez.",
         "toKeys": "Anahtarlara git",
+        "toGpu": "Grafik yongası seçimine git",
         "ratingsReread": "Yaş sınırları yeniden okunuyor",
         "ratingsRereadBody": "Görev bitene kadar önceki yaş sınırları geçerlidir; bunlar daha katı ya da daha gevşek olabilir.",
         "minimumAge": "Yaş sınırları artık en düşük yaşı gösteriyor",
@@ -3643,6 +3718,16 @@
       "cleared": "{{name}} silindi.",
       "unsaved": "kaydedilmedi",
       "notificationsLink": "Bildirim kanallarına git",
+      "services": {
+        "label": "Hizmetler",
+        "back": "Tüm entegrasyonlar",
+        "keys": "TMDB, TVDB, Fanart.tv, YouTube, Trakt ve Google Books.",
+        "webhooks": "Radarr ve Sonarr yeni ve değişen dosyaları bildirir.",
+        "email": "E-posta ile bildirim, davet ve duyuru gönderen sunucu.",
+        "telegram": "Telegram ile bildirim gönderen bot.",
+        "push": "Tarayıcıda ve yüklü uygulamada bildirimler.",
+        "server": "Güncelleme denetimi, herkese açık adres ve grafik yongası."
+      },
       "keys": {
         "title": "Sağlayıcı anahtarları",
         "intro": "Slouchcat bunlarla metinleri, görselleri ve fragmanları getirir. Anahtar olmadan sağlayıcı kapalı kalır.",
@@ -4263,7 +4348,8 @@
         "queued": "Bekleyen",
         "paused": "Duraklatılan",
         "failed": "Başarısız",
-        "label": "Özet"
+        "label": "Özet",
+        "plannedNote": "{{number}} planlı"
       },
       "pools": {
         "title": "İşçiler",
@@ -4729,7 +4815,15 @@
       },
       "separator": " · ",
       "none": "–",
-      "livePaused": "Güncelleme duraklatıldı"
+      "livePaused": "Güncelleme duraklatıldı",
+      "filter": {
+        "label": "Görev türlerini duruma göre filtrele",
+        "all": "Tümü",
+        "running": "Çalışan",
+        "failed": "Başarısız",
+        "paused": "Duraklatılan",
+        "empty": "Bu gruptaki hiçbir görev türü bu durumda değil."
+      }
     },
     "metadata": {
       "title": "Meta veri",
@@ -5031,7 +5125,7 @@
         "library": "Yalnızca Slouchcat’ten çıkar",
         "files": "Dosyaları da sil"
       },
-      "libraryHint": "Dosyalar diskte kalır. Yeni dosyalar gelse bile içerik dışarıda kalır; “Bakım › Kaldırılan içerikler” altından ilerlemesi, izlendi işaretleri ve listesiyle geri getirilebilir.",
+      "libraryHint": "Dosyalar diskte kalır. Yeni dosyalar gelse bile içerik kaldırılmış kalır; “Bakım › Kaldırılan içerikler” altından ilerleme, izlendi işaretleri ve Listem ile birlikte geri alınabilir.",
       "everywhere": "İçerik her profilin tüm listelerinden çıkar; cihazlardaki indirmeler kaldırılır.",
       "arr": "Radarr ve Sonarr bundan haberdar olmaz.",
       "affected_one": "Etkilenen: {{count}} dosya · {{size}}",

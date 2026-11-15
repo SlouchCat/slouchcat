@@ -71,7 +71,7 @@
           "test_failed": "시작 시 검사 실패"
         },
         "saved": "저장됨: {{name}}",
-        "restartAdmin": "서버를 다시 시작하면 적용돼요(개요 › 다시 시작)."
+        "restartAdmin": "서버를 다시 시작하면 적용돼요(시스템 › 서버 › 다시 시작)."
       },
       "fallback": {
         "title": "선택한 GPU가 작동하지 않아요",
@@ -359,7 +359,7 @@
       },
       "radio": "인터넷 라디오",
       "radioToggle": "라디오 제공 목록에 {{country}} 추가",
-      "radioHint": "국가는 방송국 없이 제공 목록에 추가돼요. 방송국은 나중에 관리 › 라디오에서 선택하세요."
+      "radioHint": "국가는 방송국 없이 추가돼요. 방송국은 나중에 “관리 › 미디어 › 라디오”에서 선택하세요."
     },
     "services": {
       "recommended": "권장",
@@ -395,7 +395,7 @@
       "folder": "폴더 {{position}}"
     },
     "household": {
-      "accounts": "자신의 계정이 있는 게스트는 나중에 관리 › 계정에서 초대하세요."
+      "accounts": "자기 계정이 있는 게스트는 나중에 “관리 › 사용자 및 기기 › 계정”에서 초대하세요."
     },
     "access": {
       "here": "현재 접속 주소: {{url}}",
@@ -418,7 +418,7 @@
       "title": "Slouchcat 설정이 끝났어요",
       "restartTitle": "Slouchcat을 다시 시작하는 중…",
       "restartBody": "GPU 선택은 다시 시작한 뒤 적용돼요. 첫 스캔은 그 후에도 계속돼요.",
-      "busy": "백업 또는 업데이트가 진행 중이어서 Slouchcat을 다시 시작하지 못했어요. GPU 선택은 다음에 다시 시작할 때 적용돼요(관리 › 개요).",
+      "busy": "백업 또는 업데이트가 진행 중이라 Slouchcat을 다시 시작하지 못했어요. GPU 선택은 다음에 다시 시작한 뒤 적용돼요(관리 › 시스템 › 서버).",
       "scanProgress": "{{state}}: 파일 {{total}}개 중 {{seen}}개",
       "home": "홈으로 이동"
     },
@@ -655,6 +655,8 @@
     },
     "adminPage": {
       "help": "이 페이지 도움말",
+      "less": "접기",
+      "more": "더 보기",
       "live_other": "실시간, {{count}}초마다"
     },
     "actionMenu": {
@@ -1105,6 +1107,11 @@
       "rate": "속도 {{rate}}×",
       "muted": "음소거됨",
       "previousEpisode": "이전 회차",
+      "forward10": "10초 앞으로",
+      "options": "옵션",
+      "view": "시간 및 보기",
+      "tapBack": "−{{seconds}}초",
+      "tapForward": "+{{seconds}}초",
       "noChapters": "챕터 없음",
       "lastChapter": "마지막 챕터",
       "noNextEpisode": "다음 회차 없음",
@@ -1114,12 +1121,7 @@
       "nextEpisodeCard": "다음 회차",
       "previousEpisodeCard": "이전 회차",
       "cardSeason": "시즌 {{season}} · {{name}}",
-      "notOnDevice": "이 기기에 없어요",
-      "forward10": "10초 앞으로",
-      "options": "옵션",
-      "view": "시간 및 보기",
-      "tapBack": "−{{seconds}}초",
-      "tapForward": "+{{seconds}}초"
+      "notOnDevice": "이 기기에 없어요"
     },
     "tabs": {
       "label": "작품 더 보기",
@@ -1392,6 +1394,8 @@
       },
       "settings": {
         "title": "설정",
+        "relaysCard": "버퍼와 중계",
+        "coverCard": "표지와 외부 데이터",
         "buffer": "타임 시프트",
         "bufferHelp": "청취자가 얼마나 뒤로 돌아갈 수 있는지 정해요. 예산이 같을 때 60분으로 하면 방송국 수가 절반으로 줄어요.",
         "minutes_other": "{{count}}분",
@@ -1982,7 +1986,7 @@
         "title": "“{{name}}” 라이브러리를 삭제할까요?",
         "lead_other": "{{roots}}와 작품 {{formatted}}개가 Slouchcat에서 사라져요. 시청 기록, 체크 표시, 찜 목록, 추천, 직접 올린 이미지와 텍스트, 홈 줄 “{{name}} 신규”, 프로필의 접근 권한, 기기의 다운로드도 함께 사라져요.",
         "files": "디스크의 파일은 그대로 남아요. 이 라이브러리를 스캔하는 중이라면 Slouchcat이 먼저 스캔을 취소해요.",
-        "backup": "그 전에 Slouchcat이 데이터베이스를 백업해요(관리 › 백업). 이 백업을 복원하면 그 이후 모든 프로필의 시청 기록을 포함해 삭제 전 상태로 모두 되돌아가요.",
+        "backup": "그 전에 Slouchcat이 데이터베이스를 백업해요(관리 › 시스템 › 백업). 이 백업을 복원하면 모든 것이 삭제 전 상태로 돌아가요. 그 이후 모든 프로필의 진행 상황도 마찬가지예요.",
         "final": "그 밖에는 되돌릴 수 없어요. 같은 폴더를 다시 스캔하면 시청 기록 없이 작품을 새로 만들어요.",
         "inputLabel": "확인하려면 이름을 입력하세요",
         "mismatch": "{{name}}을(를) 정확히 입력하면 버튼이 활성화돼요.",
@@ -3192,11 +3196,35 @@
       "rowSettings": "홈에서 이 줄의 위치와 표시 여부는 “홈”에서 설정해요.",
       "rowSettingsLink": "“홈”으로 이동"
     },
+    "finder": {
+      "button": "섹션 검색",
+      "shortcut": "Ctrl K",
+      "shortcutMac": "⌘ K",
+      "label": "관리 섹션 검색",
+      "placeholder": "라이브러리, 작업, 백업…",
+      "results": "검색 결과",
+      "empty": "결과 없음",
+      "area": "섹션",
+      "search": "미디어 검색",
+      "hint": "화살표 키로 선택, Enter로 열기, Esc로 닫기"
+    },
     "nav": {
       "label": "관리",
       "overview": "개요",
+      "areas": {
+        "media": "미디어",
+        "people": "사용자 및 기기",
+        "home": "홈",
+        "automation": "자동화",
+        "system": "시스템"
+      },
+      "tagline": "Control Center",
+      "trail": "{{area}} / {{page}}",
+      "breadcrumb": "이동 경로",
+      "tabs": "{{area}} 페이지",
       "back": "앱으로 돌아가기",
       "updateLabel": "개요, 버전 {{version}} 업데이트 가능",
+      "updateBadge": "{{name}}, 버전 {{version}} 업데이트 가능",
       "sheet": {
         "label": "관리 페이지",
         "close": "관리 페이지 닫기"
@@ -3270,7 +3298,19 @@
       },
       "metadata": {
         "title": "메타데이터"
+      },
+      "audiobookSources": {
+        "title": "오디오북 소스"
+      },
+      "server": {
+        "title": "서버"
       }
+    },
+    "server": {
+      "intro": "버전, 업데이트, 다시 시작, 저장 공간, 오류 로그를 한곳에서 관리해요.",
+      "state": "서버 상태",
+      "updates": "업데이트 및 다시 시작",
+      "toIntegrations": "GPU, 공개 주소, 업데이트 확인: 연동"
     },
     "home": {
       "setupBand": {
@@ -3281,6 +3321,39 @@
       },
       "title": "관리",
       "liveFailed": "응답 없음, 5초마다 다시 시도",
+      "heading": "한눈에 보기",
+      "intro": "중요한 것부터 보여 줘요. 나머지는 각 섹션에서 볼 수 있어요.",
+      "refresh": "새로 고침",
+      "attention": {
+        "title": "확인이 필요한 항목",
+        "band_other": "확인이 필요한 항목 {{count}}개",
+        "show": "보기",
+        "none": "모두 정상이에요."
+      },
+      "metrics": {
+        "label": "주요 지표",
+        "streams": "활성 스트림",
+        "streamsNote": "지금 연결됨",
+        "jobs": "실행 중인 작업",
+        "jobsNote": "{{queued}}개 대기 중",
+        "jobsNotePaused": "{{queued}}개 대기 중 · {{paused}}개 일시정지",
+        "maintenance": "유지 관리할 작품",
+        "maintenanceNote": "유지 관리에 남은 항목",
+        "storage": "저장 공간",
+        "storageValue": "{{config}}% · {{cache}}%",
+        "storageNote": "사용률: 구성 · 캐시"
+      },
+      "active": {
+        "title": "지금 활동 중"
+      },
+      "quick": {
+        "title": "할 일로 바로 가기"
+      },
+      "summary": {
+        "title": "서버 및 최근 활동",
+        "details": "서버 세부 정보",
+        "log": "서버 로그 보기"
+      },
       "update": {
         "title": "버전 {{version}}을(를) 사용할 수 있어요",
         "body": "현재 {{current}}을(를) 사용하고 있어요. Slouchcat은 직접 설치하지 않아요. docker compose pull로 새 이미지를 받고 docker compose up -d로 다시 시작하세요.",
@@ -3448,6 +3521,7 @@
         "keyRejected": "{{name}} 키가 거부됨",
         "keyRejectedBody": "제공자가 키를 거부하고 있어요. 새 키가 유효해질 때까지 Slouchcat은 이 제공자에서 메타데이터를 가져오지 않아요.",
         "toKeys": "키로 이동",
+        "toGpu": "GPU 선택으로 이동",
         "ratingsReread": "관람 등급을 다시 읽는 중",
         "ratingsRereadBody": "작업이 끝날 때까지 이전 등급이 적용돼요. 지금보다 엄격할 수도, 느슨할 수도 있어요.",
         "minimumAge": "이제 관람 등급은 최소 연령이에요",
@@ -3506,6 +3580,16 @@
       "cleared": "{{name}}을(를) 삭제했어요.",
       "unsaved": "저장 안 됨",
       "notificationsLink": "알림 채널로 이동",
+      "services": {
+        "label": "서비스",
+        "back": "모든 연동",
+        "keys": "TMDB, TVDB, Fanart.tv, YouTube, Trakt, Google Books.",
+        "webhooks": "Radarr와 Sonarr가 새 파일과 변경된 파일을 알려 줘요.",
+        "email": "알림, 초대, 공지를 이메일로 보내는 서버예요.",
+        "telegram": "Telegram으로 알림을 보내는 봇이에요.",
+        "push": "브라우저와 설치된 앱에서 받는 알림이에요.",
+        "server": "업데이트 확인, 공개 주소, GPU."
+      },
       "keys": {
         "title": "제공자 키",
         "intro": "Slouchcat은 이 키로 텍스트, 이미지, 예고편을 가져와요. 키가 없으면 해당 제공자는 꺼져 있어요.",
@@ -4113,7 +4197,8 @@
         "queued": "대기 중",
         "paused": "일시정지",
         "failed": "실패",
-        "label": "요약"
+        "label": "요약",
+        "plannedNote": "{{number}}개 예정"
       },
       "pools": {
         "title": "워커",
@@ -4564,7 +4649,15 @@
       },
       "separator": " · ",
       "none": "–",
-      "livePaused": "새로고침 일시정지됨"
+      "livePaused": "새로고침 일시정지됨",
+      "filter": {
+        "label": "상태별 작업 유형 필터",
+        "all": "전체",
+        "running": "실행 중",
+        "failed": "실패",
+        "paused": "일시정지",
+        "empty": "이 그룹에는 이 상태인 작업 유형이 없어요."
+      }
     },
     "metadata": {
       "title": "메타데이터",
@@ -4858,7 +4951,7 @@
         "library": "Slouchcat에서만 제거",
         "files": "파일도 삭제"
       },
-      "libraryHint": "파일은 디스크에 그대로 남아요. 새 파일이 들어와도 작품은 제거된 상태로 유지돼요. “유지 관리 › 제거된 작품”에서 시청 기록, 체크 표시, 찜 목록과 함께 다시 추가할 수 있어요.",
+      "libraryHint": "파일은 디스크에 그대로 남아요. 새 파일이 추가되어도 작품은 제거된 상태로 유지돼요. “유지 관리 › 제거된 작품”에서 진행 상황, 시청 표시, 찜 목록과 함께 다시 추가할 수 있어요.",
       "everywhere": "모든 프로필의 모든 목록에서 작품이 사라지고, 기기의 다운로드도 제거돼요.",
       "arr": "Radarr와 Sonarr에는 이 사실이 전달되지 않아요.",
       "affected_other": "대상: 파일 {{count}}개 · {{size}}",
