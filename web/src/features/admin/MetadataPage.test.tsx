@@ -278,9 +278,10 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     expect(
       within(sources).getByRole('switch', { name: 'Fanart.tv als Bildquelle' }),
     ).not.toBeChecked();
-    expect(
-      within(sources).getByRole('link', { name: 'Schlüssel unter Integrationen' }),
-    ).toBeVisible();
+    const keysLink = within(sources).getByRole('link', { name: 'Schlüssel unter Integrationen' });
+    expect(keysLink).toBeVisible();
+    // The link opens the keys' view of the integrations, not its tiles.
+    expect(keysLink).toHaveAttribute('href', '/admin/integrations?item=keys');
 
     const rating = await openArea(user, 'Altersfreigabe');
     expect(within(rating).getByRole('combobox', { name: 'Land' })).toHaveValue('DE');

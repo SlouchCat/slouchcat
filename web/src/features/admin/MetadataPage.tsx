@@ -55,6 +55,7 @@ import {
   useUnsavedChanges,
   type MasterDetailItem,
 } from '@/ui/aria';
+import { serviceHref } from './integrations/services';
 import {
   applyMetadata,
   jobTypesQuery,
@@ -905,7 +906,7 @@ export function MetadataPage() {
             label={t('admin.metadata.sources.fanart')}
             help={t('admin.metadata.sources.fanartHint')}
           >
-            <TextLink href={paths.adminIntegrations}>{t('admin.metadata.links.keys')}</TextLink>
+            <TextLink href={serviceHref('keys')}>{t('admin.metadata.links.keys')}</TextLink>
             <Switch
               isSelected={serverDraft.fanartEnabled}
               onChange={(on) => setServer((values) => ({ ...values, fanartEnabled: on }))}

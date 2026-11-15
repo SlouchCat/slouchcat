@@ -131,11 +131,11 @@ test('spotlight by keyboard: bands, source, fetch, hide, pin and note an entry @
     await expect(sourceBand).toHaveAttribute('aria-expanded', 'true');
     await expect(show).toBeVisible();
 
-    // start-server.mjs sets the Trakt mock's key; the foot says so and links to the
-    // integrations, the key itself never shows here.
+    // start-server.mjs sets the Trakt mock's key; the foot says so and links to the keys'
+    // view of the integrations, the key itself never shows here.
     await expect(source.getByRole('link', { name: 'Schlüssel gesetzt' })).toHaveAttribute(
       'href',
-      '/admin/integrations',
+      '/admin/integrations?item=keys',
     );
 
     // Tab to the switch and on to the list; the arrow keys choose a kind (one per line: ↓ and

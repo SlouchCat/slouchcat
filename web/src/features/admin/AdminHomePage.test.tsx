@@ -205,9 +205,10 @@ describe('admin overview (concept 11, A-3; build plan 3)', () => {
     expect(within(failed).getByText('Titel zuordnen: 1 fehlgeschlagen')).toBeVisible();
     expect(within(failed).getByText('tmdb: HTTP 503')).toBeVisible();
     expect(within(attention).getByText('HTTP 503')).toBeVisible();
+    // The integration's error leads to the view of its service: Trakt's key is under «Schlüssel».
     expect(
       within(attention).getByRole('link', { name: 'Integrationen einrichten' }),
-    ).toHaveAttribute('href', '/admin/integrations');
+    ).toHaveAttribute('href', '/admin/integrations?item=keys');
     // The silent webhooks lead to the webhooks' own view of the integrations page.
     expect(within(attention).getByRole('link', { name: 'Webhooks verwalten' })).toHaveAttribute(
       'href',

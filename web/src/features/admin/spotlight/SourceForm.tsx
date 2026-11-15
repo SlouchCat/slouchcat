@@ -3,7 +3,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formErrors } from '@/api/errors';
-import { paths } from '@/app/paths';
 import { TextLink, VisuallyHidden } from '@/ui';
 import {
   AriaButton,
@@ -24,6 +23,7 @@ import {
   type SpotlightConfigUpdate,
   type SpotlightEntries,
 } from '../queries';
+import { serviceHref } from '../integrations/services';
 import { FetchState } from './FetchState';
 import styles from './Spotlight.module.css';
 
@@ -192,7 +192,7 @@ export function SourceForm({
         help={
           <>
             {t('admin.spotlight.source.listHint')}{' '}
-            <TextLink href={paths.adminIntegrations}>
+            <TextLink href={serviceHref('keys')}>
               {t('admin.spotlight.source.listHintLink')}
             </TextLink>
           </>

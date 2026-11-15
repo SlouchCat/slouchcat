@@ -33,6 +33,7 @@ import {
   type DataColumn,
 } from '@/ui/aria';
 import { MetadataEditor } from './editor/MetadataEditor';
+import { serviceHref } from './integrations/services';
 import { SourceChip } from './integrations/shared';
 import { providerName } from './item/facts';
 import { LibraryFoldersDialog } from './libraries/LibraryFoldersDialog';
@@ -426,9 +427,7 @@ function GoogleBooksKey({ state }: { state: KeyState }) {
       labelAddon={<SourceChip source={state.source} hint={state.hint} />}
       help={t('admin.audiobookSources.googleBooks.description')}
     >
-      <TextLink href={paths.adminIntegrations}>
-        {t('admin.audiobookSources.googleBooks.link')}
-      </TextLink>
+      <TextLink href={serviceHref('keys')}>{t('admin.audiobookSources.googleBooks.link')}</TextLink>
     </SettingRow>
   );
 }

@@ -37,7 +37,7 @@ import {
 import { composeCommand, SYSCTL_COMMAND } from '../../shared/SystemState';
 import { useHealth } from '../../system/useHealth';
 import { PROVIDERS } from '../integrations/ProviderCard';
-import { serviceHref } from '../integrations/services';
+import { integrationHref, serviceHref } from '../integrations/services';
 import { formatSeconds, typeName } from '../jobsFormat';
 import { dashboardQuery } from '../queries';
 import { reloadPage, RESTART_POLL_MS, restartedSince } from '../restart';
@@ -333,7 +333,9 @@ export function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[
       }),
       body: integration.detail,
       action: (
-        <TextLink href={paths.adminIntegrations}>{t('admin.home.integrations.manage')}</TextLink>
+        <TextLink href={integrationHref(integration.key)}>
+          {t('admin.home.integrations.manage')}
+        </TextLink>
       ),
     });
   }

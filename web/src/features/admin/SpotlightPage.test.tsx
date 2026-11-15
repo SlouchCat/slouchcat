@@ -189,7 +189,7 @@ describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
     expect(await within(card).findByText('1 von 40 Titeln in der Bibliothek')).toBeVisible();
     expect(within(card).getByRole('link', { name: 'Schlüssel gesetzt' })).toHaveAttribute(
       'href',
-      '/admin/integrations',
+      '/admin/integrations?item=keys',
     );
     // SPO-1a: one hit is below the minimum of five, so the page says why the row is missing; the
     // band says so too, folded or not.
@@ -692,12 +692,12 @@ describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
     expect(await within(card).findByText('Noch nie abgerufen')).toBeVisible();
     expect(within(card).getByRole('link', { name: 'Kein Schlüssel' })).toHaveAttribute(
       'href',
-      '/admin/integrations',
+      '/admin/integrations?item=keys',
     );
     expect(within(card).getByText(/Ohne Trakt-Schlüssel fehlt die Reihe/)).toBeVisible();
     expect(
       within(card).getByRole('link', { name: 'Schlüssel unter Integrationen' }),
-    ).toHaveAttribute('href', '/admin/integrations');
+    ).toHaveAttribute('href', '/admin/integrations?item=keys');
   });
 
   it('a failed fetch shows its reason instead of the time', async () => {

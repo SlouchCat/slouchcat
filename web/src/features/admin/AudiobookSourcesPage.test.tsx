@@ -256,7 +256,7 @@ describe('AudiobookSourcesPage', () => {
     expect(within(row).queryByRole('textbox')).toBeNull();
     expect(
       within(row).getByRole('link', { name: 'Unter «Integrationen» einrichten' }),
-    ).toHaveAttribute('href', '/admin/integrations');
+    ).toHaveAttribute('href', '/admin/integrations?item=keys');
   });
 
   it('queues every book without match and says how many', async () => {

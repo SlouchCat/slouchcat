@@ -34,6 +34,15 @@ const STATUS_KEYS = {
   server: ['updateCheck'],
 } as const satisfies Record<Service, readonly IntegrationStatus['key'][]>;
 
+/**
+ * The address of the view that holds a dashboard integration (the overview's error notice links
+ * it); an integration no service names leads to the tiles.
+ */
+export const integrationHref = (key: IntegrationStatus['key']) => {
+  const service = SERVICES.find((entry) => (STATUS_KEYS[entry] as readonly string[]).includes(key));
+  return service ? serviceHref(service) : paths.adminIntegrations;
+};
+
 /** The dot of an integration's state; the text next to it carries the meaning. */
 const integrationDot = {
   configured: 'success',
