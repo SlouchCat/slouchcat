@@ -92,6 +92,17 @@ fünf Stufen. Diese ADR hält die Entscheide fest; Stufe 1 baut das Gerüst ohne
 - **Fehler im Text `root_content_changed_body` behoben:** Er nannte den alten Inhalt, wo der neue hingehört
   («liest jetzt <alt> statt <neu>»); mit benannten Platzhaltern steht jetzt «liest jetzt {{to}} statt
   {{from}}».
+- **Grenze der ESLint-Regel:** Sie sieht nur `i18n.language` direkt im Aufruf, nicht über eine Variable,
+  einen Parameter einer Hilfsfunktion, einen anderen Namen als `i18n` oder `i18n.resolvedLanguage`. Das
+  prüft das Review (Kommentar in `web/eslint.config.js`).
+- **Bekannte Punkte, bewusst offen:**
+  - Das `lang` der HTML-Mail liest `DeliveryLanguage` beim Zustellen; der Text wurde beim Einreihen in der
+    Sprache des Eigentümers geschrieben. Ändert jemand dazwischen die Sprache, passt `lang` nicht zum Text.
+  - Für die Meldung «Neue Folge» baut `notify.go` das Profil ohne `metadata_language`: Der Titel kommt
+    in `MetadataBase` der Oberflächensprache, auch wenn das Profil eine eigene Metadaten-Sprache hat.
+  - `profiles.settings.ratingAboveAccount` nennt fest «FSK»; das ändert Stufe 3.
+  - Die festen Texte der Schrittweite im Player («−0,1», «0,1 s früher») schreiben ein Komma, während
+    `intlLocale` in `de` jetzt einen Punkt formatiert («1.25×»). Gehört zur Durchsicht der Texte.
 - **Fallen beim Bauen:** Der Dateicache von Vitest (`node_modules/.vitest-cache`) übersieht eine neue Datei
   in einem `import.meta.glob`; nach dem Anlegen einer Sprachdatei lokal den Ordner löschen. Node schreibt
   in `de-CH` den Tausender-Apostroph `'`, Browser `’`; Tests rechnen die Zahl darum mit
