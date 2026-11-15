@@ -11,6 +11,7 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { ButtonLink, FactList, Notice, Skeleton, StatusDot, Text, TextLink } from '@/ui';
 import { AdminPage, AriaButton, DashCard, LinkCard, StatTile, StreamRow, TaskRow } from '@/ui/aria';
 import { firstOpenStep, setupPath, setupProgressQuery, stepState } from '../setup/setupState';
+import { serviceHref } from './integrations/services';
 import { formatSeconds, typeName } from './jobsFormat';
 import { DASHBOARD_POLL_MS, dashboardQuery, systemQuery } from './queries';
 import { adminAreaIcons, adminAreas, firstSectionOf, sectionsOf } from './sections';
@@ -242,7 +243,7 @@ function ServerSummary({
               <TextLink href={paths.adminIntegrations}>
                 {t('admin.home.integrations.manage')}
               </TextLink>
-              <TextLink href={paths.adminIntegrations}>{t('admin.home.webhooks.manage')}</TextLink>
+              <TextLink href={serviceHref('webhooks')}>{t('admin.home.webhooks.manage')}</TextLink>
             </>
           }
         >

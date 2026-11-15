@@ -193,6 +193,7 @@ describe('admin-look.css (build plan 2.7)', () => {
     const names = [...css.matchAll(/^\s*(--sc-[\w-]+):/gm)].map((match) => match[1]);
     expect(names.length).toBeGreaterThan(0);
     const modules = [
+      'BandPanel',
       'Panel',
       'DataTable',
       'StatTile',

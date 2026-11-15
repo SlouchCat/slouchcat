@@ -195,7 +195,7 @@ describe('System › Server (build plan 4; concept 11, A-3)', () => {
       within(server).getByRole('link', {
         name: 'Grafikchip, öffentliche Adresse und Update-Prüfung: Integrationen',
       }),
-    ).toHaveAttribute('href', '/admin/integrations');
+    ).toHaveAttribute('href', '/admin/integrations?item=server');
 
     const updates = screen.getByRole('region', { name: 'Updates & Neustart' });
     expect(within(updates).getByText('Version 0.9.1 verfügbar')).toBeVisible();

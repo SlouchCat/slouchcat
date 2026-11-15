@@ -37,6 +37,7 @@ import {
 import { composeCommand, SYSCTL_COMMAND } from '../../shared/SystemState';
 import { useHealth } from '../../system/useHealth';
 import { PROVIDERS } from '../integrations/ProviderCard';
+import { serviceHref } from '../integrations/services';
 import { formatSeconds, typeName } from '../jobsFormat';
 import { dashboardQuery } from '../queries';
 import { reloadPage, RESTART_POLL_MS, restartedSince } from '../restart';
@@ -315,7 +316,7 @@ export function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[
       tone: 'danger',
       title: t('admin.home.hints.keyRejected', { name }),
       body: t('admin.home.hints.keyRejectedBody'),
-      action: <TextLink href={paths.adminIntegrations}>{t('admin.home.hints.toKeys')}</TextLink>,
+      action: <TextLink href={serviceHref('keys')}>{t('admin.home.hints.toKeys')}</TextLink>,
     });
   }
   // An integration with an error, with its reason (the dashboard's `detail`), and the webhooks
@@ -344,7 +345,7 @@ export function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[
       title: t('admin.home.webhooks.silent', {
         names: data.webhooks.silent.join(t('format.listSeparator')),
       }),
-      action: <TextLink href={paths.adminIntegrations}>{t('admin.home.webhooks.manage')}</TextLink>,
+      action: <TextLink href={serviceHref('webhooks')}>{t('admin.home.webhooks.manage')}</TextLink>,
     });
   }
   for (const scan of data.attention.abortedScans) {
@@ -406,7 +407,8 @@ export function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[
             ? t('system.gpu.choice.software')
             : t(`system.gpu.backend.${backend}`),
       }),
-      action: <TextLink href={paths.adminIntegrations}>{t('admin.home.hints.toKeys')}</TextLink>,
+      // The graphics chip is chosen in the server's view of the integrations page.
+      action: <TextLink href={serviceHref('server')}>{t('admin.home.hints.toKeys')}</TextLink>,
     });
   }
   if (system?.inotify.warn) {

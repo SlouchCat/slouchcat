@@ -208,9 +208,10 @@ describe('admin overview (concept 11, A-3; build plan 3)', () => {
     expect(
       within(attention).getByRole('link', { name: 'Integrationen einrichten' }),
     ).toHaveAttribute('href', '/admin/integrations');
+    // The silent webhooks lead to the webhooks' own view of the integrations page.
     expect(within(attention).getByRole('link', { name: 'Webhooks verwalten' })).toHaveAttribute(
       'href',
-      '/admin/integrations',
+      '/admin/integrations?item=webhooks',
     );
     expect(
       within(attention).getByRole('group', { name: 'Befehl für das inotify-Limit' }),
@@ -438,7 +439,7 @@ describe('admin overview (concept 11, A-3; build plan 3)', () => {
     // A rejected provider key (concept 21 P-2) leads to the keys.
     expect(within(hints).getByRole('link', { name: 'Zu den Schlüsseln' })).toHaveAttribute(
       'href',
-      '/admin/integrations',
+      '/admin/integrations?item=keys',
     );
     expect(within(hints).getByRole('link', { name: 'Zu den Bibliotheken' })).toHaveAttribute(
       'href',

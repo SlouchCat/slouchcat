@@ -5,13 +5,13 @@ import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, isApiError, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
-import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import { intlLocale } from '@/i18n';
 import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { FactList, Notice, Skeleton, StatusDot, Text, TextLink } from '@/ui';
 import { AdminPage, AriaButton, ConfirmDialog, DashCard } from '@/ui/aria';
+import { serviceHref } from './integrations/services';
 import { DASHBOARD_POLL_MS, dashboardQuery, systemQuery } from './queries';
 import { reloadPage } from './restart';
 import { RestartPanel } from './RestartPanel';
@@ -105,7 +105,7 @@ function ServerCards({
               <Skeleton shape="block" />
             )}
             <HintList hints={at('system')} />
-            <TextLink href={paths.adminIntegrations}>{t('admin.server.toIntegrations')}</TextLink>
+            <TextLink href={serviceHref('server')}>{t('admin.server.toIntegrations')}</TextLink>
           </DashCard>
           <DashCard
             icon="download"
