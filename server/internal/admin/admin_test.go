@@ -373,7 +373,7 @@ func TestRunSetupFailuresCreateNothing(t *testing.T) {
 func TestRunSetupValidationListsEveryField(t *testing.T) {
 	f := newFixture(t)
 	req := model.SetupRequest{
-		Email: "not-an-email", Password: "short", Language: "fr", TMDBKey: strings.Repeat("k", 2000),
+		Email: "not-an-email", Password: "short", Language: "ar", TMDBKey: strings.Repeat("k", 2000),
 		Library: &model.LibraryRequest{Name: " ", Kind: "music"},
 	}
 	_, _, err := f.svc.RunSetup(context.Background(), req, "")

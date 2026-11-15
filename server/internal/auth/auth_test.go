@@ -229,7 +229,7 @@ func TestValidation(t *testing.T) {
 		{"a@.ch", testPassword, "de", []model.FieldError{{Field: "email", Code: "invalid_email"}}},
 		{strings.Repeat("a", 250) + "@b.ch", testPassword, "de", []model.FieldError{{Field: "email", Code: "invalid_email"}}},
 		{"a@b.ch", strings.Repeat("x", 257), "de", []model.FieldError{{Field: "password", Code: "too_long"}}},
-		{"a@b.ch", "ääääääääää", "fr", []model.FieldError{{Field: "language", Code: "invalid_value"}}},
+		{"a@b.ch", "ääääääääää", "ar", []model.FieldError{{Field: "language", Code: "invalid_value"}}},
 	}
 	for _, tc := range cases {
 		_, _, err := s.CreateOwner(ctx, tc.email, tc.password, tc.language)

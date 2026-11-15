@@ -13,21 +13,69 @@ import { pseudoText, setPseudoLanguage } from './pseudo';
 import { clearUnlistedLanguage } from './index';
 
 describe('languages', () => {
-  it('ships German in two variants and English, named in their own language', () => {
-    expect(supportedLanguages).toEqual(['de', 'de-DE', 'en']);
+  // Concept 22 table 4.1: 23 languages in the order of the choice, named in their own language.
+  it('ships the 23 languages of concept 22, named in their own language', () => {
+    expect(supportedLanguages).toEqual([
+      'de',
+      'de-DE',
+      'en',
+      'fr',
+      'es',
+      'it',
+      'nl',
+      'pt-BR',
+      'pt-PT',
+      'pl',
+      'sv',
+      'da',
+      'nb',
+      'fi',
+      'cs',
+      'hu',
+      'tr',
+      'ru',
+      'uk',
+      'ja',
+      'ko',
+      'zh-CN',
+      'zh-TW',
+    ]);
     expect(languages.map((l) => l.name)).toEqual([
       'Deutsch (Schweiz)',
       'Deutsch (Deutschland)',
       'English',
+      'Français',
+      'Español',
+      'Italiano',
+      'Nederlands',
+      'Português (Brasil)',
+      'Português (Portugal)',
+      'Polski',
+      'Svenska',
+      'Dansk',
+      'Norsk bokmål',
+      'Suomi',
+      'Čeština',
+      'Magyar',
+      'Türkçe',
+      'Русский',
+      'Українська',
+      '日本語',
+      '한국어',
+      '简体中文',
+      '繁體中文',
     ]);
     expect(isLanguage('de')).toBe(true);
     expect(isLanguage('de-DE')).toBe(true);
-    expect(isLanguage('fr')).toBe(false);
+    expect(isLanguage('fr')).toBe(true);
+    expect(isLanguage('zh-TW')).toBe(true);
+    expect(isLanguage('ar')).toBe(false);
+    expect(isLanguage('en-XA')).toBe(false);
     expect(isLanguage(undefined)).toBe(false);
   });
 
   it('has a language file for every shipped language', () => {
-    expect(bundledLanguages()).toEqual(['de', 'de-DE', 'en']);
+    expect(bundledLanguages()).toEqual([...supportedLanguages].sort());
   });
 
   it('formats German in Swiss and every other language in its own locale', () => {
@@ -39,6 +87,10 @@ describe('languages', () => {
       /^1['’]234['’]567\.5$/,
     );
     expect(new Intl.NumberFormat(intlLocale('de-DE')).format(1234567.5)).toBe('1.234.567,5');
+    for (const code of ['fr', 'pt-BR', 'nb', 'zh-TW']) expect(intlLocale(code)).toBe(code);
+    expect(new Intl.NumberFormat(intlLocale('fr')).format(1234567.5)).toBe(
+      new Intl.NumberFormat('fr').format(1234567.5),
+    );
   });
 });
 
@@ -55,10 +107,11 @@ describe('detectLanguage (concept 22 section 4.2)', () => {
     [['en-GB'], 'en'],
     [['EN_us'], 'en'],
     // Unknown languages go to the next preference, and to English at the end (O-2).
-    [['fr-CH', 'en-GB'], 'en'],
-    [['fr-CH', 'de-CH'], 'de'],
-    [['fr'], 'en'],
-    [['ja', 'zh-Hant-TW'], 'en'],
+    [['ar', 'en-GB'], 'en'],
+    [['he', 'de-CH'], 'de'],
+    [['ar'], 'en'],
+    [['fr-CH', 'de-CH'], 'fr'],
+    [['ja', 'zh-Hant-TW'], 'ja'],
     [[], 'en'],
   ])('%j → %s', (preferences, want) => {
     expect(detectLanguage(preferences)).toBe(want);
@@ -80,6 +133,18 @@ describe('loading', () => {
     await ensureLanguage('de-DE');
     for (const code of ['de-DE', 'de', 'en'])
       expect(i18n.hasResourceBundle(code, 'translation')).toBe(true);
+  });
+
+  it('loads pt-PT with English behind it, and no other language', async () => {
+    expect(languageChain('pt-PT')).toEqual(['pt-PT', 'en']);
+    expect(languageChain('zh-TW')).toEqual(['zh-TW', 'en']);
+    for (const code of ['pt-PT', 'pt-BR', 'en'])
+      if (i18n.hasResourceBundle(code, 'translation'))
+        i18n.removeResourceBundle(code, 'translation');
+    await ensureLanguage('pt-PT');
+    expect(i18n.hasResourceBundle('pt-PT', 'translation')).toBe(true);
+    expect(i18n.hasResourceBundle('en', 'translation')).toBe(true);
+    expect(i18n.hasResourceBundle('pt-BR', 'translation')).toBe(false);
   });
 
   it('loads English after the first paint when asked to', async () => {
@@ -119,14 +184,15 @@ describe('loading', () => {
 
   it('keeps a shipped code and stands in English for any other code without a pack', async () => {
     expect(shippedLanguageFor('de-DE')).toBe('de-DE');
-    expect(shippedLanguageFor('fr')).toBe('en');
+    expect(shippedLanguageFor('fr')).toBe('fr');
+    expect(shippedLanguageFor('ar')).toBe('en');
     expect(shippedLanguageFor('de')).toBe('de');
     await setLanguage('de-DE');
     expect(i18n.language).toBe('de-DE');
   });
 
   it('shows English for a code it ships no pack for, and never throws', async () => {
-    await expect(setLanguage('ja')).resolves.toBeUndefined();
+    await expect(setLanguage('ar')).resolves.toBeUndefined();
     expect(i18n.language).toBe('en');
     expect(currentLanguage()).toBe('en');
   });

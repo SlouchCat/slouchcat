@@ -6094,10 +6094,13 @@ export interface components {
         };
         /**
          * @description An interface language; exactly the language packs the web app ships (concept 22, ADR 0033):
-         *     `de` German (Switzerland), `de-DE` German (Germany, since contract 1.35.0), `en` English.
+         *     `de` German (Switzerland), `de-DE` German (Germany, since contract 1.35.0), `en` English, and
+         *     since contract 1.37.0 French, Spanish, Italian, Dutch, Portuguese (Brazil, Portugal), Polish,
+         *     Swedish, Danish, Norwegian Bokmål, Finnish, Czech, Hungarian, Turkish, Russian, Ukrainian,
+         *     Japanese, Korean and Chinese (Simplified, Traditional).
          * @enum {string}
          */
-        Language: "de" | "de-DE" | "en";
+        Language: "de" | "de-DE" | "en" | "fr" | "es" | "it" | "nl" | "pt-BR" | "pt-PT" | "pl" | "sv" | "da" | "nb" | "fi" | "cs" | "hu" | "tr" | "ru" | "uk" | "ja" | "ko" | "zh-CN" | "zh-TW";
         /** @description A metadata language, BCP-47 with an optional region (`de`, `en`, `pt-BR`, `zh-TW`; ADR 0018). */
         MetadataLanguage: string;
         /**

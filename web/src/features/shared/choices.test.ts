@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import i18n from '@/i18n';
+import i18n, { supportedLanguages } from '@/i18n';
 import { ratingSystemOf } from '@/test/fixtures';
 import { languageOptions, ratingLabel, ratingOf, ratingOptions, titleRatingOf } from './choices';
 
@@ -53,10 +53,14 @@ describe('ratings (concept 22 stage 3: the steps of the rating country)', () => 
 
 describe('languageOptions', () => {
   it('names every shipped language in its own language, whatever the UI language', () => {
-    expect(languageOptions()).toEqual([
+    const options = languageOptions();
+    expect(options.map((option) => option.value)).toEqual(supportedLanguages);
+    expect(options.slice(0, 4)).toEqual([
       { value: 'de', label: 'Deutsch (Schweiz)' },
       { value: 'de-DE', label: 'Deutsch (Deutschland)' },
       { value: 'en', label: 'English' },
+      { value: 'fr', label: 'Français' },
     ]);
+    expect(options.at(-1)).toEqual({ value: 'zh-TW', label: '繁體中文' });
   });
 });

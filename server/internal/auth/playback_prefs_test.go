@@ -204,6 +204,11 @@ func TestInitialPrefsNormaliseEveryInterfaceLanguage(t *testing.T) {
 	if len(want) != 23 {
 		t.Fatalf("%d codes, want the 23 of concept 22", len(want))
 	}
+	for _, ui := range model.UILanguages {
+		if _, ok := want[ui]; !ok {
+			t.Errorf("interface language %q is not covered", ui)
+		}
+	}
 	for ui, code := range want {
 		prefs := initialPrefs(ui)
 		if !slices.Equal(prefs.AudioLanguages, []string{code}) || !slices.Equal(prefs.SubtitleLanguages, []string{code}) {

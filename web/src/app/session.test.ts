@@ -47,7 +47,7 @@ describe('applyProfileLanguage (concept 22 section 4.3)', () => {
   });
 
   it('shows English for a code a newer server knows and this app ships no pack for', async () => {
-    for (const code of ['ja', 'pt-BR', 'xx']) {
+    for (const code of ['ar', 'pt', 'xx']) {
       await setLanguage('de');
       await expect(applyProfileLanguage(withLanguage(code))).resolves.toBeUndefined();
       expect(i18n.language).toBe('en');

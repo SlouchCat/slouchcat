@@ -17,11 +17,12 @@ export interface ShippedLanguage {
 }
 
 /**
- * The languages the web app ships, in the order of the language choice. The list grows with the
- * language packs and the contract's enum Language together (concept 22 section 4.3); a code
- * enters one release after the app learnt to fall back to English for an unknown one. German
- * (Germany) is an overlay of German (Switzerland): `web/src/locales/de-DE.json` holds only the
- * texts that read differently in Germany (stage 2).
+ * The languages the web app ships, in the order of the language choice (concept 22 table 4.1).
+ * The list grows with the language packs and the contract's enum Language together (concept 22
+ * section 4.3); a code enters one release after the app learnt to fall back to English for an
+ * unknown one. German (Germany) is an overlay of German (Switzerland): `web/src/locales/de-DE.json`
+ * holds only the texts that read differently in Germany (stage 2). The other twenty came with
+ * stage 4; every one formats in its own code (Intl knows nb, pt-BR, zh-TW as they are).
  */
 export const languages = [
   {
@@ -37,6 +38,36 @@ export const languages = [
     intlLocale: 'de-DE',
   },
   { code: 'en', name: 'English', englishName: 'English', intlLocale: 'en' },
+  { code: 'fr', name: 'Français', englishName: 'French', intlLocale: 'fr' },
+  { code: 'es', name: 'Español', englishName: 'Spanish', intlLocale: 'es' },
+  { code: 'it', name: 'Italiano', englishName: 'Italian', intlLocale: 'it' },
+  { code: 'nl', name: 'Nederlands', englishName: 'Dutch', intlLocale: 'nl' },
+  {
+    code: 'pt-BR',
+    name: 'Português (Brasil)',
+    englishName: 'Portuguese (Brazil)',
+    intlLocale: 'pt-BR',
+  },
+  {
+    code: 'pt-PT',
+    name: 'Português (Portugal)',
+    englishName: 'Portuguese (Portugal)',
+    intlLocale: 'pt-PT',
+  },
+  { code: 'pl', name: 'Polski', englishName: 'Polish', intlLocale: 'pl' },
+  { code: 'sv', name: 'Svenska', englishName: 'Swedish', intlLocale: 'sv' },
+  { code: 'da', name: 'Dansk', englishName: 'Danish', intlLocale: 'da' },
+  { code: 'nb', name: 'Norsk bokmål', englishName: 'Norwegian Bokmål', intlLocale: 'nb' },
+  { code: 'fi', name: 'Suomi', englishName: 'Finnish', intlLocale: 'fi' },
+  { code: 'cs', name: 'Čeština', englishName: 'Czech', intlLocale: 'cs' },
+  { code: 'hu', name: 'Magyar', englishName: 'Hungarian', intlLocale: 'hu' },
+  { code: 'tr', name: 'Türkçe', englishName: 'Turkish', intlLocale: 'tr' },
+  { code: 'ru', name: 'Русский', englishName: 'Russian', intlLocale: 'ru' },
+  { code: 'uk', name: 'Українська', englishName: 'Ukrainian', intlLocale: 'uk' },
+  { code: 'ja', name: '日本語', englishName: 'Japanese', intlLocale: 'ja' },
+  { code: 'ko', name: '한국어', englishName: 'Korean', intlLocale: 'ko' },
+  { code: 'zh-CN', name: '简体中文', englishName: 'Chinese (Simplified)', intlLocale: 'zh-CN' },
+  { code: 'zh-TW', name: '繁體中文', englishName: 'Chinese (Traditional)', intlLocale: 'zh-TW' },
 ] as const satisfies readonly ShippedLanguage[];
 
 type ShippedCode = (typeof languages)[number]['code'];
