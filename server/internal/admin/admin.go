@@ -1014,6 +1014,15 @@ func explicitSource(kind string) string {
 	return "feed"
 }
 
+// keptRating is the stored value a rating may keep: none for NULL (a library without a default
+// would otherwise keep 0, which is no step in Portugal).
+func keptRating(v sql.NullInt64) []int {
+	if !v.Valid {
+		return nil
+	}
+	return []int{int(v.Int64)}
+}
+
 // ratingSystem is the rating system of the server's rating country; DE when the setting cannot
 // be read (the check then offers the German steps, as before concept 22 stage 3).
 func (s *Service) ratingSystem(ctx context.Context) model.RatingSystem {

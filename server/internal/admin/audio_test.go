@@ -263,3 +263,29 @@ func TestUpdateLibraryStoresThePodcastSettingLast(t *testing.T) {
 		t.Errorf("a refused setting was stored")
 	}
 }
+
+// A library without a default keeps no value (review of stage 3): in Portugal, whose steps start
+// at 3, a default of 0 is refused, while the stored default of another library stays possible.
+func TestUpdateLibraryDefaultRatingWithoutDefaultInPortugal(t *testing.T) {
+	a := newAudioFixture(t)
+	au := a.f.Audio
+	if _, err := a.f.DB.Write.ExecContext(a.ctx, `INSERT INTO settings (key, value, updated_at) VALUES ('metadata.rating_country', 'PT', 1)
+		ON CONFLICT (key) DO UPDATE SET value = excluded.value`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.f.DB.Write.ExecContext(a.ctx, `UPDATE libraries SET default_rating = NULL WHERE id = ?`, au.AudiobookLibraryID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.f.DB.Write.ExecContext(a.ctx, `UPDATE libraries SET default_rating = 0 WHERE id = ?`, au.PodcastLibraryID); err != nil {
+		t.Fatal(err)
+	}
+	zero := 0
+	var verr *model.ValidationError
+	if _, err := a.svc.UpdateLibrary(a.ctx, au.AudiobookLibraryID, model.LibraryUpdate{DefaultRating: &zero}); !errors.As(err, &verr) ||
+		verr.Fields[0].Field != "defaultRating" || verr.Fields[0].Code != "invalid_value" {
+		t.Errorf("0 in Portugal without a stored default: %v, want invalid_value", err)
+	}
+	if _, err := a.svc.UpdateLibrary(a.ctx, au.PodcastLibraryID, model.LibraryUpdate{DefaultRating: &zero}); err != nil {
+		t.Errorf("keeping the stored 0: %v", err)
+	}
+}
