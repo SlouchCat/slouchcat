@@ -17,7 +17,7 @@ import { formText, MIN_PASSWORD } from '@/lib/form';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { ButtonLink, Chip, Logo, Notice, Page, Panel, Skeleton, Stack, Text } from '@/ui';
 import { AriaButton, Form, RadioGroup, TextField } from '@/ui/aria';
-import { languageOptions } from '../shared/choices';
+import { languageOptions, ratingLabel } from '../shared/choices';
 import styles from './InvitePage.module.css';
 
 const route = getRouteApi('/invite/$token');
@@ -51,7 +51,7 @@ function Summary({ invitation }: { invitation: InvitationPreview }) {
         <div className={styles.fact}>
           <dt>{t('invite.rating')}</dt>
           <dd>
-            <Chip tone="outline">{t('rating.fsk', { age: invitation.maxRating })}</Chip>
+            <Chip tone="outline">{ratingLabel(t, invitation.maxRating)}</Chip>
           </dd>
         </div>
         <div className={styles.fact}>
@@ -146,7 +146,7 @@ function AcceptForm({ token, onGone }: { token: string; onGone: () => void }) {
           label={t('invite.form.language')}
           value={language}
           onChange={(value) => isLanguage(value) && setLanguage(value)}
-          options={languageOptions(t)}
+          options={languageOptions()}
         />
         <AriaButton type="submit" variant="primary" size="lg" block isPending={accept.isPending}>
           {accept.isPending ? t('invite.form.submitting') : t('invite.form.submit')}

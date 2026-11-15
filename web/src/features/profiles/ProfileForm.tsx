@@ -25,6 +25,7 @@ import { libraryIdsOf, type LibraryOption } from '../shared/useLibraryOptions';
 import { myPlaybackPrefsQuery } from './playbackPrefs';
 import { PlaybackPrefsFields } from './PlaybackPrefsFields';
 import styles from './ProfileForm.module.css';
+import { baseLanguage } from '../player/trackOrder';
 
 interface ProfileFormProps {
   /** The profile to edit; none creates a new one. */
@@ -88,10 +89,13 @@ export function ProfileForm({
         }
       : null,
   );
+  // As the server starts them (initialPrefs): the track language of the interface code, de-DE
+  // as de, pt-BR as pt (concept 22 section 4.3).
+  const trackLanguages = [baseLanguage(language) ?? language];
   const shownPrefs: PlaybackPrefs = prefs ?? {
-    audioLanguages: [language],
+    audioLanguages: trackLanguages,
     subtitleMode: 'forced',
-    subtitleLanguages: [language],
+    subtitleLanguages: trackLanguages,
   };
 
   const save = useTransientMutation(
@@ -157,14 +161,14 @@ export function ProfileForm({
         description={t('profiles.settings.form.ratingHint')}
         value={rating}
         onChange={setRating}
-        options={ratingOptions(t, accountMax)}
+        options={ratingOptions(t, accountMax, profile?.maxRating)}
       />
       <RadioGroup
         name="language"
         label={t('profiles.settings.form.language')}
         value={language}
         onChange={(value) => isLanguage(value) && setLanguage(value)}
-        options={languageOptions(t)}
+        options={languageOptions()}
       />
       {showMetadataLanguage && (
         <RadioGroup

@@ -33,6 +33,7 @@ import { LibraryFoldersDialog } from './LibraryFoldersDialog';
 import { RenameLibraryDialog } from './RenameLibraryDialog';
 import { TrickplayDialog } from './TrickplayDialog';
 import styles from './Libraries.module.css';
+import { ratingLabel } from '../../shared/choices';
 
 /** The filter tabs by kind (Bib-C): all libraries, then one per kind. */
 const TABS = ['all', 'video', 'audiobooks', 'podcasts'] as const;
@@ -536,7 +537,7 @@ function LibrariesContent() {
               setMessage(
                 t('admin.libraries.changeRating.saved', {
                   name: updated.name,
-                  rating: t('rating.fsk', { age: updated.defaultRating }),
+                  rating: ratingLabel(t, updated.defaultRating),
                 }),
               );
             }

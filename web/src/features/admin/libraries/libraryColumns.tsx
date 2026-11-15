@@ -7,6 +7,7 @@ import { Chip, StatusDot, VisuallyHidden, type StatusDotState } from '@/ui';
 import { type DataColumn } from '@/ui/aria';
 import { libraryMetadataQuery } from '../queries';
 import styles from './Libraries.module.css';
+import { ratingLabel } from '../../shared/choices';
 
 const dotOf: Record<Library['scan']['state'], StatusDotState> = {
   never: 'pending',
@@ -168,7 +169,7 @@ export function libraryColumns(t: TFunction, hold: boolean): DataColumn<Library>
             <span>
               <Chip tone="outline">
                 {t('admin.libraries.defaultRating', {
-                  rating: t('rating.fsk', { age: library.defaultRating }),
+                  rating: ratingLabel(t, library.defaultRating),
                 })}
               </Chip>
             </span>

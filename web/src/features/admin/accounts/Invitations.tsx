@@ -18,7 +18,7 @@ import {
   TextField,
   type DataColumn,
 } from '@/ui/aria';
-import { ratingOf, ratingOptions } from '../../shared/choices';
+import { ratingLabel, ratingOf, ratingOptions } from '../../shared/choices';
 import { LibraryChoice, type LibrarySelection } from '../../shared/LibraryChoice';
 import {
   describeLibraries,
@@ -243,7 +243,7 @@ export function InvitationsTable({
       key: 'rating',
       header: t('admin.accounts.invitations.columns.rating'),
       cell: (invitation) => (
-        <span className={styles.nowrap}>{t('rating.fsk', { age: invitation.maxRating })}</span>
+        <span className={styles.nowrap}>{ratingLabel(t, invitation.maxRating)}</span>
       ),
     },
     {

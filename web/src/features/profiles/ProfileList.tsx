@@ -21,6 +21,7 @@ import { ProfileForm } from './ProfileForm';
 import { manageProfilesQuery } from './queries';
 import { WatchReport } from './WatchReport';
 import styles from './ProfileList.module.css';
+import { ratingLabel } from '../shared/choices';
 
 type Editing = Profile | 'new' | null;
 
@@ -220,7 +221,7 @@ export function ProfileList({
                               age: profile.maxRating,
                               max: session.account.maxRating,
                             })
-                          : t('rating.fsk', { age: profile.maxRating })}
+                          : ratingLabel(t, profile.maxRating)}
                       </Chip>
                       <Chip tone="info">{t(`language.${profile.language}`)}</Chip>
                       {profile.metadataLanguage && (

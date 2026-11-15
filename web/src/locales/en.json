@@ -717,7 +717,8 @@
     }
   },
   "rating": {
-    "fsk": "FSK {{age}}"
+    "fsk": "FSK {{age}}",
+    "age": "Ages {{age}}+"
   },
   "format": {
     "hours": "{{hours}} h",

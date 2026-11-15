@@ -1,0 +1,581 @@
+{
+  "common": {
+    "close": "Schließen"
+  },
+  "nav": {
+    "menuClose": "Menü schließen"
+  },
+  "setup": {
+    "library": {
+      "warning": {
+        "network_share": {
+          "body": "Änderungen in diesem Ordner erkennt Slouchcat nicht sofort, sondern durch einen regelmäßigen Abgleich. Damit neue Titel ohne Verzögerung erscheinen, empfehlen sich Webhooks aus Radarr und Sonarr."
+        },
+        "fuse_unknown": {
+          "body": "Ein FUSE-Dateisystem (zum Beispiel mergerfs oder Unraid) meldet nicht jede Änderung. Slouchcat beobachtet den Ordner und gleicht ihn zusätzlich regelmäßig ab."
+        }
+      }
+    },
+    "submit": "Einrichtung abschließen"
+  },
+  "library": {
+    "browse": {
+      "notUnderRoot": "Dieser Pfad liegt unter keinem freigegebenen Ordner, die Liste bleibt also stehen. „OK“ übernimmt ihn trotzdem; ob er taugt, entscheidet der Server beim Abschicken. Freigegeben wird mit {{name}}."
+    }
+  },
+  "item": {
+    "file": {
+      "size": "Größe"
+    }
+  },
+  "player": {
+    "subtitleStyle": {
+      "size": {
+        "title": "Größe"
+      },
+      "color": {
+        "white": "Weiß"
+      }
+    },
+    "help": {
+      "rows": {
+        "back": {
+          "action": "Schließt Panel, Hilfe und Stream-Info (im Zahnrad: eine Ebene zurück), sonst zurück zur Detailseite",
+          "actionOfflineDownloads": "Schließt Panel, Hilfe und Reiter (im Zahnrad: eine Ebene zurück), sonst zurück zu den Downloads",
+          "actionOfflineLibrary": "Schließt Panel, Hilfe und Reiter (im Zahnrad: eine Ebene zurück), sonst zurück zur Offline-Bibliothek"
+        }
+      }
+    }
+  },
+  "admin": {
+    "radio": {
+      "stations": {
+        "removeUnreachableHelp": "Nimmt alle zurzeit nicht erreichbaren Sender aus dem Angebot, außer Favoriten und eigenen Sendern. Sie kommen nicht von selbst zurück.",
+        "details": {
+          "close": "Schließen"
+        }
+      },
+      "editor": {
+        "close": "Schließen",
+        "logoTooLarge": "Die Datei ist größer als 20 MB.",
+        "recommendedHelp": "Steht in seinem Land oben (Sortierung „Beliebt“)."
+      },
+      "own": {
+        "deleteBody": "Der Sender verschwindet für alle Profile, auch aus „Meine Sender“. Wer ihn gerade hört, wird getrennt."
+      },
+      "empty": {
+        "body": "Die Radioseite zeigt keinen Sender, bis im Reiter „Angebot“ Länder gewählt und übernommen sind."
+      },
+      "offer": {
+        "continents": {
+          "label": "Alle Länder nach Kontinent. Ein Kontinent öffnet seine Länder; nochmals drücken oder Escape schließt sie."
+        },
+        "chosen": {
+          "close": "Sender schließen",
+          "closeLabel": "Sender in {{country}} schließen"
+        },
+        "stations": {
+          "modeAll": "Alle Sender dieses Landes sind im Angebot, außer den demarkierten. Neue Sender aus diesem Land kommen von selbst dazu."
+        },
+        "bar": {
+          "previewFailed": "Die Vorschau ließ sich nicht rechnen."
+        }
+      }
+    },
+    "editor": {
+      "close": "Schließen",
+      "discard": {
+        "body": "Deine Änderungen an den Metadaten sind noch nicht gespeichert. Schließt du den Editor, gehen sie verloren.",
+        "confirm": "Verwerfen und schließen"
+      },
+      "images": {
+        "upload": {
+          "hint": "JPEG, PNG oder WebP bis 20 MB. Der Server rechnet die Größen selbst; ein hochgeladenes Bild holt er nie neu.",
+          "error": {
+            "tooLarge": "Die Datei ist größer als 20 MB."
+          }
+        }
+      },
+      "metadata": {
+        "intro": "Was du hier änderst, sperrt das Feld: „Aktualisieren“ überschreibt es nicht mehr. Das Schloss hebt die Sperre wieder auf."
+      },
+      "refresh": {
+        "body": "„Jetzt aktualisieren“ lädt alle freien Felder und automatisch gewählten Bilder neu. Gesperrte Felder und gewählte Bilder bleiben.",
+        "book": {
+          "body": "Felder mit Schloss und ein gewähltes Cover bleiben, außer du löst vorher die Schlösser.",
+          "unlockAllHint": "Vorher alle Sperren dieses Buches aufheben, auch die Schlösser der Felder, die du unter „Zuordnen“ von einer Quelle übernommen hast: Danach gilt wieder, was die Dateien und der Anbieter sagen. Die Zuordnung selbst und eine eigene Freigabe bleiben.",
+          "providerNone": "Erst unter „Zuordnen“ einen Treffer wählen."
+        }
+      },
+      "bookMatch": {
+        "audible": {
+          "couk": "Audible Großbritannien"
+        },
+        "preview": {
+          "hint": "Übernommene Felder bekommen ein Schloss. Felder mit Schloss bleiben. Die Zuordnung gilt auch für späteres „Vom Anbieter neu holen“."
+        }
+      }
+    },
+    "libraries": {
+      "watch": {
+        "poll": "Änderungen werden regelmäßig abgefragt",
+        "inotify_poll": "Sofort erkannt, zusätzlich regelmäßig abgefragt"
+      },
+      "folders": {
+        "remove": {
+          "lead_one": "Du entfernst <path>{{path}}</path> aus der Bibliothek {{name}}. Bis zu {{count}} Titel verschwindet damit aus allen Listen. Was das heißt:",
+          "lead_other": "Du entfernst <path>{{path}}</path> aus der Bibliothek {{name}}. Bis zu {{count}} Titel verschwinden damit aus allen Listen. Was das heißt:",
+          "relink": "Kommen die Titel später wieder in die Bibliothek, auch über einen anderen Ordner, findet Slouchcat sie über ihre TMDB-, TVDB- oder IMDb-Id wieder und hängt Fortschritt und Listen um. Ziehst du den Ordner nur um, nimm statt „Entfernen“ besser „Pfad ändern“.",
+          "oneWay": "Liegt der Ordner außerhalb der freigegebenen Ordner (SLOUCHCAT_BROWSE_ROOTS), lässt er sich ohne Änderung an der Konfiguration nicht wieder hinzufügen."
+        }
+      },
+      "noFolder": "Kein Ordner: Es wird nichts gescannt, bis du unter „Ordner“ einen hinzufügst.",
+      "trickplay": {
+        "facts": {
+          "ahead": {
+            "movie": "Neue Filme bekommen die Vorschau beim Einlesen; den Bestand holen „Jetzt erzeugen“ oder der Zeitplan auf „Hintergrundjobs“ nach. Fehlt sie beim Start, entsteht sie in 20 bis 45 Sekunden und bleibt gespeichert.",
+            "episode": "Neue Folgen bekommen die Vorschau beim Einlesen; den Bestand holen „Jetzt erzeugen“ oder der Zeitplan auf „Hintergrundjobs“ nach. Fehlt sie beim Start, entsteht sie in 20 bis 45 Sekunden und bleibt gespeichert."
+          }
+        },
+        "generate": {
+          "hint": "Holt die fehlenden Vorschauen aller Bibliotheken mit „Im Voraus“ nach, wie „Vorschau beim Spulen nachholen“ auf „Hintergrundjobs“."
+        }
+      },
+      "delete": {
+        "title": "Bibliothek „{{name}}“ löschen?",
+        "lead_one": "{{roots}} und {{formatted}} Titel verschwinden aus Slouchcat, samt Fortschritt, Haken, Merkliste, Empfehlungen, eigenen Bildern und Texten, der Startseitenreihe „Neu in {{name}}“, den Freigaben der Profile und den Downloads auf den Geräten.",
+        "lead_other": "{{roots}} und {{formatted}} Titel verschwinden aus Slouchcat, samt Fortschritt, Haken, Merkliste, Empfehlungen, eigenen Bildern und Texten, der Startseitenreihe „Neu in {{name}}“, den Freigaben der Profile und den Downloads auf den Geräten.",
+        "queued": "Bibliothek „{{name}}“ wird im Hintergrund gelöscht.",
+        "done": "Bibliothek „{{name}}“ gelöscht.",
+        "notDone": "Bibliothek „{{name}}“ wurde nicht gelöscht. Warum, steht beim Job."
+      },
+      "rename": {
+        "title": "Bibliothek „{{name}}“ umbenennen",
+        "saved": "Die Bibliothek heißt jetzt „{{name}}“."
+      }
+    },
+    "maintenance": {
+      "hint": {
+        "relink": "Gelöschte Titel, die als neue Kopie zurück in der Bibliothek sind. Fortschritt, Verlauf und Listen hängen noch am gelöschten Titel. „Umhängen“ führt die Kopie mit ihm zusammen, der alte Titel bleibt.",
+        "removed": "Titel, die aus Slouchcat entfernt wurden; ihre Dateien liegen noch da. „Wieder aufnehmen“ holt denselben Titel zurück, mit Folgen, Fortschritt, Haken und Merkliste."
+      },
+      "done": {
+        "relinkStopped_one": "{{count}} umgehängt. Ein Scan läuft gerade. Starte „Umhängen“ nach dem Scan noch einmal für den Rest.",
+        "relinkStopped_other": "{{count}} umgehängt. Ein Scan läuft gerade. Starte „Umhängen“ nach dem Scan noch einmal für den Rest."
+      },
+      "duplicates": {
+        "confirmBody_one": "Dateien, Extras, Trailer und Fortschritt des anderen Titels wandern zu „{{title}}“. Der andere Titel wird gelöscht.",
+        "confirmBody_other": "Dateien, Extras, Trailer und Fortschritt der {{count}} anderen Titel wandern zu „{{title}}“. Die anderen Titel werden gelöscht.",
+        "library": "Bibliothek „{{name}}“"
+      },
+      "relink": {
+        "confirmExtra_one": "Eine weitere Kopie desselben Titels wird übersprungen und steht danach unter „Duplikate“.",
+        "confirmExtra_other": "{{count}} weitere Kopien derselben Titel werden übersprungen und stehen danach unter „Duplikate“."
+      },
+      "removed": {
+        "restored_one": "„{{title}}“ ist wieder da ({{count}} Titel).",
+        "restored_other": "„{{title}}“ ist wieder da ({{count}} Titel)."
+      }
+    },
+    "item": {
+      "language": {
+        "hint": "Eine gewählte Sprache oder „Unbekannt“ ist gesperrt. „Aus Metadaten“ hebt die Sperre auf, und die nächste Zuordnung fragt die Quellen erneut ab."
+      },
+      "files": {
+        "columns": {
+          "size": "Größe"
+        }
+      },
+      "images": {
+        "intro": "Je Art das gewählte Bild mit Quelle und Sprache. Eine eigene Wahl sperrt die Art; „Anwenden“ und „Aktualisieren“ behalten sie."
+      }
+    },
+    "streams": {
+      "radio": {
+        "stopBody": "Die Wiedergabe von „{{station}}“ stoppt auf dem Gerät innert Sekunden."
+      }
+    },
+    "podcasts": {
+      "intro": "Abonnierte Feeds und Podcasts aus Ordnern. Der Hintergrundjob „Podcast-Feeds prüfen“ ruft fällige Abos ab und legt neue Episoden an.",
+      "subscribe": {
+        "load": {
+          "hint": "„Nur abonnieren“ lädt nichts aus dem Feed; der Podcast speichert dann nur Folgen, die danach erscheinen."
+        }
+      },
+      "downloads": {
+        "folder": {
+          "locked": "„Speichern“ ist gesperrt, bis der Ordner die Prüfung besteht."
+        }
+      },
+      "setting": {
+        "notSavable": "Der Ordner dieses Podcasts besteht die Ordnerprüfung nicht; „Speichern“ ist gesperrt."
+      },
+      "page": {
+        "library": "Bibliothek „{{library}}“"
+      },
+      "episodes": {
+        "error": {
+          "too_large": "Datei größer als 2 GiB"
+        }
+      }
+    },
+    "picks": {
+      "empty": "Zurzeit empfiehlt kein Profil einen Titel. Ohne Empfehlung zeigt die Startseite keine Reihe „User-Empfehlungen“."
+    },
+    "collections": {
+      "rename": {
+        "done": "Die Sammlung heißt jetzt {{name}}."
+      }
+    },
+    "myMedia": {
+      "intro": "Reihenfolge und Sichtbarkeit der Gruppe „Meine Medien“: gilt für die Seitenleiste und die Kacheln auf der Startseite, für alle Profile. Ausblenden versteckt nur den Eintrag; die Titel bleiben in Suche und Reihen. Wer welche Bibliothek sehen darf, regeln die Konten.",
+      "list": "Einträge von „Meine Medien“",
+      "saved": "„Meine Medien“ ist gespeichert.",
+      "preview": {
+        "home": "Startseite, Reihe „Meine Medien“",
+        "empty": "Nichts sichtbar: hier fehlt „Meine Medien“."
+      },
+      "homeRows": "Wo die Reihe „Meine Medien“ auf der Startseite steht und ob sie erscheint, regelt „Startseite“.",
+      "homeRowsLink": "Zur Seite „Startseite“"
+    },
+    "homeRows": {
+      "rows": {
+        "libraries": "Kacheln für die Bibliotheken, die das Profil sieht, für Radio und, wenn eingeblendet, für Sammlungen und User-Empfehlungen; Reihenfolge und Ausblenden regelt die Seite „Meine Medien“.",
+        "library": "Die zuletzt in diese Bibliothek gekommenen Titel; „Alle anzeigen“ führt zur Bibliothek, sortiert nach „Zuletzt hinzugefügt“."
+      },
+      "pageLink": "Zur Seite „{{page}}“",
+      "spotlight": "Welche Trakt-Liste Spotlight zeigt, wann sie zuletzt abgerufen wurde und ob Trakt eingerichtet ist, steht unter „Spotlight“.",
+      "spotlightLink": "Zur Seite „Spotlight“"
+    },
+    "spotlight": {
+      "enabledHint": "Gilt erst mit „Speichern“, zusammen mit der Quelle.",
+      "entries": {
+        "quoted": "„{{note}}“"
+      },
+      "rowSettings": "Wo die Reihe auf der Startseite steht und ob sie erscheint, stellst du unter „Startseite“ ein.",
+      "rowSettingsLink": "Zur Seite „Startseite“"
+    },
+    "nav": {
+      "sheet": {
+        "close": "Seiten der Verwaltung schließen"
+      }
+    },
+    "home": {
+      "install": {
+        "failure": {
+          "deploy_files": "Die Compose-Dateien des Releases ließen sich nicht laden oder schreiben; das Update wurde abgebrochen."
+        },
+        "refused": {
+          "no_compose_labels": "Der Server wurde nicht mit Docker Compose gestartet, darum weiß der Updater nicht, wie er ihn neu startet. Installiere das Update von Hand.",
+          "outside_deploy_dir": "Eine Compose-Datei des Servers liegt außerhalb von SLOUCHCAT_DEPLOY_DIR."
+        }
+      },
+      "hints": {
+        "scan": "Scan der Bibliothek „{{name}}“ abgebrochen"
+      }
+    },
+    "integrations": {
+      "webhooks": {
+        "created": {
+          "title": "Adresse für „{{name}}“"
+        },
+        "pathMap": {
+          "intro": "Setzt den Pfad um, den Radarr oder Sonarr meldet. Nötig, sobald derselbe Speicher auf beiden Seiten anders hängt — etwa „/mnt/medien/Filme“ im Dienst und „/media/Filme“ hier. Der längste passende Anfang gewinnt; ohne Eintrag gilt der gemeldete Pfad unverändert. Beide Pfade müssen absolut sein und mit „/“ beginnen."
+        },
+        "result": {
+          "outside_roots": "Außerhalb der Bibliotheken"
+        },
+        "renew": {
+          "title": "Token von „{{name}}“ erneuern?"
+        },
+        "delete": {
+          "title": "„{{name}}“ löschen?"
+        }
+      },
+      "providers": {
+        "tmdb": {
+          "help": "Kostenlos im TMDB-Konto unter „API“: das Lesezugriffs-Token (v4)."
+        },
+        "fanart": {
+          "purpose": "Logos, Hintergründe und Disc-Bilder; eingeschaltet wird die Quelle unter „Metadaten“."
+        },
+        "youtube": {
+          "help": "Ein Schlüssel der „YouTube Data API v3“ aus der Google Cloud Console."
+        },
+        "trakt": {
+          "help": "Die Client-ID einer eigenen Trakt-App. Den Stand der Listen zeigt die Seite „Spotlight“."
+        },
+        "googlebooks": {
+          "help": "Ein Schlüssel der „Books API“ aus der Google Cloud Console. Welcher Ordner die Quelle nutzt, steht unter „Hörbücher: Quellen“."
+        },
+        "envNote": "Der Wert kommt aus deploy/.env und lässt sich nur dort ändern. „Prüfen“ fragt den Anbieter trotzdem."
+      }
+    },
+    "accounts": {
+      "access": {
+        "adminHint": "Ein Administrator hat immer FSK 18 und alle Bibliotheken; „Zugriff“ gibt es nur für Konten ohne Verwaltung."
+      },
+      "invitations": {
+        "revoke": {
+          "done": "Einladung „{{note}}“ widerrufen."
+        }
+      }
+    },
+    "backup": {
+      "columns": {
+        "size": "Größe"
+      },
+      "create": {
+        "withoutHint": "Zugangsdaten wie die Schlüssel für TMDB und Trakt, der E-Mail-Server, der Telegram-Bot und die Web-Push-Schlüssel bleiben draußen. Nach einer Wiederherstellung gibst du sie neu ein. Adressen privater Podcast-Feeds bleiben samt ihrem Zugangscode drin, damit die Abos danach weiterlaufen."
+      }
+    },
+    "announcements": {
+      "publish": {
+        "body": "Jedes Profil sieht die Ankündigung beim nächsten Start. Sie geht an die Kanäle jedes Kontos, das Ankündigungen gewählt hat; Gäste bekommen sie standardmäßig per E-Mail. Danach lässt sie sich nicht mehr ändern.",
+        "reach": "Jedes Profil sieht sie beim nächsten Start, und sie geht an die Kanäle jedes Kontos, das Ankündigungen gewählt hat. Gäste bekommen sie standardmäßig per E-Mail."
+      }
+    },
+    "jobs": {
+      "confirm": {
+        "scanWarning": "Die Bibliothek endet als „abgebrochen“; der nächste Scan holt nach.",
+        "downloadWarning": "Die Downloads enden als „fehlgeschlagen“ und werden nicht nachgeholt.",
+        "deleteRunBody": "Slouchcat versucht diesen Lauf nicht mehr. Unter „Läufe“ steht er danach als „abgebrochen“, bis die Aufräumung ihn später entfernt.",
+        "dismissFailedBody": "Slouchcat versucht sie nicht mehr. Unter „Läufe“ stehen sie danach als „abgebrochen“, bis die Aufräumung sie später entfernt."
+      },
+      "schedule": {
+        "description": "Takt, Zeitfenster und Ein/Aus. Der nächste Lauf richtet sich danach neu aus; „Jetzt ausführen“ ignoriert das Fenster.",
+        "eventNote": "Kein Zeitplan: läuft von selbst, sobald es dafür etwas zu tun gibt, wie unter „Ausgelöst durch“ beschrieben.",
+        "onceHint": "Zeitzone des Servers: {{zone}}. Der Termin läuft einmal zusätzlich zum Takt, auch außerhalb des Zeitfensters.",
+        "windowWaits": "Außerhalb des Fensters warten neue Aufträge; ein laufender läuft fertig. Wiedergabe und Downloads starten trotzdem sofort."
+      },
+      "types": {
+        "radio_catalog_sync": {
+          "trigger": "täglich ab 04:30, „Jetzt abgleichen“ auf der Seite Radio, beim ersten Start ohne Katalog"
+        },
+        "radio_wikidata_sync": {
+          "trigger": "wöchentlich ab 06:30, nach „Übernehmen“ mit neuen Sendern (höchstens einmal am Tag), beim Einschalten von „Wikidata verwenden“"
+        },
+        "scan_library": {
+          "trigger": "Zeitplan alle 6 h und Start des Servers, „Scannen“ auf der Bibliotheksseite, Webhook, Dateiwächter"
+        },
+        "probe_file": {
+          "trigger": "vom Scan je neue Datei, „Datei prüfen“ in der Pflege"
+        },
+        "keyframes_backfill": {
+          "trigger": "Zeitplan (ab Werk aus, wöchentlich) oder Termin, „Jetzt ausführen“: liest den Index aus dem Container aller Videodateien, die noch keinen haben"
+        },
+        "segments_detect": {
+          "description": "Findet Intro und Abspann von Folgen für „Intro überspringen“."
+        },
+        "chapters_images_backfill": {
+          "trigger": "Zeitplan (ab Werk aus, wöchentlich) oder Termin, „Jetzt ausführen“: für alle Filme und Folgen ohne Kapitelbilder"
+        },
+        "trickplay_generate": {
+          "trigger": "beim Start eines Films oder einer Folge, für neue Dateien bei „Im Voraus“, beim Nachholen, beim Serienvorlauf und für Offline-Downloads"
+        },
+        "trickplay_series": {
+          "trigger": "beim Start einer Folge, wenn die Bibliothek „Beim Start alle Folgen“ einstellt"
+        },
+        "trickplay_backfill": {
+          "trigger": "Zeitplan (ab Werk aus, wöchentlich) oder Termin, „Jetzt ausführen“: für Bibliotheken mit „Im Voraus“"
+        },
+        "library_author_display": {
+          "trigger": "nach einem Scan, nach einer Zuordnung, Schalter „Autorennamen vereinheitlichen“"
+        },
+        "metadata_original_language_backfill": {
+          "trigger": "einmal beim ersten Start nach dem Update, danach Zeitplan (ab Werk aus, wöchentlich), Termin oder „Jetzt ausführen“"
+        },
+        "image_fetch": {
+          "description": "Lädt die gewählten Bilder eines Titels und rechnet die Größen."
+        },
+        "people_images": {
+          "description": "Lädt die Porträts der Personen und die Poster der TMDB-Sammlungen und rechnet die Größen."
+        },
+        "people_images_backfill": {
+          "trigger": "Zeitplan (ab Werk aus, wöchentlich) oder Termin, „Jetzt ausführen“: vergisst die Fehlschläge und reiht den Lauf ein"
+        },
+        "metadata_apply": {
+          "trigger": "„Jetzt anwenden“ auf der Seite Metadaten"
+        },
+        "podcast_fetch": {
+          "trigger": "vom Feed-Takt je fälligem Abo, „Aktualisieren“ je Podcast, neues Abo"
+        },
+        "podcast_sync_all": {
+          "description": "Plant alle Podcasts auf „Speichern“ neu und versucht fehlgeschlagene Downloads erneut."
+        },
+        "podcast_download": {
+          "trigger": "vom Planer bei „Speichern“, „Fehlende nachladen“ und „Laden“ je Folge; je Anbieter eine zur Zeit"
+        },
+        "trakt_refresh": {
+          "trigger": "Zeitplan nach dem Takt der Seite Spotlight, „Jetzt abrufen“"
+        },
+        "update_check": {
+          "trigger": "Zeitplan täglich, 60 s nach dem Start, „Jetzt prüfen“"
+        },
+        "library_delete": {
+          "trigger": "„Bibliothek löschen …“ in der Verwaltung; schlägt der Lauf fehl, ist die Bibliothek wieder da"
+        }
+      }
+    },
+    "metadata": {
+      "audiobooks": {
+        "body": "Woher Slouchcat Angaben, Länge und Cover für Hörbücher holt, automatisches Zuordnen und die Liste „Prüfen“."
+      },
+      "scope": {
+        "libraryHint": "{{name}} übernimmt den Standard. Schalte „abweichend“ ein, um Sprachen oder Bilder nur für diese Bibliothek zu ändern."
+      },
+      "images": {
+        "chainsIntro": "Reihenfolge, in der ein Bild gewählt wird. „Ohne Text“ ist ein Bild ohne Schrift. Innerhalb einer Sprache gewinnt das bestbewertete Bild.",
+        "kindHint": {
+          "episode_still": "Standbild je Folge; bei 40.000 Folgen rund 12 GB Cache"
+        }
+      },
+      "quality": {
+        "intro": "Gilt für alle Bibliotheken. Die ausgelieferten Größen (Poster 200/400/800, Hintergrund 780/1280/1920, Logo 400/800) sind fest."
+      },
+      "rating": {
+        "countries": {
+          "GB": "Großbritannien (GB)"
+        }
+      },
+      "save": {
+        "failed": "„{{name}}“ wurde nicht gespeichert: {{reason}}"
+      },
+      "languages": {
+        "youtube": "{{count}} Sprachen: bis zu {{titles}} Titel am Tag mit YouTube-Trailersuche (Kontingent 10.000)."
+      }
+    },
+    "activity": {
+      "playbackStarted": "{{profile}} hat „{{title}}“ gestartet",
+      "playbackCompleted": "{{profile}} hat „{{title}}“ fertig geschaut",
+      "playbackStopped": "Wiedergabe von „{{title}}“ ({{profile}}) beendet",
+      "playbackRevoked": "Wiedergabe von „{{title}}“ ({{profile}}) beendet, Gerät vergessen",
+      "scanStarted": "Scan von „{{library}}“ gestartet",
+      "scanDone_one": "Scan von „{{library}}“ fertig: {{count}} neuer Titel",
+      "scanDone_other": "Scan von „{{library}}“ fertig: {{count}} neue Titel",
+      "scanFailed": "Scan von „{{library}}“ fehlgeschlagen",
+      "scanAborted": "Scan von „{{library}}“ vom Verlustschutz abgebrochen",
+      "scanCancelled": "Scan von „{{library}}“ von Hand abgebrochen",
+      "libraryDeleted_one": "Bibliothek „{{library}}“ von {{account}} gelöscht ({{count}} Titel)",
+      "libraryDeleted_other": "Bibliothek „{{library}}“ von {{account}} gelöscht ({{count}} Titel)",
+      "itemRemoved": "„{{title}}“ von {{account}} aus Slouchcat entfernt",
+      "itemFilesDeleted_one": "„{{title}}“ von {{account}} samt {{count}} Datei gelöscht ({{size}})",
+      "itemFilesDeleted_other": "„{{title}}“ von {{account}} samt {{count}} Dateien gelöscht ({{size}})"
+    },
+    "audiobookSources": {
+      "region": {
+        "help": "Der Audible-Katalog, in dem zuerst gesucht wird. Englische Bücher sucht der Server zusätzlich in den USA und in Großbritannien.",
+        "couk": "Großbritannien (audible.co.uk)"
+      },
+      "googleBooks": {
+        "link": "Unter „Integrationen“ einrichten"
+      },
+      "auto": {
+        "allHint": "Einmal für die ganze Bibliothek, danach wie „Neue Hörbücher“."
+      },
+      "tolerance": {
+        "help": "Zugeordnet wird nur ein eindeutiger Treffer: gleicher Autor, ähnlicher Titel, passende Länge. Sonst bleibt das Hörbuch bei den Angaben der Dateien und erscheint unter „Prüfen“. Erlaubt sind 1 bis 10 %."
+      },
+      "normalize": {
+        "authorsHint": "„J R R Tolkien“, „J.R.R. Tolkien“ und „J. R. R. Tolkien“ werden eine Person.",
+        "seriesHint": "„Bodyguard - Band“ wird „Bodyguard“, „Der Herr Der Ringe - Band“ wird „Der Herr der Ringe“."
+      },
+      "review": {
+        "intro": "Hörbücher mit mehreren Kandidaten, einer Länge außerhalb der Toleranz oder einer gestörten Quelle. Der Bleistift öffnet den Editor."
+      }
+    },
+    "itemDelete": {
+      "title": "„{{title}}“ löschen?",
+      "libraryHint": "Die Dateien bleiben auf der Platte. Der Titel bleibt entfernt, auch wenn neue Dateien dazukommen; unter „Wartung › Entfernte Titel“ lässt er sich mit Fortschritt, Haken und Merkliste wieder aufnehmen.",
+      "typeHint": "Tippe {{title}} ab (Groß- und Kleinschreibung egal), dann wird der Knopf aktiv.",
+      "done": {
+        "library": "„{{title}}“ ist aus Slouchcat entfernt. Die Dateien liegen noch da.",
+        "files_one": "„{{title}}“ ist gelöscht, {{count}} Datei ({{size}}).",
+        "files_other": "„{{title}}“ ist gelöscht, {{count}} Dateien ({{size}}).",
+        "kept_one": "„{{title}}“: {{count}} Datei gelöscht ({{size}}); der Titel bleibt mit den Dateien, die nicht gelöscht werden konnten.",
+        "kept_other": "„{{title}}“: {{count}} Dateien gelöscht ({{size}}); der Titel bleibt mit den Dateien, die nicht gelöscht werden konnten."
+      }
+    }
+  },
+  "invite": {
+    "form": {
+      "profileNameHint": "So heißt dein Profil, zum Beispiel dein Vorname."
+    }
+  },
+  "limits": {
+    "hint": "{{min}} bis {{max}}. Leer heißt ohne Limit."
+  },
+  "offline": {
+    "downloads": {
+      "columns": {
+        "size": "Größe"
+      }
+    },
+    "storage": {
+      "apple": {
+        "body": "Safari löscht die Daten einer Web-App, die längere Zeit nicht geöffnet wurde. Öffne Slouchcat regelmäßig, damit die Downloads erhalten bleiben; als App auf dem Home-Bildschirm sind sie besser geschützt."
+      }
+    }
+  },
+  "watchlist": {
+    "empty": {
+      "body": "Merke dir Titel auf ihrer Detailseite mit „Merken“."
+    }
+  },
+  "collection": {
+    "all": {
+      "size": "Größe"
+    }
+  },
+  "settings": {
+    "playback": {
+      "subtitleMode": {
+        "foreignHint": "Wie „Nur erzwungene“. Ist der Ton in keiner deiner Tonsprachen, kommen volle Untertitel in der ersten Untertitelsprache.",
+        "alwaysHint": "Immer volle Untertitel in der ersten Untertitelsprache; ohne sie wie „Nur erzwungene“."
+      }
+    },
+    "notifications": {
+      "events": {
+        "helpAdmin": "Wofür eine Nachricht kommt. „Fehler“ gibt es nur für Administratoren."
+      },
+      "push": {
+        "ios": "Auf iPhone und iPad gibt es Web-Push nur in der installierten App: im Teilen-Menü „Zum Home-Bildschirm“ wählen und Slouchcat von dort öffnen."
+      }
+    }
+  },
+  "radio": {
+    "page": {
+      "filters": {
+        "close": "Filter schließen",
+        "search": "„{{q}}“"
+      }
+    },
+    "region": {
+      "CH-AR": "Appenzell Außerrhoden"
+    },
+    "player": {
+      "close": "Jetzt läuft schließen"
+    }
+  },
+  "audioSeries": {
+    "hint": {
+      "spelling_one": "„{{name}}“ ({{count}} Band)",
+      "spelling_other": "„{{name}}“ ({{count}} Bände)"
+    }
+  },
+  "watched": {
+    "heard": {
+      "ask": {
+        "removeTitle": "„{{title}}“ als ungehört markieren?",
+        "halfTitle": "„{{title}}“ ist teilweise gehört"
+      }
+    },
+    "page": {
+      "emptyKind": "Unter „{{kind}}“ ist noch nichts gesehen."
+    },
+    "ask": {
+      "removeTitle": "„{{title}}“ als ungesehen markieren?",
+      "halfTitle": "„{{title}}“ ist teilweise gesehen"
+    }
+  }
+}

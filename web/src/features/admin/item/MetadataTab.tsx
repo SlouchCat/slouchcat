@@ -6,7 +6,7 @@ import { problemMessage } from '@/api/errors';
 import { LANGUAGE_CODES, NO_LANGUAGE } from '@/features/player/labels';
 import { Chip, FactList, Notice, Panel, SelectField, Text } from '@/ui';
 import { AriaButton, DisclosureGroup, RadioGroup } from '@/ui/aria';
-import { ratingOptions } from '../../shared/choices';
+import { ratingLabel, ratingOptions } from '../../shared/choices';
 import { itemFacts, providerName, sourceFacts, sourceSummary } from './facts';
 import styles from './AdminItem.module.css';
 
@@ -116,7 +116,7 @@ export function MetadataTab({
 }: MetadataTabProps) {
   const { t, i18n } = useTranslation();
   const none = t('admin.item.facts.none');
-  const fsk = (age: number | undefined) => (age !== undefined ? t('rating.fsk', { age }) : none);
+  const fsk = (age: number | undefined) => (age !== undefined ? ratingLabel(t, age) : none);
   const number = new Intl.NumberFormat(i18n.language);
   const sources = item.fieldSources.length;
   return (
