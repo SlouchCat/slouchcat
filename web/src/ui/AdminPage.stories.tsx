@@ -107,3 +107,15 @@ export const Framed: Story = {
 
 /** The frame in the compact density of the administration. */
 export const FramedCompact: Story = { ...Framed, globals: { density: 'compact' } };
+
+/**
+ * A long intro in the frame, compact: two lines with an ellipsis and «Mehr» beside them, so the
+ * page's first working line stays where it is.
+ */
+export const FramedLongIntro: Story = {
+  ...Framed,
+  globals: { density: 'compact' },
+  args: {
+    help: 'Alles, was der Server im Hintergrund tut: laufende Aufgaben, die Warteschlange, die Zeitpläne der wiederkehrenden Jobs und die Fehlschläge der letzten Tage, mit Neustart, Pause und dem Protokoll jedes einzelnen Laufs, damit du siehst, was gerade passiert und was später kommt.',
+  },
+};

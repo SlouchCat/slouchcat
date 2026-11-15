@@ -136,6 +136,50 @@
   line-height: var(--sc-font-line-height-normal);
 }
 
+/* The intro and «Mehr» beside its last line. */
+.introLine {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: flex-end;
+  min-width: 0;
+}
+
+/* Two lines (INTRO_LINES in AdminPage.tsx), cut with an ellipsis. */
+.introClamped {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.introToggle {
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: var(--sc-radius-sm);
+  background-color: transparent;
+  color: var(--sc-color-text-secondary);
+  font: inherit;
+  font-size: var(--sc-admin-intro-size);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-normal);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.introToggle:focus-visible {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+}
+
+@media (hover: hover) {
+  .introToggle:hover {
+    color: var(--sc-color-text-primary);
+  }
+}
+
 .framedActions {
   display: flex;
   flex-wrap: wrap;

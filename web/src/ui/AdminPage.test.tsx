@@ -5,7 +5,7 @@ import { tokens } from '@slouchcat/design-tokens';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef } from 'react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ActionMenu } from './ActionMenu';
 import { AdminFrame } from './adminFrame';
 import { AdminPage } from './AdminPage';
@@ -99,6 +99,59 @@ describe('AdminPage inside the administration’s frame (build plan 2.5, 2.6)', 
     expect(screen.queryByRole('button', { name: 'Hilfe zu dieser Seite' })).toBeNull();
     expect(screen.getByText('Live, alle 5 Sekunden')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Erneut versuchen' })).toBeVisible();
+  });
+
+  describe('a long intro', () => {
+    const long =
+      'Sender aus dem Verzeichnis von radio-browser.info nach Land und Name hinzufügen, eigene Sender mit Adresse anlegen und die Liste der Zuschauer pflegen.';
+    // jsdom lays nothing out: the intro is as high as `height` and its text needs `content`.
+    const layout = (height: number, content: number) => {
+      vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(height);
+      vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(content);
+      const computed = window.getComputedStyle.bind(window);
+      vi.spyOn(window, 'getComputedStyle').mockImplementation((element) => {
+        const style = computed(element);
+        Object.defineProperty(style, 'lineHeight', { value: '20px' });
+        return style;
+      });
+    };
+    afterEach(() => vi.restoreAllMocks());
+    const page = () =>
+      render(
+        <AdminFrame value={{ eyebrow: 'Medien / Radio' }}>
+          <AdminPage title="Radio" help={long}>
+            Inhalt
+          </AdminPage>
+        </AdminFrame>,
+      );
+
+    it('shows «Mehr» when two lines cut it; «Weniger» shows two lines again', async () => {
+      layout(40, 100);
+      const user = userEvent.setup();
+      page();
+      // The whole text is in the DOM, for a screen reader as well.
+      const intro = screen.getByText(long);
+      const more = screen.getByRole('button', { name: 'Mehr' });
+      expect(more).toHaveAttribute('aria-expanded', 'false');
+      expect(more).toHaveAttribute('aria-controls', intro.id);
+      more.focus();
+      await user.keyboard('{Enter}');
+      const less = screen.getByRole('button', { name: 'Weniger' });
+      expect(less).toHaveAttribute('aria-expanded', 'true');
+      expect(less).toHaveFocus();
+      await user.keyboard(' ');
+      expect(screen.getByRole('button', { name: 'Mehr' })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      );
+    });
+
+    it('shows no «Mehr» when the intro fits in two lines', () => {
+      layout(40, 40);
+      page();
+      expect(screen.getByText(long)).toBeVisible();
+      expect(screen.queryByRole('button', { name: 'Mehr' })).toBeNull();
+    });
   });
 
   it('shows no tabs where the frame has none', () => {

@@ -155,6 +155,30 @@ test('the overview has no area tabs; the line over each title names area and pag
   await expect(page.getByRole('button', { name: 'Hilfe zu dieser Seite' })).toHaveCount(0);
 });
 
+test('a long intro shows two lines; «Mehr» and «Weniger» by keyboard', async ({ page }) => {
+  await page.goto('/admin/radio');
+  await expect(h1(page, 'Radio')).toBeVisible();
+  const more = page.getByRole('button', { name: 'Mehr', exact: true });
+  await expect(more).toHaveAttribute('aria-expanded', 'false');
+  const intro = page.locator(`[id="${await more.getAttribute('aria-controls')}"]`);
+  const closed = (await intro.boundingBox())?.height ?? 0;
+  const lineHeight = await intro.evaluate((node) => parseFloat(getComputedStyle(node).lineHeight));
+  expect(closed).toBeLessThanOrEqual(2 * lineHeight + 1);
+
+  await resetFocus(page);
+  await tabTo(page, more, 30);
+  await expectVisibleFocus(page);
+  await page.keyboard.press('Enter');
+  const less = page.getByRole('button', { name: 'Weniger', exact: true });
+  await expect(less).toHaveAttribute('aria-expanded', 'true');
+  await expectFocusOn(page, less);
+  expect((await intro.boundingBox())?.height ?? 0).toBeGreaterThan(closed);
+  await page.keyboard.press('Enter');
+  await expect(more).toHaveAttribute('aria-expanded', 'false');
+  expect((await intro.boundingBox())?.height ?? 0).toBeCloseTo(closed, 0);
+  await expectNoFocusTrap(page);
+});
+
 test('the breadcrumb in the header: Verwaltung › area / page, by keyboard', async ({ page }) => {
   await page.goto('/admin/podcasts');
   await expect(h1(page, 'Podcasts')).toBeVisible();

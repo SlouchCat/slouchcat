@@ -677,6 +677,8 @@
     },
     "adminPage": {
       "help": "Hilfe zu dieser Seite",
+      "less": "Weniger",
+      "more": "Mehr",
       "live_one": "Live, jede Sekunde",
       "live_other": "Live, alle {{count}} Sekunden"
     },

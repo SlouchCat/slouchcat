@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode, type Ref } from 'react';
+import { useId, useLayoutEffect, useRef, useState, type ReactNode, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AdminDensityScope } from './adminDensity';
 import { useAdminFrame, type AdminFrameValue } from './adminFrame';
@@ -44,8 +44,8 @@ interface AdminPageProps {
  *
  * Inside the administration's frame (AdminFrame, set by the admin layout; build plan 2.5 and 2.6)
  * the header is the mockup's: the area's tabs above it, the line «MEDIEN / BIBLIOTHEKEN» in the
- * accent over a large title, the intro sentence open below it, the actions at the end; the help
- * button is not needed there.
+ * accent over a large title, the intro sentence open below it (at most two lines, «Mehr» shows the
+ * rest), the actions at the end; the help button is not needed there.
  */
 export function AdminPage(props: AdminPageProps) {
   const frame = useAdminFrame();
@@ -140,12 +140,67 @@ function FramedPage({
             </h1>
             {liveSeconds !== undefined && <Live seconds={liveSeconds} />}
           </div>
-          {help && <p className={styles.framedIntro}>{help}</p>}
+          {help && <Intro text={help} />}
         </div>
         {actions && <div className={styles.framedActions}>{actions}</div>}
       </header>
       {status}
       {children}
+    </div>
+  );
+}
+
+/** The lines the intro shows until «Mehr» is pressed; `.introClamped` in the CSS module. */
+const INTRO_LINES = 2;
+
+/**
+ * The intro sentence inside the frame: at most two lines, cut with an ellipsis, and «Mehr» beside
+ * it only when the text is really cut (measured again when the width changes), so a long intro
+ * does not push the page's first working line down. The whole text stays in the DOM, so a screen
+ * reader reads all of it.
+ */
+function Intro({ text }: { text: string }) {
+  const { t } = useTranslation();
+  const id = useId();
+  const node = useRef<HTMLParagraphElement>(null);
+  const [open, setOpen] = useState(false);
+  const [cut, setCut] = useState(false);
+  useLayoutEffect(() => {
+    const intro = node.current;
+    if (!intro) return;
+    // Closed, the box is two lines high; open, two lines are measured from the line height.
+    const update = () => {
+      const limit = open
+        ? INTRO_LINES * parseFloat(getComputedStyle(intro).lineHeight)
+        : intro.clientHeight;
+      setCut(Number.isFinite(limit) && intro.scrollHeight > limit + 1);
+    };
+    update();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(update);
+    observer.observe(intro);
+    return () => observer.disconnect();
+  }, [open, text]);
+  return (
+    <div className={styles.introLine}>
+      <p
+        ref={node}
+        id={id}
+        className={open ? styles.framedIntro : `${styles.framedIntro} ${styles.introClamped}`}
+      >
+        {text}
+      </p>
+      {cut && (
+        <button
+          type="button"
+          className={styles.introToggle}
+          aria-expanded={open}
+          aria-controls={id}
+          onClick={() => setOpen((value) => !value)}
+        >
+          {open ? t('ui.adminPage.less') : t('ui.adminPage.more')}
+        </button>
+      )}
     </div>
   );
 }
