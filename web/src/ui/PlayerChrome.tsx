@@ -23,6 +23,7 @@ import {
 } from './SeekBar';
 import { TitleOrLogo } from './TitleOrLogo';
 import { VolumeControl } from './VolumeControl';
+import { intlLocale } from '@/i18n';
 
 /** The end time moves on while the player is paused: it is computed again this often. */
 const CLOCK_TICK_MS = 10_000;
@@ -496,7 +497,7 @@ export function PlayerChrome({
     timeDisplay === 'remaining'
       ? t('player.chrome.timeRemaining', {
           remaining: formatPlayerTime(remainingMs, durationMs),
-          end: new Intl.DateTimeFormat(i18n.language, {
+          end: new Intl.DateTimeFormat(intlLocale(i18n.language), {
             hour: '2-digit',
             minute: '2-digit',
           }).format(playerEndTime(now, currentMs, durationMs, rate)),

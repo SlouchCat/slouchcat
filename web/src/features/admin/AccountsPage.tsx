@@ -38,6 +38,7 @@ import {
 } from './accounts/OwnAccountForm';
 import { accountsQuery, invitationsQuery } from './queries';
 import styles from './accounts/Accounts.module.css';
+import { intlLocale } from '@/i18n';
 
 const TABS = ['accounts', 'invitations'];
 /** `?item=me`: the own account (the link to «Meine Profile» needs no account id). */
@@ -87,7 +88,7 @@ function AccountsContent() {
   const isOwner = session.account.isOwner;
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const inviteButton = useRef<HTMLButtonElement>(null);
 
@@ -346,7 +347,7 @@ function AccountsContent() {
     [ownId, isOwner, t, askRole, askRemove],
   );
   const columns = useMemo(
-    () => accountColumns(t, i18n.language, actionsOf),
+    () => accountColumns(t, intlLocale(i18n.language), actionsOf),
     [t, i18n.language, actionsOf],
   );
   const detail = (account: AdminAccount) => {
@@ -454,7 +455,7 @@ function AccountsContent() {
           ...(nextExpiry
             ? {
                 note: t('admin.accounts.status.nextExpiry', {
-                  date: formatDateTime(nextExpiry, i18n.language),
+                  date: formatDateTime(nextExpiry, intlLocale(i18n.language)),
                 }),
               }
             : {}),

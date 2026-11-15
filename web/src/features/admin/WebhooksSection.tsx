@@ -33,6 +33,7 @@ import {
   setIntegrationPathMap,
 } from './queries';
 import styles from './integrations/Integrations.module.css';
+import { intlLocale } from '@/i18n';
 
 const KINDS = ['radarr', 'sonarr'] as const satisfies readonly Integration['kind'][];
 
@@ -343,7 +344,7 @@ function EventLog({ integration }: { integration: Integration }) {
           key: 'receivedAt',
           header: t('admin.integrations.webhooks.log.at'),
           rowHeader: true,
-          cell: (event) => formatDateTime(event.receivedAt, i18n.language),
+          cell: (event) => formatDateTime(event.receivedAt, intlLocale(i18n.language)),
         },
         {
           key: 'event',
@@ -566,7 +567,7 @@ export function WebhooksSection({
                 header: t('admin.integrations.webhooks.columns.lastSeen'),
                 cell: (integration) =>
                   integration.lastSeenAt
-                    ? formatDateTime(integration.lastSeenAt, i18n.language)
+                    ? formatDateTime(integration.lastSeenAt, intlLocale(i18n.language))
                     : t('admin.integrations.webhooks.neverSeen'),
               },
               {

@@ -49,6 +49,7 @@ import {
   type BookReviewEntry,
 } from './queries';
 import styles from './metadata/AudiobookSources.module.css';
+import { intlLocale } from '@/i18n';
 
 /** Every Audible marketplace with its text key (a dot cannot stand in a key). */
 const REGIONS = {
@@ -434,7 +435,7 @@ function State({ sources }: { sources: AudiobookSources }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [message, setMessage] = useStatusMessage();
-  const number = new Intl.NumberFormat(i18n.language);
+  const number = new Intl.NumberFormat(intlLocale(i18n.language));
   const headingId = useId();
   const run = useMutation({
     mutationFn: matchAllAudiobooks,
@@ -496,7 +497,7 @@ function State({ sources }: { sources: AudiobookSources }) {
             {source.pausedUntil ? (
               <Chip tone="warning">
                 {t('admin.audiobookSources.sources.paused', {
-                  time: formatDateTime(source.pausedUntil, i18n.language),
+                  time: formatDateTime(source.pausedUntil, intlLocale(i18n.language)),
                 })}
               </Chip>
             ) : source.configured ? (

@@ -6,6 +6,7 @@ import { AriaButton } from '@/ui/aria';
 import { feedError } from './columns';
 import { PodcastSetting } from './PodcastSetting';
 import styles from './Podcasts.module.css';
+import { intlLocale } from '@/i18n';
 
 /**
  * The fold-out of a podcast (POD-2, POD-3): author, the whole feed address, library, the last
@@ -60,7 +61,7 @@ export function PodcastDetail({
             <dt>{t('admin.podcasts.columns.lastFetch')}</dt>
             <dd>
               {podcast.lastCheckedAt
-                ? formatDateTime(podcast.lastCheckedAt, i18n.language)
+                ? formatDateTime(podcast.lastCheckedAt, intlLocale(i18n.language))
                 : t('admin.podcasts.never')}
             </dd>
           </div>

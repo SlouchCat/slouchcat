@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import styles from './ProgressBar.module.css';
+import { intlLocale } from '@/i18n';
 
 interface ProgressBarProps {
   /** 0 … 100. */
@@ -13,7 +14,7 @@ interface ProgressBarProps {
 export function ProgressBar({ value, label, size = 'thin' }: ProgressBarProps) {
   const { i18n } = useTranslation();
   const percent = Math.min(100, Math.max(0, Number.isFinite(value) ? value : 0));
-  const valueText = new Intl.NumberFormat(i18n.language, {
+  const valueText = new Intl.NumberFormat(intlLocale(i18n.language), {
     style: 'percent',
     maximumFractionDigits: 0,
   }).format(percent / 100);

@@ -5,6 +5,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { accountLibraries, profiles } from '@/test/fixtures';
 import { json, mockApi, renderApp, signedIn, type Routes } from '@/test/api';
 
+// Swiss numbers as the app formats German (de-CH; concept 22 section 4.4).
+const swiss = (value: number) => new Intl.NumberFormat('de-CH').format(value);
+
 // W-8 and K-5 on the profile settings page: limits per profile, the guest account's cap and the
 // watch-time report. The server enforces and counts; the page edits and shows.
 
@@ -69,8 +72,12 @@ describe('profile limits and watch-time report', () => {
     await user.type(within(dialog).getByLabelText('Bandbreite (kbit/s)'), '50');
     await user.click(within(dialog).getByRole('radio', { name: 'Ohne Limit' }));
     await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
-    expect(await within(dialog).findByText('Erlaubt sind 200 bis 200.000.')).toBeVisible();
-    expect(within(dialog).getByText('200 bis 200.000. Leer heisst ohne Limit.')).toBeVisible();
+    expect(
+      await within(dialog).findByText(`Erlaubt sind 200 bis ${swiss(200_000)}.`),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByText(`200 bis ${swiss(200_000)}. Leer heisst ohne Limit.`),
+    ).toBeVisible();
     // The output never exceeds 1080p (AN-17): 2160p is no limit and not offered.
     expect(within(dialog).getByRole('radio', { name: '1080p' })).toBeVisible();
     expect(within(dialog).queryByRole('radio', { name: '2160p' })).toBeNull();

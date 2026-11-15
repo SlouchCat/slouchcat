@@ -16,6 +16,7 @@ import {
 } from '@/ui/aria';
 import { dashboardQuery } from './queries';
 import { adminGroups, adminSections, isSectionPath, type AdminGroup } from './sections';
+import { intlLocale } from '@/i18n';
 
 /** Poll interval of the sidebar's numbers on the admin pages but the overview, which asks itself. */
 const SHELL_POLL_MS = 30_000;
@@ -48,7 +49,7 @@ function useAdminNav(): { nav: Omit<AdminSideNavProps, 'focusCarry'>; pageLabel:
     ...dashboardQuery,
     refetchInterval: pathname === paths.admin ? false : SHELL_POLL_MS,
   });
-  const number = new Intl.NumberFormat(i18n.language);
+  const number = new Intl.NumberFormat(intlLocale(i18n.language));
 
   /** The spoken name of an entry with its number ("Pflege, 12 Titel brauchen Pflege"). */
   const spoken = (kind: SpokenCount, name: string, count: number) =>

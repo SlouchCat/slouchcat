@@ -188,7 +188,7 @@ test('PD-1: author, narrator, series and volume change, save, lock and show on t
     await expect(page.getByRole('heading', { level: 1, name: M4B_TITLE })).toBeVisible();
     await expect(page.getByText('von E2E Autorin')).toBeVisible();
     await expect(page.getByText('Gelesen von E2E Sprecher')).toBeVisible();
-    await expect(page.getByText('E2E Reihe · Band 2,5')).toBeVisible();
+    await expect(page.getByText('E2E Reihe · Band 2.5')).toBeVisible();
   } finally {
     // The files' values again, then the locks go.
     const path = `/api/v1/admin/items/${m4b}/metadata`;

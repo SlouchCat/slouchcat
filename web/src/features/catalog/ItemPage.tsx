@@ -59,6 +59,7 @@ import { EpisodeList, SeasonShelf, seasonFacts } from './SeasonShelf';
 import { usePlayStart } from './usePlayStart';
 import { CoverWatched } from './watched';
 import styles from './ItemPage.module.css';
+import { intlLocale } from '@/i18n';
 
 const route = getRouteApi('/_authed/_active/_chrome/items/$itemId');
 
@@ -202,7 +203,7 @@ function Versions({
         />
       )}
       {file ? (
-        <FileFacts file={file} t={t} language={i18n.language} />
+        <FileFacts file={file} t={t} language={intlLocale(i18n.language)} />
       ) : (
         <Notice tone="warning">{t('item.file.none')}</Notice>
       )}
@@ -282,7 +283,7 @@ function PodcastEpisodes({ item }: { item: ItemDetail }) {
     more && paged.first.data ? paged.slots : newest;
   const caption = (episode: ItemRef) =>
     [
-      episode.publishedAt ? formatDate(episode.publishedAt, i18n.language) : undefined,
+      episode.publishedAt ? formatDate(episode.publishedAt, intlLocale(i18n.language)) : undefined,
       episode.durationMs ? formatDuration(t, episode.durationMs) : undefined,
     ]
       .filter(Boolean)
@@ -501,7 +502,7 @@ function ItemView({ itemId }: { itemId: string }) {
   const item = query.data;
   // The server lists the primary version first (B-5).
   const file = item?.mediaFiles.find((entry) => entry.id === chosenFile) ?? item?.mediaFiles[0];
-  const target = item ? playTarget(t, i18n.language, item, file) : undefined;
+  const target = item ? playTarget(t, intlLocale(i18n.language), item, file) : undefined;
   const startKey = target?.available ? PLAY_KEY : BACK_KEY;
   // Offline the trailer button and its dialog go away. The dialog stays closed afterwards (it
   // must not come back by itself and autoplay on reconnect), and the focus moves to the big button

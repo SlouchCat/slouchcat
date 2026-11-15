@@ -303,7 +303,7 @@ describe('SubtitlePanel (V-5)', () => {
     expect(onChange).toHaveBeenLastCalledWith({ color: 'yellow' });
     await user.click(within(page).getByRole('button', { name: '0,1 s später' }));
     expect(onChange).toHaveBeenLastCalledWith({ offsetMs: 100 });
-    expect(within(page).getByText('0,0 s')).toBeVisible();
+    expect(within(page).getByText('0.0 s')).toBeVisible();
     await user.keyboard('{Backspace}');
     expect(screen.getByRole('dialog', { name: 'Untertitel' })).toBeInTheDocument();
   });
@@ -356,13 +356,13 @@ describe('SubtitlePanel (V-5)', () => {
     expect(later).toHaveFocus();
     expect(earlier).toHaveAttribute('tabindex', '-1');
     await user.keyboard('{Enter}');
-    expect(within(page).getByText('+0,1 s')).toBeVisible();
+    expect(within(page).getByText('+0.1 s')).toBeVisible();
     // «Zurücksetzen» keeps the focus after it set the offset back to 0 (it never switches off).
     await user.keyboard('{ArrowRight}');
     const reset = within(page).getByRole('button', { name: 'Zurücksetzen' });
     expect(reset).toHaveFocus();
     await user.keyboard('{Enter}');
-    expect(within(page).getByText('0,0 s')).toBeVisible();
+    expect(within(page).getByText('0.0 s')).toBeVisible();
     expect(reset).toHaveFocus();
     await user.keyboard('{Enter}');
     expect(reset).toHaveFocus();

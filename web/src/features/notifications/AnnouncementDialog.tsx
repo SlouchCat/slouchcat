@@ -8,6 +8,7 @@ import { Notice } from '@/ui';
 import { MessageDialog } from '@/ui/aria';
 import { announcementMessage } from './AnnouncementContent';
 import { ackAnnouncement, announcementsQuery } from './announcements';
+import { intlLocale } from '@/i18n';
 
 interface AnnouncementDialogProps {
   profileId: number;
@@ -43,7 +44,7 @@ export function AnnouncementDialog({ profileId, announcements, onClose }: Announ
     <MessageDialog
       isOpen
       onDismiss={onClose}
-      {...announcementMessage(t, i18n.language, current)}
+      {...announcementMessage(t, intlLocale(i18n.language), current)}
       status={
         total > 1
           ? t('announcements.counter', { index: total - announcements.length + 1, count: total })

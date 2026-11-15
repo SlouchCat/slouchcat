@@ -33,6 +33,7 @@ import { backupsQuery } from './queries';
 import { reloadToLogin } from './restart';
 import { RestartPanel } from './RestartPanel';
 import styles from './backup/Backup.module.css';
+import { intlLocale } from '@/i18n';
 
 const TABS = ['list', 'create', 'upload'];
 const KINDS = ['manual', 'auto'] as const;
@@ -69,7 +70,7 @@ export function BackupPage() {
 function BackupContent() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   const titleRef = useRef<HTMLHeadingElement>(null);
 
   const [restart, setRestart] = useState<Restart | null>(null);
@@ -228,7 +229,7 @@ function BackupContent() {
     [t, busy, askRestore, askRemove],
   );
   const columns = useMemo(
-    () => backupColumns(t, i18n.language, fresh, actionsOf),
+    () => backupColumns(t, intlLocale(i18n.language), fresh, actionsOf),
     [t, i18n.language, fresh, actionsOf],
   );
 
@@ -280,7 +281,11 @@ function BackupContent() {
             ? [t('admin.backup.groups.encrypted', { number: number.format(encrypted) })]
             : []),
           ...(newest
-            ? [t('admin.backup.groups.newest', { date: formatDateTime(newest, i18n.language) })]
+            ? [
+                t('admin.backup.groups.newest', {
+                  date: formatDateTime(newest, intlLocale(i18n.language)),
+                }),
+              ]
             : []),
         ].join(t('format.separator'));
         return (

@@ -8,6 +8,7 @@ import { type DataColumn } from '@/ui/aria';
 import { libraryMetadataQuery } from '../queries';
 import styles from './Libraries.module.css';
 import { ratingLabel } from '../../shared/choices';
+import { intlLocale } from '@/i18n';
 
 const dotOf: Record<Library['scan']['state'], StatusDotState> = {
   never: 'pending',
@@ -79,7 +80,7 @@ function StateCell({ library }: { library: Library }) {
       {scan.finishedAt && (
         <span className={styles.muted}>
           {t('admin.libraries.finishedAt', {
-            date: formatDateTime(scan.finishedAt, i18n.language),
+            date: formatDateTime(scan.finishedAt, intlLocale(i18n.language)),
           })}
         </span>
       )}

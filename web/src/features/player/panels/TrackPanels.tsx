@@ -17,6 +17,7 @@ import type { SubtitleStyle } from '../useSubtitleStyle';
 import { PANEL_IDS } from './panelIds';
 import { SubtitleStyleOptions } from './SubtitleStyleOptions';
 import styles from './SubtitleStyleOptions.module.css';
+import { intlLocale } from '@/i18n';
 
 const MORE = 'more';
 
@@ -49,7 +50,7 @@ function TrackList({
   leading,
 }: TrackListProps) {
   const { t, i18n } = useTranslation();
-  const language = i18n.language;
+  const language = intlLocale(i18n.language);
   const nameOf = ({ track, position }: PlacedTrack) =>
     trackLabel(t, track, position, language, { forced: false });
   const { mine, more } = orderTracks(tracks, profileLanguage, nameOf, language);

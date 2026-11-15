@@ -356,10 +356,10 @@ test('audio player by keyboard: controls with a visible ring, menus, no focus tr
   await page.keyboard.press('Enter');
   const speed = page.getByRole('menu', { name: /^Geschwindigkeit: / });
   await expect(speed).toBeVisible();
-  await arrowTo(page, speed.getByRole('menuitemradio', { name: '1,5×' }));
+  await arrowTo(page, speed.getByRole('menuitemradio', { name: '1.5×' }));
   await page.keyboard.press('Enter');
   await expect(player).toHaveAttribute('data-rate', '1.5');
-  await expectFocusOn(page, player.getByRole('button', { name: 'Geschwindigkeit: 1,5×' }));
+  await expectFocusOn(page, player.getByRole('button', { name: 'Geschwindigkeit: 1.5×' }));
   // T: the sleep timer menu; 15 minutes.
   await page.keyboard.press('t');
   const sleep = page.getByRole('menu', { name: 'Sleep-Timer' });

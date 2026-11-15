@@ -15,6 +15,7 @@ import {
   TrickplayFields,
 } from './TrickplayFields';
 import styles from './Libraries.module.css';
+import { intlLocale } from '@/i18n';
 
 /** The job type that makes the missing previews of every library «Im Voraus» (6.3, F-5). */
 export const TRICKPLAY_BACKFILL_TYPE = 'trickplay.backfill';
@@ -64,7 +65,7 @@ export function TrickplayDialog({ library, isOpen, onOpenChange, onSaved }: Tric
   const drops = (kind: keyof LibraryTrickplay) =>
     trickplayStores(saved[kind]) && !trickplayStores(value[kind]);
   const size = (kind: keyof LibraryTrickplay) =>
-    estimate ? formatBytes(estimate[kind].storedBytes, i18n.language) : undefined;
+    estimate ? formatBytes(estimate[kind].storedBytes, intlLocale(i18n.language)) : undefined;
   const dropMovies = drops('movies');
   const dropSeries = drops('series');
   const warning =

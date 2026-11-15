@@ -27,6 +27,7 @@ import {
 } from '../../shared/useLibraryOptions';
 import { invitationsQuery } from '../queries';
 import styles from './Accounts.module.css';
+import { intlLocale } from '@/i18n';
 
 const stateTone = {
   open: 'success',
@@ -258,7 +259,7 @@ export function InvitationsTable({
         invitation.state === 'used' && invitation.usedByEmail
           ? t('admin.accounts.invitations.usedBy', { email: invitation.usedByEmail })
           : t('admin.accounts.invitations.expires', {
-              date: formatDateTime(invitation.expiresAt, i18n.language),
+              date: formatDateTime(invitation.expiresAt, intlLocale(i18n.language)),
             }),
     },
     {

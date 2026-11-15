@@ -27,6 +27,7 @@ import { useCoverPens } from './EditMetadata';
 import { creditCaption } from './labels';
 import { personQuery } from './queries';
 import styles from './PersonPage.module.css';
+import { intlLocale } from '@/i18n';
 
 const route = getRouteApi('/_authed/_active/_chrome/people/$personId');
 
@@ -273,7 +274,7 @@ export function PersonPage() {
           <Portrait name={person.name} url={portrait} />
           <div className={styles.info}>
             <h1 className={styles.name}>{person.name}</h1>
-            <FactList facts={personFacts(t, i18n.language, person, titles.length)} />
+            <FactList facts={personFacts(t, intlLocale(i18n.language), person, titles.length)} />
             {person.biography && <Biography person={person} />}
           </div>
         </div>

@@ -52,6 +52,7 @@ import { reloadPage, RESTART_POLL_MS, restartedSince } from './restart';
 import { RestartPanel } from './RestartPanel';
 import { streamMode } from './streams/format';
 import styles from './AdminHomePage.module.css';
+import { intlLocale } from '@/i18n';
 
 /** The dot of an integration's state; the text next to it carries the meaning. */
 const integrationDot = {
@@ -206,7 +207,7 @@ const jobsFailed = `${paths.adminJobs}?tab=failed`;
  */
 function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[] {
   const { t, i18n } = useTranslation();
-  const number = new Intl.NumberFormat(i18n.language);
+  const number = new Intl.NumberFormat(intlLocale(i18n.language));
   const hints: Hint[] = [];
   const toJobs = <TextLink href={paths.adminJobs}>{t('admin.home.hints.toJobs')}</TextLink>;
   if (data.jobs.failed > 0) {
@@ -298,8 +299,8 @@ function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[] {
         tone: 'warning',
         title: t('admin.home.hints.storage', { path: info.path, percent: STORAGE_FULL * 100 }),
         body: t('admin.home.storage.free', {
-          free: formatBytes(info.freeBytes, i18n.language),
-          total: formatBytes(info.totalBytes, i18n.language),
+          free: formatBytes(info.freeBytes, intlLocale(i18n.language)),
+          total: formatBytes(info.totalBytes, intlLocale(i18n.language)),
         }),
       });
     }
@@ -348,7 +349,7 @@ function HintsCard({ hints }: { hints: Hint[] }) {
     <DashCard
       icon="warning"
       title={t('admin.home.hints.title')}
-      count={new Intl.NumberFormat(i18n.language).format(hints.length)}
+      count={new Intl.NumberFormat(intlLocale(i18n.language)).format(hints.length)}
       countLabel={t('admin.home.hints.count', { count: hints.length })}
       countLive
     >
@@ -483,7 +484,7 @@ function InstallResult({ install }: { install: UpdateInstallStatus }) {
   const finished = install.finishedAt && (
     <Text as="span" tone="secondary" variant="caption">
       {t('admin.home.install.finished', {
-        date: formatDateTime(install.finishedAt, i18n.language),
+        date: formatDateTime(install.finishedAt, intlLocale(i18n.language)),
       })}
     </Text>
   );
@@ -901,7 +902,7 @@ function ServerCard({
       if (isApiError(error, 409) && error.code === 'restart_pending') onRestart();
     },
   });
-  const number = (value: number) => new Intl.NumberFormat(i18n.language).format(value);
+  const number = (value: number) => new Intl.NumberFormat(intlLocale(i18n.language)).format(value);
   // The server's own uptime (getHealth), counted on with this browser's clock since it answered,
   // so a clock that differs from the server's does not shift it; the start time only without it.
   const health = useHealth();
@@ -992,7 +993,7 @@ function ServerCard({
       {update.checkedAt && (
         <Text tone="secondary" variant="caption">
           {t('admin.home.server.checked', {
-            date: formatDateTime(update.checkedAt, i18n.language),
+            date: formatDateTime(update.checkedAt, intlLocale(i18n.language)),
           })}
         </Text>
       )}
@@ -1000,7 +1001,7 @@ function ServerCard({
       {update.error && update.lastSuccessAt && (
         <Text tone="secondary" variant="caption">
           {t('admin.home.server.lastSuccess', {
-            date: formatDateTime(update.lastSuccessAt, i18n.language),
+            date: formatDateTime(update.lastSuccessAt, intlLocale(i18n.language)),
           })}
         </Text>
       )}
@@ -1074,7 +1075,7 @@ function StreamsCard({ streams }: { streams: Dashboard['streams'] }) {
 
 function TasksCard({ jobs }: { jobs: Dashboard['jobs'] }) {
   const { t, i18n } = useTranslation();
-  const number = new Intl.NumberFormat(i18n.language);
+  const number = new Intl.NumberFormat(intlLocale(i18n.language));
   return (
     <DashCard
       icon="refresh"
@@ -1141,7 +1142,7 @@ function TasksCard({ jobs }: { jobs: Dashboard['jobs'] }) {
           {jobs.nextRun
             ? t('admin.home.jobs.next', {
                 type: typeName(t, jobs.nextRun.type),
-                date: formatDateTime(jobs.nextRun.at, i18n.language),
+                date: formatDateTime(jobs.nextRun.at, intlLocale(i18n.language)),
               })
             : t('admin.home.jobs.idle')}
         </Text>
@@ -1180,8 +1181,8 @@ function ActivityCard({ activity, now }: { activity: Dashboard['activity']; now:
       id: String(event.id),
       icon: look.icon,
       tone: look.tone,
-      text: activitySentence(t, event, i18n.language),
-      time: relativeTime(event.at, now, i18n.language),
+      text: activitySentence(t, event, intlLocale(i18n.language)),
+      time: relativeTime(event.at, now, intlLocale(i18n.language)),
       dateTime: event.at,
     };
   });
@@ -1200,7 +1201,7 @@ function ActivityCard({ activity, now }: { activity: Dashboard['activity']; now:
 
 function IntegrationsCard({ integrations }: { integrations: Dashboard['integrations'] }) {
   const { t, i18n } = useTranslation();
-  const number = new Intl.NumberFormat(i18n.language);
+  const number = new Intl.NumberFormat(intlLocale(i18n.language));
   const configured = integrations.filter((entry) => entry.state === 'configured').length;
   return (
     <DashCard
@@ -1277,7 +1278,7 @@ function WebhooksCard({ webhooks }: { webhooks: Dashboard['webhooks'] }) {
 
 function StorageCard({ storage }: { storage: Dashboard['storage'] }) {
   const { t, i18n } = useTranslation();
-  const bytes = (value: number) => formatBytes(value, i18n.language);
+  const bytes = (value: number) => formatBytes(value, intlLocale(i18n.language));
   const meter = (info: StorageInfo, label: string) => {
     const used = Math.max(0, info.totalBytes - info.freeBytes);
     return (
@@ -1375,7 +1376,9 @@ function ServerLog({ errors }: { errors: Dashboard['errors'] }) {
             {errors.map((entry, index) => (
               <li key={keys[index]} className={styles.error}>
                 <span className={styles.errorMeta}>
-                  <time dateTime={entry.at}>{formatDateTime(entry.at, i18n.language)}</time>
+                  <time dateTime={entry.at}>
+                    {formatDateTime(entry.at, intlLocale(i18n.language))}
+                  </time>
                   <span>{entry.source}</span>
                   {entry.jobId !== undefined && (
                     <span>

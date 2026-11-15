@@ -94,6 +94,7 @@ import {
   type JobRunState,
 } from './queries';
 import styles from './jobs/Jobs.module.css';
+import { intlLocale } from '@/i18n';
 
 /** The groups of the job types, in their order (concept 09, 2.2); one tab each. */
 const GROUPS = ['library', 'metadata', 'delivery', 'system'] as const;
@@ -360,7 +361,7 @@ function LastRun({ info, oneLine = false }: { info: JobTypeInfo; oneLine?: boole
 
 function NextRun({ info }: { info: JobTypeInfo }) {
   const { t, i18n } = useTranslation();
-  return <>{nextText(t, info, useNow(), i18n.language)}</>;
+  return <>{nextText(t, info, useNow(), intlLocale(i18n.language))}</>;
 }
 
 /** The duration of a run, counting up while it runs. */
@@ -447,7 +448,7 @@ function JobsContent() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const titleRef = useRef<HTMLHeadingElement>(null);
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
 
   // The drafts need what the server holds before the polling query knows whether to pause for
   // them: a passive observer reads the same cache entry without fetching.
@@ -1711,7 +1712,7 @@ function RunsBlock({
   const { t, i18n } = useTranslation();
   const name = typeName(t, info.type);
   const [tab, setTab] = useState<JobRunState>(info.counts.running > 0 ? 'running' : 'queued');
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   const countOf = (state: JobRunState): number | undefined => {
     switch (state) {
       case 'running':
@@ -1747,7 +1748,7 @@ function RunsBlock({
                 state={state}
                 hold={hold}
                 pending={pending}
-                language={i18n.language}
+                language={intlLocale(i18n.language)}
                 onSettled={onSettled}
                 onFailure={onFailure}
                 onRetryFailed={onRetryFailed}
@@ -1989,7 +1990,7 @@ function FailedTab({
 }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   const [wanted, setWanted] = useState(PAGED_LIST_PAGE);
   const paged = usePagedList(
     failedRunsSource,
@@ -2072,7 +2073,7 @@ function FailedTab({
       header: t('admin.jobs.failed.columns.at'),
       cell: (job) => (
         <time className={styles.nowrap} dateTime={job.finishedAt ?? job.updatedAt}>
-          {formatDateTime(job.finishedAt ?? job.updatedAt, i18n.language)}
+          {formatDateTime(job.finishedAt ?? job.updatedAt, intlLocale(i18n.language))}
         </time>
       ),
     },

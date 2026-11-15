@@ -6,6 +6,7 @@ import { formatDuration } from '@/lib/format';
 import { PosterFallback, Text, TextLink } from '@/ui';
 import { DataTable, ImageTile, type DataColumn } from '@/ui/aria';
 import styles from './Stats.module.css';
+import { intlLocale } from '@/i18n';
 
 /** Places 1 to 3 stand as tiles, the rest in the table (mockup Sta-B). */
 const PODIUM = 3;
@@ -36,7 +37,7 @@ function Thumb({ src }: { src?: string }) {
  */
 export function TopTitles({ titles }: { titles: StatTitle[] }) {
   const { t, i18n } = useTranslation();
-  const number = new Intl.NumberFormat(i18n.language);
+  const number = new Intl.NumberFormat(intlLocale(i18n.language));
   if (titles.length === 0) return <Text tone="secondary">{t('admin.stats.top.empty')}</Text>;
 
   const name = (title: StatTitle) =>

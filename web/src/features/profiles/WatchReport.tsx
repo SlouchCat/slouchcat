@@ -6,6 +6,7 @@ import { Notice, Skeleton, Text } from '@/ui';
 import { AriaButton, BarChart } from '@/ui/aria';
 import { watchReportQuery } from './queries';
 import styles from './ProfileList.module.css';
+import { intlLocale } from '@/i18n';
 
 /** Days of the report (K-5: the last 30 days including today). */
 export const REPORT_DAYS = 30;
@@ -24,8 +25,11 @@ export function WatchReport({ profile }: { profile: Profile }) {
   const { t, i18n } = useTranslation();
   const report = useQuery(watchReportQuery(profile.id, REPORT_DAYS));
   const headingId = `watch-report-${profile.id}`;
-  const long = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium' });
-  const short = new Intl.DateTimeFormat(i18n.language, { day: 'numeric', month: 'numeric' });
+  const long = new Intl.DateTimeFormat(intlLocale(i18n.language), { dateStyle: 'medium' });
+  const short = new Intl.DateTimeFormat(intlLocale(i18n.language), {
+    day: 'numeric',
+    month: 'numeric',
+  });
 
   const days = report.data?.days ?? [];
   const today = days.at(-1)?.minutes ?? 0;

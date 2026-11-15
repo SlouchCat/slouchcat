@@ -228,7 +228,7 @@ describe('admin streams (W-6)', () => {
     expect(within(loadOf('Direct')).getAllByRole('definition')[0]).toHaveTextContent('1');
     // 4 + 2.5 + 9.8 Mbit/s; the direct stream has no bit rate.
     const bandwidth = within(loadOf('Bandbreite gesamt')).getAllByRole('definition');
-    expect(bandwidth[0]).toHaveTextContent(/^16,3\sMb(it)?\/s$/);
+    expect(bandwidth[0]).toHaveTextContent(/^16\.3\sMb(it)?\/s$/);
     // The direct stream reports no bit rate: the note says the sum covers the known ones.
     expect(bandwidth[1]).toHaveTextContent('Summe der bekannten Bitraten');
   });

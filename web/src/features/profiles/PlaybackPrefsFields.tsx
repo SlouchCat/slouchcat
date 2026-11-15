@@ -5,6 +5,7 @@ import { languageName } from '@/features/player/labels';
 import { RadioGroup, RankedChoiceList } from '@/ui/aria';
 import { MAX_PLAYBACK_LANGUAGES, PLAYBACK_LANGUAGES } from './playbackPrefs';
 import styles from './PlaybackPrefsFields.module.css';
+import { intlLocale } from '@/i18n';
 
 const SUBTITLE_MODES: readonly SubtitleMode[] = ['off', 'forced', 'foreign', 'always'];
 
@@ -47,8 +48,11 @@ function LanguageList({
   const choices = useMemo(() => {
     const codes = full ? [...value] : [...new Set([...PLAYBACK_LANGUAGES, ...value])];
     return codes
-      .map((code) => ({ value: code, label: languageName(code, i18n.language) ?? code }))
-      .sort((a, b) => a.label.localeCompare(b.label, i18n.language));
+      .map((code) => ({
+        value: code,
+        label: languageName(code, intlLocale(i18n.language)) ?? code,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, intlLocale(i18n.language)));
   }, [full, value, i18n.language]);
   return (
     <fieldset className={styles.group} aria-describedby={error ? `${hintId} ${errorId}` : hintId}>

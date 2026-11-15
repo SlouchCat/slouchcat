@@ -66,6 +66,7 @@ import {
   updateMetadataSettings,
 } from './queries';
 import styles from './metadata/Metadata.module.css';
+import { intlLocale } from '@/i18n';
 
 const route = getRouteApi('/_authed/_active/_chrome/admin/metadata');
 
@@ -165,7 +166,7 @@ const SERVER_FIELDS: Record<Exclude<Area, 'apply'>, (keyof ServerValues)[]> = {
 function useLanguageName(): (code: string) => string {
   const { i18n } = useTranslation();
   const names = useMemo(
-    () => new Intl.DisplayNames([i18n.language], { type: 'language' }),
+    () => new Intl.DisplayNames([intlLocale(i18n.language)], { type: 'language' }),
     [i18n.language],
   );
   return (code: string) => (code ? (names.of(code) ?? code) : '');
@@ -344,7 +345,7 @@ function ApplySection({
             ? t('admin.metadata.apply.lastRun', {
                 when: formatDateTime(
                   lastRun.finishedAt ?? lastRun.startedAt ?? lastRun.updatedAt,
-                  i18n.language,
+                  intlLocale(i18n.language),
                 ),
                 state: t(`admin.jobs.runs.tab.${lastRun.state}`),
               })
@@ -441,7 +442,7 @@ export function MetadataPage() {
   /** The changed scopes in save order: the default first, then the libraries in list order. */
   const dirtyScopes = scopeIds.filter((id) => drafts.isDirty(id));
   const listOf = (names: string[]) =>
-    new Intl.ListFormat(i18n.language, { type: 'conjunction' }).format(names);
+    new Intl.ListFormat(intlLocale(i18n.language), { type: 'conjunction' }).format(names);
 
   const [saving, setSaving] = useState(false);
   const [savedMessages, setSavedMessages] = useState<{ scope: string; text: string }[]>([]);

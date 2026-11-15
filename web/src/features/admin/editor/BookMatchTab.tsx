@@ -21,6 +21,7 @@ import {
   type MatchPreview,
 } from '../queries';
 import styles from './MetadataEditor.module.css';
+import { intlLocale } from '@/i18n';
 
 /** The Audible marketplaces the source select offers by name; the setting adds its own. */
 const REGION_LABEL = {
@@ -394,7 +395,7 @@ export function BookMatchTab({
 function useDisplayValue() {
   const { t, i18n } = useTranslation();
   const names = useMemo(
-    () => new Intl.DisplayNames([i18n.language], { type: 'language' }),
+    () => new Intl.DisplayNames([intlLocale(i18n.language)], { type: 'language' }),
     [i18n.language],
   );
   return (field: BookMatchField, value: string, side: 'current' | 'proposed') => {

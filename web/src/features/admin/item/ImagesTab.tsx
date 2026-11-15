@@ -16,6 +16,7 @@ import {
 } from '@/ui';
 import { AriaButton, DataTable, FormDialog, type DataColumn } from '@/ui/aria';
 import styles from './AdminItem.module.css';
+import { intlLocale } from '@/i18n';
 
 /** Tiles shown at once; "Mehr" adds the next ones (concept 10, 7.3). */
 const PAGE = 40;
@@ -99,8 +100,8 @@ function PickerDialog({
   });
   const list = candidates.data?.candidates ?? [];
   const tiles: ImageCandidateTile[] = list.slice(0, shown).map((c) => {
-    const lang = languageLabel(t, i18n.language, c.lang);
-    const detail = candidateDetail(t, i18n.language, c);
+    const lang = languageLabel(t, intlLocale(i18n.language), c.lang);
+    const detail = candidateDetail(t, intlLocale(i18n.language), c);
     return {
       id: `${c.provider}|${c.source}`,
       previewUrl: c.previewUrl,
@@ -223,7 +224,7 @@ export function ImagesTab({
           <span className={styles.chips}>
             <Chip tone="outline">{providerLabel(t, image.provider)}</Chip>
             <span className={styles.muted}>
-              {languageLabel(t, i18n.language, image.lang ?? '')}
+              {languageLabel(t, intlLocale(i18n.language), image.lang ?? '')}
             </span>
           </span>
         ) : (

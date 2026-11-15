@@ -14,6 +14,7 @@ import {
 } from '../queries';
 import { languageCodes } from './languages';
 import styles from './Radio.module.css';
+import { intlLocale } from '@/i18n';
 
 /** An address the server can take: http or https (it checks the rest, the local network too). */
 const isWebUrl = (value: string) => /^https?:\/\/\S+$/i.test(value.trim());
@@ -65,7 +66,7 @@ interface CreateStationDialogProps {
  */
 export function CreateStationDialog({ onClose, onCreated }: CreateStationDialogProps) {
   const { t, i18n } = useTranslation();
-  const language = i18n.language;
+  const language = intlLocale(i18n.language);
   const [draft, setDraft] = useState(empty);
   const facets = useQuery(radioFacetsQuery(radioQueryParams({})));
   const create = useMutation({ mutationFn: createRadioStation, onSuccess: onCreated });

@@ -8,6 +8,9 @@ import { dashboardFixture, renderAdminPage } from '@/test/admin';
 import { activitySentence } from './AdminHomePage';
 import { reloadPage } from './restart';
 
+// Swiss numbers as the app formats German (de-CH; concept 22 section 4.4).
+const swiss = (value: number) => new Intl.NumberFormat('de-CH').format(value);
+
 // A restart that went through reloads the page; the test only notes it.
 vi.mock('./restart', async (original) => ({
   ...(await original<typeof import('./restart')>()),
@@ -192,7 +195,7 @@ describe('admin overview (concept 11, A-3)', () => {
 
     expect(await within(server).findByText('0.9.0+abc1234')).toBeVisible();
     expect(within(server).getByText('Intel Quick Sync (QSV)')).toBeVisible();
-    expect(within(server).getByText('58.982 von 65.536 (90 %)')).toBeVisible();
+    expect(within(server).getByText(`${swiss(58982)} von ${swiss(65536)} (90 %)`)).toBeVisible();
     expect(within(server).getByText('Version 0.9.1 verfügbar')).toBeVisible();
     expect(within(server).getByRole('button', { name: 'Nach Updates suchen' })).toBeVisible();
     expect(within(server).getByRole('button', { name: 'Neu starten' })).toBeVisible();
@@ -1532,8 +1535,8 @@ describe('admin sidebar (A-2, concept 11)', () => {
     }
     // F-7: few muted counts, coloured pills for what needs a look, each with a spoken name.
     expect(
-      await within(nav).findByRole('link', { name: 'Bibliotheken, 1.200 Titel' }),
-    ).toHaveTextContent('1.200');
+      await within(nav).findByRole('link', { name: `Bibliotheken, ${swiss(1200)} Titel` }),
+    ).toHaveTextContent(swiss(1200));
     expect(
       within(nav).getByRole('link', { name: 'Pflege, 4 Titel brauchen Pflege' }),
     ).toBeVisible();

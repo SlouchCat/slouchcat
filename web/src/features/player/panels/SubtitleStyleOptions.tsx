@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { AriaButton, OptionList, OptionRow } from '@/ui/aria';
 import { SUBTITLE_OFFSET_STEP_MS, type SubtitleStyle } from '../useSubtitleStyle';
 import styles from './SubtitleStyleOptions.module.css';
+import { intlLocale } from '@/i18n';
 
 interface SubtitleStyleOptionsProps {
   value: SubtitleStyle;
@@ -65,7 +66,7 @@ type OffsetKey = (typeof OFFSET_KEYS)[number];
 export function SubtitleStyleOptions({ value, onChange }: SubtitleStyleOptionsProps) {
   const { t, i18n } = useTranslation();
   const offsetId = useId();
-  const seconds = new Intl.NumberFormat(i18n.language, {
+  const seconds = new Intl.NumberFormat(intlLocale(i18n.language), {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
     signDisplay: 'exceptZero',

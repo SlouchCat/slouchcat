@@ -177,7 +177,7 @@ describe('audio player (M6)', () => {
     fireEvent.keyDown(window, { key: ']' });
     fireEvent.keyDown(window, { key: ']' });
     expect(audio.playbackRate).toBe(1.7);
-    expect(await within(region).findByRole('status')).toHaveTextContent('Geschwindigkeit 1,7×');
+    expect(await within(region).findByRole('status')).toHaveTextContent('Geschwindigkeit 1.7×');
     fireEvent.keyDown(window, { key: '[' });
     expect(audio.playbackRate).toBe(1.6);
 

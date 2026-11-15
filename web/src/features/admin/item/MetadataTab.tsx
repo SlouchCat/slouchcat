@@ -9,6 +9,7 @@ import { AriaButton, DisclosureGroup, RadioGroup } from '@/ui/aria';
 import { ratingLabel, ratingOptions } from '../../shared/choices';
 import { itemFacts, providerName, sourceFacts, sourceSummary } from './facts';
 import styles from './AdminItem.module.css';
+import { intlLocale } from '@/i18n';
 
 /** The choice of «Eigene Freigabe setzen» that hands the rating back to the metadata. */
 export const FROM_METADATA = 'metadata';
@@ -117,7 +118,7 @@ export function MetadataTab({
   const { t, i18n } = useTranslation();
   const none = t('admin.item.facts.none');
   const fsk = (age: number | undefined) => (age !== undefined ? ratingLabel(t, age) : none);
-  const number = new Intl.NumberFormat(i18n.language);
+  const number = new Intl.NumberFormat(intlLocale(i18n.language));
   const sources = item.fieldSources.length;
   return (
     <div className={styles.tabBody}>
@@ -125,7 +126,7 @@ export function MetadataTab({
         <h2 id="admin-item-facts" className={styles.sectionTitle}>
           {t('admin.item.facts.metadata')}
         </h2>
-        <FactList facts={itemFacts(t, item, i18n.language)} />
+        <FactList facts={itemFacts(t, item, intlLocale(i18n.language))} />
       </Panel>
       {sources > 0 && (
         <DisclosureGroup
@@ -213,7 +214,7 @@ function OriginalLanguage({
 }) {
   const { t, i18n } = useTranslation();
   const names = useMemo(
-    () => new Intl.DisplayNames([i18n.language], { type: 'language' }),
+    () => new Intl.DisplayNames([intlLocale(i18n.language)], { type: 'language' }),
     [i18n.language],
   );
   const nameOf = (code: string) => names.of(code) ?? code;
@@ -231,7 +232,7 @@ function OriginalLanguage({
       ? providerName(t, won)
       : t('admin.item.facts.none');
   const options = useMemo(
-    () => originalLanguageOptions(t, names, i18n.language, choice.known, choice.value),
+    () => originalLanguageOptions(t, names, intlLocale(i18n.language), choice.known, choice.value),
     [choice.known, choice.value, names, i18n.language, t],
   );
   return (

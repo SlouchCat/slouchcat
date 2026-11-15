@@ -11,7 +11,7 @@ import { api, isApiError, request } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { adoptSession } from '@/app/session';
-import { currentLanguage, isLanguage, type Language } from '@/i18n';
+import { currentLanguage, intlLocale, isLanguage, type Language } from '@/i18n';
 import { formatDateTime } from '@/lib/format';
 import { formText, MIN_PASSWORD } from '@/lib/form';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
@@ -70,7 +70,9 @@ function Summary({ invitation }: { invitation: InvitationPreview }) {
         </div>
       </dl>
       <Text tone="muted" variant="caption">
-        {t('invite.expires', { date: formatDateTime(invitation.expiresAt, i18n.language) })}
+        {t('invite.expires', {
+          date: formatDateTime(invitation.expiresAt, intlLocale(i18n.language)),
+        })}
       </Text>
     </Panel>
   );

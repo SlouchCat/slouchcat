@@ -15,6 +15,7 @@ import {
 import { duplicatesQuery } from '../queries';
 import { fullPath, groupKey, titleWithYear } from './shared';
 import styles from './Maintenance.module.css';
+import { intlLocale } from '@/i18n';
 
 interface DuplicatesTabProps {
   /** The libraries: each title names its library next to its paths (P-10). */
@@ -167,7 +168,7 @@ function DuplicateSection({
                   <span key={file.id} className={styles.fileLine}>
                     <code className={styles.path}>{fullPath(file.rootPath, file.path)}</code>
                     <span className={styles.muted}>
-                      {formatBytes(file.sizeBytes, i18n.language)}
+                      {formatBytes(file.sizeBytes, intlLocale(i18n.language))}
                     </span>
                   </span>
                 ))}
@@ -179,8 +180,10 @@ function DuplicateSection({
                     <span className={styles.muted}>
                       {t('admin.maintenance.duplicates.folderFiles', {
                         count: folder.fileCount,
-                        n: new Intl.NumberFormat(i18n.language).format(folder.fileCount),
-                        size: formatBytes(folder.sizeBytes, i18n.language),
+                        n: new Intl.NumberFormat(intlLocale(i18n.language)).format(
+                          folder.fileCount,
+                        ),
+                        size: formatBytes(folder.sizeBytes, intlLocale(i18n.language)),
                       })}
                     </span>
                   </span>

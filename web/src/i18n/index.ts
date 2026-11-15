@@ -1,7 +1,12 @@
 import type { Language } from '@slouchcat/api-client';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import { detectLanguage as detectFrom, fallbackLanguage, isLanguage } from './languages';
+import {
+  detectLanguage as detectFrom,
+  fallbackLanguage,
+  intlLocale,
+  isLanguage,
+} from './languages';
 
 export {
   fallbackLanguage,
@@ -133,6 +138,11 @@ await i18n.use(initReactI18next).init({
   fallbackLng: fallbackLanguage,
   interpolation: { escapeValue: false },
   initAsync: false,
+});
+// `{{count, number}}` in a text formats like every Intl call of the app: Swiss for de.
+i18n.services.formatter?.addCached('number', (language, options) => {
+  const format = new Intl.NumberFormat(intlLocale(language ?? initial), options);
+  return (value: number) => format.format(value);
 });
 await switchTo(initial);
 

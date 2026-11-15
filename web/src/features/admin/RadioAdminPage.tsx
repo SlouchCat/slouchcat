@@ -29,6 +29,7 @@ import { OwnStationsTab } from './radio/OwnStationsTab';
 import { SettingsTab } from './radio/SettingsTab';
 import { StationEditor } from './radio/StationEditor';
 import { StationsTab } from './radio/StationsTab';
+import { intlLocale } from '@/i18n';
 
 const route = getRouteApi('/_authed/_active/_chrome/admin/radio');
 
@@ -64,9 +65,13 @@ export function RadioAdminPage() {
 
 function RadioAdminContent() {
   const { t, i18n } = useTranslation();
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   const percent = useMemo(
-    () => new Intl.NumberFormat(i18n.language, { style: 'percent', maximumFractionDigits: 0 }),
+    () =>
+      new Intl.NumberFormat(intlLocale(i18n.language), {
+        style: 'percent',
+        maximumFractionDigits: 0,
+      }),
     [i18n.language],
   );
   const titleRef = useRef<HTMLHeadingElement>(null);

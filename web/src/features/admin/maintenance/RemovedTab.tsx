@@ -15,6 +15,7 @@ import {
 import { removedQuery } from '../queries';
 import { fullPath } from './shared';
 import styles from './Maintenance.module.css';
+import { intlLocale } from '@/i18n';
 
 interface RemovedTabProps {
   outcome: StatusMessage | undefined;
@@ -32,7 +33,7 @@ interface RemovedTabProps {
  */
 export function RemovedTab({ outcome, hold, restoring, onRestore }: RemovedTabProps) {
   const { t, i18n } = useTranslation();
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   const removed = useQuery({ ...removedQuery, refetchOnWindowFocus: !hold });
   const items = removed.data?.items ?? [];
   const total = removed.data?.total ?? 0;
@@ -75,7 +76,7 @@ export function RemovedTab({ outcome, hold, restoring, onRestore }: RemovedTabPr
       key: 'removedAt',
       width: '11%',
       header: t('admin.maintenance.removed.columns.removedAt'),
-      cell: (item) => formatDate(item.removedAt, i18n.language),
+      cell: (item) => formatDate(item.removedAt, intlLocale(i18n.language)),
     },
     {
       key: 'action',

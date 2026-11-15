@@ -127,3 +127,18 @@ describe('loading', () => {
     expect(i18n.language).toBe('de');
   });
 });
+
+describe('{{value, number}} in a text', () => {
+  it('formats like intlLocale: Swiss for de, English for en', async () => {
+    await setLanguage('de');
+    const swiss = new Intl.NumberFormat('de-CH').format(1234567.5);
+    expect(i18n.t('item.audio.volume', { series: 'S', volume: 1234567.5 })).toBe(
+      `S · Band ${swiss}`,
+    );
+    await setLanguage('en');
+    expect(i18n.t('item.audio.volume', { series: 'S', volume: 1234567.5 })).toContain(
+      '1,234,567.5',
+    );
+    await setLanguage('de');
+  });
+});

@@ -23,6 +23,7 @@ import { usePlayerPrefs } from '@/features/player/usePlayerPrefs';
 import { useSubtitleStyle } from '@/features/player/useSubtitleStyle';
 import { AriaButton, focusOnMount, PlayerChrome, type SeekBarTrickplay } from '@/ui/aria';
 import styles from '@/features/player/Player.module.css';
+import { intlLocale } from '@/i18n';
 
 /** A subtitle of the download, stored as WebVTT in OPFS and offered through a blob URL. */
 export interface StoredSubtitle {
@@ -110,7 +111,7 @@ export function OfflineVideo({
   data,
 }: OfflineVideoProps) {
   const { t, i18n } = useTranslation();
-  const language = i18n.language;
+  const language = intlLocale(i18n.language);
   const video = media as RefObject<HTMLVideoElement | null>;
   const {
     panel,

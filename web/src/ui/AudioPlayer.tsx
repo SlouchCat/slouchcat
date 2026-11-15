@@ -15,6 +15,7 @@ import { focusOnMount } from './focusOnMount';
 import { MenuButton } from './Menu';
 import { PosterFallback } from './PosterFallback';
 import { VolumeControl } from './VolumeControl';
+import { intlLocale } from '@/i18n';
 
 /** The menus of the audio player; the page opens them by key as well (C, T). */
 export type AudioPlayerMenu = 'chapters' | 'speed' | 'sleep';
@@ -233,7 +234,9 @@ export function AudioPlayer({
   const { t, i18n } = useTranslation();
   const rateText = (value: number) =>
     t('player.audio.rate', {
-      rate: new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }).format(value),
+      rate: new Intl.NumberFormat(intlLocale(i18n.language), { maximumFractionDigits: 2 }).format(
+        value,
+      ),
     });
   const chapterTitle = (index: number) =>
     chapters[index]?.title ?? t('player.chapters.untitled', { n: index + 1 });

@@ -16,6 +16,7 @@ import styles from './stats/Stats.module.css';
 import { TopTitles } from './stats/TopTitles';
 import { WhenWatched } from './stats/WhenWatched';
 import { DEFAULT_STATS_DAYS, STATS_DAYS } from './statsDays';
+import { intlLocale } from '@/i18n';
 
 const route = getRouteApi('/_authed/_active/_chrome/admin/stats');
 
@@ -127,7 +128,7 @@ function StatsContent() {
         >
           <StatusStrip
             label={t('admin.stats.playback.title')}
-            tiles={playbackTiles(t, i18n.language, data.playback)}
+            tiles={playbackTiles(t, intlLocale(i18n.language), data.playback)}
           />
           <BandPanel
             title={t('admin.stats.top.title')}

@@ -54,6 +54,7 @@ import {
   type RadioOfferStep,
 } from '../queries';
 import styles from './Radio.module.css';
+import { intlLocale } from '@/i18n';
 
 /** Changes wait this long before the preview follows; typing in a search as well. */
 const DEBOUNCE_MS = 300;
@@ -181,7 +182,7 @@ interface OfferTabProps {
  */
 export function OfferTab({ steps, onStepsChange, titleRef }: OfferTabProps) {
   const { t, i18n } = useTranslation();
-  const language = i18n.language;
+  const language = intlLocale(i18n.language);
   const number = useMemo(() => new Intl.NumberFormat(language), [language]);
   const queryClient = useQueryClient();
   const id = useId();
@@ -738,7 +739,7 @@ interface OfferStationsProps {
  */
 function OfferStations({ id, country, stepsRef, overrides, onStep, onClose }: OfferStationsProps) {
   const { t, i18n } = useTranslation();
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   const [text, setText] = useState('');
   const [q, setQ] = useState('');
   useEffect(() => {

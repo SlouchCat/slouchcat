@@ -28,6 +28,7 @@ import {
   type EditorValues,
 } from './editorModel';
 import styles from './MetadataEditor.module.css';
+import { intlLocale } from '@/i18n';
 
 /** The genre suggestions of the server's metadata language (listAdminGenres). */
 const genresQuery = {
@@ -83,7 +84,7 @@ export function MetadataEditorTab({
   const genres = useQuery(genresQuery);
   const languages = useQuery({ ...metadataSettingsQuery, enabled: hasOriginalLanguage(item) });
   const names = useMemo(
-    () => new Intl.DisplayNames([i18n.language], { type: 'language' }),
+    () => new Intl.DisplayNames([intlLocale(i18n.language)], { type: 'language' }),
     [i18n.language],
   );
   const queryClient = useQueryClient();
@@ -331,7 +332,7 @@ export function MetadataEditorTab({
         options={originalLanguageOptions(
           t,
           names,
-          i18n.language,
+          intlLocale(i18n.language),
           languages.data?.knownLanguages ?? [],
           value('language'),
         )}

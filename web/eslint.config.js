@@ -96,6 +96,26 @@ export default defineConfig([
     },
   },
   {
+    // Intl formats with intlLocale(i18n.language) (concept 22 section 4.4): de formats Swiss
+    // (de-CH), and the code alone would format German of Germany.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/i18n/**'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...[
+          "NewExpression[callee.object.name='Intl'] > MemberExpression.arguments",
+          "NewExpression[callee.object.name='Intl'] > ArrayExpression.arguments > MemberExpression.elements",
+          "CallExpression[callee.object.name='Intl'] > MemberExpression.arguments",
+          'CallExpression[callee.property.name=/^(toLocaleString|toLocaleDateString|toLocaleTimeString|localeCompare|toLocaleLowerCase|toLocaleUpperCase)$/] > MemberExpression.arguments',
+        ].map((path) => ({
+          selector: `${path}[object.name='i18n'][property.name='language']`,
+          message: 'Intl takes intlLocale(i18n.language), not i18n.language (concept 22, 4.4).',
+        })),
+      ],
+    },
+  },
+  {
     files: ['*.config.{js,ts}'],
     languageOptions: { globals: globals.node },
   },

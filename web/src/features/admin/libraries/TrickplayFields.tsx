@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { formatBytes } from '@/lib/format';
 import { RadioGroup, Switch } from '@/ui/aria';
 import styles from './Libraries.module.css';
+import { intlLocale } from '@/i18n';
 
 /**
  * What a new video library starts with: both kinds «Aus» (since 1.23.1, before «Im Voraus» by
@@ -141,7 +142,9 @@ interface TrickplayFieldsProps {
 export function TrickplayFields({ value, onChange, estimate }: TrickplayFieldsProps) {
   const { t, i18n } = useTranslation();
   const hours = (ms: number) =>
-    new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 0 }).format(ms / 3_600_000);
+    new Intl.NumberFormat(intlLocale(i18n.language), { maximumFractionDigits: 0 }).format(
+      ms / 3_600_000,
+    );
   const modeOptions = (modes: readonly Mode[]) =>
     modes.map((mode) => ({ value: mode, label: t(`admin.libraries.trickplay.mode.${mode}`) }));
 
@@ -149,7 +152,7 @@ export function TrickplayFields({ value, onChange, estimate }: TrickplayFieldsPr
     const setting = value[kind];
     const kindEstimate = estimate?.[kind];
     const rows = kindEstimate
-      ? estimateRows(t, i18n.language, kind, setting, kindEstimate)
+      ? estimateRows(t, intlLocale(i18n.language), kind, setting, kindEstimate)
       : undefined;
     return (
       <div className={styles.trickplayGroup} data-trickplay-group={kind}>
@@ -225,7 +228,9 @@ export function TrickplayFields({ value, onChange, estimate }: TrickplayFieldsPr
   };
 
   const storedSize = (bytes: number) =>
-    bytes === 0 ? t('admin.libraries.trickplay.estimate.zero') : formatBytes(bytes, i18n.language);
+    bytes === 0
+      ? t('admin.libraries.trickplay.estimate.zero')
+      : formatBytes(bytes, intlLocale(i18n.language));
 
   return (
     <div className={styles.trickplay}>
@@ -243,7 +248,7 @@ export function TrickplayFields({ value, onChange, estimate }: TrickplayFieldsPr
           {estimate.cacheFreeBytes !== undefined && (
             <span className={styles.muted}>
               {t('admin.libraries.trickplay.estimate.free', {
-                size: formatBytes(estimate.cacheFreeBytes, i18n.language),
+                size: formatBytes(estimate.cacheFreeBytes, intlLocale(i18n.language)),
               })}
             </span>
           )}
