@@ -291,9 +291,6 @@ type Item struct {
 	Genres            string
 	TmdbID            sql.NullInt64
 	ImdbID            sql.NullString
-	OwnRating         sql.NullInt64
-	EffectiveRating   sql.NullInt64
-	MinChildRating    sql.NullInt64
 	Available         int64
 	RatingSource      sql.NullString
 	EnclosureUrl      sql.NullString
@@ -353,6 +350,17 @@ type Item struct {
 	BookMatchError    sql.NullString
 	BookMatchManual   int64
 	RemovedAt         sql.NullInt64
+	OwnRating         sql.NullInt64
+	EffectiveRating   sql.NullInt64
+	MinChildRating    sql.NullInt64
+}
+
+type ItemCertification struct {
+	ItemID        string
+	Provider      string
+	Country       string
+	Certification string
+	FetchedAt     int64
 }
 
 type ItemFieldSource struct {
@@ -450,7 +458,6 @@ type Library struct {
 	ID                   int64
 	Name                 string
 	Kind                 string
-	DefaultRating        sql.NullInt64
 	CreatedAt            int64
 	UpdatedAt            int64
 	LastScanState        string
@@ -471,6 +478,7 @@ type Library struct {
 	PodcastParallel      int64
 	PodcastRootID        sql.NullInt64
 	DeletingAt           sql.NullInt64
+	DefaultRating        sql.NullInt64
 }
 
 type LibraryMetadatum struct {
