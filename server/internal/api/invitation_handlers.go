@@ -43,7 +43,7 @@ func (s *server) GetInvitation(ctx context.Context, req gen.GetInvitationRequest
 	}
 	out := gen.InvitationPreview{
 		Note: optString(prev.Note), MaxRating: prev.MaxRating, AllLibraries: prev.AllLibraries,
-		ExpiresAt: prev.ExpiresAt.UTC(),
+		ExpiresAt: prev.ExpiresAt.UTC(), RatingSystem: s.ratingSystem(ctx),
 		Libraries: make([]struct {
 			Id   int64  `json:"id"`
 			Name string `json:"name"`

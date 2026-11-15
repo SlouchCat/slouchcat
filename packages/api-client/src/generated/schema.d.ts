@@ -6046,6 +6046,11 @@ export interface components {
             }[];
             /** Format: date-time */
             expiresAt: string;
+            /**
+             * @description Since contract 1.36.0: the rating country of the server, so the page names the ceiling as
+             *     the household does («FSK 12», «PG-13»); absent from older servers.
+             */
+            ratingSystem?: components["schemas"]["RatingSystem"];
         };
         AcceptInvitationRequest: {
             /** Format: email */
@@ -6291,7 +6296,7 @@ export interface components {
              */
             watched?: boolean;
             runtimeMinutes?: number;
-            /** @description Effective FSK rating; omitted when unknown (then hidden from profiles under 18). */
+            /** @description Effective minimum age (concept 22, ADR 0034); omitted when unknown (then hidden from profiles under 18). */
             rating?: components["schemas"]["Rating"];
             images: components["schemas"]["ItemImages"];
             /**
@@ -9003,7 +9008,7 @@ export interface components {
             genre?: string;
             yearFrom?: number;
             yearTo?: number;
-            /** @description Only titles rated at most this FSK level (an unknown rating never passes). */
+            /** @description Only titles with a minimum age of at most this value (an unknown rating never passes). */
             maxRating?: components["schemas"]["Rating"];
             /** @description Media types to include; `series` covers series and episodes, `podcast` podcasts and episodes. Absent = all. */
             mediaTypes?: ("movie" | "series" | "audiobook" | "podcast")[];
@@ -17297,7 +17302,7 @@ export interface operations {
             /**
              * @description Validation failed (`validation_failed`; `query` `too_short` (one character), `too_long`, or
              *     `required` when neither a query nor a filter is given; `maxRating` `invalid_value` outside
-             *     0/6/12/16/18; `yearFrom`/`yearTo` `invalid_value` outside 1870..2100; `genre` `too_long` over 80
+             *     0..18; `yearFrom`/`yearTo` `invalid_value` outside 1870..2100; `genre` `too_long` over 80
              *     characters).
              */
             422: {

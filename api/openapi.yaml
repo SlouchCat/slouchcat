@@ -11514,6 +11514,11 @@ components:
         expiresAt:
           type: string
           format: date-time
+        ratingSystem:
+          $ref: "#/components/schemas/RatingSystem"
+          description: |
+            Since contract 1.36.0: the rating country of the server, so the page names the ceiling as
+            the household does («FSK 12», «PG-13»); absent from older servers.
 
     AcceptInvitationRequest:
       type: object
