@@ -129,8 +129,28 @@ for (const quality of ['high', 'low'] as const) {
     await expect(cards).toHaveCount(0);
     await expectFocusOn(page, tab);
 
-    // ↑↑ to the timeline; ← shows the tile of the new position from the stored sheet, offline.
+    // ↑ to the row: «Nächstes Kapitel» goes to the last chapter, where it is greyed, keeps the
+    // focus and switches no title (concept 23, 3.1).
     await page.keyboard.press('ArrowUp');
+    const bar = player.getByRole('toolbar', { name: 'Wiedergabe' });
+    await expect(bar.locator(':focus')).toHaveCount(1);
+    await expect(bar.getByRole('button', { name: /Folge/ })).toHaveCount(0);
+    const forward = bar.getByRole('button', { name: 'Nächstes Kapitel' });
+    await arrowTo(page, forward, 'ArrowRight');
+    await expectVisibleFocus(page);
+    await page.keyboard.press('Enter');
+    await expect.poll(() => videoTime(page)).toBeGreaterThanOrEqual(thirdStart);
+    await expect(forward).toHaveAttribute('aria-disabled', 'true');
+    await expect(forward).toHaveAccessibleDescription('Letztes Kapitel');
+    await expectFocusOn(page, forward);
+    const atLast = await videoTime(page);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(500);
+    expect(Math.abs((await videoTime(page)) - atLast)).toBeLessThan(0.5);
+    await expectFocusOn(page, forward);
+    await expect(page).toHaveURL(/\/offline\/play\//);
+
+    // ↑ to the timeline; ← shows the tile of the new position from the stored sheet, offline.
     await page.keyboard.press('ArrowUp');
     await expectFocusOn(page, player.getByRole('slider', { name: 'Wiedergabeposition' }));
     await page.keyboard.press('ArrowLeft');

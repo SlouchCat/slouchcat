@@ -1,7 +1,18 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { H264_TITLE, itemPath } from './catalog';
 import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus, tabTo } from './keyboard';
-import { arrowTo, recordEndedReason, startOf, videoState } from './playback';
+import {
+  arrowTo,
+  episodeIds,
+  INTRO_SHOW_TITLE,
+  itemIdByTitle,
+  play as playTitle,
+  player as videoPlayer,
+  recordEndedReason,
+  resetProgress,
+  startOf,
+  videoState,
+} from './playback';
 
 /** DoD M1a: direct play starts in under 2 s in Chrome and Firefox. */
 const START_BUDGET_MS = 2000;
@@ -14,6 +25,30 @@ test.beforeEach(async ({ page }) => {
   await page.goto(detail);
   await expect(page.getByRole('heading', { level: 1, name: H264_TITLE })).toBeVisible();
 });
+
+let introEpisodes: string[] = [];
+
+/** S01E01 and S01E02 of the intro show (outro, next episode), from the start (concept 23). */
+async function introShow(page: Page): Promise<string[]> {
+  if (introEpisodes.length === 0) {
+    const seriesId = await itemIdByTitle(page.request, INTRO_SHOW_TITLE);
+    introEpisodes = await episodeIds(page.request, seriesId);
+    expect(introEpisodes.length).toBeGreaterThanOrEqual(2);
+  }
+  for (const id of introEpisodes.slice(0, 2)) await resetProgress(page.request, id);
+  return introEpisodes;
+}
+
+/** The line with the title and the time: the row right above the timeline (P-4). */
+const timeLine = (page: Page) =>
+  page.locator('[data-player-seek]').locator('xpath=preceding-sibling::*[1]');
+
+/** Pixels between the bottom of `over` and the top of the time line. */
+async function gapOverTimeLine(page: Page, over: ReturnType<Page['locator']>): Promise<number> {
+  const [box, line] = await Promise.all([over.boundingBox(), timeLine(page).boundingBox()]);
+  if (!box || !line) throw new Error('no box');
+  return line.y - (box.y + box.height);
+}
 
 test('Enter on play starts direct play in under 2 s and reports progress', async ({ page }) => {
   const progress = page.waitForRequest(
@@ -562,6 +597,94 @@ test.describe('the tab «Besetzung»', () => {
   });
 });
 
+test.describe('episode buttons and the countdown card (concept 23)', () => {
+  test('the episode buttons by keyboard: greyed in place with a hint, the card on focus, Enter and P @keyboard', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    const [first, second] = await introShow(page);
+    await playTitle(page, first);
+    await page.keyboard.press('Space');
+    const row = page.getByRole('toolbar', { name: 'Wiedergabe' });
+    await expectFocusOn(page, page.getByRole('button', { name: 'Abspielen' }));
+
+    // S01E01: no earlier episode. Greyed, yet the first stop of the row (Home): focusable with
+    // its hint as description, Enter does nothing.
+    const previous = row.getByRole('button', { name: 'Vorherige Folge' });
+    await expect(previous).toHaveAttribute('aria-disabled', 'true');
+    await expect(previous).toHaveAccessibleDescription('Keine frühere Folge');
+    await page.keyboard.press('Home');
+    await expectFocusOn(page, previous);
+    await expectVisibleFocus(page);
+    await expect(previous.locator('xpath=following-sibling::*[1]')).toHaveCSS('opacity', '1');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(300);
+    await expect(page).toHaveURL(new RegExp(`/play/${first}$`));
+    await expectFocusOn(page, previous);
+
+    // → along the row to «Nächste Folge»: its card names S01E02 and the key; Enter plays it.
+    const next = row.getByRole('button', { name: /^Nächste Folge: S01E02 · / });
+    await arrowTo(page, next, 'ArrowRight');
+    await expectVisibleFocus(page);
+    const card = next.locator('xpath=following-sibling::*[1]');
+    await expect(card).toHaveCSS('opacity', '1');
+    await expect(card).toContainText('Nächste Folge');
+    await expect(card).toContainText(/S01E02 · /);
+    const started = await startOf(page, () => page.keyboard.press('Enter'));
+    expect(started.body.item.id).toBe(second);
+    await expect(page).toHaveURL(new RegExp(`/play/${second}$`));
+    await expect(videoPlayer(page)).toHaveAttribute('data-start-ms', /\d+/, { timeout: 15_000 });
+
+    // S01E02: «Vorherige Folge» names S01E01 (from the server), P plays it.
+    await expect(row.getByRole('button', { name: /^Vorherige Folge: S01E01 · / })).toBeVisible();
+    const back = await startOf(page, () => page.keyboard.press('p'));
+    expect(back.body.item.id).toBe(first);
+    await expect(page).toHaveURL(new RegExp(`/play/${first}$`));
+    await expectNoFocusTrap(page);
+  });
+
+  test('«Intro überspringen» and the countdown card stand 12 px over the time line; an open tab closes (P-4)', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    const [first] = await introShow(page);
+    const info = await playTitle(page, first);
+    await page.keyboard.press('Space');
+    await expect.poll(async () => (await videoState(page)).paused).toBe(true);
+
+    const intro = info.segments.intro;
+    expect(intro, 'the detected intro of S01E01').toBeDefined();
+    await page.locator('video').evaluate(
+      (video: HTMLVideoElement, at: number) => {
+        video.currentTime = at;
+      },
+      intro!.startMs / 1000 + 1,
+    );
+    const skip = page.getByRole('button', { name: 'Intro überspringen' });
+    await expect(skip).toBeVisible({ timeout: 10_000 });
+    await expect.poll(() => gapOverTimeLine(page, skip.locator('xpath=..'))).toBeCloseTo(12, 0);
+
+    // A tab open (↓ from play/pause to the strip, Enter), then to the end: the countdown closes it.
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('[data-tab-panel]')).toHaveCount(1);
+    await page.keyboard.press('k');
+    await page.locator('video').evaluate((video: HTMLVideoElement) => {
+      video.currentTime = Math.max(0, video.duration - 2);
+    });
+    const countdown = page.getByRole('region', { name: 'Nächste Folge' });
+    await expect(countdown).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('[data-tab-panel]')).toHaveCount(0);
+    await expect.poll(() => gapOverTimeLine(page, countdown)).toBeCloseTo(12, 0);
+    // The time line and the timeline stay free: nothing of the card over them.
+    const [cardBox, seekBox] = await Promise.all([
+      countdown.boundingBox(),
+      page.locator('[data-player-seek]').boundingBox(),
+    ]);
+    expect((cardBox?.y ?? 0) + (cardBox?.height ?? 0)).toBeLessThan(seekBox?.y ?? 0);
+  });
+});
+
 test.describe('in a narrow window with a mouse', () => {
   // Under 768 px the phone layout applies on a laptop as well (review step 5, M-1).
   test.use({ viewport: { width: 600, height: 800 } });
@@ -593,6 +716,39 @@ test.describe('in a narrow window with a mouse', () => {
 
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  test('an episode: both episode buttons beside −10 s, play and +10 s; the countdown card over the time line (concept 23)', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    const [first] = await introShow(page);
+    await playTitle(page, first);
+    const transport = page.getByRole('toolbar', { name: 'Wiedergabe' });
+    const names = await transport
+      .getByRole('button')
+      .evaluateAll((buttons) => buttons.map((button) => button.getAttribute('aria-label')));
+    expect(names).toEqual([
+      'Vorherige Folge',
+      '10 Sekunden zurück',
+      expect.stringMatching(/^(Pause|Abspielen)$/),
+      '10 Sekunden vor',
+      expect.stringMatching(/^Nächste Folge: S01E02 · /),
+    ]);
+    // No chapter buttons on a phone; the episode buttons smaller than the transport.
+    await expect(page.getByRole('button', { name: 'Nächstes Kapitel' })).toHaveCount(0);
+    const [episodeBox, playBox] = await Promise.all([
+      transport.getByRole('button', { name: /^Nächste Folge/ }).boundingBox(),
+      transport.getByRole('button', { name: /^(Pause|Abspielen)$/ }).boundingBox(),
+    ]);
+    expect(episodeBox?.height ?? 0).toBeLessThan(playBox?.height ?? 0);
+
+    await page.locator('video').evaluate((video: HTMLVideoElement) => {
+      video.currentTime = Math.max(0, video.duration - 2);
+    });
+    const countdown = page.getByRole('region', { name: 'Nächste Folge' });
+    await expect(countdown).toBeVisible({ timeout: 10_000 });
+    await expect.poll(() => gapOverTimeLine(page, countdown)).toBeCloseTo(12, 0);
+  });
 
   test('the phone layout by keyboard: options at the top, transport in the middle; two taps seek', async ({
     page,

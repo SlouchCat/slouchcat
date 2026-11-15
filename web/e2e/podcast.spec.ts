@@ -17,7 +17,13 @@ import {
 } from './audio';
 import { CSRF } from './catalog';
 import { expect, test } from './fixtures';
-import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
+import {
+  expectFocusOn,
+  expectNoFocusTrap,
+  expectVisibleFocus,
+  resetFocus,
+  tabTo,
+} from './keyboard';
 
 // H-2: a podcast subscribed by feed URL shows its episodes; the feed gets a third episode, the
 // admin's "Jetzt abrufen" fetches it, and it appears. The third episode is flagged explicit: a
@@ -126,8 +132,10 @@ test('an episode plays through the server, not from the feed host', async ({
   const key = feedKey(testInfo);
   const podcast = await subscribeFeed(owner, key, 2);
   try {
-    const [newest] = await waitForEpisodes(owner, podcast.id, 2);
+    const [newest, older] = await waitForEpisodes(owner, podcast.id, 2);
     const info = await playAudio(page, newest.id);
+    expect(info.previousEpisode?.id).toBe(older.id);
+    expect(info.nextEpisode).toBeUndefined();
     expect(info.streamUrl).toMatch(/^\/(api\/v1\/)?items\/[^/]+\/stream\?st=/);
     await expect
       .poll(async () => (await audioState(page)).time, { timeout: 15_000 })
@@ -137,8 +145,36 @@ test('an episode plays through the server, not from the feed host', async ({
     const player = audioPlayer(page);
     await expect(player.getByRole('heading', { name: episodeTitle(2) })).toBeVisible();
     await expect(player.getByText(PODCAST_TITLE)).toBeVisible();
-    // No chapters in an episode: no chapter buttons.
-    await expect(player.getByRole('button', { name: 'Nächstes Kapitel' })).toHaveCount(0);
+    // No chapters in an episode: the chapter buttons greyed in place (concept 23, F-2).
+    const forward = player.getByRole('button', { name: 'Nächstes Kapitel' });
+    await expect(forward).toHaveAttribute('aria-disabled', 'true');
+    await expect(forward).toHaveAccessibleDescription('Keine Kapitel');
+    // The newest episode: «Nächste Folge» greyed, «Vorherige Folge» the older one (F-5), with its
+    // card on focus; Enter plays it.
+    const next = player.getByRole('button', { name: 'Nächste Folge' });
+    await expect(next).toHaveAccessibleDescription('Keine weitere Folge');
+    const previous = player.getByRole('button', {
+      name: `Vorherige Folge: ${episodeTitle(1)}`,
+    });
+    await expect(previous).not.toHaveAttribute('aria-disabled');
+    // Shift+Tab from play/pause: −15 s, the greyed chapter button (focusable), the episode.
+    await expectFocusOn(page, player.getByRole('button', { name: /^(Pause|Abspielen)$/ }));
+    for (let presses = 0; presses < 3; presses += 1) await page.keyboard.press('Shift+Tab');
+    await expectFocusOn(page, previous);
+    await expectVisibleFocus(page);
+    await expect(previous.locator('xpath=following-sibling::*[1]')).toHaveCSS('opacity', '1');
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(new RegExp(`/play/${older.id}$`));
+    await expect(player.getByRole('heading', { name: episodeTitle(1) })).toBeVisible();
+    await expect(
+      player.getByRole('button', { name: `Nächste Folge: ${episodeTitle(2)}` }),
+    ).toBeVisible();
+    await expect(
+      player.getByRole('button', { name: 'Vorherige Folge' }),
+    ).toHaveAccessibleDescription('Keine frühere Folge');
+    // N goes back to the newer one.
+    await page.keyboard.press('n');
+    await expect(page).toHaveURL(new RegExp(`/play/${newest.id}$`));
   } finally {
     await unsubscribe(owner, podcast.id);
   }
