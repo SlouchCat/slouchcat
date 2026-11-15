@@ -18,7 +18,7 @@ const grid = (page: Page) => page.getByRole('list', { name: ROW_TITLES.recent })
 const cards = (page: Page) => grid(page).getByRole('link');
 const chips = (page: Page) => page.getByRole('group', { name: 'Inhalt' });
 // A card's name starts with its progress («28 % ») once a spec running alongside played the title.
-const card = (title: string, end = '') => new RegExp(`^(\\d+ % )?${title}${end}`);
+const card = (title: string, end = '') => new RegExp(`^(\\d+ ?% )?${title}${end}`);
 
 test('«Neu hinzugefügt» as a list: count, filter, pens, arrows, Enter, back; no focus trap @keyboard', async ({
   page,
