@@ -45,10 +45,12 @@ import (
 // the batch goes on.
 //
 // One run takes a batch of ratingsRereadBatch titles in id order after the cursor of its payload
-// and queues its successor with the cursor (key ratings_reread:<last id>), so a restart goes on
-// where the last batch stopped. After a batch that changed a rating the open streams are checked
-// once (WithVisibilityRecheck); downloads follow at the next sync (allowed_profile_ids, rule 12).
-// Until the chain is done the old values apply, the administration shows the job as running.
+// and queues its successor with the cursor (key ratings_reread:<country>:<last id>), so a restart
+// goes on where the last batch stopped. The payload names the rating country; a batch that finds
+// another one starts the chain again from the first title. After a batch that changed a rating
+// the open streams are checked once (WithVisibilityRecheck); downloads follow at the next sync
+// (allowed_profile_ids, rule 12). Until the chain is done the old values apply, the
+// administration shows the job as running.
 const (
 	JobRatingsReread   = model.JobRatingsReread
 	ratingsRereadKey   = "ratings_reread"
@@ -64,9 +66,12 @@ var certificationProviders = []string{model.ProviderTMDB, model.ProviderTVDB}
 // ratingsRereadPayload is the payload of metadata.ratings_reread: the id the batch starts after
 // and the progress of the chain (titles read so far, titles at the start of the chain).
 type ratingsRereadPayload struct {
-	After string `json:"after,omitempty"`
-	Done  int64  `json:"done,omitempty"`
-	Total int64  `json:"total,omitempty"`
+	// Country is the rating country the chain reads for; a batch that finds another one starts
+	// the chain again from the first title.
+	Country string `json:"country,omitempty"`
+	After   string `json:"after,omitempty"`
+	Done    int64  `json:"done,omitempty"`
+	Total   int64  `json:"total,omitempty"`
 }
 
 // QueueRatingsRereadOnce queues the chain at a start after migration 00064 until one chain has
@@ -97,8 +102,8 @@ func (s *Service) markRatingsRereadDone(ctx context.Context) error {
 
 // QueueRatingsReread starts the chain from the first title when a title waits (a change of the
 // rating country, F-16); without titles nothing is queued (the wizard before the first scan, m2-11).
-// A start that still waits is not doubled (idempotency key ratings_reread). It reports whether
-// it queued.
+// A start that still waits for the same country is not doubled (idempotency key
+// ratings_reread:<country>). It reports whether it queued.
 func (s *Service) QueueRatingsReread(ctx context.Context) (bool, error) {
 	total, err := s.read.CountRatingRereadItems(ctx)
 	if err != nil {
@@ -107,7 +112,11 @@ func (s *Service) QueueRatingsReread(ctx context.Context) (bool, error) {
 	if total == 0 {
 		return false, s.markRatingsRereadDone(ctx) // nothing to read: every title is read
 	}
-	return true, s.enqueueRatingsReread(ctx, ratingsRereadPayload{Total: total})
+	settings, err := s.Settings(ctx)
+	if err != nil {
+		return false, fmt.Errorf("%s: %w", JobRatingsReread, err)
+	}
+	return true, s.enqueueRatingsReread(ctx, ratingsRereadPayload{Country: settings.RatingCountry, Total: total})
 }
 
 // RatingsRereading reports whether a run of the chain is queued or running (the hint «Freigaben
@@ -126,7 +135,9 @@ func (s *Service) enqueueRatingsReread(ctx context.Context, p ratingsRereadPaylo
 	if err != nil {
 		return fmt.Errorf("%s payload: %w", JobRatingsReread, err)
 	}
-	key := ratingsRereadKey
+	// The country is part of the key: a start for a new country is never folded into a chain that
+	// still reads for the old one.
+	key := ratingsRereadKey + ":" + p.Country
 	if p.After != "" {
 		key += ":" + p.After
 	}
@@ -172,6 +183,16 @@ func (s *Service) ratingsReread(ctx context.Context, p ratingsRereadPayload) (*r
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", JobRatingsReread, err)
 	}
+	if p.Country != "" && p.Country != settings.RatingCountry {
+		// The rating country changed while the chain ran: the titles of the earlier batches were
+		// read for the old one. Start again from the first title for the new country (a start that
+		// already waits for it is not doubled) and end this chain.
+		s.log.Info("rating country changed while the ratings were read anew: starting again",
+			"from", p.Country, "to", settings.RatingCountry)
+		_, err := s.QueueRatingsReread(ctx)
+		return nil, err
+	}
+	p.Country = settings.RatingCountry
 	var changed, unchanged, passed int
 	for i, item := range rows {
 		if err := ctx.Err(); err != nil {
@@ -209,7 +230,7 @@ func (s *Service) ratingsReread(ctx context.Context, p ratingsRereadPayload) (*r
 		s.log.Info("ratings read anew: finished")
 		return nil, s.markRatingsRereadDone(ctx)
 	}
-	return &ratingsRereadPayload{After: rows[len(rows)-1].ID, Done: p.Done + int64(len(rows)), Total: p.Total}, nil
+	return &ratingsRereadPayload{Country: p.Country, After: rows[len(rows)-1].ID, Done: p.Done + int64(len(rows)), Total: p.Total}, nil
 }
 
 // rereadItem computes and writes the rating of one title.

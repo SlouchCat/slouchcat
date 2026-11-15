@@ -3,6 +3,9 @@ package metadata
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -265,5 +268,45 @@ func TestRatingsRereadGoesOnAfterAFailingTitle(t *testing.T) {
 	}
 	if ok, err := e.svc.QueueRatingsRereadOnce(ctx); err != nil || ok {
 		t.Errorf("a start after the finished chain = %v, %v; want nothing queued", ok, err)
+	}
+}
+
+// A change of the rating country while the chain runs (review of stage 3): the chain that read
+// its first batch for the old country starts again from the first title for the new one, and the
+// start for the new country is not folded into the old chain, so no title keeps the old age.
+func TestRatingsRereadStartsAgainAfterACountryChangeMidChain(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	// More titles than one batch, each with stored certificates: US R, FR -12.
+	for i := range ratingsRereadBatch + 5 {
+		id := fmt.Sprintf("01JCHAIN%018d", i)
+		mustExec(t, e.db.Write, `INSERT INTO items (id, kind, library_id, title, sort_title, tmdb_id, own_rating, rating_source, added_at, created_at, updated_at)
+			VALUES (?, 'movie', 1, 'x', 'x', 550, 12, 'tmdb:DE', 0, 0, 0)`, id)
+		mustExec(t, e.db.Write, `INSERT INTO item_certifications VALUES (?, 'tmdb', 'US', 'R', 1), (?, 'tmdb', 'FR', '-12', 1)`, id, id)
+	}
+	e.setRatingCountry(t, "US")
+	// The first batch reads for the US …
+	next, err := e.svc.ratingsReread(ctx, ratingsRereadPayload{Country: "US"})
+	if err != nil || next == nil || next.Country != "US" {
+		t.Fatalf("first batch: %+v, %v", next, err)
+	}
+	// … then the country becomes FR: its start has its own key beside the waiting US chain.
+	e.setRatingCountry(t, "FR")
+	keys := e.jobList(t, JobRatingsReread)
+	if !slices.ContainsFunc(keys, func(k string) bool { return strings.HasPrefix(k, "ratings_reread:FR") }) {
+		t.Fatalf("the change to FR queued no chain of its own: %v", keys)
+	}
+	// The US chain's next batch sees FR and ends instead of reading on.
+	if again, err := e.svc.ratingsReread(ctx, *next); err != nil || again != nil {
+		t.Fatalf("the old chain after the change: %+v, %v; want it ended", again, err)
+	}
+	e.rereadAll(t) // the FR chain from the first title
+	var old int
+	if err := e.db.Read.QueryRow(`SELECT count(*) FROM items WHERE id LIKE '01JCHAIN%' AND (own_rating <> 12 OR rating_source <> 'tmdb:FR')`).Scan(&old); err != nil {
+		t.Fatal(err)
+	}
+	if old != 0 {
+		t.Errorf("%d titles kept an age of the old country", old)
 	}
 }
