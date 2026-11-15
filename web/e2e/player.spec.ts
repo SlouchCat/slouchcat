@@ -14,6 +14,10 @@ import {
   videoState,
 } from './playback';
 
+/** A 2×3 pixel PNG: a person's portrait in the tab «Besetzung» (concept 23 P-3). */
+const PORTRAIT_PNG =
+  'iVBORw0KGgoAAAANSUhEUgAAAAIAAAADCAIAAAA2iEnWAAAADklEQVR4nGNoAAMGFAoAXpUJAdY1eq0AAAAASUVORK5CYII=';
+
 /** DoD M1a: direct play starts in under 2 s in Chrome and Firefox. */
 const START_BUDGET_MS = 2000;
 
@@ -268,6 +272,112 @@ test('the subtitle panel and its style page by the arrows alone: a remote has no
   await expect(page).toHaveURL(/\/play\//);
 });
 
+test('the panels are menus above their button: a click beside closes them, the video plays on (concept 23 P-2)', async ({
+  page,
+}) => {
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  const player = page.getByRole('main', { name: 'Videoplayer' });
+  await expect(player).toHaveAttribute('data-start-ms', /\d+/);
+  const paused = () => page.locator('video').evaluate((video: HTMLVideoElement) => video.paused);
+  await expect.poll(paused).toBe(false);
+  const box = async (locator: ReturnType<typeof page.locator>) => {
+    const found = await locator.boundingBox();
+    if (!found) throw new Error('no box');
+    return found;
+  };
+
+  /** The menu stands right above its button, right aligned, as tall as its content. */
+  const expectAbove = async (menu: ReturnType<typeof page.locator>, button: typeof menu) => {
+    const [at, own, outer] = await Promise.all([box(button), box(menu), box(player)]);
+    expect(own.y + own.height).toBeLessThanOrEqual(at.y);
+    expect(own.y + own.height).toBeGreaterThan(at.y - 24);
+    expect(Math.abs(own.x + own.width - (at.x + at.width))).toBeLessThanOrEqual(1);
+    expect(own.width).toBe(320);
+    expect(own.y).toBeGreaterThanOrEqual(outer.y + 12);
+  };
+
+  // A click on the gear opens its menu above it, with no visible close button.
+  const gear = page.getByRole('button', { name: 'Einstellungen' });
+  await gear.click();
+  const settings = page.getByRole('dialog', { name: 'Einstellungen' });
+  await expect(settings).toBeVisible();
+  await expectAbove(settings, gear);
+  // As tall as its content: the whole of it shows, and the menu ends far below the top.
+  expect((await box(settings)).y).toBeGreaterThan((await box(player)).y + 100);
+  expect(
+    await settings
+      .locator('[data-panel-body]')
+      .evaluate((body) => body.scrollHeight <= body.clientHeight),
+  ).toBe(true);
+  expect(
+    (await box(settings.getByRole('button', { name: 'Schliessen' }))).width,
+  ).toBeLessThanOrEqual(1);
+  await expect(settings.locator(':focus')).toHaveCount(1);
+
+  // A click on the picture closes it and nothing else: the video plays on, the focus is back on
+  // the gear, not on the page.
+  const outer = await box(player);
+  await page.mouse.click(outer.x + outer.width / 4, outer.y + outer.height / 2);
+  await expect(settings).toHaveCount(0);
+  await expect(gear).toBeFocused();
+  expect(await paused()).toBe(false);
+  // A second click on the picture pauses again, as always.
+  await page.mouse.click(outer.x + outer.width / 4, outer.y + outer.height / 2);
+  await expect.poll(paused).toBe(true);
+
+  // T opens the sound menu above its button too. A click on the subtitle button closes it and
+  // opens that menu at once; Escape gives the focus back to the subtitle button.
+  await page.keyboard.press('t');
+  const sound = page.getByRole('dialog', { name: 'Ton' });
+  const soundButton = page.getByRole('button', { name: /^Ton: / });
+  await expect(sound).toBeVisible();
+  await expectAbove(sound, soundButton);
+  const subtitleButton = page.getByRole('button', { name: /^Untertitel: / });
+  await subtitleButton.click();
+  await expect(sound).toHaveCount(0);
+  const subtitles = page.getByRole('dialog', { name: 'Untertitel' });
+  await expect(subtitles).toBeVisible();
+  await expectAbove(subtitles, subtitleButton);
+  await expect(subtitles.getByRole('option', { name: 'Aus' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(subtitles).toHaveCount(0);
+  await expectFocusOn(page, subtitleButton);
+
+  // The help button names its menu while it is open; a second click closes it.
+  const helpButton = page.getByRole('button', { name: 'Tastenkürzel' });
+  await helpButton.click();
+  const help = page.getByRole('dialog', { name: 'Tastenkürzel' });
+  await expect(help).toBeVisible();
+  await expect(helpButton).toHaveAttribute('aria-controls', (await help.getAttribute('id'))!);
+  await expectAbove(help, helpButton);
+  await helpButton.click();
+  await expect(help).toHaveCount(0);
+  await expect(helpButton).toBeFocused();
+
+  // A click on the timeline seeks and closes the menu; the slider has the focus.
+  await gear.click();
+  await expect(settings).toBeVisible();
+  const slider = page.getByRole('slider', { name: 'Wiedergabeposition' });
+  const track = await box(slider);
+  await page.mouse.click(track.x + track.width / 2, track.y + track.height / 2);
+  await expect(settings).toHaveCount(0);
+  await expect(slider).toBeFocused();
+  expect(await paused()).toBe(true);
+
+  // By keyboard: Enter on the gear opens it, Tab walks to the hidden close button, which shows,
+  // and on out of the menu (it is the end of the page) without closing it.
+  await gear.focus();
+  await page.keyboard.press('Enter');
+  await expect(settings).toBeVisible();
+  const close = settings.getByRole('button', { name: 'Schliessen' });
+  await tabTo(page, close, 8);
+  expect((await box(close)).width).toBeGreaterThan(1);
+  await expectNoFocusTrap(page);
+  await page.keyboard.press('Tab');
+  await expect(settings).toBeVisible();
+});
+
 test('a volume above 100 % and night mode keep the video playing (Web Audio)', async ({ page }) => {
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
@@ -502,16 +612,31 @@ test.describe('the tab «Besetzung»', () => {
   test('↓ to the tabs, Enter, ↓, Enter opens the person; back returns to the player (review step 5)', async ({
     page,
   }) => {
-    // The e2e server has no TMDB key, so no title has a cast: the title's details get one here.
+    // The e2e server has no TMDB key, so no title has a cast: the title's details get one here,
+    // with a portrait (a 2×3 PNG) for the first person and none for the second.
     const itemId = detail.split('/').pop()!;
     await page.route(`**/api/v1/items/${itemId}`, async (route) => {
       const response = await route.fetch();
       const body = (await response.json()) as Record<string, unknown>;
       await route.fulfill({
         response,
-        json: { ...body, cast: [{ personId: 1, name: 'Ellen Ripley', role: 'cast' }] },
+        json: {
+          ...body,
+          cast: [
+            {
+              personId: 1,
+              name: 'Ellen Ripley',
+              role: 'cast',
+              image: { url: '/images/e2e-portrait.png', width: 2, height: 3 },
+            },
+            { personId: 2, name: 'Dallas', role: 'cast' },
+          ],
+        },
       });
     });
+    await page.route('**/api/v1/images/e2e-portrait.png', (route) =>
+      route.fulfill({ contentType: 'image/png', body: Buffer.from(PORTRAIT_PNG, 'base64') }),
+    );
     const first = await startOf(page, async () => {
       await page.keyboard.press('ArrowDown');
       await page.keyboard.press('Enter');
@@ -532,6 +657,21 @@ test.describe('the tab «Besetzung»', () => {
       name: /Ellen Ripley/,
     });
     await expectFocusOn(page, person);
+    // Concept 23 P-3: a 2:3 portrait in a column of 7rem, left aligned; without one the initial
+    // on a square-cornered ground.
+    const portrait = person.locator('img');
+    await expect(portrait).toBeVisible();
+    expect(await portrait.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(2);
+    const card = (await person.boundingBox())!;
+    const frame = (await person.locator('span[aria-hidden="true"]').first().boundingBox())!;
+    expect(Math.round(card.width)).toBe(112);
+    expect(Math.round(frame.height)).toBe(168);
+    expect(Math.round(frame.x)).toBe(Math.round(card.x));
+    const other = page.getByRole('list', { name: 'Besetzung' }).getByRole('button', {
+      name: /Dallas/,
+    });
+    await expect(other.locator('img')).toHaveCount(0);
+    await expect(other).toHaveText(/^D/);
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/people\/1$/);
     // Without TMDB nobody has a credit: the person's page is the not-found notice (person.spec).
@@ -748,6 +888,45 @@ test.describe('on a phone', () => {
     const countdown = page.getByRole('region', { name: 'Nächste Folge' });
     await expect(countdown).toBeVisible({ timeout: 10_000 });
     await expect.poll(() => gapOverTimeLine(page, countdown)).toBeCloseTo(12, 0);
+  });
+
+  test('the sheet has a grab handle instead of the X; a tap on the picture above it closes it (concept 23 P-2)', async ({
+    page,
+  }) => {
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    const player = page.getByRole('main', { name: 'Videoplayer' });
+    await expect(player).toHaveAttribute('data-start-ms', /\d+/);
+    const paused = () => page.locator('video').evaluate((video: HTMLVideoElement) => video.paused);
+    await expect.poll(paused).toBe(false);
+    const gear = page
+      .getByRole('toolbar', { name: 'Optionen' })
+      .getByRole('button', { name: /^Einstellungen/ });
+    const settings = page.getByRole('dialog', { name: 'Einstellungen' });
+
+    // The handle is the first thing of the sheet, a button with a name.
+    await gear.tap();
+    await expect(settings).toBeVisible();
+    const grip = settings.getByRole('button', { name: 'Schliessen' });
+    const sheet = (await settings.boundingBox())!;
+    const handle = (await grip.boundingBox())!;
+    expect(Math.round(sheet.y + sheet.height)).toBe(844);
+    expect(handle.width).toBeGreaterThanOrEqual(40);
+    expect(handle.y).toBeLessThan(sheet.y + 16);
+    expect(Math.abs(handle.x + handle.width / 2 - 195)).toBeLessThan(2);
+
+    // A tap on the picture above the sheet closes it; the video plays on and the controls stay.
+    await page.touchscreen.tap(40, sheet.y - 40);
+    await expect(settings).toHaveCount(0);
+    expect(await paused()).toBe(false);
+    await expect(player).toHaveAttribute('data-controls', 'visible');
+
+    // A tap on the handle closes it, too.
+    await gear.tap();
+    await expect(settings).toBeVisible();
+    await grip.tap();
+    await expect(settings).toHaveCount(0);
+    expect(await paused()).toBe(false);
   });
 
   test('the phone layout by keyboard: options at the top, transport in the middle; two taps seek', async ({

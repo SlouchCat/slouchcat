@@ -170,6 +170,11 @@
   scrollbar-width: none;
 }
 
+/* The cast: 2:3 portraits in narrower columns, at most about 10.5rem tall (concept 23 P-3). */
+.cards[data-variant='portrait'] {
+  grid-auto-columns: var(--sc-size-portrait-sm);
+}
+
 .card {
   min-width: 0;
 }

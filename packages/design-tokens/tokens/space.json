@@ -184,6 +184,12 @@
         "$description": "Maximum width of the metadata editor (1100 px, concept 15 7.4)."
       }
     },
+    "panel": {
+      "menu": {
+        "$value": "20rem",
+        "$description": "Width of a player panel opened as a menu above its button (concept 23 P-2)."
+      }
+    },
     "hero": {
       "min": {
         "$value": "26rem"

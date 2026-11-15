@@ -58,6 +58,8 @@ export interface PlayerChromePanelButton {
   expanded: boolean;
   /** The id of the panel (PlayerPanel `id`), for `aria-controls` while it is open. */
   controls?: string;
+  /** The button itself: its panel opens above it (concept 23 P-2, PlayerPanelAnchor). */
+  ref?: Ref<HTMLButtonElement>;
   onPress: () => void;
   isDisabled?: boolean;
 }
@@ -95,6 +97,8 @@ export interface PlayerChromeTab {
   cards?: {
     count: number;
     current?: number;
+    /** `portrait`: narrower columns for 2:3 portraits (the cast, concept 23 P-3). */
+    variant?: 'portrait';
     render: (index: number, excluded: boolean) => ReactNode;
     /**
      * Moves the focus to the current card whenever it changes (C opens the chapters on the chapter
@@ -322,6 +326,7 @@ function CardRow({
     <ul
       ref={list}
       className={styles.cards}
+      data-variant={cards.variant}
       aria-label={label}
       onKeyDown={onKeyDown}
       onFocus={(event) => {
@@ -429,6 +434,9 @@ interface PlayerChromeProps {
   helpOpen?: boolean;
   /** The shortcut help; not on a phone. */
   onToggleHelp?: () => void;
+  /** The help button, which its panel opens above, and the panel's id for `aria-controls`. */
+  helpRef?: Ref<HTMLButtonElement>;
+  helpControls?: string;
   /** The tabs under the bar (not on a phone): ↓ from the buttons goes there, ↑ comes back. */
   tabs?: readonly PlayerChromeTab[];
   /** The open tab, or null. */
@@ -499,6 +507,8 @@ export function PlayerChrome({
   settings,
   helpOpen = false,
   onToggleHelp,
+  helpRef,
+  helpControls,
   tabs = [],
   openTab = null,
   onOpenTab,
@@ -583,6 +593,7 @@ export function PlayerChrome({
             disabled: config.isDisabled ?? false,
             render: (excluded: boolean) => (
               <AriaButton
+                ref={config.ref}
                 variant="ghost"
                 icon={icon}
                 // On a phone the buttons at the top right are icons only.
@@ -719,12 +730,14 @@ export function PlayerChrome({
             disabled: false,
             render: (excluded) => (
               <AriaButton
+                ref={helpRef}
                 variant="ghost"
                 icon="help"
                 iconOnly
                 aria-label={t('player.chrome.help')}
                 aria-expanded={helpOpen}
                 aria-haspopup="dialog"
+                aria-controls={helpOpen ? helpControls : undefined}
                 onPress={onToggleHelp}
                 excludeFromTabOrder={excluded}
               />

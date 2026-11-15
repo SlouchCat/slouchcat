@@ -18,7 +18,7 @@ import { episodeCode } from '@/features/catalog/labels';
 import { formatRuntime } from '@/lib/format';
 import { itemQuery } from '@/features/catalog/queries';
 import { VisuallyHidden } from '@/ui';
-import { AriaButton, focusOnMount, PlayerChrome } from '@/ui/aria';
+import { AriaButton, focusOnMount, PlayerChrome, PlayerPanelAnchor } from '@/ui/aria';
 import { nextChapterStart, previousChapterStart } from './audio';
 import { playbackCapabilities, type PlaybackEngine } from './capabilities';
 import { episodeButton, hasEpisodeButtons } from './episodeButtons';
@@ -253,6 +253,8 @@ export function VideoPlayer({
     setSettingsView,
     openSettings,
     panelButton,
+    anchors,
+    anchor,
   } = usePlayerPanels();
   const helpOpen = panel === 'help';
   // Auto-next (W-9): the end of the countdown, or null; cancelled stays for this session.
@@ -1340,6 +1342,7 @@ export function VideoPlayer({
           text: gearQuality,
           expanded: panel === 'settings',
           controls: PANEL_IDS.settings,
+          ref: anchors.settings,
           onPress: () => (panel === 'settings' ? closePanel() : openSettings('main', false)),
           isDisabled: ended !== null,
         }}
@@ -1348,52 +1351,56 @@ export function VideoPlayer({
         onOpenTab={openTab}
         helpOpen={helpOpen}
         onToggleHelp={() => togglePanel('help')}
+        helpRef={anchors.help}
+        helpControls={PANEL_IDS.help}
       />
-      {helpOpen && <ShortcutHelp onClose={closePanel} />}
-      {panel === 'settings' && (
-        <SettingsPanel
-          page={settingsView.page}
-          direct={settingsView.direct}
-          onPage={(page) => setSettingsView({ page, direct: false })}
-          onClose={closePanel}
-          quality={hasQualities && !switching ? qualityChoice : undefined}
-          version={hasVersions && !switching ? versionChoice : undefined}
-          chapters={phone && hasChapters ? chapterChoice : undefined}
-          rate={rate}
-          onRate={setRate}
-          streamInfo={onToggleInfo ? { open: infoOpen, onToggle: onToggleInfo } : undefined}
-          subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
-          nightMode={webAudio ? { on: nightMode, onChange: setNightMode } : undefined}
-        />
-      )}
-      {panel === 'audio' && (
-        <AudioPanel
-          tracks={tracks.audio}
-          profileLanguage={profileLanguage}
-          selectedIndex={audioIndex}
-          converts={converts}
-          onSelect={(index) =>
-            switchPlayback({ audioTrack: index, rememberForSeries: rememberSeries?.on })
-          }
-          onClose={closePanel}
-          remember={rememberSeries}
-          profileDefault
-        />
-      )}
-      {panel === 'subtitle' && (
-        <SubtitlePanel
-          tracks={tracks.subtitles}
-          profileLanguage={profileLanguage}
-          selectedId={info.selection.subtitleTrack}
-          onSelect={(id) =>
-            switchPlayback({ subtitleTrack: id ?? 'off', rememberForSeries: rememberSeries?.on })
-          }
-          onClose={closePanel}
-          subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
-          remember={rememberSeries}
-          forcedBitmap={info.selection.subtitleReason === 'forced_bitmap_available'}
-        />
-      )}
+      <PlayerPanelAnchor value={anchor}>
+        {helpOpen && <ShortcutHelp onClose={closePanel} />}
+        {panel === 'settings' && (
+          <SettingsPanel
+            page={settingsView.page}
+            direct={settingsView.direct}
+            onPage={(page) => setSettingsView({ page, direct: false })}
+            onClose={closePanel}
+            quality={hasQualities && !switching ? qualityChoice : undefined}
+            version={hasVersions && !switching ? versionChoice : undefined}
+            chapters={phone && hasChapters ? chapterChoice : undefined}
+            rate={rate}
+            onRate={setRate}
+            streamInfo={onToggleInfo ? { open: infoOpen, onToggle: onToggleInfo } : undefined}
+            subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
+            nightMode={webAudio ? { on: nightMode, onChange: setNightMode } : undefined}
+          />
+        )}
+        {panel === 'audio' && (
+          <AudioPanel
+            tracks={tracks.audio}
+            profileLanguage={profileLanguage}
+            selectedIndex={audioIndex}
+            converts={converts}
+            onSelect={(index) =>
+              switchPlayback({ audioTrack: index, rememberForSeries: rememberSeries?.on })
+            }
+            onClose={closePanel}
+            remember={rememberSeries}
+            profileDefault
+          />
+        )}
+        {panel === 'subtitle' && (
+          <SubtitlePanel
+            tracks={tracks.subtitles}
+            profileLanguage={profileLanguage}
+            selectedId={info.selection.subtitleTrack}
+            onSelect={(id) =>
+              switchPlayback({ subtitleTrack: id ?? 'off', rememberForSeries: rememberSeries?.on })
+            }
+            onClose={closePanel}
+            subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
+            remember={rememberSeries}
+            forcedBitmap={info.selection.subtitleReason === 'forced_bitmap_available'}
+          />
+        )}
+      </PlayerPanelAnchor>
 
       {inIntro && ended === null && (
         <div className={styles.skip}>

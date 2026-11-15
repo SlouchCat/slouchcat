@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState, type RefObject } from 'react';
 import { PANEL_IDS } from './panelIds';
 import type { SettingsPage } from './SettingsPanel';
 
@@ -10,11 +10,22 @@ export type PanelName = 'audio' | 'subtitle' | 'settings' | 'help';
 
 /**
  * The panels of the online and the offline video player: which one is open, the page of the gear
- * (`direct` when a key opened it on that page, with no way up) and the props of the sound and
- * subtitle buttons in the bar.
+ * (`direct` when a key opened it on that page, with no way up), the props of the sound and
+ * subtitle buttons in the bar, and the button of the bar each panel opens above (concept 23 P-2:
+ * `anchors`, also when a key opened the panel; `anchor` is the open panel's, for PlayerPanelAnchor).
  */
 export function usePlayerPanels() {
   const [panel, setPanel] = useState<PanelName | null>(null);
+  const audioAnchor = useRef<HTMLButtonElement>(null);
+  const subtitleAnchor = useRef<HTMLButtonElement>(null);
+  const settingsAnchor = useRef<HTMLButtonElement>(null);
+  const helpAnchor = useRef<HTMLButtonElement>(null);
+  const anchors: Record<PanelName, RefObject<HTMLButtonElement | null>> = {
+    audio: audioAnchor,
+    subtitle: subtitleAnchor,
+    settings: settingsAnchor,
+    help: helpAnchor,
+  };
   const [settingsView, setSettingsView] = useState<{ page: SettingsPage; direct: boolean }>({
     page: 'main',
     direct: false,
@@ -39,6 +50,7 @@ export function usePlayerPanels() {
     text,
     expanded: panel === name,
     controls: PANEL_IDS[name],
+    ref: anchors[name],
     onPress: () => togglePanel(name),
     isDisabled,
   });
@@ -51,5 +63,7 @@ export function usePlayerPanels() {
     setSettingsView,
     openSettings,
     panelButton,
+    anchors,
+    anchor: panel === null ? null : anchors[panel],
   };
 }

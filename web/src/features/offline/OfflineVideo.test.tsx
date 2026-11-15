@@ -159,6 +159,26 @@ describe('offline video player on PlayerChrome (F-15)', () => {
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
+  it('a panel is a menu: the help names it, a click on the picture only closes it (concept 23 P-2)', () => {
+    const { container, togglePlay } = renderVideo();
+    const help = screen.getByRole('button', { name: 'Tastenkürzel' });
+    fireEvent.click(help);
+    const panel = screen.getByRole('dialog', { name: 'Tastenkürzel' });
+    expect(help).toHaveAttribute('aria-controls', panel.id);
+    expect(within(panel).queryByRole('button', { name: 'Schliessen' })).not.toBeNull();
+    const video = videoElement(container);
+    act(() => {
+      fireEvent.pointerDown(video, { button: 0, pointerType: 'mouse' });
+      fireEvent.pointerUp(video, { button: 0, pointerType: 'mouse' });
+    });
+    expect(screen.queryByRole('dialog', { name: 'Tastenkürzel' })).toBeNull();
+    expect(togglePlay).not.toHaveBeenCalled();
+    // With nothing open a click plays, as before.
+    fireEvent.pointerDown(video, { button: 0, pointerType: 'mouse' });
+    fireEvent.pointerUp(video, { button: 0, pointerType: 'mouse' });
+    expect(togglePlay).toHaveBeenCalledTimes(1);
+  });
+
   it('plays, seeks and changes the volume through the shared key map', () => {
     const { togglePlay, seekBy, seekTo } = renderVideo();
     const region = screen.getByRole('main', { name: 'Videoplayer' });

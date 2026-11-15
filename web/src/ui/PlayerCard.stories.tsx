@@ -26,10 +26,29 @@ const Episodes = () => (
   </div>
 );
 
+// The columns of the cast row in the player (PlayerChrome, variant `portrait`).
 const Cast = () => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 10rem)', gap: '1rem' }}>
-    <PlayerCard shape="person" title="Rebecca Ferguson" caption="als Juliette" onPress={noop} />
-    <PlayerCard shape="person" title="Tim Robbins" caption="als Bernard" onPress={noop} />
+  <div
+    style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, var(--sc-size-portrait-sm))',
+      gap: 'var(--sc-space-3)',
+    }}
+  >
+    <PlayerCard
+      shape="person"
+      title="Rebecca Ferguson"
+      caption="als Juliette"
+      imageUrl={art.posterDusk}
+      onPress={noop}
+    />
+    <PlayerCard
+      shape="person"
+      title="Tim Robbins"
+      caption="als Bernard Holland, Leiter der IT-Abteilung von Silo 18"
+      imageUrl={art.posterMoss}
+      onPress={noop}
+    />
     <PlayerCard shape="person" title="Morten Tyldum" caption="Regie" onPress={noop} />
   </div>
 );
@@ -50,7 +69,10 @@ type Story = StoryObj<typeof meta>;
  */
 export const Default: Story = {};
 
-/** «Besetzung»: the initial, the name and the role. */
+/**
+ * «Besetzung» (concept 23 P-3): a 2:3 portrait, the name and at most two lines of the role, left
+ * aligned; the third person has no portrait and shows the initial.
+ */
 export const Person: Story = { render: () => <Cast /> };
 
 /** Focused by keyboard. */

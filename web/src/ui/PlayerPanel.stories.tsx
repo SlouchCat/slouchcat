@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useRef } from 'react';
+import { AriaButton } from './AriaButton';
 import { OptionList, OptionRow } from './OptionRow';
-import { PlayerPanel } from './PlayerPanel';
+import { PlayerPanel, PlayerPanelAnchor } from './PlayerPanel';
 
 const noop = () => undefined;
 
@@ -37,7 +39,7 @@ const meta = {
       </OptionList>
     ),
   },
-  // The player: the panel sits on its right edge, over the video.
+  // The player: without a button to stand above, the panel sits at its bottom right.
   decorators: [
     (Story) => (
       <div
@@ -88,4 +90,35 @@ export const SubPage: Story = {
       </OptionList>
     ),
   },
+};
+
+/**
+ * The player's bar button: the menu opens right above it, right aligned, as tall as its content
+ * (concept 23 P-2). No close button shows; the hidden one is last in the panel.
+ */
+function AnchoredMenu() {
+  const anchor = useRef<HTMLButtonElement>(null);
+  return (
+    <>
+      <div
+        style={{ position: 'absolute', right: 'var(--sc-space-16)', bottom: 'var(--sc-space-6)' }}
+      >
+        <AriaButton ref={anchor} variant="ghost" icon="audioTrack" aria-expanded>
+          Deutsch
+        </AriaButton>
+      </div>
+      <PlayerPanelAnchor value={anchor}>
+        <PlayerPanel title="Ton" onClose={noop}>
+          <OptionList label="Ton" selectedId="de" onSelect={noop}>
+            <OptionRow id="de" label="Deutsch" detail="DTS 5.1" marks={['default']} />
+            <OptionRow id="en" label="Englisch" detail="TrueHD 7.1 · Originalton" />
+          </OptionList>
+        </PlayerPanel>
+      </PlayerPanelAnchor>
+    </>
+  );
+}
+
+export const AboveItsButton: Story = {
+  render: () => <AnchoredMenu />,
 };
