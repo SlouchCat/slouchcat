@@ -61,3 +61,16 @@ Stufen 1 bis 3 waren in einem Teil der Sprachen noch nicht nachgezogen.
 - In `ru` lautete der Hinweis der Quellenliste noch «no немецкий texts»: Der Text
   `library.providers.missingLanguages` aus Stufe 1 fehlte, Englisch stand ein, mit dem russischen
   Sprachnamen im Platzhalter. Das löst das Nachziehen der Texte der Stufen 1 bis 3.
+
+## Vorab abgelegte Grösse des Service Workers
+
+Gemessen an `sw.js` eines `vite build` (Summe der Dateien der Precache-Liste):
+
+| Stand | Einträge | Grösse | Sprachbündel darin |
+|---|---|---|---|
+| Vorher: alle Sprachbündel vorab | 204 | 7,52 MB | 23, 5,03 MB |
+| Nachher: nur `de`, `de-DE`, `en` vorab | 184 | 2,93 MB | 3, 0,43 MB |
+
+Die übrigen 20 Bündel (je 0,18 bis 0,34 MB) legt die Regel «CacheFirst» `slouchcat-locales` ab, sobald
+ein Gerät seine Sprache lädt (ADR 0033, Abschnitt «Stufe 4»).
+

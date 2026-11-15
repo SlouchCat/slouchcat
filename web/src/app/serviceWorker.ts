@@ -9,7 +9,14 @@ const IDLE_TIMEOUT_MS = 5000;
  */
 export function registerServiceWorker() {
   if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
-  const register = () => void navigator.serviceWorker.register('/sw.js', { scope: '/' });
+  const register = () => {
+    void navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    if (navigator.serviceWorker.controller) return;
+    // First start: the page loaded its language before the worker controlled it.
+    navigator.serviceWorker.addEventListener('controllerchange', cacheLoadedLocales, {
+      once: true,
+    });
+  };
   const whenIdle = () => {
     // Safari has no requestIdleCallback.
     if (typeof window.requestIdleCallback === 'function') {
@@ -20,4 +27,20 @@ export function registerServiceWorker() {
   };
   if (document.readyState === 'complete') whenIdle();
   else window.addEventListener('load', whenIdle, { once: true });
+}
+
+/** A locale chunk of the build (vite.config.ts, localeChunk). */
+const LOCALE_CHUNK = /\/assets\/locale-[^./]+\.[^./]+\.js$/;
+
+/**
+ * Fetches the locale chunks this page has loaded once more, now through the worker: only de, de-DE
+ * and en are precached (concept 22 section 4.4), the others are kept by a CacheFirst rule when
+ * fetched under the worker. Without this a French device would start offline without French after
+ * its first visit. The browser's HTTP cache usually answers.
+ */
+export function cacheLoadedLocales(): void {
+  for (const entry of performance.getEntriesByType('resource')) {
+    if (LOCALE_CHUNK.test(new URL(entry.name).pathname))
+      void fetch(entry.name).catch(() => undefined);
+  }
 }
