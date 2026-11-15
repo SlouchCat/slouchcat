@@ -1,0 +1,879 @@
+<title>Player-Bedienung K23</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: control strip on top, the player stage in the middle, rules and open questions below.
+   Single dark look on purpose: it is the app's own player palette (design tokens of Slouchcat). */
+:root {
+  --bg-base: #0b0c10;
+  --bg-elevated: #13151b;
+  --surface-1: #16181f;
+  --surface-2: #1d2029;
+  --surface-3: #262a35;
+  --text-primary: #f3f3f5;
+  --text-secondary: #b6b9c4;
+  --text-muted: #9095a3;
+  --border: rgba(255,255,255,.08);
+  --track: rgba(255,255,255,.2);
+  --buffered: rgba(255,255,255,.4);
+  --section: rgba(255,255,255,.35);
+  --scrim: rgba(11,12,16,.55);
+  --scrim-strong: rgba(11,12,16,.82);
+  --accent: #e8794a;
+  --on-accent: #0b0c10;
+  --new: #5fcf8f;
+  --focus: #f3f3f5;
+  --font: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI Variable', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg-base); color: var(--text-primary); font-family: var(--font);
+  font-size: 15px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 20px; }
+h1 { font-size: 1.45rem; margin: 0; text-wrap: balance; }
+.lead { margin: 4px 0 0; color: var(--text-secondary); max-width: 68ch; }
+.eyebrow { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
+
+/* Strip of choices for the mockup itself */
+.knobs { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; }
+.knob { display: grid; gap: 6px; min-width: 0; }
+.seg { display: flex; flex-wrap: wrap; gap: 4px; background: var(--surface-1); border-radius: var(--radius-md); padding: 3px; }
+.seg button {
+  font: inherit; font-size: .85rem; color: var(--text-secondary); background: none; border: 0;
+  border-radius: 6px; padding: 5px 10px; cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--surface-3); color: var(--text-primary); }
+.seg button:hover { color: var(--text-primary); }
+button:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.rec { color: var(--new); font-size: .72rem; margin-left: 4px; }
+
+/* ---------- Player stage ---------- */
+.stage-holder { display: flex; justify-content: center; }
+.stage {
+  position: relative; width: 100%; overflow: hidden; border-radius: var(--radius-lg);
+  background: #000; user-select: none; color: var(--text-primary);
+}
+.stage.desktop { aspect-ratio: 16 / 9; max-width: 1040px; min-height: 480px; }
+.stage.phone { aspect-ratio: 19.5 / 9; max-width: 760px; min-height: 330px; }
+.stage.audio { aspect-ratio: auto; background: var(--bg-elevated); max-width: 1040px; overflow: visible; }
+.surface {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 70% 35%, rgba(120,160,200,.35), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 25% 70%, rgba(232,121,74,.18), transparent 70%),
+    linear-gradient(180deg, #1b2533 0%, #0e141c 55%, #07090c 100%);
+  cursor: pointer;
+}
+.surface::after {
+  content: "Bild der Folge"; position: absolute; left: 50%; top: 42%; transform: translate(-50%,-50%);
+  font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.18);
+}
+.chrome { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; }
+.chrome > * { pointer-events: auto; }
+.top {
+  display: flex; align-items: flex-start; gap: 8px; padding: 12px 12px 40px;
+  background: linear-gradient(180deg, var(--scrim-strong), transparent);
+}
+.heading { flex: 1; min-width: 0; padding-top: 4px; }
+.heading .t { font-size: 1.35rem; font-weight: 700; letter-spacing: .01em; margin: 0; line-height: 1.1; }
+.heading .d { margin: 2px 0 0; color: var(--text-secondary); font-size: .9rem; }
+.bottom { padding: 40px 16px 10px; background: linear-gradient(0deg, var(--scrim-strong) 55%, transparent); display: grid; gap: 6px; }
+.line { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: .88rem; color: var(--text-secondary); }
+.line .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.line .right { display: flex; align-items: center; gap: 2px; }
+.timebtn { font: inherit; font-variant-numeric: tabular-nums; color: var(--text-primary); background: none; border: 0; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
+.seek { position: relative; height: 18px; cursor: pointer; }
+.seek .trk { position: absolute; left: 0; right: 0; top: 7px; height: 4px; display: flex; gap: 3px; }
+.seek .seg-ch { position: relative; height: 100%; background: var(--track); border-radius: 2px; overflow: hidden; }
+.seek .seg-ch .buf { position: absolute; inset: 0 auto 0 0; background: var(--buffered); }
+.seek .seg-ch .pro { position: absolute; inset: 0 auto 0 0; background: var(--accent); }
+.seek .seg-ch.intro { background: var(--section); }
+.seek .thumb { position: absolute; top: 3px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--accent); }
+
+.bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.grp { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+.sep { width: 1px; height: 22px; background: rgba(255,255,255,.18); margin: 0 6px; }
+.ib {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: .9rem;
+  color: var(--text-primary); background: none; border: 0; border-radius: 8px;
+  min-width: 40px; height: 40px; padding: 0 9px; justify-content: center; cursor: pointer;
+}
+.ib:hover:not(:disabled) { background: rgba(255,255,255,.1); }
+.ib:disabled { color: rgba(243,243,245,.32); cursor: default; }
+.ib[aria-expanded="true"] { background: rgba(255,255,255,.14); }
+.ib.lg { min-width: 64px; height: 64px; }
+.ib.lg .i { width: 34px; height: 34px; }
+.ib .txt { color: var(--text-secondary); }
+.ib.pill { background: rgba(255,255,255,.12); padding: 0 12px 0 9px; height: 36px; border-radius: 18px; }
+.ib.pill .txt { color: var(--text-primary); }
+.i.mini { width: 16px; height: 16px; vertical-align: -3px; }
+.i { width: 22px; height: 22px; flex: none; fill: currentColor; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Tooltip on hover/focus for the step buttons */
+.tip {
+  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  background: var(--bg-elevated); color: var(--text-primary); font-size: .8rem; white-space: nowrap;
+  padding: 5px 9px; border-radius: 6px; pointer-events: none; opacity: 0; transition: opacity .12s;
+  box-shadow: 0 4px 16px rgba(0,0,0,.4); z-index: 5;
+}
+.ib:hover .tip, .ib:focus-visible .tip { opacity: 1; }
+.tip kbd, .card kbd, .rules kbd, .qs kbd {
+  font: inherit; font-size: .75rem; background: var(--surface-3); border-radius: 4px; padding: 0 5px; margin-left: 4px; color: var(--text-secondary);
+}
+
+/* Preview card of the next episode */
+.epwrap { position: relative; display: inline-flex; }
+.card {
+  position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-30%);
+  width: 280px; background: var(--bg-elevated); border-radius: var(--radius-lg); overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,.55); opacity: 0; pointer-events: none; transition: opacity .15s, transform .15s;
+  z-index: 6;
+}
+.epwrap:hover .card, .epwrap:focus-within .card { opacity: 1; }
+.card .img {
+  aspect-ratio: 16/9; position: relative;
+  background: radial-gradient(ellipse 70% 60% at 30% 40%, rgba(150,190,230,.35), transparent), linear-gradient(160deg, #23324a, #0d121a);
+}
+.card .img span { position: absolute; left: 10px; bottom: 8px; font-size: .72rem; color: rgba(255,255,255,.55); }
+.card .b { padding: 10px 12px 12px; display: grid; gap: 2px; }
+.card .e { font-size: .72rem; letter-spacing: .07em; text-transform: uppercase; color: var(--accent); }
+.card .n { font-weight: 600; }
+.card .m { font-size: .82rem; color: var(--text-secondary); }
+
+/* Volume */
+.vol { display: inline-flex; align-items: center; gap: 4px; }
+.vol .slider { width: 70px; height: 4px; border-radius: 2px; background: var(--track); position: relative; }
+.vol .slider::after { content: ""; position: absolute; inset: 0 30% 0 0; background: var(--text-primary); border-radius: 2px; }
+
+.tabs { display: flex; gap: 4px; padding-top: 2px; }
+.tabs button { font: inherit; font-size: .85rem; color: var(--text-secondary); background: none; border: 0; padding: 4px 10px; border-radius: 6px; cursor: pointer; }
+.tabs button:hover { color: var(--text-primary); }
+.tabs button[aria-expanded="true"] { background: var(--surface-3); color: var(--text-primary); }
+.castrow { display: grid; grid-auto-flow: column; grid-auto-columns: 6.25rem; gap: 12px; overflow-x: auto; padding: 4px 2px 6px; }
+.person { display: grid; gap: 4px; font: inherit; color: inherit; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; min-width: 0; }
+.person .por { aspect-ratio: 2 / 3; border-radius: var(--radius-lg); overflow: hidden; display: grid; place-items: center; font-size: 1.6rem; font-weight: 700; color: var(--text-primary); background: var(--surface-3); position: relative; }
+.person .por.img::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse 45% 32% at 50% 34%, rgba(230,200,175,.55), transparent 70%), radial-gradient(ellipse 70% 45% at 50% 95%, rgba(70,90,120,.8), transparent 75%), linear-gradient(180deg, var(--p1), var(--p2)); }
+.person .nm { font-size: .82rem; font-weight: 600; line-height: 1.25; }
+.person .rl { font-size: .74rem; color: var(--text-secondary); line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.person:hover .por { outline: 2px solid rgba(255,255,255,.3); }
+
+/* Phone layout */
+.stage.phone .top { padding: 8px 8px 30px; flex-wrap: wrap; }
+.stage.phone .heading { order: 3; flex-basis: 100%; padding: 0 8px; }
+.stage.phone .heading .t { font-size: 1.05rem; }
+.stage.phone .heading .d { font-size: .8rem; }
+.stage.phone .opts { margin-left: auto; display: flex; gap: 0; }
+.center { display: flex; justify-content: center; align-items: center; gap: 28px; }
+.stage.phone .bottom { padding: 24px 12px 8px; }
+
+/* ---------- Panels: anchored menu (desktop), sheet (phone) ---------- */
+.panel {
+  position: absolute; z-index: 20; width: 320px; max-width: calc(100% - 24px);
+  background: var(--bg-elevated); border-radius: var(--radius-lg); box-shadow: 0 12px 40px rgba(0,0,0,.6);
+  display: flex; flex-direction: column; overflow: hidden; animation: pop .14s ease-out;
+}
+@keyframes pop { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.panel header { display: flex; align-items: center; gap: 6px; padding: 12px 14px 6px 16px; }
+.panel header.sub { padding-left: 6px; }
+.panel h2 { font-size: 1rem; margin: 0; flex: 1; }
+.panel .esc { font-size: .72rem; color: var(--text-muted); }
+.panel .body { overflow-y: auto; padding: 0 6px 8px; overscroll-behavior: contain; }
+.row {
+  width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; font: inherit; color: var(--text-primary);
+  background: none; border: 0; border-radius: 8px; padding: 8px 10px; cursor: pointer;
+}
+.row:hover { background: var(--surface-2); }
+.row .rt { flex: 1; min-width: 0; }
+.row .rs { display: block; font-size: .8rem; color: var(--text-secondary); }
+.row .chk { width: 18px; color: var(--accent); }
+.row .chev { color: var(--text-secondary); }
+.switch { width: 38px; height: 22px; border-radius: 11px; background: var(--surface-3); position: relative; flex: none; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--text-secondary); transition: left .12s; }
+.row[aria-checked="true"] .switch { background: var(--accent); }
+.row[aria-checked="true"] .switch::after { left: 19px; background: var(--on-accent); }
+.chips { display: flex; gap: 6px; padding: 4px 10px 10px; flex-wrap: wrap; }
+.chips button { font: inherit; font-size: .85rem; color: var(--text-primary); background: var(--surface-2); border: 0; border-radius: 6px; padding: 5px 12px; cursor: pointer; }
+.chips button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.group-l { font-size: .75rem; color: var(--text-muted); padding: 6px 10px 2px; }
+
+.scrim { position: absolute; inset: 0; background: var(--scrim); z-index: 15; animation: fade .14s; }
+@keyframes fade { from { opacity: 0; } }
+.panel.sheet { left: 0; right: 0; bottom: 0; width: auto; max-width: none; max-height: 85%; border-radius: var(--radius-lg) var(--radius-lg) 0 0; animation: up .18s ease-out; }
+@keyframes up { from { transform: translateY(30%); opacity: .4; } }
+.grab { display: block; margin: 6px auto 0; width: 44px; height: 18px; background: none; border: 0; cursor: pointer; position: relative; }
+.grab::after { content: ""; position: absolute; left: 6px; right: 6px; top: 7px; height: 4px; border-radius: 2px; background: var(--surface-3); }
+
+.streaminfo {
+  position: absolute; left: 14px; top: 70px; z-index: 4; font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace;
+  background: var(--scrim-strong); border-radius: 8px; padding: 8px 10px; color: var(--text-secondary); pointer-events: none;
+}
+
+.toast {
+  position: absolute; left: 50%; top: 22%; transform: translateX(-50%); z-index: 30;
+  background: var(--bg-elevated); color: var(--text-primary); padding: 8px 14px; border-radius: 20px; font-size: .88rem;
+  box-shadow: 0 6px 24px rgba(0,0,0,.5); opacity: 0; transition: opacity .15s; pointer-events: none; white-space: nowrap; max-width: 90%; overflow: hidden; text-overflow: ellipsis;
+}
+.toast.on { opacity: 1; }
+
+/* ---------- Audio player card ---------- */
+.acard { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; padding: 24px; position: relative; }
+.cover {
+  aspect-ratio: 1; border-radius: var(--radius-md); display: grid; place-items: center; font-size: 2.2rem; font-weight: 700; color: rgba(255,255,255,.75);
+  background: linear-gradient(140deg, #3b2a52, #1a2236);
+}
+.cover.pod { background: linear-gradient(140deg, #1f4a45, #142033); }
+.ameta { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.ameta .t { font-size: 1.3rem; font-weight: 700; margin: 0; }
+.ameta .a { color: var(--text-secondary); margin: 0; }
+.ameta .c { color: var(--text-secondary); font-size: .9rem; margin: 6px 0 0; }
+.abar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.ameta .line { margin-top: 8px; }
+@media (max-width: 640px) {
+  .acard { grid-template-columns: 1fr; }
+  .cover { max-width: 160px; }
+}
+
+/* ---------- Text below ---------- */
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.box { background: var(--surface-1); border-radius: var(--radius-lg); padding: 16px 18px; min-width: 0; }
+.box h2 { font-size: 1.02rem; margin: 0 0 10px; }
+.box ul, .box ol { margin: 0; padding-left: 1.2em; display: grid; gap: 8px; color: var(--text-secondary); }
+.box li b { color: var(--text-primary); font-weight: 600; }
+.tablewrap { overflow-x: auto; }
+table.rules { border-collapse: collapse; width: 100%; font-size: .86rem; min-width: 560px; }
+.rules th, .rules td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.rules th { color: var(--text-muted); font-weight: 500; font-size: .78rem; }
+.rules td:first-child { color: var(--text-primary); white-space: nowrap; }
+.rules td { color: var(--text-secondary); }
+.rules .hot { background: rgba(232,121,74,.08); color: var(--text-primary); }
+.rules .ic { display: inline-flex; vertical-align: -5px; margin-right: 4px; }
+.rules .ic .i { width: 18px; height: 18px; }
+.try { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--text-secondary); font-size: .88rem; }
+.try span::before { content: "→ "; color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6.5" y="5" width="3.5" height="14" rx="1"/><rect x="14" y="5" width="3.5" height="14" rx="1"/></symbol>
+    <symbol id="i-replay" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7M4 5v5h5" fill="none"/></symbol>
+    <symbol id="i-forward" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 5v5h-5" fill="none"/></symbol>
+    <symbol id="i-skipPrev" viewBox="0 0 24 24"><path d="M18 6.5v11a1 1 0 0 1-1.5.86L8.4 13.3a1.5 1.5 0 0 1 0-2.6l8.1-5.06A1 1 0 0 1 18 6.5Z"/><path d="M6 5.5v13" fill="none"/></symbol>
+    <symbol id="i-skipNext" viewBox="0 0 24 24"><path d="M6 6.5v11a1 1 0 0 0 1.5.86l8.1-5.06a1.5 1.5 0 0 0 0-2.6L7.5 5.64A1 1 0 0 0 6 6.5Z"/><path d="M18 5.5v13" fill="none"/></symbol>
+    <!-- New: chapter jump = an arc from one mark on the timeline to the next -->
+    <symbol id="i-chapNext" viewBox="0 0 24 24"><path d="M3 18.5h18M6.5 15.5v6M17.5 15.5v6" fill="none"/><path d="M6.5 12.5C8 6.8 16 6.8 17.5 12.5" fill="none"/><path d="M14.7 11.4l2.8 1.1 1.1-2.8" fill="none"/></symbol>
+    <symbol id="i-chapPrev" viewBox="0 0 24 24"><g transform="matrix(-1 0 0 1 24 0)"><path d="M3 18.5h18M6.5 15.5v6M17.5 15.5v6" fill="none"/><path d="M6.5 12.5C8 6.8 16 6.8 17.5 12.5" fill="none"/><path d="M14.7 11.4l2.8 1.1 1.1-2.8" fill="none"/></g></symbol>
+    <!-- New (variant A): next episode = a stack of episodes with play -->
+    <symbol id="i-epStack" viewBox="0 0 24 24"><path d="M7.5 4.5h10a2.5 2.5 0 0 1 2.5 2.5v8.5" fill="none"/><rect x="3.5" y="8" width="13" height="11" rx="2" fill="none"/><path d="M8.5 11v5l4.2-2.5Z"/></symbol>
+    <symbol id="i-volume" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 19V5L7.5 9.5H4Z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none"/></symbol>
+    <symbol id="i-subtitles" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="none"/><path d="M7 12h3M12.5 12H17M7 15.5h6.5M16 15.5h1" fill="none"/></symbol>
+    <symbol id="i-audioTrack" viewBox="0 0 24 24"><path d="M4 10.5v3M8 7.5v9M12 4.5v15M16 8v8M20 10.5v3" fill="none"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M10.4 3.5h3.2l.5 2.4 1.7 1 2.3-.8 1.6 2.8-1.8 1.6v2l1.8 1.6-1.6 2.8-2.3-.8-1.7 1-.5 2.4h-3.2l-.5-2.4-1.7-1-2.3.8-1.6-2.8 1.8-1.6v-2L4.3 8.9l1.6-2.8 2.3.8 1.7-1Z" fill="none"/><circle cx="12" cy="12" r="2.75" fill="none"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.6M12 16.6v.1" fill="none"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6" fill="none"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none"/></symbol>
+    <symbol id="i-pip" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2" fill="none"/><rect x="12" y="12" width="6" height="4.5" rx="1"/></symbol>
+    <symbol id="i-full" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6.5h12M8 12h12M8 17.5h12M4 6.5h.1M4 12h.1M4 17.5h.1" fill="none"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5Z" fill="none"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Konzept 23 · Vorschlag · Klick-Mockup</div>
+    <h1>Player: eigener Knopf für die nächste Folge, Menüs ohne X</h1>
+    <p class="lead">Alles im Bild ist anklickbar. Oben wählst du, was gerade läuft und auf welchem Gerät. Fahre über die Knöpfe neben Play, öffne das Zahnrad und klicke dann irgendwo daneben.</p>
+  </header>
+
+  <div class="knobs" id="knobs">
+    <div class="knob"><span class="eyebrow">Was läuft</span>
+      <div class="seg" data-knob="ctx">
+        <button data-v="ep">Serienfolge</button>
+        <button data-v="epNoCh">Folge ohne Kapitel</button>
+        <button data-v="seasonEnd">Letzte der Staffel</button>
+        <button data-v="seriesEnd">Letzte der Serie</button>
+        <button data-v="film">Film</button>
+        <button data-v="podcast">Podcast-Folge</button>
+        <button data-v="book">Hörbuch</button>
+      </div>
+    </div>
+    <div class="knob"><span class="eyebrow">Gerät</span>
+      <div class="seg" data-knob="view">
+        <button data-v="desktop">Computer / Tablet</button>
+        <button data-v="phone">Handy</button>
+      </div>
+    </div>
+    <div class="knob"><span class="eyebrow">Symbole</span>
+      <div class="seg" data-knob="icons">
+        <button data-v="B">B: <svg class="i mini" aria-hidden="true"><use href="#i-skipNext"/></svg> = Folge<span class="rec">empfohlen</span></button>
+        <button data-v="A">A: <svg class="i mini" aria-hidden="true"><use href="#i-skipNext"/></svg> = Kapitel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stage-holder"><div id="stage" class="stage"></div></div>
+  <div class="try" id="try"></div>
+
+  <div class="cols">
+    <section class="box">
+      <h2>Was sich ändert</h2>
+      <ol>
+        <li><b>Zwei Knöpfe, je eine Bedeutung.</b> Heute springt <svg class="i mini" aria-hidden="true"><use href="#i-skipNext"/></svg> zum nächsten Kapitel und nach dem letzten Kapitel zur nächsten Folge, <svg class="i mini" aria-hidden="true"><use href="#i-skipPrev"/></svg> in den ersten Sekunden zur vorherigen Folge. Neu: Kapitelknöpfe springen nur innerhalb des Titels, der Folgenknopf wechselt nur die Folge.</li>
+        <li><b>Folgenknopf mit Vorschau.</b> Beim Zeigen oder mit dem Fokus erscheint eine Karte mit Bild, «S01E05 · Titel» und Laufzeit. Über die Staffelgrenze hinweg geht es zu «S02E01». Taste <kbd>N</kbd> bleibt.</li>
+        <li><b>Gleicher Platz überall.</b> Video, Offline-Player und Audioplayer (Podcast, Hörbuch) haben dieselbe Reihenfolge: Kapitel zurück · zurückspulen · Play · vorspulen · Kapitel vor | nächste Folge. Am Handy steht «Nächste Folge» als Knopf mit Text über der Zeitleiste.</li>
+        <li><b>Menüs schliessen sich von selbst.</b> Einstellungen, Ton und Untertitel öffnen als Menü in Inhaltshöhe direkt über ihrem Knopf statt als Leiste über die ganze Höhe. Es schliesst sich mit einem Klick daneben, einem zweiten Klick aufs Symbol oder mit <kbd>Esc</kbd>. Das X fällt weg. Am Handy kommt ein Blatt von unten: Tippen aufs Bild darüber oder auf den Griff schliesst es.</li>
+        <li><b>Besetzung mit Bildern.</b> Der Reiter «Besetzung» zeigt heute nur runde Anfangsbuchstaben, auch wenn es ein Foto gibt. Neu: Hochformat 2:3 mit abgerundeten Ecken wie auf der Detailseite, links ausgerichtet, Name und Rolle darunter. Ohne Foto bleibt der Buchstabe, aber eckig.</li>
+        <li><b>Klick daneben pausiert nicht.</b> Klickst du bei offenem Menü aufs Bild, schliesst nur das Menü und das Video läuft weiter. Ein Klick auf einen anderen Knopf der Leiste schliesst das Menü und führt den Knopf aus.</li>
+      </ol>
+    </section>
+    <section class="box">
+      <h2>Offene Fragen</h2>
+      <ol class="qs">
+        <li><b>F-1 Symbole:</b> B gibt <svg class="i mini" aria-hidden="true"><use href="#i-skipNext"/></svg> der Folge (wie bei Netflix und YouTube) und den Kapiteln ein neues Bogen-Symbol. A lässt <svg class="i mini" aria-hidden="true"><use href="#i-skipNext"/></svg> bei den Kapiteln (wie in Hörbuch-Apps) und gibt der Folge ein neues Stapel-Symbol. Empfehlung: B.</li>
+        <li><b>F-2 Ohne Kapitel:</b> Kapitelknöpfe ausgegraut an ihrem Platz lassen (im Mockup so, nichts verschiebt sich) oder ganz ausblenden?</li>
+        <li><b>F-3 Vorherige Folge:</b> eigener Knopf oder nur über den Reiter «Als Nächstes» (Vorschlag: nur Reiter)?</li>
+        <li><b>F-4 Hörbuch in einer Reihe:</b> soll derselbe Knopf zum nächsten Band springen? Im Mockup hat das Hörbuch keinen.</li>
+        <li><b>F-5 Podcast:</b> «nächste Folge» heisst die nächstneuere Folge (Vorschlag) oder die nächste in der Liste der Merkliste?</li>
+      </ol>
+    </section>
+  </div>
+
+  <section class="box">
+    <h2>Wann welcher Knopf da ist</h2>
+    <div class="tablewrap">
+      <table class="rules" id="rules"></table>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const S1 = ['Ankunft', 'Spuren im Schnee', 'Das Echo', 'Wahrheit', 'Die Brücke', 'Polarnacht'];
+  const S2 = ['Tauwetter', 'Funkstille', 'Zwei Ufer', 'Der Leuchtturm', 'Gegenwind', 'Heimkehr'];
+  const EPISODES = [
+    ...S1.map((t, i) => ({ s: 1, e: i + 1, t, min: [47, 44, 46, 44, 49, 52][i] })),
+    ...S2.map((t, i) => ({ s: 2, e: i + 1, t, min: [45, 43, 48, 44, 46, 58][i] })),
+  ];
+  const EP_CHAPTERS = [
+    ['Vorspann', 0], ['Ankunft am Hafen', 95], ['Das Verhör', 600], ['Im Archiv', 1220], ['Der Anruf', 1900], ['Abspann', 2560],
+  ];
+  const START = { ep: 3, epNoCh: 1, seasonEnd: 5, seriesEnd: 11 };
+
+  const state = {
+    ctx: 'ep', view: 'desktop', icons: 'B',
+    playing: true, t: 54_000, epIdx: 3,
+    panel: null, page: 'main', streamInfo: false,
+    quality: 'auto', speed: 1, subSize: 'M', boost: false,
+    sub: 'de', audio: 'de', tab: null,
+  };
+  let swallow = false;
+
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const stage = $('#stage');
+  const icon = (id) => `<svg class="i" aria-hidden="true"><use href="#i-${id}"/></svg>`;
+  const pad = (n) => String(n).padStart(2, '0');
+  const fmt = (ms) => {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+    return h ? `${h}:${pad(m)}:${pad(r)}` : `${m}:${pad(r)}`;
+  };
+  const code = (ep) => `S${pad(ep.s)}E${pad(ep.e)}`;
+
+  /** What plays now: title, chapters (start in ms), duration, next item, kind. */
+  function media() {
+    const c = state.ctx;
+    if (c === 'film') {
+      const len = 7110;
+      const ch = Array.from({ length: 10 }, (_, i) => [`Kapitel ${i + 1}`, Math.round(i * len / 10)]);
+      return { kind: 'video', title: 'Die lange Küste', detail: '2024 · Drama, Krimi', dur: len * 1000,
+        chapters: ch.map(([n, s]) => ({ n, ms: s * 1000 })), next: null, nextNote: 'Ein Film hat keine nächste Folge' };
+    }
+    if (c === 'podcast') {
+      return { kind: 'audio', pod: true, title: 'Hintergrund am Abend', author: 'Folge 41 · Wasser als Ressource', dur: 2_310_000,
+        chapters: [['Einstieg', 0], ['Gletscher', 420], ['Landwirtschaft', 1150], ['Ausblick', 1890]].map(([n, s]) => ({ n, ms: s * 1000 })),
+        next: { label: 'Folge 42', title: 'Wie Städte kühler werden', meta: '41 Min. · 12. Nov.' } };
+    }
+    if (c === 'book') {
+      const len = 41_000;
+      const ch = Array.from({ length: 34 }, (_, i) => ({ n: `Kapitel ${i + 1}`, ms: Math.round(i * len / 34) * 1000 }));
+      return { kind: 'audio', title: 'Der stille Hafen', author: 'Lea Brunner · gelesen von Jonas Keller', dur: len * 1000,
+        chapters: ch, next: null, nextNote: 'Hörbuch: offen (F-4)' };
+    }
+    const ep = EPISODES[state.epIdx];
+    const withCh = c !== 'epNoCh';
+    const nextEp = EPISODES[state.epIdx + 1];
+    return {
+      kind: 'video', title: 'Nordlicht', detail: `${code(ep)} · ${ep.t}`, ep, dur: ep.min * 60_000,
+      chapters: withCh ? EP_CHAPTERS.map(([n, s]) => ({ n, ms: s * 1000 })).filter((x) => x.ms < ep.min * 60_000) : [],
+      intro: withCh ? [0, 95_000] : null,
+      next: nextEp ? { label: (nextEp.s !== ep.s ? `Staffel ${nextEp.s} · ` : '') + code(nextEp), title: nextEp.t, meta: `${nextEp.min} Min.`, idx: state.epIdx + 1 } : null,
+      nextNote: 'Letzte Folge der Serie',
+    };
+  }
+
+  const chapterAt = (m, ms) => {
+    let i = -1;
+    m.chapters.forEach((c, k) => { if (c.ms <= ms) i = k; });
+    return i;
+  };
+
+  /* ---------- Buttons ---------- */
+  const chapIcons = () => state.icons === 'B' ? ['chapPrev', 'chapNext'] : ['skipPrev', 'skipNext'];
+  const epIcon = () => state.icons === 'B' ? 'skipNext' : 'epStack';
+
+  function stepButtons(m) {
+    const [p, n] = chapIcons();
+    const has = m.chapters.length > 0;
+    const i = chapterAt(m, state.t);
+    const prevOk = has;
+    const nextOk = has && i < m.chapters.length - 1;
+    const tipNo = 'Keine Kapitel';
+    return {
+      prev: `<button class="ib" data-act="chapPrev" ${prevOk ? '' : 'disabled'} aria-label="Vorheriges Kapitel">${icon(p)}<span class="tip">${has ? 'Vorheriges Kapitel<kbd>⇧←</kbd>' : tipNo}</span></button>`,
+      next: `<button class="ib" data-act="chapNext" ${nextOk ? '' : 'disabled'} aria-label="Nächstes Kapitel">${icon(n)}<span class="tip">${has ? (nextOk ? 'Nächstes Kapitel<kbd>⇧→</kbd>' : 'Letztes Kapitel') : tipNo}</span></button>`,
+    };
+  }
+
+  function epButton(m, phone) {
+    const isSeries = m.ep !== undefined || m.pod;
+    if (!isSeries) return '';
+    if (!m.next) {
+      return phone
+        ? `<button class="ib pill" disabled aria-label="Keine nächste Folge">${icon(epIcon())}<span class="txt">Letzte Folge</span></button>`
+        : `<span class="sep"></span><button class="ib" disabled aria-label="Keine nächste Folge">${icon(epIcon())}<span class="tip">${m.nextNote}</span></button>`;
+    }
+    const card = `<div class="card" role="tooltip"><div class="img"><span>Bild der nächsten Folge</span></div><div class="b"><span class="e">Nächste Folge</span><span class="n">${m.next.label} · ${m.next.title}</span><span class="m">${m.next.meta}<kbd>N</kbd></span></div></div>`;
+    if (phone) {
+      return `<button class="ib pill" data-act="nextEp" aria-label="Nächste Folge: ${m.next.label} ${m.next.title}">${icon(epIcon())}<span class="txt">Nächste Folge</span></button>`;
+    }
+    return `<span class="sep"></span><span class="epwrap"><button class="ib" data-act="nextEp" aria-label="Nächste Folge: ${m.next.label} ${m.next.title}">${icon(epIcon())}</button>${card}</span>`;
+  }
+
+  const playBtn = (lg) => `<button class="ib ${lg ? 'lg' : ''}" data-act="play" aria-label="${state.playing ? 'Pause' : 'Abspielen'}">${icon(state.playing ? 'pause' : 'play')}</button>`;
+  const skipBtn = (dir, s, lg) => `<button class="ib ${lg ? 'lg' : ''}" data-act="skip" data-s="${dir * s}" aria-label="${dir < 0 ? '−' : '+'}${s} s">${icon(dir < 0 ? 'replay' : 'forward')}${lg ? '' : `<span class="tip">${dir < 0 ? '−' : '+'}${s} s</span>`}</button>`;
+  const panelBtn = (name, ic, label, text, phone) =>
+    `<button class="ib" data-opens="${name}" aria-haspopup="dialog" aria-expanded="${state.panel === name}" aria-label="${label}">${icon(ic)}${text && !phone ? `<span class="txt">${text}</span>` : ''}</button>`;
+
+  function seekBar(m) {
+    const segs = [];
+    const dur = m.dur;
+    const bounds = m.chapters.length ? m.chapters.map((c) => c.ms) : [0];
+    bounds.forEach((start, k) => {
+      const end = k + 1 < bounds.length ? bounds[k + 1] : dur;
+      const isIntro = m.intro && k === 0;
+      segs.push(`<div class="seg-ch ${isIntro ? 'intro' : ''}" data-s="${start}" data-e="${end}" style="flex:${end - start} 1 0"><div class="buf"></div><div class="pro"></div></div>`);
+    });
+    return `<div class="seek" data-seek role="slider" tabindex="0" aria-label="Zeitleiste"><div class="trk">${segs.join('')}</div><div class="thumb"></div></div>`;
+  }
+
+  /* ---------- Panels ---------- */
+  const QUAL = [['auto', 'Automatisch', 'zurzeit Original'], ['orig', 'Original', '4K HDR · 38 Mbit/s'], ['1080', '1080p', '12 Mbit/s'], ['720', '720p', '6 Mbit/s'], ['480', '480p', '3 Mbit/s']];
+  const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+  const speedText = (v) => `${String(v).replace('.', ',')}×`;
+
+  function panelContent() {
+    const p = state.panel;
+    if (p === 'subs') {
+      const opts = [['off', 'Aus'], ['de', 'Deutsch', 'SRT · Standard'], ['de-f', 'Deutsch (erzwungen)', 'nur fremdsprachige Stellen'], ['en', 'Englisch', 'PGS']];
+      return { title: 'Untertitel', body: `<div role="radiogroup" aria-label="Untertitel">${opts.map(([v, n, s]) => `<button class="row" role="radio" aria-checked="${state.sub === v}" data-set="sub" data-v="${v}"><span class="chk">${state.sub === v ? icon('check') : ''}</span><span class="rt">${n}${s ? `<span class="rs">${s}</span>` : ''}</span></button>`).join('')}</div>` };
+    }
+    if (p === 'audio') {
+      const opts = [['de', 'Deutsch', 'DTS 5.1 · Standard'], ['en', 'Englisch', 'AC3 5.1'], ['ad', 'Deutsch · Audiodeskription', 'AAC Stereo']];
+      return { title: 'Ton', body: `<div role="radiogroup" aria-label="Ton">${opts.map(([v, n, s]) => `<button class="row" role="radio" aria-checked="${state.audio === v}" data-set="audio" data-v="${v}"><span class="chk">${state.audio === v ? icon('check') : ''}</span><span class="rt">${n}<span class="rs">${s}</span></span></button>`).join('')}</div>` };
+    }
+    if (p === 'speed') {
+      return { title: 'Geschwindigkeit', body: `<div role="radiogroup">${SPEEDS.map((v) => `<button class="row" role="radio" aria-checked="${state.speed === v}" data-set="speed" data-v="${v}"><span class="chk">${state.speed === v ? icon('check') : ''}</span><span class="rt">${speedText(v)}</span></button>`).join('')}</div>` };
+    }
+    // settings
+    const pg = state.page;
+    if (pg === 'quality') {
+      return { title: 'Qualität', sub: true, body: `<div role="radiogroup">${QUAL.map(([v, n, s]) => `<button class="row" role="radio" aria-checked="${state.quality === v}" data-set="quality" data-v="${v}"><span class="chk">${state.quality === v ? icon('check') : ''}</span><span class="rt">${n}<span class="rs">${s}</span></span></button>`).join('')}</div>` };
+    }
+    if (pg === 'speed') {
+      return { title: 'Geschwindigkeit', sub: true, body: `<div role="radiogroup">${SPEEDS.map((v) => `<button class="row" role="radio" aria-checked="${state.speed === v}" data-set="speed" data-v="${v}"><span class="chk">${state.speed === v ? icon('check') : ''}</span><span class="rt">${speedText(v)}</span></button>`).join('')}</div>` };
+    }
+    if (pg === 'style') {
+      return { title: 'Untertitel-Stil', sub: true, body: `<div class="group-l">Grösse</div><div class="chips">${['S', 'M', 'L', 'XL'].map((v) => `<button aria-pressed="${state.subSize === v}" data-set="subSize" data-v="${v}">${v}</button>`).join('')}</div><div class="group-l">Hintergrund</div><div class="chips"><button aria-pressed="true">Schatten</button><button aria-pressed="false">Box</button><button aria-pressed="false">Keiner</button></div>` };
+    }
+    if (pg === 'sound') {
+      return { title: 'Ton-Optionen', sub: true, body: `<button class="row" role="switch" aria-checked="${state.boost}" data-toggle="boost"><span class="rt">Lauter bis 150 %<span class="rs">Für leise Abmischungen</span></span><span class="switch"></span></button>` };
+    }
+    const q = QUAL.find((x) => x[0] === state.quality);
+    const qs = state.quality === 'auto' ? 'Automatisch · zurzeit Original' : `${q[1]} · ${q[2]}`;
+    return { title: 'Einstellungen', body: `
+      <button class="row" data-page="quality"><span class="rt">Qualität<span class="rs">${qs}</span></span><span class="chev">${icon('chev')}</span></button>
+      <button class="row" data-page="speed"><span class="rt">Geschwindigkeit<span class="rs">${speedText(state.speed)}</span></span><span class="chev">${icon('chev')}</span></button>
+      <button class="row" data-page="style"><span class="rt">Untertitel-Stil<span class="rs">Grösse ${state.subSize} · Schatten</span></span><span class="chev">${icon('chev')}</span></button>
+      <button class="row" data-page="sound"><span class="rt">Ton-Optionen<span class="rs">${state.boost ? 'Lauter bis 150 %' : 'Normal'}</span></span><span class="chev">${icon('chev')}</span></button>
+      <button class="row" role="switch" aria-checked="${state.streamInfo}" data-toggle="streamInfo"><span class="rt">Stream-Info</span><span class="switch"></span></button>` };
+  }
+
+  function panelHtml(phone) {
+    if (!state.panel) return '';
+    const c = panelContent();
+    const head = `<header class="${c.sub ? 'sub' : ''}">${c.sub ? `<button class="ib" data-page="main" aria-label="Zurück">${icon('back')}</button>` : ''}<h2>${c.title}</h2>${phone ? '' : '<span class="esc">Esc</span>'}</header>`;
+    if (phone) {
+      return `<div class="scrim" data-scrim></div><section class="panel sheet" role="dialog" aria-label="${c.title}"><button class="grab" data-close aria-label="Schliessen"></button>${head}<div class="body">${c.body}</div></section>`;
+    }
+    return `<section class="panel pop" role="dialog" aria-label="${c.title}" data-panel>${head}<div class="body">${c.body}</div></section>`;
+  }
+
+  /* ---------- Render ---------- */
+  function render() {
+    const m = media();
+    const phone = state.view === 'phone';
+    stage.className = `stage ${m.kind === 'audio' ? 'audio' : phone ? 'phone' : 'desktop'}`;
+    const ci = chapterAt(m, state.t);
+    const lineLabel = m.kind === 'video'
+      ? (m.ep ? `${code(m.ep)} · ${m.ep.t}` : m.title) + (ci >= 0 ? ` · ${m.chapters[ci].n}` : '')
+      : '';
+    const st = stepButtons(m);
+
+    if (m.kind === 'audio') {
+      stage.innerHTML = `
+        <div class="acard">
+          <div class="cover ${m.pod ? 'pod' : ''}">${m.pod ? 'HaA' : 'DsH'}</div>
+          <div class="ameta">
+            <span class="eyebrow">${m.pod ? 'Podcast' : 'Hörbuch'}</span>
+            <p class="t">${m.title}</p>
+            <p class="a">${m.author}</p>
+            <p class="c" data-chline></p>
+            <div class="line"><span class="lbl"></span><span class="right"><button class="timebtn" data-time></button></span></div>
+            ${seekBar(m)}
+            <div class="abar">
+              <div class="grp">${st.prev}${skipBtn(-1, 15)}${playBtn()}${skipBtn(1, 30)}${st.next}${epButton(m, false)}</div>
+              <div class="grp">
+                <button class="ib" data-opens="speed" aria-haspopup="dialog" aria-expanded="${state.panel === 'speed'}" aria-label="Geschwindigkeit"><span class="txt" style="color:var(--text-primary)">${speedText(state.speed)}</span></button>
+                <button class="ib" aria-label="Kapitel">${icon('list')}<span class="tip">Kapitel</span></button>
+                <button class="ib" aria-label="Schlummerfunktion">${icon('moon')}<span class="tip">Schlummerfunktion</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        ${panelHtml(false)}
+        <div class="toast" id="toast"></div>`;
+    } else if (phone) {
+      stage.innerHTML = `
+        <div class="surface" data-surface></div>
+        ${state.streamInfo ? streamInfo() : ''}
+        <div class="chrome">
+          <div class="top">
+            <button class="ib" aria-label="Zurück">${icon('back')}</button>
+            <div class="opts">
+              <button class="ib" aria-label="Stumm">${icon('volume')}</button>
+              ${panelBtn('subs', 'subtitles', 'Untertitel', '', true)}
+              ${panelBtn('audio', 'audioTrack', 'Ton', '', true)}
+              ${panelBtn('settings', 'settings', 'Einstellungen', '', true)}
+            </div>
+            <div class="heading"><p class="t">${m.title}</p><p class="d">${m.detail}</p></div>
+          </div>
+          <div class="center">${skipBtn(-1, 10, true)}${playBtn(true)}${skipBtn(1, 10, true)}</div>
+          <div class="bottom">
+            <div class="line"><span class="lbl">${ci >= 0 ? m.chapters[ci].n : ''}</span>
+              <span class="right">${epButton(m, true)}<button class="timebtn" data-time></button><button class="ib" aria-label="Bild in Bild">${icon('pip')}</button><button class="ib" aria-label="Vollbild">${icon('full')}</button></span></div>
+            ${seekBar(m)}
+          </div>
+        </div>
+        ${panelHtml(true)}
+        <div class="toast" id="toast"></div>`;
+    } else {
+      stage.innerHTML = `
+        <div class="surface" data-surface></div>
+        ${state.streamInfo ? streamInfo() : ''}
+        <div class="chrome">
+          <div class="top">
+            <button class="ib" aria-label="Zurück">${icon('back')}</button>
+            <div class="heading"><p class="t">${m.title}</p><p class="d">${m.detail}</p></div>
+            <button class="ib" aria-label="Bild in Bild">${icon('pip')}</button>
+            <button class="ib" aria-label="Vollbild">${icon('full')}</button>
+          </div>
+          <div class="bottom">
+            <div class="line"><span class="lbl">${lineLabel}</span><button class="timebtn" data-time></button></div>
+            ${seekBar(m)}
+            <div class="bar">
+              <div class="grp">${st.prev}${skipBtn(-1, 10)}${playBtn()}${skipBtn(1, 30)}${st.next}${epButton(m, false)}
+                <span class="vol"><button class="ib" aria-label="Stumm">${icon('volume')}</button><span class="slider"></span></span></div>
+              <div class="grp">
+                ${panelBtn('subs', 'subtitles', 'Untertitel', state.sub === 'off' ? 'Aus' : state.sub === 'en' ? 'Englisch' : 'Deutsch')}
+                ${panelBtn('audio', 'audioTrack', 'Ton', state.audio === 'en' ? 'Englisch' : 'Deutsch')}
+                ${panelBtn('settings', 'settings', 'Einstellungen', '')}
+                <button class="ib" aria-label="Tastenkürzel">${icon('help')}</button>
+              </div>
+            </div>
+            <div class="tabs">${(m.ep ? ['Kapitel', 'Als Nächstes', 'Besetzung', 'Info'] : ['Kapitel', 'Besetzung', 'Info']).map((n) => `<button data-tab="${n}" aria-expanded="${state.tab === n}">${n}</button>`).join('')}</div>
+            ${state.tab === 'Besetzung' ? castRow() : ''}
+          </div>
+        </div>
+        ${panelHtml(false)}
+        <div class="toast" id="toast"></div>`;
+    }
+    placePanel();
+    tick();
+    renderKnobs();
+    renderRules(m);
+    renderTry(m);
+  }
+
+  const CAST = [
+    ['Mara Lindqvist', 'als Kommissarin Eira Holm', true], ['Jonas Keller', 'als Nils Aronsen', true], ['Selin Aydın', 'als Dr. Tove Brandt', true],
+    ['Pekka Virtanen', 'als Hafenmeister Lund', true], ['Ruth Ammann', 'als Greta Holm', false], ['Oskar Brem', 'als junger Nils', true],
+    ['Lea Brunner', 'als Funkerin', true], ['David Okafor', 'als Inspektor Vale', false], ['Ines Moser', 'Regie', true],
+  ];
+  const TONES = [['#5a4a3e', '#1d1a1c'], ['#3e4a5a', '#141a22'], ['#4a3e52', '#18141c'], ['#3c4f46', '#121a17']];
+  function castRow() {
+    return `<div class="castrow" role="list" aria-label="Besetzung">${CAST.map(([n, r, img], i) => {
+      const [a, b] = TONES[i % TONES.length];
+      return `<button class="person" role="listitem" data-person="${n}"><span class="por ${img ? 'img' : ''}" style="--p1:${a};--p2:${b}">${img ? '' : n[0]}</span><span class="nm">${n}</span><span class="rl">${r}</span></button>`;
+    }).join('')}</div>`;
+  }
+
+  function streamInfo() {
+    return `<div class="streaminfo">Direktwiedergabe · HEVC Main10 → Original<br>Ton: ${state.audio === 'en' ? 'AC3 5.1' : 'DTS 5.1 → AAC 5.1'}<br>Puffer 38 s · 41 Mbit/s</div>`;
+  }
+
+  /** The menu sits right above the button that opened it, as tall as its content. */
+  function placePanel() {
+    const panel = stage.querySelector('[data-panel]');
+    if (!panel) return;
+    const opener = stage.querySelector(`[data-opens="${state.panel}"]`);
+    if (!opener) return;
+    const sr = stage.getBoundingClientRect();
+    const or = opener.getBoundingClientRect();
+    const gap = 8;
+    const bottom = sr.bottom - or.top + gap;
+    panel.style.bottom = `${bottom}px`;
+    panel.style.maxHeight = `${Math.max(160, sr.height - bottom - 12)}px`;
+    const width = panel.offsetWidth;
+    let left = or.right - sr.left - width;
+    if (state.panel === 'speed') left = or.left - sr.left + or.width / 2 - width / 2;
+    left = Math.max(12, Math.min(left, sr.width - width - 12));
+    panel.style.left = `${left}px`;
+  }
+
+  /** Time, progress, the chapter line: updated without rebuilding the controls (hover stays). */
+  function tick() {
+    const m = media();
+    state.t = Math.min(state.t, m.dur);
+    stage.querySelectorAll('[data-time]').forEach((b) => { b.textContent = `${fmt(state.t)} / ${fmt(m.dur)}`; });
+    stage.querySelectorAll('.seg-ch').forEach((seg) => {
+      const s = +seg.dataset.s, e = +seg.dataset.e;
+      const f = Math.max(0, Math.min(1, (state.t - s) / (e - s)));
+      const b = Math.max(0, Math.min(1, (state.t + 240_000 - s) / (e - s)));
+      seg.querySelector('.pro').style.width = `${f * 100}%`;
+      seg.querySelector('.buf').style.width = `${b * 100}%`;
+    });
+    const thumb = stage.querySelector('.thumb');
+    if (thumb) thumb.style.left = `${(state.t / m.dur) * 100}%`;
+    const chl = stage.querySelector('[data-chline]');
+    if (chl) {
+      const i = chapterAt(m, state.t);
+      chl.textContent = i >= 0 ? `Kapitel ${i + 1} von ${m.chapters.length} · ${m.chapters[i].n}` : '';
+    }
+  }
+
+  let lastChapter = -2;
+  setInterval(() => {
+    if (!state.playing) return;
+    const m = media();
+    state.t = Math.min(m.dur, state.t + 250 * state.speed);
+    const i = chapterAt(m, state.t);
+    if (i !== lastChapter) { lastChapter = i; refreshSteps(); }
+    tick();
+  }, 250);
+
+  /** The chapter buttons depend on the chapter playing: refresh them without a full rebuild when no menu is open. */
+  function refreshSteps() {
+    if (stage.matches(':hover') || state.panel) return;
+    render();
+  }
+
+  let toastTimer;
+  function toast(text) {
+    const el = $('#toast');
+    if (!el) return;
+    el.textContent = text;
+    el.classList.add('on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('on'), 2200);
+  }
+
+  /* ---------- Actions ---------- */
+  function jumpChapter(dir) {
+    const m = media();
+    if (!m.chapters.length) return;
+    const i = chapterAt(m, state.t);
+    let to = i;
+    if (dir < 0) to = state.t - m.chapters[Math.max(0, i)].ms > 3000 ? i : i - 1;
+    else to = i + 1;
+    to = Math.max(0, Math.min(m.chapters.length - 1, to));
+    state.t = m.chapters[to].ms;
+    render();
+    toast(`Kapitel ${to + 1} · ${m.chapters[to].n}`);
+  }
+
+  function nextEpisode() {
+    const m = media();
+    if (!m.next) { toast(m.nextNote || 'Keine nächste Folge'); return; }
+    if (m.pod) { toast(`Wechselt zu ${m.next.label} · ${m.next.title}`); return; }
+    state.epIdx = m.next.idx;
+    state.t = 0;
+    state.playing = true;
+    render();
+    toast(`${m.next.label} · ${m.next.title}`);
+  }
+
+  function openPanel(name) {
+    if (state.panel === name) { closePanel(); return; }
+    state.panel = name;
+    state.page = 'main';
+    render();
+    const target = stage.querySelector('.panel [aria-checked="true"], .panel .row, .panel button');
+    target?.focus({ preventScroll: true });
+  }
+  function closePanel(focusOpener = true) {
+    const was = state.panel;
+    state.panel = null;
+    render();
+    if (focusOpener && was) stage.querySelector(`[data-opens="${was}"]`)?.focus({ preventScroll: true });
+  }
+
+  /** Closes the menu without rebuilding the bar, so the button under the pointer still gets its click. */
+  function softClose() {
+    state.panel = null;
+    stage.querySelectorAll('.panel, .scrim').forEach((el) => el.remove());
+    stage.querySelectorAll('[data-opens]').forEach((el) => el.setAttribute('aria-expanded', 'false'));
+  }
+
+  // A press outside the open menu closes it. On the picture it does only that: no pause.
+  document.addEventListener('pointerdown', (e) => {
+    if (!state.panel) return;
+    const t = e.target;
+    if (t.closest('.panel') || t.closest('[data-opens]')) return;
+    const onPicture = t.closest('[data-surface], [data-scrim]') || (t.closest('#stage') && !t.closest('button, [data-seek]'));
+    softClose();
+    if (onPicture) { swallow = true; toast('Menü geschlossen · Video läuft weiter'); }
+  }, true);
+
+  stage.addEventListener('click', (e) => {
+    const t = e.target;
+    if (swallow) { swallow = false; if (!t.closest('button')) return; }
+    const b = t.closest('button');
+    if (t.closest('[data-surface]')) { togglePlay(); return; }
+    const seek = t.closest('[data-seek]');
+    if (seek) {
+      const r = seek.getBoundingClientRect();
+      state.t = Math.round(((e.clientX - r.left) / r.width) * media().dur);
+      render();
+      return;
+    }
+    if (!b) return;
+    if (b.dataset.opens) { openPanel(b.dataset.opens); return; }
+    if (b.dataset.tab) {
+      if (b.dataset.tab !== 'Besetzung') { toast('Im Mockup nur «Besetzung»'); return; }
+      state.tab = state.tab === b.dataset.tab ? null : b.dataset.tab; render(); return;
+    }
+    if (b.dataset.person) { toast(`Öffnet die Seite von ${b.dataset.person}`); return; }
+    if (b.dataset.close !== undefined) { closePanel(); return; }
+    if (b.dataset.page) { state.page = b.dataset.page; render(); stage.querySelector('.panel [aria-checked="true"], .panel .row, .panel button')?.focus({ preventScroll: true }); return; }
+    if (b.dataset.toggle) { state[b.dataset.toggle] = !state[b.dataset.toggle]; render(); stage.querySelector(`[data-toggle="${b.dataset.toggle}"]`)?.focus({ preventScroll: true }); return; }
+    if (b.dataset.set) {
+      const k = b.dataset.set;
+      state[k] = k === 'speed' ? +b.dataset.v : b.dataset.v;
+      // A choice in a sub-page returns to the main page; a direct menu (sound, subtitles, speed) closes.
+      if (state.panel === 'settings' && k !== 'subSize') state.page = 'main';
+      else if (k !== 'subSize') { closePanel(); return; }
+      render();
+      stage.querySelector('.panel .row, .panel button')?.focus({ preventScroll: true });
+      return;
+    }
+    switch (b.dataset.act) {
+      case 'play': togglePlay(); break;
+      case 'skip': state.t = Math.max(0, state.t + (+b.dataset.s) * 1000); tick(); break;
+      case 'chapPrev': jumpChapter(-1); break;
+      case 'chapNext': jumpChapter(1); break;
+      case 'nextEp': nextEpisode(); break;
+    }
+  });
+
+  function togglePlay() {
+    state.playing = !state.playing;
+    stage.querySelectorAll('[data-act="play"]').forEach((b) => {
+      b.innerHTML = icon(state.playing ? 'pause' : 'play');
+      b.setAttribute('aria-label', state.playing ? 'Pause' : 'Abspielen');
+    });
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'Escape' && state.panel) { e.preventDefault(); if (state.panel === 'settings' && state.page !== 'main') { state.page = 'main'; render(); } else closePanel(); return; }
+    if (e.target.closest && e.target.closest('#knobs')) return;
+    if (e.key === 'n' || e.key === 'N') { nextEpisode(); return; }
+    if (e.shiftKey && e.key === 'ArrowRight') { e.preventDefault(); jumpChapter(1); return; }
+    if (e.shiftKey && e.key === 'ArrowLeft') { e.preventDefault(); jumpChapter(-1); return; }
+    if (e.key === 'k' || (e.key === ' ' && !(e.target.closest && e.target.closest('button')))) { e.preventDefault(); togglePlay(); }
+  });
+
+  window.addEventListener('resize', placePanel);
+
+  /* ---------- Knobs, rules, hints ---------- */
+  document.querySelectorAll('[data-knob]').forEach((seg) => {
+    seg.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      const k = seg.dataset.knob;
+      state[k] = b.dataset.v;
+      if (k === 'ctx') {
+        state.panel = null;
+        if (START[state.ctx] !== undefined) state.epIdx = START[state.ctx];
+        state.t = state.ctx === 'seasonEnd' || state.ctx === 'seriesEnd' ? 2_400_000 : state.ctx === 'book' ? 11_200_000 : 54_000;
+        state.playing = true;
+      }
+      if (k === 'view') state.panel = null;
+      render();
+    });
+  });
+
+  function renderKnobs() {
+    document.querySelectorAll('[data-knob]').forEach((seg) => {
+      seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(state[seg.dataset.knob] === b.dataset.v)));
+    });
+  }
+
+  function renderRules(m) {
+    const [cp, cn] = chapIcons();
+    const col = state.ctx === 'film' ? 1 : state.ctx === 'podcast' ? 3 : state.ctx === 'book' ? 4 : 2;
+    const phoneCol = state.view === 'phone' && m.kind === 'video';
+    const rows = [
+      [`<span class="ic">${icon(cp)}</span><span class="ic">${icon(cn)}</span>Kapitel`, 'da, wenn Kapitel', 'da, wenn Kapitel', 'da, wenn Kapitel', 'immer', 'nur über die Zeitleiste'],
+      ['Ohne Kapitel', 'ausgegraut (F-2)', 'ausgegraut (F-2)', 'ausgegraut (F-2)', '–', '–'],
+      [`<span class="ic">${icon(epIcon())}</span>Nächste Folge`, '– (kein Knopf)', 'da, auch über die Staffelgrenze', 'da (F-5)', '– (F-4)', 'Knopf mit Text über der Zeitleiste'],
+      ['Letzte Folge', '–', 'ausgegraut, «Letzte Folge der Serie»', 'ausgegraut', '–', 'ausgegraut'],
+      ['Vorschau beim Zeigen', '–', 'Bild, Code, Titel, Laufzeit', 'Titel, Datum, Länge', '–', 'keine (kein Zeigen)'],
+      ['Tasten', '<kbd>⇧←</kbd><kbd>⇧→</kbd>', '<kbd>⇧←</kbd><kbd>⇧→</kbd><kbd>N</kbd>', '<kbd>⇧←</kbd><kbd>⇧→</kbd><kbd>N</kbd>', '<kbd>⇧←</kbd><kbd>⇧→</kbd>', '–'],
+      ['Einstellungen, Ton, Untertitel', 'Menü über dem Knopf', 'Menü über dem Knopf', 'Menü über dem Knopf', 'Menü über dem Knopf', 'Blatt von unten'],
+    ];
+    const head = ['', 'Film', 'Serienfolge', 'Podcast', 'Hörbuch', 'Handy'];
+    $('#rules').innerHTML = `<thead><tr>${head.map((h, i) => `<th class="${(i === col && !phoneCol) || (i === 5 && phoneCol) ? 'hot' : ''}">${h}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c, i) => `<td class="${(i === col && !phoneCol) || (i === 5 && phoneCol) ? 'hot' : ''}">${c}</td>`).join('')}</tr>`).join('')}</tbody>`;
+  }
+
+  function renderTry(m) {
+    const t = [];
+    if (m.kind === 'video' && state.view === 'desktop') t.push('Reiter «Besetzung» öffnen', 'über den Folgenknopf fahren', 'Zahnrad öffnen, dann aufs Bild klicken', 'Zahnrad öffnen, dann auf «Untertitel» klicken');
+    if (m.kind === 'video' && state.view === 'phone') t.push('Zahnrad antippen, dann aufs Bild darüber tippen', '«Nächste Folge» antippen');
+    if (m.kind === 'audio') t.push('«1×» öffnen, dann daneben klicken', m.next ? 'Folgenknopf zeigen' : 'Hörbuch: kein Folgenknopf (F-4)');
+    t.push('Taste N, ⇧← / ⇧→, Esc');
+    $('#try').innerHTML = t.map((x) => `<span>${x}</span>`).join('');
+  }
+
+  render();
+})();
+</script>
